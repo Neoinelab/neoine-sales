@@ -1,0 +1,1777 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Python + React 웹 애플리케이션 개발 가이드</title>
+<style>
+  :root {
+    --bg: #ffffff; --fg: #1f2328; --muted: #656d76; --border: #d0d7de;
+    --accent: #0969da; --code-bg: #f6f8fa; --card: #f6f8fa; --warn: #9a6700; --ok: #1a7f37;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0d1117; --fg: #e6edf3; --muted: #8b949e; --border: #30363d;
+      --accent: #58a6ff; --code-bg: #161b22; --card: #161b22; --warn: #d29922; --ok: #3fb950;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg);
+    font: 16px/1.7 -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", "Segoe UI", sans-serif; }
+  .layout { display: flex; max-width: 1280px; margin: 0 auto; }
+  nav { position: sticky; top: 0; align-self: flex-start; height: 100vh; overflow-y: auto;
+    width: 270px; flex: none; padding: 24px 16px; border-right: 1px solid var(--border); font-size: 14px; }
+  nav h2 { font-size: 13px; text-transform: uppercase; color: var(--muted); margin: 0 0 8px; }
+  nav a { display: block; padding: 3px 8px; color: var(--fg); text-decoration: none; border-radius: 6px; }
+  nav a:hover { background: var(--card); color: var(--accent); }
+  main { flex: 1; min-width: 0; padding: 32px 40px 80px; }
+  h1 { font-size: 2rem; margin: 0 0 8px; }
+  h2 { font-size: 1.5rem; margin: 56px 0 12px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+  h3 { font-size: 1.15rem; margin: 32px 0 8px; }
+  p, li { max-width: 78ch; }
+  a { color: var(--accent); }
+  code { background: var(--code-bg); padding: 1px 6px; border-radius: 4px; font-size: .9em;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  pre { background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px;
+    padding: 14px 16px; overflow-x: auto; font-size: 13.5px; line-height: 1.55; }
+  pre code { background: none; padding: 0; font-size: inherit; }
+  table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 14.5px; display: block; overflow-x: auto; }
+  th, td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; vertical-align: top; }
+  th { background: var(--card); white-space: nowrap; }
+  .meta { color: var(--muted); font-size: 14px; }
+  .callout { border-left: 4px solid var(--accent); background: var(--card); padding: 10px 16px; border-radius: 0 8px 8px 0; margin: 16px 0; }
+  .callout.warn { border-color: var(--warn); }
+  .callout.ok { border-color: var(--ok); }
+  .callout p { margin: 4px 0; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin: 12px 0; }
+  .card { border: 1px solid var(--border); background: var(--card); border-radius: 8px; padding: 12px 16px; }
+  .card h4 { margin: 0 0 4px; }
+  .card p { margin: 0; font-size: 14.5px; }
+  .bad { color: #cf222e; font-weight: 600; } .good { color: var(--ok); font-weight: 600; }
+  @media (max-width: 860px) {
+    .layout { display: block; }
+    nav { position: static; width: auto; height: auto; border-right: 0; border-bottom: 1px solid var(--border); }
+    main { padding: 24px 16px 64px; }
+  }
+</style>
+</head>
+<body>
+<div class="layout">
+<nav>
+  <h2>목차</h2>
+  <a href="#overview">1. 개요 및 원칙</a>
+  <a href="#stack">2. 기술 스택 요약</a>
+  <a href="#env">3. 개발 환경</a>
+  <a href="#structure">4. 저장소 구조</a>
+  <a href="#style">5. 코드 스타일</a>
+  <a href="#oop">6. 파이썬 객체지향</a>
+  <a href="#solid">7. SOLID 원칙</a>
+  <a href="#arch">8. 아키텍처 스타일</a>
+  <a href="#patterns">9. 디자인 패턴</a>
+  <a href="#backend">10. 백엔드 상세</a>
+  <a href="#frontend">11. 프론트엔드 상세</a>
+  <a href="#contract">12. API 계약</a>
+  <a href="#test">13. 테스트 전략</a>
+  <a href="#build">14. 빌드와 패키징</a>
+  <a href="#cicd">15. CI/CD (Jenkins)</a>
+  <a href="#onprem">16. 온프레미스 운영 환경</a>
+  <a href="#ops">17. 보안·관측성·운영</a>
+  <a href="#tools">18. 도구 총정리</a>
+  <a href="#checklist">19. 체크리스트·로드맵</a>
+</nav>
+<main>
+
+<h1>Python + React 웹 애플리케이션 개발 가이드</h1>
+<p class="meta">대상: neoine-sales 프로젝트 · 백엔드 Python / 프론트엔드 React · 작성일 2026-10-06</p>
+<p>이 문서는 코드 스타일, 객체지향 설계(SOLID), 아키텍처, 디자인 패턴, 개발 환경, 빌드, 테스트, CI/CD의 <strong>기본 방침</strong>을 정의합니다. 도구 버전은 시점에 따라 바뀌므로, 실제 도입 시점에 각 공식 문서로 최신 버전과 옵션을 확인하세요.</p>
+<div class="callout"><p><strong>배포 전제</strong>: 개발·운영 모두 <strong>온프레미스 Linux</strong>, CI/CD는 <strong>Jenkins</strong>를 사용하며 <strong>컨테이너(Docker, Docker Compose, Kubernetes)는 사용하지 않습니다</strong>. 애플리케이션은 systemd 서비스로 실행합니다. 의존성(PyPI, npm)은 <strong>인터넷에서 직접</strong> 받고(사내 미러/Nexus 미사용), 서버 구성은 <strong>Ansible 없이</strong> 저장소의 셸 스크립트와 문서화된 수동 절차로 관리합니다. 클라우드 전용 서비스(GitHub Actions, 관리형 PaaS 등)에 의존하지 않고, 사내 Git·Prometheus 등 셀프 호스팅 도구로 구성합니다. Jenkins, uv, FastAPI, Ruff 관련 내용은 Context7으로 조회한 공식 문서를 기준으로 작성했습니다.</p></div>
+
+<!-- ============================================================ -->
+<h2 id="overview">1. 개요 및 원칙</h2>
+<div class="grid">
+  <div class="card"><h4>타입 우선</h4><p>모든 공개 함수·메서드에 타입 힌트를 붙이고 mypy(또는 pyright) strict로 검증합니다.</p></div>
+  <div class="card"><h4>도메인 중심</h4><p>비즈니스 규칙은 프레임워크(FastAPI, SQLAlchemy)와 분리된 순수 파이썬 객체에 둡니다.</p></div>
+  <div class="card"><h4>의존성 역전</h4><p>상위 정책이 인터페이스(Protocol/ABC)를 소유하고, DB·외부 API 같은 세부사항이 이를 구현합니다.</p></div>
+  <div class="card"><h4>자동화</h4><p>포맷·린트·타입·테스트는 사람이 아닌 pre-commit과 CI가 강제합니다.</p></div>
+  <div class="card"><h4>계약 기반</h4><p>OpenAPI 스키마를 단일 진실 공급원으로 삼아 프론트 타입을 자동 생성합니다.</p></div>
+  <div class="card"><h4>재현 가능성</h4><p>lock 파일(<code>uv.lock</code>, <code>pnpm-lock.yaml</code>), mise로 고정한 도구 버전(Python, Node, uv, pnpm), 동일 명령(just)으로 로컬·CI·운영 환경을 일치시킵니다.</p></div>
+</div>
+
+<div class="callout warn">
+  <p><strong>"최대한 객체지향"에 대한 주의.</strong> 파이썬은 멀티 패러다임 언어입니다. 상태와 행동이 함께 있는 도메인 개념(엔티티, 값 객체, 서비스, 정책)은 클래스로 모델링하되, 상태 없는 변환·유틸 로직까지 억지로 클래스로 감싸지 마세요(모듈 수준 순수 함수가 더 파이썬답습니다). 목표는 "클래스 개수"가 아니라 <em>응집도 높고 결합도 낮은 객체 협력</em>입니다.</p>
+</div>
+
+<!-- ============================================================ -->
+<h2 id="stack">2. 기술 스택 요약</h2>
+<table>
+<tr><th>영역</th><th>선택</th><th>이유</th></tr>
+<tr><td>언어</td><td>Python 3.14 (<code>backend/.python-version</code>으로 고정)</td><td>개선된 타입 문법(PEP 695), 성능 향상</td></tr>
+<tr><td>웹 프레임워크</td><td><strong>FastAPI</strong> (+ Uvicorn)</td><td>타입 기반 검증, 자동 OpenAPI, DI 내장, async 지원</td></tr>
+<tr><td>데이터 검증</td><td>Pydantic v2</td><td>API 경계(DTO)·설정 검증</td></tr>
+<tr><td>ORM / 마이그레이션</td><td>SQLAlchemy 2.x (Typed) + Alembic</td><td>Unit of Work, 명시적 매핑, 마이그레이션 표준</td></tr>
+<tr><td>DB</td><td>PostgreSQL</td><td>트랜잭션, JSONB, 확장성</td></tr>
+<tr><td>비동기 작업</td><td>Celery 또는 arq (+ Redis)</td><td>이메일·리포트 등 백그라운드 처리</td></tr>
+<tr><td>패키지/환경</td><td><strong>uv</strong></td><td>빠른 의존성 해석, lock 파일, Python 버전 관리 통합</td></tr>
+<tr><td>린트/포맷</td><td><strong>Ruff</strong> (lint + format)</td><td>flake8·isort·black 대체, 매우 빠름</td></tr>
+<tr><td>타입 검사</td><td>mypy (strict) 또는 pyright</td><td>정적 타입 안전성</td></tr>
+<tr><td>테스트</td><td>pytest, pytest-asyncio, pytest-cov, httpx, factory-boy</td><td>단위~통합 테스트(통합은 실제 PostgreSQL 사용)</td></tr>
+<tr><td>프론트엔드</td><td>React + TypeScript + Vite</td><td>빠른 개발 서버·번들링</td></tr>
+<tr><td>서버 상태</td><td>TanStack Query</td><td>캐싱, 재시도, 로딩/에러 상태 표준화</td></tr>
+<tr><td>프론트 테스트</td><td>Vitest + Testing Library, Playwright(E2E)</td><td>컴포넌트·E2E</td></tr>
+<tr><td>프로세스 관리</td><td>systemd (+ 릴리스 디렉터리 심볼릭 링크 전환)</td><td>서비스 실행·재시작·롤백</td></tr>
+<tr><td>CI/CD</td><td><strong>Jenkins</strong> (Declarative Pipeline, Multibranch)</td><td>사내 설치형, Pipeline as Code, PR 검증·릴리스 번들 빌드·배포 자동화</td></tr>
+<tr><td>릴리스 보관</td><td>Jenkins 아티팩트(<code>archiveArtifacts</code>) + 서버의 <code>releases/</code> 최근 5개</td><td>롤백·감사용. 별도 아티팩트 저장소 없음</td></tr>
+<tr><td>웹 서버/프록시</td><td>Nginx (+ HAProxy/keepalived)</td><td>TLS 종료, 정적 파일, API 프록시, 이중화</td></tr>
+<tr><td>서버 구성</td><td>셸 스크립트(<code>infra/server/bootstrap.sh</code>, 멱등) + 문서화된 수동 절차</td><td>서버 최초 구성·설정 파일 설치. 도구 버전은 mise로 고정</td></tr>
+</table>
+
+<div class="callout">
+  <p><strong>Django vs FastAPI</strong> — 관리자 화면·ORM·인증이 모두 필요한 CRUD 중심 서비스면 Django(+DRF)도 좋은 선택입니다. 다만 본 가이드는 React SPA + API 서버 구조, 계층 분리·DI 중심의 OOP 설계를 전제로 FastAPI를 기본으로 합니다.</p>
+</div>
+
+<!-- ============================================================ -->
+<h2 id="env">3. 개발 환경</h2>
+<h3>3.1 필수 도구</h3>
+<ul>
+  <li><strong>uv</strong> — Python 설치, 가상환경, 의존성, lock 관리 (<code>pyproject.toml</code> + <code>uv.lock</code>)</li>
+  <li><strong>Node.js LTS + pnpm</strong> — 프론트엔드 (<code>.nvmrc</code> 또는 <code>mise</code>로 버전 고정)</li>
+  <li><strong>PostgreSQL, Redis</strong> — 로컬에 직접 설치(3.4절). Windows는 WSL2 권장</li>
+  <li><strong>pre-commit</strong> — 커밋 전 자동 검사</li>
+  <li><strong>just</strong> 또는 <strong>make</strong> — 공통 명령 진입점</li>
+  <li><strong>mise</strong> — Python/uv/Node/pnpm 버전을 저장소의 <code>mise.toml</code> 하나로 고정(개발자 PC와 CI agent가 같은 버전 사용, <code>mise install</code>)</li>
+  <li>에디터: VS Code(Python, Pylance, Ruff 확장) 또는 PyCharm</li>
+</ul>
+<pre><code># mise.toml (저장소 루트) - 버전은 도입 시점의 값으로 지정하고 변경은 PR로 리뷰
+[tools]
+python = "3.14"
+uv = "0.10.4"       # uv.lock을 만든 버전과 일치시킴 (bootstrap.sh의 UV_VERSION과 동일)
+node = "22"
+pnpm = "10"</code></pre>
+
+<h3>3.2 초기 세팅 명령</h3>
+<pre><code># 백엔드
+cd backend
+uv python install            # .python-version(3.14)에 맞는 Python 설치
+uv sync                      # backend/.venv 생성 + uv.lock 기준 의존성 설치
+uv run pre-commit install
+
+# 프론트엔드
+cd ../frontend
+pnpm install
+
+# 로컬 인프라: PostgreSQL, Redis 설치·실행 및 개발 DB 생성은 3.4절 참고
+cd ..
+
+# 마이그레이션 + 개발 서버
+cd backend &amp;&amp; uv run alembic upgrade head
+uv run fastapi dev src/app/main.py      # http://localhost:8000/docs
+cd ../frontend &amp;&amp; pnpm dev              # http://localhost:5173</code></pre>
+
+<h3>3.2-1 기존 venv에서 uv로 전환 (이 프로젝트에 적용한 절차)</h3>
+<p>PyCharm이 만든 저장소 루트의 <code>.venv</code>(pip만 설치된 빈 환경, Python 3.14)를 uv 관리 환경으로 바꾼 절차입니다. 다른 개발자도 같은 방식으로 맞추면 됩니다.</p>
+<pre><code># 1) 기존 venv 제거 (패키지가 pip뿐이라 보존할 내용 없음)
+rm -rf .venv
+
+# 2) backend에 uv 프로젝트 생성 (src 레이아웃, uv_build 백엔드)
+uv init backend --lib --name neoine-sales-backend --python 3.14 --vcs none --no-readme
+cd backend
+mv src/neoine_sales_backend src/app        # import 이름을 app으로 (pyproject에 module-name = "app" 추가)
+
+# 3) 의존성 추가 -&gt; pyproject.toml + uv.lock 갱신, backend/.venv 자동 생성
+uv add "fastapi[standard]" "uvicorn[standard]" pydantic pydantic-settings \
+       "sqlalchemy[asyncio]" asyncpg alembic structlog
+uv add --dev pytest pytest-asyncio pytest-cov httpx factory-boy \
+       ruff mypy import-linter pre-commit
+
+# 4) 검증
+uv sync --locked &amp;&amp; uv run ruff check . &amp;&amp; uv run mypy src &amp;&amp; uv run lint-imports</code></pre>
+<ul>
+  <li><strong>이후 규칙</strong>: <code>pip install</code>, <code>python -m venv</code>, <code>requirements.txt</code>를 쓰지 않습니다. 의존성은 <code>uv add</code>/<code>uv remove</code>, 실행은 <code>uv run</code>, 동기화는 <code>uv sync</code>로 통일하고 <code>pyproject.toml</code>과 <code>uv.lock</code>을 함께 커밋합니다. <code>.venv</code>는 커밋하지 않습니다(<code>.gitignore</code>).</li>
+  <li><strong>PyCharm</strong>: Settings → Project → Python Interpreter에서 <code>backend/.venv/bin/python</code>(uv 환경)을 지정하고, <code>backend/src</code>를 Sources Root로 표시하며 <code>backend/tests</code>를 Test Sources Root로 표시합니다. 기존 SDK <code>Python 3.14 (neoine-sales)</code>는 삭제된 루트 <code>.venv</code>를 가리키므로 교체해야 합니다.</li>
+  <li><strong>VS Code</strong>: <code>python.defaultInterpreterPath</code>를 <code>backend/.venv/bin/python</code>으로 지정합니다.</li>
+</ul>
+
+<h3>3.3 pyproject.toml 핵심 설정</h3>
+<pre><code>[project]
+name = "neoine-sales-backend"
+version = "0.1.0"
+requires-python = "&gt;=3.14"
+dependencies = [
+  "fastapi[standard]",     # fastapi CLI(fastapi dev/run) 포함
+  "uvicorn[standard]",
+  "pydantic&gt;=2",
+  "pydantic-settings",
+  "sqlalchemy[asyncio]&gt;=2",
+  "asyncpg",
+  "alembic",
+  "structlog",
+]
+
+[build-system]                 # src/app 패키지를 설치 가능하게 함 (배포 서버의 uv sync --no-editable 설치에 필요)
+requires = ["uv_build&gt;=0.10.4,&lt;0.11.0"]   # uv init이 설치된 uv 버전에 맞춰 자동 지정
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "app"            # 프로젝트명(neoine-sales-backend)과 import 이름(app)이 다르므로 지정
+
+[dependency-groups]
+dev = [
+  "pytest", "pytest-asyncio", "pytest-cov", "httpx",
+  "factory-boy",
+  "ruff", "mypy", "import-linter", "pre-commit",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py314"
+
+[tool.ruff.lint]
+select = [
+  "E", "F", "W",   # pycodestyle, pyflakes
+  "I",             # isort
+  "N",             # pep8-naming
+  "UP",            # pyupgrade
+  "B",             # bugbear
+  "SIM",           # simplify
+  "C4",            # comprehensions
+  "ANN",           # 타입 힌트 강제
+  "S",             # bandit 보안
+  "RUF", "PL",     # ruff 고유, pylint 일부
+  "ASYNC", "PT", "TCH",
+  "C90",           # 순환 복잡도
+]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10
+
+[tool.ruff.lint.pylint]
+max-args = 5
+max-branches = 12
+max-statements = 30
+
+[tool.mypy]
+strict = true
+plugins = ["pydantic.mypy"]
+python_version = "3.14"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+addopts = "--cov=src --cov-report=term-missing --cov-fail-under=80"</code></pre>
+
+<h3>3.4 로컬 인프라: PostgreSQL / Redis 직접 설치</h3>
+<p>개발자 PC에 PostgreSQL과 Redis를 직접 설치해 실행합니다. 버전은 dev/product 서버와 같은 메이저 버전으로 맞춥니다.</p>
+<table>
+<tr><th>OS</th><th>설치</th><th>서비스 시작</th></tr>
+<tr><td>macOS</td><td><code>brew install postgresql@16 redis</code></td><td><code>brew services start postgresql@16 redis</code></td></tr>
+<tr><td>Windows</td><td><strong>WSL2(Ubuntu) 안에 설치 권장</strong>: <code>sudo apt install postgresql redis-server</code>. 네이티브 설치는 PostgreSQL 설치 관리자와 Memurai(또는 Redis 호환 서버) 사용</td><td>WSL2: <code>sudo service postgresql start</code>, <code>sudo service redis-server start</code></td></tr>
+<tr><td>Linux</td><td><code>sudo apt install postgresql redis-server</code> (또는 dnf)</td><td><code>sudo systemctl enable --now postgresql redis-server</code></td></tr>
+</table>
+<pre><code># 개발용 DB 사용자/데이터베이스 생성 (1회)
+psql postgres -c "CREATE ROLE app WITH LOGIN PASSWORD 'app' CREATEDB;"   # CREATEDB: 통합 테스트용 임시 DB 생성에 필요
+psql postgres -c "CREATE DATABASE app OWNER app;"
+
+# 접속 확인 -&gt; backend/.env 의 APP_DATABASE_URL 과 일치해야 함
+psql "postgresql://app:app@localhost:5432/app" -c "select 1"
+redis-cli ping</code></pre>
+<ul>
+  <li>로컬 DB 비밀번호(<code>app</code>)는 개발 전용입니다. dev/product에서 재사용하지 않습니다(3.5절).</li>
+  <li>통합 테스트는 이 PostgreSQL에서 테스트 전용 DB를 임시로 만들어 사용합니다(15.6절). 개발 데이터가 들어 있는 <code>app</code> DB는 건드리지 않습니다.</li>
+</ul>
+
+<h3>3.5 프로파일과 환경변수 관리</h3>
+<p>실행 환경은 <strong>local, dev, product</strong> 세 가지 프로파일로 구분하며, 프로파일마다 달라지는 값은 환경변수로 관리합니다. 환경변수 정의, 검증, 주입 규칙은 이 절이 기준입니다.</p>
+
+<h4>3.5.1 프로파일 정의</h4>
+<table>
+<tr><th>프로파일</th><th>용도 / 실행 위치</th><th>데이터</th><th>설정 주입</th><th>배포 (Jenkins)</th></tr>
+<tr><td><code>local</code></td><td>개발자 PC (맥/Windows). uv + pnpm 개발 서버, 로컬에 설치한 PostgreSQL/Redis</td><td>가짜/시드 데이터</td><td><code>backend/.env</code> (git 제외, <code>.env.example</code>에서 복사)</td><td>없음</td></tr>
+<tr><td><code>dev</code></td><td>사내 개발 서버. 통합 테스트·QA·기능 검증, 운영과 같은 구성(축소 사양)</td><td>익명화/테스트 데이터</td><td>서버의 <code>/opt/neoine-sales/.env</code> (권한 600)</td><td><code>main</code> 머지 시 <strong>자동</strong> 배포</td></tr>
+<tr><td><code>product</code></td><td>운영 서버(이중화)</td><td>실데이터</td><td>서버의 <code>/opt/neoine-sales/.env</code> (권한 600)</td><td>dev 검증 후 <strong>수동 승인</strong> 배포</td></tr>
+</table>
+
+<h4>3.5.2 설계 원칙</h4>
+<ul>
+  <li><strong>빌드는 한 번, 릴리스 번들은 하나</strong>: 같은 릴리스 번들(git SHA 버전)을 dev에서 검증한 뒤 그대로 product에 배포합니다. 프로파일은 <strong>런타임 설정 <code>APP_PROFILE</code>(환경변수 또는 서버 <code>.env</code>)</strong>으로만 결정하고, 프로파일별로 번들을 따로 빌드하지 않습니다.</li>
+  <li><strong>네임스페이스</strong>: 백엔드 변수는 모두 <code>APP_</code> 접두어(<code>pydantic-settings</code>의 <code>env_prefix</code>). 다른 시스템 변수와 충돌하지 않습니다.</li>
+  <li><strong>"기본값의 차이"는 코드, "환경마다 다른 값"은 환경변수</strong>: 디버그 여부·로그 형식·API 문서 노출 같은 프로파일별 <em>기본 동작</em>은 <code>LocalSettings</code>/<code>DevSettings</code>/<code>ProductSettings</code> 클래스로 표현합니다(OCP: 프로파일 추가 시 클래스만 추가). DB 주소·비밀키·외부 URL 같은 <em>값</em>은 환경변수로 주입합니다.</li>
+  <li><strong>비밀은 환경변수로만</strong>: 코드·Git·릴리스 번들·Jenkinsfile·로그에 넣지 않습니다. <code>SecretStr</code>으로 선언해 로그/<code>repr</code>에서 마스킹합니다.</li>
+  <li><strong>프로파일 간 비밀 재사용 금지</strong>: dev와 product의 DB 비밀번호, JWT 키, API 키는 서로 달라야 합니다. dev 유출이 product 침해로 이어지면 안 됩니다.</li>
+  <li><strong>시작 시 즉시 검증(fail-fast)</strong>: 필수 변수 누락·타입 오류는 애플리케이션 기동 단계에서 실패시킵니다. <code>product</code>는 추가로 안전 조건(디버그 꺼짐, HTTPS 쿠키, CORS 와일드카드 금지 등)을 검증합니다.</li>
+  <li><strong>계층 규칙</strong>: <code>Settings</code>는 <code>app.config</code>에 두고 <code>domain</code>/<code>application</code>은 import하지 않습니다. <code>container.py</code>(Composition Root)와 <code>web</code>의 앱 팩토리에서만 읽고, 필요한 값만 생성자로 주입합니다.</li>
+</ul>
+
+<h4>3.5.3 관리 대상 환경변수 (백엔드)</h4>
+<p>"비밀"이 ●인 항목은 절대 Git에 커밋하지 않으며 값은 서버 <code>.env</code>(관리자가 직접 입력)와 사내 비밀번호 관리 도구/Vault로만 관리합니다. 표의 값은 <em>예시/권장값</em>이며 실제 값은 환경별로 정합니다.</p>
+<table>
+<tr><th>변수</th><th>설명</th><th>비밀</th><th>local</th><th>dev</th><th>product</th></tr>
+<tr><td colspan="6"><strong>애플리케이션 공통</strong></td></tr>
+<tr><td><code>APP_PROFILE</code></td><td>프로파일 선택 (<code>local</code>/<code>dev</code>/<code>product</code>). 미설정 시 <code>local</code></td><td></td><td>local</td><td>dev</td><td>product</td></tr>
+<tr><td><code>APP_DEBUG</code></td><td>디버그 모드</td><td></td><td>true</td><td>false</td><td>false (true 금지)</td></tr>
+<tr><td><code>APP_ENABLE_DOCS</code></td><td>Swagger/ReDoc 노출</td><td></td><td>true</td><td>true</td><td>false</td></tr>
+<tr><td><code>APP_LOG_LEVEL</code></td><td>로그 레벨</td><td></td><td>DEBUG</td><td>DEBUG</td><td>INFO</td></tr>
+<tr><td><code>APP_LOG_FORMAT</code></td><td><code>console</code>(사람용) / <code>json</code>(수집용)</td><td></td><td>console</td><td>json</td><td>json</td></tr>
+<tr><td><code>APP_WORKERS</code></td><td>Uvicorn 워커 수</td><td></td><td>1</td><td>2</td><td>4 (CPU 코어에 맞춤)</td></tr>
+<tr><td colspan="6"><strong>웹/보안</strong></td></tr>
+<tr><td><code>APP_CORS_ALLOWED_ORIGINS</code></td><td>허용 Origin (JSON 배열 문자열)</td><td></td><td><code>["http://localhost:5173"]</code></td><td><code>["https://dev.sales.internal.example.com"]</code></td><td><code>["https://sales.internal.example.com"]</code> (<code>*</code> 금지)</td></tr>
+<tr><td><code>APP_COOKIE_SECURE</code></td><td>쿠키 Secure 속성 (HTTPS 전용)</td><td></td><td>false</td><td>true</td><td>true (필수)</td></tr>
+<tr><td><code>APP_JWT_SECRET</code></td><td>JWT 서명 키 (32자 이상 무작위)</td><td>●</td><td>고정 개발용 값</td><td>dev 전용 키</td><td>product 전용 키</td></tr>
+<tr><td><code>APP_ACCESS_TOKEN_TTL_MINUTES</code></td><td>액세스 토큰 수명(분)</td><td></td><td>60</td><td>15</td><td>15</td></tr>
+<tr><td><code>APP_REFRESH_TOKEN_TTL_DAYS</code></td><td>리프레시 토큰 수명(일)</td><td></td><td>30</td><td>7</td><td>7</td></tr>
+<tr><td colspan="6"><strong>데이터 저장소</strong></td></tr>
+<tr><td><code>APP_DATABASE_URL</code></td><td>PostgreSQL 접속 URL (<code>postgresql+asyncpg://…</code>)</td><td>●</td><td>localhost PostgreSQL</td><td>dev DB 서버</td><td>product DB(Primary)</td></tr>
+<tr><td><code>APP_DB_POOL_SIZE</code></td><td>커넥션 풀 크기</td><td></td><td>5</td><td>10</td><td>워커 수와 DB 한도에 맞춰 산정</td></tr>
+<tr><td><code>APP_DB_ECHO</code></td><td>SQL 로그 출력</td><td></td><td>true</td><td>false</td><td>false (true 금지)</td></tr>
+<tr><td><code>APP_REDIS_URL</code></td><td>Redis 접속 URL (캐시/워커 브로커)</td><td>●</td><td>localhost Redis</td><td>dev Redis</td><td>product Redis</td></tr>
+<tr><td colspan="6"><strong>외부 연동 (예: 메일, 결제 등 — 연동 Port별로 추가)</strong></td></tr>
+<tr><td><code>APP_SMTP_HOST</code> / <code>APP_SMTP_PORT</code> / <code>APP_SMTP_FROM</code></td><td>메일 서버 (Notifier 구현체용)</td><td></td><td>로컬 메일 캐처(Mailpit 등)</td><td>사내 테스트 SMTP</td><td>사내 운영 SMTP</td></tr>
+<tr><td><code>APP_SMTP_USER</code> / <code>APP_SMTP_PASSWORD</code></td><td>메일 계정</td><td>●</td><td>(없음)</td><td>dev 계정</td><td>product 계정</td></tr>
+<tr><td><code>APP_PAYMENT_BASE_URL</code></td><td>외부 결제/연동 API 주소 (PaymentGateway 구현체용)</td><td></td><td>목(mock) 서버</td><td>샌드박스</td><td>운영 API</td></tr>
+<tr><td><code>APP_PAYMENT_API_KEY</code></td><td>외부 API 키</td><td>●</td><td>더미</td><td>샌드박스 키</td><td>운영 키</td></tr>
+<tr><td colspan="6"><strong>관측성</strong></td></tr>
+<tr><td><code>APP_SENTRY_DSN</code></td><td>오류 추적 DSN</td><td>●</td><td>(비움)</td><td>dev 프로젝트</td><td>product 프로젝트 (필수)</td></tr>
+<tr><td><code>APP_SENTRY_TRACES_SAMPLE_RATE</code></td><td>트레이스 샘플링 비율</td><td></td><td>0</td><td>1.0</td><td>0.1</td></tr>
+<tr><td><code>APP_OTEL_EXPORTER_ENDPOINT</code></td><td>OpenTelemetry Collector 주소</td><td></td><td>(비움)</td><td>dev Collector</td><td>product Collector</td></tr>
+</table>
+<div class="callout">
+  <p><strong>새 변수를 추가할 때의 절차</strong>: ① <code>app/config</code>의 Settings 필드 추가(타입·기본값·비밀 여부) → ② <code>backend/.env.example</code> 갱신 → ③ 이 표 갱신 → ④ dev/product 서버(product는 모든 서버)의 <code>.env</code>에 관리자가 직접 값 추가 → ⑤ dev 배포로 검증 후 product 반영. 새 필수 변수를 코드에 먼저 배포하면 fail-fast로 기동이 실패하므로, <strong>서버 <code>.env</code> 값 추가가 코드 배포보다 먼저</strong>여야 합니다.</p>
+</div>
+
+<h4>3.5.4 인프라/배포용 변수 (애플리케이션 코드가 읽지 않는 값)</h4>
+<table>
+<tr><th>변수</th><th>사용처</th><th>설명</th><th>비밀</th></tr>
+<tr><td><code>TEST_DATABASE_ADMIN_URL</code></td><td>통합 테스트(pytest fixture), Jenkinsfile</td><td>테스트용 임시 DB를 만들 PostgreSQL 관리자 접속 URL. 로컬 PostgreSQL 또는 CI agent의 로컬 DB만 대상으로 함 (15.6절)</td><td>● (로컬/CI 전용 값)</td></tr>
+<tr><td>Jenkins Credentials ID: <code>deploy-ssh-dev</code>, <code>deploy-ssh-product</code></td><td>Jenkins Credentials 저장소</td><td><strong>프로파일별로 분리된</strong> 배포 SSH 키. 앱 비밀(DB 비밀번호 등)은 Jenkins가 아닌 각 서버 <code>.env</code>가 보유</td><td>●</td></tr>
+<tr><td><code>HTTPS_PROXY</code> / <code>NO_PROXY</code></td><td>서버·빌드 agent의 쉘 환경 (사내 프록시가 있을 때만)</td><td>인터넷 접속(PyPI, npm, GitHub)이 프록시를 거치는 경우에 설정</td><td></td></tr>
+</table>
+
+<h4>3.5.5 설정 코드 구조 (<code>backend/src/app/config/</code>)</h4>
+<p>파일 300줄 제한(5.2절)에 따라 <code>base.py</code>(공통 필드) · <code>profiles.py</code>(프로파일별 클래스) · <code>__init__.py</code>(로더)로 나눕니다. 아래 코드는 pydantic-settings 공식 문서(<code>env_prefix</code>, <code>env_file</code>, <code>SecretStr</code>, 검증기)를 확인하고, 세 프로파일과 product 검증 실패 시나리오를 직접 실행해 동작을 확인했습니다. 실제 구현은 <code>backend/src/app/config/</code>, 테스트는 <code>backend/tests/unit/test_settings.py</code>(12개)에 있으며, 아래 코드는 지면상 발췌본이라 세부(타입 별칭, 일부 필드)가 실제 파일과 조금 다를 수 있습니다. 기준은 실제 소스입니다.</p>
+<pre><code># config/base.py
+class Profile(StrEnum):
+    LOCAL = "local"
+    DEV = "dev"
+    PRODUCT = "product"
+
+
+class Settings(BaseSettings):
+    """모든 프로파일 공통 필드. 값은 APP_ 접두어 환경변수에서 읽는다."""
+
+    model_config = SettingsConfigDict(
+        env_prefix="APP_", env_file=".env", env_file_encoding="utf-8", extra="ignore"
+    )
+
+    profile: Profile
+    debug: bool = False
+    enable_docs: bool = False
+    log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
+    log_format: Literal["console", "json"] = "json"
+    workers: int = Field(default=2, ge=1)
+
+    cors_allowed_origins: list[str] = Field(default_factory=list)   # 환경변수는 JSON 배열 문자열
+    cookie_secure: bool = True
+    jwt_secret: SecretStr                                           # 비밀: 기본값 없음 = 필수
+    access_token_ttl_minutes: int = 15
+
+    database_url: PostgresDsn                                       # 필수 (비밀 포함 URL)
+    db_pool_size: int = Field(default=10, ge=1)
+    db_echo: bool = False
+    redis_url: RedisDsn
+    sentry_dsn: SecretStr | None = None
+
+
+# config/profiles.py  - 프로파일별 "기본 동작"의 차이만 표현
+class LocalSettings(Settings):
+    profile: Profile = Profile.LOCAL
+    debug: bool = True
+    enable_docs: bool = True
+    log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "DEBUG"
+    log_format: Literal["console", "json"] = "console"
+    cookie_secure: bool = False        # 로컬은 http
+    db_echo: bool = True
+    workers: int = 1
+
+
+class DevSettings(Settings):
+    profile: Profile = Profile.DEV
+    enable_docs: bool = True
+    log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "DEBUG"
+
+
+class ProductSettings(Settings):
+    profile: Profile = Profile.PRODUCT
+    workers: int = 4
+
+    @model_validator(mode="after")
+    def _check_safe_for_product(self) -> Self:
+        problems: list[str] = []
+        if self.debug or self.enable_docs or self.db_echo:
+            problems.append("debug/enable_docs/db_echo는 product에서 꺼야 합니다")
+        if not self.cookie_secure:
+            problems.append("cookie_secure는 true여야 합니다")
+        if "*" in self.cors_allowed_origins:
+            problems.append("CORS에 '*'를 허용할 수 없습니다")
+        if len(self.jwt_secret.get_secret_value()) &lt; 32:
+            problems.append("jwt_secret은 32자 이상이어야 합니다")
+        if self.sentry_dsn is None:
+            problems.append("sentry_dsn이 필요합니다")
+        if problems:
+            raise ValueError("; ".join(problems))
+        return self
+
+
+# config/__init__.py  - 프로파일 선택(새 프로파일 추가 = 클래스 + 이 매핑 한 줄)
+_BY_PROFILE: dict[Profile, type[Settings]] = {
+    Profile.LOCAL: LocalSettings,
+    Profile.DEV: DevSettings,
+    Profile.PRODUCT: ProductSettings,
+}
+
+class _ProfileSelector(BaseSettings):
+    """APP_PROFILE만 먼저 읽는다. 환경변수 또는 .env 파일 어디에 있어도 된다."""
+    model_config = SettingsConfigDict(
+        env_prefix="APP_", env_file=".env", env_file_encoding="utf-8", extra="ignore"
+    )
+    profile: Profile = Profile.LOCAL
+
+
+@lru_cache
+def get_settings() -&gt; Settings:
+    profile = _ProfileSelector().profile      # 잘못된 값이면 즉시 실패
+    return _BY_PROFILE[profile]()</code></pre>
+<table>
+<tr><th>시나리오 (실행 확인)</th><th>결과</th></tr>
+<tr><td><code>APP_PROFILE</code> 미설정</td><td><code>LocalSettings</code> (debug=True, console 로그)</td></tr>
+<tr><td><code>APP_PROFILE=dev</code></td><td><code>DevSettings</code> (json 로그, debug=False)</td></tr>
+<tr><td><code>APP_PROFILE=product</code> + <code>APP_DEBUG=true</code>, Sentry 미설정</td><td>기동 실패: "debug/enable_docs/db_echo는 product에서 꺼야 합니다; sentry_dsn이 필요합니다"</td></tr>
+<tr><td><code>APP_PROFILE=prod</code> (오타)</td><td>기동 실패: <code>profile</code> 값 검증 오류(local/dev/product만 허용)</td></tr>
+<tr><td><code>.env</code>에만 <code>APP_PROFILE=dev</code></td><td><code>DevSettings</code> (환경변수 없이도 인식)</td></tr>
+<tr><td>필수 변수(<code>APP_REDIS_URL</code>, <code>APP_JWT_SECRET</code> 등) 누락</td><td>기동 실패: <code>Field required</code></td></tr>
+</table>
+<ul>
+  <li><code>list[str]</code> 같은 복합 타입은 환경변수에서 <strong>JSON 문자열</strong>로 파싱됩니다(예: <code>APP_CORS_ALLOWED_ORIGINS=["https://a.example.com"]</code>).</li>
+  <li><code>env_file=".env"</code>는 실제 환경변수가 <strong>없을 때만</strong> 보조로 읽힙니다(환경변수 우선). 서버에서는 systemd 서비스의 <code>WorkingDirectory</code>(<code>/opt/neoine-sales</code>)에 있는 <code>.env</code>를 직접 읽으며, <code>APP_PROFILE</code>도 환경변수 또는 <code>.env</code> 어느 쪽에 있어도 인식합니다.</li>
+  <li>설정은 <code>get_settings()</code>(<code>lru_cache</code>)로 프로세스당 한 번 로드하고, 테스트에서는 <code>Settings</code> 서브클래스를 직접 생성해 주입합니다.</li>
+</ul>
+
+<h4>3.5.6 .env.example (커밋 대상, 비밀 없음)</h4>
+<pre><code># backend/.env.example  →  로컬에서는 backend/.env 로 복사해 사용 (.env는 git 제외)
+APP_PROFILE=local
+
+# 데이터 저장소 (로컬에 설치한 PostgreSQL/Redis 기준, 3.4절)
+APP_DATABASE_URL=postgresql+asyncpg://app:app@localhost:5432/app
+APP_REDIS_URL=redis://localhost:6379/0
+
+# 보안 (로컬 전용 값. dev/product에서는 절대 재사용 금지)
+APP_JWT_SECRET=local-only-secret-change-me-0123456789abcdef
+APP_CORS_ALLOWED_ORIGINS=["http://localhost:5173"]
+
+# 선택
+# APP_SENTRY_DSN=
+# APP_SMTP_HOST=localhost
+# APP_SMTP_PORT=1025</code></pre>
+
+<h4>3.5.7 서버 <code>.env</code> 관리 (dev / product)</h4>
+<ul>
+  <li><strong>원본</strong>: 비밀 값은 Git에 두지 않고 <strong>사내 비밀번호 관리 도구(또는 HashiCorp Vault)</strong>에 보관합니다. 각 서버의 <code>/opt/neoine-sales/.env</code>(소유자 <code>neoine</code>, 권한 600)는 서버 관리자가 <code>neoine</code> 계정으로 직접 편집합니다. 최초 파일은 <code>bootstrap.sh</code>가 <code>APP_PROFILE</code>만 채워 생성합니다(16.6절).</li>
+  <li><strong>변경 절차</strong>: 변경 요청 → (product는 승인자 확인) → 관리자가 모든 해당 서버의 <code>.env</code>를 수정 → 다음 배포 또는 서비스 재시작으로 반영. 변경 이력(누가, 언제, 어떤 키)은 운영 기록에 남기되 값은 기록하지 않습니다.</li>
+  <li><strong>서버 간 불일치 방지</strong>: 수동 관리이므로 서버마다 값이 달라질 위험이 있습니다. <code>deploy.sh</code>가 전환 전에 <strong>설정 사전 검증</strong>(<code>get_settings()</code> 실행)을 수행해 필수 변수 누락·형식 오류·product 안전 조건 위반을 배포 단계에서 즉시 막습니다(16.4절).</li>
+  <li><strong>회전</strong>: JWT 키·DB 비밀번호·API 키는 정기 회전(예: 분기)하며, 유출 의심 시 즉시 교체합니다. 회전 절차(이중 키 허용 기간 등)는 운영 문서에 별도로 정의합니다.</li>
+  <li><code>deploy.sh</code>는 <code>.env</code>의 <code>APP_PROFILE</code>이 인자로 받은 환경과 일치하는지 검사해, dev 설정이 product 서버에 올라가는 사고를 막습니다(16.4절).</li>
+</ul>
+
+<h4>3.5.8 프론트엔드 환경변수</h4>
+<ul>
+  <li>Vite는 <code>VITE_</code> 접두어 변수만 클라이언트 코드(<code>import.meta.env</code>)에 노출하고, 접두어가 없는 변수(<code>DB_PASSWORD</code> 등)는 <code>undefined</code>입니다(Vite 공식 문서). 단, <code>VITE_</code> 변수는 <strong>빌드 결과물(JS)에 그대로 포함되어 누구나 볼 수 있으므로 비밀을 넣지 않습니다</strong>.</li>
+  <li>값은 <strong>빌드 시점에 치환</strong>되므로, "빌드 한 번, 릴리스 번들 하나" 원칙을 지키려면 프로파일마다 다른 값이 빌드에 박히지 않도록 설계합니다.</li>
+</ul>
+<table>
+<tr><th>변수</th><th>설명</th><th>local</th><th>dev / product</th></tr>
+<tr><td><code>VITE_API_BASE_URL</code></td><td>API 기준 경로</td><td><code>/api</code> (Vite dev 서버 프록시 → <code>localhost:8000</code>)</td><td><code>/api</code> (같은 도메인의 Nginx가 프록시) — <strong>모든 프로파일 동일</strong></td></tr>
+<tr><td><code>VITE_APP_PROFILE</code></td><td>화면 표시용(예: 비운영 배너). 보안 판단에 사용 금지</td><td>local</td><td>런타임 <code>/config.json</code>에서 주입</td></tr>
+<tr><td><code>VITE_SENTRY_DSN</code></td><td>프론트 오류 추적용 공개 DSN (공개 키)</td><td>(비움)</td><td>런타임 <code>/config.json</code>에서 주입</td></tr>
+</table>
+<ul>
+  <li><strong>권장</strong>: API는 동일 오리진 <code>/api</code>를 쓰도록 해 API 주소 자체를 환경별로 바꿀 필요를 없앱니다. 프로파일마다 달라야 하는 소수의 값(프로파일 표시, 프론트 Sentry DSN 등)은 저장소의 <code>infra/server/config/config.&lt;profile&gt;.json</code>(비밀 없음)을 <code>deploy.sh</code>가 서버의 <code>shared/config.json</code>으로 설치하고 Nginx가 서빙하는 <code>/config.json</code>(16.5절)을 앱이 시작할 때 읽어 사용합니다.</li>
+</ul>
+
+<h4>3.5.9 CI(Jenkins)에서의 환경변수</h4>
+<ul>
+  <li>CI 테스트는 <code>APP_PROFILE</code>을 지정하지 않고(=local 기본값) <strong>더미 값</strong>만 주입합니다. 실제 dev/product 비밀은 CI 빌드에 전달하지 않습니다.</li>
+  <li>통합 테스트의 DB 주소는 fixture가 만든 임시 DB의 접속 URL을 테스트 코드에서 <code>Settings</code>에 직접 주입합니다(15.6절). 운영·dev 데이터베이스 주소는 CI에 전달하지 않습니다.</li>
+  <li>릴리스 번들에는 <code>.env</code>와 비밀을 포함하지 않습니다(<code>infra/build_release.sh</code>는 소스·잠금 파일·정적 파일만 복사).</li>
+</ul>
+
+<h4>3.5.10 환경변수 체크리스트</h4>
+<ul>
+  <li>☐ 모든 변수가 <code>APP_</code>(백엔드) 또는 <code>VITE_</code>(프론트) 접두어를 사용하고 <code>.env.example</code>과 3.5.3 표에 등록됨</li>
+  <li>☐ 비밀은 <code>SecretStr</code> + 서버 <code>.env</code>/Vault로만 관리되고 Git·릴리스 번들·로그에 없음</li>
+  <li>☐ dev와 product의 비밀이 서로 다름</li>
+  <li>☐ product 기동 검증(디버그·문서·CORS·쿠키·Sentry)을 통과함</li>
+  <li>☐ <code>VITE_</code> 변수에 비밀이 없음</li>
+  <li>☐ 새 변수의 서버 <code>.env</code> 값이 코드 배포보다 먼저 반영됨</li>
+</ul>
+
+<h3>3.6 Pre-commit 구성</h3>
+<pre><code># .pre-commit-config.yaml
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.16.9   # 도입 시점의 최신 태그로 갱신 (Ruff 공식 문서 예시 버전)
+    hooks:
+      - id: ruff-check
+        args: [--fix]
+      - id: ruff-format
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: vX.Y.Z
+    hooks:
+      - id: mypy
+        additional_dependencies: [pydantic]
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: vX.Y.Z
+    hooks:
+      - id: gitleaks
+  - repo: local
+    hooks:
+      - id: check-file-length          # 소스 파일 300줄 제한 (5.2절)
+        name: check backend file length (max 300 lines)
+        entry: uv run --project backend python backend/scripts/check_file_length.py
+        language: system
+        files: ^backend/(src|tests)/.*\.py$   # 변경된 파일만 검사 (파일 경로가 인자로 전달됨)</code></pre>
+
+<!-- ============================================================ -->
+<h2 id="structure">4. 저장소 구조</h2>
+<p>모노레포(backend / frontend / infra / docs)를 권장합니다. 백엔드는 <code>src</code> 레이아웃을 사용하여 테스트가 설치된 패키지를 대상으로 실행되도록 합니다.</p>
+<pre><code>neoine-sales/
+├─ backend/
+│  ├─ pyproject.toml
+│  ├─ uv.lock
+│  ├─ alembic/                     # 마이그레이션 (infra의 DB 어댑터와 함께 관리)
+│  ├─ src/app/
+│  │  ├─ main.py                   # FastAPI 앱 팩토리 (Composition Root 일부)
+│  │  ├─ config.py                 # Settings
+│  │  ├─ container.py              # ★ 의존성 조립: port ← infra 구현체 연결 (유일하게 모든 계층을 import)
+│  │  │
+│  │  ├─ domain/                   # [Domain layer] 순수 파이썬, 프레임워크/IO import 금지
+│  │  │  ├─ customer/              #   ← Bounded Context 단위 모듈
+│  │  │  │  ├─ entities.py         #   Entity, Aggregate Root
+│  │  │  │  ├─ value_objects.py
+│  │  │  │  ├─ services.py         #   Domain Service (엔티티에 속하지 않는 도메인 규칙)
+│  │  │  │  ├─ events.py           #   Domain Event
+│  │  │  │  └─ errors.py
+│  │  │  └─ order/ ...
+│  │  │
+│  │  ├─ application/              # [App layer] 유스케이스 + 외부 통신용 인터페이스(Port)
+│  │  │  ├─ ports/                 #   ★ infra가 구현할 인터페이스(Protocol/ABC)를 app이 소유
+│  │  │  │  ├─ repositories.py     #   CustomerRepository, OrderRepository
+│  │  │  │  ├─ unit_of_work.py     #   UnitOfWork
+│  │  │  │  ├─ notifier.py         #   Notifier (메일/메신저)
+│  │  │  │  └─ payment_gateway.py  #   PaymentGateway (외부 결제)
+│  │  │  ├─ customer/              #   Command/Query 유스케이스, DTO
+│  │  │  │  ├─ commands.py
+│  │  │  │  └─ register_customer.py
+│  │  │  └─ order/ ...
+│  │  │
+│  │  ├─ infra/                    # [Infra layer] Port 구현체(Adapter). application에 의존
+│  │  │  ├─ db/ (models.py, repositories.py, uow.py)
+│  │  │  ├─ messaging/             #   Notifier 구현, 큐/이벤트 버스
+│  │  │  └─ external/              #   PaymentGateway 구현, 외부 API 클라이언트(ACL 포함)
+│  │  │
+│  │  └─ web/                      # [Web layer] 프레젠테이션
+│  │     ├─ routers/
+│  │     ├─ schemas.py             #   Pydantic 요청/응답 모델 (도메인 객체와 분리)
+│  │     ├─ dependencies.py        #   FastAPI Depends (container에서 유스케이스를 꺼냄)
+│  │     └─ error_handlers.py
+│  └─ tests/
+│     ├─ unit/                     # domain, application (Fake Port 사용, DB 없음)
+│     ├─ integration/              # infra (실제 DB/외부 시스템 대역)
+│     └─ e2e/                      # web 전 구간
+├─ frontend/
+│  ├─ package.json
+│  ├─ src/
+│  │  ├─ app/ (providers, router)
+│  │  ├─ features/&lt;feature&gt;/ (api, components, hooks, types)
+│  │  ├─ shared/ (ui, lib, api-client 자동 생성물)
+│  │  └─ main.tsx
+│  └─ vite.config.ts
+├─ infra/ (build_release.sh, server/: bootstrap.sh·deploy.sh·systemd 유닛·nginx 설정·sudoers·config.&lt;profile&gt;.json — 백엔드 코드의 app.infra와 별개인 배포 자산)
+├─ mise.toml                         # Python/uv/Node/pnpm 버전 고정 (개발자 PC와 CI agent 공통)
+├─ docs/dev-guide.html
+├─ Jenkinsfile
+└─ justfile</code></pre>
+<p class="meta">"App layer"의 디렉터리 이름은 <code>application</code>입니다(루트 패키지 이름이 이미 <code>app</code>이라 충돌을 피하기 위함). 저장소 루트의 <code>infra/</code>는 배포 자산이고, 백엔드 코드의 <code>app/infra</code>는 Port 구현체 계층입니다.</p>
+
+<div class="callout ok">
+  <p><strong>의존성 방향 규칙</strong>: <code>web → application → domain</code>, <code>infra → application → domain</code>. <code>application</code>은 <code>infra</code>를 import하지 않으며, 외부와의 통신은 <code>application/ports</code>의 인터페이스로만 합니다. <code>infra</code>가 그 인터페이스를 구현합니다(의존성 역전). <code>web</code>과 <code>infra</code>는 서로 import하지 않고, 둘을 이어 주는 곳은 Composition Root(<code>container.py</code>)뿐입니다. 이 규칙은 <strong>import-linter</strong>로 CI(Jenkins)에서 자동 검증합니다.</p>
+</div>
+<pre><code># pyproject.toml
+[tool.importlinter]
+root_package = "app"
+include_external_packages = true     # 외부 패키지(fastapi, sqlalchemy 등) 금지 규칙에 필요
+
+# 1) 계층 규칙: 위 계층만 아래 계층을 import할 수 있다.
+#    같은 줄의 web | infra 는 서로 독립(상호 import 금지)
+[[tool.importlinter.contracts]]
+name = "계층 의존성: web, infra → application → domain"
+type = "layers"
+layers = [
+    "app.web | app.infra",
+    "app.application",
+    "app.domain",
+]
+
+# 2) domain은 프레임워크·IO 라이브러리를 몰라야 한다
+[[tool.importlinter.contracts]]
+name = "domain은 순수해야 한다"
+type = "forbidden"
+source_modules = ["app.domain"]
+forbidden_modules = ["fastapi", "pydantic", "sqlalchemy", "httpx", "redis"]
+
+# 3) application은 구체 기술(DB, HTTP, 웹)에 의존하지 않는다 - Port로만 소통
+[[tool.importlinter.contracts]]
+name = "application은 구체 기술을 몰라야 한다"
+type = "forbidden"
+source_modules = ["app.application"]
+forbidden_modules = ["fastapi", "sqlalchemy", "httpx", "redis"]</code></pre>
+<p class="meta">layers/forbidden 계약 문법과 <code>include_external_packages</code> 옵션은 Import Linter 공식 문서(Context7)를 확인했습니다. <code>app.container</code>, <code>app.main</code>은 계층 목록에 넣지 않아 모든 계층을 import할 수 있습니다.</p>
+
+<!-- ============================================================ -->
+<h2 id="style">5. 코드 스타일</h2>
+<h3>5.1 기본 규칙</h3>
+<table>
+<tr><th>항목</th><th>규칙</th></tr>
+<tr><td>기준</td><td>PEP 8, PEP 257(docstring), PEP 484/695(타입). 포맷은 Ruff format이 결정 — 스타일 논쟁 금지</td></tr>
+<tr><td>네이밍</td><td>모듈/함수/변수 <code>snake_case</code>, 클래스 <code>PascalCase</code>, 상수 <code>UPPER_SNAKE</code>, 비공개 <code>_prefix</code></td></tr>
+<tr><td>줄 길이</td><td>100자</td></tr>
+<tr><td>import</td><td>절대 import 우선, 와일드카드 금지, 순서는 Ruff(isort)가 정렬</td></tr>
+<tr><td>타입 힌트</td><td>공개 API 100%. <code>Any</code> 지양, <code>X | None</code> 문법, 제네릭은 PEP 695 사용</td></tr>
+<tr><td>docstring</td><td>공개 클래스/함수에 Google 스타일. "무엇"이 아닌 "왜/계약(전제·예외)"을 설명</td></tr>
+<tr><td>예외</td><td>도메인 전용 예외 계층 정의(<code>DomainError</code> 상속). <code>except Exception</code> 남용 금지, 원인 보존(<code>raise ... from e</code>)</td></tr>
+<tr><td>가변 기본값</td><td>금지 (<code>def f(x=[])</code>). <code>None</code> 후 내부 생성</td></tr>
+<tr><td>경로/시간</td><td><code>pathlib</code>, timezone-aware <code>datetime</code>(UTC 저장)</td></tr>
+<tr><td>로깅</td><td><code>print</code> 금지. 구조화 로깅(structlog) 사용, 민감정보 로깅 금지</td></tr>
+<tr><td>함수 크기</td><td>한 함수는 한 가지 일, 가급적 20~30줄 이내, 인자 5개 초과 시 객체로 묶기 (Ruff <code>max-args = 5</code>)</td></tr>
+<tr><td><strong>파일 크기</strong></td><td><strong>backend의 .py 파일 하나는 300줄 이하</strong> (5.2절, CI에서 강제)</td></tr>
+</table>
+
+<h3>5.2 소스 파일 크기 제한: 파일당 300줄 이하 (backend)</h3>
+<div class="callout warn">
+  <p><strong>규칙</strong>: <code>backend/src</code>와 <code>backend/tests</code> 아래의 Python 소스 파일 하나는 <strong>300줄</strong>(빈 줄·주석·docstring을 포함한 물리적 총 줄 수)을 넘지 않습니다.</p>
+</div>
+<p><strong>왜 제한하는가.</strong> 이 프로젝트의 핵심 목표는 <em>응집도가 높고 결합도가 낮으며, 읽기 쉬운 코드</em>와 단일 책임 원칙(SRP)입니다. 파일이 커진다는 것은 한 모듈이 여러 이유로 변경되고 있다는 가장 눈에 띄는 신호이며, 그 결과 읽는 데 드는 비용이 커지고 변경 충돌과 숨은 결합이 늘어납니다. 줄 수 제한은 이 위험을 기계적으로 조기에 드러내는 안전장치입니다. 300줄은 <em>분리할 시점을 알려 주는 상한</em>이지 채워야 하는 목표가 아닙니다. 대부분의 파일은 100~200줄 안에서 끝나는 것이 이상적입니다.</p>
+
+<h4>300줄에 가까워지면: 줄이는 방법이 아니라 책임을 나눈다</h4>
+<p>줄 수를 맞추려고 코드를 압축하거나 불필요하게 한 줄에 몰아 쓰지 마세요(가독성 저하). 반드시 <strong>책임 단위로 분리</strong>합니다.</p>
+<table>
+<tr><th>대상</th><th>분리 방법</th></tr>
+<tr><td>유스케이스(application)</td><td>유스케이스 하나 = 파일 하나(<code>register_customer.py</code>, <code>place_order.py</code>). 거대한 <code>XxxService</code> 클래스에 메서드를 계속 붙이지 않음</td></tr>
+<tr><td>엔티티/Aggregate(domain)</td><td>값 개념은 Value Object로, 엔티티에 속하지 않는 규칙은 Domain Service로 추출. 정책 변형은 Strategy로 분리</td></tr>
+<tr><td>Port(application/ports)</td><td>역할별로 작게 분리(ISP). Repository, Notifier, PaymentGateway를 파일별로</td></tr>
+<tr><td>Adapter(infra)</td><td>외부 시스템/Repository 단위로 파일 분리, ORM 모델은 Aggregate별로 분리</td></tr>
+<tr><td>라우터(web)</td><td>리소스별 라우터 파일, 스키마도 리소스별로 분리(<code>schemas/customer.py</code>)</td></tr>
+<tr><td>테스트</td><td>대상 모듈과 1:1로 대응해 분리, 공통 준비 코드는 <code>conftest.py</code>·factory로 이동</td></tr>
+<tr><td><code>__init__.py</code></td><td>재노출(re-export)만 담당하고 로직을 두지 않음</td></tr>
+</table>
+
+<h4>예외</h4>
+<ul>
+  <li>원칙적으로 <strong>예외 없음</strong>. 테스트·설정 파일도 같은 기준입니다(테스트도 분리하면 읽기 쉬워집니다).</li>
+  <li>검사 대상은 <code>backend/src</code>, <code>backend/tests</code>입니다. Alembic 마이그레이션(<code>backend/alembic/versions</code>)과 자동 생성 코드는 <code>src</code> 밖에 있어 대상이 아닙니다.</li>
+  <li>분리가 정말 부자연스러운 경우에만 팀 리뷰를 거쳐 <code>docs/adr/</code>에 근거를 남기고 임시 허용합니다. 허용 목록은 가능한 한 짧게 유지합니다.</li>
+</ul>
+
+<h4>자동 강제</h4>
+<p>사람의 주의에 맡기지 않고 세 지점에서 검사합니다. 검사 스크립트 <code>backend/scripts/check_file_length.py</code>는 위반 파일과 줄 수를 출력하고 종료 코드 1을 반환합니다.</p>
+<table>
+<tr><th>지점</th><th>방법</th></tr>
+<tr><td>커밋 전</td><td>pre-commit 로컬 훅 <code>check-file-length</code> (3.6절)</td></tr>
+<tr><td>PR/CI</td><td>Jenkins <code>Backend: Quality</code> 단계에서 실행 (15.5절) — 실패 시 머지 불가</td></tr>
+<tr><td>수동</td><td><code>just lint</code> 또는 <code>cd backend &amp;&amp; uv run python scripts/check_file_length.py</code></td></tr>
+</table>
+
+<h4>함께 적용하는 복잡도 규칙 (Ruff)</h4>
+<p>파일 크기만으로는 "작은 파일 안의 거대한 함수"를 막지 못하므로, 함수 단위 규칙도 Ruff로 강제합니다(3.3절 설정).</p>
+<table>
+<tr><th>규칙</th><th>기준</th><th>Ruff 코드</th></tr>
+<tr><td>순환 복잡도</td><td>함수당 10 이하</td><td><code>C901</code> (<code>mccabe.max-complexity = 10</code>)</td></tr>
+<tr><td>분기 수</td><td>함수당 12 이하</td><td><code>PLR0912</code></td></tr>
+<tr><td>구문 수</td><td>함수당 30 이하</td><td><code>PLR0915</code></td></tr>
+<tr><td>인자 수</td><td>함수당 5 이하</td><td><code>PLR0913</code></td></tr>
+</table>
+
+<h3>5.3 좋은 예</h3>
+<pre><code>from dataclasses import dataclass
+from decimal import Decimal
+
+
+@dataclass(frozen=True, slots=True)
+class Money:
+    """통화 금액 값 객체. 불변이며 같은 통화끼리만 연산할 수 있다."""
+
+    amount: Decimal
+    currency: str = "KRW"
+
+    def __post_init__(self) -&gt; None:
+        if self.amount &lt; 0:
+            raise ValueError("금액은 음수일 수 없습니다")
+
+    def __add__(self, other: "Money") -&gt; "Money":
+        if self.currency != other.currency:
+            raise ValueError("통화가 다릅니다")
+        return Money(self.amount + other.amount, self.currency)</code></pre>
+
+<h3>5.4 Frontend 스타일</h3>
+<ul>
+  <li>TypeScript <code>strict: true</code>, ESLint(typescript-eslint, react-hooks) + Prettier(또는 Biome).</li>
+  <li>함수형 컴포넌트 + 훅. 컴포넌트는 <code>PascalCase.tsx</code>, 훅은 <code>useXxx</code>.</li>
+  <li>서버 상태는 TanStack Query, UI 상태는 로컬 state/Context, 전역 클라이언트 상태가 정말 필요할 때만 Zustand 등을 사용.</li>
+  <li>feature 단위 폴더링, 컴포넌트에서 직접 <code>fetch</code> 호출 금지(생성된 API 클라이언트 훅을 경유).</li>
+</ul>
+
+<!-- ============================================================ -->
+<h2 id="oop">6. 파이썬 객체지향 가이드</h2>
+<h3>6.1 도구 선택표</h3>
+<table>
+<tr><th>필요</th><th>사용할 도구</th><th>비고</th></tr>
+<tr><td>값 객체(불변)</td><td><code>@dataclass(frozen=True, slots=True)</code></td><td>동등성은 값 기준</td></tr>
+<tr><td>엔티티(식별자 동등)</td><td>일반 클래스 / <code>@dataclass(eq=False)</code> + <code>__eq__</code> 직접 정의</td><td>id 기준 동등</td></tr>
+<tr><td>구현 강제가 필요한 인터페이스</td><td><code>abc.ABC</code> + <code>@abstractmethod</code></td><td>상속 기반, 미구현 시 인스턴스화 실패</td></tr>
+<tr><td>구조적(덕 타이핑) 인터페이스</td><td><code>typing.Protocol</code></td><td>상속 없이 계약 충족, 테스트 더블 작성이 쉬움</td></tr>
+<tr><td>API 입출력 검증</td><td>Pydantic <code>BaseModel</code></td><td>도메인 객체와 분리(경계에서만 사용)</td></tr>
+<tr><td>열거형</td><td><code>enum.StrEnum</code> / <code>Enum</code></td><td>매직 문자열 금지</td></tr>
+<tr><td>캡슐화</td><td><code>_protected</code>, <code>@property</code></td><td>getter/setter 남발 금지, 불변식은 메서드로 보장</td></tr>
+</table>
+
+<h3>6.2 설계 지침</h3>
+<ul>
+  <li><strong>상속보다 합성</strong>: 상속은 "is-a"가 명확하고 리스코프 치환이 성립할 때만. 기본은 협력 객체를 생성자로 주입.</li>
+  <li><strong>풍부한 도메인 모델</strong>: 규칙은 서비스의 if문이 아니라 엔티티 메서드에 둠(<em>빈약한 도메인 모델 지양</em>).</li>
+  <li><strong>불변식 보장</strong>: 객체는 생성 시점부터 항상 유효해야 함(<code>__post_init__</code> 검증).</li>
+  <li><strong>Tell, Don't Ask</strong>: 데이터를 꺼내 판단하지 말고 객체에게 행동을 요청.</li>
+  <li><strong>생성자 주입</strong>: 의존성은 <code>__init__</code>에서 받고, 내부에서 <code>new</code>(직접 생성) 하지 않음. 조립은 Composition Root(<code>container.py</code>)에서만.</li>
+  <li>전역 상태·싱글턴 모듈 변수 지양, 다중 상속은 Mixin 목적으로 제한.</li>
+</ul>
+
+<h3>6.3 엔티티 예시 (풍부한 도메인 모델)</h3>
+<pre><code>class Order:
+    def __init__(self, order_id: OrderId, customer_id: CustomerId) -&gt; None:
+        self._id = order_id
+        self._customer_id = customer_id
+        self._lines: list[OrderLine] = []
+        self._status = OrderStatus.DRAFT
+
+    @property
+    def total(self) -&gt; Money:
+        return sum((l.subtotal for l in self._lines), start=Money(Decimal(0)))
+
+    def add_line(self, product_id: ProductId, qty: int, unit_price: Money) -&gt; None:
+        if self._status is not OrderStatus.DRAFT:
+            raise OrderNotModifiableError(self._id)
+        self._lines.append(OrderLine(product_id, qty, unit_price))
+
+    def confirm(self) -&gt; None:
+        if not self._lines:
+            raise EmptyOrderError(self._id)
+        self._status = OrderStatus.CONFIRMED
+
+    def __eq__(self, other: object) -&gt; bool:
+        return isinstance(other, Order) and other._id == self._id
+
+    def __hash__(self) -&gt; int:
+        return hash(self._id)</code></pre>
+
+<!-- ============================================================ -->
+<h2 id="solid">7. SOLID 원칙</h2>
+
+<h3>S — 단일 책임 원칙 (Single Responsibility)</h3>
+<p>클래스는 <strong>변경 이유가 하나</strong>여야 합니다. 주문 도메인 로직, 영속화, 알림 발송은 서로 다른 이유로 바뀌므로 분리합니다.</p>
+<pre><code># ✗ 나쁨: 규칙 + DB + 메일이 한 클래스에
+class OrderService:
+    def place(self, data):
+        ...  # 검증
+        self.db.execute("INSERT ...")
+        smtplib.SMTP(...).send_message(...)
+
+# ✓ 좋음: 책임 분리
+class PlaceOrder:                       # 유스케이스 조율만
+    def __init__(self, uow: UnitOfWork, notifier: Notifier) -&gt; None:
+        self._uow, self._notifier = uow, notifier
+
+    def execute(self, cmd: PlaceOrderCommand) -&gt; OrderId:
+        with self._uow:
+            order = Order.create(cmd.customer_id, cmd.lines)   # 규칙은 도메인
+            self._uow.orders.add(order)                        # 영속화는 Repository
+            self._uow.commit()
+        self._notifier.order_placed(order.id)                  # 알림은 Notifier
+        return order.id</code></pre>
+
+<h3>O — 개방-폐쇄 원칙 (Open/Closed)</h3>
+<p>확장에는 열려 있고 수정에는 닫혀 있어야 합니다. 분기(<code>if type == ...</code>)가 늘어난다면 <strong>전략(Strategy)</strong>으로 바꿉니다.</p>
+<pre><code>class DiscountPolicy(Protocol):
+    def apply(self, order: Order) -&gt; Money: ...
+
+class VipDiscount:
+    def apply(self, order: Order) -&gt; Money:
+        return order.total * Decimal("0.10")
+
+class SeasonalDiscount:
+    def apply(self, order: Order) -&gt; Money:
+        return order.total * Decimal("0.05")
+
+class PricingService:
+    def __init__(self, policies: Sequence[DiscountPolicy]) -&gt; None:
+        self._policies = policies
+
+    def discount(self, order: Order) -&gt; Money:      # 새 정책 추가 시 이 코드는 불변
+        return max((p.apply(order) for p in self._policies), default=Money(Decimal(0)))</code></pre>
+
+<h3>L — 리스코프 치환 원칙 (Liskov Substitution)</h3>
+<p>하위 타입은 상위 타입의 계약(사전조건 약화 불가, 사후조건 강화 불가, 예외 규약 유지)을 지켜야 합니다.</p>
+<pre><code># ✗ 나쁨: 하위 클래스가 계약을 깨뜨림
+class Repository(ABC):
+    @abstractmethod
+    def get(self, id: str) -&gt; Customer: ...      # 없으면 CustomerNotFound
+
+class CacheOnlyRepository(Repository):
+    def get(self, id: str) -&gt; Customer:
+        raise NotImplementedError                # 치환 불가!
+
+# ✓ 좋음: 모든 구현이 동일한 계약(없으면 CustomerNotFound)을 지키고,
+#         계약 테스트(contract test)를 공유 fixture로 모든 구현에 실행
+@pytest.fixture(params=[InMemoryRepo, SqlRepo])
+def repo(request): ...</code></pre>
+<p><strong>실무 팁</strong>: 하나의 추상 인터페이스에 대한 테스트 스위트를 작성해 모든 구현체가 통과하게 하면 LSP 위반을 자동으로 잡을 수 있습니다. mypy는 시그니처 호환성을 검사합니다.</p>
+
+<h3>I — 인터페이스 분리 원칙 (Interface Segregation)</h3>
+<p>클라이언트는 사용하지 않는 메서드에 의존하면 안 됩니다. 작은 역할(role) 인터페이스로 쪼갭니다. Python의 <code>Protocol</code>은 소비자 쪽에서 필요한 최소 계약만 선언하기 좋습니다.</p>
+<pre><code># ✗ 나쁨: 뚱뚱한 인터페이스
+class Storage(ABC):
+    def read(self, key): ...
+    def write(self, key, data): ...
+    def delete(self, key): ...
+    def list_all(self): ...
+
+# ✓ 좋음: 역할별 분리
+class Reader(Protocol):
+    def read(self, key: str) -&gt; bytes: ...
+
+class Writer(Protocol):
+    def write(self, key: str, data: bytes) -&gt; None: ...
+
+class ReportExporter:
+    def __init__(self, writer: Writer) -&gt; None:   # 쓰기만 필요
+        self._writer = writer</code></pre>
+
+<h3>D — 의존성 역전 원칙 (Dependency Inversion)</h3>
+<p>상위 모듈이 하위 모듈에 의존하지 않고, 둘 다 <strong>추상화</strong>에 의존합니다. 이 프로젝트에서는 <strong>application 계층이 외부 통신용 인터페이스(Port)를 소유</strong>하고, infra 계층이 그것을 구현합니다. 소스 코드 의존 방향이 <code>infra → application</code>이 되어 전통적인 "비즈니스 → DB" 방향이 뒤집힙니다.</p>
+<pre><code># application/ports/repositories.py  (인터페이스는 application이 소유)
+class CustomerRepository(Protocol):
+    async def get(self, customer_id: CustomerId) -&gt; Customer: ...
+    async def add(self, customer: Customer) -&gt; None: ...
+
+# application/ports/payment_gateway.py
+class PaymentGateway(Protocol):
+    async def charge(self, order_id: OrderId, amount: Money) -&gt; PaymentResult: ...
+
+# application/order/place_order.py  (유스케이스는 Port만 안다)
+class PlaceOrder:
+    def __init__(self, uow: UnitOfWork, payments: PaymentGateway) -&gt; None:
+        self._uow, self._payments = uow, payments
+
+# infra/db/repositories.py  (구현은 infra - application의 Port를 import)
+from app.application.ports.repositories import CustomerRepository   # infra → application
+
+class SqlCustomerRepository:           # CustomerRepository를 구조적으로 충족
+    def __init__(self, session: AsyncSession) -&gt; None:
+        self._session = session
+    ...
+
+# container.py  (Composition Root: 유일하게 구현체를 선택하는 곳)
+class Container:
+    def __init__(self, settings: Settings) -&gt; None:
+        self._session_factory = create_session_factory(settings.database_url)
+        self._payments = HttpPaymentGateway(settings.payment_url)
+
+    def place_order(self) -&gt; PlaceOrder:
+        return PlaceOrder(SqlUnitOfWork(self._session_factory), self._payments)
+
+# web/dependencies.py  (web은 infra를 import하지 않고 container에서 꺼낸다)
+def get_place_order(request: Request) -&gt; PlaceOrder:
+    return request.app.state.container.place_order()</code></pre>
+<div class="callout ok">
+  <p>FastAPI의 <code>Depends</code>는 요청 단위로 유스케이스를 주입하는 통로로 쓰고, 실제 조립은 <code>container.py</code>가 담당합니다. 테스트에서는 <code>Container</code> 대신 Fake Port(InMemory UoW 등)로 유스케이스를 직접 만들거나, <code>app.dependency_overrides</code>로 의존성을 교체합니다. 의존성이 복잡해지면 <code>dependency-injector</code> 같은 라이브러리를 검토하세요.</p>
+</div>
+
+<h3>SOLID 위반 신호 (코드 리뷰 체크)</h3>
+<table>
+<tr><th>원칙</th><th>위반 신호</th></tr>
+<tr><td>SRP</td><td>클래스 이름에 "And/Manager/Helper/Util", 300줄 초과, import가 DB·HTTP·메일에 걸쳐 있음</td></tr>
+<tr><td>OCP</td><td>기능 추가할 때마다 기존 <code>if/elif</code> 체인이나 <code>isinstance</code> 분기를 수정</td></tr>
+<tr><td>LSP</td><td><code>NotImplementedError</code>를 던지는 오버라이드, 하위 클래스에서 예외·반환 타입 변경</td></tr>
+<tr><td>ISP</td><td>구현체의 절반 메서드가 <code>pass</code>, 테스트 Fake 작성이 번거로움</td></tr>
+<tr><td>DIP</td><td>서비스 안에서 <code>SqlRepo()</code>·<code>requests.get()</code> 직접 생성/호출, domain에서 sqlalchemy import</td></tr>
+</table>
+
+<!-- ============================================================ -->
+<h2 id="arch">8. 아키텍처 스타일</h2>
+<h3>8.1 DDD 4계층 구조와 의존성 역전</h3>
+<pre><code>┌─────────────────────────── React SPA ───────────────────────────┐
+│  (HTTP / JSON, OpenAPI 계약)                                     │
+└───────────────────────────────┬──────────────────────────────────┘
+                                ▼
+ ┌───────────────────────  web layer  ────────────────────────────┐
+ │  Router, 요청/응답 스키마, 인증, 에러 → HTTP 매핑                │
+ └───────────────────────────────┬─────────────────────────────────┘
+                                 ▼ (Command / Query)
+ ┌───────────────────────  app layer  ────────────────────────────┐
+ │  유스케이스(Application Service), 트랜잭션 경계, 이벤트 발행      │
+ │  ┌────────────────────────────────────────────────────────┐   │
+ │  │  Ports (인터페이스): Repository, UnitOfWork,            │   │
+ │  │  Notifier, PaymentGateway ...   ← app이 소유            │   │
+ │  └──────────────────────────▲─────────────────────────────┘   │
+ └───────────────┬─────────────┼───────────────────────────────────┘
+                 ▼             │ implements (의존성 역전)
+ ┌─── domain layer ───┐   ┌────┴────────  infra layer  ───────────┐
+ │ Entity, VO,        │   │ SQLAlchemy Repo/UoW, Redis, 메일,      │
+ │ Aggregate,         │   │ 외부 API 클라이언트(ACL)               │
+ │ Domain Service,    │   │  → app의 Port를 import 해서 구현       │
+ │ Domain Event       │   └───────────────────────────────────────┘
+ └────────────────────┘
+  화살표(import 방향):  web → app → domain      infra → app → domain
+                        app ↛ infra     web ↮ infra     domain ↛ 모든 바깥 계층</code></pre>
+
+<table>
+<tr><th>계층</th><th>책임</th><th>가질 수 있는 것</th><th>가질 수 없는 것</th></tr>
+<tr><td><strong>domain</strong></td><td>비즈니스 규칙·불변식, 유비쿼터스 언어</td><td>Entity, Value Object, Aggregate, Domain Service, Domain Event, 도메인 예외</td><td>프레임워크, DB, HTTP, 인프라 개념, 어떤 바깥 계층 import</td></tr>
+<tr><td><strong>app (application)</strong></td><td>유스케이스 조율, 트랜잭션 경계, 권한 확인, 이벤트 발행</td><td>Application Service, Command/Query/DTO, <strong>외부 통신용 Port(인터페이스)</strong></td><td>SQL, HTTP 호출, 구체 기술 클래스, infra·web import</td></tr>
+<tr><td><strong>infra</strong></td><td>외부 세계와의 실제 통신 구현</td><td>Port 구현체(Repository, UoW, Gateway, Notifier), ORM 모델, 외부 API 클라이언트, 메시징</td><td>비즈니스 규칙 판단, web import</td></tr>
+<tr><td><strong>web</strong></td><td>프로토콜 변환(HTTP ↔ 유스케이스)</td><td>Router, Pydantic 스키마, 인증 미들웨어, 에러 핸들러</td><td>비즈니스 규칙, SQL, infra import</td></tr>
+</table>
+
+<h3>8.2 Port 설계 규칙 (app 계층이 소유하는 인터페이스)</h3>
+<ul>
+  <li><strong>"외부와의 통신"은 전부 Port</strong>: DB(Repository/UoW), 메일·메신저(Notifier), 결제·CRM 등 외부 API(Gateway), 파일 저장소, 시계(<code>Clock</code>), ID 생성기 등. 유스케이스가 <code>requests</code>, <code>smtplib</code>, <code>boto3</code>를 직접 import하면 규칙 위반입니다.</li>
+  <li><strong>유스케이스 관점으로 정의</strong>: Port는 기술이 아니라 필요(<code>send_order_confirmation(...)</code>)로 이름 짓습니다. <code>SmtpClient</code>가 아니라 <code>Notifier</code>입니다. (ISP: 역할별로 작게)</li>
+  <li><strong>Port의 입출력은 도메인 객체·DTO·원시 타입</strong>: ORM 모델, HTTP 응답 객체, Pydantic 스키마가 Port 시그니처에 나타나면 안 됩니다.</li>
+  <li><strong>Repository 위치에 대한 결정</strong>: 전통적 DDD는 Repository 인터페이스를 domain에 두기도 합니다. 이 프로젝트는 "외부 통신 인터페이스는 app이 소유"라는 일관된 규칙으로 <code>application/ports</code>에 모읍니다. 그 결과 domain은 영속성 개념을 전혀 모르는 완전히 순수한 모델로 남고, Repository는 Aggregate Root 단위로만 정의합니다.</li>
+  <li><strong>Anti-Corruption Layer</strong>: 외부 시스템의 데이터 모델·오류 체계는 infra 어댑터 안에서 도메인 언어로 번역한 뒤 Port로 반환합니다. 외부 모델이 app/domain으로 새어 들어오지 않게 합니다.</li>
+  <li><strong>계약 테스트</strong>: Port마다 공통 테스트 스위트를 만들어 InMemory Fake와 실제 infra 구현을 모두 통과시킵니다(리스코프 치환 검증).</li>
+</ul>
+
+<h3>8.3 요청 처리 흐름과 DDD 구성요소 매핑</h3>
+<pre><code>1. web      POST /api/v1/orders  → PlaceOrderRequest(Pydantic) 검증 → PlaceOrderCommand 로 변환
+2. app      PlaceOrder.execute(cmd)
+              async with uow:                              # Port: UnitOfWork
+                  customer = await uow.customers.get(...)  # Port: CustomerRepository
+                  order = Order.create(customer, cmd.lines)  # domain: 불변식·규칙 실행
+                  await uow.orders.add(order)
+                  await uow.commit()
+              await payments.charge(order.id, order.total)  # Port: PaymentGateway
+              publish(order.pull_events())                  # Domain Event
+3. infra    SqlUnitOfWork / SqlOrderRepository(SQLAlchemy), HttpPaymentGateway(외부 API)
+4. web      OrderResponse(Pydantic) 로 변환 → 201 응답 (도메인 예외는 error_handlers가 HTTP 상태로 매핑)</code></pre>
+<table>
+<tr><th>DDD 요소</th><th>설명</th><th>위치</th></tr>
+<tr><td>Bounded Context</td><td>용어와 모델이 일관된 경계(예: 고객, 주문, 정산). 컨텍스트 간 통신은 Domain Event나 app 계층의 Port로만</td><td><code>domain/&lt;context&gt;</code>, <code>application/&lt;context&gt;</code> 로 세로로 분할</td></tr>
+<tr><td>Aggregate / Root</td><td>일관성 경계. 외부는 Root를 통해서만 접근, 트랜잭션 1개 = Aggregate 1개 원칙</td><td>domain</td></tr>
+<tr><td>Entity / Value Object</td><td>식별자 동등 객체 / 값 동등 불변 객체</td><td>domain</td></tr>
+<tr><td>Domain Service</td><td>한 Entity에 속하지 않는 도메인 규칙(순수 로직, IO 없음)</td><td>domain</td></tr>
+<tr><td>Domain Event</td><td>도메인에서 일어난 사실(<code>OrderConfirmed</code>). 후속 처리는 app 핸들러</td><td>domain(정의) / application(핸들러)</td></tr>
+<tr><td>Application Service</td><td>유스케이스 하나 = 클래스 하나(또는 핸들러 하나). 규칙은 도메인에 위임</td><td>application</td></tr>
+<tr><td>Repository / Gateway (Port)</td><td>외부 저장소·시스템과의 계약</td><td>application/ports (구현은 infra)</td></tr>
+<tr><td>Factory</td><td>복잡한 Aggregate 생성과 불변식 보장</td><td>domain (<code>@classmethod create</code>)</td></tr>
+</table>
+<div class="callout warn">
+  <p><strong>DDD 적용 수준</strong>: 모든 모듈에 전술 패턴을 다 적용할 필요는 없습니다. 규칙이 복잡한 핵심 도메인(Core)은 위 구조를 엄격히 적용하고, 단순 CRUD 성격의 지원 도메인은 Port/UoW를 유지하되 Aggregate·이벤트 없이 단순한 엔티티와 유스케이스로 가볍게 구현하세요.</p>
+</div>
+
+<h3>8.4 단계적 접근</h3>
+<table>
+<tr><th>단계</th><th>구조</th><th>언제</th></tr>
+<tr><td>1</td><td><strong>모듈러 모노리스</strong> (단일 배포, 도메인별 모듈 경계 엄격)</td><td>초기·중기. 기본 선택. 운영 복잡도 최소</td></tr>
+<tr><td>2</td><td>비동기 워커 분리(같은 코드베이스, 별도 프로세스)</td><td>무거운 작업, 외부 연동 증가 시</td></tr>
+<tr><td>3</td><td>필요한 모듈만 서비스로 분리</td><td>독립 확장/팀 분리가 실제로 필요할 때만</td></tr>
+</table>
+<div class="callout warn">
+  <p>처음부터 마이크로서비스로 시작하지 마세요. 모듈 경계를 import-linter로 지켜두면 나중에 분리 비용이 낮아집니다.</p>
+</div>
+
+<h3>8.5 CQRS-lite</h3>
+<p>쓰기(Command)는 도메인 모델과 UoW를 통과시키고, 읽기(Query)는 목록·대시보드처럼 조인이 많은 경우 도메인 모델을 거치지 않고 읽기 전용 DTO로 직접 조회해 성능과 단순성을 얻습니다. 이때도 app 계층은 SQL을 알지 못하고 <code>application/ports/queries.py</code>의 <code>OrderQueryService</code> 같은 <strong>읽기용 Port</strong>를 호출하며, SQL 구현은 infra가 맡습니다.</p>
+
+<h3>8.6 API 설계</h3>
+<ul>
+  <li>REST + JSON, 리소스 복수형 명사, 버전은 <code>/api/v1</code>.</li>
+  <li>페이지네이션(커서 우선), 필터·정렬 규약 통일, 오류는 RFC 9457(Problem Details) 형식.</li>
+  <li>쓰기 재시도 대비 <code>Idempotency-Key</code> 헤더 지원(결제·주문 등).</li>
+  <li>인증: OAuth2/OIDC + 짧은 수명의 JWT 액세스 토큰 + HttpOnly·Secure 쿠키 기반 리프레시 토큰. 권한은 RBAC로 시작.</li>
+</ul>
+
+<!-- ============================================================ -->
+<h2 id="patterns">9. 디자인 패턴</h2>
+<table>
+<tr><th>패턴</th><th>용도</th><th>적용 위치</th></tr>
+<tr><td><strong>Repository</strong></td><td>컬렉션처럼 도메인 객체 저장/조회, 영속성 은닉</td><td>application/ports(인터페이스) / infra(구현)</td></tr>
+<tr><td><strong>Unit of Work</strong></td><td>트랜잭션 경계, 여러 Repository의 원자적 커밋</td><td>application/ports(인터페이스) / infra(SQLAlchemy 구현)</td></tr>
+<tr><td><strong>Dependency Injection</strong></td><td>결합도 감소, 테스트 용이성</td><td>전 계층 생성자 주입, 조립은 container.py, web은 FastAPI <code>Depends</code>로 유스케이스 수신</td></tr>
+<tr><td><strong>Strategy</strong></td><td>교체 가능한 알고리즘(할인, 가격, 정렬 규칙)</td><td>domain</td></tr>
+<tr><td><strong>Factory / Builder</strong></td><td>복잡한 객체 생성 캡슐화, 불변식 보장</td><td>domain (<code>@classmethod create</code>)</td></tr>
+<tr><td><strong>Adapter</strong></td><td>외부 API/라이브러리를 내부 인터페이스에 맞춤</td><td>infra (Port 구현: 결제, 메일, 외부 CRM)</td></tr>
+<tr><td><strong>Anti-Corruption Layer</strong></td><td>외부 시스템 모델을 도메인 언어로 번역해 오염 차단</td><td>infra/external 어댑터 내부</td></tr>
+<tr><td><strong>Domain Event / Observer</strong></td><td>느슨한 결합의 후속 처리(알림, 통계)</td><td>domain 발행 → application 핸들러</td></tr>
+<tr><td><strong>Decorator</strong></td><td>횡단 관심사(캐싱, 재시도, 로깅, 권한)</td><td>Repository/Client 래핑, 함수 데코레이터</td></tr>
+<tr><td><strong>Facade</strong></td><td>복잡한 서브시스템 단순 진입점</td><td>application 서비스</td></tr>
+<tr><td><strong>Specification</strong></td><td>조합 가능한 조건 규칙</td><td>domain 검색 조건</td></tr>
+<tr><td><strong>Outbox</strong></td><td>DB 커밋과 메시지 발행의 일관성</td><td>이벤트 외부 발행이 필요해질 때</td></tr>
+</table>
+
+<h3>9.1 Repository + Unit of Work 예시</h3>
+<pre><code># application/ports/unit_of_work.py   (app이 소유하는 Port)
+class UnitOfWork(Protocol):
+    customers: CustomerRepository
+    orders: OrderRepository
+
+    async def __aenter__(self) -&gt; Self: ...
+    async def __aexit__(self, *exc: object) -&gt; None: ...
+    async def commit(self) -&gt; None: ...
+    async def rollback(self) -&gt; None: ...
+
+# infra/db/uow.py                    (infra가 구현)
+class SqlUnitOfWork:
+    def __init__(self, session_factory: async_sessionmaker[AsyncSession]) -&gt; None:
+        self._session_factory = session_factory
+
+    async def __aenter__(self) -&gt; Self:
+        self._session = self._session_factory()
+        self.customers = SqlCustomerRepository(self._session)
+        self.orders = SqlOrderRepository(self._session)
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb) -&gt; None:
+        if exc_type:
+            await self.rollback()
+        await self._session.close()
+
+    async def commit(self) -&gt; None:
+        await self._session.commit()
+
+    async def rollback(self) -&gt; None:
+        await self._session.rollback()</code></pre>
+
+<h3>9.2 도메인 이벤트 예시</h3>
+<pre><code>@dataclass(frozen=True)
+class OrderConfirmed:
+    order_id: OrderId
+
+class MessageBus:
+    def __init__(self) -&gt; None:
+        self._handlers: dict[type, list[Callable[..., Awaitable[None]]]] = defaultdict(list)
+
+    def subscribe(self, event_type: type, handler) -&gt; None:
+        self._handlers[event_type].append(handler)
+
+    async def publish(self, event: object) -&gt; None:
+        for handler in self._handlers[type(event)]:
+            await handler(event)</code></pre>
+
+<h3>9.3 FastAPI 라우터 (얇게 유지)</h3>
+<pre><code>@router.post("/orders", status_code=201, response_model=OrderResponse)
+async def place_order(
+    body: PlaceOrderRequest,
+    use_case: PlaceOrder = Depends(get_place_order),
+    user: User = Depends(current_user),
+) -&gt; OrderResponse:
+    order_id = await use_case.execute(body.to_command(user.id))
+    return OrderResponse(id=order_id)</code></pre>
+<p>라우터는 <em>변환 → 호출 → 변환</em>만 담당합니다. 비즈니스 규칙, 트랜잭션, SQL을 라우터에 두지 않습니다.</p>
+
+<!-- ============================================================ -->
+<h2 id="backend">10. 백엔드 상세</h2>
+<h3>10.1 데이터 접근</h3>
+<ul>
+  <li>SQLAlchemy 2.x Typed ORM(<code>Mapped[...]</code>, <code>mapped_column</code>). ORM 모델(infra/db)과 도메인 엔티티는 분리하고 Repository 안에서 변환(또는 imperative mapping 사용).</li>
+  <li>Alembic 마이그레이션은 코드 리뷰 대상. 파괴적 변경은 <em>expand → migrate → contract</em> 3단계로 무중단 배포.</li>
+  <li>N+1 방지(<code>selectinload</code>/<code>joinedload</code>), 인덱스는 쿼리 계획(<code>EXPLAIN</code>) 기반 추가.</li>
+  <li>async 사용 시 이벤트 루프를 막는 동기 I/O(requests, 무거운 CPU 작업) 금지 → <code>httpx.AsyncClient</code>, 워커 분리.</li>
+</ul>
+
+<h3>10.2 설정(프로파일)</h3>
+<p>프로파일(local/dev/product)별 설정 클래스, 환경변수 목록, 검증 규칙, 주입 방식은 <a href="#env">3.5절</a>을 따릅니다. 설정 객체는 <code>app.config</code>에 두고 <code>container.py</code>에서만 읽어 필요한 값을 각 어댑터에 생성자로 주입합니다.</p>
+
+<h3>10.3 오류 처리</h3>
+<ul>
+  <li>도메인 예외(<code>DomainError</code> 하위) → <code>error_handlers.py</code>에서 HTTP 상태/Problem Details로 일괄 매핑.</li>
+  <li>예기치 못한 예외는 500 + 상관관계 ID 응답, 상세는 로그/Sentry에만.</li>
+</ul>
+
+<h3>10.4 백그라운드 작업</h3>
+<ul>
+  <li>워커 작업은 <strong>멱등</strong>하게 작성(재시도 안전), 인자에는 객체가 아닌 ID만 전달.</li>
+  <li>작업도 유스케이스를 호출하는 얇은 어댑터로 취급.</li>
+</ul>
+
+<!-- ============================================================ -->
+<h2 id="frontend">11. 프론트엔드 상세</h2>
+<ul>
+  <li><strong>구성</strong>: Vite + React + TypeScript, 라우팅은 React Router 또는 TanStack Router.</li>
+  <li><strong>서버 상태</strong>: TanStack Query. API 클라이언트는 OpenAPI에서 <strong>자동 생성</strong>(<code>openapi-typescript</code> + <code>openapi-fetch</code>, 또는 <code>orval</code>, <code>@hey-api/openapi-ts</code>).</li>
+  <li><strong>폼/검증</strong>: React Hook Form + Zod (서버 스키마와 어긋나지 않도록 에러 메시지 규약 통일).</li>
+  <li><strong>UI</strong>: 디자인 시스템(예: shadcn/ui + Tailwind, 또는 MUI) 하나로 통일.</li>
+  <li><strong>구조</strong>: <code>features/*</code> 단위로 응집(components, hooks, api). feature 간 직접 참조 대신 <code>shared</code>를 통해 공유.</li>
+  <li><strong>프론트에서도 SOLID</strong>: 컴포넌트 SRP(표시 vs 데이터 로딩 분리, 커스텀 훅으로 로직 추출), props 최소화(ISP), 구체 API 대신 훅/인터페이스에 의존(DIP).</li>
+  <li><strong>개발 프록시</strong>: Vite <code>server.proxy</code>로 <code>/api</code> → <code>localhost:8000</code> (CORS 회피). 운영에서는 리버스 프록시(Nginx/CDN)가 동일 오리진을 구성.</li>
+  <li><strong>접근성/성능</strong>: eslint-plugin-jsx-a11y, 코드 분할(<code>React.lazy</code>), Lighthouse CI 검토.</li>
+</ul>
+
+<!-- ============================================================ -->
+<h2 id="contract">12. API 계약 (프론트 ↔ 백엔드)</h2>
+<pre><code># 백엔드: 스키마 내보내기
+uv run python -c "import json; from app.main import app; print(json.dumps(app.openapi()))" &gt; openapi.json
+
+# 프론트엔드: 타입/클라이언트 생성
+pnpm openapi-typescript ../backend/openapi.json -o src/shared/api/schema.d.ts</code></pre>
+<ul>
+  <li><code>openapi.json</code>을 커밋하고, CI에서 <strong>생성물과 커밋본이 다르면 실패</strong>시켜 계약 드리프트를 차단.</li>
+  <li>호환성 깨짐(필드 삭제 등)은 <code>oasdiff</code> 같은 도구로 PR에서 검출.</li>
+</ul>
+
+<!-- ============================================================ -->
+<h2 id="test">13. 테스트 전략</h2>
+<table>
+<tr><th>층</th><th>대상</th><th>도구</th><th>비중</th></tr>
+<tr><td>단위</td><td>domain, application (DB/네트워크 없음, Fake Port 사용)</td><td>pytest</td><td>약 70%</td></tr>
+<tr><td>통합</td><td>Repository, 마이그레이션, 외부 어댑터 (실제 DB)</td><td>pytest + 실제 PostgreSQL(테스트 전용 임시 DB)</td><td>약 20%</td></tr>
+<tr><td>API/E2E</td><td>HTTP 전 구간 · 핵심 사용자 시나리오</td><td>httpx(ASGITransport), Playwright</td><td>약 10%</td></tr>
+<tr><td>프론트 단위/컴포넌트</td><td>컴포넌트, 훅</td><td>Vitest + Testing Library, MSW</td><td>-</td></tr>
+</table>
+<ul>
+  <li>DIP 덕분에 단위 테스트는 <strong>InMemory Fake Repository/UoW</strong>로 빠르게 작성(Mock 남용 지양, 행위보다 결과 검증).</li>
+  <li>DB 목킹 대신 <strong>실제 PostgreSQL의 테스트 전용 임시 DB</strong> 사용 → 운영과 동일한 SQL 동작 검증(15.6절).</li>
+  <li>속성 기반 테스트(Hypothesis)는 값 객체·계산 로직에 유용.</li>
+  <li>커버리지 기준: 전체 80% 이상, domain/application은 90% 이상 목표. 수치보다 <em>의미 있는 시나리오</em>가 우선.</li>
+  <li>이름 규칙: <code>test_&lt;상황&gt;_&lt;기대결과&gt;</code>, 구조는 Arrange–Act–Assert.</li>
+  <li>저장소 계약 테스트: 같은 테스트를 InMemory/SQL 구현 모두에 실행(LSP 검증).</li>
+</ul>
+<pre><code># tests/unit/test_place_order.py
+async def test_confirmed_order_is_persisted():
+    uow = FakeUnitOfWork()
+    use_case = PlaceOrder(uow, FakeNotifier())
+
+    order_id = await use_case.execute(make_command())
+
+    assert uow.committed
+    assert (await uow.orders.get(order_id)).status is OrderStatus.CONFIRMED</code></pre>
+
+<!-- ============================================================ -->
+<h2 id="build">14. 빌드와 패키징</h2>
+<p>산출물은 <strong>릴리스 번들(tar.gz)</strong> 하나입니다. 번들은 git SHA로 버전을 붙이고, 같은 번들을 dev에서 검증한 뒤 그대로 product에 배포합니다(빌드는 한 번).</p>
+
+<h3>14.1 릴리스 번들 구성</h3>
+<pre><code>neoine-sales-&lt;git-sha12&gt;.tar.gz
+└─ neoine-sales-&lt;git-sha12&gt;/
+   ├─ VERSION                      # git SHA
+   ├─ backend/
+   │  ├─ pyproject.toml
+   │  ├─ uv.lock                   # 서버에서 잠금 파일 기준으로 의존성 설치
+   │  ├─ alembic.ini
+   │  ├─ alembic/                  # 마이그레이션
+   │  └─ src/app/                  # 애플리케이션 소스
+   ├─ frontend/
+   │  └─ dist/                     # pnpm build 결과(정적 파일)
+   └─ infra/server/                # 서버 구성 자산: systemd 유닛, nginx 설정, sudoers, config.&lt;profile&gt;.json, bootstrap.sh</code></pre>
+<ul>
+  <li>가상환경(<code>.venv</code>)은 경로가 고정되어 옮길 수 없으므로 번들에 넣지 않고, <strong>배포 서버에서 <code>uv sync --locked --no-dev --no-editable</code></strong>로 릴리스 디렉터리 안에 생성합니다. <code>--locked</code>는 <code>uv.lock</code>이 최신인지 검증하고, <code>--no-dev</code>는 개발 의존성을 제외하며, <code>--no-editable</code>은 소스 의존 없이 패키지로 설치합니다(uv 공식 가이드의 옵션).</li>
+  <li>서버는 <strong>인터넷의 PyPI에서 직접</strong> 의존성을 받습니다(<code>uv.lock</code>에 고정된 버전과 해시 기준). 따라서 서버에서 <code>pypi.org</code>, <code>files.pythonhosted.org</code>로의 outbound HTTPS가 필요합니다(16.6절 방화벽 허용 목록).</li>
+  <li>서버의 Python은 <code>bootstrap.sh</code>가 <code>uv python install</code>로 <code>.python-version</code>(3.14)에 맞춰 <code>neoine</code> 계정에 설치합니다(GitHub의 python-build-standalone 다운로드). 이후 Python 버전을 올릴 때는 <code>.python-version</code>을 바꾼 릴리스를 배포하면 <code>uv sync</code>가 필요한 Python을 자동으로 받습니다.</li>
+</ul>
+
+<h3>14.2 번들 생성 스크립트</h3>
+<pre><code>#!/usr/bin/env bash
+# infra/build_release.sh &lt;tag&gt;  - Jenkins와 로컬에서 동일하게 사용
+set -euo pipefail
+TAG="${1:?usage: build_release.sh &lt;tag&gt;}"
+NAME="neoine-sales-$TAG"
+OUT="build/$NAME"
+
+rm -rf build
+mkdir -p "$OUT/backend" "$OUT/frontend"
+cp -r backend/src backend/alembic backend/alembic.ini backend/pyproject.toml backend/uv.lock "$OUT/backend/"
+cp -r frontend/dist "$OUT/frontend/dist"      # 사전에 pnpm build 실행
+mkdir -p "$OUT/infra" &amp;&amp; cp -r infra/server "$OUT/infra/server"
+echo "$TAG" &gt; "$OUT/VERSION"
+tar -czf "build/$NAME.tar.gz" -C build "$NAME"
+echo "created build/$NAME.tar.gz"</code></pre>
+
+<h3>14.3 프론트엔드 빌드</h3>
+<ul>
+  <li><code>pnpm install --frozen-lockfile &amp;&amp; pnpm build</code> → <code>frontend/dist</code>(정적 파일)를 번들에 포함하고, 서버의 Nginx가 직접 서빙합니다(16.5절).</li>
+  <li>정적 파일은 해시된 파일명으로 장기 캐시, <code>index.html</code>은 no-cache로 서빙합니다.</li>
+  <li>프로파일마다 다른 값은 빌드에 넣지 않고 서버가 제공하는 <code>/config.json</code>으로 주입합니다(3.5.8절).</li>
+</ul>
+
+<h3>14.4 공통 명령 (justfile)</h3>
+<pre><code>default: lint test
+
+lint:
+    cd backend &amp;&amp; uv run ruff check . &amp;&amp; uv run ruff format --check . &amp;&amp; uv run mypy src &amp;&amp; uv run lint-imports &amp;&amp; uv run python scripts/check_file_length.py
+    cd frontend &amp;&amp; pnpm lint &amp;&amp; pnpm typecheck
+
+fmt:
+    cd backend &amp;&amp; uv run ruff check --fix . &amp;&amp; uv run ruff format .
+    cd frontend &amp;&amp; pnpm format
+
+test:
+    cd backend &amp;&amp; uv run pytest
+    cd frontend &amp;&amp; pnpm test --run
+
+# 로컬 PostgreSQL/Redis가 실행 중이어야 한다 (3.4절)
+dev:
+    (cd backend &amp;&amp; uv run fastapi dev src/app/main.py) &amp; (cd frontend &amp;&amp; pnpm dev)
+
+migrate:
+    cd backend &amp;&amp; uv run alembic upgrade head
+
+release tag:
+    cd frontend &amp;&amp; pnpm install --frozen-lockfile &amp;&amp; pnpm build
+    infra/build_release.sh {{tag}}</code></pre>
+
+<!-- ============================================================ -->
+<h2 id="cicd">15. CI/CD (Jenkins)</h2>
+<p>온프레미스 Linux 환경에서 <strong>Jenkins Declarative Pipeline</strong>(Jenkinsfile을 저장소에 포함, Pipeline as Code)으로 CI/CD를 구성합니다. <strong>Jenkins agent(Linux 빌드 노드)에서 직접</strong> 빌드·테스트하고, 릴리스 번들을 SSH로 서버에 전달해 배포합니다. 아래 문법(<code>agent</code>, <code>options</code>, <code>when</code>, <code>input</code>, <code>withCredentials</code>, <code>post</code>)은 Jenkins 공식 문서(Pipeline Syntax)를 확인해 작성했습니다.</p>
+
+<h3>15.1 Jenkins 인프라 구성</h3>
+<table>
+<tr><th>구성요소</th><th>방침</th></tr>
+<tr><td>Controller</td><td>Jenkins LTS, 전용 Linux VM. <strong>controller 실행기(executor)는 0</strong>으로 두고 빌드는 agent에서만 실행. 앞단에 Nginx(TLS) 배치, 설정은 JCasC(Configuration as Code)로 코드화</td></tr>
+<tr><td>빌드 Agent</td><td>Linux 노드(SSH 또는 inbound 연결), 라벨 <code>linux-build</code>. <strong>도구 버전은 저장소의 <code>mise.toml</code>로 고정</strong>하고 agent에서 <code>mise install</code>로 설치: Python, uv, Node, pnpm. 그 외 PostgreSQL(통합 테스트용), Trivy, gitleaks는 OS 패키지/공식 릴리스로 설치(버전 기록)</td></tr>
+<tr><td>배포 Agent</td><td>라벨 <code>deploy</code>. 서버 SSH 접근 키를 가진 전용 노드로 분리하고 일반 빌드와 권한을 나눔</td></tr>
+<tr><td>Job 유형</td><td><strong>Multibranch Pipeline</strong>: 브랜치/PR마다 Jenkinsfile을 자동 인식. 사내 Git(GitLab/Gitea/Bitbucket Server)의 webhook으로 빌드 트리거 (scan/checkout 자격 증명 분리)</td></tr>
+<tr><td>의존성/아티팩트</td><td>PyPI·npm은 <strong>인터넷에서 직접</strong> 설치(<code>uv.lock</code>, <code>pnpm-lock.yaml</code>로 버전·해시 고정). 릴리스 번들은 Jenkins 아티팩트로 보관(<code>archiveArtifacts</code>)</td></tr>
+<tr><td>품질/보안</td><td>SonarQube(정적 분석), Trivy(파일시스템·잠금 파일 취약점 스캔), gitleaks(비밀 검출), pip-audit, pnpm audit</td></tr>
+<tr><td>접근 제어</td><td>LDAP/AD 연동 + Role-based Authorization. product 승인은 지정 그룹(submitter)만 가능</td></tr>
+<tr><td>비밀 관리</td><td>Jenkins Credentials(+ 필요 시 HashiCorp Vault 연동). Jenkinsfile·번들·로그에 비밀 금지</td></tr>
+<tr><td>알림</td><td>이메일 또는 사내 메신저(Mattermost/Slack 호환 플러그인)로 실패·배포 결과 통지</td></tr>
+<tr><td>백업</td><td><code>JENKINS_HOME</code> 정기 백업(스냅샷), JCasC·Jenkinsfile은 Git이 원본</td></tr>
+</table>
+
+<h3>15.2 주요 플러그인</h3>
+<p>Pipeline, Git, Multibranch(Branch Source 플러그인), Credentials Binding, SSH Agent(선택), JUnit, Coverage, Warnings Next Generation, Timestamper, AnsiColor, Workspace Cleanup, Configuration as Code, Role-based Authorization Strategy, Lockable Resources(환경별 배포 직렬화), Email Extension. <em>플러그인 이름/가용성은 설치 시점의 Jenkins 플러그인 사이트에서 확인하세요.</em></p>
+
+<h3>15.3 브랜치·릴리스 전략</h3>
+<ul>
+  <li><strong>Trunk-based</strong>: <code>main</code>은 항상 배포 가능. 짧은 수명의 feature 브랜치 + PR(Merge Request).</li>
+  <li>PR 단계: Jenkins가 CI(검증)만 수행하고 결과를 Git 서버의 머지 조건(status check)으로 사용. 배포는 하지 않음.</li>
+  <li><code>main</code> 머지: 릴리스 번들 생성·보관 → <strong>dev 프로파일 자동 배포</strong> → 스모크/E2E → <strong>수동 승인</strong> → product(운영) 배포.</li>
+  <li>번들 버전은 <strong>git SHA(불변)</strong>. 릴리스는 Git 태그(SemVer)로 표시하고, 롤백은 서버에 남겨 둔 이전 릴리스로 전환(16.4절).</li>
+  <li>커밋 규약은 Conventional Commits, 의존성 업데이트는 Renovate(사내 설치형)로 주기적 PR 생성.</li>
+</ul>
+
+<h3>15.4 파이프라인 단계</h3>
+<table>
+<tr><th>단계</th><th>실행 조건</th><th>내용</th></tr>
+<tr><td>Quality</td><td>모든 브랜치/PR</td><td>Ruff lint·format(복잡도 포함), mypy, import-linter, 파일 300줄 제한 / ESLint, tsc</td></tr>
+<tr><td>Test</td><td>모든 브랜치/PR</td><td>pytest(단위·통합: agent의 실제 PostgreSQL에 테스트 전용 DB 생성) + 커버리지 게이트 / Vitest. JUnit·커버리지 리포트 게시</td></tr>
+<tr><td>Contract</td><td>모든 브랜치/PR</td><td>OpenAPI 생성물과 커밋본 비교(드리프트 시 실패), 호환성 검사</td></tr>
+<tr><td>Security</td><td>모든 브랜치/PR</td><td>gitleaks, pip-audit, pnpm audit, Trivy(잠금 파일), SonarQube</td></tr>
+<tr><td>Package</td><td><code>main</code></td><td>프론트 빌드 → 릴리스 번들 생성 → Jenkins 아티팩트로 보관(SHA 버전)</td></tr>
+<tr><td>Deploy Dev</td><td><code>main</code></td><td>번들을 SSH로 전달 → <code>deploy.sh dev</code>(의존성 설치, 마이그레이션, 전환, 재시작) → 헬스체크 → 스모크 테스트</td></tr>
+<tr><td>Approval</td><td><code>main</code></td><td><code>input</code> 단계에서 지정 승인자 확인 (<code>beforeInput true</code>로 <code>main</code>에서만 승인 프롬프트 노출)</td></tr>
+<tr><td>Deploy Product</td><td><code>main</code> + 승인</td><td>환경 잠금(lock) → 서버별 순차(롤링) 배포 → 헬스체크 → 실패 시 자동 롤백</td></tr>
+</table>
+
+<h3>15.5 Jenkinsfile 예시</h3>
+<p>최상위는 <code>agent none</code>으로 두고 단계마다 에이전트를 지정합니다(공식 문서의 stage-level agent 패턴). 빌드·테스트는 <code>linux-build</code> 노드에서, 배포는 <code>deploy</code> 노드에서 실행하며, 두 노드 간 산출물은 <code>stash</code>/<code>unstash</code>로 전달합니다.</p>
+<pre><code>// Jenkinsfile
+pipeline {
+    agent none
+
+    options {
+        timeout(time: 45, unit: 'MINUTES')
+        timestamps()
+        disableConcurrentBuilds()          // 같은 브랜치는 직렬 실행
+        skipStagesAfterUnstable()
+        buildDiscarder(logRotator(numToKeepStr: '30', artifactNumToKeepStr: '20'))   // 번들은 최근 20개 보관
+    }
+
+    environment {
+        RELEASE_TAG = "${env.GIT_COMMIT.take(12)}"
+        // 통합 테스트용 PostgreSQL 관리자 접속 정보 (agent 로컬 DB, 비밀 아님)
+        TEST_DATABASE_ADMIN_URL = 'postgresql+asyncpg://ci@localhost:5432/postgres'
+    }
+
+    stages {
+        stage('Backend: Quality') {
+            agent { label 'linux-build' }
+            steps {
+                dir('backend') {
+                    sh 'uv sync --locked'
+                    sh 'uv run ruff check .'
+                    sh 'uv run ruff format --check .'
+                    sh 'uv run mypy src'
+                    sh 'uv run lint-imports'
+                    sh 'uv run python scripts/check_file_length.py'   // 파일 300줄 제한
+                }
+            }
+        }
+
+        stage('Backend: Test') {
+            agent { label 'linux-build' }
+            steps {
+                dir('backend') {
+                    sh 'uv sync --locked'
+                    sh 'uv run pytest --junitxml=reports/junit.xml --cov-report=xml:reports/coverage.xml'
+                }
+            }
+            post {
+                always { junit 'backend/reports/junit.xml' }
+            }
+        }
+
+        stage('Frontend: Quality &amp; Test') {
+            agent { label 'linux-build' }
+            steps {
+                dir('frontend') {
+                    sh 'corepack enable &amp;&amp; pnpm install --frozen-lockfile'
+                    sh 'pnpm lint &amp;&amp; pnpm typecheck'
+                    sh 'pnpm test --run'
+                    sh 'pnpm build'
+                }
+            }
+        }
+
+        stage('Contract &amp; Security') {
+            agent { label 'linux-build' }
+            steps {
+                dir('backend') {
+                    sh '''
+                        uv run python -c "import json; from app.main import app; print(json.dumps(app.openapi(), indent=2, sort_keys=True))" &gt; /tmp/openapi.json
+                        diff -u openapi.json /tmp/openapi.json
+                    '''
+                    sh 'uvx pip-audit'
+                }
+                sh 'trivy fs --scanners vuln --severity CRITICAL,HIGH --exit-code 1 backend/uv.lock frontend/pnpm-lock.yaml'
+                sh 'gitleaks detect --no-banner --redact'
+            }
+        }
+
+        stage('Package') {
+            when { branch 'main' }
+            agent { label 'linux-build' }
+            steps {
+                sh 'cd frontend &amp;&amp; corepack enable &amp;&amp; pnpm install --frozen-lockfile &amp;&amp; pnpm build'
+                sh 'infra/build_release.sh "$RELEASE_TAG"'
+                archiveArtifacts artifacts: 'build/*.tar.gz', fingerprint: true   // 롤백·감사용 보관
+                stash name: 'release', includes: 'build/*.tar.gz'
+            }
+        }
+
+        stage('Deploy: Dev') {
+            when { branch 'main' }
+            agent { label 'deploy' }
+            steps {
+                unstash 'release'
+                lock(resource: 'neoine-dev') {
+                    withCredentials([sshUserPrivateKey(credentialsId: 'deploy-ssh-dev',
+                                                       keyFileVariable: 'SSH_KEY',
+                                                       usernameVariable: 'SSH_USER')]) {
+                        sh '''
+                            # 번들과 같은 커밋의 deploy.sh를 함께 전달 (스크립트도 코드와 함께 버전 관리)
+                            scp -i "$SSH_KEY" -o StrictHostKeyChecking=yes \
+                                "build/neoine-sales-$RELEASE_TAG.tar.gz" infra/server/deploy.sh \
+                                "$SSH_USER@dev.internal.example.com:/opt/neoine-sales/incoming/"
+                            ssh -i "$SSH_KEY" -o StrictHostKeyChecking=yes "$SSH_USER@dev.internal.example.com" \
+                                "bash /opt/neoine-sales/incoming/deploy.sh dev $RELEASE_TAG"
+                        '''
+                    }
+                }
+                sh 'curl --fail --retry 5 --retry-delay 3 https://dev.internal.example.com/readyz'
+            }
+        }
+
+        stage('Deploy: Product') {
+            when {
+                beforeInput true
+                branch 'main'
+            }
+            input {
+                message "product(운영)에 ${env.GIT_COMMIT.take(12)} 버전을 배포할까요?"
+                ok '배포'
+                submitter 'release-managers'      // 승인 가능한 사용자/그룹
+            }
+            agent { label 'deploy' }
+            steps {
+                unstash 'release'
+                lock(resource: 'neoine-product') {
+                    withCredentials([sshUserPrivateKey(credentialsId: 'deploy-ssh-product',
+                                                       keyFileVariable: 'SSH_KEY',
+                                                       usernameVariable: 'SSH_USER')]) {
+                        // 서버를 한 대씩 순차 배포(롤링). 한 대라도 실패하면 중단
+                        sh '''
+                            for host in prd1.internal.example.com prd2.internal.example.com; do
+                                scp -i "$SSH_KEY" -o StrictHostKeyChecking=yes \
+                                    "build/neoine-sales-$RELEASE_TAG.tar.gz" infra/server/deploy.sh \
+                                    "$SSH_USER@$host:/opt/neoine-sales/incoming/"
+                                ssh -i "$SSH_KEY" -o StrictHostKeyChecking=yes "$SSH_USER@$host" \
+                                    "bash /opt/neoine-sales/incoming/deploy.sh product $RELEASE_TAG"
+                            done
+                        '''
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        failure { mail to: 'dev-team@example.com', subject: "FAILED: ${env.JOB_NAME} #${env.BUILD_NUMBER}", body: "${env.BUILD_URL}" }
+    }
+}</code></pre>
+<div class="callout warn">
+  <p><strong>비밀 전달 규칙</strong>: <code>withCredentials</code> 안의 셸 명령은 작은따옴표(<code>sh '...'</code>)로 작성해 셸이 변수를 확장하도록 합니다. 큰따옴표 Groovy 문자열에 비밀 변수를 넣으면 보간되어 로그·프로세스 목록에 노출될 수 있습니다. 또한 자격 증명은 해당 <code>withCredentials</code> 블록 안에서만 유효합니다.</p>
+</div>
+<div class="callout">
+  <p>product 배포 승인 단계는 <code>input</code>이 에이전트를 할당하기 <em>전에</em> 일시 정지되므로(공식 문서), 승인 대기 중에도 빌드 노드를 점유하지 않습니다. 단, 대기 시간이 길어질 수 있으니 <code>options.timeout</code>과 승인 단계의 타임아웃 정책을 함께 정하세요.</p>
+</div>
+
+<h3>15.6 통합 테스트용 데이터베이스</h3>
+<p>통합 테스트는 <strong>실제 PostgreSQL 인스턴스</strong>에서 <strong>테스트 전용 데이터베이스</strong>를 만들어 실행합니다.</p>
+<ul>
+  <li><strong>로컬</strong>: 3.4절에서 설치한 PostgreSQL에 관리자 접속(<code>TEST_DATABASE_ADMIN_URL</code>)으로 접속합니다.</li>
+  <li><strong>CI</strong>: <code>linux-build</code> agent에 PostgreSQL을 설치해 두고, CI 전용 role(<code>ci</code>, <code>CREATEDB</code> 권한만)로 접속합니다.</li>
+  <li><strong>격리</strong>: pytest 세션 fixture가 <code>app_test_&lt;무작위&gt;</code> DB를 <code>CREATE DATABASE</code>로 만들고 Alembic 마이그레이션을 적용한 뒤, 세션 종료 시 <code>DROP DATABASE</code>합니다. 이름이 매번 달라 <strong>같은 agent에서 병렬 빌드가 돌아도 충돌하지 않습니다</strong>. 운영 데이터가 있는 DB에는 절대 연결하지 않습니다.</li>
+  <li>테스트 간 격리는 테스트마다 트랜잭션을 열고 롤백하는 방식(또는 테이블 TRUNCATE)을 사용합니다.</li>
+</ul>
+
+<h3>15.7 빌드 환경 (Agent)</h3>
+<ul>
+  <li><strong>도구 버전 고정</strong>: 저장소 루트의 <code>mise.toml</code>에 Python, uv, Node, pnpm 버전을 적어 개발자 PC(맥/Windows WSL2)와 CI agent가 같은 버전을 쓰게 합니다. agent는 최초 1회 mise를 설치하고 빌드 시작 시 <code>mise install</code>을 실행합니다. Trivy, gitleaks, PostgreSQL은 OS 패키지나 공식 릴리스로 설치하고 설치 버전을 운영 문서에 기록합니다.</li>
+  <li><strong>인터넷 직접 연결</strong>: agent는 PyPI(<code>pypi.org</code>, <code>files.pythonhosted.org</code>), npm(<code>registry.npmjs.org</code>), GitHub(<code>github.com</code>, <code>objects.githubusercontent.com</code>: uv의 Python 다운로드, mise, Trivy/gitleaks 릴리스)로 outbound HTTPS가 가능해야 합니다. 사내 프록시가 있으면 <code>HTTPS_PROXY</code>/<code>NO_PROXY</code>를 agent 환경에 설정합니다.</li>
+  <li><strong>공급망 보호</strong>: 인터넷에서 직접 받는 만큼 <code>uv sync --locked</code>, <code>pnpm install --frozen-lockfile</code>로 잠금 파일에 고정된 버전만 설치하고, <code>pip-audit</code>, <code>pnpm audit</code>, Trivy로 취약점을 매 빌드 점검하며, Renovate로 의존성 갱신을 PR로 검토합니다.</li>
+  <li>workspace는 빌드 후 정리(Workspace Cleanup)하고, agent 디스크의 uv 캐시는 주기적으로 정리합니다.</li>
+</ul>
+
+<!-- ============================================================ -->
+<h2 id="onprem">16. 온프레미스 Linux 운영 환경</h2>
+<p><strong>systemd + Nginx + 릴리스 디렉터리</strong>로 운영합니다. 애플리케이션은 전용 계정(<code>neoine</code>)의 systemd 서비스로 실행하고, 배포는 릴리스 디렉터리를 새로 만든 뒤 <code>current</code> 심볼릭 링크를 바꾸는 방식입니다.</p>
+
+<h3>16.1 환경 구성</h3>
+<table>
+<tr><th>환경</th><th>목적</th><th>구성 권장</th></tr>
+<tr><td>local (개발자 PC)</td><td>개별 개발</td><td>로컬에 설치한 PostgreSQL/Redis + uv/pnpm 개발 서버</td></tr>
+<tr><td>dev (사내 개발 서버)</td><td>통합 테스트, 배포 리허설, E2E</td><td>운영과 같은 구성(축소 사양), 익명화된 데이터</td></tr>
+<tr><td>product (운영 서버)</td><td>서비스</td><td>이중화 앱 서버 + 로드밸런서, DB 복제(Primary/Replica)</td></tr>
+</table>
+
+<h3>16.2 배포 토폴로지</h3>
+<pre><code>            사용자
+              │ HTTPS
+        ┌─────▼──────┐   (HAProxy / Nginx + keepalived 로 이중화)
+        │ 로드밸런서  │
+        └─────┬──────┘
+   ┌──────────┴───────────┐
+┌──▼────────────────┐  ┌──▼────────────────┐
+│ App 서버 #1        │  │ App 서버 #2        │   각 서버:
+│ nginx (정적+프록시)│  │ nginx (정적+프록시)│     nginx → 127.0.0.1:8000
+│ systemd: api      │  │ systemd: api      │     systemd 서비스 api / worker
+│ systemd: worker   │  │ systemd: worker   │     /opt/neoine-sales/current → releases/&lt;sha&gt;
+└──┬────────────────┘  └────────────────┬──┘
+   └───────────────┬────────────────────┘
+        ┌──────────▼───────────┐   ┌─────────┐
+        │ PostgreSQL            │   │  Redis  │
+        │ Primary + Replica     │   └─────────┘
+        └───────────────────────┘</code></pre>
+<ul>
+  <li><strong>시작 단계</strong>: 서버 1~2대로 충분합니다. 서버를 늘릴 때는 새 서버에서 <code>bootstrap.sh</code>를 한 번 실행하고 <code>.env</code>를 채운 뒤 Jenkinsfile의 호스트 목록만 늘립니다.</li>
+  <li>DB는 <strong>전용 호스트의 PostgreSQL</strong>(또는 Patroni 기반 HA)을 사용합니다. 백업은 <code>pgBackRest</code>/<code>pg_basebackup</code> + WAL 아카이빙으로 PITR을 확보하고, 복구 리허설을 정기 수행합니다.</li>
+</ul>
+
+<h3>16.3 FastAPI 실행 방식</h3>
+<ul>
+  <li>systemd가 <strong>Uvicorn의 <code>--workers N</code></strong>(또는 <code>fastapi run --workers N</code>)로 다중 프로세스를 실행합니다. 프로세스 감시·재시작은 systemd(<code>Restart=on-failure</code>)가 담당합니다.</li>
+  <li>Uvicorn은 <code>127.0.0.1:8000</code>에서만 대기하고 외부 접근은 Nginx를 거칩니다. Nginx 뒤에서는 <code>--proxy-headers</code>를 지정해 실제 클라이언트 IP/스킴을 인식합니다. 같은 서버의 Nginx만 접근하므로 신뢰 프록시는 로컬호스트로 충분합니다. 다른 호스트의 프록시를 신뢰해야 할 때만 <code>--forwarded-allow-ips</code>를 지정하세요.</li>
+  <li>경로 접두어를 프록시에서 제거한다면 <code>--root-path</code>를 지정합니다(문서/OpenAPI URL 정합성).</li>
+  <li>워커 수는 <code>--workers</code>(유닛 파일)와 설정값 <code>APP_WORKERS</code>가 같도록 관리합니다. <code>--workers</code>는 유닛 파일(<code>infra/server/systemd/</code>)에서 고치고, 설정값은 서버 <code>.env</code>에서 고쳐 두 곳을 함께 변경합니다.</li>
+</ul>
+
+<h3>16.4 서버 구성과 배포 절차</h3>
+<pre><code>/opt/neoine-sales/                 # 소유자: neoine (배포 계정은 쓰기 권한만)
+├─ .env                            # 프로파일별 환경변수·비밀 (APP_PROFILE 포함, 권한 600, git 제외) - 3.5절
+├─ incoming/                       # Jenkins가 scp로 올린 릴리스 번들과 deploy.sh (매 배포마다 같은 커밋의 스크립트)
+├─ releases/
+│  ├─ 3f9c1a7b2d41/                # 릴리스 번들을 푼 디렉터리 (backend/.venv 포함)
+│  └─ a81be0c55f02/                # 이전 릴리스 (최근 5개 보관)
+├─ current -&gt; releases/3f9c1a7b2d41   # 심볼릭 링크 (원자적 전환)
+└─ shared/
+   └─ config.json                  # 프론트 런타임 설정 (deploy.sh가 번들의 config.&lt;profile&gt;.json에서 설치)</code></pre>
+
+<pre><code># /etc/systemd/system/neoine-sales-api.service  (저장소 infra/server/systemd/ 의 파일을 bootstrap.sh가 설치)
+[Unit]
+Description=neoine-sales API (FastAPI / Uvicorn)
+After=network-online.target postgresql.service redis.service
+Wants=network-online.target
+
+[Service]
+User=neoine
+Group=neoine
+WorkingDirectory=/opt/neoine-sales          # pydantic-settings가 이 디렉터리의 .env를 읽음
+ExecStart=/opt/neoine-sales/current/backend/.venv/bin/uvicorn app.main:app \
+          --host 127.0.0.1 --port 8000 --workers 4 --proxy-headers
+Restart=on-failure
+RestartSec=3
+LimitNOFILE=65536
+# 하드닝
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target</code></pre>
+<p>워커 서비스(<code>neoine-sales-worker.service</code>)도 같은 구조에서 <code>ExecStart</code>만 <code>celery -A app.worker worker</code>(또는 arq)로 바꿉니다.</p>
+
+<pre><code>#!/usr/bin/env bash
+# infra/server/deploy.sh &lt;dev|product&gt; &lt;release_tag&gt;   (Jenkins가 서버로 전달해 실행. 계정: neoine)
+set -euo pipefail
+ENV_NAME="$1"; TAG="$2"
+case "$ENV_NAME" in dev|product) ;; *) echo "알 수 없는 프로파일: $ENV_NAME" &gt;&amp;2; exit 2 ;; esac
+
+APP_HOME=/opt/neoine-sales
+RELEASE="$APP_HOME/releases/$TAG"
+cd "$APP_HOME"
+export PATH="$HOME/.local/bin:$PATH"   # uv 위치 (비대화형 SSH 세션용)
+
+# .env의 APP_PROFILE이 대상 환경과 같은지 확인 (dev 설정이 product 서버에 올라가는 사고 방지)
+grep -qx "APP_PROFILE=$ENV_NAME" .env || { echo "APP_PROFILE이 $ENV_NAME 과 다릅니다" &gt;&amp;2; exit 2; }
+
+PREV="$(readlink -f current 2&gt;/dev/null || true)"
+
+# 1) 번들 풀기 + 의존성 설치 (잠금 파일 기준, 개발 의존성 제외. PyPI에서 직접 다운로드)
+mkdir -p "$RELEASE"
+tar -xzf "incoming/neoine-sales-$TAG.tar.gz" -C "$RELEASE" --strip-components=1
+( cd "$RELEASE/backend" &amp;&amp; uv sync --locked --no-dev --no-editable )
+
+# 1-1) 설정 사전 검증: 필수 변수 누락·형식 오류·product 안전 조건 위반이면 여기서 중단 (전환 전)
+( cd "$APP_HOME" &amp;&amp; "$RELEASE/backend/.venv/bin/python" -c "from app.config import get_settings; get_settings()" )
+
+# 1-2) 프론트 런타임 설정 설치 (비밀 없음)
+install -m 644 "$RELEASE/infra/server/config/config.$ENV_NAME.json" shared/config.json
+
+# 2) DB 마이그레이션 (하위 호환 변경만: expand -&gt; migrate -&gt; contract)
+#    cwd=$APP_HOME 이어야 .env를 읽는다. 마이그레이션 실패 시 set -e로 여기서 중단(전환 전)
+"$RELEASE/backend/.venv/bin/alembic" -c "$RELEASE/backend/alembic.ini" upgrade head
+
+# 3) 전환 + 재시작 (심볼릭 링크 교체는 원자적)
+ln -sfn "$RELEASE" current.new &amp;&amp; mv -T current.new current
+sudo systemctl restart neoine-sales-api &amp;&amp; sudo systemctl restart neoine-sales-worker
+
+# 4) 헬스체크, 실패 시 롤백
+for i in $(seq 1 30); do
+  if curl -fsS --max-time 3 http://127.0.0.1:8000/readyz &gt;/dev/null; then
+    echo "배포 성공: $TAG"
+    # 5) 오래된 릴리스 정리 (최근 5개 + 현재 보관)
+    ls -1dt releases/*/ | tail -n +6 | xargs -r rm -rf
+    find incoming -name 'neoine-sales-*.tar.gz' -mtime +14 -delete
+    exit 0
+  fi
+  sleep 3
+done
+
+echo "헬스체크 실패 - 롤백: $PREV" &gt;&amp;2
+if [ -n "$PREV" ]; then
+  ln -sfn "$PREV" current.new &amp;&amp; mv -T current.new current
+  sudo systemctl restart neoine-sales-api &amp;&amp; sudo systemctl restart neoine-sales-worker
+fi
+exit 1</code></pre>
+<div class="callout warn">
+  <p>롤백은 <strong>코드만 이전 릴리스로 되돌리는 것</strong>이므로, 마이그레이션이 하위 호환(expand/contract)이어야 안전합니다. 파괴적 스키마 변경은 앱 배포와 분리해 단계적으로 진행하세요. product는 서버를 한 대씩 순차 배포(Jenkinsfile의 롤링 루프)하며, 로드밸런서 헬스체크가 재시작 중인 서버로 요청을 보내지 않도록 구성합니다. 배포 계정(<code>neoine</code>)에는 <code>neoine-sales-api</code>·<code>neoine-sales-worker</code>의 <code>systemctl restart</code>만 허용하는 sudoers 규칙을 부여합니다(<code>infra/server/sudoers/neoine-sales</code>, <code>bootstrap.sh</code>가 설치).</p>
+</div>
+
+<h3>16.5 Nginx (웹 서버·리버스 프록시)</h3>
+<pre><code>server {
+    listen 443 ssl;
+    server_name sales.internal.example.com;
+    ssl_certificate     /etc/nginx/certs/fullchain.pem;
+    ssl_certificate_key /etc/nginx/certs/privkey.pem;
+
+    root /opt/neoine-sales/current/frontend/dist;
+    location / {                               # SPA 라우팅
+        try_files $uri /index.html;
+    }
+    location /assets/ {                        # 해시 파일명: 장기 캐시
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+    location = /index.html {
+        add_header Cache-Control "no-cache";
+    }
+    location = /config.json {                  # 프로파일별 런타임 설정 (릴리스와 무관)
+        alias /opt/neoine-sales/shared/config.json;
+        add_header Cache-Control "no-cache";
+    }
+    location /api/ {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}</code></pre>
+<p>TLS 인증서는 사내 CA 또는 사내 ACME(step-ca 등)로 발급하고 만료 알림/자동 갱신을 구성합니다. 프론트 정적 파일은 <code>current</code> 링크를 통해 서빙되므로 배포 시 Nginx 재시작이 필요 없습니다.</p>
+
+<h3>16.6 서버 최초 구성 (수동 부트스트랩)</h3>
+<p>서버 구성 자산은 저장소의 <code>infra/server/</code>에 두고, 서버당 <strong>최초 1회 관리자가 <code>bootstrap.sh</code>를 실행</strong>합니다. 스크립트는 <strong>멱등</strong>(여러 번 실행해도 같은 결과)이며, 설정 파일(systemd·Nginx·sudoers)을 바꿀 때도 같은 스크립트를 다시 실행합니다. 서버가 여러 대면 서버마다 실행합니다.</p>
+<pre><code>infra/server/
+├─ bootstrap.sh                    # 최초 구성·설정 재적용 (root/sudo)
+├─ deploy.sh                       # 배포/롤백 (16.4절, Jenkins가 매 배포 시 전달)
+├─ systemd/ (neoine-sales-api.service, neoine-sales-worker.service)
+├─ nginx/neoine-sales.conf         # 16.5절
+├─ sudoers/neoine-sales            # neoine 계정의 systemctl restart 허용 범위
+└─ config/ (config.dev.json, config.product.json)   # 프론트 런타임 설정, 비밀 없음</code></pre>
+
+<pre><code>#!/usr/bin/env bash
+# infra/server/bootstrap.sh &lt;dev|product&gt;   - 서버당 최초 1회, root(sudo)로 실행. 멱등.
+set -euo pipefail
+ENV_NAME="${1:?usage: bootstrap.sh &lt;dev|product&gt;}"
+UV_VERSION="0.10.4"          # uv.lock을 만든 uv와 같은 버전으로 고정
+PYTHON_VERSION="3.14"        # backend/.python-version 과 일치
+HERE="$(cd "$(dirname "$0")" &amp;&amp; pwd)"
+APP_HOME=/opt/neoine-sales
+
+# 0) 사전 설치(OS 패키지, 배포판에 맞게 수동): nginx, curl, tar, (DB 서버는 별도 호스트)
+#    예) Ubuntu: apt install nginx curl    /  Rocky: dnf install nginx curl
+
+# 1) 서비스/배포 계정 (SSH 키 인증 전용. 키는 Jenkins 배포 키의 공개키를 등록)
+id neoine &amp;&gt;/dev/null || useradd --create-home --shell /bin/bash neoine
+install -d -o neoine -g neoine -m 750 "$APP_HOME" "$APP_HOME/incoming" "$APP_HOME/releases" "$APP_HOME/shared"
+
+# 2) uv와 Python (neoine 계정, 인터넷에서 직접 다운로드)
+sudo -u neoine -H sh -c "curl -LsSf https://astral.sh/uv/$UV_VERSION/install.sh | sh"
+sudo -u neoine -H "/home/neoine/.local/bin/uv" python install "$PYTHON_VERSION"
+
+# 3) 설정 파일 설치 (systemd, nginx, sudoers) - 배포판별 nginx 경로(conf.d / sites-enabled)에 맞게 조정
+install -m 644 "$HERE"/systemd/*.service /etc/systemd/system/
+install -m 644 "$HERE/nginx/neoine-sales.conf" /etc/nginx/conf.d/neoine-sales.conf
+install -m 440 "$HERE/sudoers/neoine-sales" /etc/sudoers.d/neoine-sales
+visudo -cf /etc/sudoers.d/neoine-sales
+systemctl daemon-reload
+systemctl enable neoine-sales-api neoine-sales-worker     # 시작은 첫 배포 때
+nginx -t &amp;&amp; systemctl reload nginx
+
+# 4) .env 생성: APP_PROFILE만 채우고 나머지 비밀은 관리자가 직접 입력 (이미 있으면 보존)
+if [ ! -f "$APP_HOME/.env" ]; then
+  install -m 600 -o neoine -g neoine /dev/null "$APP_HOME/.env"
+  echo "APP_PROFILE=$ENV_NAME" &gt; "$APP_HOME/.env"
+  echo "필수 변수(3.5.3절)를 neoine 계정으로 $APP_HOME/.env 에 입력하세요."
+fi</code></pre>
+
+<pre><code># infra/server/sudoers/neoine-sales  (명령 경로는 배포판에 맞게: which systemctl)
+neoine ALL=(root) NOPASSWD: /usr/bin/systemctl restart neoine-sales-api, \
+                            /usr/bin/systemctl restart neoine-sales-worker</code></pre>
+
+<h4>최초 구성 체크리스트 (서버마다)</h4>
+<ul>
+  <li>☐ OS 패키지 설치(nginx 등), 시간 동기화(chrony), 패치 정책 수립(월간)과 재부팅 윈도우 정의</li>
+  <li>☐ <code>bootstrap.sh &lt;dev|product&gt;</code> 실행, Jenkins 배포 공개키를 <code>neoine</code> 계정 <code>~/.ssh/authorized_keys</code>에 등록</li>
+  <li>☐ TLS 인증서 배치(사내 CA 등), <code>/opt/neoine-sales/.env</code>에 필수 변수 입력(권한 600, 소유자 neoine)</li>
+  <li>☐ DB(PostgreSQL)에 애플리케이션용 최소 권한 계정 생성, 마이그레이션 계정과 분리 여부 결정</li>
+  <li>☐ SSH 하드닝: 비밀번호 로그인 차단, root 직접 로그인 차단, 키 인증만 허용</li>
+  <li>☐ 방화벽(firewalld/ufw): 인바운드는 443(로드밸런서 → Nginx)과 관리용 SSH만 허용 (아래 outbound 허용 목록 참고)</li>
+  <li>☐ 로그: 애플리케이션은 stdout(JSON)으로 출력하고 journald가 수집, journald 보존 기간/용량 설정, Promtail(또는 Alloy)로 Loki 전달</li>
+  <li>☐ SELinux/AppArmor 유지, 애플리케이션은 non-root(<code>neoine</code>)로 실행하고 systemd 하드닝 옵션 적용(16.4절 유닛)</li>
+  <li>☐ 시스템 한도(<code>ulimit</code>, <code>vm.max_map_count</code> 등) 점검</li>
+</ul>
+
+<h4>서버 outbound 허용 목록 (인터넷 직접 연결)</h4>
+<table>
+<tr><th>대상</th><th>용도</th><th>필요한 곳</th></tr>
+<tr><td><code>pypi.org</code>, <code>files.pythonhosted.org</code></td><td><code>uv sync</code>가 의존성 다운로드</td><td>배포 서버(dev/product), CI agent, 개발자 PC</td></tr>
+<tr><td><code>github.com</code>, <code>objects.githubusercontent.com</code></td><td><code>uv python install</code>(Python 배포본), uv 설치 스크립트, mise·Trivy·gitleaks 릴리스</td><td>배포 서버(최초 구성·Python 변경 시), CI agent</td></tr>
+<tr><td><code>astral.sh</code></td><td>uv 설치 스크립트</td><td>배포 서버(최초 구성), CI agent</td></tr>
+<tr><td><code>registry.npmjs.org</code></td><td><code>pnpm install</code></td><td>CI agent, 개발자 PC (서버는 불필요: 프론트는 빌드된 정적 파일만 배포)</td></tr>
+<tr><td>사내 Sentry·OTel·메일 서버 등</td><td>애플리케이션 연동</td><td>배포 서버</td></tr>
+</table>
+<div class="callout warn">
+  <p><strong>운영 서버의 인터넷 접속은 최소화</strong>합니다. product 서버는 위 도메인만 허용하는 방화벽/프록시 규칙(도메인 허용 목록)을 적용하고, 그 외 outbound는 차단하세요. 인터넷에서 직접 받는 패키지는 <code>uv sync --locked</code>(<code>uv.lock</code>의 버전과 해시)로 고정된 것만 설치되고 CI의 <code>pip-audit</code>·Trivy 스캔을 통과한 릴리스만 배포됩니다.</p>
+</div>
+
+<h3>16.7 온프레미스 관측성 스택</h3>
+<table>
+<tr><th>목적</th><th>도구(셀프 호스팅)</th></tr>
+<tr><td>메트릭</td><td>Prometheus + node_exporter, postgres_exporter, nginx 메트릭, systemd 서비스 상태 / Grafana 대시보드</td></tr>
+<tr><td>로그</td><td>Loki + Promtail(또는 Grafana Alloy), 혹은 ELK/OpenSearch</td></tr>
+<tr><td>트레이싱</td><td>OpenTelemetry Collector → Tempo 또는 Jaeger</td></tr>
+<tr><td>오류 추적</td><td>Sentry 셀프 호스팅 (또는 GlitchTip)</td></tr>
+<tr><td>알림</td><td>Alertmanager → 이메일/사내 메신저</td></tr>
+<tr><td>가동 감시</td><td>Uptime Kuma 등으로 <code>/healthz</code>, <code>/readyz</code> 외부 점검</td></tr>
+</table>
+
+<!-- ============================================================ -->
+<h2 id="ops">17. 보안·관측성·운영</h2>
+<h3>보안</h3>
+<ul>
+  <li>OWASP Top 10 기준 점검: 입력 검증(Pydantic), 파라미터화된 쿼리(ORM), 인증/인가, CSRF/CORS 정책, 보안 헤더.</li>
+  <li>비밀번호는 Argon2/bcrypt 해시, 비밀 값은 코드·로그·릴리스 번들에 포함 금지.</li>
+  <li>도구: Ruff <code>S</code> 규칙(bandit), <code>pip-audit</code>, <code>pnpm audit</code>, Trivy, gitleaks, SonarQube, Renovate(셀프 호스팅).</li>
+  <li>레이트 리밋(slowapi 또는 게이트웨이), 최소 권한 DB 계정, 애플리케이션은 non-root 전용 계정으로 실행(systemd 하드닝).</li>
+</ul>
+<h3>관측성</h3>
+<ul>
+  <li><strong>로그</strong>: structlog JSON 로그 + 요청별 상관관계 ID.</li>
+  <li><strong>메트릭/트레이스</strong>: OpenTelemetry → Prometheus/Grafana(자세한 셀프 호스팅 스택은 16.7 참고).</li>
+  <li><strong>오류 추적</strong>: Sentry 셀프 호스팅 또는 GlitchTip(백엔드·프론트 모두).</li>
+  <li><strong>헬스체크</strong>: <code>/healthz</code>(liveness), <code>/readyz</code>(DB 연결 포함 readiness).</li>
+</ul>
+<h3>운영</h3>
+<ul>
+  <li>DB 백업/복구 리허설, 마이그레이션 롤백 절차 문서화.</li>
+  <li>SLO(가용성·지연) 정의와 알림 설정, 장애 회고(blameless postmortem).</li>
+  <li>Feature Flag(예: Unleash, 자체 구현)로 위험한 변경을 점진 배포.</li>
+</ul>
+
+<!-- ============================================================ -->
+<h2 id="tools">18. 도구 총정리</h2>
+<table>
+<tr><th>카테고리</th><th>도구</th></tr>
+<tr><td>환경/패키지</td><td>uv, mise(버전 고정), pnpm, just/make, 로컬 PostgreSQL·Redis</td></tr>
+<tr><td>코드 품질</td><td>Ruff, mypy(or pyright), import-linter, pre-commit, ESLint, Prettier/Biome, TypeScript</td></tr>
+<tr><td>백엔드 프레임워크</td><td>FastAPI, Uvicorn/Gunicorn, Pydantic v2, SQLAlchemy 2, Alembic, structlog, httpx, Celery/arq</td></tr>
+<tr><td>프론트엔드</td><td>React, Vite, TanStack Query, React Router, React Hook Form, Zod, Tailwind/shadcn 또는 MUI</td></tr>
+<tr><td>API 계약</td><td>OpenAPI, openapi-typescript/orval, oasdiff</td></tr>
+<tr><td>테스트</td><td>pytest, pytest-asyncio, pytest-cov, factory-boy, Hypothesis, Vitest, Testing Library, MSW, Playwright</td></tr>
+<tr><td>CI/CD</td><td>Jenkins(Pipeline, Multibranch, JCasC, Shared Library), Trivy, SonarQube, gitleaks, Renovate</td></tr>
+<tr><td>인프라/배포</td><td>systemd, Nginx, HAProxy/keepalived, 셸 스크립트(<code>bootstrap.sh</code>, <code>deploy.sh</code>: 릴리스 디렉터리 전환)</td></tr>
+<tr><td>관측성</td><td>OpenTelemetry, Prometheus, Grafana, Loki, Alertmanager, Sentry(셀프 호스팅)</td></tr>
+<tr><td>문서</td><td>FastAPI Swagger/ReDoc(자동), ADR(<code>docs/adr/</code>), MkDocs(선택)</td></tr>
+</table>
+
+<!-- ============================================================ -->
+<h2 id="checklist">19. 체크리스트·로드맵</h2>
+<h3>19.1 PR 체크리스트</h3>
+<ul>
+  <li>☐ <code>ruff check</code>, <code>ruff format --check</code>, <code>mypy</code>, <code>lint-imports</code>, <code>check_file_length.py</code> 통과</li>
+  <li>☐ 새 로직에 단위 테스트 추가, 버그 수정에는 재현 테스트 포함</li>
+  <li>☐ 모든 backend 소스 파일이 300줄 이하 (초과 시 책임별로 분리)</li>
+  <li>☐ domain 계층에 프레임워크 import 없음</li>
+  <li>☐ 새 의존성은 생성자 주입, 인터페이스에 의존(DIP)</li>
+  <li>☐ API 변경 시 <code>openapi.json</code> 갱신 및 프론트 타입 재생성</li>
+  <li>☐ 마이그레이션이 하위 호환적이며 롤백 가능</li>
+  <li>☐ 비밀·개인정보가 로그/코드에 노출되지 않음 (Jenkinsfile 포함)</li>
+  <li>☐ 새 환경변수는 Settings·<code>.env.example</code>·3.5.3 표에 반영하고 서버 <code>.env</code>에 먼저 추가</li>
+  <li>☐ Jenkinsfile/배포 스크립트 변경 시 dev에서 먼저 검증</li>
+</ul>
+
+<h3>19.2 도입 로드맵</h3>
+<table>
+<tr><th>단계</th><th>작업</th></tr>
+<tr><td>1주차</td><td>저장소 골격, uv/pnpm, Ruff·mypy·pre-commit, 로컬 PostgreSQL/Redis, justfile, Jenkins controller/agent 구축(mise 설치), Multibranch 기본 CI(lint + test)</td></tr>
+<tr><td>2주차</td><td>도메인 계층·Repository·UoW 골격, Alembic, 첫 유스케이스 + 단위/통합 테스트, FastAPI 라우터</td></tr>
+<tr><td>3주차</td><td>OpenAPI → TS 클라이언트 자동화, React 기본 화면·인증, import-linter 계약, 커버리지 게이트</td></tr>
+<tr><td>4주차</td><td>릴리스 번들 빌드, dev 서버 구성(<code>bootstrap.sh</code>: systemd 유닛·Nginx 포함, 서버 <code>.env</code> 직접 입력), deploy.sh + Jenkins CD 파이프라인, 관측성(Prometheus·Loki·Sentry·헬스체크), 보안 스캔</td></tr>
+<tr><td>이후</td><td>product 승인 게이트(input), 이중화·롤링 배포, DB 백업/PITR 리허설, 성능 테스트, 백그라운드 워커, Feature Flag, Jenkins Shared Library 정리</td></tr>
+</table>
+
+<div class="callout">
+  <p><strong>의사결정 기록</strong>: 주요 선택(프레임워크, DB, 배포 방식 등)은 <code>docs/adr/NNNN-제목.md</code> 형태의 ADR로 남겨, 나중에 "왜 그렇게 했는지"를 추적할 수 있게 하세요. 이 가이드의 내용도 프로젝트 진행에 따라 갱신합니다.</p>
+</div>
+
+</main>
+</div>
+</body>
+</html>
