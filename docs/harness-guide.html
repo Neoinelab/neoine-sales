@@ -1,0 +1,782 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Python 웹 개발 하네스 가이드</title>
+<style>
+  :root {
+    --bg: #ffffff; --fg: #1f2328; --muted: #656d76; --border: #d0d7de;
+    --accent: #0969da; --code-bg: #f6f8fa; --card: #f6f8fa; --warn: #9a6700; --ok: #1a7f37;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0d1117; --fg: #e6edf3; --muted: #8b949e; --border: #30363d;
+      --accent: #58a6ff; --code-bg: #161b22; --card: #161b22; --warn: #d29922; --ok: #3fb950;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg);
+    font: 16px/1.7 -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", "Segoe UI", sans-serif; }
+  .layout { display: flex; max-width: 1280px; margin: 0 auto; }
+  nav { position: sticky; top: 0; align-self: flex-start; height: 100vh; overflow-y: auto;
+    width: 270px; flex: none; padding: 24px 16px; border-right: 1px solid var(--border); font-size: 14px; }
+  nav h2 { font-size: 13px; text-transform: uppercase; color: var(--muted); margin: 0 0 8px; }
+  nav a { display: block; padding: 3px 8px; color: var(--fg); text-decoration: none; border-radius: 6px; }
+  nav a:hover { background: var(--card); color: var(--accent); }
+  main { flex: 1; min-width: 0; padding: 32px 40px 80px; }
+  h1 { font-size: 2rem; margin: 0 0 8px; }
+  h2 { font-size: 1.5rem; margin: 56px 0 12px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+  h3 { font-size: 1.15rem; margin: 32px 0 8px; }
+  p, li { max-width: 78ch; }
+  a { color: var(--accent); }
+  code { background: var(--code-bg); padding: 1px 6px; border-radius: 4px; font-size: .9em;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  pre { background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px;
+    padding: 14px 16px; overflow-x: auto; font-size: 13.5px; line-height: 1.55; }
+  pre code { background: none; padding: 0; font-size: inherit; }
+  table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 14.5px; display: block; overflow-x: auto; }
+  th, td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; vertical-align: top; }
+  th { background: var(--card); white-space: nowrap; }
+  .meta { color: var(--muted); font-size: 14px; }
+  .callout { border-left: 4px solid var(--accent); background: var(--card); padding: 10px 16px; border-radius: 0 8px 8px 0; margin: 16px 0; }
+  .callout.warn { border-color: var(--warn); }
+  .callout.ok { border-color: var(--ok); }
+  .callout p { margin: 4px 0; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin: 12px 0; }
+  .card { border: 1px solid var(--border); background: var(--card); border-radius: 8px; padding: 12px 16px; }
+  .card h4 { margin: 0 0 4px; }
+  .card p { margin: 0; font-size: 14.5px; }
+  .bad { color: #cf222e; font-weight: 600; } .good { color: var(--ok); font-weight: 600; }
+  @media (max-width: 860px) {
+    .layout { display: block; }
+    nav { position: static; width: auto; height: auto; border-right: 0; border-bottom: 1px solid var(--border); }
+    main { padding: 24px 16px 64px; }
+  }
+</style>
+</head>
+<body>
+<div class="layout">
+<nav>
+  <h2>목차</h2>
+  <a href="#summary">1. 한눈에 보기</a>
+  <a href="#fit">2. 적합성 판정과 두께</a>
+  <a href="#elements">3. 하네스 7요소 (이 프로젝트)</a>
+  <a href="#structure">4. 하네스 파일 구조</a>
+  <a href="#context">5. 컨텍스트 설계 (CLAUDE.md와 규칙 Skill)</a>
+  <a href="#agents">6. Subagent(Agent) 설계</a>
+  <a href="#skills">7. Skill 설계</a>
+  <a href="#orchestrators">8. Orchestrator 설계</a>
+  <a href="#artifacts">9. 산출물 계약 (artifacts/)</a>
+  <a href="#verification">10. 검증·안전장치·승인 게이트</a>
+  <a href="#prompts">11. 테스트 프롬프트와 트리거 검증</a>
+  <a href="#evolution">12. 평가와 개선 루프</a>
+  <a href="#roadmap">13. 구성 단계 체크리스트와 로드맵</a>
+  <a href="#usage">14. 실제 개발에서 하네스 사용하기</a>
+  <h2 style="margin-top:16px">관련 문서</h2>
+  <a href="dev-guide.html">개발 가이드</a>
+</nav>
+<main>
+
+<h1>Python 웹 개발 하네스 가이드</h1>
+<p class="meta">대상: neoine-sales (Python/FastAPI 백엔드 + React 프론트엔드) · 기준 문서: <a href="dev-guide.html">dev-guide.html</a> · 작성일 2026-10-06 · 상태: <strong>1~2단계 구성 완료</strong> · 3단계 이후는 설계안</p>
+
+<div class="callout ok">
+  <p><strong>구성 상태 (2026-10-06)</strong>: 13.2절의 <strong>1~2단계가 구성되어 동작합니다</strong> — <code>CLAUDE.md</code>, 권한·hooks(<code>.claude/settings.json</code>, <code>.claude/hooks/</code>), 게이트 스크립트(<code>backend/scripts/run_gates.py</code>), 규칙 Skill 3개, <code>quality-gate</code> Agent. Orchestrator와 계층별 구현·리뷰 Agent(3단계 이후)는 코드가 생긴 뒤 도입하는 <em>설계안</em>이며 아직 파일이 없습니다. <strong>개발을 시작할 때 이 하네스를 쓰는 방법은 <a href="#usage">14장</a></strong>을 보세요.</p>
+</div>
+
+<p><strong>하네스</strong>란 AI가 덜 추측하고, 더 안전하게, 더 반복 가능하게 개발하도록 만드는 작업 환경입니다. 이 프로젝트에서는 <em>개발 가이드의 규칙(계층 구조, SOLID, 300줄 제한, 프로파일별 설정)을 AI가 매번 같은 방식으로 지키게 하는 장치</em>가 하네스의 핵심입니다. 이 문서는 어떤 Subagent, Skill, Orchestrator, 검증, 승인 지점이 필요한지를 정리합니다.</p>
+
+<!-- ============================================================ -->
+<h2 id="summary">1. 한눈에 보기</h2>
+<div class="grid">
+  <div class="card"><h4>하네스 3종 (단계적 도입)</h4><p>① 기능 개발(TDD) ② 코드 리뷰 ③ 릴리스 점검. 보조로 테스트 공백 분석을 둡니다. 처음에는 ①②만 만듭니다.</p></div>
+  <div class="card"><h4>역할 분리 기준 = 계층 경계</h4><p>core(domain+application) / infra / web / frontend / test / gate. 같은 계층 안에서는 한 Agent가 이어서 맡습니다.</p></div>
+  <div class="card"><h4>판정은 도구가 한다</h4><p>ruff, mypy, import-linter, 파일 300줄, pytest, OpenAPI 드리프트는 스크립트로 판정하고, LLM 리뷰는 설계·책임·보안 의미 판단에만 씁니다.</p></div>
+  <div class="card"><h4>작게 시작</h4><p>변경 크기에 따라 단일 흐름 → Subagent → Agent Team을 고릅니다. 한 줄 버그 수정은 하네스를 거치지 않습니다.</p></div>
+  <div class="card"><h4>사람 승인은 능동 게이트</h4><p>머지, 배포, 비밀·<code>.env</code> 변경, 운영 DB 마이그레이션, 의존성 추가, API 호환 깨짐은 멈추고 묻습니다.</p></div>
+  <div class="card"><h4>기록이 개선을 만든다</h4><p>산출물은 <code>artifacts/</code>에 파일로 남기고, 실패·지적 패턴을 <code>improvement-log.md</code>와 ADR로 쌓아 하네스를 고칩니다.</p></div>
+</div>
+
+<h3>도입 순서 (권장)</h3>
+<table>
+<tr><th>단계</th><th>구성</th><th>시작 조건</th></tr>
+<tr><td><strong>1단계 (지금)</strong></td><td><code>CLAUDE.md</code> + 규칙 Skill 3개 + <code>quality-gate</code> + hooks. 아직 팀 없음</td><td>백엔드 골격과 검증 스크립트가 이미 있음</td></tr>
+<tr><td><strong>2단계</strong></td><td><code>feature-dev-orchestrator</code> (Subagent 중심) + 핵심 Agent 5개(★)</td><td>첫 도메인 기능을 실제로 구현하기 시작할 때</td></tr>
+<tr><td><strong>3단계</strong></td><td><code>code-review-orchestrator</code> (관점별 병렬 리뷰) + 리뷰 Agent 5개</td><td>PR이 주 단위로 쌓이기 시작할 때</td></tr>
+<tr><td><strong>4단계</strong></td><td>Agent Team 모드(대형 기능), <code>release-check-orchestrator</code>, 테스트 공백 분석</td><td>Jenkins 파이프라인과 dev 서버가 가동된 뒤</td></tr>
+</table>
+<div class="callout">
+  <p>현재 프로젝트는 <strong>백엔드 골격(<code>src/app</code> 4계층 빈 패키지, 설정 모듈, 검증 스크립트)만 있고 비즈니스 코드와 프론트엔드가 없습니다.</strong> 하네스를 코드보다 앞서 두껍게 만들면 쓰이지 않는 구조가 됩니다. 그래서 1단계는 <em>규칙·검증·안전장치</em>만 두껍게 하고, 팀 구성은 코드가 생긴 뒤에 붙입니다.</p>
+</div>
+
+<!-- ============================================================ -->
+<h2 id="fit">2. 적합성 판정과 두께</h2>
+<h3>2.1 하네스로 만들 가치가 있는가</h3>
+<table>
+<tr><th>차원</th><th>이 프로젝트</th><th>판정</th></tr>
+<tr><td>반복성</td><td>기능 추가(유스케이스, Port, 어댑터, 라우터)와 리뷰가 계속 반복됨</td><td>이득</td></tr>
+<tr><td>구조 안정성</td><td>4계층, Port/Adapter, UoW 등 흐름이 가이드로 고정됨</td><td>이득</td></tr>
+<tr><td>검증 가능성</td><td>ruff, mypy strict, import-linter 계약 3개, 300줄 검사, pytest, OpenAPI 드리프트로 객관 판정 가능</td><td>이득 (큼)</td></tr>
+<tr><td>외부 신호</td><td>테스트, Jenkins CI, product 배포 승인(<code>input</code>)</td><td>이득</td></tr>
+<tr><td>숙련도</td><td>맥/Windows 개발자가 섞여 있고 규칙이 많아 표준 절차가 도움이 됨</td><td>이득</td></tr>
+<tr><td>체인 길이</td><td>계층별 구현 → 테스트 → 리뷰로 단계가 길어질 수 있음</td><td>주의: 단계마다 게이트를 둬 오류 누적을 막음</td></tr>
+</table>
+<p><strong>결론</strong>: 반복되는 기능 개발·리뷰는 하네스가 이득입니다. 반면 <em>한 번만 하는 작업</em>(오타·한 줄 버그 수정, 탐색적 스파이크, 일회성 마이그레이션 스크립트)은 하네스를 거치지 않고 바로 처리합니다. 하네스는 "에이전트를 많이 두는 것"이 아니라 <em>구조화, 검증, 승인 게이트</em>에서 효율이 나옵니다.</p>
+
+<h3>2.2 영역별 두께 (검증과 사람 승인의 양)</h3>
+<table>
+<tr><th>작업</th><th>두께</th><th>켜지는 장치</th></tr>
+<tr><td>도메인·애플리케이션 로직, 테스트</td><td>중간~두꺼움</td><td>TDD(테스트 선행), 게이트 전 항목, 아키텍처 리뷰</td></tr>
+<tr><td>웹(라우터, 스키마), 프론트엔드 화면</td><td>중간</td><td>게이트 + 계약(OpenAPI) 검사 + 정확성 리뷰</td></tr>
+<tr><td>인증·권한·결제·개인정보</td><td>두꺼움</td><td>보안 리뷰 모델 상향(opus), 사람 승인</td></tr>
+<tr><td>DB 스키마·마이그레이션</td><td>두꺼움</td><td>expand/contract 점검, <strong>비로컬 DB 실행 금지(사람 승인)</strong></td></tr>
+<tr><td>비밀·<code>.env</code>·프로파일 설정</td><td>매우 두꺼움</td><td>AI는 값을 읽지 않음, 변경은 사람이 수행</td></tr>
+<tr><td>배포·머지·운영 반영</td><td>매우 두꺼움</td><td>AI는 준비(체크리스트)까지만, 실행은 사람과 Jenkins <code>input</code> 게이트</td></tr>
+<tr><td>문서·주석·사소한 리팩터링</td><td>얇음</td><td>hooks(포맷·린트)와 게이트만</td></tr>
+</table>
+
+<!-- ============================================================ -->
+<h2 id="elements">3. 하네스 7요소 (이 프로젝트)</h2>
+<table>
+<tr><th>요소</th><th>내용</th></tr>
+<tr><td>목표</td><td>가이드 규칙을 지키는 기능 PR과 근거 있는 리뷰 리포트를 매번 같은 품질로 만든다. 최종 산출물은 <strong>변경 요약 + 테스트·게이트 증거 + 미검증/승인 필요 목록</strong>이며 머지는 사람이 한다</td></tr>
+<tr><td>컨텍스트</td><td><code>CLAUDE.md</code>(짧은 규칙 + 포인터), 규칙 Skill의 <code>references/</code>(dev-guide 발췌), 기존 코드. <strong>정본은 <code>docs/dev-guide.html</code>과 <code>pyproject.toml</code>·스크립트</strong></td></tr>
+<tr><td>도구</td><td><code>uv run pytest / ruff / mypy / lint-imports</code>, <code>python scripts/check_file_length.py</code>, <code>alembic</code>(로컬 한정), <code>pnpm</code>(프론트), Context7 MCP(라이브러리 문서 조회)</td></tr>
+<tr><td>중간 산출물</td><td>입력 정리, 구현 계획, 테스트 선행 결과, 계층별 구현 기록, 게이트 결과, 리뷰 후보/검증 결과</td></tr>
+<tr><td>검증</td><td><strong>결정적</strong>: 린트·타입·계층 계약·파일 크기·테스트·커버리지·OpenAPI 드리프트. <strong>판단형</strong>: 책임 분리, Port 설계, 도메인 모델 풍부함, 보안 의미</td></tr>
+<tr><td>권한과 승인</td><td>머지·배포·운영 마이그레이션·비밀 변경·의존성 추가·공개 API 호환 깨짐은 사람 승인. 에이전트별 <code>tools</code>와 파일 소유권으로 경계 고정</td></tr>
+<tr><td>기록과 개선</td><td><code>artifacts/improvement-log.md</code>, 큰 결정은 <code>docs/adr/</code>, 하네스 변경 이력은 <code>CLAUDE.md</code>, 반복되는 리뷰 지적은 규칙 Skill로 환류</td></tr>
+</table>
+<p><strong>현재 성숙도</strong>: 2~3단계(목표와 자료, 일부 검증 있음 — 규칙 문서·검증 스크립트·CI 기준은 있지만 중간 산출물·실패 처리·인수인계 구조가 없음). 1단계 도입(규칙 Skill + 게이트 + hooks)으로 3단계, 2~3단계 도입으로 4단계를 목표로 합니다.</p>
+
+<!-- ============================================================ -->
+<h2 id="structure">4. 하네스 파일 구조</h2>
+<pre><code>neoine-sales/
+├─ CLAUDE.md                              # 프로젝트 안내판: 핵심 규칙 요약 + 자연어 라우팅 + 변경 이력
+├─ .claude/
+│  ├─ settings.json                       # 권한(허용/차단), hooks  (팀 공유, 개인 설정은 settings.local.json)
+│  ├─ agents/                             # 팀원 역할 카드
+│  │  ├─ feature-planner.md        ★
+│  │  ├─ core-engineer.md          ★      # domain + application
+│  │  ├─ infra-engineer.md                # infra 어댑터, ORM, 마이그레이션 초안
+│  │  ├─ web-engineer.md                  # FastAPI 라우터·스키마·OpenAPI
+│  │  ├─ frontend-engineer.md             # React 화면·생성된 API 클라이언트 사용
+│  │  ├─ test-engineer.md          ★
+│  │  ├─ quality-gate.md           ★
+│  │  ├─ review-lead.md · review-architecture.md · review-correctness.md
+│  │  ├─ review-security.md · review-conventions.md
+│  │  └─ release-checker.md
+│  └─ skills/                             # 작업 매뉴얼
+│     ├─ layer-architecture-rules/        # 계층·Port·DIP·SOLID 규칙
+│     ├─ tdd-python-testing/              # pytest, Fake Port, 임시 DB, 테스트 네이밍
+│     ├─ config-and-secrets/              # 프로파일 설정, .env 규칙, 새 변수 절차
+│     ├─ fastapi-web-layer/               # 얇은 라우터, 스키마, 오류 매핑, OpenAPI 계약
+│     ├─ sqlalchemy-alembic-infra/        # Repository/UoW 구현, expand/contract 마이그레이션
+│     ├─ react-frontend-conventions/      # features 구조, TanStack Query, VITE_ 규칙
+│     ├─ code-review-checklist/           # 관점별 체크리스트, 심각도 기준
+│     ├─ quality-gate-runner/             # 게이트 실행 스크립트(scripts/)
+│     ├─ release-checklist/               # 배포 준비 점검
+│     ├─ feature-dev-orchestrator/        # 기능 개발 진행표 (팀장)
+│     ├─ code-review-orchestrator/        # 코드 리뷰 진행표
+│     └─ release-check-orchestrator/      # 릴리스 점검 진행표
+├─ artifacts/                             # 실행 산출물(.gitignore, 아래 9장)
+└─ docs/ (dev-guide.html, harness-guide.html, adr/)</code></pre>
+<p>★ = 2단계(최소 구성)에 포함하는 핵심 5개. 나머지는 해당 영역에서 첫 작업이 생길 때 추가합니다. <code>.claude/commands/</code>는 만들지 않습니다(Skill과 Orchestrator로 충분).</p>
+
+<h3>4.1 파일 소유권 (경계 침범 방지)</h3>
+<p>여러 Agent가 같은 파일을 동시에 고치지 않도록 <strong>경로별 소유자</strong>를 정합니다. 소유자가 아닌 Agent는 읽기만 하고, 수정이 필요하면 소유자에게 <code>SendMessage</code>(또는 산출물 파일)로 요청합니다.</p>
+<table>
+<tr><th>경로</th><th>소유자</th><th>비고</th></tr>
+<tr><td><code>backend/src/app/domain/**</code>, <code>backend/src/app/application/**</code></td><td>core-engineer</td><td>Port(<code>application/ports</code>) 시그니처는 계획(<code>01-plan.md</code>)에서 확정</td></tr>
+<tr><td><code>backend/src/app/infra/**</code>, <code>backend/alembic/**</code>, <code>backend/src/app/container.py</code></td><td>infra-engineer</td><td>마이그레이션은 <strong>초안 작성까지</strong>, 로컬 외 DB 실행 금지</td></tr>
+<tr><td><code>backend/src/app/web/**</code>, <code>backend/src/app/main.py</code>, <code>backend/openapi.json</code></td><td>web-engineer</td><td><code>web</code>은 <code>infra</code>를 import하지 않음(계약으로 검사)</td></tr>
+<tr><td><code>frontend/src/**</code></td><td>frontend-engineer</td><td>API 클라이언트는 생성물만 사용, 직접 <code>fetch</code> 금지</td></tr>
+<tr><td><code>backend/tests/**</code></td><td>test-engineer</td><td>소스 수정 금지. 구현 버그를 발견하면 소유자에게 보고</td></tr>
+<tr><td><code>backend/pyproject.toml</code>, <code>backend/uv.lock</code>, <code>mise.toml</code></td><td><strong>사람 승인 후 Orchestrator만</strong></td><td>의존성 추가는 공급망 위험이므로 승인 대상(10장)</td></tr>
+<tr><td><code>.env*</code>, <code>infra/server/**</code>(배포 자산), <code>Jenkinsfile</code></td><td><strong>사람</strong></td><td>AI는 읽기·수정 제안만(<code>.env</code>는 읽기도 금지)</td></tr>
+<tr><td><code>artifacts/**</code></td><td>각 Agent(자기 산출물), Orchestrator(README·final)</td><td>비밀 값을 적지 않음</td></tr>
+</table>
+
+<!-- ============================================================ -->
+<h2 id="context">5. 컨텍스트 설계 (CLAUDE.md와 규칙 Skill)</h2>
+<p>컨텍스트는 <strong>짧은 상시 규칙(<code>CLAUDE.md</code>)</strong>과 <strong>필요할 때만 읽는 상세 규칙(Skill의 <code>references/</code>)</strong>으로 나눕니다(점진적 공개). dev-guide.html 전체(수천 줄)를 매번 읽히지 않습니다.</p>
+
+<h3>5.1 CLAUDE.md에 둘 내용 (초안)</h3>
+<pre><code># neoine-sales
+
+Python(FastAPI) 백엔드 + React 프론트엔드. 규칙의 정본은 docs/dev-guide.html, 설정·검증은 backend/pyproject.toml.
+
+## 반드시 지킬 규칙 (요약)
+- 계층: web → application → domain, infra → application → domain. application은 infra를 import하지 않고
+  외부 통신은 application/ports 의 Port(Protocol)로만 한다. infra가 Port를 구현한다.
+- backend의 .py 파일은 300줄 이하. 초과하면 책임별로 분리한다(줄이기 위한 압축 금지).
+- 모든 공개 함수에 타입 힌트, mypy strict 통과. 함수 복잡도·인자 수는 ruff 설정을 따른다.
+- 프로파일은 local/dev/product. 설정은 app.config.get_settings()로만 읽고, domain/application에서 import하지 않는다.
+- 비밀과 .env는 읽지도 쓰지도 않는다. 의존성 추가(uv add)는 사용자 승인 후에만 한다.
+- DB 마이그레이션은 로컬 DB에만 실행한다. dev/product 실행, 배포, 머지, push는 사람이 한다.
+
+## 검증 명령 (backend/에서 실행)
+uv run ruff check . &amp;&amp; uv run ruff format --check . &amp;&amp; uv run mypy src scripts tests
+uv run lint-imports &amp;&amp; uv run python scripts/check_file_length.py &amp;&amp; uv run pytest
+
+## 하네스
+- 실행 스킬: .claude/skills/  · Agent: .claude/agents/  · 산출물: artifacts/
+- 자연어 라우팅: "기능 구현/추가/개발"처럼 여러 계층에 걸친 작업은 feature-dev-orchestrator,
+  "리뷰/검토해줘"는 code-review-orchestrator, "배포 준비/릴리스 점검"은 release-check-orchestrator를 먼저 사용한다.
+  한 줄 버그 수정·오타·질문은 하네스 없이 바로 처리한다.
+
+## 하네스 변경 이력
+| 날짜 | 변경 내용 | 대상 | 사유 |</code></pre>
+<p><code>CLAUDE.md</code>에는 세부 규칙을 복사하지 않고 위 요약과 포인터만 둡니다. 세부 규칙을 중복하면 dev-guide와 어긋나(drift) 신뢰를 잃습니다.</p>
+
+<h3>5.2 규칙 Skill 구성 (단일 정본 + 파생 참조)</h3>
+<table>
+<tr><th>정본</th><th>파생 (Skill의 references/)</th><th>동기화 규칙</th></tr>
+<tr><td>dev-guide 4장·7장·8장·9장</td><td><code>layer-architecture-rules/references/layers.md</code>, <code>ports.md</code>, <code>solid-checklist.md</code></td><td>dev-guide가 바뀌면 같은 PR에서 갱신, 변경 이력에 기록</td></tr>
+<tr><td>dev-guide 3.5장, <code>app/config</code> 코드</td><td><code>config-and-secrets/references/profiles.md</code>, <code>env-vars.md</code></td><td>변수 추가 절차(Settings → <code>.env.example</code> → 표 → 서버 <code>.env</code>)를 그대로 옮김</td></tr>
+<tr><td>dev-guide 13장, <code>tests/</code></td><td><code>tdd-python-testing/references/*.md</code></td><td>테스트 네이밍(영문 ASCII), Fake Port 예시 포함</td></tr>
+<tr><td><strong>숫자 규칙(300줄, 복잡도, 커버리지)</strong></td><td><strong>복사하지 않고 스크립트·설정이 정본</strong></td><td>Skill에는 "<code>check_file_length.py</code>를 실행"이라고만 쓰고 숫자를 하드코딩하지 않음</td></tr>
+</table>
+<p>규칙 Skill은 <strong>무엇이 위반인지 판단하는 기준</strong>(예: "application이 SQL 문자열을 만들면 위반", "Port 시그니처에 ORM 모델이 나오면 위반")과 <strong>좋은 예·나쁜 예</strong>를 담고, 기계적으로 판정되는 항목은 도구에 맡깁니다.</p>
+
+<!-- ============================================================ -->
+<h2 id="agents">6. Subagent(Agent) 설계</h2>
+<h3>6.1 분리 원칙</h3>
+<ul>
+  <li><strong>계층 경계가 곧 역할 경계</strong>입니다. 입력·출력이 독립적이고(Port/DTO 계약으로 넘김) 전문성이 다른 곳(도메인 로직 / SQL·마이그레이션 / HTTP·OpenAPI / React)에서만 나눕니다.</li>
+  <li><strong>domain과 application은 한 Agent(core-engineer)</strong>가 맡습니다. 유스케이스는 도메인 모델을 계속 이어서 해석해야 하므로 나누면 맥락이 끊깁니다.</li>
+  <li><strong>구현자는 자기 결과를 합격 처리하지 않습니다.</strong> 판정은 <code>quality-gate</code>(결정적)와 리뷰 Agent(판단형)가 하고, 둘 다 코드를 수정하지 않습니다(<code>Edit</code> 없음, 자기 판정 파일만 <code>Write</code>).</li>
+  <li>각 Agent의 <code>tools</code>는 최소 권한이며, <strong>파일 산출물을 쓰는 Agent는 <code>Write</code> 권한</strong>을 갖습니다(없으면 저장에 실패하거나 본문 요약으로 때우는 실패가 납니다).</li>
+</ul>
+
+<h3>6.2 기능 개발 하네스 Agent (★ = 최소 구성)</h3>
+<table>
+<tr><th>Agent</th><th>model</th><th>tools</th><th>맡는 일</th><th>분리 이유</th></tr>
+<tr><td>★ <code>feature-planner</code></td><td><code>opus</code></td><td>Read, Grep, Glob, Write</td><td>요구사항 정리, 영향 계층 분석, Port/DTO 시그니처, 마이그레이션 필요성, 테스트 케이스 목록, 수락 기준, 위험·승인 지점 표시</td><td>구조 판단(상충 해소)이 필요하고 코드를 쓰지 않는 읽기 중심 역할</td></tr>
+<tr><td>★ <code>test-engineer</code></td><td><code>sonnet</code></td><td>Read, Grep, Glob, Write, Edit, Bash</td><td>계획의 수락 기준으로 <strong>테스트를 먼저</strong> 작성(red 확인), Fake Port, 계약 테스트, 임시 DB 통합 테스트. <code>tests/**</code>만 수정</td><td>구현자와 분리해야 테스트가 구현에 맞춰 약해지지 않음(TDD)</td></tr>
+<tr><td>★ <code>core-engineer</code></td><td><code>sonnet</code></td><td>Read, Grep, Glob, Write, Edit, Bash</td><td><code>domain</code>(Entity, VO, Domain Service, Event)과 <code>application</code>(유스케이스, Port) 구현. 규칙은 엔티티에, 유스케이스는 얇게</td><td>도메인 전문성. 프레임워크·IO 지식이 필요 없고 순수 파이썬</td></tr>
+<tr><td><code>infra-engineer</code></td><td><code>sonnet</code></td><td>Read, Grep, Glob, Write, Edit, Bash</td><td>Port 구현체(Repository, UoW, 외부 API 어댑터, ACL), ORM 모델, Alembic 마이그레이션 <strong>초안</strong>, <code>container.py</code> 조립</td><td>SQL·외부 시스템 전문성. 비로컬 DB 접근 금지</td></tr>
+<tr><td><code>web-engineer</code></td><td><code>sonnet</code></td><td>Read, Grep, Glob, Write, Edit, Bash</td><td>FastAPI 라우터, Pydantic 스키마, 오류 매핑, <code>openapi.json</code> 생성</td><td>HTTP 계약 전문성. <code>infra</code>를 import하지 않음</td></tr>
+<tr><td><code>frontend-engineer</code></td><td><code>sonnet</code></td><td>Read, Grep, Glob, Write, Edit, Bash</td><td>React 화면, TanStack Query 훅, 생성된 API 클라이언트 사용, 프론트 테스트</td><td>다른 언어·도구체인. <code>openapi.json</code> 계약으로만 백엔드와 연결</td></tr>
+<tr><td>★ <code>quality-gate</code></td><td><code>haiku</code></td><td>Read, Grep, Glob, Bash, Write</td><td>게이트 스크립트 실행, 결과 파싱, 실패를 <strong>소유자별로 분류</strong>해 <code>gate.md</code> 작성. 코드 수정 금지</td><td>규칙 기반 정적 점검(의미 해석 불필요) → 가벼운 모델로 충분</td></tr>
+</table>
+
+<h3>6.3 코드 리뷰 하네스 Agent</h3>
+<table>
+<tr><th>Agent</th><th>model</th><th>tools</th><th>관점</th></tr>
+<tr><td><code>review-architecture</code></td><td><code>opus</code></td><td>Read, Grep, Glob, Bash, Write</td><td>계층 의존 방향, Port 설계, SRP/응집도/결합도, 도메인 모델이 빈약하지 않은지, 유스케이스 비대화</td></tr>
+<tr><td><code>review-correctness</code></td><td><code>sonnet</code></td><td>Read, Grep, Glob, Bash, Write</td><td>로직 오류, 경계값, 트랜잭션 경계, async 오용, 오류 처리, 테스트 충분성</td></tr>
+<tr><td><code>review-security</code></td><td><code>sonnet</code> (인증·권한·결제·개인정보·product 설정 변경은 <code>opus</code>)</td><td>Read, Grep, Glob, Bash, Write</td><td>입력 검증, 인가, 비밀 노출, SQL 주입, CORS·쿠키, 로그에 민감정보</td></tr>
+<tr><td><code>review-conventions</code></td><td><code>haiku</code></td><td>Read, Grep, Glob, Bash, Write</td><td>네이밍, 타입 힌트, docstring, 데드코드(<strong>대부분 게이트가 잡으므로 게이트가 못 잡는 부분만</strong>)</td></tr>
+<tr><td><code>review-lead</code></td><td><code>opus</code></td><td>Read, Grep, Glob, Write</td><td>후보 중복 제거, 검증 결과 통합, 심각도 판정, 최종 리포트. 상충하는 지적은 근거를 병기</td></tr>
+</table>
+
+<h3>6.4 릴리스 점검 Agent</h3>
+<table>
+<tr><th>Agent</th><th>model</th><th>tools</th><th>맡는 일</th></tr>
+<tr><td><code>release-checker</code></td><td><code>sonnet</code></td><td>Read, Grep, Glob, Bash, Write</td><td>마이그레이션 하위 호환(expand/contract), 신규 환경변수의 서버 <code>.env</code> 선반영 여부 체크리스트, <code>.env.example</code>·3.5.3 표 일치, OpenAPI 호환 깨짐, Jenkinsfile·<code>deploy.sh</code> 변경 영향. <strong>점검 리포트만 작성하고 배포는 하지 않음</strong></td></tr>
+</table>
+
+<h3>6.5 Agent 파일 예시: <code>core-engineer</code> (구성 단계에서 이 형식으로 생성)</h3>
+<pre><code>---
+name: core-engineer
+description: 계획(artifacts/01-plan.md)에 따라 domain과 application 계층(엔티티, 값 객체, 도메인 서비스, 유스케이스, Port)을 구현할 때 사용한다. infra, web, 테스트 코드는 수정하지 않는다.
+tools: Read, Grep, Glob, Write, Edit, Bash
+model: sonnet
+---
+
+당신은 이 프로젝트의 domain/application 계층 담당 엔지니어입니다.
+
+## 책임
+- backend/src/app/domain/** 과 backend/src/app/application/** 만 수정한다.
+- 규칙은 엔티티·값 객체에 두고, 유스케이스는 Port를 호출해 조율만 한다.
+- 외부 통신은 application/ports 에 Protocol로 정의하고 구현은 infra 담당에게 맡긴다.
+
+## 입력
+- artifacts/00-input.md, artifacts/01-plan.md, artifacts/02-tests.md(실패하는 테스트 목록)
+
+## 출력
+- 코드 변경 + artifacts/20-agent-outputs/core.md (변경 파일, 결정 사유, 남은 위험)
+- 저장 실패 시 재시도하고, 그래도 안 되면 TaskUpdate로 차단을 보고한다(본문 요약으로 대체 금지).
+
+## 작업 방식
+1. layer-architecture-rules 스킬로 경계 규칙을 확인한다.
+2. 실패하는 테스트를 통과시키는 최소 구현을 한다(테스트 수정 금지).
+3. 파일이 300줄에 가까워지면 책임별로 분리한다.
+4. 변경 후 uv run pytest tests/unit, ruff, mypy, lint-imports 를 실행한다.
+
+## 팀 통신
+- 수신: orchestrator의 Task, test-engineer의 계약 변경 알림
+- 발신: Port 시그니처 변경이 필요하면 feature-planner·infra-engineer에게 '충돌' 메시지, 완료 시 orchestrator에게 '완료'
+- 차단: 요구사항이 모호해 추측이 필요하면 멈추고 질문 목록을 남긴다
+
+## 하지 말아야 할 일
+- infra/web/tests/frontend 파일 수정, pyproject·uv.lock 수정, uv add 실행
+- domain·application에서 fastapi, sqlalchemy, httpx, redis, app.config import
+- 테스트를 약하게 고쳐 통과시키기</code></pre>
+
+<h3>6.6 모델 정책 (역할별, 일괄 지정 금지)</h3>
+<ul>
+  <li><code>opus</code>: 구조 판단·상충 해소(<code>feature-planner</code>, <code>review-architecture</code>, <code>review-lead</code>). <code>sonnet</code>: 구현과 의미 해석(엔지니어, 정확성·보안 리뷰, release-checker). <code>haiku</code>: 규칙 기반 점검(<code>quality-gate</code>, <code>review-conventions</code>).</li>
+  <li><code>sonnet</code>이 부족해 보이면 바로 <code>opus</code>로 올리기 전에 같은 모델의 높은 effort를 먼저 시험합니다.</li>
+  <li>Agent Team에서는 frontmatter의 <code>model</code>이 실제 실행 모델을 보장하지 못할 수 있으므로, Orchestrator의 팀 생성 지시와 벤치마크 기록에 <strong>같은 모델 정책을 명시</strong>합니다.</li>
+  <li>배정한 티어로 실제 확인합니다: <code>haiku</code> 역할의 지침이 충분히 구체적인지, <code>opus</code> 역할이 과설명으로 토큰을 낭비하지 않는지.</li>
+</ul>
+
+<!-- ============================================================ -->
+<h2 id="skills">7. Skill 설계</h2>
+<p>Skill은 "작업 매뉴얼"입니다. <code>description</code>은 소개문이 아니라 <strong>무엇을 + 언제</strong>를 3인칭으로 쓰며, 본문은 500줄 미만으로 두고 세부는 <code>references/</code>(한 단계 깊이)로 뺍니다. 결정적 점검은 <code>scripts/</code>로 만듭니다.</p>
+<table>
+<tr><th>Skill</th><th>사용하는 Agent</th><th>트리거(description 요지)</th><th>담는 것</th></tr>
+<tr><td><code>layer-architecture-rules</code></td><td>core, infra, web, review-architecture, planner</td><td>계층 배치, Port 정의, 의존 방향, SOLID 판단이 필요할 때</td><td>계층별 책임표, 위반 사례/좋은 예, Port 설계 규칙, 빈약한 도메인 모델 신호</td></tr>
+<tr><td><code>tdd-python-testing</code></td><td>test-engineer, core, infra</td><td>테스트를 먼저 작성하거나 Fake Port·임시 DB 테스트를 만들 때</td><td>red→green 절차, Fake UoW/Repository 패턴, 임시 DB fixture, 영문 ASCII 테스트 네이밍(<code>test_&lt;상황&gt;_&lt;결과&gt;</code>), Ruff 예외 규칙</td></tr>
+<tr><td><code>config-and-secrets</code></td><td>planner, core, infra, web, release-checker</td><td>환경변수·프로파일·비밀을 다루거나 새 설정이 필요할 때</td><td>Settings 필드 추가 절차(5단계), product 안전 조건, <strong>.env 읽기 금지 규칙</strong></td></tr>
+<tr><td><code>fastapi-web-layer</code></td><td>web-engineer</td><td>라우터·스키마·오류 매핑·OpenAPI를 만들 때</td><td>얇은 라우터 원칙, 요청/응답 스키마 분리, 도메인 예외→HTTP 매핑, <code>openapi.json</code> 생성·드리프트 검사</td></tr>
+<tr><td><code>sqlalchemy-alembic-infra</code></td><td>infra-engineer</td><td>Repository/UoW/어댑터/마이그레이션을 구현할 때</td><td>ORM↔도메인 변환, ACL, expand/contract, <strong>비로컬 DB 실행 금지</strong></td></tr>
+<tr><td><code>react-frontend-conventions</code></td><td>frontend-engineer</td><td>React 화면·훅·API 호출을 만들 때</td><td>features 구조, 생성 클라이언트 사용, <code>VITE_</code> 비밀 금지, 런타임 <code>/config.json</code></td></tr>
+<tr><td><code>code-review-checklist</code></td><td>리뷰 Agent 전원</td><td>diff/PR을 관점별로 검토할 때</td><td>관점별 체크리스트, 증거 기반 지적 형식, 심각도 기준(차단/중요/제안), CONFIRMED·PLAUSIBLE·REFUTED 판정 기준</td></tr>
+<tr><td><code>quality-gate-runner</code></td><td>quality-gate</td><td>변경 후 게이트를 실행하고 실패를 분류할 때</td><td><code>scripts/run_gates.py</code>(10.2절), 실패 → 소유자 매핑 표</td></tr>
+<tr><td><code>release-checklist</code></td><td>release-checker</td><td>배포 준비·릴리스 점검을 할 때</td><td>마이그레이션 호환, 환경변수 선반영, Jenkins 승인 단계 확인표</td></tr>
+</table>
+<div class="callout">
+  <p><strong>Skill 작성 규칙</strong>: ① 폴더명이 호출 이름 ② Orchestrator만 폴더명이 <code>-orchestrator</code>로 끝남 ③ 숫자 규칙은 하드코딩하지 않고 스크립트·설정을 가리킴 ④ 좋은 예·나쁜 예를 최소 1쌍 ⑤ 통과/탈락 예시를 평가 Skill에 포함 ⑥ 한 Skill은 한 가지 작업만 다룸.</p>
+</div>
+
+<!-- ============================================================ -->
+<h2 id="orchestrators">8. Orchestrator 설계</h2>
+<h3>8.1 실행 모드 선택 (변경 크기에 따라)</h3>
+<p>멀티에이전트는 공짜가 아니라 단일 흐름보다 토큰을 훨씬 많이 씁니다. 그래서 팀은 <strong>가치가 크고 병렬화되는 작업</strong>에만 씁니다. Orchestrator의 첫 단계가 변경 크기를 판정해 모드를 고릅니다.</p>
+<table>
+<tr><th>변경 크기</th><th>예시</th><th>실행 모드</th><th>사용 Agent</th></tr>
+<tr><td>소 (1계층, 수십 줄)</td><td>검증 규칙 추가, 응답 필드 추가</td><td><strong>단일 흐름</strong> + 게이트</td><td>없음(해당 규칙 Skill + <code>quality-gate</code>)</td></tr>
+<tr><td>중 (2계층 이상, 새 유스케이스 1개)</td><td>조회 API 추가(core + infra + web)</td><td><strong>Subagent 순차</strong> (Hybrid)</td><td>planner → test → core → infra/web → gate</td></tr>
+<tr><td>대 (3계층 이상 + 프론트 / 새 Aggregate / 마이그레이션)</td><td>주문 기능 전체</td><td><strong>Agent Team</strong> (infra·web 병렬)</td><td>전체 팀 + 단계별 팀 재구성(핸드오프)</td></tr>
+</table>
+<p class="meta">Agent Team 도구(<code>TeamCreate</code>/<code>TaskCreate</code>/<code>SendMessage</code> 등)의 사용 가능 여부는 환경에 따라 다를 수 있으므로 <strong>구성 단계에서 먼저 확인</strong>합니다. 사용할 수 없으면 "대" 모드도 Subagent 순차 + 파일 핸드오프로 대체합니다.</p>
+
+<h3>8.2 <code>feature-dev-orchestrator</code> 흐름 (중·대)</h3>
+<p>패턴: <strong>Pipeline + Producer-Reviewer</strong>(계층 구현은 파이프라인, 판정은 분리된 평가자).</p>
+<table>
+<tr><th>Task</th><th>담당</th><th>입력</th><th>출력</th><th>의존</th><th>완료 기준</th></tr>
+<tr><td>T00-input</td><td>Orchestrator</td><td>사용자 요청</td><td><code>00-input.md</code></td><td>-</td><td>요구사항, 변경 크기, 제약, 승인 지점, <strong>확인 필요 질문 분리</strong></td></tr>
+<tr><td>T01-plan</td><td>feature-planner</td><td><code>00-input.md</code>, 코드베이스</td><td><code>01-plan.md</code></td><td>T00</td><td>계층별 변경표, Port/DTO 시그니처, 마이그레이션 필요성, 테스트 목록, 수락 기준, 위험 표시</td></tr>
+<tr><td colspan="6"><strong>사람 확인 (대형 변경만)</strong>: 계획 요약을 보여주고 승인받은 뒤 진행(새 Aggregate, 마이그레이션, 공개 API 변경, 새 의존성)</td></tr>
+<tr><td>T02-tests</td><td>test-engineer</td><td><code>01-plan.md</code></td><td><code>02-tests.md</code> + 테스트 코드</td><td>T01</td><td><strong>새 테스트가 실패(red)</strong>하는 증거. 통과하면 테스트가 약한 것</td></tr>
+<tr><td>T03-core</td><td>core-engineer</td><td>01·02</td><td><code>20-agent-outputs/core.md</code></td><td>T02</td><td>unit 테스트 green, 계층 계약 통과</td></tr>
+<tr><td>T04a-infra</td><td>infra-engineer</td><td>01, core.md</td><td><code>20-agent-outputs/infra.md</code></td><td>T03</td><td>Port 구현, 통합 테스트(임시 DB) green, 마이그레이션 초안</td></tr>
+<tr><td>T04b-web</td><td>web-engineer</td><td>01, core.md</td><td><code>20-agent-outputs/web.md</code>, <code>openapi.json</code></td><td>T03 (T04a와 <strong>병렬</strong>)</td><td>라우터 테스트 green, 스키마 분리, OpenAPI 갱신</td></tr>
+<tr><td>T05-wire</td><td>web-engineer</td><td>infra.md, web.md</td><td>조립 확인 기록</td><td>T04a, T04b</td><td>앱 기동·E2E 스모크 green</td></tr>
+<tr><td>T05b-frontend</td><td>frontend-engineer</td><td><code>openapi.json</code>, 01</td><td><code>20-agent-outputs/frontend.md</code></td><td>T05 (프론트가 있는 변경만)</td><td>lint·typecheck·test green</td></tr>
+<tr><td>T06-gate</td><td>quality-gate</td><td>전체 변경</td><td><code>30-review/gate.md</code></td><td>T05(b)</td><td>모든 결정적 게이트 통과, 실패는 소유자별 분류</td></tr>
+<tr><td>T07-review</td><td>review-* (중·대 변경)</td><td>diff, gate.md</td><td><code>30-review/*.md</code></td><td>T06 통과</td><td>차단 이슈 0. 지적은 <code>code-review-orchestrator</code>의 형식</td></tr>
+<tr><td>T08-final</td><td>Orchestrator</td><td>전 산출물</td><td><code>final/summary.md</code></td><td>T07</td><td>변경 요약, 증거, <code>사용 가능</code>/<code>사람 승인 필요</code>/<code>미검증</code> 구분</td></tr>
+</table>
+
+<h4>실행 규칙</h4>
+<ol>
+  <li><strong>실행 모드 확인</strong>: <code>artifacts/</code>를 먼저 확인해 초기 실행 / 부분 재실행("실패한 테스트만 다시", "web만 다시") / 새 실행(기존 결과를 <code>archive/</code>로 보존)을 구분합니다. 의도가 불분명하면 묻습니다.</li>
+  <li><strong>위임 4종</strong>: 모든 Task에 목표, 출력 형식(파일 경로), 도구·출처, 경계(수정 가능 경로)를 적습니다. 모호한 한 줄 위임은 계층 침범과 중복을 만듭니다.</li>
+  <li><strong>저장 계약</strong>: 산출물은 지정 경로에 반드시 저장하고, 실패하면 재시도 후 <code>TaskUpdate</code>로 차단 보고합니다. 저장한 척 본문 요약으로 대체하지 않습니다.</li>
+  <li><strong>게이트 실패 루프</strong>: T06 실패 → 소유자 Agent에게 수정 요청 → 재실행. <strong>최대 3회</strong>, 개선이 멈추면(같은 실패 반복) 중단하고 <code>미검증</code>/<code>사람 확인 필요</code>로 에스컬레이션합니다. 자동 통과 금지. 라운드가 품질을 떨어뜨리면 직전 best 상태로 되돌립니다.</li>
+  <li><strong>팀 재구성</strong>: 계획 확정 후(설계 → 구현), 구현 완료 후(구현 → 리뷰)처럼 구성이 바뀌면 <code>artifacts/handoff.md</code>를 남기고 현재 팀을 정리한 뒤 새 팀을 만듭니다(중첩 금지).</li>
+  <li><strong>컨텍스트 리셋</strong>: 긴 작업은 단계 사이에 핸드오프 산출물(결정·입력 경로·남은 일·승인 상태)을 남기고 깨끗한 컨텍스트로 다시 시작합니다. 서브에이전트는 조정자에게 <strong>압축 요약(핵심 결정·결과·산출물 경로)</strong>만 돌려줍니다.</li>
+  <li><strong>승인 게이트</strong>: 10장 목록에 해당하면 멈추고 승인 요청 형식으로 묻습니다. 승인 전에는 다음 단계나 종료 행동을 진행하지 않습니다.</li>
+  <li><strong>종료</strong>: 산출물 저장 → <code>artifacts/README.md</code>, <code>improvement-log.md</code> 갱신 → 팀 정리 → (승인 필요 시) 승인 요청 후 멈춤.</li>
+</ol>
+
+<h3>8.3 <code>code-review-orchestrator</code> 흐름</h3>
+<p>패턴: <strong>Fan-out/Fan-in + 검증(Producer-Reviewer)</strong>.</p>
+<table>
+<tr><th>Task</th><th>담당</th><th>출력</th><th>설명</th></tr>
+<tr><td>R00-scope</td><td>Orchestrator</td><td><code>00-input.md</code></td><td>리뷰 범위(<code>git diff</code> 기준 브랜치, PR 번호), 제외 파일, 적용 규칙. 변경 파일을 <strong>계층별로 분류</strong></td></tr>
+<tr><td>R01-gate</td><td>quality-gate</td><td><code>30-review/gate.md</code></td><td>결정적 게이트를 먼저 실행. 게이트가 잡는 항목은 리뷰 대상에서 제외(중복 방지)</td></tr>
+<tr><td>R02-candidates (병렬)</td><td>review-architecture, review-correctness, review-security, review-conventions</td><td><code>10-analysis/{perspective}.md</code></td><td>관점별 발견 후보. 각 항목은 <strong>파일:줄, 근거, 재현/확인 방법</strong> 필수</td></tr>
+<tr><td>R03-verify</td><td>review-correctness 또는 별도 검증 역할</td><td><code>30-review/verified.md</code></td><td>후보를 반박해 본다: 테스트·정적 도구·코드 추적으로 CONFIRMED / PLAUSIBLE / REFUTED 분류</td></tr>
+<tr><td>R04-final</td><td>review-lead</td><td><code>final/review-report.md</code></td><td>중복 제거, 심각도순(차단/중요/제안) 정리, 상충 지적은 근거 병기</td></tr>
+</table>
+<ul>
+  <li><strong>증거 없는 지적은 제외</strong>합니다. "괜찮아 보인다/이상해 보인다"가 아니라 해당 줄·테스트 결과·도구 출력으로 말합니다.</li>
+  <li>리뷰 Agent는 <strong>코드를 수정하지 않습니다</strong>. 수정은 사용자가 요청하면 별도 기능 개발 흐름(또는 일반 작업)으로 진행합니다.</li>
+  <li>평가자 편향 방지: 리뷰 Agent에는 통과/탈락 판정 예시 2~3개씩을 Skill에 넣고, "애매하면 확인 필요로 표시" 기본값을 명시합니다.</li>
+</ul>
+
+<h3>8.4 <code>release-check-orchestrator</code> 흐름 (4단계에서 도입)</h3>
+<table>
+<tr><th>Task</th><th>내용</th></tr>
+<tr><td>L01</td><td>변경 범위에서 마이그레이션, 신규 환경변수, API 계약 변경, 배포 자산(<code>infra/server</code>, <code>Jenkinsfile</code>) 변경 추출</td></tr>
+<tr><td>L02</td><td><code>release-checker</code>가 체크리스트 점검(마이그레이션 expand/contract, 서버 <code>.env</code> 선반영, OpenAPI 호환, dev 검증 결과)</td></tr>
+<tr><td>L03</td><td>결과를 <code>final/release-report.md</code>로 정리하고 <strong>사람 승인 필요</strong>로 표시. <strong>배포·머지는 하지 않음</strong> (실제 배포는 Jenkins <code>input</code> 승인 게이트)</td></tr>
+</table>
+
+<!-- ============================================================ -->
+<h2 id="artifacts">9. 산출물 계약 (<code>artifacts/</code>)</h2>
+<p>중간·최종 결과를 대화에만 남기지 않고 파일로 남깁니다. 다음 단계와 다음 실행이 파일을 읽어 이어 가며, 부분 재실행 때 어디가 낡았는지(stale)를 추적합니다.</p>
+<pre><code>artifacts/
+├─ README.md                  # 산출물 지도: 상태, 승인 상태, 다음에 읽을 파일 (매 실행 갱신)
+├─ 00-input.md                # 요청, 변경 크기, 제약, 승인 지점, 확인 필요 질문
+├─ 10-analysis/               # 01-plan.md, 리뷰 후보(관점별)
+├─ 20-agent-outputs/          # core.md, infra.md, web.md, frontend.md, 02-tests.md
+├─ 30-review/                 # gate.md, verified.md, 관점별 리뷰
+├─ final/                     # summary.md, review-report.md, release-report.md
+├─ handoff.md                 # 팀 재구성·컨텍스트 리셋용 인수인계
+├─ improvement-log.md         # 실패 패턴, 반복 지적, 하네스 변경 근거
+├─ evals/                     # with/without 벤치마크(iteration-N/…)
+└─ archive/                   # 새 실행 시 이전 결과 보존</code></pre>
+<table>
+<tr><th>파일</th><th>만드는 역할</th><th>다음에 읽는 역할</th><th>상태 값</th></tr>
+<tr><td><code>00-input.md</code></td><td>Orchestrator</td><td>전원</td><td>current</td></tr>
+<tr><td><code>10-analysis/01-plan.md</code></td><td>feature-planner</td><td>test, core, infra, web, frontend, review</td><td>current / stale(요구사항 변경 시)</td></tr>
+<tr><td><code>20-agent-outputs/*.md</code></td><td>각 엔지니어</td><td>gate, review</td><td>current / stale(계획 변경 시)</td></tr>
+<tr><td><code>30-review/gate.md</code></td><td>quality-gate</td><td>Orchestrator, review</td><td>current / needs-review</td></tr>
+<tr><td><code>final/summary.md</code></td><td>Orchestrator</td><td>사용자, 다음 실행</td><td>needs-review + 승인 상태</td></tr>
+</table>
+<ul>
+  <li><strong>상태</strong>: <code>current</code> / <code>stale</code>(앞 단계 변경) / <code>needs-review</code> / <code>archived</code>. 앞 단계 파일이 바뀌면 그것을 입력으로 쓰는 뒤 단계 파일을 <code>stale</code>로 표시하고 최종 판단에 쓰지 않습니다.</li>
+  <li><strong>승인 상태</strong>: <code>사용 가능</code> / <code>사람 승인 필요</code> / <code>미검증 영역 있음</code>. 머지·배포·비로컬 마이그레이션이 연결되면 사람 승인 전에는 <code>사용 가능</code>이 될 수 없습니다.</li>
+  <li><strong>비밀 금지</strong>: 산출물에 <code>.env</code> 값, 토큰, 접속 URL의 비밀번호를 적지 않습니다(명령 출력에 섞이면 마스킹).</li>
+  <li><strong>Git 정책(권장)</strong>: <code>artifacts/</code>는 로컬 작업 기록이라 <code>.gitignore</code>에 추가합니다. 팀에 남길 가치가 있는 것만 PR 설명, <code>docs/adr/</code>, <code>CLAUDE.md</code> 변경 이력으로 옮깁니다. <code>improvement-log.md</code>의 결론은 규칙 Skill에 환류합니다.</li>
+</ul>
+
+<!-- ============================================================ -->
+<h2 id="verification">10. 검증·안전장치·승인 게이트</h2>
+<h3>10.1 결정적 검증 vs 판단형 검증</h3>
+<p>객관적으로 판정되는 것은 LLM에게 맡기지 않고 도구로 겁니다. LLM 리뷰는 도구가 못 보는 영역에 집중합니다(객관 항목을 LLM에 맡기면 거수기 검증이 되기 쉽습니다).</p>
+<table>
+<tr><th>검증 항목</th><th>수단</th><th>실패 시 담당</th></tr>
+<tr><td>포맷·린트·복잡도·타입 힌트·보안 규칙</td><td><code>ruff format --check</code>, <code>ruff check</code></td><td>변경한 엔지니어</td></tr>
+<tr><td>정적 타입</td><td><code>mypy src scripts tests</code> (strict)</td><td>변경한 엔지니어</td></tr>
+<tr><td>계층 의존 방향·domain 순수성</td><td><code>lint-imports</code> (계약 3개)</td><td>위반 파일 소유자</td></tr>
+<tr><td>파일 300줄 제한</td><td><code>python scripts/check_file_length.py</code></td><td>위반 파일 소유자(책임별 분리)</td></tr>
+<tr><td>동작·커버리지</td><td><code>pytest</code> (전체 80%, domain/application 90% 목표)</td><td>소유자. 테스트 자체 결함이면 test-engineer</td></tr>
+<tr><td>API 계약 드리프트</td><td>OpenAPI 재생성 후 커밋본과 diff</td><td>web-engineer</td></tr>
+<tr><td>의존성 취약점·비밀 노출</td><td><code>pip-audit</code>, gitleaks (CI)</td><td>사람 승인 후 Orchestrator</td></tr>
+<tr><td>프론트 품질</td><td><code>pnpm lint</code>, <code>typecheck</code>, <code>test</code></td><td>frontend-engineer</td></tr>
+<tr><td><strong>판단형</strong>: 책임 분리·응집도, Port 설계, 도메인 모델 풍부함, 트랜잭션 경계, 인가·보안 의미, 테스트 충분성</td><td>review-* Agent (증거 기반)</td><td>review-lead가 심각도 판정</td></tr>
+</table>
+
+<h3>10.2 게이트 실행 스크립트 (결정적, 맥/Windows 공통)</h3>
+<p>개발자 PC는 맥과 Windows가 섞여 있으므로 게이트는 <strong>셸 스크립트가 아니라 파이썬 스크립트</strong>(<code>backend/scripts/run_gates.py</code>)로 만들어 어디서나 같게 동작시킵니다. 스크립트는 각 명령을 실행하고 <strong>항목별 통과/실패와 로그 요약을 JSON/마크다운</strong>으로 출력하며, <code>quality-gate</code> Agent는 이를 파싱해 <code>gate.md</code>에 소유자별로 분류합니다. Jenkins의 Quality 단계와 같은 명령 목록을 쓰도록 맞춰 로컬 게이트와 CI가 어긋나지 않게 합니다.</p>
+
+<h3>10.3 hooks와 권한 (<code>.claude/settings.json</code>)</h3>
+<p>Skill 지침은 AI가 "기억해서" 지키는 규칙이고, <strong>hooks와 권한은 하네스가 강제하는 규칙</strong>입니다. 반드시 지켜야 하는 것은 hooks/권한으로 겁니다.</p>
+<table>
+<tr><th>장치</th><th>시점</th><th>동작</th></tr>
+<tr><td>포맷·린트·파일 길이 hook <strong>(구현됨)</strong></td><td><code>.py</code> 편집 직후 (<code>PostToolUse</code>)</td><td><code>.claude/hooks/post_edit.py</code>: <code>ruff format</code> + <code>ruff check --fix</code> 적용, 못 고친 오류와 파일 길이 초과를 Claude에게 즉시 알림(결정적, 토큰 비용 없음)</td></tr>
+<tr><td>가드 hook <strong>(구현됨)</strong></td><td>도구 호출 직전 (<code>PreToolUse</code>)</td><td><code>.claude/hooks/guard.py</code>: <code>.env*</code> 읽기·쓰기와 <code>uv.lock</code> 직접 편집, <code>pip install</code>/venv는 <strong>차단</strong>. <code>alembic upgrade|downgrade|stamp</code>와 <code>.env</code>가 들어간 Bash 명령은 <strong>사람 확인</strong></td></tr>
+<tr><td>보호 파일 수정 확인 <strong>(구현됨: 권한 규칙)</strong></td><td>편집 직전</td><td><code>pyproject.toml</code>, <code>mise.toml</code>, <code>Jenkinsfile</code>, <code>infra/server/**</code> 수정은 매번 묻고(<code>ask</code>), <code>.env*</code>·<code>uv.lock</code> 편집은 거부(<code>deny</code>)</td></tr>
+<tr><td>종료 전 게이트 (선택, <strong>미구현</strong>)</td><td>작업 종료 시</td><td>변경이 있으면 <code>run_gates.py</code> 실행, 실패하면 완료 보고 대신 수정 계속. 필요성이 확인되면 <code>Stop</code> 훅으로 추가</td></tr>
+<tr><td>권한 허용</td><td>상시</td><td><code>uv run pytest/ruff/mypy/lint-imports</code>, <code>python scripts/*</code>, <code>pnpm lint/test/typecheck</code>, 읽기용 <code>git status/diff/log</code></td></tr>
+<tr><td>권한 차단 (구현됨)</td><td>상시</td><td><code>.env*</code> 읽기, <code>git push</code>, <code>git reset --hard</code> 등 되돌리기 어려운 명령, <code>alembic upgrade</code>를 로컬 외 DB로 실행하는 경로(프로파일이 local이 아닐 때 거부), <code>rm -rf</code></td></tr>
+</table>
+<div class="callout ok">
+  <p><strong>구성 단계에서 확인한 것</strong>: hooks는 <code>{"hooks": {"이벤트": [{"matcher": "...", "hooks": [{"type": "command", "command": "..."}]}]}}</code> 형식이고, 입력은 stdin JSON(<code>tool_name</code>, <code>tool_input.file_path</code> 등)입니다. 차단·확인은 <code>PreToolUse</code>의 <code>hookSpecificOutput.permissionDecision</code>(<code>deny</code>/<code>ask</code>)으로, 편집 후 알림은 <code>PostToolUse</code>의 <code>additionalContext</code>로 전달합니다(Claude Code 설정 스키마 기준). 권한 경로 규칙은 <code>Read(경로)</code>/<code>Edit(경로)</code> 형식입니다. 구성 후 실제로 확인했습니다: <code>.env</code> 읽기는 권한 규칙이 거부했고, <code>pip install</code>은 가드 hook이 차단했으며, 편집 후 hook이 임시 파일의 포맷을 고치고 오류를 알려 줬습니다. <strong>확인은 macOS에서만 했으므로 Windows 팀원은 14.2절의 점검을 해 주세요.</strong></p>
+</div>
+
+<h3>10.4 사람 승인 게이트</h3>
+<p>승인은 산출물에 라벨을 붙이는 것이 아니라 <strong>흐름을 멈추고 묻는 행동</strong>입니다. 아래 지점에 도달하면 Orchestrator는 산출물 저장, 개선 기록, 팀 정리까지 마친 뒤 승인 요청을 하고 멈춥니다. 명시적 승인 전에는 해당 행동을 하지 않고, 승인 상태를 <code>사용 가능</code>으로 바꾸지 않습니다.</p>
+<table>
+<tr><th>승인 지점</th><th>이유</th><th>승인 시 일어나는 일</th></tr>
+<tr><td>git commit / push / PR 생성 / 머지</td><td>이력·원격에 반영(되돌리기 어려움)</td><td>사용자가 요청한 때에만 커밋. push·머지는 사람이 수행</td></tr>
+<tr><td>의존성 추가·변경 (<code>uv add</code>, <code>pnpm add</code>)</td><td>공급망 위험(인터넷에서 직접 설치), 라이선스, 크기</td><td>승인된 패키지만 추가하고 <code>uv.lock</code> 갱신 diff를 보고</td></tr>
+<tr><td>DB 마이그레이션 <strong>실행</strong> (로컬 외)</td><td>데이터 비가역 변경</td><td>AI는 초안과 호환성 점검까지만. 실행은 <code>deploy.sh</code>/사람</td></tr>
+<tr><td>비밀·<code>.env</code>·프로파일 값 변경</td><td>보안, 서버 간 불일치</td><td>AI는 변경이 필요한 <strong>키 이름과 절차만</strong> 안내. 값 입력은 사람</td></tr>
+<tr><td>공개 API 호환 깨짐 (필드 삭제·타입 변경)</td><td>프론트·외부 소비자 영향</td><td>버전 전략(<code>/api/v2</code>) 또는 단계적 변경 합의</td></tr>
+<tr><td>배포 (dev 자동 외 product)</td><td>운영 영향</td><td>Jenkins <code>input</code> 게이트에서 <code>release-managers</code>가 승인. AI는 배포하지 않음</td></tr>
+<tr><td>대형 변경 계획 (새 Aggregate·마이그레이션·계층 구조 변경)</td><td>되돌리는 비용이 큼</td><td>계획 승인 후 구현 착수</td></tr>
+</table>
+<pre><code>## 승인 요청
+
+- 승인 대상: {예: users 테이블에 email_verified 컬럼 추가 마이그레이션을 dev DB에 실행}
+- 필요한 이유: {비가역 스키마 변경, 운영 영향 가능}
+- 승인하면 일어나는 일: {실행할 행동}
+- 지금 상태: 사람 승인 필요 (아직 실행하지 않음)
+- 확인해 주세요: {expand/contract 호환성, 롤백 방법 등 핵심 항목}
+- 보류하면: {대안 또는 다음 행동}</code></pre>
+
+<h3>10.5 결함 주입 회귀 테스트 (거수기 검증 방지)</h3>
+<p>검증 단계가 실제로 잡는지 확인하려고 <strong>일부러 망가뜨린 변경</strong>을 넣어 봅니다. 하네스를 만들거나 규칙을 바꿀 때마다 실행합니다.</p>
+<table>
+<tr><th>주입할 결함</th><th>반드시 잡아야 하는 단계</th></tr>
+<tr><td><code>domain</code>에서 <code>sqlalchemy</code> import</td><td><code>lint-imports</code> 계약 2 위반 → gate 실패</td></tr>
+<tr><td><code>application</code>이 <code>infra</code> 모듈을 import</td><td><code>lint-imports</code> 계층 계약 위반 → gate 실패</td></tr>
+<tr><td>301줄 파일 생성</td><td><code>check_file_length.py</code> 실패</td></tr>
+<tr><td>타입 힌트 없는 공개 함수</td><td><code>ruff ANN</code> / <code>mypy strict</code> 실패</td></tr>
+<tr><td>product에서 <code>APP_DEBUG=true</code> 허용하도록 검증 제거</td><td><code>test_settings</code> 실패 + review-security 지적</td></tr>
+<tr><td>Port 시그니처에 ORM 모델 노출</td><td>review-architecture가 지적(도구로는 못 잡는 영역)</td></tr>
+<tr><td>라우터가 SQL을 직접 실행</td><td>web→infra 계약 위반 + review-architecture 지적</td></tr>
+<tr><td>테스트를 약하게 고쳐 통과</td><td>T02 red 증거와 불일치 → quality-gate/리뷰 지적</td></tr>
+<tr><td>비밀 값을 산출물에 기록</td><td>hook/게이트(gitleaks 패턴) 차단</td></tr>
+</table>
+
+<!-- ============================================================ -->
+<h2 id="prompts">11. 테스트 프롬프트와 트리거 검증</h2>
+<h3>11.1 실행 테스트 프롬프트</h3>
+<table>
+<tr><th>유형</th><th>프롬프트</th><th>기대 결과</th></tr>
+<tr><td>정상(중)</td><td>"고객 등록 유스케이스와 조회 API를 추가해줘"</td><td>feature-dev-orchestrator 실행 → 계획, red 테스트, core→infra/web, 게이트 통과, 최종 요약(미검증/승인 필요 구분)</td></tr>
+<tr><td>정상(소)</td><td>"고객 이름 최대 길이 검증을 추가해줘"</td><td>단일 흐름: 규칙 Skill 참조 + 테스트 + 게이트. 팀 생성 안 함</td></tr>
+<tr><td>정상(리뷰)</td><td>"develop 대비 현재 브랜치를 리뷰해줘"</td><td>code-review-orchestrator: 게이트 선실행, 관점별 후보, 검증, 심각도순 리포트, 코드 미수정</td></tr>
+<tr><td>애매함</td><td>"주문 기능 만들어줘" (요구사항 부족)</td><td>추측하지 않고 확인 필요 질문 목록을 만들고 멈춤</td></tr>
+<tr><td>애매함(재실행)</td><td>"실패한 infra 테스트만 다시 돌려서 고쳐줘"</td><td>부분 재실행: infra 단계만, 뒤 단계 산출물 stale 표시</td></tr>
+<tr><td>실패 위험</td><td>"신규 컬럼 마이그레이션 만들고 dev DB에 적용해줘"</td><td>초안 작성 후 승인 요청 형식으로 멈춤. 적용하지 않음</td></tr>
+<tr><td>실패 위험</td><td>"JWT 시크릿 값을 .env에 넣어줘"</td><td>값 입력 거부, 필요한 키와 절차만 안내(.env 읽기·쓰기 안 함)</td></tr>
+<tr><td>부정</td><td>"의존성 아무거나 추가해서 빨리 끝내줘"</td><td>승인 없이 <code>uv add</code> 하지 않고 후보와 위험을 제시하며 승인 요청</td></tr>
+<tr><td>회귀</td><td>(10.5 결함 주입 9종)</td><td>각 결함이 지정한 단계에서 잡힘</td></tr>
+</table>
+
+<h3>11.2 Orchestrator description 트리거 검증 (near-miss 중심)</h3>
+<table>
+<tr><th>should-trigger (feature-dev)</th><th>should-not-trigger</th></tr>
+<tr><td>"주문 취소 기능 추가해줘 (API + 도메인 규칙)"</td><td>"오타 하나 고쳐줘" (단발)</td></tr>
+<tr><td>"이 유스케이스 정리하고 Repository 구현도 같이 해줘"</td><td>"이 코드가 뭘 하는지 설명해줘" (질문)</td></tr>
+<tr><td>"새 도메인 추가: 견적, 계층별로 구현해줘"</td><td>"이 PR 리뷰해줘" (→ review 하네스)</td></tr>
+<tr><td>"이전 계획 기반으로 web 단계만 다시 해줘"</td><td>"버그 한 줄 고쳐줘: NoneType 에러" (단발 수정)</td></tr>
+<tr><td>"실패한 게이트 항목만 다시 고쳐줘"</td><td>"README 문구 바꿔줘"</td></tr>
+<tr><td>"프론트까지 포함해서 목록 화면 만들어줘"</td><td>"배포해줘" (→ 승인 필요, release 하네스는 점검만)</td></tr>
+<tr><td>"테스트부터 쓰고 구현해줘 (TDD)"</td><td>"문서 목차 정리해줘" (비개발 → 다른 스킬)</td></tr>
+<tr><td>"이 기능 구현 이어서 계속해줘"</td><td>"Docker로 띄워줘" (이 프로젝트는 컨테이너 미사용)</td></tr>
+</table>
+<p>경계가 애매한 near-miss(단발 수정 vs 기능 개발, 리뷰 요청 vs 구현 요청)에서 잘못 발동하거나 놓치지 않는지 확인하고, 어긋나면 description의 키워드를 고칩니다.</p>
+
+<!-- ============================================================ -->
+<h2 id="evolution">12. 평가와 개선 루프</h2>
+<ul>
+  <li><strong>with/without 비교(<code>light</code>)</strong>: 대표 작업 1개(예: "조회 API 추가")를 하네스 있음/없음으로 각각 실행해 <strong>게이트 통과 횟수, 규칙 위반 수, 소요 토큰·시간</strong>을 <code>artifacts/evals/iteration-1/…/comparison.md</code>에 저장합니다. 양쪽에서 항상 통과하는 검증 항목은 차별력이 없으므로 더 어려운 항목으로 교체합니다.</li>
+  <li><strong>벤치마크 두께</strong>: 처음엔 <code>light</code>, 큰 개편 때는 바뀐 Phase와 위험 지점만 비교하는 <code>targeted</code>. 전체 비교(<code>full</code>)는 비용이 크므로 드물게.</li>
+  <li><strong>개선 기록(<code>improvement-log.md</code>)</strong>: 게이트 실패 상위 항목, 리뷰에서 반복되는 지적, 사람이 고친 부분, 재실행 사유를 기록하고, 3회 이상 반복되면 규칙 Skill·hook·테스트로 승격합니다.</li>
+  <li><strong>drift 점검(분기별)</strong>: dev-guide·<code>pyproject.toml</code>·스크립트와 Skill 참조가 어긋났는지, <code>CLAUDE.md</code> 포인터가 현재 구조와 맞는지, 중복·낡은 규칙이 없는지 점검합니다.</li>
+  <li><strong>빼기</strong>: 모델이나 프로젝트 성숙으로 불필요해진 Agent·Skill·검증은 하나씩 빼고 품질 영향을 확인해 제거합니다(하네스는 두꺼워지기만 하지 않습니다).</li>
+</ul>
+
+<h3>12.1 핵심 결정 기록 (ADR 초안)</h3>
+<table>
+<tr><th>결정</th><th>버린 대안과 이유</th><th>가정·트레이드오프</th><th>재검토 조건</th></tr>
+<tr><td><strong>변경 크기별 모드 선택</strong>(단일/Subagent/Team)</td><td>항상 Agent Team: 토큰이 크게 늘고 소규모 변경에서 조율 비용이 이득보다 큼</td><td>크기 판정이 틀릴 수 있어 Orchestrator 첫 단계에서 근거를 <code>00-input.md</code>에 기록</td><td>팀 모드 사용 비중이 낮고 품질 차이가 없으면 Team 제거</td></tr>
+<tr><td><strong>계층 경계로 역할 분리</strong>(core/infra/web/frontend)</td><td>기능 단위 Agent(기능마다 풀스택): 한 Agent가 모든 계층 규칙을 알아야 해 경계 침범이 잦아짐</td><td>domain+application을 한 Agent로 묶어 맥락 단절을 피함. 계층 간 계약(Port/DTO/OpenAPI)이 안정적이라는 가정</td><td>계층 간 수정 요청 메시지가 빈번하거나 병렬 이득이 없으면 역할 통합</td></tr>
+<tr><td><strong>결정적 검증은 스크립트·hooks, 판단형만 LLM</strong></td><td>LLM 리뷰로 전부 검증: 객관 항목에서 거수기가 되고 비용이 큼</td><td>검증 스크립트가 CI(Jenkins)와 같은 명령 목록이어야 함</td><td>게이트가 놓친 결함이 반복되면 해당 항목을 스크립트로 추가</td></tr>
+<tr><td><strong>산출물은 <code>artifacts/</code> 파일, Git 제외</strong></td><td>산출물을 Git에 커밋: 노이즈와 비밀 유입 위험</td><td>중요한 결정은 ADR·PR 설명으로 승격</td><td>팀 협업에서 산출물 공유 요구가 생기면 일부 추적</td></tr>
+</table>
+
+<!-- ============================================================ -->
+<h2 id="roadmap">13. 구성 단계 체크리스트와 로드맵</h2>
+<h3>13.1 구성 직후 자가 점검</h3>
+<ul>
+  <li>☐ <code>.claude/commands/</code>를 만들지 않았다</li>
+  <li>☐ Agent frontmatter: <code>name</code>=파일명, <code>description</code>은 위임 조건(무엇+언제), <code>tools</code> 최소 권한, <code>model</code> 역할별(일괄 지정 아님)</li>
+  <li>☐ 파일 산출물을 쓰는 모든 Agent에 <code>Write</code>가 있고, 리뷰·게이트 Agent에는 <code>Edit</code>가 없다</li>
+  <li>☐ Orchestrator 폴더명이 <code>-orchestrator</code>로 끝나고 description에 재실행·부분 재실행 키워드가 있다</li>
+  <li>☐ Task마다 위임 4종(목표·출력·도구·경계)과 저장 계약이 있다</li>
+  <li>☐ <code>artifacts/README.md</code> 템플릿과 stale 규칙, 승인 상태 값이 있다</li>
+  <li>☐ 승인 게이트(10.4)가 Orchestrator에 "멈추고 묻기"로 들어 있다(라벨만 붙이는 구조 아님)</li>
+  <li>☐ SKILL.md 본문 500줄 미만, 세부는 <code>references/</code>, 숫자 규칙은 하드코딩하지 않았다</li>
+  <li>☐ hooks를 일부러 위반해 막히는지 확인했다(.env 수정, 보호 경로)</li>
+  <li>☐ 결함 주입 9종(10.5)과 near-miss 트리거 테스트(11.2)를 실행했다</li>
+  <li>☐ <code>CLAUDE.md</code>에 자연어 라우팅과 변경 이력이 있다</li>
+</ul>
+
+<h3>13.2 구성 순서 (승인 후)</h3>
+<table>
+<tr><th>순서</th><th>작업</th><th>완료 기준</th></tr>
+<tr><td>1 <strong>✔ 완료</strong></td><td><code>CLAUDE.md</code> + <code>.claude/settings.json</code>(권한, hooks) + <code>scripts/run_gates.py</code></td><td>hook 위반 테스트 통과, 로컬 게이트가 Jenkins Quality 단계와 같은 명령을 실행</td></tr>
+<tr><td>2 <strong>✔ 완료</strong></td><td>규칙 Skill 3개(<code>layer-architecture-rules</code>, <code>tdd-python-testing</code>, <code>config-and-secrets</code>) + <code>quality-gate</code> Agent</td><td>실제 작은 변경 1건을 단일 흐름으로 수행해 위반 없이 통과</td></tr>
+<tr><td>3</td><td>★ Agent 5개 + <code>feature-dev-orchestrator</code> (Subagent 순차)</td><td>"조회 API 추가"를 end-to-end 수행, 산출물·README·승인 요청 확인</td></tr>
+<tr><td>4</td><td>리뷰 Agent 5개 + <code>code-review-orchestrator</code> + 결함 주입 테스트</td><td>주입 결함 9종 중 도구 영역 전부, 판단형 영역 대부분 탐지</td></tr>
+<tr><td>5</td><td>infra/web/frontend Agent·Skill, Agent Team 모드, 릴리스 점검</td><td>대형 변경 1건을 팀 모드로 수행해 with/without 비교(<code>light</code>)</td></tr>
+</table>
+
+<h3>13.3 확인이 필요한 항목 (추측하지 않고 질문)</h3>
+<p class="meta">1~2단계는 아래 기본 가정으로 구성했습니다. 3단계(Orchestrator) 도입 전에 사용자 확인이 필요한 항목은 <strong>Agent Team 도구 사용 가능 여부, 리뷰 기준 브랜치, 프론트엔드 착수 시점과 실제 도메인</strong>입니다.</p>
+<table>
+<tr><th>항목</th><th>필요한 이유</th><th>기본 가정</th></tr>
+<tr><td>Agent Team 도구(<code>TeamCreate</code> 등) 사용 가능 여부</td><td>"대" 모드가 팀인지 Subagent 대체인지 결정</td><td>불가하면 Subagent 순차 + 핸드오프</td></tr>
+<tr><td>Git 브랜치·PR 흐름(리뷰 기준 브랜치: <code>develop</code>?)</td><td>리뷰 범위 산정, 커밋/PR 승인 지점</td><td>기준 브랜치 <code>develop</code>, PR은 사람이 생성</td></tr>
+<tr><td>프론트엔드 착수 시점과 패키지 매니저(pnpm 확정?)</td><td>frontend Agent·Skill 도입 시기</td><td>프론트 코드 생성 후 도입</td></tr>
+<tr><td>실제 비즈니스 도메인(Bounded Context 목록)</td><td>예시 컨텍스트(<code>customer</code>, <code>order</code>)를 실제로 교체</td><td>Skill 예시는 일반 예시로 시작</td></tr>
+<tr><td>금지 경로 목록과 보호 파일 추가분</td><td>hooks/권한의 정확성</td><td>10.3 표의 목록</td></tr>
+<tr><td>테스트 DB 접속 방식(<code>TEST_DATABASE_ADMIN_URL</code>)과 CI agent의 PostgreSQL</td><td>통합 테스트 fixture 설계</td><td>로컬 PostgreSQL + <code>CREATEDB</code> 권한 role</td></tr>
+<tr><td>토큰·비용 상한(팀 모드 허용 범위)</td><td>모드 선택 임계값(크기 판정 기준)</td><td>"대"만 팀 모드</td></tr>
+<tr><td>리뷰 결과를 PR 코멘트로 게시할지</td><td>산출물 위치(<code>final/review-report.md</code>만 vs 게시)</td><td>파일로만 저장, 게시는 사람</td></tr>
+</table>
+
+<h2 id="usage">14. 실제 개발에서 하네스 사용하기</h2>
+<p>이 장은 <strong>지금 구성된 하네스(1~2단계)</strong>로 개발을 시작하는 방법입니다. 아직 Orchestrator와 계층별 구현 Agent가 없으므로, 지금은 <em>규칙 Skill + <code>quality-gate</code> + hooks + 권한</em>을 요청 문장으로 조합해 씁니다. 같은 절차를 반복하게 되면 3단계(Orchestrator)로 자동화합니다(14.8절).</p>
+
+<h3>14.1 지금 쓸 수 있는 것과 아직 없는 것</h3>
+<table>
+<tr><th>구성 요소</th><th>상태</th><th>어떻게 동작하나 / 쓰는 법</th></tr>
+<tr><td><code>CLAUDE.md</code></td><td><strong>사용 가능</strong></td><td>세션 시작 때 자동으로 읽힙니다. 핵심 규칙, 검증 명령, 승인이 필요한 행동이 요약되어 있어 별도 지시가 필요 없습니다</td></tr>
+<tr><td><code>.claude/settings.json</code> 권한</td><td><strong>사용 가능</strong></td><td>검증 명령(<code>uv run pytest/ruff/mypy</code>, <code>git diff/status/log</code>)은 묻지 않고 실행합니다. <code>uv add</code>, <code>git commit</code>, <code>pyproject.toml</code>·<code>Jenkinsfile</code>·<code>infra/server</code> 수정은 <strong>묻습니다</strong>. <code>.env*</code> 읽기/쓰기, <code>uv.lock</code> 직접 편집, <code>git push</code>, <code>git reset --hard</code>, <code>rm -rf</code>는 <strong>차단</strong>됩니다</td></tr>
+<tr><td>가드 hook (<code>guard.py</code>)</td><td><strong>사용 가능</strong> (동작 확인됨)</td><td>도구 호출 직전에 검사: <code>.env*</code> 접근 차단, <code>pip install</code>/venv 차단, <code>alembic upgrade/downgrade/stamp</code>와 <code>.env</code>가 들어간 명령은 사람 확인</td></tr>
+<tr><td>편집 후 hook (<code>post_edit.py</code>)</td><td><strong>사용 가능</strong> (동작 확인됨)</td><td>backend <code>.py</code>를 고치면 자동으로 <code>ruff format</code> + <code>ruff check --fix</code>를 적용하고, 못 고친 오류와 파일 길이 초과를 즉시 알려 줍니다</td></tr>
+<tr><td>게이트 스크립트</td><td><strong>사용 가능</strong></td><td><code>cd backend &amp;&amp; uv run python scripts/run_gates.py</code> (6개 게이트, 실패 담당 분류, <code>--report</code>로 리포트 저장)</td></tr>
+<tr><td>규칙 Skill 3개</td><td><strong>사용 가능</strong></td><td><code>layer-architecture-rules</code>, <code>tdd-python-testing</code>, <code>config-and-secrets</code>. 작업 내용과 맞으면 자동으로 불러오고, 이름을 직접 말해도 됩니다</td></tr>
+<tr><td><code>quality-gate</code> Agent</td><td><strong>사용 가능</strong></td><td>"quality-gate로 검증해줘"라고 요청하면 게이트를 돌려 <code>artifacts/30-review/gate.md</code>에 저장하고 담당별로 분류해 보고합니다</td></tr>
+<tr><td><code>feature-dev-orchestrator</code>, 계층별 구현 Agent, 리뷰 Agent</td><td>아직 없음 (3단계)</td><td>지금은 14.3절의 수동 절차로 대신합니다</td></tr>
+<tr><td>통합 테스트용 임시 DB fixture</td><td>아직 없음 (설계만 있음)</td><td>첫 Repository 구현 때 <code>tdd-python-testing/references/db-fixtures.md</code> 설계대로 만듭니다</td></tr>
+</table>
+
+<h3>14.2 처음 한 번만 하는 준비 (개발자마다)</h3>
+<ol>
+  <li><strong>uv 설치와 환경 동기화</strong>: hooks와 게이트가 모두 <code>uv</code>를 씁니다. <code>cd backend &amp;&amp; uv sync</code>.</li>
+  <li><strong>게이트가 도는지 확인</strong>: <code>cd backend &amp;&amp; uv run python scripts/run_gates.py</code> → <code>6/6 통과</code>가 나와야 정상입니다.</li>
+  <li><strong>hooks 확인</strong>: 프로젝트에서 Claude Code를 열고 <code>/hooks</code>로 <code>PreToolUse</code>(guard), <code>PostToolUse</code>(post_edit)가 보이는지 봅니다. 설정을 막 받은 직후라면 한 번 재시작하거나 <code>/hooks</code>를 열어 로드합니다.</li>
+  <li><strong>차단이 실제로 걸리는지 확인(권장)</strong>: Claude에게 "<code>backend/.env</code>를 읽어줘"라고 해 보세요. 거부되어야 합니다.</li>
+  <li><strong>Windows 개발자</strong>: hook 명령이 <code>$CLAUDE_PROJECT_DIR</code> 같은 bash 문법을 씁니다. <strong>WSL2에서 개발</strong>(권장)하거나 Git Bash를 설치하세요. PowerShell만 쓰는 환경에서는 변수가 확장되지 않아 hook이 동작하지 않을 수 있습니다. 동작 확인은 macOS에서만 했으므로 Windows 팀원은 2번과 4번을 반드시 확인하세요.</li>
+  <li><strong>개인 설정</strong>은 <code>.claude/settings.local.json</code>에 둡니다(Git 제외). 팀 규칙(<code>settings.json</code>)을 개인 설정으로 완화하지 않습니다.</li>
+</ol>
+
+<h3>14.3 하루 작업 흐름 (Orchestrator 도입 전)</h3>
+<table>
+<tr><th>단계</th><th>하는 일</th><th>Claude에게 이렇게 요청</th></tr>
+<tr><td>1. 크기 판정</td><td>8.1절 표로 소/중/대를 정합니다</td><td>(사람이 판단) 1계층·수십 줄이면 소, 2계층 이상이면 중, 새 Aggregate·마이그레이션·프론트까지면 대</td></tr>
+<tr><td>2. 요청 작성</td><td>14.5절 템플릿(목표, 계층, 수락 기준, 제약, 하지 말 것)으로 씁니다</td><td>"고객 등록 유스케이스를 추가해줘. 수락 기준: ...  범위: domain/application만 ..."</td></tr>
+<tr><td>3. 계획 먼저 (중·대)</td><td>코드 전에 계획을 받아 확인합니다</td><td>"구현 전에 계획만 세워줘: 바뀌는 계층, Port 시그니처, 테스트 목록, 마이그레이션 필요 여부, 승인이 필요한 항목. 계획을 <code>artifacts/10-analysis/01-plan.md</code>에 저장해줘"</td></tr>
+<tr><td>4. 테스트 먼저</td><td>수락 기준을 실패하는 테스트로 만듭니다(red)</td><td>"<code>tdd-python-testing</code> 기준으로 계획의 수락 기준을 테스트로 먼저 작성하고, 실패하는 것을 보여줘. 구현은 아직 하지 마"</td></tr>
+<tr><td>5. 구현</td><td>테스트를 통과시키는 최소 구현. 테스트 수정 금지</td><td>"<code>layer-architecture-rules</code> 기준으로 구현해줘. 테스트는 고치지 마. 외부 통신은 Port로"</td></tr>
+<tr><td>6. 게이트</td><td>결정적 검증을 돌립니다</td><td>"quality-gate로 검증하고 실패는 담당별로 알려줘"</td></tr>
+<tr><td>7. 마무리</td><td>보고서의 증거와 미검증 항목을 읽고, 승인 필요 항목을 처리한 뒤 커밋을 요청합니다</td><td>"변경 요약과 통과 증거, 미검증 영역, 내가 승인해야 할 것을 정리해줘" → 이상 없으면 "커밋해줘"</td></tr>
+</table>
+<div class="callout">
+  <p><strong>소규모 변경</strong>은 3~4단계를 생략하고 "테스트 1개 추가 → 구현 → 게이트"로 끝냅니다. <strong>한 줄 버그 수정·오타</strong>는 하네스 절차 없이 요청하되, 편집 후 hook과 게이트는 자동으로 적용됩니다.</p>
+</div>
+
+<h3>14.4 상황별 사용법 (복사해 쓸 요청 예시)</h3>
+
+<h4>A. 새 유스케이스와 API 추가 (중)</h4>
+<pre><code>고객 등록 기능을 추가해줘.
+- 목표: 이름·이메일로 고객을 등록하고 등록된 고객을 id로 조회한다
+- 계층: domain(Customer 엔티티, Email 값 객체), application(RegisterCustomer, GetCustomer, Port),
+        infra(SqlCustomerRepository, UoW), web(POST /api/v1/customers, GET /api/v1/customers/{id})
+- 수락 기준: 이메일 형식이 잘못되면 422, 중복 이메일이면 409, 성공하면 201과 id 반환
+- 제약: 새 의존성 없음. 마이그레이션은 초안까지만(실행하지 마)
+먼저 계획만 세워서 artifacts/10-analysis/01-plan.md에 저장하고 내 확인을 받아줘.</code></pre>
+<p>계획을 확인한 뒤 "계획대로 테스트부터 작성해줘" → "domain/application 구현" → "infra 구현" → "web 구현" → "quality-gate로 검증" 순으로 한 단계씩 요청합니다(단계마다 게이트를 돌리면 문제를 빨리 찾습니다).</p>
+
+<h4>B. 새 설정(환경변수) 추가</h4>
+<pre><code>외부 결제 API 주소를 설정으로 추가해줘. config-and-secrets 절차대로 해줘.
+(Settings 필드, .env.example, 문서 표, 테스트까지. 서버 .env에 먼저 넣어야 할 키는 마지막에 알려줘)</code></pre>
+<p>Claude는 <code>.env</code>를 읽지 않고 변수 이름만 다룹니다. 최종 보고의 "서버 <code>.env</code>에 <code>APP_...</code> 추가 필요"를 <strong>코드 배포보다 먼저</strong> 사람이 서버에 반영해야 합니다.</p>
+
+<h4>C. DB 스키마 변경</h4>
+<pre><code>customers 테이블에 email_verified 컬럼을 추가하는 마이그레이션 초안을 만들어줘.
+기존 서비스가 계속 동작하도록 expand/contract 방식으로, 로컬 DB에서만 확인해줘.
+dev/product에는 적용하지 마.</code></pre>
+<p><code>alembic upgrade</code> 명령이 나오면 hook이 사람 확인을 요구합니다. <strong>로컬 DB인지 확인하고 승인</strong>하세요. dev/product는 <code>deploy.sh</code>만 실행합니다.</p>
+
+<h4>D. 의존성 추가</h4>
+<pre><code>CSV 내보내기가 필요해. 새 라이브러리를 추가하기 전에 후보 2개와 장단점, 라이선스, 유지보수 상태를
+비교해서 알려줘. 내가 고르면 그때 추가해줘.</code></pre>
+<p><code>uv add</code>는 권한 규칙상 항상 묻습니다. 추가 후 <code>uv.lock</code> 변경(새로 들어온 패키지 목록)을 반드시 확인합니다. <code>pip install</code>은 차단됩니다.</p>
+
+<h4>E. 게이트 실패 대응</h4>
+<pre><code>quality-gate로 검증해줘. 실패한 항목은 담당별로 분류해줘.</code></pre>
+<table>
+<tr><th>실패한 게이트</th><th>의미</th><th>대응</th></tr>
+<tr><td><code>ruff-check</code> / <code>ruff-format</code></td><td>린트·포맷·복잡도·타입 힌트 규칙 위반</td><td>대부분 편집 시 hook이 이미 고침. 남은 것은 코드 수정(예: 인자 5개 초과 → 객체로 묶기)</td></tr>
+<tr><td><code>mypy</code></td><td>타입 오류</td><td>타입 힌트 보완. <code>Any</code>로 덮지 않음</td></tr>
+<tr><td><code>import-linter</code></td><td><strong>계층 위반</strong>(application→infra, domain→sqlalchemy 등)</td><td>의존 방향을 고쳐야 함. Port로 역전. 규칙을 풀어서 통과시키지 않음</td></tr>
+<tr><td><code>file-length</code></td><td>파일이 한도 초과</td><td>책임별로 모듈 분리(줄 압축 금지)</td></tr>
+<tr><td><code>pytest</code></td><td>동작 실패</td><td>구현을 고침. 테스트가 틀렸다면 근거를 대고 테스트 수정 요청</td></tr>
+</table>
+<p>같은 게이트가 3번 연속 실패하면 멈추고 접근을 바꿉니다(원인을 다시 분석하거나 사람에게 확인). 규칙을 완화하거나 테스트를 약하게 만들어 통과시키는 것은 하지 않습니다.</p>
+
+<h4>F. PR 전 셀프 리뷰 (리뷰 Agent 도입 전)</h4>
+<pre><code>develop 대비 현재 변경(git diff develop...HEAD)을 layer-architecture-rules 기준으로 리뷰해줘.
+코드는 수정하지 말고, 지적마다 파일:줄과 근거, 심각도(차단/중요/제안)를 적어줘.
+도구가 이미 잡는 항목(린트·타입·계층 계약·파일 길이)은 빼고, 책임 분리·Port 설계·도메인 모델 풍부함만 봐줘.</code></pre>
+<p>3단계에서 <code>code-review-orchestrator</code>가 생기면 관점별(아키텍처/정확성/보안/컨벤션) 병렬 리뷰로 자동화됩니다.</p>
+
+<h4>G. 작업을 이어서 하거나 다시 하기</h4>
+<ul>
+  <li>계획을 <code>artifacts/10-analysis/01-plan.md</code>에 저장해 두면 새 세션에서 "01-plan.md를 읽고 이어서 구현해줘"로 재개할 수 있습니다(<code>artifacts/</code>는 Git에 올라가지 않는 로컬 기록입니다).</li>
+  <li>"실패한 테스트만 다시 고쳐줘", "infra 부분만 다시 해줘"처럼 <strong>범위를 좁혀</strong> 요청합니다. 앞 단계(계획, 테스트)가 바뀌었다면 뒤 단계 결과는 낡은 것(stale)이므로 다시 확인합니다.</li>
+</ul>
+
+<h3>14.5 좋은 요청과 나쁜 요청</h3>
+<table>
+<tr><th>요소</th><th>좋은 요청</th><th>나쁜 요청</th></tr>
+<tr><td>목표와 수락 기준</td><td>"이메일이 중복이면 409를 반환한다"</td><td>"고객 기능 만들어줘"</td></tr>
+<tr><td>범위(계층)</td><td>"domain·application만. infra는 다음 단계"</td><td>"알아서 다 해줘"</td></tr>
+<tr><td>제약</td><td>"새 의존성 없음, 마이그레이션은 초안까지"</td><td>(제약을 말하지 않음)</td></tr>
+<tr><td>절차</td><td>"계획 먼저, 테스트 먼저, 단계마다 게이트"</td><td>"빨리 끝내줘"</td></tr>
+<tr><td>승인</td><td>"dev에 적용하지 마", "커밋은 내가 확인한 뒤에"</td><td>"알아서 커밋하고 배포까지"</td></tr>
+</table>
+<p><strong>요청 템플릿</strong>: <code>목표 / 계층·범위 / 수락 기준(테스트 가능한 문장) / 제약(의존성·마이그레이션·API 호환) / 하지 말 것 / 산출물(예: 계획을 artifacts에 저장)</code></p>
+
+<h3>14.6 하네스가 멈춰 세울 때</h3>
+<table>
+<tr><th>보이는 메시지</th><th>의미</th><th>해야 할 일</th></tr>
+<tr><td><code>[harness] 비밀이 들어 있는 .env* 파일은 AI가 읽거나 쓰지 않습니다</code> 또는 "denied by your permission settings"</td><td><code>.env</code> 접근 차단</td><td>우회하지 마세요. 필요한 변수 이름은 <code>.env.example</code>을 보고, 값은 사람이 직접 확인·입력합니다</td></tr>
+<tr><td><code>[harness] uv.lock은 직접 편집하지 않습니다</code></td><td>잠금 파일 수동 편집 차단</td><td>의존성 변경은 승인 후 <code>uv add/remove</code></td></tr>
+<tr><td><code>[harness] 이 프로젝트는 uv만 사용합니다</code></td><td><code>pip install</code>, venv 차단</td><td><code>uv add</code>, <code>uv sync</code>, <code>uv run</code> 사용</td></tr>
+<tr><td>확인 창: <code>[harness] DB 마이그레이션 실행입니다</code></td><td><code>alembic upgrade/downgrade/stamp</code></td><td><strong>대상이 로컬 DB인지 확인</strong> 후 승인. 아니면 거부</td></tr>
+<tr><td>확인 창: <code>.env* 파일을 다루는 명령입니다</code></td><td>명령에 <code>.env</code> 파일명이 들어 있음</td><td>비밀이 출력·변경되지 않는지 보고 판단(<code>.env.example</code> 복사는 문제없음)</td></tr>
+<tr><td>확인 창: <code>uv add</code>, <code>git commit</code>, <code>pyproject.toml</code> 수정 등</td><td>팀 규칙상 사람 확인 대상</td><td>내용(추가될 패키지, 커밋 대상, 설정 변경)을 보고 승인</td></tr>
+<tr><td>편집 후 알림: <code>ruff가 자동으로 고치지 못한 오류</code></td><td>타입 힌트 누락 등 수동 수정 필요</td><td>Claude가 바로 이어서 고칩니다. 반복되면 "이 규칙을 지켜서 다시 써줘"</td></tr>
+<tr><td>편집 후 알림: <code>NNN줄 (최대 300줄)</code></td><td>파일 길이 초과</td><td>책임별 모듈 분리를 요청(줄 압축 금지)</td></tr>
+<tr><td><code>git push</code>, <code>reset --hard</code>, <code>rm -rf</code> 거부</td><td>되돌리기 어려운 명령 차단</td><td>필요하면 사람이 직접 실행</td></tr>
+</table>
+
+<h3>14.7 하네스 결과를 읽는 법</h3>
+<p>작업 보고에서 아래 세 가지를 반드시 확인하세요. 보고에 없으면 요청하세요: <code>"통과 증거, 미검증 영역, 내가 승인해야 할 것을 구분해서 다시 정리해줘"</code></p>
+<ul>
+  <li><strong>통과 증거</strong>: 실행한 명령과 결과(<code>6/6 통과</code>, 새 테스트가 처음에 실패했다는 기록). "잘 동작합니다"만 있고 증거가 없으면 완료로 보지 않습니다.</li>
+  <li><strong>미검증 영역</strong>: 실행하지 못한 테스트, 사람이 확인해야 하는 환경(실제 DB, 서버 <code>.env</code>), 도구가 못 잡는 설계 판단.</li>
+  <li><strong>승인 필요</strong>: 머지, 배포, 비로컬 마이그레이션 실행, 서버 <code>.env</code> 값 입력, 의존성 추가, 공개 API 호환 깨짐. Claude는 이 지점에서 멈추고 묻습니다. 승인하기 전에는 "완료"가 아닙니다.</li>
+</ul>
+
+<h3>14.8 하네스를 키우는 시점과 방법</h3>
+<table>
+<tr><th>신호</th><th>다음 조치</th></tr>
+<tr><td>같은 기능 개발 절차(계획 → 테스트 → 구현 → 게이트)를 수동으로 <strong>3번 이상</strong> 반복했다</td><td>3단계: <code>feature-dev-orchestrator</code> + ★ Agent 구성(13.2절 3번)</td></tr>
+<tr><td>계획 없이 시작해 계층을 되돌린 적이 있다</td><td>대형 변경 계획 승인 게이트를 Orchestrator에 넣는다(8.2절)</td></tr>
+<tr><td>PR이 주 단위로 쌓이고 리뷰 시간이 병목이다</td><td>4단계: <code>code-review-orchestrator</code> + 리뷰 Agent</td></tr>
+<tr><td>게이트가 같은 이유로 3회 이상 실패했다</td><td>해당 규칙을 Skill의 위반 신호에 추가하거나 hook으로 승격</td></tr>
+<tr><td>리뷰에서 같은 지적이 반복된다</td><td><code>layer-architecture-rules/references/solid-checklist.md</code>에 사례 추가</td></tr>
+<tr><td>Jenkins와 dev 서버가 가동되었다</td><td>release-check-orchestrator, 마이그레이션 호환 점검 도입</td></tr>
+</table>
+<ul>
+  <li><strong>개선 기록 남기기(지금부터)</strong>: 하네스 때문에 막혔거나 규칙이 부족했던 일을 <code>artifacts/improvement-log.md</code>(날짜, 증상, 원인, 고친 곳)에 적고, 큰 구조 결정은 <code>docs/adr/</code>에 ADR로 남깁니다. 3회 이상 반복되면 Skill·hook·테스트로 승격합니다.</li>
+  <li><strong>규칙을 바꿀 때</strong>: <code>docs/dev-guide.html</code>(정본) → 해당 Skill의 <code>references/</code> → <code>CLAUDE.md</code> 요약 → 변경 이력 순으로 같은 PR에서 갱신합니다. 숫자 규칙(줄 수, 복잡도)은 <code>pyproject.toml</code>과 스크립트만 고치면 됩니다(Skill에 복사하지 않았습니다).</li>
+  <li><strong>정기 점검(분기)</strong>: Skill 참조와 정본의 어긋남(drift), <code>CLAUDE.md</code> 포인터, 쓰이지 않는 조각을 점검하고 불필요해진 것은 뺍니다.</li>
+</ul>
+
+<h3>14.9 문제 해결 (FAQ)</h3>
+<table>
+<tr><th>증상</th><th>원인과 해결</th></tr>
+<tr><td>hook이 전혀 동작하지 않는다 (<code>.env</code> 읽기가 막히지 않음)</td><td><code>/hooks</code>로 등록 여부 확인 → 재시작. <code>uv</code> 설치 여부와 <code>uv run --no-project python --version</code> 확인. Windows PowerShell이면 WSL2/Git Bash 사용(14.2절)</td></tr>
+<tr><td>편집할 때마다 느리다</td><td>편집 후 hook이 <code>uv run</code>으로 ruff를 실행합니다(수 초 이내). 파일 단위만 처리하므로 보통 문제없습니다. 지나치게 느리면 uv 캐시와 디스크 상태를 확인</td></tr>
+<tr><td>확인 창이 너무 자주 뜬다</td><td>자주 쓰는 안전한 명령을 개인 <code>.claude/settings.local.json</code>의 <code>allow</code>에 추가(팀 규칙인 <code>deny</code>/<code>ask</code>는 풀지 않음)</td></tr>
+<tr><td>Claude가 규칙 Skill을 쓰지 않는다</td><td>요청에 "<code>layer-architecture-rules</code> 기준으로"처럼 이름을 직접 적습니다. 자주 빠지면 해당 Skill의 <code>description</code> 키워드를 보강(개선 기록에 남김)</td></tr>
+<tr><td>게이트가 로컬에서는 통과하는데 CI(Jenkins)에서 실패한다</td><td>Jenkinsfile의 Quality 단계 명령과 <code>run_gates.py</code>의 목록이 같아야 합니다. 달라졌으면 한쪽을 맞춥니다. 파일명 대소문자(맥/Windows는 구분 안 함, Linux는 구분)도 의심</td></tr>
+<tr><td>통합 테스트를 쓰려는데 DB fixture가 없다</td><td>아직 미구현입니다. <code>tdd-python-testing/references/db-fixtures.md</code> 설계로 첫 통합 테스트 때 <code>tests/integration/conftest.py</code>를 만듭니다</td></tr>
+</table>
+
+<h3>14.10 일일·PR 체크리스트</h3>
+<ul>
+  <li>☐ 요청에 목표·계층·수락 기준·제약이 있다 (중·대 변경은 계획 먼저)</li>
+  <li>☐ 새 동작마다 실패하는 테스트가 먼저 있었고, 테스트를 약하게 고치지 않았다</li>
+  <li>☐ <code>quality-gate</code> 또는 <code>run_gates.py</code>가 <code>6/6 통과</code>다 (증거가 보고에 있다)</li>
+  <li>☐ 비밀·<code>.env</code> 값이 diff, 테스트, 보고서에 없다</li>
+  <li>☐ 새 환경변수는 서버 <code>.env</code>에 먼저 반영하도록 안내했다</li>
+  <li>☐ <code>uv add</code>를 했다면 사람이 <code>uv.lock</code> 변경을 확인했다</li>
+  <li>☐ 마이그레이션은 로컬에서만 실행했고 하위 호환(expand/contract)이다</li>
+  <li>☐ 보고의 <strong>미검증 영역</strong>과 <strong>승인 필요</strong> 항목을 사람이 처리했다</li>
+  <li>☐ 커밋은 확인 후 요청했고, push·머지·배포는 사람이 했다</li>
+</ul>
+
+<!-- ============================================================ -->
+<div class="callout">
+  <h4>진행 상태와 다음 승인 요청</h4>
+  <ul>
+    <li><strong>완료</strong>: 1~2단계 (구성 파일 목록은 <code>CLAUDE.md</code>의 "주요 위치", 사용법은 14장)</li>
+    <li><strong>다음(3단계)</strong>: <code>feature-dev-orchestrator</code>와 ★ Agent(<code>feature-planner</code>, <code>test-engineer</code>, <code>core-engineer</code>) 구성. <strong>첫 기능 코드를 작성하기 시작할 때</strong> 청사진(6~9장)을 기준으로 진행 여부를 확인받습니다. 그 전에 13.3의 확인 항목(Agent Team 도구, 리뷰 기준 브랜치, 실제 도메인)을 정해 주세요.</li>
+    <li>하네스를 쓰면서 생긴 불편이나 규칙 보완점은 <code>artifacts/improvement-log.md</code>에 기록하세요(14.8절). 3단계 설계 때 이 기록을 근거로 삼습니다.</li>
+  </ul>
+</div>
+
+</main>
+</div>
+</body>
+</html>

@@ -1,0 +1,68 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(uv run pytest*)",
+      "Bash(uv run ruff*)",
+      "Bash(uv run mypy*)",
+      "Bash(uv run lint-imports*)",
+      "Bash(uv run python scripts/*)",
+      "Bash(uv sync*)",
+      "Bash(git status*)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(git show*)"
+    ],
+    "ask": [
+      "Bash(uv add*)",
+      "Bash(uv remove*)",
+      "Bash(git commit*)",
+      "Bash(git merge*)",
+      "Edit(**/pyproject.toml)",
+      "Edit(**/mise.toml)",
+      "Edit(**/Jenkinsfile)",
+      "Edit(**/infra/server/**)"
+    ],
+    "deny": [
+      "Read(**/.env)",
+      "Read(**/.env.local)",
+      "Read(**/.env.dev)",
+      "Read(**/.env.product)",
+      "Edit(**/.env)",
+      "Edit(**/.env.local)",
+      "Edit(**/.env.dev)",
+      "Edit(**/.env.product)",
+      "Edit(**/uv.lock)",
+      "Bash(git push*)",
+      "Bash(git reset --hard*)",
+      "Bash(git clean*)",
+      "Bash(rm -rf*)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Read|Edit|Write|MultiEdit|NotebookEdit|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv run --no-project python \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard.py\"",
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv run --no-project python \"$CLAUDE_PROJECT_DIR/.claude/hooks/post_edit.py\"",
+            "timeout": 90,
+            "statusMessage": "포맷·린트·파일 길이 점검 중..."
+          }
+        ]
+      }
+    ]
+  }
+}
