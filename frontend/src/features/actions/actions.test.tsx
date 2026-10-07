@@ -1,0 +1,73 @@
+import { screen, waitFor, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { describe, expect, it } from 'vitest'
+import { mockApi, renderApp, type RecordedRequest } from '../../test/utils'
+import { ActionList } from './ActionList'
+
+const ME = { subject: 's', email: null, name: '박영업', role: 'sales' }
+const ACTION = {
+  id: 'a-1',
+  deal_id: 'd-1',
+  action_type: 'meeting',
+  title: '킥오프 미팅',
+  content: '요구사항 정리',
+  acted_at: '2026-03-02T01:00:00Z',
+  actor: '박영업',
+  created_at: '2026-03-02T01:00:00Z',
+  updated_at: '2026-03-02T01:00:00Z',
+}
+const page = { body: { items: [ACTION], offset: 0, limit: 20 } }
+
+const searches = (requests: RecordedRequest[]) =>
+  requests.filter((r) => r.path === '/api/v1/deals/d-1/actions')
+
+describe('ActionList', () => {
+  it('searches within the deal with only the filled-in conditions', async () => {
+    const requests = mockApi({ 'GET /api/v1/auth/me': { body: ME }, 'GET /api/v1/deals/d-1/actions': page })
+    renderApp(<ActionList dealId="d-1" />)
+    await screen.findByText('킥오프 미팅')
+
+    await userEvent.selectOptions(screen.getByLabelText('유형'), 'meeting')
+    await userEvent.type(screen.getByLabelText('검색어(제목·내용)'), '  견적 ')
+    await userEvent.type(screen.getByLabelText('시작일'), '2026-03-01')
+    await userEvent.click(screen.getByRole('button', { name: '검색' }))
+
+    await waitFor(() => expect(searches(requests).length).toBeGreaterThan(1))
+    const query = searches(requests).at(-1)!.query
+    expect(query.get('action_type')).toBe('meeting')
+    expect(query.get('keyword')).toBe('견적')
+    expect(query.get('acted_from')).toMatch(/Z$/)
+    expect(query.has('actor')).toBe(false)
+    expect(query.has('acted_to')).toBe(false)
+  })
+
+  it('records a new activity for the deal with a timezone-aware time and the user as default actor', async () => {
+    const requests = mockApi({
+      'GET /api/v1/auth/me': { body: ME },
+      'GET /api/v1/deals/d-1/actions': page,
+      'POST /api/v1/deals/d-1/actions': { status: 201, body: ACTION },
+    })
+    renderApp(<ActionList dealId="d-1" />)
+    await screen.findByText('킥오프 미팅')
+
+    await userEvent.click(screen.getByRole('button', { name: '활동 기록' }))
+    const form = (await screen.findByRole('heading', { name: '활동 기록', level: 3 })).closest('form')!
+    await waitFor(() => expect(within(form).getByLabelText('활동자')).toHaveValue('박영업'))
+    await userEvent.type(within(form).getByLabelText('제목'), '제안서 전달')
+    await userEvent.click(within(form).getByRole('button', { name: '저장' }))
+
+    await waitFor(() => expect(requests.some((r) => r.method === 'POST')).toBe(true))
+    const body = requests.find((r) => r.method === 'POST')?.body as Record<string, string>
+    expect(body).toMatchObject({ action_type: 'meeting', title: '제안서 전달', actor: '박영업' })
+    expect(body.acted_at).toMatch(/Z$/)
+  })
+
+  it('is read-only in the global search and links to the deal', async () => {
+    mockApi({ 'GET /api/v1/auth/me': { body: ME }, 'GET /api/v1/deal-actions': page })
+    renderApp(<ActionList />)
+
+    expect(await screen.findByRole('link', { name: '딜 보기' })).toHaveAttribute('href', '/deals/d-1')
+    expect(screen.queryByRole('button', { name: '활동 기록' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '삭제' })).not.toBeInTheDocument()
+  })
+})

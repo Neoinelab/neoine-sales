@@ -1,0 +1,61 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { render } from '@testing-library/react'
+import type { ReactElement } from 'react'
+import { MemoryRouter } from 'react-router'
+import { vi } from 'vitest'
+
+export interface RecordedRequest {
+  method: string
+  path: string
+  query: URLSearchParams
+  body: unknown
+  headers: Headers
+}
+
+type Reply = { status?: number; body?: unknown }
+type Handler = Reply | ((request: RecordedRequest) => Reply)
+
+/** "GET /api/v1/auth/me" 같은 키로 응답을 정하는 가짜 fetch. 정하지 않은 요청은 404. */
+export function mockApi(routes: Record<string, Handler>) {
+  const requests: RecordedRequest[] = []
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (input: Request) => {
+      const url = new URL(input.url)
+      const text = await input.clone().text()
+      const recorded: RecordedRequest = {
+        method: input.method,
+        path: url.pathname,
+        query: url.searchParams,
+        body: text ? JSON.parse(text) : undefined,
+        headers: input.headers,
+      }
+      requests.push(recorded)
+      const handler = routes[`${input.method} ${url.pathname}`]
+      const reply = typeof handler === 'function' ? handler(recorded) : (handler ?? { status: 404 })
+      const status = reply.status ?? 200
+      const hasBody = reply.body !== undefined && status !== 204
+      return new Response(hasBody ? JSON.stringify(reply.body) : null, {
+        status,
+        headers: hasBody ? { 'content-type': status >= 400 ? 'application/problem+json' : 'application/json' } : {},
+      })
+    }),
+  )
+  return requests
+}
+
+export function renderApp(ui: ReactElement, route = '/') {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  return render(
+    <QueryClientProvider client={client}>
+      <MemoryRouter initialEntries={[route]}>{ui}</MemoryRouter>
+    </QueryClientProvider>,
+  )
+}
+
+export function problem(status: number, kind: string, detail: string) {
+  return {
+    status,
+    body: { type: `https://neoine-sales.example/problems/${kind}`, title: kind, status, detail, instance: '/x' },
+  }
+}
