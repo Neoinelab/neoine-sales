@@ -3,8 +3,11 @@
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from typing import Any
-from uuid import uuid4
+from uuid import UUID, uuid4
 
+from app.application.customer.inputs import CustomerInput
+from app.application.deal.inputs import DealInput
+from app.application.partner.inputs import PartnerInput
 from app.domain.common.contact import Email, PhoneNumber
 from app.domain.common.money import Money
 from app.domain.customer.entities import Customer
@@ -73,3 +76,41 @@ def make_deal_details(**overrides: object) -> DealDetails:
 
 def make_deal(now: datetime = NOW, **overrides: object) -> Deal:
     return Deal.create(make_deal_details(**overrides), now)
+
+
+def make_customer_input(**overrides: object) -> CustomerInput:
+    values: dict[str, Any] = {
+        "company_name": "네오인",
+        "contact_name": "김철수",
+        "contact_title": "팀장",
+        "email": "Kim@Neoine.Example",
+        "phone": "010-1234-5678",
+        "employee_count": 120,
+        "notes": "초기 미팅 완료",
+    }
+    return CustomerInput(**{**values, **overrides})
+
+
+def make_partner_input(**overrides: object) -> PartnerInput:
+    values: dict[str, Any] = {
+        "company_name": "한빛파트너스",
+        "contact_name": "이영희",
+        "contact_title": "이사",
+        "email": "lee@hanbit.example",
+        "phone": "02-123-4567",
+    }
+    return PartnerInput(**{**values, **overrides})
+
+
+def make_deal_input(customer_id: UUID, **overrides: object) -> DealInput:
+    values: dict[str, Any] = {
+        "code": "deal-001",
+        "name": "ERP 구축",
+        "owner": "박영업",
+        "vendor": "SAP",
+        "solution": "S/4HANA",
+        "revenue_amount": Decimal("150000000"),
+        "revenue_date": date(2026, 6, 30),
+        "customer_id": customer_id,
+    }
+    return DealInput(**{**values, **overrides})

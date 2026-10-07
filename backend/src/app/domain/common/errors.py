@@ -25,3 +25,12 @@ class AlreadyExistsError(DomainError):
         super().__init__(f"이미 존재하는 {entity}입니다: {identifier}")
         self.entity = entity
         self.identifier = identifier
+
+
+class InvalidReferenceError(DomainError):
+    """다른 항목을 참조하는 값이 가리키는 대상이 없거나 삭제되었음(예: Deal의 고객)."""
+
+    def __init__(self, entity: str, identifier: object) -> None:
+        super().__init__(f"참조하는 {entity}이(가) 없거나 삭제되었습니다: {identifier}")
+        self.entity = entity
+        self.identifier = identifier
