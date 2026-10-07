@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.pool import NullPool
 
 from tests.support.database import apply_migrations, resolve_admin_url, temporary_database
+from tests.support.skips import skip_or_fail
 
 if TYPE_CHECKING:
     from sqlalchemy.engine import URL
@@ -105,7 +106,7 @@ async def test_customer_with_deals_cannot_be_physically_deleted(session: AsyncSe
 async def test_downgrade_and_upgrade_round_trip() -> None:
     admin_url = resolve_admin_url()
     if admin_url is None:
-        pytest.skip("관리자 접속 정보가 없어 마이그레이션 왕복 테스트를 건너뜁니다")
+        skip_or_fail("관리자 접속 정보가 없어 마이그레이션 왕복 테스트를 건너뜁니다")
 
     async with temporary_database(admin_url) as url:
         await apply_migrations(url)

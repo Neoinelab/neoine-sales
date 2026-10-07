@@ -25,3 +25,5 @@ dist/
 # 하네스: 실행 산출물(로컬 작업 기록)과 개인 설정은 추적하지 않음
 artifacts/
 .claude/settings.local.json
+build/
+reports/
