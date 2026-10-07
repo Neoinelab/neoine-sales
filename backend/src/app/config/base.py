@@ -41,7 +41,7 @@ class Settings(BaseSettings):
     database_url: PostgresDsn
     db_pool_size: int = Field(default=10, ge=1)
     db_echo: bool = False
-    redis_url: RedisDsn
+    redis_url: RedisDsn | None = None  # 현재 미사용. 큐·캐시를 도입할 때 필수로 바꾼다
 
     # 관측성
     sentry_dsn: SecretStr | None = None

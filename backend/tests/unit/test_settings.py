@@ -14,7 +14,6 @@ if TYPE_CHECKING:
 JWT_SECRET = "x" * 40
 BASE_ENV = {
     "APP_DATABASE_URL": "postgresql+asyncpg://u:p@localhost:5432/app",
-    "APP_REDIS_URL": "redis://localhost:6379/0",
     "APP_JWT_SECRET": JWT_SECRET,
 }
 PRODUCT_ENV = {
@@ -123,3 +122,23 @@ def test_missing_required_variable_fails(monkeypatch: pytest.MonkeyPatch) -> Non
 
 def test_secret_values_are_not_exposed_in_repr() -> None:
     assert JWT_SECRET not in repr(get_settings())
+
+
+def test_redis_is_not_required() -> None:
+    assert get_settings().redis_url is None
+
+
+def test_redis_url_is_parsed_when_given(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("APP_REDIS_URL", "redis://localhost:6379/0")
+
+    redis_url = get_settings().redis_url
+
+    assert redis_url is not None
+    assert redis_url.host == "localhost"
+
+
+def test_invalid_redis_url_is_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("APP_REDIS_URL", "not-a-redis-url")
+
+    with pytest.raises(ValidationError, match="redis_url"):
+        get_settings()
