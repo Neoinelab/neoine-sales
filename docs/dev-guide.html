@@ -110,7 +110,7 @@
 <tr><td>데이터 검증</td><td>Pydantic v2</td><td>API 경계(DTO)·설정 검증</td></tr>
 <tr><td>ORM / 마이그레이션</td><td>SQLAlchemy 2.x (Typed) + Alembic</td><td>Unit of Work, 명시적 매핑, 마이그레이션 표준</td></tr>
 <tr><td>DB</td><td>PostgreSQL</td><td>트랜잭션, JSONB, 확장성</td></tr>
-<tr><td>비동기 작업</td><td>Celery 또는 arq (+ Redis)</td><td>이메일·리포트 등 백그라운드 처리</td></tr>
+<tr><td>비동기 작업 (도입 시점 미정)</td><td>Celery 또는 arq (+ Redis)</td><td>메일·대량 가져오기·리포트 같은 백그라운드 작업이 생길 때 도입. 지금은 사용하지 않음</td></tr>
 <tr><td>패키지/환경</td><td><strong>uv</strong></td><td>빠른 의존성 해석, lock 파일, Python 버전 관리 통합</td></tr>
 <tr><td>린트/포맷</td><td><strong>Ruff</strong> (lint + format)</td><td>flake8·isort·black 대체, 매우 빠름</td></tr>
 <tr><td>타입 검사</td><td>mypy (strict) 또는 pyright</td><td>정적 타입 안전성</td></tr>
@@ -135,7 +135,7 @@
 <ul>
   <li><strong>uv</strong> — Python 설치, 가상환경, 의존성, lock 관리 (<code>pyproject.toml</code> + <code>uv.lock</code>)</li>
   <li><strong>Node.js LTS + pnpm</strong> — 프론트엔드 (<code>.nvmrc</code> 또는 <code>mise</code>로 버전 고정)</li>
-  <li><strong>PostgreSQL, Redis</strong> — 로컬에 직접 설치(3.4절). Windows는 WSL2 권장</li>
+  <li><strong>PostgreSQL</strong> — 로컬에 직접 설치(3.4절). Windows는 WSL2 권장</li>
   <li><strong>pre-commit</strong> — 커밋 전 자동 검사</li>
   <li><strong>just</strong> 또는 <strong>make</strong> — 공통 명령 진입점</li>
   <li><strong>mise</strong> — Python/uv/Node/pnpm 버전을 저장소의 <code>mise.toml</code> 하나로 고정(개발자 PC와 CI agent가 같은 버전 사용, <code>mise install</code>)</li>
@@ -159,7 +159,7 @@ uv run pre-commit install
 cd ../frontend
 pnpm install
 
-# 로컬 인프라: PostgreSQL, Redis 설치·실행 및 개발 DB 생성은 3.4절 참고
+# 로컬 인프라: PostgreSQL 설치·실행 및 개발 DB 생성은 3.4절 참고
 cd ..
 
 # 마이그레이션 + 개발 서버
@@ -258,24 +258,23 @@ python_version = "3.14"
 asyncio_mode = "auto"
 addopts = "--cov=src --cov-report=term-missing --cov-fail-under=80"</code></pre>
 
-<h3>3.4 로컬 인프라: PostgreSQL / Redis 직접 설치</h3>
-<p>개발자 PC에 PostgreSQL과 Redis를 직접 설치해 실행합니다. 버전은 dev/product 서버와 같은 메이저 버전으로 맞춥니다.</p>
+<h3>3.4 로컬 인프라: PostgreSQL 직접 설치</h3>
+<p>개발자 PC에 PostgreSQL을 직접 설치해 실행합니다. 버전은 dev/product 서버와 같은 메이저 버전으로 맞춥니다.</p>
 <table>
 <tr><th>OS</th><th>설치</th><th>서비스 시작</th></tr>
-<tr><td>macOS</td><td><code>brew install postgresql@16 redis</code></td><td><code>brew services start postgresql@16 redis</code></td></tr>
-<tr><td>Windows</td><td><strong>WSL2(Ubuntu) 안에 설치 권장</strong>: <code>sudo apt install postgresql redis-server</code>. 네이티브 설치는 PostgreSQL 설치 관리자와 Memurai(또는 Redis 호환 서버) 사용</td><td>WSL2: <code>sudo service postgresql start</code>, <code>sudo service redis-server start</code></td></tr>
-<tr><td>Linux</td><td><code>sudo apt install postgresql redis-server</code> (또는 dnf)</td><td><code>sudo systemctl enable --now postgresql redis-server</code></td></tr>
+<tr><td>macOS</td><td><code>brew install postgresql@16</code></td><td><code>brew services start postgresql@16</code></td></tr>
+<tr><td>Windows</td><td><strong>WSL2(Ubuntu) 안에 설치 권장</strong>: <code>sudo apt install postgresql</code>. 네이티브 설치는 PostgreSQL 설치 관리자 사용</td><td>WSL2: <code>sudo service postgresql start</code></td></tr>
+<tr><td>Linux</td><td><code>sudo apt install postgresql</code> (또는 dnf)</td><td><code>sudo systemctl enable --now postgresql</code></td></tr>
 </table>
 <pre><code># 개발용 DB 사용자/데이터베이스 생성 (1회)
-psql postgres -c "CREATE ROLE app WITH LOGIN PASSWORD 'app' CREATEDB;"   # CREATEDB: 통합 테스트용 임시 DB 생성에 필요
-psql postgres -c "CREATE DATABASE app OWNER app;"
+psql postgres -c "CREATE ROLE neoine WITH LOGIN PASSWORD '&lt;비밀번호&gt;' CREATEDB;"   # CREATEDB: 통합 테스트용 임시 DB 생성에 필요
+psql postgres -c "CREATE DATABASE neoinesales OWNER neoine;"
 
-# 접속 확인 -&gt; backend/.env 의 APP_DATABASE_URL 과 일치해야 함
-psql "postgresql://app:app@localhost:5432/app" -c "select 1"
-redis-cli ping</code></pre>
+# 접속 확인 -&gt; backend/.env 의 APP_DATABASE_URL 과 일치해야 함 (비밀번호를 물어봅니다)
+psql "postgresql://neoine@localhost:5432/neoinesales" -c "select 1"</code></pre>
 <ul>
-  <li>로컬 DB 비밀번호(<code>app</code>)는 개발 전용입니다. dev/product에서 재사용하지 않습니다(3.5절).</li>
-  <li>통합 테스트는 이 PostgreSQL에서 테스트 전용 DB를 임시로 만들어 사용합니다(15.6절). 개발 데이터가 들어 있는 <code>app</code> DB는 건드리지 않습니다.</li>
+  <li>로컬 DB 비밀번호는 개발 전용입니다. dev/product에서 재사용하지 않고 Git에도 쓰지 않습니다(3.5절). 접속 URL에 넣을 때 비밀번호의 특수문자는 URL 인코딩합니다(예: <code>!</code> → <code>%21</code>, <code>@</code> → <code>%40</code>).</li>
+  <li>통합 테스트는 이 PostgreSQL에서 테스트 전용 DB를 임시로 만들어 사용합니다(15.6절). 개발 데이터가 들어 있는 <code>neoinesales</code> DB는 건드리지 않습니다.</li>
 </ul>
 
 <h3>3.5 프로파일과 환경변수 관리</h3>
@@ -284,7 +283,7 @@ redis-cli ping</code></pre>
 <h4>3.5.1 프로파일 정의</h4>
 <table>
 <tr><th>프로파일</th><th>용도 / 실행 위치</th><th>데이터</th><th>설정 주입</th><th>배포 (Jenkins)</th></tr>
-<tr><td><code>local</code></td><td>개발자 PC (맥/Windows). uv + pnpm 개발 서버, 로컬에 설치한 PostgreSQL/Redis</td><td>가짜/시드 데이터</td><td><code>backend/.env</code> (git 제외, <code>.env.example</code>에서 복사)</td><td>없음</td></tr>
+<tr><td><code>local</code></td><td>개발자 PC (맥/Windows). uv + pnpm 개발 서버, 로컬에 설치한 PostgreSQL</td><td>가짜/시드 데이터</td><td><code>backend/.env</code> (git 제외, <code>.env.example</code>에서 복사)</td><td>없음</td></tr>
 <tr><td><code>dev</code></td><td>사내 개발 서버. 통합 테스트·QA·기능 검증, 운영과 같은 구성(축소 사양)</td><td>익명화/테스트 데이터</td><td>서버의 <code>/opt/neoine-sales/.env</code> (권한 600)</td><td><code>main</code> 머지 시 <strong>자동</strong> 배포</td></tr>
 <tr><td><code>product</code></td><td>운영 서버(이중화)</td><td>실데이터</td><td>서버의 <code>/opt/neoine-sales/.env</code> (권한 600)</td><td>dev 검증 후 <strong>수동 승인</strong> 배포</td></tr>
 </table>
@@ -321,7 +320,7 @@ redis-cli ping</code></pre>
 <tr><td><code>APP_DATABASE_URL</code></td><td>PostgreSQL 접속 URL (<code>postgresql+asyncpg://…</code>)</td><td>●</td><td>localhost PostgreSQL</td><td>dev DB 서버</td><td>product DB(Primary)</td></tr>
 <tr><td><code>APP_DB_POOL_SIZE</code></td><td>커넥션 풀 크기</td><td></td><td>5</td><td>10</td><td>워커 수와 DB 한도에 맞춰 산정</td></tr>
 <tr><td><code>APP_DB_ECHO</code></td><td>SQL 로그 출력</td><td></td><td>true</td><td>false</td><td>false (true 금지)</td></tr>
-<tr><td><code>APP_REDIS_URL</code></td><td>Redis 접속 URL (캐시/워커 브로커)</td><td>●</td><td>localhost Redis</td><td>dev Redis</td><td>product Redis</td></tr>
+<tr><td><code>APP_REDIS_URL</code></td><td>Redis 접속 URL. <strong>선택, 현재 미사용</strong>(큐·캐시·요청 제한을 도입할 때 필수로 전환)</td><td>●</td><td>(비움)</td><td>(비움)</td><td>(비움)</td></tr>
 <tr><td colspan="6"><strong>외부 연동 (예: 메일, 결제 등 — 연동 Port별로 추가)</strong></td></tr>
 <tr><td><code>APP_SMTP_HOST</code> / <code>APP_SMTP_PORT</code> / <code>APP_SMTP_FROM</code></td><td>메일 서버 (Notifier 구현체용)</td><td></td><td>로컬 메일 캐처(Mailpit 등)</td><td>사내 테스트 SMTP</td><td>사내 운영 SMTP</td></tr>
 <tr><td><code>APP_SMTP_USER</code> / <code>APP_SMTP_PASSWORD</code></td><td>메일 계정</td><td>●</td><td>(없음)</td><td>dev 계정</td><td>product 계정</td></tr>
@@ -375,7 +374,7 @@ class Settings(BaseSettings):
     database_url: PostgresDsn                                       # 필수 (비밀 포함 URL)
     db_pool_size: int = Field(default=10, ge=1)
     db_echo: bool = False
-    redis_url: RedisDsn
+    redis_url: RedisDsn | None = None   # 현재 미사용. 큐·캐시를 도입할 때 필수로 바꾼다
     sentry_dsn: SecretStr | None = None
 
 
@@ -445,7 +444,7 @@ def get_settings() -&gt; Settings:
 <tr><td><code>APP_PROFILE=product</code> + <code>APP_DEBUG=true</code>, Sentry 미설정</td><td>기동 실패: "debug/enable_docs/db_echo는 product에서 꺼야 합니다; sentry_dsn이 필요합니다"</td></tr>
 <tr><td><code>APP_PROFILE=prod</code> (오타)</td><td>기동 실패: <code>profile</code> 값 검증 오류(local/dev/product만 허용)</td></tr>
 <tr><td><code>.env</code>에만 <code>APP_PROFILE=dev</code></td><td><code>DevSettings</code> (환경변수 없이도 인식)</td></tr>
-<tr><td>필수 변수(<code>APP_REDIS_URL</code>, <code>APP_JWT_SECRET</code> 등) 누락</td><td>기동 실패: <code>Field required</code></td></tr>
+<tr><td>필수 변수(<code>APP_DATABASE_URL</code>, <code>APP_JWT_SECRET</code> 등) 누락</td><td>기동 실패: <code>Field required</code></td></tr>
 </table>
 <ul>
   <li><code>list[str]</code> 같은 복합 타입은 환경변수에서 <strong>JSON 문자열</strong>로 파싱됩니다(예: <code>APP_CORS_ALLOWED_ORIGINS=["https://a.example.com"]</code>).</li>
@@ -457,15 +456,15 @@ def get_settings() -&gt; Settings:
 <pre><code># backend/.env.example  →  로컬에서는 backend/.env 로 복사해 사용 (.env는 git 제외)
 APP_PROFILE=local
 
-# 데이터 저장소 (로컬에 설치한 PostgreSQL/Redis 기준, 3.4절)
-APP_DATABASE_URL=postgresql+asyncpg://app:app@localhost:5432/app
-APP_REDIS_URL=redis://localhost:6379/0
+# 데이터 저장소 (로컬에 설치한 PostgreSQL 기준, 3.4절)
+APP_DATABASE_URL=postgresql+asyncpg://neoine:CHANGE_ME@localhost:5432/neoinesales
 
 # 보안 (로컬 전용 값. dev/product에서는 절대 재사용 금지)
 APP_JWT_SECRET=local-only-secret-change-me-0123456789abcdef
 APP_CORS_ALLOWED_ORIGINS=["http://localhost:5173"]
 
 # 선택
+# APP_REDIS_URL=redis://localhost:6379/0   (현재 미사용: 큐·캐시를 도입할 때 사용)
 # APP_SENTRY_DSN=
 # APP_SMTP_HOST=localhost
 # APP_SMTP_PORT=1025</code></pre>
@@ -930,7 +929,7 @@ def get_place_order(request: Request) -&gt; PlaceOrder:
  └───────────────┬─────────────┼───────────────────────────────────┘
                  ▼             │ implements (의존성 역전)
  ┌─── domain layer ───┐   ┌────┴────────  infra layer  ───────────┐
- │ Entity, VO,        │   │ SQLAlchemy Repo/UoW, Redis, 메일,      │
+ │ Entity, VO,        │   │ SQLAlchemy Repo/UoW, 메일,             │
  │ Aggregate,         │   │ 외부 API 클라이언트(ACL)               │
  │ Domain Service,    │   │  → app의 Port를 import 해서 구현       │
  │ Domain Event       │   └───────────────────────────────────────┘
@@ -1222,7 +1221,7 @@ test:
     cd backend &amp;&amp; uv run pytest
     cd frontend &amp;&amp; pnpm test --run
 
-# 로컬 PostgreSQL/Redis가 실행 중이어야 한다 (3.4절)
+# 로컬 PostgreSQL이 실행 중이어야 한다 (3.4절)
 dev:
     (cd backend &amp;&amp; uv run fastapi dev src/app/main.py) &amp; (cd frontend &amp;&amp; pnpm dev)
 
@@ -1259,7 +1258,7 @@ release tag:
 <ul>
   <li><strong>Trunk-based</strong>: <code>main</code>은 항상 배포 가능. 짧은 수명의 feature 브랜치 + PR(Merge Request).</li>
   <li>PR 단계: Jenkins가 CI(검증)만 수행하고 결과를 Git 서버의 머지 조건(status check)으로 사용. 배포는 하지 않음.</li>
-  <li><code>main</code> 머지: 릴리스 번들 생성·보관 → <strong>dev 프로파일 자동 배포</strong> → 스모크/E2E → <strong>수동 승인</strong> → product(운영) 배포.</li>
+  <li><code>main</code> 머지: 릴리스 번들 생성·보관 → <strong>dev 프로파일 자동 배포(DB 마이그레이션 자동 적용)</strong> → 스모크/E2E → <strong>수동 승인</strong> → product(운영) 배포.</li>
   <li>번들 버전은 <strong>git SHA(불변)</strong>. 릴리스는 Git 태그(SemVer)로 표시하고, 롤백은 서버에 남겨 둔 이전 릴리스로 전환(16.4절).</li>
   <li>커밋 규약은 Conventional Commits, 의존성 업데이트는 Renovate(사내 설치형)로 주기적 PR 생성.</li>
 </ul>
@@ -1274,7 +1273,7 @@ release tag:
 <tr><td>Package</td><td><code>main</code></td><td>프론트 빌드 → 릴리스 번들 생성 → Jenkins 아티팩트로 보관(SHA 버전)</td></tr>
 <tr><td>Deploy Dev</td><td><code>main</code></td><td>번들을 SSH로 전달 → <code>deploy.sh dev</code>(의존성 설치, 마이그레이션, 전환, 재시작) → 헬스체크 → 스모크 테스트</td></tr>
 <tr><td>Approval</td><td><code>main</code></td><td><code>input</code> 단계에서 지정 승인자 확인 (<code>beforeInput true</code>로 <code>main</code>에서만 승인 프롬프트 노출)</td></tr>
-<tr><td>Deploy Product</td><td><code>main</code> + 승인</td><td>환경 잠금(lock) → 서버별 순차(롤링) 배포 → 헬스체크 → 실패 시 자동 롤백</td></tr>
+<tr><td>Deploy Product</td><td><code>main</code> + 승인</td><td>환경 잠금(lock) → 서버별 순차(롤링) 배포(각 서버의 <code>deploy.sh</code>가 마이그레이션 실행, 이미 적용됐으면 변경 없음) → 헬스체크 → 실패 시 자동 롤백</td></tr>
 </table>
 
 <h3>15.5 Jenkinsfile 예시</h3>
@@ -1433,7 +1432,7 @@ pipeline {
 <h3>15.6 통합 테스트용 데이터베이스</h3>
 <p>통합 테스트는 <strong>실제 PostgreSQL 인스턴스</strong>에서 <strong>테스트 전용 데이터베이스</strong>를 만들어 실행합니다.</p>
 <ul>
-  <li><strong>로컬</strong>: 3.4절에서 설치한 PostgreSQL에 관리자 접속(<code>TEST_DATABASE_ADMIN_URL</code>)으로 접속합니다.</li>
+  <li><strong>로컬</strong>: 3.4절에서 설치한 PostgreSQL을 씁니다. 프로파일이 <code>local</code>이면 앱 설정의 접속 정보에서 DB 이름만 maintenance DB로 바꿔 임시 DB를 만들므로 별도 설정이 필요 없습니다(<code>TEST_DATABASE_ADMIN_URL</code>을 주면 그것을 우선합니다). 접속 role에 <code>CREATEDB</code> 권한이 필요합니다.</li>
   <li><strong>CI</strong>: <code>linux-build</code> agent에 PostgreSQL을 설치해 두고, CI 전용 role(<code>ci</code>, <code>CREATEDB</code> 권한만)로 접속합니다.</li>
   <li><strong>격리</strong>: pytest 세션 fixture가 <code>app_test_&lt;무작위&gt;</code> DB를 <code>CREATE DATABASE</code>로 만들고 Alembic 마이그레이션을 적용한 뒤, 세션 종료 시 <code>DROP DATABASE</code>합니다. 이름이 매번 달라 <strong>같은 agent에서 병렬 빌드가 돌아도 충돌하지 않습니다</strong>. 운영 데이터가 있는 DB에는 절대 연결하지 않습니다.</li>
   <li>테스트 간 격리는 테스트마다 트랜잭션을 열고 롤백하는 방식(또는 테이블 TRUNCATE)을 사용합니다.</li>
@@ -1454,7 +1453,7 @@ pipeline {
 <h3>16.1 환경 구성</h3>
 <table>
 <tr><th>환경</th><th>목적</th><th>구성 권장</th></tr>
-<tr><td>local (개발자 PC)</td><td>개별 개발</td><td>로컬에 설치한 PostgreSQL/Redis + uv/pnpm 개발 서버</td></tr>
+<tr><td>local (개발자 PC)</td><td>개별 개발</td><td>로컬에 설치한 PostgreSQL + uv/pnpm 개발 서버</td></tr>
 <tr><td>dev (사내 개발 서버)</td><td>통합 테스트, 배포 리허설, E2E</td><td>운영과 같은 구성(축소 사양), 익명화된 데이터</td></tr>
 <tr><td>product (운영 서버)</td><td>서비스</td><td>이중화 앱 서버 + 로드밸런서, DB 복제(Primary/Replica)</td></tr>
 </table>
@@ -1469,13 +1468,13 @@ pipeline {
 ┌──▼────────────────┐  ┌──▼────────────────┐
 │ App 서버 #1        │  │ App 서버 #2        │   각 서버:
 │ nginx (정적+프록시)│  │ nginx (정적+프록시)│     nginx → 127.0.0.1:8000
-│ systemd: api      │  │ systemd: api      │     systemd 서비스 api / worker
-│ systemd: worker   │  │ systemd: worker   │     /opt/neoine-sales/current → releases/&lt;sha&gt;
+│ systemd: api      │  │ systemd: api      │     systemd 서비스 api
+│                   │  │                   │     /opt/neoine-sales/current → releases/&lt;sha&gt;
 └──┬────────────────┘  └────────────────┬──┘
    └───────────────┬────────────────────┘
-        ┌──────────▼───────────┐   ┌─────────┐
-        │ PostgreSQL            │   │  Redis  │
-        │ Primary + Replica     │   └─────────┘
+        ┌──────────▼───────────┐
+        │ PostgreSQL            │
+        │ Primary + Replica     │
         └───────────────────────┘</code></pre>
 <ul>
   <li><strong>시작 단계</strong>: 서버 1~2대로 충분합니다. 서버를 늘릴 때는 새 서버에서 <code>bootstrap.sh</code>를 한 번 실행하고 <code>.env</code>를 채운 뒤 Jenkinsfile의 호스트 목록만 늘립니다.</li>
@@ -1504,7 +1503,7 @@ pipeline {
 <pre><code># /etc/systemd/system/neoine-sales-api.service  (저장소 infra/server/systemd/ 의 파일을 bootstrap.sh가 설치)
 [Unit]
 Description=neoine-sales API (FastAPI / Uvicorn)
-After=network-online.target postgresql.service redis.service
+After=network-online.target postgresql.service
 Wants=network-online.target
 
 [Service]
@@ -1524,7 +1523,7 @@ ProtectHome=true
 
 [Install]
 WantedBy=multi-user.target</code></pre>
-<p>워커 서비스(<code>neoine-sales-worker.service</code>)도 같은 구조에서 <code>ExecStart</code>만 <code>celery -A app.worker worker</code>(또는 arq)로 바꿉니다.</p>
+<p>백그라운드 작업(큐)이 필요해지면 워커 서비스(<code>neoine-sales-worker.service</code>)를 같은 구조에서 <code>ExecStart</code>만 <code>celery -A app.worker worker</code>(또는 arq)로 바꿔 추가하고, 그때 Redis와 <code>deploy.sh</code>·<code>bootstrap.sh</code>·sudoers의 서비스 목록도 함께 늘립니다. 지금은 <code>api</code> 서비스 하나만 운영합니다.</p>
 
 <pre><code>#!/usr/bin/env bash
 # infra/server/deploy.sh &lt;dev|product&gt; &lt;release_tag&gt;   (Jenkins가 서버로 전달해 실행. 계정: neoine)
@@ -1559,7 +1558,7 @@ install -m 644 "$RELEASE/infra/server/config/config.$ENV_NAME.json" shared/confi
 
 # 3) 전환 + 재시작 (심볼릭 링크 교체는 원자적)
 ln -sfn "$RELEASE" current.new &amp;&amp; mv -T current.new current
-sudo systemctl restart neoine-sales-api &amp;&amp; sudo systemctl restart neoine-sales-worker
+sudo systemctl restart neoine-sales-api
 
 # 4) 헬스체크, 실패 시 롤백
 for i in $(seq 1 30); do
@@ -1576,11 +1575,11 @@ done
 echo "헬스체크 실패 - 롤백: $PREV" &gt;&amp;2
 if [ -n "$PREV" ]; then
   ln -sfn "$PREV" current.new &amp;&amp; mv -T current.new current
-  sudo systemctl restart neoine-sales-api &amp;&amp; sudo systemctl restart neoine-sales-worker
+  sudo systemctl restart neoine-sales-api
 fi
 exit 1</code></pre>
 <div class="callout warn">
-  <p>롤백은 <strong>코드만 이전 릴리스로 되돌리는 것</strong>이므로, 마이그레이션이 하위 호환(expand/contract)이어야 안전합니다. 파괴적 스키마 변경은 앱 배포와 분리해 단계적으로 진행하세요. product는 서버를 한 대씩 순차 배포(Jenkinsfile의 롤링 루프)하며, 로드밸런서 헬스체크가 재시작 중인 서버로 요청을 보내지 않도록 구성합니다. 배포 계정(<code>neoine</code>)에는 <code>neoine-sales-api</code>·<code>neoine-sales-worker</code>의 <code>systemctl restart</code>만 허용하는 sudoers 규칙을 부여합니다(<code>infra/server/sudoers/neoine-sales</code>, <code>bootstrap.sh</code>가 설치).</p>
+  <p>롤백은 <strong>코드만 이전 릴리스로 되돌리는 것</strong>이므로, 마이그레이션이 하위 호환(expand/contract)이어야 안전합니다. 파괴적 스키마 변경은 앱 배포와 분리해 단계적으로 진행하세요. <strong>마이그레이션 정책</strong>: local과 dev는 <strong>자동 적용</strong>(dev는 <code>deploy.sh dev</code>가 <code>alembic upgrade head</code>를 실행하고, 실패하면 전환 전에 배포를 중단)이고, <strong>product만</strong> dev 검증 후 Jenkins 승인(<code>input</code>)을 거쳐 같은 <code>deploy.sh</code>가 실행합니다. dev에 자동 적용되므로 모든 마이그레이션은 하위 호환이어야 합니다. product는 서버를 한 대씩 순차 배포(Jenkinsfile의 롤링 루프)하며, 로드밸런서 헬스체크가 재시작 중인 서버로 요청을 보내지 않도록 구성합니다. 배포 계정(<code>neoine</code>)에는 <code>neoine-sales-api</code>의 <code>systemctl restart</code>만 허용하는 sudoers 규칙을 부여합니다(<code>infra/server/sudoers/neoine-sales</code>, <code>bootstrap.sh</code>가 설치).</p>
 </div>
 
 <h3>16.5 Nginx (웹 서버·리버스 프록시)</h3>
@@ -1620,7 +1619,7 @@ exit 1</code></pre>
 <pre><code>infra/server/
 ├─ bootstrap.sh                    # 최초 구성·설정 재적용 (root/sudo)
 ├─ deploy.sh                       # 배포/롤백 (16.4절, Jenkins가 매 배포 시 전달)
-├─ systemd/ (neoine-sales-api.service, neoine-sales-worker.service)
+├─ systemd/ (neoine-sales-api.service)
 ├─ nginx/neoine-sales.conf         # 16.5절
 ├─ sudoers/neoine-sales            # neoine 계정의 systemctl restart 허용 범위
 └─ config/ (config.dev.json, config.product.json)   # 프론트 런타임 설정, 비밀 없음</code></pre>
@@ -1651,7 +1650,7 @@ install -m 644 "$HERE/nginx/neoine-sales.conf" /etc/nginx/conf.d/neoine-sales.co
 install -m 440 "$HERE/sudoers/neoine-sales" /etc/sudoers.d/neoine-sales
 visudo -cf /etc/sudoers.d/neoine-sales
 systemctl daemon-reload
-systemctl enable neoine-sales-api neoine-sales-worker     # 시작은 첫 배포 때
+systemctl enable neoine-sales-api     # 시작은 첫 배포 때
 nginx -t &amp;&amp; systemctl reload nginx
 
 # 4) .env 생성: APP_PROFILE만 채우고 나머지 비밀은 관리자가 직접 입력 (이미 있으면 보존)
@@ -1662,8 +1661,7 @@ if [ ! -f "$APP_HOME/.env" ]; then
 fi</code></pre>
 
 <pre><code># infra/server/sudoers/neoine-sales  (명령 경로는 배포판에 맞게: which systemctl)
-neoine ALL=(root) NOPASSWD: /usr/bin/systemctl restart neoine-sales-api, \
-                            /usr/bin/systemctl restart neoine-sales-worker</code></pre>
+neoine ALL=(root) NOPASSWD: /usr/bin/systemctl restart neoine-sales-api</code></pre>
 
 <h4>최초 구성 체크리스트 (서버마다)</h4>
 <ul>
@@ -1729,9 +1727,9 @@ neoine ALL=(root) NOPASSWD: /usr/bin/systemctl restart neoine-sales-api, \
 <h2 id="tools">18. 도구 총정리</h2>
 <table>
 <tr><th>카테고리</th><th>도구</th></tr>
-<tr><td>환경/패키지</td><td>uv, mise(버전 고정), pnpm, just/make, 로컬 PostgreSQL·Redis</td></tr>
+<tr><td>환경/패키지</td><td>uv, mise(버전 고정), pnpm, just/make, 로컬 PostgreSQL</td></tr>
 <tr><td>코드 품질</td><td>Ruff, mypy(or pyright), import-linter, pre-commit, ESLint, Prettier/Biome, TypeScript</td></tr>
-<tr><td>백엔드 프레임워크</td><td>FastAPI, Uvicorn/Gunicorn, Pydantic v2, SQLAlchemy 2, Alembic, structlog, httpx, Celery/arq</td></tr>
+<tr><td>백엔드 프레임워크</td><td>FastAPI, Uvicorn/Gunicorn, Pydantic v2, SQLAlchemy 2, Alembic, structlog, httpx (비동기 작업이 필요해지면 Celery/arq)</td></tr>
 <tr><td>프론트엔드</td><td>React, Vite, TanStack Query, React Router, React Hook Form, Zod, Tailwind/shadcn 또는 MUI</td></tr>
 <tr><td>API 계약</td><td>OpenAPI, openapi-typescript/orval, oasdiff</td></tr>
 <tr><td>테스트</td><td>pytest, pytest-asyncio, pytest-cov, factory-boy, Hypothesis, Vitest, Testing Library, MSW, Playwright</td></tr>
@@ -1760,7 +1758,7 @@ neoine ALL=(root) NOPASSWD: /usr/bin/systemctl restart neoine-sales-api, \
 <h3>19.2 도입 로드맵</h3>
 <table>
 <tr><th>단계</th><th>작업</th></tr>
-<tr><td>1주차</td><td>저장소 골격, uv/pnpm, Ruff·mypy·pre-commit, 로컬 PostgreSQL/Redis, justfile, Jenkins controller/agent 구축(mise 설치), Multibranch 기본 CI(lint + test)</td></tr>
+<tr><td>1주차</td><td>저장소 골격, uv/pnpm, Ruff·mypy·pre-commit, 로컬 PostgreSQL, justfile, Jenkins controller/agent 구축(mise 설치), Multibranch 기본 CI(lint + test)</td></tr>
 <tr><td>2주차</td><td>도메인 계층·Repository·UoW 골격, Alembic, 첫 유스케이스 + 단위/통합 테스트, FastAPI 라우터</td></tr>
 <tr><td>3주차</td><td>OpenAPI → TS 클라이언트 자동화, React 기본 화면·인증, import-linter 계약, 커버리지 게이트</td></tr>
 <tr><td>4주차</td><td>릴리스 번들 빌드, dev 서버 구성(<code>bootstrap.sh</code>: systemd 유닛·Nginx 포함, 서버 <code>.env</code> 직접 입력), deploy.sh + Jenkins CD 파이프라인, 관측성(Prometheus·Loki·Sentry·헬스체크), 보안 스캔</td></tr>
