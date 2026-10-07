@@ -262,7 +262,7 @@ addopts = "--cov=src --cov-report=term-missing --cov-fail-under=80"</code></pre>
 <p>개발자 PC에 PostgreSQL을 직접 설치해 실행합니다. 버전은 dev/product 서버와 같은 메이저 버전으로 맞춥니다.</p>
 <table>
 <tr><th>OS</th><th>설치</th><th>서비스 시작</th></tr>
-<tr><td>macOS</td><td><code>brew install postgresql@16</code></td><td><code>brew services start postgresql@16</code></td></tr>
+<tr><td>macOS</td><td><code>brew install postgresql@18</code></td><td><code>brew services start postgresql@18</code></td></tr>
 <tr><td>Windows</td><td><strong>WSL2(Ubuntu) 안에 설치 권장</strong>: <code>sudo apt install postgresql</code>. 네이티브 설치는 PostgreSQL 설치 관리자 사용</td><td>WSL2: <code>sudo service postgresql start</code></td></tr>
 <tr><td>Linux</td><td><code>sudo apt install postgresql</code> (또는 dnf)</td><td><code>sudo systemctl enable --now postgresql</code></td></tr>
 </table>
@@ -999,7 +999,7 @@ def get_place_order(request: Request) -&gt; PlaceOrder:
 <h3>8.6 API 설계</h3>
 <ul>
   <li>REST + JSON, 리소스 복수형 명사, 버전은 <code>/api/v1</code>.</li>
-  <li>페이지네이션(커서 우선), 필터·정렬 규약 통일, 오류는 RFC 9457(Problem Details) 형식.</li>
+  <li>페이지네이션(커서 우선, 현재 구현은 offset/limit), 필터·정렬 규약 통일, 오류는 RFC 9457(Problem Details) 형식.</li>
   <li>쓰기 재시도 대비 <code>Idempotency-Key</code> 헤더 지원(결제·주문 등).</li>
   <li>인증: OAuth2/OIDC + 짧은 수명의 JWT 액세스 토큰 + HttpOnly·Secure 쿠키 기반 리프레시 토큰. 권한은 RBAC로 시작.</li>
 </ul>
@@ -1081,6 +1081,36 @@ async def place_order(
   <li>작업도 유스케이스를 호출하는 얇은 어댑터로 취급.</li>
 </ul>
 
+<h3>10.5 구현 현황: 도메인과 HTTP API (2026-10 기준)</h3>
+<p>아래는 코드에 실제로 구현된 범위입니다(정본은 <code>backend/openapi.json</code>과 테스트). 인증·인가는 아직 없으므로 현재는 누구나 호출할 수 있습니다.</p>
+<table>
+<tr><th>리소스</th><th>경로</th><th>비고</th></tr>
+<tr><td>Customer(고객)</td><td><code>/api/v1/customers</code></td><td>POST(201+<code>Location</code>), GET 목록·단건, PUT(전체 교체), DELETE(204)</td></tr>
+<tr><td>Partner(파트너)</td><td><code>/api/v1/partners</code></td><td>고객과 동일</td></tr>
+<tr><td>Deal</td><td><code>/api/v1/deals</code></td><td>동일 + <code>GET /by-code/{code}</code>(업무 키, 대소문자 무시). 금액은 문자열로 주고받음</td></tr>
+<tr><td>Deal 활동 이력</td><td><code>POST·GET /api/v1/deals/{id}/actions</code><br><code>/api/v1/deal-actions</code>, <code>/{id}</code></td><td>Deal별 이력, 전체 검색, 개별 조회·수정·삭제</td></tr>
+<tr><td>상태 확인</td><td><code>/healthz</code>, <code>/readyz</code></td><td><code>/readyz</code>는 DB 접속을 확인하고 실패 시 원인을 숨긴 채 503</td></tr>
+</table>
+<ul>
+  <li><strong>목록·페이지</strong>: <code>offset</code>(0 이상)·<code>limit</code>(1~200, 기본 50), 응답은 <code>{items, offset, limit}</code>. 현재는 offset 방식이며, 데이터가 커지면 8.6의 커서 방식으로 바꿉니다.</li>
+  <li><strong>삭제 규칙</strong>: 모든 삭제는 소프트 삭제입니다. <strong>삭제되지 않은 Deal이 참조하는 고객·파트너는 삭제할 수 없고</strong>(409 <code>invalid-state</code>), Deal을 먼저 삭제해야 합니다. Deal Code는 삭제된 Deal 것도 재사용할 수 없습니다.</li>
+  <li><strong>활동 이력</strong>: 유형은 <code>call, meeting, email, demo, proposal, negotiation, contract, other</code>. 필드는 유형·제목·내용·활동 일시(시간대 필수)·활동자. 활동은 다른 Deal로 옮길 수 없고, Deal을 삭제해도 이력은 남아 계속 조회됩니다(삭제된 Deal에는 새 활동을 등록할 수 없음).</li>
+  <li><strong>활동 검색</strong>: <code>deal_id, action_type, actor, keyword, acted_from, acted_to, offset, limit</code>를 AND로 결합합니다. <code>keyword</code>는 제목·내용에서 대소문자 무시 부분 일치(<code>%</code>·<code>_</code>는 글자 그대로), 기간은 <code>acted_from</code> 이상 <code>acted_to</code> 미만, 정렬은 활동 일시 내림차순입니다.</li>
+  <li><strong>오류 형식</strong>: 모든 오류는 <code>application/problem+json</code>이며 <code>type</code> 끝부분으로 구분합니다.
+    <table>
+    <tr><th>type</th><th>상태</th><th>원인</th></tr>
+    <tr><td><code>not-found</code></td><td>404</td><td>대상 없음(삭제 포함)</td></tr>
+    <tr><td><code>already-exists</code></td><td>409</td><td>Deal Code 중복 등</td></tr>
+    <tr><td><code>invalid-state</code></td><td>409</td><td>삭제된 항목 수정, 사용 중인 고객·파트너 삭제 등</td></tr>
+    <tr><td><code>invalid-value</code></td><td>422</td><td>도메인 값 규칙 위반(이메일 형식, 음수 금액 등)</td></tr>
+    <tr><td><code>invalid-reference</code></td><td>422</td><td>없거나 삭제된 고객·파트너를 참조</td></tr>
+    <tr><td><code>request-validation</code></td><td>422</td><td>요청 형식 오류(<code>errors</code> 배열에 위치 포함)</td></tr>
+    <tr><td><code>domain-error</code></td><td>400</td><td>그 밖의 도메인 오류</td></tr>
+    <tr><td><code>not-ready</code></td><td>503</td><td>의존 자원 준비 안 됨</td></tr>
+    </table></li>
+  <li><strong>조립</strong>: web 계층은 infra를 import하지 않고 <code>UseCaseProvider</code>(Protocol)만 알며, <code>container.py</code>가 DB 엔진·UoW·시계를 연결합니다. <code>create_app(settings, use_cases)</code>에 Fake를 주입해 DB 없이 API 전 구간을 테스트합니다. 운영 실행은 <code>uvicorn app.main:app</code>이며 <code>app</code>은 처음 접근할 때 설정을 읽어 만들어집니다.</li>
+</ul>
+
 <!-- ============================================================ -->
 <h2 id="frontend">11. 프론트엔드 상세</h2>
 <ul>
@@ -1097,12 +1127,12 @@ async def place_order(
 <!-- ============================================================ -->
 <h2 id="contract">12. API 계약 (프론트 ↔ 백엔드)</h2>
 <pre><code># 백엔드: 스키마 내보내기
-uv run python -c "import json; from app.main import app; print(json.dumps(app.openapi()))" &gt; openapi.json
+uv run python scripts/export_openapi.py   # backend/openapi.json 갱신(DB 접속·.env 불필요)
 
 # 프론트엔드: 타입/클라이언트 생성
 pnpm openapi-typescript ../backend/openapi.json -o src/shared/api/schema.d.ts</code></pre>
 <ul>
-  <li><code>openapi.json</code>을 커밋하고, CI에서 <strong>생성물과 커밋본이 다르면 실패</strong>시켜 계약 드리프트를 차단.</li>
+  <li><code>openapi.json</code>을 커밋하고, CI에서 <strong>생성물과 커밋본이 다르면 실패</strong>시켜 계약 드리프트를 차단. 이 프로젝트는 <code>tests/e2e/test_openapi_contract.py</code>가 pytest 안에서 같은 비교를 하므로 API를 바꾸고 파일을 갱신하지 않으면 로컬에서도 실패합니다.</li>
   <li>호환성 깨짐(필드 삭제 등)은 <code>oasdiff</code> 같은 도구로 PR에서 검출.</li>
 </ul>
 
@@ -1315,8 +1345,8 @@ pipeline {
             steps {
                 dir('backend') {
                     sh '''
-                        uv run python -c "import json; from app.main import app; print(json.dumps(app.openapi(), indent=2, sort_keys=True))" &gt; /tmp/openapi.json
-                        diff -u openapi.json /tmp/openapi.json
+                        uv run python scripts/export_openapi.py
+                        git diff --exit-code openapi.json
                     '''
                     sh 'uvx pip-audit'
                 }

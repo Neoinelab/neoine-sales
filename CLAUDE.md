@@ -40,3 +40,4 @@ uv run python scripts/run_gates.py --only mypy
 | 날짜 | 변경 내용 | 대상 | 사유 |
 | --- | --- | --- | --- |
 | 2026-10-06 | 1~2단계 초기 구성: 권한·hooks, `run_gates.py`, 규칙 Skill 3개, `quality-gate` Agent | 전체 | 개발 시작 전 규칙·검증·안전장치 확보 |
+| 2026-10-07 | web 단계 반영: `scripts/export_openapi.py`(API 계약 파일 생성, 드리프트는 pytest가 검사), ruff가 `src/app/web/**`의 TC 규칙을 면제하고 pydantic 모델을 런타임 평가 대상으로 지정 | `backend/pyproject.toml`, `backend/scripts/` | FastAPI가 타입 힌트를 런타임에 해석 |
