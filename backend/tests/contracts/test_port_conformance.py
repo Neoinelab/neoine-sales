@@ -10,6 +10,8 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from app.application.ports.customer_repository import CustomerRepository
 from app.application.ports.deal_repository import DealRepository
 from app.application.ports.partner_repository import PartnerRepository
+from app.config.profiles import LocalSettings
+from app.container import Container
 from app.infra.db.customer_repository import SqlCustomerRepository
 from app.infra.db.deal_repository import SqlDealRepository
 from app.infra.db.partner_repository import SqlPartnerRepository
@@ -22,10 +24,12 @@ from tests.fakes.repositories import (
     FakePartnerRepository,
 )
 from tests.fakes.unit_of_work import FakeUnitOfWork, FixedClock
+from tests.fakes.use_cases import FakeUseCases
 
 if TYPE_CHECKING:
     from app.application.ports.clock import Clock
     from app.application.ports.unit_of_work import UnitOfWork
+    from app.web.use_case_provider import UseCaseProvider
 
 
 def test_fake_repositories_satisfy_their_ports() -> None:
@@ -64,3 +68,19 @@ def test_clocks_satisfy_the_port_and_return_aware_times() -> None:
 
     assert fixed.now() == NOW
     assert system.now().utcoffset() is not None
+
+
+async def test_use_case_providers_satisfy_the_web_port() -> None:
+    settings = LocalSettings(
+        _env_file=None,
+        database_url="postgresql+asyncpg://user:pw@localhost/none",  # 접속하지 않는다
+        jwt_secret="x" * 40,
+    )
+    container = Container(settings)
+    try:
+        real: UseCaseProvider = container
+        fake: UseCaseProvider = FakeUseCases()
+        assert real is not None
+        assert fake is not None
+    finally:
+        await container.dispose()

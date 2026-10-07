@@ -10,6 +10,7 @@ from typing import Any, Self
 
 from tests.fakes.repositories import (
     FakeCustomerRepository,
+    FakeDealActionRepository,
     FakeDealRepository,
     FakePartnerRepository,
 )
@@ -20,15 +21,15 @@ class FakeUnitOfWork:
         self.customers = FakeCustomerRepository()
         self.partners = FakePartnerRepository()
         self.deals = FakeDealRepository()
+        self.deal_actions = FakeDealActionRepository()
         self.commits = 0
-        self._snapshot: tuple[Any, Any, Any] | None = None
+        self._snapshot: tuple[Any, ...] | None = None
 
-    def _take(self) -> tuple[Any, Any, Any]:
-        return (
-            copy.deepcopy(self.customers._items),
-            copy.deepcopy(self.partners._items),
-            copy.deepcopy(self.deals._items),
-        )
+    def _repositories(self) -> tuple[Any, ...]:
+        return (self.customers, self.partners, self.deals, self.deal_actions)
+
+    def _take(self) -> tuple[Any, ...]:
+        return tuple(copy.deepcopy(repo._items) for repo in self._repositories())
 
     async def __aenter__(self) -> Self:
         self._snapshot = self._take()
@@ -43,10 +44,10 @@ class FakeUnitOfWork:
 
     async def rollback(self) -> None:
         if self._snapshot is not None:
-            customers, partners, deals = copy.deepcopy(self._snapshot)
-            self.customers._items = customers
-            self.partners._items = partners
-            self.deals._items = deals
+            for repo, items in zip(
+                self._repositories(), copy.deepcopy(self._snapshot), strict=True
+            ):
+                repo._items = items
 
 
 class FixedClock:
@@ -60,3 +61,12 @@ class FixedClock:
 
     def advance(self, seconds: int = 60) -> None:
         self._now += timedelta(seconds=seconds)
+
+
+class SteppingClock(FixedClock):
+    """now()를 부를 때마다 1초씩 흐르는 시계(생성 순서 정렬 확인용)."""
+
+    def now(self) -> datetime:
+        current = self._now
+        self._now += timedelta(seconds=1)
+        return current

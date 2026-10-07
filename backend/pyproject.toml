@@ -67,10 +67,14 @@ max-statements = 30
 
 [tool.ruff.lint.flake8-type-checking]
 # SQLAlchemy는 Mapped[...] 타입을 런타임에 해석하므로 ORM 클래스가 쓰는 import는 옮기지 않는다
-runtime-evaluated-base-classes = ["app.infra.db.base.Base", "app.infra.db.models.AuditColumns"]
+runtime-evaluated-base-classes = [
+  "app.infra.db.base.Base", "app.infra.db.models.AuditColumns", "pydantic.BaseModel",
+]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["S101", "PLR2004"]
+# FastAPI는 라우터 함수의 타입 힌트를 런타임에 해석하므로 import를 TYPE_CHECKING으로 옮기지 않는다
+"src/app/web/**" = ["TC001", "TC002", "TC003"]
 "alembic/versions/*" = [  # 자동 생성 마이그레이션: 생성 형식(Union 등)과 긴 줄을 그대로 둔다
   "E501", "ANN", "D", "N999", "RUF012", "I001", "UP006", "UP007", "UP035", "TC",
 ]

@@ -2,7 +2,7 @@
 
 from typing import TYPE_CHECKING
 
-from sqlalchemy import select
+from sqlalchemy import ColumnElement, exists, select
 
 from app.application.ports.pagination import DEFAULT_LIMIT
 from app.domain.common.errors import AlreadyExistsError
@@ -97,6 +97,16 @@ class SqlDealRepository(SqlRepository[DealRow]):
     ) -> Sequence[Deal]:
         rows = await self._page(offset, limit, include_deleted=include_deleted)
         return [_to_entity(row) for row in rows]
+
+    async def has_active_for_customer(self, customer_id: CustomerId) -> bool:
+        return await self._has_active(DealRow.customer_id == customer_id)
+
+    async def has_active_for_partner(self, partner_id: PartnerId) -> bool:
+        return await self._has_active(DealRow.partner_id == partner_id)
+
+    async def _has_active(self, condition: ColumnElement[bool]) -> bool:
+        statement = select(exists().where(condition, DealRow.deleted_at.is_(None)))
+        return bool(await self._session.scalar(statement))
 
     async def update(self, deal: Deal) -> None:
         row = await self._find(deal.id, include_deleted=True)

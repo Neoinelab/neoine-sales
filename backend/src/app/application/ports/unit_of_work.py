@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, Protocol, Self
 
 if TYPE_CHECKING:
     from app.application.ports.customer_repository import CustomerRepository
+    from app.application.ports.deal_action_repository import DealActionRepository
     from app.application.ports.deal_repository import DealRepository
     from app.application.ports.partner_repository import PartnerRepository
 
@@ -22,6 +23,9 @@ class UnitOfWork(Protocol):
 
     @property
     def deals(self) -> DealRepository: ...
+
+    @property
+    def deal_actions(self) -> DealActionRepository: ...
 
     async def __aenter__(self) -> Self: ...
 

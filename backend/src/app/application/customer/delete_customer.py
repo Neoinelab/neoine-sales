@@ -1,5 +1,7 @@
 from typing import TYPE_CHECKING
 
+from app.domain.customer.errors import CustomerInUseError
+
 if TYPE_CHECKING:
     from app.application.ports.clock import Clock
     from app.application.ports.unit_of_work import UnitOfWorkFactory
@@ -7,7 +9,7 @@ if TYPE_CHECKING:
 
 
 class DeleteCustomer:
-    """고객을 소프트 삭제한다. 이미 삭제됐거나 없으면 CustomerNotFoundError."""
+    """고객을 소프트 삭제한다. 없으면 NotFound, 활성 Deal이 있으면 CustomerInUseError."""
 
     def __init__(self, uow_factory: UnitOfWorkFactory, clock: Clock) -> None:
         self._uow_factory = uow_factory
@@ -16,6 +18,8 @@ class DeleteCustomer:
     async def execute(self, customer_id: CustomerId) -> None:
         async with self._uow_factory() as uow:
             customer = await uow.customers.get(customer_id)
+            if await uow.deals.has_active_for_customer(customer_id):
+                raise CustomerInUseError(customer_id)
             customer.soft_delete(self._clock.now())
             await uow.customers.update(customer)
             await uow.commit()

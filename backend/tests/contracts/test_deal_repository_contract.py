@@ -1,11 +1,14 @@
 """Deal Repository 고유 계약: Deal Code는 삭제된 Deal을 포함해 전체에서 고유하다."""
 
 from typing import TYPE_CHECKING
+from uuid import uuid4
 
 import pytest
 
+from app.domain.customer.value_objects import CustomerId
 from app.domain.deal.errors import DealNotFoundError, DuplicateDealCodeError
 from app.domain.deal.value_objects import DealCode
+from app.domain.partner.value_objects import PartnerId
 from tests.factories import later, make_deal, make_deal_details
 
 if TYPE_CHECKING:
@@ -90,3 +93,23 @@ async def test_get_by_code_hides_soft_deleted_deal_unless_requested(
         await deal_case.repository.get_by_code(DealCode("DEAL-001"))
     found = await deal_case.repository.get_by_code(DealCode("DEAL-001"), include_deleted=True)
     assert found.is_deleted
+
+
+async def test_has_active_deal_for_the_customer_and_partner(deal_case: RepositoryCase) -> None:
+    deal = make_deal(code="DEAL-001", partner_id=PartnerId(uuid4()))
+    await deal_case.add(deal)
+
+    assert await deal_case.repository.has_active_for_customer(deal.details.customer_id)
+    assert await deal_case.repository.has_active_for_partner(deal.details.partner_id)
+    assert not await deal_case.repository.has_active_for_customer(CustomerId(uuid4()))
+    assert not await deal_case.repository.has_active_for_partner(PartnerId(uuid4()))
+
+
+async def test_soft_deleted_deals_are_not_active_references(deal_case: RepositoryCase) -> None:
+    deal = make_deal(code="DEAL-001", partner_id=PartnerId(uuid4()))
+    await deal_case.add(deal)
+    deal.soft_delete(later(10))
+    await deal_case.repository.update(deal)
+
+    assert not await deal_case.repository.has_active_for_customer(deal.details.customer_id)
+    assert not await deal_case.repository.has_active_for_partner(deal.details.partner_id)

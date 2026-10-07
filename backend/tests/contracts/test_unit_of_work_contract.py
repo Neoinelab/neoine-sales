@@ -40,7 +40,9 @@ async def uow_factory(request: pytest.FixtureRequest) -> AsyncIterator[UnitOfWor
     try:
         yield sql_unit_of_work_factory(async_sessionmaker(engine, expire_on_commit=False))
         async with engine.begin() as connection:
-            await connection.execute(text("truncate deals, customers, partners cascade"))
+            await connection.execute(
+                text("truncate deal_actions, deals, customers, partners cascade")
+            )
     finally:
         await engine.dispose()
 

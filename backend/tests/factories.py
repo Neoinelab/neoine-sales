@@ -7,13 +7,16 @@ from uuid import UUID, uuid4
 
 from app.application.customer.inputs import CustomerInput
 from app.application.deal.inputs import DealInput
+from app.application.deal_action.inputs import DealActionInput
 from app.application.partner.inputs import PartnerInput
 from app.domain.common.contact import Email, PhoneNumber
 from app.domain.common.money import Money
 from app.domain.customer.entities import Customer
 from app.domain.customer.value_objects import CustomerDetails, CustomerId
 from app.domain.deal.entities import Deal
-from app.domain.deal.value_objects import DealCode, DealDetails
+from app.domain.deal.value_objects import DealCode, DealDetails, DealId
+from app.domain.deal_action.entities import DealAction
+from app.domain.deal_action.value_objects import ActionType, DealActionDetails
 from app.domain.partner.entities import Partner
 from app.domain.partner.value_objects import PartnerDetails
 
@@ -114,3 +117,30 @@ def make_deal_input(customer_id: UUID, **overrides: object) -> DealInput:
         "customer_id": customer_id,
     }
     return DealInput(**{**values, **overrides})
+
+
+def make_deal_action_details(**overrides: object) -> DealActionDetails:
+    values: dict[str, Any] = {
+        "deal_id": DealId(uuid4()),
+        "action_type": ActionType.MEETING,
+        "title": "킥오프 미팅",
+        "content": "요구사항 정리",
+        "acted_at": NOW,
+        "actor": "박영업",
+    }
+    return DealActionDetails(**{**values, **overrides})
+
+
+def make_deal_action(now: datetime = NOW, **overrides: object) -> DealAction:
+    return DealAction.create(make_deal_action_details(**overrides), now)
+
+
+def make_deal_action_input(**overrides: object) -> DealActionInput:
+    values: dict[str, Any] = {
+        "action_type": ActionType.MEETING,
+        "title": "킥오프 미팅",
+        "content": "요구사항 정리",
+        "acted_at": NOW,
+        "actor": "박영업",
+    }
+    return DealActionInput(**{**values, **overrides})

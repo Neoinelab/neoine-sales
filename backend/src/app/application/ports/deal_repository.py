@@ -5,8 +5,10 @@ from app.application.ports.pagination import DEFAULT_LIMIT
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
+    from app.domain.customer.value_objects import CustomerId
     from app.domain.deal.entities import Deal
     from app.domain.deal.value_objects import DealCode, DealId
+    from app.domain.partner.value_objects import PartnerId
 
 
 class DealRepository(Protocol):
@@ -28,6 +30,14 @@ class DealRepository(Protocol):
         self, *, offset: int = 0, limit: int = DEFAULT_LIMIT, include_deleted: bool = False
     ) -> Sequence[Deal]:
         """생성 시각 오름차순. 잘못된 offset/limit은 InvalidValueError."""
+        ...
+
+    async def has_active_for_customer(self, customer_id: CustomerId) -> bool:
+        """삭제되지 않은 Deal 중 이 고객을 참조하는 것이 있는지."""
+        ...
+
+    async def has_active_for_partner(self, partner_id: PartnerId) -> bool:
+        """삭제되지 않은 Deal 중 이 파트너를 참조하는 것이 있는지."""
         ...
 
     async def update(self, deal: Deal) -> None:
