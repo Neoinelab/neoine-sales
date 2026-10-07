@@ -39,12 +39,17 @@ from typing import Protocol, Self
 
 
 class UnitOfWork(Protocol):
-    customers: CustomerRepository
+    @property                                  # 읽기 전용 속성: 구체 repository 타입을 가진 구현도 호환된다
+    def customers(self) -> CustomerRepository: ...
 
     async def __aenter__(self) -> Self: ...
     async def __aexit__(self, *exc: object) -> None: ...
     async def commit(self) -> None: ...
     async def rollback(self) -> None: ...
+
+
+# 유스케이스는 UoW 자체가 아니라 '호출할 때마다 새 UoW를 만드는 팩토리'를 주입받는다
+type UnitOfWorkFactory = Callable[[], UnitOfWork]
 ```
 
 ```python
@@ -63,16 +68,24 @@ class SqlCustomerRepository:
 ```python
 # application/customer/register_customer.py  (유스케이스는 Port만 안다)
 class RegisterCustomer:
-    def __init__(self, uow: UnitOfWork) -> None:
-        self._uow = uow
+    def __init__(self, uow_factory: UnitOfWorkFactory, clock: Clock) -> None:
+        self._uow_factory, self._clock = uow_factory, clock
 
-    async def execute(self, command: RegisterCustomerCommand) -> CustomerId:
-        async with self._uow:
-            customer = Customer.register(command.name, command.email)   # 규칙은 도메인
-            await self._uow.customers.add(customer)
-            await self._uow.commit()
-        return customer.id
+    async def execute(self, data: CustomerInput) -> Customer:
+        details = data.to_details()                       # 입력 검증은 트랜잭션을 열기 전에
+        async with self._uow_factory() as uow:            # 요청마다 새 UoW(새 세션)
+            customer = Customer.create(details, self._clock.now())   # 규칙은 도메인
+            await uow.customers.add(customer)
+            await uow.commit()                            # 쓰기는 commit 1번, 읽기는 commit 없음
+        return customer
 ```
+
+### UoW 규칙 (구현하며 확인한 것)
+
+- **commit한 변경만 남는다.** commit 없이 블록을 벗어나거나 예외가 나면, 그리고 commit 이후에 만든 변경도 폐기한다. Fake와 SQL 구현에 같은 계약 테스트(`tests/contracts/test_unit_of_work_contract.py`)를 적용한다.
+- **UoW 인스턴스는 세션을 들고 있으므로 요청 간에 공유하지 않는다.** 유스케이스에는 팩토리(`sql_unit_of_work_factory`)를 주입하고, 팩토리가 호출될 때마다 새 UoW를 만든다.
+- Port의 `customers` 같은 속성은 **읽기 전용 property**로 선언한다. 일반 속성으로 선언하면 mypy가 `FakeCustomerRepository`·`SqlCustomerRepository` 같은 구체 타입을 호환되지 않는다고 본다.
+- Repository는 flush만 하고 commit은 UoW만 한다. add/update는 SAVEPOINT 안에서 flush해 제약 위반이 나도 같은 트랜잭션을 계속 쓸 수 있게 한다.
 
 ## 3. 외부 시스템 Gateway 예 (ACL 포함)
 
@@ -102,7 +115,7 @@ class Container:
         self._session_factory = create_session_factory(str(settings.database_url))
 
     def register_customer(self) -> RegisterCustomer:
-        return RegisterCustomer(SqlUnitOfWork(self._session_factory))
+        return RegisterCustomer(sql_unit_of_work_factory(self._session_factory), SystemClock())
 
 
 # web/dependencies.py  (web은 infra를 import하지 않고 container에서 꺼낸다)
