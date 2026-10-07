@@ -10,7 +10,7 @@ Python(FastAPI) 백엔드 + React 프론트엔드. 규칙의 정본은 `docs/dev
 - 프로파일은 `local` / `dev` / `product`. 설정은 `app.config.get_settings()`로만 읽고 domain/application에서 import하지 않습니다.
 - 비밀과 `.env`는 읽지도 쓰지도 않습니다(필요한 변수 이름은 `backend/.env.example`). 의존성 추가(`uv add`)는 사용자 승인 후에만 합니다.
 - 패키지·환경은 uv만 사용합니다(`pip install`, `python -m venv` 금지).
-- DB 마이그레이션은 로컬 DB에만 실행합니다. dev/product 실행, 배포, 머지, push는 사람이 합니다. 커밋은 사용자가 요청할 때만 합니다.
+- DB 마이그레이션 정책: **local과 dev는 자동**(dev는 `main` 머지 시 Jenkins 배포의 `deploy.sh`가 `alembic upgrade head`를 자동 실행), **product만 사람 승인 후** `deploy.sh`가 실행합니다. dev에 자동 적용되므로 마이그레이션은 항상 하위 호환(expand/contract)으로 작성합니다. `downgrade`/`stamp`는 환경과 무관하게 사용자 확인을 받고, product 대상 alembic 명령은 하네스가 거부합니다. 배포·머지·push는 사람이 합니다.
 - 테스트 함수 이름은 영문 ASCII(`test_<상황>_<기대결과>`), 테스트를 약하게 고쳐서 통과시키지 않습니다.
 
 ## 검증 명령 (backend/ 에서 실행)
@@ -25,8 +25,8 @@ uv run python scripts/run_gates.py --only mypy
 - 규칙 Skill: `layer-architecture-rules`(계층·Port·SOLID), `tdd-python-testing`(테스트 선행·Fake Port), `config-and-secrets`(프로파일·환경변수). 해당 작업을 하기 전에 먼저 읽습니다.
 - 구현이 끝나면 `quality-gate` Agent(또는 위 게이트 명령)로 검증하고, 통과 증거 없이 "완료"라고 하지 않습니다.
 - 한 줄 버그 수정·오타·질문은 하네스 없이 바로 처리합니다. 여러 계층에 걸친 기능은 먼저 계획(영향 계층, Port 시그니처, 테스트 목록)을 세우고 시작합니다.
-- 승인이 필요한 행동(머지, 배포, 비로컬 마이그레이션, 비밀 변경, 의존성 추가, 공개 API 호환 깨짐)은 멈추고 사용자에게 묻습니다.
-- 하네스가 만든 `.claude/hooks`가 `.env`·`uv.lock` 접근 차단, alembic 실행 확인, 편집 후 자동 포맷을 수행합니다. 막히면 우회하지 말고 사유를 사용자에게 알립니다.
+- 승인이 필요한 행동(머지, 배포, product 마이그레이션, 비밀 변경, 의존성 추가, 공개 API 호환 깨짐)은 멈추고 사용자에게 묻습니다.
+- 하네스가 만든 `.claude/hooks`가 `.env`·`uv.lock` 접근 차단, product 대상 alembic 차단(downgrade/stamp는 확인), 편집 후 자동 포맷을 수행합니다. 막히면 우회하지 말고 사유를 사용자에게 알립니다.
 - 라이브러리·프레임워크 사용법은 Context7 MCP로 최신 문서를 확인합니다.
 
 ## 주요 위치

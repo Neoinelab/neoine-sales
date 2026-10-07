@@ -41,7 +41,7 @@ backend/src/app/config/
 | `APP_DATABASE_URL` | PostgreSQL URL(`postgresql+asyncpg://…`) | ● | 필수 | localhost | dev DB | product DB |
 | `APP_DB_POOL_SIZE` | 커넥션 풀(≥1) | | 10 | 5 | 10 | 워커·DB 한도에 맞춤 |
 | `APP_DB_ECHO` | SQL 로그 | | false | true | false | **false 필수** |
-| `APP_REDIS_URL` | Redis URL | ● | 필수 | localhost | dev Redis | product Redis |
+| `APP_REDIS_URL` | Redis URL. **선택, 현재 미사용**(큐·캐시를 도입할 때 필수로 전환) | ● | 없음 | 비움 | 비움 | 비움 |
 | `APP_SENTRY_DSN` | 오류 추적 DSN | ● | 없음 | 비움 | dev 프로젝트 | **필수** |
 | `APP_SENTRY_TRACES_SAMPLE_RATE` | 0.0~1.0 | | 0.0 | | 1.0 | 0.1 |
 | `APP_OTEL_EXPORTER_ENDPOINT` | OTel Collector 주소 | | 없음 | | | |

@@ -3,65 +3,62 @@
 ## 목차
 
 1. 현재 상태
-2. 설계
-3. fixture 스케치
-4. 규칙과 주의
+2. 동작 방식
+3. 사용법
+4. 건너뛰기와 실패의 기준
+5. 새 Repository 구현에 계약 테스트 적용하기
+6. 주의
 
 ## 1. 현재 상태
 
-**아직 구현되어 있지 않다.** 이 문서는 첫 통합 테스트(Repository 구현 등)를 작성할 때 `backend/tests/integration/conftest.py`에 만들 fixture의 설계다. 구현할 때는 Alembic 마이그레이션 구조가 먼저 있어야 하며, 없으면 `Base.metadata.create_all`로 시작하고 마이그레이션이 생기면 교체한다. 구현 후 이 문서의 "현재 상태"를 갱신한다.
+**구현되어 있다.** 파일 위치는 아래와 같다.
 
-## 2. 설계
+| 파일 | 역할 |
+| --- | --- |
+| `backend/tests/support/database.py` | 임시 DB 생성·삭제, 마이그레이션 적용, 롤백되는 세션, 관리자 접속 URL 결정 |
+| `backend/tests/conftest.py` | 세션당 한 번 임시 DB를 만들고 마이그레이션을 적용하는 `test_database_url` fixture |
+| `backend/tests/integration/conftest.py` | 테스트마다 롤백되는 `session` fixture |
+| `backend/tests/contracts/conftest.py` | 같은 계약 테스트를 Fake와 SQL 구현 양쪽에 적용하는 `case` fixture |
 
-- 컨테이너(Testcontainers)는 사용하지 않는다. **실제로 설치된 PostgreSQL**(개발자 PC의 로컬 DB, CI agent의 로컬 DB)에서 테스트 전용 DB를 임시로 만들고 지운다.
-- 관리자 접속 URL은 환경변수 `TEST_DATABASE_ADMIN_URL`로 받는다(예: `postgresql+asyncpg://app:app@localhost:5432/postgres`). 이 role에는 `CREATEDB` 권한이 필요하다(개발 가이드 3.4절).
-- 세션마다 `app_test_<무작위>` 이름의 DB를 `CREATE DATABASE`로 만들고, 스키마를 적용하고, 세션 종료 시 `DROP DATABASE`한다. 이름이 매번 달라 같은 agent에서 병렬 빌드가 돌아도 충돌하지 않는다.
-- 테스트 간 격리는 테스트마다 트랜잭션을 열고 롤백하거나 테이블을 TRUNCATE한다.
-- **개발·dev·product 데이터가 있는 DB에는 절대 연결하지 않는다.** `TEST_DATABASE_ADMIN_URL`이 없으면 통합 테스트는 건너뛴다(skip).
+## 2. 동작 방식
 
-## 3. fixture 스케치
+- 컨테이너(Testcontainers)는 쓰지 않는다. **실제로 설치된 PostgreSQL**에서 테스트 전용 DB를 임시로 만들고 지운다.
+- **관리자 접속 URL 결정**(`resolve_admin_url`)
+  1. 환경변수 `TEST_DATABASE_ADMIN_URL`이 있으면 그것을 쓴다(CI).
+  2. 없고 앱 프로파일이 `local`이면, 앱 설정의 접속 정보에서 DB 이름만 maintenance DB(`postgres`)로 바꿔 쓴다. 로컬 개발자는 추가 설정이 필요 없다.
+  3. 그 외(프로파일이 dev/product이거나 설정이 없음)는 통합 테스트를 건너뛴다. **dev/product DB에는 절대 접속하지 않는다.**
+- 세션마다 `app_test_<무작위>` DB를 `CREATE DATABASE`로 만들고, **Alembic 마이그레이션을 `head`까지 적용**(마이그레이션도 같이 검증된다)하고, 세션이 끝나면 `DROP DATABASE`한다. 이름이 매번 달라 병렬 빌드가 충돌하지 않는다.
+- 테스트마다 바깥 트랜잭션을 열고(SAVEPOINT 모드) 끝나면 롤백해 서로 격리한다. Repository의 `add`/`update`는 SAVEPOINT 안에서 flush하므로 제약 위반이 나도 같은 세션을 계속 쓸 수 있다.
+- 개발 DB(`neoinesales`)의 데이터는 읽지도 쓰지도 않는다.
 
-```python
-# tests/integration/conftest.py  (스케치: 구현 시 mypy strict와 Ruff 규칙에 맞게 다듬는다)
-import os
-import uuid
-from collections.abc import AsyncIterator
+## 3. 사용법
 
-import pytest
-import pytest_asyncio
-from sqlalchemy import text
-from sqlalchemy.engine import make_url
-from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
-
-
-@pytest.fixture(scope="session")
-def admin_url() -> str:
-    url = os.environ.get("TEST_DATABASE_ADMIN_URL")
-    if not url:
-        pytest.skip("TEST_DATABASE_ADMIN_URL이 없어 통합 테스트를 건너뜁니다")
-    return url
-
-
-@pytest_asyncio.fixture(scope="session")
-async def test_engine(admin_url: str) -> AsyncIterator[AsyncEngine]:
-    name = f"app_test_{uuid.uuid4().hex[:8]}"
-    admin = create_async_engine(admin_url, isolation_level="AUTOCOMMIT")
-    async with admin.connect() as conn:
-        await conn.execute(text(f'CREATE DATABASE "{name}"'))
-    engine = create_async_engine(make_url(admin_url).set(database=name))
-    # TODO: 스키마 적용(Alembic upgrade 또는 metadata.create_all)
-    try:
-        yield engine
-    finally:
-        await engine.dispose()
-        async with admin.connect() as conn:
-            await conn.execute(text(f'DROP DATABASE "{name}" WITH (FORCE)'))
-        await admin.dispose()
+```
+cd backend
+uv run pytest                          # 단위 + 통합 전체
+uv run pytest -m integration           # 실제 PostgreSQL이 필요한 테스트만
+uv run pytest -m "not integration"     # 빠른 단위 테스트만(DB 불필요)
+uv run pytest -rs                      # 건너뛴 테스트와 그 이유를 표시
 ```
 
-## 4. 규칙과 주의
+- 필요한 것: PostgreSQL 실행, 접속 role에 `CREATEDB` 권한(`ALTER ROLE <role> CREATEDB;`).
+- 새 통합 테스트는 `tests/integration/`에 두고 `pytestmark = pytest.mark.integration`을 붙인다. `session` fixture를 받아 Repository를 만든다.
+- 마이그레이션이 필요한 변경(테이블·제약)은 마이그레이션 파일을 먼저 만들고 `tests/integration/test_migrations.py`에 제약 동작 테스트를 추가한다.
 
-- DB 이름은 코드가 생성한 값만 SQL에 넣는다(사용자 입력 금지). Ruff `S608` 경고가 나면 해당 줄에만 근거와 함께 `noqa`를 단다.
-- `pytest-asyncio`의 세션 범위 async fixture는 이벤트 루프 범위 설정이 필요할 수 있다. 구현 시 현재 설치 버전의 문서를 Context7로 확인한다.
-- Windows 개발자는 WSL2의 PostgreSQL을 쓰는 것을 권장한다(개발 가이드 3.4절).
-- 통합 테스트에는 `@pytest.mark.integration` 마커를 달고, 마커를 `pyproject.toml`에 등록해 단위 테스트만 빠르게 돌릴 수 있게 한다.
+## 4. 건너뛰기와 실패의 기준
+
+- **건너뜀**: 관리자 접속 정보가 없을 때, DB에 접속할 수 없을 때(`OSError`), DB 오류/권한 부족(`SQLAlchemyError`). 이유는 `-rs`로 확인한다.
+- **실패**: 그 밖의 모든 예외(코드 버그, 이벤트 루프 문제 등). 예전에 `asyncio.run`이 실행 중인 루프에서 호출되어 `RuntimeError`가 났을 때 **통합 테스트 68개가 조용히 건너뛰어진 적이 있다.** 그래서 광범위한 예외를 건너뜀으로 처리하지 않는다.
+- 완료 보고에는 **건너뛴 테스트 수가 0인지** 반드시 확인한다. 건너뛴 채로 "통과"라고 보고하지 않는다.
+
+## 5. 새 Repository 구현에 계약 테스트 적용하기
+
+1. `tests/contracts/conftest.py`의 `IMPLEMENTATIONS`와 `build_case`/`build_sql_case` 계열에 새 구현을 추가한다.
+2. 선행 데이터가 필요하면(예: Deal이 참조하는 고객) `RepositoryCase.prepare`로 만든다.
+3. 같은 계약 테스트(`test_repository_contract.py`, `test_deal_repository_contract.py`)가 새 구현에도 그대로 돌아야 한다. 테스트를 구현에 맞춰 약하게 고치지 않는다.
+
+## 6. 주의
+
+- 동기 fixture에서 코루틴을 실행할 때는 `run_async`(별도 스레드)를 쓴다. 직접 `asyncio.run`을 쓰면 pytest-asyncio가 만든 루프와 충돌할 수 있다.
+- 임시 DB 이름은 코드가 생성한 값만 SQL에 넣는다(사용자 입력 금지).
+- Windows 개발자는 WSL2의 PostgreSQL 사용을 권장한다(개발 가이드 3.4절).

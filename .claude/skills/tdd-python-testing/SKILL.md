@@ -51,4 +51,4 @@ description: backend 기능을 구현하기 전에 pytest 테스트를 먼저 �
 ## 참조 (필요할 때만 읽는다)
 
 - `references/fakes.md`: Fake UoW/Repository 예와 계약 테스트 패턴
-- `references/db-fixtures.md`: 통합 테스트용 임시 DB fixture 설계(구현 시점 안내 포함)
+- `references/db-fixtures.md`: 통합 테스트용 임시 DB fixture(구현됨) 사용법, 건너뜀·실패 기준, 새 구현에 계약 테스트 적용하는 법
