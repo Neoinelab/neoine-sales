@@ -20,6 +20,8 @@ uv run python scripts/run_gates.py          # 전체 게이트(ruff, format, myp
 uv run python scripts/run_gates.py --only mypy
 ```
 
+프런트엔드(`frontend/`, pnpm): `pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm build`. 백엔드 API를 바꾸면 `uv run python scripts/export_openapi.py`(backend) 후 `pnpm gen:api`(frontend)를 실행해 둘 다 커밋합니다. 로컬에서 corepack 서명 오류가 나면 `COREPACK_INTEGRITY_KEYS=0 corepack pnpm …`.
+
 ## 작업 방식 (하네스)
 
 - 규칙 Skill: `layer-architecture-rules`(계층·Port·SOLID), `tdd-python-testing`(테스트 선행·Fake Port), `config-and-secrets`(프로파일·환경변수). 해당 작업을 하기 전에 먼저 읽습니다.
@@ -41,3 +43,4 @@ uv run python scripts/run_gates.py --only mypy
 | --- | --- | --- | --- |
 | 2026-10-06 | 1~2단계 초기 구성: 권한·hooks, `run_gates.py`, 규칙 Skill 3개, `quality-gate` Agent | 전체 | 개발 시작 전 규칙·검증·안전장치 확보 |
 | 2026-10-07 | web 단계 반영: `scripts/export_openapi.py`(API 계약 파일 생성, 드리프트는 pytest가 검사), ruff가 `src/app/web/**`의 TC 규칙을 면제하고 pydantic 모델을 런타임 평가 대상으로 지정 | `backend/pyproject.toml`, `backend/scripts/` | FastAPI가 타입 힌트를 런타임에 해석 |
+| 2026-10-07 | 인증·프런트엔드 단계: 프런트엔드 검증 명령(pnpm)과 API 타입 재생성 절차를 안내에 추가 | `CLAUDE.md` | 하네스 게이트(`run_gates.py`)는 backend 전용이라 frontend 검증 명령을 따로 안내 |

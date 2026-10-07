@@ -313,9 +313,11 @@ psql "postgresql://neoine@localhost:5432/neoinesales" -c "select 1"</code></pre>
 <tr><td colspan="6"><strong>웹/보안</strong></td></tr>
 <tr><td><code>APP_CORS_ALLOWED_ORIGINS</code></td><td>허용 Origin (JSON 배열 문자열)</td><td></td><td><code>["http://localhost:5173"]</code></td><td><code>["https://dev.sales.internal.example.com"]</code></td><td><code>["https://sales.internal.example.com"]</code> (<code>*</code> 금지)</td></tr>
 <tr><td><code>APP_COOKIE_SECURE</code></td><td>쿠키 Secure 속성 (HTTPS 전용)</td><td></td><td>false</td><td>true</td><td>true (필수)</td></tr>
-<tr><td><code>APP_JWT_SECRET</code></td><td>JWT 서명 키 (32자 이상 무작위)</td><td>●</td><td>고정 개발용 값</td><td>dev 전용 키</td><td>product 전용 키</td></tr>
-<tr><td><code>APP_ACCESS_TOKEN_TTL_MINUTES</code></td><td>액세스 토큰 수명(분)</td><td></td><td>60</td><td>15</td><td>15</td></tr>
-<tr><td><code>APP_REFRESH_TOKEN_TTL_DAYS</code></td><td>리프레시 토큰 수명(일)</td><td></td><td>30</td><td>7</td><td>7</td></tr>
+<tr><td><code>APP_JWT_SECRET</code></td><td>로그인 진행 상태(state) 서명 키 (32자 이상 무작위, 이름은 호환 때문에 유지)</td><td>●</td><td>고정 개발용 값</td><td>dev 전용 키</td><td>product 전용 키</td></tr>
+<tr><td><code>APP_SESSION_TTL_HOURS</code></td><td>로그인 세션 수명(시간)</td><td></td><td>8</td><td>8</td><td>8</td></tr>
+<tr><td><code>APP_OIDC_ISSUER</code>, <code>APP_OIDC_CLIENT_ID</code>, <code>APP_OIDC_CLIENT_SECRET</code>, <code>APP_OIDC_REDIRECT_URI</code></td><td>SSO(OIDC) 연결 정보. AD FS/Entra ID 등에서 발급</td><td>dev·product ●</td><td>비워도 됨(개발용 로그인)</td><td>dev IdP</td><td>product IdP</td></tr>
+<tr><td><code>APP_OIDC_ADMIN_GROUPS</code>, <code>APP_OIDC_SALES_GROUPS</code>, <code>APP_OIDC_GROUPS_CLAIM</code></td><td>IdP 그룹 이름 → 역할(admin/sales) 매핑(JSON 배열), 그룹 클레임 이름(기본 <code>groups</code>)</td><td>dev·product: 그룹 1개 이상 ●</td><td>-</td><td>dev 그룹</td><td>product 그룹</td></tr>
+<tr><td><code>APP_DEV_LOGIN_ENABLED</code></td><td>IdP 없는 개발용 로그인. <strong>local에서만 true 가능</strong>(다른 프로파일에서 켜면 기동 실패)</td><td></td><td>true</td><td>false</td><td>false</td></tr>
 <tr><td colspan="6"><strong>데이터 저장소</strong></td></tr>
 <tr><td><code>APP_DATABASE_URL</code></td><td>PostgreSQL 접속 URL (<code>postgresql+asyncpg://…</code>)</td><td>●</td><td>localhost PostgreSQL</td><td>dev DB 서버</td><td>product DB(Primary)</td></tr>
 <tr><td><code>APP_DB_POOL_SIZE</code></td><td>커넥션 풀 크기</td><td></td><td>5</td><td>10</td><td>워커 수와 DB 한도에 맞춰 산정</td></tr>
@@ -369,7 +371,7 @@ class Settings(BaseSettings):
     cors_allowed_origins: list[str] = Field(default_factory=list)   # 환경변수는 JSON 배열 문자열
     cookie_secure: bool = True
     jwt_secret: SecretStr                                           # 비밀: 기본값 없음 = 필수
-    access_token_ttl_minutes: int = 15
+    session_ttl_hours: int = 8
 
     database_url: PostgresDsn                                       # 필수 (비밀 포함 URL)
     db_pool_size: int = Field(default=10, ge=1)
@@ -1096,6 +1098,13 @@ async def place_order(
   <li><strong>삭제 규칙</strong>: 모든 삭제는 소프트 삭제입니다. <strong>삭제되지 않은 Deal이 참조하는 고객·파트너는 삭제할 수 없고</strong>(409 <code>invalid-state</code>), Deal을 먼저 삭제해야 합니다. Deal Code는 삭제된 Deal 것도 재사용할 수 없습니다.</li>
   <li><strong>활동 이력</strong>: 유형은 <code>call, meeting, email, demo, proposal, negotiation, contract, other</code>. 필드는 유형·제목·내용·활동 일시(시간대 필수)·활동자. 활동은 다른 Deal로 옮길 수 없고, Deal을 삭제해도 이력은 남아 계속 조회됩니다(삭제된 Deal에는 새 활동을 등록할 수 없음).</li>
   <li><strong>활동 검색</strong>: <code>deal_id, action_type, actor, keyword, acted_from, acted_to, offset, limit</code>를 AND로 결합합니다. <code>keyword</code>는 제목·내용에서 대소문자 무시 부분 일치(<code>%</code>·<code>_</code>는 글자 그대로), 기간은 <code>acted_from</code> 이상 <code>acted_to</code> 미만, 정렬은 활동 일시 내림차순입니다.</li>
+  <li><strong>인증</strong>: SSO(OIDC, AD FS·Entra ID 등)를 <strong>백엔드가</strong> Authorization Code + PKCE로 처리하고 브라우저에는 HttpOnly 세션 쿠키(<code>neoine_session</code>, SameSite=Lax, <code>cookie_secure</code> 설정에 따라 Secure)만 줍니다. 토큰이 JS에 노출되지 않고 client secret은 서버에만 있습니다. 세션은 DB(<code>auth_sessions</code>)에 <strong>토큰 해시만</strong> 저장해 로그아웃·폐기가 즉시 반영됩니다. <code>/api/v1/auth/login</code> → IdP → <code>/api/v1/auth/callback</code> → <code>/</code>, 실패하면 <code>/login?error=auth|denied</code>로 보냅니다.
+    <ul>
+    <li><strong>역할</strong>: IdP 그룹을 <code>APP_OIDC_ADMIN_GROUPS</code>/<code>APP_OIDC_SALES_GROUPS</code>로 admin/sales에 매핑합니다(대소문자 무시, admin 우선). 어느 그룹에도 없으면 로그인 거부(<code>denied</code>). 현재는 두 역할의 API 권한 차이가 없고 <code>/auth/me</code>로 노출만 합니다.</li>
+    <li><strong>보호 범위</strong>: <code>/api/v1/auth/{config,login,callback,dev-login,logout}</code>와 상태 확인을 뺀 모든 API는 로그인 필수(401 <code>unauthenticated</code>). 상태를 바꾸는 요청(POST/PUT/DELETE)은 <code>X-Requested-With</code> 헤더가 있어야 하며(403 <code>csrf</code>), 프론트 API 클라이언트가 자동으로 붙입니다.</li>
+    <li><strong>개발용 로그인</strong>: <code>APP_DEV_LOGIN_ENABLED=true</code>(local 기본)일 때만 <code>POST /api/v1/auth/dev-login</code>이 존재합니다. dev·product 프로파일에서 켜면 설정 검증이 기동을 막습니다.</li>
+    <li>IdP 연동 정보(발급자 URL, 클라이언트 ID·시크릿, 리다이렉트 URI)와 그룹 클레임은 IdP 관리자에게 받아야 합니다. AD FS는 앱 그룹을 <code>groups</code> 클레임으로 내보내도록 Claim Rule을 설정해야 합니다.</li>
+    </ul></li>
   <li><strong>오류 형식</strong>: 모든 오류는 <code>application/problem+json</code>이며 <code>type</code> 끝부분으로 구분합니다.
     <table>
     <tr><th>type</th><th>상태</th><th>원인</th></tr>
@@ -1107,12 +1116,22 @@ async def place_order(
     <tr><td><code>request-validation</code></td><td>422</td><td>요청 형식 오류(<code>errors</code> 배열에 위치 포함)</td></tr>
     <tr><td><code>domain-error</code></td><td>400</td><td>그 밖의 도메인 오류</td></tr>
     <tr><td><code>not-ready</code></td><td>503</td><td>의존 자원 준비 안 됨</td></tr>
+    <tr><td><code>unauthenticated</code></td><td>401</td><td>로그인하지 않았거나 세션 만료·폐기</td></tr>
+    <tr><td><code>forbidden</code></td><td>403</td><td>권한 없음</td></tr>
+    <tr><td><code>csrf</code></td><td>403</td><td>쓰기 요청에 <code>X-Requested-With</code> 헤더 없음</td></tr>
     </table></li>
   <li><strong>조립</strong>: web 계층은 infra를 import하지 않고 <code>UseCaseProvider</code>(Protocol)만 알며, <code>container.py</code>가 DB 엔진·UoW·시계를 연결합니다. <code>create_app(settings, use_cases)</code>에 Fake를 주입해 DB 없이 API 전 구간을 테스트합니다. 운영 실행은 <code>uvicorn app.main:app</code>이며 <code>app</code>은 처음 접근할 때 설정을 읽어 만들어집니다.</li>
 </ul>
 
 <!-- ============================================================ -->
 <h2 id="frontend">11. 프론트엔드 상세</h2>
+<div class="callout"><p><strong>구현 현황(<code>frontend/</code>)</strong>: Vite + React + TypeScript, React Router(선언형), TanStack Query, <code>openapi-typescript</code> + <code>openapi-fetch</code>, 테스트는 Vitest + Testing Library, 린트는 ESLint(+jsx-a11y). 화면은 로그인, 딜(목록·등록·수정·삭제·상세), 딜 활동 이력(기록·수정·삭제·검색), 활동 전체 검색, 고객, 파트너입니다. 폼 라이브러리(React Hook Form/Zod)와 UI 키트(Tailwind 등)는 아직 쓰지 않고, 입력 검증은 서버(problem+json)를 기준으로 오류 메시지를 보여줍니다.</p>
+<ul>
+  <li><strong>명령</strong>(<code>frontend/</code>에서, pnpm): <code>pnpm dev</code>(5173, <code>/api</code>를 <code>localhost:8000</code>으로 프록시), <code>pnpm gen:api</code>(<code>backend/openapi.json</code> → <code>src/shared/api/schema.d.ts</code>, 백엔드 API를 바꾼 뒤 실행해 함께 커밋), <code>pnpm typecheck</code>, <code>pnpm lint</code>, <code>pnpm test</code>, <code>pnpm build</code>.</li>
+  <li><strong>구조</strong>: <code>src/features/{auth,customers,partners,deals,actions}</code>(화면·훅·폼), <code>src/shared/{api,ui}</code>(API 클라이언트·problem 처리·공용 컴포넌트). 금액은 문자열로 주고받아 소수 정밀도를 지킵니다. 고객·파트너 선택 목록은 한 번에 최대 200건만 불러오므로 그 이상이면 검색형 선택으로 바꿔야 합니다.</li>
+  <li><strong>로그인 화면</strong>: 서버의 <code>/auth/config</code>에 따라 "회사 계정(AD)으로 로그인"(OIDC)과 "개발용 로그인"(local)을 보여줍니다.</li>
+  <li><strong>환경 메모</strong>: TypeScript는 5.x에 고정합니다(<code>openapi-typescript</code>가 TS 7의 네이티브 컴파일러에는 없는 JS API를 씁니다). Node 23 번들 corepack이 서명 키 오류로 실패하면 <code>COREPACK_INTEGRITY_KEYS=0 corepack pnpm …</code>으로 실행하거나 corepack을 갱신하세요.</li>
+</ul></div>
 <ul>
   <li><strong>구성</strong>: Vite + React + TypeScript, 라우팅은 React Router 또는 TanStack Router.</li>
   <li><strong>서버 상태</strong>: TanStack Query. API 클라이언트는 OpenAPI에서 <strong>자동 생성</strong>(<code>openapi-typescript</code> + <code>openapi-fetch</code>, 또는 <code>orval</code>, <code>@hey-api/openapi-ts</code>).</li>
