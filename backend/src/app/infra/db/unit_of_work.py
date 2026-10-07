@@ -6,6 +6,7 @@ from app.infra.db.customer_repository import SqlCustomerRepository
 from app.infra.db.deal_action_repository import SqlDealActionRepository
 from app.infra.db.deal_repository import SqlDealRepository
 from app.infra.db.partner_repository import SqlPartnerRepository
+from app.infra.db.session_repository import SqlSessionRepository
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -18,6 +19,7 @@ class SqlUnitOfWork:
     partners: SqlPartnerRepository
     deals: SqlDealRepository
     deal_actions: SqlDealActionRepository
+    sessions: SqlSessionRepository
 
     def __init__(self, session_factory: async_sessionmaker[AsyncSession]) -> None:
         self._session_factory = session_factory
@@ -28,6 +30,7 @@ class SqlUnitOfWork:
         self.partners = SqlPartnerRepository(self._session)
         self.deals = SqlDealRepository(self._session)
         self.deal_actions = SqlDealActionRepository(self._session)
+        self.sessions = SqlSessionRepository(self._session)
         return self
 
     async def __aexit__(self, *exc: object) -> None:

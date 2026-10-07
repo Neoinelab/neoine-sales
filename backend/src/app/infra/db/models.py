@@ -100,3 +100,22 @@ class DealActionRow(AuditColumns, Base):
         Index("ix_deal_actions_deal_id_acted_at", "deal_id", "acted_at"),
         Index("ix_deal_actions_acted_at", "acted_at"),
     )
+
+
+class AuthSessionRow(Base):
+    __tablename__ = "auth_sessions"
+
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True)
+    token_hash: Mapped[str] = mapped_column(String(64))
+    subject: Mapped[str] = mapped_column(String(200))
+    email: Mapped[str | None] = mapped_column(String(254), default=None)
+    name: Mapped[str] = mapped_column(String(200))
+    role: Mapped[str] = mapped_column(String(20))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
+
+    __table_args__ = (
+        UniqueConstraint("token_hash"),
+        Index("ix_auth_sessions_expires_at", "expires_at"),
+    )

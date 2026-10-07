@@ -6,6 +6,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from app.domain.auth.errors import AccessDeniedError, AuthenticationError
 from app.domain.common.errors import (
     AlreadyExistsError,
     DomainError,
@@ -14,12 +15,15 @@ from app.domain.common.errors import (
     InvalidValueError,
     NotFoundError,
 )
+from app.web.security import CsrfRejectedError
 
 PROBLEM_JSON = "application/problem+json"
 TYPE_BASE = "https://neoine-sales.example/problems/"
 
 # 구체적인 예외가 먼저 와야 한다(DomainError는 마지막 기본값).
 _DOMAIN_MAPPING: tuple[tuple[type[DomainError], int, str], ...] = (
+    (AuthenticationError, 401, "unauthenticated"),
+    (AccessDeniedError, 403, "forbidden"),
     (NotFoundError, 404, "not-found"),
     (AlreadyExistsError, 409, "already-exists"),
     (InvalidReferenceError, 422, "invalid-reference"),
@@ -36,6 +40,9 @@ _TITLES = {
     "domain-error": "Domain Error",
     "request-validation": "Request Validation Failed",
     "not-ready": "Service Not Ready",
+    "unauthenticated": "Unauthenticated",
+    "forbidden": "Forbidden",
+    "csrf": "CSRF Check Failed",
     "http-error": "HTTP Error",
 }
 
@@ -82,7 +89,12 @@ async def _http_error(request: Request, exc: Exception) -> JSONResponse:
     return response
 
 
+async def _csrf_error(request: Request, _: Exception) -> JSONResponse:
+    return problem(request, 403, "csrf", "요청 헤더(X-Requested-With)가 필요합니다")
+
+
 def register_error_handlers(app: FastAPI) -> None:
+    app.add_exception_handler(CsrfRejectedError, _csrf_error)
     app.add_exception_handler(DomainError, _domain_error)
     app.add_exception_handler(RequestValidationError, _validation_error)
     app.add_exception_handler(StarletteHTTPException, _http_error)

@@ -12,9 +12,18 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 JWT_SECRET = "x" * 40
+OIDC_ENV = {
+    "APP_OIDC_ISSUER": "https://adfs.example.com/adfs",
+    "APP_OIDC_CLIENT_ID": "neoine-sales",
+    "APP_OIDC_CLIENT_SECRET": "client-secret-value",
+    "APP_OIDC_REDIRECT_URI": "https://sales.example.com/api/v1/auth/callback",
+    "APP_OIDC_ADMIN_GROUPS": '["Sales-Admins"]',
+    "APP_OIDC_SALES_GROUPS": '["Sales-Team"]',
+}
 BASE_ENV = {
     "APP_DATABASE_URL": "postgresql+asyncpg://u:p@localhost:5432/app",
     "APP_JWT_SECRET": JWT_SECRET,
+    **OIDC_ENV,
 }
 PRODUCT_ENV = {
     "APP_PROFILE": "product",
@@ -141,4 +150,75 @@ def test_invalid_redis_url_is_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("APP_REDIS_URL", "not-a-redis-url")
 
     with pytest.raises(ValidationError, match="redis_url"):
+        get_settings()
+
+
+def test_local_enables_dev_login_by_default() -> None:
+    assert get_settings().dev_login_enabled is True
+
+
+def test_dev_login_is_forbidden_outside_local(monkeypatch: pytest.MonkeyPatch) -> None:
+    _set(monkeypatch, {"APP_PROFILE": "dev", "APP_DEV_LOGIN_ENABLED": "true"})
+
+    with pytest.raises(ValidationError, match="dev_login"):
+        get_settings()
+
+
+def test_dev_login_is_forbidden_in_product(monkeypatch: pytest.MonkeyPatch) -> None:
+    _set(monkeypatch, {**PRODUCT_ENV, "APP_DEV_LOGIN_ENABLED": "true"})
+
+    with pytest.raises(ValidationError, match="dev_login"):
+        get_settings()
+
+
+@pytest.mark.parametrize("profile", ["dev", "product"])
+@pytest.mark.parametrize("missing", [k for k in sorted(OIDC_ENV) if "GROUPS" not in k])
+def test_oidc_settings_are_required_outside_local(
+    monkeypatch: pytest.MonkeyPatch, profile: str, missing: str
+) -> None:
+    _set(monkeypatch, {**PRODUCT_ENV, "APP_PROFILE": profile})
+    monkeypatch.delenv(missing)
+
+    with pytest.raises(ValidationError, match="OIDC"):
+        get_settings()
+
+
+def test_local_without_dev_login_requires_oidc(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("APP_DEV_LOGIN_ENABLED", "false")
+    monkeypatch.delenv("APP_OIDC_ISSUER")
+
+    with pytest.raises(ValidationError, match="OIDC"):
+        get_settings()
+
+
+def test_local_with_dev_login_does_not_need_oidc(monkeypatch: pytest.MonkeyPatch) -> None:
+    for key in OIDC_ENV:
+        monkeypatch.delenv(key)
+
+    settings = get_settings()
+
+    assert settings.oidc_enabled is False
+    assert settings.dev_login_enabled is True
+
+
+def test_oidc_group_lists_and_defaults() -> None:
+    settings = get_settings()
+
+    assert settings.oidc_enabled is True
+    assert settings.oidc_admin_groups == ["Sales-Admins"]
+    assert settings.oidc_sales_groups == ["Sales-Team"]
+    assert settings.oidc_groups_claim == "groups"
+    assert settings.session_ttl_hours == 8
+    assert "client-secret-value" not in repr(settings)
+
+
+@pytest.mark.parametrize("profile", ["dev", "product"])
+def test_at_least_one_oidc_group_is_required_outside_local(
+    monkeypatch: pytest.MonkeyPatch, profile: str
+) -> None:
+    _set(monkeypatch, {**PRODUCT_ENV, "APP_PROFILE": profile})
+    monkeypatch.delenv("APP_OIDC_ADMIN_GROUPS")
+    monkeypatch.delenv("APP_OIDC_SALES_GROUPS")
+
+    with pytest.raises(ValidationError, match="OIDC 그룹"):
         get_settings()

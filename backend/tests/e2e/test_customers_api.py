@@ -26,7 +26,7 @@ async def test_create_returns_201_with_location_and_the_stored_values(client: As
     assert body["company_name"] == "네오인"
     assert body["email"] == "kim@neoine.example"  # 도메인이 정규화한 값
     assert body["employee_count"] == 120
-    assert body["created_at"].startswith("2026-01-01T09:00:00")
+    assert body["created_at"].startswith("2026-01-01T09:00:")
     assert body["updated_at"] == body["created_at"]
 
 

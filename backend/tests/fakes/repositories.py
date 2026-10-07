@@ -4,6 +4,7 @@ import copy
 from typing import TYPE_CHECKING
 
 from app.application.ports.pagination import DEFAULT_LIMIT
+from app.domain.common.errors import AlreadyExistsError, NotFoundError
 from app.domain.customer.entities import Customer
 from app.domain.customer.errors import CustomerNotFoundError
 from app.domain.deal.entities import Deal
@@ -18,6 +19,7 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from app.application.ports.deal_action_repository import DealActionQuery
+    from app.domain.auth.session import AuthSession
     from app.domain.customer.value_objects import CustomerId
     from app.domain.deal.value_objects import DealCode, DealId
     from app.domain.deal_action.value_objects import DealActionId
@@ -141,3 +143,24 @@ class FakeDealActionRepository(InMemoryStore[DealAction]):
 
     async def update(self, action: DealAction) -> None:
         self._replace(action)
+
+
+class FakeSessionRepository:
+    def __init__(self) -> None:
+        self._items: dict[str, AuthSession] = {}
+
+    async def add(self, session: AuthSession, token_hash: str) -> None:
+        if token_hash in self._items:
+            raise AlreadyExistsError("세션", token_hash)
+        self._items[token_hash] = copy.deepcopy(session)
+
+    async def get_by_token_hash(self, token_hash: str) -> AuthSession | None:
+        found = self._items.get(token_hash)
+        return copy.deepcopy(found) if found else None
+
+    async def update(self, session: AuthSession) -> None:
+        for token_hash, stored in self._items.items():
+            if stored.id == session.id:
+                self._items[token_hash] = copy.deepcopy(session)
+                return
+        raise NotFoundError("세션", session.id)

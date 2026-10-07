@@ -27,9 +27,9 @@ def test_every_endpoint_documents_its_error_responses() -> None:
     schema = create_app(settings=make_settings(), use_cases=FakeUseCases()).openapi()
 
     for path, operations in schema["paths"].items():
-        if not path.startswith("/api/v1/"):
+        if not path.startswith("/api/v1/") or path.startswith("/api/v1/auth/"):
             continue
         for method, operation in operations.items():
-            assert "422" in operation["responses"], (
-                f"{method.upper()} {path}에 422 응답 문서가 없다"
-            )
+            responses = operation["responses"]
+            assert "422" in responses, f"{method.upper()} {path}에 422 응답 문서가 없다"
+            assert "401" in responses, f"{method.upper()} {path}에 401 응답 문서가 없다"

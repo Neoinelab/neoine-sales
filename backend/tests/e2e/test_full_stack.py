@@ -14,8 +14,9 @@ from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.pool import NullPool
 
 from app.container import Container
+from app.domain.auth.principal import Role
 from app.main import create_app
-from tests.e2e.conftest import make_settings
+from tests.e2e.conftest import make_settings, new_client
 from tests.e2e.payloads import action_payload, customer_payload, deal_payload, partner_payload
 
 if TYPE_CHECKING:
@@ -26,6 +27,7 @@ if TYPE_CHECKING:
 CUSTOMERS = "/api/v1/customers"
 PARTNERS = "/api/v1/partners"
 DEALS = "/api/v1/deals"
+TRUNCATE_ALL = "truncate auth_sessions, deal_actions, deals, customers, partners cascade"
 
 
 @pytest_asyncio.fixture
@@ -34,16 +36,15 @@ async def stack(test_database_url: URL) -> AsyncIterator[AsyncClient]:
     container = Container(settings)
     app = create_app(settings=settings, use_cases=container)
     try:
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as http:
+        token = (await container.dev_login().execute(Role.SALES)).token
+        async with new_client(app, token=token) as http:
             yield http
     finally:
         await container.dispose()
         engine = create_async_engine(test_database_url, poolclass=NullPool)
         try:
             async with engine.begin() as connection:
-                await connection.execute(
-                    text("truncate deal_actions, deals, customers, partners cascade")
-                )
+                await connection.execute(text(TRUNCATE_ALL))
         finally:
             await engine.dispose()
 
@@ -167,3 +168,15 @@ async def test_deal_history_is_recorded_and_searched_in_the_database(stack: Asyn
     assert [a["title"] for a in ranged] == ["제안서 발송"]
     assert (await stack.delete(f"{DEALS}/{deal['id']}")).status_code == 204
     assert len((await stack.get(f"{DEALS}/{deal['id']}/actions")).json()["items"]) == 2
+
+
+@pytest.mark.integration
+async def test_sessions_live_in_the_database_and_logout_revokes_them(stack: AsyncClient) -> None:
+    me = await stack.get("/api/v1/auth/me")
+    assert me.status_code == 200
+    assert me.json()["role"] == "sales"
+
+    assert (await stack.post("/api/v1/auth/logout")).status_code == 204
+
+    assert (await stack.get("/api/v1/auth/me")).status_code == 401
+    assert (await stack.get(CUSTOMERS)).status_code == 401

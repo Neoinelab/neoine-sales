@@ -4,18 +4,20 @@ from contextlib import asynccontextmanager
 from functools import lru_cache
 from typing import TYPE_CHECKING
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import Settings, get_settings
 from app.container import Container
 from app.web.error_handlers import register_error_handlers
-from app.web.routers import customers, deal_actions, deals, health, partners
+from app.web.routers import auth, customers, deal_actions, deals, health, partners
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
 
     from app.web.use_case_provider import UseCaseProvider
+from app.web.routers.responses import PROBLEM
+from app.web.security import AuthOptions, require_csrf_header, require_login
 
 
 def create_app(
@@ -47,9 +49,18 @@ def create_app(
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    app.state.auth_options = AuthOptions(
+        cookie_secure=settings.cookie_secure,
+        session_ttl_seconds=settings.session_ttl_hours * 3600,
+        oidc_enabled=settings.oidc_enabled,
+        dev_login_enabled=settings.dev_login_enabled,
+    )
     register_error_handlers(app)
-    for module in (health, customers, partners, deals, deal_actions):
-        app.include_router(module.router)
+    app.include_router(health.router)
+    app.include_router(auth.router)
+    guard = [Depends(require_login), Depends(require_csrf_header)]
+    for module in (customers, partners, deals, deal_actions):
+        app.include_router(module.router, dependencies=guard, responses={401: PROBLEM})
     return app
 
 

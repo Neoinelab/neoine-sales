@@ -1,5 +1,15 @@
 """UseCaseProvider의 Fake. 실제 유스케이스를 FakeUnitOfWork·FixedClock으로 조립한다(DB 없음)."""
 
+from datetime import timedelta
+
+from app.application.auth.authenticate import Authenticate
+from app.application.auth.begin_login import BeginLogin
+from app.application.auth.complete_login import CompleteLogin
+from app.application.auth.dev_login import DevLogin
+from app.application.auth.issue_session import IssueSession
+from app.application.auth.login_state import LoginStateCodec
+from app.application.auth.logout import Logout
+from app.application.auth.role_mapping import RoleMapper
 from app.application.customer.delete_customer import DeleteCustomer
 from app.application.customer.get_customer import GetCustomer
 from app.application.customer.list_customers import ListCustomers
@@ -22,6 +32,7 @@ from app.application.partner.list_partners import ListPartners
 from app.application.partner.register_partner import RegisterPartner
 from app.application.partner.update_partner import UpdatePartner
 from tests.factories import NOW
+from tests.fakes.identity_provider import FakeIdentityProvider
 from tests.fakes.unit_of_work import FakeUnitOfWork, SteppingClock
 
 
@@ -30,6 +41,10 @@ class FakeUseCases:
         self.uow = FakeUnitOfWork()
         self.clock = SteppingClock(NOW)
         self.ready_error: Exception | None = None
+        self.identity_provider = FakeIdentityProvider()
+        self._login_state = LoginStateCodec("s" * 40, self.clock)
+        self._roles = RoleMapper(["Sales-Admins"], ["Sales-Team"])
+        self._issue_session = IssueSession(self._factory, self.clock, timedelta(hours=8))
 
     def _factory(self) -> FakeUnitOfWork:
         return self.uow
@@ -96,6 +111,23 @@ class FakeUseCases:
 
     def delete_deal_action(self) -> DeleteDealAction:
         return DeleteDealAction(self._factory, self.clock)
+
+    def begin_login(self) -> BeginLogin:
+        return BeginLogin(self.identity_provider, self._login_state)
+
+    def complete_login(self) -> CompleteLogin:
+        return CompleteLogin(
+            self.identity_provider, self._login_state, self._roles, self._issue_session
+        )
+
+    def dev_login(self) -> DevLogin:
+        return DevLogin(self._issue_session)
+
+    def authenticate(self) -> Authenticate:
+        return Authenticate(self._factory, self.clock)
+
+    def logout(self) -> Logout:
+        return Logout(self._factory, self.clock)
 
     async def check_ready(self) -> None:
         if self.ready_error is not None:

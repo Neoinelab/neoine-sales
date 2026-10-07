@@ -13,6 +13,7 @@ from tests.fakes.repositories import (
     FakeDealActionRepository,
     FakeDealRepository,
     FakePartnerRepository,
+    FakeSessionRepository,
 )
 
 
@@ -22,11 +23,12 @@ class FakeUnitOfWork:
         self.partners = FakePartnerRepository()
         self.deals = FakeDealRepository()
         self.deal_actions = FakeDealActionRepository()
+        self.sessions = FakeSessionRepository()
         self.commits = 0
         self._snapshot: tuple[Any, ...] | None = None
 
     def _repositories(self) -> tuple[Any, ...]:
-        return (self.customers, self.partners, self.deals, self.deal_actions)
+        return (self.customers, self.partners, self.deals, self.deal_actions, self.sessions)
 
     def _take(self) -> tuple[Any, ...]:
         return tuple(copy.deepcopy(repo._items) for repo in self._repositories())

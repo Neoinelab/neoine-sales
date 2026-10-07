@@ -6,6 +6,7 @@ if TYPE_CHECKING:
     from app.application.ports.deal_action_repository import DealActionRepository
     from app.application.ports.deal_repository import DealRepository
     from app.application.ports.partner_repository import PartnerRepository
+    from app.application.ports.session_repository import SessionRepository
 
 
 class UnitOfWork(Protocol):
@@ -26,6 +27,9 @@ class UnitOfWork(Protocol):
 
     @property
     def deal_actions(self) -> DealActionRepository: ...
+
+    @property
+    def sessions(self) -> SessionRepository: ...
 
     async def __aenter__(self) -> Self: ...
 

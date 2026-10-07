@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 
 pytestmark = pytest.mark.integration
 
-EXPECTED_TABLES = {"customers", "partners", "deals", "deal_actions"}
+EXPECTED_TABLES = {"customers", "partners", "deals", "deal_actions", "auth_sessions"}
 
 
 async def _insert_customer(session: AsyncSession, **overrides: object) -> str:
