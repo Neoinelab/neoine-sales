@@ -65,8 +65,15 @@ max-args = 5
 max-branches = 12
 max-statements = 30
 
+[tool.ruff.lint.flake8-type-checking]
+# SQLAlchemy는 Mapped[...] 타입을 런타임에 해석하므로 ORM 클래스가 쓰는 import는 옮기지 않는다
+runtime-evaluated-base-classes = ["app.infra.db.base.Base", "app.infra.db.models.AuditColumns"]
+
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["S101", "PLR2004"]
+"alembic/versions/*" = [  # 자동 생성 마이그레이션: 생성 형식(Union 등)과 긴 줄을 그대로 둔다
+  "E501", "ANN", "D", "N999", "RUF012", "I001", "UP006", "UP007", "UP035", "TC",
+]
 
 [tool.mypy]
 strict = true
@@ -78,6 +85,9 @@ mypy_path = "src"
 asyncio_mode = "auto"
 testpaths = ["tests"]
 addopts = "--cov=app --cov-report=term-missing"
+markers = [
+  "integration: 실제 PostgreSQL 임시 DB가 필요한 테스트 (빠른 단위 테스트만: -m 'not integration')",
+]
 
 [tool.importlinter]
 root_package = "app"
