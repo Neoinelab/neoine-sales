@@ -1281,6 +1281,13 @@ export interface operations {
     list_deals_api_v1_deals_get: {
         parameters: {
             query?: {
+                keyword?: string | null;
+                customer_id?: string | null;
+                partner_id?: string | null;
+                owner?: string | null;
+                vendor?: string | null;
+                revenue_from?: string | null;
+                revenue_to?: string | null;
                 offset?: number;
                 limit?: number;
             };

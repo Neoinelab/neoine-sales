@@ -6,10 +6,26 @@ import { PAGE_SIZE } from '../../shared/constants'
 export type Deal = Schemas['DealResponse']
 export type DealInput = Schemas['DealRequest']
 
-export function useDeals(offset: number) {
+export interface DealFilters {
+  keyword?: string
+  customer_id?: string
+  partner_id?: string
+  owner?: string
+  vendor?: string
+  revenue_from?: string
+  revenue_to?: string
+}
+
+/** 빈 값(undefined·빈 문자열) 조건은 보내지 않는다. */
+function clean(filters: DealFilters): DealFilters {
+  return Object.fromEntries(Object.entries(filters).filter(([, v]) => v)) as DealFilters
+}
+
+export function useDeals(filters: DealFilters, offset: number) {
+  const query = { ...clean(filters), offset, limit: PAGE_SIZE }
   return useQuery({
-    queryKey: ['deals', offset],
-    queryFn: () => call(api.GET('/api/v1/deals', { params: { query: { offset, limit: PAGE_SIZE } } })),
+    queryKey: ['deals', query],
+    queryFn: () => call(api.GET('/api/v1/deals', { params: { query } })),
   })
 }
 

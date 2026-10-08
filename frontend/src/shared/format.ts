@@ -26,3 +26,10 @@ export function dayStart(date: string, plusDays = 0): string {
   start.setDate(start.getDate() + plusDays)
   return start.toISOString()
 }
+
+/** 날짜(YYYY-MM-DD)의 다음 날(YYYY-MM-DD). 시간대와 무관하게 달력 계산만 한다. */
+export function nextDay(date: string): string {
+  const next = new Date(`${date}T00:00:00Z`)
+  next.setUTCDate(next.getUTCDate() + 1)
+  return next.toISOString().slice(0, 10)
+}

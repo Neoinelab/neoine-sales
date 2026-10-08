@@ -5,18 +5,26 @@ import { formatAmount } from '../../shared/format'
 import { ErrorBanner } from '../../shared/ui/ErrorBanner'
 import { Pager } from '../../shared/ui/Pager'
 import { useCustomerOptions } from '../customers/hooks'
+import { DealFilterBar } from './DealFilterBar'
 import { DealForm } from './DealForm'
-import { useDeals, useDeleteDeal, type Deal } from './hooks'
+import { useDeals, useDeleteDeal, type Deal, type DealFilters } from './hooks'
+
+/** 값이 있는 검색 조건이 하나라도 있는지(빈 폼이 넘기는 undefined 키는 조건이 아니다). */
+function hasCondition(filters: DealFilters): boolean {
+  return Object.values(filters).some((v) => v !== undefined && v !== '')
+}
 
 type Editing = { kind: 'new' } | { kind: 'edit'; deal: Deal } | null
 
 export function DealsPage() {
   const [offset, setOffset] = useState(0)
+  const [filters, setFilters] = useState<DealFilters>({})
   const [editing, setEditing] = useState<Editing>(null)
-  const deals = useDeals(offset)
+  const deals = useDeals(filters, offset)
   const customers = useCustomerOptions()
   const remove = useDeleteDeal()
   const items = deals.data?.items ?? []
+  const searching = hasCondition(filters)
   const customerName = new Map(customers.data?.items.map((c) => [c.id, c.company_name]))
 
   return (
@@ -35,6 +43,14 @@ export function DealsPage() {
           onDone={() => setEditing(null)}
         />
       )}
+      <DealFilterBar
+        onSearch={(next) => {
+          // 조건이 그대로면 쿼리 키가 같아 재조회되지 않으므로, 검색 버튼은 직접 다시 조회한다.
+          if (!hasCondition(next) && !hasCondition(filters) && offset === 0) void deals.refetch()
+          setFilters(next)
+          setOffset(0)
+        }}
+      />
       <table>
         <thead>
           <tr>
@@ -79,7 +95,7 @@ export function DealsPage() {
           ))}
           {deals.isSuccess && items.length === 0 && (
             <tr>
-              <td colSpan={9}>등록된 딜이 없습니다.</td>
+              <td colSpan={9}>{searching ? '조건에 맞는 딜이 없습니다.' : '등록된 딜이 없습니다.'}</td>
             </tr>
           )}
         </tbody>
