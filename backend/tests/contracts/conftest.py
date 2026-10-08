@@ -162,3 +162,16 @@ async def case(request: pytest.FixtureRequest) -> AsyncIterator[RepositoryCase]:
 async def deal_case(request: pytest.FixtureRequest) -> AsyncIterator[RepositoryCase]:
     async for provided in _provide(request):
         yield provided
+
+
+@pytest_asyncio.fixture(params=_params(("customer", "partner")))
+async def contact_case(request: pytest.FixtureRequest) -> AsyncIterator[RepositoryCase]:
+    """고객·파트너 search 계약용: kind(customer/partner)와 impl(fake/sql)의 조합."""
+    async for provided in _provide(request):
+        yield provided
+
+
+@pytest_asyncio.fixture(params=_params(("customer",)))
+async def customer_case(request: pytest.FixtureRequest) -> AsyncIterator[RepositoryCase]:
+    async for provided in _provide(request):
+        yield provided

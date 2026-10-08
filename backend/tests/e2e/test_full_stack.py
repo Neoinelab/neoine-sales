@@ -4,49 +4,18 @@
 """
 
 import asyncio
-from typing import TYPE_CHECKING
 
 import pytest
-import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import text
-from sqlalchemy.ext.asyncio import create_async_engine
-from sqlalchemy.pool import NullPool
 
 from app.container import Container
-from app.domain.auth.principal import Role
 from app.main import create_app
-from tests.e2e.conftest import make_settings, new_client
+from tests.e2e.conftest import make_settings
 from tests.e2e.payloads import action_payload, customer_payload, deal_payload, partner_payload
-
-if TYPE_CHECKING:
-    from collections.abc import AsyncIterator
-
-    from sqlalchemy.engine import URL
 
 CUSTOMERS = "/api/v1/customers"
 PARTNERS = "/api/v1/partners"
 DEALS = "/api/v1/deals"
-TRUNCATE_ALL = "truncate auth_sessions, deal_actions, deals, customers, partners cascade"
-
-
-@pytest_asyncio.fixture
-async def stack(test_database_url: URL) -> AsyncIterator[AsyncClient]:
-    settings = make_settings(database_url=test_database_url.render_as_string(hide_password=False))
-    container = Container(settings)
-    app = create_app(settings=settings, use_cases=container)
-    try:
-        token = (await container.dev_login().execute(Role.SALES)).token
-        async with new_client(app, token=token) as http:
-            yield http
-    finally:
-        await container.dispose()
-        engine = create_async_engine(test_database_url, poolclass=NullPool)
-        try:
-            async with engine.begin() as connection:
-                await connection.execute(text(TRUNCATE_ALL))
-        finally:
-            await engine.dispose()
 
 
 @pytest.mark.integration
@@ -213,3 +182,97 @@ async def test_sessions_live_in_the_database_and_logout_revokes_them(stack: Asyn
 
     assert (await stack.get("/api/v1/auth/me")).status_code == 401
     assert (await stack.get(CUSTOMERS)).status_code == 401
+
+
+@pytest.mark.integration
+async def test_stage_change_history_and_pipeline_run_in_the_database(stack: AsyncClient) -> None:
+    customer = (await stack.post(CUSTOMERS, json=customer_payload())).json()
+    deal = (await stack.post(DEALS, json=deal_payload(customer["id"]))).json()
+    other = (
+        await stack.post(
+            DEALS,
+            json=deal_payload(
+                customer["id"], code="D-2", revenue_amount="0.0001", revenue_currency="USD"
+            ),
+        )
+    ).json()
+    assert deal["stage"] == "prospecting"
+
+    first = await stack.post(f"{DEALS}/{deal['id']}/stage", json={"stage": "price_negotiation"})
+    lost = await stack.post(
+        f"{DEALS}/{deal['id']}/stage", json={"stage": "lost", "reason": "예산 삭감"}
+    )
+    blank_lost = await stack.post(f"{DEALS}/{other['id']}/stage", json={"stage": "lost"})
+    same = await stack.post(f"{DEALS}/{deal['id']}/stage", json={"stage": "lost", "reason": "x"})
+    await stack.post(f"{DEALS}/{other['id']}/stage", json={"stage": "lost", "reason": "경쟁"})
+
+    assert (first.status_code, lost.status_code) == (200, 200)
+    assert blank_lost.status_code == 422
+    assert same.status_code == 409
+    history = (await stack.get(f"{DEALS}/{deal['id']}/stage-changes")).json()["items"]
+    assert [(h["from_stage"], h["to_stage"]) for h in history] == [
+        ("price_negotiation", "lost"),
+        ("prospecting", "price_negotiation"),
+    ]
+    assert history[0]["reason"] == "예산 삭감"
+    assert history[0]["changed_by_subject"] == "dev-user"
+    assert [
+        d["code"] for d in (await stack.get(DEALS, params={"stage": "lost"})).json()["items"]
+    ] == [
+        "DEAL-001",
+        "D-2",
+    ]
+    stages = {s["stage"]: s for s in (await stack.get(f"{DEALS}/pipeline")).json()["stages"]}
+    assert stages["lost"]["deal_count"] == 2
+    assert stages["lost"]["totals"] == [
+        {"currency": "KRW", "amount": "150000000"},
+        {"currency": "USD", "amount": "0.0001"},
+    ]
+    assert stages["prospecting"] == {"stage": "prospecting", "deal_count": 0, "totals": []}
+    put = await stack.put(
+        f"{DEALS}/{deal['id']}", json=deal_payload(customer["id"], name="이름 변경")
+    )
+    assert put.json()["stage"] == "lost"
+    assert (await stack.delete(f"{DEALS}/{deal['id']}")).status_code == 204
+    assert len((await stack.get(f"{DEALS}/{deal['id']}/stage-changes")).json()["items"]) == 2
+    deleted_stages = {
+        s["stage"]: s for s in (await stack.get(f"{DEALS}/pipeline")).json()["stages"]
+    }
+    assert deleted_stages["lost"]["deal_count"] == 1
+
+
+@pytest.mark.integration
+async def test_customer_and_partner_search_run_in_the_database(stack: AsyncClient) -> None:
+    customers = [
+        {"company_name": "Alpha 100% 상사", "phone": "031-777-4321"},
+        {"company_name": "베타", "contact_title": "ALPHA 팀장"},
+        {"company_name": "감마", "notes": "alpha 메모만"},
+        {"company_name": "Alpha 삭제"},
+    ]
+    for body in customers:
+        assert (await stack.post(CUSTOMERS, json=customer_payload(**body))).status_code == 201
+    partners = [
+        {"company_name": "Alpha 파트너", "email": "Search.Me@Sample.Example"},
+        {"company_name": "델타", "contact_name": "알파"},
+        {"company_name": "Alpha 삭제"},
+    ]
+    for body in partners:
+        assert (await stack.post(PARTNERS, json=partner_payload(**body))).status_code == 201
+    for base in (CUSTOMERS, PARTNERS):
+        items = (await stack.get(base)).json()["items"]
+        gone = next(i for i in items if i["company_name"] == "Alpha 삭제")
+        assert (await stack.delete(f"{base}/{gone['id']}")).status_code == 204
+
+    async def names(base: str, **params: str) -> list[str]:
+        response = await stack.get(base, params=params)
+        assert response.status_code == 200, response.text
+        return [item["company_name"] for item in response.json()["items"]]
+
+    assert await names(CUSTOMERS, keyword="alpha") == ["Alpha 100% 상사", "베타"]
+    assert await names(CUSTOMERS, keyword="100%") == ["Alpha 100% 상사"]
+    assert await names(CUSTOMERS, keyword="777-43") == ["Alpha 100% 상사"]
+    assert await names(CUSTOMERS, keyword="alpha", offset="1", limit="1") == ["베타"]
+    assert await names(PARTNERS, keyword="SEARCH.ME") == ["Alpha 파트너"]
+    assert await names(PARTNERS, keyword="알파") == ["델타"]
+    assert await names(PARTNERS, keyword="alpha") == ["Alpha 파트너"]
+    assert await names(PARTNERS) == ["Alpha 파트너", "델타"]

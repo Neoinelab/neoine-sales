@@ -8,6 +8,7 @@ from app.application.partner.get_partner import GetPartner
 from app.application.partner.list_partners import ListPartners
 from app.application.partner.register_partner import RegisterPartner
 from app.application.partner.update_partner import UpdatePartner
+from app.application.ports.partner_repository import PartnerQuery
 from app.domain.common.errors import InvalidValueError
 from app.domain.partner.errors import PartnerNotFoundError
 from app.domain.partner.value_objects import PartnerId
@@ -63,7 +64,7 @@ async def test_list_pages_in_creation_order_and_excludes_deleted(
         created.append(await register.execute(make_partner_input(company_name=f"파트너{number}")))
     await DeletePartner(uow_factory, clock).execute(created[0].id)
 
-    page = await ListPartners(uow_factory).execute(offset=1, limit=2)
+    page = await ListPartners(uow_factory).execute(PartnerQuery(offset=1, limit=2))
 
     assert [p.id for p in page] == [created[2].id, created[3].id]
 

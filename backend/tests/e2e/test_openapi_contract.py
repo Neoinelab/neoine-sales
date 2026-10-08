@@ -47,3 +47,37 @@ def test_deal_search_text_params_document_max_length() -> None:
             if "maxLength" in option
         ]
         assert lengths == [100], f"{name} 파라미터에 maxLength 100이 없다"
+
+
+def test_customer_and_partner_search_params_document_max_length() -> None:
+    schema = create_app(settings=make_settings(), use_cases=FakeUseCases()).openapi()
+
+    for path in ("/api/v1/customers", "/api/v1/partners"):
+        params = {p["name"]: p for p in schema["paths"][path]["get"]["parameters"]}
+        assert {"keyword", "offset", "limit"} <= set(params), path
+        lengths = [
+            option["maxLength"]
+            for option in params["keyword"]["schema"]["anyOf"]
+            if "maxLength" in option
+        ]
+        assert lengths == [100], f"{path}의 keyword 파라미터에 maxLength 100이 없다"
+
+
+def test_stage_endpoints_share_the_deals_tag() -> None:
+    schema = create_app(settings=make_settings(), use_cases=FakeUseCases()).openapi()
+
+    tags = {
+        path: operation["tags"]
+        for path in (
+            "/api/v1/deals/{deal_id}/stage",
+            "/api/v1/deals/{deal_id}/stage-changes",
+            "/api/v1/deals/pipeline",
+        )
+        for operation in schema["paths"][path].values()
+    }
+
+    assert tags == {
+        "/api/v1/deals/{deal_id}/stage": ["deals"],
+        "/api/v1/deals/{deal_id}/stage-changes": ["deals"],
+        "/api/v1/deals/pipeline": ["deals"],
+    }

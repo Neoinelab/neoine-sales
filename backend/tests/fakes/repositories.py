@@ -1,6 +1,7 @@
 """Repository Port의 InMemory 구현(Fake). 단위 테스트와 계약 테스트에서 사용한다."""
 
 import copy
+from decimal import Decimal
 from typing import TYPE_CHECKING
 
 from app.application.ports.pagination import DEFAULT_LIMIT
@@ -9,6 +10,7 @@ from app.domain.customer.entities import Customer
 from app.domain.customer.errors import CustomerNotFoundError
 from app.domain.deal.entities import Deal
 from app.domain.deal.errors import DealNotFoundError, DuplicateDealCodeError
+from app.domain.deal.pipeline import StageTotal
 from app.domain.deal_action.entities import DealAction
 from app.domain.deal_action.errors import DealActionNotFoundError
 from app.domain.partner.entities import Partner
@@ -18,13 +20,36 @@ from tests.fakes.in_memory import InMemoryStore
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
+    from app.application.ports.customer_repository import CustomerQuery
     from app.application.ports.deal_action_repository import DealActionQuery
     from app.application.ports.deal_repository import DealQuery
+    from app.application.ports.partner_repository import PartnerQuery
     from app.domain.auth.session import AuthSession
     from app.domain.customer.value_objects import CustomerId
+    from app.domain.deal.stage import DealStage
     from app.domain.deal.value_objects import DealCode, DealId
     from app.domain.deal_action.value_objects import DealActionId
     from app.domain.partner.value_objects import PartnerId
+
+
+def _contact_matches(entity: Customer | Partner, keyword: str | None) -> bool:
+    """키워드 대상: 회사명·담당자명·직함·이메일·전화번호(None은 건너뜀). 고객 비고는 제외."""
+    if keyword is None:
+        return True
+    details = entity.details
+    email = details.email.value if details.email else None
+    phone = details.phone.value if details.phone else None
+    fields = (details.company_name, details.contact_name, details.contact_title, email, phone)
+    return any(keyword in text.lower() for text in fields if text is not None)
+
+
+def _search[EntityT: Customer | Partner](
+    items: Sequence[EntityT], query: CustomerQuery | PartnerQuery
+) -> list[EntityT]:
+    keyword = query.keyword.lower() if query.keyword else None
+    found = [i for i in items if not i.is_deleted and _contact_matches(i, keyword)]
+    found.sort(key=lambda i: (i.created_at, str(i.id)))
+    return [copy.deepcopy(i) for i in found[query.offset : query.offset + query.limit]]
 
 
 class FakeCustomerRepository(InMemoryStore[Customer]):
@@ -41,6 +66,9 @@ class FakeCustomerRepository(InMemoryStore[Customer]):
         self, *, offset: int = 0, limit: int = DEFAULT_LIMIT, include_deleted: bool = False
     ) -> Sequence[Customer]:
         return self._fetch_page(offset, limit, include_deleted=include_deleted)
+
+    async def search(self, query: CustomerQuery) -> Sequence[Customer]:
+        return _search(list(self._items.values()), query)
 
     async def update(self, customer: Customer) -> None:
         self._replace(customer)
@@ -61,6 +89,9 @@ class FakePartnerRepository(InMemoryStore[Partner]):
     ) -> Sequence[Partner]:
         return self._fetch_page(offset, limit, include_deleted=include_deleted)
 
+    async def search(self, query: PartnerQuery) -> Sequence[Partner]:
+        return _search(list(self._items.values()), query)
+
     async def update(self, partner: Partner) -> None:
         self._replace(partner)
 
@@ -71,9 +102,11 @@ def _deal_matches(deal: Deal, query: DealQuery) -> bool:
     searchable = (details.code.value, details.name, details.owner, details.vendor, details.solution)
     return (
         not deal.is_deleted
+        and (query.stage is None or deal.stage is query.stage)
         and (keyword is None or any(keyword in text.lower() for text in searchable))
         and (query.customer_id is None or details.customer_id == query.customer_id)
         and (query.partner_id is None or details.partner_id == query.partner_id)
+        and (query.owner_user_id is None or deal.owner_user_id == query.owner_user_id)
         and (query.owner is None or details.owner == query.owner)
         and (query.vendor is None or details.vendor == query.vendor)
         and (query.revenue_from is None or details.revenue_date >= query.revenue_from)
@@ -84,6 +117,7 @@ def _deal_matches(deal: Deal, query: DealQuery) -> bool:
 class FakeDealRepository(InMemoryStore[Deal]):
     def __init__(self) -> None:
         super().__init__("deal", DealNotFoundError)
+        self.for_update_gets: list[DealId] = []  # 잠금 조회(for_update=True)로 읽은 Deal id 기록
 
     def _ensure_code_is_free(self, deal: Deal) -> None:
         """Deal Code는 삭제된 Deal을 포함한 전체에서 고유하다."""
@@ -95,7 +129,11 @@ class FakeDealRepository(InMemoryStore[Deal]):
         self._ensure_code_is_free(deal)
         self._insert(deal)
 
-    async def get(self, deal_id: DealId, *, include_deleted: bool = False) -> Deal:
+    async def get(
+        self, deal_id: DealId, *, include_deleted: bool = False, for_update: bool = False
+    ) -> Deal:
+        if for_update:
+            self.for_update_gets.append(deal_id)  # 행 잠금 자체는 Fake에 없고 호출만 기록한다
         return self._fetch(deal_id, include_deleted=include_deleted)
 
     async def get_by_code(self, code: DealCode, *, include_deleted: bool = False) -> Deal:
@@ -113,6 +151,18 @@ class FakeDealRepository(InMemoryStore[Deal]):
         found = [d for d in self._items.values() if _deal_matches(d, query)]
         found.sort(key=lambda d: (d.created_at, str(d.id)))
         return [copy.deepcopy(d) for d in found[query.offset : query.offset + query.limit]]
+
+    async def summarize_pipeline(self, *, owner_user_id: str | None = None) -> Sequence[StageTotal]:
+        grouped: dict[tuple[DealStage, str], tuple[int, Decimal]] = {}
+        for deal in self._items.values():
+            if deal.is_deleted:
+                continue
+            if owner_user_id is not None and deal.owner_user_id != owner_user_id:
+                continue
+            key = (deal.stage, deal.details.revenue.currency)
+            count, amount = grouped.get(key, (0, Decimal(0)))
+            grouped[key] = (count + 1, amount + deal.details.revenue.amount)
+        return [StageTotal(stage, cur, n, amt) for (stage, cur), (n, amt) in grouped.items()]
 
     async def has_active_for_customer(self, customer_id: CustomerId) -> bool:
         return any(

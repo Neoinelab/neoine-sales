@@ -26,16 +26,18 @@ if TYPE_CHECKING:
     from tests.fakes.use_cases import FakeUseCases
 
 PROBLEM = "application/problem+json"
+UNKNOWN_ID = "00000000-0000-4000-8000-000000000000"
 PROTECTED = [
     "/api/v1/customers",
     "/api/v1/partners",
     "/api/v1/deals",
+    "/api/v1/deals/pipeline",
+    f"/api/v1/deals/{UNKNOWN_ID}/stage-changes",
     "/api/v1/deal-actions",
     "/api/v1/auth/me",
 ]
 CALLBACK = "/api/v1/auth/callback"
 VALID_CALLBACK = {"code": "c1", "state": "fake-state"}
-UNKNOWN_ID = "00000000-0000-4000-8000-000000000000"
 
 
 def _cookie_header(response: Response, name: str) -> str:
@@ -69,6 +71,10 @@ async def test_protected_endpoints_require_a_session(
 async def test_write_endpoints_are_protected_too(anonymous_client: AsyncClient) -> None:
     assert (await anonymous_client.post("/api/v1/customers", json={})).status_code == 401
     assert (await anonymous_client.delete(f"/api/v1/deals/{UNKNOWN_ID}")).status_code == 401
+    stage = await anonymous_client.post(
+        f"/api/v1/deals/{UNKNOWN_ID}/stage", json={"stage": "introduction"}
+    )
+    assert stage.status_code == 401
 
 
 async def test_unknown_or_expired_session_cookie_is_unauthenticated(
@@ -106,6 +112,15 @@ async def test_unsafe_requests_need_the_csrf_header(app: FastAPI, use_cases: Fak
         )
 
     assert read.status_code == 200
+    assert write.status_code == 403
+    assert write.json()["type"].endswith("csrf")
+
+
+async def test_stage_change_needs_the_csrf_header(app: FastAPI, use_cases: FakeUseCases) -> None:
+    token = (await use_cases.dev_login().execute(Role.SALES)).token
+    async with new_client(app, token=token, csrf=False) as http:
+        write = await http.post(f"/api/v1/deals/{UNKNOWN_ID}/stage", json={"stage": "introduction"})
+
     assert write.status_code == 403
     assert write.json()["type"].endswith("csrf")
 

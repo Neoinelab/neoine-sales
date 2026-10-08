@@ -1,6 +1,7 @@
 """UseCaseProvider의 Fake. 실제 유스케이스를 FakeUnitOfWork·FixedClock으로 조립한다(DB 없음)."""
 
 from datetime import timedelta
+from typing import TYPE_CHECKING
 
 from app.application.auth.authenticate import Authenticate
 from app.application.auth.begin_login import BeginLogin
@@ -15,10 +16,13 @@ from app.application.customer.get_customer import GetCustomer
 from app.application.customer.list_customers import ListCustomers
 from app.application.customer.register_customer import RegisterCustomer
 from app.application.customer.update_customer import UpdateCustomer
+from app.application.deal.change_stage import ChangeDealStage
 from app.application.deal.delete_deal import DeleteDeal
 from app.application.deal.get_deal import GetDeal
 from app.application.deal.get_deal_by_code import GetDealByCode
+from app.application.deal.get_pipeline import GetDealPipeline
 from app.application.deal.list_deals import ListDeals
+from app.application.deal.list_stage_changes import ListDealStageChanges
 from app.application.deal.register_deal import RegisterDeal
 from app.application.deal.update_deal import UpdateDeal
 from app.application.deal_action.delete_deal_action import DeleteDealAction
@@ -34,6 +38,9 @@ from app.application.partner.update_partner import UpdatePartner
 from tests.factories import NOW
 from tests.fakes.identity_provider import FakeIdentityProvider
 from tests.fakes.unit_of_work import FakeUnitOfWork, SteppingClock
+
+if TYPE_CHECKING:
+    from app.domain.auth.principal import Principal
 
 
 class FakeUseCases:
@@ -97,6 +104,15 @@ class FakeUseCases:
     def delete_deal(self) -> DeleteDeal:
         return DeleteDeal(self._factory, self.clock)
 
+    def change_deal_stage(self) -> ChangeDealStage:
+        return ChangeDealStage(self._factory, self.clock)
+
+    def list_deal_stage_changes(self) -> ListDealStageChanges:
+        return ListDealStageChanges(self._factory)
+
+    def get_deal_pipeline(self) -> GetDealPipeline:
+        return GetDealPipeline(self._factory)
+
     def register_deal_action(self) -> RegisterDealAction:
         return RegisterDealAction(self._factory, self.clock)
 
@@ -128,6 +144,10 @@ class FakeUseCases:
 
     def logout(self) -> Logout:
         return Logout(self._factory, self.clock)
+
+    async def login_as(self, principal: Principal) -> str:
+        """임의 사용자(subject)의 세션을 발급하고 쿠키에 넣을 토큰을 돌려준다(다중 사용자 E2E용)."""
+        return (await self._issue_session.execute(principal)).token
 
     async def check_ready(self) -> None:
         if self.ready_error is not None:

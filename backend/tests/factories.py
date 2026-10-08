@@ -6,7 +6,7 @@ from typing import Any
 from uuid import UUID, uuid4
 
 from app.application.customer.inputs import CustomerInput
-from app.application.deal.inputs import DealInput
+from app.application.deal.inputs import DealInput, StageChangeInput
 from app.application.deal_action.inputs import DealActionInput
 from app.application.partner.inputs import PartnerInput
 from app.domain.common.contact import Email, PhoneNumber
@@ -14,6 +14,7 @@ from app.domain.common.money import Money
 from app.domain.customer.entities import Customer
 from app.domain.customer.value_objects import CustomerDetails, CustomerId
 from app.domain.deal.entities import Deal
+from app.domain.deal.stage import DealStage, DealStageChange, DealStageChangeId, StageChanger
 from app.domain.deal.value_objects import DealCode, DealDetails, DealId
 from app.domain.deal_action.entities import DealAction
 from app.domain.deal_action.value_objects import ActionType, DealActionDetails
@@ -78,7 +79,13 @@ def make_deal_details(**overrides: object) -> DealDetails:
 
 
 def make_deal(now: datetime = NOW, **overrides: object) -> Deal:
-    return Deal.create(make_deal_details(**overrides), now)
+    """overrides는 DealDetails 값이고, owner_user_id(등록 사용자 subject)만 엔티티 속성이다."""
+    owner_user_id = overrides.pop("owner_user_id", None)
+    details = make_deal_details(**overrides)
+    if owner_user_id is None:
+        return Deal.create(details, now)
+    assert isinstance(owner_user_id, str)
+    return Deal.create(details, now, owner_user_id=owner_user_id)
 
 
 def make_customer_input(**overrides: object) -> CustomerInput:
@@ -144,3 +151,32 @@ def make_deal_action_input(**overrides: object) -> DealActionInput:
         "actor": "박영업",
     }
     return DealActionInput(**{**values, **overrides})
+
+
+def make_stage_changer(**overrides: object) -> StageChanger:
+    values: dict[str, Any] = {"subject": "dev-user", "name": "개발 사용자(sales)"}
+    return StageChanger(**{**values, **overrides})
+
+
+def make_stage_change(**overrides: object) -> DealStageChange:
+    """유효한 단계 이력 한 건(기본: 기회발굴 → 제품소개)."""
+    values: dict[str, Any] = {
+        "id": DealStageChangeId(uuid4()),
+        "deal_id": DealId(uuid4()),
+        "from_stage": DealStage.PROSPECTING,
+        "to_stage": DealStage.INTRODUCTION,
+        "reason": "제품 소개 완료",
+        "changed_by": make_stage_changer(),
+        "changed_at": NOW,
+    }
+    return DealStageChange(**{**values, **overrides})
+
+
+def make_stage_change_input(**overrides: object) -> StageChangeInput:
+    values: dict[str, Any] = {
+        "stage": DealStage.INTRODUCTION,
+        "reason": None,
+        "changed_by_subject": "dev-user",
+        "changed_by_name": "개발 사용자(sales)",
+    }
+    return StageChangeInput(**{**values, **overrides})

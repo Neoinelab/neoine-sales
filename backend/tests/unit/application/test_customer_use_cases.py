@@ -8,6 +8,7 @@ from app.application.customer.get_customer import GetCustomer
 from app.application.customer.list_customers import ListCustomers
 from app.application.customer.register_customer import RegisterCustomer
 from app.application.customer.update_customer import UpdateCustomer
+from app.application.ports.customer_repository import CustomerQuery
 from app.domain.common.contact import Email
 from app.domain.common.errors import InvalidValueError
 from app.domain.customer.errors import CustomerNotFoundError
@@ -77,7 +78,7 @@ class TestListCustomers:
                 await register.execute(make_customer_input(company_name=f"고객{number}"))
             )
 
-        page = await ListCustomers(uow_factory).execute(offset=1, limit=2)
+        page = await ListCustomers(uow_factory).execute(CustomerQuery(offset=1, limit=2))
 
         assert [c.id for c in page] == [created[1].id, created[2].id]
 
@@ -89,13 +90,13 @@ class TestListCustomers:
         removed = await register.execute(make_customer_input(company_name="삭제"))
         await DeleteCustomer(uow_factory, clock).execute(removed.id)
 
-        listed = await ListCustomers(uow_factory).execute()
+        listed = await ListCustomers(uow_factory).execute(CustomerQuery())
 
         assert [c.id for c in listed] == [kept.id]
 
     async def test_rejects_invalid_paging(self, uow_factory: UnitOfWorkFactory) -> None:
         with pytest.raises(InvalidValueError):
-            await ListCustomers(uow_factory).execute(limit=0)
+            await ListCustomers(uow_factory).execute(CustomerQuery(limit=0))
 
 
 class TestUpdateCustomer:

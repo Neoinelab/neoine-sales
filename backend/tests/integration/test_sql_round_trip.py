@@ -10,6 +10,7 @@ from app.domain.common.contact import Email, PhoneNumber
 from app.domain.common.money import Money
 from app.domain.customer.entities import Customer
 from app.domain.deal.entities import Deal
+from app.domain.deal.stage import DealStage
 from app.domain.deal.value_objects import DealCode
 from app.domain.partner.entities import Partner
 from app.infra.db.customer_repository import SqlCustomerRepository
@@ -20,6 +21,7 @@ from tests.factories import (
     make_customer_details,
     make_deal_details,
     make_partner_details,
+    make_stage_changer,
 )
 
 if TYPE_CHECKING:
@@ -129,3 +131,33 @@ async def test_timestamps_round_trip_as_the_same_instants(session: AsyncSession)
     assert loaded.created_at.utcoffset() is not None
     assert loaded.created_at.astimezone(UTC) == created.astimezone(UTC)
     assert loaded.deleted_at is None
+
+
+@pytest.mark.parametrize("stage", list(DealStage))
+async def test_deal_stage_round_trips(session: AsyncSession, stage: DealStage) -> None:
+    customers = SqlCustomerRepository(session)
+    deals = SqlDealRepository(session)
+    customer = Customer.create(make_customer_details(), NOW)
+    await customers.add(customer)
+    deal = Deal.create(make_deal_details(customer_id=customer.id), NOW)
+    if stage is not DealStage.PROSPECTING:
+        deal.change_stage(stage, reason="사유", changed_by=make_stage_changer(), now=NOW)
+    await deals.add(deal)
+
+    assert (await deals.get(deal.id)).stage is stage
+
+
+async def test_deal_owner_user_id_round_trips(session: AsyncSession) -> None:
+    customers = SqlCustomerRepository(session)
+    deals = SqlDealRepository(session)
+    customer = Customer.create(make_customer_details(), NOW)
+    await customers.add(customer)
+    owned = Deal.create(
+        make_deal_details(code=DealCode("O-1"), customer_id=customer.id), NOW, owner_user_id="u-1"
+    )
+    unowned = Deal.create(make_deal_details(code=DealCode("O-2"), customer_id=customer.id), NOW)
+    await deals.add(owned)
+    await deals.add(unowned)
+
+    assert (await deals.get(owned.id)).owner_user_id == "u-1"
+    assert (await deals.get(unowned.id)).owner_user_id is None

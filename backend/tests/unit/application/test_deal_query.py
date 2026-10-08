@@ -9,6 +9,7 @@ from app.application.ports.deal_repository import KEYWORD_MAX, DealQuery
 from app.application.ports.pagination import DEFAULT_LIMIT, MAX_LIMIT
 from app.domain.common.errors import InvalidValueError
 from app.domain.customer.value_objects import CustomerId
+from app.domain.deal.stage import DealStage
 from app.domain.deal.value_objects import OWNER_MAX, VENDOR_MAX
 from app.domain.partner.value_objects import PartnerId
 
@@ -25,6 +26,11 @@ def test_deal_query_defaults_to_first_page_without_conditions() -> None:
     assert query.vendor is None
     assert query.revenue_from is None
     assert query.revenue_to is None
+    assert query.stage is None
+
+
+def test_deal_query_keeps_stage() -> None:
+    assert DealQuery(stage=DealStage.LOST).stage is DealStage.LOST
 
 
 def test_deal_query_keeps_given_conditions() -> None:
@@ -120,3 +126,25 @@ def test_deal_query_rejects_vendor_over_max_length() -> None:
     assert DealQuery(vendor="a" * VENDOR_MAX).vendor == "a" * VENDOR_MAX
     with pytest.raises(InvalidValueError):
         DealQuery(vendor="a" * (VENDOR_MAX + 1))
+
+
+def test_deal_query_has_no_owner_user_condition_by_default() -> None:
+    assert DealQuery().owner_user_id is None
+
+
+def test_deal_query_keeps_owner_user_id() -> None:
+    assert DealQuery(owner_user_id="u-1").owner_user_id == "u-1"
+
+
+def test_deal_query_strips_owner_user_id_and_keeps_its_case() -> None:
+    assert DealQuery(owner_user_id="  Alice@AD ").owner_user_id == "Alice@AD"
+
+
+def test_deal_query_treats_blank_owner_user_id_as_none() -> None:
+    assert DealQuery(owner_user_id="   ").owner_user_id is None
+
+
+def test_deal_query_rejects_owner_user_id_over_max_length() -> None:
+    assert DealQuery(owner_user_id="u" * 200).owner_user_id == "u" * 200
+    with pytest.raises(InvalidValueError):
+        DealQuery(owner_user_id="u" * 201)

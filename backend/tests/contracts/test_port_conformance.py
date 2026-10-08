@@ -9,11 +9,13 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from app.application.ports.customer_repository import CustomerRepository
 from app.application.ports.deal_repository import DealRepository
+from app.application.ports.deal_stage_change_repository import DealStageChangeRepository
 from app.application.ports.partner_repository import PartnerRepository
 from app.config.profiles import LocalSettings
 from app.container import Container
 from app.infra.db.customer_repository import SqlCustomerRepository
 from app.infra.db.deal_repository import SqlDealRepository
+from app.infra.db.deal_stage_change_repository import SqlDealStageChangeRepository
 from app.infra.db.partner_repository import SqlPartnerRepository
 from app.infra.db.unit_of_work import SqlUnitOfWork
 from app.infra.system_clock import SystemClock
@@ -23,6 +25,7 @@ from tests.fakes.repositories import (
     FakeDealRepository,
     FakePartnerRepository,
 )
+from tests.fakes.stage_change_repository import FakeDealStageChangeRepository
 from tests.fakes.unit_of_work import FakeUnitOfWork, FixedClock
 from tests.fakes.use_cases import FakeUseCases
 
@@ -40,6 +43,32 @@ def test_fake_repositories_satisfy_their_ports() -> None:
     assert customers is not None
     assert partners is not None
     assert deals is not None
+
+
+def test_stage_change_repositories_satisfy_their_port() -> None:
+    fake: DealStageChangeRepository = FakeDealStageChangeRepository()
+
+    assert fake is not None
+    for name in ("add", "search"):
+        assert callable(getattr(SqlDealStageChangeRepository, name))
+        assert hasattr(DealStageChangeRepository, name)
+
+
+def test_customer_and_partner_repositories_expose_search() -> None:
+    for repository_type in (
+        FakeCustomerRepository,
+        SqlCustomerRepository,
+        FakePartnerRepository,
+        SqlPartnerRepository,
+    ):
+        assert callable(repository_type.search)
+    assert hasattr(CustomerRepository, "search")
+    assert hasattr(PartnerRepository, "search")
+
+
+def test_deal_repositories_expose_pipeline_and_locking_methods() -> None:
+    for repository_type in (FakeDealRepository, SqlDealRepository):
+        assert callable(repository_type.summarize_pipeline)
 
 
 def test_unit_of_work_implementations_satisfy_the_port() -> None:

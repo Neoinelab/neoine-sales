@@ -5,6 +5,26 @@ import { mockApi, renderApp } from '../../test/utils'
 import { DealFilterBar } from './DealFilterBar'
 
 const page = (items: unknown[]) => ({ body: { items, offset: 0, limit: 200 } })
+const STAGE_CODES = [
+  'prospecting',
+  'introduction',
+  'poc_preparation',
+  'poc_completed',
+  'technical_evaluation',
+  'price_negotiation',
+  'contract_completed',
+  'lost',
+]
+const LABELS: Record<string, string> = {
+  prospecting: '기회발굴',
+  introduction: '제품소개',
+  poc_preparation: 'POC준비',
+  poc_completed: 'POC완료',
+  technical_evaluation: '기술평가',
+  price_negotiation: '가격협상',
+  contract_completed: '계약완료',
+  lost: '실주',
+}
 const CUSTOMER = { id: 'c-1', company_name: '네오인' }
 const PARTNER = { id: 'p-1', company_name: '한빛' }
 
@@ -24,7 +44,7 @@ describe('DealFilterBar', () => {
 
     const form = screen.getByRole('search')
     expect(form).toBeInTheDocument()
-    for (const label of ['검색어', '고객', '파트너', 'Owner', 'Vendor', '매출 시작일', '매출 종료일']) {
+    for (const label of ['검색어', '고객', '파트너', '단계', 'Owner', 'Vendor', '매출 시작일', '매출 종료일']) {
       expect(screen.getByLabelText(label)).toBeInTheDocument()
     }
     expect(screen.getByRole('button', { name: '검색' })).toBeInTheDocument()
@@ -94,5 +114,41 @@ describe('DealFilterBar', () => {
     const filters = onSearch.mock.calls[0]![0] as Record<string, unknown>
     expect(filters.revenue_to).toBe('2027-01-01')
     expect(filters.revenue_from ?? undefined).toBeUndefined()
+  })
+
+  it('lists an all option and the eight stages in Korean, in pipeline order', async () => {
+    setup()
+
+    const options = Array.from(screen.getByLabelText('단계').querySelectorAll('option'))
+
+    expect(options).toHaveLength(9)
+    expect(options[0]).toHaveTextContent('전체')
+    expect(options[0]).toHaveValue('')
+    expect(options.slice(1).map((o) => o.getAttribute('value'))).toEqual(STAGE_CODES)
+    expect(options.slice(1).map((o) => o.textContent)).toEqual(STAGE_CODES.map((s) => LABELS[s]))
+  })
+
+  it('sends the selected stage code with the other conditions', async () => {
+    const onSearch = setup()
+    await screen.findByRole('option', { name: '네오인' })
+
+    await userEvent.selectOptions(screen.getByLabelText('단계'), 'lost')
+    await userEvent.type(screen.getByLabelText('Owner'), '박영업')
+    await userEvent.click(screen.getByRole('button', { name: '검색' }))
+
+    expect(onSearch).toHaveBeenCalledTimes(1)
+    expect(onSearch).toHaveBeenCalledWith(expect.objectContaining({ stage: 'lost', owner: '박영업' }))
+  })
+
+  it('does not send a stage when the all option is selected', async () => {
+    const onSearch = setup()
+    await screen.findByRole('option', { name: '네오인' })
+
+    await userEvent.selectOptions(screen.getByLabelText('단계'), 'poc_completed')
+    await userEvent.selectOptions(screen.getByLabelText('단계'), '')
+    await userEvent.click(screen.getByRole('button', { name: '검색' }))
+
+    const filters = onSearch.mock.calls[0]![0] as Record<string, unknown>
+    expect(filters.stage ?? undefined).toBeUndefined()
   })
 })
