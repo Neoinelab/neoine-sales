@@ -2,7 +2,7 @@
 
 from typing import TYPE_CHECKING
 
-from sqlalchemy import ColumnElement, exists, select
+from sqlalchemy import ColumnElement, exists, or_, select
 
 from app.application.ports.pagination import DEFAULT_LIMIT
 from app.domain.common.errors import AlreadyExistsError
@@ -13,10 +13,15 @@ from app.domain.deal.errors import DealNotFoundError, DuplicateDealCodeError
 from app.domain.deal.value_objects import DealCode, DealDetails, DealId
 from app.domain.partner.value_objects import PartnerId
 from app.infra.db.base_repository import SqlRepository
+from app.infra.db.like import LIKE_ESCAPE, like_pattern
 from app.infra.db.models import DealRow
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
+
+    from sqlalchemy import Select
+
+    from app.application.ports.deal_repository import DealQuery
 
 
 def _apply_details(row: DealRow, details: DealDetails) -> None:
@@ -63,6 +68,39 @@ def _to_entity(row: DealRow) -> Deal:
     )
 
 
+def _filtered(query: DealQuery) -> Select[DealRow]:
+    statement = select(DealRow).where(DealRow.deleted_at.is_(None))
+    if query.customer_id is not None:
+        statement = statement.where(DealRow.customer_id == query.customer_id)
+    if query.partner_id is not None:
+        statement = statement.where(DealRow.partner_id == query.partner_id)
+    if query.owner is not None:
+        statement = statement.where(DealRow.owner == query.owner)
+    if query.vendor is not None:
+        statement = statement.where(DealRow.vendor == query.vendor)
+    if query.revenue_from is not None:
+        statement = statement.where(DealRow.revenue_date >= query.revenue_from)
+    if query.revenue_to is not None:
+        statement = statement.where(DealRow.revenue_date < query.revenue_to)
+    if query.keyword is not None:
+        pattern = like_pattern(query.keyword)
+        statement = statement.where(
+            or_(
+                *(
+                    column.ilike(pattern, escape=LIKE_ESCAPE)
+                    for column in (
+                        DealRow.code,
+                        DealRow.name,
+                        DealRow.owner,
+                        DealRow.vendor,
+                        DealRow.solution,
+                    )
+                )
+            )
+        )
+    return statement
+
+
 class SqlDealRepository(SqlRepository[DealRow]):
     row_type = DealRow
 
@@ -96,6 +134,17 @@ class SqlDealRepository(SqlRepository[DealRow]):
         self, *, offset: int = 0, limit: int = DEFAULT_LIMIT, include_deleted: bool = False
     ) -> Sequence[Deal]:
         rows = await self._page(offset, limit, include_deleted=include_deleted)
+        return [_to_entity(row) for row in rows]
+
+    async def search(self, query: DealQuery) -> Sequence[Deal]:
+        statement = (
+            _filtered(query)
+            .order_by(DealRow.created_at, DealRow.id)
+            .offset(query.offset)
+            .limit(query.limit)
+            .execution_options(populate_existing=True)
+        )
+        rows = (await self._session.scalars(statement)).all()
         return [_to_entity(row) for row in rows]
 
     async def has_active_for_customer(self, customer_id: CustomerId) -> bool:

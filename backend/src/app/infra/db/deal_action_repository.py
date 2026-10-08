@@ -10,6 +10,7 @@ from app.domain.deal_action.entities import DealAction
 from app.domain.deal_action.errors import DealActionNotFoundError
 from app.domain.deal_action.value_objects import ActionType, DealActionDetails, DealActionId
 from app.infra.db.base_repository import SqlRepository
+from app.infra.db.like import LIKE_ESCAPE, like_pattern
 from app.infra.db.models import DealActionRow
 
 if TYPE_CHECKING:
@@ -57,12 +58,6 @@ def _to_entity(row: DealActionRow) -> DealAction:
     )
 
 
-def _like_pattern(keyword: str) -> str:
-    """LIKE 와일드카드(% _)와 이스케이프 문자를 글자 그대로 찾도록 이스케이프한다."""
-    escaped = keyword.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
-    return f"%{escaped}%"
-
-
 def _filtered(query: DealActionQuery) -> Select[DealActionRow]:
     statement = select(DealActionRow).where(DealActionRow.deleted_at.is_(None))
     if query.deal_id is not None:
@@ -76,11 +71,11 @@ def _filtered(query: DealActionQuery) -> Select[DealActionRow]:
     if query.acted_to is not None:
         statement = statement.where(DealActionRow.acted_at < query.acted_to)
     if query.keyword is not None:
-        pattern = _like_pattern(query.keyword)
+        pattern = like_pattern(query.keyword)
         statement = statement.where(
             or_(
-                DealActionRow.title.ilike(pattern, escape="\\"),
-                DealActionRow.content.ilike(pattern, escape="\\"),
+                DealActionRow.title.ilike(pattern, escape=LIKE_ESCAPE),
+                DealActionRow.content.ilike(pattern, escape=LIKE_ESCAPE),
             )
         )
     return statement
