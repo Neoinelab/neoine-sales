@@ -9,10 +9,13 @@ from app.domain.partner.entities import Partner
 from app.domain.partner.errors import PartnerNotFoundError
 from app.domain.partner.value_objects import PartnerDetails, PartnerId
 from app.infra.db.base_repository import SqlRepository
+from app.infra.db.like import keyword_filter
 from app.infra.db.models import PartnerRow
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
+
+    from app.application.ports.partner_repository import PartnerQuery
 
 
 def _apply_details(row: PartnerRow, details: PartnerDetails) -> None:
@@ -68,6 +71,24 @@ class SqlPartnerRepository(SqlRepository[PartnerRow]):
         self, *, offset: int = 0, limit: int = DEFAULT_LIMIT, include_deleted: bool = False
     ) -> Sequence[Partner]:
         rows = await self._page(offset, limit, include_deleted=include_deleted)
+        return [_to_entity(row) for row in rows]
+
+    async def search(self, query: PartnerQuery) -> Sequence[Partner]:
+        condition = (
+            None
+            if query.keyword is None
+            else keyword_filter(
+                query.keyword,
+                PartnerRow.company_name,
+                PartnerRow.contact_name,
+                PartnerRow.contact_title,
+                PartnerRow.email,
+                PartnerRow.phone,
+            )
+        )
+        rows = await self._page(
+            query.offset, query.limit, include_deleted=False, condition=condition
+        )
         return [_to_entity(row) for row in rows]
 
     async def update(self, partner: Partner) -> None:

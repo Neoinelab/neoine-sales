@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Self
 from app.infra.db.customer_repository import SqlCustomerRepository
 from app.infra.db.deal_action_repository import SqlDealActionRepository
 from app.infra.db.deal_repository import SqlDealRepository
+from app.infra.db.deal_stage_change_repository import SqlDealStageChangeRepository
 from app.infra.db.partner_repository import SqlPartnerRepository
 from app.infra.db.session_repository import SqlSessionRepository
 
@@ -19,6 +20,7 @@ class SqlUnitOfWork:
     partners: SqlPartnerRepository
     deals: SqlDealRepository
     deal_actions: SqlDealActionRepository
+    deal_stage_changes: SqlDealStageChangeRepository
     sessions: SqlSessionRepository
 
     def __init__(self, session_factory: async_sessionmaker[AsyncSession]) -> None:
@@ -30,6 +32,7 @@ class SqlUnitOfWork:
         self.partners = SqlPartnerRepository(self._session)
         self.deals = SqlDealRepository(self._session)
         self.deal_actions = SqlDealActionRepository(self._session)
+        self.deal_stage_changes = SqlDealStageChangeRepository(self._session)
         self.sessions = SqlSessionRepository(self._session)
         return self
 

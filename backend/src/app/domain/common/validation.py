@@ -9,6 +9,8 @@ if TYPE_CHECKING:
 
 
 def required_text(value: str, field: str, *, max_length: int) -> str:
+    if "\x00" in value:
+        raise InvalidValueError(f"{field}에는 NUL 문자를 쓸 수 없습니다")
     text = value.strip()
     if not text:
         raise InvalidValueError(f"{field}은(는) 비어 있을 수 없습니다")
@@ -18,7 +20,11 @@ def required_text(value: str, field: str, *, max_length: int) -> str:
 
 
 def optional_text(value: str | None, field: str, *, max_length: int) -> str | None:
-    if value is None or not value.strip():
+    if value is None:
+        return None
+    if "\x00" in value:
+        raise InvalidValueError(f"{field}에는 NUL 문자를 쓸 수 없습니다")
+    if not value.strip():
         return None
     return required_text(value, field, max_length=max_length)
 

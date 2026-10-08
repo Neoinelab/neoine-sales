@@ -9,10 +9,13 @@ from app.domain.customer.entities import Customer
 from app.domain.customer.errors import CustomerNotFoundError
 from app.domain.customer.value_objects import CustomerDetails, CustomerId
 from app.infra.db.base_repository import SqlRepository
+from app.infra.db.like import keyword_filter
 from app.infra.db.models import CustomerRow
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
+
+    from app.application.ports.customer_repository import CustomerQuery
 
 
 def _apply_details(row: CustomerRow, details: CustomerDetails) -> None:
@@ -72,6 +75,24 @@ class SqlCustomerRepository(SqlRepository[CustomerRow]):
         self, *, offset: int = 0, limit: int = DEFAULT_LIMIT, include_deleted: bool = False
     ) -> Sequence[Customer]:
         rows = await self._page(offset, limit, include_deleted=include_deleted)
+        return [_to_entity(row) for row in rows]
+
+    async def search(self, query: CustomerQuery) -> Sequence[Customer]:
+        condition = (
+            None
+            if query.keyword is None
+            else keyword_filter(
+                query.keyword,
+                CustomerRow.company_name,
+                CustomerRow.contact_name,
+                CustomerRow.contact_title,
+                CustomerRow.email,
+                CustomerRow.phone,
+            )
+        )
+        rows = await self._page(
+            query.offset, query.limit, include_deleted=False, condition=condition
+        )
         return [_to_entity(row) for row in rows]
 
     async def update(self, customer: Customer) -> None:

@@ -15,7 +15,7 @@ class DeleteDeal:
 
     async def execute(self, deal_id: DealId) -> None:
         async with self._uow_factory() as uow:
-            deal = await uow.deals.get(deal_id)
+            deal = await uow.deals.get(deal_id, for_update=True)
             deal.soft_delete(self._clock.now())
             await uow.deals.update(deal)
             await uow.commit()

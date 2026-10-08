@@ -1,8 +1,9 @@
 """DealRepository Port의 SQLAlchemy 구현. Deal Code 고유성은 DB UNIQUE 제약이 보장한다."""
 
+from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from sqlalchemy import ColumnElement, exists, or_, select
+from sqlalchemy import ColumnElement, exists, func, select
 
 from app.application.ports.pagination import DEFAULT_LIMIT
 from app.domain.common.errors import AlreadyExistsError
@@ -10,10 +11,12 @@ from app.domain.common.money import Money
 from app.domain.customer.value_objects import CustomerId
 from app.domain.deal.entities import Deal
 from app.domain.deal.errors import DealNotFoundError, DuplicateDealCodeError
+from app.domain.deal.pipeline import StageTotal
+from app.domain.deal.stage import DealStage
 from app.domain.deal.value_objects import DealCode, DealDetails, DealId
 from app.domain.partner.value_objects import PartnerId
 from app.infra.db.base_repository import SqlRepository
-from app.infra.db.like import LIKE_ESCAPE, like_pattern
+from app.infra.db.like import keyword_filter
 from app.infra.db.models import DealRow
 
 if TYPE_CHECKING:
@@ -43,6 +46,8 @@ def _to_row(deal: Deal) -> DealRow:
         created_at=deal.created_at,
         updated_at=deal.updated_at,
         deleted_at=deal.deleted_at,
+        stage=deal.stage.value,
+        owner_user_id=deal.owner_user_id,
     )
     _apply_details(row, deal.details)
     return row
@@ -65,6 +70,8 @@ def _to_entity(row: DealRow) -> Deal:
         created_at=row.created_at,
         updated_at=row.updated_at,
         deleted_at=row.deleted_at,
+        stage=DealStage(row.stage),
+        owner_user_id=row.owner_user_id,
     )
 
 
@@ -76,26 +83,25 @@ def _filtered(query: DealQuery) -> Select[DealRow]:
         statement = statement.where(DealRow.partner_id == query.partner_id)
     if query.owner is not None:
         statement = statement.where(DealRow.owner == query.owner)
+    if query.owner_user_id is not None:
+        statement = statement.where(DealRow.owner_user_id == query.owner_user_id)
     if query.vendor is not None:
         statement = statement.where(DealRow.vendor == query.vendor)
     if query.revenue_from is not None:
         statement = statement.where(DealRow.revenue_date >= query.revenue_from)
     if query.revenue_to is not None:
         statement = statement.where(DealRow.revenue_date < query.revenue_to)
+    if query.stage is not None:
+        statement = statement.where(DealRow.stage == query.stage.value)
     if query.keyword is not None:
-        pattern = like_pattern(query.keyword)
         statement = statement.where(
-            or_(
-                *(
-                    column.ilike(pattern, escape=LIKE_ESCAPE)
-                    for column in (
-                        DealRow.code,
-                        DealRow.name,
-                        DealRow.owner,
-                        DealRow.vendor,
-                        DealRow.solution,
-                    )
-                )
+            keyword_filter(
+                query.keyword,
+                DealRow.code,
+                DealRow.name,
+                DealRow.owner,
+                DealRow.vendor,
+                DealRow.solution,
             )
         )
     return statement
@@ -113,8 +119,18 @@ class SqlDealRepository(SqlRepository[DealRow]):
             },
         )
 
-    async def get(self, deal_id: DealId, *, include_deleted: bool = False) -> Deal:
-        row = await self._find(deal_id, include_deleted=include_deleted)
+    async def get(
+        self, deal_id: DealId, *, include_deleted: bool = False, for_update: bool = False
+    ) -> Deal:
+        if for_update:
+            locked = select(DealRow).where(DealRow.id == deal_id).with_for_update()
+            row = (
+                await self._session.scalars(locked.execution_options(populate_existing=True))
+            ).one_or_none()
+            if row is not None and row.deleted_at is not None and not include_deleted:
+                row = None
+        else:
+            row = await self._find(deal_id, include_deleted=include_deleted)
         if row is None:
             raise DealNotFoundError(deal_id)
         return _to_entity(row)
@@ -147,6 +163,25 @@ class SqlDealRepository(SqlRepository[DealRow]):
         rows = (await self._session.scalars(statement)).all()
         return [_to_entity(row) for row in rows]
 
+    async def summarize_pipeline(self, *, owner_user_id: str | None = None) -> Sequence[StageTotal]:
+        statement = (
+            select(
+                DealRow.stage,
+                DealRow.revenue_currency,
+                func.count().label("deal_count"),
+                func.sum(DealRow.revenue_amount).label("amount"),
+            )
+            .where(DealRow.deleted_at.is_(None))
+            .group_by(DealRow.stage, DealRow.revenue_currency)
+        )
+        if owner_user_id is not None:
+            statement = statement.where(DealRow.owner_user_id == owner_user_id)
+        rows = (await self._session.execute(statement)).all()
+        return [
+            StageTotal(DealStage(stage), currency, int(count), Decimal(amount))
+            for stage, currency, count, amount in rows
+        ]
+
     async def has_active_for_customer(self, customer_id: CustomerId) -> bool:
         return await self._has_active(DealRow.customer_id == customer_id)
 
@@ -164,4 +199,5 @@ class SqlDealRepository(SqlRepository[DealRow]):
         _apply_details(row, deal.details)
         row.updated_at = deal.updated_at
         row.deleted_at = deal.deleted_at
+        row.stage = deal.stage.value
         await self._save({"uq_deals_code": lambda: DuplicateDealCodeError(deal.details.code)})

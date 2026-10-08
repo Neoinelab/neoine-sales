@@ -20,7 +20,7 @@ class UpdateDeal:
     async def execute(self, deal_id: DealId, data: DealInput) -> Deal:
         details = data.to_details()
         async with self._uow_factory() as uow:
-            deal = await uow.deals.get(deal_id)
+            deal = await uow.deals.get(deal_id, for_update=True)
             await ensure_references_exist(uow, details)
             deal.update(details, self._clock.now())
             await uow.deals.update(deal)

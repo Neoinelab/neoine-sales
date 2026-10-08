@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Protocol
 
 from app.application.ports.pagination import DEFAULT_LIMIT, check_page
+from app.domain.auth.principal import SUBJECT_MAX
 from app.domain.common.errors import InvalidValueError
 from app.domain.common.validation import optional_text
 from app.domain.deal.value_objects import OWNER_MAX, VENDOR_MAX
@@ -12,10 +13,17 @@ if TYPE_CHECKING:
 
     from app.domain.customer.value_objects import CustomerId
     from app.domain.deal.entities import Deal
+    from app.domain.deal.pipeline import StageTotal
+    from app.domain.deal.stage import DealStage
     from app.domain.deal.value_objects import DealCode, DealId
     from app.domain.partner.value_objects import PartnerId
 
 KEYWORD_MAX = 100
+
+
+def normalize_owner_user_id(value: str | None) -> str | None:
+    """등록 사용자 필터 정규화: 앞뒤 공백 제거, 공백뿐이면 None(전체), 대소문자 유지."""
+    return optional_text(value, "등록 사용자", max_length=SUBJECT_MAX)
 
 
 @dataclass(frozen=True, slots=True)
@@ -29,6 +37,8 @@ class DealQuery:
     vendor: str | None = None  # 정확 일치
     revenue_from: date | None = None
     revenue_to: date | None = None
+    stage: DealStage | None = None  # 정확 일치
+    owner_user_id: str | None = None  # 등록 사용자 subject, 정확 일치(대소문자 유지)
     offset: int = 0
     limit: int = DEFAULT_LIMIT
 
@@ -45,6 +55,7 @@ class DealQuery:
         object.__setattr__(
             self, "vendor", optional_text(self.vendor, "Vendor", max_length=VENDOR_MAX)
         )
+        object.__setattr__(self, "owner_user_id", normalize_owner_user_id(self.owner_user_id))
 
 
 class DealRepository(Protocol):
@@ -54,8 +65,13 @@ class DealRepository(Protocol):
         """같은 id는 AlreadyExistsError, 같은 Deal Code는 DuplicateDealCodeError."""
         ...
 
-    async def get(self, deal_id: DealId, *, include_deleted: bool = False) -> Deal:
-        """없거나(삭제 제외 시) 삭제된 Deal이면 DealNotFoundError."""
+    async def get(
+        self, deal_id: DealId, *, include_deleted: bool = False, for_update: bool = False
+    ) -> Deal:
+        """없거나(삭제 제외 시) 삭제된 Deal이면 DealNotFoundError.
+
+        for_update=True면 트랜잭션이 끝날 때까지 이 Deal 행을 잠근다(동시 단계 변경 대비).
+        """
         ...
 
     async def get_by_code(self, code: DealCode, *, include_deleted: bool = False) -> Deal:
@@ -72,6 +88,13 @@ class DealRepository(Protocol):
         """삭제되지 않은 Deal 중 조건에 맞는 것을 생성 시각 오름차순(같으면 id)으로 돌려준다."""
         ...
 
+    async def summarize_pipeline(self, *, owner_user_id: str | None = None) -> Sequence[StageTotal]:
+        """삭제되지 않은 Deal을 (단계, 통화)로 묶은 건수·합계. 순서는 보장하지 않는다.
+
+        owner_user_id를 주면 그 사용자가 등록한 Deal만 집계한다(정확 일치).
+        """
+        ...
+
     async def has_active_for_customer(self, customer_id: CustomerId) -> bool:
         """삭제되지 않은 Deal 중 이 고객을 참조하는 것이 있는지."""
         ...
@@ -81,7 +104,7 @@ class DealRepository(Protocol):
         ...
 
     async def update(self, deal: Deal) -> None:
-        """변경 사항을 저장한다(삭제·복원 포함).
+        """변경 사항(단계 포함)을 저장한다(삭제·복원 포함).
 
         없으면 DealNotFoundError, 다른 Deal과 코드가 충돌하면 DuplicateDealCodeError.
         """

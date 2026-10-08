@@ -5,6 +5,7 @@ if TYPE_CHECKING:
     from app.application.ports.customer_repository import CustomerRepository
     from app.application.ports.deal_action_repository import DealActionRepository
     from app.application.ports.deal_repository import DealRepository
+    from app.application.ports.deal_stage_change_repository import DealStageChangeRepository
     from app.application.ports.partner_repository import PartnerRepository
     from app.application.ports.session_repository import SessionRepository
 
@@ -27,6 +28,9 @@ class UnitOfWork(Protocol):
 
     @property
     def deal_actions(self) -> DealActionRepository: ...
+
+    @property
+    def deal_stage_changes(self) -> DealStageChangeRepository: ...
 
     @property
     def sessions(self) -> SessionRepository: ...

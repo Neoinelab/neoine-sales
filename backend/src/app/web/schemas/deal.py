@@ -10,6 +10,7 @@ from app.application.ports.deal_repository import KEYWORD_MAX, DealQuery
 from app.application.ports.pagination import DEFAULT_LIMIT, MAX_LIMIT
 from app.domain.customer.value_objects import CustomerId
 from app.domain.deal.entities import Deal
+from app.domain.deal.stage import DealStage
 from app.domain.deal.value_objects import OWNER_MAX, VENDOR_MAX
 from app.domain.partner.value_objects import PartnerId
 from app.web.schemas.common import Page, RequestModel, ResponseModel
@@ -42,6 +43,7 @@ class DealResponse(ResponseModel):
     revenue_date: date
     customer_id: str
     partner_id: str | None
+    stage: DealStage
 
     @classmethod
     def from_entity(cls, deal: Deal) -> DealResponse:
@@ -60,6 +62,7 @@ class DealResponse(ResponseModel):
             revenue_date=details.revenue_date,
             customer_id=str(details.customer_id),
             partner_id=str(details.partner_id) if details.partner_id else None,
+            stage=deal.stage,
         )
 
 
@@ -73,12 +76,15 @@ class DealSearchParams(RequestModel):
     vendor: Annotated[str | None, Field(max_length=VENDOR_MAX)] = None
     revenue_from: date | None = None
     revenue_to: date | None = None
+    stage: DealStage | None = None
     offset: Annotated[int, Field(ge=0)] = 0
     limit: Annotated[int, Field(ge=1, le=MAX_LIMIT)] = DEFAULT_LIMIT
+    mine: bool = False
 
-    def to_query(self) -> DealQuery:
-        criteria = self.model_dump(exclude={"customer_id", "partner_id"})
+    def to_query(self, viewer_subject: str) -> DealQuery:
+        criteria = self.model_dump(exclude={"customer_id", "partner_id", "mine"})
         return DealQuery(
+            owner_user_id=viewer_subject if self.mine else None,
             customer_id=CustomerId(self.customer_id) if self.customer_id else None,
             partner_id=PartnerId(self.partner_id) if self.partner_id else None,
             **criteria,

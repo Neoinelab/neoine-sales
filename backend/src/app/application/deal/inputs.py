@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING
 
 from app.domain.common.money import Money
 from app.domain.customer.value_objects import CustomerId
+from app.domain.deal.stage import DealStage, StageChanger
 from app.domain.deal.value_objects import DealCode, DealDetails
 from app.domain.partner.value_objects import PartnerId
 
@@ -39,3 +40,16 @@ class DealInput:
             customer_id=CustomerId(self.customer_id),
             partner_id=PartnerId(self.partner_id) if self.partner_id else None,
         )
+
+
+@dataclass(frozen=True, slots=True)
+class StageChangeInput:
+    """단계 변경 입력(원시 타입). 변경자는 호출자가 로그인 주체에서 꺼낸 문자열로 준다."""
+
+    stage: DealStage
+    reason: str | None
+    changed_by_subject: str
+    changed_by_name: str
+
+    def to_changer(self) -> StageChanger:
+        return StageChanger(subject=self.changed_by_subject, name=self.changed_by_name)

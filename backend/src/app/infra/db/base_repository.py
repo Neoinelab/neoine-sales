@@ -3,7 +3,7 @@
 from collections.abc import Callable, Mapping, Sequence
 from typing import TYPE_CHECKING
 
-from sqlalchemy import select
+from sqlalchemy import ColumnElement, select
 from sqlalchemy.exc import IntegrityError
 
 from app.application.ports.pagination import check_page
@@ -29,11 +29,21 @@ class SqlRepository[RowT: AuditColumns]:
             return None
         return row
 
-    async def _page(self, offset: int, limit: int, *, include_deleted: bool) -> Sequence[RowT]:
+    async def _page(
+        self,
+        offset: int,
+        limit: int,
+        *,
+        include_deleted: bool,
+        condition: ColumnElement[bool] | None = None,
+    ) -> Sequence[RowT]:
+        """created_at, id 순 페이지. condition이 있으면 추가 WHERE 조건으로 함께 건다."""
         check_page(offset, limit)
         statement = select(self.row_type).order_by(self.row_type.created_at, self.row_type.id)
         if not include_deleted:
             statement = statement.where(self.row_type.deleted_at.is_(None))
+        if condition is not None:
+            statement = statement.where(condition)
         statement = statement.offset(offset).limit(limit).execution_options(populate_existing=True)
         return (await self._session.scalars(statement)).all()
 

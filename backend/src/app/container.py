@@ -20,10 +20,13 @@ from app.application.customer.get_customer import GetCustomer
 from app.application.customer.list_customers import ListCustomers
 from app.application.customer.register_customer import RegisterCustomer
 from app.application.customer.update_customer import UpdateCustomer
+from app.application.deal.change_stage import ChangeDealStage
 from app.application.deal.delete_deal import DeleteDeal
 from app.application.deal.get_deal import GetDeal
 from app.application.deal.get_deal_by_code import GetDealByCode
+from app.application.deal.get_pipeline import GetDealPipeline
 from app.application.deal.list_deals import ListDeals
+from app.application.deal.list_stage_changes import ListDealStageChanges
 from app.application.deal.register_deal import RegisterDeal
 from app.application.deal.update_deal import UpdateDeal
 from app.application.deal_action.delete_deal_action import DeleteDealAction
@@ -162,6 +165,15 @@ class Container:
 
     def delete_deal(self) -> DeleteDeal:
         return DeleteDeal(self._uow, self._clock)
+
+    def change_deal_stage(self) -> ChangeDealStage:
+        return ChangeDealStage(self._uow, self._clock)
+
+    def list_deal_stage_changes(self) -> ListDealStageChanges:
+        return ListDealStageChanges(self._uow)
+
+    def get_deal_pipeline(self) -> GetDealPipeline:
+        return GetDealPipeline(self._uow)
 
     def register_deal_action(self) -> RegisterDealAction:
         return RegisterDealAction(self._uow, self._clock)

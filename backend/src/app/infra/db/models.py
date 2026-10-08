@@ -18,7 +18,10 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
+from app.domain.deal.stage import DealStage
 from app.infra.db.base import Base
+
+_STAGE_CODES = ", ".join(f"'{stage.value}'" for stage in DealStage)
 
 
 class AuditColumns:
@@ -76,13 +79,19 @@ class DealRow(AuditColumns, Base):
     partner_id: Mapped[UUID | None] = mapped_column(
         ForeignKey("partners.id", ondelete="RESTRICT"), default=None
     )
+    stage: Mapped[str] = mapped_column(
+        String(30), default=DealStage.PROSPECTING.value, server_default=DealStage.PROSPECTING.value
+    )
+    owner_user_id: Mapped[str | None] = mapped_column(String(200), default=None)
 
     __table_args__ = (
         UniqueConstraint("code"),
         CheckConstraint("revenue_amount >= 0", name="revenue_non_negative"),
+        CheckConstraint(f"stage in ({_STAGE_CODES})", name="stage_valid"),
         Index("ix_deals_created_at_id", "created_at", "id"),
         Index("ix_deals_customer_id", "customer_id"),
         Index("ix_deals_partner_id", "partner_id"),
+        Index("ix_deals_owner_user_id", "owner_user_id"),
     )
 
 
@@ -99,6 +108,27 @@ class DealActionRow(AuditColumns, Base):
     __table_args__ = (
         Index("ix_deal_actions_deal_id_acted_at", "deal_id", "acted_at"),
         Index("ix_deal_actions_acted_at", "acted_at"),
+    )
+
+
+class DealStageChangeRow(Base):
+    """불변 단계 변경 이력. 수정·삭제가 없어 AuditColumns를 쓰지 않는다."""
+
+    __tablename__ = "deal_stage_changes"
+
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True)
+    deal_id: Mapped[UUID] = mapped_column(ForeignKey("deals.id", ondelete="RESTRICT"))
+    from_stage: Mapped[str] = mapped_column(String(30))
+    to_stage: Mapped[str] = mapped_column(String(30))
+    reason: Mapped[str | None] = mapped_column(String(500), default=None)
+    changed_by_subject: Mapped[str] = mapped_column(String(200))
+    changed_by_name: Mapped[str] = mapped_column(String(200))
+    changed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+    __table_args__ = (
+        CheckConstraint(f"from_stage in ({_STAGE_CODES})", name="from_stage_valid"),
+        CheckConstraint(f"to_stage in ({_STAGE_CODES})", name="to_stage_valid"),
+        Index("ix_deal_stage_changes_deal_id_changed_at", "deal_id", "changed_at"),
     )
 
 

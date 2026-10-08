@@ -2,7 +2,7 @@
 
 from typing import TYPE_CHECKING
 
-from sqlalchemy import or_, select
+from sqlalchemy import select
 
 from app.domain.common.errors import AlreadyExistsError
 from app.domain.deal.value_objects import DealId
@@ -10,7 +10,7 @@ from app.domain.deal_action.entities import DealAction
 from app.domain.deal_action.errors import DealActionNotFoundError
 from app.domain.deal_action.value_objects import ActionType, DealActionDetails, DealActionId
 from app.infra.db.base_repository import SqlRepository
-from app.infra.db.like import LIKE_ESCAPE, like_pattern
+from app.infra.db.like import keyword_filter
 from app.infra.db.models import DealActionRow
 
 if TYPE_CHECKING:
@@ -71,12 +71,8 @@ def _filtered(query: DealActionQuery) -> Select[DealActionRow]:
     if query.acted_to is not None:
         statement = statement.where(DealActionRow.acted_at < query.acted_to)
     if query.keyword is not None:
-        pattern = like_pattern(query.keyword)
         statement = statement.where(
-            or_(
-                DealActionRow.title.ilike(pattern, escape=LIKE_ESCAPE),
-                DealActionRow.content.ilike(pattern, escape=LIKE_ESCAPE),
-            )
+            keyword_filter(query.keyword, DealActionRow.title, DealActionRow.content)
         )
     return statement
 

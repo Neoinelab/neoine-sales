@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import Settings, get_settings
 from app.container import Container
 from app.web.error_handlers import register_error_handlers
-from app.web.routers import auth, customers, deal_actions, deals, health, partners
+from app.web.routers import auth, customers, deal_actions, deal_stages, deals, health, partners
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
@@ -59,7 +59,7 @@ def create_app(
     app.include_router(health.router)
     app.include_router(auth.router)
     guard = [Depends(require_login), Depends(require_csrf_header)]
-    for module in (customers, partners, deals, deal_actions):
+    for module in (customers, partners, deals, deal_actions, deal_stages):
         app.include_router(module.router, dependencies=guard, responses={401: PROBLEM})
     return app
 

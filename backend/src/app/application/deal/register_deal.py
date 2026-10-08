@@ -16,11 +16,11 @@ class RegisterDeal:
         self._uow_factory = uow_factory
         self._clock = clock
 
-    async def execute(self, data: DealInput) -> Deal:
+    async def execute(self, data: DealInput, *, owner_user_id: str | None = None) -> Deal:
         details = data.to_details()
         async with self._uow_factory() as uow:
             await ensure_references_exist(uow, details)
-            deal = Deal.create(details, self._clock.now())
+            deal = Deal.create(details, self._clock.now(), owner_user_id=owner_user_id)
             await uow.deals.add(deal)
             await uow.commit()
         return deal

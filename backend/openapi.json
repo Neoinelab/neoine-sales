@@ -34,6 +34,24 @@
         "title": "AuthConfigResponse",
         "type": "object"
       },
+      "CurrencyAmountResponse": {
+        "properties": {
+          "amount": {
+            "title": "Amount",
+            "type": "string"
+          },
+          "currency": {
+            "title": "Currency",
+            "type": "string"
+          }
+        },
+        "required": [
+          "currency",
+          "amount"
+        ],
+        "title": "CurrencyAmountResponse",
+        "type": "object"
+      },
       "CustomerRequest": {
         "additionalProperties": false,
         "properties": {
@@ -279,6 +297,22 @@
         "title": "DealActionResponse",
         "type": "object"
       },
+      "DealPipelineResponse": {
+        "properties": {
+          "stages": {
+            "items": {
+              "$ref": "#/components/schemas/StageSummaryResponse"
+            },
+            "title": "Stages",
+            "type": "array"
+          }
+        },
+        "required": [
+          "stages"
+        ],
+        "title": "DealPipelineResponse",
+        "type": "object"
+      },
       "DealRequest": {
         "additionalProperties": false,
         "properties": {
@@ -410,6 +444,9 @@
             "title": "Solution",
             "type": "string"
           },
+          "stage": {
+            "$ref": "#/components/schemas/DealStage"
+          },
           "updated_at": {
             "format": "date-time",
             "title": "Updated At",
@@ -433,9 +470,103 @@
           "revenue_currency",
           "revenue_date",
           "customer_id",
-          "partner_id"
+          "partner_id",
+          "stage"
         ],
         "title": "DealResponse",
+        "type": "object"
+      },
+      "DealStage": {
+        "description": "딜 진행 단계. 선언 순서가 표시 순서(파이프라인 정렬 기준)다.",
+        "enum": [
+          "prospecting",
+          "introduction",
+          "poc_preparation",
+          "poc_completed",
+          "technical_evaluation",
+          "price_negotiation",
+          "contract_completed",
+          "lost"
+        ],
+        "title": "DealStage",
+        "type": "string"
+      },
+      "DealStageChangeRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "stage": {
+            "$ref": "#/components/schemas/DealStage"
+          }
+        },
+        "required": [
+          "stage"
+        ],
+        "title": "DealStageChangeRequest",
+        "type": "object"
+      },
+      "DealStageChangeResponse": {
+        "properties": {
+          "changed_at": {
+            "format": "date-time",
+            "title": "Changed At",
+            "type": "string"
+          },
+          "changed_by_name": {
+            "title": "Changed By Name",
+            "type": "string"
+          },
+          "changed_by_subject": {
+            "title": "Changed By Subject",
+            "type": "string"
+          },
+          "deal_id": {
+            "title": "Deal Id",
+            "type": "string"
+          },
+          "from_stage": {
+            "$ref": "#/components/schemas/DealStage"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "to_stage": {
+            "$ref": "#/components/schemas/DealStage"
+          }
+        },
+        "required": [
+          "id",
+          "deal_id",
+          "from_stage",
+          "to_stage",
+          "reason",
+          "changed_by_subject",
+          "changed_by_name",
+          "changed_at"
+        ],
+        "title": "DealStageChangeResponse",
         "type": "object"
       },
       "DevLoginRequest": {
@@ -540,6 +671,32 @@
           "limit"
         ],
         "title": "Page[DealResponse]",
+        "type": "object"
+      },
+      "Page_DealStageChangeResponse_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/DealStageChangeResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "limit": {
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "title": "Offset",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "offset",
+          "limit"
+        ],
+        "title": "Page[DealStageChangeResponse]",
         "type": "object"
       },
       "Page_PartnerResponse_": {
@@ -781,6 +938,31 @@
         ],
         "title": "Role",
         "type": "string"
+      },
+      "StageSummaryResponse": {
+        "properties": {
+          "deal_count": {
+            "title": "Deal Count",
+            "type": "integer"
+          },
+          "stage": {
+            "$ref": "#/components/schemas/DealStage"
+          },
+          "totals": {
+            "items": {
+              "$ref": "#/components/schemas/CurrencyAmountResponse"
+            },
+            "title": "Totals",
+            "type": "array"
+          }
+        },
+        "required": [
+          "stage",
+          "deal_count",
+          "totals"
+        ],
+        "title": "StageSummaryResponse",
+        "type": "object"
       },
       "ValidationError": {
         "properties": {
@@ -1045,6 +1227,23 @@
       "get": {
         "operationId": "list_customers_api_v1_customers_get",
         "parameters": [
+          {
+            "in": "query",
+            "name": "keyword",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 100,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Keyword"
+            }
+          },
           {
             "in": "query",
             "name": "offset",
@@ -1883,6 +2082,22 @@
           },
           {
             "in": "query",
+            "name": "stage",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/DealStage"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Stage"
+            }
+          },
+          {
+            "in": "query",
             "name": "offset",
             "required": false,
             "schema": {
@@ -1902,6 +2117,16 @@
               "minimum": 1,
               "title": "Limit",
               "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "mine",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Mine",
+              "type": "boolean"
             }
           }
         ],
@@ -2079,6 +2304,69 @@
           }
         },
         "summary": "Get Deal By Code",
+        "tags": [
+          "deals"
+        ]
+      }
+    },
+    "/api/v1/deals/pipeline": {
+      "get": {
+        "operationId": "get_deal_pipeline_api_v1_deals_pipeline_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "mine",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Mine",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DealPipelineResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          }
+        },
+        "summary": "Get Deal Pipeline",
         "tags": [
           "deals"
         ]
@@ -2532,10 +2820,196 @@
         ]
       }
     },
+    "/api/v1/deals/{deal_id}/stage": {
+      "post": {
+        "operationId": "change_deal_stage_api_v1_deals__deal_id__stage_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "deal_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Deal Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DealStageChangeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DealResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          }
+        },
+        "summary": "Change Deal Stage",
+        "tags": [
+          "deals"
+        ]
+      }
+    },
+    "/api/v1/deals/{deal_id}/stage-changes": {
+      "get": {
+        "operationId": "list_deal_stage_changes_api_v1_deals__deal_id__stage_changes_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "deal_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Deal Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_DealStageChangeResponse_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          }
+        },
+        "summary": "List Deal Stage Changes",
+        "tags": [
+          "deals"
+        ]
+      }
+    },
     "/api/v1/partners": {
       "get": {
         "operationId": "list_partners_api_v1_partners_get",
         "parameters": [
+          {
+            "in": "query",
+            "name": "keyword",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 100,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Keyword"
+            }
+          },
           {
             "in": "query",
             "name": "offset",

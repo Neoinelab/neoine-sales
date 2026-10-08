@@ -1,11 +1,17 @@
+from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Response, status
+from fastapi import APIRouter, Query, Response, status
 
 from app.domain.partner.value_objects import PartnerId
-from app.web.dependencies import DEFAULT_LIMIT, Limit, Offset, Provider
+from app.web.dependencies import Provider
 from app.web.routers.responses import READ_ERRORS, WRITE_ERRORS
-from app.web.schemas.partner import PartnerPage, PartnerRequest, PartnerResponse
+from app.web.schemas.partner import (
+    PartnerPage,
+    PartnerRequest,
+    PartnerResponse,
+    PartnerSearchParams,
+)
 
 router = APIRouter(prefix="/api/v1/partners", tags=["partners"])
 
@@ -23,11 +29,12 @@ async def register_partner(
 
 @router.get("", response_model=PartnerPage, responses=READ_ERRORS)
 async def list_partners(
-    provider: Provider, offset: Offset = 0, limit: Limit = DEFAULT_LIMIT
+    params: Annotated[PartnerSearchParams, Query()], provider: Provider
 ) -> PartnerPage:
-    partners = await provider.list_partners().execute(offset=offset, limit=limit)
+    query = params.to_query()
+    partners = await provider.list_partners().execute(query)
     items = [PartnerResponse.from_entity(c) for c in partners]
-    return PartnerPage(items=items, offset=offset, limit=limit)
+    return PartnerPage(items=items, offset=query.offset, limit=query.limit)
 
 
 @router.get("/{partner_id}", response_model=PartnerResponse, responses=READ_ERRORS)
