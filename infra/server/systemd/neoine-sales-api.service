@@ -1,0 +1,25 @@
+# /etc/systemd/system/neoine-sales-api.service (bootstrap.sh가 설치)
+# --workers는 서버 .env의 APP_WORKERS와 같게 관리한다(두 곳을 함께 변경).
+[Unit]
+Description=neoine-sales API (FastAPI / Uvicorn)
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+User=neoine
+Group=neoine
+# pydantic-settings가 이 디렉터리의 .env를 읽는다
+WorkingDirectory=/opt/neoine-sales
+ExecStart=/opt/neoine-sales/current/backend/.venv/bin/uvicorn app.main:app \
+          --host 127.0.0.1 --port 8000 --workers 4 --proxy-headers
+Restart=on-failure
+RestartSec=3
+LimitNOFILE=65536
+# 하드닝. .venv의 python은 neoine 홈의 uv Python을 가리키므로 홈은 읽기만 허용한다(ProtectHome=true면 기동 불가)
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+
+[Install]
+WantedBy=multi-user.target

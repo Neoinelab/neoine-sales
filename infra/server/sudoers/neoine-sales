@@ -1,0 +1,3 @@
+# /etc/sudoers.d/neoine-sales (bootstrap.sh가 설치). 배포 계정은 이 서비스의 재시작만 할 수 있다.
+# 명령 경로는 배포판에 맞게 확인한다(which systemctl).
+neoine ALL=(root) NOPASSWD: /usr/bin/systemctl restart neoine-sales-api

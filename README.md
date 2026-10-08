@@ -82,12 +82,20 @@ cd backend && uv run python scripts/export_openapi.py   # backend/openapi.json
 cd frontend && corepack pnpm gen:api                    # src/shared/api/schema.d.ts
 ```
 
+## 운영(product) 배포 방식
+
+화면과 API가 **하나의 주소**로 제공됩니다. 프런트엔드는 정적 파일(`frontend/dist`)로 빌드되어 릴리스 번들에 함께 들어가고,
+서버의 Nginx가 정적 파일을 직접 서빙하면서 `/api`만 백엔드(Uvicorn, 127.0.0.1:8000)로 넘깁니다.
+서버에서 실행되는 것은 백엔드(systemd 서비스 `neoine-sales-api`)와 Nginx뿐이며 프런트엔드용 Node 서버는 없습니다.
+Jenkins가 `main` 머지 시 번들을 만들어 dev에 자동 배포하고, 승인 후 product에 한 대씩 순차 배포합니다(실패하면 이전 릴리스로 자동 롤백).
+자세한 내용은 [개발 가이드 16장](docs/dev-guide.html)과 `infra/server/`를 보세요.
+
 ## 구조
 
 ```
 backend/    FastAPI (domain / application / infra / web 4계층, uv 관리)
 frontend/   React + TypeScript (Vite)
-infra/      릴리스 번들 스크립트 (서버 구성 자산은 추후 추가)
+infra/      릴리스 번들 스크립트, 서버 구성·배포 자산(infra/server: systemd, Nginx, deploy.sh, bootstrap.sh)
 docs/       dev-guide.html (개발 가이드), harness-guide.html (AI 하네스 가이드)
 Jenkinsfile CI 파이프라인
 ```

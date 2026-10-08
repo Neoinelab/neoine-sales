@@ -60,3 +60,4 @@ uv run python scripts/run_gates.py --only mypy
 | 2026-10-07 | 최소 구성 Agent 추가(`feature-planner`, `test-engineer`, `core-engineer`)와 리뷰 5역할을 겸하는 `code-reviewer`, 로직 구현 위임 순서를 `CLAUDE.md`에 규정 | `.claude/agents/`, `CLAUDE.md` | 구현자와 판정자 분리, 계획→테스트→구현→게이트→리뷰 절차의 반복 가능화 |
 | 2026-10-07 | 계층별 구현 Agent 추가(`infra-engineer`, `web-engineer`, `frontend-engineer`), 구현 순서를 8단계로 확장 | `.claude/agents/`, `CLAUDE.md` | 메인 세션이 직접 맡던 infra·web·frontend 구현을 역할별로 분리 |
 | 2026-10-07 | 사용자가 `settings.json`의 `ask`에서 `uv add`·`git commit`·`git merge`를 제거: 도구 확인 대신 규칙(요청·승인 시에만 실행)으로 유지한다고 명시 | `.claude/settings.json`, `CLAUDE.md` | 사용자의 권한 정책 변경(사용자가 직접 수행)을 문서에 반영 |
+| 2026-10-08 | 서버 배포 자산 추가(`infra/server/`: deploy.sh, bootstrap.sh, systemd, Nginx, sudoers)와 Jenkins 배포 단계, deploy.sh 스크립트 테스트(CI `Infra scripts`) | `infra/server/`, `Jenkinsfile` | 운영에서 Nginx가 정적 파일 서빙 + `/api` 프록시로 한 주소로 제공(방식 A) |
