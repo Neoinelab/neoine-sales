@@ -7,11 +7,22 @@ import { Pager } from '../../shared/ui/Pager'
 import { useCustomerOptions } from '../customers/hooks'
 import { DealFilterBar } from './DealFilterBar'
 import { DealForm } from './DealForm'
+import { PipelineSummary } from './PipelineSummary'
+import { STAGE_LABEL } from './stages'
 import { useDeals, useDeleteDeal, type Deal, type DealFilters } from './hooks'
 
 /** 값이 있는 검색 조건이 하나라도 있는지(빈 폼이 넘기는 undefined 키는 조건이 아니다). */
 function hasCondition(filters: DealFilters): boolean {
-  return Object.values(filters).some((v) => v !== undefined && v !== '')
+  return Object.values(filters).some((v) => v !== undefined && v !== '' && v !== false)
+}
+
+/** 두 검색 조건이 같은지(undefined·빈 값·false는 조건 없음으로 보고 비교한다). */
+function sameFilters(a: DealFilters, b: DealFilters): boolean {
+  const clean = (f: DealFilters) =>
+    Object.entries(f)
+      .filter(([, v]) => v !== undefined && v !== '' && v !== false)
+      .sort(([x], [y]) => x.localeCompare(y))
+  return JSON.stringify(clean(a)) === JSON.stringify(clean(b))
 }
 
 type Editing = { kind: 'new' } | { kind: 'edit'; deal: Deal } | null
@@ -24,6 +35,7 @@ export function DealsPage() {
   const customers = useCustomerOptions()
   const remove = useDeleteDeal()
   const items = deals.data?.items ?? []
+  const mine = filters.mine === true
   const searching = hasCondition(filters)
   const customerName = new Map(customers.data?.items.map((c) => [c.id, c.company_name]))
 
@@ -43,14 +55,28 @@ export function DealsPage() {
           onDone={() => setEditing(null)}
         />
       )}
+      <label>
+        <input
+          type="checkbox"
+          checked={mine}
+          onChange={(e) => {
+            setFilters({ ...filters, mine: e.target.checked })
+            setOffset(0)
+          }}
+        />{' '}
+        내 딜만
+      </label>
+      <p className="hint">내가 등록한 딜만 목록과 파이프라인 현황에 표시합니다.</p>
       <DealFilterBar
-        onSearch={(next) => {
+        onSearch={(conditions) => {
+          const next = { ...conditions, mine }
           // 조건이 그대로면 쿼리 키가 같아 재조회되지 않으므로, 검색 버튼은 직접 다시 조회한다.
-          if (!hasCondition(next) && !hasCondition(filters) && offset === 0) void deals.refetch()
+          if (sameFilters(next, filters) && offset === 0) void deals.refetch()
           setFilters(next)
           setOffset(0)
         }}
       />
+      <PipelineSummary mine={mine} />
       <table>
         <thead>
           <tr>
@@ -59,6 +85,7 @@ export function DealsPage() {
             <th>Owner</th>
             <th>Vendor</th>
             <th>Solution</th>
+            <th>단계</th>
             <th>매출금액</th>
             <th>매출일</th>
             <th>고객</th>
@@ -75,6 +102,7 @@ export function DealsPage() {
               <td>{d.owner}</td>
               <td>{d.vendor}</td>
               <td>{d.solution}</td>
+              <td>{STAGE_LABEL[d.stage]}</td>
               <td className="num">{formatAmount(d.revenue_amount, d.revenue_currency)}</td>
               <td>{d.revenue_date}</td>
               <td>{customerName.get(d.customer_id) ?? ''}</td>
@@ -95,7 +123,7 @@ export function DealsPage() {
           ))}
           {deals.isSuccess && items.length === 0 && (
             <tr>
-              <td colSpan={9}>{searching ? '조건에 맞는 딜이 없습니다.' : '등록된 딜이 없습니다.'}</td>
+              <td colSpan={10}>{searching ? '조건에 맞는 딜이 없습니다.' : '등록된 딜이 없습니다.'}</td>
             </tr>
           )}
         </tbody>

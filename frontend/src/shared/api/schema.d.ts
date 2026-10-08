@@ -214,6 +214,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/deals/pipeline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Deal Pipeline */
+        get: operations["get_deal_pipeline_api_v1_deals_pipeline_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/deals/{deal_id}": {
         parameters: {
             query?: never;
@@ -245,6 +262,40 @@ export interface paths {
         put?: never;
         /** Register Deal Action */
         post: operations["register_deal_action_api_v1_deals__deal_id__actions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/deals/{deal_id}/stage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Change Deal Stage */
+        post: operations["change_deal_stage_api_v1_deals__deal_id__stage_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/deals/{deal_id}/stage-changes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Deal Stage Changes */
+        get: operations["list_deal_stage_changes_api_v1_deals__deal_id__stage_changes_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -338,6 +389,13 @@ export interface components {
             dev_login: boolean;
             /** Oidc */
             oidc: boolean;
+        };
+        /** CurrencyAmountResponse */
+        CurrencyAmountResponse: {
+            /** Amount */
+            amount: string;
+            /** Currency */
+            currency: string;
         };
         /** CustomerRequest */
         CustomerRequest: {
@@ -435,6 +493,11 @@ export interface components {
              */
             updated_at: string;
         };
+        /** DealPipelineResponse */
+        DealPipelineResponse: {
+            /** Stages */
+            stages: components["schemas"]["StageSummaryResponse"][];
+        };
         /** DealRequest */
         DealRequest: {
             /** Code */
@@ -497,6 +560,7 @@ export interface components {
             revenue_date: string;
             /** Solution */
             solution: string;
+            stage: components["schemas"]["DealStage"];
             /**
              * Updated At
              * Format: date-time
@@ -504,6 +568,38 @@ export interface components {
             updated_at: string;
             /** Vendor */
             vendor: string;
+        };
+        /**
+         * DealStage
+         * @description 딜 진행 단계. 선언 순서가 표시 순서(파이프라인 정렬 기준)다.
+         * @enum {string}
+         */
+        DealStage: "prospecting" | "introduction" | "poc_preparation" | "poc_completed" | "technical_evaluation" | "price_negotiation" | "contract_completed" | "lost";
+        /** DealStageChangeRequest */
+        DealStageChangeRequest: {
+            /** Reason */
+            reason?: string | null;
+            stage: components["schemas"]["DealStage"];
+        };
+        /** DealStageChangeResponse */
+        DealStageChangeResponse: {
+            /**
+             * Changed At
+             * Format: date-time
+             */
+            changed_at: string;
+            /** Changed By Name */
+            changed_by_name: string;
+            /** Changed By Subject */
+            changed_by_subject: string;
+            /** Deal Id */
+            deal_id: string;
+            from_stage: components["schemas"]["DealStage"];
+            /** Id */
+            id: string;
+            /** Reason */
+            reason: string | null;
+            to_stage: components["schemas"]["DealStage"];
         };
         /** DevLoginRequest */
         DevLoginRequest: {
@@ -536,6 +632,15 @@ export interface components {
         Page_DealResponse_: {
             /** Items */
             items: components["schemas"]["DealResponse"][];
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+        };
+        /** Page[DealStageChangeResponse] */
+        Page_DealStageChangeResponse_: {
+            /** Items */
+            items: components["schemas"]["DealStageChangeResponse"][];
             /** Limit */
             limit: number;
             /** Offset */
@@ -623,6 +728,14 @@ export interface components {
          * @enum {string}
          */
         Role: "admin" | "sales";
+        /** StageSummaryResponse */
+        StageSummaryResponse: {
+            /** Deal Count */
+            deal_count: number;
+            stage: components["schemas"]["DealStage"];
+            /** Totals */
+            totals: components["schemas"]["CurrencyAmountResponse"][];
+        };
         /** ValidationError */
         ValidationError: {
             /** Context */
@@ -799,6 +912,7 @@ export interface operations {
     list_customers_api_v1_customers_get: {
         parameters: {
             query?: {
+                keyword?: string | null;
                 offset?: number;
                 limit?: number;
             };
@@ -1288,8 +1402,10 @@ export interface operations {
                 vendor?: string | null;
                 revenue_from?: string | null;
                 revenue_to?: string | null;
+                stage?: components["schemas"]["DealStage"] | null;
                 offset?: number;
                 limit?: number;
+                mine?: boolean;
             };
             header?: never;
             path?: never;
@@ -1413,6 +1529,55 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DealResponse"];
+                };
+            };
+            /** @description problem+json */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    get_deal_pipeline_api_v1_deals_pipeline_get: {
+        parameters: {
+            query?: {
+                mine?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DealPipelineResponse"];
                 };
             };
             /** @description problem+json */
@@ -1721,9 +1886,124 @@ export interface operations {
             };
         };
     };
+    change_deal_stage_api_v1_deals__deal_id__stage_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                deal_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DealStageChangeRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DealResponse"];
+                };
+            };
+            /** @description problem+json */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    list_deal_stage_changes_api_v1_deals__deal_id__stage_changes_get: {
+        parameters: {
+            query?: {
+                offset?: number;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                deal_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_DealStageChangeResponse_"];
+                };
+            };
+            /** @description problem+json */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     list_partners_api_v1_partners_get: {
         parameters: {
             query?: {
+                keyword?: string | null;
                 offset?: number;
                 limit?: number;
             };

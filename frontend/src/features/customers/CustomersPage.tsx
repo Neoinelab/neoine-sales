@@ -1,17 +1,20 @@
 import { useState } from 'react'
 import { PAGE_SIZE } from '../../shared/constants'
 import { ErrorBanner } from '../../shared/ui/ErrorBanner'
+import { KeywordSearchBar } from '../../shared/ui/KeywordSearchBar'
 import { Pager } from '../../shared/ui/Pager'
 import { CustomerForm } from './CustomerForm'
-import { useCustomers, useDeleteCustomer, type Customer } from './hooks'
+import { useCustomers, useDeleteCustomer, type Customer, type CustomerFilters } from './hooks'
 
 type Editing = { kind: 'new' } | { kind: 'edit'; customer: Customer } | null
 
 export function CustomersPage() {
   const [offset, setOffset] = useState(0)
+  const [filters, setFilters] = useState<CustomerFilters>({})
   const [editing, setEditing] = useState<Editing>(null)
-  const customers = useCustomers(offset)
+  const customers = useCustomers(filters, offset)
   const remove = useDeleteCustomer()
+  const searching = !!filters.keyword
   const items = customers.data?.items ?? []
 
   return (
@@ -30,6 +33,14 @@ export function CustomersPage() {
           onDone={() => setEditing(null)}
         />
       )}
+      <KeywordSearchBar
+        onSearch={(keyword) => {
+          // 조건이 그대로면 쿼리 키가 같아 재조회되지 않으므로, 빈 폼 검색은 직접 다시 조회한다.
+          if (!keyword && !searching && offset === 0) void customers.refetch()
+          setFilters({ keyword })
+          setOffset(0)
+        }}
+      />
       <table>
         <thead>
           <tr>
@@ -70,7 +81,7 @@ export function CustomersPage() {
           ))}
           {customers.isSuccess && items.length === 0 && (
             <tr>
-              <td colSpan={8}>등록된 고객이 없습니다.</td>
+              <td colSpan={8}>{searching ? '조건에 맞는 고객이 없습니다.' : '등록된 고객이 없습니다.'}</td>
             </tr>
           )}
         </tbody>

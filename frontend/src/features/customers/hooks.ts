@@ -6,11 +6,29 @@ import { OPTIONS_LIMIT, PAGE_SIZE } from '../../shared/constants'
 export type Customer = Schemas['CustomerResponse']
 export type CustomerInput = Schemas['CustomerRequest']
 
-export function useCustomers(offset: number) {
+export interface CustomerFilters {
+  keyword?: string
+}
+
+/** 빈 값(undefined·빈 문자열) 조건은 보내지 않는다. */
+function clean(filters: CustomerFilters): CustomerFilters {
+  return Object.fromEntries(Object.entries(filters).filter(([, v]) => v)) as CustomerFilters
+}
+
+export function useCustomers(filters: CustomerFilters, offset: number) {
+  const query = { ...clean(filters), offset, limit: PAGE_SIZE }
   return useQuery({
-    queryKey: ['customers', offset],
+    queryKey: ['customers', query],
+    queryFn: () => call(api.GET('/api/v1/customers', { params: { query } })),
+  })
+}
+
+export function useCustomer(id: string) {
+  return useQuery({
+    queryKey: ['customer', id],
     queryFn: () =>
-      call(api.GET('/api/v1/customers', { params: { query: { offset, limit: PAGE_SIZE } } })),
+      call(api.GET('/api/v1/customers/{customer_id}', { params: { path: { customer_id: id } } })),
+    enabled: !!id,
   })
 }
 
@@ -32,6 +50,7 @@ export function useSaveCustomer() {
         : call(api.POST('/api/v1/customers', { body })),
     onSuccess: () => Promise.all([
       client.invalidateQueries({ queryKey: ['customers'] }),
+      client.invalidateQueries({ queryKey: ['customer'] }),
       client.invalidateQueries({ queryKey: ['customer-options'] }),
     ]),
   })

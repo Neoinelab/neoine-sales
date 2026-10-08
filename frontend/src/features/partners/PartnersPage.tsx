@@ -1,17 +1,20 @@
 import { useState } from 'react'
 import { PAGE_SIZE } from '../../shared/constants'
 import { ErrorBanner } from '../../shared/ui/ErrorBanner'
+import { KeywordSearchBar } from '../../shared/ui/KeywordSearchBar'
 import { Pager } from '../../shared/ui/Pager'
 import { PartnerForm } from './PartnerForm'
-import { usePartners, useDeletePartner, type Partner } from './hooks'
+import { usePartners, useDeletePartner, type Partner, type PartnerFilters } from './hooks'
 
 type Editing = { kind: 'new' } | { kind: 'edit'; partner: Partner } | null
 
 export function PartnersPage() {
   const [offset, setOffset] = useState(0)
+  const [filters, setFilters] = useState<PartnerFilters>({})
   const [editing, setEditing] = useState<Editing>(null)
-  const partners = usePartners(offset)
+  const partners = usePartners(filters, offset)
   const remove = useDeletePartner()
+  const searching = !!filters.keyword
   const items = partners.data?.items ?? []
 
   return (
@@ -30,6 +33,14 @@ export function PartnersPage() {
           onDone={() => setEditing(null)}
         />
       )}
+      <KeywordSearchBar
+        onSearch={(keyword) => {
+          // 조건이 그대로면 쿼리 키가 같아 재조회되지 않으므로, 빈 폼 검색은 직접 다시 조회한다.
+          if (!keyword && !searching && offset === 0) void partners.refetch()
+          setFilters({ keyword })
+          setOffset(0)
+        }}
+      />
       <table>
         <thead>
           <tr>
@@ -66,7 +77,7 @@ export function PartnersPage() {
           ))}
           {partners.isSuccess && items.length === 0 && (
             <tr>
-              <td colSpan={6}>등록된 파트너이 없습니다.</td>
+              <td colSpan={6}>{searching ? '조건에 맞는 파트너가 없습니다.' : '등록된 파트너가 없습니다.'}</td>
             </tr>
           )}
         </tbody>

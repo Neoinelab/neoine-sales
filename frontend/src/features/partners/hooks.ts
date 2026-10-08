@@ -6,11 +6,29 @@ import { OPTIONS_LIMIT, PAGE_SIZE } from '../../shared/constants'
 export type Partner = Schemas['PartnerResponse']
 export type PartnerInput = Schemas['PartnerRequest']
 
-export function usePartners(offset: number) {
+export interface PartnerFilters {
+  keyword?: string
+}
+
+/** 빈 값(undefined·빈 문자열) 조건은 보내지 않는다. */
+function clean(filters: PartnerFilters): PartnerFilters {
+  return Object.fromEntries(Object.entries(filters).filter(([, v]) => v)) as PartnerFilters
+}
+
+export function usePartners(filters: PartnerFilters, offset: number) {
+  const query = { ...clean(filters), offset, limit: PAGE_SIZE }
   return useQuery({
-    queryKey: ['partners', offset],
+    queryKey: ['partners', query],
+    queryFn: () => call(api.GET('/api/v1/partners', { params: { query } })),
+  })
+}
+
+export function usePartner(id: string) {
+  return useQuery({
+    queryKey: ['partner', id],
     queryFn: () =>
-      call(api.GET('/api/v1/partners', { params: { query: { offset, limit: PAGE_SIZE } } })),
+      call(api.GET('/api/v1/partners/{partner_id}', { params: { path: { partner_id: id } } })),
+    enabled: !!id,
   })
 }
 
@@ -32,6 +50,7 @@ export function useSavePartner() {
         : call(api.POST('/api/v1/partners', { body })),
     onSuccess: () => Promise.all([
       client.invalidateQueries({ queryKey: ['partners'] }),
+      client.invalidateQueries({ queryKey: ['partner'] }),
       client.invalidateQueries({ queryKey: ['partner-options'] }),
     ]),
   })

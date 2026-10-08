@@ -4,6 +4,7 @@ import { SelectField, TextField } from '../../shared/ui/fields'
 import { useCustomerOptions } from '../customers/hooks'
 import { usePartnerOptions } from '../partners/hooks'
 import type { DealFilters } from './hooks'
+import { DEAL_STAGES, STAGE_LABEL, type DealStage } from './stages'
 
 interface Props {
   onSearch: (filters: DealFilters) => void
@@ -18,6 +19,7 @@ export function DealFilterBar({ onSearch }: Props) {
   const [partnerId, setPartnerId] = useState('')
   const [owner, setOwner] = useState('')
   const [vendor, setVendor] = useState('')
+  const [stage, setStage] = useState('')
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
 
@@ -33,6 +35,7 @@ export function DealFilterBar({ onSearch }: Props) {
           partner_id: partnerId || undefined,
           owner: owner.trim() || undefined,
           vendor: vendor.trim() || undefined,
+          stage: (stage || undefined) as DealStage | undefined,
           revenue_from: from || undefined,
           revenue_to: to ? nextDay(to) : undefined,
         })
@@ -57,6 +60,14 @@ export function DealFilterBar({ onSearch }: Props) {
       </SelectField>
       <TextField label="Owner" name="owner" value={owner} onChange={setOwner} />
       <TextField label="Vendor" name="vendor" value={vendor} onChange={setVendor} />
+      <SelectField label="단계" name="stage" value={stage} onChange={setStage}>
+        <option value="">전체</option>
+        {DEAL_STAGES.map((code) => (
+          <option key={code} value={code}>
+            {STAGE_LABEL[code]}
+          </option>
+        ))}
+      </SelectField>
       <TextField label="매출 시작일" name="revenue_from" type="date" value={from} onChange={setFrom} />
       <TextField label="매출 종료일" name="revenue_to" type="date" value={to} onChange={setTo} />
       <button type="submit">검색</button>
