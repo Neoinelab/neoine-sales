@@ -17,16 +17,6 @@
       "Bash(git log*)",
       "Bash(git show*)"
     ],
-    "ask": [
-      "Bash(uv add*)",
-      "Bash(uv remove*)",
-      "Bash(git commit*)",
-      "Bash(git merge*)",
-      "Edit(**/pyproject.toml)",
-      "Edit(**/mise.toml)",
-      "Edit(**/Jenkinsfile)",
-      "Edit(**/infra/server/**)"
-    ],
     "deny": [
       "Read(**/.env)",
       "Read(**/.env.local)",
@@ -41,6 +31,13 @@
       "Bash(git reset --hard*)",
       "Bash(git clean*)",
       "Bash(rm -rf*)"
+    ],
+    "ask": [
+      "Bash(uv remove*)",
+      "Edit(**/pyproject.toml)",
+      "Edit(**/mise.toml)",
+      "Edit(**/Jenkinsfile)",
+      "Edit(**/infra/server/**)"
     ]
   },
   "hooks": {
