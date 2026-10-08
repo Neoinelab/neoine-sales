@@ -171,6 +171,39 @@ async def test_deal_history_is_recorded_and_searched_in_the_database(stack: Asyn
 
 
 @pytest.mark.integration
+async def test_deal_search_filters_run_in_the_database(stack: AsyncClient) -> None:
+    customer = (await stack.post(CUSTOMERS, json=customer_payload())).json()
+    other = (await stack.post(CUSTOMERS, json=customer_payload(company_name="다른고객"))).json()
+    partner = (await stack.post(PARTNERS, json=partner_payload())).json()
+    rows = [
+        ("D-1", customer["id"], partner["id"], "ERP 100% 구축", "2026-05-31"),
+        ("D-2", customer["id"], None, "ERP 도입", "2026-06-01"),
+        ("D-3", customer["id"], None, "ERP 확장", "2026-06-30"),
+        ("D-4", other["id"], None, "ERP 보안", "2026-07-01"),
+    ]
+    for code, customer_id, partner_id, name, day in rows:
+        body = deal_payload(
+            customer_id, code=code, name=name, revenue_date=day, partner_id=partner_id
+        )
+        assert (await stack.post(DEALS, json=body)).status_code == 201
+    deleted = (await stack.post(DEALS, json=deal_payload(customer["id"], code="D-5"))).json()
+    assert (await stack.delete(f"{DEALS}/{deleted['id']}")).status_code == 204
+
+    async def codes(**params: str) -> list[str]:
+        response = await stack.get(DEALS, params=params)
+        assert response.status_code == 200, response.text
+        return [item["code"] for item in response.json()["items"]]
+
+    assert await codes() == ["D-1", "D-2", "D-3", "D-4"]
+    assert await codes(keyword="erp", customer_id=customer["id"]) == ["D-1", "D-2", "D-3"]
+    assert await codes(keyword="100%") == ["D-1"]
+    assert await codes(partner_id=partner["id"]) == ["D-1"]
+    assert await codes(revenue_from="2026-06-01", revenue_to="2026-07-01") == ["D-2", "D-3"]
+    assert await codes(owner="박영업", vendor="SAP", offset="1", limit="2") == ["D-2", "D-3"]
+    assert await codes(owner="박영") == []
+
+
+@pytest.mark.integration
 async def test_sessions_live_in_the_database_and_logout_revokes_them(stack: AsyncClient) -> None:
     me = await stack.get("/api/v1/auth/me")
     assert me.status_code == 200

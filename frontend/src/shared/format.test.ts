@@ -1,5 +1,19 @@
 import { describe, expect, it } from 'vitest'
-import { dayStart, formatAmount, fromLocalInput, toLocalInput } from './format'
+import { dayStart, formatAmount, fromLocalInput, nextDay, toLocalInput } from './format'
+
+describe('nextDay', () => {
+  it('returns the following date across month and year ends', () => {
+    expect(nextDay('2026-06-30')).toBe('2026-07-01')
+    expect(nextDay('2026-12-31')).toBe('2027-01-01')
+    expect(nextDay('2026-06-01')).toBe('2026-06-02')
+  })
+
+  it('handles leap days', () => {
+    expect(nextDay('2028-02-28')).toBe('2028-02-29')
+    expect(nextDay('2028-02-29')).toBe('2028-03-01')
+    expect(nextDay('2026-02-28')).toBe('2026-03-01')
+  })
+})
 
 describe('formatAmount', () => {
   it('groups thousands and keeps the decimals as given', () => {

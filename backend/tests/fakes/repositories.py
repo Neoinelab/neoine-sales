@@ -19,6 +19,7 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from app.application.ports.deal_action_repository import DealActionQuery
+    from app.application.ports.deal_repository import DealQuery
     from app.domain.auth.session import AuthSession
     from app.domain.customer.value_objects import CustomerId
     from app.domain.deal.value_objects import DealCode, DealId
@@ -64,6 +65,22 @@ class FakePartnerRepository(InMemoryStore[Partner]):
         self._replace(partner)
 
 
+def _deal_matches(deal: Deal, query: DealQuery) -> bool:
+    details = deal.details
+    keyword = query.keyword.lower() if query.keyword else None
+    searchable = (details.code.value, details.name, details.owner, details.vendor, details.solution)
+    return (
+        not deal.is_deleted
+        and (keyword is None or any(keyword in text.lower() for text in searchable))
+        and (query.customer_id is None or details.customer_id == query.customer_id)
+        and (query.partner_id is None or details.partner_id == query.partner_id)
+        and (query.owner is None or details.owner == query.owner)
+        and (query.vendor is None or details.vendor == query.vendor)
+        and (query.revenue_from is None or details.revenue_date >= query.revenue_from)
+        and (query.revenue_to is None or details.revenue_date < query.revenue_to)
+    )
+
+
 class FakeDealRepository(InMemoryStore[Deal]):
     def __init__(self) -> None:
         super().__init__("deal", DealNotFoundError)
@@ -91,6 +108,11 @@ class FakeDealRepository(InMemoryStore[Deal]):
         self, *, offset: int = 0, limit: int = DEFAULT_LIMIT, include_deleted: bool = False
     ) -> Sequence[Deal]:
         return self._fetch_page(offset, limit, include_deleted=include_deleted)
+
+    async def search(self, query: DealQuery) -> Sequence[Deal]:
+        found = [d for d in self._items.values() if _deal_matches(d, query)]
+        found.sort(key=lambda d: (d.created_at, str(d.id)))
+        return [copy.deepcopy(d) for d in found[query.offset : query.offset + query.limit]]
 
     async def has_active_for_customer(self, customer_id: CustomerId) -> bool:
         return any(

@@ -14,6 +14,7 @@ from app.application.deal.register_deal import RegisterDeal
 from app.application.deal.update_deal import UpdateDeal
 from app.application.partner.delete_partner import DeletePartner
 from app.application.partner.register_partner import RegisterPartner
+from app.application.ports.deal_repository import DealQuery
 from app.domain.common.errors import InvalidReferenceError, InvalidValueError
 from app.domain.deal.errors import DealNotFoundError, DuplicateDealCodeError
 from app.domain.deal.value_objects import DealId
@@ -157,7 +158,7 @@ class TestReadDeals:
             created.append(await register.execute(make_deal_input(customer.id, code=f"D-{number}")))
         await DeleteDeal(uow_factory, clock).execute(created[0].id)
 
-        page = await ListDeals(uow_factory).execute(offset=1, limit=2)
+        page = await ListDeals(uow_factory).execute(DealQuery(offset=1, limit=2))
 
         assert [d.id for d in page] == [created[2].id, created[3].id]
 

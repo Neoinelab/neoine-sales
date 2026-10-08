@@ -33,3 +33,17 @@ def test_every_endpoint_documents_its_error_responses() -> None:
             responses = operation["responses"]
             assert "422" in responses, f"{method.upper()} {path}에 422 응답 문서가 없다"
             assert "401" in responses, f"{method.upper()} {path}에 401 응답 문서가 없다"
+
+
+def test_deal_search_text_params_document_max_length() -> None:
+    schema = create_app(settings=make_settings(), use_cases=FakeUseCases()).openapi()
+
+    params = {p["name"]: p for p in schema["paths"]["/api/v1/deals"]["get"]["parameters"]}
+
+    for name in ("keyword", "owner", "vendor"):
+        lengths = [
+            option["maxLength"]
+            for option in params[name]["schema"]["anyOf"]
+            if "maxLength" in option
+        ]
+        assert lengths == [100], f"{name} 파라미터에 maxLength 100이 없다"
