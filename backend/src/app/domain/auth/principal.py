@@ -8,9 +8,26 @@ SUBJECT_MAX = 200
 NAME_MAX = 200
 
 
+class Permission(StrEnum):
+    READ = "read"
+    WRITE = "write"
+    ADMINISTER = "administer"
+
+
 class Role(StrEnum):
     ADMIN = "admin"
     SALES = "sales"
+    USER = "user"
+
+    def allows(self, permission: Permission) -> bool:
+        return permission in _GRANTS[self]
+
+
+_GRANTS: dict[Role, frozenset[Permission]] = {
+    Role.ADMIN: frozenset(Permission),
+    Role.SALES: frozenset({Permission.READ, Permission.WRITE}),
+    Role.USER: frozenset({Permission.READ}),
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -29,3 +46,6 @@ class Principal:
         if email is not None and "@" not in email:
             raise InvalidValueError(f"이메일 형식이 올바르지 않습니다: {self.email!r}")
         assign(self, subject=subject, name=name, email=email)
+
+    def can(self, permission: Permission) -> bool:
+        return self.role.allows(permission)

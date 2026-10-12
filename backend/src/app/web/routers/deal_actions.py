@@ -3,11 +3,12 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Query, Response, status
+from fastapi import Query, Response, status
 
 from app.domain.deal.value_objects import DealId
 from app.domain.deal_action.value_objects import DealActionId
 from app.web.dependencies import Provider
+from app.web.permissions import BusinessRouter
 from app.web.routers.responses import READ_ERRORS, WRITE_ERRORS
 from app.web.schemas.deal_action import (
     DealActionPage,
@@ -17,7 +18,7 @@ from app.web.schemas.deal_action import (
     GlobalDealActionSearchParams,
 )
 
-router = APIRouter(prefix="/api/v1", tags=["deal-actions"])
+router = BusinessRouter(prefix="/api/v1", tags=["deal-actions"])
 Search = Annotated[DealActionSearchParams, Query()]
 GlobalSearch = Annotated[GlobalDealActionSearchParams, Query()]
 

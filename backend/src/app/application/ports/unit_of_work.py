@@ -6,8 +6,11 @@ if TYPE_CHECKING:
     from app.application.ports.deal_action_repository import DealActionRepository
     from app.application.ports.deal_repository import DealRepository
     from app.application.ports.deal_stage_change_repository import DealStageChangeRepository
+    from app.application.ports.directory_settings_repository import DirectorySettingsRepository
+    from app.application.ports.login_failure_repository import LoginFailureRepository
     from app.application.ports.partner_repository import PartnerRepository
     from app.application.ports.session_repository import SessionRepository
+    from app.application.ports.user_repository import UserRepository
 
 
 class UnitOfWork(Protocol):
@@ -34,6 +37,15 @@ class UnitOfWork(Protocol):
 
     @property
     def sessions(self) -> SessionRepository: ...
+
+    @property
+    def users(self) -> UserRepository: ...
+
+    @property
+    def login_failures(self) -> LoginFailureRepository: ...
+
+    @property
+    def directory_settings(self) -> DirectorySettingsRepository: ...
 
     async def __aenter__(self) -> Self: ...
 

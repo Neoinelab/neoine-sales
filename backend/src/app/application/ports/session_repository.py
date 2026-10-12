@@ -1,6 +1,8 @@
 from typing import TYPE_CHECKING, Protocol
 
 if TYPE_CHECKING:
+    from datetime import datetime
+
     from app.domain.auth.session import AuthSession
 
 
@@ -15,4 +17,8 @@ class SessionRepository(Protocol):
 
     async def update(self, session: AuthSession) -> None:
         """폐기 상태를 저장한다. 없으면 NotFoundError."""
+        ...
+
+    async def revoke_all_for_subject(self, subject: str, now: datetime) -> int:
+        """subject의 아직 폐기되지 않은 세션을 모두 폐기하고 그 개수를 돌려준다."""
         ...

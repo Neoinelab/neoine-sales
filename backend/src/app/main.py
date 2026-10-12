@@ -10,7 +10,19 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import Settings, get_settings
 from app.container import Container
 from app.web.error_handlers import register_error_handlers
-from app.web.routers import auth, customers, deal_actions, deal_stages, deals, health, partners
+from app.web.routers import (
+    auth,
+    auth_login,
+    auth_setup,
+    customers,
+    deal_actions,
+    deal_stages,
+    deals,
+    health,
+    partners,
+    settings_directory,
+    users,
+)
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
@@ -52,14 +64,15 @@ def create_app(
     app.state.auth_options = AuthOptions(
         cookie_secure=settings.cookie_secure,
         session_ttl_seconds=settings.session_ttl_hours * 3600,
-        oidc_enabled=settings.oidc_enabled,
         dev_login_enabled=settings.dev_login_enabled,
     )
     register_error_handlers(app)
     app.include_router(health.router)
-    app.include_router(auth.router)
+    for module in (auth, auth_login, auth_setup):
+        app.include_router(module.router)
     guard = [Depends(require_login), Depends(require_csrf_header)]
-    for module in (customers, partners, deals, deal_actions, deal_stages):
+    business = (customers, partners, deals, deal_actions, deal_stages)
+    for module in (*business, users, settings_directory):
         app.include_router(module.router, dependencies=guard, responses={401: PROBLEM})
     return app
 

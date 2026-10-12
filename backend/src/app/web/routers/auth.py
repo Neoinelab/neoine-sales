@@ -1,111 +1,36 @@
-"""로그인·로그아웃. 백엔드가 OIDC 흐름을 맡고 브라우저에는 HttpOnly 세션 쿠키만 준다."""
+"""설정 조회·세션 확인·로그아웃·개발용 로그인. 로그인(AD)은 auth_login, 최초 설정은 auth_setup."""
 
-from typing import Annotated
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 
-from fastapi import APIRouter, Cookie, Depends, HTTPException, Query, Request, Response, status
-from fastapi.responses import RedirectResponse
-
-from app.application.auth.issue_session import IssuedSession
-from app.domain.auth.errors import AccessDeniedError, AuthenticationError
 from app.web.dependencies import Provider
 from app.web.routers.responses import PROBLEM
-from app.web.schemas.auth import (
-    AuthConfigResponse,
-    CallbackQuery,
-    DevLoginRequest,
-    PrincipalResponse,
-)
+from app.web.schemas.auth import AuthConfigResponse, DevLoginRequest, PrincipalResponse
 from app.web.security import (
     AUTH_PATH,
-    LOGIN_COOKIE,
     SESSION_COOKIE,
-    AuthOptions,
     CurrentUser,
     Options,
     require_csrf_header,
+    set_session_cookie,
 )
 
 router = APIRouter(prefix=AUTH_PATH, tags=["auth"])
-LOGIN_COOKIE_SECONDS = 600
-HOME = "/"
-
-
-def _set_session_cookie(response: Response, issued: IssuedSession, options: AuthOptions) -> None:
-    response.set_cookie(
-        SESSION_COOKIE,
-        issued.token,
-        max_age=options.session_ttl_seconds,
-        httponly=True,
-        secure=options.cookie_secure,
-        samesite="lax",
-        path="/",
-    )
-
-
-def _login_error(code: str, options: AuthOptions) -> RedirectResponse:
-    response = RedirectResponse(f"/login?error={code}", status_code=status.HTTP_302_FOUND)
-    response.delete_cookie(LOGIN_COOKIE, path=AUTH_PATH, secure=options.cookie_secure)
-    return response
-
-
-def _require(enabled: bool) -> None:
-    if not enabled:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "사용할 수 없는 기능입니다")
 
 
 @router.get("/config")
-async def auth_config(options: Options) -> AuthConfigResponse:
-    return AuthConfigResponse(dev_login=options.dev_login_enabled, oidc=options.oidc_enabled)
-
-
-@router.get("/login", status_code=status.HTTP_302_FOUND, response_class=RedirectResponse)
-async def login(provider: Provider, options: Options) -> RedirectResponse:
-    _require(options.oidc_enabled)
-    start = await provider.begin_login().execute()
-    response = RedirectResponse(start.redirect_url, status_code=status.HTTP_302_FOUND)
-    response.set_cookie(
-        LOGIN_COOKIE,
-        start.pending_token,
-        max_age=LOGIN_COOKIE_SECONDS,
-        httponly=True,
-        secure=options.cookie_secure,
-        samesite="lax",
-        path=AUTH_PATH,
-    )
-    return response
-
-
-@router.get("/callback", status_code=status.HTTP_302_FOUND, response_class=RedirectResponse)
-async def callback(
-    query: Annotated[CallbackQuery, Query()],
-    provider: Provider,
-    options: Options,
-    login_cookie: Annotated[str | None, Cookie(alias=LOGIN_COOKIE)] = None,
-) -> RedirectResponse:
-    _require(options.oidc_enabled)
-    if query.error or not query.code or not query.state:
-        return _login_error("auth", options)
-    try:
-        issued = await provider.complete_login().execute(
-            code=query.code, state=query.state, pending_token=login_cookie
-        )
-    except AccessDeniedError:
-        return _login_error("denied", options)
-    except AuthenticationError:
-        return _login_error("auth", options)
-    response = RedirectResponse(HOME, status_code=status.HTTP_302_FOUND)
-    response.delete_cookie(LOGIN_COOKIE, path=AUTH_PATH, secure=options.cookie_secure)
-    _set_session_cookie(response, issued, options)
-    return response
+async def auth_config(provider: Provider, options: Options) -> AuthConfigResponse:
+    auth_status = await provider.auth_status().execute()
+    return AuthConfigResponse.from_status(auth_status, dev_login=options.dev_login_enabled)
 
 
 @router.post("/dev-login", dependencies=[Depends(require_csrf_header)])
 async def dev_login(
     body: DevLoginRequest, response: Response, provider: Provider, options: Options
 ) -> PrincipalResponse:
-    _require(options.dev_login_enabled)
+    if not options.dev_login_enabled:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "사용할 수 없는 기능입니다")
     issued = await provider.dev_login().execute(body.role)
-    _set_session_cookie(response, issued, options)
+    set_session_cookie(response, issued.token, options)
     return PrincipalResponse.from_principal(issued.principal)
 
 

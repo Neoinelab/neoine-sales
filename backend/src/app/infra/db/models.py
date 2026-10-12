@@ -148,4 +148,9 @@ class AuthSessionRow(Base):
     __table_args__ = (
         UniqueConstraint("token_hash"),
         Index("ix_auth_sessions_expires_at", "expires_at"),
+        Index("ix_auth_sessions_subject", "subject"),
     )
+
+
+# 새 모델을 Base.metadata에 등록한다(alembic env.py는 이 모듈만 import한다).
+from app.infra.db import models_auth  # noqa: E402,F401

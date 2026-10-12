@@ -6,7 +6,9 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from app.domain.auth.errors import AccessDeniedError, AuthenticationError
+from app.application.directory.errors import DirectoryVerificationError
+from app.application.ports.directory import DirectoryUnavailableError
+from app.domain.auth.errors import AccessDeniedError, AuthenticationError, TooManyAttemptsError
 from app.domain.common.errors import (
     AlreadyExistsError,
     DomainError,
@@ -23,6 +25,7 @@ TYPE_BASE = "https://neoine-sales.example/problems/"
 # 구체적인 예외가 먼저 와야 한다(DomainError는 마지막 기본값).
 _DOMAIN_MAPPING: tuple[tuple[type[DomainError], int, str], ...] = (
     (AuthenticationError, 401, "unauthenticated"),
+    (TooManyAttemptsError, 429, "too-many-attempts"),
     (AccessDeniedError, 403, "forbidden"),
     (NotFoundError, 404, "not-found"),
     (AlreadyExistsError, 409, "already-exists"),
@@ -42,6 +45,9 @@ _TITLES = {
     "not-ready": "Service Not Ready",
     "unauthenticated": "Unauthenticated",
     "forbidden": "Forbidden",
+    "too-many-attempts": "Too Many Attempts",
+    "directory-unavailable": "Directory Unavailable",
+    "directory-verification-failed": "Directory Verification Failed",
     "csrf": "CSRF Check Failed",
     "http-error": "HTTP Error",
 }
@@ -52,7 +58,7 @@ def problem(
     status: int,
     kind: str,
     detail: str,
-    errors: list[dict[str, object]] | None = None,
+    extra: dict[str, object] | None = None,
 ) -> JSONResponse:
     body: dict[str, object] = {
         "type": f"{TYPE_BASE}{kind}",
@@ -61,9 +67,24 @@ def problem(
         "detail": detail,
         "instance": request.url.path,
     }
-    if errors is not None:
-        body["errors"] = errors
+    if extra:
+        body.update(extra)
     return JSONResponse(body, status_code=status, media_type=PROBLEM_JSON)
+
+
+DIRECTORY_UNAVAILABLE_DETAIL = "인증 서버(AD)에 연결할 수 없습니다. 잠시 후 다시 시도하세요"
+
+
+async def _directory_unavailable(request: Request, _: Exception) -> JSONResponse:
+    """AD 장애 원인(주소·서버 응답)은 응답에 싣지 않고 고정 문구만 낸다."""
+    return problem(request, 503, "directory-unavailable", DIRECTORY_UNAVAILABLE_DETAIL)
+
+
+async def _directory_verification(request: Request, exc: Exception) -> JSONResponse:
+    assert isinstance(exc, DirectoryVerificationError)  # noqa: S101 - 핸들러 등록 대상 보장
+    return problem(
+        request, 422, "directory-verification-failed", exc.message, extra={"stage": str(exc.stage)}
+    )
 
 
 async def _domain_error(request: Request, exc: Exception) -> JSONResponse:
@@ -78,7 +99,9 @@ async def _validation_error(request: Request, exc: Exception) -> JSONResponse:
     errors: list[dict[str, object]] = jsonable_encoder(
         exc.errors(), exclude={"input", "ctx", "url"}
     )
-    return problem(request, 422, "request-validation", "요청 형식이 올바르지 않습니다", errors)
+    return problem(
+        request, 422, "request-validation", "요청 형식이 올바르지 않습니다", {"errors": errors}
+    )
 
 
 async def _http_error(request: Request, exc: Exception) -> JSONResponse:
@@ -95,6 +118,8 @@ async def _csrf_error(request: Request, _: Exception) -> JSONResponse:
 
 def register_error_handlers(app: FastAPI) -> None:
     app.add_exception_handler(CsrfRejectedError, _csrf_error)
+    app.add_exception_handler(DirectoryVerificationError, _directory_verification)
+    app.add_exception_handler(DirectoryUnavailableError, _directory_unavailable)
     app.add_exception_handler(DomainError, _domain_error)
     app.add_exception_handler(RequestValidationError, _validation_error)
     app.add_exception_handler(StarletteHTTPException, _http_error)

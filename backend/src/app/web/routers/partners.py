@@ -1,10 +1,11 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Query, Response, status
+from fastapi import Query, Response, status
 
 from app.domain.partner.value_objects import PartnerId
 from app.web.dependencies import Provider
+from app.web.permissions import BusinessRouter
 from app.web.routers.responses import READ_ERRORS, WRITE_ERRORS
 from app.web.schemas.partner import (
     PartnerPage,
@@ -13,7 +14,7 @@ from app.web.schemas.partner import (
     PartnerSearchParams,
 )
 
-router = APIRouter(prefix="/api/v1/partners", tags=["partners"])
+router = BusinessRouter(prefix="/api/v1/partners", tags=["partners"])
 
 
 @router.post(

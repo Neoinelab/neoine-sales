@@ -1,20 +1,10 @@
 """Composition Root: Port와 구현체를 연결하고 유스케이스를 만들어 준다(UseCaseProvider 구현)."""
 
-from datetime import timedelta
 from typing import TYPE_CHECKING
 
-import httpx
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker, create_async_engine
 
-from app.application.auth.authenticate import Authenticate
-from app.application.auth.begin_login import BeginLogin
-from app.application.auth.complete_login import CompleteLogin
-from app.application.auth.dev_login import DevLogin
-from app.application.auth.issue_session import IssueSession
-from app.application.auth.login_state import LoginStateCodec
-from app.application.auth.logout import Logout
-from app.application.auth.role_mapping import RoleMapper
 from app.application.customer.delete_customer import DeleteCustomer
 from app.application.customer.get_customer import GetCustomer
 from app.application.customer.list_customers import ListCustomers
@@ -39,32 +29,34 @@ from app.application.partner.get_partner import GetPartner
 from app.application.partner.list_partners import ListPartners
 from app.application.partner.register_partner import RegisterPartner
 from app.application.partner.update_partner import UpdatePartner
-from app.infra.auth.oidc import OidcConfig, OidcIdentityProvider
+from app.container_admin import AdminAssembly
+from app.container_auth import AuthAssembly
+from app.infra.auth.ldap import LdapDirectoryAuthenticator
 from app.infra.db.unit_of_work import sql_unit_of_work_factory
 from app.infra.system_clock import SystemClock
 
 if TYPE_CHECKING:
+    from app.application.auth.auth_status import GetAuthStatus
+    from app.application.auth.authenticate import Authenticate
+    from app.application.auth.dev_login import DevLogin
+    from app.application.auth.directory_login import DirectoryLogin
+    from app.application.auth.logout import Logout
+    from app.application.auth.setup_directory import RegisterSetupDirectory
+    from app.application.auth.setup_first_admin import SetupFirstAdmin
+    from app.application.directory.get_settings import GetDirectorySettings
+    from app.application.directory.test_settings import TestDirectorySettings
+    from app.application.directory.update_settings import UpdateDirectorySettings
+    from app.application.ports.directory import DirectoryAuthenticator
+    from app.application.user.delete_user import DeleteUser
+    from app.application.user.list_users import ListUsers
+    from app.application.user.register_user import RegisterUser
     from app.config.base import Settings
 
 
-def _oidc_config(settings: Settings) -> OidcConfig:
-    secret = settings.oidc_client_secret
-    if not (settings.oidc_issuer and settings.oidc_client_id and secret):
-        raise RuntimeError("OIDC가 설정되지 않았습니다")
-    if not settings.oidc_redirect_uri:
-        raise RuntimeError("OIDC가 설정되지 않았습니다")
-    return OidcConfig(
-        issuer=settings.oidc_issuer,
-        client_id=settings.oidc_client_id,
-        client_secret=secret.get_secret_value(),
-        redirect_uri=settings.oidc_redirect_uri,
-        scopes=settings.oidc_scopes,
-        groups_claim=settings.oidc_groups_claim,
-    )
-
-
 class Container:
-    def __init__(self, settings: Settings) -> None:
+    def __init__(
+        self, settings: Settings, *, directory: DirectoryAuthenticator | None = None
+    ) -> None:
         self._engine: AsyncEngine = create_async_engine(
             str(settings.database_url),
             pool_size=settings.db_pool_size,
@@ -74,15 +66,13 @@ class Container:
         sessions = async_sessionmaker(self._engine, expire_on_commit=False)
         self._uow = sql_unit_of_work_factory(sessions)
         self._clock = SystemClock()
-        self._http: httpx.AsyncClient | None = None
-        self._idp: OidcIdentityProvider | None = None
-        if settings.oidc_enabled:
-            self._http = httpx.AsyncClient(timeout=10.0)
-            self._idp = OidcIdentityProvider(_oidc_config(settings), self._http)
-        self._login_state = LoginStateCodec(settings.jwt_secret.get_secret_value(), self._clock)
-        self._roles = RoleMapper(settings.oidc_admin_groups, settings.oidc_sales_groups)
-        self._issue_session = IssueSession(
-            self._uow, self._clock, timedelta(hours=settings.session_ttl_hours)
+        self.directory: DirectoryAuthenticator = directory or LdapDirectoryAuthenticator()
+        self._auth = AuthAssembly(settings, self._uow, self._clock, self.directory)
+        self._admin = AdminAssembly(
+            self._uow,
+            self._clock,
+            self._auth.deps,
+            allow_dev_sessions=self._auth.allow_dev_sessions,
         )
 
     async def check_ready(self) -> None:
@@ -90,33 +80,46 @@ class Container:
             await connection.execute(text("select 1"))
 
     async def dispose(self) -> None:
-        if self._http is not None:
-            await self._http.aclose()
         await self._engine.dispose()
 
-    def begin_login(self) -> BeginLogin:
-        return BeginLogin(self._require_idp(), self._login_state)
+    def auth_status(self) -> GetAuthStatus:
+        return self._auth.auth_status()
 
-    def complete_login(self) -> CompleteLogin:
-        return CompleteLogin(
-            self._require_idp(), self._login_state, self._roles, self._issue_session
-        )
+    def register_setup_directory(self) -> RegisterSetupDirectory:
+        return self._auth.register_setup_directory()
+
+    def setup_first_admin(self) -> SetupFirstAdmin:
+        return self._auth.setup_first_admin()
+
+    def directory_login(self) -> DirectoryLogin:
+        return self._auth.directory_login()
 
     def dev_login(self) -> DevLogin:
-        return DevLogin(self._issue_session)
+        return self._auth.dev_login()
 
     def authenticate(self) -> Authenticate:
-        return Authenticate(self._uow, self._clock)
+        return self._auth.authenticate()
 
     def logout(self) -> Logout:
-        return Logout(self._uow, self._clock)
+        return self._auth.logout()
 
-    def _require_idp(self) -> OidcIdentityProvider:
-        if (
-            self._idp is None
-        ):  # 웹 계층이 oidc_enabled를 먼저 확인하므로 정상 흐름에서는 오지 않는다
-            raise RuntimeError("OIDC가 설정되지 않았습니다")
-        return self._idp
+    def list_users(self) -> ListUsers:
+        return self._admin.list_users()
+
+    def register_user(self) -> RegisterUser:
+        return self._admin.register_user()
+
+    def delete_user(self) -> DeleteUser:
+        return self._admin.delete_user()
+
+    def get_directory_settings(self) -> GetDirectorySettings:
+        return self._admin.get_directory_settings()
+
+    def test_directory_settings(self) -> TestDirectorySettings:
+        return self._admin.test_directory_settings()
+
+    def update_directory_settings(self) -> UpdateDirectorySettings:
+        return self._admin.update_directory_settings()
 
     def register_customer(self) -> RegisterCustomer:
         return RegisterCustomer(self._uow, self._clock)

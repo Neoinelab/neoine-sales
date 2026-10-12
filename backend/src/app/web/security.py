@@ -3,13 +3,12 @@
 from dataclasses import dataclass
 from typing import Annotated
 
-from fastapi import Depends, Request
+from fastapi import Depends, Request, Response
 
 from app.domain.auth.principal import Principal
 from app.web.dependencies import Provider
 
 SESSION_COOKIE = "neoine_session"
-LOGIN_COOKIE = "neoine_login"
 AUTH_PATH = "/api/v1/auth"
 CSRF_HEADER = "x-requested-with"
 SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
@@ -19,8 +18,19 @@ SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
 class AuthOptions:
     cookie_secure: bool
     session_ttl_seconds: int
-    oidc_enabled: bool
     dev_login_enabled: bool
+
+
+def set_session_cookie(response: Response, token: str, options: AuthOptions) -> None:
+    response.set_cookie(
+        SESSION_COOKIE,
+        token,
+        max_age=options.session_ttl_seconds,
+        httponly=True,
+        secure=options.cookie_secure,
+        samesite="lax",
+        path="/",
+    )
 
 
 class CsrfRejectedError(Exception):

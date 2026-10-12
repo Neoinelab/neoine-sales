@@ -6,8 +6,11 @@ from app.infra.db.customer_repository import SqlCustomerRepository
 from app.infra.db.deal_action_repository import SqlDealActionRepository
 from app.infra.db.deal_repository import SqlDealRepository
 from app.infra.db.deal_stage_change_repository import SqlDealStageChangeRepository
+from app.infra.db.directory_settings_repository import SqlDirectorySettingsRepository
+from app.infra.db.login_failure_repository import SqlLoginFailureRepository
 from app.infra.db.partner_repository import SqlPartnerRepository
 from app.infra.db.session_repository import SqlSessionRepository
+from app.infra.db.user_repository import SqlUserRepository
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -22,6 +25,9 @@ class SqlUnitOfWork:
     deal_actions: SqlDealActionRepository
     deal_stage_changes: SqlDealStageChangeRepository
     sessions: SqlSessionRepository
+    users: SqlUserRepository
+    login_failures: SqlLoginFailureRepository
+    directory_settings: SqlDirectorySettingsRepository
 
     def __init__(self, session_factory: async_sessionmaker[AsyncSession]) -> None:
         self._session_factory = session_factory
@@ -34,6 +40,9 @@ class SqlUnitOfWork:
         self.deal_actions = SqlDealActionRepository(self._session)
         self.deal_stage_changes = SqlDealStageChangeRepository(self._session)
         self.sessions = SqlSessionRepository(self._session)
+        self.users = SqlUserRepository(self._session)
+        self.login_failures = SqlLoginFailureRepository(self._session)
+        self.directory_settings = SqlDirectorySettingsRepository(self._session)
         return self
 
     async def __aexit__(self, *exc: object) -> None:

@@ -2,7 +2,7 @@
 
 from typing import TYPE_CHECKING
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 
 from app.domain.auth.principal import Principal, Role
@@ -11,6 +11,8 @@ from app.domain.common.errors import AlreadyExistsError, NotFoundError
 from app.infra.db.models import AuthSessionRow
 
 if TYPE_CHECKING:
+    from datetime import datetime
+
     from sqlalchemy.ext.asyncio import AsyncSession
 
 
@@ -63,3 +65,13 @@ class SqlSessionRepository:
             raise NotFoundError("세션", session.id)
         row.revoked_at = session.revoked_at
         await self._session.flush()
+
+    async def revoke_all_for_subject(self, subject: str, now: datetime) -> int:
+        statement = (
+            update(AuthSessionRow)
+            .where(AuthSessionRow.subject == subject, AuthSessionRow.revoked_at.is_(None))
+            .values(revoked_at=now)
+            .returning(AuthSessionRow.id)
+            .execution_options(synchronize_session=False)
+        )
+        return len((await self._session.execute(statement)).all())

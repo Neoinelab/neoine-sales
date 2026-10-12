@@ -22,14 +22,24 @@
             "title": "Dev Login",
             "type": "boolean"
           },
-          "oidc": {
-            "title": "Oidc",
+          "directory_login": {
+            "title": "Directory Login",
+            "type": "boolean"
+          },
+          "needs_admin_setup": {
+            "title": "Needs Admin Setup",
+            "type": "boolean"
+          },
+          "needs_directory_setup": {
+            "title": "Needs Directory Setup",
             "type": "boolean"
           }
         },
         "required": [
           "dev_login",
-          "oidc"
+          "directory_login",
+          "needs_directory_setup",
+          "needs_admin_setup"
         ],
         "title": "AuthConfigResponse",
         "type": "object"
@@ -582,6 +592,366 @@
         "title": "DevLoginRequest",
         "type": "object"
       },
+      "DirectorySettingsRequest": {
+        "additionalProperties": false,
+        "description": "AD 서버 설정. 값 검증은 도메인(DirectorySettings)이 하고 메시지에 필드 이름이 들어간다.",
+        "properties": {
+          "base_dn": {
+            "title": "Base Dn",
+            "type": "string"
+          },
+          "bind_template": {
+            "title": "Bind Template",
+            "type": "string"
+          },
+          "ca_cert_pem": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ca Cert Pem"
+          },
+          "connect_timeout_seconds": {
+            "default": 5,
+            "title": "Connect Timeout Seconds",
+            "type": "integer"
+          },
+          "display_name_attribute": {
+            "default": "displayName",
+            "title": "Display Name Attribute",
+            "type": "string"
+          },
+          "email_attribute": {
+            "default": "mail",
+            "title": "Email Attribute",
+            "type": "string"
+          },
+          "receive_timeout_seconds": {
+            "default": 10,
+            "title": "Receive Timeout Seconds",
+            "type": "integer"
+          },
+          "server_urls": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Server Urls",
+            "type": "array"
+          },
+          "use_starttls": {
+            "title": "Use Starttls",
+            "type": "boolean"
+          },
+          "user_filter": {
+            "title": "User Filter",
+            "type": "string"
+          }
+        },
+        "required": [
+          "server_urls",
+          "use_starttls",
+          "bind_template",
+          "base_dn",
+          "user_filter"
+        ],
+        "title": "DirectorySettingsRequest",
+        "type": "object"
+      },
+      "DirectorySettingsResponse": {
+        "properties": {
+          "base_dn": {
+            "title": "Base Dn",
+            "type": "string"
+          },
+          "bind_template": {
+            "title": "Bind Template",
+            "type": "string"
+          },
+          "ca_cert_pem": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ca Cert Pem"
+          },
+          "connect_timeout_seconds": {
+            "title": "Connect Timeout Seconds",
+            "type": "integer"
+          },
+          "display_name_attribute": {
+            "title": "Display Name Attribute",
+            "type": "string"
+          },
+          "email_attribute": {
+            "title": "Email Attribute",
+            "type": "string"
+          },
+          "receive_timeout_seconds": {
+            "title": "Receive Timeout Seconds",
+            "type": "integer"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "integer"
+          },
+          "server_urls": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Server Urls",
+            "type": "array"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "updated_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated By"
+          },
+          "use_starttls": {
+            "title": "Use Starttls",
+            "type": "boolean"
+          },
+          "user_filter": {
+            "title": "User Filter",
+            "type": "string"
+          }
+        },
+        "required": [
+          "server_urls",
+          "use_starttls",
+          "ca_cert_pem",
+          "bind_template",
+          "base_dn",
+          "user_filter",
+          "display_name_attribute",
+          "email_attribute",
+          "connect_timeout_seconds",
+          "receive_timeout_seconds",
+          "revision",
+          "updated_at",
+          "updated_by"
+        ],
+        "title": "DirectorySettingsResponse",
+        "type": "object"
+      },
+      "DirectorySettingsTestRequest": {
+        "additionalProperties": false,
+        "description": "연결 테스트 본문: 설정 + 현재 로그인한 admin의 비밀번호(dev 로그인 admin은 생략).",
+        "properties": {
+          "base_dn": {
+            "title": "Base Dn",
+            "type": "string"
+          },
+          "bind_template": {
+            "title": "Bind Template",
+            "type": "string"
+          },
+          "ca_cert_pem": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ca Cert Pem"
+          },
+          "connect_timeout_seconds": {
+            "default": 5,
+            "title": "Connect Timeout Seconds",
+            "type": "integer"
+          },
+          "display_name_attribute": {
+            "default": "displayName",
+            "title": "Display Name Attribute",
+            "type": "string"
+          },
+          "email_attribute": {
+            "default": "mail",
+            "title": "Email Attribute",
+            "type": "string"
+          },
+          "password": {
+            "anyOf": [
+              {
+                "format": "password",
+                "type": "string",
+                "writeOnly": true
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Password"
+          },
+          "receive_timeout_seconds": {
+            "default": 10,
+            "title": "Receive Timeout Seconds",
+            "type": "integer"
+          },
+          "server_urls": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Server Urls",
+            "type": "array"
+          },
+          "use_starttls": {
+            "title": "Use Starttls",
+            "type": "boolean"
+          },
+          "user_filter": {
+            "title": "User Filter",
+            "type": "string"
+          }
+        },
+        "required": [
+          "server_urls",
+          "use_starttls",
+          "bind_template",
+          "base_dn",
+          "user_filter"
+        ],
+        "title": "DirectorySettingsTestRequest",
+        "type": "object"
+      },
+      "DirectorySettingsUpdateRequest": {
+        "additionalProperties": false,
+        "description": "저장 본문: 연결 테스트 본문 + 낙관적 잠금용 revision(1 이상).",
+        "properties": {
+          "base_dn": {
+            "title": "Base Dn",
+            "type": "string"
+          },
+          "bind_template": {
+            "title": "Bind Template",
+            "type": "string"
+          },
+          "ca_cert_pem": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ca Cert Pem"
+          },
+          "connect_timeout_seconds": {
+            "default": 5,
+            "title": "Connect Timeout Seconds",
+            "type": "integer"
+          },
+          "display_name_attribute": {
+            "default": "displayName",
+            "title": "Display Name Attribute",
+            "type": "string"
+          },
+          "email_attribute": {
+            "default": "mail",
+            "title": "Email Attribute",
+            "type": "string"
+          },
+          "expected_revision": {
+            "minimum": 1.0,
+            "title": "Expected Revision",
+            "type": "integer"
+          },
+          "password": {
+            "anyOf": [
+              {
+                "format": "password",
+                "type": "string",
+                "writeOnly": true
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Password"
+          },
+          "receive_timeout_seconds": {
+            "default": 10,
+            "title": "Receive Timeout Seconds",
+            "type": "integer"
+          },
+          "server_urls": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Server Urls",
+            "type": "array"
+          },
+          "use_starttls": {
+            "title": "Use Starttls",
+            "type": "boolean"
+          },
+          "user_filter": {
+            "title": "User Filter",
+            "type": "string"
+          }
+        },
+        "required": [
+          "server_urls",
+          "use_starttls",
+          "bind_template",
+          "base_dn",
+          "user_filter",
+          "expected_revision"
+        ],
+        "title": "DirectorySettingsUpdateRequest",
+        "type": "object"
+      },
+      "DirectoryTestResultResponse": {
+        "properties": {
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "stage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stage"
+          },
+          "success": {
+            "title": "Success",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "success",
+          "stage",
+          "message"
+        ],
+        "title": "DirectoryTestResultResponse",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -593,6 +963,29 @@
           }
         },
         "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "LoginRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "login_id": {
+            "maxLength": 128,
+            "title": "Login Id",
+            "type": "string"
+          },
+          "password": {
+            "format": "password",
+            "maxLength": 256,
+            "title": "Password",
+            "type": "string",
+            "writeOnly": true
+          }
+        },
+        "required": [
+          "login_id",
+          "password"
+        ],
+        "title": "LoginRequest",
         "type": "object"
       },
       "Page_CustomerResponse_": {
@@ -723,6 +1116,32 @@
           "limit"
         ],
         "title": "Page[PartnerResponse]",
+        "type": "object"
+      },
+      "Page_UserResponse_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/UserResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "limit": {
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "title": "Offset",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "offset",
+          "limit"
+        ],
+        "title": "Page[UserResponse]",
         "type": "object"
       },
       "PartnerRequest": {
@@ -934,10 +1353,34 @@
       "Role": {
         "enum": [
           "admin",
-          "sales"
+          "sales",
+          "user"
         ],
         "title": "Role",
         "type": "string"
+      },
+      "SetupAdminRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "login_id": {
+            "maxLength": 128,
+            "title": "Login Id",
+            "type": "string"
+          },
+          "password": {
+            "format": "password",
+            "maxLength": 256,
+            "title": "Password",
+            "type": "string",
+            "writeOnly": true
+          }
+        },
+        "required": [
+          "login_id",
+          "password"
+        ],
+        "title": "SetupAdminRequest",
+        "type": "object"
       },
       "StageSummaryResponse": {
         "properties": {
@@ -962,6 +1405,95 @@
           "totals"
         ],
         "title": "StageSummaryResponse",
+        "type": "object"
+      },
+      "UserRequest": {
+        "additionalProperties": false,
+        "description": "등록 본문. 비밀번호는 받지 않는다(AD가 인증). 아이디 형식 검증은 도메인(LoginId)이 한다.",
+        "properties": {
+          "login_id": {
+            "title": "Login Id",
+            "type": "string"
+          },
+          "role": {
+            "$ref": "#/components/schemas/Role"
+          }
+        },
+        "required": [
+          "login_id",
+          "role"
+        ],
+        "title": "UserRequest",
+        "type": "object"
+      },
+      "UserResponse": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by": {
+            "title": "Created By",
+            "type": "string"
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "last_login_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Login At"
+          },
+          "login_id": {
+            "title": "Login Id",
+            "type": "string"
+          },
+          "role": {
+            "$ref": "#/components/schemas/Role"
+          }
+        },
+        "required": [
+          "id",
+          "login_id",
+          "role",
+          "display_name",
+          "email",
+          "created_at",
+          "created_by",
+          "last_login_at"
+        ],
+        "title": "UserResponse",
         "type": "object"
       },
       "ValidationError": {
@@ -1012,96 +1544,6 @@
   },
   "openapi": "3.1.0",
   "paths": {
-    "/api/v1/auth/callback": {
-      "get": {
-        "operationId": "callback_api_v1_auth_callback_get",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "code",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Code"
-            }
-          },
-          {
-            "in": "query",
-            "name": "state",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "State"
-            }
-          },
-          {
-            "in": "query",
-            "name": "error",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Error"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "neoine_login",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Neoine Login"
-            }
-          }
-        ],
-        "responses": {
-          "302": {
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Callback",
-        "tags": [
-          "auth"
-        ]
-      }
-    },
     "/api/v1/auth/config": {
       "get": {
         "operationId": "auth_config_api_v1_auth_config_get",
@@ -1165,11 +1607,78 @@
       }
     },
     "/api/v1/auth/login": {
-      "get": {
-        "operationId": "login_api_v1_auth_login_get",
+      "post": {
+        "operationId": "login_api_v1_auth_login_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
-          "302": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrincipalResponse"
+                }
+              }
+            },
             "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
           }
         },
         "summary": "Login",
@@ -1218,6 +1727,138 @@
           }
         },
         "summary": "Me",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/setup": {
+      "post": {
+        "operationId": "setup_admin_api_v1_auth_setup_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetupAdminRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrincipalResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          }
+        },
+        "summary": "Setup Admin",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/setup/directory": {
+      "put": {
+        "operationId": "setup_directory_api_v1_auth_setup_directory_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DirectorySettingsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DirectorySettingsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          }
+        },
+        "summary": "Setup Directory",
         "tags": [
           "auth"
         ]
@@ -1348,6 +1989,16 @@
             },
             "description": "problem+json"
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
           "404": {
             "content": {
               "application/json": {
@@ -1405,6 +2056,16 @@
             "description": "Successful Response"
           },
           "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "403": {
             "content": {
               "application/json": {
                 "schema": {
@@ -1537,6 +2198,16 @@
             "description": "Successful Response"
           },
           "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "403": {
             "content": {
               "application/json": {
                 "schema": {
@@ -1788,6 +2459,16 @@
             },
             "description": "problem+json"
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
           "404": {
             "content": {
               "application/json": {
@@ -1911,6 +2592,16 @@
             "description": "Successful Response"
           },
           "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "403": {
             "content": {
               "application/json": {
                 "schema": {
@@ -2210,6 +2901,16 @@
             },
             "description": "problem+json"
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
           "404": {
             "content": {
               "application/json": {
@@ -2401,6 +3102,16 @@
             },
             "description": "problem+json"
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
           "404": {
             "content": {
               "application/json": {
@@ -2524,6 +3235,16 @@
             "description": "Successful Response"
           },
           "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "403": {
             "content": {
               "application/json": {
                 "schema": {
@@ -2783,6 +3504,16 @@
             },
             "description": "problem+json"
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
           "404": {
             "content": {
               "application/json": {
@@ -2857,6 +3588,16 @@
             "description": "Successful Response"
           },
           "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "403": {
             "content": {
               "application/json": {
                 "schema": {
@@ -3114,6 +3855,16 @@
             },
             "description": "problem+json"
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
           "404": {
             "content": {
               "application/json": {
@@ -3171,6 +3922,16 @@
             "description": "Successful Response"
           },
           "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "403": {
             "content": {
               "application/json": {
                 "schema": {
@@ -3312,6 +4073,16 @@
             },
             "description": "problem+json"
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
           "404": {
             "content": {
               "application/json": {
@@ -3346,6 +4117,468 @@
         "summary": "Update Partner",
         "tags": [
           "partners"
+        ]
+      }
+    },
+    "/api/v1/settings/directory": {
+      "get": {
+        "operationId": "get_directory_settings_api_v1_settings_directory_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DirectorySettingsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          }
+        },
+        "summary": "Get Directory Settings",
+        "tags": [
+          "settings"
+        ]
+      },
+      "put": {
+        "operationId": "update_directory_settings_api_v1_settings_directory_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DirectorySettingsUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DirectorySettingsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          }
+        },
+        "summary": "Update Directory Settings",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/api/v1/settings/directory/test": {
+      "post": {
+        "operationId": "test_directory_settings_api_v1_settings_directory_test_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DirectorySettingsTestRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DirectoryTestResultResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          }
+        },
+        "summary": "Test Directory Settings",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/api/v1/users": {
+      "get": {
+        "operationId": "list_users_api_v1_users_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_UserResponse_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          }
+        },
+        "summary": "List Users",
+        "tags": [
+          "users"
+        ]
+      },
+      "post": {
+        "operationId": "register_user_api_v1_users_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          }
+        },
+        "summary": "Register User",
+        "tags": [
+          "users"
+        ]
+      }
+    },
+    "/api/v1/users/{user_id}": {
+      "delete": {
+        "operationId": "delete_user_api_v1_users__user_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "User Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          }
+        },
+        "summary": "Delete User",
+        "tags": [
+          "users"
         ]
       }
     },

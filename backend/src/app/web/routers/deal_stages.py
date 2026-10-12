@@ -3,10 +3,11 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Query
+from fastapi import Query
 
 from app.domain.deal.value_objects import DealId
 from app.web.dependencies import Provider
+from app.web.permissions import BusinessRouter
 from app.web.routers.responses import READ_ERRORS, WRITE_ERRORS
 from app.web.schemas.deal import DealResponse
 from app.web.schemas.deal_stage import (
@@ -17,7 +18,7 @@ from app.web.schemas.deal_stage import (
 )
 from app.web.security import CurrentUser
 
-router = APIRouter(prefix="/api/v1/deals", tags=["deals"])
+router = BusinessRouter(prefix="/api/v1/deals", tags=["deals"])
 
 
 @router.post("/{deal_id}/stage", response_model=DealResponse, responses=WRITE_ERRORS)

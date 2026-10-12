@@ -2,11 +2,13 @@
 
 from typing import Protocol
 
+from app.application.auth.auth_status import GetAuthStatus
 from app.application.auth.authenticate import Authenticate
-from app.application.auth.begin_login import BeginLogin
-from app.application.auth.complete_login import CompleteLogin
 from app.application.auth.dev_login import DevLogin
+from app.application.auth.directory_login import DirectoryLogin
 from app.application.auth.logout import Logout
+from app.application.auth.setup_directory import RegisterSetupDirectory
+from app.application.auth.setup_first_admin import SetupFirstAdmin
 from app.application.customer.delete_customer import DeleteCustomer
 from app.application.customer.get_customer import GetCustomer
 from app.application.customer.list_customers import ListCustomers
@@ -26,11 +28,17 @@ from app.application.deal_action.get_deal_action import GetDealAction
 from app.application.deal_action.register_deal_action import RegisterDealAction
 from app.application.deal_action.search_deal_actions import SearchDealActions
 from app.application.deal_action.update_deal_action import UpdateDealAction
+from app.application.directory.get_settings import GetDirectorySettings
+from app.application.directory.test_settings import TestDirectorySettings
+from app.application.directory.update_settings import UpdateDirectorySettings
 from app.application.partner.delete_partner import DeletePartner
 from app.application.partner.get_partner import GetPartner
 from app.application.partner.list_partners import ListPartners
 from app.application.partner.register_partner import RegisterPartner
 from app.application.partner.update_partner import UpdatePartner
+from app.application.user.delete_user import DeleteUser
+from app.application.user.list_users import ListUsers
+from app.application.user.register_user import RegisterUser
 
 
 class UseCaseProvider(Protocol):
@@ -62,11 +70,21 @@ class UseCaseProvider(Protocol):
     def update_deal_action(self) -> UpdateDealAction: ...
     def delete_deal_action(self) -> DeleteDealAction: ...
 
-    def begin_login(self) -> BeginLogin: ...
-    def complete_login(self) -> CompleteLogin: ...
+    def auth_status(self) -> GetAuthStatus: ...
+    def register_setup_directory(self) -> RegisterSetupDirectory: ...
+    def setup_first_admin(self) -> SetupFirstAdmin: ...
+    def directory_login(self) -> DirectoryLogin: ...
     def dev_login(self) -> DevLogin: ...
     def authenticate(self) -> Authenticate: ...
     def logout(self) -> Logout: ...
+
+    def list_users(self) -> ListUsers: ...
+    def register_user(self) -> RegisterUser: ...
+    def delete_user(self) -> DeleteUser: ...
+
+    def get_directory_settings(self) -> GetDirectorySettings: ...
+    def update_directory_settings(self) -> UpdateDirectorySettings: ...
+    def test_directory_settings(self) -> TestDirectorySettings: ...
 
     async def check_ready(self) -> None:
         """의존 자원(DB 등)이 요청을 받을 수 있는지 확인한다. 안 되면 예외를 던진다."""

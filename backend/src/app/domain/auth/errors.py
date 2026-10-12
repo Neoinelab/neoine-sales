@@ -7,3 +7,7 @@ class AuthenticationError(DomainError):
 
 class AccessDeniedError(DomainError):
     """인증은 됐지만 이 시스템을 쓸 권한(그룹)이 없다."""
+
+
+class TooManyAttemptsError(DomainError):
+    """로그인 실패가 제한을 넘어 잠시 시도할 수 없다(429)."""
