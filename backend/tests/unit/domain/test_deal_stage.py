@@ -3,6 +3,8 @@
 from typing import TYPE_CHECKING
 
 import pytest
+
+from app.domain.common.errors import InvalidStateError, InvalidValueError
 from app.domain.deal.stage import (
     INITIAL_STAGE,
     REASON_MAX,
@@ -10,8 +12,6 @@ from app.domain.deal.stage import (
     DealStageChange,
     StageChanger,
 )
-
-from app.domain.common.errors import InvalidStateError, InvalidValueError
 from tests.factories import NOW, later, make_deal, make_deal_details, make_stage_changer
 
 if TYPE_CHECKING:

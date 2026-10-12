@@ -10,7 +10,7 @@ from httpx import ASGITransport, AsyncClient
 
 from app.container import Container
 from app.main import create_app
-from tests.e2e.conftest import make_settings
+from tests.e2e.conftest import DEFAULT_LOGIN, make_settings
 from tests.e2e.payloads import action_payload, customer_payload, deal_payload, partner_payload
 
 CUSTOMERS = "/api/v1/customers"
@@ -215,7 +215,7 @@ async def test_stage_change_history_and_pipeline_run_in_the_database(stack: Asyn
         ("prospecting", "price_negotiation"),
     ]
     assert history[0]["reason"] == "예산 삭감"
-    assert history[0]["changed_by_subject"] == "dev-user"
+    assert history[0]["changed_by_subject"] == DEFAULT_LOGIN
     assert [
         d["code"] for d in (await stack.get(DEALS, params={"stage": "lost"})).json()["items"]
     ] == [

@@ -12,18 +12,9 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 JWT_SECRET = "x" * 40
-OIDC_ENV = {
-    "APP_OIDC_ISSUER": "https://adfs.example.com/adfs",
-    "APP_OIDC_CLIENT_ID": "neoine-sales",
-    "APP_OIDC_CLIENT_SECRET": "client-secret-value",
-    "APP_OIDC_REDIRECT_URI": "https://sales.example.com/api/v1/auth/callback",
-    "APP_OIDC_ADMIN_GROUPS": '["Sales-Admins"]',
-    "APP_OIDC_SALES_GROUPS": '["Sales-Team"]',
-}
 BASE_ENV = {
     "APP_DATABASE_URL": "postgresql+asyncpg://u:p@localhost:5432/app",
     "APP_JWT_SECRET": JWT_SECRET,
-    **OIDC_ENV,
 }
 PRODUCT_ENV = {
     "APP_PROFILE": "product",
@@ -171,54 +162,71 @@ def test_dev_login_is_forbidden_in_product(monkeypatch: pytest.MonkeyPatch) -> N
         get_settings()
 
 
-@pytest.mark.parametrize("profile", ["dev", "product"])
-@pytest.mark.parametrize("missing", [k for k in sorted(OIDC_ENV) if "GROUPS" not in k])
-def test_oidc_settings_are_required_outside_local(
-    monkeypatch: pytest.MonkeyPatch, profile: str, missing: str
+# 예전 OIDC 배포 환경의 잔여 변수. 값이 JSON이 아니어도 무시해야 한다(CFG-2).
+STALE_OIDC_ENV = {
+    "APP_OIDC_ISSUER": "https://adfs.example.com/adfs",
+    "APP_OIDC_CLIENT_ID": "neoine-sales",
+    "APP_OIDC_CLIENT_SECRET": "client-secret-value",
+    "APP_OIDC_REDIRECT_URI": "https://sales.example.com/api/v1/auth/callback",
+    "APP_OIDC_ADMIN_GROUPS": "not-json-at-all",
+    "APP_OIDC_SALES_GROUPS": "[broken",
+    "APP_OIDC_SCOPES": "{",
+}
+
+
+def test_settings_have_no_oidc_fields_or_properties() -> None:
+    settings = get_settings()
+
+    assert not [name for name in type(settings).model_fields if name.startswith("oidc")]
+    assert not hasattr(settings, "oidc_enabled")
+
+
+@pytest.mark.parametrize("profile", ["local", "dev", "product"])
+def test_oidc_variables_left_in_the_environment_are_ignored(
+    monkeypatch: pytest.MonkeyPatch, profile: str
 ) -> None:
-    _set(monkeypatch, {**PRODUCT_ENV, "APP_PROFILE": profile})
-    monkeypatch.delenv(missing)
-
-    with pytest.raises(ValidationError, match="OIDC"):
-        get_settings()
-
-
-def test_local_without_dev_login_requires_oidc(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("APP_DEV_LOGIN_ENABLED", "false")
-    monkeypatch.delenv("APP_OIDC_ISSUER")
-
-    with pytest.raises(ValidationError, match="OIDC"):
-        get_settings()
-
-
-def test_local_with_dev_login_does_not_need_oidc(monkeypatch: pytest.MonkeyPatch) -> None:
-    for key in OIDC_ENV:
-        monkeypatch.delenv(key)
+    _set(monkeypatch, {**PRODUCT_ENV, "APP_PROFILE": profile, **STALE_OIDC_ENV})
 
     settings = get_settings()
 
-    assert settings.oidc_enabled is False
-    assert settings.dev_login_enabled is True
-
-
-def test_oidc_group_lists_and_defaults() -> None:
-    settings = get_settings()
-
-    assert settings.oidc_enabled is True
-    assert settings.oidc_admin_groups == ["Sales-Admins"]
-    assert settings.oidc_sales_groups == ["Sales-Team"]
-    assert settings.oidc_groups_claim == "groups"
-    assert settings.session_ttl_hours == 8
+    assert settings.profile.value == profile
+    assert not hasattr(settings, "oidc_issuer")
     assert "client-secret-value" not in repr(settings)
 
 
+def test_oidc_variables_in_a_dotenv_file_are_ignored(tmp_path: Path) -> None:
+    lines = [f"{key}={value}" for key, value in STALE_OIDC_ENV.items()]
+    (tmp_path / ".env").write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+    settings = get_settings()
+
+    assert isinstance(settings, LocalSettings)
+
+
 @pytest.mark.parametrize("profile", ["dev", "product"])
-def test_at_least_one_oidc_group_is_required_outside_local(
+def test_dev_and_product_start_without_any_login_variables(
     monkeypatch: pytest.MonkeyPatch, profile: str
 ) -> None:
     _set(monkeypatch, {**PRODUCT_ENV, "APP_PROFILE": profile})
-    monkeypatch.delenv("APP_OIDC_ADMIN_GROUPS")
-    monkeypatch.delenv("APP_OIDC_SALES_GROUPS")
 
-    with pytest.raises(ValidationError, match="OIDC 그룹"):
-        get_settings()
+    settings = get_settings()
+
+    assert settings.profile.value == profile
+    assert settings.dev_login_enabled is False
+
+
+def test_local_without_dev_login_starts_without_any_login_variables(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("APP_DEV_LOGIN_ENABLED", "false")
+
+    settings = get_settings()
+
+    assert settings.dev_login_enabled is False
+
+
+def test_session_ttl_default_and_secrets_stay_hidden() -> None:
+    settings = get_settings()
+
+    assert settings.session_ttl_hours == 8
+    assert JWT_SECRET not in repr(settings)

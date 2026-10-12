@@ -5,18 +5,18 @@ from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import pytest
-from app.application.deal.change_stage import ChangeDealStage
-from app.application.deal.get_pipeline import GetDealPipeline
-from app.application.deal.list_stage_changes import ListDealStageChanges
-from app.application.ports.deal_stage_change_repository import DealStageChangeQuery
-from app.domain.deal.stage import DealStage
 
 from app.application.customer.register_customer import RegisterCustomer
+from app.application.deal.change_stage import ChangeDealStage
 from app.application.deal.delete_deal import DeleteDeal
+from app.application.deal.get_pipeline import GetDealPipeline
+from app.application.deal.list_stage_changes import ListDealStageChanges
 from app.application.deal.register_deal import RegisterDeal
 from app.application.deal.update_deal import UpdateDeal
+from app.application.ports.deal_stage_change_repository import DealStageChangeQuery
 from app.domain.common.errors import InvalidStateError, InvalidValueError
 from app.domain.deal.errors import DealNotFoundError
+from app.domain.deal.stage import DealStage
 from app.domain.deal.value_objects import DealId
 from tests.factories import make_customer_input, make_deal_input, make_stage_change_input
 

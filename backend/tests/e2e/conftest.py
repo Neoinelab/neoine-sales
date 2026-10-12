@@ -1,17 +1,26 @@
 from contextlib import AsyncExitStack
+from dataclasses import dataclass
+from datetime import timedelta
 from typing import TYPE_CHECKING
 
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import create_async_engine
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
+from app.application.auth.issue_session import IssueSession
 from app.config.profiles import LocalSettings
 from app.container import Container
+from app.domain.auth.credentials import LoginId
 from app.domain.auth.principal import Principal, Role
+from app.domain.user.entities import User
+from app.infra.db.unit_of_work import sql_unit_of_work_factory
+from app.infra.system_clock import SystemClock
 from app.main import create_app
+from tests.factories_auth import ADMIN_LOGIN, ADMIN_PASSWORD
+from tests.fakes.directory import FakeDirectoryAuthenticator
 from tests.fakes.use_cases import FakeUseCases
 
 if TYPE_CHECKING:
@@ -20,20 +29,18 @@ if TYPE_CHECKING:
     from fastapi import FastAPI
     from sqlalchemy.engine import URL
 
-TRUNCATE_ALL = "truncate auth_sessions, deal_actions, deals, customers, partners cascade"
+    from app.application.ports.unit_of_work import UnitOfWorkFactory
+
+TRUNCATE_ALL = (
+    "truncate auth_sessions, users, login_failures, directory_settings, "
+    "deal_actions, deals, customers, partners cascade"
+)
 TEST_DATABASE_URL = "postgresql+asyncpg://user:pw@localhost:5432/none"  # 접속하지 않는다
 ALLOWED_ORIGIN = "http://localhost:5173"
 SESSION_COOKIE = "neoine_session"
-LOGIN_COOKIE = "neoine_login"
 CSRF_HEADER = {"X-Requested-With": "neoine-web"}
-OIDC_SETTINGS: dict[str, object] = {
-    "oidc_issuer": "https://adfs.example.com/adfs",
-    "oidc_client_id": "neoine-sales",
-    "oidc_client_secret": "client-secret-value",
-    "oidc_redirect_uri": "http://test/api/v1/auth/callback",
-    "oidc_admin_groups": ["Sales-Admins"],
-    "oidc_sales_groups": ["Sales-Team"],
-}
+DEFAULT_LOGIN = "sales-user"  # 기본 client·stack이 로그인한 사용자(sales)의 아이디
+DEFAULT_NAME = f"사용자 {DEFAULT_LOGIN}"  # principal_for가 만드는 표시 이름
 
 
 def make_settings(**overrides: object) -> LocalSettings:
@@ -68,8 +75,26 @@ def app(use_cases: FakeUseCases) -> FastAPI:
 
 @pytest_asyncio.fixture
 async def client(app: FastAPI, use_cases: FakeUseCases) -> AsyncIterator[AsyncClient]:
-    """영업 사용자로 로그인한 클라이언트(세션 쿠키 + CSRF 헤더)."""
-    token = (await use_cases.dev_login().execute(Role.SALES)).token
+    """영업 사용자(sales)로 로그인한 클라이언트: 사용자 행을 등록하고 세션을 발급한다."""
+    token = await use_cases.login_as(principal_for(DEFAULT_LOGIN, Role.SALES))
+    async with new_client(app, token=token) as http:
+        yield http
+
+
+@pytest_asyncio.fixture
+async def admin_client(app: FastAPI, use_cases: FakeUseCases) -> AsyncIterator[AsyncClient]:
+    """관리자(root)로 로그인한 클라이언트. AD 설정이 저장돼 있고 AD에 root/pw-root 계정이 있다."""
+    await use_cases.seed_directory()
+    use_cases.directory.add_account(ADMIN_LOGIN, ADMIN_PASSWORD)
+    token = await use_cases.login_as(principal_for(ADMIN_LOGIN, Role.ADMIN))
+    async with new_client(app, token=token) as http:
+        yield http
+
+
+@pytest_asyncio.fixture
+async def viewer_client(app: FastAPI, use_cases: FakeUseCases) -> AsyncIterator[AsyncClient]:
+    """조회 전용(user) 역할로 로그인한 클라이언트."""
+    token = await use_cases.login_as(principal_for("viewer", Role.USER))
     async with new_client(app, token=token) as http:
         yield http
 
@@ -80,8 +105,22 @@ async def anonymous_client(app: FastAPI) -> AsyncIterator[AsyncClient]:
         yield http
 
 
-def principal_for(subject: str) -> Principal:
-    return Principal(subject, f"{subject}@local.test", f"사용자 {subject}", Role.SALES)
+def principal_for(subject: str, role: Role = Role.SALES) -> Principal:
+    return Principal(subject, f"{subject}@local.test", f"사용자 {subject}", role)
+
+
+@pytest_asyncio.fixture
+async def client_as(
+    app: FastAPI, use_cases: FakeUseCases
+) -> AsyncIterator[Callable[[str, Role], Awaitable[AsyncClient]]]:
+    """(아이디, 역할)로 사용자 행을 등록하고 로그인한 클라이언트를 돌려주는 팩토리."""
+    async with AsyncExitStack() as stack_:
+
+        async def open_client(login_id: str, role: Role) -> AsyncClient:
+            token = await use_cases.login_as(principal_for(login_id, role))
+            return await stack_.enter_async_context(new_client(app, token=token))
+
+        yield open_client
 
 
 @pytest_asyncio.fixture
@@ -107,37 +146,99 @@ async def _truncate(database_url: URL) -> None:
         await engine.dispose()
 
 
+async def _register_and_issue(
+    uow_factory: UnitOfWorkFactory, ttl_hours: int, principal: Principal
+) -> str:
+    """공개 클래스만으로 사용자 행을 등록하고 세션을 발급한다(Container 내부에 의존하지 않는다)."""
+    async with uow_factory() as uow:
+        if await uow.users.get_active_by_login_id(LoginId(principal.subject)) is None:
+            user = User.register(
+                LoginId(principal.subject),
+                principal.role,
+                created_by="e2e",
+                now=SystemClock().now(),
+            )
+            await uow.users.add(user)
+            await uow.commit()
+    issue = IssueSession(uow_factory, SystemClock(), timedelta(hours=ttl_hours))
+    return (await issue.execute(principal)).token
+
+
 @pytest_asyncio.fixture
 async def stack_for(
     test_database_url: URL,
 ) -> AsyncIterator[Callable[[str], Awaitable[AsyncClient]]]:
-    """실제 PostgreSQL을 쓰는 다중 사용자 팩토리. 끝나면 테이블을 비운다."""
+    """실제 PostgreSQL을 쓰는 다중 사용자 팩토리(sales). 끝나면 테이블을 비운다."""
     settings = make_settings(database_url=test_database_url.render_as_string(hide_password=False))
-    container = Container(settings)
+    container = Container(settings, directory=FakeDirectoryAuthenticator())
     app = create_app(settings=settings, use_cases=container)
+    engine = create_async_engine(test_database_url, poolclass=NullPool)
+    uow_factory = sql_unit_of_work_factory(async_sessionmaker(engine, expire_on_commit=False))
     try:
         async with AsyncExitStack() as stack_:
 
             async def open_client(subject: str) -> AsyncClient:
-                # Container에는 임의 사용자 로그인 공개 API가 없어 세션 발급기를 직접 쓴다
-                issued = await container._issue_session.execute(principal_for(subject))
-                return await stack_.enter_async_context(new_client(app, token=issued.token))
+                token = await _register_and_issue(
+                    uow_factory, settings.session_ttl_hours, principal_for(subject)
+                )
+                return await stack_.enter_async_context(new_client(app, token=token))
 
             yield open_client
     finally:
         await container.dispose()
+        await engine.dispose()
         await _truncate(test_database_url)
 
 
 @pytest_asyncio.fixture
 async def stack(test_database_url: URL) -> AsyncIterator[AsyncClient]:
+    """실제 PostgreSQL을 쓰는 sales 클라이언트."""
     settings = make_settings(database_url=test_database_url.render_as_string(hide_password=False))
-    container = Container(settings)
+    container = Container(settings, directory=FakeDirectoryAuthenticator())
     app = create_app(settings=settings, use_cases=container)
+    engine = create_async_engine(test_database_url, poolclass=NullPool)
+    uow_factory = sql_unit_of_work_factory(async_sessionmaker(engine, expire_on_commit=False))
     try:
-        token = (await container.dev_login().execute(Role.SALES)).token
+        token = await _register_and_issue(
+            uow_factory, settings.session_ttl_hours, principal_for(DEFAULT_LOGIN)
+        )
         async with new_client(app, token=token) as http:
             yield http
     finally:
         await container.dispose()
+        await engine.dispose()
         await _truncate(test_database_url)
+
+
+@dataclass(frozen=True, slots=True)
+class AuthFullStack:
+    """실제 PostgreSQL + FakeDirectoryAuthenticator로 조립한 인증 전체 구간."""
+
+    database_url: URL
+    settings: LocalSettings
+    directory: FakeDirectoryAuthenticator
+
+    def open_app(self, **setting_overrides: object) -> tuple[Container, FastAPI]:
+        """같은 DB를 보는 앱 인스턴스(다른 워커·서버 시뮬레이션). 호출한 쪽이 dispose한다."""
+        settings = self.settings.model_copy(update=setting_overrides)
+        container = Container(settings, directory=self.directory)
+        return container, create_app(settings=settings, use_cases=container)
+
+
+@pytest_asyncio.fixture
+async def auth_full_stack(test_database_url: URL) -> AsyncIterator[AuthFullStack]:
+    settings = make_settings(database_url=test_database_url.render_as_string(hide_password=False))
+    try:
+        yield AuthFullStack(test_database_url, settings, FakeDirectoryAuthenticator())
+    finally:
+        await _truncate(test_database_url)
+
+
+@pytest_asyncio.fixture
+async def ready(use_cases: FakeUseCases) -> FakeUseCases:
+    """AD 설정이 있고, AD에 kim/newbie/gone이 있으며 kim(sales)·gone(삭제)만 앱에 등록돼 있다."""
+    await use_cases.seed_directory()
+    await use_cases.seed_user("kim", Role.SALES)
+    use_cases.directory.add_account("kim", "pw-kim", display_name="김영업", email="kim@corp.test")
+    use_cases.directory.add_account("newbie", "pw-newbie")
+    return use_cases

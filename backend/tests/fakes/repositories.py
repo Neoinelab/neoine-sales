@@ -19,6 +19,7 @@ from tests.fakes.in_memory import InMemoryStore
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
+    from datetime import datetime
 
     from app.application.ports.customer_repository import CustomerQuery
     from app.application.ports.deal_action_repository import DealActionQuery
@@ -236,3 +237,11 @@ class FakeSessionRepository:
                 self._items[token_hash] = copy.deepcopy(session)
                 return
         raise NotFoundError("세션", session.id)
+
+    async def revoke_all_for_subject(self, subject: str, now: datetime) -> int:
+        revoked = 0
+        for stored in self._items.values():
+            if stored.principal.subject == subject and stored.revoked_at is None:
+                stored.revoke(now)
+                revoked += 1
+        return revoked

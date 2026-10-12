@@ -8,13 +8,13 @@ from typing import TYPE_CHECKING
 
 import pytest
 import pytest_asyncio
-from app.application.ports.deal_stage_change_repository import DealStageChangeQuery
-from app.domain.deal.stage import DealStage
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
+from app.application.ports.deal_stage_change_repository import DealStageChangeQuery
 from app.domain.customer.errors import CustomerNotFoundError
+from app.domain.deal.stage import DealStage
 from app.infra.db.unit_of_work import sql_unit_of_work_factory
 from tests.factories import later, make_customer, make_deal, make_stage_changer
 from tests.fakes.unit_of_work import FakeUnitOfWork

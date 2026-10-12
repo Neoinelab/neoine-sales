@@ -24,6 +24,9 @@ EXPECTED_TABLES = {
     "deal_actions",
     "auth_sessions",
     "deal_stage_changes",
+    "users",
+    "login_failures",
+    "directory_settings",
 }
 
 

@@ -4,11 +4,11 @@ from decimal import Decimal
 from typing import TYPE_CHECKING
 
 import pytest
-from app.domain.deal.stage import DealStage
 
 from app.application.ports.deal_repository import DealQuery
 from app.domain.common.money import Money
 from app.domain.deal.errors import DealNotFoundError
+from app.domain.deal.stage import DealStage
 from tests.factories import later, make_deal, make_stage_changer
 
 if TYPE_CHECKING:

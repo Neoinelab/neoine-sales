@@ -5,6 +5,7 @@ from uuid import uuid4
 
 import pytest
 
+from tests.e2e.conftest import DEFAULT_LOGIN, DEFAULT_NAME
 from tests.e2e.payloads import customer_payload, deal_payload
 
 if TYPE_CHECKING:
@@ -54,8 +55,8 @@ async def test_history_lists_latest_first_with_changer(client: AsyncClient) -> N
     }  # fmt: skip
     assert latest["deal_id"] == deal["id"]
     assert latest["reason"] == "예산 삭감"
-    assert latest["changed_by_subject"] == "dev-user"
-    assert latest["changed_by_name"] == "개발 사용자(sales)"
+    assert latest["changed_by_subject"] == DEFAULT_LOGIN
+    assert latest["changed_by_name"] == DEFAULT_NAME
     assert latest["changed_at"] > items[1]["changed_at"]
 
 

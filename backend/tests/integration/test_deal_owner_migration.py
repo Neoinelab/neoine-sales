@@ -55,11 +55,14 @@ def _previous_revision() -> str:
     return previous
 
 
-def test_owner_revision_follows_the_stage_revision_and_is_the_only_head() -> None:
+def test_owner_revision_follows_the_stage_revision_and_is_in_the_single_head_history() -> None:
     script = ScriptDirectory.from_config(_alembic_config())
 
     assert _owner_revision().down_revision == _stage_revision_id()
-    assert script.get_heads() == [_owner_revision().revision]
+    heads = script.get_heads()
+    assert len(heads) == 1
+    history = {revision.revision for revision in script.iterate_revisions(heads[0], "base")}
+    assert _owner_revision().revision in history
 
 
 async def test_owner_user_id_column_is_nullable_text_without_default(

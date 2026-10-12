@@ -6,15 +6,15 @@ from uuid import UUID
 
 import pytest
 import pytest_asyncio
-from app.application.ports.deal_stage_change_repository import DealStageChangeQuery
-from app.domain.deal.stage import DealStage, DealStageChangeId
-from app.infra.db.deal_stage_change_repository import SqlDealStageChangeRepository
 
+from app.application.ports.deal_stage_change_repository import DealStageChangeQuery
 from app.domain.common.errors import AlreadyExistsError, InvalidValueError
 from app.domain.customer.entities import Customer
 from app.domain.deal.entities import Deal
+from app.domain.deal.stage import DealStage, DealStageChangeId
 from app.infra.db.customer_repository import SqlCustomerRepository
 from app.infra.db.deal_repository import SqlDealRepository
+from app.infra.db.deal_stage_change_repository import SqlDealStageChangeRepository
 from tests.factories import (
     NOW,
     later,
@@ -31,7 +31,6 @@ if TYPE_CHECKING:
 
     from app.application.ports.deal_stage_change_repository import DealStageChangeRepository
     from app.domain.deal.stage import DealStageChange
-
     from app.domain.deal.value_objects import DealId
 
 PARAMS = [

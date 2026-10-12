@@ -31,7 +31,9 @@ def test_every_endpoint_documents_its_error_responses() -> None:
             continue
         for method, operation in operations.items():
             responses = operation["responses"]
-            assert "422" in responses, f"{method.upper()} {path}에 422 응답 문서가 없다"
+            has_input = "parameters" in operation or "requestBody" in operation
+            if has_input:  # 입력이 없는 엔드포인트(GET /settings/directory)는 422가 나올 수 없다
+                assert "422" in responses, f"{method.upper()} {path}에 422 응답 문서가 없다"
             assert "401" in responses, f"{method.upper()} {path}에 401 응답 문서가 없다"
 
 

@@ -85,3 +85,48 @@ async def test_update_persists_revocation(repository: SessionRepository) -> None
 async def test_update_unknown_session_raises_not_found(repository: SessionRepository) -> None:
     with pytest.raises(NotFoundError):
         await repository.update(make_session())
+
+
+def _principal(subject: str) -> Principal:
+    return Principal(subject, None, subject, Role.SALES)
+
+
+async def test_revoke_all_for_subject_revokes_only_active_sessions_of_that_subject(
+    repository: SessionRepository,
+) -> None:
+    await repository.add(make_session(principal=_principal("kim")), "kim-1")
+    await repository.add(make_session(principal=_principal("kim")), "kim-2")
+    already = make_session(principal=_principal("kim"))
+    already.revoke(later(5))
+    await repository.add(already, "kim-old")
+    await repository.add(make_session(principal=_principal("lee")), "lee-1")
+
+    revoked = await repository.revoke_all_for_subject("kim", later(60))
+
+    assert revoked == 2
+    for token in ("kim-1", "kim-2"):
+        stored = await repository.get_by_token_hash(token)
+        assert stored is not None
+        assert stored.revoked_at == later(60)
+    kept = await repository.get_by_token_hash("kim-old")
+    assert kept is not None
+    assert kept.revoked_at == later(5)  # 이미 폐기된 세션의 시각은 바뀌지 않는다
+    other = await repository.get_by_token_hash("lee-1")
+    assert other is not None
+    assert other.revoked_at is None
+
+
+async def test_revoke_all_for_subject_without_sessions_returns_zero(
+    repository: SessionRepository,
+) -> None:
+    assert await repository.revoke_all_for_subject("nobody", later(1)) == 0
+
+
+async def test_revoked_sessions_report_inactive_afterwards(repository: SessionRepository) -> None:
+    await repository.add(make_session(principal=_principal("kim")), "kim-1")
+
+    await repository.revoke_all_for_subject("kim", later(60))
+
+    stored = await repository.get_by_token_hash("kim-1")
+    assert stored is not None
+    assert not stored.is_active(later(61))

@@ -48,7 +48,7 @@ class TestPrincipal:
             _principal(subject="  ")
 
     def test_roles_are_a_closed_set(self) -> None:
-        assert {role.value for role in Role} == {"admin", "sales"}
+        assert {role.value for role in Role} == {"admin", "sales", "user"}
 
 
 class TestAuthSession:

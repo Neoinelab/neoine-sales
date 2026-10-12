@@ -8,6 +8,7 @@ import copy
 from datetime import datetime, timedelta
 from typing import Any, Self
 
+from tests.fakes.directory_settings_repository import FakeDirectorySettingsRepository
 from tests.fakes.repositories import (
     FakeCustomerRepository,
     FakeDealActionRepository,
@@ -16,6 +17,7 @@ from tests.fakes.repositories import (
     FakeSessionRepository,
 )
 from tests.fakes.stage_change_repository import FakeDealStageChangeRepository
+from tests.fakes.user_repository import FakeLoginFailureRepository, FakeUserRepository
 
 
 class FakeUnitOfWork:
@@ -26,6 +28,9 @@ class FakeUnitOfWork:
         self.deal_actions = FakeDealActionRepository()
         self.deal_stage_changes = FakeDealStageChangeRepository()
         self.sessions = FakeSessionRepository()
+        self.users = FakeUserRepository()
+        self.login_failures = FakeLoginFailureRepository()
+        self.directory_settings = FakeDirectorySettingsRepository()
         self.commits = 0
         self._snapshot: tuple[Any, ...] | None = None
 
@@ -37,6 +42,9 @@ class FakeUnitOfWork:
             self.deal_actions,
             self.deal_stage_changes,
             self.sessions,
+            self.users,
+            self.login_failures,
+            self.directory_settings,
         )
 
     def _take(self) -> tuple[Any, ...]:
