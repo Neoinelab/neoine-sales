@@ -4,23 +4,6 @@
  */
 
 export interface paths {
-    "/api/v1/auth/callback": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Callback */
-        get: operations["callback_api_v1_auth_callback_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/auth/config": {
         parameters: {
             query?: never;
@@ -62,10 +45,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Login */
-        get: operations["login_api_v1_auth_login_get"];
+        get?: never;
         put?: never;
-        post?: never;
+        /** Login */
+        post: operations["login_api_v1_auth_login_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -99,6 +82,40 @@ export interface paths {
         /** Me */
         get: operations["me_api_v1_auth_me_get"];
         put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/setup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Setup Admin */
+        post: operations["setup_admin_api_v1_auth_setup_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/setup/directory": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Setup Directory */
+        put: operations["setup_directory_api_v1_auth_setup_directory_put"];
         post?: never;
         delete?: never;
         options?: never;
@@ -339,6 +356,76 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/settings/directory": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Directory Settings */
+        get: operations["get_directory_settings_api_v1_settings_directory_get"];
+        /** Update Directory Settings */
+        put: operations["update_directory_settings_api_v1_settings_directory_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/settings/directory/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Test Directory Settings */
+        post: operations["test_directory_settings_api_v1_settings_directory_test_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Users */
+        get: operations["list_users_api_v1_users_get"];
+        put?: never;
+        /** Register User */
+        post: operations["register_user_api_v1_users_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/{user_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete User */
+        delete: operations["delete_user_api_v1_users__user_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/healthz": {
         parameters: {
             query?: never;
@@ -387,8 +474,12 @@ export interface components {
         AuthConfigResponse: {
             /** Dev Login */
             dev_login: boolean;
-            /** Oidc */
-            oidc: boolean;
+            /** Directory Login */
+            directory_login: boolean;
+            /** Needs Admin Setup */
+            needs_admin_setup: boolean;
+            /** Needs Directory Setup */
+            needs_directory_setup: boolean;
         };
         /** CurrencyAmountResponse */
         CurrencyAmountResponse: {
@@ -605,10 +696,181 @@ export interface components {
         DevLoginRequest: {
             role: components["schemas"]["Role"];
         };
+        /**
+         * DirectorySettingsRequest
+         * @description AD 서버 설정. 값 검증은 도메인(DirectorySettings)이 하고 메시지에 필드 이름이 들어간다.
+         */
+        DirectorySettingsRequest: {
+            /** Base Dn */
+            base_dn: string;
+            /** Bind Template */
+            bind_template: string;
+            /** Ca Cert Pem */
+            ca_cert_pem?: string | null;
+            /**
+             * Connect Timeout Seconds
+             * @default 5
+             */
+            connect_timeout_seconds: number;
+            /**
+             * Display Name Attribute
+             * @default displayName
+             */
+            display_name_attribute: string;
+            /**
+             * Email Attribute
+             * @default mail
+             */
+            email_attribute: string;
+            /**
+             * Receive Timeout Seconds
+             * @default 10
+             */
+            receive_timeout_seconds: number;
+            /** Server Urls */
+            server_urls: string[];
+            /** Use Starttls */
+            use_starttls: boolean;
+            /** User Filter */
+            user_filter: string;
+        };
+        /** DirectorySettingsResponse */
+        DirectorySettingsResponse: {
+            /** Base Dn */
+            base_dn: string;
+            /** Bind Template */
+            bind_template: string;
+            /** Ca Cert Pem */
+            ca_cert_pem: string | null;
+            /** Connect Timeout Seconds */
+            connect_timeout_seconds: number;
+            /** Display Name Attribute */
+            display_name_attribute: string;
+            /** Email Attribute */
+            email_attribute: string;
+            /** Receive Timeout Seconds */
+            receive_timeout_seconds: number;
+            /** Revision */
+            revision: number;
+            /** Server Urls */
+            server_urls: string[];
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Updated By */
+            updated_by: string | null;
+            /** Use Starttls */
+            use_starttls: boolean;
+            /** User Filter */
+            user_filter: string;
+        };
+        /**
+         * DirectorySettingsTestRequest
+         * @description 연결 테스트 본문: 설정 + 현재 로그인한 admin의 비밀번호(dev 로그인 admin은 생략).
+         */
+        DirectorySettingsTestRequest: {
+            /** Base Dn */
+            base_dn: string;
+            /** Bind Template */
+            bind_template: string;
+            /** Ca Cert Pem */
+            ca_cert_pem?: string | null;
+            /**
+             * Connect Timeout Seconds
+             * @default 5
+             */
+            connect_timeout_seconds: number;
+            /**
+             * Display Name Attribute
+             * @default displayName
+             */
+            display_name_attribute: string;
+            /**
+             * Email Attribute
+             * @default mail
+             */
+            email_attribute: string;
+            /** Password */
+            password?: string | null;
+            /**
+             * Receive Timeout Seconds
+             * @default 10
+             */
+            receive_timeout_seconds: number;
+            /** Server Urls */
+            server_urls: string[];
+            /** Use Starttls */
+            use_starttls: boolean;
+            /** User Filter */
+            user_filter: string;
+        };
+        /**
+         * DirectorySettingsUpdateRequest
+         * @description 저장 본문: 연결 테스트 본문 + 낙관적 잠금용 revision(1 이상).
+         */
+        DirectorySettingsUpdateRequest: {
+            /** Base Dn */
+            base_dn: string;
+            /** Bind Template */
+            bind_template: string;
+            /** Ca Cert Pem */
+            ca_cert_pem?: string | null;
+            /**
+             * Connect Timeout Seconds
+             * @default 5
+             */
+            connect_timeout_seconds: number;
+            /**
+             * Display Name Attribute
+             * @default displayName
+             */
+            display_name_attribute: string;
+            /**
+             * Email Attribute
+             * @default mail
+             */
+            email_attribute: string;
+            /** Expected Revision */
+            expected_revision: number;
+            /** Password */
+            password?: string | null;
+            /**
+             * Receive Timeout Seconds
+             * @default 10
+             */
+            receive_timeout_seconds: number;
+            /** Server Urls */
+            server_urls: string[];
+            /** Use Starttls */
+            use_starttls: boolean;
+            /** User Filter */
+            user_filter: string;
+        };
+        /** DirectoryTestResultResponse */
+        DirectoryTestResultResponse: {
+            /** Message */
+            message: string;
+            /** Stage */
+            stage: string | null;
+            /** Success */
+            success: boolean;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /** LoginRequest */
+        LoginRequest: {
+            /** Login Id */
+            login_id: string;
+            /**
+             * Password
+             * Format: password
+             */
+            password: string;
         };
         /** Page[CustomerResponse] */
         Page_CustomerResponse_: {
@@ -650,6 +912,15 @@ export interface components {
         Page_PartnerResponse_: {
             /** Items */
             items: components["schemas"]["PartnerResponse"][];
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+        };
+        /** Page[UserResponse] */
+        Page_UserResponse_: {
+            /** Items */
+            items: components["schemas"]["UserResponse"][];
             /** Limit */
             limit: number;
             /** Offset */
@@ -727,7 +998,17 @@ export interface components {
          * Role
          * @enum {string}
          */
-        Role: "admin" | "sales";
+        Role: "admin" | "sales" | "user";
+        /** SetupAdminRequest */
+        SetupAdminRequest: {
+            /** Login Id */
+            login_id: string;
+            /**
+             * Password
+             * Format: password
+             */
+            password: string;
+        };
         /** StageSummaryResponse */
         StageSummaryResponse: {
             /** Deal Count */
@@ -735,6 +1016,36 @@ export interface components {
             stage: components["schemas"]["DealStage"];
             /** Totals */
             totals: components["schemas"]["CurrencyAmountResponse"][];
+        };
+        /**
+         * UserRequest
+         * @description 등록 본문. 비밀번호는 받지 않는다(AD가 인증). 아이디 형식 검증은 도메인(LoginId)이 한다.
+         */
+        UserRequest: {
+            /** Login Id */
+            login_id: string;
+            role: components["schemas"]["Role"];
+        };
+        /** UserResponse */
+        UserResponse: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Created By */
+            created_by: string;
+            /** Display Name */
+            display_name: string | null;
+            /** Email */
+            email: string | null;
+            /** Id */
+            id: string;
+            /** Last Login At */
+            last_login_at: string | null;
+            /** Login Id */
+            login_id: string;
+            role: components["schemas"]["Role"];
         };
         /** ValidationError */
         ValidationError: {
@@ -758,39 +1069,6 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    callback_api_v1_auth_callback_get: {
-        parameters: {
-            query?: {
-                code?: string | null;
-                state?: string | null;
-                error?: string | null;
-            };
-            header?: never;
-            path?: never;
-            cookie?: {
-                neoine_login?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            302: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     auth_config_api_v1_auth_config_get: {
         parameters: {
             query?: never;
@@ -844,21 +1122,72 @@ export interface operations {
             };
         };
     };
-    login_api_v1_auth_login_get: {
+    login_api_v1_auth_login_post: {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LoginRequest"];
+            };
+        };
         responses: {
             /** @description Successful Response */
-            302: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["PrincipalResponse"];
+                };
+            };
+            /** @description problem+json */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
             };
         };
     };
@@ -900,6 +1229,117 @@ export interface operations {
             };
             /** @description problem+json */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    setup_admin_api_v1_auth_setup_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetupAdminRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PrincipalResponse"];
+                };
+            };
+            /** @description problem+json */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    setup_directory_api_v1_auth_setup_directory_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DirectorySettingsRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DirectorySettingsResponse"];
+                };
+            };
+            /** @description problem+json */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -984,6 +1424,15 @@ export interface operations {
             };
             /** @description problem+json */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1103,6 +1552,15 @@ export interface operations {
                 };
             };
             /** @description problem+json */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -1151,6 +1609,15 @@ export interface operations {
             };
             /** @description problem+json */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1317,6 +1784,15 @@ export interface operations {
                 };
             };
             /** @description problem+json */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -1365,6 +1841,15 @@ export interface operations {
             };
             /** @description problem+json */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1475,6 +1960,15 @@ export interface operations {
             };
             /** @description problem+json */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1692,6 +2186,15 @@ export interface operations {
                 };
             };
             /** @description problem+json */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -1740,6 +2243,15 @@ export interface operations {
             };
             /** @description problem+json */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1858,6 +2370,15 @@ export interface operations {
                 };
             };
             /** @description problem+json */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -1912,6 +2433,15 @@ export interface operations {
             };
             /** @description problem+json */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2083,6 +2613,15 @@ export interface operations {
                 };
             };
             /** @description problem+json */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -2194,6 +2733,15 @@ export interface operations {
                 };
             };
             /** @description problem+json */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -2250,7 +2798,403 @@ export interface operations {
                 };
             };
             /** @description problem+json */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    get_directory_settings_api_v1_settings_directory_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DirectorySettingsResponse"];
+                };
+            };
+            /** @description problem+json */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    update_directory_settings_api_v1_settings_directory_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DirectorySettingsUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DirectorySettingsResponse"];
+                };
+            };
+            /** @description problem+json */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    test_directory_settings_api_v1_settings_directory_test_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DirectorySettingsTestRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DirectoryTestResultResponse"];
+                };
+            };
+            /** @description problem+json */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    list_users_api_v1_users_get: {
+        parameters: {
+            query?: {
+                offset?: number;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_UserResponse_"];
+                };
+            };
+            /** @description problem+json */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    register_user_api_v1_users_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UserRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserResponse"];
+                };
+            };
+            /** @description problem+json */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    delete_user_api_v1_users__user_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description problem+json */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -4,6 +4,7 @@ import { PAGE_SIZE } from '../../shared/constants'
 import { formatAmount } from '../../shared/format'
 import { ErrorBanner } from '../../shared/ui/ErrorBanner'
 import { Pager } from '../../shared/ui/Pager'
+import { usePermissions } from '../auth/hooks'
 import { useCustomerOptions } from '../customers/hooks'
 import { DealFilterBar } from './DealFilterBar'
 import { DealForm } from './DealForm'
@@ -28,6 +29,7 @@ function sameFilters(a: DealFilters, b: DealFilters): boolean {
 type Editing = { kind: 'new' } | { kind: 'edit'; deal: Deal } | null
 
 export function DealsPage() {
+  const { canWrite } = usePermissions()
   const [offset, setOffset] = useState(0)
   const [filters, setFilters] = useState<DealFilters>({})
   const [editing, setEditing] = useState<Editing>(null)
@@ -43,12 +45,14 @@ export function DealsPage() {
     <section>
       <div className="heading">
         <h1>딜</h1>
-        <button type="button" className="primary" onClick={() => setEditing({ kind: 'new' })}>
-          딜 등록
-        </button>
+        {canWrite && (
+          <button type="button" className="primary" onClick={() => setEditing({ kind: 'new' })}>
+            딜 등록
+          </button>
+        )}
       </div>
       <ErrorBanner error={deals.error ?? remove.error} />
-      {editing && (
+      {canWrite && editing && (
         <DealForm
           key={editing.kind === 'edit' ? editing.deal.id : 'new'}
           initial={editing.kind === 'edit' ? editing.deal : undefined}
@@ -107,6 +111,8 @@ export function DealsPage() {
               <td>{d.revenue_date}</td>
               <td>{customerName.get(d.customer_id) ?? ''}</td>
               <td className="row-actions">
+                {canWrite && (
+                  <>
                 <button type="button" onClick={() => setEditing({ kind: 'edit', deal: d })}>
                   수정
                 </button>
@@ -118,6 +124,8 @@ export function DealsPage() {
                 >
                   삭제
                 </button>
+                  </>
+                )}
               </td>
             </tr>
           ))}

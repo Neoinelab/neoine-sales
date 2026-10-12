@@ -10,7 +10,7 @@ export function TextField(
   props: BaseProps & {
     value: string
     onChange: (value: string) => void
-    type?: 'text' | 'email' | 'tel' | 'number' | 'date' | 'datetime-local'
+    type?: 'text' | 'password' | 'email' | 'tel' | 'number' | 'date' | 'datetime-local'
   },
 ) {
   const { label, name, value, onChange, type = 'text', required } = props
@@ -63,6 +63,21 @@ export function SelectField(
       >
         {children}
       </select>
+    </label>
+  )
+}
+
+export function CheckboxField(props: { label: string; name: string; checked: boolean; onChange: (checked: boolean) => void }) {
+  const { label, name, checked, onChange } = props
+  return (
+    <label className="field checkbox">
+      <input
+        name={name}
+        type="checkbox"
+        checked={checked}
+        onChange={(e: ChangeEvent<HTMLInputElement>) => onChange(e.target.checked)}
+      />
+      <span>{label}</span>
     </label>
   )
 }

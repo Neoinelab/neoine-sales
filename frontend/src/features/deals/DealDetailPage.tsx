@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useParams } from 'react-router'
 import { formatAmount } from '../../shared/format'
 import { ErrorBanner } from '../../shared/ui/ErrorBanner'
+import { usePermissions } from '../auth/hooks'
 import { ActionList } from '../actions/ActionList'
 import { DealForm } from './DealForm'
 import { DealPartiesPanel } from './DealPartiesPanel'
@@ -13,6 +14,7 @@ import { STAGE_LABEL } from './stages'
 export function DealDetailPage() {
   const { dealId = '' } = useParams()
   const deal = useDeal(dealId)
+  const { canWrite } = usePermissions()
   const [editing, setEditing] = useState(false)
 
   if (deal.isPending) return <p>불러오는 중…</p>
@@ -34,13 +36,13 @@ export function DealDetailPage() {
         <h1>
           {d.code} · {d.name}
         </h1>
-        {!editing && (
+        {canWrite && !editing && (
           <button type="button" onClick={() => setEditing(true)}>
             수정
           </button>
         )}
       </div>
-      {editing && <DealForm initial={d} onDone={() => setEditing(false)} />}
+      {canWrite && editing && <DealForm initial={d} onDone={() => setEditing(false)} />}
       <dl className="summary">
         <dt>현재 단계</dt>
         <dd>{STAGE_LABEL[d.stage]}</dd>
@@ -56,7 +58,7 @@ export function DealDetailPage() {
         <dd>{d.revenue_date}</dd>
       </dl>
       <DealPartiesPanel customerId={d.customer_id} partnerId={d.partner_id ?? null} />
-      <StageChangeForm deal={d} />
+      {canWrite && <StageChangeForm deal={d} />}
       <StageHistory dealId={d.id} />
       <ActionList dealId={d.id} />
     </section>

@@ -6,6 +6,8 @@ export interface Problem {
   status: number
   detail: string
   errors?: { loc: (string | number)[]; msg: string }[]
+  /** directory-verification-failed 등이 싣는 실패 단계(connect·tls·bind·search). */
+  stage?: string
 }
 
 function isProblem(value: unknown): value is Problem {
@@ -26,9 +28,15 @@ export class ApiError extends Error {
   get kind(): string | undefined {
     return this.problem?.type.split('/').pop()
   }
+
+  /** AD 연결 검증이 실패한 단계(없으면 undefined). */
+  get stage(): string | undefined {
+    return this.problem?.stage
+  }
 }
 
 function describeProblem(status: number, problem?: Problem): string {
+  if (!problem && status === 403) return '이 작업을 수행할 권한이 없습니다. 관리자에게 문의하세요.'
   if (!problem) return `요청에 실패했습니다 (${status})`
   const fields = problem.errors?.map((e) => `${e.loc.slice(1).join('.')}: ${e.msg}`) ?? []
   return fields.length > 0 ? `${problem.detail} — ${fields.join(', ')}` : problem.detail

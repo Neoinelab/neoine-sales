@@ -3,12 +3,14 @@ import { PAGE_SIZE } from '../../shared/constants'
 import { ErrorBanner } from '../../shared/ui/ErrorBanner'
 import { KeywordSearchBar } from '../../shared/ui/KeywordSearchBar'
 import { Pager } from '../../shared/ui/Pager'
+import { usePermissions } from '../auth/hooks'
 import { CustomerForm } from './CustomerForm'
 import { useCustomers, useDeleteCustomer, type Customer, type CustomerFilters } from './hooks'
 
 type Editing = { kind: 'new' } | { kind: 'edit'; customer: Customer } | null
 
 export function CustomersPage() {
+  const { canWrite } = usePermissions()
   const [offset, setOffset] = useState(0)
   const [filters, setFilters] = useState<CustomerFilters>({})
   const [editing, setEditing] = useState<Editing>(null)
@@ -21,12 +23,14 @@ export function CustomersPage() {
     <section>
       <div className="heading">
         <h1>고객</h1>
-        <button type="button" className="primary" onClick={() => setEditing({ kind: 'new' })}>
-          고객 등록
-        </button>
+        {canWrite && (
+          <button type="button" className="primary" onClick={() => setEditing({ kind: 'new' })}>
+            고객 등록
+          </button>
+        )}
       </div>
       <ErrorBanner error={customers.error ?? remove.error} />
-      {editing && (
+      {canWrite && editing && (
         <CustomerForm
           key={editing.kind === 'edit' ? editing.customer.id : 'new'}
           initial={editing.kind === 'edit' ? editing.customer : undefined}
@@ -65,6 +69,8 @@ export function CustomersPage() {
               <td>{c.employee_count}</td>
               <td>{c.notes}</td>
               <td className="row-actions">
+                {canWrite && (
+                  <>
                 <button type="button" onClick={() => setEditing({ kind: 'edit', customer: c })}>
                   수정
                 </button>
@@ -76,6 +82,8 @@ export function CustomersPage() {
                 >
                   삭제
                 </button>
+                  </>
+                )}
               </td>
             </tr>
           ))}

@@ -1,5 +1,5 @@
 import { NavLink, Outlet } from 'react-router'
-import { useLogout, useMe } from '../../features/auth/hooks'
+import { useLogout, useMe, usePermissions } from '../../features/auth/hooks'
 
 const links = [
   { to: '/deals', label: '딜' },
@@ -8,15 +8,22 @@ const links = [
   { to: '/actions', label: '활동 검색' },
 ]
 
+const adminLinks = [
+  { to: '/users', label: '사용자 관리' },
+  { to: '/settings', label: '설정' },
+]
+
 export function Layout() {
   const me = useMe()
   const logout = useLogout()
+  const { isAdmin } = usePermissions()
+  const menu = isAdmin ? [...links, ...adminLinks] : links
   return (
     <>
       <header className="topbar">
         <strong>neoine-sales</strong>
         <nav aria-label="주 메뉴">
-          {links.map((link) => (
+          {menu.map((link) => (
             <NavLink key={link.to} to={link.to}>
               {link.label}
             </NavLink>

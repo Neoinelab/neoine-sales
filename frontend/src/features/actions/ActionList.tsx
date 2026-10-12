@@ -4,7 +4,7 @@ import { PAGE_SIZE } from '../../shared/constants'
 import { formatDateTime } from '../../shared/format'
 import { ErrorBanner } from '../../shared/ui/ErrorBanner'
 import { Pager } from '../../shared/ui/Pager'
-import { useMe } from '../auth/hooks'
+import { useMe, usePermissions } from '../auth/hooks'
 import { ActionFilterBar } from './ActionFilterBar'
 import { ActionForm } from './ActionForm'
 import { useActions, useDeleteAction, type ActionFilters, type DealAction } from './hooks'
@@ -19,6 +19,7 @@ type Editing = { kind: 'new' } | { kind: 'edit'; action: DealAction } | null
 
 export function ActionList({ dealId }: Props) {
   const me = useMe()
+  const { canWrite } = usePermissions()
   const [filters, setFilters] = useState<ActionFilters>({})
   const [offset, setOffset] = useState(0)
   const [editing, setEditing] = useState<Editing>(null)
@@ -30,7 +31,7 @@ export function ActionList({ dealId }: Props) {
     <section aria-label="활동 이력">
       <div className="heading">
         <h2>활동 이력</h2>
-        {dealId && (
+        {dealId && canWrite && (
           <button type="button" className="primary" onClick={() => setEditing({ kind: 'new' })}>
             활동 기록
           </button>
@@ -43,7 +44,7 @@ export function ActionList({ dealId }: Props) {
         }}
       />
       <ErrorBanner error={actions.error ?? remove.error} />
-      {dealId && editing && (
+      {dealId && canWrite && editing && (
         <ActionForm
           key={editing.kind === 'edit' ? editing.action.id : 'new'}
           dealId={dealId}
@@ -73,6 +74,7 @@ export function ActionList({ dealId }: Props) {
               <td>{a.actor}</td>
               <td className="row-actions">
                 {dealId ? (
+                  canWrite && (
                   <>
                     <button type="button" onClick={() => setEditing({ kind: 'edit', action: a })}>
                       수정
@@ -86,6 +88,7 @@ export function ActionList({ dealId }: Props) {
                       삭제
                     </button>
                   </>
+                  )
                 ) : (
                   <Link to={`/deals/${a.deal_id}`}>딜 보기</Link>
                 )}

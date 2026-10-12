@@ -48,3 +48,43 @@ describe('errorMessage', () => {
     expect(errorMessage(new TypeError('Failed to fetch'))).toContain('네트워크 오류')
   })
 })
+
+describe('permission and verification problems (UI-10)', () => {
+  it('shows the server detail of a 403 forbidden problem', () => {
+    const error = new ApiError(403, {
+      type: 'https://x/problems/forbidden',
+      title: 'forbidden',
+      status: 403,
+      detail: '이 작업을 수행할 권한이 없습니다',
+    })
+
+    expect(errorMessage(error)).toBe('이 작업을 수행할 권한이 없습니다')
+    expect(errorMessage(error)).not.toMatch(/forbidden/i)
+  })
+
+  it('explains a 403 without a problem document as missing permission instead of a status code', () => {
+    const message = errorMessage(new ApiError(403))
+
+    expect(message).toContain('권한')
+    expect(message).not.toContain('403')
+  })
+
+  it('exposes the failed stage of a directory verification problem', () => {
+    const error = new ApiError(422, {
+      type: 'https://x/problems/directory-verification-failed',
+      title: 't',
+      status: 422,
+      detail: '확인 실패',
+      stage: 'bind',
+    } as never)
+
+    expect(error.kind).toBe('directory-verification-failed')
+    expect((error as ApiError & { stage?: string }).stage).toBe('bind')
+  })
+
+  it('has no stage for other problems', () => {
+    const error = new ApiError(409, { type: 'https://x/problems/invalid-state', title: 't', status: 409, detail: 'x' })
+
+    expect((error as ApiError & { stage?: string }).stage).toBeUndefined()
+  })
+})
