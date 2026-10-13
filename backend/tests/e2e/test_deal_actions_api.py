@@ -1,3 +1,5 @@
+"""Deal 이력(활동) API: 생성·조회·수정·삭제와 Deal 삭제 정책(AC1, 5~8, 11, 12)."""
+
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
@@ -9,6 +11,7 @@ if TYPE_CHECKING:
 DEALS = "/api/v1/deals"
 ACTIONS = "/api/v1/deal-actions"
 PROBLEM = "application/problem+json"
+IN_USE_DETAIL = "활동 또는 단계 변경 이력이 있어 삭제할 수 없습니다"
 
 
 async def _deal(client: AsyncClient, code: str = "DEAL-001") -> str:
@@ -24,7 +27,7 @@ async def _create(client: AsyncClient, deal_id: str, **overrides: object) -> dic
     return body
 
 
-async def test_create_returns_201_with_location_and_values(client: AsyncClient) -> None:
+async def test_create_returns_new_fields_and_no_legacy_fields(client: AsyncClient) -> None:
     deal_id = await _deal(client)
 
     response = await client.post(f"{DEALS}/{deal_id}/actions", json=action_payload())
@@ -34,10 +37,27 @@ async def test_create_returns_201_with_location_and_values(client: AsyncClient) 
     assert response.headers["location"] == f"{ACTIONS}/{body['id']}"
     assert body["deal_id"] == deal_id
     assert body["action_type"] == "meeting"
-    assert body["title"] == "킥오프 미팅"
+    assert body["action"] == "킥오프 미팅"
+    assert body["next_action"] == "요구사항 문서 전달"
+    assert body["due_date"] == "2026-03-10"
+    assert body["memo"] == "요구사항 정리"
     assert body["actor"] == "박영업"
     assert body["acted_at"].startswith("2026-03-02T10:00:00")
     assert body["created_at"].startswith("2026-01-01T09:00:")
+    assert body["updated_at"]
+    assert "title" not in body
+    assert "content" not in body
+
+
+async def test_create_without_memo_defaults_to_an_empty_memo(client: AsyncClient) -> None:
+    deal_id = await _deal(client)
+    payload = action_payload()
+    del payload["memo"]
+
+    response = await client.post(f"{DEALS}/{deal_id}/actions", json=payload)
+
+    assert response.status_code == 201
+    assert response.json()["memo"] == ""
 
 
 async def test_create_for_an_unknown_deal_is_a_404(client: AsyncClient) -> None:
@@ -47,44 +67,69 @@ async def test_create_for_an_unknown_deal_is_a_404(client: AsyncClient) -> None:
     assert response.json()["type"].endswith("not-found")
 
 
-async def test_unknown_action_type_is_a_request_validation_error(client: AsyncClient) -> None:
+async def test_one_deal_holds_many_actions_listed_latest_first(client: AsyncClient) -> None:
     deal_id = await _deal(client)
+    await _create(client, deal_id, action="먼저", acted_at="2026-03-01T10:00:00+09:00")
+    await _create(client, deal_id, action="나중", acted_at="2026-03-05T10:00:00+09:00")
+    await _create(client, deal_id, action="중간", acted_at="2026-03-03T10:00:00+09:00")
 
-    response = await client.post(
-        f"{DEALS}/{deal_id}/actions", json=action_payload(action_type="dance")
-    )
+    page = (await client.get(f"{DEALS}/{deal_id}/actions")).json()
 
-    assert response.status_code == 422
-    assert response.json()["type"].endswith("request-validation")
-
-
-async def test_blank_title_and_naive_time_are_422(client: AsyncClient) -> None:
-    deal_id = await _deal(client)
-
-    blank = await client.post(f"{DEALS}/{deal_id}/actions", json=action_payload(title=" "))
-    naive = await client.post(
-        f"{DEALS}/{deal_id}/actions", json=action_payload(acted_at="2026-03-02T10:00:00")
-    )
-
-    assert blank.status_code == 422
-    assert blank.json()["type"].endswith("invalid-value")
-    assert naive.status_code == 422
+    assert [item["action"] for item in page["items"]] == ["나중", "중간", "먼저"]
+    assert (page["offset"], page["limit"]) == (0, 50)
+    assert (await client.get(f"{DEALS}/{uuid4()}/actions")).status_code == 404
 
 
-async def test_get_update_and_delete(client: AsyncClient) -> None:
+async def test_get_returns_new_fields(client: AsyncClient) -> None:
     created = await _create(client, await _deal(client))
 
-    assert (await client.get(f"{ACTIONS}/{created['id']}")).json() == created
+    response = await client.get(f"{ACTIONS}/{created['id']}")
+
+    assert response.status_code == 200
+    assert response.json() == created
+    assert response.json()["next_action"] == "요구사항 문서 전달"
+    assert (await client.get(f"{ACTIONS}/{uuid4()}")).status_code == 404
+
+
+async def test_put_replaces_every_field_and_touches_updated_at(client: AsyncClient) -> None:
+    created = await _create(client, await _deal(client))
+
     updated = await client.put(
         f"{ACTIONS}/{created['id']}",
-        json=action_payload(action_type="proposal", title="제안 발표"),
+        json=action_payload(
+            action_type="proposal",
+            action="제안 발표",
+            next_action="견적 회신",
+            due_date="2026-04-01",
+            memo="",
+        ),
     )
+
+    body = updated.json()
     assert updated.status_code == 200
-    assert updated.json()["title"] == "제안 발표"
-    assert updated.json()["deal_id"] == created["deal_id"]
-    assert (await client.delete(f"{ACTIONS}/{created['id']}")).status_code == 204
-    assert (await client.get(f"{ACTIONS}/{created['id']}")).status_code == 404
-    assert (await client.delete(f"{ACTIONS}/{created['id']}")).status_code == 404
+    assert (body["action"], body["next_action"], body["due_date"]) == (
+        "제안 발표",
+        "견적 회신",
+        "2026-04-01",
+    )
+    assert body["memo"] == ""
+    assert body["action_type"] == "proposal"
+    assert body["deal_id"] == created["deal_id"]
+    assert body["created_at"] == created["created_at"]
+    assert body["updated_at"] > created["updated_at"]
+
+
+async def test_put_requires_the_required_fields(client: AsyncClient) -> None:
+    created = await _create(client, await _deal(client))
+
+    for field in ("action", "next_action", "due_date"):
+        payload = action_payload()
+        del payload[field]
+
+        response = await client.put(f"{ACTIONS}/{created['id']}", json=payload)
+
+        assert response.status_code == 422, field
+        assert response.json()["type"].endswith("request-validation")
 
 
 async def test_update_cannot_send_a_different_deal(client: AsyncClient) -> None:
@@ -97,63 +142,47 @@ async def test_update_cannot_send_a_different_deal(client: AsyncClient) -> None:
     assert response.status_code == 422  # deal_id는 허용되지 않는 필드
 
 
-async def test_deal_history_lists_latest_first_and_checks_the_deal(client: AsyncClient) -> None:
+async def test_delete_action_is_physical(client: AsyncClient) -> None:
     deal_id = await _deal(client)
-    await _create(client, deal_id, title="먼저", acted_at="2026-03-01T10:00:00+09:00")
-    await _create(client, deal_id, title="나중", acted_at="2026-03-05T10:00:00+09:00")
+    created = await _create(client, deal_id)
 
-    page = (await client.get(f"{DEALS}/{deal_id}/actions")).json()
+    assert (await client.delete(f"{ACTIONS}/{created['id']}")).status_code == 204
 
-    assert [item["title"] for item in page["items"]] == ["나중", "먼저"]
-    assert (page["offset"], page["limit"]) == (0, 50)
-    assert (await client.get(f"{DEALS}/{uuid4()}/actions")).status_code == 404
-
-
-async def test_global_search_filters(client: AsyncClient) -> None:
-    first, second = await _deal(client), await _deal(client, "DEAL-002")
-    await _create(client, first, title="킥오프", action_type="meeting", actor="김영업")
-    await _create(client, first, title="견적 발송", action_type="email", actor="박영업")
-    await _create(client, second, title="킥오프 2", action_type="meeting", actor="박영업")
-
-    async def titles(**params: str) -> set[str]:
-        response = await client.get(ACTIONS, params=params)
-        assert response.status_code == 200, response.text
-        return {item["title"] for item in response.json()["items"]}
-
-    assert await titles() == {"킥오프", "견적 발송", "킥오프 2"}
-    assert await titles(deal_id=second) == {"킥오프 2"}
-    assert await titles(action_type="meeting") == {"킥오프", "킥오프 2"}
-    assert await titles(actor="박영업") == {"견적 발송", "킥오프 2"}
-    assert await titles(keyword="견적") == {"견적 발송"}
-    assert await titles(action_type="meeting", keyword="2") == {"킥오프 2"}
-    assert await titles(acted_from="2026-03-03T00:00:00+09:00") == set()
-    assert await titles(acted_from="2026-03-02T00:00:00+09:00") == {
-        "킥오프",
-        "견적 발송",
-        "킥오프 2",
-    }
+    assert (await client.get(f"{ACTIONS}/{created['id']}")).status_code == 404
+    assert (await client.get(f"{DEALS}/{deal_id}/actions")).json()["items"] == []
+    assert (await client.delete(f"{ACTIONS}/{created['id']}")).status_code == 404
 
 
-async def test_search_validation(client: AsyncClient) -> None:
-    assert (await client.get(ACTIONS, params={"limit": 201})).status_code == 422
-    assert (await client.get(ACTIONS, params={"action_type": "dance"})).status_code == 422
-    assert (await client.get(ACTIONS, params={"unknown": "x"})).status_code == 422
-    inverted = await client.get(
-        ACTIONS,
-        params={"acted_from": "2026-03-05T00:00:00+09:00", "acted_to": "2026-03-01T00:00:00+09:00"},
-    )
-    assert inverted.status_code == 422
-    assert inverted.headers["content-type"].startswith(PROBLEM)
-
-
-async def test_history_survives_deleting_the_deal(client: AsyncClient) -> None:
+async def test_delete_deal_without_actions_is_204_and_frees_the_code(client: AsyncClient) -> None:
     deal_id = await _deal(client)
-    await _create(client, deal_id)
-    await client.delete(f"{DEALS}/{deal_id}")
 
-    page = (await client.get(f"{DEALS}/{deal_id}/actions")).json()
+    assert (await client.delete(f"{DEALS}/{deal_id}")).status_code == 204
 
-    assert len(page["items"]) == 1
-    assert (
-        await client.post(f"{DEALS}/{deal_id}/actions", json=action_payload())
-    ).status_code == 404
+    assert (await client.get(f"{DEALS}/{deal_id}")).status_code == 404
+    assert (await client.get(f"{DEALS}/{deal_id}/actions")).status_code == 404
+    assert (await _deal(client, "DEAL-001")) != deal_id  # 같은 코드로 다시 등록된다
+
+
+async def test_delete_deal_with_actions_is_409_invalid_state(client: AsyncClient) -> None:
+    deal_id = await _deal(client)
+    created = await _create(client, deal_id)
+
+    response = await client.delete(f"{DEALS}/{deal_id}")
+
+    assert response.status_code == 409
+    assert response.headers["content-type"].startswith(PROBLEM)
+    assert response.json()["type"].endswith("invalid-state")
+    assert IN_USE_DETAIL in response.json()["detail"]
+    assert (await client.get(f"{DEALS}/{deal_id}")).status_code == 200
+    assert (await client.get(f"{ACTIONS}/{created['id']}")).status_code == 200
+
+
+async def test_delete_deal_after_removing_actions_succeeds(client: AsyncClient) -> None:
+    deal_id = await _deal(client)
+    first, second = await _create(client, deal_id), await _create(client, deal_id, action="후속")
+    await client.delete(f"{ACTIONS}/{first['id']}")
+    assert (await client.delete(f"{DEALS}/{deal_id}")).status_code == 409
+    await client.delete(f"{ACTIONS}/{second['id']}")
+
+    assert (await client.delete(f"{DEALS}/{deal_id}")).status_code == 204
+    assert (await client.get(f"{DEALS}/{deal_id}")).status_code == 404

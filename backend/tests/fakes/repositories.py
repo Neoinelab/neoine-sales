@@ -1,13 +1,15 @@
 """Repository Port의 InMemory 구현(Fake). 단위 테스트와 계약 테스트에서 사용한다."""
 
 import copy
+from datetime import date
 from decimal import Decimal
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Protocol
 
 from app.application.ports.pagination import DEFAULT_LIMIT
 from app.domain.common.errors import AlreadyExistsError, NotFoundError
 from app.domain.customer.entities import Customer
 from app.domain.customer.errors import CustomerNotFoundError
+from app.domain.deal import errors as deal_errors
 from app.domain.deal.entities import Deal
 from app.domain.deal.errors import DealNotFoundError, DuplicateDealCodeError
 from app.domain.deal.pipeline import StageTotal
@@ -97,6 +99,10 @@ class FakePartnerRepository(InMemoryStore[Partner]):
         self._replace(partner)
 
 
+class DealDependents(Protocol):
+    async def exists_for_deal(self, deal_id: DealId) -> bool: ...
+
+
 def _deal_matches(deal: Deal, query: DealQuery) -> bool:
     details = deal.details
     keyword = query.keyword.lower() if query.keyword else None
@@ -119,6 +125,11 @@ class FakeDealRepository(InMemoryStore[Deal]):
     def __init__(self) -> None:
         super().__init__("deal", DealNotFoundError)
         self.for_update_gets: list[DealId] = []  # 잠금 조회(for_update=True)로 읽은 Deal id 기록
+        self._dependents: list[DealDependents] = []  # FK RESTRICT를 모사할 자식 저장소들
+
+    def restrict_delete_by(self, *dependents: DealDependents) -> None:
+        """자식 저장소(활동·단계 이력)에 행이 있으면 delete가 DealInUseError가 된다(FK RESTRICT)."""
+        self._dependents.extend(dependents)
 
     def _ensure_code_is_free(self, deal: Deal) -> None:
         """Deal Code는 삭제된 Deal을 포함한 전체에서 고유하다."""
@@ -180,10 +191,21 @@ class FakeDealRepository(InMemoryStore[Deal]):
             self._ensure_code_is_free(deal)
         self._replace(deal)
 
+    async def delete(self, deal_id: DealId) -> None:
+        """물리 삭제. 삭제 표시된 레거시 행은 없는 것으로 본다(DealNotFoundError)."""
+
+        self._fetch(deal_id, include_deleted=False)
+        for dependents in self._dependents:
+            if await dependents.exists_for_deal(deal_id):
+                raise deal_errors.DealInUseError(deal_id)
+        del self._items[deal_id]
+
 
 def _matches(action: DealAction, query: DealActionQuery) -> bool:
     details = action.details
     keyword = query.keyword.lower() if query.keyword else None
+    searchable = (details.action, details.next_action or "", details.memo)
+    due = details.due_date
     return (
         not action.is_deleted
         and (query.deal_id is None or details.deal_id == query.deal_id)
@@ -191,12 +213,22 @@ def _matches(action: DealAction, query: DealActionQuery) -> bool:
         and (query.actor is None or details.actor == query.actor)
         and (query.acted_from is None or details.acted_at >= query.acted_from)
         and (query.acted_to is None or details.acted_at < query.acted_to)
-        and (
-            keyword is None
-            or keyword in details.title.lower()
-            or keyword in details.content.lower()
-        )
+        and (query.due_from is None or (due is not None and due >= query.due_from))
+        and (query.due_to is None or (due is not None and due <= query.due_to))
+        and (keyword is None or any(keyword in text.lower() for text in searchable))
     )
+
+
+def _sorted(found: list[DealAction], sort: str) -> list[DealAction]:
+    """기본은 acted_at 내림차순. due_date 정렬은 NULL이 항상 마지막이고 동률은 acted_at 내림차순."""
+    found.sort(key=lambda a: (-a.details.acted_at.timestamp(), str(a.id)))
+    if sort == "acted_at_desc":
+        return found
+    dated = [a for a in found if a.details.due_date is not None]
+    undated = [a for a in found if a.details.due_date is None]
+    # 안정 정렬(reverse=True도 동률의 기존 순서를 유지한다)
+    dated.sort(key=lambda a: a.details.due_date or date.min, reverse=sort == "due_date_desc")
+    return [*dated, *undated]
 
 
 class FakeDealActionRepository(InMemoryStore[DealAction]):
@@ -210,12 +242,20 @@ class FakeDealActionRepository(InMemoryStore[DealAction]):
         return self._fetch(action_id, include_deleted=include_deleted)
 
     async def search(self, query: DealActionQuery) -> Sequence[DealAction]:
-        found = [a for a in self._items.values() if _matches(a, query)]
-        found.sort(key=lambda a: (-a.details.acted_at.timestamp(), str(a.id)))
+        found = _sorted([a for a in self._items.values() if _matches(a, query)], str(query.sort))
         return [copy.deepcopy(a) for a in found[query.offset : query.offset + query.limit]]
 
     async def update(self, action: DealAction) -> None:
         self._replace(action)
+
+    async def delete(self, action_id: DealActionId) -> None:
+        """물리 삭제. 없으면(삭제 표시된 행 포함) DealActionNotFoundError."""
+        self._fetch(action_id, include_deleted=False)
+        del self._items[action_id]
+
+    async def exists_for_deal(self, deal_id: DealId) -> bool:
+        """삭제 표시와 무관하게 행이 있으면 True (FK 판정과 같다)."""
+        return any(a.details.deal_id == deal_id for a in self._items.values())
 
 
 class FakeSessionRepository:

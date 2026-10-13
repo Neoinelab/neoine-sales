@@ -4,13 +4,14 @@ from decimal import Decimal
 from typing import TYPE_CHECKING
 
 from sqlalchemy import ColumnElement, exists, func, select
+from sqlalchemy.exc import IntegrityError
 
 from app.application.ports.pagination import DEFAULT_LIMIT
 from app.domain.common.errors import AlreadyExistsError
 from app.domain.common.money import Money
 from app.domain.customer.value_objects import CustomerId
 from app.domain.deal.entities import Deal
-from app.domain.deal.errors import DealNotFoundError, DuplicateDealCodeError
+from app.domain.deal.errors import DealInUseError, DealNotFoundError, DuplicateDealCodeError
 from app.domain.deal.pipeline import StageTotal
 from app.domain.deal.stage import DealStage
 from app.domain.deal.value_objects import DealCode, DealDetails, DealId
@@ -25,6 +26,9 @@ if TYPE_CHECKING:
     from sqlalchemy import Select
 
     from app.application.ports.deal_repository import DealQuery
+
+
+_IN_USE_CONSTRAINTS = ("fk_deal_actions_deal_id_deals", "fk_deal_stage_changes_deal_id_deals")
 
 
 def _apply_details(row: DealRow, details: DealDetails) -> None:
@@ -201,3 +205,18 @@ class SqlDealRepository(SqlRepository[DealRow]):
         row.deleted_at = deal.deleted_at
         row.stage = deal.stage.value
         await self._save({"uq_deals_code": lambda: DuplicateDealCodeError(deal.details.code)})
+
+    async def delete(self, deal_id: DealId) -> None:
+        """물리 삭제. 활동·단계 이력이 FK(RESTRICT)로 막으면 DealInUseError."""
+        row = await self._find(deal_id, include_deleted=True)
+        if row is None:
+            raise DealNotFoundError(deal_id)
+        try:
+            async with self._session.begin_nested():
+                await self._session.delete(row)
+                await self._session.flush()
+        except IntegrityError as error:
+            message = str(error.orig)
+            if any(name in message for name in _IN_USE_CONSTRAINTS):
+                raise DealInUseError(deal_id) from error
+            raise

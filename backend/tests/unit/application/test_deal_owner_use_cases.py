@@ -13,6 +13,7 @@ from app.application.deal.register_deal import RegisterDeal
 from app.application.deal.update_deal import UpdateDeal
 from app.application.ports.deal_repository import DealQuery
 from app.domain.common.errors import InvalidValueError
+from app.domain.deal.errors import DealNotFoundError
 from app.domain.deal.stage import DealStage
 from tests.factories import make_customer_input, make_deal_input, make_stage_change_input
 
@@ -105,12 +106,13 @@ class TestOwnerIsKept:
 
         assert (await uow.deals.get(owned.id)).owner_user_id == "u-1"
 
-    async def test_delete_keeps_the_owner_user_id(
+    async def test_delete_removes_the_owned_deal_physically(
         self, uow: FakeUnitOfWork, uow_factory: UnitOfWorkFactory, clock: FixedClock, owned: Deal
     ) -> None:
         await DeleteDeal(uow_factory, clock).execute(owned.id)
 
-        assert (await uow.deals.get(owned.id, include_deleted=True)).owner_user_id == "u-1"
+        with pytest.raises(DealNotFoundError):
+            await uow.deals.get(owned.id, include_deleted=True)
 
 
 class TestListDealsByOwner:

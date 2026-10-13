@@ -63,6 +63,6 @@ async def update_deal(deal_id: UUID, body: DealRequest, provider: Provider) -> D
     return DealResponse.from_entity(deal)
 
 
-@router.delete("/{deal_id}", status_code=status.HTTP_204_NO_CONTENT, responses=READ_ERRORS)
+@router.delete("/{deal_id}", status_code=status.HTTP_204_NO_CONTENT, responses=WRITE_ERRORS)
 async def delete_deal(deal_id: UUID, provider: Provider) -> None:
     await provider.delete_deal().execute(DealId(deal_id))

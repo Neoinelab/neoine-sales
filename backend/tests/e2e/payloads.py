@@ -45,9 +45,11 @@ def deal_payload(customer_id: str, **overrides: object) -> dict[str, Any]:
 def action_payload(**overrides: object) -> dict[str, Any]:
     values: dict[str, Any] = {
         "action_type": "meeting",
-        "title": "킥오프 미팅",
-        "content": "요구사항 정리",
+        "action": "킥오프 미팅",
         "acted_at": "2026-03-02T10:00:00+09:00",
         "actor": "박영업",
+        "next_action": "요구사항 문서 전달",
+        "due_date": "2026-03-10",
+        "memo": "요구사항 정리",
     }
     return {**values, **overrides}

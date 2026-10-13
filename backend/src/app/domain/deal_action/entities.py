@@ -18,12 +18,14 @@ class DealAction(AuditedEntity[DealActionId]):
     def create(
         cls, details: DealActionDetails, now: datetime, *, entity_id: DealActionId | None = None
     ) -> Self:
+        details.require_complete()
         return cls(
             id=entity_id or DealActionId(uuid4()), details=details, created_at=now, updated_at=now
         )
 
     def update(self, details: DealActionDetails, now: datetime) -> None:
         self._ensure_active()
+        details.require_complete()
         if details.deal_id != self.details.deal_id:
             raise InvalidStateError("활동은 다른 Deal로 옮길 수 없습니다")
         self._touch(now)

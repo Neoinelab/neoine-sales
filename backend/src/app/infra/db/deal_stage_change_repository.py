@@ -2,7 +2,7 @@
 
 from typing import TYPE_CHECKING
 
-from sqlalchemy import select
+from sqlalchemy import exists, select
 from sqlalchemy.exc import IntegrityError
 
 from app.domain.common.errors import AlreadyExistsError
@@ -69,3 +69,7 @@ class SqlDealStageChangeRepository:
         )
         rows = (await self._session.scalars(statement)).all()
         return [_to_entity(row) for row in rows]
+
+    async def exists_for_deal(self, deal_id: DealId) -> bool:
+        statement = select(exists().where(DealStageChangeRow.deal_id == deal_id))
+        return bool(await self._session.scalar(statement))

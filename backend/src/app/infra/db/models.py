@@ -100,14 +100,17 @@ class DealActionRow(AuditColumns, Base):
 
     deal_id: Mapped[UUID] = mapped_column(ForeignKey("deals.id", ondelete="RESTRICT"))
     action_type: Mapped[str] = mapped_column(String(20))
-    title: Mapped[str] = mapped_column(String(200))
-    content: Mapped[str] = mapped_column(String(4000), default="")
+    action: Mapped[str] = mapped_column(String(200))
+    next_action: Mapped[str | None] = mapped_column(String(200), default=None)
+    due_date: Mapped[date | None] = mapped_column(Date, default=None)
+    memo: Mapped[str] = mapped_column(String(4000), default="")
     acted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     actor: Mapped[str] = mapped_column(String(100))
 
     __table_args__ = (
         Index("ix_deal_actions_deal_id_acted_at", "deal_id", "acted_at"),
         Index("ix_deal_actions_acted_at", "acted_at"),
+        Index("ix_deal_actions_due_date", "due_date"),
     )
 
 

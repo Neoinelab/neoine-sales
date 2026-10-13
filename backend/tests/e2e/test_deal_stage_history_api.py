@@ -83,12 +83,18 @@ async def test_history_rejects_invalid_query(
     assert response.json()["type"].endswith("request-validation")
 
 
-async def test_history_of_a_deleted_deal_is_still_readable(client: AsyncClient) -> None:
+async def test_deal_with_stage_history_cannot_be_deleted_and_history_stays_readable(
+    client: AsyncClient,
+) -> None:
     deal = await _deal(client)
     await _change(client, deal["id"], "introduction")
-    await client.delete(f"{DEALS}/{deal['id']}")
 
+    blocked = await client.delete(f"{DEALS}/{deal['id']}")
+
+    assert blocked.status_code == 409
+    assert blocked.json()["type"].endswith("invalid-state")
     assert len((await _history(client, deal["id"]))["items"]) == 1
+    assert (await client.get(f"{DEALS}/{deal['id']}")).json()["stage"] == "introduction"
 
 
 async def test_history_of_an_unknown_deal_is_404(client: AsyncClient) -> None:

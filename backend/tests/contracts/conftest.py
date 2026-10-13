@@ -22,6 +22,9 @@ from app.domain.partner.errors import PartnerNotFoundError
 from app.infra.db.customer_repository import SqlCustomerRepository
 from app.infra.db.deal_repository import SqlDealRepository
 from app.infra.db.partner_repository import SqlPartnerRepository
+from tests.contracts.deal_action_case import PARAMS as ACTION_PARAMS
+from tests.contracts.deal_action_case import Case as ActionCase
+from tests.contracts.deal_action_case import open_case
 from tests.factories import (
     NOW,
     later,
@@ -174,4 +177,12 @@ async def contact_case(request: pytest.FixtureRequest) -> AsyncIterator[Reposito
 @pytest_asyncio.fixture(params=_params(("customer",)))
 async def customer_case(request: pytest.FixtureRequest) -> AsyncIterator[RepositoryCase]:
     async for provided in _provide(request):
+        yield provided
+
+
+@pytest_asyncio.fixture(params=ACTION_PARAMS)
+async def action_case(request: pytest.FixtureRequest) -> AsyncIterator[ActionCase]:
+    """DealActionRepository 계약 테스트용 case (fake / sql)."""
+    url = request.getfixturevalue("test_database_url") if request.param == "sql" else None
+    async with open_case(request.param, url) as provided:
         yield provided

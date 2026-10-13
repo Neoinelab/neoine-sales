@@ -119,11 +119,11 @@ async def test_readiness_is_503_when_the_database_is_unreachable() -> None:
 async def test_deal_history_is_recorded_and_searched_in_the_database(stack: AsyncClient) -> None:
     customer = (await stack.post(CUSTOMERS, json=customer_payload())).json()
     deal = (await stack.post(DEALS, json=deal_payload(customer["id"]))).json()
-    for title, content, when in [
+    for action, memo, when in [
         ("첫 통화", "할인율 100% 요청", "2026-03-01T10:00:00+09:00"),
         ("제안서 발송", "견적 첨부", "2026-03-05T10:00:00+09:00"),
     ]:
-        body = action_payload(title=title, content=content, acted_at=when)
+        body = action_payload(action=action, memo=memo, acted_at=when)
         assert (await stack.post(f"{DEALS}/{deal['id']}/actions", json=body)).status_code == 201
 
     everything = (await stack.get(f"{DEALS}/{deal['id']}/actions")).json()["items"]
@@ -132,10 +132,10 @@ async def test_deal_history_is_recorded_and_searched_in_the_database(stack: Asyn
         await stack.get("/api/v1/deal-actions", params={"acted_from": "2026-03-02T00:00:00+09:00"})
     ).json()["items"]
 
-    assert [a["title"] for a in everything] == ["제안서 발송", "첫 통화"]  # 최신순
-    assert [a["title"] for a in literal] == ["첫 통화"]
-    assert [a["title"] for a in ranged] == ["제안서 발송"]
-    assert (await stack.delete(f"{DEALS}/{deal['id']}")).status_code == 204
+    assert [a["action"] for a in everything] == ["제안서 발송", "첫 통화"]  # 최신순
+    assert [a["action"] for a in literal] == ["첫 통화"]
+    assert [a["action"] for a in ranged] == ["제안서 발송"]
+    assert (await stack.delete(f"{DEALS}/{deal['id']}")).status_code == 409  # 활동이 있는 Deal
     assert len((await stack.get(f"{DEALS}/{deal['id']}/actions")).json()["items"]) == 2
 
 
@@ -233,12 +233,12 @@ async def test_stage_change_history_and_pipeline_run_in_the_database(stack: Asyn
         f"{DEALS}/{deal['id']}", json=deal_payload(customer["id"], name="이름 변경")
     )
     assert put.json()["stage"] == "lost"
-    assert (await stack.delete(f"{DEALS}/{deal['id']}")).status_code == 204
+    blocked = await stack.delete(f"{DEALS}/{deal['id']}")  # 단계 변경 이력이 있어 삭제 불가
+    assert blocked.status_code == 409
+    assert blocked.json()["type"].endswith("invalid-state")
     assert len((await stack.get(f"{DEALS}/{deal['id']}/stage-changes")).json()["items"]) == 2
-    deleted_stages = {
-        s["stage"]: s for s in (await stack.get(f"{DEALS}/pipeline")).json()["stages"]
-    }
-    assert deleted_stages["lost"]["deal_count"] == 1
+    kept_stages = {s["stage"]: s for s in (await stack.get(f"{DEALS}/pipeline")).json()["stages"]}
+    assert kept_stages["lost"]["deal_count"] == 2
 
 
 @pytest.mark.integration

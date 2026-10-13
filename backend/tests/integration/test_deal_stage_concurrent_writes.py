@@ -20,6 +20,7 @@ from app.application.deal.change_stage import ChangeDealStage
 from app.application.deal.delete_deal import DeleteDeal
 from app.application.deal.update_deal import UpdateDeal
 from app.application.ports.deal_stage_change_repository import DealStageChangeQuery
+from app.domain.deal.errors import DealInUseError
 from app.domain.deal.stage import DealStage
 from app.infra.db.unit_of_work import sql_unit_of_work_factory
 from tests.factories import (
@@ -30,9 +31,10 @@ from tests.factories import (
     make_stage_change_input,
 )
 from tests.fakes.unit_of_work import FixedClock
+from tests.support.gated_uow import gated
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncIterator, Awaitable, Callable, Coroutine
+    from collections.abc import AsyncIterator, Callable, Coroutine
 
     from sqlalchemy.engine import URL
 
@@ -67,77 +69,28 @@ async def seeded(uow_factory: UnitOfWorkFactory) -> tuple[Customer, Deal]:
     return customer, deal
 
 
-class _GatedUow:
-    """실제 UoW를 감싸, 진입 후 지정한 메서드의 호출 직전에 신호를 보내고 release까지 멈춘다."""
-
-    def __init__(
-        self,
-        inner: Any,  # noqa: ANN401
-        *,
-        attribute: str,
-        method: str,
-        reached: asyncio.Event,
-        release: asyncio.Event,
-    ) -> None:
-        self._inner = inner
-        self._attribute = attribute
-        self._method = method
-        self._reached = reached
-        self._release = release
-
-    async def __aenter__(self) -> Any:  # noqa: ANN401
-        await self._inner.__aenter__()
-        owner = getattr(self._inner, self._attribute) if self._attribute else self._inner
-        original: Callable[..., Awaitable[Any]] = getattr(owner, self._method)
-
-        async def gated(*args: Any, **kwargs: Any) -> Any:  # noqa: ANN401
-            self._reached.set()
-            await self._release.wait()
-            return await original(*args, **kwargs)
-
-        setattr(owner, self._method, gated)
-        return self
-
-    async def __aexit__(self, *exc: object) -> None:
-        await self._inner.__aexit__(*exc)
-
-    def __getattr__(self, name: str) -> Any:  # noqa: ANN401
-        return getattr(self._inner, name)
-
-
-def _gated(
-    factory: UnitOfWorkFactory,
-    *,
-    attribute: str,
-    method: str,
-    reached: asyncio.Event,
-    release: asyncio.Event,
-) -> UnitOfWorkFactory:
-    def build() -> Any:  # noqa: ANN401
-        return _GatedUow(
-            factory(), attribute=attribute, method=method, reached=reached, release=release
-        )
-
-    return build
-
-
 async def _run_overlap(
     uow_factory: UnitOfWorkFactory,
     deal: Deal,
     other: Callable[[UnitOfWorkFactory], Coroutine[Any, Any, None]],
-) -> None:
-    """단계 변경(prospecting→lost)이 커밋 직전에 멈춘 동안 other를 시작하고 둘 다 끝낸다."""
+    *,
+    gate_method: str = "update",
+) -> Exception | None:
+    """단계 변경(prospecting→lost)이 커밋 직전에 멈춘 동안 other를 시작하고 둘 다 끝낸다.
+
+    other가 던진 예외는 호출자가 판정하도록 돌려준다(없으면 None).
+    """
     clock = FixedClock(later(60))
     stage_at_commit, release_commit = asyncio.Event(), asyncio.Event()
     other_at_update, release_update = asyncio.Event(), asyncio.Event()
 
-    change_factory = _gated(
+    change_factory = gated(
         uow_factory, attribute="", method="commit", reached=stage_at_commit, release=release_commit
     )
-    other_factory = _gated(
+    other_factory = gated(
         uow_factory,
         attribute="deals",
-        method="update",
+        method=gate_method,
         reached=other_at_update,
         release=release_update,
     )
@@ -155,7 +108,11 @@ async def _run_overlap(
     release_commit.set()
     await asyncio.wait_for(change, timeout=10)
     release_update.set()
-    await asyncio.wait_for(overlapping, timeout=10)
+    try:
+        await asyncio.wait_for(overlapping, timeout=10)
+    except Exception as error:
+        return error
+    return None
 
 
 async def _assert_stage_matches_last_history(uow_factory: UnitOfWorkFactory, deal: Deal) -> None:
@@ -178,19 +135,21 @@ async def test_put_overlapping_a_stage_change_keeps_the_new_stage(
             deal.id, make_deal_input(customer.id, name="동시 수정")
         )
 
-    await _run_overlap(uow_factory, deal, put)
+    assert await _run_overlap(uow_factory, deal, put) is None
 
     await _assert_stage_matches_last_history(uow_factory, deal)
 
 
-async def test_delete_overlapping_a_stage_change_keeps_the_new_stage(
+async def test_delete_overlapping_a_stage_change_is_rejected_and_keeps_the_new_stage(
     uow_factory: UnitOfWorkFactory, seeded: tuple[Customer, Deal]
 ) -> None:
+    """단계 변경이 먼저 행을 잡았으므로 삭제는 커밋된 단계 이력을 보고 DealInUseError가 된다."""
     _, deal = seeded
 
     async def delete(factory: UnitOfWorkFactory) -> None:
         await DeleteDeal(factory, FixedClock(later(60))).execute(deal.id)
 
-    await _run_overlap(uow_factory, deal, delete)
+    error = await _run_overlap(uow_factory, deal, delete, gate_method="delete")
 
+    assert isinstance(error, DealInUseError)
     await _assert_stage_matches_last_history(uow_factory, deal)

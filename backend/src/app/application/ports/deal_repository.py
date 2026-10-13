@@ -109,3 +109,7 @@ class DealRepository(Protocol):
         없으면 DealNotFoundError, 다른 Deal과 코드가 충돌하면 DuplicateDealCodeError.
         """
         ...
+
+    async def delete(self, deal_id: DealId) -> None:
+        """물리 삭제한다. 없으면 DealNotFoundError, 활동·단계 이력이 FK로 막으면 DealInUseError."""
+        ...

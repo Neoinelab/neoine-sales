@@ -15,7 +15,7 @@ from app.application.deal.register_deal import RegisterDeal
 from app.application.deal.update_deal import UpdateDeal
 from app.application.ports.deal_stage_change_repository import DealStageChangeQuery
 from app.domain.common.errors import InvalidStateError, InvalidValueError
-from app.domain.deal.errors import DealNotFoundError
+from app.domain.deal.errors import DealInUseError, DealNotFoundError
 from app.domain.deal.stage import DealStage
 from app.domain.deal.value_objects import DealId
 from tests.factories import make_customer_input, make_deal_input, make_stage_change_input
@@ -155,7 +155,7 @@ class TestChangeDealStage:
         self, uow_factory: UnitOfWorkFactory, clock: FixedClock, deal: Deal
     ) -> None:
         use_case = ChangeDealStage(uow_factory, clock)
-        await DeleteDeal(uow_factory, clock).execute(deal.id)
+        await DeleteDeal(uow_factory, clock).execute(deal.id)  # 이력이 없으므로 물리 삭제된다
 
         with pytest.raises(DealNotFoundError):
             await use_case.execute(DealId(uuid4()), make_stage_change_input())
@@ -176,14 +176,15 @@ class TestListDealStageChanges:
 
         assert [c.to_stage for c in found] == [DealStage.POC_PREPARATION, DealStage.INTRODUCTION]
 
-    async def test_history_of_a_deleted_deal_stays_readable(
+    async def test_deal_with_stage_history_cannot_be_deleted_and_history_stays_readable(
         self, uow_factory: UnitOfWorkFactory, clock: FixedClock, deal: Deal
     ) -> None:
         await ChangeDealStage(uow_factory, clock).execute(deal.id, make_stage_change_input())
-        await DeleteDeal(uow_factory, clock).execute(deal.id)
+
+        with pytest.raises(DealInUseError):
+            await DeleteDeal(uow_factory, clock).execute(deal.id)
 
         found = await ListDealStageChanges(uow_factory).execute(DealStageChangeQuery(deal.id))
-
         assert len(found) == 1
 
     async def test_unknown_deal_raises_not_found(self, uow_factory: UnitOfWorkFactory) -> None:

@@ -166,12 +166,16 @@ async def test_update_to_another_deals_code_is_a_409(client: AsyncClient) -> Non
     assert response.status_code == 409
 
 
-async def test_delete_hides_the_deal_and_keeps_its_code_reserved(client: AsyncClient) -> None:
+async def test_delete_removes_the_deal_physically_and_frees_its_code(
+    client: AsyncClient,
+) -> None:
     customer_id = await _customer_id(client)
     created = await _create(client, customer_id)
 
     assert (await client.delete(f"{DEALS}/{created['id']}")).status_code == 204
     assert (await client.get(f"{DEALS}/{created['id']}")).status_code == 404
+    assert (await client.get(f"{DEALS}/by-code/deal-001")).status_code == 404
     assert (await client.delete(f"{DEALS}/{created['id']}")).status_code == 404
     reuse = await client.post(DEALS, json=deal_payload(customer_id))
-    assert reuse.status_code == 409
+    assert reuse.status_code == 201
+    assert reuse.json()["id"] != created["id"]

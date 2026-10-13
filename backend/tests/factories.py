@@ -130,10 +130,12 @@ def make_deal_action_details(**overrides: object) -> DealActionDetails:
     values: dict[str, Any] = {
         "deal_id": DealId(uuid4()),
         "action_type": ActionType.MEETING,
-        "title": "킥오프 미팅",
-        "content": "요구사항 정리",
+        "action": "킥오프 미팅",
         "acted_at": NOW,
         "actor": "박영업",
+        "next_action": "요구사항 문서 전달",
+        "due_date": date(2026, 1, 15),
+        "memo": "요구사항 정리",
     }
     return DealActionDetails(**{**values, **overrides})
 
@@ -145,10 +147,12 @@ def make_deal_action(now: datetime = NOW, **overrides: object) -> DealAction:
 def make_deal_action_input(**overrides: object) -> DealActionInput:
     values: dict[str, Any] = {
         "action_type": ActionType.MEETING,
-        "title": "킥오프 미팅",
-        "content": "요구사항 정리",
+        "action": "킥오프 미팅",
         "acted_at": NOW,
         "actor": "박영업",
+        "next_action": "요구사항 문서 전달",
+        "due_date": date(2026, 1, 15),
+        "memo": "요구사항 정리",
     }
     return DealActionInput(**{**values, **overrides})
 

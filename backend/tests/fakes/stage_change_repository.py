@@ -10,6 +10,7 @@ if TYPE_CHECKING:
 
     from app.application.ports.deal_stage_change_repository import DealStageChangeQuery
     from app.domain.deal.stage import DealStageChange, DealStageChangeId
+    from app.domain.deal.value_objects import DealId
 
 
 class FakeDealStageChangeRepository:
@@ -25,3 +26,6 @@ class FakeDealStageChangeRepository:
         found = [c for c in self._items.values() if c.deal_id == query.deal_id]
         found.sort(key=lambda c: (-c.changed_at.timestamp(), str(c.id)))
         return [copy.deepcopy(c) for c in found[query.offset : query.offset + query.limit]]
+
+    async def exists_for_deal(self, deal_id: DealId) -> bool:
+        return any(c.deal_id == deal_id for c in self._items.values())

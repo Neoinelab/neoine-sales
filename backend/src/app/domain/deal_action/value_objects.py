@@ -1,19 +1,20 @@
 from dataclasses import dataclass
+from datetime import date, datetime
 from enum import StrEnum
 from typing import TYPE_CHECKING, NewType
 from uuid import UUID
 
+from app.domain.common.errors import InvalidValueError
 from app.domain.common.validation import assign, optional_text, require_aware, required_text
 
 if TYPE_CHECKING:
-    from datetime import datetime
-
     from app.domain.deal.value_objects import DealId
 
 DealActionId = NewType("DealActionId", UUID)
 
-TITLE_MAX = 200
-CONTENT_MAX = 4000
+ACTION_MAX = 200
+NEXT_ACTION_MAX = 200
+MEMO_MAX = 4000
 ACTOR_MAX = 100
 
 
@@ -32,20 +33,39 @@ class ActionType(StrEnum):
 
 @dataclass(frozen=True, slots=True)
 class DealActionDetails:
-    """Deal에서 일어난 활동 한 건: 무엇을(유형·제목·내용), 누가, 언제 했는가."""
+    """Deal에서 일어난 활동 한 건: 무엇을 했고(진행내역), 다음에 무엇을 언제 할 것인가.
+
+    next_action·due_date는 기존 행을 읽을 때만 None일 수 있다. 쓰기는 require_complete()로 막는다.
+    """
 
     deal_id: DealId
     action_type: ActionType
-    title: str
+    action: str
     acted_at: datetime
     actor: str
-    content: str = ""
+    next_action: str | None = None
+    due_date: date | None = None
+    memo: str = ""
 
     def __post_init__(self) -> None:
         require_aware(self.acted_at, "활동 일시")
+        if self.due_date is not None and isinstance(self.due_date, datetime):
+            raise InvalidValueError("계획 일정은 시각 없는 날짜여야 합니다")
         assign(
             self,
-            title=required_text(self.title, "활동 제목", max_length=TITLE_MAX),
+            action=required_text(self.action, "진행내역", max_length=ACTION_MAX),
             actor=required_text(self.actor, "활동자", max_length=ACTOR_MAX),
-            content=optional_text(self.content, "활동 내용", max_length=CONTENT_MAX) or "",
+            next_action=(
+                None
+                if self.next_action is None
+                else required_text(self.next_action, "다음 진행 계획", max_length=NEXT_ACTION_MAX)
+            ),
+            memo=optional_text(self.memo, "메모", max_length=MEMO_MAX) or "",
         )
+
+    def require_complete(self) -> None:
+        """쓰기(등록·수정) 전에 다음 진행 계획과 계획 일정이 모두 있는지 확인한다."""
+        if self.next_action is None:
+            raise InvalidValueError("다음 진행 계획은 비어 있을 수 없습니다")
+        if self.due_date is None:
+            raise InvalidValueError("계획 일정은 비어 있을 수 없습니다")

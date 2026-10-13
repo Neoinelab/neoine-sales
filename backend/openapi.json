@@ -226,6 +226,10 @@
             "title": "Acted At",
             "type": "string"
           },
+          "action": {
+            "title": "Action",
+            "type": "string"
+          },
           "action_type": {
             "$ref": "#/components/schemas/ActionType"
           },
@@ -233,21 +237,28 @@
             "title": "Actor",
             "type": "string"
           },
-          "content": {
-            "default": "",
-            "title": "Content",
+          "due_date": {
+            "format": "date",
+            "title": "Due Date",
             "type": "string"
           },
-          "title": {
-            "title": "Title",
+          "memo": {
+            "default": "",
+            "title": "Memo",
+            "type": "string"
+          },
+          "next_action": {
+            "title": "Next Action",
             "type": "string"
           }
         },
         "required": [
           "action_type",
-          "title",
+          "action",
           "acted_at",
-          "actor"
+          "actor",
+          "next_action",
+          "due_date"
         ],
         "title": "DealActionRequest",
         "type": "object"
@@ -259,15 +270,15 @@
             "title": "Acted At",
             "type": "string"
           },
+          "action": {
+            "title": "Action",
+            "type": "string"
+          },
           "action_type": {
             "$ref": "#/components/schemas/ActionType"
           },
           "actor": {
             "title": "Actor",
-            "type": "string"
-          },
-          "content": {
-            "title": "Content",
             "type": "string"
           },
           "created_at": {
@@ -279,13 +290,36 @@
             "title": "Deal Id",
             "type": "string"
           },
+          "due_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Due Date"
+          },
           "id": {
             "title": "Id",
             "type": "string"
           },
-          "title": {
-            "title": "Title",
+          "memo": {
+            "title": "Memo",
             "type": "string"
+          },
+          "next_action": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Action"
           },
           "updated_at": {
             "format": "date-time",
@@ -299,13 +333,24 @@
           "updated_at",
           "deal_id",
           "action_type",
-          "title",
-          "content",
+          "action",
+          "next_action",
+          "due_date",
+          "memo",
           "acted_at",
           "actor"
         ],
         "title": "DealActionResponse",
         "type": "object"
+      },
+      "DealActionSort": {
+        "enum": [
+          "acted_at_desc",
+          "due_date_asc",
+          "due_date_desc"
+        ],
+        "title": "DealActionSort",
+        "type": "string"
       },
       "DealPipelineResponse": {
         "properties": {
@@ -2343,6 +2388,49 @@
           },
           {
             "in": "query",
+            "name": "due_from",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Due From"
+            }
+          },
+          {
+            "in": "query",
+            "name": "due_to",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Due To"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/DealActionSort",
+              "default": "acted_at_desc"
+            }
+          },
+          {
+            "in": "query",
             "name": "offset",
             "required": false,
             "schema": {
@@ -3122,6 +3210,16 @@
             },
             "description": "problem+json"
           },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
           "422": {
             "content": {
               "application/json": {
@@ -3386,6 +3484,49 @@
                 }
               ],
               "title": "Acted To"
+            }
+          },
+          {
+            "in": "query",
+            "name": "due_from",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Due From"
+            }
+          },
+          {
+            "in": "query",
+            "name": "due_to",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Due To"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/DealActionSort",
+              "default": "acted_at_desc"
             }
           },
           {

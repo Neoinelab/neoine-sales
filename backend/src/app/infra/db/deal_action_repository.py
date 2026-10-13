@@ -2,9 +2,11 @@
 
 from typing import TYPE_CHECKING
 
-from sqlalchemy import select
+from sqlalchemy import exists, select
 
+from app.application.ports.deal_action_repository import DealActionSort
 from app.domain.common.errors import AlreadyExistsError
+from app.domain.deal.errors import DealNotFoundError
 from app.domain.deal.value_objects import DealId
 from app.domain.deal_action.entities import DealAction
 from app.domain.deal_action.errors import DealActionNotFoundError
@@ -24,8 +26,10 @@ if TYPE_CHECKING:
 def _apply_details(row: DealActionRow, details: DealActionDetails) -> None:
     row.deal_id = details.deal_id
     row.action_type = details.action_type.value
-    row.title = details.title
-    row.content = details.content
+    row.action = details.action
+    row.next_action = details.next_action
+    row.due_date = details.due_date
+    row.memo = details.memo
     row.acted_at = details.acted_at
     row.actor = details.actor
 
@@ -47,8 +51,10 @@ def _to_entity(row: DealActionRow) -> DealAction:
         details=DealActionDetails(
             deal_id=DealId(row.deal_id),
             action_type=ActionType(row.action_type),
-            title=row.title,
-            content=row.content,
+            action=row.action,
+            next_action=row.next_action,
+            due_date=row.due_date,
+            memo=row.memo,
             acted_at=row.acted_at,
             actor=row.actor,
         ),
@@ -70,11 +76,27 @@ def _filtered(query: DealActionQuery) -> Select[DealActionRow]:
         statement = statement.where(DealActionRow.acted_at >= query.acted_from)
     if query.acted_to is not None:
         statement = statement.where(DealActionRow.acted_at < query.acted_to)
+    if query.due_from is not None:
+        statement = statement.where(DealActionRow.due_date >= query.due_from)
+    if query.due_to is not None:
+        statement = statement.where(DealActionRow.due_date <= query.due_to)
     if query.keyword is not None:
         statement = statement.where(
-            keyword_filter(query.keyword, DealActionRow.title, DealActionRow.content)
+            keyword_filter(
+                query.keyword, DealActionRow.action, DealActionRow.next_action, DealActionRow.memo
+            )
         )
     return statement
+
+
+def _ordered(statement: Select[DealActionRow], sort: DealActionSort) -> Select[DealActionRow]:
+    """정렬. 계획 일정 정렬은 NULL을 항상 뒤로 보내고, 동률은 acted_at 최신순 -> id."""
+    tie_breakers = (DealActionRow.acted_at.desc(), DealActionRow.id)
+    if sort is DealActionSort.DUE_DATE_ASC:
+        return statement.order_by(DealActionRow.due_date.asc().nulls_last(), *tie_breakers)
+    if sort is DealActionSort.DUE_DATE_DESC:
+        return statement.order_by(DealActionRow.due_date.desc().nulls_last(), *tie_breakers)
+    return statement.order_by(*tie_breakers)
 
 
 class SqlDealActionRepository(SqlRepository[DealActionRow]):
@@ -82,7 +104,11 @@ class SqlDealActionRepository(SqlRepository[DealActionRow]):
 
     async def add(self, action: DealAction) -> None:
         await self._insert(
-            _to_row(action), {"pk_deal_actions": lambda: AlreadyExistsError("Deal 활동", action.id)}
+            _to_row(action),
+            {
+                "pk_deal_actions": lambda: AlreadyExistsError("Deal 활동", action.id),
+                "fk_deal_actions_deal_id_deals": lambda: DealNotFoundError(action.details.deal_id),
+            },
         )
 
     async def get(self, action_id: DealActionId, *, include_deleted: bool = False) -> DealAction:
@@ -93,8 +119,7 @@ class SqlDealActionRepository(SqlRepository[DealActionRow]):
 
     async def search(self, query: DealActionQuery) -> Sequence[DealAction]:
         statement = (
-            _filtered(query)
-            .order_by(DealActionRow.acted_at.desc(), DealActionRow.id)
+            _ordered(_filtered(query), query.sort)
             .offset(query.offset)
             .limit(query.limit)
             .execution_options(populate_existing=True)
@@ -110,3 +135,15 @@ class SqlDealActionRepository(SqlRepository[DealActionRow]):
         row.updated_at = action.updated_at
         row.deleted_at = action.deleted_at
         await self._save({})
+
+    async def delete(self, action_id: DealActionId) -> None:
+        row = await self._find(action_id, include_deleted=True)
+        if row is None:
+            raise DealActionNotFoundError(action_id)
+        await self._session.delete(row)
+        await self._session.flush()
+
+    async def exists_for_deal(self, deal_id: DealId) -> bool:
+        """삭제 표시와 무관하게 행이 하나라도 있으면 True."""
+        statement = select(exists().where(DealActionRow.deal_id == deal_id))
+        return bool(await self._session.scalar(statement))

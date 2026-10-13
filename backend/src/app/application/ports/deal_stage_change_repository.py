@@ -32,3 +32,7 @@ class DealStageChangeRepository(Protocol):
     async def search(self, query: DealStageChangeQuery) -> Sequence[DealStageChange]:
         """그 딜의 이력을 변경 시각 내림차순(같으면 id 오름차순)으로 돌려준다."""
         ...
+
+    async def exists_for_deal(self, deal_id: DealId) -> bool:
+        """이 딜의 단계 변경 이력 행이 하나라도 있는지."""
+        ...

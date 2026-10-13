@@ -71,10 +71,10 @@ async def test_search_stage_combines_with_other_conditions_and_paging(client: As
 async def test_search_by_stage_excludes_deleted_deals(client: AsyncClient) -> None:
     customer_id = await _customer_id(client)
     gone = await _create_id(client, customer_id, "D-1")
-    await _move(client, gone, "lost")
-    await client.delete(f"{DEALS}/{gone}")
+    assert (await client.delete(f"{DEALS}/{gone}")).status_code == 204  # 이력이 없어 물리 삭제
 
-    assert await _codes(client, stage="lost") == []
+    assert await _codes(client, stage="prospecting") == []
+    assert await _codes(client) == []
 
 
 async def test_search_rejects_unknown_stage(client: AsyncClient) -> None:
