@@ -131,7 +131,7 @@ class SqlDealActionRepository(SqlRepository[DealActionRow]):
             raise DealActionNotFoundError(action.id)
         _apply_details(row, action.details)
         row.updated_at = action.updated_at
-        await self._save({})
+        await self._save({}, not_found=lambda: DealActionNotFoundError(action.id))
 
     async def delete(self, action_id: DealActionId) -> None:
         row = await self._find(action_id)

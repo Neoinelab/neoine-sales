@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import ColumnElement, select
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm.exc import StaleDataError
 
 from app.application.ports.pagination import check_page
 from app.infra.db.models import AuditColumns
@@ -40,8 +41,11 @@ class SqlRepository[RowT: AuditColumns]:
     async def _insert(self, row: RowT, constraint_errors: ConstraintErrors) -> None:
         await self._flush(constraint_errors, add=row)
 
-    async def _save(self, constraint_errors: ConstraintErrors) -> None:
-        await self._flush(constraint_errors)
+    async def _save(
+        self, constraint_errors: ConstraintErrors, *, not_found: Callable[[], Exception]
+    ) -> None:
+        """갱신 flush. 읽은 뒤 동시 삭제로 UPDATE가 0행이면 not_found 오류로 바꾼다."""
+        await self._flush(constraint_errors, not_found=not_found)
 
     async def _remove(self, row: RowT, constraint_errors: ConstraintErrors) -> None:
         """물리 삭제. 참조 제약(FK RESTRICT) 위반은 매핑된 도메인 오류로 바꾼다."""
@@ -53,6 +57,7 @@ class SqlRepository[RowT: AuditColumns]:
         *,
         add: RowT | None = None,
         delete: RowT | None = None,
+        not_found: Callable[[], Exception] | None = None,
     ) -> None:
         """SAVEPOINT 안에서 flush해, 제약 위반이 나도 바깥 트랜잭션(세션)이 오염되지 않게 한다."""
         try:
@@ -62,6 +67,10 @@ class SqlRepository[RowT: AuditColumns]:
                 if delete is not None:
                     await self._session.delete(delete)
                 await self._session.flush()
+        except StaleDataError as error:
+            if not_found is not None:
+                raise not_found() from error
+            raise
         except IntegrityError as error:
             message = str(error.orig)
             for constraint, make_error in constraint_errors.items():

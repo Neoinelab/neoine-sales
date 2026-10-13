@@ -98,7 +98,8 @@ class SqlUserRepository(SqlRepository[UserRow]):
         _apply(row, user)
         row.updated_at = user.updated_at
         await self._save(
-            {"uq_users_login_id": lambda: AlreadyExistsError("사용자", user.login_id.value)}
+            {"uq_users_login_id": lambda: AlreadyExistsError("사용자", user.login_id.value)},
+            not_found=lambda: UserNotFoundError(user.id),
         )
 
     async def delete(self, user_id: UserId) -> None:

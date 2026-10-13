@@ -154,6 +154,22 @@ async def test_update_replaces_values_and_rechecks_references(client: AsyncClien
     assert (await client.get(f"{DEALS}/{created['id']}")).json()["name"] == "확장 프로젝트"
 
 
+async def test_update_to_an_unknown_partner_is_a_422_and_keeps_the_deal(
+    client: AsyncClient,
+) -> None:
+    customer_id = await _customer_id(client)
+    created = await _create(client, customer_id)
+
+    response = await client.put(
+        f"{DEALS}/{created['id']}",
+        json=deal_payload(customer_id, partner_id=str(uuid4()), name="바뀌면 안 됨"),
+    )
+
+    assert response.status_code == 422
+    assert response.json()["type"].endswith("invalid-reference")
+    assert (await client.get(f"{DEALS}/{created['id']}")).json()["name"] == created["name"]
+
+
 async def test_update_to_another_deals_code_is_a_409(client: AsyncClient) -> None:
     customer_id = await _customer_id(client)
     await _create(client, customer_id, code="D-1")

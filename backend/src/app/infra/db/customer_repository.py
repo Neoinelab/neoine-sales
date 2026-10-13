@@ -95,7 +95,7 @@ class SqlCustomerRepository(SqlRepository[CustomerRow]):
             raise CustomerNotFoundError(customer.id)
         _apply_details(row, customer.details)
         row.updated_at = customer.updated_at
-        await self._save({})
+        await self._save({}, not_found=lambda: CustomerNotFoundError(customer.id))
 
     async def delete(self, customer_id: CustomerId) -> None:
         """물리 삭제. 참조하는 Deal이 FK(RESTRICT)로 막으면 CustomerInUseError."""

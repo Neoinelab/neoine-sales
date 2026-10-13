@@ -91,7 +91,7 @@ class SqlPartnerRepository(SqlRepository[PartnerRow]):
             raise PartnerNotFoundError(partner.id)
         _apply_details(row, partner.details)
         row.updated_at = partner.updated_at
-        await self._save({})
+        await self._save({}, not_found=lambda: PartnerNotFoundError(partner.id))
 
     async def delete(self, partner_id: PartnerId) -> None:
         """물리 삭제. 참조하는 Deal이 FK(RESTRICT)로 막으면 PartnerInUseError."""

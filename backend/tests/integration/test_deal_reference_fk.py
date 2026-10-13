@@ -45,3 +45,18 @@ async def test_update_to_a_missing_customer_raises_invalid_reference(session: As
 
     with pytest.raises(InvalidReferenceError):
         await deals.update(deal)
+
+
+async def test_update_to_a_missing_partner_raises_invalid_reference(session: AsyncSession) -> None:
+    customer = Customer.create(make_customer_details(), NOW)
+    await SqlCustomerRepository(session).add(customer)
+    deals = SqlDealRepository(session)
+    deal = make_deal(customer_id=customer.id)
+    await deals.add(deal)
+    details = make_deal_details(
+        code=deal.details.code, customer_id=customer.id, partner_id=PartnerId(uuid4())
+    )
+    deal.update(details, NOW)
+
+    with pytest.raises(InvalidReferenceError):
+        await deals.update(deal)

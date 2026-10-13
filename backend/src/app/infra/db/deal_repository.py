@@ -199,7 +199,7 @@ class SqlDealRepository(SqlRepository[DealRow]):
         _apply_details(row, deal.details)
         row.updated_at = deal.updated_at
         row.stage = deal.stage.value
-        await self._save(_write_errors(deal))
+        await self._save(_write_errors(deal), not_found=lambda: DealNotFoundError(deal.id))
 
     async def delete(self, deal_id: DealId) -> None:
         """물리 삭제. 활동·단계 이력이 FK(RESTRICT)로 막으면 DealInUseError."""
