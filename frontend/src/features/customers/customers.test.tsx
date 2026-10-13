@@ -18,17 +18,31 @@ const CUSTOMER = {
 }
 
 describe('CustomersPage', () => {
-  it('explains why a customer with active deals cannot be deleted', async () => {
+  it('warns that deletion is irreversible and blocked by linked deals, and does nothing when declined', async () => {
+    const requests = mockApi({
+      'GET /api/v1/customers': { body: { items: [CUSTOMER], offset: 0, limit: 20 } },
+    })
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
+    renderApp(<CustomersPage />, '/customers')
+
+    await userEvent.click(await screen.findByRole('button', { name: '삭제' }))
+
+    expect(confirm).toHaveBeenCalledWith(expect.stringContaining('복구할 수 없'))
+    expect(confirm).toHaveBeenCalledWith(expect.stringContaining('연결된 Deal이 있으면 삭제할 수 없습니다'))
+    expect(requests.some((r) => r.method === 'DELETE')).toBe(false)
+  })
+
+  it('shows the server message when a customer is referenced by deals', async () => {
     mockApi({
       'GET /api/v1/customers': { body: { items: [CUSTOMER], offset: 0, limit: 20 } },
-      'DELETE /api/v1/customers/c-1': problem(409, 'invalid-state', '진행 중인 Deal이 있는 고객은 삭제할 수 없습니다: c-1'),
+      'DELETE /api/v1/customers/c-1': problem(409, 'invalid-state', '이 고객을 참조하는 Deal이 있어 삭제할 수 없습니다: c-1'),
     })
     vi.spyOn(window, 'confirm').mockReturnValue(true)
     renderApp(<CustomersPage />, '/customers')
 
     await userEvent.click(await screen.findByRole('button', { name: '삭제' }))
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('진행 중인 Deal이 있는 고객')
+    expect(await screen.findByRole('alert')).toHaveTextContent('이 고객을 참조하는 Deal이 있어')
     expect(screen.getByText('네오인')).toBeInTheDocument()
   })
 

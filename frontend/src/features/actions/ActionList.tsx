@@ -88,7 +88,7 @@ export function ActionList({ dealId }: Props) {
                     <button
                       type="button"
                       onClick={() => {
-                        if (window.confirm(`'${a.action}' 활동을 삭제할까요?`)) remove.mutate(a.id)
+                        if (window.confirm(`'${a.action}' 활동을 삭제할까요?\n삭제하면 복구할 수 없습니다.`)) remove.mutate(a.id)
                       }}
                     >
                       삭제

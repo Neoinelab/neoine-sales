@@ -73,7 +73,7 @@ export function PartnersPage() {
                 <button
                   type="button"
                   onClick={() => {
-                    if (window.confirm(`${c.company_name} 파트너를 삭제할까요?`)) remove.mutate(c.id)
+                    if (window.confirm(`${c.company_name} 파트너를 삭제할까요?\n삭제하면 복구할 수 없습니다. 연결된 Deal이 있으면 삭제할 수 없습니다.`)) remove.mutate(c.id)
                   }}
                 >
                   삭제

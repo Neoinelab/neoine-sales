@@ -154,6 +154,7 @@ describe('UsersPage delete (UI-7)', () => {
 
     await waitFor(() => expect(screen.queryByRole('row', { name: /^kim / })).not.toBeInTheDocument())
     expect(confirm).toHaveBeenCalledWith(expect.stringContaining('kim'))
+    expect(confirm).toHaveBeenCalledWith(expect.stringContaining('복구할 수 없'))
     const del = requests.find((r) => r.method === 'DELETE')
     expect(del?.path).toBe('/api/v1/users/u-2')
     expect(del?.headers.get('x-requested-with')).toBe('neoine-web')

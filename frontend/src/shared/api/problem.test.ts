@@ -15,13 +15,13 @@ describe('call', () => {
       type: 'https://x/problems/invalid-state',
       title: 't',
       status: 409,
-      detail: '진행 중인 Deal이 있는 고객은 삭제할 수 없습니다',
+      detail: '이 고객을 참조하는 Deal이 있어 삭제할 수 없습니다',
     }
 
     const failure = call(Promise.resolve({ error, response: res(409) }))
 
     await expect(failure).rejects.toMatchObject({ status: 409, kind: 'invalid-state' })
-    await expect(failure).rejects.toThrow('진행 중인 Deal')
+    await expect(failure).rejects.toThrow('참조하는 Deal')
   })
 
   it('lists field errors of a request validation problem without the body prefix', () => {

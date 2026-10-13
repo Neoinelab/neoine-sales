@@ -47,7 +47,7 @@ export function UsersPage() {
                     <button
                       type="button"
                       onClick={() => {
-                        if (window.confirm(`${u.login_id} 사용자를 삭제할까요?`)) remove.mutate(u.id)
+                        if (window.confirm(`${u.login_id} 사용자를 삭제할까요?\n삭제하면 복구할 수 없고 로그인 세션이 모두 종료됩니다.`)) remove.mutate(u.id)
                       }}
                     >
                       삭제
