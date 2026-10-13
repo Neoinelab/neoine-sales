@@ -216,6 +216,26 @@ describe('DealsPage pipeline summary', () => {
     )
   })
 
+  it('shows the server message when deleting a deal that has activities or stage history', async () => {
+    const detail = '활동 또는 단계 변경 이력이 있어 삭제할 수 없습니다: d-1'
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true)
+    mockApi({
+      ...routes([deal(1, 'prospecting')], pipeline(COUNTS)),
+      'DELETE /api/v1/deals/d-1': {
+        status: 409,
+        body: { type: 'x', title: 'Conflict', status: 409, detail, instance: '/x' },
+      },
+    })
+    renderApp(<DealsPage />, '/deals')
+    await screen.findByRole('link', { name: 'DEAL-001' })
+
+    await userEvent.click(screen.getByRole('button', { name: '삭제' }))
+
+    expect(confirm).toHaveBeenCalledWith(expect.stringContaining('활동 또는 단계 변경 이력이 있으면 삭제할 수 없습니다'))
+    expect(await screen.findByRole('alert')).toHaveTextContent(detail)
+    expect(screen.getByRole('link', { name: 'DEAL-001' })).toBeInTheDocument()
+  })
+
   it('keeps the list usable when the summary cannot be loaded', async () => {
     mockApi({
       ...routes([deal(1, 'prospecting')]),

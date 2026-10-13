@@ -15,6 +15,8 @@ interface Props {
   dealId?: string
 }
 
+const NOT_ENTERED = '미입력'
+
 type Editing = { kind: 'new' } | { kind: 'edit'; action: DealAction } | null
 
 export function ActionList({ dealId }: Props) {
@@ -58,8 +60,10 @@ export function ActionList({ dealId }: Props) {
           <tr>
             <th>일시</th>
             <th>유형</th>
-            <th>제목</th>
-            <th>내용</th>
+            <th>진행내역</th>
+            <th>다음 진행 계획</th>
+            <th>계획일</th>
+            <th>메모</th>
             <th>활동자</th>
             <th />
           </tr>
@@ -69,8 +73,10 @@ export function ActionList({ dealId }: Props) {
             <tr key={a.id}>
               <td>{formatDateTime(a.acted_at)}</td>
               <td>{actionLabel(a.action_type)}</td>
-              <td>{a.title}</td>
-              <td className="wrap">{a.content}</td>
+              <td className="wrap">{a.action}</td>
+              <td className="wrap">{a.next_action ?? NOT_ENTERED}</td>
+              <td>{a.due_date ?? NOT_ENTERED}</td>
+              <td className="wrap">{a.memo}</td>
               <td>{a.actor}</td>
               <td className="row-actions">
                 {dealId ? (
@@ -82,7 +88,7 @@ export function ActionList({ dealId }: Props) {
                     <button
                       type="button"
                       onClick={() => {
-                        if (window.confirm(`'${a.title}' 활동을 삭제할까요?`)) remove.mutate(a.id)
+                        if (window.confirm(`'${a.action}' 활동을 삭제할까요?`)) remove.mutate(a.id)
                       }}
                     >
                       삭제
@@ -97,7 +103,7 @@ export function ActionList({ dealId }: Props) {
           ))}
           {actions.isSuccess && items.length === 0 && (
             <tr>
-              <td colSpan={6}>조건에 맞는 활동이 없습니다.</td>
+              <td colSpan={8}>조건에 맞는 활동이 없습니다.</td>
             </tr>
           )}
         </tbody>

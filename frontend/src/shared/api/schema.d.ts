@@ -544,16 +544,23 @@ export interface components {
              * Format: date-time
              */
             acted_at: string;
+            /** Action */
+            action: string;
             action_type: components["schemas"]["ActionType"];
             /** Actor */
             actor: string;
             /**
-             * Content
+             * Due Date
+             * Format: date
+             */
+            due_date: string;
+            /**
+             * Memo
              * @default
              */
-            content: string;
-            /** Title */
-            title: string;
+            memo: string;
+            /** Next Action */
+            next_action: string;
         };
         /** DealActionResponse */
         DealActionResponse: {
@@ -562,11 +569,11 @@ export interface components {
              * Format: date-time
              */
             acted_at: string;
+            /** Action */
+            action: string;
             action_type: components["schemas"]["ActionType"];
             /** Actor */
             actor: string;
-            /** Content */
-            content: string;
             /**
              * Created At
              * Format: date-time
@@ -574,16 +581,25 @@ export interface components {
             created_at: string;
             /** Deal Id */
             deal_id: string;
+            /** Due Date */
+            due_date: string | null;
             /** Id */
             id: string;
-            /** Title */
-            title: string;
+            /** Memo */
+            memo: string;
+            /** Next Action */
+            next_action: string | null;
             /**
              * Updated At
              * Format: date-time
              */
             updated_at: string;
         };
+        /**
+         * DealActionSort
+         * @enum {string}
+         */
+        DealActionSort: "acted_at_desc" | "due_date_asc" | "due_date_desc";
         /** DealPipelineResponse */
         DealPipelineResponse: {
             /** Stages */
@@ -1653,6 +1669,9 @@ export interface operations {
                 keyword?: string | null;
                 acted_from?: string | null;
                 acted_to?: string | null;
+                due_from?: string | null;
+                due_to?: string | null;
+                sort?: components["schemas"]["DealActionSort"];
                 offset?: number;
                 limit?: number;
                 deal_id?: string | null;
@@ -2269,6 +2288,15 @@ export interface operations {
                 };
             };
             /** @description problem+json */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -2287,6 +2315,9 @@ export interface operations {
                 keyword?: string | null;
                 acted_from?: string | null;
                 acted_to?: string | null;
+                due_from?: string | null;
+                due_to?: string | null;
+                sort?: components["schemas"]["DealActionSort"];
                 offset?: number;
                 limit?: number;
             };

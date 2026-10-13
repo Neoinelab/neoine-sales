@@ -13,6 +13,9 @@ export interface ActionFilters {
   keyword?: string
   acted_from?: string
   acted_to?: string
+  due_from?: string
+  due_to?: string
+  sort?: Schemas['DealActionSort']
 }
 
 /** 빈 문자열 조건은 보내지 않는다. */

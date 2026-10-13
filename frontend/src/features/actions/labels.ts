@@ -16,3 +16,9 @@ export const ACTION_TYPES: { value: ActionType; label: string }[] = [
 export function actionLabel(type: ActionType): string {
   return ACTION_TYPES.find((t) => t.value === type)?.label ?? type
 }
+
+export const ACTION_SORTS: { value: Schemas['DealActionSort']; label: string }[] = [
+  { value: 'acted_at_desc', label: '진행일 최신순' },
+  { value: 'due_date_asc', label: '계획일 빠른순' },
+  { value: 'due_date_desc', label: '계획일 늦은순' },
+]

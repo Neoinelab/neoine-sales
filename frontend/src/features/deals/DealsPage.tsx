@@ -119,7 +119,7 @@ export function DealsPage() {
                 <button
                   type="button"
                   onClick={() => {
-                    if (window.confirm(`${d.code} 딜을 삭제할까요?`)) remove.mutate(d.id)
+                    if (window.confirm(`${d.code} 딜을 삭제할까요?\n활동 또는 단계 변경 이력이 있으면 삭제할 수 없습니다.`)) remove.mutate(d.id)
                   }}
                 >
                   삭제
