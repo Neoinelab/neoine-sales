@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Protocol
 from app.application.ports.pagination import DEFAULT_LIMIT
 from app.domain.common.errors import AlreadyExistsError, NotFoundError
 from app.domain.customer.entities import Customer
-from app.domain.customer.errors import CustomerNotFoundError
+from app.domain.customer.errors import CustomerInUseError, CustomerNotFoundError
 from app.domain.deal import errors as deal_errors
 from app.domain.deal.entities import Deal
 from app.domain.deal.errors import DealNotFoundError, DuplicateDealCodeError
@@ -16,7 +16,7 @@ from app.domain.deal.pipeline import StageTotal
 from app.domain.deal_action.entities import DealAction
 from app.domain.deal_action.errors import DealActionNotFoundError
 from app.domain.partner.entities import Partner
-from app.domain.partner.errors import PartnerNotFoundError
+from app.domain.partner.errors import PartnerInUseError, PartnerNotFoundError
 from tests.fakes.in_memory import InMemoryStore
 
 if TYPE_CHECKING:
@@ -50,25 +50,29 @@ def _search[EntityT: Customer | Partner](
     items: Sequence[EntityT], query: CustomerQuery | PartnerQuery
 ) -> list[EntityT]:
     keyword = query.keyword.lower() if query.keyword else None
-    found = [i for i in items if not i.is_deleted and _contact_matches(i, keyword)]
+    found = [i for i in items if _contact_matches(i, keyword)]
     found.sort(key=lambda i: (i.created_at, str(i.id)))
     return [copy.deepcopy(i) for i in found[query.offset : query.offset + query.limit]]
+
+
+class DealReferrers(Protocol):
+    async def exists_for_customer(self, customer_id: CustomerId) -> bool: ...
+    async def exists_for_partner(self, partner_id: PartnerId) -> bool: ...
 
 
 class FakeCustomerRepository(InMemoryStore[Customer]):
     def __init__(self) -> None:
         super().__init__("customer", CustomerNotFoundError)
+        self._referrers: list[DealReferrers] = []
 
     async def add(self, customer: Customer) -> None:
         self._insert(customer)
 
-    async def get(self, customer_id: CustomerId, *, include_deleted: bool = False) -> Customer:
-        return self._fetch(customer_id, include_deleted=include_deleted)
+    async def get(self, customer_id: CustomerId) -> Customer:
+        return self._fetch(customer_id)
 
-    async def list(
-        self, *, offset: int = 0, limit: int = DEFAULT_LIMIT, include_deleted: bool = False
-    ) -> Sequence[Customer]:
-        return self._fetch_page(offset, limit, include_deleted=include_deleted)
+    async def list(self, *, offset: int = 0, limit: int = DEFAULT_LIMIT) -> Sequence[Customer]:
+        return self._fetch_page(offset, limit)
 
     async def search(self, query: CustomerQuery) -> Sequence[Customer]:
         return _search(list(self._items.values()), query)
@@ -76,27 +80,48 @@ class FakeCustomerRepository(InMemoryStore[Customer]):
     async def update(self, customer: Customer) -> None:
         self._replace(customer)
 
+    def restrict_delete_by(self, *referrers: DealReferrers) -> None:
+        """참조하는 Deal 저장소가 있으면 delete가 CustomerInUseError가 된다(FK RESTRICT 모사)."""
+        self._referrers.extend(referrers)
+
+    async def delete(self, customer_id: CustomerId) -> None:
+        self._fetch(customer_id)
+        for referrer in self._referrers:
+            if await referrer.exists_for_customer(customer_id):
+                raise CustomerInUseError(customer_id)
+        self._remove(customer_id)
+
 
 class FakePartnerRepository(InMemoryStore[Partner]):
     def __init__(self) -> None:
         super().__init__("partner", PartnerNotFoundError)
+        self._referrers: list[DealReferrers] = []
 
     async def add(self, partner: Partner) -> None:
         self._insert(partner)
 
-    async def get(self, partner_id: PartnerId, *, include_deleted: bool = False) -> Partner:
-        return self._fetch(partner_id, include_deleted=include_deleted)
+    async def get(self, partner_id: PartnerId) -> Partner:
+        return self._fetch(partner_id)
 
-    async def list(
-        self, *, offset: int = 0, limit: int = DEFAULT_LIMIT, include_deleted: bool = False
-    ) -> Sequence[Partner]:
-        return self._fetch_page(offset, limit, include_deleted=include_deleted)
+    async def list(self, *, offset: int = 0, limit: int = DEFAULT_LIMIT) -> Sequence[Partner]:
+        return self._fetch_page(offset, limit)
 
     async def search(self, query: PartnerQuery) -> Sequence[Partner]:
         return _search(list(self._items.values()), query)
 
     async def update(self, partner: Partner) -> None:
         self._replace(partner)
+
+    def restrict_delete_by(self, *referrers: DealReferrers) -> None:
+        """참조하는 Deal 저장소가 있으면 delete가 PartnerInUseError가 된다(FK RESTRICT 모사)."""
+        self._referrers.extend(referrers)
+
+    async def delete(self, partner_id: PartnerId) -> None:
+        self._fetch(partner_id)
+        for referrer in self._referrers:
+            if await referrer.exists_for_partner(partner_id):
+                raise PartnerInUseError(partner_id)
+        self._remove(partner_id)
 
 
 class DealDependents(Protocol):
@@ -108,8 +133,7 @@ def _deal_matches(deal: Deal, query: DealQuery) -> bool:
     keyword = query.keyword.lower() if query.keyword else None
     searchable = (details.code.value, details.name, details.owner, details.vendor, details.solution)
     return (
-        not deal.is_deleted
-        and (query.stage is None or deal.stage is query.stage)
+        (query.stage is None or deal.stage is query.stage)
         and (keyword is None or any(keyword in text.lower() for text in searchable))
         and (query.customer_id is None or details.customer_id == query.customer_id)
         and (query.partner_id is None or details.partner_id == query.partner_id)
@@ -132,7 +156,7 @@ class FakeDealRepository(InMemoryStore[Deal]):
         self._dependents.extend(dependents)
 
     def _ensure_code_is_free(self, deal: Deal) -> None:
-        """Deal Code는 삭제된 Deal을 포함한 전체에서 고유하다."""
+        """Deal Code는 존재하는 Deal 전체에서 고유하다."""
         for other in self._items.values():
             if other.id != deal.id and other.details.code == deal.details.code:
                 raise DuplicateDealCodeError(deal.details.code)
@@ -141,23 +165,19 @@ class FakeDealRepository(InMemoryStore[Deal]):
         self._ensure_code_is_free(deal)
         self._insert(deal)
 
-    async def get(
-        self, deal_id: DealId, *, include_deleted: bool = False, for_update: bool = False
-    ) -> Deal:
+    async def get(self, deal_id: DealId, *, for_update: bool = False) -> Deal:
         if for_update:
             self.for_update_gets.append(deal_id)  # 행 잠금 자체는 Fake에 없고 호출만 기록한다
-        return self._fetch(deal_id, include_deleted=include_deleted)
+        return self._fetch(deal_id)
 
-    async def get_by_code(self, code: DealCode, *, include_deleted: bool = False) -> Deal:
+    async def get_by_code(self, code: DealCode) -> Deal:
         for deal in self._items.values():
             if deal.details.code == code:
-                return self._fetch(deal.id, include_deleted=include_deleted)
+                return self._fetch(deal.id)
         raise DealNotFoundError(code)
 
-    async def list(
-        self, *, offset: int = 0, limit: int = DEFAULT_LIMIT, include_deleted: bool = False
-    ) -> Sequence[Deal]:
-        return self._fetch_page(offset, limit, include_deleted=include_deleted)
+    async def list(self, *, offset: int = 0, limit: int = DEFAULT_LIMIT) -> Sequence[Deal]:
+        return self._fetch_page(offset, limit)
 
     async def search(self, query: DealQuery) -> Sequence[Deal]:
         found = [d for d in self._items.values() if _deal_matches(d, query)]
@@ -167,8 +187,6 @@ class FakeDealRepository(InMemoryStore[Deal]):
     async def summarize_pipeline(self, *, owner_user_id: str | None = None) -> Sequence[StageTotal]:
         grouped: dict[tuple[DealStage, str], tuple[int, Decimal]] = {}
         for deal in self._items.values():
-            if deal.is_deleted:
-                continue
             if owner_user_id is not None and deal.owner_user_id != owner_user_id:
                 continue
             key = (deal.stage, deal.details.revenue.currency)
@@ -176,15 +194,11 @@ class FakeDealRepository(InMemoryStore[Deal]):
             grouped[key] = (count + 1, amount + deal.details.revenue.amount)
         return [StageTotal(stage, cur, n, amt) for (stage, cur), (n, amt) in grouped.items()]
 
-    async def has_active_for_customer(self, customer_id: CustomerId) -> bool:
-        return any(
-            d.details.customer_id == customer_id and not d.is_deleted for d in self._items.values()
-        )
+    async def exists_for_customer(self, customer_id: CustomerId) -> bool:
+        return any(d.details.customer_id == customer_id for d in self._items.values())
 
-    async def has_active_for_partner(self, partner_id: PartnerId) -> bool:
-        return any(
-            d.details.partner_id == partner_id and not d.is_deleted for d in self._items.values()
-        )
+    async def exists_for_partner(self, partner_id: PartnerId) -> bool:
+        return any(d.details.partner_id == partner_id for d in self._items.values())
 
     async def update(self, deal: Deal) -> None:
         if deal.id in self._items:
@@ -192,9 +206,8 @@ class FakeDealRepository(InMemoryStore[Deal]):
         self._replace(deal)
 
     async def delete(self, deal_id: DealId) -> None:
-        """물리 삭제. 삭제 표시된 레거시 행은 없는 것으로 본다(DealNotFoundError)."""
-
-        self._fetch(deal_id, include_deleted=False)
+        """물리 삭제. 없으면 DealNotFoundError."""
+        self._fetch(deal_id)
         for dependents in self._dependents:
             if await dependents.exists_for_deal(deal_id):
                 raise deal_errors.DealInUseError(deal_id)
@@ -207,8 +220,7 @@ def _matches(action: DealAction, query: DealActionQuery) -> bool:
     searchable = (details.action, details.next_action or "", details.memo)
     due = details.due_date
     return (
-        not action.is_deleted
-        and (query.deal_id is None or details.deal_id == query.deal_id)
+        (query.deal_id is None or details.deal_id == query.deal_id)
         and (query.action_type is None or details.action_type is query.action_type)
         and (query.actor is None or details.actor == query.actor)
         and (query.acted_from is None or details.acted_at >= query.acted_from)
@@ -238,8 +250,8 @@ class FakeDealActionRepository(InMemoryStore[DealAction]):
     async def add(self, action: DealAction) -> None:
         self._insert(action)
 
-    async def get(self, action_id: DealActionId, *, include_deleted: bool = False) -> DealAction:
-        return self._fetch(action_id, include_deleted=include_deleted)
+    async def get(self, action_id: DealActionId) -> DealAction:
+        return self._fetch(action_id)
 
     async def search(self, query: DealActionQuery) -> Sequence[DealAction]:
         found = _sorted([a for a in self._items.values() if _matches(a, query)], str(query.sort))
@@ -249,12 +261,12 @@ class FakeDealActionRepository(InMemoryStore[DealAction]):
         self._replace(action)
 
     async def delete(self, action_id: DealActionId) -> None:
-        """물리 삭제. 없으면(삭제 표시된 행 포함) DealActionNotFoundError."""
-        self._fetch(action_id, include_deleted=False)
+        """물리 삭제. 없으면 DealActionNotFoundError."""
+        self._fetch(action_id)
         del self._items[action_id]
 
     async def exists_for_deal(self, deal_id: DealId) -> bool:
-        """삭제 표시와 무관하게 행이 있으면 True (FK 판정과 같다)."""
+        """행이 있으면 True (FK 판정과 같다)."""
         return any(a.details.deal_id == deal_id for a in self._items.values())
 
 

@@ -39,7 +39,6 @@ def _to_row(action: DealAction) -> DealActionRow:
         id=action.id,
         created_at=action.created_at,
         updated_at=action.updated_at,
-        deleted_at=action.deleted_at,
     )
     _apply_details(row, action.details)
     return row
@@ -60,12 +59,11 @@ def _to_entity(row: DealActionRow) -> DealAction:
         ),
         created_at=row.created_at,
         updated_at=row.updated_at,
-        deleted_at=row.deleted_at,
     )
 
 
 def _filtered(query: DealActionQuery) -> Select[DealActionRow]:
-    statement = select(DealActionRow).where(DealActionRow.deleted_at.is_(None))
+    statement = select(DealActionRow)
     if query.deal_id is not None:
         statement = statement.where(DealActionRow.deal_id == query.deal_id)
     if query.action_type is not None:
@@ -111,8 +109,8 @@ class SqlDealActionRepository(SqlRepository[DealActionRow]):
             },
         )
 
-    async def get(self, action_id: DealActionId, *, include_deleted: bool = False) -> DealAction:
-        row = await self._find(action_id, include_deleted=include_deleted)
+    async def get(self, action_id: DealActionId) -> DealAction:
+        row = await self._find(action_id)
         if row is None:
             raise DealActionNotFoundError(action_id)
         return _to_entity(row)
@@ -128,22 +126,20 @@ class SqlDealActionRepository(SqlRepository[DealActionRow]):
         return [_to_entity(row) for row in rows]
 
     async def update(self, action: DealAction) -> None:
-        row = await self._find(action.id, include_deleted=True)
+        row = await self._find(action.id)
         if row is None:
             raise DealActionNotFoundError(action.id)
         _apply_details(row, action.details)
         row.updated_at = action.updated_at
-        row.deleted_at = action.deleted_at
         await self._save({})
 
     async def delete(self, action_id: DealActionId) -> None:
-        row = await self._find(action_id, include_deleted=True)
+        row = await self._find(action_id)
         if row is None:
             raise DealActionNotFoundError(action_id)
-        await self._session.delete(row)
-        await self._session.flush()
+        await self._remove(row, {})
 
     async def exists_for_deal(self, deal_id: DealId) -> bool:
-        """삭제 표시와 무관하게 행이 하나라도 있으면 True."""
+        """이 Deal의 활동 행이 하나라도 있으면 True."""
         statement = select(exists().where(DealActionRow.deal_id == deal_id))
         return bool(await self._session.scalar(statement))

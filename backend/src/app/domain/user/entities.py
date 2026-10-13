@@ -52,7 +52,6 @@ class User(AuditedEntity[UserId]):
 
     def record_login(self, now: datetime, *, display_name: str | None, email: str | None) -> None:
         """로그인 성공 시각을 남기고 디렉터리의 표시 이름·메일로 프로필을 덮어쓴다."""
-        self._ensure_active()
         self._touch(now)
         self.last_login_at = now
         self.display_name = _directory_text(display_name, NAME_MAX, truncate=True)

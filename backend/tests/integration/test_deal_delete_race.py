@@ -63,7 +63,7 @@ async def _state(uow_factory: UnitOfWorkFactory, deal: Deal) -> tuple[bool, int]
     async with uow_factory() as check:
         actions = await check.deal_actions.search(DealActionQuery())
         try:
-            await check.deals.get(deal.id, include_deleted=True)
+            await check.deals.get(deal.id)
         except DealNotFoundError:
             return False, len(actions)
         return True, len(actions)

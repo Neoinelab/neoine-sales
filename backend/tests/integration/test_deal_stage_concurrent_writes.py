@@ -118,7 +118,7 @@ async def _run_overlap(
 async def _assert_stage_matches_last_history(uow_factory: UnitOfWorkFactory, deal: Deal) -> None:
     async with uow_factory() as check:
         history = await check.deal_stage_changes.search(DealStageChangeQuery(deal.id))
-        stored = await check.deals.get(deal.id, include_deleted=True)
+        stored = await check.deals.get(deal.id)
     assert [(c.from_stage, c.to_stage) for c in history] == [
         (DealStage.PROSPECTING, DealStage.LOST)
     ]

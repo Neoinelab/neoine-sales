@@ -8,7 +8,7 @@ if TYPE_CHECKING:
 
 
 class GetDealPipeline:
-    """단계별 건수와 통화별 매출 합계(삭제된 Deal 제외)."""
+    """단계별 건수와 통화별 매출 합계."""
 
     def __init__(self, uow_factory: UnitOfWorkFactory) -> None:
         self._uow_factory = uow_factory

@@ -12,11 +12,11 @@ if TYPE_CHECKING:
 
 class UserRepository(Protocol):
     async def add(self, user: User) -> None:
-        """같은 login_id의 활성 사용자가 있으면 AlreadyExistsError."""
+        """같은 login_id(대소문자 무시) 사용자가 있으면 AlreadyExistsError."""
         ...
 
     async def get(self, user_id: UserId) -> User:
-        """삭제되지 않은 사용자. 없으면 UserNotFoundError."""
+        """없으면 UserNotFoundError."""
         ...
 
     async def get_active_by_login_id(self, login_id: LoginId) -> User | None: ...
@@ -29,6 +29,10 @@ class UserRepository(Protocol):
 
     async def update(self, user: User) -> None:
         """없으면 UserNotFoundError."""
+        ...
+
+    async def delete(self, user_id: UserId) -> None:
+        """물리 삭제한다. 없으면 UserNotFoundError."""
         ...
 
     async def lock_roster(self) -> None:

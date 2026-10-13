@@ -83,3 +83,11 @@ def test_stage_endpoints_share_the_deals_tag() -> None:
         "/api/v1/deals/{deal_id}/stage-changes": ["deals"],
         "/api/v1/deals/pipeline": ["deals"],
     }
+
+
+def test_customer_and_partner_delete_document_the_409_for_referencing_deals() -> None:
+    schema = create_app(settings=make_settings(), use_cases=FakeUseCases()).openapi()
+
+    for path in ("/api/v1/customers/{customer_id}", "/api/v1/partners/{partner_id}"):
+        responses = schema["paths"][path]["delete"]["responses"]
+        assert "409" in responses, f"DELETE {path}에 409 응답 문서가 없다"

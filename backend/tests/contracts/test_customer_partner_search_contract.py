@@ -143,15 +143,14 @@ async def test_search_keyword_treats_backslash_literally(contact_case: Repositor
     assert await _names(contact_case, keyword="a\\b") == ["역슬래시"]
 
 
-async def test_search_excludes_soft_deleted_even_when_matching(
+async def test_search_excludes_deleted_even_when_matching(
     contact_case: RepositoryCase,
 ) -> None:
     keep = _entity(contact_case, 0, company_name="Zed 유지")
     gone = _entity(contact_case, 1, company_name="Zed 삭제")
     await contact_case.add(keep)
     await contact_case.add(gone)
-    gone.soft_delete(later(10))
-    await contact_case.repository.update(gone)
+    await contact_case.repository.delete(gone.id)
 
     assert await _names(contact_case, keyword="zed") == ["Zed 유지"]
     assert await _names(contact_case) == ["Zed 유지"]

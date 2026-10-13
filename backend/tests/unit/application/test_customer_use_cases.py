@@ -140,7 +140,7 @@ class TestUpdateCustomer:
 
 
 class TestDeleteCustomer:
-    async def test_soft_deletes_and_hides_the_customer(
+    async def test_deletes_the_customer_physically(
         self, uow: FakeUnitOfWork, uow_factory: UnitOfWorkFactory, clock: FixedClock
     ) -> None:
         registered = await RegisterCustomer(uow_factory, clock).execute(make_customer_input())
@@ -150,8 +150,8 @@ class TestDeleteCustomer:
 
         with pytest.raises(CustomerNotFoundError):
             await GetCustomer(uow_factory).execute(registered.id)
-        deleted = await uow.customers.get(registered.id, include_deleted=True)
-        assert deleted.deleted_at == clock.now()
+        with pytest.raises(CustomerNotFoundError):
+            await uow.customers.get(registered.id)
         assert uow.commits == 2
 
     async def test_missing_customer_raises_not_found(

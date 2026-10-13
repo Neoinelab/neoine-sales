@@ -112,7 +112,7 @@ class TestOwnerIsKept:
         await DeleteDeal(uow_factory, clock).execute(owned.id)
 
         with pytest.raises(DealNotFoundError):
-            await uow.deals.get(owned.id, include_deleted=True)
+            await uow.deals.get(owned.id)
 
 
 class TestListDealsByOwner:

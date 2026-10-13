@@ -22,7 +22,6 @@ def test_register_normalizes_login_id_and_starts_without_login_history() -> None
     assert user.last_login_at is None
     assert user.display_name is None
     assert user.email is None
-    assert user.deleted_at is None
 
 
 def test_register_generates_distinct_ids() -> None:
@@ -86,23 +85,6 @@ def test_record_login_does_not_fail_on_an_overlong_mail_from_the_directory() -> 
 
     assert user.last_login_at == later(10)
     assert user.email is None or len(user.email) <= EMAIL_MAX_LENGTH
-
-
-def test_record_login_on_deleted_user_is_rejected() -> None:
-    user = make_user()
-    user.soft_delete(later(5))
-
-    with pytest.raises(InvalidStateError):
-        user.record_login(later(10), display_name="x", email=None)
-
-
-def test_soft_deleted_user_reports_deleted() -> None:
-    user = make_user()
-
-    user.soft_delete(later(5))
-
-    assert user.is_deleted
-    assert user.deleted_at == later(5)
 
 
 def test_to_principal_uses_login_id_as_subject_and_keeps_role() -> None:

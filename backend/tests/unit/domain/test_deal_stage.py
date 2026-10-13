@@ -152,15 +152,6 @@ class TestChangeStage:
                 DealStage.LOST, reason=None, changed_by=make_stage_changer(), now=later(5)
             )
 
-    def test_deleted_deal_cannot_change_stage(self) -> None:
-        deal = make_deal()
-        deal.soft_delete(later(1))
-
-        with pytest.raises(InvalidStateError):
-            deal.change_stage(
-                DealStage.INTRODUCTION, reason=None, changed_by=make_stage_changer(), now=later(5)
-            )
-
     def test_update_keeps_the_stage(self) -> None:
         deal = _deal_at(DealStage.LOST)
 

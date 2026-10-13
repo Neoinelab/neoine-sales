@@ -10,7 +10,7 @@ if TYPE_CHECKING:
 
 
 class RegisterDealAction:
-    """Deal에 활동을 기록한다. Deal이 없거나 삭제됐으면 DealNotFoundError."""
+    """Deal에 활동을 기록한다. Deal이 없으면 DealNotFoundError."""
 
     def __init__(self, uow_factory: UnitOfWorkFactory, clock: Clock) -> None:
         self._uow_factory = uow_factory

@@ -2130,6 +2130,16 @@
             },
             "description": "problem+json"
           },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
           "422": {
             "content": {
               "application/json": {
@@ -4083,6 +4093,16 @@
             "description": "problem+json"
           },
           "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "409": {
             "content": {
               "application/json": {
                 "schema": {

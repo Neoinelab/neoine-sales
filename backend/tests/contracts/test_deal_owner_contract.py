@@ -119,29 +119,17 @@ async def test_search_owner_user_id_combines_with_stage_and_keyword(
     assert await _codes(deal_case, owner_user_id="alice", stage=DealStage.LOST, keyword="crm") == []
 
 
-async def test_search_owner_user_id_excludes_deleted_deals_and_pages_within_mine(
+async def test_search_owner_user_id_excludes_removed_deals_and_pages_within_mine(
     deal_case: RepositoryCase,
 ) -> None:
     for number in range(1, 5):
         await deal_case.add(make_deal(later(number), code=f"A-{number}", owner_user_id="alice"))
     await deal_case.add(make_deal(later(5), code="B-1", owner_user_id="bob"))
     gone = await deal_case.repository.get((await deal_case.repository.search(DealQuery()))[0].id)
-    gone.soft_delete(later(20))
-    await deal_case.repository.update(gone)
+    await deal_case.repository.delete(gone.id)
 
     assert await _codes(deal_case, owner_user_id="alice") == ["A-2", "A-3", "A-4"]
     assert await _codes(deal_case, owner_user_id="alice", offset=1, limit=1) == ["A-3"]
-
-
-async def test_soft_deleted_deal_keeps_its_owner_user_id(deal_case: RepositoryCase) -> None:
-    deal = make_deal(code="O-1", owner_user_id="u-1")
-    await deal_case.add(deal)
-    deal.soft_delete(later(10))
-    await deal_case.repository.update(deal)
-
-    stored = await deal_case.repository.get(deal.id, include_deleted=True)
-
-    assert stored.owner_user_id == "u-1"
 
 
 async def test_summarize_for_one_owner_user(deal_case: RepositoryCase) -> None:
@@ -161,8 +149,7 @@ async def test_summarize_for_one_owner_user(deal_case: RepositoryCase) -> None:
     await deal_case.add(make_deal(later(4), code="N-1", revenue=Money(Decimal("2000"))))
     gone = make_deal(later(5), code="A-3", owner_user_id="alice", revenue=Money(Decimal("7")))
     await deal_case.add(gone)
-    gone.soft_delete(later(20))
-    await deal_case.repository.update(gone)
+    await deal_case.repository.delete(gone.id)
 
     totals = await deal_case.repository.summarize_pipeline(owner_user_id="alice")
 

@@ -23,25 +23,15 @@ class SqlRepository[RowT: AuditColumns]:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
-    async def _find(self, entity_id: UUID, *, include_deleted: bool) -> RowT | None:
-        row = await self._session.get(self.row_type, entity_id, populate_existing=True)
-        if row is None or (row.deleted_at is not None and not include_deleted):
-            return None
-        return row
+    async def _find(self, entity_id: UUID) -> RowT | None:
+        return await self._session.get(self.row_type, entity_id, populate_existing=True)
 
     async def _page(
-        self,
-        offset: int,
-        limit: int,
-        *,
-        include_deleted: bool,
-        condition: ColumnElement[bool] | None = None,
+        self, offset: int, limit: int, *, condition: ColumnElement[bool] | None = None
     ) -> Sequence[RowT]:
         """created_at, id 순 페이지. condition이 있으면 추가 WHERE 조건으로 함께 건다."""
         check_page(offset, limit)
         statement = select(self.row_type).order_by(self.row_type.created_at, self.row_type.id)
-        if not include_deleted:
-            statement = statement.where(self.row_type.deleted_at.is_(None))
         if condition is not None:
             statement = statement.where(condition)
         statement = statement.offset(offset).limit(limit).execution_options(populate_existing=True)
@@ -53,12 +43,24 @@ class SqlRepository[RowT: AuditColumns]:
     async def _save(self, constraint_errors: ConstraintErrors) -> None:
         await self._flush(constraint_errors)
 
-    async def _flush(self, constraint_errors: ConstraintErrors, *, add: RowT | None = None) -> None:
+    async def _remove(self, row: RowT, constraint_errors: ConstraintErrors) -> None:
+        """물리 삭제. 참조 제약(FK RESTRICT) 위반은 매핑된 도메인 오류로 바꾼다."""
+        await self._flush(constraint_errors, delete=row)
+
+    async def _flush(
+        self,
+        constraint_errors: ConstraintErrors,
+        *,
+        add: RowT | None = None,
+        delete: RowT | None = None,
+    ) -> None:
         """SAVEPOINT 안에서 flush해, 제약 위반이 나도 바깥 트랜잭션(세션)이 오염되지 않게 한다."""
         try:
             async with self._session.begin_nested():
                 if add is not None:
                     self._session.add(add)
+                if delete is not None:
+                    await self._session.delete(delete)
                 await self._session.flush()
         except IntegrityError as error:
             message = str(error.orig)

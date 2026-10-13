@@ -273,15 +273,14 @@ async def test_search_applies_page_after_filtering(deal_case: RepositoryCase) ->
     assert await _codes(deal_case, vendor="SAP", offset=1, limit=1) == ["S-2"]
 
 
-async def test_search_excludes_soft_deleted_deals(deal_case: RepositoryCase) -> None:
+async def test_search_excludes_removed_deals(deal_case: RepositoryCase) -> None:
     keep, gone = (
         make_deal(later(0), code="KEEP", owner="X"),
         make_deal(later(1), code="GONE", owner="X"),
     )
     await deal_case.add(keep)
     await deal_case.add(gone)
-    gone.soft_delete(later(10))
-    await deal_case.repository.update(gone)
+    await deal_case.repository.delete(gone.id)
 
     assert await _codes(deal_case, owner="X") == ["KEEP"]
     assert await _codes(deal_case, keyword="gone") == []

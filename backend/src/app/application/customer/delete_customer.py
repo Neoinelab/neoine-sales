@@ -9,7 +9,7 @@ if TYPE_CHECKING:
 
 
 class DeleteCustomer:
-    """고객을 소프트 삭제한다. 없으면 NotFound, 활성 Deal이 있으면 CustomerInUseError."""
+    """고객을 물리 삭제한다. 없으면 NotFound, 참조하는 Deal이 있으면 CustomerInUseError."""
 
     def __init__(self, uow_factory: UnitOfWorkFactory, clock: Clock) -> None:
         self._uow_factory = uow_factory
@@ -17,9 +17,8 @@ class DeleteCustomer:
 
     async def execute(self, customer_id: CustomerId) -> None:
         async with self._uow_factory() as uow:
-            customer = await uow.customers.get(customer_id)
-            if await uow.deals.has_active_for_customer(customer_id):
+            await uow.customers.get(customer_id)
+            if await uow.deals.exists_for_customer(customer_id):
                 raise CustomerInUseError(customer_id)
-            customer.soft_delete(self._clock.now())
-            await uow.customers.update(customer)
+            await uow.customers.delete(customer_id)
             await uow.commit()

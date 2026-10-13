@@ -126,8 +126,7 @@ async def test_deleted_user_gets_the_same_401(
     async with ready.uow as uow:
         user = await uow.users.get_active_by_login_id(LoginId("gone"))
         assert user is not None
-        user.soft_delete(ready.clock.now())
-        await uow.users.update(user)
+        await uow.users.delete(user.id)
         await uow.commit()
 
     response = await anonymous_client.post(LOGIN, json=credentials("gone", "pw-gone"))

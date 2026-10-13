@@ -148,8 +148,7 @@ async def test_deleted_users_session_is_rejected_from_the_next_request(
     async with use_cases.uow as uow:
         user = await uow.users.get_active_by_login_id(LoginId(DEFAULT_LOGIN))
         assert user is not None
-        user.soft_delete(use_cases.clock.now())
-        await uow.users.update(user)
+        await uow.users.delete(user.id)
         await uow.commit()
 
     assert (await client.get("/api/v1/customers")).status_code == 401

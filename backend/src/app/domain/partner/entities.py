@@ -22,6 +22,5 @@ class Partner(AuditedEntity[PartnerId]):
         )
 
     def update(self, details: PartnerDetails, now: datetime) -> None:
-        self._ensure_active()
         self._touch(now)
         self.details = details

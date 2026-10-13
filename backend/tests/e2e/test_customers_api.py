@@ -166,7 +166,7 @@ async def test_delete_unknown_or_already_deleted_customer_is_a_404(client: Async
     assert (await client.delete(f"{BASE}/{uuid4()}")).status_code == 404
 
 
-async def test_customer_with_an_active_deal_cannot_be_deleted(client: AsyncClient) -> None:
+async def test_customer_with_a_deal_cannot_be_deleted(client: AsyncClient) -> None:
     created = await _create(client)
     deal = await client.post("/api/v1/deals", json=deal_payload(str(created["id"])))
 

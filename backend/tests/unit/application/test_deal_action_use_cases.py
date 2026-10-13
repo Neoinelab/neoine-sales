@@ -172,7 +172,7 @@ class TestGetUpdateDelete:
         with pytest.raises(DealActionNotFoundError):
             await GetDealAction(uow_factory).execute(created.id)
         with pytest.raises(DealActionNotFoundError):
-            await uow.deal_actions.get(created.id, include_deleted=True)  # 표시가 아니라 행 삭제
+            await uow.deal_actions.get(created.id)  # 표시가 아니라 행 삭제
         with pytest.raises(DealActionNotFoundError):
             await DeleteDealAction(uow_factory, clock).execute(created.id)
 

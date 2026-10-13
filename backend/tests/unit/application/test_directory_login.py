@@ -22,6 +22,7 @@ from tests.support.auth_seed import DUMMY_PASSWORD, seed_directory, seed_user
 if TYPE_CHECKING:
     from app.application.auth.issue_session import IssuedSession
     from app.application.ports.unit_of_work import UnitOfWorkFactory
+    from app.domain.user.entities import User
     from tests.fakes.auth_stack import AuthStack
     from tests.fakes.directory import FakeDirectoryAuthenticator
     from tests.fakes.unit_of_work import FakeUnitOfWork, FixedClock
@@ -214,3 +215,26 @@ async def test_login_passes_the_password_only_to_the_directory(
     stored = repr(uow.users._items) + repr(uow.sessions._items) + repr(uow.login_failures._items)
     assert DUMMY_PASSWORD not in stored
     assert DUMMY_PASSWORD not in repr(issued)
+
+
+@pytest.mark.usefixtures("ready")
+async def test_login_of_a_user_deleted_during_the_login_is_a_plain_login_failure(
+    auth: AuthStack, uow: FakeUnitOfWork
+) -> None:
+    """읽은 직후 삭제가 끼어들어도 update의 NotFound(404)가 아니라 로그인 실패(401)가 된다."""
+    original_get = uow.users.get_active_by_login_id
+
+    async def get_then_delete(login_id: LoginId) -> User | None:
+        found = await original_get(login_id)
+        assert found is not None
+        await uow.users.delete(found.id)  # 다른 요청이 사용자를 삭제하고 커밋했다
+        return found
+
+    uow.users.get_active_by_login_id = get_then_delete  # type: ignore[method-assign]
+
+    with pytest.raises(AuthenticationError) as caught:
+        await _login(auth)
+
+    assert type(caught.value) is AuthenticationError
+    assert str(caught.value) == LOGIN_FAILED
+    assert uow.sessions._items == {}

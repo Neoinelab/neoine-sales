@@ -27,30 +27,30 @@ class FakeUserRepository(InMemoryStore["User"]):
         self.roster_locks = 0  # lock_roster 호출 횟수(advisory lock 대용 기록)
 
     async def add(self, user: User) -> None:
-        if not user.is_deleted and any(
-            not other.is_deleted and other.login_id == user.login_id
-            for other in self._items.values()
-        ):
+        if any(other.login_id == user.login_id for other in self._items.values()):
             raise AlreadyExistsError("사용자", user.login_id.value)
         self._insert(user)
 
     async def get(self, user_id: UserId) -> User:
-        return self._fetch(user_id, include_deleted=False)
+        return self._fetch(user_id)
 
     async def get_active_by_login_id(self, login_id: LoginId) -> User | None:
         for user in self._items.values():
-            if not user.is_deleted and user.login_id == login_id:
+            if user.login_id == login_id:
                 return copy.deepcopy(user)
         return None
 
     async def list_active(self, *, offset: int = 0, limit: int = DEFAULT_LIMIT) -> Sequence[User]:
-        return self._fetch_page(offset, limit, include_deleted=False)
+        return self._fetch_page(offset, limit)
 
     async def count_active_admins(self) -> int:
-        return sum(1 for u in self._items.values() if not u.is_deleted and u.role is Role.ADMIN)
+        return sum(1 for u in self._items.values() if u.role is Role.ADMIN)
 
     async def update(self, user: User) -> None:
         self._replace(user)
+
+    async def delete(self, user_id: UserId) -> None:
+        self._remove(user_id)
 
     async def lock_roster(self) -> None:
         self.roster_locks += 1

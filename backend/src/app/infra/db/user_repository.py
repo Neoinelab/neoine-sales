@@ -26,7 +26,6 @@ def _to_row(user: User) -> UserRow:
         id=user.id,
         created_at=user.created_at,
         updated_at=user.updated_at,
-        deleted_at=user.deleted_at,
     )
     _apply(row, user)
     return row
@@ -52,7 +51,6 @@ def _to_entity(row: UserRow) -> User:
         last_login_at=row.last_login_at,
         created_at=row.created_at,
         updated_at=row.updated_at,
-        deleted_at=row.deleted_at,
     )
 
 
@@ -64,14 +62,12 @@ class SqlUserRepository(SqlRepository[UserRow]):
             _to_row(user),
             {
                 "pk_users": lambda: AlreadyExistsError("사용자", user.id),
-                "uq_users_login_id_active": lambda: AlreadyExistsError(
-                    "사용자", user.login_id.value
-                ),
+                "uq_users_login_id": lambda: AlreadyExistsError("사용자", user.login_id.value),
             },
         )
 
     async def get(self, user_id: UserId) -> User:
-        row = await self._find(user_id, include_deleted=False)
+        row = await self._find(user_id)
         if row is None:
             raise UserNotFoundError(user_id)
         return _to_entity(row)
@@ -80,34 +76,37 @@ class SqlUserRepository(SqlRepository[UserRow]):
         statement = (
             select(UserRow)
             .where(func.lower(UserRow.login_id) == login_id.value.lower())
-            .where(UserRow.deleted_at.is_(None))
             .execution_options(populate_existing=True)
         )
         row = (await self._session.scalars(statement)).one_or_none()
         return _to_entity(row) if row else None
 
     async def list_active(self, *, offset: int = 0, limit: int = DEFAULT_LIMIT) -> Sequence[User]:
-        rows = await self._page(offset, limit, include_deleted=False)
+        rows = await self._page(offset, limit)
         return [_to_entity(row) for row in rows]
 
     async def count_active_admins(self) -> int:
         statement = (
-            select(func.count())
-            .select_from(UserRow)
-            .where(UserRow.role == Role.ADMIN.value, UserRow.deleted_at.is_(None))
+            select(func.count()).select_from(UserRow).where(UserRow.role == Role.ADMIN.value)
         )
         return int(await self._session.scalar(statement) or 0)
 
     async def update(self, user: User) -> None:
-        row = await self._find(user.id, include_deleted=True)
+        row = await self._find(user.id)
         if row is None:
             raise UserNotFoundError(user.id)
         _apply(row, user)
         row.updated_at = user.updated_at
-        row.deleted_at = user.deleted_at
         await self._save(
-            {"uq_users_login_id_active": lambda: AlreadyExistsError("사용자", user.login_id.value)}
+            {"uq_users_login_id": lambda: AlreadyExistsError("사용자", user.login_id.value)}
         )
+
+    async def delete(self, user_id: UserId) -> None:
+        """물리 삭제. 사용자를 참조하는 FK는 없다."""
+        row = await self._find(user_id)
+        if row is None:
+            raise UserNotFoundError(user_id)
+        await self._remove(row, {})
 
     async def lock_roster(self) -> None:
         await self._session.execute(

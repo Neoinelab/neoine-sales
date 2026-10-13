@@ -6,7 +6,7 @@ from app.application.ports.pagination import DEFAULT_LIMIT
 from app.domain.common.contact import Email, PhoneNumber
 from app.domain.common.errors import AlreadyExistsError
 from app.domain.partner.entities import Partner
-from app.domain.partner.errors import PartnerNotFoundError
+from app.domain.partner.errors import PartnerInUseError, PartnerNotFoundError
 from app.domain.partner.value_objects import PartnerDetails, PartnerId
 from app.infra.db.base_repository import SqlRepository
 from app.infra.db.like import keyword_filter
@@ -31,7 +31,6 @@ def _to_row(partner: Partner) -> PartnerRow:
         id=partner.id,
         created_at=partner.created_at,
         updated_at=partner.updated_at,
-        deleted_at=partner.deleted_at,
     )
     _apply_details(row, partner.details)
     return row
@@ -49,7 +48,6 @@ def _to_entity(row: PartnerRow) -> Partner:
         ),
         created_at=row.created_at,
         updated_at=row.updated_at,
-        deleted_at=row.deleted_at,
     )
 
 
@@ -61,16 +59,14 @@ class SqlPartnerRepository(SqlRepository[PartnerRow]):
             _to_row(partner), {"pk_partners": lambda: AlreadyExistsError("파트너", partner.id)}
         )
 
-    async def get(self, partner_id: PartnerId, *, include_deleted: bool = False) -> Partner:
-        row = await self._find(partner_id, include_deleted=include_deleted)
+    async def get(self, partner_id: PartnerId) -> Partner:
+        row = await self._find(partner_id)
         if row is None:
             raise PartnerNotFoundError(partner_id)
         return _to_entity(row)
 
-    async def list(
-        self, *, offset: int = 0, limit: int = DEFAULT_LIMIT, include_deleted: bool = False
-    ) -> Sequence[Partner]:
-        rows = await self._page(offset, limit, include_deleted=include_deleted)
+    async def list(self, *, offset: int = 0, limit: int = DEFAULT_LIMIT) -> Sequence[Partner]:
+        rows = await self._page(offset, limit)
         return [_to_entity(row) for row in rows]
 
     async def search(self, query: PartnerQuery) -> Sequence[Partner]:
@@ -86,16 +82,22 @@ class SqlPartnerRepository(SqlRepository[PartnerRow]):
                 PartnerRow.phone,
             )
         )
-        rows = await self._page(
-            query.offset, query.limit, include_deleted=False, condition=condition
-        )
+        rows = await self._page(query.offset, query.limit, condition=condition)
         return [_to_entity(row) for row in rows]
 
     async def update(self, partner: Partner) -> None:
-        row = await self._find(partner.id, include_deleted=True)
+        row = await self._find(partner.id)
         if row is None:
             raise PartnerNotFoundError(partner.id)
         _apply_details(row, partner.details)
         row.updated_at = partner.updated_at
-        row.deleted_at = partner.deleted_at
         await self._save({})
+
+    async def delete(self, partner_id: PartnerId) -> None:
+        """물리 삭제. 참조하는 Deal이 FK(RESTRICT)로 막으면 PartnerInUseError."""
+        row = await self._find(partner_id)
+        if row is None:
+            raise PartnerNotFoundError(partner_id)
+        await self._remove(
+            row, {"fk_deals_partner_id_partners": lambda: PartnerInUseError(partner_id)}
+        )

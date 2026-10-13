@@ -38,7 +38,7 @@ async def test_summarize_of_an_empty_repository_is_empty(deal_case: RepositoryCa
     assert list(await deal_case.repository.summarize_pipeline()) == []
 
 
-async def test_summarize_excludes_deleted_and_groups_by_stage_and_currency(
+async def test_summarize_excludes_removed_and_groups_by_stage_and_currency(
     deal_case: RepositoryCase,
 ) -> None:
     await deal_case.add(_deal(1, DealStage.PROSPECTING, "100"))
@@ -47,8 +47,7 @@ async def test_summarize_excludes_deleted_and_groups_by_stage_and_currency(
     await deal_case.add(_deal(4, DealStage.LOST, "30"))
     gone = _deal(5, DealStage.LOST, "1000")
     await deal_case.add(gone)
-    gone.soft_delete(later(20))
-    await deal_case.repository.update(gone)
+    await deal_case.repository.delete(gone.id)
 
     summary = await _summary(deal_case)
 
@@ -120,11 +119,10 @@ async def test_get_for_update_returns_the_same_deal(deal_case: RepositoryCase) -
     assert locked.stage is DealStage.PROSPECTING
 
 
-async def test_get_for_update_still_hides_soft_deleted_deal(deal_case: RepositoryCase) -> None:
+async def test_get_for_update_of_a_removed_deal_raises_not_found(deal_case: RepositoryCase) -> None:
     deal = make_deal(code="S-1")
     await deal_case.add(deal)
-    deal.soft_delete(later(10))
-    await deal_case.repository.update(deal)
+    await deal_case.repository.delete(deal.id)
 
     with pytest.raises(DealNotFoundError):
         await deal_case.repository.get(deal.id, for_update=True)
@@ -152,11 +150,10 @@ async def test_search_stage_combines_with_other_conditions(deal_case: Repository
     assert [d.details.code.value for d in found] == ["P-2"]
 
 
-async def test_search_stage_excludes_deleted_deals(deal_case: RepositoryCase) -> None:
+async def test_search_stage_excludes_removed_deals(deal_case: RepositoryCase) -> None:
     gone = _deal(1, DealStage.LOST, "1")
     await deal_case.add(gone)
-    gone.soft_delete(later(20))
-    await deal_case.repository.update(gone)
+    await deal_case.repository.delete(gone.id)
 
     assert await deal_case.repository.search(DealQuery(stage=DealStage.LOST)) == []
 

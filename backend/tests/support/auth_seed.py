@@ -54,12 +54,15 @@ async def seed_user(
     deleted: bool = False,
     now: datetime = NOW,
 ) -> User:
-    """now는 created_at. 생성 순서를 단언하는 테스트는 사용자마다 다른 시각을 준다."""
+    """now는 created_at. 생성 순서를 단언하는 테스트는 사용자마다 다른 시각을 준다.
+
+    deleted=True면 등록한 뒤 물리 삭제한다(삭제된 사용자가 이미 없는 상황의 재현).
+    """
     user = make_user(login_id, role, now=now)
-    if deleted:
-        user.soft_delete(NOW)
     async with uow_factory() as uow:
         await uow.users.add(user)
+        if deleted:
+            await uow.users.delete(user.id)
         await uow.commit()
     return user
 

@@ -36,12 +36,7 @@ class UserRow(AuditColumns, Base):
 
     __table_args__ = (
         CheckConstraint(f"role in ({_ROLE_CODES})", name="role_valid"),
-        Index(
-            "uq_users_login_id_active",
-            func.lower(login_id),
-            unique=True,
-            postgresql_where="deleted_at IS NULL",
-        ),
+        Index("uq_users_login_id", func.lower(login_id), unique=True),
         Index("ix_users_created_at_id", "created_at", "id"),
     )
 

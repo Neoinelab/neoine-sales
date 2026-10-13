@@ -29,26 +29,28 @@ class PartnerQuery:
 
 
 class PartnerRepository(Protocol):
-    """파트너 저장소 계약. 삭제는 Partner.soft_delete 후 update로 저장한다."""
+    """파트너 저장소 계약. 삭제는 물리 삭제이며 복구할 수 없다."""
 
     async def add(self, partner: Partner) -> None:
         """새 파트너를 저장한다. 같은 id가 있으면 AlreadyExistsError."""
         ...
 
-    async def get(self, partner_id: PartnerId, *, include_deleted: bool = False) -> Partner:
-        """없거나(삭제 제외 시) 삭제된 파트너면 PartnerNotFoundError."""
+    async def get(self, partner_id: PartnerId) -> Partner:
+        """없으면 PartnerNotFoundError."""
         ...
 
-    async def list(
-        self, *, offset: int = 0, limit: int = DEFAULT_LIMIT, include_deleted: bool = False
-    ) -> Sequence[Partner]:
+    async def list(self, *, offset: int = 0, limit: int = DEFAULT_LIMIT) -> Sequence[Partner]:
         """생성 시각 오름차순. 잘못된 offset/limit은 InvalidValueError."""
         ...
 
     async def search(self, query: PartnerQuery) -> Sequence[Partner]:
-        """삭제되지 않은 파트너 중 조건에 맞는 것을 생성 시각 오름차순(같으면 id)으로 돌려준다."""
+        """파트너 중 조건에 맞는 것을 생성 시각 오름차순(같으면 id)으로 돌려준다."""
         ...
 
     async def update(self, partner: Partner) -> None:
-        """변경 사항을 저장한다(삭제·복원 포함). 없으면 PartnerNotFoundError."""
+        """변경 사항을 저장한다. 없으면 PartnerNotFoundError."""
+        ...
+
+    async def delete(self, partner_id: PartnerId) -> None:
+        """물리 삭제한다. 없으면 PartnerNotFoundError, 참조하는 Deal이 있으면 PartnerInUseError."""
         ...

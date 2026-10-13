@@ -87,9 +87,9 @@ async def test_delete_removes_the_row_physically_and_frees_the_code(
     await delete_case.deals.delete(deal.id)
 
     with pytest.raises(DealNotFoundError):
-        await delete_case.deals.get(deal.id, include_deleted=True)
+        await delete_case.deals.get(deal.id)
     with pytest.raises(DealNotFoundError):
-        await delete_case.deals.get_by_code(DealCode("DEAL-001"), include_deleted=True)
+        await delete_case.deals.get_by_code(DealCode("DEAL-001"))
     await delete_case.new_deal("DEAL-001")  # 같은 코드로 다시 등록할 수 있다
 
 
@@ -110,17 +110,6 @@ async def test_delete_blocked_by_an_action_raises_deal_in_use_and_keeps_both(
 
     assert (await delete_case.deals.get(deal.id)).id == deal.id
     assert (await delete_case.actions.get(action.id)).id == action.id
-
-
-async def test_delete_blocked_by_a_soft_deleted_action_too(delete_case: DeleteCase) -> None:
-    deal = await delete_case.new_deal()
-    action = make_deal_action(deal_id=deal.id)
-    await delete_case.actions.add(action)
-    action.soft_delete(NOW)
-    await delete_case.actions.update(action)
-
-    with pytest.raises(DealInUseError):
-        await delete_case.deals.delete(deal.id)
 
 
 async def test_delete_blocked_by_a_stage_change_raises_deal_in_use(
@@ -147,7 +136,7 @@ async def test_delete_succeeds_once_actions_are_physically_removed(
     await delete_case.deals.delete(deal.id)
 
     with pytest.raises(DealNotFoundError):
-        await delete_case.deals.get(deal.id, include_deleted=True)
+        await delete_case.deals.get(deal.id)
 
 
 async def test_stage_change_exists_for_deal_only_for_the_deal_with_history(

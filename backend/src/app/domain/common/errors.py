@@ -10,7 +10,7 @@ class InvalidValueError(DomainError, ValueError):
 
 
 class InvalidStateError(DomainError):
-    """현재 상태에서 허용되지 않는 동작(예: 삭제된 항목 수정)."""
+    """현재 상태에서 허용되지 않는 동작(예: 마지막 관리자 삭제)."""
 
 
 class NotFoundError(DomainError):
@@ -28,9 +28,9 @@ class AlreadyExistsError(DomainError):
 
 
 class InvalidReferenceError(DomainError):
-    """다른 항목을 참조하는 값이 가리키는 대상이 없거나 삭제되었음(예: Deal의 고객)."""
+    """다른 항목을 참조하는 값이 가리키는 대상이 없음(예: Deal의 고객)."""
 
     def __init__(self, entity: str, identifier: object) -> None:
-        super().__init__(f"참조하는 {entity}이(가) 없거나 삭제되었습니다: {identifier}")
+        super().__init__(f"참조하는 {entity}이(가) 없습니다: {identifier}")
         self.entity = entity
         self.identifier = identifier

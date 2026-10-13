@@ -52,6 +52,6 @@ async def update_partner(
     return PartnerResponse.from_entity(partner)
 
 
-@router.delete("/{partner_id}", status_code=status.HTTP_204_NO_CONTENT, responses=READ_ERRORS)
+@router.delete("/{partner_id}", status_code=status.HTTP_204_NO_CONTENT, responses=WRITE_ERRORS)
 async def delete_partner(partner_id: UUID, provider: Provider) -> None:
     await provider.delete_partner().execute(PartnerId(partner_id))

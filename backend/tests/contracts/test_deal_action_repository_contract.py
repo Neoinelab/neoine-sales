@@ -84,18 +84,6 @@ async def test_update_unknown_action_raises_not_found(action_case: Case) -> None
         await action_case.repository.update(make_deal_action())
 
 
-async def test_soft_deleted_legacy_actions_are_hidden_unless_requested(action_case: Case) -> None:
-    action = make_deal_action()
-    await action_case.add(action)
-    action.soft_delete(later(10))
-    await action_case.repository.update(action)
-
-    with pytest.raises(DealActionNotFoundError):
-        await action_case.repository.get(action.id)
-    assert (await action_case.repository.get(action.id, include_deleted=True)).is_deleted
-    assert await action_case.search() == []
-
-
 async def test_delete_removes_the_row_physically(action_case: Case) -> None:
     action = make_deal_action()
     await action_case.add(action)
@@ -103,7 +91,7 @@ async def test_delete_removes_the_row_physically(action_case: Case) -> None:
     await action_case.repository.delete(action.id)
 
     with pytest.raises(DealActionNotFoundError):
-        await action_case.repository.get(action.id, include_deleted=True)
+        await action_case.repository.get(action.id)
     assert await action_case.search() == []
     assert not await action_case.repository.exists_for_deal(action.details.deal_id)
 
@@ -119,12 +107,3 @@ async def test_exists_for_deal_is_true_only_for_the_deal_that_has_rows(action_ca
 
     assert await action_case.repository.exists_for_deal(action.details.deal_id)
     assert not await action_case.repository.exists_for_deal(make_deal_action().details.deal_id)
-
-
-async def test_exists_for_deal_ignores_soft_delete_flag(action_case: Case) -> None:
-    action = make_deal_action()
-    await action_case.add(action)
-    action.soft_delete(later(10))
-    await action_case.repository.update(action)
-
-    assert await action_case.repository.exists_for_deal(action.details.deal_id)

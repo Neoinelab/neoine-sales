@@ -25,8 +25,7 @@ async def test_register_user_stores_the_chosen_role(
 
     assert (user.login_id.value, user.role) == ("new.hire", role)
     assert (user.created_by, user.created_at) == ("root", NOW)
-    assert (user.display_name, user.email, user.last_login_at, user.deleted_at) == (
-        None,
+    assert (user.display_name, user.email, user.last_login_at) == (
         None,
         None,
         None,

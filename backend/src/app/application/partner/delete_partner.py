@@ -9,7 +9,7 @@ if TYPE_CHECKING:
 
 
 class DeletePartner:
-    """파트너를 소프트 삭제한다. 없으면 NotFound, 활성 Deal이 있으면 PartnerInUseError."""
+    """파트너를 물리 삭제한다. 없으면 NotFound, 참조하는 Deal이 있으면 PartnerInUseError."""
 
     def __init__(self, uow_factory: UnitOfWorkFactory, clock: Clock) -> None:
         self._uow_factory = uow_factory
@@ -17,9 +17,8 @@ class DeletePartner:
 
     async def execute(self, partner_id: PartnerId) -> None:
         async with self._uow_factory() as uow:
-            partner = await uow.partners.get(partner_id)
-            if await uow.deals.has_active_for_partner(partner_id):
+            await uow.partners.get(partner_id)
+            if await uow.deals.exists_for_partner(partner_id):
                 raise PartnerInUseError(partner_id)
-            partner.soft_delete(self._clock.now())
-            await uow.partners.update(partner)
+            await uow.partners.delete(partner_id)
             await uow.commit()

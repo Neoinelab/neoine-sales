@@ -4,6 +4,7 @@ from app.application.auth.credential_check import parse_login_id, verify_credent
 from app.application.auth.messages import DIRECTORY_NOT_CONFIGURED, LOGIN_FAILED
 from app.domain.auth.errors import AuthenticationError
 from app.domain.common.errors import InvalidStateError
+from app.domain.user.errors import UserNotFoundError
 
 if TYPE_CHECKING:
     from app.application.auth.deps import AuthDeps
@@ -42,8 +43,12 @@ class DirectoryLogin:
                 user.record_login(
                     self._deps.clock.now(), display_name=profile.display_name, email=profile.email
                 )
-                await uow.users.update(user)
-                await uow.commit()
-        if user is None:  # 선점한 시도가 실패 1회로 남는다
+                try:
+                    await uow.users.update(user)
+                except UserNotFoundError:  # 조회와 갱신 사이에 삭제됨
+                    user = None
+                else:
+                    await uow.commit()
+        if user is None:  # 미등록이거나 로그인 중 삭제됨. 선점한 시도가 실패 1회로 남는다
             raise AuthenticationError(LOGIN_FAILED)
         return user.to_principal()

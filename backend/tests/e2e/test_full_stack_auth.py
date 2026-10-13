@@ -111,7 +111,7 @@ async def test_deleted_user_is_locked_out_on_the_next_request(
             await http.post(SETUP, json=credentials())
             assert (await http.get("/api/v1/customers")).status_code == 200
 
-            await _sql(auth_full_stack, "update users set deleted_at = now() where login_id='kim'")
+            await _sql(auth_full_stack, "delete from users where login_id='kim'")
 
             assert (await http.get("/api/v1/customers")).status_code == 401
             assert (await http.get(ME)).status_code == 401

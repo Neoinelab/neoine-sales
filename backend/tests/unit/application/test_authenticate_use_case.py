@@ -76,8 +76,7 @@ async def test_deleted_users_session_is_rejected_from_the_next_request(
     issued = await auth.issue.execute(_principal("kim"))
     assert (await auth.authenticate.execute(issued.token)).subject == "kim"
     async with uow_factory() as uow:
-        user.soft_delete(NOW)
-        await uow.users.update(user)
+        await uow.users.delete(user.id)
         await uow.commit()
 
     with pytest.raises(AuthenticationError):

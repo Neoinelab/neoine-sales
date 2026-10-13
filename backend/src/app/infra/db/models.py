@@ -25,12 +25,11 @@ _STAGE_CODES = ", ".join(f"'{stage.value}'" for stage in DealStage)
 
 
 class AuditColumns:
-    """모든 테이블 공통: 식별자, 생성·수정 시각, 소프트 삭제 표시."""
+    """모든 테이블 공통: 식별자, 생성·수정 시각."""
 
     id: Mapped[UUID] = mapped_column(Uuid, primary_key=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
-    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
 
 
 class CustomerRow(AuditColumns, Base):

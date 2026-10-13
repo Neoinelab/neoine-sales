@@ -75,7 +75,7 @@ async def test_delete_hides_the_partner(client: AsyncClient) -> None:
     assert (await client.delete(f"{BASE}/{created['id']}")).status_code == 404
 
 
-async def test_partner_with_an_active_deal_cannot_be_deleted(client: AsyncClient) -> None:
+async def test_partner_with_a_deal_cannot_be_deleted(client: AsyncClient) -> None:
     partner = await _create(client)
     customer = (await client.post("/api/v1/customers", json=customer_payload())).json()
     await client.post(

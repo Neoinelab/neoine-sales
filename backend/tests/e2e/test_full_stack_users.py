@@ -67,7 +67,7 @@ async def test_old_session_stays_dead_after_the_same_login_id_is_registered_agai
         await container.dispose()
 
 
-async def test_duplicate_active_login_id_is_409_and_deleted_one_can_return(
+async def test_duplicate_login_id_is_409_and_a_deleted_one_can_return(
     auth_full_stack: AuthFullStack,
 ) -> None:
     container, _app, admin = await bootstrap_admin(auth_full_stack)

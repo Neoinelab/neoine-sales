@@ -66,12 +66,12 @@ class DealActionRepository(Protocol):
         """같은 id는 AlreadyExistsError, 소속 Deal이 없으면 DealNotFoundError."""
         ...
 
-    async def get(self, action_id: DealActionId, *, include_deleted: bool = False) -> DealAction:
-        """없거나(삭제 제외 시) 삭제된 활동이면 DealActionNotFoundError."""
+    async def get(self, action_id: DealActionId) -> DealAction:
+        """없으면 DealActionNotFoundError."""
         ...
 
     async def search(self, query: DealActionQuery) -> Sequence[DealAction]:
-        """삭제되지 않은 활동을 query.sort 순서로 돌려준다.
+        """활동을 query.sort 순서로 돌려준다.
 
         기본은 활동 일시 내림차순(같으면 id). due_date 정렬은 NULL을 마지막에 두고 동률은
         활동 일시 내림차순→id.
@@ -79,7 +79,7 @@ class DealActionRepository(Protocol):
         ...
 
     async def update(self, action: DealAction) -> None:
-        """변경 사항을 저장한다(삭제 포함). 없으면 DealActionNotFoundError."""
+        """변경 사항을 저장한다. 없으면 DealActionNotFoundError."""
         ...
 
     async def delete(self, action_id: DealActionId) -> None:
@@ -87,5 +87,5 @@ class DealActionRepository(Protocol):
         ...
 
     async def exists_for_deal(self, deal_id: DealId) -> bool:
-        """삭제 표시와 무관하게 이 Deal의 활동 행이 있는지."""
+        """이 Deal의 활동 행이 있는지."""
         ...

@@ -59,54 +59,54 @@ class DealQuery:
 
 
 class DealRepository(Protocol):
-    """Deal 저장소 계약. Deal Code는 삭제된 Deal을 포함한 전체에서 고유하다."""
+    """Deal 저장소 계약. Deal Code는 전체에서 고유하다. 삭제는 물리 삭제다."""
 
     async def add(self, deal: Deal) -> None:
-        """같은 id는 AlreadyExistsError, 같은 Deal Code는 DuplicateDealCodeError."""
+        """같은 id는 AlreadyExistsError, 같은 Deal Code는 DuplicateDealCodeError.
+
+        참조하는 고객·파트너가 없으면(FK 경쟁 포함) InvalidReferenceError.
+        """
         ...
 
-    async def get(
-        self, deal_id: DealId, *, include_deleted: bool = False, for_update: bool = False
-    ) -> Deal:
-        """없거나(삭제 제외 시) 삭제된 Deal이면 DealNotFoundError.
+    async def get(self, deal_id: DealId, *, for_update: bool = False) -> Deal:
+        """없으면 DealNotFoundError.
 
         for_update=True면 트랜잭션이 끝날 때까지 이 Deal 행을 잠근다(동시 단계 변경 대비).
         """
         ...
 
-    async def get_by_code(self, code: DealCode, *, include_deleted: bool = False) -> Deal:
+    async def get_by_code(self, code: DealCode) -> Deal:
         """업무 키로 조회한다. 없으면 DealNotFoundError."""
         ...
 
-    async def list(
-        self, *, offset: int = 0, limit: int = DEFAULT_LIMIT, include_deleted: bool = False
-    ) -> Sequence[Deal]:
+    async def list(self, *, offset: int = 0, limit: int = DEFAULT_LIMIT) -> Sequence[Deal]:
         """생성 시각 오름차순. 잘못된 offset/limit은 InvalidValueError."""
         ...
 
     async def search(self, query: DealQuery) -> Sequence[Deal]:
-        """삭제되지 않은 Deal 중 조건에 맞는 것을 생성 시각 오름차순(같으면 id)으로 돌려준다."""
+        """Deal 중 조건에 맞는 것을 생성 시각 오름차순(같으면 id)으로 돌려준다."""
         ...
 
     async def summarize_pipeline(self, *, owner_user_id: str | None = None) -> Sequence[StageTotal]:
-        """삭제되지 않은 Deal을 (단계, 통화)로 묶은 건수·합계. 순서는 보장하지 않는다.
+        """Deal을 (단계, 통화)로 묶은 건수·합계. 순서는 보장하지 않는다.
 
         owner_user_id를 주면 그 사용자가 등록한 Deal만 집계한다(정확 일치).
         """
         ...
 
-    async def has_active_for_customer(self, customer_id: CustomerId) -> bool:
-        """삭제되지 않은 Deal 중 이 고객을 참조하는 것이 있는지."""
+    async def exists_for_customer(self, customer_id: CustomerId) -> bool:
+        """이 고객을 참조하는 Deal이 있는지."""
         ...
 
-    async def has_active_for_partner(self, partner_id: PartnerId) -> bool:
-        """삭제되지 않은 Deal 중 이 파트너를 참조하는 것이 있는지."""
+    async def exists_for_partner(self, partner_id: PartnerId) -> bool:
+        """이 파트너를 참조하는 Deal이 있는지."""
         ...
 
     async def update(self, deal: Deal) -> None:
-        """변경 사항(단계 포함)을 저장한다(삭제·복원 포함).
+        """변경 사항(단계 포함)을 저장한다.
 
-        없으면 DealNotFoundError, 다른 Deal과 코드가 충돌하면 DuplicateDealCodeError.
+        없으면 DealNotFoundError, 다른 Deal과 코드가 충돌하면 DuplicateDealCodeError,
+        참조하는 고객·파트너가 없으면(FK 경쟁 포함) InvalidReferenceError.
         """
         ...
 

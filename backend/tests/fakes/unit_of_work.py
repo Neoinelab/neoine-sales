@@ -28,6 +28,8 @@ class FakeUnitOfWork:
         self.deal_actions = FakeDealActionRepository()
         self.deal_stage_changes = FakeDealStageChangeRepository()
         self.deals.restrict_delete_by(self.deal_actions, self.deal_stage_changes)  # FK RESTRICT
+        self.customers.restrict_delete_by(self.deals)  # FK RESTRICT
+        self.partners.restrict_delete_by(self.deals)  # FK RESTRICT
         self.sessions = FakeSessionRepository()
         self.users = FakeUserRepository()
         self.login_failures = FakeLoginFailureRepository()

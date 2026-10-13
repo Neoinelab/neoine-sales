@@ -79,8 +79,7 @@ async def test_delete_that_waited_rechecks_the_last_admin_rule_after_the_lock(
         )
         await asyncio.sleep(WAIT)
         victim = await holder.users.get(bob.id)
-        victim.soft_delete(NOW)
-        await holder.users.update(victim)
+        await holder.users.delete(victim.id)
         await holder.commit()
 
     with pytest.raises(InvalidStateError, match="마지막 관리자"):

@@ -22,6 +22,5 @@ class Customer(AuditedEntity[CustomerId]):
         )
 
     def update(self, details: CustomerDetails, now: datetime) -> None:
-        self._ensure_active()
         self._touch(now)
         self.details = details

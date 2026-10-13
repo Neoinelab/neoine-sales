@@ -50,7 +50,6 @@ class Deal(AuditedEntity[DealId]):
         )
 
     def update(self, details: DealDetails, now: datetime) -> None:
-        self._ensure_active()
         self._touch(now)
         self.details = details
 
@@ -59,9 +58,8 @@ class Deal(AuditedEntity[DealId]):
     ) -> DealStageChange:
         """단계를 바꾸고 이력 한 건을 돌려준다(저장은 유스케이스가 한다).
 
-        검증 순서: 삭제 여부, 같은 단계, 사유(실주는 필수, 그 외는 선택 메모).
+        검증 순서: 같은 단계, 사유(실주는 필수, 그 외는 선택 메모).
         """
-        self._ensure_active()
         if to is self.stage:
             raise InvalidStateError("이미 같은 단계입니다")
         if to is DealStage.LOST:

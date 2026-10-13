@@ -52,6 +52,6 @@ async def update_customer(
     return CustomerResponse.from_entity(customer)
 
 
-@router.delete("/{customer_id}", status_code=status.HTTP_204_NO_CONTENT, responses=READ_ERRORS)
+@router.delete("/{customer_id}", status_code=status.HTTP_204_NO_CONTENT, responses=WRITE_ERRORS)
 async def delete_customer(customer_id: UUID, provider: Provider) -> None:
     await provider.delete_customer().execute(CustomerId(customer_id))

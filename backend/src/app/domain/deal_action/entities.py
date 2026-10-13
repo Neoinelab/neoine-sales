@@ -24,7 +24,6 @@ class DealAction(AuditedEntity[DealActionId]):
         )
 
     def update(self, details: DealActionDetails, now: datetime) -> None:
-        self._ensure_active()
         details.require_complete()
         if details.deal_id != self.details.deal_id:
             raise InvalidStateError("활동은 다른 Deal로 옮길 수 없습니다")

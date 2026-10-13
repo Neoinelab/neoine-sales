@@ -113,46 +113,47 @@ async def test_changes_to_an_added_entity_are_not_saved_without_update(
     assert reloaded.details == original_details
 
 
-async def test_soft_deleted_entity_is_hidden_by_default(case: RepositoryCase) -> None:
+async def test_delete_removes_the_row_physically(case: RepositoryCase) -> None:
     kept, removed = case.make(1), case.make(2)
     await case.add(kept)
     await case.add(removed)
-    loaded = await case.repository.get(removed.id)
-    loaded.soft_delete(later(100))
-    await case.repository.update(loaded)
+
+    await case.repository.delete(removed.id)
 
     with pytest.raises(case.not_found):
         await case.repository.get(removed.id)
     assert [e.id for e in await case.repository.list()] == [kept.id]
+    assert (await case.repository.get(kept.id)).id == kept.id
 
 
-async def test_include_deleted_returns_soft_deleted_entities(case: RepositoryCase) -> None:
-    kept, removed = case.make(1), case.make(2)
-    await case.add(kept)
-    await case.add(removed)
-    loaded = await case.repository.get(removed.id)
-    loaded.soft_delete(later(100))
-    await case.repository.update(loaded)
-
-    fetched = await case.repository.get(removed.id, include_deleted=True)
-    listed = await case.repository.list(include_deleted=True)
-
-    assert fetched.is_deleted is True
-    assert fetched.deleted_at == later(100)
-    assert [e.id for e in listed] == [kept.id, removed.id]
+async def test_delete_of_missing_entity_raises_not_found(case: RepositoryCase) -> None:
+    with pytest.raises(case.not_found):
+        await case.repository.delete(uuid4())
 
 
-async def test_restored_entity_becomes_visible_again(case: RepositoryCase) -> None:
+async def test_deleting_twice_raises_not_found_the_second_time(case: RepositoryCase) -> None:
     entity = case.make(1)
     await case.add(entity)
-    deleted = await case.repository.get(entity.id)
-    deleted.soft_delete(later(100))
-    await case.repository.update(deleted)
+    await case.repository.delete(entity.id)
 
-    restored = await case.repository.get(entity.id, include_deleted=True)
-    restored.restore(later(200))
-    await case.repository.update(restored)
-    visible = await case.repository.get(entity.id)
+    with pytest.raises(case.not_found):
+        await case.repository.delete(entity.id)
 
-    assert visible.is_deleted is False
-    assert visible.updated_at == later(200)
+
+async def test_update_of_a_deleted_entity_raises_not_found(case: RepositoryCase) -> None:
+    entity = case.make(1)
+    await case.add(entity)
+    await case.repository.delete(entity.id)
+
+    with pytest.raises(case.not_found):
+        await case.repository.update(entity)
+
+
+async def test_deleted_entity_id_can_be_added_again(case: RepositoryCase) -> None:
+    entity = case.make(1)
+    await case.add(entity)
+    await case.repository.delete(entity.id)
+
+    await case.add(entity)
+
+    assert (await case.repository.get(entity.id)).id == entity.id

@@ -44,7 +44,7 @@ async def test_delete_deal_without_actions_removes_it_physically(
     with pytest.raises(DealNotFoundError):
         await GetDeal(uow_factory).execute(deal.id)
     with pytest.raises(DealNotFoundError):
-        await uow.deals.get(deal.id, include_deleted=True)
+        await uow.deals.get(deal.id)
 
 
 async def test_deleted_deal_code_can_be_reused(
@@ -69,7 +69,7 @@ async def test_delete_deal_with_actions_raises_deal_in_use(
         await DeleteDeal(uow_factory, clock).execute(deal.id)
 
     assert "활동 또는 단계 변경 이력" in str(raised.value)
-    assert not (await uow.deals.get(deal.id)).is_deleted
+    assert (await uow.deals.get(deal.id)).id == deal.id
     assert (await uow.deal_actions.get(action.id)).id == action.id
 
 
@@ -113,7 +113,7 @@ async def test_delete_deal_succeeds_after_all_actions_are_deleted(
     await DeleteDeal(uow_factory, clock).execute(deal.id)
 
     with pytest.raises(DealNotFoundError):
-        await uow.deals.get(deal.id, include_deleted=True)
+        await uow.deals.get(deal.id)
 
 
 async def test_unknown_deal_delete_raises_not_found(

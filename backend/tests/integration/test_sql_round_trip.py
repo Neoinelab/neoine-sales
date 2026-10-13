@@ -130,7 +130,6 @@ async def test_timestamps_round_trip_as_the_same_instants(session: AsyncSession)
     assert loaded.created_at == created
     assert loaded.created_at.utcoffset() is not None
     assert loaded.created_at.astimezone(UTC) == created.astimezone(UTC)
-    assert loaded.deleted_at is None
 
 
 @pytest.mark.parametrize("stage", list(DealStage))

@@ -54,7 +54,6 @@ async def test_add_then_get_round_trips_every_field(repository: UserRepository) 
     assert stored.created_at == NOW
     assert stored.updated_at == later(30)
     assert stored.last_login_at == later(30)
-    assert stored.deleted_at is None
 
 
 @pytest.mark.parametrize("role", list(Role))
@@ -73,14 +72,13 @@ async def test_get_unknown_id_raises_not_found(repository: UserRepository) -> No
 async def test_get_deleted_user_raises_not_found(repository: UserRepository) -> None:
     user = make_user("gone")
     await repository.add(user)
-    user.soft_delete(later(5))
-    await repository.update(user)
+    await repository.delete(user.id)
 
     with pytest.raises(NotFoundError):
         await repository.get(user.id)
 
 
-async def test_add_rejects_second_active_user_with_same_login_id(
+async def test_add_rejects_second_user_with_same_login_id(
     repository: UserRepository,
 ) -> None:
     await repository.add(make_user("kim"))
@@ -100,13 +98,12 @@ async def test_add_rejects_duplicate_primary_key(repository: UserRepository) -> 
         await repository.add(clone)
 
 
-async def test_login_id_can_be_registered_again_after_soft_delete(
+async def test_login_id_can_be_registered_again_after_the_user_is_deleted(
     repository: UserRepository,
 ) -> None:
     old = make_user("kim", Role.SALES)
     await repository.add(old)
-    old.soft_delete(later(10))
-    await repository.update(old)
+    await repository.delete(old.id)
 
     new = make_user("kim", Role.USER, now=later(20))
     await repository.add(new)
@@ -117,7 +114,7 @@ async def test_login_id_can_be_registered_again_after_soft_delete(
     assert active.role is Role.USER
 
 
-async def test_get_active_by_login_id_finds_only_active_users(repository: UserRepository) -> None:
+async def test_get_active_by_login_id_finds_existing_users_only(repository: UserRepository) -> None:
     user = make_user("kim")
     await repository.add(user)
 
@@ -125,12 +122,11 @@ async def test_get_active_by_login_id_finds_only_active_users(repository: UserRe
     assert found is not None
     assert found.id == user.id
     assert await repository.get_active_by_login_id(LoginId("nobody")) is None
-    user.soft_delete(later(1))
-    await repository.update(user)
+    await repository.delete(user.id)
     assert await repository.get_active_by_login_id(LoginId("kim")) is None
 
 
-async def test_list_active_excludes_deleted_and_orders_by_creation(
+async def test_list_active_excludes_deleted_users_and_orders_by_creation(
     repository: UserRepository,
 ) -> None:
     third = make_user("c", now=later(30))
@@ -139,8 +135,7 @@ async def test_list_active_excludes_deleted_and_orders_by_creation(
     second = make_user("b", now=later(20))
     for user in (third, first, deleted, second):
         await repository.add(user)
-    deleted.soft_delete(later(40))
-    await repository.update(deleted)
+    await repository.delete(deleted.id)
 
     listed = await repository.list_active()
 
@@ -164,15 +159,16 @@ async def test_list_active_rejects_invalid_page(
         await repository.list_active(offset=offset, limit=limit)
 
 
-async def test_count_active_admins_counts_only_active_admins(repository: UserRepository) -> None:
+async def test_count_active_admins_drops_after_an_admin_is_deleted(
+    repository: UserRepository,
+) -> None:
     await repository.add(make_user("a1", Role.ADMIN))
     gone = make_user("a2", Role.ADMIN)
     await repository.add(gone)
     await repository.add(make_user("s1", Role.SALES))
     await repository.add(make_user("u1", Role.USER))
     assert await repository.count_active_admins() == 2
-    gone.soft_delete(later(5))
-    await repository.update(gone)
+    await repository.delete(gone.id)
 
     assert await repository.count_active_admins() == 1
 
@@ -181,17 +177,12 @@ async def test_count_active_admins_is_zero_without_users(repository: UserReposit
     assert await repository.count_active_admins() == 0
 
 
-async def test_update_persists_login_record_and_soft_delete(repository: UserRepository) -> None:
+async def test_update_persists_login_record(repository: UserRepository) -> None:
     user = make_user("kim")
     await repository.add(user)
     user.record_login(later(30), display_name="김영업", email="kim@corp.test")
     await repository.update(user)
     assert (await repository.get(user.id)).last_login_at == later(30)
-
-    user.soft_delete(later(60))
-    await repository.update(user)
-
-    assert await repository.get_active_by_login_id(LoginId("kim")) is None
 
 
 async def test_update_unknown_user_raises_not_found(repository: UserRepository) -> None:
@@ -211,3 +202,36 @@ async def test_returned_users_are_copies(repository: UserRepository) -> None:
 async def test_lock_roster_can_be_called_repeatedly(repository: UserRepository) -> None:
     await repository.lock_roster()
     await repository.lock_roster()
+
+
+async def test_delete_removes_the_row_and_keeps_other_users(repository: UserRepository) -> None:
+    gone, kept = make_user("gone"), make_user("kept")
+    await repository.add(gone)
+    await repository.add(kept)
+
+    await repository.delete(gone.id)
+
+    with pytest.raises(NotFoundError):
+        await repository.get(gone.id)
+    assert (await repository.get(kept.id)).id == kept.id
+
+
+async def test_delete_unknown_user_raises_not_found(repository: UserRepository) -> None:
+    with pytest.raises(NotFoundError):
+        await repository.delete(UserId(uuid4()))
+
+
+async def test_update_of_a_deleted_user_raises_not_found(repository: UserRepository) -> None:
+    user = make_user("kim")
+    await repository.add(user)
+    await repository.delete(user.id)
+
+    with pytest.raises(NotFoundError):
+        await repository.update(user)
+
+
+async def test_login_id_uniqueness_ignores_letter_case(repository: UserRepository) -> None:
+    await repository.add(make_user("kim"))
+
+    with pytest.raises(AlreadyExistsError):
+        await repository.add(make_user("KIM", Role.USER))

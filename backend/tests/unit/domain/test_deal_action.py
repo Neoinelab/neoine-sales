@@ -82,7 +82,6 @@ class TestDealAction:
         action = make_deal_action(later(5))
 
         assert action.created_at == action.updated_at == later(5)
-        assert not action.is_deleted
 
     @pytest.mark.parametrize("missing", ["next_action", "due_date"])
     def test_create_requires_next_action_and_due_date(self, missing: str) -> None:
@@ -130,13 +129,6 @@ class TestDealAction:
 
         with pytest.raises(InvalidStateError):
             action.update(make_deal_action_details(deal_id=DealId(uuid4())), later())
-
-    def test_deleted_action_cannot_be_updated(self) -> None:
-        action = make_deal_action()
-        action.soft_delete(later())
-
-        with pytest.raises(InvalidStateError):
-            action.update(make_deal_action_details(deal_id=action.details.deal_id), later(10))
 
 
 def test_deal_in_use_error_is_an_invalid_state_error() -> None:

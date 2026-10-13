@@ -4,7 +4,6 @@ expand 마이그레이션이어야 하므로 기존 테이블·데이터가 그�
 새 스키마에서도 동작하는지 확인한다.
 """
 
-from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
@@ -25,7 +24,6 @@ USER_COLUMNS = {
     "id",
     "created_at",
     "updated_at",
-    "deleted_at",
     "login_id",
     "role",
     "display_name",
@@ -58,13 +56,12 @@ async def _insert_user(session: AsyncSession, login_id: str = "kim", **overrides
         "login_id": login_id,
         "role": "sales",
         "created_by": "admin",
-        "deleted_at": None,
     }
     values.update(overrides)
     await session.execute(
         text(
-            "insert into users (id, login_id, role, created_by, created_at, updated_at,"
-            " deleted_at) values (:id, :login_id, :role, :created_by, now(), now(), :deleted_at)"
+            "insert into users (id, login_id, role, created_by, created_at, updated_at)"
+            " values (:id, :login_id, :role, :created_by, now(), now())"
         ),
         values,
     )
@@ -123,7 +120,6 @@ async def test_users_nullability_matches_the_design(session: AsyncSession) -> No
     nullable = {name: flag == "YES" for name, flag in rows}
 
     assert {k for k, v in nullable.items() if v} == {
-        "deleted_at",
         "display_name",
         "email",
         "last_login_at",
@@ -134,51 +130,49 @@ async def test_indexes_exist_with_the_planned_definitions(session: AsyncSession)
     rows = await session.execute(
         text(
             "select indexname, indexdef from pg_indexes where indexname in"
-            " ('uq_users_login_id_active', 'ix_users_created_at_id', 'ix_auth_sessions_subject')"
+            " ('uq_users_login_id', 'uq_users_login_id_active', 'ix_users_created_at_id',"
+            " 'ix_auth_sessions_subject')"
         )
     )
     definitions: dict[str, str] = {str(n): str(d) for n, d in rows}
 
     assert set(definitions) == {
-        "uq_users_login_id_active",
+        "uq_users_login_id",
         "ix_users_created_at_id",
         "ix_auth_sessions_subject",
     }
-    unique = definitions["uq_users_login_id_active"]
+    unique = definitions["uq_users_login_id"]
     assert "UNIQUE" in unique
     assert "lower(" in unique
-    assert "deleted_at IS NULL" in unique
+    assert "WHERE" not in unique
     assert "(created_at, id)" in definitions["ix_users_created_at_id"]
     assert "(subject)" in definitions["ix_auth_sessions_subject"]
 
 
-async def test_active_login_id_is_unique_in_the_database(session: AsyncSession) -> None:
+async def test_login_id_is_unique_in_the_database(session: AsyncSession) -> None:
     await _insert_user(session, "kim")
 
-    with pytest.raises(IntegrityError, match="uq_users_login_id_active"):
+    with pytest.raises(IntegrityError, match="uq_users_login_id"):
         await _insert_user(session, "kim")
 
 
-async def test_active_login_id_uniqueness_ignores_case(session: AsyncSession) -> None:
+async def test_login_id_uniqueness_ignores_case(session: AsyncSession) -> None:
     await _insert_user(session, "kim")
 
-    with pytest.raises(IntegrityError, match="uq_users_login_id_active"):
+    with pytest.raises(IntegrityError, match="uq_users_login_id"):
         await _insert_user(session, "KIM")
 
 
-async def test_deleted_login_id_can_be_registered_again(session: AsyncSession) -> None:
-    await _insert_user(session, "kim", deleted_at=None)
-    await session.execute(text("update users set deleted_at = now() where login_id = 'kim'"))
+async def test_login_id_can_be_registered_again_after_the_row_is_deleted(
+    session: AsyncSession,
+) -> None:
+    await _insert_user(session, "kim")
+    await session.execute(text("delete from users where login_id = 'kim'"))
 
     await _insert_user(session, "kim")
 
     count = await session.scalar(text("select count(*) from users where login_id = 'kim'"))
-    assert count == 2
-
-
-async def test_multiple_deleted_users_may_share_a_login_id(session: AsyncSession) -> None:
-    await _insert_user(session, "kim", deleted_at=datetime.now(UTC))
-    await _insert_user(session, "kim", deleted_at=datetime.now(UTC))
+    assert count == 1
 
 
 async def test_user_role_is_restricted_by_check(session: AsyncSession) -> None:

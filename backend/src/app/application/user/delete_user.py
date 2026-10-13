@@ -20,7 +20,7 @@ def _actor_login_id(actor: Principal) -> LoginId | None:
 
 
 class DeleteUser:
-    """사용자를 소프트 삭제하고 그 사용자의 세션을 모두 폐기한다."""
+    """사용자의 세션을 모두 폐기한 뒤 사용자를 물리 삭제한다."""
 
     def __init__(self, uow_factory: UnitOfWorkFactory, clock: Clock) -> None:
         self._uow_factory = uow_factory
@@ -36,7 +36,6 @@ class DeleteUser:
                 actor_login_id=_actor_login_id(actor),
                 active_admin_count=await uow.users.count_active_admins(),
             )
-            target.soft_delete(now)
-            await uow.users.update(target)
             await uow.sessions.revoke_all_for_subject(target.login_id.value, now)
+            await uow.users.delete(user_id)
             await uow.commit()

@@ -93,7 +93,7 @@ async def test_update_missing_partner_raises_not_found(
         await UpdatePartner(uow_factory, clock).execute(_random_partner_id(), make_partner_input())
 
 
-async def test_delete_soft_deletes_and_hides_the_partner(
+async def test_delete_removes_the_partner_physically(
     uow: FakeUnitOfWork, uow_factory: UnitOfWorkFactory, clock: FixedClock
 ) -> None:
     registered = await RegisterPartner(uow_factory, clock).execute(make_partner_input())
@@ -103,6 +103,7 @@ async def test_delete_soft_deletes_and_hides_the_partner(
 
     with pytest.raises(PartnerNotFoundError):
         await GetPartner(uow_factory).execute(registered.id)
-    assert (await uow.partners.get(registered.id, include_deleted=True)).deleted_at == clock.now()
+    with pytest.raises(PartnerNotFoundError):
+        await uow.partners.get(registered.id)
     with pytest.raises(PartnerNotFoundError):
         await DeletePartner(uow_factory, clock).execute(registered.id)

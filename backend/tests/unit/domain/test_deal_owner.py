@@ -83,14 +83,5 @@ def test_change_stage_does_not_touch_the_owner_user_id() -> None:
     assert deal.owner_user_id == "u-1"
 
 
-def test_soft_delete_and_restore_keep_the_owner_user_id() -> None:
-    deal = make_deal(owner_user_id="u-1")
-
-    deal.soft_delete(later(5))
-    deal.restore(later(10))
-
-    assert deal.owner_user_id == "u-1"
-
-
 def test_deal_details_has_no_owner_user_id() -> None:
     assert not hasattr(make_deal_details(), "owner_user_id")

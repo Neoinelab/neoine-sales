@@ -33,6 +33,7 @@ if TYPE_CHECKING:
 pytestmark = pytest.mark.integration
 
 PREVIOUS_HEAD = "dd7f21f7190e"
+HISTORY_HEAD = "e3a9c41b7d52"  # 이 리비전까지만 검증한다(이후 리비전은 별도 테스트)
 
 COLUMN_INFO = (
     "select column_name, is_nullable, character_maximum_length, data_type"
@@ -60,12 +61,15 @@ def _history_revision() -> Script:
     pytest.fail("deal_actions.next_action을 추가하는 마이그레이션 리비전이 없다")
 
 
-def test_history_revision_follows_the_previous_head_and_is_the_single_head() -> None:
+def test_history_revision_follows_the_previous_head_and_is_an_ancestor_of_the_single_head() -> None:
     script = ScriptDirectory.from_config(_alembic_config())
     revision = _history_revision()
 
     assert revision.down_revision == PREVIOUS_HEAD
-    assert script.get_heads() == [revision.revision]
+    assert revision.revision == HISTORY_HEAD
+    assert len(script.get_heads()) == 1
+    ancestors = {r.revision for r in script.walk_revisions(base="base", head="heads")}
+    assert revision.revision in ancestors
 
 
 async def test_columns_are_renamed_and_new_ones_are_nullable(test_database_url: URL) -> None:
@@ -175,7 +179,7 @@ async def test_migration_renames_columns_and_keeps_data() -> None:
                         "deleted_at": None,
                     },
                 )
-            await apply_migrations(url)
+            await apply_migrations(url, target=HISTORY_HEAD)
             async with engine.connect() as connection:
                 row = (
                     await connection.execute(
@@ -228,7 +232,7 @@ async def test_migration_purges_soft_deleted_actions_only() -> None:
                             "deleted_at": deleted_at,
                         },
                     )
-            await apply_migrations(url)
+            await apply_migrations(url, target=HISTORY_HEAD)
             async with engine.connect() as connection:
                 actions = set(
                     (await connection.execute(text("select id from deal_actions"))).scalars()

@@ -25,7 +25,7 @@ def _principal(login_id: str, role: Role) -> Principal:
     return Principal(login_id, None, login_id, role)
 
 
-async def test_delete_user_soft_deletes_and_hides_the_user(
+async def test_delete_user_removes_the_user_row(
     admin: AdminStack, uow_factory: UnitOfWorkFactory
 ) -> None:
     await seed_user(uow_factory, "root", Role.ADMIN)
@@ -126,11 +126,12 @@ async def test_delete_user_refuses_the_last_active_admin(
     assert await session_is_active(uow_factory, token)
 
 
-async def test_deleted_admins_do_not_count_as_admins(
+async def test_admin_count_drops_after_an_admin_is_deleted(
     admin: AdminStack, uow_factory: UnitOfWorkFactory
 ) -> None:
-    await seed_user(uow_factory, "old-admin", Role.ADMIN, deleted=True)
+    old = await seed_user(uow_factory, "old-admin", Role.ADMIN)
     boss = await seed_user(uow_factory, "boss", Role.ADMIN)
+    await admin.delete_user.execute(user_id=old.id, actor=DEV_ACTOR)
 
     with pytest.raises(InvalidStateError, match="마지막 관리자"):
         await admin.delete_user.execute(user_id=boss.id, actor=DEV_ACTOR)
@@ -185,7 +186,7 @@ async def test_delete_user_twice_is_not_found_the_second_time(
         await admin.delete_user.execute(user_id=target.id, actor=ADMIN_ACTOR)
 
 
-async def test_an_already_deleted_user_is_not_found(
+async def test_a_user_deleted_before_the_call_is_not_found(
     admin: AdminStack, uow_factory: UnitOfWorkFactory
 ) -> None:
     gone = await seed_user(uow_factory, "gone", Role.SALES, deleted=True)

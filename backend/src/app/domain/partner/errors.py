@@ -7,7 +7,7 @@ class PartnerNotFoundError(NotFoundError):
 
 
 class PartnerInUseError(InvalidStateError):
-    """진행 중인(삭제되지 않은) Deal이 참조하는 파트너는 삭제할 수 없다."""
+    """참조하는 Deal이 있는 파트너는 삭제할 수 없다."""
 
     def __init__(self, partner_id: object) -> None:
-        super().__init__(f"진행 중인 Deal이 있는 파트너는 삭제할 수 없습니다: {partner_id}")
+        super().__init__(f"이 파트너를 참조하는 Deal이 있어 삭제할 수 없습니다: {partner_id}")
