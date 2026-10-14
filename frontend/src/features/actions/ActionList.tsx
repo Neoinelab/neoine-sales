@@ -4,7 +4,7 @@ import { PAGE_SIZE } from '../../shared/constants'
 import { formatDateTime } from '../../shared/format'
 import { ErrorBanner } from '../../shared/ui/ErrorBanner'
 import { Pager } from '../../shared/ui/Pager'
-import { useMe, usePermissions } from '../auth/hooks'
+import { usePermissions } from '../auth/hooks'
 import { ActionFilterBar } from './ActionFilterBar'
 import { ActionForm } from './ActionForm'
 import { useActions, useDeleteAction, type ActionFilters, type DealAction } from './hooks'
@@ -20,7 +20,6 @@ const NOT_ENTERED = '미입력'
 type Editing = { kind: 'new' } | { kind: 'edit'; action: DealAction } | null
 
 export function ActionList({ dealId }: Props) {
-  const me = useMe()
   const { canWrite } = usePermissions()
   const [filters, setFilters] = useState<ActionFilters>({})
   const [offset, setOffset] = useState(0)
@@ -50,7 +49,6 @@ export function ActionList({ dealId }: Props) {
         <ActionForm
           key={editing.kind === 'edit' ? editing.action.id : 'new'}
           dealId={dealId}
-          defaultActor={me.data?.name ?? ''}
           initial={editing.kind === 'edit' ? editing.action : undefined}
           onDone={() => setEditing(null)}
         />
@@ -77,7 +75,7 @@ export function ActionList({ dealId }: Props) {
               <td className="wrap">{a.next_action ?? NOT_ENTERED}</td>
               <td>{a.due_date ?? NOT_ENTERED}</td>
               <td className="wrap">{a.memo}</td>
-              <td>{a.actor}</td>
+              <td>{a.actor.label}</td>
               <td className="row-actions">
                 {dealId ? (
                   canWrite && (

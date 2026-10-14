@@ -70,7 +70,7 @@ export function DealsPage() {
         />{' '}
         내 딜만
       </label>
-      <p className="hint">내가 등록한 딜만 목록과 파이프라인 현황에 표시합니다.</p>
+      <p className="hint">내가 담당자인 딜만 목록과 파이프라인 현황에 표시합니다.</p>
       <DealFilterBar
         onSearch={(conditions) => {
           const next = { ...conditions, mine }
@@ -103,7 +103,7 @@ export function DealsPage() {
                 <Link to={`/deals/${d.id}`}>{d.code}</Link>
               </td>
               <td>{d.name}</td>
-              <td>{d.owner}</td>
+              <td>{d.owner.label}</td>
               <td>{d.vendor}</td>
               <td>{d.solution}</td>
               <td>{STAGE_LABEL[d.stage]}</td>

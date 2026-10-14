@@ -1,6 +1,6 @@
 import { screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import { asMe } from '../../test/authFixtures'
+import { asMe, userRef } from '../../test/authFixtures'
 import { mockApi, renderApp, settled } from '../../test/utils'
 import { ActionList } from './ActionList'
 
@@ -13,7 +13,7 @@ const ACTION = {
   due_date: '2026-03-10',
   memo: '요구사항 정리',
   acted_at: '2026-03-02T01:00:00Z',
-  actor: '박영업',
+  actor: userRef('u-3', '박영업'),
   created_at: '2026-03-02T01:00:00Z',
   updated_at: '2026-03-02T01:00:00Z',
 }

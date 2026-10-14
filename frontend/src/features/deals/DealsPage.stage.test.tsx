@@ -1,6 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
+import { userRef } from '../../test/authFixtures'
 import { mockApi, renderApp, type RecordedRequest } from '../../test/utils'
 import { DealsPage } from './DealsPage'
 
@@ -29,7 +30,7 @@ const deal = (n: number, stage: string) => ({
   id: `d-${n}`,
   code: `DEAL-${String(n).padStart(3, '0')}`,
   name: 'ERP 구축',
-  owner: '박영업',
+  owner: userRef('u-3', '박영업'),
   vendor: 'SAP',
   solution: 'S/4',
   revenue_amount: '1',

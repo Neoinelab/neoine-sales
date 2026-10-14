@@ -1,11 +1,12 @@
 import type { Deal } from '../features/deals/hooks'
+import { userRef } from './authFixtures'
 
 /** 딜 상세 화면 테스트가 함께 쓰는 API 응답 예시(생성된 스키마의 필드 이름과 같다). */
 export const DETAIL_DEAL = {
   id: 'd-1',
   code: 'DEAL-001',
   name: 'ERP 구축',
-  owner: '박영업',
+  owner: userRef('u-2', '박영업'),
   vendor: 'SAP',
   solution: 'S/4',
   revenue_amount: '150000000',
@@ -48,8 +49,7 @@ export const stageChange = (over: Record<string, unknown> = {}) => ({
   from_stage: 'prospecting',
   to_stage: 'introduction',
   reason: null,
-  changed_by_subject: 'dev-user',
-  changed_by_name: '개발 사용자(sales)',
+  changed_by: userRef('u-2', '개발 사용자(sales)'),
   changed_at: '2026-03-02T01:00:00Z',
   ...over,
 })

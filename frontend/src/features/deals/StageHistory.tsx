@@ -27,7 +27,7 @@ export function StageHistory({ dealId }: { dealId: string }) {
           {items.map((c) => (
             <li key={c.id}>
               {formatDateTime(c.changed_at)} · {STAGE_LABEL[c.from_stage]} → {STAGE_LABEL[c.to_stage]} ·{' '}
-              {c.changed_by_name}
+              {c.changed_by.label}
               {c.reason ? ` · ${c.reason}` : ''}
             </li>
           ))}

@@ -9,7 +9,8 @@ export type DealActionInput = Schemas['DealActionRequest']
 
 export interface ActionFilters {
   action_type?: ActionType
-  actor?: string
+  /** 활동자 사용자 id(UUID). */
+  actor_user_id?: string
   keyword?: string
   acted_from?: string
   acted_to?: string

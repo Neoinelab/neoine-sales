@@ -1,5 +1,6 @@
 import { screen, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
+import { userRef } from '../../test/authFixtures'
 import { listPage, stageChange } from '../../test/dealFixtures'
 import { mockApi, problem, renderApp } from '../../test/utils'
 import { StageHistory } from './StageHistory'
@@ -14,10 +15,11 @@ describe('StageHistory', () => {
           from_stage: 'introduction',
           to_stage: 'lost',
           reason: '예산 부족',
-          changed_by_name: '최영업',
+          changed_by: userRef('u-4', '최영업'),
           changed_at: '2026-03-05T01:00:00Z',
         }),
-        stageChange({ id: 'h-1', changed_by_name: '박영업', changed_at: '2026-03-02T01:00:00Z' }),
+        stageChange({ id: 'h-1', changed_by: userRef('u-3', '박영업'), changed_at: '2026-03-02T01:00:00Z' }),
+        stageChange({ id: 'h-0', changed_by: userRef('u-7', '이퇴사', true), changed_at: '2026-03-01T01:00:00Z' }),
       ]),
     })
 
@@ -25,7 +27,8 @@ describe('StageHistory', () => {
 
     const region = await screen.findByRole('region', { name: '단계 이력' })
     const items = within(region).getAllByRole('listitem')
-    expect(items).toHaveLength(2)
+    expect(items).toHaveLength(3)
+    expect(items[2]).toHaveTextContent('이퇴사(퇴사)')
     expect(items[0]).toHaveTextContent('제품소개 → 실주')
     expect(items[0]).toHaveTextContent('최영업')
     expect(items[0]).toHaveTextContent('예산 부족')

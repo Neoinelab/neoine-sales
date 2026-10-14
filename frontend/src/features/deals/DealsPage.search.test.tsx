@@ -3,6 +3,7 @@ import { renderHook, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { describe, expect, it } from 'vitest'
+import { userRef } from '../../test/authFixtures'
 import { mockApi, renderApp, type RecordedRequest } from '../../test/utils'
 import { DealsPage } from './DealsPage'
 import { useDeals } from './hooks'
@@ -13,7 +14,7 @@ const deal = (n: number) => ({
   id: `d-${n}`,
   code: `DEAL-${String(n).padStart(3, '0')}`,
   name: 'ERP 구축',
-  owner: '박영업',
+  owner: userRef('u-3', '박영업'),
   vendor: 'SAP',
   solution: 'S/4',
   revenue_amount: '1',
@@ -70,6 +71,7 @@ describe('DealsPage search', () => {
     expect(query.get('revenue_to')).toBe('2026-07-01')
     expect(query.get('offset')).toBe('0')
     expect(query.has('owner')).toBe(false)
+    expect(query.has('owner_user_id')).toBe(false)
     expect(query.has('vendor')).toBe(false)
     expect(query.has('partner_id')).toBe(false)
     expect(query.has('revenue_from')).toBe(false)
@@ -82,10 +84,12 @@ describe('DealsPage search', () => {
     await userEvent.click(screen.getByRole('button', { name: '다음' }))
     await waitFor(() => expect(dealRequests(requests).at(-1)!.query.get('offset')).toBe('20'))
 
-    await userEvent.type(screen.getByLabelText('Owner'), '박영업')
+    await screen.findByRole('option', { name: '박영업' })
+    await userEvent.selectOptions(screen.getByLabelText('Owner'), 'u-3')
     await userEvent.click(screen.getByRole('button', { name: '검색' }))
 
-    await waitFor(() => expect(dealRequests(requests).at(-1)!.query.get('owner')).toBe('박영업'))
+    await waitFor(() => expect(dealRequests(requests).at(-1)!.query.get('owner_user_id')).toBe('u-3'))
+    expect(dealRequests(requests).at(-1)!.query.has('owner')).toBe(false)
     expect(dealRequests(requests).at(-1)!.query.get('offset')).toBe('0')
   })
 
@@ -141,7 +145,7 @@ describe('useDeals', () => {
     const requests = mockApi(routes())
 
     const { result } = renderHook(
-      () => useDeals({ keyword: 'erp', owner: '', vendor: undefined, revenue_from: '2026-06-01' }, 20),
+      () => useDeals({ keyword: 'erp', owner_user_id: '', vendor: undefined, revenue_from: '2026-06-01' }, 20),
       { wrapper },
     )
 
@@ -151,7 +155,7 @@ describe('useDeals', () => {
     expect(query.get('revenue_from')).toBe('2026-06-01')
     expect(query.get('offset')).toBe('20')
     expect(query.get('limit')).toBe('20')
-    expect(query.has('owner')).toBe(false)
+    expect(query.has('owner_user_id')).toBe(false)
     expect(query.has('vendor')).toBe(false)
   })
 

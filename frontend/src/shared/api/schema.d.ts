@@ -391,6 +391,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/user-options": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List User Options */
+        get: operations["list_user_options_api_v1_user_options_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/users": {
         parameters: {
             query?: never;
@@ -547,8 +564,11 @@ export interface components {
             /** Action */
             action: string;
             action_type: components["schemas"]["ActionType"];
-            /** Actor */
-            actor: string;
+            /**
+             * Actor User Id
+             * Format: uuid
+             */
+            actor_user_id: string;
             /**
              * Due Date
              * Format: date
@@ -572,8 +592,7 @@ export interface components {
             /** Action */
             action: string;
             action_type: components["schemas"]["ActionType"];
-            /** Actor */
-            actor: string;
+            actor: components["schemas"]["UserRef"];
             /**
              * Created At
              * Format: date-time
@@ -616,8 +635,11 @@ export interface components {
             customer_id: string;
             /** Name */
             name: string;
-            /** Owner */
-            owner: string;
+            /**
+             * Owner User Id
+             * Format: uuid
+             */
+            owner_user_id: string;
             /** Partner Id */
             partner_id?: string | null;
             /** Revenue Amount */
@@ -652,8 +674,7 @@ export interface components {
             id: string;
             /** Name */
             name: string;
-            /** Owner */
-            owner: string;
+            owner: components["schemas"]["UserRef"];
             /** Partner Id */
             partner_id: string | null;
             /** Revenue Amount */
@@ -695,10 +716,7 @@ export interface components {
              * Format: date-time
              */
             changed_at: string;
-            /** Changed By Name */
-            changed_by_name: string;
-            /** Changed By Subject */
-            changed_by_subject: string;
+            changed_by: components["schemas"]["UserRef"];
             /** Deal Id */
             deal_id: string;
             from_stage: components["schemas"]["DealStage"];
@@ -707,6 +725,17 @@ export interface components {
             /** Reason */
             reason: string | null;
             to_stage: components["schemas"]["DealStage"];
+        };
+        /**
+         * DeleteUserResponse
+         * @description outcome: 연결된 데이터가 없어 완전히 삭제(deleted) 또는 있어서 퇴사 처리(resigned).
+         */
+        DeleteUserResponse: {
+            /**
+             * Outcome
+             * @enum {string}
+             */
+            outcome: "deleted" | "resigned";
         };
         /** DevLoginRequest */
         DevLoginRequest: {
@@ -775,8 +804,7 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
-            /** Updated By */
-            updated_by: string | null;
+            updated_by: components["schemas"]["UserRef"] | null;
             /** Use Starttls */
             use_starttls: boolean;
             /** User Filter */
@@ -933,6 +961,15 @@ export interface components {
             /** Offset */
             offset: number;
         };
+        /** Page[UserRef] */
+        Page_UserRef_: {
+            /** Items */
+            items: components["schemas"]["UserRef"][];
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+        };
         /** Page[UserResponse] */
         Page_UserResponse_: {
             /** Items */
@@ -989,6 +1026,8 @@ export interface components {
             role: components["schemas"]["Role"];
             /** Subject */
             subject: string;
+            /** User Id */
+            user_id: string;
         };
         /**
          * Problem
@@ -1034,6 +1073,26 @@ export interface components {
             totals: components["schemas"]["CurrencyAmountResponse"][];
         };
         /**
+         * UserDeleteReason
+         * @description 사용자가 목록에서 빠진 이유. 값을 추가할 때는 DB CHECK도 이 enum에서 만든다.
+         * @enum {string}
+         */
+        UserDeleteReason: "resigned";
+        /**
+         * UserRef
+         * @description OpenAPI 스키마 이름이 `UserRef`다(프런트가 이 이름으로 생성 타입을 쓴다).
+         */
+        UserRef: {
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+            /** Name */
+            name: string;
+            /** Resigned */
+            resigned: boolean;
+        };
+        /**
          * UserRequest
          * @description 등록 본문. 비밀번호는 받지 않는다(AD가 인증). 아이디 형식 검증은 도메인(LoginId)이 한다.
          */
@@ -1049,8 +1108,10 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
-            /** Created By */
-            created_by: string;
+            created_by: components["schemas"]["UserRef"];
+            delete_reason: components["schemas"]["UserDeleteReason"] | null;
+            /** Deleted At */
+            deleted_at: string | null;
             /** Display Name */
             display_name: string | null;
             /** Email */
@@ -1062,6 +1123,11 @@ export interface components {
             /** Login Id */
             login_id: string;
             role: components["schemas"]["Role"];
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "active" | "resigned";
         };
         /** ValidationError */
         ValidationError: {
@@ -1674,7 +1740,7 @@ export interface operations {
         parameters: {
             query?: {
                 action_type?: components["schemas"]["ActionType"] | null;
-                actor?: string | null;
+                actor_user_id?: string | null;
                 keyword?: string | null;
                 acted_from?: string | null;
                 acted_to?: string | null;
@@ -1911,7 +1977,7 @@ export interface operations {
                 keyword?: string | null;
                 customer_id?: string | null;
                 partner_id?: string | null;
-                owner?: string | null;
+                owner_user_id?: string | null;
                 vendor?: string | null;
                 revenue_from?: string | null;
                 revenue_to?: string | null;
@@ -2320,7 +2386,7 @@ export interface operations {
         parameters: {
             query?: {
                 action_type?: components["schemas"]["ActionType"] | null;
-                actor?: string | null;
+                actor_user_id?: string | null;
                 keyword?: string | null;
                 acted_from?: string | null;
                 acted_to?: string | null;
@@ -3078,11 +3144,54 @@ export interface operations {
             };
         };
     };
+    list_user_options_api_v1_user_options_get: {
+        parameters: {
+            query?: {
+                include_resigned?: boolean;
+                keyword?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_UserRef_"];
+                };
+            };
+            /** @description problem+json */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     list_users_api_v1_users_get: {
         parameters: {
             query?: {
                 offset?: number;
                 limit?: number;
+                status?: "active" | "resigned" | "all";
             };
             header?: never;
             path?: never;
@@ -3199,7 +3308,9 @@ export interface operations {
     };
     delete_user_api_v1_users__user_id__delete: {
         parameters: {
-            query?: never;
+            query?: {
+                reason?: "resigned";
+            };
             header?: never;
             path: {
                 user_id: string;
@@ -3209,11 +3320,13 @@ export interface operations {
         requestBody?: never;
         responses: {
             /** @description Successful Response */
-            204: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["DeleteUserResponse"];
+                };
             };
             /** @description problem+json */
             401: {

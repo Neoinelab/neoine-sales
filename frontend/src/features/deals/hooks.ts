@@ -11,12 +11,13 @@ export interface DealFilters {
   keyword?: string
   customer_id?: string
   partner_id?: string
-  owner?: string
+  /** 담당자 사용자 id(UUID). */
+  owner_user_id?: string
   vendor?: string
   stage?: DealStage
   revenue_from?: string
   revenue_to?: string
-  /** true면 내가 등록한 딜만. false는 쿼리에서 생략한다. */
+  /** true면 내가 담당자인 딜만.false는 쿼리에서 생략한다. */
   mine?: boolean
 }
 

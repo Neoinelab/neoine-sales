@@ -1,6 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
+import { userRef } from '../../test/authFixtures'
 import { mockApi, problem, renderApp } from '../../test/utils'
 import { DealForm } from './DealForm'
 import { DealsPage } from './DealsPage'
@@ -12,7 +13,7 @@ const DEAL = {
   id: 'd-1',
   code: 'DEAL-001',
   name: 'ERP 구축',
-  owner: '박영업',
+  owner: userRef('u-3', '박영업'),
   vendor: 'SAP',
   solution: 'S/4',
   revenue_amount: '150000000',
@@ -37,7 +38,7 @@ describe('DealForm', () => {
 
     await userEvent.type(screen.getByLabelText('Deal Code'), 'deal-001')
     await userEvent.type(screen.getByLabelText('Deal Name'), 'ERP 구축')
-    await userEvent.type(screen.getByLabelText('Deal Owner'), '박영업')
+    await userEvent.selectOptions(screen.getByLabelText('Deal Owner'), 'u-3')
     await userEvent.type(screen.getByLabelText('Vendor'), 'SAP')
     await userEvent.type(screen.getByLabelText('Solution'), 'S/4')
     await userEvent.type(screen.getByLabelText('매출금액'), '1234567.8912')
@@ -53,6 +54,7 @@ describe('DealForm', () => {
       revenue_currency: 'KRW',
       customer_id: 'c-1',
       partner_id: null,
+      owner_user_id: 'u-3',
     })
   })
 
@@ -65,7 +67,7 @@ describe('DealForm', () => {
     const done = vi.fn()
     renderApp(<DealForm onDone={done} />)
     await screen.findByRole('option', { name: '네오인' })
-    for (const [label, value] of [['Deal Code', 'a'], ['Deal Name', 'b'], ['Deal Owner', 'c'], ['Vendor', 'd'], ['Solution', 'e'], ['매출금액', '1'], ['매출일', '2026-06-30']] as const) {
+    for (const [label, value] of [['Deal Code', 'a'], ['Deal Name', 'b'],['Vendor', 'd'], ['Solution', 'e'], ['매출금액', '1'], ['매출일', '2026-06-30']] as const) {
       await userEvent.type(screen.getByLabelText(label), value)
     }
     await userEvent.selectOptions(screen.getByLabelText('고객'), 'c-1')
@@ -89,6 +91,19 @@ describe('DealsPage', () => {
     const row = (await screen.findByRole('link', { name: 'DEAL-001' })).closest('tr') as HTMLElement
     expect(within(row).getByText('150,000,000 KRW')).toBeInTheDocument()
     expect(within(row).getByText('네오인')).toBeInTheDocument()
+    expect(within(row).getByText('박영업')).toBeInTheDocument()
+  })
+
+  it('shows a resigned owner by the server label', async () => {
+    mockApi({
+      'GET /api/v1/deals': page([{ ...DEAL, owner: userRef('u-7', '이퇴사', true) }]),
+      'GET /api/v1/customers': page([CUSTOMER]),
+    })
+
+    renderApp(<DealsPage />, '/deals')
+
+    const row = (await screen.findByRole('link', { name: 'DEAL-001' })).closest('tr') as HTMLElement
+    expect(within(row).getByText('이퇴사(퇴사)')).toBeInTheDocument()
   })
 
   it('asks for confirmation before deleting', async () => {

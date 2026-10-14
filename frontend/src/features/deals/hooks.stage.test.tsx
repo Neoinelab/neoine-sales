@@ -41,8 +41,7 @@ describe('deal stage hooks', () => {
       from_stage: 'prospecting',
       to_stage: 'lost',
       reason: '예산 부족',
-      changed_by_subject: 'dev-user',
-      changed_by_name: '개발 사용자(sales)',
+      changed_by: { id: 'u-2', name: '개발 사용자(sales)', resigned: false, label: '개발 사용자(sales)' },
       changed_at: '2026-01-01T00:00:00Z',
     }
     const requests = mockApi({

@@ -1,6 +1,7 @@
 import { screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
+import { userRef } from '../../test/authFixtures'
 import { mockApi, renderApp } from '../../test/utils'
 import { DealFilterBar } from './DealFilterBar'
 
@@ -70,7 +71,8 @@ describe('DealFilterBar', () => {
     await userEvent.type(screen.getByLabelText('검색어'), '  erp ')
     await userEvent.selectOptions(screen.getByLabelText('고객'), 'c-1')
     await userEvent.selectOptions(screen.getByLabelText('파트너'), 'p-1')
-    await userEvent.type(screen.getByLabelText('Owner'), ' 박영업 ')
+    await screen.findByRole('option', { name: '박영업' })
+    await userEvent.selectOptions(screen.getByLabelText('Owner'), 'u-3')
     await userEvent.type(screen.getByLabelText('Vendor'), ' SAP ')
     await userEvent.type(screen.getByLabelText('매출 시작일'), '2026-06-01')
     await userEvent.type(screen.getByLabelText('매출 종료일'), '2026-06-30')
@@ -81,7 +83,7 @@ describe('DealFilterBar', () => {
       keyword: 'erp',
       customer_id: 'c-1',
       partner_id: 'p-1',
-      owner: '박영업',
+      owner_user_id: 'u-3',
       vendor: 'SAP',
       revenue_from: '2026-06-01',
       revenue_to: '2026-07-01',
@@ -93,13 +95,12 @@ describe('DealFilterBar', () => {
     await screen.findByRole('option', { name: '네오인' })
 
     await userEvent.type(screen.getByLabelText('검색어'), '   ')
-    await userEvent.type(screen.getByLabelText('Owner'), '  ')
     await userEvent.type(screen.getByLabelText('Vendor'), ' ')
     await userEvent.click(screen.getByRole('button', { name: '검색' }))
 
     expect(onSearch).toHaveBeenCalledTimes(1)
     const filters = onSearch.mock.calls[0]![0] as Record<string, unknown>
-    for (const key of ['keyword', 'customer_id', 'partner_id', 'owner', 'vendor', 'revenue_from', 'revenue_to']) {
+    for (const key of ['keyword', 'customer_id', 'partner_id', 'owner', 'owner_user_id', 'vendor', 'revenue_from', 'revenue_to']) {
       expect(filters[key] ?? undefined).toBeUndefined()
     }
   })
@@ -133,11 +134,27 @@ describe('DealFilterBar', () => {
     await screen.findByRole('option', { name: '네오인' })
 
     await userEvent.selectOptions(screen.getByLabelText('단계'), 'lost')
-    await userEvent.type(screen.getByLabelText('Owner'), '박영업')
+    await screen.findByRole('option', { name: '박영업' })
+    await userEvent.selectOptions(screen.getByLabelText('Owner'), 'u-3')
     await userEvent.click(screen.getByRole('button', { name: '검색' }))
 
     expect(onSearch).toHaveBeenCalledTimes(1)
-    expect(onSearch).toHaveBeenCalledWith(expect.objectContaining({ stage: 'lost', owner: '박영업' }))
+    expect(onSearch).toHaveBeenCalledWith(expect.objectContaining({ stage: 'lost', owner_user_id: 'u-3' }))
+  })
+
+  it('offers an all option first for the owner and lists resigned owners for searching', async () => {
+    const requests = mockApi({
+      'GET /api/v1/customers': page([]),
+      'GET /api/v1/partners': page([]),
+      'GET /api/v1/user-options': page([userRef('u-2', '김영업'), userRef('u-7', '이퇴사', true)]),
+    })
+    renderApp(<DealFilterBar onSearch={vi.fn()} />)
+
+    expect(await screen.findByRole('option', { name: '이퇴사(퇴사)' })).toBeEnabled()
+    const options = Array.from(screen.getByLabelText('Owner').querySelectorAll('option'))
+    expect(options[0]).toHaveTextContent('전체')
+    expect(options[0]).toHaveValue('')
+    expect(requests.find((r) => r.path === '/api/v1/user-options')!.query.get('include_resigned')).toBe('true')
   })
 
   it('does not send a stage when the all option is selected', async () => {

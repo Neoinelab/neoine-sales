@@ -9,6 +9,7 @@ import {
   listPage,
   stageChange,
 } from '../../test/dealFixtures'
+import { userRef } from '../../test/authFixtures'
 import { mockApi, problem, renderApp } from '../../test/utils'
 import { DealDetailPage } from './DealDetailPage'
 import { PipelineSummary } from './PipelineSummary'
@@ -60,6 +61,17 @@ describe('DealDetailPage customer and partner', () => {
     for (const text of ['이파트', '이사', 'lee@hanbit.example', '031-987-6543']) {
       expect(partner).toHaveTextContent(text)
     }
+  })
+
+  it('shows the owner by the server label, including a resigned owner', async () => {
+    mockApi({
+      ...baseRoutes(),
+      'GET /api/v1/deals/d-1': { body: { ...DETAIL_DEAL, owner: userRef('u-7', '이퇴사', true) } },
+    })
+
+    renderDetail()
+
+    expect(await screen.findByText('이퇴사(퇴사)')).toBeInTheDocument()
   })
 
   it('shows no partner when the deal has none', async () => {

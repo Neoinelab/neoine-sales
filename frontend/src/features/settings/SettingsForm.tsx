@@ -31,7 +31,7 @@ export function SettingsForm({
   const [values, setValues] = useState<DirectoryFormValues>(() => formFromSettings(initial))
   const [password, setPassword] = useState('')
   const [revision, setRevision] = useState(initial.revision)
-  const [meta, setMeta] = useState({ by: initial.updated_by, at: initial.updated_at })
+  const [meta, setMeta] = useState({ by: initial.updated_by?.label ?? null, at: initial.updated_at })
   const [notice, setNotice] = useState<Notice>(null)
   const busy = test.isPending || save.isPending
   const passwordOrNull = password === '' ? null : password
@@ -60,7 +60,7 @@ export function SettingsForm({
       {
         onSuccess: (saved) => {
           setRevision(saved.revision)
-          setMeta({ by: saved.updated_by, at: saved.updated_at })
+          setMeta({ by: saved.updated_by?.label ?? null, at: saved.updated_at })
           setNotice({ kind: 'status', text: '저장했습니다' })
         },
         onError: (error) => setNotice({ kind: 'alert', text: saveErrorMessage(error) }),

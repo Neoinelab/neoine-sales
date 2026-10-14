@@ -3,6 +3,7 @@ import { renderHook, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { describe, expect, it } from 'vitest'
+import { userRef } from '../../test/authFixtures'
 import { mockApi, renderApp, type RecordedRequest } from '../../test/utils'
 import { DealsPage } from './DealsPage'
 import { useDealPipeline, useDeals } from './hooks'
@@ -22,7 +23,7 @@ const deal = (n: number) => ({
   id: `d-${n}`,
   code: `DEAL-${String(n).padStart(3, '0')}`,
   name: 'ERP 구축',
-  owner: '박영업',
+  owner: userRef('u-3', '박영업'),
   vendor: 'SAP',
   solution: 'S/4',
   revenue_amount: '1',
@@ -85,14 +86,15 @@ const prospectingCount = () => {
 }
 
 describe('DealsPage my deals toggle', () => {
-  it('has an off "내 딜만" checkbox and explains that it means deals I registered', async () => {
+  it('has an off "내 딜만" checkbox and explains that it means deals I am the owner of', async () => {
     mockApi(routes())
 
     renderApp(<DealsPage />, '/deals')
 
     await screen.findByRole('link', { name: 'DEAL-001' })
     expect(screen.getByRole('checkbox', { name: '내 딜만' })).not.toBeChecked()
-    expect(screen.getByText(/내가 등록한 딜/)).toBeInTheDocument()
+    expect(screen.getByText(/내가 담당자인 딜/)).toBeInTheDocument()
+    expect(screen.queryByText(/내가 등록한 딜/)).not.toBeInTheDocument()
   })
 
   it('does not send mine in the initial requests', async () => {
@@ -175,10 +177,11 @@ describe('DealsPage my deals toggle', () => {
     await userEvent.click(screen.getByRole('checkbox', { name: '내 딜만' }))
     await screen.findByRole('link', { name: 'DEAL-090' })
 
-    await userEvent.type(screen.getByLabelText('Owner'), '박영업')
+    await screen.findByRole('option', { name: '박영업' })
+    await userEvent.selectOptions(screen.getByLabelText('Owner'), 'u-3')
     await userEvent.click(screen.getByRole('button', { name: '검색' }))
 
-    await waitFor(() => expect(dealRequests(requests).at(-1)!.query.get('owner')).toBe('박영업'))
+    await waitFor(() => expect(dealRequests(requests).at(-1)!.query.get('owner_user_id')).toBe('u-3'))
     expect(dealRequests(requests).at(-1)!.query.get('mine')).toBe('true')
     expect(screen.getByRole('checkbox', { name: '내 딜만' })).toBeChecked()
   })

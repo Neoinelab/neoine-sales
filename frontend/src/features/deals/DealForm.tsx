@@ -3,6 +3,8 @@ import { ErrorBanner } from '../../shared/ui/ErrorBanner'
 import { SelectField, TextField } from '../../shared/ui/fields'
 import { useCustomerOptions } from '../customers/hooks'
 import { usePartnerOptions } from '../partners/hooks'
+import { useUserChoice } from '../users/options'
+import { UserSelect } from '../users/UserSelect'
 import { useSaveDeal, type Deal } from './hooks'
 
 interface Props {
@@ -17,7 +19,6 @@ export function DealForm({ initial, onDone }: Props) {
   const [form, setForm] = useState({
     code: initial?.code ?? '',
     name: initial?.name ?? '',
-    owner: initial?.owner ?? '',
     vendor: initial?.vendor ?? '',
     solution: initial?.solution ?? '',
     revenue_amount: initial?.revenue_amount ?? '',
@@ -26,6 +27,8 @@ export function DealForm({ initial, onDone }: Props) {
     customer_id: initial?.customer_id ?? '',
     partner_id: initial?.partner_id ?? '',
   })
+  // 신규는 로그인 사용자를 초기 선택하고, 수정은 기존 담당자를 유지한다.
+  const [ownerId, setOwnerId] = useUserChoice(initial?.owner.id)
   const set = (key: keyof typeof form) => (value: string) => setForm((f) => ({ ...f, [key]: value }))
 
   return (
@@ -35,7 +38,7 @@ export function DealForm({ initial, onDone }: Props) {
         e.preventDefault()
         // 금액은 문자열 그대로 보낸다(숫자로 바꾸면 소수 정밀도가 깨질 수 있다).
         save.mutate(
-          { id: initial?.id, body: { ...form, partner_id: form.partner_id || null } },
+          { id: initial?.id, body: { ...form, owner_user_id: ownerId, partner_id: form.partner_id || null } },
           { onSuccess: onDone },
         )
       }}
@@ -44,7 +47,7 @@ export function DealForm({ initial, onDone }: Props) {
       <ErrorBanner error={save.error ?? customers.error ?? partners.error} />
       <TextField label="Deal Code" name="code" value={form.code} onChange={set('code')} required />
       <TextField label="Deal Name" name="name" value={form.name} onChange={set('name')} required />
-      <TextField label="Deal Owner" name="owner" value={form.owner} onChange={set('owner')} required />
+      <UserSelect label="Deal Owner" name="owner_user_id" value={ownerId} onChange={setOwnerId} current={initial?.owner} required />
       <TextField label="Vendor" name="vendor" value={form.vendor} onChange={set('vendor')} required />
       <TextField label="Solution" name="solution" value={form.solution} onChange={set('solution')} required />
       <TextField label="매출금액" name="revenue_amount" value={form.revenue_amount} onChange={set('revenue_amount')} required />

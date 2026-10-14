@@ -1,10 +1,11 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
+import { userRef } from '../../test/authFixtures'
 import { mockApi, renderApp, type RecordedRequest } from '../../test/utils'
 import { ActionList } from './ActionList'
 
-const ME = { subject: 's', email: null, name: '박영업', role: 'sales' }
+const ME = { user_id: 'u-3', subject: 's', email: null, name: '박영업', role: 'sales' }
 const ACTION = {
   id: 'a-1',
   deal_id: 'd-1',
@@ -14,7 +15,7 @@ const ACTION = {
   due_date: '2026-03-10',
   memo: '요구사항 정리',
   acted_at: '2026-03-02T01:00:00Z',
-  actor: '박영업',
+  actor: userRef('u-3', '박영업'),
   created_at: '2026-03-02T01:00:00Z',
   updated_at: '2026-03-02T01:00:00Z',
 }
@@ -40,7 +41,42 @@ describe('ActionList', () => {
     expect(query.get('keyword')).toBe('견적')
     expect(query.get('acted_from')).toMatch(/Z$/)
     expect(query.has('actor')).toBe(false)
+    expect(query.has('actor_user_id')).toBe(false)
     expect(query.has('acted_to')).toBe(false)
+  })
+
+  it('filters by the chosen actor with actor_user_id, offering resigned users too', async () => {
+    const requests = mockApi({
+      'GET /api/v1/auth/me': { body: ME },
+      'GET /api/v1/deals/d-1/actions': page,
+      'GET /api/v1/user-options': {
+        body: { items: [userRef('u-3', '박영업'), userRef('u-7', '이퇴사', true)], offset: 0, limit: 200 },
+      },
+    })
+    renderApp(<ActionList dealId="d-1" />)
+    await screen.findByText('킥오프 미팅')
+    const filter = screen.getByRole('search')
+
+    await within(filter).findByRole('option', { name: '이퇴사(퇴사)' })
+    await userEvent.selectOptions(within(filter).getByLabelText('활동자'), 'u-7')
+    await userEvent.click(within(filter).getByRole('button', { name: '검색' }))
+
+    await waitFor(() => expect(searches(requests).at(-1)!.query.get('actor_user_id')).toBe('u-7'))
+    expect(searches(requests).at(-1)!.query.has('actor')).toBe(false)
+    expect(requests.find((r) => r.path === '/api/v1/user-options')!.query.get('include_resigned')).toBe('true')
+  })
+
+  it('shows the actor by the server label, including a resigned actor', async () => {
+    mockApi({
+      'GET /api/v1/auth/me': { body: ME },
+      'GET /api/v1/deals/d-1/actions': {
+        body: { items: [{ ...ACTION, actor: userRef('u-7', '이퇴사', true) }], offset: 0, limit: 20 },
+      },
+    })
+
+    renderApp(<ActionList dealId="d-1" />)
+
+    expect(await screen.findByText('이퇴사(퇴사)')).toBeInTheDocument()
   })
 
   it('records a new activity for the deal with a timezone-aware time and the user as default actor', async () => {
@@ -54,7 +90,7 @@ describe('ActionList', () => {
 
     await userEvent.click(screen.getByRole('button', { name: '활동 기록' }))
     const form = (await screen.findByRole('heading', { name: '활동 기록', level: 3 })).closest('form')!
-    await waitFor(() => expect(within(form).getByLabelText('활동자')).toHaveValue('박영업'))
+    await waitFor(() => expect(within(form).getByLabelText('활동자')).toHaveValue('u-3'))
     await userEvent.type(within(form).getByLabelText('진행내역'), '제안서 설명')
     await userEvent.type(within(form).getByLabelText('다음 진행 계획'), '견적 발송')
     await userEvent.type(within(form).getByLabelText('계획일'), '2026-04-01')
@@ -69,8 +105,9 @@ describe('ActionList', () => {
       next_action: '견적 발송',
       due_date: '2026-04-01',
       memo: '참석 3명',
-      actor: '박영업',
+      actor_user_id: 'u-3',
     })
+    expect(body).not.toHaveProperty('actor')
     expect(body.acted_at).toMatch(/Z$/)
     expect(body).not.toHaveProperty('title')
     expect(body).not.toHaveProperty('content')
@@ -115,7 +152,28 @@ describe('ActionList', () => {
       next_action: '계약 협의',
       due_date: '2026-03-10',
       memo: '요구사항 정리',
+      actor_user_id: 'u-3',
     })
+  })
+
+  it('keeps a resigned actor on edit and shows 이름(퇴사) without allowing it to be picked again', async () => {
+    const resigned = { ...ACTION, actor: userRef('u-7', '이퇴사', true) }
+    const requests = mockApi({
+      'GET /api/v1/auth/me': { body: ME },
+      'GET /api/v1/deals/d-1/actions': { body: { items: [resigned], offset: 0, limit: 20 } },
+      'PUT /api/v1/deal-actions/a-1': { body: resigned },
+    })
+    renderApp(<ActionList dealId="d-1" />)
+    await screen.findByText('킥오프 미팅')
+
+    await userEvent.click(screen.getByRole('button', { name: '수정' }))
+    const form = (await screen.findByRole('heading', { name: '활동 수정', level: 3 })).closest('form')!
+    expect(await within(form).findByRole('option', { name: '이퇴사(퇴사)' })).toBeDisabled()
+    expect(within(form).getByLabelText('활동자')).toHaveValue('u-7')
+    await userEvent.click(within(form).getByRole('button', { name: '저장' }))
+
+    await waitFor(() => expect(requests.some((r) => r.method === 'PUT')).toBe(true))
+    expect((requests.find((r) => r.method === 'PUT')?.body as Record<string, unknown>).actor_user_id).toBe('u-7')
   })
 
   it('shows the plan columns and a placeholder for missing plan values', async () => {

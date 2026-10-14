@@ -47,7 +47,7 @@ export function DealDetailPage() {
         <dt>현재 단계</dt>
         <dd>{STAGE_LABEL[d.stage]}</dd>
         <dt>Owner</dt>
-        <dd>{d.owner}</dd>
+        <dd>{d.owner.label}</dd>
         <dt>Vendor</dt>
         <dd>{d.vendor}</dd>
         <dt>Solution</dt>

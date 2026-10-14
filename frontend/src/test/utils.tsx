@@ -3,7 +3,7 @@ import { render } from '@testing-library/react'
 import type { ReactElement } from 'react'
 import { MemoryRouter } from 'react-router'
 import { vi } from 'vitest'
-import { ME_SALES } from './authFixtures'
+import { ME_SALES, userRef } from './authFixtures'
 
 export interface RecordedRequest {
   method: string
@@ -19,7 +19,13 @@ type Handler = Reply | ((request: RecordedRequest) => Reply)
 /** "GET /api/v1/auth/me" 같은 키로 응답을 정하는 가짜 fetch. 정하지 않은 요청은 404. */
 export function mockApi(routes: Record<string, Handler>) {
   // 화면은 로그인한 사용자의 역할(me)로 쓰기 UI를 정한다. 정하지 않은 테스트는 sales(쓰기 가능)로 본다.
-  const withDefaults: Record<string, Handler> = { 'GET /api/v1/auth/me': { body: ME_SALES }, ...routes }
+  // 사용자 선택 목록(user-options)도 기본 제공한다: 김영업(me)과 박영업.
+  const userOptions = { items: [userRef('u-2', '김영업'), userRef('u-3', '박영업')], offset: 0, limit: 200 }
+  const withDefaults: Record<string, Handler> = {
+    'GET /api/v1/auth/me': { body: ME_SALES },
+    'GET /api/v1/user-options': { body: userOptions },
+    ...routes,
+  }
   const requests: RecordedRequest[] = []
   vi.stubGlobal(
     'fetch',

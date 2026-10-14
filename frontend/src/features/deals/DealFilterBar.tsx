@@ -3,6 +3,7 @@ import { nextDay } from '../../shared/format'
 import { SelectField, TextField } from '../../shared/ui/fields'
 import { useCustomerOptions } from '../customers/hooks'
 import { usePartnerOptions } from '../partners/hooks'
+import { UserSelect } from '../users/UserSelect'
 import type { DealFilters } from './hooks'
 import { DEAL_STAGES, STAGE_LABEL, type DealStage } from './stages'
 
@@ -17,7 +18,7 @@ export function DealFilterBar({ onSearch }: Props) {
   const [keyword, setKeyword] = useState('')
   const [customerId, setCustomerId] = useState('')
   const [partnerId, setPartnerId] = useState('')
-  const [owner, setOwner] = useState('')
+  const [ownerId, setOwnerId] = useState('')
   const [vendor, setVendor] = useState('')
   const [stage, setStage] = useState('')
   const [from, setFrom] = useState('')
@@ -33,7 +34,7 @@ export function DealFilterBar({ onSearch }: Props) {
           keyword: keyword.trim() || undefined,
           customer_id: customerId || undefined,
           partner_id: partnerId || undefined,
-          owner: owner.trim() || undefined,
+          owner_user_id: ownerId || undefined,
           vendor: vendor.trim() || undefined,
           stage: (stage || undefined) as DealStage | undefined,
           revenue_from: from || undefined,
@@ -58,7 +59,7 @@ export function DealFilterBar({ onSearch }: Props) {
           </option>
         ))}
       </SelectField>
-      <TextField label="Owner" name="owner" value={owner} onChange={setOwner} />
+      <UserSelect label="Owner" name="owner_user_id" value={ownerId} onChange={setOwnerId} includeResigned />
       <TextField label="Vendor" name="vendor" value={vendor} onChange={setVendor} />
       <SelectField label="단계" name="stage" value={stage} onChange={setStage}>
         <option value="">전체</option>

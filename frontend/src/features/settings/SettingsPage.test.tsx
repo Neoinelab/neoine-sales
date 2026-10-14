@@ -2,7 +2,7 @@ import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 import { formatDateTime } from '../../shared/format'
-import { DIRECTORY_SETTINGS, ME_ADMIN, ME_DEV_ADMIN } from '../../test/authFixtures'
+import { DIRECTORY_SETTINGS, ME_ADMIN, ME_DEV_ADMIN, userRef } from '../../test/authFixtures'
 import { setField } from '../../test/directoryForm'
 import { mockApi, problem, renderApp } from '../../test/utils'
 import { SettingsPage } from './SettingsPage'
@@ -39,7 +39,12 @@ describe('SettingsPage current settings (UI-8)', () => {
     await openPage({})
 
     const line = screen.getByText(formatDateTime(DIRECTORY_SETTINGS.updated_at), { exact: false })
-    expect(line).toHaveTextContent('root')
+    expect(line).toHaveTextContent('최관리')
+  })
+
+  it('shows a resigned last editor with the 이름(퇴사) label', async () => {
+    await openPage({ [GET]: { body: { ...DIRECTORY_SETTINGS, updated_by: userRef('u-7', '이퇴사', true) } } })
+    expect(screen.getByText(formatDateTime(DIRECTORY_SETTINGS.updated_at), { exact: false })).toHaveTextContent('이퇴사(퇴사)')
   })
 
   it('asks for the current admin password to confirm the new settings', async () => {
@@ -205,6 +210,12 @@ describe('SettingsPage as the dev admin (UI-8)', () => {
     const put = requests.find((r) => r.method === 'PUT')
     expect((put?.body as { password?: string | null }).password ?? null).toBeNull()
     expect(put?.body).toMatchObject({ expected_revision: 3 })
+  })
+
+  it('still asks for a password when the subject only looks like the old dev: prefix', async () => {
+    await openPage({}, { ...ME_ADMIN, subject: 'dev:admin' })
+
+    expect(screen.getByLabelText(/현재 관리자 비밀번호/)).toBeRequired()
   })
 
   it('does not send a save request without a password for a directory admin', async () => {
