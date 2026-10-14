@@ -42,13 +42,16 @@ def test_deal_search_text_params_document_max_length() -> None:
 
     params = {p["name"]: p for p in schema["paths"]["/api/v1/deals"]["get"]["parameters"]}
 
-    for name in ("keyword", "owner", "vendor"):
+    for name in ("keyword", "vendor"):
         lengths = [
             option["maxLength"]
             for option in params[name]["schema"]["anyOf"]
             if "maxLength" in option
         ]
         assert lengths == [100], f"{name} 파라미터에 maxLength 100이 없다"
+    assert "owner" not in params  # 텍스트 담당자 필터는 owner_user_id(UUID)로 바뀌었다
+    owner_types = {o.get("format") for o in params["owner_user_id"]["schema"]["anyOf"]}
+    assert "uuid" in owner_types
 
 
 def test_customer_and_partner_search_params_document_max_length() -> None:

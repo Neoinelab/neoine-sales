@@ -2,8 +2,11 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
+from app.application.auth.messages import LOGIN_FAILED
 from app.application.auth.tokens import hash_token, new_token
+from app.domain.auth.errors import AuthenticationError
 from app.domain.auth.session import AuthSession, SessionId
+from app.domain.user.errors import UserNotFoundError
 
 if TYPE_CHECKING:
     from datetime import datetime, timedelta
@@ -32,7 +35,10 @@ class IssueSession:
         session = AuthSession(
             id=SessionId(uuid4()), principal=principal, created_at=now, expires_at=now + self._ttl
         )
-        async with self._uow_factory() as uow:
-            await uow.sessions.add(session, hash_token(token))
-            await uow.commit()
+        try:
+            async with self._uow_factory() as uow:
+                await uow.sessions.add(session, hash_token(token))
+                await uow.commit()
+        except UserNotFoundError:  # 발급 직전 사용자가 삭제됨(세션 FK 위반)
+            raise AuthenticationError(LOGIN_FAILED) from None
         return IssuedSession(token, session.expires_at, principal)

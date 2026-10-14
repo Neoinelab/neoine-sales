@@ -2,6 +2,7 @@
 
 import asyncio
 from typing import TYPE_CHECKING
+from uuid import UUID
 
 import pytest
 from sqlalchemy import text
@@ -111,6 +112,12 @@ async def test_deleted_user_is_locked_out_on_the_next_request(
             await http.post(SETUP, json=credentials())
             assert (await http.get("/api/v1/customers")).status_code == 200
 
+            # 세션 FK(RESTRICT) 때문에 세션 행을 먼저 지운 뒤 사용자 행을 지운다.
+            await _sql(
+                auth_full_stack,
+                "delete from auth_sessions"
+                " where user_id = (select id from users where login_id='kim')",
+            )
             await _sql(auth_full_stack, "delete from users where login_id='kim'")
 
             assert (await http.get("/api/v1/customers")).status_code == 401
@@ -187,19 +194,22 @@ async def test_new_settings_apply_to_the_next_login_on_every_instance(
         await second_container.dispose()
 
 
-async def test_dev_session_works_only_while_dev_login_is_enabled(
+async def test_dev_login_creates_a_real_user_row_only_while_it_is_enabled(
     auth_full_stack: AuthFullStack,
 ) -> None:
     enabled_container, enabled_app = auth_full_stack.open_app(dev_login_enabled=True)
     disabled_container, disabled_app = auth_full_stack.open_app(dev_login_enabled=False)
     try:
         async with new_client(enabled_app) as http:
-            issued = await http.post("/api/v1/auth/dev-login", json={"role": "admin"})
-            token = issued.cookies[SESSION_COOKIE]
-            assert (await http.get(ME)).json()["subject"] == "dev:admin"
+            await http.post("/api/v1/auth/dev-login", json={"role": "admin"})
+            me = (await http.get(ME)).json()
+            assert me["subject"] == "dev-admin"
+            assert UUID(me["user_id"])  # PostgreSQL users 행의 id
 
-        async with new_client(disabled_app, token=token) as http:
-            assert (await http.get(ME)).status_code == 401
+        async with new_client(disabled_app) as http:  # 비활성 앱에는 개발 로그인 자체가 없다
+            assert (
+                await http.post("/api/v1/auth/dev-login", json={"role": "admin"})
+            ).status_code == 404
     finally:
         await enabled_container.dispose()
         await disabled_container.dispose()

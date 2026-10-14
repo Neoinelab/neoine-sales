@@ -1,10 +1,12 @@
+import hashlib
+import logging
 from typing import TYPE_CHECKING
 
 from app.application.auth.credential_check import parse_login_id, verify_credentials
 from app.application.auth.messages import DIRECTORY_NOT_CONFIGURED, LOGIN_FAILED
 from app.domain.auth.errors import AuthenticationError
 from app.domain.common.errors import InvalidStateError
-from app.domain.user.errors import UserNotFoundError
+from app.domain.user.errors import AmbiguousLoginIdError, UserNotFoundError
 
 if TYPE_CHECKING:
     from app.application.auth.deps import AuthDeps
@@ -12,6 +14,13 @@ if TYPE_CHECKING:
     from app.application.ports.directory import DirectoryUser
     from app.domain.auth.credentials import LoginId, Password
     from app.domain.auth.principal import Principal
+
+logger = logging.getLogger(__name__)
+
+
+def _short_hash(value: str) -> str:
+    """로그에 원문 대신 남길 식별용 해시(앞 12자)."""
+    return hashlib.sha256(value.encode()).hexdigest()[:12]
 
 
 class DirectoryLogin:
@@ -34,11 +43,21 @@ class DirectoryLogin:
         )
         principal = await self._record_login(account, profile)
         await self._deps.throttle.succeeded(account, client_ip)
-        return await self._issue_session.execute(principal)
+        return await self._issue_session.execute(
+            principal
+        )  # 사용자 삭제 경쟁은 IssueSession이 변환
 
     async def _record_login(self, account: LoginId, profile: DirectoryUser) -> Principal:
         async with self._deps.uow_factory() as uow:
-            user = await uow.users.get_active_by_login_id(account)
+            try:
+                user = await uow.users.get_active_by_login_id(account)
+            except AmbiguousLoginIdError as error:
+                logger.warning(
+                    "재직 로그인 아이디 중복으로 로그인 거부 count=%d login_id_hash=%s",
+                    error.count,
+                    _short_hash(account.value),
+                )
+                raise AuthenticationError(LOGIN_FAILED) from None
             if user is not None:
                 user.record_login(
                     self._deps.clock.now(), display_name=profile.display_name, email=profile.email

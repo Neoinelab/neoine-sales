@@ -13,10 +13,25 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.pool import NullPool
 
+from tests.support.revisions import LEGACY_HEAD
+
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from sqlalchemy.engine import URL, Connection
 
 pytestmark = pytest.mark.integration
+
+
+@pytest.fixture
+def test_database_url(database_at: Callable[[str], URL]) -> URL:
+    """users 문자열 컬럼(created_by 등) 시절의 마지막 스키마(LEGACY_HEAD)에서 검증한다.
+
+    이후 사용자 FK 리비전이 users·auth_sessions를 바꾸므로 이 파일의 head 단언은 과거 스키마용이다.
+    현재 head의 users 스키마는 test_user_fk_migration / test_schema_integrity가 검증한다.
+    """
+    return database_at(LEGACY_HEAD)
+
 
 PREVIOUS_REVISION = "39d531ff2643"
 NEW_TABLES = {"users", "login_failures", "directory_settings"}

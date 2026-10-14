@@ -76,7 +76,12 @@ async def test_admin_updates_settings_after_verifying_with_their_own_password(
     assert response.status_code == 200
     body = response.json()
     assert set(body) == FIELDS
-    assert (body["base_dn"], body["revision"], body["updated_by"]) == (NEW_DN, 2, "root")
+    assert (body["base_dn"], body["revision"]) == (NEW_DN, 2)
+    # UserRef: 저장한 admin의 users 행(이름은 로그인 때 채워진 표시 이름)
+    assert body["updated_by"]["id"] == str(await use_cases.user_id_of("root"))
+    assert body["updated_by"]["name"] == "사용자 root"
+    assert set(body["updated_by"]) == {"id", "name", "resigned", "label"}
+    assert body["updated_by"]["resigned"] is False
     assert (await admin_client.get(SETTINGS)).json() == body
     (call,) = use_cases.directory.authenticate_calls
     assert (call.login_id.value, call.password, call.settings.base_dn) == (

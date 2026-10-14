@@ -52,19 +52,22 @@ async def test_search_by_stage(client: AsyncClient) -> None:
     assert await _codes(client) == ["D-1", "D-2", "D-3"]
 
 
-async def test_search_stage_combines_with_other_conditions_and_paging(client: AsyncClient) -> None:
+async def test_search_stage_combines_with_other_conditions_and_paging(
+    client: AsyncClient, owners: dict[str, str]
+) -> None:
     customer_id = await _customer_id(client)
+    x, park = owners["x"], owners["park"]
     ids = [
-        await _create_id(client, customer_id, "D-1", owner="김영업"),
-        await _create_id(client, customer_id, "D-2", owner="박영업"),
-        await _create_id(client, customer_id, "D-3", owner="박영업"),
-        await _create_id(client, customer_id, "D-4", owner="박영업"),
+        await _create_id(client, customer_id, "D-1", owner_user_id=x),
+        await _create_id(client, customer_id, "D-2", owner_user_id=park),
+        await _create_id(client, customer_id, "D-3", owner_user_id=park),
+        await _create_id(client, customer_id, "D-4", owner_user_id=park),
     ]
     for deal_id in ids[:3]:
         await _move(client, deal_id, "lost")
 
-    assert await _codes(client, stage="lost", owner="박영업") == ["D-2", "D-3"]
-    assert await _codes(client, stage="lost", owner="박영업", offset=1, limit=1) == ["D-3"]
+    assert await _codes(client, stage="lost", owner_user_id=park) == ["D-2", "D-3"]
+    assert await _codes(client, stage="lost", owner_user_id=park, offset=1, limit=1) == ["D-3"]
     assert await _codes(client, stage="lost", keyword="d-4") == []
 
 

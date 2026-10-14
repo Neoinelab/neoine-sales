@@ -16,13 +16,16 @@ from app.domain.partner.errors import PartnerInUseError, PartnerNotFoundError
 from app.infra.db.customer_repository import SqlCustomerRepository
 from app.infra.db.deal_repository import SqlDealRepository
 from app.infra.db.partner_repository import SqlPartnerRepository
+from app.infra.db.user_repository import SqlUserRepository
 from tests.factories import NOW, make_customer_details, make_deal, make_partner_details
 from tests.fakes.repositories import (
     FakeCustomerRepository,
     FakeDealRepository,
     FakePartnerRepository,
 )
+from tests.fakes.user_repository import FakeUserRepository
 from tests.support.database import rolled_back_session
+from tests.support.user_seed import ensure_users
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
@@ -44,6 +47,7 @@ class ContactDeleteCase:
     deals: Any
     in_use: type[Exception]
     not_found: type[Exception]
+    users: Any
 
     @property
     def contacts(self) -> Any:  # noqa: ANN401 - 고객·파트너 저장소 공용 접근자
@@ -55,7 +59,9 @@ class ContactDeleteCase:
         await self.customers.add(customer)
         partner = Partner.create(make_partner_details(), NOW)
         await self.partners.add(partner)
-        await self.deals.add(make_deal(customer_id=customer.id, partner_id=partner.id))
+        deal = make_deal(customer_id=customer.id, partner_id=partner.id)
+        await ensure_users(self.users, deal.details.owner_user_id)  # FK: 담당자 행
+        await self.deals.add(deal)
         return customer if self.kind == "customer" else partner
 
     async def new_contact(self) -> Customer | Partner:
@@ -81,7 +87,9 @@ async def contact_delete_case(request: pytest.FixtureRequest) -> AsyncIterator[C
         )
         customers.restrict_delete_by(deals)
         partners.restrict_delete_by(deals)
-        yield ContactDeleteCase(kind, customers, partners, deals, in_use, not_found)
+        yield ContactDeleteCase(
+            kind, customers, partners, deals, in_use, not_found, FakeUserRepository()
+        )
         return
     url = request.getfixturevalue("test_database_url")
     async with rolled_back_session(url) as session:
@@ -92,6 +100,7 @@ async def contact_delete_case(request: pytest.FixtureRequest) -> AsyncIterator[C
             SqlDealRepository(session),
             in_use,
             not_found,
+            SqlUserRepository(session),
         )
 
 

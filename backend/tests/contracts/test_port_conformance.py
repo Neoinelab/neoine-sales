@@ -19,6 +19,7 @@ from app.infra.db.deal_stage_change_repository import SqlDealStageChangeReposito
 from app.infra.db.partner_repository import SqlPartnerRepository
 from app.infra.db.unit_of_work import SqlUnitOfWork
 from app.infra.system_clock import SystemClock
+from app.web.use_case_provider import UseCaseProvider
 from tests.factories import NOW
 from tests.fakes.repositories import (
     FakeCustomerRepository,
@@ -32,7 +33,6 @@ from tests.fakes.use_cases import FakeUseCases
 if TYPE_CHECKING:
     from app.application.ports.clock import Clock
     from app.application.ports.unit_of_work import UnitOfWork
-    from app.web.use_case_provider import UseCaseProvider
 
 
 def test_fake_repositories_satisfy_their_ports() -> None:
@@ -97,6 +97,13 @@ def test_clocks_satisfy_the_port_and_return_aware_times() -> None:
 
     assert fixed.now() == NOW
     assert system.now().utcoffset() is not None
+
+
+def test_the_web_port_exposes_the_user_option_and_ref_use_cases() -> None:
+    for name in ("list_user_options", "resolve_user_refs"):
+        assert hasattr(UseCaseProvider, name), name
+        assert hasattr(FakeUseCases, name), name
+        assert hasattr(Container, name), name
 
 
 async def test_use_case_providers_satisfy_the_web_port() -> None:

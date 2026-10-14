@@ -8,6 +8,7 @@ from tests.e2e.payloads import customer_payload, deal_payload, partner_payload
 if TYPE_CHECKING:
     from httpx import AsyncClient
 
+
 DEALS = "/api/v1/deals"
 
 
@@ -51,15 +52,20 @@ async def test_list_without_params_keeps_creation_order_and_page_shape(
         "revenue_currency", "revenue_date", "customer_id", "partner_id",
         "created_at", "updated_at",
     } <= set(body["items"][0])  # fmt: skip
+    assert set(body["items"][0]["owner"]) == {"id", "name", "resigned", "label"}
 
 
-async def test_list_excludes_deleted_deals_even_when_they_match(client: AsyncClient) -> None:
+async def test_list_excludes_deleted_deals_even_when_they_match(
+    client: AsyncClient, owners: dict[str, str]
+) -> None:
     customer_id = await _customer_id(client)
-    await _create(client, customer_id, "KEEP", owner="X")
-    gone = await client.post(DEALS, json=deal_payload(customer_id, code="GONE", owner="X"))
+    await _create(client, customer_id, "KEEP", owner_user_id=owners["x"])
+    gone = await client.post(
+        DEALS, json=deal_payload(customer_id, code="GONE", owner_user_id=owners["x"])
+    )
     await client.delete(f"{DEALS}/{gone.json()['id']}")
 
-    assert await _codes(client, owner="X") == ["KEEP"]
+    assert await _codes(client, owner_user_id=owners["x"]) == ["KEEP"]
     assert await _codes(client) == ["KEEP"]
 
 
@@ -185,30 +191,16 @@ async def test_search_with_unknown_customer_or_partner_returns_empty_list(
     assert await _codes(client, partner_id=str(uuid4())) == []
 
 
-async def test_search_by_owner_and_vendor_requires_exact_match(client: AsyncClient) -> None:
-    customer_id = await _customer_id(client)
-    await _create(client, customer_id, "D-1", owner="박영업", vendor="SAP")
-    await _create(client, customer_id, "D-2", owner="박영업2", vendor="SAP Korea")
-
-    assert await _codes(client, owner="박영업") == ["D-1"]
-    assert await _codes(client, vendor="SAP") == ["D-1"]
-    assert await _codes(client, owner="박영", vendor="SAP") == []
-
-
-async def test_search_by_owner_ignores_surrounding_spaces(client: AsyncClient) -> None:
-    customer_id = await _customer_id(client)
-    await _create(client, customer_id, "D-1", owner="박영업")
-
-    assert await _codes(client, owner=" 박영업 ") == ["D-1"]
-
-
-async def test_search_rejects_owner_over_100_chars_as_request_validation(
-    client: AsyncClient,
+async def test_search_by_owner_user_id_and_vendor_requires_exact_match(
+    client: AsyncClient, owners: dict[str, str]
 ) -> None:
-    response = await client.get(DEALS, params={"owner": "a" * 101})
+    customer_id = await _customer_id(client)
+    await _create(client, customer_id, "D-1", owner_user_id=owners["park"], vendor="SAP")
+    await _create(client, customer_id, "D-2", owner_user_id=owners["park2"], vendor="SAP Korea")
 
-    assert response.status_code == 422
-    assert response.json()["type"].endswith("request-validation")
+    assert await _codes(client, owner_user_id=owners["park"]) == ["D-1"]
+    assert await _codes(client, vendor="SAP") == ["D-1"]
+    assert await _codes(client, owner_user_id=owners["park2"], vendor="SAP") == []
 
 
 async def test_search_rejects_vendor_over_100_chars_as_request_validation(
@@ -220,8 +212,8 @@ async def test_search_rejects_vendor_over_100_chars_as_request_validation(
     assert response.json()["type"].endswith("request-validation")
 
 
-async def test_search_accepts_owner_and_vendor_of_exactly_100_chars(client: AsyncClient) -> None:
-    response = await client.get(DEALS, params={"owner": "a" * 100, "vendor": "a" * 100})
+async def test_search_accepts_vendor_of_exactly_100_chars(client: AsyncClient) -> None:
+    response = await client.get(DEALS, params={"vendor": "a" * 100})
 
     assert response.status_code == 200
 
@@ -264,16 +256,18 @@ async def test_search_rejects_malformed_revenue_date(client: AsyncClient) -> Non
         assert response.json()["type"].endswith("request-validation")
 
 
-async def test_search_combines_conditions_with_and_and_keeps_paging(client: AsyncClient) -> None:
+async def test_search_combines_conditions_with_and_and_keeps_paging(
+    client: AsyncClient, owners: dict[str, str]
+) -> None:
     customer_a = await _customer_id(client, "고객A")
     customer_b = await _customer_id(client, "고객B")
-    june = "2026-06-10"
-    await _create(client, customer_a, "HIT-1", owner="X", revenue_date=june)
-    await _create(client, customer_b, "OTHER-CUSTOMER", owner="X", revenue_date=june)
-    await _create(client, customer_a, "HIT-2", owner="X", revenue_date=june)
-    await _create(client, customer_a, "OTHER-OWNER", owner="Y", revenue_date=june)
+    june, x, y = "2026-06-10", owners["x"], owners["y"]
+    await _create(client, customer_a, "HIT-1", owner_user_id=x, revenue_date=june)
+    await _create(client, customer_b, "OTHER-CUSTOMER", owner_user_id=x, revenue_date=june)
+    await _create(client, customer_a, "HIT-2", owner_user_id=x, revenue_date=june)
+    await _create(client, customer_a, "OTHER-OWNER", owner_user_id=y, revenue_date=june)
 
-    params = {"customer_id": customer_a, "owner": "X", "revenue_from": "2026-06-01"}
+    params = {"customer_id": customer_a, "owner_user_id": x, "revenue_from": "2026-06-01"}
 
     assert await _codes(client, **params) == ["HIT-1", "HIT-2"]
     assert await _codes(client, **params, offset=1, limit=1) == ["HIT-2"]

@@ -5,12 +5,11 @@
 """
 
 from datetime import UTC, date, datetime
-from pathlib import Path
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import pytest
-from alembic.script import Script, ScriptDirectory
+from alembic.script import ScriptDirectory
 from sqlalchemy import inspect, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
@@ -23,17 +22,19 @@ from tests.support.database import (
     resolve_admin_url,
     temporary_database,
 )
+from tests.support.revisions import AUTH_REVISION, HISTORY_REVISION
 from tests.support.skips import skip_or_fail
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from uuid import UUID
 
     from sqlalchemy.engine import URL
 
 pytestmark = pytest.mark.integration
 
-PREVIOUS_HEAD = "dd7f21f7190e"
-HISTORY_HEAD = "e3a9c41b7d52"  # 이 리비전까지만 검증한다(이후 리비전은 별도 테스트)
+PREVIOUS_HEAD = AUTH_REVISION
+HISTORY_HEAD = HISTORY_REVISION  # 이 리비전까지만 검증한다(이후 리비전은 별도 테스트)
 
 COLUMN_INFO = (
     "select column_name, is_nullable, character_maximum_length, data_type"
@@ -51,22 +52,18 @@ INSERT_NEW_ACTION = (
 )
 
 
-def _history_revision() -> Script:
-    """deal_actions.next_action을 추가하는 리비전."""
-    script = ScriptDirectory.from_config(_alembic_config())
-    for revision in script.walk_revisions():
-        source = Path(revision.path).read_text(encoding="utf-8")
-        if "next_action" in source and "deal_actions" in source:
-            return revision
-    pytest.fail("deal_actions.next_action을 추가하는 마이그레이션 리비전이 없다")
+@pytest.fixture
+def test_database_url(database_at: Callable[[str], URL]) -> URL:
+    """이 모듈의 DB 테스트는 이력 리비전(HISTORY_HEAD) 스키마에서 돈다(head가 아니다)."""
+    return database_at(HISTORY_HEAD)
 
 
 def test_history_revision_follows_the_previous_head_and_is_an_ancestor_of_the_single_head() -> None:
     script = ScriptDirectory.from_config(_alembic_config())
-    revision = _history_revision()
+    revision = script.get_revision(HISTORY_HEAD)
 
+    assert revision is not None
     assert revision.down_revision == PREVIOUS_HEAD
-    assert revision.revision == HISTORY_HEAD
     assert len(script.get_heads()) == 1
     ancestors = {r.revision for r in script.walk_revisions(base="base", head="heads")}
     assert revision.revision in ancestors
@@ -266,7 +263,7 @@ async def test_downgrade_restores_old_columns_and_upgrade_again_works() -> None:
     action_id = uuid4()
 
     async with temporary_database(admin_url) as url:
-        await apply_migrations(url)
+        await apply_migrations(url, target=HISTORY_HEAD)
         engine = create_async_engine(url, poolclass=NullPool)
         try:
             async with engine.begin() as connection:
@@ -285,7 +282,7 @@ async def test_downgrade_restores_old_columns_and_upgrade_again_works() -> None:
                         {"id": action_id},
                     )
                 ).one()
-            await apply_migrations(url)
+            await apply_migrations(url, target=HISTORY_HEAD)
             async with engine.connect() as connection:
                 again = await connection.run_sync(
                     lambda c: {col["name"] for col in inspect(c).get_columns("deal_actions")}

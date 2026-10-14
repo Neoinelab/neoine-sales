@@ -18,10 +18,15 @@ from app.domain.deal.errors import DealInUseError, DealNotFoundError
 from app.domain.deal.value_objects import DealId
 from app.domain.deal_action.value_objects import ActionType
 from tests.factories import NOW, make_customer_input, make_deal_action_input, make_deal_input
+from tests.support.user_ids import uid
+from tests.support.user_seed import ensure_users
 
 if TYPE_CHECKING:
     from app.application.ports.unit_of_work import UnitOfWorkFactory
     from tests.fakes.unit_of_work import FixedClock
+
+
+pytestmark = pytest.mark.usefixtures("default_users")
 
 
 @pytest.fixture
@@ -35,13 +40,16 @@ async def deal_id(uow_factory: UnitOfWorkFactory, clock: FixedClock) -> DealId:
 async def seeded(uow_factory: UnitOfWorkFactory, clock: FixedClock, deal_id: DealId) -> list[str]:
     """(유형, 진행내역, 다음 계획, 메모, 진행자, 진행 일차, 계획일)"""
     register = RegisterDealAction(uow_factory, clock)
+    async with uow_factory() as uow:
+        await ensure_users(uow.users, uid("kim"), uid("park"))
+        await uow.commit()
     rows = [
         (
             ActionType.CALL,
             "첫 통화",
             "견적서 준비",
             "예산 문의 100%",
-            "김영업",
+            "kim",
             0,
             date(2026, 2, 10),
         ),
@@ -50,17 +58,17 @@ async def seeded(uow_factory: UnitOfWorkFactory, clock: FixedClock, deal_id: Dea
             "킥오프 미팅",
             "요구사항 정리",
             "일정 협의",
-            "박영업",
+            "park",
             1,
             date(2026, 2, 1),
         ),
-        (ActionType.EMAIL, "제안서 발송", "회신 확인", "견적 첨부", "박영업", 2, date(2026, 2, 10)),
+        (ActionType.EMAIL, "제안서 발송", "회신 확인", "견적 첨부", "park", 2, date(2026, 2, 10)),
         (
             ActionType.MEETING,
             "최종 미팅",
             "계약서 초안",
             "조건 협의",
-            "김영업",
+            "kim",
             3,
             date(2026, 3, 1),
         ),
@@ -73,7 +81,7 @@ async def seeded(uow_factory: UnitOfWorkFactory, clock: FixedClock, deal_id: Dea
                 action=action,
                 next_action=next_action,
                 memo=memo,
-                actor=actor,
+                actor_user_id=uid(actor),
                 acted_at=NOW + timedelta(days=day),
                 due_date=due,
             ),
@@ -94,9 +102,14 @@ async def test_default_order_is_latest_activity_first(
 
 async def test_filters_combine_with_and(uow_factory: UnitOfWorkFactory, seeded: list[str]) -> None:
     assert await _names(uow_factory, action_type=ActionType.MEETING) == ["최종 미팅", "킥오프 미팅"]
-    assert await _names(uow_factory, action_type=ActionType.MEETING, actor="박영업") == [
+    assert await _names(uow_factory, action_type=ActionType.MEETING, actor_user_id=uid("park")) == [
         "킥오프 미팅"
     ]
+
+
+async def test_filters_by_actor_user_id(uow_factory: UnitOfWorkFactory, seeded: list[str]) -> None:
+    assert await _names(uow_factory, actor_user_id=uid("kim")) == ["최종 미팅", "첫 통화"]
+    assert await _names(uow_factory, actor_user_id=uid("nobody")) == []
 
 
 async def test_keyword_matches_action_next_action_and_memo_ignoring_case(

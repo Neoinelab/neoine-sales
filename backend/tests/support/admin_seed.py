@@ -22,5 +22,5 @@ async def session_is_active(
 
 async def active_logins(uow_factory: UnitOfWorkFactory) -> list[str]:
     async with uow_factory() as uow:
-        users = await uow.users.list_active(limit=100)
+        users = await uow.users.list_users(limit=100)
     return sorted(u.login_id.value for u in users)

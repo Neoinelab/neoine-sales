@@ -7,6 +7,7 @@ from sqlalchemy.exc import IntegrityError
 
 from app.domain.directory.errors import DirectorySettingsConflictError
 from app.domain.directory.settings import DirectorySettings, DirectoryUrl, StoredDirectorySettings
+from app.domain.user.value_objects import UserId
 from app.infra.db.models_auth import DirectorySettingsRow
 
 if TYPE_CHECKING:
@@ -48,7 +49,7 @@ def _to_entity(row: DirectorySettingsRow) -> StoredDirectorySettings:
         ),
         revision=row.revision,
         updated_at=row.updated_at,
-        updated_by=row.updated_by,
+        updated_by=UserId(row.updated_by_user_id) if row.updated_by_user_id else None,
     )
 
 
@@ -70,7 +71,7 @@ class SqlDirectorySettingsRepository:
         settings: DirectorySettings,
         *,
         expected_revision: int | None,
-        updated_by: str | None,
+        updated_by: UserId | None,
         now: datetime,
     ) -> StoredDirectorySettings:
         if expected_revision is None:
@@ -83,10 +84,14 @@ class SqlDirectorySettingsRepository:
         return stored
 
     async def _create(
-        self, settings: DirectorySettings, updated_by: str | None, now: datetime
+        self, settings: DirectorySettings, updated_by: UserId | None, now: datetime
     ) -> None:
         row = DirectorySettingsRow(
-            id=_ROW_ID, revision=1, updated_at=now, updated_by=updated_by, **_values(settings)
+            id=_ROW_ID,
+            revision=1,
+            updated_at=now,
+            updated_by_user_id=updated_by,
+            **_values(settings),
         )
         try:
             async with self._session.begin_nested():
@@ -99,7 +104,7 @@ class SqlDirectorySettingsRepository:
         self,
         settings: DirectorySettings,
         expected_revision: int,
-        updated_by: str | None,
+        updated_by: UserId | None,
         now: datetime,
     ) -> None:
         statement = (
@@ -111,7 +116,7 @@ class SqlDirectorySettingsRepository:
             .values(
                 revision=expected_revision + 1,
                 updated_at=now,
-                updated_by=updated_by,
+                updated_by_user_id=updated_by,
                 **_values(settings),
             )
             .returning(DirectorySettingsRow.id)

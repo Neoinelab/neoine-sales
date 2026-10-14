@@ -24,7 +24,8 @@ async def test_register_user_stores_the_chosen_role(
     user = await admin.register_user.execute(login_id="new.hire", role=role, actor=ADMIN_ACTOR)
 
     assert (user.login_id.value, user.role) == ("new.hire", role)
-    assert (user.created_by, user.created_at) == ("root", NOW)
+    assert (user.created_by_user_id, user.created_at) == (ADMIN_ACTOR.user_id, NOW)
+    assert user.is_active
     assert (user.display_name, user.email, user.last_login_at) == (
         None,
         None,
@@ -35,10 +36,20 @@ async def test_register_user_stores_the_chosen_role(
     assert (stored.login_id.value, stored.role) == ("new.hire", role)
 
 
-async def test_register_user_records_a_dev_admin_as_creator(admin: AdminStack) -> None:
+async def test_register_user_records_the_acting_users_id_as_creator(admin: AdminStack) -> None:
     user = await admin.register_user.execute(login_id="kim", role=Role.SALES, actor=DEV_ACTOR)
 
-    assert user.created_by == "dev:admin"
+    assert user.created_by_user_id == DEV_ACTOR.user_id
+
+
+@pytest.mark.parametrize("reserved", ["dev-admin", "dev-sales", "dev-user", "DEV-ADMIN"])
+async def test_register_user_rejects_the_reserved_dev_login_ids(
+    admin: AdminStack, uow_factory: UnitOfWorkFactory, reserved: str
+) -> None:
+    with pytest.raises(InvalidValueError):
+        await admin.register_user.execute(login_id=reserved, role=Role.SALES, actor=ADMIN_ACTOR)
+
+    assert await active_logins(uow_factory) == []
 
 
 async def test_register_user_normalizes_the_login_id(admin: AdminStack) -> None:
@@ -88,7 +99,7 @@ async def test_register_user_rejects_an_active_duplicate(
     assert await active_logins(uow_factory) == ["kim"]
 
 
-async def test_register_user_allows_a_login_id_whose_user_was_deleted(
+async def test_register_user_allows_a_login_id_whose_user_was_physically_deleted(
     admin: AdminStack, uow_factory: UnitOfWorkFactory
 ) -> None:
     old = await seed_user(uow_factory, "kim", Role.SALES, deleted=True)

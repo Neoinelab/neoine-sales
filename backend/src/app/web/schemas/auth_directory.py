@@ -1,10 +1,19 @@
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from pydantic import BaseModel
 
 from app.domain.directory.settings import DirectorySettings, StoredDirectorySettings
 from app.domain.directory.url import DEFAULT_PORTS, DirectoryUrl
 from app.web.schemas.common import RequestModel
+from app.web.schemas.user_ref import UserRef, ref_of, resolve_refs
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
+
+    from app.domain.user.value_objects import UserId
+    from app.domain.user.value_objects import UserRef as DomainUserRef
+    from app.web.use_case_provider import UseCaseProvider
 
 
 def _format_url(url: DirectoryUrl) -> str:
@@ -56,11 +65,14 @@ class DirectorySettingsResponse(BaseModel):
     receive_timeout_seconds: int
     revision: int
     updated_at: datetime
-    updated_by: str | None
+    updated_by: UserRef | None
 
     @classmethod
-    def from_stored(cls, stored: StoredDirectorySettings) -> DirectorySettingsResponse:
+    def from_stored(
+        cls, stored: StoredDirectorySettings, refs: Mapping[UserId, DomainUserRef]
+    ) -> DirectorySettingsResponse:
         s = stored.settings
+        updated_by = None if stored.updated_by is None else ref_of(refs, stored.updated_by)
         return cls(
             server_urls=[_format_url(url) for url in s.server_urls],
             use_starttls=s.use_starttls,
@@ -74,5 +86,13 @@ class DirectorySettingsResponse(BaseModel):
             receive_timeout_seconds=s.receive_timeout_seconds,
             revision=stored.revision,
             updated_at=stored.updated_at,
-            updated_by=stored.updated_by,
+            updated_by=updated_by,
         )
+
+
+async def directory_response(
+    provider: UseCaseProvider, stored: StoredDirectorySettings
+) -> DirectorySettingsResponse:
+    """저장자(updated_by) 표시 이름을 풀어 응답으로 만든다."""
+    refs = await resolve_refs(provider, [stored.updated_by])
+    return DirectorySettingsResponse.from_stored(stored, refs)

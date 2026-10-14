@@ -2,11 +2,13 @@
 
 from datetime import datetime
 from typing import Any
+from uuid import UUID
 
 from sqlalchemy import (
     Boolean,
     CheckConstraint,
     DateTime,
+    ForeignKey,
     Index,
     Integer,
     SmallInteger,
@@ -18,10 +20,12 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.domain.auth.principal import Role
+from app.domain.user.value_objects import UserDeleteReason
 from app.infra.db.base import Base
 from app.infra.db.models import AuditColumns
 
 _ROLE_CODES = ", ".join(f"'{role.value}'" for role in Role)
+_DELETE_REASON_CODES = ", ".join(f"'{reason.value}'" for reason in UserDeleteReason)
 
 
 class UserRow(AuditColumns, Base):
@@ -31,13 +35,22 @@ class UserRow(AuditColumns, Base):
     role: Mapped[str] = mapped_column(String(20))
     display_name: Mapped[str | None] = mapped_column(String(200), default=None)
     email: Mapped[str | None] = mapped_column(String(254), default=None)
-    created_by: Mapped[str] = mapped_column(String(200))
+    created_by_user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"))
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
+    delete_reason: Mapped[str | None] = mapped_column(String(20), default=None)
 
+    # login_id에는 유니크를 두지 않는다: 재직자 유일성은 응용 로직(roster 잠금)이 지킨다.
     __table_args__ = (
         CheckConstraint(f"role in ({_ROLE_CODES})", name="role_valid"),
-        Index("uq_users_login_id", func.lower(login_id), unique=True),
+        CheckConstraint(
+            f"delete_reason is null or delete_reason in ({_DELETE_REASON_CODES})",
+            name="delete_reason_valid",
+        ),
+        CheckConstraint("(deleted_at is null) = (delete_reason is null)", name="deleted_pair"),
+        Index("ix_users_login_id_lower", func.lower(login_id)),
         Index("ix_users_created_at_id", "created_at", "id"),
+        Index("ix_users_created_by_user_id", "created_by_user_id"),
     )
 
 
@@ -70,9 +83,12 @@ class DirectorySettingsRow(Base):
     connect_timeout_seconds: Mapped[int] = mapped_column(SmallInteger)
     receive_timeout_seconds: Mapped[int] = mapped_column(SmallInteger)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
-    updated_by: Mapped[str | None] = mapped_column(String(200), default=None)
+    updated_by_user_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), default=None
+    )
 
     __table_args__ = (
+        Index("ix_directory_settings_updated_by_user_id", "updated_by_user_id"),
         CheckConstraint("id = 1", name="single_row"),
         CheckConstraint("revision >= 1", name="revision_positive"),
         CheckConstraint("connect_timeout_seconds between 1 and 30", name="connect_timeout_range"),

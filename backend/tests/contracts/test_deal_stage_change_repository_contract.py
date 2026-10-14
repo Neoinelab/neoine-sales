@@ -15,6 +15,7 @@ from app.domain.deal.stage import DealStage, DealStageChangeId
 from app.infra.db.customer_repository import SqlCustomerRepository
 from app.infra.db.deal_repository import SqlDealRepository
 from app.infra.db.deal_stage_change_repository import SqlDealStageChangeRepository
+from app.infra.db.user_repository import SqlUserRepository
 from tests.factories import (
     NOW,
     later,
@@ -24,12 +25,16 @@ from tests.factories import (
     make_stage_changer,
 )
 from tests.fakes.stage_change_repository import FakeDealStageChangeRepository
+from tests.fakes.user_repository import FakeUserRepository
 from tests.support.database import rolled_back_session
+from tests.support.user_ids import uid
+from tests.support.user_seed import ensure_users
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Awaitable, Callable
 
     from app.application.ports.deal_stage_change_repository import DealStageChangeRepository
+    from app.application.ports.user_repository import UserRepository
     from app.domain.deal.stage import DealStageChange
     from app.domain.deal.value_objects import DealId
 
@@ -44,12 +49,15 @@ class Case:
         self,
         repository: DealStageChangeRepository,
         ensure_deal: Callable[[DealId], Awaitable[None]],
+        users: UserRepository,
     ) -> None:
         self.repository = repository
+        self.users = users
         self._ensure_deal = ensure_deal
 
     async def add(self, change: DealStageChange) -> None:
         await self._ensure_deal(change.deal_id)
+        await ensure_users(self.users, change.changed_by.user_id)  # FK: 변경자 행
         await self.repository.add(change)
 
     async def search(self, deal_id: DealId, **paging: int) -> list[DealStageChange]:
@@ -63,11 +71,12 @@ async def _nothing(_: DealId) -> None:
 @pytest_asyncio.fixture(params=PARAMS)
 async def case(request: pytest.FixtureRequest) -> AsyncIterator[Case]:
     if request.param == "fake":
-        yield Case(FakeDealStageChangeRepository(), _nothing)
+        yield Case(FakeDealStageChangeRepository(), _nothing, FakeUserRepository())
         return
     url = request.getfixturevalue("test_database_url")
     async with rolled_back_session(url) as session:
         customers, deals = SqlCustomerRepository(session), SqlDealRepository(session)
+        users = SqlUserRepository(session)
         customer = Customer.create(make_customer_details(), NOW)
         await customers.add(customer)
         created: set[DealId] = set()
@@ -77,10 +86,11 @@ async def case(request: pytest.FixtureRequest) -> AsyncIterator[Case]:
                 return
             created.add(deal_id)
             details = make_deal_details(code=f"D-{len(created)}", customer_id=customer.id)
+            await ensure_users(users, details.owner_user_id)  # FK: 담당자 행
             with suppress(AlreadyExistsError):
                 await deals.add(Deal.create(details, NOW, entity_id=deal_id))
 
-        yield Case(SqlDealStageChangeRepository(session), ensure_deal)
+        yield Case(SqlDealStageChangeRepository(session), ensure_deal, users)
 
 
 async def test_add_then_search_round_trips_every_field(case: Case) -> None:
@@ -88,7 +98,7 @@ async def test_add_then_search_round_trips_every_field(case: Case) -> None:
         from_stage=DealStage.PRICE_NEGOTIATION,
         to_stage=DealStage.LOST,
         reason="예산 부족",
-        changed_by=make_stage_changer(subject="u-1", name="김영업"),
+        changed_by=make_stage_changer(user_id=uid("kim")),
         changed_at=later(5),
     )
     await case.add(change)
@@ -96,6 +106,7 @@ async def test_add_then_search_round_trips_every_field(case: Case) -> None:
     (stored,) = await case.search(change.deal_id)
 
     assert stored == change
+    assert stored.changed_by.user_id == uid("kim")
     assert stored.changed_at == later(5)
 
 

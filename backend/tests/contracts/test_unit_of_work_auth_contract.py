@@ -14,6 +14,8 @@ from tests.contracts.test_session_repository_contract import make_session
 from tests.factories import NOW, later
 from tests.factories_auth import make_counter, make_directory_settings, make_user
 from tests.fakes.unit_of_work import FakeUnitOfWork
+from tests.support.user_ids import uid
+from tests.support.user_seed import ensure_users
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
@@ -113,17 +115,36 @@ async def test_changes_after_commit_are_discarded(uow_factory: UnitOfWorkFactory
         assert await check.directory_settings.get() is None
 
 
-async def test_session_revocation_by_subject_rolls_back_with_the_unit(
+async def test_session_deletion_by_user_rolls_back_with_the_unit(
     uow_factory: UnitOfWorkFactory,
 ) -> None:
     async with uow_factory() as uow:
+        await ensure_users(uow.users, uid("kim"))
         await uow.sessions.add(make_session(), "tok")
         await uow.commit()
 
     async with uow_factory() as uow:
-        assert await uow.sessions.revoke_all_for_subject("S-1", later(5)) == 1
+        assert await uow.sessions.delete_all_for_user(uid("kim")) == 1
 
     async with uow_factory() as check:
-        stored = await check.sessions.get_by_token_hash("tok")
-        assert stored is not None
-        assert stored.revoked_at is None
+        assert await check.sessions.get_by_token_hash("tok") is not None
+
+
+async def test_resignation_and_session_deletion_commit_together(
+    uow_factory: UnitOfWorkFactory,
+) -> None:
+    async with uow_factory() as uow:
+        await ensure_users(uow.users, uid("kim"))
+        await uow.sessions.add(make_session(), "tok")
+        await uow.commit()
+
+    async with uow_factory() as uow:
+        user = await uow.users.get(uid("kim"))
+        user.resign(later(5))
+        await uow.users.update(user)
+        await uow.sessions.delete_all_for_user(uid("kim"))
+        await uow.commit()
+
+    async with uow_factory() as check:
+        assert not (await check.users.get(uid("kim"))).is_active
+        assert await check.sessions.get_by_token_hash("tok") is None

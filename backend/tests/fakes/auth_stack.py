@@ -5,7 +5,9 @@
 - LoginThrottle(uow_factory, clock, *, secret, account_policy, ip_policy)   ...auth.throttle
 - DirectoryLogin(deps, issue_session), SetupFirstAdmin(deps, issue_session)
 - RegisterSetupDirectory(uow_factory, clock, directory)
-- GetAuthStatus(uow_factory), Authenticate(uow_factory, clock, *, allow_dev_sessions)
+- GetAuthStatus(uow_factory), Authenticate(uow_factory, clock)
+- DevLogin(uow_factory, clock, issue_session): dev-admin|dev-sales|dev-user 행을 users에 두고 발급
+  (allow_dev_sessions는 Authenticate의 allow_dev_users와 VerifyDirectorySettings에 연결된다)
 """
 
 from dataclasses import dataclass
@@ -13,16 +15,15 @@ from datetime import timedelta
 from typing import TYPE_CHECKING
 
 from app.application.auth.auth_status import GetAuthStatus
+from app.application.auth.authenticate import Authenticate
 from app.application.auth.deps import AuthDeps
+from app.application.auth.dev_login import DevLogin
 from app.application.auth.directory_login import DirectoryLogin
+from app.application.auth.issue_session import IssueSession
+from app.application.auth.logout import Logout
 from app.application.auth.setup_directory import RegisterSetupDirectory
 from app.application.auth.setup_first_admin import SetupFirstAdmin
 from app.application.auth.throttle import LoginThrottle
-
-from app.application.auth.authenticate import Authenticate
-from app.application.auth.dev_login import DevLogin
-from app.application.auth.issue_session import IssueSession
-from app.application.auth.logout import Logout
 from tests.factories_auth import make_policy
 from tests.fakes.directory import FakeDirectoryAuthenticator
 
@@ -79,7 +80,7 @@ def build_auth_stack(
         register_directory=RegisterSetupDirectory(uow_factory, clock, directory),
         setup_admin=SetupFirstAdmin(deps, issue),
         login=DirectoryLogin(deps, issue),
-        authenticate=Authenticate(uow_factory, clock, allow_dev_sessions=allow_dev_sessions),
+        authenticate=Authenticate(uow_factory, clock, allow_dev_users=allow_dev_sessions),
         logout=Logout(uow_factory, clock),
-        dev_login=DevLogin(issue),
+        dev_login=DevLogin(uow_factory, clock, issue),
     )

@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.pool import NullPool
 
 from tests.support.database import apply_migrations, resolve_admin_url, temporary_database
+from tests.support.head_rows import insert_deal, insert_user
 from tests.support.skips import skip_or_fail
 
 if TYPE_CHECKING:
@@ -51,6 +52,7 @@ async def _insert_customer(session: AsyncSession, **overrides: object) -> str:
 
 
 async def _insert_deal(session: AsyncSession, customer_id: str, **overrides: object) -> None:
+    """과거 리비전(deals.owner 문자열 컬럼 시절) 스키마 전용. 현재 head는 head_rows.insert_deal."""
     values: dict[str, object] = {
         "id": uuid4(),
         "code": "D-1",
@@ -89,28 +91,44 @@ async def test_negative_revenue_is_rejected_by_the_database(session: AsyncSessio
     customer_id = await _insert_customer(session)
 
     with pytest.raises(IntegrityError, match="ck_deals"):
-        await _insert_deal(session, customer_id, amount=-1)
+        await insert_deal(session, customer_id, amount=-1)
 
 
 async def test_deal_code_is_unique_in_the_database(session: AsyncSession) -> None:
     customer_id = await _insert_customer(session)
-    await _insert_deal(session, customer_id, code="SAME")
+    await insert_deal(session, customer_id, code="SAME")
 
     with pytest.raises(IntegrityError, match="uq_deals_code"):
-        await _insert_deal(session, customer_id, code="SAME")
+        await insert_deal(session, customer_id, code="SAME")
 
 
 async def test_deal_must_reference_an_existing_customer(session: AsyncSession) -> None:
     with pytest.raises(IntegrityError, match="fk_deals_customer_id_customers"):
-        await _insert_deal(session, str(uuid4()))
+        await insert_deal(session, str(uuid4()))
 
 
 async def test_customer_with_deals_cannot_be_physically_deleted(session: AsyncSession) -> None:
     customer_id = await _insert_customer(session)
-    await _insert_deal(session, customer_id)
+    await insert_deal(session, customer_id)
 
     with pytest.raises(IntegrityError, match="fk_deals_customer_id_customers"):
         await session.execute(text("delete from customers where id = :id"), {"id": customer_id})
+
+
+async def test_deal_must_reference_an_existing_owner_user(session: AsyncSession) -> None:
+    customer_id = await _insert_customer(session)
+
+    with pytest.raises(IntegrityError, match="fk_deals_owner_user_id_users"):
+        await insert_deal(session, customer_id, owner_user_id=uuid4())
+
+
+async def test_user_with_deals_cannot_be_physically_deleted(session: AsyncSession) -> None:
+    customer_id = await _insert_customer(session)
+    owner = await insert_user(session, "owner1")
+    await insert_deal(session, customer_id, owner_user_id=owner)
+
+    with pytest.raises(IntegrityError, match="fk_deals_owner_user_id_users"):
+        await session.execute(text("delete from users where id = :id"), {"id": owner})
 
 
 async def test_downgrade_and_upgrade_round_trip() -> None:

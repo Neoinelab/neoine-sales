@@ -10,8 +10,9 @@ from app.application.ports.pagination import DEFAULT_LIMIT, MAX_LIMIT
 from app.domain.common.errors import InvalidValueError
 from app.domain.customer.value_objects import CustomerId
 from app.domain.deal.stage import DealStage
-from app.domain.deal.value_objects import OWNER_MAX, VENDOR_MAX
+from app.domain.deal.value_objects import VENDOR_MAX
 from app.domain.partner.value_objects import PartnerId
+from tests.support.user_ids import uid
 
 
 def test_deal_query_defaults_to_first_page_without_conditions() -> None:
@@ -22,7 +23,7 @@ def test_deal_query_defaults_to_first_page_without_conditions() -> None:
     assert query.keyword is None
     assert query.customer_id is None
     assert query.partner_id is None
-    assert query.owner is None
+    assert query.owner_user_id is None
     assert query.vendor is None
     assert query.revenue_from is None
     assert query.revenue_to is None
@@ -40,7 +41,7 @@ def test_deal_query_keeps_given_conditions() -> None:
         keyword="erp",
         customer_id=customer_id,
         partner_id=partner_id,
-        owner="박영업",
+        owner_user_id=uid("park"),
         vendor="SAP",
         revenue_from=date(2026, 6, 1),
         revenue_to=date(2026, 7, 1),
@@ -51,7 +52,7 @@ def test_deal_query_keeps_given_conditions() -> None:
     assert query.keyword == "erp"
     assert query.customer_id == customer_id
     assert query.partner_id == partner_id
-    assert (query.owner, query.vendor) == ("박영업", "SAP")
+    assert (query.owner_user_id, query.vendor) == (uid("park"), "SAP")
     assert (query.revenue_from, query.revenue_to) == (date(2026, 6, 1), date(2026, 7, 1))
     assert (query.offset, query.limit) == (3, 7)
 
@@ -90,23 +91,26 @@ def test_deal_query_accepts_only_one_revenue_bound() -> None:
 
 
 def test_deal_query_treats_blank_text_conditions_as_none() -> None:
-    query = DealQuery(keyword="   ", owner="  ", vendor="\t")
+    query = DealQuery(keyword="   ", vendor="\t")
 
     assert query.keyword is None
-    assert query.owner is None
     assert query.vendor is None
 
 
 def test_deal_query_strips_text_conditions() -> None:
-    query = DealQuery(keyword=" erp ", owner=" 박영업 ", vendor=" SAP ")
+    query = DealQuery(keyword=" erp ", vendor=" SAP ")
 
-    assert (query.keyword, query.owner, query.vendor) == ("erp", "박영업", "SAP")
+    assert (query.keyword, query.vendor) == ("erp", "SAP")
 
 
-def test_deal_query_keeps_owner_and_vendor_case() -> None:
-    query = DealQuery(owner="Park", vendor="sap")
+def test_deal_query_keeps_vendor_case() -> None:
+    assert DealQuery(vendor="sap").vendor == "sap"
 
-    assert (query.owner, query.vendor) == ("Park", "sap")
+
+def test_deal_query_has_no_free_text_owner_condition_any_more() -> None:
+    assert not hasattr(DealQuery(), "owner")
+    with pytest.raises(TypeError):
+        DealQuery(owner="박영업")  # type: ignore[call-arg]
 
 
 def test_deal_query_rejects_keyword_over_max_length() -> None:
@@ -114,12 +118,6 @@ def test_deal_query_rejects_keyword_over_max_length() -> None:
     assert DealQuery(keyword="a" * KEYWORD_MAX).keyword == "a" * KEYWORD_MAX
     with pytest.raises(InvalidValueError):
         DealQuery(keyword="a" * (KEYWORD_MAX + 1))
-
-
-def test_deal_query_rejects_owner_over_max_length() -> None:
-    assert DealQuery(owner="a" * OWNER_MAX).owner == "a" * OWNER_MAX
-    with pytest.raises(InvalidValueError):
-        DealQuery(owner="a" * (OWNER_MAX + 1))
 
 
 def test_deal_query_rejects_vendor_over_max_length() -> None:
@@ -132,19 +130,5 @@ def test_deal_query_has_no_owner_user_condition_by_default() -> None:
     assert DealQuery().owner_user_id is None
 
 
-def test_deal_query_keeps_owner_user_id() -> None:
-    assert DealQuery(owner_user_id="u-1").owner_user_id == "u-1"
-
-
-def test_deal_query_strips_owner_user_id_and_keeps_its_case() -> None:
-    assert DealQuery(owner_user_id="  Alice@AD ").owner_user_id == "Alice@AD"
-
-
-def test_deal_query_treats_blank_owner_user_id_as_none() -> None:
-    assert DealQuery(owner_user_id="   ").owner_user_id is None
-
-
-def test_deal_query_rejects_owner_user_id_over_max_length() -> None:
-    assert DealQuery(owner_user_id="u" * 200).owner_user_id == "u" * 200
-    with pytest.raises(InvalidValueError):
-        DealQuery(owner_user_id="u" * 201)
+def test_deal_query_keeps_owner_user_id_as_a_user_id() -> None:
+    assert DealQuery(owner_user_id=uid("u1")).owner_user_id == uid("u1")

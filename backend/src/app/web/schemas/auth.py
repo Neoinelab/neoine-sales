@@ -12,6 +12,7 @@ LOGIN_ID_REQUEST_MAX = 128
 
 
 class PrincipalResponse(BaseModel):
+    user_id: str
     subject: str
     email: str | None
     name: str
@@ -20,6 +21,7 @@ class PrincipalResponse(BaseModel):
     @classmethod
     def from_principal(cls, principal: Principal) -> PrincipalResponse:
         return cls(
+            user_id=str(principal.user_id),
             subject=principal.subject,
             email=principal.email,
             name=principal.name,

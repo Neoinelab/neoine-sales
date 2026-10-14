@@ -1,14 +1,13 @@
 from typing import TYPE_CHECKING, Protocol
 
 if TYPE_CHECKING:
-    from datetime import datetime
-
     from app.domain.auth.session import AuthSession
+    from app.domain.user.value_objects import UserId
 
 
 class SessionRepository(Protocol):
     async def add(self, session: AuthSession, token_hash: str) -> None:
-        """같은 토큰 해시는 AlreadyExistsError."""
+        """같은 토큰 해시는 AlreadyExistsError. 세션 주인(user_id)이 없으면 UserNotFoundError."""
         ...
 
     async def get_by_token_hash(self, token_hash: str) -> AuthSession | None:
@@ -19,6 +18,9 @@ class SessionRepository(Protocol):
         """폐기 상태를 저장한다. 없으면 NotFoundError."""
         ...
 
-    async def revoke_all_for_subject(self, subject: str, now: datetime) -> int:
-        """subject의 아직 폐기되지 않은 세션을 모두 폐기하고 그 개수를 돌려준다."""
+    async def delete_all_for_user(self, user_id: UserId) -> int:
+        """그 사용자의 세션 행을 모두 지우고(폐기된 것 포함) 지운 개수를 돌려준다.
+
+        폐기만 하면 users 행을 FK가 막아 물리 삭제할 수 없으므로 행을 지운다.
+        """
         ...

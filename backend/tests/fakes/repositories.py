@@ -6,7 +6,6 @@ from decimal import Decimal
 from typing import TYPE_CHECKING, Protocol
 
 from app.application.ports.pagination import DEFAULT_LIMIT
-from app.domain.common.errors import AlreadyExistsError, NotFoundError
 from app.domain.customer.entities import Customer
 from app.domain.customer.errors import CustomerInUseError, CustomerNotFoundError
 from app.domain.deal import errors as deal_errors
@@ -20,19 +19,18 @@ from app.domain.partner.errors import PartnerInUseError, PartnerNotFoundError
 from tests.fakes.in_memory import InMemoryStore
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
-    from datetime import datetime
+    from collections.abc import Callable, Sequence
 
     from app.application.ports.customer_repository import CustomerQuery
     from app.application.ports.deal_action_repository import DealActionQuery
     from app.application.ports.deal_repository import DealQuery
     from app.application.ports.partner_repository import PartnerQuery
-    from app.domain.auth.session import AuthSession
     from app.domain.customer.value_objects import CustomerId
     from app.domain.deal.stage import DealStage
     from app.domain.deal.value_objects import DealCode, DealId
     from app.domain.deal_action.value_objects import DealActionId
     from app.domain.partner.value_objects import PartnerId
+    from app.domain.user.value_objects import UserId
 
 
 def _contact_matches(entity: Customer | Partner, keyword: str | None) -> bool:
@@ -128,17 +126,22 @@ class DealDependents(Protocol):
     async def exists_for_deal(self, deal_id: DealId) -> bool: ...
 
 
-def _deal_matches(deal: Deal, query: DealQuery) -> bool:
+def _deal_matches(deal: Deal, query: DealQuery, owner_names: Callable[[UserId], list[str]]) -> bool:
     details = deal.details
     keyword = query.keyword.lower() if query.keyword else None
-    searchable = (details.code.value, details.name, details.owner, details.vendor, details.solution)
+    searchable = (
+        details.code.value,
+        details.name,
+        details.vendor,
+        details.solution,
+        *owner_names(details.owner_user_id),
+    )
     return (
         (query.stage is None or deal.stage is query.stage)
         and (keyword is None or any(keyword in text.lower() for text in searchable))
         and (query.customer_id is None or details.customer_id == query.customer_id)
         and (query.partner_id is None or details.partner_id == query.partner_id)
-        and (query.owner_user_id is None or deal.owner_user_id == query.owner_user_id)
-        and (query.owner is None or details.owner == query.owner)
+        and (query.owner_user_id is None or details.owner_user_id == query.owner_user_id)
         and (query.vendor is None or details.vendor == query.vendor)
         and (query.revenue_from is None or details.revenue_date >= query.revenue_from)
         and (query.revenue_to is None or details.revenue_date < query.revenue_to)
@@ -150,6 +153,11 @@ class FakeDealRepository(InMemoryStore[Deal]):
         super().__init__("deal", DealNotFoundError)
         self.for_update_gets: list[DealId] = []  # 잠금 조회(for_update=True)로 읽은 Deal id 기록
         self._dependents: list[DealDependents] = []  # FK RESTRICT를 모사할 자식 저장소들
+        self._owner_names: Callable[[UserId], list[str]] = lambda _: []
+
+    def attach_user_names(self, names_of: Callable[[UserId], list[str]]) -> None:
+        """키워드 검색이 담당자 이름(users 조인)을 보도록 사용자 이름 조회를 연결한다."""
+        self._owner_names = names_of
 
     def restrict_delete_by(self, *dependents: DealDependents) -> None:
         """자식 저장소(활동·단계 이력)에 행이 있으면 delete가 DealInUseError가 된다(FK RESTRICT)."""
@@ -180,14 +188,16 @@ class FakeDealRepository(InMemoryStore[Deal]):
         return self._fetch_page(offset, limit)
 
     async def search(self, query: DealQuery) -> Sequence[Deal]:
-        found = [d for d in self._items.values() if _deal_matches(d, query)]
+        found = [d for d in self._items.values() if _deal_matches(d, query, self._owner_names)]
         found.sort(key=lambda d: (d.created_at, str(d.id)))
         return [copy.deepcopy(d) for d in found[query.offset : query.offset + query.limit]]
 
-    async def summarize_pipeline(self, *, owner_user_id: str | None = None) -> Sequence[StageTotal]:
+    async def summarize_pipeline(
+        self, *, owner_user_id: UserId | None = None
+    ) -> Sequence[StageTotal]:
         grouped: dict[tuple[DealStage, str], tuple[int, Decimal]] = {}
         for deal in self._items.values():
-            if owner_user_id is not None and deal.owner_user_id != owner_user_id:
+            if owner_user_id is not None and deal.details.owner_user_id != owner_user_id:
                 continue
             key = (deal.stage, deal.details.revenue.currency)
             count, amount = grouped.get(key, (0, Decimal(0)))
@@ -222,7 +232,7 @@ def _matches(action: DealAction, query: DealActionQuery) -> bool:
     return (
         (query.deal_id is None or details.deal_id == query.deal_id)
         and (query.action_type is None or details.action_type is query.action_type)
-        and (query.actor is None or details.actor == query.actor)
+        and (query.actor_user_id is None or details.actor_user_id == query.actor_user_id)
         and (query.acted_from is None or details.acted_at >= query.acted_from)
         and (query.acted_to is None or details.acted_at < query.acted_to)
         and (query.due_from is None or (due is not None and due >= query.due_from))
@@ -268,32 +278,3 @@ class FakeDealActionRepository(InMemoryStore[DealAction]):
     async def exists_for_deal(self, deal_id: DealId) -> bool:
         """행이 있으면 True (FK 판정과 같다)."""
         return any(a.details.deal_id == deal_id for a in self._items.values())
-
-
-class FakeSessionRepository:
-    def __init__(self) -> None:
-        self._items: dict[str, AuthSession] = {}
-
-    async def add(self, session: AuthSession, token_hash: str) -> None:
-        if token_hash in self._items:
-            raise AlreadyExistsError("세션", token_hash)
-        self._items[token_hash] = copy.deepcopy(session)
-
-    async def get_by_token_hash(self, token_hash: str) -> AuthSession | None:
-        found = self._items.get(token_hash)
-        return copy.deepcopy(found) if found else None
-
-    async def update(self, session: AuthSession) -> None:
-        for token_hash, stored in self._items.items():
-            if stored.id == session.id:
-                self._items[token_hash] = copy.deepcopy(session)
-                return
-        raise NotFoundError("세션", session.id)
-
-    async def revoke_all_for_subject(self, subject: str, now: datetime) -> int:
-        revoked = 0
-        for stored in self._items.values():
-            if stored.principal.subject == subject and stored.revoked_at is None:
-                stored.revoke(now)
-                revoked += 1
-        return revoked

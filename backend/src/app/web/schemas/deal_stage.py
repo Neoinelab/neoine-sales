@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Annotated
+from typing import TYPE_CHECKING, Annotated
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -12,6 +12,14 @@ from app.domain.deal.pipeline import CurrencyAmount, DealPipeline, StageSummary
 from app.domain.deal.stage import DealStage, DealStageChange
 from app.domain.deal.value_objects import DealId
 from app.web.schemas.common import Page, RequestModel
+from app.web.schemas.user_ref import UserRef, ref_of, resolve_refs
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping, Sequence
+
+    from app.domain.user.value_objects import UserId
+    from app.domain.user.value_objects import UserRef as DomainUserRef
+    from app.web.use_case_provider import UseCaseProvider
 
 
 class DealStageChangeRequest(RequestModel):
@@ -22,8 +30,7 @@ class DealStageChangeRequest(RequestModel):
         return StageChangeInput(
             stage=self.stage,
             reason=self.reason,
-            changed_by_subject=user.subject,
-            changed_by_name=user.name,
+            changed_by_user_id=user.user_id,
         )
 
 
@@ -33,20 +40,20 @@ class DealStageChangeResponse(BaseModel):
     from_stage: DealStage
     to_stage: DealStage
     reason: str | None
-    changed_by_subject: str
-    changed_by_name: str
+    changed_by: UserRef
     changed_at: datetime
 
     @classmethod
-    def from_entity(cls, change: DealStageChange) -> DealStageChangeResponse:
+    def from_entity(
+        cls, change: DealStageChange, refs: Mapping[UserId, DomainUserRef]
+    ) -> DealStageChangeResponse:
         return cls(
             id=str(change.id),
             deal_id=str(change.deal_id),
             from_stage=change.from_stage,
             to_stage=change.to_stage,
             reason=change.reason,
-            changed_by_subject=change.changed_by.subject,
-            changed_by_name=change.changed_by.name,
+            changed_by=ref_of(refs, change.changed_by.user_id),
             changed_at=change.changed_at,
         )
 
@@ -62,8 +69,16 @@ class DealStageChangeSearchParams(RequestModel):
 DealStageChangePage = Page[DealStageChangeResponse]
 
 
+async def stage_change_responses(
+    provider: UseCaseProvider, changes: Sequence[DealStageChange]
+) -> list[DealStageChangeResponse]:
+    """변경자 표시 이름을 한 번에 풀어 이력 응답 목록을 만든다."""
+    refs = await resolve_refs(provider, [c.changed_by.user_id for c in changes])
+    return [DealStageChangeResponse.from_entity(c, refs) for c in changes]
+
+
 class PipelineParams(RequestModel):
-    """파이프라인 조회 쿼리. mine=true면 내가 등록한 딜만 집계한다. 모르는 파라미터는 422."""
+    """파이프라인 조회 쿼리. mine=true면 내가 담당자인 딜만 집계한다. 모르는 파라미터는 422."""
 
     mine: bool = False
 

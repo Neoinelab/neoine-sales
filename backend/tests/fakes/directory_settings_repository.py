@@ -9,6 +9,7 @@ if TYPE_CHECKING:
     from datetime import datetime
 
     from app.domain.directory.settings import DirectorySettings
+    from app.domain.user.value_objects import UserId
 
 _ROW = 1
 
@@ -25,7 +26,7 @@ class FakeDirectorySettingsRepository:
         settings: DirectorySettings,
         *,
         expected_revision: int | None,
-        updated_by: str | None,
+        updated_by: UserId | None,
         now: datetime,
     ) -> StoredDirectorySettings:
         current = self._items.get(_ROW)

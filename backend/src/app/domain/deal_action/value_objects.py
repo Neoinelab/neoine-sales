@@ -9,13 +9,13 @@ from app.domain.common.validation import assign, optional_text, require_aware, r
 
 if TYPE_CHECKING:
     from app.domain.deal.value_objects import DealId
+    from app.domain.user.value_objects import UserId
 
 DealActionId = NewType("DealActionId", UUID)
 
 ACTION_MAX = 200
 NEXT_ACTION_MAX = 200
 MEMO_MAX = 4000
-ACTOR_MAX = 100
 
 
 class ActionType(StrEnum):
@@ -42,7 +42,7 @@ class DealActionDetails:
     action_type: ActionType
     action: str
     acted_at: datetime
-    actor: str
+    actor_user_id: UserId
     next_action: str | None = None
     due_date: date | None = None
     memo: str = ""
@@ -54,7 +54,6 @@ class DealActionDetails:
         assign(
             self,
             action=required_text(self.action, "진행내역", max_length=ACTION_MAX),
-            actor=required_text(self.actor, "활동자", max_length=ACTOR_MAX),
             next_action=(
                 None
                 if self.next_action is None

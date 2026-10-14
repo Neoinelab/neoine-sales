@@ -16,11 +16,12 @@ from app.domain.auth.errors import TooManyAttemptsError
 from app.domain.auth.principal import Role
 from app.domain.common.errors import InvalidStateError, InvalidValueError
 from tests.factories import NOW
-from tests.factories_auth import WRONG_PASSWORD, make_directory_settings
+from tests.factories_auth import WRONG_PASSWORD, make_directory_settings, make_principal
 from tests.fakes.admin_stack import ADMIN_ACTOR, ADMIN_PASSWORD, DEV_ACTOR, build_admin_stack
 from tests.fakes.auth_stack import MAX_PER_ACCOUNT
 from tests.support.admin_seed import session_is_active
 from tests.support.auth_seed import account_key, seed_directory, seed_user
+from tests.support.user_ids import uid
 
 if TYPE_CHECKING:
     from app.application.ports.unit_of_work import UnitOfWorkFactory
@@ -64,7 +65,7 @@ async def test_update_verifies_the_actor_with_the_new_settings_then_saves(
 
     (call,) = directory.authenticate_calls
     assert (call.settings, call.login_id.value, call.password) == (NEW, "root", ADMIN_PASSWORD)
-    assert (stored.settings, stored.revision, stored.updated_by) == (NEW, 2, "root")
+    assert (stored.settings, stored.revision, stored.updated_by) == (NEW, 2, ADMIN_ACTOR.user_id)
     assert await _stored(uow_factory) == stored
 
 
@@ -160,7 +161,7 @@ async def test_update_conflicts_when_another_save_lands_during_verification(
     async def rival_saves_first() -> None:
         async with uow_factory() as uow:
             await uow.directory_settings.save(
-                rival, expected_revision=1, updated_by="other-admin", now=NOW
+                rival, expected_revision=1, updated_by=uid("other-admin"), now=NOW
             )
             await uow.commit()
 
@@ -171,7 +172,7 @@ async def test_update_conflicts_when_another_save_lands_during_verification(
 
     stored = await _stored(uow_factory)
     assert stored is not None
-    assert (stored.settings, stored.revision, stored.updated_by) == (rival, 2, "other-admin")
+    assert (stored.settings, stored.revision, stored.updated_by) == (rival, 2, uid("other-admin"))
 
 
 async def test_update_requires_a_password_from_a_directory_admin(
@@ -187,7 +188,7 @@ async def test_update_requires_a_password_from_a_directory_admin(
     assert await _stored(uow_factory) == before
 
 
-async def test_a_dev_admin_update_only_probes_and_records_the_dev_subject(
+async def test_a_dev_admin_update_only_probes_and_records_the_dev_users_id(
     admin: AdminStack, directory: FakeDirectoryAuthenticator, uow_factory: UnitOfWorkFactory
 ) -> None:
     await seed_directory(uow_factory)
@@ -198,7 +199,25 @@ async def test_a_dev_admin_update_only_probes_and_records_the_dev_subject(
 
     assert directory.probe_calls == [NEW]
     assert directory.authenticate_calls == []
-    assert (stored.revision, stored.updated_by) == (2, "dev:admin")
+    assert (stored.revision, stored.updated_by) == (2, DEV_ACTOR.user_id)
+
+
+@pytest.mark.parametrize("subject", ["dev-admin2", "dev-adminx", "xdev-admin", "dev-sales2"])
+async def test_the_probe_only_path_is_limited_to_the_reserved_dev_login_ids(
+    admin: AdminStack,
+    directory: FakeDirectoryAuthenticator,
+    uow_factory: UnitOfWorkFactory,
+    subject: str,
+) -> None:
+    await seed_directory(uow_factory)
+    lookalike = make_principal(subject, Role.ADMIN)
+
+    with pytest.raises(InvalidValueError):  # 예약 아이디가 아니면 비밀번호 없이는 통과하지 못한다
+        await admin.update_settings.execute(
+            actor=lookalike, settings=NEW, expected_revision=1, password=None, client_ip=IP
+        )
+
+    assert directory.probe_calls == []
 
 
 async def test_a_dev_admin_update_with_a_failing_probe_saves_nothing(

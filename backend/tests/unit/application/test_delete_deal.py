@@ -30,6 +30,9 @@ if TYPE_CHECKING:
     from tests.fakes.unit_of_work import FakeUnitOfWork, FixedClock
 
 
+pytestmark = pytest.mark.usefixtures("default_users")
+
+
 @pytest.fixture
 async def deal(uow_factory: UnitOfWorkFactory, clock: FixedClock) -> Deal:
     customer = await RegisterCustomer(uow_factory, clock).execute(make_customer_input())

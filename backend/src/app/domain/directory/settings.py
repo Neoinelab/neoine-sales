@@ -4,6 +4,7 @@ from datetime import datetime  # noqa: TC003 (dataclass 필드 타입)
 from app.domain.common.errors import InvalidValueError
 from app.domain.directory import rules
 from app.domain.directory.url import DirectoryUrl
+from app.domain.user.value_objects import UserId  # noqa: TC001 (dataclass 필드 타입)
 
 __all__ = ["DirectorySettings", "DirectoryUrl", "StoredDirectorySettings"]
 
@@ -56,4 +57,4 @@ class StoredDirectorySettings:
     settings: DirectorySettings
     revision: int
     updated_at: datetime
-    updated_by: str | None
+    updated_by: UserId | None

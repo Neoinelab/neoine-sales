@@ -22,10 +22,8 @@ NUL = "a\x00b"
         pytest.param(lambda: CustomerQuery(keyword=NUL), id="customer-keyword"),
         pytest.param(lambda: PartnerQuery(keyword=NUL), id="partner-keyword"),
         pytest.param(lambda: DealQuery(keyword=NUL), id="deal-keyword"),
-        pytest.param(lambda: DealQuery(owner=NUL), id="deal-owner"),
         pytest.param(lambda: DealQuery(vendor=NUL), id="deal-vendor"),
         pytest.param(lambda: DealActionQuery(keyword=NUL), id="action-keyword"),
-        pytest.param(lambda: DealActionQuery(actor=NUL), id="action-actor"),
     ],
 )
 def test_query_rejects_nul_in_text_condition(build: Callable[[], object]) -> None:
@@ -35,4 +33,11 @@ def test_query_rejects_nul_in_text_condition(build: Callable[[], object]) -> Non
 
 def test_query_still_accepts_normal_text_conditions() -> None:
     assert CustomerQuery(keyword=" 네오인 ").keyword == "네오인"
-    assert DealActionQuery(actor="kim", keyword="a\tb").keyword == "a\tb"
+    assert DealActionQuery(keyword="a\tb").keyword == "a\tb"
+
+
+def test_action_query_takes_a_user_id_not_a_free_text_actor() -> None:
+    assert not hasattr(DealActionQuery(), "actor")
+    assert DealActionQuery().actor_user_id is None
+    with pytest.raises(TypeError):
+        DealActionQuery(actor="kim")  # type: ignore[call-arg]

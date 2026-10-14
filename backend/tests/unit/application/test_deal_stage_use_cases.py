@@ -19,12 +19,16 @@ from app.domain.deal.errors import DealInUseError, DealNotFoundError
 from app.domain.deal.stage import DealStage
 from app.domain.deal.value_objects import DealId
 from tests.factories import make_customer_input, make_deal_input, make_stage_change_input
+from tests.support.user_ids import uid
 
 if TYPE_CHECKING:
     from app.application.ports.unit_of_work import UnitOfWorkFactory
     from app.domain.customer.entities import Customer
     from app.domain.deal.entities import Deal
     from tests.fakes.unit_of_work import FakeUnitOfWork, FixedClock
+
+
+pytestmark = pytest.mark.usefixtures("default_users")
 
 
 @pytest.fixture
@@ -130,11 +134,11 @@ class TestChangeDealStage:
     ) -> None:
         await ChangeDealStage(uow_factory, clock).execute(
             deal.id,
-            make_stage_change_input(changed_by_subject="u-9", changed_by_name="최영업"),
+            make_stage_change_input(changed_by_user_id=uid("choi")),
         )
 
         (change,) = await uow.deal_stage_changes.search(DealStageChangeQuery(deal_id=deal.id))
-        assert (change.changed_by.subject, change.changed_by.name) == ("u-9", "최영업")
+        assert change.changed_by.user_id == uid("choi")
 
     async def test_can_move_back_and_reopen_a_lost_deal(
         self, uow: FakeUnitOfWork, uow_factory: UnitOfWorkFactory, clock: FixedClock, deal: Deal

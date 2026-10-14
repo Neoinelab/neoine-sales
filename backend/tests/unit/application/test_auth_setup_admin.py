@@ -3,8 +3,8 @@
 from typing import TYPE_CHECKING
 
 import pytest
-from app.application.auth.messages import DIRECTORY_FIRST, LOGIN_FAILED, SETUP_CLOSED
 
+from app.application.auth.messages import DIRECTORY_FIRST, LOGIN_FAILED, SETUP_CLOSED
 from app.application.ports.directory import DirectoryUnavailableError, VerificationStage
 from app.domain.auth.credentials import LoginId, Password
 from app.domain.auth.errors import AuthenticationError, TooManyAttemptsError
@@ -53,7 +53,8 @@ async def test_setup_admin_registers_admin_and_signs_in(
     user = await uow.users.get_active_by_login_id(LoginId("kim"))
     assert user is not None
     assert user.role is Role.ADMIN
-    assert user.created_by == "kim"
+    assert user.created_by_user_id == user.id  # 최초 admin은 자기 자신이 등록자
+    assert issued.principal.user_id == user.id
     assert user.last_login_at == NOW
     assert (user.display_name, user.email) == ("김영업", "kim@corp.test")
     assert uow.users.roster_locks >= 1

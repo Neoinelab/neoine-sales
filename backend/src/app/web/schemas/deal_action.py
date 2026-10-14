@@ -1,5 +1,5 @@
 from datetime import date, datetime
-from typing import Annotated
+from typing import TYPE_CHECKING, Annotated
 from uuid import UUID
 
 from pydantic import Field
@@ -14,14 +14,22 @@ from app.application.ports.pagination import DEFAULT_LIMIT, MAX_LIMIT
 from app.domain.deal.value_objects import DealId
 from app.domain.deal_action.entities import DealAction
 from app.domain.deal_action.value_objects import ActionType
+from app.domain.user.value_objects import UserId
 from app.web.schemas.common import Page, RequestModel, ResponseModel
+from app.web.schemas.user_ref import UserRef, ref_of, resolve_refs
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping, Sequence
+
+    from app.domain.user.value_objects import UserRef as DomainUserRef
+    from app.web.use_case_provider import UseCaseProvider
 
 
 class DealActionRequest(RequestModel):
     action_type: ActionType
     action: str
     acted_at: datetime
-    actor: str
+    actor_user_id: UUID
     next_action: str
     due_date: date
     memo: str = ""
@@ -38,10 +46,12 @@ class DealActionResponse(ResponseModel):
     due_date: date | None
     memo: str
     acted_at: datetime
-    actor: str
+    actor: UserRef
 
     @classmethod
-    def from_entity(cls, action: DealAction) -> DealActionResponse:
+    def from_entity(
+        cls, action: DealAction, refs: Mapping[UserId, DomainUserRef]
+    ) -> DealActionResponse:
         details = action.details
         return cls(
             id=str(action.id),
@@ -54,7 +64,7 @@ class DealActionResponse(ResponseModel):
             due_date=details.due_date,
             memo=details.memo,
             acted_at=details.acted_at,
-            actor=details.actor,
+            actor=ref_of(refs, details.actor_user_id),
         )
 
 
@@ -62,7 +72,7 @@ class DealActionSearchParams(RequestModel):
     """활동 검색 쿼리 파라미터. 기간은 acted_from 이상 acted_to 미만, 계획 일정은 양끝 포함이다."""
 
     action_type: ActionType | None = None
-    actor: str | None = None
+    actor_user_id: UserId | None = None
     keyword: Annotated[str | None, Field(max_length=KEYWORD_MAX)] = None
     acted_from: datetime | None = None
     acted_to: datetime | None = None
@@ -73,8 +83,12 @@ class DealActionSearchParams(RequestModel):
     limit: Annotated[int, Field(ge=1, le=MAX_LIMIT)] = DEFAULT_LIMIT
 
     def to_query(self, deal_id: UUID | None) -> DealActionQuery:
-        criteria = self.model_dump(exclude={"deal_id"})
-        return DealActionQuery(deal_id=DealId(deal_id) if deal_id else None, **criteria)
+        criteria = self.model_dump(exclude={"deal_id", "actor_user_id"})
+        return DealActionQuery(
+            deal_id=DealId(deal_id) if deal_id else None,
+            actor_user_id=self.actor_user_id,
+            **criteria,
+        )
 
 
 class GlobalDealActionSearchParams(DealActionSearchParams):
@@ -87,3 +101,16 @@ class GlobalDealActionSearchParams(DealActionSearchParams):
 
 
 DealActionPage = Page[DealActionResponse]
+
+
+async def action_responses(
+    provider: UseCaseProvider, actions: Sequence[DealAction]
+) -> list[DealActionResponse]:
+    """활동자 표시 이름을 한 번에 풀어 응답 목록을 만든다."""
+    refs = await resolve_refs(provider, [a.details.actor_user_id for a in actions])
+    return [DealActionResponse.from_entity(a, refs) for a in actions]
+
+
+async def action_response(provider: UseCaseProvider, action: DealAction) -> DealActionResponse:
+    (item,) = await action_responses(provider, [action])
+    return item

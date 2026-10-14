@@ -1,10 +1,12 @@
 from typing import TYPE_CHECKING
 
 from app.application.auth.credential_check import parse_login_id, verify_credentials
+from app.application.auth.dev_login import ensure_not_reserved_login_id
 from app.application.auth.messages import DIRECTORY_FIRST, SETUP_CLOSED
 from app.domain.auth.principal import Role
 from app.domain.common.errors import AlreadyExistsError, InvalidStateError
 from app.domain.user.entities import User
+from app.domain.user.errors import AmbiguousLoginIdError
 
 if TYPE_CHECKING:
     from app.application.auth.deps import AuthDeps
@@ -23,6 +25,7 @@ class SetupFirstAdmin:
 
     async def execute(self, *, login_id: str, password: Password, client_ip: str) -> IssuedSession:
         account = parse_login_id(login_id)
+        ensure_not_reserved_login_id(account)
         await self._deps.throttle.ensure_allowed(account, client_ip)
         try:
             settings = await self._load_settings()
@@ -49,9 +52,13 @@ class SetupFirstAdmin:
             await uow.users.lock_roster()
             if await uow.users.count_active_admins() > 0:
                 raise InvalidStateError(SETUP_CLOSED)
-            if await uow.users.get_active_by_login_id(account) is not None:
+            try:
+                exists = await uow.users.get_active_by_login_id(account) is not None
+            except AmbiguousLoginIdError:  # 이미 둘 이상 있다 = 중복이라는 같은 결론
+                exists = True
+            if exists:
                 raise AlreadyExistsError("사용자", account.value)
-            user = User.register(account, Role.ADMIN, created_by=account.value, now=now)
+            user = User.register_self(account, Role.ADMIN, now=now)
             user.record_login(now, display_name=profile.display_name, email=profile.email)
             await uow.users.add(user)
             await uow.commit()

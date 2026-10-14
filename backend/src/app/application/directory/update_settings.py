@@ -39,7 +39,7 @@ class UpdateDirectorySettings:
             stored = await uow.directory_settings.save(
                 settings,
                 expected_revision=expected_revision,
-                updated_by=actor.subject,
+                updated_by=actor.user_id,
                 now=self._clock.now(),
             )
             await uow.commit()

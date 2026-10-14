@@ -8,10 +8,13 @@ import pytest_asyncio
 from app.domain.directory.errors import DirectorySettingsConflictError
 from app.domain.directory.settings import DirectoryUrl
 from app.infra.db.directory_settings_repository import SqlDirectorySettingsRepository
+from app.infra.db.user_repository import SqlUserRepository
 from tests.factories import NOW, later
 from tests.factories_auth import DUMMY_PEM, make_directory_settings
 from tests.fakes.directory_settings_repository import FakeDirectorySettingsRepository
 from tests.support.database import rolled_back_session
+from tests.support.user_ids import uid
+from tests.support.user_seed import ensure_users
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
@@ -31,6 +34,8 @@ async def repository(request: pytest.FixtureRequest) -> AsyncIterator[DirectoryS
         return
     url = request.getfixturevalue("test_database_url")
     async with rolled_back_session(url) as session:
+        # updated_by는 users(id) FK라 저장자로 쓸 사용자 행이 먼저 있어야 한다
+        await ensure_users(SqlUserRepository(session), uid("admin1"), uid("a"), uid("b"))
         yield SqlDirectorySettingsRepository(session)
 
 
@@ -77,11 +82,15 @@ async def test_update_with_matching_revision_increments(
     updated = await repository.save(
         make_directory_settings(base_dn="dc=new,dc=test"),
         expected_revision=1,
-        updated_by="admin1",
+        updated_by=uid("admin1"),
         now=later(60),
     )
 
-    assert (updated.revision, updated.updated_by, updated.updated_at) == (2, "admin1", later(60))
+    assert (updated.revision, updated.updated_by, updated.updated_at) == (
+        2,
+        uid("admin1"),
+        later(60),
+    )
     stored = await repository.get()
     assert stored == updated
     assert stored is not None
@@ -97,7 +106,7 @@ async def test_update_with_stale_revision_conflicts_and_keeps_row(
     await repository.save(
         make_directory_settings(base_dn="dc=second"),
         expected_revision=1,
-        updated_by="a",
+        updated_by=uid("a"),
         now=later(1),
     )
 
@@ -105,13 +114,17 @@ async def test_update_with_stale_revision_conflicts_and_keeps_row(
         await repository.save(
             make_directory_settings(base_dn="dc=stale"),
             expected_revision=1,
-            updated_by="b",
+            updated_by=uid("b"),
             now=later(2),
         )
 
     stored = await repository.get()
     assert stored is not None
-    assert (stored.revision, stored.settings.base_dn, stored.updated_by) == (2, "dc=second", "a")
+    assert (stored.revision, stored.settings.base_dn, stored.updated_by) == (
+        2,
+        "dc=second",
+        uid("a"),
+    )
 
 
 async def test_update_without_existing_row_conflicts(
@@ -119,7 +132,7 @@ async def test_update_without_existing_row_conflicts(
 ) -> None:
     with pytest.raises(DirectorySettingsConflictError):
         await repository.save(
-            make_directory_settings(), expected_revision=1, updated_by="a", now=NOW
+            make_directory_settings(), expected_revision=1, updated_by=uid("a"), now=NOW
         )
 
     assert await repository.get() is None
@@ -133,7 +146,7 @@ async def test_revision_keeps_counting_up(repository: DirectorySettingsRepositor
         saved = await repository.save(
             make_directory_settings(),
             expected_revision=expected,
-            updated_by="a",
+            updated_by=uid("a"),
             now=later(expected),
         )
 

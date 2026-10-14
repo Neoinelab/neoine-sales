@@ -46,28 +46,33 @@ async def seed_directory(
     return stored
 
 
-async def seed_user(
+async def seed_user(  # noqa: PLR0913 - 시나리오 준비용 옵션
     uow_factory: UnitOfWorkFactory,
     login_id: str = "kim",
     role: Role = Role.SALES,
     *,
     deleted: bool = False,
+    resigned: bool = False,
     now: datetime = NOW,
 ) -> User:
     """now는 created_at. 생성 순서를 단언하는 테스트는 사용자마다 다른 시각을 준다.
 
-    deleted=True면 등록한 뒤 물리 삭제한다(삭제된 사용자가 이미 없는 상황의 재현).
+    deleted=True면 등록한 뒤 물리 삭제한다(연결이 없던 사용자가 이미 없는 상황의 재현).
+    resigned=True면 등록한 뒤 퇴사 처리한다(행은 남고 세션은 지워진 상황의 재현).
     """
     user = make_user(login_id, role, now=now)
     async with uow_factory() as uow:
         await uow.users.add(user)
         if deleted:
             await uow.users.delete(user.id)
+        if resigned:
+            user.resign(now)
+            await uow.users.update(user)
         await uow.commit()
     return user
 
 
 async def active_admin_logins(uow_factory: UnitOfWorkFactory) -> list[str]:
     async with uow_factory() as uow:
-        users = await uow.users.list_active(limit=100)
+        users = await uow.users.list_users(limit=100)
     return sorted(u.login_id.value for u in users if u.role is Role.ADMIN)

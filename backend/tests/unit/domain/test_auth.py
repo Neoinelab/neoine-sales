@@ -8,10 +8,12 @@ from app.domain.auth.principal import Principal, Role
 from app.domain.auth.session import AuthSession, SessionId
 from app.domain.common.errors import DomainError, InvalidStateError, InvalidValueError
 from tests.factories import NOW, later
+from tests.support.user_ids import uid
 
 
 def _principal(**overrides: object) -> Principal:
     values: dict[str, object] = {
+        "user_id": uid("kim"),
         "subject": "S-1-5-21-1",
         "email": "Kim@Neoine.Example",
         "name": " 김영업 ",
@@ -46,6 +48,9 @@ class TestPrincipal:
     def test_subject_is_required(self) -> None:
         with pytest.raises(InvalidValueError):
             _principal(subject="  ")
+
+    def test_principal_carries_the_user_id_of_the_users_row(self) -> None:
+        assert _principal().user_id == uid("kim")
 
     def test_roles_are_a_closed_set(self) -> None:
         assert {role.value for role in Role} == {"admin", "sales", "user"}

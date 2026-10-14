@@ -20,11 +20,12 @@ DEALS = "/api/v1/deals"
 @pytest.mark.integration
 async def test_my_deals_filter_runs_in_the_database(stack_for: ClientFor) -> None:
     alice, bob = await stack_for("alice"), await stack_for("bob")
+    a = (await alice.get("/api/v1/auth/me")).json()["user_id"]
+    b = (await bob.get("/api/v1/auth/me")).json()["user_id"]
     customer = (await alice.post(CUSTOMERS, json=customer_payload())).json()
-    for client, code in ((alice, "A-1"), (bob, "B-1"), (alice, "A-2")):
-        assert (
-            await client.post(DEALS, json=deal_payload(customer["id"], code=code))
-        ).status_code == 201
+    for client, code, owner in ((alice, "A-1", a), (bob, "B-1", b), (alice, "A-2", a)):
+        payload = deal_payload(customer["id"], code=code, owner_user_id=owner)
+        assert (await client.post(DEALS, json=payload)).status_code == 201
     moved = (await alice.get(DEALS, params={"keyword": "A-2"})).json()["items"][0]["id"]
     assert (
         await alice.post(f"{DEALS}/{moved}/stage", json={"stage": "lost", "reason": "x"})
@@ -48,7 +49,8 @@ async def test_my_deals_filter_runs_in_the_database(stack_for: ClientFor) -> Non
     assert await prospecting(bob, mine="true") == 1
     assert await prospecting(alice) == 2
     edited = await bob.put(
-        f"{DEALS}/{moved}", json=deal_payload(customer["id"], code="A-2", name="Bob이 수정")
+        f"{DEALS}/{moved}",
+        json=deal_payload(customer["id"], code="A-2", owner_user_id=a, name="Bob이 수정"),
     )
     assert edited.status_code == 200
     assert await codes(alice, mine="true") == ["A-1", "A-2"]

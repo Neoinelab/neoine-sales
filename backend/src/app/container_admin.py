@@ -7,8 +7,10 @@ from app.application.directory.test_settings import TestDirectorySettings
 from app.application.directory.update_settings import UpdateDirectorySettings
 from app.application.directory.verify_settings import VerifyDirectorySettings
 from app.application.user.delete_user import DeleteUser
+from app.application.user.list_user_options import ListUserOptions
 from app.application.user.list_users import ListUsers
 from app.application.user.register_user import RegisterUser
+from app.application.user.resolve_user_refs import ResolveUserRefs
 
 if TYPE_CHECKING:
     from app.application.auth.deps import AuthDeps
@@ -39,6 +41,12 @@ class AdminAssembly:
 
     def delete_user(self) -> DeleteUser:
         return DeleteUser(self._uow_factory, self._clock)
+
+    def list_user_options(self) -> ListUserOptions:
+        return ListUserOptions(self._uow_factory)
+
+    def resolve_user_refs(self) -> ResolveUserRefs:
+        return ResolveUserRefs(self._uow_factory)
 
     def get_directory_settings(self) -> GetDirectorySettings:
         return GetDirectorySettings(self._uow_factory)

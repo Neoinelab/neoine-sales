@@ -14,8 +14,8 @@ from tests.fakes.repositories import (
     FakeDealActionRepository,
     FakeDealRepository,
     FakePartnerRepository,
-    FakeSessionRepository,
 )
+from tests.fakes.session_repository import FakeSessionRepository
 from tests.fakes.stage_change_repository import FakeDealStageChangeRepository
 from tests.fakes.user_repository import FakeLoginFailureRepository, FakeUserRepository
 
@@ -34,8 +34,30 @@ class FakeUnitOfWork:
         self.users = FakeUserRepository()
         self.login_failures = FakeLoginFailureRepository()
         self.directory_settings = FakeDirectorySettingsRepository()
+        self._wire_user_references()
         self.commits = 0
         self._snapshot: tuple[Any, ...] | None = None
+
+    def _wire_user_references(self) -> None:
+        """users를 FK로 참조하는 저장소를 연결한다(has_links·물리 삭제 RESTRICT, 키워드 조인)."""
+        deals, actions, changes = self.deals, self.deal_actions, self.deal_stage_changes
+        settings = self.directory_settings
+        self.users.add_referrer(
+            lambda uid: any(
+                uid in {d.details.owner_user_id, d.registered_by_user_id}
+                for d in deals._items.values()
+            )
+        )
+        self.users.add_referrer(
+            lambda uid: any(a.details.actor_user_id == uid for a in actions._items.values())
+        )
+        self.users.add_referrer(
+            lambda uid: any(c.changed_by.user_id == uid for c in changes._items.values())
+        )
+        self.users.add_referrer(
+            lambda uid: any(s.updated_by == uid for s in settings._items.values())
+        )
+        self.deals.attach_user_names(self.users.names_of)
 
     def _repositories(self) -> tuple[Any, ...]:
         return (

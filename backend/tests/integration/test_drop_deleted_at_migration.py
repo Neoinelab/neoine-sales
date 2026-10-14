@@ -29,9 +29,12 @@ from tests.support.drop_deleted_at import (
     seed,
     user_index_names,
 )
+from tests.support.revisions import DROP_DELETED_AT_REVISION as DROP_REVISION
 from tests.support.skips import skip_or_fail
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from sqlalchemy.engine import URL
 
 pytestmark = pytest.mark.integration
@@ -44,16 +47,27 @@ def _require_admin_url() -> URL:
     return admin_url
 
 
-def test_the_new_revision_follows_the_previous_head_and_is_the_single_head() -> None:
+@pytest.fixture
+def test_database_url(database_at: Callable[[str], URL]) -> URL:
+    """이 파일의 head 스키마 단언은 deleted_at 제거 리비전 직후 스키마에서 검증한다.
+
+    이후 사용자 FK 리비전이 users에만 deleted_at을 되살리므로 '어떤 테이블에도 deleted_at이 없다'는
+    단언은 그 리비전에 고정해야 한다(현재 head의 규칙은 test_schema_integrity가 검증한다).
+    """
+    return database_at(DROP_REVISION)
+
+
+def test_the_drop_revision_follows_the_previous_head_and_stays_in_the_single_head_history() -> None:
     script = ScriptDirectory.from_config(_alembic_config())
 
     heads = script.get_heads()
 
     assert len(heads) == 1
-    assert heads != [PREVIOUS_HEAD]
-    head = script.get_revision(heads[0])
-    assert head is not None
-    assert head.down_revision == PREVIOUS_HEAD
+    drop = script.get_revision(DROP_REVISION)
+    assert drop is not None
+    assert drop.down_revision == PREVIOUS_HEAD
+    history = {r.revision for r in script.iterate_revisions(heads[0], "base")}
+    assert DROP_REVISION in history
 
 
 async def test_head_schema_has_no_deleted_at_column_on_any_table(test_database_url: URL) -> None:
@@ -109,7 +123,7 @@ async def test_upgrade_aborts_and_keeps_everything_when_a_row_is_soft_deleted(ta
         before = await row_counts(url)
 
         with pytest.raises(RuntimeError) as aborted:
-            await apply_migrations(url)
+            await apply_migrations(url, target=DROP_REVISION)
 
         assert f"{table}=1" in str(aborted.value)
         assert await deleted_at_tables(url) == set(TABLES)  # 컬럼 하나도 지워지지 않았다
@@ -126,7 +140,7 @@ async def test_upgrade_reports_every_table_with_soft_deleted_rows() -> None:
         await seed(url, soft_deleted=["customers", "users"])
 
         with pytest.raises(RuntimeError) as aborted:
-            await apply_migrations(url)
+            await apply_migrations(url, target=DROP_REVISION)
 
         message = str(aborted.value)
         assert "customers=1" in message
@@ -142,7 +156,7 @@ async def test_upgrade_drops_columns_and_keeps_all_rows_when_none_is_soft_delete
         await seed(url)
         before = await row_counts(url)
 
-        await apply_migrations(url)
+        await apply_migrations(url, target=DROP_REVISION)
 
         assert await deleted_at_tables(url) == set()
         assert await row_counts(url) == before
@@ -168,7 +182,7 @@ async def test_downgrade_restores_nullable_deleted_at_and_partial_unique_index_l
     async with temporary_database(admin_url) as url:
         await apply_migrations(url, target=PREVIOUS_HEAD)
         await seed(url)
-        await apply_migrations(url)
+        await apply_migrations(url, target=DROP_REVISION)
         before = await row_counts(url)
 
         await apply_migrations(url, direction="down", target=PREVIOUS_HEAD)
@@ -191,7 +205,7 @@ async def test_downgrade_restores_nullable_deleted_at_and_partial_unique_index_l
         )
         assert "deleted_at IS NULL" in str(definition[0][0])
 
-        await apply_migrations(url)  # 다시 올려도 정상이다
+        await apply_migrations(url, target=DROP_REVISION)  # 다시 올려도 정상이다
 
         assert await deleted_at_tables(url) == set()
         assert await row_counts(url) == before

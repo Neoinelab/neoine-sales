@@ -5,19 +5,17 @@ from enum import StrEnum
 from typing import TYPE_CHECKING, NewType
 from uuid import UUID
 
-from app.domain.auth.principal import SUBJECT_MAX
-from app.domain.common.validation import assign, require_aware, required_text
+from app.domain.common.validation import require_aware
 
 if TYPE_CHECKING:
     from datetime import datetime
 
     from app.domain.deal.value_objects import DealId
+    from app.domain.user.value_objects import UserId
 
 DealStageChangeId = NewType("DealStageChangeId", UUID)
 
 REASON_MAX = 500
-CHANGER_SUBJECT_MAX = SUBJECT_MAX
-CHANGER_NAME_MAX = 200
 
 
 class DealStage(StrEnum):
@@ -38,17 +36,9 @@ INITIAL_STAGE = DealStage.PROSPECTING
 
 @dataclass(frozen=True, slots=True)
 class StageChanger:
-    """단계를 바꾼 사용자. 로그인 주체의 식별자와 표시 이름을 그대로 남긴다."""
+    """단계를 바꾼 사용자. users.id만 남기고 표시 이름은 읽을 때 users에서 만든다."""
 
-    subject: str
-    name: str
-
-    def __post_init__(self) -> None:
-        assign(
-            self,
-            subject=required_text(self.subject, "변경자 식별자", max_length=CHANGER_SUBJECT_MAX),
-            name=required_text(self.name, "변경자 이름", max_length=CHANGER_NAME_MAX),
-        )
+    user_id: UserId
 
 
 @dataclass(frozen=True, slots=True)

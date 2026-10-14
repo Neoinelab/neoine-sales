@@ -13,6 +13,8 @@ from app.application.ports.deal_stage_change_repository import DealStageChangeQu
 from app.domain.deal.stage import DealStage
 from app.infra.db.unit_of_work import sql_unit_of_work_factory
 from tests.factories import later, make_customer, make_deal, make_stage_changer
+from tests.support.user_ids import CHANGER_ID, OWNER_ID
+from tests.support.user_seed import ensure_users
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
@@ -41,6 +43,7 @@ async def test_second_locking_read_waits_until_the_first_unit_commits(
     customer = make_customer()
     deal = make_deal(customer_id=customer.id)
     async with uow_factory() as setup:
+        await ensure_users(setup.users, OWNER_ID, CHANGER_ID)  # FK: 담당자·단계 변경자
         await setup.customers.add(customer)
         await setup.deals.add(deal)
         await setup.commit()

@@ -1,7 +1,8 @@
-"""실제 PostgreSQL 동시성(저장소 수준): 명단 advisory lock, 활성 login_id 유일, AD 설정 낙관적 잠금.
+"""실제 PostgreSQL 동시성(저장소 수준): 명단 advisory lock, AD 설정 낙관적 잠금.
 
-(DS-7, USER-3). 최초 admin 등록·상호 삭제 경쟁은 제품 유스케이스를 호출하는
-test_user_roster_lock.py와 test_user_delete_race.py가 검증한다(여기에 로직을 다시 구현하지 않는다).
+(DS-7). login_id 유일성은 DB가 아니라 RegisterUser가 roster 잠금 안에서 확인하므로 동시 등록은
+test_user_register_races.py가, 최초 admin 등록·상호 삭제 경쟁은 test_user_roster_lock.py와
+test_user_delete_race.py가 제품 유스케이스로 검증한다(여기에 로직을 다시 구현하지 않는다).
 """
 
 import asyncio
@@ -15,11 +16,13 @@ from sqlalchemy.pool import NullPool
 
 from app.domain.auth.credentials import LoginId
 from app.domain.auth.principal import Role
-from app.domain.common.errors import AlreadyExistsError
 from app.domain.directory.errors import DirectorySettingsConflictError
+from app.domain.user.value_objects import UserId, UserStatusFilter
 from app.infra.db.unit_of_work import sql_unit_of_work_factory
 from tests.factories import NOW, later
 from tests.factories_auth import make_directory_settings, make_user
+from tests.support.user_ids import uid
+from tests.support.user_seed import ensure_users
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
@@ -66,25 +69,18 @@ async def test_second_roster_lock_waits_until_the_first_unit_finishes(
     await asyncio.wait_for(waiter, timeout=10)
 
 
-async def test_concurrent_registration_of_the_same_login_id_lets_only_one_win(
+async def test_repository_alone_does_not_enforce_login_id_uniqueness(
     uow_factory: UnitOfWorkFactory,
 ) -> None:
-    async def register(role: Role) -> str:
-        async with uow_factory() as uow:
-            try:
-                await uow.users.add(make_user("kim", role))
-                await asyncio.sleep(WAIT)
-                await uow.commit()
-            except AlreadyExistsError:
-                return "duplicate"
-            return "created"
+    """DB에는 login_id 유니크가 없다. 유일성은 RegisterUser의 roster 잠금 안 확인이 책임진다."""
+    async with uow_factory() as uow:
+        await uow.users.add(make_user("kim", Role.SALES))
+        await uow.users.add(make_user("KIM", Role.USER))
+        await uow.commit()
 
-    results = await asyncio.gather(register(Role.SALES), register(Role.USER))
-
-    assert sorted(results) == ["created", "duplicate"]
     async with uow_factory() as check:
-        users = await check.users.list_active()
-    assert [u.login_id for u in users] == [LoginId("kim")]
+        users = await check.users.list_users(status=UserStatusFilter.ALL)
+    assert [u.login_id for u in users] == [LoginId("kim"), LoginId("kim")]
 
 
 async def test_concurrent_first_settings_save_lets_only_one_win(
@@ -129,12 +125,13 @@ async def test_concurrent_settings_update_with_same_revision_lets_only_one_win(
     uow_factory: UnitOfWorkFactory,
 ) -> None:
     async with uow_factory() as seed:
+        await ensure_users(seed.users, uid("a"), uid("b"))  # updated_by는 users(id) FK
         await seed.directory_settings.save(
             make_directory_settings(), expected_revision=None, updated_by=None, now=NOW
         )
         await seed.commit()
 
-    async def update(by: str, base_dn: str, at: int) -> str:
+    async def update(by: UserId, base_dn: str, at: int) -> str:
         async with uow_factory() as uow:
             try:
                 await uow.directory_settings.save(
@@ -149,12 +146,13 @@ async def test_concurrent_settings_update_with_same_revision_lets_only_one_win(
                 return "conflict"
             return "saved"
 
-    results = await asyncio.gather(update("a", "dc=a", 1), update("b", "dc=b", 2))
+    results = await asyncio.gather(update(uid("a"), "dc=a", 1), update(uid("b"), "dc=b", 2))
 
     assert sorted(results) == ["conflict", "saved"]
     async with uow_factory() as check:
         stored = await check.directory_settings.get()
     assert stored is not None
     assert stored.revision == 2
-    assert stored.updated_by in {"a", "b"}
-    assert stored.settings.base_dn == f"dc={stored.updated_by}"
+    assert stored.updated_by in {uid("a"), uid("b")}
+    winner = "a" if stored.updated_by == uid("a") else "b"
+    assert stored.settings.base_dn == f"dc={winner}"

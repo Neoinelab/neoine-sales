@@ -4,6 +4,7 @@
 """
 
 import asyncio
+from uuid import uuid4
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -12,6 +13,7 @@ from app.container import Container
 from app.main import create_app
 from tests.e2e.conftest import DEFAULT_LOGIN, make_settings
 from tests.e2e.payloads import action_payload, customer_payload, deal_payload, partner_payload
+from tests.support.user_ids import OWNER_ID
 
 CUSTOMERS = "/api/v1/customers"
 PARTNERS = "/api/v1/partners"
@@ -168,8 +170,12 @@ async def test_deal_search_filters_run_in_the_database(stack: AsyncClient) -> No
     assert await codes(keyword="100%") == ["D-1"]
     assert await codes(partner_id=partner["id"]) == ["D-1"]
     assert await codes(revenue_from="2026-06-01", revenue_to="2026-07-01") == ["D-2", "D-3"]
-    assert await codes(owner="박영업", vendor="SAP", offset="1", limit="2") == ["D-2", "D-3"]
-    assert await codes(owner="박영") == []
+    assert await codes(owner_user_id=str(OWNER_ID), vendor="SAP", offset="1", limit="2") == [
+        "D-2",
+        "D-3",
+    ]
+    assert await codes(owner_user_id=str(uuid4())) == []
+    assert await codes(keyword="OWNER") == ["D-1", "D-2", "D-3", "D-4"]  # 담당자 이름(users 조인)
 
 
 @pytest.mark.integration
@@ -215,7 +221,8 @@ async def test_stage_change_history_and_pipeline_run_in_the_database(stack: Asyn
         ("prospecting", "price_negotiation"),
     ]
     assert history[0]["reason"] == "예산 삭감"
-    assert history[0]["changed_by_subject"] == DEFAULT_LOGIN
+    assert history[0]["changed_by"]["name"] == DEFAULT_LOGIN  # 표시 이름이 없어 아이디로 대체
+    assert "login_id" not in history[0]["changed_by"]
     assert [
         d["code"] for d in (await stack.get(DEALS, params={"stage": "lost"})).json()["items"]
     ] == [

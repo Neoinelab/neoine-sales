@@ -2,11 +2,13 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Self
 from uuid import uuid4
 
-from app.domain.auth.principal import NAME_MAX, SUBJECT_MAX, Principal, Role
+from app.domain.auth.principal import NAME_MAX, Principal, Role
 from app.domain.common.contact import EMAIL_MAX_LENGTH
 from app.domain.common.entity import AuditedEntity
-from app.domain.common.validation import require_aware, required_text
-from app.domain.user.value_objects import UserId
+from app.domain.common.errors import InvalidStateError
+from app.domain.common.validation import require_aware
+from app.domain.user.messages import ALREADY_RESIGNED
+from app.domain.user.value_objects import UserDeleteReason, UserId, UserRef
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -16,20 +18,27 @@ if TYPE_CHECKING:
 
 @dataclass(eq=False, kw_only=True)
 class User(AuditedEntity[UserId]):
-    """이 시스템을 쓸 수 있도록 등록된 AD 계정. 비밀번호는 저장하지 않는다."""
+    """이 시스템을 쓸 수 있도록 등록된 AD 계정. 비밀번호는 저장하지 않는다.
+
+    퇴사 처리된 행(deleted_at)은 이력 보존용 불변 기록이다. 복구하지 않고, 같은 login_id로
+    다시 등록하면 항상 새 행(새 id)이 생긴다.
+    """
 
     login_id: LoginId
     role: Role
-    created_by: str
+    created_by_user_id: UserId
     display_name: str | None = None
     email: str | None = None
     last_login_at: datetime | None = None
+    deleted_at: datetime | None = None
+    delete_reason: UserDeleteReason | None = None
 
     def __post_init__(self) -> None:
         super().__post_init__()
-        self.created_by = required_text(self.created_by, "등록자", max_length=SUBJECT_MAX)
         if self.last_login_at is not None:
             require_aware(self.last_login_at, "last_login_at")
+        if self.deleted_at is not None:
+            require_aware(self.deleted_at, "deleted_at")
 
     @classmethod
     def register(
@@ -37,7 +46,7 @@ class User(AuditedEntity[UserId]):
         login_id: LoginId,
         role: Role,
         *,
-        created_by: str,
+        created_by_user_id: UserId,
         now: datetime,
         entity_id: UserId | None = None,
     ) -> Self:
@@ -45,10 +54,31 @@ class User(AuditedEntity[UserId]):
             id=entity_id or UserId(uuid4()),
             login_id=login_id,
             role=role,
-            created_by=created_by,
+            created_by_user_id=created_by_user_id,
             created_at=now,
             updated_at=now,
         )
+
+    @classmethod
+    def register_self(cls, login_id: LoginId, role: Role, *, now: datetime) -> Self:
+        """스스로 등록한 행(최초 admin, 개발 로그인): 등록자가 자기 자신이다."""
+        entity_id = UserId(uuid4())
+        return cls.register(
+            login_id, role, created_by_user_id=entity_id, now=now, entity_id=entity_id
+        )
+
+    @property
+    def is_active(self) -> bool:
+        return self.deleted_at is None
+
+    def resign(self, now: datetime, reason: UserDeleteReason = UserDeleteReason.RESIGNED) -> None:
+        """퇴사 처리한다. 이미 퇴사한 행은 다시 처리할 수 없다."""
+        require_aware(now, "now")
+        if not self.is_active:
+            raise InvalidStateError(ALREADY_RESIGNED)
+        self._touch(now)
+        self.deleted_at = now
+        self.delete_reason = reason
 
     def record_login(self, now: datetime, *, display_name: str | None, email: str | None) -> None:
         """로그인 성공 시각을 남기고 디렉터리의 표시 이름·메일로 프로필을 덮어쓴다."""
@@ -58,8 +88,16 @@ class User(AuditedEntity[UserId]):
         mail = _directory_text(email, EMAIL_MAX_LENGTH, truncate=False)
         self.email = mail if mail is not None and "@" in mail else None
 
+    def to_ref(self) -> UserRef:
+        return UserRef(
+            id=self.id,
+            name=self.display_name or self.login_id.value,
+            resigned=not self.is_active,
+        )
+
     def to_principal(self) -> Principal:
         return Principal(
+            user_id=self.id,
             subject=self.login_id.value,
             email=self.email,
             name=self.display_name or self.login_id.value,

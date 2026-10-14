@@ -3,6 +3,7 @@
 import pytest
 
 from app.domain.auth.principal import Permission, Principal, Role
+from tests.support.user_ids import uid
 
 MATRIX = {
     Role.ADMIN: {Permission.READ, Permission.WRITE, Permission.ADMINISTER},
@@ -26,7 +27,7 @@ def test_role_allows_exactly_the_permissions_in_the_matrix(
 @pytest.mark.parametrize("role", list(Role))
 @pytest.mark.parametrize("permission", list(Permission))
 def test_principal_can_follows_its_role(role: Role, permission: Permission) -> None:
-    principal = Principal("kim", "kim@corp.test", "김영업", role)
+    principal = Principal(uid("kim"), "kim", "kim@corp.test", "김영업", role)
 
     assert principal.can(permission) is (permission in MATRIX[role])
 

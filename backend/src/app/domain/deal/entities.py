@@ -2,7 +2,6 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Self
 from uuid import uuid4
 
-from app.domain.auth.principal import SUBJECT_MAX
 from app.domain.common.entity import AuditedEntity
 from app.domain.common.errors import InvalidStateError
 from app.domain.common.validation import optional_text, required_text
@@ -19,18 +18,14 @@ from app.domain.deal.value_objects import DealDetails, DealId
 if TYPE_CHECKING:
     from datetime import datetime
 
+    from app.domain.user.value_objects import UserId
+
 
 @dataclass(eq=False, kw_only=True)
 class Deal(AuditedEntity[DealId]):
     details: DealDetails
     stage: DealStage = INITIAL_STAGE
-    owner_user_id: str | None = None  # 등록한 로그인 사용자의 subject. 등록 후 바꾸지 않는다
-
-    def __post_init__(self) -> None:
-        super().__post_init__()
-        self.owner_user_id = optional_text(
-            self.owner_user_id, "등록 사용자", max_length=SUBJECT_MAX
-        )
+    registered_by_user_id: UserId | None = None  # 등록한 사용자(users.id). 등록 후 바꾸지 않는다
 
     @classmethod
     def create(
@@ -39,14 +34,14 @@ class Deal(AuditedEntity[DealId]):
         now: datetime,
         *,
         entity_id: DealId | None = None,
-        owner_user_id: str | None = None,
+        registered_by_user_id: UserId | None = None,
     ) -> Self:
         return cls(
             id=entity_id or DealId(uuid4()),
             details=details,
             created_at=now,
             updated_at=now,
-            owner_user_id=owner_user_id,
+            registered_by_user_id=registered_by_user_id,
         )
 
     def update(self, details: DealDetails, now: datetime) -> None:

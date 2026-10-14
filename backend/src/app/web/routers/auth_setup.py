@@ -8,7 +8,11 @@ from app.web.dependencies import Provider
 from app.web.request_info import client_ip
 from app.web.routers.responses import PROBLEM
 from app.web.schemas.auth import PrincipalResponse, SetupAdminRequest
-from app.web.schemas.auth_directory import DirectorySettingsRequest, DirectorySettingsResponse
+from app.web.schemas.auth_directory import (
+    DirectorySettingsRequest,
+    DirectorySettingsResponse,
+    directory_response,
+)
 from app.web.security import AUTH_PATH, Options, require_csrf_header, set_session_cookie
 
 router = APIRouter(prefix=AUTH_PATH, tags=["auth"], dependencies=[Depends(require_csrf_header)])
@@ -26,7 +30,7 @@ async def setup_directory(
     body: DirectorySettingsRequest, provider: Provider
 ) -> DirectorySettingsResponse:
     stored = await provider.register_setup_directory().execute(body.to_domain())
-    return DirectorySettingsResponse.from_stored(stored)
+    return await directory_response(provider, stored)
 
 
 @router.post("/setup", responses=SETUP_ERRORS)

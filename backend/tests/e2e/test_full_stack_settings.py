@@ -44,7 +44,11 @@ async def test_admin_updates_settings_on_postgres_and_other_sessions_survive(
             saved = await admin.put(SETTINGS, json=settings_update_payload(base_dn=NEW_DN))
 
             assert saved.status_code == 200
-            assert (saved.json()["revision"], saved.json()["updated_by"]) == (2, "root")
+            assert saved.json()["revision"] == 2
+            me = (await admin.get(ME)).json()
+            assert saved.json()["updated_by"]["id"] == me["user_id"]
+            assert saved.json()["updated_by"]["name"] == "관리자"  # 로그인 때 저장된 표시 이름
+            assert "login_id" not in saved.json()["updated_by"]
             assert (await admin.get(SETTINGS)).json() == saved.json()
             assert (await kim.get(ME)).status_code == 200
             assert (await admin.get(CONFIG)).json()["directory_login"] is True

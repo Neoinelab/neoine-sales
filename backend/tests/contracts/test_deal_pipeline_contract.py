@@ -10,6 +10,7 @@ from app.domain.common.money import Money
 from app.domain.deal.errors import DealNotFoundError
 from app.domain.deal.stage import DealStage
 from tests.factories import later, make_deal, make_stage_changer
+from tests.support.user_ids import uid
 
 if TYPE_CHECKING:
     from app.domain.deal.entities import Deal
@@ -141,11 +142,13 @@ async def test_search_filters_by_stage(deal_case: RepositoryCase) -> None:
 
 
 async def test_search_stage_combines_with_other_conditions(deal_case: RepositoryCase) -> None:
-    await deal_case.add(_deal(1, DealStage.LOST, "1", owner="김영업"))
-    await deal_case.add(_deal(2, DealStage.LOST, "1", owner="박영업"))
-    await deal_case.add(_deal(3, DealStage.PROSPECTING, "1", owner="박영업"))
+    await deal_case.add(_deal(1, DealStage.LOST, "1", owner_user_id=uid("kim")))
+    await deal_case.add(_deal(2, DealStage.LOST, "1", owner_user_id=uid("park")))
+    await deal_case.add(_deal(3, DealStage.PROSPECTING, "1", owner_user_id=uid("park")))
 
-    found = await deal_case.repository.search(DealQuery(stage=DealStage.LOST, owner="박영업"))
+    found = await deal_case.repository.search(
+        DealQuery(stage=DealStage.LOST, owner_user_id=uid("park"))
+    )
 
     assert [d.details.code.value for d in found] == ["P-2"]
 

@@ -1,6 +1,6 @@
 """딜 단계 마이그레이션: 기존 행 백필, 구버전 INSERT 호환, CHECK·FK·인덱스, 왕복."""
 
-from pathlib import Path
+from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import pytest
@@ -17,7 +17,13 @@ from tests.support.database import (
     resolve_admin_url,
     temporary_database,
 )
+from tests.support.revisions import STAGE_REVISION
 from tests.support.skips import skip_or_fail
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from sqlalchemy.engine import URL
 
 pytestmark = pytest.mark.integration
 
@@ -47,14 +53,18 @@ async def _deal_with_id(session: AsyncSession) -> str:
     return str(deal_id)
 
 
+@pytest.fixture
+def test_database_url(database_at: Callable[[str], URL]) -> URL:
+    """이 모듈의 DB 테스트는 단계 리비전 스키마(changed_by 문자열 컬럼 시절)에서 돈다."""
+    return database_at(STAGE_REVISION)
+
+
 def _revision_before_deal_stage() -> str:
-    """deal_stage_changes 테이블을 만드는 리비전의 직전 리비전."""
-    script = ScriptDirectory.from_config(_alembic_config())
-    for revision in script.walk_revisions():
-        source = Path(revision.path).read_text(encoding="utf-8")
-        if "deal_stage_changes" in source and isinstance(revision.down_revision, str):
-            return revision.down_revision
-    pytest.fail("deal_stage_changes를 만드는 마이그레이션 리비전이 없다")
+    """deal_stage_changes 테이블을 만드는 리비전(STAGE_REVISION)의 직전 리비전."""
+    revision = ScriptDirectory.from_config(_alembic_config()).get_revision(STAGE_REVISION)
+    assert revision is not None
+    assert isinstance(revision.down_revision, str)
+    return revision.down_revision
 
 
 async def test_existing_style_insert_without_stage_defaults_to_prospecting(
@@ -176,7 +186,7 @@ async def test_upgrade_fills_existing_deals_with_prospecting() -> None:
                 customer_id = await _insert_customer(session)
                 await _insert_deal(session, customer_id, code="OLD-1")
                 await _insert_deal(session, customer_id, code="OLD-2")
-            await apply_migrations(url)
+            await apply_migrations(url, target=STAGE_REVISION)
             async with engine.connect() as connection:
                 stages = (await connection.execute(text("select stage from deals"))).scalars().all()
         finally:

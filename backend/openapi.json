@@ -233,8 +233,9 @@
           "action_type": {
             "$ref": "#/components/schemas/ActionType"
           },
-          "actor": {
-            "title": "Actor",
+          "actor_user_id": {
+            "format": "uuid",
+            "title": "Actor User Id",
             "type": "string"
           },
           "due_date": {
@@ -256,7 +257,7 @@
           "action_type",
           "action",
           "acted_at",
-          "actor",
+          "actor_user_id",
           "next_action",
           "due_date"
         ],
@@ -278,8 +279,7 @@
             "$ref": "#/components/schemas/ActionType"
           },
           "actor": {
-            "title": "Actor",
-            "type": "string"
+            "$ref": "#/components/schemas/UserRef"
           },
           "created_at": {
             "format": "date-time",
@@ -384,8 +384,9 @@
             "title": "Name",
             "type": "string"
           },
-          "owner": {
-            "title": "Owner",
+          "owner_user_id": {
+            "format": "uuid",
+            "title": "Owner User Id",
             "type": "string"
           },
           "partner_id": {
@@ -434,7 +435,7 @@
         "required": [
           "code",
           "name",
-          "owner",
+          "owner_user_id",
           "vendor",
           "solution",
           "revenue_amount",
@@ -468,8 +469,7 @@
             "type": "string"
           },
           "owner": {
-            "title": "Owner",
-            "type": "string"
+            "$ref": "#/components/schemas/UserRef"
           },
           "partner_id": {
             "anyOf": [
@@ -577,13 +577,8 @@
             "title": "Changed At",
             "type": "string"
           },
-          "changed_by_name": {
-            "title": "Changed By Name",
-            "type": "string"
-          },
-          "changed_by_subject": {
-            "title": "Changed By Subject",
-            "type": "string"
+          "changed_by": {
+            "$ref": "#/components/schemas/UserRef"
           },
           "deal_id": {
             "title": "Deal Id",
@@ -617,11 +612,28 @@
           "from_stage",
           "to_stage",
           "reason",
-          "changed_by_subject",
-          "changed_by_name",
+          "changed_by",
           "changed_at"
         ],
         "title": "DealStageChangeResponse",
+        "type": "object"
+      },
+      "DeleteUserResponse": {
+        "description": "outcome: 연결된 데이터가 없어 완전히 삭제(deleted) 또는 있어서 퇴사 처리(resigned).",
+        "properties": {
+          "outcome": {
+            "enum": [
+              "deleted",
+              "resigned"
+            ],
+            "title": "Outcome",
+            "type": "string"
+          }
+        },
+        "required": [
+          "outcome"
+        ],
+        "title": "DeleteUserResponse",
         "type": "object"
       },
       "DevLoginRequest": {
@@ -762,13 +774,12 @@
           "updated_by": {
             "anyOf": [
               {
-                "type": "string"
+                "$ref": "#/components/schemas/UserRef"
               },
               {
                 "type": "null"
               }
-            ],
-            "title": "Updated By"
+            ]
           },
           "use_starttls": {
             "title": "Use Starttls",
@@ -1163,6 +1174,32 @@
         "title": "Page[PartnerResponse]",
         "type": "object"
       },
+      "Page_UserRef_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/UserRef"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "limit": {
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "title": "Offset",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "offset",
+          "limit"
+        ],
+        "title": "Page[UserRef]",
+        "type": "object"
+      },
       "Page_UserResponse_": {
         "properties": {
           "items": {
@@ -1335,9 +1372,14 @@
           "subject": {
             "title": "Subject",
             "type": "string"
+          },
+          "user_id": {
+            "title": "User Id",
+            "type": "string"
           }
         },
         "required": [
+          "user_id",
           "subject",
           "email",
           "name",
@@ -1452,6 +1494,43 @@
         "title": "StageSummaryResponse",
         "type": "object"
       },
+      "UserDeleteReason": {
+        "description": "사용자가 목록에서 빠진 이유. 값을 추가할 때는 DB CHECK도 이 enum에서 만든다.",
+        "enum": [
+          "resigned"
+        ],
+        "title": "UserDeleteReason",
+        "type": "string"
+      },
+      "UserRef": {
+        "description": "OpenAPI 스키마 이름이 `UserRef`다(프런트가 이 이름으로 생성 타입을 쓴다).",
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "resigned": {
+            "title": "Resigned",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "resigned",
+          "label"
+        ],
+        "title": "UserRef",
+        "type": "object"
+      },
       "UserRequest": {
         "additionalProperties": false,
         "description": "등록 본문. 비밀번호는 받지 않는다(AD가 인증). 아이디 형식 검증은 도메인(LoginId)이 한다.",
@@ -1479,8 +1558,29 @@
             "type": "string"
           },
           "created_by": {
-            "title": "Created By",
-            "type": "string"
+            "$ref": "#/components/schemas/UserRef"
+          },
+          "delete_reason": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UserDeleteReason"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "deleted_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deleted At"
           },
           "display_name": {
             "anyOf": [
@@ -1526,6 +1626,14 @@
           },
           "role": {
             "$ref": "#/components/schemas/Role"
+          },
+          "status": {
+            "enum": [
+              "active",
+              "resigned"
+            ],
+            "title": "Status",
+            "type": "string"
           }
         },
         "required": [
@@ -1536,7 +1644,10 @@
           "email",
           "created_at",
           "created_by",
-          "last_login_at"
+          "last_login_at",
+          "status",
+          "deleted_at",
+          "delete_reason"
         ],
         "title": "UserResponse",
         "type": "object"
@@ -2331,18 +2442,19 @@
           },
           {
             "in": "query",
-            "name": "actor",
+            "name": "actor_user_id",
             "required": false,
             "schema": {
               "anyOf": [
                 {
+                  "format": "uuid",
                   "type": "string"
                 },
                 {
                   "type": "null"
                 }
               ],
-              "title": "Actor"
+              "title": "Actor User Id"
             }
           },
           {
@@ -2803,19 +2915,19 @@
           },
           {
             "in": "query",
-            "name": "owner",
+            "name": "owner_user_id",
             "required": false,
             "schema": {
               "anyOf": [
                 {
-                  "maxLength": 100,
+                  "format": "uuid",
                   "type": "string"
                 },
                 {
                   "type": "null"
                 }
               ],
-              "title": "Owner"
+              "title": "Owner User Id"
             }
           },
           {
@@ -3431,18 +3543,19 @@
           },
           {
             "in": "query",
-            "name": "actor",
+            "name": "actor_user_id",
             "required": false,
             "schema": {
               "anyOf": [
                 {
+                  "format": "uuid",
                   "type": "string"
                 },
                 {
                   "type": "null"
                 }
               ],
-              "title": "Actor"
+              "title": "Actor User Id"
             }
           },
           {
@@ -4512,6 +4625,88 @@
         ]
       }
     },
+    "/api/v1/user-options": {
+      "get": {
+        "operationId": "list_user_options_api_v1_user_options_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "include_resigned",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Include Resigned",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "keyword",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 100,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Keyword"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 200,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_UserRef_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          }
+        },
+        "summary": "List User Options",
+        "tags": [
+          "users"
+        ]
+      }
+    },
     "/api/v1/users": {
       "get": {
         "operationId": "list_users_api_v1_users_get",
@@ -4537,6 +4732,21 @@
               "minimum": 1,
               "title": "Limit",
               "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "default": "active",
+              "enum": [
+                "active",
+                "resigned",
+                "all"
+              ],
+              "title": "Status",
+              "type": "string"
             }
           }
         ],
@@ -4680,10 +4890,31 @@
               "title": "User Id",
               "type": "string"
             }
+          },
+          {
+            "in": "query",
+            "name": "reason",
+            "required": false,
+            "schema": {
+              "const": "resigned",
+              "default": "resigned",
+              "enum": [
+                "resigned"
+              ],
+              "title": "Reason",
+              "type": "string"
+            }
           }
         ],
         "responses": {
-          "204": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteUserResponse"
+                }
+              }
+            },
             "description": "Successful Response"
           },
           "401": {

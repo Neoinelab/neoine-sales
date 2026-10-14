@@ -5,9 +5,10 @@ from typing import TYPE_CHECKING
 from sqlalchemy import exists, select
 from sqlalchemy.exc import IntegrityError
 
-from app.domain.common.errors import AlreadyExistsError
+from app.domain.common.errors import AlreadyExistsError, InvalidReferenceError
 from app.domain.deal.stage import DealStage, DealStageChange, DealStageChangeId, StageChanger
 from app.domain.deal.value_objects import DealId
+from app.domain.user.value_objects import UserId
 from app.infra.db.models import DealStageChangeRow
 
 if TYPE_CHECKING:
@@ -25,8 +26,7 @@ def _to_row(change: DealStageChange) -> DealStageChangeRow:
         from_stage=change.from_stage.value,
         to_stage=change.to_stage.value,
         reason=change.reason,
-        changed_by_subject=change.changed_by.subject,
-        changed_by_name=change.changed_by.name,
+        changed_by_user_id=change.changed_by.user_id,
         changed_at=change.changed_at,
     )
 
@@ -38,7 +38,7 @@ def _to_entity(row: DealStageChangeRow) -> DealStageChange:
         from_stage=DealStage(row.from_stage),
         to_stage=DealStage(row.to_stage),
         reason=row.reason,
-        changed_by=StageChanger(subject=row.changed_by_subject, name=row.changed_by_name),
+        changed_by=StageChanger(user_id=UserId(row.changed_by_user_id)),
         changed_at=row.changed_at,
     )
 
@@ -54,8 +54,11 @@ class SqlDealStageChangeRepository:
                 self._session.add(_to_row(change))
                 await self._session.flush()
         except IntegrityError as error:
-            if "pk_deal_stage_changes" in str(error.orig):
+            message = str(error.orig)
+            if "pk_deal_stage_changes" in message:
                 raise AlreadyExistsError("단계 이력", change.id) from error
+            if "fk_deal_stage_changes_changed_by_user_id_users" in message:
+                raise InvalidReferenceError("사용자", change.changed_by.user_id) from error
             raise
 
     async def search(self, query: DealStageChangeQuery) -> Sequence[DealStageChange]:

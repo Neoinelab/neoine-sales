@@ -2,6 +2,8 @@
 
 from typing import Any
 
+from tests.support.user_ids import ACTOR_ID, OWNER_ID
+
 
 def customer_payload(**overrides: object) -> dict[str, Any]:
     values: dict[str, Any] = {
@@ -31,7 +33,7 @@ def deal_payload(customer_id: str, **overrides: object) -> dict[str, Any]:
     values: dict[str, Any] = {
         "code": "deal-001",
         "name": "ERP 구축",
-        "owner": "박영업",
+        "owner_user_id": str(OWNER_ID),  # deal_users fixture(또는 SQL stack)가 이 사용자를 둔다
         "vendor": "SAP",
         "solution": "S/4HANA",
         "revenue_amount": "150000000",
@@ -47,7 +49,7 @@ def action_payload(**overrides: object) -> dict[str, Any]:
         "action_type": "meeting",
         "action": "킥오프 미팅",
         "acted_at": "2026-03-02T10:00:00+09:00",
-        "actor": "박영업",
+        "actor_user_id": str(ACTOR_ID),
         "next_action": "요구사항 문서 전달",
         "due_date": "2026-03-10",
         "memo": "요구사항 정리",

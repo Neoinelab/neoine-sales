@@ -27,6 +27,10 @@ BUSINESS_READS: Final = (
     ("GET", "/api/v1/deals/{deal_id}/stage-changes"),
     ("GET", "/api/v1/deal-actions"),
     ("GET", "/api/v1/deal-actions/{action_id}"),
+    (
+        "GET",
+        "/api/v1/user-options",
+    ),  # 사용자 선택 UI용: 로그인한 모든 역할(이메일·역할은 노출 안 함)
 )
 BUSINESS_WRITES: Final = (
     ("POST", "/api/v1/customers"),

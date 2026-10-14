@@ -5,15 +5,26 @@ from uuid import uuid4
 
 import pytest
 
+from app.domain.common.errors import InvalidReferenceError
 from app.domain.customer.entities import Customer
 from app.domain.deal.entities import Deal
 from app.domain.deal.errors import DealNotFoundError
 from app.domain.deal.value_objects import DealId
+from app.domain.user.value_objects import UserId
 from app.infra.db.customer_repository import SqlCustomerRepository
 from app.infra.db.deal_action_repository import SqlDealActionRepository
 from app.infra.db.deal_repository import SqlDealRepository
-from tests.factories import NOW, make_customer_details, make_deal_action, make_deal_details
+from app.infra.db.user_repository import SqlUserRepository
+from tests.factories import (
+    NOW,
+    make_customer_details,
+    make_deal_action,
+    make_deal_action_details,
+    make_deal_details,
+)
 from tests.support.database import rolled_back_session
+from tests.support.user_ids import ACTOR_ID, OWNER_ID
+from tests.support.user_seed import ensure_users
 
 if TYPE_CHECKING:
     from sqlalchemy.engine import URL
@@ -36,9 +47,46 @@ async def test_add_after_the_deal_is_physically_deleted_raises_deal_not_found(
         customer = Customer.create(make_customer_details(), NOW)
         await SqlCustomerRepository(session).add(customer)
         deals = SqlDealRepository(session)
+        await ensure_users(SqlUserRepository(session), OWNER_ID, ACTOR_ID)
         deal = Deal.create(make_deal_details(customer_id=customer.id), NOW)
         await deals.add(deal)
         await deals.delete(deal.id)
 
         with pytest.raises(DealNotFoundError):
             await SqlDealActionRepository(session).add(make_deal_action(deal_id=deal.id))
+
+
+async def test_add_with_a_missing_actor_user_raises_invalid_reference(
+    test_database_url: URL,
+) -> None:
+    async with rolled_back_session(test_database_url) as session:
+        customer = Customer.create(make_customer_details(), NOW)
+        await SqlCustomerRepository(session).add(customer)
+        await ensure_users(SqlUserRepository(session), OWNER_ID)
+        deal = Deal.create(make_deal_details(customer_id=customer.id), NOW)
+        await SqlDealRepository(session).add(deal)
+
+        with pytest.raises(InvalidReferenceError) as caught:
+            await SqlDealActionRepository(session).add(
+                make_deal_action(deal_id=deal.id, actor_user_id=UserId(uuid4()))
+            )
+
+        assert caught.value.entity == "사용자"
+
+
+async def test_update_to_a_missing_actor_user_raises_invalid_reference(
+    test_database_url: URL,
+) -> None:
+    async with rolled_back_session(test_database_url) as session:
+        customer = Customer.create(make_customer_details(), NOW)
+        await SqlCustomerRepository(session).add(customer)
+        await ensure_users(SqlUserRepository(session), OWNER_ID, ACTOR_ID)
+        deal = Deal.create(make_deal_details(customer_id=customer.id), NOW)
+        await SqlDealRepository(session).add(deal)
+        actions = SqlDealActionRepository(session)
+        action = make_deal_action(deal_id=deal.id)
+        await actions.add(action)
+        action.update(make_deal_action_details(deal_id=deal.id, actor_user_id=UserId(uuid4())), NOW)
+
+        with pytest.raises(InvalidReferenceError):
+            await actions.update(action)

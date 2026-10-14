@@ -1,13 +1,17 @@
 """전역 활동 검색 API: 기존 필터와 계획일 범위·정렬·확장 키워드(AC9)."""
 
 from typing import TYPE_CHECKING
+from uuid import uuid4
 
 import pytest
 
+from app.domain.auth.principal import Role
 from tests.e2e.payloads import action_payload, customer_payload, deal_payload
 
 if TYPE_CHECKING:
     from httpx import AsyncClient
+
+    from tests.fakes.use_cases import FakeUseCases
 
 DEALS = "/api/v1/deals"
 ACTIONS = "/api/v1/deal-actions"
@@ -32,21 +36,22 @@ async def _names(client: AsyncClient, **params: str) -> list[str]:
 
 
 @pytest.fixture
-async def seeded(client: AsyncClient) -> str:
+async def actors(use_cases: FakeUseCases) -> dict[str, str]:
+    """검색 필터 검증용 활동자 두 명(login id -> user id)."""
+    ids: dict[str, str] = {}
+    for login in ("kim", "park"):
+        await use_cases.seed_user(login, Role.SALES)
+        ids[login] = str(await use_cases.user_id_of(login))
+    return ids
+
+
+@pytest.fixture
+async def seeded(client: AsyncClient, actors: dict[str, str]) -> str:
     first, second = await _deal(client), await _deal(client, "DEAL-002")
     rows = [
-        (first, "킥오프", "meeting", "김영업", "2026-03-01", "일정 협의", "요구사항", "2026-04-10"),
-        (
-            first,
-            "견적 발송",
-            "email",
-            "박영업",
-            "2026-03-02",
-            "100% 할인",
-            "회신 확인",
-            "2026-04-01",
-        ),
-        (second, "킥오프 2", "meeting", "박영업", "2026-03-03", "", "계약서 초안", "2026-04-10"),
+        (first, "킥오프", "meeting", "kim", "2026-03-01", "일정 협의", "요구사항", "2026-04-10"),
+        (first, "견적 발송", "email", "park", "2026-03-02", "100% 할인", "회신 확인", "2026-04-01"),
+        (second, "킥오프 2", "meeting", "park", "2026-03-03", "", "계약서 초안", "2026-04-10"),
     ]
     for deal_id, action, kind, actor, day, memo, next_action, due in rows:
         await _create(
@@ -54,7 +59,7 @@ async def seeded(client: AsyncClient) -> str:
             deal_id,
             action=action,
             action_type=kind,
-            actor=actor,
+            actor_user_id=actors[actor],
             memo=memo,
             next_action=next_action,
             due_date=due,
@@ -63,11 +68,14 @@ async def seeded(client: AsyncClient) -> str:
     return second
 
 
-async def test_global_search_filters(client: AsyncClient, seeded: str) -> None:
+async def test_global_search_filters(
+    client: AsyncClient, seeded: str, actors: dict[str, str]
+) -> None:
     assert set(await _names(client)) == {"킥오프", "견적 발송", "킥오프 2"}
     assert await _names(client, deal_id=seeded) == ["킥오프 2"]
     assert set(await _names(client, action_type="meeting")) == {"킥오프", "킥오프 2"}
-    assert set(await _names(client, actor="박영업")) == {"견적 발송", "킥오프 2"}
+    assert set(await _names(client, actor_user_id=actors["park"])) == {"견적 발송", "킥오프 2"}
+    assert await _names(client, actor_user_id=str(uuid4())) == []
     assert await _names(client, action_type="meeting", keyword="2") == ["킥오프 2"]
     assert await _names(client, acted_from="2026-03-04T00:00:00+09:00") == []
     assert len(await _names(client, acted_from="2026-03-02T00:00:00+09:00")) == 2
@@ -128,6 +136,8 @@ async def test_deal_history_endpoint_also_accepts_due_filters_and_sort(
         {"due_from": "2026-04-10", "due_to": "2026-04-01"},
         {"limit": 201},
         {"action_type": "dance"},
+        {"actor_user_id": "not-a-uuid"},
+        {"actor": "박영업"},  # 텍스트 활동자 필터는 없어졌다
         {"unknown": "x"},
     ],
 )

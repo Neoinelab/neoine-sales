@@ -4,12 +4,16 @@ from typing import TYPE_CHECKING
 
 import pytest
 import pytest_asyncio
+from app.application.user.list_user_options import ListUserOptions
+from app.application.user.resolve_user_refs import ResolveUserRefs
+
 from app.application.auth.auth_status import GetAuthStatus
+from app.application.auth.authenticate import Authenticate
+from app.application.auth.dev_login import DevLogin
 from app.application.auth.directory_login import DirectoryLogin
 from app.application.auth.setup_directory import RegisterSetupDirectory
 from app.application.auth.setup_first_admin import SetupFirstAdmin
-
-from app.application.auth.authenticate import Authenticate
+from app.application.user.delete_user import DeleteUser
 from app.container import Container
 from app.infra.auth.ldap import LdapDirectoryAuthenticator
 from tests.e2e.conftest import make_settings
@@ -34,6 +38,13 @@ async def test_container_builds_the_auth_use_cases_without_any_oidc_settings(
     assert isinstance(container.setup_first_admin(), SetupFirstAdmin)
     assert isinstance(container.directory_login(), DirectoryLogin)
     assert isinstance(container.authenticate(), Authenticate)
+
+
+async def test_container_builds_the_user_fk_use_cases(container: Container) -> None:
+    assert isinstance(container.delete_user(), DeleteUser)
+    assert isinstance(container.list_user_options(), ListUserOptions)
+    assert isinstance(container.resolve_user_refs(), ResolveUserRefs)
+    assert isinstance(container.dev_login(), DevLogin)
 
 
 @pytest.mark.parametrize("removed", ["begin_login", "complete_login"])

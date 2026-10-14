@@ -9,27 +9,34 @@ from app.domain.deal.value_objects import DealId
 from app.domain.deal_action.entities import DealAction
 from app.domain.deal_action.value_objects import ActionType, DealActionId
 from tests.factories import NOW, later, make_deal_action, make_deal_action_details
+from tests.support.user_ids import ACTOR_ID, uid
 
 
 class TestDealActionDetails:
     def test_text_fields_are_trimmed_and_memo_defaults_to_empty(self) -> None:
         details = make_deal_action_details(
-            action="  킥오프  ", actor=" 박영업 ", next_action="  제안서 전달 ", memo="   "
+            action="  킥오프  ", next_action="  제안서 전달 ", memo="   "
         )
 
         assert details.action == "킥오프"
-        assert details.actor == "박영업"
         assert details.next_action == "제안서 전달"
         assert details.memo == ""
 
-    @pytest.mark.parametrize("field", ["action", "actor", "next_action"])
+    def test_actor_is_a_user_id_not_a_free_text_name(self) -> None:
+        details = make_deal_action_details()
+
+        assert details.actor_user_id == ACTOR_ID
+        assert not hasattr(details, "actor")
+        assert make_deal_action_details(actor_user_id=uid("lee")).actor_user_id == uid("lee")
+
+    @pytest.mark.parametrize("field", ["action", "next_action"])
     def test_required_text_cannot_be_blank(self, field: str) -> None:
         with pytest.raises(InvalidValueError):
             make_deal_action_details(**{field: "   "})
 
     @pytest.mark.parametrize(
         ("field", "limit"),
-        [("action", 200), ("next_action", 200), ("actor", 100), ("memo", 4000)],
+        [("action", 200), ("next_action", 200), ("memo", 4000)],
     )
     def test_text_length_is_limited(self, field: str, limit: int) -> None:
         make_deal_action_details(**{field: "가" * limit})
@@ -37,7 +44,7 @@ class TestDealActionDetails:
         with pytest.raises(InvalidValueError):
             make_deal_action_details(**{field: "가" * (limit + 1)})
 
-    @pytest.mark.parametrize("field", ["action", "actor", "next_action", "memo"])
+    @pytest.mark.parametrize("field", ["action", "next_action", "memo"])
     def test_text_fields_reject_nul(self, field: str) -> None:
         with pytest.raises(InvalidValueError):
             make_deal_action_details(**{field: "가\x00나"})

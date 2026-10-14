@@ -8,7 +8,7 @@ from app.web.dependencies import Provider
 from app.web.permissions import admin_router
 from app.web.request_info import client_ip
 from app.web.routers.responses import PROBLEM, READ_ERRORS
-from app.web.schemas.auth_directory import DirectorySettingsResponse
+from app.web.schemas.auth_directory import DirectorySettingsResponse, directory_response
 from app.web.schemas.settings_directory import (
     DirectorySettingsTestRequest,
     DirectorySettingsUpdateRequest,
@@ -27,7 +27,8 @@ CHANGE_ERRORS: dict[int | str, dict[str, Any]] = {
 
 @router.get("", response_model=DirectorySettingsResponse, responses={404: READ_ERRORS[404]})
 async def get_directory_settings(provider: Provider) -> DirectorySettingsResponse:
-    return DirectorySettingsResponse.from_stored(await provider.get_directory_settings().execute())
+    stored = await provider.get_directory_settings().execute()
+    return await directory_response(provider, stored)
 
 
 @router.put("", response_model=DirectorySettingsResponse, responses=CHANGE_ERRORS)
@@ -41,7 +42,7 @@ async def update_directory_settings(
         password=body.to_password(),
         client_ip=client_ip(request),
     )
-    return DirectorySettingsResponse.from_stored(stored)
+    return await directory_response(provider, stored)
 
 
 @router.post("/test", response_model=DirectoryTestResultResponse, responses=CHANGE_ERRORS)

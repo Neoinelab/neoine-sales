@@ -4,6 +4,7 @@ if TYPE_CHECKING:
     from datetime import datetime
 
     from app.domain.directory.settings import DirectorySettings, StoredDirectorySettings
+    from app.domain.user.value_objects import UserId
 
 
 class DirectorySettingsRepository(Protocol):
@@ -14,7 +15,7 @@ class DirectorySettingsRepository(Protocol):
         settings: DirectorySettings,
         *,
         expected_revision: int | None,
-        updated_by: str | None,
+        updated_by: UserId | None,
         now: datetime,
     ) -> StoredDirectorySettings:
         """낙관적 잠금 저장.

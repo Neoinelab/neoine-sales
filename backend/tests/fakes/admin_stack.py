@@ -2,6 +2,12 @@
 
 여기서 고정하는 생성자 계약(구현자가 따른다). 모든 `execute`는 키워드 인자로 호출한다.
 - ListUsers(uow_factory)                                    app.application.user.list_users
+  execute(*, status=UserStatusFilter.ACTIVE, offset=0, limit=DEFAULT_LIMIT) -> Sequence[User]
+- ListUserOptions(uow_factory)                              ...user.list_user_options
+  execute(*, keyword=None, include_resigned=False, limit=MAX_LIMIT) -> Sequence[UserRef]
+- ResolveUserRefs(uow_factory)                              ...user.resolve_user_refs
+  execute(user_ids: Collection[UserId]) -> Mapping[UserId, UserRef]  (퇴사자 포함)
+- DeleteUser.execute(*, user_id, actor, reason=UserDeleteReason.RESIGNED) -> DeleteOutcome
 - RegisterUser(uow_factory, clock)                          ...user.register_user
 - DeleteUser(uow_factory, clock)                            ...user.delete_user
 - GetDirectorySettings(uow_factory)                         app.application.directory.get_settings
@@ -13,6 +19,9 @@
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from app.application.user.list_user_options import ListUserOptions
+from app.application.user.resolve_user_refs import ResolveUserRefs
+
 from app.application.directory.get_settings import GetDirectorySettings
 from app.application.directory.test_settings import TestDirectorySettings as TestSettingsUseCase
 from app.application.directory.update_settings import UpdateDirectorySettings
@@ -20,9 +29,9 @@ from app.application.directory.verify_settings import VerifyDirectorySettings
 from app.application.user.delete_user import DeleteUser
 from app.application.user.list_users import ListUsers
 from app.application.user.register_user import RegisterUser
-
 from app.domain.auth.principal import Principal, Role
 from tests.factories_auth import ADMIN_LOGIN, ADMIN_PASSWORD
+from tests.support.user_ids import uid
 
 if TYPE_CHECKING:
     from app.application.ports.clock import Clock
@@ -38,8 +47,9 @@ __all__ = [
     "build_admin_stack",
 ]
 
-ADMIN_ACTOR = Principal(ADMIN_LOGIN, "root@corp.test", "루트 관리자", Role.ADMIN)
-DEV_ACTOR = Principal("dev:admin", None, "dev admin", Role.ADMIN)  # users 행이 없는 dev-login admin
+ADMIN_ACTOR = Principal(uid(ADMIN_LOGIN), ADMIN_LOGIN, "root@corp.test", "루트 관리자", Role.ADMIN)
+# dev-login admin. 이제 users 행이 있는 일반 사용자지만 AD 검증은 우회한다(예약 아이디)
+DEV_ACTOR = Principal(uid("dev-admin"), "dev-admin", None, "dev admin", Role.ADMIN)
 
 
 @dataclass(frozen=True, slots=True)
@@ -47,6 +57,8 @@ class AdminStack:
     list_users: ListUsers
     register_user: RegisterUser
     delete_user: DeleteUser
+    list_user_options: ListUserOptions
+    resolve_user_refs: ResolveUserRefs
     get_settings: GetDirectorySettings
     verify: VerifyDirectorySettings
     test_settings: TestSettingsUseCase
@@ -65,6 +77,8 @@ def build_admin_stack(
         list_users=ListUsers(uow_factory),
         register_user=RegisterUser(uow_factory, clock),
         delete_user=DeleteUser(uow_factory, clock),
+        list_user_options=ListUserOptions(uow_factory),
+        resolve_user_refs=ResolveUserRefs(uow_factory),
         get_settings=GetDirectorySettings(uow_factory),
         verify=verify,
         test_settings=TestSettingsUseCase(verify),

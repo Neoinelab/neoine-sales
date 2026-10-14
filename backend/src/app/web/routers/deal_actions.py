@@ -16,6 +16,8 @@ from app.web.schemas.deal_action import (
     DealActionResponse,
     DealActionSearchParams,
     GlobalDealActionSearchParams,
+    action_response,
+    action_responses,
 )
 
 router = BusinessRouter(prefix="/api/v1", tags=["deal-actions"])
@@ -28,7 +30,7 @@ async def _search(
 ) -> DealActionPage:
     query = params.to_query(deal_id)
     found = await provider.search_deal_actions().execute(query)
-    items = [DealActionResponse.from_entity(a) for a in found]
+    items = await action_responses(provider, found)
     return DealActionPage(items=items, offset=query.offset, limit=query.limit)
 
 
@@ -43,7 +45,7 @@ async def register_deal_action(
 ) -> DealActionResponse:
     action = await provider.register_deal_action().execute(DealId(deal_id), body.to_input())
     response.headers["Location"] = f"{router.prefix}/deal-actions/{action.id}"
-    return DealActionResponse.from_entity(action)
+    return await action_response(provider, action)
 
 
 @router.get("/deals/{deal_id}/actions", response_model=DealActionPage, responses=READ_ERRORS)
@@ -59,7 +61,7 @@ async def search_deal_actions(params: GlobalSearch, provider: Provider) -> DealA
 @router.get("/deal-actions/{action_id}", response_model=DealActionResponse, responses=READ_ERRORS)
 async def get_deal_action(action_id: UUID, provider: Provider) -> DealActionResponse:
     action = await provider.get_deal_action().execute(DealActionId(action_id))
-    return DealActionResponse.from_entity(action)
+    return await action_response(provider, action)
 
 
 @router.put("/deal-actions/{action_id}", response_model=DealActionResponse, responses=WRITE_ERRORS)
@@ -67,7 +69,7 @@ async def update_deal_action(
     action_id: UUID, body: DealActionRequest, provider: Provider
 ) -> DealActionResponse:
     action = await provider.update_deal_action().execute(DealActionId(action_id), body.to_input())
-    return DealActionResponse.from_entity(action)
+    return await action_response(provider, action)
 
 
 @router.delete(

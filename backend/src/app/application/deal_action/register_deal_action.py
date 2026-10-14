@@ -1,5 +1,6 @@
 from typing import TYPE_CHECKING
 
+from app.application.user.assignment import ensure_assignable
 from app.domain.deal_action.entities import DealAction
 
 if TYPE_CHECKING:
@@ -20,6 +21,7 @@ class RegisterDealAction:
         details = data.to_details(deal_id)
         async with self._uow_factory() as uow:
             await uow.deals.get(deal_id)
+            await ensure_assignable(uow, details.actor_user_id)
             action = DealAction.create(details, self._clock.now())
             await uow.deal_actions.add(action)
             await uow.commit()

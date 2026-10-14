@@ -56,6 +56,33 @@ async def test_login_issues_session_for_registered_user(auth: AuthStack, clock: 
 
 
 @pytest.mark.usefixtures("ready")
+async def test_login_principal_carries_the_users_row_id(
+    auth: AuthStack, uow: FakeUnitOfWork
+) -> None:
+    issued = await _login(auth)
+
+    stored = await uow.users.get_active_by_login_id(LoginId("kim"))
+    assert stored is not None
+    assert issued.principal.user_id == stored.id
+
+
+@pytest.mark.usefixtures("ready")
+async def test_login_after_reregistration_uses_the_new_row_not_the_resigned_one(
+    auth: AuthStack, uow_factory: UnitOfWorkFactory, uow: FakeUnitOfWork
+) -> None:
+    old = await seed_user(uow_factory, "lee", Role.USER, resigned=True)
+    new = await seed_user(uow_factory, "lee", Role.SALES)
+    auth.directory.add_account("lee", "pw-lee")
+
+    issued = await auth.login.execute(login_id="lee", password=Password("pw-lee"), client_ip=IP)
+
+    assert issued.principal.user_id == new.id
+    assert issued.principal.user_id != old.id
+    assert issued.principal.role is Role.SALES
+    assert (await uow.users.get(old.id)).last_login_at is None  # 퇴사 행은 건드리지 않는다
+
+
+@pytest.mark.usefixtures("ready")
 async def test_login_role_comes_from_the_users_table(
     auth: AuthStack, uow_factory: UnitOfWorkFactory
 ) -> None:
@@ -109,19 +136,29 @@ async def test_login_overwrites_profile_with_the_latest_directory_values(
 @pytest.mark.usefixtures("ready")
 @pytest.mark.parametrize(
     "case",
-    ["wrong-password", "unknown-in-directory", "not-registered", "deleted", "malformed-id"],
+    [
+        "wrong-password",
+        "unknown-in-directory",
+        "not-registered",
+        "deleted",
+        "resigned",
+        "malformed-id",
+    ],
 )
 async def test_login_failures_share_one_message_and_issue_no_session(
     auth: AuthStack, uow_factory: UnitOfWorkFactory, uow: FakeUnitOfWork, case: str
 ) -> None:
     auth.directory.add_account("newbie", "pw-newbie")  # AD에는 있지만 앱에 등록되지 않음
     auth.directory.add_account("gone", "pw-gone")
+    auth.directory.add_account("quit", "pw-quit")  # AD에는 있지만 앱에서 퇴사 처리됨
     await seed_user(uow_factory, "gone", Role.SALES, deleted=True)
+    await seed_user(uow_factory, "quit", Role.SALES, resigned=True)
     attempts = {
         "wrong-password": ("kim", "not-the-password"),
         "unknown-in-directory": ("ghost", "pw-ghost"),
         "not-registered": ("newbie", "pw-newbie"),
         "deleted": ("gone", "pw-gone"),
+        "resigned": ("quit", "pw-quit"),
         "malformed-id": ("kim)(uid=*", "pw-kim"),
     }
     login_id, password = attempts[case]
@@ -193,7 +230,7 @@ async def test_login_uses_the_current_settings_each_time(
     await _login(auth)
     changed = make_directory_settings(base_dn="dc=other,dc=test")
     async with uow_factory() as uow:
-        await uow.directory_settings.save(changed, expected_revision=1, updated_by="x", now=NOW)
+        await uow.directory_settings.save(changed, expected_revision=1, updated_by=None, now=NOW)
         await uow.commit()
 
     await _login(auth)

@@ -20,6 +20,8 @@ from app.domain.deal_action.entities import DealAction
 from app.domain.deal_action.value_objects import ActionType, DealActionDetails
 from app.domain.partner.entities import Partner
 from app.domain.partner.value_objects import PartnerDetails
+from app.domain.user.value_objects import UserId
+from tests.support.user_ids import ACTOR_ID, CHANGER_ID, OWNER_ID
 
 NOW = datetime(2026, 1, 1, 9, 0, tzinfo=UTC)
 
@@ -67,7 +69,7 @@ def make_deal_details(**overrides: object) -> DealDetails:
     values: dict[str, Any] = {
         "code": DealCode("DEAL-001"),
         "name": "ERP 구축",
-        "owner": "박영업",
+        "owner_user_id": OWNER_ID,
         "vendor": "SAP",
         "solution": "S/4HANA",
         "revenue": Money(Decimal("150000000")),
@@ -79,13 +81,13 @@ def make_deal_details(**overrides: object) -> DealDetails:
 
 
 def make_deal(now: datetime = NOW, **overrides: object) -> Deal:
-    """overrides는 DealDetails 값이고, owner_user_id(등록 사용자 subject)만 엔티티 속성이다."""
-    owner_user_id = overrides.pop("owner_user_id", None)
+    """overrides는 DealDetails 값(owner_user_id=담당자). registered_by_user_id(등록자)만 엔티티."""
+    registered_by = overrides.pop("registered_by_user_id", None)
     details = make_deal_details(**overrides)
-    if owner_user_id is None:
+    if registered_by is None:
         return Deal.create(details, now)
-    assert isinstance(owner_user_id, str)
-    return Deal.create(details, now, owner_user_id=owner_user_id)
+    assert isinstance(registered_by, UUID)
+    return Deal.create(details, now, registered_by_user_id=UserId(registered_by))
 
 
 def make_customer_input(**overrides: object) -> CustomerInput:
@@ -116,7 +118,7 @@ def make_deal_input(customer_id: UUID, **overrides: object) -> DealInput:
     values: dict[str, Any] = {
         "code": "deal-001",
         "name": "ERP 구축",
-        "owner": "박영업",
+        "owner_user_id": OWNER_ID,
         "vendor": "SAP",
         "solution": "S/4HANA",
         "revenue_amount": Decimal("150000000"),
@@ -132,7 +134,7 @@ def make_deal_action_details(**overrides: object) -> DealActionDetails:
         "action_type": ActionType.MEETING,
         "action": "킥오프 미팅",
         "acted_at": NOW,
-        "actor": "박영업",
+        "actor_user_id": ACTOR_ID,
         "next_action": "요구사항 문서 전달",
         "due_date": date(2026, 1, 15),
         "memo": "요구사항 정리",
@@ -149,7 +151,7 @@ def make_deal_action_input(**overrides: object) -> DealActionInput:
         "action_type": ActionType.MEETING,
         "action": "킥오프 미팅",
         "acted_at": NOW,
-        "actor": "박영업",
+        "actor_user_id": ACTOR_ID,
         "next_action": "요구사항 문서 전달",
         "due_date": date(2026, 1, 15),
         "memo": "요구사항 정리",
@@ -158,7 +160,7 @@ def make_deal_action_input(**overrides: object) -> DealActionInput:
 
 
 def make_stage_changer(**overrides: object) -> StageChanger:
-    values: dict[str, Any] = {"subject": "dev-user", "name": "개발 사용자(sales)"}
+    values: dict[str, Any] = {"user_id": CHANGER_ID}
     return StageChanger(**{**values, **overrides})
 
 
@@ -180,7 +182,6 @@ def make_stage_change_input(**overrides: object) -> StageChangeInput:
     values: dict[str, Any] = {
         "stage": DealStage.INTRODUCTION,
         "reason": None,
-        "changed_by_subject": "dev-user",
-        "changed_by_name": "개발 사용자(sales)",
+        "changed_by_user_id": CHANGER_ID,
     }
     return StageChangeInput(**{**values, **overrides})

@@ -1,5 +1,6 @@
 """역할은 세션이 아니라 users 표에서 매 요청 읽는다 (AUTH-10, ROLE-1~3, T-E33 보강)."""
 
+from dataclasses import replace
 from typing import TYPE_CHECKING
 
 from app.domain.auth.credentials import LoginId
@@ -64,8 +65,9 @@ async def test_a_viewer_promoted_to_sales_can_write_immediately(
 async def test_the_role_written_into_the_session_is_ignored(
     app: FastAPI, use_cases: FakeUseCases
 ) -> None:
-    await use_cases.seed_user("sneaky", Role.USER)
-    token = await use_cases.issue_session_for(principal_for("sneaky", Role.ADMIN))
+    sneaky = await use_cases.seed_user("sneaky", Role.USER)
+    forged = replace(principal_for("sneaky", Role.ADMIN), user_id=sneaky.id)
+    token = await use_cases.issue_session_for(forged)
     async with new_client(app, token=token) as http:
         users = await http.get(USERS)
         write = await http.post(CUSTOMERS, json=customer_payload())

@@ -18,6 +18,8 @@ from app.domain.deal.stage import DealStage
 from app.infra.db.unit_of_work import sql_unit_of_work_factory
 from tests.factories import later, make_customer, make_deal, make_stage_changer
 from tests.fakes.unit_of_work import FakeUnitOfWork
+from tests.support.user_ids import CHANGER_ID, OWNER_ID
+from tests.support.user_seed import ensure_users
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
@@ -44,7 +46,7 @@ async def uow_factory(request: pytest.FixtureRequest) -> AsyncIterator[UnitOfWor
         yield sql_unit_of_work_factory(async_sessionmaker(engine, expire_on_commit=False))
         async with engine.begin() as connection:
             await connection.execute(
-                text("truncate auth_sessions, deal_actions, deals, customers, partners cascade")
+                text("truncate users, auth_sessions, deals, customers, partners cascade")
             )
     finally:
         await engine.dispose()
@@ -132,6 +134,7 @@ async def _seed_deal(uow_factory: UnitOfWorkFactory) -> DealId:
     customer = make_customer()
     deal = make_deal(customer_id=customer.id)
     async with uow_factory() as uow:
+        await ensure_users(uow.users, OWNER_ID, CHANGER_ID)  # FK: 담당자·단계 변경자
         await uow.customers.add(customer)
         await uow.deals.add(deal)
         await uow.commit()

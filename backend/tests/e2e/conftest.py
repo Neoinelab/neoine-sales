@@ -1,7 +1,8 @@
 from contextlib import AsyncExitStack
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import timedelta
 from typing import TYPE_CHECKING
+from uuid import uuid4
 
 import pytest
 import pytest_asyncio
@@ -16,12 +17,15 @@ from app.container import Container
 from app.domain.auth.credentials import LoginId
 from app.domain.auth.principal import Principal, Role
 from app.domain.user.entities import User
+from app.domain.user.value_objects import UserId
 from app.infra.db.unit_of_work import sql_unit_of_work_factory
 from app.infra.system_clock import SystemClock
 from app.main import create_app
 from tests.factories_auth import ADMIN_LOGIN, ADMIN_PASSWORD
 from tests.fakes.directory import FakeDirectoryAuthenticator
 from tests.fakes.use_cases import FakeUseCases
+from tests.support.user_ids import ACTOR_ID, OWNER_ID, uid
+from tests.support.user_seed import ensure_users
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Awaitable, Callable
@@ -74,8 +78,13 @@ def app(use_cases: FakeUseCases) -> FastAPI:
 
 
 @pytest_asyncio.fixture
-async def client(app: FastAPI, use_cases: FakeUseCases) -> AsyncIterator[AsyncClient]:
-    """영업 사용자(sales)로 로그인한 클라이언트: 사용자 행을 등록하고 세션을 발급한다."""
+async def client(
+    app: FastAPI, use_cases: FakeUseCases, deal_users: None
+) -> AsyncIterator[AsyncClient]:
+    """영업 사용자(sales)로 로그인한 클라이언트: 사용자 행을 등록하고 세션을 발급한다.
+
+    Deal·활동 요청의 기본 담당자·활동자(deal_users)도 함께 둔다(사용자 목록 테스트는 admin_client).
+    """
     token = await use_cases.login_as(principal_for(DEFAULT_LOGIN, Role.SALES))
     async with new_client(app, token=token) as http:
         yield http
@@ -106,7 +115,26 @@ async def anonymous_client(app: FastAPI) -> AsyncIterator[AsyncClient]:
 
 
 def principal_for(subject: str, role: Role = Role.SALES) -> Principal:
-    return Principal(subject, f"{subject}@local.test", f"사용자 {subject}", role)
+    """subject를 로그인 아이디로 한 주체. user_id는 로그인 도우미가 users 행의 id로 바꿔 넣는다."""
+    return Principal(uid(subject), subject, f"{subject}@local.test", f"사용자 {subject}", role)
+
+
+@pytest_asyncio.fixture
+async def owners(use_cases: FakeUseCases) -> dict[str, str]:
+    """검색·지정 검증용 재직 사용자들(login id -> user id 문자열): x, y, park, park2."""
+    ids: dict[str, str] = {}
+    for login in ("x", "y", "park", "park2"):
+        await use_cases.seed_user(login, Role.SALES)
+        ids[login] = str(await use_cases.user_id_of(login))
+    return ids
+
+
+@pytest_asyncio.fixture
+async def deal_users(use_cases: FakeUseCases) -> None:
+    """Deal 담당자·활동자 기본값(OWNER_ID/ACTOR_ID, payloads의 기본 요청값)을 재직 사용자로 둔다."""
+    async with use_cases.uow as uow:
+        await ensure_users(uow.users, OWNER_ID, ACTOR_ID)
+        await uow.commit()
 
 
 @pytest_asyncio.fixture
@@ -125,9 +153,9 @@ async def client_as(
 
 @pytest_asyncio.fixture
 async def client_for(
-    app: FastAPI, use_cases: FakeUseCases
+    app: FastAPI, use_cases: FakeUseCases, deal_users: None
 ) -> AsyncIterator[Callable[[str], Awaitable[AsyncClient]]]:
-    """subject를 주면 그 사용자로 로그인한 클라이언트를 돌려주는 팩토리(Fake UoW)."""
+    """subject를 주면 그 사용자로 로그인한 클라이언트 팩토리(Fake UoW, deal_users 포함)."""
     async with AsyncExitStack() as stack_:
 
         async def open_client(subject: str) -> AsyncClient:
@@ -151,17 +179,26 @@ async def _register_and_issue(
 ) -> str:
     """공개 클래스만으로 사용자 행을 등록하고 세션을 발급한다(Container 내부에 의존하지 않는다)."""
     async with uow_factory() as uow:
-        if await uow.users.get_active_by_login_id(LoginId(principal.subject)) is None:
+        user = await uow.users.get_active_by_login_id(LoginId(principal.subject))
+        if user is None:
+            user_id = UserId(uuid4())
             user = User.register(
                 LoginId(principal.subject),
                 principal.role,
-                created_by="e2e",
+                created_by_user_id=user_id,  # 스스로 등록한 행
+                entity_id=user_id,
                 now=SystemClock().now(),
             )
             await uow.users.add(user)
             await uow.commit()
     issue = IssueSession(uow_factory, SystemClock(), timedelta(hours=ttl_hours))
-    return (await issue.execute(principal)).token
+    return (await issue.execute(replace(principal, user_id=user.id))).token
+
+
+async def _seed_deal_users(uow_factory: UnitOfWorkFactory) -> None:
+    async with uow_factory() as uow:
+        await ensure_users(uow.users, OWNER_ID, ACTOR_ID)
+        await uow.commit()
 
 
 @pytest_asyncio.fixture
@@ -175,6 +212,7 @@ async def stack_for(
     engine = create_async_engine(test_database_url, poolclass=NullPool)
     uow_factory = sql_unit_of_work_factory(async_sessionmaker(engine, expire_on_commit=False))
     try:
+        await _seed_deal_users(uow_factory)
         async with AsyncExitStack() as stack_:
 
             async def open_client(subject: str) -> AsyncClient:
@@ -199,6 +237,7 @@ async def stack(test_database_url: URL) -> AsyncIterator[AsyncClient]:
     engine = create_async_engine(test_database_url, poolclass=NullPool)
     uow_factory = sql_unit_of_work_factory(async_sessionmaker(engine, expire_on_commit=False))
     try:
+        await _seed_deal_users(uow_factory)
         token = await _register_and_issue(
             uow_factory, settings.session_ttl_hours, principal_for(DEFAULT_LOGIN)
         )

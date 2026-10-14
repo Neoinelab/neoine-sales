@@ -15,9 +15,12 @@ from app.domain.deal_action.value_objects import DealActionId
 from app.infra.db.customer_repository import SqlCustomerRepository
 from app.infra.db.deal_action_repository import SqlDealActionRepository
 from app.infra.db.deal_repository import SqlDealRepository
+from app.infra.db.user_repository import SqlUserRepository
 from tests.factories import NOW, make_customer_details, make_deal_action_details, make_deal_details
 from tests.fakes.repositories import FakeDealActionRepository
+from tests.fakes.user_repository import FakeUserRepository
 from tests.support.database import rolled_back_session
+from tests.support.user_seed import ensure_users
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Awaitable, Callable
@@ -25,6 +28,7 @@ if TYPE_CHECKING:
     from sqlalchemy.engine import URL
 
     from app.application.ports.deal_action_repository import DealActionRepository
+    from app.application.ports.user_repository import UserRepository
     from app.domain.deal.value_objects import DealId
 
 PARAMS = [
@@ -38,12 +42,15 @@ class Case:
         self,
         repository: DealActionRepository,
         ensure_deal: Callable[[DealId], Awaitable[None]],
+        users: UserRepository,
     ) -> None:
         self.repository = repository
+        self.users = users
         self._ensure_deal = ensure_deal
 
     async def add(self, action: DealAction) -> None:
         await self._ensure_deal(action.details.deal_id)
+        await ensure_users(self.users, action.details.actor_user_id)  # FK: 활동자 행
         await self.repository.add(action)
 
     async def add_legacy(self, **overrides: object) -> DealAction:
@@ -67,10 +74,11 @@ async def _nothing(_: DealId) -> None:
 @asynccontextmanager
 async def open_case(implementation: str, test_database_url: URL | None) -> AsyncIterator[Case]:
     if implementation == "fake":
-        yield Case(FakeDealActionRepository(), _nothing)
+        yield Case(FakeDealActionRepository(), _nothing, FakeUserRepository())
         return
     async with rolled_back_session(test_database_url) as session:  # type: ignore[arg-type]
         customers, deals = SqlCustomerRepository(session), SqlDealRepository(session)
+        users = SqlUserRepository(session)
         customer = Customer.create(make_customer_details(), NOW)
         await customers.add(customer)
         created: set[DealId] = set()
@@ -80,7 +88,8 @@ async def open_case(implementation: str, test_database_url: URL | None) -> Async
                 return
             created.add(deal_id)
             details = make_deal_details(code=f"D-{len(created)}", customer_id=customer.id)
+            await ensure_users(users, details.owner_user_id)  # FK: 담당자 행
             with suppress(AlreadyExistsError):
                 await deals.add(Deal.create(details, NOW, entity_id=deal_id))
 
-        yield Case(SqlDealActionRepository(session), ensure_deal)
+        yield Case(SqlDealActionRepository(session), ensure_deal, users)

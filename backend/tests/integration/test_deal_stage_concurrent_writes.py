@@ -32,6 +32,8 @@ from tests.factories import (
 )
 from tests.fakes.unit_of_work import FixedClock
 from tests.support.gated_uow import gated
+from tests.support.user_ids import CHANGER_ID, OWNER_ID
+from tests.support.user_seed import ensure_users
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Callable, Coroutine
@@ -63,6 +65,7 @@ async def seeded(uow_factory: UnitOfWorkFactory) -> tuple[Customer, Deal]:
     customer = make_customer()
     deal = make_deal(customer_id=customer.id)
     async with uow_factory() as setup:
+        await ensure_users(setup.users, OWNER_ID, CHANGER_ID)  # FK: 담당자·단계 변경자
         await setup.customers.add(customer)
         await setup.deals.add(deal)
         await setup.commit()

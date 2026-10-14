@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING
 
 from app.application.auth.credential_check import parse_login_id
-from app.application.auth.dev_login import DEV_SUBJECT_PREFIX
+from app.application.auth.dev_login import DEV_LOGIN_IDS
 from app.application.directory.errors import DirectoryVerificationError
 from app.application.ports.directory import (
     DirectoryUnavailableError,
@@ -22,8 +22,9 @@ PASSWORD_REQUIRED = "AD 설정을 확인하려면 현재 관리자의 비밀번�
 class VerifyDirectorySettings:
     """후보 AD 설정이 실제로 동작하는지 확인한다. 실패하면 DirectoryVerificationError(stage).
 
-    요청한 admin이 새 설정으로 AD 인증에 성공해야 통과한다. 허용된 경우 dev-login admin은
-    users 행·AD 계정이 없으므로 연결 확인(probe)만 한다. 비밀번호는 로그·예외에 담지 않는다.
+    요청한 admin이 새 설정으로 AD 인증에 성공해야 통과한다. 허용된 경우 dev-login 사용자
+    (예약 아이디 dev-*)는 AD 계정이 없으므로 연결 확인(probe)만 한다.
+    비밀번호는 로그·예외에 담지 않는다.
     성공하면 선점한 시도를 1회 되돌린다(계정 카운터는 지우지 않는다).
     """
 
@@ -39,7 +40,7 @@ class VerifyDirectorySettings:
         password: Password | None,
         client_ip: str,
     ) -> None:
-        if self._allow_dev_sessions and actor.subject.startswith(DEV_SUBJECT_PREFIX):
+        if self._allow_dev_sessions and actor.subject in DEV_LOGIN_IDS:
             await self._probe(settings)
             return
         if password is None:

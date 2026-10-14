@@ -4,6 +4,7 @@
 """
 
 from typing import TYPE_CHECKING
+from uuid import UUID
 
 import pytest
 
@@ -85,12 +86,14 @@ async def test_health_and_auth_config_are_public(anonymous_client: AsyncClient) 
     assert (await anonymous_client.get(CONFIG)).status_code == 200
 
 
-async def test_me_returns_the_signed_in_user(client: AsyncClient) -> None:
+async def test_me_returns_the_signed_in_user(client: AsyncClient, use_cases: FakeUseCases) -> None:
     body = (await client.get(ME)).json()
 
     assert body["role"] == "sales"
     assert body["subject"] == DEFAULT_LOGIN
-    assert set(body) == {"subject", "email", "name", "role"}
+    assert set(body) == {"user_id", "subject", "email", "name", "role"}
+    UUID(body["user_id"])  # users 행의 id(UUID 문자열)
+    assert body["user_id"] == str(await use_cases.user_id_of(DEFAULT_LOGIN))
 
 
 async def test_unsafe_requests_need_the_csrf_header(app: FastAPI, use_cases: FakeUseCases) -> None:
@@ -182,8 +185,21 @@ async def test_dev_login_signs_in_with_each_role(anonymous_client: AsyncClient, 
 
     assert response.status_code == 200
     assert response.json()["role"] == role
-    assert response.json()["subject"] == f"dev:{role}"
-    assert (await anonymous_client.get(ME)).json()["role"] == role
+    assert response.json()["subject"] == f"dev-{role}"
+    me = (await anonymous_client.get(ME)).json()
+    assert me["role"] == role
+    UUID(me["user_id"])  # 개발 로그인도 users 행을 가진 일반 사용자다
+    assert me["subject"] == f"dev-{role}"
+
+
+async def test_dev_login_reuses_the_same_user_row_each_time(anonymous_client: AsyncClient) -> None:
+    first = await anonymous_client.post(DEV_LOGIN, json={"role": "sales"})
+    first_id = (await anonymous_client.get(ME)).json()["user_id"]
+    second = await anonymous_client.post(DEV_LOGIN, json={"role": "sales"})
+    second_id = (await anonymous_client.get(ME)).json()["user_id"]
+
+    assert first.status_code == second.status_code == 200
+    assert first_id == second_id
 
 
 async def test_dev_login_rejects_unknown_roles(anonymous_client: AsyncClient) -> None:

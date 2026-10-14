@@ -68,7 +68,7 @@ class DealRow(AuditColumns, Base):
 
     code: Mapped[str] = mapped_column(String(50))
     name: Mapped[str] = mapped_column(String(200))
-    owner: Mapped[str] = mapped_column(String(100))
+    owner_user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"))
     vendor: Mapped[str] = mapped_column(String(100))
     solution: Mapped[str] = mapped_column(String(200))
     revenue_amount: Mapped[Decimal] = mapped_column(Numeric(20, 4))
@@ -81,7 +81,9 @@ class DealRow(AuditColumns, Base):
     stage: Mapped[str] = mapped_column(
         String(30), default=DealStage.PROSPECTING.value, server_default=DealStage.PROSPECTING.value
     )
-    owner_user_id: Mapped[str | None] = mapped_column(String(200), default=None)
+    registered_by_user_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), default=None
+    )
 
     __table_args__ = (
         UniqueConstraint("code"),
@@ -91,6 +93,7 @@ class DealRow(AuditColumns, Base):
         Index("ix_deals_customer_id", "customer_id"),
         Index("ix_deals_partner_id", "partner_id"),
         Index("ix_deals_owner_user_id", "owner_user_id"),
+        Index("ix_deals_registered_by_user_id", "registered_by_user_id"),
     )
 
 
@@ -104,9 +107,10 @@ class DealActionRow(AuditColumns, Base):
     due_date: Mapped[date | None] = mapped_column(Date, default=None)
     memo: Mapped[str] = mapped_column(String(4000), default="")
     acted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
-    actor: Mapped[str] = mapped_column(String(100))
+    actor_user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"))
 
     __table_args__ = (
+        Index("ix_deal_actions_actor_user_id", "actor_user_id"),
         Index("ix_deal_actions_deal_id_acted_at", "deal_id", "acted_at"),
         Index("ix_deal_actions_acted_at", "acted_at"),
         Index("ix_deal_actions_due_date", "due_date"),
@@ -123,11 +127,11 @@ class DealStageChangeRow(Base):
     from_stage: Mapped[str] = mapped_column(String(30))
     to_stage: Mapped[str] = mapped_column(String(30))
     reason: Mapped[str | None] = mapped_column(String(500), default=None)
-    changed_by_subject: Mapped[str] = mapped_column(String(200))
-    changed_by_name: Mapped[str] = mapped_column(String(200))
+    changed_by_user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"))
     changed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
     __table_args__ = (
+        Index("ix_deal_stage_changes_changed_by_user_id", "changed_by_user_id"),
         CheckConstraint(f"from_stage in ({_STAGE_CODES})", name="from_stage_valid"),
         CheckConstraint(f"to_stage in ({_STAGE_CODES})", name="to_stage_valid"),
         Index("ix_deal_stage_changes_deal_id_changed_at", "deal_id", "changed_at"),
@@ -139,7 +143,7 @@ class AuthSessionRow(Base):
 
     id: Mapped[UUID] = mapped_column(Uuid, primary_key=True)
     token_hash: Mapped[str] = mapped_column(String(64))
-    subject: Mapped[str] = mapped_column(String(200))
+    user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"))
     email: Mapped[str | None] = mapped_column(String(254), default=None)
     name: Mapped[str] = mapped_column(String(200))
     role: Mapped[str] = mapped_column(String(20))
@@ -150,7 +154,7 @@ class AuthSessionRow(Base):
     __table_args__ = (
         UniqueConstraint("token_hash"),
         Index("ix_auth_sessions_expires_at", "expires_at"),
-        Index("ix_auth_sessions_subject", "subject"),
+        Index("ix_auth_sessions_user_id", "user_id"),
     )
 
 

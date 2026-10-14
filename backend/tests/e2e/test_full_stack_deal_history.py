@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.pool import NullPool
 
 from tests.e2e.payloads import action_payload, customer_payload, deal_payload
+from tests.support.user_ids import ACTOR_ID
 
 if TYPE_CHECKING:
     from httpx import AsyncClient
@@ -19,11 +20,15 @@ pytestmark = pytest.mark.integration
 DEALS = "/api/v1/deals"
 ACTIONS = "/api/v1/deal-actions"
 
-INSERT_LEGACY = (
-    "insert into deal_actions (id, deal_id, action_type, action, memo, acted_at, actor,"
+INSERT_LEGACY = (  # 계획 필드(next_action·due_date)가 NULL인 기존 행. 활동자는 users 행을 가리킨다
+    "insert into deal_actions (id, deal_id, action_type, action, memo, acted_at, actor_user_id,"
     " created_at, updated_at) values (:id, :deal_id, 'call', '기존 통화', '기존 메모', now(),"
-    " '박영업', now(), now())"
+    " :actor_user_id, now(), now())"
 )
+
+
+def _legacy_params(action_id: object, deal_id: str) -> dict[str, object]:
+    return {"id": action_id, "deal_id": deal_id, "actor_user_id": ACTOR_ID}
 
 
 async def _deal(stack: AsyncClient) -> str:
@@ -39,7 +44,7 @@ async def test_legacy_rows_with_null_plan_fields_are_listed_as_null(
     engine = create_async_engine(test_database_url, poolclass=NullPool)
     try:
         async with engine.begin() as connection:
-            await connection.execute(text(INSERT_LEGACY), {"id": legacy_id, "deal_id": deal_id})
+            await connection.execute(text(INSERT_LEGACY), _legacy_params(legacy_id, deal_id))
     finally:
         await engine.dispose()
 
@@ -64,7 +69,7 @@ async def test_legacy_row_can_only_be_updated_with_the_plan_fields(
     engine = create_async_engine(test_database_url, poolclass=NullPool)
     try:
         async with engine.begin() as connection:
-            await connection.execute(text(INSERT_LEGACY), {"id": legacy_id, "deal_id": deal_id})
+            await connection.execute(text(INSERT_LEGACY), _legacy_params(legacy_id, deal_id))
     finally:
         await engine.dispose()
     payload = action_payload()

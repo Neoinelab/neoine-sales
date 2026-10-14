@@ -20,6 +20,9 @@ if TYPE_CHECKING:
     from tests.fakes.unit_of_work import FakeUnitOfWork, FixedClock
 
 
+pytestmark = pytest.mark.usefixtures("default_users")
+
+
 class TestDeleteCustomerGuard:
     async def test_customer_with_any_deal_cannot_be_deleted(
         self, uow: FakeUnitOfWork, uow_factory: UnitOfWorkFactory, clock: FixedClock

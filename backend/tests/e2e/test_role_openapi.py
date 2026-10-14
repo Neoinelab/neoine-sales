@@ -76,7 +76,83 @@ def test_user_response_has_the_documented_fields_and_no_password(spec: dict[str,
         "created_at",
         "created_by",
         "last_login_at",
+        "status",
+        "deleted_at",
+        "delete_reason",
     }
+
+
+def test_user_ref_schema_has_the_four_documented_fields_and_no_login_id(
+    spec: dict[str, Any],
+) -> None:
+    properties = spec["components"]["schemas"]["UserRef"]["properties"]
+
+    assert set(properties) == {"id", "name", "resigned", "label"}
+    assert properties["resigned"]["type"] == "boolean"
+
+
+def test_every_user_display_in_responses_uses_user_ref(spec: dict[str, Any]) -> None:
+    schemas = spec["components"]["schemas"]
+
+    for schema, field in (
+        ("DealResponse", "owner"),
+        ("DealActionResponse", "actor"),
+        ("DealStageChangeResponse", "changed_by"),
+        ("UserResponse", "created_by"),
+    ):
+        assert "UserRef" in str(schemas[schema]["properties"][field]), (schema, field)
+    updated_by = next(s for name, s in schemas.items() if "updated_by" in s.get("properties", {}))
+    assert "UserRef" in str(updated_by["properties"]["updated_by"])
+
+
+def test_users_list_documents_the_status_filter_with_active_as_default(
+    spec: dict[str, Any],
+) -> None:
+    params = {p["name"]: p for p in _operation(spec, "GET", "/api/v1/users")["parameters"]}
+
+    status = params["status"]["schema"]
+    assert set(status["enum"]) == {"active", "resigned", "all"}
+    assert status["default"] == "active"
+    assert not params["status"].get("required")
+
+
+def test_user_delete_documents_200_outcome_reason_query_and_the_error_responses(
+    spec: dict[str, Any],
+) -> None:
+    operation = _operation(spec, "DELETE", "/api/v1/users/{user_id}")
+
+    assert "204" not in operation["responses"]
+    assert "200" in operation["responses"]
+    for code in ("401", "403", "404", "409", "422"):
+        assert code in operation["responses"], code
+    body = spec["components"]["schemas"][_schema_name(operation, request=False)]
+    assert set(body["properties"]) == {"outcome"}
+    assert set(body["properties"]["outcome"]["enum"]) == {"deleted", "resigned"}
+    reason = next(p for p in operation["parameters"] if p["name"] == "reason")
+    assert reason["in"] == "query"
+    assert reason["schema"]["enum"] == ["resigned"]
+    assert reason["schema"]["default"] == "resigned"
+
+
+def test_user_options_endpoint_documents_filters_and_exposes_only_the_ref_fields(
+    spec: dict[str, Any],
+) -> None:
+    operation = _operation(spec, "GET", "/api/v1/user-options")
+
+    params = {p["name"]: p for p in operation["parameters"]}
+    assert {"include_resigned", "keyword", "limit"} <= set(params)
+    assert params["include_resigned"]["schema"]["default"] is False
+    page = spec["components"]["schemas"][_schema_name(operation, request=False)]
+    assert "items" in page["properties"]
+    assert "UserRef" in str(page["properties"]["items"])
+    for code in ("401", "422"):
+        assert code in operation["responses"], code
+
+
+def test_auth_me_response_documents_the_user_id(spec: dict[str, Any]) -> None:
+    name = _schema_name(_operation(spec, "GET", "/api/v1/auth/me"), request=False)
+
+    assert "user_id" in spec["components"]["schemas"][name]["properties"]
 
 
 def test_user_register_request_takes_only_login_id_and_role(spec: dict[str, Any]) -> None:

@@ -13,6 +13,7 @@ if TYPE_CHECKING:
     from app.domain.deal.value_objects import DealId
     from app.domain.deal_action.entities import DealAction
     from app.domain.deal_action.value_objects import ActionType, DealActionId
+    from app.domain.user.value_objects import UserId
 
 KEYWORD_MAX = 100
 
@@ -29,7 +30,7 @@ class DealActionQuery:
 
     deal_id: DealId | None = None
     action_type: ActionType | None = None
-    actor: str | None = None
+    actor_user_id: UserId | None = None  # 활동자(users.id), 퇴사자도 조회 가능
     keyword: str | None = None  # 진행내역·다음 진행 계획·메모에서 대소문자 구분 없이 부분 일치
     acted_from: datetime | None = None
     acted_to: datetime | None = None
@@ -48,7 +49,6 @@ class DealActionQuery:
         if self.acted_from and self.acted_to and self.acted_from >= self.acted_to:
             raise InvalidValueError("조회 기간의 시작은 끝보다 앞서야 합니다")
         self._check_due_range()
-        object.__setattr__(self, "actor", optional_text(self.actor, "활동자", max_length=100))
         object.__setattr__(
             self, "keyword", optional_text(self.keyword, "검색어", max_length=KEYWORD_MAX)
         )

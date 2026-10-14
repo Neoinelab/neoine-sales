@@ -16,7 +16,7 @@ from app.infra.db.unit_of_work import SqlUnitOfWork
 from app.infra.db.user_repository import SqlUserRepository
 from tests.fakes.directory import FakeDirectoryAuthenticator
 from tests.fakes.directory_settings_repository import FakeDirectorySettingsRepository
-from tests.fakes.repositories import FakeSessionRepository
+from tests.fakes.session_repository import FakeSessionRepository
 from tests.fakes.unit_of_work import FakeUnitOfWork
 from tests.fakes.user_repository import FakeLoginFailureRepository, FakeUserRepository
 
@@ -26,10 +26,16 @@ if TYPE_CHECKING:
 USER_METHODS = (
     "add",
     "get",
+    "get_for_update",
+    "get_refs",
     "get_active_by_login_id",
-    "list_active",
+    "list_users",
+    "search_refs",
     "count_active_admins",
     "update",
+    "delete",
+    "has_links",
+    "lock_assignable",
     "lock_roster",
 )
 
@@ -71,8 +77,9 @@ def test_sql_auth_repositories_expose_the_port_methods() -> None:
     for name in ("get", "save"):
         assert callable(getattr(SqlDirectorySettingsRepository, name))
         assert hasattr(DirectorySettingsRepository, name)
-    assert callable(SqlSessionRepository.revoke_all_for_subject)
-    assert hasattr(SessionRepository, "revoke_all_for_subject")
+    assert callable(SqlSessionRepository.delete_all_for_user)
+    assert hasattr(SessionRepository, "delete_all_for_user")
+    assert not hasattr(SessionRepository, "revoke_all_for_subject")  # 세션은 폐기가 아니라 삭제한다
 
 
 def test_unit_of_work_port_and_implementations_expose_the_new_repositories() -> None:

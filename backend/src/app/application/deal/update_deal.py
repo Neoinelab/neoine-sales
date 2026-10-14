@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING
 
 from app.application.deal.references import ensure_references_exist
+from app.application.user.assignment import ensure_assignable
 
 if TYPE_CHECKING:
     from app.application.deal.inputs import DealInput
@@ -22,6 +23,9 @@ class UpdateDeal:
         async with self._uow_factory() as uow:
             deal = await uow.deals.get(deal_id, for_update=True)
             await ensure_references_exist(uow, details)
+            await ensure_assignable(
+                uow, details.owner_user_id, unchanged_from=deal.details.owner_user_id
+            )
             deal.update(details, self._clock.now())
             await uow.deals.update(deal)
             await uow.commit()

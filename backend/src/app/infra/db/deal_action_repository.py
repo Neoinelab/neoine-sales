@@ -5,13 +5,14 @@ from typing import TYPE_CHECKING
 from sqlalchemy import exists, select
 
 from app.application.ports.deal_action_repository import DealActionSort
-from app.domain.common.errors import AlreadyExistsError
+from app.domain.common.errors import AlreadyExistsError, InvalidReferenceError
 from app.domain.deal.errors import DealNotFoundError
 from app.domain.deal.value_objects import DealId
 from app.domain.deal_action.entities import DealAction
 from app.domain.deal_action.errors import DealActionNotFoundError
 from app.domain.deal_action.value_objects import ActionType, DealActionDetails, DealActionId
-from app.infra.db.base_repository import SqlRepository
+from app.domain.user.value_objects import UserId
+from app.infra.db.base_repository import ConstraintErrors, SqlRepository
 from app.infra.db.like import keyword_filter
 from app.infra.db.models import DealActionRow
 
@@ -31,7 +32,16 @@ def _apply_details(row: DealActionRow, details: DealActionDetails) -> None:
     row.due_date = details.due_date
     row.memo = details.memo
     row.acted_at = details.acted_at
-    row.actor = details.actor
+    row.actor_user_id = details.actor_user_id
+
+
+def _user_errors(action: DealAction) -> ConstraintErrors:
+    """활동자 FK 위반(삭제와의 경쟁)은 존재하지 않는 사용자를 지정한 것과 같다."""
+    return {
+        "fk_deal_actions_actor_user_id_users": lambda: InvalidReferenceError(
+            "사용자", action.details.actor_user_id
+        )
+    }
 
 
 def _to_row(action: DealAction) -> DealActionRow:
@@ -55,7 +65,7 @@ def _to_entity(row: DealActionRow) -> DealAction:
             due_date=row.due_date,
             memo=row.memo,
             acted_at=row.acted_at,
-            actor=row.actor,
+            actor_user_id=UserId(row.actor_user_id),
         ),
         created_at=row.created_at,
         updated_at=row.updated_at,
@@ -68,8 +78,8 @@ def _filtered(query: DealActionQuery) -> Select[DealActionRow]:
         statement = statement.where(DealActionRow.deal_id == query.deal_id)
     if query.action_type is not None:
         statement = statement.where(DealActionRow.action_type == query.action_type.value)
-    if query.actor is not None:
-        statement = statement.where(DealActionRow.actor == query.actor)
+    if query.actor_user_id is not None:
+        statement = statement.where(DealActionRow.actor_user_id == query.actor_user_id)
     if query.acted_from is not None:
         statement = statement.where(DealActionRow.acted_at >= query.acted_from)
     if query.acted_to is not None:
@@ -106,6 +116,7 @@ class SqlDealActionRepository(SqlRepository[DealActionRow]):
             {
                 "pk_deal_actions": lambda: AlreadyExistsError("Deal 활동", action.id),
                 "fk_deal_actions_deal_id_deals": lambda: DealNotFoundError(action.details.deal_id),
+                **_user_errors(action),
             },
         )
 
@@ -131,7 +142,7 @@ class SqlDealActionRepository(SqlRepository[DealActionRow]):
             raise DealActionNotFoundError(action.id)
         _apply_details(row, action.details)
         row.updated_at = action.updated_at
-        await self._save({}, not_found=lambda: DealActionNotFoundError(action.id))
+        await self._save(_user_errors(action), not_found=lambda: DealActionNotFoundError(action.id))
 
     async def delete(self, action_id: DealActionId) -> None:
         row = await self._find(action_id)

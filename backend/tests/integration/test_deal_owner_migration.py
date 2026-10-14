@@ -1,11 +1,16 @@
-"""deals.owner_user_id 마이그레이션: NULL 허용 expand, 인덱스, 기존 행 NULL, 구버전 INSERT, 왕복."""
+"""deals.owner_user_id(등록자 subject) 마이그레이션 `39d531ff2643` 검증.
 
-from pathlib import Path
+NULL 허용 expand, 인덱스, 기존 행 NULL, 구버전 INSERT, 왕복.
+
+과거 리비전 검증이므로 head가 아니라 그 리비전으로 target을 고정한다(사용자 FK 리비전이 이 컬럼을
+다른 의미로 바꾸므로 head에서는 이 단언들이 성립하지 않는다).
+"""
+
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import pytest
-from alembic.script import Script, ScriptDirectory
+from alembic.script import ScriptDirectory
 from sqlalchemy import inspect, text
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
@@ -18,12 +23,22 @@ from tests.support.database import (
     resolve_admin_url,
     temporary_database,
 )
+from tests.support.revisions import OWNER_REVISION, STAGE_REVISION
 from tests.support.skips import skip_or_fail
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from sqlalchemy.engine import URL
 
 pytestmark = pytest.mark.integration
+
+
+@pytest.fixture
+def test_database_url(database_at: Callable[[str], URL]) -> URL:
+    """이 모듈의 DB 테스트는 owner_user_id 리비전 스키마에서 돈다(head가 아니다)."""
+    return database_at(OWNER_REVISION)
+
 
 COLUMN_INFO = (
     "select is_nullable, character_maximum_length, column_default from information_schema.columns"
@@ -31,38 +46,16 @@ COLUMN_INFO = (
 )
 
 
-def _owner_revision() -> Script:
-    """deals.owner_user_id를 추가하는 리비전."""
-    script = ScriptDirectory.from_config(_alembic_config())
-    for revision in script.walk_revisions():
-        source = Path(revision.path).read_text(encoding="utf-8")
-        if "owner_user_id" in source:
-            return revision
-    pytest.fail("owner_user_id를 추가하는 마이그레이션 리비전이 없다")
-
-
-def _stage_revision_id() -> str:
-    script = ScriptDirectory.from_config(_alembic_config())
-    for revision in script.walk_revisions():
-        if "deal_stage_changes" in Path(revision.path).read_text(encoding="utf-8"):
-            return revision.revision
-    pytest.fail("deal_stage_changes를 만드는 마이그레이션 리비전이 없다")
-
-
-def _previous_revision() -> str:
-    previous = _owner_revision().down_revision
-    assert isinstance(previous, str)
-    return previous
-
-
 def test_owner_revision_follows_the_stage_revision_and_is_in_the_single_head_history() -> None:
     script = ScriptDirectory.from_config(_alembic_config())
+    owner = script.get_revision(OWNER_REVISION)
 
-    assert _owner_revision().down_revision == _stage_revision_id()
+    assert owner is not None
+    assert owner.down_revision == STAGE_REVISION
     heads = script.get_heads()
     assert len(heads) == 1
     history = {revision.revision for revision in script.iterate_revisions(heads[0], "base")}
-    assert _owner_revision().revision in history
+    assert OWNER_REVISION in history
 
 
 async def test_owner_user_id_column_is_nullable_text_without_default(
@@ -122,7 +115,7 @@ async def test_existing_deals_have_no_owner_user_after_upgrade() -> None:
         skip_or_fail("관리자 접속 정보가 없어 마이그레이션 테스트를 건너뜁니다")
 
     async with temporary_database(admin_url) as url:
-        await apply_migrations(url, target=_previous_revision())
+        await apply_migrations(url, target=STAGE_REVISION)
         engine = create_async_engine(url, poolclass=NullPool)
         try:
             async with engine.begin() as connection:
@@ -130,7 +123,7 @@ async def test_existing_deals_have_no_owner_user_after_upgrade() -> None:
                 customer_id = await _insert_customer(session)
                 await _insert_deal(session, customer_id, code="OLD-1")
                 await _insert_deal(session, customer_id, code="OLD-2")
-            await apply_migrations(url)
+            await apply_migrations(url, target=OWNER_REVISION)
             async with engine.connect() as connection:
                 owners = (
                     (
@@ -153,14 +146,14 @@ async def test_downgrade_drops_the_column_and_index_but_keeps_deals() -> None:
         skip_or_fail("관리자 접속 정보가 없어 마이그레이션 왕복 테스트를 건너뜁니다")
 
     async with temporary_database(admin_url) as url:
-        await apply_migrations(url)
+        await apply_migrations(url, target=OWNER_REVISION)
         engine = create_async_engine(url, poolclass=NullPool)
         try:
             async with engine.begin() as connection:
                 session = AsyncSession(bind=connection)
                 customer_id = await _insert_customer(session)
                 await _insert_deal(session, customer_id, code="KEEP-1")
-            await apply_migrations(url, direction="down", target=_previous_revision())
+            await apply_migrations(url, direction="down", target=STAGE_REVISION)
             async with engine.connect() as connection:
                 columns = await connection.run_sync(
                     lambda c: {col["name"] for col in inspect(c).get_columns("deals")}
@@ -169,7 +162,7 @@ async def test_downgrade_drops_the_column_and_index_but_keeps_deals() -> None:
                     lambda c: {i["name"] for i in inspect(c).get_indexes("deals")}
                 )
                 codes = (await connection.execute(text("select code from deals"))).scalars().all()
-            await apply_migrations(url)
+            await apply_migrations(url, target=OWNER_REVISION)
             async with engine.connect() as connection:
                 again = await connection.run_sync(
                     lambda c: {col["name"] for col in inspect(c).get_columns("deals")}

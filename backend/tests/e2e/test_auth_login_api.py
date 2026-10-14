@@ -1,6 +1,7 @@
 """POST /api/v1/auth/login (AUTH-1~9·13, THR-1·2, T-E1~E13)."""
 
 from typing import TYPE_CHECKING
+from uuid import UUID
 
 import pytest
 
@@ -44,7 +45,9 @@ async def test_login_signs_in_with_an_http_only_lax_cookie(anonymous_client: Asy
     response = await anonymous_client.post(LOGIN, json=credentials())
 
     assert response.status_code == 200
-    assert response.json() == {
+    body = response.json()
+    assert str(UUID(body.pop("user_id")))  # 로그인 응답에도 users 행의 id가 있다
+    assert body == {
         "subject": "kim",
         "email": "kim@corp.test",
         "name": "김영업",

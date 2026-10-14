@@ -1,22 +1,23 @@
-"""T-D6~D10: User 엔티티(AUTH-2·10)와 삭제 정책(USER-5·6)."""
-
-import pytest
+"""T-D6~D10: User 엔티티(AUTH-2·10). 퇴사 처리와 삭제 정책은 test_user_resign / test_user_policy."""
 
 from app.domain.auth.credentials import LoginId
 from app.domain.auth.principal import Permission, Role
 from app.domain.common.contact import EMAIL_MAX_LENGTH
-from app.domain.common.errors import DomainError, InvalidStateError
-from app.domain.user.policy import ensure_deletable
 from tests.factories import NOW, later
 from tests.factories_auth import make_user
+from tests.support.user_ids import uid
 
 
 def test_register_normalizes_login_id_and_starts_without_login_history() -> None:
-    user = make_user(" Kim ", Role.USER, created_by="admin1", now=NOW)
+    admin_id = uid("admin1")
+    user = make_user(" Kim ", Role.USER, created_by_user_id=admin_id, now=NOW)
 
     assert user.login_id == LoginId("kim")
     assert user.role is Role.USER
-    assert user.created_by == "admin1"
+    assert user.created_by_user_id == admin_id
+    assert user.deleted_at is None
+    assert user.delete_reason is None
+    assert user.is_active
     assert user.created_at == NOW
     assert user.updated_at == NOW
     assert user.last_login_at is None
@@ -87,12 +88,13 @@ def test_record_login_does_not_fail_on_an_overlong_mail_from_the_directory() -> 
     assert user.email is None or len(user.email) <= EMAIL_MAX_LENGTH
 
 
-def test_to_principal_uses_login_id_as_subject_and_keeps_role() -> None:
+def test_to_principal_carries_user_id_login_id_as_subject_and_role() -> None:
     user = make_user("kim", Role.ADMIN)
     user.record_login(later(1), display_name="김영업", email="kim@corp.test")
 
     principal = user.to_principal()
 
+    assert principal.user_id == user.id
     assert principal.subject == "kim"
     assert principal.name == "김영업"
     assert principal.email == "kim@corp.test"
@@ -105,44 +107,3 @@ def test_to_principal_falls_back_to_login_id_when_name_is_unknown() -> None:
 
     assert principal.name == "kim"
     assert principal.email is None
-
-
-def test_cannot_delete_self() -> None:
-    target = make_user("kim", Role.SALES)
-
-    with pytest.raises(InvalidStateError):
-        ensure_deletable(target, actor_login_id=LoginId("kim"), active_admin_count=3)
-
-
-def test_cannot_delete_self_even_when_actor_id_differs_by_case() -> None:
-    target = make_user("kim", Role.ADMIN)
-
-    with pytest.raises(InvalidStateError):
-        ensure_deletable(target, actor_login_id=LoginId(" KIM "), active_admin_count=3)
-
-
-def test_cannot_delete_last_admin() -> None:
-    target = make_user("boss", Role.ADMIN)
-
-    with pytest.raises(InvalidStateError):
-        ensure_deletable(target, actor_login_id=LoginId("other"), active_admin_count=1)
-
-
-def test_can_delete_admin_when_another_admin_remains() -> None:
-    target = make_user("boss", Role.ADMIN)
-
-    ensure_deletable(target, actor_login_id=LoginId("other"), active_admin_count=2)
-
-
-@pytest.mark.parametrize("role", [Role.SALES, Role.USER])
-def test_can_delete_non_admin_even_when_only_one_admin_exists(role: Role) -> None:
-    target = make_user("worker", role)
-
-    ensure_deletable(target, actor_login_id=LoginId("boss"), active_admin_count=1)
-
-
-def test_deletion_errors_are_domain_errors() -> None:
-    target = make_user("kim", Role.ADMIN)
-
-    with pytest.raises(DomainError):
-        ensure_deletable(target, actor_login_id=LoginId("kim"), active_admin_count=1)

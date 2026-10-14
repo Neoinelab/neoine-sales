@@ -1,5 +1,6 @@
 """UseCaseProvider의 Fake. 실제 유스케이스를 FakeUnitOfWork·FixedClock으로 조립한다(DB 없음)."""
 
+from dataclasses import replace
 from typing import TYPE_CHECKING
 
 from app.application.customer.delete_customer import DeleteCustomer
@@ -33,13 +34,6 @@ from tests.factories_auth import make_directory_settings, make_user
 from tests.fakes.unit_of_work import FakeUnitOfWork, SteppingClock
 
 if TYPE_CHECKING:
-    from app.application.directory.get_settings import GetDirectorySettings
-    from app.application.directory.test_settings import TestDirectorySettings
-    from app.application.directory.update_settings import UpdateDirectorySettings
-    from app.application.user.delete_user import DeleteUser
-    from app.application.user.list_users import ListUsers
-    from app.application.user.register_user import RegisterUser
-
     from app.application.auth.auth_status import GetAuthStatus
     from app.application.auth.authenticate import Authenticate
     from app.application.auth.dev_login import DevLogin
@@ -47,8 +41,18 @@ if TYPE_CHECKING:
     from app.application.auth.logout import Logout
     from app.application.auth.setup_directory import RegisterSetupDirectory
     from app.application.auth.setup_first_admin import SetupFirstAdmin
+    from app.application.directory.get_settings import GetDirectorySettings
+    from app.application.directory.test_settings import TestDirectorySettings
+    from app.application.directory.update_settings import UpdateDirectorySettings
+    from app.application.user.delete_user import DeleteUser
+    from app.application.user.list_user_options import ListUserOptions
+    from app.application.user.list_users import ListUsers
+    from app.application.user.register_user import RegisterUser
+    from app.application.user.resolve_user_refs import ResolveUserRefs
     from app.domain.auth.principal import Principal
     from app.domain.directory.settings import DirectorySettings
+    from app.domain.user.entities import User
+    from app.domain.user.value_objects import UserId
     from tests.fakes.auth_stack import AuthStack
     from tests.fakes.directory import FakeDirectoryAuthenticator
 
@@ -176,6 +180,12 @@ class FakeUseCases:
     def delete_user(self) -> DeleteUser:
         return self._admin.delete_user
 
+    def list_user_options(self) -> ListUserOptions:
+        return self._admin.list_user_options
+
+    def resolve_user_refs(self) -> ResolveUserRefs:
+        return self._admin.resolve_user_refs
+
     def get_directory_settings(self) -> GetDirectorySettings:
         return self._admin.get_settings
 
@@ -196,26 +206,49 @@ class FakeUseCases:
             )
             await uow.commit()
 
-    async def seed_user(self, login_id: str, role: Role = Role.SALES) -> None:
+    async def seed_user(
+        self, login_id: str, role: Role = Role.SALES, *, display_name: str | None = None
+    ) -> User:
+        user = make_user(login_id, role, now=self.clock.now())
+        if display_name is not None:  # 로그인 때 AD에서 받은 표시 이름
+            user.record_login(self.clock.now(), display_name=display_name, email=None)
         async with self._factory() as uow:
-            await uow.users.add(make_user(login_id, role, now=self.clock.now()))
+            await uow.users.add(user)
+            await uow.commit()
+        return user
+
+    async def user_id_of(self, login_id: str) -> UserId:
+        """재직 사용자의 id."""
+        async with self._factory() as uow:
+            user = await uow.users.get_active_by_login_id(LoginId(login_id))
+        assert user is not None, login_id
+        return user.id
+
+    async def resign_user(self, user_id: UserId) -> None:
+        """사용자를 퇴사 처리하고 세션 행을 지운다(DeleteUser의 소프트 분기 결과를 직접 만든다)."""
+        async with self._factory() as uow:
+            user = await uow.users.get(user_id)
+            user.resign(self.clock.now())
+            await uow.users.update(user)
+            await uow.sessions.delete_all_for_user(user_id)
             await uow.commit()
 
     async def issue_session_for(self, principal: Principal) -> str:
-        """사용자 행 없이 세션만 발급한다(삭제·미등록 사용자의 세션 재현용)."""
+        """users 행 확인 없이 세션만 발급한다(principal.user_id의 행이 이미 있어야 한다)."""
         return (await self._auth.issue.execute(principal)).token
 
     async def login_as(self, principal: Principal) -> str:
-        """subject를 아이디로 한 사용자 행을 (없을 때만) 등록하고 세션 토큰을 돌려준다."""
+        """subject를 아이디로 한 재직 사용자 행을 (없을 때만) 등록하고 그 id로 세션을 발급한다."""
         async with self._factory() as uow:
-            if await uow.users.get_active_by_login_id(LoginId(principal.subject)) is None:
+            user = await uow.users.get_active_by_login_id(LoginId(principal.subject))
+            if user is None:
                 user = make_user(principal.subject, principal.role, now=self.clock.now())
                 user.record_login(
                     self.clock.now(), display_name=principal.name, email=principal.email
                 )
                 await uow.users.add(user)
                 await uow.commit()
-        return (await self._auth.issue.execute(principal)).token
+        return (await self._auth.issue.execute(replace(principal, user_id=user.id))).token
 
     async def check_ready(self) -> None:
         if self.ready_error is not None:

@@ -122,7 +122,7 @@ async def test_test_endpoint_attempts_are_limited_per_admin_account(
 
 
 async def test_a_dev_login_admin_test_only_probes(app: FastAPI, use_cases: FakeUseCases) -> None:
-    token = await use_cases.issue_session_for(principal_for("dev:admin", Role.ADMIN))
+    token = (await use_cases.dev_login().execute(Role.ADMIN)).token
     async with new_client(app, token=token) as dev_admin:
         response = await dev_admin.post(SETTINGS_TEST, json=settings_test_payload(password=None))
 

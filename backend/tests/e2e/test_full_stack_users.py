@@ -38,7 +38,8 @@ async def test_registered_user_logs_in_and_deleted_user_is_blocked_at_once(
 
             deleted = await admin.delete(f"{USERS}/{created.json()['id']}")
 
-            assert deleted.status_code == 204
+            assert deleted.status_code == 200
+            assert deleted.json() == {"outcome": "deleted"}  # kim을 가리키는 행이 없다
             assert (await kim.get(CUSTOMERS)).status_code == 401
             assert (await kim.get(ME)).status_code == 401
             assert (await kim.post(LOGIN, json=credentials())).status_code == 401
@@ -118,14 +119,14 @@ async def test_two_admins_deleting_each_other_at_once_leave_exactly_one_admin(
             )
 
             statuses = [r.status_code for r in results]
-            assert statuses.count(204) == 1, statuses
-            loser = next(r for r in results if r.status_code != 204)
+            assert statuses.count(200) == 1, statuses
+            loser = next(r for r in results if r.status_code != 200)
             # 진 쪽은 마지막 admin 보호(409)이거나, 이긴 쪽이 이미 요청자를 삭제해 401이다.
             assert loser.status_code in {401, 409}, statuses
             if loser.status_code == 409:
                 assert problem_type(loser.json()) == "invalid-state"
-            # first가 boss를 지웠다면(204) 생존자는 first(root), 아니면 second(boss)다.
-            survivor = first if results[0].status_code == 204 else second
+            # first가 boss를 지웠다면(200) 생존자는 first(root), 아니면 second(boss)다.
+            survivor = first if results[0].status_code == 200 else second
             items = (await survivor.get(USERS)).json()["items"]
             assert [i["role"] for i in items] == ["admin"]
     finally:

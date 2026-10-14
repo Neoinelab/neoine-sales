@@ -9,6 +9,7 @@ from app.domain.directory.errors import DirectorySettingsConflictError
 from app.domain.directory.settings import StoredDirectorySettings
 from tests.factories import NOW
 from tests.factories_auth import make_directory_settings
+from tests.support.user_ids import uid
 
 
 def test_stored_settings_carry_revision_and_audit_fields() -> None:
@@ -19,9 +20,17 @@ def test_stored_settings_carry_revision_and_audit_fields() -> None:
     assert (stored.revision, stored.updated_at, stored.updated_by) == (1, NOW, None)
 
 
+def test_stored_settings_keep_the_saving_users_id() -> None:
+    stored = StoredDirectorySettings(
+        settings=make_directory_settings(), revision=2, updated_at=NOW, updated_by=uid("admin")
+    )
+
+    assert stored.updated_by == uid("admin")
+
+
 def test_stored_settings_are_frozen() -> None:
     stored = StoredDirectorySettings(
-        settings=make_directory_settings(), revision=1, updated_at=NOW, updated_by="admin"
+        settings=make_directory_settings(), revision=1, updated_at=NOW, updated_by=uid("admin")
     )
 
     with pytest.raises(dataclasses.FrozenInstanceError):

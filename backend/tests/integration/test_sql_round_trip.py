@@ -16,6 +16,7 @@ from app.domain.partner.entities import Partner
 from app.infra.db.customer_repository import SqlCustomerRepository
 from app.infra.db.deal_repository import SqlDealRepository
 from app.infra.db.partner_repository import SqlPartnerRepository
+from app.infra.db.user_repository import SqlUserRepository
 from tests.factories import (
     NOW,
     make_customer_details,
@@ -23,6 +24,8 @@ from tests.factories import (
     make_partner_details,
     make_stage_changer,
 )
+from tests.support.user_ids import OWNER_ID, uid
+from tests.support.user_seed import ensure_users
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
@@ -80,6 +83,7 @@ async def test_deal_money_keeps_four_decimal_places_and_currency(session: AsyncS
     deals = SqlDealRepository(session)
     customer = Customer.create(make_customer_details(), NOW)
     await customers.add(customer)
+    await ensure_users(SqlUserRepository(session), OWNER_ID)
     deal = Deal.create(
         make_deal_details(
             customer_id=customer.id,
@@ -105,6 +109,7 @@ async def test_deal_references_and_code_round_trip(session: AsyncSession) -> Non
     partner = Partner.create(make_partner_details(), NOW)
     await customers.add(customer)
     await partners.add(partner)
+    await ensure_users(SqlUserRepository(session), OWNER_ID)
     deal = Deal.create(
         make_deal_details(code=DealCode("a-1"), customer_id=customer.id, partner_id=partner.id),
         NOW,
@@ -138,6 +143,7 @@ async def test_deal_stage_round_trips(session: AsyncSession, stage: DealStage) -
     deals = SqlDealRepository(session)
     customer = Customer.create(make_customer_details(), NOW)
     await customers.add(customer)
+    await ensure_users(SqlUserRepository(session), OWNER_ID)
     deal = Deal.create(make_deal_details(customer_id=customer.id), NOW)
     if stage is not DealStage.PROSPECTING:
         deal.change_stage(stage, reason="사유", changed_by=make_stage_changer(), now=NOW)
@@ -146,17 +152,24 @@ async def test_deal_stage_round_trips(session: AsyncSession, stage: DealStage) -
     assert (await deals.get(deal.id)).stage is stage
 
 
-async def test_deal_owner_user_id_round_trips(session: AsyncSession) -> None:
+async def test_deal_owner_and_registrant_user_ids_round_trip(session: AsyncSession) -> None:
     customers = SqlCustomerRepository(session)
     deals = SqlDealRepository(session)
     customer = Customer.create(make_customer_details(), NOW)
     await customers.add(customer)
-    owned = Deal.create(
-        make_deal_details(code=DealCode("O-1"), customer_id=customer.id), NOW, owner_user_id="u-1"
+    await ensure_users(SqlUserRepository(session), uid("owner1"), uid("registrant1"), OWNER_ID)
+    registered = Deal.create(
+        make_deal_details(
+            code=DealCode("O-1"), customer_id=customer.id, owner_user_id=uid("owner1")
+        ),
+        NOW,
+        registered_by_user_id=uid("registrant1"),
     )
-    unowned = Deal.create(make_deal_details(code=DealCode("O-2"), customer_id=customer.id), NOW)
-    await deals.add(owned)
-    await deals.add(unowned)
+    legacy = Deal.create(make_deal_details(code=DealCode("O-2"), customer_id=customer.id), NOW)
+    await deals.add(registered)
+    await deals.add(legacy)
 
-    assert (await deals.get(owned.id)).owner_user_id == "u-1"
-    assert (await deals.get(unowned.id)).owner_user_id is None
+    stored = await deals.get(registered.id)
+    assert stored.details.owner_user_id == uid("owner1")
+    assert stored.registered_by_user_id == uid("registrant1")
+    assert (await deals.get(legacy.id)).registered_by_user_id is None  # 과거 딜은 등록자 NULL

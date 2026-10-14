@@ -21,6 +21,7 @@ from app.web.routers import (
     health,
     partners,
     settings_directory,
+    user_options,
     users,
 )
 
@@ -72,7 +73,7 @@ def create_app(
         app.include_router(module.router)
     guard = [Depends(require_login), Depends(require_csrf_header)]
     business = (customers, partners, deals, deal_actions, deal_stages)
-    for module in (*business, users, settings_directory):
+    for module in (*business, user_options, users, settings_directory):
         app.include_router(module.router, dependencies=guard, responses={401: PROBLEM})
     return app
 

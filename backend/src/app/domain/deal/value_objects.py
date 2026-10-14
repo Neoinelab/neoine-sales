@@ -12,12 +12,12 @@ if TYPE_CHECKING:
     from app.domain.common.money import Money
     from app.domain.customer.value_objects import CustomerId
     from app.domain.partner.value_objects import PartnerId
+    from app.domain.user.value_objects import UserId
 
 DealId = NewType("DealId", UUID)
 
 CODE_MAX = 50
 NAME_MAX = 200
-OWNER_MAX = 100
 VENDOR_MAX = 100
 SOLUTION_MAX = 200
 _CODE_PATTERN = re.compile(r"^[A-Z0-9][A-Z0-9._-]*$")
@@ -45,7 +45,7 @@ class DealDetails:
 
     code: DealCode
     name: str
-    owner: str
+    owner_user_id: UserId
     vendor: str
     solution: str
     revenue: Money
@@ -57,7 +57,6 @@ class DealDetails:
         assign(
             self,
             name=required_text(self.name, "Deal Name", max_length=NAME_MAX),
-            owner=required_text(self.owner, "Deal Owner", max_length=OWNER_MAX),
             vendor=required_text(self.vendor, "Vendor", max_length=VENDOR_MAX),
             solution=required_text(self.solution, "Solution", max_length=SOLUTION_MAX),
         )

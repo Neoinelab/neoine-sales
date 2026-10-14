@@ -53,14 +53,17 @@ async def test_a_dev_login_admin_saves_after_a_probe_only_check(
     app: FastAPI, use_cases: FakeUseCases
 ) -> None:
     await use_cases.seed_directory()
-    token = await use_cases.issue_session_for(principal_for("dev:admin", Role.ADMIN))
+    token = (await use_cases.dev_login().execute(Role.ADMIN)).token
     async with new_client(app, token=token) as dev_admin:
         response = await dev_admin.put(
             SETTINGS, json=settings_update_payload(password=None, base_dn=NEW_DN)
         )
 
     assert response.status_code == 200
-    assert (response.json()["revision"], response.json()["updated_by"]) == (2, "dev:admin")
+    assert response.json()["revision"] == 2
+    assert response.json()["updated_by"]["id"] == str(await use_cases.user_id_of("dev-admin"))
+    assert response.json()["updated_by"]["name"] == "개발 사용자(admin)"  # UserRef(users 행)
+    assert "login_id" not in response.json()["updated_by"]
     assert len(use_cases.directory.probe_calls) == 1
     assert use_cases.directory.authenticate_calls == []
 
@@ -72,7 +75,7 @@ async def test_a_dev_login_admin_update_fails_422_when_the_probe_fails(
     use_cases.directory.probe_fails_with = DirectoryUnavailableError(
         stage=VerificationStage.CONNECT
     )
-    token = await use_cases.issue_session_for(principal_for("dev:admin", Role.ADMIN))
+    token = (await use_cases.dev_login().execute(Role.ADMIN)).token
     async with new_client(app, token=token) as dev_admin:
         response = await dev_admin.put(SETTINGS, json=settings_update_payload(password=None))
 

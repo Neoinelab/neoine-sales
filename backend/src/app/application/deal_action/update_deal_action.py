@@ -1,5 +1,7 @@
 from typing import TYPE_CHECKING
 
+from app.application.user.assignment import ensure_assignable
+
 if TYPE_CHECKING:
     from app.application.deal_action.inputs import DealActionInput
     from app.application.ports.clock import Clock
@@ -18,7 +20,11 @@ class UpdateDealAction:
     async def execute(self, action_id: DealActionId, data: DealActionInput) -> DealAction:
         async with self._uow_factory() as uow:
             action = await uow.deal_actions.get(action_id)
-            action.update(data.to_details(action.details.deal_id), self._clock.now())
+            details = data.to_details(action.details.deal_id)
+            await ensure_assignable(
+                uow, details.actor_user_id, unchanged_from=action.details.actor_user_id
+            )
+            action.update(details, self._clock.now())
             await uow.deal_actions.update(action)
             await uow.commit()
         return action

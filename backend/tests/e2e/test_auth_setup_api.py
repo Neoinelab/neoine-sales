@@ -1,6 +1,7 @@
 """최초 설정 2단계 API (SETUP-1~8, DS-2~5, T-E14~E19)."""
 
 from typing import TYPE_CHECKING
+from uuid import UUID
 
 import pytest
 
@@ -60,7 +61,9 @@ async def test_two_step_setup_signs_in_as_admin(
     done = await anonymous_client.post(SETUP, json=credentials())
 
     assert done.status_code == 200
-    assert done.json() == {
+    body = done.json()
+    assert str(UUID(body.pop("user_id")))
+    assert body == {
         "subject": "kim",
         "email": "kim@corp.test",
         "name": "김관리",

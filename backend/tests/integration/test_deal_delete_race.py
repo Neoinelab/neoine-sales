@@ -20,6 +20,8 @@ from app.infra.db.unit_of_work import sql_unit_of_work_factory
 from tests.factories import later, make_customer, make_deal, make_deal_action_input
 from tests.fakes.unit_of_work import FixedClock
 from tests.support.gated_uow import gated
+from tests.support.user_ids import ACTOR_ID, OWNER_ID
+from tests.support.user_seed import ensure_users
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
@@ -52,6 +54,7 @@ async def deal(uow_factory: UnitOfWorkFactory) -> Deal:
     customer = make_customer()
     created = make_deal(customer_id=customer.id)
     async with uow_factory() as setup:
+        await ensure_users(setup.users, OWNER_ID, ACTOR_ID)  # FK: 담당자·활동자
         await setup.customers.add(customer)
         await setup.deals.add(created)
         await setup.commit()

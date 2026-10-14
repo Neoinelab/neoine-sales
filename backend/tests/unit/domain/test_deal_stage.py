@@ -13,6 +13,7 @@ from app.domain.deal.stage import (
     StageChanger,
 )
 from tests.factories import NOW, later, make_deal, make_deal_details, make_stage_changer
+from tests.support.user_ids import uid
 
 if TYPE_CHECKING:
     from app.domain.deal.entities import Deal
@@ -45,22 +46,16 @@ class TestDealStage:
 
 
 class TestStageChanger:
-    def test_changer_keeps_subject_and_name(self) -> None:
-        changer = StageChanger(subject="u-1", name="김영업")
+    def test_changer_is_identified_by_user_id_only(self) -> None:
+        changer = StageChanger(user_id=uid("kim"))
 
-        assert (changer.subject, changer.name) == ("u-1", "김영업")
+        assert changer.user_id == uid("kim")
+        assert not hasattr(changer, "subject")
+        assert not hasattr(changer, "name")  # 표시 이름은 users 조인(UserRef)으로 만든다
 
-    @pytest.mark.parametrize("field", ["subject", "name"])
-    def test_changer_text_cannot_be_blank(self, field: str) -> None:
-        with pytest.raises(InvalidValueError):
-            make_stage_changer(**{field: "   "})
-
-    @pytest.mark.parametrize("field", ["subject", "name"])
-    def test_changer_text_is_limited_to_200_chars(self, field: str) -> None:
-        make_stage_changer(**{field: "가" * 200})
-
-        with pytest.raises(InvalidValueError):
-            make_stage_changer(**{field: "가" * 201})
+    def test_changers_with_the_same_user_id_are_equal(self) -> None:
+        assert StageChanger(user_id=uid("kim")) == StageChanger(user_id=uid("kim"))
+        assert StageChanger(user_id=uid("kim")) != StageChanger(user_id=uid("lee"))
 
 
 class TestNewDealStage:
@@ -98,7 +93,7 @@ class TestChangeStage:
 
     def test_change_returns_history_with_from_to_reason_changer_and_time(self) -> None:
         deal = make_deal()
-        changer = make_stage_changer(subject="u-7", name="이영업")
+        changer = make_stage_changer(user_id=uid("lee"))
 
         change = deal.change_stage(
             DealStage.POC_PREPARATION, reason="환경 준비", changed_by=changer, now=later(30)
@@ -110,6 +105,7 @@ class TestChangeStage:
         assert change.to_stage is DealStage.POC_PREPARATION
         assert change.reason == "환경 준비"
         assert change.changed_by == changer
+        assert change.changed_by.user_id == uid("lee")
         assert change.changed_at == later(30)
 
     def test_change_touches_updated_at_but_keeps_created_at(self) -> None:

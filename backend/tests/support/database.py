@@ -4,6 +4,7 @@
 그 안에서만 테스트한 뒤 지운다.
 """
 
+import argparse
 import asyncio
 import os
 import uuid
@@ -22,7 +23,7 @@ from alembic import command
 from app.config import Profile, get_settings
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncIterator, Callable, Coroutine
+    from collections.abc import AsyncIterator, Callable, Coroutine, Sequence
 
 BACKEND_DIR = Path(__file__).resolve().parents[2]
 
@@ -78,21 +79,28 @@ def _alembic_config() -> Config:
     return config
 
 
-def _run(action: Callable[[Config, str], None], target: str) -> Callable[[Connection], None]:
+def _run(
+    action: Callable[[Config, str], None], target: str, x_args: Sequence[str] = ()
+) -> Callable[[Connection], None]:
     def runner(connection: Connection) -> None:
         config = _alembic_config()
         config.attributes["connection"] = connection
+        if x_args:  # `alembic -x key=value`와 같다: env.py의 context.get_x_argument()가 읽는다
+            config.cmd_opts = argparse.Namespace(x=list(x_args))
         action(config, target)
 
     return runner
 
 
-async def apply_migrations(url: URL, *, direction: str = "up", target: str = "head") -> None:
+async def apply_migrations(
+    url: URL, *, direction: str = "up", target: str = "head", x_args: Sequence[str] = ()
+) -> None:
+    """마이그레이션을 한 트랜잭션으로 적용한다. x_args는 `alembic -x` 인자(예: name_map=<경로>)."""
     action = command.upgrade if direction == "up" else command.downgrade
     engine = create_async_engine(url, poolclass=NullPool)
     try:
         async with engine.begin() as connection:
-            await connection.run_sync(_run(action, target))
+            await connection.run_sync(_run(action, target, x_args))
     finally:
         await engine.dispose()
 

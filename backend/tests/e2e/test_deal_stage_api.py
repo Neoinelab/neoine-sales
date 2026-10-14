@@ -229,16 +229,17 @@ async def test_post_deal_with_stage_in_body_is_rejected(client: AsyncClient) -> 
     assert response.json()["type"].endswith("request-validation")
 
 
-async def test_put_on_a_lost_deal_is_allowed(client: AsyncClient) -> None:
+async def test_put_on_a_lost_deal_is_allowed(client: AsyncClient, owners: dict[str, str]) -> None:
     deal = await _deal(client)
     await _change(client, deal["id"], "lost", reason="예산")
 
     response = await client.put(
-        f"{DEALS}/{deal['id']}", json=deal_payload(str(deal["customer_id"]), owner="최영업")
+        f"{DEALS}/{deal['id']}",
+        json=deal_payload(str(deal["customer_id"]), owner_user_id=owners["x"]),
     )
 
     assert response.status_code == 200
-    assert response.json()["owner"] == "최영업"
+    assert response.json()["owner"]["id"] == owners["x"]
 
 
 async def test_stage_change_and_history_require_login_and_csrf(

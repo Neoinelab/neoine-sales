@@ -8,6 +8,7 @@ from app.application.ports.deal_repository import DealQuery
 from app.domain.customer.value_objects import CustomerId
 from app.domain.partner.value_objects import PartnerId
 from tests.factories import later, make_deal
+from tests.support.user_ids import uid
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -58,12 +59,13 @@ async def test_search_orders_by_creation_time_not_insertion_order(
 async def test_search_keyword_matches_each_text_field_ignoring_case(
     deal_case: RepositoryCase,
 ) -> None:
-    plain = {"name": "일반 사업", "owner": "박영업", "vendor": "SAP", "solution": "S/4HANA"}
+    plain = {"name": "일반 사업", "vendor": "SAP", "solution": "S/4HANA"}
+    await deal_case.name_user(uid("erp-team"), "erp팀")  # 담당자 표시 이름(users 조인)
     await _add_all(
         deal_case,
         {**plain, "code": "ERP-CODE"},
         {**plain, "code": "D-NAME", "name": "ErP 구축"},
-        {**plain, "code": "D-OWNER", "owner": "erp팀"},
+        {**plain, "code": "D-OWNER", "owner_user_id": uid("erp-team")},
         {**plain, "code": "D-VENDOR", "vendor": "My ERP"},
         {**plain, "code": "D-SOLUTION", "solution": "erp 패키지"},
         {**plain, "code": "D-NONE"},
@@ -158,31 +160,6 @@ async def test_search_filters_by_partner(deal_case: RepositoryCase) -> None:
     assert await _codes(deal_case, partner_id=PartnerId(uuid4())) == []
 
 
-async def test_search_owner_requires_exact_match(deal_case: RepositoryCase) -> None:
-    await _add_all(
-        deal_case,
-        {"code": "D-1", "owner": "박영업"},
-        {"code": "D-2", "owner": "박영업2"},
-        {"code": "D-3", "owner": "영업"},
-    )
-
-    assert await _codes(deal_case, owner="박영업") == ["D-1"]
-
-
-async def test_search_owner_is_case_sensitive(deal_case: RepositoryCase) -> None:
-    await _add_all(deal_case, {"code": "D-1", "owner": "Park"}, {"code": "D-2", "owner": "park"})
-
-    assert await _codes(deal_case, owner="Park") == ["D-1"]
-
-
-async def test_search_owner_ignores_surrounding_spaces_in_the_condition(
-    deal_case: RepositoryCase,
-) -> None:
-    await _add_all(deal_case, {"code": "D-1", "owner": "박영업"}, {"code": "D-2", "owner": "김"})
-
-    assert await _codes(deal_case, owner=" 박영업 ") == ["D-1"]
-
-
 async def test_search_vendor_requires_exact_match(deal_case: RepositoryCase) -> None:
     await _add_all(
         deal_case,
@@ -236,16 +213,27 @@ async def test_search_with_only_revenue_to_excludes_the_end_date(
 
 async def test_search_combines_conditions_with_and(deal_case: RepositoryCase) -> None:
     customer_a, customer_b = CustomerId(uuid4()), CustomerId(uuid4())
+    x, y = uid("x"), uid("y")
     june = date(2026, 6, 10)
     await _add_all(
         deal_case,
-        {"code": "HIT", "customer_id": customer_a, "owner": "X", "revenue_date": june},
-        {"code": "OTHER-CUSTOMER", "customer_id": customer_b, "owner": "X", "revenue_date": june},
-        {"code": "OTHER-OWNER", "customer_id": customer_a, "owner": "Y", "revenue_date": june},
+        {"code": "HIT", "customer_id": customer_a, "owner_user_id": x, "revenue_date": june},
+        {
+            "code": "OTHER-CUSTOMER",
+            "customer_id": customer_b,
+            "owner_user_id": x,
+            "revenue_date": june,
+        },
+        {
+            "code": "OTHER-OWNER",
+            "customer_id": customer_a,
+            "owner_user_id": y,
+            "revenue_date": june,
+        },
         {
             "code": "OTHER-DATE",
             "customer_id": customer_a,
-            "owner": "X",
+            "owner_user_id": x,
             "revenue_date": date(2026, 8, 1),
         },
     )
@@ -253,7 +241,7 @@ async def test_search_combines_conditions_with_and(deal_case: RepositoryCase) ->
     found = await _codes(
         deal_case,
         customer_id=customer_a,
-        owner="X",
+        owner_user_id=x,
         revenue_from=date(2026, 6, 1),
         revenue_to=date(2026, 7, 1),
     )
@@ -275,12 +263,12 @@ async def test_search_applies_page_after_filtering(deal_case: RepositoryCase) ->
 
 async def test_search_excludes_removed_deals(deal_case: RepositoryCase) -> None:
     keep, gone = (
-        make_deal(later(0), code="KEEP", owner="X"),
-        make_deal(later(1), code="GONE", owner="X"),
+        make_deal(later(0), code="KEEP", owner_user_id=uid("x")),
+        make_deal(later(1), code="GONE", owner_user_id=uid("x")),
     )
     await deal_case.add(keep)
     await deal_case.add(gone)
     await deal_case.repository.delete(gone.id)
 
-    assert await _codes(deal_case, owner="X") == ["KEEP"]
+    assert await _codes(deal_case, owner_user_id=uid("x")) == ["KEEP"]
     assert await _codes(deal_case, keyword="gone") == []

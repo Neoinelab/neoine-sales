@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.pool import NullPool
 
 from tests.support.database import apply_migrations, resolve_admin_url, temporary_database
+from tests.support.revisions import AUTH_REVISION, OWNER_REVISION
 from tests.support.skips import skip_or_fail
 
 if TYPE_CHECKING:
@@ -15,7 +16,7 @@ if TYPE_CHECKING:
 
 pytestmark = pytest.mark.integration
 
-PREVIOUS_REVISION = "39d531ff2643"
+PREVIOUS_REVISION = OWNER_REVISION  # 과거 리비전 검증: head가 아니라 AUTH_REVISION까지만 올린다
 NEW_TABLES = {"users", "login_failures", "directory_settings"}
 
 
@@ -73,7 +74,7 @@ async def test_upgrade_keeps_existing_data_and_old_release_sql_still_works() -> 
             " from information_schema.columns where table_name = 'auth_sessions'",
         )
 
-        await apply_migrations(url)
+        await apply_migrations(url, target=AUTH_REVISION)
 
         assert await _table_names(url) >= NEW_TABLES
         assert await _scalar(url, "select count(*) from customers") == 1
@@ -96,7 +97,7 @@ async def test_downgrade_removes_only_the_new_objects_and_upgrade_restores_them(
         skip_or_fail("관리자 접속 정보가 없어 마이그레이션 왕복 테스트를 건너뜁니다")
 
     async with temporary_database(admin_url) as url:
-        await apply_migrations(url)
+        await apply_migrations(url, target=AUTH_REVISION)
         await _execute(url, OLD_RELEASE_SESSION_INSERT.format(marker="keep", role="sales"))
         index_sql = "select count(*) from pg_indexes where indexname = 'ix_auth_sessions_subject'"
         assert await _scalar(url, index_sql) == 1
@@ -109,7 +110,7 @@ async def test_downgrade_removes_only_the_new_objects_and_upgrade_restores_them(
         assert await _scalar(url, index_sql) == 0
         assert await _scalar(url, "select count(*) from auth_sessions") == 1
 
-        await apply_migrations(url)
+        await apply_migrations(url, target=AUTH_REVISION)
 
         assert await _table_names(url) >= NEW_TABLES
         assert await _scalar(url, index_sql) == 1

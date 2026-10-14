@@ -26,8 +26,8 @@ MAKERS: dict[str, Callable[..., Any]] = {
     "partner": make_partner,
     "deal": make_deal,
     "deal_action": make_deal_action,
-    "user": make_user,
-}
+}  # users는 퇴사 처리(소프트 삭제)가 재도입된 유일한 예외다. 아래 별도 테스트가 범위를 고정한다.
+USER_FORBIDDEN_MEMBERS = ("is_deleted", "soft_delete", "restore", "reinstate", "_ensure_active")
 
 
 @pytest.mark.parametrize("member", SOFT_DELETE_MEMBERS)
@@ -78,9 +78,25 @@ def test_deal_action_update_works_without_any_deletion_state_check() -> None:
     assert action.details.memo == "바뀐 메모"
 
 
-def test_user_record_login_works_without_any_deletion_state_check() -> None:
+def test_user_record_login_works_for_an_active_user() -> None:
     user = make_user()
 
     user.record_login(later(5), display_name="김영업", email=None)
 
     assert user.last_login_at == later(5)
+
+
+def test_only_user_has_resignation_state() -> None:
+    user = make_user()
+
+    assert hasattr(user, "deleted_at")
+    assert hasattr(user, "delete_reason")
+    assert callable(user.resign)
+
+
+@pytest.mark.parametrize("member", USER_FORBIDDEN_MEMBERS)
+def test_user_still_has_no_generic_soft_delete_or_restore_member(member: str) -> None:
+    user = make_user()
+
+    assert not hasattr(user, member)
+    assert not hasattr(type(user), member)

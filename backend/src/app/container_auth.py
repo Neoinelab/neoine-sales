@@ -71,11 +71,11 @@ class AuthAssembly:
         return DirectoryLogin(self._deps, self._issue_session)
 
     def dev_login(self) -> DevLogin:
-        return DevLogin(self._issue_session)
+        return DevLogin(self._uow_factory, self._clock, self._issue_session)
 
     def authenticate(self) -> Authenticate:
         return Authenticate(
-            self._uow_factory, self._clock, allow_dev_sessions=self._allow_dev_sessions
+            self._uow_factory, self._clock, allow_dev_users=self._allow_dev_sessions
         )
 
     def logout(self) -> Logout:

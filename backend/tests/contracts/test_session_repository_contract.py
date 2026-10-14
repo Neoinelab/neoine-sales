@@ -1,4 +1,8 @@
-"""SessionRepository 계약: Fake와 SQL 구현(실제 PostgreSQL)에 같은 테스트를 적용한다."""
+"""SessionRepository 계약: Fake와 SQL 구현(실제 PostgreSQL)에 같은 테스트를 적용한다.
+
+세션은 users(id)를 FK로 가리키므로 SQL 구현에서는 사용자 행이 먼저 있어야 한다(fixture가 만든다).
+사용자 삭제는 세션을 폐기(revoke)하지 않고 행을 지운다(delete_all_for_user).
+"""
 
 from datetime import timedelta
 from typing import TYPE_CHECKING
@@ -10,10 +14,15 @@ import pytest_asyncio
 from app.domain.auth.principal import Principal, Role
 from app.domain.auth.session import AuthSession, SessionId
 from app.domain.common.errors import AlreadyExistsError, NotFoundError
+from app.domain.user.value_objects import UserId
 from app.infra.db.session_repository import SqlSessionRepository
+from app.infra.db.user_repository import SqlUserRepository
 from tests.factories import NOW, later
-from tests.fakes.repositories import FakeSessionRepository
+from tests.factories_auth import make_principal
+from tests.fakes.session_repository import FakeSessionRepository
 from tests.support.database import rolled_back_session
+from tests.support.user_ids import uid
+from tests.support.user_seed import ensure_users
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
@@ -24,12 +33,18 @@ PARAMS = [
     pytest.param("fake", id="fake"),
     pytest.param("sql", id="sql", marks=pytest.mark.integration),
 ]
+SESSION_USERS = ("kim", "lee", "S-1")  # fixture가 SQL에 만들어 두는 세션 소유 사용자(로그인 아이디)
+
+
+def principal_of(name: str, role: Role = Role.SALES) -> Principal:
+    """uid(name)을 user_id로 가진 주체. name은 SESSION_USERS 중 하나여야 SQL에서 FK가 맞는다."""
+    return make_principal(name.lower(), role, user_id=uid(name.lower()))
 
 
 def make_session(**overrides: object) -> AuthSession:
     values: dict[str, object] = {
         "id": SessionId(uuid4()),
-        "principal": Principal("S-1", "kim@neoine.example", "김영업", Role.ADMIN),
+        "principal": principal_of("kim", Role.ADMIN),
         "created_at": NOW,
         "expires_at": NOW + timedelta(hours=8),
     }
@@ -43,6 +58,7 @@ async def repository(request: pytest.FixtureRequest) -> AsyncIterator[SessionRep
         return
     url = request.getfixturevalue("test_database_url")
     async with rolled_back_session(url) as session:
+        await ensure_users(SqlUserRepository(session), *(uid(n.lower()) for n in SESSION_USERS))
         yield SqlSessionRepository(session)
 
 
@@ -54,8 +70,9 @@ async def test_add_then_get_by_token_hash_round_trips(repository: SessionReposit
 
     assert stored == session
     assert stored is not None
-    assert stored.principal == session.principal
+    assert stored.principal.user_id == session.principal.user_id
     assert stored.expires_at == session.expires_at
+    assert stored.created_at == session.created_at
     assert stored.revoked_at is None
 
 
@@ -87,46 +104,38 @@ async def test_update_unknown_session_raises_not_found(repository: SessionReposi
         await repository.update(make_session())
 
 
-def _principal(subject: str) -> Principal:
-    return Principal(subject, None, subject, Role.SALES)
-
-
-async def test_revoke_all_for_subject_revokes_only_active_sessions_of_that_subject(
+async def test_delete_all_for_user_removes_only_that_users_sessions(
     repository: SessionRepository,
 ) -> None:
-    await repository.add(make_session(principal=_principal("kim")), "kim-1")
-    await repository.add(make_session(principal=_principal("kim")), "kim-2")
-    already = make_session(principal=_principal("kim"))
+    await repository.add(make_session(principal=principal_of("kim")), "kim-1")
+    await repository.add(make_session(principal=principal_of("kim")), "kim-2")
+    already = make_session(principal=principal_of("kim"))
     already.revoke(later(5))
     await repository.add(already, "kim-old")
-    await repository.add(make_session(principal=_principal("lee")), "lee-1")
+    await repository.add(make_session(principal=principal_of("lee")), "lee-1")
 
-    revoked = await repository.revoke_all_for_subject("kim", later(60))
+    deleted = await repository.delete_all_for_user(uid("kim"))
 
-    assert revoked == 2
-    for token in ("kim-1", "kim-2"):
-        stored = await repository.get_by_token_hash(token)
-        assert stored is not None
-        assert stored.revoked_at == later(60)
-    kept = await repository.get_by_token_hash("kim-old")
-    assert kept is not None
-    assert kept.revoked_at == later(5)  # 이미 폐기된 세션의 시각은 바뀌지 않는다
-    other = await repository.get_by_token_hash("lee-1")
-    assert other is not None
-    assert other.revoked_at is None
+    assert deleted == 3  # 이미 폐기된 세션 행도 지운다(행이 남으면 사용자 물리 삭제를 막는다)
+    for token in ("kim-1", "kim-2", "kim-old"):
+        assert await repository.get_by_token_hash(token) is None
+    assert await repository.get_by_token_hash("lee-1") is not None
 
 
-async def test_revoke_all_for_subject_without_sessions_returns_zero(
+async def test_delete_all_for_user_without_sessions_returns_zero(
     repository: SessionRepository,
 ) -> None:
-    assert await repository.revoke_all_for_subject("nobody", later(1)) == 0
+    assert await repository.delete_all_for_user(UserId(uuid4())) == 0
+    assert await repository.delete_all_for_user(uid("lee")) == 0
 
 
-async def test_revoked_sessions_report_inactive_afterwards(repository: SessionRepository) -> None:
-    await repository.add(make_session(principal=_principal("kim")), "kim-1")
+async def test_deleted_sessions_cannot_be_updated_or_revived(
+    repository: SessionRepository,
+) -> None:
+    session = make_session(principal=principal_of("kim"))
+    await repository.add(session, "kim-1")
+    await repository.delete_all_for_user(uid("kim"))
 
-    await repository.revoke_all_for_subject("kim", later(60))
-
-    stored = await repository.get_by_token_hash("kim-1")
-    assert stored is not None
-    assert not stored.is_active(later(61))
+    with pytest.raises(NotFoundError):
+        await repository.update(session)
+    assert await repository.get_by_token_hash("kim-1") is None

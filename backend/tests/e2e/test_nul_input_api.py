@@ -27,13 +27,21 @@ async def test_search_keyword_with_nul_is_422_invalid_value(client: AsyncClient,
     _assert_invalid_value(await client.get(path, params={"keyword": NUL}))
 
 
-@pytest.mark.parametrize("param", ["owner", "vendor"])
-async def test_deal_search_text_condition_with_nul_is_422(client: AsyncClient, param: str) -> None:
-    _assert_invalid_value(await client.get("/api/v1/deals", params={param: NUL}))
+async def test_deal_search_text_condition_with_nul_is_422(client: AsyncClient) -> None:
+    _assert_invalid_value(await client.get("/api/v1/deals", params={"vendor": NUL}))
 
 
-async def test_deal_action_actor_with_nul_is_422(client: AsyncClient) -> None:
-    _assert_invalid_value(await client.get("/api/v1/deal-actions", params={"actor": NUL}))
+@pytest.mark.parametrize(
+    ("path", "param"),
+    [("/api/v1/deals", "owner_user_id"), ("/api/v1/deal-actions", "actor_user_id")],
+)
+async def test_user_id_filter_with_nul_is_a_request_validation_error(
+    client: AsyncClient, path: str, param: str
+) -> None:
+    response = await client.get(path, params={param: NUL})
+
+    assert response.status_code == 422
+    assert response.json()["type"].endswith("request-validation")
 
 
 async def test_customer_registration_with_nul_is_422(client: AsyncClient) -> None:

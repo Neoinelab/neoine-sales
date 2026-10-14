@@ -3,7 +3,7 @@
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from sqlalchemy import ColumnElement, exists, func, select
+from sqlalchemy import ColumnElement, exists, func, or_, select
 
 from app.application.ports.pagination import DEFAULT_LIMIT
 from app.domain.common.errors import AlreadyExistsError, InvalidReferenceError
@@ -15,9 +15,11 @@ from app.domain.deal.pipeline import StageTotal
 from app.domain.deal.stage import DealStage
 from app.domain.deal.value_objects import DealCode, DealDetails, DealId
 from app.domain.partner.value_objects import PartnerId
+from app.domain.user.value_objects import UserId
 from app.infra.db.base_repository import ConstraintErrors, SqlRepository
 from app.infra.db.like import keyword_filter
 from app.infra.db.models import DealRow
+from app.infra.db.models_auth import UserRow
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -39,13 +41,19 @@ def _write_errors(deal: Deal) -> ConstraintErrors:
             "고객", details.customer_id
         ),
         "fk_deals_partner_id_partners": lambda: InvalidReferenceError("파트너", details.partner_id),
+        "fk_deals_owner_user_id_users": lambda: InvalidReferenceError(
+            "사용자", details.owner_user_id
+        ),
+        "fk_deals_registered_by_user_id_users": lambda: InvalidReferenceError(
+            "사용자", deal.registered_by_user_id
+        ),
     }
 
 
 def _apply_details(row: DealRow, details: DealDetails) -> None:
     row.code = details.code.value
     row.name = details.name
-    row.owner = details.owner
+    row.owner_user_id = details.owner_user_id
     row.vendor = details.vendor
     row.solution = details.solution
     row.revenue_amount = details.revenue.amount
@@ -61,7 +69,7 @@ def _to_row(deal: Deal) -> DealRow:
         created_at=deal.created_at,
         updated_at=deal.updated_at,
         stage=deal.stage.value,
-        owner_user_id=deal.owner_user_id,
+        registered_by_user_id=deal.registered_by_user_id,
     )
     _apply_details(row, deal.details)
     return row
@@ -73,7 +81,7 @@ def _to_entity(row: DealRow) -> Deal:
         details=DealDetails(
             code=DealCode(row.code),
             name=row.name,
-            owner=row.owner,
+            owner_user_id=UserId(row.owner_user_id),
             vendor=row.vendor,
             solution=row.solution,
             revenue=Money(row.revenue_amount, row.revenue_currency),
@@ -84,7 +92,9 @@ def _to_entity(row: DealRow) -> Deal:
         created_at=row.created_at,
         updated_at=row.updated_at,
         stage=DealStage(row.stage),
-        owner_user_id=row.owner_user_id,
+        registered_by_user_id=(
+            UserId(row.registered_by_user_id) if row.registered_by_user_id else None
+        ),
     )
 
 
@@ -94,8 +104,6 @@ def _filtered(query: DealQuery) -> Select[DealRow]:
         statement = statement.where(DealRow.customer_id == query.customer_id)
     if query.partner_id is not None:
         statement = statement.where(DealRow.partner_id == query.partner_id)
-    if query.owner is not None:
-        statement = statement.where(DealRow.owner == query.owner)
     if query.owner_user_id is not None:
         statement = statement.where(DealRow.owner_user_id == query.owner_user_id)
     if query.vendor is not None:
@@ -107,14 +115,15 @@ def _filtered(query: DealQuery) -> Select[DealRow]:
     if query.stage is not None:
         statement = statement.where(DealRow.stage == query.stage.value)
     if query.keyword is not None:
+        owners = select(UserRow.id).where(
+            keyword_filter(query.keyword, UserRow.display_name, UserRow.login_id)
+        )
         statement = statement.where(
-            keyword_filter(
-                query.keyword,
-                DealRow.code,
-                DealRow.name,
-                DealRow.owner,
-                DealRow.vendor,
-                DealRow.solution,
+            or_(
+                keyword_filter(
+                    query.keyword, DealRow.code, DealRow.name, DealRow.vendor, DealRow.solution
+                ),
+                DealRow.owner_user_id.in_(owners),  # 담당자 표시 이름·login_id(퇴사자 포함)
             )
         )
     return statement
@@ -167,7 +176,9 @@ class SqlDealRepository(SqlRepository[DealRow]):
         rows = (await self._session.scalars(statement)).all()
         return [_to_entity(row) for row in rows]
 
-    async def summarize_pipeline(self, *, owner_user_id: str | None = None) -> Sequence[StageTotal]:
+    async def summarize_pipeline(
+        self, *, owner_user_id: UserId | None = None
+    ) -> Sequence[StageTotal]:
         statement = select(
             DealRow.stage,
             DealRow.revenue_currency,

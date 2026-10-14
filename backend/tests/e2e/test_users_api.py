@@ -26,7 +26,11 @@ USER_KEYS = {
     "created_at",
     "created_by",
     "last_login_at",
+    "status",
+    "deleted_at",
+    "delete_reason",
 }
+USER_REF_KEYS = {"id", "name", "resigned", "label"}  # 참조에는 AD 계정 아이디가 없다
 
 
 async def _logins(client: AsyncClient) -> list[str]:
@@ -43,7 +47,12 @@ async def test_list_users_returns_the_documented_fields_without_any_password(
     assert set(body) == {"items", "offset", "limit"}
     (root,) = body["items"]
     assert set(root) == USER_KEYS
-    assert (root["login_id"], root["role"], root["created_by"]) == ("root", "admin", "admin")
+    assert (root["login_id"], root["role"]) == ("root", "admin")
+    assert set(root["created_by"]) == USER_REF_KEYS
+    assert root["created_by"]["name"] == "사용자 root"  # 최초 admin은 스스로 등록한 행(표시 이름)
+    assert root["login_id"] == "root"  # 관리 화면용 목록 행은 AD 계정 아이디를 계속 보여준다
+    assert root["created_by"]["id"] == root["id"]
+    assert (root["status"], root["deleted_at"], root["delete_reason"]) == ("active", None, None)
     assert not any("password" in key.lower() for key in root)
 
 
@@ -68,7 +77,7 @@ async def test_list_users_hides_deleted_users_and_keeps_creation_order(
     bob_id = next(
         i["id"] for i in (await admin_client.get(USERS)).json()["items"] if i["login_id"] == "bob"
     )
-    assert (await admin_client.delete(f"{USERS}/{bob_id}")).status_code == 204
+    assert (await admin_client.delete(f"{USERS}/{bob_id}")).status_code == 200
 
     assert await _logins(admin_client) == ["root", "amy"]
 
@@ -104,7 +113,13 @@ async def test_register_user_returns_201_with_the_chosen_role(
     assert response.status_code == 201
     body = response.json()
     assert set(body) == USER_KEYS
-    assert (body["login_id"], body["role"], body["created_by"]) == ("new.hire", role, "root")
+    assert (body["login_id"], body["role"]) == ("new.hire", role)
+    assert set(body["created_by"]) == USER_REF_KEYS
+    assert (body["created_by"]["name"], body["created_by"]["label"]) == (
+        "사용자 root",
+        "사용자 root",
+    )
+    assert (body["status"], body["deleted_at"], body["delete_reason"]) == ("active", None, None)
     assert body["last_login_at"] is None
     assert body["created_at"].startswith("2026-01-01T09:00:")
     assert await _logins(admin_client) == ["root", "new.hire"]
@@ -139,7 +154,7 @@ async def test_register_user_with_an_active_login_id_is_409_already_exists(
     assert await _logins(admin_client) == ["root"]
 
 
-async def test_register_user_again_after_deletion_is_201(
+async def test_register_user_again_after_a_physical_deletion_is_201(
     admin_client: AsyncClient, use_cases: FakeUseCases
 ) -> None:
     await use_cases.seed_user("kim", Role.SALES)
@@ -153,6 +168,17 @@ async def test_register_user_again_after_deletion_is_201(
     assert response.status_code == 201
     assert response.json()["id"] != kim_id
     assert await _logins(admin_client) == ["root", "kim"]
+
+
+@pytest.mark.parametrize("reserved", ["dev-admin", "dev-sales", "dev-user"])
+async def test_register_user_with_a_reserved_dev_login_id_is_422(
+    admin_client: AsyncClient, reserved: str
+) -> None:
+    response = await admin_client.post(USERS, json={"login_id": reserved, "role": "user"})
+
+    assert response.status_code == 422
+    assert problem_type(response.json()) == "invalid-value"
+    assert await _logins(admin_client) == ["root"]
 
 
 @pytest.mark.parametrize("login_id", ["", "   ", "-lead", ".lead", "a b", "한글", "a,b", "a=b"])

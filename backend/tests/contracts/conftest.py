@@ -22,6 +22,7 @@ from app.domain.partner.errors import PartnerNotFoundError
 from app.infra.db.customer_repository import SqlCustomerRepository
 from app.infra.db.deal_repository import SqlDealRepository
 from app.infra.db.partner_repository import SqlPartnerRepository
+from app.infra.db.user_repository import SqlUserRepository
 from tests.contracts.deal_action_case import PARAMS as ACTION_PARAMS
 from tests.contracts.deal_action_case import Case as ActionCase
 from tests.contracts.deal_action_case import open_case
@@ -40,15 +41,19 @@ from tests.fakes.repositories import (
     FakeDealRepository,
     FakePartnerRepository,
 )
+from tests.fakes.user_repository import FakeUserRepository
 from tests.support.database import rolled_back_session
+from tests.support.user_seed import ensure_users
 
 if TYPE_CHECKING:
     from datetime import datetime
 
     from sqlalchemy.ext.asyncio import AsyncSession
 
+    from app.application.ports.user_repository import UserRepository
     from app.domain.common.entity import AuditedEntity
     from app.domain.deal.entities import Deal
+    from app.domain.user.value_objects import UserId
 
 KINDS = ("customer", "partner", "deal")
 IMPLEMENTATIONS = ("fake", "sql")
@@ -62,11 +67,20 @@ class RepositoryCase:
     make: Callable[[int], Any]  # n번째 엔티티: 고유키가 서로 다르고 생성 시각이 NOW+n초
     change: Callable[[Any, datetime], None]  # details를 다른 유효한 값으로 바꾼다(저장은 안 함)
     not_found: type[NotFoundError]
-    prepare: Prepare  # 저장 전에 필요한 선행 데이터(예: Deal이 참조하는 고객)를 만든다
+    prepare: Prepare  # 저장 전에 필요한 선행 데이터(예: Deal이 참조하는 고객·사용자)를 만든다
+    users: UserRepository | None = None  # deal case: 담당자·등록자 행을 두는 사용자 저장소
 
     async def add(self, entity: AuditedEntity[Any]) -> None:
         await self.prepare(entity)
         await self.repository.add(entity)
+
+    async def name_user(self, user_id: UserId, display_name: str) -> None:
+        """키워드(담당자 이름) 검색 계약용: 사용자의 표시 이름을 로그인 때처럼 채운다."""
+        assert self.users is not None
+        await ensure_users(self.users, user_id)
+        user = await self.users.get(user_id)
+        user.record_login(NOW, display_name=display_name, email=None)
+        await self.users.update(user)
 
 
 async def _nothing(_: object) -> None:
@@ -104,12 +118,17 @@ def _case_parts(
 
 
 def build_fake_case(kind: str) -> RepositoryCase:
-    fakes = {
-        "customer": FakeCustomerRepository,
-        "partner": FakePartnerRepository,
-        "deal": FakeDealRepository,
-    }
     make, change, not_found = _case_parts(kind)
+    if kind == "deal":
+        users = FakeUserRepository()
+        deals = FakeDealRepository()
+        deals.attach_user_names(users.names_of)  # 키워드 검색의 담당자 이름 조인 대용
+
+        async def ensure_owner_users(deal: Deal) -> None:
+            await ensure_users(users, deal.details.owner_user_id, deal.registered_by_user_id)
+
+        return RepositoryCase(kind, deals, make, change, not_found, ensure_owner_users, users)
+    fakes = {"customer": FakeCustomerRepository, "partner": FakePartnerRepository}
     return RepositoryCase(kind, fakes[kind](), make, change, not_found, _nothing)
 
 
@@ -118,8 +137,11 @@ def build_sql_case(kind: str, session: AsyncSession) -> RepositoryCase:
     customers = SqlCustomerRepository(session)
     partners = SqlPartnerRepository(session)
 
+    users = SqlUserRepository(session)
+
     async def ensure_deal_dependencies(deal: Deal) -> None:
-        """Deal이 참조하는 고객·파트너가 있어야 FK 제약을 통과한다."""
+        """Deal이 참조하는 고객·파트너·담당자·등록자가 있어야 FK 제약을 통과한다."""
+        await ensure_users(users, deal.details.owner_user_id, deal.registered_by_user_id)
         customer = Customer.create(make_customer_details(), NOW, entity_id=deal.details.customer_id)
         with suppress(AlreadyExistsError):
             await customers.add(customer)
@@ -130,7 +152,15 @@ def build_sql_case(kind: str, session: AsyncSession) -> RepositoryCase:
 
     repositories = {"customer": customers, "partner": partners, "deal": SqlDealRepository(session)}
     prepare = ensure_deal_dependencies if kind == "deal" else _nothing
-    return RepositoryCase(kind, repositories[kind], make, change, not_found, prepare)
+    return RepositoryCase(
+        kind,
+        repositories[kind],
+        make,
+        change,
+        not_found,
+        prepare,
+        users if kind == "deal" else None,
+    )
 
 
 def _params(kinds: tuple[str, ...]) -> list[Any]:

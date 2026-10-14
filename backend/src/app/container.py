@@ -48,8 +48,10 @@ if TYPE_CHECKING:
     from app.application.directory.update_settings import UpdateDirectorySettings
     from app.application.ports.directory import DirectoryAuthenticator
     from app.application.user.delete_user import DeleteUser
+    from app.application.user.list_user_options import ListUserOptions
     from app.application.user.list_users import ListUsers
     from app.application.user.register_user import RegisterUser
+    from app.application.user.resolve_user_refs import ResolveUserRefs
     from app.config.base import Settings
 
 
@@ -111,6 +113,12 @@ class Container:
 
     def delete_user(self) -> DeleteUser:
         return self._admin.delete_user()
+
+    def list_user_options(self) -> ListUserOptions:
+        return self._admin.list_user_options()
+
+    def resolve_user_refs(self) -> ResolveUserRefs:
+        return self._admin.resolve_user_refs()
 
     def get_directory_settings(self) -> GetDirectorySettings:
         return self._admin.get_directory_settings()

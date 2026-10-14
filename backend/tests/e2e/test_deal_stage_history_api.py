@@ -5,11 +5,16 @@ from uuid import uuid4
 
 import pytest
 
-from tests.e2e.conftest import DEFAULT_LOGIN, DEFAULT_NAME
+from app.domain.auth.principal import Role
+from tests.e2e.conftest import DEFAULT_NAME
 from tests.e2e.payloads import customer_payload, deal_payload
 
 if TYPE_CHECKING:
+    from collections.abc import Awaitable, Callable
+
     from httpx import AsyncClient
+
+    from tests.fakes.use_cases import FakeUseCases
 
 DEALS = "/api/v1/deals"
 
@@ -50,14 +55,32 @@ async def test_history_lists_latest_first_with_changer(client: AsyncClient) -> N
     ]
     latest = items[0]
     assert set(latest) == {
-        "id", "deal_id", "from_stage", "to_stage", "reason",
-        "changed_by_subject", "changed_by_name", "changed_at",
+        "id", "deal_id", "from_stage", "to_stage", "reason", "changed_by", "changed_at",
     }  # fmt: skip
     assert latest["deal_id"] == deal["id"]
     assert latest["reason"] == "예산 삭감"
-    assert latest["changed_by_subject"] == DEFAULT_LOGIN
-    assert latest["changed_by_name"] == DEFAULT_NAME
+    assert "login_id" not in latest["changed_by"]
+    assert latest["changed_by"]["name"] == DEFAULT_NAME
+    assert latest["changed_by"]["label"] == DEFAULT_NAME
+    assert latest["changed_by"]["resigned"] is False
     assert latest["changed_at"] > items[1]["changed_at"]
+
+
+async def test_history_labels_a_resigned_changer_with_the_resigned_suffix(
+    client: AsyncClient,
+    client_as: Callable[[str, Role], Awaitable[AsyncClient]],
+    use_cases: FakeUseCases,
+) -> None:
+    # 변경자는 요청자와 다른 사용자여야 한다: 요청자 본인을 퇴사시키면 세션이 지워져 401이다(AC4).
+    changer = await client_as("leaver", Role.SALES)
+    deal = await _deal(changer)
+    await _change(changer, deal["id"], "introduction")
+    await use_cases.resign_user(await use_cases.user_id_of("leaver"))
+
+    (item,) = (await _history(client, deal["id"]))["items"]
+
+    assert item["changed_by"]["resigned"] is True
+    assert item["changed_by"]["label"] == "사용자 leaver(퇴사)"
 
 
 async def test_history_pages_with_offset_and_limit(client: AsyncClient) -> None:

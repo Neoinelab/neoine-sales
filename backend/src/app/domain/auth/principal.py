@@ -1,8 +1,12 @@
 from dataclasses import dataclass
 from enum import StrEnum
+from typing import TYPE_CHECKING
 
 from app.domain.common.errors import InvalidValueError
 from app.domain.common.validation import assign, required_text
+
+if TYPE_CHECKING:
+    from app.domain.user.value_objects import UserId
 
 SUBJECT_MAX = 200
 NAME_MAX = 200
@@ -32,8 +36,9 @@ _GRANTS: dict[Role, frozenset[Permission]] = {
 
 @dataclass(frozen=True, slots=True)
 class Principal:
-    """로그인한 사용자. IdP가 보증한 식별자(subject)와 표시 정보, 앱 안에서의 역할."""
+    """로그인한 사용자. users 행의 id(user_id), 로그인 아이디(subject), 표시 정보, 앱 안의 역할."""
 
+    user_id: UserId
     subject: str
     email: str | None
     name: str

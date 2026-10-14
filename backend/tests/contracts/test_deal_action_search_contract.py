@@ -9,6 +9,7 @@ from app.application.ports.deal_action_repository import DealActionSort
 from app.domain.common.errors import InvalidValueError
 from app.domain.deal_action.value_objects import ActionType
 from tests.factories import NOW, later, make_deal_action
+from tests.support.user_ids import uid
 
 if TYPE_CHECKING:
     from tests.contracts.deal_action_case import Case
@@ -21,12 +22,20 @@ async def _seed(action_case: Case) -> None:
             "첫 통화",
             "견적서 준비",
             "예산 문의 100%",
-            "김영업",
+            uid("kim"),
             0,
             date(2026, 2, 10),
         ),
-        (ActionType.MEETING, "킥오프 미팅", "요구사항 정리", "일정", "박영업", 1, date(2026, 2, 1)),
-        (ActionType.MEETING, "최종 미팅", "계약서 초안", "조건", "김영업", 2, date(2026, 2, 10)),
+        (
+            ActionType.MEETING,
+            "킥오프 미팅",
+            "요구사항 정리",
+            "일정",
+            uid("park"),
+            1,
+            date(2026, 2, 1),
+        ),
+        (ActionType.MEETING, "최종 미팅", "계약서 초안", "조건", uid("kim"), 2, date(2026, 2, 10)),
     ]
     for action_type, action, next_action, memo, actor, day, due in rows:
         await action_case.add(
@@ -36,7 +45,7 @@ async def _seed(action_case: Case) -> None:
                 action=action,
                 next_action=next_action,
                 memo=memo,
-                actor=actor,
+                actor_user_id=actor,
                 acted_at=NOW + timedelta(days=day),
                 due_date=due,
             )
@@ -52,7 +61,11 @@ async def test_search_orders_by_latest_activity_first(action_case: Case) -> None
 async def test_search_filters(action_case: Case) -> None:
     await _seed(action_case)
 
-    assert await action_case.search(action_type=ActionType.MEETING, actor="김영업") == ["최종 미팅"]
+    assert await action_case.search(action_type=ActionType.MEETING, actor_user_id=uid("kim")) == [
+        "최종 미팅"
+    ]
+    assert await action_case.search(actor_user_id=uid("park")) == ["킥오프 미팅"]
+    assert await action_case.search(actor_user_id=uid("nobody")) == []
     assert await action_case.search(keyword="KICKOFF") == []
     assert await action_case.search(keyword="요구") == ["킥오프 미팅"]
     assert await action_case.search(keyword="100%") == ["첫 통화"]

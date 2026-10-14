@@ -1,6 +1,7 @@
 """Deal 이력(활동) 입력 검증: 필수 필드, 길이 경계, NUL, due_date 형식, 구 필드 거부(AC2~4)."""
 
 from typing import TYPE_CHECKING
+from uuid import uuid4
 
 import pytest
 
@@ -98,11 +99,39 @@ async def test_text_length_limits(client: AsyncClient, url: str, field: str, lim
     assert over.status_code == 422
 
 
-@pytest.mark.parametrize("field", ["action", "next_action", "memo", "actor"])
+@pytest.mark.parametrize("field", ["action", "next_action", "memo"])
 async def test_nul_character_is_422(client: AsyncClient, url: str, field: str) -> None:
     response = await client.post(url, json=action_payload(**{field: "가\u0000나"}))
 
     assert response.status_code == 422
+
+
+@pytest.mark.parametrize("value", [None, "", "not-a-uuid", 123])
+async def test_actor_user_id_must_be_a_uuid(client: AsyncClient, url: str, value: object) -> None:
+    response = await client.post(url, json=action_payload(actor_user_id=value))
+
+    assert response.status_code == 422
+    assert response.json()["type"].endswith("request-validation")
+
+
+async def test_actor_user_id_is_required_and_the_free_text_actor_is_not_accepted(
+    client: AsyncClient, url: str
+) -> None:
+    payload = action_payload()
+    del payload["actor_user_id"]
+
+    missing = await client.post(url, json=payload)
+    legacy = await client.post(url, json={**payload, "actor": "박영업"})
+
+    assert missing.status_code == 422
+    assert legacy.status_code == 422
+
+
+async def test_unknown_actor_is_a_422_invalid_reference(client: AsyncClient, url: str) -> None:
+    response = await client.post(url, json=action_payload(actor_user_id=str(uuid4())))
+
+    assert response.status_code == 422
+    assert response.json()["type"].endswith("invalid-reference")
 
 
 @pytest.mark.parametrize("value", ["2026-13-40", "내일", "2026-03-10T10:30:00+09:00", "20260310x"])

@@ -13,11 +13,16 @@ from app.application.deal.register_deal import RegisterDeal
 from app.application.ports.deal_repository import DealQuery
 from app.domain.customer.value_objects import CustomerId
 from tests.factories import make_customer_input, make_deal_input
+from tests.support.user_ids import uid
+from tests.support.user_seed import ensure_users
 
 if TYPE_CHECKING:
     from app.application.ports.unit_of_work import UnitOfWorkFactory
     from app.domain.customer.entities import Customer
     from tests.fakes.unit_of_work import FixedClock
+
+
+pytestmark = pytest.mark.usefixtures("default_users")
 
 
 @pytest.fixture
@@ -45,11 +50,16 @@ async def test_list_deals_passes_conditions_to_repository(
 ) -> None:
     register = RegisterDeal(uow_factory, clock)
     clock.advance()
-    await register.execute(make_deal_input(customer.id, code="D-1", owner="박영업"))
+    async with uow_factory() as uow:
+        await ensure_users(uow.users, uid("park"), uid("manager"))
+        await uow.commit()
+    await register.execute(make_deal_input(customer.id, code="D-1", owner_user_id=uid("park")))
     clock.advance()
-    wanted = await register.execute(make_deal_input(customer.id, code="D-2", owner="김관리"))
+    wanted = await register.execute(
+        make_deal_input(customer.id, code="D-2", owner_user_id=uid("manager"))
+    )
 
-    found = await ListDeals(uow_factory).execute(DealQuery(owner="김관리"))
+    found = await ListDeals(uow_factory).execute(DealQuery(owner_user_id=uid("manager")))
 
     assert [d.id for d in found] == [wanted.id]
 

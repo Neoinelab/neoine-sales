@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 from uuid import uuid4
 
 from tests.e2e.payloads import action_payload, customer_payload, deal_payload
+from tests.support.user_ids import ACTOR_ID
 
 if TYPE_CHECKING:
     from httpx import AsyncClient
@@ -41,7 +42,13 @@ async def test_create_returns_new_fields_and_no_legacy_fields(client: AsyncClien
     assert body["next_action"] == "요구사항 문서 전달"
     assert body["due_date"] == "2026-03-10"
     assert body["memo"] == "요구사항 정리"
-    assert body["actor"] == "박영업"
+    assert body["actor"] == {
+        "id": str(ACTOR_ID),
+        "name": "actor",
+        "resigned": False,
+        "label": "actor",
+    }
+    assert "actor_user_id" not in body
     assert body["acted_at"].startswith("2026-03-02T10:00:00")
     assert body["created_at"].startswith("2026-01-01T09:00:")
     assert body["updated_at"]
