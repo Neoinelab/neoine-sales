@@ -85,7 +85,7 @@ infra ──┘
 | `deal/` | 딜 엔티티, `stage.py`(8단계: 기회발굴→제품소개→POC준비→POC완료→기술평가→가격협상→계약완료, 실주), `pipeline.py`(단계별 요약), 값 객체. 실주로 바꿀 때 사유 필수 |
 | `deal_action/` | 딜 활동(영업 활동 기록) 엔티티 |
 | `auth/` | `principal.py`(Role·Permission·Principal), `credentials.py`(LoginId·Password, 비밀번호는 로그에 마스킹), `session.py`, `login_failure.py`(시도 제한 카운터) |
-| `user/` | 사용자 엔티티(물리 삭제, 마지막 로그인 시각), `policy.py`(자기 자신·마지막 admin 삭제 금지) |
+| `user/` | 사용자 엔티티(연결이 있으면 퇴사 처리·없으면 물리 삭제, `UserRef` 표시 라벨, 마지막 로그인 시각), `policy.py`(자기 자신·마지막 admin 삭제 금지) |
 | `directory/` | AD 설정 값 객체(`settings.py`), LDAP URL·필터 규칙 검증(평문 LDAP 금지, `{login_id}` 템플릿) |
 
 ### 2.5 `application/` — 유스케이스와 Port
