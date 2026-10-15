@@ -1,0 +1,29 @@
+/* Deal 등록·수정 폼 전용 스타일. 전역 토큰만 사용해 다크 모드와 모바일 폭을 따른다. */
+.deal-form-page { display: grid; gap: 12px; max-width: 960px; min-width: 0; }
+.deal-form { display: grid; gap: 16px; }
+.form-section { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius-lg); box-shadow: var(--shadow-md); padding: 20px; display: grid; gap: 12px; }
+.form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px 16px; align-items: start; }
+.form-grid .field input, .form-grid .field select, .deal-form .field textarea { width: 100%; min-width: 0; }
+.deal-form .field.required > label::after { content: ' *'; color: var(--danger); }
+
+.partner-block { display: grid; gap: 6px; justify-items: start; }
+.partner-block .contact-picker { width: 100%; }
+.partner-clear { padding: 2px 10px; font-size: 0.85rem; }
+
+.bant-fieldset { border: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px 16px; }
+.bant-fieldset legend { font-size: 1.1rem; font-weight: 600; padding: 0; margin-bottom: 8px; float: left; width: 100%; }
+.bant-fieldset legend + * { clear: both; }
+.bant-item { display: grid; gap: 4px; align-content: start; }
+.bant-item select { width: 100%; }
+.link-button { justify-self: start; border: none; background: transparent; color: var(--accent); padding: 2px 0; }
+.link-button:hover, .link-button:focus-visible { text-decoration: underline; }
+.new-label { display: grid; grid-template-columns: 1fr auto auto; gap: 6px; align-items: end; }
+.new-label .field input { width: 100%; }
+
+.form-actions { position: sticky; bottom: 0; z-index: 5; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 16px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius-lg); box-shadow: 0 -4px 12px rgb(16 24 40 / 8%); }
+.form-actions .error { flex-basis: 100%; }
+
+@media (max-width: 720px) {
+  .form-section { padding: 12px; }
+  .new-label { grid-template-columns: 1fr; }
+}

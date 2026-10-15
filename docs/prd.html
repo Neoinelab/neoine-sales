@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NEOINE 영업관리 프로그램 PRD</title>
+<style>
+:root{--bg:#fff;--fg:#1f2933;--muted:#667085;--line:#e4e7ec;--soft:#f6f8fa;--brand:#1d4ed8;--ok:#047857;--okbg:#d1fae5;--part:#b45309;--partbg:#fef3c7;--todo:#b91c1c;--todobg:#fee2e2;--chg:#6d28d9;--chgbg:#ede9fe}
+@media (prefers-color-scheme:dark){:root{--bg:#0f1720;--fg:#e5e9ee;--muted:#9aa5b1;--line:#2a3643;--soft:#17212c;--brand:#7aa2ff;--ok:#6ee7b7;--okbg:#064e3b;--part:#fcd34d;--partbg:#4a3508;--todo:#fca5a5;--todobg:#4c1d1d;--chg:#c4b5fd;--chgbg:#3b2a6b}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.7 -apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif}
+.wrap{display:flex;max-width:1200px;margin:0 auto}
+nav{position:sticky;top:0;align-self:flex-start;width:230px;flex:none;height:100vh;overflow:auto;padding:24px 16px;border-right:1px solid var(--line);font-size:13px}
+nav b{display:block;margin-bottom:8px}
+nav a{display:block;color:var(--muted);text-decoration:none;padding:3px 0}
+nav a:hover{color:var(--brand)}
+nav .sub{padding-left:12px;font-size:12px}
+main{flex:1;min-width:0;padding:32px 40px 80px}
+h1{font-size:28px;margin:0 0 4px}
+h2{font-size:21px;margin:48px 0 12px;padding-top:16px;border-top:2px solid var(--fg)}
+h3{font-size:17px;margin:28px 0 8px}
+p,li{margin:6px 0}
+.meta{color:var(--muted);font-size:13px}
+table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px}
+th,td{border:1px solid var(--line);padding:7px 10px;text-align:left;vertical-align:top}
+th{background:var(--soft);white-space:nowrap}
+.box{background:var(--soft);border-left:4px solid var(--brand);padding:10px 16px;margin:14px 0;border-radius:4px}
+.warn{border-left-color:var(--part)}
+code{background:var(--soft);padding:1px 5px;border-radius:3px;font-size:12.5px}
+.b{display:inline-block;font-size:12px;font-weight:600;padding:1px 8px;border-radius:10px;white-space:nowrap}
+.b.ok{color:var(--ok);background:var(--okbg)}
+.b.part{color:var(--part);background:var(--partbg)}
+.b.todo{color:var(--todo);background:var(--todobg)}
+.b.chg{color:var(--chg);background:var(--chgbg)}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin:12px 0}
+.card{border:1px solid var(--line);border-radius:6px;padding:12px 14px}
+.card .n{font-size:26px;font-weight:700}
+.flow{font-weight:600;padding:10px 14px;background:var(--soft);border-radius:6px;margin:10px 0}
+@media (max-width:860px){nav{display:none}main{padding:20px 16px 60px}table{display:block;overflow-x:auto}}
+@media print{nav{display:none}main{padding:0}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<nav>
+<b>목차</b>
+<a href="#s1">1. 개요</a>
+<a href="#s2">2. 범위</a>
+<a href="#s3">3. 사용자와 권한</a>
+<a href="#s4">4. 정보 구조</a>
+<a href="#s5">5. 데이터 모델</a>
+<a href="#s5-6">5.6 연락처 관리</a>
+<a class="sub" href="#s5-7">5.7 Deal History</a>
+<a class="sub" href="#s5-8">5.8 첨부 파일</a>
+<a href="#s6">6. 코드값·판단 기준</a>
+<a class="sub" href="#s6-7">6.7 Status⇄Forecast</a>
+<a href="#s7">7. 기능 요구사항</a>
+<a class="sub" href="#s7-1">7.1 Dashboard</a>
+<a class="sub" href="#s7-2">7.2 Deals</a>
+<a class="sub" href="#s7-3">7.3 Forecast</a>
+<a class="sub" href="#s7-4">7.4 Reports</a>
+<a class="sub" href="#s7-5">7.5 공통·관리</a>
+<a class="sub" href="#s7-6">7.6 BANT Label</a>
+<a class="sub" href="#s7-7">7.7 파일 업로드</a>
+<a href="#s8">8. 자동 규칙</a>
+<a href="#s9">9. 비기능 요구사항</a>
+<a href="#s10">10. 검수 기준</a>
+<a href="#s11">11. 미결 사항</a>
+<a href="#sa">부록 A. 구현된 항목</a>
+<a href="#sb">부록 B. 구현할 항목</a>
+<a href="#sc">부록 C. 확정 기준과 구현 차이</a>
+</nav>
+<main>
+
+<h1>NEOINE 영업관리 프로그램 PRD</h1>
+<p class="meta">제품 요구사항 문서 · 기준 문서: NEOINE_영업관리_프로그램_명세서_v4.pptx(표지 표기 v5.0, 20장) · 코드 기준: 2026-10-14 현재 main 작업 트리 · 문서 갱신: 2026-10-15 · 상태 표기: <span class="b ok">구현</span> <span class="b part">부분</span> <span class="b todo">예정</span> <span class="b chg">확인 필요</span></p>
+
+<h2 id="s1">1. 개요</h2>
+<h3>1.1 목적</h3>
+<p>Deal을 등록하고 진행 상태를 추적하며 Next Action과 Forecast를 관리한다. 경영·영업 관점의 Dashboard에서 Pipeline과 Closing 가능성을 즉시 확인한다.</p>
+<div class="box">핵심 관리 질문: “어떤 Deal이 있고 → 현재 어느 단계이며 → 다음 Action은 무엇이고 → 언제 얼마가 Closing 될 것인가?”</div>
+<div class="flow">Deal 등록 → Status 진행 → Next Action → Forecast → Closing → 분석</div>
+
+<h3>1.2 설계 원칙</h3>
+<ul>
+<li><b>Deal 중심 원장</b>: 연락처(고객·파트너)·Status·Forecast·Action을 하나의 Deal 원장에 연결한다.</li>
+<li><b>메뉴 단순화</b>: 사용자 메뉴는 Dashboard / Deals / Forecast / Reports 4개로 고정한다. Admin은 사용자 메뉴에서 별도 접근한다.</li>
+<li><b>입력 최소화</b>: 영업담당자가 1~2분 안에 상태와 Next Action을 업데이트할 수 있어야 한다. 추적·경고·집계는 시스템이 자동 처리한다.</li>
+<li><b>의미 분리</b>: Status(진행 단계), Forecast(Closing 판단, Won/Lost 포함)를 독립된 값으로 관리한다.</li>
+<li><b>데이터 일치</b>: Deal 원장, Forecast, Dashboard의 금액과 건수가 항상 같아야 한다.</li>
+</ul>
+
+<h3>1.3 현재 상태 요약</h3>
+<div class="cards">
+<div class="card"><div class="n">Deal·연락처·활동</div>원장과 Next Action 이력, 단계 변경 이력은 구현됨</div>
+<div class="card"><div class="n">인증·권한·사용자</div>AD 로그인, 3개 역할, 사용자 관리·퇴사 처리는 구현됨</div>
+<div class="card"><div class="n">Forecast·BANT·Dashboard·Reports</div>명세서의 핵심 분석 기능은 아직 없음</div>
+</div>
+<p>세부 목록은 <a href="#sa">부록 A(구현된 항목)</a>와 <a href="#sb">부록 B(구현할 항목)</a>에 있다.</p>
+
+<h2 id="s2">2. 범위</h2>
+<h3>2.1 1차 개발 범위</h3>
+<table>
+<tr><th>메뉴</th><th>범위</th></tr>
+<tr><td>Dashboard</td><td>전체 Status 단계별 Pipeline, KPI, Closing 예상, 주의 필요 Deal, Drill-down</td></tr>
+<tr><td>Deals</td><td>등록 / 목록 / 상세 / Tracking(Next Action Update, 변경 이력)</td></tr>
+<tr><td>Forecast</td><td>담당자 / Quarter / Forecast Review</td></tr>
+<tr><td>Reports</td><td>담당자 / Vendor / Status / Forecast 분석, Excel Export</td></tr>
+</table>
+<h3>2.2 후속(2차) 확장 — 이번 범위 아님</h3>
+<p>견적/PO 자동화, 이메일/캘린더 연동, 승인 Workflow, 외부 CRM 연계. (명세서 20장은 첨부파일도 2차로 두었으나, Deal 상세의 파일 업로드는 1차 범위로 당겼다. 7.7절)</p>
+
+<h2 id="s3">3. 사용자와 권한</h2>
+<table>
+<tr><th>역할</th><th>설명</th><th>권한</th><th>상태</th></tr>
+<tr><td><code>admin</code></td><td>관리자</td><td>모든 기능, 사용자 관리, AD 설정, 경고 기준 설정</td><td><span class="b part">부분</span> 사용자·AD 설정 구현, 경고 기준 설정은 예정</td></tr>
+<tr><td><code>sales</code></td><td>영업담당자</td><td>Deal·연락처·활동 등록/수정/삭제, Forecast 판단 입력</td><td><span class="b ok">구현</span></td></tr>
+<tr><td><code>user</code></td><td>조회 사용자</td><td>조회 전용</td><td><span class="b ok">구현</span></td></tr>
+</table>
+<ul>
+<li>로그인은 AD(LDAP)로 한다. AD 서버 정보는 화면에서 등록해 DB에 저장한다. <span class="b ok">구현</span></li>
+<li>퇴사한 사용자는 로그인과 신규 담당자 지정이 불가하며, 과거 이력은 “이름(퇴사)”로 보존한다. <span class="b ok">구현</span></li>
+<li><b>Admin 메뉴</b>(Status·Forecast 코드, BANT Label, 사용자, 설정)는 admin만 접근한다. 다른 역할에는 메뉴가 보이지 않고 API도 403이다. 현재 사용자 관리·설정은 admin 전용으로 구현되어 있고, Deal 관리(코드·Label)는 예정이다. <span class="b part">부분</span></li>
+<li>Inline Update(Deal 목록에서 바로 수정)는 목록에 보이는 <b>Status / Forecast / 금액 / Expected Close(<code>revenue_date</code>)</b> 네 컬럼만 허용한다. 수정 권한은 Deal을 수정할 수 있는 sales와 admin이며 user는 조회 전용이다(DL-08).</li>
+</ul>
+
+<h2 id="s4">4. 정보 구조</h2>
+<h3>4.1 명세서의 메뉴 구조</h3>
+<table>
+<tr><th>메뉴</th><th>하위 화면</th></tr>
+<tr><td>Dashboard</td><td>Overview · Forecast / Closing · (Deal Drill-down 팝업)</td></tr>
+<tr><td>Deals</td><td>Deal 목록 · Deal 등록 · Deal 상세 · Next Action</td></tr>
+<tr><td>Forecast</td><td>Forecast 요약 (별도의 “담당자 상세” 메뉴는 없다)</td></tr>
+<tr><td>Reports</td><td>영업 분석 · Vendor / Solution · Status 분석 · Forecast 추이</td></tr>
+</table>
+<h3>4.1.1 Admin 메뉴 (확정)</h3>
+<p>사용자 메뉴 4개와 별도로 admin만 보이는 최상위 메뉴를 둔다. 구조는 다음과 같다.</p>
+<table>
+<tr><th>Admin</th><th>Settings</th><th>화면</th><th>내용</th><th>상태</th></tr>
+<tr><td rowspan="4">Admin<br>(admin 전용)</td><td rowspan="4">Settings</td><td>사용자 관리</td><td>사용자 등록·삭제(퇴사 처리), 재직/퇴사 필터</td><td><span class="b ok">구현</span> (<code>/users</code>, 위치 이동 예정)</td></tr>
+<tr><td>Deal 관리</td><td>Status 코드, Forecast 코드, BANT Label(Budget / Authority / Need / Timeline) 관리</td><td><span class="b todo">예정</span></td></tr>
+<tr><td>contacts 관리</td><td>등록된 모든 연락처(고객·파트너)의 조회·등록·수정·삭제. 연결된 Deal이 있는 연락처는 삭제 불가</td><td><span class="b todo">예정</span></td></tr>
+<tr><td>외부연동</td><td>AD(LDAP) 서버 설정(등록·수정·연결 테스트)</td><td><span class="b ok">구현</span> (<code>/settings</code>, 위치 이동 예정)</td></tr>
+</table>
+<h3>4.2 현재 구현된 화면</h3>
+<table>
+<tr><th>경로</th><th>화면</th><th>접근</th></tr>
+<tr><td><code>/deals</code></td><td>Deal 목록 + 단계별 Pipeline 요약 + “내 딜” 필터</td><td>로그인 사용자</td></tr>
+<tr><td><code>/deals/:dealId</code></td><td>Deal 상세, 단계 변경, 단계 이력, 활동(Next Action) 이력</td><td>로그인 사용자</td></tr>
+<tr><td><code>/customers</code>, <code>/partners</code></td><td>고객·파트너 목록·등록·수정·삭제 (Deal 화면의 연락처 선택과 Admin &gt; contacts 관리로 대체 예정)</td><td>로그인 사용자</td></tr>
+<tr><td><code>/actions</code></td><td>활동 이력 통합 검색 (Deal 상세의 Actions 탭 검색으로 대체 예정)</td><td>로그인 사용자</td></tr>
+<tr><td><code>/users</code>, <code>/settings</code></td><td>사용자 관리, AD 설정</td><td>admin</td></tr>
+<tr><td><code>/login</code>, <code>/setup</code></td><td>로그인, 최초 설정(AD 등록 → admin 등록)</td><td>공개</td></tr>
+</table>
+<div class="box warn">사용자 메뉴는 명세서대로 Dashboard / Deals / Forecast / Reports 4개로 확정했다(admin에게만 Admin 메뉴가 추가로 보인다). 현재 메뉴(Deals / 고객 / 파트너 / 활동 / 사용자 / 설정)는 이와 다르므로 Dashboard·Forecast·Reports를 추가하고 나머지를 재배치한다. 고객·파트너는 별도 메뉴 없이 Deal 등록·수정·상세 안의 연락처 선택으로 다루고, 전체 관리는 Admin &gt; contacts 관리에서 한다(5.6절). 활동 검색은 Deal 상세의 Actions 탭으로 옮긴다(7.2절).</div>
+
+<h2 id="s5">5. 데이터 모델</h2>
+<p>명세서는 Master / Update / Forecast / Code 4개 테이블 구조를 제시한다. 현재 DB는 정규화되어 있어 매핑이 다르다.</p>
+<h3>5.1 Master Table — 고객·파트너·Deal</h3>
+<table>
+<tr><th>명세서 항목</th><th>필수/선택</th><th>현재 구현</th><th>상태</th></tr>
+<tr><td>Deal code</td><td>자동</td><td><b>자동 채번</b>하며 <b>primary key</b>이다(확정). 형식은 <code>YYYYMMDD-XXXX</code>: 등록일 8자리 + 하이픈 + 무작위 4자리(숫자·영문 조합). 현재 Deal 테이블의 <code>id</code>(UUID) 컬럼을 <code>deal_code</code>로 바꿔 기본키로 쓰고, 별도 입력 컬럼 <code>code</code>는 없앤다. 삭제된 code의 재사용은 상관없다. 4자리 무작위 값이 같은 날 겹치면 다시 뽑는다</td><td><span class="b part">부분</span> 자동 채번·기본키 전환 예정(Deal을 참조하는 모든 테이블의 키 변경과 기존 Deal의 code 부여를 포함한 마이그레이션, 승인 대상)</td></tr>
+<tr><td>Deal Name</td><td>필수</td><td><code>deals.name</code></td><td><span class="b ok">구현</span></td></tr>
+<tr><td>Deal Owner(담당자)</td><td>필수. 등록 화면에서 <b>현재 접속한 사용자가 기본값</b>으로 채워진다</td><td><code>deals.owner_user_id</code> → <code>users.id</code> FK</td><td><span class="b part">부분</span> 한 명, 변경 가능(이력 기록), <b>sales 역할만 지정 가능</b>(확정). 역할 제한은 예정</td></tr>
+<tr><td>Vendor / Solution</td><td>선택</td><td><code>deals.vendor</code>, <code>deals.solution</code> 자유 입력 문자열</td><td><span class="b ok">구현</span> 코드로 관리하지 않음(확정)</td></tr>
+<tr><td>매출금액</td><td>필수</td><td><code>deals.revenue_amount</code> + <code>revenue_currency</code></td><td><span class="b ok">구현</span> 통화는 KRW 고정으로 확정</td></tr>
+<tr><td>매출일 / Expected Close</td><td>필수</td><td><code>deals.revenue_date</code></td><td><span class="b ok">구현</span> 같은 값으로 확정(6.6절)</td></tr>
+<tr><td>Status</td><td>필수, 기본 기회발굴</td><td><code>deals.stage</code> 8개 값(<code>lost</code> 포함)</td><td><span class="b part">부분</span> 명세서는 7단계. <code>lost</code>는 Forecast로 이동(6.3)</td></tr>
+<tr><td>Forecast</td><td>필수</td><td>없음</td><td><span class="b todo">예정</span></td></tr>
+<tr><td>BANT(Budget / Authority / Need / Timeline)</td><td>선택</td><td>없음. 코드가 아니라 점수 없는 Label로 저장(5.5절)</td><td><span class="b todo">예정</span></td></tr>
+<tr><td>견적 제출여부, 견적제출일</td><td>선택(YES/NO)</td><td>없음</td><td><span class="b todo">예정</span></td></tr>
+<tr><td>POC 여부(YES/ING/NO), POC 완료일</td><td>선택</td><td>없음</td><td><span class="b todo">예정</span></td></tr>
+<tr><td>입찰 및 구매 절차(구매절차)</td><td>선택</td><td>없음</td><td><span class="b todo">예정</span></td></tr>
+<tr><td>등록한 사용자</td><td>자동</td><td>현재 <code>deals.registered_by_user_id</code>(users FK, 등록 시 로그인 사용자를 저장하고 이후 바꾸지 않음). Owner만 두기로 했으므로 <b>이 컬럼은 제거</b>한다(확정). 등록자는 Deal History의 등록 기록(변경자)에 남는다. 기존 등록자 값은 옮기지 않는다(마이그레이션 없이 컬럼만 삭제)</td><td><span class="b part">부분</span> 컬럼 제거 예정</td></tr>
+<tr><td>Created / Last updated date</td><td>자동</td><td><code>created_at</code>, <code>updated_at</code></td><td><span class="b ok">구현</span> 최종 업데이트는 활동 기준으로도 노출 필요</td></tr>
+<tr><td>고객사명, 고객 담당자, 직급, Email, 전화번호</td><td><b>고객사명·담당자명 필수</b>, 나머지 선택</td><td>연락처(contacts) 한 행 = 고객사 + 담당자(5.6절). 현재는 <code>customers</code> 테이블</td><td><span class="b part">부분</span> 연락처 모델로 통합 예정</td></tr>
+<tr><td>Users(견적 단위인 사용자 수)</td><td>선택(필수 아님)</td><td>없음. 견적의 단위가 사용자 수이므로 <b>Deal 정보</b>로 입력한다. 고객사의 직원 수와는 다른 값이다(현재 <code>customers.employee_count</code>는 고객사 직원 수). 기존 직원수 값은 의미가 달라 Users로 자동 이전하지 않는다(가정)</td><td><span class="b part">부분</span> Deal로 이동 예정</td></tr>
+<tr><td>파트너사, 파트너 영업대표(+연락처)</td><td>선택(입력하면 회사명+담당자명 필수)</td><td>연락처(contacts)의 파트너 구분 행. Deal과 1:N, 그 중 활성(active) 1건만 표시(5.6절). 현재는 <code>partners</code> 테이블, <code>deals.partner_id</code> 선택값</td><td><span class="b part">부분</span> 연락처 모델·1:N 전환 예정</td></tr>
+</table>
+<h3>5.2 Update Table — Next Action 이력</h3>
+<table>
+<tr><th>명세서 항목</th><th>현재 구현</th><th>상태</th></tr>
+<tr><td>업데이트 일자(자동), 담당자(자동)</td><td><code>deal_actions.acted_at</code>, <code>actor_user_id</code></td><td><span class="b ok">구현</span></td></tr>
+<tr><td>진행사항</td><td><code>deal_actions.action</code> + <code>action_type</code>(통화/미팅/이메일/데모/제안/협상/계약/기타)</td><td><span class="b ok">구현</span></td></tr>
+<tr><td>Next Action, Due Date, Memo</td><td><code>next_action</code>, <code>due_date</code>, <code>memo</code></td><td><span class="b ok">구현</span></td></tr>
+<tr><td>이전 Update 수정</td><td>이전 Update도 수정할 수 있다(확정). 수정하면 Deal History에 기록한다</td><td><span class="b part">부분</span> 수정·삭제 API 구현. Deal History 기록은 예정</td></tr>
+<tr><td>Status 입력 연동(업데이트 시 Status 함께 갱신)</td><td>단계 변경은 별도 API(<code>POST /deals/{id}/stage</code>). Action에는 <b>등록 시점의 Deal Status와 Forecast를 함께 저장</b>한다</td><td><span class="b todo">예정</span></td></tr>
+</table>
+<h3>5.3 Forecast Table (집계)</h3>
+<p>Year, Quarter, Deal Owner 단위로 Pipeline / Best / Most likely / Commit / Won의 건수(cnt)와 금액(amt)을 저장한다. 매월 말일 Batch Job이 갱신하며 수작업 입력은 없다. <span class="b todo">예정</span></p>
+<h3>5.4 Code Table (확정)</h3>
+<p><b>코드로 관리하는 것은 Status와 Forecast 둘뿐이다.</b> 코드의 추가·수정·정렬·삭제는 admin만 Deal 관리 메뉴에서 한다.</p>
+<ul>
+<li>고객사·파트너사는 5.6절 연락처에서, Deal Owner는 사용자(<code>users</code>)에서 선택한다. 코드 테이블이 아니다.</li>
+<li>Vendor·Solution은 자유 입력이다. 견적여부(YES/NO)·POC여부(YES/ING/NO)는 고정 선택값이다.</li>
+<li>BANT 4항목은 코드가 아니라 5.5절의 Label이다.</li>
+<li>현재 Status는 코드(enum)로 고정되어 있다. DB 관리 코드로 바꾸는 작업이 필요하다. <span class="b todo">예정</span></li>
+</ul>
+<h3 id="s5-5">5.5 BANT Label (확정)</h3>
+<p>BANT의 Budget / Authority / Need / Timeline은 코드가 아니라 <b>Label</b>로 관리한다(태그가 아니라 라벨로 부른다). Label은 사용자가 직접 늘릴 수 있는 선택값이다. Deal은 BANT 항목마다 <b>Label을 하나만</b> 가질 수 있다. <b>현재 단계에서는 점수를 관리하지 않는다.</b> 점수가 필요해지면 후속으로 확장한다.</p>
+<table>
+<tr><th>속성</th><th>설명</th></tr>
+<tr><td>구분</td><td>Budget / Authority / Need / Timeline 중 하나</td></tr>
+<tr><td>이름</td><td>Label 표시명(예: “풀 예산 확보”)</td></tr>
+<tr><td>기본 Label 여부</td><td>6.4절의 문서 기본값은 시스템이 처음부터 제공한다</td></tr>
+</table>
+<p><b>이름 중복 불가</b>: 같은 구분 안에서 이미 있는 이름(대소문자 차이 포함)으로 Label을 만들거나 바꿀 수 없다(sales의 즉석 생성, admin의 생성·수정 모두 해당). 구분 범위와 대소문자 처리는 가정이다. <span class="b chg">확인 필요</span></p>
+<p>Label 사용 규칙은 아래와 같다.</p>
+<table>
+<tr><th>상황</th><th>가능</th><th>불가</th></tr>
+<tr><td>Deal 상세/등록·수정 화면(sales)</td><td>기존 Label 선택(항목당 하나). 맞는 Label이 없으면 sales가 Deal 상세에서 <b>직접 새 Label 이름을 입력</b>해 생성</td><td>기존 Label의 수정, 삭제</td></tr>
+<tr><td>Deal 관리 메뉴(admin)</td><td>Label 생성, 수정(이름 변경, 사용 중인 Label 포함), 삭제(참조하는 Deal이 없을 때만)</td><td>이미 존재하는 이름으로 변경</td></tr>
+<tr><td>이미 Deal에서 사용된 Label</td><td>선택해서 사용</td><td>삭제</td></tr>
+</table>
+
+<h3 id="s5-6">5.6 연락처 관리 (Contact Management, 확정)</h3>
+<p>고객과 파트너 정보는 명함처럼 관리한다. 한 사람의 연락처가 한 행이며, <b>고객사 + 담당자(이름·직급·이메일·전화 등)</b>를 함께 저장한다. 고객사에 담당자가 2명이면 2행이 저장된다. 고객과 파트너는 <b>하나의 테이블</b>에 두고 구분자(고객/파트너)로만 나눈다.</p>
+<table>
+<tr><th>항목</th><th>설명</th></tr>
+<tr><td>구분</td><td>고객 또는 파트너</td></tr>
+<tr><td>회사명 · 담당자명</td><td><b>공백(space)을 넣을 수 없다.</b> 입력란에서 공백 입력을 막고, 서버도 공백이 있으면 거부한다. 대소문자는 같은 표기로 본다(Acme = ACME)</td></tr>
+<tr><td>직급 · 이메일 · 전화</td><td>연락처 정보. 이메일과 전화도 공백을 넣을 수 없다. <b>동명이인은 이메일로 구분</b>한다. 이메일은 없어도 되며, <b>이메일 없이 입력하면 같은 회사명+담당자명의 기존 연락처와 같은 사람으로 본다</b></td></tr>
+<tr><td>직원수</td><td>연락처에 두지 않는다. 사용자 수(Users)는 견적 단위이므로 Deal 정보로 입력한다(5.1절)</td></tr>
+</table>
+<p><b>Deal과 연결</b></p>
+<ul>
+<li><b>고객</b>: Deal은 고객 연락처 1건을 참조한다. <b>Deal 생성 시 반드시 입력</b>하며 최소 회사명과 담당자명까지는 필수이다.</li>
+<li><b>파트너</b>: Deal과 파트너는 <b>1:N</b>이다. 다만 실제로 영업을 진행 중인 <b>활성(active) 파트너는 한 곳</b>이다. 파트너는 <b>선택</b>이며(파트너 없는 Deal 허용), 입력하는 경우 회사명과 담당자명은 필수이다. 여러 건이 생기는 경우는 기존 파트너가 교체될 때뿐이며, 교체되면 이전 파트너는 비활성이 되어 이력으로 남는다. 화면에는 활성 파트너만 보여준다. 파트너 교체는 Deal History에 기록한다.</li>
+</ul>
+<p><b>화면 흐름</b> (Deal 등록·수정·상세 화면)</p>
+<ol>
+<li><b>회사명 선택</b>: 기존 연락처에서 회사명을 distinct로 찾아 목록으로 보여주고 선택한다. 신규 회사면 직접 입력한다.</li>
+<li><b>담당자 선택</b>: 선택한 회사의 담당자를 목록으로 보여준다(3명이면 3명). 신규 담당자면 직접 입력한다.</li>
+<li><b>자동 입력</b>: 기존 담당자를 선택하면 그 담당자의 연락 정보가 입력란에 자동으로 채워진다.</li>
+<li><b>수정 반영</b>: 연락 정보가 바뀌었으면 입력란을 직접 고쳐 저장한다. 이후에는 고친 내용이 연락처(명함) 데이터에 갱신되어 다음에 선택할 때 그 값으로 나온다.</li>
+</ol>
+<p><b>전체 관리</b>: admin은 Admin &gt; Settings &gt; <b>contacts 관리</b>에서 등록된 모든 연락처(고객·파트너)를 생성·조회·수정·삭제할 수 있다. <b>Deal에 연결된 연락처는 삭제할 수 없다</b>(409).</p>
+<p>연락처 한 행은 여러 Deal이 공유하므로, 연락처를 수정하면 그 연락처를 참조하는 모든 Deal에 같은 값이 보인다. 현재는 고객·파트너가 별도 테이블이고 별도 화면에서 등록한다. 기존 데이터를 연락처로 옮기는 마이그레이션이 필요하다. <span class="b todo">예정</span></p>
+
+<h3 id="s5-7">5.7 Deal History (<code>deal_history</code>, 확정)</h3>
+<p>Deal의 <b>모든 변경 사항</b>을 하나의 이력 테이블에 기록한다. Deal 자체의 변경뿐 아니라 Deal과 연결된 모든 정보(파트너, Action/Next Action, 연락처 선택, BANT Label, 첨부 파일 등)의 변경도 같은 이력에 남긴다. Deal 상세 하단의 <b>Deal History 탭</b>에서 조회한다.</p>
+<table>
+<tr><th>컬럼</th><th>설명</th></tr>
+<tr><td>변경 시각</td><td>언제</td></tr>
+<tr><td>변경자</td><td>누가 (<code>users.id</code> FK)</td></tr>
+<tr><td>변경 대상</td><td>무엇을 (text). 예: Status, Forecast, 금액, Expected Close, Owner, 파트너, 고객 연락처, BANT Label, Action, 첨부 파일</td></tr>
+<tr><td>변경 전 · 변경 후</td><td>text. 변경 종류에 따라 각 서비스(유스케이스)가 알맞은 내용을 채운다</td></tr>
+</table>
+<p>변경 대상이 매우 다양하므로 구조화된 컬럼 대신 text로 보관한다. 기존 단계 변경 이력(<code>deal_stage_changes</code>)은 이 테이블로 통합한다. <span class="b part">부분</span></p>
+<h3 id="s5-8">5.8 Deal 첨부 파일 (확정)</h3>
+<table>
+<tr><th>항목</th><th>설명</th></tr>
+<tr><td>Deal</td><td>첨부 파일이 속한 Deal</td></tr>
+<tr><td>파일</td><td>업로드한 파일(원본 파일명, 크기, 형식 포함)</td></tr>
+<tr><td>설명</td><td>파일에 대한 간략한 설명, <b>100자 이내</b></td></tr>
+<tr><td>업로드한 사용자 · 시각</td><td>자동 저장 (<code>users.id</code> FK)</td></tr>
+</table>
+<ul>
+<li><b>업로드 제한</b>: 파일당 최대 <b>100MB</b>. <b>실행 파일과 설치 파일은 업로드할 수 없다</b>(예: exe, msi, bat, cmd, sh, ps1, jar, com, scr, dmg, pkg, deb, rpm 등. 차단 목록은 구현 시 확정). 확장자로 검사하고 화면과 서버 모두에서 거부한다.</li>
+<li><b>폴더 구조</b>: 저장 위치 아래에 <b>Deal id(= Deal code)별 디렉터리</b>를 만들고 그 안에 파일을 저장한다. <b>Deal을 삭제하면 그 Deal id 디렉터리도 삭제</b>한다.</li>
+<li><b>같은 이름 파일</b>: 같은 Deal에 이미 있는 이름의 파일을 다시 올리면 <b>기존 파일을 교체할지 건너뛸지(skip) 사용자에게 묻는다</b>. 교체는 Deal History에 기록한다.</li>
+<li><b>저장 위치</b>: 설정(config)으로 정하며 나중에 바꿀 수 있다. <b>최초 애플리케이션 기동 시(<code>/setup</code>) 저장 위치를 입력</b>받는다. AD 서버 정보처럼 화면에서 입력해 저장하고, 이후 Admin &gt; Settings에서 변경한다. 저장 위치는 비밀이 아니다.</li>
+<li><b>삭제 권한</b>: 파일을 올린 사용자 본인이 삭제할 수 있다. <b>업로드한 sales가 퇴사한 경우에 한해 다른 sales 누구나</b> 그 파일을 삭제할 수 있다. 그 외에는 남의 파일을 삭제할 수 없다. <b>admin은 모든 파일을 삭제</b>할 수 있다. user는 삭제할 수 없다.</li>
+</ul>
+<p>저장 위치를 바꿀 때 기존 파일을 옮기는 일은 관리자가 수작업으로 처리하며 시스템은 다루지 않는다. 조회 전용인 user도 파일 목록을 보고 내려받을 수 있다(가정). <span class="b todo">예정</span></p>
+
+<h2 id="s6">6. 코드값·판단 기준</h2>
+<h3>6.1 Status — “현재 어디까지 진행되었는가?”</h3>
+<table>
+<tr><th>순서</th><th>명세서 표기</th><th>구현 값</th><th>상태</th></tr>
+<tr><td>1</td><td>기회발굴</td><td><code>prospecting</code></td><td><span class="b ok">구현</span></td></tr>
+<tr><td>2</td><td>제품소개</td><td><code>introduction</code></td><td><span class="b ok">구현</span></td></tr>
+<tr><td>3</td><td>POC 준비</td><td><code>poc_preparation</code></td><td><span class="b ok">구현</span> 확정(POC 단계는 준비·완료 두 개뿐)</td></tr>
+<tr><td>4</td><td>POC 완료</td><td><code>poc_completed</code></td><td><span class="b ok">구현</span></td></tr>
+<tr><td>5</td><td>기술평가</td><td><code>technical_evaluation</code></td><td><span class="b ok">구현</span></td></tr>
+<tr><td>6</td><td>가격협상</td><td><code>price_negotiation</code></td><td><span class="b ok">구현</span></td></tr>
+<tr><td>7</td><td>계약완료</td><td><code>contract_completed</code></td><td><span class="b ok">구현</span></td></tr>
+<tr><td>—</td><td>(Lost)</td><td><code>lost</code></td><td><span class="b chg">변경 예정</span> Lost는 Forecast 값이 되므로 Status에서 제거(6.3)</td></tr>
+</table>
+<p>같은 Status 명칭을 Deal 목록 / 상세 / Dashboard / Forecast 전체에서 쓴다.</p>
+<h3>6.2 Forecast — “Closing 가능성을 어떻게 판단하는가?” (확정: 슬라이드 4 기준)</h3>
+<p>Status와 독립적으로 담당자/관리자가 판단한다. Probability는 참고 기준이다. Forecast 코드는 admin이 Deal 관리 메뉴에서 관리한다.</p>
+<table>
+<tr><th>Forecast</th><th>Probability(참고)</th><th>의미</th></tr>
+<tr><td>Pipeline</td><td>0–50</td><td>Open</td></tr>
+<tr><td>Best</td><td>51–75</td><td>Open</td></tr>
+<tr><td>Most Likely</td><td>75–85</td><td>Open</td></tr>
+<tr><td>Commit</td><td>85–100</td><td>Open</td></tr>
+<tr><td>Won</td><td>—</td><td>종료(성공)</td></tr>
+<tr><td>Lost</td><td>—</td><td>종료(실패)</td></tr>
+</table>
+<p>Forecast 코드는 위 여섯 개뿐이며, 명세서 슬라이드 17의 Omitted와 그 구간(0–59 / 60–79 / 80–100)은 무시한다. 확률은 <b>참고용</b>이며 저장·집계·검증에 쓰지 않는다. Forecast는 담당자가 직접 선택하므로 구간 경계(75, 85)가 겹쳐도 규칙이 필요하지 않다.</p>
+<h3>6.3 Open / Won / Lost</h3>
+<p>Won/Lost는 Forecast 코드이며, Won/Lost가 아닌 Forecast(Pipeline / Best / Most Likely / Commit)는 Open이다. Won/Lost Deal은 Open Pipeline에서 제외한다(R06). <b>Result 속성은 현재 단계에서 두지 않는다.</b> Deal의 결과는 Forecast(Won/Lost)로 판단한다. <b>Forecast가 Lost가 되어도 Status는 그대로 둔다.</b> 따라서 Status의 <code>lost</code> 값은 없애고, 기존 <code>lost</code> 단계 Deal은 Forecast=Lost로 옮기고 Status는 단계 이력의 직전 단계로 되돌린다(데이터 이전 마이그레이션 필요, 승인 대상).</p>
+<h3>6.4 BANT 기본 Label</h3>
+<p>아래는 명세서의 항목이며, 시스템이 처음 제공하는 <b>기본 Label</b>이다. 점수는 두지 않는다. 운영 중에는 admin이 Deal 관리 메뉴에서, 또는 sales가 Deal 상세에서 Label을 추가할 수 있다.</p>
+<table>
+<tr><th>Budget</th><th>Authority</th><th>Need</th><th>Timeline</th></tr>
+<tr><td>단독 예산 확보<br>풀 예산 확보<br>잔여 예산 활용<br>예산 작업중<br>내년 예산<br>예산 없음<br>미확인</td>
+<td>CEO 보고 완료<br>CISO 보고 완료<br>팀장 보고 완료<br>팀장 검토<br>담당자 검토<br>모름</td>
+<td>보안 사고 발생<br>CISO 지시<br>보안 강화 요건<br>컴플라이언스<br>모름</td>
+<td>금년 구매<br>POC 후 일정수립<br>기술평가만 진행<br>내년구매<br>미확정</td></tr>
+</table>
+<p>초기 등록 시 선택 입력이며, Qualification이 진행되면서 채운다. <span class="b todo">예정</span></p>
+
+<h3>6.5 금액 표기</h3>
+<p>금액은 KRW 단위이며 화면 요약에서 M(백만), B(10억)로 줄여 표기한다(예: 180M = 1억 8천만 원, 1.87B = 18억 7천만 원).</p>
+<h3 id="s6-6">6.6 매출일 = Expected Close (확정)</h3>
+<p><code>revenue_date</code> 하나가 매출일이자 Expected Close 날짜다. Deal이 진행 중이면 예상 매출일(Expected Close)이고, Deal이 성공(Won)하면 <b>최종 매출일자로 갱신</b>한다. Deal이 실패(Lost)하면 값을 바꾸지 않아 마지막 Expected Close가 그대로 남는다. 기간 집계(R01)는 이 값을 기준으로 한다.</p>
+
+<h3 id="s6-7">6.7 Status와 Forecast의 관계 (확정)</h3>
+<p>Status와 Forecast는 별개의 정보다. <b>Won과 계약완료만 같은 것으로 취급</b>한다. 두 값은 시스템 내부 고유 코드 값으로 연결되므로 이름을 바꿔도 규칙이 유지된다(CM-07).</p>
+<table>
+<tr><th>사용자 동작</th><th>시스템 처리</th></tr>
+<tr><td>Status를 계약완료로 변경</td><td>Forecast를 Won으로 함께 변경하고 사용자에게 알린다. <b>매출금액과 매출일을 실제 값으로 입력하도록 강제</b>한다(입력 전에는 저장할 수 없음)</td></tr>
+<tr><td>Forecast를 Won으로 변경</td><td>Status를 계약완료로 함께 변경하고 사용자에게 알린다. 마찬가지로 <b>매출금액·매출일 실제 값 입력을 강제</b>한다</td></tr>
+<tr><td>Forecast를 Lost로 변경</td><td>Status는 그대로 둔다</td></tr>
+<tr><td><b>종결된 Deal(Forecast가 Won 또는 Lost)의 Forecast를 다른 값으로 변경</b></td><td>Status와 Forecast의 동기화를 위해 <b>어떤 Status로 바꿀지 사용자에게 묻는다</b>(Won에서 벗어나면 계약완료일 수 없으므로 반드시 선택)</td></tr>
+<tr><td><b>Status를 계약완료에서 이전 단계로 변경</b></td><td>동기화를 위해 <b>Forecast를 어떤 값으로 바꿀지 사용자에게 묻는다</b>(Won이 아닌 값 중 선택)</td></tr>
+<tr><td>그 외 Status / Forecast 변경</td><td>서로 독립적으로 변경한다</td></tr>
+</table>
+<ul>
+<li>함께 바뀐 값은 사용자에게 알리고 Deal History에 기록한다.</li>
+<li><b>Won 이후에도 잠그지 않는다.</b> 종결된 Deal도 Forecast·Status를 포함한 모든 정보를 수정할 수 있다. 수정한 내용은 빠짐없이 Deal History에 기록한다.</li>
+<li>되돌릴 때 이미 입력된 매출금액·매출일 등 나머지 정보는 <b>그대로 둔다</b>.</li>
+<li>그 외 Deal 정보(금액, 매출일, 담당자, 연락처, Label, Action, 파일 등)는 <b>Deal의 상태와 상관없이 언제든 수정</b>할 수 있다.</li>
+</ul>
+<p><span class="b todo">예정</span></p>
+
+<h2 id="s7">7. 기능 요구사항</h2>
+<h3 id="s7-1">7.1 Dashboard</h3>
+<table>
+<tr><th>ID</th><th>요구사항</th><th>상태</th></tr>
+<tr><td>DB-01</td><td>첫 화면에 모든 Status 단계를 Funnel/Pipeline 형태로 표시한다(단계별 건수·금액).</td><td><span class="b part">부분</span> 단계별 건수·금액 요약은 Deal 목록에 있음. Dashboard 화면은 예정</td></tr>
+<tr><td>DB-02</td><td>KPI 카드: Total Pipeline, Commit, Best, Won YTD.</td><td><span class="b todo">예정</span></td></tr>
+<tr><td>DB-03</td><td>공통 Filter(Year / Quarter / 담당자 / Vendor)를 Dashboard 전체에 적용한다.</td><td><span class="b todo">예정</span></td></tr>
+<tr><td>DB-04</td><td>단계 막대를 클릭하면 해당 Status의 Deal 목록 팝업(Drill-down)을 연다. 목록 열: Deal / 고객사 / 파트너사 / 담당자 / Vendor / Status / Forecast / 금액 / Expected Close / Next Action.</td><td><span class="b todo">예정</span></td></tr>
+<tr><td>DB-05</td><td>“주의 필요 Deal”: 기한초과, 14일 이상 미업데이트, 이번 분기 Expected Close 건수를 표시하고 클릭하면 목록으로 이동한다.</td><td><span class="b todo">예정</span></td></tr>
+<tr><td>DB-06</td><td>Forecast &amp; Closing: Commit / Best / Pipeline / Won QTR와 분기별 Closing Forecast 막대, 이번달·이번분기 Expected Close 건수.</td><td><span class="b todo">예정</span></td></tr>
+</table>
+
+<h3 id="s7-2">7.2 Deals</h3>
+<table>
+<tr><th>ID</th><th>요구사항</th><th>상태</th></tr>
+<tr><td>DL-01</td><td>Deal 등록: 고객사·Deal Name·담당자(기본값은 현재 접속한 사용자, sales만)·금액·Expected Close·Status·Forecast 등 대부분 필수. <b>고객은 반드시 입력하며 최소 회사명+담당자명까지 필수</b>이고, 파트너는 선택(입력하면 회사명+담당자명 필수)이다. Users(견적 단위인 사용자 수)는 Deal 정보로 선택 입력한다. 신규 Deal의 Status 기본값은 기회발굴. Deal 등록도 Deal History에 한 건으로 기록한다.</td><td><span class="b part">부분</span> Forecast·BANT·Users 등 입력 항목 예정. </td></tr>
+<tr><td>DL-02</td><td>Deal 등록·수정·상세 화면에서 연락처를 선택·등록·수정한다: 회사명 distinct 목록 선택 또는 직접 입력, 담당자 목록 선택 또는 직접 입력, 기존 담당자 선택 시 연락 정보 자동 입력, 수정하면 연락처 데이터 갱신(5.6절). 회사명·담당자명·이메일·전화에는 공백을 입력할 수 없고 대소문자는 구분하지 않는다. 파트너도 같은 방식이다.</td><td><span class="b part">부분</span> 현재는 고객·파트너를 선택/등록하는 별도 구조</td></tr>
+<tr><td>DL-03</td><td>Deal 수정·조회·삭제. <b>삭제는 sales 본인의 Deal 또는 admin만</b> 할 수 있고, 삭제 전 <b>확인 팝업에서 Deal code를 직접 텍스트로 입력</b>해야 하며 일치하지 않으면 삭제할 수 없다(sales·admin 모두 동일). Deal History가 있어도 삭제할 수 있다. <b>Deal을 삭제하면 관련된 모든 데이터를 함께 삭제</b>한다: Deal History, Action, 단계 변경 이력, Label 연결, 파트너 연결, 첨부 파일과 Deal code별 디렉터리. 삭제 사실은 Deal 데이터로 남지 않으므로 삭제자·Deal code·시각은 서버 운영 로그에 남긴다(제안). “본인의 Deal”은 <b>Owner가 본인인 Deal</b>이다.</td><td><span class="b part">부분</span> 조회·수정·삭제 구현(현재는 활동·단계 이력이 있으면 409). 본인/admin 제한, code 확인 팝업, 전체 삭제는 예정</td></tr>
+<tr><td>DL-04</td><td>Deal 목록 Filter: 담당자 / Vendor / Solution / Status / Forecast / 기간 조합 조회, 키워드 검색, “내 딜”.</td><td><span class="b part">부분</span> 키워드·고객·파트너·담당자·Vendor·매출일 범위·Status·내 딜 구현. Solution·Forecast·Year/Quarter는 예정</td></tr>
+<tr><td>DL-05</td><td>목록 컬럼: Deal / 고객사 / 파트너사 / 담당자 / Vendor / Status / Forecast / 금액 / Expected Close / Next Action / 최종 업데이트. 견적제출·POC·고객담당자·파트너 영업대표는 행 확장 또는 Quick View.</td><td><span class="b part">부분</span> Forecast·Next Action·최종 업데이트·Quick View 예정</td></tr>
+<tr><td>DL-06</td><td>Sort와 Filter 조건은 Drill-down 이동 후에도 유지한다.</td><td><span class="b todo">예정</span></td></tr>
+<tr><td>DL-07</td><td>기한초과 또는 미업데이트 Deal 행에 Risk 색상을 적용한다.</td><td><span class="b todo">예정</span></td></tr>
+<tr><td>DL-08</td><td>Inline Update: Deal 목록에서 <b>Status / Forecast / 금액 / Expected Close</b>를 바로 수정한다(sales·admin). 수정 내용은 Deal History에 기록하고, Won·계약완료 전환 시 매출금액·매출일 입력 강제와 종결된 Deal의 동기화 질문(6.7절, R10)이 목록에서도 동일하게 동작한다.</td><td><span class="b todo">예정</span></td></tr>
+<tr><td>DL-09</td><td>Deal 상세: 고객 / 활성 파트너 / Deal / Status / Forecast / BANT / 견적 / POC / Tracking을 한 화면에 모은다. 상단에 항상 최신 Status, Forecast, Expected Close, Next Action을 표시한다. <b>하단에는 “Actions”, “Deal History” 두 개의 탭</b>을 둔다(DL-10, DL-11).</td><td><span class="b part">부분</span> 고객·파트너·Deal·단계·활동 구현. Forecast·BANT·견적·POC·탭 구성 예정</td></tr>
+<tr><td>DL-10</td><td><b>Actions 탭</b>: 해당 Deal에 등록된 모든 Action 목록을 보여준다. 항목은 진행사항 · Next Action · Due Date이며, <b>Action 등록 시점의 Deal Status와 Forecast</b>를 함께 저장해 보여준다. 이 탭에서 Action을 <b>검색</b>할 수 있다(유형 / 담당자 / 키워드 / 수행일 / 기한 범위 / 정렬). Action 입력은 Status / 진행사항 / Next Action / Due Date / Memo만 받고 업데이트 일자·담당자는 자동 저장한다. 이전 Action도 수정할 수 있으며 수정 내용은 Deal History에 기록한다.</td><td><span class="b part">부분</span> Action 등록·목록·검색 API 구현. 등록 시점 Status/Forecast 저장, 수정 이력 기록은 예정</td></tr>
+<tr><td>DL-11</td><td><b>Deal History 탭</b>: Deal 상세 하단에서 Deal 전체의 변경 이력을 보여준다(5.7절). 한 건마다 <b>언제 · 누가 · 변경 대상 · 변경 전 · 변경 후</b>를 기록하며 변경 대상·변경 전·변경 후는 text이고 내용은 각 서비스(유스케이스)가 채운다. 기록 대상은 <b>Deal 등록, Deal 자체의 변경, 파트너 변경, Action(Next Action) 등록·수정·삭제, 연락처·Label 변경, 파일 업로드·삭제 등 Deal 및 Deal과 연결된 모든 정보의 변경</b>이다.</td><td><span class="b part">부분</span> Status 변경 이력(이전·이후·사유·변경자·시각)만 구현. 기존 단계 변경 이력은 Deal History로 통합 예정</td></tr>
+<tr><td>DL-12</td><td>Deal에는 <b>Owner만 존재</b>한다(별도의 등록자 개념 없음). Owner는 한 명이며 등록 시 현재 접속한 사용자가 기본값이고, 변경할 수 있다(변경은 Deal History에 기록). Owner로 지정할 수 있는 사용자는 sales 역할뿐이다.</td><td><span class="b part">부분</span> 한 명·변경은 구현. sales 제한은 예정</td></tr>
+<tr><td>DL-13</td><td>Admin &gt; Settings &gt; contacts 관리(admin 전용): 모든 연락처(고객·파트너)를 생성·조회·수정·삭제한다. Deal이 연결된 연락처는 삭제할 수 없다(409).</td><td><span class="b part">부분</span> 현재 고객·파트너 CRUD와 참조 Deal이 있으면 삭제 409는 구현(별도 화면, admin 전용 아님)</td></tr>
+<tr><td>DL-14</td><td>Deal과 파트너는 1:N이고 활성 파트너 한 곳만 표시한다. 파트너를 교체하면 이전 파트너는 비활성이 된다. 활성 파트너는 없을 수도 있다(파트너는 선택, 5.6절).</td><td><span class="b todo">예정</span></td></tr>
+<tr><td>DL-15</td><td>Status와 Forecast의 관계(6.7절): 계약완료 ⇄ Won은 함께 바뀌고 사용자에게 알린다. 이때 매출금액·매출일을 실제 값으로 입력하도록 강제한다. 종결된 Deal(Won/Lost)을 다시 열거나 계약완료에서 이전 단계로 되돌릴 때는 동기화할 값(Status 또는 Forecast)을 사용자에게 묻는다. Won 이후에도 수정을 막지 않으며 모든 수정은 Deal History에 기록한다.</td><td><span class="b todo">예정</span></td></tr>
+</table>
+
+<h3 id="s7-3">7.3 Forecast</h3>
+<table>
+<tr><th>ID</th><th>요구사항</th><th>상태</th></tr>
+<tr><td>FC-01</td><td>Forecast는 Status와 독립적으로 변경할 수 있다.</td><td><span class="b todo">예정</span></td></tr>
+<tr><td>FC-02</td><td>Forecast 코드는 Pipeline / Best / Most Likely / Commit / Won / Lost이다(admin이 관리). Won/Lost는 종료 결과이고 나머지는 Open이다.</td><td><span class="b todo">예정</span></td></tr>
+<tr><td>FC-03</td><td><code>revenue_date</code>(= Expected Close) 기준으로 Month / Quarter / Year를 자동 집계한다.</td><td><span class="b todo">예정</span></td></tr>
+<tr><td>FC-04</td><td>Forecast 요약: 연도 / Quarter / 담당자 / Vendor 필터, 담당자별 Commit / Best / Pipeline / Total.</td><td><span class="b todo">예정</span></td></tr>
+<tr><td>FC-05</td><td>별도의 “담당자 상세” 메뉴는 두지 않는다. Forecast 요약 화면에서 담당자별 합계를 보여주고, 담당자를 선택하면 같은 화면에서 그 담당자의 Deal 목록(Deal / Status / Forecast / 금액 / Expected Close / Next Action)을 보여 Forecast Review 미팅에 쓴다(화면 안 목록은 가정).</td><td><span class="b todo">예정</span></td></tr>
+<tr><td>FC-06</td><td>Forecast 집계 테이블은 매월 말일 Batch Job으로 갱신한다. 수작업 입력은 없다.</td><td><span class="b todo">예정</span></td></tr>
+</table>
+
+<h3 id="s7-4">7.4 Reports</h3>
+<table>
+<tr><th>ID</th><th>요구사항</th><th>상태</th></tr>
+<tr><td>RP-01</td><td>담당자 실적: Pipeline / Commit / Won의 건수·금액·달성률.</td><td><span class="b todo">예정</span></td></tr>
+<tr><td>RP-02</td><td>Vendor / Solution별 Pipeline / Won.</td><td><span class="b todo">예정</span></td></tr>
+<tr><td>RP-03</td><td>Status 전환: 기회발굴 → 계약완료 단계별 건수·전환율, 체류 Deal로 병목 확인.</td><td><span class="b todo">예정</span> 단계 변경 이력 데이터는 이미 있음</td></tr>
+<tr><td>RP-04</td><td>Forecast Mix: Pipeline / Best / Commit 금액·건수 비중.</td><td><span class="b todo">예정</span></td></tr>
+<tr><td>RP-05</td><td>Forecast 추이: 담당자 × 월 × (Won / Commit / Most Likely / Best / Pipeline)의 건수·금액을 <b>표와 그래프 둘 다</b> 제공한다.</td><td><span class="b todo">예정</span> 그래프 라이브러리가 필요하면 의존성 승인 필요</td></tr>
+<tr><td>RP-06</td><td>조회 조건을 유지한 Excel Export.</td><td><span class="b todo">예정</span> 새 의존성이 필요하면 승인 필요</td></tr>
+</table>
+
+<h3 id="s7-5">7.5 공통·관리</h3>
+<table>
+<tr><th>ID</th><th>요구사항</th><th>상태</th></tr>
+<tr><td>CM-01</td><td>AD(LDAP) 로그인, 세션, 로그인 실패 제한(계정별·IP별), 최초 설정. 최초 설정은 AD 서버 등록 → admin 등록의 2단계이며, <b>파일 저장 위치 입력 단계를 추가</b>한다.</td><td><span class="b part">부분</span> 2단계 구현, 저장 위치 단계 예정</td></tr>
+<tr><td>CM-02</td><td>역할(admin / sales / user)별 권한. 사용자 관리·설정은 admin 전용.</td><td><span class="b ok">구현</span></td></tr>
+<tr><td>CM-03</td><td>사용자 등록, 삭제(연결이 있으면 퇴사 처리, 없으면 물리 삭제), 퇴사자 표시 및 신규 지정 차단.</td><td><span class="b ok">구현</span></td></tr>
+<tr><td>CM-04</td><td>모든 사용자 참조(담당자, 등록자, 활동자 등)는 <code>users.id</code> FK로 통일한다. 화면은 UserSelect로 선택한다.</td><td><span class="b ok">구현</span></td></tr>
+<tr><td>CM-05</td><td>경고 기준(14일 등)을 Admin 설정값으로 변경한다.</td><td><span class="b todo">예정</span></td></tr>
+<tr><td>CM-06</td><td>Admin 메뉴(admin 전용) &gt; Settings &gt; 사용자 관리 / Deal 관리 / contacts 관리 / 외부연동 구조. 다른 역할에는 메뉴를 숨기고 API는 403.</td><td><span class="b part">부분</span> 사용자 관리·외부연동(AD 설정)만 구현</td></tr>
+<tr><td>CM-07</td><td>Status·Forecast 코드 관리(admin 전용, Deal 관리 메뉴): 코드 목록, 추가, 삭제. 코드는 시스템 내부의 고유 코드 값으로 연결되며 <b>이름과 순서는 admin이 자유롭게 변경</b>할 수 있다. <b>이미 참조된 코드는 삭제할 수 없다.</b> Won·계약완료의 일치 규칙(6.7)은 내부 코드 값에 걸려 있어 이름을 바꿔도 유지된다.</td><td><span class="b todo">예정</span></td></tr>
+</table>
+
+<h3 id="s7-6">7.6 BANT Label</h3>
+<table>
+<tr><th>ID</th><th>요구사항</th><th>상태</th></tr>
+<tr><td>LB-01</td><td>Budget / Authority / Need / Timeline 각각에 대해 Label을 둔다. 명세서의 선택지(6.4절)를 기본 Label로 제공한다. 점수는 관리하지 않는다.</td><td><span class="b todo">예정</span></td></tr>
+<tr><td>LB-02</td><td>항목당 Label 하나를 선택한다. 적절한 Label이 없으면 sales가 Deal 상세에서 새 Label 이름을 입력해 만든다. 이미 있는 이름이면 생성할 수 없다.</td><td><span class="b todo">예정</span></td></tr>
+<tr><td>LB-03</td><td>sales(Deal 화면)는 기존 Label을 수정하거나 삭제할 수 없다. 새 Label 생성만 허용한다.</td><td><span class="b todo">예정</span></td></tr>
+<tr><td>LB-04</td><td>admin은 Deal 관리 메뉴에서 Label을 생성·수정·삭제한다(삭제는 참조 Deal이 없을 때만). 같은 구분 안에서 이미 있는 이름으로 생성하거나 변경할 수 없다(409).</td><td><span class="b todo">예정</span></td></tr>
+<tr><td>LB-05</td><td>하나라도 Deal이 사용 중인 Label은 삭제할 수 없다(409).</td><td><span class="b todo">예정</span></td></tr>
+<tr><td>LB-06</td><td>Deal 목록·상세에서 BANT Label을 표시하고 Label로 필터링한다.</td><td><span class="b todo">예정</span></td></tr>
+<tr><td>LB-07</td><td>Label을 만든 사용자와 시각을 기록한다(<code>users.id</code> FK).</td><td><span class="b todo">예정</span></td></tr>
+</table>
+
+<h3 id="s7-7">7.7 파일 업로드</h3>
+<p>Deal 상세에서 해당 Deal과 관련된 견적서, 영업 관련 파일 등 필요한 파일을 자유롭게 올리고 삭제한다. 목록 위치는 Deal 상세 화면 안의 “첨부 파일” 영역이다(하단 탭은 Actions / Deal History 두 개로 유지한다).</p>
+<table>
+<tr><th>ID</th><th>요구사항</th><th>상태</th></tr>
+<tr><td>FL-01</td><td>Deal 상세에서 파일을 업로드한다. 업로드할 때 <b>파일과 설명(100자 이내)</b>을 함께 입력한다. 파일당 100MB 이하, 실행·설치 파일은 거부한다.</td><td><span class="b todo">예정</span></td></tr>
+<tr><td>FL-02</td><td>Deal에 올라간 파일 목록(파일명, 설명, 크기, 업로드한 사용자, 업로드 시각)을 보여주고 내려받을 수 있다.</td><td><span class="b todo">예정</span></td></tr>
+<tr><td>FL-03</td><td>업로드된 파일을 삭제할 수 있다. 본인이 올린 파일은 본인이, 퇴사한 sales가 올린 파일은 sales 누구나, admin은 모든 파일을 삭제할 수 있다.</td><td><span class="b todo">예정</span></td></tr>
+<tr><td>FL-04</td><td>파일 업로드·삭제는 Deal History에 기록한다(R02).</td><td><span class="b todo">예정</span></td></tr>
+<tr><td>FL-05</td><td>설명이 100자를 넘거나 파일이 없으면 업로드를 거부한다(화면과 서버 모두 검증).</td><td><span class="b todo">예정</span></td></tr>
+<tr><td>FL-06</td><td>파일 저장 위치는 설정으로 관리한다. 최초 기동 시 입력받고 Admin &gt; Settings에서 변경한다. 저장 위치가 없거나 쓸 수 없으면 업로드를 거부하고 사유를 알려준다.</td><td><span class="b todo">예정</span></td></tr>
+<tr><td>FL-07</td><td>같은 Deal에 이미 있는 이름의 파일을 올리면 교체할지 건너뛸지 묻는다. 파일은 Deal id별 디렉터리에 저장하고, Deal 삭제 시 해당 디렉터리를 삭제한다.</td><td><span class="b todo">예정</span></td></tr>
+</table>
+
+<h2 id="s8">8. 자동 규칙</h2>
+<table>
+<tr><th>ID</th><th>규칙</th><th>상태</th></tr>
+<tr><td>R01</td><td>Expected Close → Month / Quarter / Year 자동 분류</td><td><span class="b todo">예정</span></td></tr>
+<tr><td>R02</td><td>Deal 등록과 Deal 및 Deal과 연결된 모든 정보의 변경(Status / Forecast / 금액 / Expected Close / Owner / 파트너 / 연락처 / BANT Label / Action 등록·수정·삭제 / 첨부 파일 업로드·삭제)을 Deal History에 저장</td><td><span class="b part">부분</span> Status만 구현</td></tr>
+<tr><td>R03</td><td>Next Action Due 경과 → “기한초과”</td><td><span class="b todo">예정</span> Due Date 데이터는 있음</td></tr>
+<tr><td>R04</td><td>14일 이상 Update 없음 → “미업데이트”</td><td><span class="b todo">예정</span></td></tr>
+<tr><td>R05</td><td>Status 단계별 체류기간 계산(Status 진입일 기록)</td><td><span class="b todo">예정</span> 단계 변경 시각은 이미 이력에 있음</td></tr>
+<tr><td>R06</td><td>Forecast가 Won/Lost → Open Pipeline에서 제외</td><td><span class="b todo">예정</span></td></tr>
+<tr><td>R08</td><td>Dashboard 클릭 → 동일 조건 Deal 목록 Drill-down</td><td><span class="b todo">예정</span></td></tr>
+<tr><td>R09</td><td>Forecast가 Won(또는 Status가 계약완료)이 되면 매출금액과 <code>revenue_date</code>를 실제 값으로 입력받아 갱신하고, Lost는 <code>revenue_date</code>를 그대로 둔다(6.6절)</td><td><span class="b todo">예정</span></td></tr>
+<tr><td>R10</td><td>종결된 Deal(Forecast Won/Lost)의 Forecast를 바꾸거나 Status를 계약완료에서 이전 단계로 바꾸면, 동기화할 반대쪽 값을 사용자에게 묻고 선택한 값으로 함께 변경한다(6.7절)</td><td><span class="b todo">예정</span></td></tr>
+</table>
+<p>R07은 삭제된 규칙이라 결번이다.</p>
+<p>영업 Alert(기한초과, 미업데이트, Expected Close Slip, 장기 Status 체류)는 Dashboard “주의 필요 Deal”에 표시한다.</p>
+
+<h2 id="s9">9. 비기능 요구사항</h2>
+<table>
+<tr><th>항목</th><th>요구사항</th><th>상태</th></tr>
+<tr><td>데이터 정합성</td><td>Dashboard 합계 = Forecast 합계 = Deal 목록 원장. 단일 집계 로직을 쓰고 테스트로 일치를 검증한다.</td><td><span class="b todo">예정</span></td></tr>
+<tr><td>구조</td><td>FastAPI(DDD 4계층, import-linter로 강제) + React. 프로파일 local / dev / product.</td><td><span class="b ok">구현</span></td></tr>
+<tr><td>배포</td><td>온프레미스 Linux, Jenkins CI/CD, Nginx 정적 서빙 + <code>/api</code> 프록시. dev 자동 배포, product 승인 후 순차 배포.</td><td><span class="b ok">구현</span></td></tr>
+<tr><td>마이그레이션</td><td>Alembic. dev는 자동, product는 사람 승인. 원칙은 expand/contract.</td><td><span class="b ok">구현</span> 예외 3건은 CLAUDE.md에 기록</td></tr>
+<tr><td>품질 게이트</td><td>ruff, format, mypy strict, import-linter, 파일 300줄 이하, pytest, 프런트 typecheck/lint/test/build.</td><td><span class="b ok">구현</span></td></tr>
+<tr><td>성능</td><td>사용자 100명 미만이므로 대용량 처리 설계는 필요하지 않다. 목록·집계는 일반 쿼리로 충분하다.</td><td><span class="b ok">구현</span> 확정</td></tr>
+<tr><td>보안</td><td>비밀은 환경변수·DB로만 관리, 비밀번호 저장·로그 금지, 쿠키 Secure, 로그인 실패 제한.</td><td><span class="b ok">구현</span></td></tr>
+</table>
+
+<h2 id="s10">10. 검수 기준</h2>
+<p>명세서 20장의 검수 기준에 현재 상태를 붙인 표이다.</p>
+<table>
+<tr><th>#</th><th>검수 기준</th><th>상태</th></tr>
+<tr><td>1</td><td>Deal 등록·수정·조회 및 추가 컬럼 저장</td><td><span class="b part">부분</span> 고객·파트너 정보는 가능, Forecast·BANT·견적·POC 컬럼 없음</td></tr>
+<tr><td>2</td><td>Status 전체 단계 Dashboard 집계 정확성</td><td><span class="b part">부분</span> 단계별 요약 API는 있음, Dashboard 화면 없음</td></tr>
+<tr><td>3</td><td>Filter / Sort / Drill-down 조건 유지</td><td><span class="b part">부분</span> Filter는 있음, Drill-down 없음</td></tr>
+<tr><td>4</td><td>Forecast 월·분기·담당자 집계 정확성</td><td><span class="b todo">예정</span></td></tr>
+<tr><td>5</td><td>Next Action History / 기한초과 / 미업데이트</td><td><span class="b part">부분</span> History만 구현</td></tr>
+<tr><td>6</td><td>Dashboard 합계와 Deal 목록 원장 일치</td><td><span class="b todo">예정</span></td></tr>
+<tr><td>7</td><td>첫 Dashboard에서 모든 Status 단계가 정확히 표시되고 클릭 시 해당 Deal이 일치</td><td><span class="b todo">예정</span></td></tr>
+</table>
+
+<h2 id="s11">11. 미결 사항</h2>
+<h3>11.1 확정된 결정</h3>
+<table>
+<tr><th>항목</th><th>결정</th></tr>
+<tr><td>사용자 메뉴</td><td>Dashboard / Deals / Forecast / Reports 4개. admin에게만 Admin 메뉴 추가</td></tr>
+<tr><td>통화·단위</td><td>KRW 고정. 화면 단위 표기 M = 백만, B = 10억</td></tr>
+<tr><td>AD 설정 위치</td><td>Admin &gt; Settings &gt; 외부연동</td></tr>
+<tr><td>코드 관리 대상</td><td>Status, Forecast만 (admin 전용, Deal 관리 메뉴)</td></tr>
+<tr><td>BANT</td><td>점수 없는 Label. 항목당 하나. 점수는 현재 관리하지 않음(후속 확장)</td></tr>
+<tr><td>Label 권한</td><td>sales는 Deal 상세에서 새 Label 생성만 가능(기존 수정·삭제 불가). admin은 Deal 관리에서 생성·수정·삭제(참조 Deal이 없을 때만 삭제)</td></tr>
+<tr><td>Vendor / Solution</td><td>코드가 아닌 자유 입력</td></tr>
+<tr><td>연락처 관리</td><td>고객·파트너를 하나의 테이블(구분자)에 명함처럼 저장. 고객사+담당자가 한 행. Deal 화면에서 회사명→담당자 순으로 선택하고 신규는 직접 입력. 기존 담당자 선택 시 자동 입력, 수정하면 데이터 갱신. 별도 고객·파트너 메뉴 없음</td></tr>
+<tr><td>Deal 상세 탭</td><td>하단 2개 탭. Actions: 해당 Deal의 모든 Action(진행사항·Next Action·Due Date + 등록 시점 Status/Forecast) 목록과 검색. Deal History: 언제·누가·변경대상·변경전·변경후(text)로 Deal 전체 변경 기록, 내용은 각 서비스가 채움</td></tr>
+<tr><td>Action 수정</td><td>이전 Action도 수정 가능, 수정은 Deal History에 기록</td></tr>
+<tr><td>Deal–파트너</td><td>1:N이지만 활성 파트너는 한 곳. 교체되면 이전 파트너는 비활성. 화면에는 활성만 표시</td></tr>
+<tr><td>Deal Owner</td><td>한 명, 변경 가능. sales 역할만 지정 가능</td></tr>
+<tr><td>Status ⇄ Forecast</td><td>별개의 정보이며 Won과 계약완료만 동일시. 한쪽을 바꾸면 다른 쪽도 바뀌고 사용자에게 알림. 이때 매출금액·매출일을 실제 값으로 입력하도록 강제. 종결된 Deal(Won/Lost)의 Forecast를 다른 값으로 바꾸거나 Status를 계약완료에서 이전 단계로 바꿀 때는 동기화할 값을 사용자에게 물음. 나머지 정보는 그대로 둠. Won 이후에도 잠그지 않고 모든 수정은 Deal History에 기록. Forecast Lost여도 Status 유지</td></tr>
+<tr><td>연락처 입력 규칙</td><td>회사명·담당자명 등에 공백 불가(입력 차단+서버 거부), 대소문자 동일 표기, 동명이인은 이메일로 구분</td></tr>
+<tr><td>Users</td><td>견적의 단위가 사용자 수이므로 “Users”라 부르는 Deal 정보. 고객사 직원 수가 아니며 필수가 아님</td></tr>
+<tr><td>contacts 관리</td><td>admin 메뉴에서 모든 고객·파트너 CRUD. Deal에 연결된 연락처는 삭제 불가</td></tr>
+<tr><td>코드 관리</td><td>Status·Forecast 코드는 admin이 관리. 시스템 내부 고유 코드 값으로 연결되고 이름·순서는 자유롭게 변경 가능. 참조된 코드는 삭제 불가</td></tr>
+<tr><td>Forecast 추이</td><td>표와 그래프 둘 다 제공</td></tr>
+<tr><td>사용 규모</td><td>사용자 100명 미만. 대용량 처리 고려 불필요</td></tr>
+<tr><td>Deal History</td><td>Deal 및 연결된 모든 정보(파트너, Action, 연락처, Label, 파일 등)의 변경을 <code>deal_history</code> 하나에 기록. Deal 상세 하단 탭에서 조회</td></tr>
+<tr><td>파일 저장 구조</td><td>저장 위치 아래 Deal id별 디렉터리. Deal 삭제 시 디렉터리 삭제. 같은 이름 파일은 교체/skip을 사용자에게 확인. 저장 위치 변경 시 기존 파일 이동은 관리자 수작업(시스템 범위 밖)</td></tr>
+<tr><td>파일 업로드</td><td>Deal 상세에서 파일과 설명(100자 이내)을 함께 업로드, 삭제 가능. 업로드·삭제는 Deal History에 기록. 파일당 100MB 이하, 실행·설치 파일 불가. 저장 위치는 설정이며 최초 기동 시 입력, 나중에 변경 가능. 삭제는 본인 파일만(퇴사한 sales의 파일은 sales 누구나), admin은 전체</td></tr>
+<tr><td>Deal 정보 수정</td><td>Deal의 상태(Won·Lost 포함)와 상관없이 모든 정보를 수정할 수 있음. 잠금 없음. 수정은 모두 Deal History에 기록</td></tr>
+<tr><td>고객 필수·파트너 선택</td><td>Deal 생성 시 고객사는 필수(최소 회사명+담당자명까지). 파트너사는 선택</td></tr>
+<tr><td>연락처 이메일 없음</td><td>이메일 없이 입력하면 같은 회사명+담당자명의 기존 연락처와 같은 사람으로 봄</td></tr>
+<tr><td>Label 이름</td><td>동일한 이름의 Label은 생성 불가. admin이 이름을 바꿀 때도 이미 있는 이름으로 변경 불가</td></tr>
+<tr><td>Result 속성</td><td>현재 단계에서는 두지 않음. 결과는 Forecast(Won/Lost)로 판단</td></tr>
+<tr><td>Inline Update</td><td>Deal 목록의 Status / Forecast / 금액 / Expected Close(<code>revenue_date</code>)만 수정 가능. 수정은 Deal History에 기록, 6.7절 동기화 규칙 동일 적용</td></tr>
+<tr><td>Deal code</td><td>자동 채번, primary key. 형식 <code>YYYYMMDD-XXXX</code>(등록일 + 무작위 4자리 숫자·영문). 기존 <code>id</code> 컬럼을 <code>deal_code</code>로 변경. 삭제된 code 재사용 무관</td></tr>
+<tr><td>Deal 삭제</td><td>sales 본인의 Deal(Owner가 본인) 또는 admin만 삭제 가능. 둘 다 확인 팝업에서 Deal code를 직접 입력해야 삭제. 삭제 시 Deal History, Action, 첨부 파일 디렉터리 등 관련 데이터를 모두 함께 삭제. Deal History가 있어도 삭제 가능</td></tr>
+<tr><td>Deal 등록 이력</td><td>Deal 등록도 Deal History에 한 건으로 기록</td></tr>
+<tr><td>등록자 컬럼</td><td><code>deals.registered_by_user_id</code>는 제거. Owner만 존재하며 등록자는 Deal History의 등록 기록에 남음. 기존 등록자 데이터 이전 없음</td></tr>
+<tr><td>Forecast 확률</td><td>참고용. 저장·집계에 쓰지 않음</td></tr>
+<tr><td>Forecast 코드</td><td>슬라이드 4 기준: Pipeline(0–50) / Best(51–75) / Most Likely(75–85) / Commit(85–100) / Won / Lost</td></tr>
+<tr><td>매출일</td><td><code>revenue_date</code> = 매출일 = Expected Close. Won이면 최종 매출일자로 갱신, Lost면 마지막 Expected Close 유지</td></tr>
+<tr><td>Status</td><td>7단계. POC 단계는 POC 준비·POC 완료 두 개뿐. Lost는 Status에서 제외</td></tr>
+</table>
+<h3>11.2 남은 질문</h3>
+<p>아래 결정이 남아 있다. 결정 전에는 해당 기능을 구현하지 않는다.</p>
+<table>
+<tr><th>ID</th><th>질문</th><th>배경</th></tr>
+<tr><td colspan="3">현재 남은 질문이 없다. 구현하면서 새로 생기는 결정은 이 표에 추가하고, 결정 전에는 해당 기능을 구현하지 않는다.</td></tr>
+</table>
+
+<!-- ===================== 부록 ===================== -->
+<h2 id="sa">부록 A. 구현된 항목</h2>
+<p>2026-10-14 기준 코드(<code>backend/openapi.json</code>, <code>frontend/src</code>)에서 확인한 내용이다. 게이트 통과 기준은 백엔드 pytest 2710건(skip 0), 프런트엔드 276건이다.</p>
+
+<h3>A.1 Deal</h3>
+<ul>
+<li>Deal 등록·수정·삭제·조회(ID, 코드로 조회), 목록 페이지네이션 <code>/api/v1/deals</code></li>
+<li>필드: 코드, 이름, 담당자(users FK), Vendor, Solution, 매출금액·통화, 매출일, 고객, 파트너(선택), 단계</li>
+<li>목록 필터: 키워드, 고객, 파트너, 담당자, Vendor, 매출일 범위, 단계, 내 딜(<code>mine</code>)</li>
+<li>삭제: 활동 또는 단계 변경 이력이 있으면 409. 소프트 삭제는 사용하지 않음</li>
+<li>Deal 상세 화면, 고객·파트너 패널</li>
+</ul>
+<h3>A.2 단계(Status)와 Pipeline</h3>
+<ul>
+<li>단계 7개 + <code>lost</code>(Forecast로 이동 예정), 순서는 선언 순서</li>
+<li>단계 변경 <code>POST /deals/{id}/stage</code>, 사유 기록(최대 500자), 변경자·시각 보존</li>
+<li>단계 변경 이력 조회 <code>GET /deals/{id}/stage-changes</code>, 화면 StageHistory</li>
+<li>단계별 건수·금액 요약 <code>GET /deals/pipeline</code>(내 딜 옵션), 화면 PipelineSummary</li>
+</ul>
+<h3>A.3 활동(Next Action)</h3>
+<ul>
+<li>필드: 유형(통화/미팅/이메일/데모/제안/협상/계약/기타), 진행사항, 수행일시, 수행자, Next Action, Due Date, Memo</li>
+<li>Deal별 등록·조회, 개별 조회·수정·삭제, 통합 검색 <code>/deal-actions</code>(유형·수행자·키워드·수행일·기한·정렬)</li>
+<li>화면: Deal 상세 내 목록·폼, <code>/actions</code> 통합 검색(Deal 상세 Actions 탭으로 대체 예정)</li>
+</ul>
+<h3>A.4 고객·파트너 (연락처 모델로 통합 예정)</h3>
+<ul>
+<li>고객: 회사명, 담당자명, 직급, 이메일, 전화, 직원수(고객사 직원 수. Users와 다른 값이며 연락처 모델 전환 때 정리), 메모. CRUD + 키워드 검색</li>
+<li>파트너: 회사명, 담당자명, 직급, 이메일, 전화. CRUD + 키워드 검색</li>
+<li>참조하는 Deal이 있으면 삭제 409</li>
+</ul>
+<h3>A.5 인증·사용자·설정</h3>
+<ul>
+<li>AD(LDAP) 로그인, 세션, 로그아웃, <code>/auth/me</code>, 로컬 전용 개발용 로그인</li>
+<li>로그인 시도 제한(계정별 5회, IP별 30회, 15분 창, 15분 잠금 — 설정 가능)</li>
+<li>최초 설정 2단계(AD 서버 등록 → admin 등록)</li>
+<li>AD 설정 조회·수정·연결 테스트(admin)</li>
+<li>사용자 등록·목록(재직/퇴사/전체)·삭제, 퇴사 처리, 사용자 선택 옵션 <code>/user-options</code></li>
+<li>역할 admin / sales / user, 관리 메뉴 admin 전용</li>
+</ul>
+<h3>A.6 플랫폼</h3>
+<ul>
+<li>DDD 4계층 + Port/UoW, Fake·계약·통합·E2E 테스트, openapi.json 드리프트 테스트</li>
+<li>프로파일 local / dev / product, Jenkins CI/CD, Nginx + systemd 배포 자산, 서버 스크립트 테스트</li>
+<li>Alembic 마이그레이션(현재 head <code>0d248153ec93</code>)</li>
+<li>하네스: 8개 Agent 흐름(planner → test → core → infra → web → frontend → gate → reviewer)</li>
+</ul>
+
+<h2 id="sb">부록 B. 구현할 항목</h2>
+<p>우선순위는 제안이다. 확정은 <a href="#s11">미결 사항</a> 답변 뒤에 한다. 데이터 모델 변경은 expand/contract 원칙과 마이그레이션 승인 절차를 따른다.</p>
+<table>
+<tr><th>단계</th><th>묶음</th><th>포함 항목</th><th>선행 결정</th></tr>
+<tr><td>P0</td><td>코드·Label 기반 + Admin 메뉴</td><td>Status·Forecast를 DB 관리 코드로 전환(CM-07), Admin &gt; contacts 관리(DL-13), BANT Label 테이블과 규칙(LB-01~05, LB-07), Admin &gt; Settings &gt; 사용자 관리 / Deal 관리 / contacts 관리 / 외부연동 메뉴(CM-06), Deal 관리 화면(코드·Label 관리)</td><td>—</td></tr>
+<tr><td>P1</td><td>Deal 모델 확장</td><td>Deal code 자동 채번(<code>YYYYMMDD-XXXX</code>)과 기본키 전환(<code>id</code> → <code>deal_code</code>, 5.1절), Deal 삭제 규칙과 전체 삭제(DL-03), <code>registered_by_user_id</code> 컬럼 제거, Forecast 값 선택(FC-01·02), Won 시 최종 매출일 갱신(R09), 연락처 모델 전환(5.6절, DL-02), 고객 필수화(DL-01), 파트너 1:N·활성 1건(DL-14), Users를 Deal로 이동, Owner는 sales만(DL-12), Status⇄Forecast 관계와 매출금액·매출일 강제 입력(DL-15, R09), BANT Label 선택·즉석 생성(LB-02·03), 견적 제출여부·제출일, POC 여부·완료일, 구매절차, Deal 등록·수정·상세 화면 반영</td><td>P0</td></tr>
+<tr><td>P2</td><td>Tracking 강화</td><td>Deal 상세 하단 Actions / Deal History 탭(DL-09~11), 모든 변경을 기록하는 <code>deal_history</code>(5.7절), Action에 등록 시점 Status/Forecast 저장, Action 수정의 Deal History 기록, 변경 이력을 모든 변경 종류로 확장(R02), 기존 단계 변경 이력 통합, Action 검색을 Deal 상세로 이동</td><td>—</td></tr>
+<tr><td>P2b</td><td>파일 업로드</td><td>Deal 첨부 파일 업로드·목록·다운로드·삭제와 설명 100자(FL-01~07), Deal id별 디렉터리·같은 이름 교체/skip 확인·Deal 삭제 시 디렉터리 삭제, 100MB 제한·실행/설치 파일 차단, 삭제 권한 규칙, 최초 설정 3단계(저장 위치), 파일 저장 Port와 저장소 구현, 업로드·삭제 이력 기록</td><td>Nginx·서버 디렉터리 설정 승인</td></tr>
+<tr><td>P3</td><td>자동 규칙·경고</td><td>기한초과(R03), 14일 미업데이트(R04), Status 체류기간(R05), Won/Lost 제외(R06), 경고 기준 Admin 설정(CM-05)</td><td>—</td></tr>
+<tr><td>P4</td><td>Dashboard</td><td>단계 Funnel(DB-01), KPI(DB-02), 공통 필터(DB-03), Drill-down 팝업(DB-04, R08), 주의 필요 Deal(DB-05), Forecast &amp; Closing(DB-06)</td><td>—</td></tr>
+<tr><td>P5</td><td>Deals 목록 개선</td><td>컬럼 확장·Quick View(DL-05), Solution·Forecast·Year/Quarter 필터(DL-04), 조건 유지(DL-06), Risk 색상(DL-07), Inline Update(DL-08)</td><td>—</td></tr>
+<tr><td>P6</td><td>Forecast 메뉴</td><td>Forecast 요약과 화면 안 담당자별 Deal 목록(FC-04·05, “담당자 상세” 메뉴 없음), 기간 자동 집계(R01), 월말 Batch(FC-06)</td><td>—</td></tr>
+<tr><td>P7</td><td>Reports</td><td>담당자 실적, Vendor/Solution, Status 전환, Forecast Mix, Forecast 추이(표·그래프), Excel Export(RP-01~06)</td><td>차트·Excel 의존성 승인</td></tr>
+<tr><td>P8</td><td>메뉴 정리</td><td>사용자 메뉴 4개 재편(Dashboard·Forecast·Reports 추가), BANT Label 표시·필터(LB-06)</td><td>—</td></tr>
+</table>
+<h3>B.1 개발 시 공통 조건</h3>
+<ul>
+<li>각 묶음은 하네스 순서(planner → test → core → infra → web → frontend → gate → reviewer)로 진행한다.</li>
+<li>집계 로직은 한 곳에 두고 Dashboard / Forecast / Reports가 같은 로직을 쓴다(데이터 일치 검수).</li>
+<li>새 의존성(Excel 라이브러리, 차트 라이브러리)은 추가 전에 사용자 승인을 받는다.</li>
+<li>dev에 자동 적용되므로 마이그레이션은 하위 호환으로 쓴다. product 적용은 사람이 승인한다.</li>
+</ul>
+
+<h2 id="sc">부록 C. PRD 확정 기준과 현재 구현의 차이</h2>
+<p>이 표는 <b>명세서대로 고친다는 뜻이 아니다.</b> 각 행의 “PRD 확정 기준” 열이 구현의 기준이며, 명세서와 다른 곳은 대화에서 정한 결정이 명세서를 대체했다. “단계”는 부록 B의 개발 단계다.</p>
+<h3>C.1 명세서가 맞아서 명세서대로 구현할 것</h3>
+<table>
+<tr><th>#</th><th>항목</th><th>명세서</th><th>현재 구현</th><th>PRD 확정 기준</th><th>단계</th></tr>
+<tr><td>A1</td><td>Dashboard</td><td>첫 화면에 Status Funnel·KPI·주의 Deal</td><td>없음(Deal 목록에 단계 요약만 있음)</td><td>명세서대로</td><td>P4</td></tr>
+<tr><td>A2</td><td>Forecast 메뉴</td><td>요약·담당자 상세·Review(“담당자 상세” 메뉴는 두지 않음)</td><td>없음</td><td>명세서대로(“담당자 상세” 메뉴 제외)</td><td>P6</td></tr>
+<tr><td>A3</td><td>Reports 메뉴</td><td>담당자·Vendor·Status·Forecast 분석</td><td>없음</td><td>명세서대로(Forecast 추이는 표+그래프)</td><td>P7</td></tr>
+<tr><td>A4</td><td>Forecast 값</td><td>Pipeline / Best / Most Likely / Commit / Won / Lost</td><td>없음</td><td>명세서 슬라이드 4 기준 그대로</td><td>P0·P1</td></tr>
+<tr><td>A5</td><td>견적·POC·구매절차</td><td>견적 제출여부·제출일, POC 여부·완료일, 구매절차</td><td>없음</td><td>명세서대로</td><td>P1</td></tr>
+<tr><td>A6</td><td>경고와 체류기간</td><td>기한초과, 14일 미업데이트, 단계별 체류기간</td><td>없음(Due Date 데이터만 있음)</td><td>명세서대로</td><td>P3</td></tr>
+<tr><td>A7</td><td>경고 기준 설정</td><td>Admin 설정값</td><td>없음</td><td>명세서대로</td><td>P3</td></tr>
+<tr><td>A8</td><td>Forecast 월말 Batch</td><td>매월 말일 Batch로 집계 테이블 갱신</td><td>없음</td><td>명세서대로</td><td>P6</td></tr>
+<tr><td>A9</td><td>Excel Export</td><td>조회 조건 유지</td><td>없음</td><td>명세서대로</td><td>P7</td></tr>
+<tr><td>A10</td><td>Inline Update</td><td>Status·Forecast 등 일부 권한 범위</td><td>없음</td><td>명세서 취지대로, 대상은 Status / Forecast / 금액 / Expected Close 네 컬럼</td><td>P5</td></tr>
+<tr><td>A11</td><td>사용자 메뉴</td><td>Dashboard / Deals / Forecast / Reports 4개</td><td>Deals·고객·파트너·활동 등 별도 메뉴</td><td>명세서대로 4개(+admin 전용 Admin 메뉴)</td><td>P8</td></tr>
+<tr><td>A12</td><td>Status 단계</td><td>7단계(기회발굴 … 계약완료)</td><td>7단계 + <code>lost</code>, 고정 enum</td><td>명세서 7단계, POC는 준비·완료 두 개. <code>lost</code> 제거. Status는 DB 관리 코드</td><td>P0·P1</td></tr>
+</table>
+<h3>C.2 확정 결정이 명세서를 대체한 것 (명세서가 아니라 결정대로 구현)</h3>
+<table>
+<tr><th>#</th><th>항목</th><th>명세서</th><th>현재 구현</th><th>PRD 확정 기준</th><th>단계</th></tr>
+<tr><td>B1</td><td>첨부파일</td><td>2차 확장</td><td>없음</td><td><b>1차로 당김</b>. Deal 상세에서 파일+설명(100자) 업로드·삭제</td><td>P2b</td></tr>
+<tr><td>B2</td><td>Result 속성</td><td>Open / Won / Lost 분리 권장(슬라이드 17)</td><td>없음</td><td><b>두지 않음</b>. 결과는 Forecast(Won/Lost)로 판단</td><td>—</td></tr>
+<tr><td>B3</td><td>Forecast 구간</td><td>슬라이드 4와 17이 서로 다름</td><td>없음</td><td><b>슬라이드 4 기준</b>(슬라이드 17의 Omitted는 무시), 확률은 참고용</td><td>P0</td></tr>
+<tr><td>B4</td><td>BANT</td><td>선택지 코드값(Budget / Authority / Need / Timeline)</td><td>없음</td><td><b>점수 없는 Label</b>(항목당 하나). 명세서 선택지는 기본 Label, 사용자가 추가 가능</td><td>P0·P1</td></tr>
+<tr><td>B5</td><td>코드 테이블</td><td>파트너·Owner·Vendor·Status·Forecast·BANT·견적·POC 모두 코드</td><td>Status만 enum</td><td><b>Status와 Forecast만</b> 코드(admin 관리). Vendor·Solution은 자유 입력</td><td>P0</td></tr>
+<tr><td>B6</td><td>고객·파트너</td><td>고객정보와 파트너정보 별도, 파트너사 1·2 표기</td><td><code>customers</code>·<code>partners</code> 별도 테이블과 별도 화면</td><td><b>연락처 하나의 테이블</b>(고객/파트너 구분자). 회사+담당자 한 행. Deal 화면에서 선택·수정, 파트너는 1:N 중 활성 1건·선택</td><td>P1</td></tr>
+<tr><td>B7</td><td>직원수</td><td>고객 정보의 직원수</td><td><code>customers.employee_count</code></td><td><b>Deal의 Users</b>(견적 단위 사용자 수, 선택)로 대체</td><td>P1</td></tr>
+<tr><td>B8</td><td>Deal code</td><td>자동입력</td><td>입력값(고유), 기본키는 UUID <code>id</code></td><td><b>자동 채번</b> <code>YYYYMMDD-XXXX</code>, <code>id</code>를 <code>deal_code</code>로 바꿔 기본키</td><td>P1</td></tr>
+<tr><td>B9</td><td>매출일과 Expected Close</td><td>다른 항목처럼 보임</td><td><code>revenue_date</code> 하나</td><td><b>같은 값</b>. Won이면 최종 매출일로 갱신</td><td>P1</td></tr>
+<tr><td>B10</td><td>Next Action 이력</td><td>이전 Update는 Read Only</td><td>수정·삭제 API 있음</td><td><b>수정 가능</b>, 수정은 Deal History에 기록</td><td>P2</td></tr>
+<tr><td>B11</td><td>딜 이력</td><td>변경일 / 변경항목 / 이전 / 이후</td><td>Status 변경 이력만</td><td><b>모든 변경</b>을 <code>deal_history</code>에 기록(등록 포함)</td><td>P2</td></tr>
+<tr><td>B12</td><td>Status⇄Forecast</td><td>Status와 Forecast를 독립적으로 변경</td><td>독립(Forecast 자체가 없음)</td><td>독립이되 <b>Won ⇔ 계약완료는 동기화</b>, Won 전환 시 매출금액·매출일 강제 입력, 종결 Deal 되돌릴 때 사용자에게 질문</td><td>P1</td></tr>
+<tr><td>B13</td><td>Deal 삭제</td><td>(규정 없음)</td><td>활동·단계 이력이 있으면 409</td><td><b>본인(Owner) 또는 admin</b>, Deal code 입력 확인, 관련 데이터·파일 디렉터리 전부 삭제</td><td>P1</td></tr>
+<tr><td>B14</td><td>Owner·등록자</td><td>담당자</td><td><code>owner_user_id</code>(역할 제한 없음) + <code>registered_by_user_id</code></td><td>Owner만 존재, 기본값은 접속 사용자, <b>sales만</b> 지정. <code>registered_by_user_id</code> 제거</td><td>P1</td></tr>
+</table>
+<h3>C.3 현재 구현에만 있는 것 (유지 또는 대체)</h3>
+<table>
+<tr><th>#</th><th>항목</th><th>명세서</th><th>현재 구현</th><th>PRD 확정 기준</th><th>단계</th></tr>
+<tr><td>C1</td><td>사용자 관리·퇴사 처리</td><td>(언급 없음)</td><td>구현(퇴사 시 이력 보존)</td><td><b>유지</b>. Admin &gt; Settings &gt; 사용자 관리로 이동</td><td>P0</td></tr>
+<tr><td>C2</td><td>AD 설정 화면</td><td>(언급 없음)</td><td>구현(<code>/settings</code>)</td><td><b>유지</b>. Admin &gt; Settings &gt; 외부연동으로 이동</td><td>P0</td></tr>
+<tr><td>C3</td><td>로그인 실패 제한</td><td>(언급 없음)</td><td>구현</td><td><b>유지</b></td><td>—</td></tr>
+<tr><td>C4</td><td>내 딜 필터</td><td>(언급 없음)</td><td>구현</td><td><b>유지</b></td><td>—</td></tr>
+<tr><td>C5</td><td>활동 유형(통화/미팅 등)</td><td>진행사항만</td><td>구현</td><td><b>유지</b></td><td>—</td></tr>
+<tr><td>C6</td><td>역할 admin / sales / user</td><td>Admin 별도 접근</td><td>구현</td><td><b>유지</b></td><td>—</td></tr>
+<tr><td>C7</td><td>활동 통합 검색(<code>/actions</code>)</td><td>(언급 없음)</td><td>구현</td><td><b>대체</b>: Deal 상세의 Actions 탭 검색</td><td>P2</td></tr>
+<tr><td>C8</td><td>고객·파트너 독립 화면</td><td>(언급 없음)</td><td>구현(<code>/customers</code>, <code>/partners</code>)</td><td><b>대체</b>: Deal 화면의 연락처 선택과 Admin &gt; contacts 관리</td><td>P0·P1</td></tr>
+</table>
+<h3>C.4 명세서 내부 불일치 (해소됨)</h3>
+<table>
+<tr><th>#</th><th>항목</th><th>명세서</th><th>현재 구현</th><th>해소</th></tr>
+<tr><td>D1</td><td>Forecast 확률 구간</td><td>슬라이드 4 vs 17</td><td>—</td><td>슬라이드 4로 확정(참고용)</td></tr>
+<tr><td>D2</td><td>POC 단계명</td><td>“POC 준비” / “POC 일정” / “POC 일정 확정”</td><td><code>poc_preparation</code></td><td>POC 준비·POC 완료 두 개로 확정</td></tr>
+<tr><td>D3</td><td>매출일 vs Expected Close</td><td>다른 항목처럼 표기</td><td><code>revenue_date</code></td><td>같은 값으로 확정</td></tr>
+<tr><td>D4</td><td>오탈자·버전</td><td>Yearear, Pipelie, 표지 v5.0 / 파일명 v4</td><td>—</td><td>PRD에서는 Year, Pipeline으로 표기</td></tr>
+</table>
+
+
+</main>
+</div>
+</body>
+</html>

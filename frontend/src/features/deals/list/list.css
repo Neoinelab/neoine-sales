@@ -1,0 +1,50 @@
+/* Deals 목록 전용 스타일. 전역 토큰(--panel, --line, --muted, --accent …)만 사용해 다크 모드를 따른다. */
+.deals-page { display: grid; gap: 12px; min-width: 0; }
+.deals-count { margin: 0; }
+.deals-empty { padding: 24px; text-align: center; color: var(--muted); background: var(--panel); border: 1px dashed var(--line); border-radius: 8px; margin: 0; }
+
+.deal-filters { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px 12px; align-items: end; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); padding: 14px 16px; }
+.deal-filters .field input, .deal-filters .field select { width: 100%; min-width: 0; }
+.deal-filters .field.checkbox { display: flex; align-items: center; gap: 6px; padding-bottom: 6px; }
+.deal-filters .field.checkbox input { width: auto; }
+.filter-buttons { display: flex; gap: 8px; }
+
+.risk-legend { display: flex; flex-wrap: wrap; gap: 6px 20px; list-style: none; margin: 0; padding: 0; }
+.risk-legend li { display: flex; align-items: center; gap: 6px; font-size: 0.85rem; }
+
+.table-scroll { overflow-x: auto; border-radius: 8px; }
+.deals-table { min-width: 1180px; font-size: 0.9rem; }
+.deals-table th { white-space: nowrap; }
+.deals-table td { vertical-align: middle; }
+.th-sort { border: none; background: transparent; padding: 0; font: inherit; color: inherit; cursor: pointer; font-weight: 600; }
+.th-sort:hover, .th-sort:focus-visible { color: var(--fg); text-decoration: underline; }
+.th-sort[data-dir='asc']::after { content: ' ▲'; font-size: 0.7em; }
+.th-sort[data-dir='desc']::after { content: ' ▼'; font-size: 0.7em; }
+
+.deal-name-cell { display: flex; align-items: flex-start; gap: 4px; min-width: 240px; }
+.deal-name { display: grid; gap: 2px; justify-items: start; }
+.quick-toggle { padding: 0 6px; border: none; background: transparent; color: var(--muted); }
+.quick-toggle:hover, .quick-toggle:focus-visible { color: var(--fg); }
+
+.next-action { min-width: 180px; }
+.next-action small.due { display: block; color: var(--muted); }
+.next-action small.due.overdue { color: var(--danger); font-weight: 600; }
+
+.cell-edit-wrap { display: inline-flex; align-items: center; gap: 4px; }
+.cell-edit { padding: 2px 6px; border: 1px dashed transparent; border-radius: 6px; background: transparent; text-align: left; }
+.cell-edit:hover { border-color: var(--line-strong); background: var(--hover); }
+.cell-edit:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.saved-mark { color: var(--ok); font-weight: 700; }
+.inline-editor { display: grid; gap: 4px; min-width: 150px; }
+.inline-editor select, .inline-editor input { font: inherit; padding: 4px 6px; border: 1px solid var(--accent); border-radius: var(--radius); background: var(--input-bg); color: var(--fg); width: 100%; }
+
+.quick-view-row > td, .quick-view-row:hover > td { background: var(--accent-soft); }
+.quick-view { display: grid; gap: 8px; padding: 4px 4px 4px 28px; }
+.quick-view dl { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px 16px; margin: 0; }
+.quick-view dt { color: var(--muted); font-size: 0.8rem; }
+.quick-view dd { margin: 0; overflow-wrap: anywhere; }
+
+@media (max-width: 720px) {
+  .deal-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .quick-view { padding-left: 4px; }
+}

@@ -8,6 +8,27 @@ export function formatDateTime(iso: string): string {
   return new Date(iso).toLocaleString('ko-KR', { dateStyle: 'medium', timeStyle: 'short' })
 }
 
+/** 'YYYY-MM-DD' 또는 ISO 시각에서 날짜 부분(YYYY-MM-DD). 입력에 적힌 달력 날짜를 그대로 쓴다. */
+export function formatDate(value: string): string {
+  return value.slice(0, 10)
+}
+
+/**
+ * 상대 시각: 방금 전 / N분 전 / N시간 전 / N일 전(30일 미만), 그 이후는 날짜.
+ * `now`는 호출처가 mock 시계(clock.now())로 넘긴다. 미래 시각은 '방금 전'.
+ */
+export function formatRelativeTime(iso: string, now: string): string {
+  const diff = new Date(now).getTime() - new Date(iso).getTime()
+  const minutes = Math.floor(diff / 60_000)
+  if (minutes < 1) return '방금 전'
+  if (minutes < 60) return `${minutes}분 전`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours}시간 전`
+  const days = Math.floor(hours / 24)
+  if (days < 30) return `${days}일 전`
+  return formatDate(iso)
+}
+
 /** ISO 시각 → <input type="datetime-local"> 값(브라우저 시간대 기준). */
 export function toLocalInput(iso: string): string {
   const date = new Date(iso)

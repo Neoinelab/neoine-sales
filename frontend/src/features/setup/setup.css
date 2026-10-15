@@ -1,0 +1,13 @@
+/* 최초 설정 화면(그룹 ④). 전역 토큰만 쓴다. */
+.setup { max-width: 640px; margin: 6vh auto; padding: 0 16px 32px; display: grid; gap: 16px; }
+.setup-steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; counter-reset: none; }
+.setup-steps li { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); color: var(--muted); font-size: 0.9rem; }
+.setup-steps li[aria-current='step'] { color: var(--accent-text); background: var(--accent-soft); border-color: var(--accent); font-weight: 600; }
+.setup-card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius-lg); box-shadow: var(--shadow-md); padding: 24px; display: grid; gap: 12px; }
+.setup-card .field input, .setup-card .field textarea, .setup-card .field select { width: 100%; }
+.setup-card .actions { justify-content: flex-end; flex-wrap: wrap; }
+.setup .field input:focus-visible, .setup .field textarea:focus-visible, .setup button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+@media (max-width: 560px) {
+  .setup { margin-top: 3vh; }
+  .setup-steps { grid-template-columns: 1fr; }
+}
