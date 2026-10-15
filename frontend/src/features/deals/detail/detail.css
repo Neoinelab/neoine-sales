@@ -1,0 +1,80 @@
+/* Deal 상세(그룹 ②) 전용 스타일. 전역 토큰(--panel, --line, --muted, --accent, --danger)과 공통 UI 토큰(--ui-*)만 쓴다. */
+
+.dd-page { display: grid; gap: 16px; min-width: 0; }
+
+/* 글자 크기 통일: Deal 상세 안의 제목(h1·h2·h3)을 뺀 모든 글자는 --font-base 하나만 쓴다(다른 화면에는 영향 없음). */
+.deal-detail { font-size: var(--font-base); }
+.deal-detail :not(h1, h2, h3, :is(h1, h2, h3) *) { font-size: var(--font-base); }
+.dd-head { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.dd-head h1 { overflow-wrap: anywhere; }
+.dd-meta { display: flex; flex-wrap: wrap; gap: 4px 16px; color: var(--muted); margin: 4px 0 0; }
+.dd-head-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+
+.dd-card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius-lg); box-shadow: var(--shadow-md); padding: 16px 20px; display: grid; gap: 10px; align-content: start; min-width: 0; }
+.dd-card h2 { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.dd-cards { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
+
+/* 라벨–값 쌍을 왼쪽에서 오른쪽으로 나열하고 넘치면 줄바꿈한다. */
+.dd-fields { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 12px 28px; margin: 0; }
+.dd-fields > .dd-kv { flex: 0 1 auto; }
+.dd-bant-value { align-items: flex-start; }
+.dd-kv { display: grid; gap: 4px; min-width: 0; align-content: start; }
+.dd-k { color: var(--muted); font-weight: 500; margin: 0; }
+.dd-v { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-width: 0; margin: 0; color: var(--fg); overflow-wrap: anywhere; }
+.dd-kv select, .dd-kv input { font: inherit; padding: 5px 8px; border: 1px solid var(--line-strong); border-radius: var(--radius); background: var(--input-bg); color: var(--fg); max-width: 100%; }
+.dd-inline-edit { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.dd-inline-edit input { width: 11rem; }
+.dd-inline-wrap { display: grid; gap: 4px; min-width: 0; }
+/* 클릭 편집 값: 평소에는 일반 값처럼 보이고, hover/focus 때만 은은한 배경과 점선 밑줄로 편집 가능함을 알린다. */
+button.dd-click { display: inline; padding: 1px 4px; margin: -1px -4px; border: none; border-bottom: 1px dashed transparent; border-radius: var(--radius); background: transparent; color: inherit; font: inherit; font-weight: inherit; text-align: left; cursor: text; overflow-wrap: anywhere; box-shadow: none; }
+button.dd-click:hover, button.dd-click:focus-visible { background: var(--accent-soft); border-bottom-color: var(--accent); }
+.dd-title button.dd-click, .dd-head h1 button.dd-click { font: inherit; }
+/* 입력기의 라벨은 접근성 이름으로만 쓰고 화면에는 숨긴다(값 자리에서 바로 입력하게). */
+.dd-inline-edit .field > span, .dd-inline-edit .combo > label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.dd-inline-edit .field.combo { min-width: 11rem; }
+button.dd-link { border: none; background: transparent; padding: 0; color: var(--accent); text-decoration: underline; cursor: pointer; text-align: left; overflow-wrap: anywhere; }
+button.dd-small { padding: 2px 8px; }
+
+.dd-closed { margin: 0; padding: 6px 10px; border-radius: 6px; background: var(--ui-neutral-bg); color: var(--ui-neutral-fg); }
+.dd-closed[data-outcome='won'] { background: var(--ui-ok-bg); color: var(--ui-ok-fg); }
+.dd-closed[data-outcome='lost'] { background: var(--ui-bad-bg); color: var(--ui-bad-fg); }
+
+.dd-dl { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px; margin: 0; }
+.dd-dl dt { color: var(--muted); }
+.dd-dl dd { margin: 0; overflow-wrap: anywhere; }
+.dd-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.dd-bant { display: grid; gap: 10px; }
+.dd-bant-item { display: grid; gap: 4px; }
+.dd-bant-item select, .dd-bant-item input { font: inherit; padding: 5px 8px; border: 1px solid var(--line-strong); border-radius: var(--radius); background: var(--input-bg); color: var(--fg); max-width: 100%; }
+.dd-history-old { border-top: 1px dashed var(--line); padding-top: 8px; }
+.dd-history-old ul { margin: 6px 0 0; padding-left: 18px; color: var(--muted); }
+
+.dd-scroll { overflow-x: auto; }
+.dd-scroll table { min-width: 560px; }
+.dd-table td.wrap { max-width: 280px; }
+.dd-toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; }
+.dd-search { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--panel); }
+.dd-search .field { min-width: 8rem; }
+
+.dd-action-grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 12px; align-items: start; }
+.dd-action-grid aside { order: 2; }
+.dd-form { display: grid; gap: 10px; padding: 16px 20px; border: 1px solid var(--line); border-radius: var(--radius-lg); box-shadow: var(--shadow-md); background: var(--panel); }
+.dd-form .field textarea { resize: vertical; }
+.dd-form-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.dd-prev { padding: 12px 14px; border: 1px dashed var(--line); border-radius: 8px; display: grid; gap: 6px; background: var(--panel); }
+.dd-prev h3 { font-size: 0.95rem; }
+
+.dd-count { color: var(--muted); }
+.dd-count.over { color: var(--danger); font-weight: 600; }
+.dd-upload { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; }
+.dd-upload .field { min-width: 12rem; }
+.dd-muted { color: var(--muted); }
+
+@media (max-width: 720px) {
+  .dd-action-grid { grid-template-columns: 1fr; }
+  .dd-action-grid aside { order: -1; }
+  .dd-dl { grid-template-columns: 1fr; gap: 0; }
+  .dd-dl dd { margin-bottom: 6px; }
+  .dd-inline-edit input { width: 100%; }
+  .dd-search .field { flex: 1 1 8rem; }
+}

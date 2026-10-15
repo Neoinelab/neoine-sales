@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { dayStart, formatAmount, fromLocalInput, nextDay, toLocalInput } from './format'
+import { dayStart, formatAmount, formatDate, formatRelativeTime, fromLocalInput, nextDay, toLocalInput } from './format'
 
 describe('nextDay', () => {
   it('returns the following date across month and year ends', () => {
@@ -20,6 +20,32 @@ describe('formatAmount', () => {
     expect(formatAmount('150000000', 'KRW')).toBe('150,000,000 KRW')
     expect(formatAmount('1234567.8912', 'USD')).toBe('1,234,567.8912 USD')
     expect(formatAmount('0', 'KRW')).toBe('0 KRW')
+  })
+})
+
+describe('formatRelativeTime', () => {
+  const now = '2026-10-15T12:00:00+09:00'
+
+  it('shows minutes, hours and days ago', () => {
+    expect(formatRelativeTime('2026-10-15T11:59:40+09:00', now)).toBe('방금 전')
+    expect(formatRelativeTime('2026-10-15T11:30:00+09:00', now)).toBe('30분 전')
+    expect(formatRelativeTime('2026-10-15T09:00:00+09:00', now)).toBe('3시간 전')
+    expect(formatRelativeTime('2026-10-12T12:00:00+09:00', now)).toBe('3일 전')
+  })
+
+  it('falls back to a date after 30 days', () => {
+    expect(formatRelativeTime('2026-08-01T12:00:00+09:00', now)).toBe('2026-08-01')
+  })
+
+  it('treats a future time as just now', () => {
+    expect(formatRelativeTime('2026-10-15T13:00:00+09:00', now)).toBe('방금 전')
+  })
+})
+
+describe('formatDate', () => {
+  it('keeps a YYYY-MM-DD date as is and cuts the time from an ISO instant', () => {
+    expect(formatDate('2026-10-15')).toBe('2026-10-15')
+    expect(formatDate('2026-10-15T09:30:00+09:00')).toBe('2026-10-15')
   })
 })
 

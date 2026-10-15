@@ -1,0 +1,35 @@
+/* Admin 화면 공통 스타일(그룹 ④). 전역 토큰(--panel --line --muted --accent --danger)과 shared/ui/ui.css의 --ui-* 토큰만 쓴다. */
+.admin-page { display: grid; gap: 16px; min-width: 0; }
+.admin-page > h2 { display: flex; align-items: center; gap: 8px; }
+.admin-card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius-lg); box-shadow: var(--shadow-md); padding: 20px; display: grid; gap: 12px; min-width: 0; }
+.admin-card > header { display: grid; gap: 4px; }
+.admin-card h3 { font-size: 1.05rem; }
+.admin-form-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; }
+.admin-form-row .field { flex: 1 1 160px; min-width: 0; }
+.admin-form-row .field input, .admin-form-row .field select { width: 100%; }
+.admin-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px 14px; }
+.admin-grid .field input, .admin-grid .field select, .admin-grid .field textarea { width: 100%; }
+.admin-grid .wide { grid-column: 1 / -1; }
+.table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--panel); box-shadow: var(--shadow-sm); }
+.table-wrap > table { border: none; border-radius: 0; box-shadow: none; min-width: 640px; }
+.table-wrap td.empty { text-align: center; color: var(--muted); padding: 20px 10px; }
+.table-wrap tbody tr:last-child td { border-bottom: none; }
+.admin-page .row-actions { gap: 6px; flex-wrap: wrap; }
+.admin-page .field input:focus-visible, .admin-page .field select:focus-visible, .admin-page .field textarea:focus-visible,
+.admin-page button:focus-visible, .admin-nav a:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.admin-page button.small { padding: 2px 8px; font-size: 0.85rem; }
+.admin-page .num { text-align: right; white-space: nowrap; }
+.admin-page .muted { color: var(--muted); }
+.admin-page .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.85rem; }
+.inline-edit { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 0; }
+.inline-edit input { font: inherit; padding: 4px 8px; border: 1px solid var(--line-strong); border-radius: var(--radius); background: var(--input-bg); color: var(--fg); min-width: 0; flex: 1 1 140px; }
+.sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+.field-error { color: var(--danger); margin: 0; font-size: 0.85rem; }
+.label-columns { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 16px; }
+.label-columns .table-wrap > table { min-width: 0; }
+.stat { font-variant-numeric: tabular-nums; }
+.admin-note { margin: 0; padding: 8px 12px; border-radius: var(--radius); background: var(--ui-warn-bg, var(--risk-stale)); color: var(--ui-warn-fg, var(--warn)); }
+@media (max-width: 720px) {
+  .admin-card { padding: 12px; }
+  .label-columns { grid-template-columns: 1fr; }
+}

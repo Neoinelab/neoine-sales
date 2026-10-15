@@ -1,0 +1,38 @@
+/* Forecast 화면 전용. 색은 index.css / ui.css 토큰만 쓴다(라이트·다크 자동). */
+.fc-page { display: grid; gap: 16px; min-width: 0; }
+.fc-filters { padding: 14px 16px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); }
+.fc-filters .field { min-width: 120px; }
+
+.fc-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+.fc-card { display: grid; gap: 2px; padding: 14px 18px; background: var(--panel); border: 1px solid var(--line); border-left: 4px solid var(--accent); border-radius: var(--radius-lg); box-shadow: var(--shadow-md); }
+.fc-card-won { border-left-color: var(--ok); }
+.fc-card h2 { font-size: 0.85rem; color: var(--muted); font-weight: 600; margin: 0; }
+.fc-card-value { margin: 0; font-size: 1.6rem; font-weight: 700; }
+
+.fc-scroll { overflow-x: auto; max-width: 100%; border-radius: 8px; }
+.fc-scroll:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.fc-table { min-width: 720px; }
+.fc-table th, .fc-table td { white-space: nowrap; }
+.fc-table td:first-child, .fc-table th:first-child { position: sticky; left: 0; background: var(--panel); }
+.fc-num { text-align: right !important; font-variant-numeric: tabular-nums; }
+.fc-total { background: var(--ui-info-bg); }
+.fc-table td.fc-total { font-weight: 600; }
+.fc-table tfoot th, .fc-table tfoot td { font-weight: 700; border-top: 2px solid var(--line); }
+.fc-zero { color: var(--muted); }
+.fc-sub { font-size: 0.8rem; }
+.fc-table tr.fc-selected th, .fc-table tr.fc-selected td { background: var(--ui-info-bg); }
+
+button.fc-owner { border: none; background: transparent; padding: 2px 4px; font-weight: 600; color: var(--accent); text-decoration: underline; text-underline-offset: 3px; }
+button.fc-owner[aria-pressed='true'] { background: var(--accent); color: var(--on-accent); text-decoration: none; border-radius: 6px; }
+button.fc-owner:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.fc-owner-deals { display: grid; gap: 10px; padding: 20px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius-lg); box-shadow: var(--shadow-md); min-width: 0; }
+.fc-owner-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.fc-owner-head h2 { margin: 0; font-size: 1.1rem; }
+.fc-empty { padding: 32px 16px; text-align: center; color: var(--muted); background: var(--panel); border: 1px dashed var(--line); border-radius: 8px; margin: 0; }
+
+@media (max-width: 640px) {
+  .fc-filters .field { flex: 1 1 calc(50% - 10px); min-width: 0; }
+  .fc-filters .field select { width: 100%; }
+  .fc-card-value { font-size: 1.3rem; }
+}

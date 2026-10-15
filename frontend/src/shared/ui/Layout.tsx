@@ -1,43 +1,65 @@
-import { NavLink, Outlet } from 'react-router'
-import { useLogout, useMe, usePermissions } from '../../features/auth/hooks'
+import { useState } from 'react'
+import { NavLink, Outlet, useNavigate } from 'react-router'
+import { useLogout, usePermissions } from '../../data/auth'
+import { visibleMenu } from '../model/permissions'
 
-const links = [
-  { to: '/deals', label: '딜' },
-  { to: '/customers', label: '고객' },
-  { to: '/partners', label: '파트너' },
-  { to: '/actions', label: '활동 검색' },
-]
+const MENU_LABELS: Record<string, string> = {
+  '/dashboard': 'Dashboard',
+  '/deals': 'Deals',
+  '/forecast': 'Forecast',
+  '/reports': 'Reports',
+  '/admin': 'Admin',
+}
 
-const adminLinks = [
-  { to: '/users', label: '사용자 관리' },
-  { to: '/settings', label: '설정' },
-]
-
+/** 상단 메뉴(사용자 4개 + admin에게만 Admin), 사용자 표시, 로그아웃. 목업 배지는 App이 그 위에 그린다. */
 export function Layout() {
-  const me = useMe()
+  const { me, role } = usePermissions()
   const logout = useLogout()
-  const { isAdmin } = usePermissions()
-  const menu = isAdmin ? [...links, ...adminLinks] : links
+  const navigate = useNavigate()
+  const menu = visibleMenu(role)
+  const [open, setOpen] = useState(false)
   return (
     <>
       <header className="topbar">
-        <strong>neoine-sales</strong>
-        <nav aria-label="주 메뉴">
-          {menu.map((link) => (
-            <NavLink key={link.to} to={link.to}>
-              {link.label}
-            </NavLink>
-          ))}
-        </nav>
-        <span className="spacer" />
-        {me.data && (
-          <span>
-            {me.data.name} ({me.data.role})
-          </span>
-        )}
-        <button type="button" onClick={() => logout.mutate()}>
-          로그아웃
+        <span className="brand">
+          <strong className="brand-name">NEOINE</strong>
+          <span className="brand-sub">영업관리</span>
+        </span>
+        <button
+          type="button"
+          className="topbar-toggle"
+          aria-label="메뉴 열기"
+          aria-expanded={open}
+          onClick={() => setOpen((v) => !v)}
+        >
+          <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+            <path d="M3 5h14M3 10h14M3 15h14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+          </svg>
         </button>
+        <div className={open ? 'topbar-menu open' : 'topbar-menu'}>
+          <nav aria-label="주 메뉴">
+            {menu.map((to) => (
+              <NavLink key={to} to={to} onClick={() => setOpen(false)}>
+                {MENU_LABELS[to] ?? to}
+              </NavLink>
+            ))}
+          </nav>
+          <span className="spacer" />
+          <div className="topbar-user">
+            {me && (
+              <span className="user-label">
+                {me.name} ({me.role})
+              </span>
+            )}
+            <button
+              type="button"
+              className="logout"
+              onClick={() => logout.mutate(undefined, { onSuccess: () => void navigate('/login') })}
+            >
+              로그아웃
+            </button>
+          </div>
+        </div>
       </header>
       <main className="content">
         <Outlet />
