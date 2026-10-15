@@ -1,6 +1,13 @@
 import '@testing-library/jest-dom/vitest'
 import { cleanup } from '@testing-library/react'
-import { afterEach } from 'vitest'
+import { afterEach, beforeEach } from 'vitest'
+import { defaultMock } from '../mock/default'
+import { buildSampleSeed } from './fixtures/sampleSeed'
+
+// 앱 기본 시드는 업무 데이터가 없다. 테스트는 매번 샘플 픽스처 시드로 시작한다(빈 상태 테스트는 renderAt의 seed: 'empty').
+beforeEach(() => {
+  defaultMock.setSeed(buildSampleSeed)
+})
 
 afterEach(() => {
   cleanup()

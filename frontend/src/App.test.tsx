@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { mockControl } from './gateway'
 import { renderAt } from './test/mockApp'
 
-const MOCK_BADGE = /UI 목업\(가상 데이터\)/
+const MOCK_BADGE = /UI 목업\(메모리 저장\)/
 
 function mainMenu() {
   return within(screen.getByRole('navigation', { name: '주 메뉴' }))

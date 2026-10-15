@@ -15,11 +15,10 @@ import { createMockControl } from './control'
 import { readStoredSession, setSession, type MockContext } from './gateway/context'
 import { createGatewayFor } from './gateway'
 import { createLatency } from './latency'
-import { buildSeed, type SeedFactory } from './seed'
+import { emptyBusinessSeed, type SeedFactory } from './seed'
 import { createStore } from './store'
 
 export type { SeedFactory } from './seed'
-export { seedDealCode } from './seed'
 
 export interface MockOptions {
   /** 고정 시각(오프셋 포함 ISO). 생략하면 실제 시각. */
@@ -28,7 +27,7 @@ export interface MockOptions {
   latency?: boolean
   /** true면 로그인 사용자 id를 sessionStorage에 보관/복원한다(앱 기본 인스턴스). */
   persistSession?: boolean
-  /** 시드 교체(테스트용). 기본은 계획 4.3의 시드. */
+  /** 시드 교체(테스트용). 기본은 업무 데이터가 없는 `emptyBusinessSeed`. 샘플 업무 데이터는 테스트 픽스처(`test/fixtures`)가 공급한다. */
   seed?: SeedFactory
   /** Deal code 추출용 난수(0 이상 1 미만). */
   random?: () => number
@@ -42,11 +41,13 @@ export interface MockInstance {
   clock: MockClock
   /** 로그인 상태를 직접 지정한다(null=로그아웃). 존재하지 않거나 퇴사한 id는 로그아웃으로 처리한다. */
   setSession(userId: string | null): void
+  /** 시드를 교체하고 즉시 그 시드로 되돌린다(`control.resetData()`도 이후 이 시드를 쓴다). 테스트 전용. */
+  setSeed(factory: SeedFactory): void
 }
 
 export function createMockGateway(options: MockOptions = {}): MockInstance {
   const clock = createClock(options.now ?? null)
-  const seed = options.seed ?? buildSeed
+  let seed: SeedFactory = options.seed ?? emptyBusinessSeed
   const persistSession = options.persistSession ?? false
   const latencyAvailable = options.latency ?? import.meta.env.MODE !== 'test'
   const initialUser = options.userId ?? (persistSession ? readStoredSession() : null)
@@ -74,5 +75,9 @@ export function createMockGateway(options: MockOptions = {}): MockInstance {
     control: createMockControl(ctx, reseed),
     clock,
     setSession: signIn,
+    setSeed(factory) {
+      seed = factory
+      reseed()
+    },
   }
 }

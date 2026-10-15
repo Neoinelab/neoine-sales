@@ -4,7 +4,7 @@ import type { ApiError } from '../shared/api/problem'
 import type { Gateway } from '../gateway/types'
 import type { DealInput } from '../shared/model/types'
 import { createMockGateway, type MockInstance, type MockOptions } from './index'
-import { seedDealCode } from './seed'
+import { buildSampleSeed, seedDealCode } from '../test/fixtures/sampleSeed'
 
 export const TEST_NOW = '2026-10-15T09:00:00+09:00'
 export const TEST_TODAY = '2026-10-15'
@@ -12,7 +12,7 @@ export const TEST_TODAY = '2026-10-15'
 export type LoginKey = 'root' | 'kim' | 'park' | 'lee' | 'jung' | 'han'
 
 export function newMock(options: MockOptions = {}): MockInstance {
-  return createMockGateway({ now: TEST_NOW, latency: false, ...options })
+  return createMockGateway({ now: TEST_NOW, latency: false, seed: buildSampleSeed, ...options })
 }
 
 /** 새 mock을 만들고 `u-<loginId>`로 로그인한다. */

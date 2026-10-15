@@ -77,7 +77,7 @@ describe('최초 설정 1단계: AD 서버 (T-SETUP-01)', () => {
   it('does not draw its own mock badge (the app banner does)', async () => {
     await openSetup()
 
-    expect(screen.getAllByText(/UI 목업\(가상 데이터\)/)).toHaveLength(1)
+    expect(screen.getAllByText(/UI 목업\(메모리 저장\)/)).toHaveLength(1)
   })
 
   it('saves the directory settings as one URL per line and moves to step 2', async () => {

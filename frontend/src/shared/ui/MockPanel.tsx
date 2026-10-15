@@ -67,7 +67,7 @@ function MockControls({ id, onDone }: { id: string; onDone: () => void }) {
         지연 끄기
       </label>
       {message && <p role="status" className="hint">{message}</p>}
-      <p className="hint">이 화면은 실제 연동이 아닙니다(가상 데이터).</p>
+      <p className="hint">이 화면은 실제 연동이 아닙니다(메모리 저장).</p>
     </div>
   )
 }
