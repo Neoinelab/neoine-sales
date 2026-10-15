@@ -7,9 +7,9 @@ import { MockPanel } from './MockPanel'
 export function MockBanner() {
   return (
     <div className="mock-banner" role="region" aria-label="목업 안내">
-      <strong className="mock-badge">UI 목업(가상 데이터)</strong>
+      <strong className="mock-badge">UI 목업(메모리 저장)</strong>
       <span className="mock-banner-text">
-        입력한 내용은 저장되지 않으며 새로고침하면 처음 상태로 돌아갑니다.
+        입력한 내용은 메모리에만 저장되며 새로고침하면 초기화됩니다.
       </span>
       <MockPanel />
     </div>
