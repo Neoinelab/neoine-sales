@@ -19,6 +19,7 @@ if TYPE_CHECKING:
 
     from app.domain.auth.credentials import LoginId
     from app.domain.auth.login_failure import FailureCounter
+    from app.domain.auth.principal import Role
     from app.domain.user.entities import User
     from app.domain.user.value_objects import UserId, UserRef
 
@@ -32,9 +33,6 @@ def _matches_status(user: User, status: UserStatusFilter) -> bool:
 class FakeUserRepository(InMemoryStore["User"]):
     def __init__(self) -> None:
         super().__init__("사용자", UserNotFoundError)
-        self.roster_locks = 0  # lock_roster 호출 횟수(advisory lock 대용 기록)
-        self.row_locks: list[UserId] = []  # get_for_update로 잠근 id 기록
-        self.assign_locks: list[UserId] = []  # lock_assignable로 잠근 id 기록
         self._referrers: list[Callable[[UserId], bool]] = []
         # True면 없는 사용자(자기 자신 제외)를 created_by로 가리키는 add를 거부한다(SQL FK 모사)
         self.enforce_creator_fk = False
@@ -53,7 +51,6 @@ class FakeUserRepository(InMemoryStore["User"]):
         return self._fetch(user_id)
 
     async def get_for_update(self, user_id: UserId) -> User:
-        self.row_locks.append(user_id)
         return self._fetch(user_id)
 
     async def get_refs(self, user_ids: Collection[UserId]) -> Mapping[UserId, UserRef]:
@@ -81,18 +78,26 @@ class FakeUserRepository(InMemoryStore["User"]):
         return [copy.deepcopy(u) for u in found[offset : offset + limit]]
 
     async def search_refs(
-        self, *, keyword: str | None, include_resigned: bool, limit: int
+        self,
+        *,
+        keyword: str | None,
+        include_resigned: bool,
+        role: Role | None = None,
+        limit: int | None = None,
     ) -> Sequence[UserRef]:
-        check_page(0, limit)
+        if limit is not None:
+            check_page(0, limit)
         needle = keyword.lower() if keyword else None
         found = [
             u
             for u in self._items.values()
             if (include_resigned or u.is_active)
+            and (role is None or u.role is role)
             and (needle is None or needle in u.to_ref().name.lower())  # 표시 이름(없으면 아이디)만
         ]
         found.sort(key=lambda u: (u.created_at, str(u.id)))
-        return [u.to_ref() for u in found[:limit]]
+        chosen = found if limit is None else found[:limit]
+        return [u.to_ref() for u in chosen]
 
     def names_of(self, user_id: UserId) -> list[str]:
         """키워드 검색용 이름 후보(표시 이름, 로그인 아이디). Deal Fake의 조인 대용."""
@@ -120,10 +125,7 @@ class FakeUserRepository(InMemoryStore["User"]):
 
     async def lock_assignable(self, user_id: UserId) -> bool:
         user = self._items.get(user_id)
-        if user is None or not user.is_active:
-            return False
-        self.assign_locks.append(user_id)
-        return True
+        return user is not None and user.is_active
 
     async def delete(self, user_id: UserId) -> None:
         self._fetch(user_id)
@@ -132,7 +134,7 @@ class FakeUserRepository(InMemoryStore["User"]):
         self._remove(user_id)
 
     async def lock_roster(self) -> None:
-        self.roster_locks += 1
+        """단일 스레드 Fake에는 경쟁이 없어 잠금 자체는 없다."""
 
 
 class FakeLoginFailureRepository:

@@ -14,3 +14,73 @@ DROP_DELETED_AT_REVISION: Final = (
     "f4b8d2a6c9e1"  # 모든 테이블 deleted_at 제거(= 사용자 FK 이전 head)
 )
 LEGACY_HEAD: Final = DROP_DELETED_AT_REVISION
+USER_FK_REVISION: Final = "0d248153ec93"  # 사용자 참조를 users.id FK로 통일(= 코드·Label 이전 head)
+CODES_REVISION: Final = "c5d8e2f4a916"  # codes + bant_labels + 기본값 시드(= 연락처 통합 이전 head)
+
+
+CONTACTS_REVISION: Final = "66ebcb3da2da"  # 연락처 통합(= P1 Deal 모델 이전 head)
+
+
+def deal_model_revision() -> str:
+    """P1 Deal 모델 재구성(M-P1 `deal_model_v2`) 리비전 id: CONTACTS_REVISION 바로 다음 리비전이다.
+
+    id는 구현이 정하므로 그래프에서 찾는다. 없거나 둘 이상이면 AssertionError(구현 전에는
+    이것이 red다).
+    """
+    from alembic.script import ScriptDirectory  # noqa: PLC0415
+
+    from tests.support.database import _alembic_config  # noqa: PLC0415
+
+    script = ScriptDirectory.from_config(_alembic_config())
+    children = [r.revision for r in script.walk_revisions() if r.down_revision == CONTACTS_REVISION]
+    assert len(children) == 1, f"CONTACTS_REVISION 다음 리비전이 정확히 하나여야 한다: {children}"
+    return children[0]
+
+
+def action_snapshot_revision() -> str:
+    """P2 Action 스냅숏(M-P2 `action_snapshot`) 리비전 id: M-P1(`deal_model_revision()`) 바로 다음.
+
+    id는 구현이 정하므로 그래프에서 찾는다. 없거나 둘 이상이면 AssertionError(구현 전에는
+    이것이 red다).
+    """
+    from alembic.script import ScriptDirectory  # noqa: PLC0415
+
+    from tests.support.database import _alembic_config  # noqa: PLC0415
+
+    previous = deal_model_revision()
+    script = ScriptDirectory.from_config(_alembic_config())
+    children = [r.revision for r in script.walk_revisions() if r.down_revision == previous]
+    assert len(children) == 1, f"M-P1 다음 리비전이 정확히 하나여야 한다: {children}"
+    return children[0]
+
+
+def attachments_revision() -> str:
+    """P2b 첨부 파일(M-P2b `attachments`) 리비전 id: M-P2(`action_snapshot_revision()`) 바로 다음.
+
+    storage_settings·deal_attachments 두 테이블을 만드는 단일 리비전이다. id는 구현이 정하므로
+    그래프에서 찾는다. 없거나 둘 이상이면 AssertionError(구현 전에는 이것이 red다).
+    """
+    from alembic.script import ScriptDirectory  # noqa: PLC0415
+
+    from tests.support.database import _alembic_config  # noqa: PLC0415
+
+    previous = action_snapshot_revision()
+    script = ScriptDirectory.from_config(_alembic_config())
+    children = [r.revision for r in script.walk_revisions() if r.down_revision == previous]
+    assert len(children) == 1, f"M-P2 다음 리비전이 정확히 하나여야 한다: {children}"
+    return children[0]
+
+
+def contacts_revision() -> str:
+    """연락처 통합(R2) 리비전 id: CODES_REVISION 바로 다음의 리비전이다(id는 구현이 정한다).
+
+    상수 대신 그래프에서 찾는다. 없거나 둘 이상이면 AssertionError(구현 전에는 이것이 red다).
+    """
+    from alembic.script import ScriptDirectory  # noqa: PLC0415
+
+    from tests.support.database import _alembic_config  # noqa: PLC0415
+
+    script = ScriptDirectory.from_config(_alembic_config())
+    children = [r.revision for r in script.walk_revisions() if r.down_revision == CODES_REVISION]
+    assert len(children) == 1, f"CODES_REVISION 다음 리비전이 정확히 하나여야 한다: {children}"
+    return children[0]

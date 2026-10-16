@@ -1,187 +1,183 @@
-"""테스트용 엔티티·값 객체 생성 도우미. 기본은 유효한 더미 값이고 overrides로 일부만 바꾼다."""
+"""테스트용 엔티티·값 객체 생성 도우미. 기본은 유효한 더미 값이고 overrides로 일부만 바꾼다.
+
+Deal 모델(P1 R2)의 모듈은 이 모듈을 쓰는 모든 테스트가 가져오므로 사용 시점에 가져온다. 새 모델
+구현이 없는 동안에도 사용자·코드·연락처 테스트의 수집이 막히면 안 되기 때문이다.
+"""
 
 from datetime import UTC, date, datetime, timedelta
-from decimal import Decimal
-from typing import Any
-from uuid import UUID, uuid4
+from typing import TYPE_CHECKING, Any, cast
+from uuid import uuid4
 
-from app.application.customer.inputs import CustomerInput
-from app.application.deal.inputs import DealInput, StageChangeInput
-from app.application.deal_action.inputs import DealActionInput
-from app.application.partner.inputs import PartnerInput
-from app.domain.common.contact import Email, PhoneNumber
-from app.domain.common.money import Money
-from app.domain.customer.entities import Customer
-from app.domain.customer.value_objects import CustomerDetails, CustomerId
-from app.domain.deal.entities import Deal
-from app.domain.deal.stage import DealStage, DealStageChange, DealStageChangeId, StageChanger
-from app.domain.deal.value_objects import DealCode, DealDetails, DealId
-from app.domain.deal_action.entities import DealAction
-from app.domain.deal_action.value_objects import ActionType, DealActionDetails
-from app.domain.partner.entities import Partner
-from app.domain.partner.value_objects import PartnerDetails
-from app.domain.user.value_objects import UserId
-from tests.support.user_ids import ACTOR_ID, CHANGER_ID, OWNER_ID
+from tests.support.user_ids import ACTOR_ID, OWNER_ID
+
+if TYPE_CHECKING:
+    from app.application.deal_action.inputs import ActionContentInput, DealActionInput
+    from app.domain.contact.values import ContactId
+    from app.domain.deal.code import DealCode
+    from app.domain.deal.entities import Deal
+    from app.domain.deal.values import DealDetails
+    from app.domain.deal_action.entities import DealAction
+    from app.domain.deal_action.value_objects import ActionContent
+
+# 연락처(고객·파트너) 생성 도우미는 `tests/factories_contact.py`다. 이 모듈은 연락처 구현이 없어도
+# 가져올 수 있어야 하므로(Deal·사용자 테스트 공용) 연락처 모듈을 모듈 수준에서 가져오지 않는다.
 
 NOW = datetime(2026, 1, 1, 9, 0, tzinfo=UTC)
+DEAL_DAY = date(2026, 10, 16)  # 팩토리 Deal code의 날짜 부분(YYYYMMDD = 20261016)
 
 
 def later(seconds: int = 60) -> datetime:
     return NOW + timedelta(seconds=seconds)
 
 
-def make_customer_details(**overrides: object) -> CustomerDetails:
+def new_contact_id() -> ContactId:
+    """저장소에 없는 새 연락처 id(Deal 테스트가 연락처 구현 없이도 id만 필요할 때)."""
+    return cast("ContactId", uuid4())
+
+
+def make_deal_code(suffix: str | int = "A001", day: date = DEAL_DAY) -> DealCode:
+    """`YYYYMMDD-XXXX`. 정수는 0으로 채운 4자리 숫자 suffix다(7 -> 20261016-0007)."""
+    from app.domain.deal.code import DealCode  # noqa: PLC0415 - 지연 import(모듈 설명 참고)
+
+    text = f"{suffix:04d}" if isinstance(suffix, int) else suffix
+    return DealCode.issue(day, text)
+
+
+def make_deal_details(**overrides: Any) -> DealDetails:  # noqa: ANN401
+    """overrides: name, owner_user_id, vendor, solution, users, revenue_amount(int), revenue_date,
+    quote, poc, procurement. revenue_amount는 int를 주면 RevenueAmount로 감싼다."""
+    from app.domain.deal.values import (  # noqa: PLC0415
+        DealDetails,
+        Poc,
+        Quote,
+        RevenueAmount,
+    )
+
     values: dict[str, Any] = {
-        "company_name": "네오인",
-        "contact_name": "김철수",
-        "contact_title": "팀장",
-        "email": Email("kim@neoine.example"),
-        "phone": PhoneNumber("010-1234-5678"),
-        "employee_count": 120,
-        "notes": "초기 미팅 완료",
-    }
-    return CustomerDetails(**{**values, **overrides})
-
-
-def make_customer(now: datetime = NOW, **overrides: object) -> Customer:
-    return Customer.create(make_customer_details(**overrides), now)
-
-
-def make_partner_details(**overrides: object) -> PartnerDetails:
-    values: dict[str, Any] = {
-        "company_name": "한빛파트너스",
-        "contact_name": "이영희",
-        "contact_title": "이사",
-        "email": Email("lee@hanbit.example"),
-        "phone": PhoneNumber("02-123-4567"),
-    }
-    return PartnerDetails(**{**values, **overrides})
-
-
-def make_partner(now: datetime = NOW, **overrides: object) -> Partner:
-    return Partner.create(make_partner_details(**overrides), now)
-
-
-def make_deal_details(**overrides: object) -> DealDetails:
-    code = overrides.get("code")
-    if isinstance(code, str):  # 편의: 문자열 코드를 DealCode로 변환
-        overrides["code"] = DealCode(code)
-    values: dict[str, Any] = {
-        "code": DealCode("DEAL-001"),
         "name": "ERP 구축",
         "owner_user_id": OWNER_ID,
         "vendor": "SAP",
         "solution": "S/4HANA",
-        "revenue": Money(Decimal("150000000")),
+        "users": None,
+        "revenue_amount": 150_000_000,
         "revenue_date": date(2026, 6, 30),
-        "customer_id": CustomerId(uuid4()),
-        "partner_id": None,
+        "quote": Quote(submitted=None, submitted_date=None),
+        "poc": Poc(state=None, completed_date=None),
+        "procurement": "",
+        **overrides,
     }
-    return DealDetails(**{**values, **overrides})
+    if isinstance(values["revenue_amount"], int):
+        values["revenue_amount"] = RevenueAmount(values["revenue_amount"])
+    return DealDetails(**values)
 
 
-def make_deal(now: datetime = NOW, **overrides: object) -> Deal:
-    """overrides는 DealDetails 값(owner_user_id=담당자). registered_by_user_id(등록자)만 엔티티."""
-    registered_by = overrides.pop("registered_by_user_id", None)
-    details = make_deal_details(**overrides)
-    if registered_by is None:
-        return Deal.create(details, now)
-    assert isinstance(registered_by, UUID)
-    return Deal.create(details, now, registered_by_user_id=UserId(registered_by))
+def make_bant(**selected: Any) -> Any:  # noqa: ANN401
+    """BANT 선택(구분당 Label id 하나 또는 None). 예: make_bant(budget=label.id)."""
+    from app.domain.deal.values import BantSelection  # noqa: PLC0415
+
+    return BantSelection(
+        **{"budget": None, "authority": None, "need": None, "timeline": None, **selected}
+    )
 
 
-def make_customer_input(**overrides: object) -> CustomerInput:
+def make_sync(status_key: str = "prospecting", forecast_key: str = "pipeline") -> Any:  # noqa: ANN401
+    from app.domain.deal.sync import SyncState  # noqa: PLC0415
+
+    return SyncState(status_key=status_key, forecast_key=forecast_key)
+
+
+def make_deal(  # noqa: PLR0913 - Deal 생성에 필요한 값이 모두 독립적인 선택지
+    now: datetime = NOW,
+    *,
+    code: str | DealCode | None = None,
+    customer_id: ContactId | None = None,
+    partner_id: ContactId | None = None,
+    status_key: str = "prospecting",
+    forecast_key: str = "pipeline",
+    bant: Any = None,  # noqa: ANN401
+    **detail_overrides: Any,  # noqa: ANN401
+) -> Deal:
+    """저장하지 않은 Deal. code는 `YYYYMMDD-XXXX` 문자열(또는 DealCode), 생략하면 20261016-A001.
+
+    detail_overrides는 `make_deal_details`와 같다(owner_user_id = Owner).
+    """
+    from app.domain.deal.code import DealCode  # noqa: PLC0415
+    from app.domain.deal.entities import Deal  # noqa: PLC0415
+
+    deal_code = code if isinstance(code, DealCode) else DealCode(code or "20261016-A001")
+    return Deal.create(
+        code=deal_code,
+        details=make_deal_details(**detail_overrides),
+        sync=make_sync(status_key, forecast_key),
+        customer_id=customer_id or new_contact_id(),
+        partner_id=partner_id,
+        bant=bant if bant is not None else make_bant(),
+        now=now,
+    )
+
+
+def _action_fields(overrides: dict[str, Any]) -> dict[str, Any]:
+    """Action 내용 입력의 기본값(유효한 더미)에 overrides를 얹는다. P2 모델: 길이 상한 없음."""
+    from app.domain.deal_action.value_objects import ActionType  # noqa: PLC0415 - 지연 import
+
     values: dict[str, Any] = {
-        "company_name": "네오인",
-        "contact_name": "김철수",
-        "contact_title": "팀장",
-        "email": "Kim@Neoine.Example",
-        "phone": "010-1234-5678",
-        "employee_count": 120,
-        "notes": "초기 미팅 완료",
-    }
-    return CustomerInput(**{**values, **overrides})
-
-
-def make_partner_input(**overrides: object) -> PartnerInput:
-    values: dict[str, Any] = {
-        "company_name": "한빛파트너스",
-        "contact_name": "이영희",
-        "contact_title": "이사",
-        "email": "lee@hanbit.example",
-        "phone": "02-123-4567",
-    }
-    return PartnerInput(**{**values, **overrides})
-
-
-def make_deal_input(customer_id: UUID, **overrides: object) -> DealInput:
-    values: dict[str, Any] = {
-        "code": "deal-001",
-        "name": "ERP 구축",
-        "owner_user_id": OWNER_ID,
-        "vendor": "SAP",
-        "solution": "S/4HANA",
-        "revenue_amount": Decimal("150000000"),
-        "revenue_date": date(2026, 6, 30),
-        "customer_id": customer_id,
-    }
-    return DealInput(**{**values, **overrides})
-
-
-def make_deal_action_details(**overrides: object) -> DealActionDetails:
-    values: dict[str, Any] = {
-        "deal_id": DealId(uuid4()),
         "action_type": ActionType.MEETING,
         "action": "킥오프 미팅",
-        "acted_at": NOW,
-        "actor_user_id": ACTOR_ID,
         "next_action": "요구사항 문서 전달",
         "due_date": date(2026, 1, 15),
         "memo": "요구사항 정리",
     }
-    return DealActionDetails(**{**values, **overrides})
+    return {**values, **overrides}
 
 
-def make_deal_action(now: datetime = NOW, **overrides: object) -> DealAction:
-    return DealAction.create(make_deal_action_details(**overrides), now)
+def make_action_content(**overrides: Any) -> ActionContent:  # noqa: ANN401
+    """검증을 마친 Action 내용(`ActionContent.parse`). overrides: action_type, action,
+    next_action, due_date, memo."""
+    from app.domain.deal_action.value_objects import ActionContent  # noqa: PLC0415 - 지연 import
+
+    return ActionContent.parse(**_action_fields(overrides))
 
 
-def make_deal_action_input(**overrides: object) -> DealActionInput:
-    values: dict[str, Any] = {
-        "action_type": ActionType.MEETING,
-        "action": "킥오프 미팅",
-        "acted_at": NOW,
-        "actor_user_id": ACTOR_ID,
-        "next_action": "요구사항 문서 전달",
-        "due_date": date(2026, 1, 15),
-        "memo": "요구사항 정리",
-    }
-    return DealActionInput(**{**values, **overrides})
+def make_deal_action(
+    now: datetime = NOW,
+    *,
+    deal_code: DealCode | None = None,
+    actor_user_id: Any = ACTOR_ID,  # noqa: ANN401
+    snapshot: Any = None,  # noqa: ANN401
+    entity_id: Any = None,  # noqa: ANN401
+    **content_overrides: Any,  # noqa: ANN401
+) -> DealAction:
+    """저장하지 않은 Action(`DealAction.record`). 수행 시각 = now(`acted_at`을 주면 그 값).
+
+    content_overrides는 `make_action_content`와 같다. 스냅숏 기본은 prospecting/pipeline이다.
+    """
+    from app.domain.deal_action.entities import DealAction  # noqa: PLC0415 - 지연 import
+
+    acted_at = content_overrides.pop("acted_at", now)
+    return DealAction.record(
+        deal_code=deal_code or make_deal_code(),
+        content=make_action_content(**content_overrides),
+        actor_user_id=actor_user_id,
+        snapshot=snapshot or make_sync(),
+        now=acted_at,
+        entity_id=entity_id,
+    )
 
 
-def make_stage_changer(**overrides: object) -> StageChanger:
-    values: dict[str, Any] = {"user_id": CHANGER_ID}
-    return StageChanger(**{**values, **overrides})
+def make_deal_action_input(**overrides: Any) -> ActionContentInput:  # noqa: ANN401
+    """수정 입력(`ActionContentInput`). overrides는 `make_action_content`와 같다."""
+    from app.application.deal_action.inputs import ActionContentInput  # noqa: PLC0415 - 지연 import
+
+    return ActionContentInput(**_action_fields(overrides))
 
 
-def make_stage_change(**overrides: object) -> DealStageChange:
-    """유효한 단계 이력 한 건(기본: 기회발굴 → 제품소개)."""
-    values: dict[str, Any] = {
-        "id": DealStageChangeId(uuid4()),
-        "deal_id": DealId(uuid4()),
-        "from_stage": DealStage.PROSPECTING,
-        "to_stage": DealStage.INTRODUCTION,
-        "reason": "제품 소개 완료",
-        "changed_by": make_stage_changer(),
-        "changed_at": NOW,
-    }
-    return DealStageChange(**{**values, **overrides})
+def make_register_input(
+    status_change: Any = None,  # noqa: ANN401
+    **content_overrides: Any,  # noqa: ANN401
+) -> DealActionInput:
+    """등록 입력(`DealActionInput`): 내용 + 선택적 `StatusChangeInput`."""
+    from app.application.deal_action.inputs import DealActionInput  # noqa: PLC0415 - 지연 import
 
-
-def make_stage_change_input(**overrides: object) -> StageChangeInput:
-    values: dict[str, Any] = {
-        "stage": DealStage.INTRODUCTION,
-        "reason": None,
-        "changed_by_user_id": CHANGER_ID,
-    }
-    return StageChangeInput(**{**values, **overrides})
+    return DealActionInput(
+        content=make_deal_action_input(**content_overrides), status_change=status_change
+    )

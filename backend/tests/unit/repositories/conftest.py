@@ -1,0 +1,83 @@
+"""Repository 계약 테스트용 fixture.
+
+같은 계약 테스트가 InMemory Fake와 SQLAlchemy 구현(실제 PostgreSQL 임시 DB) 양쪽에서 돈다.
+SQL 구현 case에는 integration 마커가 붙고, DB를 쓸 수 없으면 건너뛴다.
+새 구현은 각 `*_case.py`의 PARAMS와 open 함수에 추가해 같은 테스트를 적용한다.
+
+연락처(고객·파트너 통합)는 `contact_case.py`의 `contacts` fixture를 쓴다(Port 모양이 다르다).
+"""
+
+from typing import TYPE_CHECKING
+
+import pytest
+import pytest_asyncio
+
+from tests.unit.repositories.attachment_case import PARAMS as ATTACHMENT_PARAMS
+from tests.unit.repositories.attachment_case import AttachmentCase, open_attachment_case
+from tests.unit.repositories.catalog_case import PARAMS as CATALOG_PARAMS
+from tests.unit.repositories.catalog_case import CatalogCase, open_catalog
+from tests.unit.repositories.contact_case import PARAMS as CONTACT_PARAMS
+from tests.unit.repositories.contact_case import ContactCase, open_contacts
+from tests.unit.repositories.deal_action_case import PARAMS as ACTION_PARAMS
+from tests.unit.repositories.deal_action_case import Case as ActionCase
+from tests.unit.repositories.deal_action_case import open_case
+from tests.unit.repositories.deal_case import PARAMS as DEAL_PARAMS
+from tests.unit.repositories.deal_case import DealCase, open_deal_case
+from tests.unit.repositories.file_storage_case import PARAMS as FILE_STORAGE_PARAMS
+from tests.unit.repositories.file_storage_case import (
+    FileStorageCase,
+    open_fake_case,
+    open_local_case,
+)
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncIterator
+    from pathlib import Path
+
+
+@pytest.fixture(params=FILE_STORAGE_PARAMS)
+def file_case(request: pytest.FixtureRequest, tmp_path: Path) -> FileStorageCase:
+    """FileStorage 계약 테스트용 case (fake / local, local은 tmp_path 아래 실제 디렉터리)."""
+    if request.param == "fake":
+        return open_fake_case()
+    return open_local_case(tmp_path)
+
+
+@pytest_asyncio.fixture(params=DEAL_PARAMS)
+async def deal_case(request: pytest.FixtureRequest) -> AsyncIterator[DealCase]:
+    """DealRepository·DealHistoryRepository 계약 테스트용 case (fake / sql)."""
+    url = request.getfixturevalue("test_database_url") if request.param == "sql" else None
+    async with open_deal_case(request.param, url) as provided:
+        yield provided
+
+
+@pytest_asyncio.fixture(params=CONTACT_PARAMS)
+async def contacts(request: pytest.FixtureRequest) -> AsyncIterator[ContactCase]:
+    """ContactRepository(와 연락처를 참조하는 Deal) 계약 테스트용 case (fake / sql)."""
+    url = request.getfixturevalue("test_database_url") if request.param == "sql" else None
+    async with open_contacts(request.param, url) as provided:
+        yield provided
+
+
+@pytest_asyncio.fixture(params=CATALOG_PARAMS)
+async def catalog(request: pytest.FixtureRequest) -> AsyncIterator[CatalogCase]:
+    """CodeRepository·BantLabelRepository 계약 테스트용 case (fake / sql)."""
+    url = request.getfixturevalue("test_database_url") if request.param == "sql" else None
+    async with open_catalog(request.param, url) as provided:
+        yield provided
+
+
+@pytest_asyncio.fixture(params=ACTION_PARAMS)
+async def action_case(request: pytest.FixtureRequest) -> AsyncIterator[ActionCase]:
+    """DealActionRepository 계약 테스트용 case (fake / sql)."""
+    url = request.getfixturevalue("test_database_url") if request.param == "sql" else None
+    async with open_case(request.param, url) as provided:
+        yield provided
+
+
+@pytest_asyncio.fixture(params=ATTACHMENT_PARAMS)
+async def attachment_case(request: pytest.FixtureRequest) -> AsyncIterator[AttachmentCase]:
+    """AttachmentRepository 계약 테스트용 case (fake / sql)."""
+    url = request.getfixturevalue("test_database_url") if request.param == "sql" else None
+    async with open_attachment_case(request.param, url) as provided:
+        yield provided

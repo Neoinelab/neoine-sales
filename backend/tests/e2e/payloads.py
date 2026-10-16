@@ -1,57 +1,50 @@
 """API 요청 본문 도우미. 기본은 유효한 값이고 overrides로 일부만 바꾼다."""
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from tests.support.user_ids import ACTOR_ID, OWNER_ID
+from tests.support.user_ids import OWNER_ID
+
+if TYPE_CHECKING:
+    from httpx import AsyncClient
+
+DEALS = "/api/v1/deals"
 
 
-def customer_payload(**overrides: object) -> dict[str, Any]:
+def deal_payload(**overrides: object) -> dict[str, Any]:
+    """Deal 등록 본문(P1 모델): 고객은 ContactDraft로 함께 만들고 Owner는 기본 Owner 사용자다."""
     values: dict[str, Any] = {
-        "company_name": "네오인",
-        "contact_name": "김철수",
-        "contact_title": "팀장",
-        "email": "Kim@Neoine.Example",
-        "phone": "010-1234-5678",
-        "employee_count": 120,
-        "notes": "초기 미팅 완료",
-    }
-    return {**values, **overrides}
-
-
-def partner_payload(**overrides: object) -> dict[str, Any]:
-    values: dict[str, Any] = {
-        "company_name": "한빛파트너스",
-        "contact_name": "이영희",
-        "contact_title": "이사",
-        "email": "lee@hanbit.example",
-        "phone": "02-123-4567",
-    }
-    return {**values, **overrides}
-
-
-def deal_payload(customer_id: str, **overrides: object) -> dict[str, Any]:
-    values: dict[str, Any] = {
-        "code": "deal-001",
         "name": "ERP 구축",
         "owner_user_id": str(OWNER_ID),  # deal_users fixture(또는 SQL stack)가 이 사용자를 둔다
         "vendor": "SAP",
         "solution": "S/4HANA",
-        "revenue_amount": "150000000",
-        "revenue_currency": "KRW",
+        "users": None,
+        "status_key": "prospecting",
+        "forecast_key": "pipeline",
+        "revenue_amount": 150_000_000,
         "revenue_date": "2026-06-30",
-        "customer_id": customer_id,
+        "customer": {
+            "contact_id": None,
+            "company": "네오인",
+            "name": "김철수",
+            "title": "팀장",
+            "email": "kim@neoine.example",
+            "phone": "010-1234-5678",
+        },
+        "partner": None,
+        "quote": {"submitted": None, "submitted_date": None},
+        "poc": {"state": None, "completed_date": None},
+        "procurement": "",
+        "bant": {"budget": None, "authority": None, "need": None, "timeline": None},
     }
     return {**values, **overrides}
 
 
-def action_payload(**overrides: object) -> dict[str, Any]:
-    values: dict[str, Any] = {
-        "action_type": "meeting",
-        "action": "킥오프 미팅",
-        "acted_at": "2026-03-02T10:00:00+09:00",
-        "actor_user_id": str(ACTOR_ID),
-        "next_action": "요구사항 문서 전달",
-        "due_date": "2026-03-10",
-        "memo": "요구사항 정리",
-    }
-    return {**values, **overrides}
+async def create_deal(client: AsyncClient, **overrides: object) -> dict[str, Any]:
+    """Deal을 등록하고 응답 본문을 돌려준다. Owner는 기본적으로 로그인한 클라이언트 자신이다."""
+    if "owner_user_id" not in overrides:
+        me = await client.get("/api/v1/auth/me")
+        overrides = {**overrides, "owner_user_id": me.json()["user_id"]}
+    response = await client.post(DEALS, json=deal_payload(**overrides))
+    assert response.status_code == 201, response.text
+    body: dict[str, Any] = response.json()
+    return body

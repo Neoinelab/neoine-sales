@@ -4,6 +4,8 @@ from typing import TYPE_CHECKING
 
 from pydantic import BaseModel
 
+from app.domain.auth.principal import Role
+
 if TYPE_CHECKING:
     from collections.abc import Collection, Mapping
 
@@ -19,6 +21,7 @@ class UserRef(BaseModel):
     name: str
     resigned: bool
     label: str
+    role: Role
 
     @classmethod
     def from_domain(cls, ref: DomainUserRef) -> UserRef:
@@ -27,6 +30,7 @@ class UserRef(BaseModel):
             name=ref.name,
             resigned=ref.resigned,
             label=ref.label,
+            role=ref.role,
         )
 
 

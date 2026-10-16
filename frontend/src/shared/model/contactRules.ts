@@ -5,13 +5,28 @@ import type { Contact, ContactKind } from './types'
 
 export const WHITESPACE_MESSAGE = '공백은 입력할 수 없습니다.'
 export const EMAIL_FORMAT_MESSAGE = '이메일 형식이 올바르지 않습니다.'
+export const PHONE_FORMAT_MESSAGE = '전화번호 형식이 올바르지 않습니다.'
 
 export type ContactField = 'company' | 'name' | 'email' | 'phone'
 
 /** 필드별 오류 문구. 오류가 없으면 빈 객체. */
 export type ContactFieldErrors = Partial<Record<ContactField | 'title', string>>
 
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+// 서버 `Email`·`PhoneNumber`(backend/src/app/domain/common/contact.py)와 같은 규칙. 바꾸면 양쪽 테스트의 경계값 표를 함께 고친다.
+const EMAIL_PATTERN = /^[^@\s]+@[^@\s.]+(\.[^@\s.]+)+$/
+const EMAIL_MAX_LENGTH = 254
+const PHONE_PATTERN = /^[0-9+\-()]+$/
+const PHONE_MIN_DIGITS = 7
+const PHONE_MAX_DIGITS = 15
+
+function isEmail(text: string): boolean {
+  return text.length <= EMAIL_MAX_LENGTH && EMAIL_PATTERN.test(text)
+}
+
+function isPhone(text: string): boolean {
+  const digits = text.replace(/[^0-9]/g, '').length
+  return PHONE_PATTERN.test(text) && digits >= PHONE_MIN_DIGITS && digits <= PHONE_MAX_DIGITS
+}
 
 /** 모든 공백 문자(스페이스·탭·전각 공백 등, `\s`)를 제거한다. 입력 차단·붙여넣기에 쓴다. */
 export function stripWhitespace(text: string): string {
@@ -27,7 +42,8 @@ export function hasWhitespace(text: string): boolean {
  * - company/name: 비어 있으면 '회사명을 입력하세요.' / '담당자명을 입력하세요.'(게이트웨이용 일반 문구.
  *   Deal 폼은 "고객 회사명을 입력하세요." 같은 자체 문구를 쓰므로 이 필수 오류를 쓰지 않고 먼저 거른다).
  * - company/name/email/phone에 공백 문자가 있으면 WHITESPACE_MESSAGE.
- * - email이 null이 아니면 형식(`x@y.z`, 공백 없음)을 검사해 EMAIL_FORMAT_MESSAGE.
+ * - email이 null이 아니면 형식(`x@y.z`, 254자 이내)을 검사해 EMAIL_FORMAT_MESSAGE.
+ * - phone이 null이 아니면 `[0-9+-()]`만, 숫자 7~15자리인지 검사해 PHONE_FORMAT_MESSAGE.
  * - title은 공백 허용이라 검증하지 않는다. email/phone의 빈 문자열은 허용하지 않는다(호출처가 null로 바꾼다).
  */
 export function validateContactInput(input: ContactInput): ContactFieldErrors {
@@ -38,9 +54,12 @@ export function validateContactInput(input: ContactInput): ContactFieldErrors {
   else if (hasWhitespace(input.name)) errors.name = WHITESPACE_MESSAGE
   if (input.email !== null) {
     if (hasWhitespace(input.email)) errors.email = WHITESPACE_MESSAGE
-    else if (!EMAIL_PATTERN.test(input.email)) errors.email = EMAIL_FORMAT_MESSAGE
+    else if (!isEmail(input.email)) errors.email = EMAIL_FORMAT_MESSAGE
   }
-  if (input.phone !== null && hasWhitespace(input.phone)) errors.phone = WHITESPACE_MESSAGE
+  if (input.phone !== null) {
+    if (hasWhitespace(input.phone)) errors.phone = WHITESPACE_MESSAGE
+    else if (!isPhone(input.phone)) errors.phone = PHONE_FORMAT_MESSAGE
+  }
   return errors
 }
 

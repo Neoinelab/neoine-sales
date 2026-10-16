@@ -28,7 +28,7 @@ export function createContactsGateway(ctx: MockContext): ContactsGateway {
       }),
     list: (query) =>
       read(ctx, () => {
-        requireUser(ctx)
+        requireAdmin(ctx)
         const needle = query.keyword?.trim().toLowerCase() ?? ''
         const rows = ctx.store.data.contacts
           .filter((c) => (query.kind ? c.kind === query.kind : true))

@@ -120,7 +120,7 @@ describe('actions.list', () => {
 
 describe('actions.update / remove', () => {
   it('이전 Action도 수정할 수 있고 등록 시점 값·수행일시·담당자는 유지된다', async () => {
-    const { gateway } = await mockAs('park') // 다른 담당자(sales)도 수정 가능
+    const { gateway } = await mockAs('kim') // 담당자 본인(Q8). 다른 sales는 actions.rules.test.ts
     const code = dealCode(1)
     const old = (await gateway.actions.list(code, {})).at(-1)
     if (!old) throw new Error('no action')
@@ -129,7 +129,7 @@ describe('actions.update / remove', () => {
     expect(updated).toMatchObject({ id: old.id, progress: '수정한 진행사항', actedAt: old.actedAt, actor: old.actor, statusKey: old.statusKey, forecastKey: old.forecastKey })
     const history = await gateway.history.list(code, {})
     expect(history).toHaveLength(base + 1)
-    expect(history[0]).toMatchObject({ category: 'action', by: { id: 'u-park' } })
+    expect(history[0]).toMatchObject({ category: 'action', by: { id: 'u-kim' } })
     await expectApiError(gateway.actions.update(old.id, { type: '기타', progress: '', nextAction: 'x', dueDate: '2026-11-01', memo: '' }), 422, '진행사항을 입력하세요.')
     await expectApiError(gateway.actions.update('act-none', { type: '기타', progress: 'x', nextAction: 'x', dueDate: '2026-11-01', memo: '' }), 404)
   })

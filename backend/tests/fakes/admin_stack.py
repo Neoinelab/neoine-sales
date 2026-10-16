@@ -4,7 +4,7 @@
 - ListUsers(uow_factory)                                    app.application.user.list_users
   execute(*, status=UserStatusFilter.ACTIVE, offset=0, limit=DEFAULT_LIMIT) -> Sequence[User]
 - ListUserOptions(uow_factory)                              ...user.list_user_options
-  execute(*, keyword=None, include_resigned=False, limit=MAX_LIMIT) -> Sequence[UserRef]
+  execute(*, keyword=None, include_resigned=False, role=None) -> Sequence[UserRef]
 - ResolveUserRefs(uow_factory)                              ...user.resolve_user_refs
   execute(user_ids: Collection[UserId]) -> Mapping[UserId, UserRef]  (퇴사자 포함)
 - DeleteUser.execute(*, user_id, actor, reason=UserDeleteReason.RESIGNED) -> DeleteOutcome
@@ -19,16 +19,15 @@
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from app.application.user.list_user_options import ListUserOptions
-from app.application.user.resolve_user_refs import ResolveUserRefs
-
 from app.application.directory.get_settings import GetDirectorySettings
 from app.application.directory.test_settings import TestDirectorySettings as TestSettingsUseCase
 from app.application.directory.update_settings import UpdateDirectorySettings
 from app.application.directory.verify_settings import VerifyDirectorySettings
 from app.application.user.delete_user import DeleteUser
+from app.application.user.list_user_options import ListUserOptions
 from app.application.user.list_users import ListUsers
 from app.application.user.register_user import RegisterUser
+from app.application.user.resolve_user_refs import ResolveUserRefs
 from app.domain.auth.principal import Principal, Role
 from tests.factories_auth import ADMIN_LOGIN, ADMIN_PASSWORD
 from tests.support.user_ids import uid

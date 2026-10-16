@@ -11,7 +11,7 @@ import pytest
 from app.domain.auth.credentials import Password
 from app.domain.auth.principal import Role
 from app.domain.common.errors import InvalidValueError
-from tests.support.auth_seed import active_admin_logins, seed_directory
+from tests.support.auth_seed import active_admin_logins, seed_setup_prerequisites
 
 if TYPE_CHECKING:
     from app.application.ports.unit_of_work import UnitOfWorkFactory
@@ -26,7 +26,7 @@ PASSWORD = "pw-reserved"  # noqa: S105 - 가짜 값
 async def test_setup_admin_rejects_the_reserved_dev_login_ids(
     auth: AuthStack, uow_factory: UnitOfWorkFactory, uow: FakeUnitOfWork, reserved: str
 ) -> None:
-    await seed_directory(uow_factory)
+    await seed_setup_prerequisites(uow_factory)
     auth.directory.add_account(reserved.lower(), PASSWORD)  # AD 인증은 통과하는 계정
 
     with pytest.raises(InvalidValueError):
@@ -39,7 +39,7 @@ async def test_setup_admin_rejects_the_reserved_dev_login_ids(
 async def test_setup_stays_open_after_a_reserved_id_is_rejected(
     auth: AuthStack, uow_factory: UnitOfWorkFactory
 ) -> None:
-    await seed_directory(uow_factory)
+    await seed_setup_prerequisites(uow_factory)
     auth.directory.add_account("dev-admin", PASSWORD)
     auth.directory.add_account("kim", "pw-kim")
     with pytest.raises(InvalidValueError):

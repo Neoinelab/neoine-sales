@@ -12,6 +12,8 @@ from tests.fakes.auth_stack import THROTTLE_SECRET
 if TYPE_CHECKING:
     from datetime import datetime
 
+    from app.domain.storage.settings import StoredStorageSettings
+
     from app.application.ports.unit_of_work import UnitOfWorkFactory
     from app.domain.directory.settings import DirectorySettings, StoredDirectorySettings
     from app.domain.user.entities import User
@@ -44,6 +46,24 @@ async def seed_directory(
         )
         await uow.commit()
     return stored
+
+
+async def seed_storage(
+    uow_factory: UnitOfWorkFactory, path: str = "/data/neoine-sales/files"
+) -> StoredStorageSettings:
+    """파일 저장 위치(최초 설정 2단계를 마친 상태)를 저장소에 직접 넣는다."""
+    from app.domain.storage.path import StoragePath  # noqa: PLC0415 - 저장 위치 구현 지연 import
+
+    async with uow_factory() as uow:
+        stored = await uow.storage_settings.save(StoragePath.parse(path), updated_by=None, now=NOW)
+        await uow.commit()
+    return stored
+
+
+async def seed_setup_prerequisites(uow_factory: UnitOfWorkFactory) -> None:
+    """최초 admin 지정 전 단계(AD 설정 + 저장 위치)를 모두 마친 상태."""
+    await seed_directory(uow_factory)
+    await seed_storage(uow_factory)
 
 
 async def seed_user(  # noqa: PLR0913 - 시나리오 준비용 옵션

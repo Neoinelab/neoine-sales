@@ -195,6 +195,7 @@ describe('최초 설정 3단계: 관리자 등록 (T-SETUP-03)', () => {
     expect(screen.getByText('처음 등록하는 AD 계정이 관리자가 됩니다.')).toBeInTheDocument()
     expect(screen.getByLabelText('AD 아이디')).toBeInTheDocument()
     expect(screen.getByLabelText('비밀번호')).toHaveAttribute('type', 'password')
+    expect(screen.getByLabelText('비밀번호')).toHaveAttribute('autocomplete', 'current-password')
   })
 
   it('shows the message when id or password is missing and stays on step 3', async () => {

@@ -71,7 +71,8 @@ describe('Status 코드 목록 (T-ADMIN-03)', () => {
     const del = locked.getByRole('button', { name: '삭제' })
     expect(del).toBeDisabled()
     expect(del).toHaveAccessibleDescription(/시스템과 연결된 코드는 삭제할 수 없습니다. 이름과 순서는 변경할 수 있습니다./)
-    expect(row(/기회발굴/).queryByText('시스템 연결')).not.toBeInTheDocument()
+    expect(row(/기회발굴/).getByText('시스템 연결')).toBeInTheDocument()
+    expect(row(/제품소개/).queryByText('시스템 연결')).not.toBeInTheDocument()
   })
 })
 

@@ -16,6 +16,7 @@ import type {
  */
 export const keys = {
   me: ['me'] as const,
+  authConfig: ['auth', 'config'] as const,
   setup: ['setup'] as const,
   deals: ['deals'] as const,
   dealList: (q: DealListQuery) => ['deals', 'list', q] as const,

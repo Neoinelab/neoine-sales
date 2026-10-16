@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useActions, useRemoveAction } from '../../../data/actions'
+import type { Viewer } from '../../../shared/model/permissions'
 import type { ActionQuery, DealAction, DealDetail } from '../../../shared/model/types'
 import { ConfirmDialog } from '../../../shared/ui/ConfirmDialog'
 import { ErrorBanner } from '../../../shared/ui/ErrorBanner'
@@ -13,13 +14,14 @@ import './detail.css'
 interface ActionsTabProps {
   deal: DealDetail
   canWrite: boolean
+  me: Viewer | null
   onNotice: (message: string) => void
 }
 
 type FormState = { mode: 'closed' } | { mode: 'create' } | { mode: 'edit'; action: DealAction }
 
 /** Actions 탭: 검색 + 목록 + Next Action 업데이트 폼(등록·수정) + 삭제 확인. */
-export function ActionsTab({ deal, canWrite, onNotice }: ActionsTabProps) {
+export function ActionsTab({ deal, canWrite, me, onNotice }: ActionsTabProps) {
   const [query, setQuery] = useState<ActionQuery>({})
   const [form, setForm] = useState<FormState>({ mode: 'closed' })
   const [target, setTarget] = useState<DealAction | null>(null)
@@ -78,6 +80,7 @@ export function ActionsTab({ deal, canWrite, onNotice }: ActionsTabProps) {
           actions={items}
           deal={deal}
           canEdit={canWrite}
+          me={me}
           onEdit={(action) => setForm({ mode: 'edit', action })}
           onDelete={setTarget}
         />

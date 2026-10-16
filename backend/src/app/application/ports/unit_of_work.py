@@ -2,14 +2,17 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING, Protocol, Self
 
 if TYPE_CHECKING:
-    from app.application.ports.customer_repository import CustomerRepository
+    from app.application.ports.attachment_repository import AttachmentRepository
+    from app.application.ports.bant_label_repository import BantLabelRepository
+    from app.application.ports.code_repository import CodeRepository
+    from app.application.ports.contact_repository import ContactRepository
     from app.application.ports.deal_action_repository import DealActionRepository
+    from app.application.ports.deal_history_repository import DealHistoryRepository
     from app.application.ports.deal_repository import DealRepository
-    from app.application.ports.deal_stage_change_repository import DealStageChangeRepository
     from app.application.ports.directory_settings_repository import DirectorySettingsRepository
     from app.application.ports.login_failure_repository import LoginFailureRepository
-    from app.application.ports.partner_repository import PartnerRepository
     from app.application.ports.session_repository import SessionRepository
+    from app.application.ports.storage_settings_repository import StorageSettingsRepository
     from app.application.ports.user_repository import UserRepository
 
 
@@ -21,10 +24,7 @@ class UnitOfWork(Protocol):
     """
 
     @property
-    def customers(self) -> CustomerRepository: ...
-
-    @property
-    def partners(self) -> PartnerRepository: ...
+    def contacts(self) -> ContactRepository: ...
 
     @property
     def deals(self) -> DealRepository: ...
@@ -33,7 +33,10 @@ class UnitOfWork(Protocol):
     def deal_actions(self) -> DealActionRepository: ...
 
     @property
-    def deal_stage_changes(self) -> DealStageChangeRepository: ...
+    def deal_history(self) -> DealHistoryRepository: ...
+
+    @property
+    def attachments(self) -> AttachmentRepository: ...
 
     @property
     def sessions(self) -> SessionRepository: ...
@@ -46,6 +49,15 @@ class UnitOfWork(Protocol):
 
     @property
     def directory_settings(self) -> DirectorySettingsRepository: ...
+
+    @property
+    def storage_settings(self) -> StorageSettingsRepository: ...
+
+    @property
+    def codes(self) -> CodeRepository: ...
+
+    @property
+    def bant_labels(self) -> BantLabelRepository: ...
 
     async def __aenter__(self) -> Self: ...
 

@@ -1,114 +1,203 @@
+"""Deal 요청 스키마. 형식(타입·모르는 필드)만 검사하고 범위·길이는 도메인 문구가 나가도록 맡긴다."""
+
 from datetime import date
-from decimal import Decimal
-from typing import TYPE_CHECKING, Annotated
+from typing import Annotated, Any, Self
 from uuid import UUID
 
-from pydantic import Field
+from pydantic import Field, StrictInt, model_validator
 
-from app.application.deal.inputs import DealInput
-from app.application.ports.deal_repository import KEYWORD_MAX, DealQuery
-from app.application.ports.pagination import DEFAULT_LIMIT, MAX_LIMIT
-from app.domain.customer.value_objects import CustomerId
-from app.domain.deal.entities import Deal
-from app.domain.deal.stage import DealStage
-from app.domain.deal.value_objects import VENDOR_MAX
-from app.domain.partner.value_objects import PartnerId
+from app.application.deal.inputs import ContactDraftInput, DealCreateInput, DealPatchInput
+from app.application.ports.deal_repository import (
+    DEFAULT_PAGE_SIZE,
+    KEYWORD_MAX,
+    DealQuery,
+    DealSort,
+    SortOrder,
+)
+from app.application.ports.pagination import MAX_LIMIT
+from app.domain.bant.values import BantCategory
+from app.domain.deal.values import SOLUTION_MAX, VENDOR_MAX, PocState, QuoteSubmitted
 from app.domain.user.value_objects import UserId
-from app.web.schemas.common import Page, RequestModel, ResponseModel
-from app.web.schemas.user_ref import UserRef, ref_of, resolve_refs
+from app.web.schemas.common import RequestModel
+from app.web.schemas.deal_change import DealChangeRequest
 
-if TYPE_CHECKING:
-    from collections.abc import Mapping, Sequence
+__all__ = [
+    "BantRequest",
+    "ContactDraftRequest",
+    "DealChangeRequest",
+    "DealCreateRequest",
+    "DealPatchRequest",
+    "DealSearchParams",
+    "PocRequest",
+    "QuoteRequest",
+]
 
-    from app.domain.user.value_objects import UserRef as DomainUserRef
-    from app.web.use_case_provider import UseCaseProvider
+STATUS_KEY_MAX = 50
+PATCH_SECTIONS = frozenset({"quote", "poc", "bant", "customer", "partner"})
 
 
-class DealRequest(RequestModel):
-    code: str
+class ContactDraftRequest(RequestModel):
+    """Deal 화면의 연락처 입력. contact_id가 있으면 그 연락처를 골라 입력값으로 갱신한다."""
+
+    contact_id: UUID | None = None
+    company: str
+    name: str
+    title: str | None = None
+    email: str | None = None
+    phone: str | None = None
+
+    def to_input(self) -> ContactDraftInput:
+        return ContactDraftInput(**self.model_dump())
+
+
+class QuoteRequest(RequestModel):
+    submitted: QuoteSubmitted | None = None
+    submitted_date: date | None = None
+
+
+class PocRequest(RequestModel):
+    state: PocState | None = None
+    completed_date: date | None = None
+
+
+class BantRequest(RequestModel):
+    """구분별 BANT Label id. 보내지 않았거나 null이면 선택 안 함이다."""
+
+    budget: UUID | None = None
+    authority: UUID | None = None
+    need: UUID | None = None
+    timeline: UUID | None = None
+
+    def to_selection(self) -> dict[BantCategory, UUID | None]:
+        return {category: getattr(self, category.value) for category in BantCategory}
+
+
+class DealCreateRequest(RequestModel):
     name: str
     owner_user_id: UUID
-    vendor: str
-    solution: str
-    revenue_amount: Decimal
-    revenue_date: date
-    customer_id: UUID
-    partner_id: UUID | None = None
-    revenue_currency: str = "KRW"
+    vendor: str = ""
+    solution: str = ""
+    users: StrictInt | None = None
+    status_key: str
+    forecast_key: str
+    revenue_amount: StrictInt
+    revenue_date: date | None
+    customer: ContactDraftRequest
+    partner: ContactDraftRequest | None = None
+    quote: QuoteRequest = Field(default_factory=QuoteRequest)
+    poc: PocRequest = Field(default_factory=PocRequest)
+    procurement: str = ""
+    bant: BantRequest = Field(default_factory=BantRequest)
 
-    def to_input(self) -> DealInput:
-        return DealInput(**self.model_dump())
-
-
-class DealResponse(ResponseModel):
-    code: str
-    name: str
-    owner: UserRef
-    vendor: str
-    solution: str
-    revenue_amount: str  # 문자열: JSON 숫자로 보내면 소수 정밀도가 깨질 수 있다
-    revenue_currency: str
-    revenue_date: date
-    customer_id: str
-    partner_id: str | None
-    stage: DealStage
-
-    @classmethod
-    def from_entity(cls, deal: Deal, refs: Mapping[UserId, DomainUserRef]) -> DealResponse:
-        details = deal.details
-        return cls(
-            id=str(deal.id),
-            created_at=deal.created_at,
-            updated_at=deal.updated_at,
-            code=details.code.value,
-            name=details.name,
-            owner=ref_of(refs, details.owner_user_id),
-            vendor=details.vendor,
-            solution=details.solution,
-            revenue_amount=format(details.revenue.amount.normalize(), "f"),
-            revenue_currency=details.revenue.currency,
-            revenue_date=details.revenue_date,
-            customer_id=str(details.customer_id),
-            partner_id=str(details.partner_id) if details.partner_id else None,
-            stage=deal.stage,
+    def to_input(self) -> DealCreateInput:
+        return DealCreateInput(
+            name=self.name,
+            owner_user_id=self.owner_user_id,
+            vendor=self.vendor,
+            solution=self.solution,
+            users=self.users,
+            status_key=self.status_key,
+            forecast_key=self.forecast_key,
+            revenue_amount=self.revenue_amount,
+            revenue_date=self.revenue_date,
+            customer=self.customer.to_input(),
+            partner=self.partner.to_input() if self.partner else None,
+            quote_submitted=self.quote.submitted,
+            quote_submitted_date=self.quote.submitted_date,
+            poc_state=self.poc.state,
+            poc_completed_date=self.poc.completed_date,
+            procurement=self.procurement,
+            bant=self.bant.to_selection(),
         )
+
+
+class DealPatchRequest(RequestModel):
+    """수정 본문. 보낸 필드만 반영한다(model_fields_set). partner: null은 활성 파트너 제거다."""
+
+    name: str | None = None
+    owner_user_id: UUID | None = None
+    vendor: str | None = None
+    solution: str | None = None
+    users: StrictInt | None = None
+    status_key: str | None = None
+    forecast_key: str | None = None
+    revenue_amount: StrictInt | None = None
+    revenue_date: date | None = None
+    customer: ContactDraftRequest | None = None
+    partner: ContactDraftRequest | None = None
+    quote: QuoteRequest | None = None
+    poc: PocRequest | None = None
+    bant: BantRequest | None = None
+    procurement: str | None = None
+
+    @model_validator(mode="after")
+    def _sections_are_not_null(self) -> Self:
+        for name in ("quote", "poc", "bant"):
+            if name in self.model_fields_set and getattr(self, name) is None:
+                raise ValueError(f"{name}은 null일 수 없습니다")
+        return self
+
+    def to_input(self) -> DealPatchInput:
+        sent = self.model_fields_set
+        provided = set(sent - PATCH_SECTIONS)
+        values: dict[str, Any] = {name: getattr(self, name) for name in provided}
+        for section in ("customer", "partner"):
+            if section in sent:
+                provided.add(section)
+                draft = getattr(self, section)
+                values[section] = draft.to_input() if draft else None
+        for name, part in self._parts().items():
+            provided.add(name)
+            values[name] = part
+        return DealPatchInput(provided=frozenset(provided), **values)
+
+    def _parts(self) -> dict[str, Any]:
+        """quote·poc·bant를 유스케이스 입력 필드로 펼친다(보낸 객체의 하위 필드는 모두 보낸 값)."""
+        parts: dict[str, Any] = {}
+        if self.quote is not None:
+            parts["quote_submitted"] = self.quote.submitted
+            parts["quote_submitted_date"] = self.quote.submitted_date
+        if self.poc is not None:
+            parts["poc_state"] = self.poc.state
+            parts["poc_completed_date"] = self.poc.completed_date
+        if self.bant is not None:
+            parts["bant"] = self.bant.to_selection()
+        return parts
 
 
 class DealSearchParams(RequestModel):
-    """Deal 목록 검색 쿼리 파라미터. 매출일 기간은 revenue_from 이상, revenue_to 미만이다."""
+    """Deal 목록 검색 쿼리 파라미터. 기간은 양끝을 포함한다. mine=true가 owner_user_id보다 우선."""
 
     keyword: Annotated[str | None, Field(max_length=KEYWORD_MAX)] = None
-    customer_id: UUID | None = None
-    partner_id: UUID | None = None
     owner_user_id: UserId | None = None
+    mine: bool = False
     vendor: Annotated[str | None, Field(max_length=VENDOR_MAX)] = None
+    solution: Annotated[str | None, Field(max_length=SOLUTION_MAX)] = None
+    status_key: Annotated[str | None, Field(max_length=STATUS_KEY_MAX)] = None
+    forecast_key: Annotated[str | None, Field(max_length=STATUS_KEY_MAX)] = None
+    year: Annotated[int | None, Field(ge=1900, le=9999)] = None
+    quarter: Annotated[int | None, Field(ge=1, le=4)] = None
     revenue_from: date | None = None
     revenue_to: date | None = None
-    stage: DealStage | None = None
+    bant_budget: UUID | None = None
+    bant_authority: UUID | None = None
+    bant_need: UUID | None = None
+    bant_timeline: UUID | None = None
+    sort: DealSort = DealSort.LAST_UPDATED_AT
+    order: SortOrder = SortOrder.DESC
     offset: Annotated[int, Field(ge=0)] = 0
-    limit: Annotated[int, Field(ge=1, le=MAX_LIMIT)] = DEFAULT_LIMIT
-    mine: bool = False
+    limit: Annotated[int, Field(ge=1, le=MAX_LIMIT)] = DEFAULT_PAGE_SIZE
 
     def to_query(self, viewer_user_id: UserId) -> DealQuery:
-        """mine=true는 담당자가 나인 딜이다(owner_user_id보다 우선)."""
-        criteria = self.model_dump(exclude={"customer_id", "partner_id", "mine", "owner_user_id"})
+        bant_fields = {category: f"bant_{category.value}" for category in BantCategory}
+        criteria = self.model_dump(exclude={"mine", "owner_user_id", *bant_fields.values()})
+        bant = {
+            category: getattr(self, name)
+            for category, name in bant_fields.items()
+            if getattr(self, name) is not None
+        }
         return DealQuery(
             owner_user_id=viewer_user_id if self.mine else self.owner_user_id,
-            customer_id=CustomerId(self.customer_id) if self.customer_id else None,
-            partner_id=PartnerId(self.partner_id) if self.partner_id else None,
+            bant_label_ids=bant,
             **criteria,
         )
-
-
-DealPage = Page[DealResponse]
-
-
-async def deal_responses(provider: UseCaseProvider, deals: Sequence[Deal]) -> list[DealResponse]:
-    """담당자 표시 이름을 한 번에 풀어 응답 목록을 만든다(퇴사자는 label에 (퇴사))."""
-    refs = await resolve_refs(provider, [d.details.owner_user_id for d in deals])
-    return [DealResponse.from_entity(d, refs) for d in deals]
-
-
-async def deal_response(provider: UseCaseProvider, deal: Deal) -> DealResponse:
-    (item,) = await deal_responses(provider, [deal])
-    return item

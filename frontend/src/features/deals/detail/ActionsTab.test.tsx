@@ -290,3 +290,91 @@ describe('Actions 검색 (T-ACTION-08~09)', () => {
     expect(within(form).getByLabelText('키워드')).toHaveValue('')
   })
 })
+
+describe('Action 수정·삭제 버튼 권한 (AC-25, Q8)', () => {
+  const EDIT_TITLE = '본인 Action 또는 admin만 수정할 수 있습니다.'
+  const DELETE_TITLE = '본인 Action 또는 admin만 삭제할 수 있습니다.'
+
+  async function openAs(userId: string) {
+    const view = await renderAt(await detailPath(1), { userId })
+    await screen.findByRole('heading', { level: 1, name: '한빛은행 ITDR 도입' })
+    const table = await screen.findByRole('table', { name: 'Action 목록' })
+    return { ...view, table }
+  }
+
+  it('enables edit and delete on every row of the owner who registered them', async () => {
+    const { table } = await openAs('u-kim')
+
+    const rows = bodyRows(table)
+    expect(rows.length).toBeGreaterThan(1)
+    for (const row of rows) {
+      expect(within(row).getByRole('button', { name: '수정' })).toBeEnabled()
+      expect(within(row).getByRole('button', { name: '삭제' })).toBeEnabled()
+      expect(within(row).getByRole('button', { name: '수정' })).not.toHaveAttribute('title')
+    }
+  })
+
+  it('disables both buttons with the reason as title on actions of another sales', async () => {
+    const { table } = await openAs('u-park')
+
+    const rows = bodyRows(table)
+    expect(rows.length).toBeGreaterThan(1)
+    for (const row of rows) {
+      const edit = within(row).getByRole('button', { name: '수정' })
+      const remove = within(row).getByRole('button', { name: '삭제' })
+      expect(edit).toBeDisabled()
+      expect(edit).toHaveAttribute('title', EDIT_TITLE)
+      expect(remove).toBeDisabled()
+      expect(remove).toHaveAttribute('title', DELETE_TITLE)
+    }
+  })
+
+  it('still shows the manage column and the register button to that other sales', async () => {
+    const { table } = await openAs('u-park')
+
+    expect(within(table).getByRole('columnheader', { name: '관리' })).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Next Action 업데이트' })).toBeVisible()
+  })
+
+  it('does not open the edit form when a disabled edit button is clicked', async () => {
+    const { user, table } = await openAs('u-park')
+
+    await user.click(within(bodyRows(table)[0]!).getByRole('button', { name: '수정' }))
+
+    expect(screen.queryByRole('form', { name: 'Action 수정' })).not.toBeInTheDocument()
+  })
+
+  it('enables both buttons on every row for admin, including actions of other users', async () => {
+    const { table } = await openAs('u-root')
+
+    for (const row of bodyRows(table)) {
+      expect(within(row).getByRole('button', { name: '수정' })).toBeEnabled()
+      expect(within(row).getByRole('button', { name: '삭제' })).toBeEnabled()
+    }
+  })
+
+  it('enables only the rows of the viewer when rows of two different users are mixed', async () => {
+    const { user, table } = await openAs('u-park')
+    await user.click(screen.getByRole('button', { name: 'Next Action 업데이트' }))
+    const form = screen.getByRole('form', { name: 'Next Action 업데이트' })
+    await user.type(within(form).getByLabelText('진행사항'), '박영업 후속 연락')
+    await user.type(within(form).getByLabelText('Next Action'), '미팅 일정 확정')
+    await user.type(within(form).getByLabelText('Due Date'), '2026-12-20')
+    await user.click(within(form).getByRole('button', { name: '등록' }))
+    await waitFor(() => expect(bodyRows(table)[0]).toHaveTextContent('박영업 후속 연락'))
+
+    const rows = bodyRows(table)
+    expect(within(rows[0]!).getByRole('button', { name: '수정' })).toBeEnabled()
+    expect(within(rows[0]!).getByRole('button', { name: '삭제' })).toBeEnabled()
+    expect(within(rows[1]!).getByRole('button', { name: '수정' })).toBeDisabled()
+    expect(within(rows[1]!).getByRole('button', { name: '삭제' })).toBeDisabled()
+  })
+
+  it('shows a user-role viewer no manage column at all', async () => {
+    const { table } = await openAs('u-han')
+
+    expect(within(table).queryByRole('columnheader', { name: '관리' })).not.toBeInTheDocument()
+    expect(within(table).queryByRole('button', { name: '수정' })).not.toBeInTheDocument()
+    expect(within(table).queryByRole('button', { name: '삭제' })).not.toBeInTheDocument()
+  })
+})

@@ -1,5 +1,5 @@
 from contextlib import AsyncExitStack
-from dataclasses import dataclass, replace
+from dataclasses import replace
 from datetime import timedelta
 from typing import TYPE_CHECKING
 from uuid import uuid4
@@ -7,7 +7,6 @@ from uuid import uuid4
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import text
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
@@ -21,9 +20,10 @@ from app.domain.user.value_objects import UserId
 from app.infra.db.unit_of_work import sql_unit_of_work_factory
 from app.infra.system_clock import SystemClock
 from app.main import create_app
-from tests.factories_auth import ADMIN_LOGIN, ADMIN_PASSWORD
+from tests.e2e.contact_support import CONTACT_ADMIN, set_admin
 from tests.fakes.directory import FakeDirectoryAuthenticator
 from tests.fakes.use_cases import FakeUseCases
+from tests.support.truncate import truncate_business_tables
 from tests.support.user_ids import ACTOR_ID, OWNER_ID, uid
 from tests.support.user_seed import ensure_users
 
@@ -35,10 +35,6 @@ if TYPE_CHECKING:
 
     from app.application.ports.unit_of_work import UnitOfWorkFactory
 
-TRUNCATE_ALL = (
-    "truncate auth_sessions, users, login_failures, directory_settings, "
-    "deal_actions, deals, customers, partners cascade"
-)
 TEST_DATABASE_URL = "postgresql+asyncpg://user:pw@localhost:5432/none"  # 접속하지 않는다
 ALLOWED_ORIGIN = "http://localhost:5173"
 SESSION_COOKIE = "neoine_session"
@@ -83,29 +79,17 @@ async def client(
 ) -> AsyncIterator[AsyncClient]:
     """영업 사용자(sales)로 로그인한 클라이언트: 사용자 행을 등록하고 세션을 발급한다.
 
-    Deal·활동 요청의 기본 담당자·활동자(deal_users)도 함께 둔다(사용자 목록 테스트는 admin_client).
+    Deal·활동 요청의 기본 담당자·활동자(deal_users)도 함께 둔다.
     """
     token = await use_cases.login_as(principal_for(DEFAULT_LOGIN, Role.SALES))
-    async with new_client(app, token=token) as http:
+    admin_token = await use_cases.login_as(principal_for(CONTACT_ADMIN, Role.ADMIN))
+    async with (
+        new_client(app, token=token) as http,
+        new_client(app, token=admin_token) as admin,  # 연락처 등록은 admin 전용
+    ):
+        set_admin(admin)
         yield http
-
-
-@pytest_asyncio.fixture
-async def admin_client(app: FastAPI, use_cases: FakeUseCases) -> AsyncIterator[AsyncClient]:
-    """관리자(root)로 로그인한 클라이언트. AD 설정이 저장돼 있고 AD에 root/pw-root 계정이 있다."""
-    await use_cases.seed_directory()
-    use_cases.directory.add_account(ADMIN_LOGIN, ADMIN_PASSWORD)
-    token = await use_cases.login_as(principal_for(ADMIN_LOGIN, Role.ADMIN))
-    async with new_client(app, token=token) as http:
-        yield http
-
-
-@pytest_asyncio.fixture
-async def viewer_client(app: FastAPI, use_cases: FakeUseCases) -> AsyncIterator[AsyncClient]:
-    """조회 전용(user) 역할로 로그인한 클라이언트."""
-    token = await use_cases.login_as(principal_for("viewer", Role.USER))
-    async with new_client(app, token=token) as http:
-        yield http
+        set_admin(None)
 
 
 @pytest_asyncio.fixture
@@ -143,12 +127,15 @@ async def client_as(
 ) -> AsyncIterator[Callable[[str, Role], Awaitable[AsyncClient]]]:
     """(아이디, 역할)로 사용자 행을 등록하고 로그인한 클라이언트를 돌려주는 팩토리."""
     async with AsyncExitStack() as stack_:
+        admin_token = await use_cases.login_as(principal_for(CONTACT_ADMIN, Role.ADMIN))
+        set_admin(await stack_.enter_async_context(new_client(app, token=admin_token)))
 
         async def open_client(login_id: str, role: Role) -> AsyncClient:
             token = await use_cases.login_as(principal_for(login_id, role))
             return await stack_.enter_async_context(new_client(app, token=token))
 
         yield open_client
+        set_admin(None)
 
 
 @pytest_asyncio.fixture
@@ -157,19 +144,22 @@ async def client_for(
 ) -> AsyncIterator[Callable[[str], Awaitable[AsyncClient]]]:
     """subject를 주면 그 사용자로 로그인한 클라이언트 팩토리(Fake UoW, deal_users 포함)."""
     async with AsyncExitStack() as stack_:
+        admin_token = await use_cases.login_as(principal_for(CONTACT_ADMIN, Role.ADMIN))
+        set_admin(await stack_.enter_async_context(new_client(app, token=admin_token)))
 
         async def open_client(subject: str) -> AsyncClient:
             token = await use_cases.login_as(principal_for(subject))
             return await stack_.enter_async_context(new_client(app, token=token))
 
         yield open_client
+        set_admin(None)
 
 
 async def _truncate(database_url: URL) -> None:
     engine = create_async_engine(database_url, poolclass=NullPool)
     try:
         async with engine.begin() as connection:
-            await connection.execute(text(TRUNCATE_ALL))
+            await truncate_business_tables(connection)
     finally:
         await engine.dispose()
 
@@ -214,6 +204,10 @@ async def stack_for(
     try:
         await _seed_deal_users(uow_factory)
         async with AsyncExitStack() as stack_:
+            admin_token = await _register_and_issue(
+                uow_factory, settings.session_ttl_hours, principal_for(CONTACT_ADMIN, Role.ADMIN)
+            )
+            set_admin(await stack_.enter_async_context(new_client(app, token=admin_token)))
 
             async def open_client(subject: str) -> AsyncClient:
                 token = await _register_and_issue(
@@ -222,6 +216,7 @@ async def stack_for(
                 return await stack_.enter_async_context(new_client(app, token=token))
 
             yield open_client
+            set_admin(None)
     finally:
         await container.dispose()
         await engine.dispose()
@@ -241,43 +236,17 @@ async def stack(test_database_url: URL) -> AsyncIterator[AsyncClient]:
         token = await _register_and_issue(
             uow_factory, settings.session_ttl_hours, principal_for(DEFAULT_LOGIN)
         )
-        async with new_client(app, token=token) as http:
+        admin_token = await _register_and_issue(
+            uow_factory, settings.session_ttl_hours, principal_for(CONTACT_ADMIN, Role.ADMIN)
+        )
+        async with (
+            new_client(app, token=token) as http,
+            new_client(app, token=admin_token) as admin,  # 연락처 등록은 admin 전용
+        ):
+            set_admin(admin)
             yield http
+            set_admin(None)
     finally:
         await container.dispose()
         await engine.dispose()
         await _truncate(test_database_url)
-
-
-@dataclass(frozen=True, slots=True)
-class AuthFullStack:
-    """실제 PostgreSQL + FakeDirectoryAuthenticator로 조립한 인증 전체 구간."""
-
-    database_url: URL
-    settings: LocalSettings
-    directory: FakeDirectoryAuthenticator
-
-    def open_app(self, **setting_overrides: object) -> tuple[Container, FastAPI]:
-        """같은 DB를 보는 앱 인스턴스(다른 워커·서버 시뮬레이션). 호출한 쪽이 dispose한다."""
-        settings = self.settings.model_copy(update=setting_overrides)
-        container = Container(settings, directory=self.directory)
-        return container, create_app(settings=settings, use_cases=container)
-
-
-@pytest_asyncio.fixture
-async def auth_full_stack(test_database_url: URL) -> AsyncIterator[AuthFullStack]:
-    settings = make_settings(database_url=test_database_url.render_as_string(hide_password=False))
-    try:
-        yield AuthFullStack(test_database_url, settings, FakeDirectoryAuthenticator())
-    finally:
-        await _truncate(test_database_url)
-
-
-@pytest_asyncio.fixture
-async def ready(use_cases: FakeUseCases) -> FakeUseCases:
-    """AD 설정이 있고, AD에 kim/newbie/gone이 있으며 kim(sales)·gone(삭제)만 앱에 등록돼 있다."""
-    await use_cases.seed_directory()
-    await use_cases.seed_user("kim", Role.SALES)
-    use_cases.directory.add_account("kim", "pw-kim", display_name="김영업", email="kim@corp.test")
-    use_cases.directory.add_account("newbie", "pw-newbie")
-    return use_cases

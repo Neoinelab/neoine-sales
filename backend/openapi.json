@@ -1,6 +1,30 @@
 {
   "components": {
     "schemas": {
+      "ActionStatusChangeRequest": {
+        "additionalProperties": false,
+        "description": "Action을 기록하면서 함께 바꿀 Status 또는 Forecast.",
+        "properties": {
+          "change": {
+            "$ref": "#/components/schemas/CodeChange"
+          },
+          "resolution": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ResolutionRequest"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "change"
+        ],
+        "title": "ActionStatusChangeRequest",
+        "type": "object"
+      },
       "ActionType": {
         "description": "Deal 진행 활동의 종류. 집합을 닫아 두어 검색 조건과 통계가 흔들리지 않게 한다.",
         "enum": [
@@ -15,6 +39,120 @@
         ],
         "title": "ActionType",
         "type": "string"
+      },
+      "AmountChange": {
+        "additionalProperties": false,
+        "properties": {
+          "field": {
+            "const": "revenue_amount",
+            "title": "Field",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "field",
+          "value"
+        ],
+        "title": "AmountChange",
+        "type": "object"
+      },
+      "AttachmentList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AttachmentResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "AttachmentList",
+        "type": "object"
+      },
+      "AttachmentResponse": {
+        "properties": {
+          "deal_code": {
+            "title": "Deal Code",
+            "type": "string"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "file_name": {
+            "title": "File Name",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "mime": {
+            "title": "Mime",
+            "type": "string"
+          },
+          "size": {
+            "title": "Size",
+            "type": "integer"
+          },
+          "uploaded_at": {
+            "format": "date-time",
+            "title": "Uploaded At",
+            "type": "string"
+          },
+          "uploaded_by": {
+            "$ref": "#/components/schemas/UserRef"
+          }
+        },
+        "required": [
+          "id",
+          "deal_code",
+          "file_name",
+          "description",
+          "size",
+          "mime",
+          "uploaded_by",
+          "uploaded_at"
+        ],
+        "title": "AttachmentResponse",
+        "type": "object"
+      },
+      "AttachmentUploadResponse": {
+        "description": "건너뛰었으면(`skipped`) attachment가 null이다.",
+        "properties": {
+          "attachment": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AttachmentResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "outcome": {
+            "enum": [
+              "uploaded",
+              "replaced",
+              "skipped"
+            ],
+            "title": "Outcome",
+            "type": "string"
+          }
+        },
+        "required": [
+          "outcome",
+          "attachment"
+        ],
+        "title": "AttachmentUploadResponse",
+        "type": "object"
       },
       "AuthConfigResponse": {
         "properties": {
@@ -33,47 +171,179 @@
           "needs_directory_setup": {
             "title": "Needs Directory Setup",
             "type": "boolean"
+          },
+          "needs_storage_setup": {
+            "title": "Needs Storage Setup",
+            "type": "boolean"
           }
         },
         "required": [
           "dev_login",
           "directory_login",
           "needs_directory_setup",
+          "needs_storage_setup",
           "needs_admin_setup"
         ],
         "title": "AuthConfigResponse",
         "type": "object"
       },
-      "CurrencyAmountResponse": {
+      "BantCategory": {
+        "description": "BANT 구분. 선언 순서가 표시 순서다.",
+        "enum": [
+          "budget",
+          "authority",
+          "need",
+          "timeline"
+        ],
+        "title": "BantCategory",
+        "type": "string"
+      },
+      "BantLabelCreateRequest": {
+        "additionalProperties": false,
         "properties": {
-          "amount": {
-            "title": "Amount",
-            "type": "string"
+          "category": {
+            "$ref": "#/components/schemas/BantCategory"
           },
-          "currency": {
-            "title": "Currency",
+          "name": {
+            "title": "Name",
             "type": "string"
           }
         },
         "required": [
-          "currency",
-          "amount"
+          "category",
+          "name"
         ],
-        "title": "CurrencyAmountResponse",
+        "title": "BantLabelCreateRequest",
         "type": "object"
       },
-      "CustomerRequest": {
+      "BantLabelRenameRequest": {
         "additionalProperties": false,
         "properties": {
-          "company_name": {
-            "title": "Company Name",
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "BantLabelRenameRequest",
+        "type": "object"
+      },
+      "BantLabelResponse": {
+        "properties": {
+          "category": {
+            "$ref": "#/components/schemas/BantCategory"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
             "type": "string"
           },
-          "contact_name": {
-            "title": "Contact Name",
+          "created_by": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UserRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "id": {
+            "title": "Id",
             "type": "string"
           },
-          "contact_title": {
+          "is_default": {
+            "title": "Is Default",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "usage_count": {
+            "title": "Usage Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "category",
+          "name",
+          "is_default",
+          "created_by",
+          "created_at",
+          "updated_at",
+          "usage_count"
+        ],
+        "title": "BantLabelResponse",
+        "type": "object"
+      },
+      "BantRequest": {
+        "additionalProperties": false,
+        "description": "구분별 BANT Label id. 보내지 않았거나 null이면 선택 안 함이다.",
+        "properties": {
+          "authority": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Authority"
+          },
+          "budget": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Budget"
+          },
+          "need": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Need"
+          },
+          "timeline": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Timeline"
+          }
+        },
+        "title": "BantRequest",
+        "type": "object"
+      },
+      "BantResponse": {
+        "properties": {
+          "authority": {
             "anyOf": [
               {
                 "type": "string"
@@ -82,7 +352,342 @@
                 "type": "null"
               }
             ],
-            "title": "Contact Title"
+            "title": "Authority"
+          },
+          "budget": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Budget"
+          },
+          "need": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Need"
+          },
+          "timeline": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Timeline"
+          }
+        },
+        "required": [
+          "budget",
+          "authority",
+          "need",
+          "timeline"
+        ],
+        "title": "BantResponse",
+        "type": "object"
+      },
+      "Body_upload_attachment_api_v1_deals__code__attachments_post": {
+        "properties": {
+          "description": {
+            "default": "",
+            "title": "Description",
+            "type": "string"
+          },
+          "file": {
+            "anyOf": [
+              {
+                "contentMediaType": "application/octet-stream",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "File"
+          },
+          "on_exists": {
+            "$ref": "#/components/schemas/OnExists",
+            "default": "ask"
+          }
+        },
+        "title": "Body_upload_attachment_api_v1_deals__code__attachments_post",
+        "type": "object"
+      },
+      "CoChangedResponse": {
+        "properties": {
+          "field": {
+            "title": "Field",
+            "type": "string"
+          },
+          "from": {
+            "title": "From",
+            "type": "string"
+          },
+          "to": {
+            "title": "To",
+            "type": "string"
+          }
+        },
+        "required": [
+          "field",
+          "from",
+          "to"
+        ],
+        "title": "CoChangedResponse",
+        "type": "object"
+      },
+      "CodeChange": {
+        "additionalProperties": false,
+        "properties": {
+          "field": {
+            "enum": [
+              "status_key",
+              "forecast_key"
+            ],
+            "title": "Field",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "field",
+          "value"
+        ],
+        "title": "CodeChange",
+        "type": "object"
+      },
+      "CodeCreateRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/CodeKind"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "probability_hint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Probability Hint"
+          }
+        },
+        "required": [
+          "kind",
+          "name"
+        ],
+        "title": "CodeCreateRequest",
+        "type": "object"
+      },
+      "CodeKind": {
+        "description": "코드의 종류. 선언 순서가 표시 순서다.",
+        "enum": [
+          "status",
+          "forecast"
+        ],
+        "title": "CodeKind",
+        "type": "string"
+      },
+      "CodeOrderRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/CodeKind"
+          },
+          "ordered_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Ordered Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "kind",
+          "ordered_ids"
+        ],
+        "title": "CodeOrderRequest",
+        "type": "object"
+      },
+      "CodeRenameRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "CodeRenameRequest",
+        "type": "object"
+      },
+      "CodeResponse": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/CodeKind"
+          },
+          "locked": {
+            "title": "Locked",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "order": {
+            "title": "Order",
+            "type": "integer"
+          },
+          "outcome": {
+            "title": "Outcome",
+            "type": "string"
+          },
+          "probability_hint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Probability Hint"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "key",
+          "name",
+          "order",
+          "locked",
+          "outcome",
+          "probability_hint"
+        ],
+        "title": "CodeResponse",
+        "type": "object"
+      },
+      "CodeSetResponse": {
+        "properties": {
+          "forecasts": {
+            "items": {
+              "$ref": "#/components/schemas/CodeResponse"
+            },
+            "title": "Forecasts",
+            "type": "array"
+          },
+          "statuses": {
+            "items": {
+              "$ref": "#/components/schemas/CodeResponse"
+            },
+            "title": "Statuses",
+            "type": "array"
+          }
+        },
+        "required": [
+          "statuses",
+          "forecasts"
+        ],
+        "title": "CodeSetResponse",
+        "type": "object"
+      },
+      "CodeUsageResponse": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/CodeKind"
+          },
+          "locked": {
+            "title": "Locked",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "order": {
+            "title": "Order",
+            "type": "integer"
+          },
+          "outcome": {
+            "title": "Outcome",
+            "type": "string"
+          },
+          "probability_hint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Probability Hint"
+          },
+          "usage_count": {
+            "title": "Usage Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "key",
+          "name",
+          "order",
+          "locked",
+          "outcome",
+          "probability_hint",
+          "usage_count"
+        ],
+        "title": "CodeUsageResponse",
+        "type": "object"
+      },
+      "ContactCreateRequest": {
+        "additionalProperties": false,
+        "description": "값 검증(공백·빈 값·형식)은 도메인이 한다. pydantic strip·min_length를 두지 않는다.",
+        "properties": {
+          "company": {
+            "title": "Company",
+            "type": "string"
           },
           "email": {
             "anyOf": [
@@ -95,20 +700,11 @@
             ],
             "title": "Email"
           },
-          "employee_count": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Employee Count"
+          "kind": {
+            "$ref": "#/components/schemas/ContactKind"
           },
-          "notes": {
-            "default": "",
-            "title": "Notes",
+          "name": {
+            "title": "Name",
             "type": "string"
           },
           "phone": {
@@ -121,26 +717,8 @@
               }
             ],
             "title": "Phone"
-          }
-        },
-        "required": [
-          "company_name",
-          "contact_name"
-        ],
-        "title": "CustomerRequest",
-        "type": "object"
-      },
-      "CustomerResponse": {
-        "properties": {
-          "company_name": {
-            "title": "Company Name",
-            "type": "string"
           },
-          "contact_name": {
-            "title": "Contact Name",
-            "type": "string"
-          },
-          "contact_title": {
+          "title": {
             "anyOf": [
               {
                 "type": "string"
@@ -149,7 +727,96 @@
                 "type": "null"
               }
             ],
-            "title": "Contact Title"
+            "title": "Title"
+          }
+        },
+        "required": [
+          "kind",
+          "company",
+          "name"
+        ],
+        "title": "ContactCreateRequest",
+        "type": "object"
+      },
+      "ContactDraftRequest": {
+        "additionalProperties": false,
+        "description": "Deal 화면의 연락처 입력. contact_id가 있으면 그 연락처를 골라 입력값으로 갱신한다.",
+        "properties": {
+          "company": {
+            "title": "Company",
+            "type": "string"
+          },
+          "contact_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contact Id"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phone"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          }
+        },
+        "required": [
+          "company",
+          "name"
+        ],
+        "title": "ContactDraftRequest",
+        "type": "object"
+      },
+      "ContactKind": {
+        "description": "연락처 종류. 선언 순서(고객 먼저)가 목록 정렬 순서다.",
+        "enum": [
+          "customer",
+          "partner"
+        ],
+        "title": "ContactKind",
+        "type": "string"
+      },
+      "ContactResponse": {
+        "properties": {
+          "company": {
+            "title": "Company",
+            "type": "string"
           },
           "created_at": {
             "format": "date-time",
@@ -167,23 +834,15 @@
             ],
             "title": "Email"
           },
-          "employee_count": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Employee Count"
-          },
           "id": {
             "title": "Id",
             "type": "string"
           },
-          "notes": {
-            "title": "Notes",
+          "kind": {
+            "$ref": "#/components/schemas/ContactKind"
+          },
+          "name": {
+            "title": "Name",
             "type": "string"
           },
           "phone": {
@@ -197,6 +856,17 @@
             ],
             "title": "Phone"
           },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
           "updated_at": {
             "format": "date-time",
             "title": "Updated At",
@@ -207,25 +877,235 @@
           "id",
           "created_at",
           "updated_at",
-          "company_name",
-          "contact_name",
-          "contact_title",
+          "kind",
+          "company",
+          "name",
+          "title",
           "email",
-          "phone",
-          "employee_count",
-          "notes"
+          "phone"
         ],
-        "title": "CustomerResponse",
+        "title": "ContactResponse",
         "type": "object"
       },
-      "DealActionRequest": {
-        "additionalProperties": false,
+      "ContactRowResponse": {
         "properties": {
-          "acted_at": {
-            "format": "date-time",
-            "title": "Acted At",
+          "company": {
+            "title": "Company",
             "type": "string"
           },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "deal_count": {
+            "title": "Deal Count",
+            "type": "integer"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/ContactKind"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phone"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "created_at",
+          "updated_at",
+          "kind",
+          "company",
+          "name",
+          "title",
+          "email",
+          "phone",
+          "deal_count"
+        ],
+        "title": "ContactRowResponse",
+        "type": "object"
+      },
+      "ContactUpdateRequest": {
+        "additionalProperties": false,
+        "description": "종류(kind)는 바꿀 수 없어 본문에 받지 않는다(보내면 422).",
+        "properties": {
+          "company": {
+            "title": "Company",
+            "type": "string"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phone"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          }
+        },
+        "required": [
+          "company",
+          "name"
+        ],
+        "title": "ContactUpdateRequest",
+        "type": "object"
+      },
+      "CountedPage_ContactRowResponse_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ContactRowResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "limit": {
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "title": "Offset",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "offset",
+          "limit",
+          "total"
+        ],
+        "title": "CountedPage[ContactRowResponse]",
+        "type": "object"
+      },
+      "CountedPage_DealRowResponse_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/DealRowResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "limit": {
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "title": "Offset",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "offset",
+          "limit",
+          "total"
+        ],
+        "title": "CountedPage[DealRowResponse]",
+        "type": "object"
+      },
+      "DateChange": {
+        "additionalProperties": false,
+        "properties": {
+          "field": {
+            "const": "revenue_date",
+            "title": "Field",
+            "type": "string"
+          },
+          "value": {
+            "format": "date",
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "field",
+          "value"
+        ],
+        "title": "DateChange",
+        "type": "object"
+      },
+      "DealActionCreateRequest": {
+        "additionalProperties": false,
+        "properties": {
           "action": {
             "title": "Action",
             "type": "string"
@@ -233,15 +1113,17 @@
           "action_type": {
             "$ref": "#/components/schemas/ActionType"
           },
-          "actor_user_id": {
-            "format": "uuid",
-            "title": "Actor User Id",
-            "type": "string"
-          },
           "due_date": {
-            "format": "date",
-            "title": "Due Date",
-            "type": "string"
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Due Date"
           },
           "memo": {
             "default": "",
@@ -251,17 +1133,41 @@
           "next_action": {
             "title": "Next Action",
             "type": "string"
+          },
+          "status_change": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ActionStatusChangeRequest"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
           "action_type",
           "action",
-          "acted_at",
-          "actor_user_id",
-          "next_action",
-          "due_date"
+          "next_action"
         ],
-        "title": "DealActionRequest",
+        "title": "DealActionCreateRequest",
+        "type": "object"
+      },
+      "DealActionList": {
+        "description": "Deal 하나의 Action 전부. 페이지는 없다.",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/DealActionResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "DealActionList",
         "type": "object"
       },
       "DealActionResponse": {
@@ -286,9 +1192,77 @@
             "title": "Created At",
             "type": "string"
           },
-          "deal_id": {
-            "title": "Deal Id",
+          "deal_code": {
+            "title": "Deal Code",
             "type": "string"
+          },
+          "due_date": {
+            "format": "date",
+            "title": "Due Date",
+            "type": "string"
+          },
+          "forecast_key": {
+            "title": "Forecast Key",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "memo": {
+            "title": "Memo",
+            "type": "string"
+          },
+          "next_action": {
+            "title": "Next Action",
+            "type": "string"
+          },
+          "status_key": {
+            "title": "Status Key",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "created_at",
+          "updated_at",
+          "deal_code",
+          "action_type",
+          "action",
+          "next_action",
+          "due_date",
+          "memo",
+          "acted_at",
+          "actor",
+          "status_key",
+          "forecast_key"
+        ],
+        "title": "DealActionResponse",
+        "type": "object"
+      },
+      "DealActionSort": {
+        "enum": [
+          "acted_at_desc",
+          "acted_at_asc",
+          "due_date_asc"
+        ],
+        "title": "DealActionSort",
+        "type": "string"
+      },
+      "DealActionUpdateRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "title": "Action",
+            "type": "string"
+          },
+          "action_type": {
+            "$ref": "#/components/schemas/ActionType"
           },
           "due_date": {
             "anyOf": [
@@ -302,15 +1276,80 @@
             ],
             "title": "Due Date"
           },
-          "id": {
-            "title": "Id",
-            "type": "string"
-          },
           "memo": {
+            "default": "",
             "title": "Memo",
             "type": "string"
           },
           "next_action": {
+            "title": "Next Action",
+            "type": "string"
+          }
+        },
+        "required": [
+          "action_type",
+          "action",
+          "next_action"
+        ],
+        "title": "DealActionUpdateRequest",
+        "type": "object"
+      },
+      "DealChangeRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "change": {
+            "discriminator": {
+              "mapping": {
+                "forecast_key": "#/components/schemas/CodeChange",
+                "revenue_amount": "#/components/schemas/AmountChange",
+                "revenue_date": "#/components/schemas/DateChange",
+                "status_key": "#/components/schemas/CodeChange"
+              },
+              "propertyName": "field"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/CodeChange"
+              },
+              {
+                "$ref": "#/components/schemas/AmountChange"
+              },
+              {
+                "$ref": "#/components/schemas/DateChange"
+              }
+            ],
+            "title": "Change"
+          },
+          "resolution": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ResolutionRequest"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "change"
+        ],
+        "title": "DealChangeRequest",
+        "type": "object"
+      },
+      "DealChangeResponse": {
+        "properties": {
+          "co_changed": {
+            "items": {
+              "$ref": "#/components/schemas/CoChangedResponse"
+            },
+            "title": "Co Changed",
+            "type": "array"
+          },
+          "deal": {
+            "$ref": "#/components/schemas/DealDetailResponse"
+          },
+          "notice": {
             "anyOf": [
               {
                 "type": "string"
@@ -319,65 +1358,28 @@
                 "type": "null"
               }
             ],
-            "title": "Next Action"
-          },
-          "updated_at": {
-            "format": "date-time",
-            "title": "Updated At",
-            "type": "string"
+            "title": "Notice"
           }
         },
         "required": [
-          "id",
-          "created_at",
-          "updated_at",
-          "deal_id",
-          "action_type",
-          "action",
-          "next_action",
-          "due_date",
-          "memo",
-          "acted_at",
-          "actor"
+          "deal",
+          "co_changed",
+          "notice"
         ],
-        "title": "DealActionResponse",
+        "title": "DealChangeResponse",
         "type": "object"
       },
-      "DealActionSort": {
-        "enum": [
-          "acted_at_desc",
-          "due_date_asc",
-          "due_date_desc"
-        ],
-        "title": "DealActionSort",
-        "type": "string"
-      },
-      "DealPipelineResponse": {
-        "properties": {
-          "stages": {
-            "items": {
-              "$ref": "#/components/schemas/StageSummaryResponse"
-            },
-            "title": "Stages",
-            "type": "array"
-          }
-        },
-        "required": [
-          "stages"
-        ],
-        "title": "DealPipelineResponse",
-        "type": "object"
-      },
-      "DealRequest": {
+      "DealCreateRequest": {
         "additionalProperties": false,
         "properties": {
-          "code": {
-            "title": "Code",
-            "type": "string"
+          "bant": {
+            "$ref": "#/components/schemas/BantRequest"
           },
-          "customer_id": {
-            "format": "uuid",
-            "title": "Customer Id",
+          "customer": {
+            "$ref": "#/components/schemas/ContactDraftRequest"
+          },
+          "forecast_key": {
+            "title": "Forecast Key",
             "type": "string"
           },
           "name": {
@@ -389,43 +1391,205 @@
             "title": "Owner User Id",
             "type": "string"
           },
-          "partner_id": {
+          "partner": {
             "anyOf": [
               {
-                "format": "uuid",
+                "$ref": "#/components/schemas/ContactDraftRequest"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "poc": {
+            "$ref": "#/components/schemas/PocRequest"
+          },
+          "procurement": {
+            "default": "",
+            "title": "Procurement",
+            "type": "string"
+          },
+          "quote": {
+            "$ref": "#/components/schemas/QuoteRequest"
+          },
+          "revenue_amount": {
+            "title": "Revenue Amount",
+            "type": "integer"
+          },
+          "revenue_date": {
+            "anyOf": [
+              {
+                "format": "date",
                 "type": "string"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Partner Id"
+            "title": "Revenue Date"
           },
-          "revenue_amount": {
+          "solution": {
+            "default": "",
+            "title": "Solution",
+            "type": "string"
+          },
+          "status_key": {
+            "title": "Status Key",
+            "type": "string"
+          },
+          "users": {
             "anyOf": [
               {
-                "type": "number"
+                "type": "integer"
               },
               {
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
-                "type": "string"
+                "type": "null"
               }
             ],
-            "title": "Revenue Amount"
+            "title": "Users"
           },
-          "revenue_currency": {
-            "default": "KRW",
-            "title": "Revenue Currency",
+          "vendor": {
+            "default": "",
+            "title": "Vendor",
             "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "owner_user_id",
+          "status_key",
+          "forecast_key",
+          "revenue_amount",
+          "revenue_date",
+          "customer"
+        ],
+        "title": "DealCreateRequest",
+        "type": "object"
+      },
+      "DealDetailResponse": {
+        "properties": {
+          "active_partner": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ContactResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "bant": {
+            "$ref": "#/components/schemas/BantResponse"
+          },
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "customer": {
+            "$ref": "#/components/schemas/ContactResponse"
+          },
+          "forecast_key": {
+            "title": "Forecast Key",
+            "type": "string"
+          },
+          "last_updated_at": {
+            "format": "date-time",
+            "title": "Last Updated At",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "next_action": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/NextActionResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "owner": {
+            "$ref": "#/components/schemas/UserRef"
+          },
+          "owner_user_id": {
+            "title": "Owner User Id",
+            "type": "string"
+          },
+          "partner_history": {
+            "items": {
+              "$ref": "#/components/schemas/PartnerHistoryResponse"
+            },
+            "title": "Partner History",
+            "type": "array"
+          },
+          "partner_links": {
+            "items": {
+              "$ref": "#/components/schemas/PartnerLinkResponse"
+            },
+            "title": "Partner Links",
+            "type": "array"
+          },
+          "poc": {
+            "$ref": "#/components/schemas/PocResponse"
+          },
+          "procurement": {
+            "title": "Procurement",
+            "type": "string"
+          },
+          "quote": {
+            "$ref": "#/components/schemas/QuoteResponse"
+          },
+          "revenue_amount": {
+            "title": "Revenue Amount",
+            "type": "integer"
           },
           "revenue_date": {
             "format": "date",
             "title": "Revenue Date",
             "type": "string"
           },
+          "risk": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Risk"
+          },
           "solution": {
             "title": "Solution",
             "type": "string"
+          },
+          "status_key": {
+            "title": "Status Key",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "users": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Users"
           },
           "vendor": {
             "title": "Vendor",
@@ -436,17 +1600,240 @@
           "code",
           "name",
           "owner_user_id",
+          "owner",
           "vendor",
           "solution",
+          "users",
+          "status_key",
+          "forecast_key",
           "revenue_amount",
           "revenue_date",
-          "customer_id"
+          "customer",
+          "active_partner",
+          "partner_links",
+          "quote",
+          "poc",
+          "procurement",
+          "bant",
+          "next_action",
+          "last_updated_at",
+          "risk",
+          "created_at",
+          "updated_at",
+          "partner_history"
         ],
-        "title": "DealRequest",
+        "title": "DealDetailResponse",
         "type": "object"
       },
-      "DealResponse": {
+      "DealFacetsResponse": {
         "properties": {
+          "solutions": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Solutions",
+            "type": "array"
+          },
+          "vendors": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Vendors",
+            "type": "array"
+          }
+        },
+        "required": [
+          "vendors",
+          "solutions"
+        ],
+        "title": "DealFacetsResponse",
+        "type": "object"
+      },
+      "DealPatchRequest": {
+        "additionalProperties": false,
+        "description": "수정 본문. 보낸 필드만 반영한다(model_fields_set). partner: null은 활성 파트너 제거다.",
+        "properties": {
+          "bant": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BantRequest"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "customer": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ContactDraftRequest"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "forecast_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Forecast Key"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "owner_user_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner User Id"
+          },
+          "partner": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ContactDraftRequest"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "poc": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PocRequest"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "procurement": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Procurement"
+          },
+          "quote": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/QuoteRequest"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "revenue_amount": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revenue Amount"
+          },
+          "revenue_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revenue Date"
+          },
+          "solution": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Solution"
+          },
+          "status_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status Key"
+          },
+          "users": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Users"
+          },
+          "vendor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vendor"
+          }
+        },
+        "title": "DealPatchRequest",
+        "type": "object"
+      },
+      "DealRowResponse": {
+        "properties": {
+          "active_partner": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ContactResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "bant": {
+            "$ref": "#/components/schemas/BantResponse"
+          },
           "code": {
             "title": "Code",
             "type": "string"
@@ -456,22 +1843,66 @@
             "title": "Created At",
             "type": "string"
           },
-          "customer_id": {
-            "title": "Customer Id",
+          "customer": {
+            "$ref": "#/components/schemas/ContactResponse"
+          },
+          "forecast_key": {
+            "title": "Forecast Key",
             "type": "string"
           },
-          "id": {
-            "title": "Id",
+          "last_updated_at": {
+            "format": "date-time",
+            "title": "Last Updated At",
             "type": "string"
           },
           "name": {
             "title": "Name",
             "type": "string"
           },
+          "next_action": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/NextActionResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "owner": {
             "$ref": "#/components/schemas/UserRef"
           },
-          "partner_id": {
+          "owner_user_id": {
+            "title": "Owner User Id",
+            "type": "string"
+          },
+          "partner_links": {
+            "items": {
+              "$ref": "#/components/schemas/PartnerLinkResponse"
+            },
+            "title": "Partner Links",
+            "type": "array"
+          },
+          "poc": {
+            "$ref": "#/components/schemas/PocResponse"
+          },
+          "procurement": {
+            "title": "Procurement",
+            "type": "string"
+          },
+          "quote": {
+            "$ref": "#/components/schemas/QuoteResponse"
+          },
+          "revenue_amount": {
+            "title": "Revenue Amount",
+            "type": "integer"
+          },
+          "revenue_date": {
+            "format": "date",
+            "title": "Revenue Date",
+            "type": "string"
+          },
+          "risk": {
             "anyOf": [
               {
                 "type": "string"
@@ -480,32 +1911,31 @@
                 "type": "null"
               }
             ],
-            "title": "Partner Id"
-          },
-          "revenue_amount": {
-            "title": "Revenue Amount",
-            "type": "string"
-          },
-          "revenue_currency": {
-            "title": "Revenue Currency",
-            "type": "string"
-          },
-          "revenue_date": {
-            "format": "date",
-            "title": "Revenue Date",
-            "type": "string"
+            "title": "Risk"
           },
           "solution": {
             "title": "Solution",
             "type": "string"
           },
-          "stage": {
-            "$ref": "#/components/schemas/DealStage"
+          "status_key": {
+            "title": "Status Key",
+            "type": "string"
           },
           "updated_at": {
             "format": "date-time",
             "title": "Updated At",
             "type": "string"
+          },
+          "users": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Users"
           },
           "vendor": {
             "title": "Vendor",
@@ -513,110 +1943,43 @@
           }
         },
         "required": [
-          "id",
-          "created_at",
-          "updated_at",
           "code",
           "name",
+          "owner_user_id",
           "owner",
           "vendor",
           "solution",
+          "users",
+          "status_key",
+          "forecast_key",
           "revenue_amount",
-          "revenue_currency",
           "revenue_date",
-          "customer_id",
-          "partner_id",
-          "stage"
+          "customer",
+          "active_partner",
+          "partner_links",
+          "quote",
+          "poc",
+          "procurement",
+          "bant",
+          "next_action",
+          "last_updated_at",
+          "risk",
+          "created_at",
+          "updated_at"
         ],
-        "title": "DealResponse",
+        "title": "DealRowResponse",
         "type": "object"
       },
-      "DealStage": {
-        "description": "딜 진행 단계. 선언 순서가 표시 순서(파이프라인 정렬 기준)다.",
+      "DealSort": {
         "enum": [
-          "prospecting",
-          "introduction",
-          "poc_preparation",
-          "poc_completed",
-          "technical_evaluation",
-          "price_negotiation",
-          "contract_completed",
-          "lost"
+          "name",
+          "revenue_amount",
+          "revenue_date",
+          "last_updated_at",
+          "status"
         ],
-        "title": "DealStage",
+        "title": "DealSort",
         "type": "string"
-      },
-      "DealStageChangeRequest": {
-        "additionalProperties": false,
-        "properties": {
-          "reason": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Reason"
-          },
-          "stage": {
-            "$ref": "#/components/schemas/DealStage"
-          }
-        },
-        "required": [
-          "stage"
-        ],
-        "title": "DealStageChangeRequest",
-        "type": "object"
-      },
-      "DealStageChangeResponse": {
-        "properties": {
-          "changed_at": {
-            "format": "date-time",
-            "title": "Changed At",
-            "type": "string"
-          },
-          "changed_by": {
-            "$ref": "#/components/schemas/UserRef"
-          },
-          "deal_id": {
-            "title": "Deal Id",
-            "type": "string"
-          },
-          "from_stage": {
-            "$ref": "#/components/schemas/DealStage"
-          },
-          "id": {
-            "title": "Id",
-            "type": "string"
-          },
-          "reason": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Reason"
-          },
-          "to_stage": {
-            "$ref": "#/components/schemas/DealStage"
-          }
-        },
-        "required": [
-          "id",
-          "deal_id",
-          "from_stage",
-          "to_stage",
-          "reason",
-          "changed_by",
-          "changed_at"
-        ],
-        "title": "DealStageChangeResponse",
-        "type": "object"
       },
       "DeleteUserResponse": {
         "description": "outcome: 연결된 데이터가 없어 완전히 삭제(deleted) 또는 있어서 퇴사 처리(resigned).",
@@ -634,6 +1997,29 @@
           "outcome"
         ],
         "title": "DeleteUserResponse",
+        "type": "object"
+      },
+      "DeletionImpactResponse": {
+        "properties": {
+          "action_count": {
+            "title": "Action Count",
+            "type": "integer"
+          },
+          "attachment_count": {
+            "title": "Attachment Count",
+            "type": "integer"
+          },
+          "history_count": {
+            "title": "History Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "history_count",
+          "action_count",
+          "attachment_count"
+        ],
+        "title": "DeletionImpactResponse",
         "type": "object"
       },
       "DevLoginRequest": {
@@ -1021,6 +2407,72 @@
         "title": "HTTPValidationError",
         "type": "object"
       },
+      "HistoryCategory": {
+        "description": "History 구분. 값은 프런트 `HistoryCategory` 타입 그대로다.",
+        "enum": [
+          "created",
+          "status",
+          "forecast",
+          "amount",
+          "expectedClose",
+          "owner",
+          "partner",
+          "contact",
+          "bant",
+          "action",
+          "attachment",
+          "other"
+        ],
+        "title": "HistoryCategory",
+        "type": "string"
+      },
+      "HistoryEntryResponse": {
+        "properties": {
+          "after": {
+            "title": "After",
+            "type": "string"
+          },
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "before": {
+            "title": "Before",
+            "type": "string"
+          },
+          "by": {
+            "$ref": "#/components/schemas/UserRef"
+          },
+          "category": {
+            "$ref": "#/components/schemas/HistoryCategory"
+          },
+          "deal_code": {
+            "title": "Deal Code",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "target": {
+            "title": "Target",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "deal_code",
+          "at",
+          "by",
+          "category",
+          "target",
+          "before",
+          "after"
+        ],
+        "title": "HistoryEntryResponse",
+        "type": "object"
+      },
       "LoginRequest": {
         "additionalProperties": false,
         "properties": {
@@ -1044,161 +2496,34 @@
         "title": "LoginRequest",
         "type": "object"
       },
-      "Page_CustomerResponse_": {
+      "NextActionResponse": {
         "properties": {
-          "items": {
-            "items": {
-              "$ref": "#/components/schemas/CustomerResponse"
-            },
-            "title": "Items",
-            "type": "array"
+          "due_date": {
+            "format": "date",
+            "title": "Due Date",
+            "type": "string"
           },
-          "limit": {
-            "title": "Limit",
-            "type": "integer"
-          },
-          "offset": {
-            "title": "Offset",
-            "type": "integer"
+          "text": {
+            "title": "Text",
+            "type": "string"
           }
         },
         "required": [
-          "items",
-          "offset",
-          "limit"
+          "text",
+          "due_date"
         ],
-        "title": "Page[CustomerResponse]",
+        "title": "NextActionResponse",
         "type": "object"
       },
-      "Page_DealActionResponse_": {
-        "properties": {
-          "items": {
-            "items": {
-              "$ref": "#/components/schemas/DealActionResponse"
-            },
-            "title": "Items",
-            "type": "array"
-          },
-          "limit": {
-            "title": "Limit",
-            "type": "integer"
-          },
-          "offset": {
-            "title": "Offset",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "items",
-          "offset",
-          "limit"
+      "OnExists": {
+        "description": "같은 이름의 파일이 이미 있을 때의 선택.",
+        "enum": [
+          "ask",
+          "replace",
+          "skip"
         ],
-        "title": "Page[DealActionResponse]",
-        "type": "object"
-      },
-      "Page_DealResponse_": {
-        "properties": {
-          "items": {
-            "items": {
-              "$ref": "#/components/schemas/DealResponse"
-            },
-            "title": "Items",
-            "type": "array"
-          },
-          "limit": {
-            "title": "Limit",
-            "type": "integer"
-          },
-          "offset": {
-            "title": "Offset",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "items",
-          "offset",
-          "limit"
-        ],
-        "title": "Page[DealResponse]",
-        "type": "object"
-      },
-      "Page_DealStageChangeResponse_": {
-        "properties": {
-          "items": {
-            "items": {
-              "$ref": "#/components/schemas/DealStageChangeResponse"
-            },
-            "title": "Items",
-            "type": "array"
-          },
-          "limit": {
-            "title": "Limit",
-            "type": "integer"
-          },
-          "offset": {
-            "title": "Offset",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "items",
-          "offset",
-          "limit"
-        ],
-        "title": "Page[DealStageChangeResponse]",
-        "type": "object"
-      },
-      "Page_PartnerResponse_": {
-        "properties": {
-          "items": {
-            "items": {
-              "$ref": "#/components/schemas/PartnerResponse"
-            },
-            "title": "Items",
-            "type": "array"
-          },
-          "limit": {
-            "title": "Limit",
-            "type": "integer"
-          },
-          "offset": {
-            "title": "Offset",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "items",
-          "offset",
-          "limit"
-        ],
-        "title": "Page[PartnerResponse]",
-        "type": "object"
-      },
-      "Page_UserRef_": {
-        "properties": {
-          "items": {
-            "items": {
-              "$ref": "#/components/schemas/UserRef"
-            },
-            "title": "Items",
-            "type": "array"
-          },
-          "limit": {
-            "title": "Limit",
-            "type": "integer"
-          },
-          "offset": {
-            "title": "Offset",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "items",
-          "offset",
-          "limit"
-        ],
-        "title": "Page[UserRef]",
-        "type": "object"
+        "title": "OnExists",
+        "type": "string"
       },
       "Page_UserResponse_": {
         "properties": {
@@ -1226,128 +2551,148 @@
         "title": "Page[UserResponse]",
         "type": "object"
       },
-      "PartnerRequest": {
-        "additionalProperties": false,
+      "PartnerHistoryResponse": {
         "properties": {
-          "company_name": {
-            "title": "Company Name",
+          "active": {
+            "title": "Active",
+            "type": "boolean"
+          },
+          "contact": {
+            "$ref": "#/components/schemas/ContactResponse"
+          },
+          "linked_at": {
+            "format": "date-time",
+            "title": "Linked At",
             "type": "string"
           },
-          "contact_name": {
-            "title": "Contact Name",
-            "type": "string"
-          },
-          "contact_title": {
+          "unlinked_at": {
             "anyOf": [
               {
+                "format": "date-time",
                 "type": "string"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Contact Title"
-          },
-          "email": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Email"
-          },
-          "phone": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Phone"
+            "title": "Unlinked At"
           }
         },
         "required": [
-          "company_name",
-          "contact_name"
+          "contact",
+          "active",
+          "linked_at",
+          "unlinked_at"
         ],
-        "title": "PartnerRequest",
+        "title": "PartnerHistoryResponse",
         "type": "object"
       },
-      "PartnerResponse": {
+      "PartnerLinkResponse": {
         "properties": {
-          "company_name": {
-            "title": "Company Name",
+          "active": {
+            "title": "Active",
+            "type": "boolean"
+          },
+          "contact_id": {
+            "title": "Contact Id",
             "type": "string"
           },
-          "contact_name": {
-            "title": "Contact Name",
-            "type": "string"
-          },
-          "contact_title": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Contact Title"
-          },
-          "created_at": {
+          "linked_at": {
             "format": "date-time",
-            "title": "Created At",
+            "title": "Linked At",
             "type": "string"
           },
-          "email": {
+          "unlinked_at": {
             "anyOf": [
               {
+                "format": "date-time",
                 "type": "string"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Email"
-          },
-          "id": {
-            "title": "Id",
-            "type": "string"
-          },
-          "phone": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Phone"
-          },
-          "updated_at": {
-            "format": "date-time",
-            "title": "Updated At",
-            "type": "string"
+            "title": "Unlinked At"
           }
         },
         "required": [
-          "id",
-          "created_at",
-          "updated_at",
-          "company_name",
-          "contact_name",
-          "contact_title",
-          "email",
-          "phone"
+          "contact_id",
+          "active",
+          "linked_at",
+          "unlinked_at"
         ],
-        "title": "PartnerResponse",
+        "title": "PartnerLinkResponse",
         "type": "object"
+      },
+      "PocRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "completed_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed Date"
+          },
+          "state": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PocState"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "title": "PocRequest",
+        "type": "object"
+      },
+      "PocResponse": {
+        "properties": {
+          "completed_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed Date"
+          },
+          "state": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PocState"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "state",
+          "completed_date"
+        ],
+        "title": "PocResponse",
+        "type": "object"
+      },
+      "PocState": {
+        "enum": [
+          "YES",
+          "ING",
+          "NO"
+        ],
+        "title": "PocState",
+        "type": "string"
       },
       "PrincipalResponse": {
         "properties": {
@@ -1437,6 +2782,128 @@
         "title": "Problem",
         "type": "object"
       },
+      "QuoteRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "submitted": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/QuoteSubmitted"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "submitted_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Submitted Date"
+          }
+        },
+        "title": "QuoteRequest",
+        "type": "object"
+      },
+      "QuoteResponse": {
+        "properties": {
+          "submitted": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/QuoteSubmitted"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "submitted_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Submitted Date"
+          }
+        },
+        "required": [
+          "submitted",
+          "submitted_date"
+        ],
+        "title": "QuoteResponse",
+        "type": "object"
+      },
+      "QuoteSubmitted": {
+        "enum": [
+          "YES",
+          "NO"
+        ],
+        "title": "QuoteSubmitted",
+        "type": "string"
+      },
+      "ResolutionRequest": {
+        "additionalProperties": false,
+        "description": "프런트가 사용자에게 물어 얻은 답. 보내지 않은 답은 비워 둔다.",
+        "properties": {
+          "forecast_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Forecast Key"
+          },
+          "revenue_amount": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revenue Amount"
+          },
+          "revenue_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revenue Date"
+          },
+          "status_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status Key"
+          }
+        },
+        "title": "ResolutionRequest",
+        "type": "object"
+      },
       "Role": {
         "enum": [
           "admin",
@@ -1469,29 +2936,56 @@
         "title": "SetupAdminRequest",
         "type": "object"
       },
-      "StageSummaryResponse": {
+      "SortOrder": {
+        "enum": [
+          "asc",
+          "desc"
+        ],
+        "title": "SortOrder",
+        "type": "string"
+      },
+      "StorageSettingsRequest": {
+        "additionalProperties": false,
         "properties": {
-          "deal_count": {
-            "title": "Deal Count",
-            "type": "integer"
-          },
-          "stage": {
-            "$ref": "#/components/schemas/DealStage"
-          },
-          "totals": {
-            "items": {
-              "$ref": "#/components/schemas/CurrencyAmountResponse"
-            },
-            "title": "Totals",
-            "type": "array"
+          "path": {
+            "title": "Path",
+            "type": "string"
           }
         },
         "required": [
-          "stage",
-          "deal_count",
-          "totals"
+          "path"
         ],
-        "title": "StageSummaryResponse",
+        "title": "StorageSettingsRequest",
+        "type": "object"
+      },
+      "StorageSettingsResponse": {
+        "properties": {
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "updated_by": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UserRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "path",
+          "updated_at",
+          "updated_by"
+        ],
+        "title": "StorageSettingsResponse",
         "type": "object"
       },
       "UserDeleteReason": {
@@ -1501,6 +2995,23 @@
         ],
         "title": "UserDeleteReason",
         "type": "string"
+      },
+      "UserOptionPage": {
+        "description": "선택 UI용 후보 전체. 조건에 맞는 사용자를 모두 돌려주므로 페이징 필드가 없다.",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/UserRef"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "UserOptionPage",
+        "type": "object"
       },
       "UserRef": {
         "description": "OpenAPI 스키마 이름이 `UserRef`다(프런트가 이 이름으로 생성 타입을 쓴다).",
@@ -1520,13 +3031,17 @@
           "resigned": {
             "title": "Resigned",
             "type": "boolean"
+          },
+          "role": {
+            "$ref": "#/components/schemas/Role"
           }
         },
         "required": [
           "id",
           "name",
           "resigned",
-          "label"
+          "label",
+          "role"
         ],
         "title": "UserRef",
         "type": "object"
@@ -1535,6 +3050,17 @@
         "additionalProperties": false,
         "description": "등록 본문. 비밀번호는 받지 않는다(AD가 인증). 아이디 형식 검증은 도메인(LoginId)이 한다.",
         "properties": {
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
           "login_id": {
             "title": "Login Id",
             "type": "string"
@@ -1700,6 +3226,207 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/v1/attachments/{attachment_id}": {
+      "delete": {
+        "operationId": "delete_attachment_api_v1_attachments__attachment_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "attachment_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Attachment Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          }
+        },
+        "summary": "Delete Attachment",
+        "tags": [
+          "attachments"
+        ]
+      },
+      "get": {
+        "operationId": "get_attachment_api_v1_attachments__attachment_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "attachment_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Attachment Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttachmentResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          }
+        },
+        "summary": "Get Attachment",
+        "tags": [
+          "attachments"
+        ]
+      }
+    },
+    "/api/v1/attachments/{attachment_id}/download": {
+      "get": {
+        "operationId": "download_attachment_api_v1_attachments__attachment_id__download_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "attachment_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Attachment Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "파일 내용(항상 octet-stream, attachment)"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          }
+        },
+        "summary": "Download Attachment",
+        "tags": [
+          "attachments"
+        ]
+      }
+    },
     "/api/v1/auth/config": {
       "get": {
         "operationId": "auth_config_api_v1_auth_config_get",
@@ -2020,73 +3747,31 @@
         ]
       }
     },
-    "/api/v1/customers": {
-      "get": {
-        "operationId": "list_customers_api_v1_customers_get",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "keyword",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "maxLength": 100,
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Keyword"
+    "/api/v1/auth/setup/storage": {
+      "put": {
+        "operationId": "setup_storage_api_v1_auth_setup_storage_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StorageSettingsRequest"
+              }
             }
           },
-          {
-            "in": "query",
-            "name": "offset",
-            "required": false,
-            "schema": {
-              "default": 0,
-              "minimum": 0,
-              "title": "Offset",
-              "type": "integer"
-            }
-          },
-          {
-            "in": "query",
-            "name": "limit",
-            "required": false,
-            "schema": {
-              "default": 50,
-              "maximum": 200,
-              "minimum": 1,
-              "title": "Limit",
-              "type": "integer"
-            }
-          }
-        ],
+          "required": true
+        },
         "responses": {
           "200": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Page_CustomerResponse_"
+                  "$ref": "#/components/schemas/StorageSettingsResponse"
                 }
               }
             },
             "description": "Successful Response"
           },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "problem+json"
-          },
-          "404": {
+          "409": {
             "content": {
               "application/json": {
                 "schema": {
@@ -2107,18 +3792,97 @@
             "description": "problem+json"
           }
         },
-        "summary": "List Customers",
+        "summary": "Setup Storage",
         "tags": [
-          "customers"
+          "auth"
         ]
-      },
+      }
+    },
+    "/api/v1/auth/setup/storage/test": {
       "post": {
-        "operationId": "register_customer_api_v1_customers_post",
+        "operationId": "test_setup_storage_api_v1_auth_setup_storage_test_post",
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/CustomerRequest"
+                "$ref": "#/components/schemas/StorageSettingsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          }
+        },
+        "summary": "Test Setup Storage",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/bant-labels": {
+      "get": {
+        "operationId": "list_bant_labels_api_v1_bant_labels_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/BantLabelResponse"
+                  },
+                  "title": "Response List Bant Labels Api V1 Bant Labels Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          }
+        },
+        "summary": "List Bant Labels",
+        "tags": [
+          "bant-labels"
+        ]
+      },
+      "post": {
+        "operationId": "create_bant_label_api_v1_bant_labels_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BantLabelCreateRequest"
               }
             }
           },
@@ -2129,7 +3893,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/CustomerResponse"
+                  "$ref": "#/components/schemas/BantLabelResponse"
                 }
               }
             },
@@ -2186,23 +3950,23 @@
             "description": "problem+json"
           }
         },
-        "summary": "Register Customer",
+        "summary": "Create Bant Label",
         "tags": [
-          "customers"
+          "bant-labels"
         ]
       }
     },
-    "/api/v1/customers/{customer_id}": {
+    "/api/v1/bant-labels/{label_id}": {
       "delete": {
-        "operationId": "delete_customer_api_v1_customers__customer_id__delete",
+        "operationId": "delete_bant_label_api_v1_bant_labels__label_id__delete",
         "parameters": [
           {
             "in": "path",
-            "name": "customer_id",
+            "name": "label_id",
             "required": true,
             "schema": {
               "format": "uuid",
-              "title": "Customer Id",
+              "title": "Label Id",
               "type": "string"
             }
           }
@@ -2262,82 +4026,21 @@
             "description": "problem+json"
           }
         },
-        "summary": "Delete Customer",
+        "summary": "Delete Bant Label",
         "tags": [
-          "customers"
+          "bant-labels"
         ]
       },
-      "get": {
-        "operationId": "get_customer_api_v1_customers__customer_id__get",
+      "patch": {
+        "operationId": "rename_bant_label_api_v1_bant_labels__label_id__patch",
         "parameters": [
           {
             "in": "path",
-            "name": "customer_id",
+            "name": "label_id",
             "required": true,
             "schema": {
               "format": "uuid",
-              "title": "Customer Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CustomerResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "problem+json"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "problem+json"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "problem+json"
-          }
-        },
-        "summary": "Get Customer",
-        "tags": [
-          "customers"
-        ]
-      },
-      "put": {
-        "operationId": "update_customer_api_v1_customers__customer_id__put",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "customer_id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "title": "Customer Id",
+              "title": "Label Id",
               "type": "string"
             }
           }
@@ -2346,7 +4049,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/CustomerRequest"
+                "$ref": "#/components/schemas/BantLabelRenameRequest"
               }
             }
           },
@@ -2357,7 +4060,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/CustomerResponse"
+                  "$ref": "#/components/schemas/BantLabelResponse"
                 }
               }
             },
@@ -2414,47 +4117,457 @@
             "description": "problem+json"
           }
         },
-        "summary": "Update Customer",
+        "summary": "Rename Bant Label",
         "tags": [
-          "customers"
+          "bant-labels"
         ]
       }
     },
-    "/api/v1/deal-actions": {
+    "/api/v1/codes": {
       "get": {
-        "operationId": "search_deal_actions_api_v1_deal_actions_get",
+        "operationId": "list_codes_api_v1_codes_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodeSetResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          }
+        },
+        "summary": "List Codes",
+        "tags": [
+          "codes"
+        ]
+      },
+      "post": {
+        "operationId": "create_code_api_v1_codes_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CodeCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodeUsageResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          }
+        },
+        "summary": "Create Code",
+        "tags": [
+          "codes"
+        ]
+      }
+    },
+    "/api/v1/codes/order": {
+      "put": {
+        "operationId": "reorder_codes_api_v1_codes_order_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CodeOrderRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CodeUsageResponse"
+                  },
+                  "title": "Response Reorder Codes Api V1 Codes Order Put",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          }
+        },
+        "summary": "Reorder Codes",
+        "tags": [
+          "codes"
+        ]
+      }
+    },
+    "/api/v1/codes/usage": {
+      "get": {
+        "operationId": "list_codes_with_usage_api_v1_codes_usage_get",
         "parameters": [
           {
             "in": "query",
-            "name": "action_type",
-            "required": false,
+            "name": "kind",
+            "required": true,
             "schema": {
-              "anyOf": [
-                {
-                  "$ref": "#/components/schemas/ActionType"
-                },
-                {
-                  "type": "null"
+              "$ref": "#/components/schemas/CodeKind"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CodeUsageResponse"
+                  },
+                  "title": "Response List Codes With Usage Api V1 Codes Usage Get",
+                  "type": "array"
                 }
-              ],
-              "title": "Action Type"
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          }
+        },
+        "summary": "List Codes With Usage",
+        "tags": [
+          "codes"
+        ]
+      }
+    },
+    "/api/v1/codes/{code_id}": {
+      "delete": {
+        "operationId": "delete_code_api_v1_codes__code_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "code_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Code Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          }
+        },
+        "summary": "Delete Code",
+        "tags": [
+          "codes"
+        ]
+      },
+      "patch": {
+        "operationId": "rename_code_api_v1_codes__code_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "code_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Code Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CodeRenameRequest"
+              }
             }
           },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodeUsageResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          }
+        },
+        "summary": "Rename Code",
+        "tags": [
+          "codes"
+        ]
+      }
+    },
+    "/api/v1/contacts": {
+      "get": {
+        "operationId": "search_contacts_api_v1_contacts_get",
+        "parameters": [
           {
             "in": "query",
-            "name": "actor_user_id",
+            "name": "kind",
             "required": false,
             "schema": {
               "anyOf": [
                 {
-                  "format": "uuid",
-                  "type": "string"
+                  "$ref": "#/components/schemas/ContactKind"
                 },
                 {
                   "type": "null"
                 }
               ],
-              "title": "Actor User Id"
+              "title": "Kind"
             }
           },
           {
@@ -2472,83 +4585,6 @@
                 }
               ],
               "title": "Keyword"
-            }
-          },
-          {
-            "in": "query",
-            "name": "acted_from",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "format": "date-time",
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Acted From"
-            }
-          },
-          {
-            "in": "query",
-            "name": "acted_to",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "format": "date-time",
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Acted To"
-            }
-          },
-          {
-            "in": "query",
-            "name": "due_from",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "format": "date",
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Due From"
-            }
-          },
-          {
-            "in": "query",
-            "name": "due_to",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "format": "date",
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Due To"
-            }
-          },
-          {
-            "in": "query",
-            "name": "sort",
-            "required": false,
-            "schema": {
-              "$ref": "#/components/schemas/DealActionSort",
-              "default": "acted_at_desc"
             }
           },
           {
@@ -2573,23 +4609,6 @@
               "title": "Limit",
               "type": "integer"
             }
-          },
-          {
-            "in": "query",
-            "name": "deal_id",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "format": "uuid",
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Deal Id"
-            }
           }
         ],
         "responses": {
@@ -2597,7 +4616,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Page_DealActionResponse_"
+                  "$ref": "#/components/schemas/CountedPage_ContactRowResponse_"
                 }
               }
             },
@@ -2613,7 +4632,7 @@
             },
             "description": "problem+json"
           },
-          "404": {
+          "403": {
             "content": {
               "application/json": {
                 "schema": {
@@ -2634,9 +4653,375 @@
             "description": "problem+json"
           }
         },
-        "summary": "Search Deal Actions",
+        "summary": "Search Contacts",
         "tags": [
-          "deal-actions"
+          "contacts"
+        ]
+      },
+      "post": {
+        "operationId": "register_contact_api_v1_contacts_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContactCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContactResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          }
+        },
+        "summary": "Register Contact",
+        "tags": [
+          "contacts"
+        ]
+      }
+    },
+    "/api/v1/contacts/by-company": {
+      "get": {
+        "operationId": "list_contacts_of_company_api_v1_contacts_by_company_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ContactKind"
+            }
+          },
+          {
+            "in": "query",
+            "name": "company",
+            "required": true,
+            "schema": {
+              "maxLength": 200,
+              "title": "Company",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ContactRowResponse"
+                  },
+                  "title": "Response List Contacts Of Company Api V1 Contacts By Company Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          }
+        },
+        "summary": "List Contacts Of Company",
+        "tags": [
+          "contacts"
+        ]
+      }
+    },
+    "/api/v1/contacts/companies": {
+      "get": {
+        "operationId": "list_contact_companies_api_v1_contacts_companies_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ContactKind"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "title": "Response List Contact Companies Api V1 Contacts Companies Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          }
+        },
+        "summary": "List Contact Companies",
+        "tags": [
+          "contacts"
+        ]
+      }
+    },
+    "/api/v1/contacts/{contact_id}": {
+      "delete": {
+        "operationId": "delete_contact_api_v1_contacts__contact_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "contact_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Contact Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          }
+        },
+        "summary": "Delete Contact",
+        "tags": [
+          "contacts"
+        ]
+      },
+      "put": {
+        "operationId": "update_contact_api_v1_contacts__contact_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "contact_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Contact Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContactUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContactResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          }
+        },
+        "summary": "Update Contact",
+        "tags": [
+          "contacts"
         ]
       }
     },
@@ -2784,7 +5169,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/DealActionRequest"
+                "$ref": "#/components/schemas/DealActionUpdateRequest"
               }
             }
           },
@@ -2881,40 +5266,6 @@
           },
           {
             "in": "query",
-            "name": "customer_id",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "format": "uuid",
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Customer Id"
-            }
-          },
-          {
-            "in": "query",
-            "name": "partner_id",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "format": "uuid",
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Partner Id"
-            }
-          },
-          {
-            "in": "query",
             "name": "owner_user_id",
             "required": false,
             "schema": {
@@ -2932,6 +5283,16 @@
           },
           {
             "in": "query",
+            "name": "mine",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Mine",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
             "name": "vendor",
             "required": false,
             "schema": {
@@ -2945,6 +5306,93 @@
                 }
               ],
               "title": "Vendor"
+            }
+          },
+          {
+            "in": "query",
+            "name": "solution",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Solution"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status_key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 50,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status Key"
+            }
+          },
+          {
+            "in": "query",
+            "name": "forecast_key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 50,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Forecast Key"
+            }
+          },
+          {
+            "in": "query",
+            "name": "year",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 9999,
+                  "minimum": 1900,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Year"
+            }
+          },
+          {
+            "in": "query",
+            "name": "quarter",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 4,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Quarter"
             }
           },
           {
@@ -2983,18 +5431,88 @@
           },
           {
             "in": "query",
-            "name": "stage",
+            "name": "bant_budget",
             "required": false,
             "schema": {
               "anyOf": [
                 {
-                  "$ref": "#/components/schemas/DealStage"
+                  "format": "uuid",
+                  "type": "string"
                 },
                 {
                   "type": "null"
                 }
               ],
-              "title": "Stage"
+              "title": "Bant Budget"
+            }
+          },
+          {
+            "in": "query",
+            "name": "bant_authority",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Bant Authority"
+            }
+          },
+          {
+            "in": "query",
+            "name": "bant_need",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Bant Need"
+            }
+          },
+          {
+            "in": "query",
+            "name": "bant_timeline",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Bant Timeline"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/DealSort",
+              "default": "last_updated_at"
+            }
+          },
+          {
+            "in": "query",
+            "name": "order",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/SortOrder",
+              "default": "desc"
             }
           },
           {
@@ -3013,21 +5531,11 @@
             "name": "limit",
             "required": false,
             "schema": {
-              "default": 50,
+              "default": 20,
               "maximum": 200,
               "minimum": 1,
               "title": "Limit",
               "type": "integer"
-            }
-          },
-          {
-            "in": "query",
-            "name": "mine",
-            "required": false,
-            "schema": {
-              "default": false,
-              "title": "Mine",
-              "type": "boolean"
             }
           }
         ],
@@ -3036,23 +5544,13 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Page_DealResponse_"
+                  "$ref": "#/components/schemas/CountedPage_DealRowResponse_"
                 }
               }
             },
             "description": "Successful Response"
           },
           "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "problem+json"
-          },
-          "404": {
             "content": {
               "application/json": {
                 "schema": {
@@ -3084,7 +5582,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/DealRequest"
+                "$ref": "#/components/schemas/DealCreateRequest"
               }
             }
           },
@@ -3095,7 +5593,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/DealResponse"
+                  "$ref": "#/components/schemas/DealDetailResponse"
                 }
               }
             },
@@ -3158,9 +5656,50 @@
         ]
       }
     },
-    "/api/v1/deals/by-code/{code}": {
+    "/api/v1/deals/facets": {
       "get": {
-        "operationId": "get_deal_by_code_api_v1_deals_by_code__code__get",
+        "operationId": "list_deal_facets_api_v1_deals_facets_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DealFacetsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          }
+        },
+        "summary": "List Deal Facets",
+        "tags": [
+          "deals"
+        ]
+      }
+    },
+    "/api/v1/deals/{code}": {
+      "delete": {
+        "operationId": "delete_deal_api_v1_deals__code__delete",
         "parameters": [
           {
             "in": "path",
@@ -3170,130 +5709,13 @@
               "title": "Code",
               "type": "string"
             }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DealResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
           },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "problem+json"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "problem+json"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "problem+json"
-          }
-        },
-        "summary": "Get Deal By Code",
-        "tags": [
-          "deals"
-        ]
-      }
-    },
-    "/api/v1/deals/pipeline": {
-      "get": {
-        "operationId": "get_deal_pipeline_api_v1_deals_pipeline_get",
-        "parameters": [
           {
             "in": "query",
-            "name": "mine",
-            "required": false,
-            "schema": {
-              "default": false,
-              "title": "Mine",
-              "type": "boolean"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DealPipelineResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "problem+json"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "problem+json"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "problem+json"
-          }
-        },
-        "summary": "Get Deal Pipeline",
-        "tags": [
-          "deals"
-        ]
-      }
-    },
-    "/api/v1/deals/{deal_id}": {
-      "delete": {
-        "operationId": "delete_deal_api_v1_deals__deal_id__delete",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "deal_id",
+            "name": "confirm_code",
             "required": true,
             "schema": {
-              "format": "uuid",
-              "title": "Deal Id",
+              "title": "Confirm Code",
               "type": "string"
             }
           }
@@ -3332,16 +5754,6 @@
             },
             "description": "problem+json"
           },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "problem+json"
-          },
           "422": {
             "content": {
               "application/json": {
@@ -3359,15 +5771,14 @@
         ]
       },
       "get": {
-        "operationId": "get_deal_api_v1_deals__deal_id__get",
+        "operationId": "get_deal_api_v1_deals__code__get",
         "parameters": [
           {
             "in": "path",
-            "name": "deal_id",
+            "name": "code",
             "required": true,
             "schema": {
-              "format": "uuid",
-              "title": "Deal Id",
+              "title": "Code",
               "type": "string"
             }
           }
@@ -3377,7 +5788,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/DealResponse"
+                  "$ref": "#/components/schemas/DealDetailResponse"
                 }
               }
             },
@@ -3419,16 +5830,15 @@
           "deals"
         ]
       },
-      "put": {
-        "operationId": "update_deal_api_v1_deals__deal_id__put",
+      "patch": {
+        "operationId": "update_deal_api_v1_deals__code__patch",
         "parameters": [
           {
             "in": "path",
-            "name": "deal_id",
+            "name": "code",
             "required": true,
             "schema": {
-              "format": "uuid",
-              "title": "Deal Id",
+              "title": "Code",
               "type": "string"
             }
           }
@@ -3437,7 +5847,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/DealRequest"
+                "$ref": "#/components/schemas/DealPatchRequest"
               }
             }
           },
@@ -3448,7 +5858,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/DealResponse"
+                  "$ref": "#/components/schemas/DealDetailResponse"
                 }
               }
             },
@@ -3511,17 +5921,16 @@
         ]
       }
     },
-    "/api/v1/deals/{deal_id}/actions": {
+    "/api/v1/deals/{code}/actions": {
       "get": {
-        "operationId": "list_actions_of_deal_api_v1_deals__deal_id__actions_get",
+        "operationId": "list_actions_of_deal_api_v1_deals__code__actions_get",
         "parameters": [
           {
             "in": "path",
-            "name": "deal_id",
+            "name": "code",
             "required": true,
             "schema": {
-              "format": "uuid",
-              "title": "Deal Id",
+              "title": "Code",
               "type": "string"
             }
           },
@@ -3582,7 +5991,7 @@
             "schema": {
               "anyOf": [
                 {
-                  "format": "date-time",
+                  "format": "date",
                   "type": "string"
                 },
                 {
@@ -3599,7 +6008,7 @@
             "schema": {
               "anyOf": [
                 {
-                  "format": "date-time",
+                  "format": "date",
                   "type": "string"
                 },
                 {
@@ -3651,29 +6060,6 @@
               "$ref": "#/components/schemas/DealActionSort",
               "default": "acted_at_desc"
             }
-          },
-          {
-            "in": "query",
-            "name": "offset",
-            "required": false,
-            "schema": {
-              "default": 0,
-              "minimum": 0,
-              "title": "Offset",
-              "type": "integer"
-            }
-          },
-          {
-            "in": "query",
-            "name": "limit",
-            "required": false,
-            "schema": {
-              "default": 50,
-              "maximum": 200,
-              "minimum": 1,
-              "title": "Limit",
-              "type": "integer"
-            }
           }
         ],
         "responses": {
@@ -3681,7 +6067,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Page_DealActionResponse_"
+                  "$ref": "#/components/schemas/DealActionList"
                 }
               }
             },
@@ -3724,15 +6110,14 @@
         ]
       },
       "post": {
-        "operationId": "register_deal_action_api_v1_deals__deal_id__actions_post",
+        "operationId": "register_deal_action_api_v1_deals__code__actions_post",
         "parameters": [
           {
             "in": "path",
-            "name": "deal_id",
+            "name": "code",
             "required": true,
             "schema": {
-              "format": "uuid",
-              "title": "Deal Id",
+              "title": "Code",
               "type": "string"
             }
           }
@@ -3741,7 +6126,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/DealActionRequest"
+                "$ref": "#/components/schemas/DealActionCreateRequest"
               }
             }
           },
@@ -3815,17 +6200,187 @@
         ]
       }
     },
-    "/api/v1/deals/{deal_id}/stage": {
-      "post": {
-        "operationId": "change_deal_stage_api_v1_deals__deal_id__stage_post",
+    "/api/v1/deals/{code}/attachments": {
+      "get": {
+        "operationId": "list_attachments_api_v1_deals__code__attachments_get",
         "parameters": [
           {
             "in": "path",
-            "name": "deal_id",
+            "name": "code",
             "required": true,
             "schema": {
-              "format": "uuid",
-              "title": "Deal Id",
+              "title": "Code",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttachmentList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          }
+        },
+        "summary": "List Attachments",
+        "tags": [
+          "attachments"
+        ]
+      },
+      "post": {
+        "operationId": "upload_attachment_api_v1_deals__code__attachments_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "title": "Code",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_attachment_api_v1_deals__code__attachments_post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttachmentUploadResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttachmentUploadResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          }
+        },
+        "summary": "Upload Attachment",
+        "tags": [
+          "attachments"
+        ]
+      }
+    },
+    "/api/v1/deals/{code}/changes": {
+      "post": {
+        "operationId": "apply_deal_change_api_v1_deals__code__changes_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "title": "Code",
               "type": "string"
             }
           }
@@ -3834,7 +6389,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/DealStageChangeRequest"
+                "$ref": "#/components/schemas/DealChangeRequest"
               }
             }
           },
@@ -3845,7 +6400,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/DealResponse"
+                  "$ref": "#/components/schemas/DealChangeResponse"
                 }
               }
             },
@@ -3902,47 +6457,23 @@
             "description": "problem+json"
           }
         },
-        "summary": "Change Deal Stage",
+        "summary": "Apply Deal Change",
         "tags": [
           "deals"
         ]
       }
     },
-    "/api/v1/deals/{deal_id}/stage-changes": {
+    "/api/v1/deals/{code}/deletion-impact": {
       "get": {
-        "operationId": "list_deal_stage_changes_api_v1_deals__deal_id__stage_changes_get",
+        "operationId": "get_deal_deletion_impact_api_v1_deals__code__deletion_impact_get",
         "parameters": [
           {
             "in": "path",
-            "name": "deal_id",
+            "name": "code",
             "required": true,
             "schema": {
-              "format": "uuid",
-              "title": "Deal Id",
+              "title": "Code",
               "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "offset",
-            "required": false,
-            "schema": {
-              "default": 0,
-              "minimum": 0,
-              "title": "Offset",
-              "type": "integer"
-            }
-          },
-          {
-            "in": "query",
-            "name": "limit",
-            "required": false,
-            "schema": {
-              "default": 50,
-              "maximum": 200,
-              "minimum": 1,
-              "title": "Limit",
-              "type": "integer"
             }
           }
         ],
@@ -3951,7 +6482,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Page_DealStageChangeResponse_"
+                  "$ref": "#/components/schemas/DeletionImpactResponse"
                 }
               }
             },
@@ -3988,54 +6519,39 @@
             "description": "problem+json"
           }
         },
-        "summary": "List Deal Stage Changes",
+        "summary": "Get Deal Deletion Impact",
         "tags": [
           "deals"
         ]
       }
     },
-    "/api/v1/partners": {
+    "/api/v1/deals/{code}/history": {
       "get": {
-        "operationId": "list_partners_api_v1_partners_get",
+        "operationId": "list_deal_history_api_v1_deals__code__history_get",
         "parameters": [
           {
+            "in": "path",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "title": "Code",
+              "type": "string"
+            }
+          },
+          {
             "in": "query",
-            "name": "keyword",
+            "name": "category",
             "required": false,
             "schema": {
               "anyOf": [
                 {
-                  "maxLength": 100,
-                  "type": "string"
+                  "$ref": "#/components/schemas/HistoryCategory"
                 },
                 {
                   "type": "null"
                 }
               ],
-              "title": "Keyword"
-            }
-          },
-          {
-            "in": "query",
-            "name": "offset",
-            "required": false,
-            "schema": {
-              "default": 0,
-              "minimum": 0,
-              "title": "Offset",
-              "type": "integer"
-            }
-          },
-          {
-            "in": "query",
-            "name": "limit",
-            "required": false,
-            "schema": {
-              "default": 50,
-              "maximum": 200,
-              "minimum": 1,
-              "title": "Limit",
-              "type": "integer"
+              "title": "Category"
             }
           }
         ],
@@ -4044,7 +6560,11 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Page_PartnerResponse_"
+                  "items": {
+                    "$ref": "#/components/schemas/HistoryEntryResponse"
+                  },
+                  "title": "Response List Deal History Api V1 Deals  Code  History Get",
+                  "type": "array"
                 }
               }
             },
@@ -4081,316 +6601,9 @@
             "description": "problem+json"
           }
         },
-        "summary": "List Partners",
+        "summary": "List Deal History",
         "tags": [
-          "partners"
-        ]
-      },
-      "post": {
-        "operationId": "register_partner_api_v1_partners_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PartnerRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PartnerResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "problem+json"
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "problem+json"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "problem+json"
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "problem+json"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "problem+json"
-          }
-        },
-        "summary": "Register Partner",
-        "tags": [
-          "partners"
-        ]
-      }
-    },
-    "/api/v1/partners/{partner_id}": {
-      "delete": {
-        "operationId": "delete_partner_api_v1_partners__partner_id__delete",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "partner_id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "title": "Partner Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "Successful Response"
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "problem+json"
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "problem+json"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "problem+json"
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "problem+json"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "problem+json"
-          }
-        },
-        "summary": "Delete Partner",
-        "tags": [
-          "partners"
-        ]
-      },
-      "get": {
-        "operationId": "get_partner_api_v1_partners__partner_id__get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "partner_id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "title": "Partner Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PartnerResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "problem+json"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "problem+json"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "problem+json"
-          }
-        },
-        "summary": "Get Partner",
-        "tags": [
-          "partners"
-        ]
-      },
-      "put": {
-        "operationId": "update_partner_api_v1_partners__partner_id__put",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "partner_id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "title": "Partner Id",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PartnerRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PartnerResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "problem+json"
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "problem+json"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "problem+json"
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "problem+json"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "problem+json"
-          }
-        },
-        "summary": "Update Partner",
-        "tags": [
-          "partners"
+          "deals"
         ]
       }
     },
@@ -4625,6 +6838,170 @@
         ]
       }
     },
+    "/api/v1/settings/storage": {
+      "get": {
+        "operationId": "get_storage_settings_api_v1_settings_storage_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StorageSettingsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          }
+        },
+        "summary": "Get Storage Settings",
+        "tags": [
+          "settings"
+        ]
+      },
+      "put": {
+        "operationId": "update_storage_settings_api_v1_settings_storage_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StorageSettingsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StorageSettingsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          }
+        },
+        "summary": "Update Storage Settings",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/api/v1/settings/storage/test": {
+      "post": {
+        "operationId": "test_storage_settings_api_v1_settings_storage_test_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StorageSettingsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          }
+        },
+        "summary": "Test Storage Settings",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
     "/api/v1/user-options": {
       "get": {
         "operationId": "list_user_options_api_v1_user_options_get",
@@ -4658,14 +7035,18 @@
           },
           {
             "in": "query",
-            "name": "limit",
+            "name": "role",
             "required": false,
             "schema": {
-              "default": 200,
-              "maximum": 200,
-              "minimum": 1,
-              "title": "Limit",
-              "type": "integer"
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/Role"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Role"
             }
           }
         ],
@@ -4674,7 +7055,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Page_UserRef_"
+                  "$ref": "#/components/schemas/UserOptionPage"
                 }
               }
             },

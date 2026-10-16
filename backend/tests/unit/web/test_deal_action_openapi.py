@@ -1,0 +1,133 @@
+"""Action API의 OpenAPI 계약(AC-17·21): 길이 제약 없음, 서버가 채우는 필드 없음, 전역 검색 없음.
+
+커밋된 openapi.json과의 일치(드리프트)는 functional/platform이 검사한다. 이 파일은 새 계약의
+핵심을 직접 고정해, 스키마가 갱신되지 않았거나 필드가 빠진 경우를 구체적으로 드러낸다.
+"""
+
+from typing import Any
+
+import pytest
+
+from app.main import create_app
+from tests.fakes.use_cases import FakeUseCases
+from tests.functional.conftest import make_settings
+
+UNUSED_DATABASE_URL = "postgresql+asyncpg://user:pw@localhost:5432/none"  # 접속하지 않는다
+TEXT_FIELDS = ("action", "next_action", "memo")
+
+
+@pytest.fixture(scope="module")
+def schema() -> dict[str, Any]:
+    app = create_app(settings=make_settings(UNUSED_DATABASE_URL), use_cases=FakeUseCases())
+    return app.openapi()
+
+
+def _is_nullable(prop: dict[str, Any]) -> bool:
+    return any(option.get("type") == "null" for option in prop.get("anyOf", []))
+
+
+def _request_schema_names(schema: dict[str, Any], method: str, path: str) -> str:
+    body = schema["paths"][path][method]["requestBody"]["content"]["application/json"]["schema"]
+    return str(body["$ref"]).rsplit("/", 1)[-1]
+
+
+@pytest.mark.parametrize(
+    ("method", "path"),
+    [("post", "/api/v1/deals/{code}/actions"), ("put", "/api/v1/deal-actions/{action_id}")],
+)
+def test_action_request_schemas_have_no_max_length(
+    schema: dict[str, Any], method: str, path: str
+) -> None:
+    name = _request_schema_names(schema, method, path)
+    props = schema["components"]["schemas"][name]["properties"]
+
+    for field in TEXT_FIELDS:
+        assert "maxLength" not in props[field], (name, field)
+        assert props[field]["type"] == "string"
+
+
+@pytest.mark.parametrize(
+    ("method", "path"),
+    [("post", "/api/v1/deals/{code}/actions"), ("put", "/api/v1/deal-actions/{action_id}")],
+)
+def test_action_requests_do_not_take_server_filled_fields(
+    schema: dict[str, Any], method: str, path: str
+) -> None:
+    name = _request_schema_names(schema, method, path)
+    request = schema["components"]["schemas"][name]
+
+    assert not {"acted_at", "actor_user_id", "actor", "title", "content"} & set(
+        request["properties"]
+    )
+    assert request["additionalProperties"] is False
+    assert {"action_type", "action", "next_action"} <= set(request["required"])
+
+
+def test_only_the_create_request_accepts_a_status_change(schema: dict[str, Any]) -> None:
+    create = _request_schema_names(schema, "post", "/api/v1/deals/{code}/actions")
+    update = _request_schema_names(schema, "put", "/api/v1/deal-actions/{action_id}")
+
+    assert "status_change" in schema["components"]["schemas"][create]["properties"]
+    assert "status_change" not in schema["components"]["schemas"][update]["properties"]
+
+
+def test_response_exposes_the_snapshot_and_non_null_plan_fields(schema: dict[str, Any]) -> None:
+    response = schema["components"]["schemas"]["DealActionResponse"]
+    props = response["properties"]
+
+    assert {"status_key", "forecast_key", "acted_at", "actor", "deal_code", "updated_at"} <= set(
+        props
+    )
+    assert not _is_nullable(props["next_action"])
+    assert not _is_nullable(props["due_date"])
+    assert {"action", "next_action", "due_date", "memo", "status_key", "forecast_key"} <= set(
+        response["required"]
+    )
+    assert "actor_user_id" not in props
+
+
+def test_search_documents_the_date_filters_and_the_three_sorts_without_paging(
+    schema: dict[str, Any],
+) -> None:
+    operation = schema["paths"]["/api/v1/deals/{code}/actions"]["get"]
+    params = {p["name"]: p for p in operation["parameters"]}
+
+    assert {
+        "action_type",
+        "actor_user_id",
+        "keyword",
+        "acted_from",
+        "acted_to",
+        "due_from",
+        "due_to",
+        "sort",
+    } <= set(params)
+    assert not {"offset", "limit", "deal_code"} & set(params)
+    assert params["sort"]["required"] is False
+    sort_schema = schema["components"]["schemas"]["DealActionSort"]
+    assert sort_schema["enum"] == ["acted_at_desc", "acted_at_asc", "due_date_asc"]
+
+
+def test_the_list_response_is_an_items_object_without_a_page(schema: dict[str, Any]) -> None:
+    operation = schema["paths"]["/api/v1/deals/{code}/actions"]["get"]
+    ref = operation["responses"]["200"]["content"]["application/json"]["schema"]["$ref"]
+    body = schema["components"]["schemas"][str(ref).rsplit("/", 1)[-1]]
+
+    assert set(body["properties"]) == {"items"}
+
+
+def test_the_global_search_is_gone_but_the_single_action_routes_remain(
+    schema: dict[str, Any],
+) -> None:
+    assert "/api/v1/deal-actions" not in schema["paths"]
+    single = schema["paths"]["/api/v1/deal-actions/{action_id}"]
+    assert set(single) == {"get", "put", "delete"}
+
+
+def test_update_and_delete_document_the_403_and_404(schema: dict[str, Any]) -> None:
+    single = schema["paths"]["/api/v1/deal-actions/{action_id}"]
+
+    for method in ("put", "delete"):
+        assert {"401", "403", "404"} <= set(single[method]["responses"]), method
+    assert "204" in single["delete"]["responses"]
+    assert {"401", "403", "404", "422"} <= set(single["put"]["responses"])

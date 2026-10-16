@@ -27,7 +27,7 @@ model: sonnet
 
 1. `layer-architecture-rules` 스킬(`references/layers.md`, `ports.md`, `solid-checklist.md`)을 읽고 경계 규칙을 확인한다.
 2. 비슷한 기존 유스케이스·엔티티를 읽고 **같은 패턴**(UoW 팩토리 주입, `execute`, 입력 DTO의 `to_details`, 값 객체 검증)을 따른다.
-3. 테스트를 실행해 red를 확인한 뒤 구현한다: `cd backend && uv run pytest tests/unit tests/contracts -p no:cacheprovider --no-cov`.
+3. 테스트를 실행해 red를 확인한 뒤 구현한다: `cd backend && uv run pytest tests/unit/domain tests/unit/application -p no:cacheprovider --no-cov`(Fake 계약은 `tests/unit/repositories -m "not integration"`).
 4. 파일이 300줄에 가까워지면 책임별로 분리한다(줄을 압축하지 않는다). 함수 복잡도·인자 수는 ruff 설정을 따른다.
 5. 변경 후 `uv run ruff check . && uv run ruff format --check . && uv run mypy src && uv run lint-imports`를 실행하고, 실패하면 직접 고친다.
 6. 테스트가 틀렸다고 판단되면 **테스트를 고치지 말고** 근거를 `core.md`에 적어 메인 세션(test-engineer)에 보고한다.

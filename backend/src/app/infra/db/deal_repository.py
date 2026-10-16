@@ -1,221 +1,185 @@
-"""DealRepository Port의 SQLAlchemy 구현. Deal Code 고유성은 DB UNIQUE 제약이 보장한다."""
+"""DealRepository Port의 SQLAlchemy 구현. 키는 Deal code이고 삭제는 물리 삭제(딸린 데이터 CASCADE).
 
-from decimal import Decimal
+Deal 행과 파트너 링크·BANT 선택은 한 SAVEPOINT 안에서 함께 저장한다. 중복 code·참조 위반은
+도메인 오류로 바꾸되 업무 규칙은 판단하지 않는다.
+"""
+
 from typing import TYPE_CHECKING
 
-from sqlalchemy import ColumnElement, exists, func, or_, select
+from sqlalchemy import exists, func, select, update
 
-from app.application.ports.pagination import DEFAULT_LIMIT
-from app.domain.common.errors import AlreadyExistsError, InvalidReferenceError
-from app.domain.common.money import Money
-from app.domain.customer.value_objects import CustomerId
-from app.domain.deal.entities import Deal
-from app.domain.deal.errors import DealInUseError, DealNotFoundError, DuplicateDealCodeError
-from app.domain.deal.pipeline import StageTotal
-from app.domain.deal.stage import DealStage
-from app.domain.deal.value_objects import DealCode, DealDetails, DealId
-from app.domain.partner.value_objects import PartnerId
-from app.domain.user.value_objects import UserId
-from app.infra.db.base_repository import ConstraintErrors, SqlRepository
-from app.infra.db.like import keyword_filter
-from app.infra.db.models import DealRow
-from app.infra.db.models_auth import UserRow
+from app.application.ports.deal_repository import (
+    ContactReference,
+    DealListItem,
+    NextActionSummary,
+)
+from app.domain.common.errors import InvalidReferenceError
+from app.domain.contact.values import ContactKind
+from app.domain.deal.code import DealCode
+from app.domain.deal.errors import DealNotFoundError, DuplicateDealCodeError
+from app.infra.db import deal_aggregates, deal_children, deal_mapping, deal_search
+from app.infra.db.base_repository import ConstraintErrors, SavepointWriter
+from app.infra.db.contact_usage import deal_counts_by_contacts
+from app.infra.db.models_deal import DealPartnerRow, DealRow
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Collection, Mapping, Sequence
+    from datetime import datetime
 
-    from sqlalchemy import Select
-
-    from app.application.ports.deal_repository import DealQuery
-
-
-_IN_USE_CONSTRAINTS = ("fk_deal_actions_deal_id_deals", "fk_deal_stage_changes_deal_id_deals")
+    from app.application.ports.deal_repository import DealDeletionImpact, DealQuery
+    from app.domain.bant.values import BantLabelId
+    from app.domain.contact.values import ContactId
+    from app.domain.deal.entities import Deal
+    from app.infra.db.deal_search import ItemSelect
 
 
 def _write_errors(deal: Deal) -> ConstraintErrors:
-    """INSERT·UPDATE 제약 위반의 도메인 오류. 고객·파트너 FK는 삭제와의 경쟁에서 발생한다."""
+    """INSERT·UPDATE 제약 위반의 도메인 오류. 참조 FK는 삭제와의 경쟁에서도 발생한다."""
     details = deal.details
     return {
-        "uq_deals_code": lambda: DuplicateDealCodeError(details.code),
-        "fk_deals_customer_id_customers": lambda: InvalidReferenceError(
-            "고객", details.customer_id
+        "pk_deals": lambda: DuplicateDealCodeError(deal.id.value),
+        "fk_deals_customer_id_contacts": lambda: InvalidReferenceError(
+            "고객 연락처", deal.customer_id
         ),
-        "fk_deals_partner_id_partners": lambda: InvalidReferenceError("파트너", details.partner_id),
+        "fk_deal_partners_contact_id_contacts": lambda: InvalidReferenceError(
+            "파트너 연락처", deal.active_partner_id()
+        ),
         "fk_deals_owner_user_id_users": lambda: InvalidReferenceError(
             "사용자", details.owner_user_id
         ),
-        "fk_deals_registered_by_user_id_users": lambda: InvalidReferenceError(
-            "사용자", deal.registered_by_user_id
+        "fk_deals_status_code": lambda: InvalidReferenceError("Status 코드", deal.sync.status_key),
+        "fk_deals_forecast_code": lambda: InvalidReferenceError(
+            "Forecast 코드", deal.sync.forecast_key
         ),
+        "fk_deal_bant_labels_label": lambda: InvalidReferenceError("BANT Label", "선택한 Label"),
     }
 
 
-def _apply_details(row: DealRow, details: DealDetails) -> None:
-    row.code = details.code.value
-    row.name = details.name
-    row.owner_user_id = details.owner_user_id
-    row.vendor = details.vendor
-    row.solution = details.solution
-    row.revenue_amount = details.revenue.amount
-    row.revenue_currency = details.revenue.currency
-    row.revenue_date = details.revenue_date
-    row.customer_id = details.customer_id
-    row.partner_id = details.partner_id
-
-
-def _to_row(deal: Deal) -> DealRow:
-    row = DealRow(
-        id=deal.id,
-        created_at=deal.created_at,
-        updated_at=deal.updated_at,
-        stage=deal.stage.value,
-        registered_by_user_id=deal.registered_by_user_id,
-    )
-    _apply_details(row, deal.details)
-    return row
-
-
-def _to_entity(row: DealRow) -> Deal:
-    return Deal(
-        id=DealId(row.id),
-        details=DealDetails(
-            code=DealCode(row.code),
-            name=row.name,
-            owner_user_id=UserId(row.owner_user_id),
-            vendor=row.vendor,
-            solution=row.solution,
-            revenue=Money(row.revenue_amount, row.revenue_currency),
-            revenue_date=row.revenue_date,
-            customer_id=CustomerId(row.customer_id),
-            partner_id=PartnerId(row.partner_id) if row.partner_id else None,
-        ),
-        created_at=row.created_at,
-        updated_at=row.updated_at,
-        stage=DealStage(row.stage),
-        registered_by_user_id=(
-            UserId(row.registered_by_user_id) if row.registered_by_user_id else None
-        ),
-    )
-
-
-def _filtered(query: DealQuery) -> Select[DealRow]:
-    statement = select(DealRow)
-    if query.customer_id is not None:
-        statement = statement.where(DealRow.customer_id == query.customer_id)
-    if query.partner_id is not None:
-        statement = statement.where(DealRow.partner_id == query.partner_id)
-    if query.owner_user_id is not None:
-        statement = statement.where(DealRow.owner_user_id == query.owner_user_id)
-    if query.vendor is not None:
-        statement = statement.where(DealRow.vendor == query.vendor)
-    if query.revenue_from is not None:
-        statement = statement.where(DealRow.revenue_date >= query.revenue_from)
-    if query.revenue_to is not None:
-        statement = statement.where(DealRow.revenue_date < query.revenue_to)
-    if query.stage is not None:
-        statement = statement.where(DealRow.stage == query.stage.value)
-    if query.keyword is not None:
-        owners = select(UserRow.id).where(
-            keyword_filter(query.keyword, UserRow.display_name, UserRow.login_id)
-        )
-        statement = statement.where(
-            or_(
-                keyword_filter(
-                    query.keyword, DealRow.code, DealRow.name, DealRow.vendor, DealRow.solution
-                ),
-                DealRow.owner_user_id.in_(owners),  # 담당자 표시 이름·login_id(퇴사자 포함)
-            )
-        )
-    return statement
-
-
-class SqlDealRepository(SqlRepository[DealRow]):
-    row_type = DealRow
+class SqlDealRepository(SavepointWriter):
+    # --- 쓰기 ---
 
     async def add(self, deal: Deal) -> None:
-        await self._insert(
-            _to_row(deal),
-            {"pk_deals": lambda: AlreadyExistsError("Deal", deal.id), **_write_errors(deal)},
-        )
+        async def work() -> None:
+            self._session.add(deal_mapping.new_row(deal))
+            await self._session.flush()  # 자식 행이 참조할 deals 행을 먼저 보낸다
+            self._session.add_all(
+                deal_children.partner_row(deal.id.value, link) for link in deal.partner_links
+            )
+            self._session.add_all(deal_children.bant_rows(deal, {}))
 
-    async def get(self, deal_id: DealId, *, for_update: bool = False) -> Deal:
-        if for_update:
-            locked = select(DealRow).where(DealRow.id == deal_id).with_for_update()
-            row = (
-                await self._session.scalars(locked.execution_options(populate_existing=True))
-            ).one_or_none()
-        else:
-            row = await self._find(deal_id)
-        if row is None:
-            raise DealNotFoundError(deal_id)
-        return _to_entity(row)
-
-    async def get_by_code(self, code: DealCode) -> Deal:
-        statement = (
-            select(DealRow)
-            .where(DealRow.code == code.value)
-            .execution_options(populate_existing=True)
-        )
-        row = (await self._session.scalars(statement)).one_or_none()
-        if row is None:
-            raise DealNotFoundError(code)
-        return _to_entity(row)
-
-    async def list(self, *, offset: int = 0, limit: int = DEFAULT_LIMIT) -> Sequence[Deal]:
-        rows = await self._page(offset, limit)
-        return [_to_entity(row) for row in rows]
-
-    async def search(self, query: DealQuery) -> Sequence[Deal]:
-        statement = (
-            _filtered(query)
-            .order_by(DealRow.created_at, DealRow.id)
-            .offset(query.offset)
-            .limit(query.limit)
-            .execution_options(populate_existing=True)
-        )
-        rows = (await self._session.scalars(statement)).all()
-        return [_to_entity(row) for row in rows]
-
-    async def summarize_pipeline(
-        self, *, owner_user_id: UserId | None = None
-    ) -> Sequence[StageTotal]:
-        statement = select(
-            DealRow.stage,
-            DealRow.revenue_currency,
-            func.count().label("deal_count"),
-            func.sum(DealRow.revenue_amount).label("amount"),
-        ).group_by(DealRow.stage, DealRow.revenue_currency)
-        if owner_user_id is not None:
-            statement = statement.where(DealRow.owner_user_id == owner_user_id)
-        rows = (await self._session.execute(statement)).all()
-        return [
-            StageTotal(DealStage(stage), currency, int(count), Decimal(amount))
-            for stage, currency, count, amount in rows
-        ]
-
-    async def exists_for_customer(self, customer_id: CustomerId) -> bool:
-        return await self._exists(DealRow.customer_id == customer_id)
-
-    async def exists_for_partner(self, partner_id: PartnerId) -> bool:
-        return await self._exists(DealRow.partner_id == partner_id)
-
-    async def _exists(self, condition: ColumnElement[bool]) -> bool:
-        statement = select(exists().where(condition))
-        return bool(await self._session.scalar(statement))
+        await self._atomic(_write_errors(deal), work)
 
     async def update(self, deal: Deal) -> None:
-        row = await self._find(deal.id)
+        row = await self._session.get(DealRow, deal.id.value, populate_existing=True)
         if row is None:
-            raise DealNotFoundError(deal.id)
-        _apply_details(row, deal.details)
-        row.updated_at = deal.updated_at
-        row.stage = deal.stage.value
-        await self._save(_write_errors(deal), not_found=lambda: DealNotFoundError(deal.id))
+            raise DealNotFoundError(deal.id.value)
 
-    async def delete(self, deal_id: DealId) -> None:
-        """물리 삭제. 활동·단계 이력이 FK(RESTRICT)로 막으면 DealInUseError."""
-        row = await self._find(deal_id)
+        async def work() -> None:
+            deal_mapping.apply_fields(row, deal)
+            await self._session.flush()
+            await deal_children.sync_partners(self._session, deal)
+            await deal_children.sync_bant(self._session, deal)
+
+        await self._atomic(
+            _write_errors(deal), work, not_found=lambda: DealNotFoundError(deal.id.value)
+        )
+
+    async def touch(self, codes: Collection[DealCode], now: datetime) -> None:
+        values = [code.value for code in codes]
+        if not values:
+            return
+        statement = (
+            update(DealRow)
+            .where(DealRow.deal_code.in_(values))
+            .values(updated_at=now)
+            .execution_options(synchronize_session=False)
+        )
+        await self._session.execute(statement)
+
+    async def delete(self, code: DealCode) -> None:
+        row = await self._session.get(DealRow, code.value, populate_existing=True)
         if row is None:
-            raise DealNotFoundError(deal_id)
-        in_use = {name: lambda: DealInUseError(deal_id) for name in _IN_USE_CONSTRAINTS}
-        await self._remove(row, in_use)
+            raise DealNotFoundError(code.value)
+        await self._remove(row, {})
+
+    # --- 읽기 ---
+
+    async def get(self, code: DealCode, *, for_update: bool = False) -> Deal:
+        statement = select(DealRow).where(DealRow.deal_code == code.value)
+        if for_update:
+            statement = statement.with_for_update()
+        row = (
+            await self._session.scalars(statement.execution_options(populate_existing=True))
+        ).one_or_none()
+        if row is None:
+            raise DealNotFoundError(code.value)
+        return (await deal_children.hydrate(self._session, [row]))[0]
+
+    async def exists(self, code: DealCode) -> bool:
+        return bool(
+            await self._session.scalar(select(exists().where(DealRow.deal_code == code.value)))
+        )
+
+    async def _items(self, statement: ItemSelect) -> list[DealListItem]:
+        result = await self._session.execute(statement.execution_options(populate_existing=True))
+        rows = result.all()
+        deals = await deal_children.hydrate(self._session, [row.DealRow for row in rows])
+        return [
+            DealListItem(
+                deal=deal,
+                next_action=(
+                    None
+                    if row.next_action is None
+                    else NextActionSummary(row.next_action, row.due_date)
+                ),
+                last_updated_at=row.last_updated_at,
+            )
+            for row, deal in zip(rows, deals, strict=True)
+        ]
+
+    async def get_item(self, code: DealCode) -> DealListItem:
+        items = await self._items(deal_search.item_select().where(DealRow.deal_code == code.value))
+        if not items:
+            raise DealNotFoundError(code.value)
+        return items[0]
+
+    async def search(self, query: DealQuery) -> Sequence[DealListItem]:
+        return await self._items(deal_search.search_select(query))
+
+    async def count(self, query: DealQuery) -> int:
+        statement = select(func.count()).select_from(DealRow).where(*deal_search.conditions(query))
+        return int(await self._session.scalar(statement) or 0)
+
+    async def references_of_contact(self, contact_id: ContactId) -> Sequence[ContactReference]:
+        """고객으로 참조하는 Deal, 파트너 링크(비활성 포함)로 참조하는 Deal. 각각 code 순서."""
+        customers = select(DealRow.deal_code).where(DealRow.customer_id == contact_id)
+        partners = select(DealPartnerRow.deal_code).where(DealPartnerRow.contact_id == contact_id)
+        found: list[ContactReference] = []
+        for kind, statement in ((ContactKind.CUSTOMER, customers), (ContactKind.PARTNER, partners)):
+            ordered = statement.order_by(statement.selected_columns.deal_code)
+            codes = (await self._session.scalars(ordered)).all()
+            found.extend(ContactReference(DealCode(code), kind) for code in codes)
+        return found
+
+    # --- 집계 ---
+
+    async def facets(self) -> tuple[Sequence[str], Sequence[str]]:
+        return await deal_aggregates.facets(self._session)
+
+    async def deletion_impact(self, code: DealCode) -> DealDeletionImpact:
+        if not await self.exists(code):
+            raise DealNotFoundError(code.value)
+        return await deal_aggregates.deletion_impact(self._session, code.value)
+
+    async def count_by_status(self) -> Mapping[str, int]:
+        return await deal_aggregates.count_by_status(self._session)
+
+    async def count_by_forecast(self) -> Mapping[str, int]:
+        return await deal_aggregates.count_by_forecast(self._session)
+
+    async def count_by_bant_label(self) -> Mapping[BantLabelId, int]:
+        return await deal_aggregates.count_by_bant_label(self._session)
+
+    async def count_by_contacts(self, contact_ids: Sequence[ContactId]) -> Mapping[ContactId, int]:
+        """연락처별 참조 Deal 수. 요청한 id는 모두 키로 두고, 한 Deal은 연락처당 1건이다."""
+        return await deal_counts_by_contacts(self._session, contact_ids)

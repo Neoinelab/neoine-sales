@@ -1,147 +1,185 @@
-"""DeleteDeal: 물리 삭제. 활동 또는 단계 변경 이력이 있으면 DealInUseError(FK 기준과 같다)."""
+"""DeleteDeal(AC-27, Q6): 없음 404 -> 권한 403 -> code 확인 422 순서, CASCADE 삭제, 운영 로그."""
 
+import logging
+import re
+from datetime import datetime
 from typing import TYPE_CHECKING
-from uuid import uuid4
 
 import pytest
 
-from app.application.customer.register_customer import RegisterCustomer
-from app.application.deal.change_stage import ChangeDealStage
-from app.application.deal.delete_deal import DeleteDeal
-from app.application.deal.get_deal import GetDeal
-from app.application.deal.register_deal import RegisterDeal
-from app.application.deal_action.delete_deal_action import DeleteDealAction
-from app.application.deal_action.register_deal_action import RegisterDealAction
-from app.application.ports.deal_stage_change_repository import DealStageChangeQuery
-from app.domain.common.errors import InvalidStateError
-from app.domain.deal.errors import DealInUseError, DealNotFoundError
-from app.domain.deal.stage import DealStage
-from app.domain.deal.value_objects import DealId
-from tests.factories import (
-    make_customer_input,
-    make_deal_action_input,
-    make_deal_input,
-    make_stage_change_input,
+from app.application.deal.inputs import Actor
+from app.domain.auth.principal import Role
+from app.domain.common.errors import InvalidValueError
+from app.domain.contact.values import ContactKind
+from app.domain.deal.errors import (
+    DealCodeMismatchError,
+    DealDeleteForbiddenError,
+    DealNotFoundError,
 )
+from tests.factories import make_deal_action
+from tests.factories_deal import SALES, make_draft, make_patch
+from tests.support.auth_seed import seed_user
+from tests.support.expect import raises_with
 
 if TYPE_CHECKING:
-    from app.application.ports.unit_of_work import UnitOfWorkFactory
-    from app.domain.deal.entities import Deal
-    from tests.fakes.unit_of_work import FakeUnitOfWork, FixedClock
+    from app.application.deal.dto import DealView
+
+    from tests.unit.application.deal_env import DealEnv
+
+NOT_FOUND = "Deal을 찾을 수 없습니다."
+FORBIDDEN = "본인 Deal 또는 admin만 삭제할 수 있습니다."
+MISMATCH = "Deal code가 일치하지 않습니다."
 
 
-pytestmark = pytest.mark.usefixtures("default_users")
+async def _deal_with_dependents(env: DealEnv) -> DealView:
+    view = await env.new_deal(partner=make_draft(company="코어테크", name="민지훈"))
+    await env.update.execute(view.item.deal.id.value, make_patch(name="B"), SALES)  # 이력 +1
+    await env.uow.deal_actions.add(make_deal_action(deal_code=view.item.deal.id))
+    return view
 
 
-@pytest.fixture
-async def deal(uow_factory: UnitOfWorkFactory, clock: FixedClock) -> Deal:
-    customer = await RegisterCustomer(uow_factory, clock).execute(make_customer_input())
-    return await RegisterDeal(uow_factory, clock).execute(make_deal_input(customer.id))
+class TestDelete:
+    async def test_the_owner_deletes_with_the_matching_code(self, env: DealEnv) -> None:
+        view = await env.new_deal()
+        code = view.item.deal.id.value
+
+        await env.delete.execute(code, code, SALES)
+
+        with raises_with(DealNotFoundError, NOT_FOUND):
+            await env.get.execute(code)
+        assert env.uow.deals._items == {}
+
+    async def test_an_admin_deletes_a_deal_of_another_owner(self, env: DealEnv) -> None:
+        boss = await seed_user(env.uow_factory, "boss", Role.ADMIN)
+        view = await env.new_deal()
+        code = view.item.deal.id.value
+
+        await env.delete.execute(code, code, Actor(user_id=boss.id, role=Role.ADMIN))
+
+        assert env.uow.deals._items == {}
+
+    async def test_history_actions_and_links_go_with_the_deal_but_contacts_and_users_stay(
+        self, env: DealEnv
+    ) -> None:
+        view = await _deal_with_dependents(env)
+        code = view.item.deal.id.value
+        contacts = set(env.uow.contacts._items)
+        users = set(env.uow.users._items)
+
+        await env.delete.execute(code, code, SALES)
+
+        assert env.uow.deal_history._items == {}
+        assert env.uow.deal_actions._items == {}
+        assert set(env.uow.contacts._items) == contacts
+        assert {c.kind for c in env.uow.contacts._items.values()} == {
+            ContactKind.CUSTOMER,
+            ContactKind.PARTNER,
+        }
+        assert set(env.uow.users._items) == users
+
+    async def test_other_deals_are_untouched(self, env: DealEnv) -> None:
+        first = await env.new_deal()
+        second = await env.new_deal()
+
+        await env.delete.execute(first.item.deal.id.value, first.item.deal.id.value, SALES)
+
+        assert list(env.uow.deals._items) == [second.item.deal.id]
+        assert len(env.uow.deal_history._items) == 1  # 남은 Deal의 등록 이력
+
+    async def test_the_deletion_is_committed(self, env: DealEnv) -> None:
+        view = await env.new_deal()
+        commits = env.uow.commits
+
+        await env.delete.execute(view.item.deal.id.value, view.item.deal.id.value, SALES)
+
+        assert env.uow.commits == commits + 1
 
 
-async def test_delete_deal_without_actions_removes_it_physically(
-    uow: FakeUnitOfWork, uow_factory: UnitOfWorkFactory, clock: FixedClock, deal: Deal
-) -> None:
-    await DeleteDeal(uow_factory, clock).execute(deal.id)
+class TestOrderOfChecks:
+    async def test_an_unknown_deal_is_not_found_before_anything_else(self, env: DealEnv) -> None:
+        viewer = Actor(user_id=SALES.user_id, role=Role.USER)
 
-    with pytest.raises(DealNotFoundError):
-        await GetDeal(uow_factory).execute(deal.id)
-    with pytest.raises(DealNotFoundError):
-        await uow.deals.get(deal.id)
+        with raises_with(DealNotFoundError, NOT_FOUND):
+            await env.delete.execute("20261016-ZZZZ", "wrong", viewer)
 
+    async def test_a_malformed_code_is_not_found(self, env: DealEnv) -> None:
+        with raises_with(DealNotFoundError, NOT_FOUND):
+            await env.delete.execute("bad", "bad", SALES)
 
-async def test_deleted_deal_code_can_be_reused(
-    uow_factory: UnitOfWorkFactory, clock: FixedClock, deal: Deal
-) -> None:
-    await DeleteDeal(uow_factory, clock).execute(deal.id)
+    async def test_another_sales_user_is_forbidden_even_with_a_wrong_confirmation(
+        self, env: DealEnv
+    ) -> None:
+        view = await env.new_deal()
+        park = await seed_user(env.uow_factory, "park", Role.SALES)
 
-    again = await RegisterDeal(uow_factory, clock).execute(
-        make_deal_input(deal.details.customer_id)
-    )
+        with raises_with(DealDeleteForbiddenError, FORBIDDEN):
+            await env.delete.execute(
+                view.item.deal.id.value, "wrong", Actor(user_id=park.id, role=Role.SALES)
+            )
 
-    assert again.details.code == deal.details.code
-    assert again.id != deal.id
+        assert len(env.uow.deals._items) == 1
 
+    async def test_a_read_only_user_is_forbidden(self, env: DealEnv) -> None:
+        view = await env.new_deal()
+        viewer = await seed_user(env.uow_factory, "viewer", Role.USER)
+        code = view.item.deal.id.value
 
-async def test_delete_deal_with_actions_raises_deal_in_use(
-    uow: FakeUnitOfWork, uow_factory: UnitOfWorkFactory, clock: FixedClock, deal: Deal
-) -> None:
-    action = await RegisterDealAction(uow_factory, clock).execute(deal.id, make_deal_action_input())
+        with raises_with(DealDeleteForbiddenError, FORBIDDEN):
+            await env.delete.execute(code, code, Actor(user_id=viewer.id, role=Role.USER))
 
-    with pytest.raises(DealInUseError) as raised:
-        await DeleteDeal(uow_factory, clock).execute(deal.id)
+    @pytest.mark.parametrize("typed", ["", "wrong", "20260101-9999"])
+    async def test_a_wrong_confirmation_is_rejected_and_nothing_is_deleted(
+        self, env: DealEnv, typed: str
+    ) -> None:
+        view = await _deal_with_dependents(env)
+        commits = env.uow.commits
 
-    assert "활동 또는 단계 변경 이력" in str(raised.value)
-    assert (await uow.deals.get(deal.id)).id == deal.id
-    assert (await uow.deal_actions.get(action.id)).id == action.id
+        with raises_with(DealCodeMismatchError, MISMATCH):
+            await env.delete.execute(view.item.deal.id.value, typed, SALES)
 
+        assert len(env.uow.deals._items) == 1
+        assert len(env.uow.deal_history._items) == 2
+        assert len(env.uow.deal_actions._items) == 1
+        assert env.uow.commits == commits
 
-async def test_delete_deal_with_only_stage_changes_raises_deal_in_use(
-    uow: FakeUnitOfWork, uow_factory: UnitOfWorkFactory, clock: FixedClock, deal: Deal
-) -> None:
-    await ChangeDealStage(uow_factory, clock).execute(
-        deal.id, make_stage_change_input(stage=DealStage.INTRODUCTION)
-    )
-    assert await uow.deal_actions.exists_for_deal(deal.id) is False
+    async def test_the_confirmation_is_compared_exactly(self, env: DealEnv) -> None:
+        view = await env.new_deal()
+        code = view.item.deal.id.value
 
-    with pytest.raises(DealInUseError):
-        await DeleteDeal(uow_factory, clock).execute(deal.id)
+        for typed in (f" {code}", f"{code} ", f"{code}X", code[:-1]):
+            with pytest.raises(InvalidValueError):
+                await env.delete.execute(code, typed, SALES)
 
-    assert (await uow.deals.get(deal.id)).stage is DealStage.INTRODUCTION
-    history = await uow.deal_stage_changes.search(DealStageChangeQuery(deal_id=deal.id))
-    assert len(history) == 1
-
-
-async def test_deal_in_use_error_is_an_invalid_state_for_callers(
-    uow_factory: UnitOfWorkFactory, clock: FixedClock, deal: Deal
-) -> None:
-    await RegisterDealAction(uow_factory, clock).execute(deal.id, make_deal_action_input())
-
-    with pytest.raises(InvalidStateError):
-        await DeleteDeal(uow_factory, clock).execute(deal.id)
+        assert len(env.uow.deals._items) == 1
 
 
-async def test_delete_deal_succeeds_after_all_actions_are_deleted(
-    uow: FakeUnitOfWork, uow_factory: UnitOfWorkFactory, clock: FixedClock, deal: Deal
-) -> None:
-    register = RegisterDealAction(uow_factory, clock)
-    first = await register.execute(deal.id, make_deal_action_input())
-    second = await register.execute(deal.id, make_deal_action_input(action="후속"))
-    delete_action = DeleteDealAction(uow_factory, clock)
-    await delete_action.execute(first.id)
-    with pytest.raises(DealInUseError):
-        await DeleteDeal(uow_factory, clock).execute(deal.id)
-    await delete_action.execute(second.id)
+class TestOperationLog:
+    async def test_one_info_line_with_code_user_and_time_is_written_after_the_commit(
+        self, env: DealEnv, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        view = await env.new_deal()
+        code = view.item.deal.id.value
+        env.clock.advance(60)
+        caplog.set_level(logging.INFO)
 
-    await DeleteDeal(uow_factory, clock).execute(deal.id)
+        await env.delete.execute(code, code, SALES)
 
-    with pytest.raises(DealNotFoundError):
-        await uow.deals.get(deal.id)
+        lines = [r for r in caplog.records if r.getMessage().startswith("deal deleted")]
+        assert len(lines) == 1
+        assert lines[0].levelno == logging.INFO
+        match = re.fullmatch(
+            rf"deal deleted code={code} by={SALES.user_id} at=(?P<at>\S+)", lines[0].getMessage()
+        )
+        assert match is not None, lines[0].getMessage()
+        assert datetime.fromisoformat(match["at"]) == env.clock.now()
 
+    async def test_nothing_is_logged_when_the_deletion_is_refused(
+        self, env: DealEnv, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        view = await env.new_deal()
+        caplog.set_level(logging.INFO)
 
-async def test_unknown_deal_delete_raises_not_found(
-    uow_factory: UnitOfWorkFactory, clock: FixedClock
-) -> None:
-    with pytest.raises(DealNotFoundError):
-        await DeleteDeal(uow_factory, clock).execute(DealId(uuid4()))
+        with pytest.raises(DealCodeMismatchError):
+            await env.delete.execute(view.item.deal.id.value, "wrong", SALES)
 
-
-async def test_deleting_an_already_deleted_deal_raises_not_found(
-    uow_factory: UnitOfWorkFactory, clock: FixedClock, deal: Deal
-) -> None:
-    await DeleteDeal(uow_factory, clock).execute(deal.id)
-
-    with pytest.raises(DealNotFoundError):
-        await DeleteDeal(uow_factory, clock).execute(deal.id)
-
-
-async def test_guard_rejection_commits_nothing(
-    uow: FakeUnitOfWork, uow_factory: UnitOfWorkFactory, clock: FixedClock, deal: Deal
-) -> None:
-    await RegisterDealAction(uow_factory, clock).execute(deal.id, make_deal_action_input())
-    commits = uow.commits
-
-    with pytest.raises(DealInUseError):
-        await DeleteDeal(uow_factory, clock).execute(deal.id)
-
-    assert uow.commits == commits
+        assert not [r for r in caplog.records if r.getMessage().startswith("deal deleted")]

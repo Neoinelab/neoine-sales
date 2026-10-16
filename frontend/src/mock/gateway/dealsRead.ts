@@ -4,6 +4,7 @@ import { DEAL_PAGE_SIZE } from '../../shared/model/constants'
 import { compareIso } from '../../shared/model/dates'
 import { inPeriod } from '../../shared/model/period'
 import type { Deal, DealListQuery, DealRow, Page } from '../../shared/model/types'
+import { validation } from '../errors'
 import { read, requireUser, type MockContext } from './context'
 import { codeSetOf } from './dealChange'
 import { dealDetail, dealRow, findDeal } from './views'
@@ -31,6 +32,7 @@ function matches(row: DealRow, query: DealListQuery, viewerId: string): boolean 
 
 export function listDeals(ctx: MockContext, query: DealListQuery): Page<DealRow> {
   const viewer = requireUser(ctx)
+  if (query.quarter !== undefined && query.year === undefined) throw validation('분기는 연도와 함께 선택하세요.')
   const statusOrder = codeSetOf(ctx).statuses.map((c) => c.key)
   const sort = query.sort ?? 'lastUpdatedAt'
   const sign = (query.order ?? 'desc') === 'asc' ? 1 : -1
@@ -80,7 +82,7 @@ export function dealsReadApi(ctx: MockContext) {
       read(ctx, () => {
         requireUser(ctx)
         const distinct = (pick: (d: Deal) => string) =>
-          [...new Set(ctx.store.data.deals.map(pick))].sort((a, b) => a.localeCompare(b, 'ko'))
+          [...new Set(ctx.store.data.deals.map(pick).filter((v) => v !== ''))].sort((a, b) => a.localeCompare(b, 'ko'))
         return { vendors: distinct((d) => d.vendor), solutions: distinct((d) => d.solution) }
       }),
   }

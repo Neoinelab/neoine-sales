@@ -1,7 +1,10 @@
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import NewType
+from typing import TYPE_CHECKING, NewType
 from uuid import UUID
+
+if TYPE_CHECKING:
+    from app.domain.auth.principal import Role
 
 UserId = NewType("UserId", UUID)
 
@@ -29,6 +32,7 @@ class UserRef:
     id: UserId
     name: str  # 표시 이름. 없으면 login_id로 대체한 값(login_id 자체는 담지 않는다)
     resigned: bool
+    role: Role
 
     @property
     def label(self) -> str:

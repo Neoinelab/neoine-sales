@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { gateway } from '../gateway'
+import type { AuthConfig } from '../gateway/types'
 import type { ApiError } from '../shared/api/problem'
 import { canAccessAdmin, canWrite } from '../shared/model/permissions'
 import type { Me } from '../shared/model/types'
@@ -9,6 +10,11 @@ import { NO_RETRY, type Mutation, type Query } from './result'
 /** gateway.auth.me. 키 keys.me. retry 없음(401은 곧 비로그인). staleTime 60s. */
 export function useMe(): Query<Me> {
   return useQuery<Me, ApiError>({ queryKey: keys.me, queryFn: () => gateway.auth.me(), staleTime: 60_000, ...NO_RETRY })
+}
+
+/** gateway.auth.config. 키 keys.authConfig. 로그인 화면이 빠른 로그인을 그릴지 정한다(로그인 전에도 읽는다). */
+export function useAuthConfig(): Query<AuthConfig> {
+  return useQuery<AuthConfig, ApiError>({ queryKey: keys.authConfig, queryFn: () => gateway.auth.config(), ...NO_RETRY })
 }
 
 /**

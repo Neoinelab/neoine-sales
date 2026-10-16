@@ -20,6 +20,8 @@ function signIn(ctx: MockContext, user: UserRecord): Me {
   return meOf(user)
 }
 
+const setupState = (ctx: MockContext) => ctx.store.data.setup
+
 export function createAuthGateway(ctx: MockContext): AuthGateway {
   const users = () => ctx.store.data.users
   return {
@@ -43,6 +45,8 @@ export function createAuthGateway(ctx: MockContext): AuthGateway {
       write(ctx, () => {
         setSession(ctx, null)
       }),
+    // 서버처럼 AD 서버 또는 첫 관리자가 아직 없으면 최초 설정이 필요하다(파일 저장 위치 단계는 서버 계약에 없다).
+    config: () => read(ctx, () => ({ quickLogin: true, needsSetup: !(setupState(ctx).directoryDone && setupState(ctx).adminDone) })),
   }
 }
 

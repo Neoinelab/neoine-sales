@@ -14,18 +14,35 @@ export function useDirectorySettings(): Query<DirectorySettings | null> {
   })
 }
 
-/** gateway.settings.saveDirectory. 성공: keys.directory 무효화. */
-export function useSaveDirectory(): Mutation<DirectorySettingsInput, DirectorySettings> {
+export interface SaveDirectoryVariables {
+  input: DirectorySettingsInput
+  /** 현재 관리자 비밀번호(개발용 로그인은 null). */
+  password: string | null
+  /** 화면이 읽은 설정 버전(낙관적 잠금). */
+  expectedRevision: number
+}
+
+export interface TestDirectoryVariables {
+  input: DirectorySettingsInput
+  password: string | null
+}
+
+/** gateway.settings.saveDirectory. gcTime 0(비밀번호가 든 variables를 캐시에 남기지 않는다). 성공: keys.directory 무효화. */
+export function useSaveDirectory(): Mutation<SaveDirectoryVariables, DirectorySettings> {
   const invalidate = useInvalidate()
-  return useMutation<DirectorySettings, ApiError, DirectorySettingsInput>({
-    mutationFn: (input) => gateway.settings.saveDirectory(input),
+  return useMutation<DirectorySettings, ApiError, SaveDirectoryVariables>({
+    mutationFn: ({ input, password, expectedRevision }) => gateway.settings.saveDirectory(input, { password, expectedRevision }),
+    gcTime: 0,
     onSuccess: () => invalidate(keys.directory),
   })
 }
 
-/** gateway.settings.testDirectory. 실패는 ApiError(kind directory-verification-failed, stage). 캐시 영향 없음. */
-export function useTestDirectory(): Mutation<DirectorySettingsInput> {
-  return useMutation<void, ApiError, DirectorySettingsInput>({ mutationFn: (input) => gateway.settings.testDirectory(input) })
+/** gateway.settings.testDirectory. gcTime 0(비밀번호). 실패는 ApiError(kind directory-verification-failed, stage). 캐시 영향 없음. */
+export function useTestDirectory(): Mutation<TestDirectoryVariables> {
+  return useMutation<void, ApiError, TestDirectoryVariables>({
+    mutationFn: ({ input, password }) => gateway.settings.testDirectory(input, password),
+    gcTime: 0,
+  })
 }
 
 /** gateway.settings.getStorage. 키 keys.storage. */

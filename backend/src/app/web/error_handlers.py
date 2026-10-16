@@ -8,6 +8,8 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.application.directory.errors import DirectoryVerificationError
 from app.application.ports.directory import DirectoryUnavailableError
+from app.application.storage.errors import StorageUnavailableError
+from app.domain.attachment.errors import AttachmentNameTakenError
 from app.domain.auth.errors import AccessDeniedError, AuthenticationError, TooManyAttemptsError
 from app.domain.common.errors import (
     AlreadyExistsError,
@@ -28,6 +30,7 @@ _DOMAIN_MAPPING: tuple[tuple[type[DomainError], int, str], ...] = (
     (TooManyAttemptsError, 429, "too-many-attempts"),
     (AccessDeniedError, 403, "forbidden"),
     (NotFoundError, 404, "not-found"),
+    (AttachmentNameTakenError, 409, "file-exists"),
     (AlreadyExistsError, 409, "already-exists"),
     (InvalidReferenceError, 422, "invalid-reference"),
     (InvalidValueError, 422, "invalid-value"),
@@ -37,6 +40,7 @@ _DOMAIN_MAPPING: tuple[tuple[type[DomainError], int, str], ...] = (
 _TITLES = {
     "not-found": "Not Found",
     "already-exists": "Already Exists",
+    "file-exists": "File Exists",
     "invalid-reference": "Invalid Reference",
     "invalid-value": "Invalid Value",
     "invalid-state": "Invalid State",
@@ -48,6 +52,7 @@ _TITLES = {
     "too-many-attempts": "Too Many Attempts",
     "directory-unavailable": "Directory Unavailable",
     "directory-verification-failed": "Directory Verification Failed",
+    "storage-unavailable": "Storage Unavailable",
     "csrf": "CSRF Check Failed",
     "http-error": "HTTP Error",
 }
@@ -78,6 +83,11 @@ DIRECTORY_UNAVAILABLE_DETAIL = "인증 서버(AD)에 연결할 수 없습니다.
 async def _directory_unavailable(request: Request, _: Exception) -> JSONResponse:
     """AD 장애 원인(주소·서버 응답)은 응답에 싣지 않고 고정 문구만 낸다."""
     return problem(request, 503, "directory-unavailable", DIRECTORY_UNAVAILABLE_DETAIL)
+
+
+async def _storage_unavailable(request: Request, exc: Exception) -> JSONResponse:
+    assert isinstance(exc, StorageUnavailableError)  # noqa: S101 - 핸들러 등록 대상 보장
+    return problem(request, 503, "storage-unavailable", exc.message)
 
 
 async def _directory_verification(request: Request, exc: Exception) -> JSONResponse:
@@ -120,6 +130,7 @@ def register_error_handlers(app: FastAPI) -> None:
     app.add_exception_handler(CsrfRejectedError, _csrf_error)
     app.add_exception_handler(DirectoryVerificationError, _directory_verification)
     app.add_exception_handler(DirectoryUnavailableError, _directory_unavailable)
+    app.add_exception_handler(StorageUnavailableError, _storage_unavailable)
     app.add_exception_handler(DomainError, _domain_error)
     app.add_exception_handler(RequestValidationError, _validation_error)
     app.add_exception_handler(StarletteHTTPException, _http_error)

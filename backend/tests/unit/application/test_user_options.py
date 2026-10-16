@@ -6,7 +6,6 @@ from uuid import uuid4
 import pytest
 
 from app.domain.auth.principal import Role
-from app.domain.common.errors import InvalidValueError
 from app.domain.user.value_objects import UserId, UserStatusFilter
 from tests.factories import later
 from tests.support.auth_seed import seed_user
@@ -105,32 +104,108 @@ async def test_options_name_falls_back_to_login_id_before_first_login(
     assert (option.name, option.label) == ("newbie", "newbie")
 
 
-async def test_options_are_limited_in_creation_order(
+async def test_options_return_every_matching_user_beyond_the_old_200_cap(
     admin: AdminStack, uow_factory: UnitOfWorkFactory
 ) -> None:
-    for n in range(1, 6):
-        await _named(uow_factory, f"user{n}", f"사용자{n}", n)
+    for n in range(1, 206):
+        await _named(uow_factory, f"user{n}", f"사용자{n:03d}", n)
 
-    options = await admin.list_user_options.execute(limit=3)
+    options = await admin.list_user_options.execute()
 
-    assert [o.name for o in options] == ["사용자1", "사용자2", "사용자3"]
-
-
-@pytest.mark.parametrize("limit", [0, 201])
-async def test_options_reject_an_out_of_range_limit(admin: AdminStack, limit: int) -> None:
-    with pytest.raises(InvalidValueError):
-        await admin.list_user_options.execute(limit=limit)
+    assert len(options) == 205
+    assert [o.name for o in options][:2] == ["사용자001", "사용자002"]
+    assert options[-1].name == "사용자205"
 
 
-async def test_options_expose_no_email_or_role(
-    admin: AdminStack, uow_factory: UnitOfWorkFactory
-) -> None:
+async def test_options_no_longer_accept_a_limit(admin: AdminStack) -> None:
+    with pytest.raises(TypeError):
+        await admin.list_user_options.execute(limit=3)  # type: ignore[call-arg]
+
+
+async def test_options_expose_no_email(admin: AdminStack, uow_factory: UnitOfWorkFactory) -> None:
     await _named(uow_factory, "hong", "홍길동", 1)
 
     (option,) = await admin.list_user_options.execute()
 
     assert not hasattr(option, "email")
-    assert not hasattr(option, "role")
+
+
+async def test_options_carry_the_role_of_each_user(
+    admin: AdminStack, uow_factory: UnitOfWorkFactory
+) -> None:
+    await seed_user(uow_factory, "boss", Role.ADMIN, now=later(1))
+    await seed_user(uow_factory, "sales1", Role.SALES, now=later(2))
+    await seed_user(uow_factory, "viewer", Role.USER, now=later(3))
+
+    options = await admin.list_user_options.execute()
+
+    assert [(o.name, o.role) for o in options] == [
+        ("boss", Role.ADMIN),
+        ("sales1", Role.SALES),
+        ("viewer", Role.USER),
+    ]
+
+
+async def test_options_filter_by_role_returns_only_active_users_of_that_role(
+    admin: AdminStack, uow_factory: UnitOfWorkFactory
+) -> None:
+    await seed_user(uow_factory, "boss", Role.ADMIN, now=later(1))
+    await _named(uow_factory, "kim", "김영업", 2)
+    await seed_user(uow_factory, "viewer", Role.USER, now=later(3))
+    await _named(uow_factory, "gone", "이탈자", 4, resigned=True)
+
+    options = await admin.list_user_options.execute(role=Role.SALES)
+
+    assert [(o.name, o.role, o.resigned) for o in options] == [("김영업", Role.SALES, False)]
+
+
+async def test_options_filter_by_role_with_resigned_includes_resigned_users_of_that_role(
+    admin: AdminStack, uow_factory: UnitOfWorkFactory
+) -> None:
+    await _named(uow_factory, "kim", "김영업", 1)
+    await seed_user(uow_factory, "viewer", Role.USER, now=later(2))
+    await _named(uow_factory, "gone", "이탈자", 3, resigned=True)
+
+    options = await admin.list_user_options.execute(role=Role.SALES, include_resigned=True)
+
+    assert [(o.name, o.resigned) for o in options] == [("김영업", False), ("이탈자", True)]
+
+
+async def test_options_without_role_keep_returning_every_role(
+    admin: AdminStack, uow_factory: UnitOfWorkFactory
+) -> None:
+    await seed_user(uow_factory, "boss", Role.ADMIN, now=later(1))
+    await _named(uow_factory, "kim", "김영업", 2)
+
+    options = await admin.list_user_options.execute()
+
+    assert [o.name for o in options] == ["boss", "김영업"]
+
+
+async def test_options_filter_by_role_combines_with_keyword(
+    admin: AdminStack, uow_factory: UnitOfWorkFactory
+) -> None:
+    await _named(uow_factory, "a", "김하나", 1)
+    await _named(uow_factory, "b", "김둘", 2)
+    await _named(uow_factory, "c", "김셋", 3)
+    await seed_user(uow_factory, "kimv", Role.USER, now=later(4))
+
+    options = await admin.list_user_options.execute(role=Role.SALES, keyword="김")
+
+    assert [o.name for o in options] == ["김하나", "김둘", "김셋"]
+
+
+async def test_resolve_user_refs_carries_the_role_including_resigned_users(
+    admin: AdminStack, uow_factory: UnitOfWorkFactory
+) -> None:
+    await _named(uow_factory, "gone", "이탈자", 1, resigned=True)
+    await seed_user(uow_factory, "boss", Role.ADMIN, now=later(2))
+    async with uow_factory() as uow:
+        users = await uow.users.list_users(status=UserStatusFilter.ALL, limit=100)
+
+    refs = await admin.resolve_user_refs.execute([u.id for u in users])
+
+    assert {r.name: r.role for r in refs.values()} == {"이탈자": Role.SALES, "boss": Role.ADMIN}
 
 
 async def test_resolve_user_refs_returns_active_and_resigned_users_in_one_mapping(

@@ -8,9 +8,14 @@ if TYPE_CHECKING:
     from datetime import datetime
 
 
-def required_text(value: str, field: str, *, max_length: int) -> str:
+def reject_nul(value: str, field: str) -> None:
+    """PostgreSQL 텍스트 열에 저장할 수 없는 NUL 문자를 거절한다(공백으로 감싸도 거절)."""
     if "\x00" in value:
         raise InvalidValueError(f"{field}에는 NUL 문자를 쓸 수 없습니다")
+
+
+def required_text(value: str, field: str, *, max_length: int) -> str:
+    reject_nul(value, field)
     text = value.strip()
     if not text:
         raise InvalidValueError(f"{field}은(는) 비어 있을 수 없습니다")

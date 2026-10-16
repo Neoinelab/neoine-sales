@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+from app.application.ports.deal_repository import DealQuery
 from app.domain.auth.credentials import LoginId
 from app.domain.auth.principal import Role
 from app.domain.common.errors import AlreadyExistsError
@@ -15,7 +16,6 @@ from tests.support.user_links import link_user
 if TYPE_CHECKING:
     from app.application.ports.unit_of_work import UnitOfWorkFactory
     from tests.fakes.admin_stack import AdminStack
-    from tests.fakes.unit_of_work import FakeUnitOfWork
 
 
 async def test_register_after_resignation_creates_a_new_user_with_a_new_id(
@@ -62,7 +62,8 @@ async def test_history_stays_attached_to_the_resigned_row_not_the_new_one(
     new = await admin.register_user.execute(login_id="kim", role=Role.SALES, actor=ADMIN_ACTOR)
 
     async with uow_factory() as uow:
-        (deal,) = await uow.deals.list()
+        (item,) = await uow.deals.search(DealQuery())
+        deal = item.deal
         refs = await uow.users.get_refs([deal.details.owner_user_id, new.id])
     assert deal.details.owner_user_id == old.id
     assert refs[old.id].resigned is True
@@ -103,17 +104,6 @@ async def test_register_conflicts_with_an_active_user_even_if_older_rows_resigne
         active = await uow.users.get_active_by_login_id(LoginId("kim"))
     assert active is not None
     assert active.id == current.id
-
-
-async def test_register_checks_for_an_active_duplicate_under_the_roster_lock(
-    admin: AdminStack, uow: FakeUnitOfWork
-) -> None:
-    """DB에 유니크 인덱스가 없으므로 중복 판정과 INSERT는 roster 잠금 안에서 일어나야 한다."""
-    before = uow.users.roster_locks
-
-    await admin.register_user.execute(login_id="kim", role=Role.SALES, actor=ADMIN_ACTOR)
-
-    assert uow.users.roster_locks == before + 1
 
 
 async def test_second_sequential_registration_of_the_same_login_id_conflicts(

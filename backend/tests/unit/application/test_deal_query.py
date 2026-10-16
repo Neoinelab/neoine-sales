@@ -1,134 +1,147 @@
-"""DealQuery(Deal 검색 조건) 검증: 페이지, 기간 순서, 텍스트 정규화·길이."""
+"""DealQuery(Deal 검색 조건) 검증: 기본값, 페이지, 기간(양끝 포함), 텍스트 정규화·길이.
+
+연/분기(`year`·`quarter`)와 BANT 조건의 검증은 R3(`revenue_window`)에서 본다.
+"""
 
 from datetime import date
-from uuid import uuid4
+from typing import Any, cast
 
 import pytest
 
-from app.application.ports.deal_repository import KEYWORD_MAX, DealQuery
-from app.application.ports.pagination import DEFAULT_LIMIT, MAX_LIMIT
+from app.application.ports.deal_repository import DealQuery, DealSort, SortOrder
+from app.application.ports.pagination import MAX_LIMIT
 from app.domain.common.errors import InvalidValueError
-from app.domain.customer.value_objects import CustomerId
-from app.domain.deal.stage import DealStage
-from app.domain.deal.value_objects import VENDOR_MAX
-from app.domain.partner.value_objects import PartnerId
+from tests.support.expect import raises_with
 from tests.support.user_ids import uid
 
+KEYWORD_LIMIT = 100
+VENDOR_LIMIT = 100
+SOLUTION_LIMIT = 200
 
-def test_deal_query_defaults_to_first_page_without_conditions() -> None:
+
+def test_defaults_are_the_first_page_of_twenty_newest_first_without_conditions() -> None:
     query = DealQuery()
 
-    assert (query.offset, query.limit) == (0, DEFAULT_LIMIT)
-    assert DEFAULT_LIMIT == 50
-    assert query.keyword is None
-    assert query.customer_id is None
-    assert query.partner_id is None
-    assert query.owner_user_id is None
-    assert query.vendor is None
-    assert query.revenue_from is None
-    assert query.revenue_to is None
-    assert query.stage is None
+    assert (query.offset, query.limit) == (0, 20)
+    assert (query.sort, query.order) == (DealSort.LAST_UPDATED_AT, SortOrder.DESC)
+    for condition in (
+        "keyword",
+        "owner_user_id",
+        "vendor",
+        "solution",
+        "status_key",
+        "forecast_key",
+        "year",
+        "quarter",
+        "revenue_from",
+        "revenue_to",
+    ):
+        assert getattr(query, condition) is None, condition
+    assert dict(query.bant_label_ids) == {}
 
 
-def test_deal_query_keeps_stage() -> None:
-    assert DealQuery(stage=DealStage.LOST).stage is DealStage.LOST
+def test_sort_and_order_values_are_the_wire_values() -> None:
+    assert {s.value for s in DealSort} == {
+        "name",
+        "revenue_amount",
+        "revenue_date",
+        "last_updated_at",
+        "status",
+    }
+    assert {o.value for o in SortOrder} == {"asc", "desc"}
 
 
-def test_deal_query_keeps_given_conditions() -> None:
-    customer_id, partner_id = CustomerId(uuid4()), PartnerId(uuid4())
-
+def test_given_conditions_are_kept() -> None:
     query = DealQuery(
         keyword="erp",
-        customer_id=customer_id,
-        partner_id=partner_id,
         owner_user_id=uid("park"),
         vendor="SAP",
+        solution="S/4HANA",
+        status_key="introduction",
+        forecast_key="best",
         revenue_from=date(2026, 6, 1),
-        revenue_to=date(2026, 7, 1),
+        revenue_to=date(2026, 6, 30),
         offset=3,
         limit=7,
     )
 
-    assert query.keyword == "erp"
-    assert query.customer_id == customer_id
-    assert query.partner_id == partner_id
-    assert (query.owner_user_id, query.vendor) == (uid("park"), "SAP")
-    assert (query.revenue_from, query.revenue_to) == (date(2026, 6, 1), date(2026, 7, 1))
+    assert (query.keyword, query.owner_user_id) == ("erp", uid("park"))
+    assert (query.vendor, query.solution) == ("SAP", "S/4HANA")
+    assert (query.status_key, query.forecast_key) == ("introduction", "best")
+    assert (query.revenue_from, query.revenue_to) == (date(2026, 6, 1), date(2026, 6, 30))
     assert (query.offset, query.limit) == (3, 7)
 
 
-def test_deal_query_rejects_negative_offset() -> None:
+def test_the_old_conditions_are_gone() -> None:
+    query = DealQuery()
+
+    for removed in ("customer_id", "partner_id", "stage", "owner"):
+        assert not hasattr(query, removed), removed
+    with pytest.raises(TypeError):
+        DealQuery(stage="lost")  # type: ignore[call-arg]
+
+
+def test_a_negative_offset_is_rejected() -> None:
     with pytest.raises(InvalidValueError):
         DealQuery(offset=-1)
 
 
 @pytest.mark.parametrize("limit", [0, MAX_LIMIT + 1])
-def test_deal_query_rejects_limit_out_of_range(limit: int) -> None:
+def test_a_limit_out_of_range_is_rejected(limit: int) -> None:
     with pytest.raises(InvalidValueError):
         DealQuery(limit=limit)
 
 
 @pytest.mark.parametrize("limit", [1, MAX_LIMIT])
-def test_deal_query_accepts_limit_boundaries(limit: int) -> None:
+def test_limit_boundaries_are_accepted(limit: int) -> None:
     assert DealQuery(limit=limit).limit == limit
+
+
+def test_a_period_whose_start_is_after_its_end_is_rejected() -> None:
+    with raises_with(InvalidValueError, "기간의 시작은 끝보다 늦을 수 없습니다"):
+        DealQuery(revenue_from=date(2026, 7, 1), revenue_to=date(2026, 6, 30))
 
 
 @pytest.mark.parametrize(
     ("revenue_from", "revenue_to"),
-    [(date(2026, 6, 1), date(2026, 6, 1)), (date(2026, 7, 1), date(2026, 6, 1))],
-    ids=["same-day", "from-after-to"],
+    [
+        (date(2026, 6, 1), date(2026, 6, 1)),  # 같은 날(양끝 포함이므로 하루)
+        (date(2026, 6, 1), None),
+        (None, date(2026, 6, 30)),
+        (None, None),
+    ],
 )
-def test_deal_query_rejects_revenue_from_not_before_to(
-    revenue_from: date, revenue_to: date
-) -> None:
+def test_valid_periods_are_accepted(revenue_from: date | None, revenue_to: date | None) -> None:
+    query = DealQuery(revenue_from=revenue_from, revenue_to=revenue_to)
+
+    assert (query.revenue_from, query.revenue_to) == (revenue_from, revenue_to)
+
+
+def test_blank_text_conditions_become_none() -> None:
+    query = DealQuery(keyword="   ", vendor="\t", solution=" ")
+
+    assert (query.keyword, query.vendor, query.solution) == (None, None, None)
+
+
+def test_text_conditions_are_trimmed_and_vendor_keeps_its_case() -> None:
+    query = DealQuery(keyword=" erp ", vendor=" sap ", solution=" S/4 ")
+
+    assert (query.keyword, query.vendor, query.solution) == ("erp", "sap", "S/4")
+
+
+@pytest.mark.parametrize(
+    ("field", "limit"),
+    [("keyword", KEYWORD_LIMIT), ("vendor", VENDOR_LIMIT), ("solution", SOLUTION_LIMIT)],
+)
+def test_text_conditions_allow_the_limit_and_reject_one_over(field: str, limit: int) -> None:
+    ok: dict[str, Any] = {field: "a" * limit}
+    over: dict[str, Any] = {field: "a" * (limit + 1)}
+    assert getattr(DealQuery(**ok), field) == "a" * limit
     with pytest.raises(InvalidValueError):
-        DealQuery(revenue_from=revenue_from, revenue_to=revenue_to)
+        DealQuery(**over)
 
 
-def test_deal_query_accepts_only_one_revenue_bound() -> None:
-    assert DealQuery(revenue_from=date(2026, 6, 1)).revenue_to is None
-    assert DealQuery(revenue_to=date(2026, 6, 1)).revenue_from is None
-
-
-def test_deal_query_treats_blank_text_conditions_as_none() -> None:
-    query = DealQuery(keyword="   ", vendor="\t")
-
-    assert query.keyword is None
-    assert query.vendor is None
-
-
-def test_deal_query_strips_text_conditions() -> None:
-    query = DealQuery(keyword=" erp ", vendor=" SAP ")
-
-    assert (query.keyword, query.vendor) == ("erp", "SAP")
-
-
-def test_deal_query_keeps_vendor_case() -> None:
-    assert DealQuery(vendor="sap").vendor == "sap"
-
-
-def test_deal_query_has_no_free_text_owner_condition_any_more() -> None:
-    assert not hasattr(DealQuery(), "owner")
-    with pytest.raises(TypeError):
-        DealQuery(owner="박영업")  # type: ignore[call-arg]
-
-
-def test_deal_query_rejects_keyword_over_max_length() -> None:
-    assert KEYWORD_MAX == 100
-    assert DealQuery(keyword="a" * KEYWORD_MAX).keyword == "a" * KEYWORD_MAX
+@pytest.mark.parametrize("field", ["keyword", "vendor", "solution"])
+def test_a_nul_character_in_a_text_condition_is_rejected(field: str) -> None:
     with pytest.raises(InvalidValueError):
-        DealQuery(keyword="a" * (KEYWORD_MAX + 1))
-
-
-def test_deal_query_rejects_vendor_over_max_length() -> None:
-    assert DealQuery(vendor="a" * VENDOR_MAX).vendor == "a" * VENDOR_MAX
-    with pytest.raises(InvalidValueError):
-        DealQuery(vendor="a" * (VENDOR_MAX + 1))
-
-
-def test_deal_query_has_no_owner_user_condition_by_default() -> None:
-    assert DealQuery().owner_user_id is None
-
-
-def test_deal_query_keeps_owner_user_id_as_a_user_id() -> None:
-    assert DealQuery(owner_user_id=uid("u1")).owner_user_id == uid("u1")
+        DealQuery(**cast("dict[str, Any]", {field: "a\x00b"}))

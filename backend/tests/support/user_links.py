@@ -2,20 +2,20 @@
 
 Fake와 SQL UoW 어느 쪽에나 쓴다. 참조 대상 사용자 외에 필요한 보조 사용자·고객·Deal은 함께 만든다.
 LINK_KINDS가 users를 가리키는 FK 종류의 전부여야 한다(스키마 점검 테스트가 FK 집합과 대조한다).
+Deal 모델 모듈은 사용 시점에 가져온다(사용자 테스트의 수집이 Deal 구현에 묶이지 않게 한다).
 """
 
 from typing import TYPE_CHECKING, Final
 from uuid import uuid4
 
-from app.domain.deal.stage import DealStage, StageChanger
 from tests.factories import (
     NOW,
     later,
-    make_customer,
     make_deal,
     make_deal_action,
 )
 from tests.factories_auth import make_directory_settings, make_user
+from tests.factories_catalog import make_label
 
 if TYPE_CHECKING:
     from app.application.ports.unit_of_work import UnitOfWork, UnitOfWorkFactory
@@ -25,22 +25,26 @@ if TYPE_CHECKING:
 
 LINK_KINDS: Final = (
     "deal_owner",  # deals.owner_user_id
-    "deal_registrant",  # deals.registered_by_user_id
+    "history_author",  # deal_history.changed_by_user_id
     "action_actor",  # deal_actions.actor_user_id
-    "stage_changer",  # deal_stage_changes.changed_by_user_id
     "created_user",  # users.created_by_user_id (다른 사용자의 등록자)
     "directory_settings",  # directory_settings.updated_by_user_id
+    "label_creator",  # bant_labels.created_by_user_id (직접 만든 Label의 생성자)
+    "storage_settings",  # storage_settings.updated_by_user_id (P2b: 저장 위치를 저장한 admin)
+    "attachment_uploader",  # deal_attachments.uploaded_by_user_id (P2b: 첨부를 올린 사용자)
 )
 
 
 # LINK_KINDS 각각이 가리키는 (테이블, 컬럼). 세션 FK는 삭제 때 행을 먼저 지우므로 연결이 아니다.
 LINK_COLUMNS: Final = {
     "deal_owner": ("deals", "owner_user_id"),
-    "deal_registrant": ("deals", "registered_by_user_id"),
+    "history_author": ("deal_history", "changed_by_user_id"),
     "action_actor": ("deal_actions", "actor_user_id"),
-    "stage_changer": ("deal_stage_changes", "changed_by_user_id"),
     "created_user": ("users", "created_by_user_id"),
     "directory_settings": ("directory_settings", "updated_by_user_id"),
+    "label_creator": ("bant_labels", "created_by_user_id"),
+    "storage_settings": ("storage_settings", "updated_by_user_id"),
+    "attachment_uploader": ("deal_attachments", "uploaded_by_user_id"),
 }
 SESSION_COLUMN: Final = ("auth_sessions", "user_id")
 EXPECTED_USER_FKS: Final = frozenset({*LINK_COLUMNS.values(), SESSION_COLUMN})
@@ -52,14 +56,15 @@ async def _helper_user(uow: UnitOfWork) -> User:
     return helper
 
 
-async def _deal(uow: UnitOfWork, *, owner: UserId, registered_by: UserId | None = None) -> Deal:
+async def _deal(uow: UnitOfWork, *, owner: UserId) -> Deal:
+    from tests.factories_contact import make_customer  # noqa: PLC0415 - 연락처 구현 지연 import
+
     customer = make_customer()
-    await uow.customers.add(customer)
+    await uow.contacts.add(customer)
     deal = make_deal(
-        code=f"LK-{uuid4().hex[:8]}",
+        code=f"20261016-{uuid4().hex[:4].upper()}",
         customer_id=customer.id,
         owner_user_id=owner,
-        registered_by_user_id=registered_by,
     )
     await uow.deals.add(deal)
     return deal
@@ -75,24 +80,21 @@ async def link_user(uow_factory: UnitOfWorkFactory, user: User, kind: str) -> No
 async def _create_link(uow: UnitOfWork, user: User, kind: str) -> None:
     if kind == "deal_owner":
         await _deal(uow, owner=user.id)
-    elif kind == "deal_registrant":
+    elif kind == "history_author":
+        from app.domain.deal.history import (  # noqa: PLC0415
+            DealHistoryEntry,
+            HistoryCategory,
+            HistoryDraft,
+        )
+
         helper = await _helper_user(uow)
-        await _deal(uow, owner=helper.id, registered_by=user.id)
+        deal = await _deal(uow, owner=helper.id)
+        draft = HistoryDraft(HistoryCategory.CREATED, "Deal 등록", "", "Deal 등록")
+        await uow.deal_history.add_many([DealHistoryEntry(None, deal.id, later(5), user.id, draft)])
     elif kind == "action_actor":
         helper = await _helper_user(uow)
         deal = await _deal(uow, owner=helper.id)
-        await uow.deal_actions.add(make_deal_action(deal_id=deal.id, actor_user_id=user.id))
-    elif kind == "stage_changer":
-        helper = await _helper_user(uow)
-        deal = await _deal(uow, owner=helper.id)
-        change = deal.change_stage(
-            DealStage.INTRODUCTION,
-            reason=None,
-            changed_by=StageChanger(user_id=user.id),
-            now=later(5),
-        )
-        await uow.deals.update(deal)
-        await uow.deal_stage_changes.add(change)
+        await uow.deal_actions.add(make_deal_action(deal_code=deal.id, actor_user_id=user.id))
     elif kind == "created_user":
         await uow.users.add(make_user(f"c{uuid4().hex[:12]}", created_by_user_id=user.id))
     elif kind == "directory_settings":
@@ -104,5 +106,20 @@ async def _create_link(uow: UnitOfWork, user: User, kind: str) -> None:
             updated_by=user.id,
             now=NOW,
         )
+    elif kind == "label_creator":
+        await uow.bant_labels.add(make_label(name=f"L{uuid4().hex[:12]}", created_by=user.id))
+    elif kind == "storage_settings":
+        from app.domain.storage.path import StoragePath  # noqa: PLC0415
+
+        # 이미 저장 위치가 있는 환경(functional 최초 설정을 마친 앱)에서는 저장자만 바뀐다(upsert).
+        await uow.storage_settings.save(
+            StoragePath.parse("/data/neoine-sales/files"), updated_by=user.id, now=NOW
+        )
+    elif kind == "attachment_uploader":
+        from tests.factories_attachment import make_attachment  # noqa: PLC0415
+
+        helper = await _helper_user(uow)
+        deal = await _deal(uow, owner=helper.id)
+        await uow.attachments.add(make_attachment(deal_code=deal.id, uploaded_by=user.id))
     else:
         raise AssertionError(kind)

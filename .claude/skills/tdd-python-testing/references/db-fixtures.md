@@ -1,4 +1,4 @@
-# 통합 테스트용 임시 DB fixture
+# 실제 DB가 필요한 테스트용 임시 DB fixture
 
 ## 목차
 
@@ -17,8 +17,11 @@
 | --- | --- |
 | `backend/tests/support/database.py` | 임시 DB 생성·삭제, 마이그레이션 적용, 롤백되는 세션, 관리자 접속 URL 결정 |
 | `backend/tests/conftest.py` | 세션당 한 번 임시 DB를 만들고 마이그레이션을 적용하는 `test_database_url` fixture |
-| `backend/tests/integration/conftest.py` | 테스트마다 롤백되는 `session` fixture |
-| `backend/tests/contracts/conftest.py` | 같은 계약 테스트를 Fake와 SQL 구현 양쪽에 적용하는 `case` fixture |
+| `backend/tests/unit/infra/conftest.py` (구 `tests/integration/conftest.py`) | 테스트마다 롤백되는 `session` fixture(infra 어댑터 클래스 단위 테스트용) |
+| `backend/tests/unit/repositories/conftest.py` (구 `tests/contracts/conftest.py`) | 같은 계약 단위 테스트를 Fake와 SQL 구현 양쪽에 적용하는 `case` fixture |
+| `backend/tests/functional/conftest.py` | feature end-to-end용 ASGI 클라이언트(`api`)와 임시 DB 연결 |
+
+> 테스트 재배치(2026-10-15) 중에는 구 경로(`tests/contracts`, `tests/integration`, `tests/e2e`)가 남아 있을 수 있다. 새 테스트는 구 경로에 만들지 않는다.
 
 ## 2. 동작 방식
 
@@ -42,8 +45,8 @@ uv run pytest -rs                      # 건너뛴 테스트와 그 이유를 �
 ```
 
 - 필요한 것: PostgreSQL 실행, 접속 role에 `CREATEDB` 권한(`ALTER ROLE <role> CREATEDB;`).
-- 새 통합 테스트는 `tests/integration/`에 두고 `pytestmark = pytest.mark.integration`을 붙인다. `session` fixture를 받아 Repository를 만든다.
-- 마이그레이션이 필요한 변경(테이블·제약)은 마이그레이션 파일을 먼저 만들고 `tests/integration/test_migrations.py`에 제약 동작 테스트를 추가한다.
+- 실제 DB가 필요한 테스트는 `pytestmark = pytest.mark.integration`을 붙인다. infra 어댑터 클래스 하나는 `tests/unit/infra/`(`session` fixture로 Repository 생성), feature 전체는 `tests/functional/`(BDD, `references/bdd.md`).
+- 마이그레이션이 필요한 변경(테이블·제약)은 마이그레이션 파일을 먼저 만들고, 제약 동작은 해당 Repository 단위 테스트(`tests/unit/infra/`)에, 업그레이드·다운그레이드 왕복은 functional `tests/functional/schema/test_migrations.py` 시나리오로 추가한다.
 
 ## 4. 건너뛰기와 실패의 기준
 
@@ -53,7 +56,7 @@ uv run pytest -rs                      # 건너뛴 테스트와 그 이유를 �
 
 ## 5. 새 Repository 구현에 계약 테스트 적용하기
 
-1. `tests/contracts/conftest.py`의 `IMPLEMENTATIONS`와 `build_case`/`build_sql_case` 계열에 새 구현을 추가한다.
+1. `tests/unit/repositories/conftest.py`의 `IMPLEMENTATIONS`와 `build_case`/`build_sql_case` 계열에 새 구현을 추가한다.
 2. 선행 데이터가 필요하면(예: Deal이 참조하는 고객) `RepositoryCase.prepare`로 만든다.
 3. 같은 계약 테스트(`test_repository_contract.py`, `test_deal_repository_contract.py`)가 새 구현에도 그대로 돌아야 한다. 테스트를 구현에 맞춰 약하게 고치지 않는다.
 

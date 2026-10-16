@@ -56,10 +56,22 @@ export const BLOCKED_EXTENSIONS: readonly string[] = [
 /** 세션 사용자 id를 보관하는 sessionStorage 키(로그인 유지용, 읽기/쓰기는 try/catch). */
 export const SESSION_STORAGE_KEY = 'neoine-mock-user-id'
 
-/** 빠른 로그인 버튼과 시드 사용자 id의 약속. 시드의 사용자 id는 `u-<loginId>`다. */
-export const QUICK_LOGIN_USERS: readonly { userId: string; label: string }[] = [
-  { userId: 'u-root', label: '관리자 최관리' },
-  { userId: 'u-kim', label: '영업 김영업' },
-  { userId: 'u-park', label: '영업 박영업' },
-  { userId: 'u-han', label: '조회자 한조회' },
+/**
+ * 빠른 로그인 버튼과 시드 사용자 id의 약속. 시드의 사용자 id는 `u-<loginId>`다.
+ * `role`은 실제 서버의 dev 로그인(역할로 로그인)이 쓴다. 서버는 역할당 개발용 계정 하나로 로그인시킨다.
+ */
+export const QUICK_LOGIN_USERS: readonly { userId: string; label: string; role: 'admin' | 'sales' | 'user' }[] = [
+  { userId: 'u-root', label: '관리자 최관리', role: 'admin' },
+  { userId: 'u-kim', label: '영업 김영업', role: 'sales' },
+  { userId: 'u-park', label: '영업 박영업', role: 'sales' },
+  { userId: 'u-han', label: '조회자 한조회', role: 'user' },
 ]
+
+/**
+ * 삭제할 수 없는 시스템 연결 코드 key(서버와 같은 5개). 이름·순서는 바꿀 수 있다.
+ * 서버가 정본이고 화면은 응답의 `locked`를 쓴다. 이 상수는 mock 시드와 계약 테스트가 서버와 맞추는 데 쓴다.
+ */
+export const LOCKED_KEYS = {
+  status: ['prospecting', 'contract_completed'],
+  forecast: ['pipeline', 'won', 'lost'],
+} as const

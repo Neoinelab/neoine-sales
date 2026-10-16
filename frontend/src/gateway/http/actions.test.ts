@@ -1,0 +1,266 @@
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import type { ActionQuery } from '../../shared/model/types'
+import { ACTION_ID, serverAction } from '../../test/fixtures/serverAction'
+import { CODE } from '../../test/fixtures/serverDeal'
+import { createActionsHttp } from './actions'
+import { createHttpGateway } from './index'
+import { json, noContent, problem, stubFetch } from './testHelpers'
+
+afterEach(() => vi.unstubAllGlobals())
+
+const query = (path: string) => new URL(path, 'http://localhost').searchParams
+
+const newAction = {
+  type: '미팅' as const,
+  progress: '고객사 방문',
+  nextAction: '견적 재전달',
+  dueDate: '2026-10-22',
+  memo: '',
+}
+
+describe('actions.list over HTTP (AC-14~16)', () => {
+  it('sends GET /deals/{code}/actions without a query when nothing is set', async () => {
+    const { calls } = stubFetch(json({ items: [] }))
+
+    await createActionsHttp().list(CODE, {})
+
+    expect(calls[0]).toMatchObject({ method: 'GET', path: `/api/v1/deals/${CODE}/actions` })
+  })
+
+  it('reads the items array of the {items} answer and maps each action', async () => {
+    stubFetch(json({ items: [serverAction({ id: 'a2', action: '두 번째' }), serverAction({ id: 'a1', action: '첫 번째' })] }))
+
+    const list = await createActionsHttp().list(CODE, {})
+
+    expect(list.map((a) => [a.id, a.progress, a.type])).toEqual([
+      ['a2', '두 번째', '미팅'],
+      ['a1', '첫 번째', '미팅'],
+    ])
+  })
+
+  it('never sends offset or limit (the server has no paging)', async () => {
+    const { calls } = stubFetch(json({ items: [] }))
+
+    await createActionsHttp().list(CODE, { keyword: 'ROI' })
+
+    const sent = query(calls[0]?.path ?? '')
+    expect(sent.has('offset')).toBe(false)
+    expect(sent.has('limit')).toBe(false)
+  })
+
+  it('maps every filter to its query key with YYYY-MM-DD dates and the enum type', async () => {
+    const { calls } = stubFetch(json({ items: [] }))
+    const full: ActionQuery = {
+      type: '협상',
+      actorId: 'u-kim',
+      keyword: 'ROI',
+      actedFrom: '2026-10-01',
+      actedTo: '2026-10-15',
+      dueFrom: '2026-10-16',
+      dueTo: '2026-10-31',
+      sort: 'dueAsc',
+    }
+
+    await createActionsHttp().list(CODE, full)
+
+    const sent = query(calls[0]?.path ?? '')
+    expect(Object.fromEntries(sent)).toEqual({
+      action_type: 'negotiation',
+      actor_user_id: 'u-kim',
+      keyword: 'ROI',
+      acted_from: '2026-10-01',
+      acted_to: '2026-10-15',
+      due_from: '2026-10-16',
+      due_to: '2026-10-31',
+      sort: 'due_date_asc',
+    })
+  })
+
+  it.each([
+    ['actedDesc', 'acted_at_desc'],
+    ['actedAsc', 'acted_at_asc'],
+    ['dueAsc', 'due_date_asc'],
+  ] as const)('maps sort %s to %s', async (sort, wire) => {
+    const { calls } = stubFetch(json({ items: [] }))
+
+    await createActionsHttp().list(CODE, { sort })
+
+    expect(query(calls[0]?.path ?? '').get('sort')).toBe(wire)
+  })
+
+  it('leaves out empty values instead of sending blanks', async () => {
+    const { calls } = stubFetch(json({ items: [] }))
+
+    await createActionsHttp().list(CODE, { keyword: '', actorId: '', actedFrom: '', dueTo: '' })
+
+    expect(calls[0]?.path).toBe(`/api/v1/deals/${CODE}/actions`)
+  })
+
+  it('shows the 422 message of a reversed range as the server wrote it', async () => {
+    stubFetch(problem(422, 'invalid-value', '수행일 범위의 시작은 끝보다 늦을 수 없습니다.'))
+
+    await expect(createActionsHttp().list(CODE, { actedFrom: '2026-10-20', actedTo: '2026-10-01' })).rejects.toMatchObject({
+      status: 422,
+      kind: 'validation',
+      message: '수행일 범위의 시작은 끝보다 늦을 수 없습니다.',
+    })
+  })
+
+  it('shows the 404 of an unknown deal', async () => {
+    stubFetch(problem(404, 'not-found', 'Deal을 찾을 수 없습니다.'))
+
+    await expect(createActionsHttp().list(CODE, {})).rejects.toMatchObject({ status: 404, message: 'Deal을 찾을 수 없습니다.' })
+  })
+})
+
+describe('actions.create over HTTP (AC-01·02·05)', () => {
+  it('posts the snake_case content to /deals/{code}/actions and maps the 201 answer', async () => {
+    const { calls } = stubFetch(json(serverAction({ action_type: 'meeting' }), 201, { Location: `/api/v1/deal-actions/${ACTION_ID}` }))
+
+    const created = await createActionsHttp().create(CODE, newAction)
+
+    expect(calls[0]).toMatchObject({ method: 'POST', path: `/api/v1/deals/${CODE}/actions` })
+    expect(calls[0]?.body).toEqual({
+      action_type: 'meeting',
+      action: '고객사 방문',
+      next_action: '견적 재전달',
+      due_date: '2026-10-22',
+      memo: '',
+    })
+    expect(created).toMatchObject({ id: ACTION_ID, progress: '고객사 방문', type: '미팅', statusKey: 'prospecting', forecastKey: 'pipeline' })
+  })
+
+  it('never sends acted_at or an actor (the server fills them)', async () => {
+    const { calls } = stubFetch(json(serverAction(), 201))
+
+    await createActionsHttp().create(CODE, newAction)
+
+    const body = calls[0]?.body as Record<string, unknown>
+    expect(body).not.toHaveProperty('acted_at')
+    expect(body).not.toHaveProperty('actor_user_id')
+  })
+
+  it('sends an empty due date as null', async () => {
+    const { calls } = stubFetch(json(serverAction(), 201))
+
+    await createActionsHttp().create(CODE, { ...newAction, dueDate: '' })
+
+    expect((calls[0]?.body as Record<string, unknown>).due_date).toBeNull()
+  })
+
+  it('sends a very long text untouched', async () => {
+    const { calls } = stubFetch(json(serverAction(), 201))
+
+    await createActionsHttp().create(CODE, { ...newAction, progress: '가'.repeat(5000), memo: '나'.repeat(20000) })
+
+    const body = calls[0]?.body as { action: string; memo: string }
+    expect(body.action).toHaveLength(5000)
+    expect(body.memo).toHaveLength(20000)
+  })
+
+  it('sends status_change with the resolution of a closing', async () => {
+    const { calls } = stubFetch(json(serverAction({ status_key: 'contract_completed', forecast_key: 'won' }), 201))
+
+    const created = await createActionsHttp().create(CODE, {
+      ...newAction,
+      statusChange: {
+        change: { field: 'statusKey', value: 'contract_completed' },
+        resolution: { revenueAmount: 1_800_000_000, revenueDate: '2026-10-15' },
+      },
+    })
+
+    expect(calls[0]?.body).toMatchObject({
+      status_change: {
+        change: { field: 'status_key', value: 'contract_completed' },
+        resolution: { revenue_amount: 1_800_000_000, revenue_date: '2026-10-15' },
+      },
+    })
+    expect(created).toMatchObject({ statusKey: 'contract_completed', forecastKey: 'won' })
+  })
+
+  it.each([
+    [403, 'forbidden', '이 작업을 할 권한이 없습니다(읽기 전용 계정)', 'forbidden'],
+    [404, 'not-found', 'Deal을 찾을 수 없습니다.', 'not-found'],
+    [409, 'invalid-state', '다른 변경과 충돌했습니다.', 'conflict'],
+    [422, 'invalid-value', '진행사항을 입력하세요.', 'validation'],
+    [422, 'request-validation', '요청 형식이 올바르지 않습니다.', 'validation'],
+  ])('shows the %s answer %s with the server message', async (status, serverKind, detail, kind) => {
+    stubFetch(problem(status, serverKind, detail))
+
+    await expect(createActionsHttp().create(CODE, newAction)).rejects.toMatchObject({ status, kind, message: detail })
+  })
+})
+
+describe('actions.update over HTTP (AC-10·11)', () => {
+  it('puts the content to /deal-actions/{id} and maps the answer', async () => {
+    const { calls } = stubFetch(json(serverAction({ action: '수정한 진행사항', action_type: 'other' })))
+
+    const updated = await createActionsHttp().update(ACTION_ID, { type: '기타', progress: '수정한 진행사항', nextAction: '수정한 Next', dueDate: '2026-11-01', memo: '메모' })
+
+    expect(calls[0]).toMatchObject({ method: 'PUT', path: `/api/v1/deal-actions/${ACTION_ID}` })
+    expect(calls[0]?.body).toEqual({
+      action_type: 'other',
+      action: '수정한 진행사항',
+      next_action: '수정한 Next',
+      due_date: '2026-11-01',
+      memo: '메모',
+    })
+    expect(updated).toMatchObject({ id: ACTION_ID, progress: '수정한 진행사항', type: '기타' })
+  })
+
+  it('shows the 403 message for another sales exactly as the server wrote it', async () => {
+    stubFetch(problem(403, 'forbidden', '본인 Action 또는 admin만 수정할 수 있습니다.'))
+
+    await expect(createActionsHttp().update(ACTION_ID, newAction)).rejects.toMatchObject({
+      status: 403,
+      kind: 'forbidden',
+      message: '본인 Action 또는 admin만 수정할 수 있습니다.',
+    })
+  })
+
+  it.each([
+    [404, 'not-found', 'Action을 찾을 수 없습니다.', 'not-found'],
+    [422, 'invalid-value', 'Next Action을 입력하세요.', 'validation'],
+  ])('shows the %s answer with the server message', async (status, serverKind, detail, kind) => {
+    stubFetch(problem(status, serverKind, detail))
+
+    await expect(createActionsHttp().update(ACTION_ID, newAction)).rejects.toMatchObject({ status, kind, message: detail })
+  })
+})
+
+describe('actions.remove over HTTP (AC-12)', () => {
+  it('deletes /deal-actions/{id} and resolves with nothing on 204', async () => {
+    const { calls } = stubFetch(noContent())
+
+    await expect(createActionsHttp().remove(ACTION_ID)).resolves.toBeUndefined()
+
+    expect(calls[0]).toMatchObject({ method: 'DELETE', path: `/api/v1/deal-actions/${ACTION_ID}` })
+    expect(calls[0]?.body).toBeUndefined()
+  })
+
+  it('shows the 403 message for another sales exactly as the server wrote it', async () => {
+    stubFetch(problem(403, 'forbidden', '본인 Action 또는 admin만 삭제할 수 있습니다.'))
+
+    await expect(createActionsHttp().remove(ACTION_ID)).rejects.toMatchObject({
+      status: 403,
+      kind: 'forbidden',
+      message: '본인 Action 또는 admin만 삭제할 수 있습니다.',
+    })
+  })
+
+  it('shows the 404 of an unknown action', async () => {
+    stubFetch(problem(404, 'not-found', 'Action을 찾을 수 없습니다.'))
+
+    await expect(createActionsHttp().remove(ACTION_ID)).rejects.toMatchObject({ status: 404, message: 'Action을 찾을 수 없습니다.' })
+  })
+})
+
+describe('http gateway wiring (AC-22)', () => {
+  it('uses the real actions adapter instead of the 501 placeholder', async () => {
+    const { calls } = stubFetch(json({ items: [] }))
+
+    await expect(createHttpGateway().actions.list(CODE, {})).resolves.toEqual([])
+
+    expect(calls[0]).toMatchObject({ method: 'GET', path: `/api/v1/deals/${CODE}/actions` })
+  })
+})

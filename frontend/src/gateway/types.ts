@@ -10,7 +10,11 @@
  * - 상태 코드: 401 미로그인/잘못된 로그인, 403 권한 없음(또는 퇴사자 로그인), 404 없음, 409 충돌·참조 중·순서 위반,
  *   422 검증 실패, 503 저장소 장애.
  * - 알려진 kind: `unauthorized` `forbidden` `not-found` `validation` `conflict` `file-exists`(409, 같은 이름 파일)
- *   `storage-unavailable`(503) `directory-verification-failed`(422, `stage` 포함). 화면은 `error.kind`로 분기한다.
+ *   `storage-unavailable`(503) `directory-verification-failed`(422, `stage` 포함) `csrf`(403, 요청 헤더 누락)
+ *   `too-many-attempts`(429, 로그인 시도 제한) `network`(상태 0, 서버에 닿지 못함) `malformed-response`(502, 응답이 계약과 다름)
+ *   `not-implemented`(501, HTTP 어댑터에 아직 없는 기능) `directory-unavailable`(503, AD 장애) `not-ready`(503) `http-error`
+ *   `domain-error`(400). HTTP 어댑터는 서버 kind 중 변환표에 없는 것을 그대로 통과시키므로 화면은 알 수 없는 kind도
+ *   `error.message`로 보여 줄 수 있어야 한다. 화면은 `error.kind`로 분기한다.
  * - 모든 메서드는 **로그인 사용자(session)** 가 필요하다(auth.login/quickLogin, setup.* 제외). 없으면 401.
  *
  * ── 공통 불변식 ───────────────────────────────────────────
@@ -24,7 +28,7 @@
  *    sync 규칙(`planChange`/`finalizePlan`)으로, 폼 저장(`create`/`update`)은 최종 값이 불변식을 만족해야 한다
  *    (어긋나면 422 "Status와 Forecast의 동기화가 맞지 않습니다.").
  * 5. Action은 **등록 시점의 Status/Forecast key를 저장**한다(statusChange가 있으면 적용 후 값). 수정은 이 값을 바꾸지 않는다.
- * 6. 연락처 입력: 회사명·담당자명·이메일·전화에 공백 문자가 있으면 422 "공백은 입력할 수 없습니다."; 회사/이름은
+ * 6. 연락처 입력: 회사명·담당자명·이메일·전화에 공백 문자가 있으면 422 "공백은 입력할 수 없습니다."; 이메일·전화 형식 오류 422; 회사/이름은
  *    대소문자 구분 없이 같은 것으로 본다. 같은 사람 판정은 `findSamePerson`.
  * 7. Deal code는 `YYYYMMDD-XXXX`(`DEAL_CODE_PATTERN`), 등록일(mock 오늘) + 대문자/숫자 4자리, 기존 code와 겹치면 재추출.
  * 8. 목록 조회는 읽기 전용이며 부수효과가 없다. 반환 객체는 호출자가 바꿔도 저장소에 영향이 없다(복사본).
@@ -103,6 +107,14 @@ export interface AuthGateway {
   /** 빠른 로그인(`QUICK_LOGIN_USERS`). 퇴사자·없는 id는 login과 같은 오류. */
   quickLogin(userId: string): Promise<Me>
   logout(): Promise<void>
+  /** 로그인 화면용 서버 설정(로그인 전에도 읽는다). `quickLogin`이 true일 때만 빠른 로그인 버튼을 그린다(mock은 항상 true). */
+  config(): Promise<AuthConfig>
+}
+
+export interface AuthConfig {
+  quickLogin: boolean
+  /** 최초 설정(AD 서버 또는 첫 관리자)이 아직 끝나지 않았다. 서버 `needs_directory_setup || needs_admin_setup`. */
+  needsSetup: boolean
 }
 
 export interface SetupGateway {
@@ -155,6 +167,7 @@ export interface ContactsGateway {
   companies(kind: ContactKind): Promise<string[]>
   /** 회사명(대소문자 무시)의 담당자 목록(`contactsOfCompany`) + 연결 Deal 수. */
   byCompany(kind: ContactKind, company: string): Promise<ContactRow[]>
+  /** admin만(sales·user 403). 관리 화면 전용이며 Deal 화면의 선택은 `companies`·`byCompany`를 쓴다. */
   list(query: ContactListQuery): Promise<Page<ContactRow>>
   /** admin만. 규칙 위반 422(공백·이메일 형식·필수), 같은 사람이 이미 있으면 409 "이미 등록된 연락처입니다." */
   create(kind: ContactKind, input: ContactInput): Promise<Contact>
@@ -173,9 +186,13 @@ export interface ActionsGateway {
    * History: Action 1건 + (바뀌었으면) Status/Forecast 변경.
    */
   create(dealCode: string, input: ActionInput): Promise<DealAction>
-  /** 이전 Action도 수정 가능. 등록 시점 Status/Forecast·수행일시·담당자는 유지. History 기록. */
+  /**
+   * 이전 Action도 수정 가능하나 **담당자 본인(sales)과 admin만** 가능하다.
+   * 다른 sales·user는 403 "본인 Action 또는 admin만 수정할 수 있습니다."(user는 기본 403 문구).
+   * 등록 시점 Status/Forecast·수행일시·담당자는 유지. 내용이 바뀌었을 때만 History 기록.
+   */
   update(actionId: string, input: ActionUpdateInput): Promise<DealAction>
-  /** History 기록. */
+  /** 담당자 본인(sales)과 admin만. 다른 sales는 403 "본인 Action 또는 admin만 삭제할 수 있습니다.". History 기록. */
   remove(actionId: string): Promise<void>
 }
 
@@ -256,15 +273,27 @@ export interface UsersGateway {
 export interface SettingsGateway {
   /** admin만. 설정이 없으면 null. */
   getDirectory(): Promise<DirectorySettings | null>
-  /** revision +1, updatedBy/updatedAt 갱신. 검증 422(서버 URL 1개 이상, 필수 필드). */
-  saveDirectory(input: DirectorySettingsInput): Promise<DirectorySettings>
-  /** 서버 URL 중 'fail'이 들어간 것이 있으면 422(kind `directory-verification-failed`, stage 'connect', detail "연결 단계에서 실패했습니다"). */
-  testDirectory(input: DirectorySettingsInput): Promise<void>
+  /**
+   * revision +1, updatedBy/updatedAt 갱신. 검증 422(서버 URL 1개 이상, 필수 필드).
+   * `auth.password`는 현재 관리자 비밀번호(새 설정으로 인증을 확인한다, 개발용 로그인은 null), `expectedRevision`은
+   * 화면이 읽은 설정 버전(낙관적 잠금, 어긋나면 409). mock은 값을 받기만 한다.
+   */
+  saveDirectory(input: DirectorySettingsInput, auth: DirectorySaveAuth): Promise<DirectorySettings>
+  /**
+   * 서버 URL 중 'fail'이 들어간 것이 있으면 422(kind `directory-verification-failed`, stage 'connect', detail "연결 단계에서 실패했습니다").
+   * `password`는 현재 관리자 비밀번호(개발용 로그인은 null).
+   */
+  testDirectory(input: DirectorySettingsInput, password: string | null): Promise<void>
   getStorage(): Promise<StorageSettings | null>
   /** 절대 경로 아니면 422 "절대 경로를 입력하세요.", '/readonly'로 시작하면 422 "해당 위치에 쓸 수 없습니다." */
   saveStorage(path: string): Promise<StorageSettings>
   /** 저장 없이 같은 검증만 수행(쓰기 테스트). */
   testStorage(path: string): Promise<void>
+}
+
+export interface DirectorySaveAuth {
+  password: string | null
+  expectedRevision: number
 }
 
 export interface Gateway {

@@ -44,7 +44,10 @@ async def register_user(
     body: UserRequest, response: Response, provider: Provider, actor: CurrentUser
 ) -> UserResponse:
     user = await provider.register_user().execute(
-        login_id=body.login_id, role=body.role, actor=actor
+        login_id=body.login_id,
+        role=body.role,
+        actor=actor,
+        display_name=body.display_name,
     )
     response.headers["Location"] = f"{router.prefix}/{user.id}"
     (item,) = await _responses(provider, [user])

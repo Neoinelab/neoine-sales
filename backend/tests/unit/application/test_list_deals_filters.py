@@ -1,0 +1,144 @@
+"""ListDeals의 확장 필터·정렬(AC-22a~22d, R3): solution, forecast, 연/분기, BANT Label, sort/order.
+
+저장소 계약(tests/unit/repositories)이 조건별 세부를 검증하므로 여기서는 유스케이스가 조건을
+그대로 전달하고 total·페이지를 함께 돌려주는지, 비어 있는 기간 창이면 저장소를 부르지 않는지를 본다.
+"""
+
+from datetime import date
+from typing import TYPE_CHECKING
+
+from app.application.ports.deal_repository import DealQuery, DealSort, SortOrder
+from app.domain.bant.values import BantCategory
+from tests.support.catalog import label_by_name
+
+if TYPE_CHECKING:
+    from app.application.deal.dto import DealPage
+    from tests.unit.application.deal_env import DealEnv
+
+
+def _codes(page: DealPage) -> list[str]:
+    return [view.item.deal.id.value for view in page.items]
+
+
+async def test_solution_matches_exactly(env: DealEnv) -> None:
+    hit = await env.new_deal(solution="S/4HANA")
+    await env.new_deal(solution="S/4HANA Cloud")
+
+    page = await env.list.execute(DealQuery(solution="S/4HANA"))
+
+    assert _codes(page) == [hit.item.deal.id.value]
+    assert page.total == 1
+
+
+async def test_forecast_matches_the_forecast_key(env: DealEnv) -> None:
+    await env.new_deal(forecast_key="pipeline")
+    hit = await env.new_deal(forecast_key="commit")
+
+    page = await env.list.execute(DealQuery(forecast_key="commit"))
+
+    assert _codes(page) == [hit.item.deal.id.value]
+
+
+async def test_an_unknown_forecast_key_is_zero_results_not_an_error(env: DealEnv) -> None:
+    await env.new_deal()
+
+    page = await env.list.execute(DealQuery(forecast_key="no_such_forecast"))
+
+    assert (page.items, page.total) == ([], 0)
+
+
+async def test_year_and_quarter_follow_the_expected_close_with_boundaries(env: DealEnv) -> None:
+    days = {
+        "q1_end": date(2026, 3, 31),
+        "q2_start": date(2026, 4, 1),
+        "q2_end": date(2026, 6, 30),
+        "q3_start": date(2026, 7, 1),
+        "next_year": date(2027, 1, 1),
+    }
+    views = {name: await env.new_deal(revenue_date=day) for name, day in days.items()}
+
+    page = await env.list.execute(DealQuery(year=2026, quarter=2))
+
+    assert set(_codes(page)) == {views[n].item.deal.id.value for n in ("q2_start", "q2_end")}
+    assert page.total == 2
+
+
+async def test_a_year_alone_includes_the_whole_year(env: DealEnv) -> None:
+    inside = await env.new_deal(revenue_date=date(2026, 12, 31))
+    await env.new_deal(revenue_date=date(2027, 1, 1))
+    await env.new_deal(revenue_date=date(2025, 12, 31))
+
+    page = await env.list.execute(DealQuery(year=2026))
+
+    assert _codes(page) == [inside.item.deal.id.value]
+
+
+async def test_year_quarter_and_a_period_are_intersected(env: DealEnv) -> None:
+    hit = await env.new_deal(revenue_date=date(2026, 5, 20))
+    await env.new_deal(revenue_date=date(2026, 4, 10))
+
+    page = await env.list.execute(
+        DealQuery(year=2026, quarter=2, revenue_from=date(2026, 5, 1), revenue_to=date(2026, 5, 31))
+    )
+
+    assert _codes(page) == [hit.item.deal.id.value]
+
+
+async def test_an_empty_period_window_gives_zero_results_without_asking_the_repository(
+    env: DealEnv,
+) -> None:
+    await env.new_deal(revenue_date=date(2026, 6, 30))
+    env.uow.deals.queries = 0
+
+    page = await env.list.execute(DealQuery(year=2026, revenue_from=date(2027, 1, 1)))
+
+    assert (page.items, page.total) == ([], 0)
+    assert env.uow.deals.queries == 0
+
+
+async def test_bant_labels_of_several_categories_are_combined_with_and(env: DealEnv) -> None:
+    full_budget = await label_by_name(env.uow, BantCategory.BUDGET, "풀 예산 확보")
+    ceo = await label_by_name(env.uow, BantCategory.AUTHORITY, "CEO 보고 완료")
+    both = await env.new_deal(
+        bant={BantCategory.BUDGET: full_budget.id, BantCategory.AUTHORITY: ceo.id}
+    )
+    await env.new_deal(bant={BantCategory.BUDGET: full_budget.id})
+    await env.new_deal(bant={BantCategory.AUTHORITY: ceo.id})
+
+    only_budget = await env.list.execute(
+        DealQuery(bant_label_ids={BantCategory.BUDGET: full_budget.id})
+    )
+    page = await env.list.execute(
+        DealQuery(
+            bant_label_ids={BantCategory.BUDGET: full_budget.id, BantCategory.AUTHORITY: ceo.id}
+        )
+    )
+
+    assert only_budget.total == 2
+    assert _codes(page) == [both.item.deal.id.value]
+
+
+async def test_sorting_and_ordering_reach_the_repository_and_total_ignores_the_page(
+    env: DealEnv,
+) -> None:
+    cheap = await env.new_deal(revenue_amount=100)
+    middle = await env.new_deal(revenue_amount=200)
+    rich = await env.new_deal(revenue_amount=300)
+
+    ascending = await env.list.execute(DealQuery(sort=DealSort.REVENUE_AMOUNT, order=SortOrder.ASC))
+    descending_page = await env.list.execute(
+        DealQuery(sort=DealSort.REVENUE_AMOUNT, order=SortOrder.DESC, offset=1, limit=1)
+    )
+
+    assert _codes(ascending) == [v.item.deal.id.value for v in (cheap, middle, rich)]
+    assert _codes(descending_page) == [middle.item.deal.id.value]
+    assert descending_page.total == 3
+
+
+async def test_sorting_by_status_follows_the_current_status_order(env: DealEnv) -> None:
+    late = await env.new_deal(status_key="price_negotiation")
+    early = await env.new_deal(status_key="prospecting")
+
+    page = await env.list.execute(DealQuery(sort=DealSort.STATUS, order=SortOrder.ASC))
+
+    assert _codes(page) == [early.item.deal.id.value, late.item.deal.id.value]

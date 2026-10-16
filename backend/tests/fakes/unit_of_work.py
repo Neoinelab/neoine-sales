@@ -8,68 +8,96 @@ import copy
 from datetime import datetime, timedelta
 from typing import Any, Self
 
+from tests.fakes.attachments import FakeAttachmentRepository
+from tests.fakes.catalog import FakeBantLabelRepository, FakeCodeRepository
+from tests.fakes.contacts import FakeContactRepository
+from tests.fakes.deal_history import FakeDealHistoryRepository
 from tests.fakes.directory_settings_repository import FakeDirectorySettingsRepository
 from tests.fakes.repositories import (
-    FakeCustomerRepository,
     FakeDealActionRepository,
     FakeDealRepository,
-    FakePartnerRepository,
 )
 from tests.fakes.session_repository import FakeSessionRepository
-from tests.fakes.stage_change_repository import FakeDealStageChangeRepository
+from tests.fakes.storage_settings_repository import FakeStorageSettingsRepository
 from tests.fakes.user_repository import FakeLoginFailureRepository, FakeUserRepository
 
 
 class FakeUnitOfWork:
     def __init__(self) -> None:
-        self.customers = FakeCustomerRepository()
-        self.partners = FakePartnerRepository()
+        self.contacts = FakeContactRepository()
         self.deals = FakeDealRepository()
         self.deal_actions = FakeDealActionRepository()
-        self.deal_stage_changes = FakeDealStageChangeRepository()
-        self.deals.restrict_delete_by(self.deal_actions, self.deal_stage_changes)  # FK RESTRICT
-        self.customers.restrict_delete_by(self.deals)  # FK RESTRICT
-        self.partners.restrict_delete_by(self.deals)  # FK RESTRICT
+        self.deal_history = FakeDealHistoryRepository()
         self.sessions = FakeSessionRepository()
         self.users = FakeUserRepository()
         self.login_failures = FakeLoginFailureRepository()
         self.directory_settings = FakeDirectorySettingsRepository()
+        self.storage_settings = FakeStorageSettingsRepository()
+        self.attachments = FakeAttachmentRepository()
+        self.codes = FakeCodeRepository()
+        self.bant_labels = FakeBantLabelRepository()
+        self.deals.wire(
+            contacts=self.contacts,
+            codes=self.codes,
+            labels=self.bant_labels,
+            actions=self.deal_actions,
+            history=self.deal_history,
+            attachments=self.attachments,
+        )
+        self.attachments.wire(deals=self.deals)  # 소속 Deal이 없으면 DealNotFoundError
+        # 소속 Deal이 없으면 DealNotFoundError, 스냅숏 코드가 없으면 InvalidReferenceError
+        self.deal_actions.wire(deals=self.deals, codes=self.codes)
+        # 사용 중인 코드 삭제는 CodeInUseError (FK RESTRICT): Deal 사용이 먼저, Action 스냅숏이 다음
+        self.codes.wire(deals=self.deals, actions=self.deal_actions)
+        self.bant_labels.wire(deals=self.deals)  # 사용 중인 Label 삭제는 LabelInUseError
+        self.contacts.restrict_delete_by(self.deals)  # FK RESTRICT (고객·파트너 링크 모두)
         self._wire_user_references()
         self.commits = 0
         self._snapshot: tuple[Any, ...] | None = None
 
     def _wire_user_references(self) -> None:
-        """users를 FK로 참조하는 저장소를 연결한다(has_links·물리 삭제 RESTRICT, 키워드 조인)."""
-        deals, actions, changes = self.deals, self.deal_actions, self.deal_stage_changes
+        """users를 FK로 참조하는 저장소를 연결한다(has_links·물리 삭제 RESTRICT)."""
+        deals, actions, history = self.deals, self.deal_actions, self.deal_history
         settings = self.directory_settings
         self.users.add_referrer(
-            lambda uid: any(
-                uid in {d.details.owner_user_id, d.registered_by_user_id}
-                for d in deals._items.values()
-            )
+            lambda uid: any(d.details.owner_user_id == uid for d in deals._items.values())
         )
         self.users.add_referrer(
-            lambda uid: any(a.details.actor_user_id == uid for a in actions._items.values())
+            lambda uid: any(a.actor_user_id == uid for a in actions._items.values())
         )
         self.users.add_referrer(
-            lambda uid: any(c.changed_by.user_id == uid for c in changes._items.values())
+            lambda uid: any(e.changed_by == uid for e in history._items.values())
         )
         self.users.add_referrer(
             lambda uid: any(s.updated_by == uid for s in settings._items.values())
         )
-        self.deals.attach_user_names(self.users.names_of)
+        storage = self.storage_settings
+        self.users.add_referrer(  # storage_settings.updated_by_user_id (AC-16: 저장한 admin)
+            lambda uid: any(s.updated_by == uid for s in storage._items.values())
+        )
+        attachments = self.attachments
+        self.users.add_referrer(  # deal_attachments.uploaded_by_user_id (AC-16: 첨부를 올린 사용자)
+            lambda uid: any(a.uploaded_by == uid for a in attachments._items.values())
+        )
+        labels = self.bant_labels
+        self.users.add_referrer(  # bant_labels.created_by_user_id (AC-15: 만든 사람은 연결 있음)
+            lambda uid: any(label.created_by_user_id == uid for label in labels._items.values())
+        )
 
     def _repositories(self) -> tuple[Any, ...]:
         return (
-            self.customers,
-            self.partners,
+            self.contacts,
             self.deals,
             self.deal_actions,
-            self.deal_stage_changes,
+            self.deal_history,
             self.sessions,
             self.users,
             self.login_failures,
             self.directory_settings,
+            self.storage_settings,
+            self.attachments,
+            self.codes,
+            self.bant_labels,
         )
 
     def _take(self) -> tuple[Any, ...]:

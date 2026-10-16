@@ -4,8 +4,6 @@ from typing import TYPE_CHECKING
 
 import pytest
 import pytest_asyncio
-from app.application.user.list_user_options import ListUserOptions
-from app.application.user.resolve_user_refs import ResolveUserRefs
 
 from app.application.auth.auth_status import GetAuthStatus
 from app.application.auth.authenticate import Authenticate
@@ -14,18 +12,22 @@ from app.application.auth.directory_login import DirectoryLogin
 from app.application.auth.setup_directory import RegisterSetupDirectory
 from app.application.auth.setup_first_admin import SetupFirstAdmin
 from app.application.user.delete_user import DeleteUser
+from app.application.user.list_user_options import ListUserOptions
+from app.application.user.resolve_user_refs import ResolveUserRefs
 from app.container import Container
 from app.infra.auth.ldap import LdapDirectoryAuthenticator
-from tests.e2e.conftest import make_settings
 from tests.fakes.directory import FakeDirectoryAuthenticator
+from tests.functional.conftest import make_settings
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
 
+UNUSED_DATABASE_URL = "postgresql+asyncpg://user:pw@localhost:5432/none"  # 접속하지 않는다
+
 
 @pytest_asyncio.fixture
 async def container() -> AsyncIterator[Container]:
-    built = Container(make_settings())  # 엔진만 만들 뿐 DB에는 접속하지 않는다
+    built = Container(make_settings(UNUSED_DATABASE_URL))  # 엔진만 만들 뿐 DB에는 접속하지 않는다
     yield built
     await built.dispose()
 
@@ -55,7 +57,7 @@ async def test_container_no_longer_exposes_oidc_use_cases(
 
 
 async def test_container_accepts_an_injected_directory_authenticator() -> None:
-    built = Container(make_settings(), directory=FakeDirectoryAuthenticator())
+    built = Container(make_settings(UNUSED_DATABASE_URL), directory=FakeDirectoryAuthenticator())
     try:
         assert isinstance(built.directory_login(), DirectoryLogin)
     finally:

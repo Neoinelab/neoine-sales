@@ -7,8 +7,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.pool import NullPool
 
-from tests.integration.test_auth_migration import _insert_user
-from tests.integration.test_migrations import _insert_customer, _insert_deal
+from tests.support.legacy_rows import insert_customer, insert_legacy_deal, insert_legacy_user
 
 if TYPE_CHECKING:
     from collections.abc import Collection
@@ -22,7 +21,7 @@ CODE = "KEEP-1"
 
 async def seed_rows(session: AsyncSession, soft_deleted: Collection[str] = ()) -> None:
     """5개 테이블에 행을 1건씩 넣고, soft_deleted에 든 테이블의 행에만 deleted_at을 채운다."""
-    customer_id = await _insert_customer(session)
+    customer_id = await insert_customer(session)
     partner_id = uuid4()
     deal_id, action_id = uuid4(), uuid4()
     await session.execute(
@@ -32,7 +31,7 @@ async def seed_rows(session: AsyncSession, soft_deleted: Collection[str] = ()) -
         ),
         {"id": partner_id},
     )
-    await _insert_deal(session, customer_id, id=deal_id, code=CODE, partner_id=partner_id)
+    await insert_legacy_deal(session, customer_id, id=deal_id, code=CODE, partner_id=partner_id)
     await session.execute(
         text(
             "insert into deal_actions (id, deal_id, action_type, action, memo, next_action,"
@@ -41,7 +40,7 @@ async def seed_rows(session: AsyncSession, soft_deleted: Collection[str] = ()) -
         ),
         {"id": action_id, "deal_id": deal_id},
     )
-    await _insert_user(session, "kim")
+    await insert_legacy_user(session, "kim")
     for table in soft_deleted:
         await session.execute(text(f"update {table} set deleted_at = now()"))  # noqa: S608
 

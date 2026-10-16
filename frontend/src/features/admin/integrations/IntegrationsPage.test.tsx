@@ -172,3 +172,41 @@ describe('외부연동 파일 저장 위치 (T-ADMIN-12)', () => {
     expect(await storage().findByRole('status')).toHaveTextContent('쓰기 테스트에 성공했습니다.')
   })
 })
+
+describe('외부연동 AD 설정: 브라우저 자동 채움', () => {
+  it('marks the admin password as current-password and keeps autofill off the AD fields', async () => {
+    await openIntegrations()
+
+    expect(screen.getByLabelText(/현재 관리자 비밀번호/)).toHaveAttribute('autocomplete', 'current-password')
+    expect(screen.getByLabelText(/Base DN/)).toHaveAttribute('autocomplete', 'off')
+    expect(screen.getByLabelText(/바인드 템플릿/)).toHaveAttribute('autocomplete', 'off')
+  })
+})
+
+describe('외부연동 AD 설정이 아직 없을 때', () => {
+  afterEach(() => vi.unstubAllEnvs())
+
+  async function openWithoutSettings(mode: 'http' | 'mock') {
+    vi.stubEnv('VITE_GATEWAY', mode)
+    vi.spyOn(gateway.settings, 'getDirectory').mockResolvedValue(null)
+    await renderAt('/admin/integrations', { role: 'admin' })
+    await screen.findByRole('heading', { name: 'AD(LDAP) 서버 설정' })
+  }
+
+  it('points to the first-time setup instead of a save form in http mode', async () => {
+    await openWithoutSettings('http')
+
+    expect(await directory().findByText('AD 서버가 아직 설정되지 않았습니다. 최초 설정에서 등록하세요.')).toBeInTheDocument()
+    expect(directory().getByRole('link', { name: /최초 설정/ })).toHaveAttribute('href', '/setup')
+    expect(directory().queryByRole('button', { name: '저장' })).not.toBeInTheDocument()
+    expect(screen.queryByLabelText(/서버 URL/)).not.toBeInTheDocument()
+  })
+
+  it('still draws the form in mock mode', async () => {
+    await openWithoutSettings('mock')
+
+    expect(await screen.findByLabelText(/서버 URL/)).toBeInTheDocument()
+    expect(directory().getByRole('button', { name: '저장' })).toBeInTheDocument()
+    expect(directory().queryByRole('link', { name: /최초 설정/ })).not.toBeInTheDocument()
+  })
+})

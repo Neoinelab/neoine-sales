@@ -110,8 +110,8 @@ describe('시드 데이터(계획 4.3)', () => {
       'prospecting', 'introduction', 'poc_preparation', 'poc_completed', 'technical_evaluation', 'price_negotiation', 'contract_completed',
     ])
     expect(codes.forecasts.map((c) => c.key)).toEqual(['pipeline', 'best', 'most_likely', 'commit', 'won', 'lost'])
-    expect(codes.statuses.filter((c) => c.locked).map((c) => c.key)).toEqual(['contract_completed'])
-    expect(codes.forecasts.filter((c) => c.locked).map((c) => c.key)).toEqual(['won'])
+    expect(codes.statuses.filter((c) => c.locked).map((c) => c.key)).toEqual(['prospecting', 'contract_completed'])
+    expect(codes.forecasts.filter((c) => c.locked).map((c) => c.key)).toEqual(['pipeline', 'won', 'lost'])
   })
 })
 

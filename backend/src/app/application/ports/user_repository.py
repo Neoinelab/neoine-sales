@@ -7,6 +7,7 @@ if TYPE_CHECKING:
     from collections.abc import Collection, Mapping, Sequence
 
     from app.domain.auth.credentials import LoginId
+    from app.domain.auth.principal import Role
     from app.domain.user.entities import User
     from app.domain.user.value_objects import UserId, UserRef
 
@@ -56,11 +57,18 @@ class UserRepository(Protocol):
         ...
 
     async def search_refs(
-        self, *, keyword: str | None, include_resigned: bool, limit: int
+        self,
+        *,
+        keyword: str | None,
+        include_resigned: bool,
+        limit: int | None = None,
+        role: Role | None = None,
     ) -> Sequence[UserRef]:
-        """표시 이름(없으면 login_id로 대체한 name) 부분 일치(대소문자 무시) 참조를 생성 순서로.
+        """표시 이름(없으면 login_id로 대체) 부분 일치(대소문자 무시) 참조를 (created_at, id) 순.
 
-        표시 이름이 있는 사용자는 login_id로 검색되지 않는다. limit은 check_page.
+        표시 이름이 있는 사용자는 login_id로 검색되지 않는다.
+        limit이 None이면 제한 없이 전부, 정수면 check_page 검증 후 그 수만큼.
+        role이 있으면 그 역할만.
         """
         ...
 

@@ -33,6 +33,7 @@ class AuthConfigResponse(BaseModel):
     dev_login: bool
     directory_login: bool
     needs_directory_setup: bool
+    needs_storage_setup: bool
     needs_admin_setup: bool
 
     @classmethod
@@ -41,6 +42,7 @@ class AuthConfigResponse(BaseModel):
             dev_login=dev_login,
             directory_login=status.directory_configured,
             needs_directory_setup=status.needs_directory_setup,
+            needs_storage_setup=status.needs_storage_setup,
             needs_admin_setup=status.needs_admin_setup,
         )
 

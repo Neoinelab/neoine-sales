@@ -1,108 +1,212 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from enum import StrEnum
 from typing import TYPE_CHECKING, Protocol
 
-from app.application.ports.pagination import DEFAULT_LIMIT, check_page
+from app.application.ports.pagination import check_page
 from app.domain.common.errors import InvalidValueError
 from app.domain.common.validation import optional_text
-from app.domain.deal.value_objects import VENDOR_MAX
+from app.domain.deal.period import quarter_range
+from app.domain.deal.values import SOLUTION_MAX, VENDOR_MAX
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
-    from datetime import date
+    from collections.abc import Collection, Mapping, Sequence
+    from datetime import date, datetime
 
-    from app.domain.customer.value_objects import CustomerId
+    from app.domain.bant.values import BantCategory, BantLabelId
+    from app.domain.contact.values import ContactId, ContactKind
+    from app.domain.deal.code import DealCode
     from app.domain.deal.entities import Deal
-    from app.domain.deal.pipeline import StageTotal
-    from app.domain.deal.stage import DealStage
-    from app.domain.deal.value_objects import DealCode, DealId
-    from app.domain.partner.value_objects import PartnerId
     from app.domain.user.value_objects import UserId
 
 KEYWORD_MAX = 100
+DEFAULT_PAGE_SIZE = 20
+YEAR_MIN = 1900
+YEAR_MAX = 9999
+
+
+class DealSort(StrEnum):
+    NAME = "name"
+    REVENUE_AMOUNT = "revenue_amount"
+    REVENUE_DATE = "revenue_date"
+    LAST_UPDATED_AT = "last_updated_at"
+    STATUS = "status"  # Status 코드의 현재 순서
+
+
+class SortOrder(StrEnum):
+    ASC = "asc"
+    DESC = "desc"
 
 
 @dataclass(frozen=True, slots=True)
 class DealQuery:
-    """Deal 검색 조건. 조건은 AND로 결합하고, 매출일 기간은 [from, to) 반개구간이다."""
+    """Deal 검색 조건. 조건은 AND로 결합하고 기간은 양끝을 포함한다.
 
-    # Code·Name·담당자 이름(표시 이름/login_id, 퇴사자 포함)·Vendor·Solution 부분 일치
-    keyword: str | None = None
-    customer_id: CustomerId | None = None
-    partner_id: PartnerId | None = None
+    정렬의 동률은 항상 Deal code 오름차순이다.
+    """
+
+    keyword: str | None = None  # Deal Name·고객 회사·활성 파트너 회사·code 부분 일치(대소문자 무시)
+    owner_user_id: UserId | None = None
     vendor: str | None = None  # 정확 일치
+    solution: str | None = None  # 정확 일치
+    status_key: str | None = None
+    forecast_key: str | None = None
+    year: int | None = None  # Expected Close 연도(필터 확장 R3)
+    quarter: int | None = None  # 1~4, 연도와 함께만(필터 확장 R3)
     revenue_from: date | None = None
     revenue_to: date | None = None
-    stage: DealStage | None = None  # 정확 일치
-    owner_user_id: UserId | None = None  # 담당자(users.id), 퇴사자도 조회 가능
+    bant_label_ids: Mapping[BantCategory, BantLabelId] = field(default_factory=dict)  # 구분별 AND
+    sort: DealSort = DealSort.LAST_UPDATED_AT
+    order: SortOrder = SortOrder.DESC
     offset: int = 0
-    limit: int = DEFAULT_LIMIT
+    limit: int = DEFAULT_PAGE_SIZE
 
     def __post_init__(self) -> None:
         check_page(self.offset, self.limit)
-        if self.revenue_from and self.revenue_to and self.revenue_from >= self.revenue_to:
-            raise InvalidValueError("매출일 기간의 시작은 끝보다 앞서야 합니다")
-        object.__setattr__(
-            self, "keyword", optional_text(self.keyword, "검색어", max_length=KEYWORD_MAX)
-        )
-        object.__setattr__(
-            self, "vendor", optional_text(self.vendor, "Vendor", max_length=VENDOR_MAX)
-        )
+        if self.revenue_from and self.revenue_to and self.revenue_from > self.revenue_to:
+            raise InvalidValueError("기간의 시작은 끝보다 늦을 수 없습니다")
+        self._check_year_and_quarter()
+        for name, label, limit in (
+            ("keyword", "검색어", KEYWORD_MAX),
+            ("vendor", "Vendor", VENDOR_MAX),
+            ("solution", "Solution", SOLUTION_MAX),
+        ):
+            object.__setattr__(
+                self, name, optional_text(getattr(self, name), label, max_length=limit)
+            )
+
+    def _check_year_and_quarter(self) -> None:
+        if self.year is None:
+            if self.quarter is not None:
+                raise InvalidValueError("분기는 연도와 함께 선택하세요.")
+            return
+        if not YEAR_MIN <= self.year <= YEAR_MAX:
+            raise InvalidValueError(f"연도는 {YEAR_MIN}~{YEAR_MAX} 중에서 입력하세요.")
+        if self.quarter is not None:
+            quarter_range(self.year, self.quarter)  # 1~4 밖이면 InvalidValueError
+
+    def revenue_window(self) -> tuple[date | None, date | None]:
+        """Expected Close의 허용 범위 (시작, 끝). 양끝 포함, None은 열린 쪽.
+
+        연/분기 범위와 revenue_from/to의 교집합이며, 시작이 끝보다 늦으면 빈 창(오류 아님)이다.
+        """
+        start, end = self.revenue_from, self.revenue_to
+        if self.year is not None:
+            year_start, year_end = quarter_range(self.year, self.quarter)
+            start = year_start if start is None else max(start, year_start)
+            end = year_end if end is None else min(end, year_end)
+        return start, end
+
+
+@dataclass(frozen=True, slots=True)
+class NextActionSummary:
+    """가장 최근에 수행한 Action이 정한 다음 진행 계획."""
+
+    text: str
+    due_date: date
+
+    def __post_init__(self) -> None:
+        if self.due_date is None:
+            raise ValueError("다음 진행 계획에는 기한이 필요합니다.")
+
+
+@dataclass(frozen=True, slots=True)
+class DealListItem:
+    """목록·상세의 한 행: Deal과 Action에서 파생되는 값.
+
+    last_updated_at은 Deal 수정 시각과 가장 최근 Action 수행 시각 중 늦은 쪽이다.
+    """
+
+    deal: Deal
+    next_action: NextActionSummary | None
+    last_updated_at: datetime
+
+
+@dataclass(frozen=True, slots=True)
+class ContactReference:
+    """연락처를 참조하는 Deal 한 건. 파트너 링크는 비활성도 포함한다."""
+
+    deal_code: DealCode
+    role: ContactKind
+
+
+@dataclass(frozen=True, slots=True)
+class DealDeletionImpact:
+    history_count: int
+    action_count: int
+    attachment_count: int
 
 
 class DealRepository(Protocol):
-    """Deal 저장소 계약. Deal Code는 전체에서 고유하다. 삭제는 물리 삭제다."""
+    """Deal 저장소 계약. 키는 Deal code이고 삭제는 물리 삭제(딸린 데이터 CASCADE)다."""
 
     async def add(self, deal: Deal) -> None:
-        """같은 id는 AlreadyExistsError, 같은 Deal Code는 DuplicateDealCodeError.
+        """Deal과 파트너 링크·BANT 선택을 저장한다.
 
-        참조하는 고객·파트너가 없으면(FK 경쟁 포함) InvalidReferenceError.
+        같은 code는 DuplicateDealCodeError이며 트랜잭션은 계속 쓸 수 있다. 연락처·코드·Label이
+        없으면 InvalidReferenceError.
         """
         ...
 
-    async def get(self, deal_id: DealId, *, for_update: bool = False) -> Deal:
-        """없으면 DealNotFoundError.
-
-        for_update=True면 트랜잭션이 끝날 때까지 이 Deal 행을 잠근다(동시 단계 변경 대비).
-        """
+    async def get(self, code: DealCode, *, for_update: bool = False) -> Deal:
+        """링크·BANT 포함. 없으면 DealNotFoundError. for_update면 행을 잠근다."""
         ...
 
-    async def get_by_code(self, code: DealCode) -> Deal:
-        """업무 키로 조회한다. 없으면 DealNotFoundError."""
+    async def exists(self, code: DealCode) -> bool: ...
+
+    async def get_item(self, code: DealCode) -> DealListItem:
+        """상세용 파생값(next_action, last_updated_at) 포함. 없으면 DealNotFoundError."""
         ...
 
-    async def list(self, *, offset: int = 0, limit: int = DEFAULT_LIMIT) -> Sequence[Deal]:
-        """생성 시각 오름차순. 잘못된 offset/limit은 InvalidValueError."""
+    async def search(self, query: DealQuery) -> Sequence[DealListItem]:
+        """조건에 맞는 행을 query.sort/order 순서로(동률은 code 오름차순) 페이지만큼."""
         ...
 
-    async def search(self, query: DealQuery) -> Sequence[Deal]:
-        """Deal 중 조건에 맞는 것을 생성 시각 오름차순(같으면 id)으로 돌려준다."""
+    async def count(self, query: DealQuery) -> int:
+        """같은 조건의 전체 건수(페이지 무시)."""
         ...
 
-    async def summarize_pipeline(
-        self, *, owner_user_id: UserId | None = None
-    ) -> Sequence[StageTotal]:
-        """Deal을 (단계, 통화)로 묶은 건수·합계. 순서는 보장하지 않는다.
-
-        owner_user_id를 주면 그 사용자가 담당자인 Deal만 집계한다.
-        """
-        ...
-
-    async def exists_for_customer(self, customer_id: CustomerId) -> bool:
-        """이 고객을 참조하는 Deal이 있는지."""
-        ...
-
-    async def exists_for_partner(self, partner_id: PartnerId) -> bool:
-        """이 파트너를 참조하는 Deal이 있는지."""
+    async def facets(self) -> tuple[Sequence[str], Sequence[str]]:
+        """(Vendor 목록, Solution 목록). 빈 문자열은 빼고 대소문자 무시 순서로 정렬한다."""
         ...
 
     async def update(self, deal: Deal) -> None:
-        """변경 사항(단계 포함)을 저장한다.
+        """Deal 행, 파트너 링크(새 링크 추가·해제 시각 기록), BANT 선택을 저장한다.
 
-        없으면 DealNotFoundError, 다른 Deal과 코드가 충돌하면 DuplicateDealCodeError,
-        참조하는 고객·파트너가 없으면(FK 경쟁 포함) InvalidReferenceError.
+        없으면 DealNotFoundError, 참조가 없으면 InvalidReferenceError.
         """
         ...
 
-    async def delete(self, deal_id: DealId) -> None:
-        """물리 삭제한다. 없으면 DealNotFoundError, 활동·단계 이력이 FK로 막으면 DealInUseError."""
+    async def touch(self, codes: Collection[DealCode], now: datetime) -> None:
+        """수정 시각(updated_at)만 갱신한다. 없는 code는 건너뛴다."""
+        ...
+
+    async def delete(self, code: DealCode) -> None:
+        """물리 삭제한다. 활동·이력·링크·BANT 선택이 함께 지워진다. 없으면 DealNotFoundError."""
+        ...
+
+    async def deletion_impact(self, code: DealCode) -> DealDeletionImpact:
+        """삭제하면 함께 지워지는 데이터 건수. 없으면 DealNotFoundError."""
+        ...
+
+    async def references_of_contact(self, contact_id: ContactId) -> Sequence[ContactReference]:
+        """연락처를 고객으로 또는 파트너(비활성 링크 포함)로 참조하는 Deal."""
+        ...
+
+    async def count_by_status(self) -> Mapping[str, int]:
+        """Status key별 Deal 수. Deal이 없는 key는 빠질 수 있다."""
+        ...
+
+    async def count_by_forecast(self) -> Mapping[str, int]:
+        """Forecast key별 Deal 수. Deal이 없는 key는 빠질 수 있다."""
+        ...
+
+    async def count_by_bant_label(self) -> Mapping[BantLabelId, int]:
+        """Label별 Deal 수. 선택된 적 없는 Label은 빠질 수 있다."""
+        ...
+
+    async def count_by_contacts(self, contact_ids: Sequence[ContactId]) -> Mapping[ContactId, int]:
+        """연락처별로 고객 또는 파트너 링크(비활성 포함)로 참조하는 Deal 수.
+
+        요청한 모든 id가 키로 들어 있고(참조가 없으면 0), 한 Deal은 연락처당 1건이다.
+        """
         ...

@@ -1,7 +1,9 @@
-"""ORM 모델. 도메인 엔티티와 분리되어 있으며 변환은 각 Repository가 맡는다."""
+"""ORM 모델. 도메인 엔티티와 분리되어 있으며 변환은 각 Repository가 맡는다.
+
+Deal 원장(deals와 딸린 테이블)은 models_deal.py, 연락처·코드·Label·사용자는 각 models_*.py에 있다.
+"""
 
 from datetime import date, datetime
-from decimal import Decimal
 from uuid import UUID
 
 from sqlalchemy import (
@@ -9,19 +11,17 @@ from sqlalchemy import (
     Date,
     DateTime,
     ForeignKey,
+    ForeignKeyConstraint,
     Index,
-    Integer,
-    Numeric,
     String,
+    Text,
     UniqueConstraint,
     Uuid,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.domain.deal.stage import DealStage
 from app.infra.db.base import Base
-
-_STAGE_CODES = ", ".join(f"'{stage.value}'" for stage in DealStage)
 
 
 class AuditColumns:
@@ -32,109 +32,52 @@ class AuditColumns:
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
-class CustomerRow(AuditColumns, Base):
-    __tablename__ = "customers"
-
-    company_name: Mapped[str] = mapped_column(String(200))
-    contact_name: Mapped[str] = mapped_column(String(100))
-    contact_title: Mapped[str | None] = mapped_column(String(100), default=None)
-    email: Mapped[str | None] = mapped_column(String(254), default=None)
-    phone: Mapped[str | None] = mapped_column(String(40), default=None)
-    employee_count: Mapped[int | None] = mapped_column(Integer, default=None)
-    notes: Mapped[str] = mapped_column(String(2000), default="")
-
-    __table_args__ = (
-        CheckConstraint(
-            "employee_count is null or employee_count >= 0", name="employee_count_non_negative"
-        ),
-        Index("ix_customers_created_at_id", "created_at", "id"),
-    )
-
-
-class PartnerRow(AuditColumns, Base):
-    __tablename__ = "partners"
-
-    company_name: Mapped[str] = mapped_column(String(200))
-    contact_name: Mapped[str] = mapped_column(String(100))
-    contact_title: Mapped[str | None] = mapped_column(String(100), default=None)
-    email: Mapped[str | None] = mapped_column(String(254), default=None)
-    phone: Mapped[str | None] = mapped_column(String(40), default=None)
-
-    __table_args__ = (Index("ix_partners_created_at_id", "created_at", "id"),)
-
-
-class DealRow(AuditColumns, Base):
-    __tablename__ = "deals"
-
-    code: Mapped[str] = mapped_column(String(50))
-    name: Mapped[str] = mapped_column(String(200))
-    owner_user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"))
-    vendor: Mapped[str] = mapped_column(String(100))
-    solution: Mapped[str] = mapped_column(String(200))
-    revenue_amount: Mapped[Decimal] = mapped_column(Numeric(20, 4))
-    revenue_currency: Mapped[str] = mapped_column(String(3))
-    revenue_date: Mapped[date] = mapped_column(Date)
-    customer_id: Mapped[UUID] = mapped_column(ForeignKey("customers.id", ondelete="RESTRICT"))
-    partner_id: Mapped[UUID | None] = mapped_column(
-        ForeignKey("partners.id", ondelete="RESTRICT"), default=None
-    )
-    stage: Mapped[str] = mapped_column(
-        String(30), default=DealStage.PROSPECTING.value, server_default=DealStage.PROSPECTING.value
-    )
-    registered_by_user_id: Mapped[UUID | None] = mapped_column(
-        ForeignKey("users.id", ondelete="RESTRICT"), default=None
-    )
-
-    __table_args__ = (
-        UniqueConstraint("code"),
-        CheckConstraint("revenue_amount >= 0", name="revenue_non_negative"),
-        CheckConstraint(f"stage in ({_STAGE_CODES})", name="stage_valid"),
-        Index("ix_deals_created_at_id", "created_at", "id"),
-        Index("ix_deals_customer_id", "customer_id"),
-        Index("ix_deals_partner_id", "partner_id"),
-        Index("ix_deals_owner_user_id", "owner_user_id"),
-        Index("ix_deals_registered_by_user_id", "registered_by_user_id"),
-    )
-
-
 class DealActionRow(AuditColumns, Base):
+    """Deal 진행 활동. Deal을 지우면 함께 지워진다(CASCADE)."""
+
     __tablename__ = "deal_actions"
 
-    deal_id: Mapped[UUID] = mapped_column(ForeignKey("deals.id", ondelete="RESTRICT"))
+    deal_code: Mapped[str] = mapped_column(
+        String(13), ForeignKey("deals.deal_code", ondelete="CASCADE")
+    )
     action_type: Mapped[str] = mapped_column(String(20))
-    action: Mapped[str] = mapped_column(String(200))
-    next_action: Mapped[str | None] = mapped_column(String(200), default=None)
-    due_date: Mapped[date | None] = mapped_column(Date, default=None)
-    memo: Mapped[str] = mapped_column(String(4000), default="")
+    action: Mapped[str] = mapped_column(Text)
+    next_action: Mapped[str] = mapped_column(Text)
+    due_date: Mapped[date] = mapped_column(Date)
+    memo: Mapped[str] = mapped_column(Text, default="")
     acted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     actor_user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"))
+    # 기록 시점의 Status·Forecast 스냅숏. 이후 Deal이 바뀌어도 따라가지 않는다.
+    status_kind: Mapped[str] = mapped_column(
+        String(20), default="status", server_default=text("'status'")
+    )
+    status_key: Mapped[str] = mapped_column(String(50))
+    forecast_kind: Mapped[str] = mapped_column(
+        String(20), default="forecast", server_default=text("'forecast'")
+    )
+    forecast_key: Mapped[str] = mapped_column(String(50))
 
     __table_args__ = (
+        CheckConstraint("status_kind = 'status'", name="status_kind"),
+        CheckConstraint("forecast_kind = 'forecast'", name="forecast_kind"),
+        ForeignKeyConstraint(
+            ["status_kind", "status_key"],
+            ["codes.kind", "codes.key"],
+            name="fk_deal_actions_status_code",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["forecast_kind", "forecast_key"],
+            ["codes.kind", "codes.key"],
+            name="fk_deal_actions_forecast_code",
+            ondelete="RESTRICT",
+        ),
+        Index("ix_deal_actions_status_key", "status_key"),
+        Index("ix_deal_actions_forecast_key", "forecast_key"),
         Index("ix_deal_actions_actor_user_id", "actor_user_id"),
-        Index("ix_deal_actions_deal_id_acted_at", "deal_id", "acted_at"),
+        Index("ix_deal_actions_deal_code_acted_at", "deal_code", "acted_at"),
         Index("ix_deal_actions_acted_at", "acted_at"),
         Index("ix_deal_actions_due_date", "due_date"),
-    )
-
-
-class DealStageChangeRow(Base):
-    """불변 단계 변경 이력. 수정·삭제가 없어 AuditColumns를 쓰지 않는다."""
-
-    __tablename__ = "deal_stage_changes"
-
-    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True)
-    deal_id: Mapped[UUID] = mapped_column(ForeignKey("deals.id", ondelete="RESTRICT"))
-    from_stage: Mapped[str] = mapped_column(String(30))
-    to_stage: Mapped[str] = mapped_column(String(30))
-    reason: Mapped[str | None] = mapped_column(String(500), default=None)
-    changed_by_user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"))
-    changed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
-
-    __table_args__ = (
-        Index("ix_deal_stage_changes_changed_by_user_id", "changed_by_user_id"),
-        CheckConstraint(f"from_stage in ({_STAGE_CODES})", name="from_stage_valid"),
-        CheckConstraint(f"to_stage in ({_STAGE_CODES})", name="to_stage_valid"),
-        Index("ix_deal_stage_changes_deal_id_changed_at", "deal_id", "changed_at"),
     )
 
 
@@ -159,4 +102,10 @@ class AuthSessionRow(Base):
 
 
 # 새 모델을 Base.metadata에 등록한다(alembic env.py는 이 모듈만 import한다).
-from app.infra.db import models_auth  # noqa: E402,F401
+from app.infra.db import (  # noqa: E402,F401
+    models_attachment,
+    models_auth,
+    models_catalog,
+    models_contact,
+    models_deal,
+)

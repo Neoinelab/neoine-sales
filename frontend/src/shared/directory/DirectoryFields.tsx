@@ -30,14 +30,16 @@ export function DirectoryFields({ values, onChange }: Props) {
         onChange={(caCertPem) => onChange({ caCertPem })}
       />
       <TextField
+        autoComplete="off"
         label="바인드 템플릿"
         name="bind_template"
         required
         value={values.bindTemplate}
         onChange={(bindTemplate) => onChange({ bindTemplate })}
       />
-      <TextField label="Base DN" name="base_dn" required value={values.baseDn} onChange={(baseDn) => onChange({ baseDn })} />
+      <TextField autoComplete="off" label="Base DN" name="base_dn" required value={values.baseDn} onChange={(baseDn) => onChange({ baseDn })} />
       <TextField
+        autoComplete="off"
         label="사용자 검색 필터"
         name="user_filter"
         required
@@ -45,6 +47,7 @@ export function DirectoryFields({ values, onChange }: Props) {
         onChange={(userFilter) => onChange({ userFilter })}
       />
       <TextField
+        autoComplete="off"
         label="표시 이름 속성"
         name="display_name_attribute"
         required
@@ -52,6 +55,7 @@ export function DirectoryFields({ values, onChange }: Props) {
         onChange={(displayNameAttribute) => onChange({ displayNameAttribute })}
       />
       <TextField
+        autoComplete="off"
         label="이메일 속성"
         name="email_attribute"
         required
@@ -59,6 +63,7 @@ export function DirectoryFields({ values, onChange }: Props) {
         onChange={(emailAttribute) => onChange({ emailAttribute })}
       />
       <TextField
+        autoComplete="off"
         label="연결 제한 시간(초)"
         name="connect_timeout_seconds"
         type="number"
@@ -67,6 +72,7 @@ export function DirectoryFields({ values, onChange }: Props) {
         onChange={(connectTimeoutSeconds) => onChange({ connectTimeoutSeconds })}
       />
       <TextField
+        autoComplete="off"
         label="응답 제한 시간(초)"
         name="receive_timeout_seconds"
         type="number"

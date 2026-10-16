@@ -2,7 +2,7 @@ from typing import TYPE_CHECKING
 
 from app.application.auth.credential_check import parse_login_id, verify_credentials
 from app.application.auth.dev_login import ensure_not_reserved_login_id
-from app.application.auth.messages import DIRECTORY_FIRST, SETUP_CLOSED
+from app.application.auth.messages import DIRECTORY_FIRST, SETUP_CLOSED, STORAGE_FIRST
 from app.domain.auth.principal import Role
 from app.domain.common.errors import AlreadyExistsError, InvalidStateError
 from app.domain.user.entities import User
@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 
 
 class SetupFirstAdmin:
-    """최초 설정 2단계: AD 계정으로 인증된 사람을 첫 admin으로 등록하고 바로 로그인시킨다."""
+    """최초 설정 3단계: AD 계정으로 인증된 사람을 첫 admin으로 등록하고 바로 로그인시킨다."""
 
     def __init__(self, deps: AuthDeps, issue_session: IssueSession) -> None:
         self._deps = deps
@@ -42,8 +42,10 @@ class SetupFirstAdmin:
             if await uow.users.count_active_admins() > 0:
                 raise InvalidStateError(SETUP_CLOSED)
             stored = await uow.directory_settings.get()
-        if stored is None:
-            raise InvalidStateError(DIRECTORY_FIRST)
+            if stored is None:
+                raise InvalidStateError(DIRECTORY_FIRST)
+            if await uow.storage_settings.get() is None:
+                raise InvalidStateError(STORAGE_FIRST)
         return stored.settings
 
     async def _register(self, account: LoginId, profile: DirectoryUser) -> User:

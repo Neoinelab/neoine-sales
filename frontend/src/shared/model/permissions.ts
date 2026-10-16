@@ -3,8 +3,9 @@
  * 화면은 이 함수로 버튼 노출을, 게이트웨이는 같은 함수로 403을 판단한다(이중 방어).
  *
  * | 항목                                    | admin  | sales                         | user |
- * | Deal 등록/수정/Inline/Action/업로드/새 Label | O      | O                             | X    |
+ * | Deal 등록/수정/Inline/Action 등록/업로드/새 Label | O | O                         | X    |
  * | Deal 삭제                                | 모두   | Owner가 본인인 Deal만          | X    |
+ * | Action 수정/삭제                          | 모두   | 본인이 남긴 Action만(P2 Q8)    | X    |
  * | 파일 삭제                                | 전체   | 본인 업로드 + 퇴사 sales 업로드 | X    |
  * | 코드·Label 수정/삭제, 사용자, contacts, 설정 | O      | X                             | X    |
  */
@@ -16,7 +17,7 @@ export interface Viewer {
   role: Role
 }
 
-/** 쓰기(등록·수정·Inline·Action·업로드·새 Label) 가능 여부: admin 또는 sales. */
+/** 쓰기(등록·수정·Inline·Action 등록·업로드·새 Label) 가능 여부: admin 또는 sales. Action 수정·삭제는 canEditAction. */
 export function canWrite(role: Role | null | undefined): boolean {
   return role === 'admin' || role === 'sales'
 }
@@ -47,9 +48,10 @@ export function canDeleteAttachment(viewer: Viewer, uploadedBy: UserRef): boolea
   return uploadedBy.role === 'sales' && uploadedBy.status === 'resigned'
 }
 
-/** Action 수정·삭제: 담당자와 무관하게 sales/admin 모두 가능(PRD: 이전 Action도 수정 가능). */
-export function canEditAction(role: Role | null | undefined): boolean {
-  return canWrite(role)
+/** Action 수정·삭제: admin은 모든 Action, sales는 본인이 남긴 Action만, user는 불가. */
+export function canEditAction(viewer: Viewer, actorId: string): boolean {
+  if (viewer.role === 'admin') return true
+  return viewer.role === 'sales' && viewer.id === actorId
 }
 
 /** 새 BANT Label 생성(Deal 화면): sales/admin. */

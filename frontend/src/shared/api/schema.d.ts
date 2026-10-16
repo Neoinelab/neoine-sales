@@ -123,55 +123,177 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/customers": {
+    "/api/v1/bant-labels": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** List Customers */
-        get: operations["list_customers_api_v1_customers_get"];
+        /** List Bant Labels */
+        get: operations["list_bant_labels_api_v1_bant_labels_get"];
         put?: never;
-        /** Register Customer */
-        post: operations["register_customer_api_v1_customers_post"];
+        /** Create Bant Label */
+        post: operations["create_bant_label_api_v1_bant_labels_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/customers/{customer_id}": {
+    "/api/v1/bant-labels/{label_id}": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** Get Customer */
-        get: operations["get_customer_api_v1_customers__customer_id__get"];
-        /** Update Customer */
-        put: operations["update_customer_api_v1_customers__customer_id__put"];
+        get?: never;
+        put?: never;
         post?: never;
-        /** Delete Customer */
-        delete: operations["delete_customer_api_v1_customers__customer_id__delete"];
+        /** Delete Bant Label */
+        delete: operations["delete_bant_label_api_v1_bant_labels__label_id__delete"];
+        options?: never;
+        head?: never;
+        /** Rename Bant Label */
+        patch: operations["rename_bant_label_api_v1_bant_labels__label_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/codes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Codes */
+        get: operations["list_codes_api_v1_codes_get"];
+        put?: never;
+        /** Create Code */
+        post: operations["create_code_api_v1_codes_post"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/deal-actions": {
+    "/api/v1/codes/order": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** Search Deal Actions */
-        get: operations["search_deal_actions_api_v1_deal_actions_get"];
+        get?: never;
+        /** Reorder Codes */
+        put: operations["reorder_codes_api_v1_codes_order_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/codes/usage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Codes With Usage */
+        get: operations["list_codes_with_usage_api_v1_codes_usage_get"];
         put?: never;
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/codes/{code_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Code */
+        delete: operations["delete_code_api_v1_codes__code_id__delete"];
+        options?: never;
+        head?: never;
+        /** Rename Code */
+        patch: operations["rename_code_api_v1_codes__code_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/contacts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Search Contacts */
+        get: operations["search_contacts_api_v1_contacts_get"];
+        put?: never;
+        /** Register Contact */
+        post: operations["register_contact_api_v1_contacts_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/contacts/by-company": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Contacts Of Company */
+        get: operations["list_contacts_of_company_api_v1_contacts_by_company_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/contacts/companies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Contact Companies */
+        get: operations["list_contact_companies_api_v1_contacts_companies_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/contacts/{contact_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update Contact */
+        put: operations["update_contact_api_v1_contacts__contact_id__put"];
+        post?: never;
+        /** Delete Contact */
+        delete: operations["delete_contact_api_v1_contacts__contact_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -214,15 +336,15 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/deals/by-code/{code}": {
+    "/api/v1/deals/facets": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** Get Deal By Code */
-        get: operations["get_deal_by_code_api_v1_deals_by_code__code__get"];
+        /** List Deal Facets */
+        get: operations["list_deal_facets_api_v1_deals_facets_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -231,24 +353,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/deals/pipeline": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get Deal Pipeline */
-        get: operations["get_deal_pipeline_api_v1_deals_pipeline_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/deals/{deal_id}": {
+    "/api/v1/deals/{code}": {
         parameters: {
             query?: never;
             header?: never;
@@ -256,18 +361,18 @@ export interface paths {
             cookie?: never;
         };
         /** Get Deal */
-        get: operations["get_deal_api_v1_deals__deal_id__get"];
-        /** Update Deal */
-        put: operations["update_deal_api_v1_deals__deal_id__put"];
+        get: operations["get_deal_api_v1_deals__code__get"];
+        put?: never;
         post?: never;
         /** Delete Deal */
-        delete: operations["delete_deal_api_v1_deals__deal_id__delete"];
+        delete: operations["delete_deal_api_v1_deals__code__delete"];
         options?: never;
         head?: never;
-        patch?: never;
+        /** Update Deal */
+        patch: operations["update_deal_api_v1_deals__code__patch"];
         trace?: never;
     };
-    "/api/v1/deals/{deal_id}/actions": {
+    "/api/v1/deals/{code}/actions": {
         parameters: {
             query?: never;
             header?: never;
@@ -275,17 +380,17 @@ export interface paths {
             cookie?: never;
         };
         /** List Actions Of Deal */
-        get: operations["list_actions_of_deal_api_v1_deals__deal_id__actions_get"];
+        get: operations["list_actions_of_deal_api_v1_deals__code__actions_get"];
         put?: never;
         /** Register Deal Action */
-        post: operations["register_deal_action_api_v1_deals__deal_id__actions_post"];
+        post: operations["register_deal_action_api_v1_deals__code__actions_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/deals/{deal_id}/stage": {
+    "/api/v1/deals/{code}/changes": {
         parameters: {
             query?: never;
             header?: never;
@@ -294,23 +399,23 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Change Deal Stage */
-        post: operations["change_deal_stage_api_v1_deals__deal_id__stage_post"];
+        /** Apply Deal Change */
+        post: operations["apply_deal_change_api_v1_deals__code__changes_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/deals/{deal_id}/stage-changes": {
+    "/api/v1/deals/{code}/deletion-impact": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** List Deal Stage Changes */
-        get: operations["list_deal_stage_changes_api_v1_deals__deal_id__stage_changes_get"];
+        /** Get Deal Deletion Impact */
+        get: operations["get_deal_deletion_impact_api_v1_deals__code__deletion_impact_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -319,38 +424,18 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/partners": {
+    "/api/v1/deals/{code}/history": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** List Partners */
-        get: operations["list_partners_api_v1_partners_get"];
+        /** List Deal History */
+        get: operations["list_deal_history_api_v1_deals__code__history_get"];
         put?: never;
-        /** Register Partner */
-        post: operations["register_partner_api_v1_partners_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/partners/{partner_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get Partner */
-        get: operations["get_partner_api_v1_partners__partner_id__get"];
-        /** Update Partner */
-        put: operations["update_partner_api_v1_partners__partner_id__put"];
         post?: never;
-        /** Delete Partner */
-        delete: operations["delete_partner_api_v1_partners__partner_id__delete"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -482,11 +567,29 @@ export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
         /**
+         * ActionStatusChangeRequest
+         * @description Action을 기록하면서 함께 바꿀 Status 또는 Forecast.
+         */
+        ActionStatusChangeRequest: {
+            change: components["schemas"]["CodeChange"];
+            resolution?: components["schemas"]["ResolutionRequest"] | null;
+        };
+        /**
          * ActionType
          * @description Deal 진행 활동의 종류. 집합을 닫아 두어 검색 조건과 통계가 흔들리지 않게 한다.
          * @enum {string}
          */
         ActionType: "call" | "meeting" | "email" | "demo" | "proposal" | "negotiation" | "contract" | "other";
+        /** AmountChange */
+        AmountChange: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            field: "revenue_amount";
+            /** Value */
+            value: number;
+        };
         /** AuthConfigResponse */
         AuthConfigResponse: {
             /** Dev Login */
@@ -498,41 +601,205 @@ export interface components {
             /** Needs Directory Setup */
             needs_directory_setup: boolean;
         };
-        /** CurrencyAmountResponse */
-        CurrencyAmountResponse: {
-            /** Amount */
-            amount: string;
-            /** Currency */
-            currency: string;
+        /**
+         * BantCategory
+         * @description BANT 구분. 선언 순서가 표시 순서다.
+         * @enum {string}
+         */
+        BantCategory: "budget" | "authority" | "need" | "timeline";
+        /** BantLabelCreateRequest */
+        BantLabelCreateRequest: {
+            category: components["schemas"]["BantCategory"];
+            /** Name */
+            name: string;
         };
-        /** CustomerRequest */
-        CustomerRequest: {
-            /** Company Name */
-            company_name: string;
-            /** Contact Name */
-            contact_name: string;
-            /** Contact Title */
-            contact_title?: string | null;
+        /** BantLabelRenameRequest */
+        BantLabelRenameRequest: {
+            /** Name */
+            name: string;
+        };
+        /** BantLabelResponse */
+        BantLabelResponse: {
+            category: components["schemas"]["BantCategory"];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            created_by: components["schemas"]["UserRef"] | null;
+            /** Id */
+            id: string;
+            /** Is Default */
+            is_default: boolean;
+            /** Name */
+            name: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Usage Count */
+            usage_count: number;
+        };
+        /**
+         * BantRequest
+         * @description 구분별 BANT Label id. 보내지 않았거나 null이면 선택 안 함이다.
+         */
+        BantRequest: {
+            /** Authority */
+            authority?: string | null;
+            /** Budget */
+            budget?: string | null;
+            /** Need */
+            need?: string | null;
+            /** Timeline */
+            timeline?: string | null;
+        };
+        /** BantResponse */
+        BantResponse: {
+            /** Authority */
+            authority: string | null;
+            /** Budget */
+            budget: string | null;
+            /** Need */
+            need: string | null;
+            /** Timeline */
+            timeline: string | null;
+        };
+        /** CoChangedResponse */
+        CoChangedResponse: {
+            /** Field */
+            field: string;
+            /** From */
+            from: string;
+            /** To */
+            to: string;
+        };
+        /** CodeChange */
+        CodeChange: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            field: "forecast_key" | "status_key";
+            /** Value */
+            value: string;
+        };
+        /** CodeCreateRequest */
+        CodeCreateRequest: {
+            kind: components["schemas"]["CodeKind"];
+            /** Name */
+            name: string;
+            /** Probability Hint */
+            probability_hint?: string | null;
+        };
+        /**
+         * CodeKind
+         * @description 코드의 종류. 선언 순서가 표시 순서다.
+         * @enum {string}
+         */
+        CodeKind: "status" | "forecast";
+        /** CodeOrderRequest */
+        CodeOrderRequest: {
+            kind: components["schemas"]["CodeKind"];
+            /** Ordered Ids */
+            ordered_ids: string[];
+        };
+        /** CodeRenameRequest */
+        CodeRenameRequest: {
+            /** Name */
+            name: string;
+        };
+        /** CodeResponse */
+        CodeResponse: {
+            /** Id */
+            id: string;
+            /** Key */
+            key: string;
+            kind: components["schemas"]["CodeKind"];
+            /** Locked */
+            locked: boolean;
+            /** Name */
+            name: string;
+            /** Order */
+            order: number;
+            /** Outcome */
+            outcome: string;
+            /** Probability Hint */
+            probability_hint: string | null;
+        };
+        /** CodeSetResponse */
+        CodeSetResponse: {
+            /** Forecasts */
+            forecasts: components["schemas"]["CodeResponse"][];
+            /** Statuses */
+            statuses: components["schemas"]["CodeResponse"][];
+        };
+        /** CodeUsageResponse */
+        CodeUsageResponse: {
+            /** Id */
+            id: string;
+            /** Key */
+            key: string;
+            kind: components["schemas"]["CodeKind"];
+            /** Locked */
+            locked: boolean;
+            /** Name */
+            name: string;
+            /** Order */
+            order: number;
+            /** Outcome */
+            outcome: string;
+            /** Probability Hint */
+            probability_hint: string | null;
+            /** Usage Count */
+            usage_count: number;
+        };
+        /**
+         * ContactCreateRequest
+         * @description 값 검증(공백·빈 값·형식)은 도메인이 한다. pydantic strip·min_length를 두지 않는다.
+         */
+        ContactCreateRequest: {
+            /** Company */
+            company: string;
             /** Email */
             email?: string | null;
-            /** Employee Count */
-            employee_count?: number | null;
-            /**
-             * Notes
-             * @default
-             */
-            notes: string;
+            kind: components["schemas"]["ContactKind"];
+            /** Name */
+            name: string;
             /** Phone */
             phone?: string | null;
+            /** Title */
+            title?: string | null;
         };
-        /** CustomerResponse */
-        CustomerResponse: {
-            /** Company Name */
-            company_name: string;
-            /** Contact Name */
-            contact_name: string;
-            /** Contact Title */
-            contact_title: string | null;
+        /**
+         * ContactDraftRequest
+         * @description Deal 화면의 연락처 입력. contact_id가 있으면 그 연락처를 골라 입력값으로 갱신한다.
+         */
+        ContactDraftRequest: {
+            /** Company */
+            company: string;
+            /** Contact Id */
+            contact_id?: string | null;
+            /** Email */
+            email?: string | null;
+            /** Name */
+            name: string;
+            /** Phone */
+            phone?: string | null;
+            /** Title */
+            title?: string | null;
+        };
+        /**
+         * ContactKind
+         * @description 연락처 종류. 선언 순서(고객 먼저)가 목록 정렬 순서다.
+         * @enum {string}
+         */
+        ContactKind: "customer" | "partner";
+        /** ContactResponse */
+        ContactResponse: {
+            /** Company */
+            company: string;
             /**
              * Created At
              * Format: date-time
@@ -540,40 +807,107 @@ export interface components {
             created_at: string;
             /** Email */
             email: string | null;
-            /** Employee Count */
-            employee_count: number | null;
             /** Id */
             id: string;
-            /** Notes */
-            notes: string;
+            kind: components["schemas"]["ContactKind"];
+            /** Name */
+            name: string;
             /** Phone */
             phone: string | null;
+            /** Title */
+            title: string | null;
             /**
              * Updated At
              * Format: date-time
              */
             updated_at: string;
         };
-        /** DealActionRequest */
-        DealActionRequest: {
+        /** ContactRowResponse */
+        ContactRowResponse: {
+            /** Company */
+            company: string;
             /**
-             * Acted At
+             * Created At
              * Format: date-time
              */
-            acted_at: string;
+            created_at: string;
+            /** Deal Count */
+            deal_count: number;
+            /** Email */
+            email: string | null;
+            /** Id */
+            id: string;
+            kind: components["schemas"]["ContactKind"];
+            /** Name */
+            name: string;
+            /** Phone */
+            phone: string | null;
+            /** Title */
+            title: string | null;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /**
+         * ContactUpdateRequest
+         * @description 종류(kind)는 바꿀 수 없어 본문에 받지 않는다(보내면 422).
+         */
+        ContactUpdateRequest: {
+            /** Company */
+            company: string;
+            /** Email */
+            email?: string | null;
+            /** Name */
+            name: string;
+            /** Phone */
+            phone?: string | null;
+            /** Title */
+            title?: string | null;
+        };
+        /** CountedPage[ContactRowResponse] */
+        CountedPage_ContactRowResponse_: {
+            /** Items */
+            items: components["schemas"]["ContactRowResponse"][];
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+            /** Total */
+            total: number;
+        };
+        /** CountedPage[DealRowResponse] */
+        CountedPage_DealRowResponse_: {
+            /** Items */
+            items: components["schemas"]["DealRowResponse"][];
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+            /** Total */
+            total: number;
+        };
+        /** DateChange */
+        DateChange: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            field: "revenue_date";
+            /**
+             * Value
+             * Format: date
+             */
+            value: string;
+        };
+        /** DealActionCreateRequest */
+        DealActionCreateRequest: {
             /** Action */
             action: string;
             action_type: components["schemas"]["ActionType"];
-            /**
-             * Actor User Id
-             * Format: uuid
-             */
-            actor_user_id: string;
-            /**
-             * Due Date
-             * Format: date
-             */
-            due_date: string;
+            /** Due Date */
+            due_date?: string | null;
             /**
              * Memo
              * @default
@@ -581,6 +915,15 @@ export interface components {
             memo: string;
             /** Next Action */
             next_action: string;
+            status_change?: components["schemas"]["ActionStatusChangeRequest"] | null;
+        };
+        /**
+         * DealActionList
+         * @description Deal 하나의 Action 전부. 페이지는 없다.
+         */
+        DealActionList: {
+            /** Items */
+            items: components["schemas"]["DealActionResponse"][];
         };
         /** DealActionResponse */
         DealActionResponse: {
@@ -598,16 +941,23 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
-            /** Deal Id */
-            deal_id: string;
-            /** Due Date */
-            due_date: string | null;
+            /** Deal Code */
+            deal_code: string;
+            /**
+             * Due Date
+             * Format: date
+             */
+            due_date: string;
+            /** Forecast Key */
+            forecast_key: string;
             /** Id */
             id: string;
             /** Memo */
             memo: string;
             /** Next Action */
-            next_action: string | null;
+            next_action: string;
+            /** Status Key */
+            status_key: string;
             /**
              * Updated At
              * Format: date-time
@@ -618,21 +968,42 @@ export interface components {
          * DealActionSort
          * @enum {string}
          */
-        DealActionSort: "acted_at_desc" | "due_date_asc" | "due_date_desc";
-        /** DealPipelineResponse */
-        DealPipelineResponse: {
-            /** Stages */
-            stages: components["schemas"]["StageSummaryResponse"][];
-        };
-        /** DealRequest */
-        DealRequest: {
-            /** Code */
-            code: string;
+        DealActionSort: "acted_at_desc" | "acted_at_asc" | "due_date_asc";
+        /** DealActionUpdateRequest */
+        DealActionUpdateRequest: {
+            /** Action */
+            action: string;
+            action_type: components["schemas"]["ActionType"];
+            /** Due Date */
+            due_date?: string | null;
             /**
-             * Customer Id
-             * Format: uuid
+             * Memo
+             * @default
              */
-            customer_id: string;
+            memo: string;
+            /** Next Action */
+            next_action: string;
+        };
+        /** DealChangeRequest */
+        DealChangeRequest: {
+            /** Change */
+            change: components["schemas"]["CodeChange"] | components["schemas"]["AmountChange"] | components["schemas"]["DateChange"];
+            resolution?: components["schemas"]["ResolutionRequest"] | null;
+        };
+        /** DealChangeResponse */
+        DealChangeResponse: {
+            /** Co Changed */
+            co_changed: components["schemas"]["CoChangedResponse"][];
+            deal: components["schemas"]["DealDetailResponse"];
+            /** Notice */
+            notice: string | null;
+        };
+        /** DealCreateRequest */
+        DealCreateRequest: {
+            bant?: components["schemas"]["BantRequest"];
+            customer: components["schemas"]["ContactDraftRequest"];
+            /** Forecast Key */
+            forecast_key: string;
             /** Name */
             name: string;
             /**
@@ -640,27 +1011,37 @@ export interface components {
              * Format: uuid
              */
             owner_user_id: string;
-            /** Partner Id */
-            partner_id?: string | null;
+            partner?: components["schemas"]["ContactDraftRequest"] | null;
+            poc?: components["schemas"]["PocRequest"];
+            /**
+             * Procurement
+             * @default
+             */
+            procurement: string;
+            quote?: components["schemas"]["QuoteRequest"];
             /** Revenue Amount */
-            revenue_amount: number | string;
+            revenue_amount: number;
+            /** Revenue Date */
+            revenue_date: string | null;
             /**
-             * Revenue Currency
-             * @default KRW
+             * Solution
+             * @default
              */
-            revenue_currency: string;
-            /**
-             * Revenue Date
-             * Format: date
-             */
-            revenue_date: string;
-            /** Solution */
             solution: string;
-            /** Vendor */
+            /** Status Key */
+            status_key: string;
+            /** Users */
+            users?: number | null;
+            /**
+             * Vendor
+             * @default
+             */
             vendor: string;
         };
-        /** DealResponse */
-        DealResponse: {
+        /** DealDetailResponse */
+        DealDetailResponse: {
+            active_partner: components["schemas"]["ContactResponse"] | null;
+            bant: components["schemas"]["BantResponse"];
             /** Code */
             code: string;
             /**
@@ -668,64 +1049,148 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
-            /** Customer Id */
-            customer_id: string;
-            /** Id */
-            id: string;
+            customer: components["schemas"]["ContactResponse"];
+            /** Forecast Key */
+            forecast_key: string;
+            /**
+             * Last Updated At
+             * Format: date-time
+             */
+            last_updated_at: string;
             /** Name */
             name: string;
+            next_action: components["schemas"]["NextActionResponse"] | null;
             owner: components["schemas"]["UserRef"];
-            /** Partner Id */
-            partner_id: string | null;
+            /** Owner User Id */
+            owner_user_id: string;
+            /** Partner History */
+            partner_history: components["schemas"]["PartnerHistoryResponse"][];
+            /** Partner Links */
+            partner_links: components["schemas"]["PartnerLinkResponse"][];
+            poc: components["schemas"]["PocResponse"];
+            /** Procurement */
+            procurement: string;
+            quote: components["schemas"]["QuoteResponse"];
             /** Revenue Amount */
-            revenue_amount: string;
-            /** Revenue Currency */
-            revenue_currency: string;
+            revenue_amount: number;
             /**
              * Revenue Date
              * Format: date
              */
             revenue_date: string;
+            /** Risk */
+            risk: string | null;
             /** Solution */
             solution: string;
-            stage: components["schemas"]["DealStage"];
+            /** Status Key */
+            status_key: string;
             /**
              * Updated At
              * Format: date-time
              */
             updated_at: string;
+            /** Users */
+            users: number | null;
+            /** Vendor */
+            vendor: string;
+        };
+        /** DealFacetsResponse */
+        DealFacetsResponse: {
+            /** Solutions */
+            solutions: string[];
+            /** Vendors */
+            vendors: string[];
+        };
+        /**
+         * DealPatchRequest
+         * @description 수정 본문. 보낸 필드만 반영한다(model_fields_set). partner: null은 활성 파트너 제거다.
+         */
+        DealPatchRequest: {
+            bant?: components["schemas"]["BantRequest"] | null;
+            customer?: components["schemas"]["ContactDraftRequest"] | null;
+            /** Forecast Key */
+            forecast_key?: string | null;
+            /** Name */
+            name?: string | null;
+            /** Owner User Id */
+            owner_user_id?: string | null;
+            partner?: components["schemas"]["ContactDraftRequest"] | null;
+            poc?: components["schemas"]["PocRequest"] | null;
+            /** Procurement */
+            procurement?: string | null;
+            quote?: components["schemas"]["QuoteRequest"] | null;
+            /** Revenue Amount */
+            revenue_amount?: number | null;
+            /** Revenue Date */
+            revenue_date?: string | null;
+            /** Solution */
+            solution?: string | null;
+            /** Status Key */
+            status_key?: string | null;
+            /** Users */
+            users?: number | null;
+            /** Vendor */
+            vendor?: string | null;
+        };
+        /** DealRowResponse */
+        DealRowResponse: {
+            active_partner: components["schemas"]["ContactResponse"] | null;
+            bant: components["schemas"]["BantResponse"];
+            /** Code */
+            code: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            customer: components["schemas"]["ContactResponse"];
+            /** Forecast Key */
+            forecast_key: string;
+            /**
+             * Last Updated At
+             * Format: date-time
+             */
+            last_updated_at: string;
+            /** Name */
+            name: string;
+            next_action: components["schemas"]["NextActionResponse"] | null;
+            owner: components["schemas"]["UserRef"];
+            /** Owner User Id */
+            owner_user_id: string;
+            /** Partner Links */
+            partner_links: components["schemas"]["PartnerLinkResponse"][];
+            poc: components["schemas"]["PocResponse"];
+            /** Procurement */
+            procurement: string;
+            quote: components["schemas"]["QuoteResponse"];
+            /** Revenue Amount */
+            revenue_amount: number;
+            /**
+             * Revenue Date
+             * Format: date
+             */
+            revenue_date: string;
+            /** Risk */
+            risk: string | null;
+            /** Solution */
+            solution: string;
+            /** Status Key */
+            status_key: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Users */
+            users: number | null;
             /** Vendor */
             vendor: string;
         };
         /**
-         * DealStage
-         * @description 딜 진행 단계. 선언 순서가 표시 순서(파이프라인 정렬 기준)다.
+         * DealSort
          * @enum {string}
          */
-        DealStage: "prospecting" | "introduction" | "poc_preparation" | "poc_completed" | "technical_evaluation" | "price_negotiation" | "contract_completed" | "lost";
-        /** DealStageChangeRequest */
-        DealStageChangeRequest: {
-            /** Reason */
-            reason?: string | null;
-            stage: components["schemas"]["DealStage"];
-        };
-        /** DealStageChangeResponse */
-        DealStageChangeResponse: {
-            /**
-             * Changed At
-             * Format: date-time
-             */
-            changed_at: string;
-            changed_by: components["schemas"]["UserRef"];
-            /** Deal Id */
-            deal_id: string;
-            from_stage: components["schemas"]["DealStage"];
-            /** Id */
-            id: string;
-            /** Reason */
-            reason: string | null;
-            to_stage: components["schemas"]["DealStage"];
-        };
+        DealSort: "name" | "revenue_amount" | "revenue_date" | "last_updated_at" | "status";
         /**
          * DeleteUserResponse
          * @description outcome: 연결된 데이터가 없어 완전히 삭제(deleted) 또는 있어서 퇴사 처리(resigned).
@@ -736,6 +1201,15 @@ export interface components {
              * @enum {string}
              */
             outcome: "deleted" | "resigned";
+        };
+        /** DeletionImpactResponse */
+        DeletionImpactResponse: {
+            /** Action Count */
+            action_count: number;
+            /** Attachment Count */
+            attachment_count: number;
+            /** History Count */
+            history_count: number;
         };
         /** DevLoginRequest */
         DevLoginRequest: {
@@ -906,6 +1380,32 @@ export interface components {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
+        /**
+         * HistoryCategory
+         * @description History 구분. 값은 프런트 `HistoryCategory` 타입 그대로다.
+         * @enum {string}
+         */
+        HistoryCategory: "created" | "status" | "forecast" | "amount" | "expectedClose" | "owner" | "partner" | "contact" | "bant" | "action" | "attachment" | "other";
+        /** HistoryEntryResponse */
+        HistoryEntryResponse: {
+            /** After */
+            after: string;
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /** Before */
+            before: string;
+            by: components["schemas"]["UserRef"];
+            category: components["schemas"]["HistoryCategory"];
+            /** Deal Code */
+            deal_code: string;
+            /** Id */
+            id: string;
+            /** Target */
+            target: string;
+        };
         /** LoginRequest */
         LoginRequest: {
             /** Login Id */
@@ -916,59 +1416,15 @@ export interface components {
              */
             password: string;
         };
-        /** Page[CustomerResponse] */
-        Page_CustomerResponse_: {
-            /** Items */
-            items: components["schemas"]["CustomerResponse"][];
-            /** Limit */
-            limit: number;
-            /** Offset */
-            offset: number;
-        };
-        /** Page[DealActionResponse] */
-        Page_DealActionResponse_: {
-            /** Items */
-            items: components["schemas"]["DealActionResponse"][];
-            /** Limit */
-            limit: number;
-            /** Offset */
-            offset: number;
-        };
-        /** Page[DealResponse] */
-        Page_DealResponse_: {
-            /** Items */
-            items: components["schemas"]["DealResponse"][];
-            /** Limit */
-            limit: number;
-            /** Offset */
-            offset: number;
-        };
-        /** Page[DealStageChangeResponse] */
-        Page_DealStageChangeResponse_: {
-            /** Items */
-            items: components["schemas"]["DealStageChangeResponse"][];
-            /** Limit */
-            limit: number;
-            /** Offset */
-            offset: number;
-        };
-        /** Page[PartnerResponse] */
-        Page_PartnerResponse_: {
-            /** Items */
-            items: components["schemas"]["PartnerResponse"][];
-            /** Limit */
-            limit: number;
-            /** Offset */
-            offset: number;
-        };
-        /** Page[UserRef] */
-        Page_UserRef_: {
-            /** Items */
-            items: components["schemas"]["UserRef"][];
-            /** Limit */
-            limit: number;
-            /** Offset */
-            offset: number;
+        /** NextActionResponse */
+        NextActionResponse: {
+            /**
+             * Due Date
+             * Format: date
+             */
+            due_date: string;
+            /** Text */
+            text: string;
         };
         /** Page[UserResponse] */
         Page_UserResponse_: {
@@ -979,44 +1435,50 @@ export interface components {
             /** Offset */
             offset: number;
         };
-        /** PartnerRequest */
-        PartnerRequest: {
-            /** Company Name */
-            company_name: string;
-            /** Contact Name */
-            contact_name: string;
-            /** Contact Title */
-            contact_title?: string | null;
-            /** Email */
-            email?: string | null;
-            /** Phone */
-            phone?: string | null;
-        };
-        /** PartnerResponse */
-        PartnerResponse: {
-            /** Company Name */
-            company_name: string;
-            /** Contact Name */
-            contact_name: string;
-            /** Contact Title */
-            contact_title: string | null;
+        /** PartnerHistoryResponse */
+        PartnerHistoryResponse: {
+            /** Active */
+            active: boolean;
+            contact: components["schemas"]["ContactResponse"];
             /**
-             * Created At
+             * Linked At
              * Format: date-time
              */
-            created_at: string;
-            /** Email */
-            email: string | null;
-            /** Id */
-            id: string;
-            /** Phone */
-            phone: string | null;
+            linked_at: string;
+            /** Unlinked At */
+            unlinked_at: string | null;
+        };
+        /** PartnerLinkResponse */
+        PartnerLinkResponse: {
+            /** Active */
+            active: boolean;
+            /** Contact Id */
+            contact_id: string;
             /**
-             * Updated At
+             * Linked At
              * Format: date-time
              */
-            updated_at: string;
+            linked_at: string;
+            /** Unlinked At */
+            unlinked_at: string | null;
         };
+        /** PocRequest */
+        PocRequest: {
+            /** Completed Date */
+            completed_date?: string | null;
+            state?: components["schemas"]["PocState"] | null;
+        };
+        /** PocResponse */
+        PocResponse: {
+            /** Completed Date */
+            completed_date: string | null;
+            state: components["schemas"]["PocState"] | null;
+        };
+        /**
+         * PocState
+         * @enum {string}
+         */
+        PocState: "YES" | "ING" | "NO";
         /** PrincipalResponse */
         PrincipalResponse: {
             /** Email */
@@ -1049,6 +1511,37 @@ export interface components {
             /** Type */
             type: string;
         };
+        /** QuoteRequest */
+        QuoteRequest: {
+            submitted?: components["schemas"]["QuoteSubmitted"] | null;
+            /** Submitted Date */
+            submitted_date?: string | null;
+        };
+        /** QuoteResponse */
+        QuoteResponse: {
+            submitted: components["schemas"]["QuoteSubmitted"] | null;
+            /** Submitted Date */
+            submitted_date: string | null;
+        };
+        /**
+         * QuoteSubmitted
+         * @enum {string}
+         */
+        QuoteSubmitted: "YES" | "NO";
+        /**
+         * ResolutionRequest
+         * @description 프런트가 사용자에게 물어 얻은 답. 보내지 않은 답은 비워 둔다.
+         */
+        ResolutionRequest: {
+            /** Forecast Key */
+            forecast_key?: string | null;
+            /** Revenue Amount */
+            revenue_amount?: number | null;
+            /** Revenue Date */
+            revenue_date?: string | null;
+            /** Status Key */
+            status_key?: string | null;
+        };
         /**
          * Role
          * @enum {string}
@@ -1064,20 +1557,25 @@ export interface components {
              */
             password: string;
         };
-        /** StageSummaryResponse */
-        StageSummaryResponse: {
-            /** Deal Count */
-            deal_count: number;
-            stage: components["schemas"]["DealStage"];
-            /** Totals */
-            totals: components["schemas"]["CurrencyAmountResponse"][];
-        };
+        /**
+         * SortOrder
+         * @enum {string}
+         */
+        SortOrder: "asc" | "desc";
         /**
          * UserDeleteReason
          * @description 사용자가 목록에서 빠진 이유. 값을 추가할 때는 DB CHECK도 이 enum에서 만든다.
          * @enum {string}
          */
         UserDeleteReason: "resigned";
+        /**
+         * UserOptionPage
+         * @description 선택 UI용 후보 전체. 조건에 맞는 사용자를 모두 돌려주므로 페이징 필드가 없다.
+         */
+        UserOptionPage: {
+            /** Items */
+            items: components["schemas"]["UserRef"][];
+        };
         /**
          * UserRef
          * @description OpenAPI 스키마 이름이 `UserRef`다(프런트가 이 이름으로 생성 타입을 쓴다).
@@ -1091,12 +1589,15 @@ export interface components {
             name: string;
             /** Resigned */
             resigned: boolean;
+            role: components["schemas"]["Role"];
         };
         /**
          * UserRequest
          * @description 등록 본문. 비밀번호는 받지 않는다(AD가 인증). 아이디 형식 검증은 도메인(LoginId)이 한다.
          */
         UserRequest: {
+            /** Display Name */
+            display_name?: string | null;
             /** Login Id */
             login_id: string;
             role: components["schemas"]["Role"];
@@ -1431,13 +1932,9 @@ export interface operations {
             };
         };
     };
-    list_customers_api_v1_customers_get: {
+    list_bant_labels_api_v1_bant_labels_get: {
         parameters: {
-            query?: {
-                keyword?: string | null;
-                offset?: number;
-                limit?: number;
-            };
+            query?: never;
             header?: never;
             path?: never;
             cookie?: never;
@@ -1450,7 +1947,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Page_CustomerResponse_"];
+                    "application/json": components["schemas"]["BantLabelResponse"][];
                 };
             };
             /** @description problem+json */
@@ -1462,27 +1959,9 @@ export interface operations {
                     "application/json": components["schemas"]["Problem"];
                 };
             };
-            /** @description problem+json */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description problem+json */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
         };
     };
-    register_customer_api_v1_customers_post: {
+    create_bant_label_api_v1_bant_labels_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -1491,7 +1970,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["CustomerRequest"];
+                "application/json": components["schemas"]["BantLabelCreateRequest"];
             };
         };
         responses: {
@@ -1501,7 +1980,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CustomerResponse"];
+                    "application/json": components["schemas"]["BantLabelResponse"];
                 };
             };
             /** @description problem+json */
@@ -1551,132 +2030,12 @@ export interface operations {
             };
         };
     };
-    get_customer_api_v1_customers__customer_id__get: {
+    delete_bant_label_api_v1_bant_labels__label_id__delete: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                customer_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CustomerResponse"];
-                };
-            };
-            /** @description problem+json */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description problem+json */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description problem+json */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-        };
-    };
-    update_customer_api_v1_customers__customer_id__put: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                customer_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CustomerRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CustomerResponse"];
-                };
-            };
-            /** @description problem+json */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description problem+json */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description problem+json */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description problem+json */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description problem+json */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-        };
-    };
-    delete_customer_api_v1_customers__customer_id__delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                customer_id: string;
+                label_id: string;
             };
             cookie?: never;
         };
@@ -1736,20 +2095,248 @@ export interface operations {
             };
         };
     };
-    search_deal_actions_api_v1_deal_actions_get: {
+    rename_bant_label_api_v1_bant_labels__label_id__patch: {
         parameters: {
-            query?: {
-                action_type?: components["schemas"]["ActionType"] | null;
-                actor_user_id?: string | null;
-                keyword?: string | null;
-                acted_from?: string | null;
-                acted_to?: string | null;
-                due_from?: string | null;
-                due_to?: string | null;
-                sort?: components["schemas"]["DealActionSort"];
-                offset?: number;
-                limit?: number;
-                deal_id?: string | null;
+            query?: never;
+            header?: never;
+            path: {
+                label_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BantLabelRenameRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BantLabelResponse"];
+                };
+            };
+            /** @description problem+json */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    list_codes_api_v1_codes_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CodeSetResponse"];
+                };
+            };
+            /** @description problem+json */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    create_code_api_v1_codes_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CodeCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CodeUsageResponse"];
+                };
+            };
+            /** @description problem+json */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    reorder_codes_api_v1_codes_order_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CodeOrderRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CodeUsageResponse"][];
+                };
+            };
+            /** @description problem+json */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    list_codes_with_usage_api_v1_codes_usage_get: {
+        parameters: {
+            query: {
+                kind: components["schemas"]["CodeKind"];
             };
             header?: never;
             path?: never;
@@ -1763,7 +2350,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Page_DealActionResponse_"];
+                    "application/json": components["schemas"]["CodeUsageResponse"][];
                 };
             };
             /** @description problem+json */
@@ -1776,7 +2363,481 @@ export interface operations {
                 };
             };
             /** @description problem+json */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    delete_code_api_v1_codes__code_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                code_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description problem+json */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    rename_code_api_v1_codes__code_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                code_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CodeRenameRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CodeUsageResponse"];
+                };
+            };
+            /** @description problem+json */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    search_contacts_api_v1_contacts_get: {
+        parameters: {
+            query?: {
+                kind?: components["schemas"]["ContactKind"] | null;
+                keyword?: string | null;
+                offset?: number;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CountedPage_ContactRowResponse_"];
+                };
+            };
+            /** @description problem+json */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    register_contact_api_v1_contacts_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ContactCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContactResponse"];
+                };
+            };
+            /** @description problem+json */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    list_contacts_of_company_api_v1_contacts_by_company_get: {
+        parameters: {
+            query: {
+                kind: components["schemas"]["ContactKind"];
+                company: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContactRowResponse"][];
+                };
+            };
+            /** @description problem+json */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    list_contact_companies_api_v1_contacts_companies_get: {
+        parameters: {
+            query: {
+                kind: components["schemas"]["ContactKind"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string[];
+                };
+            };
+            /** @description problem+json */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    update_contact_api_v1_contacts__contact_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                contact_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ContactUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContactResponse"];
+                };
+            };
+            /** @description problem+json */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    delete_contact_api_v1_contacts__contact_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                contact_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description problem+json */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1855,7 +2916,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["DealActionRequest"];
+                "application/json": components["schemas"]["DealActionUpdateRequest"];
             };
         };
         responses: {
@@ -1975,16 +3036,24 @@ export interface operations {
         parameters: {
             query?: {
                 keyword?: string | null;
-                customer_id?: string | null;
-                partner_id?: string | null;
                 owner_user_id?: string | null;
+                mine?: boolean;
                 vendor?: string | null;
+                solution?: string | null;
+                status_key?: string | null;
+                forecast_key?: string | null;
+                year?: number | null;
+                quarter?: number | null;
                 revenue_from?: string | null;
                 revenue_to?: string | null;
-                stage?: components["schemas"]["DealStage"] | null;
+                bant_budget?: string | null;
+                bant_authority?: string | null;
+                bant_need?: string | null;
+                bant_timeline?: string | null;
+                sort?: components["schemas"]["DealSort"];
+                order?: components["schemas"]["SortOrder"];
                 offset?: number;
                 limit?: number;
-                mine?: boolean;
             };
             header?: never;
             path?: never;
@@ -1998,20 +3067,11 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Page_DealResponse_"];
+                    "application/json": components["schemas"]["CountedPage_DealRowResponse_"];
                 };
             };
             /** @description problem+json */
             401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description problem+json */
-            404: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2039,7 +3099,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["DealRequest"];
+                "application/json": components["schemas"]["DealCreateRequest"];
             };
         };
         responses: {
@@ -2049,7 +3109,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["DealResponse"];
+                    "application/json": components["schemas"]["DealDetailResponse"];
                 };
             };
             /** @description problem+json */
@@ -2099,7 +3159,45 @@ export interface operations {
             };
         };
     };
-    get_deal_by_code_api_v1_deals_by_code__code__get: {
+    list_deal_facets_api_v1_deals_facets_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DealFacetsResponse"];
+                };
+            };
+            /** @description problem+json */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    get_deal_api_v1_deals__code__get: {
         parameters: {
             query?: never;
             header?: never;
@@ -2116,7 +3214,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["DealResponse"];
+                    "application/json": components["schemas"]["DealDetailResponse"];
                 };
             };
             /** @description problem+json */
@@ -2148,181 +3246,14 @@ export interface operations {
             };
         };
     };
-    get_deal_pipeline_api_v1_deals_pipeline_get: {
+    delete_deal_api_v1_deals__code__delete: {
         parameters: {
-            query?: {
-                mine?: boolean;
+            query: {
+                confirm_code: string;
             };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DealPipelineResponse"];
-                };
-            };
-            /** @description problem+json */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description problem+json */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description problem+json */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-        };
-    };
-    get_deal_api_v1_deals__deal_id__get: {
-        parameters: {
-            query?: never;
             header?: never;
             path: {
-                deal_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DealResponse"];
-                };
-            };
-            /** @description problem+json */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description problem+json */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description problem+json */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-        };
-    };
-    update_deal_api_v1_deals__deal_id__put: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                deal_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["DealRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DealResponse"];
-                };
-            };
-            /** @description problem+json */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description problem+json */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description problem+json */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description problem+json */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description problem+json */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-        };
-    };
-    delete_deal_api_v1_deals__deal_id__delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                deal_id: string;
+                code: string;
             };
             cookie?: never;
         };
@@ -2363,6 +3294,68 @@ export interface operations {
                 };
             };
             /** @description problem+json */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    update_deal_api_v1_deals__code__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                code: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DealPatchRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DealDetailResponse"];
+                };
+            };
+            /** @description problem+json */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -2382,7 +3375,7 @@ export interface operations {
             };
         };
     };
-    list_actions_of_deal_api_v1_deals__deal_id__actions_get: {
+    list_actions_of_deal_api_v1_deals__code__actions_get: {
         parameters: {
             query?: {
                 action_type?: components["schemas"]["ActionType"] | null;
@@ -2393,12 +3386,10 @@ export interface operations {
                 due_from?: string | null;
                 due_to?: string | null;
                 sort?: components["schemas"]["DealActionSort"];
-                offset?: number;
-                limit?: number;
             };
             header?: never;
             path: {
-                deal_id: string;
+                code: string;
             };
             cookie?: never;
         };
@@ -2410,7 +3401,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Page_DealActionResponse_"];
+                    "application/json": components["schemas"]["DealActionList"];
                 };
             };
             /** @description problem+json */
@@ -2442,18 +3433,18 @@ export interface operations {
             };
         };
     };
-    register_deal_action_api_v1_deals__deal_id__actions_post: {
+    register_deal_action_api_v1_deals__code__actions_post: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                deal_id: string;
+                code: string;
             };
             cookie?: never;
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["DealActionRequest"];
+                "application/json": components["schemas"]["DealActionCreateRequest"];
             };
         };
         responses: {
@@ -2513,18 +3504,18 @@ export interface operations {
             };
         };
     };
-    change_deal_stage_api_v1_deals__deal_id__stage_post: {
+    apply_deal_change_api_v1_deals__code__changes_post: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                deal_id: string;
+                code: string;
             };
             cookie?: never;
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["DealStageChangeRequest"];
+                "application/json": components["schemas"]["DealChangeRequest"];
             };
         };
         responses: {
@@ -2534,7 +3525,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["DealResponse"];
+                    "application/json": components["schemas"]["DealChangeResponse"];
                 };
             };
             /** @description problem+json */
@@ -2584,15 +3575,63 @@ export interface operations {
             };
         };
     };
-    list_deal_stage_changes_api_v1_deals__deal_id__stage_changes_get: {
+    get_deal_deletion_impact_api_v1_deals__code__deletion_impact_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                code: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeletionImpactResponse"];
+                };
+            };
+            /** @description problem+json */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    list_deal_history_api_v1_deals__code__history_get: {
         parameters: {
             query?: {
-                offset?: number;
-                limit?: number;
+                category?: components["schemas"]["HistoryCategory"] | null;
             };
             header?: never;
             path: {
-                deal_id: string;
+                code: string;
             };
             cookie?: never;
         };
@@ -2604,7 +3643,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Page_DealStageChangeResponse_"];
+                    "application/json": components["schemas"]["HistoryEntryResponse"][];
                 };
             };
             /** @description problem+json */
@@ -2618,311 +3657,6 @@ export interface operations {
             };
             /** @description problem+json */
             404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description problem+json */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-        };
-    };
-    list_partners_api_v1_partners_get: {
-        parameters: {
-            query?: {
-                keyword?: string | null;
-                offset?: number;
-                limit?: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Page_PartnerResponse_"];
-                };
-            };
-            /** @description problem+json */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description problem+json */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description problem+json */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-        };
-    };
-    register_partner_api_v1_partners_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["PartnerRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PartnerResponse"];
-                };
-            };
-            /** @description problem+json */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description problem+json */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description problem+json */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description problem+json */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description problem+json */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-        };
-    };
-    get_partner_api_v1_partners__partner_id__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                partner_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PartnerResponse"];
-                };
-            };
-            /** @description problem+json */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description problem+json */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description problem+json */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-        };
-    };
-    update_partner_api_v1_partners__partner_id__put: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                partner_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["PartnerRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PartnerResponse"];
-                };
-            };
-            /** @description problem+json */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description problem+json */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description problem+json */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description problem+json */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description problem+json */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-        };
-    };
-    delete_partner_api_v1_partners__partner_id__delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                partner_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description problem+json */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description problem+json */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description problem+json */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description problem+json */
-            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3149,7 +3883,7 @@ export interface operations {
             query?: {
                 include_resigned?: boolean;
                 keyword?: string | null;
-                limit?: number;
+                role?: components["schemas"]["Role"] | null;
             };
             header?: never;
             path?: never;
@@ -3163,7 +3897,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Page_UserRef_"];
+                    "application/json": components["schemas"]["UserOptionPage"];
                 };
             };
             /** @description problem+json */

@@ -22,6 +22,7 @@ class UserRequest(RequestModel):
 
     login_id: str
     role: Role
+    display_name: str | None = None
 
 
 class UserResponse(BaseModel):
@@ -55,7 +56,12 @@ class UserResponse(BaseModel):
 
 
 UserPage = Page[UserResponse]
-UserOptionPage = Page[UserRef]
+
+
+class UserOptionPage(BaseModel):
+    """선택 UI용 후보 전체. 조건에 맞는 사용자를 모두 돌려주므로 페이징 필드가 없다."""
+
+    items: list[UserRef]
 
 
 class DeleteUserResponse(BaseModel):

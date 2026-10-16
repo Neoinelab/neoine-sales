@@ -1,77 +1,108 @@
 from typing import Annotated
-from uuid import UUID
 
 from fastapi import Query, Response, status
 
-from app.domain.deal.value_objects import DealId
-from app.domain.user.value_objects import UserId
+from app.application.deal.inputs import Actor
+from app.domain.deal.history import HistoryCategory
 from app.web.dependencies import Provider
 from app.web.permissions import BusinessRouter
-from app.web.routers.responses import READ_ERRORS, WRITE_ERRORS
+from app.web.routers.responses import PROBLEM, READ_ERRORS, WRITE_ERRORS
 from app.web.schemas.deal import (
-    DealPage,
-    DealRequest,
-    DealResponse,
+    DealChangeRequest,
+    DealCreateRequest,
+    DealPatchRequest,
     DealSearchParams,
-    deal_response,
-    deal_responses,
 )
-from app.web.schemas.deal_stage import DealPipelineResponse, PipelineParams
+from app.web.schemas.deal_change import DealChangeResponse
+from app.web.schemas.deal_response import (
+    DealDetailResponse,
+    DealFacetsResponse,
+    DealRowPage,
+    DeletionImpactResponse,
+    HistoryEntryResponse,
+    row_page,
+)
 from app.web.security import CurrentUser
 
 router = BusinessRouter(prefix="/api/v1/deals", tags=["deals"])
 
 
+def _actor(user: CurrentUser) -> Actor:
+    return Actor(user_id=user.user_id, role=user.role)
+
+
 @router.post(
-    "", status_code=status.HTTP_201_CREATED, response_model=DealResponse, responses=WRITE_ERRORS
+    "",
+    status_code=status.HTTP_201_CREATED,
+    response_model=DealDetailResponse,
+    responses=WRITE_ERRORS,
 )
 async def register_deal(
-    body: DealRequest, response: Response, user: CurrentUser, provider: Provider
-) -> DealResponse:
-    deal = await provider.register_deal().execute(
-        body.to_input(), registered_by_user_id=user.user_id
-    )
-    response.headers["Location"] = f"{router.prefix}/{deal.id}"
-    return await deal_response(provider, deal)
+    body: DealCreateRequest, response: Response, user: CurrentUser, provider: Provider
+) -> DealDetailResponse:
+    view = await provider.register_deal().execute(body.to_input(), _actor(user))
+    response.headers["Location"] = f"{router.prefix}/{view.item.deal.id.value}"
+    return DealDetailResponse.from_view(view)
 
 
-@router.get("", response_model=DealPage, responses=READ_ERRORS)
+@router.get("", response_model=DealRowPage, responses={422: PROBLEM})
 async def list_deals(
     params: Annotated[DealSearchParams, Query()], user: CurrentUser, provider: Provider
-) -> DealPage:
-    query = params.to_query(user.user_id)
-    deals = await provider.list_deals().execute(query)
-    items = await deal_responses(provider, deals)
-    return DealPage(items=items, offset=query.offset, limit=query.limit)
+) -> DealRowPage:
+    return row_page(await provider.list_deals().execute(params.to_query(user.user_id)))
 
 
-# 고정 경로(pipeline, by-code)를 /{deal_id}보다 먼저 선언해야 UUID로 해석되지 않는다
-@router.get("/pipeline", response_model=DealPipelineResponse, responses=READ_ERRORS)
-async def get_deal_pipeline(
-    params: Annotated[PipelineParams, Query()], user: CurrentUser, provider: Provider
-) -> DealPipelineResponse:
-    owner: UserId | None = user.user_id if params.mine else None
-    return DealPipelineResponse.from_value(
-        await provider.get_deal_pipeline().execute(owner_user_id=owner)
+@router.get("/facets", response_model=DealFacetsResponse, responses={422: PROBLEM})
+async def list_deal_facets(provider: Provider) -> DealFacetsResponse:
+    facets = await provider.list_deal_facets().execute()
+    return DealFacetsResponse(vendors=list(facets.vendors), solutions=list(facets.solutions))
+
+
+@router.get("/{code}", response_model=DealDetailResponse, responses=READ_ERRORS)
+async def get_deal(code: str, provider: Provider) -> DealDetailResponse:
+    return DealDetailResponse.from_view(await provider.get_deal().execute(code))
+
+
+@router.patch("/{code}", response_model=DealDetailResponse, responses=WRITE_ERRORS)
+async def update_deal(
+    code: str, body: DealPatchRequest, user: CurrentUser, provider: Provider
+) -> DealDetailResponse:
+    view = await provider.update_deal().execute(code, body.to_input(), _actor(user))
+    return DealDetailResponse.from_view(view)
+
+
+@router.delete(
+    "/{code}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses={404: PROBLEM, 422: PROBLEM},
+)
+async def delete_deal(
+    code: str, confirm_code: Annotated[str, Query()], user: CurrentUser, provider: Provider
+) -> None:
+    await provider.delete_deal().execute(code, confirm_code, _actor(user))
+
+
+@router.get("/{code}/history", response_model=list[HistoryEntryResponse], responses=READ_ERRORS)
+async def list_deal_history(
+    code: str, provider: Provider, category: Annotated[HistoryCategory | None, Query()] = None
+) -> list[HistoryEntryResponse]:
+    views = await provider.list_deal_history().execute(code, category)
+    return [HistoryEntryResponse.from_view(view) for view in views]
+
+
+@router.get("/{code}/deletion-impact", response_model=DeletionImpactResponse, responses=READ_ERRORS)
+async def get_deal_deletion_impact(code: str, provider: Provider) -> DeletionImpactResponse:
+    impact = await provider.get_deal_deletion_impact().execute(code)
+    return DeletionImpactResponse(
+        history_count=impact.history_count,
+        action_count=impact.action_count,
+        attachment_count=impact.attachment_count,
     )
 
 
-@router.get("/by-code/{code}", response_model=DealResponse, responses=READ_ERRORS)
-async def get_deal_by_code(code: str, provider: Provider) -> DealResponse:
-    return await deal_response(provider, await provider.get_deal_by_code().execute(code))
-
-
-@router.get("/{deal_id}", response_model=DealResponse, responses=READ_ERRORS)
-async def get_deal(deal_id: UUID, provider: Provider) -> DealResponse:
-    return await deal_response(provider, await provider.get_deal().execute(DealId(deal_id)))
-
-
-@router.put("/{deal_id}", response_model=DealResponse, responses=WRITE_ERRORS)
-async def update_deal(deal_id: UUID, body: DealRequest, provider: Provider) -> DealResponse:
-    deal = await provider.update_deal().execute(DealId(deal_id), body.to_input())
-    return await deal_response(provider, deal)
-
-
-@router.delete("/{deal_id}", status_code=status.HTTP_204_NO_CONTENT, responses=WRITE_ERRORS)
-async def delete_deal(deal_id: UUID, provider: Provider) -> None:
-    await provider.delete_deal().execute(DealId(deal_id))
+@router.post("/{code}/changes", response_model=DealChangeResponse, responses=WRITE_ERRORS)
+async def apply_deal_change(
+    code: str, body: DealChangeRequest, user: CurrentUser, provider: Provider
+) -> DealChangeResponse:
+    result = await provider.apply_deal_change().execute(code, body.to_input(), _actor(user))
+    return DealChangeResponse.from_result(result)

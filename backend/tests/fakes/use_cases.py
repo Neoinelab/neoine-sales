@@ -3,34 +3,16 @@
 from dataclasses import replace
 from typing import TYPE_CHECKING
 
-from app.application.customer.delete_customer import DeleteCustomer
-from app.application.customer.get_customer import GetCustomer
-from app.application.customer.list_customers import ListCustomers
-from app.application.customer.register_customer import RegisterCustomer
-from app.application.customer.update_customer import UpdateCustomer
-from app.application.deal.change_stage import ChangeDealStage
-from app.application.deal.delete_deal import DeleteDeal
-from app.application.deal.get_deal import GetDeal
-from app.application.deal.get_deal_by_code import GetDealByCode
-from app.application.deal.get_pipeline import GetDealPipeline
-from app.application.deal.list_deals import ListDeals
-from app.application.deal.list_stage_changes import ListDealStageChanges
-from app.application.deal.register_deal import RegisterDeal
-from app.application.deal.update_deal import UpdateDeal
-from app.application.deal_action.delete_deal_action import DeleteDealAction
-from app.application.deal_action.get_deal_action import GetDealAction
-from app.application.deal_action.register_deal_action import RegisterDealAction
-from app.application.deal_action.search_deal_actions import SearchDealActions
-from app.application.deal_action.update_deal_action import UpdateDealAction
-from app.application.partner.delete_partner import DeletePartner
-from app.application.partner.get_partner import GetPartner
-from app.application.partner.list_partners import ListPartners
-from app.application.partner.register_partner import RegisterPartner
-from app.application.partner.update_partner import UpdatePartner
 from app.domain.auth.credentials import LoginId
 from app.domain.auth.principal import Role
 from tests.factories import NOW
 from tests.factories_auth import make_directory_settings, make_user
+from tests.fakes.attachment_use_cases import AttachmentUseCases
+from tests.fakes.catalog_use_cases import CatalogUseCases
+from tests.fakes.contact_use_cases import ContactUseCases
+from tests.fakes.deal_code_source import FakeDealCodeSuffixSource
+from tests.fakes.deal_use_cases import DealUseCases
+from tests.fakes.file_storage import FakeFileStorage
 from tests.fakes.unit_of_work import FakeUnitOfWork, SteppingClock
 
 if TYPE_CHECKING:
@@ -41,9 +23,19 @@ if TYPE_CHECKING:
     from app.application.auth.logout import Logout
     from app.application.auth.setup_directory import RegisterSetupDirectory
     from app.application.auth.setup_first_admin import SetupFirstAdmin
+    from app.application.auth.setup_storage import RegisterSetupStorage, TestSetupStorage
+    from app.application.deal_action.delete_deal_action import DeleteDealAction
+    from app.application.deal_action.get_deal_action import GetDealAction
+    from app.application.deal_action.list_deal_actions import ListDealActions
+    from app.application.deal_action.register_deal_action import RegisterDealAction
+    from app.application.deal_action.update_deal_action import UpdateDealAction
     from app.application.directory.get_settings import GetDirectorySettings
     from app.application.directory.test_settings import TestDirectorySettings
     from app.application.directory.update_settings import UpdateDirectorySettings
+    from app.application.ports.unit_of_work import UnitOfWorkFactory
+    from app.application.storage.get_settings import GetStorageSettings
+    from app.application.storage.test_settings import TestStorageSettings
+    from app.application.storage.update_settings import UpdateStorageSettings
     from app.application.user.delete_user import DeleteUser
     from app.application.user.list_user_options import ListUserOptions
     from app.application.user.list_users import ListUsers
@@ -57,11 +49,13 @@ if TYPE_CHECKING:
     from tests.fakes.directory import FakeDirectoryAuthenticator
 
 
-class FakeUseCases:
+class FakeUseCases(CatalogUseCases, ContactUseCases, DealUseCases, AttachmentUseCases):
     def __init__(self, *, allow_dev_sessions: bool = True) -> None:
         self.uow = FakeUnitOfWork()
         self.clock = SteppingClock(NOW)
+        self.suffix_source = FakeDealCodeSuffixSource()
         self.ready_error: Exception | None = None
+        self.file_storage = FakeFileStorage()
         # 인증 모듈이 없으면 인증과 무관한 테스트의 수집까지 막히므로 사용 시점에 가져온다
         from tests.fakes.auth_stack import build_auth_stack  # noqa: PLC0415
 
@@ -78,77 +72,74 @@ class FakeUseCases:
     def _factory(self) -> FakeUnitOfWork:
         return self.uow
 
-    def register_customer(self) -> RegisterCustomer:
-        return RegisterCustomer(self._factory, self.clock)
+    def _contact_uow_factory(self) -> UnitOfWorkFactory:
+        return self._factory
 
-    def get_customer(self) -> GetCustomer:
-        return GetCustomer(self._factory)
+    def _deal_uow_factory(self) -> UnitOfWorkFactory:
+        return self._factory
 
-    def list_customers(self) -> ListCustomers:
-        return ListCustomers(self._factory)
+    def _attachment_uow_factory(self) -> UnitOfWorkFactory:
+        return self._factory
 
-    def update_customer(self) -> UpdateCustomer:
-        return UpdateCustomer(self._factory, self.clock)
-
-    def delete_customer(self) -> DeleteCustomer:
-        return DeleteCustomer(self._factory, self.clock)
-
-    def register_partner(self) -> RegisterPartner:
-        return RegisterPartner(self._factory, self.clock)
-
-    def get_partner(self) -> GetPartner:
-        return GetPartner(self._factory)
-
-    def list_partners(self) -> ListPartners:
-        return ListPartners(self._factory)
-
-    def update_partner(self) -> UpdatePartner:
-        return UpdatePartner(self._factory, self.clock)
-
-    def delete_partner(self) -> DeletePartner:
-        return DeletePartner(self._factory, self.clock)
-
-    def register_deal(self) -> RegisterDeal:
-        return RegisterDeal(self._factory, self.clock)
-
-    def get_deal(self) -> GetDeal:
-        return GetDeal(self._factory)
-
-    def get_deal_by_code(self) -> GetDealByCode:
-        return GetDealByCode(self._factory)
-
-    def list_deals(self) -> ListDeals:
-        return ListDeals(self._factory)
-
-    def update_deal(self) -> UpdateDeal:
-        return UpdateDeal(self._factory, self.clock)
-
-    def delete_deal(self) -> DeleteDeal:
-        return DeleteDeal(self._factory, self.clock)
-
-    def change_deal_stage(self) -> ChangeDealStage:
-        return ChangeDealStage(self._factory, self.clock)
-
-    def list_deal_stage_changes(self) -> ListDealStageChanges:
-        return ListDealStageChanges(self._factory)
-
-    def get_deal_pipeline(self) -> GetDealPipeline:
-        return GetDealPipeline(self._factory)
-
+    # Action 유스케이스는 사용 시점에 가져온다(P2 R1: 구현 전에도 이 Fake를 쓰는 테스트가 수집된다)
     def register_deal_action(self) -> RegisterDealAction:
+        from app.application.deal_action.register_deal_action import (  # noqa: PLC0415
+            RegisterDealAction,
+        )
+
         return RegisterDealAction(self._factory, self.clock)
 
     def get_deal_action(self) -> GetDealAction:
+        from app.application.deal_action.get_deal_action import GetDealAction  # noqa: PLC0415
+
         return GetDealAction(self._factory)
 
-    def search_deal_actions(self) -> SearchDealActions:
-        return SearchDealActions(self._factory)
+    def list_deal_actions(self) -> ListDealActions:
+        from app.application.deal_action.list_deal_actions import ListDealActions  # noqa: PLC0415
+
+        return ListDealActions(self._factory)
 
     def update_deal_action(self) -> UpdateDealAction:
+        from app.application.deal_action.update_deal_action import (  # noqa: PLC0415
+            UpdateDealAction,
+        )
+
         return UpdateDealAction(self._factory, self.clock)
 
     def delete_deal_action(self) -> DeleteDealAction:
+        from app.application.deal_action.delete_deal_action import (  # noqa: PLC0415
+            DeleteDealAction,
+        )
+
         return DeleteDealAction(self._factory, self.clock)
+
+    # 저장 위치 유스케이스도 사용 시점에 가져온다(P2b R1: 구현 전에도 수집된다)
+    def register_setup_storage(self) -> RegisterSetupStorage:
+        from app.application.auth.setup_storage import RegisterSetupStorage  # noqa: PLC0415
+
+        return RegisterSetupStorage(self._factory, self.clock, self.file_storage)
+
+    def test_setup_storage(self) -> TestSetupStorage:
+        from app.application.auth.setup_storage import TestSetupStorage  # noqa: PLC0415
+
+        return TestSetupStorage(self._factory, self.file_storage)
+
+    def get_storage_settings(self) -> GetStorageSettings:
+        from app.application.storage.get_settings import GetStorageSettings  # noqa: PLC0415
+
+        return GetStorageSettings(self._factory)
+
+    def update_storage_settings(self) -> UpdateStorageSettings:
+        from app.application.storage.update_settings import (  # noqa: PLC0415
+            UpdateStorageSettings,
+        )
+
+        return UpdateStorageSettings(self._factory, self.clock, self.file_storage)
+
+    def test_storage_settings(self) -> TestStorageSettings:
+        from app.application.storage.test_settings import TestStorageSettings  # noqa: PLC0415
+
+        return TestStorageSettings(self.file_storage)
 
     def auth_status(self) -> GetAuthStatus:
         return self._auth.status
@@ -203,6 +194,16 @@ class FakeUseCases:
                 expected_revision=None,
                 updated_by=None,
                 now=self.clock.now(),
+            )
+            await uow.commit()
+
+    async def seed_storage(self, path: str = "/data/neoine-sales/files") -> None:
+        """파일 저장 위치를 저장소에 직접 넣는다(2단계를 마친 상태). 유스케이스를 거치지 않는다."""
+        from app.domain.storage.path import StoragePath  # noqa: PLC0415
+
+        async with self._factory() as uow:
+            await uow.storage_settings.save(
+                StoragePath.parse(path), updated_by=None, now=self.clock.now()
             )
             await uow.commit()
 

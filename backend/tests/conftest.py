@@ -1,5 +1,6 @@
 """전역 fixture. 통합 테스트용 임시 DB는 세션당 한 번 만들고 마이그레이션을 적용한 뒤 지운다."""
 
+import time
 from typing import TYPE_CHECKING
 
 import pytest
@@ -15,9 +16,26 @@ from tests.support.database import (
 from tests.support.skips import skip_or_fail
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import Callable, Iterator
 
     from sqlalchemy.engine import URL
+
+
+@pytest.fixture
+def local_tz(monkeypatch: pytest.MonkeyPatch) -> Iterator[Callable[[str], None]]:
+    """프로세스 로컬 시간대를 고정한다. `local_tz("Asia/Seoul")`. 끝나면 원래대로 되돌린다.
+
+    업무 날짜(Deal code의 날짜)는 OS 로컬 시간대로 계산하므로, 날짜 단언은 실행 머신에 흔들리지
+    않게 이 fixture로 시간대를 정하고 검증한다.
+    """
+
+    def use(name: str) -> None:
+        monkeypatch.setenv("TZ", name)
+        time.tzset()
+
+    yield use
+    monkeypatch.undo()
+    time.tzset()
 
 
 def _first_line(error: BaseException) -> str:

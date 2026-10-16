@@ -67,8 +67,10 @@ async def test_register_customer_persists_and_commits() -> None:
 
 ## 4. 계약 테스트 (Fake와 실제 구현에 같은 테스트)
 
+Repository 클래스 하나를 검증하므로 **단위 테스트**로 분류하고 `tests/unit/repositories/`에 둔다(SQL 쪽은 실제 임시 DB를 쓰므로 `integration` 마커).
+
 ```python
-# tests/contracts/customer_repository_contract.py
+# tests/unit/repositories/test_customer_repository_contract.py
 @pytest.fixture(params=["fake", "sql"])
 def repo(request: pytest.FixtureRequest, sql_session: AsyncSession) -> CustomerRepository:
     if request.param == "fake":

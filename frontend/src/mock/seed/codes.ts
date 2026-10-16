@@ -1,4 +1,4 @@
-import type { BantCategory } from '../../shared/model/constants'
+import { LOCKED_KEYS, type BantCategory } from '../../shared/model/constants'
 import type { Code, ForecastOutcome } from '../../shared/model/types'
 import { takeId, type LabelRecord } from '../store'
 import type { SeedEnv } from './env'
@@ -22,7 +22,7 @@ const FORECASTS: readonly (readonly [string, string, ForecastOutcome, string | n
   ['lost', 'Lost', 'lost', null],
 ]
 
-/** Status 7개 + Forecast 6개. 시스템 연결 코드(contract_completed, won)는 locked. */
+/** Status 7개 + Forecast 6개. 시스템 연결 코드 5개(`LOCKED_KEYS`)는 locked. */
 export function seedCodes(counters: Record<string, number>): Code[] {
   const statuses: Code[] = STATUSES.map(([key, name], index) => ({
     id: takeId(counters, 'cd'),
@@ -30,7 +30,7 @@ export function seedCodes(counters: Record<string, number>): Code[] {
     key,
     name,
     order: index + 1,
-    locked: key === 'contract_completed',
+    locked: (LOCKED_KEYS.status as readonly string[]).includes(key),
     outcome: 'open',
     probabilityHint: null,
   }))
@@ -40,7 +40,7 @@ export function seedCodes(counters: Record<string, number>): Code[] {
     key,
     name,
     order: index + 1,
-    locked: key === 'won',
+    locked: (LOCKED_KEYS.forecast as readonly string[]).includes(key),
     outcome,
     probabilityHint: hint,
   }))

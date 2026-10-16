@@ -5,19 +5,20 @@ from uuid import uuid4
 
 import pytest
 
+from app.domain.auth.principal import Role
 from app.domain.user.value_objects import UserDeleteReason, UserId, UserRef
 from tests.factories import later
-from tests.factories_auth import make_user
+from tests.factories_auth import make_resigned_user, make_user
 
 
 def test_label_is_the_name_for_an_active_user() -> None:
-    ref = UserRef(id=UserId(uuid4()), name="홍길동", resigned=False)
+    ref = UserRef(id=UserId(uuid4()), name="홍길동", resigned=False, role=Role.SALES)
 
     assert ref.label == "홍길동"
 
 
 def test_label_adds_resigned_suffix_for_a_resigned_user() -> None:
-    ref = UserRef(id=UserId(uuid4()), name="홍길동", resigned=True)
+    ref = UserRef(id=UserId(uuid4()), name="홍길동", resigned=True, role=Role.SALES)
 
     assert ref.label == "홍길동(퇴사)"
 
@@ -32,12 +33,25 @@ def test_user_ref_of_an_active_user_uses_display_name() -> None:
     assert ref.label == "홍길동"
 
 
-def test_user_ref_has_only_id_name_and_resigned_fields_and_no_login_id() -> None:
+def test_user_ref_has_only_id_name_resigned_and_role_fields_and_no_login_id() -> None:
     names = {f.name for f in dataclasses.fields(UserRef)}
     ref = make_user("hong").to_ref()
 
-    assert names == {"id", "name", "resigned"}
+    assert names == {"id", "name", "resigned", "role"}
     assert not hasattr(ref, "login_id")
+
+
+@pytest.mark.parametrize("role", [Role.ADMIN, Role.SALES, Role.USER])
+def test_user_ref_carries_the_role_of_the_user(role: Role) -> None:
+    ref = make_user("hong", role).to_ref()
+
+    assert ref.role is role
+
+
+def test_user_ref_of_a_resigned_user_still_carries_the_role() -> None:
+    ref = make_resigned_user("hong", Role.SALES).to_ref()
+
+    assert (ref.resigned, ref.role) == (True, Role.SALES)
 
 
 def test_user_ref_name_falls_back_to_login_id_without_display_name() -> None:

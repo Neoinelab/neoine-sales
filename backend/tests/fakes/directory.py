@@ -11,8 +11,6 @@ from app.application.ports.directory import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Awaitable, Callable
-
     from app.domain.auth.credentials import LoginId, Password
     from app.domain.directory.settings import DirectorySettings
 
@@ -31,9 +29,6 @@ class FakeDirectoryAuthenticator:
         self.probe_fails_with: DirectoryError | None = None
         self.authenticate_calls: list[AuthenticateCall] = []
         self.probe_calls: list[DirectorySettings] = []
-        # 경쟁 재현용 훅: 호출을 기록한 직후 실행한다(다른 요청이 끼어드는 상황)
-        self.on_authenticate: Callable[[], Awaitable[None]] | None = None
-        self.on_probe: Callable[[], Awaitable[None]] | None = None
 
     def add_account(
         self,
@@ -50,8 +45,6 @@ class FakeDirectoryAuthenticator:
         self, settings: DirectorySettings, login_id: LoginId, password: Password
     ) -> DirectoryUser:
         self.authenticate_calls.append(AuthenticateCall(settings, login_id, password.reveal()))
-        if self.on_authenticate is not None:
-            await self.on_authenticate()
         if self.fail_with is not None:
             raise self.fail_with
         account = self._accounts.get(login_id.value)
@@ -61,7 +54,5 @@ class FakeDirectoryAuthenticator:
 
     async def probe(self, settings: DirectorySettings) -> None:
         self.probe_calls.append(settings)
-        if self.on_probe is not None:
-            await self.on_probe()
         if self.probe_fails_with is not None:
             raise self.probe_fails_with

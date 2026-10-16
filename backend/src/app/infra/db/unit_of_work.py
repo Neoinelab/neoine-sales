@@ -2,14 +2,17 @@
 
 from typing import TYPE_CHECKING, Self
 
-from app.infra.db.customer_repository import SqlCustomerRepository
+from app.infra.db.attachment_repository import SqlAttachmentRepository
+from app.infra.db.bant_label_repository import SqlBantLabelRepository
+from app.infra.db.code_repository import SqlCodeRepository
+from app.infra.db.contact_repository import SqlContactRepository
 from app.infra.db.deal_action_repository import SqlDealActionRepository
+from app.infra.db.deal_history_repository import SqlDealHistoryRepository
 from app.infra.db.deal_repository import SqlDealRepository
-from app.infra.db.deal_stage_change_repository import SqlDealStageChangeRepository
 from app.infra.db.directory_settings_repository import SqlDirectorySettingsRepository
 from app.infra.db.login_failure_repository import SqlLoginFailureRepository
-from app.infra.db.partner_repository import SqlPartnerRepository
 from app.infra.db.session_repository import SqlSessionRepository
+from app.infra.db.storage_settings_repository import SqlStorageSettingsRepository
 from app.infra.db.user_repository import SqlUserRepository
 
 if TYPE_CHECKING:
@@ -19,30 +22,36 @@ if TYPE_CHECKING:
 
 
 class SqlUnitOfWork:
-    customers: SqlCustomerRepository
-    partners: SqlPartnerRepository
+    contacts: SqlContactRepository
     deals: SqlDealRepository
     deal_actions: SqlDealActionRepository
-    deal_stage_changes: SqlDealStageChangeRepository
+    deal_history: SqlDealHistoryRepository
     sessions: SqlSessionRepository
     users: SqlUserRepository
     login_failures: SqlLoginFailureRepository
     directory_settings: SqlDirectorySettingsRepository
+    storage_settings: SqlStorageSettingsRepository
+    codes: SqlCodeRepository
+    bant_labels: SqlBantLabelRepository
+    attachments: SqlAttachmentRepository
 
     def __init__(self, session_factory: async_sessionmaker[AsyncSession]) -> None:
         self._session_factory = session_factory
 
     async def __aenter__(self) -> Self:
         self._session = self._session_factory()
-        self.customers = SqlCustomerRepository(self._session)
-        self.partners = SqlPartnerRepository(self._session)
+        self.contacts = SqlContactRepository(self._session)
         self.deals = SqlDealRepository(self._session)
         self.deal_actions = SqlDealActionRepository(self._session)
-        self.deal_stage_changes = SqlDealStageChangeRepository(self._session)
+        self.deal_history = SqlDealHistoryRepository(self._session)
         self.sessions = SqlSessionRepository(self._session)
         self.users = SqlUserRepository(self._session)
         self.login_failures = SqlLoginFailureRepository(self._session)
         self.directory_settings = SqlDirectorySettingsRepository(self._session)
+        self.storage_settings = SqlStorageSettingsRepository(self._session)
+        self.codes = SqlCodeRepository(self._session)
+        self.bant_labels = SqlBantLabelRepository(self._session)
+        self.attachments = SqlAttachmentRepository(self._session)
         return self
 
     async def __aexit__(self, *exc: object) -> None:

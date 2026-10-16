@@ -40,8 +40,8 @@ function createDeal(ctx: MockContext, input: DealInput) {
     code: newDealCode(ctx),
     name: input.name.trim(),
     ownerId: input.ownerId,
-    vendor: input.vendor,
-    solution: input.solution,
+    vendor: input.vendor.trim(),
+    solution: input.solution.trim(),
     users: input.users,
     statusKey: input.statusKey,
     forecastKey: input.forecastKey,
@@ -51,7 +51,7 @@ function createDeal(ctx: MockContext, input: DealInput) {
     partnerLinks: partnerId ? [{ contactId: partnerId, active: true, linkedAt: now, unlinkedAt: null }] : [],
     quote: clone(input.quote),
     poc: clone(input.poc),
-    procurement: input.procurement,
+    procurement: input.procurement.trim(),
     bant: clone(input.bant),
     createdAt: now,
     updatedAt: now,
@@ -75,6 +75,9 @@ function updateDeal(ctx: MockContext, code: string, patch: DealPatch) {
     if (patch[key] !== undefined) Object.assign(after, { [key]: clone(patch[key]) })
   }
   if (typeof patch.name === 'string') after.name = patch.name.trim()
+  if (typeof patch.vendor === 'string') after.vendor = patch.vendor.trim()
+  if (typeof patch.solution === 'string') after.solution = patch.solution.trim()
+  if (typeof patch.procurement === 'string') after.procurement = patch.procurement.trim()
   validateDealFields(ctx, after, provided)
 
   let customerPlan: ContactPlan | null = null

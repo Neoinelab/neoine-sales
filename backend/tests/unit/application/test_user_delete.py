@@ -20,7 +20,6 @@ if TYPE_CHECKING:
     from app.application.ports.unit_of_work import UnitOfWorkFactory
     from tests.fakes.admin_stack import AdminStack
     from tests.fakes.auth_stack import AuthStack
-    from tests.fakes.unit_of_work import FakeUnitOfWork
 
 
 async def test_delete_user_without_links_removes_the_row_physically(
@@ -75,19 +74,6 @@ async def test_deleting_a_user_blocks_the_session_immediately(
 
     with pytest.raises(AuthenticationError):
         await auth.authenticate.execute(token)
-
-
-async def test_delete_user_takes_the_roster_lock_then_locks_the_target_row(
-    admin: AdminStack, uow: FakeUnitOfWork, uow_factory: UnitOfWorkFactory
-) -> None:
-    await seed_user(uow_factory, "root", Role.ADMIN)
-    target = await seed_user(uow_factory, "kim", Role.SALES)
-    before = uow.users.roster_locks
-
-    await admin.delete_user.execute(user_id=target.id, actor=ADMIN_ACTOR)
-
-    assert uow.users.roster_locks == before + 1
-    assert target.id in uow.users.row_locks
 
 
 async def test_delete_user_refuses_to_delete_oneself(

@@ -96,7 +96,12 @@ export function DealDetailPage() {
         {tab === 'history' ? (
           <HistoryTab dealCode={data.code} />
         ) : (
-          <ActionsTab deal={data} canWrite={canWrite} onNotice={setNotice} />
+          <ActionsTab
+            deal={data}
+            canWrite={canWrite}
+            me={me === null ? null : { id: me.id, role: me.role }}
+            onNotice={setNotice}
+          />
         )}
       </Tabs>
       {deleting && (

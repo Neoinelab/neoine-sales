@@ -55,7 +55,7 @@ export type ForecastOutcome = 'open' | 'won' | 'lost'
 
 /**
  * Status/Forecast 코드. key는 불변(내부 고유 코드), name·order는 admin이 변경한다.
- * locked=true(Status `contract_completed`, Forecast `won`)는 삭제 불가(이름·순서 변경은 가능).
+ * locked=true(`LOCKED_KEYS` 5개: Status `prospecting`·`contract_completed`, Forecast `pipeline`·`won`·`lost`)는 삭제 불가(이름·순서 변경은 가능).
  * outcome/probabilityHint는 forecast에서만 의미가 있다(status는 outcome='open', probabilityHint=null 고정).
  * probabilityHint는 "0–50" 같은 참고 문자열이며 저장·집계에 쓰지 않는다.
  */

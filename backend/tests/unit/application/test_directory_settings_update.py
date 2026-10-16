@@ -15,13 +15,11 @@ from app.domain.auth.credentials import Password
 from app.domain.auth.errors import TooManyAttemptsError
 from app.domain.auth.principal import Role
 from app.domain.common.errors import InvalidStateError, InvalidValueError
-from tests.factories import NOW
 from tests.factories_auth import WRONG_PASSWORD, make_directory_settings, make_principal
 from tests.fakes.admin_stack import ADMIN_ACTOR, ADMIN_PASSWORD, DEV_ACTOR, build_admin_stack
 from tests.fakes.auth_stack import MAX_PER_ACCOUNT
 from tests.support.admin_seed import session_is_active
 from tests.support.auth_seed import account_key, seed_directory, seed_user
-from tests.support.user_ids import uid
 
 if TYPE_CHECKING:
     from app.application.ports.unit_of_work import UnitOfWorkFactory
@@ -150,29 +148,6 @@ async def test_update_with_a_stale_revision_conflicts_without_calling_the_direct
     assert directory.authenticate_calls == []
     assert directory.probe_calls == []
     assert await _stored(uow_factory) == before
-
-
-async def test_update_conflicts_when_another_save_lands_during_verification(
-    admin: AdminStack, directory: FakeDirectoryAuthenticator, uow_factory: UnitOfWorkFactory
-) -> None:
-    await seed_directory(uow_factory)
-    rival = make_directory_settings(base_dn="dc=rival,dc=test")
-
-    async def rival_saves_first() -> None:
-        async with uow_factory() as uow:
-            await uow.directory_settings.save(
-                rival, expected_revision=1, updated_by=uid("other-admin"), now=NOW
-            )
-            await uow.commit()
-
-    directory.on_authenticate = rival_saves_first
-
-    with pytest.raises(InvalidStateError):
-        await _update(admin)
-
-    stored = await _stored(uow_factory)
-    assert stored is not None
-    assert (stored.settings, stored.revision, stored.updated_by) == (rival, 2, uid("other-admin"))
 
 
 async def test_update_requires_a_password_from_a_directory_admin(

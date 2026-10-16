@@ -6,7 +6,7 @@ from app.domain.auth.principal import NAME_MAX, Principal, Role
 from app.domain.common.contact import EMAIL_MAX_LENGTH
 from app.domain.common.entity import AuditedEntity
 from app.domain.common.errors import InvalidStateError
-from app.domain.common.validation import require_aware
+from app.domain.common.validation import optional_text, require_aware
 from app.domain.user.messages import ALREADY_RESIGNED
 from app.domain.user.value_objects import UserDeleteReason, UserId, UserRef
 
@@ -41,7 +41,7 @@ class User(AuditedEntity[UserId]):
             require_aware(self.deleted_at, "deleted_at")
 
     @classmethod
-    def register(
+    def register(  # noqa: PLR0913 - 위치 2개 + 키워드 전용 4개가 모두 의미 있는 입력
         cls,
         login_id: LoginId,
         role: Role,
@@ -49,12 +49,15 @@ class User(AuditedEntity[UserId]):
         created_by_user_id: UserId,
         now: datetime,
         entity_id: UserId | None = None,
+        display_name: str | None = None,
     ) -> Self:
+        """사람이 입력한 표시 이름은 NUL·길이 초과를 거절한다(자르지 않는다). 빈 값은 None."""
         return cls(
             id=entity_id or UserId(uuid4()),
             login_id=login_id,
             role=role,
             created_by_user_id=created_by_user_id,
+            display_name=optional_text(display_name, "표시 이름", max_length=NAME_MAX),
             created_at=now,
             updated_at=now,
         )
@@ -93,6 +96,7 @@ class User(AuditedEntity[UserId]):
             id=self.id,
             name=self.display_name or self.login_id.value,
             resigned=not self.is_active,
+            role=self.role,
         )
 
     def to_principal(self) -> Principal:

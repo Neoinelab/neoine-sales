@@ -55,23 +55,3 @@ async def test_fake_probe_records_settings_and_can_fail() -> None:
         await fake.probe(settings)
 
     assert fake.probe_calls == [settings, settings]
-
-
-async def test_fake_hooks_run_after_the_call_is_recorded() -> None:
-    fake = FakeDirectoryAuthenticator()
-    fake.add_account("kim", "pw-1")
-    seen: list[int] = []
-
-    async def on_authenticate() -> None:
-        seen.append(len(fake.authenticate_calls))
-
-    async def on_probe() -> None:
-        seen.append(100 + len(fake.probe_calls))
-
-    fake.on_authenticate = on_authenticate
-    fake.on_probe = on_probe
-
-    await fake.authenticate(make_directory_settings(), LoginId("kim"), Password("pw-1"))
-    await fake.probe(make_directory_settings())
-
-    assert seen == [1, 101]

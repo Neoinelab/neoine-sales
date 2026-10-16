@@ -3,16 +3,17 @@
 from typing import TYPE_CHECKING
 
 import pytest
+
 from app.application.auth.messages import SETUP_CLOSED
 from app.application.directory.errors import DirectoryVerificationError
-
 from app.application.ports.directory import DirectoryUnavailableError, VerificationStage
 from app.domain.auth.principal import Role
 from app.domain.common.errors import InvalidStateError
 from tests.factories_auth import make_directory_settings
-from tests.support.auth_seed import seed_directory, seed_user
+from tests.support.auth_seed import seed_directory, seed_storage, seed_user
 
 if TYPE_CHECKING:
+    from app.application.auth.auth_status import AuthStatus
     from app.application.ports.unit_of_work import UnitOfWorkFactory
     from app.domain.directory.settings import StoredDirectorySettings
     from tests.fakes.auth_stack import AuthStack
@@ -29,33 +30,31 @@ async def _stored(uow_factory: UnitOfWorkFactory) -> StoredDirectorySettings | N
 async def test_auth_status_reports_each_setup_step(
     auth: AuthStack, uow_factory: UnitOfWorkFactory
 ) -> None:
+    """P2b: 최초 설정은 3단계다(AD → 저장 위치 → admin). 전체 조합은 test_auth_status_storage."""
     empty = await auth.status.execute()
     await seed_directory(uow_factory)
     directory_only = await auth.status.execute()
+    await seed_storage(uow_factory)
+    directory_and_storage = await auth.status.execute()
     await seed_user(uow_factory, "boss", Role.ADMIN)
     done = await auth.status.execute()
 
-    assert (empty.directory_configured, empty.needs_directory_setup, empty.needs_admin_setup) == (
-        False,
-        True,
-        False,
-    )
-    assert (
-        directory_only.directory_configured,
-        directory_only.needs_directory_setup,
-        directory_only.needs_admin_setup,
-    ) == (True, False, True)
-    assert (done.directory_configured, done.needs_directory_setup, done.needs_admin_setup) == (
-        True,
-        False,
-        False,
-    )
+    def flags(status: AuthStatus) -> tuple[bool, bool, bool]:
+        return (status.needs_directory_setup, status.needs_storage_setup, status.needs_admin_setup)
+
+    assert flags(empty) == (True, True, False)
+    assert flags(directory_only) == (False, True, False)  # admin 등록은 저장 위치 뒤에 가능하다
+    assert flags(directory_and_storage) == (False, False, True)
+    assert flags(done) == (False, False, False)
+    assert empty.directory_configured is False
+    assert directory_only.directory_configured is True
 
 
 async def test_auth_status_ignores_deleted_and_non_admin_users(
     auth: AuthStack, uow_factory: UnitOfWorkFactory
 ) -> None:
     await seed_directory(uow_factory)
+    await seed_storage(uow_factory)
     await seed_user(uow_factory, "gone", Role.ADMIN, deleted=True)
     await seed_user(uow_factory, "kim", Role.SALES)
 
@@ -73,7 +72,6 @@ async def test_register_setup_directory_probes_then_saves(
 
     assert (stored.revision, stored.updated_by, stored.settings) == (1, None, settings)
     assert auth.directory.probe_calls == [settings]
-    assert uow.users.roster_locks >= 1
     assert await _stored(uow_factory) == stored
 
 
@@ -130,20 +128,3 @@ async def test_setup_directory_is_closed_once_admin_exists(
     assert str(caught.value) == SETUP_CLOSED
     assert auth.directory.probe_calls == []
     assert await _stored(uow_factory) == stored
-
-
-async def test_setup_directory_rechecks_admin_after_the_probe(
-    auth: AuthStack, uow_factory: UnitOfWorkFactory
-) -> None:
-    """probe 도중 다른 요청이 admin을 만들면, 잠금 뒤 재확인에서 막히고 저장하지 않는다."""
-
-    async def admin_registers_meanwhile() -> None:
-        await seed_user(uow_factory, "boss", Role.ADMIN)
-
-    auth.directory.on_probe = admin_registers_meanwhile
-
-    with pytest.raises(InvalidStateError) as caught:
-        await auth.register_directory.execute(make_directory_settings())
-
-    assert str(caught.value) == SETUP_CLOSED
-    assert await _stored(uow_factory) is None

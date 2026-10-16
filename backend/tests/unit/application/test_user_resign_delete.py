@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 from app.application.auth.tokens import hash_token
+from app.application.ports.deal_repository import DealQuery
 from app.application.user.delete_user import DeleteOutcome
 from app.domain.auth.errors import AuthenticationError
 from app.domain.auth.principal import Role
@@ -80,7 +81,8 @@ async def test_resigned_user_keeps_the_references_that_pointed_to_him(
     await admin.delete_user.execute(user_id=target.id, actor=root.to_principal())
 
     async with uow_factory() as uow:
-        (deal,) = await uow.deals.list()
+        (item,) = await uow.deals.search(DealQuery())
+        deal = item.deal
         refs = await uow.users.get_refs([deal.details.owner_user_id])
     assert refs[target.id].resigned is True
     assert refs[target.id].label.endswith("(퇴사)")

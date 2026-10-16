@@ -19,12 +19,18 @@ USER_REF_PATTERN: Final = re.compile(
     r"(^|_)(user_id|subject|created_by|updated_by|changed_by|registered_by|owner|actor)(_|$)"
 )
 RESTRICT: Final = "r"
+CASCADE: Final = "c"
 USERS_TABLE: Final = "users"
+# Deal 소속 데이터(파트너 링크·BANT 선택·이력·활동)는 Deal을 지우면 함께 지워진다(P1: CASCADE).
+# 그 밖의 모든 FK는 RESTRICT여야 한다.
+DEAL_OWNED_PARENT: Final = "deals"
 
 FOREIGN_KEYS_SQL = text(
     "select c.conname as name, c.conrelid::regclass::text as tbl, a.attname as col,"
     " c.confrelid::regclass::text as ref_tbl, c.confdeltype::text as on_delete,"
-    " c.condeferrable as deferrable"
+    " c.condeferrable as deferrable,"
+    " (select array_agg(att.attname::text) from unnest(c.conkey) as k(num)"
+    "  join pg_attribute att on att.attrelid = c.conrelid and att.attnum = k.num) as cols"
     " from pg_constraint c"
     " join pg_attribute a on a.attrelid = c.conrelid and a.attnum = c.conkey[1]"
     " where c.contype = 'f' and c.connamespace = 'public'::regnamespace"
@@ -64,14 +70,30 @@ class ForeignKey:
     ref_table: str
     on_delete: str
     deferrable: bool
+    columns: tuple[str, ...] = ()  # 복합 FK의 모든 컬럼(첫 컬럼이 column)
 
 
 async def foreign_keys(session: AsyncSession) -> list[ForeignKey]:
     rows = (await session.execute(FOREIGN_KEYS_SQL)).all()
     return [
-        ForeignKey(r.name, r.tbl, r.col, r.ref_tbl, r.on_delete.strip(), bool(r.deferrable))
+        ForeignKey(
+            r.name,
+            r.tbl,
+            r.col,
+            r.ref_tbl,
+            r.on_delete.strip(),
+            bool(r.deferrable),
+            tuple(r.cols),
+        )
         for r in rows
     ]
+
+
+def _delete_rule_violated(fk: ForeignKey) -> bool:
+    """RESTRICT가 기본이다. Deal 소속 데이터가 deals를 가리킬 때만 CASCADE를 허용한다."""
+    if fk.on_delete == RESTRICT:
+        return False
+    return not (fk.ref_table == DEAL_OWNED_PARENT and fk.on_delete == CASCADE)
 
 
 async def check_schema(
@@ -84,11 +106,12 @@ async def check_schema(
     fk_by_column = {(fk.table, fk.column): fk for fk in fks}
     found: list[Violation] = []
     for fk in fks:
-        if fk.on_delete != RESTRICT:
+        if _delete_rule_violated(fk):
             found.append(Violation("fk_not_restrict", fk.table, fk.column))
         if fk.deferrable:
             found.append(Violation("fk_deferrable", fk.table, fk.column))
-        if (fk.table, fk.column) not in leading:
+        # 복합 FK(예: (status_kind, status_key))는 컬럼 하나라도 인덱스의 선두면 된다.
+        if not any((fk.table, column) in leading for column in fk.columns or (fk.column,)):
             found.append(Violation("fk_column_without_leading_index", fk.table, fk.column))
     for col in columns:
         if USER_REF_PATTERN.search(col.col):

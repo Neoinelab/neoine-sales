@@ -24,6 +24,15 @@ export function lookupFor(ctx: MockContext): HistoryLookup {
   }
 }
 
+const TARGET_MAX = 300
+const TEXT_MAX = 1000
+
+/** 서버와 같이 코드 포인트 기준으로 자른다. 넘으면 앞 N-1자 + '…'(총 N). */
+function clip(text: string, max: number): string {
+  const points = Array.from(text)
+  return points.length <= max ? text : `${points.slice(0, max - 1).join('')}…`
+}
+
 /** 한 건 기록. 시각은 시계의 now, 순서는 seq로 보장한다. */
 export function logHistory(
   ctx: MockContext,
@@ -42,9 +51,9 @@ export function logHistory(
     at: ctx.clock.now(),
     byId,
     category,
-    target,
-    before,
-    after,
+    target: clip(target, TARGET_MAX),
+    before: clip(before, TEXT_MAX),
+    after: clip(after, TEXT_MAX),
   })
 }
 

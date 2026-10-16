@@ -20,7 +20,7 @@ class Email:
     def __post_init__(self) -> None:
         normalized = self.value.strip().lower()
         if len(normalized) > EMAIL_MAX_LENGTH or not _EMAIL_PATTERN.match(normalized):
-            raise InvalidValueError(f"이메일 형식이 올바르지 않습니다: {self.value!r}")
+            raise InvalidValueError("이메일 형식이 올바르지 않습니다.")
         assign(self, value=normalized)
 
 
@@ -33,5 +33,5 @@ class PhoneNumber:
         digits = sum(ch.isdigit() for ch in text)
         valid_length = PHONE_MIN_DIGITS <= digits <= PHONE_MAX_DIGITS
         if not text or not _PHONE_PATTERN.match(text) or not valid_length:
-            raise InvalidValueError(f"전화번호 형식이 올바르지 않습니다: {self.value!r}")
+            raise InvalidValueError("전화번호 형식이 올바르지 않습니다.")
         assign(self, value=text)

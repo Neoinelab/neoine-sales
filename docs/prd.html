@@ -495,7 +495,7 @@ code{background:var(--soft);padding:1px 5px;border-radius:3px;font-size:12.5px}
 <tr><td>Deal 삭제</td><td>sales 본인의 Deal(Owner가 본인) 또는 admin만 삭제 가능. 둘 다 확인 팝업에서 Deal code를 직접 입력해야 삭제. 삭제 시 Deal History, Action, 첨부 파일 디렉터리 등 관련 데이터를 모두 함께 삭제. Deal History가 있어도 삭제 가능</td></tr>
 <tr><td>Deal 등록 이력</td><td>Deal 등록도 Deal History에 한 건으로 기록</td></tr>
 <tr><td>등록자 컬럼</td><td><code>deals.registered_by_user_id</code>는 제거. Owner만 존재하며 등록자는 Deal History의 등록 기록에 남음. 기존 등록자 데이터 이전 없음</td></tr>
-<tr><td>Forecast 확률</td><td>참고용. 저장·집계에 쓰지 않음</td></tr>
+<tr><td>Forecast 확률</td><td>참고용. 저장·집계에 쓰지 않음. Forecast 코드의 <code>probability_hint</code>(예: "0–50")는 화면 표시용 문구로만 두며 admin이 Deal 관리에서 고칠 수 있다. 계산·검증·집계에 쓰지 않고, Status 코드에는 없다</td></tr>
 <tr><td>Forecast 코드</td><td>슬라이드 4 기준: Pipeline(0–50) / Best(51–75) / Most Likely(75–85) / Commit(85–100) / Won / Lost</td></tr>
 <tr><td>매출일</td><td><code>revenue_date</code> = 매출일 = Expected Close. Won이면 최종 매출일자로 갱신, Lost면 마지막 Expected Close 유지</td></tr>
 <tr><td>Status</td><td>7단계. POC 단계는 POC 준비·POC 완료 두 개뿐. Lost는 Status에서 제외</td></tr>

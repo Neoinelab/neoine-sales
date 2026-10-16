@@ -64,6 +64,25 @@ def test_render_report_all_passed() -> None:
     assert "실패 상세" not in report
 
 
+def test_select_gates_runs_only_unit_tests_by_default() -> None:
+    pytest_gate = next(g for g in gates.select_gates(None, full=False) if g.name == "pytest")
+
+    assert pytest_gate.command == ("uv", "run", "pytest", "-q", "tests/unit")
+
+
+def test_select_gates_full_runs_every_test() -> None:
+    pytest_gate = next(g for g in gates.select_gates(None, full=True) if g.name == "pytest")
+
+    assert pytest_gate.command == ("uv", "run", "pytest", "-q")
+
+
+def test_select_gates_only_keeps_requested_gates_and_full_flag() -> None:
+    selected = gates.select_gates(["mypy", "pytest"], full=True)
+
+    assert [g.name for g in selected] == ["mypy", "pytest"]
+    assert selected[1].command == ("uv", "run", "pytest", "-q")
+
+
 def test_gate_commands_cover_ci_quality_steps() -> None:
     names = [g.name for g in gates.GATES]
 

@@ -9,7 +9,7 @@ const sources = import.meta.glob('../features/**/*.{ts,tsx}', { query: '?raw', i
   string
 >
 
-const FORBIDDEN = /(?:from\s+|import\s*\(\s*|import\s+)['"][^'"]*(?:shared\/api|\/mock)(?:\/[^'"]*)?['"]/
+const FORBIDDEN = /(?:from\s+|import\s*\(\s*|import\s+)['"][^'"]*(?:shared\/api|\/mock|gateway\/http)(?:\/[^'"]*)?['"]/
 
 function featureSources(): [string, string][] {
   return Object.entries(sources).filter(([path]) => !/\.test\.tsx?$/.test(path))
@@ -63,6 +63,9 @@ describe('T-ARCH-01 features 경계', () => {
     expect(FORBIDDEN.test("import { ApiError } from '../../shared/api/problem'")).toBe(true)
     expect(FORBIDDEN.test("import { x } from '../../mock/default'")).toBe(true)
     expect(FORBIDDEN.test("const m = await import('../../mock')")).toBe(true)
+    expect(FORBIDDEN.test("import { createHttpGateway } from '../../gateway/http'")).toBe(true)
+    expect(FORBIDDEN.test("import { unwrap } from '../../gateway/http/request'")).toBe(true)
+    expect(FORBIDDEN.test("import { gatewayMode } from '../../gateway/mode'")).toBe(false)
     expect(FORBIDDEN.test("import { useDeals } from '../../data/deals'")).toBe(false)
     expect(FORBIDDEN.test("import type { Deal } from '../../shared/model/types'")).toBe(false)
   })

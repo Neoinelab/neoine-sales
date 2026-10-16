@@ -6,7 +6,7 @@ login_id로 여러 개 있을 수 있으므로 login_id 조회는 재직 행(del
 
 from typing import TYPE_CHECKING
 
-from sqlalchemy import ColumnElement, func, select, text, update
+from sqlalchemy import ColumnElement, String, func, literal, select, text, update
 
 from app.application.ports.pagination import DEFAULT_LIMIT, check_page
 from app.domain.auth.credentials import LoginId
@@ -74,6 +74,7 @@ def _to_ref(row: UserRow) -> UserRef:
         id=UserId(row.id),
         name=row.display_name or row.login_id,
         resigned=row.deleted_at is not None,
+        role=Role(row.role),
     )
 
 
@@ -132,7 +133,7 @@ class SqlUserRepository(SqlRepository[UserRow]):
         statement = (
             select(UserRow)
             .where(
-                func.lower(UserRow.login_id) == login_id.value.lower(),
+                func.lower(UserRow.login_id) == func.lower(literal(login_id.value, String)),
                 UserRow.deleted_at.is_(None),
             )
             .execution_options(populate_existing=True)
@@ -154,17 +155,27 @@ class SqlUserRepository(SqlRepository[UserRow]):
         return [_to_entity(row) for row in rows]
 
     async def search_refs(
-        self, *, keyword: str | None, include_resigned: bool, limit: int
+        self,
+        *,
+        keyword: str | None,
+        include_resigned: bool,
+        role: Role | None = None,
+        limit: int | None = None,
     ) -> Sequence[UserRef]:
-        check_page(0, limit)
+        if limit is not None:
+            check_page(0, limit)
         statement = select(UserRow).order_by(UserRow.created_at, UserRow.id)
         if not include_resigned:
             statement = statement.where(UserRow.deleted_at.is_(None))
+        if role is not None:
+            statement = statement.where(UserRow.role == role.value)
         if keyword:
             # 화면에 보이는 이름(표시 이름, 없으면 login_id)만 매칭한다
             name = func.coalesce(func.nullif(UserRow.display_name, ""), UserRow.login_id)
             statement = statement.where(name.ilike(like_pattern(keyword), escape=LIKE_ESCAPE))
-        statement = statement.limit(limit).execution_options(populate_existing=True)
+        if limit is not None:
+            statement = statement.limit(limit)
+        statement = statement.execution_options(populate_existing=True)
         return [_to_ref(row) for row in (await self._session.scalars(statement)).all()]
 
     async def count_active_admins(self) -> int:

@@ -14,15 +14,17 @@ class InvalidStateError(DomainError):
 
 
 class NotFoundError(DomainError):
-    def __init__(self, entity: str, identifier: object) -> None:
-        super().__init__(f"{entity}을(를) 찾을 수 없습니다: {identifier}")
+    def __init__(self, entity: str, identifier: object, *, message: str | None = None) -> None:
+        """message를 주면 완성된 사용자 문구를 그대로 쓴다(없으면 기본 형식)."""
+        super().__init__(message or f"{entity}을(를) 찾을 수 없습니다: {identifier}")
         self.entity = entity
         self.identifier = identifier
 
 
 class AlreadyExistsError(DomainError):
-    def __init__(self, entity: str, identifier: object) -> None:
-        super().__init__(f"이미 존재하는 {entity}입니다: {identifier}")
+    def __init__(self, entity: str, identifier: object, *, message: str | None = None) -> None:
+        """message를 주면 완성된 사용자 문구를 그대로 쓴다(없으면 기본 형식)."""
+        super().__init__(message or f"이미 존재하는 {entity}입니다: {identifier}")
         self.entity = entity
         self.identifier = identifier
 

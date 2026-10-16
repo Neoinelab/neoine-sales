@@ -21,6 +21,12 @@ class Page[ItemT](BaseModel):
     limit: int
 
 
+class CountedPage[ItemT](Page[ItemT]):
+    """전체 건수(total)를 함께 돌려주는 페이지."""
+
+    total: int
+
+
 class Problem(BaseModel):
     """RFC 9457 problem+json 본문(문서용)."""
 

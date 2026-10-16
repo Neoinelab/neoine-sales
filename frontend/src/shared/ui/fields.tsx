@@ -11,9 +11,11 @@ export function TextField(
     value: string
     onChange: (value: string) => void
     type?: 'text' | 'password' | 'email' | 'tel' | 'number' | 'date' | 'datetime-local'
+    /** 브라우저 자동 채움 힌트(`username`, `current-password`, `off` …). 생략하면 브라우저가 정한다. */
+    autoComplete?: string
   },
 ) {
-  const { label, name, value, onChange, type = 'text', required } = props
+  const { label, name, value, onChange, type = 'text', required, autoComplete } = props
   return (
     <label className="field">
       <span>{label}</span>
@@ -22,6 +24,7 @@ export function TextField(
         type={type}
         value={value}
         required={required}
+        autoComplete={autoComplete}
         onChange={(e: ChangeEvent<HTMLInputElement>) => onChange(e.target.value)}
       />
     </label>

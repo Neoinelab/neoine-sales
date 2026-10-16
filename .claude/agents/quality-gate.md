@@ -27,7 +27,7 @@ model: haiku
 
 1. 작업 디렉터리를 `backend/`로 두고 실행한다:
    `uv run python scripts/run_gates.py --report ../artifacts/30-review/gate.md`
-   (일부만: `--only mypy --only pytest`)
+   (일부만: `--only mypy --only pytest`). pytest 게이트는 **단위 테스트(`tests/unit`)만** 실행한다. functional을 포함한 전체는 Jenkins 빌드가 맡으므로, 사용자가 명시적으로 요청할 때만 `--full`을 붙인다. 리포트에 "pytest 범위: 단위만 | 전체"를 적는다.
 2. 종료 코드와 리포트를 읽는다. 0이면 PASS, 아니면 FAIL이다.
 3. 실패 항목마다 리포트의 "수정 담당"과 실패 상세(파일:줄)를 그대로 옮긴다. 담당을 추측하지 않는다. 담당이 `-`이면 "미분류"로 적는다.
 4. 사람의 판단이 필요한 항목(예: 도구 설정 문제, 환경 문제)은 "사람 확인 필요"로 표시한다.

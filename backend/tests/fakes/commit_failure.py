@@ -1,0 +1,39 @@
+"""commit만 실패하는 Unit of Work 대역. 커밋 실패 때 디스크 파일이 어떻게 되는지 확인하는 용도.
+
+FakeUnitOfWork를 감싼다. `async with`, repository 속성 읽기는 그대로 전달하고 `commit()`만
+RuntimeError를 던진다(변경은 블록을 벗어나며 폐기된다).
+"""
+
+from typing import TYPE_CHECKING, Any, Self
+
+if TYPE_CHECKING:
+    from app.application.ports.unit_of_work import UnitOfWorkFactory
+    from tests.fakes.unit_of_work import FakeUnitOfWork
+
+COMMIT_FAILED = "commit failed (test double)"
+
+
+class CommitFailingUnitOfWork:
+    def __init__(self, inner: FakeUnitOfWork) -> None:
+        self._inner = inner
+
+    def __getattr__(self, name: str) -> Any:  # noqa: ANN401 - repository 속성을 그대로 전달
+        return getattr(self._inner, name)
+
+    async def __aenter__(self) -> Self:
+        await self._inner.__aenter__()
+        return self
+
+    async def __aexit__(self, *exc: object) -> None:
+        await self._inner.__aexit__(*exc)
+
+    async def commit(self) -> None:
+        raise RuntimeError(COMMIT_FAILED)
+
+    async def rollback(self) -> None:
+        await self._inner.rollback()
+
+
+def commit_failing_factory(inner: FakeUnitOfWork) -> UnitOfWorkFactory:
+    wrapper = CommitFailingUnitOfWork(inner)
+    return lambda: wrapper

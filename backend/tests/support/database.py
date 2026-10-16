@@ -64,11 +64,55 @@ async def create_database(admin_url: URL) -> URL:
     return admin_url.set(database=name)
 
 
+_RETRYABLE_DROP_ERRORS = ("InsufficientPrivilegeError", "ObjectInUseError")
+DROP_MAX_ATTEMPTS = 10
+
+
+def _is_retryable_drop_error(error: BaseException) -> bool:
+    """FORCE가 남의 백엔드(autovacuum 등)를 끊지 못했거나 아직 연결이 남아 있는 경우."""
+    cause: BaseException | None = error
+    while cause is not None:
+        if type(cause).__name__ in _RETRYABLE_DROP_ERRORS:
+            return True
+        cause = cause.__cause__ or getattr(cause, "orig", None)
+    return False
+
+
+async def drop_with_retry(
+    execute: Callable[[], Coroutine[Any, Any, None]],
+    *,
+    sleep: Callable[[float], Coroutine[Any, Any, None]] = asyncio.sleep,
+    max_attempts: int = DROP_MAX_ATTEMPTS,
+    first_delay: float = 0.2,
+) -> int:
+    """삭제 실행기를 재시도한다(권한/사용 중 오류만, 지수 대기).
+
+    시도 횟수를 돌려주고 끝까지 실패하면 예외를 올린다.
+    """
+    delay = first_delay
+    for attempt in range(1, max_attempts + 1):
+        try:
+            await execute()
+        except Exception as error:
+            if attempt == max_attempts or not _is_retryable_drop_error(error):
+                raise
+            await sleep(delay)
+            delay = min(delay * 1.6, 1.0)
+        else:
+            return attempt
+    raise AssertionError("unreachable")  # pragma: no cover
+
+
 async def drop_database(admin_url: URL, name: str) -> None:
+    """임시 DB를 지운다. 이미 없으면 정상. 다른 백엔드가 붙어 있어 실패하면 잠시 후 재시도한다."""
     engine = create_async_engine(admin_url, isolation_level="AUTOCOMMIT", poolclass=NullPool)
-    try:
+
+    async def execute() -> None:
         async with engine.connect() as connection:
             await connection.execute(text(f'DROP DATABASE IF EXISTS "{name}" WITH (FORCE)'))
+
+    try:
+        await drop_with_retry(execute)
     finally:
         await engine.dispose()
 

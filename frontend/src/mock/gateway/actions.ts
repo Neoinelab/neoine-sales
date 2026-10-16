@@ -1,10 +1,10 @@
 import type { ActionsGateway } from '../../gateway/types'
 import { canEditAction } from '../../shared/model/permissions'
-import { compareIso, datePart } from '../../shared/model/dates'
+import { compareIso } from '../../shared/model/dates'
 import type { ActionInput, ActionQuery, ActionUpdateInput } from '../../shared/model/types'
 import { forbidden, notFound, validation } from '../errors'
 import { takeId, type ActionRecord } from '../store'
-import { read, requireUser, requireWrite, write, type MockContext } from './context'
+import { read, requireUser, requireWrite, viewerOf, write, type MockContext } from './context'
 import { commitDealChange, planDealChange, type ChangeOutcome } from './dealChange'
 import { logHistory } from './historyLog'
 import { actionView, findDeal } from './views'
@@ -18,8 +18,27 @@ function validateFields(input: ActionUpdateInput): void {
   if (!DATE.test(input.dueDate)) throw validation('Due Date를 입력하세요.')
 }
 
-function summary(a: Pick<ActionRecord, 'type' | 'progress' | 'nextAction' | 'dueDate'>): string {
-  return `${a.type} · ${a.progress} / Next Action: ${a.nextAction} (Due ${a.dueDate})`
+type Content = Pick<ActionRecord, 'type' | 'progress' | 'nextAction' | 'dueDate' | 'memo'>
+
+function summary(a: Content): string {
+  const base = `${a.type} · ${a.progress} / Next Action: ${a.nextAction} (Due ${a.dueDate})`
+  return a.memo === '' ? base : `${base} / Memo: ${a.memo}`
+}
+
+const same = (a: Content, b: Content): boolean =>
+  a.type === b.type && a.progress === b.progress && a.nextAction === b.nextAction && a.dueDate === b.dueDate && a.memo === b.memo
+
+const pad = (n: number): string => String(n).padStart(2, '0')
+
+/** 인스턴트를 브라우저(로컬) 달력 날짜로 바꾼다. 문자열 날짜 부분은 오프셋에 따라 어긋날 수 있다. */
+function localDate(iso: string): string {
+  const d = new Date(iso)
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+}
+
+function validateRanges(q: ActionQuery): void {
+  if (q.actedFrom && q.actedTo && q.actedFrom > q.actedTo) throw validation('수행일 범위의 시작은 끝보다 늦을 수 없습니다.')
+  if (q.dueFrom && q.dueTo && q.dueFrom > q.dueTo) throw validation('Due Date 범위의 시작은 끝보다 늦을 수 없습니다.')
 }
 
 function findAction(ctx: MockContext, id: string): ActionRecord {
@@ -35,7 +54,7 @@ function matches(a: ActionRecord, q: ActionQuery): boolean {
     const needle = q.keyword.trim().toLowerCase()
     if (![a.progress, a.nextAction, a.memo].some((t) => t.toLowerCase().includes(needle))) return false
   }
-  const acted = datePart(a.actedAt)
+  const acted = localDate(a.actedAt)
   if (q.actedFrom && acted < q.actedFrom) return false
   if (q.actedTo && acted > q.actedTo) return false
   if (q.dueFrom && a.dueDate < q.dueFrom) return false
@@ -56,6 +75,7 @@ export function createActionsGateway(ctx: MockContext): ActionsGateway {
       read(ctx, () => {
         requireUser(ctx)
         findDeal(ctx.store.data, dealCode)
+        validateRanges(query)
         const rows = ctx.store.data.actions.filter((a) => a.dealCode === dealCode && matches(a, query))
         return sorted(rows, query.sort).map((a) => actionView(ctx.store.data, a))
       }),
@@ -77,7 +97,7 @@ export function createActionsGateway(ctx: MockContext): ActionsGateway {
           progress: input.progress.trim(),
           nextAction: input.nextAction.trim(),
           dueDate: input.dueDate,
-          memo: input.memo,
+          memo: input.memo.trim(),
           // 등록 시점(상태 변경이 있으면 적용 후) 값을 저장한다.
           statusKey: deal.statusKey,
           forecastKey: deal.forecastKey,
@@ -88,26 +108,28 @@ export function createActionsGateway(ctx: MockContext): ActionsGateway {
       }),
     update: (actionId, input: ActionUpdateInput) =>
       write(ctx, () => {
-        const user = requireUser(ctx)
-        if (!canEditAction(user.role)) throw forbidden()
+        const user = requireWrite(ctx)
         const record = findAction(ctx, actionId)
+        if (!canEditAction(viewerOf(user), record.actorId)) throw forbidden('본인 Action 또는 admin만 수정할 수 있습니다.')
         validateFields(input)
-        const before = summary(record)
-        Object.assign(record, {
+        const next: Content = {
           type: input.type,
           progress: input.progress.trim(),
           nextAction: input.nextAction.trim(),
           dueDate: input.dueDate,
-          memo: input.memo,
-        })
+          memo: input.memo.trim(),
+        }
+        if (same(record, next)) return actionView(ctx.store.data, record)
+        const before = summary(record)
+        Object.assign(record, next)
         logHistory(ctx, record.dealCode, user.id, 'action', 'Action', before, `수정: ${summary(record)}`)
         return actionView(ctx.store.data, record)
       }),
     remove: (actionId) =>
       write(ctx, () => {
-        const user = requireUser(ctx)
-        if (!canEditAction(user.role)) throw forbidden()
+        const user = requireWrite(ctx)
         const record = findAction(ctx, actionId)
+        if (!canEditAction(viewerOf(user), record.actorId)) throw forbidden('본인 Action 또는 admin만 삭제할 수 있습니다.')
         const { actions } = ctx.store.data
         actions.splice(actions.indexOf(record), 1)
         logHistory(ctx, record.dealCode, user.id, 'action', 'Action', summary(record), '삭제')

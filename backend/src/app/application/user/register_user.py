@@ -25,10 +25,18 @@ class RegisterUser:
         self._uow_factory = uow_factory
         self._clock = clock
 
-    async def execute(self, *, login_id: str, role: Role, actor: Principal) -> User:
+    async def execute(
+        self, *, login_id: str, role: Role, actor: Principal, display_name: str | None = None
+    ) -> User:
         account = LoginId(login_id)
         ensure_not_reserved_login_id(account)
-        user = User.register(account, role, created_by_user_id=actor.user_id, now=self._clock.now())
+        user = User.register(
+            account,
+            role,
+            created_by_user_id=actor.user_id,
+            now=self._clock.now(),
+            display_name=display_name,
+        )
         async with self._uow_factory() as uow:
             await uow.users.lock_roster()
             try:

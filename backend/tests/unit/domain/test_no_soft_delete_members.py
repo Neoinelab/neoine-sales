@@ -6,24 +6,33 @@ import pytest
 
 from tests.factories import (
     later,
-    make_customer,
-    make_customer_details,
+    make_action_content,
     make_deal,
     make_deal_action,
-    make_deal_action_details,
     make_deal_details,
-    make_partner,
-    make_partner_details,
 )
 from tests.factories_auth import make_user
 
 if TYPE_CHECKING:
     from collections.abc import Callable
 
+
+def _customer_contact() -> Any:  # noqa: ANN401
+    from tests.factories_contact import make_customer  # noqa: PLC0415 - 연락처 구현 지연 import
+
+    return make_customer()
+
+
+def _partner_contact() -> Any:  # noqa: ANN401
+    from tests.factories_contact import make_partner  # noqa: PLC0415 - 연락처 구현 지연 import
+
+    return make_partner()
+
+
 SOFT_DELETE_MEMBERS = ("deleted_at", "is_deleted", "soft_delete", "restore", "_ensure_active")
 MAKERS: dict[str, Callable[..., Any]] = {
-    "customer": make_customer,
-    "partner": make_partner,
+    "customer_contact": _customer_contact,
+    "partner_contact": _partner_contact,
     "deal": make_deal,
     "deal_action": make_deal_action,
 }  # users는 퇴사 처리(소프트 삭제)가 재도입된 유일한 예외다. 아래 별도 테스트가 범위를 고정한다.
@@ -39,30 +48,35 @@ def test_entity_has_no_soft_delete_member(name: str, member: str) -> None:
     assert not hasattr(type(entity), member)
 
 
-def test_customer_update_works_without_any_deletion_state_check() -> None:
-    customer = make_customer()
+def test_customer_contact_update_works_without_any_deletion_state_check() -> None:
+    from tests.factories_contact import make_contact_details  # noqa: PLC0415 - 지연 import
 
-    customer.update(make_customer_details(company_name="바뀐 고객"), later(5))
+    customer = _customer_contact()
 
-    assert customer.details.company_name == "바뀐 고객"
+    customer.update(make_contact_details(company="바뀐고객"), later(5))
+
+    assert customer.details.company == "바뀐고객"
 
 
-def test_partner_update_works_without_any_deletion_state_check() -> None:
-    partner = make_partner()
+def test_partner_contact_update_works_without_any_deletion_state_check() -> None:
+    from app.domain.contact.values import ContactKind  # noqa: PLC0415 - 지연 import
+    from tests.factories_contact import make_contact_details  # noqa: PLC0415 - 지연 import
 
-    partner.update(make_partner_details(company_name="바뀐 파트너"), later(5))
+    partner = _partner_contact()
 
-    assert partner.details.company_name == "바뀐 파트너"
+    partner.update(make_contact_details(ContactKind.PARTNER, company="바뀐파트너"), later(5))
+
+    assert partner.details.company == "바뀐파트너"
 
 
 def test_deal_update_works_without_any_deletion_state_check() -> None:
     deal = make_deal()
 
-    deal.update(
-        make_deal_details(
-            code=deal.details.code, customer_id=deal.details.customer_id, name="바뀐 딜"
-        ),
-        later(5),
+    deal.revise(
+        details=make_deal_details(name="바뀐 딜"),
+        sync=deal.sync,
+        customer_id=deal.customer_id,
+        bant=deal.bant,
     )
 
     assert deal.details.name == "바뀐 딜"
@@ -71,11 +85,9 @@ def test_deal_update_works_without_any_deletion_state_check() -> None:
 def test_deal_action_update_works_without_any_deletion_state_check() -> None:
     action = make_deal_action()
 
-    action.update(
-        make_deal_action_details(deal_id=action.details.deal_id, memo="바뀐 메모"), later(5)
-    )
+    action.revise(make_action_content(memo="바뀐 메모"), later(5))
 
-    assert action.details.memo == "바뀐 메모"
+    assert action.content.memo == "바뀐 메모"
 
 
 def test_user_record_login_works_for_an_active_user() -> None:

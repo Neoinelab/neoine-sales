@@ -46,7 +46,8 @@ function generateKey(ctx: MockContext, kind: CodeKind, name: string): string {
     .replace(/[^a-z0-9]+/g, '_')
     .replace(/^_+|_+$/g, '')
   const used = new Set(ctx.store.data.codes.filter((c) => c.kind === kind).map((c) => c.key))
-  const base = slug === '' ? 'code' : slug
+  // 서버와 같게: 영문이 없으면 code_N, 숫자로 시작하면 c_ 접두.
+  const base = slug === '' ? 'code' : /^[0-9]/.test(slug) ? `c_${slug}` : slug
   let key = slug === '' ? `${base}_1` : base
   for (let n = 2; used.has(key); n += 1) key = `${base}_${n}`
   return key

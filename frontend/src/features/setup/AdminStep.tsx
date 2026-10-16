@@ -43,8 +43,15 @@ export function AdminStep({ onBusyChange, onRegistered, onBack }: Props) {
       <h2>관리자 등록</h2>
       <p>처음 등록하는 AD 계정이 관리자가 됩니다.</p>
       <ErrorBanner error={register.error} />
-      <TextField label="AD 아이디" name="login_id" value={loginId} onChange={setLoginId} />
-      <TextField label="비밀번호" name="password" type="password" value={password} onChange={setPassword} />
+      <TextField label="AD 아이디" name="login_id" autoComplete="username" value={loginId} onChange={setLoginId} />
+      <TextField
+        label="비밀번호"
+        name="password"
+        type="password"
+        autoComplete="current-password"
+        value={password}
+        onChange={setPassword}
+      />
       <div className="actions">
         <button type="button" onClick={onBack}>
           AD 서버 다시 등록
