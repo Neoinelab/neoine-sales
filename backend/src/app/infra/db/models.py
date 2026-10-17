@@ -103,6 +103,7 @@ class AuthSessionRow(Base):
 
 # 새 모델을 Base.metadata에 등록한다(alembic env.py는 이 모듈만 import한다).
 from app.infra.db import (  # noqa: E402,F401
+    models_alert,
     models_attachment,
     models_auth,
     models_catalog,

@@ -1,14 +1,13 @@
 import { useState } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router'
 import { useAuthConfig, useLogin, useMe, useQuickLogin } from '../../data/auth'
-import { gatewayMode } from '../../gateway/mode'
 import { QUICK_LOGIN_USERS } from '../../shared/model/constants'
 import { ErrorBanner } from '../../shared/ui/ErrorBanner'
 import { TextField } from '../../shared/ui/fields'
 
 /**
  * 로그인: 아이디 + 비밀번호, 서버가 개발용 로그인을 켠 경우에만 빠른 로그인 버튼(`config.quickLogin`).
- * mock 모드는 아무 비밀번호나 통과하고 빠른 로그인이 항상 켜져 있다. 오류 문구는 게이트웨이가 준다.
+ * 오류 문구는 게이트웨이(서버)가 준다.
  * 서버 설정을 읽은 뒤에 그린다(설정을 못 읽어도 로그인 폼은 오류 문구와 함께 보인다).
  */
 export function LoginPage() {
@@ -67,7 +66,6 @@ export function LoginPage() {
         <button type="submit" className="primary" disabled={login.isPending}>
           로그인
         </button>
-        {gatewayMode() === 'mock' && <p className="hint">목업이라 아무 비밀번호나 입력해도 됩니다.</p>}
       </form>
       {config.data?.quickLogin && (
         <section className="panel" aria-label="빠른 로그인">

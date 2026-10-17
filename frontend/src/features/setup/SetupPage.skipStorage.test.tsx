@@ -1,12 +1,13 @@
 import { screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { gateway, mockControl } from '../../gateway'
+import { gateway } from '../../gateway'
+import { mockControl } from '../../test/fake/default'
 import { fillDirectoryForm } from '../../test/directoryForm'
 import { renderAt } from '../../test/mockApp'
 
 afterEach(() => vi.restoreAllMocks())
 
-/** 서버가 저장 위치 단계를 이미 끝난 것으로 알려 주는 상황(http 모드의 최초 설정, P2b 전까지). */
+/** 서버가 저장 위치 단계를 이미 끝난 것으로 알려 주는 상황(예: 서버에 저장 위치가 이미 있는 DB에서 AD 서버만 다시 등록하는 경우). */
 async function openSetupWithStorageDone() {
   const reset = mockControl.resetData.bind(mockControl)
   vi.spyOn(mockControl, 'resetData').mockImplementation(() => {

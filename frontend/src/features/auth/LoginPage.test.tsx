@@ -1,4 +1,4 @@
-import { screen, waitFor } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { renderAt } from '../../test/mockApp'
 
@@ -14,14 +14,16 @@ async function fill(user: Awaited<ReturnType<typeof renderAt>>['user'], loginId:
 }
 
 describe('로그인 화면 (계획 6.1, T-SHELL-08)', () => {
-  it('shows the id and password form, the four quick logins and the any-password guidance', async () => {
+  it('shows the id and password form, the three role quick logins without any-password guidance', async () => {
     await openLogin()
     expect(screen.getByLabelText('아이디')).toBeVisible()
     expect(screen.getByLabelText('비밀번호')).toBeVisible()
-    for (const label of ['관리자 최관리', '영업 김영업', '영업 박영업', '조회자 한조회']) {
-      expect(screen.getByRole('button', { name: label })).toBeVisible()
+    const quick = within(screen.getByRole('region', { name: '빠른 로그인' }))
+    expect(quick.getAllByRole('button').map((b) => b.textContent)).toEqual(['관리자', '영업', '조회자'])
+    for (const person of ['최관리', '김영업', '박영업', '한조회']) {
+      expect(screen.queryByText(new RegExp(person))).not.toBeInTheDocument()
     }
-    expect(screen.getByText(/아무 비밀번호나 입력해도 됩니다/)).toBeVisible()
+    expect(screen.queryByText(/아무 비밀번호나/)).not.toBeInTheDocument()
   })
 
   it('asks for both values when they are empty', async () => {
@@ -64,11 +66,10 @@ describe('로그인 화면 (계획 6.1, T-SHELL-08)', () => {
   })
 
   it.each([
-    ['관리자 최관리', '최관리 (admin)'],
-    ['영업 김영업', '김영업 (sales)'],
-    ['영업 박영업', '박영업 (sales)'],
-    ['조회자 한조회', '한조회 (user)'],
-  ])('signs in with the quick login %s', async (button, shown) => {
+    ['관리자', '최관리 (admin)'],
+    ['영업', '김영업 (sales)'],
+    ['조회자', '한조회 (user)'],
+  ])('signs in with the quick login %s by its role', async (button, shown) => {
     const { user, location } = await openLogin()
     await user.click(screen.getByRole('button', { name: button }))
     await waitFor(() => expect(location()).toBe('/deals'))

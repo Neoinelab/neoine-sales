@@ -379,5 +379,32 @@ export function dealsContract(make: MakeGateway): void {
       )
       await sales.deals.remove(created.code, created.code)
     })
+
+    it('starts the status stay at registration: statusDays 0, statusChangedAt set, no risk', async () => {
+      const sales = await make('sales')
+
+      const created = await sales.deals.create(await validInput(sales))
+
+      expect(created.statusDays).toBe(0)
+      expect(Number.isNaN(Date.parse(created.statusChangedAt))).toBe(false)
+      expect(created.risk).toBeNull()
+      const row = (await sales.deals.list({ keyword: created.code })).items.find((d) => d.code === created.code)
+      expect(row).toMatchObject({ statusChangedAt: created.statusChangedAt, statusDays: 0, risk: null })
+      await sales.deals.remove(created.code, created.code)
+    })
+
+    it('keeps statusChangedAt when only the forecast changes and moves it forward when the status changes', async () => {
+      const sales = await make('sales')
+      const created = await sales.deals.create(await validInput(sales))
+
+      const forecastOnly = await sales.deals.applyChange(created.code, { change: { field: 'forecastKey', value: 'best' } })
+      expect(forecastOnly.deal.statusChangedAt).toBe(created.statusChangedAt)
+
+      const moved = await sales.deals.applyChange(created.code, { change: { field: 'statusKey', value: 'introduction' } })
+      expect(moved.deal.statusKey).toBe('introduction')
+      expect(Date.parse(moved.deal.statusChangedAt)).toBeGreaterThanOrEqual(Date.parse(created.statusChangedAt))
+      expect(moved.deal.statusDays).toBe(0)
+      await sales.deals.remove(created.code, created.code)
+    })
   })
 }

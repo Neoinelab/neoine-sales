@@ -66,7 +66,7 @@ export function malformedResponse(): ApiError {
   })
 }
 
-async function settle<T>(request: Promise<Result<T>>): Promise<Result<T>> {
+export async function settle<T>(request: Promise<Result<T>>): Promise<Result<T>> {
   let result: Result<T>
   try {
     result = await request

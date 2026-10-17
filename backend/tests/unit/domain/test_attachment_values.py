@@ -73,6 +73,22 @@ def test_extension_of_is_the_lowercase_last_extension(name: str, expected: str) 
     assert extension_of(name) == expected
 
 
+@pytest.mark.parametrize(
+    "name",
+    [
+        "setup.exe ",  # ASCII 공백
+        "setup.exe\u3000",  # 전각 공백
+        "setup.exe\u00a0",  # NBSP
+        "setup.exe\u2003",  # em space
+        "setup.exe\t",
+        "setup.exe .",
+        "setup.exe.\u3000 .",
+    ],
+)
+def test_extension_of_ignores_trailing_unicode_whitespace_and_dots(name: str) -> None:
+    assert extension_of(name) == "exe"
+
+
 def test_on_exists_has_the_three_wire_values() -> None:
     assert [m.value for m in OnExists] == ["ask", "replace", "skip"]
     assert OnExists("ask") is OnExists.ASK

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { DirectorySettingsInput } from '../../shared/model/types'
-import { json, problem, stubFetch, userRefBody } from './testHelpers'
+import { json, noContent, problem, stubFetch, userRefBody } from './testHelpers'
 import { createSettingsHttp } from './settings'
 
 afterEach(() => vi.unstubAllGlobals())
@@ -127,15 +127,78 @@ describe('directory settings over HTTP', () => {
   })
 })
 
-describe('storage settings (no server yet)', () => {
-  it('getStorage reports nothing registered', async () => {
+const STORAGE_STORED = {
+  path: '/var/lib/neoine-sales/files',
+  updated_at: '2026-10-17T09:30:00+09:00',
+  updated_by: userRefBody('u1', '최관리', false, 'admin'),
+}
+
+describe('storage settings over HTTP', () => {
+  it('getStorage maps the stored location to camelCase with who changed it', async () => {
+    const { calls } = stubFetch(json(STORAGE_STORED))
+
+    const storage = await createSettingsHttp().getStorage()
+
+    expect(calls[0]).toMatchObject({ method: 'GET', path: '/api/v1/settings/storage' })
+    expect(storage).toEqual({
+      path: '/var/lib/neoine-sales/files',
+      updatedAt: '2026-10-17T09:30:00+09:00',
+      updatedBy: { id: 'u1', name: '최관리', role: 'admin', status: 'active' },
+    })
+  })
+
+  it('getStorage keeps updatedBy null when the location was registered by the first setup', async () => {
+    stubFetch(json({ ...STORAGE_STORED, updated_by: null }))
+
+    await expect(createSettingsHttp().getStorage()).resolves.toMatchObject({ updatedBy: null })
+  })
+
+  it('getStorage returns null when nothing is registered (404)', async () => {
+    stubFetch(problem(404, 'not-found', '파일 저장 위치가 설정되지 않았습니다.'))
+
     await expect(createSettingsHttp().getStorage()).resolves.toBeNull()
   })
 
+  it('getStorage still reports other failures such as 403', async () => {
+    stubFetch(problem(403, 'forbidden', '관리자 권한이 필요합니다'))
+
+    await expect(createSettingsHttp().getStorage()).rejects.toMatchObject({ status: 403, message: '관리자 권한이 필요합니다' })
+  })
+
+  it('saveStorage puts the path and returns the saved location', async () => {
+    const { calls } = stubFetch(json({ ...STORAGE_STORED, path: '/data/files-v2' }))
+
+    const saved = await createSettingsHttp().saveStorage('/data/files-v2')
+
+    expect(calls[0]).toMatchObject({ method: 'PUT', path: '/api/v1/settings/storage', body: { path: '/data/files-v2' } })
+    expect(saved).toMatchObject({ path: '/data/files-v2', updatedBy: { id: 'u1' } })
+  })
+
   it.each([
-    ['saveStorage', (g: ReturnType<typeof createSettingsHttp>) => g.saveStorage('/data')],
-    ['testStorage', (g: ReturnType<typeof createSettingsHttp>) => g.testStorage('/data')],
-  ])('%s answers 501', async (_name, run) => {
-    await expect(run(createSettingsHttp())).rejects.toMatchObject({ status: 501 })
+    ['절대 경로를 입력하세요.'],
+    ['해당 위치에 쓸 수 없습니다.'],
+    ['저장 경로는 1024자 이내로 입력하세요.'],
+  ])('saveStorage shows the server message %s as a validation error', async (detail) => {
+    stubFetch(problem(422, 'invalid-value', detail))
+
+    await expect(createSettingsHttp().saveStorage('x')).rejects.toMatchObject({ status: 422, kind: 'validation', message: detail })
+  })
+
+  it('testStorage posts the path and resolves on 204 without saving', async () => {
+    const { calls } = stubFetch(noContent())
+
+    await expect(createSettingsHttp().testStorage('/data/files')).resolves.toBeUndefined()
+
+    expect(calls).toHaveLength(1)
+    expect(calls[0]).toMatchObject({ method: 'POST', path: '/api/v1/settings/storage/test', body: { path: '/data/files' } })
+  })
+
+  it('testStorage shows the server message for an unwritable location', async () => {
+    stubFetch(problem(422, 'invalid-value', '해당 위치에 쓸 수 없습니다.'))
+
+    await expect(createSettingsHttp().testStorage('/readonly')).rejects.toMatchObject({
+      status: 422,
+      message: '해당 위치에 쓸 수 없습니다.',
+    })
   })
 })

@@ -8,6 +8,7 @@ import copy
 from datetime import datetime, timedelta
 from typing import Any, Self
 
+from tests.fakes.alert_settings_repository import FakeAlertSettingsRepository
 from tests.fakes.attachments import FakeAttachmentRepository
 from tests.fakes.catalog import FakeBantLabelRepository, FakeCodeRepository
 from tests.fakes.contacts import FakeContactRepository
@@ -33,6 +34,7 @@ class FakeUnitOfWork:
         self.login_failures = FakeLoginFailureRepository()
         self.directory_settings = FakeDirectorySettingsRepository()
         self.storage_settings = FakeStorageSettingsRepository()
+        self.alert_settings = FakeAlertSettingsRepository()
         self.attachments = FakeAttachmentRepository()
         self.codes = FakeCodeRepository()
         self.bant_labels = FakeBantLabelRepository()
@@ -75,6 +77,10 @@ class FakeUnitOfWork:
         self.users.add_referrer(  # storage_settings.updated_by_user_id (AC-16: 저장한 admin)
             lambda uid: any(s.updated_by == uid for s in storage._items.values())
         )
+        alerts = self.alert_settings
+        self.users.add_referrer(  # alert_settings.updated_by_user_id (P3 AC-11)
+            lambda uid: any(s.updated_by == uid for s in alerts._items.values())
+        )
         attachments = self.attachments
         self.users.add_referrer(  # deal_attachments.uploaded_by_user_id (AC-16: 첨부를 올린 사용자)
             lambda uid: any(a.uploaded_by == uid for a in attachments._items.values())
@@ -95,6 +101,7 @@ class FakeUnitOfWork:
             self.login_failures,
             self.directory_settings,
             self.storage_settings,
+            self.alert_settings,
             self.attachments,
             self.codes,
             self.bant_labels,

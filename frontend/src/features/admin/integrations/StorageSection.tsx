@@ -43,7 +43,7 @@ function StorageForm({ saved }: { saved: StorageSettings | null }) {
         </Notice>
       )}
       <TextField label="저장 경로" name="storage_path" value={path} onChange={setPath} />
-      <p className="hint">서버의 절대 경로를 입력하세요. 예: /data/neoine-sales/files</p>
+      <p className="hint">서버의 절대 경로를 입력하세요. 예: /var/lib/neoine-sales/files</p>
       <div className="actions">
         <button type="button" disabled={busy} onClick={() => run('test')}>
           쓰기 테스트

@@ -1,6 +1,6 @@
 import { renderHook } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
-import { resetMock } from '../mock/default'
+import { resetMock } from '../test/fake/default'
 import { useToday } from './today'
 
 afterEach(() => resetMock({ now: null }))

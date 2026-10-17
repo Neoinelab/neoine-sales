@@ -40,6 +40,57 @@
         "title": "ActionType",
         "type": "string"
       },
+      "AlertSettingsRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "stale_days": {
+            "title": "Stale Days",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "stale_days"
+        ],
+        "title": "AlertSettingsRequest",
+        "type": "object"
+      },
+      "AlertSettingsResponse": {
+        "properties": {
+          "stale_days": {
+            "title": "Stale Days",
+            "type": "integer"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          },
+          "updated_by": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UserRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "stale_days",
+          "updated_at",
+          "updated_by"
+        ],
+        "title": "AlertSettingsResponse",
+        "type": "object"
+      },
       "AmountChange": {
         "additionalProperties": false,
         "properties": {
@@ -1559,6 +1610,11 @@
           "risk": {
             "anyOf": [
               {
+                "enum": [
+                  "overdue",
+                  "stale",
+                  "overdue_stale"
+                ],
                 "type": "string"
               },
               {
@@ -1570,6 +1626,15 @@
           "solution": {
             "title": "Solution",
             "type": "string"
+          },
+          "status_changed_at": {
+            "format": "date-time",
+            "title": "Status Changed At",
+            "type": "string"
+          },
+          "status_days": {
+            "title": "Status Days",
+            "type": "integer"
           },
           "status_key": {
             "title": "Status Key",
@@ -1618,6 +1683,8 @@
           "next_action",
           "last_updated_at",
           "risk",
+          "status_changed_at",
+          "status_days",
           "created_at",
           "updated_at",
           "partner_history"
@@ -1905,6 +1972,11 @@
           "risk": {
             "anyOf": [
               {
+                "enum": [
+                  "overdue",
+                  "stale",
+                  "overdue_stale"
+                ],
                 "type": "string"
               },
               {
@@ -1916,6 +1988,15 @@
           "solution": {
             "title": "Solution",
             "type": "string"
+          },
+          "status_changed_at": {
+            "format": "date-time",
+            "title": "Status Changed At",
+            "type": "string"
+          },
+          "status_days": {
+            "title": "Status Days",
+            "type": "integer"
           },
           "status_key": {
             "title": "Status Key",
@@ -1964,6 +2045,8 @@
           "next_action",
           "last_updated_at",
           "risk",
+          "status_changed_at",
+          "status_days",
           "created_at",
           "updated_at"
         ],
@@ -3226,6 +3309,96 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/v1/alert-settings": {
+      "get": {
+        "operationId": "get_alert_settings_api_v1_alert_settings_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AlertSettingsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          }
+        },
+        "summary": "Get Alert Settings",
+        "tags": [
+          "settings"
+        ]
+      },
+      "put": {
+        "operationId": "update_alert_settings_api_v1_alert_settings_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AlertSettingsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AlertSettingsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          }
+        },
+        "summary": "Update Alert Settings",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
     "/api/v1/attachments/{attachment_id}": {
       "delete": {
         "operationId": "delete_attachment_api_v1_attachments__attachment_id__delete",

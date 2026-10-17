@@ -52,7 +52,7 @@ class ApplyDealChange:
                 catalog=catalog,
                 co_changed=co_changed,
             )
-            view = (await build_views(uow, [await uow.deals.get_item(deal.id)]))[0]
+            view = (await build_views(uow, [await uow.deals.get_item(deal.id)], now=now))[0]
             await uow.commit()
         return ApplyChangeResult(
             view=view,

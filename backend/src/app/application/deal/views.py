@@ -1,13 +1,21 @@
-"""Deal 목록 행을 화면용 `DealView`로 만든다: Owner 참조와 연락처를 한꺼번에 모은다."""
+"""Deal 목록 행을 화면용 `DealView`로 만든다: Owner 참조와 연락처를 한꺼번에 모은다.
+
+Risk와 Status 체류 일수는 요청 시각 `now`의 업무 날짜(OS 로컬 시간대)로 계산하며,
+미업데이트 기준 일수는 경고 기준 설정을 목록당 한 번만 읽는다(없으면 기본값).
+"""
 
 from typing import TYPE_CHECKING
 
 from app.application.deal.dto import DealView
+from app.domain.alert.thresholds import AlertThresholds
+from app.domain.common.business_date import business_date
 from app.domain.contact.errors import ContactNotFoundError
+from app.domain.deal.risk import compute_risk, status_days
 from app.domain.user.errors import UserNotFoundError
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
+    from datetime import datetime
 
     from app.application.ports.deal_repository import DealListItem
     from app.application.ports.unit_of_work import UnitOfWork
@@ -35,7 +43,13 @@ def _require_owner(owners: Mapping[UserId, UserRef], user_id: UserId) -> UserRef
     return owner
 
 
-async def build_views(uow: UnitOfWork, items: Sequence[DealListItem]) -> list[DealView]:
+async def build_views(
+    uow: UnitOfWork, items: Sequence[DealListItem], *, now: datetime
+) -> list[DealView]:
+    """경고 기준을 한 번 읽고(없으면 기본값) 각 행의 risk·status_days를 계산한다."""
+    stored = await uow.alert_settings.get()
+    thresholds = stored.thresholds if stored else AlertThresholds.default()
+    today = business_date(now)
     owner_ids = {item.deal.details.owner_user_id for item in items}
     owners = await uow.users.get_refs(owner_ids) if owner_ids else {}
     wanted = {contact_id for item in items for contact_id in _contact_ids(item)}
@@ -49,6 +63,14 @@ async def build_views(uow: UnitOfWork, items: Sequence[DealListItem]) -> list[De
                 link.contact_id: _require(contacts, link.contact_id)
                 for link in item.deal.partner_links
             },
+            risk=compute_risk(
+                forecast_key=item.deal.sync.forecast_key,
+                due_date=item.next_action.due_date if item.next_action else None,
+                last_updated_at=item.last_updated_at,
+                today=today,
+                stale_days=thresholds.stale_days,
+            ),
+            status_days=status_days(item.deal.status_changed_at, today),
         )
         for item in items
     ]

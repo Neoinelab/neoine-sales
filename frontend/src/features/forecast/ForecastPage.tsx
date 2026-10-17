@@ -1,6 +1,7 @@
 import { useSearchParams } from 'react-router'
 import { useForecastSummary } from '../../data/forecast'
 import { useToday } from '../../data/today'
+import { ComingSoon } from '../../shared/ui/ComingSoon'
 import { ErrorBanner } from '../../shared/ui/ErrorBanner'
 import { ForecastFilterBar } from './ForecastFilters'
 import { filtersFromParams, paramsFromFilters, queryOf, type ForecastFilters } from './forecastParams'
@@ -23,6 +24,9 @@ export function ForecastPage() {
   const update = (patch: Partial<ForecastFilters>) => {
     setParams(paramsFromFilters({ ...filters, ...patch }))
   }
+
+  // 서버에 Forecast 집계가 아직 없으면(501) 화면 대신 "준비 중"만 보인다. 다른 오류는 배너.
+  if (summary.error?.kind === 'not-implemented') return <ComingSoon title="Forecast" />
 
   const data = summary.data
   const isEmpty = data !== undefined && data.rows.length === 0

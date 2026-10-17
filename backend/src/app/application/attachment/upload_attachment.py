@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
@@ -37,6 +38,13 @@ def _mime_of(raw: str | None) -> str:
     return raw if raw and len(raw) <= MIME_MAX else DEFAULT_MIME
 
 
+@dataclass(slots=True)
+class _CommitMark:
+    """`uow.commit()`이 성공했는지(성공 뒤의 오류와 커밋 전 오류를 구분)."""
+
+    done: bool = False
+
+
 class UploadAttachment:
     """Deal에 파일을 올린다(새 파일, 같은 이름이면 ask 409 / skip / replace).
 
@@ -68,10 +76,14 @@ class UploadAttachment:
         root = settings.path
         key = uuid4().hex
         size = await self._save(root, StoredFileLocation(deal_code=deal_code, key=key), data)
+        mark = _CommitMark()
         try:
-            outcome, old_key = await self._record(deal_code, candidate, data, actor, size, key, now)
+            outcome, old_key = await self._record(
+                deal_code, candidate, data, actor, (size, key, now), mark
+            )
         except BaseException:
-            await remove_file_quietly(self._storage, root, deal_code, key)
+            if not mark.done:  # 커밋된 행이 새 파일을 가리키므로 커밋 뒤 오류에는 지우지 않는다
+                await remove_file_quietly(self._storage, root, deal_code, key)
             raise
         if outcome.kind is UploadOutcomeKind.SKIPPED:
             await remove_file_quietly(self._storage, root, deal_code, key)
@@ -115,10 +127,10 @@ class UploadAttachment:
         candidate: UploadCandidate,
         data: UploadAttachmentInput,
         actor: Actor,
-        size: int,
-        key: str,
-        now: datetime,
+        stored: tuple[int, str, datetime],
+        mark: _CommitMark,
     ) -> tuple[UploadOutcome, str | None]:
+        size, key, now = stored
         async with self._uow_factory() as uow:
             await uow.deals.get(deal_code, for_update=True)  # 같은 Deal의 첨부 변경을 직렬화
             decision = await self._decide(uow, deal_code, candidate, data, actor)
@@ -152,4 +164,5 @@ class UploadAttachment:
             await write_history(uow, deal_code, actor.user_id, [draft(candidate.file_name)], now)
             await uow.deals.touch([deal_code], now)
             await uow.commit()
+            mark.done = True
         return UploadOutcome(kind, attachment), old_key

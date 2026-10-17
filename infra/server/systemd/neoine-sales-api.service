@@ -20,6 +20,8 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=read-only
+# 첨부 파일 저장 위치(외부연동 화면의 기본 경로 /var/lib/neoine-sales/files). 다른 경로를 쓰면 여기에도 추가한다
+ReadWritePaths=/var/lib/neoine-sales
 
 [Install]
 WantedBy=multi-user.target

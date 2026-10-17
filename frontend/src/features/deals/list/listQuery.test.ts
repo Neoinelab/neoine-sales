@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { currentSort, hasActiveFilter, listQueryFromParams, nextSort, updateParams } from './listQuery'
+import { REMEMBERED_LIST_KEYS } from '../../../shared/model/dealListMemory'
+import { FILTER_KEYS, currentSort, hasActiveFilter, listQueryFromParams, nextSort, updateParams } from './listQuery'
 
 const params = (query: string) => new URLSearchParams(query)
 
@@ -81,5 +82,11 @@ describe('sorting', () => {
     expect(nextSort({ sort: 'lastUpdatedAt', order: 'desc' }, 'revenueDate')).toEqual({ sort: 'revenueDate', order: 'asc' })
     expect(nextSort({ sort: 'revenueDate', order: 'asc' }, 'revenueDate')).toEqual({ sort: 'revenueDate', order: 'desc' })
     expect(nextSort({ sort: 'name', order: 'asc' }, 'revenueAmount')).toEqual({ sort: 'revenueAmount', order: 'desc' })
+  })
+})
+
+describe('목록 조건 기억 키 (DL-06)', () => {
+  it('remembered keys equal filter keys plus sort order page', () => {
+    expect([...REMEMBERED_LIST_KEYS].sort()).toEqual([...FILTER_KEYS, 'sort', 'order', 'page'].sort())
   })
 })

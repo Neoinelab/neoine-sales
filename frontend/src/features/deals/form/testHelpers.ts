@@ -41,7 +41,9 @@ export async function save(user: UserEvent) {
 export async function openList(user: UserEvent, query: string) {
   await waitFor(() => expect(screen.getByRole('link', { name: 'Deals' })).toBeVisible())
   await user.click(screen.getByRole('link', { name: 'Deals' }))
-  await user.type(await screen.findByLabelText('키워드'), query)
+  const keyword = await screen.findByLabelText('키워드')
+  await user.clear(keyword) // P5 Q1: 메뉴가 마지막 목록 조건(키워드 포함)을 복원한다
+  await user.type(keyword, query)
   await user.click(screen.getByRole('button', { name: '검색' }))
   return screen.findByRole('row', { name: new RegExp(query) })
 }

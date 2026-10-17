@@ -94,3 +94,68 @@ def test_parse_rejects_one_code_point_over_the_limit_after_normalizing() -> None
 )
 def test_extension_is_the_lowercase_last_one(raw: str, extension: str) -> None:
     assert FileName.parse(raw).extension == extension
+
+
+BIDI_CONTROLS = [
+    *range(0x202A, 0x202F),  # LRE RLE PDF LRO RLO
+    *range(0x2066, 0x206A),  # LRI RLI FSI PDI
+    0x200E,  # LRM
+    0x200F,  # RLM
+    0x061C,  # ALM
+]
+
+
+@pytest.mark.parametrize("code_point", BIDI_CONTROLS, ids=lambda cp: f"U+{cp:04X}")
+@pytest.mark.parametrize("template", ["a{}b.pdf", "{}a.pdf", "a.pdf{}"])
+def test_parse_rejects_a_name_with_a_bidirectional_format_character(
+    code_point: int, template: str
+) -> None:
+    with raises_with(InvalidValueError, INVALID_FILE_NAME):
+        FileName.parse(template.format(chr(code_point)))
+
+
+def test_parse_accepts_right_to_left_letters_without_format_characters() -> None:
+    assert FileName.parse("שלום.pdf").value == "שלום.pdf"
+
+
+# 2026-10-17 사용자 결정(R3 리뷰 가능성 1): 유니코드 서식 문자(Cf) 전체를 이름 어디에서든 거부한다.
+CF_CHARS = {
+    "BOM": "\ufeff",
+    "ZWSP": "\u200b",
+    "ZWNJ": "\u200c",
+    "ZWJ": "\u200d",
+    "WORD_JOINER": "\u2060",
+    "SOFT_HYPHEN": "\u00ad",
+    "LRM": "\u200e",
+    "RLO": "\u202e",
+}
+
+
+@pytest.mark.parametrize("mark", list(CF_CHARS.values()), ids=list(CF_CHARS))
+@pytest.mark.parametrize("template", ["{m}report.pdf", "re{m}port.pdf", "report.pdf{m}"])
+def test_parse_rejects_a_format_character_anywhere_in_the_name(mark: str, template: str) -> None:
+    assert unicodedata.category(mark) == "Cf"
+
+    with raises_with(InvalidValueError, INVALID_FILE_NAME):
+        FileName.parse(template.format(m=mark))
+
+
+@pytest.mark.parametrize("raw", ["setup.exe\ufeff", "setup.exe\u200b"])
+def test_parse_rejects_an_executable_name_disguised_by_a_trailing_format_character(
+    raw: str,
+) -> None:
+    with raises_with(InvalidValueError, INVALID_FILE_NAME):
+        FileName.parse(raw)
+
+
+def test_parse_rejects_a_zwj_emoji_sequence_because_zwj_is_a_format_character() -> None:
+    # user-visible impact: such emoji names are refused
+    family = "\U0001f468\u200d\U0001f469\u200d\U0001f467"
+
+    with raises_with(InvalidValueError, INVALID_FILE_NAME):
+        FileName.parse(f"{family}.png")
+
+
+@pytest.mark.parametrize("raw", ["\U0001f600.png", "❤️.png", "한글\U0001f44d.pdf"])
+def test_parse_still_accepts_korean_and_emoji_without_format_characters(raw: str) -> None:
+    assert FileName.parse(raw).value == unicodedata.normalize("NFC", raw)

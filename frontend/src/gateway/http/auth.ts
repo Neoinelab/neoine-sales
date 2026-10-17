@@ -28,7 +28,10 @@ export function createAuthHttp(): AuthGateway {
     logout: () => unwrapVoid(api.POST('/api/v1/auth/logout')),
     config: async () => {
       const config = await unwrap(api.GET('/api/v1/auth/config'))
-      return { quickLogin: config.dev_login, needsSetup: config.needs_directory_setup || config.needs_admin_setup }
+      return {
+        quickLogin: config.dev_login,
+        needsSetup: config.needs_directory_setup || config.needs_storage_setup || config.needs_admin_setup,
+      }
     },
   }
 }

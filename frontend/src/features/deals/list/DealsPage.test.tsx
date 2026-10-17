@@ -3,10 +3,10 @@ import { describe, expect, it } from 'vitest'
 import { renderAt } from '../../../test/mockApp'
 import { dataRows, rowOf } from './testHelpers'
 
-const HEADERS = ['Deal', '고객사', '파트너사', '담당자', 'Vendor', 'Status', 'Forecast', '금액', 'Expected Close', 'Next Action', '최종 업데이트']
+const HEADERS = ['Deal', '고객사', '파트너사', '담당자', 'Vendor', 'Status', 'Forecast', 'BANT', '금액', 'Expected Close', 'Next Action', '최종 업데이트']
 
 describe('목록 표 (T-LIST-01~04)', () => {
-  it('shows the eleven PRD columns', async () => {
+  it('shows the PRD columns with the BANT column', async () => {
     await renderAt('/deals')
     await screen.findByRole('row', { name: /한빛은행 ITDR 도입/ })
     const headers = screen.getAllByRole('columnheader').map((h) => h.textContent?.trim())
@@ -37,7 +37,8 @@ describe('목록 표 (T-LIST-01~04)', () => {
 
   it('shows a dash for a deal without a partner and the resigned owner label', async () => {
     await renderAt('/deals?q=누리통신 NGFW')
-    expect(within(await rowOf(/누리통신 NGFW/)).getByText('—')).toBeVisible()
+    const cells = within(await rowOf(/누리통신 NGFW/)).getAllByRole('cell')
+    expect(cells[HEADERS.indexOf('파트너사')]).toHaveTextContent(/^—$/)
     cleanup()
     await renderAt('/deals?q=한빛은행 PAM')
     expect(within(await rowOf(/한빛은행 PAM/)).getByText('강퇴사(퇴사)')).toBeVisible()
@@ -81,7 +82,7 @@ describe('목록 표 (T-LIST-01~04)', () => {
     await renderAt('/deals')
     const legend = await screen.findByRole('list', { name: 'Risk 범례' })
     expect(within(legend).getByText('기한초과')).toBeVisible()
-    expect(within(legend).getByText('14일 이상 미업데이트')).toBeVisible()
+    expect(await within(legend).findByText('14일 이상 미업데이트')).toBeVisible()
   })
 
   it('links the deal name to its detail page', async () => {

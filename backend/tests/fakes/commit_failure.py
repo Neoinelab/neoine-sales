@@ -37,3 +37,35 @@ class CommitFailingUnitOfWork:
 def commit_failing_factory(inner: FakeUnitOfWork) -> UnitOfWorkFactory:
     wrapper = CommitFailingUnitOfWork(inner)
     return lambda: wrapper
+
+
+EXIT_FAILED = "closing the transaction failed (test double)"
+
+
+class ExitFailingAfterCommitUnitOfWork(CommitFailingUnitOfWork):
+    """commit은 성공하고, commit한 블록을 닫을 때(연결 반환 등) 예외를 던지는 대역.
+
+    commit하지 않은 블록은 정상적으로 닫힌다.
+    """
+
+    def __init__(self, inner: FakeUnitOfWork) -> None:
+        super().__init__(inner)
+        self._committed = False
+
+    async def __aenter__(self) -> Self:
+        self._committed = False
+        return await super().__aenter__()
+
+    async def __aexit__(self, *exc: object) -> None:
+        await self._inner.__aexit__(*exc)
+        if self._committed:
+            raise RuntimeError(EXIT_FAILED)
+
+    async def commit(self) -> None:
+        await self._inner.commit()
+        self._committed = True
+
+
+def exit_failing_factory(inner: FakeUnitOfWork) -> UnitOfWorkFactory:
+    wrapper = ExitFailingAfterCommitUnitOfWork(inner)
+    return lambda: wrapper

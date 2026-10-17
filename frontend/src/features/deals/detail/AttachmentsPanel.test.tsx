@@ -1,9 +1,9 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
-import { mockControl } from '../../../gateway'
+import { mockControl } from '../../../test/fake/default'
 import { renderAt } from '../../../test/mockApp'
-import { detailPath } from './detailTestUtils'
+import { detailPath } from '../../../test/detailTestUtils'
 
 type Role = 'sales' | 'admin' | 'user'
 
@@ -153,14 +153,14 @@ describe('업로드 검증 (T-FILE-02~07)', () => {
 describe('같은 이름 업로드 (T-FILE-08)', () => {
   it('asks to replace or skip and replaces the file when 교체 is chosen', async () => {
     const { panel } = await openPanel(1, '한빛은행 ITDR 도입')
-    await upload(panel, file('제안서_ITDR.pptx', 5000), '교체본')
+    await upload(panel, file('견적서_한빛은행_v2.pdf', 5000), '교체본')
     const dialog = await screen.findByRole('dialog', { name: '같은 이름의 파일' })
-    expect(dialog).toHaveTextContent('같은 이름의 파일이 이미 있습니다: 제안서_ITDR.pptx')
+    expect(dialog).toHaveTextContent('같은 이름의 파일이 이미 있습니다: 견적서_한빛은행_v2.pdf')
     await userEvent.click(within(dialog).getByRole('button', { name: '교체' }))
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
-    await waitFor(() => expect(rowOf(panel, '제안서_ITDR.pptx')).toHaveTextContent('교체본'))
+    await waitFor(() => expect(rowOf(panel, '견적서_한빛은행_v2.pdf')).toHaveTextContent('교체본'))
     expect(within(panel).getAllByRole('row')).toHaveLength(4)
-    expect(within(panel).getByText('교체되었습니다: 제안서_ITDR.pptx')).toBeVisible()
+    expect(within(panel).getByText('교체되었습니다: 견적서_한빛은행_v2.pdf')).toBeVisible()
   })
 
   it('leaves the list unchanged when 건너뛰기 is chosen', async () => {
@@ -213,5 +213,109 @@ describe('삭제 권한 (T-FILE-09~10)', () => {
     const { panel } = await openPanel(1, '한빛은행 ITDR 도입', 'sales', 'u-park')
     expect(within(panel).getByRole('button', { name: '제안서_ITDR.pptx 삭제' })).toBeEnabled()
     expect(within(panel).getByRole('button', { name: '견적서_한빛은행_v2.pdf 삭제' })).toBeDisabled()
+  })
+})
+
+describe('같은 이름 교체 권한 (AC-11, Q2)', () => {
+  it('disables 교체 with a notice when another active sales file would be replaced (N3)', async () => {
+    const { panel } = await openPanel(1, '한빛은행 ITDR 도입')
+    await upload(panel, file('제안서_ITDR.pptx', 5000), '덮어쓰기')
+    const dialog = await screen.findByRole('dialog', { name: '같은 이름의 파일' })
+
+    expect(within(dialog).getByRole('button', { name: '교체' })).toBeDisabled()
+    expect(within(dialog).getByText('본인이 올린 파일만 교체할 수 있습니다.')).toBeVisible()
+    expect(within(dialog).getByRole('button', { name: '건너뛰기' })).toBeEnabled()
+    expect(rowOf(panel, '제안서_ITDR.pptx')).toHaveTextContent('ITDR 제안서(공유용)')
+  })
+
+  it('keeps 교체 enabled without the notice for the own file (N3)', async () => {
+    const { panel } = await openPanel(1, '한빛은행 ITDR 도입')
+    await upload(panel, file('견적서_한빛은행_v2.pdf', 5000), '내 교체')
+    const dialog = await screen.findByRole('dialog', { name: '같은 이름의 파일' })
+
+    expect(within(dialog).getByRole('button', { name: '교체' })).toBeEnabled()
+    expect(within(dialog).queryByText('본인이 올린 파일만 교체할 수 있습니다.')).not.toBeInTheDocument()
+  })
+
+  it('keeps 교체 enabled without the notice for a resigned sales file (N3)', async () => {
+    const { panel } = await openPanel(1, '한빛은행 ITDR 도입')
+    await upload(panel, file('기술검토.xlsx', 5000), '새 검토')
+    const dialog = await screen.findByRole('dialog', { name: '같은 이름의 파일' })
+
+    expect(within(dialog).getByRole('button', { name: '교체' })).toBeEnabled()
+    expect(within(dialog).queryByText('본인이 올린 파일만 교체할 수 있습니다.')).not.toBeInTheDocument()
+  })
+
+  it('lets a sales user replace the file of a resigned sales', async () => {
+    const { panel } = await openPanel(1, '한빛은행 ITDR 도입')
+    await upload(panel, file('기술검토.xlsx', 5000), '새 검토')
+    await userEvent.click(within(await screen.findByRole('dialog', { name: '같은 이름의 파일' })).getByRole('button', { name: '교체' }))
+
+    await waitFor(() => expect(rowOf(panel, '기술검토.xlsx')).toHaveTextContent('새 검토'))
+    expect(rowOf(panel, '기술검토.xlsx')).toHaveTextContent('김영업')
+  })
+
+  it('keeps 교체 enabled for admin on another sales file (N3)', async () => {
+    const { panel } = await openPanel(1, '한빛은행 ITDR 도입', 'admin')
+    await upload(panel, file('제안서_ITDR.pptx', 5000), '관리자 교체')
+    const dialog = await screen.findByRole('dialog', { name: '같은 이름의 파일' })
+
+    expect(within(dialog).getByRole('button', { name: '교체' })).toBeEnabled()
+    expect(within(dialog).queryByText('본인이 올린 파일만 교체할 수 있습니다.')).not.toBeInTheDocument()
+  })
+
+  it('lets admin replace another sales file', async () => {
+    const { panel } = await openPanel(1, '한빛은행 ITDR 도입', 'admin')
+    await upload(panel, file('제안서_ITDR.pptx', 5000), '관리자 교체')
+    await userEvent.click(within(await screen.findByRole('dialog', { name: '같은 이름의 파일' })).getByRole('button', { name: '교체' }))
+
+    await waitFor(() => expect(rowOf(panel, '제안서_ITDR.pptx')).toHaveTextContent('관리자 교체'))
+  })
+
+  it('skips without any permission message even for a file of another sales', async () => {
+    const { panel } = await openPanel(1, '한빛은행 ITDR 도입')
+    await upload(panel, file('제안서_ITDR.pptx', 5000), '건너뛸 설명')
+    await userEvent.click(within(await screen.findByRole('dialog', { name: '같은 이름의 파일' })).getByRole('button', { name: '건너뛰기' }))
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(within(panel).queryByRole('alert')).not.toBeInTheDocument()
+  })
+})
+
+describe('업로드 검증: 서버와 같은 규칙 (AC-08, AC-20)', () => {
+  it.each(['견적\u202egpj.pdf', 'a\tb.pdf', '😀'.repeat(256)])('rejects the unusable file name %j before sending', async (name) => {
+    const { panel } = await openPanel(2, '대한제조 MFA 확대')
+    await upload(panel, file(name))
+    expect(await within(panel).findByRole('alert')).toHaveTextContent('사용할 수 없는 파일 이름입니다.')
+    expect(within(panel).queryByRole('button', { name })).not.toBeInTheDocument()
+  })
+
+  it('blocks an executable whose name ends with a space', async () => {
+    const { panel } = await openPanel(2, '대한제조 MFA 확대')
+    await upload(panel, file('setup.exe '))
+    expect(await within(panel).findByRole('alert')).toHaveTextContent('실행·설치 파일(.exe)은 업로드할 수 없습니다.')
+  })
+
+  it('blocks one of the added extensions such as .vbs', async () => {
+    const { panel } = await openPanel(2, '대한제조 MFA 확대')
+    await upload(panel, file('tool.vbs'))
+    expect(await within(panel).findByRole('alert')).toHaveTextContent('실행·설치 파일(.vbs)은 업로드할 수 없습니다.')
+  })
+
+  it('counts the description after trimming, so 100 characters between spaces is fine', async () => {
+    const { user, panel } = await openPanel(2, '대한제조 MFA 확대')
+    await user.upload(within(panel).getByLabelText('파일'), file('메모.pdf'))
+    await user.click(within(panel).getByLabelText('설명'))
+    await user.paste(`  ${'가'.repeat(100)}  `)
+    expect(within(panel).getByText('100/100')).not.toHaveClass('over')
+    await user.click(within(panel).getByRole('button', { name: '업로드' }))
+    expect(await within(panel).findByRole('button', { name: '메모.pdf' })).toBeVisible()
+    expect(rowOf(panel, '메모.pdf')).toHaveTextContent('가'.repeat(100))
+  })
+
+  it('lists a file uploaded in NFD spelling under its NFC name', async () => {
+    const { panel } = await openPanel(2, '대한제조 MFA 확대')
+    await upload(panel, file('한글.pdf'.normalize('NFD')))
+    expect(await within(panel).findByRole('button', { name: '한글.pdf'.normalize('NFC') })).toBeVisible()
   })
 })

@@ -1,6 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { gateway, mockControl } from '../../gateway'
+import { gateway } from '../../gateway'
+import { mockControl } from '../../test/fake/default'
 import { fillDirectoryForm, setField } from '../../test/directoryForm'
 import { renderAt } from '../../test/mockApp'
 
@@ -74,10 +75,10 @@ describe('최초 설정 1단계: AD 서버 (T-SETUP-01)', () => {
     expect(screen.queryByLabelText('AD 아이디')).not.toBeInTheDocument()
   })
 
-  it('does not draw its own mock badge (the app banner does)', async () => {
+  it('shows no mock badge', async () => {
     await openSetup()
 
-    expect(screen.getAllByText(/UI 목업\(메모리 저장\)/)).toHaveLength(1)
+    expect(screen.queryByText(/UI 목업/)).not.toBeInTheDocument()
   })
 
   it('saves the directory settings as one URL per line and moves to step 2', async () => {
@@ -259,17 +260,6 @@ describe('최초 설정 진입 규칙 (T-SETUP-04~05)', () => {
     const { location } = await renderAt('/setup', { role: 'admin' })
 
     await waitFor(() => expect(location()).not.toBe('/setup'))
-  })
-
-  it('starts over from the mock menu: step 1 again, signed out', async () => {
-    const { user, location } = await renderAt('/deals', { role: 'admin' })
-    await screen.findByRole('link', { name: 'Admin' })
-
-    await user.click(screen.getByRole('button', { name: '목업 메뉴' }))
-    await user.click(screen.getByRole('button', { name: '최초 설정 다시 시작' }))
-
-    expect(await screen.findByRole('heading', { name: 'AD 서버 등록' })).toBeInTheDocument()
-    expect(location()).toBe('/setup')
   })
 
   it('shows the message when the setup status cannot be loaded', async () => {

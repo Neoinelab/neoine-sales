@@ -1,6 +1,6 @@
 import type { Contact, ContactKind } from '../../shared/model/types'
-import { takeId } from '../../mock/store'
-import type { SeedEnv } from '../../mock/seed/env'
+import { takeId } from '../fake/store'
+import type { SeedEnv } from '../fake/seed/env'
 
 type Row = readonly [company: string, name: string, title: string, email: string | null, phone: string | null]
 

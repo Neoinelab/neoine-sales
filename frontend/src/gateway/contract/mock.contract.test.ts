@@ -1,9 +1,11 @@
 /** 계약 스위트를 mock 구현에 대해 실행한다(기본 실행). 같은 스위트를 실제 서버에 돌리는 것은 보고서의 test:live 항목 참고. */
 
 import { beforeEach } from 'vitest'
-import { newMock } from '../../mock/testing'
-import type { MockInstance } from '../../mock'
+import { newMock } from '../../test/fake/testing'
+import type { MockInstance } from '../../test/fake'
+import { alertsContract } from './alerts.contract'
 import { actionsContract } from './actions.contract'
+import { attachmentsContract } from './attachments.contract'
 import { codesContract } from './codes.contract'
 import { contactsContract } from './contacts.contract'
 import { dealsContract } from './deals.contract'
@@ -28,3 +30,5 @@ labelsContract(makeMock)
 contactsContract(makeMock)
 dealsContract(makeMock)
 actionsContract(makeMock)
+attachmentsContract(makeMock)
+alertsContract(makeMock)

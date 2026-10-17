@@ -1,11 +1,13 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter, useLocation } from 'react-router'
+import { act } from 'react'
+import { MemoryRouter, useLocation, useNavigate, type NavigateFunction } from 'react-router'
 import { App } from '../App'
-import { gateway, mockControl } from '../gateway'
-import { defaultMock } from '../mock/default'
-import { emptyBusinessSeed } from '../mock/seed'
+import { gateway } from '../gateway'
+import { mockControl } from './fake/default'
+import { defaultMock } from './fake/default'
+import { emptyBusinessSeed } from './fake/seed'
 import { buildSampleSeed } from './fixtures/sampleSeed'
 
 /** 테스트에서 고를 수 있는 역할. null은 로그인하지 않은 상태. */
@@ -29,11 +31,19 @@ function LocationProbe() {
   return <span data-testid="location">{location.pathname + location.search}</span>
 }
 
+/** 화면에 링크가 없는 경로(예: 상세 → 수정 화면)로 가는 테스트용 이동 함수를 밖으로 꺼낸다. */
+function NavigateProbe({ onReady }: { onReady: (navigate: NavigateFunction) => void }) {
+  const navigate = useNavigate()
+  onReady(navigate)
+  return null
+}
+
 /**
  * 화면 테스트 공통 진입점.
  * - 시드 데이터로 초기화(지연 0ms는 테스트 모드에서 게이트웨이가 보장), 저장소 장애 끔
  * - 역할(또는 사용자 id)로 로그인한 상태에서 `url`부터 `<App />`을 렌더
  * - `location()`은 현재 경로(+쿼리)를 돌려준다(리다이렉트 검증용)
+ * - `goTo(path)`는 화면에 링크가 없는 경로로 이동하고, 숫자(-1)면 브라우저 뒤로 가기와 같은 history 이동을 한다
  */
 export async function renderAt(url: string, options: RenderAtOptions = {}) {
   defaultMock.setSeed(options.seed === 'empty' ? emptyBusinessSeed : buildSampleSeed)
@@ -44,16 +54,25 @@ export async function renderAt(url: string, options: RenderAtOptions = {}) {
   if (userId) await gateway.auth.quickLogin(userId)
   else await gateway.auth.logout()
 
+  const navigateRef: { current: NavigateFunction | null } = { current: null }
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   const result = render(
     <QueryClientProvider client={client}>
       <MemoryRouter initialEntries={[url]}>
         <LocationProbe />
+        <NavigateProbe onReady={(navigate) => (navigateRef.current = navigate)} />
         <App />
       </MemoryRouter>
     </QueryClientProvider>,
   )
   const user = userEvent.setup()
   const location = () => result.getByTestId('location').textContent ?? ''
-  return { ...result, client, user, location }
+  const goTo = (path: string | number) => {
+    act(() => {
+      // NavigateFunction은 string | number 오버로드라 합집합 인자를 직접 받지 못해 좁힌 시그니처로 호출한다.
+      const go = navigateRef.current as ((to: string | number) => void | Promise<void>) | null
+      void go?.(path)
+    })
+  }
+  return { ...result, client, user, location, goTo }
 }

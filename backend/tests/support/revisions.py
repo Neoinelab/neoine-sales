@@ -84,3 +84,20 @@ def contacts_revision() -> str:
     children = [r.revision for r in script.walk_revisions() if r.down_revision == CODES_REVISION]
     assert len(children) == 1, f"CODES_REVISION 다음 리비전이 정확히 하나여야 한다: {children}"
     return children[0]
+
+
+def alert_settings_revision() -> str:
+    """P3 경고 기준·Status 진입(M-P3 `alert_settings`) 리비전 id: M-P2b 바로 다음.
+
+    alert_settings 테이블과 deals.status_changed_at을 만드는 단일 리비전이다. id는 구현이 정하므로
+    그래프에서 찾는다. 없거나 둘 이상이면 AssertionError(구현 전에는 이것이 red다).
+    """
+    from alembic.script import ScriptDirectory  # noqa: PLC0415
+
+    from tests.support.database import _alembic_config  # noqa: PLC0415
+
+    previous = attachments_revision()
+    script = ScriptDirectory.from_config(_alembic_config())
+    children = [r.revision for r in script.walk_revisions() if r.down_revision == previous]
+    assert len(children) == 1, f"M-P2b 다음 리비전이 정확히 하나여야 한다: {children}"
+    return children[0]

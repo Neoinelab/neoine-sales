@@ -1,7 +1,7 @@
 import { screen, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { renderAt } from '../../../test/mockApp'
-import { detailPath } from './detailTestUtils'
+import { detailPath } from '../../../test/detailTestUtils'
 
 async function openDetail(no: number, title: string) {
   const view = await renderAt(await detailPath(no))

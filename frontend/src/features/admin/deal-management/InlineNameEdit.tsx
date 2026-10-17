@@ -9,7 +9,7 @@ interface Props {
   onCancel: () => void
 }
 
-/** 표 안에서 이름만 고치는 인라인 입력. Enter=저장, Esc=취소. 값 검증은 서버(mock)의 문구를 그대로 보여준다. */
+/** 표 안에서 이름만 고치는 인라인 입력. Enter=저장, Esc=취소. 값 검증은 서버의 문구를 그대로 보여준다. */
 export function InlineNameEdit({ label, initial, busy = false, onSave, onCancel }: Props) {
   const [name, setName] = useState(initial)
   function onKeyDown(event: KeyboardEvent<HTMLInputElement>) {

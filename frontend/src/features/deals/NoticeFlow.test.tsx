@@ -1,7 +1,7 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { renderAt } from '../../test/mockApp'
-import { dealCodeOf, detailPath } from './detail/detailTestUtils'
+import { dealCodeOf, detailPath } from '../../test/detailTestUtils'
 import { DETAIL_URL, openEdit, pickPerson, save } from './form/testHelpers'
 
 /** 화면 사이에 넘기는 저장 알림(location.state.notice)이 도착 화면에 보이고 한 번만 나오는지 본다. */

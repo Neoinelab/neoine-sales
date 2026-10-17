@@ -44,7 +44,10 @@ def extension_of(name: str) -> str:
 
     `.bashrc`·`a.`·`.exe`처럼 확장자가 없는 이름은 ''.
     """
-    trimmed = name.rstrip(" .")
+    end = len(name)
+    while end > 0 and (name[end - 1].isspace() or name[end - 1] == "."):
+        end -= 1
+    trimmed = name[:end]
     dot = trimmed.rfind(".")
     if dot <= 0:
         return ""
@@ -53,6 +56,11 @@ def extension_of(name: str) -> str:
 
 def _is_control(char: str) -> bool:
     return ord(char) < 0x20 or ord(char) == 0x7F  # noqa: PLR2004 - C0 제어 문자와 DEL
+
+
+def _is_format(char: str) -> bool:
+    """유니코드 서식 문자(Cf): 방향 제어·zero-width 등 이름을 위장할 수 있어 거부한다."""
+    return unicodedata.category(char) == "Cf"
 
 
 @dataclass(frozen=True, slots=True)
@@ -70,7 +78,7 @@ class FileName:
             or text in {".", ".."}
             or "/" in text
             or "\\" in text
-            or any(_is_control(char) for char in text)
+            or any(_is_control(char) or _is_format(char) for char in text)
         ):
             raise InvalidValueError(INVALID_FILE_NAME)
         return cls(text)

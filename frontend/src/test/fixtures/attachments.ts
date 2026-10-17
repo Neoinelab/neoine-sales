@@ -1,7 +1,7 @@
 import { extensionOf } from '../../shared/model/fileRules'
 import type { Deal } from '../../shared/model/types'
-import { nextSeq, takeId, type AttachmentRecord, type HistoryRecord } from '../../mock/store'
-import type { SeedEnv } from '../../mock/seed/env'
+import { nextSeq, takeId, type AttachmentRecord, type HistoryRecord } from '../fake/store'
+import type { SeedEnv } from '../fake/seed/env'
 
 /** [Deal 번호, 파일명, 크기(byte), 업로더 loginId, 며칠 전, 설명]. 삭제 권한 시나리오(본인/타인/퇴사자)는 Deal 1에 모았다. */
 const FILES: readonly (readonly [number, string, number, string, number, string])[] = [

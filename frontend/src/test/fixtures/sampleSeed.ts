@@ -1,9 +1,9 @@
 /** 테스트 전용 샘플 시드(계획 4.3). 앱 기본 시드(`emptyBusinessSeed`)에 샘플 업무 데이터를 얹는다. 모든 날짜는 clock.now() 기준 상대값이다. */
 
-import type { MockClock } from '../../mock/clock'
-import { createSeedEnv } from '../../mock/seed/env'
-import { emptyBusinessSeed } from '../../mock/seed'
-import type { SeedData } from '../../mock/store'
+import type { MockClock } from '../fake/clock'
+import { createSeedEnv } from '../fake/seed/env'
+import { emptyBusinessSeed } from '../fake/seed'
+import type { SeedData } from '../fake/store'
 import { addDays } from '../../shared/model/dates'
 import { seedActivity } from './activity'
 import { seedAttachments } from './attachments'

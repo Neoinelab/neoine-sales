@@ -19,7 +19,7 @@ function featureSources(): [string, string][] {
  * T-ARCH-02: 앱(비테스트) 코드는 테스트 전용 픽스처·도우미(`test/`, `mock/testing`)를 import하지 않는다.
  * 샘플 업무 데이터는 `test/fixtures`에만 있고 앱 기본 시드는 빈 업무 데이터다.
  */
-const appSources = import.meta.glob(['../**/*.{ts,tsx}', '!../test/**', '!../**/*.test.{ts,tsx}', '!../mock/testing.ts', '!../**/test{Helpers,Utils}.ts'], {
+const appSources = import.meta.glob(['../**/*.{ts,tsx}', '!../test/**', '!../**/*.test.{ts,tsx}', '!../**/test{Helpers,Utils}.ts'], {
   query: '?raw',
   import: 'default',
   eager: true,
@@ -30,7 +30,20 @@ const TEST_IMPORT = /(?:from\s+|import\s*\(\s*|import\s+)['"][^'"]*(?:\/test\/|\
 describe('T-ARCH-02 앱 코드의 테스트 픽스처 경계', () => {
   it('scans real app source files', () => {
     expect(Object.keys(appSources).length).toBeGreaterThan(100)
-    expect(Object.keys(appSources).some((p) => p.includes('/mock/seed/'))).toBe(true)
+    expect(Object.keys(appSources).some((p) => p.includes('/mock/'))).toBe(false)
+  })
+
+  it('has no src/mock directory', () => {
+    const mockFiles = Object.keys(import.meta.glob('../mock/**/*'))
+    expect(mockFiles).toEqual([])
+  })
+
+  it('app sources have no gateway mode switch or mock control', () => {
+    const MOCK_WORDS = /VITE_GATEWAY|gatewayMode|mockControl|MockBanner|MockPanel/
+    const offenders = Object.entries(appSources)
+      .filter(([, text]) => MOCK_WORDS.test(text))
+      .map(([path]) => path)
+    expect(offenders).toEqual([])
   })
 
   it('has no import of test fixtures or test helpers in app sources', () => {
@@ -43,6 +56,7 @@ describe('T-ARCH-02 앱 코드의 테스트 픽스처 경계', () => {
   it('detects the forbidden import forms (self check of the pattern)', () => {
     expect(TEST_IMPORT.test("import { buildSampleSeed } from '../test/fixtures/sampleSeed'")).toBe(true)
     expect(TEST_IMPORT.test("import { newMock } from './testing'")).toBe(true)
+    expect(TEST_IMPORT.test("import { defaultMock } from '../test/fake/default'")).toBe(true)
     expect(TEST_IMPORT.test("import { emptyBusinessSeed } from './seed'")).toBe(false)
   })
 })

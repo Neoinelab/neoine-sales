@@ -24,8 +24,8 @@ if TYPE_CHECKING:
     from app.application.ports.deal_repository import DealQuery
 
 # 목록 질의의 한 행: (Deal 행, last_updated_at, 최근 활동의 next_action, 최근 활동의 due_date)
-# 활동이 없으면 next_action이 None이고 이때 due_date는 쓰이지 않는다(활동의 due_date는 NOT NULL).
-type ItemSelect = Select[tuple[DealRow, datetime, str | None, date]]
+# 최근 활동 outer join이라 활동이 없는 Deal은 next_action·due_date가 모두 NULL이다.
+type ItemSelect = Select[tuple[DealRow, datetime, str | None, date | None]]
 
 # 가장 최근 활동(acted_at, id 내림차순 첫 행)만 남기는 부분 질의.
 _RANKED = select(

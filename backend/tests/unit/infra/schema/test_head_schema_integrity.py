@@ -31,6 +31,7 @@ USER_FK_NAMES = {
     ("bant_labels", "created_by_user_id"): "fk_bant_labels_created_by_user_id_users",
     ("storage_settings", "updated_by_user_id"): "fk_storage_settings_updated_by_user_id_users",
     ("deal_attachments", "uploaded_by_user_id"): "fk_deal_attachments_uploaded_by_user_id_users",
+    ("alert_settings", "updated_by_user_id"): "fk_alert_settings_updated_by_user_id_users",
 }
 OLD_STRING_COLUMNS = {
     ("deals", "owner"),
@@ -115,6 +116,7 @@ async def test_user_reference_columns_are_uuid_and_the_old_string_columns_are_go
     assert ("directory_settings", "updated_by_user_id") not in not_null  # 최초 설정
     assert ("storage_settings", "updated_by_user_id") not in not_null  # 최초 설정(P2b)
     assert ("deal_attachments", "uploaded_by_user_id") in not_null
+    assert ("alert_settings", "updated_by_user_id") in not_null  # 최초 설정 경로가 없다(P3)
 
 
 async def test_deleted_at_exists_only_on_users_with_its_two_check_constraints(

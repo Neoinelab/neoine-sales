@@ -1,7 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { renderAt } from '../../../test/mockApp'
-import { detailPath } from './detailTestUtils'
+import { detailPath } from '../../../test/detailTestUtils'
 
 async function heading(name: string) {
   return screen.findByRole('heading', { level: 1, name })

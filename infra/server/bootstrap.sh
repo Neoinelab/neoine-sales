@@ -19,6 +19,8 @@ command -v nginx > /dev/null || { echo "nginx를 먼저 설치하세요" >&2; ex
 # 1) 서비스/배포 계정(SSH 키 인증 전용. Jenkins 배포 키의 공개키는 관리자가 authorized_keys에 등록)
 id neoine &> /dev/null || useradd --create-home --shell /bin/bash neoine
 install -d -o neoine -g neoine -m 750 "$APP_HOME" "$APP_HOME/incoming" "$APP_HOME/releases" "$APP_HOME/shared"
+# 첨부 파일 저장 위치(systemd ReadWritePaths=/var/lib/neoine-sales). 외부연동 화면에서 이 경로를 등록한다
+install -d -o neoine -g neoine -m 750 /var/lib/neoine-sales /var/lib/neoine-sales/files
 
 # 2) uv와 Python(neoine 계정, 인터넷에서 직접 다운로드)
 sudo -u neoine -H sh -c "curl -LsSf https://astral.sh/uv/$UV_VERSION/install.sh | sh"

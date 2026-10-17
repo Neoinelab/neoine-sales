@@ -15,24 +15,38 @@ from tests.support.revisions import (
     STAGE_REVISION,
     USER_FK_REVISION,
     action_snapshot_revision,
+    alert_settings_revision,
     attachments_revision,
     contacts_revision,
     deal_model_revision,
 )
 
 
-def test_the_attachments_revision_follows_the_action_snapshot_revision_and_is_the_single_head() -> (
+def test_the_alert_settings_revision_follows_the_attachments_revision_and_is_the_single_head() -> (
     None
 ):
     script = ScriptDirectory.from_config(_alembic_config())
 
     heads = script.get_heads()
 
-    assert heads == [attachments_revision()]
-    assert attachments_revision() != action_snapshot_revision()
-    head = script.get_revision(attachments_revision())
+    assert heads == [alert_settings_revision()]
+    assert alert_settings_revision() != attachments_revision()
+    head = script.get_revision(alert_settings_revision())
     assert head is not None
-    assert head.down_revision == action_snapshot_revision()
+    assert head.down_revision == attachments_revision()
+
+
+def test_the_attachments_revision_follows_the_action_snapshot_revision_in_the_head_history() -> (
+    None
+):
+    script = ScriptDirectory.from_config(_alembic_config())
+
+    assert attachments_revision() != action_snapshot_revision()
+    revision = script.get_revision(attachments_revision())
+    assert revision is not None
+    assert revision.down_revision == action_snapshot_revision()
+    history = {r.revision for r in script.iterate_revisions(script.get_heads()[0], "base")}
+    assert attachments_revision() in history
 
 
 def test_the_action_snapshot_revision_follows_the_deal_model_revision_in_the_history() -> None:

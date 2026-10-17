@@ -2,7 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { gateway } from '../../../gateway'
 import { renderAt } from '../../../test/mockApp'
-import { dealCodeOf, detailPath } from './detailTestUtils'
+import { dealCodeOf, detailPath } from '../../../test/detailTestUtils'
 
 async function openDialog(no: number, title: string, role: 'sales' | 'admin' = 'sales') {
   const view = await renderAt(await detailPath(no), { role })

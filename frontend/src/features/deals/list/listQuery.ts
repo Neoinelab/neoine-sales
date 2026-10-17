@@ -1,24 +1,10 @@
 import { BANT_CATEGORIES, DEAL_PAGE_SIZE, type BantCategory } from '../../../shared/model/constants'
 import type { DealListQuery, DealSortKey, SortOrder } from '../../../shared/model/types'
 
-/** URL 쿼리 키. 조건·정렬·페이지가 모두 URL에 있어 상세에 다녀와도 유지된다(DL-06). */
-export const FILTER_KEYS = [
-  'q',
-  'owner',
-  'vendor',
-  'solution',
-  'status',
-  'forecast',
-  'year',
-  'quarter',
-  'from',
-  'to',
-  'budget',
-  'authority',
-  'need',
-  'timeline',
-  'mine',
-] as const
+import { FILTER_KEYS } from '../../../shared/model/dealListMemory'
+
+/** URL 쿼리 키(정의는 shared의 기억 모듈에 있고 여기서 다시 내보낸다). */
+export { FILTER_KEYS }
 
 const SORT_KEYS: readonly DealSortKey[] = ['name', 'revenueAmount', 'revenueDate', 'lastUpdatedAt', 'statusKey']
 

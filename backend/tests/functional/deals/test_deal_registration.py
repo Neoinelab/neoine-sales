@@ -51,6 +51,8 @@ DETAIL_KEYS = {
     "bant",
     "next_action",
     "last_updated_at",
+    "status_changed_at",
+    "status_days",
     "risk",
     "created_at",
     "updated_at",

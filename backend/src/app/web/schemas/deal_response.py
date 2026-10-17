@@ -1,7 +1,7 @@
 """Deal 응답 스키마. 도메인 객체를 그대로 노출하지 않고 화면 계약 모양으로 바꾼다."""
 
 from datetime import date, datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 from pydantic import BaseModel
 
@@ -83,7 +83,9 @@ class DealRowResponse(BaseModel):
     bant: BantResponse
     next_action: NextActionResponse | None
     last_updated_at: datetime
-    risk: str | None  # P3 전까지 항상 null
+    risk: Literal["overdue", "stale", "overdue_stale"] | None
+    status_changed_at: datetime
+    status_days: int
     created_at: datetime
     updated_at: datetime
 
@@ -149,7 +151,9 @@ def _row_fields(view: DealView) -> dict[str, object]:
             else None
         ),
         "last_updated_at": view.item.last_updated_at,
-        "risk": None,
+        "risk": None if view.risk is None else view.risk.value,
+        "status_changed_at": deal.status_changed_at,
+        "status_days": view.status_days,
         "created_at": deal.created_at,
         "updated_at": deal.updated_at,
     }

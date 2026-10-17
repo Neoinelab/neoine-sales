@@ -1,6 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { gateway, resetMock } from '../../gateway'
+import { gateway } from '../../gateway'
+import { resetMock } from '../../test/fake/default'
 import { ApiError } from '../../shared/api/problem'
 import { formatKrwShort } from '../../shared/model/money'
 import type { DealRow } from '../../shared/model/types'

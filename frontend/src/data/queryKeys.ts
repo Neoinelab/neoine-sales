@@ -44,4 +44,5 @@ export const keys = {
   userOptions: (q: UserOptionsQuery) => ['users', 'options', q] as const,
   directory: ['settings', 'directory'] as const,
   storage: ['settings', 'storage'] as const,
+  alerts: ['alerts'] as const,
 }

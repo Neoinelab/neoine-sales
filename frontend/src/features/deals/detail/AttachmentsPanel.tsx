@@ -54,7 +54,7 @@ export function AttachmentsPanel({ dealCode, me, canWrite }: AttachmentsPanelPro
   return (
     <section aria-labelledby="dd-files" className="dd-card">
       <h2 id="dd-files">첨부 파일</h2>
-      {canWrite && <UploadForm dealCode={dealCode} onResult={setNotice} />}
+      {canWrite && <UploadForm dealCode={dealCode} me={me} existing={items} onResult={setNotice} />}
       {notice && (
         <Notice kind="success" onClose={() => setNotice(null)}>
           {notice}

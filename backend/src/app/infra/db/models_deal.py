@@ -63,6 +63,7 @@ class DealRow(Base):
     poc_state: Mapped[str | None] = mapped_column(String(3), default=None)
     poc_completed_date: Mapped[date | None] = mapped_column(Date, default=None)
     procurement: Mapped[str] = mapped_column(String(500), default="")
+    status_changed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 

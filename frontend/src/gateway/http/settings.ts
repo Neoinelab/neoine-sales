@@ -1,9 +1,8 @@
 import { api } from '../../shared/api/client'
 import { ApiError } from '../../shared/api/problem'
 import type { SettingsGateway } from '../types'
-import { toDirectoryRequest, toDirectorySettings } from './mappers/settings'
-import { unwrap } from './request'
-import { notImplemented } from './unsupported'
+import { toDirectoryRequest, toDirectorySettings, toStorageSettings } from './mappers/settings'
+import { unwrap, unwrapVoid } from './request'
 
 const FAILED_TYPE = 'https://sales.neoine.test/problems/directory-verification-failed'
 
@@ -40,8 +39,15 @@ export function createSettingsHttp(): SettingsGateway {
         ...(result.stage ? { stage: result.stage } : {}),
       })
     },
-    getStorage: () => Promise.resolve(null),
-    saveStorage: notImplemented,
-    testStorage: notImplemented,
+    getStorage: async () => {
+      try {
+        return toStorageSettings(await unwrap(api.GET('/api/v1/settings/storage')))
+      } catch (error) {
+        if (error instanceof ApiError && error.status === 404) return null
+        throw error
+      }
+    },
+    saveStorage: async (path) => toStorageSettings(await unwrap(api.PUT('/api/v1/settings/storage', { body: { path } }))),
+    testStorage: (path) => unwrapVoid(api.POST('/api/v1/settings/storage/test', { body: { path } })),
   }
 }

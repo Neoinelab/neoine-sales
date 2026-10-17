@@ -6,7 +6,6 @@
   "packageManager": "pnpm@10.18.3",
   "scripts": {
     "dev": "vite",
-    "dev:http": "VITE_GATEWAY=http vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "lint": "eslint .",

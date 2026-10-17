@@ -1,4 +1,3 @@
-import { useToday } from '../../../data/today'
 import { formatDateTime } from '../../../shared/format'
 import { canEditAction, type Viewer } from '../../../shared/model/permissions'
 import { userLabel } from '../../../shared/model/period'
@@ -17,18 +16,17 @@ interface ActionTableProps {
 }
 
 /**
- * 현재 Next Action(= Deal의 가장 최근 Action)의 Due가 mock 시계의 오늘보다 지났는지.
- * 이미 다음 Action으로 넘어간 지난 Action의 Due는 표시만 한다. 종결 Deal(risk 없음)에는 붙이지 않는다.
+ * 현재 Next Action(= Deal의 가장 최근 Action) 행인지. 기한초과 여부는 서버가 계산한 deal.risk를 따른다.
+ * 이미 다음 Action으로 넘어간 지난 Action의 Due는 표시만 한다.
  */
-function isCurrentOverdue(action: DealAction, deal: DealDetail, today: string): boolean {
+function isCurrentOverdue(action: DealAction, deal: DealDetail): boolean {
   const current = deal.nextAction
-  if (deal.risk === null || current === null) return false
-  return current.text === action.nextAction && current.dueDate === action.dueDate && action.dueDate < today
+  if (deal.risk !== 'overdue' && deal.risk !== 'overdue_stale') return false
+  return current !== null && current.text === action.nextAction && current.dueDate === action.dueDate
 }
 
 /** Actions 목록 표: 수행일시 / 담당자 / 등록 시점 Status·Forecast / 유형 / 진행사항 / Next Action / Due / Memo / 관리. */
 export function ActionTable({ actions, deal, canEdit, me, onEdit, onDelete }: ActionTableProps) {
-  const { today } = useToday()
   const own = (a: DealAction) => me !== null && canEditAction(me, a.actor.id)
   return (
     <div className="dd-scroll">
@@ -63,7 +61,7 @@ export function ActionTable({ actions, deal, canEdit, me, onEdit, onDelete }: Ac
               <td>
                 <span className="dd-row">
                   <span>{a.dueDate}</span>
-                  {isCurrentOverdue(a, deal, today) && <RiskBadge risk="overdue" />}
+                  {isCurrentOverdue(a, deal) && <RiskBadge risk="overdue" />}
                 </span>
               </td>
               <td className="wrap">{a.memo || '—'}</td>

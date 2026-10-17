@@ -39,6 +39,7 @@ BUSINESS_READS: Final = (
     ),  # 사용자 선택 UI용: 로그인한 모든 역할(이메일·역할은 노출 안 함)
     ("GET", "/api/v1/codes"),
     ("GET", "/api/v1/bant-labels"),
+    ("GET", "/api/v1/alert-settings"),  # P3: 경고 기준 조회는 모든 역할(목록 범례에 숫자가 필요)
 )
 BUSINESS_WRITES: Final = (
     ("POST", "/api/v1/bant-labels"),  # 자기 Label을 만든다(user는 조회 전용)
@@ -73,6 +74,7 @@ ADMIN_ONLY: Final = (
     ("GET", "/api/v1/settings/storage"),  # P2b: 파일 저장 위치 조회·변경·쓰기 확인
     ("PUT", "/api/v1/settings/storage"),
     ("POST", "/api/v1/settings/storage/test"),
+    ("PUT", "/api/v1/alert-settings"),  # P3: 경고 기준 변경은 admin만
 )
 PUBLIC: Final = (
     ("GET", "/healthz"),

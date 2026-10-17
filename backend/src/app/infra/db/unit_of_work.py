@@ -2,6 +2,7 @@
 
 from typing import TYPE_CHECKING, Self
 
+from app.infra.db.alert_settings_repository import SqlAlertSettingsRepository
 from app.infra.db.attachment_repository import SqlAttachmentRepository
 from app.infra.db.bant_label_repository import SqlBantLabelRepository
 from app.infra.db.code_repository import SqlCodeRepository
@@ -34,6 +35,7 @@ class SqlUnitOfWork:
     codes: SqlCodeRepository
     bant_labels: SqlBantLabelRepository
     attachments: SqlAttachmentRepository
+    alert_settings: SqlAlertSettingsRepository
 
     def __init__(self, session_factory: async_sessionmaker[AsyncSession]) -> None:
         self._session_factory = session_factory
@@ -52,6 +54,7 @@ class SqlUnitOfWork:
         self.codes = SqlCodeRepository(self._session)
         self.bant_labels = SqlBantLabelRepository(self._session)
         self.attachments = SqlAttachmentRepository(self._session)
+        self.alert_settings = SqlAlertSettingsRepository(self._session)
         return self
 
     async def __aexit__(self, *exc: object) -> None:

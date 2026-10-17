@@ -1,23 +1,25 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import { mockControl } from './gateway'
 import { renderAt } from './test/mockApp'
-
-const MOCK_BADGE = /UI 목업\(메모리 저장\)/
 
 function mainMenu() {
   return within(screen.getByRole('navigation', { name: '주 메뉴' }))
 }
 
-describe('목업 배지 (T-SHELL-01~03)', () => {
+describe('목업 표시 없음 (S1)', () => {
   it.each([
     ['로그인 화면', '/login', null],
     ['최초 설정 화면', '/setup', null],
     ['셸(Deals)', '/deals', 'sales'],
     ['Admin 설정 화면', '/admin/integrations', 'admin'],
-  ] as const)('shows the mock badge on %s', async (_name, url, role) => {
+  ] as const)('shows no mock badge or mock menu on %s', async (_name, url, role) => {
     await renderAt(url, { role })
-    expect(await screen.findByText(MOCK_BADGE)).toBeVisible()
+    await waitFor(() => expect(screen.getAllByRole('heading').length).toBeGreaterThan(0))
+
+    expect(screen.queryByText(/UI 목업/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/메모리 저장/)).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '목업 메뉴' })).not.toBeInTheDocument()
+    expect(screen.queryByText(/목업/)).not.toBeInTheDocument()
   })
 })
 
@@ -55,14 +57,15 @@ describe('메뉴 (T-SHELL-04~05)', () => {
   })
 })
 
-describe('준비 중 화면 (T-SHELL-06)', () => {
+describe('준비 중 화면 (T-SHELL-06, S2)', () => {
   it.each([
     ['/dashboard', 'Dashboard'],
     ['/reports', 'Reports'],
-  ])('shows the coming-soon page for %s', async (url, title) => {
+  ])('coming soon pages do not mention the mock (%s)', async (url, title) => {
     await renderAt(url)
     expect(await screen.findByRole('heading', { name: title })).toBeVisible()
     expect(screen.getByText(/준비 중입니다/)).toBeVisible()
+    expect(document.body.textContent).not.toContain('목업')
   })
 })
 
@@ -134,50 +137,5 @@ describe('가드와 리다이렉트 (T-SHELL-07~08)', () => {
     const { user, location } = await renderAt('/deals', { role: 'sales' })
     await user.click(await screen.findByRole('button', { name: '로그아웃' }))
     await waitFor(() => expect(location()).toBe('/login'))
-  })
-})
-
-describe('목업 메뉴 (T-SHELL, 계획 4.5)', () => {
-  it('lists the four controls next to the badge', async () => {
-    const { user } = await renderAt('/deals', { role: 'admin' })
-    await user.click(await screen.findByRole('button', { name: '목업 메뉴' }))
-    expect(screen.getByRole('button', { name: '데이터 초기화' })).toBeVisible()
-    expect(screen.getByRole('button', { name: '최초 설정 다시 시작' })).toBeVisible()
-    expect(screen.getByRole('checkbox', { name: '저장소 장애 시뮬레이션' })).toBeVisible()
-    expect(screen.getByRole('checkbox', { name: '지연 끄기' })).toBeVisible()
-    expect(screen.getByText(/실제 연동이 아닙니다/)).toBeVisible()
-  })
-
-  it('toggles the storage failure simulation', async () => {
-    const { user } = await renderAt('/deals', { role: 'admin' })
-    await user.click(await screen.findByRole('button', { name: '목업 메뉴' }))
-    expect(mockControl.isStorageFailure()).toBe(false)
-    await user.click(screen.getByRole('checkbox', { name: '저장소 장애 시뮬레이션' }))
-    expect(mockControl.isStorageFailure()).toBe(true)
-    await user.click(screen.getByRole('checkbox', { name: '저장소 장애 시뮬레이션' }))
-    expect(mockControl.isStorageFailure()).toBe(false)
-  })
-
-  it('toggles the response delay', async () => {
-    const { user } = await renderAt('/deals', { role: 'admin' })
-    await user.click(await screen.findByRole('button', { name: '목업 메뉴' }))
-    const before = mockControl.isLatencyOn()
-    await user.click(screen.getByRole('checkbox', { name: '지연 끄기' }))
-    expect(mockControl.isLatencyOn()).toBe(!before)
-  })
-
-  it('restarts the first-time setup: signs out and opens /setup', async () => {
-    const { user, location } = await renderAt('/deals', { role: 'admin' })
-    await user.click(await screen.findByRole('button', { name: '목업 메뉴' }))
-    await user.click(screen.getByRole('button', { name: '최초 설정 다시 시작' }))
-    await waitFor(() => expect(location()).toBe('/setup'))
-    expect(screen.getByText(MOCK_BADGE)).toBeVisible()
-  })
-
-  it('resets the data and says so', async () => {
-    const { user } = await renderAt('/deals', { role: 'admin' })
-    await user.click(await screen.findByRole('button', { name: '목업 메뉴' }))
-    await user.click(screen.getByRole('button', { name: '데이터 초기화' }))
-    expect(await screen.findByText('데이터를 처음 상태로 되돌렸습니다.')).toBeVisible()
   })
 })

@@ -22,13 +22,30 @@ INSERT_CONTACT = (
     "insert into contacts (id, kind, company, name, title, email, phone, created_at, updated_at)"
     " values (:id, :kind, :company, :name, :title, :email, :phone, now(), now())"
 )
-INSERT_DEAL = (
-    "insert into deals (deal_code, name, owner_user_id, vendor, solution, users, status_kind,"
+_DEAL_COLUMNS = (
+    "deal_code, name, owner_user_id, vendor, solution, users, status_kind,"
     " status_key, forecast_kind, forecast_key, revenue_amount, revenue_date, customer_id,"
     " quote_submitted, quote_submitted_date, poc_state, poc_completed_date, procurement,"
-    " created_at, updated_at) values (:code, 'n', :owner_user_id, 'v', 's', :users, 'status',"
+    " created_at, updated_at"
+)
+_DEAL_VALUES = (
+    ":code, 'n', :owner_user_id, 'v', 's', :users, 'status',"
     " :status_key, 'forecast', :forecast_key, :amount, current_date, :customer_id,"
-    " :quote_submitted, null, :poc_state, null, '', now(), now())"
+    " :quote_submitted, null, :poc_state, null, '', now(), now()"
+)
+INSERT_DEAL = (
+    f"insert into deals ({_DEAL_COLUMNS})"  # noqa: S608 - 상수만 조합
+    f" values ({_DEAL_VALUES})"
+)
+# P3(M-P3) 이후 스키마: deals.status_changed_at이 NOT NULL이라 함께 넣는다
+INSERT_DEAL_WITH_STATUS_ENTRY = (
+    f"insert into deals ({_DEAL_COLUMNS}, status_changed_at)"  # noqa: S608 - 상수만 조합
+    f" values ({_DEAL_VALUES}, now())"
+)
+HAS_STATUS_CHANGED_AT = (
+    "select count(*) from information_schema.columns"
+    " where table_schema = 'public' and table_name = 'deals'"
+    " and column_name = 'status_changed_at'"
 )
 INSERT_PARTNER_LINK = (
     "insert into deal_partners (id, deal_code, contact_id, linked_at, unlinked_at)"
@@ -104,7 +121,9 @@ async def insert_deal(
         "poc_state": None,
     }
     values.update(overrides)
-    await session.execute(text(INSERT_DEAL), values)
+    # 과거 리비전 스키마(M-P3 이전)에서도 쓰므로 컬럼이 있을 때만 status_changed_at을 넣는다
+    has_entry = (await session.execute(text(HAS_STATUS_CHANGED_AT))).scalar() == 1
+    await session.execute(text(INSERT_DEAL_WITH_STATUS_ENTRY if has_entry else INSERT_DEAL), values)
     return str(values["code"])
 
 

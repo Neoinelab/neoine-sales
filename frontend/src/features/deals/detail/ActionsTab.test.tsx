@@ -1,7 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { renderAt } from '../../../test/mockApp'
-import { detailPath } from './detailTestUtils'
+import { detailPath } from '../../../test/detailTestUtils'
 
 async function openActions(no: number, title: string, role: 'sales' | 'admin' | 'user' = 'sales') {
   const view = await renderAt(await detailPath(no), { role })

@@ -21,6 +21,7 @@ from tests.functional.steps.deal_lists import (
     when_get_deletion_impact,
     when_get_facets,
 )
+from tests.functional.steps.deal_risk import given_due_in
 from tests.functional.steps.deals import (
     NOT_FOUND,
     given_deal,
@@ -38,17 +39,23 @@ pytestmark = pytest.mark.integration
 async def test_the_list_shows_the_next_action_and_the_action_time_as_last_update(api: Api) -> None:
     """Scenario: 최근 Action의 다음 진행 계획이 목록에 보이고 last_updated_at이 그 시각이다."""
     # Given
-    await given_logged_in_as(api, role="sales")
+    login = await given_logged_in_as(api, role="sales")
     deal = await given_deal(api)
     acted_at = api.clock.now() + timedelta(days=3)
+    due_date = given_due_in(api, 30)  # 시계 기준 날짜: 실제 날짜가 흘러도 기한초과가 되지 않는다
     await given_action(
-        api, deal["code"], acted_at=acted_at, next_action="계약서 검토", due_date="2027-02-05"
+        api,
+        deal["code"],
+        login_id=login,
+        acted_at=acted_at,
+        next_action="계약서 검토",
+        due_date=due_date,
     )
     # When
     response = await when_list_deals(api)
     # Then
     (row,) = response.json()["items"]
-    assert row["next_action"] == {"text": "계약서 검토", "due_date": "2027-02-05"}
+    assert row["next_action"] == {"text": "계약서 검토", "due_date": due_date}
     assert datetime.fromisoformat(row["last_updated_at"]) == acted_at
     assert row["risk"] is None
 
@@ -56,12 +63,18 @@ async def test_the_list_shows_the_next_action_and_the_action_time_as_last_update
 async def test_the_latest_acted_action_wins_and_the_detail_shows_the_same(api: Api) -> None:
     """Scenario: 수행 시각이 가장 늦은 Action이 다음 진행 계획이 되고 상세에도 같은 값이 보인다."""
     # Given
-    await given_logged_in_as(api, role="sales")
+    login = await given_logged_in_as(api, role="sales")
     deal = await given_deal(api)
     base = api.clock.now()
-    await given_action(api, deal["code"], acted_at=base + timedelta(days=5), next_action="나중 일")
     await given_action(
-        api, deal["code"], acted_at=base + timedelta(days=2), next_action="먼저 한 일"
+        api, deal["code"], login_id=login, acted_at=base + timedelta(days=5), next_action="나중 일"
+    )
+    await given_action(
+        api,
+        deal["code"],
+        login_id=login,
+        acted_at=base + timedelta(days=2),
+        next_action="먼저 한 일",
     )
     # When
     response = await when_get_deal(api, deal["code"])
@@ -75,10 +88,12 @@ async def test_a_recent_action_moves_an_older_deal_to_the_top_of_the_default_lis
 ) -> None:
     """Scenario: 최근 Action이 있는 Deal은 나중에 만든 Deal보다 위에 온다."""
     # Given
-    await given_logged_in_as(api, role="sales")
+    login = await given_logged_in_as(api, role="sales")
     older = await given_deal(api, name="오래된 딜")
     newer = await given_deal(api, name="새 딜")
-    await given_action(api, older["code"], acted_at=api.clock.now() + timedelta(days=1))
+    await given_action(
+        api, older["code"], login_id=login, acted_at=api.clock.now() + timedelta(days=1)
+    )
     # When
     response = await when_list_deals(api)
     # Then
@@ -129,12 +144,12 @@ async def test_facets_of_an_empty_system_are_empty_lists(api: Api) -> None:
 async def test_the_deletion_impact_counts_history_and_actions(api: Api) -> None:
     """Scenario: 삭제 영향은 이력·활동 건수를 알려 주고 첨부는 0이다."""
     # Given
-    await given_logged_in_as(api, role="sales")
+    login = await given_logged_in_as(api, role="sales")
     deal = await given_deal(api)
     await when_update_deal(api, deal["code"], name="변경")
     when = api.clock.now() + timedelta(days=1)
-    await given_action(api, deal["code"], acted_at=when)
-    await given_action(api, deal["code"], acted_at=when + timedelta(days=1))
+    await given_action(api, deal["code"], login_id=login, acted_at=when)
+    await given_action(api, deal["code"], login_id=login, acted_at=when + timedelta(days=1))
     # When
     response = await when_get_deletion_impact(api, deal["code"])
     # Then

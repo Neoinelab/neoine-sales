@@ -9,7 +9,7 @@ interface Props {
   onChange: (patch: Partial<ForecastFilters>) => void
 }
 
-/** 연도는 mock 시계의 올해 ±1(시드 범위)에 URL로 들어온 값을 더한다. */
+/** 연도는 기준 연도(올해) ±1에 URL로 들어온 값을 더한다. */
 function yearOptions(base: number, current: number): number[] {
   return [...new Set([base - 1, base, base + 1, current])].sort((a, b) => a - b)
 }

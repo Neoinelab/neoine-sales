@@ -5,6 +5,8 @@ from typing import TYPE_CHECKING
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker, create_async_engine
 
+from app.application.alert.get_alert_settings import GetAlertSettings
+from app.application.alert.update_alert_settings import UpdateAlertSettings
 from app.application.contact.delete_contact import DeleteContact
 from app.application.contact.list_companies import ListContactCompanies
 from app.application.contact.list_of_company import ListContactsOfCompany
@@ -123,6 +125,12 @@ class Container:
     def test_setup_storage(self) -> ProbeSetupStorage:
         return self._storage.test_setup_storage()
 
+    def get_alert_settings(self) -> GetAlertSettings:
+        return GetAlertSettings(self._uow)
+
+    def update_alert_settings(self) -> UpdateAlertSettings:
+        return UpdateAlertSettings(self._uow, self._clock)
+
     def get_storage_settings(self) -> GetStorageSettings:
         return self._storage.get_storage_settings()
 
@@ -193,10 +201,10 @@ class Container:
         return RegisterDeal(self._uow, self._clock, self._suffix_source)
 
     def get_deal(self) -> GetDeal:
-        return GetDeal(self._uow)
+        return GetDeal(self._uow, self._clock)
 
     def list_deals(self) -> ListDeals:
-        return ListDeals(self._uow)
+        return ListDeals(self._uow, self._clock)
 
     def list_deal_history(self) -> ListDealHistory:
         return ListDealHistory(self._uow)

@@ -1,5 +1,5 @@
 /**
- * UI 목업의 도메인 모델(A-0 계약). 계획 4.2장 기준.
+ * 도메인 모델(화면·게이트웨이 계약). 계획 4.2장 기준.
  *
  * 공통 약속
  * - 금액은 KRW 정수(number). 소수·통화 필드는 없다(통화는 KRW 고정 표시).
@@ -166,6 +166,8 @@ export interface Deal {
   poc: Poc
   procurement: string
   bant: BantSelection
+  /** 현재 Status에 진입한 시각(등록 시 또는 Status key가 바뀐 시각). */
+  statusChangedAt: string
   createdAt: string
   updatedAt: string
 }
@@ -188,6 +190,8 @@ export interface DealRow extends Deal {
   nextAction: NextActionSummary | null
   /** max(Deal.updatedAt, 최근 Action 수행시각). */
   lastUpdatedAt: string
+  /** 현재 Status 체류 일수(달력 날짜 차, 당일 0). */
+  statusDays: number
   risk: Risk
 }
 
@@ -262,7 +266,7 @@ export interface Attachment {
   uploadedAt: string
 }
 
-/** 다운로드 결과(mock은 더미 텍스트 또는 업로드한 File). */
+/** 다운로드 결과. */
 export interface DownloadedFile {
   fileName: string
   blob: Blob
@@ -276,4 +280,11 @@ export interface Page<T> {
   total: number
   offset: number
   limit: number
+}
+
+/** 경고 기준(미업데이트 일수) 설정. 저장된 적이 없으면 updatedAt/updatedBy가 null. */
+export interface AlertSettings {
+  staleDays: number
+  updatedAt: string | null
+  updatedBy: UserRef | null
 }

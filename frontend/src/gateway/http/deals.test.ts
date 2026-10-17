@@ -436,10 +436,17 @@ describe('http gateway wiring', () => {
     expect(calls[0]).toMatchObject({ method: 'GET', path: `/api/v1/deals/${CODE}/history` })
   })
 
-  it('keeps attachments and forecast on 501', async () => {
+  it('uses the real attachments adapter instead of the 501 placeholder', async () => {
+    const { calls } = stubFetch(json({ items: [] }))
+
+    await expect(createHttpGateway().attachments.list(CODE)).resolves.toEqual([])
+
+    expect(calls[0]).toMatchObject({ method: 'GET', path: `/api/v1/deals/${CODE}/attachments` })
+  })
+
+  it('keeps only forecast on 501', async () => {
     const gateway = createHttpGateway()
 
-    await expect(gateway.attachments.list(CODE)).rejects.toMatchObject({ status: 501 })
     await expect(gateway.forecast.summary({ year: 2026 })).rejects.toMatchObject({ status: 501 })
   })
 })

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router'
 import { useLogout, usePermissions } from '../../data/auth'
 import { visibleMenu } from '../model/permissions'
+import { useDealListPath } from './useDealListPath'
 
 const MENU_LABELS: Record<string, string> = {
   '/dashboard': 'Dashboard',
@@ -11,12 +12,13 @@ const MENU_LABELS: Record<string, string> = {
   '/admin': 'Admin',
 }
 
-/** 상단 메뉴(사용자 4개 + admin에게만 Admin), 사용자 표시, 로그아웃. 목업 배지는 App이 그 위에 그린다. */
+/** 상단 메뉴(사용자 4개 + admin에게만 Admin), 사용자 표시, 로그아웃. */
 export function Layout() {
   const { me, role } = usePermissions()
   const logout = useLogout()
   const navigate = useNavigate()
   const menu = visibleMenu(role)
+  const dealsPath = useDealListPath()
   const [open, setOpen] = useState(false)
   return (
     <>
@@ -39,7 +41,7 @@ export function Layout() {
         <div className={open ? 'topbar-menu open' : 'topbar-menu'}>
           <nav aria-label="주 메뉴">
             {menu.map((to) => (
-              <NavLink key={to} to={to} onClick={() => setOpen(false)}>
+              <NavLink key={to} to={to === '/deals' ? dealsPath : to} onClick={() => setOpen(false)}>
                 {MENU_LABELS[to] ?? to}
               </NavLink>
             ))}

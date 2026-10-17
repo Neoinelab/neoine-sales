@@ -54,6 +54,6 @@ class UpdateDeal:
                 deal.touch(now)
                 await uow.deals.update(deal)
                 await write_history(uow, deal.id, actor.user_id, drafts, now)
-            view = (await build_views(uow, [await uow.deals.get_item(deal.id)]))[0]
+            view = (await build_views(uow, [await uow.deals.get_item(deal.id)], now=now))[0]
             await uow.commit()
         return view

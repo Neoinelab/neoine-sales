@@ -4,6 +4,7 @@ import { useCreateDeal, useUpdateDeal } from '../../../data/deals'
 import type { SyncApplied } from '../../../shared/model/sync'
 import type { DealDetail } from '../../../shared/model/types'
 import { ErrorBanner } from '../../../shared/ui/ErrorBanner'
+import { useDealListPath } from '../../../shared/ui/useDealListPath'
 import { SyncNotice } from '../../../shared/sync/SyncNotice'
 import { BantSection } from './BantSection'
 import { BasicSection } from './BasicSection'
@@ -32,6 +33,7 @@ interface DealFormProps {
 /** 등록·수정 공용 폼. 검증 → 저장 → 상세로 이동하고, Status/Forecast 변경은 draft에 반영만 한다(저장 시 일괄). */
 export function DealForm({ original, defaultOwnerId }: DealFormProps) {
   const navigate = useNavigate()
+  const listPath = useDealListPath()
   const create = useCreateDeal()
   const update = useUpdateDeal()
   const form = useRef<HTMLFormElement>(null)
@@ -96,7 +98,7 @@ export function DealForm({ original, defaultOwnerId }: DealFormProps) {
         <button type="submit" className="primary" disabled={saving}>
           {saving ? '저장 중…' : '저장'}
         </button>
-        <button type="button" disabled={saving} onClick={() => navigate(original ? `/deals/${original.code}` : '/deals')}>
+        <button type="button" disabled={saving} onClick={() => navigate(original ? `/deals/${original.code}` : listPath)}>
           취소
         </button>
       </div>

@@ -6,6 +6,7 @@ from app.domain.bant.values import BantCategory, BantLabelId
 from app.domain.contact.values import ContactId
 from app.domain.deal.code import DealCode
 from app.domain.deal.entities import Deal, PartnerLink
+from app.domain.deal.status_entry import StatusEntry
 from app.domain.deal.sync import SyncState
 from app.domain.deal.values import (
     BantSelection,
@@ -33,6 +34,7 @@ def apply_fields(row: DealRow, deal: Deal) -> None:
     row.users = details.users
     row.status_key = deal.sync.status_key
     row.forecast_key = deal.sync.forecast_key
+    row.status_changed_at = deal.status_entry.changed_at
     row.revenue_amount = details.revenue_amount.value
     row.revenue_date = details.revenue_date
     row.customer_id = deal.customer_id
@@ -91,6 +93,7 @@ def to_entity(
         id=DealCode(row.deal_code),
         details=_details(row),
         sync=SyncState(row.status_key, row.forecast_key),
+        status_entry=StatusEntry(row.status_key, row.status_changed_at),
         customer_id=ContactId(row.customer_id),
         partner_links=[
             PartnerLink(ContactId(link.contact_id), link.linked_at, link.unlinked_at)

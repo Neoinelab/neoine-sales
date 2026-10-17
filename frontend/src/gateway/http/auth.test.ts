@@ -38,7 +38,6 @@ describe('auth over HTTP', () => {
   it.each([
     ['u-root', 'admin'],
     ['u-kim', 'sales'],
-    ['u-park', 'sales'],
     ['u-han', 'user'],
   ])('quickLogin(%s) posts dev-login with the role %s', async (userId, role) => {
     const { calls } = stubFetch(json({ ...PRINCIPAL, role }))
@@ -72,7 +71,7 @@ describe('auth over HTTP', () => {
   })
 
   it.each([true, false])('config exposes dev_login=%s as quickLogin', async (devLogin) => {
-    const { calls } = stubFetch(json({ dev_login: devLogin, directory_login: true, needs_admin_setup: false, needs_directory_setup: false }))
+    const { calls } = stubFetch(json({ dev_login: devLogin, directory_login: true, needs_admin_setup: false, needs_directory_setup: false, needs_storage_setup: false }))
 
     await expect(createAuthHttp().config()).resolves.toEqual({ quickLogin: devLogin, needsSetup: false })
 
@@ -80,12 +79,24 @@ describe('auth over HTTP', () => {
   })
 
   it.each([
-    [true, false],
-    [false, true],
-    [true, true],
-  ])('config needsSetup is true when directory=%s or admin=%s setup is pending', async (directory, admin) => {
-    stubFetch(json({ dev_login: false, directory_login: true, needs_admin_setup: admin, needs_directory_setup: directory }))
+    [true, false, false],
+    [false, true, false],
+    [false, false, true],
+    [true, true, true],
+  ])(
+    'config needsSetup is true when directory=%s storage=%s or admin=%s setup is pending',
+    async (directory, storage, admin) => {
+      stubFetch(
+        json({
+          dev_login: false,
+          directory_login: true,
+          needs_admin_setup: admin,
+          needs_directory_setup: directory,
+          needs_storage_setup: storage,
+        }),
+      )
 
-    await expect(createAuthHttp().config()).resolves.toEqual({ quickLogin: false, needsSetup: true })
-  })
+      await expect(createAuthHttp().config()).resolves.toEqual({ quickLogin: false, needsSetup: true })
+    },
+  )
 })

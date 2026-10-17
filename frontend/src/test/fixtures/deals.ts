@@ -1,9 +1,9 @@
 import { BANT_CATEGORIES } from '../../shared/model/constants'
 import type { BantSelection, Code, Contact, Deal, PartnerLink, Poc, Quote } from '../../shared/model/types'
-import type { LabelRecord } from '../../mock/store'
+import type { LabelRecord } from '../fake/store'
 import { findSeedContact } from './contacts'
 import { actionHour, createdAgo, type DealSpec } from './dealSpecs'
-import type { SeedEnv } from '../../mock/seed/env'
+import type { SeedEnv } from '../fake/seed/env'
 
 /** 시드 Deal의 code: 등록일(YYYYMMDD) + '-D' + 3자리 번호(1~24). */
 export function dealCodeOf(spec: Pick<DealSpec, 'no' | 'lastAgo' | 'count'>, env: Pick<SeedEnv, 'date'>): string {
@@ -74,6 +74,7 @@ export function seedDeals(
       procurement: spec.procurement ?? '',
       bant: bantOf(spec, labels),
       createdAt,
+      statusChangedAt: createdAt,
       updatedAt: env.at(spec.lastAgo, actionHour(spec.no, 0)),
     }
   })

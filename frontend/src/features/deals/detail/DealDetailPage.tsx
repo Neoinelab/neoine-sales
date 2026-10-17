@@ -8,6 +8,7 @@ import { canDeleteDeal, canWrite as canWriteRole } from '../../../shared/model/p
 import { ErrorBanner } from '../../../shared/ui/ErrorBanner'
 import { Notice } from '../../../shared/ui/Notice'
 import { Tabs } from '../../../shared/ui/Tabs'
+import { useDealListPath } from '../../../shared/ui/useDealListPath'
 import { useLocationNotice } from '../../../shared/ui/useLocationNotice'
 import { ActionsTab } from './ActionsTab'
 import { AttachmentsPanel } from './AttachmentsPanel'
@@ -36,6 +37,7 @@ export function DealDetailPage() {
   const [notice, setNotice] = useLocationNotice()
   const [deleting, setDeleting] = useState(false)
   const [deleted, setDeleted] = useState(false)
+  const listPath = useDealListPath()
   const tab = params.get('tab') === 'history' ? 'history' : 'actions'
 
   if (deleted) return null
@@ -44,7 +46,7 @@ export function DealDetailPage() {
       <section className="dd-page">
         <ErrorBanner error={deal.error} format={messageOf} />
         <p>
-          <Link to="/deals">Deal 목록으로</Link>
+          <Link to={listPath}>Deal 목록으로</Link>
         </p>
       </section>
     )
@@ -67,7 +69,7 @@ export function DealDetailPage() {
       <header className="dd-head">
         <DealTitle deal={data} canWrite={canWrite} onNotice={setNotice} />
         <div className="dd-head-actions">
-          <Link to="/deals" className="button">
+          <Link to={listPath} className="button">
             ← 목록
           </Link>
           {canWrite && (
@@ -110,7 +112,7 @@ export function DealDetailPage() {
           onCancel={() => setDeleting(false)}
           onDeleted={(message) => {
             setDeleted(true)
-            void navigate('/deals', { state: { notice: message } })
+            void navigate(listPath, { state: { notice: message } })
           }}
         />
       )}

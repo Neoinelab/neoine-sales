@@ -2,8 +2,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, renderHook, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it } from 'vitest'
-import { resetMock } from '../mock/default'
-import { dealCode, fakeFile, TEST_NOW } from '../mock/testing'
+import { resetMock } from '../test/fake/default'
+import { dealCode, fakeFile, TEST_NOW } from '../test/fake/testing'
 import { ApiError } from '../shared/api/problem'
 import { usePermissions, useLogin, useLogout, useMe, useQuickLogin } from './auth'
 import { useAttachments, useUploadAttachment } from './attachments'
@@ -163,14 +163,14 @@ describe('Action·첨부·코드 훅', () => {
     const { wrapper } = setup()
     const { result } = renderHook(() => ({ list: useAttachments(code), upload: useUploadAttachment() }), { wrapper })
     await waitFor(() => expect(result.current.list.isSuccess).toBe(true))
-    const file = fakeFile('제안서_ITDR.pptx', 55)
+    const file = fakeFile('견적서_한빛은행_v2.pdf', 55)
     await act(async () => {
       await expect(result.current.upload.mutateAsync({ dealCode: code, input: { file, description: '', onExists: 'ask' } })).rejects.toMatchObject({ status: 409 })
     })
     await act(async () => {
       await result.current.upload.mutateAsync({ dealCode: code, input: { file, description: '', onExists: 'replace' } })
     })
-    await waitFor(() => expect(result.current.list.data?.find((a) => a.fileName === '제안서_ITDR.pptx')?.size).toBe(55))
+    await waitFor(() => expect(result.current.list.data?.find((a) => a.fileName === '견적서_한빛은행_v2.pdf')?.size).toBe(55))
   })
 
   it('useRenameCode는 코드 집합을 갱신해 새 이름이 배지에 반영된다', async () => {

@@ -32,6 +32,7 @@ LINK_KINDS: Final = (
     "label_creator",  # bant_labels.created_by_user_id (직접 만든 Label의 생성자)
     "storage_settings",  # storage_settings.updated_by_user_id (P2b: 저장 위치를 저장한 admin)
     "attachment_uploader",  # deal_attachments.uploaded_by_user_id (P2b: 첨부를 올린 사용자)
+    "alert_settings",  # alert_settings.updated_by_user_id (P3: 경고 기준을 저장한 admin)
 )
 
 
@@ -45,6 +46,7 @@ LINK_COLUMNS: Final = {
     "label_creator": ("bant_labels", "created_by_user_id"),
     "storage_settings": ("storage_settings", "updated_by_user_id"),
     "attachment_uploader": ("deal_attachments", "uploaded_by_user_id"),
+    "alert_settings": ("alert_settings", "updated_by_user_id"),
 }
 SESSION_COLUMN: Final = ("auth_sessions", "user_id")
 EXPECTED_USER_FKS: Final = frozenset({*LINK_COLUMNS.values(), SESSION_COLUMN})
@@ -108,7 +110,12 @@ async def _create_link(uow: UnitOfWork, user: User, kind: str) -> None:
         )
     elif kind == "label_creator":
         await uow.bant_labels.add(make_label(name=f"L{uuid4().hex[:12]}", created_by=user.id))
-    elif kind == "storage_settings":
+    else:
+        await _create_file_or_setting_link(uow, user, kind)
+
+
+async def _create_file_or_setting_link(uow: UnitOfWork, user: User, kind: str) -> None:
+    if kind == "storage_settings":
         from app.domain.storage.path import StoragePath  # noqa: PLC0415
 
         # 이미 저장 위치가 있는 환경(functional 최초 설정을 마친 앱)에서는 저장자만 바뀐다(upsert).
@@ -121,5 +128,10 @@ async def _create_link(uow: UnitOfWork, user: User, kind: str) -> None:
         helper = await _helper_user(uow)
         deal = await _deal(uow, owner=helper.id)
         await uow.attachments.add(make_attachment(deal_code=deal.id, uploaded_by=user.id))
+    elif kind == "alert_settings":
+        from app.domain.alert.thresholds import AlertThresholds  # noqa: PLC0415
+
+        # 이미 경고 기준이 있는 환경에서는 저장자만 바뀐다(upsert).
+        await uow.alert_settings.save(AlertThresholds(stale_days=7), updated_by=user.id, now=NOW)
     else:
         raise AssertionError(kind)

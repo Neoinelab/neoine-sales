@@ -49,6 +49,6 @@ class RegisterDeal:
                 ),
             )
             await write_history(uow, deal.id, actor.user_id, [created_draft()], now)
-            view = (await build_views(uow, [await uow.deals.get_item(deal.id)]))[0]
+            view = (await build_views(uow, [await uow.deals.get_item(deal.id)], now=now))[0]
             await uow.commit()
         return view

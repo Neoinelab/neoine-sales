@@ -2,7 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react'
 import type { UserEvent } from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 import { renderAt } from '../../../test/mockApp'
-import { detailPath } from './detailTestUtils'
+import { detailPath } from '../../../test/detailTestUtils'
 
 async function openBar(no: number, title: string, role: 'sales' | 'admin' = 'sales') {
   const view = await renderAt(await detailPath(no), { role })

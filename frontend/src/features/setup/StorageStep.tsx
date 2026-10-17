@@ -5,7 +5,7 @@ import { ErrorBanner } from '../../shared/ui/ErrorBanner'
 import { TextField } from '../../shared/ui/fields'
 import { Notice } from '../../shared/ui/Notice'
 
-/** 2단계: 첨부 파일을 저장할 서버 디렉터리. 검증 문구는 서버(mock)가 준다. 저장 전에 쓰기 테스트를 해 볼 수 있다. */
+/** 2단계: 첨부 파일을 저장할 서버 디렉터리. 검증 문구는 서버가 준다. 저장 전에 쓰기 테스트를 해 볼 수 있다. */
 export function StorageStep({ onBack }: { onBack: () => void }) {
   const save = useSaveSetupStorage()
   const test = useTestSetupStorage()
@@ -31,7 +31,7 @@ export function StorageStep({ onBack }: { onBack: () => void }) {
       }}
     >
       <h2>파일 저장 위치</h2>
-      <p className="hint">Deal 첨부 파일이 저장될 서버의 절대 경로를 입력합니다. 예: /data/neoine-sales/files</p>
+      <p className="hint">Deal 첨부 파일이 저장될 서버의 절대 경로를 입력합니다. 예: /var/lib/neoine-sales/files</p>
       <p className="hint">나중에 Admin &gt; Settings &gt; 외부연동에서 바꿀 수 있습니다. 위치를 바꿔도 기존 파일 이동은 관리자가 수작업으로 처리합니다.</p>
       <ErrorBanner error={save.error ?? test.error} format={directoryErrorMessage} />
       {tested && (

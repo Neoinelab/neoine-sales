@@ -46,6 +46,8 @@ export function serverDealRow(over: Partial<Schemas['DealRowResponse']> = {}): S
     next_action: null,
     last_updated_at: '2026-10-15T09:00:00+09:00',
     risk: null,
+    status_changed_at: '2026-10-10T09:00:00+09:00',
+    status_days: 5,
     created_at: '2026-10-01T09:00:00+09:00',
     updated_at: '2026-10-02T09:00:00+09:00',
     ...over,
@@ -68,4 +70,8 @@ export function serverHistory(over: Partial<Schemas['HistoryEntryResponse']> = {
     after: 'Qualified',
     ...over,
   }
+}
+
+export function serverAlertSettings(over: Partial<Schemas['AlertSettingsResponse']> = {}): Schemas['AlertSettingsResponse'] {
+  return { stale_days: 14, updated_at: null, updated_by: null, ...over }
 }

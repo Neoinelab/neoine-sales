@@ -8,6 +8,7 @@
 from urllib.parse import unquote
 
 import pytest
+
 from app.web.content_disposition import attachment_disposition
 
 NASTY_NAMES = [
@@ -71,3 +72,19 @@ def test_the_fallback_name_is_plain_ascii_without_quote_or_backslash(name: str) 
     assert fallback.isascii()
     assert '"' not in fallback
     assert "\\" not in fallback
+
+
+def test_the_fallback_name_has_no_percent_sign_and_the_utf8_name_encodes_it() -> None:
+    header = attachment_disposition("100%25 sure.txt")
+
+    fallback = header.split('filename="', 1)[1].split('"; filename*=', 1)[0]
+    assert fallback == "100_25 sure.txt"
+    assert header.endswith("filename*=UTF-8''100%2525%20sure.txt")
+
+
+@pytest.mark.parametrize("name", NASTY_NAMES)
+def test_the_fallback_name_never_contains_a_percent_sign(name: str) -> None:
+    header = attachment_disposition(name)
+
+    fallback = header.split('filename="', 1)[1].split('"; filename*=', 1)[0]
+    assert "%" not in fallback

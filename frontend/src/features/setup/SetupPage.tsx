@@ -10,7 +10,7 @@ import './setup.css'
 
 /**
  * 최초 설정(`/setup`, 공개): ① AD 서버 → ② 파일 저장 위치 → ③ 관리자 등록. 순서는 서버 상태(SetupState)가 정한다.
- * 모두 끝난 상태로 열면 `/login`으로 보낸다. 목업 배지는 App이 그린다.
+ * 모두 끝난 상태로 열면 `/login`으로 보낸다.
  */
 export function SetupPage() {
   const status = useSetupStatus()

@@ -49,6 +49,8 @@ describe('toDealRow', () => {
       nextAction: { text: '견적 재송부', dueDate: '2026-10-20' },
       lastUpdatedAt: '2026-10-15T09:00:00+09:00',
       risk: null,
+      statusChangedAt: '2026-10-10T09:00:00+09:00',
+      statusDays: 5,
       createdAt: '2026-10-01T09:00:00+09:00',
       updatedAt: '2026-10-02T09:00:00+09:00',
     })
@@ -70,8 +72,26 @@ describe('toDealRow', () => {
     expect(row.nextAction?.text).toHaveLength(5000)
   })
 
-  it('always answers risk null while the server does not compute it', () => {
-    expect(toDealRow(serverDealRow({ risk: 'overdue' })).risk).toBeNull()
+  it.each(['overdue', 'stale', 'overdue_stale', null] as const)('uses the server risk %s as it is', (risk) => {
+    expect(toDealRow(serverDealRow({ risk })).risk).toBe(risk)
+  })
+
+  it('does not recompute risk from the UTC-looking timestamps (an old deal with server risk null stays null)', () => {
+    const row = toDealRow(
+      serverDealRow({
+        risk: null,
+        last_updated_at: '2020-01-01T00:00:00Z',
+        next_action: { text: '전화', due_date: '2020-01-02' },
+      }),
+    )
+
+    expect(row.risk).toBeNull()
+  })
+
+  it('maps the status entry time and the stay days from the server', () => {
+    const row = toDealRow(serverDealRow({ status_changed_at: '2026-10-01T00:30:00+09:00', status_days: 14 }))
+
+    expect(row).toMatchObject({ statusChangedAt: '2026-10-01T00:30:00+09:00', statusDays: 14 })
   })
 
   it('keeps a missing partner and an empty users as null', () => {
@@ -114,6 +134,6 @@ describe('toDealDetail', () => {
   })
 
   it('carries the row fields too', () => {
-    expect(toDealDetail(serverDealDetail())).toMatchObject({ code: CODE, partnerHistory: [], risk: null })
+    expect(toDealDetail(serverDealDetail())).toMatchObject({ code: CODE, partnerHistory: [], risk: null, statusDays: 5 })
   })
 })

@@ -42,7 +42,7 @@ export function charCount(text: string): number {
   return Array.from(text).length
 }
 
-/** Blob을 내려받게 한다(목업 다운로드). jsdom 등 `URL.createObjectURL`이 없는 환경에서는 건너뛴다. */
+/** Blob을 내려받게 한다. jsdom 등 `URL.createObjectURL`이 없는 환경에서는 건너뛴다. */
 export function saveBlob(fileName: string, blob: Blob): void {
   if (typeof URL.createObjectURL !== 'function') return
   const url = URL.createObjectURL(blob)

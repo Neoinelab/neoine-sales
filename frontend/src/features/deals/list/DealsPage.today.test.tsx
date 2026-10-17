@@ -1,6 +1,7 @@
 import { screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { gateway, resetMock } from '../../../gateway'
+import { gateway } from '../../../gateway'
+import { resetMock } from '../../../test/fake/default'
 import { formatRelativeTime } from '../../../shared/format'
 import { renderAt } from '../../../test/mockApp'
 import { rowOf } from './testHelpers'

@@ -21,7 +21,7 @@ function toPartnerLinkView(view: Schemas['PartnerHistoryResponse']): PartnerLink
   return { contact: toContact(view.contact), active: view.active, linkedAt: view.linked_at, unlinkedAt: view.unlinked_at }
 }
 
-/** 서버 Deal 행 → 화면 DealRow. `risk`는 서버가 아직 계산하지 않으므로 항상 null. */
+/** 서버 Deal 행 → 화면 DealRow. `risk`·`status_days`는 서버 값을 그대로 쓴다(프런트가 다시 계산하지 않는다). */
 export function toDealRow(row: Schemas['DealRowResponse']): DealRow {
   return {
     code: row.code,
@@ -45,7 +45,9 @@ export function toDealRow(row: Schemas['DealRowResponse']): DealRow {
     bant: { ...row.bant },
     nextAction: row.next_action === null ? null : { text: row.next_action.text, dueDate: row.next_action.due_date },
     lastUpdatedAt: row.last_updated_at,
-    risk: null,
+    statusChangedAt: row.status_changed_at,
+    statusDays: row.status_days,
+    risk: row.risk,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }

@@ -26,6 +26,8 @@ CONTACT_TABLES: Final = ("contacts",)
 DEAL_TABLES: Final = ("deal_history", "deal_partners", "deal_bant_labels")
 # P2b 파일 테이블. 과거 리비전 DB에는 없을 수 있어 있는 것만 비운다(users CASCADE로도 비워진다).
 FILE_TABLES: Final = ("deal_attachments", "storage_settings")
+# P3 경고 기준. 과거 리비전 DB에는 없을 수 있어 있는 것만 비운다(users CASCADE로도 비워진다).
+ALERT_TABLES: Final = ("alert_settings",)
 
 
 async def existing_tables(connection: AsyncConnection) -> set[str]:
@@ -43,7 +45,7 @@ async def truncate_business_tables(connection: AsyncConnection) -> None:
     기본 Label이 사라지면 뒤에 도는 스키마 테스트가 시드를 못 찾는다.
     """
     present = await existing_tables(connection)
-    optional = (*DEAL_TABLES, *FILE_TABLES, *CONTACT_TABLES)
+    optional = (*DEAL_TABLES, *FILE_TABLES, *ALERT_TABLES, *CONTACT_TABLES)
     names = [*ALWAYS, *(name for name in optional if name in present)]
     keep_labels = "bant_labels" in present
     if keep_labels:

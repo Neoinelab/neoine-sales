@@ -5,10 +5,10 @@ import { addDays } from '../../shared/model/dates'
 import { formatKrwFull } from '../../shared/model/money'
 import { withWa } from '../../shared/model/text'
 import type { Code, Contact, Deal, HistoryCategory } from '../../shared/model/types'
-import { nextSeq, takeId, type ActionRecord, type HistoryRecord } from '../../mock/store'
+import { nextSeq, takeId, type ActionRecord, type HistoryRecord } from '../fake/store'
 import { findSeedContact } from './contacts'
 import { ACTION_SPACING, actionHour, type DealSpec } from './dealSpecs'
-import type { SeedEnv } from '../../mock/seed/env'
+import type { SeedEnv } from '../fake/seed/env'
 
 const PROGRESS: Record<ActionType, readonly string[]> = {
   통화: ['담당자와 통화로 일정 협의', '요구사항 전화 확인', '예산 집행 시기 전화 확인'],

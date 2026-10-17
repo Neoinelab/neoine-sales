@@ -8,6 +8,7 @@ if TYPE_CHECKING:
     from app.domain.contact.entities import Contact
     from app.domain.contact.values import ContactId
     from app.domain.deal.history import DealHistoryEntry
+    from app.domain.deal.risk import Risk
     from app.domain.deal.sync import CoChange
     from app.domain.user.value_objects import UserRef
 
@@ -20,6 +21,8 @@ class DealView:
     owner: UserRef
     customer: Contact
     partner_contacts: Mapping[ContactId, Contact]
+    risk: Risk | None
+    status_days: int
 
 
 @dataclass(frozen=True, slots=True)

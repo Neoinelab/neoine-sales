@@ -3,13 +3,18 @@
 from typing import TYPE_CHECKING
 
 import pytest
+
 from app.application.attachment.inputs import UploadOutcomeKind
 from app.application.attachment.upload_attachment import UploadAttachment
-
 from app.application.storage.errors import UPLOAD_UNAVAILABLE, StorageUnavailableError
 from app.domain.attachment.values import FILE_TOO_LARGE, MAX_FILE_BYTES, OnExists
 from app.domain.common.errors import InvalidValueError
-from tests.fakes.commit_failure import COMMIT_FAILED, commit_failing_factory
+from tests.fakes.commit_failure import (
+    COMMIT_FAILED,
+    EXIT_FAILED,
+    commit_failing_factory,
+    exit_failing_factory,
+)
 from tests.fakes.sources import ClientGone, FailingSource, ZeroSource
 from tests.support.expect import raises_with
 from tests.unit.application.attachment_env import BOSS, KIM
@@ -113,3 +118,32 @@ async def test_a_replacement_succeeds_even_when_the_old_file_cannot_be_removed(
     assert outcome.kind is UploadOutcomeKind.REPLACED
     assert attachment_env.content_of(outcome.attachment) == b"new"
     assert (await attachment_env.stored(original.id)).storage_key == outcome.attachment.storage_key
+
+
+async def test_an_error_after_a_successful_commit_keeps_the_committed_new_file(
+    attachment_env: AttachmentEnv,
+) -> None:
+    env = attachment_env.env
+    upload = UploadAttachment(exit_failing_factory(env.uow), env.clock, attachment_env.storage)
+
+    with raises_with(RuntimeError, EXIT_FAILED):
+        await upload.execute(attachment_env.code, attachment_env.make_input("a.pdf", b"x"), KIM)
+
+    rows = await attachment_env.rows()
+    assert [r.file_name.value for r in rows] == ["a.pdf"]  # 커밋된 행
+    assert attachment_env.content_of(rows[0]) == b"x"  # 그 행이 가리키는 파일은 남아 있다
+
+
+async def test_an_error_after_a_committed_replacement_keeps_the_new_file(
+    attachment_env: AttachmentEnv,
+) -> None:
+    await attachment_env.uploaded(KIM, "a.pdf", b"old")
+    env = attachment_env.env
+    upload = UploadAttachment(exit_failing_factory(env.uow), env.clock, attachment_env.storage)
+    replacing = attachment_env.make_input("a.pdf", b"new", on_exists=OnExists.REPLACE)
+
+    with raises_with(RuntimeError, EXIT_FAILED):
+        await upload.execute(attachment_env.code, replacing, KIM)
+
+    (row,) = await attachment_env.rows()
+    assert attachment_env.content_of(row) == b"new"

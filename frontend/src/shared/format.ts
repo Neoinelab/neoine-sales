@@ -15,7 +15,7 @@ export function formatDate(value: string): string {
 
 /**
  * 상대 시각: 방금 전 / N분 전 / N시간 전 / N일 전(30일 미만), 그 이후는 날짜.
- * `now`는 호출처가 mock 시계(clock.now())로 넘긴다. 미래 시각은 '방금 전'.
+ * `now`는 호출처가 `useToday().now`로 넘긴다. 미래 시각은 '방금 전'.
  */
 export function formatRelativeTime(iso: string, now: string): string {
   const diff = new Date(now).getTime() - new Date(iso).getTime()

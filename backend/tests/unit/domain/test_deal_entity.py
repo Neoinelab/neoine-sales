@@ -6,16 +6,17 @@
 from datetime import UTC, datetime
 
 import pytest
-from app.domain.deal.code import DealCode
 
 from app.domain.auth.principal import Role
 from app.domain.common.errors import InvalidValueError
+from app.domain.deal.code import DealCode
 from app.domain.deal.entities import Deal, PartnerLink
 from app.domain.deal.errors import (
     DealCodeMismatchError,
     DealDeleteForbiddenError,
     SyncMismatchError,
 )
+from app.domain.deal.status_entry import StatusEntry
 from tests.factories import (
     NOW,
     later,
@@ -288,6 +289,7 @@ def test_deal_can_be_rebuilt_only_with_aware_timestamps() -> None:
             customer_id=new_contact_id(),
             partner_links=[],
             bant=make_bant(),
+            status_entry=StatusEntry(make_sync().status_key, datetime(2026, 1, 1, tzinfo=UTC)),
             created_at=datetime(2026, 1, 1),
             updated_at=datetime(2026, 1, 1, tzinfo=UTC),
         )

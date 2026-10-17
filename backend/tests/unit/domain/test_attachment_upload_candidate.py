@@ -103,6 +103,12 @@ def test_trailing_spaces_and_dots_do_not_hide_a_blocked_extension(raw: str) -> N
         _check(raw)
 
 
+@pytest.mark.parametrize("raw", ["setup.exe\u3000", "setup.exe\u00a0", "setup.exe\u2003 ."])
+def test_trailing_unicode_whitespace_does_not_hide_a_blocked_extension(raw: str) -> None:
+    with raises_with(InvalidValueError, blocked_message("exe")):
+        _check(raw)
+
+
 def test_trailing_space_after_an_allowed_extension_is_not_blocked() -> None:
     assert _check("report.pdf ").file_name.value == "report.pdf "
 

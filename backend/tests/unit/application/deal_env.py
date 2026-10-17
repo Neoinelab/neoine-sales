@@ -105,7 +105,7 @@ def build_env(
         register=RegisterDeal(uow_factory, shared, suffix_source),
         update=UpdateDeal(uow_factory, shared),
         delete=DeleteDeal(uow_factory, shared, storage),
-        get=GetDeal(uow_factory),
-        list=ListDeals(uow_factory),
+        get=GetDeal(uow_factory, shared),
+        list=ListDeals(uow_factory, shared),
         history=ListDealHistory(uow_factory),
     )

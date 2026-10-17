@@ -16,6 +16,8 @@ from tests.fakes.file_storage import FakeFileStorage
 from tests.fakes.unit_of_work import FakeUnitOfWork, SteppingClock
 
 if TYPE_CHECKING:
+    from app.application.alert.get_alert_settings import GetAlertSettings
+    from app.application.alert.update_alert_settings import UpdateAlertSettings
     from app.application.auth.auth_status import GetAuthStatus
     from app.application.auth.authenticate import Authenticate
     from app.application.auth.dev_login import DevLogin
@@ -140,6 +142,19 @@ class FakeUseCases(CatalogUseCases, ContactUseCases, DealUseCases, AttachmentUse
         from app.application.storage.test_settings import TestStorageSettings  # noqa: PLC0415
 
         return TestStorageSettings(self.file_storage)
+
+    # 경고 기준 유스케이스도 사용 시점에 가져온다(P3 R1: 구현 전에도 수집된다)
+    def get_alert_settings(self) -> GetAlertSettings:
+        from app.application.alert.get_alert_settings import GetAlertSettings  # noqa: PLC0415
+
+        return GetAlertSettings(self._factory)
+
+    def update_alert_settings(self) -> UpdateAlertSettings:
+        from app.application.alert.update_alert_settings import (  # noqa: PLC0415
+            UpdateAlertSettings,
+        )
+
+        return UpdateAlertSettings(self._factory, self.clock)
 
     def auth_status(self) -> GetAuthStatus:
         return self._auth.status

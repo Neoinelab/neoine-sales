@@ -1,6 +1,6 @@
 /**
  * 게이트웨이 인터페이스(A-0 계약). 계획 4.1·4.4장.
- * 화면은 `data/*` 훅만 쓰고, 훅은 이 인터페이스만 안다. mock 구현은 `src/mock/gateway/*`, 나중에 HTTP 구현으로 교체한다.
+ * 화면은 `data/*` 훅만 쓰고, 훅은 이 인터페이스만 안다. 구현은 HTTP(`gateway/http`)이며, 테스트는 Fake(`src/test/fake`)로 바꿔 끼운다.
  *
  * ── 오류 규약 ─────────────────────────────────────────────
  * 실패는 모두 `ApiError`(shared/api/problem.ts)를 **throw**(reject)한다. 반환값에 오류를 싣지 않는다.
@@ -21,7 +21,7 @@
  * 1. 쓰기는 sales/admin만(user는 403). `shared/model/permissions.ts`의 함수와 같은 규칙으로 판단한다.
  * 2. **모든 변경은 Deal History를 기록한다**(R02): Deal 등록, Status/Forecast/금액/Expected Close/Owner/파트너/
  *    고객 연락처/BANT Label/기타 필드, Action 등록·수정·삭제, 첨부 업로드·교체·삭제. 변경자는 현재 로그인 사용자,
- *    시각은 mock clock의 now(). 값이 바뀌지 않은 요청은 기록하지 않는다. 실패한 요청은 아무것도 바꾸지 않는다(원자적).
+ *    시각은 서버 시각(Fake는 시계의 now()). 값이 바뀌지 않은 요청은 기록하지 않는다. 실패한 요청은 아무것도 바꾸지 않는다(원자적).
  * 3. Deal의 `updatedAt`은 Deal 자신의 필드/연결 정보(파트너·연락처·Label·첨부)가 바뀔 때 갱신된다.
  *    `DealRow.lastUpdatedAt` = max(updatedAt, 최근 Action 수행시각).
  * 4. Status ⇄ Forecast 불변식: `contract_completed` ⇔ `won`. 단일 변경은 `applyChange`/`ActionInput.statusChange`의
@@ -30,7 +30,7 @@
  * 5. Action은 **등록 시점의 Status/Forecast key를 저장**한다(statusChange가 있으면 적용 후 값). 수정은 이 값을 바꾸지 않는다.
  * 6. 연락처 입력: 회사명·담당자명·이메일·전화에 공백 문자가 있으면 422 "공백은 입력할 수 없습니다."; 이메일·전화 형식 오류 422; 회사/이름은
  *    대소문자 구분 없이 같은 것으로 본다. 같은 사람 판정은 `findSamePerson`.
- * 7. Deal code는 `YYYYMMDD-XXXX`(`DEAL_CODE_PATTERN`), 등록일(mock 오늘) + 대문자/숫자 4자리, 기존 code와 겹치면 재추출.
+ * 7. Deal code는 `YYYYMMDD-XXXX`(`DEAL_CODE_PATTERN`), 등록일(오늘) + 대문자/숫자 4자리, 기존 code와 겹치면 재추출.
  * 8. 목록 조회는 읽기 전용이며 부수효과가 없다. 반환 객체는 호출자가 바꿔도 저장소에 영향이 없다(복사본).
  */
 
@@ -38,6 +38,7 @@ import type {
   ActionInput,
   ActionQuery,
   ActionUpdateInput,
+  AlertSettings,
   ApplyChangeRequest,
   Attachment,
   BantCategory,
@@ -101,13 +102,13 @@ export interface AuthGateway {
   /**
    * 빈 아이디/비밀번호 422 "아이디와 비밀번호를 입력하세요.", 없는 아이디 401
    * "아이디 또는 비밀번호가 올바르지 않습니다.", 퇴사자 403 "퇴사한 사용자는 로그인할 수 없습니다."
-   * 비밀번호는 비어 있지만 않으면 무엇이든 통과한다(mock). 성공 시 lastLoginAt 갱신, sessionStorage에 id 보관.
+   * 성공 시 lastLoginAt 갱신(서버가 세션 쿠키를 설정한다).
    */
   login(loginId: string, password: string): Promise<Me>
   /** 빠른 로그인(`QUICK_LOGIN_USERS`). 퇴사자·없는 id는 login과 같은 오류. */
   quickLogin(userId: string): Promise<Me>
   logout(): Promise<void>
-  /** 로그인 화면용 서버 설정(로그인 전에도 읽는다). `quickLogin`이 true일 때만 빠른 로그인 버튼을 그린다(mock은 항상 true). */
+  /** 로그인 화면용 서버 설정(로그인 전에도 읽는다). `quickLogin`이 true일 때만 빠른 로그인 버튼을 그린다. */
   config(): Promise<AuthConfig>
 }
 
@@ -276,7 +277,7 @@ export interface SettingsGateway {
   /**
    * revision +1, updatedBy/updatedAt 갱신. 검증 422(서버 URL 1개 이상, 필수 필드).
    * `auth.password`는 현재 관리자 비밀번호(새 설정으로 인증을 확인한다, 개발용 로그인은 null), `expectedRevision`은
-   * 화면이 읽은 설정 버전(낙관적 잠금, 어긋나면 409). mock은 값을 받기만 한다.
+   * 화면이 읽은 설정 버전(낙관적 잠금, 어긋나면 409). Fake는 값을 받기만 한다.
    */
   saveDirectory(input: DirectorySettingsInput, auth: DirectorySaveAuth): Promise<DirectorySettings>
   /**
@@ -289,6 +290,13 @@ export interface SettingsGateway {
   saveStorage(path: string): Promise<StorageSettings>
   /** 저장 없이 같은 검증만 수행(쓰기 테스트). */
   testStorage(path: string): Promise<void>
+}
+
+export interface AlertsGateway {
+  /** 로그인한 모든 역할. 저장된 적이 없으면 기본 14, updatedAt/updatedBy null. */
+  get(): Promise<AlertSettings>
+  /** admin만(403). 1~365 정수가 아니면 422 "미업데이트 기준은 1~365일 사이의 정수로 입력하세요." */
+  save(staleDays: number): Promise<AlertSettings>
 }
 
 export interface DirectorySaveAuth {
@@ -309,21 +317,11 @@ export interface Gateway {
   forecast: ForecastGateway
   users: UsersGateway
   settings: SettingsGateway
+  alerts: AlertsGateway
 }
 
-/**
- * mock 전용 제어(MockPanel·테스트가 사용). `gateway/index.ts`가 `mockControl`로 내보낸다. 실제 연동 전환 시 삭제.
- * 게이트웨이 메서드가 아니므로 권한·History와 무관하다.
- */
-export interface MockControl {
-  /** 시드로 복원(로그인 유지). 쿼리 캐시 무효화는 호출자(MockPanel)가 `queryClient.invalidateQueries()`로 한다. */
-  resetData(): void
-  /** SetupState를 모두 false로 하고 로그아웃(세션 제거). */
-  restartSetup(): void
-  setStorageFailure(on: boolean): void
-  isStorageFailure(): boolean
-  /** 가짜 지연 on/off. 테스트 모드에서는 항상 0ms. */
-  now(): string // mock 시계의 지금(ISO). 화면은 `useToday()`(data/today.ts)로만 읽는다.
-  setLatency(on: boolean): void
-  isLatencyOn(): boolean
+/** 앱의 지금. 화면은 `useToday()`로만 읽는다. */
+export interface Clock {
+  /** 오프셋 포함 ISO(예: 2026-10-17T09:00:00+09:00). */
+  now(): string
 }

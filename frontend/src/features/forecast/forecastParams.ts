@@ -19,7 +19,7 @@ function parseYear(raw: string | null, fallback: number): number {
   return Number.isInteger(year) ? year : fallback
 }
 
-/** URL 쿼리 → 필터. `thisYear`는 URL에 year가 없을 때 쓰는 기본 연도(mock 시계의 올해, `useToday().year`). */
+/** URL 쿼리 → 필터. `thisYear`는 URL에 year가 없을 때 쓰는 기본 연도(올해, `useToday().year`). */
 export function filtersFromParams(params: URLSearchParams, thisYear: number): ForecastFilters {
   return {
     year: parseYear(params.get('year'), thisYear),

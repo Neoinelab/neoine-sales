@@ -5,7 +5,6 @@ import { renderAt } from '../../test/mockApp'
 
 afterEach(() => {
   vi.restoreAllMocks()
-  vi.unstubAllEnvs()
 })
 
 describe('로그인 화면의 서버 설정 반영 (AC-27)', () => {
@@ -14,7 +13,7 @@ describe('로그인 화면의 서버 설정 반영 (AC-27)', () => {
     await renderAt('/login', { role: null })
 
     expect(await screen.findByRole('region', { name: '빠른 로그인' })).toBeVisible()
-    expect(screen.getByRole('button', { name: '관리자 최관리' })).toBeVisible()
+    expect(screen.getByRole('button', { name: '관리자' })).toBeVisible()
   })
 
   it('draws no quick login when the server switches dev login off', async () => {
@@ -23,7 +22,7 @@ describe('로그인 화면의 서버 설정 반영 (AC-27)', () => {
 
     await screen.findByRole('button', { name: '로그인' })
     expect(screen.queryByRole('region', { name: '빠른 로그인' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: '관리자 최관리' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '관리자' })).not.toBeInTheDocument()
     expect(screen.getByLabelText('아이디')).toBeVisible()
     expect(screen.queryByRole('link', { name: /최초 설정/ })).not.toBeInTheDocument()
   })
@@ -62,8 +61,7 @@ describe('로그인 화면의 서버 설정 반영 (AC-27)', () => {
     expect(screen.queryByRole('region', { name: '빠른 로그인' })).not.toBeInTheDocument()
   })
 
-  it('says any password works only in mock mode', async () => {
-    vi.stubEnv('VITE_GATEWAY', 'http')
+  it('never says any password works', async () => {
     await renderAt('/login', { role: null })
 
     await screen.findByRole('button', { name: '로그인' })

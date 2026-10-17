@@ -7,7 +7,8 @@ Then은 응답의 code 목록과 값만 본다. 기본 목록 조회 step은 `st
 from typing import TYPE_CHECKING, Any, Final
 
 from tests.functional.steps.actions import given_action_at
-from tests.functional.steps.deals import DEALS
+from tests.functional.steps.deals import DEALS, given_clock_at
+from tests.functional.steps.users import log_in
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -25,17 +26,24 @@ async def given_action(
     code: str,
     *,
     acted_at: datetime,
-    next_action: str = "견적서 전달",
-    due_date: str = "2027-01-15",
+    login_id: str,
+    **overrides: object,
 ) -> dict[str, Any]:
     """로그인한 사용자가 Deal에 Action을 남겨 두었다(응답 본문을 돌려준다).
 
     수행 일시는 본문이 아니라 서버 시계가 정한다(P2). 그래서 `acted_at`은 요청에 싣지 않고,
-    등록 전에 `api.clock`을 그 시각으로 맞춘다(앞으로도 뒤로도 갈 수 있다).
+    등록 전에 `api.clock`을 그 시각으로 맞춘다(앞으로도 뒤로도 갈 수 있다). 시계가 8시간 넘게
+    움직이면 세션이 만료되므로 login_id로 다시 로그인한 뒤 등록한다(이후 요청도 그 세션을 쓴다).
     """
-    return await given_action_at(
-        api, code, acted_at, action="미팅", next_action=next_action, due_date=due_date, memo=""
-    )
+    await given_clock_at(api, acted_at)
+    await log_in(api, login_id)
+    fields: dict[str, object] = {
+        "action": "미팅",
+        "next_action": "견적서 전달",
+        "due_date": "2027-01-15",
+        "memo": "",
+    }
+    return await given_action_at(api, code, acted_at, **(fields | overrides))
 
 
 async def when_get_facets(api: Api) -> Response:

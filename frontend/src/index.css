@@ -23,8 +23,6 @@
   --ring: rgb(59 130 246 / 40%); /* blue-500 포커스 링 */
   --risk-overdue: #fef2f2;
   --risk-stale: #fefce8;
-  --mock-bg: #fde68a;
-  --mock-fg: #78350f;
   --shadow-sm: 0 1px 2px rgb(16 24 40 / 5%);
   --shadow-md: 0 1px 3px rgb(16 24 40 / 8%), 0 1px 2px rgb(16 24 40 / 4%);
   --shadow-pop: 0 10px 24px rgb(16 24 40 / 14%);
@@ -64,8 +62,6 @@
     --ring: rgb(96 165 250 / 45%);
     --risk-overdue: #3b1d1f;
     --risk-stale: #3a300f;
-    --mock-bg: #78350f;
-    --mock-fg: #fef3c7;
     --shadow-sm: 0 1px 2px rgb(0 0 0 / 30%);
     --shadow-md: 0 1px 3px rgb(0 0 0 / 40%);
     --shadow-pop: 0 10px 24px rgb(0 0 0 / 50%);
@@ -134,16 +130,6 @@ td.wrap { white-space: pre-wrap; max-width: 360px; }
 .login > h1 { text-align: center; font-size: 1.6rem; letter-spacing: 0.04em; color: var(--accent-text); text-transform: uppercase; }
 .login .panel { max-width: none; padding: 24px; }
 
-/* 목업 배너(노란/앰버 유지) */
-.mock-banner { position: sticky; top: 0; z-index: 50; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; padding: 6px 24px; background: var(--mock-bg); color: var(--mock-fg); border-bottom: 1px solid rgb(180 83 9 / 45%); font-size: 0.8rem; }
-.mock-badge { border: 1px solid currentColor; border-radius: 999px; padding: 1px 10px; background: rgb(255 255 255 / 35%); }
-.mock-banner-text { flex: 1; min-width: 200px; }
-.mock-banner button { background: rgb(255 255 255 / 55%); border-color: rgb(180 83 9 / 50%); color: var(--mock-fg); }
-.mock-panel { position: relative; }
-.mock-panel > button { padding: 2px 10px; font-size: 0.8rem; }
-.mock-panel-body { position: absolute; right: 0; top: calc(100% + 6px); z-index: 60; width: 280px; display: grid; gap: 8px; padding: 12px; background: var(--panel); color: var(--fg); border: 1px solid var(--line); border-radius: var(--radius-lg); box-shadow: var(--shadow-pop); }
-.mock-toggle { display: flex; align-items: center; gap: 8px; }
-
 /* Admin 좌측 하위 메뉴 */
 .admin-layout { display: grid; gap: 16px; }
 .admin-body { display: grid; grid-template-columns: 190px 1fr; gap: 20px; align-items: start; }
@@ -166,6 +152,5 @@ td.wrap { white-space: pre-wrap; max-width: 360px; }
 }
 @media (max-width: 720px) {
   .admin-body { grid-template-columns: 1fr; }
-  .mock-banner { padding: 6px 16px; }
   .content { padding: 16px; }
 }

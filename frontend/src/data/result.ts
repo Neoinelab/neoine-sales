@@ -7,7 +7,7 @@ export type Query<T> = UseQueryResult<T, ApiError>
 /** 모든 변경 훅의 반환 타입. `mutateAsync`가 ApiError로 reject한다. */
 export type Mutation<TVariables, TData = void> = UseMutationResult<TData, ApiError, TVariables>
 
-/** mock 오류는 재시도해도 같으므로 조회는 재시도하지 않는다. */
+/** 서버 오류(권한·검증 등)는 재시도해도 같으므로 조회는 재시도하지 않는다. */
 export const NO_RETRY = { retry: false } as const
 
 /**

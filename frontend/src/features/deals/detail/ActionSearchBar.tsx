@@ -60,7 +60,7 @@ export function ActionSearchBar({ onSearch }: ActionSearchBarProps) {
       <UserSelect label="담당자" name="actor" value={draft.actorId} onChange={(v) => set('actorId', v)} includeResigned />
       <label className="field">
         <span>키워드</span>
-        <input value={draft.keyword} onChange={(e) => set('keyword', e.target.value)} placeholder="진행사항·Next Action·Memo" />
+        <input maxLength={100} value={draft.keyword} onChange={(e) => set('keyword', e.target.value)} placeholder="진행사항·Next Action·Memo" />
       </label>
       <label className="field">
         <span>수행일 시작</span>

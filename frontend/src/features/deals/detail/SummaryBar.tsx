@@ -2,7 +2,7 @@ import { useApplyDealChange } from '../../../data/deals'
 import { useCodeSet } from '../../../data/codes'
 import { useSyncedChange } from '../../../shared/sync/useSyncedChange'
 import { useToday } from '../../../data/today'
-import { formatRelativeTime } from '../../../shared/format'
+import { formatDateTime, formatRelativeTime } from '../../../shared/format'
 import { isValidAmount, parseAmount } from '../../../shared/model/money'
 import type { DealChange, DealDetail } from '../../../shared/model/types'
 import { AmountText } from '../../../shared/ui/AmountText'
@@ -75,6 +75,7 @@ export function SummaryBar({ deal, canWrite, onNotice }: SummaryBarProps) {
                 initial={deal.statusKey}
                 onSave={(value) => changeCode('statusKey', value)}
               />
+              <span className="dd-muted" title={formatDateTime(deal.statusChangedAt)}>{`${deal.statusDays}일째`}</span>
             </span>
           </div>
           <div className="dd-kv">
@@ -125,11 +126,11 @@ export function SummaryBar({ deal, canWrite, onNotice }: SummaryBarProps) {
                 <>
                   <span>{deal.nextAction.text}</span>
                   <span className="dd-muted">Due {deal.nextAction.dueDate}</span>
-                  <RiskBadge risk={deal.risk} />
                 </>
               ) : (
                 <span className="dd-muted">없음</span>
               )}
+              <RiskBadge risk={deal.risk} />
             </span>
           </div>
           <div className="dd-kv">

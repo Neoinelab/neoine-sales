@@ -1,6 +1,7 @@
 import { screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { gateway, mockControl } from '../../gateway'
+import { gateway } from '../../gateway'
+import { mockControl } from '../../test/fake/default'
 import { fillDirectoryForm } from '../../test/directoryForm'
 import { renderAt } from '../../test/mockApp'
 

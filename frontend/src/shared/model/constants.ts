@@ -27,8 +27,12 @@ export const BANT_CATEGORY_NAMES: Record<BantCategory, string> = {
 }
 export const BANT_LABEL_MAX_LENGTH = 50
 
-/** 마지막 갱신 후 이 일수 이상이면 '미업데이트'(Risk). 경고 기준 Admin 설정은 범위 밖이라 상수. */
-export const STALE_DAYS = 14
+/** 미업데이트 기준 기본값(일). 서버 기본값과 같고 Fake 기본값·화면 초기값에만 쓴다. 실제 기준은 경고 기준 설정. */
+export const DEFAULT_STALE_DAYS = 14
+/** 경고 기준 허용 범위(서버와 같은 1~365 정수). */
+export const STALE_DAYS_MIN = 1
+export const STALE_DAYS_MAX = 365
+export const STALE_DAYS_RANGE_MESSAGE = '미업데이트 기준은 1~365일 사이의 정수로 입력하세요.'
 
 /** 목록 페이지 크기. */
 export const DEAL_PAGE_SIZE = 20
@@ -51,25 +55,32 @@ export const BLOCKED_EXTENSIONS: readonly string[] = [
   'pkg',
   'deb',
   'rpm',
+  'vbs',
+  'vbe',
+  'wsf',
+  'wsh',
+  'hta',
+  'cpl',
+  'msp',
+  'mst',
+  'apk',
+  'appimage',
+  'run',
 ]
 
-/** 세션 사용자 id를 보관하는 sessionStorage 키(로그인 유지용, 읽기/쓰기는 try/catch). */
-export const SESSION_STORAGE_KEY = 'neoine-mock-user-id'
-
 /**
- * 빠른 로그인 버튼과 시드 사용자 id의 약속. 시드의 사용자 id는 `u-<loginId>`다.
+ * 빠른 로그인 버튼과 개발용 사용자 id의 약속. 사용자 id는 `u-<loginId>`다.
  * `role`은 실제 서버의 dev 로그인(역할로 로그인)이 쓴다. 서버는 역할당 개발용 계정 하나로 로그인시킨다.
  */
 export const QUICK_LOGIN_USERS: readonly { userId: string; label: string; role: 'admin' | 'sales' | 'user' }[] = [
-  { userId: 'u-root', label: '관리자 최관리', role: 'admin' },
-  { userId: 'u-kim', label: '영업 김영업', role: 'sales' },
-  { userId: 'u-park', label: '영업 박영업', role: 'sales' },
-  { userId: 'u-han', label: '조회자 한조회', role: 'user' },
+  { userId: 'u-root', label: '관리자', role: 'admin' },
+  { userId: 'u-kim', label: '영업', role: 'sales' },
+  { userId: 'u-han', label: '조회자', role: 'user' },
 ]
 
 /**
  * 삭제할 수 없는 시스템 연결 코드 key(서버와 같은 5개). 이름·순서는 바꿀 수 있다.
- * 서버가 정본이고 화면은 응답의 `locked`를 쓴다. 이 상수는 mock 시드와 계약 테스트가 서버와 맞추는 데 쓴다.
+ * 서버가 정본이고 화면은 응답의 `locked`를 쓴다. 이 상수는 Fake 시드와 계약 테스트가 서버와 맞추는 데 쓴다.
  */
 export const LOCKED_KEYS = {
   status: ['prospecting', 'contract_completed'],

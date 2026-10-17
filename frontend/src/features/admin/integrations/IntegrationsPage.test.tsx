@@ -184,29 +184,14 @@ describe('외부연동 AD 설정: 브라우저 자동 채움', () => {
 })
 
 describe('외부연동 AD 설정이 아직 없을 때', () => {
-  afterEach(() => vi.unstubAllEnvs())
-
-  async function openWithoutSettings(mode: 'http' | 'mock') {
-    vi.stubEnv('VITE_GATEWAY', mode)
+  it('points to the first-time setup when no AD settings exist', async () => {
     vi.spyOn(gateway.settings, 'getDirectory').mockResolvedValue(null)
     await renderAt('/admin/integrations', { role: 'admin' })
     await screen.findByRole('heading', { name: 'AD(LDAP) 서버 설정' })
-  }
-
-  it('points to the first-time setup instead of a save form in http mode', async () => {
-    await openWithoutSettings('http')
 
     expect(await directory().findByText('AD 서버가 아직 설정되지 않았습니다. 최초 설정에서 등록하세요.')).toBeInTheDocument()
     expect(directory().getByRole('link', { name: /최초 설정/ })).toHaveAttribute('href', '/setup')
     expect(directory().queryByRole('button', { name: '저장' })).not.toBeInTheDocument()
     expect(screen.queryByLabelText(/서버 URL/)).not.toBeInTheDocument()
-  })
-
-  it('still draws the form in mock mode', async () => {
-    await openWithoutSettings('mock')
-
-    expect(await screen.findByLabelText(/서버 URL/)).toBeInTheDocument()
-    expect(directory().getByRole('button', { name: '저장' })).toBeInTheDocument()
-    expect(directory().queryByRole('link', { name: /최초 설정/ })).not.toBeInTheDocument()
   })
 })

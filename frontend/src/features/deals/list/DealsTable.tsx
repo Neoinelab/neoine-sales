@@ -1,3 +1,4 @@
+import { useLabels } from '../../../data/labels'
 import type { DealRow, DealSortKey } from '../../../shared/model/types'
 import { DealRowItem } from './DealRowItem'
 import type { SortState } from './listQuery'
@@ -7,7 +8,7 @@ interface Column {
   sort?: DealSortKey
 }
 
-/** PRD DL-05의 11개 컬럼. 정렬 가능한 열만 sort 키를 가진다. */
+/** PRD DL-05의 11개 + BANT(LB-06) 컬럼. 정렬 가능한 열만 sort 키를 가진다. */
 const COLUMNS: readonly Column[] = [
   { label: 'Deal', sort: 'name' },
   { label: '고객사' },
@@ -16,6 +17,7 @@ const COLUMNS: readonly Column[] = [
   { label: 'Vendor' },
   { label: 'Status', sort: 'statusKey' },
   { label: 'Forecast' },
+  { label: 'BANT' },
   { label: '금액', sort: 'revenueAmount' },
   { label: 'Expected Close', sort: 'revenueDate' },
   { label: 'Next Action' },
@@ -31,6 +33,10 @@ interface DealsTableProps {
 }
 
 export function DealsTable({ rows, canWrite, sort, onSort, onSaved }: DealsTableProps) {
+  // Label 이름은 행마다 읽지 않고 한 번 읽어 넘긴다(목록 캐시와 별개로 Label 이름 변경은 keys.labels 무효화로 반영된다).
+  const labelsQuery = useLabels()
+  const labels = labelsQuery.data ?? []
+  const labelsFailed = labelsQuery.isError
   return (
     <div className="table-scroll">
       <table className="deals-table">
@@ -63,7 +69,7 @@ export function DealsTable({ rows, canWrite, sort, onSort, onSaved }: DealsTable
         </thead>
         <tbody>
           {rows.map((row) => (
-            <DealRowItem key={row.code} row={row} canWrite={canWrite} onSaved={onSaved} />
+            <DealRowItem key={row.code} row={row} labels={labels} labelsFailed={labelsFailed} canWrite={canWrite} onSaved={onSaved} />
           ))}
         </tbody>
       </table>

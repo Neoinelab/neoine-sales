@@ -2,6 +2,7 @@ import { Link, useParams } from 'react-router'
 import { useMe } from '../../../data/auth'
 import { useDeal } from '../../../data/deals'
 import { ErrorBanner } from '../../../shared/ui/ErrorBanner'
+import { useDealListPath } from '../../../shared/ui/useDealListPath'
 import { DealForm } from './DealForm'
 import './form.css'
 
@@ -11,12 +12,13 @@ export function DealFormPage() {
   const editing = dealCode !== undefined
   const me = useMe().data
   const deal = useDeal(dealCode)
+  const listPath = useDealListPath()
 
   if (editing && deal.error) {
     return (
       <div className="deal-form-page">
         <ErrorBanner error={deal.error} />
-        <Link to="/deals">목록으로</Link>
+        <Link to={listPath}>목록으로</Link>
       </div>
     )
   }

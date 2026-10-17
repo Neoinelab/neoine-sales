@@ -41,12 +41,12 @@ class DealUseCases:
     def get_deal(self) -> GetDeal:
         from app.application.deal.get_deal import GetDeal  # noqa: PLC0415
 
-        return GetDeal(self._deal_uow_factory())
+        return GetDeal(self._deal_uow_factory(), self.clock)
 
     def list_deals(self) -> ListDeals:
         from app.application.deal.list_deals import ListDeals  # noqa: PLC0415
 
-        return ListDeals(self._deal_uow_factory())
+        return ListDeals(self._deal_uow_factory(), self.clock)
 
     def update_deal(self) -> UpdateDeal:
         from app.application.deal.update_deal import UpdateDeal  # noqa: PLC0415

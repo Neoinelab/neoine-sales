@@ -1,5 +1,5 @@
 import type { Schemas } from '../../../shared/api/client'
-import type { DirectorySettings, DirectorySettingsInput } from '../../../shared/model/types'
+import type { DirectorySettings, DirectorySettingsInput, StorageSettings } from '../../../shared/model/types'
 import { toUserRef } from './user'
 
 export function toDirectoryRequest(input: DirectorySettingsInput): Schemas['DirectorySettingsRequest'] {
@@ -30,6 +30,14 @@ export function toDirectorySettings(row: Schemas['DirectorySettingsResponse']): 
     connectTimeoutSeconds: row.connect_timeout_seconds,
     receiveTimeoutSeconds: row.receive_timeout_seconds,
     revision: row.revision,
+    updatedAt: row.updated_at,
+    updatedBy: row.updated_by === null ? null : toUserRef(row.updated_by),
+  }
+}
+
+export function toStorageSettings(row: Schemas['StorageSettingsResponse']): StorageSettings {
+  return {
+    path: row.path,
     updatedAt: row.updated_at,
     updatedBy: row.updated_by === null ? null : toUserRef(row.updated_by),
   }

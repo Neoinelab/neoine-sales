@@ -11,6 +11,7 @@ from app.config import Settings, get_settings
 from app.container import Container
 from app.web.error_handlers import register_error_handlers
 from app.web.routers import (
+    alert_settings,
     attachment_items,
     attachments,
     auth,
@@ -76,7 +77,14 @@ def create_app(
         app.include_router(module.router)
     guard = [Depends(require_login), Depends(require_csrf_header)]
     business = (contacts, deals, deal_actions, attachments, attachment_items, codes, bant_labels)
-    for module in (*business, user_options, users, settings_directory, settings_storage):
+    for module in (
+        *business,
+        user_options,
+        users,
+        settings_directory,
+        settings_storage,
+        alert_settings,
+    ):
         app.include_router(module.router, dependencies=guard, responses={401: PROBLEM})
     return app
 

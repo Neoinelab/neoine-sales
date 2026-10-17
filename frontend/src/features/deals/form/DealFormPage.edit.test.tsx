@@ -55,7 +55,9 @@ describe('Deal 수정 (T-FORM-06)', () => {
     await save(user)
     await waitFor(() => expect(location()).toMatch(DETAIL_URL))
     const row = await openList(user, '누리통신 MFA')
-    expect(within(row).getByText('—')).toBeVisible()
+    const headers = screen.getAllByRole('columnheader').map((h) => h.textContent?.trim())
+    const cells = within(row).getAllByRole('cell')
+    expect(cells[headers.indexOf('파트너사')]).toHaveTextContent(/^—$/)
   })
 
   it('keeps a resigned owner visible but refuses to save until another owner is picked', async () => {

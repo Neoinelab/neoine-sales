@@ -1,7 +1,9 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import { Link, useSearchParams } from 'react-router'
-import { usePermissions } from '../../../data/auth'
+import { useMe, usePermissions } from '../../../data/auth'
+import { useAlertSettings } from '../../../data/alerts'
 import { useDeals } from '../../../data/deals'
+import { rememberListSearch } from '../../../shared/model/dealListMemory'
 import type { DealSortKey } from '../../../shared/model/types'
 import { ErrorBanner } from '../../../shared/ui/ErrorBanner'
 import { Notice } from '../../../shared/ui/Notice'
@@ -16,11 +18,21 @@ import './list.css'
 export function DealsPage() {
   const [params, setParams] = useSearchParams()
   const { canWrite } = usePermissions()
+  const meId = useMe().data?.id
   const query = useMemo(() => listQueryFromParams(params), [params])
   const deals = useDeals(query)
+  const alerts = useAlertSettings()
+  // 기준을 아직 모르거나(로딩) 가져오지 못하면(오류) 숫자 없는 문구를 보인다.
+  const staleDays = alerts.data?.staleDays
+  const staleLegend = staleDays === undefined ? '기준일 이상 미업데이트' : `${staleDays}일 이상 미업데이트`
   const [notice, setNotice] = useLocationNotice()
   const sort = currentSort(params)
   const page = deals.data
+
+  // URL이 진실이다: 목록에 마지막으로 보인 조건을 기억한다(초기화하면 빈 조건이 기록되어 지워진다).
+  useEffect(() => {
+    if (meId) rememberListSearch(meId, params)
+  }, [meId, params])
 
   function change(patch: Record<string, string | undefined>) {
     setParams(updateParams(params, patch))
@@ -51,7 +63,7 @@ export function DealsPage() {
         </li>
         <li>
           <span className="badge risk-stale">미업데이트</span>
-          <span className="hint">14일 이상 미업데이트</span>
+          <span className="hint">{staleLegend}</span>
         </li>
       </ul>
 

@@ -6,6 +6,7 @@ from app.domain.deal.code import DealCode
 from app.domain.deal.errors import DealCodeMismatchError, DealDeleteForbiddenError
 from app.domain.deal.history import DealSnapshot
 from app.domain.deal.policy import can_delete_deal
+from app.domain.deal.status_entry import StatusEntry
 from app.domain.deal.sync import ensure_sync_consistent
 
 if TYPE_CHECKING:
@@ -43,6 +44,11 @@ class Deal(AuditedEntity[DealCode]):
     customer_id: ContactId
     partner_links: list[PartnerLink]
     bant: BantSelection
+    status_entry: StatusEntry
+
+    @property
+    def status_changed_at(self) -> datetime:
+        return self.status_entry.changed_at
 
     @classmethod
     def create(  # noqa: PLR0913 - 등록에 필요한 값이 모두 독립적인 필수 입력
@@ -65,6 +71,7 @@ class Deal(AuditedEntity[DealCode]):
             customer_id=customer_id,
             partner_links=links,
             bant=bant,
+            status_entry=StatusEntry(sync.status_key, now),
             created_at=now,
             updated_at=now,
         )
@@ -123,6 +130,9 @@ class Deal(AuditedEntity[DealCode]):
         return True
 
     def touch(self, now: datetime) -> None:
+        """수정 시각을 갱신한다. Status가 진입 기록과 달라졌을 때만 진입 시각도 새로 잡는다."""
+        if self.sync.status_key != self.status_entry.status_key:
+            self.status_entry = StatusEntry(self.sync.status_key, now)
         self._touch(now)
 
     def ensure_deletable_by(self, actor_id: UserId, actor_role: Role) -> None:

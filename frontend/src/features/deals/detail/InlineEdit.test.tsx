@@ -1,7 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { renderAt, type TestRole } from '../../../test/mockApp'
-import { detailPath } from './detailTestUtils'
+import { detailPath } from '../../../test/detailTestUtils'
 
 async function openDeal(no: number, title: string, role?: TestRole) {
   const view = await renderAt(await detailPath(no), role === undefined ? {} : { role })
