@@ -5,6 +5,7 @@ When: 운영자 명령(alembic upgrade/downgrade). 이 리비전은 첨부 파�
 않는다. 내리면 추가한 테이블과 컬럼만 사라진다.
 """
 
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 import pytest
@@ -29,8 +30,8 @@ if TYPE_CHECKING:
 
 pytestmark = pytest.mark.integration
 
-CREATED = "2026-01-02 03:04:05+00"
-UPDATED = "2026-02-03 04:05:06+00"
+CREATED = datetime(2026, 1, 2, 3, 4, 5, tzinfo=UTC)
+UPDATED = datetime(2026, 2, 3, 4, 5, 6, tzinfo=UTC)
 STATUS_COLUMN = (
     "select data_type, is_nullable from information_schema.columns"
     " where table_name = 'deals' and column_name = 'status_changed_at'"

@@ -81,4 +81,4 @@ def then_impact_is(response: Response, *, history: int, actions: int) -> None:
         "history_count": history,
         "action_count": actions,
         "attachment_count": 0,
-    }
+    }, response.json()

@@ -148,7 +148,7 @@ async def given_label_id(api: Api, *, category: str, name: str) -> str:
 
 async def given_clock_at(api: Api, moment: datetime) -> None:
     """서버 시계를 주어진 시각으로 맞춘다(앞으로도 뒤로도)."""
-    api.clock.advance(int((moment - api.clock.now()).total_seconds()))
+    api.clock.advance((moment - api.clock.now()).total_seconds())  # 마이크로초까지 정확히 맞춘다
 
 
 # --- When (HTTP API 하나) ---

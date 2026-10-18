@@ -23,6 +23,8 @@ if TYPE_CHECKING:
 
 pytestmark = pytest.mark.integration
 
+SIGNED_IN_SALES = "사용자 sales-user"  # given_logged_in_as(role="sales")가 등록하는 로그인 사용자
+
 
 async def _given_seeded_users(api: Api) -> None:
     """hong(영업)·kim(조회, 이메일 있음)은 재직, gone은 퇴사한 상태에서 영업 사용자로 로그인한다."""
@@ -208,8 +210,8 @@ async def test_role_sales_lists_only_active_sales_users(api: Api) -> None:
     await _given_seeded_users(api)  # hong(sales), kim(user), gone(퇴사 sales), root(admin)
     # When
     response = await when_list_options(api, role="sales")
-    # Then
-    then_options_are(response, [("hong", "sales")])
+    # Then: 로그인한 영업 사용자(sales-user)도 재직 영업 사용자라 함께 나온다
+    then_options_are(response, [("hong", "sales"), (SIGNED_IN_SALES, "sales")])
 
 
 async def test_role_sales_with_include_resigned_adds_resigned_sales_users(api: Api) -> None:
@@ -219,7 +221,7 @@ async def test_role_sales_with_include_resigned_adds_resigned_sales_users(api: A
     # When
     response = await when_list_options(api, role="sales", include_resigned="true")
     # Then
-    then_options_are(response, [("hong", "sales"), ("gone", "sales")])
+    then_options_are(response, [("hong", "sales"), ("gone", "sales"), (SIGNED_IN_SALES, "sales")])
 
 
 @pytest.mark.parametrize("role", ["admin", "user"])

@@ -83,9 +83,15 @@ async def test_keyword_matches_name_customer_active_partner_and_code(api: Api) -
     # Given
     await given_logged_in_as(api, role="sales")
     by_name = await given_deal(api, name="ErP 구축")
-    by_customer = await given_deal(api, customer=customer_draft(company="한빛은행", name="정민수"))
-    by_partner = await given_deal(api, partner=partner_draft(company="코어테크", name="민지훈"))
-    replaced = await given_deal(api, partner=partner_draft(company="에이원", name="표성호"))
+    by_customer = await given_deal(
+        api, name="도입 과제 A", customer=customer_draft(company="한빛은행", name="정민수")
+    )
+    by_partner = await given_deal(
+        api, name="도입 과제 B", partner=partner_draft(company="코어테크", name="민지훈")
+    )
+    replaced = await given_deal(
+        api, name="도입 과제 C", partner=partner_draft(company="에이원", name="표성호")
+    )
     await when_update_deal(
         api, replaced["code"], partner=partner_draft(company="대한", name="최민수")
     )

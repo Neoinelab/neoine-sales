@@ -35,6 +35,7 @@ async def test_only_the_sent_fields_change_and_each_is_logged(api: Api) -> None:
     # Given
     await given_logged_in_as(api, role="sales")
     deal = await given_deal(api)
+    api.clock.advance(3600)
     # When
     response = await when_update_deal(
         api,

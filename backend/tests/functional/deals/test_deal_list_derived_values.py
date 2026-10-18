@@ -142,7 +142,7 @@ async def test_facets_of_an_empty_system_are_empty_lists(api: Api) -> None:
 
 
 async def test_the_deletion_impact_counts_history_and_actions(api: Api) -> None:
-    """Scenario: 삭제 영향은 이력·활동 건수를 알려 주고 첨부는 0이다."""
+    """Scenario: 삭제 영향은 History(등록·수정·Action 포함)·Action 건수를 알리고 첨부는 0이다."""
     # Given
     login = await given_logged_in_as(api, role="sales")
     deal = await given_deal(api)
@@ -155,7 +155,8 @@ async def test_the_deletion_impact_counts_history_and_actions(api: Api) -> None:
     # Then
     then_status_is(response, 200)
     assert set(response.json()) == IMPACT_KEYS
-    then_impact_is(response, history=2, actions=2)
+    # History = 등록 1 + 수정 1 + Action 2 (등록·Action도 History 행이다)
+    then_impact_is(response, history=4, actions=2)
 
 
 async def test_any_logged_in_role_may_read_the_deletion_impact(api: Api) -> None:

@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Final
 
 from tests.functional.steps.actions import given_deal_with_a_sales_owner
-from tests.functional.steps.auth import storage_path_of
+from tests.functional.steps.auth import given_logged_in_as, storage_path_of
 from tests.functional.steps.common import then_status_is
 from tests.functional.steps.deals import DEALS, history_rows, when_list_history
 from tests.functional.steps.login_db import sql_rows
@@ -82,7 +82,8 @@ def headers_of(session: Session | None) -> dict[str, str] | None:
 
 
 async def given_deal_with_files_enabled(api: Api) -> str:
-    """영업 담당자가 Owner인 Deal의 code(admin 로그인 상태, 저장 위치는 등록되어 있다)."""
+    """영업 담당자가 Owner인 Deal의 code(admin으로 로그인해 만들고, 저장 위치는 등록되어 있다)."""
+    await given_logged_in_as(api)
     deal = await given_deal_with_a_sales_owner(api)
     return str(deal["code"])
 

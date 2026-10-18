@@ -22,4 +22,5 @@ def then_every_item_has_only_the_ref_fields(response: Response) -> None:
 def then_options_are(response: Response, expected: list[tuple[str, str]]) -> None:
     """선택 목록 응답의 (표시 이름, role)이 순서까지 같다."""
     then_status_is(response, 200)
-    assert [(i["name"], i["role"]) for i in response.json()["items"]] == expected
+    actual = [(i["name"], i["role"]) for i in response.json()["items"]]
+    assert actual == expected, actual

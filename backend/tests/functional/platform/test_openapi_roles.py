@@ -185,8 +185,10 @@ async def test_auth_me_response_documents_the_user_id(api: Api) -> None:
     assert "user_id" in spec["components"]["schemas"][name]["properties"]
 
 
-async def test_user_register_request_takes_only_login_id_and_role(api: Api) -> None:
-    """Scenario: 사용자 등록 요청은 login_id와 role만 받는다."""
+async def test_user_register_request_takes_login_id_role_and_optional_display_name(
+    api: Api,
+) -> None:
+    """Scenario: 사용자 등록 요청은 login_id·role과 선택값 display_name만 받는다."""
     # Given
     # (로그인하지 않은 상태)
     # When
@@ -194,7 +196,9 @@ async def test_user_register_request_takes_only_login_id_and_role(api: Api) -> N
     # Then
     spec = spec_of(response)
     name = schema_name_of(operation_of(spec, "POST", "/api/v1/users"), request=True)
-    assert set(spec["components"]["schemas"][name]["properties"]) == {"login_id", "role"}
+    schema = spec["components"]["schemas"][name]
+    assert set(schema["properties"]) == {"login_id", "role", "display_name"}
+    assert set(schema["required"]) == {"login_id", "role"}
 
 
 async def test_user_list_is_a_page_of_user_responses(api: Api) -> None:

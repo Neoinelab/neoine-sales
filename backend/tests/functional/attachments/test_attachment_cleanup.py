@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+from tests.functional.steps.actions import given_deal_with_a_sales_owner
 from tests.functional.steps.attachments import (
     given_deal_with_files_enabled,
     given_file,
@@ -19,7 +20,7 @@ from tests.functional.steps.attachments import (
     then_storage_root_still_exists,
 )
 from tests.functional.steps.common import then_body_is, then_problem_is, then_status_is
-from tests.functional.steps.deals import DEALS, given_deal, when_delete_deal
+from tests.functional.steps.deals import DEALS, when_delete_deal
 from tests.functional.steps.rereads import then_user_is_listed_as_resigned
 from tests.functional.steps.users import given_signed_in_session, id_of, when_delete_user
 
@@ -33,7 +34,7 @@ async def test_deleting_a_deal_removes_its_files_and_its_directory(api: Api) -> 
     """Scenario: Deal을 지우면 첨부 행과 Deal 디렉터리가 사라지고, 다른 Deal의 파일은 남는다."""
     # Given
     code = await given_deal_with_files_enabled(api)
-    other = str((await given_deal(api))["code"])
+    other = str((await given_deal_with_a_sales_owner(api))["code"])
     await given_file(api, code, name="a.pdf", data=b"mine")
     await given_file(api, code, name="b.pdf", data=b"mine too")
     await given_file(api, other, name="c.pdf", data=b"theirs")
@@ -51,7 +52,7 @@ async def test_the_deletion_impact_counts_the_attachments(api: Api) -> None:
     """Scenario: 삭제 영향에 그 Deal의 첨부 수가 들어간다."""
     # Given
     code = await given_deal_with_files_enabled(api)
-    other = str((await given_deal(api))["code"])
+    other = str((await given_deal_with_a_sales_owner(api))["code"])
     await given_file(api, code, name="a.pdf")
     await given_file(api, code, name="b.pdf")
     await given_file(api, other, name="c.pdf")

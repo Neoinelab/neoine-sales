@@ -12,7 +12,7 @@ import pytest
 
 from tests.functional.steps.actions import (
     given_action,
-    given_action_at,
+    given_action_at_as,
     given_searchable_actions,
     then_action_names_are,
     when_list_actions,
@@ -155,7 +155,7 @@ async def test_acted_date_range_covers_whole_days(
 ) -> None:
     """Scenario: 수행일 조건은 로컬 업무 날짜의 00:00부터 24:00까지를 양끝 포함으로 본다."""
     # Given
-    await given_logged_in_as(api, role="sales")
+    login = await given_logged_in_as(api, role="sales")
     deal = await given_deal(api)
     moments = {
         "전날 23:59": MIDNIGHT - ONE_MINUTE,
@@ -164,7 +164,7 @@ async def test_acted_date_range_covers_whole_days(
         "다음날 00:00": MIDNIGHT + timedelta(days=1),
     }
     for name, moment in moments.items():
-        await given_action_at(api, deal["code"], moment, action=name)
+        await given_action_at_as(api, deal["code"], moment, login_id=login, action=name)
     # When
     response = await when_list_actions(api, deal["code"], **params)
     # Then

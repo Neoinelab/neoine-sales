@@ -11,7 +11,13 @@ from typing import TYPE_CHECKING, Any, Final
 
 from tests.functional.steps.common import then_status_is
 from tests.functional.steps.deals import DEALS, given_clock_at, given_deal, given_sales_owner
-from tests.functional.steps.users import Session, given_signed_in_session, id_of, when_request_as
+from tests.functional.steps.users import (
+    Session,
+    given_signed_in_session,
+    id_of,
+    log_in,
+    when_request_as,
+)
 from tests.support.functional_clock import active_clock
 
 if TYPE_CHECKING:
@@ -151,6 +157,15 @@ async def given_action_at(
     response = await api.post(actions_url(code), json=action_body(**overrides))
     assert response.status_code == 201, f"Given 실패 {response.status_code}: {response.text}"
     return dict(response.json())
+
+
+async def given_action_at_as(
+    api: Api, code: str, moment: datetime, *, login_id: str, **overrides: object
+) -> dict[str, Any]:
+    """given_action_at과 같되, 시계가 8시간 넘게 움직이면 세션이 만료되므로 다시 로그인한다."""
+    await given_clock_at(api, moment)
+    await log_in(api, login_id)
+    return await given_action_at(api, code, moment, **overrides)
 
 
 # --- When (HTTP API 하나) ---

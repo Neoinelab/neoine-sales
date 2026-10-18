@@ -54,7 +54,7 @@ SETTINGS_FIELDS = {
     "updated_at",
     "updated_by",
 }
-USER_REF_FIELDS = {"id", "name", "resigned", "label"}
+USER_REF_FIELDS = {"id", "name", "resigned", "label", "role"}
 MAX_FAILURES_PER_ACCOUNT = make_settings(
     "postgresql+asyncpg://u:p@h/d"
 ).login_max_failures_per_account

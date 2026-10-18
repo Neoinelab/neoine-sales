@@ -138,7 +138,7 @@ class FixedClock:
     def now(self) -> datetime:
         return self._now
 
-    def advance(self, seconds: int = 60) -> None:
+    def advance(self, seconds: float = 60) -> None:
         self._now += timedelta(seconds=seconds)
 
 

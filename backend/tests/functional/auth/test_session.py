@@ -49,15 +49,15 @@ PROTECTED = [
     CONTACTS,
     f"{CONTACTS}/companies",
     "/api/v1/deals",
-    "/api/v1/deals/pipeline",
-    f"/api/v1/deals/{UNKNOWN_ID}/stage-changes",
+    "/api/v1/deals/facets",
+    f"/api/v1/deals/{UNKNOWN_ID}/history",
     "/api/v1/deals/20261016-A001/actions",
     ME,
 ]
-PROTECTED_WRITES = [
+PROTECTED_WRITES: list[tuple[str, str, dict[str, object] | None]] = [
     ("POST", CONTACTS, {}),
     ("DELETE", f"/api/v1/deals/{UNKNOWN_ID}", None),
-    ("POST", f"/api/v1/deals/{UNKNOWN_ID}/stage", {"stage": "introduction"}),
+    ("POST", f"/api/v1/deals/{UNKNOWN_ID}/changes", {}),
 ]
 ROLES = ["admin", "sales", "user"]
 
@@ -77,7 +77,7 @@ async def test_protected_endpoints_require_a_session(api: Api, path: str) -> Non
 async def test_write_endpoints_are_protected_too(
     api: Api, method: str, path: str, body: dict[str, object] | None
 ) -> None:
-    """Scenario: 로그인하지 않고 등록·삭제·단계 변경을 요청해도 401이다."""
+    """Scenario: 로그인하지 않고 등록·삭제·변경을 요청해도 401이다."""
     # Given
     # (로그인하지 않은 상태)
     # When
