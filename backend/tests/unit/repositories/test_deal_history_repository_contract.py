@@ -7,13 +7,11 @@ from datetime import timedelta
 from typing import TYPE_CHECKING
 
 from app.domain.deal.history import DealHistoryEntry, HistoryCategory, HistoryDraft
-
 from tests.factories import NOW, later, make_deal
 from tests.support.user_ids import OWNER_ID, uid
 
 if TYPE_CHECKING:
     from app.domain.deal.code import DealCode
-
     from tests.unit.repositories.deal_case import DealCase
 
 FIRST = "20261016-A001"

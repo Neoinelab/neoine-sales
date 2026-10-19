@@ -10,7 +10,6 @@ if TYPE_CHECKING:
     from datetime import datetime
 
     from app.domain.attachment.entities import Attachment
-
     from app.domain.attachment.values import AttachmentId, FileName
     from app.domain.deal.code import DealCode
     from app.domain.user.value_objects import UserId
@@ -36,7 +35,6 @@ def make_attachment(  # noqa: PLR0913 - 첨부 필드가 모두 독립적인 선
 ) -> Attachment:
     """저장하지 않은 첨부(`Attachment.upload`). 업로드 시각 = now, 저장 키 기본은 uuid4 hex."""
     from app.domain.attachment.entities import Attachment  # noqa: PLC0415
-
     from app.domain.attachment.values import UploadCandidate  # noqa: PLC0415
 
     return Attachment.upload(

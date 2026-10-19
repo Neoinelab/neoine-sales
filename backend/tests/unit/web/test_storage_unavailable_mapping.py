@@ -7,13 +7,13 @@
 from typing import TYPE_CHECKING
 
 import pytest
+from httpx import ASGITransport, AsyncClient
+
 from app.application.storage.errors import (
     DOWNLOAD_UNAVAILABLE,
     UPLOAD_UNAVAILABLE,
     StorageUnavailableError,
 )
-from httpx import ASGITransport, AsyncClient
-
 from app.domain.auth.principal import Role
 from app.main import create_app
 from tests.factories_auth import make_principal

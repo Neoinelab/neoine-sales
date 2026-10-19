@@ -6,12 +6,13 @@ Risk와 Status 체류 일수는 요청 시각 `now`의 업무 날짜(OS 로컬 �
 
 from typing import TYPE_CHECKING
 
-from app.application.deal.dto import DealView
+from app.application.deal.dto import DealView, NamedRef
 from app.domain.alert.thresholds import AlertThresholds
 from app.domain.common.business_date import business_date
 from app.domain.contact.errors import ContactNotFoundError
 from app.domain.deal.risk import compute_risk, status_days
 from app.domain.user.errors import UserNotFoundError
+from app.domain.vendor.errors import VendorNotFoundError
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
@@ -22,6 +23,8 @@ if TYPE_CHECKING:
     from app.domain.contact.entities import Contact
     from app.domain.contact.values import ContactId
     from app.domain.user.value_objects import UserId, UserRef
+    from app.domain.vendor.entities import Vendor
+    from app.domain.vendor.values import VendorId
 
 
 def _contact_ids(item: DealListItem) -> list[ContactId]:
@@ -43,6 +46,21 @@ def _require_owner(owners: Mapping[UserId, UserRef], user_id: UserId) -> UserRef
     return owner
 
 
+def _refs(item: DealListItem, vendors: Mapping[VendorId, Vendor]) -> dict[str, NamedRef | None]:
+    """Deal의 Vendor·Solution 참조. 참조가 사라진 경우는 FK가 막으므로 정상 경로에서는 없다."""
+    details = item.deal.details
+    if details.vendor_id is None:
+        return {"vendor": None, "solution": None}
+    vendor = vendors.get(details.vendor_id)
+    if vendor is None:
+        raise VendorNotFoundError(details.vendor_id)
+    solution = None
+    if details.solution_id is not None:
+        found = vendor.solution(details.solution_id)  # 없으면 SolutionNotFoundError
+        solution = NamedRef(found.id, found.name)
+    return {"vendor": NamedRef(vendor.id, vendor.name), "solution": solution}
+
+
 async def build_views(
     uow: UnitOfWork, items: Sequence[DealListItem], *, now: datetime
 ) -> list[DealView]:
@@ -54,6 +72,11 @@ async def build_views(
     owners = await uow.users.get_refs(owner_ids) if owner_ids else {}
     wanted = {contact_id for item in items for contact_id in _contact_ids(item)}
     contacts = await uow.contacts.get_many(wanted) if wanted else {}
+    vendors = (
+        {v.id: v for v in await uow.vendors.list()}
+        if any(item.deal.details.vendor_id is not None for item in items)
+        else {}
+    )
     return [
         DealView(
             item=item,
@@ -71,6 +94,7 @@ async def build_views(
                 stale_days=thresholds.stale_days,
             ),
             status_days=status_days(item.deal.status_changed_at, today),
+            **_refs(item, vendors),
         )
         for item in items
     ]

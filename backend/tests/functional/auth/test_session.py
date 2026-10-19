@@ -49,7 +49,7 @@ PROTECTED = [
     CONTACTS,
     f"{CONTACTS}/companies",
     "/api/v1/deals",
-    "/api/v1/deals/facets",
+    "/api/v1/vendors",
     f"/api/v1/deals/{UNKNOWN_ID}/history",
     "/api/v1/deals/20261016-A001/actions",
     ME,

@@ -3,9 +3,9 @@
 from datetime import date
 
 import pytest
-from app.domain.deal.period import quarter_range
 
 from app.domain.common.errors import InvalidValueError
+from app.domain.deal.period import quarter_range
 from tests.support.expect import raises_with
 
 

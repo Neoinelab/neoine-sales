@@ -8,9 +8,9 @@ from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import pytest
+
 from app.domain.code.errors import CodeNotFoundError, DuplicateCodeNameError
 from app.domain.code.values import CodeId, CodeKey, CodeKind, ForecastOutcome
-
 from app.domain.common.errors import AlreadyExistsError
 from tests.factories import NOW, later
 from tests.factories_catalog import make_code

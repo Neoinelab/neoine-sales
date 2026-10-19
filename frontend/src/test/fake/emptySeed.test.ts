@@ -45,7 +45,7 @@ describe('앱 기본 시드에는 샘플 업무 데이터가 없다', () => {
 
   it('returns to the empty business data on resetData after a deal was created', async () => {
     const { gateway, control } = await appDefault()
-    await gateway.deals.create(dealInput('u-kim'))
+    await gateway.deals.create(dealInput('u-kim', { vendorId: null, solutionId: null }))
     expect((await gateway.deals.list({ limit: 100 })).total).toBe(1)
     control.resetData()
     expect((await gateway.deals.list({ limit: 100 })).total).toBe(0)

@@ -29,6 +29,8 @@ from tests.unit.repositories.file_storage_case import (
     open_fake_case,
     open_local_case,
 )
+from tests.unit.repositories.vendor_case import PARAMS as VENDOR_PARAMS
+from tests.unit.repositories.vendor_case import VendorCase, open_vendor_case
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
@@ -80,4 +82,12 @@ async def attachment_case(request: pytest.FixtureRequest) -> AsyncIterator[Attac
     """AttachmentRepository 계약 테스트용 case (fake / sql)."""
     url = request.getfixturevalue("test_database_url") if request.param == "sql" else None
     async with open_attachment_case(request.param, url) as provided:
+        yield provided
+
+
+@pytest_asyncio.fixture(params=VENDOR_PARAMS)
+async def vendor_case(request: pytest.FixtureRequest) -> AsyncIterator[VendorCase]:
+    """VendorRepository 계약 테스트용 case (fake / sql)."""
+    url = request.getfixturevalue("test_database_url") if request.param == "sql" else None
+    async with open_vendor_case(request.param, url) as provided:
         yield provided

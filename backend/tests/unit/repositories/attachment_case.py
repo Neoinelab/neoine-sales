@@ -20,10 +20,10 @@ from tests.unit.repositories.deal_case import DealCase, _sql_case
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
 
-    from app.application.ports.attachment_repository import AttachmentRepository
-    from app.domain.attachment.entities import Attachment
     from sqlalchemy.engine import URL
 
+    from app.application.ports.attachment_repository import AttachmentRepository
+    from app.domain.attachment.entities import Attachment
     from app.domain.deal.code import DealCode
 
 PARAMS = [
@@ -70,6 +70,7 @@ async def open_attachment_case(
             uow.users,
             uow.codes,
             uow.bant_labels,
+            uow.vendors,
         )
         yield AttachmentCase(deal_case, uow.attachments)
         return

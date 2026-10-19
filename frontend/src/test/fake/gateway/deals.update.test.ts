@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { HistoryCategory } from '../../../shared/model/types'
+import { seedSolutionId, seedVendorId } from '../../fixtures/vendors'
 import { contactIdOf, dealCode, expectApiError, mockAs, TEST_NOW } from '../testing'
 
 async function categories(gw: Awaited<ReturnType<typeof mockAs>>['gateway'], code: string, since: number) {
@@ -37,7 +38,8 @@ describe('deals.update', () => {
       ownerId: 'u-park',
       revenueAmount: 777_000_000,
       revenueDate: '2026-12-31',
-      vendor: 'Okta',
+      vendorId: seedVendorId('Okta'),
+      solutionId: seedSolutionId('Okta', 'SSO'),
       users: 250,
       bant: { budget: budget.id, authority: null, need: null, timeline: null },
       quote: { submitted: 'YES', submittedDate: '2026-10-10' },
@@ -48,7 +50,7 @@ describe('deals.update', () => {
     const cats = await categories(gateway, code, base)
     const expected: HistoryCategory[] = ['owner', 'amount', 'expectedClose', 'bant', 'other']
     for (const c of expected) expect(cats).toContain(c)
-    expect(cats.filter((c) => c === 'other').length).toBe(6) // 이름, Vendor, Users, 견적, POC, 구매절차
+    expect(cats.filter((c) => c === 'other').length).toBe(7) // 이름, Vendor, Solution, Users, 견적, POC, 구매절차
     const owner = (await gateway.history.list(code, { category: 'owner' }))[0]
     expect(owner).toMatchObject({ before: '김영업', after: '박영업', by: { id: 'u-kim' }, at: TEST_NOW })
     expect((await gateway.history.list(code, { category: 'amount' }))[0]).toMatchObject({ before: '420,000,000원', after: '777,000,000원' })

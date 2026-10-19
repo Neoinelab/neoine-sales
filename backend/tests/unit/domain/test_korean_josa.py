@@ -1,6 +1,7 @@
 """한국어 조사 도우미(R-4): 프런트 `shared/model/text.ts`와 같은 받침 규칙(`text.test.ts` 사례)."""
 
 import pytest
+
 from app.domain.common.korean import with_ga, with_ro, with_wa
 
 

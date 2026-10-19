@@ -3,8 +3,8 @@
 from uuid import uuid4
 
 import pytest
-from app.domain.attachment.policy import can_delete_attachment
 
+from app.domain.attachment.policy import can_delete_attachment
 from app.domain.auth.principal import Role
 from app.domain.user.value_objects import UserId, UserRef
 from tests.support.user_ids import uid

@@ -1,4 +1,4 @@
-"""코드(Status·Forecast)와 BANT Label 유스케이스 조립. Container가 위임한다."""
+"""코드(Status·Forecast)와 BANT Label·Vendor 유스케이스 조립. Container가 위임한다."""
 
 from typing import TYPE_CHECKING
 
@@ -12,6 +12,13 @@ from app.application.code.list_codes_with_usage import ListCodesWithUsage
 from app.application.code.register_code import RegisterCode
 from app.application.code.rename_code import RenameCode
 from app.application.code.reorder_codes import ReorderCodes
+from app.application.vendor.delete_solution import DeleteSolution
+from app.application.vendor.delete_vendor import DeleteVendor
+from app.application.vendor.list_vendors import ListVendors
+from app.application.vendor.register_solution import RegisterSolution
+from app.application.vendor.register_vendor import RegisterVendor
+from app.application.vendor.rename_solution import RenameSolution
+from app.application.vendor.rename_vendor import RenameVendor
 
 if TYPE_CHECKING:
     from app.application.ports.clock import Clock
@@ -52,3 +59,24 @@ class CatalogAssembly:
 
     def delete_bant_label(self) -> DeleteBantLabel:
         return DeleteBantLabel(self._uow)
+
+    def list_vendors(self) -> ListVendors:
+        return ListVendors(self._uow)
+
+    def register_vendor(self) -> RegisterVendor:
+        return RegisterVendor(self._uow, self._clock)
+
+    def rename_vendor(self) -> RenameVendor:
+        return RenameVendor(self._uow, self._clock)
+
+    def delete_vendor(self) -> DeleteVendor:
+        return DeleteVendor(self._uow)
+
+    def register_solution(self) -> RegisterSolution:
+        return RegisterSolution(self._uow, self._clock)
+
+    def rename_solution(self) -> RenameSolution:
+        return RenameSolution(self._uow, self._clock)
+
+    def delete_solution(self) -> DeleteSolution:
+        return DeleteSolution(self._uow)

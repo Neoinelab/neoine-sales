@@ -21,7 +21,6 @@ NUL = "a\x00b"
     [
         pytest.param(lambda: ContactQuery(keyword=NUL), id="contact-keyword"),
         pytest.param(lambda: DealQuery(keyword=NUL), id="deal-keyword"),
-        pytest.param(lambda: DealQuery(vendor=NUL), id="deal-vendor"),
         pytest.param(
             lambda: DealActionQuery(deal_code=make_deal_code(), keyword=NUL), id="action-keyword"
         ),

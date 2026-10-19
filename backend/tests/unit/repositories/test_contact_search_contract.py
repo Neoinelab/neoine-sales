@@ -14,9 +14,9 @@ from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 import pytest
+
 from app.application.ports.contact_repository import ContactQuery
 from app.domain.contact.values import ContactId, ContactKind
-
 from tests.factories import later
 from tests.factories_contact import make_contact, make_contact_details, make_customer, make_partner
 

@@ -3,11 +3,11 @@
 from typing import TYPE_CHECKING
 
 import pytest
-from app.domain.deal.history import HistoryCategory
 
 from app.application.deal.inputs import Actor
 from app.domain.auth.principal import Role
 from app.domain.deal.errors import DealNotFoundError
+from app.domain.deal.history import HistoryCategory
 from tests.factories_deal import SALES, make_patch
 from tests.support.auth_seed import seed_user
 from tests.support.expect import raises_with
@@ -33,7 +33,10 @@ async def test_entries_are_listed_newest_first(env: DealEnv) -> None:
 async def test_entries_of_the_same_moment_show_the_later_record_first(env: DealEnv) -> None:
     view = await env.new_deal()
     code = view.item.deal.id.value
-    await env.update.execute(code, make_patch(name="B", vendor="Oracle"), SALES)  # 같은 시각 두 건
+    oracle = await env.new_vendor("Oracle")
+    await env.update.execute(
+        code, make_patch(name="B", vendor_id=oracle.id), SALES
+    )  # 같은 시각 두 건
 
     entries = await env.history.execute(code, None)
 

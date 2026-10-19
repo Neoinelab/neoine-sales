@@ -4,9 +4,9 @@ import unicodedata
 from typing import TYPE_CHECKING
 
 import pytest
+
 from app.application.attachment.inputs import UploadOutcomeKind
 from app.domain.attachment.errors import AttachmentNameTakenError, AttachmentReplaceForbiddenError
-
 from app.domain.attachment.values import OnExists
 from tests.support.expect import raises_with
 from tests.unit.application.attachment_env import (

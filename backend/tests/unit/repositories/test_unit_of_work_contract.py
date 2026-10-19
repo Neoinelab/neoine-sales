@@ -8,11 +8,11 @@ from typing import TYPE_CHECKING
 
 import pytest
 import pytest_asyncio
-from app.domain.deal.history import DealHistoryEntry, HistoryCategory, HistoryDraft
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
 from app.domain.contact.errors import ContactNotFoundError
+from app.domain.deal.history import DealHistoryEntry, HistoryCategory, HistoryDraft
 from app.infra.db.unit_of_work import sql_unit_of_work_factory
 from tests.factories import later, make_deal, make_deal_details
 from tests.factories_contact import make_customer
@@ -24,10 +24,9 @@ from tests.support.user_seed import ensure_users
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
 
-    from app.domain.deal.code import DealCode
-
     from app.application.ports.unit_of_work import UnitOfWorkFactory
     from app.domain.contact.entities import Contact
+    from app.domain.deal.code import DealCode
 
 PARAMS = [
     pytest.param("fake", id="fake"),

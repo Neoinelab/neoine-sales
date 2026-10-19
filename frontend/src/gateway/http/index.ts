@@ -18,6 +18,7 @@ import { createSettingsHttp } from './settings'
 import { createSetupHttp } from './setup'
 import { notImplemented } from './unsupported'
 import { createUsersHttp } from './users'
+import { createVendorsHttp } from './vendors'
 
 export function createHttpGateway(): Gateway {
   return {
@@ -28,6 +29,7 @@ export function createHttpGateway(): Gateway {
     alerts: createAlertsHttp(),
     codes: createCodesHttp(),
     labels: createLabelsHttp(),
+    vendors: createVendorsHttp(),
     contacts: createContactsHttp(),
     deals: createDealsHttp(),
     actions: createActionsHttp(),

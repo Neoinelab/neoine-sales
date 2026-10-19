@@ -17,8 +17,8 @@ function toListParams(q: DealListQuery) {
   return {
     ...(q.keyword ? { keyword: q.keyword } : {}),
     ...(q.ownerId ? { owner_user_id: q.ownerId } : {}),
-    ...(q.vendor ? { vendor: q.vendor } : {}),
-    ...(q.solution ? { solution: q.solution } : {}),
+    ...(q.vendorId ? { vendor_id: q.vendorId } : {}),
+    ...(q.solutionId ? { solution_id: q.solutionId } : {}),
     ...(q.statusKey ? { status_key: q.statusKey } : {}),
     ...(q.forecastKey ? { forecast_key: q.forecastKey } : {}),
     ...(q.year !== undefined ? { year: q.year } : {}),
@@ -49,7 +49,6 @@ export function createDealsHttp(): DealsGateway {
       const impact = await unwrap(api.GET('/api/v1/deals/{code}/deletion-impact', path(code)))
       return { historyCount: impact.history_count, actionCount: impact.action_count, attachmentCount: impact.attachment_count }
     },
-    facets: () => unwrap(api.GET('/api/v1/deals/facets')),
     create: async (input) => toDealDetail(await unwrap(api.POST('/api/v1/deals', { body: toCreateBody(input) }))),
     update: async (code, patch) =>
       toDealDetail(await unwrap(api.PATCH('/api/v1/deals/{code}', { ...path(code), body: toPatchBody(patch) }))),

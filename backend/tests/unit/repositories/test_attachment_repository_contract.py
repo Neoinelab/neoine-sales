@@ -4,8 +4,8 @@ from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import pytest
-from app.domain.attachment.errors import AttachmentNameTakenError, AttachmentNotFoundError
 
+from app.domain.attachment.errors import AttachmentNameTakenError, AttachmentNotFoundError
 from app.domain.attachment.values import MAX_FILE_BYTES, AttachmentId, FileName
 from app.domain.deal.errors import DealNotFoundError
 from tests.factories import later, make_deal_code

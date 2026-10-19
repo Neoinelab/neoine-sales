@@ -4,19 +4,20 @@
 """
 
 from datetime import date
-from typing import Any, cast
+from uuid import UUID
 
 import pytest
 
 from app.application.ports.deal_repository import DealQuery, DealSort, SortOrder
 from app.application.ports.pagination import MAX_LIMIT
 from app.domain.common.errors import InvalidValueError
+from app.domain.vendor.values import SolutionId, VendorId
 from tests.support.expect import raises_with
 from tests.support.user_ids import uid
 
 KEYWORD_LIMIT = 100
-VENDOR_LIMIT = 100
-SOLUTION_LIMIT = 200
+VENDOR = VendorId(UUID(int=31))
+SOLUTION = SolutionId(UUID(int=41))
 
 
 def test_defaults_are_the_first_page_of_twenty_newest_first_without_conditions() -> None:
@@ -27,8 +28,8 @@ def test_defaults_are_the_first_page_of_twenty_newest_first_without_conditions()
     for condition in (
         "keyword",
         "owner_user_id",
-        "vendor",
-        "solution",
+        "vendor_id",
+        "solution_id",
         "status_key",
         "forecast_key",
         "year",
@@ -55,8 +56,8 @@ def test_given_conditions_are_kept() -> None:
     query = DealQuery(
         keyword="erp",
         owner_user_id=uid("park"),
-        vendor="SAP",
-        solution="S/4HANA",
+        vendor_id=VENDOR,
+        solution_id=SOLUTION,
         status_key="introduction",
         forecast_key="best",
         revenue_from=date(2026, 6, 1),
@@ -66,7 +67,7 @@ def test_given_conditions_are_kept() -> None:
     )
 
     assert (query.keyword, query.owner_user_id) == ("erp", uid("park"))
-    assert (query.vendor, query.solution) == ("SAP", "S/4HANA")
+    assert (query.vendor_id, query.solution_id) == (VENDOR, SOLUTION)
     assert (query.status_key, query.forecast_key) == ("introduction", "best")
     assert (query.revenue_from, query.revenue_to) == (date(2026, 6, 1), date(2026, 6, 30))
     assert (query.offset, query.limit) == (3, 7)
@@ -117,31 +118,41 @@ def test_valid_periods_are_accepted(revenue_from: date | None, revenue_to: date 
     assert (query.revenue_from, query.revenue_to) == (revenue_from, revenue_to)
 
 
-def test_blank_text_conditions_become_none() -> None:
-    query = DealQuery(keyword="   ", vendor="\t", solution=" ")
-
-    assert (query.keyword, query.vendor, query.solution) == (None, None, None)
+def test_blank_keyword_becomes_none() -> None:
+    assert DealQuery(keyword="   ").keyword is None
 
 
-def test_text_conditions_are_trimmed_and_vendor_keeps_its_case() -> None:
-    query = DealQuery(keyword=" erp ", vendor=" sap ", solution=" S/4 ")
-
-    assert (query.keyword, query.vendor, query.solution) == ("erp", "sap", "S/4")
+def test_keyword_is_trimmed() -> None:
+    assert DealQuery(keyword=" erp ").keyword == "erp"
 
 
-@pytest.mark.parametrize(
-    ("field", "limit"),
-    [("keyword", KEYWORD_LIMIT), ("vendor", VENDOR_LIMIT), ("solution", SOLUTION_LIMIT)],
-)
-def test_text_conditions_allow_the_limit_and_reject_one_over(field: str, limit: int) -> None:
-    ok: dict[str, Any] = {field: "a" * limit}
-    over: dict[str, Any] = {field: "a" * (limit + 1)}
-    assert getattr(DealQuery(**ok), field) == "a" * limit
+def test_keyword_allows_the_limit_and_rejects_one_over() -> None:
+    assert DealQuery(keyword="a" * KEYWORD_LIMIT).keyword == "a" * KEYWORD_LIMIT
     with pytest.raises(InvalidValueError):
-        DealQuery(**over)
+        DealQuery(keyword="a" * (KEYWORD_LIMIT + 1))
 
 
-@pytest.mark.parametrize("field", ["keyword", "vendor", "solution"])
-def test_a_nul_character_in_a_text_condition_is_rejected(field: str) -> None:
+def test_a_nul_character_in_the_keyword_is_rejected() -> None:
     with pytest.raises(InvalidValueError):
-        DealQuery(**cast("dict[str, Any]", {field: "a\x00b"}))
+        DealQuery(keyword="a\x00b")
+
+
+def test_the_old_vendor_and_solution_text_conditions_are_gone() -> None:
+    query = DealQuery()
+
+    assert not hasattr(query, "vendor")
+    assert not hasattr(query, "solution")
+    with pytest.raises(TypeError):
+        DealQuery(vendor="SAP")  # type: ignore[call-arg]
+
+
+def test_quarter_without_year_is_accepted() -> None:
+    query = DealQuery(quarter=2)
+
+    assert (query.year, query.quarter) == (None, 2)
+
+
+@pytest.mark.parametrize("quarter", [0, 5])
+def test_quarter_out_of_range_is_rejected_without_year(quarter: int) -> None:
+    with raises_with(InvalidValueError, "분기는 1~4 중에서 선택하세요."):
+        DealQuery(quarter=quarter)

@@ -100,8 +100,13 @@ export function dealRow(ctx: MockContext, deal: Deal): DealRow {
   const now = ctx.clock.now()
   const lastUpdatedAt = latest ? laterOf(deal.updatedAt, latest.actedAt) : deal.updatedAt
   const nextAction = latest ? { text: latest.nextAction, dueDate: latest.dueDate } : null
+  const { vendorId, solutionId, ...rest } = clone(deal)
+  const vendor = data.vendors.find((v) => v.id === vendorId)
+  const solution = data.solutions.find((s) => s.id === solutionId)
   return {
-    ...clone(deal),
+    ...rest,
+    vendor: vendor ? { id: vendor.id, name: vendor.name } : null,
+    solution: solution ? { id: solution.id, name: solution.name } : null,
     owner: userRef(data, deal.ownerId),
     customer: clone(contactOf(data, deal.customerContactId)),
     activePartner: active ? clone(contactOf(data, active.contactId)) : null,

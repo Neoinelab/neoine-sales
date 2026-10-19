@@ -6,6 +6,7 @@
 from uuid import uuid4
 
 import pytest
+
 from app.domain.bant.entities import BantLabel
 from app.domain.bant.errors import (
     BantLabelNotFoundError,
@@ -14,7 +15,6 @@ from app.domain.bant.errors import (
 )
 from app.domain.bant.rules import ensure_unique_label_name
 from app.domain.bant.values import LABEL_NAME_MAX, BantCategory, BantLabelId, normalize_label_name
-
 from app.domain.common.errors import (
     AlreadyExistsError,
     InvalidStateError,

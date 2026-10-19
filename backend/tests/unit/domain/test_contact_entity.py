@@ -8,10 +8,10 @@ from datetime import UTC, datetime
 from uuid import uuid4
 
 import pytest
-from app.domain.contact.entities import Contact
-from app.domain.contact.values import ContactKind
 
 from app.domain.common.errors import InvalidValueError
+from app.domain.contact.entities import Contact
+from app.domain.contact.values import ContactKind
 from tests.factories import NOW, later
 from tests.factories_contact import make_contact, make_contact_details
 

@@ -13,6 +13,7 @@ import { createHistoryGateway } from './history'
 import { createLabelsGateway } from './labels'
 import { createSettingsGateway } from './settings'
 import { createUsersGateway } from './users'
+import { createVendorsGateway } from './vendors'
 
 /** 도메인별 mock 구현을 모아 `Gateway`를 만든다. 모든 구현은 같은 맥락(저장소·시계·지연)을 공유한다. */
 export function createGatewayFor(ctx: MockContext): Gateway {
@@ -26,6 +27,7 @@ export function createGatewayFor(ctx: MockContext): Gateway {
     attachments: createAttachmentsGateway(ctx),
     codes: createCodesGateway(ctx),
     labels: createLabelsGateway(ctx),
+    vendors: createVendorsGateway(ctx),
     forecast: createForecastGateway(ctx),
     users: createUsersGateway(ctx),
     settings: createSettingsGateway(ctx),

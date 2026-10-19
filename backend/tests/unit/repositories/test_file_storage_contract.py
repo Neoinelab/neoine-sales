@@ -7,19 +7,18 @@ from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import pytest
+
 from app.application.ports.file_storage import (
     StorageNotWritableError,
     StoredFileLocation,
     StoredFileMissingError,
 )
-
 from app.domain.common.errors import InvalidValueError
 from app.domain.deal.code import DealCode
 from tests.fakes.file_storage import BytesSource
 
 if TYPE_CHECKING:
     from app.application.ports.file_storage import OpenedFile
-
     from tests.unit.repositories.file_storage_case import FileStorageCase
 
 DEAL = DealCode("20261016-A001")

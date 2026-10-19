@@ -16,7 +16,6 @@ from app.web.schemas.deal import (
 from app.web.schemas.deal_change import DealChangeResponse
 from app.web.schemas.deal_response import (
     DealDetailResponse,
-    DealFacetsResponse,
     DealRowPage,
     DeletionImpactResponse,
     HistoryEntryResponse,
@@ -50,12 +49,6 @@ async def list_deals(
     params: Annotated[DealSearchParams, Query()], user: CurrentUser, provider: Provider
 ) -> DealRowPage:
     return row_page(await provider.list_deals().execute(params.to_query(user.user_id)))
-
-
-@router.get("/facets", response_model=DealFacetsResponse, responses={422: PROBLEM})
-async def list_deal_facets(provider: Provider) -> DealFacetsResponse:
-    facets = await provider.list_deal_facets().execute()
-    return DealFacetsResponse(vendors=list(facets.vendors), solutions=list(facets.solutions))
 
 
 @router.get("/{code}", response_model=DealDetailResponse, responses=READ_ERRORS)

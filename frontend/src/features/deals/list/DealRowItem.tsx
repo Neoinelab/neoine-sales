@@ -78,10 +78,10 @@ export function DealRowItem({ row, labels, labelsFailed, canWrite, onSaved }: De
           </span>
           </div>
         </td>
+        <td>{userLabel(row.owner)}</td>
         <td>{row.customer.company}</td>
         <td>{row.activePartner?.company ?? '—'}</td>
-        <td>{userLabel(row.owner)}</td>
-        <td>{row.vendor || '—'}</td>
+        <td>{row.vendor?.name ?? '—'}</td>
         <td>{cell('statusKey')}</td>
         <td>{cell('forecastKey')}</td>
         <td className="bant-cell">

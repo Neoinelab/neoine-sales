@@ -3,12 +3,12 @@
 from typing import TYPE_CHECKING
 
 import pytest_asyncio
+
 from app.application.attachment.delete_attachment import DeleteAttachment
 from app.application.attachment.download_attachment import DownloadAttachment
 from app.application.attachment.get_attachment import GetAttachment
 from app.application.attachment.list_attachments import ListAttachments
 from app.application.attachment.upload_attachment import UploadAttachment
-
 from app.application.deal.delete_deal import DeleteDeal
 from app.container import Container
 from tests.functional.conftest import make_settings

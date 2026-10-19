@@ -43,8 +43,8 @@ function detail(over: Partial<DealDetail> = {}): DealDetail {
     code: '20261015-D001',
     name: '기존 Deal',
     ownerId: 'u-kim',
-    vendor: 'Okta',
-    solution: 'SSO',
+    vendor: { id: 'vd-3', name: 'Okta' },
+    solution: { id: 'sl-3', name: 'SSO' },
     users: 100,
     statusKey: 'introduction',
     forecastKey: 'best',
@@ -79,6 +79,10 @@ describe('emptyForm (T-FORM-02, T-FORM-03)', () => {
     expect(state.forecastKey).toBe('pipeline')
     expect(state.partner).toEqual(EMPTY_DRAFT)
     expect(isPartnerEntered(state.partner)).toBe(false)
+  })
+
+  it('AC-9 starts with no vendor and no solution as empty ids', () => {
+    expect(emptyForm('u-kim')).toMatchObject({ vendorId: '', solutionId: '' })
   })
 })
 
@@ -147,7 +151,8 @@ describe('toDealInput', () => {
   it('trims, converts numbers and uses null for empty optional values', () => {
     const input = toDealInput(
       filled({
-        vendor: ' Okta ',
+        vendorId: 'vd-3',
+        solutionId: 'sl-3',
         users: '20',
         customer: { contactId: 'ct-1', company: '한빛은행', name: '정민수', title: ' 과장 ', email: '', phone: '' },
         quoteSubmitted: 'YES',
@@ -155,13 +160,27 @@ describe('toDealInput', () => {
       }),
     )
     expect(input.name).toBe('새 Deal')
-    expect(input.vendor).toBe('Okta')
+    expect(input).toMatchObject({ vendorId: 'vd-3', solutionId: 'sl-3' })
     expect(input.users).toBe(20)
     expect(input.revenueAmount).toBe(1_500_000)
     expect(input.customer).toEqual({ contactId: 'ct-1', company: '한빛은행', name: '정민수', title: '과장', email: null, phone: null })
     expect(input.partner).toBeNull()
     expect(input.quote).toEqual({ submitted: 'YES', submittedDate: '2026-10-01' })
     expect(input.poc).toEqual({ state: null, completedDate: null })
+  })
+
+  it('sends an empty vendor and solution as null', () => {
+    const input = toDealInput(filled({ vendorId: '', solutionId: '' }))
+
+    expect(input.vendorId).toBeNull()
+    expect(input.solutionId).toBeNull()
+  })
+
+  it('sends a vendor without a solution', () => {
+    const input = toDealInput(filled({ vendorId: 'vd-3', solutionId: '' }))
+
+    expect(input.vendorId).toBe('vd-3')
+    expect(input.solutionId).toBeNull()
   })
 
   it('sends the partner only when it was entered', () => {
@@ -187,6 +206,20 @@ describe('formFromDeal / toDealPatch (T-FORM-06)', () => {
     expect(state.customer).toMatchObject({ contactId: 'ct-1', company: '한빛은행', name: '정민수', title: '과장' })
     expect(state.partner).toMatchObject({ contactId: 'ct-9', company: '에이원시스템', name: '표성호' })
     expect(state.bant.budget).toBe('lb-1')
+    expect(state).toMatchObject({ vendorId: 'vd-3', solutionId: 'sl-3' })
+  })
+
+  it('loads a deal without vendor and solution as empty ids', () => {
+    const state = formFromDeal(detail({ vendor: null, solution: null }))
+
+    expect(state).toMatchObject({ vendorId: '', solutionId: '' })
+  })
+
+  it('AC-11 patch carries the vendor and solution ids as they are in the form', () => {
+    const original = detail()
+    const state = { ...formFromDeal(original), vendorId: 'vd-5', solutionId: '' }
+
+    expect(toDealPatch(state, original)).toMatchObject({ vendorId: 'vd-5', solutionId: null })
   })
 
   it('removes the active partner when its fields are cleared', () => {

@@ -1,26 +1,27 @@
-/** Deal 조회: 목록(필터·정렬·페이지), 상세, 삭제 영향, Vendor/Solution 목록. */
+/** Deal 조회: 목록(필터·정렬·페이지), 상세, 삭제 영향. */
 
 import { DEAL_PAGE_SIZE } from '../../../shared/model/constants'
 import { compareIso } from '../../../shared/model/dates'
 import { inPeriod } from '../../../shared/model/period'
-import type { Deal, DealListQuery, DealRow, Page } from '../../../shared/model/types'
-import { validation } from '../errors'
+import type { DealListQuery, DealRow, Page } from '../../../shared/model/types'
 import { read, requireUser, type MockContext } from './context'
 import { codeSetOf } from './dealChange'
 import { dealDetail, dealRow, findDeal } from './views'
 
-function matches(row: DealRow, query: DealListQuery, viewerId: string): boolean {
+function matches(row: DealRow, query: DealListQuery, viewerId: string, thisYear: number): boolean {
   if (query.keyword) {
     const needle = query.keyword.trim().toLowerCase()
     const haystack = [row.name, row.customer.company, row.activePartner?.company ?? '', row.code]
     if (!haystack.some((text) => text.toLowerCase().includes(needle))) return false
   }
   if (query.ownerId && row.ownerId !== query.ownerId) return false
-  if (query.vendor && row.vendor !== query.vendor) return false
-  if (query.solution && row.solution !== query.solution) return false
+  if (query.vendorId && row.vendor?.id !== query.vendorId) return false
+  if (query.solutionId && row.solution?.id !== query.solutionId) return false
   if (query.statusKey && row.statusKey !== query.statusKey) return false
   if (query.forecastKey && row.forecastKey !== query.forecastKey) return false
-  if (query.year !== undefined && !inPeriod(row.revenueDate, query.year, query.quarter)) return false
+  // 분기만 있으면 올해(Fake 시계의 업무 날짜 연도)의 그 분기다.
+  const year = query.year ?? (query.quarter !== undefined ? thisYear : undefined)
+  if (year !== undefined && !inPeriod(row.revenueDate, year, query.quarter)) return false
   if (query.revenueFrom && row.revenueDate < query.revenueFrom) return false
   if (query.revenueTo && row.revenueDate > query.revenueTo) return false
   if (query.mine && row.ownerId !== viewerId) return false
@@ -32,7 +33,7 @@ function matches(row: DealRow, query: DealListQuery, viewerId: string): boolean 
 
 export function listDeals(ctx: MockContext, query: DealListQuery): Page<DealRow> {
   const viewer = requireUser(ctx)
-  if (query.quarter !== undefined && query.year === undefined) throw validation('분기는 연도와 함께 선택하세요.')
+  const thisYear = Number(ctx.clock.today().slice(0, 4))
   const statusOrder = codeSetOf(ctx).statuses.map((c) => c.key)
   const sort = query.sort ?? 'lastUpdatedAt'
   const sign = (query.order ?? 'desc') === 'asc' ? 1 : -1
@@ -52,7 +53,7 @@ export function listDeals(ctx: MockContext, query: DealListQuery): Page<DealRow>
   }
   const rows = ctx.store.data.deals
     .map((deal) => dealRow(ctx, deal))
-    .filter((row) => matches(row, query, viewer.id))
+    .filter((row) => matches(row, query, viewer.id, thisYear))
     .sort((a, b) => sign * compare(a, b) || a.code.localeCompare(b.code))
   const offset = query.offset ?? 0
   const limit = query.limit ?? DEAL_PAGE_SIZE
@@ -77,13 +78,6 @@ export function dealsReadApi(ctx: MockContext) {
           actionCount: actions.filter((a) => a.dealCode === code).length,
           attachmentCount: attachments.filter((a) => a.dealCode === code).length,
         }
-      }),
-    facets: () =>
-      read(ctx, () => {
-        requireUser(ctx)
-        const distinct = (pick: (d: Deal) => string) =>
-          [...new Set(ctx.store.data.deals.map(pick).filter((v) => v !== ''))].sort((a, b) => a.localeCompare(b, 'ko'))
-        return { vendors: distinct((d) => d.vendor), solutions: distinct((d) => d.solution) }
       }),
   }
 }

@@ -4,11 +4,11 @@
 """
 
 import pytest
-from app.application.ports.contact_repository import KEYWORD_MAX, ContactQuery
-from app.domain.contact.values import ContactKind
 
+from app.application.ports.contact_repository import KEYWORD_MAX, ContactQuery
 from app.application.ports.pagination import DEFAULT_LIMIT, MAX_LIMIT
 from app.domain.common.errors import InvalidValueError
+from app.domain.contact.values import ContactKind
 
 
 def test_keyword_max_is_100() -> None:

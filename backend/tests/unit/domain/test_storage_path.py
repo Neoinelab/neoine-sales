@@ -1,6 +1,8 @@
 """StoragePath 값 객체(P2b AC-02·06): 절대 POSIX 경로 하나를 검증하고 정규화한다."""
 
 import pytest
+
+from app.domain.common.errors import InvalidValueError
 from app.domain.storage.path import (
     PATH_NOT_ABSOLUTE,
     PATH_NOT_WRITABLE,
@@ -8,8 +10,6 @@ from app.domain.storage.path import (
     STORAGE_PATH_MAX,
     StoragePath,
 )
-
-from app.domain.common.errors import InvalidValueError
 
 NOT_ABSOLUTE = "절대 경로를 입력하세요."
 TOO_LONG = "저장 경로는 1024자 이내로 입력하세요."

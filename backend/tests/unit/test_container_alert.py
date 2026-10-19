@@ -3,9 +3,9 @@
 from typing import TYPE_CHECKING
 
 import pytest_asyncio
+
 from app.application.alert.get_alert_settings import GetAlertSettings
 from app.application.alert.update_alert_settings import UpdateAlertSettings
-
 from app.container import Container
 from tests.functional.conftest import make_settings
 

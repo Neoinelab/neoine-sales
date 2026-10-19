@@ -11,9 +11,9 @@ interface Column {
 /** PRD DL-05의 11개 + BANT(LB-06) 컬럼. 정렬 가능한 열만 sort 키를 가진다. */
 const COLUMNS: readonly Column[] = [
   { label: 'Deal', sort: 'name' },
+  { label: '담당자' },
   { label: '고객사' },
   { label: '파트너사' },
-  { label: '담당자' },
   { label: 'Vendor' },
   { label: 'Status', sort: 'statusKey' },
   { label: 'Forecast' },

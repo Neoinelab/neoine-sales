@@ -10,7 +10,6 @@ if TYPE_CHECKING:
 
     from app.domain.storage.path import StoragePath
     from app.domain.storage.settings import StoredStorageSettings
-
     from app.domain.user.value_objects import UserId
 
 _ROW = 1

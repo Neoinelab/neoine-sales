@@ -2,7 +2,7 @@
 
 - keyword: Deal Name·고객 회사명·**활성** 파트너 회사명·Deal code의 대소문자 무시 부분 일치
   (`%`, `_`, `\\`는 글자 그대로)
-- owner_user_id·vendor·solution·status_key·forecast_key: 정확 일치, revenue_from/to: 양끝 포함
+- owner_user_id·vendor_id·solution_id·status_key·forecast_key: 정확 일치, revenue_from/to: 양끝 포함
 - 정렬: 기본 last_updated_at 내림차순, 모든 정렬의 동률은 code 오름차순
 - last_updated_at = max(updated_at, 가장 최근 활동의 acted_at)
 
@@ -45,8 +45,8 @@ def matches(
             return False
     equals: tuple[tuple[Any, Any], ...] = (
         (query.owner_user_id, details.owner_user_id),
-        (query.vendor, details.vendor),
-        (query.solution, details.solution),
+        (query.vendor_id, details.vendor_id),
+        (query.solution_id, details.solution_id),
         (query.status_key, deal.sync.status_key),
         (query.forecast_key, deal.sync.forecast_key),
     )
@@ -69,6 +69,9 @@ def revenue_bounds(query: DealQuery) -> tuple[date | None, date | None]:
     """
     start, end = query.revenue_from, query.revenue_to
     if query.year is None:
+        if query.quarter is not None:  # 저장소는 연도가 정해진 질의만 받는다
+            msg = "quarter만 있는 질의는 연도를 채운 뒤 조회해야 한다"
+            raise ValueError(msg)
         return start, end
     first_month = 1 if query.quarter is None else (query.quarter - 1) * 3 + 1
     last_month = 12 if query.quarter is None else query.quarter * 3

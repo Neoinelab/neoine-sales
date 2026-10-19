@@ -71,8 +71,8 @@ async def deal_body(api: Api, **overrides: object) -> dict[str, Any]:
     values: dict[str, Any] = {
         "name": "ERP 구축",
         "owner_user_id": await given_my_user_id(api),
-        "vendor": "SAP",
-        "solution": "S/4HANA",
+        "vendor_id": None,  # 등록된 Vendor·Solution의 id(없으면 선택 안 함)
+        "solution_id": None,
         "users": None,
         "status_key": "prospecting",
         "forecast_key": "pipeline",

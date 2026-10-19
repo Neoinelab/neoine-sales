@@ -423,23 +423,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/deals/facets": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List Deal Facets */
-        get: operations["list_deal_facets_api_v1_deals_facets_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/deals/{code}": {
         parameters: {
             query?: never;
@@ -666,6 +649,77 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/v1/vendors": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Vendors */
+        get: operations["list_vendors_api_v1_vendors_get"];
+        put?: never;
+        /** Create Vendor */
+        post: operations["create_vendor_api_v1_vendors_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/vendors/{vendor_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Vendor */
+        delete: operations["delete_vendor_api_v1_vendors__vendor_id__delete"];
+        options?: never;
+        head?: never;
+        /** Rename Vendor */
+        patch: operations["rename_vendor_api_v1_vendors__vendor_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/vendors/{vendor_id}/solutions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Solution */
+        post: operations["create_solution_api_v1_vendors__vendor_id__solutions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/vendors/{vendor_id}/solutions/{solution_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Solution */
+        delete: operations["delete_solution_api_v1_vendors__vendor_id__solutions__solution_id__delete"];
+        options?: never;
+        head?: never;
+        /** Rename Solution */
+        patch: operations["rename_solution_api_v1_vendors__vendor_id__solutions__solution_id__patch"];
         trace?: never;
     };
     "/healthz": {
@@ -1228,20 +1282,14 @@ export interface components {
             revenue_amount: number;
             /** Revenue Date */
             revenue_date: string | null;
-            /**
-             * Solution
-             * @default
-             */
-            solution: string;
+            /** Solution Id */
+            solution_id?: string | null;
             /** Status Key */
             status_key: string;
             /** Users */
             users?: number | null;
-            /**
-             * Vendor
-             * @default
-             */
-            vendor: string;
+            /** Vendor Id */
+            vendor_id?: string | null;
         };
         /** DealDetailResponse */
         DealDetailResponse: {
@@ -1285,8 +1333,7 @@ export interface components {
             revenue_date: string;
             /** Risk */
             risk: ("overdue" | "stale" | "overdue_stale") | null;
-            /** Solution */
-            solution: string;
+            solution: components["schemas"]["NamedRefResponse"] | null;
             /**
              * Status Changed At
              * Format: date-time
@@ -1303,15 +1350,7 @@ export interface components {
             updated_at: string;
             /** Users */
             users: number | null;
-            /** Vendor */
-            vendor: string;
-        };
-        /** DealFacetsResponse */
-        DealFacetsResponse: {
-            /** Solutions */
-            solutions: string[];
-            /** Vendors */
-            vendors: string[];
+            vendor: components["schemas"]["NamedRefResponse"] | null;
         };
         /**
          * DealPatchRequest
@@ -1335,14 +1374,14 @@ export interface components {
             revenue_amount?: number | null;
             /** Revenue Date */
             revenue_date?: string | null;
-            /** Solution */
-            solution?: string | null;
+            /** Solution Id */
+            solution_id?: string | null;
             /** Status Key */
             status_key?: string | null;
             /** Users */
             users?: number | null;
-            /** Vendor */
-            vendor?: string | null;
+            /** Vendor Id */
+            vendor_id?: string | null;
         };
         /** DealRowResponse */
         DealRowResponse: {
@@ -1384,8 +1423,7 @@ export interface components {
             revenue_date: string;
             /** Risk */
             risk: ("overdue" | "stale" | "overdue_stale") | null;
-            /** Solution */
-            solution: string;
+            solution: components["schemas"]["NamedRefResponse"] | null;
             /**
              * Status Changed At
              * Format: date-time
@@ -1402,8 +1440,7 @@ export interface components {
             updated_at: string;
             /** Users */
             users: number | null;
-            /** Vendor */
-            vendor: string;
+            vendor: components["schemas"]["NamedRefResponse"] | null;
         };
         /**
          * DealSort
@@ -1635,6 +1672,13 @@ export interface components {
              */
             password: string;
         };
+        /** NamedRefResponse */
+        NamedRefResponse: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+        };
         /** NextActionResponse */
         NextActionResponse: {
             /**
@@ -1782,6 +1826,32 @@ export interface components {
              */
             password: string;
         };
+        /** SolutionNameRequest */
+        SolutionNameRequest: {
+            /** Name */
+            name: string;
+        };
+        /** SolutionResponse */
+        SolutionResponse: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Usage Count */
+            usage_count: number;
+            /** Vendor Id */
+            vendor_id: string;
+        };
         /**
          * SortOrder
          * @enum {string}
@@ -1883,6 +1953,32 @@ export interface components {
             msg: string;
             /** Error Type */
             type: string;
+        };
+        /** VendorNameRequest */
+        VendorNameRequest: {
+            /** Name */
+            name: string;
+        };
+        /** VendorResponse */
+        VendorResponse: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Solutions */
+            solutions: components["schemas"]["SolutionResponse"][];
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Usage Count */
+            usage_count: number;
         };
     };
     responses: never;
@@ -3604,8 +3700,8 @@ export interface operations {
                 keyword?: string | null;
                 owner_user_id?: string | null;
                 mine?: boolean;
-                vendor?: string | null;
-                solution?: string | null;
+                vendor_id?: string | null;
+                solution_id?: string | null;
                 status_key?: string | null;
                 forecast_key?: string | null;
                 year?: number | null;
@@ -3707,44 +3803,6 @@ export interface operations {
             };
             /** @description problem+json */
             409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description problem+json */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-        };
-    };
-    list_deal_facets_api_v1_deals_facets_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DealFacetsResponse"];
-                };
-            };
-            /** @description problem+json */
-            401: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -4911,6 +4969,449 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DeleteUserResponse"];
+                };
+            };
+            /** @description problem+json */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    list_vendors_api_v1_vendors_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VendorResponse"][];
+                };
+            };
+            /** @description problem+json */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    create_vendor_api_v1_vendors_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VendorNameRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VendorResponse"];
+                };
+            };
+            /** @description problem+json */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    delete_vendor_api_v1_vendors__vendor_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vendor_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description problem+json */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    rename_vendor_api_v1_vendors__vendor_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vendor_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VendorNameRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VendorResponse"];
+                };
+            };
+            /** @description problem+json */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    create_solution_api_v1_vendors__vendor_id__solutions_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vendor_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SolutionNameRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SolutionResponse"];
+                };
+            };
+            /** @description problem+json */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    delete_solution_api_v1_vendors__vendor_id__solutions__solution_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vendor_id: string;
+                solution_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description problem+json */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    rename_solution_api_v1_vendors__vendor_id__solutions__solution_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vendor_id: string;
+                solution_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SolutionNameRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SolutionResponse"];
                 };
             };
             /** @description problem+json */

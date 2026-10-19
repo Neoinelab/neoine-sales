@@ -4,11 +4,11 @@ from datetime import timedelta
 from typing import Any
 
 import pytest
-from app.domain.deal.risk import Risk
 
 from app.application.deal.dto import DealView
 from app.application.ports.deal_repository import DealListItem
 from app.domain.auth.principal import Role
+from app.domain.deal.risk import Risk
 from app.domain.user.value_objects import UserRef
 from app.main import create_app
 from app.web.schemas.deal_response import DealDetailResponse, DealRowResponse
@@ -32,6 +32,8 @@ def _view(*, risk: Risk | None, status_days: int) -> DealView:
         partner_contacts={},
         risk=risk,
         status_days=status_days,
+        vendor=None,
+        solution=None,
     )
 
 

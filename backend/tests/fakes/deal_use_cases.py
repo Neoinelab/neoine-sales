@@ -14,7 +14,6 @@ if TYPE_CHECKING:
     from app.application.deal.get_deal import GetDeal
     from app.application.deal.list_deal_history import ListDealHistory
     from app.application.deal.list_deals import ListDeals
-    from app.application.deal.list_facets import ListDealFacets
     from app.application.deal.register_deal import RegisterDeal
     from app.application.deal.update_deal import UpdateDeal
     from app.application.ports.clock import Clock
@@ -67,11 +66,6 @@ class DealUseCases:
         from app.application.deal.deletion_impact import GetDealDeletionImpact  # noqa: PLC0415
 
         return GetDealDeletionImpact(self._deal_uow_factory())
-
-    def list_deal_facets(self) -> ListDealFacets:
-        from app.application.deal.list_facets import ListDealFacets  # noqa: PLC0415
-
-        return ListDealFacets(self._deal_uow_factory())
 
     def list_deal_history(self) -> ListDealHistory:
         from app.application.deal.list_deal_history import ListDealHistory  # noqa: PLC0415

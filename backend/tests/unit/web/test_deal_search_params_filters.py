@@ -1,7 +1,7 @@
-"""웹 쿼리 모델의 확장 필터·정렬(R3, AC-22a~22d): solution, forecast, 연/분기, BANT, sort/order.
+"""웹 쿼리 모델의 확장 필터·정렬(R3, AC-22a~22d): forecast, 연/분기, BANT, sort/order.
 
 `DealSearchParams.to_query(viewer)`가 `DealQuery`를 만든다. sort·order는 화이트리스트 밖이면 422,
-quarter는 연도와 함께만 쓸 수 있다(도메인 문구). 모르는 파라미터는 여전히 거절한다.
+quarter는 연도 없이도 쓸 수 있다(올해 채우기는 ListDeals가 한다). 모르는 파라미터는 여전히 거절한다.
 """
 
 from uuid import uuid4
@@ -13,25 +13,22 @@ from app.application.ports.deal_repository import DealSort, SortOrder
 from app.domain.bant.values import BantCategory
 from app.domain.common.errors import InvalidValueError
 from app.web.schemas.deal import DealSearchParams
-from tests.support.expect import raises_with
 from tests.support.user_ids import uid
 
 VIEWER = uid("viewer")
 
 
-def test_solution_forecast_year_and_quarter_reach_the_query() -> None:
-    query = DealSearchParams(
-        solution="S/4HANA", forecast_key="commit", year=2026, quarter=2
-    ).to_query(VIEWER)
+def test_forecast_year_and_quarter_reach_the_query() -> None:
+    query = DealSearchParams(forecast_key="commit", year=2026, quarter=2).to_query(VIEWER)
 
-    assert (query.solution, query.forecast_key) == ("S/4HANA", "commit")
+    assert query.forecast_key == "commit"
     assert (query.year, query.quarter) == (2026, 2)
 
 
 def test_the_new_conditions_default_to_none() -> None:
     query = DealSearchParams().to_query(VIEWER)
 
-    assert (query.solution, query.forecast_key, query.year, query.quarter) == (None,) * 4
+    assert (query.forecast_key, query.year, query.quarter) == (None,) * 3
     assert dict(query.bant_label_ids) == {}
 
 
@@ -98,9 +95,16 @@ def test_a_quarter_above_four_is_rejected() -> None:
         DealSearchParams(year=2026, quarter=5).to_query(VIEWER).revenue_window()
 
 
-def test_a_quarter_without_a_year_is_rejected_with_the_domain_message() -> None:
-    with raises_with(InvalidValueError, "분기는 연도와 함께 선택하세요."):
-        DealSearchParams(quarter=2).to_query(VIEWER).revenue_window()
+def test_quarter_without_year_reaches_the_query() -> None:
+    query = DealSearchParams(quarter=2).to_query(VIEWER)
+
+    assert (query.year, query.quarter) == (None, 2)
+
+
+@pytest.mark.parametrize("quarter", [0, 5])
+def test_quarter_out_of_range_is_rejected(quarter: int) -> None:
+    with pytest.raises(ValidationError):
+        DealSearchParams(quarter=quarter)
 
 
 @pytest.mark.parametrize("year", [1900, 9999])
@@ -111,7 +115,7 @@ def test_the_year_boundaries_are_accepted(year: int) -> None:
 @pytest.mark.parametrize(
     "params",
     [
-        {"solution": "a" * 201},
+        {"solution_id": "S/4HANA"},
         {"forecast_key": "a" * 51},
         {"bant_budget": "not-a-uuid"},
         {"year": "twenty"},

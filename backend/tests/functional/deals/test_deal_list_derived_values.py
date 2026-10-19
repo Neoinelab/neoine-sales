@@ -1,7 +1,7 @@
 """Feature: 목록에서 다음 진행 계획·마지막 갱신·필터용 목록·삭제 영향을 본다.
 
 next_action은 가장 최근에 수행한 Action의 다음 진행 계획, last_updated_at은 Deal 수정과 그 Action
-수행 시각 중 늦은 쪽(기본 정렬 기준)이다. facets는 빈 값을 뺀 Vendor·Solution이고, 삭제 영향은
+수행 시각 중 늦은 쪽(기본 정렬 기준)이다. facets는 폐지되었고(404), 삭제 영향은
 지우면 함께 사라지는 이력·활동 건수다(첨부는 항상 0).
 """
 
@@ -16,10 +16,9 @@ from tests.functional.steps.deal_lists import (
     IMPACT_KEYS,
     given_action,
     then_codes_are,
-    then_facets_are,
     then_impact_is,
     when_get_deletion_impact,
-    when_get_facets,
+    when_get_retired_facets,
 )
 from tests.functional.steps.deal_risk import given_due_in
 from tests.functional.steps.deals import (
@@ -115,30 +114,15 @@ async def test_a_deal_without_actions_shows_no_next_action(api: Api) -> None:
     assert body["last_updated_at"] == body["updated_at"]
 
 
-async def test_facets_list_the_distinct_non_blank_values_sorted_ignoring_case(api: Api) -> None:
-    """Scenario: 필터용 목록은 빈 값을 뺀 Vendor·Solution을 대소문자 무시로 정렬해 준다."""
+async def test_the_retired_facets_path_is_not_found(api: Api) -> None:
+    """Scenario: `/deals/facets`는 더 이상 없다. 요청은 `/deals/{code}`에 걸려 404가 된다(AC-17)."""
     # Given
     await given_logged_in_as(api, role="sales")
-    await given_deal(api, vendor="sap", solution="Zeta")
-    await given_deal(api, vendor="Oracle", solution="alpha")
-    await given_deal(api, vendor="sap", solution="Beta")
-    await given_deal(api, vendor="", solution="")
     # When
-    response = await when_get_facets(api)
+    response = await when_get_retired_facets(api)
     # Then
-    then_status_is(response, 200)
-    then_facets_are(response, vendors=["Oracle", "sap"], solutions=["alpha", "Beta", "Zeta"])
-
-
-async def test_facets_of_an_empty_system_are_empty_lists(api: Api) -> None:
-    """Scenario: Deal이 없으면 두 목록이 비어 있다(facets 경로가 code 경로에 가려지지 않는다)."""
-    # Given
-    await given_logged_in_as(api, role="user")
-    # When
-    response = await when_get_facets(api)
-    # Then
-    then_status_is(response, 200)
-    then_facets_are(response, vendors=[], solutions=[])
+    then_problem_is(response, status=404, type_suffix="not-found")
+    assert response.json()["detail"] == NOT_FOUND
 
 
 async def test_the_deletion_impact_counts_history_and_actions(api: Api) -> None:
@@ -186,15 +170,13 @@ async def test_the_deletion_impact_of_an_unknown_or_malformed_code_is_not_found(
     assert response.json()["detail"] == NOT_FOUND
 
 
-async def test_facets_and_the_deletion_impact_need_a_login(api: Api) -> None:
-    """Scenario: 로그인하지 않으면 facets와 삭제 영향은 401이다."""
+async def test_the_deletion_impact_needs_a_login(api: Api) -> None:
+    """Scenario: 로그인하지 않으면 삭제 영향은 401이다."""
     # Given
     await given_logged_in_as(api, role="sales")
     deal = await given_deal(api)
     await given_logged_out(api)
     # When
-    facets = await when_get_facets(api)
     impact = await when_get_deletion_impact(api, deal["code"])
     # Then
-    then_problem_is(facets, status=401, type_suffix="unauthenticated")
     then_problem_is(impact, status=401, type_suffix="unauthenticated")

@@ -19,21 +19,31 @@ from tests.support.revisions import (
     attachments_revision,
     contacts_revision,
     deal_model_revision,
+    vendor_solution_revision,
 )
 
 
-def test_the_alert_settings_revision_follows_the_attachments_revision_and_is_the_single_head() -> (
-    None
-):
+def test_the_vendor_solution_revision_follows_the_alert_settings_and_is_the_single_head() -> None:
     script = ScriptDirectory.from_config(_alembic_config())
 
     heads = script.get_heads()
 
-    assert heads == [alert_settings_revision()]
-    assert alert_settings_revision() != attachments_revision()
-    head = script.get_revision(alert_settings_revision())
+    assert heads == [vendor_solution_revision()]
+    assert vendor_solution_revision() != alert_settings_revision()
+    head = script.get_revision(vendor_solution_revision())
     assert head is not None
-    assert head.down_revision == attachments_revision()
+    assert head.down_revision == alert_settings_revision()
+
+
+def test_the_alert_settings_revision_follows_the_attachments_revision_in_the_head_history() -> None:
+    script = ScriptDirectory.from_config(_alembic_config())
+
+    assert alert_settings_revision() != attachments_revision()
+    revision = script.get_revision(alert_settings_revision())
+    assert revision is not None
+    assert revision.down_revision == attachments_revision()
+    history = {r.revision for r in script.iterate_revisions(script.get_heads()[0], "base")}
+    assert alert_settings_revision() in history
 
 
 def test_the_attachments_revision_follows_the_action_snapshot_revision_in_the_head_history() -> (

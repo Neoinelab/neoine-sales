@@ -2,14 +2,13 @@
 
 from uuid import uuid4
 
+from app.domain.common.errors import AlreadyExistsError, InvalidStateError, NotFoundError
 from app.domain.contact.errors import (
     ContactInUseError,
     ContactNotFoundError,
     DuplicateContactError,
 )
 from app.domain.contact.values import ContactId
-
-from app.domain.common.errors import AlreadyExistsError, InvalidStateError, NotFoundError
 
 
 def test_contact_errors_map_to_not_found_conflict_and_invalid_state() -> None:

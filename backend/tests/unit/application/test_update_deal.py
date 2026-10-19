@@ -3,10 +3,9 @@
 from datetime import date
 from typing import TYPE_CHECKING
 
-from app.domain.deal.values import PocState, QuoteSubmitted
-
 from app.domain.auth.principal import Role
 from app.domain.deal.errors import DealNotFoundError
+from app.domain.deal.values import PocState, QuoteSubmitted
 from tests.factories_deal import SALES, make_patch
 from tests.support.auth_seed import seed_user
 from tests.support.expect import raises_with
@@ -20,7 +19,10 @@ NOT_FOUND = "Deal을 찾을 수 없습니다."
 
 class TestSentFieldsOnly:
     async def test_only_the_sent_fields_change(self, env: DealEnv) -> None:
-        view = await env.new_deal(name="ERP 구축", vendor="SAP", solution="S/4HANA")
+        sap = await env.new_vendor("SAP", ("S/4HANA",))
+        view = await env.new_deal(
+            name="ERP 구축", vendor_id=sap.id, solution_id=sap.solutions[0].id
+        )
         env.clock.advance(60)
 
         updated = await env.update.execute(
@@ -29,7 +31,7 @@ class TestSentFieldsOnly:
 
         details = updated.item.deal.details
         assert details.name == "확장 프로젝트"
-        assert (details.vendor, details.solution) == ("SAP", "S/4HANA")
+        assert (details.vendor_id, details.solution_id) == (sap.id, sap.solutions[0].id)
         assert details.revenue_amount.value == 150_000_000
         assert updated.item.deal.updated_at == env.clock.now()
         assert (await env.uow.deals.get(view.item.deal.id)).details.name == "확장 프로젝트"
@@ -59,13 +61,14 @@ class TestSentFieldsOnly:
 
     async def test_every_changed_field_is_logged_in_the_fixed_order(self, env: DealEnv) -> None:
         park = await seed_user(env.uow_factory, "park", Role.SALES)
+        oracle = await env.new_vendor("Oracle")
         view = await env.new_deal()
 
         updated = await env.update.execute(
             view.item.deal.id.value,
             make_patch(
                 name="확장 프로젝트",
-                vendor="Oracle",
+                vendor_id=oracle.id,
                 users=10,
                 revenue_amount=200_000_000,
                 revenue_date=date(2026, 12, 31),
@@ -81,7 +84,7 @@ class TestSentFieldsOnly:
             ("expectedClose", "Expected Close", "2026-06-30", "2026-12-31"),
             ("owner", "Owner", "owner", "park"),
             ("other", "Deal Name", "ERP 구축", "확장 프로젝트"),
-            ("other", "Vendor", "SAP", "Oracle"),
+            ("other", "Vendor", "선택 안 함", "Oracle"),
             ("other", "Users", "-", "10"),
         ]
 

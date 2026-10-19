@@ -10,15 +10,15 @@ from pathlib import Path
 from uuid import uuid4
 
 import pytest
+
 from app.application.ports.file_storage import (
     StorageNotWritableError,
     StoredFileLocation,
     StoredFileMissingError,
 )
+from app.domain.deal.code import DealCode
 from app.domain.storage.path import StoragePath
 from app.infra.storage.local_file_storage import LocalFileStorage
-
-from app.domain.deal.code import DealCode
 from tests.fakes.file_storage import BytesSource
 
 DEAL = DealCode("20261016-A001")

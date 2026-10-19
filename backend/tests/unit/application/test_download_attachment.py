@@ -7,10 +7,10 @@ from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import pytest
-from app.domain.attachment.errors import AttachmentContentMissingError, AttachmentNotFoundError
 
 from app.application.ports.file_storage import StorageNotReadableError, StoredFileLocation
 from app.application.storage.errors import DOWNLOAD_UNAVAILABLE, StorageUnavailableError
+from app.domain.attachment.errors import AttachmentContentMissingError, AttachmentNotFoundError
 from app.domain.attachment.values import AttachmentId
 from tests.support.expect import raises_with
 from tests.unit.application.attachment_env import CONTENT_MISSING, KIM, NOT_FOUND

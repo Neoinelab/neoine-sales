@@ -1,4 +1,4 @@
-"""현재 head 스키마(P1 Deal 모델)에 원시 SQL로 행을 넣는 도우미.
+"""head 스키마(P1 Deal 모델 + Vendor·Solution FK)에 원시 SQL로 행을 넣는 도우미.
 
 제약 검증용이라 도메인 검사를 거치지 않는다. 과거 리비전 스키마용 도우미는
 tests.support.legacy_rows에 있다(문자열 컬럼 시절).
@@ -22,31 +22,37 @@ INSERT_CONTACT = (
     "insert into contacts (id, kind, company, name, title, email, phone, created_at, updated_at)"
     " values (:id, :kind, :company, :name, :title, :email, :phone, now(), now())"
 )
-_DEAL_COLUMNS = (
-    "deal_code, name, owner_user_id, vendor, solution, users, status_kind,"
+_COLUMNS = (
+    "deal_code, name, owner_user_id, users, status_kind,"
     " status_key, forecast_kind, forecast_key, revenue_amount, revenue_date, customer_id,"
     " quote_submitted, quote_submitted_date, poc_state, poc_completed_date, procurement,"
     " created_at, updated_at"
 )
-_DEAL_VALUES = (
-    ":code, 'n', :owner_user_id, 'v', 's', :users, 'status',"
+_VALUES = (
+    ":code, 'n', :owner_user_id, :users, 'status',"
     " :status_key, 'forecast', :forecast_key, :amount, current_date, :customer_id,"
     " :quote_submitted, null, :poc_state, null, '', now(), now()"
 )
-INSERT_DEAL = (
-    f"insert into deals ({_DEAL_COLUMNS})"  # noqa: S608 - 상수만 조합
-    f" values ({_DEAL_VALUES})"
-)
-# P3(M-P3) 이후 스키마: deals.status_changed_at이 NOT NULL이라 함께 넣는다
-INSERT_DEAL_WITH_STATUS_ENTRY = (
-    f"insert into deals ({_DEAL_COLUMNS}, status_changed_at)"  # noqa: S608 - 상수만 조합
-    f" values ({_DEAL_VALUES}, now())"
-)
-HAS_STATUS_CHANGED_AT = (
+HAS_COLUMN = (
     "select count(*) from information_schema.columns"
-    " where table_schema = 'public' and table_name = 'deals'"
-    " and column_name = 'status_changed_at'"
+    " where table_schema = 'public' and table_name = 'deals' and column_name = :name"
 )
+
+
+def deal_insert_sql(*, status_entry: bool, text_vendor: bool) -> str:
+    """deals INSERT 문. 스키마 시기에 따라 컬럼이 달라진다.
+
+    status_entry: P3(M-P3) 이후라 deals.status_changed_at이 NOT NULL이다.
+    text_vendor: Vendor·Solution 관리 리비전 이전이라 deals.vendor/solution 문자열 컬럼이 있다.
+    """
+    columns, values = _COLUMNS, _VALUES
+    if text_vendor:
+        columns, values = f"{columns}, vendor, solution", f"{values}, 'v', 's'"
+    if status_entry:
+        columns, values = f"{columns}, status_changed_at", f"{values}, now()"
+    return f"insert into deals ({columns}) values ({values})"  # noqa: S608 - 상수만 조합
+
+
 INSERT_PARTNER_LINK = (
     "insert into deal_partners (id, deal_code, contact_id, linked_at, unlinked_at)"
     " values (:id, :deal_code, :contact_id, :linked_at, :unlinked_at)"
@@ -66,6 +72,10 @@ INSERT_ACTION = (  # P2: 등록 시점 Status/Forecast 스냅숏(status_kind·fo
     " values (:id, :deal_code, 'meeting', 'a', '', 'n', current_date, now(), :actor_user_id,"
     " :status_key, :forecast_key, now(), now())"
 )
+
+
+async def _count(session: AsyncSession, column: str) -> object:
+    return (await session.execute(text(HAS_COLUMN), {"name": column})).scalar()
 
 
 async def insert_user(session: AsyncSession, login_id: str = "kim", **overrides: object) -> UUID:
@@ -121,9 +131,11 @@ async def insert_deal(
         "poc_state": None,
     }
     values.update(overrides)
-    # 과거 리비전 스키마(M-P3 이전)에서도 쓰므로 컬럼이 있을 때만 status_changed_at을 넣는다
-    has_entry = (await session.execute(text(HAS_STATUS_CHANGED_AT))).scalar() == 1
-    await session.execute(text(INSERT_DEAL_WITH_STATUS_ENTRY if has_entry else INSERT_DEAL), values)
+    # 과거 리비전 스키마에서도 쓰므로 있는 컬럼에 맞춰 INSERT 문을 고른다
+    has_entry = (await _count(session, "status_changed_at")) == 1
+    has_text_vendor = (await _count(session, "vendor")) == 1
+    sql = deal_insert_sql(status_entry=has_entry, text_vendor=has_text_vendor)
+    await session.execute(text(sql), values)
     return str(values["code"])
 
 

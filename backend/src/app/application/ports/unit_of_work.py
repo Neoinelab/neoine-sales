@@ -15,6 +15,7 @@ if TYPE_CHECKING:
     from app.application.ports.session_repository import SessionRepository
     from app.application.ports.storage_settings_repository import StorageSettingsRepository
     from app.application.ports.user_repository import UserRepository
+    from app.application.ports.vendor_repository import VendorRepository
 
 
 class UnitOfWork(Protocol):
@@ -62,6 +63,9 @@ class UnitOfWork(Protocol):
 
     @property
     def alert_settings(self) -> AlertSettingsRepository: ...
+
+    @property
+    def vendors(self) -> VendorRepository: ...
 
     async def __aenter__(self) -> Self: ...
 

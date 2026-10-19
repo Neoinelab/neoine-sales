@@ -22,8 +22,9 @@ export const EMPTY_DRAFT: ContactDraft = { contactId: null, company: '', name: '
 export interface DealFormState {
   name: string
   ownerId: string
-  vendor: string
-  solution: string
+  /** Vendor/Solution id. 빈 문자열은 선택 안 함. */
+  vendorId: string
+  solutionId: string
   users: string
   statusKey: string
   forecastKey: string
@@ -53,8 +54,8 @@ export function emptyForm(ownerId: string): DealFormState {
   return {
     name: '',
     ownerId,
-    vendor: '',
-    solution: '',
+    vendorId: '',
+    solutionId: '',
     users: '',
     statusKey: STATUS_PROSPECTING,
     forecastKey: FORECAST_PIPELINE,
@@ -86,8 +87,8 @@ export function formFromDeal(deal: DealDetail): DealFormState {
   return {
     name: deal.name,
     ownerId: deal.ownerId,
-    vendor: deal.vendor,
-    solution: deal.solution,
+    vendorId: deal.vendor?.id ?? '',
+    solutionId: deal.solution?.id ?? '',
     users: deal.users === null ? '' : String(deal.users),
     statusKey: deal.statusKey,
     forecastKey: deal.forecastKey,
@@ -168,8 +169,8 @@ export function toDealInput(state: DealFormState): DealInput {
   return {
     name: state.name.trim(),
     ownerId: state.ownerId,
-    vendor: state.vendor.trim(),
-    solution: state.solution.trim(),
+    vendorId: state.vendorId || null,
+    solutionId: state.solutionId || null,
     users: users === '' ? null : Number(users),
     statusKey: state.statusKey,
     forecastKey: state.forecastKey,

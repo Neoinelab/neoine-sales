@@ -4,20 +4,19 @@ from datetime import timedelta
 from typing import TYPE_CHECKING
 
 import pytest
+
 from app.application.ports.file_storage import StorageNotWritableError
 from app.application.storage.probe import ensure_writable
-from app.domain.storage.path import StoragePath
-
 from app.domain.auth.principal import Role
 from app.domain.common.errors import InvalidValueError, NotFoundError
+from app.domain.storage.path import StoragePath
 from tests.factories import NOW
 from tests.support.auth_seed import seed_storage, seed_user
 
 if TYPE_CHECKING:
-    from app.domain.storage.settings import StoredStorageSettings
-
     from app.application.ports.unit_of_work import UnitOfWorkFactory
     from app.domain.auth.principal import Principal
+    from app.domain.storage.settings import StoredStorageSettings
     from tests.fakes.file_storage import FakeFileStorage
     from tests.fakes.storage_stack import StorageStack
     from tests.fakes.unit_of_work import FixedClock
@@ -145,7 +144,6 @@ async def test_update_storage_settings_does_not_move_existing_files(
     file_storage: FakeFileStorage,
 ) -> None:
     from app.application.ports.file_storage import StoredFileLocation  # noqa: PLC0415
-
     from app.domain.deal.code import DealCode  # noqa: PLC0415
     from tests.fakes.file_storage import BytesSource  # noqa: PLC0415
 

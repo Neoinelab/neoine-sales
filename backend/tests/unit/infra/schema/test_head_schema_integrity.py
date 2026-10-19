@@ -161,8 +161,8 @@ async def test_every_foreign_key_column_leads_an_index(session: AsyncSession) ->
     assert violations == []
 
 
-async def test_only_deal_owned_data_cascades_from_the_deal(session: AsyncSession) -> None:
-    """P1의 유일한 CASCADE 예외: Deal 소속 데이터는 Deal을 지우면 함께 지워진다."""
+async def test_only_deal_owned_data_and_vendor_solutions_cascade(session: AsyncSession) -> None:
+    """CASCADE 예외 둘: Deal 소속 데이터는 Deal을, Solution은 소속 Vendor를 지우면 함께 지워진다."""
     cascades = {
         fk.table + "." + fk.column for fk in await foreign_keys(session) if fk.on_delete == "c"
     }
@@ -173,5 +173,10 @@ async def test_only_deal_owned_data_cascades_from_the_deal(session: AsyncSession
         "deal_history.deal_code",
         "deal_actions.deal_code",
         "deal_attachments.deal_code",  # P2b: 첨부 메타데이터도 Deal 소속이다
+        "solutions.vendor_id",  # Vendor Aggregate: Vendor 삭제는 소속 Solution과 함께(D10)
     }
-    assert all(fk.ref_table == "deals" for fk in await foreign_keys(session) if fk.on_delete == "c")
+    assert all(
+        fk.ref_table == ("vendors" if fk.table == "solutions" else "deals")
+        for fk in await foreign_keys(session)
+        if fk.on_delete == "c"
+    )

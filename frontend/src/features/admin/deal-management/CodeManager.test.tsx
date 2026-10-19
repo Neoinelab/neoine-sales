@@ -35,11 +35,11 @@ async function addCode(user: Rendered['user'], name: string) {
 }
 
 describe('Deal 관리 탭 (T-ADMIN-03)', () => {
-  it('shows the four tabs and starts at Status codes', async () => {
+  it('shows the five tabs, Vendor·Solution before the alert settings, and starts at Status codes', async () => {
     await openStatus()
 
     const tabs = within(screen.getByRole('tablist', { name: 'Deal 관리 항목' })).getAllByRole('tab')
-    expect(tabs.map((t) => t.textContent)).toEqual(['Status 코드', 'Forecast 코드', 'BANT Label', '경고 기준'])
+    expect(tabs.map((t) => t.textContent)).toEqual(['Status 코드', 'Forecast 코드', 'BANT Label', 'Vendor·Solution', '경고 기준'])
     expect(screen.getByRole('tab', { name: 'Status 코드' })).toHaveAttribute('aria-selected', 'true')
   })
 

@@ -4,6 +4,9 @@ import { FILTER_KEYS, currentSort, hasActiveFilter, listQueryFromParams, nextSor
 
 const params = (query: string) => new URLSearchParams(query)
 
+const VENDOR = '10000000-0000-4000-8000-000000000003'
+const SOLUTION = '20000000-0000-4000-8000-000000000003'
+
 describe('listQueryFromParams (T-LIST-05, T-LIST-09)', () => {
   it('returns only paging for empty params', () => {
     expect(listQueryFromParams(params(''))).toEqual({ offset: 0, limit: 20 })
@@ -12,14 +15,14 @@ describe('listQueryFromParams (T-LIST-05, T-LIST-09)', () => {
   it('maps every filter, sort and page from the URL', () => {
     const query = listQueryFromParams(
       params(
-        'q=한빛&owner=u-kim&vendor=Okta&solution=SSO&status=prospecting&forecast=best&year=2026&quarter=4&from=2026-01-01&to=2026-12-31&budget=lb-1&need=lb-9&mine=1&sort=revenueAmount&order=asc&page=3',
+        `q=한빛&owner=u-kim&vendor=${VENDOR}&solution=${SOLUTION}&status=prospecting&forecast=best&year=2026&quarter=4&from=2026-01-01&to=2026-12-31&budget=lb-1&need=lb-9&mine=1&sort=revenueAmount&order=asc&page=3`,
       ),
     )
     expect(query).toEqual({
       keyword: '한빛',
       ownerId: 'u-kim',
-      vendor: 'Okta',
-      solution: 'SSO',
+      vendorId: VENDOR,
+      solutionId: SOLUTION,
       statusKey: 'prospecting',
       forecastKey: 'best',
       year: 2026,
@@ -42,14 +45,28 @@ describe('listQueryFromParams (T-LIST-05, T-LIST-09)', () => {
     expect(listQueryFromParams(params('page=x')).offset).toBe(0)
   })
 
-  it('keeps a quarter only together with a year', () => {
-    expect(listQueryFromParams(params('quarter=2'))).toEqual({ offset: 0, limit: 20 })
+  it('AC-18 sends a quarter without a year (it means this year on the server)', () => {
+    expect(listQueryFromParams(params('quarter=2'))).toEqual({ offset: 0, limit: 20, quarter: 2 })
+  })
+
+  it('keeps year and quarter together when both are present', () => {
+    expect(listQueryFromParams(params('year=2027&quarter=1'))).toEqual({ offset: 0, limit: 20, year: 2027, quarter: 1 })
+  })
+
+  it('ignores a quarter outside 1 to 4 even without a year', () => {
+    expect(listQueryFromParams(params('quarter=0'))).toEqual({ offset: 0, limit: 20 })
+    expect(listQueryFromParams(params('quarter=5'))).toEqual({ offset: 0, limit: 20 })
+  })
+
+  it('ignores non-uuid vendor and solution values such as old names', () => {
+    expect(listQueryFromParams(params('vendor=Okta&solution=SSO'))).toEqual({ offset: 0, limit: 20 })
+    expect(listQueryFromParams(params(`vendor=${VENDOR}&solution=ITDR`))).toEqual({ offset: 0, limit: 20, vendorId: VENDOR })
   })
 })
 
 describe('updateParams', () => {
   it('sets a value, drops empty ones and goes back to the first page', () => {
-    const next = updateParams(params('q=a&page=3&vendor=Okta'), { vendor: '', status: 'best' })
+    const next = updateParams(params(`q=a&page=3&vendor=${VENDOR}`), { vendor: '', status: 'best' })
     expect(next.get('vendor')).toBeNull()
     expect(next.get('status')).toBe('best')
     expect(next.get('q')).toBe('a')

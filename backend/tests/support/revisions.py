@@ -101,3 +101,21 @@ def alert_settings_revision() -> str:
     children = [r.revision for r in script.walk_revisions() if r.down_revision == previous]
     assert len(children) == 1, f"M-P2b 다음 리비전이 정확히 하나여야 한다: {children}"
     return children[0]
+
+
+def vendor_solution_revision() -> str:
+    """Vendor·Solution 관리(`vendors_solutions`) 리비전 id: M-P3 바로 다음.
+
+    vendors·solutions 테이블을 만들고 deals.vendor/solution 텍스트 컬럼을 vendor_id/solution_id FK로
+    바꾸는 단일 리비전이다. id는 구현이 정하므로 그래프에서 찾는다. 없거나 둘 이상이면
+    AssertionError(구현 전에는 이것이 red다).
+    """
+    from alembic.script import ScriptDirectory  # noqa: PLC0415
+
+    from tests.support.database import _alembic_config  # noqa: PLC0415
+
+    previous = alert_settings_revision()
+    script = ScriptDirectory.from_config(_alembic_config())
+    children = [r.revision for r in script.walk_revisions() if r.down_revision == previous]
+    assert len(children) == 1, f"M-P3 다음 리비전이 정확히 하나여야 한다: {children}"
+    return children[0]

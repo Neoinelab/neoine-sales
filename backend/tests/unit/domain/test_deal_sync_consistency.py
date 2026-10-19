@@ -6,6 +6,9 @@
 import dataclasses
 
 import pytest
+
+from app.domain.common.errors import InvalidValueError
+from app.domain.deal.errors import SyncMismatchError
 from app.domain.deal.sync import (
     FORECAST_LOST,
     FORECAST_PIPELINE,
@@ -17,9 +20,6 @@ from app.domain.deal.sync import (
     ensure_sync_consistent,
     is_sync_consistent,
 )
-
-from app.domain.common.errors import InvalidValueError
-from app.domain.deal.errors import SyncMismatchError
 from tests.support.expect import raises_with
 
 CONSISTENT = [

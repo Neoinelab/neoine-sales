@@ -8,8 +8,8 @@ from datetime import date
 from typing import TYPE_CHECKING
 
 import pytest
-from app.domain.deal.values import Poc, PocState, Quote, QuoteSubmitted, RevenueAmount
 
+from app.domain.deal.values import Poc, PocState, Quote, QuoteSubmitted, RevenueAmount
 from tests.factories import later, make_bant, make_deal, make_sync
 from tests.support.history_diff import (
     CODE,
@@ -19,6 +19,10 @@ from tests.support.history_diff import (
     OTHER_CUSTOMER,
     PARTNER_1,
     PARTNER_2,
+    SOLUTION_EBS,
+    SOLUTION_S4,
+    VENDOR_ORACLE,
+    VENDOR_SAP,
     base_deal,
     diff_after,
     edit_of,
@@ -124,8 +128,6 @@ def test_clearing_a_bant_label_is_written_as_not_selected() -> None:
     ("field", "value", "target", "before", "after"),
     [
         ("name", "B", "Deal Name", "A", "B"),
-        ("vendor", "Oracle", "Vendor", "V", "Oracle"),
-        ("solution", "EBS", "Solution", "S", "EBS"),
         ("users", 250, "Users", "-", "250"),
         ("procurement", "조달청 입찰", "구매절차", "-", "조달청 입찰"),
     ],
@@ -136,6 +138,54 @@ def test_plain_fields_are_other_entries_named_after_the_field(
     rows = diff_after(edit_of(field, value))
 
     assert rows == [("other", target, before, after)]
+
+
+def test_vendor_change_is_recorded_with_names() -> None:
+    deal = base_deal(vendor_id=None, solution_id=None)
+
+    rows = diff_after(edit_of("vendor_id", VENDOR_SAP), deal)
+
+    assert rows == [("other", "Vendor", "선택 안 함", "SAP")]
+
+
+def test_solution_change_is_recorded_with_names() -> None:
+    deal = base_deal(vendor_id=VENDOR_SAP, solution_id=None)
+
+    rows = diff_after(edit_of("solution_id", SOLUTION_S4), deal)
+
+    assert rows == [("other", "Solution", "선택 안 함", "S/4HANA")]
+
+
+def test_clearing_vendor_and_solution_is_written_as_not_selected() -> None:
+    def clear(deal: Deal) -> None:
+        revise_with(
+            deal, details=dataclasses.replace(deal.details, vendor_id=None, solution_id=None)
+        )
+
+    rows = diff_after(clear)
+
+    assert rows == [
+        ("other", "Vendor", "SAP", "선택 안 함"),
+        ("other", "Solution", "S/4HANA", "선택 안 함"),
+    ]
+
+
+def test_changing_the_vendor_and_clearing_the_solution_records_two_entries() -> None:
+    def change(deal: Deal) -> None:
+        details = dataclasses.replace(deal.details, vendor_id=VENDOR_ORACLE, solution_id=None)
+        revise_with(deal, details=details)
+
+    rows = diff_after(change)
+
+    assert rows == [
+        ("other", "Vendor", "SAP", "Oracle"),
+        ("other", "Solution", "S/4HANA", "선택 안 함"),
+    ]
+
+
+def test_unchanged_vendor_and_solution_record_nothing() -> None:
+    assert diff_after(edit_of("vendor_id", VENDOR_SAP)) == []
+    assert diff_after(edit_of("solution_id", SOLUTION_S4)) == []
 
 
 def test_users_cleared_is_written_as_a_dash() -> None:
@@ -175,8 +225,8 @@ def _change_everything(deal: Deal) -> None:
     details = dataclasses.replace(
         deal.details,
         name="B",
-        vendor="Oracle",
-        solution="EBS",
+        vendor_id=VENDOR_ORACLE,
+        solution_id=SOLUTION_EBS,
         users=3,
         revenue_amount=RevenueAmount(2_000),
         revenue_date=date(2026, 10, 20),

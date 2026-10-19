@@ -22,8 +22,8 @@ ALL_FIELDS = frozenset(
     {
         "name",
         "owner_user_id",
-        "vendor",
-        "solution",
+        "vendor_id",
+        "solution_id",
         "users",
         "status_key",
         "forecast_key",
@@ -46,8 +46,8 @@ _EMPTY_DRAFT = ContactDraftInput(None, "", "", None, None, None)
 class FormValues:
     name: str
     owner_user_id: UUID | None
-    vendor: str
-    solution: str
+    vendor_id: UUID | None
+    solution_id: UUID | None
     users: int | None
     status_key: str
     forecast_key: str
@@ -67,8 +67,8 @@ class FormValues:
         return cls(
             name=data.name,
             owner_user_id=data.owner_user_id,
-            vendor=data.vendor,
-            solution=data.solution,
+            vendor_id=data.vendor_id,
+            solution_id=data.solution_id,
             users=data.users,
             status_key=data.status_key,
             forecast_key=data.forecast_key,
@@ -99,8 +99,8 @@ class FormValues:
         return cls(
             name=pick("name", patch.name or "", details.name),
             owner_user_id=pick("owner_user_id", patch.owner_user_id, details.owner_user_id),
-            vendor=pick("vendor", patch.vendor or "", details.vendor),
-            solution=pick("solution", patch.solution or "", details.solution),
+            vendor_id=pick("vendor_id", patch.vendor_id, details.vendor_id),
+            solution_id=pick("solution_id", patch.solution_id, details.solution_id),
             users=pick("users", patch.users, details.users),
             status_key=pick("status_key", patch.status_key or "", sync.status_key),
             forecast_key=pick("forecast_key", patch.forecast_key or "", sync.forecast_key),

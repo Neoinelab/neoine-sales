@@ -2,7 +2,8 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping, Sequence
+    from collections.abc import Mapping
+    from uuid import UUID
 
     from app.application.ports.deal_repository import DealListItem
     from app.domain.contact.entities import Contact
@@ -14,8 +15,16 @@ if TYPE_CHECKING:
 
 
 @dataclass(frozen=True, slots=True)
+class NamedRef:
+    """이름으로 보여 줄 참조(Vendor, Solution)."""
+
+    id: UUID
+    name: str
+
+
+@dataclass(frozen=True, slots=True)
 class DealView:
-    """Deal 한 건과 화면에 필요한 참조(Owner, 고객, 모든 파트너 링크의 연락처)."""
+    """Deal 한 건과 화면에 필요한 참조(Owner, 고객, 모든 파트너 링크의 연락처, Vendor, Solution)."""
 
     item: DealListItem
     owner: UserRef
@@ -23,6 +32,8 @@ class DealView:
     partner_contacts: Mapping[ContactId, Contact]
     risk: Risk | None
     status_days: int
+    vendor: NamedRef | None = None
+    solution: NamedRef | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -40,14 +51,6 @@ class ApplyChangeResult:
     view: DealView
     co_changed: tuple[CoChange, ...]
     notice: str | None
-
-
-@dataclass(frozen=True, slots=True)
-class DealFacets:
-    """목록 필터용 Vendor·Solution 값(빈 값 제외, 대소문자 무시 순서)."""
-
-    vendors: Sequence[str]
-    solutions: Sequence[str]
 
 
 @dataclass(frozen=True, slots=True)

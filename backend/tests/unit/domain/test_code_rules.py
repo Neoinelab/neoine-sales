@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import pytest
+
 from app.domain.code.errors import DuplicateCodeNameError
 from app.domain.code.rules import (
     ensure_unique_name,
@@ -17,7 +18,6 @@ from app.domain.code.rules import (
     reorder,
 )
 from app.domain.code.values import CodeId, CodeKey, CodeKind
-
 from app.domain.common.errors import InvalidValueError
 from tests.factories import NOW, later
 from tests.factories_catalog import make_code

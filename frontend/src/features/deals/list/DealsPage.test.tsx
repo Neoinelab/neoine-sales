@@ -1,9 +1,10 @@
-import { cleanup, screen, within } from '@testing-library/react'
+import { cleanup, screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
+import { gateway } from '../../../gateway'
 import { renderAt } from '../../../test/mockApp'
 import { dataRows, rowOf } from './testHelpers'
 
-const HEADERS = ['Deal', '고객사', '파트너사', '담당자', 'Vendor', 'Status', 'Forecast', 'BANT', '금액', 'Expected Close', 'Next Action', '최종 업데이트']
+const HEADERS = ['Deal', '담당자', '고객사', '파트너사', 'Vendor', 'Status', 'Forecast', 'BANT', '금액', 'Expected Close', 'Next Action', '최종 업데이트']
 
 describe('목록 표 (T-LIST-01~04)', () => {
   it('shows the PRD columns with the BANT column', async () => {
@@ -11,6 +12,28 @@ describe('목록 표 (T-LIST-01~04)', () => {
     await screen.findByRole('row', { name: /한빛은행 ITDR 도입/ })
     const headers = screen.getAllByRole('columnheader').map((h) => h.textContent?.trim())
     expect(headers).toEqual(HEADERS)
+  })
+
+  it('AC-21 orders the columns with the owner before the customer, and each row follows the same order', async () => {
+    await renderAt('/deals?q=누리통신 MFA')
+    const row = await rowOf(/누리통신 MFA/)
+
+    const cells = within(row).getAllByRole('cell')
+    expect(cells[HEADERS.indexOf('담당자')]).toHaveTextContent('이영업')
+    expect(cells[HEADERS.indexOf('고객사')]).toHaveTextContent('누리통신')
+    expect(cells[HEADERS.indexOf('파트너사')]).toHaveTextContent('에이원시스템')
+    expect(cells[HEADERS.indexOf('Vendor')]).toHaveTextContent('Silverfort')
+    expect(HEADERS.indexOf('담당자')).toBe(HEADERS.indexOf('고객사') - 1)
+  })
+
+  it('AC-21 shows a dash in the Vendor cell of a deal without a vendor', async () => {
+    const { client } = await renderAt('/deals?q=누리통신 MFA')
+    const row = await rowOf(/누리통신 MFA/)
+    const code = (within(row).getByRole('link', { name: '누리통신 MFA' }).getAttribute('href') ?? '').replace('/deals/', '')
+    await gateway.deals.update(code, { vendorId: null, solutionId: null })
+    await client.invalidateQueries()
+
+    await waitFor(() => expect(within(screen.getByRole('row', { name: /누리통신 MFA/ })).getAllByRole('cell')[HEADERS.indexOf('Vendor')]).toHaveTextContent(/^—$/))
   })
 
   it('shows twenty deals on the first page and the rest on the second', async () => {

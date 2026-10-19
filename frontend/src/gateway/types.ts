@@ -55,7 +55,6 @@ import type {
   DealAction,
   DealDeletionImpact,
   DealDetail,
-  DealFacets,
   DealInput,
   DealListQuery,
   DealPatch,
@@ -78,6 +77,8 @@ import type {
   UserOptionsQuery,
   UserRef,
   UserRemoveResult,
+  Vendor,
+  Solution,
 } from '../shared/model/types'
 import type { CoChange } from '../shared/model/sync'
 
@@ -136,8 +137,6 @@ export interface DealsGateway {
   get(code: string): Promise<DealDetail>
   /** 삭제 확인 팝업의 연쇄 삭제 건수. */
   impact(code: string): Promise<DealDeletionImpact>
-  /** 필터 select용 Vendor/Solution distinct 목록(가나다순). */
-  facets(): Promise<DealFacets>
   /**
    * 등록. owner는 재직 sales여야 한다(아니면 422 "Owner는 재직 중인 영업 담당자여야 합니다.").
    * customer 필수(연락처 규칙 적용), partner 선택. History 'Deal 등록' 1건. 연락처는 contacts 규칙으로 갱신/생성.
@@ -257,6 +256,19 @@ export interface ForecastGateway {
   summary(query: ForecastQuery): Promise<ForecastSummary>
 }
 
+export interface VendorsGateway {
+  /** 모든 로그인 사용자. Vendor 이름순, 각 Vendor의 Solution은 이름순, 사용 중 Deal 수 포함. */
+  list(): Promise<Vendor[]>
+  /** admin만. 이름 규칙·대소문자 무시 중복(409)은 서버 문구 그대로. */
+  create(name: string): Promise<Vendor>
+  rename(id: string, name: string): Promise<Vendor>
+  /** admin만. 사용 중이면 409. 소속 Solution도 함께 삭제된다. */
+  remove(id: string): Promise<void>
+  createSolution(vendorId: string, name: string): Promise<Solution>
+  renameSolution(vendorId: string, solutionId: string, name: string): Promise<Solution>
+  removeSolution(vendorId: string, solutionId: string): Promise<void>
+}
+
 export interface UsersGateway {
   /** admin만. 등록일 최신순. */
   list(filter: UserListFilter): Promise<User[]>
@@ -314,6 +326,7 @@ export interface Gateway {
   attachments: AttachmentsGateway
   codes: CodesGateway
   labels: LabelsGateway
+  vendors: VendorsGateway
   forecast: ForecastGateway
   users: UsersGateway
   settings: SettingsGateway

@@ -17,7 +17,6 @@ import pytest
 if TYPE_CHECKING:
     from app.application.ports.file_storage import FileStorage
     from app.domain.storage.path import StoragePath
-
     from tests.fakes.file_storage import FakeFileStorage
 
 PARAMS = [pytest.param("fake", id="fake"), pytest.param("local", id="local")]
@@ -51,7 +50,6 @@ class FileStorageCase:
 
 def open_fake_case() -> FileStorageCase:
     from app.domain.storage.path import StoragePath  # noqa: PLC0415
-
     from tests.fakes.file_storage import FakeFileStorage  # noqa: PLC0415
 
     fake = FakeFileStorage()

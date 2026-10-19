@@ -14,7 +14,6 @@ from tests.support.user_ids import OWNER_ID
 
 if TYPE_CHECKING:
     from app.application.deal.dto import DealView
-
     from app.domain.user.entities import User
     from tests.unit.application.deal_env import DealEnv
 

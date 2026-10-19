@@ -3,7 +3,9 @@ import { Link, useSearchParams } from 'react-router'
 import { useMe, usePermissions } from '../../../data/auth'
 import { useAlertSettings } from '../../../data/alerts'
 import { useDeals } from '../../../data/deals'
+import { useVendors } from '../../../data/vendors'
 import { rememberListSearch } from '../../../shared/model/dealListMemory'
+import { effectiveVendorFilter } from '../../../shared/model/vendorFilter'
 import type { DealSortKey } from '../../../shared/model/types'
 import { ErrorBanner } from '../../../shared/ui/ErrorBanner'
 import { Notice } from '../../../shared/ui/Notice'
@@ -19,7 +21,12 @@ export function DealsPage() {
   const [params, setParams] = useSearchParams()
   const { canWrite } = usePermissions()
   const meId = useMe().data?.id
-  const query = useMemo(() => listQueryFromParams(params), [params])
+  const vendors = useVendors().data
+  const query = useMemo(() => {
+    const { vendorId, solutionId, ...rest } = listQueryFromParams(params)
+    const effective = effectiveVendorFilter(vendors, vendorId, solutionId)
+    return { ...rest, ...(effective.vendorId && { vendorId: effective.vendorId }), ...(effective.solutionId && { solutionId: effective.solutionId }) }
+  }, [params, vendors])
   const deals = useDeals(query)
   const alerts = useAlertSettings()
   // 기준을 아직 모르거나(로딩) 가져오지 못하면(오류) 숫자 없는 문구를 보인다.

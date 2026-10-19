@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { ForecastQuery } from '../../../shared/model/types'
+import { seedVendorId } from '../../fixtures/vendors'
 import { dealCode, dealInput, expectApiError, mockAs } from '../testing'
 
 type Gw = Awaited<ReturnType<typeof mockAs>>['gateway']
@@ -44,7 +45,7 @@ describe('forecast.summary', () => {
       { year: 2026 },
       { year: 2026, quarter: 4 },
       { year: 2027, quarter: 1 },
-      { year: 2026, vendor: 'Silverfort' },
+      { year: 2026, vendorId: seedVendorId('Silverfort') },
       { year: 2026, quarter: 4, ownerId: 'u-kim' },
     ]
     for (const query of queries) {

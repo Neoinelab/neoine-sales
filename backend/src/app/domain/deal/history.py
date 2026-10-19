@@ -23,6 +23,7 @@ if TYPE_CHECKING:
     from app.domain.deal.sync import SyncState
     from app.domain.deal.values import BantSelection, DealDetails, Poc, Quote
     from app.domain.user.value_objects import UserId
+    from app.domain.vendor.values import SolutionId, VendorId
 
 TARGET_MAX = 300
 TEXT_MAX = 1000
@@ -113,6 +114,14 @@ class HistoryLookup(Protocol):
         """없으면 '선택 안 함'."""
         ...
 
+    def vendor_name(self, vendor_id: VendorId | None) -> str:
+        """없으면 '선택 안 함'."""
+        ...
+
+    def solution_name(self, solution_id: SolutionId | None) -> str:
+        """없으면 '선택 안 함'."""
+        ...
+
 
 def created_draft() -> HistoryDraft:
     return HistoryDraft(HistoryCategory.CREATED, "Deal 등록", "", "Deal 등록")
@@ -142,7 +151,7 @@ def diff_deal(
         *_money_pairs(before.details, after.details),
         *_people_pairs(before, after, lookup),
         *_bant_pairs(before.bant, after.bant, lookup),
-        *_detail_pairs(before.details, after.details),
+        *_detail_pairs(before.details, after.details, lookup),
     ]
     return [HistoryDraft(c, t, b, a) for c, t, b, a in pairs if b != a]
 
@@ -244,12 +253,22 @@ def _poc_text(poc: Poc) -> str:
     return _dated(poc.state.value if poc.state else None, poc.completed_date)
 
 
-def _detail_pairs(before: DealDetails, after: DealDetails) -> list[_Pair]:
+def _detail_pairs(before: DealDetails, after: DealDetails, lookup: HistoryLookup) -> list[_Pair]:
     other = HistoryCategory.OTHER
     return [
         (other, "Deal Name", before.name, after.name),
-        (other, "Vendor", before.vendor, after.vendor),
-        (other, "Solution", before.solution, after.solution),
+        (
+            other,
+            "Vendor",
+            lookup.vendor_name(before.vendor_id),
+            lookup.vendor_name(after.vendor_id),
+        ),
+        (
+            other,
+            "Solution",
+            lookup.solution_name(before.solution_id),
+            lookup.solution_name(after.solution_id),
+        ),
         (other, "Users", _number_text(before.users), _number_text(after.users)),
         (other, "견적", _quote_text(before.quote), _quote_text(after.quote)),
         (other, "POC", _poc_text(before.poc), _poc_text(after.poc)),

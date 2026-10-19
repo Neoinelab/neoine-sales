@@ -16,6 +16,13 @@ from app.application.code.reorder_codes import ReorderCodes
 if TYPE_CHECKING:
     from app.application.ports.clock import Clock
     from app.application.ports.unit_of_work import UnitOfWorkFactory
+    from app.application.vendor.delete_solution import DeleteSolution
+    from app.application.vendor.delete_vendor import DeleteVendor
+    from app.application.vendor.list_vendors import ListVendors
+    from app.application.vendor.register_solution import RegisterSolution
+    from app.application.vendor.register_vendor import RegisterVendor
+    from app.application.vendor.rename_solution import RenameSolution
+    from app.application.vendor.rename_vendor import RenameVendor
 
 
 class CatalogUseCases:
@@ -58,3 +65,40 @@ class CatalogUseCases:
 
     def delete_bant_label(self) -> DeleteBantLabel:
         return DeleteBantLabel(self._uow_factory())
+
+    # Vendor 유스케이스는 사용 시점에 가져온다(구현 전에도 다른 테스트의 수집이 막히지 않게)
+
+    def list_vendors(self) -> ListVendors:
+        from app.application.vendor.list_vendors import ListVendors  # noqa: PLC0415
+
+        return ListVendors(self._uow_factory())
+
+    def register_vendor(self) -> RegisterVendor:
+        from app.application.vendor.register_vendor import RegisterVendor  # noqa: PLC0415
+
+        return RegisterVendor(self._uow_factory(), self.clock)
+
+    def rename_vendor(self) -> RenameVendor:
+        from app.application.vendor.rename_vendor import RenameVendor  # noqa: PLC0415
+
+        return RenameVendor(self._uow_factory(), self.clock)
+
+    def delete_vendor(self) -> DeleteVendor:
+        from app.application.vendor.delete_vendor import DeleteVendor  # noqa: PLC0415
+
+        return DeleteVendor(self._uow_factory())
+
+    def register_solution(self) -> RegisterSolution:
+        from app.application.vendor.register_solution import RegisterSolution  # noqa: PLC0415
+
+        return RegisterSolution(self._uow_factory(), self.clock)
+
+    def rename_solution(self) -> RenameSolution:
+        from app.application.vendor.rename_solution import RenameSolution  # noqa: PLC0415
+
+        return RenameSolution(self._uow_factory(), self.clock)
+
+    def delete_solution(self) -> DeleteSolution:
+        from app.application.vendor.delete_solution import DeleteSolution  # noqa: PLC0415
+
+        return DeleteSolution(self._uow_factory())

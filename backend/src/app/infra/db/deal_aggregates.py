@@ -1,4 +1,4 @@
-"""Deal 집계 질의: 코드·Label별 건수, Vendor·Solution 목록, 삭제 영향 건수."""
+"""Deal 집계 질의: 코드·Label별 건수, Vendor·Solution별 건수, 삭제 영향 건수."""
 
 from typing import TYPE_CHECKING
 
@@ -6,12 +6,13 @@ from sqlalchemy import func, select
 
 from app.application.ports.deal_repository import DealDeletionImpact
 from app.domain.bant.values import BantLabelId
+from app.domain.vendor.values import SolutionId, VendorId
 from app.infra.db.models import DealActionRow
 from app.infra.db.models_attachment import DealAttachmentRow
 from app.infra.db.models_deal import DealBantLabelRow, DealHistoryRow, DealRow
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping, Sequence
+    from collections.abc import Mapping
 
     from sqlalchemy.ext.asyncio import AsyncSession
     from sqlalchemy.orm import InstrumentedAttribute
@@ -37,16 +38,14 @@ async def count_by_bant_label(session: AsyncSession) -> Mapping[BantLabelId, int
     return {BantLabelId(label_id): count for label_id, count in counts.items()}
 
 
-async def facets(session: AsyncSession) -> tuple[Sequence[str], Sequence[str]]:
-    """(Vendor 목록, Solution 목록). 빈 문자열은 빼고 대소문자 무시로 정렬한다."""
-    lists: list[Sequence[str]] = []
-    for column in (DealRow.vendor, DealRow.solution):
-        # DISTINCT + ORDER BY lower()는 PostgreSQL이 거부(42P10)하므로 GROUP BY로 중복을 없앤다.
-        statement = (
-            select(column).where(column != "").group_by(column).order_by(func.lower(column), column)
-        )
-        lists.append((await session.scalars(statement)).all())
-    return lists[0], lists[1]
+async def count_by_vendor(session: AsyncSession) -> Mapping[VendorId, int]:
+    counts = await _counts(session, DealRow.vendor_id)
+    return {VendorId(key): count for key, count in counts.items() if key is not None}
+
+
+async def count_by_solution(session: AsyncSession) -> Mapping[SolutionId, int]:
+    counts = await _counts(session, DealRow.solution_id)
+    return {SolutionId(key): count for key, count in counts.items() if key is not None}
 
 
 async def deletion_impact(session: AsyncSession, code: str) -> DealDeletionImpact:

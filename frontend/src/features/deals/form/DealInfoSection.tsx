@@ -2,6 +2,7 @@ import { useId } from 'react'
 import { UserSelect } from '../../../shared/ui/UserSelect'
 import type { SyncApplied } from '../../../shared/model/sync'
 import { FormField } from './FormField'
+import { VendorRows } from './VendorRows'
 import { ProgressRows } from './ProgressRows'
 import { QuoteRows } from './QuoteRows'
 import type { SectionProps } from './sectionTypes'
@@ -52,8 +53,7 @@ export function DealInfoSection(props: DealInfoSectionProps) {
           />
         </div>
         <ProgressRows state={state} set={set} errors={errors} onApplied={onApplied} />
-        <FormField label="Vendor" name="vendor" value={state.vendor} onChange={(v) => set('vendor', v)} />
-        <FormField label="Solution" name="solution" value={state.solution} onChange={(v) => set('solution', v)} />
+        <VendorRows state={state} set={set} errors={errors} original={original} />
         <FormField
           label="Users"
           name="users"

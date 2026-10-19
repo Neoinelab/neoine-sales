@@ -13,7 +13,7 @@ from app.web.schemas.contact import ContactResponse
 from app.web.schemas.user_ref import UserRef
 
 if TYPE_CHECKING:
-    from app.application.deal.dto import DealPage, DealView, HistoryEntryView
+    from app.application.deal.dto import DealPage, DealView, HistoryEntryView, NamedRef
     from app.domain.deal.entities import PartnerLink
 
 
@@ -62,13 +62,18 @@ class BantResponse(BaseModel):
     timeline: str | None
 
 
+class NamedRefResponse(BaseModel):
+    id: str
+    name: str
+
+
 class DealRowResponse(BaseModel):
     code: str
     name: str
     owner_user_id: str
     owner: UserRef
-    vendor: str
-    solution: str
+    vendor: NamedRefResponse | None
+    solution: NamedRefResponse | None
     users: int | None
     status_key: str
     forecast_key: str
@@ -125,8 +130,8 @@ def _row_fields(view: DealView) -> dict[str, object]:
         "name": details.name,
         "owner_user_id": str(details.owner_user_id),
         "owner": UserRef.from_domain(view.owner),
-        "vendor": details.vendor,
-        "solution": details.solution,
+        "vendor": _named(view.vendor),
+        "solution": _named(view.solution),
         "users": details.users,
         "status_key": deal.sync.status_key,
         "forecast_key": deal.sync.forecast_key,
@@ -157,6 +162,10 @@ def _row_fields(view: DealView) -> dict[str, object]:
         "created_at": deal.created_at,
         "updated_at": deal.updated_at,
     }
+
+
+def _named(ref: NamedRef | None) -> NamedRefResponse | None:
+    return None if ref is None else NamedRefResponse(id=str(ref.id), name=ref.name)
 
 
 def _label(label_id: object) -> str | None:
@@ -198,11 +207,6 @@ class HistoryEntryResponse(BaseModel):
             before=entry.draft.before,
             after=entry.draft.after,
         )
-
-
-class DealFacetsResponse(BaseModel):
-    vendors: list[str]
-    solutions: list[str]
 
 
 class DeletionImpactResponse(BaseModel):

@@ -5,6 +5,7 @@ import { resetMock } from '../../test/fake/default'
 import { ApiError } from '../../shared/api/problem'
 import { formatKrwShort } from '../../shared/model/money'
 import type { DealRow } from '../../shared/model/types'
+import { seedVendorId } from '../../test/fixtures/vendors'
 import { renderAt } from '../../test/mockApp'
 
 /** 시드 날짜가 기준일 상대값이라 기준일을 고정한다(2026-10-15). */
@@ -32,7 +33,7 @@ function readRow(name: string | RegExp): string[] {
     .map((c) => c.textContent?.trim() ?? '')
 }
 
-async function ledger(query: { year: number; quarter?: 1 | 2 | 3 | 4; vendor?: string; ownerId?: string }): Promise<DealRow[]> {
+async function ledger(query: { year: number; quarter?: 1 | 2 | 3 | 4; vendorId?: string; ownerId?: string }): Promise<DealRow[]> {
   const page = await gateway.deals.list({ ...query, limit: 1000 })
   return page.items
 }
@@ -112,9 +113,9 @@ describe('Forecast 요약 표', () => {
   })
 
   it('필터(연도·Quarter·Vendor)를 적용해도 합계가 원장 합과 같다', async () => {
-    await renderAt('/forecast?year=2026&quarter=4&vendor=Silverfort')
+    await renderAt(`/forecast?year=2026&quarter=4&vendor=${seedVendorId('Silverfort')}`)
     await screen.findByRole('rowheader', { name: '합계' })
-    const deals = await ledger({ year: 2026, quarter: 4, vendor: 'Silverfort' })
+    const deals = await ledger({ year: 2026, quarter: 4, vendorId: seedVendorId('Silverfort') })
     expect(deals.length).toBeGreaterThan(0)
     expect(readRow('합계')).toEqual(expectedCells(deals))
   })
@@ -212,14 +213,46 @@ describe('담당자 선택: 같은 화면 아래 Deal 목록', () => {
   })
 })
 
+describe('Vendor 필터는 등록 Vendor 목록(id)을 쓴다 (AC-23)', () => {
+  it('lists the registered vendors with the id as value and the name as label', async () => {
+    await renderAt('/forecast?year=2026')
+    await screen.findByRole('rowheader', { name: '합계' })
+    const vendor = screen.getByLabelText('Vendor')
+    await within(vendor).findByRole('option', { name: 'Okta' })
+
+    expect(within(vendor).getAllByRole('option').map((o) => o.textContent)).toEqual([
+      '전체', 'CrowdStrike', 'CyberArk', 'Okta', 'Palo Alto', 'SentinelOne', 'Silverfort', 'Splunk', 'Tenable', 'Veeam', 'Zscaler',
+    ])
+    expect(within(vendor).getByRole('option', { name: 'Okta' })).toHaveValue(seedVendorId('Okta'))
+  })
+
+  it('passes vendorId to the deal list of the selected owner', async () => {
+    const list = vi.spyOn(gateway.deals, 'list')
+    await renderAt(`/forecast?year=2026&vendor=${seedVendorId('Silverfort')}&sel=u-kim`)
+
+    await screen.findByRole('heading', { name: /선택한 담당자/ })
+
+    await waitFor(() =>
+      expect(list).toHaveBeenCalledWith(expect.objectContaining({ ownerId: 'u-kim', year: 2026, vendorId: seedVendorId('Silverfort') })),
+    )
+  })
+
+  it('shows all when the vendor in the URL is not a registered one such as an old name', async () => {
+    await renderAt('/forecast?year=2026&vendor=Silverfort')
+    await screen.findByRole('rowheader', { name: '합계' })
+
+    await waitFor(() => expect(screen.getByLabelText('Vendor')).toHaveDisplayValue('전체'))
+  })
+})
+
 describe('필터와 URL 유지', () => {
   it('T-FC-06 URL의 연도·Quarter·담당자·Vendor가 필터 컨트롤에 반영된다', async () => {
-    await renderAt('/forecast?year=2026&quarter=4&owner=u-kim&vendor=Silverfort')
+    await renderAt(`/forecast?year=2026&quarter=4&owner=u-kim&vendor=${seedVendorId('Silverfort')}`)
     await screen.findByRole('rowheader', { name: '합계' })
     expect(screen.getByLabelText('연도')).toHaveValue('2026')
     expect(screen.getByLabelText('Quarter')).toHaveValue('4')
     expect(screen.getByLabelText('담당자')).toHaveValue('u-kim')
-    await waitFor(() => expect(screen.getByLabelText('Vendor')).toHaveValue('Silverfort'))
+    await waitFor(() => expect(screen.getByLabelText('Vendor')).toHaveDisplayValue('Silverfort'))
     // 담당자 필터가 걸리면 다른 담당자 행은 없다.
     expect(screen.queryByRole('button', { name: '박영업' })).not.toBeInTheDocument()
   })
@@ -233,8 +266,9 @@ describe('필터와 URL 유지', () => {
     expect(location()).toContain('quarter=4')
     await waitFor(() => expect(readRow('합계')).not.toEqual(before))
 
-    await user.selectOptions(await screen.findByLabelText('Vendor'), 'Silverfort')
-    expect(location()).toContain('vendor=Silverfort')
+    await within(await screen.findByLabelText('Vendor')).findByRole('option', { name: 'Silverfort' })
+    await user.selectOptions(screen.getByLabelText('Vendor'), 'Silverfort')
+    expect(location()).toContain(`vendor=${seedVendorId('Silverfort')}`)
 
     await user.selectOptions(screen.getByLabelText('담당자'), 'u-kim')
     expect(location()).toContain('owner=u-kim')

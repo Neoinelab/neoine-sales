@@ -12,7 +12,7 @@ import type {
 
 /**
  * TanStack Query 키(A-0 계약, 본문 확정). 무효화 규칙은 각 변경 훅의 주석을 따른다.
- * 계층: ['deals', ...]를 무효화하면 목록·상세·impact·facets가 모두 갱신된다.
+ * 계층: ['deals', ...]를 무효화하면 목록·상세·impact가 모두 갱신된다.
  */
 export const keys = {
   me: ['me'] as const,
@@ -22,7 +22,6 @@ export const keys = {
   dealList: (q: DealListQuery) => ['deals', 'list', q] as const,
   deal: (code: string) => ['deals', 'detail', code] as const,
   dealImpact: (code: string) => ['deals', 'impact', code] as const,
-  dealFacets: ['deals', 'facets'] as const,
   contacts: ['contacts'] as const,
   contactCompanies: (kind: ContactKind) => ['contacts', 'companies', kind] as const,
   contactsByCompany: (kind: ContactKind, company: string) => ['contacts', 'by-company', kind, company] as const,
@@ -37,6 +36,7 @@ export const keys = {
   codeSet: ['codes', 'all'] as const,
   codeList: (kind: CodeKind) => ['codes', 'list', kind] as const,
   labels: ['labels'] as const,
+  vendors: ['vendors'] as const,
   forecast: ['forecast'] as const,
   forecastSummary: (q: ForecastQuery) => ['forecast', q] as const,
   users: ['users'] as const,

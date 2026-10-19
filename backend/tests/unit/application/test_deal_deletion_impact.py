@@ -1,5 +1,6 @@
-"""ListDealFacets(AC-24)와 GetDealDeletionImpact(AC-26): 필터용 목록과 삭제 영향 건수."""
+"""GetDealDeletionImpact(AC-26): 삭제 영향 건수. 필터용 facets는 폐지되었다(Vendor AC-17)."""
 
+import importlib
 from typing import TYPE_CHECKING
 
 import pytest
@@ -14,33 +15,10 @@ if TYPE_CHECKING:
     from tests.unit.application.deal_env import DealEnv
 
 
-async def test_facets_are_the_distinct_non_blank_values_sorted_ignoring_case(env: DealEnv) -> None:
-    await env.new_deal(vendor="sap", solution="Zeta")
-    await env.new_deal(vendor="Oracle", solution="alpha")
-    await env.new_deal(vendor="sap", solution="Beta")
-    await env.new_deal(vendor="", solution="")
-
-    facets = await env.facets.execute()
-
-    assert list(facets.vendors) == ["Oracle", "sap"]
-    assert list(facets.solutions) == ["alpha", "Beta", "Zeta"]
-
-
-async def test_facets_of_an_empty_system_are_empty(env: DealEnv) -> None:
-    facets = await env.facets.execute()
-
-    assert (list(facets.vendors), list(facets.solutions)) == ([], [])
-
-
-async def test_facets_follow_edits_and_deletions(env: DealEnv) -> None:
-    kept = await env.new_deal(vendor="SAP")
-    gone = await env.new_deal(vendor="Oracle")
-    await env.update.execute(kept.item.deal.id.value, make_patch(vendor="Microsoft"), SALES)
-    await env.delete.execute(gone.item.deal.id.value, gone.item.deal.id.value, SALES)
-
-    facets = await env.facets.execute()
-
-    assert list(facets.vendors) == ["Microsoft"]
+def test_the_facets_use_case_is_gone() -> None:
+    """AC-17: Vendor·Solution 선택지는 등록 목록(`/vendors`)에서 오고 Deal에서 모으지 않는다."""
+    with pytest.raises(ModuleNotFoundError):
+        importlib.import_module("app.application.deal.list_facets")
 
 
 async def test_the_impact_counts_the_history_and_actions_that_would_be_deleted(

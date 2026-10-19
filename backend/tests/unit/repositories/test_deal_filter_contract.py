@@ -1,6 +1,7 @@
 """DealRepository.search/count의 확장 필터 계약(R3, AC-22a~22c): Fake와 SQL에 같은 기대값.
 
-solution·forecast 정확 일치, 연/분기(Expected Close 기준, 양끝 포함, 기간과 교집합), BANT Label
+forecast 정확 일치(vendor_id·solution_id는 test_deal_search_contract), 연/분기(Expected Close
+기준, 양끝 포함, 기간과 교집합), BANT Label
 (구분별 AND). 모든 조건은 count와 같은 결과를 내고 페이지와 무관하게 센다.
 """
 
@@ -31,15 +32,7 @@ def _code(number: int) -> str:
     return f"20261016-A{number:03d}"
 
 
-class TestSolutionAndForecast:
-    async def test_solution_matches_exactly_and_case_sensitively(self, deal_case: DealCase) -> None:
-        await deal_case.add(make_deal(later(1), code=_code(1), solution="S/4HANA"))
-        await deal_case.add(make_deal(later(2), code=_code(2), solution="S/4HANA Cloud"))
-        await deal_case.add(make_deal(later(3), code=_code(3), solution="s/4hana"))
-
-        assert await _codes(deal_case, solution="S/4HANA") == [_code(1)]
-        assert await _count(deal_case, solution="S/4HANA") == 1
-
+class TestForecast:
     async def test_forecast_matches_the_forecast_key(self, deal_case: DealCase) -> None:
         await deal_case.add(make_deal(later(1), code=_code(1), forecast_key="pipeline"))
         await deal_case.add(make_deal(later(2), code=_code(2), forecast_key="commit"))

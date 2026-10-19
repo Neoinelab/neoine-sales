@@ -18,7 +18,6 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from app.domain.attachment.entities import Attachment
-
     from app.domain.attachment.values import AttachmentId, FileName
     from app.domain.common.errors import NotFoundError
     from app.domain.deal.code import DealCode
@@ -46,7 +45,6 @@ class FakeAttachmentRepository(InMemoryStore[Any]):
 
     async def add(self, attachment: Attachment) -> None:
         from app.domain.attachment.errors import AttachmentNameTakenError  # noqa: PLC0415
-
         from app.domain.deal.errors import DealNotFoundError  # noqa: PLC0415
 
         if self._deals is not None and attachment.deal_code not in self._deals._items:

@@ -8,12 +8,12 @@ from datetime import date
 from typing import TYPE_CHECKING
 
 import pytest
-from app.domain.deal.values import AMOUNT_MAX, USERS_MAX, Poc, PocState, Quote, QuoteSubmitted
 
 from app.domain.bant.values import BantCategory
 from app.domain.common.errors import InvalidReferenceError
 from app.domain.contact.values import ContactKind
 from app.domain.deal.errors import DealNotFoundError, DuplicateDealCodeError
+from app.domain.deal.values import AMOUNT_MAX, USERS_MAX, Poc, PocState, Quote, QuoteSubmitted
 from tests.factories import NOW, make_bant, make_deal, make_deal_code, new_contact_id
 from tests.support.user_ids import uid
 
@@ -35,6 +35,7 @@ class TestAddAndGet:
         partner = await deal_case.new_contact(ContactKind.PARTNER)
         customer = await deal_case.new_contact()
         budget = await deal_case.new_label(BantCategory.BUDGET, "테스트 예산")
+        sap = await deal_case.new_vendor("ZZ SAP", ("S/4HANA",))
         deal = make_deal(
             NOW,
             code=CODE,
@@ -44,8 +45,8 @@ class TestAddAndGet:
             forecast_key="commit",
             bant=make_bant(budget=budget.id),
             name="ERP 구축",
-            vendor="SAP",
-            solution="S/4HANA",
+            vendor_id=sap.id,
+            solution_id=sap.solutions[0].id,
             users=250,
             revenue_amount=1_870_000_000,
             revenue_date=date(2026, 12, 31),
@@ -67,18 +68,16 @@ class TestAddAndGet:
         assert (loaded.created_at, loaded.updated_at) == (NOW, NOW)
 
     async def test_extreme_values_round_trip(self, deal_case: DealCase) -> None:
-        deal = make_deal(
-            code=CODE, revenue_amount=AMOUNT_MAX, users=USERS_MAX, vendor="", solution=""
-        )
+        deal = make_deal(code=CODE, revenue_amount=AMOUNT_MAX, users=USERS_MAX)
         await deal_case.add(deal)
 
         loaded = await deal_case.deals.get(deal.id)
 
         assert loaded.details.revenue_amount.value == AMOUNT_MAX
-        assert (loaded.details.users, loaded.details.vendor, loaded.details.solution) == (
+        assert (loaded.details.users, loaded.details.vendor_id, loaded.details.solution_id) == (
             USERS_MAX,
-            "",
-            "",
+            None,
+            None,
         )
 
     async def test_the_owner_is_a_user_id(self, deal_case: DealCase) -> None:

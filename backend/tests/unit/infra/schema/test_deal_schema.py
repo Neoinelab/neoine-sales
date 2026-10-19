@@ -22,8 +22,8 @@ COLUMNS = {
     "deal_code",
     "name",
     "owner_user_id",
-    "vendor",
-    "solution",
+    "vendor_id",  # Vendor·Solution 관리: 등록 목록의 id(NULL = 선택 안 함)
+    "solution_id",
     "users",
     "status_kind",
     "status_key",
@@ -49,6 +49,8 @@ INDEXES = {
     "ix_deals_revenue_date",
     "ix_deals_updated_at",
     "ix_deals_customer_id",
+    "ix_deals_vendor_id",
+    "ix_deals_solution_id",
 }
 COLUMN_INFO = (
     "select column_name, data_type, character_maximum_length, is_nullable"

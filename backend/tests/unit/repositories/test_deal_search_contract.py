@@ -1,14 +1,16 @@
 """DealRepository.search/count 계약(R2, AC-22·22a·22e): Fake와 SQL(PostgreSQL)에 같은 기대값.
 
 기본 정렬(last_updated_at 내림차순, 동률은 code 오름차순), total(count), 페이지, keyword·owner·
-vendor·status·기간 필터. solution·forecast·연/분기·BANT 필터와 정렬 선택은 R3 계약이다.
+vendor_id·status·기간 필터. solution_id·forecast·연/분기·BANT 필터와 정렬 선택은 R3 계약이다.
 """
 
 from datetime import date
 from typing import TYPE_CHECKING
+from uuid import uuid4
 
 from app.application.ports.deal_repository import DealQuery
 from app.domain.contact.values import ContactKind
+from app.domain.vendor.values import SolutionId, VendorId
 from tests.factories import later, make_deal
 from tests.support.user_ids import uid
 
@@ -159,12 +161,33 @@ class TestFilters:
         assert await _codes(deal_case, owner_user_id=uid("bob")) == [_code(2)]
         assert await _codes(deal_case, owner_user_id=uid("nobody")) == []
 
-    async def test_vendor_matches_exactly_and_case_sensitively(self, deal_case: DealCase) -> None:
-        await deal_case.add(make_deal(later(1), code=_code(1), vendor="SAP"))
-        await deal_case.add(make_deal(later(2), code=_code(2), vendor="SAP Korea"))
-        await deal_case.add(make_deal(later(3), code=_code(3), vendor="sap"))
+    async def test_filters_by_vendor_id_and_solution_id(self, deal_case: DealCase) -> None:
+        sap = await deal_case.new_vendor("ZZ SAP", ("S/4HANA", "BW"))
+        oracle = await deal_case.new_vendor("ZZ Oracle", ("EBS",))
+        s4, bw = sap.solutions
+        await deal_case.add(make_deal(later(1), code=_code(1), vendor_id=sap.id, solution_id=s4.id))
+        await deal_case.add(make_deal(later(2), code=_code(2), vendor_id=sap.id, solution_id=bw.id))
+        await deal_case.add(
+            make_deal(
+                later(3), code=_code(3), vendor_id=oracle.id, solution_id=oracle.solutions[0].id
+            )
+        )
+        await deal_case.add(make_deal(later(4), code=_code(4)))
 
-        assert await _codes(deal_case, vendor="SAP") == [_code(1)]
+        assert await _codes(deal_case, vendor_id=sap.id) == [_code(2), _code(1)]
+        assert await _codes(deal_case, solution_id=s4.id) == [_code(1)]
+        assert await _codes(deal_case, vendor_id=sap.id, solution_id=bw.id) == [_code(2)]
+        assert await deal_case.deals.count(DealQuery(vendor_id=sap.id)) == 2
+        assert await deal_case.deals.count(DealQuery(solution_id=s4.id)) == 1
+
+    async def test_an_unknown_vendor_or_solution_id_is_zero_results_not_an_error(
+        self, deal_case: DealCase
+    ) -> None:
+        await _add_numbered(deal_case, 2)
+
+        assert await _codes(deal_case, vendor_id=VendorId(uuid4())) == []
+        assert await _codes(deal_case, solution_id=SolutionId(uuid4())) == []
+        assert await deal_case.deals.count(DealQuery(vendor_id=VendorId(uuid4()))) == 0
 
     async def test_status_matches_the_status_key(self, deal_case: DealCase) -> None:
         await deal_case.add(make_deal(later(1), code=_code(1), status_key="prospecting"))
@@ -206,13 +229,15 @@ class TestFilters:
         self, deal_case: DealCase
     ) -> None:
         june = date(2026, 6, 10)
+        sap = await deal_case.new_vendor("ZZ SAP")
+        oracle = await deal_case.new_vendor("ZZ Oracle")
         rows = [
-            ("HIT-1", "alice", "SAP", "introduction", june),
-            ("HIT-2", "alice", "SAP", "introduction", june),
-            ("OTHER-OWNER", "bob", "SAP", "introduction", june),
-            ("OTHER-VENDOR", "alice", "Oracle", "introduction", june),
-            ("OTHER-STATUS", "alice", "SAP", "prospecting", june),
-            ("OTHER-DATE", "alice", "SAP", "introduction", date(2026, 8, 1)),
+            ("HIT-1", "alice", sap.id, "introduction", june),
+            ("HIT-2", "alice", sap.id, "introduction", june),
+            ("OTHER-OWNER", "bob", sap.id, "introduction", june),
+            ("OTHER-VENDOR", "alice", oracle.id, "introduction", june),
+            ("OTHER-STATUS", "alice", sap.id, "prospecting", june),
+            ("OTHER-DATE", "alice", sap.id, "introduction", date(2026, 8, 1)),
         ]
         for n, (_, owner, vendor, status, day) in enumerate(rows, start=1):
             await deal_case.add(
@@ -220,14 +245,14 @@ class TestFilters:
                     later(n),
                     code=_code(n),
                     owner_user_id=uid(owner),
-                    vendor=vendor,
+                    vendor_id=vendor,
                     status_key=status,
                     revenue_date=day,
                 )
             )
         criteria = {
             "owner_user_id": uid("alice"),
-            "vendor": "SAP",
+            "vendor_id": sap.id,
             "status_key": "introduction",
             "revenue_from": date(2026, 6, 1),
             "revenue_to": date(2026, 6, 30),

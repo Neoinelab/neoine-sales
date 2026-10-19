@@ -13,10 +13,14 @@ from app.application.ports.deal_repository import (
     DealListItem,
     NextActionSummary,
 )
-from app.domain.common.errors import InvalidReferenceError
+from app.domain.common.errors import InvalidReferenceError, InvalidValueError
 from app.domain.contact.values import ContactKind
 from app.domain.deal.code import DealCode
-from app.domain.deal.errors import DealNotFoundError, DuplicateDealCodeError
+from app.domain.deal.errors import (
+    SOLUTION_NEEDS_VENDOR_MESSAGE,
+    DealNotFoundError,
+    DuplicateDealCodeError,
+)
 from app.infra.db import deal_aggregates, deal_children, deal_mapping, deal_search
 from app.infra.db.base_repository import ConstraintErrors, SavepointWriter
 from app.infra.db.contact_usage import deal_counts_by_contacts
@@ -30,6 +34,7 @@ if TYPE_CHECKING:
     from app.domain.bant.values import BantLabelId
     from app.domain.contact.values import ContactId
     from app.domain.deal.entities import Deal
+    from app.domain.vendor.values import SolutionId, VendorId
     from app.infra.db.deal_search import ItemSelect
 
 
@@ -52,6 +57,9 @@ def _write_errors(deal: Deal) -> ConstraintErrors:
             "Forecast 코드", deal.sync.forecast_key
         ),
         "fk_deal_bant_labels_label": lambda: InvalidReferenceError("BANT Label", "선택한 Label"),
+        "fk_deals_vendor_id_vendors": lambda: InvalidReferenceError("Vendor", details.vendor_id),
+        "fk_deals_solution": lambda: InvalidReferenceError("Solution", details.solution_id),
+        "ck_deals_solution_needs_vendor": lambda: InvalidValueError(SOLUTION_NEEDS_VENDOR_MESSAGE),
     }
 
 
@@ -163,9 +171,6 @@ class SqlDealRepository(SavepointWriter):
 
     # --- 집계 ---
 
-    async def facets(self) -> tuple[Sequence[str], Sequence[str]]:
-        return await deal_aggregates.facets(self._session)
-
     async def deletion_impact(self, code: DealCode) -> DealDeletionImpact:
         if not await self.exists(code):
             raise DealNotFoundError(code.value)
@@ -179,6 +184,12 @@ class SqlDealRepository(SavepointWriter):
 
     async def count_by_bant_label(self) -> Mapping[BantLabelId, int]:
         return await deal_aggregates.count_by_bant_label(self._session)
+
+    async def count_by_vendor(self) -> Mapping[VendorId, int]:
+        return await deal_aggregates.count_by_vendor(self._session)
+
+    async def count_by_solution(self) -> Mapping[SolutionId, int]:
+        return await deal_aggregates.count_by_solution(self._session)
 
     async def count_by_contacts(self, contact_ids: Sequence[ContactId]) -> Mapping[ContactId, int]:
         """연락처별 참조 Deal 수. 요청한 id는 모두 키로 두고, 한 Deal은 연락처당 1건이다."""

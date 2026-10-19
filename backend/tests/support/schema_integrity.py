@@ -24,6 +24,8 @@ USERS_TABLE: Final = "users"
 # Deal 소속 데이터(파트너 링크·BANT 선택·이력·활동)는 Deal을 지우면 함께 지워진다(P1: CASCADE).
 # 그 밖의 모든 FK는 RESTRICT여야 한다.
 DEAL_OWNED_PARENT: Final = "deals"
+# 예외 하나: Vendor를 지우면 그 Solution도 함께 지워진다(vendor-solution 계획 D10).
+VENDOR_OWNED_CASCADE: Final = ("solutions", "vendor_id", "vendors")
 
 FOREIGN_KEYS_SQL = text(
     "select c.conname as name, c.conrelid::regclass::text as tbl, a.attname as col,"
@@ -90,10 +92,14 @@ async def foreign_keys(session: AsyncSession) -> list[ForeignKey]:
 
 
 def _delete_rule_violated(fk: ForeignKey) -> bool:
-    """RESTRICT가 기본이다. Deal 소속 데이터가 deals를 가리킬 때만 CASCADE를 허용한다."""
+    """RESTRICT가 기본이다. CASCADE는 Deal 소속→deals, solutions.vendor_id→vendors만 허용한다."""
     if fk.on_delete == RESTRICT:
         return False
-    return not (fk.ref_table == DEAL_OWNED_PARENT and fk.on_delete == CASCADE)
+    if fk.on_delete != CASCADE:
+        return True
+    if fk.ref_table == DEAL_OWNED_PARENT:
+        return False
+    return (fk.table, fk.column, fk.ref_table) != VENDOR_OWNED_CASCADE
 
 
 async def check_schema(

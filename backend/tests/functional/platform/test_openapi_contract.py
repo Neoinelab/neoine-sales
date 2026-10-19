@@ -48,7 +48,7 @@ async def test_every_endpoint_documents_its_error_responses(api: Api) -> None:
 
 
 async def test_deal_search_text_params_document_max_length(api: Api) -> None:
-    """Scenario: Deal 검색의 텍스트 파라미터(keyword, vendor)는 최대 길이 100을 문서화한다."""
+    """Scenario: Deal 검색의 텍스트 파라미터(keyword)는 최대 길이 100을 문서화한다."""
     # Given
     # (로그인하지 않은 상태)
     # When
@@ -91,7 +91,6 @@ async def test_deal_endpoints_use_the_code_path_and_share_the_deals_tag(api: Api
         "/api/v1/deals/{code}/history": {"get"},
         "/api/v1/deals/{code}/changes": {"post"},
         "/api/v1/deals/{code}/deletion-impact": {"get"},
-        "/api/v1/deals/facets": {"get"},
     }
     for path, methods in expected.items():
         assert set(paths[path]) == methods, path
@@ -103,6 +102,7 @@ async def test_deal_endpoints_use_the_code_path_and_share_the_deals_tag(api: Api
         "/api/v1/deals/{deal_id}/stage",
         "/api/v1/deals/{deal_id}/stage-changes",
         "/api/v1/deals/pipeline",
+        "/api/v1/deals/facets",  # Vendor·Solution 선택지는 /api/v1/vendors 목록에서 온다
     )
     assert not set(retired) & set(paths)
 

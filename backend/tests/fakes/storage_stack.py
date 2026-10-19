@@ -23,7 +23,6 @@ from app.application.auth.setup_storage import TestSetupStorage as ProbeSetupSto
 from app.application.storage.get_settings import GetStorageSettings
 from app.application.storage.test_settings import TestStorageSettings as ProbeStorageSettings
 from app.application.storage.update_settings import UpdateStorageSettings
-
 from tests.fakes.file_storage import FakeFileStorage
 
 if TYPE_CHECKING:

@@ -14,7 +14,6 @@ if TYPE_CHECKING:
     from app.application.contact.register_contact import RegisterContact
     from app.application.contact.search_contacts import SearchContacts
     from app.application.contact.update_contact import UpdateContact
-
     from app.application.ports.clock import Clock
     from app.application.ports.unit_of_work import UnitOfWorkFactory
 

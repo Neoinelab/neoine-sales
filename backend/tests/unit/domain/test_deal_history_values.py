@@ -3,6 +3,8 @@
 import dataclasses
 
 import pytest
+
+from app.domain.contact.values import ContactKind
 from app.domain.deal.history import (
     DealHistoryEntry,
     HistoryCategory,
@@ -11,8 +13,6 @@ from app.domain.deal.history import (
     contact_info_text,
     created_draft,
 )
-
-from app.domain.contact.values import ContactKind
 from tests.factories import NOW
 from tests.factories_contact import make_contact_details
 from tests.support.history_diff import CODE

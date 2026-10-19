@@ -22,9 +22,9 @@ if TYPE_CHECKING:
     from app.application.deal.deletion_impact import GetDealDeletionImpact
     from app.application.deal.dto import DealView
     from app.application.deal.inputs import Actor
-    from app.application.deal.list_facets import ListDealFacets
     from app.application.ports.clock import Clock
     from app.application.ports.unit_of_work import UnitOfWorkFactory
+    from app.domain.vendor.entities import Vendor
     from tests.fakes.deal_code_source import FakeDealCodeSuffixSource
     from tests.fakes.file_storage import FakeFileStorage
     from tests.fakes.unit_of_work import FakeUnitOfWork, FixedClock
@@ -57,11 +57,13 @@ class DealEnv:
 
         return GetDealDeletionImpact(self.uow_factory)
 
-    @property
-    def facets(self) -> ListDealFacets:
-        from app.application.deal.list_facets import ListDealFacets  # noqa: PLC0415
+    async def new_vendor(self, name: str = "SAP", solutions: tuple[str, ...] = ()) -> Vendor:
+        """등록된 Vendor와 소속 Solution을 저장소에 직접 둔다(Deal이 고를 수 있는 선택지)."""
+        from tests.factories_vendor import make_vendor  # noqa: PLC0415 - 도메인 지연 import
 
-        return ListDealFacets(self.uow_factory)
+        vendor = make_vendor(name, solutions, now=self.clock.now())
+        await self.uow.vendors.add(vendor)
+        return vendor
 
     async def new_deal(self, *, actor: Actor = SALES, **overrides: Any) -> DealView:  # noqa: ANN401
         """RegisterDeal로 Deal을 등록한다(overrides는 DealCreateInput 필드). 시계가 1초 흐른다."""

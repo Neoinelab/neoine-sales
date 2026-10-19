@@ -16,7 +16,7 @@ from app.application.ports.deal_repository import (
 )
 from app.application.ports.pagination import MAX_LIMIT
 from app.domain.bant.values import BantCategory
-from app.domain.deal.values import SOLUTION_MAX, VENDOR_MAX, PocState, QuoteSubmitted
+from app.domain.deal.values import PocState, QuoteSubmitted
 from app.domain.user.value_objects import UserId
 from app.web.schemas.common import RequestModel
 from app.web.schemas.deal_change import DealChangeRequest
@@ -75,8 +75,8 @@ class BantRequest(RequestModel):
 class DealCreateRequest(RequestModel):
     name: str
     owner_user_id: UUID
-    vendor: str = ""
-    solution: str = ""
+    vendor_id: UUID | None = None
+    solution_id: UUID | None = None
     users: StrictInt | None = None
     status_key: str
     forecast_key: str
@@ -93,8 +93,8 @@ class DealCreateRequest(RequestModel):
         return DealCreateInput(
             name=self.name,
             owner_user_id=self.owner_user_id,
-            vendor=self.vendor,
-            solution=self.solution,
+            vendor_id=self.vendor_id,
+            solution_id=self.solution_id,
             users=self.users,
             status_key=self.status_key,
             forecast_key=self.forecast_key,
@@ -116,8 +116,8 @@ class DealPatchRequest(RequestModel):
 
     name: str | None = None
     owner_user_id: UUID | None = None
-    vendor: str | None = None
-    solution: str | None = None
+    vendor_id: UUID | None = None
+    solution_id: UUID | None = None
     users: StrictInt | None = None
     status_key: str | None = None
     forecast_key: str | None = None
@@ -171,8 +171,8 @@ class DealSearchParams(RequestModel):
     keyword: Annotated[str | None, Field(max_length=KEYWORD_MAX)] = None
     owner_user_id: UserId | None = None
     mine: bool = False
-    vendor: Annotated[str | None, Field(max_length=VENDOR_MAX)] = None
-    solution: Annotated[str | None, Field(max_length=SOLUTION_MAX)] = None
+    vendor_id: UUID | None = None
+    solution_id: UUID | None = None
     status_key: Annotated[str | None, Field(max_length=STATUS_KEY_MAX)] = None
     forecast_key: Annotated[str | None, Field(max_length=STATUS_KEY_MAX)] = None
     year: Annotated[int | None, Field(ge=1900, le=9999)] = None

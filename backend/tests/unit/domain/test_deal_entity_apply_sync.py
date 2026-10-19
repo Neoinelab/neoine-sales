@@ -41,7 +41,7 @@ def test_applying_without_revenue_keeps_the_amount_and_the_date() -> None:
 
 
 def test_applying_keeps_the_other_details() -> None:
-    deal = make_deal(name="ERP", vendor="SAP")
+    deal = make_deal(name="ERP", procurement="조달청 입찰")
 
     deal.apply_sync(
         SyncApplied(
@@ -52,4 +52,4 @@ def test_applying_keeps_the_other_details() -> None:
         )
     )
 
-    assert (deal.details.name, deal.details.vendor) == ("ERP", "SAP")
+    assert (deal.details.name, deal.details.procurement) == ("ERP", "조달청 입찰")

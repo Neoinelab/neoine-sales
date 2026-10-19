@@ -18,7 +18,6 @@ if TYPE_CHECKING:
     from app.application.attachment.get_attachment import GetAttachment
     from app.application.attachment.list_attachments import ListAttachments
     from app.application.attachment.upload_attachment import UploadAttachment
-
     from app.application.ports.clock import Clock
     from app.application.ports.unit_of_work import UnitOfWorkFactory
     from tests.fakes.file_storage import FakeFileStorage

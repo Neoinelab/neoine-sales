@@ -5,9 +5,9 @@ import string
 from datetime import date
 
 import pytest
-from app.domain.deal.code import DEAL_CODE_ALPHABET, SUFFIX_LENGTH, DealCode
 
 from app.domain.common.errors import InvalidValueError
+from app.domain.deal.code import DEAL_CODE_ALPHABET, SUFFIX_LENGTH, DealCode
 
 
 def test_alphabet_is_uppercase_letters_and_digits_and_suffix_is_four_chars() -> None:

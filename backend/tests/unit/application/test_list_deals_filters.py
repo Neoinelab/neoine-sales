@@ -1,33 +1,28 @@
-"""ListDeals의 확장 필터·정렬(AC-22a~22d, R3): solution, forecast, 연/분기, BANT Label, sort/order.
+"""ListDeals의 확장 필터·정렬(AC-22a~22d, R3): forecast, 연/분기(연도 없는 분기는 올해),
+BANT Label, sort/order.
 
 저장소 계약(tests/unit/repositories)이 조건별 세부를 검증하므로 여기서는 유스케이스가 조건을
 그대로 전달하고 total·페이지를 함께 돌려주는지, 비어 있는 기간 창이면 저장소를 부르지 않는지를 본다.
 """
 
-from datetime import date
+from datetime import UTC, date, datetime
 from typing import TYPE_CHECKING
+
+import pytest
 
 from app.application.ports.deal_repository import DealQuery, DealSort, SortOrder
 from app.domain.bant.values import BantCategory
 from tests.support.catalog import label_by_name
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from app.application.deal.dto import DealPage
     from tests.unit.application.deal_env import DealEnv
 
 
 def _codes(page: DealPage) -> list[str]:
     return [view.item.deal.id.value for view in page.items]
-
-
-async def test_solution_matches_exactly(env: DealEnv) -> None:
-    hit = await env.new_deal(solution="S/4HANA")
-    await env.new_deal(solution="S/4HANA Cloud")
-
-    page = await env.list.execute(DealQuery(solution="S/4HANA"))
-
-    assert _codes(page) == [hit.item.deal.id.value]
-    assert page.total == 1
 
 
 async def test_forecast_matches_the_forecast_key(env: DealEnv) -> None:
@@ -61,6 +56,67 @@ async def test_year_and_quarter_follow_the_expected_close_with_boundaries(env: D
 
     assert set(_codes(page)) == {views[n].item.deal.id.value for n in ("q2_start", "q2_end")}
     assert page.total == 2
+
+
+async def _clock_at(env: DealEnv, moment: datetime) -> None:
+    env.clock.advance((moment - env.clock.now()).total_seconds())
+
+
+async def test_quarter_only_filters_this_years_quarter_by_business_date(env: DealEnv) -> None:
+    await _clock_at(env, datetime(2026, 7, 15, 12, 0, tzinfo=UTC))
+    this_year = await env.new_deal(revenue_date=date(2026, 5, 20))
+    await env.new_deal(revenue_date=date(2025, 5, 20))
+    await env.new_deal(revenue_date=date(2027, 5, 20))
+    await env.new_deal(revenue_date=date(2026, 8, 20))
+
+    page = await env.list.execute(DealQuery(quarter=2))
+
+    assert _codes(page) == [this_year.item.deal.id.value]
+    assert page.total == 1
+
+
+async def test_quarter_only_follows_the_year_of_the_clock(env: DealEnv) -> None:
+    await _clock_at(env, datetime(2027, 7, 15, 12, 0, tzinfo=UTC))
+    await env.new_deal(revenue_date=date(2026, 5, 20))
+    next_year = await env.new_deal(revenue_date=date(2027, 5, 20))
+
+    page = await env.list.execute(DealQuery(quarter=2))
+
+    assert _codes(page) == [next_year.item.deal.id.value]
+
+
+async def test_quarter_boundaries_without_a_year_include_both_ends(env: DealEnv) -> None:
+    await _clock_at(env, datetime(2026, 7, 15, 12, 0, tzinfo=UTC))
+    q4_start = await env.new_deal(revenue_date=date(2026, 10, 1))
+    q4_end = await env.new_deal(revenue_date=date(2026, 12, 31))
+    await env.new_deal(revenue_date=date(2026, 9, 30))
+
+    page = await env.list.execute(DealQuery(quarter=4))
+
+    assert set(_codes(page)) == {q4_start.item.deal.id.value, q4_end.item.deal.id.value}
+
+
+async def test_an_explicit_year_wins_over_the_clock_year(env: DealEnv) -> None:
+    await _clock_at(env, datetime(2026, 7, 15, 12, 0, tzinfo=UTC))
+    await env.new_deal(revenue_date=date(2026, 5, 20))
+    past = await env.new_deal(revenue_date=date(2025, 5, 20))
+
+    page = await env.list.execute(DealQuery(year=2025, quarter=2))
+
+    assert _codes(page) == [past.item.deal.id.value]
+
+
+async def test_quarter_only_with_an_empty_period_window_skips_the_repository(
+    env: DealEnv,
+) -> None:
+    await _clock_at(env, datetime(2026, 7, 15, 12, 0, tzinfo=UTC))
+    await env.new_deal(revenue_date=date(2026, 5, 20))
+    env.uow.deals.queries = 0
+
+    page = await env.list.execute(DealQuery(quarter=2, revenue_from=date(2027, 1, 1)))
+
+    assert (page.items, page.total) == ([], 0)
+    assert env.uow.deals.queries == 0
 
 
 async def test_a_year_alone_includes_the_whole_year(env: DealEnv) -> None:
@@ -142,3 +198,29 @@ async def test_sorting_by_status_follows_the_current_status_order(env: DealEnv) 
     page = await env.list.execute(DealQuery(sort=DealSort.STATUS, order=SortOrder.ASC))
 
     assert _codes(page) == [early.item.deal.id.value, late.item.deal.id.value]
+
+
+@pytest.mark.parametrize(
+    ("tz", "moment", "expected_year"),
+    [
+        # UTC로는 2026-12-31이지만 서울(UTC+9)의 업무 날짜는 2027-01-01
+        ("Asia/Seoul", datetime(2026, 12, 31, 16, 0, tzinfo=UTC), 2027),
+        # UTC로는 2027-01-01이지만 로스앤젤레스(UTC-8)의 업무 날짜는 2026-12-31
+        ("America/Los_Angeles", datetime(2027, 1, 1, 3, 0, tzinfo=UTC), 2026),
+    ],
+)
+async def test_quarter_only_uses_the_business_date_year_across_new_year(
+    env: DealEnv,
+    local_tz: Callable[[str], None],
+    tz: str,
+    moment: datetime,
+    expected_year: int,
+) -> None:
+    local_tz(tz)
+    await _clock_at(env, moment)
+    in_business_year = await env.new_deal(revenue_date=date(expected_year, 2, 10))
+    await env.new_deal(revenue_date=date(2026 if expected_year == 2027 else 2027, 2, 10))
+
+    page = await env.list.execute(DealQuery(quarter=1))
+
+    assert _codes(page) == [in_business_year.item.deal.id.value]

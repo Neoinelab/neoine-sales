@@ -18,8 +18,8 @@ async function newDeal(gateway: Gateway) {
   const input: DealInput = {
     name: unique('deal'),
     ownerId: me.id,
-    vendor: 'ContractVendor',
-    solution: unique('sol'),
+    vendorId: null,
+    solutionId: null,
     users: 10,
     statusKey: 'prospecting',
     forecastKey: 'pipeline',

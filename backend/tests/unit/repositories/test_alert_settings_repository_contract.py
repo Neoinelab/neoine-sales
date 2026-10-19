@@ -4,9 +4,9 @@ from typing import TYPE_CHECKING
 
 import pytest
 import pytest_asyncio
+
 from app.domain.alert.thresholds import AlertThresholds
 from app.infra.db.alert_settings_repository import SqlAlertSettingsRepository
-
 from app.infra.db.user_repository import SqlUserRepository
 from tests.factories import NOW, later
 from tests.fakes.alert_settings_repository import FakeAlertSettingsRepository

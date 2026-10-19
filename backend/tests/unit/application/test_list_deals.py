@@ -1,4 +1,4 @@
-"""ListDeals(AC-22·22a·22e, R2): 기본 정렬, total, 페이지, keyword·owner·vendor·status·기간.
+"""ListDeals(AC-22·22a·22e, R2): 기본 정렬, total, 페이지, keyword·owner·vendor_id·status·기간.
 
 solution·forecast·연/분기·BANT 필터와 정렬 선택은 R3다. 여기서는 기본 정렬(last_updated_at
 내림차순, 동률은 code 오름차순)만 본다.
@@ -6,9 +6,12 @@ solution·forecast·연/분기·BANT 필터와 정렬 선택은 R3다. 여기서
 
 from datetime import date
 from typing import TYPE_CHECKING
+from uuid import uuid4
 
+from app.application.deal.dto import NamedRef
 from app.application.ports.deal_repository import DealQuery
 from app.domain.auth.principal import Role
+from app.domain.vendor.values import SolutionId, VendorId
 from tests.factories import NOW, later
 from tests.factories_deal import (
     SALES,
@@ -22,7 +25,6 @@ from tests.support.auth_seed import seed_user
 
 if TYPE_CHECKING:
     from app.application.deal.dto import DealPage
-
     from tests.unit.application.deal_env import DealEnv
 
 
@@ -70,10 +72,12 @@ async def test_editing_a_deal_moves_it_to_the_top(env: DealEnv) -> None:
 
 
 async def test_total_is_the_filtered_count_regardless_of_the_page(env: DealEnv) -> None:
+    sap = await env.new_vendor("SAP")
+    oracle = await env.new_vendor("Oracle")
     for number in range(5):
-        await env.new_deal(vendor="SAP" if number < 3 else "Oracle")
+        await env.new_deal(vendor_id=(sap if number < 3 else oracle).id)
 
-    page = await env.list.execute(DealQuery(vendor="SAP", offset=2, limit=1))
+    page = await env.list.execute(DealQuery(vendor_id=sap.id, offset=2, limit=1))
 
     assert (len(page.items), page.total) == (1, 3)
 
@@ -81,7 +85,7 @@ async def test_total_is_the_filtered_count_regardless_of_the_page(env: DealEnv) 
 async def test_an_empty_result_has_no_items_and_zero_total(env: DealEnv) -> None:
     await env.new_deal()
 
-    page = await env.list.execute(DealQuery(vendor="없는 Vendor"))
+    page = await env.list.execute(DealQuery(vendor_id=VendorId(uuid4())))
 
     assert (page.items, page.total) == ([], 0)
 
@@ -167,12 +171,45 @@ class TestFilters:
         ]
         assert mine.item.deal.id.value in _codes(await env.list.execute(DealQuery()))
 
-    async def test_vendor_matches_exactly_and_case_sensitively(self, env: DealEnv) -> None:
-        hit = await env.new_deal(vendor="SAP")
-        await env.new_deal(vendor="SAP Korea")
-        await env.new_deal(vendor="sap")
+    async def test_vendor_and_solution_filters_match_by_id(self, env: DealEnv) -> None:
+        sap = await env.new_vendor("SAP", ("S/4HANA", "BW"))
+        oracle = await env.new_vendor("Oracle", ("EBS",))
+        s4, bw = sap.solutions
+        hit = await env.new_deal(vendor_id=sap.id, solution_id=s4.id)
+        other_solution = await env.new_deal(vendor_id=sap.id, solution_id=bw.id)
+        await env.new_deal(vendor_id=oracle.id, solution_id=oracle.solutions[0].id)
+        await env.new_deal()
 
-        assert _codes(await env.list.execute(DealQuery(vendor="SAP"))) == [hit.item.deal.id.value]
+        by_vendor = await env.list.execute(DealQuery(vendor_id=sap.id))
+        by_solution = await env.list.execute(DealQuery(solution_id=s4.id))
+        by_both = await env.list.execute(DealQuery(vendor_id=sap.id, solution_id=s4.id))
+
+        assert set(_codes(by_vendor)) == {hit.item.deal.id.value, other_solution.item.deal.id.value}
+        assert _codes(by_solution) == [hit.item.deal.id.value]
+        assert _codes(by_both) == [hit.item.deal.id.value]
+
+    async def test_list_rows_carry_vendor_and_solution_names(self, env: DealEnv) -> None:
+        sap = await env.new_vendor("SAP", ("S/4HANA",))
+        await env.new_deal(vendor_id=sap.id, solution_id=sap.solutions[0].id)
+        await env.new_deal(vendor_id=sap.id)
+        await env.new_deal()
+
+        views = (await env.list.execute(DealQuery())).items
+
+        named = {(v.vendor, v.solution) for v in views}
+        assert named == {
+            (NamedRef(sap.id, "SAP"), NamedRef(sap.solutions[0].id, "S/4HANA")),
+            (NamedRef(sap.id, "SAP"), None),
+            (None, None),
+        }
+
+    async def test_unknown_vendor_id_returns_nothing(self, env: DealEnv) -> None:
+        await env.new_deal()
+
+        page = await env.list.execute(DealQuery(vendor_id=VendorId(uuid4())))
+        by_solution = await env.list.execute(DealQuery(solution_id=SolutionId(uuid4())))
+
+        assert (page.items, page.total, by_solution.total) == ([], 0, 0)
 
     async def test_status_matches_the_status_key(self, env: DealEnv) -> None:
         await env.new_deal(status_key="prospecting")
@@ -216,13 +253,15 @@ class TestFilters:
         assert _codes(page) == [hit.item.deal.id.value]
 
     async def test_conditions_are_combined_with_and(self, env: DealEnv) -> None:
-        hit = await env.new_deal(name="ERP", vendor="SAP", status_key="introduction")
-        await env.new_deal(name="ERP", vendor="Oracle", status_key="introduction")
-        await env.new_deal(name="ERP", vendor="SAP", status_key="prospecting")
-        await env.new_deal(name="CRM", vendor="SAP", status_key="introduction")
+        sap = await env.new_vendor("SAP")
+        oracle = await env.new_vendor("Oracle")
+        hit = await env.new_deal(name="ERP", vendor_id=sap.id, status_key="introduction")
+        await env.new_deal(name="ERP", vendor_id=oracle.id, status_key="introduction")
+        await env.new_deal(name="ERP", vendor_id=sap.id, status_key="prospecting")
+        await env.new_deal(name="CRM", vendor_id=sap.id, status_key="introduction")
 
         page = await env.list.execute(
-            DealQuery(keyword="erp", vendor="SAP", status_key="introduction")
+            DealQuery(keyword="erp", vendor_id=sap.id, status_key="introduction")
         )
 
         assert _codes(page) == [hit.item.deal.id.value]

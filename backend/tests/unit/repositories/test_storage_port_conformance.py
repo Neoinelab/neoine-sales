@@ -5,15 +5,15 @@
 
 import inspect
 
-from app.application.ports.file_storage import FileStorage, OpenedFile, StoredFileLocation
-from app.application.ports.storage_settings_repository import StorageSettingsRepository
-from app.infra.db.storage_settings_repository import SqlStorageSettingsRepository
-from app.infra.storage.local_file_storage import LocalFileStorage
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 
+from app.application.ports.file_storage import FileStorage, OpenedFile, StoredFileLocation
+from app.application.ports.storage_settings_repository import StorageSettingsRepository
 from app.application.ports.unit_of_work import UnitOfWork
 from app.container import Container
+from app.infra.db.storage_settings_repository import SqlStorageSettingsRepository
 from app.infra.db.unit_of_work import SqlUnitOfWork
+from app.infra.storage.local_file_storage import LocalFileStorage
 from app.web.use_case_provider import UseCaseProvider
 from tests.fakes.file_storage import FakeFileStorage
 from tests.fakes.storage_settings_repository import FakeStorageSettingsRepository

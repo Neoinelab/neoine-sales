@@ -76,6 +76,23 @@ export interface LabelRecord {
   createdAt: string
 }
 
+/** Vendor(Aggregate Root). 이름은 대소문자 무시로 고유. */
+export interface VendorRecord {
+  id: string
+  name: string
+  createdAt: string
+  updatedAt: string
+}
+
+/** Vendor 소속 Solution. 이름은 같은 Vendor 안에서 대소문자 무시로 고유. */
+export interface SolutionRecord {
+  id: string
+  vendorId: string
+  name: string
+  createdAt: string
+  updatedAt: string
+}
+
 export type DirectoryRecord = Omit<DirectorySettings, 'updatedBy'> & { updatedById: string | null }
 
 export interface StorageRecord {
@@ -96,6 +113,8 @@ export interface SeedData {
   users: UserRecord[]
   codes: Code[]
   labels: LabelRecord[]
+  vendors: VendorRecord[]
+  solutions: SolutionRecord[]
   contacts: Contact[]
   deals: Deal[]
   actions: ActionRecord[]
@@ -120,6 +139,21 @@ export function takeId(counters: Record<string, number>, prefix: string): string
   const next = (counters[prefix] ?? 0) + 1
   counters[prefix] = next
   return `${prefix}-${String(next).padStart(3, '0')}`
+}
+
+/**
+ * Vendor·Solution id는 서버처럼 UUID 형식이다(목록 URL의 `vendor`·`solution` 값은 UUID일 때만 질의가 되므로).
+ * 순번이 같으면 같은 id가 나온다: vendors는 `10000000-…`, solutions는 `20000000-…`로 시작한다.
+ */
+export function uuidOf(prefix: 'vd' | 'sl', n: number): string {
+  return `${prefix === 'vd' ? '1' : '2'}0000000-0000-4000-8000-${String(n).padStart(12, '0')}`
+}
+
+/** `uuidOf` 형식의 새 id(카운터를 올린다). */
+export function takeUuid(counters: Record<string, number>, prefix: 'vd' | 'sl'): string {
+  const next = (counters[prefix] ?? 0) + 1
+  counters[prefix] = next
+  return uuidOf(prefix, next)
 }
 
 /** History 일련번호. */

@@ -1,5 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { listMemoryKey } from '../../../shared/model/dealListMemory'
+import { resetMock } from '../../../test/fake/default'
 import { renderAt } from '../../../test/mockApp'
 import { dealCodeOf } from '../../../test/detailTestUtils'
 import { dataRows, rowOf } from './testHelpers'
@@ -255,5 +257,28 @@ describe('목록에 머무는 동안 상단 메뉴 (AC-07, 리뷰 Major)', () =>
     await waitFor(() => expect(view.location()).not.toContain('page=2'))
 
     expect(deals()).toHaveAttribute('href', view.location())
+  })
+})
+
+describe('Quarter만 있는 조건의 기억 (AC-20)', () => {
+  beforeEach(() => resetMock({ now: '2026-10-15T09:00:00+09:00' }))
+  afterEach(() => resetMock({ now: null }))
+
+  it('remembers a quarter-only search as it is and restores it when coming back from a detail page', async () => {
+    const view = await renderAt('/deals?quarter=4')
+    await waitFor(() => expect(dataRows().length).toBeGreaterThan(0))
+    expect(window.sessionStorage.getItem(listMemoryKey('u-kim'))).toBe('quarter=4')
+
+    const link = within(dataRows()[0] as HTMLElement).getAllByRole('link')[0] as HTMLElement
+    const name = link.textContent ?? ''
+    await view.user.click(link)
+    await screen.findByRole('heading', { level: 1, name })
+    expect(screen.getByRole('link', { name: '← 목록' })).toHaveAttribute('href', '/deals?quarter=4')
+    await view.user.click(screen.getByRole('link', { name: '← 목록' }))
+
+    await screen.findByRole('button', { name: '초기화' })
+    expect(view.location()).toBe('/deals?quarter=4')
+    expect(screen.getByLabelText('Quarter')).toHaveDisplayValue('Q4')
+    expect(screen.getByLabelText('연도')).toHaveDisplayValue('전체')
   })
 })

@@ -4,8 +4,8 @@ from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import pytest
-from app.application.ports.file_storage import StoredFileLocation, StoredFileMissingError
 
+from app.application.ports.file_storage import StoredFileLocation, StoredFileMissingError
 from app.domain.deal.code import DealCode
 from tests.fakes.file_storage import BytesSource
 

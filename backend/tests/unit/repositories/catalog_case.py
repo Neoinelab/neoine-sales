@@ -58,7 +58,6 @@ async def open_catalog(
         return
     from app.infra.db.bant_label_repository import SqlBantLabelRepository  # noqa: PLC0415
     from app.infra.db.code_repository import SqlCodeRepository  # noqa: PLC0415
-
     from app.infra.db.user_repository import SqlUserRepository  # noqa: PLC0415
 
     async with rolled_back_session(test_database_url) as session:  # type: ignore[arg-type]

@@ -5,13 +5,13 @@
 
 import inspect
 
-from app.application.ports.attachment_repository import AttachmentRepository
-from app.infra.db.attachment_repository import SqlAttachmentRepository
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 
+from app.application.ports.attachment_repository import AttachmentRepository
 from app.application.ports.file_storage import StorageNotReadableError
 from app.application.ports.unit_of_work import UnitOfWork
 from app.container import Container
+from app.infra.db.attachment_repository import SqlAttachmentRepository
 from app.infra.db.unit_of_work import SqlUnitOfWork
 from app.web.use_case_provider import UseCaseProvider
 from tests.fakes.attachments import FakeAttachmentRepository

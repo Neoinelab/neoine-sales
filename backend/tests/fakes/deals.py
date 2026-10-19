@@ -1,7 +1,9 @@
 """DealRepository Port의 InMemory 구현(Fake). 단위 테스트와 계약 테스트에서 사용한다.
 
-FakeUnitOfWork가 연락처·코드·Label·활동·이력 저장소를 `wire`로 연결해 실제 DB와 같게 동작한다.
+FakeUnitOfWork가 연락처·코드·Label·Vendor·활동·이력 저장소를 `wire`로 연결해
+실제 DB와 같게 동작한다.
 - 참조 확인(FK 모사): 연락처(고객·파트너 링크)가 없거나 BANT Label이 없거나 구분이 다르면
+  InvalidReferenceError. Vendor가 없거나 Solution이 그 Vendor 소속이 아니어도
   InvalidReferenceError. 코드(Status·Forecast) 확인은 카탈로그가 시드된 경우에만 한다(시드 없는
   Fake UoW로 Deal을 직접 넣는 오래된 테스트가 많다. 계약 테스트는 항상 시드한 뒤 검사한다).
 - 삭제는 활동·이력을 함께 지운다(CASCADE).
@@ -31,6 +33,7 @@ if TYPE_CHECKING:
     from app.domain.contact.values import ContactId
     from app.domain.deal.code import DealCode
     from app.domain.deal.entities import Deal
+    from app.domain.vendor.values import SolutionId, VendorId
 
 UNKNOWN_ORDER = 10**6
 
@@ -41,6 +44,7 @@ class FakeDealRepository(InMemoryStore["Deal"]):
         self._contacts: Any = None
         self._codes: Any = None
         self._labels: Any = None
+        self._vendors: Any = None
         self._actions: Any = None
         self._history: Any = None
         self._attachments: Any = None
@@ -57,12 +61,14 @@ class FakeDealRepository(InMemoryStore["Deal"]):
         contacts: Any = None,  # noqa: ANN401
         codes: Any = None,  # noqa: ANN401
         labels: Any = None,  # noqa: ANN401
+        vendors: Any = None,  # noqa: ANN401
         actions: Any = None,  # noqa: ANN401
         history: Any = None,  # noqa: ANN401
         attachments: Any = None,  # noqa: ANN401
     ) -> None:
         """FK 모사와 파생값에 쓸 저장소를 연결한다(FakeUnitOfWork가 호출한다)."""
         self._contacts, self._codes, self._labels = contacts, codes, labels
+        self._vendors = vendors
         self._actions, self._history, self._attachments = actions, history, attachments
 
     # --- 참조 확인(FK 모사) ---
@@ -86,6 +92,17 @@ class FakeDealRepository(InMemoryStore["Deal"]):
                     raise InvalidReferenceError("코드", key)
         if self._labels is not None:
             self._check_labels(deal)
+        if self._vendors is not None:
+            self._check_vendor(deal)
+
+    def _check_vendor(self, deal: Deal) -> None:
+        vendor_id, solution_id = deal.details.vendor_id, deal.details.solution_id
+        if vendor_id is not None and vendor_id not in self._vendors._items:
+            raise InvalidReferenceError("Vendor", vendor_id)
+        if solution_id is not None and (
+            vendor_id is None or not self._vendors.has_solution(vendor_id, solution_id)
+        ):
+            raise InvalidReferenceError("Solution", solution_id)  # 복합 FK: Vendor 소속이어야 한다
 
     def _check_labels(self, deal: Deal) -> None:
         for category in ("budget", "authority", "need", "timeline"):
@@ -184,13 +201,6 @@ class FakeDealRepository(InMemoryStore["Deal"]):
         self.queries += 1
         return len(self._found(query))
 
-    async def facets(self) -> tuple[Sequence[str], Sequence[str]]:
-        deals = self._items.values()
-        vendors = {d.details.vendor for d in deals if d.details.vendor}
-        solutions = {d.details.solution for d in deals if d.details.solution}
-        order = lambda text: (text.lower(), text)  # noqa: E731 - lower 순, 동률은 원문 순
-        return sorted(vendors, key=order), sorted(solutions, key=order)
-
     async def deletion_impact(self, code: DealCode) -> DealDeletionImpact:
         from app.application.ports.deal_repository import DealDeletionImpact  # noqa: PLC0415
 
@@ -245,6 +255,20 @@ class FakeDealRepository(InMemoryStore["Deal"]):
                 label_id = getattr(deal.bant, category)
                 if label_id is not None:
                     counts[label_id] = counts.get(label_id, 0) + 1
+        return counts
+
+    async def count_by_vendor(self) -> Mapping[VendorId, int]:
+        counts: dict[VendorId, int] = {}
+        for deal in self._items.values():
+            if deal.details.vendor_id is not None:
+                counts[deal.details.vendor_id] = counts.get(deal.details.vendor_id, 0) + 1
+        return counts
+
+    async def count_by_solution(self) -> Mapping[SolutionId, int]:
+        counts: dict[SolutionId, int] = {}
+        for deal in self._items.values():
+            if deal.details.solution_id is not None:
+                counts[deal.details.solution_id] = counts.get(deal.details.solution_id, 0) + 1
         return counts
 
     async def count_by_contacts(self, contact_ids: Sequence[ContactId]) -> Mapping[ContactId, int]:

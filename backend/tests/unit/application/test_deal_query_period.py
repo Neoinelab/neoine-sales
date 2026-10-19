@@ -80,9 +80,53 @@ def test_a_period_outside_the_year_gives_an_empty_window_not_an_error() -> None:
     assert start > end
 
 
-def test_a_quarter_without_a_year_is_rejected() -> None:
-    with raises_with(InvalidValueError, "분기는 연도와 함께 선택하세요."):
-        _window(quarter=2)
+def test_a_quarter_without_a_year_is_no_longer_rejected_at_creation() -> None:
+    assert DealQuery(quarter=2).quarter == 2
+
+
+@pytest.mark.parametrize("quarter", [0, 5, -1])
+def test_a_quarter_outside_one_to_four_is_rejected_even_without_a_year(quarter: int) -> None:
+    with raises_with(InvalidValueError, "분기는 1~4 중에서 선택하세요."):
+        DealQuery(quarter=quarter)
+
+
+def test_revenue_window_of_an_unresolved_quarter_is_a_programming_error() -> None:
+    query = DealQuery(quarter=2)  # 연도 없는 분기는 만들 수 있다(올해 채우기는 ListDeals 몫)
+
+    with pytest.raises(ValueError) as raised:  # noqa: PT011 - 호출 순서 오류
+        query.revenue_window()
+
+    assert not isinstance(raised.value, InvalidValueError)  # 사용자 입력 오류(422)가 아니다
+
+
+def test_with_year_for_fills_this_year_only_when_quarter_has_no_year() -> None:
+    today = date(2026, 10, 19)
+
+    filled = DealQuery(quarter=2, keyword="erp").with_year_for(today)
+
+    assert (filled.year, filled.quarter, filled.keyword) == (2026, 2, "erp")
+    assert filled.revenue_window() == (date(2026, 4, 1), date(2026, 6, 30))
+
+
+def test_with_year_for_keeps_an_explicit_year() -> None:
+    query = DealQuery(year=2025, quarter=2)
+
+    assert query.with_year_for(date(2026, 10, 19)).year == 2025
+
+
+def test_with_year_for_leaves_a_query_without_quarter_alone() -> None:
+    query = DealQuery(keyword="erp")
+
+    assert query.with_year_for(date(2026, 10, 19)).year is None
+    assert DealQuery(year=2025).with_year_for(date(2026, 10, 19)).year == 2025
+
+
+def test_with_year_for_does_not_change_the_original_query() -> None:
+    query = DealQuery(quarter=3)
+
+    query.with_year_for(date(2026, 10, 19))
+
+    assert query.year is None
 
 
 @pytest.mark.parametrize("quarter", [0, 5, -1])

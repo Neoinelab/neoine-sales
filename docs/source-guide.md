@@ -59,7 +59,7 @@ infra ──┘
 | `pyproject.toml` | 의존성, ruff·mypy·pytest·import-linter 설정의 **정본** |
 | `uv.lock`, `.python-version` | 잠긴 의존성, Python 버전(3.14) |
 | `.env.example` | 필요한 환경변수 이름 예시(실제 `.env`는 Git 제외, 읽지도 쓰지도 않음) |
-| `alembic.ini`, `alembic/` | DB 마이그레이션. `versions/`에 리비전 15개, head는 `a4d7e1b92c06`(경고 기준). P0 이후는 단계별 단일 스키마 마이그레이션(코드·BANT Label → 연락처 → Deal 모델 v2 → Action 스냅숏 → 첨부 → 경고 기준) |
+| `alembic.ini`, `alembic/` | DB 마이그레이션. `versions/`에 리비전 16개, head는 `7a185add9ec4`(Vendor·Solution). P0 이후는 단계별 단일 스키마 마이그레이션(코드·BANT Label → 연락처 → Deal 모델 v2 → Action 스냅숏 → 첨부 → 경고 기준 → Vendor·Solution) |
 | `openapi.json` | API 계약 파일. 코드와 다르면 테스트가 실패(드리프트 검사), 프런트 타입의 원본 |
 | `scripts/run_gates.py` | 품질 게이트 6종 실행(기본은 단위 테스트만, `--full`이면 functional 포함). 결과: `artifacts/30-review/gate.md` |
 | `scripts/check_file_length.py` | 파일 300줄 제한 검사 |
@@ -76,7 +76,8 @@ infra ──┘
 | `container.py` | Composition Root. DB 엔진·세션 팩토리·시계를 소유하고 Deal·Action·연락처·경고 기준 유스케이스를 조립 |
 | `container_auth.py` | 인증 유스케이스(로그인, 최초 설정, 로그아웃, 개발 로그인) 조립 |
 | `container_admin.py` | admin 기능(사용자 관리, AD 설정) 조립 |
-| `container_catalog.py` | 코드(Status·Forecast)와 BANT Label 유스케이스 조립 |
+| `container_catalog.py` | 코드(Status·Forecast), BANT Label, Vendor·Solution 유스케이스 조립 |
+| `container_vendor.py` | `Container`가 상속하는 Vendor·Solution 유스케이스 위임 mixin(`container.py` 길이 분리) |
 | `container_storage.py` | 저장 위치 설정과 첨부 유스케이스 조립(FileStorage 하나를 공유) |
 
 ### 2.4 `domain/` — 비즈니스 규칙
@@ -88,6 +89,7 @@ infra ──┘
 | `deal_action/` | Action(진행사항·Next Action·Due Date·Memo, Status/Forecast 스냅숏) 엔티티, 이력, 수정·삭제 권한(admin 전부, sales 본인만) |
 | `contact/` | 연락처(고객·파트너) 엔티티·값 객체, 같은 사람 판정(`identity.py`), 입력 초안 병합(`draft.py`) |
 | `code/` | Status·Forecast 코드 카탈로그(이름 정규화·중복·key 생성·순서 규칙) |
+| `vendor/` | Vendor(Aggregate Root)와 소속 Solution(1:N) 엔티티, 이름 규칙(앞뒤 공백 제거, 대소문자 무시 중복 금지 — Vendor는 전체, Solution은 같은 Vendor 안), 사용 중 삭제 거부 |
 | `bant/` | BANT Label(카테고리별 선택지) 엔티티와 규칙 |
 | `attachment/` | 첨부 파일 엔티티, 파일 이름·확장자 보안 규칙(`values.py`), 이력, 삭제·교체 권한 |
 | `storage/` | 저장 위치 설정과 경로 값 객체(절대 POSIX 경로 검증·정규화) |
@@ -98,10 +100,11 @@ infra ──┘
 
 ### 2.5 `application/` — 유스케이스와 Port
 
-- `ports/`: 외부와 통신하는 인터페이스. 저장소(`*_repository.py`: Deal·Deal 이력·Action·연락처·코드·BANT Label·첨부·사용자·세션·로그인 실패·AD 설정·저장 위치 설정·경고 기준), `unit_of_work.py`(트랜잭션 경계), `file_storage.py`(파일 저장), `deal_code_source.py`(Deal code 발급), `directory.py`(AD 인증기), `clock.py`, `pagination.py`
-- `deal/`: 등록·조회·목록·수정·삭제와 삭제 영향(`deletion-impact`), 목록 필터 후보(`list_facets.py`), 단일 변경 적용(`apply_change.py`·`sync_change.py`: Status·Forecast 동기화 확인), 변경 이력 기록·조회, 화면용 뷰(`views.py`: 서버가 `risk`·`status_days` 계산)
+- `ports/`: 외부와 통신하는 인터페이스. 저장소(`*_repository.py`: Deal·Deal 이력·Action·연락처·코드·BANT Label·Vendor·첨부·사용자·세션·로그인 실패·AD 설정·저장 위치 설정·경고 기준), `unit_of_work.py`(트랜잭션 경계), `file_storage.py`(파일 저장), `deal_code_source.py`(Deal code 발급), `directory.py`(AD 인증기), `clock.py`, `pagination.py`
+- `deal/`: 등록·조회·목록·수정·삭제와 삭제 영향(`deletion-impact`), 단일 변경 적용(`apply_change.py`·`sync_change.py`: Status·Forecast 동기화 확인), 변경 이력 기록·조회, 화면용 뷰(`views.py`: 서버가 `risk`·`status_days` 계산)
 - `deal_action/`: Deal별 Action 등록·조회·수정·삭제(수행일시·담당자는 서버가 채움)
 - `contact/`: 연락처 등록·수정·삭제·검색, 회사 목록·회사별 연락처, 사용처 확인
+- `vendor/`: Vendor·Solution 목록(사용 수 포함)·등록·이름 변경·삭제(Vendor 삭제 시 소속 Solution 함께 삭제, Deal이 쓰면 거부)
 - `code/`, `bant/`: 코드 등록·이름 변경·순서 변경·삭제(사용 중이면 거부)와 사용 현황, BANT Label 관리
 - `attachment/`: 업로드·목록·다운로드·삭제, 저장 실패 시 정리(`storage_cleanup.py`)
 - `storage/`, `alert/`, `directory/`: 저장 위치·경고 기준·AD 설정의 조회·확인·변경
@@ -125,7 +128,7 @@ infra ──┘
 
 | 파일/폴더 | 의미 |
 | --- | --- |
-| `routers/` | 엔드포인트. `deals.py`, `deal_actions.py`, `attachments.py`·`attachment_items.py`, `contacts.py`, `codes.py`, `bant_labels.py`, `alert_settings.py`, `users.py`, `user_options.py`, `settings_directory.py`, `settings_storage.py`, `auth*.py`(로그인·로그아웃·상태·최초 설정), `health.py`(`/healthz`, `/readyz`) |
+| `routers/` | 엔드포인트. `deals.py`, `deal_actions.py`, `attachments.py`·`attachment_items.py`, `contacts.py`, `codes.py`, `bant_labels.py`, `vendors.py`, `alert_settings.py`, `users.py`, `user_options.py`, `settings_directory.py`, `settings_storage.py`, `auth*.py`(로그인·로그아웃·상태·최초 설정), `health.py`(`/healthz`, `/readyz`) |
 | `schemas/` | 요청·응답 Pydantic 모델 |
 | `permissions.py` | `BusinessRouter`(sales 이상만 쓰기)와 `admin_router`(admin 전용)로 권한을 라우터 등록 시점에 적용 |
 | `security.py` | 쿠키 세션 확인(`require_login`), CSRF 헤더(`X-Requested-With`) 검사 |
@@ -137,10 +140,10 @@ infra ──┘
 
 | 영역 | 경로 |
 | --- | --- |
-| Deal | `/deals`(목록·등록), `/deals/facets`, `/deals/{code}`(조회·수정·삭제), `/deals/{code}/changes`(Status·Forecast 단일 변경), `/deals/{code}/history`, `/deals/{code}/deletion-impact` |
+| Deal | `/deals`(목록·등록), `/deals/{code}`(조회·수정·삭제), `/deals/{code}/changes`(Status·Forecast 단일 변경), `/deals/{code}/history`, `/deals/{code}/deletion-impact` |
 | Action | `/deals/{code}/actions`, `/deal-actions/{action_id}` |
 | 첨부 | `/deals/{code}/attachments`, `/attachments/{id}`, `/attachments/{id}/download` |
-| 카탈로그 | `/codes`, `/codes/order`, `/codes/usage`, `/bant-labels` |
+| 카탈로그 | `/codes`, `/codes/order`, `/codes/usage`, `/bant-labels`, `/vendors`, `/vendors/{id}/solutions`(조회는 로그인 사용자, 쓰기는 admin) |
 | 연락처 | `/contacts`, `/contacts/companies`, `/contacts/by-company` |
 | 설정(admin) | `/users`, `/settings/directory`, `/settings/storage`, `/alert-settings`(조회는 로그인 사용자 모두) |
 | 인증 | `/auth/login`, `/auth/logout`, `/auth/me`, `/auth/config`, `/auth/dev-login`, `/auth/setup/*` |
@@ -166,7 +169,7 @@ infra ──┘
 1. 최초 접속 시 admin이 없으면 `/setup`: ① AD 서버 등록(연결 확인 후 DB 저장) → ② 첨부 파일 저장 위치 등록(쓰기 확인) → ③ AD 아이디·비밀번호로 첫 admin 등록(성공 시 자동 로그인). admin이 생기면 영구히 닫힙니다.
 2. 이후 로그인: AD 바인드로 비밀번호 검증 → 앱에 등록된 활성 사용자만 세션 쿠키 발급. 실패 사유는 구분하지 않음(401), AD 장애는 503, 시도 제한은 429.
 3. 요청마다 users 테이블에서 활성 여부와 역할을 다시 읽어 즉시 반영. user 역할은 조회만(쓰기 403). Action·첨부의 수정·삭제는 작성자 본인 또는 admin만.
-4. admin은 Admin 메뉴에서 사용자(AD 계정 id + 역할) 추가·삭제, Deal 관리(Status·Forecast 코드, BANT Label, 경고 기준), 연락처 관리, 연동 설정(AD 서버, 저장 위치)을 합니다.
+4. admin은 Admin 메뉴에서 사용자(AD 계정 id + 역할) 추가·삭제, Deal 관리(Status·Forecast 코드, BANT Label, Vendor·Solution, 경고 기준), 연락처 관리, 연동 설정(AD 서버, 저장 위치)을 합니다.
 
 ## 3. 프런트엔드 (`frontend/`)
 
@@ -192,7 +195,7 @@ features/*  화면 ──▶ data/*  TanStack Query 훅 ──▶ gateway  (http
 | `src/features/deals/list/` | Deals 목록(12열, BANT 열 포함), 필터·키워드, Quick View, 경고 범례 |
 | `src/features/deals/detail/` | Deal 상세: 요약 바(Status 체류 "N일째"), 정보·연락처·BANT 카드와 인라인 수정, Actions·History 탭, 첨부 패널, 삭제 |
 | `src/features/deals/form/` | Deal 등록·수정 폼 |
-| `src/features/admin/` | Admin 레이아웃과 탭: `users/`, `deal-management/`(Status·Forecast 코드, BANT Label, 경고 기준), `contacts/`, `integrations/`(AD 서버, 저장 위치) |
+| `src/features/admin/` | Admin 레이아웃과 탭: `users/`, `deal-management/`(Status·Forecast 코드, BANT Label, Vendor·Solution, 경고 기준), `contacts/`, `integrations/`(AD 서버, 저장 위치) |
 | `src/features/auth/`, `features/setup/` | 로그인(local은 역할별 빠른 로그인 3개), `RequireAuth`·`RequireWrite`·`RequireAdmin`, 최초 설정 마법사(AD → 저장 위치 → admin) |
 | `src/features/forecast/`, `features/placeholder/` | Forecast 화면(서버가 501이면 "준비 중"), Dashboard·Reports 자리 화면 |
 | `src/test/` | 테스트 설정(`setup.ts`가 `vi.mock('../gateway')`로 Fake 주입), 테스트 전용 Fake 게이트웨이와 시드(`fake/`), 픽스처(`fixtures/`), 앱 렌더 도우미. 각 `*.test.ts(x)`는 대상 옆에 위치 |

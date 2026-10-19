@@ -1,6 +1,7 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { renderAt } from '../../../test/mockApp'
+import { seedSolutionId, seedVendorId } from '../../../test/fixtures/vendors'
 import { dataRows, isoDay } from './testHelpers'
 
 describe('필터와 정렬 (T-LIST-05~09)', () => {
@@ -40,7 +41,7 @@ describe('필터와 정렬 (T-LIST-05~09)', () => {
     await user.selectOptions(vendor, 'Silverfort')
     await screen.findByRole('row', { name: /도담건설 MFA/ })
     expect(dataRows()).toHaveLength(7)
-    expect(location()).toContain('vendor=Silverfort')
+    expect(location()).toContain(`vendor=${seedVendorId('Silverfort')}`)
 
     await user.selectOptions(screen.getByLabelText('Status'), '계약완료')
     await screen.findByText(/도담건설 MFA/)
@@ -56,12 +57,13 @@ describe('필터와 정렬 (T-LIST-05~09)', () => {
   })
 
   it('filters by solution', async () => {
-    const { user } = await renderAt('/deals')
+    const { user, location } = await renderAt('/deals')
     const solution = await screen.findByLabelText('Solution')
-    await within(solution).findByRole('option', { name: 'ITDR' })
-    await user.selectOptions(solution, 'ITDR')
+    await within(solution).findByRole('option', { name: 'Silverfort / ITDR' })
+    await user.selectOptions(solution, 'Silverfort / ITDR')
     await screen.findByRole('row', { name: /미래전자 ITDR/ })
     expect(dataRows()).toHaveLength(4)
+    expect(location()).toContain(`solution=${seedSolutionId('Silverfort', 'ITDR')}`)
   })
 
   it('filters by a BANT label of one category', async () => {
@@ -117,7 +119,7 @@ describe('필터와 정렬 (T-LIST-05~09)', () => {
   })
 
   it('clears every condition with the reset button', async () => {
-    const { user, location } = await renderAt('/deals?q=한빛&vendor=Okta&sort=name&order=asc')
+    const { user, location } = await renderAt(`/deals?q=한빛&vendor=${seedVendorId('Okta')}&sort=name&order=asc`)
     await user.click(await screen.findByRole('button', { name: '초기화' }))
     expect(location()).toBe('/deals')
     await screen.findByRole('row', { name: /한빛은행 ITDR 도입/ })

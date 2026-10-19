@@ -1,10 +1,10 @@
 """Owner 자격(R-5, AC-05·17)과 Deal 삭제 권한(AC-27): 프런트 `canBeOwner`·`canDeleteDeal`과 같다."""
 
 import pytest
-from app.domain.deal.policy import can_delete_deal, ensure_owner_eligible
 
 from app.domain.auth.principal import Role
 from app.domain.common.errors import InvalidValueError
+from app.domain.deal.policy import can_delete_deal, ensure_owner_eligible
 from tests.factories_auth import make_resigned_user, make_user
 from tests.support.expect import raises_with
 from tests.support.user_ids import uid

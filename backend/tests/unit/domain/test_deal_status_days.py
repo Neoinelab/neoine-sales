@@ -7,9 +7,9 @@ from datetime import UTC, date, datetime
 from typing import TYPE_CHECKING
 
 import pytest
-from app.domain.deal.risk import status_days
 
 from app.domain.common.errors import InvalidValueError
+from app.domain.deal.risk import status_days
 
 if TYPE_CHECKING:
     from collections.abc import Callable

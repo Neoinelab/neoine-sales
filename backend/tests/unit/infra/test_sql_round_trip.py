@@ -4,10 +4,10 @@ from datetime import UTC, date, datetime, timedelta, timezone
 from typing import TYPE_CHECKING
 
 import pytest
-from app.domain.deal.values import AMOUNT_MAX
 
 from app.domain.common.contact import Email, PhoneNumber
 from app.domain.contact.values import ContactKind
+from app.domain.deal.values import AMOUNT_MAX
 from app.infra.db.contact_repository import SqlContactRepository
 from app.infra.db.deal_repository import SqlDealRepository
 from app.infra.db.user_repository import SqlUserRepository

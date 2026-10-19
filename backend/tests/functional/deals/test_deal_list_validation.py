@@ -16,6 +16,7 @@ from tests.functional.steps.deals import (
     when_list_deals,
     when_register_deal,
 )
+from tests.functional.steps.vendors import given_vendor
 
 if TYPE_CHECKING:
     from tests.functional.conftest import Api
@@ -24,15 +25,14 @@ pytestmark = pytest.mark.integration
 
 
 async def test_the_largest_limit_and_the_longest_text_conditions_are_accepted(api: Api) -> None:
-    """Scenario: limit 200과 100자 keyword·vendor는 허용된다."""
+    """Scenario: limit 200과 100자 keyword는 허용된다."""
     # Given
     await given_logged_in_as(api, role="sales")
     # When
     paged = await when_list_deals(api, limit=200)
     keyword = await when_list_deals(api, keyword="a" * 100)
-    vendor = await when_list_deals(api, vendor="a" * 100)
     # Then
-    for response in (paged, keyword, vendor):
+    for response in (paged, keyword):
         then_status_is(response, 200)
 
 
@@ -43,7 +43,10 @@ async def test_the_largest_limit_and_the_longest_text_conditions_are_accepted(ap
         {"limit": 201},
         {"offset": -1},
         {"keyword": "a" * 101},
-        {"vendor": "a" * 101},
+        {"vendor_id": "SAP"},  # 이름이 아니라 UUID여야 한다
+        {"solution_id": "not-a-uuid"},
+        {"vendor": "SAP"},  # 구 파라미터(이름)는 모르는 파라미터다
+        {"solution": "S/4HANA"},
         {"revenue_from": "2026/06/01"},
         {"owner_user_id": "not-a-uuid"},
         {"unknown": "x"},
@@ -74,8 +77,9 @@ async def test_a_period_that_starts_after_it_ends_is_rejected(api: Api) -> None:
 async def test_the_keyword_does_not_search_the_owner_name_or_the_vendor(api: Api) -> None:
     """Scenario: keyword 대상은 이름·고객·활성 파트너·code뿐이다(Owner 이름·Vendor 제외)."""
     # Given
+    special = await given_vendor(api, "SpecialVendor")
     await given_logged_in_as(api, role="sales")
-    await given_deal(api, name="ERP", vendor="SpecialVendor")
+    await given_deal(api, name="ERP", vendor_id=special.id)
     # When
     by_owner = await when_list_deals(api, keyword="sales-user")
     by_vendor = await when_list_deals(api, keyword="SpecialVendor")
@@ -90,7 +94,9 @@ async def test_the_list_response_keeps_its_shape_whatever_the_conditions(api: Ap
     await given_logged_in_as(api, role="sales")
     await given_deal(api)
     # When
-    response = await when_list_deals(api, keyword="erp", vendor="SAP", offset=0, limit=5)
+    response = await when_list_deals(
+        api, keyword="erp", vendor_id="6f1c1b3a-0000-4000-8000-0000000000aa", offset=0, limit=5
+    )
     # Then
     assert set(response.json()) == {"items", "total", "offset", "limit"}
     assert (response.json()["offset"], response.json()["limit"]) == (0, 5)
@@ -116,3 +122,23 @@ async def test_registration_with_a_nul_character_is_a_422_not_a_server_error(api
     response = await when_register_deal(api, name="a\x00b")
     # Then
     then_problem_is(response, status=422, type_suffix="invalid-value")
+
+
+async def test_quarter_without_year_is_no_longer_rejected(api: Api) -> None:
+    """Scenario: 연도 없이 quarter만 보내도 422가 아니다(올해의 그 분기로 거른다)."""
+    # Given
+    await given_logged_in_as(api, role="sales")
+    # When
+    response = await when_list_deals(api, quarter=2)
+    # Then
+    then_status_is(response, 200)
+
+
+async def test_old_vendor_param_is_rejected(api: Api) -> None:
+    """Scenario: 구 파라미터 vendor(이름)는 모르는 파라미터라 422(request-validation)이다."""
+    # Given
+    await given_logged_in_as(api, role="sales")
+    # When
+    response = await when_list_deals(api, vendor="SAP")
+    # Then
+    then_problem_is(response, status=422, type_suffix="request-validation")

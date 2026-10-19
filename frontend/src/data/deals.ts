@@ -6,7 +6,6 @@ import type {
   ApplyChangeRequest,
   DealDeletionImpact,
   DealDetail,
-  DealFacets,
   DealInput,
   DealListQuery,
   DealPatch,
@@ -47,11 +46,6 @@ export function useDealImpact(code: string | undefined, enabled: boolean): Query
     enabled: enabled && code !== undefined,
     ...NO_RETRY,
   })
-}
-
-/** gateway.deals.facets. 키 keys.dealFacets. Vendor/Solution 필터. */
-export function useDealFacets(): Query<DealFacets> {
-  return useQuery<DealFacets, ApiError>({ queryKey: keys.dealFacets, queryFn: () => gateway.deals.facets(), ...NO_RETRY })
 }
 
 /** gateway.deals.create. 성공: keys.deals + keys.contacts + keys.forecast 무효화. 반환 DealDetail.code로 상세로 이동한다. */

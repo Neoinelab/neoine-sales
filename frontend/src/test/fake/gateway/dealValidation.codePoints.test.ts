@@ -7,8 +7,6 @@ describe('deals.create: 길이 한도는 코드 포인트로 센다', () => {
 
   it.each([
     ['name', 200, 'Deal Name은 200자 이내로 입력하세요.'],
-    ['vendor', 100, 'Vendor는 100자 이내로 입력하세요.'],
-    ['solution', 200, 'Solution은 200자 이내로 입력하세요.'],
     ['procurement', 500, '구매절차는 500자 이내로 입력하세요.'],
   ] as const)('%s accepts exactly %i emoji and rejects one more', async (field, max, message) => {
     const { gateway } = await mockAs('kim')
@@ -23,6 +21,6 @@ describe('deals.create: 길이 한도는 코드 포인트로 센다', () => {
   it('still counts after trimming surrounding spaces', async () => {
     const { gateway } = await mockAs('kim')
 
-    await expect(gateway.deals.create(dealInput('u-kim', { vendor: `  ${EMOJI.repeat(100)}  ` }))).resolves.toBeDefined()
+    await expect(gateway.deals.create(dealInput('u-kim', { procurement: `  ${EMOJI.repeat(500)}  ` }))).resolves.toBeDefined()
   })
 })

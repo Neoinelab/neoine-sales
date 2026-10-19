@@ -27,6 +27,7 @@ from app.web.routers import (
     settings_storage,
     user_options,
     users,
+    vendors,
 )
 
 if TYPE_CHECKING:
@@ -76,7 +77,16 @@ def create_app(
     for module in (auth, auth_login, auth_setup):
         app.include_router(module.router)
     guard = [Depends(require_login), Depends(require_csrf_header)]
-    business = (contacts, deals, deal_actions, attachments, attachment_items, codes, bant_labels)
+    business = (
+        contacts,
+        deals,
+        deal_actions,
+        attachments,
+        attachment_items,
+        codes,
+        bant_labels,
+        vendors,
+    )
     for module in (
         *business,
         user_options,

@@ -5,6 +5,7 @@ export interface ForecastFilters {
   year: number
   quarter?: 1 | 2 | 3 | 4
   ownerId?: string
+  /** Vendor id(URL `vendor=<id>`). */
   vendor?: string
   /** 아래 Deal 목록을 보고 있는 담당자 id. */
   selectedId?: string
@@ -19,13 +20,20 @@ function parseYear(raw: string | null, fallback: number): number {
   return Number.isInteger(year) ? year : fallback
 }
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+/** Vendor는 id(UUID)만 받는다. 예전 이름 기반 URL 값은 무시한다. */
+function parseVendor(raw: string | null): string | undefined {
+  return raw !== null && UUID.test(raw) ? raw : undefined
+}
+
 /** URL 쿼리 → 필터. `thisYear`는 URL에 year가 없을 때 쓰는 기본 연도(올해, `useToday().year`). */
 export function filtersFromParams(params: URLSearchParams, thisYear: number): ForecastFilters {
   return {
     year: parseYear(params.get('year'), thisYear),
     quarter: parseQuarter(params.get('quarter')),
     ownerId: params.get('owner') || undefined,
-    vendor: params.get('vendor') || undefined,
+    vendor: parseVendor(params.get('vendor')),
     selectedId: params.get('sel') || undefined,
   }
 }
@@ -45,7 +53,7 @@ export function paramsFromFilters(filters: ForecastFilters): URLSearchParams {
 export function queryOf(filters: ForecastFilters): ForecastQuery {
   const query: ForecastQuery = { year: filters.year }
   if (filters.quarter) query.quarter = filters.quarter
-  if (filters.vendor) query.vendor = filters.vendor
+  if (filters.vendor) query.vendorId = filters.vendor
   if (filters.ownerId) query.ownerId = filters.ownerId
   return query
 }

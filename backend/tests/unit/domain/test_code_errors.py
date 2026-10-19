@@ -9,7 +9,6 @@ from app.domain.code.errors import (
     DuplicateCodeNameError,
 )
 from app.domain.code.values import CodeId
-
 from app.domain.common.errors import AlreadyExistsError, InvalidStateError, NotFoundError
 
 

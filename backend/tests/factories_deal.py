@@ -18,12 +18,11 @@ if TYPE_CHECKING:
     from uuid import UUID
 
     from app.application.deal.dto import DealView
-    from app.domain.deal.history import DealHistoryEntry
-
     from app.application.ports.clock import Clock
     from app.application.ports.unit_of_work import UnitOfWork, UnitOfWorkFactory
     from app.domain.contact.entities import Contact
     from app.domain.deal.entities import Deal
+    from app.domain.deal.history import DealHistoryEntry
     from tests.fakes.deal_code_source import FakeDealCodeSuffixSource
 
 SALES = Actor(user_id=OWNER_ID, role=Role.SALES)  # 기본 요청자: 기본 Owner(재직 sales)
@@ -63,8 +62,8 @@ def make_create_input(**overrides: Any) -> DealCreateInput:  # noqa: ANN401
     values: dict[str, Any] = {
         "name": "ERP 구축",
         "owner_user_id": OWNER_ID,
-        "vendor": "SAP",
-        "solution": "S/4HANA",
+        "vendor_id": None,  # 등록된 Vendor·Solution의 id(없으면 선택 안 함)
+        "solution_id": None,
         "users": None,
         "status_key": "prospecting",
         "forecast_key": "pipeline",

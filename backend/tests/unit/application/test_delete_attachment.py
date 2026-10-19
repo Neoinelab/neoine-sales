@@ -5,9 +5,9 @@ from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import pytest
+
 from app.application.attachment.delete_attachment import DeleteAttachment
 from app.domain.attachment.errors import AttachmentDeleteForbiddenError, AttachmentNotFoundError
-
 from app.domain.attachment.values import AttachmentId
 from tests.fakes.commit_failure import COMMIT_FAILED, commit_failing_factory
 from tests.support.expect import raises_with

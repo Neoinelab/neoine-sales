@@ -7,12 +7,14 @@ const lookup: HistoryLookup = {
   forecastName: (k) => ({ commit: 'Commit', won: 'Won' })[k] ?? k,
   userName: (id) => ({ 'u-kim': '김영업', 'u-park': '박영업' })[id] ?? id,
   contactName: (id) => ({ 'ct-1': '한빛은행 정민수', 'pt-1': '코어테크 민지훈', 'pt-2': '에이원시스템 표성호' })[id] ?? id,
+  vendorName: (id) => (id === null ? '선택 안 함' : ({ 'vd-1': 'SAP', 'vd-2': 'Okta' })[id] ?? id),
+  solutionName: (id) => (id === null ? '선택 안 함' : ({ 'sl-1': 'S/4', 'sl-2': 'SSO' })[id] ?? id),
   bantLabelName: (id) => (id === null ? '선택 안 함' : `L:${id}`),
 }
 
 function deal(over: Partial<Deal> = {}): Deal {
   return {
-    code: '20260801-D001', name: 'A', ownerId: 'u-kim', vendor: 'V', solution: 'S', users: null,
+    code: '20260801-D001', name: 'A', ownerId: 'u-kim', vendorId: 'vd-1', solutionId: 'sl-1', users: null,
     statusKey: 'price_negotiation', forecastKey: 'commit', revenueAmount: 1_000, revenueDate: '2026-12-01',
     customerContactId: 'ct-1', partnerLinks: [{ contactId: 'pt-1', active: true, linkedAt: 'x', unlinkedAt: null }],
     quote: { submitted: null, submittedDate: null }, poc: { state: null, completedDate: null }, procurement: '',
@@ -68,5 +70,28 @@ describe('diffDeal', () => {
     expect(drafts.map((d) => d.category).sort()).toEqual(['forecast', 'status'])
     expect(drafts.find((d) => d.category === 'forecast')?.after).toContain('함께 변경')
     expect(drafts.find((d) => d.category === 'status')?.after).toBe('계약완료')
+  })
+
+  it('AC-14 Vendor와 Solution 변경은 이름으로 기타 1건씩 남고 순서는 Deal Name, Vendor, Solution, Users이다', () => {
+    const after = deal({ name: 'B', vendorId: 'vd-2', solutionId: 'sl-2', users: 5 })
+
+    const others = diffDeal(deal(), after, lookup).filter((d) => d.category === 'other')
+
+    expect(others).toEqual([
+      { category: 'other', target: 'Deal Name', before: 'A', after: 'B' },
+      { category: 'other', target: 'Vendor', before: 'SAP', after: 'Okta' },
+      { category: 'other', target: 'Solution', before: 'S/4', after: 'SSO' },
+      { category: 'other', target: 'Users', before: '-', after: '5' },
+    ])
+  })
+
+  it('AC-14 선택 없음은 선택 안 함으로 표기하고 바뀌지 않으면 남기지 않는다', () => {
+    const cleared = diffDeal(deal(), deal({ vendorId: null, solutionId: null }), lookup)
+
+    expect(cleared).toEqual([
+      { category: 'other', target: 'Vendor', before: 'SAP', after: '선택 안 함' },
+      { category: 'other', target: 'Solution', before: 'S/4', after: '선택 안 함' },
+    ])
+    expect(diffDeal(deal({ vendorId: null, solutionId: null }), deal({ vendorId: null, solutionId: null }), lookup)).toEqual([])
   })
 })

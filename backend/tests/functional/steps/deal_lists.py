@@ -1,6 +1,7 @@
 """Deal 목록 확장 필터·정렬·파생값·삭제 영향 feature의 step.
 
-Given은 공개 API로 Deal·Action을 만들고, When은 목록·facets·삭제 영향 조회 API 하나를 호출하며,
+Given은 공개 API로 Deal·Action을 만들고, When은 목록·삭제 영향·폐지된 facets 경로 조회 API 하나를
+호출하며,
 Then은 응답의 code 목록과 값만 본다. 기본 목록 조회 step은 `steps/deals.py`다.
 """
 
@@ -17,7 +18,6 @@ if TYPE_CHECKING:
 
     from tests.functional.conftest import Api
 
-QUARTER_WITHOUT_YEAR: Final = "분기는 연도와 함께 선택하세요."
 IMPACT_KEYS: Final = {"history_count", "action_count", "attachment_count"}
 
 
@@ -46,7 +46,8 @@ async def given_action(
     return await given_action_at(api, code, acted_at, **(fields | overrides))
 
 
-async def when_get_facets(api: Api) -> Response:
+async def when_get_retired_facets(api: Api) -> Response:
+    """폐지된 `/deals/facets`. 이제 `/deals/{code}`에 걸려 404 not-found가 된다(AC-17)."""
     return await api.get(f"{DEALS}/facets")
 
 
@@ -70,10 +71,6 @@ def then_codes_are_exactly(response: Response, expected: list[str]) -> None:
 
 def then_total_is(response: Response, total: int) -> None:
     assert response.json()["total"] == total
-
-
-def then_facets_are(response: Response, *, vendors: list[str], solutions: list[str]) -> None:
-    assert response.json() == {"vendors": vendors, "solutions": solutions}
 
 
 def then_impact_is(response: Response, *, history: int, actions: int) -> None:

@@ -1,8 +1,10 @@
 import { useSearchParams } from 'react-router'
 import { useForecastSummary } from '../../data/forecast'
+import { useVendors } from '../../data/vendors'
 import { useToday } from '../../data/today'
 import { ComingSoon } from '../../shared/ui/ComingSoon'
 import { ErrorBanner } from '../../shared/ui/ErrorBanner'
+import { effectiveVendorFilter } from '../../shared/model/vendorFilter'
 import { ForecastFilterBar } from './ForecastFilters'
 import { filtersFromParams, paramsFromFilters, queryOf, type ForecastFilters } from './forecastParams'
 import { OwnerDeals } from './OwnerDeals'
@@ -19,7 +21,10 @@ export function ForecastPage() {
   const [params, setParams] = useSearchParams()
   const { year: thisYear } = useToday()
   const filters = filtersFromParams(params, thisYear)
-  const summary = useForecastSummary(queryOf(filters))
+  const vendors = useVendors().data
+  // 표시와 조회 조건을 맞춘다: 목록에 없는 Vendor는 조회에서 제외한다.
+  const queryFilters = { ...filters, vendor: effectiveVendorFilter(vendors, filters.vendor).vendorId }
+  const summary = useForecastSummary(queryOf(queryFilters))
 
   const update = (patch: Partial<ForecastFilters>) => {
     setParams(paramsFromFilters({ ...filters, ...patch }))
@@ -53,7 +58,7 @@ export function ForecastPage() {
         <OwnerDeals
           ownerId={filters.selectedId}
           ownerName={selectedName ?? '선택한 담당자'}
-          filters={filters}
+          filters={queryFilters}
           onClear={() => update({ selectedId: undefined })}
         />
       )}

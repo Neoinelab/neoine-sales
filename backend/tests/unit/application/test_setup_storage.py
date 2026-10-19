@@ -15,9 +15,8 @@ from tests.factories import NOW
 from tests.support.auth_seed import seed_directory, seed_storage, seed_user
 
 if TYPE_CHECKING:
-    from app.domain.storage.settings import StoredStorageSettings
-
     from app.application.ports.unit_of_work import UnitOfWorkFactory
+    from app.domain.storage.settings import StoredStorageSettings
     from tests.fakes.file_storage import FakeFileStorage
     from tests.fakes.storage_stack import StorageStack
 

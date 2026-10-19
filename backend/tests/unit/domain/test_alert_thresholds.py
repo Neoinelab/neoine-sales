@@ -3,13 +3,13 @@
 from typing import Any
 
 import pytest
+
 from app.domain.alert.thresholds import (
     STALE_DAYS_DEFAULT,
     STALE_DAYS_MAX,
     STALE_DAYS_MIN,
     AlertThresholds,
 )
-
 from app.domain.common.errors import InvalidValueError
 from tests.support.expect import raises_with
 

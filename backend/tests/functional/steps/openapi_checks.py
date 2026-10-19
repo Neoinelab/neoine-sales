@@ -75,12 +75,15 @@ def _max_lengths(parameter: dict[str, Any]) -> list[int]:
 
 
 def then_deal_search_text_params_document_max_length(response: Response) -> None:
-    """Deal 검색의 텍스트 파라미터(keyword, vendor)는 최대 길이 100을 문서화한다."""
+    """Deal 검색의 keyword는 최대 길이 100을, Vendor·Solution 조건은 UUID를 문서화한다."""
     params = {
         p["name"]: p for p in spec_of(response)["paths"]["/api/v1/deals"]["get"]["parameters"]
     }
-    for name in ("keyword", "vendor"):
-        assert _max_lengths(params[name]) == [100], f"{name} 파라미터에 maxLength 100이 없다"
+    assert _max_lengths(params["keyword"]) == [100], "keyword 파라미터에 maxLength 100이 없다"
+    assert not {"vendor", "solution"} & set(params)  # 이름 조건은 id 조건으로 바뀌었다
+    for name in ("vendor_id", "solution_id"):
+        formats = {o.get("format") for o in params[name]["schema"]["anyOf"]}
+        assert "uuid" in formats, f"{name} 파라미터가 UUID가 아니다"
     assert "owner" not in params  # 텍스트 담당자 필터는 owner_user_id(UUID)로 바뀌었다
     owner_types = {o.get("format") for o in params["owner_user_id"]["schema"]["anyOf"]}
     assert "uuid" in owner_types

@@ -13,8 +13,8 @@ const query = (path: string) => new URL(path, 'http://localhost').searchParams
 const input = (over: Partial<DealInput> = {}): DealInput => ({
   name: '한빛은행 ITDR',
   ownerId: 'u-kim',
-  vendor: 'Silverfort',
-  solution: 'ITDR',
+  vendorId: 'vd-006',
+  solutionId: 'sl-006',
   users: 100,
   statusKey: 'prospecting',
   forecastKey: 'pipeline',
@@ -44,8 +44,8 @@ describe('deals.list over HTTP', () => {
     await createDealsHttp().list({
       keyword: '한빛',
       ownerId: 'u-kim',
-      vendor: 'Silverfort',
-      solution: 'ITDR',
+      vendorId: 'vd-006',
+      solutionId: 'sl-006',
       statusKey: 'prospecting',
       forecastKey: 'pipeline',
       year: 2026,
@@ -64,8 +64,8 @@ describe('deals.list over HTTP', () => {
     expect(Object.fromEntries(query(calls[0]?.path ?? ''))).toEqual({
       keyword: '한빛',
       owner_user_id: 'u-kim',
-      vendor: 'Silverfort',
-      solution: 'ITDR',
+      vendor_id: 'vd-006',
+      solution_id: 'sl-006',
       status_key: 'prospecting',
       forecast_key: 'pipeline',
       year: '2026',
@@ -125,18 +125,27 @@ describe('deals.list over HTTP', () => {
     expect(result.items[0]).toMatchObject({ code: CODE, statusKey: 'prospecting', ownerId: 'u-kim' })
   })
 
-  it('shows the 422 message of the server (quarter without year)', async () => {
-    stubFetch(problem(422, 'invalid-value', '분기는 연도와 함께 선택하세요.'))
+  it('AC-18/19 sends a quarter without a year as the quarter alone (the server reads it as this year)', async () => {
+    const { calls } = stubFetch(json(page([])))
 
-    await expect(createDealsHttp().list({ quarter: 2 })).rejects.toMatchObject({
-      status: 422,
-      kind: 'validation',
-      message: '분기는 연도와 함께 선택하세요.',
-    })
+    await createDealsHttp().list({ quarter: 2 })
+
+    expect(Object.fromEntries(query(calls[0]?.path ?? ''))).toEqual({ quarter: '2' })
+  })
+
+  it('does not send the old vendor and solution text parameters', async () => {
+    const { calls } = stubFetch(json(page([])))
+
+    await createDealsHttp().list({ vendorId: 'vd-006' })
+
+    const sent = query(calls[0]?.path ?? '')
+    expect(sent.has('vendor')).toBe(false)
+    expect(sent.has('solution')).toBe(false)
+    expect(sent.get('vendor_id')).toBe('vd-006')
   })
 })
 
-describe('deals.get / impact / facets over HTTP', () => {
+describe('deals.get / impact over HTTP', () => {
   it('get reads GET /deals/{code} as a detail with the partner history', async () => {
     const { calls } = stubFetch(json(serverDealDetail()))
 
@@ -167,12 +176,8 @@ describe('deals.get / impact / facets over HTTP', () => {
     await expect(createDealsHttp().impact(CODE)).rejects.toMatchObject({ status: 404 })
   })
 
-  it('facets reads GET /deals/facets', async () => {
-    const { calls } = stubFetch(json({ vendors: ['Okta', 'Silverfort'], solutions: ['ITDR'] }))
-
-    await expect(createDealsHttp().facets()).resolves.toEqual({ vendors: ['Okta', 'Silverfort'], solutions: ['ITDR'] })
-
-    expect(calls[0]).toMatchObject({ method: 'GET', path: '/api/v1/deals/facets' })
+  it('AC-17 has no facets call any more', () => {
+    expect('facets' in createDealsHttp()).toBe(false)
   })
 })
 
@@ -194,8 +199,8 @@ describe('deals.create over HTTP', () => {
     expect(calls[0]?.body).toEqual({
       name: '한빛은행 ITDR',
       owner_user_id: 'u-kim',
-      vendor: 'Silverfort',
-      solution: 'ITDR',
+      vendor_id: 'vd-006',
+      solution_id: 'sl-006',
       users: 100,
       status_key: 'prospecting',
       forecast_key: 'pipeline',
@@ -271,6 +276,24 @@ describe('deals.update over HTTP', () => {
     await createDealsHttp().update(CODE, { revenueDate: '' })
 
     expect(calls[0]?.body).toEqual({ revenue_date: null })
+  })
+
+  it('AC-11 sends vendor_id and a null solution_id together when the vendor changes', async () => {
+    const { calls } = stubFetch(json(serverDealDetail()))
+
+    await createDealsHttp().update(CODE, { vendorId: 'vd-003', solutionId: null })
+
+    expect(calls[0]?.body).toEqual({ vendor_id: 'vd-003', solution_id: null })
+  })
+
+  it('AC-13 sends a null vendor_id to clear the vendor and omits vendor fields that are not given', async () => {
+    const { calls } = stubFetch(json(serverDealDetail()), json(serverDealDetail()))
+
+    await createDealsHttp().update(CODE, { vendorId: null, solutionId: null })
+    await createDealsHttp().update(CODE, { name: 'x' })
+
+    expect(calls[0]?.body).toEqual({ vendor_id: null, solution_id: null })
+    expect(calls[1]?.body).toEqual({ name: 'x' })
   })
 
   it('keeps partner null in the body so that the server removes the partner', async () => {

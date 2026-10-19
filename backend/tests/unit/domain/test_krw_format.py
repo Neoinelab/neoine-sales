@@ -1,6 +1,7 @@
 """금액 전체 표기(R-3): 프런트 `formatKrwFull`과 같다(콤마 숫자 + '원')."""
 
 import pytest
+
 from app.domain.common.krw import format_krw_full
 
 

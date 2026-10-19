@@ -21,6 +21,7 @@ from tests.fakes.repositories import (
 from tests.fakes.session_repository import FakeSessionRepository
 from tests.fakes.storage_settings_repository import FakeStorageSettingsRepository
 from tests.fakes.user_repository import FakeLoginFailureRepository, FakeUserRepository
+from tests.fakes.vendors import FakeVendorRepository
 
 
 class FakeUnitOfWork:
@@ -38,10 +39,12 @@ class FakeUnitOfWork:
         self.attachments = FakeAttachmentRepository()
         self.codes = FakeCodeRepository()
         self.bant_labels = FakeBantLabelRepository()
+        self.vendors = FakeVendorRepository()
         self.deals.wire(
             contacts=self.contacts,
             codes=self.codes,
             labels=self.bant_labels,
+            vendors=self.vendors,
             actions=self.deal_actions,
             history=self.deal_history,
             attachments=self.attachments,
@@ -52,6 +55,7 @@ class FakeUnitOfWork:
         # 사용 중인 코드 삭제는 CodeInUseError (FK RESTRICT): Deal 사용이 먼저, Action 스냅숏이 다음
         self.codes.wire(deals=self.deals, actions=self.deal_actions)
         self.bant_labels.wire(deals=self.deals)  # 사용 중인 Label 삭제는 LabelInUseError
+        self.vendors.wire(deals=self.deals)  # 사용 중인 Vendor·Solution 삭제는 InUseError
         self.contacts.restrict_delete_by(self.deals)  # FK RESTRICT (고객·파트너 링크 모두)
         self._wire_user_references()
         self.commits = 0
@@ -105,6 +109,7 @@ class FakeUnitOfWork:
             self.attachments,
             self.codes,
             self.bant_labels,
+            self.vendors,
         )
 
     def _take(self) -> tuple[Any, ...]:

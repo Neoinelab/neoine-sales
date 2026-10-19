@@ -7,6 +7,7 @@ from uuid import uuid4
 
 import pytest
 
+from app.application.deal.dto import NamedRef
 from app.application.deal.inputs import Actor
 from app.application.deal.register_deal import RegisterDeal
 from app.domain.auth.principal import Role
@@ -115,10 +116,11 @@ class TestCodeIssue:
 
 class TestRegisteredValues:
     async def test_the_view_has_the_given_values_and_the_clock_time(self, env: DealEnv) -> None:
+        sap = await env.new_vendor("SAP", ("S/4HANA",))
         view = await env.new_deal(
             name="  ERP 구축  ",
-            vendor="SAP",
-            solution="S/4HANA",
+            vendor_id=sap.id,
+            solution_id=sap.solutions[0].id,
             users=250,
             revenue_amount=1_870_000_000,
             revenue_date=date(2026, 12, 31),
@@ -127,7 +129,11 @@ class TestRegisteredValues:
 
         deal = view.item.deal
         assert deal.details.name == "ERP 구축"
-        assert (deal.details.vendor, deal.details.solution) == ("SAP", "S/4HANA")
+        assert (deal.details.vendor_id, deal.details.solution_id) == (sap.id, sap.solutions[0].id)
+        assert (view.vendor, view.solution) == (
+            NamedRef(sap.id, "SAP"),
+            NamedRef(sap.solutions[0].id, "S/4HANA"),
+        )
         assert deal.details.users == 250
         assert deal.details.revenue_amount.value == 1_870_000_000
         assert deal.details.revenue_date == date(2026, 12, 31)

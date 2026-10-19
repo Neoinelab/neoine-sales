@@ -4,8 +4,8 @@ import re
 from typing import TYPE_CHECKING
 
 import pytest
-from app.application.attachment.inputs import UploadOutcomeKind
 
+from app.application.attachment.inputs import UploadOutcomeKind
 from app.application.ports.file_storage import StoredFileLocation
 from tests.unit.application.attachment_env import KIM, ROOT_PATH, TARGET
 

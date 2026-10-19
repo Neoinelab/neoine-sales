@@ -38,7 +38,7 @@ function summarize(ctx: MockContext, query: ForecastQuery): ForecastSummary {
   const deals = data.deals.filter(
     (d) =>
       inPeriod(d.revenueDate, query.year, query.quarter) &&
-      (query.vendor ? d.vendor === query.vendor : true) &&
+      (query.vendorId ? d.vendorId === query.vendorId : true) &&
       (query.ownerId ? d.ownerId === query.ownerId : true),
   )
   const totalRow = blank(null, '합계')
@@ -58,7 +58,8 @@ function summarize(ctx: MockContext, query: ForecastQuery): ForecastSummary {
   const rows = [...byOwner.values()].sort(
     (a, b) => Number(a.ownerName.endsWith('(퇴사)')) - Number(b.ownerName.endsWith('(퇴사)')) || a.ownerName.localeCompare(b.ownerName, 'ko'),
   )
-  const vendors = [...new Set(data.deals.map((d) => d.vendor))].sort((a, b) => a.localeCompare(b, 'ko'))
+  const vendorNames = data.deals.flatMap((d) => data.vendors.find((v) => v.id === d.vendorId)?.name ?? [])
+  const vendors = [...new Set(vendorNames)].sort((a, b) => a.localeCompare(b, 'ko'))
   return { query: { ...query }, columns, rows, totalRow, vendors }
 }
 

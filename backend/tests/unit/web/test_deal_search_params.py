@@ -1,6 +1,7 @@
 """웹 쿼리 모델(R2): 목록 검색 파라미터가 DealQuery로 바뀌는 방식과 검증 (AC-22·22a·22e).
 
 mine=true는 요청자가 Owner인 딜이고 owner_user_id보다 우선한다. 연/분기·BANT·정렬 파라미터는 R3다.
+Vendor·Solution 조건은 id(UUID)다.
 """
 
 import importlib
@@ -15,6 +16,7 @@ from app.web.schemas.deal import DealSearchParams
 from tests.support.user_ids import uid
 
 VIEWER = uid("viewer")
+VENDOR = uuid4()
 
 
 def test_defaults_are_the_first_page_of_twenty_newest_first_without_conditions() -> None:
@@ -32,7 +34,7 @@ def test_every_basic_condition_reaches_the_query() -> None:
     query = DealSearchParams(
         keyword="erp",
         owner_user_id=owner,
-        vendor="SAP",
+        vendor_id=VENDOR,
         status_key="introduction",
         revenue_from=date(2026, 6, 1),
         revenue_to=date(2026, 6, 30),
@@ -40,7 +42,7 @@ def test_every_basic_condition_reaches_the_query() -> None:
         limit=7,
     ).to_query(VIEWER)
 
-    assert (query.keyword, query.owner_user_id, query.vendor) == ("erp", owner, "SAP")
+    assert (query.keyword, query.owner_user_id, query.vendor_id) == ("erp", owner, VENDOR)
     assert query.status_key == "introduction"
     assert (query.revenue_from, query.revenue_to) == (date(2026, 6, 1), date(2026, 6, 30))
     assert (query.offset, query.limit) == (3, 7)
@@ -98,7 +100,7 @@ def test_page_values_out_of_range_are_rejected(params: dict[str, int]) -> None:
         {"owner_user_id": "u-2"},
         {"revenue_from": "2026/06/01"},
         {"keyword": "a" * 101},
-        {"vendor": "a" * 101},
+        {"vendor_id": "SAP"},  # 이름이 아니라 UUID여야 한다
         {"status_key": "a" * 51},
     ],
 )
@@ -111,6 +113,8 @@ def test_malformed_values_are_rejected(params: dict[str, object]) -> None:
     "params",
     [
         {"owner": "박영업"},  # 이름 문자열 조건은 없다
+        {"vendor": "SAP"},  # 이름 조건은 id 조건(vendor_id)으로 바뀌었다
+        {"solution": "S/4HANA"},
         {"stage": "lost"},
         {"customer_id": str(uuid4())},
         {"partner_id": str(uuid4())},
@@ -125,3 +129,17 @@ def test_unknown_or_retired_parameters_are_rejected(params: dict[str, object]) -
 def test_the_pipeline_params_model_is_gone() -> None:
     with pytest.raises(ImportError):
         importlib.import_module("app.web.schemas.deal_stage")
+
+
+def test_vendor_id_and_solution_id_are_uuids() -> None:
+    vendor, solution = uuid4(), uuid4()
+
+    query = DealSearchParams(vendor_id=vendor, solution_id=solution).to_query(VIEWER)
+
+    assert (query.vendor_id, query.solution_id) == (vendor, solution)
+
+
+def test_vendor_conditions_default_to_none() -> None:
+    query = DealSearchParams().to_query(VIEWER)
+
+    assert (query.vendor_id, query.solution_id) == (None, None)

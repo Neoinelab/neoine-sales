@@ -8,7 +8,6 @@ from datetime import date
 from typing import TYPE_CHECKING
 
 from app.domain.deal.status_entry import StatusEntry
-
 from app.domain.deal.sync import SyncApplied, SyncState
 from app.domain.deal.values import RevenueAmount
 from tests.factories import NOW, later, make_deal, make_deal_details, make_sync

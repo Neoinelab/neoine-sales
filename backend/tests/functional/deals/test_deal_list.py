@@ -1,8 +1,8 @@
 """Feature: 목록에서 Deal을 찾고 상세를 본다.
 
 기본 정렬은 최근 갱신 순(동률은 code 오름차순), total은 필터 적용 후 전체 건수다.
-keyword·owner·vendor·status·기간·내 딜 필터는 모두 AND로 결합한다. 확장 필터(연/분기·BANT·
-solution·forecast)와 정렬 선택은 다음 라운드(R3)에서 같은 feature에 시나리오가 늘어난다.
+keyword·owner·vendor_id·status·기간·내 딜 필터는 모두 AND로 결합한다. 확장 필터(연/분기·BANT·
+solution_id·forecast)와 정렬 선택은 다음 라운드(R3)에서 같은 feature에 시나리오가 늘어난다.
 """
 
 from typing import TYPE_CHECKING
@@ -22,6 +22,7 @@ from tests.functional.steps.deals import (
     when_update_deal,
 )
 from tests.functional.steps.users import log_in
+from tests.functional.steps.vendors import given_vendor
 
 if TYPE_CHECKING:
     from tests.functional.conftest import Api
@@ -110,30 +111,32 @@ async def test_keyword_matches_name_customer_active_partner_and_code(api: Api) -
 
 
 async def test_filters_combine_with_and(api: Api) -> None:
-    """Scenario: owner·vendor·status·기간·keyword는 모두 AND로 결합한다."""
+    """Scenario: owner·vendor_id·status·기간·keyword는 모두 AND로 결합한다."""
     # Given
+    sap = await given_vendor(api, "SAP")
+    oracle = await given_vendor(api, "Oracle")
     await given_logged_in_as(api, role="sales")
     hit = await given_deal(
-        api, name="ERP", vendor="SAP", status_key="introduction", revenue_date="2026-06-15"
+        api, name="ERP", vendor_id=sap.id, status_key="introduction", revenue_date="2026-06-15"
     )
     await given_deal(
-        api, name="ERP", vendor="Oracle", status_key="introduction", revenue_date="2026-06-15"
+        api, name="ERP", vendor_id=oracle.id, status_key="introduction", revenue_date="2026-06-15"
     )
     await given_deal(
-        api, name="ERP", vendor="SAP", status_key="prospecting", revenue_date="2026-06-15"
+        api, name="ERP", vendor_id=sap.id, status_key="prospecting", revenue_date="2026-06-15"
     )
     await given_deal(
-        api, name="ERP", vendor="SAP", status_key="introduction", revenue_date="2026-08-01"
+        api, name="ERP", vendor_id=sap.id, status_key="introduction", revenue_date="2026-08-01"
     )
     await given_deal(
-        api, name="CRM", vendor="SAP", status_key="introduction", revenue_date="2026-06-15"
+        api, name="CRM", vendor_id=sap.id, status_key="introduction", revenue_date="2026-06-15"
     )
     # When
     response = await when_list_deals(
         api,
         keyword="erp",
         owner_user_id=hit["owner_user_id"],
-        vendor="SAP",
+        vendor_id=sap.id,
         status_key="introduction",
         revenue_from="2026-06-01",
         revenue_to="2026-06-30",

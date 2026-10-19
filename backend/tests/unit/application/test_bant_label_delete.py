@@ -7,12 +7,12 @@ from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import pytest
-from app.application.bant.delete_label import DeleteBantLabel
-from app.domain.bant.errors import BantLabelNotFoundError, LabelInUseError
-from app.domain.bant.values import BantCategory, BantLabelId
 
+from app.application.bant.delete_label import DeleteBantLabel
 from app.application.user.delete_user import DeleteOutcome
 from app.domain.auth.principal import Role
+from app.domain.bant.errors import BantLabelNotFoundError, LabelInUseError
+from app.domain.bant.values import BantCategory, BantLabelId
 from tests.factories_catalog import make_label
 from tests.support.auth_seed import seed_user
 from tests.support.catalog import label_by_name

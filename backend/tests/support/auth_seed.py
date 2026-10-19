@@ -12,10 +12,9 @@ from tests.fakes.auth_stack import THROTTLE_SECRET
 if TYPE_CHECKING:
     from datetime import datetime
 
-    from app.domain.storage.settings import StoredStorageSettings
-
     from app.application.ports.unit_of_work import UnitOfWorkFactory
     from app.domain.directory.settings import DirectorySettings, StoredDirectorySettings
+    from app.domain.storage.settings import StoredStorageSettings
     from app.domain.user.entities import User
 
 DUMMY_PASSWORD = "S3cret-Dummy-pw!"  # noqa: S105 - 가짜 값. 로그·응답·DB 누출 검사에도 쓴다

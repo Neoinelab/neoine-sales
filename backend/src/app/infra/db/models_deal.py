@@ -48,8 +48,10 @@ class DealRow(Base):
     deal_code: Mapped[str] = mapped_column(String(DEAL_CODE_LENGTH), primary_key=True)
     name: Mapped[str] = mapped_column(String(200))
     owner_user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"))
-    vendor: Mapped[str] = mapped_column(String(100))
-    solution: Mapped[str] = mapped_column(String(200))
+    vendor_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("vendors.id", ondelete="RESTRICT"), default=None
+    )
+    solution_id: Mapped[UUID | None] = mapped_column(Uuid, default=None)
     users: Mapped[int | None] = mapped_column(Integer, default=None)
     status_kind: Mapped[str] = mapped_column(String(20), default=CodeKind.STATUS.value)
     status_key: Mapped[str] = mapped_column(String(50))
@@ -95,7 +97,19 @@ class DealRow(Base):
             name="fk_deals_forecast_code",
             ondelete="RESTRICT",
         ),
+        # 복합 FK는 MATCH SIMPLE이라 vendor_id가 NULL이면 검사하지 않으므로 CHECK로 막는다.
+        CheckConstraint(
+            "solution_id is null or vendor_id is not null", name="solution_needs_vendor"
+        ),
+        ForeignKeyConstraint(
+            ["solution_id", "vendor_id"],
+            ["solutions.id", "solutions.vendor_id"],
+            name="fk_deals_solution",
+            ondelete="RESTRICT",
+        ),
         Index("ix_deals_owner_user_id", "owner_user_id"),
+        Index("ix_deals_vendor_id", "vendor_id"),
+        Index("ix_deals_solution_id", "solution_id"),
         Index("ix_deals_status_key", "status_key"),
         Index("ix_deals_forecast_key", "forecast_key"),
         Index("ix_deals_revenue_date", "revenue_date"),

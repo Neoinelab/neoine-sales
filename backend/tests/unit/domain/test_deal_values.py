@@ -1,4 +1,4 @@
-"""Deal 값 객체(AC-05): 금액·이름·Vendor·Solution·Users·구매절차·견적·POC·BANT 선택.
+"""Deal 값 객체(AC-05): 금액·이름·Vendor·Solution 선택·Users·구매절차·견적·POC·BANT 선택.
 
 문구는 프런트 목업 `validateDealFields`와 같다. 여기서는 경계값만 본다(순서는 application 테스트).
 """
@@ -7,13 +7,14 @@ from datetime import date
 from uuid import uuid4
 
 import pytest
+
+from app.domain.bant.values import BantCategory, BantLabelId
+from app.domain.common.errors import InvalidValueError
 from app.domain.deal.values import (
     AMOUNT_MAX,
     NAME_MAX,
     PROCUREMENT_MAX,
-    SOLUTION_MAX,
     USERS_MAX,
-    VENDOR_MAX,
     BantSelection,
     Poc,
     PocState,
@@ -21,9 +22,7 @@ from app.domain.deal.values import (
     QuoteSubmitted,
     RevenueAmount,
 )
-
-from app.domain.bant.values import BantCategory, BantLabelId
-from app.domain.common.errors import InvalidValueError
+from app.domain.vendor.values import SolutionId, VendorId
 from tests.factories import make_bant, make_deal_details
 from tests.support.expect import raises_with
 from tests.support.user_ids import OWNER_ID, uid
@@ -33,7 +32,7 @@ USERS_MESSAGE = "Users는 1 이상의 정수로 입력하세요."
 
 
 def test_limits_match_the_agreed_values() -> None:
-    assert (NAME_MAX, VENDOR_MAX, SOLUTION_MAX, PROCUREMENT_MAX) == (200, 100, 200, 500)
+    assert (NAME_MAX, PROCUREMENT_MAX) == (200, 500)
     assert AMOUNT_MAX == 2**53 - 1  # 프런트 Number.isSafeInteger와 같다
     assert USERS_MAX == 2_147_483_647  # PostgreSQL integer 최대
 
@@ -79,32 +78,39 @@ class TestDealName:
             make_deal_details(name="a\x00b")
 
 
-class TestVendorAndSolution:
-    @pytest.mark.parametrize("field", ["vendor", "solution"])
-    @pytest.mark.parametrize("value", ["", "   "])
-    def test_may_be_blank_and_are_then_empty(self, field: str, value: str) -> None:
-        details = make_deal_details(**{field: value})
+class TestVendorAndSolutionChoice:
+    """Deal은 등록된 Vendor·Solution의 id만 갖는다(AC-12). 길이·공백 규칙은 vendor 도메인이다."""
 
-        assert getattr(details, field) == ""
+    def test_solution_without_vendor_is_rejected(self) -> None:
+        with raises_with(InvalidValueError, "Solution을 선택하려면 Vendor를 먼저 선택하세요."):
+            make_deal_details(vendor_id=None, solution_id=SolutionId(uuid4()))
 
-    def test_are_trimmed(self) -> None:
-        details = make_deal_details(vendor=" SAP ", solution=" S/4HANA ")
+    def test_vendor_without_solution_is_allowed(self) -> None:
+        vendor_id = VendorId(uuid4())
 
-        assert (details.vendor, details.solution) == ("SAP", "S/4HANA")
+        details = make_deal_details(vendor_id=vendor_id, solution_id=None)
 
-    @pytest.mark.parametrize(
-        ("field", "limit", "message"),
-        [
-            ("vendor", VENDOR_MAX, "Vendor는 100자 이내로 입력하세요."),
-            ("solution", SOLUTION_MAX, "Solution은 200자 이내로 입력하세요."),
-        ],
-    )
-    def test_allow_the_limit_and_reject_one_over(
-        self, field: str, limit: int, message: str
-    ) -> None:
-        make_deal_details(**{field: "a" * limit})
-        with raises_with(InvalidValueError, message):
-            make_deal_details(**{field: "a" * (limit + 1)})
+        assert (details.vendor_id, details.solution_id) == (vendor_id, None)
+
+    def test_vendor_with_solution_is_kept(self) -> None:
+        vendor_id, solution_id = VendorId(uuid4()), SolutionId(uuid4())
+
+        details = make_deal_details(vendor_id=vendor_id, solution_id=solution_id)
+
+        assert (details.vendor_id, details.solution_id) == (vendor_id, solution_id)
+
+    def test_no_vendor_and_no_solution_is_allowed(self) -> None:
+        details = make_deal_details()
+
+        assert (details.vendor_id, details.solution_id) == (None, None)
+
+    def test_the_old_text_fields_and_limits_are_gone(self) -> None:
+        from app.domain.deal import values  # noqa: PLC0415
+
+        for name in ("VENDOR_MAX", "SOLUTION_MAX", "check_vendor", "check_solution"):
+            assert not hasattr(values, name), name
+        with pytest.raises(TypeError):
+            make_deal_details(vendor="SAP")
 
 
 class TestUsers:

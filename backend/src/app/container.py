@@ -19,7 +19,6 @@ from app.application.deal.deletion_impact import GetDealDeletionImpact
 from app.application.deal.get_deal import GetDeal
 from app.application.deal.list_deal_history import ListDealHistory
 from app.application.deal.list_deals import ListDeals
-from app.application.deal.list_facets import ListDealFacets
 from app.application.deal.register_deal import RegisterDeal
 from app.application.deal.update_deal import UpdateDeal
 from app.application.deal_action.delete_deal_action import DeleteDealAction
@@ -31,6 +30,7 @@ from app.container_admin import AdminAssembly
 from app.container_auth import AuthAssembly
 from app.container_catalog import CatalogAssembly
 from app.container_storage import StorageAssembly
+from app.container_vendor import VendorUseCases
 from app.infra.auth.ldap import LdapDirectoryAuthenticator
 from app.infra.db.unit_of_work import sql_unit_of_work_factory
 from app.infra.deal_code_source import RandomDealCodeSuffixSource
@@ -77,7 +77,7 @@ if TYPE_CHECKING:
     from app.config.base import Settings
 
 
-class Container:
+class Container(VendorUseCases):
     def __init__(
         self,
         settings: Settings,
@@ -214,9 +214,6 @@ class Container:
 
     def get_deal_deletion_impact(self) -> GetDealDeletionImpact:
         return GetDealDeletionImpact(self._uow)
-
-    def list_deal_facets(self) -> ListDealFacets:
-        return ListDealFacets(self._uow)
 
     def update_deal(self) -> UpdateDeal:
         return UpdateDeal(self._uow, self._clock)

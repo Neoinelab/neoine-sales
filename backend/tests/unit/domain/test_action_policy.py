@@ -3,9 +3,9 @@
 from typing import TYPE_CHECKING
 
 import pytest
-from app.domain.deal_action.policy import can_edit_action
 
 from app.domain.auth.principal import Role
+from app.domain.deal_action.policy import can_edit_action
 from tests.support.user_ids import uid
 
 if TYPE_CHECKING:

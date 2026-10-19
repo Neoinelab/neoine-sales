@@ -10,6 +10,7 @@ import { codesContract } from './codes.contract'
 import { contactsContract } from './contacts.contract'
 import { dealsContract } from './deals.contract'
 import { labelsContract } from './labels.contract'
+import { vendorsContract } from './vendors.contract'
 import type { MakeGateway } from './support'
 
 const ROLE_USER_ID = { admin: 'u-root', sales: 'u-kim', user: 'u-han' } as const
@@ -27,6 +28,7 @@ const makeMock: MakeGateway = async (role) => {
 
 codesContract(makeMock)
 labelsContract(makeMock)
+vendorsContract(makeMock)
 contactsContract(makeMock)
 dealsContract(makeMock)
 actionsContract(makeMock)

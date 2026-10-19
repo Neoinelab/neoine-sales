@@ -22,6 +22,7 @@ from tests.functional.steps.deals import (
     when_list_history,
     when_register_deal,
 )
+from tests.functional.steps.vendors import given_vendor
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -63,10 +64,13 @@ DETAIL_KEYS = {
 async def test_sales_registers_a_deal_with_a_new_customer_and_partner(api: Api) -> None:
     """Scenario: 새 고객·파트너 입력으로 등록하면 201, Location, 발급된 code, 연락처가 생긴다."""
     # Given
+    sap = await given_vendor(api, "SAP", ["S/4HANA"])
     await given_logged_in_as(api, role="sales")
     # When
     response = await when_register_deal(
         api,
+        vendor_id=sap.id,
+        solution_id=sap.solutions["S/4HANA"],
         partner=partner_draft(),
         users=250,
         quote={"submitted": "YES", "submitted_date": "2026-10-01"},
@@ -78,7 +82,9 @@ async def test_sales_registers_a_deal_with_a_new_customer_and_partner(api: Api) 
     then_code_date_is_local_today(response, api)
     body = response.json()
     assert set(body) == DETAIL_KEYS
-    assert (body["name"], body["vendor"], body["users"]) == ("ERP 구축", "SAP", 250)
+    assert (body["name"], body["users"]) == ("ERP 구축", 250)
+    assert body["vendor"] == {"id": sap.id, "name": "SAP"}
+    assert body["solution"] == {"id": sap.solutions["S/4HANA"], "name": "S/4HANA"}
     assert body["revenue_amount"] == 150_000_000
     assert isinstance(body["revenue_amount"], int)
     assert (body["status_key"], body["forecast_key"]) == ("prospecting", "pipeline")

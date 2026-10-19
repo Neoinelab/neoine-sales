@@ -77,8 +77,8 @@ def conditions(query: DealQuery) -> list[ColumnElement[bool]]:
         found.append(_keyword_condition(query.keyword))
     equals = (
         (DealRow.owner_user_id, query.owner_user_id),
-        (DealRow.vendor, query.vendor),
-        (DealRow.solution, query.solution),
+        (DealRow.vendor_id, query.vendor_id),
+        (DealRow.solution_id, query.solution_id),
         (DealRow.status_key, query.status_key),
         (DealRow.forecast_key, query.forecast_key),
     )

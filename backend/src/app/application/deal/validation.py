@@ -15,9 +15,12 @@ from app.domain.code.values import CodeKind
 from app.domain.common.errors import InvalidValueError
 from app.domain.deal.errors import (
     FORECAST_REQUIRED_MESSAGE,
+    SOLUTION_NEEDS_VENDOR_MESSAGE,
     STATUS_REQUIRED_MESSAGE,
     InvalidBantLabelError,
+    SolutionVendorMismatchError,
     UnknownCodeError,
+    UnknownVendorError,
 )
 from app.domain.deal.policy import OWNER_NOT_SALES_MESSAGE, ensure_owner_eligible
 from app.domain.deal.sync import SyncState, ensure_sync_consistent
@@ -29,12 +32,12 @@ from app.domain.deal.values import (
     check_amount,
     check_name,
     check_procurement,
-    check_solution,
     check_users,
-    check_vendor,
 )
 from app.domain.user.errors import UserNotFoundError
 from app.domain.user.value_objects import UserId
+from app.domain.vendor.errors import VendorNotFoundError
+from app.domain.vendor.values import SolutionId, VendorId
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -44,6 +47,7 @@ if TYPE_CHECKING:
     from app.application.ports.unit_of_work import UnitOfWork
 
 EXPECTED_CLOSE_REQUIRED = "Expected Close를 입력하세요."
+_VENDOR_FIELDS = frozenset({"vendor_id", "solution_id"})
 
 
 @dataclass(frozen=True, slots=True)
@@ -61,8 +65,9 @@ async def validate_form(
 ) -> CheckedForm:
     """첫 위반에서 InvalidValueError 계열로 거절한다. 저장소 확인은 `provided` 필드만 한다."""
     name = check_name(values.name)
-    vendor = check_vendor(values.vendor)
-    solution = check_solution(values.solution)
+    vendor_id, solution_id = await _vendor_choice(
+        uow, values.vendor_id, values.solution_id, check=bool(provided & _VENDOR_FIELDS)
+    )
     owner_id = await _owner(uow, values.owner_user_id, "owner_user_id" in provided)
     amount = check_amount(values.revenue_amount)
     if values.revenue_date is None:
@@ -75,8 +80,8 @@ async def validate_form(
     details = DealDetails(
         name=name,
         owner_user_id=owner_id,
-        vendor=vendor,
-        solution=solution,
+        vendor_id=vendor_id,
+        solution_id=solution_id,
         users=users,
         revenue_amount=amount,
         revenue_date=values.revenue_date,
@@ -85,6 +90,28 @@ async def validate_form(
         procurement=procurement,
     )
     return CheckedForm(details=details, sync=sync, bant=bant, drafts=drafts)
+
+
+async def _vendor_choice(
+    uow: UnitOfWork, vendor: UUID | None, solution: UUID | None, *, check: bool
+) -> tuple[VendorId | None, SolutionId | None]:
+    """Vendor는 등록 목록에서 고르고 Solution은 그 Vendor의 것이어야 한다(보낸 경우에만 확인).
+
+    Solution만 있고 Vendor가 없는 조합은 보냈는지와 무관하게 거절한다(도메인 값 규칙).
+    """
+    vendor_id = None if vendor is None else VendorId(vendor)
+    solution_id = None if solution is None else SolutionId(solution)
+    if vendor_id is None and solution_id is not None:
+        raise InvalidValueError(SOLUTION_NEEDS_VENDOR_MESSAGE)
+    if vendor_id is None or not check:
+        return vendor_id, solution_id
+    try:
+        found = await uow.vendors.get(vendor_id)
+    except VendorNotFoundError:
+        raise UnknownVendorError from None
+    if solution_id is not None and not found.has_solution(solution_id):
+        raise SolutionVendorMismatchError
+    return vendor_id, solution_id
 
 
 async def _owner(uow: UnitOfWork, owner: UUID | None, check: bool) -> UserId:

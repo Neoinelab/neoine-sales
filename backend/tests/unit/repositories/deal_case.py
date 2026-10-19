@@ -18,6 +18,7 @@ from app.domain.contact.values import ContactKind
 from tests.factories import NOW, make_deal_action
 from tests.factories_catalog import make_label
 from tests.factories_contact import make_contact
+from tests.factories_vendor import store_vendor
 from tests.fakes.catalog_seed import seed_catalog
 from tests.fakes.unit_of_work import FakeUnitOfWork
 from tests.support.database import rolled_back_session
@@ -38,6 +39,7 @@ if TYPE_CHECKING:
     from app.domain.deal.entities import Deal
     from app.domain.deal_action.entities import DealAction
     from app.domain.user.value_objects import UserId
+    from app.domain.vendor.entities import Vendor
 
 PARAMS = [
     pytest.param("fake", id="fake"),
@@ -54,6 +56,7 @@ class DealCase:
     users: Any
     codes: Any
     labels: Any
+    vendors: Any
 
     async def _ensure_contact(self, contact_id: ContactId, kind: ContactKind) -> None:
         try:
@@ -85,6 +88,10 @@ class DealCase:
         label = make_label(category, name=name)
         await self.labels.add(label)
         return label
+
+    async def new_vendor(self, name: str, solutions: tuple[str, ...] = ()) -> Vendor:
+        """Vendor와 소속 Solution을 저장한다(Deal이 고를 수 있는 선택지)."""
+        return await store_vendor(self.vendors, name, solutions)
 
     async def add_action(
         self,
@@ -139,6 +146,7 @@ def _fake_case() -> DealCase:
         uow.users,
         uow.codes,
         uow.bant_labels,
+        uow.vendors,
     )
 
 
@@ -150,6 +158,7 @@ def _sql_case(session: Any) -> DealCase:  # noqa: ANN401
     from app.infra.db.deal_history_repository import SqlDealHistoryRepository  # noqa: PLC0415
     from app.infra.db.deal_repository import SqlDealRepository  # noqa: PLC0415
     from app.infra.db.user_repository import SqlUserRepository  # noqa: PLC0415
+    from app.infra.db.vendor_repository import SqlVendorRepository  # noqa: PLC0415
 
     return DealCase(
         SqlDealRepository(session),
@@ -159,6 +168,7 @@ def _sql_case(session: Any) -> DealCase:  # noqa: ANN401
         SqlUserRepository(session),
         SqlCodeRepository(session),
         SqlBantLabelRepository(session),
+        SqlVendorRepository(session),
     )
 
 

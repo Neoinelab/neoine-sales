@@ -62,8 +62,8 @@ class DealChangeInput:
 class DealCreateInput:
     name: str
     owner_user_id: UUID
-    vendor: str
-    solution: str
+    vendor_id: UUID | None
+    solution_id: UUID | None
     users: int | None
     status_key: str
     forecast_key: str
@@ -89,8 +89,8 @@ class DealPatchInput:
     provided: frozenset[str]
     name: str | None = None
     owner_user_id: UUID | None = None
-    vendor: str | None = None
-    solution: str | None = None
+    vendor_id: UUID | None = None
+    solution_id: UUID | None = None
     users: int | None = None
     status_key: str | None = None
     forecast_key: str | None = None

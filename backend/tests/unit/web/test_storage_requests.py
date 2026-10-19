@@ -1,8 +1,9 @@
 """저장 위치 요청 스키마(P2b): 경로 형식·길이 판단은 도메인이 하고 스키마는 모양만 본다."""
 
 import pytest
-from app.web.schemas.storage import StorageSettingsRequest
 from pydantic import ValidationError
+
+from app.web.schemas.storage import StorageSettingsRequest
 
 
 def test_path_is_carried_as_given() -> None:

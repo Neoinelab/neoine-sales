@@ -23,7 +23,6 @@ from tests.support.expect import raises_with
 
 if TYPE_CHECKING:
     from app.application.deal.dto import DealView
-
     from tests.unit.application.deal_env import DealEnv
 
 NOT_FOUND = "Deal을 찾을 수 없습니다."

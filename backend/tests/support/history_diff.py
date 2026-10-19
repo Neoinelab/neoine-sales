@@ -8,6 +8,7 @@ from uuid import UUID
 from app.domain.bant.values import BantLabelId
 from app.domain.deal.history import diff_deal
 from app.domain.deal.values import RevenueAmount
+from app.domain.vendor.values import SolutionId, VendorId
 from tests.factories import NOW, make_deal
 from tests.support.user_ids import OWNER_ID, uid
 
@@ -24,6 +25,12 @@ PARTNER_2 = UUID(int=12)
 LABEL_FULL_BUDGET = BantLabelId(UUID(int=21))
 LABEL_CEO = BantLabelId(UUID(int=22))
 LABELS = {LABEL_FULL_BUDGET: "풀 예산 확보", LABEL_CEO: "CEO 보고 완료"}
+VENDOR_SAP = VendorId(UUID(int=31))
+VENDOR_ORACLE = VendorId(UUID(int=32))
+SOLUTION_S4 = SolutionId(UUID(int=41))
+SOLUTION_EBS = SolutionId(UUID(int=42))
+VENDORS = {VENDOR_SAP: "SAP", VENDOR_ORACLE: "Oracle"}
+SOLUTIONS = {SOLUTION_S4: "S/4HANA", SOLUTION_EBS: "EBS"}
 STATUSES = {
     "prospecting": "기회발굴",
     "price_negotiation": "가격협상",
@@ -65,6 +72,12 @@ class Lookup:
     def label_name(self, label_id: BantLabelId | None) -> str:
         return "선택 안 함" if label_id is None else LABELS[label_id]
 
+    def vendor_name(self, vendor_id: VendorId | None) -> str:
+        return "선택 안 함" if vendor_id is None else VENDORS[vendor_id]
+
+    def solution_name(self, solution_id: SolutionId | None) -> str:
+        return "선택 안 함" if solution_id is None else SOLUTIONS[solution_id]
+
 
 def base_deal(**overrides: Any) -> Deal:  # noqa: ANN401
     values: dict[str, Any] = {
@@ -77,8 +90,8 @@ def base_deal(**overrides: Any) -> Deal:  # noqa: ANN401
         "revenue_amount": 1_000,
         "revenue_date": date(2026, 12, 1),
         "name": "A",
-        "vendor": "V",
-        "solution": "S",
+        "vendor_id": VENDOR_SAP,
+        "solution_id": SOLUTION_S4,
         **overrides,
     }
     return make_deal(NOW, **values)

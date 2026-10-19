@@ -1,10 +1,10 @@
 """Code 엔티티 (AC-01·03·05·07·08)."""
 
 import pytest
+
 from app.domain.code.entities import Code
 from app.domain.code.errors import CodeInUseError, CodeLockedError
 from app.domain.code.values import CodeKey, CodeKind, ForecastOutcome
-
 from app.domain.common.errors import InvalidValueError
 from tests.factories import NOW, later
 from tests.factories_catalog import make_code

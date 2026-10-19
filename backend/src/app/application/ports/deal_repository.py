@@ -1,4 +1,4 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from enum import StrEnum
 from typing import TYPE_CHECKING, Protocol
 
@@ -6,7 +6,6 @@ from app.application.ports.pagination import check_page
 from app.domain.common.errors import InvalidValueError
 from app.domain.common.validation import optional_text
 from app.domain.deal.period import quarter_range
-from app.domain.deal.values import SOLUTION_MAX, VENDOR_MAX
 
 if TYPE_CHECKING:
     from collections.abc import Collection, Mapping, Sequence
@@ -17,6 +16,7 @@ if TYPE_CHECKING:
     from app.domain.deal.code import DealCode
     from app.domain.deal.entities import Deal
     from app.domain.user.value_objects import UserId
+    from app.domain.vendor.values import SolutionId, VendorId
 
 KEYWORD_MAX = 100
 DEFAULT_PAGE_SIZE = 20
@@ -46,12 +46,12 @@ class DealQuery:
 
     keyword: str | None = None  # Deal Name·고객 회사·활성 파트너 회사·code 부분 일치(대소문자 무시)
     owner_user_id: UserId | None = None
-    vendor: str | None = None  # 정확 일치
-    solution: str | None = None  # 정확 일치
+    vendor_id: VendorId | None = None
+    solution_id: SolutionId | None = None
     status_key: str | None = None
     forecast_key: str | None = None
     year: int | None = None  # Expected Close 연도(필터 확장 R3)
-    quarter: int | None = None  # 1~4, 연도와 함께만(필터 확장 R3)
+    quarter: int | None = None  # 1~4. 연도가 없으면 호출자가 `with_year_for`로 올해를 채운다
     revenue_from: date | None = None
     revenue_to: date | None = None
     bant_label_ids: Mapping[BantCategory, BantLabelId] = field(default_factory=dict)  # 구분별 AND
@@ -65,30 +65,29 @@ class DealQuery:
         if self.revenue_from and self.revenue_to and self.revenue_from > self.revenue_to:
             raise InvalidValueError("기간의 시작은 끝보다 늦을 수 없습니다")
         self._check_year_and_quarter()
-        for name, label, limit in (
-            ("keyword", "검색어", KEYWORD_MAX),
-            ("vendor", "Vendor", VENDOR_MAX),
-            ("solution", "Solution", SOLUTION_MAX),
-        ):
-            object.__setattr__(
-                self, name, optional_text(getattr(self, name), label, max_length=limit)
-            )
+        object.__setattr__(
+            self, "keyword", optional_text(self.keyword, "검색어", max_length=KEYWORD_MAX)
+        )
 
     def _check_year_and_quarter(self) -> None:
-        if self.year is None:
-            if self.quarter is not None:
-                raise InvalidValueError("분기는 연도와 함께 선택하세요.")
-            return
-        if not YEAR_MIN <= self.year <= YEAR_MAX:
+        if self.year is not None and not YEAR_MIN <= self.year <= YEAR_MAX:
             raise InvalidValueError(f"연도는 {YEAR_MIN}~{YEAR_MAX} 중에서 입력하세요.")
         if self.quarter is not None:
-            quarter_range(self.year, self.quarter)  # 1~4 밖이면 InvalidValueError
+            quarter_range(self.year or YEAR_MIN, self.quarter)  # 1~4 밖이면 InvalidValueError
+
+    def with_year_for(self, today: date) -> DealQuery:
+        """분기만 있고 연도가 없으면 today의 연도를 채운 사본, 아니면 self."""
+        if self.year is None and self.quarter is not None:
+            return replace(self, year=today.year)
+        return self
 
     def revenue_window(self) -> tuple[date | None, date | None]:
         """Expected Close의 허용 범위 (시작, 끝). 양끝 포함, None은 열린 쪽.
 
         연/분기 범위와 revenue_from/to의 교집합이며, 시작이 끝보다 늦으면 빈 창(오류 아님)이다.
         """
+        if self.year is None and self.quarter is not None:
+            raise ValueError("연도 없는 분기는 with_year_for로 연도를 채운 뒤 써야 합니다.")
         start, end = self.revenue_from, self.revenue_to
         if self.year is not None:
             year_start, year_end = quarter_range(self.year, self.quarter)
@@ -165,10 +164,6 @@ class DealRepository(Protocol):
         """같은 조건의 전체 건수(페이지 무시)."""
         ...
 
-    async def facets(self) -> tuple[Sequence[str], Sequence[str]]:
-        """(Vendor 목록, Solution 목록). 빈 문자열은 빼고 대소문자 무시 순서로 정렬한다."""
-        ...
-
     async def update(self, deal: Deal) -> None:
         """Deal 행, 파트너 링크(새 링크 추가·해제 시각 기록), BANT 선택을 저장한다.
 
@@ -202,6 +197,14 @@ class DealRepository(Protocol):
 
     async def count_by_bant_label(self) -> Mapping[BantLabelId, int]:
         """Label별 Deal 수. 선택된 적 없는 Label은 빠질 수 있다."""
+        ...
+
+    async def count_by_vendor(self) -> Mapping[VendorId, int]:
+        """Vendor별 Deal 수. 쓰는 Deal이 없는 Vendor는 빠질 수 있다."""
+        ...
+
+    async def count_by_solution(self) -> Mapping[SolutionId, int]:
+        """Solution별 Deal 수. 쓰는 Deal이 없는 Solution은 빠질 수 있다."""
         ...
 
     async def count_by_contacts(self, contact_ids: Sequence[ContactId]) -> Mapping[ContactId, int]:

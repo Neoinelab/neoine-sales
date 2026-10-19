@@ -23,6 +23,7 @@ from tests.functional.steps.deals import (
     when_update_deal,
 )
 from tests.functional.steps.session import when_log_out
+from tests.functional.steps.vendors import given_vendor
 
 if TYPE_CHECKING:
     from tests.functional.conftest import Api
@@ -33,6 +34,7 @@ pytestmark = pytest.mark.integration
 async def test_only_the_sent_fields_change_and_each_is_logged(api: Api) -> None:
     """Scenario: 보낸 필드만 바뀌고 바뀐 필드마다 이력(화면과 같은 표기)이 남는다."""
     # Given
+    oracle = await given_vendor(api, "Oracle")
     await given_logged_in_as(api, role="sales")
     deal = await given_deal(api)
     api.clock.advance(3600)
@@ -43,18 +45,16 @@ async def test_only_the_sent_fields_change_and_each_is_logged(api: Api) -> None:
         name="확장 프로젝트",
         revenue_amount=1_870_000_000,
         revenue_date="2026-12-31",
-        vendor="Oracle",
+        vendor_id=oracle.id,
         users=10,
         status_key="price_negotiation",
     )
     # Then
     then_status_is(response, 200)
     body = response.json()
-    assert (body["name"], body["vendor"], body["solution"]) == (
-        "확장 프로젝트",
-        "Oracle",
-        "S/4HANA",
-    )
+    assert body["name"] == "확장 프로젝트"
+    assert body["vendor"] == {"id": oracle.id, "name": "Oracle"}
+    assert body["solution"] is None
     assert body["revenue_amount"] == 1_870_000_000
     await then_history_is(
         api,
@@ -64,7 +64,7 @@ async def test_only_the_sent_fields_change_and_each_is_logged(api: Api) -> None:
             ("amount", "금액", "150,000,000원", "1,870,000,000원"),
             ("expectedClose", "Expected Close", "2026-06-30", "2026-12-31"),
             ("other", "Deal Name", "ERP 구축", "확장 프로젝트"),
-            ("other", "Vendor", "SAP", "Oracle"),
+            ("other", "Vendor", "선택 안 함", "Oracle"),
             ("other", "Users", "-", "10"),
         ],
     )
@@ -74,12 +74,13 @@ async def test_only_the_sent_fields_change_and_each_is_logged(api: Api) -> None:
 async def test_an_unchanged_patch_leaves_no_history_and_keeps_updated_at(api: Api) -> None:
     """Scenario: 같은 값을 보내면 이력 0건이고 updated_at도 그대로다."""
     # Given
+    sap = await given_vendor(api, "SAP")
     await given_logged_in_as(api, role="sales")
-    deal = await given_deal(api)
+    deal = await given_deal(api, vendor_id=sap.id)
     api.clock.advance(3600)
     # When
     response = await when_update_deal(
-        api, deal["code"], name="ERP 구축", revenue_amount=150_000_000, vendor="SAP"
+        api, deal["code"], name="ERP 구축", revenue_amount=150_000_000, vendor_id=sap.id
     )
     # Then
     then_status_is(response, 200)

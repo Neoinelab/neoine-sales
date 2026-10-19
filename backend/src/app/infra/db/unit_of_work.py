@@ -15,6 +15,7 @@ from app.infra.db.login_failure_repository import SqlLoginFailureRepository
 from app.infra.db.session_repository import SqlSessionRepository
 from app.infra.db.storage_settings_repository import SqlStorageSettingsRepository
 from app.infra.db.user_repository import SqlUserRepository
+from app.infra.db.vendor_repository import SqlVendorRepository
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -36,6 +37,7 @@ class SqlUnitOfWork:
     bant_labels: SqlBantLabelRepository
     attachments: SqlAttachmentRepository
     alert_settings: SqlAlertSettingsRepository
+    vendors: SqlVendorRepository
 
     def __init__(self, session_factory: async_sessionmaker[AsyncSession]) -> None:
         self._session_factory = session_factory
@@ -55,6 +57,7 @@ class SqlUnitOfWork:
         self.bant_labels = SqlBantLabelRepository(self._session)
         self.attachments = SqlAttachmentRepository(self._session)
         self.alert_settings = SqlAlertSettingsRepository(self._session)
+        self.vendors = SqlVendorRepository(self._session)
         return self
 
     async def __aexit__(self, *exc: object) -> None:

@@ -4,6 +4,7 @@ import unicodedata
 from uuid import uuid4
 
 import pytest
+
 from app.domain.attachment.errors import (
     AttachmentContentMissingError,
     AttachmentDeleteForbiddenError,
@@ -17,7 +18,6 @@ from app.domain.attachment.history import (
     replaced_draft,
     uploaded_draft,
 )
-
 from app.domain.attachment.values import FileName
 from app.domain.auth.errors import AccessDeniedError
 from app.domain.common.errors import AlreadyExistsError, NotFoundError

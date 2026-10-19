@@ -11,16 +11,16 @@ from typing import TYPE_CHECKING, TypeGuard
 from app.domain.bant.values import BantCategory
 from app.domain.common.errors import InvalidValueError
 from app.domain.common.validation import assign, reject_nul
+from app.domain.deal.errors import SOLUTION_NEEDS_VENDOR_MESSAGE
 
 if TYPE_CHECKING:
     from datetime import date
 
     from app.domain.bant.values import BantLabelId
     from app.domain.user.value_objects import UserId
+    from app.domain.vendor.values import SolutionId, VendorId
 
 NAME_MAX = 200
-VENDOR_MAX = 100
-SOLUTION_MAX = 200
 PROCUREMENT_MAX = 500
 AMOUNT_MAX = 2**53 - 1  # 프런트 Number.isSafeInteger와 같다
 USERS_MAX = 2_147_483_647  # PostgreSQL integer 최대
@@ -107,14 +107,6 @@ def _optional_limited(raw: str, label: str, limit: int, particle: str) -> str:
     return text
 
 
-def check_vendor(raw: str) -> str:
-    return _optional_limited(raw, "Vendor", VENDOR_MAX, "는")
-
-
-def check_solution(raw: str) -> str:
-    return _optional_limited(raw, "Solution", SOLUTION_MAX, "은")
-
-
 def check_procurement(raw: str) -> str:
     return _optional_limited(raw, "구매절차", PROCUREMENT_MAX, "는")
 
@@ -141,8 +133,8 @@ class DealDetails:
 
     name: str
     owner_user_id: UserId
-    vendor: str
-    solution: str
+    vendor_id: VendorId | None
+    solution_id: SolutionId | None
     users: int | None
     revenue_amount: RevenueAmount
     revenue_date: date
@@ -151,11 +143,11 @@ class DealDetails:
     procurement: str
 
     def __post_init__(self) -> None:
+        if self.solution_id is not None and self.vendor_id is None:
+            raise InvalidValueError(SOLUTION_NEEDS_VENDOR_MESSAGE)
         assign(
             self,
             name=check_name(self.name),
-            vendor=check_vendor(self.vendor),
-            solution=check_solution(self.solution),
             users=check_users(self.users),
             procurement=check_procurement(self.procurement),
         )

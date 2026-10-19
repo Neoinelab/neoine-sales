@@ -15,8 +15,8 @@ interface Props {
 
 /** 요약 표와 같은 기간·Vendor 조건에서 한 담당자의 Deal 목록(Forecast Review용). 읽기 전용. */
 export function OwnerDeals({ ownerId, ownerName, filters, onClear }: Props) {
-  const { year, quarter, vendor } = queryOf(filters)
-  const deals = useDeals({ ownerId, year, quarter, vendor, sort: 'revenueDate', order: 'asc', limit: 1000 })
+  const { year, quarter, vendorId } = queryOf(filters)
+  const deals = useDeals({ ownerId, year, quarter, vendorId, sort: 'revenueDate', order: 'asc', limit: 1000 })
   const items = deals.data?.items ?? []
   const counted = items.filter((d) => d.forecastKey !== 'lost')
   const lostCount = items.length - counted.length

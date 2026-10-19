@@ -56,8 +56,9 @@ export interface ContactListQuery {
 export interface DealInput {
   name: string
   ownerId: string
-  vendor: string
-  solution: string
+  /** Vendor/Solution id. 선택 안 함은 null. */
+  vendorId: string | null
+  solutionId: string | null
   users: number | null
   statusKey: string
   forecastKey: string
@@ -93,11 +94,11 @@ export interface DealListQuery {
   /** Deal 이름·고객사·파트너사·Deal code 부분 일치(대소문자 무시). */
   keyword?: string
   ownerId?: string
-  vendor?: string
-  solution?: string
+  vendorId?: string
+  solutionId?: string
   statusKey?: string
   forecastKey?: string
-  /** Expected Close(revenueDate) 기준 연도/분기. quarter는 year와 함께 쓴다. */
+  /** Expected Close(revenueDate) 기준 연도/분기. quarter만 있으면 서버가 올해로 본다. */
   year?: number
   quarter?: 1 | 2 | 3 | 4
   /** Expected Close 기간(포함). year/quarter와 함께 오면 교집합. */
@@ -112,11 +113,6 @@ export interface DealListQuery {
   offset?: number
   /** 기본 20(`DEAL_PAGE_SIZE`). */
   limit?: number
-}
-
-export interface DealFacets {
-  vendors: string[]
-  solutions: string[]
 }
 
 // ───────────────────────── Action / History / 첨부 ─────────────────────────
@@ -220,7 +216,7 @@ export interface DirectorySettingsInput {
 export interface ForecastQuery {
   year: number
   quarter?: 1 | 2 | 3 | 4
-  vendor?: string
+  vendorId?: string
   ownerId?: string
 }
 

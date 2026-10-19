@@ -12,7 +12,6 @@ from app.domain.bant.entities import BantLabel
 from app.domain.bant.values import BantCategory, BantLabelId
 from app.domain.code.entities import Code
 from app.domain.code.values import CodeId, CodeKey, CodeKind, ForecastOutcome
-
 from tests.factories import NOW
 
 if TYPE_CHECKING:

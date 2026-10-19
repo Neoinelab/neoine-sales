@@ -21,8 +21,8 @@ describe('toDealRow', () => {
       name: '한빛은행 ITDR',
       ownerId: 'u-kim',
       owner: { id: 'u-kim', name: '김영업', role: 'sales', status: 'active' },
-      vendor: 'Silverfort',
-      solution: 'ITDR',
+      vendor: { id: 'vd-006', name: 'Silverfort' },
+      solution: { id: 'sl-006', name: 'ITDR' },
       users: 100,
       statusKey: 'prospecting',
       forecastKey: 'pipeline',
@@ -54,6 +54,20 @@ describe('toDealRow', () => {
       createdAt: '2026-10-01T09:00:00+09:00',
       updatedAt: '2026-10-02T09:00:00+09:00',
     })
+  })
+
+  it('AC-13 keeps vendor and solution null when the deal has none', () => {
+    const row = toDealRow(serverDealRow({ vendor: null, solution: null }))
+
+    expect(row.vendor).toBeNull()
+    expect(row.solution).toBeNull()
+  })
+
+  it('AC-13 keeps a vendor without a solution', () => {
+    const row = toDealRow(serverDealRow({ solution: null }))
+
+    expect(row.vendor).toEqual({ id: 'vd-006', name: 'Silverfort' })
+    expect(row.solution).toBeNull()
   })
 
   it('keeps nextAction null when the deal has no action', () => {

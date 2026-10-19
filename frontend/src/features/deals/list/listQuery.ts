@@ -24,6 +24,8 @@ const NATURAL_ORDER: Record<DealSortKey, SortOrder> = {
   lastUpdatedAt: 'desc',
 }
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 function isSortKey(value: string | null): value is DealSortKey {
   return SORT_KEYS.some((key) => key === value)
 }
@@ -59,8 +61,6 @@ export function listQueryFromParams(params: URLSearchParams): DealListQuery {
   if (keyword) query.keyword = keyword
   const pairs = [
     ['owner', 'ownerId'],
-    ['vendor', 'vendor'],
-    ['solution', 'solution'],
     ['status', 'statusKey'],
     ['forecast', 'forecastKey'],
     ['from', 'revenueFrom'],
@@ -71,12 +71,17 @@ export function listQueryFromParams(params: URLSearchParams): DealListQuery {
     if (value) query[field] = value
   }
 
+  // Vendor·Solution은 id(UUID)만 받는다. 예전 이름 기반 URL 값은 무시한다.
+  const vendorId = text('vendor')
+  if (vendorId && UUID.test(vendorId)) query.vendorId = vendorId
+  const solutionId = text('solution')
+  if (solutionId && UUID.test(solutionId)) query.solutionId = solutionId
+
   const year = positiveInt(params.get('year'))
-  if (year !== null) {
-    query.year = year
-    const quarter = Number(params.get('quarter'))
-    if (quarter === 1 || quarter === 2 || quarter === 3 || quarter === 4) query.quarter = quarter
-  }
+  if (year !== null) query.year = year
+  // 분기는 연도와 따로 보낸다(연도 없이 분기만 있으면 서버가 올해로 본다).
+  const quarter = Number(params.get('quarter'))
+  if (quarter === 1 || quarter === 2 || quarter === 3 || quarter === 4) query.quarter = quarter
 
   const bant: Partial<Record<BantCategory, string>> = {}
   for (const category of BANT_CATEGORIES) {

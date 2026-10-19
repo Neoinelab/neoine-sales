@@ -4,9 +4,9 @@ from typing import TYPE_CHECKING
 
 import pytest
 import pytest_asyncio
+
 from app.domain.storage.path import STORAGE_PATH_MAX, StoragePath
 from app.infra.db.storage_settings_repository import SqlStorageSettingsRepository
-
 from app.infra.db.user_repository import SqlUserRepository
 from tests.factories import NOW, later
 from tests.fakes.storage_settings_repository import FakeStorageSettingsRepository

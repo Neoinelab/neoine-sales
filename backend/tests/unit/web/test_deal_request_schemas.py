@@ -30,18 +30,18 @@ def _create(**overrides: object) -> dict[str, object]:
 def test_a_minimal_create_body_gets_the_documented_defaults() -> None:
     request = DealCreateRequest(**_create())
 
-    assert (request.vendor, request.solution, request.procurement) == ("", "", "")
+    assert (request.vendor_id, request.solution_id, request.procurement) == (None, None, "")
     assert request.users is None
     assert request.partner is None
     assert request.customer.contact_id is None
 
 
 def test_the_create_body_maps_to_the_use_case_input() -> None:
-    partner_id = uuid4()
+    partner_id, vendor_id, solution_id = uuid4(), uuid4(), uuid4()
     request = DealCreateRequest(
         **_create(
-            vendor="SAP",
-            solution="S/4HANA",
+            vendor_id=str(vendor_id),
+            solution_id=str(solution_id),
             users=250,
             partner={"contact_id": str(partner_id), "company": "코어테크", "name": "민지훈"},
             quote={"submitted": "YES", "submitted_date": "2026-10-01"},
@@ -53,11 +53,11 @@ def test_the_create_body_maps_to_the_use_case_input() -> None:
 
     data = request.to_input()
 
-    assert (data.name, data.owner_user_id, data.vendor, data.solution) == (
+    assert (data.name, data.owner_user_id, data.vendor_id, data.solution_id) == (
         "ERP 구축",
         OWNER_ID,
-        "SAP",
-        "S/4HANA",
+        vendor_id,
+        solution_id,
     )
     assert (data.users, data.revenue_amount, data.revenue_date) == (
         250,
@@ -86,7 +86,6 @@ def test_the_create_body_maps_to_the_use_case_input() -> None:
         {"users": 0},
         {"name": ""},
         {"revenue_date": None},
-        {"vendor": "a" * 5000},
         {"procurement": "가" * 5000},
     ],
 )
@@ -105,6 +104,10 @@ def test_range_and_length_rules_are_left_to_the_domain(overrides: dict[str, obje
         {"poc": {"state": "DONE"}},
         {"unexpected": 1},
         {"registered_by": str(OWNER_ID)},
+        {"vendor_id": "SAP"},  # 이름이 아니라 UUID여야 한다
+        {"solution_id": "not-a-uuid"},
+        {"vendor": "SAP"},  # 구 필드(문자열)는 모르는 필드다
+        {"solution": "S/4HANA"},
     ],
 )
 def test_wrong_types_unknown_values_and_unknown_fields_are_rejected(
@@ -131,7 +134,38 @@ def test_a_contact_draft_requires_company_and_name_keys_but_not_their_content() 
         ContactDraftRequest(company="네오인")  # type: ignore[call-arg]
 
 
+def test_create_accepts_vendor_id_and_solution_id_as_null() -> None:
+    request = DealCreateRequest(**_create(vendor_id=None, solution_id=None))
+
+    data = request.to_input()
+
+    assert (data.vendor_id, data.solution_id) == (None, None)
+
+
 class TestPatchRequest:
+    def test_patch_null_solution_id_is_sent(self) -> None:
+        vendor_id = uuid4()
+
+        data = DealPatchRequest(vendor_id=vendor_id, solution_id=None).to_input()
+
+        assert data.provided == frozenset({"vendor_id", "solution_id"})
+        assert (data.vendor_id, data.solution_id) == (vendor_id, None)
+
+    def test_patch_without_vendor_fields_does_not_provide_them(self) -> None:
+        data = DealPatchRequest(name="B").to_input()
+
+        assert not {"vendor_id", "solution_id"} & data.provided
+
+    def test_patch_rejects_the_old_text_fields(self) -> None:
+        with pytest.raises(ValidationError):
+            DealPatchRequest(vendor="SAP")  # type: ignore[call-arg]
+        with pytest.raises(ValidationError):
+            DealPatchRequest(solution="S/4HANA")  # type: ignore[call-arg]
+
+    def test_patch_rejects_a_non_uuid_vendor_id(self) -> None:
+        with pytest.raises(ValidationError):
+            DealPatchRequest(vendor_id="SAP")
+
     def test_only_the_sent_fields_are_provided(self) -> None:
         request = DealPatchRequest(name="B", users=None)
 

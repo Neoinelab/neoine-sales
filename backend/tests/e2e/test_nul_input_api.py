@@ -26,10 +26,6 @@ async def test_deal_search_keyword_with_nul_is_422_invalid_value(client: AsyncCl
     _assert_invalid_value(await client.get("/api/v1/deals", params={"keyword": NUL}))
 
 
-async def test_deal_search_text_condition_with_nul_is_422(client: AsyncClient) -> None:
-    _assert_invalid_value(await client.get("/api/v1/deals", params={"vendor": NUL}))
-
-
 async def test_deal_owner_filter_with_nul_is_a_request_validation_error(
     client: AsyncClient,
 ) -> None:

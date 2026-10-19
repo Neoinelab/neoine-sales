@@ -52,9 +52,10 @@ export function SelectField(
     value: string
     onChange: (value: string) => void
     children: ReactNode
+    disabled?: boolean
   },
 ) {
-  const { label, name, value, onChange, required, children } = props
+  const { label, name, value, onChange, required, children, disabled } = props
   return (
     <label className="field">
       <span>{label}</span>
@@ -62,6 +63,7 @@ export function SelectField(
         name={name}
         value={value}
         required={required}
+        disabled={disabled}
         onChange={(e: ChangeEvent<HTMLSelectElement>) => onChange(e.target.value)}
       >
         {children}

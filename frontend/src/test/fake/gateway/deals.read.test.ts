@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { dealCode, expectApiError, mockAs } from '../testing'
+import { seedSolutionId, seedVendorId } from '../../fixtures/vendors'
+import { dealCode, dealInput, expectApiError, mockAs } from '../testing'
 
 const codes = (items: { code: string }[]) => items.map((d) => d.code).sort()
+const dealInputFor = (revenueDate: string) => dealInput('u-kim', { revenueDate })
 const codesOf = (...nos: number[]) => nos.map(dealCode).sort()
 
 describe('deals.list', () => {
@@ -30,11 +32,34 @@ describe('deals.list', () => {
     const mine = await gateway.deals.list({ mine: true })
     expect(codes(mine.items)).toEqual(codesOf(1, 2, 7, 11, 13, 16, 20, 24))
     expect(codes((await gateway.deals.list({ ownerId: 'u-kim' })).items)).toEqual(codes(mine.items))
-    expect((await gateway.deals.list({ vendor: 'Silverfort' })).total).toBe(7)
+    expect((await gateway.deals.list({ vendorId: seedVendorId('Silverfort') })).total).toBe(7)
     expect(codes((await gateway.deals.list({ forecastKey: 'won' })).items)).toEqual(codesOf(11, 12, 24))
     expect(codes((await gateway.deals.list({ forecastKey: 'lost' })).items)).toEqual(codesOf(16))
     expect((await gateway.deals.list({ statusKey: 'contract_completed' })).total).toBe(3)
     expect((await gateway.deals.list({ ownerId: 'u-old' })).total).toBe(1)
+  })
+
+  it('AC-16 Vendor와 Solution 필터는 id가 같은 Deal만 돌려주고 없는 id는 0건이다', async () => {
+    const { gateway } = await mockAs('kim')
+    const silverfort = seedVendorId('Silverfort')
+
+    expect((await gateway.deals.list({ vendorId: silverfort, solutionId: seedSolutionId('Silverfort', 'ITDR') })).total).toBe(4)
+    expect((await gateway.deals.list({ solutionId: seedSolutionId('Silverfort', 'MFA') })).total).toBe(3)
+    expect((await gateway.deals.list({ vendorId: 'vd-unknown' })).total).toBe(0)
+  })
+
+  it('AC-19 분기만 고르면 Fake 시계의 올해 그 분기이다(작년 같은 분기는 제외)', async () => {
+    const { gateway } = await mockAs('kim') // Fake 시계 2026-10-15
+    const created = await gateway.deals.create({
+      ...dealInputFor('2025-11-15'),
+    })
+    const quarterOnly = (await gateway.deals.list({ quarter: 4, limit: 100 })).items
+    const thisYear = (await gateway.deals.list({ year: 2026, quarter: 4, limit: 100 })).items
+
+    expect(quarterOnly.map((d) => d.code).sort()).toEqual(thisYear.map((d) => d.code).sort())
+    expect(quarterOnly.map((d) => d.code)).not.toContain(created.code)
+    const lastYear = (await gateway.deals.list({ year: 2025, quarter: 4, limit: 100 })).items
+    expect(lastYear.map((d) => d.code)).toContain(created.code)
   })
 
   it('연도·분기와 기간 필터는 Expected Close 기준이고 경계를 포함한다', async () => {
@@ -108,7 +133,7 @@ describe('deals.list', () => {
   })
 })
 
-describe('deals.get / impact / facets', () => {
+describe('deals.get / impact', () => {
   it('없는 code는 404', async () => {
     const { gateway } = await mockAs('kim')
     await expectApiError(gateway.deals.get('20000101-ZZZZ'), 404, 'Deal을 찾을 수 없습니다.')
@@ -122,13 +147,5 @@ describe('deals.get / impact / facets', () => {
     expect(impact.historyCount).toBe((await gateway.history.list(code, {})).length)
     expect(impact.actionCount).toBe((await gateway.actions.list(code, {})).length)
     expect(impact.attachmentCount).toBe(3)
-  })
-
-  it('facets는 Vendor/Solution distinct 목록이다', async () => {
-    const { gateway } = await mockAs('han')
-    const facets = await gateway.deals.facets()
-    expect(facets.vendors).toContain('Silverfort')
-    expect(new Set(facets.vendors).size).toBe(facets.vendors.length)
-    expect(facets.solutions).toEqual(expect.arrayContaining(['ITDR', 'MFA', 'EDR', 'PAM', 'SSO', 'NGFW', 'VM', 'ZTNA']))
   })
 })

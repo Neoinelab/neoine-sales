@@ -9,9 +9,9 @@ from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import pytest
+
 from app.domain.bant.errors import BantLabelNotFoundError, DuplicateLabelNameError
 from app.domain.bant.values import BantCategory, BantLabelId
-
 from app.domain.user.value_objects import UserId
 from tests.factories import NOW, later
 from tests.factories_catalog import make_label

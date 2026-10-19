@@ -71,7 +71,7 @@ describe('값 클릭 → 입력기 (Enter 저장 / Esc 취소 / 키보드)', () 
     screen.getByRole('button', { name: 'Vendor 수정' }).focus()
     await user.keyboard('{Enter}')
     expect(screen.getByRole('combobox', { name: 'Vendor' })).toHaveFocus()
-    await user.keyboard('{Escape}{Escape}') // 첫 Esc는 열린 후보 목록만 닫는다.
+    await user.keyboard('{Escape}')
     expect(screen.queryByRole('combobox', { name: 'Vendor' })).not.toBeInTheDocument()
     screen.getByRole('button', { name: 'Solution 수정' }).focus()
     await user.keyboard(' ')
@@ -136,27 +136,18 @@ describe('Owner · Vendor · Solution · Users · 견적 · POC · 구매절차'
     expect(await screen.findByRole('cell', { name: 'Owner' })).toBeVisible()
   })
 
-  it('suggests existing vendors, filters them while typing, and accepts a brand new value', async () => {
+  it('edits Vendor and Solution with selects and never accepts a free text value (AC-11)', async () => {
     const { user } = await openDeal(1, '한빛은행 ITDR 도입')
     await user.click(screen.getByRole('button', { name: 'Vendor 수정' }))
-    const input = screen.getByRole('combobox', { name: 'Vendor' })
-    await user.clear(input)
-    await user.type(input, 'CROWD')
-    const list = await screen.findByRole('listbox', { name: 'Vendor' })
-    expect(within(list).getAllByRole('option').map((o) => o.textContent)).toEqual(['CrowdStrike'])
-    await user.clear(input)
-    await user.type(input, 'Zscaler{Enter}')
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Vendor 수정' })).toHaveTextContent('Zscaler'))
+    expect(screen.getByRole('combobox', { name: 'Vendor' }).tagName).toBe('SELECT')
+    expect(screen.queryByRole('listbox', { name: 'Vendor' })).not.toBeInTheDocument()
+    await user.keyboard('{Escape}')
+    await user.click(screen.getByRole('button', { name: 'Solution 수정' }))
+    expect(screen.getByRole('combobox', { name: 'Solution' }).tagName).toBe('SELECT')
   })
 
-  it('saves Solution as free text and Users as a positive integer', async () => {
+  it('saves Users as a positive integer', async () => {
     const { user } = await openDeal(1, '한빛은행 ITDR 도입')
-    await user.click(screen.getByRole('button', { name: 'Solution 수정' }))
-    const solution = screen.getByRole('combobox', { name: 'Solution' })
-    await user.clear(solution)
-    await user.type(solution, 'ITDR Plus{Enter}')
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Solution 수정' })).toHaveTextContent('ITDR Plus'))
-
     await user.click(screen.getByRole('button', { name: 'Users 수정' }))
     const users = screen.getByLabelText('Users')
     await user.clear(users)

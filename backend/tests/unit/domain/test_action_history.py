@@ -2,6 +2,7 @@
 
 from datetime import date
 
+from app.domain.deal.history import HistoryCategory
 from app.domain.deal_action.history import (
     ACTION_TARGET,
     action_created_draft,
@@ -9,8 +10,6 @@ from app.domain.deal_action.history import (
     action_summary,
     action_updated_draft,
 )
-
-from app.domain.deal.history import HistoryCategory
 from app.domain.deal_action.value_objects import ACTION_TYPE_LABELS, ActionType
 from tests.factories import make_action_content
 

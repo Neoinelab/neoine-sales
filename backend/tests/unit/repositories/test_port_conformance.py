@@ -52,7 +52,6 @@ DEAL_PORT_METHODS = (
     "get_item",
     "search",
     "count",
-    "facets",
     "update",
     "touch",
     "delete",
@@ -61,6 +60,8 @@ DEAL_PORT_METHODS = (
     "count_by_status",
     "count_by_forecast",
     "count_by_bant_label",
+    "count_by_vendor",
+    "count_by_solution",
     "count_by_contacts",
 )
 CONTACT_USE_CASES = (
@@ -80,9 +81,9 @@ DEAL_USE_CASES = (
     "list_deal_history",
     "apply_deal_change",
     "get_deal_deletion_impact",
-    "list_deal_facets",
 )
 RETIRED_DEAL_USE_CASES = (
+    "list_deal_facets",  # Vendor·Solution 선택지는 /vendors 목록에서 온다
     "get_deal_by_code",
     "change_deal_stage",
     "list_deal_stage_changes",
@@ -135,7 +136,13 @@ def test_deal_repositories_expose_every_port_method_and_none_of_the_retired_ones
     for repository_type in (FakeDealRepository, SqlDealRepository):
         for name in DEAL_PORT_METHODS:
             assert callable(getattr(repository_type, name)), (repository_type, name)
-        for retired in ("summarize_pipeline", "get_by_code", "list", "exists_for_customer"):
+        for retired in (
+            "summarize_pipeline",
+            "get_by_code",
+            "list",
+            "exists_for_customer",
+            "facets",
+        ):
             assert not hasattr(repository_type, retired), (repository_type, retired)
     for name in DEAL_PORT_METHODS:
         assert hasattr(DealRepository, name), name

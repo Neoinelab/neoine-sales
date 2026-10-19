@@ -1,6 +1,7 @@
 """코드 값 객체와 상수 (AC-01 종류·outcome, AC-03 key 형식, AC-07 잠금 코드 5개)."""
 
 import pytest
+
 from app.domain.code.values import (
     CODE_NAME_MAX,
     LOCKED_KEYS,
@@ -9,7 +10,6 @@ from app.domain.code.values import (
     CodeKind,
     ForecastOutcome,
 )
-
 from app.domain.common.errors import InvalidValueError
 
 

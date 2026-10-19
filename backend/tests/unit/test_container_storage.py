@@ -3,12 +3,12 @@
 from typing import TYPE_CHECKING
 
 import pytest_asyncio
+
 from app.application.auth.setup_storage import RegisterSetupStorage
 from app.application.auth.setup_storage import TestSetupStorage as ProbeSetupStorage
 from app.application.storage.get_settings import GetStorageSettings
 from app.application.storage.test_settings import TestStorageSettings as ProbeStorageSettings
 from app.application.storage.update_settings import UpdateStorageSettings
-
 from app.container import Container
 from tests.functional.conftest import make_settings
 

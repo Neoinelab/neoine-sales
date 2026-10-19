@@ -6,9 +6,8 @@
 
 from typing import TYPE_CHECKING
 
-from app.domain.deal.status_entry import StatusEntry
-
 from app.application.ports.deal_repository import DealQuery
+from app.domain.deal.status_entry import StatusEntry
 from tests.factories import NOW, later, make_deal, make_sync
 
 if TYPE_CHECKING:
