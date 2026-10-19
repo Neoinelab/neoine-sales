@@ -1,8 +1,8 @@
 import { useState } from 'react'
-import { parseAmount } from '../model/money'
+import { amountInputError, formatThousandWon, parseAmountInput, REVENUE_AMOUNT_LABEL } from '../model/money'
+import { AmountInput } from '../ui/AmountInput'
 import { Modal } from '../ui/Modal'
 
-export const AMOUNT_MESSAGE = '매출금액은 1원 이상의 정수로 입력하세요.'
 export const DATE_MESSAGE = '매출일을 입력하세요.'
 
 interface RevenueDialogProps {
@@ -19,10 +19,12 @@ interface RevenueDialogProps {
 
 /** "매출 확정" 팝업: 실제 매출금액·매출일이 모두 유효할 때만 `확정`이 활성. 취소는 변경 없음. */
 export function RevenueDialog({ notice, defaultAmount, defaultDate, error, onConfirm, onCancel }: RevenueDialogProps) {
-  const [amount, setAmount] = useState(defaultAmount === undefined ? '' : String(defaultAmount))
+  const initialAmount = defaultAmount === undefined ? '' : formatThousandWon(defaultAmount)
+  const [amount, setAmount] = useState(initialAmount)
   const [date, setDate] = useState(defaultDate ?? '')
   const [touched, setTouched] = useState({ amount: false, date: false })
-  const parsed = parseAmount(amount)
+  // 보이는 값을 건드리지 않았으면 원래 원 값을 그대로 쓴다.
+  const parsed = defaultAmount !== undefined && amount === initialAmount ? defaultAmount : parseAmountInput(amount)
   const valid = parsed !== null && date !== ''
 
   return (
@@ -48,19 +50,18 @@ export function RevenueDialog({ notice, defaultAmount, defaultDate, error, onCon
       <p>{notice}</p>
       <div className="field">
         <label>
-          <span>매출금액(KRW, 실제 값)</span>
-          <input
+          <span>{REVENUE_AMOUNT_LABEL}</span>
+          <AmountInput
             name="revenueAmount"
-            inputMode="numeric"
             value={amount}
-            onChange={(e) => {
-              setAmount(e.target.value)
+            onChange={(text) => {
+              setAmount(text)
               setTouched((t) => ({ ...t, amount: true }))
             }}
             onBlur={() => setTouched((t) => ({ ...t, amount: true }))}
           />
         </label>
-        {touched.amount && parsed === null && <p className="field-error">{AMOUNT_MESSAGE}</p>}
+        {touched.amount && parsed === null && <p className="field-error">{amountInputError(amount)}</p>}
       </div>
       <div className="field">
         <label>

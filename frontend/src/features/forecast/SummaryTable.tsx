@@ -1,4 +1,5 @@
 import type { ForecastCell, ForecastColumn, ForecastSummary, ForecastSummaryRow } from '../../shared/model/types'
+import { AMOUNT_LABEL } from '../../shared/model/money'
 import { AmountText } from '../../shared/ui/AmountText'
 
 /** 표시 순서: Open은 확률이 높은 순(Commit → Pipeline), Won은 마지막 별도 열. 게이트웨이는 코드 order(Pipeline → Commit)로 준다. */
@@ -66,6 +67,7 @@ export function SummaryTable({ summary, selectedId, onSelect }: Props) {
     // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
     <div className="fc-scroll" tabIndex={0} role="region" aria-label="담당자별 Forecast 표 (가로 스크롤)">
       <table className="fc-table" aria-label="담당자별 Forecast 요약">
+        <caption className="hint">셀 값: 건수 · {AMOUNT_LABEL}</caption>
         <thead>
           <tr>
             <th scope="col">담당자</th>

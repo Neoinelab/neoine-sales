@@ -20,8 +20,7 @@ const CODES: CodeSet = {
 const codeSetState = vi.hoisted(() => ({ data: undefined as unknown }))
 vi.mock('../../data/codes', () => ({ useCodeSet: () => ({ data: codeSetState.data }) }))
 vi.mock('../model/money', () => ({
-  formatKrwShort: (n: number) => `short:${n}`,
-  formatKrwFull: (n: number) => `full:${n}`,
+  formatThousandWon: (n: number) => `fmt:${n}`,
 }))
 
 beforeEach(() => {
@@ -64,11 +63,11 @@ describe('StatusBadge / ForecastBadge', () => {
 })
 
 describe('AmountText', () => {
-  it('shows the short form with the full amount as title', () => {
+  it('shows the thousand-won number without a title', () => {
     render(<AmountText amount={180000000} />)
 
-    const el = screen.getByText('short:180000000')
-    expect(el).toHaveAttribute('title', 'full:180000000')
+    const el = screen.getByText('fmt:180000000')
+    expect(el).not.toHaveAttribute('title')
   })
 })
 

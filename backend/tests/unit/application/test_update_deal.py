@@ -80,7 +80,7 @@ class TestSentFieldsOnly:
 
         assert await env.changes(updated) == [
             ("status", "Status", "기회발굴", "가격협상"),
-            ("amount", "금액", "150,000,000원", "200,000,000원"),
+            ("amount", "금액(단위:천원)", "150,000", "200,000"),
             ("expectedClose", "Expected Close", "2026-06-30", "2026-12-31"),
             ("owner", "Owner", "owner", "park"),
             ("other", "Deal Name", "ERP 구축", "확장 프로젝트"),

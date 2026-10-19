@@ -1,4 +1,4 @@
-import { formatKrwShort } from '../../../shared/model/money'
+import { AMOUNT_LABEL, formatThousandWon } from '../../../shared/model/money'
 import type { CodeSet, DealDetail, DealRow } from '../../../shared/model/types'
 import { withGa, withRo } from '../../../shared/model/text'
 
@@ -8,13 +8,13 @@ export type InlineField = 'statusKey' | 'forecastKey' | 'revenueAmount' | 'reven
 export const INLINE_LABEL: Record<InlineField, string> = {
   statusKey: 'Status',
   forecastKey: 'Forecast',
-  revenueAmount: '금액',
+  revenueAmount: AMOUNT_LABEL,
   revenueDate: 'Expected Close',
 }
 
 /** 편집 시작 값(입력란에 보여 줄 문자열). */
 export function initialDraft(row: DealRow, field: InlineField): string {
-  if (field === 'revenueAmount') return String(row.revenueAmount)
+  if (field === 'revenueAmount') return formatThousandWon(row.revenueAmount)
   return row[field]
 }
 
@@ -37,6 +37,9 @@ export function savedMessage(
     const name = codeName(codes, field, draft)
     return `${row.name}: ${withGa(label)} '${name}'${withRo(name).slice(name.length)} 변경되었습니다.`
   }
-  const shown = field === 'revenueAmount' ? formatKrwShort(result.deal.revenueAmount) : result.deal.revenueDate
-  return `${row.name}: ${withGa(label)} '${shown}'(으)로 변경되었습니다.`
+  // 금액 라벨은 ')'로 끝나 조사 계산(withGa)이 틀리므로 고정 문구를 쓴다.
+  if (field === 'revenueAmount') {
+    return `${row.name}: ${AMOUNT_LABEL}이 '${formatThousandWon(result.deal.revenueAmount)}'(으)로 변경되었습니다.`
+  }
+  return `${row.name}: ${withGa(label)} '${result.deal.revenueDate}'(으)로 변경되었습니다.`
 }

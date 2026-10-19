@@ -1,5 +1,5 @@
 import { useCodeSet } from '../../../data/codes'
-import { formatKrwShort, parseAmount } from '../../../shared/model/money'
+import { AMOUNT_LABEL, parseAmountInput } from '../../../shared/model/money'
 import type { SyncApplied } from '../../../shared/model/sync'
 import { useSyncedChange } from '../../../shared/sync/useSyncedChange'
 import { SelectField } from '../../../shared/ui/fields'
@@ -14,7 +14,7 @@ interface ProgressRowsProps extends SectionProps {
 /** Deal 정보 타일의 Status/Forecast(동기화 팝업)·금액·Expected Close 행. 신규 기본값은 기회발굴/Pipeline. */
 export function ProgressRows({ state, set, errors, onApplied }: ProgressRowsProps) {
   const codes = useCodeSet().data
-  const amount = parseAmount(state.revenueAmount)
+  const amount = parseAmountInput(state.revenueAmount)
   const { request, dialogs } = useSyncedChange({
     statusKey: state.statusKey,
     forecastKey: state.forecastKey,
@@ -48,13 +48,13 @@ export function ProgressRows({ state, set, errors, onApplied }: ProgressRowsProp
         </SelectField>
       </div>
       <FormField
-        label="금액"
+        label={AMOUNT_LABEL}
         name="revenueAmount"
-        inputMode="numeric"
+        type="amount"
         value={state.revenueAmount}
         onChange={(v) => set('revenueAmount', v)}
         error={errors.revenueAmount}
-        hint={amount !== null ? `KRW · ${formatKrwShort(amount)}` : 'KRW(원 단위 정수)'}
+        hint="천원 단위 정수(예: 1억 원 = 100,000)"
         required
       />
       <FormField

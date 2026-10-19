@@ -38,7 +38,7 @@ describe('diffDeal', () => {
     const by = (c: string) => drafts.filter((d) => d.category === c)
     expect(by('status')).toEqual([{ category: 'status', target: 'Status', before: '가격협상', after: '계약완료' }])
     expect(by('forecast')[0]).toMatchObject({ before: 'Commit', after: 'Won' })
-    expect(by('amount')[0]).toMatchObject({ target: '금액', before: '1,000원', after: '2,000원' })
+    expect(by('amount')[0]).toMatchObject({ target: '금액(단위:천원)', before: '1', after: '2' })
     expect(by('expectedClose')[0]).toMatchObject({ before: '2026-12-01', after: '2026-10-20' })
     expect(by('owner')[0]).toMatchObject({ before: '김영업', after: '박영업' })
     expect(by('other')[0]).toMatchObject({ target: 'Deal Name', before: 'A', after: 'B' })

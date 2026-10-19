@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { useCodeSet } from '../../../data/codes'
 import { useApplyDealChange } from '../../../data/deals'
-import { parseAmount } from '../../../shared/model/money'
+import { amountInputError, isSameShownAmount, parseAmountInput } from '../../../shared/model/money'
 import type { ApplyChangeRequest, DealChange, DealRow } from '../../../shared/model/types'
+import { AmountInput } from '../../../shared/ui/AmountInput'
 import { useSyncedChange } from '../../../shared/sync/useSyncedChange'
 import { initialDraft, INLINE_LABEL, savedMessage, type InlineField } from './inline'
 
@@ -13,7 +14,6 @@ interface InlineEditorProps {
   onDone: (message?: string) => void
 }
 
-const AMOUNT_MESSAGE = '매출금액은 1원 이상의 정수로 입력하세요.'
 const DATE_MESSAGE = 'Expected Close를 입력하세요.'
 
 /**
@@ -60,9 +60,10 @@ export function InlineEditor({ row, field, onDone }: InlineEditorProps) {
   async function saveValue(value: string) {
     if (field === 'statusKey' || field === 'forecastKey') return saveCodeChange(field, value)
     if (field === 'revenueAmount') {
-      const amount = parseAmount(value)
-      if (amount === null) return setError(AMOUNT_MESSAGE)
-      return amount === row.revenueAmount ? onDone() : send(value, { field, value: amount }, undefined)
+      const invalid = amountInputError(value)
+      const amount = parseAmountInput(value)
+      if (invalid !== null || amount === null) return setError(invalid)
+      return isSameShownAmount(amount, row.revenueAmount) ? onDone() : send(value, { field, value: amount }, undefined)
     }
     if (value === '') return setError(DATE_MESSAGE)
     return value === row.revenueDate ? onDone() : send(value, { field, value }, undefined)
@@ -123,7 +124,7 @@ export function InlineEditor({ row, field, onDone }: InlineEditorProps) {
         </select>
       )}
       {field === 'revenueAmount' && (
-        <input {...common} inputMode="numeric" value={draft} onChange={(e) => setDraft(e.target.value)} />
+        <AmountInput {...common} value={draft} onChange={setDraft} />
       )}
       {field === 'revenueDate' && <input {...common} type="date" value={draft} onChange={(e) => pick(e.target.value)} />}
       {error && (

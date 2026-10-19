@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { dayStart, formatAmount, formatDate, formatRelativeTime, fromLocalInput, nextDay, toLocalInput } from './format'
+import { dayStart, formatDate, formatRelativeTime, fromLocalInput, nextDay, toLocalInput } from './format'
 
 describe('nextDay', () => {
   it('returns the following date across month and year ends', () => {
@@ -12,14 +12,6 @@ describe('nextDay', () => {
     expect(nextDay('2028-02-28')).toBe('2028-02-29')
     expect(nextDay('2028-02-29')).toBe('2028-03-01')
     expect(nextDay('2026-02-28')).toBe('2026-03-01')
-  })
-})
-
-describe('formatAmount', () => {
-  it('groups thousands and keeps the decimals as given', () => {
-    expect(formatAmount('150000000', 'KRW')).toBe('150,000,000 KRW')
-    expect(formatAmount('1234567.8912', 'USD')).toBe('1,234,567.8912 USD')
-    expect(formatAmount('0', 'KRW')).toBe('0 KRW')
   })
 })
 

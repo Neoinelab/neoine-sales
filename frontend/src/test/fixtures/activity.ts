@@ -1,7 +1,7 @@
 /** 시드 Action과 Deal History 생성. Action은 Deal마다 가장 최근 것부터 SPACING일 간격으로 과거로 만든다. */
 
 import { addDays } from '../../shared/model/dates'
-import { formatKrwFull } from '../../shared/model/money'
+import { AMOUNT_LABEL, formatThousandWon } from '../../shared/model/money'
 import { withWa } from '../../shared/model/text'
 import type { Code, Contact, Deal, HistoryCategory } from '../../shared/model/types'
 import { nextSeq, takeId, type ActionRecord, type HistoryRecord } from '../fake/store'
@@ -135,7 +135,7 @@ export function seedActivity(
       }
       if (closing) {
         const expected = Math.round((deal.revenueAmount * 1.1) / 1_000_000) * 1_000_000
-        log(deal.code, actedAt, deal.ownerId, 'amount', '금액', formatKrwFull(expected), formatKrwFull(deal.revenueAmount))
+        log(deal.code, actedAt, deal.ownerId, 'amount', AMOUNT_LABEL, formatThousandWon(expected), formatThousandWon(deal.revenueAmount))
         log(deal.code, actedAt, deal.ownerId, 'expectedClose', 'Expected Close', addDays(deal.revenueDate, 20), deal.revenueDate)
       }
       log(deal.code, actedAt, deal.ownerId, 'action', 'Action', '', `등록: ${draft.progress} / Next Action: ${draft.nextAction}`)

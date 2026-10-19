@@ -59,7 +59,7 @@ describe('상세에서 목록으로 (AC-01, AC-02, AC-03, AC-11)', () => {
     await screen.findByRole('button', { name: '이전' })
     expect(view.location()).toBe(PAGED)
     expect(dataRows()).toHaveLength(4)
-    expect(screen.getByRole('columnheader', { name: '금액' })).toHaveAttribute('aria-sort', 'descending')
+    expect(screen.getByRole('columnheader', { name: '금액(단위:천원)' })).toHaveAttribute('aria-sort', 'descending')
   })
 
   it('quick view detail link round trip keeps conditions', async () => {
@@ -244,8 +244,8 @@ describe('목록에 머무는 동안 상단 메뉴 (AC-07, 리뷰 Major)', () =>
     const view = await renderAt('/deals')
     await screen.findByRole('row', { name: /한빛은행 ITDR 도입/ })
 
-    await view.user.click(screen.getByRole('button', { name: '금액' }))
-    await waitFor(() => expect(screen.getByRole('columnheader', { name: '금액' })).toHaveAttribute('aria-sort', 'descending'))
+    await view.user.click(screen.getByRole('button', { name: '금액(단위:천원)' }))
+    await waitFor(() => expect(screen.getByRole('columnheader', { name: '금액(단위:천원)' })).toHaveAttribute('aria-sort', 'descending'))
 
     expect(view.location()).toContain('sort=revenueAmount')
     expect(deals()).toHaveAttribute('href', view.location())

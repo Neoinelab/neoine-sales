@@ -24,7 +24,7 @@ async def test_changing_the_amount_saves_it_and_logs_the_formatted_amounts(env: 
 
     assert result.view.item.deal.details.revenue_amount.value == 1_870_000_000
     assert (result.co_changed, result.notice) == ((), None)
-    assert await env.changes(view) == [("amount", "금액", "150,000,000원", "1,870,000,000원")]
+    assert await env.changes(view) == [("amount", "금액(단위:천원)", "150,000", "1,870,000")]
 
 
 @pytest.mark.parametrize("amount", [0, -1, 2**53])

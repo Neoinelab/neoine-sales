@@ -1,6 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import type { UserEvent } from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
+import { AMOUNT_INPUT_MESSAGE, AMOUNT_TOO_LARGE_MESSAGE } from '../../../shared/model/money'
 import { renderAt } from '../../../test/mockApp'
 import { detailPath } from '../../../test/detailTestUtils'
 
@@ -31,16 +32,16 @@ describe('상세 현재값 바 인라인 변경 (T-SYNC-UI 상세)', () => {
     await pick(user, bar, 'Status', '계약완료')
     const dialog = await screen.findByRole('dialog', { name: '매출 확정' })
     const confirm = within(dialog).getByRole('button', { name: '확정' })
-    await user.clear(within(dialog).getByLabelText('매출금액(KRW, 실제 값)'))
+    await user.clear(within(dialog).getByLabelText('매출금액(단위:천원, 실제 값)'))
     expect(confirm).toBeDisabled()
-    await user.type(within(dialog).getByLabelText('매출금액(KRW, 실제 값)'), '1800000000')
+    await user.type(within(dialog).getByLabelText('매출금액(단위:천원, 실제 값)'), '1800000')
     await user.clear(within(dialog).getByLabelText('매출일(실제 값)'))
     await user.type(within(dialog).getByLabelText('매출일(실제 값)'), '2026-11-30')
     await user.click(confirm)
     await waitFor(() => expect(shown(bar, 'Status')).toHaveTextContent('계약완료'))
     expect(shown(bar, 'Forecast')).toHaveTextContent('Won')
     expect(await screen.findByText(/함께 변경되었습니다/)).toBeVisible()
-    expect(within(bar).getByTitle('1,800,000,000원')).toBeVisible()
+    expect(within(bar).getByText('1,800,000')).toBeVisible()
   })
 
   it('keeps the old values when the revenue dialog is cancelled', async () => {
@@ -102,39 +103,74 @@ describe('상세 현재값 바 인라인 변경 (T-SYNC-UI 상세)', () => {
 describe('금액·Expected Close 인라인 편집', () => {
   it('saves a new amount and shows it', async () => {
     const { user, bar } = await openBar(2, '대한제조 MFA 확대')
-    await user.click(within(bar).getByRole('button', { name: '금액 수정' }))
-    const input = within(bar).getByLabelText('금액(KRW)')
+    await user.click(within(bar).getByRole('button', { name: '금액(단위:천원) 수정' }))
+    const input = within(bar).getByLabelText('금액(단위:천원)')
     await user.clear(input)
-    await user.type(input, '500000000')
+    await user.type(input, '500000')
     await user.tab()
-    await waitFor(() => expect(within(bar).getByTitle('500,000,000원')).toBeVisible())
+    await waitFor(() => expect(within(bar).getByText('500,000')).toBeVisible())
   })
 
   it('rejects an empty amount with the server message and keeps the editor open', async () => {
     const { user, bar } = await openBar(2, '대한제조 MFA 확대')
-    await user.click(within(bar).getByRole('button', { name: '금액 수정' }))
-    await user.clear(within(bar).getByLabelText('금액(KRW)'))
+    await user.click(within(bar).getByRole('button', { name: '금액(단위:천원) 수정' }))
+    await user.clear(within(bar).getByLabelText('금액(단위:천원)'))
     await user.keyboard('{Enter}')
-    expect(await within(bar).findByRole('alert')).toHaveTextContent('매출금액은 1원 이상의 정수로 입력하세요.')
-    expect(within(bar).getByLabelText('금액(KRW)')).toBeVisible()
+    expect(await within(bar).findByRole('alert')).toHaveTextContent(AMOUNT_INPUT_MESSAGE)
+    expect(within(bar).getByLabelText('금액(단위:천원)')).toBeVisible()
   })
 
   it('cancels the amount edit with Escape without saving', async () => {
     const { user, bar } = await openBar(2, '대한제조 MFA 확대')
-    await user.click(within(bar).getByRole('button', { name: '금액 수정' }))
-    await user.type(within(bar).getByLabelText('금액(KRW)'), '9{Escape}')
-    expect(within(bar).queryByLabelText('금액(KRW)')).not.toBeInTheDocument()
-    expect(within(bar).getByTitle('420,000,000원')).toBeVisible()
+    await user.click(within(bar).getByRole('button', { name: '금액(단위:천원) 수정' }))
+    await user.type(within(bar).getByLabelText('금액(단위:천원)'), '9{Escape}')
+    expect(within(bar).queryByLabelText('금액(단위:천원)')).not.toBeInTheDocument()
+    expect(within(bar).getByText('420,000')).toBeVisible()
   })
 
   it('saves the amount with Enter from the keyboard', async () => {
     const { user, bar } = await openBar(2, '대한제조 MFA 확대')
-    await user.click(within(bar).getByRole('button', { name: '금액 수정' }))
-    const input = within(bar).getByLabelText('금액(KRW)')
+    await user.click(within(bar).getByRole('button', { name: '금액(단위:천원) 수정' }))
+    const input = within(bar).getByLabelText('금액(단위:천원)')
     expect(input).toHaveFocus()
     await user.clear(input)
-    await user.type(input, '777000000{Enter}')
-    await waitFor(() => expect(within(bar).getByTitle('777,000,000원')).toBeVisible())
+    await user.type(input, '777000{Enter}')
+    await waitFor(() => expect(within(bar).getByText('777,000')).toBeVisible())
+  })
+
+  it('starts the amount editor with the thousand-won value', async () => {
+    const { user, bar } = await openBar(2, '대한제조 MFA 확대')
+    await user.click(within(bar).getByRole('button', { name: '금액(단위:천원) 수정' }))
+    expect(within(bar).getByLabelText('금액(단위:천원)')).toHaveValue('420,000')
+  })
+
+  it('adds commas while typing and saves won', async () => {
+    const { user, bar } = await openBar(2, '대한제조 MFA 확대')
+    await user.click(within(bar).getByRole('button', { name: '금액(단위:천원) 수정' }))
+    const input = within(bar).getByLabelText('금액(단위:천원)')
+    await user.clear(input)
+    await user.type(input, '1234567')
+    expect(input).toHaveValue('1,234,567')
+    await user.keyboard('{Enter}')
+    await waitFor(() => expect(within(bar).getByText('1,234,567')).toBeVisible())
+  })
+
+  it('rejects an amount over the maximum and keeps the editor open', async () => {
+    const { user, bar } = await openBar(2, '대한제조 MFA 확대')
+    await user.click(within(bar).getByRole('button', { name: '금액(단위:천원) 수정' }))
+    const input = within(bar).getByLabelText('금액(단위:천원)')
+    await user.clear(input)
+    await user.type(input, '9007199254741{Enter}')
+    expect(await within(bar).findByRole('alert')).toHaveTextContent(AMOUNT_TOO_LARGE_MESSAGE)
+    expect(within(bar).getByLabelText('금액(단위:천원)')).toBeVisible()
+  })
+
+  it('labels the amount with its unit', async () => {
+    const { bar } = await openBar(2, '대한제조 MFA 확대')
+    const term = within(bar).getByText('금액(단위:천원)', { selector: 'dt' })
+    const value = term.nextElementSibling as HTMLElement
+    expect(value).toHaveTextContent('420,000')
+    expect(value.textContent).not.toContain('천원')
   })
 
   it('saves a new Expected Close', async () => {

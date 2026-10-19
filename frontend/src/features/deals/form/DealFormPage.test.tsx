@@ -1,5 +1,6 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
+import { AMOUNT_INPUT_MESSAGE, AMOUNT_TOO_LARGE_MESSAGE } from '../../../shared/model/money'
 import { renderAt } from '../../../test/mockApp'
 import { DETAIL_URL, openList, pickPerson, save } from './testHelpers'
 
@@ -11,6 +12,7 @@ describe('Deal 등록 기본값 (T-FORM-02, T-FORM-03)', () => {
     expect(screen.getByLabelText('Status')).toHaveDisplayValue('기회발굴')
     expect(screen.getByLabelText('Forecast')).toHaveDisplayValue('Pipeline')
     expect(screen.getByText('KRW')).toBeVisible()
+    expect(screen.getByLabelText('금액(단위:천원)')).toBeVisible()
   })
 
   it('offers only active sales users as owner candidates', async () => {
@@ -50,11 +52,19 @@ describe('필수 입력과 오류 문구 (T-FORM-01, T-FORM-05)', () => {
         'Deal Name을 입력하세요.',
         '고객 회사명을 입력하세요.',
         '고객 담당자명을 입력하세요.',
-        '매출금액은 1원 이상의 정수로 입력하세요.',
+        AMOUNT_INPUT_MESSAGE,
         'Expected Close를 입력하세요.',
       ]),
     )
     await waitFor(() => expect(screen.getByLabelText('Deal Name')).toHaveFocus())
+  })
+
+  it('rejects an amount over the maximum', async () => {
+    const { user } = await renderAt('/deals/new')
+    await screen.findByRole('heading', { name: 'Deal 등록' })
+    await user.type(screen.getByLabelText('금액(단위:천원)'), '9007199254741')
+    await save(user)
+    expect(await screen.findByText(AMOUNT_TOO_LARGE_MESSAGE)).toBeVisible()
   })
 
   it('asks for the owner when none is chosen and for a positive Users number', async () => {
@@ -109,7 +119,7 @@ describe('Deal 등록 저장 (T-FORM-04)', () => {
     await pickPerson(user, '고객', '한빛은행', /정민수/)
     expect(screen.getByLabelText('고객 직급')).toHaveValue('과장')
     expect(screen.getByLabelText('고객 이메일')).not.toHaveValue('')
-    await user.type(screen.getByLabelText('금액'), '300000000')
+    await user.type(screen.getByLabelText('금액(단위:천원)'), '300000')
     fireEvent.change(screen.getByLabelText('Expected Close'), { target: { value: '2027-05-01' } })
     await save(user)
     await waitFor(() => expect(location()).toMatch(DETAIL_URL))
@@ -117,7 +127,7 @@ describe('Deal 등록 저장 (T-FORM-04)', () => {
     const row = await openList(user, '신규 등록 테스트')
     expect(within(row).getByText('한빛은행')).toBeVisible()
     expect(within(row).getByText('김영업')).toBeVisible()
-    expect(within(row).getByText('300M')).toBeVisible()
+    expect(within(row).getByText('300,000')).toBeVisible()
     expect(within(row).getByRole('button', { name: /Status 편집/ })).toHaveTextContent('기회발굴')
   })
 
@@ -129,7 +139,7 @@ describe('Deal 등록 저장 (T-FORM-04)', () => {
     const email = screen.getByLabelText('고객 이메일')
     await user.clear(email)
     await user.type(email, 'changed.mail@hanbit.test')
-    await user.type(screen.getByLabelText('금액'), '100000000')
+    await user.type(screen.getByLabelText('금액(단위:천원)'), '100000')
     fireEvent.change(screen.getByLabelText('Expected Close'), { target: { value: '2027-06-01' } })
     await save(user)
     await waitFor(() => expect(location()).toMatch(DETAIL_URL))
@@ -147,7 +157,7 @@ describe('Deal 등록 저장 (T-FORM-04)', () => {
     await user.type(screen.getByLabelText('고객 담당자명'), '홍길동')
     await user.click(screen.getByRole('combobox', { name: 'Budget' }))
     await user.click(await screen.findByRole('option', { name: '단독 예산 확보' }))
-    await user.type(screen.getByLabelText('금액'), '50000000')
+    await user.type(screen.getByLabelText('금액(단위:천원)'), '50000')
     fireEvent.change(screen.getByLabelText('Expected Close'), { target: { value: '2027-06-01' } })
     await save(user)
     await waitFor(() => expect(location()).toMatch(DETAIL_URL))

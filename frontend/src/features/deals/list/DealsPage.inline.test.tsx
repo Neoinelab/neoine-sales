@@ -1,5 +1,7 @@
 import { fireEvent, screen, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
+import { AMOUNT_INPUT_MESSAGE } from '../../../shared/model/money'
+import { gateway } from '../../../gateway'
 import { renderAt } from '../../../test/mockApp'
 import { rowOf } from './testHelpers'
 
@@ -9,8 +11,8 @@ describe('Inline Update 즉시 저장 (T-LIST-12~14)', () => {
   it('has no save or cancel button while editing', async () => {
     const { user } = await renderAt(SEARCH)
     const row = await rowOf(/대한제조 MFA 확대/)
-    for (const label of ['Status', 'Forecast', '금액', 'Expected Close']) {
-      await user.click(within(row).getByRole('button', { name: new RegExp(`${label} 편집`) }))
+    for (const label of ['Status', 'Forecast', '금액(단위:천원)', 'Expected Close']) {
+      await user.click(within(row).getByRole('button', { name: (name) => name.endsWith(`${label} 편집`) }))
       expect(within(row).queryByRole('button', { name: '저장' })).not.toBeInTheDocument()
       expect(within(row).queryByRole('button', { name: '취소' })).not.toBeInTheDocument()
       await user.keyboard('{Escape}')
@@ -44,52 +46,67 @@ describe('Inline Update 즉시 저장 (T-LIST-12~14)', () => {
     expect(await within(row).findByRole('button', { name: /Status 편집/ })).toHaveTextContent('POC완료')
   })
 
-  it('saves the amount with Enter and shows it in the short form', async () => {
+  it('saves the amount with Enter and shows it in thousand won', async () => {
     const { user } = await renderAt(SEARCH)
     const row = await rowOf(/대한제조 MFA 확대/)
-    await user.click(within(row).getByRole('button', { name: /금액 편집/ }))
-    const input = within(row).getByLabelText('금액 값')
+    await user.click(within(row).getByRole('button', { name: /금액\(단위:천원\) 편집/ }))
+    const input = within(row).getByLabelText('금액(단위:천원) 값')
     await user.clear(input)
-    await user.type(input, '500000000{Enter}')
-    expect(await within(row).findByRole('button', { name: /금액 편집/ })).toHaveTextContent('500M')
+    await user.type(input, '500000{Enter}')
+    expect(await within(row).findByRole('button', { name: /금액\(단위:천원\) 편집/ })).toHaveTextContent('500,000')
+    expect(await screen.findByText(/금액\(단위:천원\)이 '500,000'\(으\)로 변경되었습니다\./)).toBeVisible()
   })
 
   it('saves the amount when the input loses focus, not on every keystroke', async () => {
     const { user } = await renderAt(SEARCH)
     const row = await rowOf(/대한제조 MFA 확대/)
-    await user.click(within(row).getByRole('button', { name: /금액 편집/ }))
-    const input = within(row).getByLabelText('금액 값')
+    await user.click(within(row).getByRole('button', { name: /금액\(단위:천원\) 편집/ }))
+    const input = within(row).getByLabelText('금액(단위:천원) 값')
     await user.clear(input)
-    await user.type(input, '700000000')
-    expect(within(row).getByLabelText('금액 값')).toBeVisible()
+    await user.type(input, '700000')
+    expect(within(row).getByLabelText('금액(단위:천원) 값')).toBeVisible()
     expect(screen.queryByText(/금액.*변경되었습니다/)).not.toBeInTheDocument()
     await user.tab()
-    expect(await within(row).findByRole('button', { name: /금액 편집/ })).toHaveTextContent('700M')
+    expect(await within(row).findByRole('button', { name: /금액\(단위:천원\) 편집/ })).toHaveTextContent('700,000')
   })
 
   it('discards the typed amount with Esc', async () => {
     const { user } = await renderAt(SEARCH)
     const row = await rowOf(/대한제조 MFA 확대/)
-    const before = within(row).getByRole('button', { name: /금액 편집/ }).textContent
-    await user.click(within(row).getByRole('button', { name: /금액 편집/ }))
-    const input = within(row).getByLabelText('금액 값')
+    const before = within(row).getByRole('button', { name: /금액\(단위:천원\) 편집/ }).textContent
+    await user.click(within(row).getByRole('button', { name: /금액\(단위:천원\) 편집/ }))
+    const input = within(row).getByLabelText('금액(단위:천원) 값')
     await user.clear(input)
-    await user.type(input, '900000000{Escape}')
-    expect(within(row).queryByLabelText('금액 값')).not.toBeInTheDocument()
-    expect(within(row).getByRole('button', { name: /금액 편집/ })).toHaveTextContent(before ?? '')
+    await user.type(input, '900000{Escape}')
+    expect(within(row).queryByLabelText('금액(단위:천원) 값')).not.toBeInTheDocument()
+    expect(within(row).getByRole('button', { name: /금액\(단위:천원\) 편집/ })).toHaveTextContent(before ?? '')
     expect(screen.queryByText(/금액.*변경되었습니다/)).not.toBeInTheDocument()
   })
 
   it('rejects an invalid amount, keeps editing and does not save', async () => {
     const { user } = await renderAt(SEARCH)
     const row = await rowOf(/대한제조 MFA 확대/)
-    await user.click(within(row).getByRole('button', { name: /금액 편집/ }))
-    const input = within(row).getByLabelText('금액 값')
+    await user.click(within(row).getByRole('button', { name: /금액\(단위:천원\) 편집/ }))
+    const input = within(row).getByLabelText('금액(단위:천원) 값')
     await user.clear(input)
     await user.type(input, '0{Enter}')
-    expect(await within(row).findByRole('alert')).toHaveTextContent('매출금액은 1원 이상의 정수로 입력하세요.')
-    expect(within(row).getByLabelText('금액 값')).toBeVisible()
+    expect(await within(row).findByRole('alert')).toHaveTextContent(AMOUNT_INPUT_MESSAGE)
+    expect(within(row).getByLabelText('금액(단위:천원) 값')).toBeVisible()
     expect(screen.queryByText(/금액.*변경되었습니다/)).not.toBeInTheDocument()
+  })
+
+  it('does not save when the amount is left as shown', async () => {
+    const { user } = await renderAt(SEARCH)
+    const code = (await gateway.deals.list({ keyword: '대한제조 MFA', limit: 5 })).items[0]!.code
+    const before = (await gateway.history.list(code, {})).length
+    const row = await rowOf(/대한제조 MFA 확대/)
+    const shown = within(row).getByRole('button', { name: /금액\(단위:천원\) 편집/ }).textContent
+    await user.click(within(row).getByRole('button', { name: /금액\(단위:천원\) 편집/ }))
+    expect(within(row).getByLabelText<HTMLInputElement>('금액(단위:천원) 값').value).toBe(shown)
+    await user.keyboard('{Enter}')
+    expect(within(row).queryByLabelText('금액(단위:천원) 값')).not.toBeInTheDocument()
+    expect(screen.queryByText(/금액.*변경되었습니다/)).not.toBeInTheDocument()
+    expect((await gateway.history.list(code, {})).length).toBe(before)
   })
 
   it('saves Expected Close as soon as a date is picked', async () => {
@@ -132,15 +149,15 @@ describe('Status⇄Forecast 동기화 (T-SYNC-UI-01~06, 목록)', () => {
     await user.click(within(row).getByRole('button', { name: /Status 편집/ }))
     await user.selectOptions(within(row).getByLabelText('Status 값'), '계약완료')
     const dialog = await screen.findByRole('dialog', { name: '매출 확정' })
-    const amount = within(dialog).getByLabelText('매출금액(KRW, 실제 값)')
+    const amount = within(dialog).getByLabelText('매출금액(단위:천원, 실제 값)')
     await user.clear(amount)
     expect(within(dialog).getByRole('button', { name: '확정' })).toBeDisabled()
-    await user.type(amount, '1800000000')
+    await user.type(amount, '1800000')
     expect(within(dialog).getByRole('button', { name: '확정' })).toBeEnabled()
     await user.click(within(dialog).getByRole('button', { name: '확정' }))
     expect(await within(row).findByRole('button', { name: /Forecast 편집/ })).toHaveTextContent('Won')
     expect(within(row).getByRole('button', { name: /Status 편집/ })).toHaveTextContent('계약완료')
-    expect(within(row).getByRole('button', { name: /금액 편집/ })).toHaveTextContent('1.8B')
+    expect(within(row).getByRole('button', { name: /금액\(단위:천원\) 편집/ })).toHaveTextContent('1,800,000')
     expect(await screen.findByText(/함께 변경되었습니다/)).toBeVisible()
   })
 

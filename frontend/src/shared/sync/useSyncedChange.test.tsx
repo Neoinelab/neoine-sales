@@ -1,6 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
+import { AMOUNT_INPUT_MESSAGE } from '../model/money'
 import type { SyncApplied, SyncFinalize, SyncPlan } from '../model/sync'
 import type { CodeSet } from '../model/types'
 import { SyncNotice } from './SyncNotice'
@@ -27,19 +28,10 @@ vi.mock('../model/sync', () => ({
   planChange: () => model.plan,
   finalizePlan: (...args: unknown[]) => model.finalize(...args),
 }))
-vi.mock('../model/money', () => ({
-  parseAmount: (t: string) => {
-    const n = Number(t.replace(/,/g, '').trim())
-    return Number.isInteger(n) && n >= 1 ? n : null
-  },
-  formatKrwShort: String,
-  formatKrwFull: String,
-}))
-
 const STATE = { statusKey: 'negotiation', forecastKey: 'commit', revenueAmount: 150000000, revenueDate: '2026-12-31' }
 
-function Harness({ onResult }: { onResult: (v: SyncApplied | null) => void }) {
-  const { request, dialogs } = useSyncedChange(STATE)
+function Harness({ onResult, state = STATE }: { onResult: (v: SyncApplied | null) => void; state?: typeof STATE }) {
+  const { request, dialogs } = useSyncedChange(state)
   return (
     <>
       <button type="button" onClick={() => void request({ field: 'statusKey', value: 'contract_completed' }).then(onResult)}>
@@ -94,7 +86,7 @@ describe('useSyncedChange', () => {
       expect(dialog).toHaveTextContent('실제 매출금액과 매출일을 입력해야 저장할 수 있습니다.')
       const occurrences = (dialog.textContent ?? '').split('실제 매출금액과 매출일을 입력해야 저장할 수 있습니다.').length - 1
       expect(occurrences).toBe(1)
-      expect(screen.getByLabelText('매출금액(KRW, 실제 값)')).toHaveValue('150000000')
+      expect(screen.getByLabelText('매출금액(단위:천원, 실제 값)')).toHaveValue('150,000')
       expect(screen.getByLabelText('매출일(실제 값)')).toHaveValue('2026-12-31')
       expect(screen.getByRole('button', { name: '확정' })).toBeEnabled()
     })
@@ -103,17 +95,17 @@ describe('useSyncedChange', () => {
       model.plan = plan
       render(<Harness onResult={() => {}} />)
       await userEvent.click(screen.getByRole('button', { name: '요청' }))
-      await userEvent.clear(screen.getByLabelText('매출금액(KRW, 실제 값)'))
+      await userEvent.clear(screen.getByLabelText('매출금액(단위:천원, 실제 값)'))
       await userEvent.clear(screen.getByLabelText('매출일(실제 값)'))
 
       expect(screen.getByRole('button', { name: '확정' })).toBeDisabled()
-      expect(screen.getByText('매출금액은 1원 이상의 정수로 입력하세요.')).toBeInTheDocument()
+      expect(screen.getByText(AMOUNT_INPUT_MESSAGE)).toBeInTheDocument()
       expect(screen.getByText('매출일을 입력하세요.')).toBeInTheDocument()
 
-      await userEvent.type(screen.getByLabelText('매출금액(KRW, 실제 값)'), '0')
+      await userEvent.type(screen.getByLabelText('매출금액(단위:천원, 실제 값)'), '0')
       expect(screen.getByRole('button', { name: '확정' })).toBeDisabled()
-      await userEvent.clear(screen.getByLabelText('매출금액(KRW, 실제 값)'))
-      await userEvent.type(screen.getByLabelText('매출금액(KRW, 실제 값)'), '200,000,000')
+      await userEvent.clear(screen.getByLabelText('매출금액(단위:천원, 실제 값)'))
+      await userEvent.type(screen.getByLabelText('매출금액(단위:천원, 실제 값)'), '200,000')
       await userEvent.type(screen.getByLabelText('매출일(실제 값)'), '2026-10-15')
       expect(screen.getByRole('button', { name: '확정' })).toBeEnabled()
     })
@@ -124,8 +116,8 @@ describe('useSyncedChange', () => {
       const onResult = vi.fn()
       render(<Harness onResult={onResult} />)
       await userEvent.click(screen.getByRole('button', { name: '요청' }))
-      await userEvent.clear(screen.getByLabelText('매출금액(KRW, 실제 값)'))
-      await userEvent.type(screen.getByLabelText('매출금액(KRW, 실제 값)'), '200000000')
+      await userEvent.clear(screen.getByLabelText('매출금액(단위:천원, 실제 값)'))
+      await userEvent.type(screen.getByLabelText('매출금액(단위:천원, 실제 값)'), '200000')
       await userEvent.clear(screen.getByLabelText('매출일(실제 값)'))
       await userEvent.type(screen.getByLabelText('매출일(실제 값)'), '2026-10-15')
 
@@ -139,6 +131,24 @@ describe('useSyncedChange', () => {
         CODES,
       )
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    })
+
+    it('keeps the original won amount when the shown thousands are left as they were', async () => {
+      model.plan = plan
+      model.finalize.mockReturnValue(okFinalize())
+      render(<Harness onResult={() => {}} state={{ ...STATE, revenueAmount: 1_234_567 }} />)
+      await userEvent.click(screen.getByRole('button', { name: '요청' }))
+      expect(screen.getByLabelText('매출금액(단위:천원, 실제 값)')).toHaveValue('1,235')
+
+      await userEvent.click(screen.getByRole('button', { name: '확정' }))
+
+      await waitFor(() => expect(model.finalize).toHaveBeenCalled())
+      expect(model.finalize).toHaveBeenLastCalledWith(
+        expect.anything(),
+        plan,
+        { revenueAmount: 1_234_567, revenueDate: '2026-12-31' },
+        CODES,
+      )
     })
 
     it('changes nothing when cancelled', async () => {

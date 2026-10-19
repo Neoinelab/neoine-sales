@@ -8,7 +8,7 @@ import {
 } from '../../../shared/model/constants'
 import { validateContactInput, type ContactFieldErrors } from '../../../shared/model/contactRules'
 import type { ContactDraft } from '../../../shared/model/inputs'
-import { parseAmount } from '../../../shared/model/money'
+import { amountInputError, formatThousandWon, isSameShownAmount, parseAmountInput } from '../../../shared/model/money'
 import type {
   BantLabel,
   Contact,
@@ -112,7 +112,7 @@ export function formFromDeal(deal: DealDetail, labels: readonly BantLabel[]): De
     users: deal.users === null ? '' : String(deal.users),
     statusKey: deal.statusKey,
     forecastKey: deal.forecastKey,
-    revenueAmount: String(deal.revenueAmount),
+    revenueAmount: formatThousandWon(deal.revenueAmount),
     revenueDate: deal.revenueDate,
     customer: draftOf(deal.customer),
     partner: deal.activePartner ? draftOf(deal.activePartner) : EMPTY_DRAFT,
@@ -165,7 +165,11 @@ function bantErrors(texts: Record<BantCategory, string>): FormErrors['bant'] {
 }
 
 /** 화면 위에서 아래 순서의 필수·형식 검증. `originalOwner`는 수정 중인 Deal의 현재 Owner. */
-export function validateForm(state: DealFormState, originalOwner: UserRef | undefined): FormErrors {
+export function validateForm(
+  state: DealFormState,
+  originalOwner: UserRef | undefined,
+  originalAmount?: number,
+): FormErrors {
   const errors: FormErrors = {}
   if (state.name.trim() === '') errors.name = 'Deal Name을 입력하세요.'
   if (state.ownerId === '') errors.ownerId = 'Owner를 선택하세요.'
@@ -176,7 +180,10 @@ export function validateForm(state: DealFormState, originalOwner: UserRef | unde
   if (customer) errors.customer = customer
   const partner = partnerErrors(state.partner)
   if (partner) errors.partner = partner
-  if (parseAmount(state.revenueAmount) === null) errors.revenueAmount = '매출금액은 1원 이상의 정수로 입력하세요.'
+  // 금액을 건드리지 않았으면(표시값 그대로) 검증하지 않는다. 1~499원 Deal은 표시가 0이다.
+  const untouched = originalAmount !== undefined && state.revenueAmount === formatThousandWon(originalAmount)
+  const amountError = untouched ? null : amountInputError(state.revenueAmount)
+  if (amountError !== null) errors.revenueAmount = amountError
   if (state.revenueDate === '') errors.revenueDate = 'Expected Close를 입력하세요.'
   const bant = bantErrors(state.bant)
   if (bant) errors.bant = bant
@@ -205,7 +212,7 @@ export function toDealInput(state: DealFormState, labels: readonly BantLabel[]):
     users: users === '' ? null : Number(users),
     statusKey: state.statusKey,
     forecastKey: state.forecastKey,
-    revenueAmount: parseAmount(state.revenueAmount) ?? 0,
+    revenueAmount: parseAmountInput(state.revenueAmount) ?? 0,
     revenueDate: state.revenueDate,
     customer: normalize(state.customer),
     partner: isPartnerEntered(state.partner) ? normalize(state.partner) : null,
@@ -237,6 +244,11 @@ function keepUntouchedBant(bant: DealInput['bant'], state: DealFormState, origin
 export function toDealPatch(state: DealFormState, original: DealDetail, labels: readonly BantLabel[]): DealPatch {
   const { partner, ...rest } = toDealInput(state, labels)
   const patch: DealPatch = { ...rest, bant: keepUntouchedBant(rest.bant, state, original, labels) }
+  // 표기상 같은 금액이면 원래 원 값을 유지한다(1000원 미만 끝자리 보존).
+  // 텍스트가 원래 금액의 표기 그대로면 파싱하지 않는다(상한 근처 값은 파싱이 실패해 0이 된다).
+  if (state.revenueAmount === formatThousandWon(original.revenueAmount) || isSameShownAmount(rest.revenueAmount, original.revenueAmount)) {
+    patch.revenueAmount = original.revenueAmount
+  }
   if (partner) patch.partner = partner
   else if (original.activePartner) patch.partner = null
   return patch

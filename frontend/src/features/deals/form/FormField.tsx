@@ -1,4 +1,5 @@
 import { useId } from 'react'
+import { AmountInput } from '../../../shared/ui/AmountInput'
 
 interface FormFieldProps {
   label: string
@@ -8,7 +9,7 @@ interface FormFieldProps {
   /** 제출 검증 오류. 입력 아래 role=alert로 보이고 aria-invalid가 켜진다. */
   error?: string
   hint?: string
-  type?: 'text' | 'date'
+  type?: 'text' | 'date' | 'amount'
   inputMode?: 'text' | 'numeric'
   /** 필수 표시(`*`)는 CSS가 붙인다. 라벨 텍스트에는 들어가지 않는다. */
   required?: boolean
@@ -30,7 +31,11 @@ export function FormField({ label, name, value, onChange, error, hint, type = 't
   return (
     <div className={['field', required && 'required', className].filter(Boolean).join(' ')}>
       <label htmlFor={id}>{label}</label>
-      <input {...common} type={type} inputMode={inputMode} onChange={(e) => onChange(e.target.value)} />
+      {type === 'amount' ? (
+        <AmountInput {...common} onChange={onChange} />
+      ) : (
+        <input {...common} type={type} inputMode={inputMode} onChange={(e) => onChange(e.target.value)} />
+      )}
       {error && (
         <p id={errorId} role="alert" className="field-error">
           {error}

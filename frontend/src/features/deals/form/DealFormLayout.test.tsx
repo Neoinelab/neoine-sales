@@ -43,7 +43,7 @@ describe('Deal 정보 타일의 항목 (AC-11, AC-12, AC-14, AC-15)', () => {
       within(info).getByLabelText('Owner'),
       within(info).getByLabelText('Status'),
       within(info).getByLabelText('Forecast'),
-      within(info).getByLabelText('금액'),
+      within(info).getByLabelText('금액(단위:천원)'),
       within(info).getByLabelText('Expected Close'),
       within(info).getByLabelText('Vendor'),
       within(info).getByLabelText('Solution'),
@@ -108,7 +108,7 @@ describe('Deal 정보 타일의 항목 (AC-11, AC-12, AC-14, AC-15)', () => {
     const { user, location } = await openNew()
     await user.type(screen.getByLabelText('Deal Name'), '견적 저장 테스트')
     await pickPerson(user, '고객', '한빛은행', /정민수/)
-    await user.type(screen.getByLabelText('금액'), '100000000')
+    await user.type(screen.getByLabelText('금액(단위:천원)'), '100000')
     fireEvent.change(screen.getByLabelText('Expected Close'), { target: { value: '2027-06-01' } })
     await user.selectOptions(screen.getByLabelText('견적 제출여부'), 'YES')
     fireEvent.change(screen.getByLabelText('견적 제출일'), { target: { value: '2027-01-10' } })
@@ -130,7 +130,7 @@ describe('라벨-입력 한 행 (AC-13)', () => {
     await openNew()
     const cases: Array<[string, string, string]> = [
       ['Deal Name', '.kv-row, .field', 'Deal Name'],
-      ['금액', '.kv-row, .field', '금액'],
+      ['금액(단위:천원)', '.kv-row, .field', '금액(단위:천원)'],
       ['Owner', '.kv-row', 'Owner'],
       ['Status', '.kv-row', 'Status'],
       ['Budget', '.kv-row', 'Budget'],
@@ -139,7 +139,7 @@ describe('라벨-입력 한 행 (AC-13)', () => {
     for (const [accessible, selector, shown] of cases) {
       const row = screen.getByLabelText(accessible).closest(selector) as HTMLElement
       expect(row, accessible).not.toBeNull()
-      expect((row.firstElementChild as HTMLElement).textContent).toMatch(new RegExp(`^${shown}`))
+      expect((row.firstElementChild as HTMLElement).textContent?.startsWith(shown)).toBe(true)
     }
   })
 

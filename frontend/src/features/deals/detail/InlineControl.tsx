@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { AmountInput } from '../../../shared/ui/AmountInput'
 import { ComboBox, type ComboOption } from '../../../shared/ui/ComboBox'
 
 /** `control` 렌더 함수가 받는 편집 상태(사용자 지정 입력기용). */
@@ -11,7 +12,7 @@ export interface InlineControlContext {
   inputLabel: string
 }
 
-export type InlineKind = 'text' | 'number' | 'date' | 'select' | 'combo' | 'custom'
+export type InlineKind = 'text' | 'number' | 'amount' | 'date' | 'select' | 'combo' | 'custom'
 
 interface InlineControlProps {
   kind: InlineKind
@@ -58,6 +59,7 @@ export function InlineControl(props: InlineControlProps) {
       />
     )
   }
+  if (kind === 'amount') return <AmountInput aria-label={inputLabel} value={value} onChange={onChange} disabled={busy} />
   const type = kind === 'number' || kind === 'date' ? kind : 'text'
   return (
     <input type={type} aria-label={inputLabel} value={value} onChange={(e) => onChange(sanitize ? sanitize(e.target.value) : e.target.value)} disabled={busy} />

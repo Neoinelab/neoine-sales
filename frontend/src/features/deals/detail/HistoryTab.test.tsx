@@ -56,7 +56,7 @@ describe('Deal History 탭 (T-DETAIL / DL-11)', () => {
     // 20건을 넘기도록 변경을 쌓는다(화면 밖에서 같은 게이트웨이로).
     const code = (await gateway.deals.list({ keyword: '한빛은행 ITDR', limit: 5 })).items[0]!.code
     for (let i = 0; i < 25; i += 1) {
-      await gateway.deals.applyChange(code, { change: { field: 'revenueAmount', value: 1_000_000_000 + i } })
+      await gateway.deals.applyChange(code, { change: { field: 'revenueAmount', value: 1_000_000_000 + i * 1000 } })
     }
     await client.invalidateQueries()
     const pager = await screen.findByRole('navigation', { name: '페이지' })

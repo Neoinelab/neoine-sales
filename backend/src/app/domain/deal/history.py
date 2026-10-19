@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Protocol
 
 from app.domain.bant.values import BantCategory
 from app.domain.common.korean import with_wa
-from app.domain.common.krw import format_krw_full
+from app.domain.common.krw import format_thousand_won
 from app.domain.contact.values import ContactKind
 from app.domain.deal.sync import CoChange, SyncField
 
@@ -29,6 +29,7 @@ TARGET_MAX = 300
 TEXT_MAX = 1000
 ELLIPSIS = "…"
 NO_PARTNER = "없음"
+AMOUNT_TARGET = "금액(단위:천원)"
 BANT_TARGET_NAMES = {
     BantCategory.BUDGET: "Budget",
     BantCategory.AUTHORITY: "Authority",
@@ -188,9 +189,9 @@ def _money_pairs(before: DealDetails, after: DealDetails) -> list[_Pair]:
     return [
         (
             HistoryCategory.AMOUNT,
-            "금액",
-            format_krw_full(before.revenue_amount.value),
-            format_krw_full(after.revenue_amount.value),
+            AMOUNT_TARGET,
+            format_thousand_won(before.revenue_amount.value),
+            format_thousand_won(after.revenue_amount.value),
         ),
         (
             HistoryCategory.EXPECTED_CLOSE,

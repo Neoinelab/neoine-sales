@@ -16,7 +16,7 @@ export function QuarterCards({ summary, filters }: { summary: ForecastSummary; f
   return (
     <section className="fc-cards" aria-label={`${period} 요약`}>
       <div className="fc-card">
-        <h2>Open 합계</h2>
+        <h2>Open 합계(단위:천원)</h2>
         <p className="fc-card-value">
           <AmountText amount={open.amount} />
         </p>
@@ -25,7 +25,7 @@ export function QuarterCards({ summary, filters }: { summary: ForecastSummary; f
         </p>
       </div>
       <div className="fc-card fc-card-won">
-        <h2>Won (별도)</h2>
+        <h2>Won (별도, 단위:천원)</h2>
         <p className="fc-card-value">
           <AmountText amount={won.amount} />
         </p>

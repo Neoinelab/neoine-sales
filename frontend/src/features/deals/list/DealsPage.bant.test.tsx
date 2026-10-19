@@ -79,7 +79,7 @@ describe('목록의 BANT 열 (P8 AC-14~18)', () => {
     await renderAt('/deals')
     await rowOf(/한빛은행 ITDR 도입/)
 
-    for (const name of ['Deal', 'Status', '금액', 'Expected Close', '최종 업데이트']) {
+    for (const name of ['Deal', 'Status', '금액(단위:천원)', 'Expected Close', '최종 업데이트']) {
       expect(within(screen.getByRole('columnheader', { name })).getByRole('button')).toBeVisible()
     }
   })

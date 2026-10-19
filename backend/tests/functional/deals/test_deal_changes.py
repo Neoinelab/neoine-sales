@@ -85,7 +85,7 @@ async def test_closing_by_status_changes_forecast_too_and_saves_the_revenue(api:
         [
             ("status", "Status", "기회발굴", "계약완료"),
             ("forecast", "Forecast", "Pipeline", "Won (Status 계약완료와 함께 변경)"),
-            ("amount", "금액", "150,000,000원", "900,000,000원"),
+            ("amount", "금액(단위:천원)", "150,000", "900,000"),
             ("expectedClose", "Expected Close", "2026-06-30", "2026-10-20"),
         ],
     )
@@ -255,7 +255,7 @@ async def test_an_unknown_or_malformed_code_is_not_found(api: Api, code: str) ->
 
 
 async def test_changing_the_amount_logs_the_formatted_amounts(api: Api) -> None:
-    """Scenario: 금액을 바꾸면 저장되고 이력에 '1,870,000,000원' 형식으로 남는다."""
+    """Scenario: 금액을 바꾸면 이력에 '금액(단위:천원)' 대상과 '1,870,000' 형식으로 남는다."""
     # Given
     await given_logged_in_as(api, role="sales")
     deal = await given_deal(api)
@@ -266,7 +266,7 @@ async def test_changing_the_amount_logs_the_formatted_amounts(api: Api) -> None:
     then_returned_deal_has(response, revenue_amount=1_870_000_000)
     then_co_changed_is(response, [])
     await then_history_is(
-        api, deal["code"], [("amount", "금액", "150,000,000원", "1,870,000,000원")]
+        api, deal["code"], [("amount", "금액(단위:천원)", "150,000", "1,870,000")]
     )
 
 

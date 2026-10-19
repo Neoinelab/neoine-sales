@@ -1,4 +1,5 @@
 import { useLabels } from '../../../data/labels'
+import { AMOUNT_LABEL } from '../../../shared/model/money'
 import type { DealRow, DealSortKey } from '../../../shared/model/types'
 import { DealRowItem } from './DealRowItem'
 import type { SortState } from './listQuery'
@@ -18,7 +19,7 @@ const COLUMNS: readonly Column[] = [
   { label: 'Status', sort: 'statusKey' },
   { label: 'Forecast' },
   { label: 'BANT' },
-  { label: '금액', sort: 'revenueAmount' },
+  { label: AMOUNT_LABEL, sort: 'revenueAmount' },
   { label: 'Expected Close', sort: 'revenueDate' },
   { label: 'Next Action' },
   { label: '최종 업데이트', sort: 'lastUpdatedAt' },

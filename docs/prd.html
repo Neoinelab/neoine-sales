@@ -247,7 +247,7 @@ code{background:var(--soft);padding:1px 5px;border-radius:3px;font-size:12.5px}
 <tr><th>컬럼</th><th>설명</th></tr>
 <tr><td>변경 시각</td><td>언제</td></tr>
 <tr><td>변경자</td><td>누가 (<code>users.id</code> FK)</td></tr>
-<tr><td>변경 대상</td><td>무엇을 (text). 예: Status, Forecast, 금액, Expected Close, Owner, 파트너, 고객 연락처, BANT Label, Action, 첨부 파일</td></tr>
+<tr><td>변경 대상</td><td>무엇을 (text). 예: Status, Forecast, 금액(단위:천원), Expected Close, Owner, 파트너, 고객 연락처, BANT Label, Action, 첨부 파일</td></tr>
 <tr><td>변경 전 · 변경 후</td><td>text. 변경 종류에 따라 각 서비스(유스케이스)가 알맞은 내용을 채운다</td></tr>
 </table>
 <p>변경 대상이 매우 다양하므로 구조화된 컬럼 대신 text로 보관한다. 기존 단계 변경 이력(<code>deal_stage_changes</code>)은 이 테이블로 통합한다. <span class="b ok">구현</span> P1(통합 완료)·P2·P2b</p>
@@ -308,7 +308,7 @@ code{background:var(--soft);padding:1px 5px;border-radius:3px;font-size:12.5px}
 <p>초기 등록 시 선택 입력이며, Qualification이 진행되면서 채운다. <span class="b ok">구현</span> P1</p>
 
 <h3>6.5 금액 표기</h3>
-<p>금액은 KRW 단위이며 화면 요약에서 M(백만), B(10억)로 줄여 표기한다(예: 180M = 1억 8천만 원, 1.87B = 18억 7천만 원).</p>
+<p>금액은 KRW이며 저장·API는 <b>원 단위 정수</b>다. 화면은 모든 곳에서 <b>천원 단위</b>로 표시·입력한다. 값은 천 단위 콤마가 있는 숫자만 쓰고(예: 1,870,000 = 18억 7천만 원), 단위는 항목 이름에 <code>금액(단위:천원)</code>처럼 표시한다. 1000원 단위로 떨어지지 않는 원 값은 천원으로 반올림(0.5 올림)해 보이며, 값을 고치지 않으면 원 값을 그대로 둔다. 입력란은 숫자와 콤마만 받고 콤마는 입력 중 자동으로 넣는다. History의 금액 행도 같은 표기(<code>금액(단위:천원)</code>, 숫자만)를 쓴다.</p>
 <h3 id="s6-6">6.6 매출일 = Expected Close (확정)</h3>
 <p><code>revenue_date</code> 하나가 매출일이자 Expected Close 날짜다. Deal이 진행 중이면 예상 매출일(Expected Close)이고, Deal이 성공(Won)하면 <b>최종 매출일자로 갱신</b>한다. Deal이 실패(Lost)하면 값을 바꾸지 않아 마지막 Expected Close가 그대로 남는다. 기간 집계(R01)는 이 값을 기준으로 한다.</p>
 
@@ -468,7 +468,7 @@ code{background:var(--soft);padding:1px 5px;border-radius:3px;font-size:12.5px}
 <table>
 <tr><th>항목</th><th>결정</th></tr>
 <tr><td>사용자 메뉴</td><td>Dashboard / Deals / Forecast / Reports 4개. admin에게만 Admin 메뉴 추가</td></tr>
-<tr><td>통화·단위</td><td>KRW 고정. 화면 단위 표기 M = 백만, B = 10억</td></tr>
+<tr><td>통화·단위</td><td>KRW 고정. 저장·API는 원 단위 정수, 화면 표시·입력은 천원 단위(콤마 숫자, 단위는 항목 이름 <code>금액(단위:천원)</code>에 표시)</td></tr>
 <tr><td>AD 설정 위치</td><td>Admin &gt; Settings &gt; 외부연동</td></tr>
 <tr><td>코드 관리 대상</td><td>Status, Forecast만 (admin 전용, Deal 관리 메뉴)</td></tr>
 <tr><td>BANT</td><td>점수 없는 Label. 항목당 하나. 점수는 현재 관리하지 않음(후속 확장)</td></tr>

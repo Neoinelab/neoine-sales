@@ -1,7 +1,7 @@
 /** Deal History 기록 규칙(A-0 계약, 구현은 A-1). 게이트웨이가 모든 변경에서 이 diff로 HistoryEntry를 만든다. */
 
 import { BANT_CATEGORIES, BANT_CATEGORY_NAMES } from './constants'
-import { formatKrwFull } from './money'
+import { AMOUNT_LABEL, formatThousandWon } from './money'
 import { withWa } from './text'
 import type { Deal, HistoryCategory } from './types'
 
@@ -66,7 +66,7 @@ export function diffDeal(
 
   push('status', 'Status', lookup.statusName(before.statusKey), withNote(lookup.statusName(after.statusKey), co.has('statusKey'), `Forecast ${lookup.forecastName(after.forecastKey)}`))
   push('forecast', 'Forecast', lookup.forecastName(before.forecastKey), withNote(lookup.forecastName(after.forecastKey), co.has('forecastKey'), `Status ${lookup.statusName(after.statusKey)}`))
-  push('amount', '금액', formatKrwFull(before.revenueAmount), formatKrwFull(after.revenueAmount))
+  push('amount', AMOUNT_LABEL, formatThousandWon(before.revenueAmount), formatThousandWon(after.revenueAmount))
   push('expectedClose', 'Expected Close', before.revenueDate, after.revenueDate)
   push('owner', 'Owner', lookup.userName(before.ownerId), lookup.userName(after.ownerId))
   push('partner', '파트너', partnerText(before, lookup), partnerText(after, lookup))

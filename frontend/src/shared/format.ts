@@ -1,9 +1,3 @@
-export function formatAmount(amount: string, currency: string): string {
-  const [integer = '0', fraction] = amount.split('.')
-  const grouped = integer.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
-  return `${grouped}${fraction ? `.${fraction}` : ''} ${currency}`
-}
-
 export function formatDateTime(iso: string): string {
   return new Date(iso).toLocaleString('ko-KR', { dateStyle: 'medium', timeStyle: 'short' })
 }

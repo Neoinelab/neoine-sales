@@ -58,7 +58,7 @@ async def test_register_action_with_status_change_saves_post_change_snapshot_and
     assert await action_env.rows() == [
         ("status", "Status", "기회발굴", "계약완료"),
         ("forecast", "Forecast", "Pipeline", "Won (Status 계약완료와 함께 변경)"),
-        ("amount", "금액", "150,000,000원", "900,000,000원"),
+        ("amount", "금액(단위:천원)", "150,000", "900,000"),
         ("expectedClose", "Expected Close", "2026-06-30", "2026-10-20"),
         ACTION_ROW,
     ]

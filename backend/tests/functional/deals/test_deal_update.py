@@ -61,7 +61,7 @@ async def test_only_the_sent_fields_change_and_each_is_logged(api: Api) -> None:
         deal["code"],
         [
             ("status", "Status", "기회발굴", "가격협상"),
-            ("amount", "금액", "150,000,000원", "1,870,000,000원"),
+            ("amount", "금액(단위:천원)", "150,000", "1,870,000"),
             ("expectedClose", "Expected Close", "2026-06-30", "2026-12-31"),
             ("other", "Deal Name", "ERP 구축", "확장 프로젝트"),
             ("other", "Vendor", "선택 안 함", "Oracle"),

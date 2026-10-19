@@ -132,7 +132,7 @@ describe('deals.applyChange', () => {
     expect(b.deal.revenueDate).toBe('2026-12-30')
     const history = await gateway.history.list(code, {})
     expect(history[0]).toMatchObject({ category: 'expectedClose', after: '2026-12-30' })
-    expect(history[1]).toMatchObject({ category: 'amount', before: '310,000,000원', after: '350,000,000원' })
+    expect(history[1]).toMatchObject({ category: 'amount', target: '금액(단위:천원)', before: '310,000', after: '350,000' })
     // Inline 수정은 Deal updatedAt을 갱신하므로 미업데이트가 풀린다
     expect(b.deal.risk).toBeNull()
   })

@@ -1,6 +1,7 @@
 import { Link } from 'react-router'
 import { useDeals } from '../../data/deals'
 import { formatDate } from '../../shared/format'
+import { AMOUNT_LABEL } from '../../shared/model/money'
 import { AmountText } from '../../shared/ui/AmountText'
 import { ForecastBadge, StatusBadge } from '../../shared/ui/Badges'
 import { ErrorBanner } from '../../shared/ui/ErrorBanner'
@@ -36,7 +37,7 @@ export function OwnerDeals({ ownerId, ownerName, filters, onClear }: Props) {
       {deals.data && (
         <>
           <p className="hint">
-            Open {openSum.length}건 · <AmountText amount={openAmount} />
+            Open {openSum.length}건 · {AMOUNT_LABEL} <AmountText amount={openAmount} />
             {lostCount > 0 && ` · Lost ${lostCount}건은 합계에서 제외`}
           </p>
           {items.length === 0 ? (
@@ -51,7 +52,7 @@ export function OwnerDeals({ ownerId, ownerName, filters, onClear }: Props) {
                     <th scope="col">Deal</th>
                     <th scope="col">Status</th>
                     <th scope="col">Forecast</th>
-                    <th scope="col" className="fc-num">금액</th>
+                    <th scope="col" className="fc-num">{AMOUNT_LABEL}</th>
                     <th scope="col">Expected Close</th>
                     <th scope="col">Next Action</th>
                   </tr>

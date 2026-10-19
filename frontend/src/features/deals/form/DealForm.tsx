@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router'
 import { useCreateDeal, useUpdateDeal } from '../../../data/deals'
 import { useLabels } from '../../../data/labels'
+import { formatThousandWon } from '../../../shared/model/money'
 import type { SyncApplied } from '../../../shared/model/sync'
 import type { DealDetail } from '../../../shared/model/types'
 import { ErrorBanner } from '../../../shared/ui/ErrorBanner'
@@ -69,7 +70,7 @@ export function DealForm({ original, defaultOwnerId }: DealFormProps) {
       ...prev,
       statusKey: applied.patch.statusKey ?? prev.statusKey,
       forecastKey: applied.patch.forecastKey ?? prev.forecastKey,
-      revenueAmount: applied.revenue ? String(applied.revenue.amount) : prev.revenueAmount,
+      revenueAmount: applied.revenue ? formatThousandWon(applied.revenue.amount) : prev.revenueAmount,
       revenueDate: applied.revenue ? applied.revenue.date : prev.revenueDate,
     }))
     setSyncNotice(applied.notice)
@@ -83,7 +84,7 @@ export function DealForm({ original, defaultOwnerId }: DealFormProps) {
   async function onSubmit(event: FormEvent) {
     event.preventDefault()
     if (saving) return
-    const found = validateForm(state, original?.owner)
+    const found = validateForm(state, original?.owner, original?.revenueAmount)
     setErrors(found)
     setSaveError(null)
     if (hasErrors(found)) return focusFirstInvalid()

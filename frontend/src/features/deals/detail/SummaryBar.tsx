@@ -3,7 +3,7 @@ import { useCodeSet } from '../../../data/codes'
 import { useSyncedChange } from '../../../shared/sync/useSyncedChange'
 import { useToday } from '../../../data/today'
 import { formatDateTime, formatRelativeTime } from '../../../shared/format'
-import { isValidAmount, parseAmount } from '../../../shared/model/money'
+import { AMOUNT_LABEL, amountInputError, formatThousandWon, isSameShownAmount, parseAmountInput } from '../../../shared/model/money'
 import type { DealChange, DealDetail } from '../../../shared/model/types'
 import { AmountText } from '../../../shared/ui/AmountText'
 import { ForecastBadge, StatusBadge } from '../../../shared/ui/Badges'
@@ -46,8 +46,10 @@ export function SummaryBar({ deal, canWrite, onNotice }: SummaryBarProps) {
   }
 
   async function saveAmount(text: string) {
-    const amount = parseAmount(text)
-    if (amount === null || !isValidAmount(amount)) throw new Error('매출금액은 1원 이상의 정수로 입력하세요.')
+    const invalid = amountInputError(text)
+    const amount = parseAmountInput(text)
+    if (invalid !== null || amount === null) throw new Error(invalid ?? undefined)
+    if (isSameShownAmount(amount, deal.revenueAmount)) return
     await changeValue({ field: 'revenueAmount', value: amount }, '금액이 변경되었습니다.')
   }
 
@@ -96,15 +98,14 @@ export function SummaryBar({ deal, canWrite, onNotice }: SummaryBarProps) {
             </dd>
           </div>
           <div className="kv-row">
-            <dt>금액</dt>
+            <dt>{AMOUNT_LABEL}</dt>
             <dd>
               <InlineEdit
-                label="금액"
-                inputLabel="금액(KRW)"
+                label={AMOUNT_LABEL}
                 canEdit={canWrite}
-                kind="number"
+                kind="amount"
                 display={<AmountText amount={deal.revenueAmount} />}
-                initial={String(deal.revenueAmount)}
+                initial={formatThousandWon(deal.revenueAmount)}
                 onSave={saveAmount}
               />
             </dd>
