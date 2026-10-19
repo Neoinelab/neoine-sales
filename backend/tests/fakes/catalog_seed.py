@@ -1,4 +1,6 @@
-"""기본 코드(Status 7, Forecast 6)와 기본 BANT Label 23개. 마이그레이션 시드와 같은 값이다.
+"""기본 코드(Status 7, Forecast 6), 기본 BANT Label 23개, 기본 Action 유형 8개.
+
+마이그레이션 시드와 같은 값이다.
 
 실제 DB는 마이그레이션이 시드를 넣으므로 Fake 저장소에도 같은 값을 넣어 출발 상태를 맞춘다.
 functional test(tests/functional/admin/test_catalog_seed.py)가 같은 표로 마이그레이션 시드를
@@ -13,6 +15,7 @@ from app.domain.bant.values import BantCategory, BantLabelId
 from app.domain.code.entities import Code
 from app.domain.code.values import CodeId, CodeKey, CodeKind, ForecastOutcome
 from tests.factories import NOW
+from tests.factories_action_type import DEFAULT_ACTION_TYPE_NAMES, default_action_types
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -122,9 +125,23 @@ def default_labels(now: datetime = NOW) -> list[BantLabel]:
     ]
 
 
+# 기본 Action 유형(이름·순서)은 `tests/factories_action_type.py`가 정본이다(여기서 다시 내보낸다).
+DEFAULT_ACTION_TYPES: Final = DEFAULT_ACTION_TYPE_NAMES
+
+
 def seed_catalog(uow: FakeUnitOfWork, now: datetime = NOW) -> None:
-    """마이그레이션 시드와 같은 기본 코드·Label을 Fake 저장소에 바로 넣는다(트랜잭션 밖, 준비용)."""
+    """마이그레이션 시드와 같은 기본 코드·Label을 Fake 저장소에 바로 넣는다(트랜잭션 밖, 준비용).
+
+    기본 Action 유형은 `seed_action_types`가 따로 넣는다(Action을 다루는 테스트만 그 도메인 모듈을
+    가져오게 한다).
+    """
     for code in default_codes(now):
         uow.codes._items[code.id] = code
     for label in default_labels(now):
         uow.bant_labels._items[label.id] = label
+
+
+def seed_action_types(uow: FakeUnitOfWork, now: datetime = NOW) -> None:
+    """마이그레이션 시드와 같은 기본 Action 유형 8개를 Fake 저장소에 바로 넣는다(준비용)."""
+    for action_type in default_action_types(now):
+        uow.action_types._items[action_type.id] = action_type

@@ -66,11 +66,13 @@ INSERT_HISTORY = (
     " before_text, after_text) values (:deal_code, now(), :changed_by_user_id, :category,"
     " 'Deal 등록', '', 'Deal 등록')"
 )
-INSERT_ACTION = (  # P2: 등록 시점 Status/Forecast 스냅숏(status_kind·forecast_kind는 기본값)이 필수
-    "insert into deal_actions (id, deal_code, action_type, action, memo, next_action, due_date,"
-    " acted_at, actor_user_id, status_key, forecast_key, created_at, updated_at)"
-    " values (:id, :deal_code, 'meeting', 'a', '', 'n', current_date, now(), :actor_user_id,"
-    " :status_key, :forecast_key, now(), now())"
+# P2: 등록 시점 Status/Forecast 스냅숏(status_kind·forecast_kind는 기본값)이 필수다.
+# 유형은 시드된 기본 유형을 이름으로 고른다(`type_name`, 기본 미팅).
+INSERT_ACTION = (
+    "insert into deal_actions (id, deal_code, action_type_id, action, memo, next_action,"
+    " due_date, acted_at, actor_user_id, status_key, forecast_key, created_at, updated_at)"
+    " values (:id, :deal_code, (select id from action_types where name = :type_name), 'a', '',"
+    " 'n', current_date, now(), :actor_user_id, :status_key, :forecast_key, now(), now())"
 )
 
 
@@ -186,7 +188,8 @@ async def insert_action(
 ) -> UUID:
     """Deal 활동 한 행(deal_actions). 스냅숏 key 기본은 prospecting/pipeline. 새 활동 id를 돌려준다.
 
-    overrides는 INSERT 파라미터를 덮어쓴다(예: id). 제약 검증용이라 도메인 검사를 거치지 않는다.
+    overrides는 INSERT 파라미터를 덮어쓴다(예: id, type_name). 제약 검증용이라
+    도메인 검사를 거치지 않는다.
     """
     params: dict[str, object] = {
         "id": uuid4(),
@@ -194,6 +197,7 @@ async def insert_action(
         "actor_user_id": actor_user_id,
         "status_key": status_key,
         "forecast_key": forecast_key,
+        "type_name": "미팅",
         **overrides,
     }
     await session.execute(text(INSERT_ACTION), params)

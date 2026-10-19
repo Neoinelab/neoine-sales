@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import type { ActionInput } from '../../../shared/model/types'
+import { seedActionTypeId } from '../seed/actionTypes'
 import { dealCode, expectApiError, mockAs, TEST_NOW } from '../testing'
 
 const input = (over: Partial<ActionInput> = {}): ActionInput => ({
-  type: '미팅',
+  type: { name: '미팅' },
   progress: '고객사 방문',
   nextAction: '견적 재전달',
   dueDate: '2026-10-22',
@@ -30,7 +31,7 @@ describe('actions.create', () => {
     const { gateway } = await mockAs('kim')
     const code = dealCode(2)
     const created = await gateway.actions.create(code, input())
-    expect(created).toMatchObject({ dealCode: code, actedAt: TEST_NOW, actor: { id: 'u-kim' }, statusKey: 'technical_evaluation', forecastKey: 'most_likely', type: '미팅' })
+    expect(created).toMatchObject({ dealCode: code, actedAt: TEST_NOW, actor: { id: 'u-kim' }, statusKey: 'technical_evaluation', forecastKey: 'most_likely', type: '미팅', typeId: seedActionTypeId('미팅') })
     // 이후 Deal의 Status가 바뀌어도 Action 값은 그대로
     await gateway.deals.applyChange(code, { change: { field: 'statusKey', value: 'price_negotiation' } })
     const list = await gateway.actions.list(code, {})
@@ -99,7 +100,7 @@ describe('actions.list', () => {
     const { gateway } = await mockAs('kim')
     const code = dealCode(1)
     const all = await gateway.actions.list(code, {})
-    const byType = await gateway.actions.list(code, { type: '협상' })
+    const byType = await gateway.actions.list(code, { typeId: seedActionTypeId('협상') })
     expect(byType.length).toBeGreaterThan(0)
     expect(byType.every((a) => a.type === '협상')).toBe(true)
     expect((await gateway.actions.list(code, { actorId: 'u-nobody' })).length).toBe(0)
@@ -125,13 +126,13 @@ describe('actions.update / remove', () => {
     const old = (await gateway.actions.list(code, {})).at(-1)
     if (!old) throw new Error('no action')
     const base = (await gateway.history.list(code, {})).length
-    const updated = await gateway.actions.update(old.id, { type: '기타', progress: '수정한 진행사항', nextAction: '수정한 Next', dueDate: '2026-11-01', memo: '메모' })
+    const updated = await gateway.actions.update(old.id, { type: { name: '기타' }, progress: '수정한 진행사항', nextAction: '수정한 Next', dueDate: '2026-11-01', memo: '메모' })
     expect(updated).toMatchObject({ id: old.id, progress: '수정한 진행사항', actedAt: old.actedAt, actor: old.actor, statusKey: old.statusKey, forecastKey: old.forecastKey })
     const history = await gateway.history.list(code, {})
     expect(history).toHaveLength(base + 1)
     expect(history[0]).toMatchObject({ category: 'action', by: { id: 'u-kim' } })
-    await expectApiError(gateway.actions.update(old.id, { type: '기타', progress: '', nextAction: 'x', dueDate: '2026-11-01', memo: '' }), 422, '진행사항을 입력하세요.')
-    await expectApiError(gateway.actions.update('act-none', { type: '기타', progress: 'x', nextAction: 'x', dueDate: '2026-11-01', memo: '' }), 404)
+    await expectApiError(gateway.actions.update(old.id, { type: { name: '기타' }, progress: '', nextAction: 'x', dueDate: '2026-11-01', memo: '' }), 422, '진행사항을 입력하세요.')
+    await expectApiError(gateway.actions.update('act-none', { type: { name: '기타' }, progress: 'x', nextAction: 'x', dueDate: '2026-11-01', memo: '' }), 404)
   })
 
   it('최신 Action을 삭제하면 이전 Action이 Next Action이 된다', async () => {
@@ -151,7 +152,7 @@ describe('actions.update / remove', () => {
     const { gateway } = await mockAs('han')
     const first = (await gateway.actions.list(dealCode(1), {}))[0]
     if (!first) throw new Error('no action')
-    await expectApiError(gateway.actions.update(first.id, { type: '기타', progress: 'x', nextAction: 'x', dueDate: '2026-11-01', memo: '' }), 403)
+    await expectApiError(gateway.actions.update(first.id, { type: { name: '기타' }, progress: 'x', nextAction: 'x', dueDate: '2026-11-01', memo: '' }), 403)
     await expectApiError(gateway.actions.remove(first.id), 403)
   })
 })

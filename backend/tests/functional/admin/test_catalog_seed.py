@@ -1,4 +1,4 @@
-"""Feature: 새로 배포한 시스템에는 기본 코드와 기본 BANT Label이 이미 들어 있다.
+"""Feature: 새로 배포한 시스템에는 기본 코드·기본 BANT Label·기본 Action 유형이 이미 들어 있다.
 
 `fresh_api`는 마이그레이션만 적용한 새 임시 DB 위의 앱이다. 다른 시나리오가 복원하는 기본값
 (`tests/fakes/catalog_seed.py`)이 마이그레이션이 실제로 넣는 시드와 같은지 여기서 대조한다.
@@ -9,6 +9,11 @@ from typing import TYPE_CHECKING
 import pytest
 
 from tests.fakes.catalog_seed import DEFAULT_FORECASTS, DEFAULT_LABELS, DEFAULT_STATUSES, LOCKED
+from tests.functional.steps.action_types import (
+    then_every_type_has_the_documented_fields,
+    then_types_are_the_defaults,
+    when_list_types,
+)
 from tests.functional.steps.auth import given_logged_in_as
 from tests.functional.steps.codes import when_list_code_usage, when_list_codes
 from tests.functional.steps.common import then_status_is
@@ -65,6 +70,19 @@ async def test_new_system_has_the_23_default_labels(fresh_api: Api) -> None:
     then_labels_are_the_defaults(response)
     counts = [sum(1 for x in response.json() if x["category"] == c) for c in DEFAULT_LABELS]
     assert counts == [7, 6, 5, 5]
+
+
+async def test_new_system_has_the_8_default_action_types(fresh_api: Api) -> None:
+    """Scenario: 마이그레이션 직후 기본 Action 유형은 Fake 시드와 같은 8개이고 만든 사람이 없다."""
+    # Given
+    await given_logged_in_as(fresh_api, role="admin")
+    # When
+    response = await when_list_types(fresh_api)
+    # Then
+    then_status_is(response, 200)
+    then_types_are_the_defaults(response)
+    then_every_type_has_the_documented_fields(response)
+    assert len(response.json()) == 8
 
 
 async def test_new_system_has_no_deal_using_any_code(fresh_api: Api) -> None:

@@ -6,6 +6,7 @@
 
 import type { Gateway } from '../types'
 import { createActionsHttp } from './actions'
+import { createActionTypesHttp } from './actionTypes'
 import { createAlertsHttp } from './alerts'
 import { createAttachmentsHttp } from './attachments'
 import { createAuthHttp } from './auth'
@@ -33,6 +34,7 @@ export function createHttpGateway(): Gateway {
     contacts: createContactsHttp(),
     deals: createDealsHttp(),
     actions: createActionsHttp(),
+    actionTypes: createActionTypesHttp(),
     history: createHistoryHttp(),
     attachments: createAttachmentsHttp(),
     forecast: { summary: notImplemented },

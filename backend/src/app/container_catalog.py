@@ -2,6 +2,10 @@
 
 from typing import TYPE_CHECKING
 
+from app.application.action_type.delete_action_type import DeleteActionType
+from app.application.action_type.list_action_types import ListActionTypes
+from app.application.action_type.register_action_type import RegisterActionType
+from app.application.action_type.rename_action_type import RenameActionType
 from app.application.bant.delete_label import DeleteBantLabel
 from app.application.bant.list_labels import ListBantLabels
 from app.application.bant.register_label import RegisterBantLabel
@@ -80,3 +84,15 @@ class CatalogAssembly:
 
     def delete_solution(self) -> DeleteSolution:
         return DeleteSolution(self._uow)
+
+    def list_action_types(self) -> ListActionTypes:
+        return ListActionTypes(self._uow)
+
+    def register_action_type(self) -> RegisterActionType:
+        return RegisterActionType(self._uow, self._clock)
+
+    def rename_action_type(self) -> RenameActionType:
+        return RenameActionType(self._uow, self._clock)
+
+    def delete_action_type(self) -> DeleteActionType:
+        return DeleteActionType(self._uow)

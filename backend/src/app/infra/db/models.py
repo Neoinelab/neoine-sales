@@ -40,7 +40,7 @@ class DealActionRow(AuditColumns, Base):
     deal_code: Mapped[str] = mapped_column(
         String(13), ForeignKey("deals.deal_code", ondelete="CASCADE")
     )
-    action_type: Mapped[str] = mapped_column(String(20))
+    action_type_id: Mapped[UUID] = mapped_column(ForeignKey("action_types.id", ondelete="RESTRICT"))
     action: Mapped[str] = mapped_column(Text)
     next_action: Mapped[str] = mapped_column(Text)
     due_date: Mapped[date] = mapped_column(Date)
@@ -72,6 +72,7 @@ class DealActionRow(AuditColumns, Base):
             name="fk_deal_actions_forecast_code",
             ondelete="RESTRICT",
         ),
+        Index("ix_deal_actions_action_type_id", "action_type_id"),
         Index("ix_deal_actions_status_key", "status_key"),
         Index("ix_deal_actions_forecast_key", "forecast_key"),
         Index("ix_deal_actions_actor_user_id", "actor_user_id"),

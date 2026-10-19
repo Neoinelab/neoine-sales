@@ -33,11 +33,16 @@ CODE_FKS = (
 )
 CONSTRAINT_NAMES = "select conname from pg_constraint where conrelid = 'deal_actions'::regclass"
 RAW_INSERT = (
-    "insert into deal_actions (id, deal_code, action_type, action, memo, next_action, due_date,"
-    " acted_at, actor_user_id, {extra_columns} created_at, updated_at) values (:id, :deal_code,"
-    " 'meeting', :action, :memo, :next_action, :due_date, now(), :actor, {extra_values} now(),"
-    " now())"
+    "insert into deal_actions (id, deal_code, action_type_id, action, memo, next_action,"
+    " due_date, acted_at, actor_user_id, {extra_columns} created_at, updated_at) values (:id,"
+    " :deal_code, :action_type_id, :action, :memo, :next_action, :due_date, now(), :actor,"
+    " {extra_values} now(), now())"
 )
+TYPE_FKS = (
+    "select conname, confrelid::regclass::text, confdeltype::text from pg_constraint"
+    " where conrelid = 'deal_actions'::regclass and confrelid = 'action_types'::regclass"
+)
+MEETING_TYPE = "select id from action_types where name = '미팅'"
 SNAPSHOT_COLUMNS = {"status_kind", "status_key", "forecast_kind", "forecast_key"}
 
 
@@ -68,6 +73,7 @@ async def _raw_insert(
     params: dict[str, object] = {
         "id": uuid4(),
         "deal_code": deal_code,
+        "action_type_id": (await session.execute(text(MEETING_TYPE))).scalar_one(),
         "action": "a",
         "memo": "",
         "next_action": "n",
@@ -218,3 +224,53 @@ async def test_an_unknown_snapshot_key_is_rejected_by_the_composite_foreign_key(
 async def test_the_actions_table_has_no_integrity_violations(session: AsyncSession) -> None:
     """복합 FK도 선두 컬럼 인덱스가 있어야 한다(schema_integrity 규칙, P1 deals와 같다)."""
     assert await check_schema(session, only_tables={"deal_actions"}) == []
+
+
+async def test_action_type_id_references_action_types_with_restrict(
+    session: AsyncSession,
+) -> None:
+    rows = (await session.execute(text(TYPE_FKS))).all()
+
+    assert {(r[0], r[1], r[2].strip()) for r in rows} == {
+        ("fk_deal_actions_action_type_id_action_types", "action_types", "r")
+    }
+
+
+async def test_action_type_id_is_a_required_uuid_with_an_index(session: AsyncSession) -> None:
+    rows = (await session.execute(text(COLUMN_INFO))).all()
+    columns = {r.column_name: r for r in rows}
+    indexes = {
+        r[0]
+        for r in (
+            await session.execute(
+                text("select indexname from pg_indexes where tablename = 'deal_actions'")
+            )
+        ).all()
+    }
+
+    assert columns["action_type_id"].data_type == "uuid"
+    assert columns["action_type_id"].is_nullable == "NO"
+    assert "ix_deal_actions_action_type_id" in indexes
+
+
+async def test_has_no_enum_action_type_column(session: AsyncSession) -> None:
+    rows = (await session.execute(text(COLUMN_INFO))).all()
+
+    assert "action_type" not in {r.column_name for r in rows}
+
+
+async def test_an_unknown_action_type_id_is_rejected_by_the_foreign_key(
+    session: AsyncSession,
+) -> None:
+    deal_code, actor = await _deal_and_actor(session)
+
+    with pytest.raises(IntegrityError, match="fk_deal_actions_action_type_id_action_types"):
+        await _raw_insert(session, deal_code, actor, action_type_id=uuid4())
+
+
+async def test_deleting_a_used_action_type_is_restricted(session: AsyncSession) -> None:
+    deal_code, actor = await _deal_and_actor(session)
+    await _raw_insert(session, deal_code, actor)
+
+    with pytest.raises(IntegrityError, match="fk_deal_actions_action_type_id_action_types"):
+        await session.execute(text("delete from action_types where name = '미팅'"))

@@ -84,6 +84,25 @@ class BantLabelRow(AuditColumns, Base):
     )
 
 
+class ActionTypeRow(AuditColumns, Base):
+    """Action 유형. 기본 유형(시드)은 생성자가 없고 default_order를 가진다."""
+
+    __tablename__ = "action_types"
+
+    name: Mapped[str] = mapped_column(String(50))
+    is_default: Mapped[bool] = mapped_column(Boolean, default=False)
+    default_order: Mapped[int | None] = mapped_column(Integer, default=None)
+    created_by_user_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), default=None
+    )
+
+    __table_args__ = (
+        CheckConstraint("is_default = (default_order is not null)", name="default_order"),
+        Index("uq_action_types_name_lower", func.lower(name), unique=True),
+        Index("ix_action_types_created_by_user_id", "created_by_user_id"),
+    )
+
+
 class VendorRow(AuditColumns, Base):
     """Vendor. 이름은 대소문자 무시로 고유하다."""
 

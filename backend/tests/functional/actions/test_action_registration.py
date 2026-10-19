@@ -22,6 +22,7 @@ from tests.functional.steps.actions import (
     then_acted_at_is_the_server_time,
     then_action_has_the_documented_keys,
     then_action_is_unchanged,
+    then_action_type_is,
     then_body_has,
     when_get_action,
     when_list_actions,
@@ -63,7 +64,6 @@ async def test_sales_records_an_action_with_current_status_and_forecast(api: Api
     then_body_has(
         response,
         deal_code=deal["code"],
-        action_type="meeting",
         action="킥오프 미팅",
         next_action="요구사항 문서 전달",
         due_date="2027-01-15",
@@ -71,6 +71,7 @@ async def test_sales_records_an_action_with_current_status_and_forecast(api: Api
         status_key="introduction",
         forecast_key="best",
     )
+    then_action_type_is(response, "미팅")
     assert (body["actor"]["id"], body["actor"]["role"]) == (me, "sales")
     assert set(body) == ACTION_KEYS
     await then_action_is_unchanged(api, body)

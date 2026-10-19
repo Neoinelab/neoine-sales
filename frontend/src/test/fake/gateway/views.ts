@@ -32,8 +32,9 @@ export function userView(data: SeedData, record: UserRecord): User {
 }
 
 export function actionView(data: SeedData, record: ActionRecord): DealAction {
-  const { actorId, ...rest } = record
-  return { ...rest, actor: userRef(data, actorId) }
+  const { actorId, typeId, ...rest } = record
+  const type = data.actionTypes.find((t) => t.id === typeId)
+  return { ...rest, typeId, type: type?.name ?? typeId, actor: userRef(data, actorId) }
 }
 
 export function historyView(data: SeedData, record: HistoryRecord): HistoryEntry {

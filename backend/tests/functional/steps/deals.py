@@ -66,8 +66,23 @@ async def given_my_user_id(api: Api) -> str:
     return str(response.json()["user_id"])
 
 
+def bant_request(bant: dict[str, Any]) -> dict[str, Any]:
+    """BANT 요청 객체. Label id 문자열은 `{"id": ...}`로 바꾼다.
+
+    이미 객체(`{"id"}`·`{"name"}`)이거나 None(선택 안 함)인 값은 그대로 둔다. 구 형식(id 문자열
+    그대로)은 `when_*_with_body`로 직접 보낸다.
+    """
+    return {
+        category: {"id": value} if isinstance(value, str) else value
+        for category, value in bant.items()
+    }
+
+
 async def deal_body(api: Api, **overrides: object) -> dict[str, Any]:
-    """등록 본문. 기본 Owner는 로그인한 사용자이고 overrides로 일부만 바꾼다."""
+    """등록 본문. 기본 Owner는 로그인한 사용자이고 overrides로 일부만 바꾼다.
+
+    overrides의 bant는 `bant_request`를 거친다(구분 값이 id 문자열이면 `{"id"}` 객체로 보낸다).
+    """
     values: dict[str, Any] = {
         "name": "ERP 구축",
         "owner_user_id": await given_my_user_id(api),
@@ -85,7 +100,9 @@ async def deal_body(api: Api, **overrides: object) -> dict[str, Any]:
         "procurement": "",
         "bant": {"budget": None, "authority": None, "need": None, "timeline": None},
     }
-    return {**values, **overrides}
+    body = {**values, **overrides}
+    body["bant"] = bant_request(body["bant"])
+    return body
 
 
 async def given_deal(api: Api, **overrides: object) -> dict[str, Any]:
@@ -159,7 +176,18 @@ async def when_register_deal(api: Api, **overrides: object) -> Response:
 
 
 async def when_update_deal(api: Api, code: str, **patch: object) -> Response:
+    if isinstance(patch.get("bant"), dict):
+        patch = {**patch, "bant": bant_request(patch["bant"])}  # type: ignore[arg-type]
     return await api.patch(f"{DEALS}/{code}", json=patch)
+
+
+async def when_register_deal_with_body(api: Api, body: object) -> Response:
+    """본문을 가공 없이 보낸다(구 형식·잘못된 형식 시나리오)."""
+    return await api.post(DEALS, json=body)
+
+
+async def when_update_deal_with_body(api: Api, code: str, body: object) -> Response:
+    return await api.patch(f"{DEALS}/{code}", json=body)
 
 
 async def when_get_deal(api: Api, code: str) -> Response:

@@ -36,6 +36,7 @@ export const keys = {
   codeSet: ['codes', 'all'] as const,
   codeList: (kind: CodeKind) => ['codes', 'list', kind] as const,
   labels: ['labels'] as const,
+  actionTypes: ['actionTypes'] as const,
   vendors: ['vendors'] as const,
   forecast: ['forecast'] as const,
   forecastSummary: (q: ForecastQuery) => ['forecast', q] as const,

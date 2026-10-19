@@ -10,6 +10,7 @@ if TYPE_CHECKING:
     from datetime import date
     from uuid import UUID
 
+    from app.application.choice import CatalogChoice
     from app.domain.auth.principal import Role
     from app.domain.bant.values import BantCategory
     from app.domain.contact.values import ContactKind
@@ -76,7 +77,7 @@ class DealCreateInput:
     poc_state: PocState | None
     poc_completed_date: date | None
     procurement: str
-    bant: Mapping[BantCategory, UUID | None]  # 빠진 구분은 선택 안 함
+    bant: Mapping[BantCategory, CatalogChoice | None]  # 빠진 구분은 선택 안 함
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -103,4 +104,4 @@ class DealPatchInput:
     poc_state: PocState | None = None
     poc_completed_date: date | None = None
     procurement: str | None = None
-    bant: Mapping[BantCategory, UUID | None] | None = None
+    bant: Mapping[BantCategory, CatalogChoice | None] | None = None

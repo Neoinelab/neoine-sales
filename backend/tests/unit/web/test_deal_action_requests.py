@@ -2,8 +2,10 @@
 
 from datetime import date
 from typing import TYPE_CHECKING, Any, Literal
+from uuid import uuid4
 
 import pytest
+from app.application.choice import CatalogChoice
 from pydantic import ValidationError
 
 from app.application.deal_action.inputs import (
@@ -14,7 +16,6 @@ from app.application.deal_action.inputs import (
 from app.application.ports.deal_action_repository import DealActionQuery, DealActionSort
 from app.domain.deal.errors import DealNotFoundError
 from app.domain.deal.sync import SyncResolution
-from app.domain.deal_action.value_objects import ActionType
 from app.web.schemas.deal_action import (
     DealActionCreateRequest,
     DealActionSearchParams,
@@ -27,7 +28,7 @@ if TYPE_CHECKING:
     from collections.abc import Mapping
 
 BODY = {
-    "action_type": "meeting",
+    "action_type": {"name": "미팅"},
     "action": "킥오프 미팅",
     "next_action": "요구사항 문서 전달",
     "due_date": "2026-03-10",
@@ -48,7 +49,7 @@ def test_create_request_maps_to_the_use_case_input_without_a_status_change() -> 
 
     assert data == DealActionInput(
         content=ActionContentInput(
-            action_type=ActionType.MEETING,
+            action_type=CatalogChoice(name="미팅"),
             action="킥오프 미팅",
             next_action="요구사항 문서 전달",
             due_date=date(2026, 3, 10),
@@ -62,7 +63,7 @@ def test_update_request_maps_to_the_content_input() -> None:
     data = _update(memo="").to_input()
 
     assert data == ActionContentInput(
-        action_type=ActionType.MEETING,
+        action_type=CatalogChoice(name="미팅"),
         action="킥오프 미팅",
         next_action="요구사항 문서 전달",
         due_date=date(2026, 3, 10),
@@ -116,9 +117,40 @@ def test_memo_defaults_to_an_empty_string() -> None:
     assert DealActionUpdateRequest(**without).to_input().memo == ""
 
 
-def test_an_unknown_action_type_is_rejected() -> None:
+def test_the_type_may_be_chosen_by_id() -> None:
+    type_id = uuid4()
+
+    data = _update(action_type={"id": str(type_id)}).to_input()
+
+    assert data.action_type == CatalogChoice(id=type_id)
+
+
+def test_the_type_name_is_passed_on_untouched_for_the_domain_to_judge() -> None:
+    assert _update(action_type={"name": "  웨비나  "}).to_input().action_type == CatalogChoice(
+        name="  웨비나  "
+    )
+    assert _update(action_type={"name": ""}).to_input().action_type == CatalogChoice(name="")
+
+
+@pytest.mark.parametrize(
+    "action_type",
+    [
+        pytest.param({"id": str(uuid4()), "name": "미팅"}, id="both"),
+        pytest.param({}, id="neither"),
+        pytest.param({"id": None, "name": None}, id="both-null"),
+        pytest.param("meeting", id="old-enum-value"),
+        pytest.param("미팅", id="plain-name-string"),
+        pytest.param(None, id="null"),
+        pytest.param({"id": "not-a-uuid"}, id="id-not-a-uuid"),
+        pytest.param({"name": 3}, id="name-not-a-string"),
+    ],
+)
+@pytest.mark.parametrize("model", [DealActionCreateRequest, DealActionUpdateRequest])
+def test_an_invalid_type_choice_is_rejected(
+    model: type[DealActionCreateRequest], action_type: object
+) -> None:
     with pytest.raises(ValidationError):
-        _update(action_type="dance")
+        model(**{**BODY, "action_type": action_type})
 
 
 def test_action_request_accepts_long_text_without_schema_limit() -> None:
@@ -187,8 +219,9 @@ def test_search_params_default_to_everything_sorted_latest_first() -> None:
 
 
 def test_search_params_map_every_condition() -> None:
+    email_id = uuid4()
     params = DealActionSearchParams(
-        action_type="email",
+        action_type_id=email_id,
         actor_user_id=uid("kim"),
         keyword=" 견적 ",
         acted_from="2026-10-01",
@@ -201,7 +234,7 @@ def test_search_params_map_every_condition() -> None:
     query = params.to_query("20261016-A001")
 
     assert query.deal_code == make_deal_code("A001")
-    assert query.action_type is ActionType.EMAIL
+    assert query.action_type_id == email_id
     assert query.actor_user_id == uid("kim")
     assert query.keyword == "견적"
     assert (query.acted_from, query.acted_to) == (date(2026, 10, 1), date(2026, 10, 31))
@@ -229,7 +262,8 @@ def test_any_other_sort_is_rejected(sort: str) -> None:
         {"actor": "박영업"},
         {"unknown": "x"},
         {"actor_user_id": "not-a-uuid"},
-        {"action_type": "dance"},
+        {"action_type": "meeting"},  # 구 파라미터(enum 값)는 모르는 파라미터다
+        {"action_type_id": "not-a-uuid"},
         {"acted_from": "soon"},
         {"due_to": "2026-13-40"},
         {"keyword": "가" * 101},

@@ -14,7 +14,7 @@ from app.domain.deal_action.errors import (
     DealActionEditForbiddenError,
     DealActionNotFoundError,
 )
-from app.domain.deal_action.value_objects import ActionType, DealActionId
+from app.domain.deal_action.value_objects import DealActionId
 from tests.factories import (
     NOW,
     later,
@@ -23,6 +23,7 @@ from tests.factories import (
     make_deal_code,
     make_sync,
 )
+from tests.factories_action_type import make_type_ref
 from tests.support.expect import raises_with
 from tests.support.user_ids import ACTOR_ID, uid
 
@@ -74,7 +75,7 @@ class TestRevise:
     def test_revise_replaces_the_content_and_touches_updated_at(self) -> None:
         action = make_deal_action()
         revised = make_action_content(
-            action_type=ActionType.PROPOSAL,
+            action_type="제안",
             action="제안 발표",
             next_action="견적 회신",
             due_date=date(2026, 2, 1),
@@ -117,10 +118,27 @@ class TestRevise:
         assert changed is False
         assert action.updated_at == NOW
 
+    def test_revise_with_only_a_new_type_changes_content(self) -> None:
+        action = make_deal_action(action_type="미팅")
+
+        changed = action.revise(make_action_content(action_type="데모"), later(30))
+
+        assert changed is True
+        assert action.content.action_type.name == "데모"
+        assert action.updated_at == later(30)
+
+    def test_revise_with_same_type_ref_is_noop(self) -> None:
+        action = make_deal_action(action_type="미팅")
+
+        changed = action.revise(make_action_content(action_type=make_type_ref("미팅")), later(30))
+
+        assert changed is False
+        assert action.updated_at == NOW
+
     @pytest.mark.parametrize(
         "field",
         [
-            {"action_type": ActionType.CALL},
+            {"action_type": "통화"},
             {"action": "다른 진행"},
             {"next_action": "다른 계획"},
             {"due_date": date(2026, 12, 31)},

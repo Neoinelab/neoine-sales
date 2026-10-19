@@ -25,20 +25,70 @@
         "title": "ActionStatusChangeRequest",
         "type": "object"
       },
-      "ActionType": {
-        "description": "Deal 진행 활동의 종류. 집합을 닫아 두어 검색 조건과 통계가 흔들리지 않게 한다.",
-        "enum": [
-          "call",
-          "meeting",
-          "email",
-          "demo",
-          "proposal",
-          "negotiation",
-          "contract",
-          "other"
+      "ActionTypeNameRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
         ],
-        "title": "ActionType",
-        "type": "string"
+        "title": "ActionTypeNameRequest",
+        "type": "object"
+      },
+      "ActionTypeResponse": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UserRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "is_default": {
+            "title": "Is Default",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "usage_count": {
+            "title": "Usage Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "is_default",
+          "created_by",
+          "created_at",
+          "updated_at",
+          "usage_count"
+        ],
+        "title": "ActionTypeResponse",
+        "type": "object"
       },
       "AlertSettingsRequest": {
         "additionalProperties": false,
@@ -338,55 +388,47 @@
       },
       "BantRequest": {
         "additionalProperties": false,
-        "description": "구분별 BANT Label id. 보내지 않았거나 null이면 선택 안 함이다.",
+        "description": "구분별 BANT Label 선택 객체({id} 또는 {name}). 보내지 않았거나 null이면 선택 안 함이다.",
         "properties": {
           "authority": {
             "anyOf": [
               {
-                "format": "uuid",
-                "type": "string"
+                "$ref": "#/components/schemas/CatalogChoiceRequest"
               },
               {
                 "type": "null"
               }
-            ],
-            "title": "Authority"
+            ]
           },
           "budget": {
             "anyOf": [
               {
-                "format": "uuid",
-                "type": "string"
+                "$ref": "#/components/schemas/CatalogChoiceRequest"
               },
               {
                 "type": "null"
               }
-            ],
-            "title": "Budget"
+            ]
           },
           "need": {
             "anyOf": [
               {
-                "format": "uuid",
-                "type": "string"
+                "$ref": "#/components/schemas/CatalogChoiceRequest"
               },
               {
                 "type": "null"
               }
-            ],
-            "title": "Need"
+            ]
           },
           "timeline": {
             "anyOf": [
               {
-                "format": "uuid",
-                "type": "string"
+                "$ref": "#/components/schemas/CatalogChoiceRequest"
               },
               {
                 "type": "null"
               }
-            ],
-            "title": "Timeline"
+            ]
           }
         },
         "title": "BantRequest",
@@ -473,6 +515,36 @@
           }
         },
         "title": "Body_upload_attachment_api_v1_deals__code__attachments_post",
+        "type": "object"
+      },
+      "CatalogChoiceRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          }
+        },
+        "title": "CatalogChoiceRequest",
         "type": "object"
       },
       "CoChangedResponse": {
@@ -1162,7 +1234,7 @@
             "type": "string"
           },
           "action_type": {
-            "$ref": "#/components/schemas/ActionType"
+            "$ref": "#/components/schemas/CatalogChoiceRequest"
           },
           "due_date": {
             "anyOf": [
@@ -1233,7 +1305,7 @@
             "type": "string"
           },
           "action_type": {
-            "$ref": "#/components/schemas/ActionType"
+            "$ref": "#/components/schemas/NamedRefResponse"
           },
           "actor": {
             "$ref": "#/components/schemas/UserRef"
@@ -1313,7 +1385,7 @@
             "type": "string"
           },
           "action_type": {
-            "$ref": "#/components/schemas/ActionType"
+            "$ref": "#/components/schemas/CatalogChoiceRequest"
           },
           "due_date": {
             "anyOf": [
@@ -3454,6 +3526,287 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/v1/action-types": {
+      "get": {
+        "operationId": "list_action_types_api_v1_action_types_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ActionTypeResponse"
+                  },
+                  "title": "Response List Action Types Api V1 Action Types Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          }
+        },
+        "summary": "List Action Types",
+        "tags": [
+          "action-types"
+        ]
+      },
+      "post": {
+        "operationId": "create_action_type_api_v1_action_types_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ActionTypeNameRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActionTypeResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          }
+        },
+        "summary": "Create Action Type",
+        "tags": [
+          "action-types"
+        ]
+      }
+    },
+    "/api/v1/action-types/{type_id}": {
+      "delete": {
+        "operationId": "delete_action_type_api_v1_action_types__type_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "type_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Type Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          }
+        },
+        "summary": "Delete Action Type",
+        "tags": [
+          "action-types"
+        ]
+      },
+      "patch": {
+        "operationId": "rename_action_type_api_v1_action_types__type_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "type_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Type Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ActionTypeNameRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActionTypeResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          }
+        },
+        "summary": "Rename Action Type",
+        "tags": [
+          "action-types"
+        ]
+      }
+    },
     "/api/v1/alert-settings": {
       "get": {
         "operationId": "get_alert_settings_api_v1_alert_settings_get",
@@ -6213,18 +6566,19 @@
           },
           {
             "in": "query",
-            "name": "action_type",
+            "name": "action_type_id",
             "required": false,
             "schema": {
               "anyOf": [
                 {
-                  "$ref": "#/components/schemas/ActionType"
+                  "format": "uuid",
+                  "type": "string"
                 },
                 {
                   "type": "null"
                 }
               ],
-              "title": "Action Type"
+              "title": "Action Type Id"
             }
           },
           {

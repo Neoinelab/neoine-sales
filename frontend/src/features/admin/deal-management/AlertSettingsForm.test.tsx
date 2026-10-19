@@ -16,12 +16,12 @@ async function openAlerts(role: 'admin' | 'sales' = 'admin') {
 const saveButton = () => screen.getByRole('button', { name: '저장' })
 
 describe('경고 기준 탭 (AC-14)', () => {
-  it('is the last (fifth) tab of Deal management, after the Vendor·Solution tab', async () => {
+  it('is the last (sixth) tab of Deal management, after the Vendor·Solution tab', async () => {
     await renderAt('/admin/deal', { role: 'admin' })
 
     const names = (await screen.findAllByRole('tab')).map((t) => t.textContent)
 
-    expect(names).toEqual(['Status 코드', 'Forecast 코드', 'BANT Label', 'Vendor·Solution', '경고 기준'])
+    expect(names).toEqual(['Status 코드', 'Forecast 코드', 'BANT Label', 'Action 유형', 'Vendor·Solution', '경고 기준'])
   })
 
   it('shows the current threshold (default 14) and that nothing was saved yet', async () => {

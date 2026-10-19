@@ -1,6 +1,6 @@
-import { useState } from 'react'
-import { useCreateLabel, useLabels } from '../../../data/labels'
-import { BANT_CATEGORIES, BANT_CATEGORY_NAMES, BANT_LABEL_MAX_LENGTH } from '../../../shared/model/constants'
+import { useLabels } from '../../../data/labels'
+import { toChoice, type CatalogChoice } from '../../../shared/model/catalogChoice'
+import { BANT_CATEGORIES, BANT_CATEGORY_NAMES } from '../../../shared/model/constants'
 import type { BantCategory, DealDetail } from '../../../shared/model/types'
 import { InlineEdit } from './InlineEdit'
 import { useDealPatch } from './useDealPatch'
@@ -11,36 +11,32 @@ interface BantCardProps {
   onNotice: (message: string) => void
 }
 
-const NEW_LABEL = '__new__'
-
 interface BantItemProps extends BantCardProps {
   category: BantCategory
 }
 
-/** BANT 항목 하나: 값을 클릭해 Label을 고른다. 맞는 Label이 없으면 '+ 새 Label 만들기'로 즉석 생성(중복은 서버 문구로 거부). */
+/** 현재 선택을 선택 객체로 옮긴다(바꾸지 않는 구분은 그대로 보낸다). */
+const currentChoice = (labelId: string | null): CatalogChoice | null => (labelId === null ? null : { id: labelId })
+
+/**
+ * BANT 항목 하나: 값을 클릭하면 자동완성 입력이 열린다.
+ * 후보를 고르면 바로 저장하고, 직접 입력한 이름은 Enter·포커스 이동에 저장한다(없는 이름은 서버가 새 Label로 만든다). 비우면 선택 안 함.
+ */
 function BantItem({ deal, canWrite, onNotice, category }: BantItemProps) {
   const labels = useLabels().data ?? []
-  const createLabel = useCreateLabel()
   const { save } = useDealPatch(deal.code, onNotice)
-  const [newName, setNewName] = useState('')
   const name = BANT_CATEGORY_NAMES[category]
-  const options = labels.filter((l) => l.category === category)
+  const labelsOfCategory = labels.filter((l) => l.category === category)
   const current = deal.bant[category]
-  const selected = options.find((l) => l.id === current)
+  const selected = labelsOfCategory.find((l) => l.id === current)
 
-  async function select(labelId: string | null) {
-    if (labelId === current) return
-    await save({ bant: { ...deal.bant, [category]: labelId } }, `BANT ${name} Label이 변경되었습니다.`)
-  }
-
-  async function saveItem(value: string) {
-    if (value !== NEW_LABEL) return select(value === '' ? null : value)
-    const label = newName.trim()
-    if (label === '') throw new Error('Label 이름을 입력하세요.')
-    if (Array.from(label).length > BANT_LABEL_MAX_LENGTH) throw new Error('Label 이름은 50자 이내로 입력하세요.')
-    const created = await createLabel.mutateAsync({ category, name: label })
-    setNewName('')
-    await select(created.id)
+  async function saveItem(text: string, option?: { id?: string }) {
+    const choice: CatalogChoice | null = option?.id ? { id: option.id } : toChoice(text, labelsOfCategory)
+    if (choice === null ? current === null : 'id' in choice && choice.id === current) return
+    const bant = Object.fromEntries(
+      BANT_CATEGORIES.map((c) => [c, c === category ? choice : currentChoice(deal.bant[c])]),
+    ) as Record<BantCategory, CatalogChoice | null>
+    await save({ bant }, `BANT ${name} Label이 변경되었습니다.`)
   }
 
   return (
@@ -50,47 +46,18 @@ function BantItem({ deal, canWrite, onNotice, category }: BantItemProps) {
         <InlineEdit
           label={name}
           canEdit={canWrite}
-          kind="custom"
+          kind="combo"
           display={selected?.name ?? '—'}
-          initial={current ?? ''}
+          initial={selected?.name ?? ''}
+          options={labelsOfCategory.map((l) => ({ value: l.name, id: l.id }))}
           onSave={saveItem}
-          control={({ value, onChange, commit, inputLabel }) => (
-            <>
-              <select
-                aria-label={inputLabel}
-                value={value}
-                onChange={(e) => {
-                  onChange(e.target.value)
-                  if (e.target.value !== NEW_LABEL) commit(e.target.value)
-                }}
-              >
-                <option value="">선택 안 함</option>
-                {options.map((l) => (
-                  <option key={l.id} value={l.id}>
-                    {l.name}
-                  </option>
-                ))}
-                <option value={NEW_LABEL}>+ 새 Label 만들기</option>
-              </select>
-              {value === NEW_LABEL && (
-                <input
-                  aria-label={`${name} 새 Label 이름`}
-                  value={newName}
-                  onChange={(e) => setNewName(e.target.value)}
-                  // 새 Label을 고르면 바로 이름을 입력할 수 있게 포커스를 옮긴다.
-                  // eslint-disable-next-line jsx-a11y/no-autofocus
-                  autoFocus
-                />
-              )}
-            </>
-          )}
         />
       </dd>
     </div>
   )
 }
 
-/** BANT 4 Label. 쓰기 권한이 있으면 값을 클릭해 그 자리에서 고른다(History 기록). */
+/** BANT 4 Label. 쓰기 권한이 있으면 값을 클릭해 그 자리에서 고르거나 입력한다(History 기록). */
 export function BantCard({ deal, canWrite, onNotice }: BantCardProps) {
   return (
     <section aria-labelledby="dd-bant" className="dd-card">

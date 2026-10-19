@@ -10,10 +10,11 @@ from app.domain.common.validation import optional_text
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
 
+    from app.domain.action_type.values import ActionTypeId
     from app.domain.code.values import CodeKind
     from app.domain.deal.code import DealCode
     from app.domain.deal_action.entities import DealAction
-    from app.domain.deal_action.value_objects import ActionType, DealActionId
+    from app.domain.deal_action.value_objects import DealActionId
     from app.domain.user.value_objects import UserId
 
 KEYWORD_MAX = 100
@@ -37,7 +38,7 @@ class DealActionQuery:
     """
 
     deal_code: DealCode
-    action_type: ActionType | None = None
+    action_type_id: ActionTypeId | None = None
     actor_user_id: UserId | None = None  # 수행자(users.id), 퇴사자도 조회 가능
     keyword: str | None = None  # 진행사항·Next Action·Memo에서 대소문자 구분 없이 부분 일치
     acted_from: date | None = None
@@ -70,12 +71,13 @@ class DealActionRepository(Protocol):
         """같은 id는 AlreadyExistsError, 소속 Deal이 없으면 DealNotFoundError.
 
         스냅숏의 Status·Forecast 코드가 없으면 InvalidReferenceError("Status 코드" 또는
-        "Forecast 코드", identifier=key), 수행자 users 행이 없으면 InvalidReferenceError("사용자").
+        "Forecast 코드", identifier=key), 수행자 users 행이 없으면 InvalidReferenceError("사용자"),
+        유형이 없으면 InvalidReferenceError("Action 유형", identifier=유형 id).
         """
         ...
 
     async def get(self, action_id: DealActionId) -> DealAction:
-        """없으면 DealActionNotFoundError."""
+        """없으면 DealActionNotFoundError. content.action_type.name은 읽는 시점의 유형 이름."""
         ...
 
     async def search(self, query: DealActionQuery) -> Sequence[DealAction]:
@@ -96,4 +98,8 @@ class DealActionRepository(Protocol):
     async def count_by_code(self, kind: CodeKind) -> Mapping[str, int]:
         """코드 key별로 스냅숏이 그 코드를 쓰는 Action 수(Status는 status_key, Forecast는
         forecast_key). 쓰는 Action이 없는 key는 빠진다."""
+        ...
+
+    async def count_by_action_type(self) -> Mapping[ActionTypeId, int]:
+        """유형 id별 그 유형을 쓰는 Action 수. 쓰는 Action이 없는 유형은 빠진다."""
         ...

@@ -30,6 +30,8 @@ FILE_TABLES: Final = ("deal_attachments", "storage_settings")
 ALERT_TABLES: Final = ("alert_settings",)
 # Vendor·Solution 관리. 과거 리비전 DB에는 없을 수 있어 있는 것만 비운다(deals가 참조).
 VENDOR_TABLES: Final = ("solutions", "vendors")
+# 마이그레이션이 기본 행을 심는 users 참조 테이블(기본 행은 created_by_user_id가 없어 되살린다).
+SEEDED_TABLES: Final = ("bant_labels", "action_types")
 
 
 async def existing_tables(connection: AsyncConnection) -> set[str]:
@@ -42,21 +44,22 @@ async def existing_tables(connection: AsyncConnection) -> set[str]:
 async def truncate_business_tables(connection: AsyncConnection) -> None:
     """사용자·Deal·활동·연락처 테이블을 비운다.
 
-    `bant_labels.created_by_user_id`가 users를 참조해 CASCADE가 Label까지 비우므로, 마이그레이션이
-    심은 기본 Label(created_by_user_id 없음)은 비운 뒤 되살린다. 이 DB는 세션 전체가 공유해서
-    기본 Label이 사라지면 뒤에 도는 스키마 테스트가 시드를 못 찾는다.
+    `bant_labels.created_by_user_id`·`action_types.created_by_user_id`가 users를 참조해 CASCADE가
+    Label·Action 유형까지 비우므로, 마이그레이션이 심은 기본 행(created_by_user_id 없음)은 비운 뒤
+    되살린다. 이 DB는 세션 전체가 공유해서 기본 행이 사라지면 뒤에 도는 스키마 테스트가 시드를
+    못 찾는다. (deal_actions는 이 truncate로 함께 비워지므로 유형을 되살려도 참조가 남지 않는다.)
     """
     present = await existing_tables(connection)
     optional = (*DEAL_TABLES, *FILE_TABLES, *ALERT_TABLES, *VENDOR_TABLES, *CONTACT_TABLES)
     names = [*ALWAYS, *(name for name in optional if name in present)]
-    keep_labels = "bant_labels" in present
-    if keep_labels:
+    kept = [table for table in SEEDED_TABLES if table in present]
+    for table in kept:
         await connection.execute(
             text(
-                "create temp table _seed_bant_labels on commit drop as"
-                " select * from bant_labels where created_by_user_id is null"
+                f"create temp table _seed_{table} on commit drop as"  # noqa: S608 - 상수 이름
+                f" select * from {table} where created_by_user_id is null"
             )
         )
     await connection.execute(text(f"truncate {', '.join(names)} cascade"))
-    if keep_labels:
-        await connection.execute(text("insert into bant_labels select * from _seed_bant_labels"))
+    for table in kept:
+        await connection.execute(text(f"insert into {table} select * from _seed_{table}"))  # noqa: S608

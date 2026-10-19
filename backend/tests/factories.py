@@ -117,11 +117,11 @@ def make_deal(  # noqa: PLR0913 - Deal 생성에 필요한 값이 모두 독립�
 
 
 def _action_fields(overrides: dict[str, Any]) -> dict[str, Any]:
-    """Action 내용 입력의 기본값(유효한 더미)에 overrides를 얹는다. P2 모델: 길이 상한 없음."""
-    from app.domain.deal_action.value_objects import ActionType  # noqa: PLC0415 - 지연 import
+    """Action 내용 입력의 기본값(유효한 더미)에 overrides를 얹는다. P2 모델: 길이 상한 없음.
 
+    유형은 별도로 다룬다(도메인은 `ActionTypeRef`, 입력은 `CatalogChoice`).
+    """
     values: dict[str, Any] = {
-        "action_type": ActionType.MEETING,
         "action": "킥오프 미팅",
         "next_action": "요구사항 문서 전달",
         "due_date": date(2026, 1, 15),
@@ -131,11 +131,15 @@ def _action_fields(overrides: dict[str, Any]) -> dict[str, Any]:
 
 
 def make_action_content(**overrides: Any) -> ActionContent:  # noqa: ANN401
-    """검증을 마친 Action 내용(`ActionContent.parse`). overrides: action_type, action,
-    next_action, due_date, memo."""
+    """검증을 마친 Action 내용(`ActionContent.parse`). overrides: action_type(유형 이름 문자열
+    또는 `ActionTypeRef`, 기본 `미팅`), action, next_action, due_date, memo."""
     from app.domain.deal_action.value_objects import ActionContent  # noqa: PLC0415 - 지연 import
+    from tests.factories_action_type import make_type_ref  # noqa: PLC0415
 
-    return ActionContent.parse(**_action_fields(overrides))
+    fields = _action_fields(overrides)
+    chosen = fields.pop("action_type", "미팅")
+    action_type = make_type_ref(chosen) if isinstance(chosen, str) else chosen
+    return ActionContent.parse(action_type=action_type, **fields)
 
 
 def make_deal_action(
@@ -165,10 +169,16 @@ def make_deal_action(
 
 
 def make_deal_action_input(**overrides: Any) -> ActionContentInput:  # noqa: ANN401
-    """수정 입력(`ActionContentInput`). overrides는 `make_action_content`와 같다."""
-    from app.application.deal_action.inputs import ActionContentInput  # noqa: PLC0415 - 지연 import
+    """수정 입력(`ActionContentInput`). overrides는 `make_action_content`와 같되 action_type은
+    유형 이름 문자열(`CatalogChoice(name=...)`) 또는 `CatalogChoice`다(기본 `미팅`)."""
+    from app.application.choice import CatalogChoice  # noqa: PLC0415 - 지연 import
 
-    return ActionContentInput(**_action_fields(overrides))
+    from app.application.deal_action.inputs import ActionContentInput  # noqa: PLC0415
+
+    fields = _action_fields(overrides)
+    chosen = fields.pop("action_type", "미팅")
+    action_type = CatalogChoice(name=chosen) if isinstance(chosen, str) else chosen
+    return ActionContentInput(action_type=action_type, **fields)
 
 
 def make_register_input(

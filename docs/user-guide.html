@@ -82,7 +82,7 @@
 <main>
 
 <h1>neoine-sales 사용자 가이드</h1>
-<p class="meta">기준: 2026-10-19, <code>develop</code> 브랜치 구현(P0~P3, P5, P8, Vendor·Solution 관리). 화면 조작보다 Deal이 어떤 규칙으로 관리되는지를 설명합니다.</p>
+<p class="meta">기준: 2026-10-20, <code>develop</code> 브랜치 구현(P0~P3, P5, P8, Vendor·Solution 관리, Action 유형·BANT 입력 방식). 화면 조작보다 Deal이 어떤 규칙으로 관리되는지를 설명합니다.</p>
 
 <!-- 1 -->
 <h2 id="overview">1. 개요</h2>
@@ -96,7 +96,7 @@
 
 <div class="grid">
   <div class="card"><h4>Deals</h4><p>Deal 목록·검색, 등록, 상세(Action·History·첨부)</p></div>
-  <div class="card"><h4>관리</h4><p>사용자, Deal 관리(코드·BANT Label·Vendor·Solution·경고 기준), 연락처, 연동(AD·저장 위치). admin 전용</p></div>
+  <div class="card"><h4>관리</h4><p>사용자, Deal 관리(코드·BANT Label·Action 유형·Vendor·Solution·경고 기준), 연락처, 연동(AD·저장 위치). admin 전용</p></div>
   <div class="card"><h4>Dashboard · Forecast · Reports</h4><p>메뉴만 있고 아직 "준비 중"입니다(<a href="#notyet">16장</a>).</p></div>
 </div>
 
@@ -110,7 +110,7 @@
   <tr><td>Status</td><td>영업 진행 단계입니다. 기본값은 기회발굴 → 제품소개 → POC준비 → POC완료 → 기술평가 → 가격협상 → 계약완료입니다.</td></tr>
   <tr><td>Forecast</td><td>수주 가능성 구간입니다. 기본값은 Pipeline(0–50) · Best(51–75) · Most Likely(75–85) · Commit(85–100) · Won · Lost입니다. Won과 Lost는 "종결"을 뜻합니다.</td></tr>
   <tr><td>금액 / Expected Close</td><td>예상 매출금액(원 단위 정수, 1원 이상)과 예상 매출일입니다. 둘 다 필수입니다. Won으로 닫을 때는 실제 값을 확인해 입력합니다.</td></tr>
-  <tr><td>BANT</td><td>Budget(예산) · Authority(결재권) · Need(필요) · Timeline(일정)의 네 구분입니다. 구분마다 미리 정한 Label 중 하나를 고르거나 비워 둡니다. 점수는 없습니다.</td></tr>
+  <tr><td>BANT</td><td>Budget(예산) · Authority(결재권) · Need(필요) · Timeline(일정)의 네 구분입니다. 구분마다 Label 하나를 입력하거나 비워 둡니다. 입력하면 기존 Label 중 맞는 것이 후보로 걸러지고, 목록에 없는 이름은 저장할 때 새 Label로 추가됩니다. 점수는 없습니다.</td></tr>
   <tr><td>Action</td><td>Deal에서 한 일 한 건입니다. 유형, 진행사항, Next Action, Due Date, Memo로 이루어집니다.</td></tr>
   <tr><td>History</td><td>Deal에 일어난 모든 변경의 기록입니다. 시스템이 자동으로 남기며 사람이 고치거나 지울 수 없습니다.</td></tr>
   <tr><td>연락처</td><td>고객 또는 파트너 쪽 담당자입니다. 회사명과 담당자명이 필수이고 직급·이메일·전화는 선택입니다.</td></tr>
@@ -131,8 +131,8 @@
   <tr><td>Action 수정·삭제</td><td>O</td><td>본인이 기록한 Action만</td><td>X</td></tr>
   <tr><td>첨부 업로드</td><td>O</td><td>O</td><td>X</td></tr>
   <tr><td>첨부 교체·삭제</td><td>O</td><td>본인 파일 또는 퇴사한 영업의 파일</td><td>X</td></tr>
-  <tr><td>BANT Label 새로 만들기(Deal 폼에서)</td><td>O</td><td>O</td><td>X</td></tr>
-  <tr><td>BANT Label 이름 변경·삭제, 코드 관리, Vendor·Solution 관리, 경고 기준</td><td>O</td><td>X</td><td>X</td></tr>
+  <tr><td>BANT Label·Action 유형 새로 만들기(Deal·Action 입력에서)</td><td>O</td><td>O</td><td>X</td></tr>
+  <tr><td>BANT Label·Action 유형 이름 변경·삭제, 코드 관리, Vendor·Solution 관리, 경고 기준</td><td>O</td><td>X</td><td>X</td></tr>
   <tr><td>연락처 관리 화면, 사용자 관리, AD·저장 위치 설정</td><td>O</td><td>X</td><td>X</td></tr>
   <tr><td>Deal의 Owner가 되기</td><td>X</td><td>재직 중일 때만</td><td>X</td></tr>
 </table>
@@ -175,11 +175,11 @@
   <tr><td>Status / Forecast</td><td>O</td><td>계약완료 ⇔ Won 규칙을 지켜야 합니다(<a href="#sync">6장</a>).</td></tr>
   <tr><td>금액</td><td>O</td><td>1원 이상의 정수</td></tr>
   <tr><td>Expected Close</td><td>O</td><td>날짜</td></tr>
-  <tr><td>Vendor / Solution</td><td></td><td>관리자가 등록한 목록에서 선택합니다(<a href="#vendor">14.4</a>). Solution 목록에는 고른 Vendor에 속한 것만 나오고, Vendor를 바꾸면 고른 Solution이 비워집니다. Vendor 없이 Solution만 고를 수는 없습니다.</td></tr>
+  <tr><td>Vendor / Solution</td><td></td><td>관리자가 등록한 목록에서 선택합니다(<a href="#vendor">14.5</a>). Solution 목록에는 고른 Vendor에 속한 것만 나오고, Vendor를 바꾸면 고른 Solution이 비워집니다. Vendor 없이 Solution만 고를 수는 없습니다.</td></tr>
   <tr><td>Users</td><td></td><td>1 이상의 정수</td></tr>
   <tr><td>견적 / POC</td><td></td><td>상태와 날짜는 따로 입력합니다(둘의 조합은 검사하지 않음).</td></tr>
   <tr><td>구매절차</td><td></td><td>500자 이내</td></tr>
-  <tr><td>BANT</td><td></td><td>구분마다 Label 하나 또는 선택 안 함. 필요한 Label이 없으면 폼에서 바로 새로 만들 수 있습니다.</td></tr>
+  <tr><td>BANT</td><td></td><td>구분마다 입력란 하나입니다. 누르면 기존 Label이 후보로 보이고, 입력한 글자가 들어간 것만 남습니다. 비워 두면 선택 안 함입니다. 목록에 없는 이름을 입력하면 "목록에 없는 Label입니다. 저장하면 새 Label로 추가됩니다."가 보이고, 저장할 때 새 Label이 만들어집니다(50자 이내). 상세 화면에서도 같은 방식으로 고칩니다.</td></tr>
 </table>
 
 <h3>5.2 화면 배치</h3>
@@ -214,7 +214,7 @@
 <h3>7.1 구성</h3>
 <table>
   <tr><th>항목</th><th>필수</th><th>설명</th></tr>
-  <tr><td>유형</td><td>O</td><td>통화, 미팅, 이메일, 데모, 제안, 협상, 계약, 기타 중 하나(고정 목록)</td></tr>
+  <tr><td>유형</td><td>O</td><td>입력란을 누르면 등록된 유형(기본: 통화, 미팅, 이메일, 데모, 제안, 협상, 계약, 기타)이 후보로 보이고, 입력한 글자가 들어간 것만 남습니다. 목록에 없는 이름을 입력하면 "목록에 없는 유형입니다. 저장하면 새 유형으로 추가됩니다."가 보이고, 저장할 때 새 유형이 만들어집니다(50자 이내). 새 Action은 빈 칸에서 시작합니다.</td></tr>
   <tr><td>진행사항</td><td>O</td><td>이번에 한 일. 길이 제한 없음</td></tr>
   <tr><td>Next Action</td><td>O</td><td>다음에 할 일. 길이 제한 없음</td></tr>
   <tr><td>Due Date</td><td>O</td><td>Next Action의 기한(날짜)</td></tr>
@@ -233,7 +233,7 @@
   <li>Action의 등록·수정·삭제도 모두 History에 남습니다.</li>
 </ul>
 <h3>7.4 Action 검색</h3>
-<p>Deal 상세의 Action 탭에서 유형, 담당자(퇴사자 포함), 키워드, 수행 기간, Due 기간으로 걸러 보고 정렬할 수 있습니다.</p>
+<p>Deal 상세의 Action 탭에서 유형(등록된 유형 목록에서 선택), 담당자(퇴사자 포함), 키워드, 수행 기간, Due 기간으로 걸러 보고 정렬할 수 있습니다.</p>
 
 <!-- 8 -->
 <h2 id="risk">8. 경고와 체류 일수</h2>
@@ -244,7 +244,7 @@
   <tr><td>미업데이트(노랑)</td><td>마지막 업데이트 후 <b>기준 일수 이상</b> 지남(기본 14일)</td><td>Action을 남기거나 Deal을 수정함</td></tr>
 </table>
 <ul>
-  <li>미업데이트 기준 일수는 관리자가 1~365일 사이에서 정합니다(<a href="#admin">14.5</a>). 기준이 14일이면 13일째까지는 정상이고, 14일째부터 경고가 붙습니다.</li>
+  <li>미업데이트 기준 일수는 관리자가 1~365일 사이에서 정합니다(<a href="#admin">14.6</a>). 기준이 14일이면 13일째까지는 정상이고, 14일째부터 경고가 붙습니다.</li>
   <li><b>Status 체류 일수</b>: 지금 Status에 들어온 날부터 며칠째인지 보여 줍니다(들어온 날은 0일). Status가 실제로 바뀔 때만 다시 0부터 셉니다. 다른 항목을 고쳐도 초기화되지 않습니다.</li>
   <li>모든 날짜 계산은 <b>서버 시간대의 달력 날짜</b>를 기준으로 서버가 합니다. 화면은 서버가 준 값을 그대로 보여 줍니다.</li>
 </ul>
@@ -360,11 +360,19 @@
 <h3>14.3 BANT Label 관리</h3>
 <ul>
   <li>기본 Label이 미리 들어 있습니다. 예: Budget에는 "단독 예산 확보", "예산 작업중", "미확인" 등이 있습니다.</li>
-  <li>영업 담당자는 Deal 폼에서 Label을 새로 만들 수 있습니다. 이름 변경과 삭제는 admin만 할 수 있습니다.</li>
+  <li>영업 담당자는 Deal 등록·수정·상세 화면의 BANT 입력란에 목록에 없는 이름을 입력해 저장하면 새 Label을 만들 수 있습니다(별도 추가 버튼은 없습니다). 이름 변경과 삭제는 admin만 할 수 있습니다.</li>
   <li>Label 이름은 같은 구분 안에서 대소문자 무시로 중복될 수 없고 50자 이내입니다. Deal이 쓰고 있는 Label은 삭제할 수 없습니다.</li>
 </ul>
 
-<h3 id="vendor">14.4 Vendor·Solution 관리</h3>
+<h3 id="action-type">14.4 Action 유형 관리</h3>
+<ul>
+  <li>관리 → Deal 관리의 <b>Action 유형</b> 탭에서 admin이 유형을 추가하고, 이름을 바꾸거나 삭제합니다. 영업 담당자는 이 탭에 들어갈 수 없지만, Action 입력란에 목록에 없는 이름을 입력해 저장하면 새 유형을 만들 수 있습니다.</li>
+  <li>기본 유형 8개(통화, 미팅, 이메일, 데모, 제안, 협상, 계약, 기타)가 미리 들어 있고, 잠겨 있지 않아 이름을 바꾸거나 지울 수 있습니다.</li>
+  <li>이름은 앞뒤 공백을 제거하고 50자 이내이며, 대소문자 무시로 중복될 수 없습니다.</li>
+  <li>이름을 바꾸면 그 유형을 쓰는 모든 Action에 새 이름이 보입니다. Action이 쓰고 있는 유형은 삭제할 수 없고, 화면에 사용 건수("Action N건")가 보입니다.</li>
+</ul>
+
+<h3 id="vendor">14.5 Vendor·Solution 관리</h3>
 <ul>
   <li>관리 → Deal 관리의 <b>Vendor·Solution</b> 탭에서 Vendor를 추가·이름 변경·삭제하고, Vendor마다 소속 Solution을 추가·이름 변경·삭제합니다. admin만 할 수 있고, 다른 역할은 목록을 보고 Deal에서 고르기만 합니다.</li>
   <li>이름은 앞뒤 공백을 제거하고 Vendor 100자, Solution 200자 이내입니다. 대소문자 무시로 Vendor 이름은 전체에서, Solution 이름은 같은 Vendor 안에서 중복될 수 없습니다(다른 Vendor에는 같은 이름의 Solution이 있어도 됩니다). 목록은 이름순입니다.</li>
@@ -374,10 +382,10 @@
 </ul>
 <div class="callout warn"><p>Vendor를 하나도 등록하지 않으면 Deal에서 고를 Vendor가 없습니다. 운영을 시작하기 전에 관리자가 Vendor와 Solution을 먼저 등록하세요.</p></div>
 
-<h3>14.5 경고 기준</h3>
+<h3>14.6 경고 기준</h3>
 <p>미업데이트 기준 일수(1~365일, 기본 14일)를 정합니다. 바꾸면 모든 Deal의 경고가 즉시 새 기준으로 계산됩니다.</p>
 
-<h3>14.6 사용자 관리</h3>
+<h3>14.7 사용자 관리</h3>
 <ul>
   <li>AD 로그인 아이디와 역할(관리자/영업/조회자)로 사용자를 등록합니다. <b>등록된 사용자만</b> 로그인할 수 있습니다. 비밀번호는 시스템에 저장되지 않고, 로그인할 때마다 AD로 확인합니다.</li>
   <li>이름과 이메일은 로그인할 때 AD 정보로 갱신됩니다.</li>
@@ -427,7 +435,7 @@
 <h3>다른 사람의 Deal을 고칠 수 있나요?</h3>
 <p>영업 역할이면 수정은 가능하며 History에 고친 사람이 남습니다. 삭제는 Owner 본인과 admin만 할 수 있습니다.</p>
 <h3>Deal 등록 화면에 Vendor 목록이 비어 있어요.</h3>
-<p>Vendor는 관리자가 등록한 목록에서만 고릅니다. 관리 → Deal 관리 → Vendor·Solution 탭에서 먼저 등록해야 합니다(<a href="#vendor">14.4</a>).</p>
+<p>Vendor는 관리자가 등록한 목록에서만 고릅니다. 관리 → Deal 관리 → Vendor·Solution 탭에서 먼저 등록해야 합니다(<a href="#vendor">14.5</a>).</p>
 <h3>"Solution을 선택하려면 Vendor를 먼저 선택하세요."·"선택한 Solution은 이 Vendor에 속하지 않습니다."가 나와요.</h3>
 <p>Solution은 고른 Vendor에 속한 것만 쓸 수 있습니다. Vendor를 먼저 고르고, 그 Vendor의 Solution을 다시 고르세요. "선택한 Vendor가 없습니다."는 그사이 관리자가 Vendor를 지운 경우이니 목록에서 다시 고르면 됩니다.</p>
 <h3>Owner를 관리자로 지정할 수 없어요.</h3>

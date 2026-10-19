@@ -2,10 +2,11 @@
 
 from datetime import UTC, date, datetime, timedelta
 from typing import TYPE_CHECKING
+from uuid import uuid4
 
 from app.application.ports.deal_action_repository import DealActionSort
-from app.domain.deal_action.value_objects import ActionType
 from tests.factories import NOW, make_deal_action, make_deal_code
+from tests.factories_action_type import make_action_type
 from tests.support.user_ids import uid
 
 if TYPE_CHECKING:
@@ -16,9 +17,9 @@ if TYPE_CHECKING:
 
 async def _seed(action_case: Case) -> None:
     rows = [
-        (ActionType.CALL, "첫 통화", "견적서 준비", "예산 문의 100%", "kim", 0, date(2026, 2, 10)),
-        (ActionType.MEETING, "킥오프 미팅", "요구사항 정리", "일정", "park", 1, date(2026, 2, 1)),
-        (ActionType.MEETING, "최종 미팅", "계약서 초안", "조건", "kim", 2, date(2026, 2, 10)),
+        ("통화", "첫 통화", "견적서 준비", "예산 문의 100%", "kim", 0, date(2026, 2, 10)),
+        ("미팅", "킥오프 미팅", "요구사항 정리", "일정", "park", 1, date(2026, 2, 1)),
+        ("미팅", "최종 미팅", "계약서 초안", "조건", "kim", 2, date(2026, 2, 10)),
     ]
     for action_type, action, next_action, memo, actor, day, due in rows:
         await action_case.add(
@@ -32,6 +33,10 @@ async def _seed(action_case: Case) -> None:
                 due_date=due,
             )
         )
+
+
+async def _type_id(action_case: Case, name: str) -> object:
+    return next(t.id for t in await action_case.action_types.list() if t.name == name)
 
 
 async def test_search_orders_by_latest_acted_at_first_by_default(action_case: Case) -> None:
@@ -69,7 +74,8 @@ async def test_search_by_due_date_breaks_ties_by_latest_acted_at(action_case: Ca
 async def test_search_filters_combine_with_and(action_case: Case) -> None:
     await _seed(action_case)
 
-    assert await action_case.search(action_type=ActionType.MEETING, actor_user_id=uid("kim")) == [
+    meeting = await _type_id(action_case, "미팅")
+    assert await action_case.search(action_type_id=meeting, actor_user_id=uid("kim")) == [
         "최종 미팅"
     ]
     assert await action_case.search(actor_user_id=uid("park")) == ["킥오프 미팅"]
@@ -152,3 +158,43 @@ async def test_search_is_scoped_to_the_deal(action_case: Case) -> None:
 
     assert await action_case.search(deal_code=other.deal_code) == ["다른 딜"]
     assert "다른 딜" not in await action_case.search()
+
+
+async def test_filters_by_action_type_id(action_case: Case) -> None:
+    await _seed(action_case)
+
+    assert await action_case.search(action_type_id=await _type_id(action_case, "통화")) == [
+        "첫 통화"
+    ]
+    assert await action_case.search(action_type_id=await _type_id(action_case, "미팅")) == [
+        "최종 미팅",
+        "킥오프 미팅",
+    ]
+    assert await action_case.search(action_type_id=await _type_id(action_case, "이메일")) == []
+
+
+async def test_filters_by_the_id_of_a_custom_type(action_case: Case) -> None:
+    custom = make_action_type("ZZ 검색")
+    await action_case.action_types.add(custom)
+    await _seed(action_case)
+    await action_case.add(make_deal_action(NOW, action="커스텀", action_type=custom.ref))
+
+    assert await action_case.search(action_type_id=custom.id) == ["커스텀"]
+
+
+async def test_an_unknown_type_id_matches_nothing(action_case: Case) -> None:
+    await _seed(action_case)
+
+    assert await action_case.search(action_type_id=uuid4()) == []
+
+
+async def test_search_filters_by_type_id_after_the_type_is_renamed(action_case: Case) -> None:
+    await _seed(action_case)
+    call = next(t for t in await action_case.action_types.list() if t.name == "통화")
+    call.rename("전화", NOW)
+    await action_case.action_types.update(call)
+
+    found = await action_case.found(action_type_id=call.id)
+
+    assert [a.content.action for a in found] == ["첫 통화"]
+    assert found[0].content.action_type.name == "전화"

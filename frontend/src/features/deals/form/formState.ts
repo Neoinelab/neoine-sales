@@ -1,9 +1,16 @@
-import { FORECAST_PIPELINE, STATUS_PROSPECTING } from '../../../shared/model/constants'
+import { toChoice } from '../../../shared/model/catalogChoice'
+import {
+  BANT_CATEGORIES,
+  BANT_LABEL_MAX_LENGTH,
+  FORECAST_PIPELINE,
+  STATUS_PROSPECTING,
+  type BantCategory,
+} from '../../../shared/model/constants'
 import { validateContactInput, type ContactFieldErrors } from '../../../shared/model/contactRules'
 import type { ContactDraft } from '../../../shared/model/inputs'
 import { parseAmount } from '../../../shared/model/money'
 import type {
-  BantSelection,
+  BantLabel,
   Contact,
   DealDetail,
   DealInput,
@@ -32,7 +39,8 @@ export interface DealFormState {
   revenueDate: string
   customer: ContactDraft
   partner: ContactDraft
-  bant: BantSelection
+  /** 구분별 Label 이름 텍스트(자동완성 입력). 비면 선택 안 함. */
+  bant: Record<BantCategory, string>
   quoteSubmitted: '' | QuoteSubmitted
   quoteDate: string
   pocState: '' | PocState
@@ -48,7 +56,10 @@ export interface FormErrors {
   revenueDate?: string
   customer?: ContactFieldErrors
   partner?: ContactFieldErrors
+  bant?: Partial<Record<BantCategory, string>>
 }
+
+export const BANT_TOO_LONG_MESSAGE = `Label 이름은 ${BANT_LABEL_MAX_LENGTH}자 이내로 입력하세요.`
 
 export function emptyForm(ownerId: string): DealFormState {
   return {
@@ -63,7 +74,7 @@ export function emptyForm(ownerId: string): DealFormState {
     revenueDate: '',
     customer: EMPTY_DRAFT,
     partner: EMPTY_DRAFT,
-    bant: { budget: null, authority: null, need: null, timeline: null },
+    bant: { budget: '', authority: '', need: '', timeline: '' },
     quoteSubmitted: '',
     quoteDate: '',
     pocState: '',
@@ -83,7 +94,16 @@ function draftOf(contact: Contact): ContactDraft {
   }
 }
 
-export function formFromDeal(deal: DealDetail): DealFormState {
+/** 구분별 Label 목록. */
+const labelsOf = (labels: readonly BantLabel[], category: BantCategory) => labels.filter((l) => l.category === category)
+
+/** 수정 폼의 BANT 초기 텍스트: 현재 Label 이름(목록에서 못 찾거나 선택 안 함이면 빈 칸). */
+export function bantTexts(bant: DealDetail['bant'], labels: readonly BantLabel[]): Record<BantCategory, string> {
+  const nameOf = (category: BantCategory) => labelsOf(labels, category).find((l) => l.id === bant[category])?.name ?? ''
+  return { budget: nameOf('budget'), authority: nameOf('authority'), need: nameOf('need'), timeline: nameOf('timeline') }
+}
+
+export function formFromDeal(deal: DealDetail, labels: readonly BantLabel[]): DealFormState {
   return {
     name: deal.name,
     ownerId: deal.ownerId,
@@ -96,7 +116,7 @@ export function formFromDeal(deal: DealDetail): DealFormState {
     revenueDate: deal.revenueDate,
     customer: draftOf(deal.customer),
     partner: deal.activePartner ? draftOf(deal.activePartner) : EMPTY_DRAFT,
-    bant: { ...deal.bant },
+    bant: bantTexts(deal.bant, labels),
     quoteSubmitted: deal.quote.submitted ?? '',
     quoteDate: deal.quote.submittedDate ?? '',
     pocState: deal.poc.state ?? '',
@@ -135,6 +155,15 @@ function partnerErrors(draft: ContactDraft): ContactFieldErrors | undefined {
   return nonEmpty(errors)
 }
 
+/** 50자(코드 포인트) 초과 항목만 표시한다. 그 밖의 검증은 서버가 한다. */
+function bantErrors(texts: Record<BantCategory, string>): FormErrors['bant'] {
+  const errors: NonNullable<FormErrors['bant']> = {}
+  for (const category of BANT_CATEGORIES) {
+    if ([...texts[category].trim()].length > BANT_LABEL_MAX_LENGTH) errors[category] = BANT_TOO_LONG_MESSAGE
+  }
+  return Object.keys(errors).length > 0 ? errors : undefined
+}
+
 /** 화면 위에서 아래 순서의 필수·형식 검증. `originalOwner`는 수정 중인 Deal의 현재 Owner. */
 export function validateForm(state: DealFormState, originalOwner: UserRef | undefined): FormErrors {
   const errors: FormErrors = {}
@@ -149,6 +178,8 @@ export function validateForm(state: DealFormState, originalOwner: UserRef | unde
   if (partner) errors.partner = partner
   if (parseAmount(state.revenueAmount) === null) errors.revenueAmount = '매출금액은 1원 이상의 정수로 입력하세요.'
   if (state.revenueDate === '') errors.revenueDate = 'Expected Close를 입력하세요.'
+  const bant = bantErrors(state.bant)
+  if (bant) errors.bant = bant
   return errors
 }
 
@@ -164,7 +195,7 @@ function normalize(draft: ContactDraft): ContactDraft {
 }
 
 /** 검증을 통과한 상태를 게이트웨이 입력으로 바꾼다. */
-export function toDealInput(state: DealFormState): DealInput {
+export function toDealInput(state: DealFormState, labels: readonly BantLabel[]): DealInput {
   const users = state.users.trim()
   return {
     name: state.name.trim(),
@@ -181,14 +212,31 @@ export function toDealInput(state: DealFormState): DealInput {
     quote: { submitted: state.quoteSubmitted || null, submittedDate: state.quoteDate || null },
     poc: { state: state.pocState || null, completedDate: state.pocDate || null },
     procurement: state.procurement.trim(),
-    bant: { ...state.bant },
+    bant: toBantChoices(state.bant, labels),
   }
 }
 
+/** 입력 텍스트를 구분 안의 Label과 견줘 `{id}`/`{name}`/null로 바꾼다. */
+function toBantChoices(texts: Record<BantCategory, string>, labels: readonly BantLabel[]): DealInput['bant'] {
+  const choice = (category: BantCategory) => toChoice(texts[category], labelsOf(labels, category))
+  return { budget: choice('budget'), authority: choice('authority'), need: choice('need'), timeline: choice('timeline') }
+}
+
+/** 입력 텍스트가 처음(현재 Label 이름) 그대로인 구분은 이름을 다시 해석하지 않고 원래 `{id}`(없으면 null)를 보낸다. */
+function keepUntouchedBant(bant: DealInput['bant'], state: DealFormState, original: DealDetail, labels: readonly BantLabel[]): DealInput['bant'] {
+  const shown = bantTexts(original.bant, labels)
+  const pick = (category: BantCategory) => {
+    if (state.bant[category] !== shown[category]) return bant[category]
+    const id = original.bant[category]
+    return id ? { id } : null
+  }
+  return { budget: pick('budget'), authority: pick('authority'), need: pick('need'), timeline: pick('timeline') }
+}
+
 /** 수정 저장 입력. 활성 파트너가 있었는데 비웠으면 `partner: null`(제거), 원래 없고 비었으면 파트너 키를 보내지 않는다. */
-export function toDealPatch(state: DealFormState, original: DealDetail): DealPatch {
-  const { partner, ...rest } = toDealInput(state)
-  const patch: DealPatch = rest
+export function toDealPatch(state: DealFormState, original: DealDetail, labels: readonly BantLabel[]): DealPatch {
+  const { partner, ...rest } = toDealInput(state, labels)
+  const patch: DealPatch = { ...rest, bant: keepUntouchedBant(rest.bant, state, original, labels) }
   if (partner) patch.partner = partner
   else if (original.activePartner) patch.partner = null
   return patch

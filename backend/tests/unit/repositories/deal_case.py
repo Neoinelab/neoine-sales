@@ -7,7 +7,7 @@
 """
 
 from contextlib import asynccontextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 import pytest
@@ -16,17 +16,18 @@ from app.application.ports.deal_action_repository import DealActionQuery
 from app.domain.contact.errors import ContactNotFoundError
 from app.domain.contact.values import ContactKind
 from tests.factories import NOW, make_deal_action
+from tests.factories_action_type import attach_catalog_type
 from tests.factories_catalog import make_label
 from tests.factories_contact import make_contact
 from tests.factories_vendor import store_vendor
-from tests.fakes.catalog_seed import seed_catalog
+from tests.fakes.catalog_seed import seed_action_types, seed_catalog
 from tests.fakes.unit_of_work import FakeUnitOfWork
 from tests.support.database import rolled_back_session
 from tests.support.user_ids import OWNER_ID
 from tests.support.user_seed import ensure_users
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncIterator
+    from collections.abc import AsyncIterator, Callable
     from datetime import datetime
 
     from sqlalchemy.engine import URL
@@ -57,6 +58,17 @@ class DealCase:
     codes: Any
     labels: Any
     vendors: Any
+    action_type_source: Callable[[], Any] | None = None
+    _action_types: Any = field(default=None, repr=False)
+
+    @property
+    def action_types(self) -> Any:  # noqa: ANN401 - ActionTypeRepository(Fake 또는 SQL)
+        """Action 유형 저장소. 처음 쓸 때 만든다(Action을 다루지 않는 테스트가 유형 도메인 모듈을
+        가져오지 않게 한다. Fake는 이때 기본 유형 8개를 시드한다)."""
+        if self._action_types is None:
+            assert self.action_type_source is not None, "이 case는 Action 유형을 지원하지 않는다"
+            self._action_types = self.action_type_source()
+        return self._action_types
 
     async def _ensure_contact(self, contact_id: ContactId, kind: ContactKind) -> None:
         try:
@@ -99,8 +111,12 @@ class DealCase:
         acted_at: datetime = NOW,
         **overrides: Any,  # noqa: ANN401 - 팩토리 필드를 그대로 넘긴다
     ) -> DealAction:
-        """Deal에 활동 한 건을 저장한다(활동자 행도 만든다)."""
+        """Deal에 활동 한 건을 저장한다(활동자 행도 만든다).
+
+        유형은 이 저장소의 같은 이름 유형으로 맞춘다(`attach_catalog_type`: DB 시드 id는 무작위).
+        """
         action = make_deal_action(deal_code=deal.id, acted_at=acted_at, **overrides)
+        await attach_catalog_type(self.action_types, action)
         await ensure_users(self.users, action.actor_user_id)
         await self.actions.add(action)
         return action
@@ -135,6 +151,11 @@ class DealCase:
         await self.users.update(user)
 
 
+def _seeded_types(uow: FakeUnitOfWork) -> Any:  # noqa: ANN401
+    seed_action_types(uow)
+    return uow.action_types
+
+
 def _fake_case() -> DealCase:
     uow = FakeUnitOfWork()
     seed_catalog(uow)
@@ -147,10 +168,18 @@ def _fake_case() -> DealCase:
         uow.codes,
         uow.bant_labels,
         uow.vendors,
+        lambda: _seeded_types(uow),
     )
 
 
+def _sql_types(session: Any) -> Any:  # noqa: ANN401
+    from app.infra.db.action_type_repository import SqlActionTypeRepository  # noqa: PLC0415
+
+    return SqlActionTypeRepository(session)
+
+
 def _sql_case(session: Any) -> DealCase:  # noqa: ANN401
+
     from app.infra.db.bant_label_repository import SqlBantLabelRepository  # noqa: PLC0415
     from app.infra.db.code_repository import SqlCodeRepository  # noqa: PLC0415
     from app.infra.db.contact_repository import SqlContactRepository  # noqa: PLC0415
@@ -169,6 +198,7 @@ def _sql_case(session: Any) -> DealCase:  # noqa: ANN401
         SqlCodeRepository(session),
         SqlBantLabelRepository(session),
         SqlVendorRepository(session),
+        lambda: _sql_types(session),
     )
 
 

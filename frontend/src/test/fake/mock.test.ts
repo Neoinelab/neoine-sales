@@ -209,7 +209,7 @@ describe('T-MOCK 초기화·격리·시계', () => {
     const mock = await mockAs('kim')
     expect(mock.clock.now()).toBe(TEST_NOW)
     expect(mock.clock.today()).toBe('2026-10-15')
-    await mock.gateway.actions.create(dealCode(2), { type: '통화', progress: '확인', nextAction: '회신', dueDate: '2026-10-20', memo: '' })
+    await mock.gateway.actions.create(dealCode(2), { type: { name: '통화' }, progress: '확인', nextAction: '회신', dueDate: '2026-10-20', memo: '' })
     const first = (await mock.gateway.history.list(dealCode(2), {}))[0]
     expect(first?.at).toBe(TEST_NOW)
     mock.clock.advance(60 * 60 * 1000)

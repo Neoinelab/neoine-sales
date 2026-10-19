@@ -7,9 +7,11 @@
 
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
+from uuid import uuid4
 
 import pytest
 
+from tests.functional.steps.action_types import given_type_id, when_rename_type
 from tests.functional.steps.actions import (
     given_action,
     given_action_at_as,
@@ -35,9 +37,33 @@ async def test_filters_combine_within_a_deal(api: Api) -> None:
     # Given
     code, park_id = await given_searchable_actions(api)
     # When
-    response = await when_list_actions(api, code, action_type="meeting", actor_user_id=park_id)
+    meeting = await given_type_id(api, "미팅")
+    response = await when_list_actions(api, code, action_type_id=meeting, actor_user_id=park_id)
     # Then
     then_action_names_are(response, ["킥오프 2"])
+
+
+async def test_type_filter_matches_the_type_id_even_after_a_rename(api: Api) -> None:
+    """Scenario: 유형 id로 거르고, 유형 이름을 바꿔도 같은 id로 같은 Action이 나온다(AC-16)."""
+    # Given
+    code, _ = await given_searchable_actions(api)
+    email = await given_type_id(api, "이메일")
+    await when_rename_type(api, email, "메일")
+    # When
+    response = await when_list_actions(api, code, action_type_id=email)
+    # Then
+    then_action_names_are(response, ["견적 발송"])
+    assert response.json()["items"][0]["action_type"] == {"id": email, "name": "메일"}
+
+
+async def test_an_unknown_type_id_lists_nothing(api: Api) -> None:
+    """Scenario: 없는 유형 id로 찾으면 오류 없이 0건이다(AC-16)."""
+    # Given
+    code, _ = await given_searchable_actions(api)
+    # When
+    response = await when_list_actions(api, code, action_type_id=str(uuid4()))
+    # Then
+    then_action_names_are(response, [])
 
 
 async def test_without_conditions_every_action_is_listed_newest_first(api: Api) -> None:

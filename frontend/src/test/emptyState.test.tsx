@@ -56,6 +56,7 @@ describe('업무 데이터가 없는 첫 실행 상태', () => {
     // Action 추가
     await user.click(await screen.findByRole('button', { name: 'Next Action 업데이트' }))
     const form = screen.getByRole('form', { name: 'Next Action 업데이트' })
+    await user.type(within(form).getByLabelText('유형'), '미팅')
     await user.type(within(form).getByLabelText('진행사항'), '킥오프 미팅')
     await user.type(within(form).getByLabelText('Next Action'), '제안서 전달')
     fireEvent.change(within(form).getByLabelText('Due Date'), { target: { value: '2026-12-01' } })

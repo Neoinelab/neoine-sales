@@ -57,3 +57,55 @@ async def test_action_search_is_per_deal_with_a_flat_items_response(api: Api) ->
     assert not {"offset", "limit", "deal_code"} & names
     body = spec["components"]["schemas"][schema_name_of(operation, request=False)]
     assert set(body["properties"]) == {"items"}
+
+
+async def test_action_type_is_a_choice_object_in_requests_and_id_name_in_responses(
+    api: Api,
+) -> None:
+    """Scenario: 요청의 유형은 {id|name} 선택 객체, 응답은 {id, name}이고 enum 스키마는 없다."""
+    # Given
+    # (로그인하지 않은 상태)
+    # When
+    response = await when_fetch_openapi(api)
+    # Then
+    spec = spec_of(response)
+    schemas = spec["components"]["schemas"]
+    assert "ActionType" not in schemas
+    for method, path in (CREATE, UPDATE):
+        name = schema_name_of(operation_of(spec, method, path), request=True)
+        assert schemas[name]["properties"]["action_type"]["$ref"].endswith("/CatalogChoiceRequest")
+        assert "action_type" in schemas[name]["required"]
+    assert set(schemas["CatalogChoiceRequest"]["properties"]) == {"id", "name"}
+    action_type = schemas["DealActionResponse"]["properties"]["action_type"]
+    assert set(schemas[action_type["$ref"].rsplit("/", 1)[-1]]["properties"]) == {"id", "name"}
+
+
+async def test_action_search_filters_by_type_id_not_by_the_old_enum(api: Api) -> None:
+    """Scenario: Action 검색의 유형 조건은 action_type_id(UUID)이고 구 action_type은 없다."""
+    # Given
+    # (로그인하지 않은 상태)
+    # When
+    response = await when_fetch_openapi(api)
+    # Then
+    operation = operation_of(spec_of(response), "GET", "/api/v1/deals/{code}/actions")
+    names = {p["name"] for p in operation["parameters"]}
+    assert "action_type_id" in names
+    assert "action_type" not in names
+
+
+async def test_the_action_type_routes_are_documented_with_their_responses(api: Api) -> None:
+    """Scenario: /api/v1/action-types의 4개 엔드포인트와 오류 응답이 문서화되어 있다."""
+    # Given
+    # (로그인하지 않은 상태)
+    # When
+    response = await when_fetch_openapi(api)
+    # Then
+    paths = spec_of(response)["paths"]
+    assert set(paths["/api/v1/action-types"]) == {"get", "post"}
+    assert set(paths["/api/v1/action-types/{type_id}"]) == {"patch", "delete"}
+    assert "201" in paths["/api/v1/action-types"]["post"]["responses"]
+    assert {"401", "403", "409", "422"} <= set(paths["/api/v1/action-types"]["post"]["responses"])
+    patch_responses = paths["/api/v1/action-types/{type_id}"]["patch"]["responses"]
+    assert {"401", "403", "404", "409", "422"} <= set(patch_responses)
+    delete_responses = paths["/api/v1/action-types/{type_id}"]["delete"]["responses"]
+    assert {"204", "401", "403", "404", "409"} <= set(delete_responses)

@@ -5,6 +5,7 @@ import { canDeleteDeal } from '../../../shared/model/permissions'
 import type { Deal, DealInput, DealPatch } from '../../../shared/model/types'
 import { forbidden, validation } from '../errors'
 import { requireUser, requireWrite, viewerOf, write, clone, type MockContext } from './context'
+import { commitBant } from './bantChoice'
 import { commitContact, planContact, type ContactPlan } from './contactPlan'
 import { commitDealChange, planDealChange } from './dealChange'
 import { providedKeys, validateCustomerDraft, validateDealFields, validatePartnerDraft } from './dealValidation'
@@ -29,12 +30,14 @@ function createDeal(ctx: MockContext, raw: DealInput) {
   const user = requireWrite(ctx)
   // 서버 요청 모델의 기본값: 보내지 않은 Vendor·Solution은 선택 없음(null)이다.
   const input: DealInput = { ...raw, vendorId: raw.vendorId ?? null, solutionId: raw.solutionId ?? null }
-  validateDealFields(ctx, input, () => true)
+  const bantDraft = validateDealFields(ctx, input, () => true, input.bant)
   validateCustomerDraft(input.customer)
   if (input.partner) validatePartnerDraft(input.partner)
   const customerPlan = planContact(ctx, 'customer', input.customer)
   const partnerPlan = input.partner ? planContact(ctx, 'partner', input.partner) : null
 
+  // 모든 검증이 끝난 뒤에만 연락처와 새 BANT Label을 만든다.
+  const bant = commitBant(ctx, bantDraft ?? { chosen: { budget: null, authority: null, need: null, timeline: null }, newNames: {} }, user.id)
   const customerId = commitContact(ctx, customerPlan, user.id)
   const partnerId = partnerPlan ? commitContact(ctx, partnerPlan, user.id) : null
   const now = ctx.clock.now()
@@ -54,7 +57,7 @@ function createDeal(ctx: MockContext, raw: DealInput) {
     quote: clone(input.quote),
     poc: clone(input.poc),
     procurement: input.procurement.trim(),
-    bant: clone(input.bant),
+    bant,
     statusChangedAt: now,
     createdAt: now,
     updatedAt: now,
@@ -66,7 +69,7 @@ function createDeal(ctx: MockContext, raw: DealInput) {
 
 const SCALAR_KEYS = [
   'name', 'ownerId', 'vendorId', 'solutionId', 'users', 'statusKey', 'forecastKey',
-  'revenueAmount', 'revenueDate', 'quote', 'poc', 'procurement', 'bant',
+  'revenueAmount', 'revenueDate', 'quote', 'poc', 'procurement',
 ] as const satisfies readonly (keyof DealPatch)[]
 
 function updateDeal(ctx: MockContext, code: string, patch: DealPatch) {
@@ -79,7 +82,7 @@ function updateDeal(ctx: MockContext, code: string, patch: DealPatch) {
   }
   if (typeof patch.name === 'string') after.name = patch.name.trim()
   if (typeof patch.procurement === 'string') after.procurement = patch.procurement.trim()
-  validateDealFields(ctx, after, provided)
+  const bantDraft = validateDealFields(ctx, after, provided, patch.bant)
 
   let customerPlan: ContactPlan | null = null
   let partnerPlan: ContactPlan | null = null
@@ -94,6 +97,7 @@ function updateDeal(ctx: MockContext, code: string, patch: DealPatch) {
 
   const before = clone(deal)
   const now = ctx.clock.now()
+  if (bantDraft) after.bant = commitBant(ctx, bantDraft, user.id)
   if (customerPlan) after.customerContactId = commitContact(ctx, customerPlan, user.id)
   if (patch.partner === null || partnerPlan) {
     const partnerId = partnerPlan ? commitContact(ctx, partnerPlan, user.id) : null

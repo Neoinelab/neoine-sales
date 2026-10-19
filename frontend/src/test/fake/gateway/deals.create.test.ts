@@ -49,7 +49,7 @@ describe('deals.create', () => {
       422,
       '이메일 형식이 올바르지 않습니다.',
     )
-    await expectApiError(create({ bant: { budget: 'l-none', authority: null, need: null, timeline: null } }), 422)
+    await expectApiError(create({ bant: { budget: { id: 'l-none' }, authority: null, need: null, timeline: null } }), 422)
   })
 
   it('실패한 요청은 아무것도 바꾸지 않는다', async () => {

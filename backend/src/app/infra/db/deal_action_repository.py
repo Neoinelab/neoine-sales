@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import exists, func, select
 
 from app.application.ports.deal_action_repository import DealActionSort
+from app.domain.action_type.values import ActionTypeId, ActionTypeRef
 from app.domain.code.values import CodeKind
 from app.domain.common.errors import AlreadyExistsError, InvalidReferenceError
 from app.domain.deal.code import DealCode
@@ -12,15 +13,17 @@ from app.domain.deal.errors import DealNotFoundError
 from app.domain.deal.sync_state import SyncState
 from app.domain.deal_action.entities import DealAction
 from app.domain.deal_action.errors import DealActionNotFoundError
-from app.domain.deal_action.value_objects import ActionContent, ActionType, DealActionId
+from app.domain.deal_action.value_objects import ActionContent, DealActionId
 from app.domain.user.value_objects import UserId
 from app.infra.db.base_repository import ConstraintErrors, SqlRepository
 from app.infra.db.like import keyword_filter
 from app.infra.db.models import DealActionRow
+from app.infra.db.models_catalog import ActionTypeRow
 from app.infra.db.models_deal import DealRow
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
+    from uuid import UUID
 
     from sqlalchemy import Select
 
@@ -28,7 +31,7 @@ if TYPE_CHECKING:
 
 
 def _apply_content(row: DealActionRow, content: ActionContent) -> None:
-    row.action_type = content.action_type.value
+    row.action_type_id = content.action_type.id
     row.action = content.action
     row.next_action = content.next_action
     row.due_date = content.due_date
@@ -39,6 +42,9 @@ def _reference_errors(action: DealAction) -> ConstraintErrors:
     """FK 위반을 존재하지 않는 대상을 가리킨 것으로 바꾼다(삭제와의 경쟁 포함)."""
     snapshot = action.snapshot
     return {
+        "fk_deal_actions_action_type_id_action_types": lambda: InvalidReferenceError(
+            "Action 유형", action.content.action_type.id
+        ),
         "fk_deal_actions_actor_user_id_users": lambda: InvalidReferenceError(
             "사용자", action.actor_user_id
         ),
@@ -68,12 +74,12 @@ def _to_row(action: DealAction) -> DealActionRow:
     return row
 
 
-def _to_entity(row: DealActionRow) -> DealAction:
+def _to_entity(row: DealActionRow, type_name: str) -> DealAction:
     return DealAction(
         id=DealActionId(row.id),
         deal_code=DealCode(row.deal_code),
         content=ActionContent(
-            action_type=ActionType(row.action_type),
+            action_type=ActionTypeRef(ActionTypeId(row.action_type_id), type_name),
             action=row.action,
             next_action=row.next_action,
             due_date=row.due_date,
@@ -87,10 +93,16 @@ def _to_entity(row: DealActionRow) -> DealAction:
     )
 
 
-def _filtered(query: DealActionQuery) -> Select[DealActionRow]:
-    statement = select(DealActionRow).where(DealActionRow.deal_code == query.deal_code.value)
-    if query.action_type is not None:
-        statement = statement.where(DealActionRow.action_type == query.action_type.value)
+def _with_type_name() -> Select[DealActionRow, str]:
+    return select(DealActionRow, ActionTypeRow.name).join(
+        ActionTypeRow, ActionTypeRow.id == DealActionRow.action_type_id
+    )
+
+
+def _filtered(query: DealActionQuery) -> Select[DealActionRow, str]:
+    statement = _with_type_name().where(DealActionRow.deal_code == query.deal_code.value)
+    if query.action_type_id is not None:
+        statement = statement.where(DealActionRow.action_type_id == query.action_type_id)
     if query.actor_user_id is not None:
         statement = statement.where(DealActionRow.actor_user_id == query.actor_user_id)
     start, end = query.acted_window()
@@ -111,7 +123,9 @@ def _filtered(query: DealActionQuery) -> Select[DealActionRow]:
     return statement
 
 
-def _ordered(statement: Select[DealActionRow], sort: DealActionSort) -> Select[DealActionRow]:
+def _ordered(
+    statement: Select[DealActionRow, str], sort: DealActionSort
+) -> Select[DealActionRow, str]:
     """정렬. acted_at 정렬의 동률은 id 오름차순, due_date 정렬의 동률은 acted_at 내림차순 -> id."""
     if sort is DealActionSort.ACTED_AT_ASC:
         return statement.order_by(DealActionRow.acted_at.asc(), DealActionRow.id)
@@ -146,12 +160,21 @@ class SqlDealActionRepository(SqlRepository[DealActionRow]):
         row = await self._find(action_id)
         if row is None:
             raise DealActionNotFoundError(action_id)
-        return _to_entity(row)
+        return _to_entity(row, await self._type_name(row.action_type_id))
+
+    async def _type_name(self, type_id: UUID) -> str:
+        name = await self._session.scalar(
+            select(ActionTypeRow.name).where(ActionTypeRow.id == type_id)
+        )
+        if name is None:
+            # FK RESTRICT상 정상 경로에서는 없다. 빈 이름으로 감추지 않고 드러낸다.
+            raise RuntimeError(f"Action 유형 행이 없습니다(무결성 위반): {type_id}")
+        return name
 
     async def search(self, query: DealActionQuery) -> Sequence[DealAction]:
         statement = _ordered(_filtered(query), query.sort).execution_options(populate_existing=True)
-        rows = (await self._session.scalars(statement)).all()
-        return [_to_entity(row) for row in rows]
+        rows = (await self._session.execute(statement)).all()
+        return [_to_entity(row, name) for row, name in rows]
 
     async def update(self, action: DealAction) -> None:
         """내용과 updated_at만 쓴다. 수행 일시·수행자·스냅숏은 기록 때 정해져 바뀌지 않는다."""
@@ -167,6 +190,14 @@ class SqlDealActionRepository(SqlRepository[DealActionRow]):
         if row is None:
             raise DealActionNotFoundError(action_id)
         await self._remove(row, {})
+
+    async def count_by_action_type(self) -> Mapping[ActionTypeId, int]:
+        column = DealActionRow.action_type_id
+        statement = select(column, func.count()).group_by(column)
+        return {
+            ActionTypeId(type_id): int(count)
+            for type_id, count in (await self._session.execute(statement)).all()
+        }
 
     async def count_by_code(self, kind: CodeKind) -> Mapping[str, int]:
         column = DealActionRow.status_key if kind is CodeKind.STATUS else DealActionRow.forecast_key

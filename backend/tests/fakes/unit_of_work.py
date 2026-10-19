@@ -8,6 +8,7 @@ import copy
 from datetime import datetime, timedelta
 from typing import Any, Self
 
+from tests.fakes.action_types import FakeActionTypeRepository
 from tests.fakes.alert_settings_repository import FakeAlertSettingsRepository
 from tests.fakes.attachments import FakeAttachmentRepository
 from tests.fakes.catalog import FakeBantLabelRepository, FakeCodeRepository
@@ -39,6 +40,7 @@ class FakeUnitOfWork:
         self.attachments = FakeAttachmentRepository()
         self.codes = FakeCodeRepository()
         self.bant_labels = FakeBantLabelRepository()
+        self.action_types = FakeActionTypeRepository()
         self.vendors = FakeVendorRepository()
         self.deals.wire(
             contacts=self.contacts,
@@ -51,7 +53,9 @@ class FakeUnitOfWork:
         )
         self.attachments.wire(deals=self.deals)  # 소속 Deal이 없으면 DealNotFoundError
         # 소속 Deal이 없으면 DealNotFoundError, 스냅숏 코드가 없으면 InvalidReferenceError
-        self.deal_actions.wire(deals=self.deals, codes=self.codes)
+        self.deal_actions.wire(deals=self.deals, codes=self.codes, action_types=self.action_types)
+        # 쓰는 Action이 있는 유형 삭제는 ActionTypeInUseError, 생성자 행이 없으면 InvalidReference
+        self.action_types.wire(actions=self.deal_actions, users=self.users)
         # 사용 중인 코드 삭제는 CodeInUseError (FK RESTRICT): Deal 사용이 먼저, Action 스냅숏이 다음
         self.codes.wire(deals=self.deals, actions=self.deal_actions)
         self.bant_labels.wire(deals=self.deals)  # 사용 중인 Label 삭제는 LabelInUseError
@@ -93,6 +97,10 @@ class FakeUnitOfWork:
         self.users.add_referrer(  # bant_labels.created_by_user_id (AC-15: 만든 사람은 연결 있음)
             lambda uid: any(label.created_by_user_id == uid for label in labels._items.values())
         )
+        types = self.action_types
+        self.users.add_referrer(  # action_types.created_by_user_id (AC-36: 만든 사람은 연결 있음)
+            lambda uid: any(t.created_by_user_id == uid for t in types._items.values())
+        )
 
     def _repositories(self) -> tuple[Any, ...]:
         return (
@@ -109,6 +117,7 @@ class FakeUnitOfWork:
             self.attachments,
             self.codes,
             self.bant_labels,
+            self.action_types,
             self.vendors,
         )
 

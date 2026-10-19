@@ -7,10 +7,13 @@
 격리: 기존 e2e와 같다. 테스트가 끝나면 모든 업무 테이블을 TRUNCATE한다(한 세션 DB를 공유).
 
 시드 카탈로그: 위 TRUNCATE(`users … cascade`)가 기본 BANT Label 23개까지 지우고 시나리오가 코드를
-바꾸기도 하므로, 시작과 정리 단계에서 기본 코드(Status 7·Forecast 6)와 기본 Label을
-마이그레이션 시드와 같은 값(`tests/fakes/catalog_seed.py`)으로 복원한다. 그래서 어느 feature든
-시작 상태에서 기본 카탈로그를 읽을 수 있다. 복원은 Repository Port 구현
-(SqlCodeRepository, SqlBantLabelRepository)으로 넣는다.
+바꾸기도 하므로, 시작과 정리 단계에서 기본 코드(Status 7·Forecast 6)·기본 Label·기본
+Action 유형 8개를 마이그레이션 시드와 같은 값(`tests/fakes/catalog_seed.py`)으로 복원한다.
+그래서 어느 feature든 시작 상태에서
+기본 카탈로그를 읽을 수 있다. 복원은 Repository Port 구현(SqlCodeRepository,
+SqlBantLabelRepository, SqlActionTypeRepository)으로 넣는다. 복원된 기본 유형의 id는 이름에서
+정해진 고정 값(`tests/factories_action_type.type_id`)이고, 마이그레이션 직후 DB(`fresh_api`)의
+id는 무작위이므로 step은 id를 이름으로 API에서 찾는다.
 
 외부 대체: 회사 AD(LDAP)는 테스트 환경에서 띄울 수 없고 Container는 디렉터리 Port만 주입받으므로
 `FakeDirectoryAuthenticator`(Port 구현)로 대체한다. AD 계정은 `api.directory.add_account`로 둔다.
@@ -32,6 +35,7 @@ from app.container import Container
 from app.infra.db.bant_label_repository import SqlBantLabelRepository
 from app.infra.db.code_repository import SqlCodeRepository
 from app.main import create_app
+from tests.factories_action_type import default_action_types
 from tests.fakes.catalog_seed import default_codes, default_labels
 from tests.fakes.directory import FakeDirectoryAuthenticator
 from tests.support.functional_clock import activate, new_clock
@@ -141,17 +145,23 @@ class Api:
 
 
 async def restore_default_catalog(database_url: URL) -> None:
-    """기본 코드(Status 7·Forecast 6)와 기본 Label 23개로 되돌린다(시나리오가 바꾼 것은 버린다)."""
+    """기본 코드·Label 23개·Action 유형 8개로 되돌린다(시나리오가 바꾼 것은 버린다)."""
     engine = create_async_engine(database_url, poolclass=NullPool)
     try:
         async with engine.begin() as connection:
-            await connection.execute(text("truncate codes, bant_labels cascade"))
+            await connection.execute(text("truncate codes, bant_labels, action_types cascade"))
+        # Action 유형 구현은 사용 시점에 가져온다(구현 전에도 functional 수집이 막히지 않게)
+        from app.infra.db.action_type_repository import SqlActionTypeRepository  # noqa: PLC0415
+
         async with AsyncSession(engine, expire_on_commit=False) as session:
             codes, labels = SqlCodeRepository(session), SqlBantLabelRepository(session)
+            types = SqlActionTypeRepository(session)
             for code in default_codes():
                 await codes.add(code)
             for label in default_labels():
                 await labels.add(label)
+            for action_type in default_action_types():
+                await types.add(action_type)
             await session.commit()
     finally:
         await engine.dispose()

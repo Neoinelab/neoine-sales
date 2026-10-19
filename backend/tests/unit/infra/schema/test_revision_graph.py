@@ -15,6 +15,7 @@ from tests.support.revisions import (
     STAGE_REVISION,
     USER_FK_REVISION,
     action_snapshot_revision,
+    action_types_revision,
     alert_settings_revision,
     attachments_revision,
     contacts_revision,
@@ -23,16 +24,27 @@ from tests.support.revisions import (
 )
 
 
-def test_the_vendor_solution_revision_follows_the_alert_settings_and_is_the_single_head() -> None:
+def test_the_action_types_revision_follows_the_vendor_solution_and_is_the_single_head() -> None:
     script = ScriptDirectory.from_config(_alembic_config())
 
     heads = script.get_heads()
 
-    assert heads == [vendor_solution_revision()]
-    assert vendor_solution_revision() != alert_settings_revision()
-    head = script.get_revision(vendor_solution_revision())
+    assert heads == [action_types_revision()]
+    assert action_types_revision() != vendor_solution_revision()
+    head = script.get_revision(action_types_revision())
     assert head is not None
-    assert head.down_revision == alert_settings_revision()
+    assert head.down_revision == vendor_solution_revision()
+
+
+def test_the_vendor_solution_revision_follows_the_alert_settings_in_the_head_history() -> None:
+    script = ScriptDirectory.from_config(_alembic_config())
+
+    assert vendor_solution_revision() != alert_settings_revision()
+    revision = script.get_revision(vendor_solution_revision())
+    assert revision is not None
+    assert revision.down_revision == alert_settings_revision()
+    history = {r.revision for r in script.iterate_revisions(script.get_heads()[0], "base")}
+    assert vendor_solution_revision() in history
 
 
 def test_the_alert_settings_revision_follows_the_attachments_revision_in_the_head_history() -> None:

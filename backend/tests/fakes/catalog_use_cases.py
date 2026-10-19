@@ -14,6 +14,11 @@ from app.application.code.rename_code import RenameCode
 from app.application.code.reorder_codes import ReorderCodes
 
 if TYPE_CHECKING:
+    from app.application.action_type.delete_action_type import DeleteActionType
+    from app.application.action_type.list_action_types import ListActionTypes
+    from app.application.action_type.register_action_type import RegisterActionType
+    from app.application.action_type.rename_action_type import RenameActionType
+
     from app.application.ports.clock import Clock
     from app.application.ports.unit_of_work import UnitOfWorkFactory
     from app.application.vendor.delete_solution import DeleteSolution
@@ -65,6 +70,36 @@ class CatalogUseCases:
 
     def delete_bant_label(self) -> DeleteBantLabel:
         return DeleteBantLabel(self._uow_factory())
+
+    # Action 유형 유스케이스도 사용 시점에 가져온다(구현 전에도 다른 테스트의 수집이 막히지 않게)
+
+    def list_action_types(self) -> ListActionTypes:
+        from app.application.action_type.list_action_types import (  # noqa: PLC0415
+            ListActionTypes,
+        )
+
+        return ListActionTypes(self._uow_factory())
+
+    def register_action_type(self) -> RegisterActionType:
+        from app.application.action_type.register_action_type import (  # noqa: PLC0415
+            RegisterActionType,
+        )
+
+        return RegisterActionType(self._uow_factory(), self.clock)
+
+    def rename_action_type(self) -> RenameActionType:
+        from app.application.action_type.rename_action_type import (  # noqa: PLC0415
+            RenameActionType,
+        )
+
+        return RenameActionType(self._uow_factory(), self.clock)
+
+    def delete_action_type(self) -> DeleteActionType:
+        from app.application.action_type.delete_action_type import (  # noqa: PLC0415
+            DeleteActionType,
+        )
+
+        return DeleteActionType(self._uow_factory())
 
     # Vendor 유스케이스는 사용 시점에 가져온다(구현 전에도 다른 테스트의 수집이 막히지 않게)
 

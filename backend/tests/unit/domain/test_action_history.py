@@ -10,23 +10,10 @@ from app.domain.deal_action.history import (
     action_summary,
     action_updated_draft,
 )
-from app.domain.deal_action.value_objects import ACTION_TYPE_LABELS, ActionType
 from tests.factories import make_action_content
+from tests.factories_action_type import make_type_ref
 
 SUMMARY = "미팅 · 킥오프 미팅 / Next Action: 요구사항 문서 전달 (Due 2026-01-15)"
-
-
-def test_action_type_labels_are_the_korean_names_in_screen_order() -> None:
-    assert list(ACTION_TYPE_LABELS.items()) == [
-        (ActionType.CALL, "통화"),
-        (ActionType.MEETING, "미팅"),
-        (ActionType.EMAIL, "이메일"),
-        (ActionType.DEMO, "데모"),
-        (ActionType.PROPOSAL, "제안"),
-        (ActionType.NEGOTIATION, "협상"),
-        (ActionType.CONTRACT, "계약"),
-        (ActionType.OTHER, "기타"),
-    ]
 
 
 def test_summary_without_memo_ends_at_the_due_date() -> None:
@@ -39,10 +26,16 @@ def test_summary_with_memo_appends_the_memo_at_the_end() -> None:
     assert summary == f"{SUMMARY} / Memo: 요구사항 정리"
 
 
-def test_summary_uses_the_korean_label_of_the_type() -> None:
-    summary = action_summary(make_action_content(action_type=ActionType.NEGOTIATION, memo=""))
+def test_summary_uses_the_type_name() -> None:
+    summary = action_summary(make_action_content(action_type="협상", memo=""))
 
     assert summary.startswith("협상 · 킥오프 미팅")
+
+
+def test_summary_uses_the_name_of_a_custom_type_as_it_is() -> None:
+    summary = action_summary(make_action_content(action_type=make_type_ref("Webinar"), memo=""))
+
+    assert summary.startswith("Webinar · 킥오프 미팅")
 
 
 def test_summary_writes_the_due_date_as_iso() -> None:
@@ -119,3 +112,22 @@ def test_a_summary_exactly_at_the_limit_is_not_clipped() -> None:
 
     assert len(draft.after) == 1_000
     assert not draft.after.endswith("…")
+
+
+def test_updated_draft_with_only_a_new_type_shows_both_type_names() -> None:
+    before = make_action_content(action_type="미팅", memo="")
+    after = make_action_content(action_type="데모", memo="")
+
+    draft = action_updated_draft(before, after)
+
+    assert draft.before == SUMMARY
+    assert draft.after == (
+        "수정: 데모 · 킥오프 미팅 / Next Action: 요구사항 문서 전달 (Due 2026-01-15)"
+    )
+
+
+def test_deleted_draft_uses_the_type_name_in_the_summary() -> None:
+    draft = action_deleted_draft(make_action_content(action_type="계약", memo=""))
+
+    assert draft.before.startswith("계약 · 킥오프 미팅")
+    assert draft.after == "삭제"

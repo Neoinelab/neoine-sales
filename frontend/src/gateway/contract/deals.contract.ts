@@ -84,7 +84,7 @@ export function dealsContract(make: MakeGateway): void {
 
       await expectRejects(sales.deals.create({ ...base, procurement: tooLong, statusKey: 'no_such_status' }), 422, 'Status를 선택하세요.')
       await expectRejects(
-        sales.deals.create({ ...base, procurement: tooLong, bant: { budget: '00000000-0000-4000-8000-000000000000', authority: null, need: null, timeline: null } }),
+        sales.deals.create({ ...base, procurement: tooLong, bant: { budget: { id: '00000000-0000-4000-8000-000000000000' }, authority: null, need: null, timeline: null } }),
         422,
         'BANT Label이 올바르지 않습니다.',
       )
@@ -301,7 +301,7 @@ export function dealsContract(make: MakeGateway): void {
       if (!label) throw new Error('기본 Budget Label이 없습니다.')
       const tag = unique('tag')
       const withLabel = await sales.deals.create(
-        await validInput(sales, { name: `${tag}${unique('d')}`, bant: { budget: label.id, authority: null, need: null, timeline: null } }),
+        await validInput(sales, { name: `${tag}${unique('d')}`, bant: { budget: { id: label.id }, authority: null, need: null, timeline: null } }),
       )
       const without = await sales.deals.create(await validInput(sales, { name: `${tag}${unique('d')}` }))
 

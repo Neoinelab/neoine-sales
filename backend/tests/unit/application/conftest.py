@@ -69,11 +69,12 @@ async def env(  # noqa: PLR0913, PLR0917 - 유스케이스 환경이 모으는 f
 
 @pytest.fixture
 async def action_env(env: DealEnv) -> ActionEnv:
-    """Action 유스케이스 환경(P2): Deal 하나와 요청자 사용자(kim·park, boss, viewer).
+    """Action 유스케이스 환경(P2): Deal 하나, 기본 Action 유형 8개, 요청자(kim·park, boss, viewer).
 
     Action 이력의 변경자 표기(`get_refs`)가 풀리도록 요청자 사용자 행을 둔다. 준비용 commit은
     커밋 횟수 단언에 섞이지 않도록 0으로 되돌린다.
     """
+    from tests.fakes.catalog_seed import seed_action_types  # noqa: PLC0415 - 도메인 지연 import
     from tests.unit.application.action_env import (  # noqa: PLC0415 - Action 구현 지연 import
         BOSS,
         KIM,
@@ -82,6 +83,7 @@ async def action_env(env: DealEnv) -> ActionEnv:
         build_action_env,
     )
 
+    seed_action_types(env.uow)  # 마이그레이션이 넣는 기본 유형 8개
     async with env.uow_factory() as active:
         await ensure_users(active.users, KIM.user_id, PARK.user_id, BOSS.user_id, VIEWER.user_id)
         await active.commit()

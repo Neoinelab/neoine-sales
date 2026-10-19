@@ -101,8 +101,8 @@ describe('Label 관리에서 만든 Label이 Deal 폼에 나타난다 (6-c)', ()
 
     await goTo(user, 'Deals')
     await user.click(await screen.findByRole('link', { name: '+ Deal 등록' }))
-    const select = await screen.findByLabelText('Budget')
-    await within(select).findByRole('option', { name: '분기 예산' })
+    await user.click(await screen.findByRole('combobox', { name: 'Budget' }))
+    await screen.findByRole('option', { name: '분기 예산' })
   })
 })
 
@@ -117,5 +117,46 @@ describe('범위 밖 메뉴 (6-d)', () => {
     expect(location()).toBe(path)
     expect(await screen.findByRole('heading', { level: 1, name: menu })).toBeVisible()
     expect(screen.getByText(/준비 중입니다/)).toBeVisible()
+  })
+})
+
+describe('Admin의 Action 유형 변경이 Deal 상세에 반영된다 (AC-26·28)', () => {
+  async function openFirstDeal(user: Rendered['user']) {
+    await goTo(user, 'Deals')
+    const dealLink = (await screen.findAllByRole('link')).find((a) => /^\/deals\/\d{8}-/.test(a.getAttribute('href') ?? ''))
+    await user.click(dealLink!)
+    await screen.findByRole('table', { name: 'Action 목록' })
+  }
+
+  it('offers a type added in Deal management as a candidate in the Action form', async () => {
+    const { user } = await renderAt('/admin/deal?tab=action-type', { role: 'admin' })
+    const add = await screen.findByRole('form', { name: 'Action 유형 추가' })
+    await user.type(within(add).getByLabelText('새 유형 이름'), '웨비나')
+    await user.click(within(add).getByRole('button', { name: '추가' }))
+    await screen.findByText('웨비나')
+
+    await openFirstDeal(user)
+    await user.click(await screen.findByRole('button', { name: 'Next Action 업데이트' }))
+    await user.click(within(screen.getByRole('form', { name: 'Next Action 업데이트' })).getByLabelText('유형'))
+
+    expect(within(await screen.findByRole('listbox', { name: '유형' })).getByRole('option', { name: '웨비나' })).toBeVisible()
+  })
+
+  it('shows a renamed type in the Actions table of a deal', async () => {
+    const { user } = await renderAt('/admin/deal?tab=action-type', { role: 'admin' })
+    const row = within(await screen.findByRole('row', { name: /협상/ }))
+    await user.click(row.getByRole('button', { name: '이름 수정' }))
+    const input = screen.getByLabelText('유형 이름')
+    await user.clear(input)
+    await user.type(input, '가격 협상')
+    await user.click(screen.getByRole('button', { name: '저장' }))
+    await screen.findByRole('row', { name: /가격 협상/ })
+
+    await goTo(user, 'Deals')
+    await user.click(await screen.findByRole('link', { name: '한빛은행 ITDR 도입' }))
+    const table = await screen.findByRole('table', { name: 'Action 목록' })
+
+    expect(await within(table).findByText('가격 협상')).toBeVisible()
+    expect(within(table).queryByText('협상')).not.toBeInTheDocument()
   })
 })

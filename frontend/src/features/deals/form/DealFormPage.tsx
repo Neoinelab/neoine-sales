@@ -1,6 +1,8 @@
+import { useState } from 'react'
 import { Link, useParams } from 'react-router'
 import { useMe } from '../../../data/auth'
 import { useDeal } from '../../../data/deals'
+import { useLabels } from '../../../data/labels'
 import '../../../shared/ui/kvGrid.css'
 import { ErrorBanner } from '../../../shared/ui/ErrorBanner'
 import { useDealListPath } from '../../../shared/ui/useDealListPath'
@@ -13,7 +15,11 @@ export function DealFormPage() {
   const editing = dealCode !== undefined
   const me = useMe().data
   const deal = useDeal(dealCode)
+  const labels = useLabels()
   const listPath = useDealListPath()
+  // 폼이 마운트될 때 Label 조회가 다시 시작되어 pending으로 돌아가도 폼을 닫지 않도록, 처음 정해진 뒤에는 기억해 둔다.
+  const [labelsSettled, setLabelsSettled] = useState(false)
+  if (!labelsSettled && !labels.isPending) setLabelsSettled(true)
 
   if (editing && deal.error) {
     return (
@@ -26,7 +32,8 @@ export function DealFormPage() {
   return (
     <div className="deal-form-page">
       <h1>{editing ? 'Deal 수정' : 'Deal 등록'}</h1>
-      {!me || (editing && !deal.data) ? (
+      {/* 수정 폼은 BANT에 현재 Label 이름을 채우므로 Label 목록(성공 또는 실패)이 정해진 뒤에 연다. */}
+      {!me || (editing && (!deal.data || !labelsSettled)) ? (
         <p className="hint">불러오는 중…</p>
       ) : (
         <DealForm

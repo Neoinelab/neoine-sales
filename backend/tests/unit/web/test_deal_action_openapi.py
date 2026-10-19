@@ -93,7 +93,7 @@ def test_search_documents_the_date_filters_and_the_three_sorts_without_paging(
     params = {p["name"]: p for p in operation["parameters"]}
 
     assert {
-        "action_type",
+        "action_type_id",
         "actor_user_id",
         "keyword",
         "acted_from",
@@ -102,7 +102,7 @@ def test_search_documents_the_date_filters_and_the_three_sorts_without_paging(
         "due_to",
         "sort",
     } <= set(params)
-    assert not {"offset", "limit", "deal_code"} & set(params)
+    assert not {"offset", "limit", "deal_code", "action_type"} & set(params)
     assert params["sort"]["required"] is False
     sort_schema = schema["components"]["schemas"]["DealActionSort"]
     assert sort_schema["enum"] == ["acted_at_desc", "acted_at_asc", "due_date_asc"]
@@ -131,3 +131,46 @@ def test_update_and_delete_document_the_403_and_404(schema: dict[str, Any]) -> N
         assert {"401", "403", "404"} <= set(single[method]["responses"]), method
     assert "204" in single["delete"]["responses"]
     assert {"401", "403", "404", "422"} <= set(single["put"]["responses"])
+
+
+def test_there_is_no_action_type_enum_schema(schema: dict[str, Any]) -> None:
+    assert "ActionType" not in schema["components"]["schemas"]
+
+
+def test_the_search_filters_by_type_id_as_a_uuid(schema: dict[str, Any]) -> None:
+    operation = schema["paths"]["/api/v1/deals/{code}/actions"]["get"]
+    params = {p["name"]: p for p in operation["parameters"]}
+    assert "action_type_id" in params
+    param = params["action_type_id"]
+
+    assert param["required"] is False
+    assert any(
+        option.get("type") == "string" and option.get("format") == "uuid"
+        for option in param["schema"]["anyOf"]
+    )
+
+
+@pytest.mark.parametrize(
+    ("method", "path"),
+    [("post", "/api/v1/deals/{code}/actions"), ("put", "/api/v1/deal-actions/{action_id}")],
+)
+def test_the_request_takes_a_choice_object_for_the_type(
+    schema: dict[str, Any], method: str, path: str
+) -> None:
+    name = _request_schema_names(schema, method, path)
+    props = schema["components"]["schemas"][name]["properties"]
+
+    assert props["action_type"]["$ref"].endswith("/CatalogChoiceRequest")
+    assert "action_type" in schema["components"]["schemas"][name]["required"]
+    choice = schema["components"]["schemas"]["CatalogChoiceRequest"]
+    assert set(choice["properties"]) == {"id", "name"}
+    assert "required" not in choice or not choice["required"]
+
+
+def test_the_response_type_is_an_id_and_name_object(schema: dict[str, Any]) -> None:
+    props = schema["components"]["schemas"]["DealActionResponse"]["properties"]
+    named = schema["components"]["schemas"][props["action_type"]["$ref"].rsplit("/", 1)[-1]]
+
+    assert set(named["properties"]) == {"id", "name"}
+    assert set(named["required"]) == {"id", "name"}
+    assert "action_type" in schema["components"]["schemas"]["DealActionResponse"]["required"]

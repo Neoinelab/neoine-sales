@@ -38,11 +38,13 @@ BUSINESS_READS: Final = (
     ),  # 사용자 선택 UI용: 로그인한 모든 역할(이메일·역할은 노출 안 함)
     ("GET", "/api/v1/codes"),
     ("GET", "/api/v1/bant-labels"),
+    ("GET", "/api/v1/action-types"),  # Action 폼·검색의 유형 선택지: 모든 역할
     ("GET", "/api/v1/vendors"),  # Deal 폼·필터의 Vendor·Solution 선택지: 모든 역할
     ("GET", "/api/v1/alert-settings"),  # P3: 경고 기준 조회는 모든 역할(목록 범례에 숫자가 필요)
 )
 BUSINESS_WRITES: Final = (
     ("POST", "/api/v1/bant-labels"),  # 자기 Label을 만든다(user는 조회 전용)
+    ("POST", "/api/v1/action-types"),  # 자기 Action 유형을 만든다(user는 조회 전용)
     ("POST", "/api/v1/deals"),
     ("PATCH", "/api/v1/deals/{code}"),
     ("POST", "/api/v1/deals/{code}/changes"),  # Status·Forecast·금액·Expected Close 단일 변경
@@ -66,6 +68,8 @@ ADMIN_ONLY: Final = (
     ("DELETE", "/api/v1/codes/{code_id}"),
     ("PATCH", "/api/v1/bant-labels/{label_id}"),
     ("DELETE", "/api/v1/bant-labels/{label_id}"),  # 자기가 만든 Label이라도 sales는 403
+    ("PATCH", "/api/v1/action-types/{type_id}"),  # Action 유형 이름 변경·삭제는 admin만
+    ("DELETE", "/api/v1/action-types/{type_id}"),
     ("POST", "/api/v1/users"),
     ("DELETE", "/api/v1/users/{user_id}"),
     ("GET", "/api/v1/settings/directory"),

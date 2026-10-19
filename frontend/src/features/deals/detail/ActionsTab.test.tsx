@@ -3,6 +3,11 @@ import { describe, expect, it } from 'vitest'
 import { renderAt } from '../../../test/mockApp'
 import { detailPath } from '../../../test/detailTestUtils'
 
+/** 유형 자동완성 입력에 글자를 입력한다(목록 선택 없이 직접 입력). */
+async function typeAction(user: Awaited<ReturnType<typeof renderAt>>['user'], form: HTMLElement, text: string) {
+  await user.type(within(form).getByLabelText('유형'), text)
+}
+
 async function openActions(no: number, title: string, role: 'sales' | 'admin' | 'user' = 'sales') {
   const view = await renderAt(await detailPath(no), { role })
   await screen.findByRole('heading', { level: 1, name: title })
@@ -52,11 +57,11 @@ describe('Actions 탭 목록 (T-ACTION-01)', () => {
 })
 
 describe('Next Action 업데이트 등록 (T-ACTION-02~05)', () => {
-  it('opens the form with the previous update as a read-only reference and the default type 기타', async () => {
+  it('opens the form with the previous update as a read-only reference and an empty type', async () => {
     const { user } = await openActions(1, '한빛은행 ITDR 도입')
     await user.click(screen.getByRole('button', { name: 'Next Action 업데이트' }))
     const form = screen.getByRole('form', { name: 'Next Action 업데이트' })
-    expect(within(form).getByLabelText('유형')).toHaveDisplayValue('기타')
+    expect(within(form).getByLabelText('유형')).toHaveDisplayValue('')
     expect(within(form).getByLabelText('Status')).toHaveDisplayValue('가격협상')
     const previous = screen.getByRole('complementary', { name: '이전 Update' })
     expect(previous).toHaveTextContent('최종 가격 협의')
@@ -75,7 +80,7 @@ describe('Next Action 업데이트 등록 (T-ACTION-02~05)', () => {
     const { user, table } = await openActions(1, '한빛은행 ITDR 도입')
     await user.click(screen.getByRole('button', { name: 'Next Action 업데이트' }))
     const form = screen.getByRole('form', { name: 'Next Action 업데이트' })
-    await user.selectOptions(within(form).getByLabelText('유형'), '미팅')
+    await typeAction(user, form, '미팅')
     await user.type(within(form).getByLabelText('진행사항'), '법무팀 계약 검토 미팅')
     await user.type(within(form).getByLabelText('Next Action'), '날인본 수령')
     await user.type(within(form).getByLabelText('Due Date'), '2026-12-20')
@@ -90,21 +95,23 @@ describe('Next Action 업데이트 등록 (T-ACTION-02~05)', () => {
     expect(screen.getByText('Action이 등록되었습니다.')).toBeVisible()
   })
 
-  it('shows each missing-field message and focuses the first invalid field', async () => {
+  it('shows each missing-field message and focuses the type first (AC-27)', async () => {
     const { user } = await openActions(1, '한빛은행 ITDR 도입')
     await user.click(screen.getByRole('button', { name: 'Next Action 업데이트' }))
     const form = screen.getByRole('form', { name: 'Next Action 업데이트' })
     await user.click(within(form).getByRole('button', { name: '등록' }))
+    expect(within(form).getByText('유형을 입력하세요.')).toBeVisible()
     expect(within(form).getByText('진행사항을 입력하세요.')).toBeVisible()
     expect(within(form).getByText('Next Action을 입력하세요.')).toBeVisible()
     expect(within(form).getByText('Due Date를 입력하세요.')).toBeVisible()
-    expect(within(form).getByLabelText('진행사항')).toHaveFocus()
+    expect(within(form).getByRole('combobox', { name: '유형' })).toHaveFocus()
   })
 
   it('accepts a past due date', async () => {
     const { user, table } = await openActions(2, '대한제조 MFA 확대')
     await user.click(screen.getByRole('button', { name: 'Next Action 업데이트' }))
     const form = screen.getByRole('form', { name: 'Next Action 업데이트' })
+    await typeAction(user, form, '기타')
     await user.type(within(form).getByLabelText('진행사항'), '지난 일정 정리')
     await user.type(within(form).getByLabelText('Next Action'), '후속 확인')
     await user.type(within(form).getByLabelText('Due Date'), '2026-01-05')
@@ -135,6 +142,7 @@ describe('Next Action 업데이트 등록 (T-ACTION-02~05)', () => {
     await user.click(within(dialog).getByRole('button', { name: '확정' }))
     expect(await within(form).findByText(/저장하면 반영됩니다/)).toBeVisible()
     expect(within(form).getByLabelText('Status')).toHaveDisplayValue('계약완료')
+    await typeAction(user, form, '계약')
     await user.type(within(form).getByLabelText('진행사항'), '계약 체결')
     await user.type(within(form).getByLabelText('Next Action'), '납품 일정 확인')
     await user.type(within(form).getByLabelText('Due Date'), '2026-12-01')
@@ -241,6 +249,7 @@ describe('Actions 검색 (T-ACTION-08~09)', () => {
 
   it('searches by type', async () => {
     const { user, form, table } = await search()
+    await within(form).findByRole('option', { name: '이메일' })
     await user.selectOptions(within(form).getByLabelText('유형'), '이메일')
     await user.click(within(form).getByRole('button', { name: '검색' }))
     await waitFor(() => expect(bodyRows(table)[0]).toHaveTextContent('이메일'))
@@ -357,6 +366,7 @@ describe('Action 수정·삭제 버튼 권한 (AC-25, Q8)', () => {
     const { user, table } = await openAs('u-park')
     await user.click(screen.getByRole('button', { name: 'Next Action 업데이트' }))
     const form = screen.getByRole('form', { name: 'Next Action 업데이트' })
+    await typeAction(user, form, '통화')
     await user.type(within(form).getByLabelText('진행사항'), '박영업 후속 연락')
     await user.type(within(form).getByLabelText('Next Action'), '미팅 일정 확정')
     await user.type(within(form).getByLabelText('Due Date'), '2026-12-20')

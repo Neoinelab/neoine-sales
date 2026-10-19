@@ -11,6 +11,7 @@ import pytest
 
 from app.application.ports.deal_action_repository import DealActionQuery
 from tests.factories import make_deal, make_deal_code
+from tests.factories_action_type import attach_catalog_type
 from tests.support.user_seed import ensure_users
 from tests.unit.repositories.deal_case import DealCase, open_deal_case
 
@@ -35,6 +36,7 @@ class Case:
         self.repository: DealActionRepository = deal_case.actions
         self.deals = deal_case.deals
         self.codes = deal_case.codes
+        self.action_types = deal_case.action_types
 
     async def ensure_deal(self, code: DealCode) -> None:
         if not await self.deals.exists(code):
@@ -44,8 +46,13 @@ class Case:
         await ensure_users(self._deal_case.users, action.actor_user_id)  # FK: 담당자 행
 
     async def add(self, action: DealAction) -> None:
+        """Deal·담당자 행을 (없으면) 만들고 유형을 저장소의 같은 이름 유형으로 맞춘 뒤 저장한다.
+
+        DB 시드 유형의 id는 무작위라 팩토리의 고정 id는 FK로 통하지 않는다(`attach_catalog_type`).
+        """
         await self.ensure_deal(action.deal_code)
         await self.ensure_actor(action)
+        await attach_catalog_type(self.action_types, action)
         await self.repository.add(action)
 
     async def search(self, **criteria: object) -> list[str]:

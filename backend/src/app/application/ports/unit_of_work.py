@@ -2,6 +2,7 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING, Protocol, Self
 
 if TYPE_CHECKING:
+    from app.application.ports.action_type_repository import ActionTypeRepository
     from app.application.ports.alert_settings_repository import AlertSettingsRepository
     from app.application.ports.attachment_repository import AttachmentRepository
     from app.application.ports.bant_label_repository import BantLabelRepository
@@ -66,6 +67,9 @@ class UnitOfWork(Protocol):
 
     @property
     def vendors(self) -> VendorRepository: ...
+
+    @property
+    def action_types(self) -> ActionTypeRepository: ...
 
     async def __aenter__(self) -> Self: ...
 

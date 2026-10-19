@@ -10,9 +10,9 @@
  * - 게이트웨이가 돌려주는 객체는 이 파일의 타입 그대로이며, 사용자는 `UserRef`로 풀어서(이름·역할·재직 여부) 준다.
  */
 
-import type { ActionType, BantCategory } from './constants'
+import type { BantCategory } from './constants'
 
-export type { ActionType, BantCategory } from './constants'
+export type { BantCategory } from './constants'
 export type * from './inputs'
 export type * from './settings'
 
@@ -92,6 +92,17 @@ export interface BantLabel {
 
 export interface BantLabelWithUsage extends BantLabel {
   usageCount: number
+}
+
+/** Action 유형(관리 화면용). 기본 유형은 isDefault, createdBy는 기본 유형이면 null. */
+export interface ActionTypeWithUsage {
+  id: string
+  name: string
+  isDefault: boolean
+  createdBy: UserRef | null
+  usageCount: number
+  createdAt: string
+  updatedAt: string
 }
 
 // ───────────────────────── 연락처 ─────────────────────────
@@ -245,7 +256,9 @@ export interface DealAction {
   dealCode: string
   actedAt: string
   actor: UserRef
-  type: ActionType
+  /** 현재 유형 이름(이름이 바뀌면 다음 조회부터 새 이름). */
+  type: string
+  typeId: string
   progress: string
   nextAction: string
   dueDate: string

@@ -1,11 +1,11 @@
 /** Deal 등록·수정 입력 검증(서버 규칙). 첫 오류에서 ApiError(422)를 던진다. */
 
-import { BANT_CATEGORIES } from '../../../shared/model/constants'
 import { isValidAmount } from '../../../shared/model/money'
 import { canBeOwner } from '../../../shared/model/permissions'
 import { isSyncConsistent } from '../../../shared/model/sync'
 import type { ContactDraft, Deal, DealInput } from '../../../shared/model/types'
 import { validation } from '../errors'
+import { checkBant, type BantChoices, type BantDraft } from './bantChoice'
 import type { MockContext } from './context'
 import { SOLUTION_MISMATCH_MESSAGE, SOLUTION_NEEDS_VENDOR_MESSAGE, UNKNOWN_VENDOR_MESSAGE } from './vendors'
 
@@ -19,8 +19,11 @@ const USERS_MAX = 2_147_483_647
 
 type Scalars = Pick<
   Deal,
-  'name' | 'vendorId' | 'solutionId' | 'ownerId' | 'users' | 'procurement' | 'statusKey' | 'forecastKey' | 'revenueAmount' | 'revenueDate' | 'bant'
+  'name' | 'vendorId' | 'solutionId' | 'ownerId' | 'users' | 'procurement' | 'statusKey' | 'forecastKey' | 'revenueAmount' | 'revenueDate'
 >
+
+/** 선택 필드를 쓰지 않으면 `provided('bant')`가 false인 입력(등록은 항상 true). */
+export type ProvidedKeys = (key: keyof Scalars | 'bant') => boolean
 
 /** Vendor·Solution 선택 검증(서버와 같은 순서: Deal Name 다음, Owner 앞). */
 function validateVendorChoice(ctx: MockContext, effective: Scalars, check: boolean): void {
@@ -33,12 +36,17 @@ function validateVendorChoice(ctx: MockContext, effective: Scalars, check: boole
   }
 }
 
-/** `provided(key)`가 true인 필드만 검사한다(등록은 모두, 수정은 보낸 필드만). `effective`는 반영 후 값. */
+/**
+ * `provided(key)`가 true인 필드만 검사한다(등록은 모두, 수정은 보낸 필드만). `effective`는 반영 후 값.
+ * BANT는 선택 객체(`bant`)를 판정만 하고(검증 순서: 동기화 다음, 구매절차 앞) 결과를 돌려준다.
+ * 새 Label 생성은 호출자가 모든 검증을 마친 뒤 `commitBant`로 한다.
+ */
 export function validateDealFields(
   ctx: MockContext,
   effective: Scalars,
-  provided: (key: keyof Scalars) => boolean,
-): void {
+  provided: ProvidedKeys,
+  bant: BantChoices | undefined,
+): BantDraft | null {
   const { data } = ctx.store
   if (provided('name') && effective.name.trim() === '') throw validation('Deal Name을 입력하세요.')
   if (provided('name') && Array.from(effective.name.trim()).length > NAME_MAX) throw validation('Deal Name은 200자 이내로 입력하세요.')
@@ -66,17 +74,11 @@ export function validateDealFields(
   if ((provided('statusKey') || provided('forecastKey')) && !isSyncConsistent(effective)) {
     throw validation(SYNC_MISMATCH_MESSAGE)
   }
-  if (provided('bant')) {
-    for (const category of BANT_CATEGORIES) {
-      const id = effective.bant[category]
-      if (id !== null && !data.labels.some((l) => l.id === id && l.category === category)) {
-        throw validation('BANT Label이 올바르지 않습니다.')
-      }
-    }
-  }
+  const draft = provided('bant') ? checkBant(ctx, bant ?? {}) : null
   if (provided('procurement') && Array.from(effective.procurement.trim()).length > PROCUREMENT_MAX) {
     throw validation('구매절차는 500자 이내로 입력하세요.')
   }
+  return draft
 }
 
 /** 고객 연락처 필수 입력 확인(Deal 폼 문구). */

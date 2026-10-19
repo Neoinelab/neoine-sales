@@ -1,6 +1,7 @@
-import { useRef, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router'
 import { useCreateDeal, useUpdateDeal } from '../../../data/deals'
+import { useLabels } from '../../../data/labels'
 import type { SyncApplied } from '../../../shared/model/sync'
 import type { DealDetail } from '../../../shared/model/types'
 import { ErrorBanner } from '../../../shared/ui/ErrorBanner'
@@ -10,6 +11,7 @@ import { BantSection } from './BantSection'
 import { CustomerSection } from './CustomerSection'
 import { DealInfoSection } from './DealInfoSection'
 import {
+  bantTexts,
   emptyForm,
   formFromDeal,
   hasErrors,
@@ -35,12 +37,29 @@ export function DealForm({ original, defaultOwnerId }: DealFormProps) {
   const listPath = useDealListPath()
   const create = useCreateDeal()
   const update = useUpdateDeal()
+  const labelsQuery = useLabels()
+  const labels = labelsQuery.data ?? []
   const form = useRef<HTMLFormElement>(null)
-  const [state, setState] = useState<DealFormState>(() => (original ? formFromDeal(original) : emptyForm(defaultOwnerId)))
+  const [state, setState] = useState<DealFormState>(() => (original ? formFromDeal(original, labels) : emptyForm(defaultOwnerId)))
   const [errors, setErrors] = useState<FormErrors>({})
   const [syncNotice, setSyncNotice] = useState<string | null>(null)
   const [saveError, setSaveError] = useState<unknown>(null)
   const [saving, setSaving] = useState(false)
+
+  // Label 목록이 늦게(재조회 포함) 도착하거나 이름이 바뀌어도, 사용자가 건드리지 않은 BANT 칸은 현재 이름으로 다시 채운다.
+  const shownBant = useRef(original ? bantTexts(original.bant, labels) : null)
+  useEffect(() => {
+    if (!original || !labelsQuery.data) return
+    const next = bantTexts(original.bant, labelsQuery.data)
+    const prevShown = shownBant.current
+    shownBant.current = next
+    if (!prevShown) return
+    setState((prev) => {
+      const bant = { ...prev.bant }
+      for (const c of Object.keys(bant) as (keyof typeof bant)[]) if (bant[c] === prevShown[c]) bant[c] = next[c]
+      return { ...prev, bant }
+    })
+  }, [original, labelsQuery.data])
 
   const set: SetField = (key, value) => setState((prev) => ({ ...prev, [key]: value }))
 
@@ -71,10 +90,13 @@ export function DealForm({ original, defaultOwnerId }: DealFormProps) {
     setSaving(true)
     try {
       if (original) {
-        const saved = await update.mutateAsync({ code: original.code, patch: toDealPatch(state, original) })
+        const { bant, ...patch } = toDealPatch(state, original, labels)
+        // Label 목록을 못 읽었으면 입력을 비활성화했으므로 BANT는 보내지 않아 기존 선택을 그대로 둔다.
+        const body = labelsQuery.error ? patch : { ...patch, bant }
+        const saved = await update.mutateAsync({ code: original.code, patch: body })
         navigate(`/deals/${saved.code}`, { state: { notice: '저장되었습니다.' } })
       } else {
-        const saved = await create.mutateAsync(toDealInput(state))
+        const saved = await create.mutateAsync(toDealInput(state, labels))
         navigate(`/deals/${saved.code}`, { state: { notice: `Deal ${saved.code}이(가) 등록되었습니다.` } })
       }
     } catch (failure) {

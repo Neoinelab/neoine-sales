@@ -1,23 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { ACTION_TYPES } from '../../../shared/model/constants'
 import type { ActionInput } from '../../../shared/model/types'
-import { serverAction } from '../../../test/fixtures/serverAction'
+import { ACTION_TYPE_ID, serverAction } from '../../../test/fixtures/serverAction'
 import { serverUserRef } from '../../../test/fixtures/serverDeal'
-import { fromApiActionType, toActionCreateBody, toActionUpdateBody, toApiActionType, toDealAction } from './action'
-
-const PAIRS = [
-  ['통화', 'call'],
-  ['미팅', 'meeting'],
-  ['이메일', 'email'],
-  ['데모', 'demo'],
-  ['제안', 'proposal'],
-  ['협상', 'negotiation'],
-  ['계약', 'contract'],
-  ['기타', 'other'],
-] as const
+import { toActionCreateBody, toActionUpdateBody, toDealAction } from './action'
 
 const input = (over: Partial<ActionInput> = {}): ActionInput => ({
-  type: '미팅',
+  type: { id: ACTION_TYPE_ID },
   progress: '고객사 방문',
   nextAction: '견적 재전달',
   dueDate: '2026-10-22',
@@ -25,14 +13,24 @@ const input = (over: Partial<ActionInput> = {}): ActionInput => ({
   ...over,
 })
 
-describe('action type mapping (R-13)', () => {
-  it('covers every action type of the screen exactly once', () => {
-    expect(PAIRS.map(([label]) => label)).toEqual([...ACTION_TYPES])
+describe('action type mapping (AC-7·14)', () => {
+  it('has no enum mapping any more (the type is a catalog item, not a closed set)', async () => {
+    const module = await import('./action')
+
+    expect(module).not.toHaveProperty('toApiActionType')
+    expect(module).not.toHaveProperty('fromApiActionType')
   })
 
-  it.each(PAIRS)('maps %s to %s and back', (label, api) => {
-    expect(toApiActionType(label)).toBe(api)
-    expect(fromApiActionType(api)).toBe(label)
+  it('maps the {id, name} reference to type (current name) and typeId', () => {
+    const mapped = toDealAction(serverAction({ action_type: { id: 'ty-9', name: '웨비나' } }))
+
+    expect(mapped.type).toBe('웨비나')
+    expect(mapped.typeId).toBe('ty-9')
+  })
+
+  it('sends the id object for a listed type and the name object for a new one', () => {
+    expect(toActionCreateBody(input({ type: { id: 'ty-1' } })).action_type).toEqual({ id: 'ty-1' })
+    expect(toActionUpdateBody({ ...input(), type: { name: '웨비나' } }).action_type).toEqual({ name: '웨비나' })
   })
 })
 
@@ -40,7 +38,7 @@ describe('toDealAction', () => {
   it('maps the server action to the screen action (action becomes progress)', () => {
     const mapped = toDealAction(
       serverAction({
-        action_type: 'negotiation',
+        action_type: { id: 'ty-neg', name: '협상' },
         action: '최종 가격 협의',
         next_action: '계약서 초안 검토',
         due_date: '2026-10-18',
@@ -56,6 +54,7 @@ describe('toDealAction', () => {
       actedAt: '2026-10-15T09:00:00+09:00',
       actor: { id: 'u-kim', name: '김영업', role: 'sales', status: 'active' },
       type: '협상',
+      typeId: 'ty-neg',
       progress: '최종 가격 협의',
       nextAction: '계약서 초안 검토',
       dueDate: '2026-10-18',
@@ -84,10 +83,10 @@ describe('toDealAction', () => {
 
 describe('toActionCreateBody', () => {
   it('uses snake_case keys and has no acted_at or actor field', () => {
-    const body = toActionCreateBody(input({ type: '통화', memo: '메모' }))
+    const body = toActionCreateBody(input({ type: { name: '통화' }, memo: '메모' }))
 
     expect(body).toEqual({
-      action_type: 'call',
+      action_type: { name: '통화' },
       action: '고객사 방문',
       next_action: '견적 재전달',
       due_date: '2026-10-22',
@@ -149,13 +148,13 @@ describe('toActionCreateBody', () => {
 
 describe('toActionUpdateBody', () => {
   it('has the content fields only', () => {
-    const body = toActionUpdateBody({ type: '기타', progress: '수정', nextAction: '다음', dueDate: '2026-11-01', memo: '' })
+    const body = toActionUpdateBody({ type: { id: 'ty-other' }, progress: '수정', nextAction: '다음', dueDate: '2026-11-01', memo: '' })
 
-    expect(body).toEqual({ action_type: 'other', action: '수정', next_action: '다음', due_date: '2026-11-01', memo: '' })
+    expect(body).toEqual({ action_type: { id: 'ty-other' }, action: '수정', next_action: '다음', due_date: '2026-11-01', memo: '' })
   })
 
   it('sends an empty due date as null', () => {
-    const body = toActionUpdateBody({ type: '기타', progress: 'x', nextAction: 'y', dueDate: '', memo: '' })
+    const body = toActionUpdateBody({ type: { id: 'ty-other' }, progress: 'x', nextAction: 'y', dueDate: '', memo: '' })
 
     expect(body.due_date).toBeNull()
   })

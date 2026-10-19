@@ -4,6 +4,7 @@ from datetime import date
 from uuid import uuid4
 
 import pytest
+from app.application.choice import CatalogChoice
 from pydantic import ValidationError
 
 from app.domain.bant.values import BantCategory
@@ -37,7 +38,7 @@ def test_a_minimal_create_body_gets_the_documented_defaults() -> None:
 
 
 def test_the_create_body_maps_to_the_use_case_input() -> None:
-    partner_id, vendor_id, solution_id = uuid4(), uuid4(), uuid4()
+    partner_id, vendor_id, solution_id, budget_id = uuid4(), uuid4(), uuid4(), uuid4()
     request = DealCreateRequest(
         **_create(
             vendor_id=str(vendor_id),
@@ -47,7 +48,7 @@ def test_the_create_body_maps_to_the_use_case_input() -> None:
             quote={"submitted": "YES", "submitted_date": "2026-10-01"},
             poc={"state": "ING", "completed_date": "2026-11-01"},
             procurement="조달청",
-            bant={"budget": str(uuid4()), "need": None},
+            bant={"budget": {"id": str(budget_id)}, "need": None, "timeline": {"name": "분기 내"}},
         )
     )
 
@@ -74,8 +75,10 @@ def test_the_create_body_maps_to_the_use_case_input() -> None:
     )
     assert (data.poc_state, data.poc_completed_date) == (PocState.ING, date(2026, 11, 1))
     assert data.procurement == "조달청"
-    assert data.bant[BantCategory.BUDGET] is not None
+    assert data.bant[BantCategory.BUDGET] == CatalogChoice(id=budget_id)
     assert data.bant.get(BantCategory.NEED) is None
+    assert data.bant[BantCategory.TIMELINE] == CatalogChoice(name="분기 내")
+    assert data.bant.get(BantCategory.AUTHORITY) is None
 
 
 @pytest.mark.parametrize(
@@ -104,6 +107,11 @@ def test_range_and_length_rules_are_left_to_the_domain(overrides: dict[str, obje
         {"poc": {"state": "DONE"}},
         {"unexpected": 1},
         {"registered_by": str(OWNER_ID)},
+        {"bant": {"budget": str(uuid4())}},  # 구 형식(UUID 문자열)은 선택 객체로 바꿔야 한다
+        {"bant": {"budget": {"id": str(uuid4()), "name": "둘 다"}}},
+        {"bant": {"budget": {}}},
+        {"bant": {"budget": {"id": "not-a-uuid"}}},
+        {"bant": {"budget": "풀 예산 확보"}},
         {"vendor_id": "SAP"},  # 이름이 아니라 UUID여야 한다
         {"solution_id": "not-a-uuid"},
         {"vendor": "SAP"},  # 구 필드(문자열)는 모르는 필드다
@@ -132,6 +140,36 @@ def test_a_contact_draft_requires_company_and_name_keys_but_not_their_content() 
     ContactDraftRequest(company="", name="")  # 빈 값 문구는 유스케이스가 낸다
     with pytest.raises(ValidationError):
         ContactDraftRequest(company="네오인")  # type: ignore[call-arg]
+
+
+def test_bant_accepts_choice_objects_and_null() -> None:
+    label_id = uuid4()
+    request = DealCreateRequest(
+        **_create(
+            bant={
+                "budget": {"id": str(label_id)},
+                "authority": {"name": "CEO 보고 완료"},
+                "need": None,
+            }
+        )
+    )
+
+    bant = request.to_input().bant
+
+    assert bant[BantCategory.BUDGET] == CatalogChoice(id=label_id)
+    assert bant[BantCategory.AUTHORITY] == CatalogChoice(name="CEO 보고 완료")
+    assert bant.get(BantCategory.NEED) is None
+    assert bant.get(BantCategory.TIMELINE) is None
+
+
+def test_bant_plain_uuid_string_is_rejected() -> None:
+    with pytest.raises(ValidationError):
+        DealCreateRequest(**_create(bant={"budget": str(uuid4())}))
+
+
+def test_bant_category_with_both_id_and_name_is_rejected() -> None:
+    with pytest.raises(ValidationError):
+        DealCreateRequest(**_create(bant={"need": {"id": str(uuid4()), "name": "x"}}))
 
 
 def test_create_accepts_vendor_id_and_solution_id_as_null() -> None:
@@ -165,6 +203,23 @@ class TestPatchRequest:
     def test_patch_rejects_a_non_uuid_vendor_id(self) -> None:
         with pytest.raises(ValidationError):
             DealPatchRequest(vendor_id="SAP")
+
+    def test_patch_bant_choices_are_provided_as_a_whole(self) -> None:
+        label_id = uuid4()
+
+        data = DealPatchRequest(
+            bant={"budget": {"id": str(label_id)}, "need": {"name": "신규"}}
+        ).to_input()
+
+        assert "bant" in data.provided
+        assert data.bant is not None
+        assert data.bant[BantCategory.BUDGET] == CatalogChoice(id=label_id)
+        assert data.bant[BantCategory.NEED] == CatalogChoice(name="신규")
+        assert data.bant.get(BantCategory.AUTHORITY) is None
+
+    def test_patch_rejects_the_old_bant_uuid_string(self) -> None:
+        with pytest.raises(ValidationError):
+            DealPatchRequest(bant={"budget": str(uuid4())})
 
     def test_only_the_sent_fields_are_provided(self) -> None:
         request = DealPatchRequest(name="B", users=None)

@@ -84,6 +84,17 @@ function pocBody(poc: DealInput['poc']): Schemas['PocRequest'] {
 /** 빈 Expected Close는 null로 보내 서버가 자기 문구로 답하게 한다. */
 const dateBody = (value: string): string | null => (value === '' ? null : value)
 
+/** 구분별 선택 객체({id} 또는 {name}) 또는 null을 그대로 보낸다. */
+function bantBody(bant: DealInput['bant']): NonNullable<Schemas['DealCreateRequest']['bant']> {
+  const entry = (choice: DealInput['bant'][keyof DealInput['bant']]) => (choice === null ? null : { ...choice })
+  return {
+    budget: entry(bant.budget),
+    authority: entry(bant.authority),
+    need: entry(bant.need),
+    timeline: entry(bant.timeline),
+  }
+}
+
 export function toCreateBody(input: DealInput): Schemas['DealCreateRequest'] {
   return {
     name: input.name,
@@ -100,7 +111,7 @@ export function toCreateBody(input: DealInput): Schemas['DealCreateRequest'] {
     quote: quoteBody(input.quote),
     poc: pocBody(input.poc),
     procurement: input.procurement,
-    bant: { ...input.bant },
+    bant: bantBody(input.bant),
   }
 }
 
@@ -121,7 +132,7 @@ export function toPatchBody(patch: DealPatch): Schemas['DealPatchRequest'] {
   if (patch.quote !== undefined) body.quote = quoteBody(patch.quote)
   if (patch.poc !== undefined) body.poc = pocBody(patch.poc)
   if (patch.procurement !== undefined) body.procurement = patch.procurement
-  if (patch.bant !== undefined) body.bant = { ...patch.bant }
+  if (patch.bant !== undefined) body.bant = bantBody(patch.bant)
   return body
 }
 

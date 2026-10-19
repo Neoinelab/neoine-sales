@@ -11,7 +11,7 @@ from app.domain.deal_action.errors import (
     DealActionEditForbiddenError,
     DealActionNotFoundError,
 )
-from app.domain.deal_action.value_objects import ActionType, DealActionId
+from app.domain.deal_action.value_objects import DealActionId
 from tests.factories import make_deal_action
 from tests.support.expect import raises_with
 from tests.unit.application.action_env import (
@@ -30,7 +30,7 @@ if TYPE_CHECKING:
 
 AFTER = "수정: 제안 · 제안 발표 / Next Action: 견적 회신 (Due 2026-02-01) / Memo: 변경"
 CHANGE = {
-    "action_type": ActionType.PROPOSAL,
+    "action_type": "제안",
     "action": "제안 발표",
     "next_action": "견적 회신",
     "due_date": date(2026, 2, 1),
@@ -45,7 +45,7 @@ async def test_update_action_by_owner_logs_before_and_after(action_env: ActionEn
 
     stored = await action_env.stored(action.id)
     assert stored.content.action == "제안 발표"
-    assert stored.content.action_type is ActionType.PROPOSAL
+    assert stored.content.action_type.name == "제안"
     assert stored.updated_at == updated.updated_at == action_env.env.clock.now()
     assert (await action_env.rows())[-1] == ("action", "Action", SUMMARY_WITH_MEMO, AFTER)
     assert (await action_env.action_entries())[-1].changed_by == KIM.user_id

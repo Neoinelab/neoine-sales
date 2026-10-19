@@ -1,5 +1,6 @@
 import type { Gateway } from '../../../gateway/types'
 import { createActionsGateway } from './actions'
+import { createActionTypesGateway } from './actionTypes'
 import { createAlertsGateway } from './alerts'
 import { createAttachmentsGateway } from './attachments'
 import { createAuthGateway, createSetupGateway } from './auth'
@@ -23,6 +24,7 @@ export function createGatewayFor(ctx: MockContext): Gateway {
     deals: { ...dealsReadApi(ctx), ...dealsWriteApi(ctx) },
     contacts: createContactsGateway(ctx),
     actions: createActionsGateway(ctx),
+    actionTypes: createActionTypesGateway(ctx),
     history: createHistoryGateway(ctx),
     attachments: createAttachmentsGateway(ctx),
     codes: createCodesGateway(ctx),

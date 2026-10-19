@@ -1,4 +1,4 @@
-import { useId, useState, type KeyboardEvent } from 'react'
+import { useId, useState, type KeyboardEvent, type Ref } from 'react'
 import './ui.css'
 
 export interface ComboOption {
@@ -31,11 +31,13 @@ interface ComboBoxProps {
   error?: string
   /** 입력 아래 안내(오류 아님). */
   hint?: string
+  /** 입력란에 포커스를 옮기려는 호출처용. */
+  inputRef?: Ref<HTMLInputElement>
 }
 
 /** 목록에서 고르거나 직접 입력하는 콤보박스(ARIA combobox/listbox, 키보드 지원). */
 export function ComboBox(props: ComboBoxProps) {
-  const { label, visibleLabel, name, value, onChange, options, onSelectOption, transform, required, disabled, placeholder, error, hint } = props
+  const { label, visibleLabel, name, value, onChange, options, onSelectOption, transform, required, disabled, placeholder, error, hint, inputRef } = props
   const baseId = useId()
   const listId = `${baseId}-list`
   const [open, setOpen] = useState(false)
@@ -78,6 +80,7 @@ export function ComboBox(props: ComboBoxProps) {
       <label htmlFor={`${baseId}-input`}>{visibleLabel ?? label}</label>
       <input
         id={`${baseId}-input`}
+        ref={inputRef}
         name={name}
         aria-label={visibleLabel ? label : undefined}
         role="combobox"

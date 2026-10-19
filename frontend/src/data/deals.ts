@@ -53,7 +53,7 @@ export function useCreateDeal(): Mutation<DealInput, DealDetail> {
   const invalidate = useInvalidate()
   return useMutation<DealDetail, ApiError, DealInput>({
     mutationFn: (input) => gateway.deals.create(input),
-    onSuccess: () => invalidate(keys.deals, keys.contacts, keys.forecast, keys.historyAll),
+    onSuccess: () => invalidate(keys.deals, keys.contacts, keys.labels, keys.forecast, keys.historyAll),
   })
 }
 

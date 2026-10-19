@@ -11,6 +11,7 @@ from app.config import Settings, get_settings
 from app.container import Container
 from app.web.error_handlers import register_error_handlers
 from app.web.routers import (
+    action_types,
     alert_settings,
     attachment_items,
     attachments,
@@ -85,6 +86,7 @@ def create_app(
         attachment_items,
         codes,
         bant_labels,
+        action_types,
         vendors,
     )
     for module in (

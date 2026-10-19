@@ -97,37 +97,26 @@ describe('Deal 상세 정보 카드 (T-DETAIL-02)', () => {
     expect(within(info).getByText('POC')).toBeVisible()
   })
 
-  it('lets a writer change a BANT label and records it in the history', async () => {
+  it('lets a writer clear a BANT label with the autocomplete and records it in the history', async () => {
     const { user } = await renderAt(await detailPath(1))
     await heading('한빛은행 ITDR 도입')
     const bant = screen.getByRole('region', { name: 'BANT' })
     await user.click(within(bant).getByRole('button', { name: 'Timeline 수정' }))
-    await user.selectOptions(within(bant).getByLabelText('Timeline'), '선택 안 함')
+    await user.clear(within(bant).getByRole('combobox', { name: 'Timeline' }))
+    await user.keyboard('{Enter}')
     await waitFor(() => expect(within(bant).getByRole('button', { name: 'Timeline 수정' })).toHaveTextContent('—'))
     await user.click(screen.getByRole('tab', { name: 'Deal History' }))
     expect(await screen.findByRole('cell', { name: 'BANT Label: Timeline' })).toBeVisible()
   })
 
-  it('creates a new BANT label on the spot and selects it', async () => {
+  it('saves a typed new BANT label with Enter and selects it', async () => {
     const { user } = await renderAt(await detailPath(2))
     await heading('대한제조 MFA 확대')
     const bant = screen.getByRole('region', { name: 'BANT' })
     await user.click(within(bant).getByRole('button', { name: 'Need 수정' }))
-    await user.selectOptions(within(bant).getByLabelText('Need'), '+ 새 Label 만들기')
-    await user.type(within(bant).getByLabelText('Need 새 Label 이름'), '신규 요건')
-    await user.keyboard('{Enter}')
+    await user.type(within(bant).getByRole('combobox', { name: 'Need' }), '신규 요건{Enter}')
     await waitFor(() => expect(within(bant).getByRole('button', { name: 'Need 수정' })).toHaveTextContent('신규 요건'))
-  })
-
-  it('shows a duplicate label name error from the server', async () => {
-    const { user } = await renderAt(await detailPath(2))
-    await heading('대한제조 MFA 확대')
-    const bant = screen.getByRole('region', { name: 'BANT' })
-    await user.click(within(bant).getByRole('button', { name: 'Budget 수정' }))
-    await user.selectOptions(within(bant).getByLabelText('Budget'), '+ 새 Label 만들기')
-    await user.type(within(bant).getByLabelText('Budget 새 Label 이름'), '단독 예산 확보')
-    await user.keyboard('{Enter}')
-    expect(await within(bant).findByRole('alert')).toHaveTextContent('같은 구분에 이미 있는 Label 이름입니다.')
+    expect(await screen.findByText('BANT Need Label이 변경되었습니다.')).toBeVisible()
   })
 
   it('edits the customer contact with the contact picker and keeps the other fields', async () => {

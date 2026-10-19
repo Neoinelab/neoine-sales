@@ -5,6 +5,7 @@
 """
 
 from typing import TYPE_CHECKING
+from uuid import uuid4
 
 import pytest
 
@@ -115,13 +116,42 @@ async def test_client_cannot_set_acted_at_or_actor(api: Api, extra: dict[str, ob
     await then_deal_has_no_actions(api, deal["code"])
 
 
-async def test_unknown_action_type_is_a_request_validation_error(api: Api) -> None:
-    """Scenario: 정해지지 않은 Action 유형은 422 request-validation이다."""
+@pytest.mark.parametrize(
+    "action_type",
+    [
+        pytest.param("meeting", id="old-enum-value"),
+        pytest.param("미팅", id="plain-name-string"),
+        pytest.param(None, id="null"),
+        pytest.param({}, id="neither-id-nor-name"),
+        pytest.param({"id": str(uuid4()), "name": "미팅"}, id="both-id-and-name"),
+        pytest.param({"id": "not-a-uuid"}, id="id-not-a-uuid"),
+    ],
+)
+async def test_a_type_that_is_not_a_choice_object_is_a_request_validation_error(
+    api: Api, action_type: object
+) -> None:
+    """Scenario: 유형이 문자열·null이거나 id·name 둘 다/하나도 없으면 422다."""
     # Given
     await given_logged_in_as(api, role="sales")
     deal = await given_deal(api)
     # When
-    response = await when_register_action(api, deal["code"], action_type="dance")
+    response = await when_register_action_with_body(
+        api, deal["code"], {**action_body(), "action_type": action_type}
+    )
+    # Then
+    then_problem_is(response, status=422, type_suffix="request-validation")
+    await then_deal_has_no_actions(api, deal["code"])
+
+
+async def test_a_missing_type_is_a_request_validation_error(api: Api) -> None:
+    """Scenario: 유형을 아예 보내지 않으면 422 request-validation이다."""
+    # Given
+    await given_logged_in_as(api, role="sales")
+    deal = await given_deal(api)
+    body = action_body()
+    del body["action_type"]
+    # When
+    response = await when_register_action_with_body(api, deal["code"], body)
     # Then
     then_problem_is(response, status=422, type_suffix="request-validation")
 

@@ -17,6 +17,7 @@ from tests.functional.steps.actions import (
     same_instant,
     then_action_is_gone,
     then_action_is_unchanged,
+    then_action_type_is,
     then_body_has,
     then_detail_is,
     when_delete_action,
@@ -42,7 +43,7 @@ pytestmark = pytest.mark.integration
 
 AFTER = "수정: 제안 · 제안 발표 / Next Action: 견적 회신 (Due 2027-02-01) / Memo: 변경"
 CHANGE = {
-    "action_type": "proposal",
+    "action_type": "제안",
     "action": "제안 발표",
     "next_action": "견적 회신",
     "due_date": "2027-02-01",
@@ -61,7 +62,13 @@ async def test_action_owner_edits_a_previous_action(api: Api) -> None:
     response = await when_update_action(api, created["id"], **CHANGE)
     # Then
     then_status_is(response, 200)
-    then_body_has(response, **CHANGE, actor=created["actor"], deal_code=deal["code"])
+    then_body_has(
+        response,
+        **{k: v for k, v in CHANGE.items() if k != "action_type"},
+        actor=created["actor"],
+        deal_code=deal["code"],
+    )
+    then_action_type_is(response, "제안")
     assert same_instant(response.json()["acted_at"], created["acted_at"])
     assert same_instant(response.json()["created_at"], created["created_at"])
     assert not same_instant(response.json()["updated_at"], created["updated_at"])

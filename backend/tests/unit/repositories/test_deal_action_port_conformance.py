@@ -11,7 +11,15 @@ from app.web.use_case_provider import UseCaseProvider
 from tests.fakes.repositories import FakeDealActionRepository
 from tests.fakes.use_cases import FakeUseCases
 
-ACTION_PORT_METHODS = ("add", "get", "search", "update", "delete", "count_by_code")
+ACTION_PORT_METHODS = (
+    "add",
+    "get",
+    "search",
+    "update",
+    "delete",
+    "count_by_code",
+    "count_by_action_type",
+)
 ACTION_USE_CASES = (
     "register_deal_action",
     "get_deal_action",
@@ -43,6 +51,13 @@ def test_the_query_has_no_paging_fields() -> None:
 
     assert "deal_code" in names
     assert not {"offset", "limit"} & names
+
+
+def test_the_query_filters_by_type_id_and_no_longer_by_the_enum() -> None:
+    names = {f.name for f in fields(DealActionQuery)}
+
+    assert "action_type_id" in names
+    assert "action_type" not in names
 
 
 def test_the_web_port_exposes_the_action_use_cases_and_not_the_global_search() -> None:

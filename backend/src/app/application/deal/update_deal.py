@@ -1,5 +1,6 @@
 from typing import TYPE_CHECKING
 
+from app.application.deal.bant_choice import resolve_bant
 from app.application.deal.contact_draft import resolve_contacts
 from app.application.deal.form import FormValues
 from app.application.deal.history_writer import build_name_lookup, write_history
@@ -39,11 +40,12 @@ class UpdateDeal:
             contacts = await resolve_contacts(
                 uow, (values.customer, values.partner), form.drafts, actor.user_id, now
             )
+            bant = await resolve_bant(uow, form.bant, actor.user_id, now)
             deal.revise(
                 details=form.details,
                 sync=form.sync,
                 customer_id=contacts.customer_id or deal.customer_id,
-                bant=form.bant,
+                bant=bant,
             )
             if "partner" in patch.provided:
                 deal.replace_partner(contacts.partner_id, now)

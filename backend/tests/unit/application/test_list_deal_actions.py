@@ -2,13 +2,15 @@
 
 from datetime import UTC, date, datetime
 from typing import TYPE_CHECKING
+from uuid import uuid4
 
 import pytest
+from app.domain.action_type.values import ActionTypeId
 
 from app.application.ports.deal_action_repository import DealActionQuery, DealActionSort
 from app.domain.deal.code import DealCode
 from app.domain.deal.errors import DealNotFoundError
-from app.domain.deal_action.value_objects import ActionType
+from tests.factories_action_type import type_id
 from tests.support.user_ids import uid
 from tests.unit.application.action_env import BOSS, KIM, PARK
 
@@ -67,16 +69,43 @@ async def test_sort_by_due_date_breaks_ties_by_latest_acted_at(action_env: Actio
 
 
 async def test_list_filters_combine_with_and(action_env: ActionEnv) -> None:
-    await action_env.act(KIM, action="킥오프", action_type=ActionType.MEETING, memo="예산 100%")
-    await action_env.act(PARK, action="견적 발송", action_type=ActionType.EMAIL, memo="")
-    await action_env.act(PARK, action="최종 미팅", action_type=ActionType.MEETING, memo="조건")
+    await action_env.act(KIM, action="킥오프", action_type="미팅", memo="예산 100%")
+    await action_env.act(PARK, action="견적 발송", action_type="이메일", memo="")
+    await action_env.act(PARK, action="최종 미팅", action_type="미팅", memo="조건")
+    meeting = type_id("미팅")
 
-    assert await _names(action_env, action_type=ActionType.MEETING) == ["최종 미팅", "킥오프"]
-    assert await _names(action_env, action_type=ActionType.MEETING, actor_user_id=uid("park")) == [
+    assert await _names(action_env, action_type_id=meeting) == ["최종 미팅", "킥오프"]
+    assert await _names(action_env, action_type_id=meeting, actor_user_id=uid("park")) == [
         "최종 미팅"
     ]
     assert await _names(action_env, actor_user_id=uid("park"), keyword="견적") == ["견적 발송"]
     assert await _names(action_env, actor_user_id=BOSS.user_id) == []
+
+
+async def test_filters_by_action_type_id(action_env: ActionEnv) -> None:
+    await action_env.act(KIM, action="통화 기록", action_type="통화")
+    await action_env.act(KIM, action="데모 기록", action_type="데모")
+
+    assert await _names(action_env, action_type_id=type_id("데모")) == ["데모 기록"]
+    assert await _names(action_env, action_type_id=type_id("통화")) == ["통화 기록"]
+
+
+async def test_unknown_type_id_lists_nothing(action_env: ActionEnv) -> None:
+    await action_env.act(KIM, action="통화 기록", action_type="통화")
+
+    assert await _names(action_env, action_type_id=uuid4()) == []
+
+
+async def test_the_listed_action_carries_the_current_type_name(action_env: ActionEnv) -> None:
+    await action_env.act(KIM, action="통화 기록", action_type="통화")
+    renamed = await action_env.env.uow.action_types.get(ActionTypeId(type_id("통화")))
+    renamed.rename("전화", action_env.env.clock.now())
+    await action_env.env.uow.action_types.update(renamed)
+
+    query = DealActionQuery(deal_code=action_env.deal.item.deal.id)
+    (listed,) = await action_env.list.execute(query)
+
+    assert listed.content.action_type.name == "전화"
 
 
 async def test_keyword_matches_the_three_text_fields_ignoring_case_and_wildcards(

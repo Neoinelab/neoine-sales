@@ -5,7 +5,7 @@ import type { ActionInput, ActionUpdateInput } from '../../../shared/model/types
 import { dealCode, expectApiError, mockAs } from '../testing'
 
 const input = (over: Partial<ActionInput> = {}): ActionInput => ({
-  type: '미팅',
+  type: { name: '미팅' },
   progress: '고객사 방문',
   nextAction: '견적 재전달',
   dueDate: '2026-10-22',
@@ -14,7 +14,7 @@ const input = (over: Partial<ActionInput> = {}): ActionInput => ({
 })
 
 const content = (over: Partial<ActionUpdateInput> = {}): ActionUpdateInput => ({
-  type: '미팅',
+  type: { name: '미팅' },
   progress: '고객사 방문',
   nextAction: '견적 재전달',
   dueDate: '2026-10-22',
@@ -229,7 +229,7 @@ describe('Action 이력 문구 (AC-03·11·12, Q5, R-12)', () => {
     const code = dealCode(2)
     const created = await gateway.actions.create(code, input({ memo: '이전 메모' }))
 
-    await gateway.actions.update(created.id, content({ type: '통화', progress: '전화', nextAction: '방문', dueDate: '2026-11-01', memo: '새 메모' }))
+    await gateway.actions.update(created.id, content({ type: { name: '통화' }, progress: '전화', nextAction: '방문', dueDate: '2026-11-01', memo: '새 메모' }))
 
     expect((await gateway.history.list(code, {}))[0]).toMatchObject({
       category: 'action',
@@ -303,7 +303,7 @@ describe('내용이 바뀌지 않은 수정 (AC-11, Q4)', () => {
 
     const result = await gateway.actions.update(
       target.id,
-      content({ type: target.type, progress: target.progress, nextAction: target.nextAction, dueDate: target.dueDate, memo: target.memo }),
+      content({ type: { id: target.typeId }, progress: target.progress, nextAction: target.nextAction, dueDate: target.dueDate, memo: target.memo }),
     )
 
     expect(result).toEqual(target)
@@ -318,7 +318,7 @@ describe('내용이 바뀌지 않은 수정 (AC-11, Q4)', () => {
 
     await gateway.actions.update(
       target.id,
-      content({ type: target.type, progress: `  ${target.progress}  `, nextAction: target.nextAction, dueDate: target.dueDate, memo: target.memo }),
+      content({ type: { id: target.typeId }, progress: `  ${target.progress}  `, nextAction: target.nextAction, dueDate: target.dueDate, memo: target.memo }),
     )
 
     expect(await gateway.history.list(code, {})).toEqual(historyBefore)
@@ -332,7 +332,7 @@ describe('내용이 바뀌지 않은 수정 (AC-11, Q4)', () => {
 
     await gateway.actions.update(
       target.id,
-      content({ type: target.type, progress: target.progress, nextAction: target.nextAction, dueDate: target.dueDate, memo: `${target.memo}!` }),
+      content({ type: { id: target.typeId }, progress: target.progress, nextAction: target.nextAction, dueDate: target.dueDate, memo: `${target.memo}!` }),
     )
 
     expect(await gateway.history.list(code, {})).toHaveLength(base + 1)

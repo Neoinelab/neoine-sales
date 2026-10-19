@@ -83,7 +83,7 @@ describe('Status 진입 시각 (R-22, R-21)', () => {
   it('moves it only when the action registration carries a status change', async () => {
     const { gateway, clock, code } = await setup()
     clock.advance(DAY_MS)
-    const base = { type: '미팅' as const, progress: '방문', nextAction: '견적', dueDate: '2026-10-30', memo: '' }
+    const base = { type: { name: '미팅' }, progress: '방문', nextAction: '견적', dueDate: '2026-10-30', memo: '' }
 
     await gateway.actions.create(code, base)
     expect((await gateway.deals.get(code)).statusChangedAt).toBe(TEST_NOW)

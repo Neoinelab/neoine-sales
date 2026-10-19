@@ -16,13 +16,10 @@
 .bant-fieldset { border: none; margin: 0; padding: 0; min-width: 0; }
 .link-button { justify-self: start; border: none; background: transparent; color: var(--accent); padding: 2px 0; }
 .link-button:hover, .link-button:focus-visible { text-decoration: underline; }
-.new-label { display: grid; grid-template-columns: 1fr auto auto; gap: 6px; align-items: end; }
-.new-label .field input { width: 100%; }
 
 .form-actions { position: sticky; bottom: 0; z-index: 5; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 16px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius-lg); box-shadow: 0 -4px 12px rgb(16 24 40 / 8%); }
 .form-actions .error { flex-basis: 100%; }
 
 @media (max-width: 720px) {
   .form-section { padding: 12px; }
-  .new-label { grid-template-columns: 1fr; }
 }

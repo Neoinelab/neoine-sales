@@ -1,6 +1,5 @@
 /** 시드 Action과 Deal History 생성. Action은 Deal마다 가장 최근 것부터 SPACING일 간격으로 과거로 만든다. */
 
-import { ACTION_TYPES, type ActionType } from '../../shared/model/constants'
 import { addDays } from '../../shared/model/dates'
 import { formatKrwFull } from '../../shared/model/money'
 import { withWa } from '../../shared/model/text'
@@ -8,7 +7,10 @@ import type { Code, Contact, Deal, HistoryCategory } from '../../shared/model/ty
 import { nextSeq, takeId, type ActionRecord, type HistoryRecord } from '../fake/store'
 import { findSeedContact } from './contacts'
 import { ACTION_SPACING, actionHour, type DealSpec } from './dealSpecs'
+import { DEFAULT_ACTION_TYPE_NAMES, seedActionTypeId } from '../fake/seed/actionTypes'
 import type { SeedEnv } from '../fake/seed/env'
+
+type ActionType = (typeof DEFAULT_ACTION_TYPE_NAMES)[number]
 
 const PROGRESS: Record<ActionType, readonly string[]> = {
   통화: ['담당자와 통화로 일정 협의', '요구사항 전화 확인', '예산 집행 시기 전화 확인'],
@@ -68,7 +70,7 @@ function draftOf(spec: DealSpec, i: number, statusKeys: readonly string[]): Draf
   const statusKey = statusKeys[Math.max(0, statusKeys.indexOf(spec.status) - back)] ?? spec.status
   const lean = FORECAST_LEAN[spec.forecast as keyof typeof FORECAST_LEAN]
   const forecastKey = i === 0 || lean === undefined ? spec.forecast : lean
-  const type = ACTION_TYPES[(spec.no + i * 3) % ACTION_TYPES.length] ?? '기타'
+  const type = DEFAULT_ACTION_TYPE_NAMES[(spec.no + i * 3) % DEFAULT_ACTION_TYPE_NAMES.length] ?? '기타'
   const pick = (pool: readonly string[]) => pool[(spec.no + i) % pool.length] ?? ''
   const base = { type, progress: `${spec.solution} ${pick(PROGRESS[type])}`, nextAction: pick(NEXT[type]), statusKey, forecastKey }
   if (i === 0 && spec.forecast === 'won') return { ...base, type: '계약', progress: '계약 체결 및 매출 확정', nextAction: '납품 및 검수 일정 확인' }
@@ -115,7 +117,7 @@ export function seedActivity(
         dealCode: deal.code,
         actedAt,
         actorId: deal.ownerId,
-        type: draft.type,
+        typeId: seedActionTypeId(draft.type),
         progress: draft.progress,
         nextAction: draft.nextAction,
         dueDate: i === 0 ? env.date(spec.due) : addDays(actedAt.slice(0, 10), 7),

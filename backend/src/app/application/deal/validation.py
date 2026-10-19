@@ -9,15 +9,14 @@ Label)를 맡는다. 저장소를 읽는 검사는 보낸 필드에 대해서만
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from app.application.deal.bant_choice import BantDraft, check_bant
 from app.application.deal.contact_draft import CheckedDrafts, check_drafts
-from app.domain.bant.values import BantCategory, BantLabelId
 from app.domain.code.values import CodeKind
 from app.domain.common.errors import InvalidValueError
 from app.domain.deal.errors import (
     FORECAST_REQUIRED_MESSAGE,
     SOLUTION_NEEDS_VENDOR_MESSAGE,
     STATUS_REQUIRED_MESSAGE,
-    InvalidBantLabelError,
     SolutionVendorMismatchError,
     UnknownCodeError,
     UnknownVendorError,
@@ -25,7 +24,6 @@ from app.domain.deal.errors import (
 from app.domain.deal.policy import OWNER_NOT_SALES_MESSAGE, ensure_owner_eligible
 from app.domain.deal.sync import SyncState, ensure_sync_consistent
 from app.domain.deal.values import (
-    BantSelection,
     DealDetails,
     Poc,
     Quote,
@@ -40,7 +38,6 @@ from app.domain.vendor.errors import VendorNotFoundError
 from app.domain.vendor.values import SolutionId, VendorId
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
     from uuid import UUID
 
     from app.application.deal.form import FormValues
@@ -52,11 +49,11 @@ _VENDOR_FIELDS = frozenset({"vendor_id", "solution_id"})
 
 @dataclass(frozen=True, slots=True)
 class CheckedForm:
-    """검증을 통과한 폼: Deal 정보, 상태, BANT 선택, 연락처 입력(보낸 것만)."""
+    """검증을 통과한 폼: Deal 정보, 상태, BANT 판정, 연락처 입력(보낸 것만)."""
 
     details: DealDetails
     sync: SyncState
-    bant: BantSelection
+    bant: BantDraft
     drafts: CheckedDrafts
 
 
@@ -74,7 +71,7 @@ async def validate_form(
         raise InvalidValueError(EXPECTED_CLOSE_REQUIRED)
     users = check_users(values.users)
     sync = await _sync(uow, values, provided)
-    bant = await _bant(uow, values.bant, "bant" in provided)
+    bant = await check_bant(uow, values.bant, check="bant" in provided)
     procurement = check_procurement(values.procurement)
     drafts = check_drafts(values.customer, values.partner)
     details = DealDetails(
@@ -144,17 +141,3 @@ async def _sync(uow: UnitOfWork, values: FormValues, provided: frozenset[str]) -
 async def _require_code(uow: UnitOfWork, kind: CodeKind, key: str, message: str) -> None:
     if all(code.key.value != key for code in await uow.codes.list(kind)):
         raise UnknownCodeError(message)
-
-
-async def _bant(
-    uow: UnitOfWork, chosen: Mapping[BantCategory, UUID | None], check: bool
-) -> BantSelection:
-    """구분마다 Label id 하나 또는 선택 안 함. 보낸 경우 id가 그 구분의 Label이어야 한다."""
-    selected: dict[str, BantLabelId | None] = {}
-    known = {label.id: label.category for label in await uow.bant_labels.list()} if check else {}
-    for category in BantCategory:
-        label_id = chosen.get(category)
-        if label_id is not None and check and known.get(BantLabelId(label_id)) is not category:
-            raise InvalidBantLabelError
-        selected[category.value] = None if label_id is None else BantLabelId(label_id)
-    return BantSelection(**selected)

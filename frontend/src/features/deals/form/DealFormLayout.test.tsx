@@ -176,12 +176,17 @@ describe('고객·파트너·BANT 타일 (AC-16, AC-17)', () => {
     expect(within(partner).getByText(/저장하면 기존 활성 파트너\(.+\)가 제거되고 이력으로 남습니다\./)).toBeVisible()
   })
 
-  it('keeps the new label controls in the value column of each BANT row', async () => {
+  it('keeps each BANT autocomplete input in its own row, with no new label button', async () => {
     await openNew()
     const bant = tile('BANT')
     expect(within(bant).getByRole('group', { name: 'BANT' })).toBeVisible()
-    const row = within(bant).getByLabelText('Budget').closest('.kv-row') as HTMLElement
-    expect(row).toContainElement(within(bant).getByRole('button', { name: 'Budget 새 Label' }))
+    for (const category of ['Budget', 'Authority', 'Need', 'Timeline']) {
+      const input = within(bant).getByRole('combobox', { name: category })
+      const row = input.closest('.kv-row') as HTMLElement
+      expect(row, category).not.toBeNull()
+      expect(within(row).getAllByRole('combobox')).toHaveLength(1)
+    }
+    expect(within(bant).queryByRole('button', { name: /새 Label/ })).not.toBeInTheDocument()
   })
 })
 

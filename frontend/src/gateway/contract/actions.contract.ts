@@ -36,7 +36,7 @@ async function newDeal(gateway: Gateway) {
 }
 
 const action = (over: Partial<ActionInput> = {}): ActionInput => ({
-  type: '미팅',
+  type: { name: '미팅' },
   progress: '고객사 방문',
   nextAction: '견적 재전달',
   dueDate: '2026-12-01',
@@ -244,7 +244,7 @@ export function actionsContract(make: MakeGateway): void {
       await sales.actions.update(created.id, action({ progress: `  ${created.progress}  ` }))
       expect(await sales.history.list(deal.code, {})).toEqual(afterCreate)
 
-      await sales.actions.update(created.id, action({ type: '통화', progress: '전화', memo: '메모' }))
+      await sales.actions.update(created.id, action({ type: { name: '통화' }, progress: '전화', memo: '메모' }))
       const history = await sales.history.list(deal.code, {})
       expect(history).toHaveLength(afterCreate.length + 1)
       expect(history[0]).toMatchObject({
@@ -343,14 +343,16 @@ export function actionsContract(make: MakeGateway): void {
       const sales = await make('sales')
       const me = await sales.auth.me()
       const deal = await newDeal(sales)
-      const call = await sales.actions.create(deal.code, action({ type: '통화', progress: 'Alpha 통화' }))
-      await sales.actions.create(deal.code, action({ type: '미팅', progress: 'Alpha 미팅' }))
-      const viaMemo = await sales.actions.create(deal.code, action({ type: '이메일', memo: `긴 메모 ${'x'.repeat(3000)} NEEDLE 끝` }))
+      const call = await sales.actions.create(deal.code, action({ type: { name: '통화' }, progress: 'Alpha 통화' }))
+      await sales.actions.create(deal.code, action({ type: { name: '미팅' }, progress: 'Alpha 미팅' }))
+      const viaMemo = await sales.actions.create(deal.code, action({ type: { name: '이메일' }, memo: `긴 메모 ${'x'.repeat(3000)} NEEDLE 끝` }))
       const ids = async (q: Parameters<Gateway['actions']['list']>[1]) => (await sales.actions.list(deal.code, q)).map((a) => a.id)
+      const types = await sales.actionTypes.list()
+      const typeId = (name: string) => types.find((t) => t.name === name)?.id ?? ''
 
-      expect(await ids({ type: '통화', keyword: 'alpha' })).toEqual([call.id])
+      expect(await ids({ typeId: typeId('통화'), keyword: 'alpha' })).toEqual([call.id])
       expect(await ids({ keyword: 'needle' })).toEqual([viaMemo.id])
-      expect(await ids({ actorId: me.id, type: '이메일' })).toEqual([viaMemo.id])
+      expect(await ids({ actorId: me.id, typeId: typeId('이메일') })).toEqual([viaMemo.id])
       expect(await ids({ actorId: 'u-nobody-at-all' })).toEqual([])
       await sales.deals.remove(deal.code, deal.code)
     })

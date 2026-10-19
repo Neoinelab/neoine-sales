@@ -61,15 +61,22 @@ def actions_url(code: str) -> str:
 
 
 def action_body(**overrides: object) -> dict[str, Any]:
-    """Action 등록·수정 본문(수행 시각·담당자는 서버가 정하므로 없다). None인 값은 null로 보낸다."""
+    """Action 등록·수정 본문(수행 시각·담당자는 서버가 정하므로 없다). None인 값은 null로 보낸다.
+
+    action_type은 선택 객체다. 기본은 `{"name": "미팅"}`이고, 문자열을 주면 그 이름 객체로, dict를
+    주면(`{"id": ...}` 등) 그대로 보낸다. 잘못된 형식은 `when_*_with_body`로 직접 보낸다.
+    """
     values: dict[str, Any] = {
-        "action_type": "meeting",
+        "action_type": {"name": "미팅"},
         "action": "킥오프 미팅",
         "next_action": "요구사항 문서 전달",
         "due_date": "2027-01-15",
         "memo": "요구사항 정리",
     }
-    return {**values, **overrides}
+    body = {**values, **overrides}
+    if isinstance(body["action_type"], str):
+        body["action_type"] = {"name": body["action_type"]}
+    return body
 
 
 # --- Given ---
@@ -103,8 +110,8 @@ async def given_action_by(
 async def given_searchable_actions(api: Api) -> tuple[str, str]:
     """kim·park(sales)이 한 Deal에 Action 세 건을 남겨 두었다. (Deal code, park의 user id).
 
-    오래된 순서: kim "킥오프"(meeting, Due 04-10) -> park "견적 발송"(email, Due 04-01) ->
-    park "킥오프 2"(meeting, Due 04-10). 끝나면 admin(root)이 로그인 상태다.
+    오래된 순서: kim "킥오프"(미팅, Due 04-10) -> park "견적 발송"(이메일, Due 04-01) ->
+    park "킥오프 2"(미팅, Due 04-10). 끝나면 admin(root)이 로그인 상태다.
     """
     kim = await given_signed_in_session(api, login_id="kim", role="sales")
     park = await given_signed_in_session(api, login_id="park", role="sales")
@@ -115,7 +122,7 @@ async def given_searchable_actions(api: Api) -> tuple[str, str]:
         kim,
         code,
         action="킥오프",
-        action_type="meeting",
+        action_type="미팅",
         memo="일정 협의",
         next_action="요구사항",
         due_date="2027-04-10",
@@ -125,7 +132,7 @@ async def given_searchable_actions(api: Api) -> tuple[str, str]:
         park,
         code,
         action="견적 발송",
-        action_type="email",
+        action_type="이메일",
         memo="100% 할인",
         next_action="회신 확인",
         due_date="2027-04-01",
@@ -135,7 +142,7 @@ async def given_searchable_actions(api: Api) -> tuple[str, str]:
         park,
         code,
         action="킥오프 2",
-        action_type="meeting",
+        action_type="미팅",
         memo="",
         next_action="계약서 초안",
         due_date="2027-04-10",
@@ -235,6 +242,13 @@ def names_of(response: Response) -> list[str]:
 def then_action_names_are(response: Response, expected: list[str]) -> None:
     then_status_is(response, 200)
     assert names_of(response) == expected, response.json()
+
+
+def then_action_type_is(response: Response, name: str) -> None:
+    """응답의 action_type이 `{id, name}`이고 이름이 name이다."""
+    action_type = response.json()["action_type"]
+    assert set(action_type) == {"id", "name"}, action_type
+    assert action_type["name"] == name, action_type
 
 
 def then_action_has_the_documented_keys(response: Response) -> None:

@@ -8,9 +8,11 @@ import { ApiError } from '../shared/api/problem'
 import { usePermissions, useLogin, useLogout, useMe, useQuickLogin } from './auth'
 import { useAttachments, useUploadAttachment } from './attachments'
 import { useCodeSet, useRenameCode, useCodes } from './codes'
-import { useApplyDealChange, useDeal, useDeals, useRemoveDeal } from './deals'
+import { useApplyDealChange, useDeal, useDeals, useRemoveDeal, useUpdateDeal } from './deals'
 import { useForecastSummary } from './forecast'
 import { useCreateAction, useActions } from './actions'
+import { useActionTypes, useCreateActionType, useRemoveActionType, useRenameActionType } from './actionTypes'
+import { useLabels } from './labels'
 import { useHistory } from './history'
 
 function setup() {
@@ -152,7 +154,7 @@ describe('Action·첨부·코드 훅', () => {
     await waitFor(() => expect(result.current.actions.isSuccess && result.current.history.isSuccess).toBe(true))
     const n = result.current.actions.data?.length ?? 0
     await act(async () => {
-      await result.current.create.mutateAsync({ dealCode: code, input: { type: '통화', progress: '확인', nextAction: '회신', dueDate: '2026-10-20', memo: '' } })
+      await result.current.create.mutateAsync({ dealCode: code, input: { type: { name: '통화' }, progress: '확인', nextAction: '회신', dueDate: '2026-10-20', memo: '' } })
     })
     await waitFor(() => expect(result.current.actions.data?.length).toBe(n + 1))
     await waitFor(() => expect(result.current.history.data?.[0]?.category).toBe('action'))
@@ -183,5 +185,80 @@ describe('Action·첨부·코드 훅', () => {
       await result.current.rename.mutateAsync({ id: target?.id ?? '', name: '발굴' })
     })
     await waitFor(() => expect(result.current.set.data?.statuses[0]?.name).toBe('발굴'))
+  })
+})
+
+describe('Action 유형 훅', () => {
+  it('useActionTypes는 기본 유형 8개를 서버 순서로 읽는다', async () => {
+    const { wrapper } = setup()
+    const { result } = renderHook(() => useActionTypes(), { wrapper })
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(result.current.data?.map((t) => t.name)).toEqual(['통화', '미팅', '이메일', '데모', '제안', '협상', '계약', '기타'])
+  })
+
+  it('useCreateActionType은 유형 목록을 갱신한다', async () => {
+    const { wrapper } = setup()
+    const { result } = renderHook(() => ({ list: useActionTypes(), create: useCreateActionType() }), { wrapper })
+    await waitFor(() => expect(result.current.list.isSuccess).toBe(true))
+    await act(async () => {
+      await result.current.create.mutateAsync('웨비나')
+    })
+    await waitFor(() => expect(result.current.list.data?.some((t) => t.name === '웨비나')).toBe(true))
+  })
+
+  it('이름이 새 유형인 Action을 등록하면 유형 목록에 그 유형이 보인다 (AC-26)', async () => {
+    const code = dealCode(2)
+    const { wrapper } = setup()
+    const { result } = renderHook(() => ({ types: useActionTypes(), create: useCreateAction() }), { wrapper })
+    await waitFor(() => expect(result.current.types.isSuccess).toBe(true))
+    await act(async () => {
+      await result.current.create.mutateAsync({ dealCode: code, input: { type: { name: '현장 점검' }, progress: '확인', nextAction: '회신', dueDate: '2026-10-20', memo: '' } })
+    })
+    await waitFor(() => expect(result.current.types.data?.find((t) => t.name === '현장 점검')?.usageCount).toBe(1))
+  })
+
+  it('useRenameActionType은 유형 목록과 Action 목록의 이름을 함께 갱신한다 (AC-28)', async () => {
+    resetMock({ now: TEST_NOW, userId: 'u-root' })
+    const code = dealCode(1)
+    const { wrapper } = setup()
+    const { result } = renderHook(() => ({ types: useActionTypes(), actions: useActions(code), rename: useRenameActionType() }), { wrapper })
+    await waitFor(() => expect(result.current.types.isSuccess && result.current.actions.isSuccess).toBe(true))
+    const negotiation = result.current.types.data?.find((t) => t.name === '협상')
+    expect(result.current.actions.data?.some((a) => a.type === '협상')).toBe(true)
+    await act(async () => {
+      await result.current.rename.mutateAsync({ id: negotiation?.id ?? '', name: '가격 협상' })
+    })
+    await waitFor(() => expect(result.current.types.data?.some((t) => t.name === '가격 협상')).toBe(true))
+    await waitFor(() => expect(result.current.actions.data?.some((a) => a.type === '가격 협상')).toBe(true))
+    expect(result.current.actions.data?.some((a) => a.type === '협상')).toBe(false)
+  })
+
+  it('useRemoveActionType은 쓰지 않는 유형을 지우고 목록을 갱신한다', async () => {
+    resetMock({ now: TEST_NOW, userId: 'u-root' })
+    const { wrapper } = setup()
+    const { result } = renderHook(() => ({ list: useActionTypes(), create: useCreateActionType(), remove: useRemoveActionType() }), { wrapper })
+    await waitFor(() => expect(result.current.list.isSuccess).toBe(true))
+    let id = ''
+    await act(async () => {
+      id = (await result.current.create.mutateAsync('임시')).id
+    })
+    await waitFor(() => expect(result.current.list.data?.some((t) => t.id === id)).toBe(true))
+    await act(async () => {
+      await result.current.remove.mutateAsync(id)
+    })
+    await waitFor(() => expect(result.current.list.data?.some((t) => t.id === id)).toBe(false))
+  })
+})
+
+describe('Deal 저장이 만든 BANT Label', () => {
+  it('useUpdateDeal로 새 Label 이름을 저장하면 Label 목록에 그 Label이 보인다 (AC-19)', async () => {
+    const code = dealCode(2)
+    const { wrapper } = setup()
+    const { result } = renderHook(() => ({ labels: useLabels(), update: useUpdateDeal() }), { wrapper })
+    await waitFor(() => expect(result.current.labels.isSuccess).toBe(true))
+    await act(async () => {
+      await result.current.update.mutateAsync({ code, patch: { bant: { budget: null, authority: null, need: null, timeline: { name: '내후년 구매 검토' } } } })
+    })
+    await waitFor(() => expect(result.current.labels.data?.find((l) => l.name === '내후년 구매 검토')).toMatchObject({ category: 'timeline', usageCount: 1 }))
   })
 })

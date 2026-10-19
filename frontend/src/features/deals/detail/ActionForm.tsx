@@ -3,13 +3,16 @@ import { useCodeSet } from '../../../data/codes'
 import { useCreateAction, useUpdateAction } from '../../../data/actions'
 import { useMe } from '../../../data/auth'
 import { formatDateTime } from '../../../shared/format'
-import { ACTION_TYPES, DEFAULT_ACTION_TYPE, type ActionType } from '../../../shared/model/constants'
+import { useActionTypes } from '../../../data/actionTypes'
+import { toChoice } from '../../../shared/model/catalogChoice'
+import { ACTION_TYPE_NAME_MAX_LENGTH } from '../../../shared/model/constants'
 import type { SyncApplied } from '../../../shared/model/sync'
 import { userLabel } from '../../../shared/model/period'
 import type { DealAction, DealDetail } from '../../../shared/model/types'
 import { ErrorBanner } from '../../../shared/ui/ErrorBanner'
 import { SyncNotice } from '../../../shared/sync/SyncNotice'
 import { useSyncedChange } from '../../../shared/sync/useSyncedChange'
+import { ActionTypeInput } from './ActionTypeInput'
 import { messageOf, toResolution } from './detailHelpers'
 import './detail.css'
 
@@ -24,6 +27,7 @@ interface ActionFormProps {
 }
 
 interface Errors {
+  type?: string
   progress?: string
   nextAction?: string
   dueDate?: string
@@ -70,7 +74,8 @@ export function ActionForm({ deal, editing, previous, onDone, onCancel }: Action
   const create = useCreateAction()
   const update = useUpdateAction()
   const { request, dialogs } = useSyncedChange(deal)
-  const [type, setType] = useState<ActionType>(editing?.type ?? DEFAULT_ACTION_TYPE)
+  const types = useActionTypes().data
+  const [type, setType] = useState(editing?.type ?? '')
   const [progress, setProgress] = useState(editing?.progress ?? '')
   const [nextAction, setNextAction] = useState(editing?.nextAction ?? '')
   const [dueDate, setDueDate] = useState(editing?.dueDate ?? '')
@@ -78,6 +83,7 @@ export function ActionForm({ deal, editing, previous, onDone, onCancel }: Action
   const [status, setStatus] = useState<StatusDraft | null>(null)
   const [errors, setErrors] = useState<Errors>({})
   const [error, setError] = useState<unknown>(null)
+  const typeRef = useRef<HTMLInputElement>(null)
   const progressRef = useRef<HTMLTextAreaElement>(null)
   const nextRef = useRef<HTMLInputElement>(null)
   const dueRef = useRef<HTMLInputElement>(null)
@@ -101,6 +107,9 @@ export function ActionForm({ deal, editing, previous, onDone, onCancel }: Action
 
   function validate(): Errors {
     const found: Errors = {}
+    const typeName = type.trim()
+    if (typeName === '') found.type = '유형을 입력하세요.'
+    else if ([...typeName].length > ACTION_TYPE_NAME_MAX_LENGTH) found.type = `유형은 ${ACTION_TYPE_NAME_MAX_LENGTH}자 이내로 입력하세요.`
     if (progress.trim() === '') found.progress = '진행사항을 입력하세요.'
     if (nextAction.trim() === '') found.nextAction = 'Next Action을 입력하세요.'
     if (dueDate === '') found.dueDate = 'Due Date를 입력하세요.'
@@ -112,10 +121,14 @@ export function ActionForm({ deal, editing, previous, onDone, onCancel }: Action
     setError(null)
     const found = validate()
     setErrors(found)
+    if (found.type) return typeRef.current?.focus()
     if (found.progress) return progressRef.current?.focus()
     if (found.nextAction) return nextRef.current?.focus()
     if (found.dueDate) return dueRef.current?.focus()
-    const fields = { type, progress: progress.trim(), nextAction: nextAction.trim(), dueDate, memo }
+    // 처음 값 그대로면 이름을 다시 해석하지 않고 원래 {id}를 보낸다(그사이 유형 이름이 바뀌어도 새 유형이 생기지 않는다).
+    const choice = editing && type === editing.type ? { id: editing.typeId } : toChoice(type, types ?? [])
+    if (!choice) return typeRef.current?.focus()
+    const fields = { type: choice, progress: progress.trim(), nextAction: nextAction.trim(), dueDate, memo }
     try {
       if (editing) {
         await update.mutateAsync({ dealCode: deal.code, actionId: editing.id, input: fields })
@@ -154,16 +167,7 @@ export function ActionForm({ deal, editing, previous, onDone, onCancel }: Action
             </label>
           )}
           {status && <SyncNotice notice={status.applied.notice} draft />}
-          <label className="field">
-            <span>유형</span>
-            <select value={type} onChange={(e) => setType(e.target.value as ActionType)}>
-              {ACTION_TYPES.map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
-              ))}
-            </select>
-          </label>
+          <ActionTypeInput value={type} onChange={setType} error={errors.type} inputRef={typeRef} />
           <label className="field">
             <span>진행사항</span>
             <textarea ref={progressRef} value={progress} onChange={(e) => setProgress(e.target.value)} aria-invalid={errors.progress ? true : undefined} />

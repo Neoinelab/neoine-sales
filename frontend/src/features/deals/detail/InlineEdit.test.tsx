@@ -1,7 +1,10 @@
-import { screen, waitFor, within } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { fireEvent, screen, waitFor, within } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { gateway } from '../../../gateway'
 import { renderAt, type TestRole } from '../../../test/mockApp'
 import { detailPath } from '../../../test/detailTestUtils'
+
+afterEach(() => vi.restoreAllMocks())
 
 async function openDeal(no: number, title: string, role?: TestRole) {
   const view = await renderAt(await detailPath(no), role === undefined ? {} : { role })
@@ -182,35 +185,156 @@ describe('Owner · Vendor · Solution · Users · 견적 · POC · 구매절차'
   })
 })
 
-describe('BANT Label 인라인 편집', () => {
-  it('changes a label with the select and records it in the history', async () => {
-    const { user } = await openDeal(1, '한빛은행 ITDR 도입')
-    const bant = screen.getByRole('region', { name: 'BANT' })
-    expect(within(bant).getByRole('button', { name: 'Timeline 수정' })).toHaveTextContent('금년 구매')
+describe('BANT Label 인라인 편집 (AC-32)', () => {
+  async function openBant(no: number, title: string, role?: TestRole) {
+    const view = await openDeal(no, title, role)
+    return { ...view, bant: screen.getByRole('region', { name: 'BANT' }) }
+  }
+  const currentLabels = async () => (await gateway.labels.list()).length
+
+  it('opens an autocomplete text input with the current label and has no new-label option', async () => {
+    const { user, bant } = await openBant(1, '한빛은행 ITDR 도입')
+
     await user.click(within(bant).getByRole('button', { name: 'Timeline 수정' }))
-    await user.selectOptions(within(bant).getByLabelText('Timeline'), '선택 안 함')
-    await waitFor(() => expect(within(bant).getByRole('button', { name: 'Timeline 수정' })).toHaveTextContent('—'))
-    await user.click(screen.getByRole('tab', { name: 'Deal History' }))
-    expect(await screen.findByRole('cell', { name: 'BANT Label: Timeline' })).toBeVisible()
+
+    const input = within(bant).getByRole('combobox', { name: 'Timeline' })
+    expect(input.tagName).toBe('INPUT')
+    expect(input).toHaveDisplayValue('금년 구매')
+    expect(within(bant).queryByRole('option', { name: /새 Label 만들기/ })).not.toBeInTheDocument()
+    expect(within(bant).queryByLabelText(/새 Label 이름/)).not.toBeInTheDocument()
   })
 
-  it('creates a missing label on the spot and selects it', async () => {
-    const { user } = await openDeal(2, '대한제조 MFA 확대')
-    const bant = screen.getByRole('region', { name: 'BANT' })
+  it('lists only the labels of that category', async () => {
+    const { user, bant } = await openBant(2, '대한제조 MFA 확대')
+
     await user.click(within(bant).getByRole('button', { name: 'Need 수정' }))
-    await user.selectOptions(within(bant).getByLabelText('Need'), '+ 새 Label 만들기')
-    await user.type(within(bant).getByLabelText('Need 새 Label 이름'), '신규 요건{Enter}')
-    await waitFor(() => expect(within(bant).getByRole('button', { name: 'Need 수정' })).toHaveTextContent('신규 요건'))
+    await user.clear(within(bant).getByRole('combobox', { name: 'Need' }))
+
+    const names = within(screen.getByRole('listbox', { name: 'Need' }))
+      .getAllByRole('option')
+      .map((o) => o.textContent)
+    expect(names).toEqual(['보안 사고 발생', 'CISO 지시', '보안 강화 요건', '컴플라이언스', '모름'])
   })
 
-  it('rejects a duplicate label name and keeps the editor open', async () => {
-    const { user } = await openDeal(2, '대한제조 MFA 확대')
-    const bant = screen.getByRole('region', { name: 'BANT' })
+  it('saves a picked candidate at once, shows the notice and records the history', async () => {
+    const update = vi.spyOn(gateway.deals, 'update')
+    const { user, bant } = await openBant(2, '대한제조 MFA 확대')
+    const need = (await gateway.labels.list()).find((l) => l.category === 'need' && l.name === '컴플라이언스')
+
+    await user.click(within(bant).getByRole('button', { name: 'Need 수정' }))
+    await user.click(within(bant).getByRole('combobox', { name: 'Need' }))
+    await user.click(await screen.findByRole('option', { name: '컴플라이언스' }))
+
+    await waitFor(() => expect(within(bant).getByRole('button', { name: 'Need 수정' })).toHaveTextContent('컴플라이언스'))
+    expect(await screen.findByText('BANT Need Label이 변경되었습니다.')).toBeVisible()
+    expect(update.mock.calls[0]?.[1].bant?.need).toEqual({ id: need?.id })
+    await user.click(screen.getByRole('tab', { name: 'Deal History' }))
+    expect(await screen.findByRole('cell', { name: 'BANT Label: Need' })).toBeVisible()
+  })
+
+  it('saves a typed new label with Enter, creating it in that category', async () => {
+    const update = vi.spyOn(gateway.deals, 'update')
+    const { user, bant } = await openBant(2, '대한제조 MFA 확대')
+    const before = await currentLabels()
+
+    await user.click(within(bant).getByRole('button', { name: 'Need 수정' }))
+    await user.type(within(bant).getByRole('combobox', { name: 'Need' }), '신규 요건{Enter}')
+
+    await waitFor(() => expect(within(bant).getByRole('button', { name: 'Need 수정' })).toHaveTextContent('신규 요건'))
+    expect(update.mock.calls[0]?.[1].bant?.need).toEqual({ name: '신규 요건' })
+    expect(await currentLabels()).toBe(before + 1)
+    expect((await gateway.labels.list()).find((l) => l.name === '신규 요건')).toMatchObject({ category: 'need', isDefault: false })
+  })
+
+  it('saves a typed new label when the focus leaves the input', async () => {
+    const { user, bant } = await openBant(2, '대한제조 MFA 확대')
+
+    await user.click(within(bant).getByRole('button', { name: 'Timeline 수정' }))
+    const input = within(bant).getByRole('combobox', { name: 'Timeline' })
+    await user.clear(input)
+    await user.type(input, '내후년 구매 검토')
+    await user.tab()
+
+    await waitFor(() => expect(within(bant).getByRole('button', { name: 'Timeline 수정' })).toHaveTextContent('내후년 구매 검토'))
+  })
+
+  it('uses the existing label, not a new one, when the typed name equals it', async () => {
+    const update = vi.spyOn(gateway.deals, 'update')
+    const { user, bant } = await openBant(2, '대한제조 MFA 확대')
+    const before = await currentLabels()
+    const budget = (await gateway.labels.list()).find((l) => l.category === 'budget' && l.name === '단독 예산 확보')
+
     await user.click(within(bant).getByRole('button', { name: 'Budget 수정' }))
-    await user.selectOptions(within(bant).getByLabelText('Budget'), '+ 새 Label 만들기')
-    await user.type(within(bant).getByLabelText('Budget 새 Label 이름'), '단독 예산 확보')
+    const input = within(bant).getByRole('combobox', { name: 'Budget' })
+    await user.clear(input)
+    await user.type(input, ' 단독 예산 확보 {Enter}')
+
+    await waitFor(() => expect(within(bant).getByRole('button', { name: 'Budget 수정' })).toHaveTextContent('단독 예산 확보'))
+    expect(update.mock.calls[0]?.[1].bant?.budget).toEqual({ id: budget?.id })
+    expect(await currentLabels()).toBe(before)
+  })
+
+  it('sends the other categories as they are, so only one category changes', async () => {
+    const update = vi.spyOn(gateway.deals, 'update')
+    const { user, bant } = await openBant(1, '한빛은행 ITDR 도입')
+    const labels = await gateway.labels.list()
+    const idOf = (category: string, name: string) => labels.find((l) => l.category === category && l.name === name)?.id
+
+    await user.click(within(bant).getByRole('button', { name: 'Need 수정' }))
+    await user.clear(within(bant).getByRole('combobox', { name: 'Need' }))
     await user.keyboard('{Enter}')
-    expect(await within(bant).findByRole('alert')).toHaveTextContent('같은 구분에 이미 있는 Label 이름입니다.')
-    expect(within(bant).getByLabelText('Budget 새 Label 이름')).toBeVisible()
+
+    await waitFor(() => expect(update).toHaveBeenCalledTimes(1))
+    expect(update.mock.calls[0]?.[1].bant).toEqual({
+      budget: { id: idOf('budget', '단독 예산 확보') },
+      authority: { id: idOf('authority', 'CISO 보고 완료') },
+      need: null,
+      timeline: { id: idOf('timeline', '금년 구매') },
+    })
+  })
+
+  it('clears to not selected when the input is emptied and confirmed', async () => {
+    const update = vi.spyOn(gateway.deals, 'update')
+    const { user, bant } = await openBant(1, '한빛은행 ITDR 도입')
+
+    await user.click(within(bant).getByRole('button', { name: 'Timeline 수정' }))
+    await user.clear(within(bant).getByRole('combobox', { name: 'Timeline' }))
+    await user.keyboard('{Enter}')
+
+    await waitFor(() => expect(within(bant).getByRole('button', { name: 'Timeline 수정' })).toHaveTextContent('—'))
+    expect(update.mock.calls[0]?.[1].bant?.timeline).toBeNull()
+  })
+
+  it('sends nothing when the value stays the same', async () => {
+    const update = vi.spyOn(gateway.deals, 'update')
+    const { user, bant } = await openBant(1, '한빛은행 ITDR 도입')
+
+    await user.click(within(bant).getByRole('button', { name: 'Timeline 수정' }))
+    await user.keyboard('{Enter}')
+    await user.click(within(bant).getByRole('button', { name: 'Timeline 수정' }))
+    await user.click(within(bant).getByRole('combobox', { name: 'Timeline' }))
+    await user.click(await screen.findByRole('option', { name: '금년 구매' }))
+
+    await waitFor(() => expect(within(bant).queryByRole('combobox', { name: 'Timeline' })).not.toBeInTheDocument())
+    expect(update).not.toHaveBeenCalled()
+    expect(screen.queryByText('BANT Timeline Label이 변경되었습니다.')).not.toBeInTheDocument()
+  })
+
+  it('shows the server message for a name over 50 characters and keeps the editor open', async () => {
+    const { user, bant } = await openBant(2, '대한제조 MFA 확대')
+
+    await user.click(within(bant).getByRole('button', { name: 'Need 수정' }))
+    fireEvent.change(within(bant).getByRole('combobox', { name: 'Need' }), { target: { value: 'x'.repeat(51) } })
+    await user.keyboard('{Enter}')
+
+    expect(await within(bant).findByRole('alert')).toHaveTextContent('Label 이름은 50자 이내로 입력하세요.')
+    expect(within(bant).getByRole('combobox', { name: 'Need' })).toBeVisible()
+  })
+
+  it('does not offer the editor to a viewer', async () => {
+    const { bant } = await openBant(1, '한빛은행 ITDR 도입', 'user')
+
+    expect(within(bant).queryByRole('button', { name: /수정$/ })).not.toBeInTheDocument()
+    expect(within(bant).getByText('단독 예산 확보')).toBeVisible()
   })
 })

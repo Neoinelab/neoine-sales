@@ -1,8 +1,8 @@
 /** 게이트웨이 입력(Input)과 목록 질의 타입(A-0 계약). `types.ts`가 전부 재export한다. */
 
-import type { ActionType, BantCategory } from './constants'
+import type { CatalogChoice } from './catalogChoice'
+import type { BantCategory } from './constants'
 import type {
-  BantSelection,
   CodeKind,
   ContactKind,
   HistoryCategory,
@@ -69,7 +69,8 @@ export interface DealInput {
   quote: Quote
   poc: Poc
   procurement: string
-  bant: BantSelection
+  /** 구분별 선택: 있는 Label은 `{id}`, 목록에 없는 이름은 `{name}`(서버가 저장 때 만든다), 선택 안 함은 null. */
+  bant: Record<BantCategory, CatalogChoice | null>
 }
 
 /** Deal 수정 입력. 보낸 필드만 바꾼다(미포함=유지). `partner: null`은 활성 파트너 제거. 불변식은 DealInput과 같다. */
@@ -128,7 +129,8 @@ export interface StatusChangeRequest {
  * 수행일시·담당자는 서버(게이트웨이)가 현재 시각·로그인 사용자로 채운다.
  */
 export interface ActionInput {
-  type: ActionType
+  /** 있는 유형은 `{id}`, 목록에 없는 이름은 `{name}`(서버가 저장 때 만든다). */
+  type: CatalogChoice
   progress: string
   nextAction: string
   dueDate: string
@@ -142,7 +144,7 @@ export type ActionUpdateInput = Omit<ActionInput, 'statusChange'>
 export type ActionSort = 'actedDesc' | 'actedAsc' | 'dueAsc'
 
 export interface ActionQuery {
-  type?: ActionType
+  typeId?: string
   actorId?: string
   /** 진행사항·Next Action·Memo 부분 일치. */
   keyword?: string

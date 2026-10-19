@@ -41,7 +41,7 @@ describe('deals.update', () => {
       vendorId: seedVendorId('Okta'),
       solutionId: seedSolutionId('Okta', 'SSO'),
       users: 250,
-      bant: { budget: budget.id, authority: null, need: null, timeline: null },
+      bant: { budget: { id: budget.id }, authority: null, need: null, timeline: null },
       quote: { submitted: 'YES', submittedDate: '2026-10-10' },
       poc: { state: 'ING', completedDate: null },
       procurement: '연말 일괄 구매',

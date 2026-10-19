@@ -26,6 +26,7 @@ from app.application.deal_action.get_deal_action import GetDealAction
 from app.application.deal_action.list_deal_actions import ListDealActions
 from app.application.deal_action.register_deal_action import RegisterDealAction
 from app.application.deal_action.update_deal_action import UpdateDealAction
+from app.container_action_type import ActionTypeUseCases
 from app.container_admin import AdminAssembly
 from app.container_auth import AuthAssembly
 from app.container_catalog import CatalogAssembly
@@ -77,7 +78,7 @@ if TYPE_CHECKING:
     from app.config.base import Settings
 
 
-class Container(VendorUseCases):
+class Container(VendorUseCases, ActionTypeUseCases):
     def __init__(
         self,
         settings: Settings,

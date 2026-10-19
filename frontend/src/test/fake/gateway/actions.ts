@@ -6,6 +6,7 @@ import { forbidden, notFound, validation } from '../errors'
 import { takeId, type ActionRecord } from '../store'
 import { read, requireUser, requireWrite, viewerOf, write, type MockContext } from './context'
 import { commitDealChange, planDealChange, type ChangeOutcome } from './dealChange'
+import { commitActionType, planActionType } from './actionTypes'
 import { logHistory } from './historyLog'
 import { actionView, findDeal } from './views'
 
@@ -18,15 +19,17 @@ function validateFields(input: ActionUpdateInput): void {
   if (!DATE.test(input.dueDate)) throw validation('Due Date를 입력하세요.')
 }
 
-type Content = Pick<ActionRecord, 'type' | 'progress' | 'nextAction' | 'dueDate' | 'memo'>
+type Content = Pick<ActionRecord, 'typeId' | 'progress' | 'nextAction' | 'dueDate' | 'memo'>
 
-function summary(a: Content): string {
-  const base = `${a.type} · ${a.progress} / Next Action: ${a.nextAction} (Due ${a.dueDate})`
+/** History 문구의 유형 자리에는 그 시점의 유형 이름이 들어간다(이미 남은 문구는 이름이 바뀌어도 그대로). */
+function summary(ctx: MockContext, a: Content): string {
+  const typeName = ctx.store.data.actionTypes.find((t) => t.id === a.typeId)?.name ?? a.typeId
+  const base = `${typeName} · ${a.progress} / Next Action: ${a.nextAction} (Due ${a.dueDate})`
   return a.memo === '' ? base : `${base} / Memo: ${a.memo}`
 }
 
 const same = (a: Content, b: Content): boolean =>
-  a.type === b.type && a.progress === b.progress && a.nextAction === b.nextAction && a.dueDate === b.dueDate && a.memo === b.memo
+  a.typeId === b.typeId && a.progress === b.progress && a.nextAction === b.nextAction && a.dueDate === b.dueDate && a.memo === b.memo
 
 const pad = (n: number): string => String(n).padStart(2, '0')
 
@@ -52,7 +55,7 @@ function findAction(ctx: MockContext, id: string): ActionRecord {
 }
 
 function matches(a: ActionRecord, q: ActionQuery): boolean {
-  if (q.type && a.type !== q.type) return false
+  if (q.typeId && a.typeId !== q.typeId) return false
   if (q.actorId && a.actorId !== q.actorId) return false
   if (q.keyword) {
     const needle = q.keyword.trim().toLowerCase()
@@ -88,16 +91,19 @@ export function createActionsGateway(ctx: MockContext): ActionsGateway {
         const user = requireWrite(ctx)
         const { data } = ctx.store
         const deal = findDeal(data, dealCode)
+        // 서버 순서: Deal(404) → 유형 → 진행사항 → Next Action → Due Date. 새 유형은 모든 검증이 끝난 뒤에만 만든다.
+        const typePlan = planActionType(ctx, input.type)
         validateFields(input)
         let outcome: ChangeOutcome | null = null
         if (input.statusChange) outcome = planDealChange(ctx, deal, input.statusChange)
+        const chosen = commitActionType(ctx, typePlan, user.id)
         if (outcome) commitDealChange(ctx, deal, outcome, user.id)
         const record: ActionRecord = {
           id: takeId(data.counters, 'act'),
           dealCode,
           actedAt: ctx.clock.now(),
           actorId: user.id,
-          type: input.type,
+          typeId: chosen.id,
           progress: input.progress.trim(),
           nextAction: input.nextAction.trim(),
           dueDate: input.dueDate,
@@ -107,7 +113,7 @@ export function createActionsGateway(ctx: MockContext): ActionsGateway {
           forecastKey: deal.forecastKey,
         }
         data.actions.push(record)
-        logHistory(ctx, dealCode, user.id, 'action', 'Action', '', `등록: ${summary(record)}`)
+        logHistory(ctx, dealCode, user.id, 'action', 'Action', '', `등록: ${summary(ctx, record)}`)
         return actionView(data, record)
       }),
     update: (actionId, input: ActionUpdateInput) =>
@@ -115,18 +121,19 @@ export function createActionsGateway(ctx: MockContext): ActionsGateway {
         const user = requireWrite(ctx)
         const record = findAction(ctx, actionId)
         if (!canEditAction(viewerOf(user), record.actorId)) throw forbidden('본인 Action 또는 admin만 수정할 수 있습니다.')
+        const typePlan = planActionType(ctx, input.type)
         validateFields(input)
         const next: Content = {
-          type: input.type,
+          typeId: typePlan.kind === 'existing' ? typePlan.record.id : '',
           progress: input.progress.trim(),
           nextAction: input.nextAction.trim(),
           dueDate: input.dueDate,
           memo: input.memo.trim(),
         }
         if (same(record, next)) return actionView(ctx.store.data, record)
-        const before = summary(record)
-        Object.assign(record, next)
-        logHistory(ctx, record.dealCode, user.id, 'action', 'Action', before, `수정: ${summary(record)}`)
+        const before = summary(ctx, record)
+        Object.assign(record, { ...next, typeId: commitActionType(ctx, typePlan, user.id).id })
+        logHistory(ctx, record.dealCode, user.id, 'action', 'Action', before, `수정: ${summary(ctx, record)}`)
         return actionView(ctx.store.data, record)
       }),
     remove: (actionId) =>
@@ -136,7 +143,7 @@ export function createActionsGateway(ctx: MockContext): ActionsGateway {
         if (!canEditAction(viewerOf(user), record.actorId)) throw forbidden('본인 Action 또는 admin만 삭제할 수 있습니다.')
         const { actions } = ctx.store.data
         actions.splice(actions.indexOf(record), 1)
-        logHistory(ctx, record.dealCode, user.id, 'action', 'Action', summary(record), '삭제')
+        logHistory(ctx, record.dealCode, user.id, 'action', 'Action', summary(ctx, record), '삭제')
       }),
   }
 }

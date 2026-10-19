@@ -13,9 +13,8 @@ export const FORECAST_PIPELINE = 'pipeline'
 /** Deal code 형식: 등록일(YYYYMMDD) + '-' + 대문자/숫자 4자리. 예: 20261015-A7K2 */
 export const DEAL_CODE_PATTERN = /^\d{8}-[A-Z0-9]{4}$/
 
-export const ACTION_TYPES = ['통화', '미팅', '이메일', '데모', '제안', '협상', '계약', '기타'] as const
-export type ActionType = (typeof ACTION_TYPES)[number]
-export const DEFAULT_ACTION_TYPE: ActionType = '기타'
+/** Action 유형 이름 최대 길이(서버와 같다). */
+export const ACTION_TYPE_NAME_MAX_LENGTH = 50
 
 export const BANT_CATEGORIES = ['budget', 'authority', 'need', 'timeline'] as const
 export type BantCategory = (typeof BANT_CATEGORIES)[number]

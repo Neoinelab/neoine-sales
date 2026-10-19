@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { useState } from 'react'
+import { createRef, useState } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import { ComboBox, type ComboOption } from './ComboBox'
 
@@ -105,5 +105,14 @@ describe('ComboBox', () => {
     const input = screen.getByRole('combobox', { name: '회사명' })
     expect(Array.from((input as HTMLInputElement).labels ?? []).map((l) => l.textContent)).toEqual(['회사명'])
     expect(input).not.toHaveAttribute('aria-label')
+  })
+
+  it('forwards inputRef to the text input so a form can move focus to it (AC-27)', () => {
+    const ref = createRef<HTMLInputElement>()
+    render(<ComboBox label="회사명" name="c" value="" onChange={() => {}} options={OPTIONS} inputRef={ref} />)
+
+    expect(ref.current).toBe(screen.getByRole('combobox', { name: '회사명' }))
+    ref.current?.focus()
+    expect(screen.getByRole('combobox', { name: '회사명' })).toHaveFocus()
   })
 })

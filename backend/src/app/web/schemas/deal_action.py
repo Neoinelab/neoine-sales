@@ -1,5 +1,6 @@
 from datetime import date, datetime
 from typing import TYPE_CHECKING, Annotated
+from uuid import UUID
 
 from pydantic import BaseModel, Field
 
@@ -17,10 +18,11 @@ from app.domain.deal.code import DealCode
 from app.domain.deal.errors import DealNotFoundError
 from app.domain.deal.sync import SyncResolution
 from app.domain.deal_action.entities import DealAction
-from app.domain.deal_action.value_objects import ActionType
 from app.domain.user.value_objects import UserId
+from app.web.schemas.choice import CatalogChoiceRequest
 from app.web.schemas.common import RequestModel, ResponseModel
 from app.web.schemas.deal_change import CodeChange, ResolutionRequest
+from app.web.schemas.deal_response import NamedRefResponse
 from app.web.schemas.user_ref import UserRef, ref_of, resolve_refs
 
 if TYPE_CHECKING:
@@ -41,7 +43,7 @@ def parse_deal_code(raw: str) -> DealCode:
 class ActionContentRequest(RequestModel):
     """Action 내용. 수행 일시·수행자·스냅숏은 서버가 정하므로 받지 않는다. 길이 제한은 없다."""
 
-    action_type: ActionType
+    action_type: CatalogChoiceRequest
     action: str
     next_action: str
     due_date: date | None = None  # 누락·null은 도메인 문구("Due Date를 입력하세요.")로 거절한다
@@ -49,7 +51,7 @@ class ActionContentRequest(RequestModel):
 
     def to_content(self) -> ActionContentInput:
         return ActionContentInput(
-            action_type=self.action_type,
+            action_type=self.action_type.to_choice(),
             action=self.action,
             next_action=self.next_action,
             due_date=self.due_date,
@@ -87,7 +89,7 @@ class DealActionUpdateRequest(ActionContentRequest):
 
 class DealActionResponse(ResponseModel):
     deal_code: str
-    action_type: ActionType
+    action_type: NamedRefResponse
     action: str
     next_action: str
     due_date: date
@@ -107,7 +109,9 @@ class DealActionResponse(ResponseModel):
             created_at=action.created_at,
             updated_at=action.updated_at,
             deal_code=action.deal_code.value,
-            action_type=content.action_type,
+            action_type=NamedRefResponse(
+                id=str(content.action_type.id), name=content.action_type.name
+            ),
             action=content.action,
             next_action=content.next_action,
             due_date=content.due_date,
@@ -128,7 +132,7 @@ class DealActionList(BaseModel):
 class DealActionSearchParams(RequestModel):
     """Action 검색 쿼리. 수행일(acted_*)·Due Date(due_*)는 날짜이고 양끝을 포함한다."""
 
-    action_type: ActionType | None = None
+    action_type_id: UUID | None = None
     actor_user_id: UserId | None = None
     keyword: Annotated[str | None, Field(max_length=KEYWORD_MAX)] = None
     acted_from: date | None = None

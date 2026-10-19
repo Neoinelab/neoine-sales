@@ -11,7 +11,6 @@ from app.domain.auth.principal import Role
 from app.domain.common.errors import InvalidValueError
 from app.domain.deal.errors import DealNotFoundError
 from app.domain.deal.sync import SyncState
-from app.domain.deal_action.value_objects import ActionType
 from tests.support.expect import raises_with
 from tests.support.user_ids import uid
 from tests.unit.application.action_env import (
@@ -38,7 +37,7 @@ async def test_register_action_sets_now_requester_and_current_snapshot(
     assert stored.actor_user_id == KIM.user_id
     assert stored.snapshot == SyncState("introduction", "best")
     assert stored.deal_code == deal.item.deal.id
-    assert stored.content.action_type is ActionType.MEETING
+    assert stored.content.action_type.name == "미팅"
     assert stored.content.next_action == "요구사항 문서 전달"
     assert stored.content.due_date == date(2026, 1, 15)
 

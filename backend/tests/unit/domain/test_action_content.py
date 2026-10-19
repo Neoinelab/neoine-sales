@@ -9,8 +9,9 @@ from typing import Any
 import pytest
 
 from app.domain.common.errors import InvalidValueError
-from app.domain.deal_action.value_objects import ActionContent, ActionType
+from app.domain.deal_action.value_objects import ActionContent
 from tests.factories import make_action_content
+from tests.factories_action_type import make_type_ref
 from tests.support.expect import raises_with
 
 PROGRESS_REQUIRED = "진행사항을 입력하세요."
@@ -20,7 +21,7 @@ DUE_DATE_REQUIRED = "Due Date를 입력하세요."
 
 def _parse(**overrides: Any) -> ActionContent:  # noqa: ANN401
     values: dict[str, Any] = {
-        "action_type": ActionType.MEETING,
+        "action_type": make_type_ref("미팅"),
         "action": "킥오프",
         "next_action": "견적 전달",
         "due_date": date(2026, 2, 1),
@@ -100,8 +101,16 @@ def test_contents_with_the_same_trimmed_values_are_equal() -> None:
     assert _parse(due_date=date(2026, 2, 1)) != _parse(due_date=date(2026, 2, 2))
 
 
-def test_the_action_type_is_part_of_the_content() -> None:
-    assert make_action_content(action_type=ActionType.CALL).action_type is ActionType.CALL
-    assert make_action_content(action_type=ActionType.CALL) != make_action_content(
-        action_type=ActionType.EMAIL
+def test_the_action_type_reference_is_part_of_the_content() -> None:
+    call = make_type_ref("통화")
+
+    assert make_action_content(action_type=call).action_type == call
+    assert make_action_content(action_type=call) != make_action_content(
+        action_type=make_type_ref("이메일")
     )
+
+
+def test_the_type_is_kept_as_given_and_is_not_validated_here() -> None:
+    ref = make_type_ref("웨비나")
+
+    assert _parse(action_type=ref).action_type is ref

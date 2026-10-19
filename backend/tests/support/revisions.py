@@ -119,3 +119,21 @@ def vendor_solution_revision() -> str:
     children = [r.revision for r in script.walk_revisions() if r.down_revision == previous]
     assert len(children) == 1, f"M-P3 다음 리비전이 정확히 하나여야 한다: {children}"
     return children[0]
+
+
+def action_types_revision() -> str:
+    """Action 유형(`action_types`) 리비전 id: Vendor·Solution 리비전 바로 다음이고 head다.
+
+    action_types 테이블(기본 유형 8개 시드)을 만들고, deal_actions 행을 지우고, action_type 컬럼을
+    action_type_id FK로 바꾸는 단일 리비전이다. id는 구현이 정하므로 그래프에서 찾는다. 없거나
+    둘 이상이면 AssertionError(구현 전에는 이것이 red다).
+    """
+    from alembic.script import ScriptDirectory  # noqa: PLC0415
+
+    from tests.support.database import _alembic_config  # noqa: PLC0415
+
+    previous = vendor_solution_revision()
+    script = ScriptDirectory.from_config(_alembic_config())
+    children = [r.revision for r in script.walk_revisions() if r.down_revision == previous]
+    assert len(children) == 1, f"Vendor·Solution 다음 리비전이 정확히 하나여야 한다: {children}"
+    return children[0]

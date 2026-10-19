@@ -64,6 +64,21 @@
 .kv-grid .combo > .combo-list {
   grid-column: 2;
 }
+/* kv-row 안에 놓은 자동완성(BANT 폼)은 행 전체를 차지하고 라벨·입력을 두 열에 나눈다 */
+.kv-grid > .kv-row > .combo {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: subgrid;
+  column-gap: var(--kv-label-gap);
+  align-items: baseline;
+}
+.kv-grid > .kv-row > .combo > * {
+  grid-column: 2;
+  min-width: 0;
+}
+.kv-grid > .kv-row > .combo > :first-child {
+  grid-column: 1;
+}
 /* 읽기 전용 값 상자: 클릭 편집 버튼(button.dd-click)과 같은 상자라 글자 시작 위치가 같다 */
 .kv-static {
   display: inline-block;

@@ -15,10 +15,10 @@ export function useActions(dealCode: string | undefined, query: ActionQuery = {}
   })
 }
 
-/** Action 변경 공통 무효화: Action 목록, History, Deal(Next Action·최종 업데이트·Status), Forecast. */
+/** Action 변경 공통 무효화: Action 목록, History, Deal(Next Action·최종 업데이트·Status), Forecast, 유형(새 유형·사용 수). */
 function useInvalidateAction(): (dealCode: string) => Promise<void> {
   const invalidate = useInvalidate()
-  return (dealCode) => invalidate(keys.actions(dealCode), keys.history(dealCode), keys.deals, keys.forecast)
+  return (dealCode) => invalidate(keys.actions(dealCode), keys.history(dealCode), keys.deals, keys.forecast, keys.actionTypes)
 }
 
 /** gateway.actions.create(dealCode, input). input.statusChange가 있으면 Deal도 함께 바뀐다. */

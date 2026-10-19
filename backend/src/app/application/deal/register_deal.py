@@ -1,5 +1,6 @@
 from typing import TYPE_CHECKING
 
+from app.application.deal.bant_choice import resolve_bant
 from app.application.deal.code_issuer import add_with_issued_code
 from app.application.deal.contact_draft import resolve_contacts
 from app.application.deal.form import ALL_FIELDS, FormValues
@@ -34,6 +35,7 @@ class RegisterDeal:
             contacts = await resolve_contacts(
                 uow, (data.customer, data.partner), form.drafts, actor.user_id, now
             )
+            bant = await resolve_bant(uow, form.bant, actor.user_id, now)
             deal = await add_with_issued_code(
                 uow,
                 self._suffix_source,
@@ -44,7 +46,7 @@ class RegisterDeal:
                     sync=form.sync,
                     customer_id=contacts.require_customer(),
                     partner_id=contacts.partner_id,
-                    bant=form.bant,
+                    bant=bant,
                     now=now,
                 ),
             )

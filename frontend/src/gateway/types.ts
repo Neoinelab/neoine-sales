@@ -37,6 +37,7 @@
 import type {
   ActionInput,
   ActionQuery,
+  ActionTypeWithUsage,
   ActionUpdateInput,
   AlertSettings,
   ApplyChangeRequest,
@@ -196,6 +197,17 @@ export interface ActionsGateway {
   remove(actionId: string): Promise<void>
 }
 
+export interface ActionTypesGateway {
+  /** 기본 유형(통화·미팅·이메일·데모·제안·협상·계약·기타) 먼저, 직접 만든 유형은 이름순. 읽기: 모든 역할. */
+  list(): Promise<ActionTypeWithUsage[]>
+  /** sales/admin. 이름 규칙·대소문자 무시 중복(409)은 서버 문구 그대로. */
+  create(name: string): Promise<ActionTypeWithUsage>
+  /** admin만(sales 403). 기본 유형도 가능. 중복 규칙 동일. */
+  rename(id: string, name: string): Promise<ActionTypeWithUsage>
+  /** admin만(sales 403). 사용 중이면 409 "사용 중인 유형은 삭제할 수 없습니다. (Action N건)" */
+  remove(id: string): Promise<void>
+}
+
 export interface HistoryGateway {
   /** 최신순(at 내림차순, 같은 시각이면 나중에 만든 것이 위). */
   list(dealCode: string, query: HistoryQuery): Promise<HistoryEntry[]>
@@ -322,6 +334,7 @@ export interface Gateway {
   deals: DealsGateway
   contacts: ContactsGateway
   actions: ActionsGateway
+  actionTypes: ActionTypesGateway
   history: HistoryGateway
   attachments: AttachmentsGateway
   codes: CodesGateway

@@ -12,6 +12,8 @@ from typing import TYPE_CHECKING
 import pytest
 import pytest_asyncio
 
+from tests.unit.repositories.action_type_case import PARAMS as ACTION_TYPE_PARAMS
+from tests.unit.repositories.action_type_case import ActionTypeCase, open_action_type_case
 from tests.unit.repositories.attachment_case import PARAMS as ATTACHMENT_PARAMS
 from tests.unit.repositories.attachment_case import AttachmentCase, open_attachment_case
 from tests.unit.repositories.catalog_case import PARAMS as CATALOG_PARAMS
@@ -90,4 +92,12 @@ async def vendor_case(request: pytest.FixtureRequest) -> AsyncIterator[VendorCas
     """VendorRepository 계약 테스트용 case (fake / sql)."""
     url = request.getfixturevalue("test_database_url") if request.param == "sql" else None
     async with open_vendor_case(request.param, url) as provided:
+        yield provided
+
+
+@pytest_asyncio.fixture(params=ACTION_TYPE_PARAMS)
+async def action_type_case(request: pytest.FixtureRequest) -> AsyncIterator[ActionTypeCase]:
+    """ActionTypeRepository 계약 테스트용 case (fake / sql)."""
+    url = request.getfixturevalue("test_database_url") if request.param == "sql" else None
+    async with open_action_type_case(request.param, url) as provided:
         yield provided

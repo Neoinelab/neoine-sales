@@ -3,7 +3,6 @@
 from typing import TYPE_CHECKING
 
 from app.domain.deal.history import HistoryCategory, HistoryDraft
-from app.domain.deal_action.value_objects import ACTION_TYPE_LABELS
 
 if TYPE_CHECKING:
     from app.domain.deal_action.value_objects import ActionContent
@@ -14,7 +13,7 @@ DELETED_TEXT = "삭제"
 
 def action_summary(content: ActionContent) -> str:
     """'<유형> · <진행사항> / Next Action: <다음> (Due YYYY-MM-DD)' 뒤에 Memo가 있으면 덧붙인다."""
-    label = ACTION_TYPE_LABELS[content.action_type]
+    label = content.action_type.name
     text = (
         f"{label} · {content.action} / Next Action: {content.next_action} "
         f"(Due {content.due_date.isoformat()})"

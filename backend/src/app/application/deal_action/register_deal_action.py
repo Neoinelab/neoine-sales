@@ -2,6 +2,7 @@ from typing import TYPE_CHECKING
 
 from app.application.deal.history_writer import record_deal_diff, write_history
 from app.application.deal.sync_change import apply_sync_change, load_catalog
+from app.application.deal_action.type_choice import choose_action_type
 from app.domain.deal.code import DealCode
 from app.domain.deal.errors import DealNotFoundError
 from app.domain.deal_action.entities import DealAction
@@ -35,7 +36,10 @@ class RegisterDealAction:
         now = self._clock.now()
         async with self._uow_factory() as uow:
             deal = await uow.deals.get(deal_code, for_update=True)
-            content = data.content.to_content()
+            action_type = await choose_action_type(
+                uow, data.content.action_type, actor.user_id, now
+            )
+            content = data.content.to_content(action_type)
             if data.status_change is not None:
                 await self._change_deal(uow, deal, data.status_change, actor, now)
             action = DealAction.record(

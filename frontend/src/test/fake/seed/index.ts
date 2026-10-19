@@ -1,6 +1,7 @@
 import { DEFAULT_STALE_DAYS } from '../../../shared/model/constants'
 import type { MockClock } from '../clock'
 import type { DirectoryRecord, SeedData, StorageRecord } from '../store'
+import { seedActionTypes } from './actionTypes'
 import { seedCodes, seedLabels } from './codes'
 import { createSeedEnv } from './env'
 import { seedUsers } from './users'
@@ -18,6 +19,7 @@ export const emptyBusinessSeed: SeedFactory = (clock) => {
   const users = seedUsers(env)
   const codes = seedCodes(counters)
   const labels = seedLabels(env, counters)
+  const actionTypes = seedActionTypes(env, counters)
 
   const directory: DirectoryRecord = {
     serverUrls: ['ldaps://dc1.corp.test', 'ldaps://dc2.corp.test'],
@@ -40,6 +42,7 @@ export const emptyBusinessSeed: SeedFactory = (clock) => {
     users,
     codes,
     labels,
+    actionTypes,
     vendors: [],
     solutions: [],
     contacts: [],

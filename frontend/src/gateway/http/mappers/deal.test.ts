@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { CODE, serverContact, serverDealDetail, serverDealRow, serverUserRef } from '../../../test/fixtures/serverDeal'
-import { toDealDetail, toDealRow } from './deal'
+import type { DealInput } from '../../../shared/model/types'
+import { toCreateBody, toDealDetail, toDealRow, toPatchBody } from './deal'
 
 describe('toDealRow', () => {
   it('maps every server field to the camelCase DealRow', () => {
@@ -149,5 +150,47 @@ describe('toDealDetail', () => {
 
   it('carries the row fields too', () => {
     expect(toDealDetail(serverDealDetail())).toMatchObject({ code: CODE, partnerHistory: [], risk: null, statusDays: 5 })
+  })
+})
+
+const BASE_INPUT: DealInput = {
+  name: '한빛은행 ITDR',
+  ownerId: 'u-kim',
+  vendorId: null,
+  solutionId: null,
+  users: null,
+  statusKey: 'prospecting',
+  forecastKey: 'pipeline',
+  revenueAmount: 1,
+  revenueDate: '2027-01-31',
+  customer: { contactId: null, company: '한빛은행', name: '정민수', title: '', email: null, phone: null },
+  partner: null,
+  quote: { submitted: null, submittedDate: null },
+  poc: { state: null, completedDate: null },
+  procurement: '',
+  bant: { budget: null, authority: null, need: null, timeline: null },
+}
+
+describe('bant request bodies (AC-17)', () => {
+  it('create sends {id}, {name} or null for every category', () => {
+    const body = toCreateBody({ ...BASE_INPUT, bant: { budget: { id: 'b1' }, authority: null, need: { name: '신규 요건' }, timeline: null } })
+
+    expect(body.bant).toEqual({ budget: { id: 'b1' }, authority: null, need: { name: '신규 요건' }, timeline: null })
+  })
+
+  it('create never sends a bare uuid string for a category', () => {
+    const body = toCreateBody({ ...BASE_INPUT, bant: { budget: { id: 'b1' }, authority: { name: 'x' }, need: null, timeline: null } })
+
+    expect(Object.values(body.bant ?? {}).some((v) => typeof v === 'string')).toBe(false)
+  })
+
+  it('patch carries the choice objects only when bant is part of the patch', () => {
+    expect(toPatchBody({ name: '이름' })).not.toHaveProperty('bant')
+    expect(toPatchBody({ bant: { budget: null, authority: { id: 'a1' }, need: null, timeline: { name: '내후년 구매' } } }).bant).toEqual({
+      budget: null,
+      authority: { id: 'a1' },
+      need: null,
+      timeline: { name: '내후년 구매' },
+    })
   })
 })

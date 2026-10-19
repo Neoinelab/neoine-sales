@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { ActionQuery } from '../../shared/model/types'
-import { ACTION_ID, serverAction } from '../../test/fixtures/serverAction'
+import { ACTION_ID, ACTION_TYPE_ID, serverAction } from '../../test/fixtures/serverAction'
 import { CODE } from '../../test/fixtures/serverDeal'
 import { createActionsHttp } from './actions'
 import { createHttpGateway } from './index'
@@ -11,7 +11,7 @@ afterEach(() => vi.unstubAllGlobals())
 const query = (path: string) => new URL(path, 'http://localhost').searchParams
 
 const newAction = {
-  type: '미팅' as const,
+  type: { name: '미팅' },
   progress: '고객사 방문',
   nextAction: '견적 재전달',
   dueDate: '2026-10-22',
@@ -48,10 +48,10 @@ describe('actions.list over HTTP (AC-14~16)', () => {
     expect(sent.has('limit')).toBe(false)
   })
 
-  it('maps every filter to its query key with YYYY-MM-DD dates and the enum type', async () => {
+  it('maps every filter to its query key with YYYY-MM-DD dates and the type id', async () => {
     const { calls } = stubFetch(json({ items: [] }))
     const full: ActionQuery = {
-      type: '협상',
+      typeId: ACTION_TYPE_ID,
       actorId: 'u-kim',
       keyword: 'ROI',
       actedFrom: '2026-10-01',
@@ -65,7 +65,7 @@ describe('actions.list over HTTP (AC-14~16)', () => {
 
     const sent = query(calls[0]?.path ?? '')
     expect(Object.fromEntries(sent)).toEqual({
-      action_type: 'negotiation',
+      action_type_id: ACTION_TYPE_ID,
       actor_user_id: 'u-kim',
       keyword: 'ROI',
       acted_from: '2026-10-01',
@@ -115,19 +115,19 @@ describe('actions.list over HTTP (AC-14~16)', () => {
 
 describe('actions.create over HTTP (AC-01·02·05)', () => {
   it('posts the snake_case content to /deals/{code}/actions and maps the 201 answer', async () => {
-    const { calls } = stubFetch(json(serverAction({ action_type: 'meeting' }), 201, { Location: `/api/v1/deal-actions/${ACTION_ID}` }))
+    const { calls } = stubFetch(json(serverAction(), 201, { Location: `/api/v1/deal-actions/${ACTION_ID}` }))
 
     const created = await createActionsHttp().create(CODE, newAction)
 
     expect(calls[0]).toMatchObject({ method: 'POST', path: `/api/v1/deals/${CODE}/actions` })
     expect(calls[0]?.body).toEqual({
-      action_type: 'meeting',
+      action_type: { name: '미팅' },
       action: '고객사 방문',
       next_action: '견적 재전달',
       due_date: '2026-10-22',
       memo: '',
     })
-    expect(created).toMatchObject({ id: ACTION_ID, progress: '고객사 방문', type: '미팅', statusKey: 'prospecting', forecastKey: 'pipeline' })
+    expect(created).toMatchObject({ id: ACTION_ID, progress: '고객사 방문', type: '미팅', typeId: ACTION_TYPE_ID, statusKey: 'prospecting', forecastKey: 'pipeline' })
   })
 
   it('never sends acted_at or an actor (the server fills them)', async () => {
@@ -191,21 +191,61 @@ describe('actions.create over HTTP (AC-01·02·05)', () => {
   })
 })
 
+describe('actions.list never sends the old action_type enum query (AC-16)', () => {
+  it('has no action_type key when only a type id is set', async () => {
+    const { calls } = stubFetch(json({ items: [] }))
+
+    await createActionsHttp().list(CODE, { typeId: ACTION_TYPE_ID })
+
+    expect(query(calls[0]?.path ?? '').has('action_type')).toBe(false)
+  })
+})
+
+describe('actions.create type choice (AC-7·10)', () => {
+  it('sends the id object for a listed type and maps the {id, name} answer', async () => {
+    const { calls } = stubFetch(json(serverAction(), 201))
+
+    await createActionsHttp().create(CODE, { ...newAction, type: { id: ACTION_TYPE_ID } })
+
+    expect((calls[0]?.body as { action_type: unknown }).action_type).toEqual({ id: ACTION_TYPE_ID })
+  })
+
+  it('sends exactly one of id and name, never both', async () => {
+    const { calls } = stubFetch(json(serverAction(), 201), json(serverAction(), 201))
+
+    await createActionsHttp().create(CODE, { ...newAction, type: { name: '웨비나' } })
+    await createActionsHttp().create(CODE, { ...newAction, type: { id: ACTION_TYPE_ID } })
+
+    const sent = calls.map((c) => Object.keys((c.body as { action_type: object }).action_type))
+    expect(sent).toEqual([['name'], ['id']])
+  })
+
+  it('shows the unknown type message as the server wrote it', async () => {
+    stubFetch(problem(422, 'invalid-value', '선택한 유형이 없습니다. 목록에서 다시 선택하세요.'))
+
+    await expect(createActionsHttp().create(CODE, { ...newAction, type: { id: 'gone' } })).rejects.toMatchObject({
+      status: 422,
+      kind: 'validation',
+      message: '선택한 유형이 없습니다. 목록에서 다시 선택하세요.',
+    })
+  })
+})
+
 describe('actions.update over HTTP (AC-10·11)', () => {
   it('puts the content to /deal-actions/{id} and maps the answer', async () => {
-    const { calls } = stubFetch(json(serverAction({ action: '수정한 진행사항', action_type: 'other' })))
+    const { calls } = stubFetch(json(serverAction({ action: '수정한 진행사항', action_type: { id: 'ty-other', name: '기타' } })))
 
-    const updated = await createActionsHttp().update(ACTION_ID, { type: '기타', progress: '수정한 진행사항', nextAction: '수정한 Next', dueDate: '2026-11-01', memo: '메모' })
+    const updated = await createActionsHttp().update(ACTION_ID, { type: { id: 'ty-other' }, progress: '수정한 진행사항', nextAction: '수정한 Next', dueDate: '2026-11-01', memo: '메모' })
 
     expect(calls[0]).toMatchObject({ method: 'PUT', path: `/api/v1/deal-actions/${ACTION_ID}` })
     expect(calls[0]?.body).toEqual({
-      action_type: 'other',
+      action_type: { id: 'ty-other' },
       action: '수정한 진행사항',
       next_action: '수정한 Next',
       due_date: '2026-11-01',
       memo: '메모',
     })
-    expect(updated).toMatchObject({ id: ACTION_ID, progress: '수정한 진행사항', type: '기타' })
+    expect(updated).toMatchObject({ id: ACTION_ID, progress: '수정한 진행사항', type: '기타', typeId: 'ty-other' })
   })
 
   it('shows the 403 message for another sales exactly as the server wrote it', async () => {

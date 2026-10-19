@@ -1,6 +1,5 @@
 /** 메모리 저장소. 시드의 사본을 들고 있고, 변경은 게이트웨이가 한다. 반환 시에는 뷰 변환으로 복사본을 만든다. */
 
-import type { ActionType } from '../../shared/model/constants'
 import type {
   BantCategory,
   Code,
@@ -32,7 +31,8 @@ export interface ActionRecord {
   dealCode: string
   actedAt: string
   actorId: string
-  type: ActionType
+  /** Action 유형(`ActionTypeRecord.id`). 이름은 읽을 때 조인한다. */
+  typeId: string
   progress: string
   nextAction: string
   dueDate: string
@@ -65,6 +65,16 @@ export interface AttachmentRecord {
   uploadedAt: string
   /** 업로드한 파일 또는 시드의 더미 텍스트. */
   content: Blob | string
+}
+
+/** Action 유형 카탈로그 항목. 기본 유형은 시드 순서를 유지하고 이름은 대소문자 무시로 고유하다. */
+export interface ActionTypeRecord {
+  id: string
+  name: string
+  isDefault: boolean
+  createdById: string | null
+  createdAt: string
+  updatedAt: string
 }
 
 export interface LabelRecord {
@@ -113,6 +123,7 @@ export interface SeedData {
   users: UserRecord[]
   codes: Code[]
   labels: LabelRecord[]
+  actionTypes: ActionTypeRecord[]
   vendors: VendorRecord[]
   solutions: SolutionRecord[]
   contacts: Contact[]

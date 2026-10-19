@@ -4,6 +4,42 @@
  */
 
 export interface paths {
+    "/api/v1/action-types": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Action Types */
+        get: operations["list_action_types_api_v1_action_types_get"];
+        put?: never;
+        /** Create Action Type */
+        post: operations["create_action_type_api_v1_action_types_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/action-types/{type_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Action Type */
+        delete: operations["delete_action_type_api_v1_action_types__type_id__delete"];
+        options?: never;
+        head?: never;
+        /** Rename Action Type */
+        patch: operations["rename_action_type_api_v1_action_types__type_id__patch"];
+        trace?: never;
+    };
     "/api/v1/alert-settings": {
         parameters: {
             query?: never;
@@ -768,12 +804,33 @@ export interface components {
             change: components["schemas"]["CodeChange"];
             resolution?: components["schemas"]["ResolutionRequest"] | null;
         };
-        /**
-         * ActionType
-         * @description Deal 진행 활동의 종류. 집합을 닫아 두어 검색 조건과 통계가 흔들리지 않게 한다.
-         * @enum {string}
-         */
-        ActionType: "call" | "meeting" | "email" | "demo" | "proposal" | "negotiation" | "contract" | "other";
+        /** ActionTypeNameRequest */
+        ActionTypeNameRequest: {
+            /** Name */
+            name: string;
+        };
+        /** ActionTypeResponse */
+        ActionTypeResponse: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            created_by: components["schemas"]["UserRef"] | null;
+            /** Id */
+            id: string;
+            /** Is Default */
+            is_default: boolean;
+            /** Name */
+            name: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Usage Count */
+            usage_count: number;
+        };
         /** AlertSettingsRequest */
         AlertSettingsRequest: {
             /** Stale Days */
@@ -890,17 +947,13 @@ export interface components {
         };
         /**
          * BantRequest
-         * @description 구분별 BANT Label id. 보내지 않았거나 null이면 선택 안 함이다.
+         * @description 구분별 BANT Label 선택 객체({id} 또는 {name}). 보내지 않았거나 null이면 선택 안 함이다.
          */
         BantRequest: {
-            /** Authority */
-            authority?: string | null;
-            /** Budget */
-            budget?: string | null;
-            /** Need */
-            need?: string | null;
-            /** Timeline */
-            timeline?: string | null;
+            authority?: components["schemas"]["CatalogChoiceRequest"] | null;
+            budget?: components["schemas"]["CatalogChoiceRequest"] | null;
+            need?: components["schemas"]["CatalogChoiceRequest"] | null;
+            timeline?: components["schemas"]["CatalogChoiceRequest"] | null;
         };
         /** BantResponse */
         BantResponse: {
@@ -924,6 +977,13 @@ export interface components {
             file?: string | null;
             /** @default ask */
             on_exists: components["schemas"]["OnExists"];
+        };
+        /** CatalogChoiceRequest */
+        CatalogChoiceRequest: {
+            /** Id */
+            id?: string | null;
+            /** Name */
+            name?: string | null;
         };
         /** CoChangedResponse */
         CoChangedResponse: {
@@ -1164,7 +1224,7 @@ export interface components {
         DealActionCreateRequest: {
             /** Action */
             action: string;
-            action_type: components["schemas"]["ActionType"];
+            action_type: components["schemas"]["CatalogChoiceRequest"];
             /** Due Date */
             due_date?: string | null;
             /**
@@ -1193,7 +1253,7 @@ export interface components {
             acted_at: string;
             /** Action */
             action: string;
-            action_type: components["schemas"]["ActionType"];
+            action_type: components["schemas"]["NamedRefResponse"];
             actor: components["schemas"]["UserRef"];
             /**
              * Created At
@@ -1232,7 +1292,7 @@ export interface components {
         DealActionUpdateRequest: {
             /** Action */
             action: string;
-            action_type: components["schemas"]["ActionType"];
+            action_type: components["schemas"]["CatalogChoiceRequest"];
             /** Due Date */
             due_date?: string | null;
             /**
@@ -1989,6 +2049,240 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    list_action_types_api_v1_action_types_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActionTypeResponse"][];
+                };
+            };
+            /** @description problem+json */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    create_action_type_api_v1_action_types_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ActionTypeNameRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActionTypeResponse"];
+                };
+            };
+            /** @description problem+json */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    delete_action_type_api_v1_action_types__type_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                type_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description problem+json */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    rename_action_type_api_v1_action_types__type_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                type_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ActionTypeNameRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActionTypeResponse"];
+                };
+            };
+            /** @description problem+json */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     get_alert_settings_api_v1_alert_settings_get: {
         parameters: {
             query?: never;
@@ -4002,7 +4296,7 @@ export interface operations {
     list_actions_of_deal_api_v1_deals__code__actions_get: {
         parameters: {
             query?: {
-                action_type?: components["schemas"]["ActionType"] | null;
+                action_type_id?: string | null;
                 actor_user_id?: string | null;
                 keyword?: string | null;
                 acted_from?: string | null;

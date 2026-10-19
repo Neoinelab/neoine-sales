@@ -1,7 +1,7 @@
 import { api } from '../../shared/api/client'
 import type { ActionQuery } from '../../shared/model/types'
 import type { ActionsGateway } from '../types'
-import { toActionCreateBody, toActionUpdateBody, toApiActionType, toDealAction } from './mappers/action'
+import { toActionCreateBody, toActionUpdateBody, toDealAction } from './mappers/action'
 import { unwrap, unwrapVoid } from './request'
 
 const SORT = { actedDesc: 'acted_at_desc', actedAsc: 'acted_at_asc', dueAsc: 'due_date_asc' } as const
@@ -9,7 +9,7 @@ const SORT = { actedDesc: 'acted_at_desc', actedAsc: 'acted_at_asc', dueAsc: 'du
 /** 지정하지 않은 조건('' 포함)은 보내지 않는다. 서버에 페이지가 없으므로 offset/limit도 없다. */
 function toListParams(q: ActionQuery) {
   return {
-    ...(q.type ? { action_type: toApiActionType(q.type) } : {}),
+    ...(q.typeId ? { action_type_id: q.typeId } : {}),
     ...(q.actorId ? { actor_user_id: q.actorId } : {}),
     ...(q.keyword ? { keyword: q.keyword } : {}),
     ...(q.actedFrom ? { acted_from: q.actedFrom } : {}),

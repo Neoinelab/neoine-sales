@@ -6,6 +6,7 @@ from uuid import UUID
 
 from pydantic import Field, StrictInt, model_validator
 
+from app.application.choice import CatalogChoice
 from app.application.deal.inputs import ContactDraftInput, DealCreateInput, DealPatchInput
 from app.application.ports.deal_repository import (
     DEFAULT_PAGE_SIZE,
@@ -18,6 +19,7 @@ from app.application.ports.pagination import MAX_LIMIT
 from app.domain.bant.values import BantCategory
 from app.domain.deal.values import PocState, QuoteSubmitted
 from app.domain.user.value_objects import UserId
+from app.web.schemas.choice import CatalogChoiceRequest
 from app.web.schemas.common import RequestModel
 from app.web.schemas.deal_change import DealChangeRequest
 
@@ -61,15 +63,19 @@ class PocRequest(RequestModel):
 
 
 class BantRequest(RequestModel):
-    """구분별 BANT Label id. 보내지 않았거나 null이면 선택 안 함이다."""
+    """구분별 BANT Label 선택 객체({id} 또는 {name}). 보내지 않았거나 null이면 선택 안 함이다."""
 
-    budget: UUID | None = None
-    authority: UUID | None = None
-    need: UUID | None = None
-    timeline: UUID | None = None
+    budget: CatalogChoiceRequest | None = None
+    authority: CatalogChoiceRequest | None = None
+    need: CatalogChoiceRequest | None = None
+    timeline: CatalogChoiceRequest | None = None
 
-    def to_selection(self) -> dict[BantCategory, UUID | None]:
-        return {category: getattr(self, category.value) for category in BantCategory}
+    def to_selection(self) -> dict[BantCategory, CatalogChoice | None]:
+        chosen: dict[BantCategory, CatalogChoice | None] = {}
+        for category in BantCategory:
+            item: CatalogChoiceRequest | None = getattr(self, category.value)
+            chosen[category] = item.to_choice() if item is not None else None
+        return chosen
 
 
 class DealCreateRequest(RequestModel):

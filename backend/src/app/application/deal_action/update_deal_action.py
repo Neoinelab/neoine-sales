@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING
 
 from app.application.deal.history_writer import write_history
+from app.application.deal_action.type_choice import choose_action_type
 from app.domain.deal_action.history import action_updated_draft
 
 if TYPE_CHECKING:
@@ -30,7 +31,8 @@ class UpdateDealAction:
             action = await uow.deal_actions.get(action_id)
             action.ensure_editable_by(actor.user_id, actor.role)
             before = action.content
-            after = content.to_content()
+            action_type = await choose_action_type(uow, content.action_type, actor.user_id, now)
+            after = content.to_content(action_type)
             if action.revise(after, now):
                 await uow.deal_actions.update(action)
                 draft = action_updated_draft(before, after)

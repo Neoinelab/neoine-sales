@@ -8,23 +8,24 @@ from app.domain.deal_action.value_objects import ActionContent
 if TYPE_CHECKING:
     from datetime import date
 
+    from app.application.choice import CatalogChoice
+    from app.domain.action_type.values import ActionTypeRef
     from app.domain.deal.sync import SyncResolution
-    from app.domain.deal_action.value_objects import ActionType
 
 
 @dataclass(frozen=True, slots=True)
 class ActionContentInput:
     """Action 내용 입력(등록·수정 공통). 소속 Deal은 경로로, 수행자·일시는 서버가 정한다."""
 
-    action_type: ActionType
+    action_type: CatalogChoice
     action: str
     next_action: str
     due_date: date | None
     memo: str = ""
 
-    def to_content(self) -> ActionContent:
+    def to_content(self, action_type: ActionTypeRef) -> ActionContent:
         return ActionContent.parse(
-            action_type=self.action_type,
+            action_type=action_type,
             action=self.action,
             next_action=self.next_action,
             due_date=self.due_date,

@@ -88,9 +88,11 @@ describe('목록의 BANT 열 (P8 AC-14~18)', () => {
     const longName = '가'.repeat(50)
     const { client } = await renderAt('/deals?q=한빛은행 ITDR')
     const row = await rowOf(/한빛은행 ITDR 도입/)
-    const created = await gateway.labels.create('budget', longName)
     const target = await dealRowOfName('한빛은행 ITDR 도입')
-    await gateway.deals.update(target.code, { bant: { ...target.bant, budget: created.id } })
+    const keep = (id: string | null) => (id === null ? null : { id })
+    await gateway.deals.update(target.code, {
+      bant: { budget: { name: longName }, authority: keep(target.bant.authority), need: keep(target.bant.need), timeline: keep(target.bant.timeline) },
+    })
     await client.invalidateQueries()
 
     await waitFor(() => {
@@ -129,7 +131,8 @@ describe('목록의 BANT 열 갱신 (P8 AC-18)', () => {
     const { user, location } = await renderAt(`/deals/${code}`)
     const bant = await screen.findByRole('region', { name: 'BANT' })
     await user.click(within(bant).getByRole('button', { name: 'Timeline 수정' }))
-    await user.selectOptions(within(bant).getByLabelText('Timeline'), '선택 안 함')
+    await user.clear(within(bant).getByRole('combobox', { name: 'Timeline' }))
+    await user.keyboard('{Enter}')
     await waitFor(() => expect(within(bant).getByRole('button', { name: 'Timeline 수정' })).toHaveTextContent('—'))
 
     await user.click(screen.getByRole('link', { name: /목록/ }))

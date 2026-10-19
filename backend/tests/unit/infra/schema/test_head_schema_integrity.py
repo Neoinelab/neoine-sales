@@ -29,6 +29,7 @@ USER_FK_NAMES = {
     ("users", "created_by_user_id"): "fk_users_created_by_user_id_users",
     ("directory_settings", "updated_by_user_id"): "fk_directory_settings_updated_by_user_id_users",
     ("bant_labels", "created_by_user_id"): "fk_bant_labels_created_by_user_id_users",
+    ("action_types", "created_by_user_id"): "fk_action_types_created_by_user_id_users",
     ("storage_settings", "updated_by_user_id"): "fk_storage_settings_updated_by_user_id_users",
     ("deal_attachments", "uploaded_by_user_id"): "fk_deal_attachments_uploaded_by_user_id_users",
     ("alert_settings", "updated_by_user_id"): "fk_alert_settings_updated_by_user_id_users",

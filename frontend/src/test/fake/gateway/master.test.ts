@@ -85,7 +85,7 @@ describe('codes', () => {
     const created = await gateway.codes.create({ kind: 'status', name: '임시 단계' })
     const key = created.key
     await gateway.deals.applyChange(dealCode(2), { change: { field: 'statusKey', value: key } })
-    await gateway.actions.create(dealCode(2), { type: '기타', progress: 'a', nextAction: 'b', dueDate: '2026-10-20', memo: '' })
+    await gateway.actions.create(dealCode(2), { type: { name: '기타' }, progress: 'a', nextAction: 'b', dueDate: '2026-10-20', memo: '' })
     await gateway.deals.applyChange(dealCode(2), { change: { field: 'statusKey', value: 'technical_evaluation' } })
     await expectApiError(gateway.codes.remove(created.id), 409, /사용 중인 코드는 삭제할 수 없습니다\./)
   })
@@ -113,10 +113,10 @@ describe('labels (T-LABEL)', () => {
   it('T-LABEL-03 만든 Label을 Deal에 즉시 선택할 수 있고 사용 수가 반영된다', async () => {
     const { gateway } = await mockAs('kim')
     const label = await gateway.labels.create('timeline', '분기 말 구매')
-    const updated = await gateway.deals.update(dealCode(2), { bant: { budget: null, authority: null, need: null, timeline: label.id } })
+    const updated = await gateway.deals.update(dealCode(2), { bant: { budget: null, authority: null, need: null, timeline: { id: label.id } } })
     expect(updated.bant.timeline).toBe(label.id)
     expect((await gateway.labels.list()).find((l) => l.id === label.id)?.usageCount).toBe(1)
-    await expectApiError(gateway.deals.update(dealCode(2), { bant: { budget: label.id, authority: null, need: null, timeline: null } }), 422)
+    await expectApiError(gateway.deals.update(dealCode(2), { bant: { budget: { id: label.id }, authority: null, need: null, timeline: null } }), 422)
   })
 
   it('T-LABEL-04 sales·user의 rename/remove는 403, user의 create도 403', async () => {

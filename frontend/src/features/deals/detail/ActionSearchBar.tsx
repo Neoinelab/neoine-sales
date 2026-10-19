@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { ACTION_TYPES, type ActionType } from '../../../shared/model/constants'
+import { useActionTypes } from '../../../data/actionTypes'
 import type { ActionQuery, ActionSort } from '../../../shared/model/types'
 import { UserSelect } from '../../../shared/ui/UserSelect'
 import './detail.css'
@@ -9,7 +9,7 @@ interface ActionSearchBarProps {
 }
 
 interface Draft {
-  type: ActionType | ''
+  typeId: string
   actorId: string
   keyword: string
   actedFrom: string
@@ -19,12 +19,12 @@ interface Draft {
   sort: ActionSort
 }
 
-const EMPTY: Draft = { type: '', actorId: '', keyword: '', actedFrom: '', actedTo: '', dueFrom: '', dueTo: '', sort: 'actedDesc' }
+const EMPTY: Draft = { typeId: '', actorId: '', keyword: '', actedFrom: '', actedTo: '', dueFrom: '', dueTo: '', sort: 'actedDesc' }
 
 /** 채워진 조건만 질의로 만든다(빈 값은 보내지 않는다). */
 function toActionQuery(draft: Draft): ActionQuery {
   const query: ActionQuery = { sort: draft.sort }
-  if (draft.type) query.type = draft.type
+  if (draft.typeId) query.typeId = draft.typeId
   if (draft.actorId) query.actorId = draft.actorId
   if (draft.keyword.trim()) query.keyword = draft.keyword.trim()
   if (draft.actedFrom) query.actedFrom = draft.actedFrom
@@ -36,6 +36,7 @@ function toActionQuery(draft: Draft): ActionQuery {
 
 /** Actions 검색: 유형 / 담당자 / 키워드 / 수행일 / 기한 범위 / 정렬 6조건. */
 export function ActionSearchBar({ onSearch }: ActionSearchBarProps) {
+  const types = useActionTypes().data ?? []
   const [draft, setDraft] = useState<Draft>(EMPTY)
   const set = <K extends keyof Draft>(key: K, value: Draft[K]) => setDraft((d) => ({ ...d, [key]: value }))
 
@@ -48,11 +49,11 @@ export function ActionSearchBar({ onSearch }: ActionSearchBarProps) {
     <form role="search" aria-label="Action 검색" className="dd-search" onSubmit={submit}>
       <label className="field">
         <span>유형</span>
-        <select value={draft.type} onChange={(e) => set('type', e.target.value as ActionType | '')}>
+        <select value={draft.typeId} onChange={(e) => set('typeId', e.target.value)}>
           <option value="">전체</option>
-          {ACTION_TYPES.map((t) => (
-            <option key={t} value={t}>
-              {t}
+          {types.map((t) => (
+            <option key={t.id} value={t.id}>
+              {t.name}
             </option>
           ))}
         </select>

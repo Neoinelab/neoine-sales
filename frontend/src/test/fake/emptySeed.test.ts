@@ -43,6 +43,18 @@ describe('앱 기본 시드에는 샘플 업무 데이터가 없다', () => {
     expect(users.map((u) => u.loginId)).toEqual(expect.arrayContaining(['root', 'kim', 'park', 'han', 'old']))
   })
 
+  it('keeps the eight default action types even without any business data', async () => {
+    const { gateway } = await appDefault()
+    expect((await gateway.actionTypes.list()).map((t) => t.name)).toEqual(['통화', '미팅', '이메일', '데모', '제안', '협상', '계약', '기타'])
+  })
+
+  it('drops a created action type on resetData', async () => {
+    const { gateway, control } = await appDefault()
+    await gateway.actionTypes.create('웨비나')
+    control.resetData()
+    expect((await gateway.actionTypes.list()).some((t) => t.name === '웨비나')).toBe(false)
+  })
+
   it('returns to the empty business data on resetData after a deal was created', async () => {
     const { gateway, control } = await appDefault()
     await gateway.deals.create(dealInput('u-kim', { vendorId: null, solutionId: null }))

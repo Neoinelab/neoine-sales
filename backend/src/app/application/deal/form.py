@@ -6,6 +6,7 @@
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from app.application.choice import CatalogChoice
 from app.application.deal.inputs import ContactDraftInput
 from app.domain.bant.values import BantCategory
 
@@ -60,7 +61,7 @@ class FormValues:
     poc_state: PocState | None
     poc_completed_date: date | None
     procurement: str
-    bant: Mapping[BantCategory, UUID | None]
+    bant: Mapping[BantCategory, CatalogChoice | None]
 
     @classmethod
     def of_create(cls, data: DealCreateInput) -> FormValues:
@@ -89,8 +90,9 @@ class FormValues:
         """현재 Deal 위에 보낸 필드만 덮어쓴다. 보내지 않은 연락처는 None(건드리지 않음)이다."""
         sent = patch.provided
         details, sync = deal.details, deal.sync
-        current_bant: Mapping[BantCategory, UUID | None] = {
-            c: deal.bant.get(c) for c in BantCategory
+        current_bant: Mapping[BantCategory, CatalogChoice | None] = {
+            c: None if (label_id := deal.bant.get(c)) is None else CatalogChoice(id=label_id)
+            for c in BantCategory
         }
 
         def pick[T](field: str, patched: T, current: T) -> T:

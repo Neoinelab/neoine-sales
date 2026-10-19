@@ -190,7 +190,7 @@ describe('deals.create over HTTP', () => {
         partner: { contactId: 'c-p', company: '코어테크', name: '이파트', title: '', email: null, phone: '02-000-0000' },
         quote: { submitted: 'YES', submittedDate: '2026-10-05' },
         poc: { state: 'ING', completedDate: null },
-        bant: { budget: 'b1', authority: null, need: null, timeline: 't1' },
+        bant: { budget: { id: 'b1' }, authority: null, need: null, timeline: { name: '내후년 구매' } },
         procurement: '입찰',
       }),
     )
@@ -211,7 +211,7 @@ describe('deals.create over HTTP', () => {
       quote: { submitted: 'YES', submitted_date: '2026-10-05' },
       poc: { state: 'ING', completed_date: null },
       procurement: '입찰',
-      bant: { budget: 'b1', authority: null, need: null, timeline: 't1' },
+      bant: { budget: { id: 'b1' }, authority: null, need: null, timeline: { name: '내후년 구매' } },
     })
     expect(detail.code).toBe(CODE)
   })
@@ -311,7 +311,7 @@ describe('deals.update over HTTP', () => {
       customer: { contactId: 'c1', company: '한빛은행', name: '정민수', title: '', email: null, phone: null },
       quote: { submitted: 'NO', submittedDate: null },
       poc: { state: 'YES', completedDate: '2026-10-10' },
-      bant: { budget: null, authority: 'a1', need: null, timeline: null },
+      bant: { budget: null, authority: { id: 'a1' }, need: { name: '신규 요건' }, timeline: null },
       users: null,
       procurement: '',
     })
@@ -320,7 +320,7 @@ describe('deals.update over HTTP', () => {
       customer: { contact_id: 'c1', company: '한빛은행', name: '정민수', title: null, email: null, phone: null },
       quote: { submitted: 'NO', submitted_date: null },
       poc: { state: 'YES', completed_date: '2026-10-10' },
-      bant: { budget: null, authority: 'a1', need: null, timeline: null },
+      bant: { budget: null, authority: { id: 'a1' }, need: { name: '신규 요건' }, timeline: null },
       users: null,
       procurement: '',
     })
