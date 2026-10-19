@@ -252,5 +252,4 @@ export interface ForecastSummary {
   columns: ForecastColumn[]
   rows: ForecastSummaryRow[]
   totalRow: ForecastSummaryRow
-  vendors: string[]
 }

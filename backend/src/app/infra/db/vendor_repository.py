@@ -49,10 +49,22 @@ def _vendor_entity(row: VendorRow, solutions: Sequence[SolutionRow]) -> Vendor:
     )
 
 
+def _duplicate_solution_name(vendor: Vendor) -> str:
+    """대소문자를 무시하고 겹치는 Solution 이름(나중에 나온 쪽)을 돌려준다."""
+    seen: set[str] = set()
+    for solution in vendor.solutions:
+        if solution.name.lower() in seen:
+            return solution.name
+        seen.add(solution.name.lower())
+    return vendor.solutions[-1].name if vendor.solutions else vendor.name
+
+
 def _write_errors(vendor: Vendor) -> ConstraintErrors:
     return {
         "uq_vendors_name_lower": lambda: DuplicateVendorNameError(vendor.name),
-        "uq_solutions_vendor_id_name_lower": lambda: DuplicateSolutionNameError(vendor.name),
+        "uq_solutions_vendor_id_name_lower": lambda: DuplicateSolutionNameError(
+            _duplicate_solution_name(vendor)
+        ),
         "pk_vendors": lambda: AlreadyExistsError("Vendor", vendor.id),
     }
 

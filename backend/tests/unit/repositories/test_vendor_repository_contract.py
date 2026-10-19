@@ -128,6 +128,18 @@ async def test_duplicate_solution_name_in_same_vendor_raises(vendor_case: Vendor
         await vendor_case.vendors.update(vendor)
 
 
+async def test_duplicate_solution_name_error_identifies_the_solution_name(
+    vendor_case: VendorCase,
+) -> None:
+    vendor = await store_vendor(vendor_case.vendors, "ZZ SAP", ["Cloud"])
+    vendor.solutions.append(make_solution("cloud"))
+
+    with pytest.raises(DuplicateSolutionNameError) as raised:
+        await vendor_case.vendors.update(vendor)
+
+    assert str(raised.value.identifier).lower() == "cloud"
+
+
 async def test_same_solution_name_in_two_vendors_is_allowed(vendor_case: VendorCase) -> None:
     first = await store_vendor(vendor_case.vendors, "ZZ One", ["Cloud"])
     second = await store_vendor(vendor_case.vendors, "ZZ Two", ["Cloud"])

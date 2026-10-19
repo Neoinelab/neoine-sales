@@ -58,9 +58,7 @@ function summarize(ctx: MockContext, query: ForecastQuery): ForecastSummary {
   const rows = [...byOwner.values()].sort(
     (a, b) => Number(a.ownerName.endsWith('(퇴사)')) - Number(b.ownerName.endsWith('(퇴사)')) || a.ownerName.localeCompare(b.ownerName, 'ko'),
   )
-  const vendorNames = data.deals.flatMap((d) => data.vendors.find((v) => v.id === d.vendorId)?.name ?? [])
-  const vendors = [...new Set(vendorNames)].sort((a, b) => a.localeCompare(b, 'ko'))
-  return { query: { ...query }, columns, rows, totalRow, vendors }
+  return { query: { ...query }, columns, rows, totalRow }
 }
 
 export function createForecastGateway(ctx: MockContext): ForecastGateway {

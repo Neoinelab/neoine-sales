@@ -21,7 +21,6 @@ describe('forecast.summary', () => {
     const summary = await gateway.forecast.summary({ year: 2026 })
     expect(summary.columns.map((c) => c.key)).toEqual(['pipeline', 'best', 'most_likely', 'commit', 'won'])
     expect(summary.columns.map((c) => c.outcome)).toEqual(['open', 'open', 'open', 'open', 'won'])
-    expect(summary.vendors).toContain('Silverfort')
     expect(summary.query).toEqual({ year: 2026 })
   })
 
