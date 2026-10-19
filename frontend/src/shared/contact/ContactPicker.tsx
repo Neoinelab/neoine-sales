@@ -11,6 +11,7 @@ import type { ContactKind, ContactRow } from '../model/types'
 import { ComboBox, type ComboOption } from '../ui/ComboBox'
 import { PickerField } from './PickerField'
 import { useWhitespaceGuard } from './useWhitespaceGuard'
+import '../ui/kvGrid.css'
 import './contact.css'
 
 export interface ContactPickerProps {
@@ -27,6 +28,8 @@ export interface ContactPickerProps {
   onCompanySelect?: (company: string) => void
   /** 담당자를 목록에서 골랐을 때만 호출(연락 정보가 채워진 결과를 넘긴다). */
   onPersonSelect?: (next: ContactDraft) => void
+  /** 'stack'(기본): 테두리 fieldset에 라벨 전체 글자. 'rows': 라벨-값 한 줄 행(보이는 라벨은 짧게, 접근성 이름은 그대로). */
+  layout?: 'stack' | 'rows'
 }
 
 const EMPTY_FIELDS = { title: '', email: null, phone: null } as const
@@ -41,7 +44,7 @@ function optionOf(row: ContactRow): ComboOption {
  * → ③직급/이메일/전화(기존 선택 시 자동 입력, 고치면 contactId를 유지해 저장 시 연락처 갱신, 신규는 contactId null).
  * 회사명·담당자명·이메일·전화는 공백 입력을 막는다(직급은 허용). 저장은 호출처가 ContactDraft로 한다.
  */
-export function ContactPicker({ kind, label, value, onChange, errors, linkedHere = false, onCompanySelect, onPersonSelect }: ContactPickerProps) {
+export function ContactPicker({ kind, label, value, onChange, errors, linkedHere = false, onCompanySelect, onPersonSelect, layout = 'stack' }: ContactPickerProps) {
   const companies = useContactCompanies(kind).data ?? []
   const rows = useContactsByCompany(kind, value.company).data ?? []
   const { flashed, guard } = useWhitespaceGuard()
@@ -89,10 +92,13 @@ export function ContactPicker({ kind, label, value, onChange, errors, linkedHere
 
   const sharedCount = selected && selected.dealCount >= (linkedHere ? 2 : 1) ? selected.dealCount : 0
 
-  return (
-    <fieldset className="contact-picker">
-      <legend>{label}</legend>
+  const asRows = layout === 'rows'
+  const visible = (short: string) => (asRows ? { visibleLabel: short } : {})
+
+  const fields = (
+    <>
       <ComboBox
+        {...visible('회사')}
         label={`${label} 회사명`}
         name={`${kind}Company`}
         value={value.company}
@@ -104,6 +110,7 @@ export function ContactPicker({ kind, label, value, onChange, errors, linkedHere
         hint={flash('company')}
       />
       <ComboBox
+        {...visible('담당자')}
         label={`${label} 담당자명`}
         name={`${kind}Name`}
         value={value.name}
@@ -114,8 +121,9 @@ export function ContactPicker({ kind, label, value, onChange, errors, linkedHere
         error={errors?.name}
         hint={flash('name')}
       />
-      <PickerField label={`${label} 직급`} name={`${kind}Title`} value={value.title} error={errors?.title} onChange={(title) => onChange({ ...value, title })} />
+      <PickerField {...visible('직급')} label={`${label} 직급`} name={`${kind}Title`} value={value.title} error={errors?.title} onChange={(title) => onChange({ ...value, title })} />
       <PickerField
+        {...visible('이메일')}
         label={`${label} 이메일`}
         name={`${kind}Email`}
         inputMode="email"
@@ -126,6 +134,7 @@ export function ContactPicker({ kind, label, value, onChange, errors, linkedHere
         onChange={(raw) => onChange({ ...value, email: guard('email', raw) || null })}
       />
       <PickerField
+        {...visible('전화')}
         label={`${label} 전화`}
         name={`${kind}Phone`}
         inputMode="tel"
@@ -140,6 +149,21 @@ export function ContactPicker({ kind, label, value, onChange, errors, linkedHere
       {sharedCount > 0 && (
         <p className="field-hint">이 연락처는 {sharedCount}개 Deal에서 함께 사용 중입니다. 수정하면 모두에 반영됩니다.</p>
       )}
+    </>
+  )
+
+  if (asRows) {
+    return (
+      <fieldset className="contact-picker contact-picker--rows">
+        <legend className="kv-visually-hidden">{label}</legend>
+        <div className="kv-grid">{fields}</div>
+      </fieldset>
+    )
+  }
+  return (
+    <fieldset className="contact-picker">
+      <legend>{label}</legend>
+      {fields}
     </fieldset>
   )
 }

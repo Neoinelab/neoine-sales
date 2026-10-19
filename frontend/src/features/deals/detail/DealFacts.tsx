@@ -23,7 +23,7 @@ function dateDisplay(date: string | null, canWrite: boolean): ReactNode {
   return canWrite ? <span className="dd-muted"> 일자 입력</span> : null
 }
 
-/** 상단 현재값 영역의 Deal 정보(Vendor·Solution·Users·견적·POC·구매절차·등록일). 값을 클릭해 그 자리에서 고친다. */
+/** Deal 정보 타일의 항목 행(Vendor·Solution·Users·견적·POC·구매절차·등록일). 값을 클릭해 그 자리에서 고친다. */
 export function DealFacts({ deal, canWrite, onNotice }: DealFactsProps) {
   const { save } = useDealPatch(deal.code, onNotice)
   const facets = useDealFacets().data
@@ -144,16 +144,16 @@ export function DealFacts({ deal, canWrite, onNotice }: DealFactsProps) {
         onSave={(text) => saveText('procurement', text, '구매절차가 변경되었습니다.')}
       />,
     ],
-    ['등록일', formatDate(deal.createdAt)],
+    ['등록일', <span key="created" className="kv-static">{formatDate(deal.createdAt)}</span>],
   ]
   return (
-    <dl className="dd-fields">
+    <>
       {facts.map(([label, value]) => (
-        <div key={label} className="dd-kv">
-          <dt className="dd-k">{label}</dt>
-          <dd className="dd-v">{value}</dd>
+        <div key={label} className="kv-row">
+          <dt>{label}</dt>
+          <dd>{value}</dd>
         </div>
       ))}
-    </dl>
+    </>
   )
 }

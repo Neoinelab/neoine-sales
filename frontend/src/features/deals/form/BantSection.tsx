@@ -18,40 +18,43 @@ export function BantSection({ state, set }: SectionProps) {
   }
 
   return (
-    <section className="form-section">
+    <section className="form-section" aria-labelledby="sec-bant">
+      <h2 id="sec-bant">BANT</h2>
       <fieldset className="bant-fieldset">
-        <legend>BANT</legend>
-        {BANT_CATEGORIES.map((category) => {
-          const title = BANT_CATEGORY_NAMES[category]
-          return (
-            <div key={category} className="bant-item">
-              <SelectField label={title} name={`bant-${category}`} value={state.bant[category] ?? ''} onChange={(id) => select(category, id)}>
-                <option value="">선택 안 함</option>
-                {labels
-                  .filter((l) => l.category === category)
-                  .map((l) => (
-                    <option key={l.id} value={l.id}>
-                      {l.name}
-                    </option>
-                  ))}
-              </SelectField>
-              {creating === category ? (
-                <NewLabelInput
-                  category={category}
-                  onCancel={() => setCreating(null)}
-                  onCreated={(id) => {
-                    select(category, id)
-                    setCreating(null)
-                  }}
-                />
-              ) : (
-                <button type="button" className="link-button" aria-label={`${title} 새 Label`} onClick={() => setCreating(category)}>
-                  + 새 Label
-                </button>
-              )}
-            </div>
-          )
-        })}
+        <legend className="kv-visually-hidden">BANT</legend>
+        <div className="kv-grid">
+          {BANT_CATEGORIES.map((category) => {
+            const title = BANT_CATEGORY_NAMES[category]
+            return (
+              <div key={category} className="kv-row">
+                <SelectField label={title} name={`bant-${category}`} value={state.bant[category] ?? ''} onChange={(id) => select(category, id)}>
+                  <option value="">선택 안 함</option>
+                  {labels
+                    .filter((l) => l.category === category)
+                    .map((l) => (
+                      <option key={l.id} value={l.id}>
+                        {l.name}
+                      </option>
+                    ))}
+                </SelectField>
+                {creating === category ? (
+                  <NewLabelInput
+                    category={category}
+                    onCancel={() => setCreating(null)}
+                    onCreated={(id) => {
+                      select(category, id)
+                      setCreating(null)
+                    }}
+                  />
+                ) : (
+                  <button type="button" className="link-button" aria-label={`${title} 새 Label`} onClick={() => setCreating(category)}>
+                    + 새 Label
+                  </button>
+                )}
+              </div>
+            )
+          })}
+        </div>
       </fieldset>
     </section>
   )

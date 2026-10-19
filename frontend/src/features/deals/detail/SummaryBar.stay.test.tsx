@@ -21,7 +21,7 @@ describe('상세 Status 체류 표시 (AC-13, Q3)', () => {
 
     await renderAt(await detailPath(2))
 
-    const bar = await screen.findByRole('region', { name: '현재 값' })
+    const bar = await screen.findByRole('region', { name: 'Deal 정보' })
     const stay = within(bar).getByText(`${deal.statusDays}일째`)
     expect(stay).toBeVisible()
     expect(stay).toHaveAttribute('title', formatDateTime(deal.statusChangedAt))
@@ -33,7 +33,7 @@ describe('상세 Status 체류 표시 (AC-13, Q3)', () => {
     resetMock({ now: '2030-06-14T16:00:00Z' })
     const code = await dealCodeOf(2) // 시드 code가 시계 날짜를 포함하므로 시계를 먼저 맞춘다
     const { client } = await renderAt(`/deals/${code}`, { role: 'admin' })
-    const bar = await screen.findByRole('region', { name: '현재 값' })
+    const bar = await screen.findByRole('region', { name: 'Deal 정보' })
     await within(bar).findByText(/\d+일째/)
     await gateway.deals.applyChange(code, { change: { field: 'statusKey', value: 'introduction' } })
     await client.invalidateQueries()
@@ -46,7 +46,7 @@ describe('상세 Status 체류 표시 (AC-13, Q3)', () => {
 
   it('restarts from 0일째 right after the status changes', async () => {
     const { client } = await renderAt(await detailPath(2), { role: 'admin' })
-    const bar = await screen.findByRole('region', { name: '현재 값' })
+    const bar = await screen.findByRole('region', { name: 'Deal 정보' })
     await within(bar).findByText(/\d+일째/)
 
     await gateway.deals.applyChange(await dealCodeOf(2), { change: { field: 'statusKey', value: 'introduction' } })
@@ -64,7 +64,7 @@ describe('상세 Status 체류 표시 (AC-13, Q3)', () => {
 
     await user.click(await screen.findByRole('link', { name: '액션 없는 Deal' }))
 
-    const bar = await screen.findByRole('region', { name: '현재 값' })
+    const bar = await screen.findByRole('region', { name: 'Deal 정보' })
     expect(created.nextAction).toBeNull()
     expect(await within(bar).findByText('미업데이트')).toBeVisible()
     expect(within(bar).getByText('15일째')).toBeVisible()

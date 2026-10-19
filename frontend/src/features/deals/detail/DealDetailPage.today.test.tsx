@@ -17,7 +17,7 @@ describe('상세와 mock 시계 (useToday)', () => {
     await gateway.auth.quickLogin('u-root')
     const deal = await gateway.deals.get(code)
     await renderAt(`/deals/${code}`)
-    const bar = await screen.findByRole('region', { name: '현재 값' })
+    const bar = await screen.findByRole('region', { name: 'Deal 정보' })
     const relative = formatRelativeTime(deal.lastUpdatedAt, NOW)
     expect(relative).toMatch(/일 전$/)
     expect(within(bar).getByText(relative)).toHaveAttribute('title', deal.lastUpdatedAt)

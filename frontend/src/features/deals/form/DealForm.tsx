@@ -7,7 +7,8 @@ import { ErrorBanner } from '../../../shared/ui/ErrorBanner'
 import { useDealListPath } from '../../../shared/ui/useDealListPath'
 import { SyncNotice } from '../../../shared/sync/SyncNotice'
 import { BantSection } from './BantSection'
-import { BasicSection } from './BasicSection'
+import { CustomerSection } from './CustomerSection'
+import { DealInfoSection } from './DealInfoSection'
 import {
   emptyForm,
   formFromDeal,
@@ -18,9 +19,7 @@ import {
   type DealFormState,
   type FormErrors,
 } from './formState'
-import { PartiesSection } from './PartiesSection'
-import { ProgressSection } from './ProgressSection'
-import { QuoteSection } from './QuoteSection'
+import { PartnerSection } from './PartnerSection'
 import type { SetField } from './sectionTypes'
 
 interface DealFormProps {
@@ -88,11 +87,10 @@ export function DealForm({ original, defaultOwnerId }: DealFormProps) {
   return (
     <form ref={form} className="deal-form" noValidate onSubmit={(e) => void onSubmit(e)}>
       {syncNotice && <SyncNotice notice={syncNotice} draft onClose={() => setSyncNotice(null)} />}
-      <BasicSection {...section} />
-      <PartiesSection {...section} />
-      <ProgressSection {...section} onApplied={onApplied} />
+      <DealInfoSection {...section} onApplied={onApplied} />
+      <CustomerSection {...section} />
+      <PartnerSection {...section} />
       <BantSection {...section} />
-      <QuoteSection {...section} />
       <div className="form-actions">
         <ErrorBanner error={saveError} />
         <button type="submit" className="primary" disabled={saving}>

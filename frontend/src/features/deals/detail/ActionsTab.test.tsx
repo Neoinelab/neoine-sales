@@ -85,7 +85,7 @@ describe('Next Action 업데이트 등록 (T-ACTION-02~05)', () => {
     expect(bodyRows(table)[0]).toHaveTextContent('날인본 수령')
     expect(bodyRows(table)[0]).toHaveTextContent('2026-12-20')
     expect(screen.queryByRole('form', { name: 'Next Action 업데이트' })).not.toBeInTheDocument()
-    const bar = screen.getByRole('region', { name: '현재 값' })
+    const bar = screen.getByRole('region', { name: 'Deal 정보' })
     expect(within(bar).getByText(/날인본 수령/)).toBeVisible()
     expect(screen.getByText('Action이 등록되었습니다.')).toBeVisible()
   })
@@ -142,7 +142,7 @@ describe('Next Action 업데이트 등록 (T-ACTION-02~05)', () => {
     await waitFor(() => expect(bodyRows(table)[0]).toHaveTextContent('계약 체결'))
     expect(bodyRows(table)[0]).toHaveTextContent('계약완료')
     expect(bodyRows(table)[0]).toHaveTextContent('Won')
-    const bar = screen.getByRole('region', { name: '현재 값' })
+    const bar = screen.getByRole('region', { name: 'Deal 정보' })
     expect(within(bar).getByRole('button', { name: 'Status 수정' })).toHaveTextContent('계약완료')
   })
 
@@ -197,7 +197,7 @@ describe('Action 수정·삭제 (T-ACTION-06~07)', () => {
     expect(dialog).toHaveTextContent('Deal History에 기록됩니다')
     await user.click(within(dialog).getByRole('button', { name: '삭제' }))
     await waitFor(() => expect(bodyRows(table)).toHaveLength(before - 1))
-    const bar = screen.getByRole('region', { name: '현재 값' })
+    const bar = screen.getByRole('region', { name: 'Deal 정보' })
     await waitFor(() => expect(within(bar).queryByText(/계약서 초안 검토/)).not.toBeInTheDocument())
   })
 

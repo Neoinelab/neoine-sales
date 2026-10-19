@@ -89,4 +89,21 @@ describe('ComboBox', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('회사명을 입력하세요.')
     expect(screen.getByRole('combobox', { name: '회사명' })).toBeInvalid()
   })
+
+  it('shows the visible label while keeping the full accessible name', async () => {
+    render(<ComboBox label="고객 회사명" visibleLabel="회사" name="c" value="" onChange={() => {}} options={OPTIONS} />)
+
+    const input = screen.getByRole('combobox', { name: '고객 회사명' })
+    expect(Array.from((input as HTMLInputElement).labels ?? []).map((l) => l.textContent)).toEqual(['회사'])
+    await userEvent.click(input)
+    expect(screen.getByRole('listbox', { name: '고객 회사명' })).toBeInTheDocument()
+  })
+
+  it('renders the label text and no aria-label without a visible label', () => {
+    render(<ComboBox label="회사명" name="c" value="" onChange={() => {}} options={OPTIONS} />)
+
+    const input = screen.getByRole('combobox', { name: '회사명' })
+    expect(Array.from((input as HTMLInputElement).labels ?? []).map((l) => l.textContent)).toEqual(['회사명'])
+    expect(input).not.toHaveAttribute('aria-label')
+  })
 })

@@ -104,6 +104,7 @@ export function ContactSession({ kind, label, noun, initial, linkedHere, hint, o
       <ContactPicker
         kind={kind}
         label={label}
+        layout="rows"
         value={draft}
         onChange={setDraft}
         errors={errors}

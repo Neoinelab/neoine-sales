@@ -94,7 +94,7 @@ export function InlineContactBlock({ kind, label, noun, contact, canWrite, sessi
           {contact.company}
         </button>
       ) : (
-        contact.company
+        <span className="kv-static">{contact.company}</span>
       ),
     ],
     [
@@ -115,11 +115,11 @@ export function InlineContactBlock({ kind, label, noun, contact, canWrite, sessi
     ['전화', detail('phone', '전화', contact.phone)],
   ]
   return (
-    <dl className="dd-fields">
+    <dl className="kv-grid">
       {fields.map(([name, value]) => (
-        <div key={name} className="dd-kv">
-          <dt className="dd-k">{name}</dt>
-          <dd className="dd-v">{value}</dd>
+        <div key={name} className="kv-row">
+          <dt>{name}</dt>
+          <dd>{value}</dd>
         </div>
       ))}
     </dl>

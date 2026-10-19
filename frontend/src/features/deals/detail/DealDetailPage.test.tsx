@@ -2,6 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { renderAt } from '../../../test/mockApp'
 import { detailPath } from '../../../test/detailTestUtils'
+import { kvValue } from '../../../test/kvPairs'
 
 async function heading(name: string) {
   return screen.findByRole('heading', { level: 1, name })
@@ -11,7 +12,7 @@ describe('Deal 상세 상단 (T-DETAIL-01)', () => {
   it('shows the latest status, forecast, amount, expected close and next action in the summary bar', async () => {
     await renderAt(await detailPath(1))
     await heading('한빛은행 ITDR 도입')
-    const bar = screen.getByRole('region', { name: '현재 값' })
+    const bar = screen.getByRole('region', { name: 'Deal 정보' })
     expect(within(bar).getByRole('button', { name: 'Status 수정' })).toHaveTextContent('가격협상')
     expect(within(bar).getByRole('button', { name: 'Forecast 수정' })).toHaveTextContent('Commit')
     expect(within(bar).getByTitle('1,870,000,000원')).toHaveTextContent('1.87B')
@@ -19,23 +20,26 @@ describe('Deal 상세 상단 (T-DETAIL-01)', () => {
     expect(within(bar).getByText('Expected Close')).toBeVisible()
   })
 
-  it('shows the deal code and the owner next to the title', async () => {
+  it('shows the deal code and the owner inside the deal info tile', async () => {
     await renderAt(await detailPath(1))
     await heading('한빛은행 ITDR 도입')
-    expect(screen.getByText(/^Deal code: .*-D001$/)).toBeVisible()
-    expect(screen.getByText('Owner: 김영업')).toBeVisible()
+    const info = screen.getByRole('region', { name: 'Deal 정보' })
+    const code = kvValue(info, 'Deal code').textContent ?? ''
+    expect(code).toMatch(/-D001$/)
+    expect(code.startsWith('Deal code:')).toBe(false)
+    expect(kvValue(info, 'Owner')).toHaveTextContent(/^김영업$/)
   })
 
   it('shows a resigned owner as 이름(퇴사)', async () => {
     await renderAt(await detailPath(23))
     await heading('한빛은행 PAM')
-    expect(screen.getByText('Owner: 강퇴사(퇴사)')).toBeVisible()
+    expect(kvValue(screen.getByRole('region', { name: 'Deal 정보' }), 'Owner')).toHaveTextContent(/^강퇴사\(퇴사\)$/)
   })
 
   it('shows the risk badges of an overdue and stale deal', async () => {
     await renderAt(await detailPath(7))
     await heading('하늘카드 AD 보안 강화')
-    const bar = screen.getByRole('region', { name: '현재 값' })
+    const bar = screen.getByRole('region', { name: 'Deal 정보' })
     expect(within(bar).getByText('기한초과')).toBeVisible()
     expect(within(bar).getByText('미업데이트')).toBeVisible()
   })
@@ -87,7 +91,7 @@ describe('Deal 상세 정보 카드 (T-DETAIL-02)', () => {
     expect(within(bant).getByRole('button', { name: 'Authority 수정' })).toHaveTextContent('CISO 보고 완료')
     expect(within(bant).getByRole('button', { name: 'Need 수정' })).toHaveTextContent('보안 강화 요건')
     expect(within(bant).getByRole('button', { name: 'Timeline 수정' })).toHaveTextContent('금년 구매')
-    const info = screen.getByRole('region', { name: '현재 값' })
+    const info = screen.getByRole('region', { name: 'Deal 정보' })
     expect(within(info).getByText(/조달청 경쟁 입찰/)).toBeVisible()
     expect(within(info).getByText('견적')).toBeVisible()
     expect(within(info).getByText('POC')).toBeVisible()
@@ -227,7 +231,7 @@ describe('Deal 상세 역할별 버튼과 오류 (T-DETAIL-04)', () => {
     const bant = screen.getByRole('region', { name: 'BANT' })
     expect(within(bant).queryByRole('button', { name: /수정$/ })).not.toBeInTheDocument()
     expect(within(bant).getByText('단독 예산 확보')).toBeVisible()
-    expect(screen.getByRole('region', { name: '현재 값' })).toHaveTextContent('가격협상')
+    expect(screen.getByRole('region', { name: 'Deal 정보' })).toHaveTextContent('가격협상')
   })
 
   it('shows the not found message with a way back', async () => {

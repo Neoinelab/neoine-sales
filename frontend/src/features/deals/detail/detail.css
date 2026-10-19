@@ -7,31 +7,31 @@
 .deal-detail :not(h1, h2, h3, :is(h1, h2, h3) *) { font-size: var(--font-base); }
 .dd-head { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .dd-head h1 { overflow-wrap: anywhere; }
-.dd-meta { display: flex; flex-wrap: wrap; gap: 4px 16px; color: var(--muted); margin: 4px 0 0; }
 .dd-head-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 
 .dd-card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius-lg); box-shadow: var(--shadow-md); padding: 16px 20px; display: grid; gap: 10px; align-content: start; min-width: 0; }
 .dd-card h2 { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .dd-cards { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
 
-/* 라벨–값 쌍을 왼쪽에서 오른쪽으로 나열하고 넘치면 줄바꿈한다. */
-.dd-fields { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 12px 28px; margin: 0; }
-.dd-fields > .dd-kv { flex: 0 1 auto; }
-.dd-bant-value { align-items: flex-start; }
-.dd-kv { display: grid; gap: 4px; min-width: 0; align-content: start; }
-.dd-k { color: var(--muted); font-weight: 500; margin: 0; }
-.dd-v { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-width: 0; margin: 0; color: var(--fg); overflow-wrap: anywhere; }
-.dd-kv select, .dd-kv input { font: inherit; padding: 5px 8px; border: 1px solid var(--line-strong); border-radius: var(--radius); background: var(--input-bg); color: var(--fg); max-width: 100%; }
 .dd-inline-edit { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
-.dd-inline-edit input { width: 11rem; }
+.dd-inline-edit input { width: min(11rem, 100%); }
 .dd-inline-wrap { display: grid; gap: 4px; min-width: 0; }
-/* 클릭 편집 값: 평소에는 일반 값처럼 보이고, hover/focus 때만 은은한 배경과 점선 밑줄로 편집 가능함을 알린다. */
-button.dd-click { display: inline; padding: 1px 4px; margin: -1px -4px; border: none; border-bottom: 1px dashed transparent; border-radius: var(--radius); background: transparent; color: inherit; font: inherit; font-weight: inherit; text-align: left; cursor: text; overflow-wrap: anywhere; box-shadow: none; }
-button.dd-click:hover, button.dd-click:focus-visible { background: var(--accent-soft); border-bottom-color: var(--accent); }
-.dd-title button.dd-click, .dd-head h1 button.dd-click { font: inherit; }
+/*
+ * 보기와 편집의 글자 위치·글꼴 일치: 클릭 편집 값(button.dd-click)과 편집 입력기는 같은 상자
+ * (테두리 1px + 안쪽 여백 5px 8px, 같은 글꼴·두께·줄 높이)를 쓴다. 편집을 열어도 글자가 움직이지 않는다.
+ */
+.deal-detail .dd-inline-edit :is(input, select, textarea) { font: inherit; font-weight: 400; line-height: 1.5; margin: 0; padding: 5px 8px; border: 1px solid var(--line-strong); border-radius: var(--radius); background: var(--input-bg); color: var(--fg); max-width: 100%; }
+/* 연락처 편집 세션(.dd-inline-edit 밖)의 입력도 보기 버튼과 같은 상자. */
+.deal-detail .contact-picker--rows input { padding: 5px 8px; line-height: 1.5; }
+/* 클릭 편집 값: 평소에는 테두리가 보이지 않는 입력란처럼 보이고, hover/focus 때 테두리와 은은한 배경으로 편집 가능함을 알린다. */
+button.dd-click { display: inline-block; max-width: 100%; margin: 0; padding: 5px 8px; border: 1px solid transparent; border-radius: var(--radius); background: transparent; color: inherit; font: inherit; font-weight: 400; line-height: 1.5; text-align: left; vertical-align: middle; cursor: text; overflow-wrap: anywhere; box-shadow: none; }
+button.dd-click:hover:not(:disabled), button.dd-click:focus-visible { background: var(--accent-soft); border-color: var(--line-strong); }
+/* 제목(h1): 보기는 제목 글꼴 그대로, 편집 입력란도 같은 제목 글꼴·두께로 그린다. */
+.dd-head h1 button.dd-click { font: inherit; font-weight: inherit; line-height: 1.3; }
+.deal-detail .dd-h1-edit .dd-inline-edit input { font-size: var(--font-title); font-weight: 600; letter-spacing: -0.02em; line-height: 1.3; width: min(40rem, 100%); }
 /* 입력기의 라벨은 접근성 이름으로만 쓰고 화면에는 숨긴다(값 자리에서 바로 입력하게). */
 .dd-inline-edit .field > span, .dd-inline-edit .combo > label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-.dd-inline-edit .field.combo { min-width: 11rem; }
+.dd-inline-edit .field.combo { min-width: min(11rem, 100%); }
 button.dd-link { border: none; background: transparent; padding: 0; color: var(--accent); text-decoration: underline; cursor: pointer; text-align: left; overflow-wrap: anywhere; }
 button.dd-small { padding: 2px 8px; }
 
@@ -44,8 +44,6 @@ button.dd-small { padding: 2px 8px; }
 .dd-dl dd { margin: 0; overflow-wrap: anywhere; }
 .dd-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .dd-bant { display: grid; gap: 10px; }
-.dd-bant-item { display: grid; gap: 4px; }
-.dd-bant-item select, .dd-bant-item input { font: inherit; padding: 5px 8px; border: 1px solid var(--line-strong); border-radius: var(--radius); background: var(--input-bg); color: var(--fg); max-width: 100%; }
 .dd-history-old { border-top: 1px dashed var(--line); padding-top: 8px; }
 .dd-history-old ul { margin: 6px 0 0; padding-left: 18px; color: var(--muted); }
 

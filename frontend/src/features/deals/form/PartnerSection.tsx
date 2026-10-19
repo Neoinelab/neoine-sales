@@ -2,27 +2,19 @@ import { ContactPicker } from '../../../shared/contact/ContactPicker'
 import { EMPTY_DRAFT, isPartnerEntered, replacedPartner } from './formState'
 import type { SectionProps } from './sectionTypes'
 
-/** ②고객(필수) ③파트너(선택). 수정 화면에서 파트너를 바꾸거나 비우면 이력 안내를 보인다. */
-export function PartiesSection({ state, set, errors, original }: SectionProps) {
+/** 파트너 타일(선택). 수정 화면에서 파트너를 바꾸거나 비우면 이력 안내를 보인다. */
+export function PartnerSection({ state, set, errors, original }: SectionProps) {
   const active = original?.activePartner ?? null
   const replaced = replacedPartner(original, state.partner)
   const removing = active !== null && !isPartnerEntered(state.partner)
   const activeLabel = active ? `${active.company} ${active.name}` : ''
 
   return (
-    <section className="form-section" aria-labelledby="sec-parties">
-      <h2 id="sec-parties">고객 · 파트너</h2>
-      <p className="hint">회사명을 고르거나 직접 입력한 뒤 담당자를 고르면 직급·이메일·전화가 채워집니다. 고치면 연락처 정보도 함께 갱신됩니다.</p>
-      <ContactPicker
-        kind="customer"
-        label="고객"
-        value={state.customer}
-        onChange={(next) => set('customer', next)}
-        errors={errors.customer}
-        linkedHere={original !== undefined && state.customer.contactId === original.customer.id}
-      />
+    <section className="form-section" aria-labelledby="sec-partner">
+      <h2 id="sec-partner">파트너</h2>
       <div className="partner-block">
         <ContactPicker
+          layout="rows"
           kind="partner"
           label="파트너"
           value={state.partner}

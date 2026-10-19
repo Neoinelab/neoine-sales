@@ -44,9 +44,9 @@ function BantItem({ deal, canWrite, onNotice, category }: BantItemProps) {
   }
 
   return (
-    <div className="dd-kv dd-bant-item">
-      <dt className="dd-k">{name}</dt>
-      <dd className="dd-v dd-bant-value">
+    <div className="kv-row">
+      <dt>{name}</dt>
+      <dd>
         <InlineEdit
           label={name}
           canEdit={canWrite}
@@ -95,7 +95,7 @@ export function BantCard({ deal, canWrite, onNotice }: BantCardProps) {
   return (
     <section aria-labelledby="dd-bant" className="dd-card">
       <h2 id="dd-bant">BANT</h2>
-      <dl className="dd-fields">
+      <dl className="kv-grid">
         {BANT_CATEGORIES.map((category) => (
           <BantItem key={category} deal={deal} canWrite={canWrite} onNotice={onNotice} category={category} />
         ))}

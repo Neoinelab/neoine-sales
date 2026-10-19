@@ -7,7 +7,7 @@ import { detailPath } from '../../../test/detailTestUtils'
 async function openBar(no: number, title: string, role: 'sales' | 'admin' = 'sales') {
   const view = await renderAt(await detailPath(no), { role })
   await screen.findByRole('heading', { level: 1, name: title })
-  return { ...view, bar: screen.getByRole('region', { name: '현재 값' }) }
+  return { ...view, bar: screen.getByRole('region', { name: 'Deal 정보' }) }
 }
 
 /** Status/Forecast 값을 클릭 → 선택(고르는 순간 반영). 동기화 팝업은 호출한 테스트가 이어서 다룬다. */

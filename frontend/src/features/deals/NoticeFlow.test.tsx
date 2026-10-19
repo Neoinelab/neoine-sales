@@ -55,7 +55,7 @@ describe('저장 후 상세 알림', () => {
     await screen.findByRole('heading', { name: 'Deal 등록' })
     await user.type(screen.getByLabelText('Deal Name'), '알림 확인 테스트')
     await pickPerson(user, '고객', '한빛은행', /정민수/)
-    await user.type(screen.getByLabelText('매출금액'), '100000000')
+    await user.type(screen.getByLabelText('금액'), '100000000')
     fireEvent.change(screen.getByLabelText('Expected Close'), { target: { value: '2027-06-01' } })
     await save(user)
     await waitFor(() => expect(location()).toMatch(DETAIL_URL))

@@ -14,6 +14,8 @@ export interface ComboOption {
 
 interface ComboBoxProps {
   label: string
+  /** 화면에 보이는 라벨 글자(접근성 이름은 label 유지). 없으면 label을 그대로 보인다. */
+  visibleLabel?: string
   name: string
   value: string
   /** 직접 입력 또는 선택으로 값이 바뀔 때(transform 적용 후). */
@@ -33,7 +35,7 @@ interface ComboBoxProps {
 
 /** 목록에서 고르거나 직접 입력하는 콤보박스(ARIA combobox/listbox, 키보드 지원). */
 export function ComboBox(props: ComboBoxProps) {
-  const { label, name, value, onChange, options, onSelectOption, transform, required, disabled, placeholder, error, hint } = props
+  const { label, visibleLabel, name, value, onChange, options, onSelectOption, transform, required, disabled, placeholder, error, hint } = props
   const baseId = useId()
   const listId = `${baseId}-list`
   const [open, setOpen] = useState(false)
@@ -73,10 +75,11 @@ export function ComboBox(props: ComboBoxProps) {
 
   return (
     <div className="field combo">
-      <label htmlFor={`${baseId}-input`}>{label}</label>
+      <label htmlFor={`${baseId}-input`}>{visibleLabel ?? label}</label>
       <input
         id={`${baseId}-input`}
         name={name}
+        aria-label={visibleLabel ? label : undefined}
         role="combobox"
         aria-expanded={isOpen}
         aria-controls={listId}

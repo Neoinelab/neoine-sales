@@ -10,6 +10,7 @@ import { ForecastBadge, StatusBadge } from '../../../shared/ui/Badges'
 import { RiskBadge } from '../../../shared/ui/RiskBadge'
 import { toResolution } from './detailHelpers'
 import { DealFacts } from './DealFacts'
+import { DealIdentityRows } from './DealIdentityRows'
 import { InlineEdit } from './InlineEdit'
 import './detail.css'
 
@@ -19,7 +20,7 @@ interface SummaryBarProps {
   onNotice: (message: string) => void
 }
 
-/** 상단 현재값 바: 항상 최신 Status/Forecast/금액/Expected Close/Next Action. 쓰기 권한이 있으면 값을 클릭해 바로 고친다(동기화 팝업 포함). */
+/** Deal 정보 타일: Deal code·Owner와 항상 최신 Status/Forecast/금액/Expected Close/Next Action. 쓰기 권한이 있으면 값을 클릭해 바로 고친다(동기화 팝업 포함). */
 export function SummaryBar({ deal, canWrite, onNotice }: SummaryBarProps) {
   const codes = useCodeSet().data
   const { now } = useToday()
@@ -61,11 +62,13 @@ export function SummaryBar({ deal, canWrite, onNotice }: SummaryBarProps) {
 
   return (
     <>
-      <section aria-label="현재 값" className="dd-card">
-        <div className="dd-fields">
-          <div className="dd-kv">
-            <span className="dd-k">Status</span>
-            <span className="dd-v">
+      <section aria-labelledby="dd-info" className="dd-card">
+        <h2 id="dd-info">Deal 정보</h2>
+        <dl className="kv-grid">
+          <DealIdentityRows deal={deal} canWrite={canWrite} onNotice={onNotice} />
+          <div className="kv-row">
+            <dt>Status</dt>
+            <dd>
               <InlineEdit
                 label="Status"
                 canEdit={canWrite && codes !== undefined}
@@ -76,11 +79,11 @@ export function SummaryBar({ deal, canWrite, onNotice }: SummaryBarProps) {
                 onSave={(value) => changeCode('statusKey', value)}
               />
               <span className="dd-muted" title={formatDateTime(deal.statusChangedAt)}>{`${deal.statusDays}일째`}</span>
-            </span>
+            </dd>
           </div>
-          <div className="dd-kv">
-            <span className="dd-k">Forecast</span>
-            <span className="dd-v">
+          <div className="kv-row">
+            <dt>Forecast</dt>
+            <dd>
               <InlineEdit
                 label="Forecast"
                 canEdit={canWrite && codes !== undefined}
@@ -90,11 +93,11 @@ export function SummaryBar({ deal, canWrite, onNotice }: SummaryBarProps) {
                 initial={deal.forecastKey}
                 onSave={(value) => changeCode('forecastKey', value)}
               />
-            </span>
+            </dd>
           </div>
-          <div className="dd-kv">
-            <span className="dd-k">금액</span>
-            <span className="dd-v">
+          <div className="kv-row">
+            <dt>금액</dt>
+            <dd>
               <InlineEdit
                 label="금액"
                 inputLabel="금액(KRW)"
@@ -104,11 +107,11 @@ export function SummaryBar({ deal, canWrite, onNotice }: SummaryBarProps) {
                 initial={String(deal.revenueAmount)}
                 onSave={saveAmount}
               />
-            </span>
+            </dd>
           </div>
-          <div className="dd-kv">
-            <span className="dd-k">Expected Close</span>
-            <span className="dd-v">
+          <div className="kv-row">
+            <dt>Expected Close</dt>
+            <dd>
               <InlineEdit
                 label="Expected Close"
                 canEdit={canWrite}
@@ -117,30 +120,32 @@ export function SummaryBar({ deal, canWrite, onNotice }: SummaryBarProps) {
                 initial={deal.revenueDate}
                 onSave={saveDate}
               />
-            </span>
+            </dd>
           </div>
-          <div className="dd-kv">
-            <span className="dd-k">Next Action</span>
-            <span className="dd-v">
+          <div className="kv-row">
+            <dt>Next Action</dt>
+            <dd>
               {deal.nextAction ? (
                 <>
-                  <span>{deal.nextAction.text}</span>
+                  <span className="kv-static">{deal.nextAction.text}</span>
                   <span className="dd-muted">Due {deal.nextAction.dueDate}</span>
                 </>
               ) : (
-                <span className="dd-muted">없음</span>
+                <span className="kv-static dd-muted">없음</span>
               )}
               <RiskBadge risk={deal.risk} />
-            </span>
+            </dd>
           </div>
-          <div className="dd-kv">
-            <span className="dd-k">최종 업데이트</span>
-            <span className="dd-v" title={deal.lastUpdatedAt}>
-              {formatRelativeTime(deal.lastUpdatedAt, now)}
-            </span>
+          <div className="kv-row">
+            <dt>최종 업데이트</dt>
+            <dd>
+              <span className="kv-static" title={deal.lastUpdatedAt}>
+                {formatRelativeTime(deal.lastUpdatedAt, now)}
+              </span>
+            </dd>
           </div>
-        </div>
-        <DealFacts deal={deal} canWrite={canWrite} onNotice={onNotice} />
+          <DealFacts deal={deal} canWrite={canWrite} onNotice={onNotice} />
+        </dl>
         {forecast?.outcome === 'won' && (
           <p className="dd-closed" data-outcome="won">
             Won으로 종결된 Deal입니다. 매출금액과 매출일은 확정 값이며, 필요하면 계속 수정할 수 있습니다.

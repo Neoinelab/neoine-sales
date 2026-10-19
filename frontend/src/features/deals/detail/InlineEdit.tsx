@@ -119,7 +119,11 @@ export function InlineEdit(props: InlineEditProps) {
     if (kind === 'select') void commit(value)
   }
 
-  if (!canEdit) return asHeading ? <h1>{display}</h1> : <>{display}</>
+  if (!canEdit) {
+    if (asHeading) return <h1>{display}</h1>
+    // 값이 없으면 빈 상자(여백·테두리)를 남기지 않는다.
+    return display ? <span className="kv-static">{display}</span> : null
+  }
   if (!editing) {
     const opener = (
       <button
@@ -136,7 +140,7 @@ export function InlineEdit(props: InlineEditProps) {
     return asHeading ? <h1>{opener}</h1> : opener
   }
   return (
-    <div className="dd-inline-wrap">
+    <div className={asHeading ? 'dd-inline-wrap dd-h1-edit' : 'dd-inline-wrap'}>
       {/* 입력기 안의 Enter/Esc/blur를 한 곳에서 처리한다(그룹 자체는 포커스를 받지 않는다). */}
       {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
       <div role="group" aria-label={`${label} 편집`} className="dd-inline-edit" ref={wrapRef} onKeyDown={onKeyDown} onBlur={onBlur}>

@@ -16,7 +16,7 @@ describe('Deal 수정 (T-FORM-06)', () => {
     expect(screen.getByLabelText('파트너 담당자명')).toHaveValue('표성호')
     await waitFor(() => expect(screen.getByLabelText('Status')).toHaveDisplayValue('POC준비'))
     expect(screen.getByLabelText('Forecast')).toHaveDisplayValue('Best')
-    expect(screen.getByLabelText('매출금액')).toHaveValue('330000000')
+    expect(screen.getByLabelText('금액')).toHaveValue('330000000')
   })
 
   it('saves edits and goes to the detail page', async () => {
@@ -127,7 +127,7 @@ describe('Status⇄Forecast 동기화 (T-SYNC-UI, 폼)', () => {
     await user.type(amount, '400000000')
     fireEvent.change(within(dialog).getByLabelText('매출일(실제 값)'), { target: { value: '2026-12-01' } })
     await user.click(within(dialog).getByRole('button', { name: '확정' }))
-    expect(screen.getByLabelText('매출금액')).toHaveValue('400000000')
+    expect(screen.getByLabelText('금액')).toHaveValue('400000000')
     expect(screen.getByLabelText('Expected Close')).toHaveValue('2026-12-01')
     expect(screen.getByLabelText('Status')).toHaveDisplayValue('계약완료')
   })

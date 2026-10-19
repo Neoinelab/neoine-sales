@@ -1,5 +1,7 @@
-.contact-picker { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px 12px; border: 1px solid var(--line); border-radius: 8px; padding: 12px; margin: 0; }
-.contact-picker legend { font-weight: 600; padding: 0 6px; }
-.contact-picker > .field-hint { grid-column: 1 / -1; }
-.contact-picker .field label { display: grid; gap: 2px; }
-.contact-picker input { width: 100%; }
+.contact-picker:not(.contact-picker--rows) { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px 12px; border: 1px solid var(--line); border-radius: 8px; padding: 12px; margin: 0; }
+.contact-picker:not(.contact-picker--rows) legend { font-weight: 600; padding: 0 6px; }
+.contact-picker:not(.contact-picker--rows) > .field-hint { grid-column: 1 / -1; }
+.contact-picker:not(.contact-picker--rows) .field label { display: grid; gap: 2px; }
+.contact-picker:not(.contact-picker--rows) input { width: 100%; }
+.contact-picker--rows { border: none; padding: 0; margin: 0; min-width: 0; }
+.contact-picker--rows input { width: 100%; }

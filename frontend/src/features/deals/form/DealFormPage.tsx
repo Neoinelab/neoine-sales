@@ -1,6 +1,7 @@
 import { Link, useParams } from 'react-router'
 import { useMe } from '../../../data/auth'
 import { useDeal } from '../../../data/deals'
+import '../../../shared/ui/kvGrid.css'
 import { ErrorBanner } from '../../../shared/ui/ErrorBanner'
 import { useDealListPath } from '../../../shared/ui/useDealListPath'
 import { DealForm } from './DealForm'
@@ -25,7 +26,6 @@ export function DealFormPage() {
   return (
     <div className="deal-form-page">
       <h1>{editing ? 'Deal 수정' : 'Deal 등록'}</h1>
-      {deal.data && <p className="hint">Deal code {deal.data.code}</p>}
       {!me || (editing && !deal.data) ? (
         <p className="hint">불러오는 중…</p>
       ) : (

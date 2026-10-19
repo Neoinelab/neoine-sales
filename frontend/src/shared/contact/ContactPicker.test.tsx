@@ -61,12 +61,23 @@ vi.mock('../model/contactRules', () => ({
 
 const EMPTY: ContactDraft = { contactId: null, company: '', name: '', title: '', email: null, phone: null }
 
-function Host({ kind = 'customer', initial = EMPTY, onValue }: { kind?: ContactKind; initial?: ContactDraft; onValue?: (v: ContactDraft) => void }) {
+function Host({
+  kind = 'customer',
+  initial = EMPTY,
+  onValue,
+  layout,
+}: {
+  kind?: ContactKind
+  initial?: ContactDraft
+  onValue?: (v: ContactDraft) => void
+  layout?: 'stack' | 'rows'
+}) {
   const [value, setValue] = useState(initial)
   return (
     <ContactPicker
       kind={kind}
       label={kind === 'customer' ? '고객' : '파트너'}
+      {...(layout ? { layout } : {})}
       value={value}
       onChange={(v) => {
         setValue(v)
@@ -279,5 +290,33 @@ describe('ContactPicker', () => {
       email: null,
       phone: null,
     })
+  })
+
+  it('renders short visible labels in the rows layout', () => {
+    render(<Host layout="rows" />)
+
+    const group = screen.getByRole('group', { name: '고객' })
+    const shown = [
+      ['고객 회사명', '회사'],
+      ['고객 담당자명', '담당자'],
+      ['고객 직급', '직급'],
+      ['고객 이메일', '이메일'],
+      ['고객 전화', '전화'],
+    ] as const
+    for (const [accessible, text] of shown) {
+      const input = screen.getByLabelText(accessible) as HTMLInputElement
+      expect(group).toContainElement(input)
+      expect(Array.from(input.labels ?? []).map((l) => l.textContent)).toContain(text)
+    }
+    expect(group).toHaveClass('contact-picker--rows')
+  })
+
+  it('keeps the stacked layout and full labels by default', () => {
+    render(<Host />)
+
+    const group = screen.getByRole('group', { name: '고객' })
+    expect(group).not.toHaveClass('contact-picker--rows')
+    const input = screen.getByLabelText('고객 회사명') as HTMLInputElement
+    expect(Array.from(input.labels ?? []).map((l) => l.textContent)).toContain('고객 회사명')
   })
 })
