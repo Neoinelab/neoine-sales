@@ -79,6 +79,14 @@ export function ActionForm({ deal, editing, previous, onDone, onCancel }: Action
   const [progress, setProgress] = useState(editing?.progress ?? '')
   const [nextAction, setNextAction] = useState(editing?.nextAction ?? '')
   const [dueDate, setDueDate] = useState(editing?.dueDate ?? '')
+  // 유형 목록이 재조회돼 이름이 바뀌어도, 사용자가 건드리지 않은 유형 입력은 같은 typeId의 현재 이름으로 다시 채운다.
+  const [shownType, setShownType] = useState(editing?.type ?? '')
+  const currentType = editing ? types?.find((t) => t.id === editing.typeId)?.name : undefined
+  if (currentType !== undefined && currentType !== shownType) {
+    // 렌더 중 상태 조정: 목록이 바뀐 같은 렌더에서 반영해 옛 이름이 한 번도 화면에 남지 않게 한다.
+    setShownType(currentType)
+    if (type === shownType) setType(currentType)
+  }
   const [memo, setMemo] = useState(editing?.memo ?? '')
   const [status, setStatus] = useState<StatusDraft | null>(null)
   const [errors, setErrors] = useState<Errors>({})
@@ -126,7 +134,7 @@ export function ActionForm({ deal, editing, previous, onDone, onCancel }: Action
     if (found.nextAction) return nextRef.current?.focus()
     if (found.dueDate) return dueRef.current?.focus()
     // 처음 값 그대로면 이름을 다시 해석하지 않고 원래 {id}를 보낸다(그사이 유형 이름이 바뀌어도 새 유형이 생기지 않는다).
-    const choice = editing && type === editing.type ? { id: editing.typeId } : toChoice(type, types ?? [])
+    const choice = editing && (type === editing.type || type === shownType) ? { id: editing.typeId } : toChoice(type, types ?? [])
     if (!choice) return typeRef.current?.focus()
     const fields = { type: choice, progress: progress.trim(), nextAction: nextAction.trim(), dueDate, memo }
     try {
