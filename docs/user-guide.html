@@ -1,0 +1,443 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>neoine-sales 사용자 가이드</title>
+<style>
+  :root {
+    --bg: #ffffff; --fg: #1f2328; --muted: #656d76; --border: #d0d7de;
+    --accent: #0969da; --code-bg: #f6f8fa; --card: #f6f8fa; --warn: #9a6700; --ok: #1a7f37;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0d1117; --fg: #e6edf3; --muted: #8b949e; --border: #30363d;
+      --accent: #58a6ff; --code-bg: #161b22; --card: #161b22; --warn: #d29922; --ok: #3fb950;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg);
+    font: 16px/1.7 -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", "Segoe UI", sans-serif; }
+  .layout { display: flex; max-width: 1280px; margin: 0 auto; }
+  nav { position: sticky; top: 0; align-self: flex-start; height: 100vh; overflow-y: auto;
+    width: 270px; flex: none; padding: 24px 16px; border-right: 1px solid var(--border); font-size: 14px; }
+  nav h2 { font-size: 13px; text-transform: uppercase; color: var(--muted); margin: 0 0 8px; }
+  nav a { display: block; padding: 3px 8px; color: var(--fg); text-decoration: none; border-radius: 6px; }
+  nav a:hover { background: var(--card); color: var(--accent); }
+  main { flex: 1; min-width: 0; padding: 32px 40px 80px; }
+  h1 { font-size: 2rem; margin: 0 0 8px; }
+  h2 { font-size: 1.5rem; margin: 56px 0 12px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+  h3 { font-size: 1.15rem; margin: 32px 0 8px; }
+  p, li { max-width: 78ch; }
+  a { color: var(--accent); }
+  code { background: var(--code-bg); padding: 1px 6px; border-radius: 4px; font-size: .9em;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  pre { background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px;
+    padding: 14px 16px; overflow-x: auto; font-size: 13.5px; line-height: 1.55; }
+  pre code { background: none; padding: 0; font-size: inherit; }
+  table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 14.5px; display: block; overflow-x: auto; }
+  th, td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; vertical-align: top; }
+  th { background: var(--card); white-space: nowrap; }
+  .meta { color: var(--muted); font-size: 14px; }
+  .callout { border-left: 4px solid var(--accent); background: var(--card); padding: 10px 16px; border-radius: 0 8px 8px 0; margin: 16px 0; }
+  .callout.warn { border-color: var(--warn); }
+  .callout.ok { border-color: var(--ok); }
+  .callout p { margin: 4px 0; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin: 12px 0; }
+  .card { border: 1px solid var(--border); background: var(--card); border-radius: 8px; padding: 12px 16px; }
+  .card h4 { margin: 0 0 4px; }
+  .card p { margin: 0; font-size: 14.5px; }
+  .flow { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 12px 0; font-size: 14.5px; }
+  .flow span { border: 1px solid var(--border); background: var(--card); border-radius: 999px; padding: 4px 12px; }
+  .flow b { color: var(--muted); font-weight: 400; }
+  @media (max-width: 860px) {
+    .layout { display: block; }
+    nav { position: static; width: auto; height: auto; border-right: 0; border-bottom: 1px solid var(--border); }
+    main { padding: 24px 16px 64px; }
+  }
+</style>
+</head>
+<body>
+<div class="layout">
+<nav>
+  <h2>목차</h2>
+  <a href="#overview">1. 개요</a>
+  <a href="#concepts">2. 핵심 개념</a>
+  <a href="#roles">3. 역할과 권한</a>
+  <a href="#lifecycle">4. Deal의 일생</a>
+  <a href="#register">5. Deal 등록과 수정</a>
+  <a href="#sync">6. Status·Forecast 동기화</a>
+  <a href="#action">7. Action(진행 활동)</a>
+  <a href="#risk">8. 경고와 체류 일수</a>
+  <a href="#history">9. 변경 이력(History)</a>
+  <a href="#contact">10. 고객·파트너 연락처</a>
+  <a href="#attachment">11. 첨부 파일</a>
+  <a href="#list">12. 목록 조회와 검색</a>
+  <a href="#delete">13. Deal 삭제</a>
+  <a href="#admin">14. 관리자 설정</a>
+  <a href="#auth">15. 로그인과 계정</a>
+  <a href="#notyet">16. 아직 없는 기능</a>
+  <a href="#faq">17. 자주 묻는 질문</a>
+</nav>
+<main>
+
+<h1>neoine-sales 사용자 가이드</h1>
+<p class="meta">기준: 2026-10-19, <code>develop</code> 브랜치 구현(P0~P3, P5, P8, Vendor·Solution 관리). 화면 조작보다 Deal이 어떤 규칙으로 관리되는지를 설명합니다.</p>
+
+<!-- 1 -->
+<h2 id="overview">1. 개요</h2>
+<p>neoine-sales는 영업 기회(<b>Deal</b>)를 한곳에서 기록하고 추적하는 사내 영업 관리 시스템입니다. 영업 담당자는 Deal을 등록하고, 고객과 만날 때마다 <b>Action</b>을 남기고, 진행 단계(<b>Status</b>)와 수주 가능성(<b>Forecast</b>)을 갱신합니다. 시스템은 이 기록으로 다음 일을 대신합니다.</p>
+<ul>
+  <li>모든 변경을 <b>History</b>에 자동으로 남깁니다. 누가, 언제, 무엇을 무엇으로 바꿨는지 남습니다.</li>
+  <li>Status와 Forecast가 서로 어긋나지 않게 맞춥니다. 예를 들어 계약완료이면 반드시 Won입니다.</li>
+  <li>기한이 지났거나 오래 갱신되지 않은 Deal에 <b>경고</b>를 붙입니다.</li>
+  <li>고객·파트너 연락처를 중복 없이 관리하고, 계약서·제안서 같은 <b>첨부 파일</b>을 Deal별로 보관합니다.</li>
+</ul>
+
+<div class="grid">
+  <div class="card"><h4>Deals</h4><p>Deal 목록·검색, 등록, 상세(Action·History·첨부)</p></div>
+  <div class="card"><h4>관리</h4><p>사용자, Deal 관리(코드·BANT Label·Vendor·Solution·경고 기준), 연락처, 연동(AD·저장 위치). admin 전용</p></div>
+  <div class="card"><h4>Dashboard · Forecast · Reports</h4><p>메뉴만 있고 아직 "준비 중"입니다(<a href="#notyet">16장</a>).</p></div>
+</div>
+
+<!-- 2 -->
+<h2 id="concepts">2. 핵심 개념</h2>
+<table>
+  <tr><th>용어</th><th>뜻</th></tr>
+  <tr><td>Deal</td><td>영업 기회 한 건입니다. 고객 한 명, 파트너는 최대 한 명, Owner(담당 영업) 한 명을 가집니다.</td></tr>
+  <tr><td>Deal code</td><td>Deal의 고유 번호입니다. 형식은 <code>YYYYMMDD-XXXX</code>이고(예: <code>20261019-K7Q2</code>) 등록할 때 시스템이 발급합니다. 앞 8자리는 등록한 날(서버 시간대 기준)이고, 뒤 4자리는 영문 대문자와 숫자를 무작위로 조합합니다. 한번 정해지면 바뀌지 않으며 화면 주소(<code>/deals/20261019-K7Q2</code>)에도 쓰입니다.</td></tr>
+  <tr><td>Owner</td><td>Deal을 책임지는 영업 담당자입니다. <b>재직 중인 영업(sales) 역할</b> 사용자만 Owner가 될 수 있습니다.</td></tr>
+  <tr><td>Status</td><td>영업 진행 단계입니다. 기본값은 기회발굴 → 제품소개 → POC준비 → POC완료 → 기술평가 → 가격협상 → 계약완료입니다.</td></tr>
+  <tr><td>Forecast</td><td>수주 가능성 구간입니다. 기본값은 Pipeline(0–50) · Best(51–75) · Most Likely(75–85) · Commit(85–100) · Won · Lost입니다. Won과 Lost는 "종결"을 뜻합니다.</td></tr>
+  <tr><td>금액 / Expected Close</td><td>예상 매출금액(원 단위 정수, 1원 이상)과 예상 매출일입니다. 둘 다 필수입니다. Won으로 닫을 때는 실제 값을 확인해 입력합니다.</td></tr>
+  <tr><td>BANT</td><td>Budget(예산) · Authority(결재권) · Need(필요) · Timeline(일정)의 네 구분입니다. 구분마다 미리 정한 Label 중 하나를 고르거나 비워 둡니다. 점수는 없습니다.</td></tr>
+  <tr><td>Action</td><td>Deal에서 한 일 한 건입니다. 유형, 진행사항, Next Action, Due Date, Memo로 이루어집니다.</td></tr>
+  <tr><td>History</td><td>Deal에 일어난 모든 변경의 기록입니다. 시스템이 자동으로 남기며 사람이 고치거나 지울 수 없습니다.</td></tr>
+  <tr><td>연락처</td><td>고객 또는 파트너 쪽 담당자입니다. 회사명과 담당자명이 필수이고 직급·이메일·전화는 선택입니다.</td></tr>
+  <tr><td>Vendor / Solution</td><td>제안하는 제조사와 그 제조사의 솔루션입니다. 관리자가 등록한 목록에서만 고르며, Solution은 하나의 Vendor에 속합니다(1:N). 둘 다 선택 입력이지만 Solution은 Vendor를 고른 뒤에만 고를 수 있습니다.</td></tr>
+  <tr><td>Users</td><td>사용자 수입니다. 선택 입력입니다.</td></tr>
+  <tr><td>견적 / POC / 구매절차</td><td>견적 제출 여부(YES/NO)와 제출일, POC 상태(YES/ING/NO)와 완료일, 고객사 구매 절차 메모입니다. 모두 선택 입력입니다.</td></tr>
+</table>
+
+<!-- 3 -->
+<h2 id="roles">3. 역할과 권한</h2>
+<p>사용자에게는 역할이 하나씩 있습니다. 시스템 화면에서는 각각 관리자, 영업, 조회자로 표시됩니다.</p>
+<table>
+  <tr><th>할 수 있는 일</th><th>admin(관리자)</th><th>sales(영업)</th><th>user(조회자)</th></tr>
+  <tr><td>Deal·Action·History·첨부 보기, 첨부 내려받기</td><td>O</td><td>O</td><td>O</td></tr>
+  <tr><td>Deal 등록·수정(Status·Forecast 변경 포함)</td><td>O</td><td>O (다른 사람 Deal도 가능)</td><td>X</td></tr>
+  <tr><td>Deal 삭제</td><td>O</td><td>본인이 Owner인 Deal만</td><td>X</td></tr>
+  <tr><td>Action 등록</td><td>O</td><td>O</td><td>X</td></tr>
+  <tr><td>Action 수정·삭제</td><td>O</td><td>본인이 기록한 Action만</td><td>X</td></tr>
+  <tr><td>첨부 업로드</td><td>O</td><td>O</td><td>X</td></tr>
+  <tr><td>첨부 교체·삭제</td><td>O</td><td>본인 파일 또는 퇴사한 영업의 파일</td><td>X</td></tr>
+  <tr><td>BANT Label 새로 만들기(Deal 폼에서)</td><td>O</td><td>O</td><td>X</td></tr>
+  <tr><td>BANT Label 이름 변경·삭제, 코드 관리, Vendor·Solution 관리, 경고 기준</td><td>O</td><td>X</td><td>X</td></tr>
+  <tr><td>연락처 관리 화면, 사용자 관리, AD·저장 위치 설정</td><td>O</td><td>X</td><td>X</td></tr>
+  <tr><td>Deal의 Owner가 되기</td><td>X</td><td>재직 중일 때만</td><td>X</td></tr>
+</table>
+<div class="callout"><p>권한은 화면에서 버튼을 숨기는 것만이 아니라 <b>서버가 요청마다 다시 검사</b>합니다. 조회자가 주소를 직접 입력해 저장을 시도해도 거절됩니다.</p></div>
+
+<!-- 4 -->
+<h2 id="lifecycle">4. Deal의 일생</h2>
+<div class="flow">
+  <span>등록</span><b>→</b><span>Action 기록</span><b>→</b><span>Status·Forecast·금액 갱신</span><b>→</b><span>경고 확인·후속 조치</span><b>→</b><span>종결(Won / Lost)</span>
+</div>
+<ol>
+  <li><b>등록</b>: Deal Name, Owner, 고객, Status, Forecast, 금액, Expected Close를 입력합니다. 시스템이 Deal code를 발급하고 History에 "Deal 등록"을 남깁니다.</li>
+  <li><b>진행</b>: 고객과 통화하거나 미팅할 때마다 Action을 남깁니다. Action에는 "다음에 무엇을 언제까지 할지"(Next Action, Due Date)가 반드시 들어갑니다. 가장 최근 Action의 Next Action과 Due Date가 목록에 표시됩니다.</li>
+  <li><b>단계 갱신</b>: 상황이 바뀌면 Status, Forecast, 금액, Expected Close를 고칩니다. 목록이나 상세 화면에서 바로 바꿀 수 있습니다. 바꿀 때마다 History가 남습니다.</li>
+  <li><b>경고 관리</b>: Due Date가 지났거나 오래 갱신하지 않으면 경고가 붙습니다. 경고는 Action을 남기거나 Deal을 갱신하면 풀립니다.</li>
+  <li><b>종결</b>:
+    <ul>
+      <li>수주하면 Forecast를 Won으로 바꿉니다(또는 Status를 계약완료로 바꿉니다). 둘은 함께 바뀌며 실제 매출금액과 매출일을 확인해 입력합니다.</li>
+      <li>실패하면 Forecast를 Lost로 바꿉니다.</li>
+      <li>종결된 Deal에는 경고가 붙지 않습니다.</li>
+    </ul>
+  </li>
+  <li><b>재개 또는 삭제</b>:
+    <ul>
+      <li>종결된 Deal도 다시 열 수 있습니다(<a href="#sync">6장</a>).</li>
+      <li>잘못 만든 Deal은 삭제할 수 있지만, 딸린 기록까지 모두 사라집니다(<a href="#delete">13장</a>).</li>
+    </ul>
+  </li>
+</ol>
+
+<!-- 5 -->
+<h2 id="register">5. Deal 등록과 수정</h2>
+<h3>5.1 입력 항목과 규칙</h3>
+<table>
+  <tr><th>항목</th><th>필수</th><th>규칙</th></tr>
+  <tr><td>Deal Name</td><td>O</td><td>앞뒤 공백 제거 후 1~200자</td></tr>
+  <tr><td>Owner</td><td>O</td><td>재직 중인 영업 사용자</td></tr>
+  <tr><td>고객</td><td>O</td><td>기존 연락처를 고르거나 새로 입력(<a href="#contact">10장</a>)</td></tr>
+  <tr><td>파트너</td><td></td><td>입력하면 회사명과 담당자명이 모두 필요합니다. 한 Deal에 활성 파트너는 한 명입니다.</td></tr>
+  <tr><td>Status / Forecast</td><td>O</td><td>계약완료 ⇔ Won 규칙을 지켜야 합니다(<a href="#sync">6장</a>).</td></tr>
+  <tr><td>금액</td><td>O</td><td>1원 이상의 정수</td></tr>
+  <tr><td>Expected Close</td><td>O</td><td>날짜</td></tr>
+  <tr><td>Vendor / Solution</td><td></td><td>관리자가 등록한 목록에서 선택합니다(<a href="#vendor">14.4</a>). Solution 목록에는 고른 Vendor에 속한 것만 나오고, Vendor를 바꾸면 고른 Solution이 비워집니다. Vendor 없이 Solution만 고를 수는 없습니다.</td></tr>
+  <tr><td>Users</td><td></td><td>1 이상의 정수</td></tr>
+  <tr><td>견적 / POC</td><td></td><td>상태와 날짜는 따로 입력합니다(둘의 조합은 검사하지 않음).</td></tr>
+  <tr><td>구매절차</td><td></td><td>500자 이내</td></tr>
+  <tr><td>BANT</td><td></td><td>구분마다 Label 하나 또는 선택 안 함. 필요한 Label이 없으면 폼에서 바로 새로 만들 수 있습니다.</td></tr>
+</table>
+
+<h3>5.2 화면 배치</h3>
+<p>등록·수정 화면과 상세 화면은 같은 배치를 씁니다. Deal code와 Owner를 포함한 기본 정보는 <b>Deal 정보</b> 칸에 모여 있고, 항목 이름과 값이 한 줄에 나란히 보입니다. 상세 화면에서 값을 눌러 고칠 때도 글자 위치와 모양이 그대로 유지됩니다. Deal code는 등록할 때 시스템이 발급하므로 등록 화면에는 입력란이 없습니다.</p>
+
+<h3>5.3 수정 방법 세 가지</h3>
+<ul>
+  <li><b>수정 폼</b>(<code>/deals/{code}/edit</code>): 여러 항목을 한 번에 저장합니다. 바뀐 항목마다 History가 한 건씩 남고, 아무것도 바뀌지 않았으면 History도 수정 시각도 그대로입니다. 폼 저장에서는 최종 Status와 Forecast가 규칙에 맞아야 하며, 맞지 않으면 아무것도 저장되지 않습니다.</li>
+  <li><b>목록에서 바로 고치기</b>: Status, Forecast, 금액, Expected Close 네 칸은 목록 화면에서 바로 바꿀 수 있습니다.</li>
+  <li><b>상세 화면에서 바로 고치기</b>: 상세 화면의 요약과 정보 칸도 그 자리에서 고칠 수 있습니다. Status나 Forecast를 하나만 바꾸면 시스템이 함께 바꿀 값을 물어봅니다(<a href="#sync">6장</a>).</li>
+</ul>
+<div class="callout warn"><p><b>Owner가 퇴사한 경우</b>: Deal은 그대로 남고 Owner는 "이름(퇴사)"로 표시됩니다. 퇴사자는 Owner로 새로 지정할 수 없으니, 폼으로 저장할 때 재직 중인 영업 담당자로 Owner를 바꿔야 합니다.</p></div>
+
+<!-- 6 -->
+<h2 id="sync">6. Status·Forecast 동기화</h2>
+<p>규칙은 하나입니다. <b>Status가 계약완료이면 Forecast는 반드시 Won이고, Forecast가 Won이면 Status는 반드시 계약완료입니다.</b> 그 밖의 조합은 자유롭습니다. 예를 들어 Status가 "가격협상"이면서 Forecast가 "Lost"인 상태도 허용됩니다. 실패한 시점의 단계를 남기는 용도입니다.</p>
+<p>Status나 Forecast 하나만 바꿀 때 이 규칙이 깨질 상황이면, 시스템이 나머지 값을 자동으로 맞추거나 사용자에게 고르게 합니다.</p>
+<table>
+  <tr><th>바꾸려는 값</th><th>시스템 동작</th></tr>
+  <tr><td>Status → 계약완료</td><td>Forecast가 자동으로 Won이 됩니다. <b>매출금액과 매출일을 입력해야</b> 저장됩니다.</td></tr>
+  <tr><td>Forecast → Won</td><td>Status가 자동으로 계약완료가 됩니다. 마찬가지로 매출금액과 매출일이 필요합니다.</td></tr>
+  <tr><td>Status: 계약완료 → 다른 단계</td><td>Deal을 다시 여는 변경입니다. Forecast를 Won이 아닌 값 중에서 골라야 합니다.</td></tr>
+  <tr><td>Forecast: Won → 다른 값</td><td>Status를 계약완료가 아닌 단계 중에서 골라야 합니다. 기본으로 선택된 값은 없습니다.</td></tr>
+  <tr><td>Forecast: Lost → 진행 중 값</td><td>Status를 다시 고르게 합니다. 기본값은 지금의 Status입니다.</td></tr>
+  <tr><td>그 밖의 변경</td><td>바꾼 값 하나만 바뀝니다.</td></tr>
+</table>
+<p>함께 바뀐 값은 저장 후 안내 문구로 알려 줍니다. 예: "Status가 '계약완료'로, Forecast가 'Won'으로 함께 변경되었습니다." History에는 "계약완료 (Forecast Won과 함께 변경)"처럼 남습니다.</p>
+<div class="callout"><p>규칙은 코드의 <b>내부 key</b>로 판단합니다. 그래서 관리자가 "계약완료"의 이름을 "수주"로 바꿔도 규칙은 그대로 동작합니다. 이런 코드는 삭제할 수 없도록 잠겨 있습니다(<a href="#admin">14.2</a>).</p></div>
+
+<!-- 7 -->
+<h2 id="action">7. Action(진행 활동)</h2>
+<h3>7.1 구성</h3>
+<table>
+  <tr><th>항목</th><th>필수</th><th>설명</th></tr>
+  <tr><td>유형</td><td>O</td><td>통화, 미팅, 이메일, 데모, 제안, 협상, 계약, 기타 중 하나(고정 목록)</td></tr>
+  <tr><td>진행사항</td><td>O</td><td>이번에 한 일. 길이 제한 없음</td></tr>
+  <tr><td>Next Action</td><td>O</td><td>다음에 할 일. 길이 제한 없음</td></tr>
+  <tr><td>Due Date</td><td>O</td><td>Next Action의 기한(날짜)</td></tr>
+  <tr><td>Memo</td><td></td><td>참고 메모. 길이 제한 없음</td></tr>
+</table>
+<h3>7.2 시스템이 정하는 값</h3>
+<ul>
+  <li><b>수행 일시</b>는 저장한 시각, <b>담당자</b>는 저장한 사람으로 서버가 채웁니다. 다른 사람 이름으로 기록하거나 날짜를 과거로 돌릴 수 없습니다.</li>
+  <li>기록할 때의 Status와 Forecast를 Action에 <b>스냅숏</b>으로 함께 저장합니다. 나중에 Deal이 바뀌어도 "그때 어떤 단계였는지"가 남습니다.</li>
+  <li>수정할 수 있는 것은 내용(유형·진행사항·Next Action·Due Date·Memo)뿐입니다. 수행 일시, 담당자, 스냅숏은 바뀌지 않습니다.</li>
+</ul>
+<h3>7.3 Action이 Deal에 주는 영향</h3>
+<ul>
+  <li>가장 최근에 수행한 Action의 Next Action과 Due Date가 Deal의 "다음 진행 계획"으로 목록·상세에 표시됩니다.</li>
+  <li>Deal의 <b>마지막 업데이트</b>는 Deal 수정 시각과 가장 최근 Action 수행 시각 중 늦은 쪽입니다. Action을 남기면 미업데이트 경고가 풀립니다.</li>
+  <li>Action의 등록·수정·삭제도 모두 History에 남습니다.</li>
+</ul>
+<h3>7.4 Action 검색</h3>
+<p>Deal 상세의 Action 탭에서 유형, 담당자(퇴사자 포함), 키워드, 수행 기간, Due 기간으로 걸러 보고 정렬할 수 있습니다.</p>
+
+<!-- 8 -->
+<h2 id="risk">8. 경고와 체류 일수</h2>
+<p>종결되지 않은(Won·Lost가 아닌) Deal에는 두 가지 경고가 붙을 수 있습니다. 두 경고가 동시에 붙기도 합니다.</p>
+<table>
+  <tr><th>경고</th><th>조건</th><th>푸는 방법</th></tr>
+  <tr><td>기한초과(빨강)</td><td>가장 최근 Action의 Due Date가 오늘보다 앞섬</td><td>새 Action을 남겨 다음 기한을 정함</td></tr>
+  <tr><td>미업데이트(노랑)</td><td>마지막 업데이트 후 <b>기준 일수 이상</b> 지남(기본 14일)</td><td>Action을 남기거나 Deal을 수정함</td></tr>
+</table>
+<ul>
+  <li>미업데이트 기준 일수는 관리자가 1~365일 사이에서 정합니다(<a href="#admin">14.5</a>). 기준이 14일이면 13일째까지는 정상이고, 14일째부터 경고가 붙습니다.</li>
+  <li><b>Status 체류 일수</b>: 지금 Status에 들어온 날부터 며칠째인지 보여 줍니다(들어온 날은 0일). Status가 실제로 바뀔 때만 다시 0부터 셉니다. 다른 항목을 고쳐도 초기화되지 않습니다.</li>
+  <li>모든 날짜 계산은 <b>서버 시간대의 달력 날짜</b>를 기준으로 서버가 합니다. 화면은 서버가 준 값을 그대로 보여 줍니다.</li>
+</ul>
+
+<!-- 9 -->
+<h2 id="history">9. 변경 이력(History)</h2>
+<p>History는 Deal의 감사 기록입니다. 시스템이 자동으로 쓰고 아무도 고치거나 지울 수 없습니다. Deal을 삭제할 때만 함께 지워집니다.</p>
+<table>
+  <tr><th>구분</th><th>언제 남나</th></tr>
+  <tr><td>등록</td><td>Deal을 만들 때</td></tr>
+  <tr><td>Status / Forecast</td><td>값이 바뀔 때(함께 바뀌었으면 그 사실도 표기)</td></tr>
+  <tr><td>금액 / Expected Close</td><td>값이 바뀔 때</td></tr>
+  <tr><td>Owner / 파트너 / 고객 연락처</td><td>담당자나 연결된 연락처가 바뀔 때. 퇴사자는 "이름(퇴사)"로 표시</td></tr>
+  <tr><td>연락처 정보</td><td>연결된 고객·파트너의 직급·이메일·전화가 바뀔 때. 그 연락처를 쓰는 <b>모든 Deal</b>에 한 건씩 남음</td></tr>
+  <tr><td>BANT</td><td>구분별 Label이 바뀔 때</td></tr>
+  <tr><td>Action</td><td>Action 등록·수정·삭제</td></tr>
+  <tr><td>첨부 파일</td><td>업로드·교체·삭제(파일 이름 포함)</td></tr>
+  <tr><td>기타</td><td>Deal Name, Vendor, Solution, Users, 견적, POC, 구매절차</td></tr>
+</table>
+<p>각 항목에는 변경 시각, 변경한 사람, 대상, 이전 값, 이후 값이 있습니다. History 탭에서 구분별로 걸러 볼 수 있습니다.</p>
+
+<!-- 10 -->
+<h2 id="contact">10. 고객·파트너 연락처</h2>
+<p>연락처는 Deal과 따로 저장되는 공용 데이터입니다. 같은 고객 담당자를 여러 Deal에서 함께 씁니다.</p>
+<h3>10.1 입력 규칙</h3>
+<ul>
+  <li>회사명(200자)과 담당자명(100자)은 필수이고, <b>공백을 넣을 수 없습니다</b>. 예를 들어 "네오인 주식회사"가 아니라 "네오인"처럼 씁니다.</li>
+  <li>직급, 이메일, 전화는 선택입니다.</li>
+  <li>연락처의 종류(고객/파트너)는 만든 뒤에 바뀌지 않습니다.</li>
+</ul>
+<h3>10.2 같은 사람 판정</h3>
+<p>Deal 폼에서 연락처를 새로 입력하면, 시스템은 같은 종류·같은 회사·같은 담당자명의 기존 연락처가 있는지 먼저 찾습니다.</p>
+<ol>
+  <li>입력에 이메일이 있으면, 같은 이메일(대소문자 무시)을 가진 기존 연락처를 같은 사람으로 봅니다.</li>
+  <li>그런 연락처가 없으면, 이메일이 비어 있는 기존 연락처를 같은 사람으로 봅니다. 입력한 이메일이 그 연락처에 채워집니다.</li>
+  <li>입력에 이메일이 없으면, 회사·이름이 같은 기존 연락처를 같은 사람으로 봅니다.</li>
+</ol>
+<p>같은 사람으로 판정되면 새로 만들지 않고 기존 연락처를 씁니다. 회사명·담당자명은 기존 표기를 유지합니다. 입력이 비어 있는 직급·이메일·전화는 기존 값을 지우지 않고, 입력한 값만 덮어씁니다.</p>
+<h3>10.3 정보 변경과 삭제</h3>
+<ul>
+  <li>Deal 상세에서 연락처 정보를 고치면 <b>연락처 자체</b>가 바뀝니다. 그 연락처를 쓰는 모든 Deal의 History에 변경이 기록됩니다.</li>
+  <li>파트너를 바꾸거나 해제해도 이전 연결은 지워지지 않고 해제 시각과 함께 보존됩니다.</li>
+  <li>관리자는 연락처 관리 화면에서 연락처를 검색·등록·수정·삭제합니다. 어떤 Deal이든 고객이나 파트너(과거 연결 포함)로 쓰고 있는 연락처는 삭제할 수 없습니다.</li>
+</ul>
+
+<!-- 11 -->
+<h2 id="attachment">11. 첨부 파일</h2>
+<ul>
+  <li>Deal마다 파일을 올릴 수 있습니다. 파일 하나는 최대 <b>100MB</b>이고, 설명은 100자까지 쓸 수 있습니다.</li>
+  <li>실행·설치 파일은 올릴 수 없습니다: <code>exe msi bat cmd sh ps1 jar com scr dmg pkg deb rpm vbs vbe wsf wsh hta cpl msp mst apk appimage run</code>. <code>setup.exe.</code>처럼 끝에 점이나 공백을 붙여도 막힙니다.</li>
+  <li>경로 문자(<code>/</code>, <code>\</code>), 제어 문자, 보이지 않는 서식 문자가 들어간 이름은 거절됩니다. 이름이 바뀌어 보이게 하는 위장을 막기 위해서입니다.</li>
+  <li>같은 Deal에 <b>같은 이름의 파일</b>이 이미 있으면 교체할지 건너뛸지 묻습니다. 교체는 업로드한 본인, 퇴사한 영업이 올린 파일이면 다른 영업, 그리고 admin이 할 수 있습니다.</li>
+  <li>파일은 서버의 <b>저장 위치</b>(관리자가 지정한 디렉터리) 아래 Deal code별 폴더에 보관됩니다. 저장 위치가 설정되지 않았거나 쓸 수 없으면 업로드가 거절됩니다.</li>
+  <li>업로드·교체·삭제는 History에 남습니다. 내려받기는 로그인한 모든 사용자가 할 수 있습니다.</li>
+</ul>
+
+<!-- 12 -->
+<h2 id="list">12. 목록 조회와 검색</h2>
+<h3>12.1 검색 조건</h3>
+<table>
+  <tr><th>조건</th><th>동작</th></tr>
+  <tr><td>키워드</td><td>Deal Name, 고객 회사, 현재 파트너 회사, Deal code에서 부분 일치(대소문자 무시)</td></tr>
+  <tr><td>담당자 / 내 딜만</td><td>Owner로 거름(퇴사자도 선택 가능). "내 딜만"은 내가 Owner인 Deal</td></tr>
+  <tr><td>Vendor / Solution</td><td>관리자가 등록한 목록에서 선택. Vendor를 고르면 Solution 목록은 그 Vendor의 것만 나옵니다. 목록에 없는 값이나 고른 Vendor에 속하지 않는 Solution이 주소에 들어 있으면 그 조건은 빼고 조회합니다.</td></tr>
+  <tr><td>Status / Forecast</td><td>코드 하나 선택</td></tr>
+  <tr><td>연도·분기 / 기간</td><td>Expected Close 기준. 분기는 Q1(1~3월), Q2(4~6월), Q3(7~9월), Q4(10~12월)입니다. 연도를 고르지 않고 분기만 고르면 <b>올해</b>(서버 날짜 기준)의 그 분기로 조회합니다. 연도·분기와 기간을 함께 쓰면 겹치는 범위만(양끝 포함)</td></tr>
+  <tr><td>BANT Label</td><td>구분마다 Label 하나. 여러 구분을 고르면 모두 만족하는 Deal</td></tr>
+</table>
+<p>조건은 모두 AND로 결합합니다. 정렬은 Deal Name, 금액, Expected Close, 마지막 업데이트, Status(관리자가 정한 코드 순서) 기준으로 할 수 있고, 기본값은 마지막 업데이트 최신순입니다. 값이 같으면 Deal code 순으로 정렬합니다. 한 페이지에 20건씩 보입니다.</p>
+<h3>12.2 조건 유지</h3>
+<ul>
+  <li>검색 조건, 정렬, 페이지는 화면 주소(URL)에 들어갑니다. 주소를 복사해 동료에게 보내면 같은 결과가 보입니다.</li>
+  <li>상세 화면에 갔다가 Deals 메뉴로 돌아와도 마지막 조건이 복원됩니다. 이 기억은 사용자별로, 브라우저 탭 세션 동안만 유지됩니다.</li>
+</ul>
+<h3>12.3 목록에서 하는 일</h3>
+<ul>
+  <li>열은 Deal, 담당자(Owner), 고객사, 파트너사, Vendor 순으로 시작합니다.</li>
+  <li>행마다 경고 배지, Status 체류 일수, 다음 진행 계획, BANT 요약을 보여 줍니다.</li>
+  <li>행을 펼치면 <b>빠른 보기</b>가 열립니다. 견적, POC, 고객 담당자, 파트너, BANT, Users, 구매절차를 상세 화면에 가지 않고 확인할 수 있습니다.</li>
+  <li>Status, Forecast, 금액, Expected Close는 목록에서 바로 고칠 수 있습니다(동기화 규칙 적용).</li>
+</ul>
+
+<!-- 13 -->
+<h2 id="delete">13. Deal 삭제</h2>
+<ul>
+  <li>Owner 본인(영업)이나 admin만 삭제할 수 있습니다.</li>
+  <li>삭제는 <b>되돌릴 수 없는 물리 삭제</b>입니다. History, Action, 파트너 연결, BANT 선택, 첨부 파일(디스크의 파일 포함)이 함께 지워집니다.</li>
+  <li>삭제 전에 함께 지워질 History·Action·첨부 건수를 보여 주고, 실수를 막기 위해 <b>Deal code를 정확히 입력</b>해야 삭제됩니다.</li>
+  <li>연락처, 사용자, 코드, BANT Label, Vendor·Solution 같은 공용 데이터는 Deal을 삭제해도 남습니다.</li>
+</ul>
+<div class="callout warn"><p>종결된 Deal은 삭제하지 말고 Won 또는 Lost로 남겨 두세요. 삭제는 잘못 만든 Deal을 정리할 때만 씁니다.</p></div>
+
+<!-- 14 -->
+<h2 id="admin">14. 관리자 설정</h2>
+<h3>14.1 최초 설정(설치 직후 한 번)</h3>
+<p>admin 사용자가 아직 없으면 접속하자마자 설정 화면(<code>/setup</code>)이 열립니다. 세 단계를 순서대로 진행합니다.</p>
+<ol>
+  <li><b>AD 서버 등록</b>: 로그인에 쓸 사내 AD(LDAP) 서버 주소와 계정 조회 방식을 입력하고 연결을 시험합니다.</li>
+  <li><b>첨부 저장 위치 등록</b>: 서버에서 쓸 수 있는 절대 경로를 입력합니다. 시스템이 실제로 써 보고 확인합니다.</li>
+  <li><b>첫 admin 등록</b>: AD 계정으로 로그인해 첫 관리자가 됩니다.</li>
+</ol>
+<p>설정이 끝난 뒤에는 관리 → 연동 화면에서 AD 설정과 저장 위치를 바꿀 수 있습니다. 두 설정 모두 저장하기 전에 연결이나 쓰기를 시험할 수 있습니다.</p>
+
+<h3>14.2 코드 관리(Status·Forecast)</h3>
+<ul>
+  <li>코드를 추가하고, 이름을 바꾸고, 순서를 바꾸고, 삭제할 수 있습니다. 이름은 같은 종류 안에서 대소문자 무시로 중복될 수 없고 50자 이내입니다.</li>
+  <li>Forecast에는 "51–75" 같은 확률 힌트(20자 이내)를 붙일 수 있습니다.</li>
+  <li>시스템 규칙에 연결된 코드는 <b>잠금</b> 상태입니다. Status의 기회발굴·계약완료, Forecast의 Pipeline·Won·Lost가 여기에 해당합니다. 이 코드는 이름과 순서만 바꿀 수 있고 삭제할 수 없습니다.</li>
+  <li>Deal이나 Action 스냅숏에서 쓰고 있는 코드는 삭제할 수 없습니다. 화면에 사용 건수가 표시됩니다.</li>
+  <li>Status 순서는 목록의 "Status 정렬" 순서가 됩니다.</li>
+</ul>
+
+<h3>14.3 BANT Label 관리</h3>
+<ul>
+  <li>기본 Label이 미리 들어 있습니다. 예: Budget에는 "단독 예산 확보", "예산 작업중", "미확인" 등이 있습니다.</li>
+  <li>영업 담당자는 Deal 폼에서 Label을 새로 만들 수 있습니다. 이름 변경과 삭제는 admin만 할 수 있습니다.</li>
+  <li>Label 이름은 같은 구분 안에서 대소문자 무시로 중복될 수 없고 50자 이내입니다. Deal이 쓰고 있는 Label은 삭제할 수 없습니다.</li>
+</ul>
+
+<h3 id="vendor">14.4 Vendor·Solution 관리</h3>
+<ul>
+  <li>관리 → Deal 관리의 <b>Vendor·Solution</b> 탭에서 Vendor를 추가·이름 변경·삭제하고, Vendor마다 소속 Solution을 추가·이름 변경·삭제합니다. admin만 할 수 있고, 다른 역할은 목록을 보고 Deal에서 고르기만 합니다.</li>
+  <li>이름은 앞뒤 공백을 제거하고 Vendor 100자, Solution 200자 이내입니다. 대소문자 무시로 Vendor 이름은 전체에서, Solution 이름은 같은 Vendor 안에서 중복될 수 없습니다(다른 Vendor에는 같은 이름의 Solution이 있어도 됩니다). 목록은 이름순입니다.</li>
+  <li>이름을 바꾸면 그 Vendor·Solution을 쓰는 모든 Deal에 새 이름이 보입니다.</li>
+  <li>Deal이 쓰고 있는 Vendor나 Solution은 삭제할 수 없고, 화면에 사용 건수("Deal N건")가 보입니다.</li>
+  <li>Vendor를 삭제하면 소속 Solution도 함께 삭제됩니다. 삭제 전에 확인을 받습니다.</li>
+</ul>
+<div class="callout warn"><p>Vendor를 하나도 등록하지 않으면 Deal에서 고를 Vendor가 없습니다. 운영을 시작하기 전에 관리자가 Vendor와 Solution을 먼저 등록하세요.</p></div>
+
+<h3>14.5 경고 기준</h3>
+<p>미업데이트 기준 일수(1~365일, 기본 14일)를 정합니다. 바꾸면 모든 Deal의 경고가 즉시 새 기준으로 계산됩니다.</p>
+
+<h3>14.6 사용자 관리</h3>
+<ul>
+  <li>AD 로그인 아이디와 역할(관리자/영업/조회자)로 사용자를 등록합니다. <b>등록된 사용자만</b> 로그인할 수 있습니다. 비밀번호는 시스템에 저장되지 않고, 로그인할 때마다 AD로 확인합니다.</li>
+  <li>이름과 이메일은 로그인할 때 AD 정보로 갱신됩니다.</li>
+  <li>사용자를 삭제하면 다음과 같이 처리됩니다.
+    <ul>
+      <li>Deal·Action·History 등에 기록이 남아 있으면 <b>퇴사 처리</b>합니다. 목록에서는 빠지지만 기록에는 "이름(퇴사)"로 남습니다.</li>
+      <li>기록이 하나도 없으면 완전히 지웁니다.</li>
+    </ul>
+  </li>
+  <li>자기 자신과 마지막 남은 admin은 삭제할 수 없습니다.</li>
+  <li>퇴사자가 재입사하면 같은 아이디로 다시 등록합니다. 이때 새 사용자로 만들어지며, 예전 기록은 퇴사한 계정에 남습니다.</li>
+</ul>
+
+<!-- 15 -->
+<h2 id="auth">15. 로그인과 계정</h2>
+<ul>
+  <li>사내 AD 아이디와 비밀번호로 로그인합니다.</li>
+  <li>로그인 상태는 기본 <b>8시간</b> 유지됩니다.</li>
+  <li>비밀번호를 연속으로 틀리면 잠깁니다.
+    <ul>
+      <li>한 아이디로 15분 안에 5번 틀리면, 그 아이디는 15분 동안 로그인할 수 없습니다.</li>
+      <li>같은 PC(IP)에서 15분 안에 30번 틀리면, 그 IP도 15분 동안 막힙니다.</li>
+      <li>이 값들은 운영 설정으로 바꿀 수 있습니다.</li>
+    </ul>
+  </li>
+  <li>개발용 로컬 환경에서만 로그인 화면에 <b>빠른 로그인</b>(관리자/영업/조회자) 버튼이 보입니다. dev·운영 서버에는 이 기능이 없습니다.</li>
+</ul>
+
+<!-- 16 -->
+<h2 id="notyet">16. 아직 없는 기능</h2>
+<table>
+  <tr><th>메뉴·기능</th><th>현재 상태</th></tr>
+  <tr><td>Dashboard</td><td>메뉴만 있고 "준비 중"으로 표시됩니다.</td></tr>
+  <tr><td>Forecast(분기별 집계·담당자별 Deal)</td><td>화면은 만들어져 있지만 서버 집계 기능이 아직 없어 "준비 중"으로 표시됩니다.</td></tr>
+  <tr><td>Reports</td><td>메뉴만 있고 "준비 중"으로 표시됩니다.</td></tr>
+  <tr><td>메일 알림</td><td>경고는 화면에만 표시되며 메일로 보내지 않습니다.</td></tr>
+</table>
+
+<!-- 17 -->
+<h2 id="faq">17. 자주 묻는 질문</h2>
+<h3>"Status와 Forecast의 동기화가 맞지 않습니다."가 나와요.</h3>
+<p>수정 폼에서 계약완료와 Won 중 하나만 골랐을 때 나옵니다. 둘을 함께 맞추거나, 목록·상세 화면에서 하나만 바꾸세요. 하나만 바꾸면 시스템이 나머지를 맞춰 줍니다.</p>
+<h3>"Won·계약완료로 바꾸려면 매출금액과 매출일이 필요합니다."가 나와요.</h3>
+<p>Deal을 Won으로 닫을 때는 확정된 매출금액과 매출일을 함께 입력해야 합니다.</p>
+<h3>Deal을 고쳤는데 미업데이트 경고가 그대로예요.</h3>
+<p>실제로 바뀐 값이 없으면 수정으로 치지 않습니다. 같은 값으로 다시 저장해도 마찬가지입니다. 진행 상황을 Action으로 남기면 경고가 풀립니다.</p>
+<h3>다른 사람의 Deal을 고칠 수 있나요?</h3>
+<p>영업 역할이면 수정은 가능하며 History에 고친 사람이 남습니다. 삭제는 Owner 본인과 admin만 할 수 있습니다.</p>
+<h3>Deal 등록 화면에 Vendor 목록이 비어 있어요.</h3>
+<p>Vendor는 관리자가 등록한 목록에서만 고릅니다. 관리 → Deal 관리 → Vendor·Solution 탭에서 먼저 등록해야 합니다(<a href="#vendor">14.4</a>).</p>
+<h3>"Solution을 선택하려면 Vendor를 먼저 선택하세요."·"선택한 Solution은 이 Vendor에 속하지 않습니다."가 나와요.</h3>
+<p>Solution은 고른 Vendor에 속한 것만 쓸 수 있습니다. Vendor를 먼저 고르고, 그 Vendor의 Solution을 다시 고르세요. "선택한 Vendor가 없습니다."는 그사이 관리자가 Vendor를 지운 경우이니 목록에서 다시 고르면 됩니다.</p>
+<h3>Owner를 관리자로 지정할 수 없어요.</h3>
+<p>Owner는 재직 중인 영업 역할 사용자만 될 수 있습니다. 관리자에게 Deal을 맡기려면 그 사람을 영업 역할로 등록해야 합니다.</p>
+<h3>연락처 회사명에 띄어쓰기를 넣을 수 없어요.</h3>
+<p>같은 회사가 "네오인 주식회사"와 "네오인"처럼 다르게 쌓이는 것을 막으려고 공백을 금지합니다. 회사를 구분하는 핵심 이름만 붙여서 입력하세요.</p>
+<h3>업로드가 "사용할 수 없는 파일 이름입니다."로 거절돼요.</h3>
+<p>파일 이름에 경로 문자나 보이지 않는 특수 문자가 들어 있을 수 있습니다. 이름을 새로 입력해 저장한 뒤 다시 올려 보세요.</p>
+
+</main>
+</div>
+</body>
+</html>
