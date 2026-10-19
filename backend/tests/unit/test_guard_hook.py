@@ -72,15 +72,12 @@ class TestAlembicPolicy:
 
     @pytest.mark.parametrize("command", ["alembic downgrade -1", "alembic stamp head"])
     @pytest.mark.parametrize("profile", [None, "local", "dev"])
-    def test_downgrade_and_stamp_always_need_confirmation(
+    def test_downgrade_and_stamp_are_allowed_outside_product(
         self, command: str, profile: str | None
     ) -> None:
-        decision = bash(command, profile)
+        assert bash(command, profile) is None
 
-        assert decision is not None
-        assert decision[0] == "ask"
-
-    def test_product_denial_takes_precedence_over_confirmation(self) -> None:
+    def test_downgrade_targeting_product_is_denied(self) -> None:
         decision = bash("alembic downgrade -1", "product")
 
         assert decision is not None

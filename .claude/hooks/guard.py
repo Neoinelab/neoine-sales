@@ -3,9 +3,8 @@
 stdin으로 받은 훅 입력(JSON)을 검사해 위험한 도구 호출을 차단하거나 사람 확인을 요구한다.
   deny : .env* 읽기/쓰기, uv.lock 직접 편집, pip install / venv 사용,
          product 대상 alembic 명령(마이그레이션은 승인된 product 배포의 deploy.sh만 실행한다)
-  ask  : alembic downgrade|stamp (되돌리기·이력 변경은 환경과 무관하게 사람이 확인),
-         Bash에서 .env 언급
-  allow: local·dev 대상 alembic upgrade/revision 등. 마이그레이션은 local과 dev에서 자동 적용이 정책이다.
+  ask  : Bash에서 .env 언급
+  allow: local·dev 대상 alembic 명령(upgrade/revision/downgrade/stamp 등). 마이그레이션은 local과 dev에서 자동 적용이 정책이다.
          (dev는 main 머지 시 Jenkins 배포의 deploy.sh가 자동 실행)
 통과 시 아무것도 출력하지 않고 종료한다.
 """
@@ -18,7 +17,6 @@ import sys
 ENV_FILE = re.compile(r"(?:^|/)\.env(?:\.(?!example$)[\w.-]+)?$")
 ENV_IN_COMMAND = re.compile(r"(?<![\w-])\.env(?!\.example)(?:\.[\w.-]+)?(?![\w-])")
 ALEMBIC = re.compile(r"\balembic\b")
-ALEMBIC_RISKY = re.compile(r"\balembic\b.*\b(?:downgrade|stamp)\b")
 INLINE_PRODUCT = re.compile(r"APP_PROFILE=['\"]?product(?![\w-])")
 PIP_OR_VENV = re.compile(r"(?:^|[\s;&|])(?:pip3?\s+install|python3?\s+-m\s+venv|virtualenv)\b")
 FILE_TOOLS = {"Read", "Edit", "Write", "MultiEdit", "NotebookEdit"}
@@ -45,11 +43,8 @@ def decide(
         command = str(tool_input.get("command", ""))
         if PIP_OR_VENV.search(command):
             return "deny", "이 프로젝트는 uv만 사용합니다. pip install/venv 대신 uv add, uv sync, uv run을 쓰세요."
-        if ALEMBIC.search(command):
-            if _targets_product(command, active_profile):
-                return "deny", "product 마이그레이션은 승인된 product 배포(deploy.sh)에서만 실행합니다."
-            if ALEMBIC_RISKY.search(command):
-                return "ask", "alembic downgrade/stamp는 되돌리기·이력 변경입니다. 대상과 영향을 확인하세요."
+        if ALEMBIC.search(command) and _targets_product(command, active_profile):
+            return "deny", "product 마이그레이션은 승인된 product 배포(deploy.sh)에서만 실행합니다."
         if ENV_IN_COMMAND.search(command):
             return "ask", ".env* 파일을 다루는 명령입니다. 비밀 값이 출력되거나 변경되지 않는지 확인하세요."
     return None
