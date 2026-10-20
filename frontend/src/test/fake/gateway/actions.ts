@@ -5,7 +5,8 @@ import type { ActionInput, ActionQuery, ActionUpdateInput } from '../../../share
 import { forbidden, notFound, validation } from '../errors'
 import { takeId, type ActionRecord } from '../store'
 import { read, requireUser, requireWrite, viewerOf, write, type MockContext } from './context'
-import { commitDealChange, planDealChange, type ChangeOutcome } from './dealChange'
+import { assertSequenceShape, planSequence } from './actionChanges'
+import { commitDealChange } from './dealChange'
 import { commitActionType, planActionType } from './actionTypes'
 import { logHistory } from './historyLog'
 import { actionView, findDeal } from './views'
@@ -90,14 +91,14 @@ export function createActionsGateway(ctx: MockContext): ActionsGateway {
       write(ctx, () => {
         const user = requireWrite(ctx)
         const { data } = ctx.store
+        assertSequenceShape(input.statusChanges ?? []) // 서버 요청 검증(422)은 Deal 조회보다 먼저
         const deal = findDeal(data, dealCode)
         // 서버 순서: Deal(404) → 유형 → 진행사항 → Next Action → Due Date. 새 유형은 모든 검증이 끝난 뒤에만 만든다.
         const typePlan = planActionType(ctx, input.type)
         validateFields(input)
-        let outcome: ChangeOutcome | null = null
-        if (input.statusChange) outcome = planDealChange(ctx, deal, input.statusChange)
+        const outcomes = planSequence(ctx, deal, input.statusChanges ?? [])
         const chosen = commitActionType(ctx, typePlan, user.id)
-        if (outcome) commitDealChange(ctx, deal, outcome, user.id)
+        for (const outcome of outcomes) commitDealChange(ctx, deal, outcome, user.id)
         const record: ActionRecord = {
           id: takeId(data.counters, 'act'),
           dealCode,

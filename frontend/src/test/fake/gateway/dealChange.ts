@@ -22,6 +22,15 @@ export function codeSetOf(ctx: MockContext): CodeSet {
   return { statuses: byOrder('status'), forecasts: byOrder('forecast') }
 }
 
+/** Status·Forecast 변경의 코드가 존재하는지 확인한다(다른 판정보다 먼저). 틀리면 ApiError(422). */
+export function assertCodeExists(ctx: MockContext, request: ApplyChangeRequest): void {
+  const { change } = request
+  if (change.field !== 'statusKey' && change.field !== 'forecastKey') return
+  const codes = codeSetOf(ctx)
+  const list = change.field === 'statusKey' ? codes.statuses : codes.forecasts
+  if (!list.some((c) => c.key === change.value)) throw validation('존재하지 않는 코드입니다.')
+}
+
 /** 검증만 하고 아무것도 바꾸지 않는다. 틀리면 ApiError(422). */
 export function planDealChange(ctx: MockContext, deal: Deal, request: ApplyChangeRequest): ChangeOutcome {
   const { change, resolution } = request
@@ -34,9 +43,8 @@ export function planDealChange(ctx: MockContext, deal: Deal, request: ApplyChang
     return { patch: { revenueDate: change.value }, coChanged: [], notice: null }
   }
 
+  assertCodeExists(ctx, request)
   const codes = codeSetOf(ctx)
-  const list = change.field === 'statusKey' ? codes.statuses : codes.forecasts
-  if (!list.some((c) => c.key === change.value)) throw validation('존재하지 않는 코드입니다.')
   const plan = planChange(deal, change, codes)
   const result = finalizePlan(deal, plan, resolution, codes)
   if (!result.ok) throw validation(result.message)

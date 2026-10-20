@@ -176,7 +176,9 @@ async def test_register_action_with_status_change_moves_it(action_env: ActionEnv
     env = action_env.env
 
     action = await action_env.act(
-        status_change=StatusChangeInput(field="status_key", value="introduction", resolution=None)
+        status_changes=(
+            StatusChangeInput(field="status_key", value="introduction", resolution=None),
+        )
     )
 
     assert await _entry_time(env, action_env.deal) == action.acted_at
@@ -188,7 +190,7 @@ async def test_register_action_with_forecast_change_keeps_it(action_env: ActionE
     registered_at = await _entry_time(env, action_env.deal)
 
     await action_env.act(
-        status_change=StatusChangeInput(field="forecast_key", value="best", resolution=None)
+        status_changes=(StatusChangeInput(field="forecast_key", value="best", resolution=None),)
     )
 
     assert await _entry_time(env, action_env.deal) == registered_at
@@ -198,8 +200,8 @@ async def test_register_action_with_closing_moves_it(action_env: ActionEnv) -> N
     env = action_env.env
 
     action = await action_env.act(
-        status_change=StatusChangeInput(
-            field="status_key", value="contract_completed", resolution=CLOSING
+        status_changes=(
+            StatusChangeInput(field="status_key", value="contract_completed", resolution=CLOSING),
         )
     )
 

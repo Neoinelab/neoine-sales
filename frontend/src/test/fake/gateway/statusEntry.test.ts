@@ -88,7 +88,7 @@ describe('Status 진입 시각 (R-22, R-21)', () => {
     await gateway.actions.create(code, base)
     expect((await gateway.deals.get(code)).statusChangedAt).toBe(TEST_NOW)
 
-    await gateway.actions.create(code, { ...base, statusChange: { change: { field: 'statusKey', value: 'introduction' } } })
+    await gateway.actions.create(code, { ...base, statusChanges: [{ change: { field: 'statusKey', value: 'introduction' } }] })
     expect((await gateway.deals.get(code)).statusChangedAt).toBe(clock.now())
   })
 

@@ -60,14 +60,14 @@ class ActionEnv:
         actor: Actor = KIM,
         *,
         code: str | None = None,
-        status_change: Any = None,  # noqa: ANN401
+        status_changes: tuple[Any, ...] = (),
         advance: int = 60,
         **content: Any,  # noqa: ANN401
     ) -> DealAction:
         """Action을 등록한다(기본은 시계가 60초 흐른 뒤라 수행 시각이 서로 다르다)."""
         self.env.clock.advance(advance)
         return await self.register.execute(
-            code or self.code, make_register_input(status_change, **content), actor
+            code or self.code, make_register_input(status_changes, **content), actor
         )
 
     def set_clock(self, moment: datetime) -> None:

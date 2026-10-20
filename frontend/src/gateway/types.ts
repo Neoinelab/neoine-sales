@@ -24,10 +24,10 @@
  *    시각은 서버 시각(Fake는 시계의 now()). 값이 바뀌지 않은 요청은 기록하지 않는다. 실패한 요청은 아무것도 바꾸지 않는다(원자적).
  * 3. Deal의 `updatedAt`은 Deal 자신의 필드/연결 정보(파트너·연락처·Label·첨부)가 바뀔 때 갱신된다.
  *    `DealRow.lastUpdatedAt` = max(updatedAt, 최근 Action 수행시각).
- * 4. Status ⇄ Forecast 불변식: `contract_completed` ⇔ `won`. 단일 변경은 `applyChange`/`ActionInput.statusChange`의
+ * 4. Status ⇄ Forecast 불변식: `contract_completed` ⇔ `won`. 단일 변경은 `applyChange`/`ActionInput.statusChanges`(최대 2개, 순서대로 판정)의
  *    sync 규칙(`planChange`/`finalizePlan`)으로, 폼 저장(`create`/`update`)은 최종 값이 불변식을 만족해야 한다
  *    (어긋나면 422 "Status와 Forecast의 동기화가 맞지 않습니다.").
- * 5. Action은 **등록 시점의 Status/Forecast key를 저장**한다(statusChange가 있으면 적용 후 값). 수정은 이 값을 바꾸지 않는다.
+ * 5. Action은 **등록 시점의 Status/Forecast key를 저장**한다(statusChanges가 있으면 적용 후 값). 수정은 이 값을 바꾸지 않는다.
  * 6. 연락처 입력: 회사명·담당자명·이메일·전화에 공백 문자가 있으면 422 "공백은 입력할 수 없습니다."; 이메일·전화 형식 오류 422; 회사/이름은
  *    대소문자 구분 없이 같은 것으로 본다. 같은 사람 판정은 `findSamePerson`.
  * 7. Deal code는 `YYYYMMDD-XXXX`(`DEAL_CODE_PATTERN`), 등록일(오늘) + 대문자/숫자 4자리, 기존 code와 겹치면 재추출.
@@ -183,7 +183,7 @@ export interface ActionsGateway {
   list(dealCode: string, query: ActionQuery): Promise<DealAction[]>
   /**
    * 등록. 필수 누락 422 "진행사항을 입력하세요." / "Next Action을 입력하세요." / "Due Date를 입력하세요."(위에서부터 첫 오류).
-   * statusChange가 있으면 applyChange와 같은 규칙으로 Deal도 갱신하고, Action에는 **적용 후** Status/Forecast key를 저장.
+   * statusChanges가 있으면(순서대로 각각 판정) applyChange와 같은 규칙으로 Deal도 갱신하고, Action에는 **적용 후** Status/Forecast key를 저장.
    * History: Action 1건 + (바뀌었으면) Status/Forecast 변경.
    */
   create(dealCode: string, input: ActionInput): Promise<DealAction>

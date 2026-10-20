@@ -105,44 +105,72 @@ describe('toActionCreateBody', () => {
     expect(body.memo).toHaveLength(20000)
   })
 
-  it('maps a status change with its resolution to status_change', () => {
+  it('maps a status change with its resolution to status_changes', () => {
     const body = toActionCreateBody(
       input({
-        statusChange: {
+        statusChanges: [{
           change: { field: 'statusKey', value: 'contract_completed' },
           resolution: { revenueAmount: 1_800_000_000, revenueDate: '2026-10-15' },
-        },
+        }],
       }),
     )
 
-    expect(body.status_change).toEqual({
-      change: { field: 'status_key', value: 'contract_completed' },
-      resolution: { revenue_amount: 1_800_000_000, revenue_date: '2026-10-15' },
-    })
+    expect(body.status_changes).toEqual([
+      {
+        change: { field: 'status_key', value: 'contract_completed' },
+        resolution: { revenue_amount: 1_800_000_000, revenue_date: '2026-10-15' },
+      },
+    ])
+    expect(body).not.toHaveProperty('status_change')
   })
 
   it('maps a forecast change and a reopen choice (status_key / forecast_key resolution)', () => {
     const body = toActionCreateBody(
       input({
-        statusChange: {
+        statusChanges: [{
           change: { field: 'forecastKey', value: 'pipeline' },
           resolution: { statusKey: 'price_negotiation' },
-        },
+        }],
       }),
     )
 
-    expect(body.status_change).toEqual({
-      change: { field: 'forecast_key', value: 'pipeline' },
-      resolution: { status_key: 'price_negotiation' },
-    })
+    expect(body.status_changes).toEqual([
+      {
+        change: { field: 'forecast_key', value: 'pipeline' },
+        resolution: { status_key: 'price_negotiation' },
+      },
+    ])
   })
 
-  it('omits status_change and resolution when there is none', () => {
+  it('omits status_changes and resolution when there is none', () => {
     const plain = toActionCreateBody(input())
-    const noResolution = toActionCreateBody(input({ statusChange: { change: { field: 'statusKey', value: 'qualified' } } }))
+    const empty = toActionCreateBody(input({ statusChanges: [] }))
+    const noResolution = toActionCreateBody(input({ statusChanges: [{ change: { field: 'statusKey', value: 'qualified' } }] }))
 
+    expect(plain).not.toHaveProperty('status_changes')
     expect(plain).not.toHaveProperty('status_change')
-    expect(noResolution.status_change).toEqual({ change: { field: 'status_key', value: 'qualified' } })
+    expect(empty).not.toHaveProperty('status_changes')
+    expect(noResolution.status_changes).toEqual([{ change: { field: 'status_key', value: 'qualified' } }])
+  })
+
+  it('sends two changes in the order the user made them, each with its own resolution', () => {
+    const body = toActionCreateBody(
+      input({
+        statusChanges: [
+          { change: { field: 'forecastKey', value: 'commit' }, resolution: { statusKey: 'poc_completed' } },
+          { change: { field: 'statusKey', value: 'contract_completed' }, resolution: { revenueAmount: 5_000_000, revenueDate: '2026-10-20' } },
+        ],
+      }),
+    )
+
+    expect(body.status_changes).toEqual([
+      { change: { field: 'forecast_key', value: 'commit' }, resolution: { status_key: 'poc_completed' } },
+      {
+        change: { field: 'status_key', value: 'contract_completed' },
+        resolution: { revenue_amount: 5_000_000, revenue_date: '2026-10-20' },
+      },
+    ])
+    expect(body).not.toHaveProperty('status_change')
   })
 })
 

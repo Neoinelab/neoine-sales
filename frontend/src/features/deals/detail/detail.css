@@ -58,6 +58,8 @@ button.dd-small { padding: 2px 8px; }
 .dd-action-grid aside { order: 2; }
 .dd-form { display: grid; gap: 10px; padding: 16px 20px; border: 1px solid var(--line); border-radius: var(--radius-lg); box-shadow: var(--shadow-md); background: var(--panel); }
 .dd-form .field textarea { resize: vertical; }
+.dd-sync-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; align-items: start; }
+.dd-sync-cell { display: grid; gap: 2px; min-width: 0; }
 .dd-form-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .dd-prev { padding: 12px 14px; border: 1px dashed var(--line); border-radius: 8px; display: grid; gap: 6px; background: var(--panel); }
 .dd-prev h3 { font-size: 0.95rem; }
@@ -70,6 +72,7 @@ button.dd-small { padding: 2px 8px; }
 
 @media (max-width: 720px) {
   .dd-action-grid { grid-template-columns: 1fr; }
+  .dd-sync-row { grid-template-columns: 1fr; }
   .dd-action-grid aside { order: -1; }
   .dd-dl { grid-template-columns: 1fr; gap: 0; }
   .dd-dl dd { margin-bottom: 6px; }

@@ -268,3 +268,28 @@ function noticeOf(coChanged: CoChange[], patch: SyncPatch, plan: SyncPlan, codes
 export function isSyncConsistent(state: SyncState): boolean {
   return (state.statusKey === STATUS_CONTRACT_COMPLETED) === (state.forecastKey === FORECAST_WON)
 }
+
+/** 한 번에 보내는 두 변경이 서로 맞지 않을 때의 문구(서버 `SYNC_CONFLICT_MESSAGE`와 같다). */
+export const SYNC_CONFLICT_MESSAGE = '먼저 바꾼 값과 맞지 않는 변경입니다. 먼저 바꾼 값을 되돌린 뒤 다시 선택하세요.'
+
+/**
+ * 두 번째 변경(applied)이 첫 변경이 직접 요청한 필드의 값을 바꾸는가. before는 첫 변경 적용 후 상태(S1).
+ * 서버 `finalize_sequence`의 충돌 판정과 같다.
+ */
+export function overridesRequested(first: SyncChange, before: SyncState, applied: SyncApplied): boolean {
+  const kept = before[first.field]
+  return (applied.patch[first.field] ?? kept) !== kept
+}
+
+/**
+ * 대화상자를 열기 전에 알 수 있는 확정적 충돌. state는 첫 변경 적용 후 상태(S1), plan은 그 상태에서의 두 번째 변경 계획.
+ * 사용자의 선택에 따라 달라질 수 있으면(선택지에 첫 값이 있으면) false다.
+ */
+export function certainlyOverrides(first: SyncChange, state: SyncState, plan: SyncPlan): boolean {
+  const current = state[first.field]
+  const fixed = (plan.patch as SyncPatch)[first.field]
+  if (fixed !== undefined) return fixed !== current
+  if (plan.kind === 'askStatus' && first.field === 'statusKey') return !plan.options.includes(current)
+  if (plan.kind === 'askForecast' && first.field === 'forecastKey') return !plan.options.includes(current)
+  return false
+}

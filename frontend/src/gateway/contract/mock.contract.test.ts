@@ -5,6 +5,7 @@ import { newMock } from '../../test/fake/testing'
 import type { MockInstance } from '../../test/fake'
 import { alertsContract } from './alerts.contract'
 import { actionsContract } from './actions.contract'
+import { actionsSequenceContract } from './actionsSequence.contract'
 import { actionTypesContract } from './actionTypes.contract'
 import { dealBantContract } from './dealBant.contract'
 import { attachmentsContract } from './attachments.contract'
@@ -34,6 +35,7 @@ vendorsContract(makeMock)
 contactsContract(makeMock)
 dealsContract(makeMock)
 actionsContract(makeMock)
+actionsSequenceContract(makeMock)
 actionTypesContract(makeMock)
 dealBantContract(makeMock)
 attachmentsContract(makeMock)

@@ -6,14 +6,14 @@ import { formatDateTime } from '../../../shared/format'
 import { useActionTypes } from '../../../data/actionTypes'
 import { toChoice } from '../../../shared/model/catalogChoice'
 import { ACTION_TYPE_NAME_MAX_LENGTH } from '../../../shared/model/constants'
-import type { SyncApplied } from '../../../shared/model/sync'
 import { userLabel } from '../../../shared/model/period'
 import type { DealAction, DealDetail } from '../../../shared/model/types'
 import { ErrorBanner } from '../../../shared/ui/ErrorBanner'
-import { SyncNotice } from '../../../shared/sync/SyncNotice'
-import { useSyncedChange } from '../../../shared/sync/useSyncedChange'
 import { ActionTypeInput } from './ActionTypeInput'
-import { messageOf, toResolution } from './detailHelpers'
+import { ActionSyncFields } from './ActionSyncFields'
+import { messageOf } from './detailHelpers'
+import { changeSummary, toStatusChanges } from './syncDraft'
+import { useActionSync } from './useActionSync'
 import './detail.css'
 
 interface ActionFormProps {
@@ -31,11 +31,6 @@ interface Errors {
   progress?: string
   nextAction?: string
   dueDate?: string
-}
-
-interface StatusDraft {
-  value: string
-  applied: SyncApplied
 }
 
 function FieldError({ message }: { message: string | undefined }) {
@@ -73,7 +68,7 @@ export function ActionForm({ deal, editing, previous, onDone, onCancel }: Action
   const me = useMe().data
   const create = useCreateAction()
   const update = useUpdateAction()
-  const { request, dialogs } = useSyncedChange(deal)
+  const sync = useActionSync(deal)
   const types = useActionTypes().data
   const [type, setType] = useState(editing?.type ?? '')
   const [progress, setProgress] = useState(editing?.progress ?? '')
@@ -88,7 +83,6 @@ export function ActionForm({ deal, editing, previous, onDone, onCancel }: Action
     if (type === shownType) setType(currentType)
   }
   const [memo, setMemo] = useState(editing?.memo ?? '')
-  const [status, setStatus] = useState<StatusDraft | null>(null)
   const [errors, setErrors] = useState<Errors>({})
   const [error, setError] = useState<unknown>(null)
   const typeRef = useRef<HTMLInputElement>(null)
@@ -97,21 +91,7 @@ export function ActionForm({ deal, editing, previous, onDone, onCancel }: Action
   const dueRef = useRef<HTMLInputElement>(null)
   const busy = create.isPending || update.isPending
   const title = editing ? 'Action 수정' : 'Next Action 업데이트'
-  const shownStatus = status?.applied.patch.statusKey ?? deal.statusKey
   const actor = editing ? userLabel(editing.actor) : (me?.name ?? '')
-
-  async function changeStatus(value: string) {
-    if (value === deal.statusKey) {
-      setStatus(null)
-      return
-    }
-    try {
-      const applied = await request({ field: 'statusKey', value })
-      if (applied !== null) setStatus({ value, applied })
-    } catch (caught) {
-      setError(caught)
-    }
-  }
 
   function validate(): Errors {
     const found: Errors = {}
@@ -143,15 +123,16 @@ export function ActionForm({ deal, editing, previous, onDone, onCancel }: Action
         onDone('Action이 수정되었습니다.')
         return
       }
-      const statusChange = status
-        ? { change: { field: 'statusKey' as const, value: status.value }, resolution: toResolution(status.applied) }
-        : undefined
-      await create.mutateAsync({ dealCode: deal.code, input: statusChange ? { ...fields, statusChange } : fields })
-      onDone(['Action이 등록되었습니다.', status?.applied.notice].filter(Boolean).join(' '))
+      const statusChanges = toStatusChanges(sync.entries)
+      await create.mutateAsync({ dealCode: deal.code, input: statusChanges.length > 0 ? { ...fields, statusChanges } : fields })
+      const summary = codes ? changeSummary(sync.base, sync.entries, codes) : null
+      onDone(['Action이 등록되었습니다.', summary].filter(Boolean).join(' '))
     } catch (caught) {
       setError(caught)
     }
   }
+
+  const typeInput = <ActionTypeInput value={type} onChange={setType} error={errors.type} inputRef={typeRef} />
 
   return (
     <>
@@ -162,20 +143,11 @@ export function ActionForm({ deal, editing, previous, onDone, onCancel }: Action
           <p className="hint">
             {editing ? `수행일시: ${formatDateTime(editing.actedAt)}` : '업데이트 일자: 등록 시각으로 자동 기록'} · 담당자: {actor}
           </p>
-          {!editing && codes && (
-            <label className="field">
-              <span>Status</span>
-              <select value={shownStatus} onChange={(e) => void changeStatus(e.target.value)}>
-                {codes.statuses.map((c) => (
-                  <option key={c.key} value={c.key}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </label>
+          {editing ? (
+            typeInput
+          ) : (
+            <ActionSyncFields sync={sync}>{typeInput}</ActionSyncFields>
           )}
-          {status && <SyncNotice notice={status.applied.notice} draft />}
-          <ActionTypeInput value={type} onChange={setType} error={errors.type} inputRef={typeRef} />
           <label className="field">
             <span>진행사항</span>
             <textarea ref={progressRef} value={progress} onChange={(e) => setProgress(e.target.value)} aria-invalid={errors.progress ? true : undefined} />
@@ -195,7 +167,7 @@ export function ActionForm({ deal, editing, previous, onDone, onCancel }: Action
             <span>Memo</span>
             <textarea value={memo} onChange={(e) => setMemo(e.target.value)} />
           </label>
-          <ErrorBanner error={error} format={messageOf} />
+          <ErrorBanner error={error ?? sync.error} format={messageOf} />
           <div className="dd-form-actions">
             <button type="submit" className="primary" disabled={busy}>
               {editing ? '저장' : '등록'}
@@ -207,7 +179,7 @@ export function ActionForm({ deal, editing, previous, onDone, onCancel }: Action
         </form>
         {!editing && previous && <PreviousUpdate previous={previous} onFill={setProgress} />}
       </div>
-      {dialogs}
+      {sync.dialogs}
     </>
   )
 }

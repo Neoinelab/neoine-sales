@@ -40,7 +40,7 @@ async def test_register_action_with_status_change_to_contract_completed_requires
     action_env: ActionEnv,
 ) -> None:
     with raises_with(InvalidValueError, REVENUE_REQUIRED):
-        await action_env.act(status_change=_status("contract_completed"))
+        await action_env.act(status_changes=(_status("contract_completed"),))
 
     assert len(action_env.env.uow.deal_actions._items) == 0
 
@@ -48,7 +48,7 @@ async def test_register_action_with_status_change_to_contract_completed_requires
 async def test_register_action_with_status_change_saves_post_change_snapshot_and_orders_history(
     action_env: ActionEnv,
 ) -> None:
-    action = await action_env.act(status_change=_status("contract_completed", CLOSING))
+    action = await action_env.act(status_changes=(_status("contract_completed", CLOSING),))
 
     deal = await _deal(action_env)
     assert (deal.sync.status_key, deal.sync.forecast_key) == ("contract_completed", "won")
@@ -67,7 +67,7 @@ async def test_register_action_with_status_change_saves_post_change_snapshot_and
 async def test_the_action_history_is_the_newest_entry_after_a_combined_registration(
     action_env: ActionEnv,
 ) -> None:
-    await action_env.act(status_change=_status("contract_completed", CLOSING))
+    await action_env.act(status_changes=(_status("contract_completed", CLOSING),))
 
     newest_first = await action_env.env.uow.deal_history.list(action_env.deal.item.deal.id)
 
@@ -80,7 +80,7 @@ async def test_the_action_history_is_the_newest_entry_after_a_combined_registrat
 async def test_register_action_with_forecast_change_applies_sync_rules(
     action_env: ActionEnv,
 ) -> None:
-    won = await action_env.act(status_change=_forecast("won", CLOSING))
+    won = await action_env.act(status_changes=(_forecast("won", CLOSING),))
 
     deal = await _deal(action_env)
     assert (deal.sync.status_key, deal.sync.forecast_key) == ("contract_completed", "won")
@@ -96,7 +96,7 @@ async def test_register_action_with_forecast_change_applies_sync_rules(
 async def test_register_action_with_a_plain_forecast_change_keeps_the_status(
     action_env: ActionEnv,
 ) -> None:
-    action = await action_env.act(status_change=_forecast("lost"))
+    action = await action_env.act(status_changes=(_forecast("lost"),))
 
     assert (await action_env.stored(action.id)).snapshot == SyncState("prospecting", "lost")
     assert await action_env.rows() == [("forecast", "Forecast", "Pipeline", "Lost"), ACTION_ROW]
@@ -114,7 +114,7 @@ async def test_register_action_status_change_reopen_won_requires_choice(
     code = won.item.deal.id.value
 
     with raises_with(InvalidValueError, CHOICE_REQUIRED):
-        await action_env.act(code=code, status_change=_forecast("commit"))
+        await action_env.act(code=code, status_changes=(_forecast("commit"),))
 
     stored = await action_env.env.uow.deals.get(won.item.deal.id)
     assert (stored.sync.status_key, stored.sync.forecast_key) == ("contract_completed", "won")
@@ -133,7 +133,7 @@ async def test_register_action_status_change_reopen_with_a_chosen_status_snapsho
 
     action = await action_env.act(
         code=won.item.deal.id.value,
-        status_change=_forecast("commit", SyncResolution(status_key="poc_completed")),
+        status_changes=(_forecast("commit", SyncResolution(status_key="poc_completed")),),
     )
 
     assert (await action_env.stored(action.id)).snapshot == SyncState("poc_completed", "commit")
@@ -141,9 +141,9 @@ async def test_register_action_status_change_reopen_with_a_chosen_status_snapsho
 
 async def test_register_action_unknown_code_is_rejected(action_env: ActionEnv) -> None:
     with raises_with(InvalidValueError, UNKNOWN_CODE):
-        await action_env.act(status_change=_status("no_such_status"))
+        await action_env.act(status_changes=(_status("no_such_status"),))
     with raises_with(InvalidValueError, UNKNOWN_CODE):
-        await action_env.act(status_change=_forecast("no_such_forecast"))
+        await action_env.act(status_changes=(_forecast("no_such_forecast"),))
 
     assert len(action_env.env.uow.deal_actions._items) == 0
 
@@ -155,7 +155,7 @@ async def test_register_action_with_failed_status_change_stores_nothing(
     commits = action_env.env.uow.commits
 
     with raises_with(InvalidValueError, REVENUE_REQUIRED):
-        await action_env.act(status_change=_status("contract_completed"))
+        await action_env.act(status_changes=(_status("contract_completed"),))
 
     after = await _deal(action_env)
     assert (after.sync, after.updated_at) == (before.sync, before.updated_at)
@@ -168,7 +168,7 @@ async def test_invalid_content_is_reported_before_the_status_change_is_applied(
     action_env: ActionEnv,
 ) -> None:
     with raises_with(InvalidValueError, PROGRESS_REQUIRED):
-        await action_env.act(action="  ", status_change=_status("contract_completed"))
+        await action_env.act(action="  ", status_changes=(_status("contract_completed"),))
 
     deal = await _deal(action_env)
     assert deal.sync == SyncState("prospecting", "pipeline")
@@ -180,7 +180,7 @@ async def test_register_action_with_same_status_does_not_change_deal(
 ) -> None:
     before = await _deal(action_env)
 
-    action = await action_env.act(status_change=_status("prospecting"))
+    action = await action_env.act(status_changes=(_status("prospecting"),))
 
     after = await _deal(action_env)
     assert (after.sync, after.updated_at) == (before.sync, before.updated_at)
@@ -201,7 +201,7 @@ async def test_later_deal_change_keeps_action_snapshot(action_env: ActionEnv) ->
 async def test_updating_an_action_does_not_change_its_snapshot_or_the_deal(
     action_env: ActionEnv,
 ) -> None:
-    action = await action_env.act(status_change=_forecast("best"))
+    action = await action_env.act(status_changes=(_forecast("best"),))
     deal_before = await _deal(action_env)
 
     await action_env.update_as(action.id, KIM, action="수정한 내용")

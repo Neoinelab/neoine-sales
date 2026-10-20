@@ -11,6 +11,7 @@ from app.domain.deal.sync import (
     SyncChange,
     SyncField,
     SyncState,
+    SyncStep,
     finalize_plan,
     plan_change,
 )
@@ -40,6 +41,14 @@ def _known(catalog: CodeCatalog, field: SyncField, value: object) -> str:
     return value
 
 
+def to_sync_step(
+    field: str, value: object, resolution: SyncResolution | None, catalog: CodeCatalog
+) -> SyncStep:
+    """field를 SyncField로, value를 카탈로그에 있는 key로 확인한다(없으면 UnknownCodeError)."""
+    sync_field = SyncField(field)
+    return SyncStep(SyncChange(sync_field, _known(catalog, sync_field, value)), resolution)
+
+
 def apply_sync_change(
     deal: Deal,
     field: str,
@@ -48,10 +57,9 @@ def apply_sync_change(
     catalog: CodeCatalog,
 ) -> SyncApplied:
     """동기화 규칙에 따라 Deal의 Status/Forecast를 바꾼다(함께 바뀌는 값 포함, 저장은 호출자)."""
-    sync_field = SyncField(field)
-    target = _known(catalog, sync_field, value)
+    step = to_sync_step(field, value, resolution, catalog)
     current = SyncState(deal.sync.status_key, deal.sync.forecast_key)
-    plan = plan_change(current, SyncChange(sync_field, target), catalog)
-    applied = finalize_plan(current, plan, resolution, catalog)
+    plan = plan_change(current, step.change, catalog)
+    applied = finalize_plan(current, plan, step.resolution, catalog)
     deal.apply_sync(applied)
     return applied

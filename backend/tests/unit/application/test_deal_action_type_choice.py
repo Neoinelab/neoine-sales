@@ -9,10 +9,10 @@ from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import pytest
-from app.application.choice import CatalogChoice
-from app.domain.action_type.errors import UnknownActionTypeError
 
+from app.application.choice import CatalogChoice
 from app.application.deal_action.inputs import StatusChangeInput
+from app.domain.action_type.errors import UnknownActionTypeError
 from app.domain.common.errors import InvalidValueError
 from app.domain.deal.errors import DealNotFoundError
 from tests.factories_action_type import make_action_type, type_id
@@ -126,7 +126,9 @@ async def test_failed_status_change_creates_no_type(action_env: ActionEnv) -> No
     change = StatusChangeInput(field="status_key", value="contract_completed")
 
     with pytest.raises(InvalidValueError):
-        await action_env.act(KIM, action_type=CatalogChoice(name="웨비나"), status_change=change)
+        await action_env.act(
+            KIM, action_type=CatalogChoice(name="웨비나"), status_changes=(change,)
+        )
 
     assert await _type_names(action_env) == names
     assert len(action_env.env.uow.deal_actions._items) == 0

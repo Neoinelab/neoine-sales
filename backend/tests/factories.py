@@ -172,7 +172,6 @@ def make_deal_action_input(**overrides: Any) -> ActionContentInput:  # noqa: ANN
     """수정 입력(`ActionContentInput`). overrides는 `make_action_content`와 같되 action_type은
     유형 이름 문자열(`CatalogChoice(name=...)`) 또는 `CatalogChoice`다(기본 `미팅`)."""
     from app.application.choice import CatalogChoice  # noqa: PLC0415 - 지연 import
-
     from app.application.deal_action.inputs import ActionContentInput  # noqa: PLC0415
 
     fields = _action_fields(overrides)
@@ -182,12 +181,12 @@ def make_deal_action_input(**overrides: Any) -> ActionContentInput:  # noqa: ANN
 
 
 def make_register_input(
-    status_change: Any = None,  # noqa: ANN401
+    status_changes: tuple[Any, ...] = (),
     **content_overrides: Any,  # noqa: ANN401
 ) -> DealActionInput:
-    """등록 입력(`DealActionInput`): 내용 + 선택적 `StatusChangeInput`."""
+    """등록 입력(`DealActionInput`): 내용 + 순서대로 적용할 `StatusChangeInput`들."""
     from app.application.deal_action.inputs import DealActionInput  # noqa: PLC0415 - 지연 import
 
     return DealActionInput(
-        content=make_deal_action_input(**content_overrides), status_change=status_change
+        content=make_deal_action_input(**content_overrides), status_changes=status_changes
     )

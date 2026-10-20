@@ -5,9 +5,9 @@ from typing import TYPE_CHECKING, Any, Literal
 from uuid import uuid4
 
 import pytest
-from app.application.choice import CatalogChoice
 from pydantic import ValidationError
 
+from app.application.choice import CatalogChoice
 from app.application.deal_action.inputs import (
     ActionContentInput,
     DealActionInput,
@@ -55,7 +55,7 @@ def test_create_request_maps_to_the_use_case_input_without_a_status_change() -> 
             due_date=date(2026, 3, 10),
             memo="요구사항 정리",
         ),
-        status_change=None,
+        status_changes=(),
     )
 
 
@@ -175,7 +175,7 @@ def test_a_status_change_may_target_status_or_forecast(
 ) -> None:
     data = _create(status_change={"change": {"field": field, "value": "best"}}).to_input()
 
-    assert data.status_change == StatusChangeInput(field=field, value="best", resolution=None)
+    assert data.status_changes == (StatusChangeInput(field=field, value="best", resolution=None),)
 
 
 def test_a_status_change_maps_every_resolution_answer() -> None:
@@ -191,8 +191,8 @@ def test_a_status_change_maps_every_resolution_answer() -> None:
         }
     ).to_input()
 
-    assert data.status_change is not None
-    assert data.status_change.resolution == SyncResolution(
+    assert len(data.status_changes) == 1
+    assert data.status_changes[0].resolution == SyncResolution(
         revenue_amount=900_000_000,
         revenue_date=date(2026, 10, 20),
         status_key="poc_completed",

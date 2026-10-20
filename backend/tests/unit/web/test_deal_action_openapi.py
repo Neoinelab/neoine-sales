@@ -174,3 +174,29 @@ def test_the_response_type_is_an_id_and_name_object(schema: dict[str, Any]) -> N
     assert set(named["properties"]) == {"id", "name"}
     assert set(named["required"]) == {"id", "name"}
     assert "action_type" in schema["components"]["schemas"]["DealActionResponse"]["required"]
+
+
+def test_the_create_request_documents_status_changes(schema: dict[str, Any]) -> None:
+    create = _request_schema_names(schema, "post", "/api/v1/deals/{code}/actions")
+    update = _request_schema_names(schema, "put", "/api/v1/deal-actions/{action_id}")
+    props = schema["components"]["schemas"][create]["properties"]
+
+    options = props["status_changes"]["anyOf"]
+    array = next(o for o in options if o.get("type") == "array")
+    assert array["maxItems"] == 2
+    assert array["items"] == {"$ref": "#/components/schemas/ActionStatusChangeRequest"}
+    assert _is_nullable(props["status_changes"])
+    assert "status_change" in props
+    assert "status_changes" not in schema["components"]["schemas"][update]["properties"]
+
+
+@pytest.mark.parametrize("name", ["status_changes", "status_change"])
+def test_the_create_request_describes_order_and_conflict_handling(
+    schema: dict[str, Any], name: str
+) -> None:
+    create = _request_schema_names(schema, "post", "/api/v1/deals/{code}/actions")
+
+    description = schema["components"]["schemas"][create]["properties"][name].get("description", "")
+
+    assert "순서" in description
+    assert "422" in description

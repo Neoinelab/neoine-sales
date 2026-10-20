@@ -175,7 +175,7 @@ export function actionsContract(make: MakeGateway): void {
       const deal = await newDeal(sales)
 
       await expectRejects(
-        sales.actions.create(deal.code, action({ statusChange: { change: { field: 'statusKey', value: 'contract_completed' } } })),
+        sales.actions.create(deal.code, action({ statusChanges: [{ change: { field: 'statusKey', value: 'contract_completed' } }] })),
         422,
         REVENUE_NEEDED,
       )
@@ -192,10 +192,10 @@ export function actionsContract(make: MakeGateway): void {
       const created = await sales.actions.create(
         deal.code,
         action({
-          statusChange: {
+          statusChanges: [{
             change: { field: 'statusKey', value: 'contract_completed' },
             resolution: { revenueAmount: 5_000_000, revenueDate: '2026-10-15' },
-          },
+          }],
         }),
       )
 
@@ -212,7 +212,7 @@ export function actionsContract(make: MakeGateway): void {
       const deal = await newDeal(sales)
       const baseline = (await sales.history.list(deal.code, {})).length
 
-      const created = await sales.actions.create(deal.code, action({ statusChange: { change: { field: 'statusKey', value: 'prospecting' } } }))
+      const created = await sales.actions.create(deal.code, action({ statusChanges: [{ change: { field: 'statusKey', value: 'prospecting' } }] }))
 
       expect(created).toMatchObject({ statusKey: 'prospecting', forecastKey: 'pipeline' })
       expect(await sales.history.list(deal.code, {})).toHaveLength(baseline + 1)

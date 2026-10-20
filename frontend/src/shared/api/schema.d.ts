@@ -1220,7 +1220,10 @@ export interface components {
              */
             value: string;
         };
-        /** DealActionCreateRequest */
+        /**
+         * DealActionCreateRequest
+         * @description `status_change`(단건)와 `status_changes`(최대 2건, 필드 중복 불가)는 함께 쓸 수 없다.
+         */
         DealActionCreateRequest: {
             /** Action */
             action: string;
@@ -1234,7 +1237,13 @@ export interface components {
             memo: string;
             /** Next Action */
             next_action: string;
+            /** @description 단건 변경(하위 호환). status_changes와 함께 보내면(빈 배열 포함, null은 변경 없음) 422로 거부된다. 여러 건은 순서가 보장되는 status_changes를 쓴다. */
             status_change?: components["schemas"]["ActionStatusChangeRequest"] | null;
+            /**
+             * Status Changes
+             * @description 최대 2건(field 중복 불가). 배열 순서대로 적용하며, 두 번째 변경은 첫 변경을 적용한 뒤의 상태로 동기화 규칙을 판정한다. 먼저 바꾼 값과 충돌하면 422 invalid-value. status_change와 함께 보내면(빈 배열 포함, null은 제외) 422.
+             */
+            status_changes?: components["schemas"]["ActionStatusChangeRequest"][] | null;
         };
         /**
          * DealActionList

@@ -118,7 +118,7 @@ export interface DealListQuery {
 
 // ───────────────────────── Action / History / 첨부 ─────────────────────────
 
-/** Status 변경을 함께 요청하는 Action 등록. Deal에 `applyChange`와 같은 규칙으로 적용된다. */
+/** Status·Forecast 변경을 함께 요청하는 Action 등록의 항목 하나. Deal에 `applyChange`와 같은 규칙으로 적용된다. */
 export interface StatusChangeRequest {
   change: SyncChange
   resolution?: SyncResolution
@@ -135,11 +135,12 @@ export interface ActionInput {
   nextAction: string
   dueDate: string
   memo: string
-  statusChange?: StatusChangeRequest
+  /** 사용자가 바꾼 순서대로 최대 2개(Status·Forecast 각 1개). 없으면 보내지 않는다. */
+  statusChanges?: StatusChangeRequest[]
 }
 
 /** Action 수정 입력. 등록 시점 Status/Forecast와 수행일시·담당자는 바꿀 수 없다. */
-export type ActionUpdateInput = Omit<ActionInput, 'statusChange'>
+export type ActionUpdateInput = Omit<ActionInput, 'statusChanges'>
 
 export type ActionSort = 'actedDesc' | 'actedAsc' | 'dueAsc'
 

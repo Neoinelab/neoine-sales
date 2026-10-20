@@ -1,8 +1,8 @@
 from datetime import date, datetime
-from typing import TYPE_CHECKING, Annotated
+from typing import TYPE_CHECKING, Annotated, Self
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from app.application.deal_action.inputs import (
     ActionContentInput,
@@ -75,11 +75,45 @@ class ActionStatusChangeRequest(RequestModel):
 
 
 class DealActionCreateRequest(ActionContentRequest):
-    status_change: ActionStatusChangeRequest | None = None
+    """`status_change`(단건)와 `status_changes`(최대 2건, 필드 중복 불가)는 함께 쓸 수 없다."""
+
+    status_change: Annotated[
+        ActionStatusChangeRequest | None,
+        Field(
+            description=(
+                "단건 변경(하위 호환). status_changes와 함께 보내면"
+                "(빈 배열 포함, null은 변경 없음) 422로 거부된다. "
+                "여러 건은 순서가 보장되는 status_changes를 쓴다."
+            )
+        ),
+    ] = None
+    status_changes: Annotated[
+        list[ActionStatusChangeRequest] | None,
+        Field(
+            max_length=2,
+            description=(
+                "최대 2건(field 중복 불가). 배열 순서대로 적용하며, 두 번째 변경은 첫 변경을 "
+                "적용한 뒤의 상태로 동기화 규칙을 판정한다. 먼저 바꾼 값과 충돌하면 "
+                "422 invalid-value. status_change와 함께 보내면(빈 배열 포함, null은 제외) 422."
+            ),
+        ),
+    ] = None
+
+    @model_validator(mode="after")
+    def _check_status_changes(self) -> Self:
+        # null은 '변경 없음'으로 본다. 빈 배열은 값이 있는 것으로 보아
+        # status_change와 함께 오면 거부한다.
+        if self.status_change is not None and self.status_changes is not None:
+            raise ValueError("status_change와 status_changes는 함께 보낼 수 없습니다.")
+        fields = [c.change.field for c in self.status_changes or []]
+        if len(set(fields)) != len(fields):
+            raise ValueError("status_changes에 같은 field가 두 번 있습니다.")
+        return self
 
     def to_input(self) -> DealActionInput:
-        change = self.status_change.to_input() if self.status_change is not None else None
-        return DealActionInput(content=self.to_content(), status_change=change)
+        requests = self.status_changes or ([self.status_change] if self.status_change else [])
+        changes = tuple(r.to_input() for r in requests)
+        return DealActionInput(content=self.to_content(), status_changes=changes)
 
 
 class DealActionUpdateRequest(ActionContentRequest):

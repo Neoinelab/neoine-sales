@@ -19,6 +19,12 @@ export interface SyncSubject extends SyncState {
   revenueDate?: string
 }
 
+/** request의 선택 인자. from은 판정 기준 상태(기본: 훅의 subject), guard는 대화상자가 필요한 계획을 미리 막는다(문자열이면 거부 문구). */
+export interface RequestOptions {
+  from?: SyncSubject
+  guard?: (plan: SyncPlan, state: SyncState) => string | null
+}
+
 type Interactive = Exclude<SyncPlan, { kind: 'independent' }>
 
 interface Pending {
@@ -51,17 +57,20 @@ export function useSyncedChange(subject: SyncSubject) {
   useEffect(() => () => close(null), [close])
 
   const request = useCallback(
-    (change: SyncChange): Promise<SyncApplied | null> => {
+    (change: SyncChange, options?: RequestOptions): Promise<SyncApplied | null> => {
       if (!codes) return Promise.reject(new Error('코드 목록을 불러오지 못했습니다.'))
-      const state: SyncState = { statusKey: subject.statusKey, forecastKey: subject.forecastKey }
+      const base = options?.from ?? subject
+      const state: SyncState = { statusKey: base.statusKey, forecastKey: base.forecastKey }
       const plan = planChange(state, change, codes)
       if (plan.kind === 'independent') {
         const done = finalizePlan(state, plan, undefined, codes)
         return done.ok ? Promise.resolve(done.applied) : Promise.reject(new Error(done.message))
       }
+      const blocked = options?.guard?.(plan, state)
+      if (blocked) return Promise.reject(new Error(blocked))
       close(null)
       return new Promise((resolve) => {
-        const next: Pending = { plan, state, subject, resolve }
+        const next: Pending = { plan, state, subject: base, resolve }
         pendingRef.current = next
         setPending(next)
       })

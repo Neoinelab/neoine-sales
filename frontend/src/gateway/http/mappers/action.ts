@@ -1,5 +1,5 @@
 import type { Schemas } from '../../../shared/api/client'
-import type { ActionInput, ActionUpdateInput, DealAction } from '../../../shared/model/types'
+import type { ActionInput, ActionUpdateInput, DealAction, StatusChangeRequest } from '../../../shared/model/types'
 import { toUserRef } from './user'
 
 /** 서버 Action → 화면 DealAction. 텍스트는 가공하거나 자르지 않는다. */
@@ -31,7 +31,7 @@ export function toActionUpdateBody(input: ActionUpdateInput): Schemas['DealActio
   }
 }
 
-function toStatusChange(change: NonNullable<ActionInput['statusChange']>): Schemas['ActionStatusChangeRequest'] {
+function toStatusChange(change: StatusChangeRequest): Schemas['ActionStatusChangeRequest'] {
   const field = change.change.field === 'statusKey' ? 'status_key' : 'forecast_key'
   const body: Schemas['ActionStatusChangeRequest'] = { change: { field, value: change.change.value } }
   const r = change.resolution
@@ -49,6 +49,6 @@ function toStatusChange(change: NonNullable<ActionInput['statusChange']>): Schem
 /** 수행일시·담당자는 서버가 정하므로 보내지 않는다. */
 export function toActionCreateBody(input: ActionInput): Schemas['DealActionCreateRequest'] {
   const body: Schemas['DealActionCreateRequest'] = toActionUpdateBody(input)
-  if (input.statusChange) body.status_change = toStatusChange(input.statusChange)
+  if (input.statusChanges && input.statusChanges.length > 0) body.status_changes = input.statusChanges.map(toStatusChange)
   return body
 }

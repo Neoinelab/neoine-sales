@@ -63,7 +63,7 @@ describe('actions.create', () => {
     const code = dealCode(1)
     const countBefore = (await gateway.actions.list(code, {})).length
     await expectApiError(
-      gateway.actions.create(code, input({ statusChange: { change: { field: 'statusKey', value: 'contract_completed' } } })),
+      gateway.actions.create(code, input({ statusChanges: [{ change: { field: 'statusKey', value: 'contract_completed' } }] })),
       422,
       'Won·계약완료로 바꾸려면 매출금액과 매출일이 필요합니다.',
     )
@@ -71,10 +71,10 @@ describe('actions.create', () => {
     const created = await gateway.actions.create(
       code,
       input({
-        statusChange: {
+        statusChanges: [{
           change: { field: 'statusKey', value: 'contract_completed' },
           resolution: { revenueAmount: 1_800_000_000, revenueDate: '2026-10-15' },
-        },
+        }],
       }),
     )
     expect(created).toMatchObject({ statusKey: 'contract_completed', forecastKey: 'won' })

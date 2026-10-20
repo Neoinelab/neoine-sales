@@ -44,7 +44,7 @@ class StatusChangeInput:
 
 @dataclass(frozen=True, slots=True)
 class DealActionInput:
-    """Action 등록 입력: 내용과 선택적인 Status/Forecast 동시 변경."""
+    """Action 등록 입력: 내용과 선택적인 Status/Forecast 순차 변경(적용 순서, 최대 2)."""
 
     content: ActionContentInput
-    status_change: StatusChangeInput | None = None
+    status_changes: tuple[StatusChangeInput, ...] = ()

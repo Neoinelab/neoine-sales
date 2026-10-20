@@ -25,6 +25,13 @@ from app.domain.deal.sync_plan import (
     SyncPlan,
     plan_change,
 )
+from app.domain.deal.sync_sequence import (
+    MAX_SYNC_STEPS,
+    SYNC_CONFLICT_MESSAGE,
+    SYNC_DUPLICATE_MESSAGE,
+    SyncStep,
+    finalize_sequence,
+)
 from app.domain.deal.sync_state import (
     FORECAST_LOST,
     FORECAST_PIPELINE,
@@ -44,9 +51,12 @@ __all__ = [
     "FORECAST_LOST",
     "FORECAST_PIPELINE",
     "FORECAST_WON",
+    "MAX_SYNC_STEPS",
     "REVENUE_REQUIRED_MESSAGE",
     "STATUS_CONTRACT_COMPLETED",
     "STATUS_PROSPECTING",
+    "SYNC_CONFLICT_MESSAGE",
+    "SYNC_DUPLICATE_MESSAGE",
     "SYNC_MISMATCH_MESSAGE",
     "AskForecast",
     "AskStatus",
@@ -62,8 +72,10 @@ __all__ = [
     "SyncPlan",
     "SyncResolution",
     "SyncState",
+    "SyncStep",
     "ensure_sync_consistent",
     "finalize_plan",
+    "finalize_sequence",
     "is_sync_consistent",
     "plan_change",
 ]

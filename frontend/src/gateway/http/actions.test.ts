@@ -158,22 +158,24 @@ describe('actions.create over HTTP (AC-01·02·05)', () => {
     expect(body.memo).toHaveLength(20000)
   })
 
-  it('sends status_change with the resolution of a closing', async () => {
+  it('sends status_changes with the resolution of a closing', async () => {
     const { calls } = stubFetch(json(serverAction({ status_key: 'contract_completed', forecast_key: 'won' }), 201))
 
     const created = await createActionsHttp().create(CODE, {
       ...newAction,
-      statusChange: {
+      statusChanges: [{
         change: { field: 'statusKey', value: 'contract_completed' },
         resolution: { revenueAmount: 1_800_000_000, revenueDate: '2026-10-15' },
-      },
+      }],
     })
 
     expect(calls[0]?.body).toMatchObject({
-      status_change: {
-        change: { field: 'status_key', value: 'contract_completed' },
-        resolution: { revenue_amount: 1_800_000_000, revenue_date: '2026-10-15' },
-      },
+      status_changes: [
+        {
+          change: { field: 'status_key', value: 'contract_completed' },
+          resolution: { revenue_amount: 1_800_000_000, revenue_date: '2026-10-15' },
+        },
+      ],
     })
     expect(created).toMatchObject({ statusKey: 'contract_completed', forecastKey: 'won' })
   })

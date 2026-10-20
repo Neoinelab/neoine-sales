@@ -27,7 +27,7 @@ async def _snapshot_then_move_the_deal(
 ) -> DealAction:
     """old 값으로 Action을 등록한 뒤 Deal을 new 값으로 옮겨, old를 Action 스냅숏만 쓰게 한다."""
     change = StatusChangeInput(field, old, None)
-    action = await action_env.act(KIM, status_change=change)
+    action = await action_env.act(KIM, status_changes=(change,))
     await apply_change(action_env.env, action_env.deal, field, new)
     return action
 
@@ -55,7 +55,9 @@ async def test_forecast_code_used_only_by_action_snapshots_conflicts_too(
 
 
 async def test_delete_code_used_by_deal_reports_deal_count_first(action_env: ActionEnv) -> None:
-    await action_env.act(KIM, status_change=StatusChangeInput("status_key", "introduction", None))
+    await action_env.act(
+        KIM, status_changes=(StatusChangeInput("status_key", "introduction", None),)
+    )
     code = await code_by_key(action_env.env.uow, CodeKind.STATUS, "introduction")
 
     with raises_with(CodeInUseError, DEAL_FIRST):  # Action도 쓰지만 Deal 문구가 먼저다
