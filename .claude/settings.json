@@ -23,7 +23,6 @@
       "Read(**/.env.dev)",
       "Read(**/.env.product)",
       "Edit(**/uv.lock)",
-      "Bash(git push*)",
       "Bash(git reset --hard*)",
       "Bash(git clean*)",
       "Bash(rm -rf*)"
