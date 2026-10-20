@@ -30,7 +30,18 @@ cd backend && uv run alembic upgrade head && cd ..
 
 corepack 서명 오류(`Cannot find matching keyid`)가 나면 pnpm 명령 앞에 `COREPACK_INTEGRITY_KEYS=0`을 붙입니다.
 
-### 3. 실행 (터미널 2개)
+### 3. 실행
+
+스크립트로 띄우면 백그라운드(nohup)로 실행되어 터미널을 닫아도 계속 돕니다.
+로그는 `logs/backend.log`·`logs/frontend.log`에 이어 쓰고, 종료는 `kill $(cat logs/backend.pid)`·`kill $(cat logs/frontend.pid)`입니다.
+
+```bash
+./scripts/start-backend.sh      # 시작 전에 alembic upgrade head 실행(--skip-migrate로 생략, --profile dev 가능)
+./scripts/start-frontend.sh
+tail -f logs/backend.log        # 로그 보기
+```
+
+직접 띄우려면(터미널 2개, 종료 Ctrl+C):
 
 ```bash
 # 터미널 1: 백엔드 (8000번 포트)

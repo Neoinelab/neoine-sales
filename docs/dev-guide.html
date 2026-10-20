@@ -167,6 +167,22 @@ cd backend &amp;&amp; uv run alembic upgrade head
 uv run fastapi dev src/app/main.py      # http://localhost:8000/docs
 cd ../frontend &amp;&amp; pnpm dev              # http://localhost:5173 (앱은 항상 위 backend API를 씀, 목업 모드 없음)</code></pre>
 
+<p><strong>스크립트로 실행(권장, 백그라운드)</strong>: 우분투 최초 구성은 <code>./scripts/setup-ubuntu.sh</code>가 uv·Node.js·corepack 설치부터 의존성·<code>backend/.env</code>·마이그레이션까지 맡습니다. 실행 스크립트는 서버를 <code>nohup</code>으로 백그라운드에 띄우므로 터미널을 닫아도 계속 돌고, Ctrl+C 대신 <code>kill</code>로 종료합니다.</p>
+<table>
+<tr><th>스크립트</th><th>동작</th><th>로그 · PID</th></tr>
+<tr><td><code>./scripts/start-backend.sh [--profile local|dev] [--skip-migrate] [--port 8000]</code></td><td>시작 전에 그 프로파일 DB에 <code>alembic upgrade head</code>(화면에 출력, 실패 시 중단) 후 <code>.venv/bin/uvicorn --reload</code>를 백그라운드로 실행</td><td><code>logs/backend.log</code> · <code>logs/backend.pid</code></td></tr>
+<tr><td><code>./scripts/start-frontend.sh</code></td><td><code>node_modules/.bin/vite</code>를 백그라운드로 실행(5173, <code>/api</code>는 8000으로 프록시)</td><td><code>logs/frontend.log</code> · <code>logs/frontend.pid</code></td></tr>
+</table>
+<ul>
+  <li>로그는 이어 쓰며 실행마다 시작 시각을 적은 구분 줄이 들어갑니다. <code>logs/</code>는 Git 제외입니다.</li>
+  <li>PID 파일의 프로세스가 살아 있으면 다시 실행하지 않고 거부합니다. 시작 2초 안에 프로세스가 죽으면 로그 끝 20줄을 보여 주고 실패로 끝납니다.</li>
+  <li><code>uv run</code>·<code>pnpm dev</code>를 거치지 않고 서버 프로세스를 직접 띄우므로 PID 파일이 서버 자체를 가리켜 <code>kill</code> 한 번으로 종료됩니다.</li>
+</ul>
+<pre><code>./scripts/start-backend.sh               # local 프로파일(backend/.env)
+./scripts/start-frontend.sh
+tail -f logs/backend.log logs/frontend.log
+kill $(cat logs/backend.pid) $(cat logs/frontend.pid)   # 종료</code></pre>
+
 <h3>3.2-1 기존 venv에서 uv로 전환 (이 프로젝트에 적용한 절차)</h3>
 <p>PyCharm이 만든 저장소 루트의 <code>.venv</code>(pip만 설치된 빈 환경, Python 3.14)를 uv 관리 환경으로 바꾼 절차입니다. 다른 개발자도 같은 방식으로 맞추면 됩니다.</p>
 <pre><code># 1) 기존 venv 제거 (패키지가 pip뿐이라 보존할 내용 없음)

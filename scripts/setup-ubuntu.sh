@@ -127,5 +127,5 @@ else
 fi
 
 echo
-echo "완료. 실행: ./scripts/start-backend.sh 와 ./scripts/start-frontend.sh (터미널 2개)"
+echo "완료. 실행: ./scripts/start-backend.sh 와 ./scripts/start-frontend.sh (백그라운드 실행, 로그는 logs/)"
 path_hint
