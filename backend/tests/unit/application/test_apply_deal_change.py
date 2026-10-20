@@ -150,7 +150,7 @@ class TestReopening:
         )
         assert result.notice == "Status가 'POC완료'로 함께 변경되었습니다."
         assert await env.changes(view) == [
-            ("status", "Status", "계약완료", "POC완료 (Forecast Commit와 함께 변경)"),
+            ("status", "Status", "계약완료", "POC완료 (Forecast Commit과 함께 변경)"),
             ("forecast", "Forecast", "Won", "Commit"),
         ]
 

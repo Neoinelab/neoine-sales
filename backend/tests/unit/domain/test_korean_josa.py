@@ -13,7 +13,9 @@ from app.domain.common.korean import with_ga, with_ro, with_wa
         ("기술평가", "기술평가로"),
         ("서울", "서울로"),  # ㄹ 받침은 '로'
         ("Won", "Won으로"),  # 영문 끝 글자 n = 받침 있음
-        ("Best", "Best로"),
+        ("Best", "Best로"),  # 자음 뒤 t = 받침 없음(베스트)
+        ("Commit", "Commit으로"),  # 모음 뒤 t = 받침 있음(커밋)
+        ("t", "t로"),
         ("Pipeline", "Pipeline로"),
         ("Help", "Help으로"),  # 끝 글자 p = 받침 있음
         ("2", "2로"),  # 숫자: 0 1 3 6 7 8만 받침
@@ -45,6 +47,7 @@ def test_with_ga_picks_ga_or_i(text: str, expected: str) -> None:
         ("Forecast Won", "Forecast Won과"),
         ("가격협상", "가격협상과"),
         ("Best", "Best와"),
+        ("Forecast Commit", "Forecast Commit과"),
     ],
 )
 def test_with_wa_picks_wa_or_gwa(text: str, expected: str) -> None:

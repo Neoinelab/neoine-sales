@@ -16,5 +16,9 @@ describe('조사', () => {
   it('영문은 Won·Commit 계열 받침 추정 규칙을 따른다', () => {
     expect(withRo('Won')).toBe('Won으로')
     expect(withRo('Best')).toBe('Best로')
+    expect(withRo('Commit')).toBe('Commit으로')
+    expect(withWa('Forecast Commit')).toBe('Forecast Commit과')
+    expect(withWa('Forecast Best')).toBe('Forecast Best와')
+    expect(withGa('t')).toBe('t가')
   })
 })

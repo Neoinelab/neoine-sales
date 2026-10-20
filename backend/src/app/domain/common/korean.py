@@ -1,7 +1,7 @@
 """한국어 조사 도우미. 프런트 `shared/model/text.ts`와 같은 받침 규칙이다.
 
-한글은 받침으로, 숫자는 0 1 3 6 7 8만 받침으로, 영문은 끝 글자가 l m n k p b g c x일 때만
-받침이 있다고 본다(발음 규칙의 근사).
+한글은 받침으로, 숫자는 0 1 3 6 7 8만 받침으로, 영문은 끝 글자가 l m n k p b g c x이거나
+모음 바로 뒤의 t(Commit→커밋, Best→베스트는 제외)일 때만 받침이 있다고 본다(발음 규칙의 근사).
 """
 
 _HANGUL_FIRST = 0xAC00
@@ -10,6 +10,7 @@ _FINAL_CLUSTERS = 28  # 한글 음절 한 묶음의 받침 종류 수(받침 없
 _RIEUL = 8  # ㄹ 받침의 인덱스
 _DIGITS_WITH_FINAL = "013678"
 _LETTERS_WITH_FINAL = "lmnkpbgcx"
+_VOWELS = "aeiou"
 
 
 def _last_char(text: str) -> str:
@@ -29,6 +30,9 @@ def _has_final_sound(text: str) -> bool:
         return (ord(last) - _HANGUL_FIRST) % _FINAL_CLUSTERS != 0
     if last in "0123456789":
         return last in _DIGITS_WITH_FINAL
+    if last.lower() == "t":
+        stripped = text.rstrip()
+        return len(stripped) > 1 and stripped[-2].lower() in _VOWELS
     return last.lower() in _LETTERS_WITH_FINAL
 
 

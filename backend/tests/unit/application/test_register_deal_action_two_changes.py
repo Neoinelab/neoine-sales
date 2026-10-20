@@ -75,7 +75,7 @@ async def test_reopen_then_status_change_records_each_change(action_env: ActionE
     assert (await action_env.stored(action.id)).snapshot == SyncState("introduction", "commit")
     rows = await action_env.rows(code)
     assert [r[0] for r in rows] == ["status", "forecast", "status", "action"]
-    assert "Forecast Commit와 함께 변경" in rows[0][3]
+    assert "Forecast Commit과 함께 변경" in rows[0][3]
     assert rows[1][3] == "Commit"
     assert rows[2][3] == "제품소개"
 
