@@ -1,6 +1,6 @@
 ---
 name: config-and-secrets
-description: 환경변수, 프로파일(local/dev/product) 설정, 비밀 값, 새 설정 항목(Settings 필드) 추가, app.config 모듈, .env.example을 다루거나 설정 때문에 기동이 실패하는 문제를 진단할 때 사용한다. .env 파일은 읽지 않고 변수 이름과 절차만 다룬다. 비즈니스 로직 구현, 계층 설계, 배포 스크립트 작성에는 사용하지 않는다.
+description: 환경변수, 프로파일(local/dev/product) 설정, 비밀 값, 새 설정 항목(Settings 필드) 추가, app.config 모듈, .env.example을 다루거나 설정 때문에 기동이 실패하는 문제를 진단할 때 사용한다. .env 파일 내용은 읽지 않고(수정은 값을 보지 않는 방식으로 가능) 변수 이름과 절차를 다룬다. 비즈니스 로직 구현, 계층 설계, 배포 스크립트 작성에는 사용하지 않는다.
 ---
 
 # 설정과 비밀 관리
@@ -14,7 +14,7 @@ description: 환경변수, 프로파일(local/dev/product) 설정, 비밀 값, �
 
 ## 절대 규칙
 
-1. **`.env*` 파일은 읽지도 쓰지도 않는다.** 비밀이 들어 있다. 필요한 변수 이름과 형식은 `backend/.env.example`과 `references/env-vars.md`로 확인한다. (`.claude/hooks/guard.py`와 권한 설정이 차단한다. 막히면 우회하지 말고 사용자에게 알린다.)
+1. **`.env*` 파일 내용은 읽거나 출력하지 않는다.** 비밀이 들어 있다. 수정·생성은 사용자 확인 없이 할 수 있으나(2026-10-20) `sed -i`, 리다이렉트, `grep -q`처럼 값을 보지 않는 방식으로만 한다. 필요한 변수 이름과 형식은 `backend/.env.example`과 `references/env-vars.md`로 확인한다. (읽기·출력은 `.claude/hooks/guard.py`와 권한 설정이 차단한다. 막히면 우회하지 말고 사용자에게 알린다.)
 2. **비밀 값을 코드, 테스트, 산출물, 로그, 대화에 쓰지 않는다.** 더미 값만 쓴다. 비밀 필드는 `SecretStr`로 선언한다.
 3. **서버(`dev`/`product`)의 `.env` 값 입력은 사람이 한다.** 필요한 키 이름과 절차만 안내한다.
 4. `domain`/`application`에서 `app.config`를 import하지 않는다. 설정은 `container.py`와 앱 팩토리에서만 읽고 필요한 값만 생성자로 주입한다.

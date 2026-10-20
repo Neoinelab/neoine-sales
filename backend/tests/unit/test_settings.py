@@ -148,11 +148,16 @@ def test_local_enables_dev_login_by_default() -> None:
     assert get_settings().dev_login_enabled is True
 
 
-def test_dev_login_is_forbidden_outside_local(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_dev_login_is_allowed_in_dev(monkeypatch: pytest.MonkeyPatch) -> None:
     _set(monkeypatch, {"APP_PROFILE": "dev", "APP_DEV_LOGIN_ENABLED": "true"})
 
-    with pytest.raises(ValidationError, match="dev_login"):
-        get_settings()
+    assert get_settings().dev_login_enabled is True
+
+
+def test_dev_enables_dev_login_by_default(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("APP_PROFILE", "dev")
+
+    assert get_settings().dev_login_enabled is True
 
 
 def test_dev_login_is_forbidden_in_product(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -203,15 +208,12 @@ def test_oidc_variables_in_a_dotenv_file_are_ignored(tmp_path: Path) -> None:
     assert isinstance(settings, LocalSettings)
 
 
-@pytest.mark.parametrize("profile", ["dev", "product"])
-def test_dev_and_product_start_without_any_login_variables(
-    monkeypatch: pytest.MonkeyPatch, profile: str
-) -> None:
-    _set(monkeypatch, {**PRODUCT_ENV, "APP_PROFILE": profile})
+def test_product_starts_without_any_login_variables(monkeypatch: pytest.MonkeyPatch) -> None:
+    _set(monkeypatch, PRODUCT_ENV)
 
     settings = get_settings()
 
-    assert settings.profile.value == profile
+    assert settings.profile is Profile.PRODUCT
     assert settings.dev_login_enabled is False
 
 

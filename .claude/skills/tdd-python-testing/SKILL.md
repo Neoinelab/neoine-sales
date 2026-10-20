@@ -23,7 +23,7 @@ description: backend 기능을 구현하기 전에 pytest 테스트를 먼저 �
 ## 실행 시점 (2026-10-16 결정)
 
 - **개발 중**(로컬, 모든 Agent 작업, 게이트 기본값): **단위 테스트(`tests/unit`)만** 실행한다. 대상만 좁혀 돌릴 때도 `tests/unit/...` 안에서 고른다.
-- **functional test를 포함한 전체**: Jenkins 빌드(Verify 단계 `uv run pytest`)가 실행하고, 통과해야 dev·product 배포로 이어진다. 로컬에서는 사용자가 요청할 때만 `uv run python scripts/run_gates.py --full`.
+- **functional test를 포함한 전체**: Jenkins 빌드(Verify 단계 `uv run pytest`)가 실행하고, 통과해야 `main`에서 product 배포(사람 승인 후)로 이어진다. 로컬에서는 사용자가 요청할 때만 `uv run python scripts/run_gates.py --full`.
 - 새·변경 functional test는 개발 중 `--collect-only`로 수집(문법·import) 오류만 확인한다. 실패는 CI에서 드러나므로, CI 실패 보고를 받으면 같은 순서(테스트 → 담당 계층)로 고친다.
 
 ## 테스트 종류 (backend는 두 가지뿐)

@@ -1,6 +1,6 @@
 // neoine-sales CI 파이프라인 (Multibranch). 설계 근거: docs/dev-guide.html 15장.
 // 모든 브랜치/PR은 검증(Verify, Contract & Security)만 하고, main에서만 릴리스 번들을 만든다.
-// main에서는 이어서 dev 자동 배포(마이그레이션 자동 적용) -> 사람 승인 -> product 순차 배포를 한다.
+// main에서는 이어서 사람 승인 -> product 순차 배포를 한다(dev 자동 배포는 2026-10-20 제거: dev DB는 로컬 start-backend.sh --profile dev로 사용).
 // 호스트 이름·자격 증명 ID·승인 그룹은 예시 값이다. 실제 서버에 맞게 바꾼다(docs/dev-guide.html 16장).
 pipeline {
     agent none
@@ -103,29 +103,6 @@ pipeline {
                 sh 'infra/build_release.sh "$RELEASE_TAG"'
                 archiveArtifacts artifacts: 'build/*.tar.gz', fingerprint: true
                 stash name: 'release', includes: 'build/*.tar.gz'
-            }
-        }
-
-        stage('Deploy: Dev') {
-            when { branch 'main' }
-            agent { label 'deploy' }
-            steps {
-                unstash 'release'
-                lock(resource: 'neoine-dev') {
-                    withCredentials([sshUserPrivateKey(credentialsId: 'deploy-ssh-dev',
-                                                       keyFileVariable: 'SSH_KEY',
-                                                       usernameVariable: 'SSH_USER')]) {
-                        // 번들과 같은 커밋의 deploy.sh를 함께 전달한다(스크립트도 코드와 함께 버전 관리)
-                        sh '''
-                            scp -i "$SSH_KEY" -o StrictHostKeyChecking=yes \
-                                "build/neoine-sales-$RELEASE_TAG.tar.gz" infra/server/deploy.sh \
-                                "$SSH_USER@dev.internal.example.com:/opt/neoine-sales/incoming/"
-                            ssh -i "$SSH_KEY" -o StrictHostKeyChecking=yes "$SSH_USER@dev.internal.example.com" \
-                                "bash /opt/neoine-sales/incoming/deploy.sh dev $RELEASE_TAG"
-                        '''
-                    }
-                }
-                sh 'curl --fail --retry 5 --retry-delay 3 https://dev.internal.example.com/readyz'
             }
         }
 

@@ -26,6 +26,7 @@ class DevSettings(Settings):
     profile: Profile = Profile.DEV
     enable_docs: bool = True
     log_level: LogLevel = "DEBUG"
+    dev_login_enabled: bool = True  # 사용자 결정 2026-10-20: dev도 개발용 로그인을 유지한다
     sentry_traces_sample_rate: float = 1.0
 
 

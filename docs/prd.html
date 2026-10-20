@@ -443,8 +443,8 @@ code{background:var(--soft);padding:1px 5px;border-radius:3px;font-size:12.5px}
 <tr><th>항목</th><th>요구사항</th><th>상태</th></tr>
 <tr><td>데이터 정합성</td><td>Dashboard 합계 = Forecast 합계 = Deal 목록 원장. 단일 집계 로직을 쓰고 테스트로 일치를 검증한다.</td><td><span class="b todo">예정</span></td></tr>
 <tr><td>구조</td><td>FastAPI(DDD 4계층, import-linter로 강제) + React. 프로파일 local / dev / product.</td><td><span class="b ok">구현</span></td></tr>
-<tr><td>배포</td><td>온프레미스 Linux, Jenkins CI/CD, Nginx 정적 서빙 + <code>/api</code> 프록시. dev 자동 배포, product 승인 후 순차 배포.</td><td><span class="b ok">구현</span></td></tr>
-<tr><td>마이그레이션</td><td>Alembic. dev는 자동, product는 사람 승인. 원칙은 expand/contract.</td><td><span class="b ok">구현</span> 예외 3건은 CLAUDE.md에 기록</td></tr>
+<tr><td>배포</td><td>온프레미스 Linux, Jenkins CI/CD, Nginx 정적 서빙 + <code>/api</code> 프록시. product 승인 후 순차 배포(Jenkins의 dev 자동 배포는 2026-10-20 제거, dev DB는 로컬 <code>start-backend.sh --profile dev</code>로 사용).</td><td><span class="b ok">구현</span></td></tr>
+<tr><td>마이그레이션</td><td>Alembic. local·dev는 로컬 실행 스크립트가 자동 적용, product는 사람 승인. 원칙은 expand/contract.</td><td><span class="b ok">구현</span> 예외 3건은 CLAUDE.md에 기록</td></tr>
 <tr><td>품질 게이트</td><td>ruff, format, mypy strict, import-linter, 파일 300줄 이하, pytest, 프런트 typecheck/lint/test/build.</td><td><span class="b ok">구현</span></td></tr>
 <tr><td>성능</td><td>사용자 100명 미만이므로 대용량 처리 설계는 필요하지 않다. 목록·집계는 일반 쿼리로 충분하다.</td><td><span class="b ok">구현</span> 확정</td></tr>
 <tr><td>보안</td><td>비밀은 환경변수·DB로만 관리, 비밀번호 저장·로그 금지, 쿠키 Secure, 로그인 실패 제한.</td><td><span class="b ok">구현</span></td></tr>
@@ -544,7 +544,7 @@ code{background:var(--soft);padding:1px 5px;border-radius:3px;font-size:12.5px}
 </ul>
 <h3>A.5 인증·사용자·설정</h3>
 <ul>
-<li>AD(LDAP) 로그인, 세션, 로그아웃, <code>/auth/me</code>, 로컬 전용 개발용 로그인</li>
+<li>AD(LDAP) 로그인, 세션, 로그아웃, <code>/auth/me</code>, local·dev 전용 개발용 로그인</li>
 <li>로그인 시도 제한(계정별 5회, IP별 30회, 15분 창, 15분 잠금 — 설정 가능)</li>
 <li>최초 설정 2단계(AD 서버 등록 → admin 등록)</li>
 <li>AD 설정 조회·수정·연결 테스트(admin)</li>
@@ -572,14 +572,14 @@ code{background:var(--soft);padding:1px 5px;border-radius:3px;font-size:12.5px}
 <tr><td>P5 <span class="b ok">완료</span></td><td>Deals 목록 개선</td><td>컬럼 확장·Quick View(DL-05), Solution·Forecast·Year/Quarter 필터(DL-04), 조건 유지(DL-06), Risk 색상(DL-07), Inline Update(DL-08)</td><td>—</td></tr>
 <tr><td>P6</td><td>Forecast 메뉴</td><td>Forecast 요약과 화면 안 담당자별 Deal 목록(FC-04·05, “담당자 상세” 메뉴 없음), 기간 자동 집계(R01), 월말 Batch(FC-06)</td><td>—</td></tr>
 <tr><td>P7</td><td>Reports</td><td>담당자 실적, Vendor/Solution, Status 전환, Forecast Mix, Forecast 추이(표·그래프), Excel Export(RP-01~06)</td><td>차트·Excel 의존성 승인</td></tr>
-<tr><td>P8 <span class="b ok">완료</span></td><td>메뉴 정리·실제 연동 전환</td><td>사용자 메뉴 4개 재편(Dashboard·Forecast·Reports 추가, 내용은 P4·P6·P7 전까지 “준비 중” — Forecast는 서버 501일 때만), 목록 BANT 열(LB-06), 앱은 항상 HTTP(목업 모드·MockBanner 제거, mock은 테스트 전용 Fake로 이동), 빠른 로그인은 서버 개발용 로그인(local)일 때 역할 3개</td><td>—</td></tr>
+<tr><td>P8 <span class="b ok">완료</span></td><td>메뉴 정리·실제 연동 전환</td><td>사용자 메뉴 4개 재편(Dashboard·Forecast·Reports 추가, 내용은 P4·P6·P7 전까지 “준비 중” — Forecast는 서버 501일 때만), 목록 BANT 열(LB-06), 앱은 항상 HTTP(목업 모드·MockBanner 제거, mock은 테스트 전용 Fake로 이동), 빠른 로그인은 서버 개발용 로그인(local·dev)일 때 역할 3개</td><td>—</td></tr>
 </table>
 <h3>B.1 개발 시 공통 조건</h3>
 <ul>
 <li>각 묶음은 하네스 순서(planner → test → core → infra → web → frontend → gate → reviewer)로 진행한다.</li>
 <li>집계 로직은 한 곳에 두고 Dashboard / Forecast / Reports가 같은 로직을 쓴다(데이터 일치 검수).</li>
 <li>새 의존성(Excel 라이브러리, 차트 라이브러리)은 추가 전에 사용자 승인을 받는다.</li>
-<li>dev에 자동 적용되므로 마이그레이션은 하위 호환으로 쓴다. product 적용은 사람이 승인한다.</li>
+<li>product에는 앱과 함께 배포되고 롤백은 코드만 되돌리므로 마이그레이션은 하위 호환으로 쓴다. product 적용은 사람이 승인한다(local·dev는 로컬 실행 스크립트가 자동 적용).</li>
 </ul>
 
 <h2 id="sc">부록 C. PRD 확정 기준과 현재 구현의 차이</h2>

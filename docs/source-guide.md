@@ -12,7 +12,7 @@
 | 백엔드 | Python 3.14, FastAPI, SQLAlchemy 2(async) + asyncpg, Alembic, ldap3, pydantic-settings, structlog |
 | 프런트엔드 | React 19, TypeScript, Vite, React Router, TanStack Query v5, openapi-fetch, Vitest |
 | DB | PostgreSQL (DB명 `neoinesales`) |
-| 인증 | AD(LDAP) 아이디·비밀번호 → 서버 세션(HttpOnly 쿠키). local은 개발용 빠른 로그인 |
+| 인증 | AD(LDAP) 아이디·비밀번호 → 서버 세션(HttpOnly 쿠키). local·dev는 개발용 빠른 로그인(기본 켜짐, product는 불가) |
 | 권한 | 역할 3종: `admin`(전부 + Admin 메뉴), `sales`(업무 쓰기), `user`(조회만) |
 | 파일 | 첨부 파일은 서버 로컬 디스크. 저장 위치는 최초 설정·Admin에서 등록(DB 저장), 서버는 `/var/lib/neoine-sales`를 준비 |
 | 패키지 | 백엔드 uv, 프런트엔드 pnpm(corepack) |
@@ -71,7 +71,7 @@ infra ──┘
 | --- | --- |
 | `main.py` | FastAPI 앱 팩토리 `create_app()`. 라우터 등록, CORS, 오류 처리기. `uvicorn app.main:app` |
 | `config/base.py` | `Settings`: `APP_` 접두어 환경변수 필드(DB URL, 쿠키, 세션 TTL, 로그인 시도 제한 등) |
-| `config/profiles.py` | 프로파일별 기본값과 안전 검증. `LocalSettings`/`DevSettings`/`ProductSettings`. product는 debug·docs 끄기, `cookie_secure`, JWT 비밀 32자 이상, Sentry DSN 필수. `dev_login`은 local에서만 허용 |
+| `config/profiles.py` | 프로파일별 기본값과 안전 검증. `LocalSettings`/`DevSettings`/`ProductSettings`. product는 debug·docs 끄기, `cookie_secure`, JWT 비밀 32자 이상, Sentry DSN 필수. `dev_login`은 local·dev 기본 켜짐, product에서만 거부 |
 | `config/__init__.py` | `get_settings()`: `APP_PROFILE`로 프로파일을 골라 설정을 읽는 유일한 진입점 |
 | `container.py` | Composition Root. DB 엔진·세션 팩토리·시계를 소유하고 Deal·Action·연락처·경고 기준 유스케이스를 조립 |
 | `container_auth.py` | 인증 유스케이스(로그인, 최초 설정, 로그아웃, 개발 로그인) 조립 |
@@ -200,7 +200,7 @@ features/*  화면 ──▶ data/*  TanStack Query 훅 ──▶ gateway  (http
 | `src/features/deals/detail/` | Deal 상세: 요약 바(Status 체류 "N일째"), 정보·연락처·BANT 카드와 인라인 수정, Actions·History 탭, 첨부 패널, 삭제 |
 | `src/features/deals/form/` | Deal 등록·수정 폼 |
 | `src/features/admin/` | Admin 레이아웃과 탭: `users/`, `deal-management/`(Status·Forecast 코드, BANT Label, Action 유형, Vendor·Solution, 경고 기준), `contacts/`, `integrations/`(AD 서버, 저장 위치) |
-| `src/features/auth/`, `features/setup/` | 로그인(local은 역할별 빠른 로그인 3개), `RequireAuth`·`RequireWrite`·`RequireAdmin`, 최초 설정 마법사(AD → 저장 위치 → admin) |
+| `src/features/auth/`, `features/setup/` | 로그인(local·dev는 역할별 빠른 로그인 3개), `RequireAuth`·`RequireWrite`·`RequireAdmin`, 최초 설정 마법사(AD → 저장 위치 → admin) |
 | `src/features/forecast/`, `features/placeholder/` | Forecast 화면(서버가 501이면 "준비 중"), Dashboard·Reports 자리 화면 |
 | `src/test/` | 테스트 설정(`setup.ts`가 `vi.mock('../gateway')`로 Fake 주입), 테스트 전용 Fake 게이트웨이와 시드(`fake/`), 픽스처(`fixtures/`), 앱 렌더 도우미. 각 `*.test.ts(x)`는 대상 옆에 위치 |
 
@@ -232,7 +232,7 @@ uv run uvicorn app.main:app --reload --port 8000 --app-dir src   # 터미널 1
 cd frontend && corepack pnpm install && corepack pnpm dev        # 터미널 2 (http://localhost:5173)
 ```
 
-처음 접속하면 최초 설정 3단계(AD 서버 → 저장 위치 → admin)를 거칩니다. local 프로파일은 로그인 화면의 빠른 로그인(관리자/영업/조회자)을 쓸 수 있습니다. 프런트 개발 서버도 항상 실제 백엔드를 호출하므로(목업 모드 없음) 백엔드를 함께 띄웁니다. corepack 서명 오류가 나면 `COREPACK_INTEGRITY_KEYS=0`을 앞에 붙입니다.
+처음 접속하면 최초 설정 3단계(AD 서버 → 저장 위치 → admin)를 거칩니다. local·dev 프로파일은 로그인 화면의 빠른 로그인(관리자/영업/조회자)을 쓸 수 있습니다. 프런트 개발 서버도 항상 실제 백엔드를 호출하므로(목업 모드 없음) 백엔드를 함께 띄웁니다. corepack 서명 오류가 나면 `COREPACK_INTEGRITY_KEYS=0`을 앞에 붙입니다.
 
 ### 5.2 검증(게이트)
 
@@ -254,7 +254,7 @@ cd frontend && pnpm gen:api                              # src/shared/api/schema
 
 ### 5.4 마이그레이션
 
-`cd backend && uv run alembic revision --autogenerate -m "..."` → 검토 → `uv run alembic upgrade head`. **local·dev는 자동 적용, product만 사람 승인 후** `deploy.sh`가 적용합니다. dev에 자동 적용되므로 원칙은 하위 호환(expand/contract)입니다. 다만 개발 단계라 보존할 업무 데이터가 없어 P0~P3은 사용자 결정으로 예외(구 테이블 drop, 구 앱과 같은 DB 공존 불가, 앱과 같은 배포 전제)로 작성했습니다(`CLAUDE.md` 변경 이력). 운영 데이터가 생기면 이 예외는 끝납니다. `downgrade`/`stamp`는 사용자 확인이 필요합니다.
+`cd backend && uv run alembic revision --autogenerate -m "..."` → 검토 → `uv run alembic upgrade head`. **local·dev는 자동 적용**(로컬 `./scripts/start-backend.sh --profile local|dev`가 시작 전에 `alembic upgrade head` 실행), **product만 사람 승인 후** `deploy.sh`가 적용합니다. product에서는 앱과 함께 배포되고 롤백은 코드만 되돌리므로 원칙은 하위 호환(expand/contract)입니다. 다만 개발 단계라 보존할 업무 데이터가 없어 P0~P3은 사용자 결정으로 예외(구 테이블 drop, 구 앱과 같은 DB 공존 불가, 앱과 같은 배포 전제)로 작성했습니다(`CLAUDE.md` 변경 이력). 운영 데이터가 생기면 이 예외는 끝납니다. local·dev의 `downgrade`/`stamp`는 확인 없이 실행할 수 있고(2026-10-20), product 대상 alembic 명령은 하네스가 거부합니다.
 
 ### 5.5 릴리스 번들 만들기
 
@@ -262,17 +262,16 @@ cd frontend && pnpm gen:api                              # src/shared/api/schema
 
 ## 6. CI/CD (`Jenkinsfile`)
 
-Multibranch 파이프라인입니다. 모든 브랜치·PR은 검증만 하고, `main`에서만 번들 생성과 배포를 합니다.
+Multibranch 파이프라인입니다. 모든 브랜치·PR은 검증만 하고, `main`에서만 번들 생성과 product 배포(사람 승인 후)를 합니다. dev 자동 배포(`Deploy: Dev`)는 2026-10-20에 제거했습니다. dev DB는 로컬 `start-backend.sh --profile dev`로 쓰고, dev 서버가 필요하면 사람이 `deploy.sh dev`로 수동 배포합니다. 이 서버는 개발용 로그인이 기본으로 켜지므로(비밀번호 없이 admin) 여러 사람이 접근하는 서버라면 서버 `.env`에 `APP_DEV_LOGIN_ENABLED=false`를 넣습니다.
 
 | 단계 | 대상 | 내용 |
 | --- | --- | --- |
 | Verify (병렬) | 모든 브랜치 | **Backend**: `uv sync --locked`, ruff, format, mypy, lint-imports, 파일 길이, pytest(+커버리지, JUnit). **Infra scripts**: `bash -n`, `test_deploy.sh`. **Frontend**: `pnpm install --frozen-lockfile`, lint, typecheck, test, build(결과 stash) |
 | Contract & Security | 모든 브랜치 | `openapi.json`·`schema.d.ts`가 코드와 같은지 `git diff --exit-code`, `pnpm audit`, `pip-audit`, `trivy`(CRITICAL/HIGH), `gitleaks` |
 | Package | main | `build_release.sh`로 tar.gz 생성·보관(아티팩트 fingerprint) |
-| Deploy: Dev | main | 번들과 `deploy.sh`를 SSH/scp로 dev 서버에 전달해 실행 → `/readyz` 확인. **마이그레이션 자동 적용** |
-| Deploy: Product | main | `release-managers`의 **수동 승인(input)** 후, 운영 서버를 **한 대씩 순차 배포**(한 대라도 실패하면 중단) |
+| Deploy: Product | main | `release-managers`의 **수동 승인(input)** 후, 번들과 `deploy.sh`를 SSH/scp로 전달해 운영 서버를 **한 대씩 순차 배포**(한 대라도 실패하면 중단, 마이그레이션 적용) |
 
-환경변수: `RELEASE_TAG`(커밋 12자), `TEST_DATABASE_ADMIN_URL`(CI용 PostgreSQL), `REQUIRE_INTEGRATION_DB=1`. 호스트 이름·자격 증명 ID(`deploy-ssh-dev`, `deploy-ssh-product`)·승인 그룹은 **예시 값**이므로 실제 환경에 맞게 바꿔야 합니다. 실패 시 메일을 보냅니다.
+환경변수: `RELEASE_TAG`(커밋 12자), `TEST_DATABASE_ADMIN_URL`(CI용 PostgreSQL), `REQUIRE_INTEGRATION_DB=1`. 호스트 이름·자격 증명 ID(`deploy-ssh-product`)·승인 그룹은 **예시 값**이므로 실제 환경에 맞게 바꿔야 합니다. 실패 시 메일을 보냅니다.
 
 ### 6.1 `deploy.sh <dev|product> <tag>` 동작
 
@@ -289,11 +288,11 @@ Multibranch 파이프라인입니다. 모든 브랜치·PR은 검증만 하고, 
 
 | 항목 | local | dev | product |
 | --- | --- | --- | --- |
-| 실행 | 개발 서버 2개 | Nginx + systemd | Nginx + systemd (여러 대 순차) |
-| 설정 위치 | `backend/.env` | 서버 `/opt/neoine-sales/.env` | 서버 `/opt/neoine-sales/.env` |
-| 로그인 | 개발용 로그인 가능 | AD만 | AD만 |
+| 실행 | 개발 서버 2개 | 로컬 `start-backend.sh --profile dev`(또는 수동 배포한 서버의 Nginx + systemd) | Nginx + systemd (여러 대 순차) |
+| 설정 위치 | `backend/.env` | 로컬 `backend/.env.dev`(`APP_ENV_FILE`) / 서버 `/opt/neoine-sales/.env` | 서버 `/opt/neoine-sales/.env` |
+| 로그인 | AD + 개발용 로그인(기본 켜짐) | AD + 개발용 로그인(기본 켜짐) | AD만(개발용 로그인 켤 수 없음) |
 | API 문서(`/docs`) | 열림 | 열림 | 닫힘 |
-| 마이그레이션 | 수동/자동 | 배포 시 자동 | 승인 후 배포 시 |
+| 마이그레이션 | 시작 스크립트가 자동 | 시작 스크립트가 자동(수동 서버 배포 시 `deploy.sh dev`) | 승인 후 배포 시 |
 | 쿠키 Secure | 끔(http) | 켬 | 켬(강제) |
 
 ### 6.3 운영 필수 절차와 주의

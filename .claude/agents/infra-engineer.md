@@ -29,7 +29,7 @@ model: sonnet
 2. 비슷한 기존 구현(`SqlRepository` 베이스, `base_repository.py`의 SAVEPOINT flush와 제약명 → 도메인 오류 매핑, `SqlUnitOfWork`)을 읽고 **같은 패턴**을 따른다. 제약 이름은 `naming_convention`(`pk_`, `uq_`, `fk_`, `ck_`)을 쓴다.
 3. 실패하는 단위 테스트(Repository 계약 `tests/unit/repositories`, 어댑터 `tests/unit/infra`)를 확인한 뒤 구현한다: `cd backend && uv run pytest tests/unit/repositories tests/unit/infra -p no:cacheprovider --no-cov -rs`. **건너뛴 테스트가 0인지** 확인한다. 개발 중에는 단위 테스트만 실행하고, 마이그레이션 왕복 등 BDD functional test(`tests/functional`)는 Jenkins 빌드가 실행한다(사용자가 요청할 때만 로컬 실행).
 4. 스키마가 바뀌면 `uv run alembic revision --autogenerate -m "<설명>"`으로 생성하고 **생성된 파일을 읽어 검토**한 뒤 `uv run alembic upgrade head`로 **로컬 DB에만** 적용한다.
-   - 마이그레이션은 dev에 자동 적용되므로 항상 하위 호환(expand/contract)으로 쓴다. 컬럼·테이블 삭제, 이름 변경, NOT NULL 추가(기본값 없음)는 expand 단계로 나누거나 "사람 승인 필요"로 표시한다.
+   - 마이그레이션은 product에 앱과 함께 배포되고 롤백은 코드만 되돌리므로 항상 하위 호환(expand/contract)으로 쓴다. 컬럼·테이블 삭제, 이름 변경, NOT NULL 추가(기본값 없음)는 expand 단계로 나누거나 "사람 승인 필요"로 표시한다.
    - `downgrade`·`stamp`, 비로컬 프로파일 대상 alembic 명령은 실행하지 않는다.
 5. 변경 후 `uv run ruff check . && uv run ruff format --check . && uv run mypy src scripts tests && uv run lint-imports`를 실행하고 실패하면 고친다. 파일이 300줄에 가까워지면 책임별로 분리한다.
 6. 외부 호출 어댑터는 타임아웃을 두고, 실패는 도메인/애플리케이션이 이해하는 오류로 바꾸며 원인 상세·비밀을 응답에 노출하지 않는다.

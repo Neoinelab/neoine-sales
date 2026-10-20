@@ -37,7 +37,7 @@ class Settings(BaseSettings):
     session_ttl_hours: int = Field(default=8, ge=1)
 
     # 로그인: AD(LDAP) 서버는 화면에서 등록하므로 환경변수가 없다
-    dev_login_enabled: bool = False  # IdP 없이 로그인하는 개발용 기능. local에서만 켤 수 있다
+    dev_login_enabled: bool = False  # IdP 없이 로그인하는 개발용 기능. product에서는 켤 수 없다
 
     # 로그인 시도 제한(계정별·IP별 실패 횟수, 집계 창, 잠금 시간)
     login_max_failures_per_account: int = Field(default=5, ge=1)
@@ -58,6 +58,6 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def _check_login_configuration(self) -> Self:
-        if self.dev_login_enabled and self.profile is not Profile.LOCAL:
-            raise ValueError("dev_login_enabled는 local 프로파일에서만 켤 수 있습니다")
+        if self.dev_login_enabled and self.profile is Profile.PRODUCT:
+            raise ValueError("dev_login_enabled는 product 프로파일에서 켤 수 없습니다")
         return self

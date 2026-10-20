@@ -85,12 +85,16 @@ class TestAlembicPolicy:
 
 
 class TestOtherGuards:
-    @pytest.mark.parametrize("tool", ["Read", "Edit", "Write"])
-    def test_env_files_are_denied_for_file_tools(self, tool: str) -> None:
+    def test_env_files_cannot_be_read_into_the_conversation(self) -> None:
         for path in ("/p/backend/.env", "/p/backend/.env.product", "C:\\p\\backend\\.env.local"):
-            decision = files(tool, path)
+            decision = files("Read", path)
             assert decision is not None
             assert decision[0] == "deny"
+
+    @pytest.mark.parametrize("tool", ["Edit", "Write"])
+    def test_env_files_can_be_edited_without_confirmation(self, tool: str) -> None:
+        for path in ("/p/backend/.env", "/p/backend/.env.dev"):
+            assert files(tool, path) is None
 
     def test_env_example_is_readable_and_writable(self) -> None:
         assert files("Read", "/p/backend/.env.example") is None
@@ -113,11 +117,36 @@ class TestOtherGuards:
             assert decision is not None
             assert decision[0] == "deny"
 
-    def test_commands_mentioning_env_files_need_confirmation(self) -> None:
-        decision = bash("cat backend/.env")
+    def test_commands_that_print_env_files_are_denied(self) -> None:
+        for command in (
+            "cat backend/.env",
+            "head -5 .env.dev",
+            "cd backend && tail .env",
+            "grep APP_DATABASE_URL backend/.env",
+            "less .env",
+        ):
+            decision = bash(command)
+            assert decision is not None, command
+            assert decision[0] == "deny"
 
-        assert decision is not None
-        assert decision[0] == "ask"
+    def test_commands_that_change_env_files_without_printing_pass(self) -> None:
+        for command in (
+            "cd backend && sed -e 's/a/b/' .env > .env.dev",
+            "sed -i '' 's/^APP_PROFILE=.*/APP_PROFILE=dev/' backend/.env.dev",
+            "echo 'APP_COOKIE_SECURE=false' >> .env.dev",
+            "grep -q '^APP_PROFILE=' .env.dev || echo x >> .env.dev",
+            "chmod 600 backend/.env.dev",
+            "test -f backend/.env.dev",
+        ):
+            assert bash(command) is None, command
+
+    def test_searching_text_for_the_word_env_is_not_treated_as_printing(self) -> None:
+        for command in (
+            'grep -rn "\\.env" CLAUDE.md docs',
+            "grep -n '.env 파일' docs/dev-guide.html",
+            "cat README.md | grep env",
+        ):
+            assert bash(command) is None, command
 
     def test_env_example_and_environ_in_commands_are_not_flagged(self) -> None:
         assert bash("cp backend/.env.example /tmp/x.txt") is None
