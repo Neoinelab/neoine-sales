@@ -37,7 +37,7 @@ corepack 서명 오류(`Cannot find matching keyid`)가 나면 pnpm 명령 앞�
 
 ```bash
 ./scripts/start-backend.sh      # 시작 전에 alembic upgrade head 실행(--skip-migrate로 생략, --profile dev 가능)
-./scripts/start-frontend.sh
+./scripts/start-frontend.sh     # 모든 주소에서 접속 허용(다른 PC: http://<서버 IP>:5173, --host localhost면 이 PC만)
 tail -f logs/backend.log        # 로그 보기
 ```
 

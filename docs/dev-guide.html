@@ -171,11 +171,12 @@ cd ../frontend &amp;&amp; pnpm dev              # http://localhost:5173 (앱은 
 <table>
 <tr><th>스크립트</th><th>동작</th><th>로그 · PID</th></tr>
 <tr><td><code>./scripts/start-backend.sh [--profile local|dev] [--skip-migrate] [--port 8000]</code></td><td>시작 전에 그 프로파일 DB에 <code>alembic upgrade head</code>(화면에 출력, 실패 시 중단) 후 <code>.venv/bin/uvicorn --reload</code>를 백그라운드로 실행</td><td><code>logs/backend.log</code> · <code>logs/backend.pid</code></td></tr>
-<tr><td><code>./scripts/start-frontend.sh</code></td><td><code>node_modules/.bin/vite</code>를 백그라운드로 실행(5173, <code>/api</code>는 8000으로 프록시)</td><td><code>logs/frontend.log</code> · <code>logs/frontend.pid</code></td></tr>
+<tr><td><code>./scripts/start-frontend.sh [--host 0.0.0.0] [--allow-host 이름[,이름]]</code></td><td><code>node_modules/.bin/vite --host</code>를 백그라운드로 실행(5173, <code>/api</code>는 서버 안에서 <code>localhost:8000</code>으로 프록시). 기본은 모든 주소(<code>0.0.0.0</code>)에서 받아 다른 PC에서 <code>http://&lt;서버 IP&gt;:5173</code>으로 접속 가능, <code>--host localhost</code>면 이 PC에서만. IP가 아닌 호스트 이름으로 접속하려면 <code>--allow-host</code>로 허용(Vite는 모르는 호스트 이름을 403으로 거부하며, DNS rebinding 위험 때문에 전체 허용은 쓰지 않음)</td><td><code>logs/frontend.log</code> · <code>logs/frontend.pid</code></td></tr>
 </table>
 <ul>
   <li>로그는 이어 쓰며 실행마다 시작 시각을 적은 구분 줄이 들어갑니다. <code>logs/</code>는 Git 제외입니다.</li>
   <li>PID 파일의 프로세스가 살아 있으면 다시 실행하지 않고 거부합니다. 시작 2초 안에 프로세스가 죽으면 로그 끝 20줄을 보여 주고 실패로 끝납니다.</li>
+  <li>외부 접속에는 서버 방화벽에서 5173 포트를 열어야 합니다(우분투: <code>sudo ufw allow 5173/tcp</code>). backend(8000)는 frontend가 서버 안에서 프록시하므로 열 필요가 없습니다. <code>--profile dev</code>로 띄운 backend는 세션 쿠키가 <code>Secure</code>라 http로 외부 접속하면 로그인이 유지되지 않으므로, <code>backend/.env.dev</code>에 <code>APP_COOKIE_SECURE=false</code>를 넣습니다(local 프로파일은 기본 false).</li>
   <li><code>uv run</code>·<code>pnpm dev</code>를 거치지 않고 서버 프로세스를 직접 띄우므로 PID 파일이 서버 자체를 가리켜 <code>kill</code> 한 번으로 종료됩니다.</li>
 </ul>
 <pre><code>./scripts/start-backend.sh               # local 프로파일(backend/.env)
