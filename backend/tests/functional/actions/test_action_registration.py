@@ -10,13 +10,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from tests.functional.steps.actions import (
-    ACTION_KEYS,
-    ACTIONS,
-    SUMMARY,
-    SUMMARY_WITH_MEMO,
-    action_body,
-    given_action,
+from tests.functional.steps.action_checks import (
     names_of,
     same_instant,
     then_acted_at_is_the_server_time,
@@ -24,6 +18,14 @@ from tests.functional.steps.actions import (
     then_action_is_unchanged,
     then_action_type_is,
     then_body_has,
+)
+from tests.functional.steps.actions import (
+    ACTION_KEYS,
+    ACTIONS,
+    SUMMARY,
+    SUMMARY_WITH_MEMO,
+    action_body,
+    given_action,
     when_get_action,
     when_list_actions,
     when_register_action,
@@ -67,6 +69,8 @@ async def test_sales_records_an_action_with_current_status_and_forecast(api: Api
         action="킥오프 미팅",
         next_action="요구사항 문서 전달",
         due_date="2027-01-15",
+        next_action_status="open",
+        next_action_closed_at=None,
         memo="요구사항 정리",
         status_key="introduction",
         forecast_key="best",
@@ -124,7 +128,11 @@ async def test_registering_an_action_does_not_touch_the_deal_but_updates_the_nex
     then_status_is(response, 201)
     detail = (await when_get_deal(api, deal["code"])).json()
     assert same_instant(detail["updated_at"], deal["updated_at"])
-    assert detail["next_action"] == {"text": "계약서 검토", "due_date": "2027-02-05"}
+    assert detail["next_action"] == {
+        "text": "계약서 검토",
+        "due_date": "2027-02-05",
+        "status": "open",
+    }
     assert same_instant(detail["last_updated_at"], response.json()["acted_at"])
 
 

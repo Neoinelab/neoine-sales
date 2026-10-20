@@ -1,6 +1,7 @@
 import { api } from '../../shared/api/client'
 import type { DealListQuery } from '../../shared/model/types'
 import type { DealsGateway } from '../types'
+import { toNextActionStatusParam } from './mappers/nextActionStatus'
 import { toCoChange, toChangeBody, toCreateBody, toDealDetail, toDealRow, toPatchBody } from './mappers/deal'
 import { unwrap, unwrapVoid } from './request'
 
@@ -30,6 +31,7 @@ function toListParams(q: DealListQuery) {
     ...(q.bantLabelIds?.need ? { bant_need: q.bantLabelIds.need } : {}),
     ...(q.bantLabelIds?.timeline ? { bant_timeline: q.bantLabelIds.timeline } : {}),
     ...(q.mine ? { mine: true } : {}),
+    ...(q.nextActionStatus ? { next_action_status: toNextActionStatusParam(q.nextActionStatus) } : {}),
     ...(q.sort ? { sort: SORT[q.sort] } : {}),
     ...(q.order ? { order: q.order } : {}),
     ...(q.offset !== undefined ? { offset: q.offset } : {}),

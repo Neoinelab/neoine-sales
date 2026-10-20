@@ -1,13 +1,14 @@
 """Deal 응답 스키마. 도메인 객체를 그대로 노출하지 않고 화면 계약 모양으로 바꾼다."""
 
 from datetime import date, datetime
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Annotated, Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.domain.bant.values import BantCategory
 from app.domain.deal.history import HistoryCategory
 from app.domain.deal.values import PocState, QuoteSubmitted
+from app.domain.deal_action.next_action_status import NextActionStatus
 from app.web.schemas.common import CountedPage
 from app.web.schemas.contact import ContactResponse
 from app.web.schemas.user_ref import UserRef
@@ -43,6 +44,7 @@ class PartnerHistoryResponse(BaseModel):
 class NextActionResponse(BaseModel):
     text: str
     due_date: date
+    status: NextActionStatus
 
 
 class QuoteResponse(BaseModel):
@@ -87,7 +89,15 @@ class DealRowResponse(BaseModel):
     procurement: str
     bant: BantResponse
     next_action: NextActionResponse | None
-    last_updated_at: datetime
+    last_updated_at: Annotated[
+        datetime,
+        Field(
+            description=(
+                "모든 Action 중 가장 최근 수행 시각. Action이 없으면 Deal 등록 시각. "
+                "Deal 수정은 반영하지 않는다."
+            )
+        ),
+    ]
     risk: Literal["overdue", "stale", "overdue_stale"] | None
     status_changed_at: datetime
     status_days: int
@@ -151,7 +161,9 @@ def _row_fields(view: DealView) -> dict[str, object]:
             **{category.value: _label(deal.bant.get(category)) for category in BantCategory}
         ),
         "next_action": (
-            NextActionResponse(text=next_action.text, due_date=next_action.due_date)
+            NextActionResponse(
+                text=next_action.text, due_date=next_action.due_date, status=next_action.status
+            )
             if next_action
             else None
         ),

@@ -15,3 +15,8 @@ class DealActionEditForbiddenError(AccessDeniedError):
 class DealActionDeleteForbiddenError(AccessDeniedError):
     def __init__(self) -> None:
         super().__init__("본인 Action 또는 admin만 삭제할 수 있습니다.")
+
+
+class DealActionStatusForbiddenError(AccessDeniedError):
+    def __init__(self) -> None:
+        super().__init__("본인 Action 또는 admin만 Next Action 상태를 바꿀 수 있습니다.")

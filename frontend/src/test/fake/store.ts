@@ -7,6 +7,7 @@ import type {
   Deal,
   DirectorySettings,
   HistoryCategory,
+  NextActionStatus,
   Role,
   SetupState,
   UserStatus,
@@ -33,9 +34,14 @@ export interface ActionRecord {
   actorId: string
   /** Action 유형(`ActionTypeRecord.id`). 이름은 읽을 때 조인한다. */
   typeId: string
-  progress: string
-  nextAction: string
-  dueDate: string
+  /** 진행사항·Next Action은 각각 비울 수 있다(둘 다 비면 안 된다). Due Date는 Next Action이 있을 때만 있다. */
+  progress: string | null
+  nextAction: string | null
+  dueDate: string | null
+  /** Next Action이 있는 행에만 값이 있다(없으면 null). */
+  nextActionStatus: NextActionStatus | null
+  /** 종료 상태일 때만 서버 시계의 종료 시각. */
+  nextActionClosedAt: string | null
   memo: string
   statusKey: string
   forecastKey: string

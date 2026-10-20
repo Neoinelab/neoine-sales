@@ -36,7 +36,9 @@ VIEWER = Actor(user_id=uid("viewer"), role=Role.USER)
 EDIT_FORBIDDEN = "본인 Action 또는 admin만 수정할 수 있습니다."
 DELETE_FORBIDDEN = "본인 Action 또는 admin만 삭제할 수 있습니다."
 NOT_FOUND = "Action을 찾을 수 없습니다."
-PROGRESS_REQUIRED = "진행사항을 입력하세요."
+ACTION_OR_NEXT_REQUIRED = "진행사항 또는 Next Action을 입력하세요."
+DUE_DATE_REQUIRED = "Due Date를 입력하세요."
+DUE_WITHOUT_NEXT = "Next Action 없이 Due Date를 입력할 수 없습니다."
 SUMMARY = "미팅 · 킥오프 미팅 / Next Action: 요구사항 문서 전달 (Due 2026-01-15)"
 SUMMARY_WITH_MEMO = f"{SUMMARY} / Memo: 요구사항 정리"
 
@@ -95,6 +97,26 @@ class ActionEnv:
 
     async def stored(self, action_id: DealActionId) -> DealAction:
         return await self.env.uow.deal_actions.get(action_id)
+
+    async def set_status(
+        self,
+        action_id: DealActionId,
+        actor: Actor,
+        status: str,
+        memo: str = "",
+    ) -> DealAction:
+        """Next Action 상태를 바꾼다(시계가 60초 흐른 뒤). 구현은 사용 시점에 가져온다."""
+        from app.application.deal_action.change_next_action_status import (  # noqa: PLC0415
+            ChangeNextActionStatus,
+        )
+        from app.domain.deal_action.next_action_status import NextActionStatus  # noqa: PLC0415
+
+        from app.application.deal_action.inputs import NextActionStatusInput  # noqa: PLC0415
+
+        self.env.clock.advance(60)
+        use_case = ChangeNextActionStatus(self.env.uow_factory, self.env.clock)
+        data = NextActionStatusInput(status=NextActionStatus(status), memo=memo)
+        return await use_case.execute(action_id, data, actor)
 
     async def update_as(self, action_id: DealActionId, actor: Actor, **content: Any) -> DealAction:  # noqa: ANN401
         self.env.clock.advance(60)

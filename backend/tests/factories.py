@@ -127,7 +127,10 @@ def _action_fields(overrides: dict[str, Any]) -> dict[str, Any]:
         "due_date": date(2026, 1, 15),
         "memo": "요구사항 정리",
     }
-    return {**values, **overrides}
+    fields = {**values, **overrides}
+    if "due_date" not in overrides and not str(fields["next_action"]).strip():
+        fields["due_date"] = None  # Next Action이 없으면 Due Date도 없다(진행사항만 있는 Action)
+    return fields
 
 
 def make_action_content(**overrides: Any) -> ActionContent:  # noqa: ANN401

@@ -2,6 +2,8 @@
 
 from datetime import date
 
+from app.domain.deal_action.next_action_status import NextActionStatus, NextActionStatusChange
+
 from app.domain.deal.history import HistoryCategory
 from app.domain.deal_action.history import (
     ACTION_TARGET,
@@ -9,6 +11,7 @@ from app.domain.deal_action.history import (
     action_deleted_draft,
     action_summary,
     action_updated_draft,
+    next_action_status_draft,
 )
 from tests.factories import make_action_content
 from tests.factories_action_type import make_type_ref
@@ -131,3 +134,60 @@ def test_deleted_draft_uses_the_type_name_in_the_summary() -> None:
 
     assert draft.before.startswith("계약 · 킥오프 미팅")
     assert draft.after == "삭제"
+
+
+def test_summary_omits_missing_progress_and_next_action() -> None:
+    next_only = action_summary(make_action_content(action="", memo=""))
+    progress_only = action_summary(make_action_content(next_action="", memo=""))
+    with_memo = action_summary(make_action_content(next_action="", memo="메모"))
+
+    assert next_only == "미팅 / Next Action: 요구사항 문서 전달 (Due 2026-01-15)"
+    assert progress_only == "미팅 · 킥오프 미팅"
+    assert with_memo == "미팅 · 킥오프 미팅 / Memo: 메모"
+
+
+def test_summary_of_a_next_only_action_with_memo_keeps_the_memo_last() -> None:
+    summary = action_summary(make_action_content(action="", memo="메모"))
+
+    assert summary == "미팅 / Next Action: 요구사항 문서 전달 (Due 2026-01-15) / Memo: 메모"
+
+
+def test_status_draft_formats_before_and_after() -> None:
+    content = make_action_content(next_action="견적 전달", due_date=date(2026, 2, 5))
+    change = NextActionStatusChange(
+        before=NextActionStatus.OPEN, after=NextActionStatus.DONE, note="전달 완료"
+    )
+
+    draft = next_action_status_draft(content, change)
+
+    assert (draft.category, draft.target, draft.before, draft.after) == (
+        HistoryCategory.ACTION,
+        "Next Action",
+        "견적 전달 (Due 2026-02-05) · Open",
+        "종료(수행) / Memo: 전달 완료",
+    )
+
+
+def test_status_draft_without_note_has_label_only() -> None:
+    content = make_action_content(next_action="견적 전달", due_date=date(2026, 2, 5))
+    change = NextActionStatusChange(
+        before=NextActionStatus.NOT_DONE, after=NextActionStatus.OPEN, note=""
+    )
+
+    draft = next_action_status_draft(content, change)
+
+    assert draft.before == "견적 전달 (Due 2026-02-05) · 종료(미수행)"
+    assert draft.after == "Open"
+
+
+def test_status_draft_clips_a_long_note_to_the_history_limit() -> None:
+    content = make_action_content()
+    change = NextActionStatusChange(
+        before=NextActionStatus.OPEN, after=NextActionStatus.NOT_DONE, note="가" * 2_000
+    )
+
+    draft = next_action_status_draft(content, change)
+
+    assert len(draft.after) == 1_000
+    assert draft.after.startswith("종료(미수행) / Memo: ")
+    assert draft.after.endswith("…")

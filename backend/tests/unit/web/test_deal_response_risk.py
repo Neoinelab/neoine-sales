@@ -26,7 +26,7 @@ def _view(*, risk: Risk | None, status_days: int) -> DealView:
     deal = make_deal(NOW, status_key="introduction", forecast_key="best")
     deal.touch(later(300))
     return DealView(
-        item=DealListItem(deal=deal, next_action=None, last_updated_at=deal.updated_at),
+        item=DealListItem(deal=deal, next_action=None, last_updated_at=deal.created_at),
         owner=UserRef(id=OWNER_ID, name="김영업", resigned=False, role=Role.SALES),
         customer=make_customer(),
         partner_contacts={},

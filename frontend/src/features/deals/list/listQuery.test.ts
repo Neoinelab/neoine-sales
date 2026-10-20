@@ -107,3 +107,32 @@ describe('목록 조건 기억 키 (DL-06)', () => {
     expect([...REMEMBERED_LIST_KEYS].sort()).toEqual([...FILTER_KEYS, 'sort', 'order', 'page'].sort())
   })
 })
+
+describe('next_status URL 키 (AC-24)', () => {
+  it.each([
+    ['open', 'open'],
+    ['done', 'done'],
+    ['not_done', 'notDone'],
+    ['closed', 'closed'],
+  ] as const)('maps next_status=%s to nextActionStatus %s', (wire, status) => {
+    expect(listQueryFromParams(params(`next_status=${wire}`))).toEqual({ offset: 0, limit: 20, nextActionStatus: status })
+  })
+
+  it.each(['', 'bogus', 'notDone', 'DONE', 'all'])('ignores next_status=%s', (value) => {
+    expect(listQueryFromParams(params(`next_status=${value}`))).toEqual({ offset: 0, limit: 20 })
+  })
+
+  it('counts next_status as an active filter and a remembered key', () => {
+    expect(hasActiveFilter(params('next_status=open'))).toBe(true)
+    expect(hasActiveFilter(params('next_status='))).toBe(false)
+    expect(FILTER_KEYS).toContain('next_status')
+    expect(REMEMBERED_LIST_KEYS).toContain('next_status')
+  })
+
+  it('returns to the first page when next_status changes', () => {
+    const next = updateParams(params('page=3'), { next_status: 'closed' })
+
+    expect(next.get('next_status')).toBe('closed')
+    expect(next.has('page')).toBe(false)
+  })
+})

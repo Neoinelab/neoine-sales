@@ -20,20 +20,31 @@ from tests.support.revisions import (
     attachments_revision,
     contacts_revision,
     deal_model_revision,
+    next_action_status_revision,
     vendor_solution_revision,
 )
 
 
-def test_the_action_types_revision_follows_the_vendor_solution_and_is_the_single_head() -> None:
+def test_the_next_action_status_revision_follows_the_action_types_and_is_the_single_head() -> None:
     script = ScriptDirectory.from_config(_alembic_config())
 
     heads = script.get_heads()
 
-    assert heads == [action_types_revision()]
-    assert action_types_revision() != vendor_solution_revision()
-    head = script.get_revision(action_types_revision())
+    assert heads == [next_action_status_revision()]
+    assert next_action_status_revision() != action_types_revision()
+    head = script.get_revision(next_action_status_revision())
     assert head is not None
-    assert head.down_revision == vendor_solution_revision()
+    assert head.down_revision == action_types_revision()
+
+
+def test_the_action_types_revision_follows_the_vendor_solution_revision() -> None:
+    script = ScriptDirectory.from_config(_alembic_config())
+
+    revision = script.get_revision(action_types_revision())
+
+    assert action_types_revision() != vendor_solution_revision()
+    assert revision is not None
+    assert revision.down_revision == vendor_solution_revision()
 
 
 def test_the_vendor_solution_revision_follows_the_alert_settings_in_the_head_history() -> None:

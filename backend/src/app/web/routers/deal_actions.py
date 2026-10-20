@@ -9,13 +9,14 @@ from app.application.deal.inputs import Actor
 from app.domain.deal_action.value_objects import DealActionId
 from app.web.dependencies import Provider
 from app.web.permissions import BusinessRouter
-from app.web.routers.responses import READ_ERRORS, WRITE_ERRORS
+from app.web.routers.responses import READ_ERRORS, STATUS_ERRORS, WRITE_ERRORS
 from app.web.schemas.deal_action import (
     DealActionCreateRequest,
     DealActionList,
     DealActionResponse,
     DealActionSearchParams,
     DealActionUpdateRequest,
+    NextActionStatusRequest,
     action_response,
     action_responses,
 )
@@ -74,3 +75,17 @@ async def update_deal_action(
 )
 async def delete_deal_action(action_id: UUID, user: CurrentUser, provider: Provider) -> None:
     await provider.delete_deal_action().execute(DealActionId(action_id), _actor(user))
+
+
+@router.put(
+    "/deal-actions/{action_id}/next-action-status",
+    response_model=DealActionResponse,
+    responses=STATUS_ERRORS,
+)
+async def change_next_action_status(
+    action_id: UUID, body: NextActionStatusRequest, user: CurrentUser, provider: Provider
+) -> DealActionResponse:
+    action = await provider.change_next_action_status().execute(
+        DealActionId(action_id), body.to_input(), _actor(user)
+    )
+    return await action_response(provider, action)

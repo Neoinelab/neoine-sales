@@ -31,6 +31,7 @@ describe('Actions 탭 목록 (T-ACTION-01)', () => {
       '진행사항',
       'Next Action',
       'Due Date',
+      '상태',
       'Memo',
       '관리',
     ])
@@ -95,16 +96,19 @@ describe('Next Action 업데이트 등록 (T-ACTION-02~05)', () => {
     expect(screen.getByText('Action이 등록되었습니다.')).toBeVisible()
   })
 
-  it('shows each missing-field message and focuses the type first (AC-27)', async () => {
+  it('shows the type, "progress or Next Action" and Due Date messages and focuses the type first (AC-27)', async () => {
     const { user } = await openActions(1, '한빛은행 ITDR 도입')
     await user.click(screen.getByRole('button', { name: 'Next Action 업데이트' }))
     const form = screen.getByRole('form', { name: 'Next Action 업데이트' })
     await user.click(within(form).getByRole('button', { name: '등록' }))
     expect(within(form).getByText('유형을 입력하세요.')).toBeVisible()
-    expect(within(form).getByText('진행사항을 입력하세요.')).toBeVisible()
-    expect(within(form).getByText('Next Action을 입력하세요.')).toBeVisible()
-    expect(within(form).getByText('Due Date를 입력하세요.')).toBeVisible()
+    expect(within(form).getByText('진행사항 또는 Next Action을 입력하세요.')).toBeVisible()
+    expect(within(form).queryByText('Due Date를 입력하세요.')).not.toBeInTheDocument() // Next Action이 없으면 Due는 필수가 아니다
     expect(within(form).getByRole('combobox', { name: '유형' })).toHaveFocus()
+    await user.type(within(form).getByLabelText('Next Action'), '다음 할 일')
+    await user.click(within(form).getByRole('button', { name: '등록' }))
+    expect(within(form).getByText('Due Date를 입력하세요.')).toBeVisible()
+    expect(within(form).queryByText('진행사항 또는 Next Action을 입력하세요.')).not.toBeInTheDocument()
   })
 
   it('accepts a past due date', async () => {
@@ -188,13 +192,14 @@ describe('Action 수정·삭제 (T-ACTION-06~07)', () => {
     expect(screen.getAllByText(/수정: /).length).toBeGreaterThan(0)
   })
 
-  it('shows the validation message when an edit empties a required field', async () => {
+  it('shows the validation message when an edit empties both progress and Next Action', async () => {
     const { user, table } = await openActions(1, '한빛은행 ITDR 도입')
     await user.click(within(bodyRows(table)[0]!).getByRole('button', { name: '수정' }))
     const form = screen.getByRole('form', { name: 'Action 수정' })
+    await user.clear(within(form).getByLabelText('진행사항'))
     await user.clear(within(form).getByLabelText('Next Action'))
     await user.click(within(form).getByRole('button', { name: '저장' }))
-    expect(within(form).getByText('Next Action을 입력하세요.')).toBeVisible()
+    expect(within(form).getByText('진행사항 또는 Next Action을 입력하세요.')).toBeVisible()
   })
 
   it('deletes an action after confirmation and refreshes the next action in the summary bar', async () => {

@@ -137,3 +137,21 @@ def action_types_revision() -> str:
     children = [r.revision for r in script.walk_revisions() if r.down_revision == previous]
     assert len(children) == 1, f"Vendor·Solution 다음 리비전이 정확히 하나여야 한다: {children}"
     return children[0]
+
+
+def next_action_status_revision() -> str:
+    """Next Action 상태(`next_action_status`) 리비전 id: Action 유형 리비전 바로 다음이고 head다.
+
+    deal_actions의 action·next_action·due_date를 NULL 허용으로 바꾸고 next_action_status·
+    next_action_closed_at 컬럼과 CHECK 4개를 추가하는 단일 리비전이다. id는 구현이 정하므로
+    그래프에서 찾는다. 없거나 둘 이상이면 AssertionError(구현 전에는 이것이 red다).
+    """
+    from alembic.script import ScriptDirectory  # noqa: PLC0415
+
+    from tests.support.database import _alembic_config  # noqa: PLC0415
+
+    previous = action_types_revision()
+    script = ScriptDirectory.from_config(_alembic_config())
+    children = [r.revision for r in script.walk_revisions() if r.down_revision == previous]
+    assert len(children) == 1, f"Action 유형 다음 리비전이 정확히 하나여야 한다: {children}"
+    return children[0]

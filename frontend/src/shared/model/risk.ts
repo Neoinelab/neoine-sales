@@ -6,9 +6,9 @@ import type { Risk } from './types'
 
 export interface RiskInput {
   forecastKey: string
-  /** 가장 최근 Action의 Due Date. Action이 없으면 null(기한초과 아님). */
+  /** Next Action이 있는 가장 최근 Action(기준 행)의 Due Date. 없으면 null(기한초과 아님). */
   dueDate: string | null
-  /** DealRow.lastUpdatedAt(ISO). */
+  /** DealRow.lastUpdatedAt(ISO): 모든 Action의 가장 최근 수행시각, Action이 없으면 등록 시각. */
   lastUpdatedAt: string
 }
 

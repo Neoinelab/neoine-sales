@@ -58,6 +58,8 @@ describe('toDealAction', () => {
       progress: '최종 가격 협의',
       nextAction: '계약서 초안 검토',
       dueDate: '2026-10-18',
+      nextActionStatus: 'open',
+      nextActionClosedAt: null,
       memo: '메모',
       statusKey: 'price_negotiation',
       forecastKey: 'commit',
@@ -185,5 +187,42 @@ describe('toActionUpdateBody', () => {
     const body = toActionUpdateBody({ type: { id: 'ty-other' }, progress: 'x', nextAction: 'y', dueDate: '', memo: '' })
 
     expect(body.due_date).toBeNull()
+  })
+})
+
+describe('toDealAction nullable plan fields and Next Action status (AC-1·2·7·8)', () => {
+  it('keeps null progress, Next Action, due date, status and closed time as null', () => {
+    const mapped = toDealAction(
+      serverAction({ action: null, next_action: null, due_date: null, next_action_status: null, next_action_closed_at: null }),
+    )
+
+    expect(mapped).toMatchObject({ progress: null, nextAction: null, dueDate: null, nextActionStatus: null, nextActionClosedAt: null })
+  })
+
+  it.each([
+    ['open', 'open'],
+    ['done', 'done'],
+    ['not_done', 'notDone'],
+  ] as const)('maps the server status %s to %s', (wire, status) => {
+    const closed = wire === 'open' ? null : '2026-10-16T10:00:00+09:00'
+
+    const mapped = toDealAction(serverAction({ next_action_status: wire, next_action_closed_at: closed }))
+
+    expect(mapped.nextActionStatus).toBe(status)
+    expect(mapped.nextActionClosedAt).toBe(closed)
+  })
+})
+
+describe('request bodies of a partial input (AC-1·2)', () => {
+  it('sends a progress-only content with an empty Next Action and a null due date', () => {
+    const body = toActionCreateBody(input({ nextAction: '', dueDate: '' }))
+
+    expect(body).toMatchObject({ action: '고객사 방문', next_action: '', due_date: null })
+  })
+
+  it('sends a Next-Action-only content with an empty progress', () => {
+    const body = toActionUpdateBody({ type: { id: 'ty-1' }, progress: '', nextAction: '견적', dueDate: '2026-11-01', memo: '' })
+
+    expect(body).toMatchObject({ action: '', next_action: '견적', due_date: '2026-11-01' })
   })
 })

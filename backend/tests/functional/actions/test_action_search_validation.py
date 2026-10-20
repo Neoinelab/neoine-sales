@@ -8,12 +8,11 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+from tests.functional.steps.action_checks import names_of, then_detail_is
 from tests.functional.steps.actions import (
     REVERSED_ACTED,
     REVERSED_DUE,
     given_many_actions,
-    names_of,
-    then_detail_is,
     when_list_actions,
     when_search_all_actions,
 )

@@ -11,10 +11,12 @@ if TYPE_CHECKING:
     from collections.abc import Collection, Mapping, Sequence
     from datetime import date, datetime
 
+    from app.application.ports.deal_action_repository import NextActionStatusFilter
     from app.domain.bant.values import BantCategory, BantLabelId
     from app.domain.contact.values import ContactId, ContactKind
     from app.domain.deal.code import DealCode
     from app.domain.deal.entities import Deal
+    from app.domain.deal_action.next_action_status import NextActionStatus
     from app.domain.user.value_objects import UserId
     from app.domain.vendor.values import SolutionId, VendorId
 
@@ -55,6 +57,9 @@ class DealQuery:
     revenue_from: date | None = None
     revenue_to: date | None = None
     bant_label_ids: Mapping[BantCategory, BantLabelId] = field(default_factory=dict)  # 구분별 AND
+    next_action_status: NextActionStatusFilter | None = (
+        None  # 기준 행(Next Action 있는 최근 행)의 상태
+    )
     sort: DealSort = DealSort.LAST_UPDATED_AT
     order: SortOrder = SortOrder.DESC
     offset: int = 0
@@ -98,10 +103,11 @@ class DealQuery:
 
 @dataclass(frozen=True, slots=True)
 class NextActionSummary:
-    """가장 최근에 수행한 Action이 정한 다음 진행 계획."""
+    """Next Action이 있는 가장 최근 Action(기준 행)이 정한 다음 진행 계획과 그 상태."""
 
     text: str
     due_date: date
+    status: NextActionStatus
 
     def __post_init__(self) -> None:
         if self.due_date is None:
@@ -112,7 +118,8 @@ class NextActionSummary:
 class DealListItem:
     """목록·상세의 한 행: Deal과 Action에서 파생되는 값.
 
-    last_updated_at은 Deal 수정 시각과 가장 최근 Action 수행 시각 중 늦은 쪽이다.
+    last_updated_at은 이 Deal의 모든 Action 중 가장 최근 수행 시각이고, Action이 없으면 Deal
+    등록 시각이다. Deal 수정 시각은 쓰지 않는다.
     """
 
     deal: Deal

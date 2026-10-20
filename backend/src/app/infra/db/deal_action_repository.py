@@ -13,6 +13,7 @@ from app.domain.deal.errors import DealNotFoundError
 from app.domain.deal.sync_state import SyncState
 from app.domain.deal_action.entities import DealAction
 from app.domain.deal_action.errors import DealActionNotFoundError
+from app.domain.deal_action.next_action_status import NextActionState, NextActionStatus
 from app.domain.deal_action.value_objects import ActionContent, DealActionId
 from app.domain.user.value_objects import UserId
 from app.infra.db.base_repository import ConstraintErrors, SqlRepository
@@ -36,6 +37,17 @@ def _apply_content(row: DealActionRow, content: ActionContent) -> None:
     row.next_action = content.next_action
     row.due_date = content.due_date
     row.memo = content.memo
+
+
+def _apply_state(row: DealActionRow, state: NextActionState | None) -> None:
+    row.next_action_status = None if state is None else state.status.value
+    row.next_action_closed_at = None if state is None else state.closed_at
+
+
+def _state_of(row: DealActionRow) -> NextActionState | None:
+    if row.next_action_status is None:
+        return None
+    return NextActionState(NextActionStatus(row.next_action_status), row.next_action_closed_at)
 
 
 def _reference_errors(action: DealAction) -> ConstraintErrors:
@@ -71,6 +83,7 @@ def _to_row(action: DealAction) -> DealActionRow:
         updated_at=action.updated_at,
     )
     _apply_content(row, action.content)
+    _apply_state(row, action.next_action_state)
     return row
 
 
@@ -88,6 +101,7 @@ def _to_entity(row: DealActionRow, type_name: str) -> DealAction:
         acted_at=row.acted_at,
         actor_user_id=UserId(row.actor_user_id),
         snapshot=SyncState(status_key=row.status_key, forecast_key=row.forecast_key),
+        next_action_state=_state_of(row),
         created_at=row.created_at,
         updated_at=row.updated_at,
     )
@@ -114,6 +128,9 @@ def _filtered(query: DealActionQuery) -> Select[DealActionRow, str]:
         statement = statement.where(DealActionRow.due_date >= query.due_from)
     if query.due_to is not None:
         statement = statement.where(DealActionRow.due_date <= query.due_to)
+    if query.next_action_status is not None:
+        wanted = [status.value for status in query.next_action_status.statuses()]
+        statement = statement.where(DealActionRow.next_action_status.in_(wanted))
     if query.keyword is not None:
         statement = statement.where(
             keyword_filter(
@@ -131,7 +148,9 @@ def _ordered(
         return statement.order_by(DealActionRow.acted_at.asc(), DealActionRow.id)
     if sort is DealActionSort.DUE_DATE_ASC:
         return statement.order_by(
-            DealActionRow.due_date.asc(), DealActionRow.acted_at.desc(), DealActionRow.id
+            DealActionRow.due_date.asc().nulls_last(),
+            DealActionRow.acted_at.desc(),
+            DealActionRow.id,
         )
     return statement.order_by(DealActionRow.acted_at.desc(), DealActionRow.id)
 
@@ -177,11 +196,12 @@ class SqlDealActionRepository(SqlRepository[DealActionRow]):
         return [_to_entity(row, name) for row, name in rows]
 
     async def update(self, action: DealAction) -> None:
-        """내용과 updated_at만 쓴다. 수행 일시·수행자·스냅숏은 기록 때 정해져 바뀌지 않는다."""
+        """내용·Next Action 상태·updated_at만 쓴다. 수행 일시·수행자·스냅숏은 바뀌지 않는다."""
         row = await self._find(action.id)
         if row is None:
             raise DealActionNotFoundError(action.id)
         _apply_content(row, action.content)
+        _apply_state(row, action.next_action_state)
         row.updated_at = action.updated_at
         await self._save({}, not_found=lambda: DealActionNotFoundError(action.id))
 

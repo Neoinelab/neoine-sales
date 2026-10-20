@@ -58,7 +58,8 @@ class Case:
     async def search(self, **criteria: object) -> list[str]:
         """검색 결과의 진행사항 목록(정렬 순서 그대로). deal_code를 생략하면 기본 Deal이다."""
         found = await self.found(**criteria)
-        return [a.content.action for a in found]
+        assert all(a.content.action is not None for a in found)
+        return [str(a.content.action) for a in found]
 
     async def found(self, **criteria: object) -> list[DealAction]:
         values = {"deal_code": make_deal_code(), **criteria}

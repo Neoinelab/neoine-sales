@@ -12,7 +12,7 @@ describe('toDealRow', () => {
         quote: { submitted: 'YES', submitted_date: '2026-10-05' },
         poc: { state: 'ING', completed_date: null },
         bant: { budget: 'b1', authority: null, need: 'n1', timeline: null },
-        next_action: { text: '견적 재송부', due_date: '2026-10-20' },
+        next_action: { text: '견적 재송부', due_date: '2026-10-20', status: 'open' },
         procurement: '입찰',
       }),
     )
@@ -47,7 +47,7 @@ describe('toDealRow', () => {
       poc: { state: 'ING', completedDate: null },
       procurement: '입찰',
       bant: { budget: 'b1', authority: null, need: 'n1', timeline: null },
-      nextAction: { text: '견적 재송부', dueDate: '2026-10-20' },
+      nextAction: { text: '견적 재송부', dueDate: '2026-10-20', status: 'open' },
       lastUpdatedAt: '2026-10-15T09:00:00+09:00',
       risk: null,
       statusChangedAt: '2026-10-10T09:00:00+09:00',
@@ -76,13 +76,13 @@ describe('toDealRow', () => {
   })
 
   it('keeps the next-action due date exactly as the server sent it (never null any more)', () => {
-    const row = toDealRow(serverDealRow({ next_action: { text: '전화', due_date: '2026-10-20' } }))
+    const row = toDealRow(serverDealRow({ next_action: { text: '전화', due_date: '2026-10-20', status: 'open' } }))
 
-    expect(row.nextAction).toEqual({ text: '전화', dueDate: '2026-10-20' })
+    expect(row.nextAction).toEqual({ text: '전화', dueDate: '2026-10-20', status: 'open' })
   })
 
   it('keeps a very long next-action text without cutting it', () => {
-    const row = toDealRow(serverDealRow({ next_action: { text: '가'.repeat(5000), due_date: '2026-10-20' } }))
+    const row = toDealRow(serverDealRow({ next_action: { text: '가'.repeat(5000), due_date: '2026-10-20', status: 'open' } }))
 
     expect(row.nextAction?.text).toHaveLength(5000)
   })
@@ -96,7 +96,7 @@ describe('toDealRow', () => {
       serverDealRow({
         risk: null,
         last_updated_at: '2020-01-01T00:00:00Z',
-        next_action: { text: '전화', due_date: '2020-01-02' },
+        next_action: { text: '전화', due_date: '2020-01-02', status: 'open' },
       }),
     )
 
@@ -192,5 +192,17 @@ describe('bant request bodies (AC-17)', () => {
       need: null,
       timeline: { name: '내후년 구매' },
     })
+  })
+})
+
+describe('toDealRow Next Action status (AC-15)', () => {
+  it.each([
+    ['open', 'open'],
+    ['done', 'done'],
+    ['not_done', 'notDone'],
+  ] as const)('maps the basis row status %s to %s', (wire, status) => {
+    const row = toDealRow(serverDealRow({ next_action: { text: '전화', due_date: '2026-10-20', status: wire } }))
+
+    expect(row.nextAction?.status).toBe(status)
   })
 })

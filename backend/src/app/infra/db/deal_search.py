@@ -1,5 +1,8 @@
 """Deal 목록 질의: 조건, 정렬, 활동에서 파생되는 값(last_updated_at, next_action).
 
+last_updated_at = 모든 Action 중 가장 최근 acted_at(없으면 Deal 등록 시각, Deal 수정은 무시).
+next_action 요약과 상태 필터의 기준 행 = Next Action이 있는 가장 최근 Action.
+
 keyword·owner·vendor·solution·status·forecast·기간(연/분기 포함)·BANT Label 필터와 정렬 선택을
 적용한다. 기간은 DealQuery.revenue_window()의 양끝 포함 범위다(빈 창이면 조건이 서로 모순되어 0건).
 """
@@ -23,26 +26,40 @@ if TYPE_CHECKING:
 
     from app.application.ports.deal_repository import DealQuery
 
-# 목록 질의의 한 행: (Deal 행, last_updated_at, 최근 활동의 next_action, 최근 활동의 due_date)
-# 최근 활동 outer join이라 활동이 없는 Deal은 next_action·due_date가 모두 NULL이다.
-type ItemSelect = Select[tuple[DealRow, datetime, str | None, date | None]]
+# 목록 질의의 한 행: (Deal 행, last_updated_at, 기준 행의 next_action·due_date·상태)
+# 기준 행 outer join이라 Next Action이 없는 Deal은 세 값이 모두 NULL이다.
+type ItemSelect = Select[tuple[DealRow, datetime, str | None, date | None, str | None]]
 
-# 가장 최근 활동(acted_at, id 내림차순 첫 행)만 남기는 부분 질의.
-_RANKED = select(
-    DealActionRow.deal_code.label("deal_code"),
-    DealActionRow.acted_at.label("acted_at"),
-    DealActionRow.next_action.label("next_action"),
-    DealActionRow.due_date.label("due_date"),
-    func.row_number()
-    .over(
-        partition_by=DealActionRow.deal_code,
-        order_by=(DealActionRow.acted_at.desc(), DealActionRow.id.desc()),
+# Deal별 모든 Action 중 가장 최근 수행 시각(진행사항만 있는 행 포함).
+LATEST_ACTED = (
+    select(
+        DealActionRow.deal_code.label("deal_code"),
+        func.max(DealActionRow.acted_at).label("acted_at"),
     )
-    .label("position"),
-).subquery("ranked_actions")
-LATEST = select(_RANKED).where(_RANKED.c.position == 1).subquery("latest_action")
+    .group_by(DealActionRow.deal_code)
+    .subquery("latest_acted")
+)
 
-LAST_UPDATED = func.greatest(DealRow.updated_at, LATEST.c.acted_at)
+# Next Action이 있는 Action 중 가장 최근 행(acted_at, id 내림차순 첫 행)만 남기는 부분 질의.
+_RANKED = (
+    select(
+        DealActionRow.deal_code.label("deal_code"),
+        DealActionRow.next_action.label("next_action"),
+        DealActionRow.due_date.label("due_date"),
+        DealActionRow.next_action_status.label("next_action_status"),
+        func.row_number()
+        .over(
+            partition_by=DealActionRow.deal_code,
+            order_by=(DealActionRow.acted_at.desc(), DealActionRow.id.desc()),
+        )
+        .label("position"),
+    )
+    .where(DealActionRow.next_action.is_not(None))
+    .subquery("ranked_next_actions")
+)
+LATEST_NEXT = select(_RANKED).where(_RANKED.c.position == 1).subquery("latest_next_action")
+
+LAST_UPDATED = func.coalesce(LATEST_ACTED.c.acted_at, DealRow.created_at)
 _STATUS_ORDER = (
     select(CodeRow.sort_order)
     .where(CodeRow.kind == CodeKind.STATUS.value, CodeRow.key == DealRow.status_key)
@@ -82,6 +99,17 @@ def conditions(query: DealQuery) -> list[ColumnElement[bool]]:
         (DealRow.status_key, query.status_key),
         (DealRow.forecast_key, query.forecast_key),
     )
+    if query.next_action_status is not None:
+        wanted_statuses = [status.value for status in query.next_action_status.statuses()]
+        found.append(
+            select(LATEST_NEXT.c.deal_code)
+            .where(
+                LATEST_NEXT.c.deal_code == DealRow.deal_code,
+                LATEST_NEXT.c.next_action_status.in_(wanted_statuses),
+            )
+            .correlate(DealRow)
+            .exists()
+        )
     found.extend(column == wanted for column, wanted in equals if wanted is not None)
     window_from, window_to = query.revenue_window()  # 연/분기와 revenue_from/to의 교집합
     if window_from is not None:
@@ -100,10 +128,18 @@ def conditions(query: DealQuery) -> list[ColumnElement[bool]]:
 
 
 def item_select() -> ItemSelect:
-    """Deal 행과 파생값(last_updated_at, 최근 활동의 next_action·due_date)."""
-    return select(
-        DealRow, LAST_UPDATED.label("last_updated_at"), LATEST.c.next_action, LATEST.c.due_date
-    ).outerjoin_from(DealRow, LATEST, LATEST.c.deal_code == DealRow.deal_code)
+    """Deal 행과 파생값(last_updated_at, 기준 행의 next_action·due_date·상태)."""
+    return (
+        select(
+            DealRow,
+            LAST_UPDATED.label("last_updated_at"),
+            LATEST_NEXT.c.next_action,
+            LATEST_NEXT.c.due_date,
+            LATEST_NEXT.c.next_action_status.label("basis_status"),
+        )
+        .outerjoin_from(DealRow, LATEST_ACTED, LATEST_ACTED.c.deal_code == DealRow.deal_code)
+        .outerjoin_from(DealRow, LATEST_NEXT, LATEST_NEXT.c.deal_code == DealRow.deal_code)
+    )
 
 
 def _sort_column(sort: DealSort) -> ColumnElement[Any]:

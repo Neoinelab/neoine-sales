@@ -11,16 +11,19 @@ from app.domain.deal_action.errors import (
     DealActionEditForbiddenError,
     DealActionNotFoundError,
 )
+from app.domain.deal_action.next_action_status import NextActionState, NextActionStatus
 from app.domain.deal_action.value_objects import DealActionId
 from tests.factories import make_deal_action
 from tests.support.expect import raises_with
 from tests.unit.application.action_env import (
+    ACTION_OR_NEXT_REQUIRED,
     BOSS,
+    DUE_DATE_REQUIRED,
+    DUE_WITHOUT_NEXT,
     EDIT_FORBIDDEN,
     KIM,
     NOT_FOUND,
     PARK,
-    PROGRESS_REQUIRED,
     SUMMARY_WITH_MEMO,
     VIEWER,
 )
@@ -124,8 +127,8 @@ async def test_update_action_by_owner_with_blank_progress_is_a_validation_error(
 ) -> None:
     action = await action_env.act(KIM)
 
-    with raises_with(InvalidValueError, PROGRESS_REQUIRED):
-        await action_env.update_as(action.id, KIM, action="  ")
+    with raises_with(InvalidValueError, ACTION_OR_NEXT_REQUIRED):
+        await action_env.update_as(action.id, KIM, action="  ", next_action="", due_date=None)
 
     assert (await action_env.stored(action.id)).content == action.content
 
@@ -135,7 +138,7 @@ async def test_update_action_without_due_date_is_a_validation_error(
 ) -> None:
     action = await action_env.act(KIM)
 
-    with raises_with(InvalidValueError, "Due Date를 입력하세요."):
+    with raises_with(InvalidValueError, DUE_DATE_REQUIRED):
         await action_env.update_as(action.id, KIM, due_date=None)
 
 
@@ -170,6 +173,7 @@ async def test_update_action_saves_long_text_in_full_and_clips_only_the_history(
     await action_env.update_as(action.id, KIM, action="가" * 5_000, memo="메" * 20_000)
 
     stored = await action_env.stored(action.id)
+    assert stored.content.action is not None
     assert (len(stored.content.action), len(stored.content.memo)) == (5_000, 20_000)
     (_, _, _, after) = (await action_env.rows())[-1]
     assert len(after) == 1_000
@@ -185,4 +189,76 @@ async def test_a_change_visible_only_after_the_history_limit_still_logs_one_entr
     await action_env.update_as(action.id, KIM, action="가" * 1_999 + "나")
 
     assert len(await action_env.action_entries()) == entries_before + 1
-    assert (await action_env.stored(action.id)).content.action.endswith("나")
+    stored_progress = (await action_env.stored(action.id)).content.action
+    assert stored_progress is not None
+    assert stored_progress.endswith("나")
+
+
+async def test_update_clears_next_action(action_env: ActionEnv) -> None:
+    action = await action_env.act(KIM)
+
+    await action_env.update_as(action.id, KIM, next_action="", due_date=None)
+
+    stored = await action_env.stored(action.id)
+    assert stored.content.next_action is None
+    assert stored.content.due_date is None
+    assert stored.next_action_state is None
+    assert (await action_env.rows())[-1][3] == "수정: 미팅 · 킥오프 미팅 / Memo: 요구사항 정리"
+
+
+async def test_update_clearing_next_action_of_a_closed_one_removes_status_and_time(
+    action_env: ActionEnv,
+) -> None:
+    action = await action_env.act(KIM)
+    await action_env.set_status(action.id, KIM, "done")
+
+    await action_env.update_as(action.id, KIM, next_action="", due_date=None)
+
+    assert (await action_env.stored(action.id)).next_action_state is None
+
+
+async def test_update_adding_next_action_to_a_progress_only_action_opens_it(
+    action_env: ActionEnv,
+) -> None:
+    action = await action_env.act(KIM, next_action="")
+
+    await action_env.update_as(action.id, KIM, next_action="새 계획", due_date=date(2026, 3, 1))
+
+    assert (await action_env.stored(action.id)).next_action_state == NextActionState.open()
+
+
+async def test_update_next_action_text_of_a_closed_one_keeps_status_and_time(
+    action_env: ActionEnv,
+) -> None:
+    action = await action_env.act(KIM)
+    closed = await action_env.set_status(action.id, KIM, "not_done", "접음")
+
+    await action_env.update_as(
+        action.id, KIM, next_action="바뀐 계획", due_date=date(2026, 5, 1), memo=closed.content.memo
+    )
+
+    stored = await action_env.stored(action.id)
+    assert stored.content.next_action == "바뀐 계획"
+    assert stored.next_action_state == closed.next_action_state
+    assert stored.next_action_state is not None
+    assert stored.next_action_state.status is NextActionStatus.NOT_DONE
+
+
+async def test_update_to_progress_only_content_is_accepted(action_env: ActionEnv) -> None:
+    action = await action_env.act(KIM)
+
+    updated = await action_env.update_as(action.id, KIM, action="진행만", next_action="")
+
+    assert updated.content.action == "진행만"
+    assert updated.content.next_action is None
+
+
+async def test_update_due_date_without_next_action_is_a_validation_error(
+    action_env: ActionEnv,
+) -> None:
+    action = await action_env.act(KIM)
+
+    with raises_with(InvalidValueError, DUE_WITHOUT_NEXT):
+        await action_env.update_as(action.id, KIM, next_action="", due_date=date(2026, 2, 1))
+
+    assert (await action_env.stored(action.id)).content == action.content

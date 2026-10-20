@@ -1,6 +1,6 @@
 /** 저장소 레코드 → 화면용 객체 변환(사용자 풀기, 파생값 계산, 복사본 반환). */
 
-import { compareIso, laterOf } from '../../../shared/model/dates'
+import { compareIso } from '../../../shared/model/dates'
 import { computeRisk, statusDays } from '../../../shared/model/risk'
 import type {
   Attachment,
@@ -88,6 +88,16 @@ export function latestAction(data: SeedData, dealCode: string): ActionRecord | u
   return best
 }
 
+/** Next Action이 있는 가장 최근 Action. 목록·상세의 Next Action, 상태 필터, 기한초과의 기준 행이다. */
+export function latestNextAction(data: SeedData, dealCode: string): ActionRecord | undefined {
+  let best: ActionRecord | undefined
+  for (const a of data.actions) {
+    if (a.dealCode !== dealCode || a.nextAction === null) continue
+    if (!best || compareIso(a.actedAt, best.actedAt) > 0 || (compareIso(a.actedAt, best.actedAt) === 0 && a.id > best.id)) best = a
+  }
+  return best
+}
+
 function contactOf(data: SeedData, id: string): Contact {
   const found = data.contacts.find((c) => c.id === id)
   if (!found) throw notFound('연락처를 찾을 수 없습니다.')
@@ -99,8 +109,13 @@ export function dealRow(ctx: MockContext, deal: Deal): DealRow {
   const latest = latestAction(data, deal.code)
   const active = deal.partnerLinks.find((l) => l.active)
   const now = ctx.clock.now()
-  const lastUpdatedAt = latest ? laterOf(deal.updatedAt, latest.actedAt) : deal.updatedAt
-  const nextAction = latest ? { text: latest.nextAction, dueDate: latest.dueDate } : null
+  // E4: 모든 Action의 최근 수행 시각, 없으면 등록 시각. Deal 수정(updatedAt)은 반영하지 않는다.
+  const lastUpdatedAt = latest ? latest.actedAt : deal.createdAt
+  const basis = latestNextAction(data, deal.code)
+  const nextAction =
+    basis && basis.nextAction !== null && basis.dueDate !== null && basis.nextActionStatus !== null
+      ? { text: basis.nextAction, dueDate: basis.dueDate, status: basis.nextActionStatus }
+      : null
   const { vendorId, solutionId, ...rest } = clone(deal)
   const vendor = data.vendors.find((v) => v.id === vendorId)
   const solution = data.solutions.find((s) => s.id === solutionId)

@@ -1,7 +1,8 @@
 import { api } from '../../shared/api/client'
 import type { ActionQuery } from '../../shared/model/types'
 import type { ActionsGateway } from '../types'
-import { toActionCreateBody, toActionUpdateBody, toDealAction } from './mappers/action'
+import { toNextActionStatusParam } from './mappers/nextActionStatus'
+import { toActionCreateBody, toNextActionStatusBody, toActionUpdateBody, toDealAction } from './mappers/action'
 import { unwrap, unwrapVoid } from './request'
 
 const SORT = { actedDesc: 'acted_at_desc', actedAsc: 'acted_at_asc', dueAsc: 'due_date_asc' } as const
@@ -16,6 +17,7 @@ function toListParams(q: ActionQuery) {
     ...(q.actedTo ? { acted_to: q.actedTo } : {}),
     ...(q.dueFrom ? { due_from: q.dueFrom } : {}),
     ...(q.dueTo ? { due_to: q.dueTo } : {}),
+    ...(q.nextActionStatus ? { next_action_status: toNextActionStatusParam(q.nextActionStatus) } : {}),
     ...(q.sort ? { sort: SORT[q.sort] } : {}),
   }
 }
@@ -37,6 +39,12 @@ export function createActionsHttp(): ActionsGateway {
       ),
     update: async (actionId, input) =>
       toDealAction(await unwrap(api.PUT('/api/v1/deal-actions/{action_id}', { ...byId(actionId), body: toActionUpdateBody(input) }))),
+    changeNextActionStatus: async (actionId, input) =>
+      toDealAction(
+        await unwrap(
+          api.PUT('/api/v1/deal-actions/{action_id}/next-action-status', { ...byId(actionId), body: toNextActionStatusBody(input) }),
+        ),
+      ),
     remove: (actionId) => unwrapVoid(api.DELETE('/api/v1/deal-actions/{action_id}', byId(actionId))),
   }
 }

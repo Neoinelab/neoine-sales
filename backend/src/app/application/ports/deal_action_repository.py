@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Protocol
 from app.domain.common.business_date import start_of_business_day
 from app.domain.common.errors import InvalidValueError
 from app.domain.common.validation import optional_text
+from app.domain.deal_action.next_action_status import NextActionStatus
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
@@ -29,6 +30,20 @@ class DealActionSort(StrEnum):
     DUE_DATE_ASC = "due_date_asc"
 
 
+class NextActionStatusFilter(StrEnum):
+    """Next Action 상태 필터. closed는 종료(수행)와 종료(미수행) 모두."""
+
+    OPEN = "open"
+    DONE = "done"
+    NOT_DONE = "not_done"
+    CLOSED = "closed"
+
+    def statuses(self) -> tuple[NextActionStatus, ...]:
+        if self is NextActionStatusFilter.CLOSED:
+            return (NextActionStatus.DONE, NextActionStatus.NOT_DONE)
+        return (NextActionStatus(self.value),)
+
+
 @dataclass(frozen=True, slots=True)
 class DealActionQuery:
     """한 Deal의 Action 검색 조건. 모든 조건은 AND로 결합하고 페이지는 없다(전부 돌려준다).
@@ -45,6 +60,7 @@ class DealActionQuery:
     acted_to: date | None = None
     due_from: date | None = None
     due_to: date | None = None
+    next_action_status: NextActionStatusFilter | None = None  # Next Action 없는 Action은 제외
     sort: DealActionSort = DealActionSort.ACTED_AT_DESC
 
     def __post_init__(self) -> None:
@@ -83,12 +99,16 @@ class DealActionRepository(Protocol):
     async def search(self, query: DealActionQuery) -> Sequence[DealAction]:
         """조건에 맞는 Action 전부를 query.sort 순서로 돌려준다(페이지 없음).
 
-        acted_at 정렬은 같은 시각이면 id 오름차순, due_date_asc는 같은 날이면 acted_at 내림차순.
+        acted_at 정렬은 같은 시각이면 id 오름차순, due_date_asc는 같은 날이면 acted_at 내림차순
+        이고 Due Date가 없는 Action은 맨 뒤(NULLS LAST)다.
         """
         ...
 
     async def update(self, action: DealAction) -> None:
-        """내용(content)과 updated_at만 저장한다. 없으면 DealActionNotFoundError."""
+        """내용(content), Next Action 상태·종료 시각, updated_at만 저장한다.
+
+        없으면 DealActionNotFoundError.
+        """
         ...
 
     async def delete(self, action_id: DealActionId) -> None:

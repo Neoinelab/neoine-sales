@@ -41,10 +41,17 @@ class DealActionRow(AuditColumns, Base):
         String(13), ForeignKey("deals.deal_code", ondelete="CASCADE")
     )
     action_type_id: Mapped[UUID] = mapped_column(ForeignKey("action_types.id", ondelete="RESTRICT"))
-    action: Mapped[str] = mapped_column(Text)
-    next_action: Mapped[str] = mapped_column(Text)
-    due_date: Mapped[date] = mapped_column(Date)
+    action: Mapped[str | None] = mapped_column(Text, default=None)
+    next_action: Mapped[str | None] = mapped_column(Text, default=None)
+    due_date: Mapped[date | None] = mapped_column(Date, default=None)
     memo: Mapped[str] = mapped_column(Text, default="")
+    # Next Action이 있는 행에만 상태가 있다(없으면 NULL). 종료 상태일 때만 종료 시각이 있다.
+    # 서버 기본값 'open'은 마이그레이션에만 둔다(모델에 두면 NULL 삽입을 ORM이 생략한다).
+    # 구 앱 INSERT 호환용이며 contract 단계에서 제거한다(c7f1a9d3e5b2 docstring).
+    next_action_status: Mapped[str | None] = mapped_column(String(20), default=None)
+    next_action_closed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), default=None
+    )
     acted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     actor_user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"))
     # 기록 시점의 Status·Forecast 스냅숏. 이후 Deal이 바뀌어도 따라가지 않는다.
@@ -60,6 +67,20 @@ class DealActionRow(AuditColumns, Base):
     __table_args__ = (
         CheckConstraint("status_kind = 'status'", name="status_kind"),
         CheckConstraint("forecast_kind = 'forecast'", name="forecast_kind"),
+        CheckConstraint("action IS NOT NULL OR next_action IS NOT NULL", name="action_or_next"),
+        CheckConstraint(
+            "(next_action IS NULL) = (due_date IS NULL)"
+            " AND (next_action IS NULL) = (next_action_status IS NULL)",
+            name="next_action_fields",
+        ),
+        CheckConstraint(
+            "next_action_status IN ('open', 'done', 'not_done')", name="next_action_status"
+        ),
+        CheckConstraint(
+            "(COALESCE(next_action_status, '') IN ('done', 'not_done'))"
+            " = (next_action_closed_at IS NOT NULL)",
+            name="next_action_closed_at",
+        ),
         ForeignKeyConstraint(
             ["status_kind", "status_key"],
             ["codes.kind", "codes.key"],

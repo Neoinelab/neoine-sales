@@ -5,9 +5,9 @@ from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import pytest
-from app.domain.action_type.values import ActionTypeId
 
 from app.application.ports.deal_action_repository import DealActionQuery, DealActionSort
+from app.domain.action_type.values import ActionTypeId
 from app.domain.deal.code import DealCode
 from app.domain.deal.errors import DealNotFoundError
 from tests.factories_action_type import type_id
@@ -22,7 +22,9 @@ if TYPE_CHECKING:
 
 async def _names(action_env: ActionEnv, **criteria: object) -> list[str]:
     query = DealActionQuery(deal_code=action_env.deal.item.deal.id, **criteria)  # type: ignore[arg-type]
-    return [a.content.action for a in await action_env.list.execute(query)]
+    found = await action_env.list.execute(query)
+    assert all(a.content.action is not None for a in found)
+    return [str(a.content.action) for a in found]
 
 
 async def test_list_actions_of_missing_deal_is_not_found(action_env: ActionEnv) -> None:

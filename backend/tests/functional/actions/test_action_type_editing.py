@@ -10,6 +10,7 @@ from uuid import uuid4
 
 import pytest
 
+from tests.functional.steps.action_checks import then_action_type_is, then_detail_is
 from tests.functional.steps.action_types import (
     UNKNOWN_MESSAGE,
     given_type_id,
@@ -20,8 +21,6 @@ from tests.functional.steps.action_types import (
 from tests.functional.steps.actions import (
     SUMMARY,
     given_action,
-    then_action_type_is,
-    then_detail_is,
     when_get_action,
     when_update_action,
 )

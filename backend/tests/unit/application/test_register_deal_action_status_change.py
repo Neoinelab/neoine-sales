@@ -7,7 +7,7 @@ from app.application.deal_action.inputs import StatusChangeInput
 from app.domain.common.errors import InvalidValueError
 from app.domain.deal.sync import SyncResolution, SyncState
 from tests.support.expect import raises_with
-from tests.unit.application.action_env import KIM, PROGRESS_REQUIRED, SUMMARY
+from tests.unit.application.action_env import ACTION_OR_NEXT_REQUIRED, KIM, SUMMARY
 from tests.unit.application.apply_helpers import (
     CHOICE_REQUIRED,
     CLOSING,
@@ -167,8 +167,13 @@ async def test_register_action_with_failed_status_change_stores_nothing(
 async def test_invalid_content_is_reported_before_the_status_change_is_applied(
     action_env: ActionEnv,
 ) -> None:
-    with raises_with(InvalidValueError, PROGRESS_REQUIRED):
-        await action_env.act(action="  ", status_changes=(_status("contract_completed"),))
+    with raises_with(InvalidValueError, ACTION_OR_NEXT_REQUIRED):
+        await action_env.act(
+            action="  ",
+            next_action="",
+            due_date=None,
+            status_changes=(_status("contract_completed"),),
+        )
 
     deal = await _deal(action_env)
     assert deal.sync == SyncState("prospecting", "pipeline")

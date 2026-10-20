@@ -123,6 +123,7 @@ describe('deals.applyChange', () => {
   it('금액·Expected Close 변경: 검증 문구와 History', async () => {
     const { gateway } = await mockAs('kim')
     const code = dealCode(4)
+    const lastUpdatedBefore = (await gateway.deals.get(code)).lastUpdatedAt
     await expectApiError(gateway.deals.applyChange(code, { change: { field: 'revenueAmount', value: 0 } }), 422, '매출금액은 1원 이상의 정수로 입력하세요.')
     await expectApiError(gateway.deals.applyChange(code, { change: { field: 'revenueAmount', value: 1.5 } }), 422, '매출금액은 1원 이상의 정수로 입력하세요.')
     await expectApiError(gateway.deals.applyChange(code, { change: { field: 'revenueDate', value: '' } }), 422, 'Expected Close를 입력하세요.')
@@ -133,7 +134,35 @@ describe('deals.applyChange', () => {
     const history = await gateway.history.list(code, {})
     expect(history[0]).toMatchObject({ category: 'expectedClose', after: '2026-12-30' })
     expect(history[1]).toMatchObject({ category: 'amount', target: '금액(단위:천원)', before: '310,000', after: '350,000' })
-    // Inline 수정은 Deal updatedAt을 갱신하므로 미업데이트가 풀린다
-    expect(b.deal.risk).toBeNull()
+    // E4: Inline 수정은 최종 업데이트를 바꾸지 않으므로 미업데이트가 풀리지 않는다
+    expect(b.deal.lastUpdatedAt).toBe(lastUpdatedBefore)
+    expect(b.deal.risk).toBe('stale')
+  })
+})
+
+describe('E4 최종 업데이트는 Action 기준', () => {
+  it('Deal 수정(PATCH)도 lastUpdatedAt과 미업데이트를 바꾸지 않는다', async () => {
+    const { gateway } = await mockAs('kim')
+    const code = dealCode(4) // 미업데이트
+    const before = await gateway.deals.get(code)
+    expect(before.risk).toBe('stale')
+
+    const after = await gateway.deals.update(code, { procurement: '수정' })
+
+    expect(after.lastUpdatedAt).toBe(before.lastUpdatedAt)
+    expect(after.risk).toBe('stale')
+  })
+
+  it('진행사항만 있는 Action의 수행 시각이 lastUpdatedAt이다', async () => {
+    const { gateway } = await mockAs('kim')
+    const code = dealCode(2)
+    const created = await gateway.actions.create(code, {
+      type: { name: '미팅' },
+      progress: '진행만',
+      nextAction: '',
+      dueDate: '',
+      memo: '',
+    })
+    expect((await gateway.deals.get(code)).lastUpdatedAt).toBe(created.actedAt)
   })
 })

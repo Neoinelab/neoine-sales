@@ -142,7 +142,7 @@ class TestRegisteredValues:
         assert deal.created_at == deal.updated_at == env.clock.now()
         assert view.owner.id == deal.details.owner_user_id
         assert view.item.next_action is None
-        assert view.item.last_updated_at == deal.updated_at
+        assert view.item.last_updated_at == deal.created_at
 
     async def test_the_registered_deal_is_stored_and_committed_once(self, env: DealEnv) -> None:
         commits_before = env.uow.commits

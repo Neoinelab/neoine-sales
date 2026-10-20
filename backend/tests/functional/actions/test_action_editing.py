@@ -9,10 +9,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from tests.functional.steps.actions import (
-    SUMMARY_WITH_MEMO,
-    action_body,
-    given_action,
+from tests.functional.steps.action_checks import (
     names_of,
     same_instant,
     then_action_is_gone,
@@ -20,6 +17,14 @@ from tests.functional.steps.actions import (
     then_action_type_is,
     then_body_has,
     then_detail_is,
+)
+from tests.functional.steps.actions import (
+    ACTION_OR_NEXT_REQUIRED,
+    DUE_DATE_REQUIRED,
+    DUE_WITHOUT_NEXT,
+    SUMMARY_WITH_MEMO,
+    action_body,
+    given_action,
     when_delete_action,
     when_get_action,
     when_list_actions,
@@ -117,15 +122,21 @@ async def test_edit_equal_after_trimming_is_not_a_change(api: Api) -> None:
 @pytest.mark.parametrize(
     ("overrides", "detail"),
     [
-        pytest.param({"action": "   "}, "진행사항을 입력하세요.", id="blank-progress"),
-        pytest.param({"next_action": ""}, "Next Action을 입력하세요.", id="empty-next-action"),
-        pytest.param({"due_date": None}, "Due Date를 입력하세요.", id="null-due-date"),
+        pytest.param(
+            {"action": "   ", "next_action": ""}, ACTION_OR_NEXT_REQUIRED, id="both-blank"
+        ),
+        pytest.param({"due_date": None}, DUE_DATE_REQUIRED, id="next-action-without-due-date"),
+        pytest.param(
+            {"next_action": "", "due_date": "2027-01-15"},
+            DUE_WITHOUT_NEXT,
+            id="due-date-without-next-action",
+        ),
     ],
 )
 async def test_edit_with_invalid_content_is_rejected_and_changes_nothing(
     api: Api, overrides: dict[str, object], detail: str
 ) -> None:
-    """Scenario: 빈 값으로 고치려 하면 목업과 같은 문구의 422이고 Action은 그대로다."""
+    """Scenario: 빈 값으로 고치려 하면 정해진 문구의 422이고 Action은 그대로다."""
     # Given
     await given_logged_in_as(api, role="sales")
     deal = await given_deal(api)

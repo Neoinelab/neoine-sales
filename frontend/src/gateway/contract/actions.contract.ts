@@ -13,7 +13,7 @@ const REVENUE_NEEDED = 'Won·계약완료로 바꾸려면 매출금액과 매출
 const ACTED_REVERSED = '수행일 범위의 시작은 끝보다 늦을 수 없습니다.'
 const DUE_REVERSED = 'Due Date 범위의 시작은 끝보다 늦을 수 없습니다.'
 
-async function newDeal(gateway: Gateway) {
+export async function newDeal(gateway: Gateway) {
   const me = await gateway.auth.me()
   const input: DealInput = {
     name: unique('deal'),
@@ -35,7 +35,7 @@ async function newDeal(gateway: Gateway) {
   return gateway.deals.create(input)
 }
 
-const action = (over: Partial<ActionInput> = {}): ActionInput => ({
+export const action = (over: Partial<ActionInput> = {}): ActionInput => ({
   type: { name: '미팅' },
   progress: '고객사 방문',
   nextAction: '견적 재전달',
@@ -89,14 +89,14 @@ export function actionsContract(make: MakeGateway): void {
       await again.deals.remove(deal.code, deal.code)
     })
 
-    it('checks the deal first and then progress, Next Action and Due Date in that order, storing nothing', async () => {
+    it('checks the deal first, then "progress or Next Action", then the Due Date rules, storing nothing', async () => {
       const sales = await make('sales')
       const deal = await newDeal(sales)
 
       await expectRejects(sales.actions.create('20000101-ZZZZ', action({ progress: ' ' })), 404)
-      await expectRejects(sales.actions.create(deal.code, action({ progress: ' ', nextAction: '', dueDate: '' })), 422, '진행사항을 입력하세요.')
-      await expectRejects(sales.actions.create(deal.code, action({ nextAction: ' ', dueDate: '' })), 422, 'Next Action을 입력하세요.')
+      await expectRejects(sales.actions.create(deal.code, action({ progress: ' ', nextAction: ' ', dueDate: '' })), 422, '진행사항 또는 Next Action을 입력하세요.')
       await expectRejects(sales.actions.create(deal.code, action({ dueDate: '' })), 422, 'Due Date를 입력하세요.')
+      await expectRejects(sales.actions.create(deal.code, action({ nextAction: ' ' })), 422, 'Next Action 없이 Due Date를 입력할 수 없습니다.')
 
       expect(await sales.actions.list(deal.code, {})).toEqual([])
       await sales.deals.remove(deal.code, deal.code)
@@ -134,7 +134,7 @@ export function actionsContract(make: MakeGateway): void {
       await sales.actions.create(deal.code, action({ memo: '메모' }))
 
       const read = await sales.deals.get(deal.code)
-      expect(read.nextAction).toEqual({ text: '견적 재전달', dueDate: '2026-12-01' })
+      expect(read.nextAction).toEqual({ text: '견적 재전달', dueDate: '2026-12-01', status: 'open' })
       const history = await sales.history.list(deal.code, {})
       expect(history).toHaveLength(baseline + 1)
       expect(history[0]).toMatchObject({
@@ -260,8 +260,9 @@ export function actionsContract(make: MakeGateway): void {
       const deal = await newDeal(sales)
       const created = await sales.actions.create(deal.code, action())
 
-      await expectRejects(sales.actions.update(created.id, action({ progress: ' ' })), 422, '진행사항을 입력하세요.')
+      await expectRejects(sales.actions.update(created.id, action({ progress: ' ', nextAction: '', dueDate: '' })), 422, '진행사항 또는 Next Action을 입력하세요.')
       await expectRejects(sales.actions.update(created.id, action({ dueDate: '' })), 422, 'Due Date를 입력하세요.')
+      await expectRejects(sales.actions.update(created.id, action({ nextAction: '', dueDate: '2026-12-01' })), 422, 'Next Action 없이 Due Date를 입력할 수 없습니다.')
       await expectRejects(sales.actions.update('00000000-0000-4000-8000-000000000000', action()), 404, 'Action을 찾을 수 없습니다.')
 
       await sales.deals.remove(deal.code, deal.code)
@@ -289,11 +290,11 @@ export function actionsContract(make: MakeGateway): void {
       const deal = await newDeal(sales)
       await sales.actions.create(deal.code, action({ nextAction: '첫 Next', dueDate: '2026-12-01' }))
       const latest = await sales.actions.create(deal.code, action({ nextAction: '둘째 Next', dueDate: '2026-12-09' }))
-      expect((await sales.deals.get(deal.code)).nextAction).toEqual({ text: '둘째 Next', dueDate: '2026-12-09' })
+      expect((await sales.deals.get(deal.code)).nextAction).toEqual({ text: '둘째 Next', dueDate: '2026-12-09', status: 'open' })
 
       await sales.actions.remove(latest.id)
 
-      expect((await sales.deals.get(deal.code)).nextAction).toEqual({ text: '첫 Next', dueDate: '2026-12-01' })
+      expect((await sales.deals.get(deal.code)).nextAction).toEqual({ text: '첫 Next', dueDate: '2026-12-01', status: 'open' })
       await sales.deals.remove(deal.code, deal.code)
     })
 

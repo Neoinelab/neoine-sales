@@ -11,6 +11,7 @@ Action 저장소(P2 모델)는 실제 DB처럼 동작한다: 소속 Deal이 없�
 
 import copy
 from dataclasses import replace
+from datetime import date
 from typing import TYPE_CHECKING, Any
 
 from app.domain.common.errors import InvalidReferenceError
@@ -23,9 +24,8 @@ from tests.fakes.in_memory import InMemoryStore
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
 
-    from app.domain.action_type.values import ActionTypeId
-
     from app.application.ports.deal_action_repository import DealActionQuery
+    from app.domain.action_type.values import ActionTypeId
     from app.domain.code.values import CodeKind
     from app.domain.deal.code import DealCode
     from app.domain.deal_action.value_objects import DealActionId
@@ -36,18 +36,29 @@ __all__ = ["FakeDealActionRepository", "FakeDealRepository"]
 def _matches(action: DealAction, query: DealActionQuery) -> bool:
     content = action.content
     keyword = query.keyword.lower() if query.keyword else None
-    searchable = (content.action, content.next_action, content.memo)
+    searchable = [t for t in (content.action, content.next_action, content.memo) if t is not None]
     start, end = query.acted_window()
+    due = content.due_date
     return (
         action.deal_code == query.deal_code
         and (query.action_type_id is None or content.action_type.id == query.action_type_id)
         and (query.actor_user_id is None or action.actor_user_id == query.actor_user_id)
         and (start is None or action.acted_at >= start)
         and (end is None or action.acted_at < end)
-        and (query.due_from is None or content.due_date >= query.due_from)
-        and (query.due_to is None or content.due_date <= query.due_to)
+        and (query.due_from is None or (due is not None and due >= query.due_from))
+        and (query.due_to is None or (due is not None and due <= query.due_to))
+        and _status_matches(action, query)
         and (keyword is None or any(keyword in text.lower() for text in searchable))
     )
+
+
+def _status_matches(action: DealAction, query: DealActionQuery) -> bool:
+    """상태 필터가 있으면 Next Action이 없는 Action(상태 NULL)은 제외한다."""
+    wanted = query.next_action_status
+    if wanted is None:
+        return True
+    state = action.next_action_state
+    return state is not None and state.status in wanted.statuses()
 
 
 def _sorted(found: list[DealAction], sort: str) -> list[DealAction]:
@@ -57,7 +68,10 @@ def _sorted(found: list[DealAction], sort: str) -> list[DealAction]:
     by_latest = sorted(found, key=lambda a: (-a.acted_at.timestamp(), str(a.id)))
     if sort == "acted_at_desc":
         return by_latest
-    return sorted(by_latest, key=lambda a: a.content.due_date)  # 안정 정렬: 동률은 최신순 유지
+    # 안정 정렬: 동률은 최신순 유지. Due가 없는 행은 맨 뒤(NULLS LAST)
+    return sorted(
+        by_latest, key=lambda a: (a.content.due_date is None, a.content.due_date or date.max)
+    )
 
 
 class FakeDealActionRepository(InMemoryStore[DealAction]):
@@ -122,10 +136,11 @@ class FakeDealActionRepository(InMemoryStore[DealAction]):
         return [self._named(a) for a in _sorted(found, str(query.sort))]
 
     async def update(self, action: DealAction) -> None:
-        """content·updated_at만 저장한다(스냅숏·수행 시각·담당자는 바꾸지 않는다)."""
+        """content·Next Action 상태·updated_at만 저장한다(스냅숏·수행 시각·담당자는 그대로)."""
         stored = self._fetch(action.id)
         self._ensure_type(action)
         stored.content = action.content
+        stored.next_action_state = action.next_action_state
         stored.updated_at = action.updated_at
         self._replace(stored)
 

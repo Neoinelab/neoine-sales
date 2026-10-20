@@ -16,6 +16,8 @@ from tests.fakes.file_storage import FakeFileStorage
 from tests.fakes.unit_of_work import FakeUnitOfWork, SteppingClock
 
 if TYPE_CHECKING:
+    from app.application.deal_action.change_next_action_status import ChangeNextActionStatus
+
     from app.application.alert.get_alert_settings import GetAlertSettings
     from app.application.alert.update_alert_settings import UpdateAlertSettings
     from app.application.auth.auth_status import GetAuthStatus
@@ -107,6 +109,13 @@ class FakeUseCases(CatalogUseCases, ContactUseCases, DealUseCases, AttachmentUse
         )
 
         return UpdateDealAction(self._factory, self.clock)
+
+    def change_next_action_status(self) -> ChangeNextActionStatus:
+        from app.application.deal_action.change_next_action_status import (  # noqa: PLC0415
+            ChangeNextActionStatus,
+        )
+
+        return ChangeNextActionStatus(self._factory, self.clock)
 
     def delete_deal_action(self) -> DeleteDealAction:
         from app.application.deal_action.delete_deal_action import (  # noqa: PLC0415

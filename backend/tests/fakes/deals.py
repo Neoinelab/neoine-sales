@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING, Any
 
 from app.domain.common.errors import InvalidReferenceError
 from app.domain.deal.errors import DealNotFoundError, DuplicateDealCodeError
+from tests.fakes.deal_counts import DealCountsMixin
 from tests.fakes.deal_search import matches, sort_key
 from tests.fakes.in_memory import InMemoryStore
 
@@ -33,12 +34,11 @@ if TYPE_CHECKING:
     from app.domain.contact.values import ContactId
     from app.domain.deal.code import DealCode
     from app.domain.deal.entities import Deal
-    from app.domain.vendor.values import SolutionId, VendorId
 
 UNKNOWN_ORDER = 10**6
 
 
-class FakeDealRepository(InMemoryStore["Deal"]):
+class FakeDealRepository(DealCountsMixin, InMemoryStore["Deal"]):
     def __init__(self) -> None:
         super().__init__("deal", DealNotFoundError)
         self._contacts: Any = None
@@ -153,6 +153,17 @@ class FakeDealRepository(InMemoryStore["Deal"]):
         found = [a for a in self._actions._items.values() if a.deal_code == code]
         return max(found, key=lambda a: (a.acted_at, str(a.id)), default=None)
 
+    def _latest_next_action(self, code: DealCode) -> Any:  # noqa: ANN401
+        """Next Action이 있는 가장 최근 Action(acted_at·id 내림차순 첫 행). 없으면 None."""
+        if self._actions is None:
+            return None
+        found = [
+            a
+            for a in self._actions._items.values()
+            if a.deal_code == code and a.content.next_action is not None
+        ]
+        return max(found, key=lambda a: (a.acted_at, str(a.id)), default=None)
+
     def _item(self, deal: Deal) -> DealListItem:
         from app.application.ports.deal_repository import (  # noqa: PLC0415 - 지연 import
             DealListItem,
@@ -160,12 +171,16 @@ class FakeDealRepository(InMemoryStore["Deal"]):
         )
 
         latest = self._latest_action(deal.id)
-        last_updated = deal.updated_at
+        # 최종 업데이트(E4): 모든 Action(진행사항만 포함)의 최근 수행 시각, 없으면 등록 시각.
+        # Deal 수정 시각(updated_at)은 쓰지 않는다.
+        last_updated = latest.acted_at if latest is not None else deal.created_at
+        basis = self._latest_next_action(deal.id)  # 표시·risk·상태 필터의 기준 행
         summary = None
-        if latest is not None:
-            last_updated = max(deal.updated_at, latest.acted_at)
+        if basis is not None:
             summary = NextActionSummary(
-                text=latest.content.next_action, due_date=latest.content.due_date
+                text=basis.content.next_action,
+                due_date=basis.content.due_date,
+                status=basis.next_action_state.status,
             )
         return DealListItem(
             deal=copy.deepcopy(deal), next_action=summary, last_updated_at=last_updated
@@ -187,7 +202,17 @@ class FakeDealRepository(InMemoryStore["Deal"]):
 
     def _found(self, query: DealQuery) -> list[Deal]:
         contacts = self._contact_map()
-        return [d for d in self._items.values() if matches(d, query, contacts)]
+        found = [d for d in self._items.values() if matches(d, query, contacts)]
+        wanted = query.next_action_status
+        if wanted is None:
+            return found
+        statuses = wanted.statuses()
+        return [
+            d
+            for d in found
+            if (basis := self._latest_next_action(d.id)) is not None
+            and basis.next_action_state.status in statuses
+        ]
 
     async def search(self, query: DealQuery) -> Sequence[DealListItem]:
         self.queries += 1
@@ -229,56 +254,3 @@ class FakeDealRepository(InMemoryStore["Deal"]):
                 if link.contact_id == contact_id
             )
         return found
-
-    # --- 집계 ---
-
-    async def count_by_status(self) -> Mapping[str, int]:
-        counts: dict[str, int] = {}
-        for deal in self._items.values():
-            counts[deal.sync.status_key] = counts.get(deal.sync.status_key, 0) + 1
-        return counts
-
-    async def count_by_forecast(self) -> Mapping[str, int]:
-        if self.forecast_counts is not None:
-            return dict(self.forecast_counts)
-        counts: dict[str, int] = {}
-        for deal in self._items.values():
-            counts[deal.sync.forecast_key] = counts.get(deal.sync.forecast_key, 0) + 1
-        return counts
-
-    async def count_by_bant_label(self) -> Mapping[BantLabelId, int]:
-        if self.bant_label_counts is not None:
-            return dict(self.bant_label_counts)
-        counts: dict[BantLabelId, int] = {}
-        for deal in self._items.values():
-            for category in ("budget", "authority", "need", "timeline"):
-                label_id = getattr(deal.bant, category)
-                if label_id is not None:
-                    counts[label_id] = counts.get(label_id, 0) + 1
-        return counts
-
-    async def count_by_vendor(self) -> Mapping[VendorId, int]:
-        counts: dict[VendorId, int] = {}
-        for deal in self._items.values():
-            if deal.details.vendor_id is not None:
-                counts[deal.details.vendor_id] = counts.get(deal.details.vendor_id, 0) + 1
-        return counts
-
-    async def count_by_solution(self) -> Mapping[SolutionId, int]:
-        counts: dict[SolutionId, int] = {}
-        for deal in self._items.values():
-            if deal.details.solution_id is not None:
-                counts[deal.details.solution_id] = counts.get(deal.details.solution_id, 0) + 1
-        return counts
-
-    async def count_by_contacts(self, contact_ids: Sequence[ContactId]) -> Mapping[ContactId, int]:
-        """고객 또는 파트너 링크(비활성 포함)로 참조하는 Deal 수. 한 Deal은 연락처당 1건이다."""
-        counts: dict[ContactId, int] = {}
-        for contact_id in contact_ids:
-            counts[contact_id] = sum(
-                1
-                for d in self._items.values()
-                if contact_id == d.customer_id
-                or any(link.contact_id == contact_id for link in d.partner_links)
-            )
-        return counts

@@ -7,17 +7,20 @@ from pydantic import BaseModel, Field, model_validator
 from app.application.deal_action.inputs import (
     ActionContentInput,
     DealActionInput,
+    NextActionStatusInput,
     StatusChangeInput,
 )
 from app.application.ports.deal_action_repository import (
     KEYWORD_MAX,
     DealActionQuery,
     DealActionSort,
+    NextActionStatusFilter,
 )
 from app.domain.deal.code import DealCode
 from app.domain.deal.errors import DealNotFoundError
 from app.domain.deal.sync import SyncResolution
 from app.domain.deal_action.entities import DealAction
+from app.domain.deal_action.next_action_status import NextActionStatus
 from app.domain.user.value_objects import UserId
 from app.web.schemas.choice import CatalogChoiceRequest
 from app.web.schemas.common import RequestModel, ResponseModel
@@ -41,12 +44,16 @@ def parse_deal_code(raw: str) -> DealCode:
 
 
 class ActionContentRequest(RequestModel):
-    """Action 내용. 수행 일시·수행자·스냅숏은 서버가 정하므로 받지 않는다. 길이 제한은 없다."""
+    """Action 내용. 수행 일시·수행자·스냅숏은 서버가 정하므로 받지 않는다. 길이 제한은 없다.
+
+    필수는 action_type뿐이다. 진행사항과 Next Action 중 하나는 있어야 하고(둘 다 비면 422),
+    Due Date는 Next Action이 있을 때만 필수다.
+    """
 
     action_type: CatalogChoiceRequest
-    action: str
-    next_action: str
-    due_date: date | None = None  # 누락·null은 도메인 문구("Due Date를 입력하세요.")로 거절한다
+    action: str = ""
+    next_action: str = ""
+    due_date: date | None = None  # 입력 조합 규칙(진행사항·Next Action·Due)은 도메인이 판정한다
     memo: str = ""
 
     def to_content(self) -> ActionContentInput:
@@ -121,12 +128,24 @@ class DealActionUpdateRequest(ActionContentRequest):
         return self.to_content()
 
 
+class NextActionStatusRequest(RequestModel):
+    """Next Action 상태 변경. memo는 종료할 때 Memo에 덧붙일 내용(open과는 함께 불가)."""
+
+    status: NextActionStatus
+    memo: str = ""
+
+    def to_input(self) -> NextActionStatusInput:
+        return NextActionStatusInput(status=self.status, memo=self.memo)
+
+
 class DealActionResponse(ResponseModel):
     deal_code: str
     action_type: NamedRefResponse
-    action: str
-    next_action: str
-    due_date: date
+    action: str | None
+    next_action: str | None
+    due_date: date | None
+    next_action_status: NextActionStatus | None
+    next_action_closed_at: datetime | None
     memo: str
     acted_at: datetime
     actor: UserRef
@@ -138,6 +157,7 @@ class DealActionResponse(ResponseModel):
         cls, action: DealAction, refs: Mapping[UserId, DomainUserRef]
     ) -> DealActionResponse:
         content = action.content
+        state = action.next_action_state
         return cls(
             id=str(action.id),
             created_at=action.created_at,
@@ -149,6 +169,8 @@ class DealActionResponse(ResponseModel):
             action=content.action,
             next_action=content.next_action,
             due_date=content.due_date,
+            next_action_status=state.status if state else None,
+            next_action_closed_at=state.closed_at if state else None,
             memo=content.memo,
             acted_at=action.acted_at,
             actor=ref_of(refs, action.actor_user_id),
@@ -173,6 +195,7 @@ class DealActionSearchParams(RequestModel):
     acted_to: date | None = None
     due_from: date | None = None
     due_to: date | None = None
+    next_action_status: NextActionStatusFilter | None = None
     sort: DealActionSort = DealActionSort.ACTED_AT_DESC
 
     def to_query(self, code: str) -> DealActionQuery:

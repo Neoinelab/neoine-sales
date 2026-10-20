@@ -60,15 +60,17 @@ async def test_equal_update_times_are_ordered_by_code_ascending(env: DealEnv) ->
     assert _codes(page) == ["20261016-A001", "20261016-B002", "20261016-C003"]
 
 
-async def test_editing_a_deal_moves_it_to_the_top(env: DealEnv) -> None:
+async def test_editing_a_deal_does_not_move_it_in_the_list(env: DealEnv) -> None:
     old = await env.new_deal()
     newer = await env.new_deal()
+    before = _codes(await env.list.execute(DealQuery()))
     env.clock.advance(60)
     await env.update.execute(old.item.deal.id.value, make_patch(name="수정됨"), SALES)
 
     page = await env.list.execute(DealQuery())
 
-    assert _codes(page) == [old.item.deal.id.value, newer.item.deal.id.value]
+    assert _codes(page) == before  # 최종 업데이트는 Action 기준(E4)
+    assert set(before) == {old.item.deal.id.value, newer.item.deal.id.value}
 
 
 async def test_total_is_the_filtered_count_regardless_of_the_page(env: DealEnv) -> None:

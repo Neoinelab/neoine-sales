@@ -1,32 +1,48 @@
 import type { ActionsGateway } from '../../../gateway/types'
 import { canEditAction } from '../../../shared/model/permissions'
 import { compareIso } from '../../../shared/model/dates'
-import type { ActionInput, ActionQuery, ActionUpdateInput } from '../../../shared/model/types'
-import { forbidden, notFound, validation } from '../errors'
+import type {
+  ActionInput,
+  ActionQuery,
+  ActionUpdateInput,
+  NextActionStatus,
+} from '../../../shared/model/types'
+import { conflict, forbidden, notFound, validation } from '../errors'
 import { takeId, type ActionRecord } from '../store'
 import { read, requireUser, requireWrite, viewerOf, write, type MockContext } from './context'
 import { assertSequenceShape, planSequence } from './actionChanges'
 import { commitDealChange } from './dealChange'
 import { commitActionType, planActionType } from './actionTypes'
 import { logHistory } from './historyLog'
+import { ACTION_OR_NEXT_REQUIRED, DUE_WITHOUT_NEXT, NO_NEXT_ACTION, STATUS_FORBIDDEN, STATUS_LABEL, statusesOf } from './nextActionStatus'
 import { actionView, findDeal } from './views'
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/
 
-/** 진행사항·Next Action·Due Date 필수(위에서부터 첫 오류). */
-function validateFields(input: ActionUpdateInput): void {
-  if (input.progress.trim() === '') throw validation('진행사항을 입력하세요.')
-  if (input.nextAction.trim() === '') throw validation('Next Action을 입력하세요.')
-  if (!DATE.test(input.dueDate)) throw validation('Due Date를 입력하세요.')
-}
-
 type Content = Pick<ActionRecord, 'typeId' | 'progress' | 'nextAction' | 'dueDate' | 'memo'>
 
-/** History 문구의 유형 자리에는 그 시점의 유형 이름이 들어간다(이미 남은 문구는 이름이 바뀌어도 그대로). */
+const blankToNull = (text: string): string | null => (text.trim() === '' ? null : text.trim())
+
+/**
+ * 서버 규칙: 진행사항·Next Action 중 하나 이상(둘 다 비면 422), Next Action이 있으면 Due Date 필수,
+ * 없으면 Due Date 금지(위에서부터 첫 오류). 비운 값은 null로 저장한다.
+ */
+function normalize(input: ActionUpdateInput, typeId: string): Content {
+  const progress = blankToNull(input.progress)
+  const nextAction = blankToNull(input.nextAction)
+  if (progress === null && nextAction === null) throw validation(ACTION_OR_NEXT_REQUIRED)
+  if (nextAction !== null && !DATE.test(input.dueDate)) throw validation('Due Date를 입력하세요.')
+  if (nextAction === null && input.dueDate !== '') throw validation(DUE_WITHOUT_NEXT)
+  return { typeId, progress, nextAction, dueDate: nextAction === null ? null : input.dueDate, memo: input.memo.trim() }
+}
+
+/** History 문구의 유형 자리에는 그 시점의 유형 이름이 들어간다(이미 남은 문구는 이름이 바뀌어도 그대로). 빈 부분은 생략한다. */
 function summary(ctx: MockContext, a: Content): string {
   const typeName = ctx.store.data.actionTypes.find((t) => t.id === a.typeId)?.name ?? a.typeId
-  const base = `${typeName} · ${a.progress} / Next Action: ${a.nextAction} (Due ${a.dueDate})`
-  return a.memo === '' ? base : `${base} / Memo: ${a.memo}`
+  const progress = a.progress === null ? '' : ` · ${a.progress}`
+  const next = a.nextAction === null ? '' : ` / Next Action: ${a.nextAction} (Due ${a.dueDate})`
+  const memo = a.memo === '' ? '' : ` / Memo: ${a.memo}`
+  return `${typeName}${progress}${next}${memo}`
 }
 
 const same = (a: Content, b: Content): boolean =>
@@ -60,20 +76,23 @@ function matches(a: ActionRecord, q: ActionQuery): boolean {
   if (q.actorId && a.actorId !== q.actorId) return false
   if (q.keyword) {
     const needle = q.keyword.trim().toLowerCase()
-    if (![a.progress, a.nextAction, a.memo].some((t) => t.toLowerCase().includes(needle))) return false
+    if (![a.progress, a.nextAction, a.memo].some((t) => t !== null && t.toLowerCase().includes(needle))) return false
   }
   const acted = localDate(a.actedAt)
   if (q.actedFrom && acted < q.actedFrom) return false
   if (q.actedTo && acted > q.actedTo) return false
-  if (q.dueFrom && a.dueDate < q.dueFrom) return false
-  if (q.dueTo && a.dueDate > q.dueTo) return false
+  if (q.dueFrom && (a.dueDate === null || a.dueDate < q.dueFrom)) return false
+  if (q.dueTo && (a.dueDate === null || a.dueDate > q.dueTo)) return false
+  // 상태 필터가 있으면 Next Action이 없는 Action(상태 null)은 제외된다.
+  if (q.nextActionStatus && !(a.nextActionStatus && statusesOf(q.nextActionStatus).includes(a.nextActionStatus))) return false
   return true
 }
 
 function sorted(rows: ActionRecord[], sort: ActionQuery['sort']): ActionRecord[] {
   const byActedDesc = (a: ActionRecord, b: ActionRecord) => compareIso(b.actedAt, a.actedAt) || b.id.localeCompare(a.id)
   if (sort === 'actedAsc') return rows.sort((a, b) => byActedDesc(b, a))
-  if (sort === 'dueAsc') return rows.sort((a, b) => a.dueDate.localeCompare(b.dueDate) || byActedDesc(a, b))
+  // Due가 없는 행은 맨 뒤(NULLS LAST).
+  if (sort === 'dueAsc') return rows.sort((a, b) => (a.dueDate ?? '9999-12-31').localeCompare(b.dueDate ?? '9999-12-31') || byActedDesc(a, b))
   return rows.sort(byActedDesc)
 }
 
@@ -95,7 +114,7 @@ export function createActionsGateway(ctx: MockContext): ActionsGateway {
         const deal = findDeal(data, dealCode)
         // 서버 순서: Deal(404) → 유형 → 진행사항 → Next Action → Due Date. 새 유형은 모든 검증이 끝난 뒤에만 만든다.
         const typePlan = planActionType(ctx, input.type)
-        validateFields(input)
+        const content = normalize(input, '')
         const outcomes = planSequence(ctx, deal, input.statusChanges ?? [])
         const chosen = commitActionType(ctx, typePlan, user.id)
         for (const outcome of outcomes) commitDealChange(ctx, deal, outcome, user.id)
@@ -104,11 +123,10 @@ export function createActionsGateway(ctx: MockContext): ActionsGateway {
           dealCode,
           actedAt: ctx.clock.now(),
           actorId: user.id,
+          ...content,
           typeId: chosen.id,
-          progress: input.progress.trim(),
-          nextAction: input.nextAction.trim(),
-          dueDate: input.dueDate,
-          memo: input.memo.trim(),
+          nextActionStatus: content.nextAction === null ? null : 'open',
+          nextActionClosedAt: null,
           // 등록 시점(상태 변경이 있으면 적용 후) 값을 저장한다.
           statusKey: deal.statusKey,
           forecastKey: deal.forecastKey,
@@ -123,18 +141,32 @@ export function createActionsGateway(ctx: MockContext): ActionsGateway {
         const record = findAction(ctx, actionId)
         if (!canEditAction(viewerOf(user), record.actorId)) throw forbidden('본인 Action 또는 admin만 수정할 수 있습니다.')
         const typePlan = planActionType(ctx, input.type)
-        validateFields(input)
-        const next: Content = {
-          typeId: typePlan.kind === 'existing' ? typePlan.record.id : '',
-          progress: input.progress.trim(),
-          nextAction: input.nextAction.trim(),
-          dueDate: input.dueDate,
-          memo: input.memo.trim(),
-        }
+        const next = normalize(input, typePlan.kind === 'existing' ? typePlan.record.id : '')
         if (same(record, next)) return actionView(ctx.store.data, record)
         const before = summary(ctx, record)
         Object.assign(record, { ...next, typeId: commitActionType(ctx, typePlan, user.id).id })
+        // 없던 Next Action을 채우면 Open, 비우면 상태 제거, 있던 것을 고치면 상태는 그대로(종료여도).
+        if (record.nextAction === null) Object.assign(record, { nextActionStatus: null, nextActionClosedAt: null })
+        else if (record.nextActionStatus === null) Object.assign(record, { nextActionStatus: 'open', nextActionClosedAt: null })
         logHistory(ctx, record.dealCode, user.id, 'action', 'Action', before, `수정: ${summary(ctx, record)}`)
+        return actionView(ctx.store.data, record)
+      }),
+    changeNextActionStatus: (actionId, input: { status: NextActionStatus; memo: string }) =>
+      write(ctx, () => {
+        const user = requireWrite(ctx)
+        const record = findAction(ctx, actionId)
+        if (!canEditAction(viewerOf(user), record.actorId)) throw forbidden(STATUS_FORBIDDEN)
+        const note = input.memo.trim()
+        if (input.status === 'open' && note !== '') throw validation('Open으로 되돌릴 때는 메모를 남길 수 없습니다.')
+        if (record.nextAction === null || record.nextActionStatus === null) throw conflict(NO_NEXT_ACTION)
+        const before: NextActionStatus = record.nextActionStatus
+        if (before === input.status) throw conflict(`이미 ${STATUS_LABEL[before]} 상태입니다.`)
+        const planned = `${record.nextAction} (Due ${record.dueDate}) · ${STATUS_LABEL[before]}`
+        record.nextActionStatus = input.status
+        record.nextActionClosedAt = input.status === 'open' ? null : ctx.clock.now()
+        if (note !== '') record.memo = record.memo === '' ? note : `${record.memo}\n${note}`
+        const after = note === '' ? STATUS_LABEL[input.status] : `${STATUS_LABEL[input.status]} / Memo: ${note}`
+        logHistory(ctx, record.dealCode, user.id, 'action', 'Next Action', planned, after)
         return actionView(ctx.store.data, record)
       }),
     remove: (actionId) =>

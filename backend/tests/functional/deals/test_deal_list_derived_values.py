@@ -1,8 +1,8 @@
 """Feature: 목록에서 다음 진행 계획·마지막 갱신·필터용 목록·삭제 영향을 본다.
 
-next_action은 가장 최근에 수행한 Action의 다음 진행 계획, last_updated_at은 Deal 수정과 그 Action
-수행 시각 중 늦은 쪽(기본 정렬 기준)이다. facets는 폐지되었고(404), 삭제 영향은
-지우면 함께 사라지는 이력·활동 건수다(첨부는 항상 0).
+next_action은 Next Action이 있는 가장 최근 Action, last_updated_at은 가장 최근 Action의 수행 시각
+(없으면 등록 시각, Deal 수정은 반영하지 않음, 기본 정렬 기준)이다.
+facets는 폐지되었고(404), 삭제 영향은 지우면 함께 사라지는 이력·활동 건수다(첨부는 항상 0).
 """
 
 from datetime import datetime, timedelta
@@ -54,7 +54,7 @@ async def test_the_list_shows_the_next_action_and_the_action_time_as_last_update
     response = await when_list_deals(api)
     # Then
     (row,) = response.json()["items"]
-    assert row["next_action"] == {"text": "계약서 검토", "due_date": due_date}
+    assert row["next_action"] == {"text": "계약서 검토", "due_date": due_date, "status": "open"}
     assert datetime.fromisoformat(row["last_updated_at"]) == acted_at
     assert row["risk"] is None
 
@@ -100,7 +100,7 @@ async def test_a_recent_action_moves_an_older_deal_to_the_top_of_the_default_lis
 
 
 async def test_a_deal_without_actions_shows_no_next_action(api: Api) -> None:
-    """Scenario: Action이 없으면 next_action은 null이고 last_updated_at은 수정 시각이다."""
+    """Scenario: Action이 없으면 next_action은 null이고 last_updated_at은 등록 시각이다."""
     # Given
     await given_logged_in_as(api, role="sales")
     deal = await given_deal(api)
@@ -111,7 +111,7 @@ async def test_a_deal_without_actions_shows_no_next_action(api: Api) -> None:
     # Then
     body = response.json()
     assert body["next_action"] is None
-    assert body["last_updated_at"] == body["updated_at"]
+    assert body["last_updated_at"] == body["created_at"]
 
 
 async def test_the_retired_facets_path_is_not_found(api: Api) -> None:

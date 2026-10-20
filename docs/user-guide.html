@@ -82,7 +82,7 @@
 <main>
 
 <h1>neoine-sales 사용자 가이드</h1>
-<p class="meta">기준: 2026-10-20, <code>develop</code> 브랜치 구현(P0~P3, P5, P8, Vendor·Solution 관리, Action 유형·BANT 입력 방식). 화면 조작보다 Deal이 어떤 규칙으로 관리되는지를 설명합니다.</p>
+<p class="meta">기준: 2026-10-20, <code>develop</code> 브랜치 구현(P0~P3, P5, P8, Vendor·Solution 관리, Action 유형·BANT 입력 방식, Next Action 상태). 화면 조작보다 Deal이 어떤 규칙으로 관리되는지를 설명합니다.</p>
 
 <!-- 1 -->
 <h2 id="overview">1. 개요</h2>
@@ -111,7 +111,7 @@
   <tr><td>Forecast</td><td>수주 가능성 구간입니다. 기본값은 Pipeline(0–50) · Best(51–75) · Most Likely(75–85) · Commit(85–100) · Won · Lost입니다. Won과 Lost는 "종결"을 뜻합니다.</td></tr>
   <tr><td>금액 / Expected Close</td><td>예상 매출금액과 예상 매출일입니다. 둘 다 필수입니다. 금액은 <b>천원 단위</b>로 보이고 입력합니다(항목 이름 <code>금액(단위:천원)</code>, 예: 1억 원은 100,000). Won으로 닫을 때는 실제 값을 확인해 입력합니다.</td></tr>
   <tr><td>BANT</td><td>Budget(예산) · Authority(결재권) · Need(필요) · Timeline(일정)의 네 구분입니다. 구분마다 Label 하나를 입력하거나 비워 둡니다. 입력하면 기존 Label 중 맞는 것이 후보로 걸러지고, 목록에 없는 이름은 저장할 때 새 Label로 추가됩니다. 점수는 없습니다.</td></tr>
-  <tr><td>Action</td><td>Deal에서 한 일 한 건입니다. 유형, 진행사항, Next Action, Due Date, Memo로 이루어집니다.</td></tr>
+  <tr><td>Action</td><td>Deal에서 한 일 한 건입니다. 유형, 진행사항, Next Action, Due Date, Memo로 이루어집니다. 진행사항과 Next Action은 각각 선택이지만 둘 중 하나는 있어야 합니다. Next Action이 있는 Action에는 <b>Next Action 상태</b>(Open · 종료(수행) · 종료(미수행))가 붙습니다(<a href="#next-status">7.4</a>).</td></tr>
   <tr><td>History</td><td>Deal에 일어난 모든 변경의 기록입니다. 시스템이 자동으로 남기며 사람이 고치거나 지울 수 없습니다.</td></tr>
   <tr><td>연락처</td><td>고객 또는 파트너 쪽 담당자입니다. 회사명과 담당자명이 필수이고 직급·이메일·전화는 선택입니다.</td></tr>
   <tr><td>Vendor / Solution</td><td>제안하는 제조사와 그 제조사의 솔루션입니다. 관리자가 등록한 목록에서만 고르며, Solution은 하나의 Vendor에 속합니다(1:N). 둘 다 선택 입력이지만 Solution은 Vendor를 고른 뒤에만 고를 수 있습니다.</td></tr>
@@ -129,6 +129,7 @@
   <tr><td>Deal 삭제</td><td>O</td><td>본인이 Owner인 Deal만</td><td>X</td></tr>
   <tr><td>Action 등록</td><td>O</td><td>O</td><td>X</td></tr>
   <tr><td>Action 수정·삭제</td><td>O</td><td>본인이 기록한 Action만</td><td>X</td></tr>
+  <tr><td>Next Action 상태 변경(종료·Open으로)</td><td>O</td><td>본인이 기록한 Action만</td><td>X</td></tr>
   <tr><td>첨부 업로드</td><td>O</td><td>O</td><td>X</td></tr>
   <tr><td>첨부 교체·삭제</td><td>O</td><td>본인 파일 또는 퇴사한 영업의 파일</td><td>X</td></tr>
   <tr><td>BANT Label·Action 유형 새로 만들기(Deal·Action 입력에서)</td><td>O</td><td>O</td><td>X</td></tr>
@@ -145,9 +146,9 @@
 </div>
 <ol>
   <li><b>등록</b>: Deal Name, Owner, 고객, Status, Forecast, 금액, Expected Close를 입력합니다. 시스템이 Deal code를 발급하고 History에 "Deal 등록"을 남깁니다.</li>
-  <li><b>진행</b>: 고객과 통화하거나 미팅할 때마다 Action을 남깁니다. Action에는 "다음에 무엇을 언제까지 할지"(Next Action, Due Date)가 반드시 들어갑니다. 가장 최근 Action의 Next Action과 Due Date가 목록에 표시됩니다.</li>
+  <li><b>진행</b>: 고객과 통화하거나 미팅할 때마다 Action을 남깁니다. "이번에 한 일"(진행사항)과 "다음에 무엇을 언제까지 할지"(Next Action, Due Date) 중 하나 이상을 적습니다. 목록에는 <b>Next Action이 있는 가장 최근 Action</b>의 Next Action, Due Date, 상태가 표시됩니다. 계획한 일을 마치면 그 Next Action을 종료(수행 또는 미수행)로 표시합니다(<a href="#next-status">7.4</a>).</li>
   <li><b>단계 갱신</b>: 상황이 바뀌면 Status, Forecast, 금액, Expected Close를 고칩니다. 목록이나 상세 화면에서 바로 바꿀 수 있습니다. 바꿀 때마다 History가 남습니다.</li>
-  <li><b>경고 관리</b>: Due Date가 지났거나 오래 갱신하지 않으면 경고가 붙습니다. 경고는 Action을 남기거나 Deal을 갱신하면 풀립니다.</li>
+  <li><b>경고 관리</b>: Due Date가 지났거나 오래 갱신하지 않으면 경고가 붙습니다. 미업데이트 경고는 Action을 남기면 풀립니다. Deal 자체를 고치는 것으로는 풀리지 않습니다(<a href="#risk">8장</a>).</li>
   <li><b>종결</b>:
     <ul>
       <li>수주하면 Forecast를 Won으로 바꿉니다(또는 Status를 계약완료로 바꿉니다). 둘은 함께 바뀌며 실제 매출금액과 매출일을 확인해 입력합니다.</li>
@@ -225,33 +226,53 @@
   <tr><th>항목</th><th>필수</th><th>설명</th></tr>
   <tr><td>Status · Forecast</td><td></td><td>새 Action을 등록할 때만 보입니다. 폼 맨 위에 <b>Status · Forecast · 유형</b>이 한 줄로 나란히 있고(좁은 화면에서는 세로로 쌓임), 지금 Deal의 값이 미리 선택되어 있습니다. 둘 다 바꿀 수 있으며, 바꿀 때마다 6장의 동기화 규칙(계약완료⇔Won, 매출 입력, Status·Forecast 다시 고르기)이 바꾼 순서대로 적용됩니다. 먼저 바꾼 값과 맞지 않는 변경(예: Status를 계약완료로 바꾼 뒤 Forecast를 Commit으로)은 "먼저 바꾼 값과 맞지 않는 변경입니다. 먼저 바꾼 값을 되돌린 뒤 다시 선택하세요."로 막습니다. <b>직접 바꾼</b> 칸을 원래 값으로 되돌리면 그 변경과 그 뒤의 변경이 취소됩니다. 동기화 규칙으로 <b>함께 바뀐</b> 칸을 원래 값으로 고르면 먼저 바꾼 값과 충돌하므로 위 안내로 막히니, 그때는 먼저 바꾼 칸을 되돌리세요. <b>Status·Forecast 변경 취소</b> 버튼으로 둘 다 한 번에 되돌릴 수 있습니다. 저장해야 Deal에 반영되며, 등록이 끝나면 최종으로 바뀐 값을 알려 줍니다.</td></tr>
   <tr><td>유형</td><td>O</td><td>입력란을 누르면 등록된 유형(기본: 통화, 미팅, 이메일, 데모, 제안, 협상, 계약, 기타)이 후보로 보이고, 입력한 글자가 들어간 것만 남습니다. 목록에 없는 이름을 입력하면 "목록에 없는 유형입니다. 저장하면 새 유형으로 추가됩니다."가 보이고, 저장할 때 새 유형이 만들어집니다(50자 이내). 새 Action은 빈 칸에서 시작합니다.</td></tr>
-  <tr><td>진행사항</td><td>O</td><td>이번에 한 일. 길이 제한 없음</td></tr>
-  <tr><td>Next Action</td><td>O</td><td>다음에 할 일. 길이 제한 없음</td></tr>
-  <tr><td>Due Date</td><td>O</td><td>Next Action의 기한(날짜)</td></tr>
+  <tr><td>진행사항</td><td>△</td><td>이번에 한 일. 길이 제한 없음. Next Action과 함께 둘 다 비우면 "진행사항 또는 Next Action을 입력하세요."가 나옵니다.</td></tr>
+  <tr><td>Next Action</td><td>△</td><td>다음에 할 일. 길이 제한 없음. 진행사항만 남기고 비워 둘 수 있습니다. Next Action을 지우면 Due Date도 함께 비워집니다.</td></tr>
+  <tr><td>Due Date</td><td>△</td><td>Next Action의 기한(날짜). <b>Next Action이 있으면 필수</b>("Due Date를 입력하세요."), Next Action이 없으면 입력할 수 없습니다("Next Action 없이 Due Date를 입력할 수 없습니다.").</td></tr>
   <tr><td>Memo</td><td></td><td>참고 메모. 길이 제한 없음</td></tr>
 </table>
+<p>△: 진행사항과 Next Action은 각각 선택이지만 둘 중 하나는 반드시 입력합니다. Due Date는 Next Action이 있을 때만 필수입니다.</p>
 <h3>7.2 시스템이 정하는 값</h3>
 <ul>
   <li><b>수행 일시</b>는 저장한 시각, <b>담당자</b>는 저장한 사람으로 서버가 채웁니다. 다른 사람 이름으로 기록하거나 날짜를 과거로 돌릴 수 없습니다.</li>
   <li>기록할 때의 Status와 Forecast(등록 폼에서 바꿨다면 바꾼 뒤의 값)를 Action에 <b>스냅숏</b>으로 함께 저장합니다. 나중에 Deal이 바뀌어도 "그때 어떤 단계였는지"가 남습니다.</li>
   <li>수정할 수 있는 것은 내용(유형·진행사항·Next Action·Due Date·Memo)뿐입니다. 수정 폼에는 Status·Forecast가 없습니다. 수행 일시, 담당자, 스냅숏은 바뀌지 않습니다.</li>
+  <li>수정할 때 Next Action 상태는 이렇게 됩니다: 종료된 Next Action의 내용이나 Due Date를 고쳐도 <b>상태는 그대로</b>입니다. Next Action을 비우면 상태도 없어지고, 없던 Next Action을 새로 채우면 Open으로 시작합니다.</li>
 </ul>
-<h3>7.3 Action이 Deal에 주는 영향</h3>
+<h3 id="action-effect">7.3 Action이 Deal에 주는 영향</h3>
 <ul>
-  <li>가장 최근에 수행한 Action의 Next Action과 Due Date가 Deal의 "다음 진행 계획"으로 목록·상세에 표시됩니다.</li>
-  <li>Deal의 <b>마지막 업데이트</b>는 Deal 수정 시각과 가장 최근 Action 수행 시각 중 늦은 쪽입니다. Action을 남기면 미업데이트 경고가 풀립니다.</li>
+  <li><b>Next Action이 있는 가장 최근 Action</b>(기준 행)의 Next Action, Due Date, 상태가 Deal의 "다음 진행 계획"으로 목록·상세 상단 요약에 표시됩니다. 진행사항만 있는 Action은 건너뜁니다. 목록의 Next Action 상태 필터와 기한초과 경고도 이 기준 행으로 판단합니다.</li>
+  <li>Deal의 <b>마지막 업데이트</b>는 진행사항만 있는 것을 포함한 <b>모든 Action 중 가장 최근 수행 시각</b>입니다. Action이 하나도 없으면 Deal 등록 시각입니다. Deal 자체의 수정(목록·상세의 바로 고치기 포함)은 마지막 업데이트를 바꾸지 않습니다. Action을 남기면 미업데이트 경고가 풀립니다.</li>
   <li>Action의 등록·수정·삭제도 모두 History에 남습니다.</li>
 </ul>
-<h3>7.4 Action 검색</h3>
-<p>Deal 상세의 Action 탭에서 유형(등록된 유형 목록에서 선택), 담당자(퇴사자 포함), 키워드, 수행 기간, Due 기간으로 걸러 보고 정렬할 수 있습니다.</p>
+<h3 id="next-status">7.4 Next Action 상태</h3>
+<p>Next Action이 있는 Action에는 상태가 하나 붙습니다. Next Action이 없는(진행사항만 있는) Action에는 상태가 없고 '—'로 보입니다.</p>
+<table>
+  <tr><th>상태</th><th>뜻</th><th>Actions 표 '상태' 칸의 버튼</th></tr>
+  <tr><td>Open</td><td>아직 진행 중인 계획. Action을 등록하면 이 상태로 시작합니다.</td><td>"종료(수행)", "종료(미수행)"</td></tr>
+  <tr><td>종료(수행)</td><td>계획한 일을 했습니다.</td><td>"종료(미수행)", "Open으로"</td></tr>
+  <tr><td>종료(미수행)</td><td>계획한 일을 하지 않고 끝냈습니다.</td><td>"종료(수행)", "Open으로"</td></tr>
+</table>
+<ul>
+  <li>'상태' 칸은 Actions 표의 Due Date 뒤, Memo 앞에 있습니다.</li>
+  <li><b>종료하기·종료 종류 바꾸기</b>: "종료(수행)" 또는 "종료(미수행)"을 누르면 팝업이 열리고 "Memo에 남길 내용(선택)"을 입력할 수 있습니다. 입력한 내용은 기존 Memo 뒤에 줄을 바꿔 덧붙습니다. 비워 두고 "종료"를 눌러도 종료됩니다. "취소"나 Esc를 누르면 상태는 그대로입니다. 저장에 실패하면 팝업이 열린 채 입력이 남아 있고 오류가 표시됩니다.</li>
+  <li><b>Open으로 되돌리기</b>: "Open으로"는 팝업 없이 바로 되돌리며 Memo는 그대로 둡니다.</li>
+  <li><b>권한</b>: 상태 버튼은 그 Action을 기록한 사람과 admin에게만 보입니다. 다른 사용자에게는 상태 라벨만 보입니다.</li>
+  <li>새 Action을 등록해도 이전 Action의 Open Next Action은 <b>자동으로 종료되지 않습니다</b>. 직접 종료하세요.</li>
+  <li>종료한 뒤 Action의 내용이나 Due Date를 고쳐도 상태는 그대로입니다.</li>
+  <li>모든 상태 변경(종료, 종료 종류 바꾸기, Open으로)은 Deal History에 남습니다(<a href="#history">9장</a>).</li>
+  <li><b>기한초과와는 무관</b>합니다: 기한초과는 상태를 보지 않고 Due Date만 봅니다. 종료한 Next Action이라도 Due Date가 오늘보다 앞이면 기한초과로 표시되며, 상태 라벨로 종료 여부를 구분합니다(<a href="#risk">8장</a>).</li>
+</ul>
+<h3>7.5 Action 검색</h3>
+<p>Deal 상세의 Action 탭에서 유형(등록된 유형 목록에서 선택), 담당자(퇴사자 포함), 키워드, 수행 기간, Due 기간, <b>Next Action 상태</b>(전체 / Open / 종료(수행) / 종료(미수행) / 종료(전체))로 걸러 보고 정렬할 수 있습니다. 종료(전체)는 종료(수행)과 종료(미수행)을 함께 고릅니다. 상태를 고르면 Next Action이 없는 Action은 결과에서 빠집니다.</p>
 
 <!-- 8 -->
 <h2 id="risk">8. 경고와 체류 일수</h2>
 <p>종결되지 않은(Won·Lost가 아닌) Deal에는 두 가지 경고가 붙을 수 있습니다. 두 경고가 동시에 붙기도 합니다.</p>
 <table>
   <tr><th>경고</th><th>조건</th><th>푸는 방법</th></tr>
-  <tr><td>기한초과(빨강)</td><td>가장 최근 Action의 Due Date가 오늘보다 앞섬</td><td>새 Action을 남겨 다음 기한을 정함</td></tr>
-  <tr><td>미업데이트(노랑)</td><td>마지막 업데이트 후 <b>기준 일수 이상</b> 지남(기본 14일)</td><td>Action을 남기거나 Deal을 수정함</td></tr>
+  <tr><td>기한초과(빨강)</td><td>Next Action이 있는 가장 최근 Action(기준 행)의 Due Date가 오늘보다 앞섬. Next Action 상태와 무관해서 종료한 Next Action도 해당됩니다.</td><td>새 Next Action과 다음 기한을 담은 Action을 남김(또는 기준 행의 Due Date를 고침)</td></tr>
+  <tr><td>미업데이트(노랑)</td><td>마지막 업데이트(모든 Action 중 가장 최근 수행 시각, Action이 없으면 Deal 등록 시각) 후 <b>기준 일수 이상</b> 지남(기본 14일)</td><td>Action을 남김(진행사항만 있어도 됨). Deal 수정으로는 풀리지 않음</td></tr>
 </table>
 <ul>
   <li>미업데이트 기준 일수는 관리자가 1~365일 사이에서 정합니다(<a href="#admin">14.6</a>). 기준이 14일이면 13일째까지는 정상이고, 14일째부터 경고가 붙습니다.</li>
@@ -270,7 +291,7 @@
   <tr><td>Owner / 파트너 / 고객 연락처</td><td>담당자나 연결된 연락처가 바뀔 때. 퇴사자는 "이름(퇴사)"로 표시</td></tr>
   <tr><td>연락처 정보</td><td>연결된 고객·파트너의 직급·이메일·전화가 바뀔 때. 그 연락처를 쓰는 <b>모든 Deal</b>에 한 건씩 남음</td></tr>
   <tr><td>BANT</td><td>구분별 Label이 바뀔 때</td></tr>
-  <tr><td>Action</td><td>Action 등록·수정·삭제</td></tr>
+  <tr><td>Action</td><td>Action 등록·수정·삭제, Next Action 상태 변경(대상 "Next Action", 이전 값에 Next Action·Due·이전 상태, 이후 값에 새 상태와 덧붙인 Memo)</td></tr>
   <tr><td>첨부 파일</td><td>업로드·교체·삭제(파일 이름 포함)</td></tr>
   <tr><td>기타</td><td>Deal Name, Vendor, Solution, Users, 견적, POC, 구매절차</td></tr>
 </table>
@@ -322,8 +343,9 @@
   <tr><td>Status / Forecast</td><td>코드 하나 선택</td></tr>
   <tr><td>연도·분기 / 기간</td><td>Expected Close 기준. 분기는 Q1(1~3월), Q2(4~6월), Q3(7~9월), Q4(10~12월)입니다. 연도를 고르지 않고 분기만 고르면 <b>올해</b>(서버 날짜 기준)의 그 분기로 조회합니다. 연도·분기와 기간을 함께 쓰면 겹치는 범위만(양끝 포함)</td></tr>
   <tr><td>BANT Label</td><td>구분마다 Label 하나. 여러 구분을 고르면 모두 만족하는 Deal</td></tr>
+  <tr><td>Next Action 상태</td><td>전체 / Open / 종료(수행) / 종료(미수행) / 종료(전체) 중 하나. <b>Next Action이 있는 가장 최근 Action</b>의 상태로 거릅니다. 상태를 고르면 Next Action을 적은 Action이 하나도 없는 Deal은 빠집니다(<a href="#next-status">7.4</a>).</td></tr>
 </table>
-<p>조건은 모두 AND로 결합합니다. 정렬은 Deal Name, 금액, Expected Close, 마지막 업데이트, Status(관리자가 정한 코드 순서) 기준으로 할 수 있고, 기본값은 마지막 업데이트 최신순입니다. 값이 같으면 Deal code 순으로 정렬합니다. 한 페이지에 20건씩 보입니다.</p>
+<p>조건은 모두 AND로 결합합니다. 정렬은 Deal Name, 금액, Expected Close, 마지막 업데이트, Status(관리자가 정한 코드 순서) 기준으로 할 수 있고, 기본값은 마지막 업데이트 최신순입니다(마지막 업데이트는 Action 기준이라 Deal을 고쳐도 순서가 바뀌지 않습니다, <a href="#action-effect">7.3</a>). 값이 같으면 Deal code 순으로 정렬합니다. 한 페이지에 20건씩 보입니다.</p>
 <h3>12.2 조건 유지</h3>
 <ul>
   <li>검색 조건, 정렬, 페이지는 화면 주소(URL)에 들어갑니다. 주소를 복사해 동료에게 보내면 같은 결과가 보입니다.</li>
@@ -332,7 +354,7 @@
 <h3>12.3 목록에서 하는 일</h3>
 <ul>
   <li>열은 Deal, 담당자(Owner), 고객사, 파트너사, Vendor 순으로 시작합니다.</li>
-  <li>행마다 경고 배지, Status 체류 일수, 다음 진행 계획, BANT 요약을 보여 줍니다.</li>
+  <li>행마다 경고 배지, Status 체류 일수, 다음 진행 계획(Next Action과 상태 라벨), BANT 요약을 보여 줍니다.</li>
   <li>행을 펼치면 <b>빠른 보기</b>가 열립니다. 견적, POC, 고객 담당자, 파트너, BANT, Users, 구매절차를 상세 화면에 가지 않고 확인할 수 있습니다.</li>
   <li>Status, Forecast, 금액, Expected Close는 목록에서 바로 고칠 수 있습니다(동기화 규칙 적용).</li>
 </ul>
@@ -443,7 +465,9 @@
 <h3>금액이 원보다 1000배 작게 보여요.</h3>
 <p>금액은 모든 화면에서 천원 단위로 보입니다(항목 이름의 <code>(단위:천원)</code>). 예를 들어 100,000은 1억 원입니다. 입력할 때도 천원 단위로 입력하세요. 예전 History 행에는 원 단위 문구("…원")가 남아 있을 수 있습니다. 금액 입력란은 숫자와 콤마만 받으므로 소수점 같은 다른 문자는 사라집니다. 예를 들어 1,500.50을 붙여넣으면 150,050이 되니 붙여넣은 뒤 값을 확인하세요.</p>
 <h3>Deal을 고쳤는데 미업데이트 경고가 그대로예요.</h3>
-<p>실제로 바뀐 값이 없으면 수정으로 치지 않습니다. 같은 값으로 다시 저장해도 마찬가지입니다. 진행 상황을 Action으로 남기면 경고가 풀립니다.</p>
+<p>미업데이트는 Action 기준입니다. Deal 자체를 고치는 것(목록·상세에서 바로 고치기 포함)은 마지막 업데이트를 바꾸지 않으므로 경고가 풀리지 않습니다. 진행 상황을 Action으로 남기면(진행사항만 적어도 됨) 경고가 풀립니다.</p>
+<h3>Next Action을 종료했는데 기한초과가 그대로예요.</h3>
+<p>기한초과는 Next Action 상태와 상관없이 Due Date만 봅니다. 종료한 Next Action도 Due Date가 지났으면 기한초과로 보이며, 상태 라벨(종료(수행)·종료(미수행))로 구분합니다. 다음 계획을 담은 새 Action을 남기면 그 Action이 기준이 됩니다.</p>
 <h3>다른 사람의 Deal을 고칠 수 있나요?</h3>
 <p>영업 역할이면 수정은 가능하며 History에 고친 사람이 남습니다. 삭제는 Owner 본인과 admin만 할 수 있습니다.</p>
 <h3>Deal 등록 화면에 Vendor 목록이 비어 있어요.</h3>

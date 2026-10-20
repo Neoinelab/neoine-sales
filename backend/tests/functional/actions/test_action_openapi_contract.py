@@ -109,3 +109,49 @@ async def test_the_action_type_routes_are_documented_with_their_responses(api: A
     assert {"401", "403", "404", "409", "422"} <= set(patch_responses)
     delete_responses = paths["/api/v1/action-types/{type_id}"]["delete"]["responses"]
     assert {"204", "401", "403", "404", "409"} <= set(delete_responses)
+
+
+async def test_action_plan_fields_are_optional_and_nullable_with_a_status(api: Api) -> None:
+    """Scenario: 진행사항·Next Action·Due는 선택 입력이고 응답에서 null일 수 있다."""
+    # Given
+    # (로그인하지 않은 상태)
+    # When
+    response = await when_fetch_openapi(api)
+    # Then
+    spec = spec_of(response)
+    schemas = spec["components"]["schemas"]
+    for method, path in (CREATE, UPDATE):
+        name = schema_name_of(operation_of(spec, method, path), request=True)
+        required = set(schemas[name]["required"])
+        assert required.isdisjoint({"action", "next_action", "due_date"}), (name, required)
+    body = schemas["DealActionResponse"]
+    for field in (
+        "action",
+        "next_action",
+        "due_date",
+        "next_action_status",
+        "next_action_closed_at",
+    ):
+        options = body["properties"][field]["anyOf"]
+        assert any(option.get("type") == "null" for option in options), field
+        assert field in body["required"], field
+    assert schemas["NextActionStatus"]["enum"] == ["open", "done", "not_done"]
+
+
+async def test_the_status_route_and_the_status_filters_are_documented(api: Api) -> None:
+    """Scenario: 상태 변경 PUT과 두 목록의 상태 필터(closed 포함)가 문서화되어 있다."""
+    # Given
+    # (로그인하지 않은 상태)
+    # When
+    response = await when_fetch_openapi(api)
+    # Then
+    spec = spec_of(response)
+    operation = operation_of(spec, "PUT", "/api/v1/deal-actions/{action_id}/next-action-status")
+    assert {"200", "401", "403", "404", "409", "422"} <= set(operation["responses"])
+    request = spec["components"]["schemas"][schema_name_of(operation, request=True)]
+    assert set(request["properties"]) == {"status", "memo"}
+    for path in ("/api/v1/deals/{code}/actions", "/api/v1/deals"):
+        params = {p["name"] for p in operation_of(spec, "GET", path)["parameters"]}
+        assert "next_action_status" in params, path
+    values = spec["components"]["schemas"]["NextActionStatusFilter"]["enum"]
+    assert values == ["open", "done", "not_done", "closed"]

@@ -4,6 +4,7 @@ import { useLabels } from '../../../data/labels'
 import { useToday } from '../../../data/today'
 import { useVendors } from '../../../data/vendors'
 import { BANT_CATEGORIES, BANT_CATEGORY_NAMES } from '../../../shared/model/constants'
+import { NEXT_ACTION_STATUS_FILTER_OPTIONS, nextActionStatusFromParam, nextActionStatusToParam } from '../../../shared/model/nextActionStatus'
 import { ErrorBanner } from '../../../shared/ui/ErrorBanner'
 import { CheckboxField, SelectField, TextField } from '../../../shared/ui/fields'
 import { UserSelect } from '../../../shared/ui/UserSelect'
@@ -38,6 +39,8 @@ export function DealFilterBar({ params, onChange, onReset }: DealFilterBarProps)
     setKeyword(q)
   }
   const value = (key: string) => params.get(key) ?? ''
+  // 모르는 값은 '전체'로 보이고 조회에도 쓰이지 않는다(listQueryFromParams와 같은 판정).
+  const nextStatus = nextActionStatusFromParam(params.get('next_status'))
   const hasQuarter = value('quarter') !== ''
   const hasYear = value('year') !== ''
   // 목록이 로드된 뒤 목록에 없는 id(예전 이름 값 등)·소속이 맞지 않는 Solution은 '전체'로 보인다.
@@ -100,6 +103,18 @@ export function DealFilterBar({ params, onChange, onReset }: DealFilterBarProps)
         {codes?.forecasts.map((c) => (
           <option key={c.key} value={c.key}>
             {c.name}
+          </option>
+        ))}
+      </SelectField>
+      <SelectField
+        label="Next Action 상태"
+        name="next_status"
+        value={nextStatus ? nextActionStatusToParam(nextStatus) : ''}
+        onChange={(next_status) => onChange({ next_status })}
+      >
+        {NEXT_ACTION_STATUS_FILTER_OPTIONS.map((o) => (
+          <option key={o.value} value={o.value === '' ? '' : nextActionStatusToParam(o.value)}>
+            {o.label}
           </option>
         ))}
       </SelectField>

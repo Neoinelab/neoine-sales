@@ -33,7 +33,7 @@ async def test_the_view_has_the_deal_owner_customer_and_partner_contacts(env: De
     assert active is not None
     assert view.partner_contacts[active].details.company == "코어테크"
     assert view.item.next_action is None
-    assert view.item.last_updated_at == view.item.deal.updated_at
+    assert view.item.last_updated_at == view.item.deal.created_at
 
 
 async def test_the_partner_contacts_include_replaced_partners(env: DealEnv) -> None:

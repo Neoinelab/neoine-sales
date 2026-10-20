@@ -2,6 +2,7 @@ import { Link } from 'react-router'
 import { useDeals } from '../../data/deals'
 import { formatDate } from '../../shared/format'
 import { AMOUNT_LABEL } from '../../shared/model/money'
+import { NEXT_ACTION_STATUS_LABEL } from '../../shared/model/nextActionStatus'
 import { AmountText } from '../../shared/ui/AmountText'
 import { ForecastBadge, StatusBadge } from '../../shared/ui/Badges'
 import { ErrorBanner } from '../../shared/ui/ErrorBanner'
@@ -78,7 +79,9 @@ export function OwnerDeals({ ownerId, ownerName, filters, onClear }: Props) {
                         {d.nextAction ? (
                           <>
                             {d.nextAction.text}
-                            <div className="hint fc-sub">{formatDate(d.nextAction.dueDate)}</div>
+                            <div className="hint fc-sub">
+                              {formatDate(d.nextAction.dueDate)} · {NEXT_ACTION_STATUS_LABEL[d.nextAction.status]}
+                            </div>
                           </>
                         ) : (
                           <span className="fc-zero">—</span>

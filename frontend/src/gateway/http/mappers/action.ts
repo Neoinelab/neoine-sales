@@ -1,5 +1,12 @@
 import type { Schemas } from '../../../shared/api/client'
-import type { ActionInput, ActionUpdateInput, DealAction, StatusChangeRequest } from '../../../shared/model/types'
+import type {
+  ActionInput,
+  ActionUpdateInput,
+  DealAction,
+  NextActionStatusInput,
+  StatusChangeRequest,
+} from '../../../shared/model/types'
+import { toNextActionStatus } from './nextActionStatus'
 import { toUserRef } from './user'
 
 /** 서버 Action → 화면 DealAction. 텍스트는 가공하거나 자르지 않는다. */
@@ -14,6 +21,8 @@ export function toDealAction(row: Schemas['DealActionResponse']): DealAction {
     progress: row.action,
     nextAction: row.next_action,
     dueDate: row.due_date,
+    nextActionStatus: row.next_action_status === null ? null : toNextActionStatus(row.next_action_status),
+    nextActionClosedAt: row.next_action_closed_at,
     memo: row.memo,
     statusKey: row.status_key,
     forecastKey: row.forecast_key,
@@ -51,4 +60,8 @@ export function toActionCreateBody(input: ActionInput): Schemas['DealActionCreat
   const body: Schemas['DealActionCreateRequest'] = toActionUpdateBody(input)
   if (input.statusChanges && input.statusChanges.length > 0) body.status_changes = input.statusChanges.map(toStatusChange)
   return body
+}
+
+export function toNextActionStatusBody(input: NextActionStatusInput): Schemas['NextActionStatusRequest'] {
+  return { status: input.status === 'notDone' ? 'not_done' : input.status, memo: input.memo }
 }

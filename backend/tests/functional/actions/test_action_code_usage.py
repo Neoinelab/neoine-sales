@@ -8,11 +8,8 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from tests.functional.steps.actions import (
-    given_action,
-    then_detail_is,
-    when_delete_action,
-)
+from tests.functional.steps.action_checks import then_detail_is
+from tests.functional.steps.actions import given_action, when_delete_action
 from tests.functional.steps.auth import given_logged_in_as
 from tests.functional.steps.codes import (
     given_code_id,

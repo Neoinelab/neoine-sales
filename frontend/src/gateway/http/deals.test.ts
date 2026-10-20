@@ -54,6 +54,7 @@ describe('deals.list over HTTP', () => {
       revenueTo: '2026-12-31',
       bantLabelIds: { budget: 'b1', authority: 'a1', need: 'n1', timeline: 't1' },
       mine: true,
+      nextActionStatus: 'closed',
       sort: 'revenueAmount',
       order: 'asc',
       offset: 20,
@@ -77,11 +78,33 @@ describe('deals.list over HTTP', () => {
       bant_need: 'n1',
       bant_timeline: 't1',
       mine: 'true',
+      next_action_status: 'closed',
       sort: 'revenue_amount',
       order: 'asc',
       offset: '20',
       limit: '50',
     })
+  })
+
+  it.each([
+    ['open', 'open'],
+    ['done', 'done'],
+    ['notDone', 'not_done'],
+    ['closed', 'closed'],
+  ] as const)('maps the Next Action status filter %s to %s', async (status, wire) => {
+    const { calls } = stubFetch(json(page([])))
+
+    await createDealsHttp().list({ nextActionStatus: status })
+
+    expect(query(calls[0]?.path ?? '').get('next_action_status')).toBe(wire)
+  })
+
+  it('does not send a status filter when none is chosen', async () => {
+    const { calls } = stubFetch(json(page([])))
+
+    await createDealsHttp().list({})
+
+    expect(query(calls[0]?.path ?? '').has('next_action_status')).toBe(false)
   })
 
   it.each([

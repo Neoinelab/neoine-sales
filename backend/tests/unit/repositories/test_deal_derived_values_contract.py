@@ -1,12 +1,15 @@
 """DealRepository의 파생값 계약(R3, AC-22·23): next_action과 last_updated_at.
 
 Fake와 SQL(PostgreSQL)에 같은 기대값. 가장 최근에 수행한(acted_at) Action의 다음 진행 계획이
-next_action이고, last_updated_at은 Deal 수정 시각과 그 Action 수행 시각 중 늦은 쪽이다.
+next_action이고, last_updated_at은 모든 Action 중 가장 최근 수행 시각이다(E4: Action이 없으면 Deal
+등록 시각이고 Deal 수정 시각은 반영하지 않는다).
 `search`와 `get_item`이 같은 값을 준다.
 """
 
 from datetime import date
 from typing import TYPE_CHECKING
+
+from app.domain.deal_action.next_action_status import NextActionStatus
 
 from app.application.ports.deal_repository import DealQuery, NextActionSummary
 from tests.factories import later, make_deal
@@ -23,10 +26,12 @@ async def _item(case: DealCase, code: str = CODE) -> DealListItem:
     return item
 
 
-async def test_a_deal_without_actions_has_no_next_action_and_its_own_update_time(
+async def test_a_deal_without_actions_has_no_next_action_and_its_registration_time(
     deal_case: DealCase,
 ) -> None:
-    await deal_case.add(make_deal(later(5), code=CODE))
+    deal = make_deal(later(5), code=CODE)
+    await deal_case.add(deal)
+    await deal_case.deals.touch([deal.id], later(50))  # Deal 수정은 최종 업데이트가 아니다
 
     item = await _item(deal_case)
 
@@ -43,7 +48,9 @@ async def test_the_most_recent_action_provides_both_values(deal_case: DealCase) 
 
     item = await _item(deal_case)
 
-    assert item.next_action == NextActionSummary(text="계약서 검토", due_date=date(2026, 2, 5))
+    assert item.next_action == NextActionSummary(
+        text="계약서 검토", due_date=date(2026, 2, 5), status=NextActionStatus.OPEN
+    )
     assert item.last_updated_at == later(100)
 
 
@@ -62,16 +69,17 @@ async def test_the_action_with_the_latest_acted_at_wins_not_the_last_saved(
     assert item.last_updated_at == later(200)
 
 
-async def test_an_action_older_than_the_deal_update_keeps_the_deal_time(
+async def test_an_action_older_than_the_deal_update_still_sets_the_last_update(
     deal_case: DealCase,
 ) -> None:
-    deal = make_deal(later(500), code=CODE)
+    deal = make_deal(later(5), code=CODE)
     await deal_case.add(deal)
+    await deal_case.deals.touch([deal.id], later(500))
     await deal_case.add_action(deal, acted_at=later(10), next_action="오래된 일")
 
     item = await _item(deal_case)
 
-    assert item.last_updated_at == later(500)
+    assert item.last_updated_at == later(10)
     assert item.next_action is not None
     assert item.next_action.text == "오래된 일"
 

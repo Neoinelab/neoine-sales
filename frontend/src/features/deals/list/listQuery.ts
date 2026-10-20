@@ -1,6 +1,7 @@
 import { BANT_CATEGORIES, DEAL_PAGE_SIZE, type BantCategory } from '../../../shared/model/constants'
 import type { DealListQuery, DealSortKey, SortOrder } from '../../../shared/model/types'
 
+import { nextActionStatusFromParam } from '../../../shared/model/nextActionStatus'
 import { FILTER_KEYS } from '../../../shared/model/dealListMemory'
 
 /** URL 쿼리 키(정의는 shared의 기억 모듈에 있고 여기서 다시 내보낸다). */
@@ -90,6 +91,8 @@ export function listQueryFromParams(params: URLSearchParams): DealListQuery {
   }
   if (Object.keys(bant).length > 0) query.bantLabelIds = bant
   if (params.get('mine') === '1') query.mine = true
+  const nextStatus = nextActionStatusFromParam(params.get('next_status'))
+  if (nextStatus) query.nextActionStatus = nextStatus
 
   if (isSortKey(params.get('sort'))) {
     const { sort, order } = currentSort(params)

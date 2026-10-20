@@ -11,6 +11,7 @@ import type {
   PartnerLinkView,
 } from '../../../shared/model/types'
 import { toContact } from './contact'
+import { toNextActionStatus } from './nextActionStatus'
 import { toUserRef } from './user'
 
 function toPartnerLink(link: Schemas['PartnerLinkResponse']): PartnerLink {
@@ -43,7 +44,7 @@ export function toDealRow(row: Schemas['DealRowResponse']): DealRow {
     poc: { state: row.poc.state, completedDate: row.poc.completed_date },
     procurement: row.procurement,
     bant: { ...row.bant },
-    nextAction: row.next_action === null ? null : { text: row.next_action.text, dueDate: row.next_action.due_date },
+    nextAction: row.next_action === null ? null : { text: row.next_action.text, dueDate: row.next_action.due_date, status: toNextActionStatus(row.next_action.status) },
     lastUpdatedAt: row.last_updated_at,
     statusChangedAt: row.status_changed_at,
     statusDays: row.status_days,

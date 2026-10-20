@@ -121,6 +121,15 @@ class DealCase:
         await self.actions.add(action)
         return action
 
+    async def set_next_action_status(
+        self, action: DealAction, status: str, at: datetime, note: str = ""
+    ) -> None:
+        """저장된 Action의 Next Action 상태를 바꿔 저장한다(도메인 메서드 + Port의 update)."""
+        from app.domain.deal_action.next_action_status import NextActionStatus  # noqa: PLC0415
+
+        action.change_next_action_status(NextActionStatus(status), note, at)
+        await self.actions.update(action)
+
     async def revise(self, code: DealCode, **parts: object) -> None:
         """저장된 Deal의 폼 값(details, sync, customer_id, bant) 일부를 바꿔 저장한다."""
         deal = await self.deals.get(code)

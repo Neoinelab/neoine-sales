@@ -113,7 +113,7 @@ describe('deals.list', () => {
     expect(d1).toMatchObject({
       customer: { company: '한빛은행', name: '정민수' },
       activePartner: { company: '에이원시스템', name: '표성호' },
-      nextAction: { text: '계약서 초안 검토', dueDate: '2026-10-18' },
+      nextAction: { text: '계약서 초안 검토', dueDate: '2026-10-18', status: 'open' },
       owner: { name: '김영업' },
     })
     expect(rows.find((d) => d.code === dealCode(5))?.activePartner).toBeNull()

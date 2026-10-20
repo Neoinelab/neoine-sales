@@ -6,6 +6,7 @@ import { inPeriod } from '../../../shared/model/period'
 import type { DealListQuery, DealRow, Page } from '../../../shared/model/types'
 import { read, requireUser, type MockContext } from './context'
 import { codeSetOf } from './dealChange'
+import { statusesOf } from './nextActionStatus'
 import { dealDetail, dealRow, findDeal } from './views'
 
 function matches(row: DealRow, query: DealListQuery, viewerId: string, thisYear: number): boolean {
@@ -25,6 +26,8 @@ function matches(row: DealRow, query: DealListQuery, viewerId: string, thisYear:
   if (query.revenueFrom && row.revenueDate < query.revenueFrom) return false
   if (query.revenueTo && row.revenueDate > query.revenueTo) return false
   if (query.mine && row.ownerId !== viewerId) return false
+  // 기준 행(Next Action이 있는 가장 최근 Action)의 상태로 거른다. Next Action이 없는 Deal은 제외된다.
+  if (query.nextActionStatus && !(row.nextAction && statusesOf(query.nextActionStatus).includes(row.nextAction.status))) return false
   for (const [category, labelId] of Object.entries(query.bantLabelIds ?? {})) {
     if (labelId && row.bant[category as keyof typeof row.bant] !== labelId) return false
   }

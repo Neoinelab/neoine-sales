@@ -187,7 +187,7 @@ export function actionTypesContract(make: MakeGateway): void {
       const deal = await newDeal(sales)
       const name = unique('ghost')
 
-      await expectRejects(sales.actions.create(deal.code, action({ type: { name }, progress: ' ' })), 422, '진행사항을 입력하세요.')
+      await expectRejects(sales.actions.create(deal.code, action({ type: { name }, progress: ' ', nextAction: '', dueDate: '' })), 422, '진행사항 또는 Next Action을 입력하세요.')
 
       expect((await sales.actionTypes.list()).some((t) => t.name === name)).toBe(false)
       await sales.deals.remove(deal.code, deal.code)

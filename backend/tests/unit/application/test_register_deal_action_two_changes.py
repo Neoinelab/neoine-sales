@@ -7,7 +7,7 @@ from app.application.deal_action.inputs import StatusChangeInput
 from app.domain.common.errors import InvalidValueError
 from app.domain.deal.sync import SYNC_CONFLICT_MESSAGE, SyncResolution, SyncState
 from tests.support.expect import raises_with
-from tests.unit.application.action_env import PROGRESS_REQUIRED, SUMMARY
+from tests.unit.application.action_env import ACTION_OR_NEXT_REQUIRED, SUMMARY
 from tests.unit.application.apply_helpers import CHOICE_REQUIRED, CLOSING
 
 if TYPE_CHECKING:
@@ -118,9 +118,12 @@ async def test_an_unknown_code_in_the_second_change_is_rejected(action_env: Acti
 
 
 async def test_invalid_content_is_reported_before_any_change(action_env: ActionEnv) -> None:
-    with raises_with(InvalidValueError, PROGRESS_REQUIRED):
+    with raises_with(InvalidValueError, ACTION_OR_NEXT_REQUIRED):
         await action_env.act(
-            action="  ", status_changes=(_status("introduction"), _forecast("best"))
+            action="  ",
+            next_action="",
+            due_date=None,
+            status_changes=(_status("introduction"), _forecast("best")),
         )
 
     assert (await _deal(action_env)).sync == SyncState("prospecting", "pipeline")

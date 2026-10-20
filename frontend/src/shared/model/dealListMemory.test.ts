@@ -103,3 +103,15 @@ describe('rememberedListPath (AC-01, AC-07~AC-10)', () => {
     expect(rememberedListPath(undefined)).toBe('/deals')
   })
 })
+
+describe('next_status (AC-24)', () => {
+  it('sanitize keeps next_status in the list keys', () => {
+    expect(sanitizeListSearch('next_status=closed&foo=1&page=2')).toBe('next_status=closed&page=2')
+  })
+
+  it('remembered path restores next_status', () => {
+    rememberListSearch('u-kim', params('status=a&next_status=not_done'))
+
+    expect(rememberedListPath('u-kim')).toBe('/deals?status=a&next_status=not_done')
+  })
+})

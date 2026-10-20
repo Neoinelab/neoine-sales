@@ -21,6 +21,7 @@ from app.domain.deal.errors import (
     DealNotFoundError,
     DuplicateDealCodeError,
 )
+from app.domain.deal_action.next_action_status import NextActionStatus
 from app.infra.db import deal_aggregates, deal_children, deal_mapping, deal_search
 from app.infra.db.base_repository import ConstraintErrors, SavepointWriter
 from app.infra.db.contact_usage import deal_counts_by_contacts
@@ -138,7 +139,9 @@ class SqlDealRepository(SavepointWriter):
                 next_action=(
                     None
                     if row.next_action is None
-                    else NextActionSummary(row.next_action, row.due_date)
+                    else NextActionSummary(
+                        row.next_action, row.due_date, NextActionStatus(row.basis_status)
+                    )
                 ),
                 last_updated_at=row.last_updated_at,
             )

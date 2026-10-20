@@ -11,12 +11,12 @@ from uuid import uuid4
 
 import pytest
 
+from tests.functional.steps.action_checks import then_action_names_are
 from tests.functional.steps.action_types import given_type_id, when_rename_type
 from tests.functional.steps.actions import (
     given_action,
     given_action_at_as,
     given_searchable_actions,
-    then_action_names_are,
     when_list_actions,
 )
 from tests.functional.steps.auth import given_logged_in_as

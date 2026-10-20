@@ -1,7 +1,8 @@
 """Feature: Action 등록은 잘못된 입력·권한 없음·없는 Deal을 정해진 순서와 문구로 거절한다.
 
-순서는 없는 Deal 404 -> 진행사항 -> Next Action -> Due Date(모두 422)이고, 아무것도 저장되지
-않는다. 읽기 전용(user)은 403, 로그인하지 않으면 401이다. 수행 일시·담당자는 본문으로 보낼 수 없다.
+순서는 없는 Deal 404 -> 진행사항·Next Action 둘 다 빔 -> Due Date 필수·금지(모두 422)이고
+아무것도 저장되지 않는다. 읽기 전용(user)은 403, 로그인하지 않으면 401이다.
+수행 일시·담당자는 본문으로 보낼 수 없다.
 """
 
 from typing import TYPE_CHECKING
@@ -9,14 +10,13 @@ from uuid import uuid4
 
 import pytest
 
+from tests.functional.steps.action_checks import then_deal_has_no_actions, then_detail_is
 from tests.functional.steps.actions import (
+    ACTION_OR_NEXT_REQUIRED,
     DUE_DATE_REQUIRED,
-    NEXT_ACTION_REQUIRED,
-    PROGRESS_REQUIRED,
+    DUE_WITHOUT_NEXT,
     READ_ONLY,
     action_body,
-    then_deal_has_no_actions,
-    then_detail_is,
     when_register_action,
     when_register_action_with_body,
 )
@@ -35,26 +35,30 @@ ABSENT_CODE = "20260101-ZZZZ"
 @pytest.mark.parametrize(
     ("overrides", "detail"),
     [
-        pytest.param({"action": "   "}, PROGRESS_REQUIRED, id="blank-progress"),
-        pytest.param({"action": ""}, PROGRESS_REQUIRED, id="empty-progress"),
-        pytest.param({"next_action": "  "}, NEXT_ACTION_REQUIRED, id="blank-next-action"),
-        pytest.param({"due_date": None}, DUE_DATE_REQUIRED, id="null-due-date"),
         pytest.param(
-            {"action": " ", "next_action": " ", "due_date": None},
-            PROGRESS_REQUIRED,
-            id="progress-is-reported-first",
+            {"action": "   ", "next_action": ""}, ACTION_OR_NEXT_REQUIRED, id="both-blank"
+        ),
+        pytest.param({"action": "", "next_action": "  "}, ACTION_OR_NEXT_REQUIRED, id="both-empty"),
+        pytest.param({"due_date": None}, DUE_DATE_REQUIRED, id="next-action-without-due-date"),
+        pytest.param(
+            {"action": "", "due_date": None}, DUE_DATE_REQUIRED, id="next-only-without-due-date"
         ),
         pytest.param(
-            {"next_action": " ", "due_date": None},
-            NEXT_ACTION_REQUIRED,
-            id="next-action-before-due-date",
+            {"next_action": "  ", "due_date": "2027-01-15"},
+            DUE_WITHOUT_NEXT,
+            id="due-date-without-next-action",
+        ),
+        pytest.param(
+            {"action": "", "next_action": "", "due_date": "2027-01-15"},
+            ACTION_OR_NEXT_REQUIRED,
+            id="both-blank-is-reported-before-due-date",
         ),
     ],
 )
-async def test_invalid_action_is_rejected_in_mock_order(
+async def test_invalid_action_is_rejected_in_order(
     api: Api, overrides: dict[str, object], detail: str
 ) -> None:
-    """Scenario: 빈 값은 목업과 같은 순서·문구로 422이고 아무것도 저장되지 않는다."""
+    """Scenario: 입력 규칙을 어기면 정해진 순서·문구로 422이고 아무것도 저장되지 않는다."""
     # Given
     await given_logged_in_as(api, role="sales")
     deal = await given_deal(api)
@@ -68,7 +72,7 @@ async def test_invalid_action_is_rejected_in_mock_order(
 
 
 async def test_a_missing_due_date_is_the_domain_message_not_a_schema_error(api: Api) -> None:
-    """Scenario: Due Date를 아예 보내지 않아도 "Due Date를 입력하세요."로 거절된다."""
+    """Scenario: Next Action이 있는데 Due Date를 아예 보내지 않으면 도메인 문구로 거절된다."""
     # Given
     await given_logged_in_as(api, role="sales")
     deal = await given_deal(api)
@@ -164,7 +168,7 @@ async def test_recording_on_a_missing_or_malformed_deal_is_not_found_before_vali
     # Given
     await given_logged_in_as(api, role="sales")
     # When
-    response = await when_register_action(api, code, action="  ", next_action="", due_date=None)
+    response = await when_register_action(api, code, action="  ", next_action="")
     # Then
     then_problem_is(response, status=404, type_suffix="not-found")
     then_detail_is(response, NOT_FOUND)

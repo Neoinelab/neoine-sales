@@ -9,6 +9,7 @@ from uuid import uuid4
 import pytest
 from pydantic import ValidationError
 
+from app.application.ports.deal_action_repository import NextActionStatusFilter
 from app.application.ports.deal_repository import DealSort, SortOrder
 from app.domain.bant.values import BantCategory
 from app.domain.common.errors import InvalidValueError
@@ -141,3 +142,20 @@ def test_the_new_conditions_keep_working_together_with_mine() -> None:
 def test_unknown_parameters_are_still_rejected(params: dict[str, object]) -> None:
     with pytest.raises(ValidationError):
         DealSearchParams(**params)
+
+
+@pytest.mark.parametrize("value", ["open", "done", "not_done", "closed"])
+def test_deal_search_params_passes_next_action_status(value: str) -> None:
+    query = DealSearchParams(next_action_status=value).to_query(VIEWER)
+
+    assert query.next_action_status == NextActionStatusFilter(value)
+
+
+def test_next_action_status_defaults_to_no_condition() -> None:
+    assert DealSearchParams().to_query(VIEWER).next_action_status is None
+
+
+@pytest.mark.parametrize("value", ["notDone", "DONE", "all", "", "close"])
+def test_a_next_action_status_outside_the_whitelist_is_rejected(value: str) -> None:
+    with pytest.raises(ValidationError):
+        DealSearchParams(next_action_status=value)

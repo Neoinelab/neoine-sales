@@ -48,7 +48,7 @@ async def test_the_list_has_rows_total_offset_and_limit_newest_first(api: Api) -
     assert row["owner"]["role"] == "sales"
     assert row["customer"]["company"] == "네오인"
     assert (row["next_action"], row["risk"]) == (None, None)
-    assert row["last_updated_at"] == row["updated_at"]
+    assert row["last_updated_at"] == row["created_at"]
 
 
 async def test_editing_a_deal_moves_it_to_the_top(api: Api) -> None:

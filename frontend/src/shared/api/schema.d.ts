@@ -441,6 +441,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/deal-actions/{action_id}/next-action-status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Change Next Action Status */
+        put: operations["change_next_action_status_api_v1_deal_actions__action_id__next_action_status_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/deals": {
         parameters: {
             query?: never;
@@ -1225,7 +1242,10 @@ export interface components {
          * @description `status_change`(단건)와 `status_changes`(최대 2건, 필드 중복 불가)는 함께 쓸 수 없다.
          */
         DealActionCreateRequest: {
-            /** Action */
+            /**
+             * Action
+             * @default
+             */
             action: string;
             action_type: components["schemas"]["CatalogChoiceRequest"];
             /** Due Date */
@@ -1235,7 +1255,10 @@ export interface components {
              * @default
              */
             memo: string;
-            /** Next Action */
+            /**
+             * Next Action
+             * @default
+             */
             next_action: string;
             /** @description 단건 변경(하위 호환). status_changes와 함께 보내면(빈 배열 포함, null은 변경 없음) 422로 거부된다. 여러 건은 순서가 보장되는 status_changes를 쓴다. */
             status_change?: components["schemas"]["ActionStatusChangeRequest"] | null;
@@ -1261,7 +1284,7 @@ export interface components {
              */
             acted_at: string;
             /** Action */
-            action: string;
+            action: string | null;
             action_type: components["schemas"]["NamedRefResponse"];
             actor: components["schemas"]["UserRef"];
             /**
@@ -1271,11 +1294,8 @@ export interface components {
             created_at: string;
             /** Deal Code */
             deal_code: string;
-            /**
-             * Due Date
-             * Format: date
-             */
-            due_date: string;
+            /** Due Date */
+            due_date: string | null;
             /** Forecast Key */
             forecast_key: string;
             /** Id */
@@ -1283,7 +1303,10 @@ export interface components {
             /** Memo */
             memo: string;
             /** Next Action */
-            next_action: string;
+            next_action: string | null;
+            /** Next Action Closed At */
+            next_action_closed_at: string | null;
+            next_action_status: components["schemas"]["NextActionStatus"] | null;
             /** Status Key */
             status_key: string;
             /**
@@ -1299,7 +1322,10 @@ export interface components {
         DealActionSort: "acted_at_desc" | "acted_at_asc" | "due_date_asc";
         /** DealActionUpdateRequest */
         DealActionUpdateRequest: {
-            /** Action */
+            /**
+             * Action
+             * @default
+             */
             action: string;
             action_type: components["schemas"]["CatalogChoiceRequest"];
             /** Due Date */
@@ -1309,7 +1335,10 @@ export interface components {
              * @default
              */
             memo: string;
-            /** Next Action */
+            /**
+             * Next Action
+             * @default
+             */
             next_action: string;
         };
         /** DealChangeRequest */
@@ -1377,6 +1406,7 @@ export interface components {
             /**
              * Last Updated At
              * Format: date-time
+             * @description 모든 Action 중 가장 최근 수행 시각. Action이 없으면 Deal 등록 시각. Deal 수정은 반영하지 않는다.
              */
             last_updated_at: string;
             /** Name */
@@ -1469,6 +1499,7 @@ export interface components {
             /**
              * Last Updated At
              * Format: date-time
+             * @description 모든 Action 중 가장 최근 수행 시각. Action이 없으면 Deal 등록 시각. Deal 수정은 반영하지 않는다.
              */
             last_updated_at: string;
             /** Name */
@@ -1755,8 +1786,32 @@ export interface components {
              * Format: date
              */
             due_date: string;
+            status: components["schemas"]["NextActionStatus"];
             /** Text */
             text: string;
+        };
+        /**
+         * NextActionStatus
+         * @enum {string}
+         */
+        NextActionStatus: "open" | "done" | "not_done";
+        /**
+         * NextActionStatusFilter
+         * @description Next Action 상태 필터. closed는 종료(수행)와 종료(미수행) 모두.
+         * @enum {string}
+         */
+        NextActionStatusFilter: "open" | "done" | "not_done" | "closed";
+        /**
+         * NextActionStatusRequest
+         * @description Next Action 상태 변경. memo는 종료할 때 Memo에 덧붙일 내용(open과는 함께 불가).
+         */
+        NextActionStatusRequest: {
+            /**
+             * Memo
+             * @default
+             */
+            memo: string;
+            status: components["schemas"]["NextActionStatus"];
         };
         /**
          * OnExists
@@ -3997,6 +4052,77 @@ export interface operations {
             };
         };
     };
+    change_next_action_status_api_v1_deal_actions__action_id__next_action_status_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                action_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NextActionStatusRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DealActionResponse"];
+                };
+            };
+            /** @description problem+json */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     list_deals_api_v1_deals_get: {
         parameters: {
             query?: {
@@ -4015,6 +4141,7 @@ export interface operations {
                 bant_authority?: string | null;
                 bant_need?: string | null;
                 bant_timeline?: string | null;
+                next_action_status?: components["schemas"]["NextActionStatusFilter"] | null;
                 sort?: components["schemas"]["DealSort"];
                 order?: components["schemas"]["SortOrder"];
                 offset?: number;
@@ -4312,6 +4439,7 @@ export interface operations {
                 acted_to?: string | null;
                 due_from?: string | null;
                 due_to?: string | null;
+                next_action_status?: components["schemas"]["NextActionStatusFilter"] | null;
                 sort?: components["schemas"]["DealActionSort"];
             };
             header?: never;

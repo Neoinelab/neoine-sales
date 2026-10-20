@@ -96,7 +96,7 @@ async def test_sales_registers_a_deal_with_a_new_customer_and_partner(api: Api) 
     assert body["quote"] == {"submitted": "YES", "submitted_date": "2026-10-01"}
     assert body["procurement"] == "조달청 입찰"
     assert (body["next_action"], body["risk"]) == (None, None)
-    assert body["last_updated_at"] == body["updated_at"]
+    assert body["last_updated_at"] == body["created_at"]
 
 
 @pytest.mark.parametrize(

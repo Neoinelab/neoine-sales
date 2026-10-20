@@ -9,6 +9,12 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+from tests.functional.steps.action_checks import (
+    then_action_is_gone,
+    then_action_is_unchanged,
+    then_body_has,
+    then_detail_is,
+)
 from tests.functional.steps.actions import (
     DELETE_FORBIDDEN,
     EDIT_FORBIDDEN,
@@ -16,10 +22,6 @@ from tests.functional.steps.actions import (
     READ_ONLY,
     given_action_by,
     given_deal_with_a_sales_owner,
-    then_action_is_gone,
-    then_action_is_unchanged,
-    then_body_has,
-    then_detail_is,
     when_delete_action,
     when_delete_action_as,
     when_get_action,

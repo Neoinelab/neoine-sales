@@ -8,6 +8,7 @@ from pydantic import Field, StrictInt, model_validator
 
 from app.application.choice import CatalogChoice
 from app.application.deal.inputs import ContactDraftInput, DealCreateInput, DealPatchInput
+from app.application.ports.deal_action_repository import NextActionStatusFilter
 from app.application.ports.deal_repository import (
     DEFAULT_PAGE_SIZE,
     KEYWORD_MAX,
@@ -189,6 +190,7 @@ class DealSearchParams(RequestModel):
     bant_authority: UUID | None = None
     bant_need: UUID | None = None
     bant_timeline: UUID | None = None
+    next_action_status: NextActionStatusFilter | None = None
     sort: DealSort = DealSort.LAST_UPDATED_AT
     order: SortOrder = SortOrder.DESC
     offset: Annotated[int, Field(ge=0)] = 0

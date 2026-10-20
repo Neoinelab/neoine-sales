@@ -2,6 +2,7 @@ import { Fragment, useState } from 'react'
 import { Link } from 'react-router'
 import { useToday } from '../../../data/today'
 import { formatDate, formatRelativeTime } from '../../../shared/format'
+import { NEXT_ACTION_STATUS_LABEL } from '../../../shared/model/nextActionStatus'
 import { userLabel } from '../../../shared/model/period'
 import type { BantLabel, DealRow } from '../../../shared/model/types'
 import { RiskBadge, riskRowClass } from '../../../shared/ui/RiskBadge'
@@ -45,6 +46,7 @@ function NextAction({ row }: { row: DealRow }) {
     <>
       <span>{row.nextAction.text}</span>
       <small className={overdue ? 'due overdue' : 'due'}>Due {row.nextAction.dueDate}</small>
+      <small className="hint">{NEXT_ACTION_STATUS_LABEL[row.nextAction.status]}</small>
     </>
   )
 }

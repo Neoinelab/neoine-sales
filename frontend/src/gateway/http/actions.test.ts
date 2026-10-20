@@ -58,6 +58,7 @@ describe('actions.list over HTTP (AC-14~16)', () => {
       actedTo: '2026-10-15',
       dueFrom: '2026-10-16',
       dueTo: '2026-10-31',
+      nextActionStatus: 'closed',
       sort: 'dueAsc',
     }
 
@@ -72,6 +73,7 @@ describe('actions.list over HTTP (AC-14~16)', () => {
       acted_to: '2026-10-15',
       due_from: '2026-10-16',
       due_to: '2026-10-31',
+      next_action_status: 'closed',
       sort: 'due_date_asc',
     })
   })
@@ -304,5 +306,92 @@ describe('http gateway wiring (AC-22)', () => {
     await expect(createHttpGateway().actions.list(CODE, {})).resolves.toEqual([])
 
     expect(calls[0]).toMatchObject({ method: 'GET', path: `/api/v1/deals/${CODE}/actions` })
+  })
+})
+
+describe('actions.list status filter (AC-18)', () => {
+  it.each([
+    ['open', 'open'],
+    ['done', 'done'],
+    ['notDone', 'not_done'],
+    ['closed', 'closed'],
+  ] as const)('maps %s to next_action_status=%s', async (status, wire) => {
+    const { calls } = stubFetch(json({ items: [] }))
+
+    await createActionsHttp().list(CODE, { nextActionStatus: status })
+
+    expect(query(calls[0]?.path ?? '').get('next_action_status')).toBe(wire)
+  })
+})
+
+describe('actions.create with a partial input (AC-1·2)', () => {
+  it('posts a progress-only content with an empty Next Action and a null due date, and maps null fields', async () => {
+    const { calls } = stubFetch(
+      json(serverAction({ next_action: null, due_date: null, next_action_status: null }), 201),
+    )
+
+    const created = await createActionsHttp().create(CODE, { ...newAction, nextAction: '', dueDate: '' })
+
+    expect(calls[0]?.body).toMatchObject({ action: '고객사 방문', next_action: '', due_date: null })
+    expect(created).toMatchObject({ nextAction: null, dueDate: null, nextActionStatus: null })
+  })
+
+  it('posts a Next-Action-only content with an empty progress', async () => {
+    const { calls } = stubFetch(json(serverAction({ action: null }), 201))
+
+    const created = await createActionsHttp().create(CODE, { ...newAction, progress: '' })
+
+    expect(calls[0]?.body).toMatchObject({ action: '', next_action: '견적 재전달' })
+    expect(created.progress).toBeNull()
+  })
+
+  it('shows the 422 of an empty content with the server message', async () => {
+    stubFetch(problem(422, 'invalid-value', '진행사항 또는 Next Action을 입력하세요.'))
+
+    await expect(createActionsHttp().create(CODE, { ...newAction, progress: '', nextAction: '', dueDate: '' })).rejects.toMatchObject({
+      status: 422,
+      message: '진행사항 또는 Next Action을 입력하세요.',
+    })
+  })
+})
+
+describe('actions.changeNextActionStatus over HTTP (AC-8~12)', () => {
+  it('puts the snake_case status and the memo to /deal-actions/{id}/next-action-status and maps the answer', async () => {
+    const { calls } = stubFetch(
+      json(serverAction({ next_action_status: 'not_done', next_action_closed_at: '2026-10-16T10:00:00+09:00', memo: '기존\n접음' })),
+    )
+
+    const changed = await createActionsHttp().changeNextActionStatus(ACTION_ID, { status: 'notDone', memo: '접음' })
+
+    expect(calls[0]).toMatchObject({ method: 'PUT', path: `/api/v1/deal-actions/${ACTION_ID}/next-action-status` })
+    expect(calls[0]?.body).toEqual({ status: 'not_done', memo: '접음' })
+    expect(changed).toMatchObject({ id: ACTION_ID, nextActionStatus: 'notDone', nextActionClosedAt: '2026-10-16T10:00:00+09:00', memo: '기존\n접음' })
+  })
+
+  it.each([
+    ['open', 'open'],
+    ['done', 'done'],
+  ] as const)('sends %s as %s with an empty memo', async (status, wire) => {
+    const { calls } = stubFetch(json(serverAction()))
+
+    await createActionsHttp().changeNextActionStatus(ACTION_ID, { status, memo: '' })
+
+    expect(calls[0]?.body).toEqual({ status: wire, memo: '' })
+  })
+
+  it.each([
+    [403, 'forbidden', '본인 Action 또는 admin만 Next Action 상태를 바꿀 수 있습니다.', 'forbidden'],
+    [404, 'not-found', 'Action을 찾을 수 없습니다.', 'not-found'],
+    [409, 'invalid-state', '이미 Open 상태입니다.', 'conflict'],
+    [409, 'invalid-state', 'Next Action이 없는 Action은 상태를 바꿀 수 없습니다.', 'conflict'],
+    [422, 'invalid-value', '메모를 남길 수 없습니다.', 'validation'],
+  ])('shows the %s answer with the server message', async (status, serverKind, detail, kind) => {
+    stubFetch(problem(status, serverKind, detail))
+
+    await expect(createActionsHttp().changeNextActionStatus(ACTION_ID, { status: 'done', memo: '' })).rejects.toMatchObject({
+      status,
+      kind,
+      message: detail,
+    })
   })
 })

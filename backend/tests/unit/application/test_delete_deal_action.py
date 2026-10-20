@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import pytest
+from app.domain.deal_action.next_action_status import NextActionStatus
 
 from app.application.ports.deal_repository import NextActionSummary
 from app.domain.deal_action.errors import (
@@ -50,7 +51,9 @@ async def test_delete_action_by_owner_logs_history_and_next_action_falls_back(
     await action_env.delete.execute(latest.id, KIM)
 
     detail = await action_env.env.get.execute(action_env.code)
-    assert detail.item.next_action == NextActionSummary("먼저 할 일", date(2026, 3, 1))
+    assert detail.item.next_action == NextActionSummary(
+        "먼저 할 일", date(2026, 3, 1), NextActionStatus.OPEN
+    )
 
 
 async def test_deleting_the_only_action_leaves_the_deal_without_a_next_action(

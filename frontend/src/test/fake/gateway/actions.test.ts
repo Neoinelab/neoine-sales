@@ -21,9 +21,9 @@ describe('actions.create', () => {
   it('필수 누락은 위에서부터 첫 오류 문구로 422', async () => {
     const { gateway } = await mockAs('kim')
     const code = dealCode(2)
-    await expectApiError(gateway.actions.create(code, input({ progress: ' ', nextAction: '', dueDate: '' })), 422, '진행사항을 입력하세요.')
-    await expectApiError(gateway.actions.create(code, input({ nextAction: '' })), 422, 'Next Action을 입력하세요.')
+    await expectApiError(gateway.actions.create(code, input({ progress: ' ', nextAction: '', dueDate: '' })), 422, '진행사항 또는 Next Action을 입력하세요.')
     await expectApiError(gateway.actions.create(code, input({ dueDate: '' })), 422, 'Due Date를 입력하세요.')
+    await expectApiError(gateway.actions.create(code, input({ nextAction: '', dueDate: '2026-10-22' })), 422, 'Next Action 없이 Due Date를 입력할 수 없습니다.')
     await expectApiError(gateway.actions.create('20000101-ZZZZ', input()), 404)
   })
 
@@ -45,7 +45,7 @@ describe('actions.create', () => {
     const base = (await gateway.history.list(code, {})).length
     await gateway.actions.create(code, input({ nextAction: '새 Next Action', dueDate: '2026-10-30' }))
     const row = (await gateway.deals.list({ keyword: code })).items[0]
-    expect(row).toMatchObject({ nextAction: { text: '새 Next Action', dueDate: '2026-10-30' }, lastUpdatedAt: TEST_NOW, risk: null })
+    expect(row).toMatchObject({ nextAction: { text: '새 Next Action', dueDate: '2026-10-30', status: 'open' }, lastUpdatedAt: TEST_NOW, risk: null })
     const history = await gateway.history.list(code, {})
     expect(history).toHaveLength(base + 1)
     expect(history[0]).toMatchObject({ category: 'action', by: { id: 'u-kim' }, at: TEST_NOW })
@@ -131,7 +131,7 @@ describe('actions.update / remove', () => {
     const history = await gateway.history.list(code, {})
     expect(history).toHaveLength(base + 1)
     expect(history[0]).toMatchObject({ category: 'action', by: { id: 'u-kim' } })
-    await expectApiError(gateway.actions.update(old.id, { type: { name: '기타' }, progress: '', nextAction: 'x', dueDate: '2026-11-01', memo: '' }), 422, '진행사항을 입력하세요.')
+    await expectApiError(gateway.actions.update(old.id, { type: { name: '기타' }, progress: '', nextAction: '', dueDate: '', memo: '' }), 422, '진행사항 또는 Next Action을 입력하세요.')
     await expectApiError(gateway.actions.update('act-none', { type: { name: '기타' }, progress: 'x', nextAction: 'x', dueDate: '2026-11-01', memo: '' }), 404)
   })
 

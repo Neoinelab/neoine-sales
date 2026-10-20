@@ -9,14 +9,16 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from tests.functional.steps.actions import (
-    SUMMARY_WITH_MEMO,
-    action_body,
+from tests.functional.steps.action_checks import (
     same_instant,
     then_acted_at_is_the_server_time,
     then_body_has,
     then_deal_has_no_actions,
     then_detail_is,
+)
+from tests.functional.steps.actions import (
+    SUMMARY_WITH_MEMO,
+    action_body,
     when_get_action,
     when_register_action_with_body,
     when_update_action,

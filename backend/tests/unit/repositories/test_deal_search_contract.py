@@ -45,7 +45,7 @@ class TestDefaultOrderAndPaging:
 
         assert await _codes(deal_case) == list(reversed(codes))
 
-    async def test_the_order_follows_updated_at_not_the_insertion_order(
+    async def test_the_order_follows_created_at_not_the_insertion_order(
         self, deal_case: DealCase
     ) -> None:
         await deal_case.add(make_deal(later(5), code=_code(1)))
@@ -53,11 +53,12 @@ class TestDefaultOrderAndPaging:
 
         assert await _codes(deal_case) == [_code(1), _code(2)]
 
-    async def test_touching_a_deal_moves_it_to_the_top(self, deal_case: DealCase) -> None:
+    async def test_touching_a_deal_does_not_move_it(self, deal_case: DealCase) -> None:
         codes = await _add_numbered(deal_case, 3)
+        before = await _codes(deal_case)
         await deal_case.deals.touch([make_deal(code=codes[0]).id], later(100))
 
-        assert await _codes(deal_case) == [codes[0], codes[2], codes[1]]
+        assert await _codes(deal_case) == before  # 최종 업데이트는 Action 기준(E4)
 
     async def test_equal_times_are_ordered_by_code_ascending_without_gaps_across_pages(
         self, deal_case: DealCase

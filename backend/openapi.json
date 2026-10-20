@@ -1231,6 +1231,7 @@
         "description": "`status_change`(단건)와 `status_changes`(최대 2건, 필드 중복 불가)는 함께 쓸 수 없다.",
         "properties": {
           "action": {
+            "default": "",
             "title": "Action",
             "type": "string"
           },
@@ -1255,6 +1256,7 @@
             "type": "string"
           },
           "next_action": {
+            "default": "",
             "title": "Next Action",
             "type": "string"
           },
@@ -1287,9 +1289,7 @@
           }
         },
         "required": [
-          "action_type",
-          "action",
-          "next_action"
+          "action_type"
         ],
         "title": "DealActionCreateRequest",
         "type": "object"
@@ -1319,8 +1319,15 @@
             "type": "string"
           },
           "action": {
-            "title": "Action",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Action"
           },
           "action_type": {
             "$ref": "#/components/schemas/NamedRefResponse"
@@ -1338,9 +1345,16 @@
             "type": "string"
           },
           "due_date": {
-            "format": "date",
-            "title": "Due Date",
-            "type": "string"
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Due Date"
           },
           "forecast_key": {
             "title": "Forecast Key",
@@ -1355,8 +1369,37 @@
             "type": "string"
           },
           "next_action": {
-            "title": "Next Action",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Action"
+          },
+          "next_action_closed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Action Closed At"
+          },
+          "next_action_status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/NextActionStatus"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "status_key": {
             "title": "Status Key",
@@ -1377,6 +1420,8 @@
           "action",
           "next_action",
           "due_date",
+          "next_action_status",
+          "next_action_closed_at",
           "memo",
           "acted_at",
           "actor",
@@ -1399,6 +1444,7 @@
         "additionalProperties": false,
         "properties": {
           "action": {
+            "default": "",
             "title": "Action",
             "type": "string"
           },
@@ -1423,14 +1469,13 @@
             "type": "string"
           },
           "next_action": {
+            "default": "",
             "title": "Next Action",
             "type": "string"
           }
         },
         "required": [
-          "action_type",
-          "action",
-          "next_action"
+          "action_type"
         ],
         "title": "DealActionUpdateRequest",
         "type": "object"
@@ -1653,6 +1698,7 @@
             "type": "string"
           },
           "last_updated_at": {
+            "description": "모든 Action 중 가장 최근 수행 시각. Action이 없으면 Deal 등록 시각. Deal 수정은 반영하지 않는다.",
             "format": "date-time",
             "title": "Last Updated At",
             "type": "string"
@@ -2012,6 +2058,7 @@
             "type": "string"
           },
           "last_updated_at": {
+            "description": "모든 Action 중 가장 최근 수행 시각. Action이 없으면 Deal 등록 시각. Deal 수정은 반영하지 않는다.",
             "format": "date-time",
             "title": "Last Updated At",
             "type": "string"
@@ -2710,6 +2757,9 @@
             "title": "Due Date",
             "type": "string"
           },
+          "status": {
+            "$ref": "#/components/schemas/NextActionStatus"
+          },
           "text": {
             "title": "Text",
             "type": "string"
@@ -2717,9 +2767,49 @@
         },
         "required": [
           "text",
-          "due_date"
+          "due_date",
+          "status"
         ],
         "title": "NextActionResponse",
+        "type": "object"
+      },
+      "NextActionStatus": {
+        "enum": [
+          "open",
+          "done",
+          "not_done"
+        ],
+        "title": "NextActionStatus",
+        "type": "string"
+      },
+      "NextActionStatusFilter": {
+        "description": "Next Action 상태 필터. closed는 종료(수행)와 종료(미수행) 모두.",
+        "enum": [
+          "open",
+          "done",
+          "not_done",
+          "closed"
+        ],
+        "title": "NextActionStatusFilter",
+        "type": "string"
+      },
+      "NextActionStatusRequest": {
+        "additionalProperties": false,
+        "description": "Next Action 상태 변경. memo는 종료할 때 Memo에 덧붙일 내용(open과는 함께 불가).",
+        "properties": {
+          "memo": {
+            "default": "",
+            "title": "Memo",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/NextActionStatus"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "NextActionStatusRequest",
         "type": "object"
       },
       "OnExists": {
@@ -5932,6 +6022,99 @@
         ]
       }
     },
+    "/api/v1/deal-actions/{action_id}/next-action-status": {
+      "put": {
+        "operationId": "change_next_action_status_api_v1_deal_actions__action_id__next_action_status_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "action_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Action Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NextActionStatusRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DealActionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          }
+        },
+        "summary": "Change Next Action Status",
+        "tags": [
+          "deal-actions"
+        ]
+      }
+    },
     "/api/v1/deals": {
       "get": {
         "operationId": "list_deals_api_v1_deals_get",
@@ -6184,6 +6367,22 @@
                 }
               ],
               "title": "Bant Timeline"
+            }
+          },
+          {
+            "in": "query",
+            "name": "next_action_status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/NextActionStatusFilter"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Next Action Status"
             }
           },
           {
@@ -6699,6 +6898,22 @@
                 }
               ],
               "title": "Due To"
+            }
+          },
+          {
+            "in": "query",
+            "name": "next_action_status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/NextActionStatusFilter"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Next Action Status"
             }
           },
           {

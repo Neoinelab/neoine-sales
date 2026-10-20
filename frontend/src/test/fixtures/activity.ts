@@ -121,6 +121,8 @@ export function seedActivity(
         progress: draft.progress,
         nextAction: draft.nextAction,
         dueDate: i === 0 ? env.date(spec.due) : addDays(actedAt.slice(0, 10), 7),
+        nextActionStatus: 'open',
+        nextActionClosedAt: null,
         memo: i % 3 === 0 ? `${spec.vendor} ${spec.solution} 관련 메모` : '',
         statusKey: draft.statusKey,
         forecastKey: draft.forecastKey,

@@ -26,6 +26,7 @@ ACTION_USE_CASES = (
     "list_deal_actions",
     "update_deal_action",
     "delete_deal_action",
+    "change_next_action_status",
 )
 
 
@@ -69,3 +70,12 @@ def test_the_web_port_exposes_the_action_use_cases_and_not_the_global_search() -
         assert not hasattr(UseCaseProvider, retired), retired
         assert not hasattr(FakeUseCases, retired), retired
         assert not hasattr(Container, retired), retired
+
+
+def test_the_queries_carry_an_optional_next_action_status_filter() -> None:
+    from app.application.ports.deal_repository import DealQuery  # noqa: PLC0415
+
+    for query_type in (DealActionQuery, DealQuery):
+        names = {f.name for f in fields(query_type)}
+        assert "next_action_status" in names, query_type
+    assert DealQuery().next_action_status is None

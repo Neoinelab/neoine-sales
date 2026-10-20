@@ -1,9 +1,10 @@
-"""DealAction 엔티티(AC-01·09·10·11·12): 스냅숏·수행 정보는 불변, 내용만 고치고, 담당자 확인."""
+"""DealAction 엔티티(AC-5·7·14): 스냅숏·수행 정보는 불변, 내용만 고침, 담당자 확인, 상태."""
 
 from datetime import date
 from uuid import uuid4
 
 import pytest
+from app.domain.deal_action.next_action_status import NextActionState, NextActionStatus
 
 from app.domain.auth.errors import AccessDeniedError
 from app.domain.auth.principal import Role
@@ -13,6 +14,7 @@ from app.domain.deal_action.errors import (
     DealActionDeleteForbiddenError,
     DealActionEditForbiddenError,
     DealActionNotFoundError,
+    DealActionStatusForbiddenError,
 )
 from app.domain.deal_action.value_objects import DealActionId
 from tests.factories import (
@@ -29,6 +31,7 @@ from tests.support.user_ids import ACTOR_ID, uid
 
 EDIT_FORBIDDEN = "본인 Action 또는 admin만 수정할 수 있습니다."
 DELETE_FORBIDDEN = "본인 Action 또는 admin만 삭제할 수 있습니다."
+STATUS_FORBIDDEN = "본인 Action 또는 admin만 Next Action 상태를 바꿀 수 있습니다."
 
 
 class TestRecord:
@@ -187,3 +190,106 @@ class TestOwnerCheck:
     def test_the_forbidden_errors_are_access_denied_errors(self) -> None:
         assert issubclass(DealActionEditForbiddenError, AccessDeniedError)
         assert issubclass(DealActionDeleteForbiddenError, AccessDeniedError)
+
+
+class TestNextActionStateOnRecord:
+    def test_record_with_next_action_starts_open(self) -> None:
+        action = make_deal_action()
+
+        assert action.next_action_state == NextActionState.open()
+        assert action.next_action_state is not None
+        assert action.next_action_state.status is NextActionStatus.OPEN
+        assert action.next_action_state.closed_at is None
+
+    def test_record_progress_only_has_no_state(self) -> None:
+        action = make_deal_action(next_action="", due_date=None)
+
+        assert action.next_action_state is None
+
+    def test_record_next_only_starts_open(self) -> None:
+        action = make_deal_action(action="")
+
+        assert action.content.action is None
+        assert action.next_action_state == NextActionState.open()
+
+
+class TestReviseNextActionState:
+    def test_revise_removing_next_action_clears_state(self) -> None:
+        action = make_deal_action()
+
+        changed = action.revise(make_action_content(next_action="", due_date=None), later(30))
+
+        assert changed is True
+        assert action.next_action_state is None
+        assert action.updated_at == later(30)
+
+    def test_revise_removing_next_action_of_a_closed_one_clears_state_and_time(self) -> None:
+        action = make_deal_action()
+        action.change_next_action_status(NextActionStatus.DONE, "", later(10))
+
+        action.revise(make_action_content(next_action="", due_date=None), later(30))
+
+        assert action.next_action_state is None
+
+    def test_revise_adding_next_action_opens(self) -> None:
+        action = make_deal_action(next_action="", due_date=None)
+
+        changed = action.revise(make_action_content(), later(30))
+
+        assert changed is True
+        assert action.next_action_state == NextActionState.open()
+
+    def test_revise_changing_closed_next_action_keeps_status(self) -> None:
+        action = make_deal_action()
+        action.change_next_action_status(NextActionStatus.NOT_DONE, "", later(10))
+        closed = action.next_action_state
+
+        action.revise(
+            make_action_content(next_action="다른 계획", due_date=date(2026, 3, 1)), later(30)
+        )
+
+        assert action.next_action_state == closed
+        assert closed is not None
+        assert closed.status is NextActionStatus.NOT_DONE
+        assert closed.closed_at == later(10)
+
+    def test_revise_progress_only_keeps_a_closed_status(self) -> None:
+        action = make_deal_action()
+        action.change_next_action_status(NextActionStatus.DONE, "", later(10))
+        closed = action.next_action_state
+
+        action.revise(make_action_content(action="진행 수정"), later(30))
+
+        assert action.next_action_state == closed
+
+    def test_revise_with_same_content_keeps_the_state_and_updated_at(self) -> None:
+        action = make_deal_action()
+        action.change_next_action_status(NextActionStatus.DONE, "", later(10))
+        touched = action.updated_at
+
+        assert action.revise(make_action_content(memo="요구사항 정리\n"), later(30)) is False
+
+        assert action.updated_at == touched
+
+
+class TestStatusOwnerCheck:
+    def test_the_owner_sales_and_admin_may_change_the_status(self) -> None:
+        action = make_deal_action(actor_user_id=uid("kim"))
+
+        action.ensure_status_changeable_by(uid("kim"), Role.SALES)
+        action.ensure_status_changeable_by(uid("boss"), Role.ADMIN)
+
+    def test_other_sales_is_refused_with_the_status_message(self) -> None:
+        action = make_deal_action(actor_user_id=uid("kim"))
+
+        with raises_with(DealActionStatusForbiddenError, STATUS_FORBIDDEN):
+            action.ensure_status_changeable_by(uid("park"), Role.SALES)
+
+    def test_a_read_only_user_is_refused_even_for_the_same_id(self) -> None:
+        action = make_deal_action(actor_user_id=uid("viewer"))
+
+        with pytest.raises(DealActionStatusForbiddenError):
+            action.ensure_status_changeable_by(uid("viewer"), Role.USER)
+
+    def test_the_status_forbidden_error_is_an_access_denied_error(self) -> None:
+        assert issubclass(DealActionStatusForbiddenError, AccessDeniedError)

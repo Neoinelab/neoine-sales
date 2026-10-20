@@ -104,15 +104,17 @@ async def test_the_text_columns_are_unbounded_text(session: AsyncSession) -> Non
     for name in ("action", "next_action", "memo"):
         assert columns[name].data_type == "text", name
         assert columns[name].character_maximum_length is None, name
-        assert columns[name].is_nullable == "NO", name
+    assert columns["memo"].is_nullable == "NO"
+    assert columns["action"].is_nullable == "YES"
+    assert columns["next_action"].is_nullable == "YES"
 
 
-async def test_next_action_and_due_date_are_required(session: AsyncSession) -> None:
+async def test_next_action_and_due_date_are_optional_columns(session: AsyncSession) -> None:
     rows = (await session.execute(text(COLUMN_INFO))).all()
     columns = {r.column_name: r for r in rows}
 
-    assert columns["next_action"].is_nullable == "NO"
-    assert columns["due_date"].is_nullable == "NO"
+    assert columns["next_action"].is_nullable == "YES"
+    assert columns["due_date"].is_nullable == "YES"
     assert columns["due_date"].data_type == "date"
 
 
@@ -137,10 +139,11 @@ async def test_very_long_texts_are_stored_without_truncation(session: AsyncSessi
 
 
 @pytest.mark.parametrize("column", ["next_action", "due_date"])
-async def test_a_null_plan_field_is_rejected(session: AsyncSession, column: str) -> None:
+async def test_a_half_null_plan_pair_is_rejected(session: AsyncSession, column: str) -> None:
+    """Next Action과 Due Date는 함께 있거나 함께 없어야 한다(상태 NULL도 같이)."""
     deal_code, actor = await _deal_and_actor(session)
 
-    with pytest.raises(IntegrityError, match=column):
+    with pytest.raises(IntegrityError, match="ck_deal_actions_next_action_fields"):
         await _raw_insert(session, deal_code, actor, **{column: None})
 
 

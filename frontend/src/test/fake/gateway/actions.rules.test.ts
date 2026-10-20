@@ -89,9 +89,9 @@ describe('Action 수정 권한 (AC-10, Q8)', () => {
     const { gateway } = await mockAs('kim')
     const target = await firstAction(gateway, dealCode(1))
 
-    await expectApiError(gateway.actions.update(target.id, content({ progress: ' ', nextAction: '', dueDate: '' })), 422, '진행사항을 입력하세요.')
-    await expectApiError(gateway.actions.update(target.id, content({ nextAction: ' ', dueDate: '' })), 422, 'Next Action을 입력하세요.')
+    await expectApiError(gateway.actions.update(target.id, content({ progress: ' ', nextAction: '', dueDate: '' })), 422, '진행사항 또는 Next Action을 입력하세요.')
     await expectApiError(gateway.actions.update(target.id, content({ dueDate: '' })), 422, 'Due Date를 입력하세요.')
+    await expectApiError(gateway.actions.update(target.id, content({ nextAction: ' ', dueDate: '2026-11-01' })), 422, 'Next Action 없이 Due Date를 입력할 수 없습니다.')
   })
 })
 
@@ -178,11 +178,12 @@ describe('Action 내용 규칙 (AC-02, Q6, R-11)', () => {
     expect(updated).toMatchObject({ progress: '진행', nextAction: '다음', memo: '메모' })
   })
 
-  it('treats a whitespace-only progress as missing and checks the deal first (404 before 422)', async () => {
+  it('treats a whitespace-only progress and Next Action as missing and checks the deal first (404 before 422)', async () => {
     const { gateway } = await mockAs('kim')
+    const blank = input({ progress: ' ', nextAction: '  ', dueDate: '' })
 
-    await expectApiError(gateway.actions.create('20000101-ZZZZ', input({ progress: ' ' })), 404)
-    await expectApiError(gateway.actions.create(dealCode(2), input({ progress: '   ' })), 422, '진행사항을 입력하세요.')
+    await expectApiError(gateway.actions.create('20000101-ZZZZ', blank), 404)
+    await expectApiError(gateway.actions.create(dealCode(2), blank), 422, '진행사항 또는 Next Action을 입력하세요.')
   })
 
   it('stores nothing when the validation fails', async () => {
@@ -303,7 +304,7 @@ describe('내용이 바뀌지 않은 수정 (AC-11, Q4)', () => {
 
     const result = await gateway.actions.update(
       target.id,
-      content({ type: { id: target.typeId }, progress: target.progress, nextAction: target.nextAction, dueDate: target.dueDate, memo: target.memo }),
+      content({ type: { id: target.typeId }, progress: target.progress ?? '', nextAction: target.nextAction ?? '', dueDate: target.dueDate ?? '', memo: target.memo }),
     )
 
     expect(result).toEqual(target)
@@ -318,7 +319,7 @@ describe('내용이 바뀌지 않은 수정 (AC-11, Q4)', () => {
 
     await gateway.actions.update(
       target.id,
-      content({ type: { id: target.typeId }, progress: `  ${target.progress}  `, nextAction: target.nextAction, dueDate: target.dueDate, memo: target.memo }),
+      content({ type: { id: target.typeId }, progress: `  ${target.progress ?? ''}  `, nextAction: target.nextAction ?? '', dueDate: target.dueDate ?? '', memo: target.memo }),
     )
 
     expect(await gateway.history.list(code, {})).toEqual(historyBefore)
@@ -332,7 +333,7 @@ describe('내용이 바뀌지 않은 수정 (AC-11, Q4)', () => {
 
     await gateway.actions.update(
       target.id,
-      content({ type: { id: target.typeId }, progress: target.progress, nextAction: target.nextAction, dueDate: target.dueDate, memo: `${target.memo}!` }),
+      content({ type: { id: target.typeId }, progress: target.progress ?? '', nextAction: target.nextAction ?? '', dueDate: target.dueDate ?? '', memo: `${target.memo}!` }),
     )
 
     expect(await gateway.history.list(code, {})).toHaveLength(base + 1)

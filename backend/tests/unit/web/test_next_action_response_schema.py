@@ -6,6 +6,7 @@ from typing import Any
 import pytest
 from pydantic import ValidationError
 
+from app.domain.deal_action.next_action_status import NextActionStatus
 from app.main import create_app
 from app.web.schemas.deal_response import NextActionResponse
 from tests.fakes.use_cases import FakeUseCases
@@ -21,19 +22,25 @@ def _is_nullable(prop: dict[str, Any]) -> bool:
 
 
 def test_response_with_a_date_serializes_it() -> None:
-    response = NextActionResponse(text="계약서 검토", due_date=date(2026, 2, 5))
+    response = NextActionResponse(
+        text="계약서 검토", due_date=date(2026, 2, 5), status=NextActionStatus.DONE
+    )
 
-    assert response.model_dump(mode="json") == {"text": "계약서 검토", "due_date": "2026-02-05"}
+    assert response.model_dump(mode="json") == {
+        "text": "계약서 검토",
+        "due_date": "2026-02-05",
+        "status": "done",
+    }
 
 
 def test_response_rejects_a_null_due_date() -> None:
     with pytest.raises(ValidationError):
-        NextActionResponse(text="계약서 검토", due_date=None)
+        NextActionResponse(text="계약서 검토", due_date=None, status="open")
 
 
 def test_response_rejects_a_missing_due_date() -> None:
     with pytest.raises(ValidationError):
-        NextActionResponse.model_validate({"text": "계약서 검토"})
+        NextActionResponse.model_validate({"text": "계약서 검토", "status": "open"})
 
 
 def test_openapi_marks_due_date_required_and_not_nullable() -> None:
@@ -42,3 +49,18 @@ def test_openapi_marks_due_date_required_and_not_nullable() -> None:
 
     assert "due_date" in schema["required"]
     assert not _is_nullable(schema["properties"]["due_date"])
+
+
+def test_response_requires_a_status_from_the_three_values() -> None:
+    with pytest.raises(ValidationError):
+        NextActionResponse.model_validate({"text": "a", "due_date": "2026-02-05"})
+    with pytest.raises(ValidationError):
+        NextActionResponse.model_validate({"text": "a", "due_date": "2026-02-05", "status": "x"})
+
+
+def test_openapi_marks_status_required_with_the_three_values() -> None:
+    app = create_app(settings=make_settings(UNUSED_DATABASE_URL), use_cases=FakeUseCases())
+    schemas = app.openapi()["components"]["schemas"]
+
+    assert "status" in schemas["NextActionResponse"]["required"]
+    assert schemas["NextActionStatus"]["enum"] == ["open", "done", "not_done"]

@@ -1,9 +1,10 @@
 import { formatDateTime } from '../../../shared/format'
 import { canEditAction, type Viewer } from '../../../shared/model/permissions'
 import { userLabel } from '../../../shared/model/period'
-import type { DealAction, DealDetail } from '../../../shared/model/types'
+import type { DealAction, DealDetail, NextActionStatus } from '../../../shared/model/types'
 import { ForecastBadge, StatusBadge } from '../../../shared/ui/Badges'
 import { RiskBadge } from '../../../shared/ui/RiskBadge'
+import { NextActionStatusCell } from './NextActionStatusCell'
 import './detail.css'
 
 interface ActionTableProps {
@@ -13,11 +14,14 @@ interface ActionTableProps {
   me: Viewer | null
   onEdit: (action: DealAction) => void
   onDelete: (action: DealAction) => void
+  /** 없으면 상태 변경 버튼을 보이지 않는다. */
+  onChangeStatus?: (action: DealAction, status: NextActionStatus) => void
+  statusBusy?: boolean
 }
 
 /**
- * 현재 Next Action(= Deal의 가장 최근 Action) 행인지. 기한초과 여부는 서버가 계산한 deal.risk를 따른다.
- * 이미 다음 Action으로 넘어간 지난 Action의 Due는 표시만 한다.
+ * 현재 Next Action(= Next Action이 있는 가장 최근 Action) 행인지. 기한초과 여부는 서버가 계산한 deal.risk를 따른다.
+ * 그 뒤에 Next Action이 있는 Action이 더 생겼다면 지난 Action의 Due는 표시만 한다.
  */
 function isCurrentOverdue(action: DealAction, deal: DealDetail): boolean {
   const current = deal.nextAction
@@ -25,8 +29,10 @@ function isCurrentOverdue(action: DealAction, deal: DealDetail): boolean {
   return current !== null && current.text === action.nextAction && current.dueDate === action.dueDate
 }
 
-/** Actions 목록 표: 수행일시 / 담당자 / 등록 시점 Status·Forecast / 유형 / 진행사항 / Next Action / Due / Memo / 관리. */
-export function ActionTable({ actions, deal, canEdit, me, onEdit, onDelete }: ActionTableProps) {
+const noop = () => undefined
+
+/** Actions 목록 표: 수행일시 / 담당자 / 등록 시점 Status·Forecast / 유형 / 진행사항 / Next Action / Due / 상태 / Memo / 관리. */
+export function ActionTable({ actions, deal, canEdit, me, onEdit, onDelete, onChangeStatus, statusBusy = false }: ActionTableProps) {
   const own = (a: DealAction) => me !== null && canEditAction(me, a.actor.id)
   return (
     <div className="dd-scroll">
@@ -40,6 +46,7 @@ export function ActionTable({ actions, deal, canEdit, me, onEdit, onDelete }: Ac
             <th>진행사항</th>
             <th>Next Action</th>
             <th>Due Date</th>
+            <th>상태</th>
             <th>Memo</th>
             {canEdit && <th>관리</th>}
           </tr>
@@ -56,13 +63,18 @@ export function ActionTable({ actions, deal, canEdit, me, onEdit, onDelete }: Ac
                 </span>
               </td>
               <td>{a.type}</td>
-              <td className="wrap">{a.progress}</td>
-              <td className="wrap">{a.nextAction}</td>
+              <td className="wrap">{a.progress ?? '—'}</td>
+              <td className="wrap" id={`next-action-${a.id}`}>
+                {a.nextAction ?? '—'}
+              </td>
               <td>
                 <span className="dd-row">
-                  <span>{a.dueDate}</span>
+                  <span>{a.dueDate ?? '—'}</span>
                   {isCurrentOverdue(a, deal) && <RiskBadge risk="overdue" />}
                 </span>
+              </td>
+              <td>
+                <NextActionStatusCell action={a} canChange={canEdit && own(a) && onChangeStatus !== undefined} busy={statusBusy} describedBy={`next-action-${a.id}`} onChange={onChangeStatus ?? noop} />
               </td>
               <td className="wrap">{a.memo || '—'}</td>
               {canEdit && (

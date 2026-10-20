@@ -207,10 +207,17 @@ export interface Deal {
   updatedAt: string
 }
 
-/** 가장 최근 Action(수행시각 기준)의 Next Action 요약. */
+/** Next Action 상태: Open / 종료(수행) / 종료(미수행). */
+export type NextActionStatus = 'open' | 'done' | 'notDone'
+
+/** 상태 필터. `closed`는 종료(수행)·종료(미수행) 둘 다. */
+export type NextActionStatusFilter = NextActionStatus | 'closed'
+
+/** Next Action이 있는 가장 최근 Action(수행시각 기준)의 Next Action 요약. */
 export interface NextActionSummary {
   text: string
   dueDate: string
+  status: NextActionStatus
 }
 
 /** 기한초과(due < 오늘) / 미업데이트(마지막 갱신 14일 이상) / 둘 다 / 없음. 종결(Won·Lost) Deal은 항상 null. */
@@ -226,7 +233,7 @@ export interface DealRow extends Omit<Deal, 'vendorId' | 'solutionId'> {
   /** 활성 파트너 연락처(없으면 null). */
   activePartner: Contact | null
   nextAction: NextActionSummary | null
-  /** max(Deal.updatedAt, 최근 Action 수행시각). */
+  /** 모든 Action 중 가장 최근 수행시각. Action이 없으면 Deal 등록 시각(Deal 수정은 반영하지 않는다). */
   lastUpdatedAt: string
   /** 현재 Status 체류 일수(달력 날짜 차, 당일 0). */
   statusDays: number
@@ -259,9 +266,13 @@ export interface DealAction {
   /** 현재 유형 이름(이름이 바뀌면 다음 조회부터 새 이름). */
   type: string
   typeId: string
-  progress: string
-  nextAction: string
-  dueDate: string
+  /** 진행사항·Next Action은 각각 선택(둘 중 하나는 있다). Due Date는 Next Action이 있을 때만 있다. */
+  progress: string | null
+  nextAction: string | null
+  dueDate: string | null
+  /** Next Action이 있는 행만 상태가 있다. */
+  nextActionStatus: NextActionStatus | null
+  nextActionClosedAt: string | null
   memo: string
   statusKey: string
   forecastKey: string

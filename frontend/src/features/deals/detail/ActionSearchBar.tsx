@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { useActionTypes } from '../../../data/actionTypes'
-import type { ActionQuery, ActionSort } from '../../../shared/model/types'
+import { NEXT_ACTION_STATUS_FILTER_OPTIONS, isNextActionStatusFilter } from '../../../shared/model/nextActionStatus'
+import type { ActionQuery, ActionSort, NextActionStatusFilter } from '../../../shared/model/types'
 import { UserSelect } from '../../../shared/ui/UserSelect'
 import './detail.css'
 
@@ -16,10 +17,11 @@ interface Draft {
   actedTo: string
   dueFrom: string
   dueTo: string
+  nextStatus: NextActionStatusFilter | ''
   sort: ActionSort
 }
 
-const EMPTY: Draft = { typeId: '', actorId: '', keyword: '', actedFrom: '', actedTo: '', dueFrom: '', dueTo: '', sort: 'actedDesc' }
+const EMPTY: Draft = { typeId: '', actorId: '', keyword: '', actedFrom: '', actedTo: '', dueFrom: '', dueTo: '', nextStatus: '', sort: 'actedDesc' }
 
 /** 채워진 조건만 질의로 만든다(빈 값은 보내지 않는다). */
 function toActionQuery(draft: Draft): ActionQuery {
@@ -31,10 +33,11 @@ function toActionQuery(draft: Draft): ActionQuery {
   if (draft.actedTo) query.actedTo = draft.actedTo
   if (draft.dueFrom) query.dueFrom = draft.dueFrom
   if (draft.dueTo) query.dueTo = draft.dueTo
+  if (draft.nextStatus) query.nextActionStatus = draft.nextStatus
   return query
 }
 
-/** Actions 검색: 유형 / 담당자 / 키워드 / 수행일 / 기한 범위 / 정렬 6조건. */
+/** Actions 검색: 유형 / 담당자 / 키워드 / 수행일 / 기한 범위 / Next Action 상태 / 정렬. */
 export function ActionSearchBar({ onSearch }: ActionSearchBarProps) {
   const types = useActionTypes().data ?? []
   const [draft, setDraft] = useState<Draft>(EMPTY)
@@ -78,6 +81,19 @@ export function ActionSearchBar({ onSearch }: ActionSearchBarProps) {
       <label className="field">
         <span>기한 끝</span>
         <input type="date" value={draft.dueTo} onChange={(e) => set('dueTo', e.target.value)} />
+      </label>
+      <label className="field">
+        <span>Next Action 상태</span>
+        <select
+          value={draft.nextStatus}
+          onChange={(e) => set('nextStatus', isNextActionStatusFilter(e.target.value) ? e.target.value : '')}
+        >
+          {NEXT_ACTION_STATUS_FILTER_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
       </label>
       <label className="field">
         <span>정렬</span>

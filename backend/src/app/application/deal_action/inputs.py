@@ -11,6 +11,7 @@ if TYPE_CHECKING:
     from app.application.choice import CatalogChoice
     from app.domain.action_type.values import ActionTypeRef
     from app.domain.deal.sync import SyncResolution
+    from app.domain.deal_action.next_action_status import NextActionStatus
 
 
 @dataclass(frozen=True, slots=True)
@@ -31,6 +32,14 @@ class ActionContentInput:
             due_date=self.due_date,
             memo=self.memo,
         )
+
+
+@dataclass(frozen=True, slots=True)
+class NextActionStatusInput:
+    """Next Action 상태 변경 입력. memo는 종료할 때 Memo에 덧붙일 내용이다(선택)."""
+
+    status: NextActionStatus
+    memo: str = ""
 
 
 @dataclass(frozen=True, slots=True)

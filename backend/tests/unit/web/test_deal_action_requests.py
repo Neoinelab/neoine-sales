@@ -1,7 +1,7 @@
 """Action 요청 스키마(AC-01·02·05·10·15·16, 계획 7장): 길이 제약 없음, 서버가 채우는 값은 거부."""
 
 from datetime import date
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Literal
 from uuid import uuid4
 
 import pytest
@@ -13,16 +13,11 @@ from app.application.deal_action.inputs import (
     DealActionInput,
     StatusChangeInput,
 )
-from app.application.ports.deal_action_repository import DealActionQuery, DealActionSort
-from app.domain.deal.errors import DealNotFoundError
 from app.domain.deal.sync import SyncResolution
 from app.web.schemas.deal_action import (
     DealActionCreateRequest,
-    DealActionSearchParams,
     DealActionUpdateRequest,
 )
-from tests.factories import make_deal_code
-from tests.support.user_ids import uid
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -90,12 +85,39 @@ def test_server_filled_and_retired_fields_are_rejected(
         model(**{**BODY, **extra})
 
 
-@pytest.mark.parametrize("missing", ["action_type", "action", "next_action"])
-def test_the_text_fields_and_type_are_required_in_the_body(missing: str) -> None:
-    body = {key: value for key, value in BODY.items() if key != missing}
+def test_only_the_type_is_required_in_the_body() -> None:
+    body = {key: value for key, value in BODY.items() if key != "action_type"}
 
     with pytest.raises(ValidationError):
         DealActionUpdateRequest(**body)
+
+
+@pytest.mark.parametrize("model", [DealActionCreateRequest, DealActionUpdateRequest])
+def test_progress_only_body_is_accepted_and_next_action_defaults_to_empty(
+    model: type[DealActionCreateRequest],
+) -> None:
+    body = {"action_type": {"name": "미팅"}, "action": "통화만"}
+
+    data = model(**body).to_input()
+    content = data.content if isinstance(data, DealActionInput) else data
+
+    assert content.action == "통화만"
+    assert content.next_action == ""
+    assert content.due_date is None
+
+
+@pytest.mark.parametrize("model", [DealActionCreateRequest, DealActionUpdateRequest])
+def test_next_only_body_is_accepted_and_progress_defaults_to_empty(
+    model: type[DealActionCreateRequest],
+) -> None:
+    body = {"action_type": {"name": "미팅"}, "next_action": "견적", "due_date": "2026-03-10"}
+
+    data = model(**body).to_input()
+    content = data.content if isinstance(data, DealActionInput) else data
+
+    assert content.action == ""
+    assert content.next_action == "견적"
+    assert content.due_date == date(2026, 3, 10)
 
 
 def test_a_missing_or_null_due_date_reaches_the_domain_as_none() -> None:
@@ -209,71 +231,3 @@ def test_a_status_change_to_a_non_sync_field_is_rejected(field: str) -> None:
 def test_the_update_request_has_no_status_change() -> None:
     with pytest.raises(ValidationError):
         _update(status_change={"change": {"field": "status_key", "value": "best"}})
-
-
-def test_search_params_default_to_everything_sorted_latest_first() -> None:
-    query = DealActionSearchParams().to_query("20261016-A001")
-
-    assert query == DealActionQuery(deal_code=make_deal_code("A001"))
-    assert query.sort is DealActionSort.ACTED_AT_DESC
-
-
-def test_search_params_map_every_condition() -> None:
-    email_id = uuid4()
-    params = DealActionSearchParams(
-        action_type_id=email_id,
-        actor_user_id=uid("kim"),
-        keyword=" 견적 ",
-        acted_from="2026-10-01",
-        acted_to="2026-10-31",
-        due_from="2026-11-01",
-        due_to="2026-11-30",
-        sort="due_date_asc",
-    )
-
-    query = params.to_query("20261016-A001")
-
-    assert query.deal_code == make_deal_code("A001")
-    assert query.action_type_id == email_id
-    assert query.actor_user_id == uid("kim")
-    assert query.keyword == "견적"
-    assert (query.acted_from, query.acted_to) == (date(2026, 10, 1), date(2026, 10, 31))
-    assert (query.due_from, query.due_to) == (date(2026, 11, 1), date(2026, 11, 30))
-    assert query.sort is DealActionSort.DUE_DATE_ASC
-
-
-@pytest.mark.parametrize("sort", ["acted_at_desc", "acted_at_asc", "due_date_asc"])
-def test_the_three_sorts_are_accepted(sort: str) -> None:
-    assert DealActionSearchParams(sort=sort).sort.value == sort
-
-
-@pytest.mark.parametrize("sort", ["due_date_desc", "created_asc", "DUE_DATE_ASC", ""])
-def test_any_other_sort_is_rejected(sort: str) -> None:
-    with pytest.raises(ValidationError):
-        DealActionSearchParams(sort=sort)
-
-
-@pytest.mark.parametrize(
-    "params",
-    [
-        {"offset": 0},
-        {"limit": 10},
-        {"deal_code": "20261016-A001"},
-        {"actor": "박영업"},
-        {"unknown": "x"},
-        {"actor_user_id": "not-a-uuid"},
-        {"action_type": "meeting"},  # 구 파라미터(enum 값)는 모르는 파라미터다
-        {"action_type_id": "not-a-uuid"},
-        {"acted_from": "soon"},
-        {"due_to": "2026-13-40"},
-        {"keyword": "가" * 101},
-    ],
-)
-def test_invalid_or_retired_search_params_are_rejected(params: dict[str, Any]) -> None:
-    with pytest.raises(ValidationError):
-        DealActionSearchParams(**params)
-
-
-def test_a_malformed_deal_code_in_the_path_is_a_not_found() -> None:
-    with pytest.raises(DealNotFoundError):
-        DealActionSearchParams().to_query("not-a-code")

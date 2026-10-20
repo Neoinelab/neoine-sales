@@ -6,10 +6,8 @@ Given은 공개 API로 사전 상태를 만든다. 수행 시각은 요청 본�
 When은 HTTP API 하나, Then은 응답과 다시 조회한 결과만 본다.
 """
 
-from datetime import datetime
 from typing import TYPE_CHECKING, Any, Final
 
-from tests.functional.steps.common import then_status_is
 from tests.functional.steps.deals import DEALS, given_clock_at, given_deal, given_sales_owner
 from tests.functional.steps.users import (
     Session,
@@ -18,9 +16,10 @@ from tests.functional.steps.users import (
     log_in,
     when_request_as,
 )
-from tests.support.functional_clock import active_clock
 
 if TYPE_CHECKING:
+    from datetime import datetime
+
     from httpx import Response
 
     from tests.functional.conftest import Api
@@ -28,9 +27,9 @@ if TYPE_CHECKING:
 ACTIONS: Final = "/api/v1/deal-actions"
 GAP_SECONDS: Final = 60  # 동작 사이에 시계를 전진시켜 수행 시각을 구분한다
 
-PROGRESS_REQUIRED: Final = "진행사항을 입력하세요."
-NEXT_ACTION_REQUIRED: Final = "Next Action을 입력하세요."
+ACTION_OR_NEXT_REQUIRED: Final = "진행사항 또는 Next Action을 입력하세요."
 DUE_DATE_REQUIRED: Final = "Due Date를 입력하세요."
+DUE_WITHOUT_NEXT: Final = "Next Action 없이 Due Date를 입력할 수 없습니다."
 EDIT_FORBIDDEN: Final = "본인 Action 또는 admin만 수정할 수 있습니다."
 DELETE_FORBIDDEN: Final = "본인 Action 또는 admin만 삭제할 수 있습니다."
 READ_ONLY: Final = "이 작업을 할 권한이 없습니다(읽기 전용 계정)"
@@ -46,6 +45,8 @@ ACTION_KEYS: Final = {
     "action",
     "next_action",
     "due_date",
+    "next_action_status",
+    "next_action_closed_at",
     "memo",
     "acted_at",
     "actor",
@@ -63,6 +64,8 @@ def actions_url(code: str) -> str:
 def action_body(**overrides: object) -> dict[str, Any]:
     """Action 등록·수정 본문(수행 시각·담당자는 서버가 정하므로 없다). None인 값은 null로 보낸다.
 
+    Next Action이 비어 있으면 Due Date는 기본으로 null이다(Due만 보내려면 `due_date=`를 준다).
+
     action_type은 선택 객체다. 기본은 `{"name": "미팅"}`이고, 문자열을 주면 그 이름 객체로, dict를
     주면(`{"id": ...}` 등) 그대로 보낸다. 잘못된 형식은 `when_*_with_body`로 직접 보낸다.
     """
@@ -74,6 +77,8 @@ def action_body(**overrides: object) -> dict[str, Any]:
         "memo": "요구사항 정리",
     }
     body = {**values, **overrides}
+    if "due_date" not in overrides and not str(body["next_action"] or "").strip():
+        body["due_date"] = None  # Next Action이 없으면 Due Date도 보내지 않는다
     if isinstance(body["action_type"], str):
         body["action_type"] = {"name": body["action_type"]}
     return body
@@ -229,71 +234,3 @@ async def when_list_actions(api: Api, code: str, **params: str | int) -> Respons
 async def when_search_all_actions(api: Api, **params: str | int) -> Response:
     """폐지된 전역 검색 경로."""
     return await api.get(ACTIONS, params=dict(params))
-
-
-# --- Then (관찰 가능한 결과) ---
-
-
-def names_of(response: Response) -> list[str]:
-    """목록 응답 항목의 진행사항(action)."""
-    return [str(item["action"]) for item in response.json()["items"]]
-
-
-def then_action_names_are(response: Response, expected: list[str]) -> None:
-    then_status_is(response, 200)
-    assert names_of(response) == expected, response.json()
-
-
-def then_action_type_is(response: Response, name: str) -> None:
-    """응답의 action_type이 `{id, name}`이고 이름이 name이다."""
-    action_type = response.json()["action_type"]
-    assert set(action_type) == {"id", "name"}, action_type
-    assert action_type["name"] == name, action_type
-
-
-def then_action_has_the_documented_keys(response: Response) -> None:
-    assert set(response.json()) == ACTION_KEYS, response.json()
-
-
-def then_acted_at_is_the_server_time(response: Response) -> None:
-    """수행 일시가 요청 시점의 서버 시계 값이다(본문으로 정할 수 없다)."""
-    assert datetime.fromisoformat(response.json()["acted_at"]) == active_clock().now()
-
-
-def same_instant(left: object, right: object) -> bool:
-    """두 ISO 시각 문자열이 같은 순간이다(엔드포인트마다 시간대 표기가 다를 수 있다)."""
-    return datetime.fromisoformat(str(left)) == datetime.fromisoformat(str(right))
-
-
-def then_detail_is(response: Response, detail: str) -> None:
-    assert response.json()["detail"] == detail, response.json()
-
-
-def then_body_has(response: Response, **fields: object) -> None:
-    body = response.json()
-    assert {key: body.get(key) for key in fields} == fields, body
-
-
-def normalized(body: dict[str, Any]) -> dict[str, Any]:
-    """시각 필드를 순간(datetime)으로 바꿔 시간대 표기 차이를 무시하고 비교할 수 있게 한다."""
-    times = ("acted_at", "created_at", "updated_at")
-    return {
-        key: datetime.fromisoformat(value) if key in times else value for key, value in body.items()
-    }
-
-
-async def then_action_is_unchanged(api: Api, before: dict[str, Any]) -> None:
-    """다시 조회한 Action이 기억해 둔 응답과 같다(시각은 같은 순간이면 같다)."""
-    response = await when_get_action(api, str(before["id"]))
-    then_status_is(response, 200)
-    assert normalized(response.json()) == normalized(before)
-
-
-async def then_action_is_gone(api: Api, action_id: str) -> None:
-    then_status_is(await when_get_action(api, action_id), 404)
-
-
-async def then_deal_has_no_actions(api: Api, code: str) -> None:
-    response = await when_list_actions(api, code)
-    then_status_is(response, 200)
-    assert response.json() == {"items": []}

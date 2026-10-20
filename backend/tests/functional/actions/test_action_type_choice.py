@@ -10,6 +10,11 @@ from uuid import uuid4
 
 import pytest
 
+from tests.functional.steps.action_checks import (
+    then_action_type_is,
+    then_deal_has_no_actions,
+    then_detail_is,
+)
 from tests.functional.steps.action_types import (
     DEFAULT_ORDER,
     REQUIRED_MESSAGE,
@@ -24,9 +29,6 @@ from tests.functional.steps.action_types import (
 from tests.functional.steps.actions import (
     action_body,
     given_action,
-    then_action_type_is,
-    then_deal_has_no_actions,
-    then_detail_is,
     when_register_action,
     when_register_action_with_body,
 )
@@ -141,9 +143,9 @@ async def test_unknown_type_id_is_rejected(api: Api) -> None:
 @pytest.mark.parametrize(
     "overrides",
     [
-        pytest.param({"action": "   "}, id="blank-progress"),
-        pytest.param({"next_action": ""}, id="empty-next-action"),
+        pytest.param({"action": "   ", "next_action": ""}, id="both-blank"),
         pytest.param({"due_date": None}, id="missing-due-date"),
+        pytest.param({"next_action": "", "due_date": "2027-01-15"}, id="due-without-next-action"),
     ],
 )
 async def test_failed_registration_leaves_no_new_type(

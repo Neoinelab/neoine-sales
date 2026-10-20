@@ -1,7 +1,7 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { gateway } from '../gateway'
 import type { ApiError } from '../shared/api/problem'
-import type { ActionInput, ActionQuery, ActionUpdateInput, DealAction } from '../shared/model/types'
+import type { ActionInput, ActionQuery, ActionUpdateInput, DealAction, NextActionStatusInput } from '../shared/model/types'
 import { keys } from './queryKeys'
 import { NO_RETRY, useInvalidate, type Mutation, type Query } from './result'
 
@@ -45,5 +45,14 @@ export function useRemoveAction(): Mutation<{ dealCode: string; actionId: string
   return useMutation<void, ApiError, { dealCode: string; actionId: string }>({
     mutationFn: ({ actionId }) => gateway.actions.remove(actionId),
     onSuccess: (_result, { dealCode }) => invalidate(dealCode),
+  })
+}
+
+/** gateway.actions.changeNextActionStatus(actionId, input). 성공 무효화는 create와 같다(Memo·목록의 Next Action 요약이 바뀐다). */
+export function useChangeNextActionStatus(): Mutation<{ dealCode: string; actionId: string; input: NextActionStatusInput }, DealAction> {
+  const invalidate = useInvalidateAction()
+  return useMutation<DealAction, ApiError, { dealCode: string; actionId: string; input: NextActionStatusInput }>({
+    mutationFn: ({ actionId, input }) => gateway.actions.changeNextActionStatus(actionId, input),
+    onSuccess: (_action, { dealCode }) => invalidate(dealCode),
   })
 }

@@ -4,6 +4,7 @@ import { useSyncedChange } from '../../../shared/sync/useSyncedChange'
 import { useToday } from '../../../data/today'
 import { formatDateTime, formatRelativeTime } from '../../../shared/format'
 import { AMOUNT_LABEL, amountInputError, formatThousandWon, isSameShownAmount, parseAmountInput } from '../../../shared/model/money'
+import { NEXT_ACTION_STATUS_LABEL } from '../../../shared/model/nextActionStatus'
 import type { DealChange, DealDetail } from '../../../shared/model/types'
 import { AmountText } from '../../../shared/ui/AmountText'
 import { ForecastBadge, StatusBadge } from '../../../shared/ui/Badges'
@@ -130,6 +131,7 @@ export function SummaryBar({ deal, canWrite, onNotice }: SummaryBarProps) {
                 <>
                   <span className="kv-static">{deal.nextAction.text}</span>
                   <span className="dd-muted">Due {deal.nextAction.dueDate}</span>
+                  <span className="dd-muted">{NEXT_ACTION_STATUS_LABEL[deal.nextAction.status]}</span>
                 </>
               ) : (
                 <span className="kv-static dd-muted">없음</span>

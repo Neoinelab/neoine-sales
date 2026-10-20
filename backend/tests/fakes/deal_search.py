@@ -4,7 +4,7 @@
   (`%`, `_`, `\\`는 글자 그대로)
 - owner_user_id·vendor_id·solution_id·status_key·forecast_key: 정확 일치, revenue_from/to: 양끝 포함
 - 정렬: 기본 last_updated_at 내림차순, 모든 정렬의 동률은 code 오름차순
-- last_updated_at = max(updated_at, 가장 최근 활동의 acted_at)
+- last_updated_at = 가장 최근 활동의 acted_at(없으면 created_at, Deal 수정은 반영하지 않음)
 
 이 모듈은 Deal·연락처 도메인 객체를 속성으로만 읽는다(새 모델 구현이 없어도 가져올 수 있다).
 - 연/분기: Expected Close가 그 해(분기)에 속함, revenue_from/to와 교집합(Q1=1~3월 … Q4=10~12월)

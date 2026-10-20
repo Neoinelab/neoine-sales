@@ -79,16 +79,19 @@ async def test_a_closed_deal_can_change_its_amount_and_date(env: DealEnv) -> Non
     assert result.view.item.deal.sync.forecast_key == "won"
 
 
-async def test_a_change_moves_the_deal_to_the_top_of_the_list(env: DealEnv) -> None:
+async def test_a_change_does_not_move_the_deal_in_the_list(env: DealEnv) -> None:
     older = await env.new_deal()
     await env.new_deal()
+    before = [v.item.deal.id for v in (await env.list.execute(DealQuery())).items]
     env.clock.advance(60)
 
     await apply_change(env, older, "revenue_amount", 10)
 
     page = await env.list.execute(DealQuery())
-    assert page.items[0].item.deal.id == older.item.deal.id
-    assert page.items[0].item.deal.details.revenue_amount.value == 10
+    assert [v.item.deal.id for v in page.items] == before  # 최종 업데이트는 Action 기준(E4)
+    edited = next(v for v in page.items if v.item.deal.id == older.item.deal.id)
+    assert edited.item.last_updated_at == older.item.deal.created_at
+    assert edited.item.deal.details.revenue_amount.value == 10
 
 
 async def test_changes_read_contacts_in_bulk_not_one_by_one(env: DealEnv) -> None:

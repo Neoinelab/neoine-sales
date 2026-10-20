@@ -20,10 +20,11 @@
  * ── 공통 불변식 ───────────────────────────────────────────
  * 1. 쓰기는 sales/admin만(user는 403). `shared/model/permissions.ts`의 함수와 같은 규칙으로 판단한다.
  * 2. **모든 변경은 Deal History를 기록한다**(R02): Deal 등록, Status/Forecast/금액/Expected Close/Owner/파트너/
- *    고객 연락처/BANT Label/기타 필드, Action 등록·수정·삭제, 첨부 업로드·교체·삭제. 변경자는 현재 로그인 사용자,
+ *    고객 연락처/BANT Label/기타 필드, Action 등록·수정·삭제, Next Action 상태 변경, 첨부 업로드·교체·삭제. 변경자는 현재 로그인 사용자,
  *    시각은 서버 시각(Fake는 시계의 now()). 값이 바뀌지 않은 요청은 기록하지 않는다. 실패한 요청은 아무것도 바꾸지 않는다(원자적).
  * 3. Deal의 `updatedAt`은 Deal 자신의 필드/연결 정보(파트너·연락처·Label·첨부)가 바뀔 때 갱신된다.
- *    `DealRow.lastUpdatedAt` = max(updatedAt, 최근 Action 수행시각).
+ *    `DealRow.lastUpdatedAt` = 모든 Action(진행사항만 있는 것 포함)의 가장 최근 수행시각, Action이 없으면 `createdAt`.
+ *    Deal 자체의 수정(`updatedAt`)은 반영하지 않으므로 인라인 수정으로 미업데이트가 풀리지 않는다.
  * 4. Status ⇄ Forecast 불변식: `contract_completed` ⇔ `won`. 단일 변경은 `applyChange`/`ActionInput.statusChanges`(최대 2개, 순서대로 판정)의
  *    sync 규칙(`planChange`/`finalizePlan`)으로, 폼 저장(`create`/`update`)은 최종 값이 불변식을 만족해야 한다
  *    (어긋나면 422 "Status와 Forecast의 동기화가 맞지 않습니다.").
@@ -37,6 +38,7 @@
 import type {
   ActionInput,
   ActionQuery,
+  NextActionStatusInput,
   ActionTypeWithUsage,
   ActionUpdateInput,
   AlertSettings,
@@ -182,7 +184,8 @@ export interface ActionsGateway {
   /** 해당 Deal의 Action. 기본 정렬 수행일시 최신순. Deal이 없으면 404. */
   list(dealCode: string, query: ActionQuery): Promise<DealAction[]>
   /**
-   * 등록. 필수 누락 422 "진행사항을 입력하세요." / "Next Action을 입력하세요." / "Due Date를 입력하세요."(위에서부터 첫 오류).
+   * 등록. 진행사항·Next Action은 각각 선택이고 둘 다 비면 422 "진행사항 또는 Next Action을 입력하세요."
+   * Next Action이 있으면 Due Date 필수(422 "Due Date를 입력하세요."), 없는데 Due Date를 주면 422 "Next Action 없이 Due Date를 입력할 수 없습니다.".
    * statusChanges가 있으면(순서대로 각각 판정) applyChange와 같은 규칙으로 Deal도 갱신하고, Action에는 **적용 후** Status/Forecast key를 저장.
    * History: Action 1건 + (바뀌었으면) Status/Forecast 변경.
    */
@@ -195,6 +198,11 @@ export interface ActionsGateway {
   update(actionId: string, input: ActionUpdateInput): Promise<DealAction>
   /** 담당자 본인(sales)과 admin만. 다른 sales는 403 "본인 Action 또는 admin만 삭제할 수 있습니다.". History 기록. */
   remove(actionId: string): Promise<void>
+  /**
+   * Next Action 상태 변경(작성자 본인·admin만, 아니면 403). 종료할 때 memo가 있으면 Memo 뒤에 덧붙는다.
+   * 같은 상태 409, Next Action이 없는 Action 409, Open으로 되돌리면서 memo를 주면 422.
+   */
+  changeNextActionStatus(actionId: string, input: NextActionStatusInput): Promise<DealAction>
 }
 
 export interface ActionTypesGateway {

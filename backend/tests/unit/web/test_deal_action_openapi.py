@@ -60,7 +60,8 @@ def test_action_requests_do_not_take_server_filled_fields(
         request["properties"]
     )
     assert request["additionalProperties"] is False
-    assert {"action_type", "action", "next_action"} <= set(request["required"])
+    assert "action_type" in request["required"]
+    assert not {"action", "next_action", "due_date"} & set(request["required"])
 
 
 def test_only_the_create_request_accepts_a_status_change(schema: dict[str, Any]) -> None:
@@ -71,18 +72,31 @@ def test_only_the_create_request_accepts_a_status_change(schema: dict[str, Any])
     assert "status_change" not in schema["components"]["schemas"][update]["properties"]
 
 
-def test_response_exposes_the_snapshot_and_non_null_plan_fields(schema: dict[str, Any]) -> None:
+def test_response_exposes_the_snapshot_and_nullable_plan_fields(schema: dict[str, Any]) -> None:
     response = schema["components"]["schemas"]["DealActionResponse"]
     props = response["properties"]
 
     assert {"status_key", "forecast_key", "acted_at", "actor", "deal_code", "updated_at"} <= set(
         props
     )
-    assert not _is_nullable(props["next_action"])
-    assert not _is_nullable(props["due_date"])
-    assert {"action", "next_action", "due_date", "memo", "status_key", "forecast_key"} <= set(
-        response["required"]
-    )
+    for name in (
+        "action",
+        "next_action",
+        "due_date",
+        "next_action_status",
+        "next_action_closed_at",
+    ):
+        assert _is_nullable(props[name]), name
+    assert {
+        "action",
+        "next_action",
+        "due_date",
+        "next_action_status",
+        "next_action_closed_at",
+        "memo",
+        "status_key",
+        "forecast_key",
+    } <= set(response["required"])
     assert "actor_user_id" not in props
 
 
@@ -200,3 +214,31 @@ def test_the_create_request_describes_order_and_conflict_handling(
 
     assert "순서" in description
     assert "422" in description
+
+
+def test_search_documents_the_next_action_status_filter(schema: dict[str, Any]) -> None:
+    operation = schema["paths"]["/api/v1/deals/{code}/actions"]["get"]
+    params = {p["name"]: p for p in operation["parameters"]}
+
+    assert params["next_action_status"]["required"] is False
+    filter_schema = schema["components"]["schemas"]["NextActionStatusFilter"]
+    assert filter_schema["enum"] == ["open", "done", "not_done", "closed"]
+
+
+def test_status_route_documents_request_response_and_errors(schema: dict[str, Any]) -> None:
+    path = "/api/v1/deal-actions/{action_id}/next-action-status"
+    operation = schema["paths"][path]["put"]
+
+    name = _request_schema_names(schema, "put", path)
+    request = schema["components"]["schemas"][name]
+    assert set(request["properties"]) == {"status", "memo"}
+    assert request["required"] == ["status"]
+    assert request["additionalProperties"] is False
+    assert schema["components"]["schemas"]["NextActionStatus"]["enum"] == [
+        "open",
+        "done",
+        "not_done",
+    ]
+    ref = operation["responses"]["200"]["content"]["application/json"]["schema"]["$ref"]
+    assert str(ref).endswith("/DealActionResponse")
+    assert {"401", "403", "404", "409", "422"} <= set(operation["responses"])

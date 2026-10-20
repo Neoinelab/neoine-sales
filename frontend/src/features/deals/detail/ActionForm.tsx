@@ -20,7 +20,7 @@ interface ActionFormProps {
   deal: DealDetail
   /** 수정할 Action. 없으면 등록. */
   editing: DealAction | null
-  /** 가장 최근 Action(이전 Update 참조 카드). 등록 모드에서만 쓴다. */
+  /** Next Action이 있는 가장 최근 Action(이전 Update 참조 카드). 등록 모드에서만 쓴다. */
   previous: DealAction | null
   onDone: (message: string) => void
   onCancel: () => void
@@ -29,7 +29,6 @@ interface ActionFormProps {
 interface Errors {
   type?: string
   progress?: string
-  nextAction?: string
   dueDate?: string
 }
 
@@ -42,22 +41,25 @@ function FieldError({ message }: { message: string | undefined }) {
   )
 }
 
-/** 이전 Update 참조 카드: 가장 최근 Action을 읽기 전용으로 보여 주고 Next Action을 진행사항으로 채울 수 있다. */
+/** 이전 Update 참조 카드: Next Action이 있는 가장 최근 Action을 읽기 전용으로 보여 주고 Next Action을 진행사항으로 채울 수 있다. */
 function PreviousUpdate({ previous, onFill }: { previous: DealAction; onFill: (text: string) => void }) {
+  const next = previous.nextAction
   return (
     <aside aria-label="이전 Update" className="dd-prev">
       <h3>이전 Update</h3>
       <dl className="dd-dl">
         <dt>진행사항</dt>
-        <dd>{previous.progress}</dd>
+        <dd>{previous.progress ?? '—'}</dd>
         <dt>Next Action</dt>
-        <dd>{previous.nextAction}</dd>
+        <dd>{next ?? '—'}</dd>
         <dt>Due</dt>
-        <dd>{previous.dueDate}</dd>
+        <dd>{previous.dueDate ?? '—'}</dd>
       </dl>
-      <button type="button" className="dd-small" onClick={() => onFill(previous.nextAction)}>
-        이전 Next Action을 진행사항에 채우기
-      </button>
+      {next !== null && (
+        <button type="button" className="dd-small" onClick={() => onFill(next)}>
+          이전 Next Action을 진행사항에 채우기
+        </button>
+      )}
     </aside>
   )
 }
@@ -87,7 +89,6 @@ export function ActionForm({ deal, editing, previous, onDone, onCancel }: Action
   const [error, setError] = useState<unknown>(null)
   const typeRef = useRef<HTMLInputElement>(null)
   const progressRef = useRef<HTMLTextAreaElement>(null)
-  const nextRef = useRef<HTMLInputElement>(null)
   const dueRef = useRef<HTMLInputElement>(null)
   const busy = create.isPending || update.isPending
   const title = editing ? 'Action 수정' : 'Next Action 업데이트'
@@ -98,10 +99,18 @@ export function ActionForm({ deal, editing, previous, onDone, onCancel }: Action
     const typeName = type.trim()
     if (typeName === '') found.type = '유형을 입력하세요.'
     else if ([...typeName].length > ACTION_TYPE_NAME_MAX_LENGTH) found.type = `유형은 ${ACTION_TYPE_NAME_MAX_LENGTH}자 이내로 입력하세요.`
-    if (progress.trim() === '') found.progress = '진행사항을 입력하세요.'
-    if (nextAction.trim() === '') found.nextAction = 'Next Action을 입력하세요.'
-    if (dueDate === '') found.dueDate = 'Due Date를 입력하세요.'
+    // 서버와 같은 규칙: 진행사항·Next Action은 각각 선택(둘 다 비면 거절), Due Date는 Next Action이 있을 때만 필수.
+    const hasNext = nextAction.trim() !== ''
+    if (progress.trim() === '' && !hasNext) found.progress = '진행사항 또는 Next Action을 입력하세요.'
+    else if (hasNext && dueDate === '') found.dueDate = 'Due Date를 입력하세요.'
+    else if (!hasNext && dueDate !== '') found.dueDate = 'Next Action 없이 Due Date를 입력할 수 없습니다.'
     return found
+  }
+
+  /** Next Action을 모두 지우면 Due Date도 비운다(Next Action 없이 Due Date는 저장할 수 없다). */
+  function changeNextAction(value: string) {
+    setNextAction(value)
+    if (value.trim() === '') setDueDate('')
   }
 
   async function submit(event: FormEvent) {
@@ -111,7 +120,6 @@ export function ActionForm({ deal, editing, previous, onDone, onCancel }: Action
     setErrors(found)
     if (found.type) return typeRef.current?.focus()
     if (found.progress) return progressRef.current?.focus()
-    if (found.nextAction) return nextRef.current?.focus()
     if (found.dueDate) return dueRef.current?.focus()
     // 처음 값 그대로면 이름을 다시 해석하지 않고 원래 {id}를 보낸다(그사이 유형 이름이 바뀌어도 새 유형이 생기지 않는다).
     const choice = editing && (type === editing.type || type === shownType) ? { id: editing.typeId } : toChoice(type, types ?? [])
@@ -155,9 +163,8 @@ export function ActionForm({ deal, editing, previous, onDone, onCancel }: Action
           <FieldError message={errors.progress} />
           <label className="field">
             <span>Next Action</span>
-            <input ref={nextRef} value={nextAction} onChange={(e) => setNextAction(e.target.value)} aria-invalid={errors.nextAction ? true : undefined} />
+            <input value={nextAction} onChange={(e) => changeNextAction(e.target.value)} />
           </label>
-          <FieldError message={errors.nextAction} />
           <label className="field">
             <span>Due Date</span>
             <input ref={dueRef} type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} aria-invalid={errors.dueDate ? true : undefined} />

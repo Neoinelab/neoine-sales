@@ -14,6 +14,8 @@ export function serverAction(over: Partial<Schemas['DealActionResponse']> = {}):
     action: '고객사 방문',
     next_action: '견적 재전달',
     due_date: '2026-10-22',
+    next_action_status: 'open',
+    next_action_closed_at: null,
     memo: '',
     acted_at: '2026-10-15T09:00:00+09:00',
     actor: serverUserRef(),

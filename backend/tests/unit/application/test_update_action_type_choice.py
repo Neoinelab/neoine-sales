@@ -8,15 +8,15 @@ from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import pytest
+
 from app.application.choice import CatalogChoice
 from app.domain.action_type.errors import UnknownActionTypeError
-
 from app.domain.common.errors import InvalidValueError
 from app.domain.deal_action.errors import DealActionEditForbiddenError, DealActionNotFoundError
 from app.domain.deal_action.value_objects import DealActionId
 from tests.factories_action_type import type_id
 from tests.support.expect import raises_with
-from tests.unit.application.action_env import KIM, PARK, PROGRESS_REQUIRED
+from tests.unit.application.action_env import ACTION_OR_NEXT_REQUIRED, KIM, PARK
 
 if TYPE_CHECKING:
     from tests.unit.application.action_env import ActionEnv
@@ -101,9 +101,14 @@ async def test_failed_update_creates_no_type(action_env: ActionEnv) -> None:
     action = await action_env.act(KIM)
     names = await _type_names(action_env)
 
-    with raises_with(InvalidValueError, PROGRESS_REQUIRED):
+    with raises_with(InvalidValueError, ACTION_OR_NEXT_REQUIRED):
         await action_env.update_as(
-            action.id, KIM, action_type=CatalogChoice(name="웨비나"), action=" "
+            action.id,
+            KIM,
+            action_type=CatalogChoice(name="웨비나"),
+            action=" ",
+            next_action="",
+            due_date=None,
         )
 
     assert await _type_names(action_env) == names
@@ -135,4 +140,11 @@ async def test_blank_type_name_on_update_is_reported_before_progress(
     action = await action_env.act(KIM)
 
     with raises_with(InvalidValueError, TYPE_REQUIRED):
-        await action_env.update_as(action.id, KIM, action_type=CatalogChoice(name=" "), action=" ")
+        await action_env.update_as(
+            action.id,
+            KIM,
+            action_type=CatalogChoice(name=" "),
+            action=" ",
+            next_action="",
+            due_date=None,
+        )

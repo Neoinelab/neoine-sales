@@ -17,7 +17,12 @@ from app.domain.common.errors import InvalidValueError
 from app.domain.deal.errors import DealNotFoundError
 from tests.factories_action_type import make_action_type, type_id
 from tests.support.expect import raises_with
-from tests.unit.application.action_env import KIM, PARK, PROGRESS_REQUIRED
+from tests.unit.application.action_env import (
+    ACTION_OR_NEXT_REQUIRED,
+    DUE_DATE_REQUIRED,
+    KIM,
+    PARK,
+)
 
 if TYPE_CHECKING:
     from tests.unit.application.action_env import ActionEnv
@@ -114,8 +119,14 @@ async def test_the_new_type_is_saved_together_with_the_action_in_one_commit(
 async def test_failed_registration_creates_no_type(action_env: ActionEnv) -> None:
     names = await _type_names(action_env)
 
-    with raises_with(InvalidValueError, PROGRESS_REQUIRED):
-        await action_env.act(KIM, action_type=CatalogChoice(name="웨비나"), action="   ")
+    with raises_with(InvalidValueError, ACTION_OR_NEXT_REQUIRED):
+        await action_env.act(
+            KIM,
+            action_type=CatalogChoice(name="웨비나"),
+            action="   ",
+            next_action="",
+            due_date=None,
+        )
 
     assert await _type_names(action_env) == names
     assert len(action_env.env.uow.deal_actions._items) == 0
@@ -137,7 +148,7 @@ async def test_failed_status_change_creates_no_type(action_env: ActionEnv) -> No
 async def test_a_missing_due_date_creates_no_type(action_env: ActionEnv) -> None:
     names = await _type_names(action_env)
 
-    with raises_with(InvalidValueError, "Due Date를 입력하세요."):
+    with raises_with(InvalidValueError, DUE_DATE_REQUIRED):
         await action_env.act(KIM, action_type=CatalogChoice(name="웨비나"), due_date=None)
 
     assert await _type_names(action_env) == names
@@ -164,7 +175,7 @@ async def test_unknown_type_id_is_reported_before_progress(action_env: ActionEnv
 async def test_progress_is_still_reported_before_next_action_and_due_date(
     action_env: ActionEnv,
 ) -> None:
-    with raises_with(InvalidValueError, PROGRESS_REQUIRED):
+    with raises_with(InvalidValueError, ACTION_OR_NEXT_REQUIRED):
         await action_env.act(KIM, action="  ", next_action="", due_date=None)
 
 
