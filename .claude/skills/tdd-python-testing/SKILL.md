@@ -47,7 +47,7 @@ description: backend 기능을 구현하기 전에 pytest 테스트를 먼저 �
 - functional test는 **BDD 형식**을 지킨다(`references/bdd.md`): 모듈 docstring `Feature: …`, 테스트 docstring `Scenario: …`, 본문 `# Given` → `# When`(하나) → `# Then`, 단계는 `given_*`/`when_*`/`then_*` step 함수(When은 반드시 HTTP API 호출, Then은 관찰 가능한 결과). 새 의존성(pytest-bdd 등)은 쓰지 않는다.
 - 환경변수를 읽는 코드는 `monkeypatch`로 격리한다. `APP_*` 변수를 모두 지우고 필요한 것만 설정하며 `tmp_path`로 cwd를 옮겨 실제 `.env`를 읽지 않게 한다(`backend/tests/unit/test_settings.py`가 모범 예).
 - 비밀 값을 테스트 코드에 쓰지 않는다. 더미 값만 쓴다.
-- 파일은 테스트 대상 모듈과 1:1로 나누고 공통 준비 코드는 `conftest.py`·factory로 옮긴다(파일 길이 제한 적용).
+- 파일은 테스트 대상 모듈과 1:1로 나누고 공통 준비 코드는 `conftest.py`·factory로 옮긴다. 300줄 제한은 테스트에 적용하지 않으므로 길이만을 이유로 쪼개지 않는다.
 - 테스트에서는 Ruff가 `S101`(assert), `PLR2004`(매직 넘버)를 허용한다(`pyproject.toml`의 per-file-ignores). 그 외 규칙은 동일하게 적용된다.
 
 ## 품질 기준

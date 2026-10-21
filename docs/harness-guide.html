@@ -210,7 +210,7 @@ Python(FastAPI) 백엔드 + React 프론트엔드. 규칙의 정본은 docs/dev-
 ## 반드시 지킬 규칙 (요약)
 - 계층: web → application → domain, infra → application → domain. application은 infra를 import하지 않고
   외부 통신은 application/ports 의 Port(Protocol)로만 한다. infra가 Port를 구현한다.
-- backend의 .py 파일은 300줄 이하. 초과하면 책임별로 분리한다(줄이기 위한 압축 금지).
+- backend 로직 소스(backend/src)의 .py 파일은 300줄 이하. 초과하면 책임별로 분리한다(줄이기 위한 압축 금지). 테스트·scripts는 제외.
 - 모든 공개 함수에 타입 힌트, mypy strict 통과. 함수 복잡도·인자 수는 ruff 설정을 따른다.
 - 프로파일은 local/dev/product. 설정은 app.config.get_settings()로만 읽고, domain/application에서 import하지 않는다.
 - .env* 내용은 대화로 읽거나 출력하지 않는다(수정·생성은 값을 출력하지 않는 방식으로 가능). 비밀 값은 산출물·보고에 적지 않는다.
@@ -453,7 +453,7 @@ model: sonnet
 <tr><td>포맷·린트·복잡도·타입 힌트·보안 규칙</td><td><code>ruff format --check</code>, <code>ruff check</code></td><td>변경한 엔지니어</td></tr>
 <tr><td>정적 타입</td><td><code>mypy src scripts tests</code> (strict)</td><td>변경한 엔지니어</td></tr>
 <tr><td>계층 의존 방향·domain 순수성</td><td><code>lint-imports</code> (계약 3개)</td><td>위반 파일 소유자</td></tr>
-<tr><td>파일 300줄 제한</td><td><code>python scripts/check_file_length.py</code></td><td>위반 파일 소유자(책임별 분리)</td></tr>
+<tr><td>파일 300줄 제한(<code>backend/src</code>만, 테스트 제외)</td><td><code>python scripts/check_file_length.py</code></td><td>위반 파일 소유자(책임별 분리)</td></tr>
 <tr><td>동작·커버리지</td><td><code>pytest</code> (전체 80%, domain/application 90% 목표)</td><td>소유자. 테스트 자체 결함이면 test-engineer</td></tr>
 <tr><td>API 계약 드리프트</td><td>OpenAPI 재생성 후 커밋본과 diff</td><td>web-engineer</td></tr>
 <tr><td>의존성 취약점·비밀 노출</td><td><code>pip-audit</code>, gitleaks (CI)</td><td>사람 승인 후 Orchestrator</td></tr>
