@@ -26,7 +26,8 @@ AMOUNT_MAX = 2**53 - 1  # 프런트 Number.isSafeInteger와 같다
 USERS_MAX = 2_147_483_647  # PostgreSQL integer 최대
 
 AMOUNT_MESSAGE = "매출금액은 1원 이상의 정수로 입력하세요."
-USERS_MESSAGE = "Users는 1 이상의 정수로 입력하세요."
+USERS_MESSAGE = "Users는 0 이상의 정수로 입력하세요."
+USERS_REQUIRED_MESSAGE = "Users를 입력하세요."
 
 
 def _is_int(value: object) -> TypeGuard[int]:
@@ -118,11 +119,11 @@ def check_amount(value: object) -> RevenueAmount:
     return RevenueAmount(value)
 
 
-def check_users(value: object) -> int | None:
-    """None(선택)이거나 1..USERS_MAX 정수."""
+def check_users(value: object) -> int:
+    """필수. 0..USERS_MAX 정수."""
     if value is None:
-        return None
-    if not _is_int(value) or not 1 <= value <= USERS_MAX:
+        raise InvalidValueError(USERS_REQUIRED_MESSAGE)
+    if not _is_int(value) or not 0 <= value <= USERS_MAX:
         raise InvalidValueError(USERS_MESSAGE)
     return value
 
@@ -135,7 +136,7 @@ class DealDetails:
     owner_user_id: UserId
     vendor_id: VendorId | None
     solution_id: SolutionId | None
-    users: int | None
+    users: int
     revenue_amount: RevenueAmount
     revenue_date: date
     quote: Quote

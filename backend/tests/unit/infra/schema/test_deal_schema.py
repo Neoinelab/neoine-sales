@@ -86,8 +86,15 @@ async def test_the_columns_are_exactly_the_new_model(session: AsyncSession) -> N
     assert columns["deal_code"].character_maximum_length == 13
     assert columns["revenue_amount"].data_type == "bigint"
     assert columns["users"].data_type == "integer"
-    assert columns["users"].is_nullable == "YES"
-    for required in ("name", "owner_user_id", "status_key", "forecast_key", "revenue_date"):
+    assert columns["users"].is_nullable == "NO"
+    for required in (
+        "name",
+        "owner_user_id",
+        "users",
+        "status_key",
+        "forecast_key",
+        "revenue_date",
+    ):
         assert columns[required].is_nullable == "NO", required
 
 
@@ -173,21 +180,40 @@ async def test_the_amount_boundaries_are_accepted(session: AsyncSession, amount:
     await insert_deal(session, customer, amount=amount)
 
 
-@pytest.mark.parametrize("users", [0, -1])
-async def test_users_below_one_is_rejected(session: AsyncSession, users: int) -> None:
+async def test_negative_users_is_rejected(session: AsyncSession) -> None:
     customer = await _customer(session)
 
     with pytest.raises(IntegrityError, match="ck_deals_users_positive"):
-        await insert_deal(session, customer, users=users)
+        await insert_deal(session, customer, users=-1)
 
 
-@pytest.mark.parametrize("users", [None, 1, 2_147_483_647])
-async def test_users_is_optional_up_to_the_integer_maximum(
-    session: AsyncSession, users: int | None
+@pytest.mark.parametrize("users", [0, 1, 2_147_483_647])
+async def test_users_accepts_zero_up_to_the_integer_maximum(
+    session: AsyncSession, users: int
 ) -> None:
     customer = await _customer(session)
 
     await insert_deal(session, customer, users=users)
+
+
+async def test_users_is_required(session: AsyncSession) -> None:
+    customer = await _customer(session)
+
+    with pytest.raises(IntegrityError, match=r"not-null|null value"):
+        await insert_deal(session, customer, users=None)
+
+
+async def test_users_check_is_a_non_negative_bound(session: AsyncSession) -> None:
+    definition = await session.scalar(
+        text(
+            "select pg_get_constraintdef(oid) from pg_constraint"
+            " where conname = 'ck_deals_users_positive'"
+        )
+    )
+
+    assert definition is not None
+    assert "users >= 0" in definition
+    assert "IS NULL" not in definition.upper()
 
 
 @pytest.mark.parametrize(

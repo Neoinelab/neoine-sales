@@ -8,8 +8,8 @@ from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import pytest
-from app.application.choice import CatalogChoice
 
+from app.application.choice import CatalogChoice
 from app.domain.bant.values import BantCategory
 from app.domain.common.errors import InvalidValueError
 from app.domain.deal.errors import InvalidBantLabelError
@@ -202,7 +202,7 @@ async def test_a_failed_registration_leaves_the_catalog_in_the_state_before_the_
                 BantCategory.BUDGET: CatalogChoice(name="신규 예산"),
                 BantCategory.NEED: CatalogChoice(name="신규 필요"),
             },
-            users=0,
+            users=-1,
         )
 
     assert {x.id: x.name for x in await env.uow.bant_labels.list()} == before

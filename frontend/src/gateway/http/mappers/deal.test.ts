@@ -109,11 +109,11 @@ describe('toDealRow', () => {
     expect(row).toMatchObject({ statusChangedAt: '2026-10-01T00:30:00+09:00', statusDays: 14 })
   })
 
-  it('keeps a missing partner and an empty users as null', () => {
-    const row = toDealRow(serverDealRow({ active_partner: null, users: null }))
+  it('keeps a missing partner as null and maps users of zero as a number', () => {
+    const row = toDealRow(serverDealRow({ active_partner: null, users: 0 }))
 
     expect(row.activePartner).toBeNull()
-    expect(row.users).toBeNull()
+    expect(row.users).toBe(0)
   })
 
   it('maps a resigned owner with the server role', () => {
@@ -158,7 +158,7 @@ const BASE_INPUT: DealInput = {
   ownerId: 'u-kim',
   vendorId: null,
   solutionId: null,
-  users: null,
+  users: 10,
   statusKey: 'prospecting',
   forecastKey: 'pipeline',
   revenueAmount: 1,

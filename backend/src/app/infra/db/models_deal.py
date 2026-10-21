@@ -52,7 +52,7 @@ class DealRow(Base):
         ForeignKey("vendors.id", ondelete="RESTRICT"), default=None
     )
     solution_id: Mapped[UUID | None] = mapped_column(Uuid, default=None)
-    users: Mapped[int | None] = mapped_column(Integer, default=None)
+    users: Mapped[int] = mapped_column(Integer)
     status_kind: Mapped[str] = mapped_column(String(20), default=CodeKind.STATUS.value)
     status_key: Mapped[str] = mapped_column(String(50))
     forecast_kind: Mapped[str] = mapped_column(String(20), default=CodeKind.FORECAST.value)
@@ -71,7 +71,7 @@ class DealRow(Base):
 
     __table_args__ = (
         CheckConstraint("deal_code ~ '^[0-9]{8}-[A-Z0-9]{4}$'", name="code_format"),
-        CheckConstraint("users is null or users >= 1", name="users_positive"),
+        CheckConstraint("users >= 0", name="users_positive"),
         CheckConstraint(f"status_kind = '{CodeKind.STATUS.value}'", name="status_kind"),
         CheckConstraint(f"forecast_kind = '{CodeKind.FORECAST.value}'", name="forecast_kind"),
         CheckConstraint(f"revenue_amount between 1 and {AMOUNT_MAX}", name="amount_range"),

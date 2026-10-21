@@ -14,7 +14,7 @@ const lookup: HistoryLookup = {
 
 function deal(over: Partial<Deal> = {}): Deal {
   return {
-    code: '20260801-D001', name: 'A', ownerId: 'u-kim', vendorId: 'vd-1', solutionId: 'sl-1', users: null,
+    code: '20260801-D001', name: 'A', ownerId: 'u-kim', vendorId: 'vd-1', solutionId: 'sl-1', users: 10,
     statusKey: 'price_negotiation', forecastKey: 'commit', revenueAmount: 1_000, revenueDate: '2026-12-01',
     customerContactId: 'ct-1', partnerLinks: [{ contactId: 'pt-1', active: true, linkedAt: 'x', unlinkedAt: null }],
     quote: { submitted: null, submittedDate: null }, poc: { state: null, completedDate: null }, procurement: '',
@@ -81,7 +81,7 @@ describe('diffDeal', () => {
       { category: 'other', target: 'Deal Name', before: 'A', after: 'B' },
       { category: 'other', target: 'Vendor', before: 'SAP', after: 'Okta' },
       { category: 'other', target: 'Solution', before: 'S/4', after: 'SSO' },
-      { category: 'other', target: 'Users', before: '-', after: '5' },
+      { category: 'other', target: 'Users', before: '10', after: '5' },
     ])
   })
 

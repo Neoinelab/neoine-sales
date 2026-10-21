@@ -23,7 +23,7 @@ export interface DealSpec {
   lastAgo: number
   due: number
   count: number
-  users?: number
+  users: number
   procurement?: string
   quote?: 'YES' | 'NO'
   poc?: 'YES' | 'ING' | 'NO'

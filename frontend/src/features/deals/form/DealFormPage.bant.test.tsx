@@ -29,6 +29,7 @@ async function fillRequired(user: UserEvent, name = 'BANT 테스트 Deal') {
   await user.type(screen.getByLabelText('고객 회사명'), '신규고객사')
   await user.type(screen.getByLabelText('고객 담당자명'), '홍길동')
   await user.type(screen.getByLabelText('금액(단위:천원)'), '50000')
+  await user.type(screen.getByLabelText('Users'), '10')
   fireEvent.change(screen.getByLabelText('Expected Close'), { target: { value: '2027-06-01' } })
 }
 

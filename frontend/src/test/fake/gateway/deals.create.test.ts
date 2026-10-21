@@ -17,7 +17,7 @@ describe('deals.create', () => {
     await expectApiError(create({ revenueAmount: 0 }), 422, '매출금액은 1원 이상의 정수로 입력하세요.')
     await expectApiError(create({ revenueAmount: 10.5 }), 422, '매출금액은 1원 이상의 정수로 입력하세요.')
     await expectApiError(create({ revenueDate: '' }), 422, 'Expected Close를 입력하세요.')
-    await expectApiError(create({ users: 0 }), 422, 'Users는 1 이상의 정수로 입력하세요.')
+    await expectApiError(create({ users: -1 }), 422, 'Users는 0 이상의 정수로 입력하세요.')
     await expectApiError(create({ ownerId: 'u-old' }), 422)
     await expectApiError(create({ ownerId: 'u-root' }), 422, 'Owner는 재직 중인 영업 담당자여야 합니다.')
     await expectApiError(create({ ownerId: 'u-nobody' }), 422, 'Owner는 재직 중인 영업 담당자여야 합니다.')

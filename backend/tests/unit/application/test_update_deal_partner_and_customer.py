@@ -151,7 +151,8 @@ class TestAtomicity:
             ({"name": "  "}, "Deal Name을 입력하세요."),
             ({"revenue_amount": 0}, "매출금액은 1원 이상의 정수로 입력하세요."),
             ({"revenue_date": None}, "Expected Close를 입력하세요."),
-            ({"users": 0}, "Users는 1 이상의 정수로 입력하세요."),
+            ({"users": -1}, "Users는 0 이상의 정수로 입력하세요."),
+            ({"users": None}, "Users를 입력하세요."),
             ({"procurement": "가" * 501}, "구매절차는 500자 이내로 입력하세요."),
         ],
     )
@@ -173,6 +174,14 @@ class TestAtomicity:
         assert len(env.uow.contacts._items) == contacts_before  # 새 고객 연락처도 없다
         assert await env.changes(view) == []
 
+    async def test_name_error_wins_over_cleared_users(self, env: DealEnv) -> None:
+        view = await env.new_deal()
+
+        with raises_with(InvalidValueError, "Deal Name을 입력하세요."):
+            await env.update.execute(
+                view.item.deal.id.value, make_patch(name="", users=None), SALES
+            )
+
     async def test_the_first_invalid_field_in_the_agreed_order_is_reported(
         self, env: DealEnv
     ) -> None:
@@ -181,6 +190,6 @@ class TestAtomicity:
         with raises_with(InvalidValueError, "Deal Name을 입력하세요."):
             await env.update.execute(
                 view.item.deal.id.value,
-                make_patch(name="", revenue_amount=0, users=0, status_key="zzz"),
+                make_patch(name="", revenue_amount=0, users=-1, status_key="zzz"),
                 SALES,
             )

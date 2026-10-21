@@ -58,7 +58,7 @@ def make_deal_details(**overrides: Any) -> DealDetails:  # noqa: ANN401
         "owner_user_id": OWNER_ID,
         "vendor_id": None,  # 등록된 Vendor·Solution의 id(없으면 선택 안 함)
         "solution_id": None,
-        "users": None,
+        "users": 10,
         "revenue_amount": 150_000_000,
         "revenue_date": date(2026, 6, 30),
         "quote": Quote(submitted=None, submitted_date=None),

@@ -13,12 +13,14 @@ from tests.functional.steps.deals import (
     OWNER_NOT_SALES,
     OWNER_RESIGNED,
     customer_draft,
+    deal_body,
     given_deal,
     given_label_id,
     given_my_user_id,
     partner_draft,
     then_deal_count_is,
     when_register_deal,
+    when_register_deal_with_body,
 )
 from tests.functional.steps.session import when_log_out
 from tests.functional.steps.users import id_of, when_delete_user
@@ -29,7 +31,7 @@ if TYPE_CHECKING:
 pytestmark = pytest.mark.integration
 
 AMOUNT = "매출금액은 1원 이상의 정수로 입력하세요."
-USERS = "Users는 1 이상의 정수로 입력하세요."
+USERS = "Users는 0 이상의 정수로 입력하세요."
 
 
 @pytest.mark.parametrize(
@@ -40,7 +42,7 @@ USERS = "Users는 1 이상의 정수로 입력하세요."
         ({"revenue_amount": 0}, AMOUNT),
         ({"revenue_amount": 2**53}, AMOUNT),
         ({"revenue_date": None}, "Expected Close를 입력하세요."),
-        ({"users": 0}, USERS),
+        ({"users": -1}, USERS),
         ({"users": 2_147_483_648}, USERS),
         ({"status_key": ""}, "Status를 선택하세요."),
         ({"forecast_key": "no_such"}, "Forecast를 선택하세요."),
@@ -78,7 +80,7 @@ async def test_the_earliest_rule_wins_when_several_inputs_are_wrong(api: Api) ->
     # Given
     await given_logged_in_as(api, role="sales")
     # When
-    response = await when_register_deal(api, name="", revenue_amount=0, users=0)
+    response = await when_register_deal(api, name="", revenue_amount=0, users=-1)
     # Then
     then_problem_is(response, status=422, type_suffix="invalid-value")
     assert response.json()["detail"] == "Deal Name을 입력하세요."
@@ -91,6 +93,8 @@ async def test_the_earliest_rule_wins_when_several_inputs_are_wrong(api: Api) ->
         {"revenue_date": "30/06/2026"},
         {"owner_user_id": "x"},
         {"extra": 1},
+        {"users": None},
+        {"users": "10"},
     ],
 )
 async def test_a_wrongly_typed_body_is_a_request_validation_error(
@@ -103,6 +107,19 @@ async def test_a_wrongly_typed_body_is_a_request_validation_error(
     response = await when_register_deal(api, **overrides)
     # Then
     then_problem_is(response, status=422, type_suffix="request-validation")
+
+
+async def test_a_body_without_users_is_a_request_validation_error(api: Api) -> None:
+    """Scenario: users 키가 없는 등록 본문은 422(request-validation)이고 Deal은 저장되지 않는다."""
+    # Given
+    await given_logged_in_as(api, role="sales")
+    body = await deal_body(api)
+    del body["users"]
+    # When
+    response = await when_register_deal_with_body(api, body)
+    # Then
+    then_problem_is(response, status=422, type_suffix="request-validation")
+    await then_deal_count_is(api, 0)
 
 
 async def test_a_label_of_another_category_is_rejected(api: Api) -> None:

@@ -61,7 +61,7 @@ export interface DealInput {
   /** Vendor/Solution id. 선택 안 함은 null. */
   vendorId: string | null
   solutionId: string | null
-  users: number | null
+  users: number
   statusKey: string
   forecastKey: string
   revenueAmount: number

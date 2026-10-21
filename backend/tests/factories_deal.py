@@ -86,7 +86,7 @@ def make_create_input(**overrides: Any) -> DealCreateInput:  # noqa: ANN401
         "owner_user_id": OWNER_ID,
         "vendor_id": None,  # 등록된 Vendor·Solution의 id(없으면 선택 안 함)
         "solution_id": None,
-        "users": None,
+        "users": 10,
         "status_key": "prospecting",
         "forecast_key": "pipeline",
         "revenue_amount": 150_000_000,

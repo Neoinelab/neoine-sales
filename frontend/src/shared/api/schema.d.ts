@@ -1385,7 +1385,7 @@ export interface components {
             /** Status Key */
             status_key: string;
             /** Users */
-            users?: number | null;
+            users: number;
             /** Vendor Id */
             vendor_id?: string | null;
         };
@@ -1448,7 +1448,7 @@ export interface components {
              */
             updated_at: string;
             /** Users */
-            users: number | null;
+            users: number;
             vendor: components["schemas"]["NamedRefResponse"] | null;
         };
         /**
@@ -1539,7 +1539,7 @@ export interface components {
              */
             updated_at: string;
             /** Users */
-            users: number | null;
+            users: number;
             vendor: components["schemas"]["NamedRefResponse"] | null;
         };
         /**

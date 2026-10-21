@@ -65,7 +65,7 @@ class DealCreateInput:
     owner_user_id: UUID
     vendor_id: UUID | None
     solution_id: UUID | None
-    users: int | None
+    users: int
     status_key: str
     forecast_key: str
     revenue_amount: int

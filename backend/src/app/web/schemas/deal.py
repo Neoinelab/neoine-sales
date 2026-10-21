@@ -84,7 +84,7 @@ class DealCreateRequest(RequestModel):
     owner_user_id: UUID
     vendor_id: UUID | None = None
     solution_id: UUID | None = None
-    users: StrictInt | None = None
+    users: StrictInt
     status_key: str
     forecast_key: str
     revenue_amount: StrictInt

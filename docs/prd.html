@@ -178,7 +178,7 @@ code{background:var(--soft);padding:1px 5px;border-radius:3px;font-size:12.5px}
 <tr><td>등록한 사용자</td><td>자동</td><td>현재 <code>deals.registered_by_user_id</code>(users FK, 등록 시 로그인 사용자를 저장하고 이후 바꾸지 않음). Owner만 두기로 했으므로 <b>이 컬럼은 제거</b>한다(확정). 등록자는 Deal History의 등록 기록(변경자)에 남는다. 기존 등록자 값은 옮기지 않는다(마이그레이션 없이 컬럼만 삭제)</td><td><span class="b ok">구현</span> P1: 컬럼 제거</td></tr>
 <tr><td>Created / Last updated date</td><td>자동</td><td><code>created_at</code>, <code>updated_at</code></td><td><span class="b ok">구현</span> 최종 업데이트는 활동 기준으로도 노출 필요</td></tr>
 <tr><td>고객사명, 고객 담당자, 직급, Email, 전화번호</td><td><b>고객사명·담당자명 필수</b>, 나머지 선택</td><td>연락처(contacts) 한 행 = 고객사 + 담당자(5.6절). 현재는 <code>customers</code> 테이블</td><td><span class="b ok">구현</span> P0·P1: <code>contacts</code> 통합</td></tr>
-<tr><td>Users(견적 단위인 사용자 수)</td><td>선택(필수 아님)</td><td>없음. 견적의 단위가 사용자 수이므로 <b>Deal 정보</b>로 입력한다. 고객사의 직원 수와는 다른 값이다(현재 <code>customers.employee_count</code>는 고객사 직원 수). 기존 직원수 값은 의미가 달라 Users로 자동 이전하지 않는다(가정)</td><td><span class="b ok">구현</span> P1</td></tr>
+<tr><td>Users(견적 단위인 사용자 수)</td><td>필수(0 이상 정수, 2026-10-21 변경)</td><td>없음. 견적의 단위가 사용자 수이므로 <b>Deal 정보</b>로 입력한다. 고객사의 직원 수와는 다른 값이다(현재 <code>customers.employee_count</code>는 고객사 직원 수). 기존 직원수 값은 의미가 달라 Users로 자동 이전하지 않는다(가정)</td><td><span class="b ok">구현</span> P1</td></tr>
 <tr><td>파트너사, 파트너 영업대표(+연락처)</td><td>선택(입력하면 회사명+담당자명 필수)</td><td>연락처(contacts)의 파트너 구분 행. Deal과 1:N, 그 중 활성(active) 1건만 표시(5.6절). 현재는 <code>partners</code> 테이블, <code>deals.partner_id</code> 선택값</td><td><span class="b ok">구현</span> P1: <code>deal_partners</code> 1:N</td></tr>
 </table>
 <h3>5.2 Update Table — Next Action 이력</h3>
@@ -347,7 +347,7 @@ code{background:var(--soft);padding:1px 5px;border-radius:3px;font-size:12.5px}
 <h3 id="s7-2">7.2 Deals</h3>
 <table>
 <tr><th>ID</th><th>요구사항</th><th>상태</th></tr>
-<tr><td>DL-01</td><td>Deal 등록: 고객사·Deal Name·담당자(기본값은 현재 접속한 사용자, sales만)·금액·Expected Close·Status·Forecast 등 대부분 필수. <b>고객은 반드시 입력하며 최소 회사명+담당자명까지 필수</b>이고, 파트너는 선택(입력하면 회사명+담당자명 필수)이다. Users(견적 단위인 사용자 수)는 Deal 정보로 선택 입력한다. 신규 Deal의 Status 기본값은 기회발굴. Deal 등록도 Deal History에 한 건으로 기록한다.</td><td><span class="b ok">구현</span> P1</td></tr>
+<tr><td>DL-01</td><td>Deal 등록: 고객사·Deal Name·담당자(기본값은 현재 접속한 사용자, sales만)·금액·Expected Close·Status·Forecast 등 대부분 필수. <b>고객은 반드시 입력하며 최소 회사명+담당자명까지 필수</b>이고, 파트너는 선택(입력하면 회사명+담당자명 필수)이다. Users(견적 단위인 사용자 수)는 Deal 정보로 필수 입력한다(0 이상 정수. 기존에 비어 있던 Deal은 마이그레이션이 0으로 채운다, 2026-10-21). 신규 Deal의 Status 기본값은 기회발굴. Deal 등록도 Deal History에 한 건으로 기록한다.</td><td><span class="b ok">구현</span> P1</td></tr>
 <tr><td>DL-02</td><td>Deal 등록·수정·상세 화면에서 연락처를 선택·등록·수정한다: 회사명 distinct 목록 선택 또는 직접 입력, 담당자 목록 선택 또는 직접 입력, 기존 담당자 선택 시 연락 정보 자동 입력, 수정하면 연락처 데이터 갱신(5.6절). 회사명·담당자명·이메일·전화에는 공백을 입력할 수 없고 대소문자는 구분하지 않는다. 파트너도 같은 방식이다.</td><td><span class="b ok">구현</span> P1</td></tr>
 <tr><td>DL-03</td><td>Deal 수정·조회·삭제. <b>삭제는 sales 본인의 Deal 또는 admin만</b> 할 수 있고, 삭제 전 <b>확인 팝업에서 Deal code를 직접 텍스트로 입력</b>해야 하며 일치하지 않으면 삭제할 수 없다(sales·admin 모두 동일). Deal History가 있어도 삭제할 수 있다. <b>Deal을 삭제하면 관련된 모든 데이터를 함께 삭제</b>한다: Deal History, Action, 단계 변경 이력, Label 연결, 파트너 연결, 첨부 파일과 Deal code별 디렉터리. 삭제 사실은 Deal 데이터로 남지 않으므로 삭제자·Deal code·시각은 서버 운영 로그에 남긴다(제안). “본인의 Deal”은 <b>Owner가 본인인 Deal</b>이다.</td><td><span class="b ok">구현</span> P1(첨부 디렉터리 삭제는 P2b)</td></tr>
 <tr><td>DL-04</td><td>Deal 목록 Filter: 담당자 / Vendor / Solution / Status / Forecast / 기간 조합 조회, 키워드 검색, “내 딜”. <b>결정(2026-10-20)</b>: “Next Action 상태” 필터(전체 / Open / 종료(수행) / 종료(미수행) / 종료(전체), 단일 선택)를 추가한다. 기준은 <b>Next Action이 있는 가장 최근 Action</b>이며, 그런 Action이 없는 Deal은 필터 사용 시 제외. API 쿼리 <code>next_action_status</code>(<code>open</code>/<code>done</code>/<code>not_done</code>/<code>closed</code>), 화면 URL 조건 유지 대상</td><td><span class="b ok">구현</span> P1(필터·정렬·total을 P5에서 당김). 조회 조건 유지는 P5(DL-06). Next Action 상태 필터 2026-10-20</td></tr>
@@ -482,7 +482,7 @@ code{background:var(--soft);padding:1px 5px;border-radius:3px;font-size:12.5px}
 <tr><td>Deal Owner</td><td>한 명, 변경 가능. sales 역할만 지정 가능</td></tr>
 <tr><td>Status ⇄ Forecast</td><td>별개의 정보이며 Won과 계약완료만 동일시. 한쪽을 바꾸면 다른 쪽도 바뀌고 사용자에게 알림. 이때 매출금액·매출일을 실제 값으로 입력하도록 강제. 종결된 Deal(Won/Lost)의 Forecast를 다른 값으로 바꾸거나 Status를 계약완료에서 이전 단계로 바꿀 때는 동기화할 값을 사용자에게 물음. 나머지 정보는 그대로 둠. Won 이후에도 잠그지 않고 모든 수정은 Deal History에 기록. Forecast Lost여도 Status 유지</td></tr>
 <tr><td>연락처 입력 규칙</td><td>회사명·담당자명 등에 공백 불가(입력 차단+서버 거부), 대소문자 동일 표기, 동명이인은 이메일로 구분</td></tr>
-<tr><td>Users</td><td>견적의 단위가 사용자 수이므로 “Users”라 부르는 Deal 정보. 고객사 직원 수가 아니며 필수가 아님</td></tr>
+<tr><td>Users</td><td>견적의 단위가 사용자 수이므로 “Users”라 부르는 Deal 정보. 고객사 직원 수가 아니다. 필수이며 0 이상 정수(0은 '실제로 0'과 '이전에 비어 있던 값'을 함께 나타낸다)</td></tr>
 <tr><td>contacts 관리</td><td>admin 메뉴에서 모든 고객·파트너 CRUD. Deal에 연결된 연락처는 삭제 불가</td></tr>
 <tr><td>코드 관리</td><td>Status·Forecast 코드는 admin이 관리. 시스템 내부 고유 코드 값으로 연결되고 이름·순서는 자유롭게 변경 가능. 참조된 코드는 삭제 불가</td></tr>
 <tr><td>Forecast 추이</td><td>표와 그래프 둘 다 제공</td></tr>
@@ -610,7 +610,7 @@ code{background:var(--soft);padding:1px 5px;border-radius:3px;font-size:12.5px}
 <tr><td>B4</td><td>BANT</td><td>선택지 코드값(Budget / Authority / Need / Timeline)</td><td>없음</td><td><b>점수 없는 Label</b>(항목당 하나). 명세서 선택지는 기본 Label, 사용자가 추가 가능</td><td>P0·P1</td></tr>
 <tr><td>B5</td><td>코드 테이블</td><td>파트너·Owner·Vendor·Status·Forecast·BANT·견적·POC 모두 코드</td><td>Status만 enum</td><td><b>Status와 Forecast만</b> 코드(admin 관리). Vendor·Solution은 자유 입력</td><td>P0</td></tr>
 <tr><td>B6</td><td>고객·파트너</td><td>고객정보와 파트너정보 별도, 파트너사 1·2 표기</td><td><code>customers</code>·<code>partners</code> 별도 테이블과 별도 화면</td><td><b>연락처 하나의 테이블</b>(고객/파트너 구분자). 회사+담당자 한 행. Deal 화면에서 선택·수정, 파트너는 1:N 중 활성 1건·선택</td><td>P1</td></tr>
-<tr><td>B7</td><td>직원수</td><td>고객 정보의 직원수</td><td><code>customers.employee_count</code></td><td><b>Deal의 Users</b>(견적 단위 사용자 수, 선택)로 대체</td><td>P1</td></tr>
+<tr><td>B7</td><td>직원수</td><td>고객 정보의 직원수</td><td><code>customers.employee_count</code></td><td><b>Deal의 Users</b>(견적 단위 사용자 수, 필수)로 대체</td><td>P1</td></tr>
 <tr><td>B8</td><td>Deal code</td><td>자동입력</td><td>입력값(고유), 기본키는 UUID <code>id</code></td><td><b>자동 채번</b> <code>YYYYMMDD-XXXX</code>, <code>id</code>를 <code>deal_code</code>로 바꿔 기본키</td><td>P1</td></tr>
 <tr><td>B9</td><td>매출일과 Expected Close</td><td>다른 항목처럼 보임</td><td><code>revenue_date</code> 하나</td><td><b>같은 값</b>. Won이면 최종 매출일로 갱신</td><td>P1</td></tr>
 <tr><td>B10</td><td>Next Action 이력</td><td>이전 Update는 Read Only</td><td>수정·삭제 API 있음</td><td><b>수정 가능</b>, 수정은 Deal History에 기록</td><td>P2</td></tr>

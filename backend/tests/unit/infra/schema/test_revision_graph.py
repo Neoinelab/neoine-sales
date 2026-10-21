@@ -20,21 +20,36 @@ from tests.support.revisions import (
     attachments_revision,
     contacts_revision,
     deal_model_revision,
+    deals_users_required_revision,
     next_action_status_revision,
     vendor_solution_revision,
 )
 
 
-def test_the_next_action_status_revision_follows_the_action_types_and_is_the_single_head() -> None:
+def test_the_users_required_revision_follows_the_next_action_status_and_is_the_single_head() -> (
+    None
+):
     script = ScriptDirectory.from_config(_alembic_config())
 
     heads = script.get_heads()
 
-    assert heads == [next_action_status_revision()]
-    assert next_action_status_revision() != action_types_revision()
-    head = script.get_revision(next_action_status_revision())
+    assert heads == [deals_users_required_revision()]
+    assert deals_users_required_revision() != next_action_status_revision()
+    head = script.get_revision(deals_users_required_revision())
     assert head is not None
-    assert head.down_revision == action_types_revision()
+    assert head.down_revision == next_action_status_revision()
+
+
+def test_the_next_action_status_revision_follows_the_action_types_in_the_head_history() -> None:
+    script = ScriptDirectory.from_config(_alembic_config())
+
+    revision = script.get_revision(next_action_status_revision())
+
+    assert next_action_status_revision() != action_types_revision()
+    assert revision is not None
+    assert revision.down_revision == action_types_revision()
+    history = {r.revision for r in script.iterate_revisions(script.get_heads()[0], "base")}
+    assert next_action_status_revision() in history
 
 
 def test_the_action_types_revision_follows_the_vendor_solution_revision() -> None:

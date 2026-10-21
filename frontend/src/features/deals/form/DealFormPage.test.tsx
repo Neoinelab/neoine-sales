@@ -1,8 +1,11 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { gateway } from '../../../gateway'
 import { AMOUNT_INPUT_MESSAGE, AMOUNT_TOO_LARGE_MESSAGE } from '../../../shared/model/money'
 import { renderAt } from '../../../test/mockApp'
 import { DETAIL_URL, openList, pickPerson, save } from './testHelpers'
+
+afterEach(() => vi.restoreAllMocks())
 
 describe('Deal 등록 기본값 (T-FORM-02, T-FORM-03)', () => {
   it('starts with the signed-in sales user as owner, 기회발굴 and Pipeline', async () => {
@@ -67,13 +70,41 @@ describe('필수 입력과 오류 문구 (T-FORM-01, T-FORM-05)', () => {
     expect(await screen.findByText(AMOUNT_TOO_LARGE_MESSAGE)).toBeVisible()
   })
 
-  it('asks for the owner when none is chosen and for a positive Users number', async () => {
+  it('asks for the owner when none is chosen and for a non-negative Users number', async () => {
     const { user } = await renderAt('/deals/new', { role: 'admin' })
     await screen.findByRole('heading', { name: 'Deal 등록' })
-    await user.type(screen.getByLabelText('Users'), '0')
+    await user.type(screen.getByLabelText('Users'), '-1')
     await save(user)
     expect(await screen.findByText('Owner를 선택하세요.')).toBeVisible()
-    expect(screen.getByText('Users는 1 이상의 정수로 입력하세요.')).toBeVisible()
+    expect(screen.getByText('Users는 0 이상의 정수로 입력하세요.')).toBeVisible()
+  })
+
+  it('asks for Users when it is left empty and does not call the gateway', async () => {
+    const create = vi.spyOn(gateway.deals, 'create')
+    const { user, location } = await renderAt('/deals/new')
+    await screen.findByRole('heading', { name: 'Deal 등록' })
+    await user.type(screen.getByLabelText('Deal Name'), 'Users 비움')
+    await pickPerson(user, '고객', '한빛은행', /정민수/)
+    await user.type(screen.getByLabelText('금액(단위:천원)'), '100000')
+    fireEvent.change(screen.getByLabelText('Expected Close'), { target: { value: '2027-06-01' } })
+    await save(user)
+    expect(await screen.findByText('Users를 입력하세요.')).toBeVisible()
+    expect(create).not.toHaveBeenCalled()
+    expect(location()).toBe('/deals/new')
+  })
+
+  it('saves Users of zero', async () => {
+    const { user, location } = await renderAt('/deals/new')
+    await screen.findByRole('heading', { name: 'Deal 등록' })
+    await user.type(screen.getByLabelText('Deal Name'), 'Users 영')
+    await pickPerson(user, '고객', '한빛은행', /정민수/)
+    await user.type(screen.getByLabelText('금액(단위:천원)'), '100000')
+    await user.type(screen.getByLabelText('Users'), '0')
+    fireEvent.change(screen.getByLabelText('Expected Close'), { target: { value: '2027-06-01' } })
+    await save(user)
+    await waitFor(() => expect(location()).toMatch(DETAIL_URL))
+    const saved = await gateway.deals.get(location().replace('/deals/', ''))
+    expect(saved.users).toBe(0)
   })
 
   it('requires both company and name once a partner is started', async () => {
@@ -120,6 +151,7 @@ describe('Deal 등록 저장 (T-FORM-04)', () => {
     expect(screen.getByLabelText('고객 직급')).toHaveValue('과장')
     expect(screen.getByLabelText('고객 이메일')).not.toHaveValue('')
     await user.type(screen.getByLabelText('금액(단위:천원)'), '300000')
+    await user.type(screen.getByLabelText('Users'), '10')
     fireEvent.change(screen.getByLabelText('Expected Close'), { target: { value: '2027-05-01' } })
     await save(user)
     await waitFor(() => expect(location()).toMatch(DETAIL_URL))
@@ -140,6 +172,7 @@ describe('Deal 등록 저장 (T-FORM-04)', () => {
     await user.clear(email)
     await user.type(email, 'changed.mail@hanbit.test')
     await user.type(screen.getByLabelText('금액(단위:천원)'), '100000')
+    await user.type(screen.getByLabelText('Users'), '10')
     fireEvent.change(screen.getByLabelText('Expected Close'), { target: { value: '2027-06-01' } })
     await save(user)
     await waitFor(() => expect(location()).toMatch(DETAIL_URL))
@@ -158,6 +191,7 @@ describe('Deal 등록 저장 (T-FORM-04)', () => {
     await user.click(screen.getByRole('combobox', { name: 'Budget' }))
     await user.click(await screen.findByRole('option', { name: '단독 예산 확보' }))
     await user.type(screen.getByLabelText('금액(단위:천원)'), '50000')
+    await user.type(screen.getByLabelText('Users'), '10')
     fireEvent.change(screen.getByLabelText('Expected Close'), { target: { value: '2027-06-01' } })
     await save(user)
     await waitFor(() => expect(location()).toMatch(DETAIL_URL))

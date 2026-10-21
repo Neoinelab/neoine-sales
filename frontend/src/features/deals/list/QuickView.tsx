@@ -44,7 +44,7 @@ export function QuickView({ row }: { row: DealRow }) {
         ))}
         <div>
           <dt>Users</dt>
-          <dd>{row.users === null ? '—' : row.users.toLocaleString('en-US')}</dd>
+          <dd>{row.users.toLocaleString('en-US')}</dd>
         </div>
         <div>
           <dt>구매절차</dt>

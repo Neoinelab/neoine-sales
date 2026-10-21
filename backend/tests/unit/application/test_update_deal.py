@@ -4,6 +4,7 @@ from datetime import date
 from typing import TYPE_CHECKING
 
 from app.domain.auth.principal import Role
+from app.domain.common.errors import InvalidValueError
 from app.domain.deal.errors import DealNotFoundError
 from app.domain.deal.values import PocState, QuoteSubmitted
 from tests.factories_deal import SALES, make_patch
@@ -36,13 +37,33 @@ class TestSentFieldsOnly:
         assert updated.item.deal.updated_at == env.clock.now()
         assert (await env.uow.deals.get(view.item.deal.id)).details.name == "확장 프로젝트"
 
-    async def test_sending_a_none_value_clears_an_optional_field(self, env: DealEnv) -> None:
+    async def test_clearing_users_is_rejected_and_nothing_changes(self, env: DealEnv) -> None:
+        view = await env.new_deal(users=5)
+        env.uow.commits = 0
+
+        with raises_with(InvalidValueError, "Users를 입력하세요."):
+            await env.update.execute(view.item.deal.id.value, make_patch(users=None), SALES)
+
+        stored = await env.uow.deals.get(view.item.deal.id)
+        assert stored.details.users == 5
+        assert env.uow.commits == 0
+        assert await env.changes(view) == []
+
+    async def test_users_can_be_set_to_zero(self, env: DealEnv) -> None:
+        view = await env.new_deal(users=10)
+
+        updated = await env.update.execute(view.item.deal.id.value, make_patch(users=0), SALES)
+
+        stored = await env.uow.deals.get(view.item.deal.id)
+        assert stored.details.users == 0
+        assert await env.changes(updated) == [("other", "Users", "10", "0")]
+
+    async def test_users_not_sent_keeps_the_current_value(self, env: DealEnv) -> None:
         view = await env.new_deal(users=5)
 
-        updated = await env.update.execute(view.item.deal.id.value, make_patch(users=None), SALES)
+        await env.update.execute(view.item.deal.id.value, make_patch(name="B"), SALES)
 
-        assert updated.item.deal.details.users is None
-        assert await env.changes(updated) == [("other", "Users", "5", "-")]
+        assert (await env.uow.deals.get(view.item.deal.id)).details.users == 5
 
     async def test_an_unchanged_value_leaves_no_history_and_keeps_updated_at(
         self, env: DealEnv
@@ -69,7 +90,7 @@ class TestSentFieldsOnly:
             make_patch(
                 name="확장 프로젝트",
                 vendor_id=oracle.id,
-                users=10,
+                users=20,
                 revenue_amount=200_000_000,
                 revenue_date=date(2026, 12, 31),
                 owner_user_id=park.id,
@@ -85,7 +106,7 @@ class TestSentFieldsOnly:
             ("owner", "Owner", "owner", "park"),
             ("other", "Deal Name", "ERP 구축", "확장 프로젝트"),
             ("other", "Vendor", "선택 안 함", "Oracle"),
-            ("other", "Users", "-", "10"),
+            ("other", "Users", "10", "20"),
         ]
 
     async def test_the_history_entries_are_authored_by_the_requester(self, env: DealEnv) -> None:

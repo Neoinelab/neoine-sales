@@ -29,7 +29,8 @@ OWNER_RESIGNED = "퇴사한 사용자는 Owner로 지정할 수 없습니다. �
 OWNER_NOT_SALES = "Owner는 재직 중인 영업 담당자여야 합니다."
 AMOUNT = "매출금액은 1원 이상의 정수로 입력하세요."
 CLOSE_MISSING = "Expected Close를 입력하세요."
-USERS = "Users는 1 이상의 정수로 입력하세요."
+USERS = "Users는 0 이상의 정수로 입력하세요."
+USERS_REQUIRED = "Users를 입력하세요."
 STATUS_MISSING = "Status를 선택하세요."
 FORECAST_MISSING = "Forecast를 선택하세요."
 SYNC = "Status와 Forecast의 동기화가 맞지 않습니다."
@@ -81,7 +82,7 @@ def _steps(ctx: Ctx) -> list[tuple[str, dict[str, Any], str]]:
         ("owner-resigned", {"owner_user_id": ctx.resigned_owner}, OWNER_RESIGNED),
         ("amount-zero", {"revenue_amount": 0}, AMOUNT),
         ("close-missing", {"revenue_date": None}, CLOSE_MISSING),
-        ("users-zero", {"users": 0}, USERS),
+        ("users-negative", {"users": -1}, USERS),
         ("status-missing", {"status_key": ""}, STATUS_MISSING),
         ("forecast-missing", {"forecast_key": ""}, FORECAST_MISSING),
         (
@@ -122,7 +123,7 @@ STEP_NAMES = [
     "owner-resigned",
     "amount-zero",
     "close-missing",
-    "users-zero",
+    "users-negative",
     "status-missing",
     "forecast-missing",
     "sync-mismatch",
@@ -192,6 +193,7 @@ async def test_an_incomplete_partner_does_not_leave_the_new_customer_behind(
         ({"revenue_amount": 2**53}, AMOUNT),
         ({"users": 2_147_483_648}, USERS),
         ({"users": -1}, USERS),
+        ({"users": None}, USERS_REQUIRED),
         ({"status_key": "unknown_status"}, STATUS_MISSING),
         ({"forecast_key": "unknown_forecast"}, FORECAST_MISSING),
         ({"status_key": "prospecting", "forecast_key": "won"}, SYNC),
@@ -209,6 +211,7 @@ async def test_boundaries_and_unknown_codes_are_rejected_with_their_own_message(
     [
         {"revenue_amount": 1},
         {"revenue_amount": 2**53 - 1},
+        {"users": 0},
         {"users": 1},
         {"users": 2_147_483_647},
         {"name": "가" * 200},

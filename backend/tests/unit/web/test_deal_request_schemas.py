@@ -4,9 +4,9 @@ from datetime import date
 from uuid import uuid4
 
 import pytest
-from app.application.choice import CatalogChoice
 from pydantic import ValidationError
 
+from app.application.choice import CatalogChoice
 from app.domain.bant.values import BantCategory
 from app.domain.deal.values import PocState, QuoteSubmitted
 from app.web.schemas.deal import ContactDraftRequest, DealCreateRequest, DealPatchRequest
@@ -19,6 +19,7 @@ def _create(**overrides: object) -> dict[str, object]:
     values: dict[str, object] = {
         "name": "ERP 구축",
         "owner_user_id": str(OWNER_ID),
+        "users": 10,
         "status_key": "prospecting",
         "forecast_key": "pipeline",
         "revenue_amount": 150_000_000,
@@ -32,9 +33,32 @@ def test_a_minimal_create_body_gets_the_documented_defaults() -> None:
     request = DealCreateRequest(**_create())
 
     assert (request.vendor_id, request.solution_id, request.procurement) == (None, None, "")
-    assert request.users is None
+    assert request.users == 10
     assert request.partner is None
     assert request.customer.contact_id is None
+
+
+def test_create_request_without_users_is_a_validation_error() -> None:
+    body = _create()
+    del body["users"]
+
+    with pytest.raises(ValidationError) as caught:
+        DealCreateRequest(**body)
+
+    assert [(e["type"], e["loc"]) for e in caught.value.errors()] == [("missing", ("users",))]
+
+
+def test_create_request_with_null_users_is_a_validation_error() -> None:
+    with pytest.raises(ValidationError) as caught:
+        DealCreateRequest(**_create(users=None))
+
+    assert [e["loc"] for e in caught.value.errors()] == [("users",)]
+
+
+@pytest.mark.parametrize("users", ["10", 1.5, True])
+def test_create_request_with_a_non_integer_users_is_a_validation_error(users: object) -> None:
+    with pytest.raises(ValidationError):
+        DealCreateRequest(**_create(users=users))
 
 
 def test_the_create_body_maps_to_the_use_case_input() -> None:
@@ -87,6 +111,7 @@ def test_the_create_body_maps_to_the_use_case_input() -> None:
         {"revenue_amount": 0},  # 범위는 도메인 문구가 나가도록 스키마에 두지 않는다
         {"revenue_amount": -5},
         {"users": 0},
+        {"users": -1},  # 음수 범위도 도메인 문구가 나가게 스키마는 통과시킨다
         {"name": ""},
         {"revenue_date": None},
         {"procurement": "가" * 5000},

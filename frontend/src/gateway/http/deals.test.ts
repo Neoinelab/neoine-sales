@@ -249,14 +249,6 @@ describe('deals.create over HTTP', () => {
     expect(body.partner).toBeNull()
   })
 
-  it('sends users null when the field is empty', async () => {
-    const { calls } = stubFetch(json(serverDealDetail(), 201))
-
-    await createDealsHttp().create(input({ users: null }))
-
-    expect((calls[0]?.body as { users: unknown }).users).toBeNull()
-  })
-
   it('sends an empty Expected Close as null so the server answers its own message', async () => {
     const { calls } = stubFetch(json(serverDealDetail(), 201))
 
@@ -335,7 +327,7 @@ describe('deals.update over HTTP', () => {
       quote: { submitted: 'NO', submittedDate: null },
       poc: { state: 'YES', completedDate: '2026-10-10' },
       bant: { budget: null, authority: { id: 'a1' }, need: { name: '신규 요건' }, timeline: null },
-      users: null,
+      users: 5,
       procurement: '',
     })
 
@@ -344,7 +336,7 @@ describe('deals.update over HTTP', () => {
       quote: { submitted: 'NO', submitted_date: null },
       poc: { state: 'YES', completed_date: '2026-10-10' },
       bant: { budget: null, authority: { id: 'a1' }, need: { name: '신규 요건' }, timeline: null },
-      users: null,
+      users: 5,
       procurement: '',
     })
   })

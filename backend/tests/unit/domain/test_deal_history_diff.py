@@ -134,7 +134,7 @@ def test_clearing_a_bant_label_is_written_as_not_selected() -> None:
     ("field", "value", "target", "before", "after"),
     [
         ("name", "B", "Deal Name", "A", "B"),
-        ("users", 250, "Users", "-", "250"),
+        ("users", 250, "Users", "10", "250"),
         ("procurement", "조달청 입찰", "구매절차", "-", "조달청 입찰"),
     ],
 )
@@ -194,12 +194,12 @@ def test_unchanged_vendor_and_solution_record_nothing() -> None:
     assert diff_after(edit_of("solution_id", SOLUTION_S4)) == []
 
 
-def test_users_cleared_is_written_as_a_dash() -> None:
+def test_users_set_to_zero_is_written_as_zero() -> None:
     deal = base_deal(users=5)
 
-    rows = diff_after(edit_of("users", None), deal)
+    rows = diff_after(edit_of("users", 0), deal)
 
-    assert rows == [("other", "Users", "5", "-")]
+    assert rows == [("other", "Users", "5", "0")]
 
 
 @pytest.mark.parametrize(

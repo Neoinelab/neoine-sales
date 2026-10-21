@@ -187,8 +187,8 @@ export interface Deal {
   /** Vendor/Solution 참조(id). 선택 안 함이면 null. 화면용 이름은 `DealRow.vendor`/`solution`. */
   vendorId: string | null
   solutionId: string | null
-  /** 견적 단위 사용자 수(Users). 필수 아님. */
-  users: number | null
+  /** 견적 단위 사용자 수(Users). 필수, 0 이상. */
+  users: number
   statusKey: string
   forecastKey: string
   /** 매출금액(KRW 정수 ≥ 1). Won이면 실제 값. */

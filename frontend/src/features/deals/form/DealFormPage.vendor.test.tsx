@@ -133,6 +133,7 @@ describe('저장 (AC-9, AC-10, AC-13)', () => {
     await user.selectOptions(solutionSelect(), 'ITDR')
     await pickPerson(user, '고객', '한빛은행', /정민수/)
     await user.type(screen.getByLabelText('금액(단위:천원)'), '100000')
+    await user.type(screen.getByLabelText('Users'), '10')
     fireEvent.change(screen.getByLabelText('Expected Close'), { target: { value: '2027-05-01' } })
 
     await save(user)
@@ -149,6 +150,7 @@ describe('저장 (AC-9, AC-10, AC-13)', () => {
     await user.type(screen.getByLabelText('Deal Name'), 'Vendor 없는 등록')
     await pickPerson(user, '고객', '한빛은행', /정민수/)
     await user.type(screen.getByLabelText('금액(단위:천원)'), '100000')
+    await user.type(screen.getByLabelText('Users'), '10')
     fireEvent.change(screen.getByLabelText('Expected Close'), { target: { value: '2027-05-01' } })
 
     await save(user)
@@ -187,6 +189,7 @@ describe('저장 (AC-9, AC-10, AC-13)', () => {
     await user.type(screen.getByLabelText('Deal Name'), '422 확인')
     await pickPerson(user, '고객', '한빛은행', /정민수/)
     await user.type(screen.getByLabelText('금액(단위:천원)'), '100000')
+    await user.type(screen.getByLabelText('Users'), '10')
     fireEvent.change(screen.getByLabelText('Expected Close'), { target: { value: '2027-05-01' } })
 
     await save(user)

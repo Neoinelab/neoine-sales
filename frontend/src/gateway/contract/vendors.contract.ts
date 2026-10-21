@@ -107,7 +107,7 @@ export function vendorsContract(make: MakeGateway): void {
         ownerId: me.id,
         vendorId: vendor.id,
         solutionId: solution.id,
-        users: null,
+        users: 100,
         statusKey: 'prospecting',
         forecastKey: 'pipeline',
         revenueAmount: 1_000_000,

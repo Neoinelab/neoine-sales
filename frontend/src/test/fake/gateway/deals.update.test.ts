@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import type { DealPatch } from '../../../shared/model/inputs'
 import type { HistoryCategory } from '../../../shared/model/types'
 import { seedSolutionId, seedVendorId } from '../../fixtures/vendors'
 import { contactIdOf, dealCode, expectApiError, mockAs, TEST_NOW } from '../testing'
@@ -54,6 +55,48 @@ describe('deals.update', () => {
     const owner = (await gateway.history.list(code, { category: 'owner' }))[0]
     expect(owner).toMatchObject({ before: '김영업', after: '박영업', by: { id: 'u-kim' }, at: TEST_NOW })
     expect((await gateway.history.list(code, { category: 'amount' }))[0]).toMatchObject({ target: '금액(단위:천원)', before: '420,000', after: '777,000' })
+  })
+
+  it('rejects clearing Users and keeps the value', async () => {
+    const { gateway } = await mockAs('kim')
+    const code = dealCode(2)
+    const before = await gateway.deals.get(code)
+    const history = (await gateway.history.list(code, {})).length
+
+    await expectApiError(gateway.deals.update(code, { users: null } as unknown as DealPatch), 422, 'Users를 입력하세요.')
+
+    expect((await gateway.deals.get(code)).users).toBe(before.users)
+    expect((await gateway.history.list(code, {})).length).toBe(history)
+  })
+
+  it('rejects a negative or fractional Users with the non-negative message', async () => {
+    const { gateway } = await mockAs('kim')
+    const code = dealCode(2)
+
+    await expectApiError(gateway.deals.update(code, { users: -1 }), 422, 'Users는 0 이상의 정수로 입력하세요.')
+    await expectApiError(gateway.deals.update(code, { users: 2.5 }), 422, 'Users는 0 이상의 정수로 입력하세요.')
+  })
+
+  it('accepts Users of zero and records it in History', async () => {
+    const { gateway } = await mockAs('kim')
+    const code = dealCode(2)
+    const before = await gateway.deals.get(code)
+
+    const updated = await gateway.deals.update(code, { users: 0 })
+
+    expect(updated.users).toBe(0)
+    const entry = (await gateway.history.list(code, { category: 'other' }))[0]
+    expect(entry).toMatchObject({ target: 'Users', before: String(before.users), after: '0' })
+  })
+
+  it('reports the Deal Name error before the cleared Users', async () => {
+    const { gateway } = await mockAs('kim')
+
+    await expectApiError(
+      gateway.deals.update(dealCode(2), { name: '', users: null } as unknown as DealPatch),
+      422,
+      'Deal Name을 입력하세요.',
+    )
   })
 
   it('Owner를 퇴사자로 지정하거나 퇴사 Owner를 유지한 채 저장하면 422', async () => {

@@ -62,8 +62,12 @@ export function validateDealFields(
   if (provided('revenueDate') && !/^\d{4}-\d{2}-\d{2}$/.test(effective.revenueDate)) {
     throw validation('Expected Close를 입력하세요.')
   }
-  if (provided('users') && effective.users !== null && (!Number.isInteger(effective.users) || effective.users < 1 || effective.users > USERS_MAX)) {
-    throw validation('Users는 1 이상의 정수로 입력하세요.')
+  if (provided('users')) {
+    const users: unknown = effective.users
+    if (users === null || users === undefined) throw validation('Users를 입력하세요.')
+    if (typeof users !== 'number' || !Number.isInteger(users) || users < 0 || users > USERS_MAX) {
+      throw validation('Users는 0 이상의 정수로 입력하세요.')
+    }
   }
   if (provided('statusKey') && !data.codes.some((c) => c.kind === 'status' && c.key === effective.statusKey)) {
     throw validation('Status를 선택하세요.')

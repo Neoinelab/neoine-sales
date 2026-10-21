@@ -149,16 +149,39 @@ describe('Owner · Vendor · Solution · Users · 견적 · POC · 구매절차'
     expect(screen.getByRole('combobox', { name: 'Solution' }).tagName).toBe('SELECT')
   })
 
-  it('saves Users as a positive integer', async () => {
+  it('saves Users as a non-negative integer', async () => {
+    const { user } = await openDeal(1, '한빛은행 ITDR 도입')
+    await user.click(screen.getByRole('button', { name: 'Users 수정' }))
+    const users = screen.getByLabelText('Users')
+    await user.clear(users)
+    await user.type(users, '-1{Enter}')
+    expect(await screen.findByRole('alert')).toHaveTextContent('Users는 0 이상의 정수로 입력하세요.')
+    await user.clear(users)
+    await user.type(users, '2500{Enter}')
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Users 수정' })).toHaveTextContent('2500'))
+  })
+
+  it('does not save an empty Users and keeps the shown value', async () => {
+    const update = vi.spyOn(gateway.deals, 'update')
+    const { user } = await openDeal(1, '한빛은행 ITDR 도입')
+    const shown = screen.getByRole('button', { name: 'Users 수정' }).textContent
+    await user.click(screen.getByRole('button', { name: 'Users 수정' }))
+    const users = screen.getByLabelText('Users')
+    await user.clear(users)
+    await user.type(users, '{Enter}')
+    expect(await screen.findByRole('alert')).toHaveTextContent('Users를 입력하세요.')
+    expect(update).not.toHaveBeenCalled()
+    await user.keyboard('{Escape}')
+    expect(screen.getByRole('button', { name: 'Users 수정' })).toHaveTextContent(shown ?? '')
+  })
+
+  it('saves Users of zero and shows it as 0', async () => {
     const { user } = await openDeal(1, '한빛은행 ITDR 도입')
     await user.click(screen.getByRole('button', { name: 'Users 수정' }))
     const users = screen.getByLabelText('Users')
     await user.clear(users)
     await user.type(users, '0{Enter}')
-    expect(await screen.findByRole('alert')).toHaveTextContent('Users는 1 이상의 정수로 입력하세요.')
-    await user.clear(users)
-    await user.type(users, '2500{Enter}')
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Users 수정' })).toHaveTextContent('2500'))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Users 수정' })).toHaveTextContent(/^0$/))
   })
 
   it('edits the quote, the POC and the procurement in place', async () => {

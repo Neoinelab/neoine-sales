@@ -115,7 +115,7 @@
   <tr><td>History</td><td>Deal에 일어난 모든 변경의 기록입니다. 시스템이 자동으로 남기며 사람이 고치거나 지울 수 없습니다.</td></tr>
   <tr><td>연락처</td><td>고객 또는 파트너 쪽 담당자입니다. 회사명과 담당자명이 필수이고 직급·이메일·전화는 선택입니다.</td></tr>
   <tr><td>Vendor / Solution</td><td>제안하는 제조사와 그 제조사의 솔루션입니다. 관리자가 등록한 목록에서만 고르며, Solution은 하나의 Vendor에 속합니다(1:N). 둘 다 선택 입력이지만 Solution은 Vendor를 고른 뒤에만 고를 수 있습니다.</td></tr>
-  <tr><td>Users</td><td>사용자 수입니다. 선택 입력입니다.</td></tr>
+  <tr><td>Users</td><td>견적 단위인 사용자 수입니다. 필수 입력이며 0 이상의 정수입니다.</td></tr>
   <tr><td>견적 / POC / 구매절차</td><td>견적 제출 여부(YES/NO)와 제출일, POC 상태(YES/ING/NO)와 완료일, 고객사 구매 절차 메모입니다. 모두 선택 입력입니다.</td></tr>
 </table>
 
@@ -145,7 +145,7 @@
   <span>등록</span><b>→</b><span>Action 기록</span><b>→</b><span>Status·Forecast·금액 갱신</span><b>→</b><span>경고 확인·후속 조치</span><b>→</b><span>종결(Won / Lost)</span>
 </div>
 <ol>
-  <li><b>등록</b>: Deal Name, Owner, 고객, Status, Forecast, 금액, Expected Close를 입력합니다. 시스템이 Deal code를 발급하고 History에 "Deal 등록"을 남깁니다.</li>
+  <li><b>등록</b>: Deal Name, Owner, 고객, Status, Forecast, 금액, Expected Close, Users를 입력합니다. 시스템이 Deal code를 발급하고 History에 "Deal 등록"을 남깁니다.</li>
   <li><b>진행</b>: 고객과 통화하거나 미팅할 때마다 Action을 남깁니다. "이번에 한 일"(진행사항)과 "다음에 무엇을 언제까지 할지"(Next Action, Due Date) 중 하나 이상을 적습니다. 목록에는 <b>Next Action이 있는 가장 최근 Action</b>의 Next Action, Due Date, 상태가 표시됩니다. 계획한 일을 마치면 그 Next Action을 종료(수행 또는 미수행)로 표시합니다(<a href="#next-status">7.4</a>).</li>
   <li><b>단계 갱신</b>: 상황이 바뀌면 Status, Forecast, 금액, Expected Close를 고칩니다. 목록이나 상세 화면에서 바로 바꿀 수 있습니다. 바꿀 때마다 History가 남습니다.</li>
   <li><b>경고 관리</b>: Due Date가 지났거나 오래 갱신하지 않으면 경고가 붙습니다. 미업데이트 경고는 Action을 남기면 풀립니다. Deal 자체를 고치는 것으로는 풀리지 않습니다(<a href="#risk">8장</a>).</li>
@@ -177,7 +177,7 @@
   <tr><td>금액(단위:천원)</td><td>O</td><td>천원 단위 1 이상의 정수. 숫자와 콤마만 입력되고 콤마는 자동으로 들어갑니다. 저장은 원 단위로 하므로, 1000원 단위로 떨어지지 않는 기존 금액은 반올림해 보입니다.</td></tr>
   <tr><td>Expected Close</td><td>O</td><td>날짜</td></tr>
   <tr><td>Vendor / Solution</td><td></td><td>관리자가 등록한 목록에서 선택합니다(<a href="#vendor">14.5</a>). Solution 목록에는 고른 Vendor에 속한 것만 나오고, Vendor를 바꾸면 고른 Solution이 비워집니다. Vendor 없이 Solution만 고를 수는 없습니다.</td></tr>
-  <tr><td>Users</td><td></td><td>1 이상의 정수</td></tr>
+  <tr><td>Users</td><td>O</td><td>0 이상의 정수(견적 단위 사용자 수). 수정할 때도 비울 수 없습니다. 이 항목이 필수가 되기 전에 비워 둔 Deal은 0으로 채워졌습니다.</td></tr>
   <tr><td>견적 / POC</td><td></td><td>상태와 날짜는 따로 입력합니다(둘의 조합은 검사하지 않음).</td></tr>
   <tr><td>구매절차</td><td></td><td>500자 이내</td></tr>
   <tr><td>BANT</td><td></td><td>구분마다 입력란 하나입니다. 누르면 기존 Label이 후보로 보이고, 입력한 글자가 들어간 것만 남습니다. 비워 두면 선택 안 함입니다. 목록에 없는 이름을 입력하면 "목록에 없는 Label입니다. 저장하면 새 Label로 추가됩니다."가 보이고, 저장할 때 새 Label이 만들어집니다(50자 이내). 상세 화면에서도 같은 방식으로 고칩니다.</td></tr>

@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { useVendors } from '../../../data/vendors'
 import { formatDate } from '../../../shared/format'
 import type { DealDetail, PocState, QuoteSubmitted } from '../../../shared/model/types'
+import { USERS_MESSAGE, USERS_REQUIRED_MESSAGE } from '../form/formState'
 import { InlineEdit } from './InlineEdit'
 import { useDealPatch } from './useDealPatch'
 
@@ -53,8 +54,9 @@ export function DealFacts({ deal, canWrite, onNotice }: DealFactsProps) {
 
   async function saveUsers(text: string) {
     const raw = text.trim()
-    if (raw !== '' && !(/^\d+$/.test(raw) && Number(raw) >= 1)) throw new Error('Users는 1 이상의 정수로 입력하세요.')
-    const users = raw === '' ? null : Number(raw)
+    if (raw === '') throw new Error(USERS_REQUIRED_MESSAGE)
+    if (!/^\d+$/.test(raw)) throw new Error(USERS_MESSAGE)
+    const users = Number(raw)
     if (users !== deal.users) await save({ users }, 'Users가 변경되었습니다.')
   }
 
@@ -100,8 +102,8 @@ export function DealFacts({ deal, canWrite, onNotice }: DealFactsProps) {
         label="Users"
         canEdit={canWrite}
         kind="number"
-        display={String(deal.users ?? '—')}
-        initial={deal.users === null ? '' : String(deal.users)}
+        display={String(deal.users)}
+        initial={String(deal.users)}
         onSave={saveUsers}
       />,
     ],

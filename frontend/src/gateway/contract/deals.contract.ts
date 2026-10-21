@@ -72,8 +72,8 @@ export function dealsContract(make: MakeGateway): void {
 
       await expectRejects(sales.deals.create({ ...base, name: '  ', revenueAmount: 0 }), 422, 'Deal Name을 입력하세요.')
       await expectRejects(sales.deals.create({ ...base, revenueAmount: 0, revenueDate: '' }), 422, '매출금액은 1원 이상의 정수로 입력하세요.')
-      await expectRejects(sales.deals.create({ ...base, revenueDate: '', users: 0 }), 422, 'Expected Close를 입력하세요.')
-      await expectRejects(sales.deals.create({ ...base, users: 0, statusKey: 'contract_completed' }), 422, 'Users는 1 이상의 정수로 입력하세요.')
+      await expectRejects(sales.deals.create({ ...base, revenueDate: '', users: -1 }), 422, 'Expected Close를 입력하세요.')
+      await expectRejects(sales.deals.create({ ...base, users: -1, statusKey: 'contract_completed' }), 422, 'Users는 0 이상의 정수로 입력하세요.')
       await expectRejects(sales.deals.create({ ...base, statusKey: 'contract_completed' }), 422, SYNC_MISMATCH)
     })
 

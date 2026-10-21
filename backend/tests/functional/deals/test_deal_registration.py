@@ -99,6 +99,18 @@ async def test_sales_registers_a_deal_with_a_new_customer_and_partner(api: Api) 
     assert body["last_updated_at"] == body["created_at"]
 
 
+@pytest.mark.parametrize("users", [0, 2_147_483_647])
+async def test_users_at_the_bounds_is_registered(api: Api, users: int) -> None:
+    """Scenario: Users가 0이거나 상한(2,147,483,647)이어도 등록되고 응답이 같은 값이다."""
+    # Given
+    await given_logged_in_as(api, role="sales")
+    # When
+    response = await when_register_deal(api, users=users)
+    # Then
+    then_status_is(response, 201)
+    assert response.json()["users"] == users
+
+
 @pytest.mark.parametrize(
     ("zone", "registered_at", "expected_day"),
     [

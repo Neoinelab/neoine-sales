@@ -17,7 +17,7 @@ def deal_payload(**overrides: object) -> dict[str, Any]:
         "owner_user_id": str(OWNER_ID),  # deal_users fixture(또는 SQL stack)가 이 사용자를 둔다
         "vendor_id": None,  # 등록된 Vendor·Solution의 id(없으면 선택 안 함)
         "solution_id": None,
-        "users": None,
+        "users": 10,
         "status_key": "prospecting",
         "forecast_key": "pipeline",
         "revenue_amount": 150_000_000,

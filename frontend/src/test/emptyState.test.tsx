@@ -48,6 +48,7 @@ describe('업무 데이터가 없는 첫 실행 상태', () => {
     await user.type(screen.getByLabelText('파트너 회사명'), '신규파트너')
     await user.type(screen.getByLabelText('파트너 담당자명'), '김파트')
     await user.type(screen.getByLabelText('금액(단위:천원)'), '100000')
+    await user.type(screen.getByLabelText('Users'), '10')
     fireEvent.change(screen.getByLabelText('Expected Close'), { target: { value: '2027-03-01' } })
     await user.click(screen.getByRole('button', { name: '저장' }))
     await waitFor(() => expect(location()).toMatch(DETAIL_URL))

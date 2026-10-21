@@ -126,7 +126,7 @@ async def insert_deal(
         "customer_id": customer_id,
         "amount": 100,
         "owner_user_id": owner,
-        "users": None,
+        "users": 10,
         "status_key": "prospecting",
         "forecast_key": "pipeline",
         "quote_submitted": None,

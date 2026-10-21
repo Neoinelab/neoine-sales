@@ -297,3 +297,15 @@ async def test_changing_the_expected_close_logs_the_dates(api: Api) -> None:
     await then_history_is(
         api, deal["code"], [("expectedClose", "Expected Close", "2026-06-30", "2026-12-31")]
     )
+
+
+async def test_users_cannot_be_changed_through_single_field_change(api: Api) -> None:
+    """Scenario: 단일 필드 변경으로 users를 바꾸려 하면 422(request-validation)이다."""
+    # Given
+    await given_logged_in_as(api, role="sales")
+    deal = await given_deal(api, users=10)
+    # When
+    response = await when_change_deal(api, deal["code"], "users", 5)
+    # Then
+    then_problem_is(response, status=422, type_suffix="request-validation")
+    await then_deal_keeps(api, deal["code"], users=10)

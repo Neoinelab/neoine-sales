@@ -101,6 +101,11 @@ def test_a_malformed_change_is_rejected(change: dict[str, object]) -> None:
         _request(change)
 
 
+def test_users_is_not_a_changeable_field() -> None:
+    with pytest.raises(ValidationError):
+        _request({"field": "users", "value": 10})
+
+
 @pytest.mark.parametrize(
     "resolution",
     [

@@ -88,7 +88,7 @@ async def deal_body(api: Api, **overrides: object) -> dict[str, Any]:
         "owner_user_id": await given_my_user_id(api),
         "vendor_id": None,  # 등록된 Vendor·Solution의 id(없으면 선택 안 함)
         "solution_id": None,
-        "users": None,
+        "users": 10,
         "status_key": "prospecting",
         "forecast_key": "pipeline",
         "revenue_amount": 150_000_000,

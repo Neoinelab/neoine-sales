@@ -58,8 +58,16 @@ describe('Users upper bound', () => {
   it('rejects one more with the Users message on create and on update', async () => {
     const { gateway } = await mockAs('kim')
 
-    await expectApiError(gateway.deals.create(dealInput('u-kim', { users: 2_147_483_648 })), 422, 'Users는 1 이상의 정수로 입력하세요.')
-    await expectApiError(gateway.deals.update(dealCode(2), { users: 2_147_483_648 }), 422, 'Users는 1 이상의 정수로 입력하세요.')
+    await expectApiError(gateway.deals.create(dealInput('u-kim', { users: 2_147_483_648 })), 422, 'Users는 0 이상의 정수로 입력하세요.')
+    await expectApiError(gateway.deals.update(dealCode(2), { users: 2_147_483_648 }), 422, 'Users는 0 이상의 정수로 입력하세요.')
+  })
+
+  it('accepts Users of zero on create', async () => {
+    const { gateway } = await mockAs('kim')
+
+    const created = await gateway.deals.create(dealInput('u-kim', { users: 0 }))
+
+    expect(created.users).toBe(0)
   })
 })
 

@@ -46,7 +46,7 @@ async def test_only_the_sent_fields_change_and_each_is_logged(api: Api) -> None:
         revenue_amount=1_870_000_000,
         revenue_date="2026-12-31",
         vendor_id=oracle.id,
-        users=10,
+        users=20,
         status_key="price_negotiation",
     )
     # Then
@@ -65,10 +65,62 @@ async def test_only_the_sent_fields_change_and_each_is_logged(api: Api) -> None:
             ("expectedClose", "Expected Close", "2026-06-30", "2026-12-31"),
             ("other", "Deal Name", "ERP 구축", "확장 프로젝트"),
             ("other", "Vendor", "선택 안 함", "Oracle"),
-            ("other", "Users", "-", "10"),
+            ("other", "Users", "10", "20"),
         ],
     )
     assert body["updated_at"] > deal["updated_at"]
+
+
+async def test_clearing_users_is_rejected_and_the_deal_keeps_its_value(api: Api) -> None:
+    """Scenario: users를 null로 보내면 422이고 값과 이력은 그대로다."""
+    # Given
+    await given_logged_in_as(api, role="sales")
+    deal = await given_deal(api, users=10)
+    # When
+    response = await when_update_deal(api, deal["code"], users=None)
+    # Then
+    then_problem_is(response, status=422, type_suffix="invalid-value")
+    assert response.json()["detail"] == "Users를 입력하세요."
+    await then_deal_keeps(api, deal["code"], users=10)
+    await then_history_is(api, deal["code"], [])
+
+
+async def test_a_patch_without_users_keeps_users(api: Api) -> None:
+    """Scenario: users를 보내지 않는 수정은 200이고 users는 그대로다."""
+    # Given
+    await given_logged_in_as(api, role="sales")
+    deal = await given_deal(api, users=10)
+    # When
+    response = await when_update_deal(api, deal["code"], name="B")
+    # Then
+    then_status_is(response, 200)
+    assert response.json()["users"] == 10
+
+
+async def test_users_can_be_changed_to_zero_and_is_recorded(api: Api) -> None:
+    """Scenario: users를 0으로 고치면 저장되고 이력에 10 -> 0이 남는다."""
+    # Given
+    await given_logged_in_as(api, role="sales")
+    deal = await given_deal(api, users=10)
+    # When
+    response = await when_update_deal(api, deal["code"], users=0)
+    # Then
+    then_status_is(response, 200)
+    assert response.json()["users"] == 0
+    await then_history_is(api, deal["code"], [("other", "Users", "10", "0")])
+
+
+async def test_negative_users_in_a_patch_is_rejected(api: Api) -> None:
+    """Scenario: users를 -1로 고치려 하면 422이고 값은 그대로다."""
+    # Given
+    await given_logged_in_as(api, role="sales")
+    deal = await given_deal(api, users=10)
+    # When
+    response = await when_update_deal(api, deal["code"], users=-1)
+    # Then
+    then_problem_is(response, status=422, type_suffix="invalid-value")
+    assert response.json()["detail"] == "Users는 0 이상의 정수로 입력하세요."
+    await then_deal_keeps(api, deal["code"], users=10)
 
 
 async def test_an_unchanged_patch_leaves_no_history_and_keeps_updated_at(api: Api) -> None:

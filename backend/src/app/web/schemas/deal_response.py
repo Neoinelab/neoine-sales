@@ -76,7 +76,7 @@ class DealRowResponse(BaseModel):
     owner: UserRef
     vendor: NamedRefResponse | None
     solution: NamedRefResponse | None
-    users: int | None
+    users: int
     status_key: str
     forecast_key: str
     revenue_amount: int  # JSON 정수(2^53-1 이하가 도메인에서 보장된다)

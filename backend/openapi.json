@@ -1631,15 +1631,8 @@
             "type": "string"
           },
           "users": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Users"
+            "title": "Users",
+            "type": "integer"
           },
           "vendor_id": {
             "anyOf": [
@@ -1657,6 +1650,7 @@
         "required": [
           "name",
           "owner_user_id",
+          "users",
           "status_key",
           "forecast_key",
           "revenue_amount",
@@ -1802,15 +1796,8 @@
             "type": "string"
           },
           "users": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Users"
+            "title": "Users",
+            "type": "integer"
           },
           "vendor": {
             "anyOf": [
@@ -2155,15 +2142,8 @@
             "type": "string"
           },
           "users": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Users"
+            "title": "Users",
+            "type": "integer"
           },
           "vendor": {
             "anyOf": [

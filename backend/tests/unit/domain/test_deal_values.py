@@ -21,6 +21,7 @@ from app.domain.deal.values import (
     Quote,
     QuoteSubmitted,
     RevenueAmount,
+    check_users,
 )
 from app.domain.vendor.values import SolutionId, VendorId
 from tests.factories import make_bant, make_deal_details
@@ -28,7 +29,8 @@ from tests.support.expect import raises_with
 from tests.support.user_ids import OWNER_ID, uid
 
 AMOUNT_MESSAGE = "매출금액은 1원 이상의 정수로 입력하세요."
-USERS_MESSAGE = "Users는 1 이상의 정수로 입력하세요."
+USERS_MESSAGE = "Users는 0 이상의 정수로 입력하세요."
+USERS_REQUIRED_MESSAGE = "Users를 입력하세요."
 
 
 def test_limits_match_the_agreed_values() -> None:
@@ -114,14 +116,33 @@ class TestVendorAndSolutionChoice:
 
 
 class TestUsers:
-    @pytest.mark.parametrize("value", [None, 1, 250, USERS_MAX])
-    def test_is_optional_and_between_one_and_the_int_maximum(self, value: int | None) -> None:
+    @pytest.mark.parametrize("value", [0, 1, 250, USERS_MAX])
+    def test_accepts_zero_up_to_the_int_maximum(self, value: int) -> None:
         assert make_deal_details(users=value).users == value
 
-    @pytest.mark.parametrize("value", [0, -1, USERS_MAX + 1, 1.5])
-    def test_rejects_zero_negative_over_the_int_maximum_and_a_fraction(self, value: object) -> None:
+    @pytest.mark.parametrize("value", [-1, USERS_MAX + 1, 1.5, True])
+    def test_rejects_negative_over_the_int_maximum_a_fraction_and_a_bool(
+        self, value: object
+    ) -> None:
         with raises_with(InvalidValueError, USERS_MESSAGE):
             make_deal_details(users=value)
+
+    def test_missing_users_is_rejected_with_the_required_message(self) -> None:
+        with raises_with(InvalidValueError, USERS_REQUIRED_MESSAGE):
+            make_deal_details(users=None)
+
+    @pytest.mark.parametrize("value", [0, 1, USERS_MAX])
+    def test_check_users_accepts_zero_up_to_the_maximum(self, value: int) -> None:
+        assert check_users(value) == value
+
+    def test_check_users_none_is_required(self) -> None:
+        with raises_with(InvalidValueError, USERS_REQUIRED_MESSAGE):
+            check_users(None)
+
+    @pytest.mark.parametrize("value", [-1, USERS_MAX + 1, 1.5, True])
+    def test_check_users_rejects_out_of_range_values(self, value: object) -> None:
+        with raises_with(InvalidValueError, USERS_MESSAGE):
+            check_users(value)
 
 
 class TestProcurement:

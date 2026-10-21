@@ -22,6 +22,8 @@ import type {
 
 export const OWNER_RESIGNED_MESSAGE = '퇴사한 사용자는 Owner로 지정할 수 없습니다. 다른 담당자를 선택하세요.'
 export const PARTNER_INCOMPLETE_MESSAGE = '파트너를 입력하면 회사명과 담당자명이 모두 필요합니다.'
+export const USERS_REQUIRED_MESSAGE = 'Users를 입력하세요.'
+export const USERS_MESSAGE = 'Users는 0 이상의 정수로 입력하세요.'
 
 export const EMPTY_DRAFT: ContactDraft = { contactId: null, company: '', name: '', title: '', email: null, phone: null }
 
@@ -109,7 +111,7 @@ export function formFromDeal(deal: DealDetail, labels: readonly BantLabel[]): De
     ownerId: deal.ownerId,
     vendorId: deal.vendor?.id ?? '',
     solutionId: deal.solution?.id ?? '',
-    users: deal.users === null ? '' : String(deal.users),
+    users: String(deal.users),
     statusKey: deal.statusKey,
     forecastKey: deal.forecastKey,
     revenueAmount: formatThousandWon(deal.revenueAmount),
@@ -175,7 +177,8 @@ export function validateForm(
   if (state.ownerId === '') errors.ownerId = 'Owner를 선택하세요.'
   else if (originalOwner?.status === 'resigned' && originalOwner.id === state.ownerId) errors.ownerId = OWNER_RESIGNED_MESSAGE
   const users = state.users.trim()
-  if (users !== '' && !(/^\d+$/.test(users) && Number(users) >= 1)) errors.users = 'Users는 1 이상의 정수로 입력하세요.'
+  if (users === '') errors.users = USERS_REQUIRED_MESSAGE
+  else if (!/^\d+$/.test(users)) errors.users = USERS_MESSAGE
   const customer = customerErrors(state.customer)
   if (customer) errors.customer = customer
   const partner = partnerErrors(state.partner)
@@ -209,7 +212,7 @@ export function toDealInput(state: DealFormState, labels: readonly BantLabel[]):
     ownerId: state.ownerId,
     vendorId: state.vendorId || null,
     solutionId: state.solutionId || null,
-    users: users === '' ? null : Number(users),
+    users: Number(users),
     statusKey: state.statusKey,
     forecastKey: state.forecastKey,
     revenueAmount: parseAmountInput(state.revenueAmount) ?? 0,

@@ -61,7 +61,8 @@ export function DealInfoSection(props: DealInfoSectionProps) {
           value={state.users}
           onChange={(v) => set('users', v)}
           error={errors.users}
-          hint="견적 단위 사용자 수(선택)"
+          hint="견적 단위 사용자 수"
+          required
         />
         <QuoteRows state={state} set={set} errors={errors} />
         <p className="hint">
