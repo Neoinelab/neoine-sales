@@ -22,32 +22,54 @@ from tests.support.revisions import (
     contacts_revision,
     deal_model_revision,
     deals_users_required_revision,
+    forecast_snapshots_revision,
     next_action_status_revision,
     vendor_solution_revision,
 )
 
-USERS_REQUIRED_REVISION = "e8c2b4f6a1d9"  # 이 리비전 아래는 UUID 스키마다
+USERS_REQUIRED_REVISION = "e8c2b4f6a1d9"  # 이 리비전 아래는 UUID 스키마
+BIGINT_IDS_REVISION = "a3f7c1d95b28"  # P6 R2 스냅숏 리비전의 down_revision다
 
 
-def test_the_bigint_ids_revision_follows_the_users_required_and_is_the_single_head() -> None:
+def test_the_forecast_snapshots_revision_follows_the_bigint_ids_and_is_the_single_head() -> None:
     script = ScriptDirectory.from_config(_alembic_config())
 
     heads = script.get_heads()
 
-    assert heads == [bigint_ids_revision()]
-    assert bigint_ids_revision() != deals_users_required_revision()
-    head = script.get_revision(bigint_ids_revision())
+    assert heads == [forecast_snapshots_revision()]
+    assert forecast_snapshots_revision() != bigint_ids_revision()
+    head = script.get_revision(forecast_snapshots_revision())
     assert head is not None
-    assert head.down_revision == USERS_REQUIRED_REVISION == deals_users_required_revision()
+    assert head.down_revision == bigint_ids_revision() == BIGINT_IDS_REVISION
+
+
+def test_the_forecast_snapshots_revision_file_is_named_after_its_purpose() -> None:
+    script = ScriptDirectory.from_config(_alembic_config())
+
+    head = script.get_revision(forecast_snapshots_revision())
+
+    assert head is not None
+    assert head.path.endswith(f"_{head.revision}_forecast_snapshots.py")
+
+
+def test_the_bigint_ids_revision_follows_the_users_required_in_the_head_history() -> None:
+    script = ScriptDirectory.from_config(_alembic_config())
+
+    assert bigint_ids_revision() != deals_users_required_revision()
+    revision = script.get_revision(bigint_ids_revision())
+    assert revision is not None
+    assert revision.down_revision == USERS_REQUIRED_REVISION == deals_users_required_revision()
+    history = {r.revision for r in script.iterate_revisions(script.get_heads()[0], "base")}
+    assert bigint_ids_revision() in history
 
 
 def test_the_bigint_ids_revision_file_is_named_after_its_purpose() -> None:
     script = ScriptDirectory.from_config(_alembic_config())
 
-    head = script.get_revision(bigint_ids_revision())
+    revision = script.get_revision(bigint_ids_revision())
 
-    assert head is not None
-    assert head.path.endswith(f"20261021_{head.revision}_bigint_ids.py")
+    assert revision is not None
+    assert revision.path.endswith(f"20261021_{revision.revision}_bigint_ids.py")
 
 
 def test_the_users_required_revision_follows_the_next_action_status_in_the_head_history() -> None:

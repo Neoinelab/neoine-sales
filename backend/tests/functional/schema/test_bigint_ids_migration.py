@@ -1,8 +1,9 @@
 """Feature: 운영자는 BIGINT id 리비전으로 올려 업무 데이터를 모두 지우고 새 스키마·시드를 얻는다.
 
 When: 운영자 명령(alembic upgrade/downgrade). 이 리비전은 `e8c2b4f6a1d9`(UUID 스키마) 바로
-다음이고 head다. 올리면 모든 앱 테이블을 가드 없이(플래그·데이터 점검 없이) 지우고 BIGINT
-IDENTITY 스키마로 다시 만든 뒤 기본 시드(코드 13, BANT Label 23, Action 유형 8)를 넣는다.
+다음이다(head는 이후 리비전으로 앞서간다). 올리면 모든 앱 테이블을 가드 없이(플래그·데이터
+점검 없이) 지우고 BIGINT IDENTITY 스키마로 다시 만든 뒤
+기본 시드(코드 13, BANT Label 23, Action 유형 8)를 넣는다.
 이전 저장 위치(path)는 WARNING 로그로 알리고 디스크는 건드리지 않는다. 내리는 것은 한국어
 사유의 RuntimeError로 거부하고 버전·스키마·데이터를 그대로 둔다(복구는 배포 전 백업 복원뿐).
 """
@@ -22,6 +23,7 @@ from tests.functional.steps.bigint_ids import (
     uuid_columns,
 )
 from tests.functional.steps.schema import (
+    CommandOutcome,
     given_rows,
     given_schema_at,
     table_names,
@@ -30,9 +32,11 @@ from tests.functional.steps.schema import (
     then_command_succeeded,
     then_schema_is_at,
     when_operator_attempts_downgrade,
-    when_operator_attempts_upgrade,
-    when_operator_upgrades,
 )
+from tests.functional.steps.schema import (
+    when_operator_attempts_upgrade as attempt_upgrade,
+)
+from tests.functional.steps.schema import when_operator_upgrades as upgrade_database
 from tests.support.head_rows import insert_user
 from tests.support.revisions import bigint_ids_revision, deals_users_required_revision
 from tests.support.user_fk_migration import run_sql
@@ -48,6 +52,18 @@ pytestmark = pytest.mark.integration
 USERS_REQUIRED_REVISION = "e8c2b4f6a1d9"  # 이 아래는 UUID 스키마
 NOT_REVERSIBLE = "되돌릴 수 없습니다"
 RESTORE_FROM_BACKUP = "백업"
+
+
+async def when_operator_upgrades(url: URL) -> None:
+    """운영자 명령: BIGINT id 리비전까지 올린다(head는 이후 리비전으로 앞서갈 수 있다)."""
+    await upgrade_database(url, target=bigint_ids_revision())
+
+
+async def when_operator_attempts_upgrade(url: URL) -> CommandOutcome:
+    """운영자 명령: BIGINT id 리비전까지 올리기를 시도한다(중단되면 결과에 담긴다)."""
+    return await attempt_upgrade(url, target=bigint_ids_revision())
+
+
 NEXT_ID_AFTER_SEED = (
     "insert into action_types (name, is_default, created_at, updated_at)"
     " values ('ZZ 새 유형', false, now(), now()) returning id"

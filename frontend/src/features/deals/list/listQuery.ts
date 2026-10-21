@@ -3,6 +3,7 @@ import type { DealListQuery, DealSortKey, SortOrder } from '../../../shared/mode
 
 import { nextActionStatusFromParam } from '../../../shared/model/nextActionStatus'
 import { parseId } from '../../../shared/model/ids'
+import { parseMonth } from '../../../shared/model/month'
 import { isCalendarDate } from '../../../shared/model/updatedPeriod'
 import { FILTER_KEYS } from '../../../shared/model/dealListMemory'
 
@@ -87,6 +88,9 @@ export function listQueryFromParams(params: URLSearchParams): DealListQuery {
   // 분기는 연도와 따로 보낸다(연도 없이 분기만 있으면 서버가 올해로 본다).
   const quarter = Number(params.get('quarter'))
   if (quarter === 1 || quarter === 2 || quarter === 3 || quarter === 4) query.quarter = quarter
+  // 월은 분기와 함께 쓸 수 없다(서버 422). 둘 다 있으면 분기를 유지한다.
+  const month = parseMonth(params.get('month'))
+  if (query.quarter === undefined && month !== undefined) query.month = month
 
   const bant: Partial<Record<BantCategory, number>> = {}
   for (const category of BANT_CATEGORIES) {

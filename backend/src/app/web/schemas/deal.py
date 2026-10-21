@@ -184,6 +184,7 @@ class DealSearchParams(RequestModel):
     forecast_key: Annotated[str | None, Field(max_length=STATUS_KEY_MAX)] = None
     year: Annotated[int | None, Field(ge=1900, le=9999)] = None
     quarter: Annotated[int | None, Field(ge=1, le=4)] = None
+    month: Annotated[int | None, Field(ge=1, le=12)] = None
     updated_from: date | None = None
     updated_to: date | None = None
     bant_budget: QueryId | None = None

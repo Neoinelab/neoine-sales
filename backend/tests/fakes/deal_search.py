@@ -7,7 +7,7 @@
 - last_updated_at = 가장 최근 활동의 acted_at(없으면 created_at, Deal 수정은 반영하지 않음)
 
 이 모듈은 Deal·연락처 도메인 객체를 속성으로만 읽는다(새 모델 구현이 없어도 가져올 수 있다).
-- 연/분기: Expected Close가 그 해(분기)에 속함(Q1=1~3월 … Q4=10~12월)
+- 연/분기/월: Expected Close가 그 해(분기·월)에 속함(Q1=1~3월 … Q4=10~12월)
 - updated_from/to: last_updated_at의 로컬 업무 날짜가 양끝 포함 범위 안(`updated_in_range`)
 - BANT: 구분별로 그 Label이 선택된 Deal만, 여러 구분이면 AND
 """
@@ -69,12 +69,17 @@ def revenue_bounds(query: DealQuery) -> tuple[date | None, date | None]:
     DealQuery.revenue_window와 독립적으로 계산한다(Fake가 구현을 베끼지 않도록).
     """
     if query.year is None:
-        if query.quarter is not None:  # 저장소는 연도가 정해진 질의만 받는다
+        if query.quarter is not None or getattr(query, "month", None) is not None:
+            # 저장소는 연도가 정해진 질의만 받는다
             msg = "quarter만 있는 질의는 연도를 채운 뒤 조회해야 한다"
             raise ValueError(msg)
         return None, None
-    first_month = 1 if query.quarter is None else (query.quarter - 1) * 3 + 1
-    last_month = 12 if query.quarter is None else query.quarter * 3
+    month = getattr(query, "month", None)  # 월 필터(P6): 분기와 배타, 그 달 1일~말일
+    if month is not None:
+        first_month = last_month = month
+    else:
+        first_month = 1 if query.quarter is None else (query.quarter - 1) * 3 + 1
+        last_month = 12 if query.quarter is None else query.quarter * 3
     period_start = date(query.year, first_month, 1)
     period_end = date(query.year, last_month, calendar.monthrange(query.year, last_month)[1])
     return period_start, period_end

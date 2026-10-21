@@ -192,3 +192,22 @@ def bigint_ids_revision() -> str:
     children = [r.revision for r in script.walk_revisions() if r.down_revision == previous]
     assert len(children) == 1, f"Deal users 필수 다음 리비전이 정확히 하나여야 한다: {children}"
     return children[0]
+
+
+def forecast_snapshots_revision() -> str:
+    """Forecast 월말 스냅숏(P6 R2 `forecast_snapshots`) 리비전 id: BIGINT id 리비전 다음이고 head다.
+
+    forecast_snapshots·forecast_snapshot_columns·forecast_snapshot_cells 세 테이블만 추가하는 순수
+    expand 단일 리비전이다
+    (기존 테이블은 건드리지 않는다). id는 구현이 정하므로 그래프에서 찾는다. 없거나 둘 이상이면
+    AssertionError(구현 전에는 이것이 red다).
+    """
+    from alembic.script import ScriptDirectory  # noqa: PLC0415
+
+    from tests.support.database import _alembic_config  # noqa: PLC0415
+
+    previous = bigint_ids_revision()
+    script = ScriptDirectory.from_config(_alembic_config())
+    children = [r.revision for r in script.walk_revisions() if r.down_revision == previous]
+    assert len(children) == 1, f"BIGINT id 다음 리비전이 정확히 하나여야 한다: {children}"
+    return children[0]

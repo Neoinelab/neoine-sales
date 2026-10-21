@@ -30,6 +30,24 @@ const input = (over: Partial<DealInput> = {}): DealInput => ({
   ...over,
 })
 
+describe('deals.list month over HTTP (P6 AC-12)', () => {
+  it('sends month as a query key next to year', async () => {
+    const { calls } = stubFetch(json(page([])))
+
+    await createDealsHttp().list({ year: 2026, month: 3 })
+
+    expect(Object.fromEntries(query(calls[0]?.path ?? ''))).toEqual({ year: '2026', month: '3' })
+  })
+
+  it('does not send month when it is not set', async () => {
+    const { calls } = stubFetch(json(page([])))
+
+    await createDealsHttp().list({ year: 2026, quarter: 4 })
+
+    expect(query(calls[0]?.path ?? '').has('month')).toBe(false)
+  })
+})
+
 describe('deals.list over HTTP', () => {
   it('sends GET /deals without a query when nothing is set', async () => {
     const { calls } = stubFetch(json(page([])))
@@ -510,10 +528,13 @@ describe('http gateway wiring', () => {
     expect(calls[0]).toMatchObject({ method: 'GET', path: `/api/v1/deals/${CODE}/attachments` })
   })
 
-  it('keeps only forecast on 501', async () => {
-    const gateway = createHttpGateway()
+  it('uses the real forecast adapter instead of the 501 placeholder', async () => {
+    // 응답 해석은 forecast.test.ts가 검증한다. 여기서는 서버를 호출하는지만 본다.
+    const { calls } = stubFetch(json({}))
 
-    await expect(gateway.forecast.summary({ year: 2026 })).rejects.toMatchObject({ status: 501 })
+    await createHttpGateway().forecast.summary({ year: 2026 }).catch(() => undefined)
+
+    expect(calls[0]).toMatchObject({ method: 'GET', path: '/api/v1/forecast/summary?year=2026' })
   })
 })
 

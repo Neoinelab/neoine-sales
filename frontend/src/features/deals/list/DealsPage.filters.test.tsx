@@ -5,6 +5,7 @@ import { ApiError } from '../../../shared/api/problem'
 import { resetMock } from '../../../test/fake/default'
 import { renderAt } from '../../../test/mockApp'
 import { seedSolutionId, seedVendorId } from '../../../test/fixtures/vendors'
+import { dealInput } from '../../../test/fake/testing'
 import { dataRows } from './testHelpers'
 import { USER_ID } from '../../../test/fake/seed/ids'
 
@@ -90,6 +91,39 @@ describe('필터와 정렬 (T-LIST-05~09)', () => {
     await user.selectOptions(screen.getByLabelText('Quarter'), 'Q4')
     expect(location()).toContain(`year=${year}`)
     expect(location()).toContain('quarter=4')
+  })
+
+  it('puts the month in the URL and clears the quarter (P6 Q3-b)', async () => {
+    const { user, location } = await renderAt('/deals?year=2026&quarter=4')
+    await screen.findByRole('row', { name: /한빛은행 ITDR 도입/ })
+
+    await user.selectOptions(screen.getByLabelText('월'), '3월')
+
+    expect(location()).toContain('month=3')
+    expect(location()).not.toContain('quarter=')
+  })
+
+  it('clears the month when a quarter is chosen', async () => {
+    const { user, location } = await renderAt('/deals?year=2026&month=11')
+    await screen.findByLabelText('월')
+
+    await user.selectOptions(screen.getByLabelText('Quarter'), 'Q4')
+
+    expect(location()).toContain('quarter=4')
+    expect(location()).not.toContain('month=')
+  })
+
+  it('restores the month control from the URL and lists only that month', async () => {
+    const { client } = await renderAt('/deals?year=2028&month=2')
+    await screen.findByLabelText('월')
+    await gateway.deals.create(dealInput(USER_ID.kim, { name: '월필터 2월', revenueDate: '2028-02-10' }))
+    await gateway.deals.create(dealInput(USER_ID.kim, { name: '월필터 3월', revenueDate: '2028-03-10' }))
+    await client.invalidateQueries()
+
+    expect(await screen.findByRole('row', { name: /월필터 2월/ })).toBeVisible()
+    expect(screen.getByLabelText('월')).toHaveDisplayValue('2월')
+    expect(screen.queryByRole('row', { name: /월필터 3월/ })).not.toBeInTheDocument()
+    expect(dataRows()).toHaveLength(1)
   })
 
   it('shows only my deals with the my-deals toggle and removes the filter when turned off', async () => {

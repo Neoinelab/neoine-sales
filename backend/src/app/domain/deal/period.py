@@ -6,7 +6,10 @@ from datetime import date
 from app.domain.common.errors import InvalidValueError
 
 QUARTER_MESSAGE = "분기는 1~4 중에서 선택하세요."
+QUARTER_MONTH_EXCLUSIVE = "Quarter와 월은 함께 선택할 수 없습니다."
+MONTH_MESSAGE = "월은 1~12 중에서 선택하세요."
 QUARTERS = 4
+MONTHS_PER_YEAR = 12
 MONTHS_PER_QUARTER = 3
 
 
@@ -20,3 +23,10 @@ def quarter_range(year: int, quarter: int | None) -> tuple[date, date]:
     last_month = first_month + MONTHS_PER_QUARTER - 1
     last_day = calendar.monthrange(year, last_month)[1]
     return date(year, first_month, 1), date(year, last_month, last_day)
+
+
+def month_range(year: int, month: int) -> tuple[date, date]:
+    """(그 달 1일, 말일). month가 1~12 밖이면 InvalidValueError."""
+    if not 1 <= month <= MONTHS_PER_YEAR:
+        raise InvalidValueError(MONTH_MESSAGE)
+    return date(year, month, 1), date(year, month, calendar.monthrange(year, month)[1])

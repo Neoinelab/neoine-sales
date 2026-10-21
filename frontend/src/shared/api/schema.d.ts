@@ -599,6 +599,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/forecast/snapshots": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Forecast Snapshots */
+        get: operations["list_forecast_snapshots_api_v1_forecast_snapshots_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/forecast/snapshots/{period}/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Forecast Snapshot Summary */
+        get: operations["get_forecast_snapshot_summary_api_v1_forecast_snapshots__period__summary_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/forecast/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Forecast Summary */
+        get: operations["get_forecast_summary_api_v1_forecast_summary_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/settings/directory": {
         parameters: {
             query?: never;
@@ -1019,6 +1070,15 @@ export interface components {
             /** Name */
             name?: string | null;
         };
+        /** CellResponse */
+        CellResponse: {
+            /** Amount */
+            amount: number;
+            /** Count */
+            count: number;
+            /** Key */
+            key: string;
+        };
         /** CoChangedResponse */
         CoChangedResponse: {
             /** Field */
@@ -1107,6 +1167,16 @@ export interface components {
             probability_hint: string | null;
             /** Usage Count */
             usage_count: number;
+        };
+        /** ColumnResponse */
+        ColumnResponse: {
+            /** Key */
+            key: string;
+            /** Name */
+            name: string;
+            /** Order */
+            order: number;
+            outcome: components["schemas"]["ForecastOutcome"];
         };
         /**
          * ContactCreateRequest
@@ -1745,6 +1815,29 @@ export interface components {
             /** Success */
             success: boolean;
         };
+        /**
+         * ForecastOutcome
+         * @description Forecast가 시스템에 알려 주는 결과. 일반 코드와 Status는 항상 OPEN이다.
+         * @enum {string}
+         */
+        ForecastOutcome: "open" | "won" | "lost";
+        /** ForecastSummaryResponse */
+        ForecastSummaryResponse: {
+            /**
+             * As Of
+             * Format: date-time
+             */
+            as_of: string;
+            basis: components["schemas"]["SummaryBasis"];
+            /** Columns */
+            columns: components["schemas"]["ColumnResponse"][];
+            period: components["schemas"]["PeriodResponse"];
+            /** Rows */
+            rows: components["schemas"]["RowResponse"][];
+            /** Snapshot Period */
+            snapshot_period: string | null;
+            total: components["schemas"]["RowResponse"];
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -1869,6 +1962,25 @@ export interface components {
             /** Unlinked At */
             unlinked_at: string | null;
         };
+        /** PeriodResponse */
+        PeriodResponse: {
+            /**
+             * From
+             * Format: date
+             */
+            from: string;
+            /** Month */
+            month: number | null;
+            /** Quarter */
+            quarter: number | null;
+            /**
+             * To
+             * Format: date
+             */
+            to: string;
+            /** Year */
+            year: number;
+        };
         /** PocRequest */
         PocRequest: {
             /** Completed Date */
@@ -1954,6 +2066,13 @@ export interface components {
          * @enum {string}
          */
         Role: "admin" | "sales" | "user";
+        /** RowResponse */
+        RowResponse: {
+            /** Cells */
+            cells: components["schemas"]["CellResponse"][];
+            open_total: components["schemas"]["TallyResponse"];
+            owner: components["schemas"]["UserRef"] | null;
+        };
         /** SetupAdminRequest */
         SetupAdminRequest: {
             /** Login Id */
@@ -1963,6 +2082,21 @@ export interface components {
              * Format: password
              */
             password: string;
+        };
+        /** SnapshotItemResponse */
+        SnapshotItemResponse: {
+            /** Period */
+            period: string;
+            /**
+             * Taken At
+             * Format: date-time
+             */
+            taken_at: string;
+        };
+        /** SnapshotListResponse */
+        SnapshotListResponse: {
+            /** Items */
+            items: components["schemas"]["SnapshotItemResponse"][];
         };
         /** SolutionNameRequest */
         SolutionNameRequest: {
@@ -2010,6 +2144,18 @@ export interface components {
              */
             updated_at: string;
             updated_by: components["schemas"]["UserRef"] | null;
+        };
+        /**
+         * SummaryBasis
+         * @enum {string}
+         */
+        SummaryBasis: "live" | "snapshot";
+        /** TallyResponse */
+        TallyResponse: {
+            /** Amount */
+            amount: number;
+            /** Count */
+            count: number;
         };
         /**
          * UpdatedPeriodPreset
@@ -4179,6 +4325,7 @@ export interface operations {
                 forecast_key?: string | null;
                 year?: number | null;
                 quarter?: number | null;
+                month?: number | null;
                 updated_from?: string | null;
                 updated_to?: string | null;
                 bant_budget?: number | null;
@@ -4923,6 +5070,143 @@ export interface operations {
             };
             /** @description problem+json */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    list_forecast_snapshots_api_v1_forecast_snapshots_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SnapshotListResponse"];
+                };
+            };
+            /** @description problem+json */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    get_forecast_snapshot_summary_api_v1_forecast_snapshots__period__summary_get: {
+        parameters: {
+            query: {
+                year: number;
+                quarter?: number | null;
+                month?: number | null;
+                owner_user_id?: number | null;
+            };
+            header?: never;
+            path: {
+                /** @description 기준 월 YYYY-MM */
+                period: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ForecastSummaryResponse"];
+                };
+            };
+            /** @description problem+json */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    get_forecast_summary_api_v1_forecast_summary_get: {
+        parameters: {
+            query: {
+                year: number;
+                quarter?: number | null;
+                month?: number | null;
+                owner_user_id?: number | null;
+                vendor_id?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ForecastSummaryResponse"];
+                };
+            };
+            /** @description problem+json */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };

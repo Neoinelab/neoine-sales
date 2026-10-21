@@ -40,6 +40,8 @@ export const keys = {
   actionTypes: ['actionTypes'] as const,
   vendors: ['vendors'] as const,
   forecast: ['forecast'] as const,
+  forecastSnapshots: ['forecast', 'snapshots'] as const,
+  forecastSnapshotSummary: (period: string, q: Omit<ForecastQuery, 'vendorId'>) => ['forecast', 'snapshot', period, q] as const,
   forecastSummary: (q: ForecastQuery) => ['forecast', q] as const,
   users: ['users'] as const,
   userList: (f: UserListFilter) => ['users', 'list', f] as const,

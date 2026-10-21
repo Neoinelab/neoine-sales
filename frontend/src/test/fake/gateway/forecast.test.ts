@@ -8,7 +8,7 @@ type Gw = Awaited<ReturnType<typeof mockAs>>['gateway']
 
 /** Deal 원장(목록)에서 직접 합산한 값. summary와 같아야 한다. */
 async function ledger(gw: Gw, query: ForecastQuery) {
-  const items = (await gw.deals.list({ ...query, limit: 1000 })).items
+  const items = (await gw.deals.list({ ...query, limit: 200 })).items
   const sum = (filter: (d: (typeof items)[number]) => boolean) => {
     const rows = items.filter(filter)
     return { count: rows.length, amount: rows.reduce((s, d) => s + d.revenueAmount, 0) }
@@ -103,5 +103,40 @@ describe('forecast.summary', () => {
   it('로그인이 필요하다', async () => {
     const { gateway } = await mockAs(null)
     await expectApiError(gateway.forecast.summary({ year: 2026 }), 401)
+  })
+
+  it('P6 월 단위: 그 달 1일~말일(양끝 포함)만 집계하고 원장 합과 같다', async () => {
+    const { gateway } = await mockAs('kim')
+    await gateway.deals.create(dealInput(USER_ID.kim, { name: '2월 말', revenueDate: '2028-02-29', forecastKey: 'commit', revenueAmount: 2_000_000 }))
+    await gateway.deals.create(dealInput(USER_ID.kim, { name: '3월 초', revenueDate: '2028-03-01', forecastKey: 'commit', revenueAmount: 5_000_000 }))
+    await gateway.deals.create(dealInput(USER_ID.kim, { name: '1월 말', revenueDate: '2028-01-31', forecastKey: 'commit', revenueAmount: 9_000_000 }))
+
+    const feb = await gateway.forecast.summary({ year: 2028, month: 2 })
+    const { sum } = await ledger(gateway, { year: 2028, month: 2 } as ForecastQuery)
+
+    expect(feb.totalRow.cells.commit).toEqual({ count: 1, amount: 2_000_000 })
+    expect(feb.totalRow.cells.commit).toEqual(sum((d) => d.forecastKey === 'commit'))
+    expect(feb.query).toEqual({ year: 2028, month: 2 })
+  })
+
+  it('P6 Quarter와 월을 함께 주면 422다', async () => {
+    const { gateway } = await mockAs('kim')
+    await expectApiError(gateway.forecast.summary({ year: 2026, quarter: 1, month: 1 }), 422, 'Quarter와 월은 함께 선택할 수 없습니다.')
+  })
+
+  it('P6 응답은 basis=live와 서버 현재 시각(asOf)을 담는다', async () => {
+    const { gateway } = await mockAs('kim')
+    const summary = await gateway.forecast.summary({ year: 2026 })
+    expect(summary.basis).toBe('live')
+    expect(Number.isNaN(Date.parse(summary.asOf))).toBe(false)
+    expect(summary.asOf).toMatch(/(?:[+-]\d{2}:\d{2}|Z)$/)
+  })
+
+  it('P6 열은 코드 order를 담고 오름차순이다', async () => {
+    const { gateway } = await mockAs('kim')
+    const { columns } = await gateway.forecast.summary({ year: 2026 })
+    const orders = columns.map((c) => c.order)
+    expect(orders.every((o) => Number.isInteger(o))).toBe(true)
+    expect(orders).toEqual([...orders].sort((a, b) => a - b))
   })
 })

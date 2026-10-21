@@ -16,6 +16,10 @@ from tests.fakes.file_storage import FakeFileStorage
 from tests.fakes.unit_of_work import FakeUnitOfWork, SteppingClock
 
 if TYPE_CHECKING:
+    from app.application.forecast.get_snapshot_summary import GetForecastSnapshotSummary
+    from app.application.forecast.list_snapshots import ListForecastSnapshots
+    from app.application.forecast.take_snapshot import TakeForecastSnapshot
+
     from app.application.alert.get_alert_settings import GetAlertSettings
     from app.application.alert.update_alert_settings import UpdateAlertSettings
     from app.application.auth.auth_status import GetAuthStatus
@@ -35,6 +39,7 @@ if TYPE_CHECKING:
     from app.application.directory.get_settings import GetDirectorySettings
     from app.application.directory.test_settings import TestDirectorySettings
     from app.application.directory.update_settings import UpdateDirectorySettings
+    from app.application.forecast.get_summary import GetForecastSummary
     from app.application.ports.unit_of_work import UnitOfWorkFactory
     from app.application.storage.get_settings import GetStorageSettings
     from app.application.storage.test_settings import TestStorageSettings
@@ -163,6 +168,30 @@ class FakeUseCases(CatalogUseCases, ContactUseCases, DealUseCases, AttachmentUse
         )
 
         return UpdateAlertSettings(self._factory, self.clock)
+
+    # Forecast 요약 유스케이스도 사용 시점에 가져온다(P6 R1: 구현 전에도 수집된다)
+    def get_forecast_summary(self) -> GetForecastSummary:
+        from app.application.forecast.get_summary import GetForecastSummary  # noqa: PLC0415
+
+        return GetForecastSummary(self._factory, self.clock)
+
+    # 월말 스냅숏 유스케이스도 사용 시점에 가져온다(P6 R2: 구현 전에도 수집된다)
+    def take_forecast_snapshot(self) -> TakeForecastSnapshot:
+        from app.application.forecast.take_snapshot import TakeForecastSnapshot  # noqa: PLC0415
+
+        return TakeForecastSnapshot(self._factory, self.clock)
+
+    def list_forecast_snapshots(self) -> ListForecastSnapshots:
+        from app.application.forecast.list_snapshots import ListForecastSnapshots  # noqa: PLC0415
+
+        return ListForecastSnapshots(self._factory)
+
+    def get_forecast_snapshot_summary(self) -> GetForecastSnapshotSummary:
+        from app.application.forecast.get_snapshot_summary import (  # noqa: PLC0415
+            GetForecastSnapshotSummary,
+        )
+
+        return GetForecastSnapshotSummary(self._factory)
 
     def auth_status(self) -> GetAuthStatus:
         return self._auth.status

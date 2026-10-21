@@ -1,7 +1,7 @@
 """Feature: 운영자는 빈 DB를 head까지 올리고, 과거 리비전 체인은 base로 내렸다 다시 올린다.
 
 When: 운영자 명령(alembic upgrade/downgrade). 운영자에게 공개된 인터페이스는 HTTP가 아니라
-이 명령이다. head(BIGINT id 리비전)는 되돌릴 수 없으므로(`test_bigint_ids_migration.py`가 거부를
+이 명령이다. BIGINT id 리비전은 되돌릴 수 없으므로(`test_bigint_ids_migration.py`가 거부를
 검증한다) base로 내리는 시나리오는 그 아래 마지막 리비전(`deals_users_required_revision()`)에서
 시작한다. 올리는 쪽은 head까지 올려 새 스키마를 확인한다.
 """
@@ -42,6 +42,9 @@ EXPECTED_TABLES = {
     "vendors",  # Vendor·Solution 관리
     "solutions",
     "action_types",  # Action 유형 카탈로그
+    "forecast_snapshots",  # Forecast 월말 스냅숏(P6 R2)
+    "forecast_snapshot_cells",
+    "forecast_snapshot_columns",
 }
 # contacts로 통합된 customers·partners, 이력 테이블로 바뀐 deal_stage_changes는 head에 없다
 RETIRED_TABLES = {"customers", "partners", "deal_stage_changes"}

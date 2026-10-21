@@ -7,7 +7,7 @@ from app.application.ports.pagination import check_page
 from app.domain.common.business_date import start_of_business_day
 from app.domain.common.errors import InvalidValueError
 from app.domain.common.validation import check_date_in_bounds, optional_text
-from app.domain.deal.period import quarter_range
+from app.domain.deal.period import QUARTER_MONTH_EXCLUSIVE, month_range, quarter_range
 
 if TYPE_CHECKING:
     from collections.abc import Collection, Mapping, Sequence
@@ -58,6 +58,7 @@ class DealQuery:
     forecast_key: str | None = None
     year: int | None = None  # Expected Close 연도(필터 확장 R3)
     quarter: int | None = None  # 1~4. 연도가 없으면 호출자가 `with_year_for`로 올해를 채운다
+    month: int | None = None  # 1~12. quarter와 함께 쓸 수 없고, 연도가 없으면 올해를 채운다
     updated_from: date | None = None  # 최종 업데이트(last_updated_at) 기간, 서버 업무 날짜
     updated_to: date | None = None
     bant_label_ids: Mapping[BantCategory, BantLabelId] = field(default_factory=dict)  # 구분별 AND
@@ -86,21 +87,27 @@ class DealQuery:
     def _check_year_and_quarter(self) -> None:
         if self.year is not None and not YEAR_MIN <= self.year <= YEAR_MAX:
             raise InvalidValueError(f"연도는 {YEAR_MIN}~{YEAR_MAX} 중에서 입력하세요.")
+        if self.quarter is not None and self.month is not None:
+            raise InvalidValueError(QUARTER_MONTH_EXCLUSIVE)
         if self.quarter is not None:
             quarter_range(self.year or YEAR_MIN, self.quarter)  # 1~4 밖이면 InvalidValueError
+        if self.month is not None:
+            month_range(self.year or YEAR_MIN, self.month)  # 1~12 밖이면 InvalidValueError
 
     def with_year_for(self, today: date) -> DealQuery:
-        """분기만 있고 연도가 없으면 today의 연도를 채운 사본, 아니면 self."""
-        if self.year is None and self.quarter is not None:
+        """분기·월만 있고 연도가 없으면 today의 연도를 채운 사본, 아니면 self."""
+        if self.year is None and (self.quarter is not None or self.month is not None):
             return replace(self, year=today.year)
         return self
 
     def revenue_window(self) -> tuple[date | None, date | None]:
         """Expected Close의 허용 범위 (시작, 끝). 연/분기 범위이며 양끝 포함, None은 열린 쪽."""
-        if self.year is None and self.quarter is not None:
-            raise ValueError("연도 없는 분기는 with_year_for로 연도를 채운 뒤 써야 합니다.")
+        if self.year is None and (self.quarter is not None or self.month is not None):
+            raise ValueError("연도 없는 분기·월은 with_year_for로 연도를 채운 뒤 써야 합니다.")
         if self.year is None:
             return None, None
+        if self.month is not None:
+            return month_range(self.year, self.month)
         return quarter_range(self.year, self.quarter)
 
     def updated_window(self) -> tuple[datetime | None, datetime | None]:

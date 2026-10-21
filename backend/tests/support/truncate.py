@@ -30,6 +30,12 @@ FILE_TABLES: Final = ("deal_attachments", "storage_settings")
 ALERT_TABLES: Final = ("alert_settings",)
 # Vendor·Solution 관리. 과거 리비전 DB에는 없을 수 있어 있는 것만 비운다(deals가 참조).
 VENDOR_TABLES: Final = ("solutions", "vendors")
+# Forecast 월말 스냅숏(P6 R2). 셀은 users CASCADE로 비워지지만 열·헤더는 아니므로 함께 비운다.
+FORECAST_TABLES: Final = (
+    "forecast_snapshot_cells",
+    "forecast_snapshot_columns",
+    "forecast_snapshots",
+)
 # 마이그레이션이 기본 행을 심는 users 참조 테이블(기본 행은 created_by_user_id가 없어 되살린다).
 SEEDED_TABLES: Final = ("bant_labels", "action_types")
 
@@ -50,7 +56,14 @@ async def truncate_business_tables(connection: AsyncConnection) -> None:
     못 찾는다. (deal_actions는 이 truncate로 함께 비워지므로 유형을 되살려도 참조가 남지 않는다.)
     """
     present = await existing_tables(connection)
-    optional = (*DEAL_TABLES, *FILE_TABLES, *ALERT_TABLES, *VENDOR_TABLES, *CONTACT_TABLES)
+    optional = (
+        *DEAL_TABLES,
+        *FILE_TABLES,
+        *ALERT_TABLES,
+        *VENDOR_TABLES,
+        *FORECAST_TABLES,
+        *CONTACT_TABLES,
+    )
     names = [*ALWAYS, *(name for name in optional if name in present)]
     kept = [table for table in SEEDED_TABLES if table in present]
     for table in kept:

@@ -13,6 +13,7 @@ import { attachmentsContract } from './attachments.contract'
 import { codesContract } from './codes.contract'
 import { contactsContract } from './contacts.contract'
 import { dealsContract } from './deals.contract'
+import { forecastContract } from './forecast.contract'
 import { labelsContract } from './labels.contract'
 import { vendorsContract } from './vendors.contract'
 import type { MakeGateway } from './support'
@@ -43,3 +44,4 @@ actionTypesContract(makeMock)
 dealBantContract(makeMock)
 attachmentsContract(makeMock)
 alertsContract(makeMock)
+forecastContract(makeMock)

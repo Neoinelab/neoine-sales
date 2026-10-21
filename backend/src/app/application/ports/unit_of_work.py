@@ -12,6 +12,10 @@ if TYPE_CHECKING:
     from app.application.ports.deal_history_repository import DealHistoryRepository
     from app.application.ports.deal_repository import DealRepository
     from app.application.ports.directory_settings_repository import DirectorySettingsRepository
+    from app.application.ports.forecast_repository import (
+        ForecastSnapshotRepository,
+        ForecastTallyRepository,
+    )
     from app.application.ports.id_allocator import IdAllocator
     from app.application.ports.login_failure_repository import LoginFailureRepository
     from app.application.ports.session_repository import SessionRepository
@@ -74,6 +78,12 @@ class UnitOfWork(Protocol):
 
     @property
     def action_types(self) -> ActionTypeRepository: ...
+
+    @property
+    def forecast(self) -> ForecastTallyRepository: ...
+
+    @property
+    def forecast_snapshots(self) -> ForecastSnapshotRepository: ...
 
     async def __aenter__(self) -> Self: ...
 

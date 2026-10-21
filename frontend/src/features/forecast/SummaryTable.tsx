@@ -22,7 +22,8 @@ export function CellValue({ cell }: { cell: ForecastCell | undefined }) {
 interface Props {
   summary: ForecastSummary
   selectedId: number | undefined
-  onSelect: (ownerId: number | undefined) => void
+  /** 없으면 담당자 이름을 선택할 수 없는 텍스트로 그린다(스냅숏 모드). */
+  onSelect?: (ownerId: number | undefined) => void
 }
 
 interface RowProps {
@@ -30,16 +31,20 @@ interface RowProps {
   open: ForecastColumn[]
   won: ForecastColumn[]
   selected: boolean
-  onSelect: () => void
+  onSelect: (() => void) | undefined
 }
 
 function OwnerRow({ row, open, won, selected, onSelect }: RowProps) {
   return (
-    <tr className={selected ? 'fc-selected' : undefined}>
+    <tr className={onSelect && selected ? 'fc-selected' : undefined}>
       <th scope="row">
-        <button type="button" className="fc-owner" aria-pressed={selected} onClick={onSelect}>
-          {row.ownerName}
-        </button>
+        {onSelect ? (
+          <button type="button" className="fc-owner" aria-pressed={selected} onClick={onSelect}>
+            {row.ownerName}
+          </button>
+        ) : (
+          row.ownerName
+        )}
       </th>
       {open.map((c) => (
         <td key={c.key} className="fc-num">
@@ -94,7 +99,7 @@ export function SummaryTable({ summary, selectedId, onSelect }: Props) {
               open={open}
               won={won}
               selected={row.ownerId === selectedId}
-              onSelect={() => onSelect(row.ownerId === selectedId ? undefined : (row.ownerId ?? undefined))}
+              onSelect={onSelect && (() => onSelect(row.ownerId === selectedId ? undefined : (row.ownerId ?? undefined)))}
             />
           ))}
         </tbody>

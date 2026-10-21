@@ -4,12 +4,15 @@ import { DEAL_PAGE_SIZE } from '../../../shared/model/constants'
 import { compareIso, datePart } from '../../../shared/model/dates'
 import { inPeriod } from '../../../shared/model/period'
 import type { DealListQuery, DealRow, Page } from '../../../shared/model/types'
-import { validation } from '../errors'
+import { QUARTER_MONTH_EXCLUSIVE, validation } from '../errors'
 import { read, requireUser, type MockContext } from './context'
 import { codeSetOf } from './dealChange'
 import { statusesOf } from './nextActionStatus'
 import { updatedPeriods } from './updatedPeriods'
 import { dealDetail, dealRow, findDeal } from './views'
+
+/** 서버 `MAX_LIMIT`와 같은 값. */
+export const MAX_PAGE_SIZE = 200
 
 function matches(row: DealRow, query: DealListQuery, viewerId: number, thisYear: number): boolean {
   if (query.keyword) {
@@ -23,8 +26,10 @@ function matches(row: DealRow, query: DealListQuery, viewerId: number, thisYear:
   if (query.statusKey && row.statusKey !== query.statusKey) return false
   if (query.forecastKey && row.forecastKey !== query.forecastKey) return false
   // 분기만 있으면 올해(Fake 시계의 업무 날짜 연도)의 그 분기다.
-  const year = query.year ?? (query.quarter !== undefined ? thisYear : undefined)
+  const year = query.year ?? (query.quarter !== undefined || query.month !== undefined ? thisYear : undefined)
   if (year !== undefined && !inPeriod(row.revenueDate, year, query.quarter)) return false
+  // 월은 분기와 함께 쓸 수 없다(listDeals가 먼저 거절한다). 그 달의 Deal만 남긴다.
+  if (query.month !== undefined && Number(row.revenueDate.slice(5, 7)) !== query.month) return false
   // 최종 업데이트(Action 기준 lastUpdatedAt)의 달력 날짜가 양끝 포함 범위 안이어야 한다.
   const updatedDay = datePart(row.lastUpdatedAt)
   if (query.updatedFrom && updatedDay < query.updatedFrom) return false
@@ -43,6 +48,9 @@ export function listDeals(ctx: MockContext, query: DealListQuery): Page<DealRow>
   if (query.updatedFrom && query.updatedTo && query.updatedFrom > query.updatedTo) {
     throw validation('최종 업데이트 기간의 시작은 끝보다 늦을 수 없습니다')
   }
+  if (query.quarter !== undefined && query.month !== undefined) throw validation(QUARTER_MONTH_EXCLUSIVE)
+  // 서버 한도: 한 번에 최대 200건(그 이상은 422).
+  if ((query.limit ?? 0) > MAX_PAGE_SIZE) throw validation(`limit은 ${MAX_PAGE_SIZE} 이하여야 합니다.`)
   const thisYear = Number(ctx.clock.today().slice(0, 4))
   const statusOrder = codeSetOf(ctx).statuses.map((c) => c.key)
   const sort = query.sort ?? 'lastUpdatedAt'

@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 from tests.functional.steps.auth import given_logged_in_as
-from tests.functional.steps.common import then_status_is
+from tests.functional.steps.common import then_problem_is, then_status_is
 from tests.functional.steps.deal_lists import (
     then_codes_are,
     then_codes_are_exactly,
@@ -297,3 +297,55 @@ async def test_all_filters_are_combined_and_total_ignores_the_page(api: Api) -> 
     then_total_is(response, 3)
     assert len(response.json()["items"]) == 1
     assert response.json()["items"][0]["code"] in {h["code"] for h in hits}
+
+
+async def test_month_filter_limits_expected_close(api: Api) -> None:
+    """Scenario: year+month는 Expected Close가 그 달 1일~말일(양끝 포함)인 Deal만 나온다."""
+    # Given
+    await given_logged_in_as(api, role="sales")
+    feb_first = await given_deal(api, revenue_date="2028-02-01")
+    feb_last = await given_deal(api, revenue_date="2028-02-29")
+    await given_deal(api, revenue_date="2028-01-31")
+    await given_deal(api, revenue_date="2028-03-01")
+    await given_deal(api, revenue_date="2027-02-15")
+    # When
+    response = await when_list_deals(api, year=2028, month=2)
+    # Then
+    then_status_is(response, 200)
+    then_codes_are_exactly(response, [feb_first["code"], feb_last["code"]])
+    then_total_is(response, 2)
+
+
+async def test_month_without_year_takes_this_year(api: Api) -> None:
+    """Scenario: month만 주면 서버 업무 날짜의 올해 그 달로 좁힌다(분기와 같은 규칙)."""
+    # Given
+    this_year = api.clock.now().astimezone().year
+    await given_logged_in_as(api, role="sales")
+    hit = await given_deal(api, revenue_date=f"{this_year}-03-15")
+    await given_deal(api, revenue_date=f"{this_year - 1}-03-15")
+    await given_deal(api, revenue_date=f"{this_year}-04-15")
+    # When
+    response = await when_list_deals(api, month=3)
+    # Then
+    then_status_is(response, 200)
+    then_codes_are_exactly(response, [hit["code"]])
+
+
+async def test_quarter_and_month_together_are_rejected(api: Api) -> None:
+    """Scenario: quarter와 month를 함께 주면 422 invalid-value다."""
+    # Given
+    await given_logged_in_as(api, role="sales")
+    # When
+    response = await when_list_deals(api, year=2026, quarter=1, month=1)
+    # Then
+    then_problem_is(response, status=422, type_suffix="invalid-value")
+
+
+async def test_month_outside_one_to_twelve_is_rejected(api: Api) -> None:
+    """Scenario: month가 1~12 밖이면 422 request-validation이다."""
+    # Given
+    await given_logged_in_as(api, role="sales")
+    # When
+    response = await when_list_deals(api, year=2026, month=13)
+    # Then
+    then_problem_is(response, status=422, type_suffix="request-validation")

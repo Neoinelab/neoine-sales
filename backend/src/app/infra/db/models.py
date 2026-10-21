@@ -131,4 +131,5 @@ from app.infra.db import (  # noqa: E402,F401
     models_catalog,
     models_contact,
     models_deal,
+    models_forecast,
 )

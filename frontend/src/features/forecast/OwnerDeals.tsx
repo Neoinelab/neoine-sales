@@ -6,24 +6,39 @@ import { NEXT_ACTION_STATUS_LABEL } from '../../shared/model/nextActionStatus'
 import { AmountText } from '../../shared/ui/AmountText'
 import { ForecastBadge, StatusBadge } from '../../shared/ui/Badges'
 import { ErrorBanner } from '../../shared/ui/ErrorBanner'
+import type { ForecastCell } from '../../shared/model/types'
 import { queryOf, type ForecastFilters } from './forecastParams'
 
 interface Props {
   ownerId: number
   ownerName: string
   filters: ForecastFilters
+  /** 요약 표 행의 Open 합계(서버 값). 목록에서 다시 계산하지 않는다. */
+  openTotal: ForecastCell | undefined
   onClear: () => void
 }
 
+/** 서버 목록 한도(MAX_LIMIT)와 같다. 넘으면 422이므로 올리지 않는다. */
+const DEAL_LIMIT = 200
+
+/** 요약과 같은 조건의 Deals 목록 쿼리(담당자·기간·Vendor). */
+function allDealsParams(ownerId: number, filters: ForecastFilters): string {
+  const params = new URLSearchParams({ owner: String(ownerId), year: String(filters.year) })
+  if (filters.quarter) params.set('quarter', String(filters.quarter))
+  else if (filters.month) params.set('month', String(filters.month))
+  if (filters.vendor) params.set('vendor', String(filters.vendor))
+  return params.toString()
+}
+
 /** 요약 표와 같은 기간·Vendor 조건에서 한 담당자의 Deal 목록(Forecast Review용). 읽기 전용. */
-export function OwnerDeals({ ownerId, ownerName, filters, onClear }: Props) {
-  const { year, quarter, vendorId } = queryOf(filters)
-  const deals = useDeals({ ownerId, year, quarter, vendorId, sort: 'revenueDate', order: 'asc', limit: 1000 })
+export function OwnerDeals({ ownerId, ownerName, filters, openTotal, onClear }: Props) {
+  const { year, quarter, month, vendorId } = queryOf(filters)
+  const deals = useDeals({ ownerId, year, quarter, month, vendorId, sort: 'revenueDate', order: 'asc', limit: DEAL_LIMIT })
   const items = deals.data?.items ?? []
-  const counted = items.filter((d) => d.forecastKey !== 'lost')
-  const lostCount = items.length - counted.length
-  const openSum = counted.filter((d) => d.forecastKey !== 'won')
-  const openAmount = openSum.reduce((s, d) => s + d.revenueAmount, 0)
+  const lostCount = items.filter((d) => d.forecastKey === 'lost').length
+  const total = deals.data?.total ?? 0
+  const limit = deals.data?.limit ?? DEAL_LIMIT
+  const allLink = `/deals?${allDealsParams(ownerId, filters)}`
 
   return (
     <section className="fc-owner-deals" aria-labelledby="fc-owner-title">
@@ -38,9 +53,18 @@ export function OwnerDeals({ ownerId, ownerName, filters, onClear }: Props) {
       {deals.data && (
         <>
           <p className="hint">
-            Open {openSum.length}건 · {AMOUNT_LABEL} <AmountText amount={openAmount} />
-            {lostCount > 0 && ` · Lost ${lostCount}건은 합계에서 제외`}
+            {openTotal && (
+              <>
+                Open {openTotal.count}건 · {AMOUNT_LABEL} <AmountText amount={openTotal.amount} />
+              </>
+            )}
+            {lostCount > 0 && total <= limit && ` · Lost ${lostCount}건은 합계에서 제외`}
           </p>
+          {total > limit && (
+            <p className="hint">
+              총 {total}건 중 {limit}건만 표시합니다. <Link to={allLink}>Deals 목록에서 모두 보기</Link>
+            </p>
+          )}
           {items.length === 0 ? (
             <p className="hint">조건에 맞는 Deal이 없습니다.</p>
           ) : (

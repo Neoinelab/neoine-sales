@@ -12,6 +12,10 @@ from app.infra.db.deal_action_repository import SqlDealActionRepository
 from app.infra.db.deal_history_repository import SqlDealHistoryRepository
 from app.infra.db.deal_repository import SqlDealRepository
 from app.infra.db.directory_settings_repository import SqlDirectorySettingsRepository
+from app.infra.db.forecast_repository import (
+    SqlForecastSnapshotRepository,
+    SqlForecastTallyRepository,
+)
 from app.infra.db.id_allocator import SqlIdAllocator
 from app.infra.db.login_failure_repository import SqlLoginFailureRepository
 from app.infra.db.session_repository import SqlSessionRepository
@@ -41,6 +45,8 @@ class SqlUnitOfWork:
     alert_settings: SqlAlertSettingsRepository
     vendors: SqlVendorRepository
     action_types: SqlActionTypeRepository
+    forecast: SqlForecastTallyRepository
+    forecast_snapshots: SqlForecastSnapshotRepository
     ids: SqlIdAllocator
 
     def __init__(self, session_factory: async_sessionmaker[AsyncSession]) -> None:
@@ -63,6 +69,8 @@ class SqlUnitOfWork:
         self.alert_settings = SqlAlertSettingsRepository(self._session)
         self.vendors = SqlVendorRepository(self._session)
         self.action_types = SqlActionTypeRepository(self._session)
+        self.forecast = SqlForecastTallyRepository(self._session)
+        self.forecast_snapshots = SqlForecastSnapshotRepository(self._session)
         self.ids = SqlIdAllocator(self._session)
         return self
 

@@ -96,6 +96,41 @@ describe('deals.list', () => {
     expect(all.length).toBeGreaterThan(byYear.length)
   })
 
+  it('P6 월 필터는 그 달 1일~말일(양끝 포함)의 Deal만 돌려준다', async () => {
+    const { gateway } = await mockAs('kim')
+    const first = await gateway.deals.create({ ...dealInputFor('2028-02-01') })
+    const last = await gateway.deals.create({ ...dealInputFor('2028-02-29') })
+    await gateway.deals.create({ ...dealInputFor('2028-01-31') })
+    await gateway.deals.create({ ...dealInputFor('2028-03-01') })
+
+    const found = await gateway.deals.list({ year: 2028, month: 2, limit: 100 })
+
+    expect(found.items.map((d) => d.code).sort()).toEqual([first.code, last.code].sort())
+    expect(found.total).toBe(2)
+  })
+
+  it('P6 월만 고르면 Fake 시계의 올해 그 달이다', async () => {
+    const { gateway } = await mockAs('kim') // Fake 시계 2026-10-15
+    const mine = await gateway.deals.create({ ...dealInputFor('2026-03-15') })
+    const lastYear = await gateway.deals.create({ ...dealInputFor('2025-03-15') })
+
+    const found = (await gateway.deals.list({ month: 3, limit: 100 })).items.map((d) => d.code)
+
+    expect(found).toContain(mine.code)
+    expect(found).not.toContain(lastYear.code)
+  })
+
+  it('P6 분기와 월을 함께 주면 422다', async () => {
+    const { gateway } = await mockAs('kim')
+    await expectApiError(gateway.deals.list({ year: 2026, quarter: 1, month: 1 }), 422, 'Quarter와 월은 함께 선택할 수 없습니다.')
+  })
+
+  it('P6 서버 한도: limit이 200을 넘으면 422이고 200은 허용된다', async () => {
+    const { gateway } = await mockAs('kim')
+    await expectApiError(gateway.deals.list({ limit: 201 }), 422)
+    expect((await gateway.deals.list({ limit: 200 })).limit).toBe(200)
+  })
+
   it('최종 업데이트 기간은 lastUpdatedAt의 날짜가 양끝 포함 범위 안인 Deal만 돌려준다', async () => {
     const { gateway } = await mockAs('kim')
     const all = (await gateway.deals.list({ limit: 100 })).items

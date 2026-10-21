@@ -8,6 +8,7 @@ import { addDays } from '../../shared/model/dates'
 import { seedActivity } from './activity'
 import { seedAttachments } from './attachments'
 import { seedContacts } from './contacts'
+import { seedForecastSnapshots } from './forecastSnapshot'
 import { DEAL_SPECS } from './dealSpecs'
 import { dealCodeOf, seedDeals } from './deals'
 import { SEED_SOLUTION_COUNT, SEED_VENDORS } from './vendors'
@@ -37,6 +38,7 @@ export function buildSampleSeed(clock: MockClock): SeedData {
     actions: activity.actions,
     history: [...activity.history, ...files.history],
     attachments: files.attachments,
+    forecastSnapshots: seedForecastSnapshots(),
   }
 }
 

@@ -183,3 +183,28 @@ describe('Vendor·Solution 필터 (AC-15)', () => {
     expect(screen.getByLabelText('Vendor')).toHaveDisplayValue('전체')
   })
 })
+
+describe('월 선택 표시 (R1 Minor 2·3)', () => {
+  it('shows the month select as all when both quarter and month are in the URL (the query uses the quarter only)', async () => {
+    await renderAt('/deals?year=2026&quarter=4&month=11')
+    await screen.findByLabelText('월')
+
+    expect(screen.getByLabelText('Quarter')).toHaveValue('4')
+    expect(screen.getByLabelText('월')).toHaveValue('')
+  })
+
+  it('tells that a month without a year means this year', async () => {
+    await renderAt('/deals?month=3')
+    await screen.findByLabelText('월')
+
+    const label = screen.getByLabelText('월').closest('label') as HTMLElement
+    expect(within(label).getByText('연도를 고르지 않으면 올해(2026) 기준입니다.')).toBeVisible()
+  })
+
+  it('does not show the this-year hint when a year is chosen with the month', async () => {
+    await renderAt('/deals?year=2026&month=3')
+    await screen.findByLabelText('월')
+
+    expect(screen.queryByText(/연도를 고르지 않으면/)).not.toBeInTheDocument()
+  })
+})

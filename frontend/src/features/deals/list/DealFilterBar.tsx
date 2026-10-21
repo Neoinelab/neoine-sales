@@ -10,6 +10,7 @@ import { useToday } from '../../../data/today'
 import { useVendors } from '../../../data/vendors'
 import { BANT_CATEGORIES, BANT_CATEGORY_NAMES } from '../../../shared/model/constants'
 import { NEXT_ACTION_STATUS_FILTER_OPTIONS, nextActionStatusFromParam, nextActionStatusToParam } from '../../../shared/model/nextActionStatus'
+import { parseMonth } from '../../../shared/model/month'
 import { selectedUpdatedPeriod } from '../../../shared/model/updatedPeriod'
 import { ErrorBanner } from '../../../shared/ui/ErrorBanner'
 import { CheckboxField, SelectField, TextField } from '../../../shared/ui/fields'
@@ -23,6 +24,7 @@ interface DealFilterBarProps {
 }
 
 const QUARTERS = [1, 2, 3, 4] as const
+const MONTHS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] as const
 
 const PERIOD_LABELS = { '2w': '최근 2주', '1m': '최근 1개월', '2m': '최근 2개월', '3m': '최근 3개월', '6m': '최근 6개월' } as const
 
@@ -39,6 +41,7 @@ export function DealFilterBar({ params, onChange, onReset }: DealFilterBarProps)
   const loaded = vendorsQuery.data !== undefined
   const value = (key: string) => params.get(key) ?? ''
   const hintId = useId()
+  const monthHintId = useId()
   const periodsQuery = useUpdatedPeriods()
   const periods = periodsQuery.data?.periods
   const queryClient = useQueryClient()
@@ -64,6 +67,7 @@ export function DealFilterBar({ params, onChange, onReset }: DealFilterBarProps)
   const nextStatus = nextActionStatusFromParam(params.get('next_status'))
   const hasQuarter = value('quarter') !== ''
   const hasYear = value('year') !== ''
+  const showMonthHint = !hasQuarter && !hasYear && parseMonth(params.get('month')) !== undefined
   // 목록이 로드된 뒤 목록에 없는 id(예전 이름 값 등)·소속이 맞지 않는 Solution은 '전체'로 보인다.
   // 조건 형식은 listQueryFromParams가, 목록 없는 id·소속 불일치는 DealsPage의 effectiveVendorFilter가 판정한다.
   // 목록이 없는 동안(로딩·오류)에는 URL 값이 조회에 쓰이므로 '선택한 …' 옵션 하나로 선택 상태를 보인다.
@@ -189,7 +193,7 @@ export function DealFilterBar({ params, onChange, onReset }: DealFilterBarProps)
           aria-label="Quarter"
           aria-describedby={hasQuarter && !hasYear ? hintId : undefined}
           value={value('quarter')}
-          onChange={(e) => onChange({ quarter: e.target.value })}
+          onChange={(e) => onChange({ quarter: e.target.value, month: '' })}
         >
           <option value="">전체</option>
           {QUARTERS.map((n) => (
@@ -200,6 +204,26 @@ export function DealFilterBar({ params, onChange, onReset }: DealFilterBarProps)
         </select>
         {hasQuarter && !hasYear && (
           <small id={hintId} className="field-hint">
+            연도를 고르지 않으면 올해({thisYear}) 기준입니다.
+          </small>
+        )}
+      </label>
+      <label className="field">
+        <span>월</span>
+        <select
+          name="month"
+          aria-label="월"
+          aria-describedby={showMonthHint ? monthHintId : undefined}
+          value={hasQuarter ? '' : value('month')}
+          onChange={(e) => onChange(e.target.value ? { month: e.target.value, quarter: '' } : { month: '' })}
+        >
+          <option value="">전체</option>
+          {MONTHS.map((n) => (
+            <option key={n} value={String(n)}>{`${n}월`}</option>
+          ))}
+        </select>
+        {showMonthHint && (
+          <small id={monthHintId} className="field-hint">
             연도를 고르지 않으면 올해({thisYear}) 기준입니다.
           </small>
         )}

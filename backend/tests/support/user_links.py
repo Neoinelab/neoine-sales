@@ -35,6 +35,7 @@ LINK_KINDS: Final = (
     "storage_settings",  # storage_settings.updated_by_user_id (P2b: 저장 위치를 저장한 admin)
     "attachment_uploader",  # deal_attachments.uploaded_by_user_id (P2b: 첨부를 올린 사용자)
     "alert_settings",  # alert_settings.updated_by_user_id (P3: 경고 기준을 저장한 admin)
+    "forecast_snapshot",  # forecast_snapshot_cells.owner_user_id (P6 R2: 스냅숏에만 남은 담당자)
 )
 
 
@@ -50,6 +51,7 @@ LINK_COLUMNS: Final = {
     "storage_settings": ("storage_settings", "updated_by_user_id"),
     "attachment_uploader": ("deal_attachments", "uploaded_by_user_id"),
     "alert_settings": ("alert_settings", "updated_by_user_id"),
+    "forecast_snapshot": ("forecast_snapshot_cells", "owner_user_id"),
 }
 SESSION_COLUMN: Final = ("auth_sessions", "user_id")
 EXPECTED_USER_FKS: Final = frozenset({*LINK_COLUMNS.values(), SESSION_COLUMN})
@@ -140,5 +142,31 @@ async def _create_file_or_setting_link(uow: UnitOfWork, user: User, kind: str) -
 
         # 이미 경고 기준이 있는 환경에서는 저장자만 바뀐다(upsert).
         await uow.alert_settings.save(AlertThresholds(stale_days=7), updated_by=user.id, now=NOW)
+    elif kind == "forecast_snapshot":
+        await _create_snapshot_link(uow, user)
     else:
         raise AssertionError(kind)
+
+
+async def _create_snapshot_link(uow: UnitOfWork, user: User) -> None:
+    from app.domain.code.values import ForecastOutcome  # noqa: PLC0415
+    from app.domain.forecast.snapshot import (  # noqa: PLC0415
+        ForecastSnapshot,
+        SnapshotCell,
+        SnapshotColumn,
+        YearMonth,
+    )
+    from app.domain.forecast.summary import Tally  # noqa: PLC0415
+
+    cell = SnapshotCell(
+        revenue_year=2026,
+        revenue_month=9,
+        owner_id=user.id,
+        forecast_key="pipeline",
+        tally=Tally(1, 100),
+    )
+    column = SnapshotColumn(key="pipeline", name="Pipeline", outcome=ForecastOutcome.OPEN, order=1)
+    # 같은 기준 월이 이미 있으면 대체된다(replace는 upsert).
+    await uow.forecast_snapshots.replace(
+        ForecastSnapshot(period=YearMonth(2026, 9), taken_at=NOW, columns=[column], cells=[cell])
+    )

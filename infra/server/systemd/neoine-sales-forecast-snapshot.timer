@@ -1,0 +1,12 @@
+# /etc/systemd/system/neoine-sales-forecast-snapshot.timer (bootstrap.sh가 설치하고 enable)
+# 매월 1일 00:05(서버 OS 로컬 시간)에 전월 스냅숏을 만든다. 서버가 꺼져 있던 시간은 켜질 때 따라잡는다.
+# 다음 실행 시각 확인: systemctl list-timers neoine-sales-forecast-snapshot.timer
+[Unit]
+Description=neoine-sales monthly Forecast snapshot timer
+
+[Timer]
+OnCalendar=*-*-01 00:05:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

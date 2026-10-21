@@ -1,0 +1,24 @@
+# /etc/systemd/system/neoine-sales-forecast-snapshot.service (bootstrap.sh가 설치)
+# 월말 Forecast 스냅숏을 저장하는 1회성 작업. neoine-sales-forecast-snapshot.timer가 매월 1일 00:05에 실행한다.
+# 인자가 없으면 실행일의 전월 스냅숏을 만든다. 같은 월을 다시 실행하면 대체한다(전월·당월만 가능).
+# 수동 재실행: sudo systemctl start neoine-sales-forecast-snapshot.service
+# 결과 확인: journalctl -u neoine-sales-forecast-snapshot.service (종료 코드 0 성공 / 1 실패 / 2 잘못된 인자)
+[Unit]
+Description=neoine-sales monthly Forecast snapshot
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=neoine
+Group=neoine
+# pydantic-settings가 이 디렉터리의 .env를 읽는다(API 서비스와 같은 설정)
+WorkingDirectory=/opt/neoine-sales
+# 오래 걸려도 30분 안에 끝나지 않으면 실패로 처리한다
+TimeoutStartSec=30min
+ExecStart=/opt/neoine-sales/current/backend/.venv/bin/python -m app.jobs.forecast_snapshot
+# 하드닝은 API 서비스와 같다(이 작업은 DB만 쓰고 파일은 쓰지 않는다)
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only

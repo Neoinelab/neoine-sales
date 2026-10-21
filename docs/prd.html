@@ -94,7 +94,7 @@ code{background:var(--soft);padding:1px 5px;border-radius:3px;font-size:12.5px}
 <div class="cards">
 <div class="card"><div class="n">Deal·연락처·활동</div>원장과 Next Action 이력, 단계 변경 이력은 구현됨</div>
 <div class="card"><div class="n">인증·권한·사용자</div>AD 로그인, 3개 역할, 사용자 관리·퇴사 처리는 구현됨</div>
-<div class="card"><div class="n">Forecast·Dashboard·Reports</div>메뉴는 있으나 화면은 “준비 중”(P4·P6·P7 대기). BANT Label은 구현됨</div>
+<div class="card"><div class="n">Forecast·Dashboard·Reports</div>Forecast 요약은 실시간 집계와 월말 스냅숏으로 구현(P6). Dashboard·Reports는 “준비 중”(P4·P7 대기). BANT Label은 구현됨</div>
 </div>
 <p>세부 목록은 <a href="#sa">부록 A(구현된 항목)</a>와 <a href="#sb">부록 B(구현할 항목)</a>에 있다.</p>
 
@@ -150,13 +150,13 @@ code{background:var(--soft);padding:1px 5px;border-radius:3px;font-size:12.5px}
 <tr><td><code>/deals</code></td><td>Deal 목록(12열: DL-05 11개 + BANT, Risk 색상, Quick View, Inline Update, 조회 조건 유지) + 단계별 요약 + “내 딜” 필터</td><td>로그인 사용자</td></tr>
 <tr><td><code>/deals/new</code>, <code>/deals/:dealCode/edit</code></td><td>Deal 등록·수정</td><td>sales·admin</td></tr>
 <tr><td><code>/deals/:dealCode</code></td><td>Deal 상세(BANT·견적·POC·첨부 파일, Actions / Deal History 탭)</td><td>로그인 사용자</td></tr>
-<tr><td><code>/forecast</code></td><td>서버가 아직 집계를 제공하지 않아(501) “준비 중” 표시(P6 대기)</td><td>로그인 사용자</td></tr>
+<tr><td><code>/forecast</code></td><td>Forecast 요약(연도·Quarter·월·담당자·Vendor 필터, Deal 원장 실시간 집계)과 담당자 선택 시 같은 화면의 Deal 목록(P6 R1, 2026-10-21)</td><td>로그인 사용자</td></tr>
 <tr><td><code>/reports</code></td><td>“준비 중” 표시(P7 대기)</td><td>로그인 사용자</td></tr>
 <tr><td><code>/admin/users</code>, <code>/admin/deal</code>, <code>/admin/contacts</code>, <code>/admin/integrations</code></td><td>사용자 관리, Deal 관리(코드·Label·경고 기준), contacts 관리, 외부연동(AD 설정)</td><td>admin</td></tr>
 <tr><td><code>/login</code>, <code>/setup</code></td><td>로그인, 최초 설정(AD 서버 → 저장 위치 → admin 등록)</td><td>공개</td></tr>
 </table>
 <p>구 경로 <code>/customers</code>·<code>/partners</code>·<code>/actions</code>는 폐지되어 알 수 없는 경로와 같이 <code>/</code>(→ <code>/deals</code>)로 이동한다. <code>/users</code>·<code>/settings</code>는 Admin 화면으로 리다이렉트한다. 앱은 항상 실제 서버 API를 쓰며 목업 모드는 없다(P8).</p>
-<div class="box warn">사용자 메뉴는 명세서대로 Dashboard / Deals / Forecast / Reports 4개로 확정했고 P8에서 구현했다(admin에게만 Admin 메뉴가 추가로 보인다). <span class="b ok">구현</span> Dashboard·Forecast·Reports는 메뉴와 경로만 있고 내용은 “준비 중”이다(P4·P6·P7). 고객·파트너는 별도 메뉴 없이 Deal 등록·수정·상세 안의 연락처 선택으로 다루고, 전체 관리는 Admin &gt; contacts 관리에서 한다(5.6절). 활동 검색은 Deal 상세의 Actions 탭으로 옮긴다(7.2절).</div>
+<div class="box warn">사용자 메뉴는 명세서대로 Dashboard / Deals / Forecast / Reports 4개로 확정했고 P8에서 구현했다(admin에게만 Admin 메뉴가 추가로 보인다). <span class="b ok">구현</span> Dashboard·Reports는 메뉴와 경로만 있고 내용은 “준비 중”이다(P4·P7). Forecast는 P6 R1에서 구현했다. 고객·파트너는 별도 메뉴 없이 Deal 등록·수정·상세 안의 연락처 선택으로 다루고, 전체 관리는 Admin &gt; contacts 관리에서 한다(5.6절). 활동 검색은 Deal 상세의 Actions 탭으로 옮긴다(7.2절).</div>
 
 <h2 id="s5">5. 데이터 모델</h2>
 <p>명세서는 Master / Update / Forecast / Code 4개 테이블 구조를 제시한다. 현재 DB는 정규화되어 있어 매핑이 다르다.</p>
@@ -192,7 +192,7 @@ code{background:var(--soft);padding:1px 5px;border-radius:3px;font-size:12.5px}
 <tr><td>Status 입력 연동(업데이트 시 Status 함께 갱신)</td><td>단계 변경은 별도 API(<code>POST /deals/{id}/stage</code>). Action에는 <b>등록 시점의 Deal Status와 Forecast를 함께 저장</b>한다</td><td><span class="b ok">구현</span> P2: 스냅숏 저장, 등록 시 <code>status_changes</code>(최대 2건, Status·Forecast 순차 동기화, 2026-10-20)로 동시 변경, 단건 <code>status_change</code>도 계속 받음</td></tr>
 </table>
 <h3>5.3 Forecast Table (집계)</h3>
-<p>Year, Quarter, Deal Owner 단위로 Pipeline / Best / Most likely / Commit / Won의 건수(cnt)와 금액(amt)을 저장한다. 매월 말일 Batch Job이 갱신하며 수작업 입력은 없다. <span class="b todo">예정</span></p>
+<p>Year, Quarter, Deal Owner 단위로 Pipeline / Best / Most likely / Commit / Won의 건수(cnt)와 금액(amt)을 저장한다. 매월 말일 Batch Job이 갱신하며 수작업 입력은 없다. <span class="b ok">구현</span> P6 R2(2026-10-21): <code>forecast_snapshots</code>(기준 월)·<code>forecast_snapshot_columns</code>(그 시점 Forecast 코드)·<code>forecast_snapshot_cells</code>(매출 연·월 × 담당자 × Forecast의 cnt·amt)에 저장하고, 매월 1일 00:05에 전월분을 만든다. 화면의 기본 값은 Deal 원장 실시간 집계다</p>
 <h3>5.4 Code Table (확정)</h3>
 <p><b>코드로 관리하는 것은 Status와 Forecast 둘뿐이다.</b> 코드의 추가·수정·정렬·삭제는 admin만 Deal 관리 메뉴에서 한다.</p>
 <ul>
@@ -369,10 +369,10 @@ code{background:var(--soft);padding:1px 5px;border-radius:3px;font-size:12.5px}
 <tr><th>ID</th><th>요구사항</th><th>상태</th></tr>
 <tr><td>FC-01</td><td>Forecast는 Status와 독립적으로 변경할 수 있다.</td><td><span class="b ok">구현</span> P1</td></tr>
 <tr><td>FC-02</td><td>Forecast 코드는 Pipeline / Best / Most Likely / Commit / Won / Lost이다(admin이 관리). Won/Lost는 종료 결과이고 나머지는 Open이다.</td><td><span class="b ok">구현</span> P0·P1(코드 관리는 P0)</td></tr>
-<tr><td>FC-03</td><td><code>revenue_date</code>(= Expected Close) 기준으로 Month / Quarter / Year를 자동 집계한다.</td><td><span class="b todo">예정</span></td></tr>
-<tr><td>FC-04</td><td>Forecast 요약: 연도 / Quarter / 담당자 / Vendor 필터, 담당자별 Commit / Best / Pipeline / Total.</td><td><span class="b todo">예정</span></td></tr>
-<tr><td>FC-05</td><td>별도의 “담당자 상세” 메뉴는 두지 않는다. Forecast 요약 화면에서 담당자별 합계를 보여주고, 담당자를 선택하면 같은 화면에서 그 담당자의 Deal 목록(Deal / Status / Forecast / 금액 / Expected Close / Next Action)을 보여 Forecast Review 미팅에 쓴다(화면 안 목록은 가정).</td><td><span class="b todo">예정</span></td></tr>
-<tr><td>FC-06</td><td>Forecast 집계 테이블은 매월 말일 Batch Job으로 갱신한다. 수작업 입력은 없다.</td><td><span class="b todo">예정</span></td></tr>
+<tr><td>FC-03</td><td><code>revenue_date</code>(= Expected Close) 기준으로 Month / Quarter / Year를 자동 집계한다.</td><td><span class="b ok">구현</span> P6 R1(2026-10-21): Forecast 요약과 Deal 목록에 연도·Quarter·<b>월</b>(Quarter와 함께 선택 불가) 조건, Deal 원장을 Deal 목록과 같은 조건으로 실시간 집계해 금액·건수가 항상 일치</td></tr>
+<tr><td>FC-04</td><td>Forecast 요약: 연도 / Quarter / 담당자 / Vendor 필터, 담당자별 Commit / Best / Pipeline / Total.</td><td><span class="b ok">구현</span> P6 R1(2026-10-21): 결정 — Open 코드(Pipeline·Best·Most Likely·Commit)마다 열, Total = Open 합계, Won은 별도 열, Lost는 제외. 각 칸은 건수·금액(천원), 합계 행 포함. 모든 역할 조회</td></tr>
+<tr><td>FC-05</td><td>별도의 “담당자 상세” 메뉴는 두지 않는다. Forecast 요약 화면에서 담당자별 합계를 보여주고, 담당자를 선택하면 같은 화면에서 그 담당자의 Deal 목록(Deal / Status / Forecast / 금액 / Expected Close / Next Action)을 보여 Forecast Review 미팅에 쓴다(화면 안 목록은 가정).</td><td><span class="b ok">구현</span> P6 R1(2026-10-21): 담당자 선택 시 같은 화면에 Deal 목록(최대 200건, 넘으면 Deals 목록 링크), Open 합계는 요약 행 값 사용</td></tr>
+<tr><td>FC-06</td><td>Forecast 집계 테이블은 매월 말일 Batch Job으로 갱신한다. 수작업 입력은 없다.</td><td><span class="b ok">구현</span> P6 R2(2026-10-21): 매월 1일 00:05(서버 OS 로컬)에 전월분 스냅숏 저장(systemd timer), 재실행은 전월·당월만. 화면은 기본 실시간이고 “기준 시점”에서 스냅숏을 읽기 전용으로 선택(Vendor 필터·담당자 Deal 목록 없음). 스냅숏에는 그 시점 Forecast 코드 목록(이름·순서)도 저장해 0건 열과 옛 이름을 유지</td></tr>
 </table>
 
 <h3 id="s7-4">7.4 Reports</h3>
@@ -571,7 +571,7 @@ code{background:var(--soft);padding:1px 5px;border-radius:3px;font-size:12.5px}
 <tr><td>P3 <span class="b ok">완료</span></td><td>자동 규칙·경고</td><td>기한초과(R03), 14일 미업데이트(R04), Status 체류기간(R05), Won/Lost 제외(R06), 경고 기준 Admin 설정(CM-05)</td><td>—</td></tr>
 <tr><td>P4</td><td>Dashboard</td><td>단계 Funnel(DB-01), KPI(DB-02), 공통 필터(DB-03), Drill-down 팝업(DB-04, R08), 주의 필요 Deal(DB-05), Forecast &amp; Closing(DB-06)</td><td>—</td></tr>
 <tr><td>P5 <span class="b ok">완료</span></td><td>Deals 목록 개선</td><td>컬럼 확장·Quick View(DL-05), Solution·Forecast·Year/Quarter 필터(DL-04), 조건 유지(DL-06), Risk 색상(DL-07), Inline Update(DL-08)</td><td>—</td></tr>
-<tr><td>P6</td><td>Forecast 메뉴</td><td>Forecast 요약과 화면 안 담당자별 Deal 목록(FC-04·05, “담당자 상세” 메뉴 없음), 기간 자동 집계(R01), 월말 Batch(FC-06)</td><td>—</td></tr>
+<tr><td>P6 <span class="b ok">완료</span></td><td>Forecast 메뉴</td><td>Forecast 요약과 화면 안 담당자별 Deal 목록(FC-04·05, “담당자 상세” 메뉴 없음), 기간 자동 집계(R01), 월말 Batch(FC-06)</td><td>2026-10-21: R1 실시간 요약·담당자 Deal 목록·월 필터(Deal 목록 포함), R2 월말 스냅숏(systemd timer, 기준 시점 선택). 서버 반영은 사람이 <code>bootstrap.sh</code> 재실행</td></tr>
 <tr><td>P7</td><td>Reports</td><td>담당자 실적, Vendor/Solution, Status 전환, Forecast Mix, Forecast 추이(표·그래프), Excel Export(RP-01~06)</td><td>차트·Excel 의존성 승인</td></tr>
 <tr><td>P8 <span class="b ok">완료</span></td><td>메뉴 정리·실제 연동 전환</td><td>사용자 메뉴 4개 재편(Dashboard·Forecast·Reports 추가, 내용은 P4·P6·P7 전까지 “준비 중” — Forecast는 서버 501일 때만), 목록 BANT 열(LB-06), 앱은 항상 HTTP(목업 모드·MockBanner 제거, mock은 테스트 전용 Fake로 이동), 빠른 로그인은 서버 개발용 로그인(local·dev)일 때 역할 3개</td><td>—</td></tr>
 </table>

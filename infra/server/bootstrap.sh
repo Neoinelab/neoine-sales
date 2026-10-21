@@ -28,11 +28,13 @@ sudo -u neoine -H /home/neoine/.local/bin/uv python install "$PYTHON_VERSION"
 
 # 3) 설정 파일 설치(systemd, nginx, sudoers). nginx 경로는 배포판에 맞게 조정(conf.d / sites-enabled)
 install -m 644 "$HERE"/systemd/*.service /etc/systemd/system/
+install -m 644 "$HERE"/systemd/*.timer /etc/systemd/system/
 install -m 644 "$HERE/nginx/neoine-sales.conf" /etc/nginx/conf.d/neoine-sales.conf
 install -m 440 "$HERE/sudoers/neoine-sales" /etc/sudoers.d/neoine-sales
 visudo -cf /etc/sudoers.d/neoine-sales
 systemctl daemon-reload
 systemctl enable neoine-sales-api # 시작은 첫 배포 때
+systemctl enable --now neoine-sales-forecast-snapshot.timer # 월말 Forecast 스냅숏(서비스가 아니라 timer를 enable)
 nginx -t && systemctl reload nginx
 
 # 4) .env 생성: APP_PROFILE만 채우고 나머지 비밀은 관리자가 직접 입력(이미 있으면 보존)

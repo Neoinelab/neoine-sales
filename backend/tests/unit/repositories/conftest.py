@@ -31,6 +31,10 @@ from tests.unit.repositories.file_storage_case import (
     open_fake_case,
     open_local_case,
 )
+from tests.unit.repositories.forecast_case import PARAMS as FORECAST_PARAMS
+from tests.unit.repositories.forecast_case import ForecastCase, open_forecast_case
+from tests.unit.repositories.forecast_snapshot_case import PARAMS as SNAPSHOT_PARAMS
+from tests.unit.repositories.forecast_snapshot_case import SnapshotCase, open_snapshot_case
 from tests.unit.repositories.vendor_case import PARAMS as VENDOR_PARAMS
 from tests.unit.repositories.vendor_case import VendorCase, open_vendor_case
 
@@ -100,4 +104,20 @@ async def action_type_case(request: pytest.FixtureRequest) -> AsyncIterator[Acti
     """ActionTypeRepository 계약 테스트용 case (fake / sql)."""
     url = request.getfixturevalue("test_database_url") if request.param == "sql" else None
     async with open_action_type_case(request.param, url) as provided:
+        yield provided
+
+
+@pytest_asyncio.fixture(params=FORECAST_PARAMS)
+async def forecast_case(request: pytest.FixtureRequest) -> AsyncIterator[ForecastCase]:
+    """ForecastTallyRepository 계약 테스트용 case (fake / sql)."""
+    url = request.getfixturevalue("test_database_url") if request.param == "sql" else None
+    async with open_forecast_case(request.param, url) as provided:
+        yield provided
+
+
+@pytest_asyncio.fixture(params=SNAPSHOT_PARAMS)
+async def snapshot_case(request: pytest.FixtureRequest) -> AsyncIterator[SnapshotCase]:
+    """ForecastSnapshotRepository 계약 테스트용 case (fake / sql)."""
+    url = request.getfixturevalue("test_database_url") if request.param == "sql" else None
+    async with open_snapshot_case(request.param, url) as provided:
         yield provided

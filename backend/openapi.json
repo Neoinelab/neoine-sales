@@ -548,6 +548,29 @@
         "title": "CatalogChoiceRequest",
         "type": "object"
       },
+      "CellResponse": {
+        "properties": {
+          "amount": {
+            "title": "Amount",
+            "type": "integer"
+          },
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          }
+        },
+        "required": [
+          "count",
+          "amount",
+          "key"
+        ],
+        "title": "CellResponse",
+        "type": "object"
+      },
       "CoChangedResponse": {
         "properties": {
           "field": {
@@ -804,6 +827,33 @@
           "usage_count"
         ],
         "title": "CodeUsageResponse",
+        "type": "object"
+      },
+      "ColumnResponse": {
+        "properties": {
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "order": {
+            "title": "Order",
+            "type": "integer"
+          },
+          "outcome": {
+            "$ref": "#/components/schemas/ForecastOutcome"
+          }
+        },
+        "required": [
+          "key",
+          "name",
+          "outcome",
+          "order"
+        ],
+        "title": "ColumnResponse",
         "type": "object"
       },
       "ContactCreateRequest": {
@@ -2619,6 +2669,70 @@
         "title": "DirectoryTestResultResponse",
         "type": "object"
       },
+      "ForecastOutcome": {
+        "description": "Forecast가 시스템에 알려 주는 결과. 일반 코드와 Status는 항상 OPEN이다.",
+        "enum": [
+          "open",
+          "won",
+          "lost"
+        ],
+        "title": "ForecastOutcome",
+        "type": "string"
+      },
+      "ForecastSummaryResponse": {
+        "properties": {
+          "as_of": {
+            "format": "date-time",
+            "title": "As Of",
+            "type": "string"
+          },
+          "basis": {
+            "$ref": "#/components/schemas/SummaryBasis"
+          },
+          "columns": {
+            "items": {
+              "$ref": "#/components/schemas/ColumnResponse"
+            },
+            "title": "Columns",
+            "type": "array"
+          },
+          "period": {
+            "$ref": "#/components/schemas/PeriodResponse"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/RowResponse"
+            },
+            "title": "Rows",
+            "type": "array"
+          },
+          "snapshot_period": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Snapshot Period"
+          },
+          "total": {
+            "$ref": "#/components/schemas/RowResponse"
+          }
+        },
+        "required": [
+          "basis",
+          "as_of",
+          "snapshot_period",
+          "period",
+          "columns",
+          "rows",
+          "total"
+        ],
+        "title": "ForecastSummaryResponse",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -2910,6 +3024,55 @@
         "title": "PartnerLinkResponse",
         "type": "object"
       },
+      "PeriodResponse": {
+        "properties": {
+          "from": {
+            "format": "date",
+            "title": "From",
+            "type": "string"
+          },
+          "month": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Month"
+          },
+          "quarter": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quarter"
+          },
+          "to": {
+            "format": "date",
+            "title": "To",
+            "type": "string"
+          },
+          "year": {
+            "title": "Year",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "year",
+          "quarter",
+          "month",
+          "from",
+          "to"
+        ],
+        "title": "PeriodResponse",
+        "type": "object"
+      },
       "PocRequest": {
         "additionalProperties": false,
         "properties": {
@@ -3199,6 +3362,37 @@
         "title": "Role",
         "type": "string"
       },
+      "RowResponse": {
+        "properties": {
+          "cells": {
+            "items": {
+              "$ref": "#/components/schemas/CellResponse"
+            },
+            "title": "Cells",
+            "type": "array"
+          },
+          "open_total": {
+            "$ref": "#/components/schemas/TallyResponse"
+          },
+          "owner": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UserRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "owner",
+          "cells",
+          "open_total"
+        ],
+        "title": "RowResponse",
+        "type": "object"
+      },
       "SetupAdminRequest": {
         "additionalProperties": false,
         "properties": {
@@ -3220,6 +3414,41 @@
           "password"
         ],
         "title": "SetupAdminRequest",
+        "type": "object"
+      },
+      "SnapshotItemResponse": {
+        "properties": {
+          "period": {
+            "title": "Period",
+            "type": "string"
+          },
+          "taken_at": {
+            "format": "date-time",
+            "title": "Taken At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "period",
+          "taken_at"
+        ],
+        "title": "SnapshotItemResponse",
+        "type": "object"
+      },
+      "SnapshotListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/SnapshotItemResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "SnapshotListResponse",
         "type": "object"
       },
       "SolutionNameRequest": {
@@ -3326,6 +3555,32 @@
           "updated_by"
         ],
         "title": "StorageSettingsResponse",
+        "type": "object"
+      },
+      "SummaryBasis": {
+        "enum": [
+          "live",
+          "snapshot"
+        ],
+        "title": "SummaryBasis",
+        "type": "string"
+      },
+      "TallyResponse": {
+        "properties": {
+          "amount": {
+            "title": "Amount",
+            "type": "integer"
+          },
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "count",
+          "amount"
+        ],
+        "title": "TallyResponse",
         "type": "object"
       },
       "UpdatedPeriodPreset": {
@@ -6334,6 +6589,24 @@
           },
           {
             "in": "query",
+            "name": "month",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 12,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Month"
+            }
+          },
+          {
+            "in": "query",
             "name": "updated_from",
             "required": false,
             "schema": {
@@ -7570,6 +7843,302 @@
         "summary": "List Deal History",
         "tags": [
           "deals"
+        ]
+      }
+    },
+    "/api/v1/forecast/snapshots": {
+      "get": {
+        "operationId": "list_forecast_snapshots_api_v1_forecast_snapshots_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SnapshotListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          }
+        },
+        "summary": "List Forecast Snapshots",
+        "tags": [
+          "forecast"
+        ]
+      }
+    },
+    "/api/v1/forecast/snapshots/{period}/summary": {
+      "get": {
+        "operationId": "get_forecast_snapshot_summary_api_v1_forecast_snapshots__period__summary_get",
+        "parameters": [
+          {
+            "description": "기준 월 YYYY-MM",
+            "in": "path",
+            "name": "period",
+            "required": true,
+            "schema": {
+              "description": "기준 월 YYYY-MM",
+              "title": "Period",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "year",
+            "required": true,
+            "schema": {
+              "maximum": 9999,
+              "minimum": 1900,
+              "title": "Year",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "quarter",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 4,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Quarter"
+            }
+          },
+          {
+            "in": "query",
+            "name": "month",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 12,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Month"
+            }
+          },
+          {
+            "in": "query",
+            "name": "owner_user_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 9007199254740991,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Owner User Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ForecastSummaryResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          }
+        },
+        "summary": "Get Forecast Snapshot Summary",
+        "tags": [
+          "forecast"
+        ]
+      }
+    },
+    "/api/v1/forecast/summary": {
+      "get": {
+        "operationId": "get_forecast_summary_api_v1_forecast_summary_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "year",
+            "required": true,
+            "schema": {
+              "maximum": 9999,
+              "minimum": 1900,
+              "title": "Year",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "quarter",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 4,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Quarter"
+            }
+          },
+          {
+            "in": "query",
+            "name": "month",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 12,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Month"
+            }
+          },
+          {
+            "in": "query",
+            "name": "owner_user_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 9007199254740991,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Owner User Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "vendor_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 9007199254740991,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Vendor Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ForecastSummaryResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          }
+        },
+        "summary": "Get Forecast Summary",
+        "tags": [
+          "forecast"
         ]
       }
     },

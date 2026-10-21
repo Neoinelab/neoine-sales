@@ -6,6 +6,7 @@ import type {
   Contact,
   Deal,
   DirectorySettings,
+  ForecastOutcome,
   HistoryCategory,
   NextActionStatus,
   Role,
@@ -124,6 +125,26 @@ export interface AlertRecord {
   updatedById: number | null
 }
 
+/** Forecast 월말 스냅숏의 셀 하나(P6 R2). 코드 이름·outcome·order는 스냅숏을 만든 시점의 값이다. */
+export interface ForecastSnapshotCellRecord {
+  revenueYear: number
+  revenueMonth: number
+  ownerId: number
+  forecastKey: string
+  forecastName: string
+  forecastOutcome: ForecastOutcome
+  forecastOrder: number
+  count: number
+  amount: number
+}
+
+/** Forecast 월말 스냅숏(기준 월 `YYYY-MM`당 하나). 생성 이후 Deal·코드가 바뀌어도 변하지 않는다. */
+export interface ForecastSnapshotRecord {
+  period: string
+  takenAt: string
+  cells: ForecastSnapshotCellRecord[]
+}
+
 /** 시드가 만들어 주는 전체 데이터. */
 export interface SeedData {
   users: UserRecord[]
@@ -140,6 +161,8 @@ export interface SeedData {
   directory: DirectoryRecord | null
   storage: StorageRecord | null
   alerts: AlertRecord
+  /** 월말 스냅숏(없으면 비어 있는 것과 같다). 샘플 시드(`test/fixtures`)만 채운다. */
+  forecastSnapshots?: ForecastSnapshotRecord[]
   setup: SetupState
   /** 접두사별 마지막 순번. `takeId`가 올린다. */
   counters: Record<string, number>

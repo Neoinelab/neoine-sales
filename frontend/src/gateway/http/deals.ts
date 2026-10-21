@@ -25,6 +25,7 @@ function toListParams(q: DealListQuery) {
     ...(q.forecastKey ? { forecast_key: q.forecastKey } : {}),
     ...(q.year !== undefined ? { year: q.year } : {}),
     ...(q.quarter !== undefined ? { quarter: q.quarter } : {}),
+    ...(q.month !== undefined ? { month: q.month } : {}),
     ...(q.updatedFrom ? { updated_from: q.updatedFrom } : {}),
     ...(q.updatedTo ? { updated_to: q.updatedTo } : {}),
     ...(q.bantLabelIds?.budget ? { bant_budget: q.bantLabelIds.budget } : {}),

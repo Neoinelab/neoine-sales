@@ -163,8 +163,10 @@ describe('hasActiveFilter', () => {
 })
 
 describe('FILTER_KEYS', () => {
-  it('replaces from/to with updated_from/updated_to and keeps sixteen keys', () => {
-    expect(FILTER_KEYS).toHaveLength(16)
+  it('replaces from/to with updated_from/updated_to and has seventeen keys with month (P6)', () => {
+    expect(FILTER_KEYS).toHaveLength(17)
+    expect(FILTER_KEYS).toContain('month')
+    expect(REMEMBERED_LIST_KEYS).toContain('month')
     expect(FILTER_KEYS).toContain('updated_from')
     expect(FILTER_KEYS).toContain('updated_to')
     expect(FILTER_KEYS).not.toContain('from')
@@ -218,5 +220,38 @@ describe('next_status URL 키 (AC-24)', () => {
 
     expect(next.get('next_status')).toBe('closed')
     expect(next.has('page')).toBe(false)
+  })
+})
+
+describe('month URL key (P6 Q3-b)', () => {
+  it('maps month with a year', () => {
+    expect(listQueryFromParams(params('year=2026&month=3'))).toEqual({ offset: 0, limit: 20, year: 2026, month: 3 })
+  })
+
+  it('sends a month without a year (it means this year on the server)', () => {
+    expect(listQueryFromParams(params('month=3'))).toEqual({ offset: 0, limit: 20, month: 3 })
+  })
+
+  it.each(['0', '13', 'abc', '1.5', ''])('ignores the month %j outside 1 to 12', (raw) => {
+    expect(listQueryFromParams(params(`month=${raw}`))).toEqual({ offset: 0, limit: 20 })
+  })
+
+  it('keeps the quarter and drops the month when both are in the URL', () => {
+    expect(listQueryFromParams(params('year=2026&quarter=4&month=11'))).toEqual({ offset: 0, limit: 20, year: 2026, quarter: 4 })
+  })
+
+  it('counts a month as an active filter and returns to the first page when it changes', () => {
+    expect(hasActiveFilter(params('month=3'))).toBe(true)
+    expect(updateParams(params('page=3'), { month: '3' }).get('page')).toBeNull()
+  })
+})
+
+describe('month URL value format matches the Forecast screen (R1 Nit)', () => {
+  it.each(['03', '01', '012', '+3', ' 3', '3 '])('ignores the month %j like the Forecast URL parser', (raw) => {
+    expect(listQueryFromParams(params(`year=2026&month=${encodeURIComponent(raw)}`))).toEqual({ offset: 0, limit: 20, year: 2026 })
+  })
+
+  it.each(['1', '9', '10', '12'])('accepts the plain month %j', (raw) => {
+    expect(listQueryFromParams(params(`month=${raw}`))).toMatchObject({ month: Number(raw) })
   })
 })

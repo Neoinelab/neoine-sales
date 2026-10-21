@@ -33,6 +33,7 @@ USER_FK_NAMES = {
     ("storage_settings", "updated_by_user_id"): "fk_storage_settings_updated_by_user_id_users",
     ("deal_attachments", "uploaded_by_user_id"): "fk_deal_attachments_uploaded_by_user_id_users",
     ("alert_settings", "updated_by_user_id"): "fk_alert_settings_updated_by_user_id_users",
+    ("forecast_snapshot_cells", "owner_user_id"): "fk_forecast_snapshot_cells_owner_user_id_users",
 }
 OLD_STRING_COLUMNS = {
     ("deals", "owner"),
@@ -162,8 +163,8 @@ async def test_every_foreign_key_column_leads_an_index(session: AsyncSession) ->
     assert violations == []
 
 
-async def test_only_deal_owned_data_and_vendor_solutions_cascade(session: AsyncSession) -> None:
-    """CASCADE 예외 둘: Deal 소속 데이터는 Deal을, Solution은 소속 Vendor를 지우면 함께 지워진다."""
+async def test_only_owned_data_cascades(session: AsyncSession) -> None:
+    """CASCADE 예외: Deal 소속 데이터·Vendor의 Solution·스냅숏의 열과 셀은 부모와 함께 지워진다."""
     cascades = {
         fk.table + "." + fk.column for fk in await foreign_keys(session) if fk.on_delete == "c"
     }
@@ -175,9 +176,16 @@ async def test_only_deal_owned_data_and_vendor_solutions_cascade(session: AsyncS
         "deal_actions.deal_id",
         "deal_attachments.deal_id",  # P2b: 첨부 메타데이터도 Deal 소속이다
         "solutions.vendor_id",  # Vendor Aggregate: Vendor 삭제는 소속 Solution과 함께(D10)
+        "forecast_snapshot_columns.snapshot_id",  # P6 R2 Q6: 저장 당시 코드 목록은 스냅숏 소속
+        "forecast_snapshot_cells.snapshot_id",  # 셀은 (snapshot_id, forecast_key)로 열 소속
+    }
+    parents = {
+        "solutions": "vendors",
+        "forecast_snapshot_columns": "forecast_snapshots",
+        "forecast_snapshot_cells": "forecast_snapshot_columns",
     }
     assert all(
-        fk.ref_table == ("vendors" if fk.table == "solutions" else "deals")
+        fk.ref_table == parents.get(fk.table, "deals")
         for fk in await foreign_keys(session)
         if fk.on_delete == "c"
     )

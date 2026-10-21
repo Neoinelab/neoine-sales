@@ -104,6 +104,8 @@ export interface DealListQuery {
   /** Expected Close(revenueDate) 기준 연도/분기. quarter만 있으면 서버가 올해로 본다. */
   year?: number
   quarter?: 1 | 2 | 3 | 4
+  /** Expected Close의 월(1~12). quarter와 함께 쓸 수 없다(서버 422). month만 있으면 서버가 올해로 본다. */
+  month?: number
   /** 최종 업데이트 기간(양끝 포함, 'YYYY-MM-DD'). 한쪽만 있어도 된다. */
   updatedFrom?: string
   updatedTo?: string
@@ -231,6 +233,8 @@ export interface DirectorySettingsInput {
 export interface ForecastQuery {
   year: number
   quarter?: 1 | 2 | 3 | 4
+  /** 월(1~12). quarter와 함께 쓸 수 없다. */
+  month?: number
   vendorId?: number
   ownerId?: number
 }
@@ -245,6 +249,8 @@ export interface ForecastColumn {
   key: string
   name: string
   outcome: 'open' | 'won'
+  /** Forecast 코드 order(서버 값). */
+  order: number
 }
 
 export interface ForecastSummaryRow {
@@ -257,11 +263,25 @@ export interface ForecastSummaryRow {
   total: ForecastCell
 }
 
+/** 저장된 월말 스냅숏 한 건의 머리 정보. */
+export interface ForecastSnapshotInfo {
+  /** 기준 월 'YYYY-MM'. */
+  period: string
+  /** 생성 시각(오프셋 포함 ISO). */
+  takenAt: string
+}
+
 /**
- * Forecast 요약. 분류 기준은 Expected Close(revenueDate)의 연/분기. Lost는 columns·total에서 제외.
+ * Forecast 요약. 분류 기준은 Expected Close(revenueDate)의 연/분기/월. Lost는 columns·total에서 제외.
  * rows는 Deal이 있는 담당자(퇴사 포함)만, totalRow는 rows의 합이며 Deal 목록 원장 합과 같아야 한다.
  */
 export interface ForecastSummary {
+  /** live: 지금 기준 실시간 집계, snapshot: 월말 스냅숏(R2). */
+  basis: 'live' | 'snapshot'
+  /** 서버가 집계한 시각(ISO 8601). */
+  asOf: string
+  /** basis가 snapshot일 때 기준 월('YYYY-MM'), 실시간은 null. */
+  snapshotPeriod: string | null
   query: ForecastQuery
   /** Forecast 코드 order 순, Lost 제외. */
   columns: ForecastColumn[]

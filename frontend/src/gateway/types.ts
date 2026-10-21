@@ -66,6 +66,7 @@ import type {
   DirectorySettingsInput,
   DownloadedFile,
   ForecastQuery,
+  ForecastSnapshotInfo,
   ForecastSummary,
   HistoryEntry,
   HistoryQuery,
@@ -277,6 +278,10 @@ export interface ForecastGateway {
    * 코드 컬럼 셀 + Total(Open 합). Lost는 제외. 합계 행 = rows 합 = 같은 조건의 Deal 원장 합.
    */
   summary(query: ForecastQuery): Promise<ForecastSummary>
+  /** 저장된 월말 스냅숏 목록(최근 기준 월 먼저). */
+  snapshots(): Promise<ForecastSnapshotInfo[]>
+  /** 월말 스냅숏 기준 요약. Vendor 조건은 없다. 기준 월이 없으면 404. */
+  snapshotSummary(period: string, query: Omit<ForecastQuery, 'vendorId'>): Promise<ForecastSummary>
 }
 
 export interface VendorsGateway {

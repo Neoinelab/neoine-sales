@@ -29,3 +29,6 @@ export const storageUnavailable = (detail: string): ApiError =>
 
 export const directoryFailed = (detail: string, stage: string): ApiError =>
   problem(422, 'directory-verification-failed', 'Directory Verification Failed', detail, stage)
+
+/** 서버와 같은 문구: Quarter와 월은 함께 쓸 수 없다(422). */
+export const QUARTER_MONTH_EXCLUSIVE = 'Quarter와 월은 함께 선택할 수 없습니다.'

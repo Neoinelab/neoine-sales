@@ -1,9 +1,11 @@
 import { useSearchParams } from 'react-router'
-import { useForecastSummary } from '../../data/forecast'
+import { useForecastSnapshotSummary, useForecastSummary } from '../../data/forecast'
+import { useUserOptions } from '../../data/users'
+import { userLabel } from '../../shared/model/period'
 import { useVendors } from '../../data/vendors'
 import { useToday } from '../../data/today'
-import { ComingSoon } from '../../shared/ui/ComingSoon'
 import { ErrorBanner } from '../../shared/ui/ErrorBanner'
+import type { ForecastSummary } from '../../shared/model/types'
 import { effectiveVendorFilter } from '../../shared/model/vendorFilter'
 import { ForecastFilterBar } from './ForecastFilters'
 import { filtersFromParams, paramsFromFilters, queryOf, type ForecastFilters } from './forecastParams'
@@ -11,6 +13,15 @@ import { OwnerDeals } from './OwnerDeals'
 import { QuarterCards } from './QuarterCards'
 import { SummaryTable } from './SummaryTable'
 import './forecast.css'
+
+const pad = (n: number) => String(n).padStart(2, '0')
+
+/** 집계 기준 문구. 서버 시각을 브라우저 로컬 시간으로 보인다. */
+function basisText(summary: ForecastSummary): string {
+  const d = new Date(summary.asOf)
+  const stamp = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+  return summary.basis === 'snapshot' ? `기준: ${summary.snapshotPeriod ?? ''} 월말(생성 ${stamp})` : `기준: 지금(${stamp})`
+}
 
 /**
  * Forecast `/forecast`. 6.6
@@ -24,18 +35,22 @@ export function ForecastPage() {
   const vendors = useVendors().data
   // 표시와 조회 조건을 맞춘다: 목록에 없는 Vendor는 조회에서 제외한다.
   const queryFilters = { ...filters, vendor: effectiveVendorFilter(vendors, filters.vendor).vendorId }
-  const summary = useForecastSummary(queryOf(queryFilters))
+  const users = useUserOptions({ includeResigned: true }).data
+  const live = useForecastSummary(queryOf(queryFilters), filters.snap === undefined)
+  // 스냅숏에는 Vendor 조건이 없다(URL의 vendor는 보내지 않는다).
+  const snapshotQuery = queryOf({ ...filters, vendor: undefined })
+  const snapshot = useForecastSnapshotSummary(filters.snap, snapshotQuery)
+  const summary = filters.snap === undefined ? live : snapshot
 
   const update = (patch: Partial<ForecastFilters>) => {
     setParams(paramsFromFilters({ ...filters, ...patch }))
   }
 
-  // 서버에 Forecast 집계가 아직 없으면(501) 화면 대신 "준비 중"만 보인다. 다른 오류는 배너.
-  if (summary.error?.kind === 'not-implemented') return <ComingSoon title="Forecast" />
-
   const data = summary.data
   const isEmpty = data !== undefined && data.rows.length === 0
-  const selectedName = data?.rows.find((r) => r.ownerId === filters.selectedId)?.ownerName
+  // 조건에 Deal이 없어 요약 행이 없는 담당자도 이름으로 보인다(사용자 목록에서 찾는다).
+  const selectedUser = users?.find((u) => u.id === filters.selectedId)
+  const selectedName = data?.rows.find((r) => r.ownerId === filters.selectedId)?.ownerName ?? (selectedUser && userLabel(selectedUser))
 
   return (
     <section className="fc-page">
@@ -47,18 +62,24 @@ export function ForecastPage() {
           불러오는 중…
         </p>
       )}
+      {data && <p className="hint">{basisText(data)}</p>}
       {data && !isEmpty && (
         <>
           <QuarterCards summary={data} filters={filters} />
-          <SummaryTable summary={data} selectedId={filters.selectedId} onSelect={(selectedId) => update({ selectedId })} />
+          <SummaryTable
+            summary={data}
+            selectedId={filters.snap === undefined ? filters.selectedId : undefined}
+            onSelect={filters.snap === undefined ? (selectedId) => update({ selectedId }) : undefined}
+          />
         </>
       )}
       {isEmpty && <p className="fc-empty">조건에 맞는 Deal이 없습니다.</p>}
-      {filters.selectedId && data && (
+      {filters.snap === undefined && filters.selectedId && data && (
         <OwnerDeals
           ownerId={filters.selectedId}
           ownerName={selectedName ?? '선택한 담당자'}
           filters={queryFilters}
+          openTotal={data.rows.find((r) => r.ownerId === filters.selectedId)?.total}
           onClear={() => update({ selectedId: undefined })}
         />
       )}

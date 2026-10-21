@@ -32,6 +32,7 @@ from app.container_action_type import ActionTypeUseCases
 from app.container_admin import AdminAssembly
 from app.container_auth import AuthAssembly
 from app.container_catalog import CatalogAssembly
+from app.container_forecast import ForecastUseCases
 from app.container_storage import StorageAssembly
 from app.container_vendor import VendorUseCases
 from app.infra.auth.ldap import LdapDirectoryAuthenticator
@@ -80,7 +81,7 @@ if TYPE_CHECKING:
     from app.config.base import Settings
 
 
-class Container(VendorUseCases, ActionTypeUseCases):
+class Container(VendorUseCases, ActionTypeUseCases, ForecastUseCases):
     def __init__(
         self,
         settings: Settings,

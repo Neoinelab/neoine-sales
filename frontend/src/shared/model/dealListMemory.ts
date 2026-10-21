@@ -10,6 +10,7 @@ export const FILTER_KEYS = [
   'forecast',
   'year',
   'quarter',
+  'month',
   'updated_from',
   'updated_to',
   'budget',
@@ -20,7 +21,7 @@ export const FILTER_KEYS = [
   'next_status',
 ] as const
 
-/** 목록 조건으로 기억하는 쿼리 키: 필터 16개 + 정렬·페이지. */
+/** 목록 조건으로 기억하는 쿼리 키: 필터 17개 + 정렬·페이지. */
 export const REMEMBERED_LIST_KEYS: readonly string[] = [...FILTER_KEYS, 'sort', 'order', 'page']
 
 const LIST_PATH = '/deals'

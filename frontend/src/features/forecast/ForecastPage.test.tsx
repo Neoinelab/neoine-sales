@@ -6,6 +6,7 @@ import { ApiError } from '../../shared/api/problem'
 import { formatThousandWon } from '../../shared/model/money'
 import type { DealRow } from '../../shared/model/types'
 import { seedVendorId } from '../../test/fixtures/vendors'
+import { dealInput } from '../../test/fake/testing'
 import { renderAt } from '../../test/mockApp'
 import { USER_ID } from '../../test/fake/seed/ids'
 
@@ -34,8 +35,8 @@ function readRow(name: string | RegExp): string[] {
     .map((c) => c.textContent?.trim() ?? '')
 }
 
-async function ledger(query: { year: number; quarter?: 1 | 2 | 3 | 4; vendorId?: number; ownerId?: number }): Promise<DealRow[]> {
-  const page = await gateway.deals.list({ ...query, limit: 1000 })
+async function ledger(query: { year: number; quarter?: 1 | 2 | 3 | 4; month?: number; vendorId?: number; ownerId?: number }): Promise<DealRow[]> {
+  const page = await gateway.deals.list({ ...query, limit: 200 })
   return page.items
 }
 
@@ -351,5 +352,83 @@ describe('상태와 접근 권한', () => {
     await renderAt('/forecast?year=2026')
     const table = await screen.findByRole('table', { name: /담당자별 Forecast/ })
     expect(table.closest('.fc-scroll')).not.toBeNull()
+  })
+})
+
+function localStamp(iso: string): string {
+  const d = new Date(iso)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+describe('기준 시각 (P6 AC-9)', () => {
+  it('shows "기준: 지금(YYYY-MM-DD HH:mm)" from the server as-of time', async () => {
+    await renderAt('/forecast?year=2026')
+    await screen.findByRole('rowheader', { name: '합계' })
+
+    const summary = await gateway.forecast.summary({ year: 2026 })
+    expect(summary.basis).toBe('live')
+    expect(screen.getByText(`기준: 지금(${localStamp(summary.asOf)})`)).toBeVisible()
+  })
+
+  it('shows the as-of line even when the period has no deals', async () => {
+    await renderAt('/forecast?year=2020')
+
+    expect(await screen.findByText(/^기준: 지금\(\d{4}-\d{2}-\d{2} \d{2}:\d{2}\)$/)).toBeVisible()
+  })
+})
+
+describe('월 필터 (P6 AC-3, Q3)', () => {
+  it('selecting a month puts month in the URL and clears the quarter', async () => {
+    const { user, location } = await renderAt('/forecast?year=2026&quarter=4')
+    await screen.findByRole('rowheader', { name: '합계' })
+
+    await user.selectOptions(screen.getByLabelText('월'), '11월')
+
+    expect(location()).toContain('month=11')
+    expect(location()).not.toContain('quarter=')
+    expect(screen.getByLabelText('Quarter')).toHaveValue('')
+  })
+
+  it('selecting a quarter clears the month', async () => {
+    const { user, location } = await renderAt('/forecast?year=2026&month=11')
+    await screen.findByLabelText('월')
+
+    await user.selectOptions(screen.getByLabelText('Quarter'), '3')
+
+    expect(location()).toContain('quarter=3')
+    expect(location()).not.toContain('month=')
+    expect(screen.getByLabelText('월')).toHaveValue('')
+  })
+
+  it('lists 전체 and 1월 to 12월 in the month control', async () => {
+    await renderAt('/forecast?year=2026')
+    await screen.findByLabelText('월')
+
+    expect(within(screen.getByLabelText('월')).getAllByRole('option').map((o) => o.textContent)).toEqual([
+      '전체',
+      ...Array.from({ length: 12 }, (_, i) => `${i + 1}월`),
+    ])
+  })
+
+  it('keeps the quarter when the URL has both a quarter and a month', async () => {
+    await renderAt('/forecast?year=2026&quarter=4&month=11')
+    await screen.findByLabelText('월')
+
+    expect(screen.getByLabelText('Quarter')).toHaveValue('4')
+    expect(screen.getByLabelText('월')).toHaveValue('')
+  })
+
+  it('aggregates only that month and titles the card with the month', async () => {
+    const { client } = await renderAt('/forecast?year=2028&month=2')
+    await screen.findByLabelText('월')
+    await gateway.deals.create(dealInput(USER_ID.kim, { name: '2월 말', revenueDate: '2028-02-29', forecastKey: 'commit', revenueAmount: 2_000_000 }))
+    await gateway.deals.create(dealInput(USER_ID.kim, { name: '3월 초', revenueDate: '2028-03-01', forecastKey: 'commit', revenueAmount: 5_000_000 }))
+    await client.invalidateQueries()
+
+    await waitFor(() => expect(readRow('합계')[0]).toBe(cellText(1, 2_000_000)))
+    expect(screen.getByRole('region', { name: '2028 2월 요약' })).toBeVisible()
+    const deals = await ledger({ year: 2028, month: 2 })
+    expect(readRow('합계')).toEqual(expectedCells(deals))
   })
 })

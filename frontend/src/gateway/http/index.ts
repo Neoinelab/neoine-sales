@@ -1,7 +1,6 @@
 /**
- * HTTP 게이트웨이 조립. 서버가 있는 도메인(auth·setup·users·settings·codes·labels·contacts·deals·history·actions·attachments)만 실제로 연결하고,
- * 아직 없는 도메인(forecast)은 501 "아직 실제 서버와 연결되지 않은 기능입니다."로 둔다.
- * 단계(P1·P2·P2b…)마다 `notImplemented`를 실제 구현으로 바꾼다. features는 이 폴더를 직접 import하지 않는다(경계 테스트).
+ * HTTP 게이트웨이 조립. 서버가 있는 도메인(auth·setup·users·settings·codes·labels·contacts·deals·history·actions·attachments·forecast)를 모두 실제 서버에 연결한다.
+ * features는 이 폴더를 직접 import하지 않는다(경계 테스트).
  */
 
 import type { Gateway } from '../types'
@@ -13,11 +12,11 @@ import { createAuthHttp } from './auth'
 import { createCodesHttp } from './codes'
 import { createContactsHttp } from './contacts'
 import { createDealsHttp } from './deals'
+import { createForecastHttp } from './forecast'
 import { createHistoryHttp } from './history'
 import { createLabelsHttp } from './labels'
 import { createSettingsHttp } from './settings'
 import { createSetupHttp } from './setup'
-import { notImplemented } from './unsupported'
 import { createUsersHttp } from './users'
 import { createVendorsHttp } from './vendors'
 
@@ -37,6 +36,6 @@ export function createHttpGateway(): Gateway {
     actionTypes: createActionTypesHttp(),
     history: createHistoryHttp(),
     attachments: createAttachmentsHttp(),
-    forecast: { summary: notImplemented },
+    forecast: createForecastHttp(),
   }
 }

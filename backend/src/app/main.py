@@ -23,6 +23,7 @@ from app.web.routers import (
     contacts,
     deal_actions,
     deals,
+    forecast,
     health,
     settings_directory,
     settings_storage,
@@ -88,6 +89,7 @@ def create_app(
         bant_labels,
         action_types,
         vendors,
+        forecast,
     )
     for module in (
         *business,

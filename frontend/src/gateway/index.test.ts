@@ -18,13 +18,13 @@ afterEach(() => vi.unstubAllGlobals())
 
 describe('app gateway module (P8 T2)', () => {
   it('app gateway is the http gateway', async () => {
-    const fetchSpy = vi.fn()
+    const fetchSpy = vi.fn().mockRejectedValue(new TypeError('Failed to fetch'))
     vi.stubGlobal('fetch', fetchSpy)
     const { gateway } = await loadAppGateway()
 
-    // http 게이트웨이에서 Forecast 집계만 아직 서버가 없어 501이다. mock이면 집계가 돌아온다.
-    await expect(gateway.forecast.summary({ year: 2026 })).rejects.toMatchObject({ status: 501, kind: 'not-implemented' })
-    expect(fetchSpy).not.toHaveBeenCalled()
+    // Forecast 요약도 실제 서버를 부른다(P6): 서버가 꺼져 있으면 501이 아니라 네트워크 오류(status 0)다.
+    await expect(gateway.forecast.summary({ year: 2026 })).rejects.toMatchObject({ status: 0 })
+    expect(fetchSpy).toHaveBeenCalledTimes(1)
   })
 
   it('app clock is the system clock', async () => {
