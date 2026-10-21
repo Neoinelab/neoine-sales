@@ -1,15 +1,16 @@
 from dataclasses import dataclass, field, replace
+from datetime import date, datetime, timedelta
 from enum import StrEnum
 from typing import TYPE_CHECKING, Protocol
 
 from app.application.ports.pagination import check_page
+from app.domain.common.business_date import start_of_business_day
 from app.domain.common.errors import InvalidValueError
-from app.domain.common.validation import optional_text
+from app.domain.common.validation import check_date_in_bounds, optional_text
 from app.domain.deal.period import quarter_range
 
 if TYPE_CHECKING:
     from collections.abc import Collection, Mapping, Sequence
-    from datetime import date, datetime
 
     from app.application.ports.deal_action_repository import NextActionStatusFilter
     from app.domain.bant.values import BantCategory, BantLabelId
@@ -24,6 +25,7 @@ KEYWORD_MAX = 100
 DEFAULT_PAGE_SIZE = 20
 YEAR_MIN = 1900
 YEAR_MAX = 9999
+UPDATED_RANGE_REVERSED = "최종 업데이트 기간의 시작은 끝보다 늦을 수 없습니다"
 
 
 class DealSort(StrEnum):
@@ -43,6 +45,8 @@ class SortOrder(StrEnum):
 class DealQuery:
     """Deal 검색 조건. 조건은 AND로 결합하고 기간은 양끝을 포함한다.
 
+    최종 업데이트 기간(updated_*)은 서버 업무 날짜 기준이다(`updated_window`).
+
     정렬의 동률은 항상 Deal code 오름차순이다.
     """
 
@@ -54,8 +58,8 @@ class DealQuery:
     forecast_key: str | None = None
     year: int | None = None  # Expected Close 연도(필터 확장 R3)
     quarter: int | None = None  # 1~4. 연도가 없으면 호출자가 `with_year_for`로 올해를 채운다
-    revenue_from: date | None = None
-    revenue_to: date | None = None
+    updated_from: date | None = None  # 최종 업데이트(last_updated_at) 기간, 서버 업무 날짜
+    updated_to: date | None = None
     bant_label_ids: Mapping[BantCategory, BantLabelId] = field(default_factory=dict)  # 구분별 AND
     next_action_status: NextActionStatusFilter | None = (
         None  # 기준 행(Next Action 있는 최근 행)의 상태
@@ -67,8 +71,13 @@ class DealQuery:
 
     def __post_init__(self) -> None:
         check_page(self.offset, self.limit)
-        if self.revenue_from and self.revenue_to and self.revenue_from > self.revenue_to:
-            raise InvalidValueError("기간의 시작은 끝보다 늦을 수 없습니다")
+        for name in ("updated_from", "updated_to"):
+            if isinstance(getattr(self, name), datetime):
+                raise InvalidValueError(f"{name}은(는) 시각 없는 날짜여야 합니다")
+        check_date_in_bounds(self.updated_from, "updated_from")
+        check_date_in_bounds(self.updated_to, "updated_to")
+        if self.updated_from and self.updated_to and self.updated_from > self.updated_to:
+            raise InvalidValueError(UPDATED_RANGE_REVERSED)
         self._check_year_and_quarter()
         object.__setattr__(
             self, "keyword", optional_text(self.keyword, "검색어", max_length=KEYWORD_MAX)
@@ -87,17 +96,19 @@ class DealQuery:
         return self
 
     def revenue_window(self) -> tuple[date | None, date | None]:
-        """Expected Close의 허용 범위 (시작, 끝). 양끝 포함, None은 열린 쪽.
-
-        연/분기 범위와 revenue_from/to의 교집합이며, 시작이 끝보다 늦으면 빈 창(오류 아님)이다.
-        """
+        """Expected Close의 허용 범위 (시작, 끝). 연/분기 범위이며 양끝 포함, None은 열린 쪽."""
         if self.year is None and self.quarter is not None:
             raise ValueError("연도 없는 분기는 with_year_for로 연도를 채운 뒤 써야 합니다.")
-        start, end = self.revenue_from, self.revenue_to
-        if self.year is not None:
-            year_start, year_end = quarter_range(self.year, self.quarter)
-            start = year_start if start is None else max(start, year_start)
-            end = year_end if end is None else min(end, year_end)
+        if self.year is None:
+            return None, None
+        return quarter_range(self.year, self.quarter)
+
+    def updated_window(self) -> tuple[datetime | None, datetime | None]:
+        """last_updated_at의 반개구간 [시작, 끝). 끝 날짜의 다음 날 00:00(로컬)이 끝이다."""
+        start = start_of_business_day(self.updated_from) if self.updated_from else None
+        end = (
+            start_of_business_day(self.updated_to + timedelta(days=1)) if self.updated_to else None
+        )
         return start, end
 
 

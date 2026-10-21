@@ -1,4 +1,5 @@
 import { api } from '../../shared/api/client'
+import { isPeriodKey } from '../../shared/model/updatedPeriod'
 import type { DealListQuery } from '../../shared/model/types'
 import type { DealsGateway } from '../types'
 import { toNextActionStatusParam } from './mappers/nextActionStatus'
@@ -24,8 +25,8 @@ function toListParams(q: DealListQuery) {
     ...(q.forecastKey ? { forecast_key: q.forecastKey } : {}),
     ...(q.year !== undefined ? { year: q.year } : {}),
     ...(q.quarter !== undefined ? { quarter: q.quarter } : {}),
-    ...(q.revenueFrom ? { revenue_from: q.revenueFrom } : {}),
-    ...(q.revenueTo ? { revenue_to: q.revenueTo } : {}),
+    ...(q.updatedFrom ? { updated_from: q.updatedFrom } : {}),
+    ...(q.updatedTo ? { updated_to: q.updatedTo } : {}),
     ...(q.bantLabelIds?.budget ? { bant_budget: q.bantLabelIds.budget } : {}),
     ...(q.bantLabelIds?.authority ? { bant_authority: q.bantLabelIds.authority } : {}),
     ...(q.bantLabelIds?.need ? { bant_need: q.bantLabelIds.need } : {}),
@@ -45,6 +46,11 @@ export function createDealsHttp(): DealsGateway {
     list: async (query) => {
       const page = await unwrap(api.GET('/api/v1/deals', { params: { query: toListParams(query) } }))
       return { items: page.items.map(toDealRow), total: page.total, offset: page.offset, limit: page.limit }
+    },
+    updatedPeriods: async () => {
+      const result = await unwrap(api.GET('/api/v1/deals/updated-periods'))
+      const periods = result.periods.flatMap(({ key, from, to }) => (isPeriodKey(key) ? [{ key, from, to }] : []))
+      return { today: result.today, periods }
     },
     get: async (code) => toDealDetail(await unwrap(api.GET('/api/v1/deals/{code}', path(code)))),
     impact: async (code) => {

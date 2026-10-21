@@ -3,6 +3,7 @@ import type { DealListQuery, DealSortKey, SortOrder } from '../../../shared/mode
 
 import { nextActionStatusFromParam } from '../../../shared/model/nextActionStatus'
 import { parseId } from '../../../shared/model/ids'
+import { isCalendarDate } from '../../../shared/model/updatedPeriod'
 import { FILTER_KEYS } from '../../../shared/model/dealListMemory'
 
 /** URL 쿼리 키(정의는 shared의 기억 모듈에 있고 여기서 다시 내보낸다). */
@@ -62,13 +63,16 @@ export function listQueryFromParams(params: URLSearchParams): DealListQuery {
   const pairs = [
     ['status', 'statusKey'],
     ['forecast', 'forecastKey'],
-    ['from', 'revenueFrom'],
-    ['to', 'revenueTo'],
   ] as const
   for (const [param, field] of pairs) {
     const value = text(param)
     if (value) query[field] = value
   }
+  // 최종 업데이트 기간: 실제 달력 날짜만 쓰고 잘못된 값은 무시한다.
+  const updatedFrom = text('updated_from')
+  if (isCalendarDate(updatedFrom)) query.updatedFrom = updatedFrom
+  const updatedTo = text('updated_to')
+  if (isCalendarDate(updatedTo)) query.updatedTo = updatedTo
 
   // Owner·Vendor·Solution은 정수 id만 받는다. 예전 UUID·이름 기반 URL 값은 무시한다.
   const ownerId = parseId(params.get('owner'))

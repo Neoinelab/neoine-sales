@@ -1,8 +1,8 @@
 """ListDeals의 확장 필터·정렬(AC-22a~22d, R3): forecast, 연/분기(연도 없는 분기는 올해),
-BANT Label, sort/order.
+BANT Label, 최종 업데이트 기간, sort/order.
 
 저장소 계약(tests/unit/repositories)이 조건별 세부를 검증하므로 여기서는 유스케이스가 조건을
-그대로 전달하고 total·페이지를 함께 돌려주는지, 비어 있는 기간 창이면 저장소를 부르지 않는지를 본다.
+그대로 전달하고 total·페이지를 함께 돌려주는지를 본다.
 """
 
 from datetime import UTC, date, datetime
@@ -106,19 +106,6 @@ async def test_an_explicit_year_wins_over_the_clock_year(env: DealEnv) -> None:
     assert _codes(page) == [past.item.deal.id.value]
 
 
-async def test_quarter_only_with_an_empty_period_window_skips_the_repository(
-    env: DealEnv,
-) -> None:
-    await _clock_at(env, datetime(2026, 7, 15, 12, 0, tzinfo=UTC))
-    await env.new_deal(revenue_date=date(2026, 5, 20))
-    env.uow.deals.queries = 0
-
-    page = await env.list.execute(DealQuery(quarter=2, revenue_from=date(2027, 1, 1)))
-
-    assert (page.items, page.total) == ([], 0)
-    assert env.uow.deals.queries == 0
-
-
 async def test_a_year_alone_includes_the_whole_year(env: DealEnv) -> None:
     inside = await env.new_deal(revenue_date=date(2026, 12, 31))
     await env.new_deal(revenue_date=date(2027, 1, 1))
@@ -129,27 +116,23 @@ async def test_a_year_alone_includes_the_whole_year(env: DealEnv) -> None:
     assert _codes(page) == [inside.item.deal.id.value]
 
 
-async def test_year_quarter_and_a_period_are_intersected(env: DealEnv) -> None:
+async def test_updated_period_is_combined_with_year_and_quarter(env: DealEnv) -> None:
+    env.clock.advance((datetime(2026, 6, 10, 12).astimezone() - env.clock.now()).total_seconds())
     hit = await env.new_deal(revenue_date=date(2026, 5, 20))
-    await env.new_deal(revenue_date=date(2026, 4, 10))
+    also_hit = await env.new_deal(revenue_date=date(2026, 4, 10))  # 분기 안 + 기간 안
+    other_quarter = await env.new_deal(revenue_date=date(2026, 8, 20))
+    env.clock.advance(40 * 24 * 3600)
+    old_update_excluded = await env.new_deal(revenue_date=date(2026, 5, 21))
 
     page = await env.list.execute(
-        DealQuery(year=2026, quarter=2, revenue_from=date(2026, 5, 1), revenue_to=date(2026, 5, 31))
+        DealQuery(year=2026, quarter=2, updated_from=date(2026, 6, 1), updated_to=date(2026, 6, 30))
     )
 
-    assert _codes(page) == [hit.item.deal.id.value]
-
-
-async def test_an_empty_period_window_gives_zero_results_without_asking_the_repository(
-    env: DealEnv,
-) -> None:
-    await env.new_deal(revenue_date=date(2026, 6, 30))
-    env.uow.deals.queries = 0
-
-    page = await env.list.execute(DealQuery(year=2026, revenue_from=date(2027, 1, 1)))
-
-    assert (page.items, page.total) == ([], 0)
-    assert env.uow.deals.queries == 0
+    codes = set(_codes(page))
+    assert {hit.item.deal.id.value, also_hit.item.deal.id.value} <= codes
+    assert other_quarter.item.deal.id.value not in codes  # 연/분기는 Expected Close 기준
+    assert old_update_excluded.item.deal.id.value not in codes  # 최종 업데이트가 기간 밖
+    assert page.total == 2
 
 
 async def test_bant_labels_of_several_categories_are_combined_with_and(env: DealEnv) -> None:

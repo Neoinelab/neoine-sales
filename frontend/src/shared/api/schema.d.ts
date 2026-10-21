@@ -476,6 +476,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/deals/updated-periods": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Updated Periods */
+        get: operations["list_updated_periods_api_v1_deals_updated_periods_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/deals/{code}": {
         parameters: {
             query?: never;
@@ -1993,6 +2010,36 @@ export interface components {
              */
             updated_at: string;
             updated_by: components["schemas"]["UserRef"] | null;
+        };
+        /**
+         * UpdatedPeriodPreset
+         * @description 값은 API 키다. 정의 순서가 응답 순서다.
+         * @enum {string}
+         */
+        UpdatedPeriodPreset: "2w" | "1m" | "2m" | "3m" | "6m";
+        /** UpdatedPeriodResponse */
+        UpdatedPeriodResponse: {
+            /**
+             * From
+             * Format: date
+             */
+            from: string;
+            key: components["schemas"]["UpdatedPeriodPreset"];
+            /**
+             * To
+             * Format: date
+             */
+            to: string;
+        };
+        /** UpdatedPeriodsResponse */
+        UpdatedPeriodsResponse: {
+            /** Periods */
+            periods: components["schemas"]["UpdatedPeriodResponse"][];
+            /**
+             * Today
+             * Format: date
+             */
+            today: string;
         };
         /**
          * UserDeleteReason
@@ -4132,8 +4179,8 @@ export interface operations {
                 forecast_key?: string | null;
                 year?: number | null;
                 quarter?: number | null;
-                revenue_from?: string | null;
-                revenue_to?: string | null;
+                updated_from?: string | null;
+                updated_to?: string | null;
                 bant_budget?: number | null;
                 bant_authority?: number | null;
                 bant_need?: number | null;
@@ -4239,6 +4286,35 @@ export interface operations {
             };
             /** @description problem+json */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    list_updated_periods_api_v1_deals_updated_periods_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UpdatedPeriodsResponse"];
+                };
+            };
+            /** @description problem+json */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };

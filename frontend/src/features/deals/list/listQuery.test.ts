@@ -16,7 +16,7 @@ describe('listQueryFromParams (T-LIST-05, T-LIST-09)', () => {
   it('maps every filter, sort and page from the URL', () => {
     const query = listQueryFromParams(
       params(
-        `q=한빛&owner=${USER_ID.kim}&vendor=${VENDOR}&solution=${SOLUTION}&status=prospecting&forecast=best&year=2026&quarter=4&from=2026-01-01&to=2026-12-31&budget=1&need=9&mine=1&sort=revenueAmount&order=asc&page=3`,
+        `q=한빛&owner=${USER_ID.kim}&vendor=${VENDOR}&solution=${SOLUTION}&status=prospecting&forecast=best&year=2026&quarter=4&updated_from=2026-01-01&updated_to=2026-12-31&budget=1&need=9&mine=1&sort=revenueAmount&order=asc&page=3`,
       ),
     )
     expect(query).toEqual({
@@ -28,8 +28,8 @@ describe('listQueryFromParams (T-LIST-05, T-LIST-09)', () => {
       forecastKey: 'best',
       year: 2026,
       quarter: 4,
-      revenueFrom: '2026-01-01',
-      revenueTo: '2026-12-31',
+      updatedFrom: '2026-01-01',
+      updatedTo: '2026-12-31',
       bantLabelIds: { budget: 1, need: 9 },
       mine: true,
       sort: 'revenueAmount',
@@ -37,6 +37,34 @@ describe('listQueryFromParams (T-LIST-05, T-LIST-09)', () => {
       offset: 40,
       limit: 20,
     })
+  })
+
+  it('maps a single updated date and sends a reversed range as it is (the server answers 422)', () => {
+    expect(listQueryFromParams(params('updated_from=2026-06-01'))).toEqual({ offset: 0, limit: 20, updatedFrom: '2026-06-01' })
+    expect(listQueryFromParams(params('updated_to=2026-06-30'))).toEqual({ offset: 0, limit: 20, updatedTo: '2026-06-30' })
+    expect(listQueryFromParams(params('updated_from=2026-07-01&updated_to=2026-06-30'))).toEqual({
+      offset: 0,
+      limit: 20,
+      updatedFrom: '2026-07-01',
+      updatedTo: '2026-06-30',
+    })
+  })
+
+  it.each(['abc', '2026/06/01', '2026-6-1', '2026-02-30', '2026-13-01', '2026-06-01T10:00:00', '20260601', ' '])(
+    'ignores the malformed updated date %j',
+    (raw) => {
+      const encoded = encodeURIComponent(raw)
+      expect(listQueryFromParams(params(`updated_from=${encoded}&updated_to=${encoded}`))).toEqual({ offset: 0, limit: 20 })
+    },
+  )
+
+  it('accepts a real leap day and ignores one on a non-leap year', () => {
+    expect(listQueryFromParams(params('updated_from=2024-02-29'))).toEqual({ offset: 0, limit: 20, updatedFrom: '2024-02-29' })
+    expect(listQueryFromParams(params('updated_from=2026-02-29'))).toEqual({ offset: 0, limit: 20 })
+  })
+
+  it('ignores the old Expected Close from/to keys', () => {
+    expect(listQueryFromParams(params('from=2026-01-01&to=2026-12-31'))).toEqual({ offset: 0, limit: 20 })
   })
 
   it('ignores broken values instead of failing', () => {
@@ -103,6 +131,15 @@ describe('updateParams', () => {
     expect(next.get('page')).toBeNull()
   })
 
+  it('sets and clears the updated dates like other conditions', () => {
+    const set = updateParams(params('page=2'), { updated_from: '2026-06-01', updated_to: '2026-06-30' })
+    expect(set.get('updated_from')).toBe('2026-06-01')
+    expect(set.get('updated_to')).toBe('2026-06-30')
+    expect(set.get('page')).toBeNull()
+    const cleared = updateParams(set, { updated_from: '', updated_to: '' })
+    expect(cleared.toString()).toBe('')
+  })
+
   it('keeps the page when only the page changes and omits page 1', () => {
     expect(updateParams(params('q=a'), { page: '2' }).get('page')).toBe('2')
     expect(updateParams(params('q=a&page=2'), { page: '1' }).get('page')).toBeNull()
@@ -113,10 +150,27 @@ describe('hasActiveFilter', () => {
   it('is false for sort and page only', () => {
     expect(hasActiveFilter(params('sort=name&order=asc&page=2'))).toBe(false)
   })
+  it('is true for an updated date and false for the old from/to keys', () => {
+    expect(hasActiveFilter(params('updated_from=2026-06-01'))).toBe(true)
+    expect(hasActiveFilter(params('updated_to=2026-06-30'))).toBe(true)
+    expect(hasActiveFilter(params('from=2026-06-01&to=2026-06-30'))).toBe(false)
+  })
   it('is true for any condition including mine', () => {
     expect(hasActiveFilter(params('mine=1'))).toBe(true)
     expect(hasActiveFilter(params('budget=1'))).toBe(true)
     expect(hasActiveFilter(params('q=a'))).toBe(true)
+  })
+})
+
+describe('FILTER_KEYS', () => {
+  it('replaces from/to with updated_from/updated_to and keeps sixteen keys', () => {
+    expect(FILTER_KEYS).toHaveLength(16)
+    expect(FILTER_KEYS).toContain('updated_from')
+    expect(FILTER_KEYS).toContain('updated_to')
+    expect(FILTER_KEYS).not.toContain('from')
+    expect(FILTER_KEYS).not.toContain('to')
+    expect(REMEMBERED_LIST_KEYS).toContain('updated_from')
+    expect(REMEMBERED_LIST_KEYS).not.toContain('from')
   })
 })
 

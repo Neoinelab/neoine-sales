@@ -71,6 +71,7 @@ import type {
   HistoryQuery,
   Me,
   Page,
+  UpdatedPeriods,
   SetupState,
   StorageSettings,
   UploadInput,
@@ -136,6 +137,8 @@ export interface SetupGateway {
 
 export interface DealsGateway {
   list(query: DealListQuery): Promise<Page<DealRow>>
+  /** 최종 업데이트 기간 프리셋을 서버 업무 날짜 기준으로 푼 범위. 로그인한 누구나 읽는다. */
+  updatedPeriods(): Promise<UpdatedPeriods>
   /** 없으면 404 "Deal을 찾을 수 없습니다." */
   get(code: string): Promise<DealDetail>
   /** 삭제 확인 팝업의 연쇄 삭제 건수. */

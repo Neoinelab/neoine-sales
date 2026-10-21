@@ -1,9 +1,10 @@
-"""DealQuery(Deal 검색 조건) 검증: 기본값, 페이지, 기간(양끝 포함), 텍스트 정규화·길이.
+"""DealQuery 검증: 기본값, 페이지, 최종 업데이트 기간(양끝 포함), 텍스트 정규화·길이.
 
 연/분기(`year`·`quarter`)와 BANT 조건의 검증은 R3(`revenue_window`)에서 본다.
 """
 
-from datetime import date
+from dataclasses import fields
+from datetime import UTC, date, datetime
 
 import pytest
 
@@ -33,8 +34,8 @@ def test_defaults_are_the_first_page_of_twenty_newest_first_without_conditions()
         "forecast_key",
         "year",
         "quarter",
-        "revenue_from",
-        "revenue_to",
+        "updated_from",
+        "updated_to",
     ):
         assert getattr(query, condition) is None, condition
     assert dict(query.bant_label_ids) == {}
@@ -59,8 +60,8 @@ def test_given_conditions_are_kept() -> None:
         solution_id=SOLUTION,
         status_key="introduction",
         forecast_key="best",
-        revenue_from=date(2026, 6, 1),
-        revenue_to=date(2026, 6, 30),
+        updated_from=date(2026, 6, 1),
+        updated_to=date(2026, 6, 30),
         offset=3,
         limit=7,
     )
@@ -68,7 +69,7 @@ def test_given_conditions_are_kept() -> None:
     assert (query.keyword, query.owner_user_id) == ("erp", uid("park"))
     assert (query.vendor_id, query.solution_id) == (VENDOR, SOLUTION)
     assert (query.status_key, query.forecast_key) == ("introduction", "best")
-    assert (query.revenue_from, query.revenue_to) == (date(2026, 6, 1), date(2026, 6, 30))
+    assert (query.updated_from, query.updated_to) == (date(2026, 6, 1), date(2026, 6, 30))
     assert (query.offset, query.limit) == (3, 7)
 
 
@@ -97,13 +98,13 @@ def test_limit_boundaries_are_accepted(limit: int) -> None:
     assert DealQuery(limit=limit).limit == limit
 
 
-def test_a_period_whose_start_is_after_its_end_is_rejected() -> None:
-    with raises_with(InvalidValueError, "기간의 시작은 끝보다 늦을 수 없습니다"):
-        DealQuery(revenue_from=date(2026, 7, 1), revenue_to=date(2026, 6, 30))
+def test_an_updated_period_whose_start_is_after_its_end_is_rejected() -> None:
+    with raises_with(InvalidValueError, "최종 업데이트 기간의 시작은 끝보다 늦을 수 없습니다"):
+        DealQuery(updated_from=date(2026, 7, 1), updated_to=date(2026, 6, 30))
 
 
 @pytest.mark.parametrize(
-    ("revenue_from", "revenue_to"),
+    ("updated_from", "updated_to"),
     [
         (date(2026, 6, 1), date(2026, 6, 1)),  # 같은 날(양끝 포함이므로 하루)
         (date(2026, 6, 1), None),
@@ -111,10 +112,25 @@ def test_a_period_whose_start_is_after_its_end_is_rejected() -> None:
         (None, None),
     ],
 )
-def test_valid_periods_are_accepted(revenue_from: date | None, revenue_to: date | None) -> None:
-    query = DealQuery(revenue_from=revenue_from, revenue_to=revenue_to)
+def test_valid_updated_periods_are_accepted(
+    updated_from: date | None, updated_to: date | None
+) -> None:
+    query = DealQuery(updated_from=updated_from, updated_to=updated_to)
 
-    assert (query.revenue_from, query.revenue_to) == (revenue_from, revenue_to)
+    assert (query.updated_from, query.updated_to) == (updated_from, updated_to)
+
+
+@pytest.mark.parametrize("field", ["updated_from", "updated_to"])
+def test_a_datetime_for_an_updated_date_is_rejected(field: str) -> None:
+    with pytest.raises(InvalidValueError):
+        DealQuery(**{field: datetime(2026, 6, 1, 9, 0, tzinfo=UTC)})  # type: ignore[arg-type]
+
+
+def test_the_revenue_period_fields_no_longer_exist() -> None:
+    names = {f.name for f in fields(DealQuery)}
+
+    assert not {"revenue_from", "revenue_to"} & names
+    assert {"updated_from", "updated_to"} <= names
 
 
 def test_blank_keyword_becomes_none() -> None:

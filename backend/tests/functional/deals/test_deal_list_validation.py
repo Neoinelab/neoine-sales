@@ -1,6 +1,7 @@
 """Feature: 목록 조회 조건의 경계와 검증.
 
-텍스트 조건은 최대 100자, limit은 1~200, 기간은 시작이 끝보다 늦을 수 없다. 형식이 틀린 값과 모르는
+텍스트 조건은 최대 100자, limit은 1~200, 최종 업데이트 기간 날짜는 YYYY-MM-DD(시작·끝 역전은
+test_deal_list_updated_period). 형식이 틀린 값과 모르는
 파라미터는 422(request-validation), 도메인 규칙 위반은 422(invalid-value)다.
 """
 
@@ -48,7 +49,11 @@ async def test_the_largest_limit_and_the_longest_text_conditions_are_accepted(ap
         {"solution_id": "not-an-id"},
         {"vendor": "SAP"},  # 구 파라미터(이름)는 모르는 파라미터다
         {"solution": "S/4HANA"},
-        {"revenue_from": "2026/06/01"},
+        {"updated_from": "2026/06/01"},
+        {"updated_to": "abc"},
+        {"updated_from": "2026-06-01T10:00:00"},
+        {"revenue_from": "2026-06-01"},  # 폐지된 파라미터는 모르는 파라미터다
+        {"revenue_to": "2026-06-30"},
         {"owner_user_id": "not-an-id"},
         {"unknown": "x"},
     ],
@@ -63,16 +68,6 @@ async def test_out_of_range_or_malformed_conditions_are_request_validation_error
     response = await when_list_deals(api, **params)
     # Then
     then_problem_is(response, status=422, type_suffix="request-validation")
-
-
-async def test_a_period_that_starts_after_it_ends_is_rejected(api: Api) -> None:
-    """Scenario: 기간의 시작이 끝보다 늦으면 422(invalid-value)이다."""
-    # Given
-    await given_logged_in_as(api, role="sales")
-    # When
-    response = await when_list_deals(api, revenue_from="2026-07-01", revenue_to="2026-06-30")
-    # Then
-    then_problem_is(response, status=422, type_suffix="invalid-value")
 
 
 async def test_the_keyword_does_not_search_the_owner_name_or_the_vendor(api: Api) -> None:

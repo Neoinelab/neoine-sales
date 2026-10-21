@@ -1,10 +1,16 @@
-import { useId, useState } from 'react'
+import { useId, useRef, useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
+import { gateway } from '../../../gateway'
+import { keys } from '../../../data/queryKeys'
+import { NO_RETRY } from '../../../data/result'
+import { useUpdatedPeriods } from '../../../data/deals'
 import { useCodeSet } from '../../../data/codes'
 import { useLabels } from '../../../data/labels'
 import { useToday } from '../../../data/today'
 import { useVendors } from '../../../data/vendors'
 import { BANT_CATEGORIES, BANT_CATEGORY_NAMES } from '../../../shared/model/constants'
 import { NEXT_ACTION_STATUS_FILTER_OPTIONS, nextActionStatusFromParam, nextActionStatusToParam } from '../../../shared/model/nextActionStatus'
+import { selectedUpdatedPeriod } from '../../../shared/model/updatedPeriod'
 import { ErrorBanner } from '../../../shared/ui/ErrorBanner'
 import { CheckboxField, SelectField, TextField } from '../../../shared/ui/fields'
 import { UserSelect } from '../../../shared/ui/UserSelect'
@@ -18,6 +24,8 @@ interface DealFilterBarProps {
 
 const QUARTERS = [1, 2, 3, 4] as const
 
+const PERIOD_LABELS = { '2w': '최근 2주', '1m': '최근 1개월', '2m': '최근 2개월', '3m': '최근 3개월', '6m': '최근 6개월' } as const
+
 function yearOptions(year: number): number[] {
   return [year - 1, year, year + 1, year + 2]
 }
@@ -29,7 +37,21 @@ export function DealFilterBar({ params, onChange, onReset }: DealFilterBarProps)
   const vendorsQuery = useVendors()
   const vendors = vendorsQuery.data ?? []
   const loaded = vendorsQuery.data !== undefined
+  const value = (key: string) => params.get(key) ?? ''
   const hintId = useId()
+  const periodsQuery = useUpdatedPeriods()
+  const periods = periodsQuery.data?.periods
+  const queryClient = useQueryClient()
+  // 기간 선택(프리셋·전체·직접 지정·날짜 입력·초기화)마다 올린다. 늦게 온 이전 프리셋 응답은 순번이 달라 버린다.
+  const periodSeq = useRef(0)
+  const [refreshError, setRefreshError] = useState<unknown>(null)
+  const updatedFrom = value('updated_from')
+  const updatedTo = value('updated_to')
+  // '직접 지정' 표시는 그것을 연 시점(또는 이 화면에서 날짜를 바꾼 시점)의 URL 날짜에만 묶인다.
+  // 뒤로 가기 등으로 URL 날짜가 바깥에서 바뀌면 키가 달라져 닫히고, 표시는 selectedUpdatedPeriod 규칙을 따른다.
+  const [customKey, setCustomKey] = useState<string | null>(null)
+  const customOpen = customKey === `${updatedFrom}|${updatedTo}`
+  const period = customOpen ? 'custom' : selectedUpdatedPeriod(updatedFrom || undefined, updatedTo || undefined, periods)
   const labels = useLabels().data ?? []
   const q = params.get('q') ?? ''
   const [keyword, setKeyword] = useState(q)
@@ -38,7 +60,6 @@ export function DealFilterBar({ params, onChange, onReset }: DealFilterBarProps)
     setSeenQ(q)
     setKeyword(q)
   }
-  const value = (key: string) => params.get(key) ?? ''
   // 모르는 값은 '전체'로 보이고 조회에도 쓰이지 않는다(listQueryFromParams와 같은 판정).
   const nextStatus = nextActionStatusFromParam(params.get('next_status'))
   const hasQuarter = value('quarter') !== ''
@@ -52,6 +73,36 @@ export function DealFilterBar({ params, onChange, onReset }: DealFilterBarProps)
     ? chosenVendor.solutions.map((s) => ({ id: s.id, label: s.name }))
     : vendors.flatMap((v) => v.solutions.map((s) => ({ id: s.id, label: `${v.name} / ${s.name}` })))
   const solutionId = !loaded ? value('solution') : solutionOptions.some((s) => String(s.id) === value('solution')) ? value('solution') : ''
+
+  /** 프리셋은 서버가 준 날짜를 그대로 URL에 쓰고, 전체는 두 키를 지운다. 직접 지정은 URL을 바꾸지 않는다. */
+  async function changePeriod(next: string) {
+    const seq = ++periodSeq.current
+    setRefreshError(null)
+    if (next === 'custom') {
+      setCustomKey(`${updatedFrom}|${updatedTo}`)
+      return
+    }
+    setCustomKey(null)
+    if (next === '') {
+      onChange({ updated_from: undefined, updated_to: undefined })
+      return
+    }
+    // 자정이 지났을 수 있어 캐시를 쓰지 않고 서버에 다시 묻는다. 실패하면 URL은 그대로 두고 오류를 보인다.
+    try {
+      const fresh = await queryClient.fetchQuery({ queryKey: keys.updatedPeriods, queryFn: () => gateway.deals.updatedPeriods(), staleTime: 0, ...NO_RETRY })
+      if (seq !== periodSeq.current) return
+      const chosen = fresh.periods.find((p) => p.key === next)
+      onChange({ updated_from: chosen?.from, updated_to: chosen?.to })
+    } catch (error) {
+      if (seq === periodSeq.current) setRefreshError(error)
+    }
+  }
+
+  function changeCustomDate(patch: { updated_from?: string; updated_to?: string }) {
+    periodSeq.current += 1
+    setCustomKey(`${patch.updated_from ?? updatedFrom}|${patch.updated_to ?? updatedTo}`)
+    onChange(patch)
+  }
 
   /** Vendor를 바꾸면 새 Vendor 소속이 아닌 Solution 조건은 지운다. 전체로 돌리면 유지한다. */
   function changeVendor(next: string) {
@@ -153,8 +204,21 @@ export function DealFilterBar({ params, onChange, onReset }: DealFilterBarProps)
           </small>
         )}
       </label>
-      <TextField label="기간 시작" name="from" type="date" value={value('from')} onChange={(from) => onChange({ from })} />
-      <TextField label="기간 끝" name="to" type="date" value={value('to')} onChange={(to) => onChange({ to })} />
+      <SelectField label="최종 업데이트" name="updated_period" value={period} onChange={changePeriod}>
+        <option value="">전체</option>
+        {(Object.keys(PERIOD_LABELS) as (keyof typeof PERIOD_LABELS)[]).map((key) => (
+          <option key={key} value={key} disabled={!periods?.some((p) => p.key === key)}>
+            {PERIOD_LABELS[key]}
+          </option>
+        ))}
+        <option value="custom">직접 지정</option>
+      </SelectField>
+      {period === 'custom' && (
+        <>
+          <TextField label="시작일" name="updated_from" type="date" value={updatedFrom} onChange={(updated_from) => changeCustomDate({ updated_from })} />
+          <TextField label="종료일" name="updated_to" type="date" value={updatedTo} onChange={(updated_to) => changeCustomDate({ updated_to })} />
+        </>
+      )}
       {BANT_CATEGORIES.map((category) => (
         <SelectField
           key={category}
@@ -175,11 +239,21 @@ export function DealFilterBar({ params, onChange, onReset }: DealFilterBarProps)
       ))}
       <CheckboxField label="내 딜만" name="mine" checked={value('mine') === '1'} onChange={(on) => onChange({ mine: on ? '1' : '' })} />
       <ErrorBanner error={vendorsQuery.error} />
+      <ErrorBanner error={periodsQuery.error} />
+      <ErrorBanner error={refreshError} />
       <div className="filter-buttons">
         <button type="submit" className="primary">
           검색
         </button>
-        <button type="button" onClick={onReset}>
+        <button
+          type="button"
+          onClick={() => {
+            periodSeq.current += 1
+            setCustomKey(null)
+            setRefreshError(null)
+            onReset()
+          }}
+        >
           초기화
         </button>
       </div>

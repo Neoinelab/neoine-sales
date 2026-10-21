@@ -1,15 +1,17 @@
-"""DealQuery의 연/분기·BANT 조건(AC-22b·22c): 검증과 `revenue_window()`(기간과의 교집합).
+"""DealQuery의 연/분기·BANT 조건: 검증과 `revenue_window()`, 최종 업데이트 `updated_window()`.
 
-window는 (시작, 끝) 양끝 포함이고 None은 한쪽이 열려 있다는 뜻이다. 시작이 끝보다 늦으면 빈
-창이며 오류가 아니다(0건). 검증 오류는 만들 때 또는 `revenue_window()`에서 올라온다.
+revenue_window는 (시작, 끝) 양끝 포함이고 None은 한쪽이 열려 있다는 뜻이다. 연/분기만 반영한다.
+updated_window는 last_updated_at의 반개구간 [시작, 끝)이다. 검증 오류는 만들 때 또는
+`revenue_window()`에서 올라온다.
 """
 
-from datetime import date
+from datetime import date, timedelta
 
 import pytest
 
 from app.application.ports.deal_repository import DealQuery
 from app.domain.bant.values import BantCategory, BantLabelId
+from app.domain.common.business_date import start_of_business_day
 from app.domain.common.errors import InvalidValueError
 from tests.factories import new_contact_id
 from tests.support.expect import raises_with
@@ -21,11 +23,6 @@ def _window(**criteria: object) -> tuple[date | None, date | None]:
 
 def test_no_year_and_no_period_means_an_open_window() -> None:
     assert _window() == (None, None)
-
-
-def test_a_period_without_a_year_is_the_window_itself() -> None:
-    assert _window(revenue_from=date(2026, 6, 1)) == (date(2026, 6, 1), None)
-    assert _window(revenue_to=date(2026, 6, 30)) == (None, date(2026, 6, 30))
 
 
 def test_a_year_alone_is_january_first_to_december_31() -> None:
@@ -45,39 +42,58 @@ def test_a_year_and_quarter_is_that_quarter(quarter: int, start: date, end: date
     assert _window(year=2026, quarter=quarter) == (start, end)
 
 
-def test_a_period_inside_the_quarter_narrows_it() -> None:
+def test_the_updated_period_does_not_change_the_revenue_window() -> None:
     window = _window(
-        year=2026, quarter=2, revenue_from=date(2026, 5, 10), revenue_to=date(2026, 5, 20)
-    )
-
-    assert window == (date(2026, 5, 10), date(2026, 5, 20))
-
-
-def test_a_period_wider_than_the_quarter_is_clipped_to_it() -> None:
-    window = _window(
-        year=2026, quarter=2, revenue_from=date(2026, 1, 1), revenue_to=date(2026, 12, 31)
+        year=2026, quarter=2, updated_from=date(2026, 5, 10), updated_to=date(2026, 5, 20)
     )
 
     assert window == (date(2026, 4, 1), date(2026, 6, 30))
 
 
-def test_a_period_overlapping_one_end_of_the_quarter_keeps_the_overlap() -> None:
-    assert _window(year=2026, quarter=2, revenue_from=date(2026, 5, 15)) == (
-        date(2026, 5, 15),
-        date(2026, 6, 30),
+def test_the_updated_period_alone_leaves_the_revenue_window_open() -> None:
+    assert _window(updated_from=date(2026, 6, 1), updated_to=date(2026, 6, 30)) == (None, None)
+
+
+def test_updated_window_is_half_open_by_business_day() -> None:
+    query = DealQuery(updated_from=date(2026, 6, 1), updated_to=date(2026, 6, 30))
+
+    assert query.updated_window() == (
+        start_of_business_day(date(2026, 6, 1)),
+        start_of_business_day(date(2026, 7, 1)),
     )
-    assert _window(year=2026, quarter=2, revenue_to=date(2026, 5, 31)) == (
-        date(2026, 4, 1),
-        date(2026, 5, 31),
+
+
+def test_updated_window_end_is_the_next_local_midnight_across_a_month_end() -> None:
+    query = DealQuery(updated_to=date(2026, 12, 31))
+
+    assert query.updated_window()[1] == start_of_business_day(
+        date(2026, 12, 31) + timedelta(days=1)
     )
 
 
-def test_a_period_outside_the_year_gives_an_empty_window_not_an_error() -> None:
-    start, end = _window(year=2026, revenue_from=date(2027, 1, 1))
+def test_updated_window_with_only_a_start_is_open_at_the_end() -> None:
+    query = DealQuery(updated_from=date(2026, 6, 1))
 
-    assert start is not None
-    assert end is not None
-    assert start > end
+    assert query.updated_window() == (start_of_business_day(date(2026, 6, 1)), None)
+
+
+def test_updated_window_with_only_an_end_is_open_at_the_start() -> None:
+    query = DealQuery(updated_to=date(2026, 6, 30))
+
+    assert query.updated_window() == (None, start_of_business_day(date(2026, 7, 1)))
+
+
+def test_updated_window_without_a_period_is_fully_open() -> None:
+    assert DealQuery().updated_window() == (None, None)
+
+
+def test_updated_window_of_a_single_day_spans_that_local_day() -> None:
+    day = date(2026, 6, 15)
+
+    start, end = DealQuery(updated_from=day, updated_to=day).updated_window()
+
+    assert start == start_of_business_day(day)
+    assert end == start_of_business_day(day + timedelta(days=1))
 
 
 def test_a_quarter_without_a_year_is_no_longer_rejected_at_creation() -> None:

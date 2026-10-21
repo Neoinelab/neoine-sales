@@ -17,7 +17,12 @@ from typing import TYPE_CHECKING, Any
 from app.domain.common.errors import InvalidReferenceError
 from app.domain.deal.errors import DealNotFoundError, DuplicateDealCodeError
 from tests.fakes.deal_counts import DealCountsMixin
-from tests.fakes.deal_search import matches, sort_key
+from tests.fakes.deal_search import (
+    has_updated_period,
+    matches,
+    sort_key,
+    updated_in_range,
+)
 from tests.fakes.in_memory import InMemoryStore
 
 if TYPE_CHECKING:
@@ -203,6 +208,8 @@ class FakeDealRepository(DealCountsMixin, InMemoryStore["Deal"]):
     def _found(self, query: DealQuery) -> list[Deal]:
         contacts = self._contact_map()
         found = [d for d in self._items.values() if matches(d, query, contacts)]
+        if has_updated_period(query):
+            found = [d for d in found if updated_in_range(self._item(d).last_updated_at, query)]
         wanted = query.next_action_status
         if wanted is None:
             return found

@@ -283,3 +283,30 @@ describe('Quarter만 있는 조건의 기억 (AC-20)', () => {
     expect(screen.getByLabelText('연도')).toHaveDisplayValue('전체')
   })
 })
+
+describe('최종 업데이트 기간 기억 (AC-20, AC-21)', () => {
+  const UPDATED = '/deals?mine=1&status=contract_completed&updated_from=2000-01-01&updated_to=2099-12-31&sort=name&order=asc'
+
+  it('returns from detail to the same updated date range', async () => {
+    const view = await openDetailFrom(UPDATED)
+
+    expect(screen.getByRole('link', { name: '← 목록' })).toHaveAttribute('href', UPDATED)
+    await view.user.click(screen.getByRole('link', { name: '← 목록' }))
+
+    await screen.findByRole('row', { name: QINGMYEONG })
+    expect(view.location()).toBe(UPDATED)
+    expect(screen.getByLabelText('최종 업데이트')).toHaveDisplayValue('직접 지정')
+    expect(screen.getByLabelText('시작일')).toHaveValue('2000-01-01')
+    expect(screen.getByLabelText('종료일')).toHaveValue('2099-12-31')
+  })
+
+  it('does not restore the old expected-close period from and to', async () => {
+    const view = await openDetailFrom(`${CONDITION}&from=2099-01-01&to=2099-12-31`)
+
+    // 구 from/to는 조회에 쓰이지 않아 목록이 그대로 2건이고, 기억에도 남지 않는다.
+    expect(screen.getByRole('link', { name: '← 목록' })).toHaveAttribute('href', CONDITION)
+    await view.user.click(screen.getByRole('link', { name: '← 목록' }))
+    await waitFor(() => expect(dataRows()).toHaveLength(2))
+    expect(view.location()).toBe(CONDITION)
+  })
+})

@@ -141,3 +141,31 @@ async def test_global_action_search_is_gone(api: Api) -> None:
     response = await when_search_all_actions(api)
     # Then
     then_status_is(response, 404)
+
+
+@pytest.mark.parametrize("field", ["acted_from", "acted_to"])
+@pytest.mark.parametrize("day", ["1899-12-31", "3000-01-01", "0001-01-01", "9999-12-31"])
+async def test_an_acted_date_outside_1900_2999_is_rejected_not_a_server_error(
+    api: Api, field: str, day: str
+) -> None:
+    """Scenario: 허용 범위(1900~2999) 밖의 수행일은 500이 아니라 422(invalid-value)이다."""
+    # Given
+    await given_logged_in_as(api, role="sales")
+    deal = await given_deal(api)
+    # When
+    response = await when_list_actions(api, deal["code"], **{field: day})
+    # Then
+    then_problem_is(response, status=422, type_suffix="invalid-value")
+
+
+@pytest.mark.parametrize("field", ["acted_from", "acted_to"])
+@pytest.mark.parametrize("day", ["1900-01-01", "2999-12-31"])
+async def test_an_acted_date_at_the_range_edges_is_accepted(api: Api, field: str, day: str) -> None:
+    """Scenario: 허용 범위의 양 끝 수행일은 조회된다."""
+    # Given
+    await given_logged_in_as(api, role="sales")
+    deal = await given_deal(api)
+    # When
+    response = await when_list_actions(api, deal["code"], **{field: day})
+    # Then
+    then_status_is(response, 200)

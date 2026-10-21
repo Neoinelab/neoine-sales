@@ -20,9 +20,6 @@ class ListDeals:
     async def execute(self, query: DealQuery) -> DealPage:
         now = self._clock.now()
         query = query.with_year_for(business_date(now))
-        start, end = query.revenue_window()
-        if start is not None and end is not None and start > end:
-            return DealPage(items=[], total=0, offset=query.offset, limit=query.limit)
         async with self._uow_factory() as uow:
             items = await uow.deals.search(query)
             total = await uow.deals.count(query)

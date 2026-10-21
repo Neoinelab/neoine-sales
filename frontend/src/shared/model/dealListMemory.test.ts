@@ -60,6 +60,32 @@ describe('sanitizeListSearch id parameters (AC-22)', () => {
   })
 })
 
+describe('sanitizeListSearch updated period (AC-20, AC-21)', () => {
+  it('keeps the updated dates and drops the old Expected Close from/to', () => {
+    expect(sanitizeListSearch('from=2026-01-01&to=2026-12-31&updated_from=2026-06-01&updated_to=2026-06-30&status=a')).toBe(
+      'updated_from=2026-06-01&updated_to=2026-06-30&status=a',
+    )
+  })
+
+  it('stores dates only, never a preset name', () => {
+    expect(sanitizeListSearch('updated_period=2w&updated_from=2026-06-01&updated_to=2026-06-15')).toBe(
+      'updated_from=2026-06-01&updated_to=2026-06-15',
+    )
+  })
+
+  it('does not restore an old from/to condition that an earlier version stored', () => {
+    window.sessionStorage.setItem(listMemoryKey(USER_ID.kim), 'from=2026-01-01&to=2026-12-31&status=a')
+
+    expect(rememberedListPath(USER_ID.kim)).toBe('/deals?status=a')
+  })
+
+  it('restores the same date range after a detail visit', () => {
+    rememberListSearch(USER_ID.kim, params('updated_from=2026-06-01&updated_to=2026-06-15&page=2'))
+
+    expect(rememberedListPath(USER_ID.kim)).toBe('/deals?updated_from=2026-06-01&updated_to=2026-06-15&page=2')
+  })
+})
+
 describe('listMemoryKey (AC-10)', () => {
   it('builds the storage key per user', () => {
     expect(listMemoryKey(USER_ID.kim)).toBe(`deals.listSearch:${USER_ID.kim}`)

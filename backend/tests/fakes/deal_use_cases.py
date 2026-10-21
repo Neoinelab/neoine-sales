@@ -8,6 +8,8 @@ import는 Deal 구현이 없는 동안 그 테스트의 수집까지 막는다(t
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from app.application.deal.updated_periods import ListUpdatedPeriods
+
     from app.application.deal.apply_change import ApplyDealChange
     from app.application.deal.delete_deal import DeleteDeal
     from app.application.deal.deletion_impact import GetDealDeletionImpact
@@ -46,6 +48,11 @@ class DealUseCases:
         from app.application.deal.list_deals import ListDeals  # noqa: PLC0415
 
         return ListDeals(self._deal_uow_factory(), self.clock)
+
+    def list_updated_periods(self) -> ListUpdatedPeriods:
+        from app.application.deal.updated_periods import ListUpdatedPeriods  # noqa: PLC0415
+
+        return ListUpdatedPeriods(self.clock)
 
     def update_deal(self) -> UpdateDeal:
         from app.application.deal.update_deal import UpdateDeal  # noqa: PLC0415

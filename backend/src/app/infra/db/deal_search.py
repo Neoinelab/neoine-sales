@@ -3,8 +3,10 @@
 last_updated_at = 모든 Action 중 가장 최근 acted_at(없으면 Deal 등록 시각, Deal 수정은 무시).
 next_action 요약과 상태 필터의 기준 행 = Next Action이 있는 가장 최근 Action.
 
-keyword·owner·vendor·solution·status·forecast·기간(연/분기 포함)·BANT Label 필터와 정렬 선택을
-적용한다. 기간은 DealQuery.revenue_window()의 양끝 포함 범위다(빈 창이면 조건이 서로 모순되어 0건).
+keyword·owner·vendor·solution·status·forecast·연/분기·최종 업데이트 기간·BANT Label 필터와
+정렬 선택을 적용한다.
+Expected Close 연/분기는 DealQuery.revenue_window()의 양끝 포함 범위다.
+최종 업데이트 기간은 updated_window()의 반개구간 [시작, 끝)이며 상관 스칼라 서브쿼리로 비교한다.
 """
 
 from typing import TYPE_CHECKING, Any
@@ -67,6 +69,17 @@ _STATUS_ORDER = (
 )
 
 
+def _last_updated_scalar() -> ColumnElement[datetime]:
+    """LAST_UPDATED와 같은 값을 조인 없이 계산하는 상관 스칼라 서브쿼리(count가 조건만 쓴다)."""
+    latest = (
+        select(func.max(DealActionRow.acted_at))
+        .where(DealActionRow.deal_id == DealRow.id)
+        .correlate(DealRow)
+        .scalar_subquery()
+    )
+    return func.coalesce(latest, DealRow.created_at)
+
+
 def _keyword_condition(keyword: str) -> ColumnElement[bool]:
     """Deal Name·Deal code·고객 회사·활성 파트너 회사의 대소문자 무시 부분 일치."""
     pattern = like_pattern(keyword)
@@ -111,11 +124,16 @@ def conditions(query: DealQuery) -> list[ColumnElement[bool]]:
             .exists()
         )
     found.extend(column == wanted for column, wanted in equals if wanted is not None)
-    window_from, window_to = query.revenue_window()  # 연/분기와 revenue_from/to의 교집합
+    window_from, window_to = query.revenue_window()  # 연/분기 범위
     if window_from is not None:
         found.append(DealRow.revenue_date >= window_from)
     if window_to is not None:
         found.append(DealRow.revenue_date <= window_to)
+    updated_start, updated_end = query.updated_window()
+    if updated_start is not None:
+        found.append(_last_updated_scalar() >= updated_start)
+    if updated_end is not None:
+        found.append(_last_updated_scalar() < updated_end)
     found.extend(
         exists().where(
             DealBantLabelRow.deal_id == DealRow.id,

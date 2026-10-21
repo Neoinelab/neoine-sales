@@ -1,8 +1,9 @@
 """Feature: 목록에서 Deal을 찾고 상세를 본다.
 
 기본 정렬은 최근 갱신 순(동률은 code 오름차순), total은 필터 적용 후 전체 건수다.
-keyword·owner·vendor_id·status·기간·내 딜 필터는 모두 AND로 결합한다. 확장 필터(연/분기·BANT·
-solution_id·forecast)와 정렬 선택은 다음 라운드(R3)에서 같은 feature에 시나리오가 늘어난다.
+keyword·owner·vendor_id·status·최종 업데이트 기간·내 딜 필터는 모두 AND로 결합한다.
+확장 필터(연/분기·BANT·solution_id·forecast)와 정렬 선택은 다음 라운드(R3)에서
+같은 feature에 시나리오가 늘어난다.
 """
 
 from typing import TYPE_CHECKING
@@ -11,6 +12,7 @@ import pytest
 
 from tests.functional.steps.auth import given_logged_in_as, given_user_registered
 from tests.functional.steps.common import then_problem_is, then_status_is
+from tests.functional.steps.deal_risk import given_days_pass
 from tests.functional.steps.deals import (
     NOT_FOUND,
     customer_draft,
@@ -21,6 +23,7 @@ from tests.functional.steps.deals import (
     when_list_deals,
     when_update_deal,
 )
+from tests.functional.steps.updated_period import days_from_today
 from tests.functional.steps.users import log_in
 from tests.functional.steps.vendors import given_vendor
 
@@ -111,26 +114,17 @@ async def test_keyword_matches_name_customer_active_partner_and_code(api: Api) -
 
 
 async def test_filters_combine_with_and(api: Api) -> None:
-    """Scenario: owner·vendor_id·status·기간·keyword는 모두 AND로 결합한다."""
+    """Scenario: owner·vendor_id·status·최종 업데이트 기간·keyword는 모두 AND로 결합한다."""
     # Given
     sap = await given_vendor(api, "SAP")
     oracle = await given_vendor(api, "Oracle")
-    await given_logged_in_as(api, role="sales")
-    hit = await given_deal(
-        api, name="ERP", vendor_id=sap.id, status_key="introduction", revenue_date="2026-06-15"
-    )
-    await given_deal(
-        api, name="ERP", vendor_id=oracle.id, status_key="introduction", revenue_date="2026-06-15"
-    )
-    await given_deal(
-        api, name="ERP", vendor_id=sap.id, status_key="prospecting", revenue_date="2026-06-15"
-    )
-    await given_deal(
-        api, name="ERP", vendor_id=sap.id, status_key="introduction", revenue_date="2026-08-01"
-    )
-    await given_deal(
-        api, name="CRM", vendor_id=sap.id, status_key="introduction", revenue_date="2026-06-15"
-    )
+    login_id = await given_logged_in_as(api, role="sales")
+    await given_deal(api, name="ERP", vendor_id=sap.id, status_key="introduction")  # 30일 전 등록
+    await given_days_pass(api, 30, login_id=login_id)
+    hit = await given_deal(api, name="ERP", vendor_id=sap.id, status_key="introduction")
+    await given_deal(api, name="ERP", vendor_id=oracle.id, status_key="introduction")
+    await given_deal(api, name="ERP", vendor_id=sap.id, status_key="prospecting")
+    await given_deal(api, name="CRM", vendor_id=sap.id, status_key="introduction")
     # When
     response = await when_list_deals(
         api,
@@ -138,25 +132,12 @@ async def test_filters_combine_with_and(api: Api) -> None:
         owner_user_id=hit["owner_user_id"],
         vendor_id=sap.id,
         status_key="introduction",
-        revenue_from="2026-06-01",
-        revenue_to="2026-06-30",
+        updated_from=days_from_today(api, -14),
+        updated_to=days_from_today(api, 0),
     )
     # Then
     assert list_codes(response) == [hit["code"]]
     assert response.json()["total"] == 1
-
-
-async def test_the_revenue_period_includes_both_ends(api: Api) -> None:
-    """Scenario: revenue_from/to는 양끝을 포함한다."""
-    # Given
-    await given_logged_in_as(api, role="sales")
-    for day in ("2026-05-31", "2026-06-01", "2026-06-30", "2026-07-01"):
-        await given_deal(api, name=day, revenue_date=day)
-    # When
-    response = await when_list_deals(api, revenue_from="2026-06-01", revenue_to="2026-06-30")
-    # Then
-    names = sorted(item["name"] for item in response.json()["items"])
-    assert names == ["2026-06-01", "2026-06-30"]
 
 
 async def test_an_unknown_status_key_gives_zero_results_not_an_error(api: Api) -> None:

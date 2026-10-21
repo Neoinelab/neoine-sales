@@ -18,6 +18,15 @@ export type * from './settings'
 
 // ───────────────────────── 사용자 ─────────────────────────
 
+/** 최종 업데이트 기간 프리셋 키(서버가 정한다). */
+export type UpdatedPeriodKey = '2w' | '1m' | '2m' | '3m' | '6m'
+export interface UpdatedPeriods {
+  /** 서버 업무 날짜('YYYY-MM-DD'). */
+  today: string
+  /** 프리셋별 양끝 포함 날짜 범위. */
+  periods: { key: UpdatedPeriodKey; from: string; to: string }[]
+}
+
 export type Role = 'admin' | 'sales' | 'user'
 export type UserStatus = 'active' | 'resigned'
 

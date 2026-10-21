@@ -4,7 +4,7 @@ solution·forecast·연/분기·BANT 필터와 정렬 선택은 R3다. 여기서
 내림차순, 동률은 code 오름차순)만 본다.
 """
 
-from datetime import date
+from datetime import date, datetime
 from typing import TYPE_CHECKING
 
 from app.application.deal.dto import NamedRef
@@ -228,28 +228,34 @@ class TestFilters:
 
         assert (page.items, page.total) == ([], 0)
 
-    async def test_the_revenue_period_includes_both_ends(self, env: DealEnv) -> None:
-        days = {
-            "before": date(2026, 5, 31),
-            "from": date(2026, 6, 1),
-            "inside": date(2026, 6, 15),
-            "to": date(2026, 6, 30),
-            "after": date(2026, 7, 1),
+    async def test_the_updated_period_includes_both_local_days(self, env: DealEnv) -> None:
+        moments = {
+            "before": datetime(2026, 5, 31, 23, 59, 59).astimezone(),
+            "from": datetime(2026, 6, 1, 0, 0, 0).astimezone(),
+            "inside": datetime(2026, 6, 15, 12, 0, 0).astimezone(),
+            "to": datetime(2026, 6, 30, 23, 59, 59).astimezone(),
+            "after": datetime(2026, 7, 1, 0, 0, 0).astimezone(),
         }
-        views = {name: await env.new_deal(revenue_date=day) for name, day in days.items()}
+        views = {}
+        for name, moment in moments.items():
+            env.clock.advance((moment - env.clock.now()).total_seconds() - 1)  # new_deal이 1초 흐름
+            views[name] = await env.new_deal()
 
         page = await env.list.execute(
-            DealQuery(revenue_from=date(2026, 6, 1), revenue_to=date(2026, 6, 30))
+            DealQuery(updated_from=date(2026, 6, 1), updated_to=date(2026, 6, 30))
         )
 
         assert set(_codes(page)) == {views[n].item.deal.id.value for n in ("from", "inside", "to")}
+        assert page.total == 3
 
-    async def test_a_single_day_period_is_allowed(self, env: DealEnv) -> None:
-        hit = await env.new_deal(revenue_date=date(2026, 6, 1))
-        await env.new_deal(revenue_date=date(2026, 6, 2))
+    async def test_a_single_day_updated_period_is_allowed(self, env: DealEnv) -> None:
+        env.clock.advance((datetime(2026, 6, 1, 12).astimezone() - env.clock.now()).total_seconds())
+        hit = await env.new_deal()
+        env.clock.advance(2 * 24 * 3600)
+        await env.new_deal()
 
         page = await env.list.execute(
-            DealQuery(revenue_from=date(2026, 6, 1), revenue_to=date(2026, 6, 1))
+            DealQuery(updated_from=date(2026, 6, 1), updated_to=date(2026, 6, 1))
         )
 
         assert _codes(page) == [hit.item.deal.id.value]

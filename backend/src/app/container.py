@@ -21,6 +21,7 @@ from app.application.deal.list_deal_history import ListDealHistory
 from app.application.deal.list_deals import ListDeals
 from app.application.deal.register_deal import RegisterDeal
 from app.application.deal.update_deal import UpdateDeal
+from app.application.deal.updated_periods import ListUpdatedPeriods
 from app.application.deal_action.change_next_action_status import ChangeNextActionStatus
 from app.application.deal_action.delete_deal_action import DeleteDealAction
 from app.application.deal_action.get_deal_action import GetDealAction
@@ -207,6 +208,9 @@ class Container(VendorUseCases, ActionTypeUseCases):
 
     def list_deals(self) -> ListDeals:
         return ListDeals(self._uow, self._clock)
+
+    def list_updated_periods(self) -> ListUpdatedPeriods:
+        return ListUpdatedPeriods(self._clock)
 
     def list_deal_history(self) -> ListDealHistory:
         return ListDealHistory(self._uow)

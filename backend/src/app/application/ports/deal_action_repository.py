@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Protocol
 
 from app.domain.common.business_date import start_of_business_day
 from app.domain.common.errors import InvalidValueError
-from app.domain.common.validation import optional_text
+from app.domain.common.validation import check_date_in_bounds, optional_text
 from app.domain.deal_action.next_action_status import NextActionStatus
 
 if TYPE_CHECKING:
@@ -67,6 +67,8 @@ class DealActionQuery:
         for name in _DATE_FIELDS:
             if isinstance(getattr(self, name), datetime):
                 raise InvalidValueError(f"{name}은(는) 시각 없는 날짜여야 합니다")
+        check_date_in_bounds(self.acted_from, "acted_from")
+        check_date_in_bounds(self.acted_to, "acted_to")
         if self.acted_from and self.acted_to and self.acted_from > self.acted_to:
             raise InvalidValueError(ACTED_RANGE_REVERSED)
         if self.due_from and self.due_to and self.due_from > self.due_to:

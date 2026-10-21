@@ -1,7 +1,7 @@
 """Feature: 영업은 목록을 vendor_id·solution_id·forecast·연/분기·BANT Label로 좁혀 Deal을 찾는다.
 
-연/분기는 Expected Close 기준이고 양끝을 포함한다(12-31은 Q4, 01-01은 Q1). 연/분기와 기간은
-교집합이고, quarter만 주면 서버 업무 날짜의 올해 분기다.
+연/분기는 Expected Close 기준이고 양끝을 포함한다(12-31은 Q4, 01-01은 Q1). 연/분기와
+최종 업데이트 기간은 AND이고, quarter만 주면 서버 업무 날짜의 올해 분기다.
 BANT Label은 구분별로 고르며 여러 구분은 AND다.
 모든 필터는 서로 AND로 결합하고 total은 페이지와 무관하다.
 """
@@ -18,12 +18,14 @@ from tests.functional.steps.deal_lists import (
     then_codes_are_exactly,
     then_total_is,
 )
+from tests.functional.steps.deal_risk import given_days_pass
 from tests.functional.steps.deals import (
     given_clock_at,
     given_deal,
     given_label_id,
     when_list_deals,
 )
+from tests.functional.steps.updated_period import days_from_today
 from tests.functional.steps.vendors import given_vendor
 from tests.support.ids import MISSING_ID
 
@@ -126,16 +128,17 @@ async def test_year_and_quarter_follow_the_expected_close_with_inclusive_boundar
     then_total_is(whole_year, 5)
 
 
-async def test_year_and_quarter_are_intersected_with_the_period(api: Api) -> None:
-    """Scenario: 연/분기와 기간을 함께 주면 둘 다 만족하는 Deal만 나온다."""
+async def test_year_and_quarter_are_combined_with_the_updated_period(api: Api) -> None:
+    """Scenario: 연/분기(Expected Close)와 최종 업데이트 기간을 함께 주면 둘 다 만족해야 한다."""
     # Given
-    await given_logged_in_as(api, role="sales")
+    login_id = await given_logged_in_as(api, role="sales")
+    await given_deal(api, revenue_date="2026-05-10")  # 분기 안, 30일 전 등록(기간 밖)
+    await given_days_pass(api, 30, login_id=login_id)
     inside = await given_deal(api, revenue_date="2026-05-20")
-    await given_deal(api, revenue_date="2026-04-10")
-    await given_deal(api, revenue_date="2026-08-01")
+    await given_deal(api, revenue_date="2026-08-01")  # 분기 밖
     # When
     response = await when_list_deals(
-        api, year=2026, quarter=2, revenue_from="2026-05-01", revenue_to="2026-05-31"
+        api, year=2026, quarter=2, updated_from=days_from_today(api, -14)
     )
     # Then
     then_codes_are(response, [inside["code"]])

@@ -104,9 +104,9 @@ export interface DealListQuery {
   /** Expected Close(revenueDate) 기준 연도/분기. quarter만 있으면 서버가 올해로 본다. */
   year?: number
   quarter?: 1 | 2 | 3 | 4
-  /** Expected Close 기간(포함). year/quarter와 함께 오면 교집합. */
-  revenueFrom?: string
-  revenueTo?: string
+  /** 최종 업데이트 기간(양끝 포함, 'YYYY-MM-DD'). 한쪽만 있어도 된다. */
+  updatedFrom?: string
+  updatedTo?: string
   /** 구분별 Label(AND). */
   bantLabelIds?: Partial<Record<BantCategory, number>>
   /** true면 현재 로그인 사용자가 Owner인 Deal만. */

@@ -3328,6 +3328,64 @@
         "title": "StorageSettingsResponse",
         "type": "object"
       },
+      "UpdatedPeriodPreset": {
+        "description": "값은 API 키다. 정의 순서가 응답 순서다.",
+        "enum": [
+          "2w",
+          "1m",
+          "2m",
+          "3m",
+          "6m"
+        ],
+        "title": "UpdatedPeriodPreset",
+        "type": "string"
+      },
+      "UpdatedPeriodResponse": {
+        "properties": {
+          "from": {
+            "format": "date",
+            "title": "From",
+            "type": "string"
+          },
+          "key": {
+            "$ref": "#/components/schemas/UpdatedPeriodPreset"
+          },
+          "to": {
+            "format": "date",
+            "title": "To",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "from",
+          "to"
+        ],
+        "title": "UpdatedPeriodResponse",
+        "type": "object"
+      },
+      "UpdatedPeriodsResponse": {
+        "properties": {
+          "periods": {
+            "items": {
+              "$ref": "#/components/schemas/UpdatedPeriodResponse"
+            },
+            "title": "Periods",
+            "type": "array"
+          },
+          "today": {
+            "format": "date",
+            "title": "Today",
+            "type": "string"
+          }
+        },
+        "required": [
+          "today",
+          "periods"
+        ],
+        "title": "UpdatedPeriodsResponse",
+        "type": "object"
+      },
       "UserDeleteReason": {
         "description": "사용자가 목록에서 빠진 이유. 값을 추가할 때는 DB CHECK도 이 enum에서 만든다.",
         "enum": [
@@ -6276,7 +6334,7 @@
           },
           {
             "in": "query",
-            "name": "revenue_from",
+            "name": "updated_from",
             "required": false,
             "schema": {
               "anyOf": [
@@ -6288,12 +6346,12 @@
                   "type": "null"
                 }
               ],
-              "title": "Revenue From"
+              "title": "Updated From"
             }
           },
           {
             "in": "query",
-            "name": "revenue_to",
+            "name": "updated_to",
             "required": false,
             "schema": {
               "anyOf": [
@@ -6305,7 +6363,7 @@
                   "type": "null"
                 }
               ],
-              "title": "Revenue To"
+              "title": "Updated To"
             }
           },
           {
@@ -6550,6 +6608,37 @@
           }
         },
         "summary": "Register Deal",
+        "tags": [
+          "deals"
+        ]
+      }
+    },
+    "/api/v1/deals/updated-periods": {
+      "get": {
+        "operationId": "list_updated_periods_api_v1_deals_updated_periods_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdatedPeriodsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          }
+        },
+        "summary": "List Updated Periods",
         "tags": [
           "deals"
         ]

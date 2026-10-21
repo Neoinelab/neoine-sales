@@ -283,15 +283,41 @@ export function dealsContract(make: MakeGateway): void {
       for (const d of [first, last, next]) await sales.deals.remove(d.code, d.code)
     })
 
-    it('includes the revenueFrom and revenueTo days themselves', async () => {
+    it('includes the updatedFrom and updatedTo days themselves', async () => {
       const sales = await make('sales')
       const tag = unique('tag')
-      const created = await sales.deals.create(await validInput(sales, { name: `${tag}${unique('d')}`, revenueDate: '2027-05-10' }))
+      const created = await sales.deals.create(await validInput(sales, { name: `${tag}${unique('d')}` }))
+      const day = created.lastUpdatedAt.slice(0, 10)
+      const next = new Date(Date.parse(`${day}T00:00:00Z`) + 86_400_000).toISOString().slice(0, 10)
+      const prev = new Date(Date.parse(`${day}T00:00:00Z`) - 86_400_000).toISOString().slice(0, 10)
 
-      expect((await sales.deals.list({ keyword: tag, revenueFrom: '2027-05-10', revenueTo: '2027-05-10' })).total).toBe(1)
-      expect((await sales.deals.list({ keyword: tag, revenueFrom: '2027-05-11' })).total).toBe(0)
-      expect((await sales.deals.list({ keyword: tag, revenueTo: '2027-05-09' })).total).toBe(0)
+      expect((await sales.deals.list({ keyword: tag, updatedFrom: day, updatedTo: day })).total).toBe(1)
+      expect((await sales.deals.list({ keyword: tag, updatedFrom: next })).total).toBe(0)
+      expect((await sales.deals.list({ keyword: tag, updatedTo: prev })).total).toBe(0)
+      expect((await sales.deals.list({ keyword: tag, updatedFrom: prev })).total).toBe(1)
+      expect((await sales.deals.list({ keyword: tag, updatedTo: next })).total).toBe(1)
       await sales.deals.remove(created.code, created.code)
+    })
+
+    it('refuses an updated period whose start is after its end with 422', async () => {
+      const sales = await make('sales')
+
+      await expectRejects(sales.deals.list({ updatedFrom: '2026-07-01', updatedTo: '2026-06-30' }), 422)
+    })
+
+    it('resolves the presets from the server date for every role', async () => {
+      const user = await make('user')
+
+      const result = await user.deals.updatedPeriods()
+
+      expect(result.periods.map((p) => p.key)).toEqual(['2w', '1m', '2m', '3m', '6m'])
+      for (const period of result.periods) {
+        expect(period.to).toBe(result.today)
+        expect(period.from < period.to).toBe(true)
+      }
+      expect(result.periods[0]?.from).toBe(
+        new Date(Date.parse(`${result.today}T00:00:00Z`) - 14 * 86_400_000).toISOString().slice(0, 10),
+      )
     })
 
     it('filters by a BANT label of one category', async () => {

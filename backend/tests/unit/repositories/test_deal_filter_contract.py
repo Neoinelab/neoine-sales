@@ -1,11 +1,11 @@
 """DealRepository.search/count의 확장 필터 계약(R3, AC-22a~22c): Fake와 SQL에 같은 기대값.
 
 forecast 정확 일치(vendor_id·solution_id는 test_deal_search_contract), 연/분기(Expected Close
-기준, 양끝 포함, 기간과 교집합), BANT Label
+기준, 양끝 포함), BANT Label
 (구분별 AND). 모든 조건은 count와 같은 결과를 내고 페이지와 무관하게 센다.
 """
 
-from datetime import date
+from datetime import date, datetime
 from typing import TYPE_CHECKING
 
 import pytest
@@ -97,25 +97,27 @@ class TestYearAndQuarter:
 
         assert await _codes(deal_case, year=2027, quarter=2) == [codes[date(2027, 5, 1)]]
 
-    async def test_the_quarter_and_a_period_are_intersected(self, deal_case: DealCase) -> None:
-        days = [date(2026, 4, 10), date(2026, 5, 20), date(2026, 6, 25), date(2026, 8, 1)]
-        codes = await self._by_day(deal_case, days)
+    async def test_the_quarter_is_combined_with_the_updated_period_using_and(
+        self, deal_case: DealCase
+    ) -> None:
+        # (Expected Close, 등록 시각): 분기·기간 모두 맞아야 한다
+        rows = [
+            (date(2026, 5, 20), datetime(2026, 6, 10, 12).astimezone()),  # 둘 다 맞음
+            (date(2026, 5, 21), datetime(2026, 7, 10, 12).astimezone()),  # 기간 밖
+            (date(2026, 8, 1), datetime(2026, 6, 10, 12).astimezone()),  # 분기 밖
+        ]
+        for number, (day, created) in enumerate(rows, start=1):
+            await deal_case.add(make_deal(created, code=_code(number), revenue_date=day))
 
         found = await _codes(
             deal_case,
             year=2026,
             quarter=2,
-            revenue_from=date(2026, 5, 1),
-            revenue_to=date(2026, 6, 25),
+            updated_from=date(2026, 6, 1),
+            updated_to=date(2026, 6, 30),
         )
 
-        assert found == sorted([codes[date(2026, 5, 20)], codes[date(2026, 6, 25)]])
-
-    async def test_a_period_outside_the_year_gives_zero_results(self, deal_case: DealCase) -> None:
-        await self._by_day(deal_case, [date(2026, 5, 20)])
-
-        assert await _codes(deal_case, year=2026, revenue_from=date(2027, 1, 1)) == []
-        assert await _count(deal_case, year=2026, revenue_from=date(2027, 1, 1)) == 0
+        assert found == [_code(1)]
 
     async def test_the_year_filter_combines_with_the_page_and_total(
         self, deal_case: DealCase

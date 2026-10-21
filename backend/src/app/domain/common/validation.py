@@ -1,11 +1,24 @@
 """값 객체가 공유하는 입력 검증 도우미."""
 
+from datetime import date
 from typing import TYPE_CHECKING
 
 from app.domain.common.errors import InvalidValueError
 
 if TYPE_CHECKING:
     from datetime import datetime
+
+DATE_CRITERIA_MIN = date(1900, 1, 1)
+DATE_CRITERIA_MAX = date(2999, 12, 31)
+
+
+def check_date_in_bounds(value: date | None, field: str) -> None:
+    """기간 조건 날짜가 DATE_CRITERIA_MIN~MAX 안인지 확인한다(극단 날짜의 window 계산 오류 방지)."""
+    if value is not None and not DATE_CRITERIA_MIN <= value <= DATE_CRITERIA_MAX:
+        raise InvalidValueError(
+            f"{field}은(는) {DATE_CRITERIA_MIN.isoformat()}부터"
+            f" {DATE_CRITERIA_MAX.isoformat()} 사이여야 합니다"
+        )
 
 
 def reject_nul(value: str, field: str) -> None:

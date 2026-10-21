@@ -7,6 +7,24 @@ const codes = (items: { code: string }[]) => items.map((d) => d.code).sort()
 const dealInputFor = (revenueDate: string) => dealInput(USER_ID.kim, { revenueDate })
 const codesOf = (...nos: number[]) => nos.map(dealCode).sort()
 
+describe('deals.updatedPeriods', () => {
+  it('로그인한 누구나 Fake 시계의 오늘 기준 프리셋 다섯 개를 받는다', async () => {
+    const { gateway, control } = await mockAs('han')
+
+    const result = await gateway.deals.updatedPeriods()
+
+    expect(result.today).toBe(control.now().slice(0, 10))
+    expect(result.periods.map((p) => p.key)).toEqual(['2w', '1m', '2m', '3m', '6m'])
+    for (const period of result.periods) expect(period.to).toBe(result.today)
+  })
+
+  it('로그인하지 않으면 401이다', async () => {
+    const { gateway } = await mockAs('han')
+    await gateway.auth.logout()
+    await expectApiError(gateway.deals.updatedPeriods(), 401)
+  })
+})
+
 describe('deals.list', () => {
   it('T-GW 기본 정렬은 최종 업데이트 내림차순이고 페이지 크기는 20이다', async () => {
     const { gateway } = await mockAs('han')
@@ -63,7 +81,7 @@ describe('deals.list', () => {
     expect(lastYear.map((d) => d.code)).toContain(created.code)
   })
 
-  it('연도·분기와 기간 필터는 Expected Close 기준이고 경계를 포함한다', async () => {
+  it('연도·분기 필터는 Expected Close 기준이고 경계를 포함한다', async () => {
     const { gateway } = await mockAs('kim')
     const all = (await gateway.deals.list({ limit: 100 })).items
     const q4 = (await gateway.deals.list({ year: 2026, quarter: 4, limit: 100 })).items
@@ -75,10 +93,44 @@ describe('deals.list', () => {
       sum += (await gateway.deals.list({ year: 2026, quarter, limit: 100 })).total
     }
     expect(sum).toBe(byYear.length)
-    const target = all[0]
-    if (!target) throw new Error('no deals')
-    const exact = await gateway.deals.list({ revenueFrom: target.revenueDate, revenueTo: target.revenueDate, limit: 100 })
-    expect(exact.items.map((d) => d.code)).toContain(target.code)
+    expect(all.length).toBeGreaterThan(byYear.length)
+  })
+
+  it('최종 업데이트 기간은 lastUpdatedAt의 날짜가 양끝 포함 범위 안인 Deal만 돌려준다', async () => {
+    const { gateway } = await mockAs('kim')
+    const all = (await gateway.deals.list({ limit: 100 })).items
+    const days = [...new Set(all.map((d) => d.lastUpdatedAt.slice(0, 10)))].sort()
+    expect(days.length).toBeGreaterThan(2) // 시드가 날짜를 가르는 기준이 되어야 한다
+    const [first, middle, last] = [days[0]!, days[Math.floor(days.length / 2)]!, days[days.length - 1]!]
+    const dayOf = (d: { lastUpdatedAt: string }) => d.lastUpdatedAt.slice(0, 10)
+
+    const exact = await gateway.deals.list({ updatedFrom: middle, updatedTo: middle, limit: 100 })
+    const since = await gateway.deals.list({ updatedFrom: middle, limit: 100 })
+    const until = await gateway.deals.list({ updatedTo: middle, limit: 100 })
+    const everything = await gateway.deals.list({ updatedFrom: first, updatedTo: last, limit: 100 })
+
+    expect(codes(exact.items)).toEqual(codes(all.filter((d) => dayOf(d) === middle)))
+    expect(exact.total).toBeGreaterThan(0)
+    expect(codes(since.items)).toEqual(codes(all.filter((d) => dayOf(d) >= middle)))
+    expect(codes(until.items)).toEqual(codes(all.filter((d) => dayOf(d) <= middle)))
+    expect(since.total).toBeLessThan(all.length)
+    expect(until.total).toBeLessThan(all.length)
+    expect(everything.total).toBe(all.length)
+  })
+
+  it('최종 업데이트 기간의 시작이 끝보다 늦으면 422로 거절한다', async () => {
+    const { gateway } = await mockAs('kim')
+    await expectApiError(gateway.deals.list({ updatedFrom: '2026-07-01', updatedTo: '2026-06-30' }), 422)
+  })
+
+  it('최종 업데이트 기간은 연도·분기와 AND로 결합한다', async () => {
+    const { gateway } = await mockAs('kim')
+    const q4 = (await gateway.deals.list({ year: 2026, quarter: 4, limit: 100 })).items
+    const day = q4[0]!.lastUpdatedAt.slice(0, 10)
+
+    const both = await gateway.deals.list({ year: 2026, quarter: 4, updatedFrom: day, updatedTo: day, limit: 100 })
+
+    expect(codes(both.items)).toEqual(codes(q4.filter((d) => d.lastUpdatedAt.slice(0, 10) === day)))
   })
 
   it('정렬: 금액 내림차순, 이름 오름차순, Status 순서', async () => {

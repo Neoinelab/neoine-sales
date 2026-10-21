@@ -51,8 +51,8 @@ describe('deals.list over HTTP', () => {
       forecastKey: 'pipeline',
       year: 2026,
       quarter: 4,
-      revenueFrom: '2026-10-01',
-      revenueTo: '2026-12-31',
+      updatedFrom: '2026-10-01',
+      updatedTo: '2026-12-31',
       bantLabelIds: { budget: 1, authority: 2, need: 3, timeline: 4 },
       mine: true,
       nextActionStatus: 'closed',
@@ -72,8 +72,8 @@ describe('deals.list over HTTP', () => {
       forecast_key: 'pipeline',
       year: '2026',
       quarter: '4',
-      revenue_from: '2026-10-01',
-      revenue_to: '2026-12-31',
+      updated_from: '2026-10-01',
+      updated_to: '2026-12-31',
       bant_budget: '1',
       bant_authority: '2',
       bant_need: '3',
@@ -85,6 +85,19 @@ describe('deals.list over HTTP', () => {
       offset: '20',
       limit: '50',
     })
+  })
+
+  it('sends only the updated dates that are set and never the retired revenue period', async () => {
+    const { calls } = stubFetch(json(page([])), json(page([])))
+
+    await createDealsHttp().list({ updatedFrom: '2026-10-01' })
+    await createDealsHttp().list({ updatedTo: '2026-10-15' })
+
+    const first = query(calls[0]?.path ?? '')
+    const second = query(calls[1]?.path ?? '')
+    expect(Object.fromEntries(first)).toEqual({ updated_from: '2026-10-01' })
+    expect(Object.fromEntries(second)).toEqual({ updated_to: '2026-10-15' })
+    expect(first.has('revenue_from') || first.has('revenue_to')).toBe(false)
   })
 
   it.each([
@@ -501,5 +514,26 @@ describe('http gateway wiring', () => {
     const gateway = createHttpGateway()
 
     await expect(gateway.forecast.summary({ year: 2026 })).rejects.toMatchObject({ status: 501 })
+  })
+})
+
+describe('deals.updatedPeriods over HTTP', () => {
+  it('requests GET /deals/updated-periods and keeps today, key, from and to', async () => {
+    const body = {
+      today: '2026-10-21',
+      periods: [
+        { key: '2w', from: '2026-10-07', to: '2026-10-21' },
+        { key: '1m', from: '2026-09-21', to: '2026-10-21' },
+        { key: '2m', from: '2026-08-21', to: '2026-10-21' },
+        { key: '3m', from: '2026-07-21', to: '2026-10-21' },
+        { key: '6m', from: '2026-04-21', to: '2026-10-21' },
+      ],
+    }
+    const { calls } = stubFetch(json(body))
+
+    const result = await createDealsHttp().updatedPeriods()
+
+    expect(calls[0]).toMatchObject({ method: 'GET', path: '/api/v1/deals/updated-periods' })
+    expect(result).toEqual(body)
   })
 })

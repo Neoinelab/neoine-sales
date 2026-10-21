@@ -1,6 +1,7 @@
 """웹 쿼리 모델(R2): 목록 검색 파라미터가 DealQuery로 바뀌는 방식과 검증 (AC-22·22a·22e).
 
 mine=true는 요청자가 Owner인 딜이고 owner_user_id보다 우선한다. 연/분기·BANT·정렬 파라미터는 R3다.
+최종 업데이트 기간은 updated_from/to다.
 Vendor·Solution 조건은 id(int)다.
 """
 
@@ -11,6 +12,7 @@ import pytest
 from pydantic import ValidationError
 
 from app.application.ports.deal_repository import DealSort, SortOrder
+from app.domain.common.errors import InvalidValueError
 from app.web.schemas.deal import DealSearchParams
 from tests.support.ids import MISSING_ID, new_id
 from tests.support.user_ids import uid
@@ -36,15 +38,15 @@ def test_every_basic_condition_reaches_the_query() -> None:
         owner_user_id=owner,
         vendor_id=VENDOR,
         status_key="introduction",
-        revenue_from=date(2026, 6, 1),
-        revenue_to=date(2026, 6, 30),
+        updated_from=date(2026, 6, 1),
+        updated_to=date(2026, 6, 30),
         offset=3,
         limit=7,
     ).to_query(VIEWER)
 
     assert (query.keyword, query.owner_user_id, query.vendor_id) == ("erp", owner, VENDOR)
     assert query.status_key == "introduction"
-    assert (query.revenue_from, query.revenue_to) == (date(2026, 6, 1), date(2026, 6, 30))
+    assert (query.updated_from, query.updated_to) == (date(2026, 6, 1), date(2026, 6, 30))
     assert (query.offset, query.limit) == (3, 7)
 
 
@@ -98,7 +100,11 @@ def test_page_values_out_of_range_are_rejected(params: dict[str, int]) -> None:
     [
         {"mine": "maybe"},
         {"owner_user_id": "u-2"},
-        {"revenue_from": "2026/06/01"},
+        {"updated_from": "2026/06/01"},
+        {"updated_to": "abc"},
+        {"updated_from": "2026-06-01T10:00:00"},
+        {"revenue_from": "2026-06-01"},  # 폐지된 파라미터(모르는 키)
+        {"revenue_to": "2026-06-30"},
         {"keyword": "a" * 101},
         {"vendor_id": "SAP"},  # 이름이 아니라 정수 id여야 한다
         {"status_key": "a" * 51},
@@ -161,3 +167,21 @@ def test_vendor_conditions_default_to_none() -> None:
     query = DealSearchParams().to_query(VIEWER)
 
     assert (query.vendor_id, query.solution_id) == (None, None)
+
+
+@pytest.mark.parametrize("field", ["updated_from", "updated_to"])
+@pytest.mark.parametrize(
+    "day", [date(1899, 12, 31), date(3000, 1, 1), date(1, 1, 1), date(9999, 12, 31)]
+)
+def test_updated_dates_outside_1900_2999_become_invalid_value(field: str, day: date) -> None:
+    params = DealSearchParams(**{field: day})
+
+    with pytest.raises(InvalidValueError):
+        params.to_query(VIEWER)
+
+
+@pytest.mark.parametrize("day", [date(1900, 1, 1), date(2999, 12, 31)])
+def test_updated_dates_at_the_range_edges_reach_the_query(day: date) -> None:
+    query = DealSearchParams(updated_from=day, updated_to=day).to_query(VIEWER)
+
+    assert query.updated_window() != (None, None)

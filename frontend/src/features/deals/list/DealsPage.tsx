@@ -42,7 +42,7 @@ export function DealsPage() {
   }, [meId, params])
 
   function change(patch: Record<string, string | undefined>) {
-    setParams(updateParams(params, patch))
+    setParams((prev) => updateParams(prev, patch))
   }
 
   function onSort(key: DealSortKey) {

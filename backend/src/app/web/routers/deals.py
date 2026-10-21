@@ -21,6 +21,7 @@ from app.web.schemas.deal_response import (
     HistoryEntryResponse,
     row_page,
 )
+from app.web.schemas.updated_period import UpdatedPeriodsResponse
 from app.web.security import CurrentUser
 
 router = BusinessRouter(prefix="/api/v1/deals", tags=["deals"])
@@ -49,6 +50,11 @@ async def list_deals(
     params: Annotated[DealSearchParams, Query()], user: CurrentUser, provider: Provider
 ) -> DealRowPage:
     return row_page(await provider.list_deals().execute(params.to_query(user.user_id)))
+
+
+@router.get("/updated-periods", response_model=UpdatedPeriodsResponse)
+async def list_updated_periods(provider: Provider) -> UpdatedPeriodsResponse:
+    return UpdatedPeriodsResponse.from_view(await provider.list_updated_periods().execute())
 
 
 @router.get("/{code}", response_model=DealDetailResponse, responses=READ_ERRORS)

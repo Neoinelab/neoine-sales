@@ -11,6 +11,7 @@ import type {
   DealPatch,
   DealRow,
   Page,
+  UpdatedPeriods,
 } from '../shared/model/types'
 import { keys } from './queryKeys'
 import { NO_RETRY, useInvalidate, type Mutation, type Query } from './result'
@@ -24,6 +25,15 @@ export function useDeals(query: DealListQuery): Query<Page<DealRow>> {
     queryKey: keys.dealList(query),
     queryFn: () => gateway.deals.list(query),
     placeholderData: keepPreviousData,
+    ...NO_RETRY,
+  })
+}
+
+/** gateway.deals.updatedPeriods(). 키 keys.updatedPeriods. 최종 업데이트 프리셋의 날짜는 서버가 푼 값을 그대로 쓴다. */
+export function useUpdatedPeriods(): Query<UpdatedPeriods> {
+  return useQuery<UpdatedPeriods, ApiError>({
+    queryKey: keys.updatedPeriods,
+    queryFn: () => gateway.deals.updatedPeriods(),
     ...NO_RETRY,
   })
 }
