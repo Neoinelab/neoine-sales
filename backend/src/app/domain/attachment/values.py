@@ -4,12 +4,11 @@ import unicodedata
 from dataclasses import dataclass
 from enum import StrEnum
 from typing import NewType, Self
-from uuid import UUID
 
 from app.domain.common.errors import InvalidValueError
 from app.domain.common.validation import reject_nul
 
-AttachmentId = NewType("AttachmentId", UUID)
+AttachmentId = NewType("AttachmentId", int)
 
 MAX_FILE_BYTES = 100 * 1024 * 1024  # 104,857,600 허용, +1 거부
 DESCRIPTION_MAX = 100  # 코드 포인트

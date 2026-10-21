@@ -1,6 +1,5 @@
 from datetime import date, datetime
 from typing import TYPE_CHECKING, Annotated, Self
-from uuid import UUID
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -26,6 +25,7 @@ from app.web.schemas.choice import CatalogChoiceRequest
 from app.web.schemas.common import RequestModel, ResponseModel
 from app.web.schemas.deal_change import CodeChange, ResolutionRequest
 from app.web.schemas.deal_response import NamedRefResponse
+from app.web.schemas.ids import QueryId
 from app.web.schemas.user_ref import UserRef, ref_of, resolve_refs
 
 if TYPE_CHECKING:
@@ -188,8 +188,8 @@ class DealActionList(BaseModel):
 class DealActionSearchParams(RequestModel):
     """Action 검색 쿼리. 수행일(acted_*)·Due Date(due_*)는 날짜이고 양끝을 포함한다."""
 
-    action_type_id: UUID | None = None
-    actor_user_id: UserId | None = None
+    action_type_id: QueryId | None = None
+    actor_user_id: QueryId | None = None
     keyword: Annotated[str | None, Field(max_length=KEYWORD_MAX)] = None
     acted_from: date | None = None
     acted_to: date | None = None
@@ -202,7 +202,7 @@ class DealActionSearchParams(RequestModel):
         criteria = self.model_dump(exclude={"actor_user_id"})
         return DealActionQuery(
             deal_code=parse_deal_code(code),
-            actor_user_id=self.actor_user_id,
+            actor_user_id=None if self.actor_user_id is None else UserId(self.actor_user_id),
             **criteria,
         )
 

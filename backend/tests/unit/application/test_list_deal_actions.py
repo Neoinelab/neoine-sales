@@ -2,7 +2,6 @@
 
 from datetime import UTC, date, datetime
 from typing import TYPE_CHECKING
-from uuid import uuid4
 
 import pytest
 
@@ -11,6 +10,7 @@ from app.domain.action_type.values import ActionTypeId
 from app.domain.deal.code import DealCode
 from app.domain.deal.errors import DealNotFoundError
 from tests.factories_action_type import type_id
+from tests.support.ids import new_id
 from tests.support.user_ids import uid
 from tests.unit.application.action_env import BOSS, KIM, PARK
 
@@ -95,7 +95,7 @@ async def test_filters_by_action_type_id(action_env: ActionEnv) -> None:
 async def test_unknown_type_id_lists_nothing(action_env: ActionEnv) -> None:
     await action_env.act(KIM, action="통화 기록", action_type="통화")
 
-    assert await _names(action_env, action_type_id=uuid4()) == []
+    assert await _names(action_env, action_type_id=new_id()) == []
 
 
 async def test_the_listed_action_carries_the_current_type_name(action_env: ActionEnv) -> None:

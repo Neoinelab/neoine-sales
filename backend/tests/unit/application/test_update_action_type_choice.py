@@ -5,7 +5,6 @@
 """
 
 from typing import TYPE_CHECKING
-from uuid import uuid4
 
 import pytest
 
@@ -16,6 +15,7 @@ from app.domain.deal_action.errors import DealActionEditForbiddenError, DealActi
 from app.domain.deal_action.value_objects import DealActionId
 from tests.factories_action_type import type_id
 from tests.support.expect import raises_with
+from tests.support.ids import new_id
 from tests.unit.application.action_env import ACTION_OR_NEXT_REQUIRED, KIM, PARK
 
 if TYPE_CHECKING:
@@ -91,7 +91,7 @@ async def test_update_with_an_unknown_type_id_is_rejected_and_changes_nothing(
     rows = await action_env.rows()
 
     with raises_with(UnknownActionTypeError, UNKNOWN_TYPE):
-        await action_env.update_as(action.id, KIM, action_type=CatalogChoice(id=uuid4()))
+        await action_env.update_as(action.id, KIM, action_type=CatalogChoice(id=new_id()))
 
     assert (await action_env.stored(action.id)).content == action.content
     assert await action_env.rows() == rows
@@ -120,7 +120,7 @@ async def test_forbidden_is_reported_before_type_validation(action_env: ActionEn
     names = await _type_names(action_env)
 
     with pytest.raises(DealActionEditForbiddenError):
-        await action_env.update_as(action.id, PARK, action_type=CatalogChoice(id=uuid4()))
+        await action_env.update_as(action.id, PARK, action_type=CatalogChoice(id=new_id()))
     with pytest.raises(DealActionEditForbiddenError):
         await action_env.update_as(action.id, PARK, action_type=CatalogChoice(name="웨비나"))
 
@@ -130,7 +130,7 @@ async def test_forbidden_is_reported_before_type_validation(action_env: ActionEn
 async def test_missing_action_is_reported_before_type_validation(action_env: ActionEnv) -> None:
     with pytest.raises(DealActionNotFoundError):
         await action_env.update_as(
-            DealActionId(uuid4()), KIM, action_type=CatalogChoice(id=uuid4())
+            DealActionId(new_id()), KIM, action_type=CatalogChoice(id=new_id())
         )
 
 

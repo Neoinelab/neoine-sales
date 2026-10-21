@@ -2,18 +2,20 @@ import { screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { gateway } from '../../../gateway'
 import { resetMock } from '../../../test/fake/default'
+import { NO_SUCH_ID } from '../../../test/fake/seed/ids'
 import { seedSolutionId, seedVendorId } from '../../../test/fixtures/vendors'
 import { renderAt } from '../../../test/mockApp'
 import { dataRows } from './testHelpers'
 
 /**
  * 목록 필터의 표시와 조회 조건 일치 계약(리뷰 Minor 2).
- * Vendor 목록을 받은 뒤, 목록에 없는 vendor/solution UUID나 선택된 Vendor 소속이 아닌 Solution은
+ * Vendor 목록을 받은 뒤, 목록에 없는 vendor/solution 정수 id나 선택된 Vendor 소속이 아닌 Solution은
  * 화면에서 '전체'로 보일 뿐 아니라 조회 조건(vendorId·solutionId)에서도 제외한다.
  * 목록을 받기 전에는 판단하지 않으므로 이 테스트는 목록 로딩 뒤의 마지막 조회만 본다.
  */
 const NOW = '2026-10-15T09:00:00+09:00'
-const UNKNOWN = '99999999-9999-4999-8999-999999999999'
+/** 서버 허용 범위 안의 정수지만 어떤 Vendor·Solution도 갖지 않은 id. */
+const UNKNOWN = NO_SUCH_ID
 
 beforeEach(() => resetMock({ now: NOW }))
 afterEach(() => {

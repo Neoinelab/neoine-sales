@@ -6,7 +6,6 @@
 
 from datetime import datetime
 from typing import TYPE_CHECKING
-from uuid import uuid4
 
 import pytest
 
@@ -25,6 +24,7 @@ from tests.functional.steps.contacts import (
     when_search_contacts,
     when_update_contact,
 )
+from tests.support.ids import MISSING_ID
 
 if TYPE_CHECKING:
     from tests.functional.conftest import Api
@@ -32,7 +32,7 @@ if TYPE_CHECKING:
 pytestmark = pytest.mark.integration
 
 
-async def _listed(api: Api, contact_id: str) -> dict[str, object]:
+async def _listed(api: Api, contact_id: int) -> dict[str, object]:
     items = (await when_search_contacts(api, limit=200)).json()["items"]
     return next(item for item in items if item["id"] == contact_id)
 
@@ -153,18 +153,18 @@ async def test_update_of_an_unknown_contact_is_404(api: Api) -> None:
     # Given
     await given_logged_in_as(api, role="admin")
     # When
-    response = await when_update_contact(api, str(uuid4()), update_payload())
+    response = await when_update_contact(api, MISSING_ID, update_payload())
     # Then
     then_problem_is(response, status=404, type_suffix="not-found")
     then_detail_is(response, "연락처를 찾을 수 없습니다.")
 
 
 async def test_update_with_a_malformed_id_is_a_request_validation_error(api: Api) -> None:
-    """Scenario: id가 UUID 형식이 아니면 422 request-validation이다."""
+    """Scenario: id가 정수 형식이 아니면 422 request-validation이다."""
     # Given
     await given_logged_in_as(api, role="admin")
     # When
-    response = await when_update_contact(api, "not-a-uuid", update_payload())
+    response = await when_update_contact(api, "not-an-id", update_payload())
     # Then
     then_problem_is(response, status=422, type_suffix="request-validation")
 

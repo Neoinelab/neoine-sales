@@ -1,7 +1,6 @@
 """파일 저장 위치 설정과 Deal 첨부 ORM 모델. models.py 끝에서 import해 등록한다."""
 
 from datetime import datetime
-from uuid import UUID
 
 from sqlalchemy import (
     BigInteger,
@@ -32,8 +31,8 @@ class StorageSettingsRow(Base):
     id: Mapped[int] = mapped_column(SmallInteger, primary_key=True, autoincrement=False)
     path: Mapped[str] = mapped_column(String(1024))
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
-    updated_by_user_id: Mapped[UUID | None] = mapped_column(
-        ForeignKey("users.id", ondelete="RESTRICT"), default=None
+    updated_by_user_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("users.id", ondelete="RESTRICT"), default=None
     )
 
     __table_args__ = (
@@ -47,21 +46,21 @@ class DealAttachmentRow(AuditColumns, Base):
 
     __tablename__ = "deal_attachments"
 
-    deal_code: Mapped[str] = mapped_column(
-        String(13), ForeignKey("deals.deal_code", ondelete="CASCADE")
-    )
+    deal_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("deals.id", ondelete="CASCADE"))
     file_name: Mapped[str] = mapped_column(String(255))
     description: Mapped[str] = mapped_column(String(100), default="", server_default=text("''"))
     mime: Mapped[str] = mapped_column(String(255))
     size_bytes: Mapped[int] = mapped_column(BigInteger)
     storage_key: Mapped[str] = mapped_column(String(32))
-    uploaded_by_user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"))
+    uploaded_by_user_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("users.id", ondelete="RESTRICT")
+    )
     uploaded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
     __table_args__ = (
         CheckConstraint(f"size_bytes between 0 and {_MAX_FILE_BYTES}", name="size_range"),
-        UniqueConstraint("deal_code", "file_name", name="uq_deal_attachments_deal_code_file_name"),
+        UniqueConstraint("deal_id", "file_name", name="uq_deal_attachments_deal_id_file_name"),
         UniqueConstraint("storage_key"),
         Index("ix_deal_attachments_uploaded_by_user_id", "uploaded_by_user_id"),
-        Index("ix_deal_attachments_deal_code_uploaded_at", "deal_code", "uploaded_at"),
+        Index("ix_deal_attachments_deal_id_uploaded_at", "deal_id", "uploaded_at"),
     )

@@ -13,10 +13,11 @@ import {
   validateForm,
   type DealFormState,
 } from './formState'
+import { USER_ID } from '../../../test/fake/seed/ids'
 
 function filled(over: Partial<DealFormState> = {}): DealFormState {
   return {
-    ...emptyForm('u-kim'),
+    ...emptyForm(String(USER_ID.kim)),
     name: '새 Deal',
     customer: { contactId: null, company: '한빛은행', name: '정민수', title: ' 과장 ', email: 'a@b.co', phone: null },
     revenueAmount: '1,500,000',
@@ -26,7 +27,7 @@ function filled(over: Partial<DealFormState> = {}): DealFormState {
   }
 }
 
-const contact = (id: string, company: string, name: string): Contact => ({
+const contact = (id: number, company: string, name: string): Contact => ({
   id,
   kind: 'partner',
   company,
@@ -38,7 +39,7 @@ const contact = (id: string, company: string, name: string): Contact => ({
   updatedAt: '2026-01-01T00:00:00+09:00',
 })
 
-const label = (id: string, category: BantLabel['category'], name: string): BantLabel => ({
+const label = (id: number, category: BantLabel['category'], name: string): BantLabel => ({
   id,
   category,
   name,
@@ -49,40 +50,40 @@ const label = (id: string, category: BantLabel['category'], name: string): BantL
 
 /** 구분마다 Label 하나 이상. 같은 이름이 다른 구분에도 있다(구분 안에서만 찾는지 확인용). */
 const LABELS: readonly BantLabel[] = [
-  label('lb-1', 'budget', '단독 예산 확보'),
-  label('lb-2', 'budget', 'Shared'),
-  label('lb-3', 'authority', 'CEO 보고 완료'),
-  label('lb-4', 'authority', 'Shared'),
-  label('lb-5', 'need', '모름'),
-  label('lb-6', 'timeline', '금년 구매'),
+  label(1, 'budget', '단독 예산 확보'),
+  label(2, 'budget', 'Shared'),
+  label(3, 'authority', 'CEO 보고 완료'),
+  label(4, 'authority', 'Shared'),
+  label(5, 'need', '모름'),
+  label(6, 'timeline', '금년 구매'),
 ]
 
-const owner: UserRef = { id: 'u-kim', name: '김영업', role: 'sales', status: 'active' }
+const owner: UserRef = { id: USER_ID.kim, name: '김영업', role: 'sales', status: 'active' }
 
 function detail(over: Partial<DealDetail> = {}): DealDetail {
   return {
     code: '20261015-D001',
     name: '기존 Deal',
-    ownerId: 'u-kim',
-    vendor: { id: 'vd-3', name: 'Okta' },
-    solution: { id: 'sl-3', name: 'SSO' },
+    ownerId: USER_ID.kim,
+    vendor: { id: 3, name: 'Okta' },
+    solution: { id: 3, name: 'SSO' },
     users: 100,
     statusKey: 'introduction',
     forecastKey: 'best',
     revenueAmount: 300_000_000,
     revenueDate: '2027-03-01',
-    customerContactId: 'ct-1',
+    customerContactId: 1,
     partnerLinks: [],
     quote: { submitted: 'YES', submittedDate: '2026-10-01' },
     poc: { state: null, completedDate: null },
     procurement: '검토',
-    bant: { budget: 'lb-1', authority: null, need: null, timeline: null },
+    bant: { budget: 1, authority: null, need: null, timeline: null },
     createdAt: '2026-09-01T00:00:00+09:00',
     updatedAt: '2026-10-01T00:00:00+09:00',
     statusChangedAt: '2026-09-01T00:00:00+09:00',
     owner,
-    customer: { ...contact('ct-1', '한빛은행', '정민수'), kind: 'customer', title: '과장', email: 'a@b.co', phone: '02-1' },
-    activePartner: contact('ct-9', '에이원시스템', '표성호'),
+    customer: { ...contact(1, '한빛은행', '정민수'), kind: 'customer', title: '과장', email: 'a@b.co', phone: '02-1' },
+    activePartner: contact(9, '에이원시스템', '표성호'),
     nextAction: null,
     lastUpdatedAt: '2026-10-01T00:00:00+09:00',
     risk: null,
@@ -94,8 +95,8 @@ function detail(over: Partial<DealDetail> = {}): DealDetail {
 
 describe('emptyForm (T-FORM-02, T-FORM-03)', () => {
   it('starts with the given owner, 기회발굴 and Pipeline and no partner', () => {
-    const state = emptyForm('u-kim')
-    expect(state.ownerId).toBe('u-kim')
+    const state = emptyForm(String(USER_ID.kim))
+    expect(state.ownerId).toBe(String(USER_ID.kim))
     expect(state.statusKey).toBe('prospecting')
     expect(state.forecastKey).toBe('pipeline')
     expect(state.partner).toEqual(EMPTY_DRAFT)
@@ -103,11 +104,11 @@ describe('emptyForm (T-FORM-02, T-FORM-03)', () => {
   })
 
   it('AC-9 starts with no vendor and no solution as empty ids', () => {
-    expect(emptyForm('u-kim')).toMatchObject({ vendorId: '', solutionId: '' })
+    expect(emptyForm(String(USER_ID.kim))).toMatchObject({ vendorId: '', solutionId: '' })
   })
 
   it('AC-31 starts with an empty text for every BANT item', () => {
-    expect(emptyForm('u-kim').bant).toEqual({ budget: '', authority: '', need: '', timeline: '' })
+    expect(emptyForm(String(USER_ID.kim)).bant).toEqual({ budget: '', authority: '', need: '', timeline: '' })
   })
 })
 
@@ -189,10 +190,10 @@ describe('validateForm (T-FORM-01)', () => {
   })
 
   it('blocks saving while a resigned owner is still selected', () => {
-    const resigned: UserRef = { id: 'u-old', name: '강퇴사', role: 'sales', status: 'resigned' }
-    const errors = validateForm(filled({ ownerId: 'u-old' }), resigned)
+    const resigned: UserRef = { id: USER_ID.old, name: '강퇴사', role: 'sales', status: 'resigned' }
+    const errors = validateForm(filled({ ownerId: String(USER_ID.old) }), resigned)
     expect(errors.ownerId).toBe('퇴사한 사용자는 Owner로 지정할 수 없습니다. 다른 담당자를 선택하세요.')
-    expect(validateForm(filled({ ownerId: 'u-kim' }), resigned).ownerId).toBeUndefined()
+    expect(validateForm(filled({ ownerId: String(USER_ID.kim) }), resigned).ownerId).toBeUndefined()
   })
 })
 
@@ -200,23 +201,31 @@ describe('toDealInput', () => {
   it('trims, converts numbers and uses null for empty optional values', () => {
     const input = toDealInput(
       filled({
-        vendorId: 'vd-3',
-        solutionId: 'sl-3',
+        vendorId: '3',
+        solutionId: '3',
         users: '20',
-        customer: { contactId: 'ct-1', company: '한빛은행', name: '정민수', title: ' 과장 ', email: '', phone: '' },
+        customer: { contactId: 1, company: '한빛은행', name: '정민수', title: ' 과장 ', email: '', phone: '' },
         quoteSubmitted: 'YES',
         quoteDate: '2026-10-01',
       }),
       LABELS,
     )
     expect(input.name).toBe('새 Deal')
-    expect(input).toMatchObject({ vendorId: 'vd-3', solutionId: 'sl-3' })
+    expect(input).toMatchObject({ vendorId: 3, solutionId: 3 })
     expect(input.users).toBe(20)
     expect(input.revenueAmount).toBe(1_500_000_000)
-    expect(input.customer).toEqual({ contactId: 'ct-1', company: '한빛은행', name: '정민수', title: '과장', email: null, phone: null })
+    expect(input.customer).toEqual({ contactId: 1, company: '한빛은행', name: '정민수', title: '과장', email: null, phone: null })
     expect(input.partner).toBeNull()
     expect(input.quote).toEqual({ submitted: 'YES', submittedDate: '2026-10-01' })
     expect(input.poc).toEqual({ state: null, completedDate: null })
+  })
+
+  it('sends the owner, vendor and solution ids as numbers', () => {
+    const input = toDealInput(filled({ ownerId: String(USER_ID.park), vendorId: '12', solutionId: '34' }), LABELS)
+
+    expect(input.ownerId).toBe(USER_ID.park)
+    expect(input.vendorId).toBe(12)
+    expect(input.solutionId).toBe(34)
   })
 
   it('sends an empty vendor and solution as null', () => {
@@ -227,9 +236,9 @@ describe('toDealInput', () => {
   })
 
   it('sends a vendor without a solution', () => {
-    const input = toDealInput(filled({ vendorId: 'vd-3', solutionId: '' }), LABELS)
+    const input = toDealInput(filled({ vendorId: '3', solutionId: '' }), LABELS)
 
-    expect(input.vendorId).toBe('vd-3')
+    expect(input.vendorId).toBe(3)
     expect(input.solutionId).toBeNull()
   })
 
@@ -251,7 +260,7 @@ describe('toDealInput: BANT choices (AC-31)', () => {
   it('sends the id of the label of that category with the same name, ignoring case and spaces', () => {
     const input = toDealInput(filled({ bant: bant({ budget: '  단독 예산 확보 ', authority: 'ceo 보고 완료' }) }), LABELS)
 
-    expect(input.bant).toEqual({ budget: { id: 'lb-1' }, authority: { id: 'lb-3' }, need: null, timeline: null })
+    expect(input.bant).toEqual({ budget: { id: 1 }, authority: { id: 3 }, need: null, timeline: null })
   })
 
   it('sends the trimmed name when the category has no such label, even if another category has it', () => {
@@ -263,7 +272,7 @@ describe('toDealInput: BANT choices (AC-31)', () => {
   it('resolves the same name per category on its own', () => {
     const input = toDealInput(filled({ bant: bant({ budget: 'shared', authority: 'SHARED' }) }), LABELS)
 
-    expect(input.bant).toMatchObject({ budget: { id: 'lb-2' }, authority: { id: 'lb-4' } })
+    expect(input.bant).toMatchObject({ budget: { id: 2 }, authority: { id: 4 } })
   })
 
   it('does not take a partial match as the same label', () => {
@@ -278,7 +287,7 @@ describe('formFromDeal / toDealPatch (T-FORM-06)', () => {
     const state = formFromDeal(detail(), LABELS)
     expect(state).toMatchObject({
       name: '기존 Deal',
-      ownerId: 'u-kim',
+      ownerId: String(USER_ID.kim),
       users: '100',
       statusKey: 'introduction',
       forecastKey: 'best',
@@ -287,10 +296,10 @@ describe('formFromDeal / toDealPatch (T-FORM-06)', () => {
       quoteSubmitted: 'YES',
       procurement: '검토',
     })
-    expect(state.customer).toMatchObject({ contactId: 'ct-1', company: '한빛은행', name: '정민수', title: '과장' })
-    expect(state.partner).toMatchObject({ contactId: 'ct-9', company: '에이원시스템', name: '표성호' })
+    expect(state.customer).toMatchObject({ contactId: 1, company: '한빛은행', name: '정민수', title: '과장' })
+    expect(state.partner).toMatchObject({ contactId: 9, company: '에이원시스템', name: '표성호' })
     expect(state.bant).toEqual({ budget: '단독 예산 확보', authority: '', need: '', timeline: '' })
-    expect(state).toMatchObject({ vendorId: 'vd-3', solutionId: 'sl-3' })
+    expect(state).toMatchObject({ vendorId: '3', solutionId: '3' })
   })
 
   it('loads a deal without vendor and solution as empty ids', () => {
@@ -301,9 +310,9 @@ describe('formFromDeal / toDealPatch (T-FORM-06)', () => {
 
   it('AC-11 patch carries the vendor and solution ids as they are in the form', () => {
     const original = detail()
-    const state = { ...formFromDeal(original, LABELS), vendorId: 'vd-5', solutionId: '' }
+    const state = { ...formFromDeal(original, LABELS), vendorId: '5', solutionId: '' }
 
-    expect(toDealPatch(state, original, LABELS)).toMatchObject({ vendorId: 'vd-5', solutionId: null })
+    expect(toDealPatch(state, original, LABELS)).toMatchObject({ vendorId: 5, solutionId: null })
   })
 
   it('AC-8 patch keeps the original won amount when the shown thousands are unchanged', () => {
@@ -332,7 +341,7 @@ describe('formFromDeal / toDealPatch (T-FORM-06)', () => {
   it('AC-31 patch round-trips the current labels as their ids', () => {
     const original = detail()
 
-    expect(toDealPatch(formFromDeal(original, LABELS), original, LABELS).bant).toEqual({ budget: { id: 'lb-1' }, authority: null, need: null, timeline: null })
+    expect(toDealPatch(formFromDeal(original, LABELS), original, LABELS).bant).toEqual({ budget: { id: 1 }, authority: null, need: null, timeline: null })
   })
 
   it('AC-31 patch sends null for an item whose text was emptied and a name for a new text', () => {
@@ -369,7 +378,7 @@ describe('replacedPartner (T-FORM-05 notice)', () => {
   })
 
   it('is null for the same contact, for an empty draft and when there was no partner', () => {
-    const same = { ...EMPTY_DRAFT, contactId: 'ct-9', company: '에이원시스템', name: '표성호', title: '이사' }
+    const same = { ...EMPTY_DRAFT, contactId: 9, company: '에이원시스템', name: '표성호', title: '이사' }
     expect(replacedPartner(original, same)).toBeNull()
     expect(replacedPartner(original, EMPTY_DRAFT)).toBeNull()
     expect(replacedPartner(detail({ activePartner: null }), { ...EMPTY_DRAFT, company: 'x', name: 'y' })).toBeNull()

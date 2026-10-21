@@ -7,6 +7,9 @@ import { expect } from 'vitest'
 import type { Gateway } from '../types'
 import type { ApiError } from '../../shared/api/problem'
 
+/** 어디에도 없는 id(서버 허용 범위 1~2^53−1 안의 최댓값이라 형식 오류(422)가 아닌 '없음'(404)이 된다). */
+export const NO_SUCH_ID = Number.MAX_SAFE_INTEGER
+
 export type ContractRole = 'admin' | 'sales' | 'user'
 
 /**

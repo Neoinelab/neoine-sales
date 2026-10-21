@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING
 
 from app.application.bant.dto import LabelUsage
+from app.application.ids import new_bant_label_id
 from app.domain.bant.entities import BantLabel
 from app.domain.bant.rules import ensure_unique_label_name
 from app.domain.bant.values import normalize_label_name
@@ -24,7 +25,11 @@ class RegisterBantLabel:
         async with self._uow_factory() as uow:
             ensure_unique_label_name(await uow.bant_labels.list(category, for_update=True), clean)
             label = BantLabel.create(
-                category=category, name=clean, created_by=actor_id, now=self._clock.now()
+                entity_id=await new_bant_label_id(uow.ids),
+                category=category,
+                name=clean,
+                created_by=actor_id,
+                now=self._clock.now(),
             )
             await uow.bant_labels.add(label)
             await uow.commit()

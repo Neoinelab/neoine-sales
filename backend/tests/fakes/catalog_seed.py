@@ -8,7 +8,6 @@ functional test(tests/functional/admin/test_catalog_seed.py)가 같은 표로 �
 """
 
 from typing import TYPE_CHECKING, Final
-from uuid import uuid4
 
 from app.domain.bant.entities import BantLabel
 from app.domain.bant.values import BantCategory, BantLabelId
@@ -16,6 +15,7 @@ from app.domain.code.entities import Code
 from app.domain.code.values import CodeId, CodeKey, CodeKind, ForecastOutcome
 from tests.factories import NOW
 from tests.factories_action_type import DEFAULT_ACTION_TYPE_NAMES, default_action_types
+from tests.support.ids import new_id
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -79,7 +79,7 @@ DEFAULT_LABELS: Final = {
 def default_codes(now: datetime = NOW) -> list[Code]:
     statuses = [
         Code(
-            id=CodeId(uuid4()),
+            id=CodeId(new_id()),
             kind=CodeKind.STATUS,
             key=CodeKey(key),
             name=name,
@@ -93,7 +93,7 @@ def default_codes(now: datetime = NOW) -> list[Code]:
     ]
     forecasts = [
         Code(
-            id=CodeId(uuid4()),
+            id=CodeId(new_id()),
             kind=CodeKind.FORECAST,
             key=CodeKey(key),
             name=name,
@@ -111,7 +111,7 @@ def default_codes(now: datetime = NOW) -> list[Code]:
 def default_labels(now: datetime = NOW) -> list[BantLabel]:
     return [
         BantLabel(
-            id=BantLabelId(uuid4()),
+            id=BantLabelId(new_id()),
             category=BantCategory(category),
             name=name,
             is_default=True,

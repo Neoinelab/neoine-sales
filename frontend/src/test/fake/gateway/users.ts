@@ -3,22 +3,14 @@ import { hasWhitespace } from '../../../shared/model/contactRules'
 import { compareIso } from '../../../shared/model/dates'
 import type { Role, UserRef } from '../../../shared/model/types'
 import { conflict, forbidden, notFound, validation } from '../errors'
-import type { UserRecord } from '../store'
+import { takeId, type UserRecord } from '../store'
 import { read, requireAdmin, requireUser, write, type MockContext } from './context'
 import { userRef, userView } from './views'
 
 const ROLES: readonly Role[] = ['admin', 'sales', 'user']
 
-/** 새 사용자 id: `u-<loginId>`. 퇴사자와 같은 loginId(재입사)면 숫자를 붙인다. */
-export function uniqueUserId(users: readonly UserRecord[], loginId: string): string {
-  const taken = new Set(users.map((u) => u.id))
-  let id = `u-${loginId}`
-  for (let n = 2; taken.has(id); n += 1) id = `u-${loginId}-${n}`
-  return id
-}
-
 /** 사용자와 연결된 데이터(Deal 담당, Action, History, 첨부, Label, 다른 사용자 등록자)가 있는지. */
-function hasLinks(ctx: MockContext, id: string): boolean {
+function hasLinks(ctx: MockContext, id: number): boolean {
   const d = ctx.store.data
   return (
     d.deals.some((x) => x.ownerId === id) ||
@@ -38,7 +30,7 @@ export function createUsersGateway(ctx: MockContext): UsersGateway {
         const { data } = ctx.store
         return data.users
           .filter((u) => filter === 'all' || u.status === filter)
-          .sort((a, b) => compareIso(b.createdAt, a.createdAt) || b.id.localeCompare(a.id))
+          .sort((a, b) => compareIso(b.createdAt, a.createdAt) || b.id - a.id)
           .map((u) => userView(data, u))
       }),
     options: (query) =>
@@ -48,7 +40,7 @@ export function createUsersGateway(ctx: MockContext): UsersGateway {
         return data.users
           .filter((u) => (query.includeResigned ? true : u.status === 'active'))
           .filter((u) => (query.role ? u.role === query.role : true))
-          .sort((a, b) => a.name.localeCompare(b.name, 'ko') || a.id.localeCompare(b.id))
+          .sort((a, b) => a.name.localeCompare(b.name, 'ko') || a.id - b.id)
           .map((u) => userRef(data, u.id))
       }),
     create: (input) =>
@@ -63,7 +55,7 @@ export function createUsersGateway(ctx: MockContext): UsersGateway {
         const { data } = ctx.store
         if (data.users.some((u) => u.loginId === loginId && u.status === 'active')) throw conflict('이미 사용 중인 아이디입니다.')
         const record: UserRecord = {
-          id: uniqueUserId(data.users, loginId),
+          id: takeId(data.counters, 'u'),
           loginId,
           name,
           role: input.role,

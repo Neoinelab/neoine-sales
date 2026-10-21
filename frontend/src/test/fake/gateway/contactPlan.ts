@@ -66,7 +66,7 @@ function infoText(c: ContactInput): string {
 }
 
 /** 계획을 반영하고 연락처 id를 돌려준다. 갱신이면 그 연락처를 쓰는 모든 Deal에 History를 남기고 updatedAt을 갱신한다. */
-export function commitContact(ctx: MockContext, plan: ContactPlan, byId: string): string {
+export function commitContact(ctx: MockContext, plan: ContactPlan, byId: number): number {
   const { data } = ctx.store
   const now = ctx.clock.now()
   if (plan.type === 'new') {

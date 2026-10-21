@@ -4,6 +4,7 @@ import { NEXT_ACTION_STATUS_FILTER_OPTIONS, isNextActionStatusFilter } from '../
 import type { ActionQuery, ActionSort, NextActionStatusFilter } from '../../../shared/model/types'
 import { UserSelect } from '../../../shared/ui/UserSelect'
 import './detail.css'
+import { parseId } from '../../../shared/model/ids'
 
 interface ActionSearchBarProps {
   onSearch: (query: ActionQuery) => void
@@ -26,8 +27,10 @@ const EMPTY: Draft = { typeId: '', actorId: '', keyword: '', actedFrom: '', acte
 /** 채워진 조건만 질의로 만든다(빈 값은 보내지 않는다). */
 function toActionQuery(draft: Draft): ActionQuery {
   const query: ActionQuery = { sort: draft.sort }
-  if (draft.typeId) query.typeId = draft.typeId
-  if (draft.actorId) query.actorId = draft.actorId
+  const typeId = parseId(draft.typeId)
+  if (typeId !== undefined) query.typeId = typeId
+  const actorId = parseId(draft.actorId)
+  if (actorId !== undefined) query.actorId = actorId
   if (draft.keyword.trim()) query.keyword = draft.keyword.trim()
   if (draft.actedFrom) query.actedFrom = draft.actedFrom
   if (draft.actedTo) query.actedTo = draft.actedTo

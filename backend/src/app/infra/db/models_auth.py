@@ -2,9 +2,9 @@
 
 from datetime import datetime
 from typing import Any
-from uuid import UUID
 
 from sqlalchemy import (
+    BigInteger,
     Boolean,
     CheckConstraint,
     DateTime,
@@ -35,7 +35,9 @@ class UserRow(AuditColumns, Base):
     role: Mapped[str] = mapped_column(String(20))
     display_name: Mapped[str | None] = mapped_column(String(200), default=None)
     email: Mapped[str | None] = mapped_column(String(254), default=None)
-    created_by_user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"))
+    created_by_user_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("users.id", ondelete="RESTRICT")
+    )
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
     delete_reason: Mapped[str | None] = mapped_column(String(20), default=None)
@@ -83,8 +85,8 @@ class DirectorySettingsRow(Base):
     connect_timeout_seconds: Mapped[int] = mapped_column(SmallInteger)
     receive_timeout_seconds: Mapped[int] = mapped_column(SmallInteger)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
-    updated_by_user_id: Mapped[UUID | None] = mapped_column(
-        ForeignKey("users.id", ondelete="RESTRICT"), default=None
+    updated_by_user_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("users.id", ondelete="RESTRICT"), default=None
     )
 
     __table_args__ = (

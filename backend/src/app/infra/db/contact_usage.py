@@ -24,8 +24,8 @@ async def deal_counts_by_contacts(
     if not counts:
         return counts
     pairs = union(
-        select(DealRow.customer_id.label("contact_id"), DealRow.deal_code.label("deal_code")),
-        select(DealPartnerRow.contact_id, DealPartnerRow.deal_code),
+        select(DealRow.customer_id.label("contact_id"), DealRow.id.label("deal_id")),
+        select(DealPartnerRow.contact_id, DealPartnerRow.deal_id),
     ).subquery()
     statement = (
         select(pairs.c.contact_id, func.count())

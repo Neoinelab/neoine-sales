@@ -7,7 +7,6 @@
 from dataclasses import dataclass
 from datetime import date
 from typing import TYPE_CHECKING, Any
-from uuid import UUID, uuid4
 
 import pytest
 
@@ -18,6 +17,7 @@ from tests.factories_deal import SALES, make_create_input, make_draft
 from tests.support.auth_seed import seed_user
 from tests.support.catalog import label_by_name
 from tests.support.expect import raises_with
+from tests.support.ids import new_id
 
 if TYPE_CHECKING:
     from app.application.deal.inputs import ContactDraftInput
@@ -47,11 +47,11 @@ SOLUTION_MISMATCH = "선택한 Solution은 이 Vendor에 속하지 않습니다.
 
 @dataclass
 class Ctx:
-    resigned_owner: UUID
-    admin_owner: UUID
-    other_category_label: UUID
-    sap: UUID
-    oracle_solution: UUID
+    resigned_owner: int
+    admin_owner: int
+    other_category_label: int
+    sap: int
+    oracle_solution: int
 
 
 @pytest.fixture
@@ -73,7 +73,7 @@ def _steps(ctx: Ctx) -> list[tuple[str, dict[str, Any], str]]:
             {"vendor_id": None, "solution_id": ctx.oracle_solution},
             SOLUTION_NEEDS_VENDOR,
         ),
-        ("unknown-vendor", {"vendor_id": uuid4()}, UNKNOWN_VENDOR),
+        ("unknown-vendor", {"vendor_id": new_id()}, UNKNOWN_VENDOR),
         (
             "solution-of-other-vendor",
             {"vendor_id": ctx.sap, "solution_id": ctx.oracle_solution},
@@ -235,7 +235,7 @@ async def test_an_admin_user_cannot_be_the_owner(env: DealEnv, ctx: Ctx) -> None
 
 async def test_an_unknown_user_cannot_be_the_owner(env: DealEnv, ctx: Ctx) -> None:
     with raises_with(InvalidValueError, OWNER_NOT_SALES):
-        await env.register.execute(make_create_input(owner_user_id=uuid4()), SALES)
+        await env.register.execute(make_create_input(owner_user_id=new_id()), SALES)
 
 
 async def test_a_read_only_user_cannot_be_the_owner(env: DealEnv, ctx: Ctx) -> None:

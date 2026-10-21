@@ -5,7 +5,6 @@ AC-19·20·21. 구 UpdateCustomer/UpdatePartner 테스트(값 교체·시계·�
 """
 
 from typing import TYPE_CHECKING
-from uuid import uuid4
 
 import pytest
 
@@ -14,6 +13,7 @@ from app.domain.common.errors import InvalidValueError
 from app.domain.contact.errors import ContactNotFoundError, DuplicateContactError
 from app.domain.contact.values import ContactId, ContactKind
 from tests.factories_contact import make_contact_input, register_customer, register_partner
+from tests.support.ids import new_id
 from tests.support.user_ids import uid
 
 if TYPE_CHECKING:
@@ -107,7 +107,7 @@ class TestUpdateContact:
         self, uow_factory: UnitOfWorkFactory, clock: FixedClock
     ) -> None:
         with pytest.raises(ContactNotFoundError):
-            await UpdateContact(uow_factory, clock).execute(ContactId(uuid4()), _update_input())
+            await UpdateContact(uow_factory, clock).execute(ContactId(new_id()), _update_input())
 
 
 class TestSamePersonOnUpdate:

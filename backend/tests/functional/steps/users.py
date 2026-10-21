@@ -96,7 +96,7 @@ async def given_user_signed_in_once(
     role: RoleName,
     display_name: str | None = None,
     email: str | None = None,
-) -> str:
+) -> int:
     """AD 프로필(표시 이름·이메일)이 있는 사용자를 등록하고 한 번 로그인시킨다(프로필이 저장된다).
 
     끝나면 admin(root)이 로그인 상태다. 사용자 id를 돌려준다.
@@ -108,7 +108,7 @@ async def given_user_signed_in_once(
     return user_id
 
 
-async def given_user_deleted(api: Api, user_id: str) -> None:
+async def given_user_deleted(api: Api, user_id: object) -> None:
     """admin이 사용자를 삭제했다(200)."""
     response = await api.delete(f"{USERS}/{user_id}")
     assert response.status_code == 200, f"Given 실패 {response.status_code}: {response.text}"
@@ -120,10 +120,10 @@ async def given_dev_login(api: Api, role: RoleName) -> None:
     assert response.status_code == 200, f"Given 실패 {response.status_code}: {response.text}"
 
 
-async def id_of(api: Api, login_id: str, *, status: str = "active") -> str:
+async def id_of(api: Api, login_id: str, *, status: str = "active") -> int:
     """admin 세션으로 목록을 조회해 로그인 아이디의 사용자 id를 찾는다."""
     response = await api.get(USERS, params={"status": status})
-    return str(next(i["id"] for i in response.json()["items"] if i["login_id"] == login_id))
+    return int(next(i["id"] for i in response.json()["items"] if i["login_id"] == login_id))
 
 
 def directory_calls(api: Api) -> int:
@@ -166,7 +166,7 @@ async def when_register_with_body(api: Api, body: dict[str, object]) -> Response
     return await api.post(USERS, json=body)
 
 
-async def when_delete_user(api: Api, user_id: str, **params: str | int | list[str]) -> Response:
+async def when_delete_user(api: Api, user_id: object, **params: str | int | list[str]) -> Response:
     """사용자를 삭제(퇴사)한다. 이전 동작과 구분되도록 시계를 전진시킨 뒤 요청한다."""
     api.clock.advance(ACTION_GAP_SECONDS)
     return await api.request("DELETE", f"{USERS}/{user_id}", params=params)

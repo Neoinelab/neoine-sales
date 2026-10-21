@@ -6,6 +6,7 @@ import { resetMock } from '../test/fake/default'
 import { TEST_NOW } from '../test/fake/testing'
 import { useSaveAlertSettings } from './alerts'
 import { useDeals } from './deals'
+import { USER_ID } from '../test/fake/seed/ids'
 
 function setup() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
@@ -16,7 +17,7 @@ function setup() {
 }
 
 beforeEach(() => {
-  resetMock({ now: TEST_NOW, userId: 'u-root' })
+  resetMock({ now: TEST_NOW, userId: USER_ID.root })
 })
 
 describe('경고 기준 저장 훅 (R3 Minor 4)', () => {

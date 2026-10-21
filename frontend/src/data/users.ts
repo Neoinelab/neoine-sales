@@ -36,9 +36,9 @@ export function useCreateUser(): Mutation<UserCreateInput, User> {
 }
 
 /** gateway.users.remove(id). 성공: keys.users 무효화(퇴사 처리된 사용자는 표기가 바뀌므로 keys.deals·keys.forecast도). */
-export function useRemoveUser(): Mutation<string, UserRemoveResult> {
+export function useRemoveUser(): Mutation<number, UserRemoveResult> {
   const invalidate = useInvalidate()
-  return useMutation<UserRemoveResult, ApiError, string>({
+  return useMutation<UserRemoveResult, ApiError, number>({
     mutationFn: (id) => gateway.users.remove(id),
     onSuccess: () => invalidate(keys.users, keys.deals, keys.forecast),
   })

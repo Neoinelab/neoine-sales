@@ -60,13 +60,13 @@ def _matches(contact: Contact, query: ContactQuery) -> bool:
     return any(needle in text.lower() for text in (details.company, details.name, email))
 
 
-def _sort_key(contact: Contact) -> tuple[int, str, str, str]:
+def _sort_key(contact: Contact) -> tuple[int, str, str, int]:
     details = contact.details
     return (
         _kind_rank(contact.kind),
         details.company.lower(),
         details.name.lower(),
-        str(contact.id),
+        contact.id,
     )
 
 
@@ -105,7 +105,7 @@ class FakeContactRepository(InMemoryStore["Contact"]):
         first: dict[str, Contact] = {}
         for contact in sorted(
             (c for c in self._items.values() if c.kind is kind),
-            key=lambda c: (c.created_at, str(c.id)),
+            key=lambda c: (c.created_at, c.id),
         ):
             first.setdefault(contact.details.company.lower(), contact)
         return sorted((c.details.company for c in first.values()), key=str.lower)
@@ -116,7 +116,7 @@ class FakeContactRepository(InMemoryStore["Contact"]):
             for c in self._items.values()
             if c.kind is kind and c.details.company.lower() == company.lower()
         ]
-        found.sort(key=lambda c: (c.details.name.lower(), str(c.id)))
+        found.sort(key=lambda c: (c.details.name.lower(), c.id))
         return [copy.deepcopy(c) for c in found]
 
     async def same_identity(self, kind: ContactKind, company: str, name: str) -> Sequence[Contact]:
@@ -127,7 +127,7 @@ class FakeContactRepository(InMemoryStore["Contact"]):
             and c.details.company.lower() == company.lower()
             and c.details.name.lower() == name.lower()
         ]
-        found.sort(key=lambda c: str(c.id))
+        found.sort(key=lambda c: c.id)
         return [copy.deepcopy(c) for c in found]
 
     async def lock_identity(self, kind: ContactKind, company: str, name: str) -> None:

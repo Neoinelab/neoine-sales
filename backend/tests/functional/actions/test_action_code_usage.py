@@ -97,7 +97,7 @@ async def test_the_code_can_be_deleted_once_its_last_action_is_gone(api: Api) ->
     # Given
     created = await _action_snapshot_of(api, field="status_key", value="introduction")
     await given_logged_in_as(api, role="admin")
-    await when_delete_action(api, str(created["id"]))
+    await when_delete_action(api, created["id"])
     code_id = await given_code_id(api, kind="status", key="introduction")
     # When
     response = await when_delete_code(api, code_id=code_id)

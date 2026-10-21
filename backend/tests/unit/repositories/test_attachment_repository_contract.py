@@ -1,7 +1,6 @@
 """AttachmentRepository 계약(P2b R2): 저장·조회·이름 중복·정렬·수정·삭제, Fake와 SQL 공통."""
 
 from typing import TYPE_CHECKING
-from uuid import uuid4
 
 import pytest
 
@@ -11,6 +10,7 @@ from app.domain.deal.errors import DealNotFoundError
 from tests.factories import later, make_deal_code
 from tests.factories_attachment import make_attachment
 from tests.support.expect import raises_with
+from tests.support.ids import new_id
 from tests.support.user_ids import uid
 from tests.support.user_seed import ensure_users
 
@@ -55,7 +55,7 @@ async def test_the_size_boundaries_are_stored(attachment_case: AttachmentCase, s
 
 async def test_get_of_an_unknown_id_raises_not_found(attachment_case: AttachmentCase) -> None:
     with raises_with(AttachmentNotFoundError, "첨부 파일을 찾을 수 없습니다."):
-        await attachment_case.repository.get(AttachmentId(uuid4()))
+        await attachment_case.repository.get(AttachmentId(new_id()))
 
 
 async def test_add_for_a_missing_deal_raises_deal_not_found_and_the_repository_stays_usable(
@@ -139,7 +139,7 @@ async def test_list_by_deal_is_newest_upload_first(attachment_case: AttachmentCa
 
 
 async def test_list_by_deal_breaks_ties_by_id_descending(attachment_case: AttachmentCase) -> None:
-    ids = [AttachmentId(uuid4()) for _ in range(5)]
+    ids = [AttachmentId(new_id()) for _ in range(5)]
     for number, attachment_id in enumerate(ids):
         attachment = make_attachment(
             later(1), deal_code=DEAL, name=f"{number}.pdf", entity_id=attachment_id
@@ -148,7 +148,7 @@ async def test_list_by_deal_breaks_ties_by_id_descending(attachment_case: Attach
 
     found = await attachment_case.repository.list_by_deal(DEAL)
 
-    assert [a.id for a in found] == sorted(ids, key=str, reverse=True)
+    assert [a.id for a in found] == sorted(ids, reverse=True)
 
 
 async def test_list_by_deal_returns_only_that_deals_files(attachment_case: AttachmentCase) -> None:
@@ -247,7 +247,7 @@ async def test_delete_of_an_unknown_attachment_raises_not_found(
     attachment_case: AttachmentCase,
 ) -> None:
     with pytest.raises(AttachmentNotFoundError):
-        await attachment_case.repository.delete(AttachmentId(uuid4()))
+        await attachment_case.repository.delete(AttachmentId(new_id()))
 
 
 async def test_deleting_a_deal_deletes_its_attachments_and_only_its_own(

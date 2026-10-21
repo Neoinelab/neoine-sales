@@ -7,7 +7,6 @@
 """
 
 from typing import TYPE_CHECKING
-from uuid import uuid4
 
 import pytest
 
@@ -23,6 +22,7 @@ from tests.functional.steps.contacts import (
     when_delete_contact,
 )
 from tests.functional.steps.deals import given_deal_deleted, given_deal_of_contacts
+from tests.support.ids import MISSING_ID
 
 if TYPE_CHECKING:
     from tests.functional.conftest import Api
@@ -54,18 +54,18 @@ async def test_deleting_an_unknown_or_already_deleted_contact_is_404(api: Api) -
     await when_delete_contact(api, created["id"])
     # When
     again = await when_delete_contact(api, created["id"])
-    unknown = await when_delete_contact(api, str(uuid4()))
+    unknown = await when_delete_contact(api, MISSING_ID)
     # Then
     then_problem_is(again, status=404, type_suffix="not-found")
     then_problem_is(unknown, status=404, type_suffix="not-found")
 
 
 async def test_deleting_with_a_malformed_id_is_a_request_validation_error(api: Api) -> None:
-    """Scenario: id가 UUID 형식이 아니면 422 request-validation이다."""
+    """Scenario: id가 정수 형식이 아니면 422 request-validation이다."""
     # Given
     await given_logged_in_as(api, role="admin")
     # When
-    response = await when_delete_contact(api, "not-a-uuid")
+    response = await when_delete_contact(api, "not-an-id")
     # Then
     then_problem_is(response, status=422, type_suffix="request-validation")
 

@@ -5,13 +5,13 @@
 """
 
 from typing import TYPE_CHECKING
-from uuid import uuid4
 
 import pytest
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 
 from tests.support.head_rows import insert_contact, insert_deal
+from tests.support.ids import new_id
 from tests.support.vendor_rows import insert_solution, insert_vendor, link_deal
 
 if TYPE_CHECKING:
@@ -52,7 +52,7 @@ async def test_vendors_table_has_the_expected_shape(session: AsyncSession) -> No
 
     assert set(columns) == {"id", "name", "created_at", "updated_at"}
     assert columns["name"] == ("character varying", 100, "NO")
-    assert columns["id"][0] == "uuid"
+    assert columns["id"][0] == "bigint"
     assert constraints["pk_vendors"][0] == "p"
 
 
@@ -103,7 +103,7 @@ async def test_the_same_solution_name_is_allowed_under_another_vendor(
 
 async def test_a_solution_needs_an_existing_vendor(session: AsyncSession) -> None:
     with pytest.raises(IntegrityError, match="fk_solutions_vendor_id_vendors"):
-        await insert_solution(session, uuid4(), "Cloud")
+        await insert_solution(session, new_id(), "Cloud")
 
 
 async def test_solutions_cascade_with_their_vendor(session: AsyncSession) -> None:
@@ -123,8 +123,8 @@ async def test_deals_has_no_text_vendor_columns(session: AsyncSession) -> None:
 
     assert "vendor" not in columns
     assert "solution" not in columns
-    assert columns["vendor_id"][0] == "uuid"
-    assert columns["solution_id"][0] == "uuid"
+    assert columns["vendor_id"][0] == "bigint"
+    assert columns["solution_id"][0] == "bigint"
     assert columns["vendor_id"][2] == "YES"
     assert columns["solution_id"][2] == "YES"
 

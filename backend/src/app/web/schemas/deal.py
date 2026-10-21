@@ -2,7 +2,6 @@
 
 from datetime import date
 from typing import Annotated, Any, Self
-from uuid import UUID
 
 from pydantic import Field, StrictInt, model_validator
 
@@ -23,6 +22,7 @@ from app.domain.user.value_objects import UserId
 from app.web.schemas.choice import CatalogChoiceRequest
 from app.web.schemas.common import RequestModel
 from app.web.schemas.deal_change import DealChangeRequest
+from app.web.schemas.ids import BodyId, QueryId
 
 __all__ = [
     "BantRequest",
@@ -42,7 +42,7 @@ PATCH_SECTIONS = frozenset({"quote", "poc", "bant", "customer", "partner"})
 class ContactDraftRequest(RequestModel):
     """Deal 화면의 연락처 입력. contact_id가 있으면 그 연락처를 골라 입력값으로 갱신한다."""
 
-    contact_id: UUID | None = None
+    contact_id: BodyId | None = None
     company: str
     name: str
     title: str | None = None
@@ -81,9 +81,9 @@ class BantRequest(RequestModel):
 
 class DealCreateRequest(RequestModel):
     name: str
-    owner_user_id: UUID
-    vendor_id: UUID | None = None
-    solution_id: UUID | None = None
+    owner_user_id: BodyId
+    vendor_id: BodyId | None = None
+    solution_id: BodyId | None = None
     users: StrictInt
     status_key: str
     forecast_key: str
@@ -99,7 +99,7 @@ class DealCreateRequest(RequestModel):
     def to_input(self) -> DealCreateInput:
         return DealCreateInput(
             name=self.name,
-            owner_user_id=self.owner_user_id,
+            owner_user_id=UserId(self.owner_user_id),
             vendor_id=self.vendor_id,
             solution_id=self.solution_id,
             users=self.users,
@@ -122,9 +122,9 @@ class DealPatchRequest(RequestModel):
     """수정 본문. 보낸 필드만 반영한다(model_fields_set). partner: null은 활성 파트너 제거다."""
 
     name: str | None = None
-    owner_user_id: UUID | None = None
-    vendor_id: UUID | None = None
-    solution_id: UUID | None = None
+    owner_user_id: BodyId | None = None
+    vendor_id: BodyId | None = None
+    solution_id: BodyId | None = None
     users: StrictInt | None = None
     status_key: str | None = None
     forecast_key: str | None = None
@@ -176,25 +176,28 @@ class DealSearchParams(RequestModel):
     """Deal 목록 검색 쿼리 파라미터. 기간은 양끝을 포함한다. mine=true가 owner_user_id보다 우선."""
 
     keyword: Annotated[str | None, Field(max_length=KEYWORD_MAX)] = None
-    owner_user_id: UserId | None = None
+    owner_user_id: QueryId | None = None
     mine: bool = False
-    vendor_id: UUID | None = None
-    solution_id: UUID | None = None
+    vendor_id: QueryId | None = None
+    solution_id: QueryId | None = None
     status_key: Annotated[str | None, Field(max_length=STATUS_KEY_MAX)] = None
     forecast_key: Annotated[str | None, Field(max_length=STATUS_KEY_MAX)] = None
     year: Annotated[int | None, Field(ge=1900, le=9999)] = None
     quarter: Annotated[int | None, Field(ge=1, le=4)] = None
     revenue_from: date | None = None
     revenue_to: date | None = None
-    bant_budget: UUID | None = None
-    bant_authority: UUID | None = None
-    bant_need: UUID | None = None
-    bant_timeline: UUID | None = None
+    bant_budget: QueryId | None = None
+    bant_authority: QueryId | None = None
+    bant_need: QueryId | None = None
+    bant_timeline: QueryId | None = None
     next_action_status: NextActionStatusFilter | None = None
     sort: DealSort = DealSort.LAST_UPDATED_AT
     order: SortOrder = SortOrder.DESC
     offset: Annotated[int, Field(ge=0)] = 0
     limit: Annotated[int, Field(ge=1, le=MAX_LIMIT)] = DEFAULT_PAGE_SIZE
+
+    def _owner(self) -> UserId | None:
+        return None if self.owner_user_id is None else UserId(self.owner_user_id)
 
     def to_query(self, viewer_user_id: UserId) -> DealQuery:
         bant_fields = {category: f"bant_{category.value}" for category in BantCategory}
@@ -205,7 +208,7 @@ class DealSearchParams(RequestModel):
             if getattr(self, name) is not None
         }
         return DealQuery(
-            owner_user_id=viewer_user_id if self.mine else self.owner_user_id,
+            owner_user_id=viewer_user_id if self.mine else self._owner(),
             bant_label_ids=bant,
             **criteria,
         )

@@ -2,7 +2,6 @@
 
 from datetime import date
 from typing import Any
-from uuid import uuid4
 
 import pytest
 from pydantic import ValidationError
@@ -15,6 +14,7 @@ from app.application.ports.deal_action_repository import (
 from app.domain.deal.errors import DealNotFoundError
 from app.web.schemas.deal_action import DealActionSearchParams
 from tests.factories import make_deal_code
+from tests.support.ids import new_id
 from tests.support.user_ids import uid
 
 
@@ -26,7 +26,7 @@ def test_search_params_default_to_everything_sorted_latest_first() -> None:
 
 
 def test_search_params_map_every_condition() -> None:
-    email_id = uuid4()
+    email_id = new_id()
     params = DealActionSearchParams(
         action_type_id=email_id,
         actor_user_id=uid("kim"),
@@ -77,6 +77,20 @@ def test_any_other_sort_is_rejected(sort: str) -> None:
         DealActionSearchParams(sort=sort)
 
 
+@pytest.mark.parametrize("field", ["actor_user_id", "action_type_id"])
+@pytest.mark.parametrize("bad", ["abc", "1.5", "0", "-1", 0, -1, 2**53, "9007199254740992"])
+def test_id_query_parameters_must_be_positive_integers(field: str, bad: object) -> None:
+    with pytest.raises(ValidationError):
+        DealActionSearchParams(**{field: bad})
+
+
+@pytest.mark.parametrize("field", ["actor_user_id", "action_type_id"])
+def test_id_query_parameters_arrive_as_text_and_become_integers(field: str) -> None:
+    query = DealActionSearchParams.model_validate({field: "5"}).to_query("20261016-A001")
+
+    assert getattr(query, field) == 5
+
+
 @pytest.mark.parametrize(
     "params",
     [
@@ -85,9 +99,9 @@ def test_any_other_sort_is_rejected(sort: str) -> None:
         {"deal_code": "20261016-A001"},
         {"actor": "박영업"},
         {"unknown": "x"},
-        {"actor_user_id": "not-a-uuid"},
+        {"actor_user_id": "not-an-id"},
         {"action_type": "meeting"},  # 구 파라미터(enum 값)는 모르는 파라미터다
-        {"action_type_id": "not-a-uuid"},
+        {"action_type_id": "not-an-id"},
         {"acted_from": "soon"},
         {"due_to": "2026-13-40"},
         {"keyword": "가" * 101},

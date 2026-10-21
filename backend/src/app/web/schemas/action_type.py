@@ -22,7 +22,7 @@ class ActionTypeNameRequest(RequestModel):
 
 
 class ActionTypeResponse(BaseModel):
-    id: str
+    id: int
     name: str
     is_default: bool
     created_by: UserRef | None
@@ -37,7 +37,7 @@ class ActionTypeResponse(BaseModel):
         action_type = item.action_type
         creator = action_type.created_by_user_id
         return cls(
-            id=str(action_type.id),
+            id=action_type.id,
             name=action_type.name,
             is_default=action_type.is_default,
             created_by=UserRef.from_domain(refs[creator]) if creator is not None else None,

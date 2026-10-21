@@ -6,7 +6,6 @@ solution·forecast·연/분기·BANT 필터와 정렬 선택은 R3다. 여기서
 
 from datetime import date
 from typing import TYPE_CHECKING
-from uuid import uuid4
 
 from app.application.deal.dto import NamedRef
 from app.application.ports.deal_repository import DealQuery
@@ -22,6 +21,7 @@ from tests.factories_deal import (
     seed_deal,
 )
 from tests.support.auth_seed import seed_user
+from tests.support.ids import new_id
 
 if TYPE_CHECKING:
     from app.application.deal.dto import DealPage
@@ -87,7 +87,7 @@ async def test_total_is_the_filtered_count_regardless_of_the_page(env: DealEnv) 
 async def test_an_empty_result_has_no_items_and_zero_total(env: DealEnv) -> None:
     await env.new_deal()
 
-    page = await env.list.execute(DealQuery(vendor_id=VendorId(uuid4())))
+    page = await env.list.execute(DealQuery(vendor_id=VendorId(new_id())))
 
     assert (page.items, page.total) == ([], 0)
 
@@ -208,8 +208,8 @@ class TestFilters:
     async def test_unknown_vendor_id_returns_nothing(self, env: DealEnv) -> None:
         await env.new_deal()
 
-        page = await env.list.execute(DealQuery(vendor_id=VendorId(uuid4())))
-        by_solution = await env.list.execute(DealQuery(solution_id=SolutionId(uuid4())))
+        page = await env.list.execute(DealQuery(vendor_id=VendorId(new_id())))
+        by_solution = await env.list.execute(DealQuery(solution_id=SolutionId(new_id())))
 
         assert (page.items, page.total, by_solution.total) == ([], 0, 0)
 

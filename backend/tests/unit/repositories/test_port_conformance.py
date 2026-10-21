@@ -23,6 +23,7 @@ from tests.factories import NOW
 from tests.fakes.contacts import FakeContactRepository
 from tests.fakes.deal_code_source import FakeDealCodeSuffixSource
 from tests.fakes.deal_history import FakeDealHistoryRepository
+from tests.fakes.id_allocator import FakeIdAllocator
 from tests.fakes.repositories import FakeDealRepository
 from tests.fakes.unit_of_work import FakeUnitOfWork, FixedClock
 from tests.fakes.use_cases import FakeUseCases
@@ -30,6 +31,7 @@ from tests.fakes.use_cases import FakeUseCases
 if TYPE_CHECKING:
     from app.application.ports.clock import Clock
     from app.application.ports.deal_code_source import DealCodeSuffixSource
+    from app.application.ports.id_allocator import IdAllocator
     from app.application.ports.unit_of_work import UnitOfWork
 
 CONTACT_PORT_METHODS = (
@@ -169,6 +171,33 @@ async def test_unit_of_work_implementations_expose_history_and_no_stage_changes(
         assert isinstance(sql.deal_history, SqlDealHistoryRepository)
         assert isinstance(sql.contacts, SqlContactRepository)
         assert not hasattr(sql, "deal_stage_changes")
+    await engine.dispose()
+
+
+def test_id_allocators_satisfy_their_port() -> None:
+    # 새 모듈이라 사용 시점에 가져온다(구현 전에도 이 파일의 다른 테스트 수집이 막히지 않게)
+    from app.infra.db.id_allocator import SqlIdAllocator  # noqa: PLC0415
+
+    engine = create_async_engine("postgresql+asyncpg://user:pw@localhost/none")  # 접속하지 않는다
+    fake: IdAllocator = FakeIdAllocator()
+    sql: IdAllocator = SqlIdAllocator(AsyncSession(engine))
+
+    assert all(allocator is not None for allocator in (fake, sql))
+    assert callable(FakeIdAllocator.next_id)
+    assert callable(SqlIdAllocator.next_id)
+
+
+async def test_unit_of_work_implementations_expose_the_id_allocator() -> None:
+    from app.infra.db.id_allocator import SqlIdAllocator  # noqa: PLC0415
+
+    engine = create_async_engine("postgresql+asyncpg://user:pw@localhost/none")  # 접속하지 않는다
+    fake = FakeUnitOfWork()
+    fake_ids: IdAllocator = fake.ids
+
+    assert isinstance(fake_ids, FakeIdAllocator)
+    async with SqlUnitOfWork(async_sessionmaker(engine)) as sql:
+        sql_ids: IdAllocator = sql.ids
+        assert isinstance(sql_ids, SqlIdAllocator)
     await engine.dispose()
 
 

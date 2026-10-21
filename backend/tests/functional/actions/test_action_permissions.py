@@ -33,13 +33,14 @@ from tests.functional.steps.auth import given_logged_in_as, given_logged_out
 from tests.functional.steps.common import then_problem_is, then_status_is
 from tests.functional.steps.deals import history_rows, when_list_history
 from tests.functional.steps.users import given_signed_in_session, id_of
+from tests.support.ids import MISSING_ID
 
 if TYPE_CHECKING:
     from tests.functional.conftest import Api
 
 pytestmark = pytest.mark.integration
 
-ABSENT_ID = "6f1c1b3a-0000-4000-8000-000000000001"
+ABSENT_ID = MISSING_ID
 
 
 async def test_admin_edits_and_deletes_another_users_action(api: Api) -> None:

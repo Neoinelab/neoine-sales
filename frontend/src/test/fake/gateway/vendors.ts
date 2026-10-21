@@ -3,7 +3,7 @@
 import type { VendorsGateway } from '../../../gateway/types'
 import type { Solution, Vendor } from '../../../shared/model/types'
 import { conflict, notFound, validation } from '../errors'
-import { takeUuid, type SolutionRecord, type VendorRecord } from '../store'
+import { takeId, type SolutionRecord, type VendorRecord } from '../store'
 import { read, requireAdmin, requireUser, write, type MockContext } from './context'
 
 const VENDOR_MAX = 100
@@ -12,11 +12,11 @@ const DUPLICATE_VENDOR = '이미 있는 Vendor 이름입니다.'
 const DUPLICATE_SOLUTION = '이 Vendor에 이미 있는 Solution 이름입니다.'
 
 /** 소문자 이름의 코드 포인트 순, 같으면 id 순(서버와 같은 정렬). */
-function byName<T extends { id: string; name: string }>(a: T, b: T): number {
+function byName<T extends { id: number; name: string }>(a: T, b: T): number {
   const x = a.name.toLowerCase()
   const y = b.name.toLowerCase()
   if (x !== y) return x < y ? -1 : 1
-  return a.id < b.id ? -1 : a.id > b.id ? 1 : 0
+  return a.id - b.id
 }
 
 function checkName(kind: 'Vendor' | 'Solution', raw: string, max: number): string {
@@ -27,7 +27,7 @@ function checkName(kind: 'Vendor' | 'Solution', raw: string, max: number): strin
   return name
 }
 
-function dealCount(ctx: MockContext, pick: (d: { vendorId: string | null; solutionId: string | null }) => string | null, id: string): number {
+function dealCount(ctx: MockContext, pick: (d: { vendorId: number | null; solutionId: number | null }) => number | null, id: number): number {
   return ctx.store.data.deals.filter((d) => pick(d) === id).length
 }
 
@@ -47,25 +47,25 @@ function vendorView(ctx: MockContext, record: VendorRecord): Vendor {
   }
 }
 
-function findVendor(ctx: MockContext, id: string): VendorRecord {
+function findVendor(ctx: MockContext, id: number): VendorRecord {
   const found = ctx.store.data.vendors.find((v) => v.id === id)
   if (!found) throw notFound('Vendor를 찾을 수 없습니다.')
   return found
 }
 
-function findSolution(ctx: MockContext, vendorId: string, id: string): SolutionRecord {
+function findSolution(ctx: MockContext, vendorId: number, id: number): SolutionRecord {
   findVendor(ctx, vendorId)
   const found = ctx.store.data.solutions.find((s) => s.id === id && s.vendorId === vendorId)
   if (!found) throw notFound('Solution을 찾을 수 없습니다.')
   return found
 }
 
-function ensureUniqueVendor(ctx: MockContext, name: string, selfId?: string): void {
+function ensureUniqueVendor(ctx: MockContext, name: string, selfId?: number): void {
   const lower = name.toLowerCase()
   if (ctx.store.data.vendors.some((v) => v.id !== selfId && v.name.toLowerCase() === lower)) throw conflict(DUPLICATE_VENDOR)
 }
 
-function ensureUniqueSolution(ctx: MockContext, vendorId: string, name: string, selfId?: string): void {
+function ensureUniqueSolution(ctx: MockContext, vendorId: number, name: string, selfId?: number): void {
   const lower = name.toLowerCase()
   if (ctx.store.data.solutions.some((s) => s.vendorId === vendorId && s.id !== selfId && s.name.toLowerCase() === lower)) {
     throw conflict(DUPLICATE_SOLUTION)
@@ -85,7 +85,7 @@ export function createVendorsGateway(ctx: MockContext): VendorsGateway {
         const name = checkName('Vendor', rawName, VENDOR_MAX)
         ensureUniqueVendor(ctx, name)
         const now = ctx.clock.now()
-        const record: VendorRecord = { id: takeUuid(ctx.store.data.counters, 'vd'), name, createdAt: now, updatedAt: now }
+        const record: VendorRecord = { id: takeId(ctx.store.data.counters, 'vd'), name, createdAt: now, updatedAt: now }
         ctx.store.data.vendors.push(record)
         return vendorView(ctx, record)
       }),
@@ -116,7 +116,7 @@ export function createVendorsGateway(ctx: MockContext): VendorsGateway {
         const name = checkName('Solution', rawName, SOLUTION_MAX)
         ensureUniqueSolution(ctx, vendorId, name)
         const now = ctx.clock.now()
-        const record: SolutionRecord = { id: takeUuid(ctx.store.data.counters, 'sl'), vendorId, name, createdAt: now, updatedAt: now }
+        const record: SolutionRecord = { id: takeId(ctx.store.data.counters, 'sl'), vendorId, name, createdAt: now, updatedAt: now }
         ctx.store.data.solutions.push(record)
         return solutionView(ctx, record)
       }),

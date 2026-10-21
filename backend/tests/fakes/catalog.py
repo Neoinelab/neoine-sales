@@ -70,7 +70,7 @@ class FakeCodeRepository(InMemoryStore["Code"]):
 
     def _sorted(self, kind: CodeKind | None) -> list[Code]:
         found = [c for c in self._items.values() if kind is None or c.kind is kind]
-        found.sort(key=lambda c: (_declared_index(c.kind), c.order, str(c.id)))
+        found.sort(key=lambda c: (_declared_index(c.kind), c.order, c.id))
         return [copy.deepcopy(c) for c in found]
 
     def _ensure_unique(self, code: Code) -> None:
@@ -132,10 +132,10 @@ class FakeBantLabelRepository(InMemoryStore["BantLabel"]):
         """삭제 시 FK 모사에 쓸 Deal 저장소를 연결한다(FakeUnitOfWork가 호출한다)."""
         self._deals = deals
 
-    def _sort_key(self, label: BantLabel) -> tuple[int, int, int, str, str]:
+    def _sort_key(self, label: BantLabel) -> tuple[int, int, int, str, int]:
         if label.is_default:
-            return (_declared_index(label.category), 0, label.default_order or 0, "", str(label.id))
-        return (_declared_index(label.category), 1, 0, label.name.lower(), str(label.id))
+            return (_declared_index(label.category), 0, label.default_order or 0, "", label.id)
+        return (_declared_index(label.category), 1, 0, label.name.lower(), label.id)
 
     def _ensure_unique(self, label: BantLabel) -> None:
         for other in self._items.values():

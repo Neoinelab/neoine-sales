@@ -112,7 +112,7 @@ async def given_action_by(
     return dict(response.json())
 
 
-async def given_searchable_actions(api: Api) -> tuple[str, str]:
+async def given_searchable_actions(api: Api) -> tuple[str, int]:
     """kim·park(sales)이 한 Deal에 Action 세 건을 남겨 두었다. (Deal code, park의 user id).
 
     오래된 순서: kim "킥오프"(미팅, Due 04-10) -> park "견적 발송"(이메일, Due 04-01) ->
@@ -194,18 +194,18 @@ async def when_register_action_with_body(api: Api, code: str, body: object) -> R
     return await api.post(actions_url(code), json=body)
 
 
-async def when_update_action(api: Api, action_id: str, **overrides: object) -> Response:
+async def when_update_action(api: Api, action_id: object, **overrides: object) -> Response:
     api.clock.advance(GAP_SECONDS)
     return await api.put(f"{ACTIONS}/{action_id}", json=action_body(**overrides))
 
 
-async def when_update_action_with_body(api: Api, action_id: str, body: object) -> Response:
+async def when_update_action_with_body(api: Api, action_id: object, body: object) -> Response:
     api.clock.advance(GAP_SECONDS)
     return await api.put(f"{ACTIONS}/{action_id}", json=body)
 
 
 async def when_update_action_as(
-    api: Api, session: Session, action_id: str, **overrides: object
+    api: Api, session: Session, action_id: object, **overrides: object
 ) -> Response:
     api.clock.advance(GAP_SECONDS)
     return await when_request_as(
@@ -213,17 +213,17 @@ async def when_update_action_as(
     )
 
 
-async def when_delete_action(api: Api, action_id: str) -> Response:
+async def when_delete_action(api: Api, action_id: object) -> Response:
     api.clock.advance(GAP_SECONDS)
     return await api.delete(f"{ACTIONS}/{action_id}")
 
 
-async def when_delete_action_as(api: Api, session: Session, action_id: str) -> Response:
+async def when_delete_action_as(api: Api, session: Session, action_id: object) -> Response:
     api.clock.advance(GAP_SECONDS)
     return await when_request_as(api, session, "DELETE", f"{ACTIONS}/{action_id}")
 
 
-async def when_get_action(api: Api, action_id: str) -> Response:
+async def when_get_action(api: Api, action_id: object) -> Response:
     return await api.get(f"{ACTIONS}/{action_id}")
 
 

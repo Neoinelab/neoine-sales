@@ -7,6 +7,7 @@ import { dealInput } from '../../../test/fake/testing'
 import { renderAt } from '../../../test/mockApp'
 import { formatDateTime } from '../../../shared/format'
 import { dealCodeOf, detailPath } from '../../../test/detailTestUtils'
+import { USER_ID } from '../../../test/fake/seed/ids'
 
 const DAY_MS = 86_400_000
 
@@ -15,7 +16,7 @@ describe('상세 Status 체류 표시 (AC-13, Q3)', () => {
 
   it('shows "N일째" next to Status with the entry time in the tooltip', async () => {
     const code = await dealCodeOf(2)
-    await gateway.auth.quickLogin('u-root')
+    await gateway.auth.quickLogin(USER_ID.root)
     const deal = await gateway.deals.get(code)
     expect(deal.statusDays).toBeGreaterThan(0)
 
@@ -58,7 +59,7 @@ describe('상세 Status 체류 표시 (AC-13, Q3)', () => {
   it('shows the stale badge on a deal that has no action at all', async () => {
     const { client, user } = await renderAt('/deals', { role: 'admin' })
     await screen.findByRole('row', { name: /한빛은행 ITDR 도입/ })
-    const created = await gateway.deals.create(dealInput('u-kim', { name: '액션 없는 Deal' }))
+    const created = await gateway.deals.create(dealInput(USER_ID.kim, { name: '액션 없는 Deal' }))
     defaultMock.clock.advance(15 * DAY_MS)
     await client.invalidateQueries()
 

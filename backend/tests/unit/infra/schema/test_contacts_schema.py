@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 pytestmark = pytest.mark.integration
 
 COLUMNS = {
-    "id": ("uuid", None, "NO"),
+    "id": ("bigint", None, "NO"),
     "kind": ("character varying", 10, "NO"),
     "company": ("character varying", 200, "NO"),
     "name": ("character varying", 100, "NO"),

@@ -1,16 +1,16 @@
 """DeleteActionType(AC-6): 쓰는 Action이 없을 때만 삭제(기본 유형 포함), 사용 중이면 거부."""
 
 from typing import TYPE_CHECKING
-from uuid import uuid4
 
 import pytest
+
 from app.application.action_type.delete_action_type import DeleteActionType
 from app.domain.action_type.errors import ActionTypeInUseError, ActionTypeNotFoundError
 from app.domain.action_type.values import ActionTypeId
-
 from tests.factories_action_type import DEFAULT_ACTION_TYPE_NAMES, type_id
 from tests.fakes.catalog_seed import seed_action_types
 from tests.support.expect import raises_with
+from tests.support.ids import new_id
 from tests.unit.application.action_env import KIM
 
 if TYPE_CHECKING:
@@ -76,4 +76,4 @@ async def test_delete_a_missing_type_is_not_found(
     seeded: FakeUnitOfWork, uow_factory: UnitOfWorkFactory
 ) -> None:
     with pytest.raises(ActionTypeNotFoundError):
-        await DeleteActionType(uow_factory).execute(ActionTypeId(uuid4()))
+        await DeleteActionType(uow_factory).execute(ActionTypeId(new_id()))

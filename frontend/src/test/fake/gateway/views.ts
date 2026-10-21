@@ -19,11 +19,11 @@ import { notFound } from '../errors'
 import type { ActionRecord, AttachmentRecord, HistoryRecord, SeedData, UserRecord } from '../store'
 import { clone, type MockContext } from './context'
 
-const UNKNOWN_USER: UserRef = { id: '', name: '알 수 없음', role: 'user', status: 'resigned' }
+const UNKNOWN_USER: UserRef = { id: 0, name: '알 수 없음', role: 'user', status: 'resigned' }
 
-export function userRef(data: SeedData, id: string | null): UserRef {
+export function userRef(data: SeedData, id: number | null): UserRef {
   const user = data.users.find((u) => u.id === id)
-  return user ? { id: user.id, name: user.name, role: user.role, status: user.status } : { ...UNKNOWN_USER, id: id ?? '' }
+  return user ? { id: user.id, name: user.name, role: user.role, status: user.status } : { ...UNKNOWN_USER, id: id ?? 0 }
 }
 
 export function userView(data: SeedData, record: UserRecord): User {
@@ -34,7 +34,7 @@ export function userView(data: SeedData, record: UserRecord): User {
 export function actionView(data: SeedData, record: ActionRecord): DealAction {
   const { actorId, typeId, ...rest } = record
   const type = data.actionTypes.find((t) => t.id === typeId)
-  return { ...rest, typeId, type: type?.name ?? typeId, actor: userRef(data, actorId) }
+  return { ...rest, typeId, type: type?.name ?? String(typeId), actor: userRef(data, actorId) }
 }
 
 export function historyView(data: SeedData, record: HistoryRecord): HistoryEntry {
@@ -70,7 +70,7 @@ export function findDeal(data: SeedData, code: string): Deal {
 }
 
 /** 연락처를 참조하는 Deal(고객 또는 파트너 링크, 비활성 링크 포함). */
-export function dealsOfContact(data: SeedData, contactId: string): Deal[] {
+export function dealsOfContact(data: SeedData, contactId: number): Deal[] {
   return data.deals.filter((d) => d.customerContactId === contactId || d.partnerLinks.some((l) => l.contactId === contactId))
 }
 
@@ -98,7 +98,7 @@ export function latestNextAction(data: SeedData, dealCode: string): ActionRecord
   return best
 }
 
-function contactOf(data: SeedData, id: string): Contact {
+function contactOf(data: SeedData, id: number): Contact {
   const found = data.contacts.find((c) => c.id === id)
   if (!found) throw notFound('연락처를 찾을 수 없습니다.')
   return found

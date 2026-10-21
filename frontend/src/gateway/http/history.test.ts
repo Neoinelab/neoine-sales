@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { CODE, serverHistory } from '../../test/fixtures/serverDeal'
 import { createHistoryHttp } from './history'
 import { json, problem, stubFetch } from './testHelpers'
+import { USER_ID } from '../../test/fake/seed/ids'
 
 afterEach(() => vi.unstubAllGlobals())
 
@@ -25,15 +26,15 @@ describe('history over HTTP', () => {
   it('keeps the order of the server (newest first) and maps each entry', async () => {
     stubFetch(
       json([
-        serverHistory({ id: 'h2', at: '2026-10-16T09:00:00+09:00', category: 'forecast', target: 'Forecast', before: 'Pipeline', after: 'Commit' }),
-        serverHistory({ id: 'h1', at: '2026-10-15T09:00:00+09:00' }),
+        serverHistory({ id: 2, at: '2026-10-16T09:00:00+09:00', category: 'forecast', target: 'Forecast', before: 'Pipeline', after: 'Commit' }),
+        serverHistory({ id: 1, at: '2026-10-15T09:00:00+09:00' }),
       ]),
     )
 
     const list = await createHistoryHttp().list(CODE, {})
 
-    expect(list.map((h) => h.id)).toEqual(['h2', 'h1'])
-    expect(list[0]).toMatchObject({ dealCode: CODE, category: 'forecast', target: 'Forecast', before: 'Pipeline', after: 'Commit', by: { id: 'u-kim' } })
+    expect(list.map((h) => h.id)).toEqual([2, 1])
+    expect(list[0]).toMatchObject({ dealCode: CODE, category: 'forecast', target: 'Forecast', before: 'Pipeline', after: 'Commit', by: { id: USER_ID.kim } })
   })
 
   it('shows the 404 of an unknown deal', async () => {

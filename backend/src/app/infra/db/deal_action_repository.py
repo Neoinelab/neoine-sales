@@ -17,6 +17,7 @@ from app.domain.deal_action.next_action_status import NextActionState, NextActio
 from app.domain.deal_action.value_objects import ActionContent, DealActionId
 from app.domain.user.value_objects import UserId
 from app.infra.db.base_repository import ConstraintErrors, SqlRepository
+from app.infra.db.deal_keys import deal_id_of
 from app.infra.db.like import keyword_filter
 from app.infra.db.models import DealActionRow
 from app.infra.db.models_catalog import ActionTypeRow
@@ -24,7 +25,6 @@ from app.infra.db.models_deal import DealRow
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
-    from uuid import UUID
 
     from sqlalchemy import Select
 
@@ -69,10 +69,10 @@ def _reference_errors(action: DealAction) -> ConstraintErrors:
     }
 
 
-def _to_row(action: DealAction) -> DealActionRow:
+def _to_row(action: DealAction, deal_id: int) -> DealActionRow:
     row = DealActionRow(
         id=action.id,
-        deal_code=action.deal_code.value,
+        deal_id=deal_id,
         acted_at=action.acted_at,
         actor_user_id=action.actor_user_id,
         status_kind=CodeKind.STATUS.value,
@@ -87,10 +87,10 @@ def _to_row(action: DealAction) -> DealActionRow:
     return row
 
 
-def _to_entity(row: DealActionRow, type_name: str) -> DealAction:
+def _to_entity(row: DealActionRow, type_name: str, deal_code: str) -> DealAction:
     return DealAction(
         id=DealActionId(row.id),
-        deal_code=DealCode(row.deal_code),
+        deal_code=DealCode(deal_code),
         content=ActionContent(
             action_type=ActionTypeRef(ActionTypeId(row.action_type_id), type_name),
             action=row.action,
@@ -107,14 +107,17 @@ def _to_entity(row: DealActionRow, type_name: str) -> DealAction:
     )
 
 
-def _with_type_name() -> Select[DealActionRow, str]:
-    return select(DealActionRow, ActionTypeRow.name).join(
-        ActionTypeRow, ActionTypeRow.id == DealActionRow.action_type_id
+def _with_type_name() -> Select[DealActionRow, str, str]:
+    """행과 Action 유형 이름, 소속 Deal의 code(도메인은 deal_code로 Deal을 가리킨다)."""
+    return (
+        select(DealActionRow, ActionTypeRow.name, DealRow.deal_code)
+        .join(ActionTypeRow, ActionTypeRow.id == DealActionRow.action_type_id)
+        .join(DealRow, DealRow.id == DealActionRow.deal_id)
     )
 
 
-def _filtered(query: DealActionQuery) -> Select[DealActionRow, str]:
-    statement = _with_type_name().where(DealActionRow.deal_code == query.deal_code.value)
+def _filtered(query: DealActionQuery) -> Select[DealActionRow, str, str]:
+    statement = _with_type_name().where(DealRow.deal_code == query.deal_code.value)
     if query.action_type_id is not None:
         statement = statement.where(DealActionRow.action_type_id == query.action_type_id)
     if query.actor_user_id is not None:
@@ -141,8 +144,8 @@ def _filtered(query: DealActionQuery) -> Select[DealActionRow, str]:
 
 
 def _ordered(
-    statement: Select[DealActionRow, str], sort: DealActionSort
-) -> Select[DealActionRow, str]:
+    statement: Select[DealActionRow, str, str], sort: DealActionSort
+) -> Select[DealActionRow, str, str]:
     """정렬. acted_at 정렬의 동률은 id 오름차순, due_date 정렬의 동률은 acted_at 내림차순 -> id."""
     if sort is DealActionSort.ACTED_AT_ASC:
         return statement.order_by(DealActionRow.acted_at.asc(), DealActionRow.id)
@@ -160,40 +163,39 @@ class SqlDealActionRepository(SqlRepository[DealActionRow]):
 
     async def add(self, action: DealAction) -> None:
         code = action.deal_code.value
+        deal_id = await deal_id_of(self._session, code)
+        if deal_id is None:
+            raise DealNotFoundError(code)
         try:
             await self._insert(
-                _to_row(action),
+                _to_row(action, deal_id),
                 {
                     "pk_deal_actions": lambda: AlreadyExistsError("Deal 활동", action.id),
-                    "fk_deal_actions_deal_code_deals": lambda: DealNotFoundError(code),
+                    "fk_deal_actions_deal_id_deals": lambda: DealNotFoundError(code),
                     **_reference_errors(action),
                 },
             )
         except InvalidReferenceError:
             # 여러 FK가 함께 어긋나면 DB가 먼저 보고하는 쪽이 정해져 있지 않다. Deal 없음 우선.
-            if not await self._session.scalar(select(exists().where(DealRow.deal_code == code))):
+            if not await self._session.scalar(select(exists().where(DealRow.id == deal_id))):
                 raise DealNotFoundError(code) from None
             raise
 
     async def get(self, action_id: DealActionId) -> DealAction:
-        row = await self._find(action_id)
-        if row is None:
+        # 유형·Deal은 FK(RESTRICT·CASCADE)상 행이 있으면 항상 있으므로 inner join으로 읽는다.
+        statement = _with_type_name().where(DealActionRow.id == action_id)
+        found = (
+            await self._session.execute(statement.execution_options(populate_existing=True))
+        ).one_or_none()
+        if found is None:
             raise DealActionNotFoundError(action_id)
-        return _to_entity(row, await self._type_name(row.action_type_id))
-
-    async def _type_name(self, type_id: UUID) -> str:
-        name = await self._session.scalar(
-            select(ActionTypeRow.name).where(ActionTypeRow.id == type_id)
-        )
-        if name is None:
-            # FK RESTRICT상 정상 경로에서는 없다. 빈 이름으로 감추지 않고 드러낸다.
-            raise RuntimeError(f"Action 유형 행이 없습니다(무결성 위반): {type_id}")
-        return name
+        row, type_name, deal_code = found
+        return _to_entity(row, type_name, deal_code)
 
     async def search(self, query: DealActionQuery) -> Sequence[DealAction]:
         statement = _ordered(_filtered(query), query.sort).execution_options(populate_existing=True)
         rows = (await self._session.execute(statement)).all()
-        return [_to_entity(row, name) for row, name in rows]
+        return [_to_entity(row, name, code) for row, name, code in rows]
 
     async def update(self, action: DealAction) -> None:
         """내용·Next Action 상태·updated_at만 쓴다. 수행 일시·수행자·스냅숏은 바뀌지 않는다."""

@@ -16,7 +16,7 @@ export function CodeManager({ kind }: { kind: CodeKind }) {
   const reorder = useReorderCodes()
   const remove = useRemoveCode()
   const [newName, setNewName] = useState('')
-  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editingId, setEditingId] = useState<number | null>(null)
   const [deleting, setDeleting] = useState<CodeWithUsage | null>(null)
   const [error, setError] = useState<unknown>(null)
   const list = codes.data ?? []

@@ -16,9 +16,9 @@ from tests.unit.repositories.deal_case import PARAMS, DealCase, open_deal_case
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Collection
 
-    from app.domain.action_type.entities import ActionType
     from sqlalchemy.engine import URL
 
+    from app.domain.action_type.entities import ActionType
     from app.domain.deal_action.entities import DealAction
     from app.domain.user.value_objects import UserId
 

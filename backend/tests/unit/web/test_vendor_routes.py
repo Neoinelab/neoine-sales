@@ -4,12 +4,11 @@ DB 없이 라우터·스키마·오류 매핑·권한을 빠르게 확인하는 
 functional(admin/test_vendors.py)이 맡는다.
 """
 
-from uuid import uuid4
-
 import pytest
 
 from app.domain.auth.principal import Role
 from tests.fakes.use_cases import FakeUseCases
+from tests.support.ids import MISSING_ID
 from tests.unit.web.vendor_http import (
     SOLUTION_KEYS,
     URL,
@@ -32,6 +31,20 @@ async def test_create_vendor_returns_201_with_location_and_the_documented_body()
     assert set(body) == VENDOR_KEYS
     assert (body["name"], body["usage_count"], body["solutions"]) == ("SAP", 0, [])
     assert response.headers["location"] == f"{URL}/{body['id']}"
+
+
+async def test_vendor_and_solution_ids_are_json_integers() -> None:
+    async with client_for(FakeUseCases()) as http:
+        vendor = await make_vendor(http, "SAP")
+        solution = await make_solution(http, vendor["id"], "S/4HANA")
+        listed = (await http.get(URL)).json()
+
+    assert type(vendor["id"]) is int
+    assert type(solution["id"]) is int
+    assert type(solution["vendor_id"]) is int
+    assert type(listed[0]["id"]) is int
+    assert type(listed[0]["solutions"][0]["id"]) is int
+    assert type(listed[0]["solutions"][0]["vendor_id"]) is int
 
 
 async def test_list_orders_vendors_and_solutions_by_lower_name() -> None:
@@ -115,7 +128,7 @@ async def test_a_solution_id_of_another_vendor_is_404() -> None:
 
 async def test_solution_of_a_missing_vendor_is_404() -> None:
     async with client_for(FakeUseCases()) as http:
-        response = await http.post(f"{URL}/{uuid4()}/solutions", json={"name": "Cloud"})
+        response = await http.post(f"{URL}/{MISSING_ID}/solutions", json={"name": "Cloud"})
 
     problem(response, 404, "not-found")
 
@@ -230,13 +243,13 @@ async def test_delete_vendor_is_204_and_removes_its_solutions() -> None:
 
 async def test_delete_missing_vendor_is_404() -> None:
     async with client_for(FakeUseCases()) as http:
-        response = await http.delete(f"{URL}/{uuid4()}")
+        response = await http.delete(f"{URL}/{MISSING_ID}")
 
     problem(response, 404, "not-found")
 
 
 async def test_a_malformed_vendor_id_is_request_validation() -> None:
     async with client_for(FakeUseCases()) as http:
-        response = await http.delete(f"{URL}/not-a-uuid")
+        response = await http.delete(f"{URL}/not-an-id")
 
     problem(response, 422, "request-validation")

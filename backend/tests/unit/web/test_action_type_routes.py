@@ -4,11 +4,10 @@ DB 없이 라우터·스키마·오류 매핑을 빠르게 확인하는 단위 �
 functional(admin/test_action_types.py)이 맡는다. 권한은 test_action_type_route_permissions.py.
 """
 
-from uuid import uuid4
-
 import pytest
 
 from app.domain.auth.principal import Role
+from tests.support.ids import MISSING_ID
 from tests.unit.web.action_type_http import (
     DEFAULT_NAMES,
     TYPE_KEYS,
@@ -33,6 +32,16 @@ async def test_list_returns_the_defaults_in_order_with_the_documented_keys() -> 
     assert all(item["is_default"] is True for item in body)
     assert all(item["created_by"] is None for item in body)
     assert all(item["usage_count"] == 0 for item in body)
+
+
+async def test_action_type_ids_are_json_integers() -> None:
+    async with client_for(seeded_use_cases()) as http:
+        created = (await http.post(URL, json={"name": "웨비나"})).json()
+        listed = (await http.get(URL)).json()
+
+    assert type(created["id"]) is int
+    assert type(created["created_by"]["id"]) is int
+    assert all(type(item["id"]) is int for item in listed)
 
 
 async def test_custom_types_follow_the_defaults_in_lower_name_order() -> None:
@@ -180,7 +189,7 @@ async def test_rename_with_a_blank_name_is_422_and_with_an_unknown_id_is_404() -
     async with client_for(seeded_use_cases()) as http:
         demo = await type_id_of(http, "데모")
         blank = await http.patch(f"{URL}/{demo}", json={"name": " "})
-        missing = await http.patch(f"{URL}/{uuid4()}", json={"name": "무엇"})
+        missing = await http.patch(f"{URL}/{MISSING_ID}", json={"name": "무엇"})
 
     assert problem(blank, 422, "invalid-value")["detail"] == "유형을 입력하세요."
     problem(missing, 404, "not-found")
@@ -214,15 +223,15 @@ async def test_delete_a_used_type_is_409_with_the_count_and_keeps_the_type() -> 
 
 async def test_delete_an_unknown_id_is_404() -> None:
     async with client_for(seeded_use_cases()) as http:
-        response = await http.delete(f"{URL}/{uuid4()}")
+        response = await http.delete(f"{URL}/{MISSING_ID}")
 
     problem(response, 404, "not-found")
 
 
 async def test_a_malformed_id_in_the_path_is_request_validation() -> None:
     async with client_for(seeded_use_cases()) as http:
-        patched = await http.patch(f"{URL}/not-a-uuid", json={"name": "x"})
-        deleted = await http.delete(f"{URL}/not-a-uuid")
+        patched = await http.patch(f"{URL}/not-an-id", json={"name": "x"})
+        deleted = await http.delete(f"{URL}/not-an-id")
 
     problem(patched, 422, "request-validation")
     problem(deleted, 422, "request-validation")

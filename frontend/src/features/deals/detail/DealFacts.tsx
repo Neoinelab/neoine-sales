@@ -5,6 +5,7 @@ import type { DealDetail, PocState, QuoteSubmitted } from '../../../shared/model
 import { USERS_MESSAGE, USERS_REQUIRED_MESSAGE } from '../form/formState'
 import { InlineEdit } from './InlineEdit'
 import { useDealPatch } from './useDealPatch'
+import { parseId } from '../../../shared/model/ids'
 
 const QUOTE_TEXT: Record<QuoteSubmitted, string> = { YES: '제출', NO: '미제출' }
 const POC_TEXT: Record<PocState, string> = { YES: '완료', ING: '진행 중', NO: '하지 않음' }
@@ -28,9 +29,9 @@ function dateDisplay(date: string | null, canWrite: boolean): ReactNode {
 export function DealFacts({ deal, canWrite, onNotice }: DealFactsProps) {
   const { save } = useDealPatch(deal.code, onNotice)
   const vendors = useVendors().data ?? []
-  const vendorOptions = [NONE, ...vendors.map((v) => ({ value: v.id, label: v.name }))]
+  const vendorOptions = [NONE, ...vendors.map((v) => ({ value: String(v.id), label: v.name }))]
   const currentVendor = vendors.find((v) => v.id === deal.vendor?.id)
-  const solutionOptions = [NONE, ...(currentVendor?.solutions ?? []).map((s) => ({ value: s.id, label: s.name }))]
+  const solutionOptions = [NONE, ...(currentVendor?.solutions ?? []).map((s) => ({ value: String(s.id), label: s.name }))]
   const { quote, poc } = deal
 
   async function saveProcurement(text: string) {
@@ -39,17 +40,19 @@ export function DealFacts({ deal, canWrite, onNotice }: DealFactsProps) {
   }
 
   /** Vendor가 바뀌면 Solution은 항상 비운다(서버 규칙). 원래 Solution이 있었을 때만 그 사실을 알린다. */
-  async function saveVendor(vendorId: string) {
-    if (vendorId === (deal.vendor?.id ?? '')) return
+  async function saveVendor(vendorText: string) {
+    const vendorId = parseId(vendorText) ?? null
+    if (vendorId === (deal.vendor?.id ?? null)) return
     const message = deal.solution
       ? 'Vendor가 변경되었습니다. Solution은 비워졌습니다.'
       : 'Vendor가 변경되었습니다.'
-    await save({ vendorId: vendorId || null, solutionId: null }, message)
+    await save({ vendorId, solutionId: null }, message)
   }
 
-  async function saveSolution(solutionId: string) {
-    if (solutionId === (deal.solution?.id ?? '')) return
-    await save({ vendorId: deal.vendor?.id ?? null, solutionId: solutionId || null }, 'Solution이 변경되었습니다.')
+  async function saveSolution(solutionText: string) {
+    const solutionId = parseId(solutionText) ?? null
+    if (solutionId === (deal.solution?.id ?? null)) return
+    await save({ vendorId: deal.vendor?.id ?? null, solutionId }, 'Solution이 변경되었습니다.')
   }
 
   async function saveUsers(text: string) {
@@ -78,7 +81,7 @@ export function DealFacts({ deal, canWrite, onNotice }: DealFactsProps) {
         kind="select"
         options={vendorOptions}
         display={deal.vendor?.name ?? '—'}
-        initial={deal.vendor?.id ?? ''}
+        initial={deal.vendor ? String(deal.vendor.id) : ''}
         onSave={saveVendor}
       />,
     ],
@@ -91,7 +94,7 @@ export function DealFacts({ deal, canWrite, onNotice }: DealFactsProps) {
         kind="select"
         options={solutionOptions}
         display={deal.solution?.name ?? '—'}
-        initial={deal.solution?.id ?? ''}
+        initial={deal.solution ? String(deal.solution.id) : ''}
         onSave={saveSolution}
       />,
     ],

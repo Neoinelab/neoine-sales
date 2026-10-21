@@ -29,7 +29,7 @@ export function AttachmentsPanel({ dealCode, me, canWrite }: AttachmentsPanelPro
   const [error, setError] = useState<unknown>(null)
   const items = list.data ?? []
 
-  async function save(id: string) {
+  async function save(id: number) {
     setError(null)
     try {
       const file = await download.mutateAsync(id)

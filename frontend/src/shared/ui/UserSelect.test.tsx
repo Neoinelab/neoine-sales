@@ -3,9 +3,10 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { UserRef } from '../model/types'
 import { UserSelect } from './UserSelect'
+import { USER_ID } from '../../test/fake/seed/ids'
 
-const kim: UserRef = { id: 'u-kim', name: '김영업', role: 'sales', status: 'active' }
-const lee: UserRef = { id: 'u-lee', name: '이퇴사', role: 'sales', status: 'resigned' }
+const kim: UserRef = { id: USER_ID.kim, name: '김영업', role: 'sales', status: 'active' }
+const lee: UserRef = { id: USER_ID.lee, name: '이퇴사', role: 'sales', status: 'resigned' }
 
 const useUserOptions = vi.hoisted(() => vi.fn())
 vi.mock('../../data/users', () => ({ useUserOptions }))
@@ -28,17 +29,17 @@ describe('UserSelect', () => {
     const onChange = vi.fn()
     render(<UserSelect label="Owner" name="owner" value="" onChange={onChange} />)
 
-    await userEvent.selectOptions(screen.getByLabelText('Owner'), 'u-kim')
+    await userEvent.selectOptions(screen.getByLabelText('Owner'), String(USER_ID.kim))
 
-    expect(onChange).toHaveBeenCalledWith('u-kim')
+    expect(onChange).toHaveBeenCalledWith(String(USER_ID.kim))
   })
 
   it('keeps a resigned current owner visible but not selectable', () => {
-    render(<UserSelect label="Owner" name="owner" value="u-lee" onChange={() => {}} current={lee} />)
+    render(<UserSelect label="Owner" name="owner" value={String(USER_ID.lee)} onChange={() => {}} current={lee} />)
 
     const option = screen.getByRole('option', { name: '이퇴사(퇴사)' })
     expect(option).toBeDisabled()
-    expect(screen.getByLabelText('Owner')).toHaveValue('u-lee')
+    expect(screen.getByLabelText('Owner')).toHaveValue(String(USER_ID.lee))
   })
 
   it('includes resigned users with an "전체" first option for filters', () => {

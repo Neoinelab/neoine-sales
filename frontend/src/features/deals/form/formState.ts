@@ -7,6 +7,7 @@ import {
   type BantCategory,
 } from '../../../shared/model/constants'
 import { validateContactInput, type ContactFieldErrors } from '../../../shared/model/contactRules'
+import { parseId } from '../../../shared/model/ids'
 import type { ContactDraft } from '../../../shared/model/inputs'
 import { amountInputError, formatThousandWon, isSameShownAmount, parseAmountInput } from '../../../shared/model/money'
 import type {
@@ -31,7 +32,7 @@ export const EMPTY_DRAFT: ContactDraft = { contactId: null, company: '', name: '
 export interface DealFormState {
   name: string
   ownerId: string
-  /** Vendor/Solution id. 빈 문자열은 선택 안 함. */
+  /** Owner·Vendor·Solution id는 select 값(10진 문자열)으로 들고, 저장할 때 `parseId`로 정수로 바꾼다. 빈 문자열은 선택 안 함. */
   vendorId: string
   solutionId: string
   users: string
@@ -108,9 +109,9 @@ export function bantTexts(bant: DealDetail['bant'], labels: readonly BantLabel[]
 export function formFromDeal(deal: DealDetail, labels: readonly BantLabel[]): DealFormState {
   return {
     name: deal.name,
-    ownerId: deal.ownerId,
-    vendorId: deal.vendor?.id ?? '',
-    solutionId: deal.solution?.id ?? '',
+    ownerId: String(deal.ownerId),
+    vendorId: deal.vendor ? String(deal.vendor.id) : '',
+    solutionId: deal.solution ? String(deal.solution.id) : '',
     users: String(deal.users),
     statusKey: deal.statusKey,
     forecastKey: deal.forecastKey,
@@ -174,8 +175,8 @@ export function validateForm(
 ): FormErrors {
   const errors: FormErrors = {}
   if (state.name.trim() === '') errors.name = 'Deal Name을 입력하세요.'
-  if (state.ownerId === '') errors.ownerId = 'Owner를 선택하세요.'
-  else if (originalOwner?.status === 'resigned' && originalOwner.id === state.ownerId) errors.ownerId = OWNER_RESIGNED_MESSAGE
+  if (parseId(state.ownerId) === undefined) errors.ownerId = 'Owner를 선택하세요.'
+  else if (originalOwner?.status === 'resigned' && String(originalOwner.id) === state.ownerId) errors.ownerId = OWNER_RESIGNED_MESSAGE
   const users = state.users.trim()
   if (users === '') errors.users = USERS_REQUIRED_MESSAGE
   else if (!/^\d+$/.test(users)) errors.users = USERS_MESSAGE
@@ -207,11 +208,13 @@ function normalize(draft: ContactDraft): ContactDraft {
 /** 검증을 통과한 상태를 게이트웨이 입력으로 바꾼다. */
 export function toDealInput(state: DealFormState, labels: readonly BantLabel[]): DealInput {
   const users = state.users.trim()
+  const ownerId = parseId(state.ownerId)
+  if (ownerId === undefined) throw new Error('Owner를 선택하세요.')
   return {
     name: state.name.trim(),
-    ownerId: state.ownerId,
-    vendorId: state.vendorId || null,
-    solutionId: state.solutionId || null,
+    ownerId,
+    vendorId: parseId(state.vendorId) ?? null,
+    solutionId: parseId(state.solutionId) ?? null,
     users: Number(users),
     statusKey: state.statusKey,
     forecastKey: state.forecastKey,

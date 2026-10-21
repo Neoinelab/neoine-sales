@@ -3,6 +3,7 @@
 from app.domain.auth.credentials import LoginId
 from app.domain.auth.principal import Permission, Role
 from app.domain.common.contact import EMAIL_MAX_LENGTH
+from app.domain.user.value_objects import UserId
 from tests.factories import NOW, later
 from tests.factories_auth import make_user
 from tests.support.user_ids import uid
@@ -25,8 +26,10 @@ def test_register_normalizes_login_id_and_starts_without_login_history() -> None
     assert user.email is None
 
 
-def test_register_generates_distinct_ids() -> None:
-    assert make_user("a").id != make_user("a").id
+def test_register_uses_the_given_id() -> None:
+    user = make_user("a", entity_id=UserId(7))
+
+    assert user.id == 7
 
 
 def test_record_login_sets_last_login_and_profile() -> None:

@@ -52,7 +52,7 @@ async def given_user_linked(api: Api, *, login_id: str, kind: str) -> None:
         await link_user(uow_factory, user, kind)
 
 
-async def given_user_resigned(api: Api, *, login_id: str, role: RoleName = "sales") -> str:
+async def given_user_resigned(api: Api, *, login_id: str, role: RoleName = "sales") -> int:
     """연결된 행이 있는 사용자를 등록해 퇴사 처리했다. 사용자 id를 돌려준다."""
     user_id = await given_user_registered(api, login_id=login_id, role=role)
     await given_user_linked(api, login_id=login_id, kind="deal_owner")
@@ -72,9 +72,9 @@ async def given_role_changed(api: Api, *, login_id: str, role: Role) -> None:
         await uow.commit()
 
 
-async def then_no_session_rows(api: Api, user_id: str) -> None:
+async def then_no_session_rows(api: Api, user_id: int) -> None:
     """DB에 그 사용자의 세션 행이 하나도 없다."""
     count = await _query_scalar(
-        api, "select count(*) from auth_sessions where user_id = cast(:id as uuid)", id=user_id
+        api, "select count(*) from auth_sessions where user_id = :id", id=user_id
     )
     assert count == 0

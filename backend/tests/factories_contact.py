@@ -10,15 +10,15 @@ from app.application.contact.inputs import ContactInput
 from app.application.contact.register_contact import RegisterContact
 from app.domain.common.contact import Email, PhoneNumber
 from app.domain.contact.entities import Contact
-from app.domain.contact.values import ContactDetails, ContactKind
+from app.domain.contact.values import ContactDetails, ContactId, ContactKind
 from tests.factories import NOW
+from tests.support.ids import new_id
 
 if TYPE_CHECKING:
     from datetime import datetime
 
     from app.application.ports.clock import Clock
     from app.application.ports.unit_of_work import UnitOfWorkFactory
-    from app.domain.contact.values import ContactId
 
 CUSTOMER_DEFAULTS: dict[str, Any] = {
     "company": "네오인",
@@ -70,7 +70,9 @@ def make_contact(
 ) -> Contact:
     """저장하지 않은 연락처. overrides는 `make_contact_details`와 같다."""
     details = make_contact_details(kind, **overrides)
-    return Contact.create(kind, details, now, entity_id=entity_id)
+    return Contact.create(
+        kind, details, now, entity_id=ContactId(new_id()) if entity_id is None else entity_id
+    )
 
 
 def make_customer(now: datetime = NOW, **overrides: Any) -> Contact:  # noqa: ANN401

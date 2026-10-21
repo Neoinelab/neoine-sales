@@ -5,7 +5,6 @@ Repository가 도메인 오류로 바꾸는 유니크 위반은 계약 테스트
 """
 
 from typing import TYPE_CHECKING, Any
-from uuid import uuid4
 
 import pytest
 from sqlalchemy import text
@@ -13,6 +12,7 @@ from sqlalchemy.exc import IntegrityError
 
 from app.infra.db.user_repository import SqlUserRepository
 from tests.factories_auth import make_user
+from tests.support.ids import new_id
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
@@ -27,7 +27,7 @@ LABEL_COLUMNS = (
 
 def _code(**overrides: Any) -> dict[str, Any]:  # noqa: ANN401
     values: dict[str, Any] = {
-        "id": uuid4(),
+        "id": new_id(),
         "kind": "forecast",
         "key": "zz_ok",
         "name": "ZZ OK",
@@ -40,7 +40,7 @@ def _code(**overrides: Any) -> dict[str, Any]:  # noqa: ANN401
 
 def _label(**overrides: Any) -> dict[str, Any]:  # noqa: ANN401
     values: dict[str, Any] = {
-        "id": uuid4(),
+        "id": new_id(),
         "category": "need",
         "name": "ZZ OK",
         "is_default": False,
@@ -160,7 +160,7 @@ async def test_same_label_name_is_allowed_in_another_category(session: AsyncSess
 
 
 async def test_label_creator_must_be_an_existing_user(session: AsyncSession) -> None:
-    await _rejected(session, _insert_label(session, _label(created_by_user_id=uuid4())))
+    await _rejected(session, _insert_label(session, _label(created_by_user_id=new_id())))
 
 
 async def test_user_who_created_a_label_cannot_be_deleted_directly(session: AsyncSession) -> None:

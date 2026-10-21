@@ -59,21 +59,21 @@ def partner_draft(**overrides: object) -> dict[str, Any]:
     }
 
 
-async def given_my_user_id(api: Api) -> str:
+async def given_my_user_id(api: Api) -> int:
     """로그인한 사용자의 id."""
     response = await api.get(ME)
     assert response.status_code == 200, response.text
-    return str(response.json()["user_id"])
+    return int(response.json()["user_id"])
 
 
 def bant_request(bant: dict[str, Any]) -> dict[str, Any]:
-    """BANT 요청 객체. Label id 문자열은 `{"id": ...}`로 바꾼다.
+    """BANT 요청 객체. Label id(정수)는 `{"id": ...}`로 바꾼다.
 
-    이미 객체(`{"id"}`·`{"name"}`)이거나 None(선택 안 함)인 값은 그대로 둔다. 구 형식(id 문자열
+    이미 객체(`{"id"}`·`{"name"}`)이거나 None(선택 안 함)인 값은 그대로 둔다. 구 형식(id 값
     그대로)은 `when_*_with_body`로 직접 보낸다.
     """
     return {
-        category: {"id": value} if isinstance(value, str) else value
+        category: {"id": value} if isinstance(value, int) else value
         for category, value in bant.items()
     }
 
@@ -81,7 +81,7 @@ def bant_request(bant: dict[str, Any]) -> dict[str, Any]:
 async def deal_body(api: Api, **overrides: object) -> dict[str, Any]:
     """등록 본문. 기본 Owner는 로그인한 사용자이고 overrides로 일부만 바꾼다.
 
-    overrides의 bant는 `bant_request`를 거친다(구분 값이 id 문자열이면 `{"id"}` 객체로 보낸다).
+    overrides의 bant는 `bant_request`를 거친다(구분 값이 정수 id이면 `{"id"}` 객체로 보낸다).
     """
     values: dict[str, Any] = {
         "name": "ERP 구축",
@@ -113,7 +113,7 @@ async def given_deal(api: Api, **overrides: object) -> dict[str, Any]:
     return dict(response.json())
 
 
-async def given_sales_owner(api: Api) -> str:
+async def given_sales_owner(api: Api) -> int:
     """Owner가 될 수 있는 재직 영업 담당자의 id. 없으면 admin이 `deal-owner`를 등록한다.
 
     admin으로 로그인한 상태에서 부른다(등록 뒤에도 admin 로그인 상태가 유지된다).
@@ -121,12 +121,12 @@ async def given_sales_owner(api: Api) -> str:
     options = await api.get("/api/v1/user-options", params={"role": "sales"})
     items = options.json()["items"]
     if items:
-        return str(items[0]["id"])
+        return int(items[0]["id"])
     return await given_user_registered(api, login_id="deal-owner", role="sales")
 
 
 async def given_deal_of_contacts(
-    api: Api, *, customer_id: str, partner_id: str | None = None
+    api: Api, *, customer_id: object, partner_id: object | None = None
 ) -> dict[str, Any]:
     """admin이 만든 연락처를 고객·파트너로 고른 Deal(Owner는 영업 담당자). 값은 그대로 보낸다."""
     owner = await given_sales_owner(api)
@@ -150,7 +150,7 @@ async def given_deal_deleted(api: Api, code: str) -> None:
     assert response.status_code == 204, f"Given 실패 {response.status_code}: {response.text}"
 
 
-async def given_label_id(api: Api, *, category: str, name: str) -> str:
+async def given_label_id(api: Api, *, category: str, name: str) -> int:
     """기본 BANT Label의 id."""
     response = await api.get(BANT_LABELS)
     assert response.status_code == 200, response.text
@@ -160,7 +160,7 @@ async def given_label_id(api: Api, *, category: str, name: str) -> str:
         if label["category"] == category and label["name"] == name
     ]
     assert len(found) == 1, (category, name)
-    return str(found[0])
+    return int(found[0])
 
 
 async def given_clock_at(api: Api, moment: datetime) -> None:

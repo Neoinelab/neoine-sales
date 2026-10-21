@@ -3,7 +3,6 @@
 from dataclasses import dataclass
 from enum import StrEnum
 from typing import TYPE_CHECKING, NewType
-from uuid import UUID
 
 from app.domain.common.errors import InvalidValueError
 from app.domain.common.validation import assign, optional_text, reject_nul
@@ -11,7 +10,7 @@ from app.domain.common.validation import assign, optional_text, reject_nul
 if TYPE_CHECKING:
     from app.domain.common.contact import Email, PhoneNumber
 
-ContactId = NewType("ContactId", UUID)
+ContactId = NewType("ContactId", int)
 
 COMPANY_MAX = 200
 NAME_MAX = 100

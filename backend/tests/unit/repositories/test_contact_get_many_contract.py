@@ -5,11 +5,11 @@
 """
 
 from typing import TYPE_CHECKING
-from uuid import uuid4
 
 from app.domain.contact.values import ContactId, ContactKind
 from tests.factories import later
 from tests.factories_contact import make_customer, make_partner
+from tests.support.ids import new_id
 
 if TYPE_CHECKING:
     from tests.unit.repositories.contact_case import ContactCase
@@ -39,7 +39,7 @@ async def test_each_contact_equals_what_get_returns(contacts: ContactCase) -> No
 async def test_unknown_ids_are_left_out_without_an_error(contacts: ContactCase) -> None:
     customer = make_customer(later(1))
     await contacts.add_all(customer)
-    unknown = ContactId(uuid4())
+    unknown = ContactId(new_id())
 
     found = await contacts.contacts.get_many([customer.id, unknown])
 

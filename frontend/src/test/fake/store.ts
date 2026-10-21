@@ -14,26 +14,26 @@ import type {
 } from '../../shared/model/types'
 
 export interface UserRecord {
-  id: string
+  id: number
   loginId: string
   name: string
   role: Role
   status: UserStatus
   email: string | null
   createdAt: string
-  createdById: string | null
+  createdById: number | null
   lastLoginAt: string | null
   resignedAt: string | null
   resignReason: string | null
 }
 
 export interface ActionRecord {
-  id: string
+  id: number
   dealCode: string
   actedAt: string
-  actorId: string
+  actorId: number
   /** Action 유형(`ActionTypeRecord.id`). 이름은 읽을 때 조인한다. */
-  typeId: string
+  typeId: number
   /** 진행사항·Next Action은 각각 비울 수 있다(둘 다 비면 안 된다). Due Date는 Next Action이 있을 때만 있다. */
   progress: string | null
   nextAction: string | null
@@ -48,12 +48,12 @@ export interface ActionRecord {
 }
 
 export interface HistoryRecord {
-  id: string
+  id: number
   /** 같은 시각 정렬용 일련번호(클수록 나중). */
   seq: number
   dealCode: string
   at: string
-  byId: string
+  byId: number
   category: HistoryCategory
   target: string
   before: string
@@ -61,13 +61,13 @@ export interface HistoryRecord {
 }
 
 export interface AttachmentRecord {
-  id: string
+  id: number
   dealCode: string
   fileName: string
   size: number
   mime: string
   description: string
-  uploadedById: string
+  uploadedById: number
   uploadedAt: string
   /** 업로드한 파일 또는 시드의 더미 텍스트. */
   content: Blob | string
@@ -75,26 +75,26 @@ export interface AttachmentRecord {
 
 /** Action 유형 카탈로그 항목. 기본 유형은 시드 순서를 유지하고 이름은 대소문자 무시로 고유하다. */
 export interface ActionTypeRecord {
-  id: string
+  id: number
   name: string
   isDefault: boolean
-  createdById: string | null
+  createdById: number | null
   createdAt: string
   updatedAt: string
 }
 
 export interface LabelRecord {
-  id: string
+  id: number
   category: BantCategory
   name: string
   isDefault: boolean
-  createdById: string | null
+  createdById: number | null
   createdAt: string
 }
 
 /** Vendor(Aggregate Root). 이름은 대소문자 무시로 고유. */
 export interface VendorRecord {
-  id: string
+  id: number
   name: string
   createdAt: string
   updatedAt: string
@@ -102,26 +102,26 @@ export interface VendorRecord {
 
 /** Vendor 소속 Solution. 이름은 같은 Vendor 안에서 대소문자 무시로 고유. */
 export interface SolutionRecord {
-  id: string
-  vendorId: string
+  id: number
+  vendorId: number
   name: string
   createdAt: string
   updatedAt: string
 }
 
-export type DirectoryRecord = Omit<DirectorySettings, 'updatedBy'> & { updatedById: string | null }
+export type DirectoryRecord = Omit<DirectorySettings, 'updatedBy'> & { updatedById: number | null }
 
 export interface StorageRecord {
   path: string
   updatedAt: string
-  updatedById: string | null
+  updatedById: number | null
 }
 
 /** 경고 기준(미업데이트 일수). 저장된 적이 없으면 updatedAt/updatedById가 null. */
 export interface AlertRecord {
   staleDays: number
   updatedAt: string | null
-  updatedById: string | null
+  updatedById: number | null
 }
 
 /** 시드가 만들어 주는 전체 데이터. */
@@ -147,30 +147,15 @@ export interface SeedData {
 
 export interface MockStore {
   data: SeedData
-  session: { userId: string | null }
+  session: { userId: number | null }
   storageFailure: boolean
 }
 
-/** `prefix-001` 형식의 순번 id를 만든다(테스트 안정성을 위해 UUID를 쓰지 않는다). */
-export function takeId(counters: Record<string, number>, prefix: string): string {
+/** 종류(접두사)별 순번 id를 만든다. 서버의 BIGINT 시퀀스처럼 1부터 1씩 커지는 정수다. */
+export function takeId(counters: Record<string, number>, prefix: string): number {
   const next = (counters[prefix] ?? 0) + 1
   counters[prefix] = next
-  return `${prefix}-${String(next).padStart(3, '0')}`
-}
-
-/**
- * Vendor·Solution id는 서버처럼 UUID 형식이다(목록 URL의 `vendor`·`solution` 값은 UUID일 때만 질의가 되므로).
- * 순번이 같으면 같은 id가 나온다: vendors는 `10000000-…`, solutions는 `20000000-…`로 시작한다.
- */
-export function uuidOf(prefix: 'vd' | 'sl', n: number): string {
-  return `${prefix === 'vd' ? '1' : '2'}0000000-0000-4000-8000-${String(n).padStart(12, '0')}`
-}
-
-/** `uuidOf` 형식의 새 id(카운터를 올린다). */
-export function takeUuid(counters: Record<string, number>, prefix: 'vd' | 'sl'): string {
-  const next = (counters[prefix] ?? 0) + 1
-  counters[prefix] = next
-  return uuidOf(prefix, next)
+  return next
 }
 
 /** History 일련번호. */
@@ -180,6 +165,6 @@ export function nextSeq(counters: Record<string, number>): number {
   return next
 }
 
-export function createStore(seed: SeedData, userId: string | null): MockStore {
+export function createStore(seed: SeedData, userId: number | null): MockStore {
   return { data: seed, session: { userId }, storageFailure: false }
 }

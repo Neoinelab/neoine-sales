@@ -6,7 +6,7 @@ import type { ContactDraft } from '../model/inputs'
 import type { ContactKind, ContactRow } from '../model/types'
 import { ContactPicker } from './ContactPicker'
 
-function row(id: string, company: string, name: string, extra: Partial<ContactRow> = {}): ContactRow {
+function row(id: number, company: string, name: string, extra: Partial<ContactRow> = {}): ContactRow {
   return {
     id,
     kind: 'customer',
@@ -23,10 +23,10 @@ function row(id: string, company: string, name: string, extra: Partial<ContactRo
 }
 
 const ROWS: ContactRow[] = [
-  row('c1', '한빛상사', '김철수', { title: '부장', email: 'kim@hanbit.kr', phone: '010-1234-5678', dealCount: 3 }),
-  row('c2', '한빛상사', '이영희', { title: '대리', email: 'lee@hanbit.kr' }),
-  row('c3', '한빛상사', '박무메일', { title: '사원', email: null, phone: null }),
-  row('c4', '대한소프트', '최대한'),
+  row(1, '한빛상사', '김철수', { title: '부장', email: 'kim@hanbit.kr', phone: '010-1234-5678', dealCount: 3 }),
+  row(2, '한빛상사', '이영희', { title: '대리', email: 'lee@hanbit.kr' }),
+  row(3, '한빛상사', '박무메일', { title: '사원', email: null, phone: null }),
+  row(4, '대한소프트', '최대한'),
 ]
 
 const companies = vi.hoisted(() => ({ calls: [] as ContactKind[] }))
@@ -128,7 +128,7 @@ describe('ContactPicker', () => {
     expect(screen.getByLabelText('고객 이메일')).toHaveValue('kim@hanbit.kr')
     expect(screen.getByLabelText('고객 전화')).toHaveValue('010-1234-5678')
     expect(onValue).toHaveBeenLastCalledWith({
-      contactId: 'c1',
+      contactId: 1,
       company: '한빛상사',
       name: '김철수',
       title: '부장',
@@ -148,7 +148,7 @@ describe('ContactPicker', () => {
     await userEvent.clear(screen.getByLabelText('고객 전화'))
     await userEvent.type(screen.getByLabelText('고객 전화'), '010-9999-0000')
 
-    expect(onValue).toHaveBeenLastCalledWith(expect.objectContaining({ contactId: 'c1', phone: '010-9999-0000' }))
+    expect(onValue).toHaveBeenLastCalledWith(expect.objectContaining({ contactId: 1, phone: '010-9999-0000' }))
   })
 
   it('treats typing a new company and person as a new contact', async () => {
@@ -275,7 +275,7 @@ describe('ContactPicker', () => {
     render(
       <Host
         onValue={onValue}
-        initial={{ contactId: 'c1', company: '한빛상사', name: '김철수', title: '부장', email: 'kim@hanbit.kr', phone: null }}
+        initial={{ contactId: 1, company: '한빛상사', name: '김철수', title: '부장', email: 'kim@hanbit.kr', phone: null }}
       />,
     )
 

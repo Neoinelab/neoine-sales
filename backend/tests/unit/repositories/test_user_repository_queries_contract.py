@@ -1,7 +1,6 @@
 """UserRepository 조회 계약: 상태별 목록, UserRef 일괄 조회, 사용자 선택 검색(Fake와 SQL 공통)."""
 
 from typing import TYPE_CHECKING
-from uuid import uuid4
 
 import pytest
 import pytest_asyncio
@@ -13,6 +12,7 @@ from tests.factories import later
 from tests.factories_auth import make_resigned_user, make_user
 from tests.fakes.user_repository import FakeUserRepository
 from tests.support.database import rolled_back_session
+from tests.support.ids import new_id
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
@@ -108,7 +108,7 @@ async def test_get_refs_falls_back_to_login_id_and_skips_unknown_ids(
 ) -> None:
     user = make_user("newbie")
     await repository.add(user)
-    unknown = UserId(uuid4())
+    unknown = UserId(new_id())
 
     refs = await repository.get_refs([user.id, unknown, user.id])
 

@@ -96,10 +96,10 @@ async def then_user_is_listed_as_resigned(api: Api, login_id: str) -> None:
     then_is_scenario_now(user["deleted_at"])
 
 
-async def then_login_rows_are(api: Api, login_id: str, expected: Sequence[tuple[str, str]]) -> None:
+async def then_login_rows_are(api: Api, login_id: str, expected: Sequence[tuple[int, str]]) -> None:
     """전체 목록에서 그 아이디의 행이 (id, 상태) 순서대로 expected와 같다."""
     items = (await api.get(USERS, params={"status": "all"})).json()["items"]
-    rows = [(str(i["id"]), str(i["status"])) for i in items if i["login_id"] == login_id]
+    rows = [(int(i["id"]), str(i["status"])) for i in items if i["login_id"] == login_id]
     assert rows == list(expected)
 
 

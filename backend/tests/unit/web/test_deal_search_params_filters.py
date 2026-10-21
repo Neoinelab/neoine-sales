@@ -4,8 +4,6 @@
 quarter는 연도 없이도 쓸 수 있다(올해 채우기는 ListDeals가 한다). 모르는 파라미터는 여전히 거절한다.
 """
 
-from uuid import uuid4
-
 import pytest
 from pydantic import ValidationError
 
@@ -14,6 +12,7 @@ from app.application.ports.deal_repository import DealSort, SortOrder
 from app.domain.bant.values import BantCategory
 from app.domain.common.errors import InvalidValueError
 from app.web.schemas.deal import DealSearchParams
+from tests.support.ids import new_id
 from tests.support.user_ids import uid
 
 VIEWER = uid("viewer")
@@ -34,7 +33,7 @@ def test_the_new_conditions_default_to_none() -> None:
 
 
 def test_each_bant_parameter_maps_to_its_category() -> None:
-    ids = {name: uuid4() for name in ("budget", "authority", "need", "timeline")}
+    ids = {name: new_id() for name in ("budget", "authority", "need", "timeline")}
 
     query = DealSearchParams(
         bant_budget=ids["budget"],
@@ -52,7 +51,7 @@ def test_each_bant_parameter_maps_to_its_category() -> None:
 
 
 def test_only_the_given_bant_parameters_become_conditions() -> None:
-    label = uuid4()
+    label = new_id()
 
     query = DealSearchParams(bant_need=label).to_query(VIEWER)
 
@@ -118,7 +117,7 @@ def test_the_year_boundaries_are_accepted(year: int) -> None:
     [
         {"solution_id": "S/4HANA"},
         {"forecast_key": "a" * 51},
-        {"bant_budget": "not-a-uuid"},
+        {"bant_budget": "not-an-id"},
         {"year": "twenty"},
         {"quarter": "q2"},
     ],
@@ -126,6 +125,23 @@ def test_the_year_boundaries_are_accepted(year: int) -> None:
 def test_malformed_new_values_are_rejected(params: dict[str, object]) -> None:
     with pytest.raises(ValidationError):
         DealSearchParams(**params)
+
+
+BANT_PARAMS = ["bant_budget", "bant_authority", "bant_need", "bant_timeline"]
+
+
+@pytest.mark.parametrize("field", BANT_PARAMS)
+@pytest.mark.parametrize("bad", ["abc", "1.5", "0", "-1", 0, -1, 2**53, "9007199254740992"])
+def test_id_query_parameters_must_be_positive_integers(field: str, bad: object) -> None:
+    with pytest.raises(ValidationError):
+        DealSearchParams(**{field: bad})
+
+
+@pytest.mark.parametrize("field", BANT_PARAMS)
+def test_bant_id_query_parameters_arrive_as_text_and_become_integers(field: str) -> None:
+    query = DealSearchParams.model_validate({field: "5"}).to_query(VIEWER)
+
+    assert list(query.bant_label_ids.values()) == [5]
 
 
 def test_the_new_conditions_keep_working_together_with_mine() -> None:

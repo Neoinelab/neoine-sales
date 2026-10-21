@@ -3,7 +3,6 @@
 import re
 from datetime import UTC, date, datetime
 from typing import TYPE_CHECKING
-from uuid import uuid4
 
 import pytest
 
@@ -21,6 +20,7 @@ from tests.fakes.deal_code_source import FakeDealCodeSuffixSource
 from tests.support.auth_seed import seed_user
 from tests.support.catalog import label_by_name
 from tests.support.expect import raises_with
+from tests.support.ids import new_id
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -297,4 +297,4 @@ class TestBant:
 
     async def test_an_unknown_label_id_is_rejected(self, env: DealEnv) -> None:
         with raises_with(InvalidBantLabelError, LABEL_INVALID):
-            await env.new_deal(bant={BantCategory.BUDGET: uuid4()})
+            await env.new_deal(bant={BantCategory.BUDGET: new_id()})

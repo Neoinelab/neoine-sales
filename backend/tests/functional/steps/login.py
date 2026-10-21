@@ -5,7 +5,6 @@
 """
 
 from typing import TYPE_CHECKING
-from uuid import UUID
 
 from app.application.auth.messages import LOGIN_FAILED
 from app.application.ports.directory import DirectoryUnavailableError, VerificationStage
@@ -65,7 +64,7 @@ async def given_employee(
     role: RoleName = "sales",
     display_name: str = "김영업",
     email: str = "kim@corp.test",
-) -> str:
+) -> int:
     """AD 계정이 있고 역할과 함께 등록된 사원이 있다. 로그아웃 상태로 두고 사용자 id를 돌려준다."""
     user_id = await given_user_registered(api, login_id=login_id, role=role)
     given_ad_account(api, login_id=login_id, display_name=display_name, email=email)
@@ -73,7 +72,7 @@ async def given_employee(
     return user_id
 
 
-async def given_employee_deleted(api: Api, *, user_id: str) -> None:
+async def given_employee_deleted(api: Api, *, user_id: object) -> None:
     """admin이 그 사원을 삭제(퇴사 처리 포함)했다. admin(`root`)으로 로그인한 뒤 로그아웃한다."""
     login = await api.post(LOGIN, json=credentials(ADMIN_LOGIN))
     assert login.status_code == 200, login.text
@@ -166,10 +165,12 @@ def then_login_failed_with_the_common_401(response: Response) -> None:
 def then_signed_in_as(
     response: Response, *, subject: str, email: str | None, name: str, role: str
 ) -> None:
-    """로그인(또는 최초 설정) 응답이 users 행의 id(UUID)와 주체 정보를 정확히 담는다."""
+    """로그인(또는 최초 설정) 응답이 users 행의 id(정수)와 주체 정보를 정확히 담는다."""
     assert response.status_code == 200, response.text
     body = dict(response.json())
-    assert str(UUID(body.pop("user_id")))
+    user_id = body.pop("user_id")
+    assert type(user_id) is int
+    assert user_id >= 1
     assert body == {"subject": subject, "email": email, "name": name, "role": role}
 
 

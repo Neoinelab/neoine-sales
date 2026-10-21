@@ -2,7 +2,6 @@
 미사용 Vendor는 소속 Solution과 함께."""
 
 from typing import TYPE_CHECKING
-from uuid import uuid4
 
 import pytest
 
@@ -17,6 +16,7 @@ from app.domain.vendor.errors import (
 from app.domain.vendor.values import SolutionId, VendorId
 from tests.factories_deal import seed_deal
 from tests.factories_vendor import make_vendor
+from tests.support.ids import new_id
 
 if TYPE_CHECKING:
     from app.application.ports.unit_of_work import UnitOfWorkFactory
@@ -82,7 +82,7 @@ async def test_delete_vendor_ignores_usage_of_other_vendors(
 
 async def test_delete_missing_vendor_is_not_found(uow_factory: UnitOfWorkFactory) -> None:
     with pytest.raises(VendorNotFoundError):
-        await DeleteVendor(uow_factory).execute(VendorId(uuid4()))
+        await DeleteVendor(uow_factory).execute(VendorId(new_id()))
 
 
 async def test_delete_solution_used_by_a_deal_is_rejected(
@@ -129,4 +129,4 @@ async def test_delete_solution_of_missing_vendor_is_not_found(
     uow_factory: UnitOfWorkFactory,
 ) -> None:
     with pytest.raises(VendorNotFoundError):
-        await DeleteSolution(uow_factory).execute(VendorId(uuid4()), SolutionId(uuid4()))
+        await DeleteSolution(uow_factory).execute(VendorId(new_id()), SolutionId(new_id()))

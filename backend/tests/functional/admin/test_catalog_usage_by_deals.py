@@ -39,7 +39,7 @@ if TYPE_CHECKING:
 pytestmark = pytest.mark.integration
 
 
-async def _label_usage(api: Api, label_id: str) -> int:
+async def _label_usage(api: Api, label_id: int) -> int:
     (found,) = [x for x in await given_label_list(api) if x["id"] == label_id]
     usage = found["usage_count"]
     assert isinstance(usage, int)

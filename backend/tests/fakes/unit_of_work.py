@@ -15,6 +15,7 @@ from tests.fakes.catalog import FakeBantLabelRepository, FakeCodeRepository
 from tests.fakes.contacts import FakeContactRepository
 from tests.fakes.deal_history import FakeDealHistoryRepository
 from tests.fakes.directory_settings_repository import FakeDirectorySettingsRepository
+from tests.fakes.id_allocator import FakeIdAllocator
 from tests.fakes.repositories import (
     FakeDealActionRepository,
     FakeDealRepository,
@@ -27,6 +28,8 @@ from tests.fakes.vendors import FakeVendorRepository
 
 class FakeUnitOfWork:
     def __init__(self) -> None:
+        # 시퀀스는 트랜잭션 밖에 있다: 롤백 스냅숏(_repositories)에 넣지 않는다
+        self.ids = FakeIdAllocator()
         self.contacts = FakeContactRepository()
         self.deals = FakeDealRepository()
         self.deal_actions = FakeDealActionRepository()

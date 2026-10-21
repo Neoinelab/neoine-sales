@@ -20,18 +20,18 @@ export function useCreateLabel(): Mutation<{ category: BantCategory; name: strin
 }
 
 /** gateway.labels.rename. 성공: keys.labels + keys.deals 무효화. */
-export function useRenameLabel(): Mutation<{ id: string; name: string }, BantLabelWithUsage> {
+export function useRenameLabel(): Mutation<{ id: number; name: string }, BantLabelWithUsage> {
   const invalidate = useInvalidate()
-  return useMutation<BantLabelWithUsage, ApiError, { id: string; name: string }>({
+  return useMutation<BantLabelWithUsage, ApiError, { id: number; name: string }>({
     mutationFn: ({ id, name }) => gateway.labels.rename(id, name),
     onSuccess: () => invalidate(keys.labels, keys.deals),
   })
 }
 
 /** gateway.labels.remove(id). 성공: keys.labels 무효화. */
-export function useRemoveLabel(): Mutation<string> {
+export function useRemoveLabel(): Mutation<number> {
   const invalidate = useInvalidate()
-  return useMutation<void, ApiError, string>({
+  return useMutation<void, ApiError, number>({
     mutationFn: (id) => gateway.labels.remove(id),
     onSuccess: () => invalidate(keys.labels),
   })

@@ -1,7 +1,6 @@
 """코드(Status·Forecast) 관리. 조회는 로그인 사용자, 사용 수 조회와 변경은 admin 전용."""
 
 from typing import Any
-from uuid import UUID
 
 from fastapi import APIRouter, Depends, Response, status
 
@@ -17,6 +16,7 @@ from app.web.schemas.code import (
     CodeUsageResponse,
     usage_responses,
 )
+from app.web.schemas.ids import PathId
 
 router = APIRouter(prefix="/api/v1/codes", tags=["codes"])
 ADMIN = [Depends(require_admin)]
@@ -73,7 +73,7 @@ async def reorder_codes(body: CodeOrderRequest, provider: Provider) -> list[Code
     responses={**ADMIN_ERRORS, **WRITE_ERRORS},
 )
 async def rename_code(
-    code_id: UUID, body: CodeRenameRequest, provider: Provider
+    code_id: PathId, body: CodeRenameRequest, provider: Provider
 ) -> CodeUsageResponse:
     item = await provider.rename_code().execute(CodeId(code_id), body.name)
     return CodeUsageResponse.from_usage(item)
@@ -85,5 +85,5 @@ async def rename_code(
     dependencies=ADMIN,
     responses={**ADMIN_ERRORS, **READ_ERRORS, 409: PROBLEM},
 )
-async def delete_code(code_id: UUID, provider: Provider) -> None:
+async def delete_code(code_id: PathId, provider: Provider) -> None:
     await provider.delete_code().execute(CodeId(code_id))

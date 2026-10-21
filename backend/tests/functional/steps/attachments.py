@@ -57,7 +57,7 @@ def list_url(code: str) -> str:
     return f"{DEALS}/{code}/attachments"
 
 
-def item_url(attachment_id: str) -> str:
+def item_url(attachment_id: object) -> str:
     return f"{ATTACHMENTS}/{attachment_id}"
 
 
@@ -161,19 +161,19 @@ async def when_list_attachments(api: Api, code: str, *, session: Session | None 
 
 
 async def when_get_attachment(
-    api: Api, attachment_id: str, *, session: Session | None = None
+    api: Api, attachment_id: object, *, session: Session | None = None
 ) -> Response:
     return await api.get(item_url(attachment_id), headers=headers_of(session))
 
 
 async def when_download(
-    api: Api, attachment_id: str, *, session: Session | None = None
+    api: Api, attachment_id: object, *, session: Session | None = None
 ) -> Response:
     return await api.get(f"{item_url(attachment_id)}/download", headers=headers_of(session))
 
 
 async def when_delete_attachment(
-    api: Api, attachment_id: str, *, session: Session | None = None
+    api: Api, attachment_id: object, *, session: Session | None = None
 ) -> Response:
     api.clock.advance(GAP_SECONDS)
     return await api.request("DELETE", item_url(attachment_id), headers=headers_of(session))
@@ -236,7 +236,10 @@ def then_stored_file_is_named_by_a_key(api: Api, code: str, original_name: str) 
 
 async def then_row_count_is(api: Api, code: str, count: int) -> None:
     rows = await sql_rows(
-        api, "select count(*) from deal_attachments where deal_code = :code", code=code
+        api,
+        "select count(*) from deal_attachments a join deals d on d.id = a.deal_id"
+        " where d.deal_code = :code",
+        code=code,
     )
     assert rows == [(count,)]
 
@@ -268,6 +271,6 @@ async def then_deal_updated_at_is_now(api: Api, code: str) -> None:
 
 
 async def then_attachment_is_unchanged(api: Api, before: dict[str, Any]) -> None:
-    response = await when_get_attachment(api, str(before["id"]))
+    response = await when_get_attachment(api, int(before["id"]))
     then_status_is(response, 200)
     assert response.json() == before

@@ -7,13 +7,13 @@ import { RiskBadge, riskRowClass } from './RiskBadge'
 
 const CODES: CodeSet = {
   statuses: [
-    { id: 's1', kind: 'status', key: 'poc', name: 'POC', order: 1, locked: false, outcome: 'open', probabilityHint: null },
-    { id: 's2', kind: 'status', key: 'contract_completed', name: '계약완료', order: 2, locked: true, outcome: 'open', probabilityHint: null },
+    { id: 1, kind: 'status', key: 'poc', name: 'POC', order: 1, locked: false, outcome: 'open', probabilityHint: null },
+    { id: 2, kind: 'status', key: 'contract_completed', name: '계약완료', order: 2, locked: true, outcome: 'open', probabilityHint: null },
   ],
   forecasts: [
-    { id: 'f1', kind: 'forecast', key: 'commit', name: 'Commit', order: 1, locked: false, outcome: 'open', probabilityHint: '90%' },
-    { id: 'f2', kind: 'forecast', key: 'won', name: '수주', order: 2, locked: true, outcome: 'won', probabilityHint: null },
-    { id: 'f3', kind: 'forecast', key: 'lost', name: 'Lost', order: 3, locked: true, outcome: 'lost', probabilityHint: null },
+    { id: 4, kind: 'forecast', key: 'commit', name: 'Commit', order: 1, locked: false, outcome: 'open', probabilityHint: '90%' },
+    { id: 5, kind: 'forecast', key: 'won', name: '수주', order: 2, locked: true, outcome: 'won', probabilityHint: null },
+    { id: 6, kind: 'forecast', key: 'lost', name: 'Lost', order: 3, locked: true, outcome: 'lost', probabilityHint: null },
   ],
 }
 

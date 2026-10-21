@@ -22,12 +22,13 @@ from tests.functional.steps.users import (
     when_register_with_body,
     when_request_as,
 )
+from tests.support.ids import MISSING_ID
 
 if TYPE_CHECKING:
     from tests.functional.conftest import Api
 
 pytestmark = pytest.mark.integration
-SOME_ID = "6f1c1b3a-0000-4000-8000-000000000001"
+SOME_ID = MISSING_ID
 
 
 @pytest.mark.parametrize("role", ["admin", "sales", "user"])

@@ -8,7 +8,7 @@ import { read, requireUser, requireWrite, viewerOf, write, type MockContext } fr
 import { logHistory } from './historyLog'
 import { attachmentView, findDeal, userRef } from './views'
 
-function find(ctx: MockContext, id: string): AttachmentRecord {
+function find(ctx: MockContext, id: number): AttachmentRecord {
   const found = ctx.store.data.attachments.find((a) => a.id === id)
   if (!found) throw notFound('첨부 파일을 찾을 수 없습니다.')
   return found
@@ -23,7 +23,7 @@ export function createAttachmentsGateway(ctx: MockContext): AttachmentsGateway {
         findDeal(data, dealCode)
         return data.attachments
           .filter((a) => a.dealCode === dealCode)
-          .sort((a, b) => compareIso(b.uploadedAt, a.uploadedAt) || b.id.localeCompare(a.id))
+          .sort((a, b) => compareIso(b.uploadedAt, a.uploadedAt) || b.id - a.id)
           .map((a) => attachmentView(data, a))
       }),
     upload: (dealCode, input) =>

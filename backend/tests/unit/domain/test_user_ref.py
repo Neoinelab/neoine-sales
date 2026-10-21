@@ -1,7 +1,6 @@
 """AC8: 사용자 표기(label)는 UserRef 한 곳에서 만든다. 퇴사자는 `이름(퇴사)`."""
 
 import dataclasses
-from uuid import uuid4
 
 import pytest
 
@@ -9,16 +8,17 @@ from app.domain.auth.principal import Role
 from app.domain.user.value_objects import UserDeleteReason, UserId, UserRef
 from tests.factories import later
 from tests.factories_auth import make_resigned_user, make_user
+from tests.support.ids import new_id
 
 
 def test_label_is_the_name_for_an_active_user() -> None:
-    ref = UserRef(id=UserId(uuid4()), name="홍길동", resigned=False, role=Role.SALES)
+    ref = UserRef(id=UserId(new_id()), name="홍길동", resigned=False, role=Role.SALES)
 
     assert ref.label == "홍길동"
 
 
 def test_label_adds_resigned_suffix_for_a_resigned_user() -> None:
-    ref = UserRef(id=UserId(uuid4()), name="홍길동", resigned=True, role=Role.SALES)
+    ref = UserRef(id=UserId(new_id()), name="홍길동", resigned=True, role=Role.SALES)
 
     assert ref.label == "홍길동(퇴사)"
 

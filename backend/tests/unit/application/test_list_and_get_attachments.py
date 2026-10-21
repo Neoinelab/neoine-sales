@@ -1,7 +1,6 @@
 """ListAttachments / GetAttachment(P2b AC-12): 업로드 시각 최신순 목록과 단건 조회."""
 
 from typing import TYPE_CHECKING
-from uuid import uuid4
 
 import pytest
 
@@ -9,6 +8,7 @@ from app.domain.attachment.errors import AttachmentNotFoundError
 from app.domain.attachment.values import AttachmentId
 from app.domain.deal.errors import DealNotFoundError
 from tests.support.expect import raises_with
+from tests.support.ids import new_id
 from tests.unit.application.attachment_env import DEAL_NOT_FOUND, KIM, NOT_FOUND, PARK
 
 if TYPE_CHECKING:
@@ -36,7 +36,7 @@ async def test_uploads_at_the_same_time_are_ordered_by_id_descending(
 
     found = await attachment_env.list.execute(attachment_env.code)
 
-    assert [a.id for a in found] == sorted((a.id for a in same_time), key=str, reverse=True)
+    assert [a.id for a in found] == sorted((a.id for a in same_time), reverse=True)
 
 
 async def test_a_replaced_file_moves_to_the_top(attachment_env: AttachmentEnv) -> None:
@@ -80,4 +80,4 @@ async def test_get_returns_the_attachment(attachment_env: AttachmentEnv) -> None
 
 async def test_get_of_an_unknown_id_is_not_found(attachment_env: AttachmentEnv) -> None:
     with raises_with(AttachmentNotFoundError, NOT_FOUND):
-        await attachment_env.get.execute(AttachmentId(uuid4()))
+        await attachment_env.get.execute(AttachmentId(new_id()))

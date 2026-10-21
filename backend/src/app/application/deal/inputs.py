@@ -8,7 +8,6 @@ from app.application.contact.inputs import ContactInput
 if TYPE_CHECKING:
     from collections.abc import Mapping
     from datetime import date
-    from uuid import UUID
 
     from app.application.choice import CatalogChoice
     from app.domain.auth.principal import Role
@@ -31,7 +30,7 @@ class Actor:
 class ContactDraftInput:
     """Deal 화면의 연락처 입력. contact_id가 있으면 그 연락처를 골라 입력값으로 갱신한다."""
 
-    contact_id: UUID | None
+    contact_id: int | None
     company: str
     name: str
     title: str | None
@@ -62,9 +61,9 @@ class DealChangeInput:
 @dataclass(frozen=True, slots=True)
 class DealCreateInput:
     name: str
-    owner_user_id: UUID
-    vendor_id: UUID | None
-    solution_id: UUID | None
+    owner_user_id: int
+    vendor_id: int | None
+    solution_id: int | None
     users: int
     status_key: str
     forecast_key: str
@@ -89,9 +88,9 @@ class DealPatchInput:
 
     provided: frozenset[str]
     name: str | None = None
-    owner_user_id: UUID | None = None
-    vendor_id: UUID | None = None
-    solution_id: UUID | None = None
+    owner_user_id: int | None = None
+    vendor_id: int | None = None
+    solution_id: int | None = None
     users: int | None = None
     status_key: str | None = None
     forecast_key: str | None = None

@@ -33,7 +33,7 @@ export function VendorManager() {
   const renameSolution = useRenameSolution()
   const removeSolution = useRemoveSolution()
   const [newName, setNewName] = useState('')
-  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editingKey, setEditingKey] = useState<string | null>(null)
   const [deleting, setDeleting] = useState<Deleting | null>(null)
   const [error, setError] = useState<unknown>(null)
   const busy = [createVendor, renameVendor, removeVendor, createSolution, renameSolution, removeSolution].some((m) => m.isPending)
@@ -65,15 +65,15 @@ export function VendorManager() {
           <VendorCard
             key={vendor.id}
             vendor={vendor}
-            editingId={editingId}
+            editingKey={editingKey}
             busy={busy}
-            onEdit={(id) => {
+            onEdit={(key) => {
               setError(null)
-              setEditingId(id)
+              setEditingKey(key)
             }}
             onRenameVendor={(v, name) => {
               setError(null)
-              renameVendor.mutate({ id: v.id, name }, { onSuccess: () => setEditingId(null), onError: setError })
+              renameVendor.mutate({ id: v.id, name }, { onSuccess: () => setEditingKey(null), onError: setError })
             }}
             onDeleteVendor={(v) => setDeleting({ kind: 'vendor', vendor: v })}
             onAddSolution={(v, name, done) => {
@@ -84,7 +84,7 @@ export function VendorManager() {
               setError(null)
               renameSolution.mutate(
                 { vendorId: s.vendorId, solutionId: s.id, name },
-                { onSuccess: () => setEditingId(null), onError: setError },
+                { onSuccess: () => setEditingKey(null), onError: setError },
               )
             }}
             onDeleteSolution={(s) => setDeleting({ kind: 'solution', solution: s })}

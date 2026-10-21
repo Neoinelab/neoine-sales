@@ -4,9 +4,9 @@ Deal 원장(deals와 딸린 테이블)은 models_deal.py, 연락처·코드·Lab
 """
 
 from datetime import date, datetime
-from uuid import UUID
 
 from sqlalchemy import (
+    BigInteger,
     CheckConstraint,
     Date,
     DateTime,
@@ -16,18 +16,17 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
-    Uuid,
     text,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.infra.db.base import Base
+from app.infra.db.base import Base, identity_key
 
 
 class AuditColumns:
     """모든 테이블 공통: 식별자, 생성·수정 시각."""
 
-    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True)
+    id: Mapped[int] = mapped_column(BigInteger, identity_key(), primary_key=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
@@ -37,23 +36,24 @@ class DealActionRow(AuditColumns, Base):
 
     __tablename__ = "deal_actions"
 
-    deal_code: Mapped[str] = mapped_column(
-        String(13), ForeignKey("deals.deal_code", ondelete="CASCADE")
+    deal_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("deals.id", ondelete="CASCADE"))
+    action_type_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("action_types.id", ondelete="RESTRICT")
     )
-    action_type_id: Mapped[UUID] = mapped_column(ForeignKey("action_types.id", ondelete="RESTRICT"))
     action: Mapped[str | None] = mapped_column(Text, default=None)
     next_action: Mapped[str | None] = mapped_column(Text, default=None)
     due_date: Mapped[date | None] = mapped_column(Date, default=None)
     memo: Mapped[str] = mapped_column(Text, default="")
     # Next Action이 있는 행에만 상태가 있다(없으면 NULL). 종료 상태일 때만 종료 시각이 있다.
-    # 서버 기본값 'open'은 마이그레이션에만 둔다(모델에 두면 NULL 삽입을 ORM이 생략한다).
-    # 구 앱 INSERT 호환용이며 contract 단계에서 제거한다(c7f1a9d3e5b2 docstring).
+    # 서버 기본값은 없다(앱이 항상 값을 정한다). 구 앱 호환용 'open' 기본값은 bigint_ids에서 뺐다.
     next_action_status: Mapped[str | None] = mapped_column(String(20), default=None)
     next_action_closed_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), default=None
     )
     acted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
-    actor_user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"))
+    actor_user_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("users.id", ondelete="RESTRICT")
+    )
     # 기록 시점의 Status·Forecast 스냅숏. 이후 Deal이 바뀌어도 따라가지 않는다.
     status_kind: Mapped[str] = mapped_column(
         String(20), default="status", server_default=text("'status'")
@@ -97,7 +97,7 @@ class DealActionRow(AuditColumns, Base):
         Index("ix_deal_actions_status_key", "status_key"),
         Index("ix_deal_actions_forecast_key", "forecast_key"),
         Index("ix_deal_actions_actor_user_id", "actor_user_id"),
-        Index("ix_deal_actions_deal_code_acted_at", "deal_code", "acted_at"),
+        Index("ix_deal_actions_deal_id_acted_at", "deal_id", "acted_at"),
         Index("ix_deal_actions_acted_at", "acted_at"),
         Index("ix_deal_actions_due_date", "due_date"),
     )
@@ -106,9 +106,9 @@ class DealActionRow(AuditColumns, Base):
 class AuthSessionRow(Base):
     __tablename__ = "auth_sessions"
 
-    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True)
+    id: Mapped[int] = mapped_column(BigInteger, identity_key(), primary_key=True)
     token_hash: Mapped[str] = mapped_column(String(64))
-    user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"))
+    user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.id", ondelete="RESTRICT"))
     email: Mapped[str | None] = mapped_column(String(254), default=None)
     name: Mapped[str] = mapped_column(String(200))
     role: Mapped[str] = mapped_column(String(20))

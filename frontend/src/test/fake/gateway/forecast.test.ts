@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { ForecastQuery } from '../../../shared/model/types'
 import { seedVendorId } from '../../fixtures/vendors'
 import { dealCode, dealInput, expectApiError, mockAs } from '../testing'
+import { USER_ID } from '../seed/ids'
 
 type Gw = Awaited<ReturnType<typeof mockAs>>['gateway']
 
@@ -45,7 +46,7 @@ describe('forecast.summary', () => {
       { year: 2026, quarter: 4 },
       { year: 2027, quarter: 1 },
       { year: 2026, vendorId: seedVendorId('Silverfort') },
-      { year: 2026, quarter: 4, ownerId: 'u-kim' },
+      { year: 2026, quarter: 4, ownerId: USER_ID.kim },
     ]
     for (const query of queries) {
       const summary = await gateway.forecast.summary(query)
@@ -63,8 +64,8 @@ describe('forecast.summary', () => {
 
   it('T-FC-01 분기 경계: 12/31은 Q4, 1/1은 다음 해 Q1', async () => {
     const { gateway } = await mockAs('kim')
-    const dec = await gateway.deals.create(dealInput('u-kim', { name: '경계 12/31', revenueDate: '2028-12-31', forecastKey: 'commit', revenueAmount: 7_000_000 }))
-    const jan = await gateway.deals.create(dealInput('u-kim', { name: '경계 1/1', revenueDate: '2029-01-01', forecastKey: 'best', revenueAmount: 3_000_000 }))
+    const dec = await gateway.deals.create(dealInput(USER_ID.kim, { name: '경계 12/31', revenueDate: '2028-12-31', forecastKey: 'commit', revenueAmount: 7_000_000 }))
+    const jan = await gateway.deals.create(dealInput(USER_ID.kim, { name: '경계 1/1', revenueDate: '2029-01-01', forecastKey: 'best', revenueAmount: 3_000_000 }))
     const y2028 = await gateway.forecast.summary({ year: 2028 })
     expect(y2028.totalRow.cells.commit).toEqual({ count: 1, amount: 7_000_000 })
     expect(y2028.totalRow.cells.best).toEqual({ count: 0, amount: 0 })
@@ -91,7 +92,7 @@ describe('forecast.summary', () => {
     const { gateway } = await mockAs('kim')
     const code = dealCode(1)
     const deal = await gateway.deals.get(code)
-    const query = { year: Number(deal.revenueDate.slice(0, 4)), ownerId: 'u-kim' }
+    const query = { year: Number(deal.revenueDate.slice(0, 4)), ownerId: USER_ID.kim }
     const before = await gateway.forecast.summary(query)
     await gateway.deals.applyChange(code, { change: { field: 'forecastKey', value: 'best' } })
     const after = await gateway.forecast.summary(query)

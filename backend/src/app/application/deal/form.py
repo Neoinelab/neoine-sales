@@ -13,7 +13,6 @@ from app.domain.bant.values import BantCategory
 if TYPE_CHECKING:
     from collections.abc import Mapping
     from datetime import date
-    from uuid import UUID
 
     from app.application.deal.inputs import DealCreateInput, DealPatchInput
     from app.domain.deal.entities import Deal
@@ -46,9 +45,9 @@ _EMPTY_DRAFT = ContactDraftInput(None, "", "", None, None, None)
 @dataclass(frozen=True, slots=True)
 class FormValues:
     name: str
-    owner_user_id: UUID | None
-    vendor_id: UUID | None
-    solution_id: UUID | None
+    owner_user_id: int | None
+    vendor_id: int | None
+    solution_id: int | None
     users: int | None
     status_key: str
     forecast_key: str

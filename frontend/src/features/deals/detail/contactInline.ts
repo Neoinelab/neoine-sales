@@ -21,10 +21,10 @@ export function draftOfRow(row: ContactRow): ContactDraft {
  * 같은 회사 안에서 담당자명을 바꾼 결과. 목록에서 고른 사람(optionId) 또는 같은 이름(대소문자 무시)의 기존 담당자면
  * 그 연락 정보가 채워지고, 없는 이름이면 신규 담당자로 직급·이메일·전화는 비워 둔다.
  */
-export function personDraft(rows: readonly ContactRow[], contact: Contact, typed: string, optionId?: string): ContactDraft {
+export function personDraft(rows: readonly ContactRow[], contact: Contact, typed: string, optionId?: number): ContactDraft {
   const name = typed.trim()
   if (name === '') throw new Error('담당자명을 입력하세요.')
-  const existing = rows.find((r) => (optionId ? r.id === optionId : normalizeName(r.name) === normalizeName(name)))
+  const existing = rows.find((r) => (optionId !== undefined ? r.id === optionId : normalizeName(r.name) === normalizeName(name)))
   if (existing) return draftOfRow(existing)
   return { contactId: null, company: contact.company, name, title: '', email: null, phone: null }
 }

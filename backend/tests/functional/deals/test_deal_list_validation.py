@@ -17,6 +17,7 @@ from tests.functional.steps.deals import (
     when_register_deal,
 )
 from tests.functional.steps.vendors import given_vendor
+from tests.support.ids import MISSING_ID
 
 if TYPE_CHECKING:
     from tests.functional.conftest import Api
@@ -43,12 +44,12 @@ async def test_the_largest_limit_and_the_longest_text_conditions_are_accepted(ap
         {"limit": 201},
         {"offset": -1},
         {"keyword": "a" * 101},
-        {"vendor_id": "SAP"},  # 이름이 아니라 UUID여야 한다
-        {"solution_id": "not-a-uuid"},
+        {"vendor_id": "SAP"},  # 이름이 아니라 정수 id여야 한다
+        {"solution_id": "not-an-id"},
         {"vendor": "SAP"},  # 구 파라미터(이름)는 모르는 파라미터다
         {"solution": "S/4HANA"},
         {"revenue_from": "2026/06/01"},
-        {"owner_user_id": "not-a-uuid"},
+        {"owner_user_id": "not-an-id"},
         {"unknown": "x"},
     ],
 )
@@ -94,16 +95,14 @@ async def test_the_list_response_keeps_its_shape_whatever_the_conditions(api: Ap
     await given_logged_in_as(api, role="sales")
     await given_deal(api)
     # When
-    response = await when_list_deals(
-        api, keyword="erp", vendor_id="6f1c1b3a-0000-4000-8000-0000000000aa", offset=0, limit=5
-    )
+    response = await when_list_deals(api, keyword="erp", vendor_id=MISSING_ID, offset=0, limit=5)
     # Then
     assert set(response.json()) == {"items", "total", "offset", "limit"}
     assert (response.json()["offset"], response.json()["limit"]) == (0, 5)
 
 
 async def test_the_owner_is_required_and_a_free_text_owner_is_not_accepted(api: Api) -> None:
-    """Scenario: owner_user_id(UUID)는 필수이고 이름 문자열 owner는 허용되지 않는다."""
+    """Scenario: owner_user_id(정수)는 필수이고 이름 문자열 owner는 허용되지 않는다."""
     # Given
     await given_logged_in_as(api, role="sales")
     # When

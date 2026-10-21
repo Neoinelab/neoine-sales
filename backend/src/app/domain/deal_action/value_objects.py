@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 from datetime import date, datetime
 from typing import TYPE_CHECKING, NewType, Self
-from uuid import UUID
 
 from app.domain.common.errors import InvalidValueError
 from app.domain.common.validation import reject_nul
@@ -9,7 +8,7 @@ from app.domain.common.validation import reject_nul
 if TYPE_CHECKING:
     from app.domain.action_type.values import ActionTypeRef
 
-DealActionId = NewType("DealActionId", UUID)
+DealActionId = NewType("DealActionId", int)
 
 ACTION_OR_NEXT_REQUIRED = "진행사항 또는 Next Action을 입력하세요."
 DUE_DATE_REQUIRED = "Due Date를 입력하세요."

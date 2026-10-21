@@ -10,6 +10,7 @@ from sqlalchemy import text
 from sqlalchemy.exc import DBAPIError, IntegrityError
 
 from tests.support.head_rows import insert_contact, insert_deal, insert_history, insert_user
+from tests.support.ids import MISSING_ID
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
@@ -18,7 +19,7 @@ pytestmark = pytest.mark.integration
 
 COLUMNS = {
     "id",
-    "deal_code",
+    "deal_id",
     "changed_at",
     "changed_by_user_id",
     "category",
@@ -45,12 +46,13 @@ FOREIGN_KEYS = (
     " where conrelid = 'deal_history'::regclass and contype = 'f'"
 )
 INSERT_WITH_TEXTS = (
-    "insert into deal_history (deal_code, changed_at, changed_by_user_id, category, target,"
-    " before_text, after_text) values (:code, now(), :user, 'other', :target, :before, :after)"
+    "insert into deal_history (deal_id, changed_at, changed_by_user_id, category, target,"
+    " before_text, after_text) values ((select id from deals where deal_code = :code), now(),"
+    " :user, 'other', :target, :before, :after)"
 )
 
 
-async def _deal_and_user(session: AsyncSession) -> tuple[str, object]:
+async def _deal_and_user(session: AsyncSession) -> tuple[str, int]:
     user = await insert_user(session, "author")
     code = await insert_deal(session, await insert_contact(session), owner_user_id=user)
     return code, user
@@ -79,7 +81,7 @@ async def test_the_columns_and_indexes_exist(session: AsyncSession) -> None:
 
     assert columns == COLUMNS
     assert {
-        "ix_deal_history_deal_code_changed_at",
+        "ix_deal_history_deal_id_changed_at",
         "ix_deal_history_changed_by_user_id",
     } <= indexes
 
@@ -95,7 +97,7 @@ async def test_foreign_keys_cascade_from_the_deal_and_restrict_the_author(
 async def test_the_id_is_generated_and_increasing(session: AsyncSession) -> None:
     code, user = await _deal_and_user(session)
     for _ in range(3):
-        await insert_history(session, code, user)  # type: ignore[arg-type]
+        await insert_history(session, code, user)
 
     ids = [
         r[0] for r in (await session.execute(text("select id from deal_history order by id"))).all()
@@ -109,14 +111,14 @@ async def test_the_id_is_generated_and_increasing(session: AsyncSession) -> None
 async def test_each_frontend_category_is_accepted(session: AsyncSession, category: str) -> None:
     code, user = await _deal_and_user(session)
 
-    await insert_history(session, code, user, category=category)  # type: ignore[arg-type]
+    await insert_history(session, code, user, category=category)
 
 
 async def test_an_unknown_category_is_rejected(session: AsyncSession) -> None:
     code, user = await _deal_and_user(session)
 
     with pytest.raises(IntegrityError, match="ck_deal_history"):
-        await insert_history(session, code, user, category="unknown")  # type: ignore[arg-type]
+        await insert_history(session, code, user, category="unknown")
 
 
 async def test_the_target_is_limited_to_300_characters(session: AsyncSession) -> None:
@@ -141,7 +143,7 @@ async def test_a_missing_author_is_rejected(session: AsyncSession) -> None:
     code, _ = await _deal_and_user(session)
 
     with pytest.raises(IntegrityError, match="fk_deal_history_changed_by_user_id_users"):
-        await insert_history(session, code, "00000000-0000-4000-8000-000000000001")  # type: ignore[arg-type]
+        await insert_history(session, code, MISSING_ID)
 
 
 async def test_a_user_with_history_cannot_be_deleted(session: AsyncSession) -> None:
@@ -155,7 +157,7 @@ async def test_a_user_with_history_cannot_be_deleted(session: AsyncSession) -> N
 
 async def test_deleting_the_deal_deletes_its_history(session: AsyncSession) -> None:
     code, user = await _deal_and_user(session)
-    await insert_history(session, code, user)  # type: ignore[arg-type]
+    await insert_history(session, code, user)
 
     await session.execute(text("delete from deals where deal_code = :code"), {"code": code})
 

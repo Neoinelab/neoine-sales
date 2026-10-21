@@ -31,13 +31,14 @@ from tests.functional.steps.attachments import (
 from tests.functional.steps.auth import RoleName, storage_path_of
 from tests.functional.steps.common import then_problem_is, then_status_is
 from tests.functional.steps.users import given_signed_in_session
+from tests.support.ids import MISSING_ID
 
 if TYPE_CHECKING:
     from tests.functional.conftest import Api
 
 pytestmark = pytest.mark.integration
 ROLES = ["admin", "sales", "user"]
-UNKNOWN_ID = "6f1c1b3a-0000-4000-8000-000000000001"
+UNKNOWN_ID = MISSING_ID
 
 
 @pytest.mark.parametrize("role", ROLES)
@@ -85,7 +86,7 @@ async def test_one_attachment_can_be_read_by_id(api: Api) -> None:
     code = await given_deal_with_files_enabled(api)
     attachment = await given_file(api, code, name="a.pdf", data=b"12345", description="설명")
     # When
-    response = await when_get_attachment(api, str(attachment["id"]))
+    response = await when_get_attachment(api, attachment["id"])
     # Then
     then_status_is(response, 200)
     assert response.json() == attachment
@@ -113,7 +114,7 @@ async def test_everyone_downloads_the_exact_bytes(api: Api, role: RoleName) -> N
     attachment = await given_file(api, code, name="report.pdf", data=data)
     reader = await given_signed_in_session(api, login_id=f"{role}-reader", role=role)
     # When
-    response = await when_download(api, str(attachment["id"]), session=reader)
+    response = await when_download(api, attachment["id"], session=reader)
     # Then
     then_status_is(response, 200)
     assert response.content == data
@@ -130,7 +131,7 @@ async def test_download_keeps_the_korean_file_name(api: Api) -> None:
     code = await given_deal_with_files_enabled(api)
     attachment = await given_file(api, code, name="견적서 최종.pdf")
     # When
-    response = await when_download(api, str(attachment["id"]))
+    response = await when_download(api, attachment["id"])
     # Then
     then_status_is(response, 200)
     disposition = response.headers["content-disposition"]
@@ -148,11 +149,11 @@ async def test_download_never_uses_the_uploaded_content_type(api: Api) -> None:
         api, code, name="page.html", data=b"<script>1</script>", mime="text/html"
     )
     # When
-    response = await when_download(api, str(attachment["id"]))
+    response = await when_download(api, attachment["id"])
     # Then
     assert response.headers["content-type"].split(";")[0] == OCTET_STREAM
     assert response.headers["content-disposition"].startswith("attachment;")
-    assert (await when_get_attachment(api, str(attachment["id"]))).json()["mime"] == "text/html"
+    assert (await when_get_attachment(api, attachment["id"])).json()["mime"] == "text/html"
 
 
 async def test_a_large_file_downloads_intact_in_several_chunks(api: Api) -> None:
@@ -162,7 +163,7 @@ async def test_a_large_file_downloads_intact_in_several_chunks(api: Api) -> None
     data = bytes(range(256)) * (3 * 1024 * 4)  # 3 MiB
     attachment = await given_file(api, code, name="big.bin", data=data)
     # When
-    response = await when_download(api, str(attachment["id"]))
+    response = await when_download(api, attachment["id"])
     # Then
     assert response.content == data
     assert response.headers["content-length"] == str(len(data))
@@ -174,7 +175,7 @@ async def test_an_empty_file_downloads_as_empty(api: Api) -> None:
     code = await given_deal_with_files_enabled(api)
     attachment = await given_file(api, code, name="empty.txt", data=b"")
     # When
-    response = await when_download(api, str(attachment["id"]))
+    response = await when_download(api, attachment["id"])
     # Then
     assert (response.status_code, response.content) == (200, b"")
 
@@ -186,7 +187,7 @@ async def test_a_row_without_its_disk_file_is_reported_as_missing_content(api: A
     attachment = await given_file(api, code)
     given_disk_file_removed(api, code)
     # When
-    response = await when_download(api, str(attachment["id"]))
+    response = await when_download(api, attachment["id"])
     # Then
     then_problem_is(response, status=404, type_suffix="not-found")
     then_detail_is(response, CONTENT_MISSING)
@@ -199,7 +200,7 @@ async def test_files_are_looked_up_under_the_current_storage_location(api: Api) 
     attachment = await given_file(api, code, name="a.pdf")
     await given_storage_location_moved(api, str(Path(storage_path_of(api)).parent / "elsewhere"))
     # When
-    response = await when_download(api, str(attachment["id"]))
+    response = await when_download(api, attachment["id"])
     # Then
     then_problem_is(response, status=404, type_suffix="not-found")
     then_detail_is(response, CONTENT_MISSING)
@@ -213,7 +214,7 @@ async def test_a_file_that_cannot_be_read_is_unavailable_not_missing(api: Api) -
     attachment = await given_file(api, code)
     given_disk_file_unreadable(api, code)
     # When
-    response = await when_download(api, str(attachment["id"]))
+    response = await when_download(api, attachment["id"])
     # Then
     then_problem_is(response, status=503, type_suffix="storage-unavailable")
     then_detail_is(response, DOWNLOAD_UNAVAILABLE)
@@ -226,7 +227,7 @@ async def test_without_a_storage_location_the_download_is_unavailable(api: Api) 
     attachment = await given_file(api, code, name="a.pdf")
     await given_storage_location_removed(api)
     # When
-    response = await when_download(api, str(attachment["id"]))
+    response = await when_download(api, attachment["id"])
     # Then
     then_problem_is(response, status=503, type_suffix="storage-unavailable")
     then_detail_is(response, DOWNLOAD_UNAVAILABLE)

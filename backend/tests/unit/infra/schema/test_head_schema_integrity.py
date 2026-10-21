@@ -86,7 +86,7 @@ async def test_user_foreign_keys_use_the_planned_names_and_restrict(session: Asy
     assert found == {key: (name, "r", False) for key, name in USER_FK_NAMES.items()}
 
 
-async def test_user_reference_columns_are_uuid_and_the_old_string_columns_are_gone(
+async def test_user_reference_columns_are_bigint_and_the_old_string_columns_are_gone(
     session: AsyncSession,
 ) -> None:
     rows = (
@@ -101,7 +101,7 @@ async def test_user_reference_columns_are_uuid_and_the_old_string_columns_are_go
 
     assert not (OLD_STRING_COLUMNS & set(by_column))
     for key in USER_FK_NAMES:
-        assert by_column[key][0] == "uuid", key
+        assert by_column[key][0] == "int8", key
     not_null = {key for key, (_, nullable) in by_column.items() if nullable == "NO"}
     assert {
         ("deals", "owner_user_id"),
@@ -169,11 +169,11 @@ async def test_only_deal_owned_data_and_vendor_solutions_cascade(session: AsyncS
     }
 
     assert cascades == {
-        "deal_partners.deal_code",
-        "deal_bant_labels.deal_code",
-        "deal_history.deal_code",
-        "deal_actions.deal_code",
-        "deal_attachments.deal_code",  # P2b: 첨부 메타데이터도 Deal 소속이다
+        "deal_partners.deal_id",
+        "deal_bant_labels.deal_id",
+        "deal_history.deal_id",
+        "deal_actions.deal_id",
+        "deal_attachments.deal_id",  # P2b: 첨부 메타데이터도 Deal 소속이다
         "solutions.vendor_id",  # Vendor Aggregate: Vendor 삭제는 소속 Solution과 함께(D10)
     }
     assert all(

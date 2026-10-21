@@ -6,7 +6,6 @@ Fake와 SQL에 공통인 참조 계약은 tests/unit/repositories/test_deal_repo
 """
 
 from typing import TYPE_CHECKING
-from uuid import uuid4
 
 import pytest
 
@@ -20,6 +19,7 @@ from app.infra.db.user_repository import SqlUserRepository
 from tests.factories import make_bant, make_deal, make_deal_details, make_sync, new_contact_id
 from tests.factories_catalog import make_label
 from tests.factories_contact import make_customer
+from tests.support.ids import new_id
 from tests.support.user_ids import OWNER_ID
 from tests.support.user_seed import ensure_users
 
@@ -61,7 +61,7 @@ async def test_add_with_a_missing_owner_user_raises_invalid_reference_for_users(
 ) -> None:
     customer = make_customer()
     await SqlContactRepository(session).add(customer)
-    deal = make_deal(customer_id=customer.id, owner_user_id=UserId(uuid4()))
+    deal = make_deal(customer_id=customer.id, owner_user_id=UserId(new_id()))
 
     with pytest.raises(InvalidReferenceError) as caught:
         await SqlDealRepository(session).add(deal)
@@ -85,7 +85,7 @@ async def test_add_with_an_unknown_code_raises_invalid_reference(
 
 async def test_add_with_an_unknown_label_raises_invalid_reference(session: AsyncSession) -> None:
     customer = await _ready(session)
-    deal = make_deal(customer_id=customer.id, bant=make_bant(budget=uuid4()))
+    deal = make_deal(customer_id=customer.id, bant=make_bant(budget=new_id()))
 
     with pytest.raises(InvalidReferenceError):
         await SqlDealRepository(session).add(deal)
@@ -111,7 +111,7 @@ async def test_update_to_a_missing_owner_user_raises_invalid_reference(
     deal = make_deal(customer_id=customer.id)
     await deals.add(deal)
     deal.revise(
-        details=make_deal_details(owner_user_id=UserId(uuid4())),
+        details=make_deal_details(owner_user_id=UserId(new_id())),
         sync=deal.sync,
         customer_id=customer.id,
         bant=deal.bant,

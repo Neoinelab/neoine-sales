@@ -6,8 +6,8 @@ import { json, noContent, problem, stubFetch } from './testHelpers'
 afterEach(() => vi.unstubAllGlobals())
 
 const solution = (over: Record<string, unknown> = {}) => ({
-  id: 'sl-1',
-  vendor_id: 'vd-1',
+  id: 1,
+  vendor_id: 1,
   name: 'ITDR',
   usage_count: 0,
   created_at: '2026-10-01T09:00:00+09:00',
@@ -15,7 +15,7 @@ const solution = (over: Record<string, unknown> = {}) => ({
   ...over,
 })
 const vendor = (over: Record<string, unknown> = {}) => ({
-  id: 'vd-1',
+  id: 1,
   name: 'Silverfort',
   usage_count: 3,
   created_at: '2026-10-01T09:00:00+09:00',
@@ -32,60 +32,60 @@ describe('vendors over HTTP', () => {
 
     expect(calls[0]).toMatchObject({ method: 'GET', path: '/api/v1/vendors' })
     expect(vendors).toEqual([
-      { id: 'vd-1', name: 'Silverfort', usageCount: 3, solutions: [{ id: 'sl-1', vendorId: 'vd-1', name: 'ITDR', usageCount: 3 }] },
+      { id: 1, name: 'Silverfort', usageCount: 3, solutions: [{ id: 1, vendorId: 1, name: 'ITDR', usageCount: 3 }] },
     ])
   })
 
   it('create posts the name', async () => {
-    const { calls } = stubFetch(json(vendor({ solutions: [], usage_count: 0 }), 201, { Location: '/api/v1/vendors/vd-1' }))
+    const { calls } = stubFetch(json(vendor({ solutions: [], usage_count: 0 }), 201, { Location: '/api/v1/vendors/1' }))
 
     const created = await createVendorsHttp().create('Silverfort')
 
     expect(calls[0]).toMatchObject({ method: 'POST', path: '/api/v1/vendors', body: { name: 'Silverfort' } })
-    expect(created).toMatchObject({ id: 'vd-1', usageCount: 0, solutions: [] })
+    expect(created).toMatchObject({ id: 1, usageCount: 0, solutions: [] })
   })
 
   it('rename patches the name of the vendor', async () => {
     const { calls } = stubFetch(json(vendor({ name: 'New' })))
 
-    const renamed = await createVendorsHttp().rename('vd-1', 'New')
+    const renamed = await createVendorsHttp().rename(1, 'New')
 
-    expect(calls[0]).toMatchObject({ method: 'PATCH', path: '/api/v1/vendors/vd-1', body: { name: 'New' } })
+    expect(calls[0]).toMatchObject({ method: 'PATCH', path: '/api/v1/vendors/1', body: { name: 'New' } })
     expect(renamed.name).toBe('New')
   })
 
   it('remove deletes and accepts 204', async () => {
     const { calls } = stubFetch(noContent())
 
-    await expect(createVendorsHttp().remove('vd-1')).resolves.toBeUndefined()
+    await expect(createVendorsHttp().remove(1)).resolves.toBeUndefined()
 
-    expect(calls[0]).toMatchObject({ method: 'DELETE', path: '/api/v1/vendors/vd-1' })
+    expect(calls[0]).toMatchObject({ method: 'DELETE', path: '/api/v1/vendors/1' })
   })
 
   it('createSolution posts under the vendor path', async () => {
-    const { calls } = stubFetch(json(solution(), 201, { Location: '/api/v1/vendors/vd-1/solutions/sl-1' }))
+    const { calls } = stubFetch(json(solution(), 201, { Location: '/api/v1/vendors/1/solutions/1' }))
 
-    const created = await createVendorsHttp().createSolution('vd-1', 'ITDR')
+    const created = await createVendorsHttp().createSolution(1, 'ITDR')
 
-    expect(calls[0]).toMatchObject({ method: 'POST', path: '/api/v1/vendors/vd-1/solutions', body: { name: 'ITDR' } })
-    expect(created).toEqual({ id: 'sl-1', vendorId: 'vd-1', name: 'ITDR', usageCount: 0 })
+    expect(calls[0]).toMatchObject({ method: 'POST', path: '/api/v1/vendors/1/solutions', body: { name: 'ITDR' } })
+    expect(created).toEqual({ id: 1, vendorId: 1, name: 'ITDR', usageCount: 0 })
   })
 
   it('renameSolution patches with both ids in the path', async () => {
     const { calls } = stubFetch(json(solution({ name: 'MFA' })))
 
-    const renamed = await createVendorsHttp().renameSolution('vd-1', 'sl-1', 'MFA')
+    const renamed = await createVendorsHttp().renameSolution(1, 1, 'MFA')
 
-    expect(calls[0]).toMatchObject({ method: 'PATCH', path: '/api/v1/vendors/vd-1/solutions/sl-1', body: { name: 'MFA' } })
+    expect(calls[0]).toMatchObject({ method: 'PATCH', path: '/api/v1/vendors/1/solutions/1', body: { name: 'MFA' } })
     expect(renamed.name).toBe('MFA')
   })
 
   it('removeSolution deletes with both ids in the path', async () => {
     const { calls } = stubFetch(noContent())
 
-    await expect(createVendorsHttp().removeSolution('vd-1', 'sl-1')).resolves.toBeUndefined()
+    await expect(createVendorsHttp().removeSolution(1, 1)).resolves.toBeUndefined()
 
-    expect(calls[0]).toMatchObject({ method: 'DELETE', path: '/api/v1/vendors/vd-1/solutions/sl-1' })
+    expect(calls[0]).toMatchObject({ method: 'DELETE', path: '/api/v1/vendors/1/solutions/1' })
   })
 
   it.each([

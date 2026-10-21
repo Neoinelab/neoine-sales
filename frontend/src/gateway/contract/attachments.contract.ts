@@ -8,7 +8,7 @@
 import { describe, expect, it } from 'vitest'
 import type { DealInput } from '../../shared/model/types'
 import type { Gateway } from '../types'
-import { expectRejects, unique, type MakeGateway } from './support'
+import { expectRejects, unique, type MakeGateway, NO_SUCH_ID } from './support'
 
 const NOT_FOUND = '첨부 파일을 찾을 수 없습니다.'
 
@@ -269,7 +269,7 @@ export function attachmentsContract(make: MakeGateway): void {
       const sales = await make('sales')
 
       await expectRejects(sales.attachments.list('20000101-ZZZZ'), 404, 'Deal을 찾을 수 없습니다.')
-      await expectRejects(sales.attachments.download('00000000-0000-0000-0000-000000000000'), 404, NOT_FOUND)
+      await expectRejects(sales.attachments.download(NO_SUCH_ID), 404, NOT_FOUND)
     })
 
     it('lets the uploader delete her file: gone from the list and the download', async () => {
@@ -306,13 +306,13 @@ export function attachmentsContract(make: MakeGateway): void {
       if (uploaded.outcome !== 'uploaded') throw new Error('expected uploaded')
       const user = await make('user')
 
-      const unknown = await expectRejects(user.attachments.remove('00000000-0000-0000-0000-000000000000'), 403)
+      const unknown = await expectRejects(user.attachments.remove(NO_SUCH_ID), 403)
       const existing = await expectRejects(user.attachments.remove(uploaded.attachment.id), 403)
       expect(unknown.message).not.toBe('본인이 올린 파일만 삭제할 수 있습니다.')
       expect(existing.message).toBe(unknown.message)
 
       const again = await make('sales')
-      await expectRejects(again.attachments.remove('00000000-0000-0000-0000-000000000000'), 404, NOT_FOUND)
+      await expectRejects(again.attachments.remove(NO_SUCH_ID), 404, NOT_FOUND)
       expect(await again.attachments.list(deal.code)).toHaveLength(1)
       await again.deals.remove(deal.code, deal.code)
     })

@@ -31,27 +31,27 @@ export function useCreateAction(): Mutation<{ dealCode: string; input: ActionInp
 }
 
 /** gateway.actions.update(actionId, input). 성공 무효화는 create와 같다(dealCode는 변수로 받는다). */
-export function useUpdateAction(): Mutation<{ dealCode: string; actionId: string; input: ActionUpdateInput }, DealAction> {
+export function useUpdateAction(): Mutation<{ dealCode: string; actionId: number; input: ActionUpdateInput }, DealAction> {
   const invalidate = useInvalidateAction()
-  return useMutation<DealAction, ApiError, { dealCode: string; actionId: string; input: ActionUpdateInput }>({
+  return useMutation<DealAction, ApiError, { dealCode: string; actionId: number; input: ActionUpdateInput }>({
     mutationFn: ({ actionId, input }) => gateway.actions.update(actionId, input),
     onSuccess: (_action, { dealCode }) => invalidate(dealCode),
   })
 }
 
 /** gateway.actions.remove(actionId). 성공 무효화는 create와 같다. */
-export function useRemoveAction(): Mutation<{ dealCode: string; actionId: string }> {
+export function useRemoveAction(): Mutation<{ dealCode: string; actionId: number }> {
   const invalidate = useInvalidateAction()
-  return useMutation<void, ApiError, { dealCode: string; actionId: string }>({
+  return useMutation<void, ApiError, { dealCode: string; actionId: number }>({
     mutationFn: ({ actionId }) => gateway.actions.remove(actionId),
     onSuccess: (_result, { dealCode }) => invalidate(dealCode),
   })
 }
 
 /** gateway.actions.changeNextActionStatus(actionId, input). 성공 무효화는 create와 같다(Memo·목록의 Next Action 요약이 바뀐다). */
-export function useChangeNextActionStatus(): Mutation<{ dealCode: string; actionId: string; input: NextActionStatusInput }, DealAction> {
+export function useChangeNextActionStatus(): Mutation<{ dealCode: string; actionId: number; input: NextActionStatusInput }, DealAction> {
   const invalidate = useInvalidateAction()
-  return useMutation<DealAction, ApiError, { dealCode: string; actionId: string; input: NextActionStatusInput }>({
+  return useMutation<DealAction, ApiError, { dealCode: string; actionId: number; input: NextActionStatusInput }>({
     mutationFn: ({ actionId, input }) => gateway.actions.changeNextActionStatus(actionId, input),
     onSuccess: (_action, { dealCode }) => invalidate(dealCode),
   })

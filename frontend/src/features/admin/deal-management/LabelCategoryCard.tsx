@@ -9,10 +9,10 @@ import { InlineNameEdit } from './InlineNameEdit'
 interface Props {
   category: BantCategory
   labels: readonly BantLabelWithUsage[]
-  editingId: string | null
+  editingId: number | null
   busy: boolean
   onAdd: (name: string, done: () => void) => void
-  onEdit: (id: string | null) => void
+  onEdit: (id: number | null) => void
   onRename: (label: BantLabelWithUsage, name: string) => void
   onDelete: (label: BantLabelWithUsage) => void
 }

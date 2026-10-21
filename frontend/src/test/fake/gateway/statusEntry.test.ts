@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { dealCode, dealInput, mockAs, TEST_NOW } from '../testing'
+import { USER_ID } from '../seed/ids'
 
 const DAY_MS = 86_400_000
 
 async function setup() {
   const mock = await mockAs('kim')
-  const created = await mock.gateway.deals.create(dealInput('u-kim'))
+  const created = await mock.gateway.deals.create(dealInput(USER_ID.kim))
   return { ...mock, code: created.code, created }
 }
 

@@ -5,15 +5,14 @@ Action은 `deal_code`로 Deal에 속하고 Deal을 지우면 함께 지워진다
 """
 
 from typing import TYPE_CHECKING, Any
-from uuid import uuid4
 
 import pytest
-from app.domain.action_type.errors import ActionTypeInUseError
-from app.infra.db.action_type_repository import SqlActionTypeRepository
 
+from app.domain.action_type.errors import ActionTypeInUseError
 from app.domain.common.errors import InvalidReferenceError
 from app.domain.deal.errors import DealNotFoundError
 from app.domain.user.value_objects import UserId
+from app.infra.db.action_type_repository import SqlActionTypeRepository
 from app.infra.db.contact_repository import SqlContactRepository
 from app.infra.db.deal_action_repository import SqlDealActionRepository
 from app.infra.db.deal_repository import SqlDealRepository
@@ -22,6 +21,7 @@ from tests.factories import make_deal, make_deal_action, make_deal_code, make_sy
 from tests.factories_action_type import attach_catalog_type, make_type_ref
 from tests.factories_contact import make_customer
 from tests.support.database import rolled_back_session
+from tests.support.ids import new_id
 from tests.support.user_ids import ACTOR_ID, OWNER_ID
 from tests.support.user_seed import ensure_users
 
@@ -79,7 +79,7 @@ async def test_add_with_a_missing_actor_user_raises_invalid_reference(
 
         with pytest.raises(InvalidReferenceError) as caught:
             await SqlDealActionRepository(session).add(
-                await _action(session, deal_code=deal.id, actor_user_id=UserId(uuid4()))
+                await _action(session, deal_code=deal.id, actor_user_id=UserId(new_id()))
             )
 
         assert caught.value.entity == "사용자"

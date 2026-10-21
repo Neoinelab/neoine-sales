@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { toCode } from './code'
 
-const base = { id: 'c1', kind: 'forecast', key: 'won', name: 'Won', order: 5, locked: true, probability_hint: null } as const
+const base = { id: 1, kind: 'forecast', key: 'won', name: 'Won', order: 5, locked: true, probability_hint: null } as const
 
 describe('toCode', () => {
   it.each(['open', 'won', 'lost'])('accepts the outcome %s', (outcome) => {

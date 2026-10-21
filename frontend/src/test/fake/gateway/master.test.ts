@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { dealCode, expectApiError, mockAs, TEST_NOW } from '../testing'
+import { NO_SUCH_ID, USER_ID } from '../seed/ids'
 
 describe('codes', () => {
   it('변경은 admin만(sales·user 403), 읽기는 모두', async () => {
@@ -7,9 +8,9 @@ describe('codes', () => {
       const { gateway } = await mockAs(key)
       expect((await gateway.codes.all()).statuses).toHaveLength(7)
       await expectApiError(gateway.codes.create({ kind: 'status', name: '새 단계' }), 403)
-      await expectApiError(gateway.codes.rename('cd-s1', '이름'), 403)
+      await expectApiError(gateway.codes.rename(1, '이름'), 403)
       await expectApiError(gateway.codes.reorder('status', []), 403)
-      await expectApiError(gateway.codes.remove('cd-s1'), 403)
+      await expectApiError(gateway.codes.remove(1), 403)
     }
   })
 
@@ -43,7 +44,7 @@ describe('codes', () => {
     const codes = await gateway.codes.all()
     expect(codes.statuses.find((c) => c.key === 'contract_completed')?.name).toBe('수주확정')
     await expectApiError(gateway.codes.rename(done.id, '가격협상'), 409, '같은 이름의 코드가 이미 있습니다.')
-    await expectApiError(gateway.codes.rename('cd-none', 'x'), 404)
+    await expectApiError(gateway.codes.rename(NO_SUCH_ID, 'x'), 404)
     // 이름이 바뀐 뒤에도 동기화 규칙은 key로 동작하고 알림은 새 이름을 쓴다
     const result = await gateway.deals.applyChange(dealCode(1), {
       change: { field: 'statusKey', value: 'contract_completed' },
@@ -72,7 +73,7 @@ describe('codes', () => {
     const forecasts = await gateway.codes.list('forecast')
     if (!locked || !used) throw new Error('status')
     await expectApiError(gateway.codes.remove(locked.id), 409, '시스템과 연결된 코드는 삭제할 수 없습니다. 이름과 순서는 변경할 수 있습니다.')
-    await expectApiError(gateway.codes.remove(forecasts.find((c) => c.key === 'won')?.id ?? ''), 409, '시스템과 연결된 코드는 삭제할 수 없습니다. 이름과 순서는 변경할 수 있습니다.')
+    await expectApiError(gateway.codes.remove(forecasts.find((c) => c.key === 'won')?.id ?? NO_SUCH_ID), 409, '시스템과 연결된 코드는 삭제할 수 없습니다. 이름과 순서는 변경할 수 있습니다.')
     await expectApiError(gateway.codes.remove(used.id), 409, `사용 중인 코드는 삭제할 수 없습니다. (Deal ${used.usageCount}건)`)
     const created = await gateway.codes.create({ kind: 'status', name: '임시 단계' })
     await gateway.codes.remove(created.id)
@@ -151,7 +152,7 @@ describe('users', () => {
     const kim = await mockAs('kim')
     await expectApiError(kim.gateway.users.list('all'), 403)
     await expectApiError(kim.gateway.users.create({ loginId: 'new', name: '신규', role: 'sales' }), 403)
-    await expectApiError(kim.gateway.users.remove('u-lee'), 403)
+    await expectApiError(kim.gateway.users.remove(USER_ID.lee), 403)
     expect((await kim.gateway.users.options({ role: 'sales' })).length).toBeGreaterThan(0)
   })
 
@@ -177,21 +178,21 @@ describe('users', () => {
     await expectApiError(gateway.users.create({ loginId: 'hong', name: '', role: 'sales' }), 422)
     await expectApiError(gateway.users.create({ loginId: 'kim', name: '또 김영업', role: 'sales' }), 409, '이미 사용 중인 아이디입니다.')
     const created = await gateway.users.create({ loginId: 'hong', name: '홍길동', role: 'sales' })
-    expect(created).toMatchObject({ loginId: 'hong', status: 'active', createdBy: { id: 'u-root' }, createdAt: TEST_NOW })
+    expect(created).toMatchObject({ loginId: 'hong', status: 'active', createdBy: { id: USER_ID.root }, createdAt: TEST_NOW })
     const rehire = await gateway.users.create({ loginId: 'old', name: '강재입사', role: 'sales' })
-    expect(rehire.id).not.toBe('u-old')
+    expect(rehire.id).not.toBe(USER_ID.old)
     expect(await gateway.users.list('all')).toHaveLength(9)
   })
 
   it('remove: 본인은 403, 연결이 있으면 퇴사 처리, 없으면 물리 삭제', async () => {
     const { gateway } = await mockAs('root')
-    await expectApiError(gateway.users.remove('u-root'), 403, '본인 계정은 삭제할 수 없습니다.')
-    await expectApiError(gateway.users.remove('u-none'), 404)
-    expect(await gateway.users.remove('u-lee')).toEqual({ outcome: 'resigned' })
-    const lee = (await gateway.users.list('all')).find((u) => u.id === 'u-lee')
+    await expectApiError(gateway.users.remove(USER_ID.root), 403, '본인 계정은 삭제할 수 없습니다.')
+    await expectApiError(gateway.users.remove(NO_SUCH_ID), 404)
+    expect(await gateway.users.remove(USER_ID.lee)).toEqual({ outcome: 'resigned' })
+    const lee = (await gateway.users.list('all')).find((u) => u.id === USER_ID.lee)
     expect(lee).toMatchObject({ status: 'resigned', resignedAt: TEST_NOW })
     // Deal 담당은 그대로 유지되며 퇴사자 표기로 바뀐다
-    expect((await gateway.deals.get(dealCode(5))).owner).toMatchObject({ id: 'u-lee', status: 'resigned' })
+    expect((await gateway.deals.get(dealCode(5))).owner).toMatchObject({ id: USER_ID.lee, status: 'resigned' })
     const fresh = await gateway.users.create({ loginId: 'tmp', name: '임시', role: 'user' })
     expect(await gateway.users.remove(fresh.id)).toEqual({ outcome: 'deleted' })
     expect((await gateway.users.list('all')).some((u) => u.id === fresh.id)).toBe(false)
@@ -219,7 +220,7 @@ describe('settings', () => {
     const before = await gateway.settings.getDirectory()
     expect(before?.serverUrls).toEqual(['ldaps://dc1.corp.test', 'ldaps://dc2.corp.test'])
     const saved = await gateway.settings.saveDirectory({ ...validInput, baseDn: 'dc=new,dc=test' }, { password: null, expectedRevision: before?.revision ?? 1 })
-    expect(saved).toMatchObject({ revision: (before?.revision ?? 0) + 1, baseDn: 'dc=new,dc=test', updatedAt: TEST_NOW, updatedBy: { id: 'u-root' }, useStarttls: true })
+    expect(saved).toMatchObject({ revision: (before?.revision ?? 0) + 1, baseDn: 'dc=new,dc=test', updatedAt: TEST_NOW, updatedBy: { id: USER_ID.root }, useStarttls: true })
     await expectApiError(gateway.settings.saveDirectory({ ...validInput, serverUrls: [] }, { password: null, expectedRevision: 1 }), 422)
     await expectApiError(gateway.settings.saveDirectory({ ...validInput, baseDn: '' }, { password: null, expectedRevision: 1 }), 422)
   })
@@ -241,6 +242,6 @@ describe('settings', () => {
     await gateway.settings.testStorage('/mnt/new')
     expect((await gateway.settings.getStorage())?.path).toBe('/data/neoine-sales/files')
     const saved = await gateway.settings.saveStorage('/mnt/new')
-    expect(saved).toMatchObject({ path: '/mnt/new', updatedBy: { id: 'u-root' } })
+    expect(saved).toMatchObject({ path: '/mnt/new', updatedBy: { id: USER_ID.root } })
   })
 })

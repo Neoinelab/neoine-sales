@@ -6,6 +6,7 @@
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from app.application.ids import new_bant_label_id
 from app.domain.bant.entities import BantLabel
 from app.domain.bant.rules import find_label
 from app.domain.bant.values import BantCategory, BantLabelId, normalize_label_name
@@ -71,7 +72,13 @@ async def resolve_bant(
         if name is None:
             selected[category.value] = draft.chosen.get(category)
             continue
-        label = BantLabel.create(category=category, name=name, created_by=actor_id, now=now)
+        label = BantLabel.create(
+            entity_id=await new_bant_label_id(uow.ids),
+            category=category,
+            name=name,
+            created_by=actor_id,
+            now=now,
+        )
         await uow.bant_labels.add(label)
         selected[category.value] = label.id
     return BantSelection(**selected)

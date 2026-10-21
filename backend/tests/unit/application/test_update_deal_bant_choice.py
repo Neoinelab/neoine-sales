@@ -7,7 +7,6 @@ History에는 새 Label의 이름이 표기된다. 수정이 실패하면 새 La
 from typing import TYPE_CHECKING
 
 from app.application.choice import CatalogChoice
-
 from app.domain.bant.values import BantCategory
 from app.domain.common.errors import InvalidValueError
 from app.domain.deal.errors import InvalidBantLabelError

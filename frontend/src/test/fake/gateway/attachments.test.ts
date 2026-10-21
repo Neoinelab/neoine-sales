@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { dealCode, expectApiError, fakeFile, mockAs, TEST_NOW } from '../testing'
+import { NO_SUCH_ID, USER_ID } from '../seed/ids'
 
 const MB = 1024 * 1024
 const STORAGE_MSG = '파일 저장 위치를 사용할 수 없어 업로드할 수 없습니다. 관리자에게 문의하세요.'
@@ -22,7 +23,7 @@ describe('attachments.list / download', () => {
     const file = await gateway.attachments.download(first.id)
     expect(file.fileName).toBe(first.fileName)
     expect(file.blob).toBeInstanceOf(Blob)
-    await expectApiError(gateway.attachments.download('att-none'), 404)
+    await expectApiError(gateway.attachments.download(NO_SUCH_ID), 404)
   })
 })
 
@@ -67,7 +68,7 @@ describe('attachments.upload (T-FILE)', () => {
     const code = dealCode(2)
     const result = await gateway.attachments.upload(code, { file: fakeFile('제안서.pdf', 1234), description: '1차 제안', onExists: 'ask' })
     if (result.outcome !== 'uploaded') throw new Error('expected uploaded')
-    expect(result.attachment).toMatchObject({ fileName: '제안서.pdf', size: 1234, description: '1차 제안', uploadedBy: { id: 'u-kim' }, uploadedAt: TEST_NOW })
+    expect(result.attachment).toMatchObject({ fileName: '제안서.pdf', size: 1234, description: '1차 제안', uploadedBy: { id: USER_ID.kim }, uploadedAt: TEST_NOW })
     expect(await gateway.attachments.list(code)).toHaveLength(1)
     expect((await gateway.history.list(code, {}))[0]).toMatchObject({ category: 'attachment', target: '첨부 파일', after: '업로드 제안서.pdf' })
     expect((await gateway.deals.get(code)).updatedAt).toBe(TEST_NOW)
@@ -89,7 +90,7 @@ describe('attachments.upload (T-FILE)', () => {
     expect(replaced.outcome).toBe('replaced')
     const list = await gateway.attachments.list(code)
     expect(list).toHaveLength(countBefore)
-    expect(list.find((a) => a.fileName === '견적서_한빛은행_v2.pdf')).toMatchObject({ size: 99, description: '새 설명', uploadedBy: { id: 'u-kim' } })
+    expect(list.find((a) => a.fileName === '견적서_한빛은행_v2.pdf')).toMatchObject({ size: 99, description: '새 설명', uploadedBy: { id: USER_ID.kim } })
     expect((await gateway.history.list(code, {}))[0]).toMatchObject({ category: 'attachment', after: '교체 견적서_한빛은행_v2.pdf' })
   })
 
@@ -281,7 +282,7 @@ describe('attachments.upload: 교체 권한 = 삭제 권한 (AC-10, AC-11, Q2)',
     const before = (await gateway.attachments.list(code)).find((a) => a.fileName === '견적서_한빛은행_v2.pdf')
     const result = await put(gateway, code, '견적서_한빛은행_v2.pdf', { onExists: 'replace', size: 55, description: '교체본' })
     if (result.outcome !== 'replaced') throw new Error('expected replaced')
-    expect(result.attachment).toMatchObject({ id: before?.id, size: 55, description: '교체본', uploadedBy: { id: 'u-kim' }, uploadedAt: TEST_NOW })
+    expect(result.attachment).toMatchObject({ id: before?.id, size: 55, description: '교체본', uploadedBy: { id: USER_ID.kim }, uploadedAt: TEST_NOW })
     expect((await gateway.history.list(code, {}))[0]).toMatchObject({ category: 'attachment', after: '교체 견적서_한빛은행_v2.pdf' })
     expect((await gateway.deals.get(code)).updatedAt).toBe(TEST_NOW)
   })
@@ -306,7 +307,7 @@ describe('attachments.upload: 교체 권한 = 삭제 권한 (AC-10, AC-11, Q2)',
     const code = dealCode(1)
     const result = await put(gateway, code, '기술검토.xlsx', { onExists: 'replace' })
     if (result.outcome !== 'replaced') throw new Error('expected replaced')
-    expect(result.attachment.uploadedBy).toMatchObject({ id: 'u-kim', name: '김영업' })
+    expect(result.attachment.uploadedBy).toMatchObject({ id: USER_ID.kim, name: '김영업' })
   })
 
   it('lets admin replace every file', async () => {
@@ -342,13 +343,13 @@ describe('attachments.upload: 교체 권한 = 삭제 권한 (AC-10, AC-11, Q2)',
 describe('attachments.remove: 판정 순서 (AC-14)', () => {
   it('answers a read-only user 403 even for an unknown id (not 404)', async () => {
     const { gateway } = await mockAs('han')
-    const error = await expectApiError(gateway.attachments.remove('att-none'), 403)
+    const error = await expectApiError(gateway.attachments.remove(NO_SUCH_ID), 403)
     expect(error.message).not.toContain(OWNER_ONLY_FRAGMENT)
   })
 
   it('answers a read-only user 403 before the permission message for an existing file', async () => {
     const { gateway } = await mockAs('han')
-    const id = (await gateway.attachments.list(dealCode(1)))[0]?.id ?? ''
+    const id = (await gateway.attachments.list(dealCode(1)))[0]?.id ?? NO_SUCH_ID
     const error = await expectApiError(gateway.attachments.remove(id), 403)
     expect(error.message).not.toContain(OWNER_ONLY_FRAGMENT)
     expect(await gateway.attachments.list(dealCode(1))).toHaveLength(3)
@@ -357,14 +358,14 @@ describe('attachments.remove: 판정 순서 (AC-14)', () => {
   it('answers an unknown id 404 for sales and admin before any permission check', async () => {
     for (const key of ['kim', 'root'] as const) {
       const { gateway } = await mockAs(key)
-      await expectApiError(gateway.attachments.remove('att-none'), 404, '첨부 파일을 찾을 수 없습니다.')
+      await expectApiError(gateway.attachments.remove(NO_SUCH_ID), 404, '첨부 파일을 찾을 수 없습니다.')
     }
   })
 
   it('answers 403 with the delete message for another sales file and keeps it', async () => {
     const { gateway } = await mockAs('kim')
     const code = dealCode(1)
-    const id = (await gateway.attachments.list(code)).find((a) => a.fileName === '제안서_ITDR.pptx')?.id ?? ''
+    const id = (await gateway.attachments.list(code)).find((a) => a.fileName === '제안서_ITDR.pptx')?.id ?? NO_SUCH_ID
     await expectApiError(gateway.attachments.remove(id), 403, '본인이 올린 파일만 삭제할 수 있습니다.')
     expect(await gateway.attachments.list(code)).toHaveLength(3)
   })

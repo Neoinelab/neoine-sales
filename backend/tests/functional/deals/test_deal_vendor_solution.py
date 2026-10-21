@@ -6,7 +6,6 @@ Deal의 Vendor·Solution은 등록 목록(`/vendors`)에서 고른 id로만 저�
 """
 
 from typing import TYPE_CHECKING
-from uuid import uuid4
 
 import pytest
 
@@ -31,6 +30,7 @@ from tests.functional.steps.vendors import (
     when_rename_solution,
     when_rename_vendor,
 )
+from tests.support.ids import MISSING_ID
 
 if TYPE_CHECKING:
     from tests.functional.conftest import Api
@@ -38,7 +38,7 @@ if TYPE_CHECKING:
 pytestmark = pytest.mark.integration
 
 
-def _ref(vendor_id: str, name: str) -> dict[str, str]:
+def _ref(vendor_id: int, name: str) -> dict[str, int | str]:
     return {"id": vendor_id, "name": name}
 
 
@@ -133,7 +133,7 @@ async def test_unknown_vendor_is_rejected(api: Api) -> None:
     # Given
     await given_logged_in_as(api, role="sales")
     # When
-    response = await when_register_deal(api, vendor_id=str(uuid4()))
+    response = await when_register_deal(api, vendor_id=MISSING_ID)
     # Then
     then_problem_is(response, status=422, type_suffix="invalid-value")
     assert response.json()["detail"] == UNKNOWN_VENDOR

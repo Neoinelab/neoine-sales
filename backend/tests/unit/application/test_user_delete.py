@@ -1,7 +1,6 @@
 """사용자 삭제 DeleteUser: 연결이 없으면 물리 삭제, 보호 규칙 (AC3·5, USER-4~7, T11·T15)."""
 
 from typing import TYPE_CHECKING
-from uuid import uuid4
 
 import pytest
 
@@ -15,6 +14,7 @@ from app.domain.user.value_objects import UserId
 from tests.fakes.admin_stack import ADMIN_ACTOR, DEV_ACTOR
 from tests.support.admin_seed import active_logins, session_is_active
 from tests.support.auth_seed import seed_user
+from tests.support.ids import new_id
 
 if TYPE_CHECKING:
     from app.application.ports.unit_of_work import UnitOfWorkFactory
@@ -140,7 +140,7 @@ async def test_an_actor_without_a_users_row_can_delete_a_sales_user(
 
 async def test_delete_user_with_unknown_id_is_not_found(admin: AdminStack) -> None:
     with pytest.raises(UserNotFoundError):
-        await admin.delete_user.execute(user_id=UserId(uuid4()), actor=ADMIN_ACTOR)
+        await admin.delete_user.execute(user_id=UserId(new_id()), actor=ADMIN_ACTOR)
 
 
 async def test_physically_deleted_user_is_not_found_the_second_time(

@@ -89,8 +89,8 @@ export function contactsContract(make: MakeGateway): void {
 
       await expectRejects(contacts.list({}), 403)
       await expectRejects(contacts.create('customer', person(unique('x'))), 403)
-      await expectRejects(contacts.update('x', person('x')), 403)
-      await expectRejects(contacts.remove('x'), 403)
+      await expectRejects(contacts.update(1, person('x')), 403)
+      await expectRejects(contacts.remove(1), 403)
     })
 
     it('pages the list with the total of the filter', async () => {

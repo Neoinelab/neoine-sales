@@ -9,7 +9,7 @@ import { ErrorBanner } from '../../shared/ui/ErrorBanner'
 import { queryOf, type ForecastFilters } from './forecastParams'
 
 interface Props {
-  ownerId: string
+  ownerId: number
   ownerName: string
   filters: ForecastFilters
   onClear: () => void

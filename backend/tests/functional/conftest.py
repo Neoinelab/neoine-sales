@@ -12,8 +12,8 @@ Action 유형 8개를 마이그레이션 시드와 같은 값(`tests/fakes/catal
 그래서 어느 feature든 시작 상태에서
 기본 카탈로그를 읽을 수 있다. 복원은 Repository Port 구현(SqlCodeRepository,
 SqlBantLabelRepository, SqlActionTypeRepository)으로 넣는다. 복원된 기본 유형의 id는 이름에서
-정해진 고정 값(`tests/factories_action_type.type_id`)이고, 마이그레이션 직후 DB(`fresh_api`)의
-id는 무작위이므로 step은 id를 이름으로 API에서 찾는다.
+정해진 고정 정수(`tests/factories_action_type.type_id`, 20억대)이고, 마이그레이션 직후 DB
+(`fresh_api`)의 시드 id는 시퀀스가 매긴 1부터의 값이므로 step은 id를 이름으로 API에서 찾는다.
 
 외부 대체: 회사 AD(LDAP)는 테스트 환경에서 띄울 수 없고 Container는 디렉터리 Port만 주입받으므로
 `FakeDirectoryAuthenticator`(Port 구현)로 대체한다. AD 계정은 `api.directory.add_account`로 둔다.
@@ -38,7 +38,9 @@ from app.main import create_app
 from tests.factories_action_type import default_action_types
 from tests.fakes.catalog_seed import default_codes, default_labels
 from tests.fakes.directory import FakeDirectoryAuthenticator
+from tests.support.database import apply_migrations, resolve_admin_url, temporary_database
 from tests.support.functional_clock import activate, new_clock
+from tests.support.skips import skip_or_fail
 from tests.support.truncate import truncate_business_tables
 
 if TYPE_CHECKING:
@@ -175,6 +177,25 @@ async def _truncate(database_url: URL) -> None:
     finally:
         await engine.dispose()
     await restore_default_catalog(database_url)
+
+
+@pytest_asyncio.fixture
+async def fresh_api(tmp_path: Path) -> AsyncIterator[Api]:
+    """마이그레이션만 적용한 새 임시 DB 위의 앱. 시드가 그대로 남아 있고 업무 데이터는 없다.
+
+    복원·TRUNCATE를 하지 않으므로 시드 id가 마이그레이션이 매긴 값(1부터)이다. 마이그레이션 직후의
+    초기화된 시스템(최초 설정 3단계가 다시 열린 상태)을 보는 시나리오가 쓴다.
+    """
+    admin_url = resolve_admin_url()
+    if admin_url is None:
+        skip_or_fail("관리자 접속 정보가 없어 새 DB 시나리오를 건너뜁니다")
+    async with temporary_database(admin_url) as url:
+        await apply_migrations(url)
+        client = Api(url, FakeDirectoryAuthenticator(), storage_root=tmp_path / "neoine-files")
+        try:
+            yield client
+        finally:
+            await client.aclose()
 
 
 @pytest_asyncio.fixture

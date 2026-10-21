@@ -19,6 +19,8 @@ from tests.functional.steps.deals import (
     partner_draft,
     then_code_date_is_local_today,
     then_history_is,
+    when_get_deal,
+    when_list_deals,
     when_list_history,
     when_register_deal,
 )
@@ -153,6 +155,37 @@ async def test_registration_is_recorded_in_history_by_the_requester(api: Api) ->
     assert entry["by"]["id"] == deal["owner_user_id"]
     assert entry["deal_code"] == deal["code"]
     assert datetime.fromisoformat(entry["at"]) == api.clock.now()
+
+
+async def test_history_entry_ids_are_json_integers(api: Api) -> None:
+    """Scenario: 이력 항목의 id와 변경자 id는 JSON 정수다."""
+    # Given
+    await given_logged_in_as(api, role="sales")
+    deal = await given_deal(api)
+    # When
+    response = await when_list_history(api, deal["code"])
+    # Then
+    (entry,) = response.json()
+    assert type(entry["id"]) is int
+    assert type(entry["by"]["id"]) is int
+
+
+async def test_the_deal_response_has_no_internal_id(api: Api) -> None:
+    """Scenario: Deal은 code로만 식별한다. 응답(등록·상세·목록)에 내부 id 필드가 없다."""
+    # Given
+    await given_logged_in_as(api, role="sales")
+    # When
+    registered = await when_register_deal(api)
+    # Then
+    then_status_is(registered, 201)
+    code = registered.json()["code"]
+    detail = (await when_get_deal(api, code)).json()
+    (row,) = (await when_list_deals(api)).json()["items"]
+    for body in (registered.json(), detail, row):
+        assert "id" not in body
+        assert body["code"] == code
+        assert type(body["owner_user_id"]) is int
+        assert type(body["customer"]["id"]) is int
 
 
 async def test_a_deal_has_only_the_registration_entry_right_after_registering(api: Api) -> None:

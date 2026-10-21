@@ -4,16 +4,15 @@
 test_contact_lookup_contract.py) 한 곳에 있다.
 `find_same_person`에 넘기는 후보는 이미 그 조건을 통과한 것으로 보고, 이메일 규칙과
 exclude_id만 적용한다(회사·이름·종류를 다시 비교하지 않는다. 표기가 달라도 후보는 버려지지 않는다).
-id는 UUID 문자열 오름차순으로 비교한다(프런트와 같은 문자열 비교).
+id는 정수 오름차순(숫자 크기순)으로 비교한다.
 """
 
 from typing import TYPE_CHECKING
-from uuid import UUID
 
 import pytest
 
 from app.domain.contact.identity import find_same_person
-from app.domain.contact.values import ContactKind
+from app.domain.contact.values import ContactId, ContactKind
 from tests.factories_contact import make_contact, make_contact_details
 
 if TYPE_CHECKING:
@@ -25,8 +24,8 @@ if TYPE_CHECKING:
 CUSTOMER = ContactKind.CUSTOMER
 
 
-def _id(number: int) -> UUID:
-    return UUID(int=number)  # 숫자가 작을수록 문자열 순서도 앞선다
+def _id(number: int) -> int:
+    return number
 
 
 def _contact(
@@ -38,7 +37,7 @@ def _contact(
 ) -> Contact:
     return make_contact(
         kind,
-        entity_id=_id(number),  # type: ignore[arg-type, unused-ignore]
+        entity_id=ContactId(_id(number)),
         company=company,
         name=name,
         email=email,
@@ -54,11 +53,13 @@ def _found(
     pool: Sequence[Contact],
     kind: ContactKind,
     details: ContactDetails,
-    exclude_id: UUID | None = None,
+    exclude_id: int | None = None,
 ) -> int | None:
     """찾은 연락처의 번호(_id의 숫자). 없으면 None."""
-    found = find_same_person(pool, kind, details, exclude_id=exclude_id)  # type: ignore[arg-type, unused-ignore]
-    return None if found is None else found.id.int
+    found = find_same_person(
+        pool, kind, details, exclude_id=None if exclude_id is None else ContactId(exclude_id)
+    )
+    return None if found is None else found.id
 
 
 @pytest.fixture
@@ -74,6 +75,17 @@ def test_without_email_the_candidate_is_the_same_person() -> None:
     pool = [_contact(2, "한빛은행", "오지현", None)]
 
     assert _found(pool, CUSTOMER, _wanted("한빛은행", "오지현", None)) == 2
+
+
+def test_the_smallest_id_is_compared_as_a_number_not_as_text() -> None:
+    """9와 10: 문자열로 비교하면 '10'이 앞서지만 숫자로는 9가 작다(생성 순서 = id 오름차순)."""
+    pool = [
+        _contact(10, "누리통신", "배성훈", None),
+        _contact(9, "누리통신", "배성훈", None),
+        _contact(100, "누리통신", "배성훈", None),
+    ]
+
+    assert _found(pool, CUSTOMER, _wanted("누리통신", "배성훈", None)) == 9
 
 
 def test_without_email_several_candidates_resolve_to_the_smallest_id(

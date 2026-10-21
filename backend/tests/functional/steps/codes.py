@@ -5,10 +5,10 @@ Given은 공개 API로 사전 상태를 만들고(admin으로 로그인한 상�
 `steps/common.py`, 로그인은 `steps/auth.py`를 쓴다.
 """
 
-from typing import TYPE_CHECKING, Literal
-from uuid import uuid4
+from typing import TYPE_CHECKING, Literal, cast
 
 from tests.functional.steps.deals import customer_draft, given_deal, given_sales_owner
+from tests.support.ids import MISSING_ID
 
 if TYPE_CHECKING:
     from httpx import Response
@@ -34,9 +34,9 @@ def in_use_message(count: int) -> str:
     return f"사용 중인 코드는 삭제할 수 없습니다. (Deal {count}건)"
 
 
-def unknown_id() -> str:
+def unknown_id() -> int:
     """어떤 코드·Label에도 없는 id."""
-    return str(uuid4())
+    return MISSING_ID
 
 
 # --- Given ---
@@ -49,14 +49,14 @@ async def given_code_list(api: Api, *, kind: Kind) -> list[dict[str, object]]:
     return list(response.json()[GROUPS[kind]])
 
 
-async def given_code_id(api: Api, *, kind: Kind, key: str) -> str:
+async def given_code_id(api: Api, *, kind: Kind, key: str) -> int:
     codes = [c for c in await given_code_list(api, kind=kind) if c["key"] == key]
     assert len(codes) == 1, (kind, key)
-    return str(codes[0]["id"])
+    return cast("int", codes[0]["id"])
 
 
-async def given_code_ids(api: Api, *, kind: Kind) -> list[str]:
-    return [str(c["id"]) for c in await given_code_list(api, kind=kind)]
+async def given_code_ids(api: Api, *, kind: Kind) -> list[int]:
+    return [cast("int", c["id"]) for c in await given_code_list(api, kind=kind)]
 
 
 async def given_code_created(
@@ -103,15 +103,15 @@ async def when_create_code(
     return await api.post(CODES, json=body)
 
 
-async def when_rename_code(api: Api, *, code_id: str, name: str) -> Response:
+async def when_rename_code(api: Api, *, code_id: object, name: str) -> Response:
     return await api.patch(f"{CODES}/{code_id}", json={"name": name})
 
 
-async def when_reorder_codes(api: Api, *, kind: Kind, ordered_ids: list[str]) -> Response:
+async def when_reorder_codes(api: Api, *, kind: Kind, ordered_ids: list[int]) -> Response:
     return await api.put(CODE_ORDER, json={"kind": kind, "ordered_ids": ordered_ids})
 
 
-async def when_delete_code(api: Api, *, code_id: str) -> Response:
+async def when_delete_code(api: Api, *, code_id: object) -> Response:
     return await api.delete(f"{CODES}/{code_id}")
 
 

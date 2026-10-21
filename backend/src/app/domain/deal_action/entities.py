@@ -1,6 +1,5 @@
 from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, Self
-from uuid import uuid4
 
 from app.domain.common.entity import AuditedEntity
 from app.domain.common.errors import InvalidStateError, InvalidValueError
@@ -51,10 +50,10 @@ class DealAction(AuditedEntity[DealActionId]):
         actor_user_id: UserId,
         snapshot: SyncState,
         now: datetime,
-        entity_id: DealActionId | None = None,
+        entity_id: DealActionId,
     ) -> Self:
         return cls(
-            id=entity_id or DealActionId(uuid4()),
+            id=entity_id,
             deal_code=deal_code,
             content=content,
             acted_at=now,

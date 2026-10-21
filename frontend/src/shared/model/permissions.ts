@@ -13,7 +13,7 @@
 import type { Role, UserRef } from './types'
 
 export interface Viewer {
-  id: string
+  id: number
   role: Role
 }
 
@@ -32,7 +32,7 @@ export function canAccessAdmin(role: Role | null | undefined): boolean {
 }
 
 /** Deal 삭제: admin은 모든 Deal, sales는 Owner가 본인인 Deal만, user는 불가. */
-export function canDeleteDeal(viewer: Viewer, ownerId: string): boolean {
+export function canDeleteDeal(viewer: Viewer, ownerId: number): boolean {
   if (viewer.role === 'admin') return true
   return viewer.role === 'sales' && viewer.id === ownerId
 }
@@ -49,7 +49,7 @@ export function canDeleteAttachment(viewer: Viewer, uploadedBy: UserRef): boolea
 }
 
 /** Action 수정·삭제: admin은 모든 Action, sales는 본인이 남긴 Action만, user는 불가. */
-export function canEditAction(viewer: Viewer, actorId: string): boolean {
+export function canEditAction(viewer: Viewer, actorId: number): boolean {
   if (viewer.role === 'admin') return true
   return viewer.role === 'sales' && viewer.id === actorId
 }

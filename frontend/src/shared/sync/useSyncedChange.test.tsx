@@ -9,13 +9,13 @@ import { useSyncedChange } from './useSyncedChange'
 
 const CODES: CodeSet = {
   statuses: [
-    { id: 's1', kind: 'status', key: 'poc_done', name: 'POC완료', order: 1, locked: false, outcome: 'open', probabilityHint: null },
-    { id: 's2', kind: 'status', key: 'negotiation', name: '가격협상', order: 2, locked: false, outcome: 'open', probabilityHint: null },
-    { id: 's3', kind: 'status', key: 'contract_completed', name: '계약완료', order: 3, locked: true, outcome: 'open', probabilityHint: null },
+    { id: 1, kind: 'status', key: 'poc_done', name: 'POC완료', order: 1, locked: false, outcome: 'open', probabilityHint: null },
+    { id: 2, kind: 'status', key: 'negotiation', name: '가격협상', order: 2, locked: false, outcome: 'open', probabilityHint: null },
+    { id: 3, kind: 'status', key: 'contract_completed', name: '계약완료', order: 3, locked: true, outcome: 'open', probabilityHint: null },
   ],
   forecasts: [
-    { id: 'f1', kind: 'forecast', key: 'commit', name: 'Commit', order: 1, locked: false, outcome: 'open', probabilityHint: null },
-    { id: 'f2', kind: 'forecast', key: 'won', name: 'Won', order: 2, locked: true, outcome: 'won', probabilityHint: null },
+    { id: 4, kind: 'forecast', key: 'commit', name: 'Commit', order: 1, locked: false, outcome: 'open', probabilityHint: null },
+    { id: 5, kind: 'forecast', key: 'won', name: 'Won', order: 2, locked: true, outcome: 'won', probabilityHint: null },
   ],
 }
 

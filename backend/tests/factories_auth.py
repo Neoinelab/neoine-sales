@@ -2,7 +2,6 @@
 
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, cast
-from uuid import uuid4
 
 from app.domain.auth.credentials import LoginId
 from app.domain.auth.login_failure import FailureCounter, FailurePolicy
@@ -11,6 +10,7 @@ from app.domain.directory.settings import DirectorySettings, DirectoryUrl
 from app.domain.user.entities import User
 from app.domain.user.value_objects import UserId
 from tests.factories import NOW
+from tests.support.ids import new_id
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -45,7 +45,7 @@ def make_user(login_id: str = "kim", role: Role = Role.SALES, **overrides: objec
     overrides: now, entity_id, created_by_user_id.
     """
     given = overrides.pop("entity_id", None)
-    entity_id: UserId = UserId(uuid4()) if given is None else cast("UserId", given)
+    entity_id: UserId = UserId(new_id()) if given is None else cast("UserId", given)
     values: dict[str, Any] = {"created_by_user_id": entity_id, "now": NOW}
     return User.register(LoginId(login_id), role, entity_id=entity_id, **{**values, **overrides})
 
@@ -71,7 +71,7 @@ def make_principal(
     **overrides: object,
 ) -> Principal:
     values: dict[str, Any] = {
-        "user_id": user_id or UserId(uuid4()),
+        "user_id": user_id or UserId(new_id()),
         "subject": subject,
         "email": f"{subject}@local.test",
         "name": f"사용자 {subject}",

@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from app.application.deal.contact_change_log import log_contact_change
+from app.application.ids import new_contact_id
 from app.domain.common.errors import InvalidValueError
 from app.domain.contact.draft import merge_same_person
 from app.domain.contact.entities import Contact
@@ -169,7 +170,9 @@ async def commit_contact(
     """계획을 반영한다. 기존 연락처의 정보가 실제로 바뀌면 참조하는 모든 Deal에 이력을 남긴다."""
     contact = plan.contact
     if contact is None:
-        created = Contact.create(plan.kind, plan.details, now)
+        created = Contact.create(
+            plan.kind, plan.details, now, entity_id=await new_contact_id(uow.ids)
+        )
         await uow.contacts.add(created)
         return CommittedContact(created.id, frozenset())
     if not plan.changed:

@@ -7,7 +7,6 @@
 
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
-from uuid import uuid4
 
 import pytest
 
@@ -21,6 +20,7 @@ from tests.functional.steps.actions import (
 )
 from tests.functional.steps.auth import given_logged_in_as
 from tests.functional.steps.deals import given_deal
+from tests.support.ids import MISSING_ID
 
 if TYPE_CHECKING:
     from tests.functional.conftest import Api
@@ -61,7 +61,7 @@ async def test_an_unknown_type_id_lists_nothing(api: Api) -> None:
     # Given
     code, _ = await given_searchable_actions(api)
     # When
-    response = await when_list_actions(api, code, action_type_id=str(uuid4()))
+    response = await when_list_actions(api, code, action_type_id=MISSING_ID)
     # Then
     then_action_names_are(response, [])
 

@@ -1,12 +1,10 @@
-"""head 스키마(P3)의 alert_settings에 원시 SQL로 행을 넣는 도우미(제약 검증용, 도메인 검사 없음)."""
+"""head 스키마(BIGINT id)의 alert_settings에 원시 SQL로 행을 넣는 도우미(제약 검증용)."""
 
 from typing import TYPE_CHECKING
 
 from sqlalchemy import text
 
 if TYPE_CHECKING:
-    from uuid import UUID
-
     from sqlalchemy.ext.asyncio import AsyncSession
 
 INSERT_ALERT_SETTINGS = (
@@ -16,7 +14,7 @@ INSERT_ALERT_SETTINGS = (
 
 
 async def insert_alert_settings(
-    session: AsyncSession, updated_by: UUID, **overrides: object
+    session: AsyncSession, updated_by: int, **overrides: object
 ) -> None:
     """경고 기준 한 행(기본 id=1, 14일). overrides는 INSERT 파라미터를 덮어쓴다."""
     params: dict[str, object] = {

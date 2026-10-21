@@ -196,7 +196,7 @@ async def test_sales_can_replace_a_file_whose_uploader_has_resigned(api: Api) ->
     kim = await given_signed_in_session(api, login_id="kim", role="sales")
     park = await given_signed_in_session(api, login_id="park", role="sales")
     original = await given_file(api, code, session=kim, name="a.pdf", data=b"old")
-    resigned_id = str(original["uploaded_by"]["id"])
+    resigned_id = original["uploaded_by"]["id"]
     await given_user_deleted(api, resigned_id)  # 첨부가 있어 퇴사 처리된다
     # When
     response = await when_upload(

@@ -3,6 +3,7 @@
 import { describe, expect, it } from 'vitest'
 import type { ActionInput, ActionUpdateInput } from '../../../shared/model/types'
 import { dealCode, expectApiError, mockAs } from '../testing'
+import { NO_SUCH_ID, USER_ID } from '../seed/ids'
 
 const input = (over: Partial<ActionInput> = {}): ActionInput => ({
   type: { name: '미팅' },
@@ -39,7 +40,7 @@ describe('Action 수정 권한 (AC-10, Q8)', () => {
 
     const updated = await gateway.actions.update(target.id, content({ progress: '본인 수정' }))
 
-    expect(updated).toMatchObject({ id: target.id, progress: '본인 수정', actor: { id: 'u-kim' } })
+    expect(updated).toMatchObject({ id: target.id, progress: '본인 수정', actor: { id: USER_ID.kim } })
   })
 
   it('refuses another sales with 403 and the Q8 message, changing nothing', async () => {
@@ -47,7 +48,7 @@ describe('Action 수정 권한 (AC-10, Q8)', () => {
     const code = dealCode(1)
     const target = await firstAction(gateway, code)
     const historyBefore = await gateway.history.list(code, {})
-    await gateway.auth.quickLogin('u-park')
+    await gateway.auth.quickLogin(USER_ID.park)
 
     await expectApiError(gateway.actions.update(target.id, content({ progress: '남의 것 수정' })), 403, FORBIDDEN_EDIT)
 
@@ -65,13 +66,13 @@ describe('Action 수정 권한 (AC-10, Q8)', () => {
   it('answers 404 before 403 for an unknown action id even for another sales', async () => {
     const { gateway } = await mockAs('park')
 
-    await expectApiError(gateway.actions.update('act-none', content()), 404, 'Action을 찾을 수 없습니다.')
+    await expectApiError(gateway.actions.update(NO_SUCH_ID, content()), 404, 'Action을 찾을 수 없습니다.')
   })
 
   it('answers the read-only 403 for the user role before looking for the action', async () => {
     const { gateway } = await mockAs('han')
 
-    await expectApiError(gateway.actions.update('act-none', content()), 403)
+    await expectApiError(gateway.actions.update(NO_SUCH_ID, content()), 403)
   })
 
   it('lets admin edit the action of another user and logs admin as the changer, keeping the actor', async () => {
@@ -81,8 +82,8 @@ describe('Action 수정 권한 (AC-10, Q8)', () => {
 
     const updated = await gateway.actions.update(target.id, content({ progress: '관리자 수정' }))
 
-    expect(updated).toMatchObject({ progress: '관리자 수정', actor: { id: 'u-kim' }, actedAt: target.actedAt })
-    expect((await gateway.history.list(code, {}))[0]).toMatchObject({ category: 'action', by: { id: 'u-root' } })
+    expect(updated).toMatchObject({ progress: '관리자 수정', actor: { id: USER_ID.kim }, actedAt: target.actedAt })
+    expect((await gateway.history.list(code, {}))[0]).toMatchObject({ category: 'action', by: { id: USER_ID.root } })
   })
 
   it('validates in the server order for the owner (progress, Next Action, Due Date)', async () => {
@@ -101,9 +102,9 @@ describe('Action 삭제 권한 (AC-12, Q8)', () => {
     const code = dealCode(1)
     const before = await gateway.actions.list(code, {})
     const historyBefore = await gateway.history.list(code, {})
-    await gateway.auth.quickLogin('u-park')
+    await gateway.auth.quickLogin(USER_ID.park)
 
-    await expectApiError(gateway.actions.remove(before[0]?.id ?? ''), 403, FORBIDDEN_DELETE)
+    await expectApiError(gateway.actions.remove(before[0]?.id ?? NO_SUCH_ID), 403, FORBIDDEN_DELETE)
 
     expect(await gateway.actions.list(code, {})).toEqual(before)
     expect(await gateway.history.list(code, {})).toEqual(historyBefore)
@@ -112,7 +113,7 @@ describe('Action 삭제 권한 (AC-12, Q8)', () => {
   it('answers 404 before 403 for an unknown action id even for another sales', async () => {
     const { gateway } = await mockAs('park')
 
-    await expectApiError(gateway.actions.remove('act-none'), 404, 'Action을 찾을 수 없습니다.')
+    await expectApiError(gateway.actions.remove(NO_SUCH_ID), 404, 'Action을 찾을 수 없습니다.')
   })
 
   it('lets admin delete the action of another user and logs admin as the changer', async () => {
@@ -123,7 +124,7 @@ describe('Action 삭제 권한 (AC-12, Q8)', () => {
     await gateway.actions.remove(target.id)
 
     expect((await gateway.actions.list(code, {})).some((a) => a.id === target.id)).toBe(false)
-    expect((await gateway.history.list(code, {}))[0]).toMatchObject({ category: 'action', after: '삭제', by: { id: 'u-root' } })
+    expect((await gateway.history.list(code, {}))[0]).toMatchObject({ category: 'action', after: '삭제', by: { id: USER_ID.root } })
   })
 
   it('lets the owner sales delete their own action', async () => {

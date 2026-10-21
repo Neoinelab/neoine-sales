@@ -1,5 +1,6 @@
 from typing import TYPE_CHECKING
 
+from app.application.ids import new_user_id
 from app.domain.auth.credentials import LoginId
 from app.domain.auth.principal import Role
 from app.domain.common.errors import InvalidValueError
@@ -8,6 +9,7 @@ from app.domain.user.entities import User
 if TYPE_CHECKING:
     from app.application.auth.issue_session import IssuedSession, IssueSession
     from app.application.ports.clock import Clock
+    from app.application.ports.id_allocator import IdAllocator
     from app.application.ports.unit_of_work import UnitOfWorkFactory
 
 DEV_LOGIN_IDS = frozenset(f"dev-{role.value}" for role in Role)
@@ -40,13 +42,13 @@ class DevLogin:
             await uow.users.lock_roster()  # 재직 확인과 INSERT를 같은 잠금 안에서
             user = await uow.users.get_active_by_login_id(account)
             if user is None:
-                user = self._register(account, role)
+                user = await self._register(uow.ids, account, role)
                 await uow.users.add(user)
                 await uow.commit()
         return await self._issue_session.execute(user.to_principal())
 
-    def _register(self, account: LoginId, role: Role) -> User:
+    async def _register(self, ids: IdAllocator, account: LoginId, role: Role) -> User:
         now = self._clock.now()
-        user = User.register_self(account, role, now=now)
+        user = User.register_self(account, role, entity_id=await new_user_id(ids), now=now)
         user.record_login(now, display_name=f"개발 사용자({role.value})", email=DEV_EMAIL)
         return user

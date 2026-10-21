@@ -5,7 +5,6 @@ SQL 쪽에는 마이그레이션 시드(기본 코드 13개)가 있을 수 있�
 """
 
 from typing import TYPE_CHECKING
-from uuid import uuid4
 
 import pytest
 
@@ -14,6 +13,7 @@ from app.domain.code.values import CodeId, CodeKey, CodeKind, ForecastOutcome
 from app.domain.common.errors import AlreadyExistsError
 from tests.factories import NOW, later
 from tests.factories_catalog import make_code
+from tests.support.ids import new_id
 
 if TYPE_CHECKING:
     from tests.unit.repositories.catalog_case import CatalogCase
@@ -65,7 +65,7 @@ async def test_status_code_without_hint_round_trips(catalog: CatalogCase) -> Non
 
 async def test_get_missing_code_raises_not_found(catalog: CatalogCase) -> None:
     with pytest.raises(CodeNotFoundError):
-        await catalog.codes.get(CodeId(uuid4()))
+        await catalog.codes.get(CodeId(new_id()))
 
 
 async def test_list_orders_a_kind_by_order(catalog: CatalogCase) -> None:
@@ -89,7 +89,7 @@ async def test_list_breaks_order_ties_by_id(catalog: CatalogCase) -> None:
 
     listed = await catalog.mine_codes(CodeKind.STATUS, {c.id for c in twins})
 
-    assert [str(c.id) for c in listed] == sorted(str(c.id) for c in twins)
+    assert [c.id for c in listed] == sorted(c.id for c in twins)
 
 
 async def test_list_with_kind_returns_only_that_kind(catalog: CatalogCase) -> None:
@@ -231,4 +231,4 @@ async def test_deleted_name_and_key_can_be_added_again(catalog: CatalogCase) -> 
 
 async def test_delete_missing_code_raises_not_found(catalog: CatalogCase) -> None:
     with pytest.raises(CodeNotFoundError):
-        await catalog.codes.delete(CodeId(uuid4()))
+        await catalog.codes.delete(CodeId(new_id()))

@@ -2,16 +2,17 @@ import { describe, expect, it } from 'vitest'
 import { CODE, serverContact, serverDealDetail, serverDealRow, serverUserRef } from '../../../test/fixtures/serverDeal'
 import type { DealInput } from '../../../shared/model/types'
 import { toCreateBody, toDealDetail, toDealRow, toPatchBody } from './deal'
+import { USER_ID } from '../../../test/fake/seed/ids'
 
 describe('toDealRow', () => {
   it('maps every server field to the camelCase DealRow', () => {
     const row = toDealRow(
       serverDealRow({
-        partner_links: [{ contact_id: 'c-p', active: true, linked_at: '2026-10-03T09:00:00+09:00', unlinked_at: null }],
-        active_partner: serverContact({ id: 'c-p', kind: 'partner', company: '코어테크', name: '이파트' }),
+        partner_links: [{ contact_id: 11, active: true, linked_at: '2026-10-03T09:00:00+09:00', unlinked_at: null }],
+        active_partner: serverContact({ id: 11, kind: 'partner', company: '코어테크', name: '이파트' }),
         quote: { submitted: 'YES', submitted_date: '2026-10-05' },
         poc: { state: 'ING', completed_date: null },
-        bant: { budget: 'b1', authority: null, need: 'n1', timeline: null },
+        bant: { budget: 1, authority: null, need: 3, timeline: null },
         next_action: { text: '견적 재송부', due_date: '2026-10-20', status: 'open' },
         procurement: '입찰',
       }),
@@ -20,18 +21,18 @@ describe('toDealRow', () => {
     expect(row).toEqual({
       code: CODE,
       name: '한빛은행 ITDR',
-      ownerId: 'u-kim',
-      owner: { id: 'u-kim', name: '김영업', role: 'sales', status: 'active' },
-      vendor: { id: 'vd-006', name: 'Silverfort' },
-      solution: { id: 'sl-006', name: 'ITDR' },
+      ownerId: USER_ID.kim,
+      owner: { id: USER_ID.kim, name: '김영업', role: 'sales', status: 'active' },
+      vendor: { id: 6, name: 'Silverfort' },
+      solution: { id: 6, name: 'ITDR' },
       users: 100,
       statusKey: 'prospecting',
       forecastKey: 'pipeline',
       revenueAmount: 500_000_000,
       revenueDate: '2027-01-31',
-      customerContactId: 'c-cust',
+      customerContactId: 10,
       customer: {
-        id: 'c-cust',
+        id: 10,
         kind: 'customer',
         company: '한빛은행',
         name: '정민수',
@@ -41,12 +42,12 @@ describe('toDealRow', () => {
         createdAt: '2026-10-01T09:00:00+09:00',
         updatedAt: '2026-10-02T09:00:00+09:00',
       },
-      activePartner: expect.objectContaining({ id: 'c-p', kind: 'partner', company: '코어테크' }),
-      partnerLinks: [{ contactId: 'c-p', active: true, linkedAt: '2026-10-03T09:00:00+09:00', unlinkedAt: null }],
+      activePartner: expect.objectContaining({ id: 11, kind: 'partner', company: '코어테크' }),
+      partnerLinks: [{ contactId: 11, active: true, linkedAt: '2026-10-03T09:00:00+09:00', unlinkedAt: null }],
       quote: { submitted: 'YES', submittedDate: '2026-10-05' },
       poc: { state: 'ING', completedDate: null },
       procurement: '입찰',
-      bant: { budget: 'b1', authority: null, need: 'n1', timeline: null },
+      bant: { budget: 1, authority: null, need: 3, timeline: null },
       nextAction: { text: '견적 재송부', dueDate: '2026-10-20', status: 'open' },
       lastUpdatedAt: '2026-10-15T09:00:00+09:00',
       risk: null,
@@ -67,7 +68,7 @@ describe('toDealRow', () => {
   it('AC-13 keeps a vendor without a solution', () => {
     const row = toDealRow(serverDealRow({ solution: null }))
 
-    expect(row.vendor).toEqual({ id: 'vd-006', name: 'Silverfort' })
+    expect(row.vendor).toEqual({ id: 6, name: 'Silverfort' })
     expect(row.solution).toBeNull()
   })
 
@@ -117,9 +118,9 @@ describe('toDealRow', () => {
   })
 
   it('maps a resigned owner with the server role', () => {
-    const row = toDealRow(serverDealRow({ owner: serverUserRef({ id: 'u-old', resigned: true, role: 'sales' }) }))
+    const row = toDealRow(serverDealRow({ owner: serverUserRef({ id: USER_ID.old, resigned: true, role: 'sales' }) }))
 
-    expect(row.owner).toMatchObject({ id: 'u-old', role: 'sales', status: 'resigned' })
+    expect(row.owner).toMatchObject({ id: USER_ID.old, role: 'sales', status: 'resigned' })
   })
 })
 
@@ -129,7 +130,7 @@ describe('toDealDetail', () => {
       serverDealDetail({
         partner_history: [
           {
-            contact: serverContact({ id: 'c-p1', kind: 'partner', company: '코어테크', name: '이파트' }),
+            contact: serverContact({ id: 12, kind: 'partner', company: '코어테크', name: '이파트' }),
             active: false,
             linked_at: '2026-10-03T09:00:00+09:00',
             unlinked_at: '2026-10-10T09:00:00+09:00',
@@ -140,7 +141,7 @@ describe('toDealDetail', () => {
 
     expect(detail.partnerHistory).toEqual([
       {
-        contact: expect.objectContaining({ id: 'c-p1', company: '코어테크', createdAt: '2026-10-01T09:00:00+09:00' }),
+        contact: expect.objectContaining({ id: 12, company: '코어테크', createdAt: '2026-10-01T09:00:00+09:00' }),
         active: false,
         linkedAt: '2026-10-03T09:00:00+09:00',
         unlinkedAt: '2026-10-10T09:00:00+09:00',
@@ -155,7 +156,7 @@ describe('toDealDetail', () => {
 
 const BASE_INPUT: DealInput = {
   name: '한빛은행 ITDR',
-  ownerId: 'u-kim',
+  ownerId: USER_ID.kim,
   vendorId: null,
   solutionId: null,
   users: 10,
@@ -173,22 +174,23 @@ const BASE_INPUT: DealInput = {
 
 describe('bant request bodies (AC-17)', () => {
   it('create sends {id}, {name} or null for every category', () => {
-    const body = toCreateBody({ ...BASE_INPUT, bant: { budget: { id: 'b1' }, authority: null, need: { name: '신규 요건' }, timeline: null } })
+    const body = toCreateBody({ ...BASE_INPUT, bant: { budget: { id: 1 }, authority: null, need: { name: '신규 요건' }, timeline: null } })
 
-    expect(body.bant).toEqual({ budget: { id: 'b1' }, authority: null, need: { name: '신규 요건' }, timeline: null })
+    expect(body.bant).toEqual({ budget: { id: 1 }, authority: null, need: { name: '신규 요건' }, timeline: null })
   })
 
-  it('create never sends a bare uuid string for a category', () => {
-    const body = toCreateBody({ ...BASE_INPUT, bant: { budget: { id: 'b1' }, authority: { name: 'x' }, need: null, timeline: null } })
+  it('create sends catalog ids as JSON numbers and never a bare id string', () => {
+    const body = toCreateBody({ ...BASE_INPUT, bant: { budget: { id: 1 }, authority: { name: 'x' }, need: null, timeline: null } })
 
     expect(Object.values(body.bant ?? {}).some((v) => typeof v === 'string')).toBe(false)
+    expect(JSON.stringify(body.bant)).toBe('{"budget":{"id":1},"authority":{"name":"x"},"need":null,"timeline":null}')
   })
 
   it('patch carries the choice objects only when bant is part of the patch', () => {
     expect(toPatchBody({ name: '이름' })).not.toHaveProperty('bant')
-    expect(toPatchBody({ bant: { budget: null, authority: { id: 'a1' }, need: null, timeline: { name: '내후년 구매' } } }).bant).toEqual({
+    expect(toPatchBody({ bant: { budget: null, authority: { id: 2 }, need: null, timeline: { name: '내후년 구매' } } }).bant).toEqual({
       budget: null,
-      authority: { id: 'a1' },
+      authority: { id: 2 },
       need: null,
       timeline: { name: '내후년 구매' },
     })

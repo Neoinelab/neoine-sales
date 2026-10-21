@@ -5,7 +5,7 @@ import { json, noContent, problem, stubFetch } from './testHelpers'
 afterEach(() => vi.unstubAllGlobals())
 
 const code = (over: Record<string, unknown> = {}) => ({
-  id: 'c1',
+  id: 1,
   kind: 'status',
   key: 'prospecting',
   name: '기회발굴',
@@ -19,13 +19,13 @@ const code = (over: Record<string, unknown> = {}) => ({
 describe('codes over HTTP', () => {
   it('all reads GET /codes and maps both lists', async () => {
     const { calls } = stubFetch(
-      json({ statuses: [code()], forecasts: [code({ id: 'c2', kind: 'forecast', key: 'best', name: 'Best', locked: false, probability_hint: '51–75' })] }),
+      json({ statuses: [code()], forecasts: [code({ id: 2, kind: 'forecast', key: 'best', name: 'Best', locked: false, probability_hint: '51–75' })] }),
     )
 
     const set = await createCodesHttp().all()
 
     expect(calls[0]).toMatchObject({ method: 'GET', path: '/api/v1/codes' })
-    expect(set.statuses[0]).toEqual({ id: 'c1', kind: 'status', key: 'prospecting', name: '기회발굴', order: 1, locked: true, outcome: 'open', probabilityHint: null })
+    expect(set.statuses[0]).toEqual({ id: 1, kind: 'status', key: 'prospecting', name: '기회발굴', order: 1, locked: true, outcome: 'open', probabilityHint: null })
     expect(set.forecasts[0]).toMatchObject({ key: 'best', probabilityHint: '51–75' })
   })
 
@@ -45,12 +45,12 @@ describe('codes over HTTP', () => {
   })
 
   it('create posts kind, name and the hint, and returns the new code', async () => {
-    const { calls } = stubFetch(json(code({ id: 'c9', kind: 'forecast', key: 'upside', name: 'Upside', locked: false, usage_count: 0 }), 201))
+    const { calls } = stubFetch(json(code({ id: 9, kind: 'forecast', key: 'upside', name: 'Upside', locked: false, usage_count: 0 }), 201))
 
     const created = await createCodesHttp().create({ kind: 'forecast', name: 'Upside', probabilityHint: '10–20' })
 
     expect(calls[0]).toMatchObject({ method: 'POST', path: '/api/v1/codes', body: { kind: 'forecast', name: 'Upside', probability_hint: '10–20' } })
-    expect(created).toMatchObject({ id: 'c9', key: 'upside', usageCount: 0 })
+    expect(created).toMatchObject({ id: 9, key: 'upside', usageCount: 0 })
   })
 
   it('create sends a null hint when none is given', async () => {
@@ -80,33 +80,33 @@ describe('codes over HTTP', () => {
   it('rename patches the name', async () => {
     const { calls } = stubFetch(json(code({ name: '신규 발굴', usage_count: 0 })))
 
-    const renamed = await createCodesHttp().rename('c1', '신규 발굴')
+    const renamed = await createCodesHttp().rename(1, '신규 발굴')
 
-    expect(calls[0]).toMatchObject({ method: 'PATCH', path: '/api/v1/codes/c1', body: { name: '신규 발굴' } })
+    expect(calls[0]).toMatchObject({ method: 'PATCH', path: '/api/v1/codes/1', body: { name: '신규 발굴' } })
     expect(renamed.name).toBe('신규 발굴')
   })
 
   it('reorder puts the whole id list of the kind', async () => {
-    const { calls } = stubFetch(json([code({ id: 'c2', order: 1, usage_count: 0 }), code({ id: 'c1', order: 2, usage_count: 0 })]))
+    const { calls } = stubFetch(json([code({ id: 2, order: 1, usage_count: 0 }), code({ id: 1, order: 2, usage_count: 0 })]))
 
-    const rows = await createCodesHttp().reorder('status', ['c2', 'c1'])
+    const rows = await createCodesHttp().reorder('status', [2, 1])
 
-    expect(calls[0]).toMatchObject({ method: 'PUT', path: '/api/v1/codes/order', body: { kind: 'status', ordered_ids: ['c2', 'c1'] } })
-    expect(rows.map((r) => r.id)).toEqual(['c2', 'c1'])
+    expect(calls[0]).toMatchObject({ method: 'PUT', path: '/api/v1/codes/order', body: { kind: 'status', ordered_ids: [2, 1] } })
+    expect(rows.map((r) => r.id)).toEqual([2, 1])
   })
 
   it('reorder shows the server message for a wrong id list', async () => {
     stubFetch(problem(422, 'invalid-value', '순서 목록이 올바르지 않습니다.'))
 
-    await expect(createCodesHttp().reorder('status', ['c1'])).rejects.toMatchObject({ kind: 'validation', message: '순서 목록이 올바르지 않습니다.' })
+    await expect(createCodesHttp().reorder('status', [1])).rejects.toMatchObject({ kind: 'validation', message: '순서 목록이 올바르지 않습니다.' })
   })
 
   it('remove deletes and accepts 204', async () => {
     const { calls } = stubFetch(noContent())
 
-    await expect(createCodesHttp().remove('c1')).resolves.toBeUndefined()
+    await expect(createCodesHttp().remove(1)).resolves.toBeUndefined()
 
-    expect(calls[0]).toMatchObject({ method: 'DELETE', path: '/api/v1/codes/c1' })
+    expect(calls[0]).toMatchObject({ method: 'DELETE', path: '/api/v1/codes/1' })
   })
 
   it.each([
@@ -115,7 +115,7 @@ describe('codes over HTTP', () => {
   ])('remove maps "%s" to a conflict', async (detail) => {
     stubFetch(problem(409, 'invalid-state', detail))
 
-    await expect(createCodesHttp().remove('c1')).rejects.toMatchObject({ status: 409, kind: 'conflict', message: detail })
+    await expect(createCodesHttp().remove(1)).rejects.toMatchObject({ status: 409, kind: 'conflict', message: detail })
   })
 
   it('rejects an outcome the screens do not know', async () => {

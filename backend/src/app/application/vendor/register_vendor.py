@@ -1,5 +1,6 @@
 from typing import TYPE_CHECKING
 
+from app.application.ids import new_vendor_id
 from app.application.vendor.dto import VendorUsage
 from app.domain.vendor.entities import Vendor
 from app.domain.vendor.rules import ensure_unique_vendor_name
@@ -21,7 +22,9 @@ class RegisterVendor:
         clean = normalize_vendor_name(name)
         async with self._uow_factory() as uow:
             ensure_unique_vendor_name(await uow.vendors.list(for_update=True), clean)
-            vendor = Vendor.create(name=clean, now=self._clock.now())
+            vendor = Vendor.create(
+                entity_id=await new_vendor_id(uow.ids), name=clean, now=self._clock.now()
+            )
             await uow.vendors.add(vendor)
             await uow.commit()
         return VendorUsage(vendor, 0, ())

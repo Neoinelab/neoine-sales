@@ -23,7 +23,7 @@ function toListParams(q: ActionQuery) {
 }
 
 export function createActionsHttp(): ActionsGateway {
-  const byId = (actionId: string) => ({ params: { path: { action_id: actionId } } })
+  const byId = (actionId: number) => ({ params: { path: { action_id: actionId } } })
   return {
     list: async (dealCode, query) => {
       const result = await unwrap(

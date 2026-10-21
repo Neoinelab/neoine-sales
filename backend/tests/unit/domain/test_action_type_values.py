@@ -1,8 +1,7 @@
 """Action 유형 이름 규칙(AC-3)과 참조 값 객체: trim, 필수, 50자, NUL."""
 
-from uuid import uuid4
-
 import pytest
+
 from app.domain.action_type.values import (
     ACTION_TYPE_NAME_MAX,
     ACTION_TYPE_REQUIRED,
@@ -11,9 +10,9 @@ from app.domain.action_type.values import (
     ActionTypeRef,
     normalize_action_type_name,
 )
-
 from app.domain.common.errors import InvalidValueError
 from tests.support.expect import raises_with
+from tests.support.ids import new_id
 
 
 def test_action_type_name_limit_is_50() -> None:
@@ -59,9 +58,9 @@ def test_blank_is_reported_before_length() -> None:
 
 
 def test_type_ref_is_a_value_of_id_and_name() -> None:
-    type_id = ActionTypeId(uuid4())
+    type_id = ActionTypeId(new_id())
 
     assert ActionTypeRef(type_id, "미팅") == ActionTypeRef(type_id, "미팅")
     assert ActionTypeRef(type_id, "미팅") != ActionTypeRef(type_id, "회의")
-    assert ActionTypeRef(type_id, "미팅") != ActionTypeRef(ActionTypeId(uuid4()), "미팅")
+    assert ActionTypeRef(type_id, "미팅") != ActionTypeRef(ActionTypeId(new_id()), "미팅")
     assert hash(ActionTypeRef(type_id, "미팅")) == hash(ActionTypeRef(type_id, "미팅"))

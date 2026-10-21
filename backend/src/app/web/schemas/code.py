@@ -1,12 +1,12 @@
 """코드(Status·Forecast) 요청·응답 스키마. 빈 이름 검사는 도메인이 한다(min_length 금지)."""
 
 from typing import TYPE_CHECKING
-from uuid import UUID
 
 from pydantic import BaseModel
 
 from app.domain.code.values import CodeId, CodeKind
 from app.web.schemas.common import RequestModel
+from app.web.schemas.ids import BodyId
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -27,14 +27,14 @@ class CodeRenameRequest(RequestModel):
 
 class CodeOrderRequest(RequestModel):
     kind: CodeKind
-    ordered_ids: list[UUID]
+    ordered_ids: list[BodyId]
 
     def ids(self) -> list[CodeId]:
         return [CodeId(i) for i in self.ordered_ids]
 
 
 class CodeResponse(BaseModel):
-    id: str
+    id: int
     kind: CodeKind
     key: str
     name: str
@@ -46,7 +46,7 @@ class CodeResponse(BaseModel):
     @classmethod
     def from_entity(cls, code: Code) -> CodeResponse:
         return cls(
-            id=str(code.id),
+            id=code.id,
             kind=code.kind,
             key=code.key.value,
             name=code.name,

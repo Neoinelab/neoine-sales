@@ -108,13 +108,13 @@ describe('setup over HTTP', () => {
   })
 
   it('registerAdmin posts to /auth/setup and returns the signed-in admin', async () => {
-    const { calls } = stubFetch(json({ user_id: 'u1', subject: 'root', name: 'root', role: 'admin', email: null }))
+    const { calls } = stubFetch(json({ user_id: 1, subject: 'root', name: 'root', role: 'admin', email: null }))
 
     const me = await createSetupHttp().registerAdmin('root', 'pw')
 
     expect(calls).toHaveLength(1)
     expect(calls[0]).toMatchObject({ method: 'POST', path: '/api/v1/auth/setup', body: { login_id: 'root', password: 'pw' } })
-    expect(me).toEqual({ id: 'u1', loginId: 'root', name: 'root', role: 'admin' })
+    expect(me).toEqual({ id: 1, loginId: 'root', name: 'root', role: 'admin' })
   })
 
   it('shows the server message when the setup is already done', async () => {

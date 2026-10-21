@@ -5,7 +5,6 @@
 """
 
 from typing import TYPE_CHECKING
-from uuid import uuid4
 
 import pytest
 
@@ -27,6 +26,7 @@ from tests.functional.steps.action_types import (
 from tests.functional.steps.actions import given_action, given_deal_with_a_sales_owner
 from tests.functional.steps.auth import RoleName, given_logged_in_as, given_logged_out
 from tests.functional.steps.common import then_body_includes, then_problem_is, then_status_is
+from tests.support.ids import MISSING_ID
 
 if TYPE_CHECKING:
     from tests.functional.conftest import Api
@@ -53,7 +53,7 @@ async def test_renaming_only_the_case_of_its_own_name_is_allowed(api: Api) -> No
     await given_logged_in_as(api, role="admin")
     created = await given_type_created(api, "Webinar")
     # When
-    response = await when_rename_type(api, str(created["id"]), "WEBINAR")
+    response = await when_rename_type(api, created["id"], "WEBINAR")
     # Then
     then_status_is(response, 200)
     assert response.json()["name"] == "WEBINAR"
@@ -96,8 +96,8 @@ async def test_renaming_or_deleting_an_unknown_type_is_not_found(api: Api) -> No
     # Given
     await given_logged_in_as(api, role="admin")
     # When
-    renamed = await when_rename_type(api, str(uuid4()), "무엇")
-    deleted = await when_delete_type(api, str(uuid4()))
+    renamed = await when_rename_type(api, MISSING_ID, "무엇")
+    deleted = await when_delete_type(api, MISSING_ID)
     # Then
     then_problem_is(renamed, status=404, type_suffix="not-found")
     then_problem_is(deleted, status=404, type_suffix="not-found")
@@ -120,7 +120,7 @@ async def test_a_deleted_name_can_be_used_again(api: Api) -> None:
     # Given
     await given_logged_in_as(api, role="admin")
     created = await given_type_created(api, "웨비나")
-    await when_delete_type(api, str(created["id"]))
+    await when_delete_type(api, created["id"])
     # When
     response = await when_create_type(api, "웨비나")
     # Then

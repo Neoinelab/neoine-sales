@@ -2,7 +2,6 @@
 
 import logging
 from typing import TYPE_CHECKING
-from uuid import uuid4
 
 import pytest
 
@@ -11,6 +10,7 @@ from app.domain.attachment.errors import AttachmentDeleteForbiddenError, Attachm
 from app.domain.attachment.values import AttachmentId
 from tests.fakes.commit_failure import COMMIT_FAILED, commit_failing_factory
 from tests.support.expect import raises_with
+from tests.support.ids import new_id
 from tests.unit.application.attachment_env import (
     BOSS,
     DELETE_FORBIDDEN,
@@ -126,7 +126,7 @@ async def test_delete_by_someone_without_the_right_is_forbidden_and_keeps_everyt
 
 
 async def test_an_unknown_id_is_not_found_whoever_asks(attachment_env: AttachmentEnv) -> None:
-    missing = AttachmentId(uuid4())
+    missing = AttachmentId(new_id())
 
     for actor in (KIM, PARK, BOSS, VIEWER):
         with raises_with(AttachmentNotFoundError, NOT_FOUND):

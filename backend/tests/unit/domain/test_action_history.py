@@ -2,8 +2,6 @@
 
 from datetime import date
 
-from app.domain.deal_action.next_action_status import NextActionStatus, NextActionStatusChange
-
 from app.domain.deal.history import HistoryCategory
 from app.domain.deal_action.history import (
     ACTION_TARGET,
@@ -13,6 +11,7 @@ from app.domain.deal_action.history import (
     action_updated_draft,
     next_action_status_draft,
 )
+from app.domain.deal_action.next_action_status import NextActionStatus, NextActionStatusChange
 from tests.factories import make_action_content
 from tests.factories_action_type import make_type_ref
 

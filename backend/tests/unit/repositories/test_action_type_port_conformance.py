@@ -5,12 +5,12 @@
 
 import inspect
 
-from app.application.ports.action_type_repository import ActionTypeRepository
-from app.infra.db.action_type_repository import SqlActionTypeRepository
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 
+from app.application.ports.action_type_repository import ActionTypeRepository
 from app.application.ports.unit_of_work import UnitOfWork
 from app.container import Container
+from app.infra.db.action_type_repository import SqlActionTypeRepository
 from app.infra.db.unit_of_work import SqlUnitOfWork
 from app.web.use_case_provider import UseCaseProvider
 from tests.fakes.action_types import FakeActionTypeRepository

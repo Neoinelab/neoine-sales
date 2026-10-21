@@ -58,7 +58,7 @@ export function planDealChange(ctx: MockContext, deal: Deal, request: ApplyChang
 }
 
 /** 계획을 적용하고 바뀐 필드를 History에 남긴다. 바뀐 것이 없으면 updatedAt도 그대로 둔다. */
-export function commitDealChange(ctx: MockContext, deal: Deal, outcome: ChangeOutcome, byId: string): void {
+export function commitDealChange(ctx: MockContext, deal: Deal, outcome: ChangeOutcome, byId: number): void {
   const before = clone(deal)
   Object.assign(deal, outcome.patch)
   if (deal.statusKey !== before.statusKey) deal.statusChangedAt = ctx.clock.now()

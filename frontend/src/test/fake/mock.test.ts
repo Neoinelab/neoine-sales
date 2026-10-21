@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { DEAL_CODE_PATTERN, QUICK_LOGIN_USERS } from '../../shared/model/constants'
 import { isSyncConsistent } from '../../shared/model/sync'
 import { dealCode, expectApiError, mockAs, newMock, TEST_NOW } from './testing'
+import { NO_SUCH_ID, USER_ID } from './seed/ids'
 
 async function allDeals(mock: Awaited<ReturnType<typeof mockAs>>) {
   const page = await mock.gateway.deals.list({ limit: 100 })
@@ -16,8 +17,8 @@ describe('시드 데이터(계획 4.3)', () => {
     expect(users.filter((u) => u.status === 'resigned').map((u) => u.name)).toEqual(['강퇴사'])
     const ids = users.map((u) => u.id)
     for (const q of QUICK_LOGIN_USERS) expect(ids).toContain(q.userId)
-    expect(users.find((u) => u.id === 'u-root')?.role).toBe('admin')
-    expect(users.find((u) => u.id === 'u-han')?.role).toBe('user')
+    expect(users.find((u) => u.id === USER_ID.root)?.role).toBe('admin')
+    expect(users.find((u) => u.id === USER_ID.han)?.role).toBe('user')
   })
 
   it('Deal 24건, 모두 code 형식과 Status⇄Forecast 불변식을 지킨다', async () => {
@@ -129,14 +130,14 @@ describe('인증', () => {
     await expectApiError(auth.login('kim', ''), 422, '아이디와 비밀번호를 입력하세요.')
     await expectApiError(auth.login('nobody', 'pw'), 401, '아이디 또는 비밀번호가 올바르지 않습니다.')
     await expectApiError(auth.login('old', 'pw'), 403, '퇴사한 사용자는 로그인할 수 없습니다.')
-    await expectApiError(auth.quickLogin('u-old'), 403, '퇴사한 사용자는 로그인할 수 없습니다.')
-    await expectApiError(auth.quickLogin('u-none'), 401)
+    await expectApiError(auth.quickLogin(USER_ID.old), 403, '퇴사한 사용자는 로그인할 수 없습니다.')
+    await expectApiError(auth.quickLogin(NO_SUCH_ID), 401)
   })
 
   it('아무 비밀번호나 통과하고 me가 사용자를 돌려주며 로그아웃하면 401이다', async () => {
     const { gateway } = await mockAs(null)
     const me = await gateway.auth.login('kim', 'anything')
-    expect(me).toEqual({ id: 'u-kim', loginId: 'kim', name: '김영업', role: 'sales' })
+    expect(me).toEqual({ id: USER_ID.kim, loginId: 'kim', name: '김영업', role: 'sales' })
     expect(await gateway.auth.me()).toEqual(me)
     await gateway.auth.logout()
     await expectApiError(gateway.auth.me(), 401)
@@ -145,7 +146,7 @@ describe('인증', () => {
   it('로그인하면 lastLoginAt이 시계의 now로 갱신된다', async () => {
     const root = await mockAs('root')
     const users = await root.gateway.users.list('all')
-    expect(users.find((u) => u.id === 'u-root')?.lastLoginAt).toBe(TEST_NOW)
+    expect(users.find((u) => u.id === USER_ID.root)?.lastLoginAt).toBe(TEST_NOW)
   })
 })
 
@@ -194,7 +195,7 @@ describe('T-MOCK 초기화·격리·시계', () => {
     control.resetData()
     expect(await allDeals(mock)).toHaveLength(24)
     expect((await gateway.labels.list()).some((l) => l.name === '새 라벨')).toBe(false)
-    expect((await gateway.auth.me()).id).toBe('u-root')
+    expect((await gateway.auth.me()).id).toBe(USER_ID.root)
   })
 
   it('T-MOCK-02 서로 다른 인스턴스는 상태를 공유하지 않는다', async () => {

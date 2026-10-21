@@ -6,7 +6,6 @@ SQL 쪽에는 마이그레이션 시드(기본 Label 23개)가 있을 수 있어
 """
 
 from typing import TYPE_CHECKING
-from uuid import uuid4
 
 import pytest
 
@@ -15,6 +14,7 @@ from app.domain.bant.values import BantCategory, BantLabelId
 from app.domain.user.value_objects import UserId
 from tests.factories import NOW, later
 from tests.factories_catalog import make_label
+from tests.support.ids import new_id
 
 if TYPE_CHECKING:
     from tests.unit.repositories.catalog_case import CatalogCase
@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 async def test_add_then_get_round_trips_a_custom_label_with_its_creator(
     catalog: CatalogCase,
 ) -> None:
-    creator = UserId(uuid4())
+    creator = UserId(new_id())
     await catalog.ensure_user(creator)
     label = make_label(BantCategory.NEED, name="ZZ 규제 대응", created_by=creator, now=NOW)
     await catalog.labels.add(label)
@@ -48,7 +48,7 @@ async def test_default_label_round_trips_without_a_creator(catalog: CatalogCase)
 
 async def test_get_missing_label_raises_not_found(catalog: CatalogCase) -> None:
     with pytest.raises(BantLabelNotFoundError):
-        await catalog.labels.get(BantLabelId(uuid4()))
+        await catalog.labels.get(BantLabelId(new_id()))
 
 
 async def test_list_puts_defaults_first_by_default_order_then_custom_by_name(
@@ -222,4 +222,4 @@ async def test_deleted_name_can_be_added_again(catalog: CatalogCase) -> None:
 
 async def test_delete_missing_label_raises_not_found(catalog: CatalogCase) -> None:
     with pytest.raises(BantLabelNotFoundError):
-        await catalog.labels.delete(BantLabelId(uuid4()))
+        await catalog.labels.delete(BantLabelId(new_id()))

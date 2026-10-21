@@ -6,7 +6,6 @@
 
 from datetime import timedelta
 from typing import TYPE_CHECKING
-from uuid import uuid4
 
 import pytest
 import pytest_asyncio
@@ -21,6 +20,7 @@ from tests.factories import NOW, later
 from tests.factories_auth import make_principal
 from tests.fakes.session_repository import FakeSessionRepository
 from tests.support.database import rolled_back_session
+from tests.support.ids import new_id
 from tests.support.user_ids import uid
 from tests.support.user_seed import ensure_users
 
@@ -43,7 +43,7 @@ def principal_of(name: str, role: Role = Role.SALES) -> Principal:
 
 def make_session(**overrides: object) -> AuthSession:
     values: dict[str, object] = {
-        "id": SessionId(uuid4()),
+        "id": SessionId(new_id()),
         "principal": principal_of("kim", Role.ADMIN),
         "created_at": NOW,
         "expires_at": NOW + timedelta(hours=8),
@@ -125,7 +125,7 @@ async def test_delete_all_for_user_removes_only_that_users_sessions(
 async def test_delete_all_for_user_without_sessions_returns_zero(
     repository: SessionRepository,
 ) -> None:
-    assert await repository.delete_all_for_user(UserId(uuid4())) == 0
+    assert await repository.delete_all_for_user(UserId(new_id())) == 0
     assert await repository.delete_all_for_user(uid("lee")) == 0
 
 

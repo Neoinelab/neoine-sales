@@ -33,13 +33,13 @@ export interface HistoryLookup {
   statusName(key: string): string
   forecastName(key: string): string
   /** `userLabel` 규칙(퇴사자는 이름(퇴사)). */
-  userName(id: string): string
+  userName(id: number): string
   /** '회사명 담당자명' 형식. */
-  contactName(id: string): string
-  bantLabelName(id: string | null): string
+  contactName(id: number): string
+  bantLabelName(id: number | null): string
   /** Vendor 이름. id가 null이거나 없으면 '선택 안 함'. */
-  vendorName(id: string | null): string
-  solutionName(id: string | null): string
+  vendorName(id: number | null): string
+  solutionName(id: number | null): string
 }
 
 /**
@@ -88,7 +88,7 @@ function withNote(name: string, coChanged: boolean, other: string): string {
   return coChanged ? `${name} (${withWa(other)} 함께 변경)` : name
 }
 
-function activePartnerId(deal: Deal): string | null {
+function activePartnerId(deal: Deal): number | null {
   return deal.partnerLinks.find((l) => l.active)?.contactId ?? null
 }
 

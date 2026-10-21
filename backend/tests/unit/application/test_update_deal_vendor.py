@@ -5,13 +5,13 @@
 """
 
 from typing import TYPE_CHECKING
-from uuid import uuid4
 
 from app.application.deal.dto import NamedRef
 from app.application.vendor.rename_vendor import RenameVendor
 from app.domain.common.errors import InvalidValueError
 from tests.factories_deal import SALES, make_patch
 from tests.support.expect import raises_with
+from tests.support.ids import new_id
 
 if TYPE_CHECKING:
     from tests.unit.application.deal_env import DealEnv
@@ -107,7 +107,7 @@ async def test_unknown_vendor_is_rejected(env: DealEnv) -> None:
     view = await env.new_deal()
 
     with raises_with(InvalidValueError, UNKNOWN_VENDOR):
-        await env.update.execute(view.item.deal.id.value, make_patch(vendor_id=uuid4()), SALES)
+        await env.update.execute(view.item.deal.id.value, make_patch(vendor_id=new_id()), SALES)
 
 
 async def test_solution_without_any_vendor_is_rejected(env: DealEnv) -> None:

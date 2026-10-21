@@ -5,7 +5,7 @@ import { json, noContent, problem, stubFetch } from './testHelpers'
 afterEach(() => vi.unstubAllGlobals())
 
 const contact = (over: Record<string, unknown> = {}) => ({
-  id: 'ct1',
+  id: 9,
   kind: 'customer',
   company: '네오인',
   name: '홍길동',
@@ -33,7 +33,7 @@ describe('contacts over HTTP', () => {
 
     expect(calls[0]).toMatchObject({ method: 'GET', path: `/api/v1/contacts/by-company?kind=partner&company=${encodeURIComponent('네오인')}` })
     expect(rows[0]).toEqual({
-      id: 'ct1',
+      id: 9,
       kind: 'customer',
       company: '네오인',
       name: '홍길동',
@@ -64,7 +64,7 @@ describe('contacts over HTTP', () => {
       path: `/api/v1/contacts?kind=customer&keyword=${encodeURIComponent('홍')}&offset=20&limit=20`,
     })
     expect(page).toMatchObject({ total: 41, offset: 20, limit: 20 })
-    expect(page.items[0]).toMatchObject({ id: 'ct1', dealCount: 1 })
+    expect(page.items[0]).toMatchObject({ id: 9, dealCount: 1 })
   })
 
   it('list omits the filters that are not set', async () => {
@@ -97,7 +97,7 @@ describe('contacts over HTTP', () => {
       path: '/api/v1/contacts',
       body: { kind: 'customer', company: '네오인', name: '홍길동', title: '팀장', email: 'hong@neoine.test', phone: '010-1234-5678' },
     })
-    expect(created).toMatchObject({ id: 'ct1', title: '팀장', phone: '010-1234-5678' })
+    expect(created).toMatchObject({ id: 9, title: '팀장', phone: '010-1234-5678' })
   })
 
   it('create sends an empty title as null', async () => {
@@ -126,9 +126,9 @@ describe('contacts over HTTP', () => {
   it('update puts the fields without the kind', async () => {
     const { calls } = stubFetch(json(contact({ name: '김철수' })))
 
-    const updated = await createContactsHttp().update('ct1', { company: '네오인', name: '김철수', title: '', email: null, phone: null })
+    const updated = await createContactsHttp().update(9, { company: '네오인', name: '김철수', title: '', email: null, phone: null })
 
-    expect(calls[0]).toMatchObject({ method: 'PUT', path: '/api/v1/contacts/ct1', body: { company: '네오인', name: '김철수', title: null, email: null, phone: null } })
+    expect(calls[0]).toMatchObject({ method: 'PUT', path: '/api/v1/contacts/9', body: { company: '네오인', name: '김철수', title: null, email: null, phone: null } })
     expect(calls[0]?.body).not.toHaveProperty('kind')
     expect(updated.name).toBe('김철수')
   })
@@ -136,15 +136,15 @@ describe('contacts over HTTP', () => {
   it('remove deletes and accepts 204', async () => {
     const { calls } = stubFetch(noContent())
 
-    await expect(createContactsHttp().remove('ct1')).resolves.toBeUndefined()
+    await expect(createContactsHttp().remove(9)).resolves.toBeUndefined()
 
-    expect(calls[0]).toMatchObject({ method: 'DELETE', path: '/api/v1/contacts/ct1' })
+    expect(calls[0]).toMatchObject({ method: 'DELETE', path: '/api/v1/contacts/9' })
   })
 
   it('remove shows the server message when Deals still use the contact', async () => {
     stubFetch(problem(409, 'invalid-state', '연결된 Deal이 2건 있어 삭제할 수 없습니다.'))
 
-    await expect(createContactsHttp().remove('ct1')).rejects.toMatchObject({
+    await expect(createContactsHttp().remove(9)).rejects.toMatchObject({
       kind: 'conflict',
       message: '연결된 Deal이 2건 있어 삭제할 수 없습니다.',
     })

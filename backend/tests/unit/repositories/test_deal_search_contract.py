@@ -6,12 +6,12 @@ vendor_id·status·기간 필터. solution_id·forecast·연/분기·BANT 필터
 
 from datetime import date
 from typing import TYPE_CHECKING
-from uuid import uuid4
 
 from app.application.ports.deal_repository import DealQuery
 from app.domain.contact.values import ContactKind
 from app.domain.vendor.values import SolutionId, VendorId
 from tests.factories import later, make_deal
+from tests.support.ids import new_id
 from tests.support.user_ids import uid
 
 if TYPE_CHECKING:
@@ -186,9 +186,9 @@ class TestFilters:
     ) -> None:
         await _add_numbered(deal_case, 2)
 
-        assert await _codes(deal_case, vendor_id=VendorId(uuid4())) == []
-        assert await _codes(deal_case, solution_id=SolutionId(uuid4())) == []
-        assert await deal_case.deals.count(DealQuery(vendor_id=VendorId(uuid4()))) == 0
+        assert await _codes(deal_case, vendor_id=VendorId(new_id())) == []
+        assert await _codes(deal_case, solution_id=SolutionId(new_id())) == []
+        assert await deal_case.deals.count(DealQuery(vendor_id=VendorId(new_id()))) == 0
 
     async def test_status_matches_the_status_key(self, deal_case: DealCase) -> None:
         await deal_case.add(make_deal(later(1), code=_code(1), status_key="prospecting"))

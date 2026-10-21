@@ -1,4 +1,4 @@
-"""AC7: 퇴사자의 login_id 재등록은 항상 새 행(새 uuid). 퇴사 행은 복구·재사용되지 않는다."""
+"""AC7: 퇴사자의 login_id 재등록은 항상 새 행(새 id). 퇴사 행은 복구·재사용되지 않는다."""
 
 from typing import TYPE_CHECKING
 

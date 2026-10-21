@@ -5,7 +5,6 @@
 """
 
 from typing import TYPE_CHECKING
-from uuid import uuid4
 
 import pytest
 from sqlalchemy import text
@@ -13,6 +12,7 @@ from sqlalchemy.exc import IntegrityError
 
 from tests.support.alert_rows import insert_alert_settings
 from tests.support.head_rows import insert_user
+from tests.support.ids import new_id
 from tests.support.schema_integrity import check_schema
 
 if TYPE_CHECKING:
@@ -39,7 +39,7 @@ async def test_the_table_has_the_planned_columns_and_types(session: AsyncSession
     assert columns["id"].data_type == "smallint"
     assert columns["stale_days"].data_type == "smallint"
     assert columns["updated_at"].data_type == "timestamp with time zone"
-    assert columns["updated_by_user_id"].data_type == "uuid"
+    assert columns["updated_by_user_id"].data_type == "bigint"
 
 
 async def test_every_column_is_required_including_the_saver(session: AsyncSession) -> None:
@@ -99,7 +99,7 @@ async def test_stale_days_outside_the_range_are_rejected(session: AsyncSession, 
 
 async def test_a_saver_that_is_not_a_user_is_rejected(session: AsyncSession) -> None:
     with pytest.raises(IntegrityError, match="fk_alert_settings_updated_by_user_id_users"):
-        await insert_alert_settings(session, uuid4())
+        await insert_alert_settings(session, new_id())
 
 
 async def test_a_user_who_saved_the_settings_cannot_be_deleted(session: AsyncSession) -> None:

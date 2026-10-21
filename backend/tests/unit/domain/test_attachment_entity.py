@@ -1,7 +1,6 @@
 """Attachment 엔티티(P2b AC-07·10·11·14): 업로드로 만들기, 교체, 삭제·교체 권한."""
 
 from datetime import timedelta
-from uuid import UUID, uuid4
 
 import pytest
 
@@ -17,6 +16,7 @@ from app.domain.user.value_objects import UserRef
 from tests.factories import NOW, later, make_deal_code
 from tests.factories_attachment import make_attachment
 from tests.support.expect import raises_with
+from tests.support.ids import new_id
 from tests.support.user_ids import uid
 
 KIM = uid("kim")
@@ -39,6 +39,7 @@ def test_upload_keeps_every_field_and_stamps_all_times_with_now() -> None:
         storage_key="a" * 32,
         uploaded_by=KIM,
         now=later(5),
+        entity_id=AttachmentId(new_id()),
     )
 
     assert attachment.deal_code == code
@@ -53,12 +54,9 @@ def test_upload_keeps_every_field_and_stamps_all_times_with_now() -> None:
     assert attachment.uploaded_at == attachment.created_at == attachment.updated_at == later(5)
 
 
-def test_upload_gives_each_attachment_its_own_id_unless_one_is_given() -> None:
-    first, second = make_attachment(), make_attachment()
-    fixed = AttachmentId(uuid4())
+def test_upload_uses_the_given_id() -> None:
+    fixed = AttachmentId(new_id())
 
-    assert isinstance(first.id, UUID)
-    assert first.id != second.id
     assert make_attachment(entity_id=fixed).id == fixed
 
 

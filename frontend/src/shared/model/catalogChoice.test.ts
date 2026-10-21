@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { toChoice } from './catalogChoice'
 
 const OPTIONS = [
-  { id: 'at-1', name: '미팅' },
-  { id: 'at-2', name: 'Demo' },
+  { id: 1, name: '미팅' },
+  { id: 2, name: 'Demo' },
 ] as const
 
 describe('toChoice (AC-26, AC-31)', () => {
@@ -13,12 +13,16 @@ describe('toChoice (AC-26, AC-31)', () => {
   })
 
   it('returns the id of the option with the same name', () => {
-    expect(toChoice('미팅', OPTIONS)).toEqual({ id: 'at-1' })
+    expect(toChoice('미팅', OPTIONS)).toEqual({ id: 1 })
+  })
+
+  it('sends catalog ids as JSON numbers', () => {
+    expect(JSON.stringify(toChoice('미팅', OPTIONS))).toBe('{"id":1}')
   })
 
   it('returns the id for a case-insensitive match and ignores surrounding spaces', () => {
-    expect(toChoice('  demo ', OPTIONS)).toEqual({ id: 'at-2' })
-    expect(toChoice('DEMO', OPTIONS)).toEqual({ id: 'at-2' })
+    expect(toChoice('  demo ', OPTIONS)).toEqual({ id: 2 })
+    expect(toChoice('DEMO', OPTIONS)).toEqual({ id: 2 })
   })
 
   it('returns the trimmed name when no option has the same name', () => {

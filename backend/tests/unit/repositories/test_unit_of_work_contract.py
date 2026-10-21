@@ -8,10 +8,10 @@ from typing import TYPE_CHECKING
 
 import pytest
 import pytest_asyncio
-from app.domain.action_type.errors import ActionTypeNotFoundError
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
+from app.domain.action_type.errors import ActionTypeNotFoundError
 from app.domain.contact.errors import ContactNotFoundError
 from app.domain.deal.history import DealHistoryEntry, HistoryCategory, HistoryDraft
 from app.domain.deal_action.errors import DealActionNotFoundError
@@ -27,9 +27,8 @@ from tests.support.user_seed import ensure_users
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
 
-    from app.domain.action_type.values import ActionTypeId
-
     from app.application.ports.unit_of_work import UnitOfWorkFactory
+    from app.domain.action_type.values import ActionTypeId
     from app.domain.contact.entities import Contact
     from app.domain.deal.code import DealCode
     from app.domain.deal_action.value_objects import DealActionId

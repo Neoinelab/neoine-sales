@@ -6,7 +6,6 @@ login_id 유일성은 DB가 아니라 응용 로직(RegisterUser)이 재직자 �
 """
 
 from typing import TYPE_CHECKING
-from uuid import uuid4
 
 import pytest
 import pytest_asyncio
@@ -21,6 +20,7 @@ from tests.factories import NOW, later
 from tests.factories_auth import make_resigned_user, make_user
 from tests.fakes.user_repository import FakeUserRepository
 from tests.support.database import rolled_back_session
+from tests.support.ids import new_id
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
@@ -87,7 +87,7 @@ async def test_resigned_user_round_trips_with_time_and_reason(repository: UserRe
 
 async def test_get_unknown_id_raises_not_found(repository: UserRepository) -> None:
     with pytest.raises(NotFoundError):
-        await repository.get(UserId(uuid4()))
+        await repository.get(UserId(new_id()))
 
 
 async def test_get_deleted_user_raises_not_found(repository: UserRepository) -> None:
@@ -259,7 +259,7 @@ async def test_delete_removes_the_row_and_keeps_other_users(repository: UserRepo
 
 async def test_delete_unknown_user_raises_not_found(repository: UserRepository) -> None:
     with pytest.raises(NotFoundError):
-        await repository.delete(UserId(uuid4()))
+        await repository.delete(UserId(new_id()))
 
 
 async def test_update_of_a_deleted_user_raises_not_found(repository: UserRepository) -> None:
@@ -279,7 +279,7 @@ async def test_get_for_update_returns_the_user_and_raises_not_found(
 
     assert (await repository.get_for_update(user.id)).id == user.id
     with pytest.raises(NotFoundError):
-        await repository.get_for_update(UserId(uuid4()))
+        await repository.get_for_update(UserId(new_id()))
 
 
 async def test_get_for_update_returns_a_resigned_user_too(repository: UserRepository) -> None:

@@ -7,7 +7,6 @@ RESTRICT 모사)와 SQL 구현(실제 PostgreSQL FK `fk_deals_customer_id_contac
 """
 
 from typing import TYPE_CHECKING
-from uuid import uuid4
 
 import pytest
 
@@ -16,6 +15,7 @@ from app.domain.contact.errors import ContactInUseError, ContactNotFoundError
 from app.domain.contact.values import ContactId
 from tests.factories import make_deal
 from tests.factories_contact import make_customer, make_partner
+from tests.support.ids import new_id
 from tests.support.user_seed import ensure_users
 
 if TYPE_CHECKING:
@@ -43,7 +43,7 @@ async def test_delete_removes_only_the_requested_contact(contacts: ContactCase) 
 
 async def test_delete_of_a_missing_contact_raises_not_found(contacts: ContactCase) -> None:
     with pytest.raises(ContactNotFoundError):
-        await contacts.contacts.delete(ContactId(uuid4()))
+        await contacts.contacts.delete(ContactId(new_id()))
 
 
 async def test_deleting_twice_raises_not_found_the_second_time(contacts: ContactCase) -> None:
@@ -160,7 +160,7 @@ async def test_count_by_contacts_counts_a_deal_using_one_contact_twice_once(
 async def test_count_by_contacts_returns_zero_for_unknown_ids_and_an_empty_map_for_none(
     contacts: ContactCase,
 ) -> None:
-    unknown = ContactId(uuid4())
+    unknown = ContactId(new_id())
 
     assert await contacts.deals.count_by_contacts([unknown]) == {unknown: 0}
     assert await contacts.deals.count_by_contacts([]) == {}

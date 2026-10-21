@@ -5,7 +5,7 @@ Given은 공개 API로 사전 상태를 만들고(필요한 역할로 로그인�
 id는 항상 이름으로 목록에서 찾는다.
 """
 
-from typing import TYPE_CHECKING, Final
+from typing import TYPE_CHECKING, Final, cast
 
 from tests.factories_action_type import DEFAULT_ACTION_TYPE_NAMES
 from tests.functional.steps.auth import USERS
@@ -42,11 +42,11 @@ async def given_type_list(api: Api) -> list[dict[str, object]]:
     return list(response.json())
 
 
-async def given_type_id(api: Api, name: str) -> str:
+async def given_type_id(api: Api, name: str) -> int:
     """이름이 name인 유형의 id(대소문자 그대로 일치하는 한 개)."""
     found = [x for x in await given_type_list(api) if x["name"] == name]
     assert len(found) == 1, name
-    return str(found[0]["id"])
+    return cast("int", found[0]["id"])
 
 
 async def given_type_created(api: Api, name: str) -> dict[str, object]:
@@ -67,15 +67,15 @@ async def when_create_type(api: Api, name: str) -> Response:
     return await api.post(TYPES, json={"name": name})
 
 
-async def when_rename_type(api: Api, type_id: str, name: str) -> Response:
+async def when_rename_type(api: Api, type_id: object, name: str) -> Response:
     return await api.patch(f"{TYPES}/{type_id}", json={"name": name})
 
 
-async def when_delete_type(api: Api, type_id: str) -> Response:
+async def when_delete_type(api: Api, type_id: object) -> Response:
     return await api.delete(f"{TYPES}/{type_id}")
 
 
-async def when_delete_user_account(api: Api, *, user_id: str) -> Response:
+async def when_delete_user_account(api: Api, *, user_id: object) -> Response:
     """admin이 사용자를 삭제한다(연결이 있으면 퇴사 처리)."""
     return await api.delete(f"{USERS}/{user_id}")
 
@@ -114,7 +114,7 @@ async def then_type_usage_is(api: Api, name: str, count: int) -> None:
     assert [x["usage_count"] for x in found] == [count], found
 
 
-async def then_type_creator_is(api: Api, *, name: str, user_id: str, resigned: bool) -> None:
+async def then_type_creator_is(api: Api, *, name: str, user_id: int, resigned: bool) -> None:
     """다시 조회한 목록에서 그 이름의 유형은 한 개이고 만든 사람이 user_id(퇴사 여부 포함)다."""
     created = [x for x in await given_type_list(api) if x["name"] == name]
     assert [x["created_by"]["id"] for x in created] == [user_id]  # type: ignore[index]

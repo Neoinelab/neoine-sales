@@ -1,7 +1,5 @@
 """연락처 오류의 종류(HTTP 매핑 근거)와 사용자 문구 (AC-20·22)."""
 
-from uuid import uuid4
-
 from app.domain.common.errors import AlreadyExistsError, InvalidStateError, NotFoundError
 from app.domain.contact.errors import (
     ContactInUseError,
@@ -9,6 +7,7 @@ from app.domain.contact.errors import (
     DuplicateContactError,
 )
 from app.domain.contact.values import ContactId
+from tests.support.ids import new_id
 
 
 def test_contact_errors_map_to_not_found_conflict_and_invalid_state() -> None:
@@ -18,7 +17,7 @@ def test_contact_errors_map_to_not_found_conflict_and_invalid_state() -> None:
 
 
 def test_not_found_error_message_is_the_user_text_and_keeps_the_identifier() -> None:
-    contact_id = ContactId(uuid4())
+    contact_id = ContactId(new_id())
 
     error = ContactNotFoundError(contact_id)
 

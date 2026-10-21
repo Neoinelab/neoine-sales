@@ -1,7 +1,6 @@
 """Feature: admin은 사용자를 삭제하고, 연결이 없으면 물리 삭제·보호 규칙은 어기지 않는다."""
 
 from typing import TYPE_CHECKING
-from uuid import uuid4
 
 import pytest
 
@@ -34,6 +33,7 @@ from tests.functional.steps.users_db import (
     then_no_session_rows,
 )
 from tests.functional.steps.users_given import given_deal_link_if, given_session_can_read
+from tests.support.ids import MISSING_ID
 
 if TYPE_CHECKING:
     from tests.functional.conftest import Api
@@ -133,17 +133,17 @@ async def test_delete_user_with_an_unknown_id_is_404_not_found(api: Api) -> None
     # Given
     await given_logged_in_as(api, role="admin")
     # When
-    response = await when_delete_user(api, str(uuid4()))
+    response = await when_delete_user(api, MISSING_ID)
     # Then
     then_problem_is(response, status=404, type_suffix="not-found")
 
 
 async def test_delete_user_with_a_malformed_id_is_422(api: Api) -> None:
-    """Scenario: UUID 형식이 아닌 id는 422 검증 오류다."""
+    """Scenario: 정수 형식이 아닌 id는 422 검증 오류다."""
     # Given
     await given_logged_in_as(api, role="admin")
     # When
-    response = await when_delete_user(api, "not-a-uuid")
+    response = await when_delete_user(api, "not-an-id")
     # Then
     then_problem_is(response, status=422, type_suffix="request-validation")
 

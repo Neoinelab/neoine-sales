@@ -1,9 +1,9 @@
 """Action 유형 규칙(AC-4·9·10): 이름 찾기(대소문자 무시 완전 일치)와 중복 거부."""
 
 import pytest
+
 from app.domain.action_type.errors import DuplicateActionTypeNameError
 from app.domain.action_type.rules import ensure_unique_action_type_name, find_action_type
-
 from tests.factories_action_type import make_action_type
 
 

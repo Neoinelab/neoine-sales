@@ -1,5 +1,6 @@
 from typing import TYPE_CHECKING
 
+from app.application.ids import new_action_type_id
 from app.domain.action_type.entities import ActionType
 from app.domain.action_type.errors import ActionTypeNotFoundError, UnknownActionTypeError
 from app.domain.action_type.rules import find_action_type
@@ -7,7 +8,6 @@ from app.domain.action_type.values import ActionTypeId, normalize_action_type_na
 
 if TYPE_CHECKING:
     from datetime import datetime
-    from uuid import UUID
 
     from app.application.choice import CatalogChoice
     from app.application.ports.unit_of_work import UnitOfWork
@@ -28,12 +28,14 @@ async def choose_action_type(
     found = find_action_type(await uow.action_types.list(for_update=True), name)
     if found is not None:
         return found.ref
-    created = ActionType.create(name=name, created_by=actor_id, now=now)
+    created = ActionType.create(
+        entity_id=await new_action_type_id(uow.ids), name=name, created_by=actor_id, now=now
+    )
     await uow.action_types.add(created)
     return created.ref
 
 
-async def _by_id(uow: UnitOfWork, type_id: UUID) -> ActionTypeRef:
+async def _by_id(uow: UnitOfWork, type_id: int) -> ActionTypeRef:
     try:
         return (await uow.action_types.get(ActionTypeId(type_id))).ref
     except ActionTypeNotFoundError:

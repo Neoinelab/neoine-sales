@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { serverAlertSettings, serverUserRef } from '../../test/fixtures/serverDeal'
 import { createAlertsHttp } from './alerts'
 import { json, problem, stubFetch } from './testHelpers'
+import { USER_ID } from '../../test/fake/seed/ids'
 
 afterEach(() => vi.unstubAllGlobals())
 
@@ -21,7 +22,7 @@ describe('alert settings over HTTP', () => {
         serverAlertSettings({
           stale_days: 30,
           updated_at: '2026-10-16T10:00:00+09:00',
-          updated_by: serverUserRef({ id: 'u-root', name: '최관리', label: '최관리', role: 'admin' }),
+          updated_by: serverUserRef({ id: USER_ID.root, name: '최관리', label: '최관리', role: 'admin' }),
         }),
       ),
     )
@@ -31,7 +32,7 @@ describe('alert settings over HTTP', () => {
     expect(settings).toEqual({
       staleDays: 30,
       updatedAt: '2026-10-16T10:00:00+09:00',
-      updatedBy: { id: 'u-root', name: '최관리', role: 'admin', status: 'active' },
+      updatedBy: { id: USER_ID.root, name: '최관리', role: 'admin', status: 'active' },
     })
   })
 
@@ -42,7 +43,7 @@ describe('alert settings over HTTP', () => {
 
     expect(calls[0]).toMatchObject({ method: 'PUT', path: '/api/v1/alert-settings', body: { stale_days: 7 } })
     expect(saved.staleDays).toBe(7)
-    expect(saved.updatedBy).toMatchObject({ id: 'u-kim' })
+    expect(saved.updatedBy).toMatchObject({ id: USER_ID.kim })
   })
 
   it('save passes the server 422 sentence through as the message (validation kind)', async () => {

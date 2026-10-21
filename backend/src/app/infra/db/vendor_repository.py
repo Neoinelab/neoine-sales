@@ -24,7 +24,6 @@ from app.infra.db.models_deal import DealRow
 
 if TYPE_CHECKING:
     from collections.abc import Collection, Sequence
-    from uuid import UUID
 
 type _SolutionRows = list[SolutionRow]
 
@@ -151,7 +150,7 @@ class SqlVendorRepository(SqlRepository[VendorRow]):
             )
             raise VendorInUseError(max(int(usage or 0), 1)) from None
 
-    async def _row(self, vendor_id: UUID, *, for_update: bool = False) -> VendorRow:
+    async def _row(self, vendor_id: int, *, for_update: bool = False) -> VendorRow:
         statement = select(VendorRow).where(VendorRow.id == vendor_id)
         if for_update:
             statement = statement.with_for_update()
@@ -162,8 +161,8 @@ class SqlVendorRepository(SqlRepository[VendorRow]):
             raise VendorNotFoundError(vendor_id)
         return row
 
-    async def _solutions(self, vendor_ids: Collection[UUID]) -> dict[UUID, _SolutionRows]:
-        grouped: dict[UUID, _SolutionRows] = {}
+    async def _solutions(self, vendor_ids: Collection[int]) -> dict[int, _SolutionRows]:
+        grouped: dict[int, _SolutionRows] = {}
         if not vendor_ids:
             return grouped
         statement = (
@@ -176,7 +175,7 @@ class SqlVendorRepository(SqlRepository[VendorRow]):
             grouped.setdefault(solution.vendor_id, []).append(solution)
         return grouped
 
-    async def _solution_usage(self, solution_ids: Collection[UUID]) -> int:
+    async def _solution_usage(self, solution_ids: Collection[int]) -> int:
         statement = (
             select(func.count()).select_from(DealRow).where(DealRow.solution_id.in_(solution_ids))
         )

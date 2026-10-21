@@ -4,14 +4,14 @@ from datetime import datetime
 from typing import Any
 
 import pytest
+from pydantic import ValidationError
+
 from app.application.action_type.dto import ActionTypeUsage
 from app.web.schemas.action_type import (
     ActionTypeNameRequest,
     ActionTypeResponse,
     action_type_responses,
 )
-from pydantic import ValidationError
-
 from tests.factories_action_type import make_action_type
 from tests.fakes.use_cases import FakeUseCases
 
@@ -37,9 +37,21 @@ async def test_response_includes_usage_and_creator() -> None:
     body = item.model_dump(mode="json")
     assert set(body) == RESPONSE_KEYS
     assert (body["name"], body["is_default"], body["usage_count"]) == ("웨비나", False, 4)
-    assert body["created_by"]["id"] == str(creator.id)
-    assert body["id"] == str(custom.id)
+    assert body["created_by"]["id"] == creator.id
+    assert body["id"] == custom.id
     assert datetime.fromisoformat(body["created_at"]).tzinfo is not None
+
+
+async def test_action_type_ids_are_json_integers() -> None:
+    use_cases = FakeUseCases()
+    creator = await use_cases.seed_user("kim", display_name="김영업")
+    custom = make_action_type("웨비나", created_by=creator.id)
+
+    (item,) = await action_type_responses(use_cases, [ActionTypeUsage(custom, 4)])
+
+    body = item.model_dump(mode="json")
+    assert type(body["id"]) is int
+    assert type(body["created_by"]["id"]) is int
 
 
 async def test_a_default_type_has_no_creator() -> None:

@@ -5,7 +5,6 @@ Label 사용 수는 P0에 Deal 연결이 없어 Fake deals에 주입한 값으�
 """
 
 from typing import TYPE_CHECKING
-from uuid import uuid4
 
 import pytest
 
@@ -18,6 +17,7 @@ from app.domain.common.errors import InvalidValueError
 from tests.factories_auth import make_user
 from tests.fakes.catalog_seed import DEFAULT_LABELS
 from tests.support.catalog import label_by_name
+from tests.support.ids import new_id
 
 if TYPE_CHECKING:
     from app.application.ports.unit_of_work import UnitOfWorkFactory
@@ -226,4 +226,4 @@ async def test_rename_missing_label_raises_not_found(
     seeded: FakeUnitOfWork, uow_factory: UnitOfWorkFactory, clock: FixedClock
 ) -> None:
     with pytest.raises(BantLabelNotFoundError):
-        await RenameBantLabel(uow_factory, clock).execute(BantLabelId(uuid4()), "아무거나")
+        await RenameBantLabel(uow_factory, clock).execute(BantLabelId(new_id()), "아무거나")

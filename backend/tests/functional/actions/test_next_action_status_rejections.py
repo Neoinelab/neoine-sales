@@ -30,13 +30,14 @@ from tests.functional.steps.next_action_status import (
     when_change_status_with_body,
 )
 from tests.functional.steps.users import given_signed_in_session
+from tests.support.ids import MISSING_ID
 
 if TYPE_CHECKING:
     from tests.functional.conftest import Api
 
 pytestmark = pytest.mark.integration
 
-ABSENT_ID = "6f1c1b3a-0000-4000-8000-000000000001"
+ABSENT_ID = MISSING_ID
 
 
 async def test_another_sales_cannot_change_the_status(api: Api) -> None:

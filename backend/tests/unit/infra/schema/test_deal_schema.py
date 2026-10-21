@@ -5,13 +5,13 @@
 """
 
 from typing import TYPE_CHECKING, Any, cast
-from uuid import uuid4
 
 import pytest
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 
 from tests.support.head_rows import insert_contact, insert_deal, insert_user
+from tests.support.ids import MISSING_ID, new_id
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
@@ -19,6 +19,7 @@ if TYPE_CHECKING:
 pytestmark = pytest.mark.integration
 
 COLUMNS = {
+    "id",  # BIGINT 대리 키(내부 전용). 업무 키는 deal_code
     "deal_code",
     "name",
     "owner_user_id",
@@ -41,7 +42,7 @@ COLUMNS = {
     "updated_at",
     "status_changed_at",  # P3: 현재 Status에 들어온 시각
 }
-REMOVED_COLUMNS = {"id", "code", "stage", "partner_id", "registered_by_user_id", "revenue_currency"}
+REMOVED_COLUMNS = {"code", "stage", "partner_id", "registered_by_user_id", "revenue_currency"}
 INDEXES = {
     "ix_deals_owner_user_id",
     "ix_deals_status_key",
@@ -61,6 +62,11 @@ PRIMARY_KEY = (
     " on a.attrelid = c.conrelid and a.attnum = any(c.conkey)"
     " where c.conrelid = 'deals'::regclass and c.contype = 'p'"
 )
+UNIQUE_KEYS = (
+    "select c.conname, array_agg(a.attname) from pg_constraint c join pg_attribute a"
+    " on a.attrelid = c.conrelid and a.attnum = any(c.conkey)"
+    " where c.conrelid = 'deals'::regclass and c.contype = 'u' group by c.conname"
+)
 CONSTRAINT_NAMES = "select conname from pg_constraint where conrelid = 'deals'::regclass"
 INDEX_NAMES = "select indexname from pg_indexes where schemaname = 'public' and tablename = :t"
 CODE_FKS = (
@@ -73,7 +79,7 @@ CODES_UNIQUE = (
 )
 
 
-async def _customer(session: AsyncSession) -> str:
+async def _customer(session: AsyncSession) -> int:
     return await insert_contact(session)
 
 
@@ -98,10 +104,12 @@ async def test_the_columns_are_exactly_the_new_model(session: AsyncSession) -> N
         assert columns[required].is_nullable == "NO", required
 
 
-async def test_deal_code_is_the_primary_key(session: AsyncSession) -> None:
+async def test_id_is_the_primary_key_and_deal_code_is_unique(session: AsyncSession) -> None:
     pk_columns = {r[0] for r in (await session.execute(text(PRIMARY_KEY))).all()}
+    unique = (await session.execute(text(UNIQUE_KEYS))).all()
 
-    assert pk_columns == {"deal_code"}
+    assert pk_columns == {"id"}
+    assert [(r[0], list(r[1])) for r in unique] == [("uq_deals_deal_code", ["deal_code"])]
 
 
 async def test_the_old_stage_change_table_is_gone(session: AsyncSession) -> None:
@@ -294,14 +302,14 @@ async def test_quote_and_poc_wire_values_are_accepted(
 
 async def test_a_missing_customer_is_rejected(session: AsyncSession) -> None:
     with pytest.raises(IntegrityError, match="fk_deals_customer_id_contacts"):
-        await insert_deal(session, str(uuid4()))
+        await insert_deal(session, MISSING_ID)
 
 
 async def test_a_missing_owner_is_rejected(session: AsyncSession) -> None:
     customer = await _customer(session)
 
     with pytest.raises(IntegrityError, match="fk_deals_owner_user_id_users"):
-        await insert_deal(session, customer, owner_user_id=uuid4())
+        await insert_deal(session, customer, owner_user_id=new_id())
 
 
 async def test_a_contact_used_by_a_deal_cannot_be_deleted(session: AsyncSession) -> None:

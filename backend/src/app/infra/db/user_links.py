@@ -12,8 +12,6 @@ from app.infra.db.base import Base
 from app.infra.db.models_auth import UserRow
 
 if TYPE_CHECKING:
-    from uuid import UUID
-
     from sqlalchemy.ext.asyncio import AsyncSession
 
 _USERS_TABLE = "users"
@@ -42,13 +40,13 @@ def user_foreign_key_names() -> list[str]:
     ]
 
 
-def _references(column: Column[object], user_id: UUID) -> ColumnElement[bool]:
+def _references(column: Column[object], user_id: int) -> ColumnElement[bool]:
     condition = exists().where(column == user_id)
     if column.table.name == _USERS_TABLE:
         condition = exists().where(column == user_id, UserRow.id != user_id)
     return condition
 
 
-async def has_links(session: AsyncSession, user_id: UUID) -> bool:
+async def has_links(session: AsyncSession, user_id: int) -> bool:
     conditions = [_references(column, user_id) for column in user_reference_columns()]
     return bool(await session.scalar(select(or_(*conditions))))

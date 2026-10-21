@@ -3,8 +3,8 @@
 import { describe, expect, it } from 'vitest'
 import { seedSolutionId, seedVendorId } from '../../fixtures/vendors'
 import { dealCode, dealInput, expectApiError, mockAs } from '../testing'
+import { NO_SUCH_ID, USER_ID } from '../seed/ids'
 
-const NO_SUCH_ID = '00000000-0000-4000-8000-000000000000'
 
 const NEEDS_VENDOR = 'Solution을 선택하려면 Vendor를 먼저 선택하세요.'
 const UNKNOWN_VENDOR = '선택한 Vendor가 없습니다. 목록에서 다시 선택하세요.'
@@ -14,7 +14,7 @@ describe('deals.create vendor and solution', () => {
   it('AC-13 returns vendor and solution as {id, name}', async () => {
     const { gateway } = await mockAs('kim')
 
-    const created = await gateway.deals.create(dealInput('u-kim'))
+    const created = await gateway.deals.create(dealInput(USER_ID.kim))
 
     expect(created.vendor).toEqual({ id: seedVendorId('Silverfort'), name: 'Silverfort' })
     expect(created.solution).toEqual({ id: seedSolutionId('Silverfort', 'ITDR'), name: 'ITDR' })
@@ -23,7 +23,7 @@ describe('deals.create vendor and solution', () => {
   it('AC-9 accepts no vendor and no solution as null', async () => {
     const { gateway } = await mockAs('kim')
 
-    const created = await gateway.deals.create(dealInput('u-kim', { vendorId: null, solutionId: null }))
+    const created = await gateway.deals.create(dealInput(USER_ID.kim, { vendorId: null, solutionId: null }))
 
     expect(created.vendor).toBeNull()
     expect(created.solution).toBeNull()
@@ -32,7 +32,7 @@ describe('deals.create vendor and solution', () => {
   it('AC-9 accepts a vendor without a solution', async () => {
     const { gateway } = await mockAs('kim')
 
-    const created = await gateway.deals.create(dealInput('u-kim', { vendorId: seedVendorId('Okta'), solutionId: null }))
+    const created = await gateway.deals.create(dealInput(USER_ID.kim, { vendorId: seedVendorId('Okta'), solutionId: null }))
 
     expect(created.vendor?.name).toBe('Okta')
     expect(created.solution).toBeNull()
@@ -41,10 +41,10 @@ describe('deals.create vendor and solution', () => {
   it('AC-12 rejects the three invalid choices with the server messages', async () => {
     const { gateway } = await mockAs('kim')
 
-    await expectApiError(gateway.deals.create(dealInput('u-kim', { vendorId: null, solutionId: seedSolutionId('Okta', 'SSO') })), 422, NEEDS_VENDOR)
-    await expectApiError(gateway.deals.create(dealInput('u-kim', { vendorId: NO_SUCH_ID, solutionId: null })), 422, UNKNOWN_VENDOR)
+    await expectApiError(gateway.deals.create(dealInput(USER_ID.kim, { vendorId: null, solutionId: seedSolutionId('Okta', 'SSO') })), 422, NEEDS_VENDOR)
+    await expectApiError(gateway.deals.create(dealInput(USER_ID.kim, { vendorId: NO_SUCH_ID, solutionId: null })), 422, UNKNOWN_VENDOR)
     await expectApiError(
-      gateway.deals.create(dealInput('u-kim', { vendorId: seedVendorId('Okta'), solutionId: seedSolutionId('Silverfort', 'ITDR') })),
+      gateway.deals.create(dealInput(USER_ID.kim, { vendorId: seedVendorId('Okta'), solutionId: seedSolutionId('Silverfort', 'ITDR') })),
       422,
       MISMATCH,
     )
@@ -53,8 +53,8 @@ describe('deals.create vendor and solution', () => {
   it('AC-12 checks the vendor after the Deal Name and before the Owner', async () => {
     const { gateway } = await mockAs('kim')
 
-    await expectApiError(gateway.deals.create(dealInput('u-kim', { name: ' ', vendorId: NO_SUCH_ID })), 422, 'Deal Name을 입력하세요.')
-    await expectApiError(gateway.deals.create(dealInput('u-root', { vendorId: NO_SUCH_ID })), 422, UNKNOWN_VENDOR)
+    await expectApiError(gateway.deals.create(dealInput(USER_ID.kim, { name: ' ', vendorId: NO_SUCH_ID })), 422, 'Deal Name을 입력하세요.')
+    await expectApiError(gateway.deals.create(dealInput(USER_ID.root, { vendorId: NO_SUCH_ID })), 422, UNKNOWN_VENDOR)
   })
 })
 

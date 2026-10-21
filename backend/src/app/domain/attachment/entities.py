@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Self
-from uuid import uuid4
 
 from app.domain.attachment.errors import (
     AttachmentDeleteForbiddenError,
@@ -44,10 +43,10 @@ class Attachment(AuditedEntity[AttachmentId]):
         storage_key: str,
         uploaded_by: UserId,
         now: datetime,
-        entity_id: AttachmentId | None = None,
+        entity_id: AttachmentId,
     ) -> Self:
         return cls(
-            id=entity_id or AttachmentId(uuid4()),
+            id=entity_id,
             deal_code=deal_code,
             file_name=candidate.file_name,
             description=candidate.description,

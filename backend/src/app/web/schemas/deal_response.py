@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 
 
 class PartnerLinkResponse(BaseModel):
-    contact_id: str
+    contact_id: int
     active: bool
     linked_at: datetime
     unlinked_at: datetime | None
@@ -27,7 +27,7 @@ class PartnerLinkResponse(BaseModel):
     @classmethod
     def from_link(cls, link: PartnerLink) -> PartnerLinkResponse:
         return cls(
-            contact_id=str(link.contact_id),
+            contact_id=link.contact_id,
             active=link.active,
             linked_at=link.linked_at,
             unlinked_at=link.unlinked_at,
@@ -58,21 +58,21 @@ class PocResponse(BaseModel):
 
 
 class BantResponse(BaseModel):
-    budget: str | None
-    authority: str | None
-    need: str | None
-    timeline: str | None
+    budget: int | None
+    authority: int | None
+    need: int | None
+    timeline: int | None
 
 
 class NamedRefResponse(BaseModel):
-    id: str
+    id: int
     name: str
 
 
 class DealRowResponse(BaseModel):
     code: str
     name: str
-    owner_user_id: str
+    owner_user_id: int
     owner: UserRef
     vendor: NamedRefResponse | None
     solution: NamedRefResponse | None
@@ -138,7 +138,7 @@ def _row_fields(view: DealView) -> dict[str, object]:
     return {
         "code": deal.id.value,
         "name": details.name,
-        "owner_user_id": str(details.owner_user_id),
+        "owner_user_id": details.owner_user_id,
         "owner": UserRef.from_domain(view.owner),
         "vendor": _named(view.vendor),
         "solution": _named(view.solution),
@@ -149,7 +149,9 @@ def _row_fields(view: DealView) -> dict[str, object]:
         "revenue_date": details.revenue_date,
         "customer": ContactResponse.from_entity(view.customer),
         "active_partner": (
-            ContactResponse.from_entity(view.partner_contacts[active_id]) if active_id else None
+            ContactResponse.from_entity(view.partner_contacts[active_id])
+            if active_id is not None
+            else None
         ),
         "partner_links": [PartnerLinkResponse.from_link(link) for link in deal.partner_links],
         "quote": QuoteResponse(
@@ -158,7 +160,7 @@ def _row_fields(view: DealView) -> dict[str, object]:
         "poc": PocResponse(state=details.poc.state, completed_date=details.poc.completed_date),
         "procurement": details.procurement,
         "bant": BantResponse(
-            **{category.value: _label(deal.bant.get(category)) for category in BantCategory}
+            **{category.value: deal.bant.get(category) for category in BantCategory}
         ),
         "next_action": (
             NextActionResponse(
@@ -177,11 +179,7 @@ def _row_fields(view: DealView) -> dict[str, object]:
 
 
 def _named(ref: NamedRef | None) -> NamedRefResponse | None:
-    return None if ref is None else NamedRefResponse(id=str(ref.id), name=ref.name)
-
-
-def _label(label_id: object) -> str | None:
-    return None if label_id is None else str(label_id)
+    return None if ref is None else NamedRefResponse(id=ref.id, name=ref.name)
 
 
 DealRowPage = CountedPage[DealRowResponse]
@@ -197,7 +195,7 @@ def row_page(page: DealPage) -> DealRowPage:
 
 
 class HistoryEntryResponse(BaseModel):
-    id: str
+    id: int
     deal_code: str
     at: datetime
     by: UserRef
@@ -210,7 +208,7 @@ class HistoryEntryResponse(BaseModel):
     def from_view(cls, view: HistoryEntryView) -> HistoryEntryResponse:
         entry = view.entry
         return cls(
-            id=str(entry.id),
+            id=entry.id,
             deal_code=entry.deal_code.value,
             at=entry.changed_at,
             by=UserRef.from_domain(view.by),

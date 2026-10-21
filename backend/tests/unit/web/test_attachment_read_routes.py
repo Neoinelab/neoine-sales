@@ -4,12 +4,12 @@ FakeUseCases·FakeFileStorage 위에서 HTTP 계약을 확인한다. 실제 DB·
 """
 
 from typing import TYPE_CHECKING
-from uuid import uuid4
 
 import pytest
 
 from app.application.storage.errors import DOWNLOAD_UNAVAILABLE
 from app.domain.auth.principal import Role
+from tests.support.ids import MISSING_ID
 from tests.unit.web.attachment_http import (
     ATTACHMENT_KEYS,
     DEAL_CODE,
@@ -26,7 +26,6 @@ if TYPE_CHECKING:
 
 NOT_FOUND = "첨부 파일을 찾을 수 없습니다."
 CONTENT_MISSING = "첨부 파일 내용을 찾을 수 없습니다. 관리자에게 문의하세요."
-MISSING_ID = "6f1c1b3a-0000-4000-8000-000000000001"
 
 
 async def _uploaded_id(
@@ -35,10 +34,10 @@ async def _uploaded_id(
     data: bytes = b"hello",
     mime: str = "application/pdf",
     login: str = "kim",
-) -> str:
+) -> int:
     async with client_for(use_cases, login=login) as http:
         response = await upload(http, (name, data, mime))
-    return str(response.json()["attachment"]["id"])
+    return int(response.json()["attachment"]["id"])
 
 
 async def test_the_list_is_newest_first_and_open_to_every_role() -> None:
@@ -80,6 +79,18 @@ async def test_the_list_needs_a_login() -> None:
         response = await http.get(UPLOAD_URL)
 
     problem(response, 401, "unauthenticated")
+
+
+async def test_attachment_ids_are_json_integers() -> None:
+    use_cases = await ready_use_cases()
+    attachment_id = await _uploaded_id(use_cases)
+    async with client_for(use_cases) as http:
+        single = (await http.get(f"/api/v1/attachments/{attachment_id}")).json()
+        listed = (await http.get(UPLOAD_URL)).json()
+
+    for body in (single, listed["items"][0]):
+        assert type(body["id"]) is int
+        assert type(body["uploaded_by"]["id"]) is int
 
 
 async def test_one_attachment_is_readable_by_a_read_only_user() -> None:
@@ -217,7 +228,7 @@ async def test_a_read_only_user_is_403_before_the_file_is_looked_up() -> None:
     attachment_id = await _uploaded_id(use_cases)
     async with client_for(use_cases, login="viewer", role=Role.USER) as http:
         existing = await http.delete(f"/api/v1/attachments/{attachment_id}")
-        missing = await http.delete(f"/api/v1/attachments/{uuid4()}")
+        missing = await http.delete(f"/api/v1/attachments/{MISSING_ID}")
 
     for response in (existing, missing):
         assert problem(response, 403, "forbidden")["detail"] == READ_ONLY

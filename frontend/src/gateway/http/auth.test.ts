@@ -1,11 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createAuthHttp } from './auth'
 import { json, noContent, problem, stubFetch } from './testHelpers'
+import { NO_SUCH_ID, USER_ID } from '../../test/fake/seed/ids'
 
 afterEach(() => vi.unstubAllGlobals())
 
-const PRINCIPAL = { user_id: 'uuid-1', subject: 'kim', name: '김영업', role: 'sales', email: 'kim@corp.test' }
-const ME = { id: 'uuid-1', loginId: 'kim', name: '김영업', role: 'sales' }
+const PRINCIPAL = { user_id: 1, subject: 'kim', name: '김영업', role: 'sales', email: 'kim@corp.test' }
+const ME = { id: 1, loginId: 'kim', name: '김영업', role: 'sales' }
 
 describe('auth over HTTP', () => {
   it('me reads GET /auth/me and renames user_id and subject', async () => {
@@ -36,9 +37,9 @@ describe('auth over HTTP', () => {
   })
 
   it.each([
-    ['u-root', 'admin'],
-    ['u-kim', 'sales'],
-    ['u-han', 'user'],
+    [USER_ID.root, 'admin'],
+    [USER_ID.kim, 'sales'],
+    [USER_ID.han, 'user'],
   ])('quickLogin(%s) posts dev-login with the role %s', async (userId, role) => {
     const { calls } = stubFetch(json({ ...PRINCIPAL, role }))
 
@@ -51,7 +52,7 @@ describe('auth over HTTP', () => {
   it('quickLogin refuses an unknown quick-login id without calling the server', async () => {
     const { calls } = stubFetch()
 
-    await expect(createAuthHttp().quickLogin('u-nobody')).rejects.toMatchObject({ status: 401, kind: 'unauthorized' })
+    await expect(createAuthHttp().quickLogin(NO_SUCH_ID)).rejects.toMatchObject({ status: 401, kind: 'unauthorized' })
 
     expect(calls).toHaveLength(0)
   })
@@ -59,7 +60,7 @@ describe('auth over HTTP', () => {
   it('quickLogin shows the server error when dev login is switched off', async () => {
     stubFetch(problem(404, 'not-found', 'Not Found'))
 
-    await expect(createAuthHttp().quickLogin('u-root')).rejects.toMatchObject({ status: 404 })
+    await expect(createAuthHttp().quickLogin(USER_ID.root)).rejects.toMatchObject({ status: 404 })
   })
 
   it('logout posts to /auth/logout and accepts 204', async () => {

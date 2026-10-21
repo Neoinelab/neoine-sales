@@ -26,8 +26,8 @@ describe('domains without a server yet', () => {
 
   it.each([
     ['attachments.list', () => gateway.attachments.list('20260101-AAAA')],
-    ['attachments.remove', () => gateway.attachments.remove('att-1')],
-    ['attachments.download', () => gateway.attachments.download('att-1')],
+    ['attachments.remove', () => gateway.attachments.remove(1)],
+    ['attachments.download', () => gateway.attachments.download(1)],
     ['setup.saveStorage', () => gateway.setup.saveStorage('/data')],
     ['setup.testStorage', () => gateway.setup.testStorage('/data')],
     ['settings.getStorage', () => gateway.settings.getStorage()],

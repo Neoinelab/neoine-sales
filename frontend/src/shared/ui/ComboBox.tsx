@@ -9,7 +9,7 @@ export interface ComboOption {
   /** 오른쪽 보조 문구(직급·이메일 등). */
   description?: string
   /** 호출처가 선택 결과를 알아보는 데 쓰는 id(예: contactId). */
-  id?: string
+  id?: number
 }
 
 interface ComboBoxProps {

@@ -38,8 +38,6 @@ from app.domain.vendor.errors import VendorNotFoundError
 from app.domain.vendor.values import SolutionId, VendorId
 
 if TYPE_CHECKING:
-    from uuid import UUID
-
     from app.application.deal.form import FormValues
     from app.application.ports.unit_of_work import UnitOfWork
 
@@ -90,7 +88,7 @@ async def validate_form(
 
 
 async def _vendor_choice(
-    uow: UnitOfWork, vendor: UUID | None, solution: UUID | None, *, check: bool
+    uow: UnitOfWork, vendor: int | None, solution: int | None, *, check: bool
 ) -> tuple[VendorId | None, SolutionId | None]:
     """Vendor는 등록 목록에서 고르고 Solution은 그 Vendor의 것이어야 한다(보낸 경우에만 확인).
 
@@ -111,7 +109,7 @@ async def _vendor_choice(
     return vendor_id, solution_id
 
 
-async def _owner(uow: UnitOfWork, owner: UUID | None, check: bool) -> UserId:
+async def _owner(uow: UnitOfWork, owner: int | None, check: bool) -> UserId:
     """Owner는 재직 중인 sales여야 한다(보낸 경우에만 확인: 같은 값이어도 다시 확인한다)."""
     if owner is None:
         raise InvalidValueError(OWNER_NOT_SALES_MESSAGE)

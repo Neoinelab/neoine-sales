@@ -9,9 +9,8 @@ next_action이고, last_updated_at은 모든 Action 중 가장 최근 수행 시
 from datetime import date
 from typing import TYPE_CHECKING
 
-from app.domain.deal_action.next_action_status import NextActionStatus
-
 from app.application.ports.deal_repository import DealQuery, NextActionSummary
+from app.domain.deal_action.next_action_status import NextActionStatus
 from tests.factories import later, make_deal
 
 if TYPE_CHECKING:

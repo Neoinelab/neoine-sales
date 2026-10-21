@@ -3,9 +3,9 @@
 from typing import TYPE_CHECKING
 
 import pytest
+
 from app.application.action_type.register_action_type import RegisterActionType
 from app.domain.action_type.errors import DuplicateActionTypeNameError
-
 from app.domain.common.errors import InvalidValueError
 from tests.factories_auth import make_user
 from tests.fakes.catalog_seed import seed_action_types

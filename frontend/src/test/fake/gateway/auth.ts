@@ -1,10 +1,9 @@
 import type { AuthGateway, SetupGateway } from '../../../gateway/types'
 import type { DirectorySettingsInput, Me } from '../../../shared/model/types'
 import { conflict, forbidden, unauthorized, validation } from '../errors'
-import type { UserRecord } from '../store'
+import { takeId, type UserRecord } from '../store'
 import { read, requireUser, setSession, write, type MockContext } from './context'
 import { checkDirectoryInput, checkStorageWritable, saveDirectoryRecord, validateStoragePath } from './settings'
-import { uniqueUserId } from './users'
 
 const LOGIN_FAILED = '아이디 또는 비밀번호가 올바르지 않습니다.'
 const RESIGNED = '퇴사한 사용자는 로그인할 수 없습니다.'
@@ -91,7 +90,7 @@ export function createSetupGateway(ctx: MockContext): SetupGateway {
         } else {
           const now = ctx.clock.now()
           user = {
-            id: uniqueUserId(users(), id),
+            id: takeId(ctx.store.data.counters, 'u'),
             loginId: id,
             name: id,
             role: 'admin',

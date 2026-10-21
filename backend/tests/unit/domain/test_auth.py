@@ -1,5 +1,4 @@
 from datetime import timedelta
-from uuid import uuid4
 
 import pytest
 
@@ -8,6 +7,7 @@ from app.domain.auth.principal import Principal, Role
 from app.domain.auth.session import AuthSession, SessionId
 from app.domain.common.errors import DomainError, InvalidStateError, InvalidValueError
 from tests.factories import NOW, later
+from tests.support.ids import new_id
 from tests.support.user_ids import uid
 
 
@@ -24,7 +24,7 @@ def _principal(**overrides: object) -> Principal:
 
 def _session(**overrides: object) -> AuthSession:
     values: dict[str, object] = {
-        "id": SessionId(uuid4()),
+        "id": SessionId(new_id()),
         "principal": _principal(),
         "created_at": NOW,
         "expires_at": NOW + timedelta(hours=8),

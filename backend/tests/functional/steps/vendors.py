@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Final
 
 from tests.functional.steps.auth import given_logged_in_as
+from tests.support.ids import MISSING_ID
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -18,7 +19,7 @@ if TYPE_CHECKING:
     from tests.functional.conftest import Api
 
 VENDORS: Final = "/api/v1/vendors"
-PLACEHOLDER_ID: Final = "6f1c1b3a-0000-4000-8000-0000000000aa"
+PLACEHOLDER_ID: Final = MISSING_ID
 
 DUPLICATE_VENDOR: Final = "이미 있는 Vendor 이름입니다."
 DUPLICATE_SOLUTION: Final = "이 Vendor에 이미 있는 Solution 이름입니다."
@@ -36,9 +37,9 @@ ADMIN_DENIED: Final = "관리자 권한이 필요합니다"
 class VendorRef:
     """Given으로 만든 Vendor와 소속 Solution(이름 -> id)."""
 
-    id: str
+    id: int
     name: str
-    solutions: dict[str, str]
+    solutions: dict[str, int]
 
 
 def in_use_vendor(count: int) -> str:
@@ -57,12 +58,12 @@ async def given_vendor(api: Api, name: str = "SAP", solutions: Sequence[str] = (
     await given_logged_in_as(api, role="admin")
     created = await when_create_vendor(api, name=name)
     assert created.status_code == 201, f"Given 실패 {created.status_code}: {created.text}"
-    vendor_id = str(created.json()["id"])
-    ids: dict[str, str] = {}
+    vendor_id = int(created.json()["id"])
+    ids: dict[str, int] = {}
     for solution in solutions:
         response = await when_create_solution(api, vendor_id=vendor_id, name=solution)
         assert response.status_code == 201, f"Given 실패 {response.status_code}: {response.text}"
-        ids[solution] = str(response.json()["id"])
+        ids[solution] = int(response.json()["id"])
     return VendorRef(vendor_id, name, ids)
 
 
@@ -83,25 +84,25 @@ async def when_create_vendor(api: Api, *, name: str) -> Response:
     return await api.post(VENDORS, json={"name": name})
 
 
-async def when_rename_vendor(api: Api, *, vendor_id: str, name: str) -> Response:
+async def when_rename_vendor(api: Api, *, vendor_id: object, name: str) -> Response:
     return await api.patch(f"{VENDORS}/{vendor_id}", json={"name": name})
 
 
-async def when_delete_vendor(api: Api, *, vendor_id: str) -> Response:
+async def when_delete_vendor(api: Api, *, vendor_id: object) -> Response:
     return await api.delete(f"{VENDORS}/{vendor_id}")
 
 
-async def when_create_solution(api: Api, *, vendor_id: str, name: str) -> Response:
+async def when_create_solution(api: Api, *, vendor_id: object, name: str) -> Response:
     return await api.post(f"{VENDORS}/{vendor_id}/solutions", json={"name": name})
 
 
 async def when_rename_solution(
-    api: Api, *, vendor_id: str, solution_id: str, name: str
+    api: Api, *, vendor_id: object, solution_id: object, name: str
 ) -> Response:
     return await api.patch(f"{VENDORS}/{vendor_id}/solutions/{solution_id}", json={"name": name})
 
 
-async def when_delete_solution(api: Api, *, vendor_id: str, solution_id: str) -> Response:
+async def when_delete_solution(api: Api, *, vendor_id: object, solution_id: object) -> Response:
     return await api.delete(f"{VENDORS}/{vendor_id}/solutions/{solution_id}")
 
 
@@ -115,7 +116,9 @@ WRITE_OPERATIONS: Final = (
 )
 
 
-async def when_write(api: Api, operation: str, *, vendor_id: str, solution_id: str) -> Response:
+async def when_write(
+    api: Api, operation: str, *, vendor_id: object, solution_id: object
+) -> Response:
     """쓰기 API 하나를 이름으로 고른다(권한 시나리오를 operation별로 나누려는 용도)."""
     calls = {
         "create_vendor": lambda: when_create_vendor(api, name="X"),

@@ -6,7 +6,6 @@ History 문구는 그대로다.
 """
 
 from typing import TYPE_CHECKING
-from uuid import uuid4
 
 import pytest
 
@@ -32,6 +31,7 @@ from tests.functional.steps.deals import (
     then_history_is,
     when_list_history,
 )
+from tests.support.ids import MISSING_ID
 
 if TYPE_CHECKING:
     from tests.functional.conftest import Api
@@ -86,7 +86,7 @@ async def test_editing_with_an_unknown_type_id_is_rejected(api: Api) -> None:
     deal = await given_deal(api)
     created = await given_action(api, deal["code"])
     # When
-    response = await when_update_action(api, created["id"], action_type={"id": str(uuid4())})
+    response = await when_update_action(api, created["id"], action_type={"id": MISSING_ID})
     # Then
     then_problem_is(response, status=422, type_suffix="invalid-value")
     then_detail_is(response, UNKNOWN_MESSAGE)

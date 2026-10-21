@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Self
-from uuid import uuid4
 
 from app.domain.code.errors import CodeInUseError, CodeLockedError
 from app.domain.code.values import (
@@ -44,6 +43,7 @@ class Code(AuditedEntity[CodeId]):
     def create(  # noqa: PLR0913 - 코드 생성에 필요한 값이 모두 필수
         cls,
         *,
+        entity_id: CodeId,
         kind: CodeKind,
         name: str,
         key: CodeKey,
@@ -59,7 +59,7 @@ class Code(AuditedEntity[CodeId]):
             reject_nul(probability_hint, "확률 힌트")
             probability_hint = probability_hint.strip() or None
         return cls(
-            id=CodeId(uuid4()),
+            id=entity_id,
             kind=kind,
             key=key,
             name=name,

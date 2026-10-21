@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Self
-from uuid import uuid4
 
 from app.domain.action_type.errors import ActionTypeInUseError
 from app.domain.action_type.values import ActionTypeId, ActionTypeRef
@@ -22,10 +21,12 @@ class ActionType(AuditedEntity[ActionTypeId]):
     created_by_user_id: UserId | None = None
 
     @classmethod
-    def create(cls, *, name: str, created_by: UserId, now: datetime) -> Self:
+    def create(
+        cls, *, entity_id: ActionTypeId, name: str, created_by: UserId, now: datetime
+    ) -> Self:
         """사용자가 만드는 유형. 이름은 이미 정규화된 값이다."""
         return cls(
-            id=ActionTypeId(uuid4()),
+            id=entity_id,
             name=name,
             created_by_user_id=created_by,
             created_at=now,

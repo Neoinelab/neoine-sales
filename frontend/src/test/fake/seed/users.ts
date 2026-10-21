@@ -1,8 +1,9 @@
 import type { Role } from '../../../shared/model/types'
 import type { UserRecord } from '../store'
 import type { SeedEnv } from './env'
+import { USER_ID, type SeedLoginId } from './ids'
 
-/** [loginId, 이름, 역할, 등록 며칠 전, 마지막 로그인 며칠 전]. 사용자 id는 `u-<loginId>`. */
+/** [loginId, 이름, 역할, 등록 며칠 전, 마지막 로그인 며칠 전]. 사용자 id는 `USER_ID[loginId]`(1부터). */
 const ROWS: readonly (readonly [string, string, Role, number, number | null])[] = [
   ['root', '최관리', 'admin', 200, 0],
   ['kim', '김영업', 'sales', 190, 1],
@@ -17,14 +18,14 @@ export function seedUsers(env: SeedEnv): UserRecord[] {
   return ROWS.map(([loginId, name, role, createdAgo, loginAgo]) => {
     const resigned = loginId === 'old'
     return {
-      id: `u-${loginId}`,
+      id: USER_ID[loginId as SeedLoginId],
       loginId,
       name,
       role,
       status: resigned ? 'resigned' : 'active',
       email: `${loginId}@neoine.test`,
       createdAt: env.at(createdAgo, 9),
-      createdById: loginId === 'root' ? null : 'u-root',
+      createdById: loginId === 'root' ? null : USER_ID.root,
       lastLoginAt: loginAgo === null ? null : env.at(loginAgo, 9),
       resignedAt: resigned ? env.at(15, 18) : null,
       resignReason: resigned ? '개인 사정으로 퇴사' : null,

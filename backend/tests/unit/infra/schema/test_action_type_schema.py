@@ -5,7 +5,6 @@
 """
 
 from typing import TYPE_CHECKING, Any
-from uuid import uuid4
 
 import pytest
 from sqlalchemy import text
@@ -14,6 +13,7 @@ from sqlalchemy.exc import IntegrityError
 from app.infra.db.user_repository import SqlUserRepository
 from tests.factories_action_type import DEFAULT_ACTION_TYPE_NAMES
 from tests.factories_auth import make_user
+from tests.support.ids import new_id
 from tests.support.schema_integrity import check_schema
 
 if TYPE_CHECKING:
@@ -35,7 +35,7 @@ SEED = "select name, default_order, is_default, created_by_user_id from action_t
 
 def _row(**overrides: Any) -> dict[str, Any]:  # noqa: ANN401
     values: dict[str, Any] = {
-        "id": uuid4(),
+        "id": new_id(),
         "name": "ZZ 유형",
         "is_default": False,
         "default_order": None,
@@ -114,7 +114,7 @@ async def test_default_order_must_match_is_default(
 
 
 async def test_creator_must_be_an_existing_user(session: AsyncSession) -> None:
-    message = await _rejected(session, _row(created_by_user_id=uuid4()))
+    message = await _rejected(session, _row(created_by_user_id=new_id()))
 
     assert "fk_action_types_created_by_user_id_users" in message
 

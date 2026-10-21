@@ -6,7 +6,6 @@ users를 FK로 참조하는 모든 종류(tests.support.user_links.LINK_KINDS)�
 
 from datetime import timedelta
 from typing import TYPE_CHECKING
-from uuid import uuid4
 
 import pytest
 import pytest_asyncio
@@ -20,6 +19,7 @@ from app.infra.db.unit_of_work import sql_unit_of_work_factory
 from tests.factories import NOW
 from tests.factories_auth import make_resigned_user, make_user
 from tests.fakes.unit_of_work import FakeUnitOfWork
+from tests.support.ids import new_id
 from tests.support.truncate import truncate_business_tables
 from tests.support.user_links import LINK_KINDS, link_user
 
@@ -99,7 +99,7 @@ async def test_a_session_row_is_not_a_link(uow_factory: UnitOfWorkFactory) -> No
     user = make_user("kim")
     await _add(uow_factory, user)
     session = AuthSession(
-        id=SessionId(uuid4()),
+        id=SessionId(new_id()),
         principal=user.to_principal(),
         created_at=NOW,
         expires_at=NOW + timedelta(hours=8),
@@ -170,4 +170,4 @@ async def test_lock_assignable_is_true_only_for_an_active_user(
     async with uow_factory() as uow:
         assert await uow.users.lock_assignable(active.id) is True
         assert await uow.users.lock_assignable(gone.id) is False
-        assert await uow.users.lock_assignable(UserId(uuid4())) is False
+        assert await uow.users.lock_assignable(UserId(new_id())) is False

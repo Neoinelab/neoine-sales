@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { dealCode, expectApiError, mockAs, TEST_NOW } from '../testing'
+import { USER_ID } from '../seed/ids'
 
 const REVENUE_MSG = 'Won·계약완료로 바꾸려면 매출금액과 매출일이 필요합니다.'
 const CHOICE_MSG = '함께 바꿀 값을 선택하세요.'
@@ -24,7 +25,7 @@ describe('deals.applyChange', () => {
     expect(result.deal.updatedAt).toBe(TEST_NOW)
     const history = await gateway.history.list(code, {})
     expect(history).toHaveLength(base + 1)
-    expect(history[0]).toMatchObject({ category: 'forecast', before: 'Most Likely', after: 'Commit', by: { id: 'u-kim' } })
+    expect(history[0]).toMatchObject({ category: 'forecast', before: 'Most Likely', after: 'Commit', by: { id: USER_ID.kim } })
   })
 
   it('같은 값으로 바꾸면 변화도 History도 없다', async () => {

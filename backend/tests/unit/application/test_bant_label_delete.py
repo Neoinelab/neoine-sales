@@ -4,7 +4,6 @@ Label 사용 수는 P0에 Deal 연결이 없어 Fake deals에 주입한 값으�
 """
 
 from typing import TYPE_CHECKING
-from uuid import uuid4
 
 import pytest
 
@@ -16,6 +15,7 @@ from app.domain.bant.values import BantCategory, BantLabelId
 from tests.factories_catalog import make_label
 from tests.support.auth_seed import seed_user
 from tests.support.catalog import label_by_name
+from tests.support.ids import new_id
 
 if TYPE_CHECKING:
     from app.application.ports.unit_of_work import UnitOfWorkFactory
@@ -69,7 +69,7 @@ async def test_delete_missing_label_raises_not_found(
     seeded: FakeUnitOfWork, uow_factory: UnitOfWorkFactory
 ) -> None:
     with pytest.raises(BantLabelNotFoundError):
-        await DeleteBantLabel(uow_factory).execute(BantLabelId(uuid4()))
+        await DeleteBantLabel(uow_factory).execute(BantLabelId(new_id()))
 
 
 async def test_delete_user_who_created_a_label_resigns_instead_of_deleting(

@@ -110,7 +110,7 @@ export interface AuthGateway {
    */
   login(loginId: string, password: string): Promise<Me>
   /** 빠른 로그인(`QUICK_LOGIN_USERS`). 퇴사자·없는 id는 login과 같은 오류. */
-  quickLogin(userId: string): Promise<Me>
+  quickLogin(userId: number): Promise<Me>
   logout(): Promise<void>
   /** 로그인 화면용 서버 설정(로그인 전에도 읽는다). `quickLogin`이 true일 때만 빠른 로그인 버튼을 그린다. */
   config(): Promise<AuthConfig>
@@ -175,9 +175,9 @@ export interface ContactsGateway {
   /** admin만. 규칙 위반 422(공백·이메일 형식·필수), 같은 사람이 이미 있으면 409 "이미 등록된 연락처입니다." */
   create(kind: ContactKind, input: ContactInput): Promise<Contact>
   /** admin만(Deal 화면의 연락처 수정은 deals.create/update의 ContactDraft 경로). 이 연락처를 쓰는 모든 Deal에 반영. */
-  update(id: string, input: ContactInput): Promise<Contact>
+  update(id: number, input: ContactInput): Promise<Contact>
   /** admin만. 참조 Deal이 있으면 409 "연결된 Deal이 N건 있어 삭제할 수 없습니다." */
-  remove(id: string): Promise<void>
+  remove(id: number): Promise<void>
 }
 
 export interface ActionsGateway {
@@ -195,14 +195,14 @@ export interface ActionsGateway {
    * 다른 sales·user는 403 "본인 Action 또는 admin만 수정할 수 있습니다."(user는 기본 403 문구).
    * 등록 시점 Status/Forecast·수행일시·담당자는 유지. 내용이 바뀌었을 때만 History 기록.
    */
-  update(actionId: string, input: ActionUpdateInput): Promise<DealAction>
+  update(actionId: number, input: ActionUpdateInput): Promise<DealAction>
   /** 담당자 본인(sales)과 admin만. 다른 sales는 403 "본인 Action 또는 admin만 삭제할 수 있습니다.". History 기록. */
-  remove(actionId: string): Promise<void>
+  remove(actionId: number): Promise<void>
   /**
    * Next Action 상태 변경(작성자 본인·admin만, 아니면 403). 종료할 때 memo가 있으면 Memo 뒤에 덧붙는다.
    * 같은 상태 409, Next Action이 없는 Action 409, Open으로 되돌리면서 memo를 주면 422.
    */
-  changeNextActionStatus(actionId: string, input: NextActionStatusInput): Promise<DealAction>
+  changeNextActionStatus(actionId: number, input: NextActionStatusInput): Promise<DealAction>
 }
 
 export interface ActionTypesGateway {
@@ -211,9 +211,9 @@ export interface ActionTypesGateway {
   /** sales/admin. 이름 규칙·대소문자 무시 중복(409)은 서버 문구 그대로. */
   create(name: string): Promise<ActionTypeWithUsage>
   /** admin만(sales 403). 기본 유형도 가능. 중복 규칙 동일. */
-  rename(id: string, name: string): Promise<ActionTypeWithUsage>
+  rename(id: number, name: string): Promise<ActionTypeWithUsage>
   /** admin만(sales 403). 사용 중이면 409 "사용 중인 유형은 삭제할 수 없습니다. (Action N건)" */
-  remove(id: string): Promise<void>
+  remove(id: number): Promise<void>
 }
 
 export interface HistoryGateway {
@@ -232,8 +232,8 @@ export interface AttachmentsGateway {
    */
   upload(dealCode: string, input: UploadInput): Promise<UploadResult>
   /** canDeleteAttachment 아니면 403 "본인이 올린 파일만 삭제할 수 있습니다." History 기록. */
-  remove(attachmentId: string): Promise<void>
-  download(attachmentId: string): Promise<DownloadedFile>
+  remove(attachmentId: number): Promise<void>
+  download(attachmentId: number): Promise<DownloadedFile>
 }
 
 export interface CodesGateway {
@@ -244,14 +244,14 @@ export interface CodesGateway {
   /** admin만. key는 자동 생성(영문 소문자/숫자/밑줄, 유일). order는 맨 끝. forecast는 outcome 'open'. 빈 이름 422 "이름을 입력하세요." */
   create(input: CodeCreateInput): Promise<CodeWithUsage>
   /** admin만. locked 포함 가능. 같은 종류 안 중복 이름은 409 "같은 이름의 코드가 이미 있습니다." */
-  rename(id: string, name: string): Promise<CodeWithUsage>
+  rename(id: number, name: string): Promise<CodeWithUsage>
   /** admin만. orderedIds는 해당 종류 전체 id를 새 순서로. order는 1부터 다시 매긴다. */
-  reorder(kind: CodeKind, orderedIds: string[]): Promise<CodeWithUsage[]>
+  reorder(kind: CodeKind, orderedIds: number[]): Promise<CodeWithUsage[]>
   /**
    * admin만. locked → 409 "시스템과 연결된 코드는 삭제할 수 없습니다. 이름과 순서는 변경할 수 있습니다."
    * 사용 중 → 409 "사용 중인 코드는 삭제할 수 없습니다. (Deal N건)". (Action이 참조해도 사용 중으로 본다)
    */
-  remove(id: string): Promise<void>
+  remove(id: number): Promise<void>
 }
 
 export interface LabelsGateway {
@@ -263,9 +263,9 @@ export interface LabelsGateway {
    */
   create(category: BantCategory, name: string): Promise<BantLabelWithUsage>
   /** admin만(sales 403). 사용 중 Label도 가능. 중복 규칙 동일. */
-  rename(id: string, name: string): Promise<BantLabelWithUsage>
+  rename(id: number, name: string): Promise<BantLabelWithUsage>
   /** admin만(sales 403). 사용 중이면 409 "사용 중인 Label은 삭제할 수 없습니다. (Deal N건)" */
-  remove(id: string): Promise<void>
+  remove(id: number): Promise<void>
 }
 
 export interface ForecastGateway {
@@ -281,12 +281,12 @@ export interface VendorsGateway {
   list(): Promise<Vendor[]>
   /** admin만. 이름 규칙·대소문자 무시 중복(409)은 서버 문구 그대로. */
   create(name: string): Promise<Vendor>
-  rename(id: string, name: string): Promise<Vendor>
+  rename(id: number, name: string): Promise<Vendor>
   /** admin만. 사용 중이면 409. 소속 Solution도 함께 삭제된다. */
-  remove(id: string): Promise<void>
-  createSolution(vendorId: string, name: string): Promise<Solution>
-  renameSolution(vendorId: string, solutionId: string, name: string): Promise<Solution>
-  removeSolution(vendorId: string, solutionId: string): Promise<void>
+  remove(id: number): Promise<void>
+  createSolution(vendorId: number, name: string): Promise<Solution>
+  renameSolution(vendorId: number, solutionId: number, name: string): Promise<Solution>
+  removeSolution(vendorId: number, solutionId: number): Promise<void>
 }
 
 export interface UsersGateway {
@@ -300,7 +300,7 @@ export interface UsersGateway {
    * admin만. 본인은 403 "본인 계정은 삭제할 수 없습니다.". 연결(Deal 담당·Action·History·첨부 등)이 있으면
    * 퇴사 처리(status 'resigned', resignedAt), 없으면 물리 삭제.
    */
-  remove(id: string): Promise<UserRemoveResult>
+  remove(id: number): Promise<UserRemoveResult>
 }
 
 export interface SettingsGateway {

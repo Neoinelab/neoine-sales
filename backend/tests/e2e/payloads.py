@@ -14,7 +14,7 @@ def deal_payload(**overrides: object) -> dict[str, Any]:
     """Deal 등록 본문(P1 모델): 고객은 ContactDraft로 함께 만들고 Owner는 기본 Owner 사용자다."""
     values: dict[str, Any] = {
         "name": "ERP 구축",
-        "owner_user_id": str(OWNER_ID),  # deal_users fixture(또는 SQL stack)가 이 사용자를 둔다
+        "owner_user_id": OWNER_ID,  # deal_users fixture(또는 SQL stack)가 이 사용자를 둔다
         "vendor_id": None,  # 등록된 Vendor·Solution의 id(없으면 선택 안 함)
         "solution_id": None,
         "users": 10,

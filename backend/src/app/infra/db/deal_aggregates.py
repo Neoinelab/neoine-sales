@@ -48,16 +48,18 @@ async def count_by_solution(session: AsyncSession) -> Mapping[SolutionId, int]:
     return {SolutionId(key): count for key, count in counts.items() if key is not None}
 
 
-async def deletion_impact(session: AsyncSession, code: str) -> DealDeletionImpact:
+async def deletion_impact(session: AsyncSession, deal_id: int) -> DealDeletionImpact:
     """Deal을 지우면 함께 지워지는 이력·활동 건수·첨부 건수."""
     history = (
-        select(func.count()).select_from(DealHistoryRow).where(DealHistoryRow.deal_code == code)
+        select(func.count()).select_from(DealHistoryRow).where(DealHistoryRow.deal_id == deal_id)
     )
-    actions = select(func.count()).select_from(DealActionRow).where(DealActionRow.deal_code == code)
+    actions = (
+        select(func.count()).select_from(DealActionRow).where(DealActionRow.deal_id == deal_id)
+    )
     attachments = (
         select(func.count())
         .select_from(DealAttachmentRow)
-        .where(DealAttachmentRow.deal_code == code)
+        .where(DealAttachmentRow.deal_id == deal_id)
     )
     return DealDeletionImpact(
         history_count=int(await session.scalar(history) or 0),

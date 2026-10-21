@@ -1,11 +1,10 @@
 """Action 유형 라우터의 권한(AC-1·2·6): 조회는 모든 역할, 생성은 sales·admin, 변경·삭제 admin."""
 
-from uuid import uuid4
-
 import pytest
 
 from app.domain.auth.principal import Role
 from app.web.permissions import ADMIN_DENIED
+from tests.support.ids import MISSING_ID
 from tests.unit.web.action_type_http import URL, seeded_use_cases, type_id_of
 from tests.unit.web.vendor_http import client_for, problem
 
@@ -55,8 +54,8 @@ async def test_user_cannot_rename_or_delete() -> None:
 
 async def test_the_permission_is_checked_before_the_id_is_looked_up() -> None:
     async with client_for(seeded_use_cases(), role=Role.SALES) as http:
-        renamed = await http.patch(f"{URL}/{uuid4()}", json={"name": "x"})
-        deleted = await http.delete(f"{URL}/{uuid4()}")
+        renamed = await http.patch(f"{URL}/{MISSING_ID}", json={"name": "x"})
+        deleted = await http.delete(f"{URL}/{MISSING_ID}")
 
     problem(renamed, 403, "forbidden")
     problem(deleted, 403, "forbidden")
@@ -67,8 +66,8 @@ async def test_unauthenticated_requests_are_401() -> None:
         responses = [
             await http.get(URL),
             await http.post(URL, json={"name": "x"}),
-            await http.patch(f"{URL}/{uuid4()}", json={"name": "x"}),
-            await http.delete(f"{URL}/{uuid4()}"),
+            await http.patch(f"{URL}/{MISSING_ID}", json={"name": "x"}),
+            await http.delete(f"{URL}/{MISSING_ID}"),
         ]
 
     for response in responses:

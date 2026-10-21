@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, NewType
-from uuid import UUID
 
 from app.domain.common.errors import InvalidStateError, InvalidValueError
 from app.domain.common.validation import require_aware
@@ -10,7 +9,7 @@ if TYPE_CHECKING:
 
     from app.domain.auth.principal import Principal
 
-SessionId = NewType("SessionId", UUID)
+SessionId = NewType("SessionId", int)
 
 
 @dataclass(eq=False, kw_only=True)

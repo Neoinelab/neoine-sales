@@ -9,7 +9,7 @@ import { codeSetOf } from './dealChange'
 import { statusesOf } from './nextActionStatus'
 import { dealDetail, dealRow, findDeal } from './views'
 
-function matches(row: DealRow, query: DealListQuery, viewerId: string, thisYear: number): boolean {
+function matches(row: DealRow, query: DealListQuery, viewerId: number, thisYear: number): boolean {
   if (query.keyword) {
     const needle = query.keyword.trim().toLowerCase()
     const haystack = [row.name, row.customer.company, row.activePartner?.company ?? '', row.code]

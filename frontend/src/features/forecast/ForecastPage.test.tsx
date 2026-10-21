@@ -7,6 +7,7 @@ import { formatThousandWon } from '../../shared/model/money'
 import type { DealRow } from '../../shared/model/types'
 import { seedVendorId } from '../../test/fixtures/vendors'
 import { renderAt } from '../../test/mockApp'
+import { USER_ID } from '../../test/fake/seed/ids'
 
 /** 시드 날짜가 기준일 상대값이라 기준일을 고정한다(2026-10-15). */
 const NOW = '2026-10-15T09:00:00+09:00'
@@ -33,7 +34,7 @@ function readRow(name: string | RegExp): string[] {
     .map((c) => c.textContent?.trim() ?? '')
 }
 
-async function ledger(query: { year: number; quarter?: 1 | 2 | 3 | 4; vendorId?: string; ownerId?: string }): Promise<DealRow[]> {
+async function ledger(query: { year: number; quarter?: 1 | 2 | 3 | 4; vendorId?: number; ownerId?: number }): Promise<DealRow[]> {
   const page = await gateway.deals.list({ ...query, limit: 1000 })
   return page.items
 }
@@ -147,7 +148,7 @@ describe('Forecast 요약 표', () => {
 
     await user.click(await screen.findByRole('button', { name: '김영업' }))
     const section = await screen.findByRole('region', { name: '선택한 담당자: 김영업' })
-    const all = await ledger({ year: 2026, quarter: 4, ownerId: 'u-kim' })
+    const all = await ledger({ year: 2026, quarter: 4, ownerId: USER_ID.kim })
     await waitFor(() => expect(within(section).getAllByRole('link')).toHaveLength(all.length))
     const open = sumOf(
       all.filter((d) => d.forecastKey !== 'lost'),
@@ -173,7 +174,7 @@ describe('담당자 선택: 같은 화면 아래 Deal 목록', () => {
 
     const section = await screen.findByRole('region', { name: '선택한 담당자: 김영업' })
     expect(screen.getByRole('button', { name: '김영업' })).toHaveAttribute('aria-pressed', 'true')
-    expect(location()).toContain('sel=u-kim')
+    expect(location()).toContain(`sel=${USER_ID.kim}`)
     // 요약 표가 그대로 남아 있다(별도 화면 이동 없음).
     expect(location()).toContain('/forecast')
     expect(screen.getByRole('rowheader', { name: '합계' })).toBeInTheDocument()
@@ -183,7 +184,7 @@ describe('담당자 선택: 같은 화면 아래 Deal 목록', () => {
       .map((h) => h.textContent)
     expect(heads).toEqual(['Deal', 'Status', 'Forecast', '금액(단위:천원)', 'Expected Close', 'Next Action'])
 
-    const deals = (await ledger({ year: 2026, ownerId: 'u-kim' })).filter((d) => d.forecastKey !== 'lost')
+    const deals = (await ledger({ year: 2026, ownerId: USER_ID.kim })).filter((d) => d.forecastKey !== 'lost')
     await waitFor(() => expect(within(section).getAllByRole('link').length).toBeGreaterThanOrEqual(deals.length))
     const first = deals.find((d) => d.name === '한빛은행 ITDR 도입')
     expect(first).toBeDefined()
@@ -195,7 +196,7 @@ describe('담당자 선택: 같은 화면 아래 Deal 목록', () => {
     const { user } = await renderAt('/forecast?year=2026')
     await user.click(await screen.findByRole('button', { name: '김영업' }))
     const section = await screen.findByRole('region', { name: '선택한 담당자: 김영업' })
-    const all = await ledger({ year: 2026, ownerId: 'u-kim' })
+    const all = await ledger({ year: 2026, ownerId: USER_ID.kim })
     const deals = all.filter((d) => d.forecastKey !== 'lost')
     await waitFor(() => expect(within(section).getAllByRole('link')).toHaveLength(all.length))
     const open = sumOf(deals, (d) => OPEN.has(d.forecastKey))
@@ -205,7 +206,7 @@ describe('담당자 선택: 같은 화면 아래 Deal 목록', () => {
   })
 
   it('Lost Deal은 목록에 보이지만 합계에서는 제외된다는 안내가 있다', async () => {
-    await renderAt('/forecast?year=2026&sel=u-kim')
+    await renderAt(`/forecast?year=2026&sel=${USER_ID.kim}`)
     const section = await screen.findByRole('region', { name: '선택한 담당자: 김영업' })
     expect(await within(section).findByRole('link', { name: '새론병원 SSO' })).toBeInTheDocument()
     expect(section).toHaveTextContent('Lost')
@@ -213,7 +214,7 @@ describe('담당자 선택: 같은 화면 아래 Deal 목록', () => {
   })
 
   it('선택 해제 버튼으로 목록을 닫고 URL에서 선택이 사라진다', async () => {
-    const { user, location } = await renderAt('/forecast?year=2026&sel=u-kim')
+    const { user, location } = await renderAt(`/forecast?year=2026&sel=${USER_ID.kim}`)
     await screen.findByRole('region', { name: '선택한 담당자: 김영업' })
     await user.click(screen.getByRole('button', { name: '선택 해제' }))
     expect(screen.queryByRole('region', { name: /선택한 담당자/ })).not.toBeInTheDocument()
@@ -221,7 +222,7 @@ describe('담당자 선택: 같은 화면 아래 Deal 목록', () => {
   })
 
   it('같은 담당자 버튼을 다시 누르면 선택이 해제된다', async () => {
-    const { user } = await renderAt('/forecast?year=2026&sel=u-kim')
+    const { user } = await renderAt(`/forecast?year=2026&sel=${USER_ID.kim}`)
     await screen.findByRole('region', { name: '선택한 담당자: 김영업' })
     await user.click(screen.getByRole('button', { name: '김영업' }))
     expect(screen.queryByRole('region', { name: /선택한 담당자/ })).not.toBeInTheDocument()
@@ -244,17 +245,17 @@ describe('Vendor 필터는 등록 Vendor 목록(id)을 쓴다 (AC-23)', () => {
     expect(within(vendor).getAllByRole('option').map((o) => o.textContent)).toEqual([
       '전체', 'CrowdStrike', 'CyberArk', 'Okta', 'Palo Alto', 'SentinelOne', 'Silverfort', 'Splunk', 'Tenable', 'Veeam', 'Zscaler',
     ])
-    expect(within(vendor).getByRole('option', { name: 'Okta' })).toHaveValue(seedVendorId('Okta'))
+    expect(within(vendor).getByRole('option', { name: 'Okta' })).toHaveValue(String(seedVendorId('Okta')))
   })
 
   it('passes vendorId to the deal list of the selected owner', async () => {
     const list = vi.spyOn(gateway.deals, 'list')
-    await renderAt(`/forecast?year=2026&vendor=${seedVendorId('Silverfort')}&sel=u-kim`)
+    await renderAt(`/forecast?year=2026&vendor=${seedVendorId('Silverfort')}&sel=${USER_ID.kim}`)
 
     await screen.findByRole('heading', { name: /선택한 담당자/ })
 
     await waitFor(() =>
-      expect(list).toHaveBeenCalledWith(expect.objectContaining({ ownerId: 'u-kim', year: 2026, vendorId: seedVendorId('Silverfort') })),
+      expect(list).toHaveBeenCalledWith(expect.objectContaining({ ownerId: USER_ID.kim, year: 2026, vendorId: seedVendorId('Silverfort') })),
     )
   })
 
@@ -268,11 +269,11 @@ describe('Vendor 필터는 등록 Vendor 목록(id)을 쓴다 (AC-23)', () => {
 
 describe('필터와 URL 유지', () => {
   it('T-FC-06 URL의 연도·Quarter·담당자·Vendor가 필터 컨트롤에 반영된다', async () => {
-    await renderAt(`/forecast?year=2026&quarter=4&owner=u-kim&vendor=${seedVendorId('Silverfort')}`)
+    await renderAt(`/forecast?year=2026&quarter=4&owner=${USER_ID.kim}&vendor=${seedVendorId('Silverfort')}`)
     await screen.findByRole('rowheader', { name: '합계' })
     expect(screen.getByLabelText('연도')).toHaveValue('2026')
     expect(screen.getByLabelText('Quarter')).toHaveValue('4')
-    expect(screen.getByLabelText('담당자')).toHaveValue('u-kim')
+    expect(screen.getByLabelText('담당자')).toHaveValue(String(USER_ID.kim))
     await waitFor(() => expect(screen.getByLabelText('Vendor')).toHaveDisplayValue('Silverfort'))
     // 담당자 필터가 걸리면 다른 담당자 행은 없다.
     expect(screen.queryByRole('button', { name: '박영업' })).not.toBeInTheDocument()
@@ -291,8 +292,8 @@ describe('필터와 URL 유지', () => {
     await user.selectOptions(screen.getByLabelText('Vendor'), 'Silverfort')
     expect(location()).toContain(`vendor=${seedVendorId('Silverfort')}`)
 
-    await user.selectOptions(screen.getByLabelText('담당자'), 'u-kim')
-    expect(location()).toContain('owner=u-kim')
+    await user.selectOptions(screen.getByLabelText('담당자'), String(USER_ID.kim))
+    expect(location()).toContain(`owner=${USER_ID.kim}`)
 
     await user.selectOptions(screen.getByLabelText('Quarter'), '')
     expect(location()).not.toContain('quarter=')

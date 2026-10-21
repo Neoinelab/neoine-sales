@@ -29,7 +29,7 @@ if TYPE_CHECKING:
 pytestmark = pytest.mark.integration
 
 
-async def _deal_of_a_resigned_owner(api: Api) -> tuple[dict[str, object], str, str]:
+async def _deal_of_a_resigned_owner(api: Api) -> tuple[dict[str, object], int, int]:
     """park가 Owner인 Deal을 만들고 park를 퇴사시킨 뒤 다른 영업(sales-user)으로 로그인한다."""
     await given_logged_in_as(api, role="sales", login_id="park")
     park_id = await given_my_user_id(api)

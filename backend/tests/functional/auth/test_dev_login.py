@@ -1,7 +1,6 @@
 """Feature: 개발 환경에서는 AD 없이 역할별 개발용 로그인을 쓰고, 꺼진 환경에서는 그 기능이 없다."""
 
 from typing import TYPE_CHECKING
-from uuid import UUID
 
 import pytest
 
@@ -32,7 +31,9 @@ async def test_dev_login_signs_in_with_each_role(api: Api, role: str) -> None:
     then_status_is(response, 200)
     then_body_includes(response, role=role, subject=f"dev-{role}")
     await then_me_is(api, role=role, subject=f"dev-{role}")
-    assert UUID((await api.get("/api/v1/auth/me")).json()["user_id"])
+    user_id = (await api.get("/api/v1/auth/me")).json()["user_id"]
+    assert type(user_id) is int
+    assert user_id >= 1
 
 
 async def test_dev_login_reuses_the_same_user_row_each_time(api: Api) -> None:

@@ -113,7 +113,7 @@ async def _log_in(api: Api, login_id: str) -> None:
     _expect(await api.post(LOGIN, json=credentials), 200)
 
 
-async def given_user_registered(api: Api, *, login_id: str, role: RoleName) -> str:
+async def given_user_registered(api: Api, *, login_id: str, role: RoleName) -> int:
     """admin이 AD 계정이 있는 사용자를 역할과 함께 등록해 두었다. 사용자 id를 돌려준다.
 
     부수 효과: 등록하려고 admin(`root`)으로 로그인한 상태가 된다.
@@ -124,7 +124,7 @@ async def given_user_registered(api: Api, *, login_id: str, role: RoleName) -> s
     await _log_in(api, ADMIN_LOGIN)
     given_ad_account(api, login_id=login_id, display_name=f"사용자 {login_id}")
     created = _expect(await api.post(USERS, json={"login_id": login_id, "role": role}), 201)
-    return str(created.json()["id"])
+    return int(created.json()["id"])
 
 
 async def given_logged_in_as(

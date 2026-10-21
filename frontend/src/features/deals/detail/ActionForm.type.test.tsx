@@ -308,7 +308,7 @@ describe('표와 검색 바의 유형 (AC-28)', () => {
     await waitFor(() => expect(within(select).getAllByRole('option')).toHaveLength(9))
     const options = within(select).getAllByRole('option') as HTMLOptionElement[]
     expect(options.map((o) => o.textContent)).toEqual(['전체', ...DEFAULTS])
-    expect(options.map((o) => o.value)).toEqual(['', ...DEFAULTS.map((n) => seedActionTypeId(n))])
+    expect(options.map((o) => o.value)).toEqual(['', ...DEFAULTS.map((n) => String(seedActionTypeId(n)))])
   })
 
   it('searches by the chosen type and only its actions remain', async () => {

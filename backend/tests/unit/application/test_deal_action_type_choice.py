@@ -6,7 +6,6 @@
 """
 
 from typing import TYPE_CHECKING
-from uuid import uuid4
 
 import pytest
 
@@ -17,6 +16,7 @@ from app.domain.common.errors import InvalidValueError
 from app.domain.deal.errors import DealNotFoundError
 from tests.factories_action_type import make_action_type, type_id
 from tests.support.expect import raises_with
+from tests.support.ids import new_id
 from tests.unit.application.action_env import (
     ACTION_OR_NEXT_REQUIRED,
     DUE_DATE_REQUIRED,
@@ -50,7 +50,7 @@ async def test_unknown_type_id_is_rejected_and_stores_nothing(action_env: Action
     names = await _type_names(action_env)
 
     with raises_with(UnknownActionTypeError, UNKNOWN_TYPE):
-        await action_env.act(KIM, action_type=CatalogChoice(id=uuid4()))
+        await action_env.act(KIM, action_type=CatalogChoice(id=new_id()))
 
     assert len(action_env.env.uow.deal_actions._items) == 0
     assert await _type_names(action_env) == names
@@ -91,6 +91,25 @@ async def test_unknown_type_name_creates_a_type_by_the_actor(action_env: ActionE
     assert created.created_by_user_id == KIM.user_id
     assert created.created_at == action_env.env.clock.now()
     assert len(await _type_names(action_env)) == 9
+
+
+async def test_a_new_type_name_gets_an_allocated_id_and_is_referenced_by_the_action(
+    action_env: ActionEnv,
+) -> None:
+    action = await action_env.act(KIM, action_type=CatalogChoice(name="웨비나"))
+
+    referenced = (await action_env.stored(action.id)).content.action_type
+    created = next(t for t in await action_env.env.uow.action_types.list() if t.name == "웨비나")
+    assert created.id == 1  # 이 테이블에서 처음 할당받은 번호(시드는 높은 번호)
+    assert referenced.id == created.id
+
+
+async def test_two_new_type_names_get_increasing_ids(action_env: ActionEnv) -> None:
+    await action_env.act(KIM, action_type=CatalogChoice(name="웨비나"))
+    await action_env.act(KIM, action_type=CatalogChoice(name="세미나"))
+
+    created = {t.name: t.id for t in await action_env.env.uow.action_types.list()}
+    assert (created["웨비나"], created["세미나"]) == (1, 2)
 
 
 async def test_the_created_type_is_reused_by_the_next_registration(action_env: ActionEnv) -> None:
@@ -159,7 +178,7 @@ async def test_a_missing_due_date_creates_no_type(action_env: ActionEnv) -> None
 
 async def test_missing_deal_is_reported_before_type(action_env: ActionEnv) -> None:
     with pytest.raises(DealNotFoundError):
-        await action_env.act(KIM, code="20261016-ZZZZ", action_type=CatalogChoice(id=uuid4()))
+        await action_env.act(KIM, code="20261016-ZZZZ", action_type=CatalogChoice(id=new_id()))
 
 
 async def test_blank_type_name_is_reported_before_progress(action_env: ActionEnv) -> None:
@@ -169,7 +188,7 @@ async def test_blank_type_name_is_reported_before_progress(action_env: ActionEnv
 
 async def test_unknown_type_id_is_reported_before_progress(action_env: ActionEnv) -> None:
     with raises_with(UnknownActionTypeError, UNKNOWN_TYPE):
-        await action_env.act(KIM, action_type=CatalogChoice(id=uuid4()), action="  ")
+        await action_env.act(KIM, action_type=CatalogChoice(id=new_id()), action="  ")
 
 
 async def test_progress_is_still_reported_before_next_action_and_due_date(

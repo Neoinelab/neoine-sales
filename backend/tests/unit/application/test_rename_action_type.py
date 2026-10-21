@@ -1,17 +1,17 @@
 """RenameActionType(AC-4·5): 이름 변경(기본 유형 포함), 대소문자만 바꾸기 허용, 사용 수 응답."""
 
 from typing import TYPE_CHECKING
-from uuid import uuid4
 
 import pytest
+
 from app.application.action_type.rename_action_type import RenameActionType
 from app.domain.action_type.errors import ActionTypeNotFoundError, DuplicateActionTypeNameError
 from app.domain.action_type.values import ActionTypeId
-
 from app.domain.common.errors import InvalidValueError
 from tests.factories_action_type import type_id
 from tests.fakes.catalog_seed import seed_action_types
 from tests.support.expect import raises_with
+from tests.support.ids import new_id
 from tests.unit.application.action_env import KIM
 
 if TYPE_CHECKING:
@@ -78,7 +78,7 @@ async def test_rename_a_missing_type_is_not_found(
     seeded: FakeUnitOfWork, uow_factory: UnitOfWorkFactory, clock: FixedClock
 ) -> None:
     with pytest.raises(ActionTypeNotFoundError):
-        await RenameActionType(uow_factory, clock).execute(ActionTypeId(uuid4()), "회의")
+        await RenameActionType(uow_factory, clock).execute(ActionTypeId(new_id()), "회의")
 
 
 @pytest.mark.parametrize(

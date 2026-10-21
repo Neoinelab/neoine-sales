@@ -63,7 +63,7 @@ async def test_admin_renames_a_label_made_by_someone_else(api: Api) -> None:
     created = await given_label_created(api, category="need", name="규제 대응")
     await given_logged_in_as(api, role="admin")
     # When
-    response = await when_rename_label(api, label_id=str(created["id"]), name="컴플라이언스 대응")
+    response = await when_rename_label(api, label_id=created["id"], name="컴플라이언스 대응")
     # Then
     then_status_is(response, 200)
     then_body_includes(response, name="컴플라이언스 대응", is_default=False)
@@ -163,7 +163,7 @@ async def test_admin_deletes_a_label_made_by_someone_else(api: Api) -> None:
     created = await given_label_created(api, category="need", name="규제 대응")
     await given_logged_in_as(api, role="admin")
     # When
-    response = await when_delete_label(api, label_id=str(created["id"]))
+    response = await when_delete_label(api, label_id=created["id"])
     # Then
     then_status_is(response, 204)
     await then_label_count_is(api, count=23)
@@ -214,7 +214,7 @@ async def test_sales_cannot_delete_the_label_they_created(api: Api) -> None:
     await given_logged_in_as(api, role="sales")
     created = await given_label_created(api, category="need", name="규제 대응")
     # When
-    response = await when_delete_label(api, label_id=str(created["id"]))
+    response = await when_delete_label(api, label_id=created["id"])
     # Then
     then_problem_is(response, status=403, type_suffix="forbidden")
     await then_label_exists(api, category="need", name="규제 대응")

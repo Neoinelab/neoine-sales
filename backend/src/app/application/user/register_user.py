@@ -2,6 +2,7 @@ from typing import TYPE_CHECKING
 
 from app.application.auth.dev_login import ensure_not_reserved_login_id
 from app.application.auth.messages import LOGIN_REQUIRED
+from app.application.ids import new_user_id
 from app.domain.auth.credentials import LoginId
 from app.domain.auth.errors import AuthenticationError
 from app.domain.common.errors import AlreadyExistsError
@@ -30,15 +31,16 @@ class RegisterUser:
     ) -> User:
         account = LoginId(login_id)
         ensure_not_reserved_login_id(account)
-        user = User.register(
-            account,
-            role,
-            created_by_user_id=actor.user_id,
-            now=self._clock.now(),
-            display_name=display_name,
-        )
         async with self._uow_factory() as uow:
             await uow.users.lock_roster()
+            user = User.register(
+                account,
+                role,
+                entity_id=await new_user_id(uow.ids),
+                created_by_user_id=actor.user_id,
+                now=self._clock.now(),
+                display_name=display_name,
+            )
             try:
                 exists = await uow.users.get_active_by_login_id(account) is not None
             except AmbiguousLoginIdError:  # 이미 둘 이상 있다 = 중복이라는 같은 결론

@@ -5,7 +5,6 @@
 """
 
 from typing import TYPE_CHECKING
-from uuid import uuid4
 
 from app.application.deal.register_deal import RegisterDeal
 from app.domain.contact.errors import ContactNotFoundError, DuplicateContactError
@@ -16,6 +15,7 @@ from tests.factories_contact import make_customer, make_partner
 from tests.factories_deal import SALES, draft_of, make_create_input, make_draft, seed_deal
 from tests.fakes.deal_code_source import FakeDealCodeSuffixSource
 from tests.support.expect import raises_with
+from tests.support.ids import new_id
 
 if TYPE_CHECKING:
     from app.domain.contact.entities import Contact
@@ -130,7 +130,7 @@ class TestPickingAnExistingContact:
         self, env: DealEnv
     ) -> None:
         with raises_with(ContactNotFoundError, NOT_FOUND):
-            await env.new_deal(customer=make_draft(contact_id=uuid4()))
+            await env.new_deal(customer=make_draft(contact_id=new_id()))
 
         assert env.uow.deals._items == {}
 
@@ -234,3 +234,13 @@ class TestReusingTheSamePerson:
         assert await env.history_rows(other.id.value) == []
         assert len(env.uow.contacts._items) == 2  # 기존 고객 + 새 고객
         assert customer.id in env.uow.contacts._items
+
+    async def test_new_customer_and_partner_get_the_next_contact_ids(self, env: DealEnv) -> None:
+        view = await env.new_deal(
+            customer=make_draft(company="다른회사", name="오세훈"),
+            partner=make_draft(company="한빛", name="이영희"),
+        )
+
+        (partner_id,) = view.partner_contacts
+        assert {view.customer.id, partner_id} == {1, 2}  # 두 연락처가 같은 시퀀스에서 번호를 받는다
+        assert sorted(env.uow.contacts._items) == [1, 2]

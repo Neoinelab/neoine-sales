@@ -2,11 +2,11 @@
 
 from datetime import UTC, date, datetime, timedelta
 from typing import TYPE_CHECKING
-from uuid import uuid4
 
 from app.application.ports.deal_action_repository import DealActionSort
 from tests.factories import NOW, make_deal_action, make_deal_code
 from tests.factories_action_type import make_action_type
+from tests.support.ids import new_id
 from tests.support.user_ids import uid
 
 if TYPE_CHECKING:
@@ -58,6 +58,17 @@ async def test_search_can_order_by_oldest_acted_at_first(action_case: Case) -> N
         "킥오프 미팅",
         "최종 미팅",
     ]
+
+
+async def test_actions_with_the_same_acted_at_follow_registration_order(
+    action_case: Case,
+) -> None:
+    """수행 일시가 같으면 생성 순서(id 오름차순)다. 먼저 등록한 것이 앞에 온다."""
+    for name in ("첫째", "둘째", "셋째"):
+        await action_case.add(make_deal_action(NOW, action=name))
+
+    assert await action_case.search(sort=DealActionSort.ACTED_AT_ASC) == ["첫째", "둘째", "셋째"]
+    assert await action_case.search(sort=DealActionSort.ACTED_AT_DESC) == ["첫째", "둘째", "셋째"]
 
 
 async def test_search_by_due_date_breaks_ties_by_latest_acted_at(action_case: Case) -> None:
@@ -185,7 +196,7 @@ async def test_filters_by_the_id_of_a_custom_type(action_case: Case) -> None:
 async def test_an_unknown_type_id_matches_nothing(action_case: Case) -> None:
     await _seed(action_case)
 
-    assert await action_case.search(action_type_id=uuid4()) == []
+    assert await action_case.search(action_type_id=new_id()) == []
 
 
 async def test_search_filters_by_type_id_after_the_type_is_renamed(action_case: Case) -> None:

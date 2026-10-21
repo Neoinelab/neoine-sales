@@ -17,13 +17,13 @@ function view(ctx: MockContext, record: LabelRecord): BantLabelWithUsage {
   }
 }
 
-function find(ctx: MockContext, id: string): LabelRecord {
+function find(ctx: MockContext, id: number): LabelRecord {
   const found = ctx.store.data.labels.find((l) => l.id === id)
   if (!found) throw notFound('Label을 찾을 수 없습니다.')
   return found
 }
 
-function checkName(ctx: MockContext, category: BantCategory, raw: string, selfId?: string): string {
+function checkName(ctx: MockContext, category: BantCategory, raw: string, selfId?: number): string {
   const name = raw.trim()
   if (name === '') throw validation('Label 이름을 입력하세요.')
   if (Array.from(name).length > BANT_LABEL_MAX_LENGTH) {

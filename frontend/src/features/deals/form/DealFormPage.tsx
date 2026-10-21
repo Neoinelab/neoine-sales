@@ -39,7 +39,7 @@ export function DealFormPage() {
         <DealForm
           key={deal.data?.code ?? 'new'}
           {...(deal.data ? { original: deal.data } : {})}
-          defaultOwnerId={me.role === 'sales' ? me.id : ''}
+          defaultOwnerId={me.role === 'sales' ? String(me.id) : ''}
         />
       )}
     </div>

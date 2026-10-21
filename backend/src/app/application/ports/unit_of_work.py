@@ -12,6 +12,7 @@ if TYPE_CHECKING:
     from app.application.ports.deal_history_repository import DealHistoryRepository
     from app.application.ports.deal_repository import DealRepository
     from app.application.ports.directory_settings_repository import DirectorySettingsRepository
+    from app.application.ports.id_allocator import IdAllocator
     from app.application.ports.login_failure_repository import LoginFailureRepository
     from app.application.ports.session_repository import SessionRepository
     from app.application.ports.storage_settings_repository import StorageSettingsRepository
@@ -25,6 +26,9 @@ class UnitOfWork(Protocol):
     - 블록 안에서는 repository를 통해 변경 사항을 볼 수 있다.
     - commit 없이 블록을 벗어나거나 예외가 나면 변경은 폐기된다(commit 이후의 변경도 폐기).
     """
+
+    @property
+    def ids(self) -> IdAllocator: ...
 
     @property
     def contacts(self) -> ContactRepository: ...

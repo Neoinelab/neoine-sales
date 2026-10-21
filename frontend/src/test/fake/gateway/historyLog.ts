@@ -18,11 +18,11 @@ export function lookupFor(ctx: MockContext): HistoryLookup {
     userName: (id) => userLabel(userRef(data, id)),
     contactName: (id) => {
       const c = data.contacts.find((x) => x.id === id)
-      return c ? `${c.company} ${c.name}` : id
+      return c ? `${c.company} ${c.name}` : String(id)
     },
-    vendorName: (id) => (id === null ? '선택 안 함' : (data.vendors.find((v) => v.id === id)?.name ?? id)),
-    solutionName: (id) => (id === null ? '선택 안 함' : (data.solutions.find((x) => x.id === id)?.name ?? id)),
-    bantLabelName: (id) => (id === null ? '선택 안 함' : (data.labels.find((l) => l.id === id)?.name ?? id)),
+    vendorName: (id) => (id === null ? '선택 안 함' : (data.vendors.find((v) => v.id === id)?.name ?? String(id))),
+    solutionName: (id) => (id === null ? '선택 안 함' : (data.solutions.find((x) => x.id === id)?.name ?? String(id))),
+    bantLabelName: (id) => (id === null ? '선택 안 함' : (data.labels.find((l) => l.id === id)?.name ?? String(id))),
   }
 }
 
@@ -39,7 +39,7 @@ function clip(text: string, max: number): string {
 export function logHistory(
   ctx: MockContext,
   dealCode: string,
-  byId: string,
+  byId: number,
   category: HistoryCategory,
   target: string,
   before: string,
@@ -59,7 +59,7 @@ export function logHistory(
   })
 }
 
-export function logDrafts(ctx: MockContext, dealCode: string, byId: string, drafts: readonly HistoryDraft[]): void {
+export function logDrafts(ctx: MockContext, dealCode: string, byId: number, drafts: readonly HistoryDraft[]): void {
   for (const d of drafts) logHistory(ctx, dealCode, byId, d.category, d.target, d.before, d.after)
 }
 
@@ -68,7 +68,7 @@ export function logDealDiff(
   ctx: MockContext,
   before: Deal,
   after: Deal,
-  byId: string,
+  byId: number,
   coChanged?: readonly Pick<CoChange, 'field'>[],
 ): number {
   const drafts = diffDeal(before, after, lookupFor(ctx), coChanged)

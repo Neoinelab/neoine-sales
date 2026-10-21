@@ -45,10 +45,10 @@ class FakeActionTypeRepository(InMemoryStore["ActionType"]):
         self._users = users
 
     @staticmethod
-    def _sort_key(item: ActionType) -> tuple[int, int, str, str]:
+    def _sort_key(item: ActionType) -> tuple[int, int, str, int]:
         if item.is_default:
-            return (0, item.default_order or 0, "", str(item.id))
-        return (1, 0, item.name.lower(), str(item.id))
+            return (0, item.default_order or 0, "", item.id)
+        return (1, 0, item.name.lower(), item.id)
 
     def _ensure_unique(self, item: ActionType) -> None:
         for other in self._items.values():

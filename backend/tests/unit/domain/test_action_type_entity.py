@@ -1,8 +1,7 @@
 """ActionType 엔티티(AC-2·5·6·10): 생성자 기록, 이름 변경, 사용 중 삭제 거부, 오류 종류와 문구."""
 
-from uuid import uuid4
-
 import pytest
+
 from app.domain.action_type.entities import ActionType
 from app.domain.action_type.errors import (
     ActionTypeInUseError,
@@ -11,7 +10,6 @@ from app.domain.action_type.errors import (
     UnknownActionTypeError,
 )
 from app.domain.action_type.values import ActionTypeId, ActionTypeRef
-
 from app.domain.common.errors import (
     AlreadyExistsError,
     InvalidStateError,
@@ -22,12 +20,15 @@ from app.domain.user.value_objects import UserId
 from tests.factories import NOW, later
 from tests.factories_action_type import make_action_type
 from tests.support.expect import raises_with
+from tests.support.ids import new_id
 
-CREATOR = UserId(uuid4())
+CREATOR = UserId(new_id())
 
 
 def test_create_sets_creator_and_is_not_default() -> None:
-    action_type = ActionType.create(name="웨비나", created_by=CREATOR, now=NOW)
+    action_type = ActionType.create(
+        entity_id=ActionTypeId(new_id()), name="웨비나", created_by=CREATOR, now=NOW
+    )
 
     assert action_type.name == "웨비나"
     assert action_type.is_default is False
@@ -36,11 +37,12 @@ def test_create_sets_creator_and_is_not_default() -> None:
     assert action_type.created_at == action_type.updated_at == NOW
 
 
-def test_create_generates_a_new_id_each_time() -> None:
-    first = ActionType.create(name="웨비나", created_by=CREATOR, now=NOW)
-    second = ActionType.create(name="웨비나", created_by=CREATOR, now=NOW)
+def test_create_uses_the_given_id() -> None:
+    action_type = ActionType.create(
+        entity_id=ActionTypeId(12), name="웨비나", created_by=CREATOR, now=NOW
+    )
 
-    assert first.id != second.id
+    assert action_type.id == 12
 
 
 def test_rename_changes_the_name_and_touches_updated_at() -> None:
@@ -92,10 +94,10 @@ def test_action_type_errors_map_to_not_found_conflict_invalid_state_and_invalid_
 def test_error_messages_are_the_user_text() -> None:
     assert str(DuplicateActionTypeNameError("데모")) == "이미 있는 유형 이름입니다."
     assert str(UnknownActionTypeError()) == "선택한 유형이 없습니다. 목록에서 다시 선택하세요."
-    assert str(ActionTypeNotFoundError(uuid4())).startswith("Action 유형")
+    assert str(ActionTypeNotFoundError(new_id())).startswith("Action 유형")
 
 
 def test_not_found_error_keeps_the_identifier() -> None:
-    type_id = ActionTypeId(uuid4())
+    type_id = ActionTypeId(new_id())
 
     assert ActionTypeNotFoundError(type_id).identifier == type_id

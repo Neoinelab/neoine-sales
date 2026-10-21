@@ -8,7 +8,7 @@ import { clone, read, requireAdmin, requireUser, write, type MockContext } from 
 import { assertContactValid, commitContact, DUPLICATE_CONTACT_MESSAGE, normalizeContact, planContact } from './contactPlan'
 import { contactRow, dealsOfContact } from './views'
 
-function find(ctx: MockContext, id: string): Contact {
+function find(ctx: MockContext, id: number): Contact {
   const found = ctx.store.data.contacts.find((c) => c.id === id)
   if (!found) throw notFound('연락처를 찾을 수 없습니다.')
   return found
@@ -38,7 +38,7 @@ export function createContactsGateway(ctx: MockContext): ContactsGateway {
               (a.kind === b.kind ? 0 : a.kind === 'customer' ? -1 : 1) ||
               a.company.localeCompare(b.company, 'ko') ||
               a.name.localeCompare(b.name, 'ko') ||
-              a.id.localeCompare(b.id),
+              a.id - b.id,
           )
         const offset = query.offset ?? 0
         const limit = query.limit ?? DEAL_PAGE_SIZE

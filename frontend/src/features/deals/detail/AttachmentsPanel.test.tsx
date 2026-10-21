@@ -4,10 +4,11 @@ import { describe, expect, it } from 'vitest'
 import { mockControl } from '../../../test/fake/default'
 import { renderAt } from '../../../test/mockApp'
 import { detailPath } from '../../../test/detailTestUtils'
+import { USER_ID } from '../../../test/fake/seed/ids'
 
 type Role = 'sales' | 'admin' | 'user'
 
-async function openPanel(no: number, title: string, role: Role = 'sales', userId?: string) {
+async function openPanel(no: number, title: string, role: Role = 'sales', userId?: number) {
   const view = await renderAt(await detailPath(no), userId ? { userId } : { role })
   await screen.findByRole('heading', { level: 1, name: title })
   const panel = await screen.findByRole('region', { name: '첨부 파일' })
@@ -210,7 +211,7 @@ describe('삭제 권한 (T-FILE-09~10)', () => {
   })
 
   it('lets the other sales user delete her own file only (park on deal 1)', async () => {
-    const { panel } = await openPanel(1, '한빛은행 ITDR 도입', 'sales', 'u-park')
+    const { panel } = await openPanel(1, '한빛은행 ITDR 도입', 'sales', USER_ID.park)
     expect(within(panel).getByRole('button', { name: '제안서_ITDR.pptx 삭제' })).toBeEnabled()
     expect(within(panel).getByRole('button', { name: '견적서_한빛은행_v2.pdf 삭제' })).toBeDisabled()
   })

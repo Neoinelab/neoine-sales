@@ -24,9 +24,9 @@ def find_same_person(
     1. 입력에 이메일이 있으면 같은 이메일(대소문자 무시)을 가진 후보
     2. 없으면 이메일이 없는 후보(이메일을 채워 넣는 경우)
     3. 입력에 이메일이 없으면 후보 중 첫째
-    `exclude_id`는 제외하고, 동률은 id 문자열 오름차순.
+    `exclude_id`는 제외하고, 동률은 id 숫자 오름차순.
     """
-    same = sorted((c for c in candidates if c.id != exclude_id), key=lambda c: str(c.id))
+    same = sorted((c for c in candidates if c.id != exclude_id), key=lambda c: c.id)
     if details.email is None:
         return same[0] if same else None
     email = details.email.value.lower()

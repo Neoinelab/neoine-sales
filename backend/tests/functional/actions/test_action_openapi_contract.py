@@ -81,7 +81,7 @@ async def test_action_type_is_a_choice_object_in_requests_and_id_name_in_respons
 
 
 async def test_action_search_filters_by_type_id_not_by_the_old_enum(api: Api) -> None:
-    """Scenario: Action 검색의 유형 조건은 action_type_id(UUID)이고 구 action_type은 없다."""
+    """Scenario: Action 검색의 유형 조건은 action_type_id(정수)이고 구 action_type은 없다."""
     # Given
     # (로그인하지 않은 상태)
     # When

@@ -151,17 +151,15 @@ def test_there_is_no_action_type_enum_schema(schema: dict[str, Any]) -> None:
     assert "ActionType" not in schema["components"]["schemas"]
 
 
-def test_the_search_filters_by_type_id_as_a_uuid(schema: dict[str, Any]) -> None:
+def test_the_search_filters_by_type_id_as_an_integer(schema: dict[str, Any]) -> None:
     operation = schema["paths"]["/api/v1/deals/{code}/actions"]["get"]
     params = {p["name"]: p for p in operation["parameters"]}
     assert "action_type_id" in params
     param = params["action_type_id"]
 
     assert param["required"] is False
-    assert any(
-        option.get("type") == "string" and option.get("format") == "uuid"
-        for option in param["schema"]["anyOf"]
-    )
+    assert any(option.get("type") == "integer" for option in param["schema"]["anyOf"])
+    assert not any(option.get("format") == "uuid" for option in param["schema"]["anyOf"])
 
 
 @pytest.mark.parametrize(

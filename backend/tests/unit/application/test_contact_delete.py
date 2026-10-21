@@ -5,7 +5,6 @@
 """
 
 from typing import TYPE_CHECKING
-from uuid import uuid4
 
 import pytest
 
@@ -18,6 +17,7 @@ from tests.factories import later, make_deal
 from tests.factories_contact import make_customer, make_partner, register_customer, register_partner
 from tests.factories_deal import SALES, seed_deal
 from tests.fakes.file_storage import FakeFileStorage
+from tests.support.ids import new_id
 
 if TYPE_CHECKING:
     from app.application.ports.unit_of_work import UnitOfWorkFactory
@@ -52,7 +52,7 @@ class TestDeleteUnreferencedContact:
 
     async def test_missing_contact_raises_not_found(self, uow_factory: UnitOfWorkFactory) -> None:
         with pytest.raises(ContactNotFoundError):
-            await DeleteContact(uow_factory).execute(ContactId(uuid4()))
+            await DeleteContact(uow_factory).execute(ContactId(new_id()))
 
     async def test_deleting_twice_raises_not_found(
         self, uow_factory: UnitOfWorkFactory, clock: FixedClock

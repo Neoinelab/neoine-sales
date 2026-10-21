@@ -2,7 +2,6 @@ from contextlib import AsyncExitStack
 from dataclasses import replace
 from datetime import timedelta
 from typing import TYPE_CHECKING
-from uuid import uuid4
 
 import pytest
 import pytest_asyncio
@@ -23,6 +22,7 @@ from app.main import create_app
 from tests.e2e.contact_support import CONTACT_ADMIN, set_admin
 from tests.fakes.directory import FakeDirectoryAuthenticator
 from tests.fakes.use_cases import FakeUseCases
+from tests.support.ids import new_id
 from tests.support.truncate import truncate_business_tables
 from tests.support.user_ids import ACTOR_ID, OWNER_ID, uid
 from tests.support.user_seed import ensure_users
@@ -104,12 +104,12 @@ def principal_for(subject: str, role: Role = Role.SALES) -> Principal:
 
 
 @pytest_asyncio.fixture
-async def owners(use_cases: FakeUseCases) -> dict[str, str]:
-    """검색·지정 검증용 재직 사용자들(login id -> user id 문자열): x, y, park, park2."""
-    ids: dict[str, str] = {}
+async def owners(use_cases: FakeUseCases) -> dict[str, int]:
+    """검색·지정 검증용 재직 사용자들(login id -> user id 정수): x, y, park, park2."""
+    ids: dict[str, int] = {}
     for login in ("x", "y", "park", "park2"):
         await use_cases.seed_user(login, Role.SALES)
-        ids[login] = str(await use_cases.user_id_of(login))
+        ids[login] = int(await use_cases.user_id_of(login))
     return ids
 
 
@@ -171,7 +171,7 @@ async def _register_and_issue(
     async with uow_factory() as uow:
         user = await uow.users.get_active_by_login_id(LoginId(principal.subject))
         if user is None:
-            user_id = UserId(uuid4())
+            user_id = UserId(new_id())
             user = User.register(
                 LoginId(principal.subject),
                 principal.role,

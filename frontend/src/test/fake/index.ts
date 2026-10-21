@@ -2,7 +2,7 @@
  * mock 게이트웨이 조립. 사용법
  *
  *   const mock = createMockGateway({ now: '2026-10-15T09:00:00+09:00', latency: false })
- *   await mock.gateway.auth.quickLogin('u-kim')
+ *   await mock.gateway.auth.quickLogin(USER_ID.kim)
  *   mock.control.resetData()      // 시드 복원(로그인 유지)
  *   mock.clock.advance(60_000)    // 고정 시계를 1분 앞으로
  *
@@ -33,7 +33,7 @@ export interface MockOptions {
   /** Deal code 추출용 난수(0 이상 1 미만). */
   random?: () => number
   /** 처음부터 로그인해 둘 사용자 id. */
-  userId?: string | null
+  userId?: number | null
 }
 
 export interface MockInstance {
@@ -41,7 +41,7 @@ export interface MockInstance {
   control: MockControl
   clock: MockClock
   /** 로그인 상태를 직접 지정한다(null=로그아웃). 존재하지 않거나 퇴사한 id는 로그아웃으로 처리한다. */
-  setSession(userId: string | null): void
+  setSession(userId: number | null): void
   /** 시드를 교체하고 즉시 그 시드로 되돌린다(`control.resetData()`도 이후 이 시드를 쓴다). 테스트 전용. */
   setSeed(factory: SeedFactory): void
 }
@@ -59,7 +59,7 @@ export function createMockGateway(options: MockOptions = {}): MockInstance {
     random: options.random ?? Math.random,
     persistSession,
   }
-  const signIn = (userId: string | null): void => {
+  const signIn = (userId: number | null): void => {
     const user = ctx.store.data.users.find((u) => u.id === userId)
     setSession(ctx, user && user.status === 'active' ? user.id : null)
   }

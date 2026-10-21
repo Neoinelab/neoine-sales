@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING
 from app.application.deal.history_writer import record_deal_diff, write_history
 from app.application.deal.sync_change import load_catalog, to_sync_step
 from app.application.deal_action.type_choice import choose_action_type
+from app.application.ids import new_deal_action_id
 from app.domain.deal.code import DealCode
 from app.domain.deal.errors import DealNotFoundError
 from app.domain.deal.sync import SyncState, finalize_sequence
@@ -51,6 +52,7 @@ class RegisterDealAction:
                 actor_user_id=actor.user_id,
                 snapshot=deal.sync,
                 now=now,
+                entity_id=await new_deal_action_id(uow.ids),
             )
             await uow.deal_actions.add(action)
             await write_history(uow, deal_code, actor.user_id, [action_created_draft(content)], now)

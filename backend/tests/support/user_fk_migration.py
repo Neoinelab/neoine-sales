@@ -8,18 +8,19 @@ directory_settings.updated_by.
 
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
-from uuid import UUID, uuid4
+from uuid import NAMESPACE_URL, UUID, uuid4, uuid5
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.pool import NullPool
 
-from tests.support.user_ids import uid
-
 if TYPE_CHECKING:
     from sqlalchemy.engine import URL
 
-KIM, PARK, ROOT = uid("kim"), uid("park"), uid("root")
+# UUID 시절 스키마용 결정적 사용자 id(현재 테스트의 정수 `uid`와 별개다)
+KIM, PARK, ROOT = (
+    uuid5(NAMESPACE_URL, f"neoine-test-user:{name}") for name in ("kim", "park", "root")
+)
 
 INSERT_USER = (
     "insert into users (id, login_id, role, display_name, created_by, created_at, updated_at)"

@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 
 pytestmark = pytest.mark.integration
 
-COLUMNS = {"deal_code", "category", "label_id"}
+COLUMNS = {"deal_id", "category", "label_id"}
 LABEL_BY_NAME = "select id from bant_labels where category = :category and name = :name"
 PRIMARY_KEY = (
     "select a.attname from pg_constraint c join pg_attribute a"
@@ -31,8 +31,8 @@ LABEL_UNIQUE = (
 )
 
 
-async def _label(session: AsyncSession, category: str, name: str) -> str:
-    return str(
+async def _label(session: AsyncSession, category: str, name: str) -> int:
+    return int(
         (
             await session.execute(text(LABEL_BY_NAME), {"category": category, "name": name})
         ).scalar_one()
@@ -66,7 +66,7 @@ async def test_the_table_has_the_expected_shape(session: AsyncSession) -> None:
     }
 
     assert columns == COLUMNS
-    assert primary_key == {"deal_code", "category"}
+    assert primary_key == {"deal_id", "category"}
     assert "ix_deal_bant_labels_label_id" in indexes
 
 
@@ -76,7 +76,7 @@ async def test_foreign_keys_cascade_from_the_deal_and_restrict_the_label_pair(
     rows = (await session.execute(text(FOREIGN_KEYS))).all()
 
     assert {(r[0], r[1], r[2].strip(), r[3]) for r in rows} == {
-        ("fk_deal_bant_labels_deal_code_deals", "deals", "c", 1),
+        ("fk_deal_bant_labels_deal_id_deals", "deals", "c", 1),
         ("fk_deal_bant_labels_label", "bant_labels", "r", 2),
     }
     assert (await session.execute(text(LABEL_UNIQUE))).scalar_one() == "uq_bant_labels_id_category"

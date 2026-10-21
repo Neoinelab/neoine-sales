@@ -65,6 +65,6 @@ export function stubNetworkDown(): void {
 }
 
 /** 서버 UserRef 응답 조각. */
-export function userRefBody(id: string, name: string, resigned = false, role: 'admin' | 'sales' | 'user' = 'user') {
+export function userRefBody(id: number, name: string, resigned = false, role: 'admin' | 'sales' | 'user' = 'user') {
   return { id, name, label: resigned ? `${name}(퇴사)` : name, resigned, role }
 }

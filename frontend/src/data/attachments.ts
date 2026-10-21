@@ -30,15 +30,15 @@ export function useUploadAttachment(): Mutation<{ dealCode: string; input: Uploa
 }
 
 /** gateway.attachments.remove(id). 성공 무효화는 upload와 같다(dealCode는 호출 변수로 받는다). */
-export function useRemoveAttachment(): Mutation<{ dealCode: string; attachmentId: string }> {
+export function useRemoveAttachment(): Mutation<{ dealCode: string; attachmentId: number }> {
   const invalidate = useInvalidate()
-  return useMutation<void, ApiError, { dealCode: string; attachmentId: string }>({
+  return useMutation<void, ApiError, { dealCode: string; attachmentId: number }>({
     mutationFn: ({ attachmentId }) => gateway.attachments.remove(attachmentId),
     onSuccess: (_result, { dealCode }) => invalidate(keys.attachments(dealCode), keys.history(dealCode), keys.deals),
   })
 }
 
 /** gateway.attachments.download(id). 캐시 영향 없음. 호출 화면이 blob을 objectURL로 내려받는다. */
-export function useDownloadAttachment(): Mutation<string, DownloadedFile> {
-  return useMutation<DownloadedFile, ApiError, string>({ mutationFn: (id) => gateway.attachments.download(id) })
+export function useDownloadAttachment(): Mutation<number, DownloadedFile> {
+  return useMutation<DownloadedFile, ApiError, number>({ mutationFn: (id) => gateway.attachments.download(id) })
 }

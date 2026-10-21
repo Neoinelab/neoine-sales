@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Self
-from uuid import uuid4
 
 from app.domain.bant.errors import LabelInUseError
 from app.domain.bant.values import BantCategory, BantLabelId
@@ -24,11 +23,17 @@ class BantLabel(AuditedEntity[BantLabelId]):
 
     @classmethod
     def create(
-        cls, *, category: BantCategory, name: str, created_by: UserId, now: datetime
+        cls,
+        *,
+        entity_id: BantLabelId,
+        category: BantCategory,
+        name: str,
+        created_by: UserId,
+        now: datetime,
     ) -> Self:
         """사용자가 만드는 Label. 이름은 이미 정규화된 값이다."""
         return cls(
-            id=BantLabelId(uuid4()),
+            id=entity_id,
             category=category,
             name=name,
             created_by_user_id=created_by,

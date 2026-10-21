@@ -6,18 +6,17 @@
 
 from datetime import date
 from typing import TYPE_CHECKING
-from uuid import uuid4
 
 import pytest
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 
 from tests.support.head_rows import insert_action, insert_contact, insert_deal, insert_user
+from tests.support.ids import new_id
 from tests.support.schema_integrity import check_schema
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
-    from uuid import UUID
 
     from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -33,10 +32,11 @@ CODE_FKS = (
 )
 CONSTRAINT_NAMES = "select conname from pg_constraint where conrelid = 'deal_actions'::regclass"
 RAW_INSERT = (
-    "insert into deal_actions (id, deal_code, action_type_id, action, memo, next_action,"
-    " due_date, acted_at, actor_user_id, {extra_columns} created_at, updated_at) values (:id,"
-    " :deal_code, :action_type_id, :action, :memo, :next_action, :due_date, now(), :actor,"
-    " {extra_values} now(), now())"
+    "insert into deal_actions (id, deal_id, action_type_id, action, memo, next_action,"
+    " due_date, acted_at, actor_user_id, next_action_status, {extra_columns} created_at,"
+    " updated_at) values (:id, (select id from deals where deal_code = :deal_code),"
+    " :action_type_id, :action, :memo, :next_action, :due_date, now(), :actor,"
+    " :next_action_status, {extra_values} now(), now())"
 )
 TYPE_FKS = (
     "select conname, confrelid::regclass::text, confdeltype::text from pg_constraint"
@@ -46,7 +46,7 @@ MEETING_TYPE = "select id from action_types where name = '미팅'"
 SNAPSHOT_COLUMNS = {"status_kind", "status_key", "forecast_kind", "forecast_key"}
 
 
-async def _deal_and_actor(session: AsyncSession) -> tuple[str, UUID]:
+async def _deal_and_actor(session: AsyncSession) -> tuple[str, int]:
     actor = await insert_user(session, "kim")
     customer = await insert_contact(session)
     return await insert_deal(session, customer, actor), actor
@@ -55,7 +55,7 @@ async def _deal_and_actor(session: AsyncSession) -> tuple[str, UUID]:
 async def _raw_insert(
     session: AsyncSession,
     deal_code: str,
-    actor: object,
+    actor: int,
     *,
     snapshot: Mapping[str, object] | None = None,
     **values: object,
@@ -71,7 +71,7 @@ async def _raw_insert(
         extra_values="".join(f":{name}, " for name in snapshot),
     )
     params: dict[str, object] = {
-        "id": uuid4(),
+        "id": new_id(),
         "deal_code": deal_code,
         "action_type_id": (await session.execute(text(MEETING_TYPE))).scalar_one(),
         "action": "a",
@@ -79,6 +79,7 @@ async def _raw_insert(
         "next_action": "n",
         "due_date": date(2026, 3, 10),
         "actor": actor,
+        "next_action_status": "open",  # 서버 기본값이 없으므로 직접 넣는다
         **snapshot,
         **values,
     }
@@ -239,7 +240,7 @@ async def test_action_type_id_references_action_types_with_restrict(
     }
 
 
-async def test_action_type_id_is_a_required_uuid_with_an_index(session: AsyncSession) -> None:
+async def test_action_type_id_is_a_required_bigint_with_an_index(session: AsyncSession) -> None:
     rows = (await session.execute(text(COLUMN_INFO))).all()
     columns = {r.column_name: r for r in rows}
     indexes = {
@@ -251,7 +252,7 @@ async def test_action_type_id_is_a_required_uuid_with_an_index(session: AsyncSes
         ).all()
     }
 
-    assert columns["action_type_id"].data_type == "uuid"
+    assert columns["action_type_id"].data_type == "bigint"
     assert columns["action_type_id"].is_nullable == "NO"
     assert "ix_deal_actions_action_type_id" in indexes
 
@@ -268,7 +269,7 @@ async def test_an_unknown_action_type_id_is_rejected_by_the_foreign_key(
     deal_code, actor = await _deal_and_actor(session)
 
     with pytest.raises(IntegrityError, match="fk_deal_actions_action_type_id_action_types"):
-        await _raw_insert(session, deal_code, actor, action_type_id=uuid4())
+        await _raw_insert(session, deal_code, actor, action_type_id=new_id())
 
 
 async def test_deleting_a_used_action_type_is_restricted(session: AsyncSession) -> None:

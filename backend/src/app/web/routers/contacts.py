@@ -1,7 +1,6 @@
 """연락처(고객·파트너 통합). 회사/담당자 선택용 조회는 로그인 사용자, 목록과 변경은 admin 전용."""
 
 from typing import Annotated, Any
-from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Response, status
 
@@ -20,6 +19,7 @@ from app.web.schemas.contact import (
     ContactUpdateRequest,
     row_page,
 )
+from app.web.schemas.ids import PathId
 from app.web.security import CurrentUser
 
 router = APIRouter(prefix="/api/v1/contacts", tags=["contacts"])
@@ -76,7 +76,7 @@ async def register_contact(
     responses={**ADMIN_ERRORS, **WRITE_ERRORS},
 )
 async def update_contact(
-    contact_id: UUID, body: ContactUpdateRequest, user: CurrentUser, provider: Provider
+    contact_id: PathId, body: ContactUpdateRequest, user: CurrentUser, provider: Provider
 ) -> ContactResponse:
     contact = await provider.update_contact().execute(
         ContactId(contact_id), body.to_input(), user.user_id
@@ -90,5 +90,5 @@ async def update_contact(
     dependencies=ADMIN,
     responses={**ADMIN_ERRORS, **READ_ERRORS, 409: PROBLEM},
 )
-async def delete_contact(contact_id: UUID, provider: Provider) -> None:
+async def delete_contact(contact_id: PathId, provider: Provider) -> None:
     await provider.delete_contact().execute(ContactId(contact_id))

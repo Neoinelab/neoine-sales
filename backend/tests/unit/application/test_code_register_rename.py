@@ -4,7 +4,6 @@
 """
 
 from typing import TYPE_CHECKING
-from uuid import uuid4
 
 import pytest
 
@@ -14,6 +13,7 @@ from app.domain.code.errors import CodeNotFoundError, DuplicateCodeNameError
 from app.domain.code.values import CodeId, CodeKey, CodeKind, ForecastOutcome
 from app.domain.common.errors import InvalidValueError
 from tests.support.catalog import add_deals_with_status, code_by_key
+from tests.support.ids import new_id
 
 if TYPE_CHECKING:
     from app.application.ports.unit_of_work import UnitOfWorkFactory
@@ -234,4 +234,4 @@ async def test_rename_missing_code_raises_not_found(
     seeded: FakeUnitOfWork, uow_factory: UnitOfWorkFactory, clock: FixedClock
 ) -> None:
     with pytest.raises(CodeNotFoundError):
-        await RenameCode(uow_factory, clock).execute(CodeId(uuid4()), "아무거나")
+        await RenameCode(uow_factory, clock).execute(CodeId(new_id()), "아무거나")

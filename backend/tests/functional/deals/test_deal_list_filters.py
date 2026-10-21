@@ -8,7 +8,6 @@ BANT Label은 구분별로 고르며 여러 구분은 AND다.
 
 from datetime import UTC, date, datetime, timedelta
 from typing import TYPE_CHECKING
-from uuid import uuid4
 
 import pytest
 
@@ -26,6 +25,7 @@ from tests.functional.steps.deals import (
     when_list_deals,
 )
 from tests.functional.steps.vendors import given_vendor
+from tests.support.ids import MISSING_ID
 
 if TYPE_CHECKING:
     from tests.functional.conftest import Api
@@ -64,8 +64,8 @@ async def test_unknown_vendor_id_lists_nothing(api: Api) -> None:
     await given_logged_in_as(api, role="sales")
     await given_deal(api)
     # When
-    by_vendor = await when_list_deals(api, vendor_id=str(uuid4()))
-    by_solution = await when_list_deals(api, solution_id=str(uuid4()))
+    by_vendor = await when_list_deals(api, vendor_id=MISSING_ID)
+    by_solution = await when_list_deals(api, solution_id=MISSING_ID)
     # Then
     for response in (by_vendor, by_solution):
         then_status_is(response, 200)
@@ -234,7 +234,7 @@ async def test_an_unknown_bant_label_gives_an_empty_list_not_an_error(api: Api) 
     await given_logged_in_as(api, role="sales")
     await given_deal(api)
     # When
-    response = await when_list_deals(api, bant_need=str(uuid4()))
+    response = await when_list_deals(api, bant_need=MISSING_ID)
     # Then
     then_status_is(response, 200)
     then_total_is(response, 0)

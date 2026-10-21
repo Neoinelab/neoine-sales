@@ -2,6 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { gateway } from '../../../gateway'
 import { renderAt } from '../../../test/mockApp'
+import { NO_SUCH_ID } from '../../../test/fake/seed/ids'
 
 const GUIDE = '같은 이름은 만들 수 없습니다(대소문자 구분 없음). 사용 중인 유형은 이름을 바꿀 수 있지만 삭제할 수 없습니다.'
 const DEFAULTS = ['통화', '미팅', '이메일', '데모', '제안', '협상', '계약', '기타']
@@ -201,7 +202,7 @@ describe('Action 유형 삭제 (AC-29)', () => {
     const target = (await gateway.actionTypes.list()).find((t) => t.name === '기타')
     const deals = await gateway.deals.list({ limit: 100 })
     for (const deal of deals.items) {
-      for (const action of await gateway.actions.list(deal.code, { typeId: target?.id ?? '' })) await gateway.actions.remove(action.id)
+      for (const action of await gateway.actions.list(deal.code, { typeId: target?.id ?? NO_SUCH_ID })) await gateway.actions.remove(action.id)
     }
     await client.invalidateQueries()
     await waitFor(() => expect(typeRow('기타').getByText('Action 0건')).toBeInTheDocument())

@@ -76,7 +76,7 @@ function sameCompanyAndName(contact: Contact, candidate: ContactInput): boolean 
 }
 
 function byId(a: Contact, b: Contact): number {
-  return a.id.localeCompare(b.id)
+  return a.id - b.id
 }
 
 /**
@@ -93,7 +93,7 @@ export function findSamePerson(
   contacts: readonly Contact[],
   kind: ContactKind,
   candidate: ContactInput,
-  excludeId?: string,
+  excludeId?: number,
 ): Contact | null {
   const pool = contacts.filter((c) => c.kind === kind && c.id !== excludeId && sameCompanyAndName(c, candidate))
   if (candidate.email !== null) {

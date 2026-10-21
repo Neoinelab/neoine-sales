@@ -11,7 +11,6 @@
 """
 
 from typing import TYPE_CHECKING
-from uuid import UUID
 
 import pytest
 
@@ -31,7 +30,7 @@ PARTNER = ContactKind.PARTNER
 
 
 def _id(number: int) -> ContactId:
-    return ContactId(UUID(int=number))
+    return ContactId(number)
 
 
 async def _company_names(contacts: ContactCase, kind: ContactKind) -> list[str]:
@@ -99,7 +98,7 @@ async def test_of_company_matches_ignoring_case_and_sorts_by_name_then_id(
 
     found = await contacts.contacts.of_company(CUSTOMER, "aCmE")
 
-    assert [c.id.int for c in found] == [1, 2, 3]
+    assert [c.id for c in found] == [1, 2, 3]
 
 
 async def test_of_company_is_scoped_to_the_kind_and_unknown_company_is_empty(
@@ -172,7 +171,7 @@ async def test_same_identity_matches_kind_company_and_name_ignoring_case(
 
     found = await contacts.contacts.same_identity(CUSTOMER, "acme", "kim")
 
-    assert [c.id.int for c in found] == [1, 2]
+    assert [c.id for c in found] == [1, 2]
 
 
 async def test_same_identity_without_a_match_is_empty(contacts: ContactCase) -> None:

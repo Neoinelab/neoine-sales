@@ -39,7 +39,9 @@ def _to_entity(row: ActionTypeRow) -> ActionType:
         name=row.name,
         is_default=row.is_default,
         default_order=row.default_order,
-        created_by_user_id=UserId(row.created_by_user_id) if row.created_by_user_id else None,
+        created_by_user_id=UserId(row.created_by_user_id)
+        if row.created_by_user_id is not None
+        else None,
         created_at=row.created_at,
         updated_at=row.updated_at,
     )

@@ -1,13 +1,12 @@
 """Vendor·Solution 값 객체. 이름은 앞뒤 공백을 지우고 길이를 제한한다."""
 
 from typing import NewType
-from uuid import UUID
 
 from app.domain.common.errors import InvalidValueError
 from app.domain.common.validation import reject_nul
 
-VendorId = NewType("VendorId", UUID)
-SolutionId = NewType("SolutionId", UUID)
+VendorId = NewType("VendorId", int)
+SolutionId = NewType("SolutionId", int)
 
 VENDOR_NAME_MAX = 100
 SOLUTION_NAME_MAX = 200

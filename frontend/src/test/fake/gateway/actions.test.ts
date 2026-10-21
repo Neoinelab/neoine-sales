@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { ActionInput } from '../../../shared/model/types'
 import { seedActionTypeId } from '../seed/actionTypes'
 import { dealCode, expectApiError, mockAs, TEST_NOW } from '../testing'
+import { NO_SUCH_ID, USER_ID } from '../seed/ids'
 
 const input = (over: Partial<ActionInput> = {}): ActionInput => ({
   type: { name: '미팅' },
@@ -31,7 +32,7 @@ describe('actions.create', () => {
     const { gateway } = await mockAs('kim')
     const code = dealCode(2)
     const created = await gateway.actions.create(code, input())
-    expect(created).toMatchObject({ dealCode: code, actedAt: TEST_NOW, actor: { id: 'u-kim' }, statusKey: 'technical_evaluation', forecastKey: 'most_likely', type: '미팅', typeId: seedActionTypeId('미팅') })
+    expect(created).toMatchObject({ dealCode: code, actedAt: TEST_NOW, actor: { id: USER_ID.kim }, statusKey: 'technical_evaluation', forecastKey: 'most_likely', type: '미팅', typeId: seedActionTypeId('미팅') })
     // 이후 Deal의 Status가 바뀌어도 Action 값은 그대로
     await gateway.deals.applyChange(code, { change: { field: 'statusKey', value: 'price_negotiation' } })
     const list = await gateway.actions.list(code, {})
@@ -48,7 +49,7 @@ describe('actions.create', () => {
     expect(row).toMatchObject({ nextAction: { text: '새 Next Action', dueDate: '2026-10-30', status: 'open' }, lastUpdatedAt: TEST_NOW, risk: null })
     const history = await gateway.history.list(code, {})
     expect(history).toHaveLength(base + 1)
-    expect(history[0]).toMatchObject({ category: 'action', by: { id: 'u-kim' }, at: TEST_NOW })
+    expect(history[0]).toMatchObject({ category: 'action', by: { id: USER_ID.kim }, at: TEST_NOW })
   })
 
   it('Due Date는 과거도 허용하고 기한초과로 표시된다', async () => {
@@ -103,8 +104,8 @@ describe('actions.list', () => {
     const byType = await gateway.actions.list(code, { typeId: seedActionTypeId('협상') })
     expect(byType.length).toBeGreaterThan(0)
     expect(byType.every((a) => a.type === '협상')).toBe(true)
-    expect((await gateway.actions.list(code, { actorId: 'u-nobody' })).length).toBe(0)
-    expect((await gateway.actions.list(code, { actorId: 'u-kim' })).length).toBe(all.length)
+    expect((await gateway.actions.list(code, { actorId: NO_SUCH_ID })).length).toBe(0)
+    expect((await gateway.actions.list(code, { actorId: USER_ID.kim })).length).toBe(all.length)
     expect((await gateway.actions.list(code, { keyword: '최종 가격' })).map((a) => a.progress)).toContain('최종 가격 협의')
     expect((await gateway.actions.list(code, { keyword: 'ROI' })).length).toBeGreaterThan(0)
     const latestDate = all[0]?.actedAt.slice(0, 10) ?? ''
@@ -130,9 +131,9 @@ describe('actions.update / remove', () => {
     expect(updated).toMatchObject({ id: old.id, progress: '수정한 진행사항', actedAt: old.actedAt, actor: old.actor, statusKey: old.statusKey, forecastKey: old.forecastKey })
     const history = await gateway.history.list(code, {})
     expect(history).toHaveLength(base + 1)
-    expect(history[0]).toMatchObject({ category: 'action', by: { id: 'u-kim' } })
+    expect(history[0]).toMatchObject({ category: 'action', by: { id: USER_ID.kim } })
     await expectApiError(gateway.actions.update(old.id, { type: { name: '기타' }, progress: '', nextAction: '', dueDate: '', memo: '' }), 422, '진행사항 또는 Next Action을 입력하세요.')
-    await expectApiError(gateway.actions.update('act-none', { type: { name: '기타' }, progress: 'x', nextAction: 'x', dueDate: '2026-11-01', memo: '' }), 404)
+    await expectApiError(gateway.actions.update(NO_SUCH_ID, { type: { name: '기타' }, progress: 'x', nextAction: 'x', dueDate: '2026-11-01', memo: '' }), 404)
   })
 
   it('최신 Action을 삭제하면 이전 Action이 Next Action이 된다', async () => {
@@ -140,7 +141,7 @@ describe('actions.update / remove', () => {
     const code = dealCode(1)
     const list = await gateway.actions.list(code, {})
     const base = (await gateway.history.list(code, {})).length
-    await gateway.actions.remove(list[0]?.id ?? '')
+    await gateway.actions.remove(list[0]?.id ?? NO_SUCH_ID)
     expect((await gateway.actions.list(code, {})).length).toBe(list.length - 1)
     expect((await gateway.deals.get(code)).nextAction?.text).toBe(list[1]?.nextAction)
     const history = await gateway.history.list(code, {})

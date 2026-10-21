@@ -21,7 +21,7 @@ afterEach(() => {
 
 const ITEM_NAME = /^(Budget|Authority|Need|Timeline): /
 
-async function labelId(category: string, name: string): Promise<string> {
+async function labelId(category: string, name: string): Promise<number> {
   const labels = await gateway.labels.list()
   const found = labels.find((l) => l.category === category && l.name === name)
   if (!found) throw new Error(`Label ${name} 없음`)
@@ -89,7 +89,7 @@ describe('목록의 BANT 열 (P8 AC-14~18)', () => {
     const { client } = await renderAt('/deals?q=한빛은행 ITDR')
     const row = await rowOf(/한빛은행 ITDR 도입/)
     const target = await dealRowOfName('한빛은행 ITDR 도입')
-    const keep = (id: string | null) => (id === null ? null : { id })
+    const keep = (id: number | null) => (id === null ? null : { id })
     await gateway.deals.update(target.code, {
       bant: { budget: { name: longName }, authority: keep(target.bant.authority), need: keep(target.bant.need), timeline: keep(target.bant.timeline) },
     })

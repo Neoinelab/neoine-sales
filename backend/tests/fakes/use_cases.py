@@ -16,8 +16,6 @@ from tests.fakes.file_storage import FakeFileStorage
 from tests.fakes.unit_of_work import FakeUnitOfWork, SteppingClock
 
 if TYPE_CHECKING:
-    from app.application.deal_action.change_next_action_status import ChangeNextActionStatus
-
     from app.application.alert.get_alert_settings import GetAlertSettings
     from app.application.alert.update_alert_settings import UpdateAlertSettings
     from app.application.auth.auth_status import GetAuthStatus
@@ -28,6 +26,7 @@ if TYPE_CHECKING:
     from app.application.auth.setup_directory import RegisterSetupDirectory
     from app.application.auth.setup_first_admin import SetupFirstAdmin
     from app.application.auth.setup_storage import RegisterSetupStorage, TestSetupStorage
+    from app.application.deal_action.change_next_action_status import ChangeNextActionStatus
     from app.application.deal_action.delete_deal_action import DeleteDealAction
     from app.application.deal_action.get_deal_action import GetDealAction
     from app.application.deal_action.list_deal_actions import ListDealActions

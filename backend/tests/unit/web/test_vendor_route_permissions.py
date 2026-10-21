@@ -1,12 +1,11 @@
 """Vendor 라우터의 권한(AC-7): 읽기는 모든 역할, 쓰기는 admin만(403), 미로그인은 401."""
 
-from uuid import uuid4
-
 import pytest
 
 from app.domain.auth.principal import Role
 from app.web.permissions import ADMIN_DENIED
 from tests.fakes.use_cases import FakeUseCases
+from tests.support.ids import new_id
 from tests.unit.web.vendor_http import URL, client_for, make_solution, make_vendor, problem
 
 
@@ -51,7 +50,7 @@ async def test_sales_gets_the_admin_required_message() -> None:
 async def test_unauthenticated_requests_are_401() -> None:
     async with client_for(FakeUseCases(), role=None) as http:
         responses = [await http.get(URL)]
-        for method, url, body in _writes(uuid4(), uuid4()):
+        for method, url, body in _writes(new_id(), new_id()):
             responses.append(await http.request(method, url, json=body))
 
     for response in responses:

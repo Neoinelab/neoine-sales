@@ -18,9 +18,9 @@ from tests.functional.steps.schema import (
     when_operator_downgrades,
 )
 from tests.functional.steps.schema import when_operator_upgrades as upgrade_database
-from tests.support.head_rows import insert_contact, insert_deal, insert_user
 from tests.support.revisions import deals_users_required_revision, next_action_status_revision
 from tests.support.user_fk_migration import run_sql
+from tests.support.uuid_era.head_rows import insert_contact, insert_deal, insert_user
 
 if TYPE_CHECKING:
     from sqlalchemy.engine import URL

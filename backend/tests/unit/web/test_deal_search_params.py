@@ -1,22 +1,22 @@
 """웹 쿼리 모델(R2): 목록 검색 파라미터가 DealQuery로 바뀌는 방식과 검증 (AC-22·22a·22e).
 
 mine=true는 요청자가 Owner인 딜이고 owner_user_id보다 우선한다. 연/분기·BANT·정렬 파라미터는 R3다.
-Vendor·Solution 조건은 id(UUID)다.
+Vendor·Solution 조건은 id(int)다.
 """
 
 import importlib
 from datetime import date
-from uuid import uuid4
 
 import pytest
 from pydantic import ValidationError
 
 from app.application.ports.deal_repository import DealSort, SortOrder
 from app.web.schemas.deal import DealSearchParams
+from tests.support.ids import MISSING_ID, new_id
 from tests.support.user_ids import uid
 
 VIEWER = uid("viewer")
-VENDOR = uuid4()
+VENDOR = new_id()
 
 
 def test_defaults_are_the_first_page_of_twenty_newest_first_without_conditions() -> None:
@@ -100,7 +100,7 @@ def test_page_values_out_of_range_are_rejected(params: dict[str, int]) -> None:
         {"owner_user_id": "u-2"},
         {"revenue_from": "2026/06/01"},
         {"keyword": "a" * 101},
-        {"vendor_id": "SAP"},  # 이름이 아니라 UUID여야 한다
+        {"vendor_id": "SAP"},  # 이름이 아니라 정수 id여야 한다
         {"status_key": "a" * 51},
     ],
 )
@@ -116,8 +116,8 @@ def test_malformed_values_are_rejected(params: dict[str, object]) -> None:
         {"vendor": "SAP"},  # 이름 조건은 id 조건(vendor_id)으로 바뀌었다
         {"solution": "S/4HANA"},
         {"stage": "lost"},
-        {"customer_id": str(uuid4())},
-        {"partner_id": str(uuid4())},
+        {"customer_id": MISSING_ID},
+        {"partner_id": MISSING_ID},
         {"unknown": "x"},
     ],
 )
@@ -131,12 +131,30 @@ def test_the_pipeline_params_model_is_gone() -> None:
         importlib.import_module("app.web.schemas.deal_stage")
 
 
-def test_vendor_id_and_solution_id_are_uuids() -> None:
-    vendor, solution = uuid4(), uuid4()
+def test_vendor_id_and_solution_id_are_integers() -> None:
+    vendor, solution = new_id(), new_id()
 
     query = DealSearchParams(vendor_id=vendor, solution_id=solution).to_query(VIEWER)
 
     assert (query.vendor_id, query.solution_id) == (vendor, solution)
+
+
+@pytest.mark.parametrize("field", ["owner_user_id", "vendor_id", "solution_id"])
+@pytest.mark.parametrize("bad", ["abc", "1.5", "0", "-1", 0, -1, 2**53, "9007199254740992"])
+def test_id_query_parameters_must_be_positive_integers(field: str, bad: object) -> None:
+    with pytest.raises(ValidationError):
+        DealSearchParams(**{field: bad})
+
+
+@pytest.mark.parametrize("field", ["owner_user_id", "vendor_id", "solution_id"])
+def test_id_query_parameters_arrive_as_text_and_become_integers(field: str) -> None:
+    params = DealSearchParams.model_validate({field: "7"})
+
+    assert getattr(params, field) == 7
+
+
+def test_the_largest_allowed_id_query_parameter_is_accepted() -> None:
+    assert DealSearchParams.model_validate({"vendor_id": str(2**53 - 1)}).vendor_id == 2**53 - 1
 
 
 def test_vendor_conditions_default_to_none() -> None:

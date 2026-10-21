@@ -21,8 +21,8 @@ export function CellValue({ cell }: { cell: ForecastCell | undefined }) {
 
 interface Props {
   summary: ForecastSummary
-  selectedId: string | undefined
-  onSelect: (ownerId: string | undefined) => void
+  selectedId: number | undefined
+  onSelect: (ownerId: number | undefined) => void
 }
 
 interface RowProps {

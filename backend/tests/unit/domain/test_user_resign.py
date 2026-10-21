@@ -6,9 +6,10 @@ from app.domain.auth.credentials import LoginId
 from app.domain.auth.principal import Role
 from app.domain.common.errors import InvalidStateError, InvalidValueError
 from app.domain.user.entities import User
-from app.domain.user.value_objects import UserDeleteReason
+from app.domain.user.value_objects import UserDeleteReason, UserId
 from tests.factories import NOW, later
 from tests.factories_auth import make_user
+from tests.support.ids import new_id
 
 
 def test_resign_marks_deleted_at_and_reason() -> None:
@@ -65,7 +66,11 @@ def test_registering_the_same_login_id_again_creates_a_new_row_with_a_new_id() -
     old.resign(later(60))
 
     new = User.register(
-        LoginId("kim"), Role.USER, created_by_user_id=old.created_by_user_id, now=later(120)
+        LoginId("kim"),
+        Role.USER,
+        entity_id=UserId(new_id()),
+        created_by_user_id=old.created_by_user_id,
+        now=later(120),
     )
 
     assert new.id != old.id

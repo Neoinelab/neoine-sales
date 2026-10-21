@@ -2,7 +2,6 @@
 
 from datetime import date
 from typing import TYPE_CHECKING
-from uuid import uuid4
 
 import pytest
 
@@ -15,6 +14,7 @@ from app.domain.deal_action.next_action_status import NextActionState, NextActio
 from app.domain.deal_action.value_objects import DealActionId
 from tests.factories import make_deal_action
 from tests.support.expect import raises_with
+from tests.support.ids import new_id
 from tests.unit.application.action_env import (
     ACTION_OR_NEXT_REQUIRED,
     BOSS,
@@ -106,7 +106,7 @@ async def test_update_action_by_other_sales_is_forbidden_before_validation(
 
 
 async def test_update_missing_action_is_not_found_before_forbidden(action_env: ActionEnv) -> None:
-    missing = DealActionId(uuid4())
+    missing = DealActionId(new_id())
 
     with raises_with(DealActionNotFoundError, NOT_FOUND):
         await action_env.update_as(missing, PARK, **CHANGE)

@@ -6,7 +6,6 @@ PATCH로 고객이나 활성 파트너를 contact_id로 골라 값을 바꾸면 
 """
 
 from typing import TYPE_CHECKING
-from uuid import uuid4
 
 import pytest
 
@@ -21,6 +20,7 @@ from tests.functional.steps.deals import (
     then_history_is,
     when_update_deal,
 )
+from tests.support.ids import MISSING_ID
 
 if TYPE_CHECKING:
     from tests.functional.conftest import Api
@@ -130,7 +130,7 @@ async def test_picking_an_unknown_contact_is_not_found(api: Api) -> None:
     deal = await given_deal(api)
     # When
     response = await when_update_deal(
-        api, deal["code"], customer=customer_draft(contact_id=str(uuid4()))
+        api, deal["code"], customer=customer_draft(contact_id=MISSING_ID)
     )
     # Then
     then_problem_is(response, status=404, type_suffix="not-found")

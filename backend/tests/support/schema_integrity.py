@@ -122,8 +122,8 @@ async def check_schema(
     for col in columns:
         if USER_REF_PATTERN.search(col.col):
             target = fk_by_column.get((col.tbl, col.col))
-            if col.udt != "uuid" or target is None or target.ref_table != USERS_TABLE:
-                found.append(Violation("user_reference_not_a_uuid_fk_to_users", col.tbl, col.col))
+            if col.udt != "int8" or target is None or target.ref_table != USERS_TABLE:
+                found.append(Violation("user_reference_not_a_bigint_fk_to_users", col.tbl, col.col))
         if col.col == "deleted_at" and col.tbl != USERS_TABLE:
             found.append(Violation("deleted_at_outside_users", col.tbl, col.col))
     if only_tables is not None:

@@ -3,6 +3,7 @@
 import { describe, expect, it } from 'vitest'
 import { LOCKED_KEYS, QUICK_LOGIN_USERS } from '../../../shared/model/constants'
 import { expectApiError, mockAs } from '../testing'
+import { USER_ID } from '../seed/ids'
 
 describe('빠른 로그인 사용자', () => {
   it('역할 이름만 라벨로 쓰고 가상 인물 이름을 담지 않는다', () => {
@@ -11,9 +12,9 @@ describe('빠른 로그인 사용자', () => {
 
   it('역할을 함께 가진다(서버 dev-login은 역할로 로그인한다)', () => {
     expect(QUICK_LOGIN_USERS.map((u) => [u.userId, u.role])).toEqual([
-      ['u-root', 'admin'],
-      ['u-kim', 'sales'],
-      ['u-han', 'user'],
+      [USER_ID.root, 'admin'],
+      [USER_ID.kim, 'sales'],
+      [USER_ID.han, 'user'],
     ])
   })
 })

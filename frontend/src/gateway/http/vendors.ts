@@ -4,8 +4,8 @@ import { toSolution, toVendor } from './mappers/vendor'
 import { unwrap, unwrapVoid } from './request'
 
 export function createVendorsHttp(): VendorsGateway {
-  const vendorPath = (vendorId: string) => ({ params: { path: { vendor_id: vendorId } } })
-  const solutionPath = (vendorId: string, solutionId: string) => ({
+  const vendorPath = (vendorId: number) => ({ params: { path: { vendor_id: vendorId } } })
+  const solutionPath = (vendorId: number, solutionId: number) => ({
     params: { path: { vendor_id: vendorId, solution_id: solutionId } },
   })
   return {

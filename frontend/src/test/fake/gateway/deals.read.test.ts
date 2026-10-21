@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { seedSolutionId, seedVendorId } from '../../fixtures/vendors'
 import { dealCode, dealInput, expectApiError, mockAs } from '../testing'
+import { NO_SUCH_ID, USER_ID } from '../seed/ids'
 
 const codes = (items: { code: string }[]) => items.map((d) => d.code).sort()
-const dealInputFor = (revenueDate: string) => dealInput('u-kim', { revenueDate })
+const dealInputFor = (revenueDate: string) => dealInput(USER_ID.kim, { revenueDate })
 const codesOf = (...nos: number[]) => nos.map(dealCode).sort()
 
 describe('deals.list', () => {
@@ -31,12 +32,12 @@ describe('deals.list', () => {
     const { gateway } = await mockAs('kim')
     const mine = await gateway.deals.list({ mine: true })
     expect(codes(mine.items)).toEqual(codesOf(1, 2, 7, 11, 13, 16, 20, 24))
-    expect(codes((await gateway.deals.list({ ownerId: 'u-kim' })).items)).toEqual(codes(mine.items))
+    expect(codes((await gateway.deals.list({ ownerId: USER_ID.kim })).items)).toEqual(codes(mine.items))
     expect((await gateway.deals.list({ vendorId: seedVendorId('Silverfort') })).total).toBe(7)
     expect(codes((await gateway.deals.list({ forecastKey: 'won' })).items)).toEqual(codesOf(11, 12, 24))
     expect(codes((await gateway.deals.list({ forecastKey: 'lost' })).items)).toEqual(codesOf(16))
     expect((await gateway.deals.list({ statusKey: 'contract_completed' })).total).toBe(3)
-    expect((await gateway.deals.list({ ownerId: 'u-old' })).total).toBe(1)
+    expect((await gateway.deals.list({ ownerId: USER_ID.old })).total).toBe(1)
   })
 
   it('AC-16 Vendor와 Solution 필터는 id가 같은 Deal만 돌려주고 없는 id는 0건이다', async () => {
@@ -45,7 +46,7 @@ describe('deals.list', () => {
 
     expect((await gateway.deals.list({ vendorId: silverfort, solutionId: seedSolutionId('Silverfort', 'ITDR') })).total).toBe(4)
     expect((await gateway.deals.list({ solutionId: seedSolutionId('Silverfort', 'MFA') })).total).toBe(3)
-    expect((await gateway.deals.list({ vendorId: 'vd-unknown' })).total).toBe(0)
+    expect((await gateway.deals.list({ vendorId: NO_SUCH_ID })).total).toBe(0)
   })
 
   it('AC-19 분기만 고르면 Fake 시계의 올해 그 분기이다(작년 같은 분기는 제외)', async () => {

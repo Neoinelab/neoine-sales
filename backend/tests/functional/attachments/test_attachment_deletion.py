@@ -28,12 +28,13 @@ from tests.functional.steps.attachments import (
 )
 from tests.functional.steps.common import then_problem_is, then_status_is
 from tests.functional.steps.users import given_signed_in_session, given_user_deleted
+from tests.support.ids import MISSING_ID
 
 if TYPE_CHECKING:
     from tests.functional.conftest import Api
 
 pytestmark = pytest.mark.integration
-UNKNOWN_ID = "6f1c1b3a-0000-4000-8000-000000000001"
+UNKNOWN_ID = MISSING_ID
 
 
 async def test_the_uploader_deletes_their_own_file(api: Api) -> None:
@@ -43,12 +44,12 @@ async def test_the_uploader_deletes_their_own_file(api: Api) -> None:
     kim = await given_signed_in_session(api, login_id="kim", role="sales")
     attachment = await given_file(api, code, session=kim, name="a.pdf", data=b"data")
     # When
-    response = await when_delete_attachment(api, str(attachment["id"]), session=kim)
+    response = await when_delete_attachment(api, attachment["id"], session=kim)
     # Then
     then_status_is(response, 204)
     assert response.content == b""
     then_problem_is(
-        await when_get_attachment(api, str(attachment["id"])), status=404, type_suffix="not-found"
+        await when_get_attachment(api, attachment["id"]), status=404, type_suffix="not-found"
     )
     await then_listed_names_are(api, code, [])
     then_disk_holds(api, code, [])
@@ -63,7 +64,7 @@ async def test_only_the_named_file_is_deleted(api: Api) -> None:
     gone = await given_file(api, code, name="gone.pdf", data=b"1")
     await given_file(api, code, name="kept.pdf", data=b"2")
     # When
-    response = await when_delete_attachment(api, str(gone["id"]))
+    response = await when_delete_attachment(api, gone["id"])
     # Then
     then_status_is(response, 204)
     await then_listed_names_are(api, code, ["kept.pdf"])
@@ -78,7 +79,7 @@ async def test_another_sales_cannot_delete_a_file_they_did_not_upload(api: Api) 
     park = await given_signed_in_session(api, login_id="park", role="sales")
     attachment = await given_file(api, code, session=kim, name="a.pdf", data=b"keep")
     # When
-    response = await when_delete_attachment(api, str(attachment["id"]), session=park)
+    response = await when_delete_attachment(api, attachment["id"], session=park)
     # Then
     then_problem_is(response, status=403, type_suffix="forbidden")
     then_detail_is(response, DELETE_FORBIDDEN)
@@ -94,9 +95,9 @@ async def test_sales_can_delete_a_file_after_its_sales_uploader_resigned(api: Ap
     kim = await given_signed_in_session(api, login_id="kim", role="sales")
     park = await given_signed_in_session(api, login_id="park", role="sales")
     attachment = await given_file(api, code, session=kim, name="a.pdf")
-    await given_user_deleted(api, str(attachment["uploaded_by"]["id"]))
+    await given_user_deleted(api, attachment["uploaded_by"]["id"])
     # When
-    response = await when_delete_attachment(api, str(attachment["id"]), session=park)
+    response = await when_delete_attachment(api, attachment["id"], session=park)
     # Then
     then_status_is(response, 204)
     then_disk_holds(api, code, [])
@@ -111,9 +112,9 @@ async def test_sales_cannot_delete_a_file_uploaded_by_an_admin_even_after_the_ad
     boss = await given_signed_in_session(api, login_id="boss", role="admin")
     kim = await given_signed_in_session(api, login_id="kim", role="sales")
     attachment = await given_file(api, code, session=boss, name="a.pdf", data=b"admin's")
-    await given_user_deleted(api, str(attachment["uploaded_by"]["id"]))
+    await given_user_deleted(api, attachment["uploaded_by"]["id"])
     # When
-    response = await when_delete_attachment(api, str(attachment["id"]), session=kim)
+    response = await when_delete_attachment(api, attachment["id"], session=kim)
     # Then
     then_problem_is(response, status=403, type_suffix="forbidden")
     then_detail_is(response, DELETE_FORBIDDEN)
@@ -127,7 +128,7 @@ async def test_an_admin_deletes_any_file(api: Api) -> None:
     kim = await given_signed_in_session(api, login_id="kim", role="sales")
     attachment = await given_file(api, code, session=kim, name="a.pdf")
     # When
-    response = await when_delete_attachment(api, str(attachment["id"]))
+    response = await when_delete_attachment(api, attachment["id"])
     # Then
     then_status_is(response, 204)
     await then_row_count_is(api, code, 0)
@@ -141,7 +142,7 @@ async def test_a_read_only_user_cannot_delete_and_is_refused_before_the_lookup(a
     attachment = await given_file(api, code, name="a.pdf", data=b"keep")
     viewer = await given_signed_in_session(api, login_id="viewer", role="user")
     # When
-    existing = await when_delete_attachment(api, str(attachment["id"]), session=viewer)
+    existing = await when_delete_attachment(api, attachment["id"], session=viewer)
     missing = await when_delete_attachment(api, UNKNOWN_ID, session=viewer)
     # Then
     for refused in (existing, missing):
@@ -168,7 +169,7 @@ async def test_an_anonymous_visitor_cannot_delete(api: Api) -> None:
     attachment = await given_file(api, code, name="a.pdf")
     api.forget_session()
     # When
-    response = await when_delete_attachment(api, str(attachment["id"]))
+    response = await when_delete_attachment(api, attachment["id"])
     # Then
     then_problem_is(response, status=401, type_suffix="unauthenticated")
 
@@ -180,7 +181,7 @@ async def test_the_row_is_deleted_even_when_the_disk_file_cannot_be_removed(api:
     attachment = await given_file(api, code, name="a.pdf")
     given_disk_file_undeletable(api, code)
     # When
-    response = await when_delete_attachment(api, str(attachment["id"]))
+    response = await when_delete_attachment(api, attachment["id"])
     # Then
     then_status_is(response, 204)
     await then_row_count_is(api, code, 0)

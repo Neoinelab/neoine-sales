@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 
 
 class AttachmentResponse(BaseModel):
-    id: str
+    id: int
     deal_code: str
     file_name: str
     description: str
@@ -32,7 +32,7 @@ class AttachmentResponse(BaseModel):
         cls, attachment: Attachment, refs: Mapping[UserId, DomainUserRef]
     ) -> AttachmentResponse:
         return cls(
-            id=str(attachment.id),
+            id=attachment.id,
             deal_code=attachment.deal_code.value,
             file_name=attachment.file_name.value,
             description=attachment.description,

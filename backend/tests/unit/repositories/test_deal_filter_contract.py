@@ -7,13 +7,13 @@ forecast 정확 일치(vendor_id·solution_id는 test_deal_search_contract), 연
 
 from datetime import date
 from typing import TYPE_CHECKING
-from uuid import uuid4
 
 import pytest
 
 from app.application.ports.deal_repository import DealQuery
 from app.domain.bant.values import BantCategory, BantLabelId
 from tests.factories import later, make_bant, make_deal
+from tests.support.ids import new_id
 
 if TYPE_CHECKING:
     from tests.unit.repositories.deal_case import DealCase
@@ -194,7 +194,7 @@ class TestBantLabels:
         self, deal_case: DealCase
     ) -> None:
         await self._setup(deal_case)
-        unknown = BantLabelId(uuid4())
+        unknown = BantLabelId(new_id())
 
         assert await _codes(deal_case, bant_label_ids={BantCategory.BUDGET: unknown}) == []
         assert await _count(deal_case, bant_label_ids={BantCategory.BUDGET: unknown}) == 0

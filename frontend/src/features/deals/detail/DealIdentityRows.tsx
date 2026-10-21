@@ -3,6 +3,7 @@ import type { DealDetail } from '../../../shared/model/types'
 import { UserSelect } from '../../../shared/ui/UserSelect'
 import { InlineEdit } from './InlineEdit'
 import { useDealPatch } from './useDealPatch'
+import { parseId } from '../../../shared/model/ids'
 
 interface DealIdentityRowsProps {
   deal: DealDetail
@@ -14,8 +15,9 @@ interface DealIdentityRowsProps {
 export function DealIdentityRows({ deal, canWrite, onNotice }: DealIdentityRowsProps) {
   const { save } = useDealPatch(deal.code, onNotice)
 
-  async function saveOwner(ownerId: string) {
-    if (ownerId === '') throw new Error('Owner를 선택하세요.')
+  async function saveOwner(ownerText: string) {
+    const ownerId = parseId(ownerText)
+    if (ownerId === undefined) throw new Error('Owner를 선택하세요.')
     if (ownerId !== deal.ownerId) await save({ ownerId }, 'Owner가 변경되었습니다.')
   }
 
@@ -34,7 +36,7 @@ export function DealIdentityRows({ deal, canWrite, onNotice }: DealIdentityRowsP
             label="Owner"
             canEdit={canWrite}
             display={userLabel(deal.owner)}
-            initial={deal.ownerId}
+            initial={String(deal.ownerId)}
             kind="custom"
             control={({ value, commit, inputLabel }) => (
               <UserSelect label={inputLabel} name="owner" value={value} onChange={commit} current={deal.owner} />

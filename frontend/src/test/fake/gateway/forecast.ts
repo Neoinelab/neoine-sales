@@ -28,7 +28,7 @@ function summarize(ctx: MockContext, query: ForecastQuery): ForecastSummary {
     outcome: c.outcome === 'won' ? 'won' : 'open',
   }))
   const openKeys = new Set(columns.filter((c) => c.outcome === 'open').map((c) => c.key))
-  const blank = (ownerId: string | null, ownerName: string): ForecastSummaryRow => ({
+  const blank = (ownerId: number | null, ownerName: string): ForecastSummaryRow => ({
     ownerId,
     ownerName,
     cells: Object.fromEntries(columns.map((c) => [c.key, emptyCell()])),
@@ -42,7 +42,7 @@ function summarize(ctx: MockContext, query: ForecastQuery): ForecastSummary {
       (query.ownerId ? d.ownerId === query.ownerId : true),
   )
   const totalRow = blank(null, '합계')
-  const byOwner = new Map<string, ForecastSummaryRow>()
+  const byOwner = new Map<number, ForecastSummaryRow>()
   for (const deal of deals) {
     const cell = totalRow.cells[deal.forecastKey]
     if (!cell) continue // Lost 등 열에 없는 Forecast는 합계에서 제외

@@ -1,16 +1,16 @@
 """ChangeNextActionStatus(AC-8~13): 작성자·admin만, 404 -> 403 -> 422/409 순서, History 한 건."""
 
 from typing import TYPE_CHECKING
-from uuid import uuid4
 
 import pytest
-from app.domain.deal_action.next_action_status import NextActionState, NextActionStatus
 
 from app.domain.common.errors import InvalidStateError, InvalidValueError
 from app.domain.deal_action.errors import DealActionNotFoundError, DealActionStatusForbiddenError
+from app.domain.deal_action.next_action_status import NextActionState, NextActionStatus
 from app.domain.deal_action.value_objects import DealActionId
 from tests.factories import make_deal_action
 from tests.support.expect import raises_with
+from tests.support.ids import new_id
 from tests.unit.application.action_env import BOSS, KIM, NOT_FOUND, PARK, VIEWER
 
 if TYPE_CHECKING:
@@ -110,7 +110,7 @@ async def test_read_only_user_is_forbidden_even_for_own_id(action_env: ActionEnv
 
 async def test_missing_action_not_found_before_forbidden(action_env: ActionEnv) -> None:
     with raises_with(DealActionNotFoundError, NOT_FOUND):
-        await action_env.set_status(DealActionId(uuid4()), VIEWER, "done")
+        await action_env.set_status(DealActionId(new_id()), VIEWER, "done")
 
 
 async def test_same_status_conflicts_without_change(action_env: ActionEnv) -> None:

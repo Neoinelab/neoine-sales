@@ -4,7 +4,7 @@
  * 공통 약속
  * - 금액은 KRW 정수(number). 소수·통화 필드는 없다(통화는 KRW 고정 표시).
  * - 날짜는 'YYYY-MM-DD'(달력 날짜), 시각은 오프셋 포함 ISO 8601 문자열('2026-10-15T09:00:00+09:00').
- * - id는 순번 문자열(예: 'c-001', 'u-kim'), Deal은 id 대신 `code`(`DEAL_CODE_PATTERN`)가 기본키다.
+ * - id는 서버가 발급하는 양의 정수(number, 1~2^53-1), Deal은 id 대신 `code`(`DEAL_CODE_PATTERN`)가 기본키다.
  * - Status/Forecast는 **내부 key**(문자열)로 참조한다. 이름(`Code.name`)은 admin이 바꿀 수 있으므로
  *   로직은 항상 key로 판단하고, 화면 표시만 이름을 쓴다.
  * - 게이트웨이가 돌려주는 객체는 이 파일의 타입 그대로이며, 사용자는 `UserRef`로 풀어서(이름·역할·재직 여부) 준다.
@@ -23,7 +23,7 @@ export type UserStatus = 'active' | 'resigned'
 
 /** 화면 표시용 사용자 참조. 표시명은 `userLabel`을 쓴다(퇴사자는 `이름(퇴사)`). */
 export interface UserRef {
-  id: string
+  id: number
   name: string
   role: Role
   status: UserStatus
@@ -31,7 +31,7 @@ export interface UserRef {
 
 /** 로그인한 사용자. */
 export interface Me {
-  id: string
+  id: number
   loginId: string
   name: string
   role: Role
@@ -60,7 +60,7 @@ export type ForecastOutcome = 'open' | 'won' | 'lost'
  * probabilityHint는 "0–50" 같은 참고 문자열이며 저장·집계에 쓰지 않는다.
  */
 export interface Code {
-  id: string
+  id: number
   kind: CodeKind
   key: string
   name: string
@@ -82,7 +82,7 @@ export interface CodeSet {
 }
 
 export interface BantLabel {
-  id: string
+  id: number
   category: BantCategory
   name: string
   isDefault: boolean
@@ -96,7 +96,7 @@ export interface BantLabelWithUsage extends BantLabel {
 
 /** Action 유형(관리 화면용). 기본 유형은 isDefault, createdBy는 기본 유형이면 null. */
 export interface ActionTypeWithUsage {
-  id: string
+  id: number
   name: string
   isDefault: boolean
   createdBy: UserRef | null
@@ -110,7 +110,7 @@ export interface ActionTypeWithUsage {
 export type ContactKind = 'customer' | 'partner'
 
 export interface Contact {
-  id: string
+  id: number
   kind: ContactKind
   company: string
   name: string
@@ -127,7 +127,7 @@ export interface ContactRow extends Contact {
 }
 
 export interface PartnerLink {
-  contactId: string
+  contactId: number
   /** Deal당 active=true는 최대 1건. 교체되면 이전 링크는 active=false. */
   active: boolean
   linkedAt: string
@@ -143,14 +143,14 @@ export interface PartnerLinkView extends Omit<PartnerLink, 'contactId'> {
 
 /** id와 표시 이름만 가진 참조(Vendor·Solution). */
 export interface NamedRef {
-  id: string
+  id: number
   name: string
 }
 
 /** 관리 화면의 Solution. */
 export interface Solution {
-  id: string
-  vendorId: string
+  id: number
+  vendorId: number
   name: string
   /** 이 Solution을 쓰는 Deal 수. */
   usageCount: number
@@ -158,7 +158,7 @@ export interface Solution {
 
 /** 관리 화면의 Vendor와 소속 Solution(서버 정렬 그대로). */
 export interface Vendor {
-  id: string
+  id: number
   name: string
   usageCount: number
   solutions: Solution[]
@@ -177,16 +177,16 @@ export interface Poc {
   completedDate: string | null
 }
 
-export type BantSelection = Record<BantCategory, string | null>
+export type BantSelection = Record<BantCategory, number | null>
 
 export interface Deal {
   /** `YYYYMMDD-XXXX`. 등록 시 자동 채번, 변경 불가. */
   code: string
   name: string
-  ownerId: string
+  ownerId: number
   /** Vendor/Solution 참조(id). 선택 안 함이면 null. 화면용 이름은 `DealRow.vendor`/`solution`. */
-  vendorId: string | null
-  solutionId: string | null
+  vendorId: number | null
+  solutionId: number | null
   /** 견적 단위 사용자 수(Users). 필수, 0 이상. */
   users: number
   statusKey: string
@@ -195,7 +195,7 @@ export interface Deal {
   revenueAmount: number
   /** 매출일 = Expected Close. Won이면 실제 매출일. */
   revenueDate: string
-  customerContactId: string
+  customerContactId: number
   partnerLinks: PartnerLink[]
   quote: Quote
   poc: Poc
@@ -259,13 +259,13 @@ export interface DealDeletionImpact {
  * Action 수정은 이 두 값을 바꾸지 않는다.
  */
 export interface DealAction {
-  id: string
+  id: number
   dealCode: string
   actedAt: string
   actor: UserRef
   /** 현재 유형 이름(이름이 바뀌면 다음 조회부터 새 이름). */
   type: string
-  typeId: string
+  typeId: number
   /** 진행사항·Next Action은 각각 선택(둘 중 하나는 있다). Due Date는 Next Action이 있을 때만 있다. */
   progress: string | null
   nextAction: string | null
@@ -294,7 +294,7 @@ export type HistoryCategory =
 
 /** Deal 및 연결 정보의 모든 변경 1건. before/after는 표시용 text. 등록은 before='' after='Deal 등록'. */
 export interface HistoryEntry {
-  id: string
+  id: number
   dealCode: string
   at: string
   by: UserRef
@@ -306,7 +306,7 @@ export interface HistoryEntry {
 }
 
 export interface Attachment {
-  id: string
+  id: number
   dealCode: string
   fileName: string
   size: number

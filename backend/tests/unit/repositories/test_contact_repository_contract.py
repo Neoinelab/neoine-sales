@@ -6,7 +6,6 @@
 """
 
 from typing import TYPE_CHECKING
-from uuid import UUID, uuid4
 
 import pytest
 
@@ -15,6 +14,7 @@ from app.domain.contact.errors import ContactNotFoundError
 from app.domain.contact.values import ContactId, ContactKind
 from tests.factories import later
 from tests.factories_contact import make_contact, make_contact_details, make_customer, make_partner
+from tests.support.ids import new_id
 
 if TYPE_CHECKING:
     from tests.unit.repositories.contact_case import ContactCase
@@ -23,7 +23,7 @@ KINDS = list(ContactKind)
 
 
 def _missing_id() -> ContactId:
-    return ContactId(uuid4())
+    return ContactId(new_id())
 
 
 @pytest.mark.parametrize("kind", KINDS)
@@ -158,8 +158,8 @@ async def test_changes_to_an_added_contact_are_not_saved_without_update(
     assert reloaded.details == original_details
 
 
-async def test_uuid_ids_are_kept_as_given(contacts: ContactCase) -> None:
-    given = UUID("12345678-1234-4234-8234-123456789abc")
+async def test_integer_ids_are_kept_as_given(contacts: ContactCase) -> None:
+    given = 7_654_321_098
     contact = make_customer(entity_id=ContactId(given))
 
     await contacts.contacts.add(contact)

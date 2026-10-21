@@ -1,5 +1,6 @@
 """DealRepository Port의 SQLAlchemy 구현. 키는 Deal code이고 삭제는 물리 삭제(딸린 데이터 CASCADE).
 
+Deal의 PK는 infra 전용 대리 키(deals.id)이고 딸린 행은 deal_id로 연결한다(도메인은 code만 안다).
 Deal 행과 파트너 링크·BANT 선택은 한 SAVEPOINT 안에서 함께 저장한다. 중복 code·참조 위반은
 도메인 오류로 바꾸되 업무 규칙은 판단하지 않는다.
 """
@@ -25,6 +26,7 @@ from app.domain.deal_action.next_action_status import NextActionStatus
 from app.infra.db import deal_aggregates, deal_children, deal_mapping, deal_search
 from app.infra.db.base_repository import ConstraintErrors, SavepointWriter
 from app.infra.db.contact_usage import deal_counts_by_contacts
+from app.infra.db.deal_keys import deal_id_of, deal_row_of
 from app.infra.db.models_deal import DealPartnerRow, DealRow
 
 if TYPE_CHECKING:
@@ -43,7 +45,7 @@ def _write_errors(deal: Deal) -> ConstraintErrors:
     """INSERT·UPDATE 제약 위반의 도메인 오류. 참조 FK는 삭제와의 경쟁에서도 발생한다."""
     details = deal.details
     return {
-        "pk_deals": lambda: DuplicateDealCodeError(deal.id.value),
+        "uq_deals_deal_code": lambda: DuplicateDealCodeError(deal.id.value),
         "fk_deals_customer_id_contacts": lambda: InvalidReferenceError(
             "고객 연락처", deal.customer_id
         ),
@@ -69,25 +71,26 @@ class SqlDealRepository(SavepointWriter):
 
     async def add(self, deal: Deal) -> None:
         async def work() -> None:
-            self._session.add(deal_mapping.new_row(deal))
-            await self._session.flush()  # 자식 행이 참조할 deals 행을 먼저 보낸다
+            row = deal_mapping.new_row(deal)
+            self._session.add(row)
+            await self._session.flush()  # 자식 행이 참조할 deals 행을 먼저 보내 id를 받는다
             self._session.add_all(
-                deal_children.partner_row(deal.id.value, link) for link in deal.partner_links
+                deal_children.partner_row(row.id, link) for link in deal.partner_links
             )
-            self._session.add_all(deal_children.bant_rows(deal, {}))
+            self._session.add_all(deal_children.bant_rows(deal, row.id, {}))
 
         await self._atomic(_write_errors(deal), work)
 
     async def update(self, deal: Deal) -> None:
-        row = await self._session.get(DealRow, deal.id.value, populate_existing=True)
+        row = await deal_row_of(self._session, deal.id.value)
         if row is None:
             raise DealNotFoundError(deal.id.value)
 
         async def work() -> None:
             deal_mapping.apply_fields(row, deal)
             await self._session.flush()
-            await deal_children.sync_partners(self._session, deal)
-            await deal_children.sync_bant(self._session, deal)
+            await deal_children.sync_partners(self._session, deal, row.id)
+            await deal_children.sync_bant(self._session, deal, row.id)
 
         await self._atomic(
             _write_errors(deal), work, not_found=lambda: DealNotFoundError(deal.id.value)
@@ -106,7 +109,7 @@ class SqlDealRepository(SavepointWriter):
         await self._session.execute(statement)
 
     async def delete(self, code: DealCode) -> None:
-        row = await self._session.get(DealRow, code.value, populate_existing=True)
+        row = await deal_row_of(self._session, code.value)
         if row is None:
             raise DealNotFoundError(code.value)
         await self._remove(row, {})
@@ -114,12 +117,7 @@ class SqlDealRepository(SavepointWriter):
     # --- 읽기 ---
 
     async def get(self, code: DealCode, *, for_update: bool = False) -> Deal:
-        statement = select(DealRow).where(DealRow.deal_code == code.value)
-        if for_update:
-            statement = statement.with_for_update()
-        row = (
-            await self._session.scalars(statement.execution_options(populate_existing=True))
-        ).one_or_none()
+        row = await deal_row_of(self._session, code.value, for_update=for_update)
         if row is None:
             raise DealNotFoundError(code.value)
         return (await deal_children.hydrate(self._session, [row]))[0]
@@ -164,7 +162,11 @@ class SqlDealRepository(SavepointWriter):
     async def references_of_contact(self, contact_id: ContactId) -> Sequence[ContactReference]:
         """고객으로 참조하는 Deal, 파트너 링크(비활성 포함)로 참조하는 Deal. 각각 code 순서."""
         customers = select(DealRow.deal_code).where(DealRow.customer_id == contact_id)
-        partners = select(DealPartnerRow.deal_code).where(DealPartnerRow.contact_id == contact_id)
+        partners = (
+            select(DealRow.deal_code)
+            .join(DealPartnerRow, DealPartnerRow.deal_id == DealRow.id)
+            .where(DealPartnerRow.contact_id == contact_id)
+        )
         found: list[ContactReference] = []
         for kind, statement in ((ContactKind.CUSTOMER, customers), (ContactKind.PARTNER, partners)):
             ordered = statement.order_by(statement.selected_columns.deal_code)
@@ -175,9 +177,10 @@ class SqlDealRepository(SavepointWriter):
     # --- 집계 ---
 
     async def deletion_impact(self, code: DealCode) -> DealDeletionImpact:
-        if not await self.exists(code):
+        deal_id = await deal_id_of(self._session, code.value)
+        if deal_id is None:
             raise DealNotFoundError(code.value)
-        return await deal_aggregates.deletion_impact(self._session, code.value)
+        return await deal_aggregates.deletion_impact(self._session, deal_id)
 
     async def count_by_status(self) -> Mapping[str, int]:
         return await deal_aggregates.count_by_status(self._session)

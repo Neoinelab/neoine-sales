@@ -3,8 +3,8 @@
 import { describe, expect, it } from 'vitest'
 import { seedSolutionId, seedVendorId } from '../../fixtures/vendors'
 import { dealCode, expectApiError, mockAs } from '../testing'
+import { NO_SUCH_ID } from '../seed/ids'
 
-const NO_SUCH_ID = '00000000-0000-4000-8000-000000000000'
 
 describe('vendors.list', () => {
   it('AC-1 sorts vendors and their solutions by lower-case name and carries usage counts', async () => {

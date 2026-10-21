@@ -11,7 +11,6 @@
 """
 
 from typing import TYPE_CHECKING, Any
-from uuid import UUID
 
 import pytest
 
@@ -28,7 +27,7 @@ PARTNER = ContactKind.PARTNER
 
 
 def _id(number: int) -> ContactId:
-    return ContactId(UUID(int=number))
+    return ContactId(number)
 
 
 async def _companies(contacts: ContactCase, **criteria: object) -> list[str]:
@@ -89,7 +88,7 @@ async def test_search_orders_the_same_company_and_name_by_id(contacts: ContactCa
 
     found = await contacts.contacts.search(ContactQuery())
 
-    assert [str(c.id) for c in found] == sorted(str(c.id) for c in same_person)
+    assert [c.id for c in found] == sorted(c.id for c in same_person)
 
 
 async def test_search_is_not_ordered_by_creation_or_insertion_time(contacts: ContactCase) -> None:

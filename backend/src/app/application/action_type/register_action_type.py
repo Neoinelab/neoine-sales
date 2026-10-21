@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING
 
 from app.application.action_type.dto import ActionTypeUsage
+from app.application.ids import new_action_type_id
 from app.domain.action_type.entities import ActionType
 from app.domain.action_type.rules import ensure_unique_action_type_name
 from app.domain.action_type.values import normalize_action_type_name
@@ -22,7 +23,12 @@ class RegisterActionType:
         clean = normalize_action_type_name(name)
         async with self._uow_factory() as uow:
             ensure_unique_action_type_name(await uow.action_types.list(for_update=True), clean)
-            created = ActionType.create(name=clean, created_by=actor_id, now=self._clock.now())
+            created = ActionType.create(
+                entity_id=await new_action_type_id(uow.ids),
+                name=clean,
+                created_by=actor_id,
+                now=self._clock.now(),
+            )
             await uow.action_types.add(created)
             await uow.commit()
         return ActionTypeUsage(created, 0)

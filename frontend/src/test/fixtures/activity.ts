@@ -39,19 +39,19 @@ const FORECAST_LEAN = { won: 'commit', lost: 'best' } as const
 interface Names {
   status(key: string): string
   forecast(key: string): string
-  user(id: string): string
-  contact(id: string): string
+  user(id: number): string
+  contact(id: number): string
 }
 
-function namesOf(codes: readonly Code[], userNames: ReadonlyMap<string, string>, contacts: readonly Contact[]): Names {
+function namesOf(codes: readonly Code[], userNames: ReadonlyMap<number, string>, contacts: readonly Contact[]): Names {
   const nameOf = (kind: Code['kind']) => (key: string) => codes.find((c) => c.kind === kind && c.key === key)?.name ?? key
   return {
     status: nameOf('status'),
     forecast: nameOf('forecast'),
-    user: (id) => userNames.get(id) ?? id,
+    user: (id) => userNames.get(id) ?? String(id),
     contact: (id) => {
       const c = contacts.find((x) => x.id === id)
-      return c ? `${c.company} ${c.name}` : id
+      return c ? `${c.company} ${c.name}` : String(id)
     },
   }
 }
@@ -91,14 +91,14 @@ export function seedActivity(
   deals: readonly Deal[],
   codes: readonly Code[],
   contacts: readonly Contact[],
-  userNames: ReadonlyMap<string, string>,
+  userNames: ReadonlyMap<number, string>,
   counters: Record<string, number>,
 ): Activity {
   const names = namesOf(codes, userNames, contacts)
   const statusKeys = codes.filter((c) => c.kind === 'status').map((c) => c.key)
   const actions: ActionRecord[] = []
   const history: HistoryRecord[] = []
-  const log = (dealCode: string, at: string, byId: string, category: HistoryCategory, target: string, before: string, after: string) => {
+  const log = (dealCode: string, at: string, byId: number, category: HistoryCategory, target: string, before: string, after: string) => {
     history.push({ id: takeId(counters, 'hi'), seq: nextSeq(counters), dealCode, at, byId, category, target, before, after })
   }
 

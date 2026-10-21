@@ -16,8 +16,9 @@ import { dealsContract } from './deals.contract'
 import { labelsContract } from './labels.contract'
 import { vendorsContract } from './vendors.contract'
 import type { MakeGateway } from './support'
+import { USER_ID } from '../../test/fake/seed/ids'
 
-const ROLE_USER_ID = { admin: 'u-root', sales: 'u-kim', user: 'u-han' } as const
+const ROLE_USER_ID = { admin: USER_ID.root, sales: USER_ID.kim, user: USER_ID.han } as const
 
 // 테스트마다 새 mock 하나. 같은 테스트 안의 make 호출은 그 mock을 공유하고 마지막으로 만든 역할로 로그인된다.
 let current: MockInstance

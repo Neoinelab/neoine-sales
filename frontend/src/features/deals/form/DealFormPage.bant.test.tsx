@@ -256,7 +256,7 @@ describe('수정 폼 (AC-31, R2)', () => {
     const { code } = await openEdit('대한제조 MFA 확대')
     const bant = (await gateway.deals.get(code)).bant
     const labels = await gateway.labels.list()
-    const nameOf = (id: string | null) => (id === null ? '' : (labels.find((l) => l.id === id)?.name ?? '?'))
+    const nameOf = (id: number | null) => (id === null ? '' : (labels.find((l) => l.id === id)?.name ?? '?'))
     await waitFor(() => expect(bantOf('Budget')).toHaveDisplayValue(nameOf(bant.budget)))
 
     expect(bantOf('Authority')).toHaveDisplayValue(nameOf(bant.authority))

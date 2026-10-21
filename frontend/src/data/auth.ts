@@ -31,9 +31,9 @@ export function useLogin(): Mutation<{ loginId: string; password: string }, Me> 
 }
 
 /** gateway.auth.quickLogin(userId). 성공 처리는 useLogin과 같다. */
-export function useQuickLogin(): Mutation<string, Me> {
+export function useQuickLogin(): Mutation<number, Me> {
   const queryClient = useQueryClient()
-  return useMutation<Me, ApiError, string>({
+  return useMutation<Me, ApiError, number>({
     mutationFn: (userId) => gateway.auth.quickLogin(userId),
     gcTime: 0,
     onSuccess: (me) => queryClient.setQueryData(keys.me, me),

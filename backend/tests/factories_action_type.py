@@ -1,22 +1,21 @@
 """Action 유형 테스트용 생성 도우미와 기본 유형 표. 기본은 유효한 더미 값이다.
 
 기본 유형 8개의 이름·순서는 마이그레이션 시드와 같다(`tests/fakes/catalog_seed.py`).
-Fake 시드의 id는 이름에서 정해지는 고정 값(`type_id`)이라
+Fake 시드의 id는 이름에서 정해지는 고정 정수(`type_id`, 20억대)라
 `make_type_ref("미팅")`이 Fake에 시드된 유형을 가리킨다.
-실제 DB의 시드 id는 무작위이므로 SQL 계약 테스트는 `attach_catalog_type`으로 저장소의 같은 이름
+실제 DB의 시드 id는 1부터 매겨지므로 SQL 계약 테스트는 `attach_catalog_type`으로 저장소의 같은 이름
 유형에 맞춘다. 도메인 모듈은 사용 시점에 가져온다(구현 전에도 이 모듈을 쓰는 다른 테스트의 수집이
 막히지 않게).
 """
 
 from typing import TYPE_CHECKING, Any, Final
-from uuid import NAMESPACE_URL, UUID, uuid4, uuid5
 
 from tests.factories import NOW
+from tests.support.ids import new_id
 
 if TYPE_CHECKING:
     from app.domain.action_type.entities import ActionType
     from app.domain.action_type.values import ActionTypeRef
-
     from app.domain.deal_action.entities import DealAction
 
 DEFAULT_ACTION_TYPE_NAMES: Final = (
@@ -31,20 +30,33 @@ DEFAULT_ACTION_TYPE_NAMES: Final = (
 )
 
 
-def type_id(name: str) -> UUID:
-    """이름에서 정해지는 고정 id(Fake 시드와 팩토리가 같은 id를 쓴다)."""
-    return uuid5(NAMESPACE_URL, f"neoine-sales/action-type/{name}")
+SEED_TYPE_ID_BASE: Final = (
+    2_000_000_000  # 기본 유형 id 범위(테스트 id 10억대·시퀀스 1부터와 겹치지 않는다)
+)
+_EXTRA_TYPE_IDS: dict[str, int] = {}
 
 
-def make_type_ref(name: str = "미팅", *, entity_id: UUID | None = None) -> ActionTypeRef:
+def type_id(name: str) -> int:
+    """이름에서 정해지는 고정 id(Fake 시드와 팩토리가 같은 id를 쓴다).
+
+    기본 유형 8개는 20억 + 순서이고, 그 밖의 이름은 처음 부를 때 정해지는 10억대 번호다.
+    """
+    if name in DEFAULT_ACTION_TYPE_NAMES:
+        return SEED_TYPE_ID_BASE + DEFAULT_ACTION_TYPE_NAMES.index(name) + 1
+    return _EXTRA_TYPE_IDS.setdefault(name, new_id())
+
+
+def make_type_ref(name: str = "미팅", *, entity_id: int | None = None) -> ActionTypeRef:
     """Action이 가리키는 유형 참조. 기본은 Fake 시드의 같은 이름 유형과 같은 id다."""
     from app.domain.action_type.values import ActionTypeId, ActionTypeRef  # noqa: PLC0415
 
-    return ActionTypeRef(id=ActionTypeId(entity_id or type_id(name)), name=name)
+    return ActionTypeRef(
+        id=ActionTypeId(type_id(name) if entity_id is None else entity_id), name=name
+    )
 
 
 def make_action_type(name: str = "ZZ 유형", **overrides: Any) -> ActionType:  # noqa: ANN401
-    """저장하지 않은 유형. overrides: is_default, default_order, created_by, now, type_uuid.
+    """저장하지 않은 유형. overrides: is_default, default_order, created_by, now, entity_id.
 
     기본 유형이면 is_default=True와 default_order를 함께 준다(DB CHECK).
     """
@@ -56,11 +68,11 @@ def make_action_type(name: str = "ZZ 유형", **overrides: Any) -> ActionType:  
         "is_default": False,
         "default_order": None,
         "created_by": None,
-        "type_uuid": uuid4(),
+        "entity_id": new_id(),
         **overrides,
     }
     return ActionType(
-        id=ActionTypeId(values["type_uuid"]),
+        id=ActionTypeId(values["entity_id"]),
         name=name,
         is_default=values["is_default"],
         default_order=values["default_order"],
@@ -77,7 +89,7 @@ def default_action_types(now: Any = NOW) -> list[ActionType]:  # noqa: ANN401
             name,
             is_default=True,
             default_order=order,
-            type_uuid=type_id(name),
+            entity_id=type_id(name),
             now=now,
         )
         for order, name in enumerate(DEFAULT_ACTION_TYPE_NAMES, start=1)
@@ -96,6 +108,6 @@ async def attach_catalog_type(types: Any, action: DealAction) -> None:  # noqa: 
     ref = action.content.action_type
     found = next((t for t in await types.list() if t.name.lower() == ref.name.lower()), None)
     if found is None:
-        found = make_action_type(ref.name, type_uuid=ref.id)
+        found = make_action_type(ref.name, entity_id=ref.id)
         await types.add(found)
     action.content = replace(action.content, action_type=found.ref)

@@ -8,6 +8,7 @@
 from typing import TYPE_CHECKING, Final
 
 from app.domain.auth.principal import Role
+from tests.support.ids import MISSING_ID
 
 if TYPE_CHECKING:
     from httpx import Response
@@ -108,7 +109,7 @@ EXPECTED: Final[dict[Route, frozenset[Role] | None]] = {
     **dict.fromkeys(ADMIN_ONLY, ADMINS),
 }
 
-PLACEHOLDER = "6f1c1b3a-0000-4000-8000-000000000001"
+PLACEHOLDER = str(MISSING_ID)
 ABSENT_DEAL_CODE = (
     "20260101-ZZZZ"  # 형식은 맞지만 없는 Deal code(권한 검사는 조회보다 먼저여야 한다)
 )

@@ -25,13 +25,13 @@ function withUsage(ctx: MockContext, code: Code): CodeWithUsage {
   return { ...clone(code), usageCount: usageOf(ctx, code) }
 }
 
-function findCode(ctx: MockContext, id: string): Code {
+function findCode(ctx: MockContext, id: number): Code {
   const found = ctx.store.data.codes.find((c) => c.id === id)
   if (!found) throw notFound('코드를 찾을 수 없습니다.')
   return found
 }
 
-function checkName(ctx: MockContext, kind: CodeKind, raw: string, selfId?: string): string {
+function checkName(ctx: MockContext, kind: CodeKind, raw: string, selfId?: number): string {
   const name = raw.trim()
   if (name === '') throw validation('이름을 입력하세요.')
   const lower = name.toLowerCase()

@@ -27,7 +27,7 @@ const blankToNull = (text: string): string | null => (text.trim() === '' ? null 
  * 서버 규칙: 진행사항·Next Action 중 하나 이상(둘 다 비면 422), Next Action이 있으면 Due Date 필수,
  * 없으면 Due Date 금지(위에서부터 첫 오류). 비운 값은 null로 저장한다.
  */
-function normalize(input: ActionUpdateInput, typeId: string): Content {
+function normalize(input: ActionUpdateInput, typeId: number): Content {
   const progress = blankToNull(input.progress)
   const nextAction = blankToNull(input.nextAction)
   if (progress === null && nextAction === null) throw validation(ACTION_OR_NEXT_REQUIRED)
@@ -65,7 +65,7 @@ function validateRanges(q: ActionQuery): void {
   if (q.dueFrom && q.dueTo && q.dueFrom > q.dueTo) throw validation('Due Date 범위의 시작은 끝보다 늦을 수 없습니다.')
 }
 
-function findAction(ctx: MockContext, id: string): ActionRecord {
+function findAction(ctx: MockContext, id: number): ActionRecord {
   const found = ctx.store.data.actions.find((a) => a.id === id)
   if (!found) throw notFound('Action을 찾을 수 없습니다.')
   return found
@@ -89,7 +89,7 @@ function matches(a: ActionRecord, q: ActionQuery): boolean {
 }
 
 function sorted(rows: ActionRecord[], sort: ActionQuery['sort']): ActionRecord[] {
-  const byActedDesc = (a: ActionRecord, b: ActionRecord) => compareIso(b.actedAt, a.actedAt) || b.id.localeCompare(a.id)
+  const byActedDesc = (a: ActionRecord, b: ActionRecord) => compareIso(b.actedAt, a.actedAt) || b.id - a.id
   if (sort === 'actedAsc') return rows.sort((a, b) => byActedDesc(b, a))
   // Due가 없는 행은 맨 뒤(NULLS LAST).
   if (sort === 'dueAsc') return rows.sort((a, b) => (a.dueDate ?? '9999-12-31').localeCompare(b.dueDate ?? '9999-12-31') || byActedDesc(a, b))
@@ -114,7 +114,7 @@ export function createActionsGateway(ctx: MockContext): ActionsGateway {
         const deal = findDeal(data, dealCode)
         // 서버 순서: Deal(404) → 유형 → 진행사항 → Next Action → Due Date. 새 유형은 모든 검증이 끝난 뒤에만 만든다.
         const typePlan = planActionType(ctx, input.type)
-        const content = normalize(input, '')
+        const content = normalize(input, 0)
         const outcomes = planSequence(ctx, deal, input.statusChanges ?? [])
         const chosen = commitActionType(ctx, typePlan, user.id)
         for (const outcome of outcomes) commitDealChange(ctx, deal, outcome, user.id)
@@ -141,7 +141,7 @@ export function createActionsGateway(ctx: MockContext): ActionsGateway {
         const record = findAction(ctx, actionId)
         if (!canEditAction(viewerOf(user), record.actorId)) throw forbidden('본인 Action 또는 admin만 수정할 수 있습니다.')
         const typePlan = planActionType(ctx, input.type)
-        const next = normalize(input, typePlan.kind === 'existing' ? typePlan.record.id : '')
+        const next = normalize(input, typePlan.kind === 'existing' ? typePlan.record.id : 0)
         if (same(record, next)) return actionView(ctx.store.data, record)
         const before = summary(ctx, record)
         Object.assign(record, { ...next, typeId: commitActionType(ctx, typePlan, user.id).id })

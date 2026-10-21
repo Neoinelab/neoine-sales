@@ -1,12 +1,11 @@
 from dataclasses import dataclass
 from enum import StrEnum
 from typing import TYPE_CHECKING, NewType
-from uuid import UUID
 
 if TYPE_CHECKING:
     from app.domain.auth.principal import Role
 
-UserId = NewType("UserId", UUID)
+UserId = NewType("UserId", int)
 
 RESIGNED_SUFFIX = "(퇴사)"
 

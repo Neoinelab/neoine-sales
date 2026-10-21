@@ -2,6 +2,7 @@ import { BANT_CATEGORIES, DEAL_PAGE_SIZE, type BantCategory } from '../../../sha
 import type { DealListQuery, DealSortKey, SortOrder } from '../../../shared/model/types'
 
 import { nextActionStatusFromParam } from '../../../shared/model/nextActionStatus'
+import { parseId } from '../../../shared/model/ids'
 import { FILTER_KEYS } from '../../../shared/model/dealListMemory'
 
 /** URL 쿼리 키(정의는 shared의 기억 모듈에 있고 여기서 다시 내보낸다). */
@@ -24,8 +25,6 @@ const NATURAL_ORDER: Record<DealSortKey, SortOrder> = {
   revenueAmount: 'desc',
   lastUpdatedAt: 'desc',
 }
-
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 function isSortKey(value: string | null): value is DealSortKey {
   return SORT_KEYS.some((key) => key === value)
@@ -61,7 +60,6 @@ export function listQueryFromParams(params: URLSearchParams): DealListQuery {
   const keyword = text('q')
   if (keyword) query.keyword = keyword
   const pairs = [
-    ['owner', 'ownerId'],
     ['status', 'statusKey'],
     ['forecast', 'forecastKey'],
     ['from', 'revenueFrom'],
@@ -72,11 +70,13 @@ export function listQueryFromParams(params: URLSearchParams): DealListQuery {
     if (value) query[field] = value
   }
 
-  // Vendor·Solution은 id(UUID)만 받는다. 예전 이름 기반 URL 값은 무시한다.
-  const vendorId = text('vendor')
-  if (vendorId && UUID.test(vendorId)) query.vendorId = vendorId
-  const solutionId = text('solution')
-  if (solutionId && UUID.test(solutionId)) query.solutionId = solutionId
+  // Owner·Vendor·Solution은 정수 id만 받는다. 예전 UUID·이름 기반 URL 값은 무시한다.
+  const ownerId = parseId(params.get('owner'))
+  if (ownerId !== undefined) query.ownerId = ownerId
+  const vendorId = parseId(params.get('vendor'))
+  if (vendorId !== undefined) query.vendorId = vendorId
+  const solutionId = parseId(params.get('solution'))
+  if (solutionId !== undefined) query.solutionId = solutionId
 
   const year = positiveInt(params.get('year'))
   if (year !== null) query.year = year
@@ -84,10 +84,10 @@ export function listQueryFromParams(params: URLSearchParams): DealListQuery {
   const quarter = Number(params.get('quarter'))
   if (quarter === 1 || quarter === 2 || quarter === 3 || quarter === 4) query.quarter = quarter
 
-  const bant: Partial<Record<BantCategory, string>> = {}
+  const bant: Partial<Record<BantCategory, number>> = {}
   for (const category of BANT_CATEGORIES) {
-    const id = text(category)
-    if (id) bant[category] = id
+    const id = parseId(params.get(category))
+    if (id !== undefined) bant[category] = id
   }
   if (Object.keys(bant).length > 0) query.bantLabelIds = bant
   if (params.get('mine') === '1') query.mine = true

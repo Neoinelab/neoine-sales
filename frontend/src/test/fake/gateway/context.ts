@@ -61,20 +61,22 @@ export function viewerOf(user: UserRecord): Viewer {
   return { id: user.id, role: user.role }
 }
 
-export function setSession(ctx: MockContext, userId: string | null): void {
+export function setSession(ctx: MockContext, userId: number | null): void {
   ctx.store.session.userId = userId
   if (!ctx.persistSession) return
   try {
     if (userId === null) window.sessionStorage.removeItem(SESSION_STORAGE_KEY)
-    else window.sessionStorage.setItem(SESSION_STORAGE_KEY, userId)
+    else window.sessionStorage.setItem(SESSION_STORAGE_KEY, String(userId))
   } catch {
     // 저장소 접근 실패(사생활 보호 모드 등)는 무시한다. 새로고침 시 로그인 화면으로 돌아갈 뿐이다.
   }
 }
 
-export function readStoredSession(): string | null {
+export function readStoredSession(): number | null {
   try {
-    return window.sessionStorage.getItem(SESSION_STORAGE_KEY)
+    const raw = window.sessionStorage.getItem(SESSION_STORAGE_KEY)
+    const id = raw === null ? Number.NaN : Number(raw)
+    return Number.isSafeInteger(id) && id > 0 ? id : null
   } catch {
     return null
   }

@@ -1,4 +1,5 @@
 import { useVendors } from '../../data/vendors'
+import { parseId } from '../../shared/model/ids'
 import { ErrorBanner } from '../../shared/ui/ErrorBanner'
 import { SelectField } from '../../shared/ui/fields'
 import { UserSelect } from '../../shared/ui/UserSelect'
@@ -9,6 +10,8 @@ interface Props {
   filters: ForecastFilters
   onChange: (patch: Partial<ForecastFilters>) => void
 }
+
+const textOf = (id: number | undefined): string => (id === undefined ? '' : String(id))
 
 /** 연도는 기준 연도(올해) ±1에 URL로 들어온 값을 더한다. */
 function yearOptions(base: number, current: number): number[] {
@@ -22,7 +25,7 @@ export function ForecastFilterBar({ filters, onChange }: Props) {
   const vendors = vendorsQuery.data ?? []
   const loaded = vendorsQuery.data !== undefined
   // 목록이 로드된 뒤 목록에 없는 id는 '전체'로 보인다. 목록이 없는 동안(로딩·오류)에는 URL 값을 '선택한 Vendor'로 보인다.
-  const vendorValue = !loaded ? (filters.vendor ?? '') : vendors.some((v) => v.id === filters.vendor) ? (filters.vendor ?? '') : ''
+  const vendorValue = !loaded ? textOf(filters.vendor) : vendors.some((v) => v.id === filters.vendor) ? textOf(filters.vendor) : ''
 
   return (
     <form className="filters fc-filters" aria-label="Forecast 필터" onSubmit={(e) => e.preventDefault()}>
@@ -47,11 +50,11 @@ export function ForecastFilterBar({ filters, onChange }: Props) {
       <UserSelect
         label="담당자"
         name="owner"
-        value={filters.ownerId ?? ''}
-        onChange={(v) => onChange({ ownerId: v || undefined })}
+        value={textOf(filters.ownerId)}
+        onChange={(v) => onChange({ ownerId: parseId(v) })}
         includeResigned
       />
-      <SelectField label="Vendor" name="vendor" value={vendorValue} onChange={(v) => onChange({ vendor: v || undefined })}>
+      <SelectField label="Vendor" name="vendor" value={vendorValue} onChange={(v) => onChange({ vendor: parseId(v) })}>
         <option value="">전체</option>
         {!loaded && vendorValue && <option value={vendorValue}>선택한 Vendor</option>}
         {vendors.map((v) => (

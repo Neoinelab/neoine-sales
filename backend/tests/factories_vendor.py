@@ -6,9 +6,9 @@
 """
 
 from typing import TYPE_CHECKING, Any
-from uuid import uuid4
 
 from tests.factories import NOW
+from tests.support.ids import new_id
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -23,7 +23,7 @@ def make_solution(name: str = "S/4HANA", **overrides: Any) -> Solution:  # noqa:
 
     now = overrides.pop("now", NOW)
     return Solution(
-        id=overrides.pop("solution_id", SolutionId(uuid4())),
+        id=overrides.pop("solution_id", SolutionId(new_id())),
         name=name,
         created_at=now,
         updated_at=now,
@@ -44,7 +44,7 @@ def make_vendor(
 
     now = overrides.pop("now", NOW)
     return Vendor(
-        id=overrides.pop("vendor_id", VendorId(uuid4())),
+        id=overrides.pop("vendor_id", VendorId(new_id())),
         name=name,
         solutions=[make_solution(solution, now=now) for solution in solutions],
         created_at=now,

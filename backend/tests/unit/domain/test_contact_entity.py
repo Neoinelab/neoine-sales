@@ -5,15 +5,15 @@
 """
 
 from datetime import UTC, datetime
-from uuid import uuid4
 
 import pytest
 
 from app.domain.common.errors import InvalidValueError
 from app.domain.contact.entities import Contact
-from app.domain.contact.values import ContactKind
+from app.domain.contact.values import ContactId, ContactKind
 from tests.factories import NOW, later
 from tests.factories_contact import make_contact, make_contact_details
+from tests.support.ids import new_id
 
 KINDS = list(ContactKind)
 
@@ -28,21 +28,22 @@ def test_create_assigns_id_kind_and_timestamps(kind: ContactKind) -> None:
     assert contact.updated_at == NOW
 
 
-def test_create_generates_a_distinct_id_each_time() -> None:
-    assert make_contact().id != make_contact().id
+def test_create_uses_the_given_id() -> None:
+    entity_id = ContactId(new_id())
 
-
-def test_create_accepts_an_explicit_id() -> None:
-    entity_id = uuid4()
-
-    contact = make_contact(entity_id=entity_id)  # type: ignore[arg-type, unused-ignore]
+    contact = make_contact(entity_id=entity_id)
 
     assert contact.id == entity_id
 
 
 def test_create_rejects_naive_datetime() -> None:
     with pytest.raises(InvalidValueError):
-        Contact.create(ContactKind.CUSTOMER, make_contact_details(), datetime(2026, 1, 1))
+        Contact.create(
+            ContactKind.CUSTOMER,
+            make_contact_details(),
+            datetime(2026, 1, 1),
+            entity_id=ContactId(new_id()),
+        )
 
 
 @pytest.mark.parametrize("kind", KINDS)
@@ -100,7 +101,7 @@ def test_contacts_with_different_ids_are_not_equal() -> None:
 def test_timestamps_passed_to_constructor_must_be_timezone_aware() -> None:
     with pytest.raises(InvalidValueError):
         Contact(
-            id=uuid4(),  # type: ignore[arg-type, unused-ignore]
+            id=new_id(),  # type: ignore[arg-type, unused-ignore]
             kind=ContactKind.CUSTOMER,
             details=make_contact_details(),
             created_at=datetime(2026, 1, 1),

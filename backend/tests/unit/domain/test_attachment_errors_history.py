@@ -1,7 +1,6 @@
 """첨부 오류의 종류·문구(P2b 4.6)와 Deal 이력 문구(P2b AC-07·10·14)."""
 
 import unicodedata
-from uuid import uuid4
 
 import pytest
 
@@ -23,11 +22,12 @@ from app.domain.auth.errors import AccessDeniedError
 from app.domain.common.errors import AlreadyExistsError, NotFoundError
 from app.domain.deal.history import HistoryCategory
 from tests.support.expect import raises_with
+from tests.support.ids import new_id
 
 
 def test_not_found_and_content_missing_are_not_found_errors_with_their_sentences() -> None:
     with raises_with(AttachmentNotFoundError, "첨부 파일을 찾을 수 없습니다."):
-        raise AttachmentNotFoundError(uuid4())
+        raise AttachmentNotFoundError(new_id())
     with raises_with(
         AttachmentContentMissingError, "첨부 파일 내용을 찾을 수 없습니다. 관리자에게 문의하세요."
     ):

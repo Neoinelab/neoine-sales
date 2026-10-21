@@ -10,7 +10,7 @@ export interface ResetMockOptions {
   /** 문자열이면 그 시각으로 고정, null이면 실제 시각으로 복귀, 생략하면 그대로. */
   now?: string | null
   /** 문자열이면 그 사용자로 로그인, null이면 로그아웃, 생략하면 현재 로그인 유지. */
-  userId?: string | null
+  userId?: number | null
 }
 
 /**

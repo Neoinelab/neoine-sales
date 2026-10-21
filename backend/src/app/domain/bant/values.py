@@ -2,12 +2,11 @@
 
 from enum import StrEnum
 from typing import NewType
-from uuid import UUID
 
 from app.domain.common.errors import InvalidValueError
 from app.domain.common.validation import reject_nul
 
-BantLabelId = NewType("BantLabelId", UUID)
+BantLabelId = NewType("BantLabelId", int)
 
 LABEL_NAME_MAX = 50
 

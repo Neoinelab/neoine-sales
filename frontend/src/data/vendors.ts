@@ -20,45 +20,45 @@ export function useCreateVendor(): Mutation<string, Vendor> {
 }
 
 /** gateway.vendors.rename. 성공: keys.vendors + keys.deals 무효화(상세·목록의 이름 반영). */
-export function useRenameVendor(): Mutation<{ id: string; name: string }, Vendor> {
+export function useRenameVendor(): Mutation<{ id: number; name: string }, Vendor> {
   const invalidate = useInvalidate()
-  return useMutation<Vendor, ApiError, { id: string; name: string }>({
+  return useMutation<Vendor, ApiError, { id: number; name: string }>({
     mutationFn: ({ id, name }) => gateway.vendors.rename(id, name),
     onSuccess: () => invalidate(keys.vendors, keys.deals),
   })
 }
 
 /** gateway.vendors.remove(id). 성공: keys.vendors 무효화. */
-export function useRemoveVendor(): Mutation<string> {
+export function useRemoveVendor(): Mutation<number> {
   const invalidate = useInvalidate()
-  return useMutation<void, ApiError, string>({
+  return useMutation<void, ApiError, number>({
     mutationFn: (id) => gateway.vendors.remove(id),
     onSuccess: () => invalidate(keys.vendors),
   })
 }
 
 /** gateway.vendors.createSolution. 성공: keys.vendors 무효화. */
-export function useCreateSolution(): Mutation<{ vendorId: string; name: string }, Solution> {
+export function useCreateSolution(): Mutation<{ vendorId: number; name: string }, Solution> {
   const invalidate = useInvalidate()
-  return useMutation<Solution, ApiError, { vendorId: string; name: string }>({
+  return useMutation<Solution, ApiError, { vendorId: number; name: string }>({
     mutationFn: ({ vendorId, name }) => gateway.vendors.createSolution(vendorId, name),
     onSuccess: () => invalidate(keys.vendors),
   })
 }
 
 /** gateway.vendors.renameSolution. 성공: keys.vendors + keys.deals 무효화. */
-export function useRenameSolution(): Mutation<{ vendorId: string; solutionId: string; name: string }, Solution> {
+export function useRenameSolution(): Mutation<{ vendorId: number; solutionId: number; name: string }, Solution> {
   const invalidate = useInvalidate()
-  return useMutation<Solution, ApiError, { vendorId: string; solutionId: string; name: string }>({
+  return useMutation<Solution, ApiError, { vendorId: number; solutionId: number; name: string }>({
     mutationFn: ({ vendorId, solutionId, name }) => gateway.vendors.renameSolution(vendorId, solutionId, name),
     onSuccess: () => invalidate(keys.vendors, keys.deals),
   })
 }
 
 /** gateway.vendors.removeSolution. 성공: keys.vendors 무효화. */
-export function useRemoveSolution(): Mutation<{ vendorId: string; solutionId: string }> {
+export function useRemoveSolution(): Mutation<{ vendorId: number; solutionId: number }> {
   const invalidate = useInvalidate()
-  return useMutation<void, ApiError, { vendorId: string; solutionId: string }>({
+  return useMutation<void, ApiError, { vendorId: number; solutionId: number }>({
     mutationFn: ({ vendorId, solutionId }) => gateway.vendors.removeSolution(vendorId, solutionId),
     onSuccess: () => invalidate(keys.vendors),
   })

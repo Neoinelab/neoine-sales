@@ -3,9 +3,9 @@
 from datetime import date
 
 import pytest
-from app.domain.deal_action.next_action_status import NextActionStatus
 
 from app.application.ports.deal_repository import NextActionSummary
+from app.domain.deal_action.next_action_status import NextActionStatus
 
 
 def test_summary_with_a_date_keeps_text_and_due_date() -> None:

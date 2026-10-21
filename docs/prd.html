@@ -163,7 +163,7 @@ code{background:var(--soft);padding:1px 5px;border-radius:3px;font-size:12.5px}
 <h3>5.1 Master Table — 고객·파트너·Deal</h3>
 <table>
 <tr><th>명세서 항목</th><th>필수/선택</th><th>현재 구현</th><th>상태</th></tr>
-<tr><td>Deal code</td><td>자동</td><td><b>자동 채번</b>하며 <b>primary key</b>이다(확정). 형식은 <code>YYYYMMDD-XXXX</code>: 등록일 8자리 + 하이픈 + 무작위 4자리(숫자·영문 조합). 현재 Deal 테이블의 <code>id</code>(UUID) 컬럼을 <code>deal_code</code>로 바꿔 기본키로 쓰고, 별도 입력 컬럼 <code>code</code>는 없앤다. 삭제된 code의 재사용은 상관없다. 4자리 무작위 값이 같은 날 겹치면 다시 뽑는다</td><td><span class="b ok">구현</span> P1(<code>deal_code</code> PK)</td></tr>
+<tr><td>Deal code</td><td>자동</td><td><b>자동 채번</b>하며 <b>고유한 업무 키(UNIQUE)</b>이다(확정). DB의 primary key는 공개하지 않는 내부 정수 <code>id</code>다(2026-10-21 변경). 형식은 <code>YYYYMMDD-XXXX</code>: 등록일 8자리 + 하이픈 + 무작위 4자리(숫자·영문 조합). 별도 입력 컬럼 <code>code</code>는 없앤다. 삭제된 code의 재사용은 상관없다. 4자리 무작위 값이 같은 날 겹치면 다시 뽑는다</td><td><span class="b ok">구현</span> P1, 2026-10-21 내부 id PK + <code>deal_code</code> UNIQUE</td></tr>
 <tr><td>Deal Name</td><td>필수</td><td><code>deals.name</code></td><td><span class="b ok">구현</span></td></tr>
 <tr><td>Deal Owner(담당자)</td><td>필수. 등록 화면에서 <b>현재 접속한 사용자가 기본값</b>으로 채워진다</td><td><code>deals.owner_user_id</code> → <code>users.id</code> FK</td><td><span class="b ok">구현</span> P1(재직 sales만 지정)</td></tr>
 <tr><td>Vendor / Solution</td><td>선택</td><td><code>deals.vendor</code>, <code>deals.solution</code> 자유 입력 문자열</td><td><span class="b ok">구현</span> 코드로 관리하지 않음(확정)</td></tr>
@@ -496,7 +496,7 @@ code{background:var(--soft);padding:1px 5px;border-radius:3px;font-size:12.5px}
 <tr><td>Label 이름</td><td>동일한 이름의 Label은 생성 불가. admin이 이름을 바꿀 때도 이미 있는 이름으로 변경 불가</td></tr>
 <tr><td>Result 속성</td><td>현재 단계에서는 두지 않음. 결과는 Forecast(Won/Lost)로 판단</td></tr>
 <tr><td>Inline Update</td><td>Deal 목록의 Status / Forecast / 금액 / Expected Close(<code>revenue_date</code>)만 수정 가능. 수정은 Deal History에 기록, 6.7절 동기화 규칙 동일 적용</td></tr>
-<tr><td>Deal code</td><td>자동 채번, primary key. 형식 <code>YYYYMMDD-XXXX</code>(등록일 + 무작위 4자리 숫자·영문). 기존 <code>id</code> 컬럼을 <code>deal_code</code>로 변경. 삭제된 code 재사용 무관</td></tr>
+<tr><td>Deal code</td><td>자동 채번, 고유 업무 키(UNIQUE, DB PK는 내부 정수 id). 형식 <code>YYYYMMDD-XXXX</code>(등록일 + 무작위 4자리 숫자·영문). 삭제된 code 재사용 무관</td></tr>
 <tr><td>Deal 삭제</td><td>sales 본인의 Deal(Owner가 본인) 또는 admin만 삭제 가능. 둘 다 확인 팝업에서 Deal code를 직접 입력해야 삭제. 삭제 시 Deal History, Action, 첨부 파일 디렉터리 등 관련 데이터를 모두 함께 삭제. Deal History가 있어도 삭제 가능</td></tr>
 <tr><td>Deal 등록 이력</td><td>Deal 등록도 Deal History에 한 건으로 기록</td></tr>
 <tr><td>등록자 컬럼</td><td><code>deals.registered_by_user_id</code>는 제거. Owner만 존재하며 등록자는 Deal History의 등록 기록에 남음. 기존 등록자 데이터 이전 없음</td></tr>
@@ -611,7 +611,7 @@ code{background:var(--soft);padding:1px 5px;border-radius:3px;font-size:12.5px}
 <tr><td>B5</td><td>코드 테이블</td><td>파트너·Owner·Vendor·Status·Forecast·BANT·견적·POC 모두 코드</td><td>Status만 enum</td><td><b>Status와 Forecast만</b> 코드(admin 관리). Vendor·Solution은 자유 입력</td><td>P0</td></tr>
 <tr><td>B6</td><td>고객·파트너</td><td>고객정보와 파트너정보 별도, 파트너사 1·2 표기</td><td><code>customers</code>·<code>partners</code> 별도 테이블과 별도 화면</td><td><b>연락처 하나의 테이블</b>(고객/파트너 구분자). 회사+담당자 한 행. Deal 화면에서 선택·수정, 파트너는 1:N 중 활성 1건·선택</td><td>P1</td></tr>
 <tr><td>B7</td><td>직원수</td><td>고객 정보의 직원수</td><td><code>customers.employee_count</code></td><td><b>Deal의 Users</b>(견적 단위 사용자 수, 필수)로 대체</td><td>P1</td></tr>
-<tr><td>B8</td><td>Deal code</td><td>자동입력</td><td>입력값(고유), 기본키는 UUID <code>id</code></td><td><b>자동 채번</b> <code>YYYYMMDD-XXXX</code>, <code>id</code>를 <code>deal_code</code>로 바꿔 기본키</td><td>P1</td></tr>
+<tr><td>B8</td><td>Deal code</td><td>자동입력</td><td>입력값(고유), 기본키는 UUID <code>id</code></td><td><b>자동 채번</b> <code>YYYYMMDD-XXXX</code>, <code>deal_code</code>는 UNIQUE 업무 키, 기본키는 내부 정수 <code>id</code>(2026-10-21)</td><td>P1</td></tr>
 <tr><td>B9</td><td>매출일과 Expected Close</td><td>다른 항목처럼 보임</td><td><code>revenue_date</code> 하나</td><td><b>같은 값</b>. Won이면 최종 매출일로 갱신</td><td>P1</td></tr>
 <tr><td>B10</td><td>Next Action 이력</td><td>이전 Update는 Read Only</td><td>수정·삭제 API 있음</td><td><b>수정 가능</b>, 수정은 Deal History에 기록</td><td>P2</td></tr>
 <tr><td>B11</td><td>딜 이력</td><td>변경일 / 변경항목 / 이전 / 이후</td><td>Status 변경 이력만</td><td><b>모든 변경</b>을 <code>deal_history</code>에 기록(등록 포함)</td><td>P2</td></tr>

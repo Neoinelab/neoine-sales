@@ -6,14 +6,13 @@
 import { describe, expect, it } from 'vitest'
 import type { ActionInput, DealInput } from '../../shared/model/types'
 import type { Gateway } from '../types'
-import { expectRejects, unique, type MakeGateway } from './support'
+import { expectRejects, unique, type MakeGateway, NO_SUCH_ID } from './support'
 
 const DEFAULTS = ['통화', '미팅', '이메일', '데모', '제안', '협상', '계약', '기타']
 const DUPLICATE = '이미 있는 유형 이름입니다.'
 const REQUIRED = '유형을 입력하세요.'
 const TOO_LONG = '유형은 50자 이내로 입력하세요.'
 const UNKNOWN = '선택한 유형이 없습니다. 목록에서 다시 선택하세요.'
-const NO_SUCH_ID = '00000000-0000-4000-8000-000000000000'
 
 async function newDeal(gateway: Gateway) {
   const me = await gateway.auth.me()
@@ -128,10 +127,10 @@ export function actionTypesContract(make: MakeGateway): void {
       const used = (await admin.actionTypes.list()).find((t) => t.name === name)
 
       expect(used?.usageCount).toBe(2)
-      await expectRejects(admin.actionTypes.remove(used?.id ?? ''), 409, '사용 중인 유형은 삭제할 수 없습니다. (Action 2건)')
+      await expectRejects(admin.actionTypes.remove(used?.id ?? NO_SUCH_ID), 409, '사용 중인 유형은 삭제할 수 없습니다. (Action 2건)')
       expect((await admin.actionTypes.list()).some((t) => t.id === used?.id)).toBe(true)
       await admin.deals.remove(deal.code, deal.code)
-      await admin.actionTypes.remove(used?.id ?? '')
+      await admin.actionTypes.remove(used?.id ?? NO_SUCH_ID)
     })
   })
 
@@ -141,7 +140,7 @@ export function actionTypesContract(make: MakeGateway): void {
       const deal = await newDeal(sales)
       const meeting = (await sales.actionTypes.list()).find((t) => t.name === '미팅')
 
-      const created = await sales.actions.create(deal.code, action({ type: { id: meeting?.id ?? '' } }))
+      const created = await sales.actions.create(deal.code, action({ type: { id: meeting?.id ?? NO_SUCH_ID } }))
 
       expect(created).toMatchObject({ type: '미팅', typeId: meeting?.id })
       await sales.deals.remove(deal.code, deal.code)

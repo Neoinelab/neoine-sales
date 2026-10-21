@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { renderAt } from '../../../test/mockApp'
 import { seedSolutionId, seedVendorId } from '../../../test/fixtures/vendors'
 import { dataRows, isoDay } from './testHelpers'
+import { USER_ID } from '../../../test/fake/seed/ids'
 
 describe('필터와 정렬 (T-LIST-05~09)', () => {
   it('filters by keyword on submit and keeps it in the URL', async () => {
@@ -20,7 +21,7 @@ describe('필터와 정렬 (T-LIST-05~09)', () => {
     await screen.findByRole('row', { name: /한빛은행 ITDR 도입/ })
     await user.selectOptions(await screen.findByLabelText('담당자'), '박영업')
     await screen.findByRole('row', { name: /미래전자 EDR 교체/ })
-    expect(location()).toContain('owner=u-park')
+    expect(location()).toContain(`owner=${USER_ID.park}`)
     expect(dataRows()).toHaveLength(6)
   })
 
@@ -74,7 +75,8 @@ describe('필터와 정렬 (T-LIST-05~09)', () => {
     await user.selectOptions(budget, '단독 예산 확보')
     await screen.findByRole('row', { name: /우주항공연구원 ZTNA/ })
     expect(dataRows()).toHaveLength(2)
-    expect(location()).toMatch(/budget=lb-/)
+    // Fake 시드에서 '단독 예산 확보'는 첫 Label이라 id 1이다(정확히 그 값이어야 한다).
+    expect(new URLSearchParams(location().split('?')[1] ?? '').get('budget')).toBe('1')
   })
 
   it('filters by an Expected Close period', async () => {

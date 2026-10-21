@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Self
-from uuid import uuid4
 
 from app.domain.common.entity import AuditedEntity
 from app.domain.vendor.errors import (
@@ -37,9 +36,9 @@ class Vendor(AuditedEntity[VendorId]):
     solutions: list[Solution]
 
     @classmethod
-    def create(cls, *, name: str, now: datetime) -> Self:
+    def create(cls, *, entity_id: VendorId, name: str, now: datetime) -> Self:
         """이름은 이미 정규화된 값이다."""
-        return cls(id=VendorId(uuid4()), name=name, solutions=[], created_at=now, updated_at=now)
+        return cls(id=entity_id, name=name, solutions=[], created_at=now, updated_at=now)
 
     def rename(self, name: str, now: datetime) -> None:
         self.name = name
@@ -59,9 +58,9 @@ class Vendor(AuditedEntity[VendorId]):
         if any(s.id != self_id and s.name.lower() == lowered for s in self.solutions):
             raise DuplicateSolutionNameError(name)
 
-    def add_solution(self, name: str, now: datetime) -> Solution:
+    def add_solution(self, name: str, now: datetime, *, entity_id: SolutionId) -> Solution:
         self._ensure_unique_solution(name)
-        solution = Solution(id=SolutionId(uuid4()), name=name, created_at=now, updated_at=now)
+        solution = Solution(id=entity_id, name=name, created_at=now, updated_at=now)
         self.solutions.append(solution)
         return solution
 

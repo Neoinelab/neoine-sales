@@ -6,8 +6,8 @@ Deal 모델(P1 R2)의 모듈은 이 모듈을 쓰는 모든 테스트가 가져�
 
 from datetime import UTC, date, datetime, timedelta
 from typing import TYPE_CHECKING, Any, cast
-from uuid import uuid4
 
+from tests.support.ids import new_id
 from tests.support.user_ids import ACTOR_ID, OWNER_ID
 
 if TYPE_CHECKING:
@@ -32,7 +32,7 @@ def later(seconds: int = 60) -> datetime:
 
 def new_contact_id() -> ContactId:
     """저장소에 없는 새 연락처 id(Deal 테스트가 연락처 구현 없이도 id만 필요할 때)."""
-    return cast("ContactId", uuid4())
+    return cast("ContactId", new_id())
 
 
 def make_deal_code(suffix: str | int = "A001", day: date = DEAL_DAY) -> DealCode:
@@ -151,7 +151,7 @@ def make_deal_action(
     deal_code: DealCode | None = None,
     actor_user_id: Any = ACTOR_ID,  # noqa: ANN401
     snapshot: Any = None,  # noqa: ANN401
-    entity_id: Any = None,  # noqa: ANN401
+    entity_id: Any = None,  # noqa: ANN401 - 생략하면 새 10억대 id
     **content_overrides: Any,  # noqa: ANN401
 ) -> DealAction:
     """저장하지 않은 Action(`DealAction.record`). 수행 시각 = now(`acted_at`을 주면 그 값).
@@ -159,6 +159,7 @@ def make_deal_action(
     content_overrides는 `make_action_content`와 같다. 스냅숏 기본은 prospecting/pipeline이다.
     """
     from app.domain.deal_action.entities import DealAction  # noqa: PLC0415 - 지연 import
+    from app.domain.deal_action.value_objects import DealActionId  # noqa: PLC0415
 
     acted_at = content_overrides.pop("acted_at", now)
     return DealAction.record(
@@ -167,7 +168,7 @@ def make_deal_action(
         actor_user_id=actor_user_id,
         snapshot=snapshot or make_sync(),
         now=acted_at,
-        entity_id=entity_id,
+        entity_id=DealActionId(new_id()) if entity_id is None else entity_id,
     )
 
 

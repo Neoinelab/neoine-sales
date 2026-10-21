@@ -2,19 +2,19 @@
 
 from datetime import date
 from typing import TYPE_CHECKING
-from uuid import uuid4
 
 import pytest
-from app.domain.deal_action.next_action_status import NextActionStatus
 
 from app.application.ports.deal_repository import NextActionSummary
 from app.domain.deal_action.errors import (
     DealActionDeleteForbiddenError,
     DealActionNotFoundError,
 )
+from app.domain.deal_action.next_action_status import NextActionStatus
 from app.domain.deal_action.value_objects import DealActionId
 from tests.factories import make_deal_action
 from tests.support.expect import raises_with
+from tests.support.ids import new_id
 from tests.unit.application.action_env import (
     BOSS,
     DELETE_FORBIDDEN,
@@ -102,7 +102,7 @@ async def test_delete_action_by_a_read_only_user_is_forbidden_even_for_own_id(
 
 
 async def test_delete_missing_action_is_not_found_whoever_asks(action_env: ActionEnv) -> None:
-    missing = DealActionId(uuid4())
+    missing = DealActionId(new_id())
 
     for actor in (KIM, PARK, BOSS):
         with raises_with(DealActionNotFoundError, NOT_FOUND):

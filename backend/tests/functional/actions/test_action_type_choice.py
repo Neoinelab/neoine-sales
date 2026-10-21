@@ -6,7 +6,6 @@
 """
 
 from typing import TYPE_CHECKING
-from uuid import uuid4
 
 import pytest
 
@@ -40,6 +39,7 @@ from tests.functional.steps.deals import (
     given_my_user_id,
     then_history_is,
 )
+from tests.support.ids import MISSING_ID
 
 if TYPE_CHECKING:
     from tests.functional.conftest import Api
@@ -111,6 +111,25 @@ async def test_registering_with_a_new_name_creates_the_type(api: Api) -> None:
     await then_type_usage_is(api, "웨비나", 1)
 
 
+async def test_sales_registers_an_action_with_a_new_type_name_and_gets_an_integer_type_id(
+    api: Api,
+) -> None:
+    """Scenario: 새 이름으로 등록하면 응답의 유형 id가 정수이고 유형 목록에 같은 id가 있다."""
+    # Given
+    await given_logged_in_as(api, role="sales")
+    deal = await given_deal(api)
+    # When
+    response = await when_register_action(api, deal["code"], action_type={"name": "웨비나"})
+    # Then
+    then_status_is(response, 201)
+    type_id = response.json()["action_type"]["id"]
+    assert type(type_id) is int
+    assert type_id >= 1
+    listed = [x for x in await given_type_list(api) if x["name"] == "웨비나"]
+    assert [x["id"] for x in listed] == [type_id]
+    assert type(listed[0]["id"]) is int
+
+
 async def test_the_created_type_is_reused_by_the_next_action(api: Api) -> None:
     """Scenario: 같은 이름으로 다시 남기면 새로 만든 유형을 그대로 쓰고 유형은 하나뿐이다."""
     # Given
@@ -132,7 +151,7 @@ async def test_unknown_type_id_is_rejected(api: Api) -> None:
     await given_logged_in_as(api, role="sales")
     deal = await given_deal(api)
     # When
-    response = await when_register_action(api, deal["code"], action_type={"id": str(uuid4())})
+    response = await when_register_action(api, deal["code"], action_type={"id": MISSING_ID})
     # Then
     then_problem_is(response, status=422, type_suffix="invalid-value")
     then_detail_is(response, UNKNOWN_MESSAGE)

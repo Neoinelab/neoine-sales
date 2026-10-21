@@ -1,7 +1,5 @@
 """Action 유형. 조회는 로그인 사용자, 생성은 sales·admin, 이름 변경·삭제는 admin 전용."""
 
-from uuid import UUID
-
 from fastapi import Depends, Response, status
 
 from app.domain.action_type.values import ActionTypeId
@@ -13,6 +11,7 @@ from app.web.schemas.action_type import (
     ActionTypeResponse,
     action_type_responses,
 )
+from app.web.schemas.ids import PathId
 from app.web.security import CurrentUser
 
 router = BusinessRouter(prefix="/api/v1/action-types", tags=["action-types"])
@@ -43,7 +42,7 @@ async def create_action_type(
     "/{type_id}", response_model=ActionTypeResponse, dependencies=ADMIN, responses=WRITE_ERRORS
 )
 async def rename_action_type(
-    type_id: UUID, body: ActionTypeNameRequest, provider: Provider
+    type_id: PathId, body: ActionTypeNameRequest, provider: Provider
 ) -> ActionTypeResponse:
     item = await provider.rename_action_type().execute(ActionTypeId(type_id), body.name)
     (result,) = await action_type_responses(provider, [item])
@@ -56,5 +55,5 @@ async def rename_action_type(
     dependencies=ADMIN,
     responses={**READ_ERRORS, 409: PROBLEM},
 )
-async def delete_action_type(type_id: UUID, provider: Provider) -> None:
+async def delete_action_type(type_id: PathId, provider: Provider) -> None:
     await provider.delete_action_type().execute(ActionTypeId(type_id))

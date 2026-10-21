@@ -5,6 +5,7 @@ import { resetMock } from '../../../test/fake/default'
 import { renderAt } from '../../../test/mockApp'
 import { dealCodeOf } from '../../../test/detailTestUtils'
 import { dataRows, rowOf } from './testHelpers'
+import { USER_ID } from '../../../test/fake/seed/ids'
 
 /**
  * DL-06 목록 조회 조건 유지(P5): 화면 안 링크·버튼으로 목록에 돌아오면 직전의 필터·정렬·페이지가 그대로다.
@@ -196,7 +197,7 @@ describe('탭·사용자 단위 기억 (AC-10)', () => {
     first.unmount()
 
     // u-kim의 기억이 sessionStorage에 남은 채, u-park는 목록이 아닌 화면에서 시작한다(단일 키 구현이면 u-kim 조건이 보인다).
-    await renderAt(NOT_FOUND, { userId: 'u-park' })
+    await renderAt(NOT_FOUND, { userId: USER_ID.park })
     expect(await screen.findByRole('alert')).toHaveTextContent('Deal을 찾을 수 없습니다.')
 
     expect(screen.getByRole('link', { name: 'Deals' })).toHaveAttribute('href', '/deals')
@@ -267,7 +268,7 @@ describe('Quarter만 있는 조건의 기억 (AC-20)', () => {
   it('remembers a quarter-only search as it is and restores it when coming back from a detail page', async () => {
     const view = await renderAt('/deals?quarter=4')
     await waitFor(() => expect(dataRows().length).toBeGreaterThan(0))
-    expect(window.sessionStorage.getItem(listMemoryKey('u-kim'))).toBe('quarter=4')
+    expect(window.sessionStorage.getItem(listMemoryKey(USER_ID.kim))).toBe('quarter=4')
 
     const link = within(dataRows()[0] as HTMLElement).getAllByRole('link')[0] as HTMLElement
     const name = link.textContent ?? ''

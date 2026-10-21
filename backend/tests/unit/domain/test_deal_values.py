@@ -4,7 +4,6 @@
 """
 
 from datetime import date
-from uuid import uuid4
 
 import pytest
 
@@ -26,6 +25,7 @@ from app.domain.deal.values import (
 from app.domain.vendor.values import SolutionId, VendorId
 from tests.factories import make_bant, make_deal_details
 from tests.support.expect import raises_with
+from tests.support.ids import new_id
 from tests.support.user_ids import OWNER_ID, uid
 
 AMOUNT_MESSAGE = "매출금액은 1원 이상의 정수로 입력하세요."
@@ -85,17 +85,17 @@ class TestVendorAndSolutionChoice:
 
     def test_solution_without_vendor_is_rejected(self) -> None:
         with raises_with(InvalidValueError, "Solution을 선택하려면 Vendor를 먼저 선택하세요."):
-            make_deal_details(vendor_id=None, solution_id=SolutionId(uuid4()))
+            make_deal_details(vendor_id=None, solution_id=SolutionId(new_id()))
 
     def test_vendor_without_solution_is_allowed(self) -> None:
-        vendor_id = VendorId(uuid4())
+        vendor_id = VendorId(new_id())
 
         details = make_deal_details(vendor_id=vendor_id, solution_id=None)
 
         assert (details.vendor_id, details.solution_id) == (vendor_id, None)
 
     def test_vendor_with_solution_is_kept(self) -> None:
-        vendor_id, solution_id = VendorId(uuid4()), SolutionId(uuid4())
+        vendor_id, solution_id = VendorId(new_id()), SolutionId(new_id())
 
         details = make_deal_details(vendor_id=vendor_id, solution_id=solution_id)
 
@@ -227,7 +227,7 @@ class TestQuoteAndPoc:
 
 class TestBantSelection:
     def test_has_one_label_or_none_per_category(self) -> None:
-        label = BantLabelId(uuid4())
+        label = BantLabelId(new_id())
 
         selection = make_bant(budget=label)
 
@@ -236,7 +236,7 @@ class TestBantSelection:
         assert others == [None, None, None]
 
     def test_with_replaces_one_category_and_keeps_the_original(self) -> None:
-        first, second = BantLabelId(uuid4()), BantLabelId(uuid4())
+        first, second = BantLabelId(new_id()), BantLabelId(new_id())
         original = make_bant(budget=first, need=second)
 
         changed = original.with_(BantCategory.NEED, None)
@@ -246,7 +246,7 @@ class TestBantSelection:
         assert original.get(BantCategory.NEED) == second  # 원본은 그대로
 
     def test_equal_selections_compare_equal(self) -> None:
-        label = BantLabelId(uuid4())
+        label = BantLabelId(new_id())
 
         assert make_bant(timeline=label) == BantSelection(
             budget=None, authority=None, need=None, timeline=label

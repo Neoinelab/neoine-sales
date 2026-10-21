@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 
 pytestmark = pytest.mark.integration
 
-PARENT = "create table zz_meta_users (id uuid primary key)"
+PARENT = "create table zz_meta_users (id bigint primary key)"
 
 
 async def _violations(session: AsyncSession, *statements: str) -> list[str]:
@@ -29,7 +29,7 @@ async def _violations(session: AsyncSession, *statements: str) -> list[str]:
 async def test_checker_flags_a_cascade_foreign_key(session: AsyncSession) -> None:
     rules = await _violations(
         session,
-        "create table zz_meta_child (id uuid primary key, ref_id uuid"
+        "create table zz_meta_child (id bigint primary key, ref_id bigint"
         " references zz_meta_users(id) on delete cascade)",
         "create index on zz_meta_child (ref_id)",
     )
@@ -40,7 +40,7 @@ async def test_checker_flags_a_cascade_foreign_key(session: AsyncSession) -> Non
 async def test_checker_flags_a_deferrable_foreign_key(session: AsyncSession) -> None:
     rules = await _violations(
         session,
-        "create table zz_meta_child (id uuid primary key, ref_id uuid"
+        "create table zz_meta_child (id bigint primary key, ref_id bigint"
         " references zz_meta_users(id) on delete restrict deferrable initially deferred)",
         "create index on zz_meta_child (ref_id)",
     )
@@ -53,7 +53,7 @@ async def test_checker_flags_a_foreign_key_column_without_a_leading_index(
 ) -> None:
     rules = await _violations(
         session,
-        "create table zz_meta_child (id uuid primary key, ref_id uuid"
+        "create table zz_meta_child (id bigint primary key, ref_id bigint"
         " references zz_meta_users(id) on delete restrict)",
     )
 
@@ -65,7 +65,7 @@ async def test_checker_accepts_a_composite_index_that_starts_with_the_foreign_ke
 ) -> None:
     rules = await _violations(
         session,
-        "create table zz_meta_child (id uuid primary key, ref_id uuid"
+        "create table zz_meta_child (id bigint primary key, ref_id bigint"
         " references zz_meta_users(id) on delete restrict, at timestamptz)",
         "create index on zz_meta_child (ref_id, at)",
     )
@@ -82,36 +82,36 @@ async def test_checker_accepts_a_composite_index_that_starts_with_the_foreign_ke
         "owner varchar(100)",
         "actor varchar(100)",
         "subject varchar(200)",
-        "registered_by_user_id uuid",
+        "registered_by_user_id bigint",
     ],
 )
-async def test_checker_flags_a_user_reference_that_is_not_a_uuid_foreign_key_to_users(
+async def test_checker_flags_a_user_reference_that_is_not_a_bigint_foreign_key_to_users(
     session: AsyncSession, column_sql: str
 ) -> None:
     rules = await _violations(
-        session, f"create table zz_meta_child (id uuid primary key, {column_sql})"
+        session, f"create table zz_meta_child (id bigint primary key, {column_sql})"
     )
 
-    assert rules == ["user_reference_not_a_uuid_fk_to_users"]
+    assert rules == ["user_reference_not_a_bigint_fk_to_users"]
 
 
-async def test_checker_flags_a_uuid_user_reference_to_a_table_other_than_users(
+async def test_checker_flags_a_bigint_user_reference_to_a_table_other_than_users(
     session: AsyncSession,
 ) -> None:
     rules = await _violations(
         session,
-        "create table zz_meta_other (id uuid primary key)",
-        "create table zz_meta_child (id uuid primary key, owner_user_id uuid"
+        "create table zz_meta_other (id bigint primary key)",
+        "create table zz_meta_child (id bigint primary key, owner_user_id bigint"
         " references zz_meta_other(id) on delete restrict)",
         "create index on zz_meta_child (owner_user_id)",
     )
 
-    assert rules == ["user_reference_not_a_uuid_fk_to_users"]
+    assert rules == ["user_reference_not_a_bigint_fk_to_users"]
 
 
 async def test_checker_flags_deleted_at_on_a_table_other_than_users(session: AsyncSession) -> None:
     rules = await _violations(
-        session, "create table zz_meta_child (id uuid primary key, deleted_at timestamptz)"
+        session, "create table zz_meta_child (id bigint primary key, deleted_at timestamptz)"
     )
 
     assert rules == ["deleted_at_outside_users"]
@@ -120,7 +120,7 @@ async def test_checker_flags_deleted_at_on_a_table_other_than_users(session: Asy
 async def test_checker_passes_a_clean_child_table(session: AsyncSession) -> None:
     rules = await _violations(
         session,
-        "create table zz_meta_child (id uuid primary key, owner_user_id uuid not null"
+        "create table zz_meta_child (id bigint primary key, owner_user_id bigint not null"
         " references users(id) on delete restrict)",
         "create index on zz_meta_child (owner_user_id)",
     )

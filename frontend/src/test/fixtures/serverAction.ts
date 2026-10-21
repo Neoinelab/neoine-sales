@@ -3,8 +3,8 @@
 import type { Schemas } from '../../shared/api/client'
 import { CODE, serverUserRef } from './serverDeal'
 
-export const ACTION_TYPE_ID = '3c1f9a6e-2b84-4e0d-8a57-6d9e1b7c4f20'
-export const ACTION_ID = '5b0f3c1e-7a52-4d6e-9c1a-2f4b8a6d0e11'
+export const ACTION_TYPE_ID = 3
+export const ACTION_ID = 41
 
 export function serverAction(over: Partial<Schemas['DealActionResponse']> = {}): Schemas['DealActionResponse'] {
   return {

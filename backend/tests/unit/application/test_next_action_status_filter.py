@@ -1,9 +1,9 @@
 """NextActionStatusFilter(AC-18·19): 4개 값, closed는 done과 not_done으로 펼쳐진다."""
 
 import pytest
-from app.domain.deal_action.next_action_status import NextActionStatus
 
 from app.application.ports.deal_action_repository import NextActionStatusFilter
+from app.domain.deal_action.next_action_status import NextActionStatus
 
 
 def test_filter_values_are_the_wire_values() -> None:

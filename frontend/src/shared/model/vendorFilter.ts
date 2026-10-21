@@ -7,9 +7,9 @@ import type { Vendor } from './types'
  */
 export function effectiveVendorFilter(
   vendors: Vendor[] | undefined,
-  vendorId: string | undefined,
-  solutionId?: string,
-): { vendorId?: string; solutionId?: string } {
+  vendorId: number | undefined,
+  solutionId?: number,
+): { vendorId?: number; solutionId?: number } {
   if (!vendors) return { vendorId, solutionId }
   const vendor = vendorId ? vendors.find((v) => v.id === vendorId) : undefined
   const pool = vendor ? vendor.solutions : vendors.flatMap((v) => v.solutions)

@@ -26,7 +26,7 @@ class UserRequest(RequestModel):
 
 
 class UserResponse(BaseModel):
-    id: str
+    id: int
     login_id: str
     role: Role
     display_name: str | None
@@ -41,7 +41,7 @@ class UserResponse(BaseModel):
     @classmethod
     def from_entity(cls, user: User, refs: Mapping[UserId, DomainUserRef]) -> UserResponse:
         return cls(
-            id=str(user.id),
+            id=user.id,
             login_id=user.login_id.value,
             role=user.role,
             display_name=user.display_name,

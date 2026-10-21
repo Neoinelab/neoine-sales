@@ -151,7 +151,7 @@ class FakeDealRepository(DealCountsMixin, InMemoryStore["Deal"]):
         if self._actions is None:
             return None
         found = [a for a in self._actions._items.values() if a.deal_code == code]
-        return max(found, key=lambda a: (a.acted_at, str(a.id)), default=None)
+        return max(found, key=lambda a: (a.acted_at, a.id), default=None)
 
     def _latest_next_action(self, code: DealCode) -> Any:  # noqa: ANN401
         """Next Action이 있는 가장 최근 Action(acted_at·id 내림차순 첫 행). 없으면 None."""
@@ -162,7 +162,7 @@ class FakeDealRepository(DealCountsMixin, InMemoryStore["Deal"]):
             for a in self._actions._items.values()
             if a.deal_code == code and a.content.next_action is not None
         ]
-        return max(found, key=lambda a: (a.acted_at, str(a.id)), default=None)
+        return max(found, key=lambda a: (a.acted_at, a.id), default=None)
 
     def _item(self, deal: Deal) -> DealListItem:
         from app.application.ports.deal_repository import (  # noqa: PLC0415 - 지연 import

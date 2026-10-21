@@ -64,8 +64,8 @@ def _status_matches(action: DealAction, query: DealActionQuery) -> bool:
 def _sorted(found: list[DealAction], sort: str) -> list[DealAction]:
     """acted_at 두 정렬은 동률을 id 오름차순, due_date_asc는 동률을 acted_at 내림차순으로 정한다."""
     if sort == "acted_at_asc":
-        return sorted(found, key=lambda a: (a.acted_at, str(a.id)))
-    by_latest = sorted(found, key=lambda a: (-a.acted_at.timestamp(), str(a.id)))
+        return sorted(found, key=lambda a: (a.acted_at, a.id))
+    by_latest = sorted(found, key=lambda a: (-a.acted_at.timestamp(), a.id))
     if sort == "acted_at_desc":
         return by_latest
     # 안정 정렬: 동률은 최신순 유지. Due가 없는 행은 맨 뒤(NULLS LAST)

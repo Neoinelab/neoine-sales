@@ -4,7 +4,6 @@
 """
 
 from typing import TYPE_CHECKING
-from uuid import uuid4
 
 import pytest
 
@@ -24,6 +23,7 @@ from app.domain.vendor.values import SolutionId, VendorId
 from tests.factories import later
 from tests.factories_deal import seed_deal
 from tests.factories_vendor import make_vendor
+from tests.support.ids import new_id
 
 if TYPE_CHECKING:
     from app.application.ports.unit_of_work import UnitOfWorkFactory
@@ -148,7 +148,7 @@ async def test_rename_missing_vendor_is_not_found(
     uow_factory: UnitOfWorkFactory, clock: FixedClock
 ) -> None:
     with pytest.raises(VendorNotFoundError):
-        await RenameVendor(uow_factory, clock).execute(VendorId(uuid4()), "X")
+        await RenameVendor(uow_factory, clock).execute(VendorId(new_id()), "X")
 
 
 async def test_rename_vendor_with_a_blank_name_is_rejected(
@@ -187,7 +187,7 @@ async def test_register_solution_under_missing_vendor_is_not_found(
     uow_factory: UnitOfWorkFactory, clock: FixedClock
 ) -> None:
     with pytest.raises(VendorNotFoundError):
-        await RegisterSolution(uow_factory, clock).execute(VendorId(uuid4()), "Cloud")
+        await RegisterSolution(uow_factory, clock).execute(VendorId(new_id()), "Cloud")
 
 
 async def test_register_solution_with_same_name_ignoring_case_in_the_vendor_is_rejected(
@@ -264,7 +264,7 @@ async def test_rename_solution_of_missing_vendor_is_not_found(
 ) -> None:
     with pytest.raises(VendorNotFoundError):
         await RenameSolution(uow_factory, clock).execute(
-            VendorId(uuid4()), SolutionId(uuid4()), "X"
+            VendorId(new_id()), SolutionId(new_id()), "X"
         )
 
 

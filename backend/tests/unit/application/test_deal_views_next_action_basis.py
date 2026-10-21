@@ -7,10 +7,10 @@ from datetime import date
 from typing import TYPE_CHECKING, Any
 
 import pytest
-from app.domain.deal_action.next_action_status import NextActionStatus
 
 from app.application.ports.deal_repository import DealQuery
 from app.domain.deal.risk import Risk
+from app.domain.deal_action.next_action_status import NextActionStatus
 from tests.factories import make_deal_action
 from tests.support.user_ids import ACTOR_ID
 

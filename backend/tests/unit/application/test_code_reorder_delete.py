@@ -4,7 +4,6 @@
 """
 
 from typing import TYPE_CHECKING
-from uuid import uuid4
 
 import pytest
 
@@ -14,6 +13,7 @@ from app.domain.code.errors import CodeInUseError, CodeLockedError, CodeNotFound
 from app.domain.code.values import CodeId, CodeKind
 from app.domain.common.errors import InvalidValueError
 from tests.support.catalog import add_deals_with_status, code_by_key
+from tests.support.ids import new_id
 
 if TYPE_CHECKING:
     from app.application.ports.unit_of_work import UnitOfWorkFactory
@@ -198,4 +198,4 @@ async def test_delete_missing_code_raises_not_found(
     seeded: FakeUnitOfWork, uow_factory: UnitOfWorkFactory
 ) -> None:
     with pytest.raises(CodeNotFoundError):
-        await DeleteCode(uow_factory).execute(CodeId(uuid4()))
+        await DeleteCode(uow_factory).execute(CodeId(new_id()))

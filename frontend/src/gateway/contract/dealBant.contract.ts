@@ -6,9 +6,8 @@
 import { describe, expect, it } from 'vitest'
 import type { DealInput } from '../../shared/model/types'
 import type { Gateway } from '../types'
-import { expectRejects, unique, type MakeGateway } from './support'
+import { expectRejects, unique, type MakeGateway, NO_SUCH_ID } from './support'
 
-const NO_SUCH_ID = '00000000-0000-4000-8000-000000000000'
 const NONE = { budget: null, authority: null, need: null, timeline: null } as const
 
 async function dealInput(gateway: Gateway, over: Partial<DealInput> = {}): Promise<DealInput> {
@@ -39,7 +38,7 @@ export function dealBantContract(make: MakeGateway): void {
       const sales = await make('sales')
       const label = (await sales.labels.list()).find((l) => l.category === 'budget' && l.isDefault)
 
-      const deal = await sales.deals.create(await dealInput(sales, { bant: { ...NONE, budget: { id: label?.id ?? '' } } }))
+      const deal = await sales.deals.create(await dealInput(sales, { bant: { ...NONE, budget: { id: label?.id ?? NO_SUCH_ID } } }))
 
       expect(deal.bant).toEqual({ ...NONE, budget: label?.id })
       await sales.deals.remove(deal.code, deal.code)
@@ -50,7 +49,7 @@ export function dealBantContract(make: MakeGateway): void {
       const need = (await sales.labels.list()).find((l) => l.category === 'need' && l.isDefault)
 
       await expectRejects(sales.deals.create(await dealInput(sales, { bant: { ...NONE, budget: { id: NO_SUCH_ID } } })), 422, 'BANT Label이 올바르지 않습니다.')
-      await expectRejects(sales.deals.create(await dealInput(sales, { bant: { ...NONE, budget: { id: need?.id ?? '' } } })), 422, 'BANT Label이 올바르지 않습니다.')
+      await expectRejects(sales.deals.create(await dealInput(sales, { bant: { ...NONE, budget: { id: need?.id ?? NO_SUCH_ID } } })), 422, 'BANT Label이 올바르지 않습니다.')
     })
 
     it('reuses a label of the same category by a name that differs in case, without adding one', async () => {
@@ -75,7 +74,7 @@ export function dealBantContract(make: MakeGateway): void {
       const created = (await sales.labels.list()).find((l) => l.id === deal.bant.need)
       expect(created).toMatchObject({ category: 'need', name, isDefault: false, usageCount: 1, createdBy: { id: me.id } })
       await sales.deals.remove(deal.code, deal.code)
-      await (await make('admin')).labels.remove(created?.id ?? '')
+      await (await make('admin')).labels.remove(created?.id ?? NO_SUCH_ID)
     })
 
     it('creates a label for the same name in another category instead of reusing the other one', async () => {
@@ -85,7 +84,7 @@ export function dealBantContract(make: MakeGateway): void {
       const created = (await sales.labels.list()).find((l) => l.id === deal.bant.authority)
       expect(created).toMatchObject({ category: 'authority', name: '단독 예산 확보', isDefault: false })
       await sales.deals.remove(deal.code, deal.code)
-      await (await make('admin')).labels.remove(created?.id ?? '')
+      await (await make('admin')).labels.remove(created?.id ?? NO_SUCH_ID)
     })
 
     it('applies the label name rules to a name', async () => {
@@ -115,16 +114,16 @@ export function dealBantContract(make: MakeGateway): void {
       expect(history).toHaveLength(1)
       expect(history[0]?.after).toContain(name)
       await sales.deals.remove(deal.code, deal.code)
-      await (await make('admin')).labels.remove(patched.bant.budget ?? '')
+      await (await make('admin')).labels.remove(patched.bant.budget ?? NO_SUCH_ID)
     })
 
     it('records nothing for a bant category that does not change', async () => {
       const sales = await make('sales')
       const label = (await sales.labels.list()).find((l) => l.category === 'budget' && l.isDefault)
-      const deal = await sales.deals.create(await dealInput(sales, { bant: { ...NONE, budget: { id: label?.id ?? '' } } }))
+      const deal = await sales.deals.create(await dealInput(sales, { bant: { ...NONE, budget: { id: label?.id ?? NO_SUCH_ID } } }))
       const base = (await sales.history.list(deal.code, {})).length
 
-      await sales.deals.update(deal.code, { bant: { ...NONE, budget: { id: label?.id ?? '' } } })
+      await sales.deals.update(deal.code, { bant: { ...NONE, budget: { id: label?.id ?? NO_SUCH_ID } } })
 
       expect(await sales.history.list(deal.code, {})).toHaveLength(base)
       await sales.deals.remove(deal.code, deal.code)

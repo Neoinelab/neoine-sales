@@ -35,7 +35,7 @@ const STORED = {
   ...REQUEST_BODY,
   revision: 3,
   updated_at: '2026-10-15T10:00:00+09:00',
-  updated_by: userRefBody('u1', '최관리'),
+  updated_by: userRefBody(1, '최관리'),
 }
 
 describe('directory settings over HTTP', () => {
@@ -52,7 +52,7 @@ describe('directory settings over HTTP', () => {
       baseDn: 'dc=corp,dc=test',
       revision: 3,
       updatedAt: '2026-10-15T10:00:00+09:00',
-      updatedBy: { id: 'u1', name: '최관리' },
+      updatedBy: { id: 1, name: '최관리' },
     })
   })
 
@@ -130,7 +130,7 @@ describe('directory settings over HTTP', () => {
 const STORAGE_STORED = {
   path: '/var/lib/neoine-sales/files',
   updated_at: '2026-10-17T09:30:00+09:00',
-  updated_by: userRefBody('u1', '최관리', false, 'admin'),
+  updated_by: userRefBody(1, '최관리', false, 'admin'),
 }
 
 describe('storage settings over HTTP', () => {
@@ -143,7 +143,7 @@ describe('storage settings over HTTP', () => {
     expect(storage).toEqual({
       path: '/var/lib/neoine-sales/files',
       updatedAt: '2026-10-17T09:30:00+09:00',
-      updatedBy: { id: 'u1', name: '최관리', role: 'admin', status: 'active' },
+      updatedBy: { id: 1, name: '최관리', role: 'admin', status: 'active' },
     })
   })
 
@@ -171,7 +171,7 @@ describe('storage settings over HTTP', () => {
     const saved = await createSettingsHttp().saveStorage('/data/files-v2')
 
     expect(calls[0]).toMatchObject({ method: 'PUT', path: '/api/v1/settings/storage', body: { path: '/data/files-v2' } })
-    expect(saved).toMatchObject({ path: '/data/files-v2', updatedBy: { id: 'u1' } })
+    expect(saved).toMatchObject({ path: '/data/files-v2', updatedBy: { id: 1 } })
   })
 
   it.each([

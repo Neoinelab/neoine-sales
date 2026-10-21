@@ -4,6 +4,7 @@ import { serverUserRef } from '../../test/fixtures/serverDeal'
 import { createActionTypesHttp } from './actionTypes'
 import { createHttpGateway } from './index'
 import { json, noContent, problem, stubFetch } from './testHelpers'
+import { USER_ID } from '../../test/fake/seed/ids'
 
 afterEach(() => vi.unstubAllGlobals())
 
@@ -20,7 +21,7 @@ const type = (over: Record<string, unknown> = {}) => ({
 
 describe('action types over HTTP (AC-1~6)', () => {
   it('list reads GET /action-types and maps default and custom types in the server order', async () => {
-    const { calls } = stubFetch(json([type(), type({ id: 't2', name: '웨비나', is_default: false, created_by: serverUserRef({ id: 'u-kim' }), usage_count: 2 })]))
+    const { calls } = stubFetch(json([type(), type({ id: 2, name: '웨비나', is_default: false, created_by: serverUserRef({ id: USER_ID.kim }), usage_count: 2 })]))
 
     const list = await createActionTypesHttp().list()
 
@@ -29,16 +30,16 @@ describe('action types over HTTP (AC-1~6)', () => {
       ['미팅', true, 0],
       ['웨비나', false, 2],
     ])
-    expect(list[1]?.createdBy).toMatchObject({ id: 'u-kim' })
+    expect(list[1]?.createdBy).toMatchObject({ id: USER_ID.kim })
   })
 
   it('create posts only the name', async () => {
-    const { calls } = stubFetch(json(type({ id: 't3', name: '신규', is_default: false }), 201, { Location: '/api/v1/action-types/t3' }))
+    const { calls } = stubFetch(json(type({ id: 3, name: '신규', is_default: false }), 201, { Location: '/api/v1/action-types/3' }))
 
     const created = await createActionTypesHttp().create('신규')
 
     expect(calls[0]).toMatchObject({ method: 'POST', path: '/api/v1/action-types', body: { name: '신규' } })
-    expect(created).toMatchObject({ id: 't3', name: '신규' })
+    expect(created).toMatchObject({ id: 3, name: '신규' })
   })
 
   it.each([

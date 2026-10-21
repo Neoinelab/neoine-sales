@@ -7,9 +7,8 @@ import { describe, expect, it } from 'vitest'
 import { DEAL_CODE_PATTERN } from '../../shared/model/constants'
 import type { DealInput } from '../../shared/model/types'
 import type { Gateway } from '../types'
-import { expectRejects, unique, type MakeGateway } from './support'
+import { expectRejects, unique, type MakeGateway, NO_SUCH_ID } from './support'
 
-const NO_SUCH_ID = '00000000-0000-4000-8000-000000000000'
 const SYNC_MISMATCH = 'Status와 Forecast의 동기화가 맞지 않습니다.'
 const REVENUE_NEEDED = 'Won·계약완료로 바꾸려면 매출금액과 매출일이 필요합니다.'
 const CHOICE_NEEDED = '함께 바꿀 값을 선택하세요.'
@@ -84,7 +83,7 @@ export function dealsContract(make: MakeGateway): void {
 
       await expectRejects(sales.deals.create({ ...base, procurement: tooLong, statusKey: 'no_such_status' }), 422, 'Status를 선택하세요.')
       await expectRejects(
-        sales.deals.create({ ...base, procurement: tooLong, bant: { budget: { id: '00000000-0000-4000-8000-000000000000' }, authority: null, need: null, timeline: null } }),
+        sales.deals.create({ ...base, procurement: tooLong, bant: { budget: { id: NO_SUCH_ID }, authority: null, need: null, timeline: null } }),
         422,
         'BANT Label이 올바르지 않습니다.',
       )

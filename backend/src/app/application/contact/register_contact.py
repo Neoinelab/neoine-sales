@@ -1,5 +1,6 @@
 from typing import TYPE_CHECKING
 
+from app.application.ids import new_contact_id
 from app.domain.contact.entities import Contact
 from app.domain.contact.errors import DuplicateContactError
 from app.domain.contact.identity import find_same_person
@@ -24,7 +25,9 @@ class RegisterContact:
             same = await uow.contacts.same_identity(kind, details.company, details.name)
             if find_same_person(same, kind, details) is not None:
                 raise DuplicateContactError
-            contact = Contact.create(kind, details, self._clock.now())
+            contact = Contact.create(
+                kind, details, self._clock.now(), entity_id=await new_contact_id(uow.ids)
+            )
             await uow.contacts.add(contact)
             await uow.commit()
         return contact

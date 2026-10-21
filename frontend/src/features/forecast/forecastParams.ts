@@ -1,14 +1,15 @@
+import { parseId } from '../../shared/model/ids'
 import type { ForecastQuery } from '../../shared/model/types'
 
 /** 화면 필터 상태. URL 쿼리(`year`, `quarter`, `owner`, `vendor`, `sel`)와 1:1로 대응한다. */
 export interface ForecastFilters {
   year: number
   quarter?: 1 | 2 | 3 | 4
-  ownerId?: string
+  ownerId?: number
   /** Vendor id(URL `vendor=<id>`). */
-  vendor?: string
+  vendor?: number
   /** 아래 Deal 목록을 보고 있는 담당자 id. */
-  selectedId?: string
+  selectedId?: number
 }
 
 function parseQuarter(raw: string | null): 1 | 2 | 3 | 4 | undefined {
@@ -20,21 +21,14 @@ function parseYear(raw: string | null, fallback: number): number {
   return Number.isInteger(year) ? year : fallback
 }
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-
-/** Vendor는 id(UUID)만 받는다. 예전 이름 기반 URL 값은 무시한다. */
-function parseVendor(raw: string | null): string | undefined {
-  return raw !== null && UUID.test(raw) ? raw : undefined
-}
-
 /** URL 쿼리 → 필터. `thisYear`는 URL에 year가 없을 때 쓰는 기본 연도(올해, `useToday().year`). */
 export function filtersFromParams(params: URLSearchParams, thisYear: number): ForecastFilters {
   return {
     year: parseYear(params.get('year'), thisYear),
     quarter: parseQuarter(params.get('quarter')),
-    ownerId: params.get('owner') || undefined,
-    vendor: parseVendor(params.get('vendor')),
-    selectedId: params.get('sel') || undefined,
+    ownerId: parseId(params.get('owner')),
+    vendor: parseId(params.get('vendor')),
+    selectedId: parseId(params.get('sel')),
   }
 }
 
@@ -43,9 +37,9 @@ export function paramsFromFilters(filters: ForecastFilters): URLSearchParams {
   const params = new URLSearchParams()
   params.set('year', String(filters.year))
   if (filters.quarter) params.set('quarter', String(filters.quarter))
-  if (filters.ownerId) params.set('owner', filters.ownerId)
-  if (filters.vendor) params.set('vendor', filters.vendor)
-  if (filters.selectedId) params.set('sel', filters.selectedId)
+  if (filters.ownerId) params.set('owner', String(filters.ownerId))
+  if (filters.vendor) params.set('vendor', String(filters.vendor))
+  if (filters.selectedId) params.set('sel', String(filters.selectedId))
   return params
 }
 

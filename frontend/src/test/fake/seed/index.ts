@@ -4,6 +4,7 @@ import type { DirectoryRecord, SeedData, StorageRecord } from '../store'
 import { seedActionTypes } from './actionTypes'
 import { seedCodes, seedLabels } from './codes'
 import { createSeedEnv } from './env'
+import { USER_ID } from './ids'
 import { seedUsers } from './users'
 
 export type SeedFactory = (clock: MockClock) => SeedData
@@ -17,6 +18,7 @@ export const emptyBusinessSeed: SeedFactory = (clock) => {
   const env = createSeedEnv(clock.now())
   const counters: Record<string, number> = {}
   const users = seedUsers(env)
+  counters.u = users.length
   const codes = seedCodes(counters)
   const labels = seedLabels(env, counters)
   const actionTypes = seedActionTypes(env, counters)
@@ -34,9 +36,9 @@ export const emptyBusinessSeed: SeedFactory = (clock) => {
     receiveTimeoutSeconds: 10,
     revision: 3,
     updatedAt: env.at(100, 9),
-    updatedById: 'u-root',
+    updatedById: USER_ID.root,
   }
-  const storage: StorageRecord = { path: '/data/neoine-sales/files', updatedAt: env.at(100, 9), updatedById: 'u-root' }
+  const storage: StorageRecord = { path: '/data/neoine-sales/files', updatedAt: env.at(100, 9), updatedById: USER_ID.root }
 
   return {
     users,

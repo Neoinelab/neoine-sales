@@ -30,27 +30,27 @@ export function useCreateCode(): Mutation<CodeCreateInput, CodeWithUsage> {
 }
 
 /** gateway.codes.rename. 성공: keys.codes + keys.deals + keys.forecast 무효화(이름이 목록·상세에 즉시 반영). */
-export function useRenameCode(): Mutation<{ id: string; name: string }, CodeWithUsage> {
+export function useRenameCode(): Mutation<{ id: number; name: string }, CodeWithUsage> {
   const invalidate = useInvalidate()
-  return useMutation<CodeWithUsage, ApiError, { id: string; name: string }>({
+  return useMutation<CodeWithUsage, ApiError, { id: number; name: string }>({
     mutationFn: ({ id, name }) => gateway.codes.rename(id, name),
     onSuccess: () => invalidate(keys.codes, keys.deals, keys.forecast),
   })
 }
 
 /** gateway.codes.reorder. 성공: keys.codes + keys.deals + keys.forecast 무효화. */
-export function useReorderCodes(): Mutation<{ kind: CodeKind; orderedIds: string[] }, CodeWithUsage[]> {
+export function useReorderCodes(): Mutation<{ kind: CodeKind; orderedIds: number[] }, CodeWithUsage[]> {
   const invalidate = useInvalidate()
-  return useMutation<CodeWithUsage[], ApiError, { kind: CodeKind; orderedIds: string[] }>({
+  return useMutation<CodeWithUsage[], ApiError, { kind: CodeKind; orderedIds: number[] }>({
     mutationFn: ({ kind, orderedIds }) => gateway.codes.reorder(kind, orderedIds),
     onSuccess: () => invalidate(keys.codes, keys.deals, keys.forecast),
   })
 }
 
 /** gateway.codes.remove(id). 성공: keys.codes 무효화. 거부는 409(ApiError). */
-export function useRemoveCode(): Mutation<string> {
+export function useRemoveCode(): Mutation<number> {
   const invalidate = useInvalidate()
-  return useMutation<void, ApiError, string>({
+  return useMutation<void, ApiError, number>({
     mutationFn: (id) => gateway.codes.remove(id),
     onSuccess: () => invalidate(keys.codes),
   })

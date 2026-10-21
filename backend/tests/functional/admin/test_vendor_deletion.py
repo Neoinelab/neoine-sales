@@ -1,7 +1,6 @@
 """Feature: 쓰는 Deal이 있는 Vendor·Solution은 못 지우고, 안 쓰는 Vendor는 소속과 함께 지운다."""
 
 from typing import TYPE_CHECKING
-from uuid import uuid4
 
 import pytest
 
@@ -22,6 +21,7 @@ from tests.functional.steps.vendors import (
     when_delete_vendor,
     when_write,
 )
+from tests.support.ids import MISSING_ID
 
 if TYPE_CHECKING:
     from tests.functional.conftest import Api
@@ -52,7 +52,7 @@ async def test_unknown_vendor_ids_are_not_found(api: Api, operation: str) -> Non
     # Given
     await given_logged_in_as(api, role="admin")
     # When
-    response = await when_write(api, operation, vendor_id=str(uuid4()), solution_id=str(uuid4()))
+    response = await when_write(api, operation, vendor_id=MISSING_ID, solution_id=MISSING_ID)
     # Then
     then_problem_is(response, status=404, type_suffix="not-found")
 

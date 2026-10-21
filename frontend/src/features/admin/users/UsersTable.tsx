@@ -10,7 +10,7 @@ interface Props {
   users: readonly User[]
   filter: UserListFilter
   /** 로그인한 사용자 id. 본인 행에는 삭제 버튼을 두지 않는다(마지막 admin 보호). */
-  meId: string | undefined
+  meId: number | undefined
   onDelete: (user: User) => void
 }
 

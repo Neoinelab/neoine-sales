@@ -2,12 +2,11 @@
 
 from dataclasses import dataclass
 from typing import NewType
-from uuid import UUID
 
 from app.domain.common.errors import InvalidValueError
 from app.domain.common.validation import reject_nul
 
-ActionTypeId = NewType("ActionTypeId", UUID)
+ActionTypeId = NewType("ActionTypeId", int)
 
 ACTION_TYPE_NAME_MAX = 50
 ACTION_TYPE_REQUIRED = "유형을 입력하세요."

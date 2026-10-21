@@ -16,7 +16,7 @@ interface BantItemProps extends BantCardProps {
 }
 
 /** 현재 선택을 선택 객체로 옮긴다(바꾸지 않는 구분은 그대로 보낸다). */
-const currentChoice = (labelId: string | null): CatalogChoice | null => (labelId === null ? null : { id: labelId })
+const currentChoice = (labelId: number | null): CatalogChoice | null => (labelId === null ? null : { id: labelId })
 
 /**
  * BANT 항목 하나: 값을 클릭하면 자동완성 입력이 열린다.
@@ -30,8 +30,8 @@ function BantItem({ deal, canWrite, onNotice, category }: BantItemProps) {
   const current = deal.bant[category]
   const selected = labelsOfCategory.find((l) => l.id === current)
 
-  async function saveItem(text: string, option?: { id?: string }) {
-    const choice: CatalogChoice | null = option?.id ? { id: option.id } : toChoice(text, labelsOfCategory)
+  async function saveItem(text: string, option?: { id?: number }) {
+    const choice: CatalogChoice | null = option?.id !== undefined ? { id: option.id } : toChoice(text, labelsOfCategory)
     if (choice === null ? current === null : 'id' in choice && choice.id === current) return
     const bant = Object.fromEntries(
       BANT_CATEGORIES.map((c) => [c, c === category ? choice : currentChoice(deal.bant[c])]),

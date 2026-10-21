@@ -5,6 +5,7 @@ import { CODE } from '../../test/fixtures/serverDeal'
 import { createActionsHttp } from './actions'
 import { createHttpGateway } from './index'
 import { json, noContent, problem, stubFetch } from './testHelpers'
+import { USER_ID } from '../../test/fake/seed/ids'
 
 afterEach(() => vi.unstubAllGlobals())
 
@@ -28,13 +29,13 @@ describe('actions.list over HTTP (AC-14~16)', () => {
   })
 
   it('reads the items array of the {items} answer and maps each action', async () => {
-    stubFetch(json({ items: [serverAction({ id: 'a2', action: '두 번째' }), serverAction({ id: 'a1', action: '첫 번째' })] }))
+    stubFetch(json({ items: [serverAction({ id: 2, action: '두 번째' }), serverAction({ id: 1, action: '첫 번째' })] }))
 
     const list = await createActionsHttp().list(CODE, {})
 
     expect(list.map((a) => [a.id, a.progress, a.type])).toEqual([
-      ['a2', '두 번째', '미팅'],
-      ['a1', '첫 번째', '미팅'],
+      [2, '두 번째', '미팅'],
+      [1, '첫 번째', '미팅'],
     ])
   })
 
@@ -48,11 +49,11 @@ describe('actions.list over HTTP (AC-14~16)', () => {
     expect(sent.has('limit')).toBe(false)
   })
 
-  it('maps every filter to its query key with YYYY-MM-DD dates and the type id', async () => {
+  it('maps every filter to its query key with YYYY-MM-DD dates and integer id values', async () => {
     const { calls } = stubFetch(json({ items: [] }))
     const full: ActionQuery = {
       typeId: ACTION_TYPE_ID,
-      actorId: 'u-kim',
+      actorId: USER_ID.kim,
       keyword: 'ROI',
       actedFrom: '2026-10-01',
       actedTo: '2026-10-15',
@@ -66,8 +67,8 @@ describe('actions.list over HTTP (AC-14~16)', () => {
 
     const sent = query(calls[0]?.path ?? '')
     expect(Object.fromEntries(sent)).toEqual({
-      action_type_id: ACTION_TYPE_ID,
-      actor_user_id: 'u-kim',
+      action_type_id: String(ACTION_TYPE_ID),
+      actor_user_id: String(USER_ID.kim),
       keyword: 'ROI',
       acted_from: '2026-10-01',
       acted_to: '2026-10-15',
@@ -93,7 +94,7 @@ describe('actions.list over HTTP (AC-14~16)', () => {
   it('leaves out empty values instead of sending blanks', async () => {
     const { calls } = stubFetch(json({ items: [] }))
 
-    await createActionsHttp().list(CODE, { keyword: '', actorId: '', actedFrom: '', dueTo: '' })
+    await createActionsHttp().list(CODE, { keyword: '', actedFrom: '', dueTo: '' })
 
     expect(calls[0]?.path).toBe(`/api/v1/deals/${CODE}/actions`)
   })
@@ -227,7 +228,7 @@ describe('actions.create type choice (AC-7·10)', () => {
   it('shows the unknown type message as the server wrote it', async () => {
     stubFetch(problem(422, 'invalid-value', '선택한 유형이 없습니다. 목록에서 다시 선택하세요.'))
 
-    await expect(createActionsHttp().create(CODE, { ...newAction, type: { id: 'gone' } })).rejects.toMatchObject({
+    await expect(createActionsHttp().create(CODE, { ...newAction, type: { id: 99 } })).rejects.toMatchObject({
       status: 422,
       kind: 'validation',
       message: '선택한 유형이 없습니다. 목록에서 다시 선택하세요.',
@@ -237,19 +238,19 @@ describe('actions.create type choice (AC-7·10)', () => {
 
 describe('actions.update over HTTP (AC-10·11)', () => {
   it('puts the content to /deal-actions/{id} and maps the answer', async () => {
-    const { calls } = stubFetch(json(serverAction({ action: '수정한 진행사항', action_type: { id: 'ty-other', name: '기타' } })))
+    const { calls } = stubFetch(json(serverAction({ action: '수정한 진행사항', action_type: { id: 5, name: '기타' } })))
 
-    const updated = await createActionsHttp().update(ACTION_ID, { type: { id: 'ty-other' }, progress: '수정한 진행사항', nextAction: '수정한 Next', dueDate: '2026-11-01', memo: '메모' })
+    const updated = await createActionsHttp().update(ACTION_ID, { type: { id: 5 }, progress: '수정한 진행사항', nextAction: '수정한 Next', dueDate: '2026-11-01', memo: '메모' })
 
     expect(calls[0]).toMatchObject({ method: 'PUT', path: `/api/v1/deal-actions/${ACTION_ID}` })
     expect(calls[0]?.body).toEqual({
-      action_type: { id: 'ty-other' },
+      action_type: { id: 5 },
       action: '수정한 진행사항',
       next_action: '수정한 Next',
       due_date: '2026-11-01',
       memo: '메모',
     })
-    expect(updated).toMatchObject({ id: ACTION_ID, progress: '수정한 진행사항', type: '기타', typeId: 'ty-other' })
+    expect(updated).toMatchObject({ id: ACTION_ID, progress: '수정한 진행사항', type: '기타', typeId: 5 })
   })
 
   it('shows the 403 message for another sales exactly as the server wrote it', async () => {

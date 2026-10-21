@@ -15,7 +15,7 @@ export const TYPE_TOO_LONG_MESSAGE = `유형은 ${NAME_MAX}자 이내로 입력�
 export const TYPE_DUPLICATE_MESSAGE = '이미 있는 유형 이름입니다.'
 export const UNKNOWN_TYPE_MESSAGE = '선택한 유형이 없습니다. 목록에서 다시 선택하세요.'
 
-export function usageOf(ctx: MockContext, typeId: string): number {
+export function usageOf(ctx: MockContext, typeId: number): number {
   return ctx.store.data.actions.filter((a) => a.typeId === typeId).length
 }
 
@@ -51,13 +51,13 @@ function view(ctx: MockContext, record: ActionTypeRecord): ActionTypeWithUsage {
   return { ...rest, createdBy: createdById === null ? null : userRef(ctx.store.data, createdById), usageCount: usageOf(ctx, record.id) }
 }
 
-function find(ctx: MockContext, id: string): ActionTypeRecord {
+function find(ctx: MockContext, id: number): ActionTypeRecord {
   const found = ctx.store.data.actionTypes.find((t) => t.id === id)
   if (!found) throw notFound('Action 유형을 찾을 수 없습니다.')
   return found
 }
 
-function checkDuplicate(ctx: MockContext, name: string, selfId?: string): void {
+function checkDuplicate(ctx: MockContext, name: string, selfId?: number): void {
   const lower = name.toLowerCase()
   if (ctx.store.data.actionTypes.some((t) => t.id !== selfId && t.name.toLowerCase() === lower)) {
     throw conflict(TYPE_DUPLICATE_MESSAGE)
@@ -79,7 +79,7 @@ export function planActionType(ctx: MockContext, choice: CatalogChoice): TypePla
 }
 
 /** 검증을 모두 마친 뒤에만 부른다. 새 유형이면 같은 호출 안에서 만든다. */
-export function commitActionType(ctx: MockContext, plan: TypePlan, actorId: string): ActionTypeRecord {
+export function commitActionType(ctx: MockContext, plan: TypePlan, actorId: number): ActionTypeRecord {
   if (plan.kind === 'existing') return plan.record
   const now = ctx.clock.now()
   const record: ActionTypeRecord = {

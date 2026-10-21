@@ -90,7 +90,7 @@ describe('Vendor·Solution 필터 (AC-15)', () => {
     await listReady()
 
     const option = within(screen.getByLabelText('Vendor')).getByRole('option', { name: 'Okta' })
-    expect(option).toHaveValue(seedVendorId('Okta'))
+    expect(option).toHaveValue(String(seedVendorId('Okta')))
     expect(optionNames(screen.getByLabelText('Vendor'))).toEqual([
       '전체', 'CrowdStrike', 'CyberArk', 'Okta', 'Palo Alto', 'SentinelOne', 'Silverfort', 'Splunk', 'Tenable', 'Veeam', 'Zscaler',
     ])

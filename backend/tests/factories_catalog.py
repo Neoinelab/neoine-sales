@@ -1,13 +1,13 @@
 """코드(Status·Forecast)와 BANT Label 테스트용 생성 도우미. 기본은 유효한 더미 값이다."""
 
 from typing import Any
-from uuid import uuid4
 
 from app.domain.bant.entities import BantLabel
 from app.domain.bant.values import BantCategory, BantLabelId
 from app.domain.code.entities import Code
 from app.domain.code.values import CodeId, CodeKey, CodeKind, ForecastOutcome
 from tests.factories import NOW
+from tests.support.ids import new_id
 
 
 def make_code(kind: CodeKind = CodeKind.STATUS, **overrides: Any) -> Code:  # noqa: ANN401
@@ -22,7 +22,7 @@ def make_code(kind: CodeKind = CodeKind.STATUS, **overrides: Any) -> Code:  # no
         **overrides,
     }
     return Code(
-        id=CodeId(uuid4()),
+        id=CodeId(new_id()),
         kind=kind,
         key=CodeKey(values.pop("key")),
         created_at=now,
@@ -45,7 +45,7 @@ def make_label(category: BantCategory = BantCategory.BUDGET, **overrides: Any) -
         **overrides,
     }
     return BantLabel(
-        id=BantLabelId(uuid4()),
+        id=BantLabelId(new_id()),
         category=category,
         name=values["name"],
         is_default=values["is_default"],

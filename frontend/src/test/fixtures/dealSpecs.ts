@@ -5,6 +5,8 @@
  * - count: Action 개수
  */
 
+import type { SeedLoginId } from '../fake/seed/ids'
+
 export interface DealSpec {
   no: number
   name: string
@@ -13,7 +15,7 @@ export interface DealSpec {
   partner: string | null
   /** 이전에 연결했다가 교체된 파트너. */
   prevPartner?: string
-  owner: string
+  owner: SeedLoginId
   vendor: string
   solution: string
   status: string

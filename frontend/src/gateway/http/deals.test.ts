@@ -4,6 +4,7 @@ import type { DealInput, DealSortKey } from '../../shared/model/types'
 import { createDealsHttp } from './deals'
 import { createHttpGateway } from './index'
 import { json, noContent, problem, stubFetch } from './testHelpers'
+import { USER_ID } from '../../test/fake/seed/ids'
 
 afterEach(() => vi.unstubAllGlobals())
 
@@ -12,9 +13,9 @@ const query = (path: string) => new URL(path, 'http://localhost').searchParams
 
 const input = (over: Partial<DealInput> = {}): DealInput => ({
   name: '한빛은행 ITDR',
-  ownerId: 'u-kim',
-  vendorId: 'vd-006',
-  solutionId: 'sl-006',
+  ownerId: USER_ID.kim,
+  vendorId: 6,
+  solutionId: 6,
   users: 100,
   statusKey: 'prospecting',
   forecastKey: 'pipeline',
@@ -43,16 +44,16 @@ describe('deals.list over HTTP', () => {
 
     await createDealsHttp().list({
       keyword: '한빛',
-      ownerId: 'u-kim',
-      vendorId: 'vd-006',
-      solutionId: 'sl-006',
+      ownerId: USER_ID.kim,
+      vendorId: 6,
+      solutionId: 6,
       statusKey: 'prospecting',
       forecastKey: 'pipeline',
       year: 2026,
       quarter: 4,
       revenueFrom: '2026-10-01',
       revenueTo: '2026-12-31',
-      bantLabelIds: { budget: 'b1', authority: 'a1', need: 'n1', timeline: 't1' },
+      bantLabelIds: { budget: 1, authority: 2, need: 3, timeline: 4 },
       mine: true,
       nextActionStatus: 'closed',
       sort: 'revenueAmount',
@@ -64,19 +65,19 @@ describe('deals.list over HTTP', () => {
     expect(calls[0]?.method).toBe('GET')
     expect(Object.fromEntries(query(calls[0]?.path ?? ''))).toEqual({
       keyword: '한빛',
-      owner_user_id: 'u-kim',
-      vendor_id: 'vd-006',
-      solution_id: 'sl-006',
+      owner_user_id: String(USER_ID.kim),
+      vendor_id: '6',
+      solution_id: '6',
       status_key: 'prospecting',
       forecast_key: 'pipeline',
       year: '2026',
       quarter: '4',
       revenue_from: '2026-10-01',
       revenue_to: '2026-12-31',
-      bant_budget: 'b1',
-      bant_authority: 'a1',
-      bant_need: 'n1',
-      bant_timeline: 't1',
+      bant_budget: '1',
+      bant_authority: '2',
+      bant_need: '3',
+      bant_timeline: '4',
       mine: 'true',
       next_action_status: 'closed',
       sort: 'revenue_amount',
@@ -124,9 +125,9 @@ describe('deals.list over HTTP', () => {
   it('sends only the bant categories that are chosen', async () => {
     const { calls } = stubFetch(json(page([])))
 
-    await createDealsHttp().list({ bantLabelIds: { need: 'n1' } })
+    await createDealsHttp().list({ bantLabelIds: { need: 3 } })
 
-    expect(Object.fromEntries(query(calls[0]?.path ?? ''))).toEqual({ bant_need: 'n1' })
+    expect(Object.fromEntries(query(calls[0]?.path ?? ''))).toEqual({ bant_need: '3' })
   })
 
   it('does not send mine when it is false and sends offset 0 when asked', async () => {
@@ -145,7 +146,7 @@ describe('deals.list over HTTP', () => {
     const result = await createDealsHttp().list({ offset: 20 })
 
     expect(result).toMatchObject({ total: 41, offset: 20, limit: 20 })
-    expect(result.items[0]).toMatchObject({ code: CODE, statusKey: 'prospecting', ownerId: 'u-kim' })
+    expect(result.items[0]).toMatchObject({ code: CODE, statusKey: 'prospecting', ownerId: USER_ID.kim })
   })
 
   it('AC-18/19 sends a quarter without a year as the quarter alone (the server reads it as this year)', async () => {
@@ -159,12 +160,26 @@ describe('deals.list over HTTP', () => {
   it('does not send the old vendor and solution text parameters', async () => {
     const { calls } = stubFetch(json(page([])))
 
-    await createDealsHttp().list({ vendorId: 'vd-006' })
+    await createDealsHttp().list({ vendorId: 6 })
 
     const sent = query(calls[0]?.path ?? '')
     expect(sent.has('vendor')).toBe(false)
     expect(sent.has('solution')).toBe(false)
-    expect(sent.get('vendor_id')).toBe('vd-006')
+    expect(sent.get('vendor_id')).toBe('6')
+  })
+
+  it('sends id filters as integer query values', async () => {
+    const { calls } = stubFetch(json(page([])))
+
+    await createDealsHttp().list({ ownerId: 3, vendorId: 12, solutionId: 9007199254740991, bantLabelIds: { budget: 5, timeline: 7 } })
+
+    expect(Object.fromEntries(query(calls[0]?.path ?? ''))).toEqual({
+      owner_user_id: '3',
+      vendor_id: '12',
+      solution_id: '9007199254740991',
+      bant_budget: '5',
+      bant_timeline: '7',
+    })
   })
 })
 
@@ -210,10 +225,10 @@ describe('deals.create over HTTP', () => {
 
     const detail = await createDealsHttp().create(
       input({
-        partner: { contactId: 'c-p', company: '코어테크', name: '이파트', title: '', email: null, phone: '02-000-0000' },
+        partner: { contactId: 11, company: '코어테크', name: '이파트', title: '', email: null, phone: '02-000-0000' },
         quote: { submitted: 'YES', submittedDate: '2026-10-05' },
         poc: { state: 'ING', completedDate: null },
-        bant: { budget: { id: 'b1' }, authority: null, need: null, timeline: { name: '내후년 구매' } },
+        bant: { budget: { id: 1 }, authority: null, need: null, timeline: { name: '내후년 구매' } },
         procurement: '입찰',
       }),
     )
@@ -221,20 +236,20 @@ describe('deals.create over HTTP', () => {
     expect(calls[0]).toMatchObject({ method: 'POST', path: '/api/v1/deals' })
     expect(calls[0]?.body).toEqual({
       name: '한빛은행 ITDR',
-      owner_user_id: 'u-kim',
-      vendor_id: 'vd-006',
-      solution_id: 'sl-006',
+      owner_user_id: USER_ID.kim,
+      vendor_id: 6,
+      solution_id: 6,
       users: 100,
       status_key: 'prospecting',
       forecast_key: 'pipeline',
       revenue_amount: 500_000_000,
       revenue_date: '2027-01-31',
       customer: { contact_id: null, company: '한빛은행', name: '정민수', title: '과장', email: 'min@hanbit.test', phone: null },
-      partner: { contact_id: 'c-p', company: '코어테크', name: '이파트', title: null, email: null, phone: '02-000-0000' },
+      partner: { contact_id: 11, company: '코어테크', name: '이파트', title: null, email: null, phone: '02-000-0000' },
       quote: { submitted: 'YES', submitted_date: '2026-10-05' },
       poc: { state: 'ING', completed_date: null },
       procurement: '입찰',
-      bant: { budget: { id: 'b1' }, authority: null, need: null, timeline: { name: '내후년 구매' } },
+      bant: { budget: { id: 1 }, authority: null, need: null, timeline: { name: '내후년 구매' } },
     })
     expect(detail.code).toBe(CODE)
   })
@@ -273,12 +288,12 @@ describe('deals.update over HTTP', () => {
   it('patches only the fields that are given', async () => {
     const { calls } = stubFetch(json(serverDealDetail()))
 
-    await createDealsHttp().update(CODE, { name: '새 이름', ownerId: 'u-park', statusKey: 'qualified', revenueAmount: 700_000_000, revenueDate: '2027-02-28' })
+    await createDealsHttp().update(CODE, { name: '새 이름', ownerId: USER_ID.park, statusKey: 'qualified', revenueAmount: 700_000_000, revenueDate: '2027-02-28' })
 
     expect(calls[0]).toMatchObject({ method: 'PATCH', path: `/api/v1/deals/${CODE}` })
     expect(calls[0]?.body).toEqual({
       name: '새 이름',
-      owner_user_id: 'u-park',
+      owner_user_id: USER_ID.park,
       status_key: 'qualified',
       revenue_amount: 700_000_000,
       revenue_date: '2027-02-28',
@@ -296,9 +311,9 @@ describe('deals.update over HTTP', () => {
   it('AC-11 sends vendor_id and a null solution_id together when the vendor changes', async () => {
     const { calls } = stubFetch(json(serverDealDetail()))
 
-    await createDealsHttp().update(CODE, { vendorId: 'vd-003', solutionId: null })
+    await createDealsHttp().update(CODE, { vendorId: 3, solutionId: null })
 
-    expect(calls[0]?.body).toEqual({ vendor_id: 'vd-003', solution_id: null })
+    expect(calls[0]?.body).toEqual({ vendor_id: 3, solution_id: null })
   })
 
   it('AC-13 sends a null vendor_id to clear the vendor and omits vendor fields that are not given', async () => {
@@ -323,19 +338,19 @@ describe('deals.update over HTTP', () => {
     const { calls } = stubFetch(json(serverDealDetail()))
 
     await createDealsHttp().update(CODE, {
-      customer: { contactId: 'c1', company: '한빛은행', name: '정민수', title: '', email: null, phone: null },
+      customer: { contactId: 1, company: '한빛은행', name: '정민수', title: '', email: null, phone: null },
       quote: { submitted: 'NO', submittedDate: null },
       poc: { state: 'YES', completedDate: '2026-10-10' },
-      bant: { budget: null, authority: { id: 'a1' }, need: { name: '신규 요건' }, timeline: null },
+      bant: { budget: null, authority: { id: 2 }, need: { name: '신규 요건' }, timeline: null },
       users: 5,
       procurement: '',
     })
 
     expect(calls[0]?.body).toEqual({
-      customer: { contact_id: 'c1', company: '한빛은행', name: '정민수', title: null, email: null, phone: null },
+      customer: { contact_id: 1, company: '한빛은행', name: '정민수', title: null, email: null, phone: null },
       quote: { submitted: 'NO', submitted_date: null },
       poc: { state: 'YES', completed_date: '2026-10-10' },
-      bant: { budget: null, authority: { id: 'a1' }, need: { name: '신규 요건' }, timeline: null },
+      bant: { budget: null, authority: { id: 2 }, need: { name: '신규 요건' }, timeline: null },
       users: 5,
       procurement: '',
     })

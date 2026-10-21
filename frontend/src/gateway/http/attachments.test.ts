@@ -2,6 +2,7 @@
 // 업로드 본문(multipart)을 실제 바이트로 확인하려면 브라우저 File·FormData와 undici Request가 같은 구현이어야 한다.
 // jsdom의 File은 undici Request에서 빈 "blob"으로 직렬화되므로 이 파일만 node 환경에서 돌린다(client.ts가 읽는 window.location만 흉내 낸다).
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { USER_ID } from '../../test/fake/seed/ids'
 
 vi.hoisted(() => {
   Object.assign(globalThis, { window: { location: { origin: 'http://localhost:5173' } } })
@@ -15,24 +16,24 @@ afterEach(() => vi.unstubAllGlobals())
 const CODE = '20261017-A001'
 
 const ATTACHMENT = {
-  id: 'a1b2',
+  id: 7,
   deal_code: CODE,
   file_name: '견적서.pdf',
   description: '2차 견적',
   size: 4,
   mime: 'application/pdf',
-  uploaded_by: userRefBody('u-kim', '김영업', false, 'sales'),
+  uploaded_by: userRefBody(USER_ID.kim, '김영업', false, 'sales'),
   uploaded_at: '2026-10-17T09:30:00+09:00',
 }
 
 const MAPPED = {
-  id: 'a1b2',
+  id: 7,
   dealCode: CODE,
   fileName: '견적서.pdf',
   description: '2차 견적',
   size: 4,
   mime: 'application/pdf',
-  uploadedBy: { id: 'u-kim', name: '김영업', role: 'sales', status: 'active' },
+  uploadedBy: { id: USER_ID.kim, name: '김영업', role: 'sales', status: 'active' },
   uploadedAt: '2026-10-17T09:30:00+09:00',
 }
 
@@ -77,11 +78,11 @@ describe('attachments.list over HTTP', () => {
   })
 
   it('keeps the order the server sent (newest first)', async () => {
-    stubRequests(json({ items: [{ ...ATTACHMENT, id: 'new' }, { ...ATTACHMENT, id: 'old' }] }))
+    stubRequests(json({ items: [{ ...ATTACHMENT, id: 20 }, { ...ATTACHMENT, id: 10 }] }))
 
     const list = await createAttachmentsHttp().list(CODE)
 
-    expect(list.map((a) => a.id)).toEqual(['new', 'old'])
+    expect(list.map((a) => a.id)).toEqual([20, 10])
   })
 
   it('returns an empty list when the deal has no files', async () => {
@@ -168,7 +169,7 @@ describe('attachments.upload over HTTP', () => {
   })
 
   it('maps 201 to outcome uploaded with the mapped attachment', async () => {
-    stubRequests(json({ outcome: 'uploaded', attachment: ATTACHMENT }, 201, { Location: '/api/v1/attachments/a1b2' }))
+    stubRequests(json({ outcome: 'uploaded', attachment: ATTACHMENT }, 201, { Location: '/api/v1/attachments/7' }))
 
     const result = await createAttachmentsHttp().upload(CODE, { file: pdf(), description: '', onExists: 'ask' })
 
@@ -247,10 +248,10 @@ describe('attachments.remove over HTTP', () => {
   it('deletes the attachment by id and resolves with nothing on 204', async () => {
     const { calls } = stubRequests(noContent())
 
-    await expect(createAttachmentsHttp().remove('a1b2')).resolves.toBeUndefined()
+    await expect(createAttachmentsHttp().remove(7)).resolves.toBeUndefined()
 
     expect(calls[0]?.method).toBe('DELETE')
-    expect(pathOf(calls[0] as Request)).toBe('/api/v1/attachments/a1b2')
+    expect(pathOf(calls[0] as Request)).toBe('/api/v1/attachments/7')
   })
 
   it.each([
@@ -260,7 +261,7 @@ describe('attachments.remove over HTTP', () => {
   ])('shows the server message for %s %s: %s', async (status, kind, detail) => {
     stubRequests(problem(status, kind, detail))
 
-    await expect(createAttachmentsHttp().remove('a1b2')).rejects.toMatchObject({ status, kind, message: detail })
+    await expect(createAttachmentsHttp().remove(7)).rejects.toMatchObject({ status, kind, message: detail })
   })
 })
 
@@ -277,10 +278,10 @@ describe('attachments.download over HTTP', () => {
   it('gets the bytes as a blob and names the file from the UTF-8 Content-Disposition', async () => {
     const { calls } = stubRequests(binary({ 'Content-Disposition': header }))
 
-    const file = await createAttachmentsHttp().download('a1b2')
+    const file = await createAttachmentsHttp().download(7)
 
     expect(calls[0]?.method).toBe('GET')
-    expect(pathOf(calls[0] as Request)).toBe('/api/v1/attachments/a1b2/download')
+    expect(pathOf(calls[0] as Request)).toBe('/api/v1/attachments/7/download')
     expect(file.fileName).toBe('견적서.pdf')
     expect(file.blob).toBeInstanceOf(Blob)
     expect(Array.from(new Uint8Array(await file.blob.arrayBuffer()))).toEqual([0, 1, 2, 255, 128])
@@ -289,19 +290,19 @@ describe('attachments.download over HTTP', () => {
   it('uses the plain filename when there is no filename*', async () => {
     stubRequests(binary({ 'Content-Disposition': 'attachment; filename="report.pdf"' }))
 
-    await expect(createAttachmentsHttp().download('a1b2')).resolves.toMatchObject({ fileName: 'report.pdf' })
+    await expect(createAttachmentsHttp().download(7)).resolves.toMatchObject({ fileName: 'report.pdf' })
   })
 
   it('names the file download when the server sent no Content-Disposition', async () => {
     stubRequests(binary({}))
 
-    await expect(createAttachmentsHttp().download('a1b2')).resolves.toMatchObject({ fileName: 'download' })
+    await expect(createAttachmentsHttp().download(7)).resolves.toMatchObject({ fileName: 'download' })
   })
 
   it('downloads a zero byte file as an empty blob', async () => {
     stubRequests(new Response(new Uint8Array([]), { status: 200, headers: { 'Content-Disposition': header } }))
 
-    const file = await createAttachmentsHttp().download('a1b2')
+    const file = await createAttachmentsHttp().download(7)
 
     expect(file.blob.size).toBe(0)
   })
@@ -313,6 +314,6 @@ describe('attachments.download over HTTP', () => {
   ])('shows the problem message for %s %s even though success is binary: %s', async (status, kind, detail) => {
     stubRequests(problem(status, kind, detail))
 
-    await expect(createAttachmentsHttp().download('a1b2')).rejects.toMatchObject({ status, kind, message: detail })
+    await expect(createAttachmentsHttp().download(7)).rejects.toMatchObject({ status, kind, message: detail })
   })
 })

@@ -73,8 +73,8 @@ def _details(row: DealRow) -> DealDetails:
     return DealDetails(
         name=row.name,
         owner_user_id=UserId(row.owner_user_id),
-        vendor_id=VendorId(row.vendor_id) if row.vendor_id else None,
-        solution_id=SolutionId(row.solution_id) if row.solution_id else None,
+        vendor_id=VendorId(row.vendor_id) if row.vendor_id is not None else None,
+        solution_id=SolutionId(row.solution_id) if row.solution_id is not None else None,
         users=row.users,
         revenue_amount=RevenueAmount(int(row.revenue_amount)),
         revenue_date=row.revenue_date,

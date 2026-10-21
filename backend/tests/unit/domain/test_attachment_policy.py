@@ -1,12 +1,11 @@
 """첨부 삭제·교체 권한(P2b AC-11·14): admin 모두, sales는 본인 + 퇴사한 sales의 파일, user 불가."""
 
-from uuid import uuid4
-
 import pytest
 
 from app.domain.attachment.policy import can_delete_attachment
 from app.domain.auth.principal import Role
 from app.domain.user.value_objects import UserId, UserRef
+from tests.support.ids import new_id
 from tests.support.user_ids import uid
 
 ME = uid("me")
@@ -47,6 +46,6 @@ def test_can_delete_attachment_matrix(
 
 
 def test_a_user_id_that_matches_nobody_gets_the_same_answer() -> None:
-    uploader = _uploader(UserId(uuid4()), Role.SALES)
+    uploader = _uploader(UserId(new_id()), Role.SALES)
 
-    assert can_delete_attachment(UserId(uuid4()), Role.SALES, uploader) is False
+    assert can_delete_attachment(UserId(new_id()), Role.SALES, uploader) is False

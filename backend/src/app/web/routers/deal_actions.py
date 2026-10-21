@@ -1,7 +1,6 @@
 """Deal 활동 이력. 등록·Deal별 조회는 Deal 아래에, 개별 조작은 /deal-actions에 둔다."""
 
 from typing import Annotated
-from uuid import UUID
 
 from fastapi import Query, Response, status
 
@@ -20,6 +19,7 @@ from app.web.schemas.deal_action import (
     action_response,
     action_responses,
 )
+from app.web.schemas.ids import PathId
 from app.web.security import CurrentUser
 
 router = BusinessRouter(prefix="/api/v1", tags=["deal-actions"])
@@ -55,14 +55,14 @@ async def list_actions_of_deal(code: str, params: Search, provider: Provider) ->
 
 
 @router.get("/deal-actions/{action_id}", response_model=DealActionResponse, responses=READ_ERRORS)
-async def get_deal_action(action_id: UUID, provider: Provider) -> DealActionResponse:
+async def get_deal_action(action_id: PathId, provider: Provider) -> DealActionResponse:
     action = await provider.get_deal_action().execute(DealActionId(action_id))
     return await action_response(provider, action)
 
 
 @router.put("/deal-actions/{action_id}", response_model=DealActionResponse, responses=WRITE_ERRORS)
 async def update_deal_action(
-    action_id: UUID, body: DealActionUpdateRequest, user: CurrentUser, provider: Provider
+    action_id: PathId, body: DealActionUpdateRequest, user: CurrentUser, provider: Provider
 ) -> DealActionResponse:
     action = await provider.update_deal_action().execute(
         DealActionId(action_id), body.to_input(), _actor(user)
@@ -73,7 +73,7 @@ async def update_deal_action(
 @router.delete(
     "/deal-actions/{action_id}", status_code=status.HTTP_204_NO_CONTENT, responses=READ_ERRORS
 )
-async def delete_deal_action(action_id: UUID, user: CurrentUser, provider: Provider) -> None:
+async def delete_deal_action(action_id: PathId, user: CurrentUser, provider: Provider) -> None:
     await provider.delete_deal_action().execute(DealActionId(action_id), _actor(user))
 
 
@@ -83,7 +83,7 @@ async def delete_deal_action(action_id: UUID, user: CurrentUser, provider: Provi
     responses=STATUS_ERRORS,
 )
 async def change_next_action_status(
-    action_id: UUID, body: NextActionStatusRequest, user: CurrentUser, provider: Provider
+    action_id: PathId, body: NextActionStatusRequest, user: CurrentUser, provider: Provider
 ) -> DealActionResponse:
     action = await provider.change_next_action_status().execute(
         DealActionId(action_id), body.to_input(), _actor(user)

@@ -33,23 +33,23 @@ type ItemSelect = Select[tuple[DealRow, datetime, str | None, date | None, str |
 # Deal별 모든 Action 중 가장 최근 수행 시각(진행사항만 있는 행 포함).
 LATEST_ACTED = (
     select(
-        DealActionRow.deal_code.label("deal_code"),
+        DealActionRow.deal_id.label("deal_id"),
         func.max(DealActionRow.acted_at).label("acted_at"),
     )
-    .group_by(DealActionRow.deal_code)
+    .group_by(DealActionRow.deal_id)
     .subquery("latest_acted")
 )
 
 # Next Action이 있는 Action 중 가장 최근 행(acted_at, id 내림차순 첫 행)만 남기는 부분 질의.
 _RANKED = (
     select(
-        DealActionRow.deal_code.label("deal_code"),
+        DealActionRow.deal_id.label("deal_id"),
         DealActionRow.next_action.label("next_action"),
         DealActionRow.due_date.label("due_date"),
         DealActionRow.next_action_status.label("next_action_status"),
         func.row_number()
         .over(
-            partition_by=DealActionRow.deal_code,
+            partition_by=DealActionRow.deal_id,
             order_by=(DealActionRow.acted_at.desc(), DealActionRow.id.desc()),
         )
         .label("position"),
@@ -74,7 +74,7 @@ def _keyword_condition(keyword: str) -> ColumnElement[bool]:
         ContactRow.id == DealRow.customer_id, ContactRow.company.ilike(pattern, escape=LIKE_ESCAPE)
     )
     partner = exists().where(
-        DealPartnerRow.deal_code == DealRow.deal_code,
+        DealPartnerRow.deal_id == DealRow.id,
         DealPartnerRow.unlinked_at.is_(None),
         DealPartnerRow.contact_id == ContactRow.id,
         ContactRow.company.ilike(pattern, escape=LIKE_ESCAPE),
@@ -102,9 +102,9 @@ def conditions(query: DealQuery) -> list[ColumnElement[bool]]:
     if query.next_action_status is not None:
         wanted_statuses = [status.value for status in query.next_action_status.statuses()]
         found.append(
-            select(LATEST_NEXT.c.deal_code)
+            select(LATEST_NEXT.c.deal_id)
             .where(
-                LATEST_NEXT.c.deal_code == DealRow.deal_code,
+                LATEST_NEXT.c.deal_id == DealRow.id,
                 LATEST_NEXT.c.next_action_status.in_(wanted_statuses),
             )
             .correlate(DealRow)
@@ -118,7 +118,7 @@ def conditions(query: DealQuery) -> list[ColumnElement[bool]]:
         found.append(DealRow.revenue_date <= window_to)
     found.extend(
         exists().where(
-            DealBantLabelRow.deal_code == DealRow.deal_code,
+            DealBantLabelRow.deal_id == DealRow.id,
             DealBantLabelRow.category == category.value,
             DealBantLabelRow.label_id == label_id,
         )
@@ -137,8 +137,8 @@ def item_select() -> ItemSelect:
             LATEST_NEXT.c.due_date,
             LATEST_NEXT.c.next_action_status.label("basis_status"),
         )
-        .outerjoin_from(DealRow, LATEST_ACTED, LATEST_ACTED.c.deal_code == DealRow.deal_code)
-        .outerjoin_from(DealRow, LATEST_NEXT, LATEST_NEXT.c.deal_code == DealRow.deal_code)
+        .outerjoin_from(DealRow, LATEST_ACTED, LATEST_ACTED.c.deal_id == DealRow.id)
+        .outerjoin_from(DealRow, LATEST_NEXT, LATEST_NEXT.c.deal_id == DealRow.id)
     )
 
 

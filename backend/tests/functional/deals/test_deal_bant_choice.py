@@ -22,6 +22,7 @@ from tests.functional.steps.deals import (
     when_update_deal_with_body,
 )
 from tests.functional.steps.labels import given_label_list, then_label_count_is
+from tests.support.ids import MISSING_ID
 
 if TYPE_CHECKING:
     from tests.functional.conftest import Api
@@ -198,7 +199,7 @@ async def test_an_id_of_another_category_or_unknown_is_rejected(api: Api, catego
     # Given
     await given_logged_in_as(api, role="sales")
     need = await given_label_id(api, category="need", name="모름")
-    unknown = "6f1c1b3a-0000-4000-8000-000000000001"
+    unknown = MISSING_ID
     # When
     other = await when_register_deal(api, bant={**NONE, category: {"id": need}})
     missing = await when_register_deal(api, bant={**NONE, category: {"id": unknown}})
@@ -209,8 +210,8 @@ async def test_an_id_of_another_category_or_unknown_is_rejected(api: Api, catego
     await then_deal_count_is(api, 0)
 
 
-async def test_old_bant_uuid_string_is_rejected(api: Api) -> None:
-    """Scenario: 구 형식(Label id 문자열 그대로)은 422 request-validation이고 Deal은 없다."""
+async def test_old_bare_bant_id_is_rejected(api: Api) -> None:
+    """Scenario: 구 형식(Label id 값 그대로)은 422 request-validation이고 Deal은 없다."""
     # Given
     await given_logged_in_as(api, role="sales")
     budget = await given_label_id(api, category="budget", name="풀 예산 확보")
@@ -227,9 +228,9 @@ async def test_old_bant_uuid_string_is_rejected(api: Api) -> None:
     "choice",
     [
         pytest.param({}, id="neither"),
-        pytest.param({"id": "6f1c1b3a-0000-4000-8000-000000000001", "name": "x"}, id="both"),
+        pytest.param({"id": MISSING_ID, "name": "x"}, id="both"),
         pytest.param("풀 예산 확보", id="plain-name-string"),
-        pytest.param({"id": "not-a-uuid"}, id="id-not-a-uuid"),
+        pytest.param({"id": "not-an-id"}, id="id-not-an-id"),
     ],
 )
 async def test_a_malformed_bant_choice_is_a_request_validation_error(

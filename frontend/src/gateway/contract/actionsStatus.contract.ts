@@ -5,7 +5,7 @@
 
 import { describe, expect, it } from 'vitest'
 import { action, newDeal } from './actions.contract'
-import { expectRejects, type MakeGateway } from './support'
+import { expectRejects, type MakeGateway, NO_SUCH_ID } from './support'
 
 const ONLY_PROGRESS = { nextAction: '', dueDate: '' } as const
 const ONLY_NEXT = { progress: '' } as const
@@ -108,7 +108,7 @@ export function actionsStatusContract(make: MakeGateway): void {
       await sales.actions.changeNextActionStatus(created.id, { status: 'done', memo: '' })
 
       await expectRejects(sales.actions.changeNextActionStatus(created.id, { status: 'open', memo: '메모' }), 422)
-      await expectRejects(sales.actions.changeNextActionStatus('00000000-0000-4000-8000-000000000000', { status: 'done', memo: '' }), 404, 'Action을 찾을 수 없습니다.')
+      await expectRejects(sales.actions.changeNextActionStatus(NO_SUCH_ID, { status: 'done', memo: '' }), 404, 'Action을 찾을 수 없습니다.')
 
       await sales.deals.remove(deal.code, deal.code)
     })

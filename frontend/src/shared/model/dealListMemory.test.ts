@@ -5,6 +5,7 @@ import {
   rememberedListPath,
   sanitizeListSearch,
 } from './dealListMemory'
+import { USER_ID } from '../../test/fake/seed/ids'
 
 const params = (query: string) => new URLSearchParams(query)
 
@@ -31,55 +32,84 @@ describe('sanitizeListSearch (AC-08, AC-09)', () => {
   })
 })
 
+describe('sanitizeListSearch id parameters (AC-22)', () => {
+  const ID_KEYS = ['owner', 'vendor', 'solution', 'budget', 'authority', 'need', 'timeline']
+
+  it('keeps integer ids of every id parameter', () => {
+    const search = ID_KEYS.map((key, index) => `${key}=${index + 1}`).join('&')
+
+    expect(sanitizeListSearch(search)).toBe(search)
+  })
+
+  it.each(ID_KEYS)('drops a uuid or old key value of %s but keeps the other conditions', (key) => {
+    const kept = sanitizeListSearch(`status=a&${key}=0f0e0d0c-0b0a-4908-8706-050403020100&sort=name`)
+    const old = sanitizeListSearch(`${key}=u-kim&status=a`)
+
+    expect(kept).toBe('status=a&sort=name')
+    expect(old).toBe('status=a')
+  })
+
+  it.each(['0', '-1', '1.5', '01', '1e3', '9007199254740992'])('drops the out-of-range id %j', (raw) => {
+    expect(sanitizeListSearch(`vendor=${encodeURIComponent(raw)}&status=a`)).toBe('status=a')
+  })
+
+  it('does not restore an old uuid condition that an earlier version stored', () => {
+    window.sessionStorage.setItem(listMemoryKey(USER_ID.kim), 'vendor=10000000-0000-4000-8000-000000000003&status=a')
+
+    expect(rememberedListPath(USER_ID.kim)).toBe('/deals?status=a')
+  })
+})
+
 describe('listMemoryKey (AC-10)', () => {
   it('builds the storage key per user', () => {
-    expect(listMemoryKey('u-kim')).toBe('deals.listSearch:u-kim')
-    expect(listMemoryKey('u-park')).not.toBe(listMemoryKey('u-kim'))
+    expect(listMemoryKey(USER_ID.kim)).toBe(`deals.listSearch:${USER_ID.kim}`)
+    expect(listMemoryKey(USER_ID.park)).not.toBe(listMemoryKey(USER_ID.kim))
   })
 })
 
 describe('rememberedListPath (AC-01, AC-07~AC-10)', () => {
   it('remembered path is /deals when nothing is stored', () => {
-    expect(rememberedListPath('u-kim')).toBe('/deals')
+    expect(rememberedListPath(USER_ID.kim)).toBe('/deals')
   })
 
   it('remembered path restores stored search', () => {
-    rememberListSearch('u-kim', params('status=a&year=2026&quarter=3'))
-    expect(rememberedListPath('u-kim')).toBe('/deals?status=a&year=2026&quarter=3')
+    rememberListSearch(USER_ID.kim, params('status=a&year=2026&quarter=3'))
+    expect(rememberedListPath(USER_ID.kim)).toBe('/deals?status=a&year=2026&quarter=3')
   })
 
   it('remembering stores only list keys', () => {
-    rememberListSearch('u-kim', params('status=a&foo=1&tab=history'))
-    expect(window.sessionStorage.getItem(listMemoryKey('u-kim'))).toBe('status=a')
+    rememberListSearch(USER_ID.kim, params('status=a&foo=1&tab=history'))
+    expect(window.sessionStorage.getItem(listMemoryKey(USER_ID.kim))).toBe('status=a')
   })
 
   it('remembering an empty search clears the entry', () => {
-    rememberListSearch('u-kim', params('status=a'))
-    rememberListSearch('u-kim', params(''))
-    expect(rememberedListPath('u-kim')).toBe('/deals')
-    expect(window.sessionStorage.getItem(listMemoryKey('u-kim'))).toBeNull()
+    rememberListSearch(USER_ID.kim, params('status=a'))
+    rememberListSearch(USER_ID.kim, params(''))
+    expect(rememberedListPath(USER_ID.kim)).toBe('/deals')
+    expect(window.sessionStorage.getItem(listMemoryKey(USER_ID.kim))).toBeNull()
   })
 
   it('remembering a search without list keys clears the entry', () => {
-    rememberListSearch('u-kim', params('status=a'))
-    rememberListSearch('u-kim', params('tab=history'))
-    expect(window.sessionStorage.getItem(listMemoryKey('u-kim'))).toBeNull()
+    rememberListSearch(USER_ID.kim, params('status=a'))
+    rememberListSearch(USER_ID.kim, params('tab=history'))
+    expect(window.sessionStorage.getItem(listMemoryKey(USER_ID.kim))).toBeNull()
   })
 
   it('memory is kept per user', () => {
-    rememberListSearch('u-kim', params('status=a'))
-    expect(rememberedListPath('u-park')).toBe('/deals')
-    expect(rememberedListPath('u-kim')).toBe('/deals?status=a')
+    rememberListSearch(USER_ID.kim, params('status=a'))
+    expect(rememberedListPath(USER_ID.park)).toBe('/deals')
+    expect(rememberedListPath(USER_ID.kim)).toBe('/deals?status=a')
   })
 
   it('stored garbage is filtered on read', () => {
-    window.sessionStorage.setItem(listMemoryKey('u-kim'), 'x=1&owner=u9')
-    expect(rememberedListPath('u-kim')).toBe('/deals?owner=u9')
+    // x는 목록 키가 아니라 버리고, owner=9는 유효한 id라 남고, vendor=u9·budget=abc는 id가 아니라 버린다.
+    window.sessionStorage.setItem(listMemoryKey(USER_ID.kim), 'x=1&owner=9&vendor=u9&budget=abc')
+    expect(rememberedListPath(USER_ID.kim)).toBe('/deals?owner=9')
   })
 
   it('stored garbage without list keys reads /deals', () => {
-    window.sessionStorage.setItem(listMemoryKey('u-kim'), 'x=1')
-    expect(rememberedListPath('u-kim')).toBe('/deals')
+    window.sessionStorage.setItem(listMemoryKey(USER_ID.kim), 'x=1')
+    expect(rememberedListPath(USER_ID.kim)).toBe('/deals')
   })
 
   it('storage failure falls back to /deals', () => {
@@ -92,13 +122,13 @@ describe('rememberedListPath (AC-01, AC-07~AC-10)', () => {
     vi.spyOn(Storage.prototype, 'removeItem').mockImplementation(() => {
       throw new Error('denied')
     })
-    expect(() => rememberListSearch('u-kim', params('status=a'))).not.toThrow()
-    expect(() => rememberListSearch('u-kim', params(''))).not.toThrow()
-    expect(rememberedListPath('u-kim')).toBe('/deals')
+    expect(() => rememberListSearch(USER_ID.kim, params('status=a'))).not.toThrow()
+    expect(() => rememberListSearch(USER_ID.kim, params(''))).not.toThrow()
+    expect(rememberedListPath(USER_ID.kim)).toBe('/deals')
   })
 
   it('missing user reads /deals', () => {
-    rememberListSearch('u-kim', params('status=a'))
+    rememberListSearch(USER_ID.kim, params('status=a'))
     expect(rememberedListPath(null)).toBe('/deals')
     expect(rememberedListPath(undefined)).toBe('/deals')
   })
@@ -110,8 +140,8 @@ describe('next_status (AC-24)', () => {
   })
 
   it('remembered path restores next_status', () => {
-    rememberListSearch('u-kim', params('status=a&next_status=not_done'))
+    rememberListSearch(USER_ID.kim, params('status=a&next_status=not_done'))
 
-    expect(rememberedListPath('u-kim')).toBe('/deals?status=a&next_status=not_done')
+    expect(rememberedListPath(USER_ID.kim)).toBe('/deals?status=a&next_status=not_done')
   })
 })

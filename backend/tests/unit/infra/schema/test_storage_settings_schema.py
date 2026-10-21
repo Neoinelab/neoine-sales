@@ -5,7 +5,6 @@
 """
 
 from typing import TYPE_CHECKING
-from uuid import uuid4
 
 import pytest
 from sqlalchemy import text
@@ -13,6 +12,7 @@ from sqlalchemy.exc import DBAPIError, IntegrityError
 
 from tests.support.attachment_rows import insert_storage_settings
 from tests.support.head_rows import insert_user
+from tests.support.ids import new_id
 from tests.support.schema_integrity import check_schema
 
 if TYPE_CHECKING:
@@ -42,7 +42,7 @@ async def test_the_table_has_the_planned_columns_and_types(session: AsyncSession
         1024,
     )
     assert columns["updated_at"].data_type == "timestamp with time zone"
-    assert columns["updated_by_user_id"].data_type == "uuid"
+    assert columns["updated_by_user_id"].data_type == "bigint"
 
 
 async def test_a_path_and_a_time_are_required_but_a_saver_is_not(session: AsyncSession) -> None:
@@ -89,7 +89,7 @@ async def test_a_path_over_1024_characters_is_rejected(session: AsyncSession) ->
 
 async def test_a_saver_that_is_not_a_user_is_rejected(session: AsyncSession) -> None:
     with pytest.raises(IntegrityError, match="fk_storage_settings_updated_by_user_id_users"):
-        await insert_storage_settings(session, updated_by=uuid4())
+        await insert_storage_settings(session, updated_by=new_id())
 
 
 async def test_a_user_who_saved_the_settings_cannot_be_deleted(session: AsyncSession) -> None:

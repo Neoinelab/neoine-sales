@@ -6,21 +6,21 @@
 """
 
 from typing import TYPE_CHECKING
-from uuid import uuid4
 
 import pytest
+
 from app.domain.action_type.errors import (
     ActionTypeInUseError,
     ActionTypeNotFoundError,
     DuplicateActionTypeNameError,
 )
 from app.domain.action_type.values import ActionTypeId
-
 from app.domain.common.errors import AlreadyExistsError, InvalidReferenceError
 from app.domain.user.value_objects import UserId
 from tests.factories import NOW, later
 from tests.factories_action_type import DEFAULT_ACTION_TYPE_NAMES, make_action_type
 from tests.support.expect import raises_with
+from tests.support.ids import new_id
 
 if TYPE_CHECKING:
     from tests.unit.repositories.action_type_case import ActionTypeCase
@@ -29,7 +29,7 @@ if TYPE_CHECKING:
 async def test_add_then_get_round_trips_a_custom_type_with_its_creator(
     action_type_case: ActionTypeCase,
 ) -> None:
-    creator = UserId(uuid4())
+    creator = UserId(new_id())
     await action_type_case.ensure_user(creator)
     action_type = make_action_type("ZZ 웨비나", created_by=creator, now=NOW)
     await action_type_case.types.add(action_type)
@@ -57,7 +57,7 @@ async def test_a_default_type_round_trips_without_a_creator(
 
 async def test_get_a_missing_type_raises_not_found(action_type_case: ActionTypeCase) -> None:
     with pytest.raises(ActionTypeNotFoundError):
-        await action_type_case.types.get(ActionTypeId(uuid4()))
+        await action_type_case.types.get(ActionTypeId(new_id()))
 
 
 async def test_the_seeded_defaults_are_listed_first_in_default_order(
@@ -134,14 +134,14 @@ async def test_add_with_an_existing_id_raises_already_exists(
     await action_type_case.types.add(first)
 
     with pytest.raises(AlreadyExistsError):
-        await action_type_case.types.add(make_action_type("ZZ Two", type_uuid=first.id))
+        await action_type_case.types.add(make_action_type("ZZ Two", entity_id=first.id))
 
 
 async def test_add_with_an_unknown_creator_raises_invalid_reference(
     action_type_case: ActionTypeCase,
 ) -> None:
     with pytest.raises(InvalidReferenceError) as caught:
-        await action_type_case.types.add(make_action_type("ZZ 유령", created_by=UserId(uuid4())))
+        await action_type_case.types.add(make_action_type("ZZ 유령", created_by=UserId(new_id())))
 
     assert caught.value.entity == "사용자"
 
@@ -238,7 +238,7 @@ async def test_a_deleted_name_can_be_added_again(action_type_case: ActionTypeCas
 
 async def test_delete_a_missing_type_raises_not_found(action_type_case: ActionTypeCase) -> None:
     with pytest.raises(ActionTypeNotFoundError):
-        await action_type_case.types.delete(ActionTypeId(uuid4()))
+        await action_type_case.types.delete(ActionTypeId(new_id()))
 
 
 async def test_delete_a_type_used_by_actions_reports_the_real_count_and_keeps_the_row(

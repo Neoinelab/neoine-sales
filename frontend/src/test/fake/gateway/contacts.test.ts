@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { ContactInput } from '../../../shared/model/types'
 import { contactIdOf, dealCode, expectApiError, mockAs } from '../testing'
+import { NO_SUCH_ID } from '../seed/ids'
 
 const person = (over: Partial<ContactInput> = {}): ContactInput => ({
   company: '신규회사',
@@ -41,8 +42,8 @@ describe('contacts 관리(admin)', () => {
     for (const key of ['kim', 'han'] as const) {
       const { gateway } = await mockAs(key)
       await expectApiError(gateway.contacts.create('customer', person()), 403)
-      await expectApiError(gateway.contacts.update('ct-001', person()), 403)
-      await expectApiError(gateway.contacts.remove('ct-001'), 403)
+      await expectApiError(gateway.contacts.update(1, person()), 403)
+      await expectApiError(gateway.contacts.remove(1), 403)
     }
   })
 
@@ -82,7 +83,7 @@ describe('contacts 관리(admin)', () => {
       expect(deal.customer).toMatchObject({ title: '이사', email: 'seo@daehan.test' })
       expect((await gateway.history.list(dealCode(no), { category: 'contact' }))[0]).toBeTruthy()
     }
-    await expectApiError(gateway.contacts.update('ct-none', person()), 404)
+    await expectApiError(gateway.contacts.update(NO_SUCH_ID, person()), 404)
   })
 
   it('수정 결과가 다른 연락처와 같은 사람이 되면 409', async () => {

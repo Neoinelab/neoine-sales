@@ -54,7 +54,7 @@ class ContactCase:
         deal = make_deal(
             customer_id=customer.id,
             partner_id=partner.id if partner else None,
-            code=code or f"20261016-{customer.id.hex[:4].upper()}",
+            code=code or f"20261016-{format(customer.id % 0xFFFF, '04X')}",
         )
         await ensure_users(self.users, deal.details.owner_user_id)
         await self.deals.add(deal)

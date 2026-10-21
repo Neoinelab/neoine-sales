@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { dealCode, expectApiError, mockAs } from '../testing'
+import { USER_ID } from '../seed/ids'
 
 describe('history.list', () => {
   it('최신순이고 같은 시각이면 나중에 만든 것이 위다', async () => {
@@ -49,6 +50,6 @@ describe('history.list', () => {
     await gateway.deals.update(code, { name: '새 이름', revenueAmount: 1_000_000, revenueDate: '2027-02-01' })
     const added = (await gateway.history.list(code, {})).slice(0, -before)
     expect(added.map((h) => h.category).sort()).toEqual(['amount', 'expectedClose', 'other'])
-    expect(new Set(added.map((h) => h.by.id))).toEqual(new Set(['u-kim']))
+    expect(new Set(added.map((h) => h.by.id))).toEqual(new Set([USER_ID.kim]))
   })
 })

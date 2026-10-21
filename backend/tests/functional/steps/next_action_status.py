@@ -27,7 +27,7 @@ HISTORY_TARGET: Final = "Next Action"
 OPEN_BEFORE: Final = "요구사항 문서 전달 (Due 2027-01-15) · Open"
 
 
-def status_url(action_id: str) -> str:
+def status_url(action_id: object) -> str:
     return f"{ACTIONS}/{action_id}/next-action-status"
 
 
@@ -58,7 +58,7 @@ async def given_progress_only_action_by(
 
 
 async def given_status_changed(
-    api: Api, action_id: str, status: str, memo: str | None = None
+    api: Api, action_id: object, status: str, memo: str | None = None
 ) -> dict[str, Any]:
     """지금 로그인한 사용자가 Next Action 상태를 바꿔 두었다. 응답 본문을 돌려준다."""
     response = await when_change_status(api, action_id, status, memo)
@@ -70,14 +70,14 @@ async def given_status_changed(
 
 
 async def when_change_status(
-    api: Api, action_id: str, status: str, memo: str | None = None
+    api: Api, action_id: object, status: str, memo: str | None = None
 ) -> Response:
     api.clock.advance(GAP_SECONDS)
     return await api.put(status_url(action_id), json=status_body(status, memo))
 
 
 async def when_change_status_as(
-    api: Api, session: Session, action_id: str, status: str, memo: str | None = None
+    api: Api, session: Session, action_id: object, status: str, memo: str | None = None
 ) -> Response:
     api.clock.advance(GAP_SECONDS)
     return await when_request_as(
@@ -85,7 +85,7 @@ async def when_change_status_as(
     )
 
 
-async def when_change_status_with_body(api: Api, action_id: str, body: object) -> Response:
+async def when_change_status_with_body(api: Api, action_id: object, body: object) -> Response:
     """본문을 가공 없이 보낸다(잘못된 status 값·모르는 필드 시나리오)."""
     api.clock.advance(GAP_SECONDS)
     return await api.put(status_url(action_id), json=body)
@@ -107,7 +107,7 @@ def then_status_response_is(
 
 
 async def then_action_status_is(
-    api: Api, action_id: str, status: str | None, *, memo: str | None = None
+    api: Api, action_id: object, status: str | None, *, memo: str | None = None
 ) -> None:
     """다시 조회한 Action의 상태가 status(없으면 None)이고, 주어졌다면 Memo도 같다."""
     response = await when_get_action(api, action_id)

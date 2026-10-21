@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Self
-from uuid import uuid4
 
 from app.domain.common.entity import AuditedEntity
 from app.domain.contact.values import ContactDetails, ContactId, ContactKind
@@ -23,10 +22,10 @@ class Contact(AuditedEntity[ContactId]):
         details: ContactDetails,
         now: datetime,
         *,
-        entity_id: ContactId | None = None,
+        entity_id: ContactId,
     ) -> Self:
         return cls(
-            id=entity_id or ContactId(uuid4()),
+            id=entity_id,
             kind=kind,
             details=details,
             created_at=now,

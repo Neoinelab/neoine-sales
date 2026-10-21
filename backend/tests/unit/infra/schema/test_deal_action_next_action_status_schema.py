@@ -5,17 +5,15 @@
 
 from datetime import UTC, date, datetime
 from typing import TYPE_CHECKING
-from uuid import uuid4
 
 import pytest
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 
 from tests.support.head_rows import insert_contact, insert_deal, insert_user
+from tests.support.ids import new_id
 
 if TYPE_CHECKING:
-    from uuid import UUID
-
     from sqlalchemy.ext.asyncio import AsyncSession
 
 pytestmark = pytest.mark.integration
@@ -26,9 +24,10 @@ COLUMN_INFO = (
 )
 CONSTRAINT_NAMES = "select conname from pg_constraint where conrelid = 'deal_actions'::regclass"
 RAW_INSERT = (
-    "insert into deal_actions (id, deal_code, action_type_id, action, memo, next_action,"
+    "insert into deal_actions (id, deal_id, action_type_id, action, memo, next_action,"
     " due_date, {status_columns} acted_at, actor_user_id, status_key, forecast_key, created_at,"
-    " updated_at) values (:id, :deal_code, (select id from action_types where name = '미팅'),"
+    " updated_at) values (:id, (select id from deals where deal_code = :deal_code),"
+    " (select id from action_types where name = '미팅'),"
     " :action, '', :next_action, :due_date, {status_values} now(), :actor, 'prospecting',"
     " 'pipeline', now(), now())"
 )
@@ -42,25 +41,29 @@ CHECKS = {
 }
 
 
-async def _deal_and_actor(session: AsyncSession) -> tuple[str, UUID]:
+async def _deal_and_actor(session: AsyncSession) -> tuple[str, int]:
     actor = await insert_user(session, "kim")
     customer = await insert_contact(session)
     return await insert_deal(session, customer, actor), actor
 
 
-async def _raw_insert(session: AsyncSession, deal_code: str, actor: UUID, **values: object) -> None:
+async def _raw_insert(session: AsyncSession, deal_code: str, actor: int, **values: object) -> None:
     """원시 INSERT. 기본은 action='a', next_action='n', due_date가 있는 행이고 values가 덮어쓴다.
 
-    next_action_status·next_action_closed_at는 주어졌을 때만 컬럼으로 넣는다(없으면 기본값).
+    next_action_status는 서버 기본값이 없어서 기본으로 'open'을 넣는다(`omit_status=True`면 컬럼을
+    빼고 넣어 기본값이 없음을 확인한다). next_action_closed_at는 주어졌을 때만 넣는다.
     """
-    status = {k: v for k, v in values.items() if k.startswith("next_action_")}
-    status = {k: v for k, v in status.items() if k in STATUS_COLUMNS}
+    omit_status = bool(values.pop("omit_status", False))
+    status = {k: v for k, v in values.items() if k in STATUS_COLUMNS}
+    if "next_action_status" not in status and not omit_status:
+        status["next_action_status"] = "open"
+        values["next_action_status"] = "open"
     sql = RAW_INSERT.format(
         status_columns="".join(f"{name}, " for name in status),
         status_values="".join(f":{name}, " for name in status),
     )
     params = {
-        "id": uuid4(),
+        "id": new_id(),
         "deal_code": deal_code,
         "actor": actor,
         "action": "a",
@@ -90,8 +93,17 @@ async def test_status_columns_exist_and_are_nullable(session: AsyncSession) -> N
     assert columns["next_action_closed_at"].is_nullable == "YES"
 
 
-async def test_the_status_defaults_to_open_for_old_style_inserts(session: AsyncSession) -> None:
-    """구 앱의 쓰기(세 필드를 모두 채우고 상태를 모름)도 통과하고 open이 된다."""
+async def test_an_insert_that_omits_the_status_is_rejected_because_there_is_no_default(
+    session: AsyncSession,
+) -> None:
+    """서버 기본값 'open'은 contract 단계에서 제거됐다: 상태를 모르는 쓰기는 CHECK에 걸린다."""
+    deal_code, actor = await _deal_and_actor(session)
+
+    with pytest.raises(IntegrityError, match="ck_deal_actions_next_action_fields"):
+        await _raw_insert(session, deal_code, actor, omit_status=True)
+
+
+async def test_the_status_given_by_the_application_is_stored(session: AsyncSession) -> None:
     deal_code, actor = await _deal_and_actor(session)
 
     await _raw_insert(session, deal_code, actor)

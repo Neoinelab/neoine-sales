@@ -173,3 +173,22 @@ def deals_users_required_revision() -> str:
     children = [r.revision for r in script.walk_revisions() if r.down_revision == previous]
     assert len(children) == 1, f"Next Action 상태 다음 리비전이 정확히 하나여야 한다: {children}"
     return children[0]
+
+
+def bigint_ids_revision() -> str:
+    """BIGINT id 리비전(`bigint_ids`) id: Deal users 필수 리비전(`e8c2b4f6a1d9`) 다음이고 head다.
+
+    모든 앱 테이블을 가드 없이 drop하고 BIGINT IDENTITY 스키마로 다시 만든 뒤 기본 시드(코드 13,
+    BANT Label 23, Action 유형 8)를 넣는 단일 리비전이다. downgrade는 RuntimeError로 거부한다.
+    id는 구현이 정하므로 그래프에서 찾는다. 없거나 둘 이상이면 AssertionError(구현 전에는 이것이
+    red다).
+    """
+    from alembic.script import ScriptDirectory  # noqa: PLC0415
+
+    from tests.support.database import _alembic_config  # noqa: PLC0415
+
+    previous = deals_users_required_revision()
+    script = ScriptDirectory.from_config(_alembic_config())
+    children = [r.revision for r in script.walk_revisions() if r.down_revision == previous]
+    assert len(children) == 1, f"Deal users 필수 다음 리비전이 정확히 하나여야 한다: {children}"
+    return children[0]

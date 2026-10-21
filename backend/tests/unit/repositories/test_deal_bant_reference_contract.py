@@ -6,13 +6,13 @@ InvalidReferenceError이고, 문구는 어떤 항목이 문제인지만 말한�
 """
 
 from typing import TYPE_CHECKING
-from uuid import uuid4
 
 import pytest
 
 from app.domain.bant.values import BantCategory, BantLabelId
 from app.domain.common.errors import InvalidReferenceError
 from tests.factories import later, make_bant, make_deal
+from tests.support.ids import new_id
 
 if TYPE_CHECKING:
     from tests.unit.repositories.deal_case import DealCase
@@ -31,7 +31,7 @@ def _assert_clean(error: InvalidReferenceError) -> None:
 async def test_adding_with_an_unknown_label_is_an_invalid_reference_without_object_reprs(
     deal_case: DealCase,
 ) -> None:
-    deal = make_deal(code=CODE, bant=make_bant(budget=BantLabelId(uuid4())))
+    deal = make_deal(code=CODE, bant=make_bant(budget=BantLabelId(new_id())))
 
     with pytest.raises(InvalidReferenceError) as raised:
         await deal_case.add(deal)
@@ -60,7 +60,7 @@ async def test_updating_to_an_unknown_label_is_an_invalid_reference_and_keeps_th
     await deal_case.add(deal)
 
     with pytest.raises(InvalidReferenceError) as raised:
-        await deal_case.revise(deal.id, bant=make_bant(budget=BantLabelId(uuid4())))
+        await deal_case.revise(deal.id, bant=make_bant(budget=BantLabelId(new_id())))
 
     _assert_clean(raised.value)
     assert (await deal_case.deals.get(deal.id)).bant == make_bant(budget=budget.id)
@@ -70,7 +70,7 @@ async def test_the_transaction_stays_usable_after_the_invalid_reference(
     deal_case: DealCase,
 ) -> None:
     with pytest.raises(InvalidReferenceError):
-        await deal_case.add(make_deal(code=CODE, bant=make_bant(need=BantLabelId(uuid4()))))
+        await deal_case.add(make_deal(code=CODE, bant=make_bant(need=BantLabelId(new_id()))))
 
     await deal_case.add(make_deal(later(1), code="20261016-A002"))
 

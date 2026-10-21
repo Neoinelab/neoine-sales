@@ -3,13 +3,13 @@
 from datetime import timedelta
 
 import pytest
+
+from app.domain.common.errors import InvalidStateError, InvalidValueError
 from app.domain.deal_action.next_action_status import (
     NextActionState,
     NextActionStatus,
     NextActionStatusChange,
 )
-
-from app.domain.common.errors import InvalidStateError, InvalidValueError
 from tests.factories import NOW, later, make_deal_action
 from tests.support.expect import raises_with
 

@@ -12,7 +12,7 @@ export function LabelManager() {
   const create = useCreateLabel()
   const rename = useRenameLabel()
   const remove = useRemoveLabel()
-  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editingId, setEditingId] = useState<number | null>(null)
   const [deleting, setDeleting] = useState<BantLabelWithUsage | null>(null)
   const [error, setError] = useState<unknown>(null)
   const busy = create.isPending || rename.isPending || remove.isPending

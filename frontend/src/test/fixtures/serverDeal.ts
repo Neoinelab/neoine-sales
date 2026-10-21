@@ -1,12 +1,13 @@
 /** HTTP 어댑터·매퍼 테스트용 서버 응답 조각(생성 타입 기준, 더미 값). */
 
 import type { Schemas } from '../../shared/api/client'
+import { USER_ID } from '../fake/seed/ids'
 
 export const CODE = '20261016-AB12'
 
 export function serverContact(over: Partial<Schemas['ContactResponse']> = {}): Schemas['ContactResponse'] {
   return {
-    id: 'c-cust',
+    id: 10,
     kind: 'customer',
     company: '한빛은행',
     name: '정민수',
@@ -20,17 +21,17 @@ export function serverContact(over: Partial<Schemas['ContactResponse']> = {}): S
 }
 
 export function serverUserRef(over: Partial<Schemas['UserRef']> = {}): Schemas['UserRef'] {
-  return { id: 'u-kim', name: '김영업', label: '김영업', resigned: false, role: 'sales', ...over }
+  return { id: USER_ID.kim, name: '김영업', label: '김영업', resigned: false, role: 'sales', ...over }
 }
 
 export function serverDealRow(over: Partial<Schemas['DealRowResponse']> = {}): Schemas['DealRowResponse'] {
   return {
     code: CODE,
     name: '한빛은행 ITDR',
-    owner_user_id: 'u-kim',
+    owner_user_id: USER_ID.kim,
     owner: serverUserRef(),
-    vendor: { id: 'vd-006', name: 'Silverfort' },
-    solution: { id: 'sl-006', name: 'ITDR' },
+    vendor: { id: 6, name: 'Silverfort' },
+    solution: { id: 6, name: 'ITDR' },
     users: 100,
     status_key: 'prospecting',
     forecast_key: 'pipeline',
@@ -60,7 +61,7 @@ export function serverDealDetail(over: Partial<Schemas['DealDetailResponse']> = 
 
 export function serverHistory(over: Partial<Schemas['HistoryEntryResponse']> = {}): Schemas['HistoryEntryResponse'] {
   return {
-    id: 'h1',
+    id: 1,
     deal_code: CODE,
     at: '2026-10-15T09:00:00+09:00',
     by: serverUserRef(),

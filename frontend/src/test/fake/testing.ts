@@ -5,6 +5,7 @@ import type { Gateway } from '../../gateway/types'
 import type { DealInput } from '../../shared/model/types'
 import { createMockGateway, type MockInstance, type MockOptions } from './index'
 import { buildSampleSeed, seedDealCode } from '../fixtures/sampleSeed'
+import { USER_ID } from './seed/ids'
 import { seedSolutionId, seedVendorId } from '../fixtures/vendors'
 
 export const TEST_NOW = '2026-10-15T09:00:00+09:00'
@@ -16,10 +17,10 @@ export function newMock(options: MockOptions = {}): MockInstance {
   return createMockGateway({ now: TEST_NOW, latency: false, seed: buildSampleSeed, ...options })
 }
 
-/** 새 mock을 만들고 `u-<loginId>`로 로그인한다. */
+/** 새 mock을 만들고 시드 사용자(`USER_ID[key]`)로 로그인한다. */
 export async function mockAs(key: LoginKey | null, options: MockOptions = {}): Promise<MockInstance> {
   const mock = newMock(options)
-  if (key !== null) await mock.gateway.auth.quickLogin(`u-${key}`)
+  if (key !== null) await mock.gateway.auth.quickLogin(USER_ID[key])
   return mock
 }
 
@@ -57,7 +58,7 @@ export async function contactIdOf(
   company: string,
   name: string,
   title?: string,
-): Promise<string> {
+): Promise<number> {
   const rows = await gw.contacts.byCompany(kind, company)
   const found = rows.find((c) => c.name === name && (title === undefined || c.title === title))
   if (!found) throw new Error(`연락처 없음: ${company} ${name}`)
@@ -65,7 +66,7 @@ export async function contactIdOf(
 }
 
 /** 가장 단순한 유효 Deal 입력(고객 한빛은행 정민수, 파트너 없음). */
-export function dealInput(ownerId: string, over: Partial<DealInput> = {}): DealInput {
+export function dealInput(ownerId: number, over: Partial<DealInput> = {}): DealInput {
   return {
     name: '테스트 Deal',
     ownerId,

@@ -3,6 +3,7 @@ import type { DealPatch } from '../../../shared/model/inputs'
 import type { HistoryCategory } from '../../../shared/model/types'
 import { seedSolutionId, seedVendorId } from '../../fixtures/vendors'
 import { contactIdOf, dealCode, expectApiError, mockAs, TEST_NOW } from '../testing'
+import { USER_ID } from '../seed/ids'
 
 async function categories(gw: Awaited<ReturnType<typeof mockAs>>['gateway'], code: string, since: number) {
   const all = await gw.history.list(code, {})
@@ -36,7 +37,7 @@ describe('deals.update', () => {
     if (!budget) throw new Error('label')
     const updated = await gateway.deals.update(code, {
       name: '대한제조 MFA 확대(수정)',
-      ownerId: 'u-park',
+      ownerId: USER_ID.park,
       revenueAmount: 777_000_000,
       revenueDate: '2026-12-31',
       vendorId: seedVendorId('Okta'),
@@ -47,13 +48,13 @@ describe('deals.update', () => {
       poc: { state: 'ING', completedDate: null },
       procurement: '연말 일괄 구매',
     })
-    expect(updated).toMatchObject({ name: '대한제조 MFA 확대(수정)', owner: { id: 'u-park' }, revenueAmount: 777_000_000, updatedAt: TEST_NOW })
+    expect(updated).toMatchObject({ name: '대한제조 MFA 확대(수정)', owner: { id: USER_ID.park }, revenueAmount: 777_000_000, updatedAt: TEST_NOW })
     const cats = await categories(gateway, code, base)
     const expected: HistoryCategory[] = ['owner', 'amount', 'expectedClose', 'bant', 'other']
     for (const c of expected) expect(cats).toContain(c)
     expect(cats.filter((c) => c === 'other').length).toBe(7) // 이름, Vendor, Solution, Users, 견적, POC, 구매절차
     const owner = (await gateway.history.list(code, { category: 'owner' }))[0]
-    expect(owner).toMatchObject({ before: '김영업', after: '박영업', by: { id: 'u-kim' }, at: TEST_NOW })
+    expect(owner).toMatchObject({ before: '김영업', after: '박영업', by: { id: USER_ID.kim }, at: TEST_NOW })
     expect((await gateway.history.list(code, { category: 'amount' }))[0]).toMatchObject({ target: '금액(단위:천원)', before: '420,000', after: '777,000' })
   })
 
@@ -102,13 +103,13 @@ describe('deals.update', () => {
   it('Owner를 퇴사자로 지정하거나 퇴사 Owner를 유지한 채 저장하면 422', async () => {
     const { gateway } = await mockAs('kim')
     const msg = '퇴사한 사용자는 Owner로 지정할 수 없습니다. 다른 담당자를 선택하세요.'
-    await expectApiError(gateway.deals.update(dealCode(2), { ownerId: 'u-old' }), 422, msg)
-    await expectApiError(gateway.deals.update(dealCode(23), { ownerId: 'u-old', name: '이름 수정' }), 422, msg)
+    await expectApiError(gateway.deals.update(dealCode(2), { ownerId: USER_ID.old }), 422, msg)
+    await expectApiError(gateway.deals.update(dealCode(23), { ownerId: USER_ID.old, name: '이름 수정' }), 422, msg)
     // Owner 필드를 보내지 않으면 퇴사 Owner Deal도 다른 필드는 고칠 수 있다.
     await gateway.deals.update(dealCode(23), { procurement: '메모' })
-    const fixed = await gateway.deals.update(dealCode(23), { ownerId: 'u-park' })
-    expect(fixed.owner.id).toBe('u-park')
-    await expectApiError(gateway.deals.update(dealCode(2), { ownerId: 'u-root' }), 422)
+    const fixed = await gateway.deals.update(dealCode(23), { ownerId: USER_ID.park })
+    expect(fixed.owner.id).toBe(USER_ID.park)
+    await expectApiError(gateway.deals.update(dealCode(2), { ownerId: USER_ID.root }), 422)
   })
 
   it('실패한 수정은 아무것도 바꾸지 않는다(원자성)', async () => {

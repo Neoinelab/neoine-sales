@@ -49,7 +49,7 @@ def _to_entity(row: DirectorySettingsRow) -> StoredDirectorySettings:
         ),
         revision=row.revision,
         updated_at=row.updated_at,
-        updated_by=UserId(row.updated_by_user_id) if row.updated_by_user_id else None,
+        updated_by=UserId(row.updated_by_user_id) if row.updated_by_user_id is not None else None,
     )
 
 

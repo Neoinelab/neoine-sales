@@ -20,8 +20,8 @@ class SolutionNameRequest(RequestModel):
 
 
 class SolutionResponse(BaseModel):
-    id: str
-    vendor_id: str
+    id: int
+    vendor_id: int
     name: str
     usage_count: int
     created_at: datetime
@@ -31,8 +31,8 @@ class SolutionResponse(BaseModel):
     def from_usage(cls, item: SolutionUsage) -> SolutionResponse:
         solution = item.solution
         return cls(
-            id=str(solution.id),
-            vendor_id=str(item.vendor_id),
+            id=solution.id,
+            vendor_id=item.vendor_id,
             name=solution.name,
             usage_count=item.usage_count,
             created_at=solution.created_at,
@@ -41,7 +41,7 @@ class SolutionResponse(BaseModel):
 
 
 class VendorResponse(BaseModel):
-    id: str
+    id: int
     name: str
     usage_count: int
     created_at: datetime
@@ -52,7 +52,7 @@ class VendorResponse(BaseModel):
     def from_usage(cls, item: VendorUsage) -> VendorResponse:
         vendor = item.vendor
         return cls(
-            id=str(vendor.id),
+            id=vendor.id,
             name=vendor.name,
             usage_count=item.usage_count,
             created_at=vendor.created_at,

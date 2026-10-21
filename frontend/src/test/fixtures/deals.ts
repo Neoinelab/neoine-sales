@@ -4,6 +4,7 @@ import type { LabelRecord } from '../fake/store'
 import { findSeedContact } from './contacts'
 import { actionHour, createdAgo, type DealSpec } from './dealSpecs'
 import type { SeedEnv } from '../fake/seed/env'
+import { USER_ID } from '../fake/seed/ids'
 import { seedSolutionId, seedVendorId } from './vendors'
 
 /** 시드 Deal의 code: 등록일(YYYYMMDD) + '-D' + 3자리 번호(1~24). */
@@ -60,7 +61,7 @@ export function seedDeals(
     return {
       code: dealCodeOf(spec, env),
       name: spec.name,
-      ownerId: `u-${spec.owner}`,
+      ownerId: USER_ID[spec.owner],
       vendorId: seedVendorId(spec.vendor),
       solutionId: seedSolutionId(spec.vendor, spec.solution),
       users: spec.users,

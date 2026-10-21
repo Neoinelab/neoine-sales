@@ -31,7 +31,7 @@ class InMemoryStore[EntityT: AuditedEntity[Any]]:
 
     def _fetch_page(self, offset: int, limit: int) -> list[EntityT]:
         check_page(offset, limit)
-        ordered = sorted(self._items.values(), key=lambda item: (item.created_at, str(item.id)))
+        ordered = sorted(self._items.values(), key=lambda item: (item.created_at, item.id))
         return [copy.deepcopy(item) for item in ordered[offset : offset + limit]]
 
     def _replace(self, entity: EntityT) -> None:

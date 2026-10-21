@@ -15,8 +15,6 @@ from tests.factories_contact import make_customer
 from tests.support.user_ids import OWNER_ID
 
 if TYPE_CHECKING:
-    from uuid import UUID
-
     from app.application.deal.dto import DealView
     from app.application.ports.clock import Clock
     from app.application.ports.unit_of_work import UnitOfWork, UnitOfWorkFactory
@@ -29,7 +27,7 @@ SALES = Actor(user_id=OWNER_ID, role=Role.SALES)  # 기본 요청자: 기본 Own
 _COMPANIES = itertools.count(1)
 
 
-def make_draft(contact_id: UUID | None = None, **overrides: Any) -> ContactDraftInput:  # noqa: ANN401
+def make_draft(contact_id: int | None = None, **overrides: Any) -> ContactDraftInput:  # noqa: ANN401
     """연락처 입력(ContactDraft). 기본은 새 고객이다(contact_id None). overrides: company, name,
     title, email, phone."""
     values: dict[str, Any] = {
@@ -58,14 +56,12 @@ def draft_of(contact: Contact, **overrides: Any) -> ContactDraftInput:  # noqa: 
 
 
 def choice_of(value: object) -> Any:  # noqa: ANN401
-    """BANT 입력 한 구분의 선택 객체: None(선택 안 함)·`CatalogChoice`는 그대로, UUID는 `{id}`,
+    """BANT 입력 한 구분의 선택 객체: None(선택 안 함)·`CatalogChoice`는 그대로, 정수는 `{id}`,
     문자열은 `{name}`으로 바꾼다. 테스트가 `bant={BantCategory.BUDGET: label.id}`처럼 적게 한다.
     """
-    from uuid import UUID  # noqa: PLC0415
-
     from app.application.choice import CatalogChoice  # noqa: PLC0415 - 지연 import(구현 전 수집)
 
-    if isinstance(value, UUID):
+    if isinstance(value, int):
         return CatalogChoice(id=value)
     if isinstance(value, str):
         return CatalogChoice(name=value)
@@ -79,7 +75,7 @@ def _bant_choices(bant: Any) -> Any:  # noqa: ANN401
 def make_create_input(**overrides: Any) -> DealCreateInput:  # noqa: ANN401
     """등록 입력(원시 타입). overrides는 DealCreateInput 필드명이다.
 
-    bant의 값은 UUID(`{id}`)·문자열(`{name}`)·`CatalogChoice`·None 어느 것이나 된다.
+    bant의 값은 정수 id(`{id}`)·문자열(`{name}`)·`CatalogChoice`·None 어느 것이나 된다.
     """
     values: dict[str, Any] = {
         "name": "ERP 구축",
@@ -108,7 +104,7 @@ def make_create_input(**overrides: Any) -> DealCreateInput:  # noqa: ANN401
 def make_patch(**fields: Any) -> DealPatchInput:  # noqa: ANN401
     """수정 입력. 넘긴 필드만 '보낸 필드'(provided)다. None도 보낸 값이다(예: partner=None=제거).
 
-    bant의 값은 `make_create_input`과 같이 UUID·문자열·`CatalogChoice`·None 어느 것이나 된다.
+    bant의 값은 `make_create_input`과 같이 정수 id·문자열·`CatalogChoice`·None 어느 것이나 된다.
     """
     if fields.get("bant") is not None:
         fields["bant"] = _bant_choices(fields["bant"])

@@ -46,7 +46,7 @@ export function checkStorageWritable(ctx: MockContext, path: string): void {
 export function saveDirectoryRecord(
   ctx: MockContext,
   input: DirectorySettingsInput,
-  updatedById: string | null,
+  updatedById: number | null,
 ): DirectoryRecord {
   const previous = ctx.store.data.directory
   const record: DirectoryRecord = {
@@ -65,7 +65,7 @@ function directoryView(ctx: MockContext, record: DirectoryRecord): DirectorySett
   return { ...rest, updatedBy: updatedById === null ? null : userRef(ctx.store.data, updatedById) }
 }
 
-function storageView(ctx: MockContext, record: { path: string; updatedAt: string; updatedById: string | null }): StorageSettings {
+function storageView(ctx: MockContext, record: { path: string; updatedAt: string; updatedById: number | null }): StorageSettings {
   return { path: record.path, updatedAt: record.updatedAt, updatedBy: record.updatedById === null ? null : userRef(ctx.store.data, record.updatedById) }
 }
 

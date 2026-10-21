@@ -6,7 +6,6 @@
 """
 
 from typing import TYPE_CHECKING
-from uuid import uuid4
 
 import pytest
 
@@ -24,6 +23,7 @@ from tests.functional.steps.deals import (
     when_register_deal,
     when_update_deal,
 )
+from tests.support.ids import MISSING_ID
 
 if TYPE_CHECKING:
     from tests.functional.conftest import Api
@@ -156,7 +156,7 @@ async def test_an_unknown_contact_id_is_not_found(api: Api) -> None:
     # Given
     await given_logged_in_as(api, role="sales")
     # When
-    response = await when_register_deal(api, customer=customer_draft(contact_id=str(uuid4())))
+    response = await when_register_deal(api, customer=customer_draft(contact_id=MISSING_ID))
     # Then
     then_problem_is(response, status=404, type_suffix="not-found")
     assert response.json()["detail"] == CONTACT_NOT_FOUND

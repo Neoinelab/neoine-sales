@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Self
-from uuid import uuid4
 
 from app.domain.auth.principal import NAME_MAX, Principal, Role
 from app.domain.common.contact import EMAIL_MAX_LENGTH
@@ -46,14 +45,14 @@ class User(AuditedEntity[UserId]):
         login_id: LoginId,
         role: Role,
         *,
+        entity_id: UserId,
         created_by_user_id: UserId,
         now: datetime,
-        entity_id: UserId | None = None,
         display_name: str | None = None,
     ) -> Self:
         """사람이 입력한 표시 이름은 NUL·길이 초과를 거절한다(자르지 않는다). 빈 값은 None."""
         return cls(
-            id=entity_id or UserId(uuid4()),
+            id=entity_id,
             login_id=login_id,
             role=role,
             created_by_user_id=created_by_user_id,
@@ -63,11 +62,12 @@ class User(AuditedEntity[UserId]):
         )
 
     @classmethod
-    def register_self(cls, login_id: LoginId, role: Role, *, now: datetime) -> Self:
+    def register_self(
+        cls, login_id: LoginId, role: Role, *, entity_id: UserId, now: datetime
+    ) -> Self:
         """스스로 등록한 행(최초 admin, 개발 로그인): 등록자가 자기 자신이다."""
-        entity_id = UserId(uuid4())
         return cls.register(
-            login_id, role, created_by_user_id=entity_id, now=now, entity_id=entity_id
+            login_id, role, entity_id=entity_id, created_by_user_id=entity_id, now=now
         )
 
     @property

@@ -37,7 +37,7 @@ export interface ContactInput {
  * - contactId가 null이면 `findSamePerson` 규칙으로 같은 사람을 찾아 갱신하고, 없으면 새로 만든다.
  */
 export interface ContactDraft extends ContactInput {
-  contactId: string | null
+  contactId: number | null
 }
 
 export interface ContactListQuery {
@@ -57,10 +57,10 @@ export interface ContactListQuery {
  */
 export interface DealInput {
   name: string
-  ownerId: string
+  ownerId: number
   /** Vendor/Solution id. 선택 안 함은 null. */
-  vendorId: string | null
-  solutionId: string | null
+  vendorId: number | null
+  solutionId: number | null
   users: number
   statusKey: string
   forecastKey: string
@@ -96,9 +96,9 @@ export type SortOrder = 'asc' | 'desc'
 export interface DealListQuery {
   /** Deal 이름·고객사·파트너사·Deal code 부분 일치(대소문자 무시). */
   keyword?: string
-  ownerId?: string
-  vendorId?: string
-  solutionId?: string
+  ownerId?: number
+  vendorId?: number
+  solutionId?: number
   statusKey?: string
   forecastKey?: string
   /** Expected Close(revenueDate) 기준 연도/분기. quarter만 있으면 서버가 올해로 본다. */
@@ -108,7 +108,7 @@ export interface DealListQuery {
   revenueFrom?: string
   revenueTo?: string
   /** 구분별 Label(AND). */
-  bantLabelIds?: Partial<Record<BantCategory, string>>
+  bantLabelIds?: Partial<Record<BantCategory, number>>
   /** true면 현재 로그인 사용자가 Owner인 Deal만. */
   mine?: boolean
   /** Next Action이 있는 가장 최근 Action의 상태. */
@@ -156,8 +156,8 @@ export interface NextActionStatusInput {
 export type ActionSort = 'actedDesc' | 'actedAsc' | 'dueAsc'
 
 export interface ActionQuery {
-  typeId?: string
-  actorId?: string
+  typeId?: number
+  actorId?: number
   /** 진행사항·Next Action·Memo 부분 일치. */
   keyword?: string
   actedFrom?: string
@@ -231,8 +231,8 @@ export interface DirectorySettingsInput {
 export interface ForecastQuery {
   year: number
   quarter?: 1 | 2 | 3 | 4
-  vendorId?: string
-  ownerId?: string
+  vendorId?: number
+  ownerId?: number
 }
 
 export interface ForecastCell {
@@ -249,7 +249,7 @@ export interface ForecastColumn {
 
 export interface ForecastSummaryRow {
   /** 합계 행이면 null. */
-  ownerId: string | null
+  ownerId: number | null
   ownerName: string
   /** forecastKey → 셀. columns의 모든 key가 존재한다(없으면 {0,0}). */
   cells: Record<string, ForecastCell>

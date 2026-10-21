@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { REMEMBERED_LIST_KEYS } from '../../../shared/model/dealListMemory'
 import { FILTER_KEYS, currentSort, hasActiveFilter, listQueryFromParams, nextSort, updateParams } from './listQuery'
+import { USER_ID } from '../../../test/fake/seed/ids'
 
 const params = (query: string) => new URLSearchParams(query)
 
-const VENDOR = '10000000-0000-4000-8000-000000000003'
-const SOLUTION = '20000000-0000-4000-8000-000000000003'
+const VENDOR = 3
+const SOLUTION = 12
 
 describe('listQueryFromParams (T-LIST-05, T-LIST-09)', () => {
   it('returns only paging for empty params', () => {
@@ -15,12 +16,12 @@ describe('listQueryFromParams (T-LIST-05, T-LIST-09)', () => {
   it('maps every filter, sort and page from the URL', () => {
     const query = listQueryFromParams(
       params(
-        `q=한빛&owner=u-kim&vendor=${VENDOR}&solution=${SOLUTION}&status=prospecting&forecast=best&year=2026&quarter=4&from=2026-01-01&to=2026-12-31&budget=lb-1&need=lb-9&mine=1&sort=revenueAmount&order=asc&page=3`,
+        `q=한빛&owner=${USER_ID.kim}&vendor=${VENDOR}&solution=${SOLUTION}&status=prospecting&forecast=best&year=2026&quarter=4&from=2026-01-01&to=2026-12-31&budget=1&need=9&mine=1&sort=revenueAmount&order=asc&page=3`,
       ),
     )
     expect(query).toEqual({
       keyword: '한빛',
-      ownerId: 'u-kim',
+      ownerId: USER_ID.kim,
       vendorId: VENDOR,
       solutionId: SOLUTION,
       statusKey: 'prospecting',
@@ -29,7 +30,7 @@ describe('listQueryFromParams (T-LIST-05, T-LIST-09)', () => {
       quarter: 4,
       revenueFrom: '2026-01-01',
       revenueTo: '2026-12-31',
-      bantLabelIds: { budget: 'lb-1', need: 'lb-9' },
+      bantLabelIds: { budget: 1, need: 9 },
       mine: true,
       sort: 'revenueAmount',
       order: 'asc',
@@ -58,9 +59,38 @@ describe('listQueryFromParams (T-LIST-05, T-LIST-09)', () => {
     expect(listQueryFromParams(params('quarter=5'))).toEqual({ offset: 0, limit: 20 })
   })
 
-  it('ignores non-uuid vendor and solution values such as old names', () => {
+  it('reads integer vendor and solution ids', () => {
+    expect(listQueryFromParams(params('vendor=12&solution=3'))).toEqual({ offset: 0, limit: 20, vendorId: 12, solutionId: 3 })
+  })
+
+  it('ignores uuid and name values for vendor and solution', () => {
     expect(listQueryFromParams(params('vendor=Okta&solution=SSO'))).toEqual({ offset: 0, limit: 20 })
+    expect(
+      listQueryFromParams(params('vendor=10000000-0000-4000-8000-000000000003&solution=20000000-0000-4000-8000-000000000003')),
+    ).toEqual({ offset: 0, limit: 20 })
     expect(listQueryFromParams(params(`vendor=${VENDOR}&solution=ITDR`))).toEqual({ offset: 0, limit: 20, vendorId: VENDOR })
+  })
+
+  it.each(['0', '-1', '1.5', '1e3', '01', '+3', '9007199254740992'])(
+    'ignores the out-of-range or non-integer id %j in every id parameter',
+    (raw) => {
+      const encoded = encodeURIComponent(raw)
+      expect(listQueryFromParams(params(`vendor=${encoded}&solution=${encoded}&owner=${encoded}&budget=${encoded}&need=${encoded}`))).toEqual({
+        offset: 0,
+        limit: 20,
+      })
+    },
+  )
+
+  it('accepts the largest safe integer as an id', () => {
+    expect(listQueryFromParams(params('vendor=9007199254740991'))).toEqual({ offset: 0, limit: 20, vendorId: 9007199254740991 })
+  })
+
+  it('ignores an old uuid or user key in the owner and bant parameters', () => {
+    expect(listQueryFromParams(params('owner=u-kim&budget=lb-1&authority=0f0e0d0c-0b0a-4908-8706-050403020100'))).toEqual({
+      offset: 0,
+      limit: 20,
+    })
   })
 })
 
@@ -85,7 +115,7 @@ describe('hasActiveFilter', () => {
   })
   it('is true for any condition including mine', () => {
     expect(hasActiveFilter(params('mine=1'))).toBe(true)
-    expect(hasActiveFilter(params('budget=lb-1'))).toBe(true)
+    expect(hasActiveFilter(params('budget=1'))).toBe(true)
     expect(hasActiveFilter(params('q=a'))).toBe(true)
   })
 })

@@ -131,11 +131,11 @@ async def when_create_contact(api: Api, payload: dict[str, Any]) -> Response:
     return await api.post(CONTACTS, json=payload)
 
 
-async def when_update_contact(api: Api, contact_id: str, payload: dict[str, Any]) -> Response:
+async def when_update_contact(api: Api, contact_id: object, payload: dict[str, Any]) -> Response:
     return await api.put(f"{CONTACTS}/{contact_id}", json=payload)
 
 
-async def when_delete_contact(api: Api, contact_id: str) -> Response:
+async def when_delete_contact(api: Api, contact_id: object) -> Response:
     return await api.delete(f"{CONTACTS}/{contact_id}")
 
 
@@ -198,12 +198,12 @@ def then_every_row_has_the_documented_fields(response: Response) -> None:
         assert set(row) == ROW_FIELDS, row
 
 
-def then_row_deal_counts_are(response: Response, expected: dict[str, int]) -> None:
+def then_row_deal_counts_are(response: Response, expected: dict[int, int]) -> None:
     """GET /contacts/by-company 본문(배열)의 id별 deal_count가 expected와 같다."""
     assert {row["id"]: row["deal_count"] for row in response.json()} == expected
 
 
-def then_deal_counts_are(response: Response, expected: dict[str, int]) -> None:
+def then_deal_counts_are(response: Response, expected: dict[int, int]) -> None:
     """items의 id별 deal_count가 expected와 같다."""
     counts = {item["id"]: item["deal_count"] for item in response.json()["items"]}
     assert counts == expected
@@ -219,7 +219,7 @@ def then_contact_names_are(response: Response, names: list[str]) -> None:
     assert [row["name"] for row in response.json()] == names
 
 
-async def then_contact_is_listed(api: Api, contact_id: str, *, company: str | None = None) -> None:
+async def then_contact_is_listed(api: Api, contact_id: int, *, company: str | None = None) -> None:
     """admin 목록에 해당 연락처가 있다(회사명을 주면 회사명도 같다)."""
     found = [
         item
@@ -231,7 +231,7 @@ async def then_contact_is_listed(api: Api, contact_id: str, *, company: str | No
         assert found[0]["company"] == company
 
 
-async def then_contact_is_not_listed(api: Api, contact_id: str) -> None:
+async def then_contact_is_not_listed(api: Api, contact_id: int) -> None:
     items = (await when_search_contacts(api, limit=200)).json()["items"]
     assert contact_id not in [item["id"] for item in items]
 

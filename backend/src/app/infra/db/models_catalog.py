@@ -1,9 +1,9 @@
 """코드(Status·Forecast)와 BANT Label ORM 모델. models.py 끝에서 import해 등록한다."""
 
 from typing import TYPE_CHECKING
-from uuid import UUID
 
 from sqlalchemy import (
+    BigInteger,
     Boolean,
     CheckConstraint,
     ForeignKey,
@@ -70,8 +70,8 @@ class BantLabelRow(AuditColumns, Base):
     name: Mapped[str] = mapped_column(String(50))
     is_default: Mapped[bool] = mapped_column(Boolean, default=False)
     default_order: Mapped[int | None] = mapped_column(Integer, default=None)
-    created_by_user_id: Mapped[UUID | None] = mapped_column(
-        ForeignKey("users.id", ondelete="RESTRICT"), default=None
+    created_by_user_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("users.id", ondelete="RESTRICT"), default=None
     )
 
     __table_args__ = (
@@ -92,8 +92,8 @@ class ActionTypeRow(AuditColumns, Base):
     name: Mapped[str] = mapped_column(String(50))
     is_default: Mapped[bool] = mapped_column(Boolean, default=False)
     default_order: Mapped[int | None] = mapped_column(Integer, default=None)
-    created_by_user_id: Mapped[UUID | None] = mapped_column(
-        ForeignKey("users.id", ondelete="RESTRICT"), default=None
+    created_by_user_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("users.id", ondelete="RESTRICT"), default=None
     )
 
     __table_args__ = (
@@ -118,7 +118,7 @@ class SolutionRow(AuditColumns, Base):
 
     __tablename__ = "solutions"
 
-    vendor_id: Mapped[UUID] = mapped_column(ForeignKey("vendors.id", ondelete="CASCADE"))
+    vendor_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("vendors.id", ondelete="CASCADE"))
     name: Mapped[str] = mapped_column(String(200))
 
     __table_args__ = (

@@ -15,7 +15,7 @@ function dated(value: string | null, date: string | null): string {
 /** 행 아래로 펼치는 빠른 보기: 견적·POC·고객 담당자·파트너 영업대표·BANT·Users·구매절차. */
 export function QuickView({ row }: { row: DealRow }) {
   const labels = useLabels().data ?? []
-  const labelName = (id: string | null) => labels.find((l) => l.id === id)?.name ?? '—'
+  const labelName = (id: number | null) => labels.find((l) => l.id === id)?.name ?? '—'
 
   return (
     <section className="quick-view" aria-label={`빠른 보기: ${row.name}`}>

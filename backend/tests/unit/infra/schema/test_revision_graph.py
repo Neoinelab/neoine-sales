@@ -18,6 +18,7 @@ from tests.support.revisions import (
     action_types_revision,
     alert_settings_revision,
     attachments_revision,
+    bigint_ids_revision,
     contacts_revision,
     deal_model_revision,
     deals_users_required_revision,
@@ -25,19 +26,40 @@ from tests.support.revisions import (
     vendor_solution_revision,
 )
 
+USERS_REQUIRED_REVISION = "e8c2b4f6a1d9"  # 이 리비전 아래는 UUID 스키마다
 
-def test_the_users_required_revision_follows_the_next_action_status_and_is_the_single_head() -> (
-    None
-):
+
+def test_the_bigint_ids_revision_follows_the_users_required_and_is_the_single_head() -> None:
     script = ScriptDirectory.from_config(_alembic_config())
 
     heads = script.get_heads()
 
-    assert heads == [deals_users_required_revision()]
-    assert deals_users_required_revision() != next_action_status_revision()
-    head = script.get_revision(deals_users_required_revision())
+    assert heads == [bigint_ids_revision()]
+    assert bigint_ids_revision() != deals_users_required_revision()
+    head = script.get_revision(bigint_ids_revision())
     assert head is not None
-    assert head.down_revision == next_action_status_revision()
+    assert head.down_revision == USERS_REQUIRED_REVISION == deals_users_required_revision()
+
+
+def test_the_bigint_ids_revision_file_is_named_after_its_purpose() -> None:
+    script = ScriptDirectory.from_config(_alembic_config())
+
+    head = script.get_revision(bigint_ids_revision())
+
+    assert head is not None
+    assert head.path.endswith(f"20261021_{head.revision}_bigint_ids.py")
+
+
+def test_the_users_required_revision_follows_the_next_action_status_in_the_head_history() -> None:
+    script = ScriptDirectory.from_config(_alembic_config())
+
+    revision = script.get_revision(deals_users_required_revision())
+
+    assert revision is not None
+    assert revision.down_revision == next_action_status_revision()
+    assert deals_users_required_revision() != next_action_status_revision()
+    history = {r.revision for r in script.iterate_revisions(script.get_heads()[0], "base")}
+    assert deals_users_required_revision() in history
 
 
 def test_the_next_action_status_revision_follows_the_action_types_in_the_head_history() -> None:

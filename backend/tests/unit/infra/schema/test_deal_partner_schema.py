@@ -2,13 +2,13 @@
 
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
-from uuid import uuid4
 
 import pytest
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 
 from tests.support.head_rows import insert_contact, insert_deal, insert_partner_link
+from tests.support.ids import MISSING_ID
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
@@ -17,11 +17,11 @@ pytestmark = pytest.mark.integration
 
 LINKED = datetime(2026, 10, 16, 9, 0, tzinfo=UTC)
 LATER = datetime(2026, 10, 17, 9, 0, tzinfo=UTC)
-COLUMNS = {"id", "deal_code", "contact_id", "linked_at", "unlinked_at"}
+COLUMNS = {"id", "deal_id", "contact_id", "linked_at", "unlinked_at"}
 INDEXES = {
     "uq_deal_partners_one_active",
     "ix_deal_partners_contact_id",
-    "ix_deal_partners_deal_code_linked_at",
+    "ix_deal_partners_deal_id_linked_at",
 }
 COLUMN_NAMES = (
     "select column_name from information_schema.columns where table_name = 'deal_partners'"
@@ -33,7 +33,7 @@ FOREIGN_KEYS = (
 )
 
 
-async def _deal_with_contacts(session: AsyncSession, count: int = 2) -> tuple[str, list[str]]:
+async def _deal_with_contacts(session: AsyncSession, count: int = 2) -> tuple[str, list[int]]:
     customer = await insert_contact(session)
     code = await insert_deal(session, customer)
     partners = [
@@ -114,7 +114,7 @@ async def test_a_missing_contact_is_rejected(session: AsyncSession) -> None:
     code, _ = await _deal_with_contacts(session, count=0)
 
     with pytest.raises(IntegrityError, match="fk_deal_partners_contact_id_contacts"):
-        await insert_partner_link(session, code, str(uuid4()))
+        await insert_partner_link(session, code, MISSING_ID)
 
 
 async def test_a_contact_with_a_link_cannot_be_deleted_even_if_the_link_is_inactive(

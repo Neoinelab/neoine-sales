@@ -14,11 +14,10 @@ from sqlalchemy.exc import DBAPIError, IntegrityError
 
 from tests.support.attachment_rows import insert_attachment
 from tests.support.head_rows import insert_contact, insert_deal, insert_user
+from tests.support.ids import MISSING_ID, new_id
 from tests.support.schema_integrity import check_schema
 
 if TYPE_CHECKING:
-    from uuid import UUID
-
     from sqlalchemy.ext.asyncio import AsyncSession
 
 pytestmark = pytest.mark.integration
@@ -37,7 +36,7 @@ COUNT = "select count(*) from deal_attachments"
 MAX_BYTES = 104_857_600
 COLUMNS = {
     "id",
-    "deal_code",
+    "deal_id",
     "file_name",
     "description",
     "mime",
@@ -59,11 +58,11 @@ async def _names(session: AsyncSession, statement: str) -> set[str]:
     return {str(r[0]) for r in (await session.execute(text(statement))).all()}
 
 
-async def _user(session: AsyncSession) -> UUID:
+async def _user(session: AsyncSession) -> int:
     return await insert_user(session, f"u{uuid4().hex[:10]}")
 
 
-async def _deal(session: AsyncSession, code: str = "20261016-A001") -> tuple[str, UUID]:
+async def _deal(session: AsyncSession, code: str = "20261016-A001") -> tuple[str, int]:
     user = await _user(session)
     return await insert_deal(session, await insert_contact(session), user, code=code), user
 
@@ -72,17 +71,16 @@ async def test_the_table_has_the_planned_columns_and_types(session: AsyncSession
     columns = await _columns(session)
 
     assert set(columns) == COLUMNS
-    assert {
-        name: columns[name][:2] for name in ("deal_code", "file_name", "description", "mime")
-    } == {
-        "deal_code": ("character varying", 13),
+    assert {name: columns[name][:2] for name in ("file_name", "description", "mime")} == {
         "file_name": ("character varying", 255),
         "description": ("character varying", 100),
         "mime": ("character varying", 255),
     }
     assert columns["storage_key"][:2] == ("character varying", 32)
     assert columns["size_bytes"][0] == "bigint"
-    assert columns["uploaded_by_user_id"][0] == "uuid"
+    assert columns["id"][0] == "bigint"
+    assert columns["deal_id"][0] == "bigint"
+    assert columns["uploaded_by_user_id"][0] == "bigint"
     for name in ("uploaded_at", "created_at", "updated_at"):
         assert columns[name][0] == "timestamp with time zone", name
 
@@ -98,11 +96,12 @@ async def test_description_defaults_to_an_empty_string(session: AsyncSession) ->
 
     await session.execute(
         text(
-            "insert into deal_attachments (id, deal_code, file_name, mime, size_bytes,"
+            "insert into deal_attachments (id, deal_id, file_name, mime, size_bytes,"
             " storage_key, uploaded_by_user_id, uploaded_at, created_at, updated_at) values"
-            " (:id, :deal, 'a.pdf', 'application/pdf', 1, :key, :user, now(), now(), now())"
+            " (:id, (select id from deals where deal_code = :deal), 'a.pdf', 'application/pdf',"
+            " 1, :key, :user, now(), now(), now())"
         ),
-        {"id": uuid4(), "deal": deal, "key": uuid4().hex, "user": user},
+        {"id": new_id(), "deal": deal, "key": uuid4().hex, "user": user},
     )
 
     assert (await session.execute(text("select description from deal_attachments"))).scalar() == ""
@@ -161,7 +160,7 @@ async def test_the_same_file_name_twice_in_one_deal_is_rejected(session: AsyncSe
     deal, user = await _deal(session)
     await insert_attachment(session, deal, user, file_name="same.pdf")
 
-    with pytest.raises(IntegrityError, match="uq_deal_attachments_deal_code_file_name"):
+    with pytest.raises(IntegrityError, match="uq_deal_attachments_deal_id_file_name"):
         await insert_attachment(session, deal, user, file_name="same.pdf")
 
 
@@ -201,15 +200,15 @@ async def test_the_same_storage_key_twice_is_rejected_even_across_deals(
 async def test_an_attachment_of_a_missing_deal_is_rejected(session: AsyncSession) -> None:
     user = await _user(session)
 
-    with pytest.raises(IntegrityError, match="fk_deal_attachments_deal_code_deals"):
-        await insert_attachment(session, "20260101-ZZZZ", user)
+    with pytest.raises(IntegrityError, match="fk_deal_attachments_deal_id_deals"):
+        await insert_attachment(session, "20260101-ZZZZ", user, deal_id=MISSING_ID)
 
 
 async def test_an_attachment_of_a_missing_uploader_is_rejected(session: AsyncSession) -> None:
     deal, _ = await _deal(session)
 
     with pytest.raises(IntegrityError, match="fk_deal_attachments_uploaded_by_user_id_users"):
-        await insert_attachment(session, deal, uuid4())
+        await insert_attachment(session, deal, new_id())
 
 
 async def test_deleting_the_deal_deletes_its_attachments(session: AsyncSession) -> None:
@@ -232,7 +231,9 @@ async def test_deleting_the_deal_keeps_the_attachments_of_other_deals(
 
     await session.execute(text("delete from deals where deal_code = :code"), {"code": deal})
 
-    rows = await session.execute(text("select deal_code from deal_attachments"))
+    rows = await session.execute(
+        text("select d.deal_code from deal_attachments a join deals d on d.id = a.deal_id")
+    )
     assert rows.scalars().all() == [other_deal]
 
 
@@ -251,7 +252,7 @@ async def test_the_foreign_keys_cascade_from_the_deal_and_restrict_the_user(
     fks = {(r[0], r[1], r[2].strip()) for r in (await session.execute(text(FOREIGN_KEYS))).all()}
 
     assert fks == {
-        ("fk_deal_attachments_deal_code_deals", "deals", "c"),
+        ("fk_deal_attachments_deal_id_deals", "deals", "c"),
         ("fk_deal_attachments_uploaded_by_user_id_users", "users", "r"),
     }
 
@@ -262,13 +263,13 @@ async def test_the_planned_constraints_and_indexes_exist(session: AsyncSession) 
 
     assert {
         "pk_deal_attachments",
-        "uq_deal_attachments_deal_code_file_name",
+        "uq_deal_attachments_deal_id_file_name",
         "uq_deal_attachments_storage_key",
         "ck_deal_attachments_size_range",
     } <= constraints
     assert {
         "ix_deal_attachments_uploaded_by_user_id",
-        "ix_deal_attachments_deal_code_uploaded_at",
+        "ix_deal_attachments_deal_id_uploaded_at",
     } <= indexes
 
 

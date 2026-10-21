@@ -10,7 +10,7 @@ export type BantChoices = Partial<Record<BantCategory, CatalogChoice | null>>
 
 export interface BantDraft {
   /** id로 고른 것(선택 안 함 포함) 또는 이미 있는 이름과 같아 그 Label을 쓰는 것. */
-  chosen: Record<BantCategory, string | null>
+  chosen: Record<BantCategory, number | null>
   /** 같은 구분에 없어서 저장할 때 만들 이름(정규화됨). */
   newNames: Partial<Record<BantCategory, string>>
 }
@@ -28,7 +28,7 @@ function normalizeName(raw: string): string {
 /** 저장소를 바꾸지 않고 판정만 한다. 틀린 id·다른 구분의 id·이름 규칙 위반은 422. */
 export function checkBant(ctx: MockContext, bant: BantChoices): BantDraft {
   const { labels } = ctx.store.data
-  const chosen = { budget: null, authority: null, need: null, timeline: null } as Record<BantCategory, string | null>
+  const chosen = { budget: null, authority: null, need: null, timeline: null } as Record<BantCategory, number | null>
   const newNames: BantDraft['newNames'] = {}
   for (const category of BANT_CATEGORIES) {
     const choice = bant[category]
@@ -47,7 +47,7 @@ export function checkBant(ctx: MockContext, bant: BantChoices): BantDraft {
 }
 
 /** 검증을 모두 마친 뒤에만 부른다. 새 이름마다 그 구분에 Label을 만들고 최종 선택(id)을 돌려준다. */
-export function commitBant(ctx: MockContext, draft: BantDraft, actorId: string): Record<BantCategory, string | null> {
+export function commitBant(ctx: MockContext, draft: BantDraft, actorId: number): Record<BantCategory, number | null> {
   const result = { ...draft.chosen }
   for (const category of BANT_CATEGORIES) {
     const name = draft.newNames[category]

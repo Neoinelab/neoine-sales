@@ -15,7 +15,7 @@ afterEach(() => vi.restoreAllMocks())
 const NAME = '대한제조 MFA 확대'
 const CATEGORIES = ['budget', 'authority', 'need', 'timeline'] as const
 
-const asChoices = (bant: Record<(typeof CATEGORIES)[number], string | null>) =>
+const asChoices = (bant: Record<(typeof CATEGORIES)[number], number | null>) =>
   Object.fromEntries(CATEGORIES.map((c) => [c, bant[c] ? { id: bant[c] } : null]))
 
 const bantEntries = (code: string) => gateway.history.list(code, { category: 'bant' })

@@ -46,17 +46,17 @@ export function DealFilterBar({ params, onChange, onReset }: DealFilterBarProps)
   // 목록이 로드된 뒤 목록에 없는 id(예전 이름 값 등)·소속이 맞지 않는 Solution은 '전체'로 보인다.
   // 조건 형식은 listQueryFromParams가, 목록 없는 id·소속 불일치는 DealsPage의 effectiveVendorFilter가 판정한다.
   // 목록이 없는 동안(로딩·오류)에는 URL 값이 조회에 쓰이므로 '선택한 …' 옵션 하나로 선택 상태를 보인다.
-  const vendorId = !loaded ? value('vendor') : vendors.some((v) => v.id === value('vendor')) ? value('vendor') : ''
-  const chosenVendor = vendors.find((v) => v.id === vendorId)
+  const vendorId = !loaded ? value('vendor') : vendors.some((v) => String(v.id) === value('vendor')) ? value('vendor') : ''
+  const chosenVendor = vendors.find((v) => String(v.id) === vendorId)
   const solutionOptions = chosenVendor
     ? chosenVendor.solutions.map((s) => ({ id: s.id, label: s.name }))
     : vendors.flatMap((v) => v.solutions.map((s) => ({ id: s.id, label: `${v.name} / ${s.name}` })))
-  const solutionId = !loaded ? value('solution') : solutionOptions.some((s) => s.id === value('solution')) ? value('solution') : ''
+  const solutionId = !loaded ? value('solution') : solutionOptions.some((s) => String(s.id) === value('solution')) ? value('solution') : ''
 
   /** Vendor를 바꾸면 새 Vendor 소속이 아닌 Solution 조건은 지운다. 전체로 돌리면 유지한다. */
   function changeVendor(next: string) {
-    const target = vendors.find((v) => v.id === next)
-    const keep = !target || target.solutions.some((s) => s.id === value('solution'))
+    const target = vendors.find((v) => String(v.id) === next)
+    const keep = !target || target.solutions.some((s) => String(s.id) === value('solution'))
     onChange({ vendor: next, ...(keep ? {} : { solution: '' }) })
   }
 

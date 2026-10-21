@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { seedActionTypeId } from '../seed/actionTypes'
 import { dealCode, expectApiError, mockAs } from '../testing'
+import { NO_SUCH_ID, USER_ID } from '../seed/ids'
 
 const DEFAULTS = ['통화', '미팅', '이메일', '데모', '제안', '협상', '계약', '기타']
 
@@ -41,7 +42,7 @@ describe('actionTypes.create / rename / remove', () => {
   it('sales creates a trimmed type with the creator, the user role is refused', async () => {
     const kim = await mockAs('kim')
     const created = await kim.gateway.actionTypes.create('  웨비나  ')
-    expect(created).toMatchObject({ name: '웨비나', isDefault: false, usageCount: 0, createdBy: { id: 'u-kim' } })
+    expect(created).toMatchObject({ name: '웨비나', isDefault: false, usageCount: 0, createdBy: { id: USER_ID.kim } })
     const han = await mockAs('han')
     await expectApiError(han.gateway.actionTypes.create('x'), 403)
   })
@@ -87,6 +88,6 @@ describe('actionTypes.create / rename / remove', () => {
     const created = await gateway.actionTypes.create('임시')
     await gateway.actionTypes.remove(created.id)
     expect((await gateway.actionTypes.list()).some((t) => t.id === created.id)).toBe(false)
-    await expectApiError(gateway.actionTypes.remove('at-none'), 404)
+    await expectApiError(gateway.actionTypes.remove(NO_SUCH_ID), 404)
   })
 })

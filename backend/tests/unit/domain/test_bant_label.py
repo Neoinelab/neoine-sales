@@ -3,8 +3,6 @@
 점수는 없다(LB-01): Label은 구분과 이름만 가진다.
 """
 
-from uuid import uuid4
-
 import pytest
 
 from app.domain.bant.entities import BantLabel
@@ -24,8 +22,9 @@ from app.domain.common.errors import (
 from app.domain.user.value_objects import UserId
 from tests.factories import NOW, later
 from tests.factories_catalog import make_label
+from tests.support.ids import new_id
 
-CREATOR = UserId(uuid4())
+CREATOR = UserId(new_id())
 
 
 # --- 구분 ---
@@ -70,7 +69,11 @@ def test_label_name_rejects_51_code_points() -> None:
 
 def test_create_makes_a_custom_label_with_the_creator() -> None:
     label = BantLabel.create(
-        category=BantCategory.NEED, name="규제 대응", created_by=CREATOR, now=NOW
+        entity_id=BantLabelId(new_id()),
+        category=BantCategory.NEED,
+        name="규제 대응",
+        created_by=CREATOR,
+        now=NOW,
     )
 
     assert label.category is BantCategory.NEED
@@ -149,6 +152,6 @@ def test_duplicate_label_name_error_message_is_the_user_text() -> None:
 
 
 def test_label_not_found_error_keeps_the_identifier() -> None:
-    label_id = BantLabelId(uuid4())
+    label_id = BantLabelId(new_id())
 
     assert BantLabelNotFoundError(label_id).identifier == label_id

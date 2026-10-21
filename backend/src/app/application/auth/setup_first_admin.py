@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING
 from app.application.auth.credential_check import parse_login_id, verify_credentials
 from app.application.auth.dev_login import ensure_not_reserved_login_id
 from app.application.auth.messages import DIRECTORY_FIRST, SETUP_CLOSED, STORAGE_FIRST
+from app.application.ids import new_user_id
 from app.domain.auth.principal import Role
 from app.domain.common.errors import AlreadyExistsError, InvalidStateError
 from app.domain.user.entities import User
@@ -60,7 +61,9 @@ class SetupFirstAdmin:
                 exists = True
             if exists:
                 raise AlreadyExistsError("사용자", account.value)
-            user = User.register_self(account, Role.ADMIN, now=now)
+            user = User.register_self(
+                account, Role.ADMIN, entity_id=await new_user_id(uow.ids), now=now
+            )
             user.record_login(now, display_name=profile.display_name, email=profile.email)
             await uow.users.add(user)
             await uow.commit()

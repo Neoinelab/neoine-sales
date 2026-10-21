@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+from tests.functional.steps.actions import given_action, when_get_action
 from tests.functional.steps.auth import given_logged_in_as, given_user_registered
 from tests.functional.steps.common import then_problem_is, then_status_is
 from tests.functional.steps.deals import (
@@ -61,6 +62,21 @@ async def test_history_and_links_are_deleted_but_contacts_and_labels_stay(api: A
     assert again.json()["customer"]["id"] == deal["customer"]["id"]  # 연락처가 남아 재사용된다
     assert again.json()["active_partner"]["id"] == deal["active_partner"]["id"]
     assert again.json()["bant"] == bant
+
+
+async def test_actions_of_the_deleted_deal_are_deleted_with_it(api: Api) -> None:
+    """Scenario: 삭제하면 그 Deal의 Action도 함께 지워진다(내부 id로 연결된 자식 행이 CASCADE)."""
+    # Given
+    await given_logged_in_as(api, role="sales")
+    deal = await given_deal(api)
+    action = await given_action(api, deal["code"])
+    other = await given_deal(api)
+    kept = await given_action(api, other["code"])
+    # When
+    await when_delete_deal(api, deal["code"])
+    # Then
+    then_problem_is(await when_get_action(api, action["id"]), status=404, type_suffix="not-found")
+    then_status_is(await when_get_action(api, kept["id"]), 200)
 
 
 async def test_an_admin_deletes_a_deal_of_another_owner(api: Api) -> None:

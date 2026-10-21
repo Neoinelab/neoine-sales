@@ -40,6 +40,7 @@ async def use_type(use_cases: FakeUseCases, name: str, *, count: int = 1) -> Non
     await uow.commit()
 
 
-async def type_id_of(http: AsyncClient, name: str) -> str:
+async def type_id_of(http: AsyncClient, name: str) -> int:
+    """이름으로 찾은 유형의 id(응답의 JSON 정수 그대로)."""
     body = (await http.get(URL)).json()
-    return str(next(item["id"] for item in body if item["name"] == name))
+    return int(next(item["id"] for item in body if item["name"] == name))

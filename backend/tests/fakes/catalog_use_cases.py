@@ -18,7 +18,6 @@ if TYPE_CHECKING:
     from app.application.action_type.list_action_types import ListActionTypes
     from app.application.action_type.register_action_type import RegisterActionType
     from app.application.action_type.rename_action_type import RenameActionType
-
     from app.application.ports.clock import Clock
     from app.application.ports.unit_of_work import UnitOfWorkFactory
     from app.application.vendor.delete_solution import DeleteSolution

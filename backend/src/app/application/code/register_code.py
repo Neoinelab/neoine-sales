@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING
 
 from app.application.code.dto import CodeUsage
+from app.application.ids import new_code_id
 from app.domain.code.entities import Code
 from app.domain.code.rules import ensure_unique_name, generate_key, normalize_code_name
 
@@ -26,6 +27,7 @@ class RegisterCode:
             siblings = await uow.codes.list(kind, for_update=True)
             ensure_unique_name(siblings, clean)
             code = Code.create(
+                entity_id=await new_code_id(uow.ids),
                 kind=kind,
                 name=clean,
                 key=generate_key(clean, {c.key.value for c in siblings}),

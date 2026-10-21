@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { dealCode, expectApiError, mockAs, TEST_NOW } from '../testing'
+import { USER_ID } from '../seed/ids'
 
 const RANGE = '미업데이트 기준은 1~365일 사이의 정수로 입력하세요.'
 
@@ -23,7 +24,7 @@ describe('alerts.save (R-23)', () => {
 
     const saved = await gateway.alerts.save(30)
 
-    expect(saved).toMatchObject({ staleDays: 30, updatedAt: TEST_NOW, updatedBy: { id: 'u-root', role: 'admin' } })
+    expect(saved).toMatchObject({ staleDays: 30, updatedAt: TEST_NOW, updatedBy: { id: USER_ID.root, role: 'admin' } })
     expect(await gateway.alerts.get()).toEqual(saved)
   })
 

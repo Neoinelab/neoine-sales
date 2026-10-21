@@ -5,14 +5,15 @@ import { createClock } from '../clock'
 import type { MockStore } from '../store'
 import type { MockContext } from './context'
 import { logHistory } from './historyLog'
+import { USER_ID } from '../seed/ids'
 
 function context(): MockContext {
-  const store = { data: { history: [], counters: {} }, session: { userId: 'u-kim' }, storageFailure: false }
+  const store = { data: { history: [], counters: {} }, session: { userId: USER_ID.kim }, storageFailure: false }
   return { store: store as unknown as MockStore, clock: createClock('2026-10-15T09:00:00+09:00') } as MockContext
 }
 
 function logged(ctx: MockContext, target: string, before: string, after: string) {
-  logHistory(ctx, '20261015-A001', 'u-kim', 'action', target, before, after)
+  logHistory(ctx, '20261015-A001', USER_ID.kim, 'action', target, before, after)
   const rows = ctx.store.data.history
   const last = rows[rows.length - 1]
   if (!last) throw new Error('nothing logged')

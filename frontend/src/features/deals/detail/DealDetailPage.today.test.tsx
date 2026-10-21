@@ -5,6 +5,7 @@ import { resetMock } from '../../../test/fake/default'
 import { formatRelativeTime } from '../../../shared/format'
 import { renderAt } from '../../../test/mockApp'
 import { dealCodeOf } from '../../../test/detailTestUtils'
+import { USER_ID } from '../../../test/fake/seed/ids'
 
 const NOW = '2030-06-15T09:00:00+09:00'
 
@@ -14,7 +15,7 @@ afterEach(() => resetMock({ now: null }))
 describe('상세와 mock 시계 (useToday)', () => {
   it('shows the last update as a relative time with the date in the tooltip', async () => {
     const code = await dealCodeOf(4)
-    await gateway.auth.quickLogin('u-root')
+    await gateway.auth.quickLogin(USER_ID.root)
     const deal = await gateway.deals.get(code)
     await renderAt(`/deals/${code}`)
     const bar = await screen.findByRole('region', { name: 'Deal 정보' })

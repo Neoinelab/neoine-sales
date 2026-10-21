@@ -11,8 +11,6 @@ from app.application.ports.pagination import check_page
 from app.infra.db.models import AuditColumns
 
 if TYPE_CHECKING:
-    from uuid import UUID
-
     from sqlalchemy.ext.asyncio import AsyncSession
 
 ConstraintErrors = Mapping[str, Callable[[], Exception]]
@@ -83,7 +81,7 @@ class SavepointWriter:
 class SqlRepository[RowT: AuditColumns](SavepointWriter):
     row_type: type[RowT]
 
-    async def _find(self, entity_id: UUID) -> RowT | None:
+    async def _find(self, entity_id: int) -> RowT | None:
         return await self._session.get(self.row_type, entity_id, populate_existing=True)
 
     async def _page(

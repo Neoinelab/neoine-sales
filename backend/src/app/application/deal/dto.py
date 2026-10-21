@@ -3,7 +3,6 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
-    from uuid import UUID
 
     from app.application.ports.deal_repository import DealListItem
     from app.domain.contact.entities import Contact
@@ -18,7 +17,7 @@ if TYPE_CHECKING:
 class NamedRef:
     """이름으로 보여 줄 참조(Vendor, Solution)."""
 
-    id: UUID
+    id: int
     name: str
 
 

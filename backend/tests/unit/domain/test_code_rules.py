@@ -6,7 +6,6 @@ updated_at을 now로 바꾼다.
 """
 
 from typing import TYPE_CHECKING
-from uuid import uuid4
 
 import pytest
 
@@ -21,6 +20,7 @@ from app.domain.code.values import CodeId, CodeKey, CodeKind
 from app.domain.common.errors import InvalidValueError
 from tests.factories import NOW, later
 from tests.factories_catalog import make_code
+from tests.support.ids import new_id
 
 if TYPE_CHECKING:
     from app.domain.code.entities import Code
@@ -197,7 +197,7 @@ def test_reorder_rejects_an_unknown_or_foreign_id() -> None:
     first, second, third = _three_codes()
 
     with pytest.raises(InvalidValueError) as raised:
-        reorder([first, second, third], [first.id, second.id, CodeId(uuid4())], later(60))
+        reorder([first, second, third], [first.id, second.id, CodeId(new_id())], later(60))
 
     assert str(raised.value) == REORDER_MESSAGE
 

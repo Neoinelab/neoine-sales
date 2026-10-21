@@ -43,18 +43,18 @@ export function useCreateContact(): Mutation<{ kind: ContactKind; input: Contact
 }
 
 /** gateway.contacts.update(id, input). 성공: keys.contacts + keys.deals + keys.historyAll 무효화. */
-export function useUpdateContact(): Mutation<{ id: string; input: ContactInput }, Contact> {
+export function useUpdateContact(): Mutation<{ id: number; input: ContactInput }, Contact> {
   const invalidate = useInvalidate()
-  return useMutation<Contact, ApiError, { id: string; input: ContactInput }>({
+  return useMutation<Contact, ApiError, { id: number; input: ContactInput }>({
     mutationFn: ({ id, input }) => gateway.contacts.update(id, input),
     onSuccess: () => invalidate(keys.contacts, keys.deals, keys.historyAll),
   })
 }
 
 /** gateway.contacts.remove(id). 성공: keys.contacts 무효화. 참조 중이면 409(ApiError). */
-export function useRemoveContact(): Mutation<string> {
+export function useRemoveContact(): Mutation<number> {
   const invalidate = useInvalidate()
-  return useMutation<void, ApiError, string>({
+  return useMutation<void, ApiError, number>({
     mutationFn: (id) => gateway.contacts.remove(id),
     onSuccess: () => invalidate(keys.contacts),
   })

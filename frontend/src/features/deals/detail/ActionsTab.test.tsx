@@ -2,6 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { renderAt } from '../../../test/mockApp'
 import { detailPath } from '../../../test/detailTestUtils'
+import { USER_ID } from '../../../test/fake/seed/ids'
 
 /** 유형 자동완성 입력에 글자를 입력한다(목록 선택 없이 직접 입력). */
 async function typeAction(user: Awaited<ReturnType<typeof renderAt>>['user'], form: HTMLElement, text: string) {
@@ -309,7 +310,7 @@ describe('Action 수정·삭제 버튼 권한 (AC-25, Q8)', () => {
   const EDIT_TITLE = '본인 Action 또는 admin만 수정할 수 있습니다.'
   const DELETE_TITLE = '본인 Action 또는 admin만 삭제할 수 있습니다.'
 
-  async function openAs(userId: string) {
+  async function openAs(userId: number) {
     const view = await renderAt(await detailPath(1), { userId })
     await screen.findByRole('heading', { level: 1, name: '한빛은행 ITDR 도입' })
     const table = await screen.findByRole('table', { name: 'Action 목록' })
@@ -317,7 +318,7 @@ describe('Action 수정·삭제 버튼 권한 (AC-25, Q8)', () => {
   }
 
   it('enables edit and delete on every row of the owner who registered them', async () => {
-    const { table } = await openAs('u-kim')
+    const { table } = await openAs(USER_ID.kim)
 
     const rows = bodyRows(table)
     expect(rows.length).toBeGreaterThan(1)
@@ -329,7 +330,7 @@ describe('Action 수정·삭제 버튼 권한 (AC-25, Q8)', () => {
   })
 
   it('disables both buttons with the reason as title on actions of another sales', async () => {
-    const { table } = await openAs('u-park')
+    const { table } = await openAs(USER_ID.park)
 
     const rows = bodyRows(table)
     expect(rows.length).toBeGreaterThan(1)
@@ -344,14 +345,14 @@ describe('Action 수정·삭제 버튼 권한 (AC-25, Q8)', () => {
   })
 
   it('still shows the manage column and the register button to that other sales', async () => {
-    const { table } = await openAs('u-park')
+    const { table } = await openAs(USER_ID.park)
 
     expect(within(table).getByRole('columnheader', { name: '관리' })).toBeVisible()
     expect(screen.getByRole('button', { name: 'Next Action 업데이트' })).toBeVisible()
   })
 
   it('does not open the edit form when a disabled edit button is clicked', async () => {
-    const { user, table } = await openAs('u-park')
+    const { user, table } = await openAs(USER_ID.park)
 
     await user.click(within(bodyRows(table)[0]!).getByRole('button', { name: '수정' }))
 
@@ -359,7 +360,7 @@ describe('Action 수정·삭제 버튼 권한 (AC-25, Q8)', () => {
   })
 
   it('enables both buttons on every row for admin, including actions of other users', async () => {
-    const { table } = await openAs('u-root')
+    const { table } = await openAs(USER_ID.root)
 
     for (const row of bodyRows(table)) {
       expect(within(row).getByRole('button', { name: '수정' })).toBeEnabled()
@@ -368,7 +369,7 @@ describe('Action 수정·삭제 버튼 권한 (AC-25, Q8)', () => {
   })
 
   it('enables only the rows of the viewer when rows of two different users are mixed', async () => {
-    const { user, table } = await openAs('u-park')
+    const { user, table } = await openAs(USER_ID.park)
     await user.click(screen.getByRole('button', { name: 'Next Action 업데이트' }))
     const form = screen.getByRole('form', { name: 'Next Action 업데이트' })
     await typeAction(user, form, '통화')
@@ -386,7 +387,7 @@ describe('Action 수정·삭제 버튼 권한 (AC-25, Q8)', () => {
   })
 
   it('shows a user-role viewer no manage column at all', async () => {
-    const { table } = await openAs('u-han')
+    const { table } = await openAs(USER_ID.han)
 
     expect(within(table).queryByRole('columnheader', { name: '관리' })).not.toBeInTheDocument()
     expect(within(table).queryByRole('button', { name: '수정' })).not.toBeInTheDocument()

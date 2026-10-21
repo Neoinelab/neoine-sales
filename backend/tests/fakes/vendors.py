@@ -36,7 +36,7 @@ def _vendor_not_found(vendor_id: Any) -> Any:  # noqa: ANN401 - NotFoundError í•
 
 
 def _by_name[T: (Vendor, Solution)](items: Sequence[T]) -> list[T]:
-    return sorted(items, key=lambda item: (item.name.lower(), str(item.id)))
+    return sorted(items, key=lambda item: (item.name.lower(), item.id))
 
 
 class FakeVendorRepository(InMemoryStore["Vendor"]):

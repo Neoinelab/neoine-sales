@@ -2,12 +2,13 @@
 
 import { describe, expect, it } from 'vitest'
 import { dealCode, dealInput, expectApiError, mockAs } from '../testing'
+import { USER_ID } from '../seed/ids'
 
 describe('Deal Name length', () => {
   it('accepts 200 characters on create', async () => {
     const { gateway } = await mockAs('kim')
 
-    const created = await gateway.deals.create(dealInput('u-kim', { name: 'a'.repeat(200) }))
+    const created = await gateway.deals.create(dealInput(USER_ID.kim, { name: 'a'.repeat(200) }))
 
     expect(created.name).toHaveLength(200)
   })
@@ -15,7 +16,7 @@ describe('Deal Name length', () => {
   it('rejects 201 characters on create with the server message', async () => {
     const { gateway } = await mockAs('kim')
 
-    await expectApiError(gateway.deals.create(dealInput('u-kim', { name: 'a'.repeat(201) })), 422, 'Deal Name은 200자 이내로 입력하세요.')
+    await expectApiError(gateway.deals.create(dealInput(USER_ID.kim, { name: 'a'.repeat(201) })), 422, 'Deal Name은 200자 이내로 입력하세요.')
   })
 
   it('rejects 201 characters on update and keeps the name', async () => {
@@ -33,7 +34,7 @@ describe('procurement length', () => {
   it('accepts 500 characters', async () => {
     const { gateway } = await mockAs('kim')
 
-    const created = await gateway.deals.create(dealInput('u-kim', { procurement: '가'.repeat(500) }))
+    const created = await gateway.deals.create(dealInput(USER_ID.kim, { procurement: '가'.repeat(500) }))
 
     expect(created.procurement).toHaveLength(500)
   })
@@ -41,7 +42,7 @@ describe('procurement length', () => {
   it('rejects 501 characters on create and on update', async () => {
     const { gateway } = await mockAs('kim')
 
-    await expectApiError(gateway.deals.create(dealInput('u-kim', { procurement: '가'.repeat(501) })), 422, '구매절차는 500자 이내로 입력하세요.')
+    await expectApiError(gateway.deals.create(dealInput(USER_ID.kim, { procurement: '가'.repeat(501) })), 422, '구매절차는 500자 이내로 입력하세요.')
     await expectApiError(gateway.deals.update(dealCode(2), { procurement: '가'.repeat(501) }), 422, '구매절차는 500자 이내로 입력하세요.')
   })
 })
@@ -50,7 +51,7 @@ describe('Users upper bound', () => {
   it('accepts the largest integer the server stores (2147483647)', async () => {
     const { gateway } = await mockAs('kim')
 
-    const created = await gateway.deals.create(dealInput('u-kim', { users: 2_147_483_647 }))
+    const created = await gateway.deals.create(dealInput(USER_ID.kim, { users: 2_147_483_647 }))
 
     expect(created.users).toBe(2_147_483_647)
   })
@@ -58,14 +59,14 @@ describe('Users upper bound', () => {
   it('rejects one more with the Users message on create and on update', async () => {
     const { gateway } = await mockAs('kim')
 
-    await expectApiError(gateway.deals.create(dealInput('u-kim', { users: 2_147_483_648 })), 422, 'Users는 0 이상의 정수로 입력하세요.')
+    await expectApiError(gateway.deals.create(dealInput(USER_ID.kim, { users: 2_147_483_648 })), 422, 'Users는 0 이상의 정수로 입력하세요.')
     await expectApiError(gateway.deals.update(dealCode(2), { users: 2_147_483_648 }), 422, 'Users는 0 이상의 정수로 입력하세요.')
   })
 
   it('accepts Users of zero on create', async () => {
     const { gateway } = await mockAs('kim')
 
-    const created = await gateway.deals.create(dealInput('u-kim', { users: 0 }))
+    const created = await gateway.deals.create(dealInput(USER_ID.kim, { users: 0 }))
 
     expect(created.users).toBe(0)
   })
@@ -94,7 +95,7 @@ describe('trim before the length check (P2 carry-over 1, AC-24; Vendor·Solution
   it('accepts a 500 character procurement with surrounding spaces and stores it trimmed', async () => {
     const { gateway } = await mockAs('kim')
 
-    const created = await gateway.deals.create(dealInput('u-kim', { procurement: `  ${'가'.repeat(500)}  ` }))
+    const created = await gateway.deals.create(dealInput(USER_ID.kim, { procurement: `  ${'가'.repeat(500)}  ` }))
 
     expect(created.procurement).toBe('가'.repeat(500))
   })
@@ -103,7 +104,7 @@ describe('trim before the length check (P2 carry-over 1, AC-24; Vendor·Solution
     const { gateway } = await mockAs('kim')
 
     await expectApiError(
-      gateway.deals.create(dealInput('u-kim', { procurement: ` ${'가'.repeat(501)} ` })),
+      gateway.deals.create(dealInput(USER_ID.kim, { procurement: ` ${'가'.repeat(501)} ` })),
       422,
       '구매절차는 500자 이내로 입력하세요.',
     )

@@ -1,7 +1,5 @@
 """Deal 응답의 vendor·solution(AC-13): `{id, name}` 또는 null. 구 문자열 필드는 없다."""
 
-from uuid import uuid4
-
 from app.application.deal.dto import DealView, NamedRef
 from app.application.ports.deal_repository import DealListItem
 from app.domain.auth.principal import Role
@@ -9,6 +7,7 @@ from app.domain.user.value_objects import UserRef
 from app.web.schemas.deal_response import DealDetailResponse, DealRowResponse
 from tests.factories import NOW, make_deal
 from tests.factories_contact import make_customer
+from tests.support.ids import new_id
 from tests.support.user_ids import OWNER_ID
 
 
@@ -31,13 +30,15 @@ def _view(vendor: NamedRef | None, solution: NamedRef | None) -> DealView:
 
 
 def test_vendor_and_solution_are_id_name_objects() -> None:
-    vendor, solution = NamedRef(uuid4(), "SAP"), NamedRef(uuid4(), "S/4HANA")
+    vendor, solution = NamedRef(new_id(), "SAP"), NamedRef(new_id(), "S/4HANA")
     view = _view(vendor, solution)
 
     for response in (DealRowResponse.from_view(view), DealDetailResponse.from_view(view)):
         body = response.model_dump(mode="json")
-        assert body["vendor"] == {"id": str(vendor.id), "name": "SAP"}
-        assert body["solution"] == {"id": str(solution.id), "name": "S/4HANA"}
+        assert body["vendor"] == {"id": vendor.id, "name": "SAP"}
+        assert body["solution"] == {"id": solution.id, "name": "S/4HANA"}
+        assert type(body["vendor"]["id"]) is int
+        assert type(body["solution"]["id"]) is int
 
 
 def test_a_deal_without_vendor_and_solution_has_nulls() -> None:
@@ -49,7 +50,7 @@ def test_a_deal_without_vendor_and_solution_has_nulls() -> None:
 
 
 def test_a_vendor_without_solution_has_a_null_solution() -> None:
-    body = DealRowResponse.from_view(_view(NamedRef(uuid4(), "SAP"), None)).model_dump(mode="json")
+    body = DealRowResponse.from_view(_view(NamedRef(new_id(), "SAP"), None)).model_dump(mode="json")
 
     assert body["vendor"]["name"] == "SAP"
     assert body["solution"] is None

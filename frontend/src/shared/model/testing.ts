@@ -4,7 +4,7 @@ import type { Code, CodeSet } from './types'
 
 function status(order: number, key: string, name: string): Code {
   return {
-    id: `cd-s${order}`,
+    id: order,
     kind: 'status',
     key,
     name,
@@ -17,7 +17,7 @@ function status(order: number, key: string, name: string): Code {
 
 function forecast(order: number, key: string, name: string, outcome: Code['outcome'], hint: string | null): Code {
   return {
-    id: `cd-f${order}`,
+    id: 100 + order,
     kind: 'forecast',
     key,
     name,

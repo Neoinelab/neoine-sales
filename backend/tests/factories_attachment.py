@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 from uuid import uuid4
 
 from tests.factories import NOW, make_deal_code
+from tests.support.ids import new_id
 from tests.support.user_ids import ACTOR_ID
 
 if TYPE_CHECKING:
@@ -35,7 +36,7 @@ def make_attachment(  # noqa: PLR0913 - 첨부 필드가 모두 독립적인 선
 ) -> Attachment:
     """저장하지 않은 첨부(`Attachment.upload`). 업로드 시각 = now, 저장 키 기본은 uuid4 hex."""
     from app.domain.attachment.entities import Attachment  # noqa: PLC0415
-    from app.domain.attachment.values import UploadCandidate  # noqa: PLC0415
+    from app.domain.attachment.values import AttachmentId, UploadCandidate  # noqa: PLC0415
 
     return Attachment.upload(
         deal_code=deal_code or make_deal_code(),
@@ -45,5 +46,5 @@ def make_attachment(  # noqa: PLR0913 - 첨부 필드가 모두 독립적인 선
         storage_key=storage_key or uuid4().hex,
         uploaded_by=uploaded_by,
         now=now,
-        entity_id=entity_id,
+        entity_id=AttachmentId(new_id()) if entity_id is None else entity_id,
     )

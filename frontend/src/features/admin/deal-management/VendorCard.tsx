@@ -5,9 +5,9 @@ import { InlineNameEdit } from './InlineNameEdit'
 
 interface Props {
   vendor: Vendor
-  editingId: string | null
+  editingKey: string | null
   busy: boolean
-  onEdit: (id: string | null) => void
+  onEdit: (key: string | null) => void
   onRenameVendor: (vendor: Vendor, name: string) => void
   onDeleteVendor: (vendor: Vendor) => void
   onAddSolution: (vendor: Vendor, name: string, done: () => void) => void
@@ -17,11 +17,11 @@ interface Props {
 
 /** Vendor 하나의 카드: 이름·사용 수·수정·삭제, 소속 Solution 표, Solution 추가 입력. */
 export function VendorCard(props: Props) {
-  const { vendor, editingId, busy, onEdit, onRenameVendor, onDeleteVendor } = props
+  const { vendor, editingKey, busy, onEdit, onRenameVendor, onDeleteVendor } = props
   const { onAddSolution, onRenameSolution, onDeleteSolution } = props
   const titleId = useId()
   const [name, setName] = useState('')
-  const editingVendor = editingId === vendor.id
+  const editingVendor = editingKey === `v:${vendor.id}`
   return (
     <section className="admin-card" aria-labelledby={titleId}>
       <header>
@@ -37,7 +37,7 @@ export function VendorCard(props: Props) {
         )}
         <span className="stat">{`Deal ${vendor.usageCount}건`}</span>
         <div className="row-actions">
-          <button type="button" className="small" disabled={editingVendor} onClick={() => onEdit(vendor.id)}>
+          <button type="button" className="small" disabled={editingVendor} onClick={() => onEdit(`v:${vendor.id}`)}>
             Vendor 이름 수정
           </button>
           <button type="button" className="small" disabled={busy} onClick={() => onDeleteVendor(vendor)}>
@@ -61,7 +61,7 @@ export function VendorCard(props: Props) {
               {vendor.solutions.map((solution) => (
                 <tr key={solution.id}>
                   <td>
-                    {editingId === solution.id ? (
+                    {editingKey === `s:${solution.id}` ? (
                       <InlineNameEdit
                         label="Solution 이름"
                         initial={solution.name}
@@ -76,7 +76,7 @@ export function VendorCard(props: Props) {
                   <td className="stat">{`Deal ${solution.usageCount}건`}</td>
                   <td>
                     <div className="row-actions">
-                      <button type="button" className="small" disabled={editingId === solution.id} onClick={() => onEdit(solution.id)}>
+                      <button type="button" className="small" disabled={editingKey === `s:${solution.id}`} onClick={() => onEdit(`s:${solution.id}`)}>
                         이름 수정
                       </button>
                       <button type="button" className="small" disabled={busy} onClick={() => onDeleteSolution(solution)}>

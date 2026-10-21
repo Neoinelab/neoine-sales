@@ -9,18 +9,19 @@ import { mockControl } from './fake/default'
 import { defaultMock } from './fake/default'
 import { emptyBusinessSeed } from './fake/seed'
 import { buildSampleSeed } from './fixtures/sampleSeed'
+import { USER_ID } from './fake/seed/ids'
 
 /** 테스트에서 고를 수 있는 역할. null은 로그인하지 않은 상태. */
 export type TestRole = 'admin' | 'sales' | 'user' | null
 
 /** 역할별 시드 사용자 id(시드 약속: `u-<loginId>`). */
-const ROLE_USER_ID = { admin: 'u-root', sales: 'u-kim', user: 'u-han' } as const
+const ROLE_USER_ID = { admin: USER_ID.root, sales: USER_ID.kim, user: USER_ID.han } as const
 
 export interface RenderAtOptions {
   /** 기본 'sales'(김영업). null이면 로그인하지 않는다. */
   role?: TestRole
-  /** role 대신 시드 사용자 id를 직접 지정한다(예: 'u-park'). */
-  userId?: string
+  /** role 대신 시드 사용자 id를 직접 지정한다(예: USER_ID.park). */
+  userId?: number
   /** 'sample'(기본)은 테스트 픽스처 시드, 'empty'는 앱 기본(업무 데이터 없음) 시드. */
   seed?: 'sample' | 'empty'
 }

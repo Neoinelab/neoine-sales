@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 class UserRef(BaseModel):
     """OpenAPI 스키마 이름이 `UserRef`다(프런트가 이 이름으로 생성 타입을 쓴다)."""
 
-    id: str
+    id: int
     name: str
     resigned: bool
     label: str
@@ -26,7 +26,7 @@ class UserRef(BaseModel):
     @classmethod
     def from_domain(cls, ref: DomainUserRef) -> UserRef:
         return cls(
-            id=str(ref.id),
+            id=ref.id,
             name=ref.name,
             resigned=ref.resigned,
             label=ref.label,

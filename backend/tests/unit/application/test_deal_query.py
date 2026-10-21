@@ -4,7 +4,6 @@
 """
 
 from datetime import date
-from uuid import UUID
 
 import pytest
 
@@ -16,8 +15,8 @@ from tests.support.expect import raises_with
 from tests.support.user_ids import uid
 
 KEYWORD_LIMIT = 100
-VENDOR = VendorId(UUID(int=31))
-SOLUTION = SolutionId(UUID(int=41))
+VENDOR = VendorId(31)
+SOLUTION = SolutionId(41)
 
 
 def test_defaults_are_the_first_page_of_twenty_newest_first_without_conditions() -> None:

@@ -1,14 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import { CODE, serverHistory, serverUserRef } from '../../../test/fixtures/serverDeal'
 import { toHistoryEntry } from './history'
+import { USER_ID } from '../../../test/fake/seed/ids'
 
 describe('toHistoryEntry', () => {
   it('maps the server entry keeping category, target, before and after as they are', () => {
     expect(toHistoryEntry(serverHistory({ category: 'expectedClose', target: 'Expected Close', before: '2026-12-31', after: '2027-01-31' }))).toEqual({
-      id: 'h1',
+      id: 1,
       dealCode: CODE,
       at: '2026-10-15T09:00:00+09:00',
-      by: { id: 'u-kim', name: '김영업', role: 'sales', status: 'active' },
+      by: { id: USER_ID.kim, name: '김영업', role: 'sales', status: 'active' },
       category: 'expectedClose',
       target: 'Expected Close',
       before: '2026-12-31',
@@ -23,7 +24,7 @@ describe('toHistoryEntry', () => {
   })
 
   it('marks a resigned actor', () => {
-    const entry = toHistoryEntry(serverHistory({ by: serverUserRef({ id: 'u-old', resigned: true }) }))
+    const entry = toHistoryEntry(serverHistory({ by: serverUserRef({ id: USER_ID.old, resigned: true }) }))
 
     expect(entry.by.status).toBe('resigned')
   })

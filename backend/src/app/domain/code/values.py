@@ -5,11 +5,10 @@ from dataclasses import dataclass
 from enum import StrEnum
 from types import MappingProxyType
 from typing import NewType
-from uuid import UUID
 
 from app.domain.common.errors import InvalidValueError
 
-CodeId = NewType("CodeId", UUID)
+CodeId = NewType("CodeId", int)
 
 CODE_NAME_MAX = 50
 PROBABILITY_HINT_MAX = 20

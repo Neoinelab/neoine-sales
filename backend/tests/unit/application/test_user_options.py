@@ -1,7 +1,6 @@
 """AC10: 사용자 선택 옵션(ListUserOptions)과 UserRef 일괄 해석(ResolveUserRefs) (T21·T24)."""
 
 from typing import TYPE_CHECKING
-from uuid import uuid4
 
 import pytest
 
@@ -9,6 +8,7 @@ from app.domain.auth.principal import Role
 from app.domain.user.value_objects import UserId, UserStatusFilter
 from tests.factories import later
 from tests.support.auth_seed import seed_user
+from tests.support.ids import new_id
 
 if TYPE_CHECKING:
     from app.application.ports.unit_of_work import UnitOfWorkFactory
@@ -227,4 +227,4 @@ async def test_resolve_user_refs_skips_unknown_ids_and_accepts_empty_input(
     admin: AdminStack,
 ) -> None:
     assert dict(await admin.resolve_user_refs.execute([])) == {}
-    assert dict(await admin.resolve_user_refs.execute([UserId(uuid4())])) == {}
+    assert dict(await admin.resolve_user_refs.execute([UserId(new_id())])) == {}

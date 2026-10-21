@@ -28,7 +28,7 @@ class BantLabelRenameRequest(RequestModel):
 
 
 class BantLabelResponse(BaseModel):
-    id: str
+    id: int
     category: BantCategory
     name: str
     is_default: bool
@@ -44,7 +44,7 @@ class BantLabelResponse(BaseModel):
         label = item.label
         creator = label.created_by_user_id
         return cls(
-            id=str(label.id),
+            id=label.id,
             category=label.category,
             name=label.name,
             is_default=label.is_default,

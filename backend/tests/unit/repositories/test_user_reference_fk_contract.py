@@ -10,7 +10,6 @@
 
 from datetime import timedelta
 from typing import TYPE_CHECKING
-from uuid import uuid4
 
 import pytest
 import pytest_asyncio
@@ -25,6 +24,7 @@ from tests.factories_auth import make_principal, make_user
 from tests.fakes.session_repository import FakeSessionRepository
 from tests.fakes.user_repository import FakeUserRepository
 from tests.support.database import rolled_back_session
+from tests.support.ids import new_id
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
@@ -40,7 +40,7 @@ PARAMS = [
 
 def _session_of(user_id: UserId) -> AuthSession:
     return AuthSession(
-        id=SessionId(uuid4()),
+        id=SessionId(new_id()),
         principal=make_principal("kim", user_id=user_id),
         created_at=NOW,
         expires_at=NOW + timedelta(hours=8),
@@ -68,7 +68,7 @@ async def test_session_add_for_a_missing_user_raises_user_not_found(
     _, sessions = pair
 
     with pytest.raises(UserNotFoundError):
-        await sessions.add(_session_of(UserId(uuid4())), "hash-1")
+        await sessions.add(_session_of(UserId(new_id())), "hash-1")
 
 
 async def test_session_add_for_a_missing_user_stores_nothing_and_keeps_the_transaction_usable(
@@ -78,7 +78,7 @@ async def test_session_add_for_a_missing_user_stores_nothing_and_keeps_the_trans
     kim = make_user("kim")
     await users.add(kim)
     with pytest.raises(UserNotFoundError):
-        await sessions.add(_session_of(UserId(uuid4())), "ghost")
+        await sessions.add(_session_of(UserId(new_id())), "ghost")
 
     await sessions.add(_session_of(kim.id), "real")  # 같은 트랜잭션에서 계속 쓸 수 있다
 
@@ -90,7 +90,7 @@ async def test_user_add_with_a_missing_creator_raises_user_not_found(
     pair: tuple[UserRepository, SessionRepository],
 ) -> None:
     users, _ = pair
-    orphan = make_user("kim", created_by_user_id=UserId(uuid4()))
+    orphan = make_user("kim", created_by_user_id=UserId(new_id()))
 
     with pytest.raises(UserNotFoundError):
         await users.add(orphan)
@@ -103,7 +103,7 @@ async def test_user_add_with_a_missing_creator_keeps_the_transaction_usable(
 ) -> None:
     users, _ = pair
     with pytest.raises(UserNotFoundError):
-        await users.add(make_user("kim", created_by_user_id=UserId(uuid4())))
+        await users.add(make_user("kim", created_by_user_id=UserId(new_id())))
 
     boss = make_user("boss")
     await users.add(boss)  # 같은 트랜잭션에서 계속 쓸 수 있다

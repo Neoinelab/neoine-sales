@@ -48,6 +48,19 @@ async def test_setup_admin_requires_directory_first(auth: AuthStack) -> None:
     assert auth.directory.authenticate_calls == []
 
 
+async def test_first_admin_is_registered_by_itself(
+    auth: AuthStack, uow_factory: UnitOfWorkFactory, uow: FakeUnitOfWork
+) -> None:
+    await seed_setup_prerequisites(uow_factory)
+
+    await _setup(auth)
+
+    admin = await uow.users.get_active_by_login_id(LoginId("kim"))
+    assert admin is not None
+    assert admin.id == admin.created_by_user_id
+    assert admin.id == 1  # 미리 받은 번호가 등록자로도 쓰인다
+
+
 async def test_setup_admin_registers_admin_and_signs_in(
     auth: AuthStack, uow_factory: UnitOfWorkFactory, uow: FakeUnitOfWork
 ) -> None:

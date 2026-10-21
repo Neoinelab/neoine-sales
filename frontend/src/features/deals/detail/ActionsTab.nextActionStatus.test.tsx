@@ -3,10 +3,11 @@ import { describe, expect, it } from 'vitest'
 import { defaultMock } from '../../../test/fake/default'
 import { dealCodeOf, detailPath } from '../../../test/detailTestUtils'
 import { renderAt } from '../../../test/mockApp'
+import { USER_ID } from '../../../test/fake/seed/ids'
 
 type View = Awaited<ReturnType<typeof renderAt>>
 
-async function openActions(role: 'sales' | 'admin' | 'user' = 'sales', userId?: string) {
+async function openActions(role: 'sales' | 'admin' | 'user' = 'sales', userId?: number) {
   const view = await renderAt(await detailPath(1), userId ? { userId } : { role })
   await screen.findByRole('heading', { level: 1, name: '한빛은행 ITDR 도입' })
   const table = await screen.findByRole('table', { name: 'Action 목록' })
@@ -109,7 +110,7 @@ describe('Action 표: 상태 열과 상태 버튼 (AC-21)', () => {
     expect(within(bodyRows(admin.table)[0]!).getByRole('button', { name: '종료(수행)' })).toBeVisible()
     admin.unmount()
 
-    const park = await openActions('sales', 'u-park')
+    const park = await openActions('sales', USER_ID.park)
     expect(within(bodyRows(park.table)[0]!).queryByRole('button', { name: '종료(수행)' })).not.toBeInTheDocument()
     expect(bodyRows(park.table)[0]).toHaveTextContent('Open')
     park.unmount()
@@ -320,12 +321,12 @@ describe('종료 상태 간 직접 전환 (사용자 결정 2026-10-20)', () => 
 
   it('does not show switch buttons on a closed row to another sales', async () => {
     const path = await detailPath(1)
-    const park = await openActions('sales', 'u-park')
+    const park = await openActions('sales', USER_ID.park)
     const { gateway } = defaultMock
     const [first] = await gateway.actions.list(await dealCodeOf(1), {})
-    await gateway.auth.quickLogin('u-kim')
+    await gateway.auth.quickLogin(USER_ID.kim)
     await gateway.actions.changeNextActionStatus(first!.id, { status: 'done', memo: '' })
-    await gateway.auth.quickLogin('u-park')
+    await gateway.auth.quickLogin(USER_ID.park)
     park.goTo('/deals')
     await screen.findByRole('heading', { name: /Deals/ })
     park.goTo(path)

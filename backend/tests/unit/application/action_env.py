@@ -109,9 +109,8 @@ class ActionEnv:
         from app.application.deal_action.change_next_action_status import (  # noqa: PLC0415
             ChangeNextActionStatus,
         )
-        from app.domain.deal_action.next_action_status import NextActionStatus  # noqa: PLC0415
-
         from app.application.deal_action.inputs import NextActionStatusInput  # noqa: PLC0415
+        from app.domain.deal_action.next_action_status import NextActionStatus  # noqa: PLC0415
 
         self.env.clock.advance(60)
         use_case = ChangeNextActionStatus(self.env.uow_factory, self.env.clock)

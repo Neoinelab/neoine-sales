@@ -14,6 +14,7 @@ import { useCreateAction, useActions } from './actions'
 import { useActionTypes, useCreateActionType, useRemoveActionType, useRenameActionType } from './actionTypes'
 import { useLabels } from './labels'
 import { useHistory } from './history'
+import { NO_SUCH_ID, USER_ID } from '../test/fake/seed/ids'
 
 function setup() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
@@ -24,7 +25,7 @@ function setup() {
 }
 
 beforeEach(() => {
-  resetMock({ now: TEST_NOW, userId: 'u-kim' })
+  resetMock({ now: TEST_NOW, userId: USER_ID.kim })
 })
 
 describe('인증 훅', () => {
@@ -46,7 +47,7 @@ describe('인증 훅', () => {
     const { result } = renderHook(() => ({ me: useMe(), login: useQuickLogin(), perm: usePermissions() }), { wrapper })
     await waitFor(() => expect(result.current.me.isError).toBe(true))
     await act(async () => {
-      await result.current.login.mutateAsync('u-root')
+      await result.current.login.mutateAsync(USER_ID.root)
     })
     await waitFor(() => expect(result.current.me.data?.name).toBe('최관리'))
     expect(result.current.perm).toMatchObject({ role: 'admin', canWrite: true, isAdmin: true })
@@ -176,13 +177,13 @@ describe('Action·첨부·코드 훅', () => {
   })
 
   it('useRenameCode는 코드 집합을 갱신해 새 이름이 배지에 반영된다', async () => {
-    resetMock({ now: TEST_NOW, userId: 'u-root' })
+    resetMock({ now: TEST_NOW, userId: USER_ID.root })
     const { wrapper } = setup()
     const { result } = renderHook(() => ({ set: useCodeSet(), list: useCodes('status'), rename: useRenameCode() }), { wrapper })
     await waitFor(() => expect(result.current.set.isSuccess && result.current.list.isSuccess).toBe(true))
     const target = result.current.list.data?.find((c) => c.key === 'prospecting')
     await act(async () => {
-      await result.current.rename.mutateAsync({ id: target?.id ?? '', name: '발굴' })
+      await result.current.rename.mutateAsync({ id: target?.id ?? NO_SUCH_ID, name: '발굴' })
     })
     await waitFor(() => expect(result.current.set.data?.statuses[0]?.name).toBe('발굴'))
   })
@@ -218,7 +219,7 @@ describe('Action 유형 훅', () => {
   })
 
   it('useRenameActionType은 유형 목록과 Action 목록의 이름을 함께 갱신한다 (AC-28)', async () => {
-    resetMock({ now: TEST_NOW, userId: 'u-root' })
+    resetMock({ now: TEST_NOW, userId: USER_ID.root })
     const code = dealCode(1)
     const { wrapper } = setup()
     const { result } = renderHook(() => ({ types: useActionTypes(), actions: useActions(code), rename: useRenameActionType() }), { wrapper })
@@ -226,7 +227,7 @@ describe('Action 유형 훅', () => {
     const negotiation = result.current.types.data?.find((t) => t.name === '협상')
     expect(result.current.actions.data?.some((a) => a.type === '협상')).toBe(true)
     await act(async () => {
-      await result.current.rename.mutateAsync({ id: negotiation?.id ?? '', name: '가격 협상' })
+      await result.current.rename.mutateAsync({ id: negotiation?.id ?? NO_SUCH_ID, name: '가격 협상' })
     })
     await waitFor(() => expect(result.current.types.data?.some((t) => t.name === '가격 협상')).toBe(true))
     await waitFor(() => expect(result.current.actions.data?.some((a) => a.type === '가격 협상')).toBe(true))
@@ -234,11 +235,11 @@ describe('Action 유형 훅', () => {
   })
 
   it('useRemoveActionType은 쓰지 않는 유형을 지우고 목록을 갱신한다', async () => {
-    resetMock({ now: TEST_NOW, userId: 'u-root' })
+    resetMock({ now: TEST_NOW, userId: USER_ID.root })
     const { wrapper } = setup()
     const { result } = renderHook(() => ({ list: useActionTypes(), create: useCreateActionType(), remove: useRemoveActionType() }), { wrapper })
     await waitFor(() => expect(result.current.list.isSuccess).toBe(true))
-    let id = ''
+    let id = 0
     await act(async () => {
       id = (await result.current.create.mutateAsync('임시')).id
     })

@@ -4,10 +4,11 @@ import pytest
 
 from app.domain.code.entities import Code
 from app.domain.code.errors import CodeInUseError, CodeLockedError
-from app.domain.code.values import CodeKey, CodeKind, ForecastOutcome
+from app.domain.code.values import CodeId, CodeKey, CodeKind, ForecastOutcome
 from app.domain.common.errors import InvalidValueError
 from tests.factories import NOW, later
 from tests.factories_catalog import make_code
+from tests.support.ids import new_id
 
 LOCKED = [
     (CodeKind.STATUS, "prospecting"),
@@ -24,8 +25,23 @@ NOT_LOCKED = [
 ]
 
 
+def test_create_uses_the_given_id() -> None:
+    code = Code.create(
+        entity_id=CodeId(21),
+        kind=CodeKind.STATUS,
+        name="보류",
+        key=CodeKey("code_1"),
+        order=8,
+        probability_hint=None,
+        now=NOW,
+    )
+
+    assert code.id == 21
+
+
 def test_create_status_code_is_open_without_hint() -> None:
     code = Code.create(
+        entity_id=CodeId(new_id()),
         kind=CodeKind.STATUS,
         name="보류",
         key=CodeKey("code_1"),
@@ -47,6 +63,7 @@ def test_create_status_code_is_open_without_hint() -> None:
 
 def test_create_forecast_code_is_open_and_keeps_the_hint() -> None:
     code = Code.create(
+        entity_id=CodeId(new_id()),
         kind=CodeKind.FORECAST,
         name="Upside",
         key=CodeKey("upside"),
@@ -62,6 +79,7 @@ def test_create_forecast_code_is_open_and_keeps_the_hint() -> None:
 def test_create_status_code_with_hint_is_rejected() -> None:
     with pytest.raises(InvalidValueError):
         Code.create(
+            entity_id=CodeId(new_id()),
             kind=CodeKind.STATUS,
             name="보류",
             key=CodeKey("code_1"),
@@ -78,6 +96,7 @@ def test_status_code_with_won_outcome_is_rejected() -> None:
 
 def _create_forecast(hint: str) -> Code:
     return Code.create(
+        entity_id=CodeId(new_id()),
         kind=CodeKind.FORECAST,
         name="Upside",
         key=CodeKey("upside"),

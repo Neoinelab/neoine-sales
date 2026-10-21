@@ -4,7 +4,7 @@ import { toActionType } from './mappers/actionType'
 import { unwrap, unwrapVoid } from './request'
 
 export function createActionTypesHttp(): ActionTypesGateway {
-  const byId = (id: string) => ({ params: { path: { type_id: id } } })
+  const byId = (id: number) => ({ params: { path: { type_id: id } } })
   return {
     list: async () => (await unwrap(api.GET('/api/v1/action-types'))).map(toActionType),
     create: async (name) => toActionType(await unwrap(api.POST('/api/v1/action-types', { body: { name } }))),

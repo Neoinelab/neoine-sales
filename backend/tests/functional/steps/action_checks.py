@@ -63,12 +63,12 @@ def normalized(body: dict[str, Any]) -> dict[str, Any]:
 
 async def then_action_is_unchanged(api: Api, before: dict[str, Any]) -> None:
     """다시 조회한 Action이 기억해 둔 응답과 같다(시각은 같은 순간이면 같다)."""
-    response = await when_get_action(api, str(before["id"]))
+    response = await when_get_action(api, int(before["id"]))
     then_status_is(response, 200)
     assert normalized(response.json()) == normalized(before)
 
 
-async def then_action_is_gone(api: Api, action_id: str) -> None:
+async def then_action_is_gone(api: Api, action_id: object) -> None:
     then_status_is(await when_get_action(api, action_id), 404)
 
 

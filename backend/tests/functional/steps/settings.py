@@ -199,7 +199,7 @@ def then_directory_authenticated_once(
     )
 
 
-def then_updated_by_is_user_ref(body: dict[str, Any], *, user_id: str, name: str) -> None:
+def then_updated_by_is_user_ref(body: dict[str, Any], *, user_id: int, name: str) -> None:
     updated_by = body["updated_by"]
     assert updated_by["id"] == user_id
     assert updated_by["name"] == name
@@ -214,8 +214,8 @@ def then_updated_at_is_just_now(body: dict[str, Any]) -> None:
     assert updated_at == active_clock().now(), (body["updated_at"], active_clock().now())
 
 
-async def current_user_id(api: Api) -> str:
-    return str((await api.get(ME)).json()["user_id"])
+async def current_user_id(api: Api) -> int:
+    return int((await api.get(ME)).json()["user_id"])
 
 
 async def then_config_offers_directory_login(api: Api) -> None:

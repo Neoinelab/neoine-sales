@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { gateway } from '../../../gateway'
 import { renderAt } from '../../../test/mockApp'
 import { detailPath } from '../../../test/detailTestUtils'
+import { USER_ID } from '../../../test/fake/seed/ids'
 
 async function openDeal(no: number, title: string) {
   const view = await renderAt(await detailPath(no))
@@ -20,9 +21,9 @@ function valueOf(card: HTMLElement, label: string): string {
 describe('고객사 인라인 편집 (회사명 pulldown + 자동완성)', () => {
   it('opens the company list on click and filters it by partial, case-insensitive text', async () => {
     const { user } = await openDeal(1, '한빛은행 ITDR 도입')
-    await gateway.auth.quickLogin('u-root') // 연락처 직접 등록은 admin만 가능하다.
+    await gateway.auth.quickLogin(USER_ID.root) // 연락처 직접 등록은 admin만 가능하다.
     await gateway.contacts.create('customer', { company: 'Acme', name: 'Kim', title: '', email: null, phone: null })
-    await gateway.auth.quickLogin('u-kim')
+    await gateway.auth.quickLogin(USER_ID.kim)
     await user.click(within(customerCard()).getByRole('button', { name: '고객 회사명 수정' }))
     const company = within(customerCard()).getByRole('combobox', { name: '고객 회사명' })
     expect(company).toHaveFocus()

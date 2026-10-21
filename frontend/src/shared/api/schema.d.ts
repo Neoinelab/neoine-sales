@@ -835,7 +835,7 @@ export interface components {
             created_at: string;
             created_by: components["schemas"]["UserRef"] | null;
             /** Id */
-            id: string;
+            id: number;
             /** Is Default */
             is_default: boolean;
             /** Name */
@@ -885,7 +885,7 @@ export interface components {
             /** File Name */
             file_name: string;
             /** Id */
-            id: string;
+            id: number;
             /** Mime */
             mime: string;
             /** Size */
@@ -949,7 +949,7 @@ export interface components {
             created_at: string;
             created_by: components["schemas"]["UserRef"] | null;
             /** Id */
-            id: string;
+            id: number;
             /** Is Default */
             is_default: boolean;
             /** Name */
@@ -975,13 +975,13 @@ export interface components {
         /** BantResponse */
         BantResponse: {
             /** Authority */
-            authority: string | null;
+            authority: number | null;
             /** Budget */
-            budget: string | null;
+            budget: number | null;
             /** Need */
-            need: string | null;
+            need: number | null;
             /** Timeline */
-            timeline: string | null;
+            timeline: number | null;
         };
         /** Body_upload_attachment_api_v1_deals__code__attachments_post */
         Body_upload_attachment_api_v1_deals__code__attachments_post: {
@@ -998,7 +998,7 @@ export interface components {
         /** CatalogChoiceRequest */
         CatalogChoiceRequest: {
             /** Id */
-            id?: string | null;
+            id?: number | null;
             /** Name */
             name?: string | null;
         };
@@ -1039,7 +1039,7 @@ export interface components {
         CodeOrderRequest: {
             kind: components["schemas"]["CodeKind"];
             /** Ordered Ids */
-            ordered_ids: string[];
+            ordered_ids: number[];
         };
         /** CodeRenameRequest */
         CodeRenameRequest: {
@@ -1049,7 +1049,7 @@ export interface components {
         /** CodeResponse */
         CodeResponse: {
             /** Id */
-            id: string;
+            id: number;
             /** Key */
             key: string;
             kind: components["schemas"]["CodeKind"];
@@ -1074,7 +1074,7 @@ export interface components {
         /** CodeUsageResponse */
         CodeUsageResponse: {
             /** Id */
-            id: string;
+            id: number;
             /** Key */
             key: string;
             kind: components["schemas"]["CodeKind"];
@@ -1116,7 +1116,7 @@ export interface components {
             /** Company */
             company: string;
             /** Contact Id */
-            contact_id?: string | null;
+            contact_id?: number | null;
             /** Email */
             email?: string | null;
             /** Name */
@@ -1144,7 +1144,7 @@ export interface components {
             /** Email */
             email: string | null;
             /** Id */
-            id: string;
+            id: number;
             kind: components["schemas"]["ContactKind"];
             /** Name */
             name: string;
@@ -1172,7 +1172,7 @@ export interface components {
             /** Email */
             email: string | null;
             /** Id */
-            id: string;
+            id: number;
             kind: components["schemas"]["ContactKind"];
             /** Name */
             name: string;
@@ -1299,7 +1299,7 @@ export interface components {
             /** Forecast Key */
             forecast_key: string;
             /** Id */
-            id: string;
+            id: number;
             /** Memo */
             memo: string;
             /** Next Action */
@@ -1363,11 +1363,8 @@ export interface components {
             forecast_key: string;
             /** Name */
             name: string;
-            /**
-             * Owner User Id
-             * Format: uuid
-             */
-            owner_user_id: string;
+            /** Owner User Id */
+            owner_user_id: number;
             partner?: components["schemas"]["ContactDraftRequest"] | null;
             poc?: components["schemas"]["PocRequest"];
             /**
@@ -1381,13 +1378,13 @@ export interface components {
             /** Revenue Date */
             revenue_date: string | null;
             /** Solution Id */
-            solution_id?: string | null;
+            solution_id?: number | null;
             /** Status Key */
             status_key: string;
             /** Users */
             users: number;
             /** Vendor Id */
-            vendor_id?: string | null;
+            vendor_id?: number | null;
         };
         /** DealDetailResponse */
         DealDetailResponse: {
@@ -1414,7 +1411,7 @@ export interface components {
             next_action: components["schemas"]["NextActionResponse"] | null;
             owner: components["schemas"]["UserRef"];
             /** Owner User Id */
-            owner_user_id: string;
+            owner_user_id: number;
             /** Partner History */
             partner_history: components["schemas"]["PartnerHistoryResponse"][];
             /** Partner Links */
@@ -1463,7 +1460,7 @@ export interface components {
             /** Name */
             name?: string | null;
             /** Owner User Id */
-            owner_user_id?: string | null;
+            owner_user_id?: number | null;
             partner?: components["schemas"]["ContactDraftRequest"] | null;
             poc?: components["schemas"]["PocRequest"] | null;
             /** Procurement */
@@ -1474,13 +1471,13 @@ export interface components {
             /** Revenue Date */
             revenue_date?: string | null;
             /** Solution Id */
-            solution_id?: string | null;
+            solution_id?: number | null;
             /** Status Key */
             status_key?: string | null;
             /** Users */
             users?: number | null;
             /** Vendor Id */
-            vendor_id?: string | null;
+            vendor_id?: number | null;
         };
         /** DealRowResponse */
         DealRowResponse: {
@@ -1507,7 +1504,7 @@ export interface components {
             next_action: components["schemas"]["NextActionResponse"] | null;
             owner: components["schemas"]["UserRef"];
             /** Owner User Id */
-            owner_user_id: string;
+            owner_user_id: number;
             /** Partner Links */
             partner_links: components["schemas"]["PartnerLinkResponse"][];
             poc: components["schemas"]["PocResponse"];
@@ -1758,7 +1755,7 @@ export interface components {
             /** Deal Code */
             deal_code: string;
             /** Id */
-            id: string;
+            id: number;
             /** Target */
             target: string;
         };
@@ -1775,7 +1772,7 @@ export interface components {
         /** NamedRefResponse */
         NamedRefResponse: {
             /** Id */
-            id: string;
+            id: number;
             /** Name */
             name: string;
         };
@@ -1846,7 +1843,7 @@ export interface components {
             /** Active */
             active: boolean;
             /** Contact Id */
-            contact_id: string;
+            contact_id: number;
             /**
              * Linked At
              * Format: date-time
@@ -1882,7 +1879,7 @@ export interface components {
             /** Subject */
             subject: string;
             /** User Id */
-            user_id: string;
+            user_id: number;
         };
         /**
          * Problem
@@ -1963,7 +1960,7 @@ export interface components {
              */
             created_at: string;
             /** Id */
-            id: string;
+            id: number;
             /** Name */
             name: string;
             /**
@@ -1974,7 +1971,7 @@ export interface components {
             /** Usage Count */
             usage_count: number;
             /** Vendor Id */
-            vendor_id: string;
+            vendor_id: number;
         };
         /**
          * SortOrder
@@ -2017,7 +2014,7 @@ export interface components {
          */
         UserRef: {
             /** Id */
-            id: string;
+            id: number;
             /** Label */
             label: string;
             /** Name */
@@ -2053,7 +2050,7 @@ export interface components {
             /** Email */
             email: string | null;
             /** Id */
-            id: string;
+            id: number;
             /** Last Login At */
             last_login_at: string | null;
             /** Login Id */
@@ -2091,7 +2088,7 @@ export interface components {
              */
             created_at: string;
             /** Id */
-            id: string;
+            id: number;
             /** Name */
             name: string;
             /** Solutions */
@@ -2216,7 +2213,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                type_id: string;
+                type_id: number;
             };
             cookie?: never;
         };
@@ -2281,7 +2278,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                type_id: string;
+                type_id: number;
             };
             cookie?: never;
         };
@@ -2432,7 +2429,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                attachment_id: string;
+                attachment_id: number;
             };
             cookie?: never;
         };
@@ -2481,7 +2478,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                attachment_id: string;
+                attachment_id: number;
             };
             cookie?: never;
         };
@@ -2537,7 +2534,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                attachment_id: string;
+                attachment_id: number;
             };
             cookie?: never;
         };
@@ -3055,7 +3052,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                label_id: string;
+                label_id: number;
             };
             cookie?: never;
         };
@@ -3120,7 +3117,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                label_id: string;
+                label_id: number;
             };
             cookie?: never;
         };
@@ -3407,7 +3404,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                code_id: string;
+                code_id: number;
             };
             cookie?: never;
         };
@@ -3472,7 +3469,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                code_id: string;
+                code_id: number;
             };
             cookie?: never;
         };
@@ -3745,7 +3742,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                contact_id: string;
+                contact_id: number;
             };
             cookie?: never;
         };
@@ -3816,7 +3813,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                contact_id: string;
+                contact_id: number;
             };
             cookie?: never;
         };
@@ -3881,7 +3878,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                action_id: string;
+                action_id: number;
             };
             cookie?: never;
         };
@@ -3930,7 +3927,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                action_id: string;
+                action_id: number;
             };
             cookie?: never;
         };
@@ -4001,7 +3998,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                action_id: string;
+                action_id: number;
             };
             cookie?: never;
         };
@@ -4057,7 +4054,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                action_id: string;
+                action_id: number;
             };
             cookie?: never;
         };
@@ -4127,20 +4124,20 @@ export interface operations {
         parameters: {
             query?: {
                 keyword?: string | null;
-                owner_user_id?: string | null;
+                owner_user_id?: number | null;
                 mine?: boolean;
-                vendor_id?: string | null;
-                solution_id?: string | null;
+                vendor_id?: number | null;
+                solution_id?: number | null;
                 status_key?: string | null;
                 forecast_key?: string | null;
                 year?: number | null;
                 quarter?: number | null;
                 revenue_from?: string | null;
                 revenue_to?: string | null;
-                bant_budget?: string | null;
-                bant_authority?: string | null;
-                bant_need?: string | null;
-                bant_timeline?: string | null;
+                bant_budget?: number | null;
+                bant_authority?: number | null;
+                bant_need?: number | null;
+                bant_timeline?: number | null;
                 next_action_status?: components["schemas"]["NextActionStatusFilter"] | null;
                 sort?: components["schemas"]["DealSort"];
                 order?: components["schemas"]["SortOrder"];
@@ -4432,8 +4429,8 @@ export interface operations {
     list_actions_of_deal_api_v1_deals__code__actions_get: {
         parameters: {
             query?: {
-                action_type_id?: string | null;
-                actor_user_id?: string | null;
+                action_type_id?: number | null;
+                actor_user_id?: number | null;
                 keyword?: string | null;
                 acted_from?: string | null;
                 acted_to?: string | null;
@@ -5387,7 +5384,7 @@ export interface operations {
             };
             header?: never;
             path: {
-                user_id: string;
+                user_id: number;
             };
             cookie?: never;
         };
@@ -5552,7 +5549,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                vendor_id: string;
+                vendor_id: number;
             };
             cookie?: never;
         };
@@ -5617,7 +5614,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                vendor_id: string;
+                vendor_id: number;
             };
             cookie?: never;
         };
@@ -5688,7 +5685,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                vendor_id: string;
+                vendor_id: number;
             };
             cookie?: never;
         };
@@ -5759,8 +5756,8 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                vendor_id: string;
-                solution_id: string;
+                vendor_id: number;
+                solution_id: number;
             };
             cookie?: never;
         };
@@ -5825,8 +5822,8 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                vendor_id: string;
-                solution_id: string;
+                vendor_id: number;
+                solution_id: number;
             };
             cookie?: never;
         };

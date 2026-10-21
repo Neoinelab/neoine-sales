@@ -5,6 +5,7 @@ from uuid import uuid4
 from app.application.attachment.inputs import UploadOutcome, UploadOutcomeKind
 from app.application.attachment.storage_cleanup import remove_file_quietly
 from app.application.deal.history_writer import write_history
+from app.application.ids import new_attachment_id
 from app.application.ports.file_storage import StorageNotWritableError, StoredFileLocation
 from app.application.storage.errors import UPLOAD_UNAVAILABLE, StorageUnavailableError
 from app.domain.attachment.entities import Attachment
@@ -158,6 +159,7 @@ class UploadAttachment:
                     storage_key=key,
                     uploaded_by=actor.user_id,
                     now=now,
+                    entity_id=await new_attachment_id(uow.ids),
                 )
                 await uow.attachments.add(attachment)
                 draft, kind = uploaded_draft, UploadOutcomeKind.UPLOADED

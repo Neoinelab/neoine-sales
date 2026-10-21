@@ -21,7 +21,7 @@ function ReadOnlyRow({ label, value }: { label: string; value: string }) {
 export function VendorRows({ state, set, original }: SectionProps) {
   const query = useVendors()
   const vendors = query.data ?? []
-  const solutions = vendors.find((v) => v.id === state.vendorId)?.solutions ?? []
+  const solutions = vendors.find((v) => String(v.id) === state.vendorId)?.solutions ?? []
 
   function changeVendor(vendorId: string) {
     if (vendorId === state.vendorId) return

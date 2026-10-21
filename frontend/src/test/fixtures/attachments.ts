@@ -2,9 +2,10 @@ import { extensionOf } from '../../shared/model/fileRules'
 import type { Deal } from '../../shared/model/types'
 import { nextSeq, takeId, type AttachmentRecord, type HistoryRecord } from '../fake/store'
 import type { SeedEnv } from '../fake/seed/env'
+import { USER_ID, type SeedLoginId } from '../fake/seed/ids'
 
 /** [Deal 번호, 파일명, 크기(byte), 업로더 loginId, 며칠 전, 설명]. 삭제 권한 시나리오(본인/타인/퇴사자)는 Deal 1에 모았다. */
-const FILES: readonly (readonly [number, string, number, string, number, string])[] = [
+const FILES: readonly (readonly [number, string, number, SeedLoginId, number, string])[] = [
   [1, '견적서_한빛은행_v2.pdf', 2_400_000, 'kim', 25, '2차 견적서'],
   [1, '제안서_ITDR.pptx', 8_100_000, 'park', 18, 'ITDR 제안서(공유용)'],
   [1, '기술검토.xlsx', 310_000, 'old', 26, '기술 검토 결과 정리'],
@@ -33,7 +34,7 @@ export function seedAttachments(
     const deal = deals.find((d) => d.code.endsWith(`-D${String(no).padStart(3, '0')}`))
     if (!deal) throw new Error(`시드 Deal 없음: ${no}`)
     const uploadedAt = env.at(ago, 15)
-    const uploadedById = `u-${uploader}`
+    const uploadedById = USER_ID[uploader]
     attachments.push({
       id: takeId(counters, 'att'),
       dealCode: deal.code,

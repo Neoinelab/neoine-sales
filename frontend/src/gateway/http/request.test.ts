@@ -6,7 +6,7 @@ import { normalizeKind, unwrap, unwrapVoid } from './request'
 
 afterEach(() => vi.unstubAllGlobals())
 
-const ME = { user_id: 'u1', subject: 'kim', name: '김영업', role: 'sales', email: null }
+const ME = { user_id: 1, subject: 'kim', name: '김영업', role: 'sales', email: null }
 
 describe('normalizeKind', () => {
   it.each([

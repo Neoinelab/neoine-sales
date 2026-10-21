@@ -6,7 +6,6 @@
 """
 
 from typing import TYPE_CHECKING
-from uuid import UUID, uuid4
 
 import pytest
 
@@ -18,6 +17,7 @@ from app.domain.vendor.errors import (
 from app.domain.vendor.values import VendorId
 from tests.factories import NOW, later
 from tests.factories_vendor import make_solution, make_vendor, store_vendor
+from tests.support.ids import new_id
 
 if TYPE_CHECKING:
     from tests.unit.repositories.vendor_case import VendorCase
@@ -47,7 +47,7 @@ async def test_update_adds_solutions_and_get_round_trips_them(vendor_case: Vendo
 
 async def test_get_missing_vendor_raises_not_found(vendor_case: VendorCase) -> None:
     with pytest.raises(VendorNotFoundError):
-        await vendor_case.vendors.get(VendorId(uuid4()))
+        await vendor_case.vendors.get(VendorId(new_id()))
 
 
 async def test_list_orders_vendors_by_lower_name_then_id(vendor_case: VendorCase) -> None:
@@ -201,7 +201,7 @@ async def test_delete_vendor_removes_its_solutions(vendor_case: VendorCase) -> N
 
 async def test_delete_missing_vendor_raises_not_found(vendor_case: VendorCase) -> None:
     with pytest.raises(VendorNotFoundError):
-        await vendor_case.vendors.delete(VendorId(UUID(int=9)))
+        await vendor_case.vendors.delete(VendorId(9))
 
 
 async def test_a_deleted_vendors_name_can_be_used_again(vendor_case: VendorCase) -> None:

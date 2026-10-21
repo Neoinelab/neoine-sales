@@ -3,7 +3,6 @@
 import dataclasses
 from datetime import date
 from typing import TYPE_CHECKING, Any
-from uuid import UUID
 
 from app.domain.bant.values import BantLabelId
 from app.domain.deal.history import diff_deal
@@ -18,17 +17,17 @@ if TYPE_CHECKING:
     from app.domain.deal.entities import Deal
     from app.domain.user.value_objects import UserId
 
-CUSTOMER = UUID(int=1)
-OTHER_CUSTOMER = UUID(int=2)
-PARTNER_1 = UUID(int=11)
-PARTNER_2 = UUID(int=12)
-LABEL_FULL_BUDGET = BantLabelId(UUID(int=21))
-LABEL_CEO = BantLabelId(UUID(int=22))
+CUSTOMER = 1
+OTHER_CUSTOMER = 2
+PARTNER_1 = 11
+PARTNER_2 = 12
+LABEL_FULL_BUDGET = BantLabelId(21)
+LABEL_CEO = BantLabelId(22)
 LABELS = {LABEL_FULL_BUDGET: "풀 예산 확보", LABEL_CEO: "CEO 보고 완료"}
-VENDOR_SAP = VendorId(UUID(int=31))
-VENDOR_ORACLE = VendorId(UUID(int=32))
-SOLUTION_S4 = SolutionId(UUID(int=41))
-SOLUTION_EBS = SolutionId(UUID(int=42))
+VENDOR_SAP = VendorId(31)
+VENDOR_ORACLE = VendorId(32)
+SOLUTION_S4 = SolutionId(41)
+SOLUTION_EBS = SolutionId(42)
 VENDORS = {VENDOR_SAP: "SAP", VENDOR_ORACLE: "Oracle"}
 SOLUTIONS = {SOLUTION_S4: "S/4HANA", SOLUTION_EBS: "EBS"}
 STATUSES = {
@@ -66,7 +65,7 @@ class Lookup:
     def user_label(self, user_id: UserId) -> str:
         return USERS[user_id]
 
-    def contact_name(self, contact_id: UUID) -> str:
+    def contact_name(self, contact_id: int) -> str:
         return CONTACTS[contact_id]
 
     def label_name(self, label_id: BantLabelId | None) -> str:

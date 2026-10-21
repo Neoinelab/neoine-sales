@@ -6,9 +6,8 @@ last_updated_at은 가장 최근 Action 수행 시각(없으면 Deal 등록 시�
 from datetime import UTC, date, datetime, timedelta
 from typing import TYPE_CHECKING
 
-from app.domain.deal_action.next_action_status import NextActionStatus
-
 from app.application.ports.deal_repository import DealQuery, NextActionSummary
+from app.domain.deal_action.next_action_status import NextActionStatus
 from tests.factories import NOW, make_deal_action
 from tests.factories_deal import SALES, make_patch
 from tests.support.user_ids import ACTOR_ID

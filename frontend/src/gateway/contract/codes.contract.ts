@@ -1,7 +1,7 @@
 /** 코드(CM-07, AC-03~09) 계약. mock과 HTTP 어댑터가 같은 시나리오·문구를 지켜야 한다. */
 
 import { describe, expect, it } from 'vitest'
-import { expectRejects, unique, type MakeGateway } from './support'
+import { expectRejects, unique, type MakeGateway, NO_SUCH_ID } from './support'
 
 const LOCKED_MESSAGE = '시스템과 연결된 코드는 삭제할 수 없습니다. 이름과 순서는 변경할 수 있습니다.'
 
@@ -82,7 +82,7 @@ export function codesContract(make: MakeGateway): void {
       const ids = (await codes.list('status')).map((c) => c.id)
 
       await expectRejects(codes.reorder('status', ids.slice(1)), 422, '순서 목록이 올바르지 않습니다.')
-      await expectRejects(codes.reorder('status', [...ids, ids[0] ?? '']), 422, '순서 목록이 올바르지 않습니다.')
+      await expectRejects(codes.reorder('status', [...ids, ids[0] ?? NO_SUCH_ID]), 422, '순서 목록이 올바르지 않습니다.')
     })
 
     it('refuses to delete a locked code with 409', async () => {
@@ -107,9 +107,9 @@ export function codesContract(make: MakeGateway): void {
 
       await expectRejects(codes.list('status'), 403)
       await expectRejects(codes.create({ kind: 'status', name: unique('x') }), 403)
-      await expectRejects(codes.rename('x', 'y'), 403)
+      await expectRejects(codes.rename(1, 'y'), 403)
       await expectRejects(codes.reorder('status', []), 403)
-      await expectRejects(codes.remove('x'), 403)
+      await expectRejects(codes.remove(1), 403)
     })
   })
 }

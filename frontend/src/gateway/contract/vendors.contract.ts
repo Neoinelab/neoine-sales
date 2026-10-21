@@ -1,11 +1,10 @@
 /** Vendor·Solution 관리(AC-1~7) 계약. 호출마다 고유한 이름을 쓰고 만든 것은 스스로 치운다. */
 
 import { describe, expect, it } from 'vitest'
-import { expectRejects, unique, type MakeGateway } from './support'
+import { expectRejects, unique, type MakeGateway, NO_SUCH_ID } from './support'
 
 const DUP_VENDOR = '이미 있는 Vendor 이름입니다.'
 const DUP_SOLUTION = '이 Vendor에 이미 있는 Solution 이름입니다.'
-const NO_SUCH_ID = '00000000-0000-4000-8000-000000000000'
 
 export function vendorsContract(make: MakeGateway): void {
   describe('vendors 계약', () => {

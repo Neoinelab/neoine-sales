@@ -2,7 +2,6 @@
 
 from datetime import date
 from typing import TYPE_CHECKING, Literal
-from uuid import uuid4
 
 import pytest
 from pydantic import ValidationError
@@ -18,6 +17,7 @@ from app.web.schemas.deal_action import (
     DealActionCreateRequest,
     DealActionUpdateRequest,
 )
+from tests.support.ids import MISSING_ID, new_id
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -71,7 +71,7 @@ def test_update_request_maps_to_the_content_input() -> None:
     "extra",
     [
         {"acted_at": "2026-03-02T10:00:00+09:00"},
-        {"actor_user_id": "00000000-0000-4000-8000-000000000001"},
+        {"actor_user_id": MISSING_ID},
         {"actor": "박영업"},
         {"deal_code": "20261016-A001"},
         {"title": "구 필드"},
@@ -140,9 +140,9 @@ def test_memo_defaults_to_an_empty_string() -> None:
 
 
 def test_the_type_may_be_chosen_by_id() -> None:
-    type_id = uuid4()
+    type_id = new_id()
 
-    data = _update(action_type={"id": str(type_id)}).to_input()
+    data = _update(action_type={"id": type_id}).to_input()
 
     assert data.action_type == CatalogChoice(id=type_id)
 
@@ -157,13 +157,19 @@ def test_the_type_name_is_passed_on_untouched_for_the_domain_to_judge() -> None:
 @pytest.mark.parametrize(
     "action_type",
     [
-        pytest.param({"id": str(uuid4()), "name": "미팅"}, id="both"),
+        pytest.param({"id": MISSING_ID, "name": "미팅"}, id="both"),
         pytest.param({}, id="neither"),
         pytest.param({"id": None, "name": None}, id="both-null"),
         pytest.param("meeting", id="old-enum-value"),
         pytest.param("미팅", id="plain-name-string"),
         pytest.param(None, id="null"),
-        pytest.param({"id": "not-a-uuid"}, id="id-not-a-uuid"),
+        pytest.param({"id": "not-an-id"}, id="id-not-an-id"),
+        pytest.param({"id": "5"}, id="id-as-a-string"),
+        pytest.param({"id": True}, id="id-as-a-boolean"),
+        pytest.param({"id": 5.0}, id="id-as-a-float"),
+        pytest.param({"id": 0}, id="id-zero"),
+        pytest.param({"id": -3}, id="id-negative"),
+        pytest.param({"id": 2**53}, id="id-above-the-limit"),
         pytest.param({"name": 3}, id="name-not-a-string"),
     ],
 )

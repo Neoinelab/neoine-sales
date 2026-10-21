@@ -7,7 +7,7 @@
 import { describe, expect, it } from 'vitest'
 import type { ActionInput, DealInput } from '../../shared/model/types'
 import type { Gateway } from '../types'
-import { expectRejects, unique, type MakeGateway } from './support'
+import { expectRejects, unique, type MakeGateway, NO_SUCH_ID } from './support'
 
 const REVENUE_NEEDED = 'Won·계약완료로 바꾸려면 매출금액과 매출일이 필요합니다.'
 const ACTED_REVERSED = '수행일 범위의 시작은 끝보다 늦을 수 없습니다.'
@@ -263,7 +263,7 @@ export function actionsContract(make: MakeGateway): void {
       await expectRejects(sales.actions.update(created.id, action({ progress: ' ', nextAction: '', dueDate: '' })), 422, '진행사항 또는 Next Action을 입력하세요.')
       await expectRejects(sales.actions.update(created.id, action({ dueDate: '' })), 422, 'Due Date를 입력하세요.')
       await expectRejects(sales.actions.update(created.id, action({ nextAction: '', dueDate: '2026-12-01' })), 422, 'Next Action 없이 Due Date를 입력할 수 없습니다.')
-      await expectRejects(sales.actions.update('00000000-0000-4000-8000-000000000000', action()), 404, 'Action을 찾을 수 없습니다.')
+      await expectRejects(sales.actions.update(NO_SUCH_ID, action()), 404, 'Action을 찾을 수 없습니다.')
 
       await sales.deals.remove(deal.code, deal.code)
     })
@@ -301,7 +301,7 @@ export function actionsContract(make: MakeGateway): void {
     it('answers 404 when deleting an unknown action', async () => {
       const sales = await make('sales')
 
-      await expectRejects(sales.actions.remove('00000000-0000-4000-8000-000000000000'), 404, 'Action을 찾을 수 없습니다.')
+      await expectRejects(sales.actions.remove(NO_SUCH_ID), 404, 'Action을 찾을 수 없습니다.')
     })
 
     it('filters the acted date by whole local days with both ends included', async () => {
@@ -349,12 +349,12 @@ export function actionsContract(make: MakeGateway): void {
       const viaMemo = await sales.actions.create(deal.code, action({ type: { name: '이메일' }, memo: `긴 메모 ${'x'.repeat(3000)} NEEDLE 끝` }))
       const ids = async (q: Parameters<Gateway['actions']['list']>[1]) => (await sales.actions.list(deal.code, q)).map((a) => a.id)
       const types = await sales.actionTypes.list()
-      const typeId = (name: string) => types.find((t) => t.name === name)?.id ?? ''
+      const typeId = (name: string) => types.find((t) => t.name === name)?.id ?? NO_SUCH_ID
 
       expect(await ids({ typeId: typeId('통화'), keyword: 'alpha' })).toEqual([call.id])
       expect(await ids({ keyword: 'needle' })).toEqual([viaMemo.id])
       expect(await ids({ actorId: me.id, typeId: typeId('이메일') })).toEqual([viaMemo.id])
-      expect(await ids({ actorId: 'u-nobody-at-all' })).toEqual([])
+      expect(await ids({ actorId: NO_SUCH_ID })).toEqual([])
       await sales.deals.remove(deal.code, deal.code)
     })
 

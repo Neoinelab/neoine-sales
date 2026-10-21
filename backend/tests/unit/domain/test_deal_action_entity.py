@@ -1,10 +1,8 @@
 """DealAction 엔티티(AC-5·7·14): 스냅숏·수행 정보는 불변, 내용만 고침, 담당자 확인, 상태."""
 
 from datetime import date
-from uuid import uuid4
 
 import pytest
-from app.domain.deal_action.next_action_status import NextActionState, NextActionStatus
 
 from app.domain.auth.errors import AccessDeniedError
 from app.domain.auth.principal import Role
@@ -16,6 +14,7 @@ from app.domain.deal_action.errors import (
     DealActionNotFoundError,
     DealActionStatusForbiddenError,
 )
+from app.domain.deal_action.next_action_status import NextActionState, NextActionStatus
 from app.domain.deal_action.value_objects import DealActionId
 from tests.factories import (
     NOW,
@@ -27,6 +26,7 @@ from tests.factories import (
 )
 from tests.factories_action_type import make_type_ref
 from tests.support.expect import raises_with
+from tests.support.ids import new_id
 from tests.support.user_ids import ACTOR_ID, uid
 
 EDIT_FORBIDDEN = "본인 Action 또는 admin만 수정할 수 있습니다."
@@ -44,6 +44,7 @@ class TestRecord:
             actor_user_id=ACTOR_ID,
             snapshot=snapshot,
             now=later(5),
+            entity_id=DealActionId(new_id()),
         )
 
         assert action.deal_code == make_deal_code("A7K2")
@@ -51,10 +52,9 @@ class TestRecord:
         assert action.snapshot == snapshot
         assert action.acted_at == action.created_at == action.updated_at == later(5)
 
-    def test_record_generates_a_new_id_each_time_unless_one_is_given(self) -> None:
-        fixed = DealActionId(uuid4())
+    def test_record_uses_the_given_id(self) -> None:
+        fixed = DealActionId(new_id())
 
-        assert make_deal_action().id != make_deal_action().id
         assert make_deal_action(entity_id=fixed).id == fixed
 
     def test_record_requires_an_aware_time(self) -> None:
@@ -71,7 +71,7 @@ class TestRecord:
 
     def test_a_not_found_error_carries_the_user_message(self) -> None:
         with raises_with(DealActionNotFoundError, "Action을 찾을 수 없습니다."):
-            raise DealActionNotFoundError(uuid4())
+            raise DealActionNotFoundError(new_id())
 
 
 class TestRevise:

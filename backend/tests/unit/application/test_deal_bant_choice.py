@@ -5,7 +5,6 @@ Label을, 없으면 요청자가 만든 새 Label을 쓴다. 검증이 하나라
 """
 
 from typing import TYPE_CHECKING
-from uuid import uuid4
 
 import pytest
 
@@ -16,6 +15,7 @@ from app.domain.deal.errors import InvalidBantLabelError
 from tests.factories_deal import SALES, make_draft
 from tests.support.catalog import label_by_name
 from tests.support.expect import raises_with
+from tests.support.ids import new_id
 
 if TYPE_CHECKING:
     from tests.unit.application.deal_env import DealEnv
@@ -55,7 +55,7 @@ async def test_bant_id_of_another_category_is_rejected_and_stores_nothing(env: D
 
 async def test_an_unknown_bant_id_is_rejected_without_creating_a_label(env: DealEnv) -> None:
     with raises_with(InvalidBantLabelError, LABEL_INVALID):
-        await env.new_deal(bant={BantCategory.NEED: CatalogChoice(id=uuid4())})
+        await env.new_deal(bant={BantCategory.NEED: CatalogChoice(id=new_id())})
 
     assert await _label_count(env) == BASELINE_LABELS
 
@@ -89,6 +89,21 @@ async def test_bant_name_creates_label_in_that_category_by_the_actor(env: DealEn
     assert created.created_by_user_id == SALES.user_id
     assert created.created_at == env.clock.now()
     assert await _label_count(env) == BASELINE_LABELS + 1
+
+
+async def test_a_new_label_name_gets_an_allocated_id(env: DealEnv) -> None:
+    view = await env.new_deal(
+        bant={
+            BantCategory.BUDGET: CatalogChoice(name="신규 예산"),
+            BantCategory.NEED: CatalogChoice(name="신규 필요"),
+        }
+    )
+
+    bant = view.item.deal.bant
+    created = {x.name: x.id for x in await env.uow.bant_labels.list() if not x.is_default}
+    assert sorted(created.values()) == [1, 2]  # 이 테이블에서 할당받은 번호(시드는 높은 번호)
+    assert bant.get(BantCategory.BUDGET) == created["신규 예산"]
+    assert bant.get(BantCategory.NEED) == created["신규 필요"]
 
 
 async def test_same_name_in_another_category_creates_a_new_label(env: DealEnv) -> None:

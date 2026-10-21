@@ -10,9 +10,10 @@ import pytest
 from app.domain.bant.values import LABEL_NAME_MAX, normalize_label_name
 from app.domain.code.entities import Code
 from app.domain.code.rules import normalize_code_name
-from app.domain.code.values import PROBABILITY_HINT_MAX, CodeKey, CodeKind
+from app.domain.code.values import PROBABILITY_HINT_MAX, CodeId, CodeKey, CodeKind
 from app.domain.common.errors import InvalidValueError
 from tests.factories import NOW
+from tests.support.ids import new_id
 
 NUL_NAMES = ["a\x00b", "\x00", "name\x00", "\x00name", " \x00 "]
 NUL_IDS = ["inside", "only", "trailing", "leading", "padded"]
@@ -20,7 +21,13 @@ NUL_IDS = ["inside", "only", "trailing", "leading", "padded"]
 
 def _create(kind: CodeKind, hint: str | None) -> Code:
     return Code.create(
-        kind=kind, name="Upside", key=CodeKey("upside"), order=7, probability_hint=hint, now=NOW
+        entity_id=CodeId(new_id()),
+        kind=kind,
+        name="Upside",
+        key=CodeKey("upside"),
+        order=7,
+        probability_hint=hint,
+        now=NOW,
     )
 
 

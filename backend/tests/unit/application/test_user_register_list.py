@@ -15,6 +15,7 @@ if TYPE_CHECKING:
     from app.application.ports.unit_of_work import UnitOfWorkFactory
     from tests.fakes.admin_stack import AdminStack
     from tests.fakes.directory import FakeDirectoryAuthenticator
+    from tests.fakes.unit_of_work import FakeUnitOfWork
 
 
 @pytest.mark.parametrize("role", [Role.ADMIN, Role.SALES, Role.USER])
@@ -97,6 +98,18 @@ async def test_register_user_rejects_an_active_duplicate(
         await admin.register_user.execute(login_id=duplicate, role=Role.ADMIN, actor=ADMIN_ACTOR)
 
     assert await active_logins(uow_factory) == ["kim"]
+
+
+async def test_duplicate_active_login_id_is_rejected_without_adding_a_user(
+    admin: AdminStack, uow: FakeUnitOfWork, uow_factory: UnitOfWorkFactory
+) -> None:
+    await seed_user(uow_factory, "kim", Role.SALES)
+    before = len(uow.users._items)
+
+    with pytest.raises(AlreadyExistsError):
+        await admin.register_user.execute(login_id="kim", role=Role.ADMIN, actor=ADMIN_ACTOR)
+
+    assert len(uow.users._items) == before
 
 
 async def test_register_user_allows_a_login_id_whose_user_was_physically_deleted(

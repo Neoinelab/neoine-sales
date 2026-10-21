@@ -6,7 +6,6 @@
 """
 
 from typing import TYPE_CHECKING
-from uuid import uuid4
 
 import pytest
 
@@ -23,6 +22,7 @@ from tests.functional.steps.actions import (
 from tests.functional.steps.auth import given_logged_in_as, given_logged_out
 from tests.functional.steps.common import then_problem_is
 from tests.functional.steps.deals import NOT_FOUND, given_deal, then_history_is
+from tests.support.ids import MISSING_ID
 
 if TYPE_CHECKING:
     from tests.functional.conftest import Api
@@ -102,7 +102,7 @@ async def test_nul_character_in_a_text_field_is_rejected(api: Api, field: str) -
     "extra",
     [
         pytest.param({"acted_at": "2026-03-02T10:00:00+09:00"}, id="acted-at"),
-        pytest.param({"actor_user_id": "00000000-0000-4000-8000-000000000001"}, id="actor-user-id"),
+        pytest.param({"actor_user_id": MISSING_ID}, id="actor-user-id"),
         pytest.param({"actor": "박영업"}, id="free-text-actor"),
         pytest.param({"deal_code": "20261016-A001"}, id="deal-code"),
         pytest.param({"title": "구 필드"}, id="legacy-title"),
@@ -127,8 +127,8 @@ async def test_client_cannot_set_acted_at_or_actor(api: Api, extra: dict[str, ob
         pytest.param("미팅", id="plain-name-string"),
         pytest.param(None, id="null"),
         pytest.param({}, id="neither-id-nor-name"),
-        pytest.param({"id": str(uuid4()), "name": "미팅"}, id="both-id-and-name"),
-        pytest.param({"id": "not-a-uuid"}, id="id-not-a-uuid"),
+        pytest.param({"id": MISSING_ID, "name": "미팅"}, id="both-id-and-name"),
+        pytest.param({"id": "not-an-id"}, id="id-not-an-id"),
     ],
 )
 async def test_a_type_that_is_not_a_choice_object_is_a_request_validation_error(

@@ -7,10 +7,9 @@
 from datetime import date
 from typing import TYPE_CHECKING
 
-from app.domain.deal_action.next_action_status import NextActionStatus
-
 from app.application.ports.deal_action_repository import NextActionStatusFilter
 from app.application.ports.deal_repository import DealQuery, NextActionSummary
+from app.domain.deal_action.next_action_status import NextActionStatus
 from tests.factories import later, make_deal
 
 if TYPE_CHECKING:

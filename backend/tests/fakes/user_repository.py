@@ -74,7 +74,7 @@ class FakeUserRepository(InMemoryStore["User"]):
     ) -> Sequence[User]:
         check_page(offset, limit)
         found = [u for u in self._items.values() if _matches_status(u, status)]
-        found.sort(key=lambda u: (u.created_at, str(u.id)))
+        found.sort(key=lambda u: (u.created_at, u.id))
         return [copy.deepcopy(u) for u in found[offset : offset + limit]]
 
     async def search_refs(
@@ -95,7 +95,7 @@ class FakeUserRepository(InMemoryStore["User"]):
             and (role is None or u.role is role)
             and (needle is None or needle in u.to_ref().name.lower())  # 표시 이름(없으면 아이디)만
         ]
-        found.sort(key=lambda u: (u.created_at, str(u.id)))
+        found.sort(key=lambda u: (u.created_at, u.id))
         chosen = found if limit is None else found[:limit]
         return [u.to_ref() for u in chosen]
 

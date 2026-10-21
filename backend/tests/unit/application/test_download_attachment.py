@@ -4,7 +4,6 @@
 """
 
 from typing import TYPE_CHECKING
-from uuid import uuid4
 
 import pytest
 
@@ -13,6 +12,7 @@ from app.application.storage.errors import DOWNLOAD_UNAVAILABLE, StorageUnavaila
 from app.domain.attachment.errors import AttachmentContentMissingError, AttachmentNotFoundError
 from app.domain.attachment.values import AttachmentId
 from tests.support.expect import raises_with
+from tests.support.ids import new_id
 from tests.unit.application.attachment_env import CONTENT_MISSING, KIM, NOT_FOUND
 
 if TYPE_CHECKING:
@@ -47,7 +47,7 @@ async def test_download_of_an_empty_file_has_size_zero(attachment_env: Attachmen
 
 async def test_download_of_an_unknown_id_is_not_found(attachment_env: AttachmentEnv) -> None:
     with raises_with(AttachmentNotFoundError, NOT_FOUND):
-        await attachment_env.download.execute(AttachmentId(uuid4()))
+        await attachment_env.download.execute(AttachmentId(new_id()))
 
 
 async def test_a_row_without_its_disk_file_reports_the_content_as_missing(

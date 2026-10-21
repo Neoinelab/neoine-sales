@@ -44,7 +44,9 @@ class UpdateDeal:
             deal.revise(
                 details=form.details,
                 sync=form.sync,
-                customer_id=contacts.customer_id or deal.customer_id,
+                customer_id=(
+                    deal.customer_id if contacts.customer_id is None else contacts.customer_id
+                ),
                 bant=bant,
             )
             if "partner" in patch.provided:

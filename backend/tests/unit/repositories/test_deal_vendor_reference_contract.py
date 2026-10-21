@@ -8,7 +8,6 @@
 
 import dataclasses
 from typing import TYPE_CHECKING
-from uuid import uuid4
 
 import pytest
 
@@ -16,6 +15,7 @@ from app.domain.common.errors import InvalidReferenceError
 from app.domain.vendor.errors import SolutionInUseError, VendorInUseError
 from app.domain.vendor.values import SolutionId, VendorId
 from tests.factories import later, make_deal
+from tests.support.ids import new_id
 
 if TYPE_CHECKING:
     from app.domain.deal.entities import Deal
@@ -48,7 +48,7 @@ async def test_deal_with_vendor_only_round_trips(deal_case: DealCase) -> None:
 
 
 async def test_saving_an_unknown_vendor_is_an_invalid_reference(deal_case: DealCase) -> None:
-    deal = make_deal(code=_code(1), vendor_id=VendorId(uuid4()))
+    deal = make_deal(code=_code(1), vendor_id=VendorId(new_id()))
 
     with pytest.raises(InvalidReferenceError):
         await deal_case.add(deal)
@@ -71,7 +71,7 @@ async def test_saving_a_solution_of_another_vendor_raises_invalid_reference(
 
 async def test_saving_an_unknown_solution_raises_invalid_reference(deal_case: DealCase) -> None:
     sap = await deal_case.new_vendor("ZZ SAP", ("S/4HANA",))
-    deal = make_deal(code=_code(1), vendor_id=sap.id, solution_id=SolutionId(uuid4()))
+    deal = make_deal(code=_code(1), vendor_id=sap.id, solution_id=SolutionId(new_id()))
 
     with pytest.raises(InvalidReferenceError):
         await deal_case.add(deal)

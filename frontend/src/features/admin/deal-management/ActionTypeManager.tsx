@@ -15,7 +15,7 @@ export function ActionTypeManager() {
   const rename = useRenameActionType()
   const remove = useRemoveActionType()
   const [name, setName] = useState('')
-  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editingId, setEditingId] = useState<number | null>(null)
   const [deleting, setDeleting] = useState<ActionTypeWithUsage | null>(null)
   const [error, setError] = useState<unknown>(null)
   const busy = create.isPending || rename.isPending || remove.isPending

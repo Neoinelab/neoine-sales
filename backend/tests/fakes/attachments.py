@@ -64,7 +64,7 @@ class FakeAttachmentRepository(InMemoryStore[Any]):
 
     async def list_by_deal(self, deal_code: DealCode) -> Sequence[Attachment]:
         found = [a for a in self._items.values() if a.deal_code == deal_code]
-        found.sort(key=lambda a: (a.uploaded_at, str(a.id)), reverse=True)
+        found.sort(key=lambda a: (a.uploaded_at, a.id), reverse=True)
         return [copy.deepcopy(a) for a in found]
 
     async def update(self, attachment: Attachment) -> None:
