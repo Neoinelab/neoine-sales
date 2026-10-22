@@ -1,6 +1,8 @@
 /* Deal 상세(그룹 ②) 전용 스타일. 전역 토큰(--panel, --line, --muted, --accent, --danger)과 공통 UI 토큰(--ui-*)만 쓴다. */
 
 .dd-page { display: grid; gap: 16px; min-width: 0; }
+/* 탭 패널 안(알림 · Deal 정보 · 정보 카드 · 첨부 등)도 페이지와 같은 간격으로 쌓는다. */
+.deal-detail .tabpanel { display: grid; gap: 16px; min-width: 0; align-content: start; }
 
 /* 글자 크기 통일: Deal 상세 안의 제목(h1·h2·h3)을 뺀 모든 글자는 --font-base 하나만 쓴다(다른 화면에는 영향 없음). */
 .deal-detail { font-size: var(--font-base); }

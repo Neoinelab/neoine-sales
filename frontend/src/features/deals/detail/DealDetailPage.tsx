@@ -27,7 +27,7 @@ const TABS = [
   { id: 'history', label: 'Deal History' },
 ] as const
 
-/** Deal 상세 `/deals/:dealCode`: 머리 · 알림 · 현재값 바 · 탭 3개(Deal 상세: 정보 카드·첨부 파일 / Actions / Deal History, 기본은 Deal 상세) · 삭제. */
+/** Deal 상세 `/deals/:dealCode`: 머리(이름) 바로 아래 탭 3개(Deal 상세: Deal 정보·정보 카드·첨부 파일 / Actions / Deal History, 기본은 Deal 상세) · 알림(탭 패널 맨 위) · 삭제. */
 export function DealDetailPage() {
   const { dealCode } = useParams()
   const navigate = useNavigate()
@@ -90,15 +90,15 @@ export function DealDetailPage() {
           )}
         </div>
       </header>
-      {notice && (
-        <Notice kind="success" onClose={() => setNotice(null)}>
-          {notice}
-        </Notice>
-      )}
-      <SummaryBar deal={data} canWrite={canWrite} onNotice={setNotice} />
       <Tabs label="상세 탭" tabs={TABS} active={tab} onChange={changeTab}>
+        {notice && (
+          <Notice kind="success" onClose={() => setNotice(null)}>
+            {notice}
+          </Notice>
+        )}
         {tab === 'info' && (
           <>
+            <SummaryBar deal={data} canWrite={canWrite} onNotice={setNotice} />
             <InfoCards deal={data} canWrite={canWrite} onNotice={setNotice} />
             <AttachmentsPanel dealCode={data.code} me={me} canWrite={canWrite} />
           </>

@@ -62,7 +62,8 @@ describe('Status와 Forecast를 둘 다 바꿔 등록 (AC-14·15·18·20)', () =
       { field: 'statusKey', value: 'technical_evaluation' },
     ])
     expect(screen.getByText("Action이 등록되었습니다. Status가 '기술평가'로, Forecast가 'Best'로 변경되었습니다.")).toBeVisible()
-    const bar = screen.getByRole('region', { name: 'Deal 정보' })
+    await user.click(screen.getByRole('tab', { name: 'Deal 상세' }))
+    const bar = await screen.findByRole('region', { name: 'Deal 정보' })
     expect(within(bar).getByRole('button', { name: 'Status 수정' })).toHaveTextContent('기술평가')
   })
 

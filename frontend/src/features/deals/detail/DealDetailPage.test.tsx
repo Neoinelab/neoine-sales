@@ -198,15 +198,27 @@ describe('Deal 상세 탭 (T-DETAIL-03)', () => {
     expect(screen.queryByRole('table', { name: 'Action 목록' })).not.toBeInTheDocument()
   })
 
-  it('keeps header and summary bar above every tab', async () => {
+  it('keeps the header above every tab with the tab list right below it', async () => {
     const { user } = await renderAt(await detailPath(1))
     await heading('한빛은행 ITDR 도입')
     for (const tab of ['Deal 상세', 'Actions', 'Deal History']) {
       await user.click(screen.getByRole('tab', { name: tab }))
-      expect(screen.getByRole('heading', { level: 1, name: '한빛은행 ITDR 도입' })).toBeVisible()
+      const title = screen.getByRole('heading', { level: 1, name: '한빛은행 ITDR 도입' })
+      expect(title).toBeVisible()
       expect(screen.getByRole('link', { name: '← 목록' })).toBeVisible()
       expect(screen.getByRole('button', { name: 'Deal 삭제' })).toBeVisible()
-      expect(screen.getByRole('region', { name: 'Deal 정보' })).toBeVisible()
+      const afterHeader = title.closest('header')?.nextElementSibling
+      expect(afterHeader?.querySelector('[role="tablist"]')).toBe(screen.getByRole('tablist', { name: '상세 탭' }))
+    }
+  })
+
+  it('shows the deal info tile only inside the Deal 상세 tab', async () => {
+    const { user } = await renderAt(await detailPath(1))
+    await heading('한빛은행 ITDR 도입')
+    expect(within(screen.getByRole('tabpanel')).getByRole('region', { name: 'Deal 정보' })).toBeVisible()
+    for (const tab of ['Actions', 'Deal History']) {
+      await user.click(screen.getByRole('tab', { name: tab }))
+      expect(screen.queryByRole('region', { name: 'Deal 정보' })).not.toBeInTheDocument()
     }
   })
 
