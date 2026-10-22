@@ -30,7 +30,7 @@ describe('목록 표 (T-LIST-01~04)', () => {
     const { client } = await renderAt('/deals?q=누리통신 MFA')
     const row = await rowOf(/누리통신 MFA/)
     const code = (within(row).getByRole('link', { name: '누리통신 MFA' }).getAttribute('href') ?? '').replace('/deals/', '')
-    await gateway.deals.update(code, { vendorId: null, solutionId: null })
+    await gateway.deals.update(code, { vendorId: null })
     await client.invalidateQueries()
 
     await waitFor(() => expect(within(screen.getByRole('row', { name: /누리통신 MFA/ })).getAllByRole('cell')[HEADERS.indexOf('Vendor')]).toHaveTextContent(/^—$/))

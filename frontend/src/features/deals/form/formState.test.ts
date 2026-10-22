@@ -22,6 +22,7 @@ function filled(over: Partial<DealFormState> = {}): DealFormState {
     customer: { contactId: null, company: '한빛은행', name: '정민수', title: ' 과장 ', email: 'a@b.co', phone: null },
     revenueAmount: '1,500,000',
     revenueDate: '2027-01-31',
+    solution: 'ITDR',
     users: '10',
     ...over,
   }
@@ -66,7 +67,7 @@ function detail(over: Partial<DealDetail> = {}): DealDetail {
     name: '기존 Deal',
     ownerId: USER_ID.kim,
     vendor: { id: 3, name: 'Okta' },
-    solution: { id: 3, name: 'SSO' },
+    solution: 'SSO',
     users: 100,
     statusKey: 'introduction',
     forecastKey: 'best',
@@ -103,8 +104,11 @@ describe('emptyForm (T-FORM-02, T-FORM-03)', () => {
     expect(isPartnerEntered(state.partner)).toBe(false)
   })
 
-  it('AC-9 starts with no vendor and no solution as empty ids', () => {
-    expect(emptyForm(String(USER_ID.kim))).toMatchObject({ vendorId: '', solutionId: '' })
+  it('AC-12 starts with no vendor and an empty solution text', () => {
+    const state = emptyForm(String(USER_ID.kim))
+
+    expect(state).toMatchObject({ vendorId: '', solution: '' })
+    expect(state).not.toHaveProperty('solutionId')
   })
 
   it('AC-31 starts with an empty text for every BANT item', () => {
@@ -117,12 +121,25 @@ describe('validateForm (T-FORM-01)', () => {
     const errors = validateForm({ ...emptyForm(''), revenueAmount: '', revenueDate: '' }, undefined)
     expect(errors.name).toBe('Deal Name을 입력하세요.')
     expect(errors.ownerId).toBe('Owner를 선택하세요.')
+    expect(errors.solution).toBe('Solution을 입력하세요.')
     expect(errors.customer?.company).toBe('고객 회사명을 입력하세요.')
     expect(errors.customer?.name).toBe('고객 담당자명을 입력하세요.')
     expect(errors.revenueAmount).toBe(AMOUNT_INPUT_MESSAGE)
     expect(errors.revenueDate).toBe('Expected Close를 입력하세요.')
     expect(errors.partner).toBeUndefined()
     expect(hasErrors(errors)).toBe(true)
+  })
+
+  it.each(['', '   ', '\t'])('Q1 requires a non-blank solution text: "%s"', (solution) => {
+    const errors = validateForm(filled({ solution }), undefined)
+
+    expect(errors.solution).toBe('Solution을 입력하세요.')
+    expect(hasErrors(errors)).toBe(true)
+  })
+
+  it('Q1 accepts a solution text without a vendor and lets the server judge the length', () => {
+    expect(validateForm(filled({ vendorId: '', solution: 'ITDR' }), undefined).solution).toBeUndefined()
+    expect(validateForm(filled({ solution: 'a'.repeat(201) }), undefined).solution).toBeUndefined()
   })
 
   it('AC-31 flags a BANT text over 50 characters at that item only', () => {
@@ -202,7 +219,7 @@ describe('toDealInput', () => {
     const input = toDealInput(
       filled({
         vendorId: '3',
-        solutionId: '3',
+        solution: ' SSO ',
         users: '20',
         customer: { contactId: 1, company: '한빛은행', name: '정민수', title: ' 과장 ', email: '', phone: '' },
         quoteSubmitted: 'YES',
@@ -211,7 +228,8 @@ describe('toDealInput', () => {
       LABELS,
     )
     expect(input.name).toBe('새 Deal')
-    expect(input).toMatchObject({ vendorId: 3, solutionId: 3 })
+    expect(input).toMatchObject({ vendorId: 3, solution: 'SSO' })
+    expect(input).not.toHaveProperty('solutionId')
     expect(input.users).toBe(20)
     expect(input.revenueAmount).toBe(1_500_000_000)
     expect(input.customer).toEqual({ contactId: 1, company: '한빛은행', name: '정민수', title: '과장', email: null, phone: null })
@@ -220,26 +238,25 @@ describe('toDealInput', () => {
     expect(input.poc).toEqual({ state: null, completedDate: null })
   })
 
-  it('sends the owner, vendor and solution ids as numbers', () => {
-    const input = toDealInput(filled({ ownerId: String(USER_ID.park), vendorId: '12', solutionId: '34' }), LABELS)
+  it('sends the owner and vendor ids as numbers', () => {
+    const input = toDealInput(filled({ ownerId: String(USER_ID.park), vendorId: '12' }), LABELS)
 
     expect(input.ownerId).toBe(USER_ID.park)
     expect(input.vendorId).toBe(12)
-    expect(input.solutionId).toBe(34)
   })
 
-  it('sends an empty vendor and solution as null', () => {
-    const input = toDealInput(filled({ vendorId: '', solutionId: '' }), LABELS)
+  it('AC-12 sends an empty vendor as null and the solution text trimmed', () => {
+    const input = toDealInput(filled({ vendorId: '', solution: '  ITDR  ' }), LABELS)
 
     expect(input.vendorId).toBeNull()
-    expect(input.solutionId).toBeNull()
+    expect(input.solution).toBe('ITDR')
   })
 
-  it('sends a vendor without a solution', () => {
-    const input = toDealInput(filled({ vendorId: '3', solutionId: '' }), LABELS)
+  it('AC-12 sends a vendor together with an independent solution text', () => {
+    const input = toDealInput(filled({ vendorId: '3', solution: 'MFA' }), LABELS)
 
     expect(input.vendorId).toBe(3)
-    expect(input.solutionId).toBeNull()
+    expect(input.solution).toBe('MFA')
   })
 
   it('sends the partner only when it was entered', () => {
@@ -299,20 +316,34 @@ describe('formFromDeal / toDealPatch (T-FORM-06)', () => {
     expect(state.customer).toMatchObject({ contactId: 1, company: '한빛은행', name: '정민수', title: '과장' })
     expect(state.partner).toMatchObject({ contactId: 9, company: '에이원시스템', name: '표성호' })
     expect(state.bant).toEqual({ budget: '단독 예산 확보', authority: '', need: '', timeline: '' })
-    expect(state).toMatchObject({ vendorId: '3', solutionId: '3' })
+    expect(state).toMatchObject({ vendorId: '3', solution: 'SSO' })
   })
 
-  it('loads a deal without vendor and solution as empty ids', () => {
-    const state = formFromDeal(detail({ vendor: null, solution: null }), LABELS)
+  it('AC-12 form from deal copies the solution text and loads no vendor as an empty id', () => {
+    const state = formFromDeal(detail({ vendor: null, solution: 'ITDR' }), LABELS)
 
-    expect(state).toMatchObject({ vendorId: '', solutionId: '' })
+    expect(state).toMatchObject({ vendorId: '', solution: 'ITDR' })
   })
 
-  it('AC-11 patch carries the vendor and solution ids as they are in the form', () => {
+  it('loads a legacy empty solution as an empty text (the form then asks for one)', () => {
+    expect(formFromDeal(detail({ solution: '' }), LABELS).solution).toBe('')
+  })
+
+  it('AC-9 patch carries the vendor id and the solution text as they are in the form', () => {
     const original = detail()
-    const state = { ...formFromDeal(original, LABELS), vendorId: '5', solutionId: '' }
+    const state = { ...formFromDeal(original, LABELS), vendorId: '5', solution: ' MFA ' }
 
-    expect(toDealPatch(state, original, LABELS)).toMatchObject({ vendorId: 5, solutionId: null })
+    const patch = toDealPatch(state, original, LABELS)
+
+    expect(patch).toMatchObject({ vendorId: 5, solution: 'MFA' })
+    expect(patch).not.toHaveProperty('solutionId')
+  })
+
+  it('AC-9 patch resends the unchanged solution text when only the vendor changed', () => {
+    const original = detail()
+    const state = { ...formFromDeal(original, LABELS), vendorId: '5' }
+
+    expect(toDealPatch(state, original, LABELS).solution).toBe('SSO')
   })
 
   it('AC-8 patch keeps the original won amount when the shown thousands are unchanged', () => {

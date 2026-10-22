@@ -24,8 +24,6 @@ USERS_TABLE: Final = "users"
 # Deal 소속 데이터(파트너 링크·BANT 선택·이력·활동)는 Deal을 지우면 함께 지워진다(P1: CASCADE).
 # 그 밖의 모든 FK는 RESTRICT여야 한다.
 DEAL_OWNED_PARENT: Final = "deals"
-# 예외 하나: Vendor를 지우면 그 Solution도 함께 지워진다(vendor-solution 계획 D10).
-VENDOR_OWNED_CASCADE: Final = ("solutions", "vendor_id", "vendors")
 # 예외: 스냅숏 헤더를 지우면 그 열(저장 당시 코드 목록)이, 열을 지우면 그 셀이 함께 지워진다
 # (P6 R2 Q6: 열·셀은 헤더 소속 데이터, 셀은 (snapshot_id, forecast_key) 복합 FK로 열에 매인다).
 FORECAST_OWNED_CASCADES: Final = (
@@ -98,7 +96,7 @@ async def foreign_keys(session: AsyncSession) -> list[ForeignKey]:
 
 
 def _delete_rule_violated(fk: ForeignKey) -> bool:
-    """RESTRICT가 기본이다. CASCADE는 Deal 소속→deals, solutions.vendor_id→vendors,
+    """RESTRICT가 기본이다. CASCADE는 Deal 소속→deals,
     forecast_snapshot_columns.snapshot_id→forecast_snapshots, forecast_snapshot_cells→
     forecast_snapshot_columns(복합 FK)만 허용한다."""
     if fk.on_delete == RESTRICT:
@@ -107,10 +105,7 @@ def _delete_rule_violated(fk: ForeignKey) -> bool:
         return True
     if fk.ref_table == DEAL_OWNED_PARENT:
         return False
-    return (fk.table, fk.column, fk.ref_table) not in {
-        VENDOR_OWNED_CASCADE,
-        *FORECAST_OWNED_CASCADES,
-    }
+    return (fk.table, fk.column, fk.ref_table) not in set(FORECAST_OWNED_CASCADES)
 
 
 async def check_schema(

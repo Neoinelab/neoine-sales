@@ -11,7 +11,7 @@ from app.domain.code.values import CodeId
 from app.domain.contact.values import ContactId
 from app.domain.deal_action.value_objects import DealActionId
 from app.domain.user.value_objects import UserId
-from app.domain.vendor.values import SolutionId, VendorId
+from app.domain.vendor.values import VendorId
 
 if TYPE_CHECKING:
     from app.application.ports.id_allocator import IdAllocator
@@ -43,10 +43,6 @@ async def new_action_type_id(ids: IdAllocator) -> ActionTypeId:
 
 async def new_vendor_id(ids: IdAllocator) -> VendorId:
     return VendorId(await ids.next_id(IdKind.VENDOR))
-
-
-async def new_solution_id(ids: IdAllocator) -> SolutionId:
-    return SolutionId(await ids.next_id(IdKind.SOLUTION))
 
 
 async def new_deal_action_id(ids: IdAllocator) -> DealActionId:

@@ -46,7 +46,6 @@ export const emptyBusinessSeed: SeedFactory = (clock) => {
     labels,
     actionTypes,
     vendors: [],
-    solutions: [],
     contacts: [],
     deals: [],
     actions: [],

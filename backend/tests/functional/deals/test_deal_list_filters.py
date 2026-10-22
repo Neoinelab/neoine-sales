@@ -1,4 +1,4 @@
-"""Feature: 영업은 목록을 vendor_id·solution_id·forecast·연/분기로 좁혀 Deal을 찾는다.
+"""Feature: 영업은 목록을 vendor_id·solution(텍스트)·forecast·연/분기로 좁혀 Deal을 찾는다.
 
 연/분기는 Expected Close 기준이고 양끝을 포함한다(12-31은 Q4, 01-01은 Q1). 연/분기와
 최종 업데이트 기간은 AND이고, quarter만 주면 서버 업무 날짜의 올해 분기다.
@@ -34,43 +34,111 @@ if TYPE_CHECKING:
 pytestmark = pytest.mark.integration
 
 
-async def test_list_filters_by_vendor_and_solution_ids(api: Api) -> None:
-    """Scenario: vendor_id·solution_id는 id가 같은 Deal만 거른다(AC-16)."""
+async def test_list_filters_by_vendor_id(api: Api) -> None:
+    """Scenario: vendor_id는 id가 같은 Deal만 거르고 forecast와 AND로 결합한다(AC-16)."""
     # Given
-    sap = await given_vendor(api, "SAP", ["S/4HANA", "BW"])
-    oracle = await given_vendor(api, "Oracle", ["EBS"])
+    sap = await given_vendor(api, "SAP")
+    oracle = await given_vendor(api, "Oracle")
     await given_logged_in_as(api, role="sales")
-    erp = await given_deal(
-        api, vendor_id=sap.id, solution_id=sap.solutions["S/4HANA"], forecast_key="commit"
-    )
-    bw = await given_deal(api, vendor_id=sap.id, solution_id=sap.solutions["BW"])
-    await given_deal(api, vendor_id=oracle.id, solution_id=oracle.solutions["EBS"])
+    erp = await given_deal(api, vendor_id=sap.id, forecast_key="commit")
+    bw = await given_deal(api, vendor_id=sap.id)
+    await given_deal(api, vendor_id=oracle.id)
     await given_deal(api)
     # When
     by_vendor = await when_list_deals(api, vendor_id=sap.id)
-    by_solution = await when_list_deals(api, solution_id=sap.solutions["S/4HANA"])
-    combined = await when_list_deals(
-        api, vendor_id=sap.id, solution_id=sap.solutions["S/4HANA"], forecast_key="commit"
-    )
+    combined = await when_list_deals(api, vendor_id=sap.id, forecast_key="commit")
     # Then
     then_codes_are_exactly(by_vendor, [erp["code"], bw["code"]])
-    then_codes_are(by_solution, [erp["code"]])
     then_codes_are(combined, [erp["code"]])
     then_total_is(combined, 1)
 
 
-async def test_unknown_vendor_id_lists_nothing(api: Api) -> None:
-    """Scenario: 없는 vendor_id·solution_id는 422가 아니라 0건이다."""
+async def test_deals_are_filtered_by_solution_text(api: Api) -> None:
+    """Scenario: solution 조건은 대소문자 무시 부분 일치라 ITDR와 ITDR Plus만 나온다."""
     # Given
     await given_logged_in_as(api, role="sales")
+    itdr = await given_deal(api, solution="ITDR")
+    await given_deal(api, solution="MFA")
+    plus = await given_deal(api, solution="ITDR Plus")
     await given_deal(api)
     # When
+    response = await when_list_deals(api, solution="itdr")
+    # Then
+    then_status_is(response, 200)
+    then_codes_are_exactly(response, [itdr["code"], plus["code"]])
+    then_total_is(response, 2)
+
+
+async def test_solution_filter_trims_spaces_and_ignores_blank(api: Api) -> None:
+    """Scenario: 앞뒤 공백은 지우고, 공백뿐인 조건은 조건 없음으로 모든 Deal이 나온다."""
+    # Given
+    await given_logged_in_as(api, role="sales")
+    hit = await given_deal(api, solution="ITDR")
+    await given_deal(api, solution="MFA")
+    # When
+    trimmed = await when_list_deals(api, solution="  itd  ")
+    blank = await when_list_deals(api, solution="   ")
+    # Then
+    then_codes_are(trimmed, [hit["code"]])
+    then_total_is(trimmed, 1)
+    then_total_is(blank, 2)
+
+
+async def test_solution_filter_treats_percent_and_underscore_literally(api: Api) -> None:
+    """Scenario: solution의 %와 _는 와일드카드가 아니라 글자 그대로 비교한다."""
+    # Given
+    await given_logged_in_as(api, role="sales")
+    percent = await given_deal(api, solution="100%")
+    await given_deal(api, solution="1000")
+    underscore = await given_deal(api, solution="a_b")
+    await given_deal(api, solution="axb")
+    # When
+    by_percent = await when_list_deals(api, solution="0%")
+    by_underscore = await when_list_deals(api, solution="a_b")
+    # Then
+    then_codes_are_exactly(by_percent, [percent["code"]])
+    then_codes_are_exactly(by_underscore, [underscore["code"]])
+
+
+async def test_solution_filter_combines_with_vendor_by_and(api: Api) -> None:
+    """Scenario: vendor_id와 solution을 함께 주면 둘 다 만족하는 Deal만 나온다."""
+    # Given
+    sap = await given_vendor(api, "SAP")
+    oracle = await given_vendor(api, "Oracle")
+    await given_logged_in_as(api, role="sales")
+    hit = await given_deal(api, vendor_id=sap.id, solution="ITDR")
+    await given_deal(api, vendor_id=oracle.id, solution="ITDR")
+    await given_deal(api, vendor_id=sap.id, solution="MFA")
+    # When
+    response = await when_list_deals(api, vendor_id=sap.id, solution="itd")
+    # Then
+    then_codes_are_exactly(response, [hit["code"]])
+    then_total_is(response, 1)
+
+
+async def test_unknown_vendor_id_and_unmatched_solution_list_nothing(api: Api) -> None:
+    """Scenario: 없는 vendor_id나 일치하지 않는 solution은 422가 아니라 0건이다."""
+    # Given
+    await given_logged_in_as(api, role="sales")
+    await given_deal(api, solution="ITDR")
+    # When
     by_vendor = await when_list_deals(api, vendor_id=MISSING_ID)
-    by_solution = await when_list_deals(api, solution_id=MISSING_ID)
+    by_solution = await when_list_deals(api, solution="no-such-solution")
     # Then
     for response in (by_vendor, by_solution):
         then_status_is(response, 200)
         then_total_is(response, 0)
+
+
+async def test_old_solution_id_parameter_is_rejected(api: Api) -> None:
+    """Scenario: 구 solution_id 쿼리 파라미터는 422(request-validation)다."""
+    # Given
+    await given_logged_in_as(api, role="sales")
+    await given_deal(api)
+    # When
+    response = await when_list_deals(api, solution_id=1)
+    # Then
+    then_problem_is(response, status=422, type_suffix="request-validation")
 
 
 async def test_forecast_filter_matches_the_same_key(api: Api) -> None:
@@ -226,15 +294,14 @@ async def test_bant_parameters_are_no_longer_accepted(api: Api, param: str) -> N
 async def test_all_filters_are_combined_and_total_ignores_the_page(api: Api) -> None:
     """Scenario: 모든 필터는 AND이고 total은 필터 적용 후 전체 건수이며 페이지와 무관하다."""
     # Given
-    sap = await given_vendor(api, "SAP", ["ERP", "DB"])
-    oracle = await given_vendor(api, "Oracle", ["ERP"])
-    erp, db = sap.solutions["ERP"], sap.solutions["DB"]
+    sap = await given_vendor(api, "SAP")
+    oracle = await given_vendor(api, "Oracle")
     await given_logged_in_as(api, role="sales")
     hits = [
         await given_deal(
             api,
             vendor_id=sap.id,
-            solution_id=erp,
+            solution="ERP",
             forecast_key="commit",
             revenue_date="2026-05-10",
             name=f"적중{n}",
@@ -242,17 +309,17 @@ async def test_all_filters_are_combined_and_total_ignores_the_page(api: Api) -> 
         for n in range(3)
     ]
     other = {"revenue_date": "2026-05-10", "forecast_key": "commit"}
-    await given_deal(api, vendor_id=oracle.id, solution_id=oracle.solutions["ERP"], **other)
-    await given_deal(api, vendor_id=sap.id, solution_id=db, **other)
-    await given_deal(api, vendor_id=sap.id, solution_id=erp, **{**other, "forecast_key": "best"})
+    await given_deal(api, vendor_id=oracle.id, solution="ERP", **other)
+    await given_deal(api, vendor_id=sap.id, solution="DB", **other)
+    await given_deal(api, vendor_id=sap.id, solution="ERP", **{**other, "forecast_key": "best"})
     await given_deal(
-        api, vendor_id=sap.id, solution_id=erp, **{**other, "revenue_date": "2026-09-10"}
+        api, vendor_id=sap.id, solution="ERP", **{**other, "revenue_date": "2026-09-10"}
     )
     # When
     response = await when_list_deals(
         api,
         vendor_id=sap.id,
-        solution_id=erp,
+        solution="ERP",
         forecast_key="commit",
         year=2026,
         quarter=2,

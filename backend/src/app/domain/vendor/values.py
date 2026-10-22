@@ -1,4 +1,4 @@
-"""Vendor·Solution 값 객체. 이름은 앞뒤 공백을 지우고 길이를 제한한다."""
+"""Vendor 값 객체. 이름은 앞뒤 공백을 지우고 길이를 제한한다."""
 
 from typing import NewType
 
@@ -6,10 +6,8 @@ from app.domain.common.errors import InvalidValueError
 from app.domain.common.validation import reject_nul
 
 VendorId = NewType("VendorId", int)
-SolutionId = NewType("SolutionId", int)
 
 VENDOR_NAME_MAX = 100
-SOLUTION_NAME_MAX = 200
 
 
 def _normalize(raw: str, label: str, limit: int) -> str:
@@ -24,7 +22,3 @@ def _normalize(raw: str, label: str, limit: int) -> str:
 
 def normalize_vendor_name(raw: str) -> str:
     return _normalize(raw, "Vendor", VENDOR_NAME_MAX)
-
-
-def normalize_solution_name(raw: str) -> str:
-    return _normalize(raw, "Solution", SOLUTION_NAME_MAX)

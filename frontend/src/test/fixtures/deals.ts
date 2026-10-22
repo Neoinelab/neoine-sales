@@ -5,7 +5,7 @@ import { findSeedContact } from './contacts'
 import { actionHour, createdAgo, type DealSpec } from './dealSpecs'
 import type { SeedEnv } from '../fake/seed/env'
 import { USER_ID } from '../fake/seed/ids'
-import { seedSolutionId, seedVendorId } from './vendors'
+import { seedVendorId } from './vendors'
 
 /** 시드 Deal의 code: 등록일(YYYYMMDD) + '-D' + 3자리 번호(1~24). */
 export function dealCodeOf(spec: Pick<DealSpec, 'no' | 'lastAgo' | 'count'>, env: Pick<SeedEnv, 'date'>): string {
@@ -63,7 +63,7 @@ export function seedDeals(
       name: spec.name,
       ownerId: USER_ID[spec.owner],
       vendorId: seedVendorId(spec.vendor),
-      solutionId: seedSolutionId(spec.vendor, spec.solution),
+      solution: spec.solution,
       users: spec.users,
       statusKey: spec.status,
       forecastKey: spec.forecast,

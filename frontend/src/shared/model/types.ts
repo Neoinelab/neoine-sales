@@ -154,27 +154,17 @@ export interface PartnerLinkView extends Omit<PartnerLink, 'contactId'> {
 
 // ───────────────────────── Deal ─────────────────────────
 
-/** id와 표시 이름만 가진 참조(Vendor·Solution). */
+/** id와 표시 이름만 가진 참조(Vendor). */
 export interface NamedRef {
   id: number
   name: string
 }
 
-/** 관리 화면의 Solution. */
-export interface Solution {
-  id: number
-  vendorId: number
-  name: string
-  /** 이 Solution을 쓰는 Deal 수. */
-  usageCount: number
-}
-
-/** 관리 화면의 Vendor와 소속 Solution(서버 정렬 그대로). */
+/** 관리 화면의 Vendor. */
 export interface Vendor {
   id: number
   name: string
   usageCount: number
-  solutions: Solution[]
 }
 
 export type QuoteSubmitted = 'YES' | 'NO'
@@ -197,9 +187,10 @@ export interface Deal {
   code: string
   name: string
   ownerId: number
-  /** Vendor/Solution 참조(id). 선택 안 함이면 null. 화면용 이름은 `DealRow.vendor`/`solution`. */
+  /** Vendor 참조(id). 선택 안 함이면 null. 화면용 이름은 `DealRow.vendor`. */
   vendorId: number | null
-  solutionId: number | null
+  /** Solution 자유 텍스트(필수, 200자 이내, Vendor와 무관). 예전 데이터는 빈 문자열일 수 있다. */
+  solution: string
   /** 견적 단위 사용자 수(Users). 필수, 0 이상. */
   users: number
   statusKey: string
@@ -237,11 +228,10 @@ export interface NextActionSummary {
 export type Risk = 'overdue' | 'stale' | 'overdue_stale' | null
 
 /** 목록 행. Deal + 화면용 파생값. */
-export interface DealRow extends Omit<Deal, 'vendorId' | 'solutionId'> {
+export interface DealRow extends Omit<Deal, 'vendorId'> {
   owner: UserRef
-  /** 서버가 풀어 준 Vendor/Solution(id+이름). 없으면 null. */
+  /** 서버가 풀어 준 Vendor(id+이름). 없으면 null. */
   vendor: NamedRef | null
-  solution: NamedRef | null
   customer: Contact
   /** 활성 파트너 연락처(없으면 null). */
   activePartner: Contact | null

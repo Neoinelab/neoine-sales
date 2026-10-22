@@ -6,7 +6,7 @@ import type { DealInput } from '../../shared/model/types'
 import { createMockGateway, type MockInstance, type MockOptions } from './index'
 import { buildSampleSeed, seedDealCode } from '../fixtures/sampleSeed'
 import { USER_ID } from './seed/ids'
-import { seedSolutionId, seedVendorId } from '../fixtures/vendors'
+import { seedVendorId } from '../fixtures/vendors'
 
 export const TEST_NOW = '2026-10-15T09:00:00+09:00'
 export const TEST_TODAY = '2026-10-15'
@@ -71,7 +71,7 @@ export function dealInput(ownerId: number, over: Partial<DealInput> = {}): DealI
     name: '테스트 Deal',
     ownerId,
     vendorId: seedVendorId('Silverfort'),
-    solutionId: seedSolutionId('Silverfort', 'ITDR'),
+    solution: 'ITDR',
     users: 100,
     statusKey: 'prospecting',
     forecastKey: 'pipeline',

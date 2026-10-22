@@ -1,8 +1,9 @@
-"""Deal 값 객체(AC-05): 금액·이름·Vendor·Solution 선택·Users·구매절차·견적·POC·BANT 선택.
+"""Deal 값 객체(AC-05): 금액·이름·Vendor 선택·Solution 텍스트·Users·구매절차·견적·POC·BANT 선택.
 
 문구는 프런트 목업 `validateDealFields`와 같다. 여기서는 경계값만 본다(순서는 application 테스트).
 """
 
+from dataclasses import replace
 from datetime import date
 
 import pytest
@@ -22,7 +23,7 @@ from app.domain.deal.values import (
     RevenueAmount,
     check_users,
 )
-from app.domain.vendor.values import SolutionId, VendorId
+from app.domain.vendor.values import VendorId
 from tests.factories import make_bant, make_deal_details
 from tests.support.expect import raises_with
 from tests.support.ids import new_id
@@ -31,6 +32,7 @@ from tests.support.user_ids import OWNER_ID, uid
 AMOUNT_MESSAGE = "매출금액은 1원 이상의 정수로 입력하세요."
 USERS_MESSAGE = "Users는 0 이상의 정수로 입력하세요."
 USERS_REQUIRED_MESSAGE = "Users를 입력하세요."
+SOLUTION_MAX = 200  # 정본은 app.domain.deal.values.SOLUTION_MAX(아래 테스트가 같은 값인지 확인)
 
 
 def test_limits_match_the_agreed_values() -> None:
@@ -80,39 +82,90 @@ class TestDealName:
             make_deal_details(name="a\x00b")
 
 
-class TestVendorAndSolutionChoice:
-    """Deal은 등록된 Vendor·Solution의 id만 갖는다(AC-12). 길이·공백 규칙은 vendor 도메인이다."""
+class TestVendorChoice:
+    """Deal은 등록된 Vendor의 id만 갖는다. Vendor 이름 규칙은 vendor 도메인이다."""
 
-    def test_solution_without_vendor_is_rejected(self) -> None:
-        with raises_with(InvalidValueError, "Solution을 선택하려면 Vendor를 먼저 선택하세요."):
-            make_deal_details(vendor_id=None, solution_id=SolutionId(new_id()))
-
-    def test_vendor_without_solution_is_allowed(self) -> None:
+    def test_vendor_is_kept(self) -> None:
         vendor_id = VendorId(new_id())
 
-        details = make_deal_details(vendor_id=vendor_id, solution_id=None)
+        assert make_deal_details(vendor_id=vendor_id).vendor_id == vendor_id
 
-        assert (details.vendor_id, details.solution_id) == (vendor_id, None)
+    def test_no_vendor_is_allowed(self) -> None:
+        assert make_deal_details().vendor_id is None
 
-    def test_vendor_with_solution_is_kept(self) -> None:
-        vendor_id, solution_id = VendorId(new_id()), SolutionId(new_id())
-
-        details = make_deal_details(vendor_id=vendor_id, solution_id=solution_id)
-
-        assert (details.vendor_id, details.solution_id) == (vendor_id, solution_id)
-
-    def test_no_vendor_and_no_solution_is_allowed(self) -> None:
-        details = make_deal_details()
-
-        assert (details.vendor_id, details.solution_id) == (None, None)
-
-    def test_the_old_text_fields_and_limits_are_gone(self) -> None:
-        from app.domain.deal import values  # noqa: PLC0415
-
-        for name in ("VENDOR_MAX", "SOLUTION_MAX", "check_vendor", "check_solution"):
-            assert not hasattr(values, name), name
+    def test_the_old_text_vendor_field_is_gone(self) -> None:
         with pytest.raises(TypeError):
             make_deal_details(vendor="SAP")
+
+    def test_the_old_solution_id_field_is_gone(self) -> None:
+        with pytest.raises(TypeError):
+            make_deal_details(solution_id=1)
+
+
+class TestSolutionText:
+    """Solution은 Vendor와 무관한 필수 자유 텍스트다(AC-6~8, Q1 변경)."""
+
+    def test_solution_is_trimmed(self) -> None:
+        assert make_deal_details(solution="  ITDR  ").solution == "ITDR"
+
+    def test_constructor_allows_the_legacy_empty_solution(self) -> None:
+        # 리뷰 후속 결정: 빈 값 거절은 입력 검증(check_solution)이 맡고, 값 객체는 NUL·길이만 본다.
+        assert make_deal_details(solution="").solution == ""
+
+    def test_replace_on_a_legacy_empty_solution_details_succeeds(self) -> None:
+        legacy = make_deal_details(solution="")
+
+        changed = replace(
+            legacy, revenue_amount=RevenueAmount(2_000), revenue_date=date(2027, 1, 5)
+        )
+
+        assert (changed.revenue_amount.value, changed.revenue_date) == (2_000, date(2027, 1, 5))
+        assert changed.solution == ""
+
+    def test_replace_keeps_checking_the_solution_length(self) -> None:
+        with raises_with(InvalidValueError, "Solution은 200자 이내로 입력하세요."):
+            replace(make_deal_details(solution="ITDR"), solution="a" * (SOLUTION_MAX + 1))
+
+    def test_solution_keeps_letter_case(self) -> None:
+        assert make_deal_details(solution="itDR").solution == "itDR"
+
+    def test_solution_allows_200_and_rejects_201(self) -> None:
+        assert make_deal_details(solution="a" * SOLUTION_MAX).solution == "a" * SOLUTION_MAX
+        with raises_with(InvalidValueError, "Solution은 200자 이내로 입력하세요."):
+            make_deal_details(solution="a" * (SOLUTION_MAX + 1))
+
+    def test_length_is_counted_after_trimming(self) -> None:
+        details = make_deal_details(solution=f" {'a' * SOLUTION_MAX} ")
+
+        assert details.solution == "a" * SOLUTION_MAX
+
+    def test_solution_limit_constant_is_200(self) -> None:
+        from app.domain.deal import values  # noqa: PLC0415 - 구현 전에도 다른 테스트가 수집되게
+
+        assert values.SOLUTION_MAX == SOLUTION_MAX
+
+    def test_check_solution_rejects_blank_and_returns_the_trimmed_text(self) -> None:
+        from app.domain.deal.values import check_solution  # noqa: PLC0415
+
+        assert check_solution("  ITDR ") == "ITDR"
+        with raises_with(InvalidValueError, "Solution을 입력하세요."):
+            check_solution("   ")
+
+    def test_solution_with_nul_is_rejected(self) -> None:
+        with pytest.raises(InvalidValueError):
+            make_deal_details(solution="a\x00b")
+
+    def test_solution_without_vendor_is_allowed(self) -> None:
+        details = make_deal_details(vendor_id=None, solution="ITDR")
+
+        assert (details.vendor_id, details.solution) == (None, "ITDR")
+
+    def test_solution_with_vendor_is_kept(self) -> None:
+        vendor_id = VendorId(new_id())
+
+        details = make_deal_details(vendor_id=vendor_id, solution="ITDR")
+
+        assert (details.vendor_id, details.solution) == (vendor_id, "ITDR")
 
 
 class TestUsers:

@@ -28,8 +28,8 @@ export function newDealCode(ctx: MockContext): string {
 
 function createDeal(ctx: MockContext, raw: DealInput) {
   const user = requireWrite(ctx)
-  // 서버 요청 모델의 기본값: 보내지 않은 Vendor·Solution은 선택 없음(null)이다.
-  const input: DealInput = { ...raw, vendorId: raw.vendorId ?? null, solutionId: raw.solutionId ?? null }
+  // 서버 요청 모델의 기본값: 보내지 않은 Vendor는 선택 없음(null), Solution은 빈 문자열이다.
+  const input: DealInput = { ...raw, vendorId: raw.vendorId ?? null, solution: raw.solution ?? '' }
   const bantDraft = validateDealFields(ctx, input, () => true, input.bant)
   validateCustomerDraft(input.customer)
   if (input.partner) validatePartnerDraft(input.partner)
@@ -46,7 +46,7 @@ function createDeal(ctx: MockContext, raw: DealInput) {
     name: input.name.trim(),
     ownerId: input.ownerId,
     vendorId: input.vendorId,
-    solutionId: input.solutionId,
+    solution: input.solution.trim(),
     users: input.users,
     statusKey: input.statusKey,
     forecastKey: input.forecastKey,
@@ -68,7 +68,7 @@ function createDeal(ctx: MockContext, raw: DealInput) {
 }
 
 const SCALAR_KEYS = [
-  'name', 'ownerId', 'vendorId', 'solutionId', 'users', 'statusKey', 'forecastKey',
+  'name', 'ownerId', 'vendorId', 'solution', 'users', 'statusKey', 'forecastKey',
   'revenueAmount', 'revenueDate', 'quote', 'poc', 'procurement',
 ] as const satisfies readonly (keyof DealPatch)[]
 
@@ -82,6 +82,7 @@ function updateDeal(ctx: MockContext, code: string, patch: DealPatch) {
   }
   if (typeof patch.name === 'string') after.name = patch.name.trim()
   if (typeof patch.procurement === 'string') after.procurement = patch.procurement.trim()
+  if (typeof patch.solution === 'string') after.solution = patch.solution.trim()
   const bantDraft = validateDealFields(ctx, after, provided, patch.bant)
 
   let customerPlan: ContactPlan | null = null

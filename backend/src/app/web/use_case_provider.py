@@ -66,12 +66,9 @@ from app.application.user.list_user_options import ListUserOptions
 from app.application.user.list_users import ListUsers
 from app.application.user.register_user import RegisterUser
 from app.application.user.resolve_user_refs import ResolveUserRefs
-from app.application.vendor.delete_solution import DeleteSolution
 from app.application.vendor.delete_vendor import DeleteVendor
 from app.application.vendor.list_vendors import ListVendors
-from app.application.vendor.register_solution import RegisterSolution
 from app.application.vendor.register_vendor import RegisterVendor
-from app.application.vendor.rename_solution import RenameSolution
 from app.application.vendor.rename_vendor import RenameVendor
 
 
@@ -157,9 +154,6 @@ class UseCaseProvider(Protocol):
     def register_vendor(self) -> RegisterVendor: ...
     def rename_vendor(self) -> RenameVendor: ...
     def delete_vendor(self) -> DeleteVendor: ...
-    def register_solution(self) -> RegisterSolution: ...
-    def rename_solution(self) -> RenameSolution: ...
-    def delete_solution(self) -> DeleteSolution: ...
 
     async def check_ready(self) -> None:
         """의존 자원(DB 등)이 요청을 받을 수 있는지 확인한다. 안 되면 예외를 던진다."""

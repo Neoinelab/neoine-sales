@@ -40,9 +40,9 @@ CUSTOMER_COMPANY = "고객 회사명을 입력하세요."
 CUSTOMER_NAME = "고객 담당자명을 입력하세요."
 PARTNER_INCOMPLETE = "파트너를 입력하면 회사명과 담당자명이 모두 필요합니다."
 EMAIL = "이메일 형식이 올바르지 않습니다."
-SOLUTION_NEEDS_VENDOR = "Solution을 선택하려면 Vendor를 먼저 선택하세요."
+SOLUTION_MISSING = "Solution을 입력하세요."
+SOLUTION_LONG = "Solution은 200자 이내로 입력하세요."
 UNKNOWN_VENDOR = "선택한 Vendor가 없습니다. 목록에서 다시 선택하세요."
-SOLUTION_MISMATCH = "선택한 Solution은 이 Vendor에 속하지 않습니다."
 
 
 @dataclass
@@ -51,7 +51,6 @@ class Ctx:
     admin_owner: int
     other_category_label: int
     sap: int
-    oracle_solution: int
 
 
 @pytest.fixture
@@ -59,26 +58,17 @@ async def ctx(env: DealEnv) -> Ctx:
     resigned = await seed_user(env.uow_factory, "gone", Role.SALES, resigned=True)
     admin = await seed_user(env.uow_factory, "boss", Role.ADMIN)
     need = await label_by_name(env.uow, BantCategory.NEED, "모름")
-    sap = await env.new_vendor("SAP", ("S/4HANA",))
-    oracle = await env.new_vendor("Oracle", ("EBS",))
-    return Ctx(resigned.id, admin.id, need.id, sap.id, oracle.solutions[0].id)
+    sap = await env.new_vendor("SAP")
+    return Ctx(resigned.id, admin.id, need.id, sap.id)
 
 
 def _steps(ctx: Ctx) -> list[tuple[str, dict[str, Any], str]]:
     """(이름, 위반 입력, 기대 문구) - AC-05 순서대로."""
     return [
         ("name-missing", {"name": "  "}, NAME_MISSING),
-        (
-            "solution-without-vendor",
-            {"vendor_id": None, "solution_id": ctx.oracle_solution},
-            SOLUTION_NEEDS_VENDOR,
-        ),
         ("unknown-vendor", {"vendor_id": new_id()}, UNKNOWN_VENDOR),
-        (
-            "solution-of-other-vendor",
-            {"vendor_id": ctx.sap, "solution_id": ctx.oracle_solution},
-            SOLUTION_MISMATCH,
-        ),
+        ("solution-blank", {"solution": "   "}, SOLUTION_MISSING),
+        ("solution-long", {"solution": "a" * 201}, SOLUTION_LONG),
         ("owner-resigned", {"owner_user_id": ctx.resigned_owner}, OWNER_RESIGNED),
         ("amount-zero", {"revenue_amount": 0}, AMOUNT),
         ("close-missing", {"revenue_date": None}, CLOSE_MISSING),
@@ -117,9 +107,9 @@ def _cumulative(ctx: Ctx, index: int) -> dict[str, Any]:
 
 STEP_NAMES = [
     "name-missing",
-    "solution-without-vendor",
     "unknown-vendor",
-    "solution-of-other-vendor",
+    "solution-blank",
+    "solution-long",
     "owner-resigned",
     "amount-zero",
     "close-missing",
@@ -216,7 +206,9 @@ async def test_boundaries_and_unknown_codes_are_rejected_with_their_own_message(
         {"users": 2_147_483_647},
         {"name": "가" * 200},
         {"procurement": "가" * 500},
-        {"vendor_id": None, "solution_id": None},
+        {"vendor_id": None, "solution": "x"},
+        {"solution": "a" * 200},
+        {"solution": "  ITDR  "},
         {"revenue_date": date(2026, 12, 31)},
     ],
 )
@@ -269,7 +261,44 @@ async def test_the_old_vendor_text_input_is_gone() -> None:
         make_create_input(vendor="SAP")
 
 
-async def test_vendor_without_solution_is_accepted(env: DealEnv, ctx: Ctx) -> None:
+@pytest.mark.parametrize("blank", ["", "  ", "\t"])
+async def test_blank_solution_is_rejected(env: DealEnv, ctx: Ctx, blank: str) -> None:
+    with raises_with(InvalidValueError, SOLUTION_MISSING):
+        await env.register.execute(make_create_input(solution=blank), SALES)
+
+
+async def test_vendor_with_a_solution_is_accepted(env: DealEnv, ctx: Ctx) -> None:
     view = await env.register.execute(make_create_input(vendor_id=ctx.sap), SALES)
 
-    assert (view.item.deal.details.vendor_id, view.item.deal.details.solution_id) == (ctx.sap, None)
+    assert (view.item.deal.details.vendor_id, view.item.deal.details.solution) == (
+        ctx.sap,
+        "S/4HANA",
+    )
+
+
+async def test_solution_without_vendor_is_accepted(env: DealEnv, ctx: Ctx) -> None:
+    view = await env.register.execute(make_create_input(vendor_id=None, solution="ITDR"), SALES)
+
+    assert (view.item.deal.details.vendor_id, view.item.deal.details.solution) == (None, "ITDR")
+
+
+async def test_unknown_vendor_is_reported_before_long_solution(env: DealEnv, ctx: Ctx) -> None:
+    with raises_with(InvalidValueError, UNKNOWN_VENDOR):
+        await env.register.execute(make_create_input(vendor_id=new_id(), solution="a" * 201), SALES)
+
+
+async def test_long_solution_is_reported_before_owner(env: DealEnv, ctx: Ctx) -> None:
+    with raises_with(InvalidValueError, SOLUTION_LONG):
+        await env.register.execute(
+            make_create_input(
+                vendor_id=ctx.sap, solution="a" * 201, owner_user_id=ctx.resigned_owner
+            ),
+            SALES,
+        )
+
+
+async def test_solution_with_nul_is_rejected_and_stores_nothing(env: DealEnv, ctx: Ctx) -> None:
+    with pytest.raises(InvalidValueError):
+        await env.register.execute(make_create_input(solution="a\x00b"), SALES)
+
+    assert list(env.uow.deals._items) == []

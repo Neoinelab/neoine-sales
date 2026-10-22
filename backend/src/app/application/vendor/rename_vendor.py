@@ -26,8 +26,6 @@ class RenameVendor:
             ensure_unique_vendor_name(others, clean, self_id=vendor.id)
             vendor.rename(clean, self._clock.now())
             await uow.vendors.update(vendor)
-            result = vendor_usage(
-                vendor, await uow.deals.count_by_vendor(), await uow.deals.count_by_solution()
-            )
+            result = vendor_usage(vendor, await uow.deals.count_by_vendor())
             await uow.commit()
         return result

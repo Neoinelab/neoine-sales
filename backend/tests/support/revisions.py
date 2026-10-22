@@ -211,3 +211,21 @@ def forecast_snapshots_revision() -> str:
     children = [r.revision for r in script.walk_revisions() if r.down_revision == previous]
     assert len(children) == 1, f"BIGINT id 다음 리비전이 정확히 하나여야 한다: {children}"
     return children[0]
+
+
+def solution_free_text_revision() -> str:
+    """Solution 텍스트(`solution_free_text`) 리비전 id: Forecast 스냅숏 리비전 다음이고 head다.
+
+    `solutions` 테이블과 `deals.solution_id`(복합 FK·CHECK·인덱스)를 지우고 `deals.solution`
+    텍스트 컬럼(기존 Solution 이름을 옮김)을 추가하는 단일 리비전이다. id는 구현이 정하므로
+    그래프에서 찾는다. 없거나 둘 이상이면 AssertionError(구현 전에는 이것이 red다).
+    """
+    from alembic.script import ScriptDirectory  # noqa: PLC0415
+
+    from tests.support.database import _alembic_config  # noqa: PLC0415
+
+    previous = forecast_snapshots_revision()
+    script = ScriptDirectory.from_config(_alembic_config())
+    children = [r.revision for r in script.walk_revisions() if r.down_revision == previous]
+    assert len(children) == 1, f"Forecast 스냅숏 다음 리비전이 정확히 하나여야 한다: {children}"
+    return children[0]

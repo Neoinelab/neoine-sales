@@ -2,7 +2,7 @@
 
 기본 정렬은 최근 갱신 순(동률은 code 오름차순), total은 필터 적용 후 전체 건수다.
 keyword·owner·vendor_id·status·최종 업데이트 기간·내 딜 필터는 모두 AND로 결합한다.
-확장 필터(연/분기·BANT·solution_id·forecast)와 정렬 선택은 다음 라운드(R3)에서
+확장 필터(연/분기·BANT·solution·forecast)와 정렬 선택은 다음 라운드(R3)에서
 같은 feature에 시나리오가 늘어난다.
 """
 

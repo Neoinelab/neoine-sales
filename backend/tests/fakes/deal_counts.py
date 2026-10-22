@@ -7,7 +7,7 @@ if TYPE_CHECKING:
 
     from app.domain.bant.values import BantLabelId
     from app.domain.contact.values import ContactId
-    from app.domain.vendor.values import SolutionId, VendorId
+    from app.domain.vendor.values import VendorId
 
 
 class DealCountsMixin:
@@ -45,13 +45,6 @@ class DealCountsMixin:
         for deal in self._items.values():
             if deal.details.vendor_id is not None:
                 counts[deal.details.vendor_id] = counts.get(deal.details.vendor_id, 0) + 1
-        return counts
-
-    async def count_by_solution(self) -> Mapping[SolutionId, int]:
-        counts: dict[SolutionId, int] = {}
-        for deal in self._items.values():
-            if deal.details.solution_id is not None:
-                counts[deal.details.solution_id] = counts.get(deal.details.solution_id, 0) + 1
         return counts
 
     async def count_by_contacts(self, contact_ids: Sequence[ContactId]) -> Mapping[ContactId, int]:

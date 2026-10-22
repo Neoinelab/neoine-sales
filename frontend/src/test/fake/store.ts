@@ -101,15 +101,6 @@ export interface VendorRecord {
   updatedAt: string
 }
 
-/** Vendor 소속 Solution. 이름은 같은 Vendor 안에서 대소문자 무시로 고유. */
-export interface SolutionRecord {
-  id: number
-  vendorId: number
-  name: string
-  createdAt: string
-  updatedAt: string
-}
-
 export type DirectoryRecord = Omit<DirectorySettings, 'updatedBy'> & { updatedById: number | null }
 
 export interface StorageRecord {
@@ -152,7 +143,6 @@ export interface SeedData {
   labels: LabelRecord[]
   actionTypes: ActionTypeRecord[]
   vendors: VendorRecord[]
-  solutions: SolutionRecord[]
   contacts: Contact[]
   deals: Deal[]
   actions: ActionRecord[]

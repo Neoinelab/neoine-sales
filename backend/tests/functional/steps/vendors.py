@@ -1,5 +1,7 @@
-"""Vendor·Solution feature의 step: 목록·추가·이름 변경·삭제와 Deal 연동 확인.
+"""Vendor feature의 step: 목록·추가·이름 변경·삭제와 Deal 연동 확인.
 
+Solution은 Vendor 관리 대상이 아니라 Deal의 자유 텍스트이므로 여기에 없다(폐지된 Solution 관리
+API가 404인지만 `when_call_removed_solution_api`로 확인한다).
 Given은 공개 API로 사전 상태를 만든다. 쓰기는 admin만 할 수 있으므로 `given_vendor`는
 admin(`root`)으로 로그인한 상태에서 만들고, 호출한 뒤에도 admin 로그인이 유지된다(Deal을 등록할
 역할로는 호출 뒤에 다시 로그인한다). When은 HTTP API 하나, Then은 응답과 다시 조회한 결과만 본다.
@@ -12,8 +14,6 @@ from tests.functional.steps.auth import given_logged_in_as
 from tests.support.ids import MISSING_ID
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
-
     from httpx import Response
 
     from tests.functional.conftest import Api
@@ -22,49 +22,37 @@ VENDORS: Final = "/api/v1/vendors"
 PLACEHOLDER_ID: Final = MISSING_ID
 
 DUPLICATE_VENDOR: Final = "이미 있는 Vendor 이름입니다."
-DUPLICATE_SOLUTION: Final = "이 Vendor에 이미 있는 Solution 이름입니다."
 VENDOR_BLANK: Final = "Vendor 이름을 입력하세요."
 VENDOR_LONG: Final = "Vendor 이름은 100자 이내로 입력하세요."
-SOLUTION_BLANK: Final = "Solution 이름을 입력하세요."
-SOLUTION_LONG: Final = "Solution 이름은 200자 이내로 입력하세요."
-SOLUTION_NEEDS_VENDOR: Final = "Solution을 선택하려면 Vendor를 먼저 선택하세요."
 UNKNOWN_VENDOR: Final = "선택한 Vendor가 없습니다. 목록에서 다시 선택하세요."
-SOLUTION_MISMATCH: Final = "선택한 Solution은 이 Vendor에 속하지 않습니다."
+SOLUTION_REQUIRED: Final = "Solution을 입력하세요."
+SOLUTION_LONG: Final = "Solution은 200자 이내로 입력하세요."
 ADMIN_DENIED: Final = "관리자 권한이 필요합니다"
+
+VENDOR_FIELDS: Final = {"id", "name", "usage_count", "created_at", "updated_at"}
 
 
 @dataclass(frozen=True)
 class VendorRef:
-    """Given으로 만든 Vendor와 소속 Solution(이름 -> id)."""
+    """Given으로 만든 Vendor."""
 
     id: int
     name: str
-    solutions: dict[str, int]
 
 
 def in_use_vendor(count: int) -> str:
     return f"사용 중인 Vendor는 삭제할 수 없습니다. (Deal {count}건)"
 
 
-def in_use_solution(count: int) -> str:
-    return f"사용 중인 Solution은 삭제할 수 없습니다. (Deal {count}건)"
-
-
 # --- Given ---
 
 
-async def given_vendor(api: Api, name: str = "SAP", solutions: Sequence[str] = ()) -> VendorRef:
-    """admin이 Vendor와 소속 Solution을 만들어 두었다(admin 로그인 상태가 된다)."""
+async def given_vendor(api: Api, name: str = "SAP") -> VendorRef:
+    """admin이 Vendor를 만들어 두었다(admin 로그인 상태가 된다)."""
     await given_logged_in_as(api, role="admin")
     created = await when_create_vendor(api, name=name)
     assert created.status_code == 201, f"Given 실패 {created.status_code}: {created.text}"
-    vendor_id = int(created.json()["id"])
-    ids: dict[str, int] = {}
-    for solution in solutions:
-        response = await when_create_solution(api, vendor_id=vendor_id, name=solution)
-        assert response.status_code == 201, f"Given 실패 {response.status_code}: {response.text}"
-        ids[solution] = int(response.json()["id"])
-    return VendorRef(vendor_id, name, ids)
+    return VendorRef(int(created.json()["id"]), name)
 
 
 async def given_vendor_list(api: Api) -> list[dict[str, object]]:
@@ -92,45 +80,30 @@ async def when_delete_vendor(api: Api, *, vendor_id: object) -> Response:
     return await api.delete(f"{VENDORS}/{vendor_id}")
 
 
-async def when_create_solution(api: Api, *, vendor_id: object, name: str) -> Response:
-    return await api.post(f"{VENDORS}/{vendor_id}/solutions", json={"name": name})
+REMOVED_SOLUTION_CALLS: Final = ("create", "rename", "delete")
 
 
-async def when_rename_solution(
-    api: Api, *, vendor_id: object, solution_id: object, name: str
-) -> Response:
-    return await api.patch(f"{VENDORS}/{vendor_id}/solutions/{solution_id}", json={"name": name})
+async def when_call_removed_solution_api(api: Api, call: str, *, vendor_id: object) -> Response:
+    """폐지된 Solution 관리 API(경로 3개) 중 하나를 호출한다."""
+    calls = {
+        "create": lambda: api.post(f"{VENDORS}/{vendor_id}/solutions", json={"name": "Cloud"}),
+        "rename": lambda: api.patch(
+            f"{VENDORS}/{vendor_id}/solutions/{PLACEHOLDER_ID}", json={"name": "Cloud"}
+        ),
+        "delete": lambda: api.delete(f"{VENDORS}/{vendor_id}/solutions/{PLACEHOLDER_ID}"),
+    }
+    return await calls[call]()
 
 
-async def when_delete_solution(api: Api, *, vendor_id: object, solution_id: object) -> Response:
-    return await api.delete(f"{VENDORS}/{vendor_id}/solutions/{solution_id}")
+WRITE_OPERATIONS: Final = ("create_vendor", "rename_vendor", "delete_vendor")
 
 
-WRITE_OPERATIONS: Final = (
-    "create_vendor",
-    "rename_vendor",
-    "delete_vendor",
-    "create_solution",
-    "rename_solution",
-    "delete_solution",
-)
-
-
-async def when_write(
-    api: Api, operation: str, *, vendor_id: object, solution_id: object
-) -> Response:
+async def when_write(api: Api, operation: str, *, vendor_id: object) -> Response:
     """쓰기 API 하나를 이름으로 고른다(권한 시나리오를 operation별로 나누려는 용도)."""
     calls = {
         "create_vendor": lambda: when_create_vendor(api, name="X"),
         "rename_vendor": lambda: when_rename_vendor(api, vendor_id=vendor_id, name="X"),
         "delete_vendor": lambda: when_delete_vendor(api, vendor_id=vendor_id),
-        "create_solution": lambda: when_create_solution(api, vendor_id=vendor_id, name="X"),
-        "rename_solution": lambda: when_rename_solution(
-            api, vendor_id=vendor_id, solution_id=solution_id, name="X"
-        ),
-        "delete_solution": lambda: when_delete_solution(
-            api, vendor_id=vendor_id, solution_id=solution_id
-        ),
     }
     return await calls[operation]()
 
@@ -142,20 +115,12 @@ def then_location_points_to(response: Response, location: str) -> None:
     assert response.headers["location"] == location
 
 
-async def then_vendors_are(api: Api, expected: list[tuple[str, list[str]]]) -> None:
-    """다시 조회한 목록이 (Vendor 이름, [Solution 이름...])과 순서까지 같다."""
-    listed = [
-        (str(v["name"]), [str(s["name"]) for s in v["solutions"]])  # type: ignore[attr-defined]
-        for v in await given_vendor_list(api)
-    ]
-    assert listed == expected
+async def then_vendors_are(api: Api, expected: list[str]) -> None:
+    """다시 조회한 목록의 Vendor 이름이 순서까지 같다."""
+    assert [str(v["name"]) for v in await given_vendor_list(api)] == expected
 
 
-async def then_usage_is(api: Api, *, vendor: str, count: int, solution: str | None = None) -> None:
-    """다시 조회한 목록에서 Vendor(또는 그 Solution)의 사용 Deal 수."""
+async def then_usage_is(api: Api, *, vendor: str, count: int) -> None:
+    """다시 조회한 목록에서 Vendor의 사용 Deal 수."""
     (found,) = [v for v in await given_vendor_list(api) if v["name"] == vendor]
-    if solution is None:
-        assert found["usage_count"] == count
-        return
-    (item,) = [s for s in found["solutions"] if s["name"] == solution]  # type: ignore[attr-defined]
-    assert item["usage_count"] == count
+    assert found["usage_count"] == count

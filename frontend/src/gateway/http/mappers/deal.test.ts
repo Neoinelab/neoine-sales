@@ -24,7 +24,7 @@ describe('toDealRow', () => {
       ownerId: USER_ID.kim,
       owner: { id: USER_ID.kim, name: '김영업', role: 'sales', status: 'active' },
       vendor: { id: 6, name: 'Silverfort' },
-      solution: { id: 6, name: 'ITDR' },
+      solution: 'ITDR',
       users: 100,
       statusKey: 'prospecting',
       forecastKey: 'pipeline',
@@ -58,18 +58,22 @@ describe('toDealRow', () => {
     })
   })
 
-  it('AC-13 keeps vendor and solution null when the deal has none', () => {
-    const row = toDealRow(serverDealRow({ vendor: null, solution: null }))
+  it('AC-6 keeps the vendor null when the deal has none and the solution text as sent', () => {
+    const row = toDealRow(serverDealRow({ vendor: null, solution: 'MFA' }))
 
     expect(row.vendor).toBeNull()
-    expect(row.solution).toBeNull()
+    expect(row.solution).toBe('MFA')
   })
 
-  it('AC-13 keeps a vendor without a solution', () => {
-    const row = toDealRow(serverDealRow({ solution: null }))
+  it('AC-6 maps the solution as a plain string', () => {
+    const row = toDealRow(serverDealRow({ solution: 'ITDR' }))
 
     expect(row.vendor).toEqual({ id: 6, name: 'Silverfort' })
-    expect(row.solution).toBeNull()
+    expect(row.solution).toBe('ITDR')
+  })
+
+  it('AC-6 keeps a legacy empty solution as an empty string', () => {
+    expect(toDealRow(serverDealRow({ solution: '' })).solution).toBe('')
   })
 
   it('keeps nextAction null when the deal has no action', () => {
@@ -158,7 +162,7 @@ const BASE_INPUT: DealInput = {
   name: '한빛은행 ITDR',
   ownerId: USER_ID.kim,
   vendorId: null,
-  solutionId: null,
+  solution: 'ITDR',
   users: 10,
   statusKey: 'prospecting',
   forecastKey: 'pipeline',
@@ -206,5 +210,20 @@ describe('toDealRow Next Action status (AC-15)', () => {
     const row = toDealRow(serverDealRow({ next_action: { text: '전화', due_date: '2026-10-20', status: wire } }))
 
     expect(row.nextAction?.status).toBe(status)
+  })
+})
+
+describe('solution request bodies (AC-6, AC-9)', () => {
+  it('create sends solution as given text and never solution_id', () => {
+    const body = toCreateBody({ ...BASE_INPUT, solution: 'ITDR' })
+
+    expect(body.solution).toBe('ITDR')
+    expect(body).not.toHaveProperty('solution_id')
+  })
+
+  it('patch carries solution only when it is part of the patch and never solution_id', () => {
+    expect(toPatchBody({ name: 'x' })).not.toHaveProperty('solution')
+    expect(toPatchBody({ solution: 'MFA' })).toEqual({ solution: 'MFA' })
+    expect(toPatchBody({ vendorId: 3 })).not.toHaveProperty('solution_id')
   })
 })

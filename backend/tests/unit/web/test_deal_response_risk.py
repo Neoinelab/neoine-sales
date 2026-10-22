@@ -33,7 +33,6 @@ def _view(*, risk: Risk | None, status_days: int) -> DealView:
         risk=risk,
         status_days=status_days,
         vendor=None,
-        solution=None,
     )
 
 

@@ -57,11 +57,11 @@ class DealEnv:
 
         return GetDealDeletionImpact(self.uow_factory)
 
-    async def new_vendor(self, name: str = "SAP", solutions: tuple[str, ...] = ()) -> Vendor:
-        """등록된 Vendor와 소속 Solution을 저장소에 직접 둔다(Deal이 고를 수 있는 선택지)."""
+    async def new_vendor(self, name: str = "SAP") -> Vendor:
+        """등록된 Vendor를 저장소에 직접 둔다(Deal이 고를 수 있는 선택지)."""
         from tests.factories_vendor import make_vendor  # noqa: PLC0415 - 도메인 지연 import
 
-        vendor = make_vendor(name, solutions, now=self.clock.now())
+        vendor = make_vendor(name, now=self.clock.now())
         await self.uow.vendors.add(vendor)
         return vendor
 

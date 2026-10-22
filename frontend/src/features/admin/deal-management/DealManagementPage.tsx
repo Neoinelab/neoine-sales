@@ -12,7 +12,7 @@ const TABS = [
   { id: 'forecast', label: 'Forecast 코드' },
   { id: 'label', label: 'BANT Label' },
   { id: 'action-type', label: 'Action 유형' },
-  { id: 'vendor', label: 'Vendor·Solution' },
+  { id: 'vendor', label: 'Vendor' },
   { id: 'alert', label: '경고 기준' },
 ] as const
 
@@ -22,7 +22,7 @@ function isTab(value: string | null): value is TabId {
   return TABS.some((t) => t.id === value)
 }
 
-/** Deal 관리(`/admin/deal`): Status 코드 · Forecast 코드 · BANT Label · Action 유형 · Vendor·Solution · 경고 기준 여섯 탭. 탭은 `?tab=`으로 유지한다. */
+/** Deal 관리(`/admin/deal`): Status 코드 · Forecast 코드 · BANT Label · Action 유형 · Vendor · 경고 기준 여섯 탭. 탭은 `?tab=`으로 유지한다. */
 export function DealManagementPage() {
   const [params, setParams] = useSearchParams()
   const raw = params.get('tab')

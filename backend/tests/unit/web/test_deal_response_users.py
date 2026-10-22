@@ -22,7 +22,6 @@ def _view(users: int) -> DealView:
         risk=None,
         status_days=0,
         vendor=None,
-        solution=None,
     )
 
 

@@ -3,18 +3,18 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { gateway } from '../../../gateway'
 import { resetMock } from '../../../test/fake/default'
 import { NO_SUCH_ID } from '../../../test/fake/seed/ids'
-import { seedSolutionId, seedVendorId } from '../../../test/fixtures/vendors'
+import { seedVendorId } from '../../../test/fixtures/vendors'
 import { renderAt } from '../../../test/mockApp'
 import { dataRows } from './testHelpers'
 
 /**
  * 목록 필터의 표시와 조회 조건 일치 계약(리뷰 Minor 2).
- * Vendor 목록을 받은 뒤, 목록에 없는 vendor/solution 정수 id나 선택된 Vendor 소속이 아닌 Solution은
- * 화면에서 '전체'로 보일 뿐 아니라 조회 조건(vendorId·solutionId)에서도 제외한다.
+ * Vendor 목록을 받은 뒤, 목록에 없는 vendor 정수 id는 화면에서 '전체'로 보일 뿐 아니라
+ * 조회 조건(vendorId)에서도 제외한다. Solution은 Vendor와 무관한 텍스트라 어떤 경우에도 그대로 유지한다.
  * 목록을 받기 전에는 판단하지 않으므로 이 테스트는 목록 로딩 뒤의 마지막 조회만 본다.
  */
 const NOW = '2026-10-15T09:00:00+09:00'
-/** 서버 허용 범위 안의 정수지만 어떤 Vendor·Solution도 갖지 않은 id. */
+/** 서버 허용 범위 안의 정수지만 어떤 Vendor도 갖지 않은 id. */
 const UNKNOWN = NO_SUCH_ID
 
 beforeEach(() => resetMock({ now: NOW }))
@@ -39,43 +39,30 @@ describe('목록 필터: 표시와 조건 일치', () => {
     expect(lastQuery(list).vendorId).toBeUndefined()
   })
 
-  it('drops a solution id that is not registered from the query', async () => {
+  it('keeps the solution text even when the vendor id is not registered', async () => {
     const list = vi.spyOn(gateway.deals, 'list')
-    await renderAt(`/deals?solution=${UNKNOWN}`)
-    await vendorsLoaded()
-
-    await waitFor(() => expect(dataRows()).toHaveLength(20))
-    expect(screen.getByLabelText('Solution')).toHaveDisplayValue('전체')
-    expect(lastQuery(list).solutionId).toBeUndefined()
-  })
-
-  it('drops a solution that does not belong to the chosen vendor but keeps the vendor', async () => {
-    const list = vi.spyOn(gateway.deals, 'list')
-    await renderAt(`/deals?vendor=${seedVendorId('Okta')}&solution=${seedSolutionId('Silverfort', 'ITDR')}`)
-    await vendorsLoaded()
-
-    await waitFor(() => expect(lastQuery(list).solutionId).toBeUndefined())
-    expect(lastQuery(list).vendorId).toBe(seedVendorId('Okta'))
-    expect(screen.getByLabelText('Vendor')).toHaveDisplayValue('Okta')
-    expect(screen.getByLabelText('Solution')).toHaveDisplayValue('전체')
-  })
-
-  it('drops an unregistered vendor but keeps a registered solution', async () => {
-    const list = vi.spyOn(gateway.deals, 'list')
-    await renderAt(`/deals?vendor=${UNKNOWN}&solution=${seedSolutionId('Silverfort', 'ITDR')}`)
+    await renderAt(`/deals?vendor=${UNKNOWN}&solution=ITDR`)
     await vendorsLoaded()
 
     await waitFor(() => expect(lastQuery(list).vendorId).toBeUndefined())
-    expect(lastQuery(list).solutionId).toBe(seedSolutionId('Silverfort', 'ITDR'))
-    expect(screen.getByLabelText('Solution')).toHaveDisplayValue('Silverfort / ITDR')
+    expect(lastQuery(list).solution).toBe('ITDR')
+    expect(screen.getByLabelText('Solution')).toHaveValue('ITDR')
   })
 
-  it('keeps a registered vendor and its own solution in the query', async () => {
+  it('keeps a registered vendor and the solution text in the query', async () => {
     const list = vi.spyOn(gateway.deals, 'list')
-    await renderAt(`/deals?vendor=${seedVendorId('Silverfort')}&solution=${seedSolutionId('Silverfort', 'ITDR')}`)
+    await renderAt(`/deals?vendor=${seedVendorId('Silverfort')}&solution=ITDR`)
     await vendorsLoaded()
 
     await waitFor(() => expect(dataRows()).toHaveLength(4))
-    expect(lastQuery(list)).toMatchObject({ vendorId: seedVendorId('Silverfort'), solutionId: seedSolutionId('Silverfort', 'ITDR') })
+    expect(lastQuery(list)).toMatchObject({ vendorId: seedVendorId('Silverfort'), solution: 'ITDR' })
+  })
+
+  it('keeps a solution text that no vendor owns together with a vendor that does not have it', async () => {
+    const list = vi.spyOn(gateway.deals, 'list')
+    await renderAt(`/deals?vendor=${seedVendorId('Okta')}&solution=ITDR`)
+    await vendorsLoaded()
+
+    await waitFor(() => expect(lastQuery(list)).toMatchObject({ vendorId: seedVendorId('Okta'), solution: 'ITDR' }))
   })
 })

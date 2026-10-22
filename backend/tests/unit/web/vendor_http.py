@@ -20,8 +20,7 @@ if TYPE_CHECKING:
 UNUSED_DATABASE_URL = "postgresql+asyncpg://user:pw@localhost:5432/none"  # 접속하지 않는다
 SESSION_COOKIE = "neoine_session"
 URL = "/api/v1/vendors"
-VENDOR_KEYS = {"id", "name", "usage_count", "solutions", "created_at", "updated_at"}
-SOLUTION_KEYS = {"id", "vendor_id", "name", "usage_count", "created_at", "updated_at"}
+VENDOR_KEYS = {"id", "name", "usage_count", "created_at", "updated_at"}
 
 
 @asynccontextmanager
@@ -52,11 +51,5 @@ def problem(response: Response, status: int, kind: str) -> dict[str, object]:
 
 async def make_vendor(http: AsyncClient, name: str = "SAP") -> dict[str, object]:
     response = await http.post(URL, json={"name": name})
-    assert response.status_code == 201, response.text
-    return dict(response.json())
-
-
-async def make_solution(http: AsyncClient, vendor_id: object, name: str) -> dict[str, object]:
-    response = await http.post(f"{URL}/{vendor_id}/solutions", json={"name": name})
     assert response.status_code == 201, response.text
     return dict(response.json())

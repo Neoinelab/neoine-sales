@@ -11,7 +11,7 @@ import { seedContacts } from './contacts'
 import { seedForecastSnapshots } from './forecastSnapshot'
 import { DEAL_SPECS } from './dealSpecs'
 import { dealCodeOf, seedDeals } from './deals'
-import { SEED_SOLUTION_COUNT, SEED_VENDORS } from './vendors'
+import { SEED_VENDORS } from './vendors'
 
 export function buildSampleSeed(clock: MockClock): SeedData {
   const base = emptyBusinessSeed(clock)
@@ -24,15 +24,10 @@ export function buildSampleSeed(clock: MockClock): SeedData {
   const files = seedAttachments(env, deals, counters)
   const at = env.at(120, 9)
   const vendors = SEED_VENDORS.map((v) => ({ id: v.id, name: v.name, createdAt: at, updatedAt: at }))
-  const solutions = SEED_VENDORS.flatMap((v) =>
-    v.solutions.map((s) => ({ id: s.id, vendorId: v.id, name: s.name, createdAt: at, updatedAt: at })),
-  )
   counters.vd = SEED_VENDORS.length
-  counters.sl = SEED_SOLUTION_COUNT
   return {
     ...base,
     vendors,
-    solutions,
     contacts,
     deals,
     actions: activity.actions,

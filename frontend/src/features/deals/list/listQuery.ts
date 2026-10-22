@@ -1,4 +1,4 @@
-import { DEAL_PAGE_SIZE } from '../../../shared/model/constants'
+import { DEAL_PAGE_SIZE, SOLUTION_MAX_LENGTH } from '../../../shared/model/constants'
 import type { DealListQuery, DealSortKey, SortOrder } from '../../../shared/model/types'
 
 import { nextActionStatusFromParam } from '../../../shared/model/nextActionStatus'
@@ -80,13 +80,15 @@ export function listQueryFromParams(params: URLSearchParams): DealListQuery {
   const updatedTo = text('updated_to')
   if (isCalendarDate(updatedTo)) query.updatedTo = updatedTo
 
-  // Owner·Vendor·Solution은 정수 id만 받는다. 예전 UUID·이름 기반 URL 값은 무시한다.
+  // Owner·Vendor는 정수 id만 받는다. 예전 UUID·이름 기반 URL 값은 무시한다.
   const ownerId = parseId(params.get('owner'))
   if (ownerId !== undefined) query.ownerId = ownerId
   const vendorId = parseId(params.get('vendor'))
   if (vendorId !== undefined) query.vendorId = vendorId
-  const solutionId = parseId(params.get('solution'))
-  if (solutionId !== undefined) query.solutionId = solutionId
+  // Solution은 자유 텍스트(부분 일치)라 id로 해석하지 않고 트림한 값을 그대로 쓴다.
+  const solution = text('solution')
+  // 서버 한도(200자)를 넘으면 422로 목록 전체가 실패하므로 다른 잘못된 URL 값처럼 무시한다.
+  if (solution && solution.length <= SOLUTION_MAX_LENGTH) query.solution = solution
 
   const year = positiveInt(params.get('year'))
   if (year !== null) query.year = year

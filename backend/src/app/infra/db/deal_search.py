@@ -81,7 +81,6 @@ def conditions(query: DealQuery) -> list[ColumnElement[bool]]:
     equals = (
         (DealRow.owner_user_id, query.owner_user_id),
         (DealRow.vendor_id, query.vendor_id),
-        (DealRow.solution_id, query.solution_id),
         (DealRow.status_key, query.status_key),
         (DealRow.forecast_key, query.forecast_key),
     )
@@ -96,6 +95,8 @@ def conditions(query: DealQuery) -> list[ColumnElement[bool]]:
             .correlate(DealRow)
             .exists()
         )
+    if query.solution is not None:
+        found.append(DealRow.solution.ilike(like_pattern(query.solution), escape=LIKE_ESCAPE))
     found.extend(column == wanted for column, wanted in equals if wanted is not None)
     window_from, window_to = query.revenue_window()  # 연/분기 범위
     if window_from is not None:

@@ -5,44 +5,32 @@ import { json, noContent, problem, stubFetch } from './testHelpers'
 
 afterEach(() => vi.unstubAllGlobals())
 
-const solution = (over: Record<string, unknown> = {}) => ({
-  id: 1,
-  vendor_id: 1,
-  name: 'ITDR',
-  usage_count: 0,
-  created_at: '2026-10-01T09:00:00+09:00',
-  updated_at: '2026-10-01T09:00:00+09:00',
-  ...over,
-})
 const vendor = (over: Record<string, unknown> = {}) => ({
   id: 1,
   name: 'Silverfort',
   usage_count: 3,
   created_at: '2026-10-01T09:00:00+09:00',
   updated_at: '2026-10-01T09:00:00+09:00',
-  solutions: [solution({ usage_count: 3 })],
   ...over,
 })
 
 describe('vendors over HTTP', () => {
-  it('list reads GET /vendors and maps the nested solutions', async () => {
+  it('list reads GET /vendors and maps the vendors without solutions', async () => {
     const { calls } = stubFetch(json([vendor()]))
 
     const vendors = await createVendorsHttp().list()
 
     expect(calls[0]).toMatchObject({ method: 'GET', path: '/api/v1/vendors' })
-    expect(vendors).toEqual([
-      { id: 1, name: 'Silverfort', usageCount: 3, solutions: [{ id: 1, vendorId: 1, name: 'ITDR', usageCount: 3 }] },
-    ])
+    expect(vendors).toEqual([{ id: 1, name: 'Silverfort', usageCount: 3 }])
   })
 
   it('create posts the name', async () => {
-    const { calls } = stubFetch(json(vendor({ solutions: [], usage_count: 0 }), 201, { Location: '/api/v1/vendors/1' }))
+    const { calls } = stubFetch(json(vendor({ usage_count: 0 }), 201, { Location: '/api/v1/vendors/1' }))
 
     const created = await createVendorsHttp().create('Silverfort')
 
     expect(calls[0]).toMatchObject({ method: 'POST', path: '/api/v1/vendors', body: { name: 'Silverfort' } })
-    expect(created).toMatchObject({ id: 1, usageCount: 0, solutions: [] })
+    expect(created).toEqual({ id: 1, name: 'Silverfort', usageCount: 0 })
   })
 
   it('rename patches the name of the vendor', async () => {
@@ -62,30 +50,12 @@ describe('vendors over HTTP', () => {
     expect(calls[0]).toMatchObject({ method: 'DELETE', path: '/api/v1/vendors/1' })
   })
 
-  it('createSolution posts under the vendor path', async () => {
-    const { calls } = stubFetch(json(solution(), 201, { Location: '/api/v1/vendors/1/solutions/1' }))
+  it('has no solution management calls', () => {
+    const vendors = createVendorsHttp()
 
-    const created = await createVendorsHttp().createSolution(1, 'ITDR')
-
-    expect(calls[0]).toMatchObject({ method: 'POST', path: '/api/v1/vendors/1/solutions', body: { name: 'ITDR' } })
-    expect(created).toEqual({ id: 1, vendorId: 1, name: 'ITDR', usageCount: 0 })
-  })
-
-  it('renameSolution patches with both ids in the path', async () => {
-    const { calls } = stubFetch(json(solution({ name: 'MFA' })))
-
-    const renamed = await createVendorsHttp().renameSolution(1, 1, 'MFA')
-
-    expect(calls[0]).toMatchObject({ method: 'PATCH', path: '/api/v1/vendors/1/solutions/1', body: { name: 'MFA' } })
-    expect(renamed.name).toBe('MFA')
-  })
-
-  it('removeSolution deletes with both ids in the path', async () => {
-    const { calls } = stubFetch(noContent())
-
-    await expect(createVendorsHttp().removeSolution(1, 1)).resolves.toBeUndefined()
-
-    expect(calls[0]).toMatchObject({ method: 'DELETE', path: '/api/v1/vendors/1/solutions/1' })
+    for (const method of ['createSolution', 'renameSolution', 'removeSolution']) {
+      expect(vendors).not.toHaveProperty(method)
+    }
   })
 
   it.each([

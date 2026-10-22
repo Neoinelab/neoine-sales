@@ -1,6 +1,6 @@
 """등록·수정 폼 검증: 프런트 목업 `validateDealFields`와 같은 순서·문구(AC-05).
 
-순서: Deal Name -> Vendor·Solution -> Owner -> 매출금액 -> Expected Close -> Users -> Status ->
+순서: Deal Name -> Vendor -> Solution -> Owner -> 매출금액 -> Expected Close -> Users -> Status ->
 Forecast -> 동기화 -> BANT Label -> 구매절차 -> 고객 -> 파트너 -> 연락처 형식.
 값 자체의 규칙은 도메인 값 객체가 갖고, 여기서는 순서와 저장소를 읽어야 하는 검사(Owner, 코드,
 Label)를 맡는다. 저장소를 읽는 검사는 보낸 필드에 대해서만 한다.
@@ -15,9 +15,7 @@ from app.domain.code.values import CodeKind
 from app.domain.common.errors import InvalidValueError
 from app.domain.deal.errors import (
     FORECAST_REQUIRED_MESSAGE,
-    SOLUTION_NEEDS_VENDOR_MESSAGE,
     STATUS_REQUIRED_MESSAGE,
-    SolutionVendorMismatchError,
     UnknownCodeError,
     UnknownVendorError,
 )
@@ -30,19 +28,19 @@ from app.domain.deal.values import (
     check_amount,
     check_name,
     check_procurement,
+    check_solution,
     check_users,
 )
 from app.domain.user.errors import UserNotFoundError
 from app.domain.user.value_objects import UserId
 from app.domain.vendor.errors import VendorNotFoundError
-from app.domain.vendor.values import SolutionId, VendorId
+from app.domain.vendor.values import VendorId
 
 if TYPE_CHECKING:
     from app.application.deal.form import FormValues
     from app.application.ports.unit_of_work import UnitOfWork
 
 EXPECTED_CLOSE_REQUIRED = "Expected Close를 입력하세요."
-_VENDOR_FIELDS = frozenset({"vendor_id", "solution_id"})
 
 
 @dataclass(frozen=True, slots=True)
@@ -60,9 +58,8 @@ async def validate_form(
 ) -> CheckedForm:
     """첫 위반에서 InvalidValueError 계열로 거절한다. 저장소 확인은 `provided` 필드만 한다."""
     name = check_name(values.name)
-    vendor_id, solution_id = await _vendor_choice(
-        uow, values.vendor_id, values.solution_id, check=bool(provided & _VENDOR_FIELDS)
-    )
+    vendor_id = await _vendor_choice(uow, values.vendor_id, check="vendor_id" in provided)
+    solution = check_solution(values.solution) if "solution" in provided else values.solution
     owner_id = await _owner(uow, values.owner_user_id, "owner_user_id" in provided)
     amount = check_amount(values.revenue_amount)
     if values.revenue_date is None:
@@ -76,7 +73,7 @@ async def validate_form(
         name=name,
         owner_user_id=owner_id,
         vendor_id=vendor_id,
-        solution_id=solution_id,
+        solution=solution,
         users=users,
         revenue_amount=amount,
         revenue_date=values.revenue_date,
@@ -87,26 +84,17 @@ async def validate_form(
     return CheckedForm(details=details, sync=sync, bant=bant, drafts=drafts)
 
 
-async def _vendor_choice(
-    uow: UnitOfWork, vendor: int | None, solution: int | None, *, check: bool
-) -> tuple[VendorId | None, SolutionId | None]:
-    """Vendor는 등록 목록에서 고르고 Solution은 그 Vendor의 것이어야 한다(보낸 경우에만 확인).
-
-    Solution만 있고 Vendor가 없는 조합은 보냈는지와 무관하게 거절한다(도메인 값 규칙).
-    """
-    vendor_id = None if vendor is None else VendorId(vendor)
-    solution_id = None if solution is None else SolutionId(solution)
-    if vendor_id is None and solution_id is not None:
-        raise InvalidValueError(SOLUTION_NEEDS_VENDOR_MESSAGE)
-    if vendor_id is None or not check:
-        return vendor_id, solution_id
-    try:
-        found = await uow.vendors.get(vendor_id)
-    except VendorNotFoundError:
-        raise UnknownVendorError from None
-    if solution_id is not None and not found.has_solution(solution_id):
-        raise SolutionVendorMismatchError
-    return vendor_id, solution_id
+async def _vendor_choice(uow: UnitOfWork, vendor: int | None, *, check: bool) -> VendorId | None:
+    """Vendor는 등록 목록에서 고른다(보낸 경우에만 확인). Solution은 Vendor와 무관하다."""
+    if vendor is None:
+        return None
+    vendor_id = VendorId(vendor)
+    if check:
+        try:
+            await uow.vendors.get(vendor_id)
+        except VendorNotFoundError:
+            raise UnknownVendorError from None
+    return vendor_id
 
 
 async def _owner(uow: UnitOfWork, owner: int | None, check: bool) -> UserId:

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { seedSolutionId, seedVendorId } from '../../fixtures/vendors'
+import { seedVendorId } from '../../fixtures/vendors'
 import type { DealRow } from '../../../shared/model/types'
 import { dealCode, dealInput, expectApiError, mockAs } from '../testing'
 import { NO_SUCH_ID, USER_ID } from '../seed/ids'
@@ -61,13 +61,23 @@ describe('deals.list', () => {
     expect((await gateway.deals.list({ ownerId: USER_ID.old })).total).toBe(1)
   })
 
-  it('AC-16 Vendor와 Solution 필터는 id가 같은 Deal만 돌려주고 없는 id는 0건이다', async () => {
+  it('AC-16 Vendor 필터는 id가 같은 Deal만, 없는 id는 0건이다', async () => {
+    const { gateway } = await mockAs('kim')
+
+    expect((await gateway.deals.list({ vendorId: seedVendorId('Silverfort') })).total).toBe(7)
+    expect((await gateway.deals.list({ vendorId: NO_SUCH_ID })).total).toBe(0)
+  })
+
+  it('AC-14 Solution 필터는 대소문자 무시 부분 일치 텍스트이고 Vendor와 AND다', async () => {
     const { gateway } = await mockAs('kim')
     const silverfort = seedVendorId('Silverfort')
 
-    expect((await gateway.deals.list({ vendorId: silverfort, solutionId: seedSolutionId('Silverfort', 'ITDR') })).total).toBe(4)
-    expect((await gateway.deals.list({ solutionId: seedSolutionId('Silverfort', 'MFA') })).total).toBe(3)
-    expect((await gateway.deals.list({ vendorId: NO_SUCH_ID })).total).toBe(0)
+    expect((await gateway.deals.list({ solution: 'itdr' })).total).toBe(4)
+    expect((await gateway.deals.list({ solution: '  MF  ' })).total).toBe(3)
+    expect((await gateway.deals.list({ vendorId: silverfort, solution: 'itdr' })).total).toBe(4)
+    expect((await gateway.deals.list({ vendorId: seedVendorId('Okta'), solution: 'itdr' })).total).toBe(0)
+    expect((await gateway.deals.list({ solution: '   ' })).total).toBe((await gateway.deals.list({})).total)
+    expect((await gateway.deals.list({ solution: 'no-such-text' })).total).toBe(0)
   })
 
   it('AC-19 분기만 고르면 Fake 시계의 올해 그 분기이다(작년 같은 분기는 제외)', async () => {
@@ -288,7 +298,7 @@ describe('deals.list', () => {
     const { gateway } = await mockAs('kim')
     const rows = (await gateway.deals.list({ limit: 100 })).items
     expect(rows.some((d) => d.activePartner === null)).toBe(true)
-    const noVendor = await gateway.deals.create(dealInput(USER_ID.kim, { name: '벤더 없는 Deal', vendorId: null, solutionId: null }))
+    const noVendor = await gateway.deals.create(dealInput(USER_ID.kim, { name: '벤더 없는 Deal', vendorId: null }))
     expect(noVendor.vendor).toBeNull()
 
     for (const order of ['asc', 'desc'] as const) {

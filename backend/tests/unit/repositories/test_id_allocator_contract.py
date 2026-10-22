@@ -37,7 +37,6 @@ KIND_VALUES = {
     "bant_label",
     "action_type",
     "vendor",
-    "solution",
     "deal_action",
     "attachment",
 }
@@ -115,10 +114,10 @@ async def test_a_rolled_back_allocation_is_not_reused(uow_factory: UnitOfWorkFac
     from app.application.ports.id_allocator import IdKind  # noqa: PLC0415
 
     async with uow_factory() as uow:
-        taken = await uow.ids.next_id(IdKind.SOLUTION)
+        taken = await uow.ids.next_id(IdKind.ATTACHMENT)
         await uow.rollback()  # commit하지 않고 블록을 벗어난다
 
-    assert await _next(uow_factory, IdKind.SOLUTION) > taken
+    assert await _next(uow_factory, IdKind.ATTACHMENT) > taken
 
 
 @pytest.mark.integration

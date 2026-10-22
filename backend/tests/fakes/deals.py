@@ -3,8 +3,8 @@
 FakeUnitOfWork가 연락처·코드·Label·Vendor·활동·이력 저장소를 `wire`로 연결해
 실제 DB와 같게 동작한다.
 - 참조 확인(FK 모사): 연락처(고객·파트너 링크)가 없거나 BANT Label이 없거나 구분이 다르면
-  InvalidReferenceError. Vendor가 없거나 Solution이 그 Vendor 소속이 아니어도
-  InvalidReferenceError. 코드(Status·Forecast) 확인은 카탈로그가 시드된 경우에만 한다(시드 없는
+  InvalidReferenceError. Vendor가 없어도 InvalidReferenceError(Solution은 자유 텍스트라 참조가
+  아니다). 코드(Status·Forecast) 확인은 카탈로그가 시드된 경우에만 한다(시드 없는
   Fake UoW로 Deal을 직접 넣는 오래된 테스트가 많다. 계약 테스트는 항상 시드한 뒤 검사한다).
 - 삭제는 활동·이력을 함께 지운다(CASCADE).
 
@@ -105,13 +105,9 @@ class FakeDealRepository(DealCountsMixin, InMemoryStore["Deal"]):
             self._check_vendor(deal)
 
     def _check_vendor(self, deal: Deal) -> None:
-        vendor_id, solution_id = deal.details.vendor_id, deal.details.solution_id
+        vendor_id = deal.details.vendor_id
         if vendor_id is not None and vendor_id not in self._vendors._items:
             raise InvalidReferenceError("Vendor", vendor_id)
-        if solution_id is not None and (
-            vendor_id is None or not self._vendors.has_solution(vendor_id, solution_id)
-        ):
-            raise InvalidReferenceError("Solution", solution_id)  # 복합 FK: Vendor 소속이어야 한다
 
     def _check_labels(self, deal: Deal) -> None:
         for category in ("budget", "authority", "need", "timeline"):

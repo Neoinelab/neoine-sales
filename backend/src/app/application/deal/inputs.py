@@ -63,7 +63,7 @@ class DealCreateInput:
     name: str
     owner_user_id: int
     vendor_id: int | None
-    solution_id: int | None
+    solution: str
     users: int
     status_key: str
     forecast_key: str
@@ -90,7 +90,7 @@ class DealPatchInput:
     name: str | None = None
     owner_user_id: int | None = None
     vendor_id: int | None = None
-    solution_id: int | None = None
+    solution: str | None = None
     users: int | None = None
     status_key: str | None = None
     forecast_key: str | None = None

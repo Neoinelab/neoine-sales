@@ -116,13 +116,11 @@ export function dealRow(ctx: MockContext, deal: Deal): DealRow {
     basis && basis.nextAction !== null && basis.dueDate !== null && basis.nextActionStatus !== null
       ? { text: basis.nextAction, dueDate: basis.dueDate, status: basis.nextActionStatus }
       : null
-  const { vendorId, solutionId, ...rest } = clone(deal)
+  const { vendorId, ...rest } = clone(deal)
   const vendor = data.vendors.find((v) => v.id === vendorId)
-  const solution = data.solutions.find((s) => s.id === solutionId)
   return {
     ...rest,
     vendor: vendor ? { id: vendor.id, name: vendor.name } : null,
-    solution: solution ? { id: solution.id, name: solution.name } : null,
     owner: userRef(data, deal.ownerId),
     customer: clone(contactOf(data, deal.customerContactId)),
     activePartner: active ? clone(contactOf(data, active.contactId)) : null,

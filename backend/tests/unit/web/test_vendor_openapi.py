@@ -1,4 +1,4 @@
-"""Vendor API의 OpenAPI 계약(AC-13·17·25의 핵심): 경로·메서드, 응답 모양, 폐지된 facets."""
+"""Vendor API의 OpenAPI 계약(AC-2·6·14): 경로·메서드, 응답 모양, 폐지된 facets·Solution API."""
 
 from typing import Any
 
@@ -22,8 +22,6 @@ def test_vendor_paths_and_methods(schema: dict[str, Any]) -> None:
     expected = {
         "/api/v1/vendors": {"get", "post"},
         "/api/v1/vendors/{vendor_id}": {"patch", "delete"},
-        "/api/v1/vendors/{vendor_id}/solutions": {"post"},
-        "/api/v1/vendors/{vendor_id}/solutions/{solution_id}": {"patch", "delete"},
     }
 
     for path, methods in expected.items():
@@ -37,49 +35,56 @@ def test_the_facets_path_is_gone(schema: dict[str, Any]) -> None:
     assert "DealFacetsResponse" not in schema["components"]["schemas"]
 
 
-def test_vendor_response_nests_solutions_with_usage(schema: dict[str, Any]) -> None:
+def test_openapi_has_no_solution_paths_or_schemas(schema: dict[str, Any]) -> None:
+    assert not [path for path in schema["paths"] if "/solutions" in path]
+    for name in ("SolutionResponse", "SolutionNameRequest"):
+        assert name not in schema["components"]["schemas"], name
+
+
+def test_vendor_response_has_usage_and_no_solutions(schema: dict[str, Any]) -> None:
     schemas = schema["components"]["schemas"]
 
     assert set(schemas["VendorResponse"]["properties"]) == {
         "id",
         "name",
         "usage_count",
-        "solutions",
-        "created_at",
-        "updated_at",
-    }
-    assert set(schemas["SolutionResponse"]["properties"]) == {
-        "id",
-        "vendor_id",
-        "name",
-        "usage_count",
         "created_at",
         "updated_at",
     }
 
 
-def test_deal_requests_use_vendor_id_and_solution_id_only(schema: dict[str, Any]) -> None:
+def test_deal_requests_take_vendor_id_and_a_solution_text(schema: dict[str, Any]) -> None:
     schemas = schema["components"]["schemas"]
 
     for name in ("DealCreateRequest", "DealPatchRequest"):
         props = schemas[name]["properties"]
-        assert {"vendor_id", "solution_id"} <= set(props), name
-        assert not {"vendor", "solution"} & set(props), name
+        assert {"vendor_id", "solution"} <= set(props), name
+        assert not {"vendor", "solution_id"} & set(props), name
+    assert schemas["DealCreateRequest"]["properties"]["solution"]["type"] == "string"
+    assert "solution" in schemas["DealCreateRequest"]["required"]  # 등록 시 필수(Q1 변경)
 
 
-def test_deal_responses_expose_named_refs(schema: dict[str, Any]) -> None:
-    props = schema["components"]["schemas"]["DealRowResponse"]["properties"]
+def test_deal_responses_expose_a_vendor_ref_and_a_solution_string(
+    schema: dict[str, Any],
+) -> None:
+    schemas = schema["components"]["schemas"]
 
-    assert {"vendor", "solution"} <= set(props)
-    assert "NamedRefResponse" in schema["components"]["schemas"]
-    assert set(schema["components"]["schemas"]["NamedRefResponse"]["properties"]) == {
-        "id",
-        "name",
-    }
+    for name in ("DealRowResponse", "DealDetailResponse"):
+        props = schemas[name]["properties"]
+        assert {"vendor", "solution"} <= set(props), name
+        assert props["solution"]["type"] == "string", name
+        assert "solution" in schemas[name]["required"], name
+    assert set(schemas["NamedRefResponse"]["properties"]) == {"id", "name"}
 
 
-def test_deal_search_takes_vendor_id_and_solution_id(schema: dict[str, Any]) -> None:
-    params = {p["name"] for p in schema["paths"]["/api/v1/deals"]["get"]["parameters"]}
+def test_deal_search_takes_vendor_id_and_a_solution_text(schema: dict[str, Any]) -> None:
+    parameters = schema["paths"]["/api/v1/deals"]["get"]["parameters"]
+    by_name = {p["name"]: p for p in parameters}
 
-    assert {"vendor_id", "solution_id", "quarter", "year"} <= params
-    assert not {"vendor", "solution"} & params
+    assert {"vendor_id", "solution", "quarter", "year"} <= set(by_name)
+    assert "solution_id" not in by_name
+    assert "vendor" not in by_name
+    assert any(
+        branch.get("type") == "string" and branch.get("maxLength") == 200
+        for branch in by_name["solution"]["schema"].get("anyOf", [by_name["solution"]["schema"]])
+    )

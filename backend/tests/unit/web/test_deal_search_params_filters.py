@@ -87,7 +87,8 @@ def test_the_year_boundaries_are_accepted(year: int) -> None:
 @pytest.mark.parametrize(
     "params",
     [
-        {"solution_id": "S/4HANA"},
+        {"solution_id": "7"},  # 구 id 조건은 폐지됐다
+        {"solution": "a" * 201},
         {"forecast_key": "a" * 51},
         {"year": "twenty"},
         {"quarter": "q2"},

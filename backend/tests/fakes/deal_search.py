@@ -2,7 +2,8 @@
 
 - keyword: Deal Name·고객 회사명·**활성** 파트너 회사명·Deal code의 대소문자 무시 부분 일치
   (`%`, `_`, `\\`는 글자 그대로)
-- owner_user_id·vendor_id·solution_id·status_key·forecast_key: 정확 일치
+- owner_user_id·vendor_id·status_key·forecast_key: 정확 일치
+- solution: Solution 텍스트의 대소문자 무시 부분 일치(`%`, `_`는 글자 그대로)
 - 정렬: 기본 last_updated_at 내림차순, 모든 정렬의 동률은 code 오름차순
 - last_updated_at = 가장 최근 활동의 acted_at(없으면 created_at, Deal 수정은 반영하지 않음)
 
@@ -47,10 +48,11 @@ def matches(
         )
         if not any(needle in text.lower() for text in texts):
             return False
+    if query.solution and query.solution.lower() not in details.solution.lower():
+        return False
     equals: tuple[tuple[Any, Any], ...] = (
         (query.owner_user_id, details.owner_user_id),
         (query.vendor_id, details.vendor_id),
-        (query.solution_id, details.solution_id),
         (query.status_key, deal.sync.status_key),
         (query.forecast_key, deal.sync.forecast_key),
     )

@@ -31,7 +31,7 @@ export function serverDealRow(over: Partial<Schemas['DealRowResponse']> = {}): S
     owner_user_id: USER_ID.kim,
     owner: serverUserRef(),
     vendor: { id: 6, name: 'Silverfort' },
-    solution: { id: 6, name: 'ITDR' },
+    solution: 'ITDR',
     users: 100,
     status_key: 'prospecting',
     forecast_key: 'pipeline',

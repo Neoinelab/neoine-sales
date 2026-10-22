@@ -37,7 +37,6 @@ SURROGATE_KEY_TABLES = [
     "bant_labels",
     "action_types",
     "vendors",
-    "solutions",
     "deals",
     "deal_partners",
     "deal_actions",

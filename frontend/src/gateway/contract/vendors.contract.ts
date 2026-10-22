@@ -1,10 +1,9 @@
-/** Vendor·Solution 관리(AC-1~7) 계약. 호출마다 고유한 이름을 쓰고 만든 것은 스스로 치운다. */
+/** Vendor 관리(AC-1~5) 계약. Solution 관리는 없다. 호출마다 고유한 이름을 쓰고 만든 것은 스스로 치운다. */
 
 import { describe, expect, it } from 'vitest'
 import { expectRejects, unique, type MakeGateway, NO_SUCH_ID } from './support'
 
 const DUP_VENDOR = '이미 있는 Vendor 이름입니다.'
-const DUP_SOLUTION = '이 Vendor에 이미 있는 Solution 이름입니다.'
 
 export function vendorsContract(make: MakeGateway): void {
   describe('vendors 계약', () => {
@@ -24,88 +23,78 @@ export function vendorsContract(make: MakeGateway): void {
       await cleanup.vendors.remove(b.id)
     })
 
-    it('creates a trimmed vendor with zero usage and an empty solution list (AC-1)', async () => {
+    it('creates a trimmed vendor with zero usage and no solution list (AC-1)', async () => {
       const { vendors } = await make('admin')
       const name = unique('vendor')
 
       const created = await vendors.create(`  ${name}  `)
 
-      expect(created).toMatchObject({ name, usageCount: 0, solutions: [] })
+      expect(created).toEqual({ id: created.id, name, usageCount: 0 })
+      expect(created).not.toHaveProperty('solutions')
       await vendors.remove(created.id)
     })
 
-    it('refuses writes from sales and user with 403 (AC-7)', async () => {
+    it('has no solution management methods (AC-2)', async () => {
+      const { vendors } = await make('admin')
+
+      for (const method of ['createSolution', 'renameSolution', 'removeSolution']) {
+        expect(vendors).not.toHaveProperty(method)
+      }
+    })
+
+    it('refuses writes from sales and user with 403 (AC-3)', async () => {
       const admin = await make('admin')
       const vendor = await admin.vendors.create(unique('vendor'))
-      const solution = await admin.vendors.createSolution(vendor.id, unique('solution'))
 
       for (const role of ['sales', 'user'] as const) {
         const { vendors } = await make(role)
         await expectRejects(vendors.create(unique('x')), 403)
         await expectRejects(vendors.rename(vendor.id, unique('x')), 403)
         await expectRejects(vendors.remove(vendor.id), 403)
-        await expectRejects(vendors.createSolution(vendor.id, unique('x')), 403)
-        await expectRejects(vendors.renameSolution(vendor.id, solution.id, unique('x')), 403)
-        await expectRejects(vendors.removeSolution(vendor.id, solution.id), 403)
       }
       await (await make('admin')).vendors.remove(vendor.id)
     })
 
-    it('validates names: blank, 101 and 201 characters (AC-4)', async () => {
+    it('validates names: blank and 101 characters (AC-3)', async () => {
       const { vendors } = await make('admin')
       const vendor = await vendors.create(unique('vendor'))
 
       await expectRejects(vendors.create('   '), 422, 'Vendor 이름을 입력하세요.')
       await expectRejects(vendors.create('v'.repeat(101)), 422, 'Vendor 이름은 100자 이내로 입력하세요.')
       await expectRejects(vendors.rename(vendor.id, ' '), 422, 'Vendor 이름을 입력하세요.')
-      await expectRejects(vendors.createSolution(vendor.id, ' '), 422, 'Solution 이름을 입력하세요.')
-      await expectRejects(vendors.createSolution(vendor.id, 's'.repeat(201)), 422, 'Solution 이름은 200자 이내로 입력하세요.')
       await vendors.remove(vendor.id)
     })
 
-    it('rejects duplicate names ignoring case, per vendor for solutions (AC-5)', async () => {
+    it('rejects duplicate names ignoring case (AC-3)', async () => {
       const { vendors } = await make('admin')
       const name = unique('vendor')
       const first = await vendors.create(name)
       const second = await vendors.create(unique('vendor'))
-      const solutionName = unique('solution')
-      const solution = await vendors.createSolution(first.id, solutionName)
 
       await expectRejects(vendors.create(name.toUpperCase()), 409, DUP_VENDOR)
       await expectRejects(vendors.rename(second.id, name.toUpperCase()), 409, DUP_VENDOR)
-      await expectRejects(vendors.createSolution(first.id, solutionName.toUpperCase()), 409, DUP_SOLUTION)
-      const other = await vendors.createSolution(second.id, solutionName)
-      expect(other.name).toBe(solutionName)
-      await expect(vendors.renameSolution(first.id, solution.id, solutionName.toUpperCase())).resolves.toMatchObject({ name: solutionName.toUpperCase() })
+      await expect(vendors.rename(first.id, name.toUpperCase())).resolves.toMatchObject({ name: name.toUpperCase() })
       await vendors.remove(first.id)
       await vendors.remove(second.id)
     })
 
-    it('treats a solution outside the path vendor and unknown ids as 404 (AC-3, AC-6)', async () => {
+    it('treats unknown ids as 404 (AC-4)', async () => {
       const { vendors } = await make('admin')
-      const one = await vendors.create(unique('vendor'))
-      const two = await vendors.create(unique('vendor'))
-      const solution = await vendors.createSolution(one.id, unique('solution'))
 
-      await expectRejects(vendors.renameSolution(two.id, solution.id, unique('x')), 404)
-      await expectRejects(vendors.removeSolution(two.id, solution.id), 404)
-      await expectRejects(vendors.createSolution(NO_SUCH_ID, unique('x')), 404)
+      await expectRejects(vendors.rename(NO_SUCH_ID, unique('x')), 404)
       await expectRejects(vendors.remove(NO_SUCH_ID), 404)
-      await vendors.remove(one.id)
-      await vendors.remove(two.id)
     })
 
-    it('refuses to delete what a deal uses, with the count, and keeps it (AC-6)', async () => {
+    it('refuses to delete a vendor a deal uses, with the count, and keeps it (AC-4)', async () => {
       const admin = await make('admin')
       const vendor = await admin.vendors.create(unique('vendor'))
-      const solution = await admin.vendors.createSolution(vendor.id, unique('solution'))
       const sales = await make('sales')
       const me = await sales.auth.me()
       const deal = await sales.deals.create({
         name: unique('deal'),
         ownerId: me.id,
         vendorId: vendor.id,
-        solutionId: solution.id,
+        solution: 'ITDR',
         users: 100,
         statusKey: 'prospecting',
         forecastKey: 'pipeline',
@@ -120,21 +109,17 @@ export function vendorsContract(make: MakeGateway): void {
       })
       const { vendors } = await make('admin')
 
-      await expectRejects(vendors.removeSolution(vendor.id, solution.id), 409, '사용 중인 Solution은 삭제할 수 없습니다. (Deal 1건)')
       await expectRejects(vendors.remove(vendor.id), 409, '사용 중인 Vendor는 삭제할 수 없습니다. (Deal 1건)')
 
       const listed = (await vendors.list()).find((v) => v.id === vendor.id)
       expect(listed).toMatchObject({ usageCount: 1 })
-      expect(listed?.solutions[0]).toMatchObject({ id: solution.id, usageCount: 1 })
       await sales.deals.remove(deal.code, deal.code)
       await (await make('admin')).vendors.remove(vendor.id)
     })
 
-    it('deletes an unused vendor together with its solutions (AC-6)', async () => {
+    it('deletes an unused vendor (AC-4)', async () => {
       const { vendors } = await make('admin')
       const vendor = await vendors.create(unique('vendor'))
-      await vendors.createSolution(vendor.id, unique('solution'))
-      await vendors.createSolution(vendor.id, unique('solution'))
 
       await vendors.remove(vendor.id)
 

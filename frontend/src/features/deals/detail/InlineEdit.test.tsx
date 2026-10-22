@@ -78,7 +78,7 @@ describe('값 클릭 → 입력기 (Enter 저장 / Esc 취소 / 키보드)', () 
     expect(screen.queryByRole('combobox', { name: 'Vendor' })).not.toBeInTheDocument()
     screen.getByRole('button', { name: 'Solution 수정' }).focus()
     await user.keyboard(' ')
-    expect(screen.getByRole('combobox', { name: 'Solution' })).toHaveFocus()
+    expect(screen.getByLabelText('Solution')).toHaveFocus()
   })
 
   it('saves the deal name with Enter and shows the success notice', async () => {
@@ -139,14 +139,29 @@ describe('Owner · Vendor · Solution · Users · 견적 · POC · 구매절차'
     expect(await screen.findByRole('cell', { name: 'Owner' })).toBeVisible()
   })
 
-  it('edits Vendor and Solution with selects and never accepts a free text value (AC-11)', async () => {
+  it('edits Vendor with a select and Solution as a free text input (AC-13)', async () => {
     const { user } = await openDeal(1, '한빛은행 ITDR 도입')
     await user.click(screen.getByRole('button', { name: 'Vendor 수정' }))
     expect(screen.getByRole('combobox', { name: 'Vendor' }).tagName).toBe('SELECT')
     expect(screen.queryByRole('listbox', { name: 'Vendor' })).not.toBeInTheDocument()
     await user.keyboard('{Escape}')
     await user.click(screen.getByRole('button', { name: 'Solution 수정' }))
-    expect(screen.getByRole('combobox', { name: 'Solution' }).tagName).toBe('SELECT')
+    expect(screen.getByLabelText('Solution').tagName).toBe('INPUT')
+    expect(screen.queryByRole('combobox', { name: 'Solution' })).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Solution')).toHaveValue('ITDR')
+  })
+
+  it('does not save an empty Solution and keeps the shown value', async () => {
+    const update = vi.spyOn(gateway.deals, 'update')
+    const { user } = await openDeal(1, '한빛은행 ITDR 도입')
+    await user.click(screen.getByRole('button', { name: 'Solution 수정' }))
+    const solution = screen.getByLabelText('Solution')
+    await user.clear(solution)
+    await user.type(solution, '   {Enter}')
+    expect(await screen.findByRole('alert')).toHaveTextContent('Solution을 입력하세요.')
+    expect(update).not.toHaveBeenCalled()
+    await user.keyboard('{Escape}')
+    expect(screen.getByRole('button', { name: 'Solution 수정' })).toHaveTextContent('ITDR')
   })
 
   it('saves Users as a non-negative integer', async () => {

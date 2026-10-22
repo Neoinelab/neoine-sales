@@ -1,7 +1,7 @@
 """DealRepository.search/count 계약(R2, AC-22·22a·22e): Fake와 SQL(PostgreSQL)에 같은 기대값.
 
 기본 정렬(last_updated_at 내림차순, 동률은 code 오름차순), total(count), 페이지, keyword·owner·
-vendor_id·status·최종 업데이트 기간 필터. solution_id·forecast·연/분기·BANT 필터와
+vendor_id·solution(텍스트 부분 일치)·status·최종 업데이트 기간 필터. forecast·연/분기·BANT 필터와
 정렬 선택은 R3 계약이다.
 """
 
@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING
 
 from app.application.ports.deal_repository import DealQuery
 from app.domain.contact.values import ContactKind
-from app.domain.vendor.values import SolutionId, VendorId
+from app.domain.vendor.values import VendorId
 from tests.factories import later, make_deal
 from tests.support.ids import new_id
 from tests.support.user_ids import uid
@@ -168,33 +168,59 @@ class TestFilters:
         assert await _codes(deal_case, owner_user_id=uid("bob")) == [_code(2)]
         assert await _codes(deal_case, owner_user_id=uid("nobody")) == []
 
-    async def test_filters_by_vendor_id_and_solution_id(self, deal_case: DealCase) -> None:
-        sap = await deal_case.new_vendor("ZZ SAP", ("S/4HANA", "BW"))
-        oracle = await deal_case.new_vendor("ZZ Oracle", ("EBS",))
-        s4, bw = sap.solutions
-        await deal_case.add(make_deal(later(1), code=_code(1), vendor_id=sap.id, solution_id=s4.id))
-        await deal_case.add(make_deal(later(2), code=_code(2), vendor_id=sap.id, solution_id=bw.id))
-        await deal_case.add(
-            make_deal(
-                later(3), code=_code(3), vendor_id=oracle.id, solution_id=oracle.solutions[0].id
-            )
-        )
+    async def test_filters_by_vendor_id(self, deal_case: DealCase) -> None:
+        sap = await deal_case.new_vendor("ZZ SAP")
+        oracle = await deal_case.new_vendor("ZZ Oracle")
+        await deal_case.add(make_deal(later(1), code=_code(1), vendor_id=sap.id))
+        await deal_case.add(make_deal(later(2), code=_code(2), vendor_id=sap.id))
+        await deal_case.add(make_deal(later(3), code=_code(3), vendor_id=oracle.id))
         await deal_case.add(make_deal(later(4), code=_code(4)))
 
         assert await _codes(deal_case, vendor_id=sap.id) == [_code(2), _code(1)]
-        assert await _codes(deal_case, solution_id=s4.id) == [_code(1)]
-        assert await _codes(deal_case, vendor_id=sap.id, solution_id=bw.id) == [_code(2)]
         assert await deal_case.deals.count(DealQuery(vendor_id=sap.id)) == 2
-        assert await deal_case.deals.count(DealQuery(solution_id=s4.id)) == 1
 
-    async def test_an_unknown_vendor_or_solution_id_is_zero_results_not_an_error(
+    async def test_an_unknown_vendor_id_is_zero_results_not_an_error(
         self, deal_case: DealCase
     ) -> None:
         await _add_numbered(deal_case, 2)
 
         assert await _codes(deal_case, vendor_id=VendorId(new_id())) == []
-        assert await _codes(deal_case, solution_id=SolutionId(new_id())) == []
         assert await deal_case.deals.count(DealQuery(vendor_id=VendorId(new_id()))) == 0
+
+    async def test_solution_filter_matches_partial_ignoring_case(self, deal_case: DealCase) -> None:
+        await deal_case.add(make_deal(later(1), code=_code(1), solution="ITDR"))
+        await deal_case.add(make_deal(later(2), code=_code(2), solution="MFA"))
+        await deal_case.add(make_deal(later(3), code=_code(3), solution="Next ItDr Plus"))
+        await deal_case.add(make_deal(later(4), code=_code(4)))
+
+        assert await _codes(deal_case, solution="itd") == [_code(3), _code(1)]
+        assert await _codes(deal_case, solution="ITDR") == [_code(3), _code(1)]
+        assert await deal_case.deals.count(DealQuery(solution="itd")) == 2
+        assert await _codes(deal_case, solution="nothing") == []
+
+    async def test_solution_filter_treats_wildcards_literally(self, deal_case: DealCase) -> None:
+        await deal_case.add(make_deal(later(1), code=_code(1), solution="100%"))
+        await deal_case.add(make_deal(later(2), code=_code(2), solution="1000"))
+        await deal_case.add(make_deal(later(3), code=_code(3), solution="a_b"))
+        await deal_case.add(make_deal(later(4), code=_code(4), solution="axb"))
+        await deal_case.add(make_deal(later(5), code=_code(5), solution="c\\d"))
+        await deal_case.add(make_deal(later(6), code=_code(6), solution="cd"))
+
+        assert await _codes(deal_case, solution="0%") == [_code(1)]
+        assert await _codes(deal_case, solution="a_b") == [_code(3)]
+        assert await _codes(deal_case, solution="c\\d") == [_code(5)]
+
+    async def test_solution_filter_combines_with_vendor(self, deal_case: DealCase) -> None:
+        sap = await deal_case.new_vendor("ZZ SAP")
+        oracle = await deal_case.new_vendor("ZZ Oracle")
+        await deal_case.add(make_deal(later(1), code=_code(1), vendor_id=sap.id, solution="ITDR"))
+        await deal_case.add(
+            make_deal(later(2), code=_code(2), vendor_id=oracle.id, solution="ITDR")
+        )
+        await deal_case.add(make_deal(later(3), code=_code(3), vendor_id=sap.id, solution="MFA"))
+
+        assert await _codes(deal_case, vendor_id=sap.id, solution="itd") == [_code(1)]
+        assert await deal_case.deals.count(DealQuery(vendor_id=sap.id, solution="itd")) == 1
 
     async def test_status_matches_the_status_key(self, deal_case: DealCase) -> None:
         await deal_case.add(make_deal(later(1), code=_code(1), status_key="prospecting"))

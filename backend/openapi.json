@@ -1675,18 +1675,9 @@
             ],
             "title": "Revenue Date"
           },
-          "solution_id": {
-            "anyOf": [
-              {
-                "maximum": 9007199254740991.0,
-                "minimum": 1.0,
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Solution Id"
+          "solution": {
+            "title": "Solution",
+            "type": "string"
           },
           "status_key": {
             "title": "Status Key",
@@ -1713,6 +1704,7 @@
         "required": [
           "name",
           "owner_user_id",
+          "solution",
           "users",
           "status_key",
           "forecast_key",
@@ -1831,14 +1823,8 @@
             "title": "Risk"
           },
           "solution": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/NamedRefResponse"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "title": "Solution",
+            "type": "string"
           },
           "status_changed_at": {
             "format": "date-time",
@@ -2027,18 +2013,16 @@
             ],
             "title": "Revenue Date"
           },
-          "solution_id": {
+          "solution": {
             "anyOf": [
               {
-                "maximum": 9007199254740991.0,
-                "minimum": 1.0,
-                "type": "integer"
+                "type": "string"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Solution Id"
+            "title": "Solution"
           },
           "status_key": {
             "anyOf": [
@@ -2180,14 +2164,8 @@
             "title": "Risk"
           },
           "solution": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/NamedRefResponse"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "title": "Solution",
+            "type": "string"
           },
           "status_changed_at": {
             "format": "date-time",
@@ -3463,60 +3441,6 @@
         "title": "SnapshotListResponse",
         "type": "object"
       },
-      "SolutionNameRequest": {
-        "additionalProperties": false,
-        "properties": {
-          "name": {
-            "title": "Name",
-            "type": "string"
-          }
-        },
-        "required": [
-          "name"
-        ],
-        "title": "SolutionNameRequest",
-        "type": "object"
-      },
-      "SolutionResponse": {
-        "properties": {
-          "created_at": {
-            "format": "date-time",
-            "title": "Created At",
-            "type": "string"
-          },
-          "id": {
-            "title": "Id",
-            "type": "integer"
-          },
-          "name": {
-            "title": "Name",
-            "type": "string"
-          },
-          "updated_at": {
-            "format": "date-time",
-            "title": "Updated At",
-            "type": "string"
-          },
-          "usage_count": {
-            "title": "Usage Count",
-            "type": "integer"
-          },
-          "vendor_id": {
-            "title": "Vendor Id",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "id",
-          "vendor_id",
-          "name",
-          "usage_count",
-          "created_at",
-          "updated_at"
-        ],
-        "title": "SolutionResponse",
-        "type": "object"
-      },
       "SortOrder": {
         "enum": [
           "asc",
@@ -3953,13 +3877,6 @@
             "title": "Name",
             "type": "string"
           },
-          "solutions": {
-            "items": {
-              "$ref": "#/components/schemas/SolutionResponse"
-            },
-            "title": "Solutions",
-            "type": "array"
-          },
           "updated_at": {
             "format": "date-time",
             "title": "Updated At",
@@ -3975,8 +3892,7 @@
           "name",
           "usage_count",
           "created_at",
-          "updated_at",
-          "solutions"
+          "updated_at"
         ],
         "title": "VendorResponse",
         "type": "object"
@@ -6554,20 +6470,19 @@
           },
           {
             "in": "query",
-            "name": "solution_id",
+            "name": "solution",
             "required": false,
             "schema": {
               "anyOf": [
                 {
-                  "maximum": 9007199254740991,
-                  "minimum": 1,
-                  "type": "integer"
+                  "maxLength": 200,
+                  "type": "string"
                 },
                 {
                   "type": "null"
                 }
               ],
-              "title": "Solution Id"
+              "title": "Solution"
             }
           },
           {
@@ -9170,291 +9085,6 @@
           }
         },
         "summary": "Rename Vendor",
-        "tags": [
-          "vendors"
-        ]
-      }
-    },
-    "/api/v1/vendors/{vendor_id}/solutions": {
-      "post": {
-        "operationId": "create_solution_api_v1_vendors__vendor_id__solutions_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "vendor_id",
-            "required": true,
-            "schema": {
-              "maximum": 9007199254740991,
-              "minimum": 1,
-              "title": "Vendor Id",
-              "type": "integer"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/SolutionNameRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SolutionResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "problem+json"
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "problem+json"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "problem+json"
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "problem+json"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "problem+json"
-          }
-        },
-        "summary": "Create Solution",
-        "tags": [
-          "vendors"
-        ]
-      }
-    },
-    "/api/v1/vendors/{vendor_id}/solutions/{solution_id}": {
-      "delete": {
-        "operationId": "delete_solution_api_v1_vendors__vendor_id__solutions__solution_id__delete",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "vendor_id",
-            "required": true,
-            "schema": {
-              "maximum": 9007199254740991,
-              "minimum": 1,
-              "title": "Vendor Id",
-              "type": "integer"
-            }
-          },
-          {
-            "in": "path",
-            "name": "solution_id",
-            "required": true,
-            "schema": {
-              "maximum": 9007199254740991,
-              "minimum": 1,
-              "title": "Solution Id",
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "Successful Response"
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "problem+json"
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "problem+json"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "problem+json"
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "problem+json"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "problem+json"
-          }
-        },
-        "summary": "Delete Solution",
-        "tags": [
-          "vendors"
-        ]
-      },
-      "patch": {
-        "operationId": "rename_solution_api_v1_vendors__vendor_id__solutions__solution_id__patch",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "vendor_id",
-            "required": true,
-            "schema": {
-              "maximum": 9007199254740991,
-              "minimum": 1,
-              "title": "Vendor Id",
-              "type": "integer"
-            }
-          },
-          {
-            "in": "path",
-            "name": "solution_id",
-            "required": true,
-            "schema": {
-              "maximum": 9007199254740991,
-              "minimum": 1,
-              "title": "Solution Id",
-              "type": "integer"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/SolutionNameRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SolutionResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "problem+json"
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "problem+json"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "problem+json"
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "problem+json"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "problem+json"
-          }
-        },
-        "summary": "Rename Solution",
         "tags": [
           "vendors"
         ]

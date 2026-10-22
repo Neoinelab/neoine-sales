@@ -15,7 +15,7 @@ const input = (over: Partial<DealInput> = {}): DealInput => ({
   name: '한빛은행 ITDR',
   ownerId: USER_ID.kim,
   vendorId: 6,
-  solutionId: 6,
+  solution: 'ITDR',
   users: 100,
   statusKey: 'prospecting',
   forecastKey: 'pipeline',
@@ -64,7 +64,7 @@ describe('deals.list over HTTP', () => {
       keyword: '한빛',
       ownerId: USER_ID.kim,
       vendorId: 6,
-      solutionId: 6,
+      solution: 'ITDR',
       statusKey: 'prospecting',
       forecastKey: 'pipeline',
       year: 2026,
@@ -86,7 +86,7 @@ describe('deals.list over HTTP', () => {
       keyword: '한빛',
       owner_user_id: String(USER_ID.kim),
       vendor_id: '6',
-      solution_id: '6',
+      solution: 'ITDR',
       status_key: 'prospecting',
       forecast_key: 'pipeline',
       year: '2026',
@@ -208,26 +208,36 @@ describe('deals.list over HTTP', () => {
     expect(Object.fromEntries(query(calls[0]?.path ?? ''))).toEqual({ quarter: '2' })
   })
 
-  it('does not send the old vendor and solution text parameters', async () => {
+  it('does not send the old vendor text and solution id parameters', async () => {
     const { calls } = stubFetch(json(page([])))
 
-    await createDealsHttp().list({ vendorId: 6 })
+    await createDealsHttp().list({ vendorId: 6, solution: 'ITDR' })
 
     const sent = query(calls[0]?.path ?? '')
     expect(sent.has('vendor')).toBe(false)
-    expect(sent.has('solution')).toBe(false)
+    expect(sent.has('solution_id')).toBe(false)
     expect(sent.get('vendor_id')).toBe('6')
+    expect(sent.get('solution')).toBe('ITDR')
+  })
+
+  it('omits an empty solution filter and sends the text as it is, including spaces and non-ASCII', async () => {
+    const { calls } = stubFetch(json(page([])), json(page([])))
+
+    await createDealsHttp().list({ solution: '' })
+    await createDealsHttp().list({ solution: '통합 ITDR' })
+
+    expect(query(calls[0]?.path ?? '').has('solution')).toBe(false)
+    expect(query(calls[1]?.path ?? '').get('solution')).toBe('통합 ITDR')
   })
 
   it('sends id filters as integer query values', async () => {
     const { calls } = stubFetch(json(page([])))
 
-    await createDealsHttp().list({ ownerId: 3, vendorId: 12, solutionId: 9007199254740991 })
+    await createDealsHttp().list({ ownerId: 3, vendorId: 9007199254740991 })
 
     expect(Object.fromEntries(query(calls[0]?.path ?? ''))).toEqual({
       owner_user_id: '3',
-      vendor_id: '12',
-      solution_id: '9007199254740991',
+      vendor_id: '9007199254740991',
     })
   })
 })
@@ -287,7 +297,7 @@ describe('deals.create over HTTP', () => {
       name: '한빛은행 ITDR',
       owner_user_id: USER_ID.kim,
       vendor_id: 6,
-      solution_id: 6,
+      solution: 'ITDR',
       users: 100,
       status_key: 'prospecting',
       forecast_key: 'pipeline',
@@ -357,21 +367,29 @@ describe('deals.update over HTTP', () => {
     expect(calls[0]?.body).toEqual({ revenue_date: null })
   })
 
-  it('AC-11 sends vendor_id and a null solution_id together when the vendor changes', async () => {
+  it('AC-13 sends only vendor_id when the vendor changes (the solution is independent)', async () => {
     const { calls } = stubFetch(json(serverDealDetail()))
 
-    await createDealsHttp().update(CODE, { vendorId: 3, solutionId: null })
+    await createDealsHttp().update(CODE, { vendorId: 3 })
 
-    expect(calls[0]?.body).toEqual({ vendor_id: 3, solution_id: null })
+    expect(calls[0]?.body).toEqual({ vendor_id: 3 })
+  })
+
+  it('AC-13 sends only the solution text when the solution changes', async () => {
+    const { calls } = stubFetch(json(serverDealDetail()))
+
+    await createDealsHttp().update(CODE, { solution: 'MFA' })
+
+    expect(calls[0]?.body).toEqual({ solution: 'MFA' })
   })
 
   it('AC-13 sends a null vendor_id to clear the vendor and omits vendor fields that are not given', async () => {
     const { calls } = stubFetch(json(serverDealDetail()), json(serverDealDetail()))
 
-    await createDealsHttp().update(CODE, { vendorId: null, solutionId: null })
+    await createDealsHttp().update(CODE, { vendorId: null })
     await createDealsHttp().update(CODE, { name: 'x' })
 
-    expect(calls[0]?.body).toEqual({ vendor_id: null, solution_id: null })
+    expect(calls[0]?.body).toEqual({ vendor_id: null })
     expect(calls[1]?.body).toEqual({ name: 'x' })
   })
 

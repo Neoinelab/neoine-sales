@@ -24,6 +24,7 @@ from tests.support.revisions import (
     deals_users_required_revision,
     forecast_snapshots_revision,
     next_action_status_revision,
+    solution_free_text_revision,
     vendor_solution_revision,
 )
 
@@ -31,25 +32,40 @@ USERS_REQUIRED_REVISION = "e8c2b4f6a1d9"  # 이 리비전 아래는 UUID 스키�
 BIGINT_IDS_REVISION = "a3f7c1d95b28"  # P6 R2 스냅숏 리비전의 down_revision다
 
 
-def test_the_forecast_snapshots_revision_follows_the_bigint_ids_and_is_the_single_head() -> None:
+FORECAST_SNAPSHOTS_REVISION = "11bfe225caf5"  # Solution 자유 텍스트 리비전의 down_revision이다
+
+
+def test_the_solution_text_revision_follows_the_forecast_snapshots_and_is_the_single_head() -> None:
     script = ScriptDirectory.from_config(_alembic_config())
 
     heads = script.get_heads()
 
-    assert heads == [forecast_snapshots_revision()]
-    assert forecast_snapshots_revision() != bigint_ids_revision()
-    head = script.get_revision(forecast_snapshots_revision())
+    assert heads == [solution_free_text_revision()]
+    assert solution_free_text_revision() != forecast_snapshots_revision()
+    head = script.get_revision(solution_free_text_revision())
     assert head is not None
-    assert head.down_revision == bigint_ids_revision() == BIGINT_IDS_REVISION
+    assert head.down_revision == forecast_snapshots_revision() == FORECAST_SNAPSHOTS_REVISION
 
 
-def test_the_forecast_snapshots_revision_file_is_named_after_its_purpose() -> None:
+def test_the_solution_free_text_revision_file_is_named_after_its_purpose() -> None:
+    script = ScriptDirectory.from_config(_alembic_config())
+
+    head = script.get_revision(solution_free_text_revision())
+
+    assert head is not None
+    assert head.path.endswith(f"20261022_{head.revision}_solution_free_text.py")
+
+
+def test_the_forecast_snapshots_revision_follows_the_bigint_ids_in_the_head_history() -> None:
     script = ScriptDirectory.from_config(_alembic_config())
 
     head = script.get_revision(forecast_snapshots_revision())
 
     assert head is not None
+    assert head.down_revision == bigint_ids_revision() == BIGINT_IDS_REVISION
     assert head.path.endswith(f"_{head.revision}_forecast_snapshots.py")
+    history = {r.revision for r in script.iterate_revisions(script.get_heads()[0], "base")}
+    assert forecast_snapshots_revision() in history
 
 
 def test_the_bigint_ids_revision_follows_the_users_required_in_the_head_history() -> None:

@@ -24,7 +24,6 @@ ID_NAMES = {
     "owner_user_id",
     "contact_id",
     "vendor_id",
-    "solution_id",
     "action_type_id",
     "actor_user_id",
     "created_by_user_id",

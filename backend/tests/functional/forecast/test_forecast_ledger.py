@@ -46,7 +46,7 @@ async def test_summary_total_matches_deal_list_ledger(  # noqa: PLR0913, PLR0917
 ) -> None:
     """Scenario: 여러 조건 조합에서 요약 합계와 Deal 목록 원장의 건수·금액이 같다."""
     # Given
-    sap = await given_vendor(api, "SAP", ["S/4HANA"])
+    sap = await given_vendor(api, "SAP")
     kim = await given_sales_user(api, "kim")
     lee = await given_sales_user(api, "lee")
     for owner, forecast, amount, day, vendor_id in (

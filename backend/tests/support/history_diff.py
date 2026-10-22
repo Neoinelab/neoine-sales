@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any
 from app.domain.bant.values import BantLabelId
 from app.domain.deal.history import diff_deal
 from app.domain.deal.values import RevenueAmount
-from app.domain.vendor.values import SolutionId, VendorId
+from app.domain.vendor.values import VendorId
 from tests.factories import NOW, make_deal
 from tests.support.user_ids import OWNER_ID, uid
 
@@ -26,10 +26,7 @@ LABEL_CEO = BantLabelId(22)
 LABELS = {LABEL_FULL_BUDGET: "풀 예산 확보", LABEL_CEO: "CEO 보고 완료"}
 VENDOR_SAP = VendorId(31)
 VENDOR_ORACLE = VendorId(32)
-SOLUTION_S4 = SolutionId(41)
-SOLUTION_EBS = SolutionId(42)
 VENDORS = {VENDOR_SAP: "SAP", VENDOR_ORACLE: "Oracle"}
-SOLUTIONS = {SOLUTION_S4: "S/4HANA", SOLUTION_EBS: "EBS"}
 STATUSES = {
     "prospecting": "기회발굴",
     "price_negotiation": "가격협상",
@@ -74,9 +71,6 @@ class Lookup:
     def vendor_name(self, vendor_id: VendorId | None) -> str:
         return "선택 안 함" if vendor_id is None else VENDORS[vendor_id]
 
-    def solution_name(self, solution_id: SolutionId | None) -> str:
-        return "선택 안 함" if solution_id is None else SOLUTIONS[solution_id]
-
 
 def base_deal(**overrides: Any) -> Deal:  # noqa: ANN401
     values: dict[str, Any] = {
@@ -90,7 +84,7 @@ def base_deal(**overrides: Any) -> Deal:  # noqa: ANN401
         "revenue_date": date(2026, 12, 1),
         "name": "A",
         "vendor_id": VENDOR_SAP,
-        "solution_id": SOLUTION_S4,
+        "solution": "S/4HANA",
         **overrides,
     }
     return make_deal(NOW, **values)

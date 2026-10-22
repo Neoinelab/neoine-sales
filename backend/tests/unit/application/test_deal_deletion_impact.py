@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 
 
 def test_the_facets_use_case_is_gone() -> None:
-    """AC-17: Vendor·Solution 선택지는 등록 목록(`/vendors`)에서 오고 Deal에서 모으지 않는다."""
+    """AC-17: Vendor 선택지는 등록 목록(`/vendors`)에서 오고 Deal에서 모으지 않는다."""
     with pytest.raises(ModuleNotFoundError):
         importlib.import_module("app.application.deal.list_facets")
 

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { DealPatch } from '../../../shared/model/inputs'
 import type { HistoryCategory } from '../../../shared/model/types'
-import { seedSolutionId, seedVendorId } from '../../fixtures/vendors'
+import { seedVendorId } from '../../fixtures/vendors'
 import { contactIdOf, dealCode, expectApiError, mockAs, TEST_NOW } from '../testing'
 import { USER_ID } from '../seed/ids'
 
@@ -41,7 +41,7 @@ describe('deals.update', () => {
       revenueAmount: 777_000_000,
       revenueDate: '2026-12-31',
       vendorId: seedVendorId('Okta'),
-      solutionId: seedSolutionId('Okta', 'SSO'),
+      solution: 'SSO',
       users: 250,
       bant: { budget: { id: budget.id }, authority: null, need: null, timeline: null },
       quote: { submitted: 'YES', submittedDate: '2026-10-10' },

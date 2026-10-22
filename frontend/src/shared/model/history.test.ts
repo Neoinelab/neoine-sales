@@ -9,13 +9,12 @@ const lookup: HistoryLookup = {
   userName: (id) => ({ [USER_ID.kim]: '김영업', [USER_ID.park]: '박영업' })[id] ?? String(id),
   contactName: (id) => ({ 1: '한빛은행 정민수', 11: '코어테크 민지훈', 12: '에이원시스템 표성호' })[id] ?? String(id),
   vendorName: (id) => (id === null ? '선택 안 함' : ({ 1: 'SAP', 2: 'Okta' })[id] ?? String(id)),
-  solutionName: (id) => (id === null ? '선택 안 함' : ({ 1: 'S/4', 2: 'SSO' })[id] ?? String(id)),
   bantLabelName: (id) => (id === null ? '선택 안 함' : `L:${id}`),
 }
 
 function deal(over: Partial<Deal> = {}): Deal {
   return {
-    code: '20260801-D001', name: 'A', ownerId: USER_ID.kim, vendorId: 1, solutionId: 1, users: 10,
+    code: '20260801-D001', name: 'A', ownerId: USER_ID.kim, vendorId: 1, solution: 'S/4', users: 10,
     statusKey: 'price_negotiation', forecastKey: 'commit', revenueAmount: 1_000, revenueDate: '2026-12-01',
     customerContactId: 1, partnerLinks: [{ contactId: 11, active: true, linkedAt: 'x', unlinkedAt: null }],
     quote: { submitted: null, submittedDate: null }, poc: { state: null, completedDate: null }, procurement: '',
@@ -73,8 +72,8 @@ describe('diffDeal', () => {
     expect(drafts.find((d) => d.category === 'status')?.after).toBe('계약완료')
   })
 
-  it('AC-14 Vendor와 Solution 변경은 이름으로 기타 1건씩 남고 순서는 Deal Name, Vendor, Solution, Users이다', () => {
-    const after = deal({ name: 'B', vendorId: 2, solutionId: 2, users: 5 })
+  it('AC-11 Vendor와 Solution 변경은 기타 1건씩 남고 Solution은 텍스트이며 순서는 Deal Name, Vendor, Solution, Users이다', () => {
+    const after = deal({ name: 'B', vendorId: 2, solution: 'SSO', users: 5 })
 
     const others = diffDeal(deal(), after, lookup).filter((d) => d.category === 'other')
 
@@ -86,13 +85,33 @@ describe('diffDeal', () => {
     ])
   })
 
-  it('AC-14 선택 없음은 선택 안 함으로 표기하고 바뀌지 않으면 남기지 않는다', () => {
-    const cleared = diffDeal(deal(), deal({ vendorId: null, solutionId: null }), lookup)
-
-    expect(cleared).toEqual([
-      { category: 'other', target: 'Vendor', before: 'SAP', after: '선택 안 함' },
-      { category: 'other', target: 'Solution', before: 'S/4', after: '선택 안 함' },
+  it('records solution text with dash for empty (legacy empty values only)', () => {
+    expect(diffDeal(deal({ solution: '' }), deal({ solution: 'ITDR' }), lookup)).toEqual([
+      { category: 'other', target: 'Solution', before: '-', after: 'ITDR' },
     ])
-    expect(diffDeal(deal({ vendorId: null, solutionId: null }), deal({ vendorId: null, solutionId: null }), lookup)).toEqual([])
+  })
+
+  it('AC-11 대소문자만 바뀐 Solution도 남기고 같은 값이면 남기지 않는다', () => {
+    expect(diffDeal(deal({ solution: 'itdr' }), deal({ solution: 'ITDR' }), lookup)).toEqual([
+      { category: 'other', target: 'Solution', before: 'itdr', after: 'ITDR' },
+    ])
+    expect(diffDeal(deal({ solution: 'ITDR' }), deal({ solution: 'ITDR' }), lookup)).toEqual([])
+  })
+
+  it('AC-11 Vendor만 바뀌면 Vendor 1건만 남고 Solution 항목은 없다', () => {
+    const drafts = diffDeal(deal(), deal({ vendorId: 2 }), lookup)
+
+    expect(drafts).toEqual([{ category: 'other', target: 'Vendor', before: 'SAP', after: 'Okta' }])
+  })
+
+  it('AC-11 Vendor를 비우면 선택 안 함으로 표기하고 Solution은 그대로라 남기지 않는다', () => {
+    const cleared = diffDeal(deal(), deal({ vendorId: null }), lookup)
+
+    expect(cleared).toEqual([{ category: 'other', target: 'Vendor', before: 'SAP', after: '선택 안 함' }])
+    expect(diffDeal(deal({ vendorId: null }), deal({ vendorId: null }), lookup)).toEqual([])
+  })
+
+  it('HistoryLookup has no solutionName any more', () => {
+    expect(Object.keys(lookup)).not.toContain('solutionName')
   })
 })

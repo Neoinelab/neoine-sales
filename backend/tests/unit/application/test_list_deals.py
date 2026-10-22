@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING
 from app.application.deal.dto import NamedRef
 from app.application.ports.deal_repository import DealQuery
 from app.domain.auth.principal import Role
-from app.domain.vendor.values import SolutionId, VendorId
+from app.domain.vendor.values import VendorId
 from tests.factories import NOW, later
 from tests.factories_deal import (
     SALES,
@@ -173,43 +173,59 @@ class TestFilters:
         ]
         assert mine.item.deal.id.value in _codes(await env.list.execute(DealQuery()))
 
-    async def test_vendor_and_solution_filters_match_by_id(self, env: DealEnv) -> None:
-        sap = await env.new_vendor("SAP", ("S/4HANA", "BW"))
-        oracle = await env.new_vendor("Oracle", ("EBS",))
-        s4, bw = sap.solutions
-        hit = await env.new_deal(vendor_id=sap.id, solution_id=s4.id)
-        other_solution = await env.new_deal(vendor_id=sap.id, solution_id=bw.id)
-        await env.new_deal(vendor_id=oracle.id, solution_id=oracle.solutions[0].id)
+    async def test_vendor_filter_matches_by_id(self, env: DealEnv) -> None:
+        sap = await env.new_vendor("SAP")
+        oracle = await env.new_vendor("Oracle")
+        hit = await env.new_deal(vendor_id=sap.id, solution="S/4HANA")
+        await env.new_deal(vendor_id=oracle.id)
         await env.new_deal()
 
         by_vendor = await env.list.execute(DealQuery(vendor_id=sap.id))
-        by_solution = await env.list.execute(DealQuery(solution_id=s4.id))
-        by_both = await env.list.execute(DealQuery(vendor_id=sap.id, solution_id=s4.id))
 
-        assert set(_codes(by_vendor)) == {hit.item.deal.id.value, other_solution.item.deal.id.value}
-        assert _codes(by_solution) == [hit.item.deal.id.value]
-        assert _codes(by_both) == [hit.item.deal.id.value]
+        assert _codes(by_vendor) == [hit.item.deal.id.value]
 
-    async def test_list_rows_carry_vendor_and_solution_names(self, env: DealEnv) -> None:
-        sap = await env.new_vendor("SAP", ("S/4HANA",))
-        await env.new_deal(vendor_id=sap.id, solution_id=sap.solutions[0].id)
-        await env.new_deal(vendor_id=sap.id)
-        await env.new_deal()
+    async def test_list_passes_solution_text_to_repository(self, env: DealEnv) -> None:
+        hit = await env.new_deal(solution="ITDR")
+        plus = await env.new_deal(solution="itdr Plus")
+        await env.new_deal(solution="MFA")
+
+        page = await env.list.execute(DealQuery(solution="itd"))
+
+        assert set(_codes(page)) == {hit.item.deal.id.value, plus.item.deal.id.value}
+        assert page.total == 2
+
+    async def test_solution_filter_combines_with_vendor_filter(self, env: DealEnv) -> None:
+        sap = await env.new_vendor("SAP")
+        oracle = await env.new_vendor("Oracle")
+        hit = await env.new_deal(vendor_id=sap.id, solution="ITDR")
+        await env.new_deal(vendor_id=oracle.id, solution="ITDR")
+        await env.new_deal(vendor_id=sap.id, solution="MFA")
+
+        page = await env.list.execute(DealQuery(vendor_id=sap.id, solution="itd"))
+
+        assert _codes(page) == [hit.item.deal.id.value]
+
+    async def test_list_views_have_vendor_ref_and_solution_text(self, env: DealEnv) -> None:
+        sap = await env.new_vendor("SAP")
+        await env.new_deal(vendor_id=sap.id, solution="S/4HANA")
+        await env.new_deal(vendor_id=sap.id, solution="BW")
+        await env.new_deal(solution="MFA")
 
         views = (await env.list.execute(DealQuery())).items
 
-        named = {(v.vendor, v.solution) for v in views}
-        assert named == {
-            (NamedRef(sap.id, "SAP"), NamedRef(sap.solutions[0].id, "S/4HANA")),
-            (NamedRef(sap.id, "SAP"), None),
-            (None, None),
+        shown = {(v.vendor, v.item.deal.details.solution) for v in views}
+        assert shown == {
+            (NamedRef(sap.id, "SAP"), "S/4HANA"),
+            (NamedRef(sap.id, "SAP"), "BW"),
+            (None, "MFA"),
         }
+        assert all(not hasattr(v, "solution") for v in views)
 
     async def test_unknown_vendor_id_returns_nothing(self, env: DealEnv) -> None:
         await env.new_deal()
 
         page = await env.list.execute(DealQuery(vendor_id=VendorId(new_id())))
-        by_solution = await env.list.execute(DealQuery(solution_id=SolutionId(new_id())))
+        by_solution = await env.list.execute(DealQuery(solution="no-such"))
 
         assert (page.items, page.total, by_solution.total) == ([], 0, 0)
 

@@ -19,7 +19,7 @@ if TYPE_CHECKING:
     from app.domain.deal.history import DealSnapshot, HistoryDraft
     from app.domain.deal.sync import CoChange, CodeCatalog
     from app.domain.user.value_objects import UserId
-    from app.domain.vendor.values import SolutionId, VendorId
+    from app.domain.vendor.values import VendorId
 
 
 @dataclass(frozen=True, slots=True)
@@ -32,7 +32,6 @@ class NameLookup:
     contacts: Mapping[ContactId, str]
     labels: Mapping[BantLabelId, str]
     vendors: Mapping[VendorId, str]
-    solutions: Mapping[SolutionId, str]
 
     def status_name(self, key: str) -> str:
         return self.statuses.get(key, key)
@@ -56,11 +55,6 @@ class NameLookup:
             return "선택 안 함"
         return self.vendors.get(vendor_id, str(vendor_id))
 
-    def solution_name(self, solution_id: SolutionId | None) -> str:
-        if solution_id is None:
-            return "선택 안 함"
-        return self.solutions.get(solution_id, str(solution_id))
-
 
 def _label_ids(snapshots: Iterable[DealSnapshot]) -> set[BantLabelId]:
     return {
@@ -71,19 +65,12 @@ def _label_ids(snapshots: Iterable[DealSnapshot]) -> set[BantLabelId]:
     }
 
 
-async def _vendor_names(
-    uow: UnitOfWork, snapshots: Iterable[DealSnapshot]
-) -> tuple[dict[VendorId, str], dict[SolutionId, str]]:
+async def _vendor_names(uow: UnitOfWork, snapshots: Iterable[DealSnapshot]) -> dict[VendorId, str]:
     """스냅숏에 Vendor가 하나라도 있을 때만 Vendor 목록을 읽어 필요한 이름만 담는다."""
     vendor_ids = {s.details.vendor_id for s in snapshots} - {None}
-    solution_ids = {s.details.solution_id for s in snapshots} - {None}
     if not vendor_ids:
-        return {}, {}
-    vendors = await uow.vendors.list()
-    return (
-        {v.id: v.name for v in vendors if v.id in vendor_ids},
-        {s.id: s.name for v in vendors for s in v.solutions if s.id in solution_ids},
-    )
+        return {}
+    return {v.id: v.name for v in await uow.vendors.list() if v.id in vendor_ids}
 
 
 async def build_name_lookup(
@@ -100,7 +87,7 @@ async def build_name_lookup(
     refs = await uow.users.get_refs(user_ids)
     contacts = await uow.contacts.get_many(contact_ids)
     wanted = _label_ids(snapshots)
-    vendors, solutions = await _vendor_names(uow, snapshots)
+    vendors = await _vendor_names(uow, snapshots)
     return NameLookup(
         statuses={c.key: c.name for c in catalog.statuses},
         forecasts={c.key: c.name for c in catalog.forecasts},
@@ -110,7 +97,6 @@ async def build_name_lookup(
             label.id: label.name for label in await uow.bant_labels.list() if label.id in wanted
         },
         vendors=vendors,
-        solutions=solutions,
     )
 
 

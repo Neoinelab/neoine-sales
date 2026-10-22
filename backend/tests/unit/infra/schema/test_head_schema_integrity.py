@@ -164,7 +164,7 @@ async def test_every_foreign_key_column_leads_an_index(session: AsyncSession) ->
 
 
 async def test_only_owned_data_cascades(session: AsyncSession) -> None:
-    """CASCADE 예외: Deal 소속 데이터·Vendor의 Solution·스냅숏의 열과 셀은 부모와 함께 지워진다."""
+    """CASCADE 예외: Deal 소속 데이터·스냅숏의 열과 셀은 부모와 함께 지워진다."""
     cascades = {
         fk.table + "." + fk.column for fk in await foreign_keys(session) if fk.on_delete == "c"
     }
@@ -175,12 +175,10 @@ async def test_only_owned_data_cascades(session: AsyncSession) -> None:
         "deal_history.deal_id",
         "deal_actions.deal_id",
         "deal_attachments.deal_id",  # P2b: 첨부 메타데이터도 Deal 소속이다
-        "solutions.vendor_id",  # Vendor Aggregate: Vendor 삭제는 소속 Solution과 함께(D10)
         "forecast_snapshot_columns.snapshot_id",  # P6 R2 Q6: 저장 당시 코드 목록은 스냅숏 소속
         "forecast_snapshot_cells.snapshot_id",  # 셀은 (snapshot_id, forecast_key)로 열 소속
     }
     parents = {
-        "solutions": "vendors",
         "forecast_snapshot_columns": "forecast_snapshots",
         "forecast_snapshot_cells": "forecast_snapshot_columns",
     }

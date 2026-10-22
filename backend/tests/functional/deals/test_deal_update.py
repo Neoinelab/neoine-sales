@@ -54,7 +54,7 @@ async def test_only_the_sent_fields_change_and_each_is_logged(api: Api) -> None:
     body = response.json()
     assert body["name"] == "확장 프로젝트"
     assert body["vendor"] == {"id": oracle.id, "name": "Oracle"}
-    assert body["solution"] is None
+    assert body["solution"] == "S/4HANA"
     assert body["revenue_amount"] == 1_870_000_000
     await then_history_is(
         api,

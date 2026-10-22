@@ -11,23 +11,24 @@ from typing import TYPE_CHECKING, TypeGuard
 from app.domain.bant.values import BantCategory
 from app.domain.common.errors import InvalidValueError
 from app.domain.common.validation import assign, reject_nul
-from app.domain.deal.errors import SOLUTION_NEEDS_VENDOR_MESSAGE
 
 if TYPE_CHECKING:
     from datetime import date
 
     from app.domain.bant.values import BantLabelId
     from app.domain.user.value_objects import UserId
-    from app.domain.vendor.values import SolutionId, VendorId
+    from app.domain.vendor.values import VendorId
 
 NAME_MAX = 200
 PROCUREMENT_MAX = 500
+SOLUTION_MAX = 200
 AMOUNT_MAX = 2**53 - 1  # 프런트 Number.isSafeInteger와 같다
 USERS_MAX = 2_147_483_647  # PostgreSQL integer 최대
 
 AMOUNT_MESSAGE = "매출금액은 1원 이상의 정수로 입력하세요."
 USERS_MESSAGE = "Users는 0 이상의 정수로 입력하세요."
 USERS_REQUIRED_MESSAGE = "Users를 입력하세요."
+SOLUTION_REQUIRED_MESSAGE = "Solution을 입력하세요."
 
 
 def _is_int(value: object) -> TypeGuard[int]:
@@ -112,6 +113,23 @@ def check_procurement(raw: str) -> str:
     return _optional_limited(raw, "구매절차", PROCUREMENT_MAX, "는")
 
 
+def _stored_solution(raw: str) -> str:
+    """값 객체용 검사: NUL·길이만 본다. 빈 값은 기존(레거시) 행 때문에 허용한다."""
+    reject_nul(raw, "Solution")
+    text = raw.strip()
+    if len(text) > SOLUTION_MAX:
+        raise InvalidValueError(f"Solution은 {SOLUTION_MAX}자 이내로 입력하세요.")
+    return text
+
+
+def check_solution(raw: str) -> str:
+    """입력 검증(등록·수정에서 보낸 값). 앞뒤 공백을 지우고 비면 거절, 대소문자는 그대로 둔다."""
+    text = _stored_solution(raw)
+    if not text:
+        raise InvalidValueError(SOLUTION_REQUIRED_MESSAGE)
+    return text
+
+
 def check_amount(value: object) -> RevenueAmount:
     """정수가 아니거나 범위 밖이면 InvalidValueError. int 외 값은 형 검사를 통과하지 못한다."""
     if not _is_int(value):
@@ -135,7 +153,7 @@ class DealDetails:
     name: str
     owner_user_id: UserId
     vendor_id: VendorId | None
-    solution_id: SolutionId | None
+    solution: str
     users: int
     revenue_amount: RevenueAmount
     revenue_date: date
@@ -144,11 +162,39 @@ class DealDetails:
     procurement: str
 
     def __post_init__(self) -> None:
-        if self.solution_id is not None and self.vendor_id is None:
-            raise InvalidValueError(SOLUTION_NEEDS_VENDOR_MESSAGE)
         assign(
             self,
             name=check_name(self.name),
+            solution=_stored_solution(self.solution),
             users=check_users(self.users),
             procurement=check_procurement(self.procurement),
+        )
+
+    @classmethod
+    def from_storage(  # noqa: PLR0913
+        cls,
+        *,
+        name: str,
+        owner_user_id: UserId,
+        vendor_id: VendorId | None,
+        solution: str,
+        users: int,
+        revenue_amount: RevenueAmount,
+        revenue_date: date,
+        quote: Quote,
+        poc: Poc,
+        procurement: str,
+    ) -> DealDetails:
+        """저장된 행에서 복원한다. 생성자와 같은 검사를 하며 빈 Solution도 허용된다."""
+        return cls(
+            name=name,
+            owner_user_id=owner_user_id,
+            vendor_id=vendor_id,
+            solution=solution,
+            users=users,
+            revenue_amount=revenue_amount,
+            revenue_date=revenue_date,
+            quote=quote,
+            poc=poc,
+            procurement=procurement,
         )

@@ -12,7 +12,6 @@ class IdKind(StrEnum):
     BANT_LABEL = "bant_label"
     ACTION_TYPE = "action_type"
     VENDOR = "vendor"
-    SOLUTION = "solution"
     DEAL_ACTION = "deal_action"
     ATTACHMENT = "attachment"
 

@@ -23,7 +23,7 @@ if TYPE_CHECKING:
     from app.domain.deal.sync import SyncState
     from app.domain.deal.values import BantSelection, DealDetails, Poc, Quote
     from app.domain.user.value_objects import UserId
-    from app.domain.vendor.values import SolutionId, VendorId
+    from app.domain.vendor.values import VendorId
 
 TARGET_MAX = 300
 TEXT_MAX = 1000
@@ -116,10 +116,6 @@ class HistoryLookup(Protocol):
         ...
 
     def vendor_name(self, vendor_id: VendorId | None) -> str:
-        """없으면 '선택 안 함'."""
-        ...
-
-    def solution_name(self, solution_id: SolutionId | None) -> str:
         """없으면 '선택 안 함'."""
         ...
 
@@ -264,12 +260,7 @@ def _detail_pairs(before: DealDetails, after: DealDetails, lookup: HistoryLookup
             lookup.vendor_name(before.vendor_id),
             lookup.vendor_name(after.vendor_id),
         ),
-        (
-            other,
-            "Solution",
-            lookup.solution_name(before.solution_id),
-            lookup.solution_name(after.solution_id),
-        ),
+        (other, "Solution", before.solution or "-", after.solution or "-"),
         (other, "Users", _number_text(before.users), _number_text(after.users)),
         (other, "견적", _quote_text(before.quote), _quote_text(after.quote)),
         (other, "POC", _poc_text(before.poc), _poc_text(after.poc)),

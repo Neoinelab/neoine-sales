@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 
 @dataclass(frozen=True, slots=True)
 class NamedRef:
-    """이름으로 보여 줄 참조(Vendor, Solution)."""
+    """이름으로 보여 줄 참조(Vendor)."""
 
     id: int
     name: str
@@ -23,7 +23,7 @@ class NamedRef:
 
 @dataclass(frozen=True, slots=True)
 class DealView:
-    """Deal 한 건과 화면에 필요한 참조(Owner, 고객, 모든 파트너 링크의 연락처, Vendor, Solution)."""
+    """Deal 한 건과 화면에 필요한 참조(Owner, 고객, 모든 파트너 링크의 연락처, Vendor)."""
 
     item: DealListItem
     owner: UserRef
@@ -32,7 +32,6 @@ class DealView:
     risk: Risk | None
     status_days: int
     vendor: NamedRef | None = None
-    solution: NamedRef | None = None
 
 
 @dataclass(frozen=True, slots=True)

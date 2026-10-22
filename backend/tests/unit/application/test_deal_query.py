@@ -11,13 +11,12 @@ import pytest
 from app.application.ports.deal_repository import DealQuery, DealSort, SortOrder
 from app.application.ports.pagination import MAX_LIMIT
 from app.domain.common.errors import InvalidValueError
-from app.domain.vendor.values import SolutionId, VendorId
+from app.domain.vendor.values import VendorId
 from tests.support.expect import raises_with
 from tests.support.user_ids import uid
 
 KEYWORD_LIMIT = 100
 VENDOR = VendorId(31)
-SOLUTION = SolutionId(41)
 
 
 def test_defaults_are_the_first_page_of_twenty_newest_first_without_conditions() -> None:
@@ -29,7 +28,7 @@ def test_defaults_are_the_first_page_of_twenty_newest_first_without_conditions()
         "keyword",
         "owner_user_id",
         "vendor_id",
-        "solution_id",
+        "solution",
         "status_key",
         "forecast_key",
         "year",
@@ -61,7 +60,7 @@ def test_given_conditions_are_kept() -> None:
         keyword="erp",
         owner_user_id=uid("park"),
         vendor_id=VENDOR,
-        solution_id=SOLUTION,
+        solution="itd",
         status_key="introduction",
         forecast_key="best",
         updated_from=date(2026, 6, 1),
@@ -71,7 +70,7 @@ def test_given_conditions_are_kept() -> None:
     )
 
     assert (query.keyword, query.owner_user_id) == ("erp", uid("park"))
-    assert (query.vendor_id, query.solution_id) == (VENDOR, SOLUTION)
+    assert (query.vendor_id, query.solution) == (VENDOR, "itd")
     assert (query.status_key, query.forecast_key) == ("introduction", "best")
     assert (query.updated_from, query.updated_to) == (date(2026, 6, 1), date(2026, 6, 30))
     assert (query.offset, query.limit) == (3, 7)
@@ -156,13 +155,41 @@ def test_a_nul_character_in_the_keyword_is_rejected() -> None:
         DealQuery(keyword="a\x00b")
 
 
-def test_the_old_vendor_and_solution_text_conditions_are_gone() -> None:
+def test_the_old_vendor_text_condition_and_solution_id_are_gone() -> None:
     query = DealQuery()
 
     assert not hasattr(query, "vendor")
-    assert not hasattr(query, "solution")
+    assert not hasattr(query, "solution_id")
     with pytest.raises(TypeError):
         DealQuery(vendor="SAP")  # type: ignore[call-arg]
+    with pytest.raises(TypeError):
+        DealQuery(solution_id=1)  # type: ignore[call-arg]
+
+
+def test_solution_filter_is_trimmed() -> None:
+    assert DealQuery(solution=" itd ").solution == "itd"
+
+
+@pytest.mark.parametrize("raw", ["", "  ", "\t"])
+def test_blank_solution_filter_means_no_condition(raw: str) -> None:
+    assert DealQuery(solution=raw).solution is None
+
+
+def test_solution_filter_allows_200_and_rejects_201() -> None:
+    assert DealQuery(solution="a" * 200).solution == "a" * 200
+    with pytest.raises(InvalidValueError):
+        DealQuery(solution="a" * 201)
+
+
+def test_solution_filter_length_is_measured_after_trimming() -> None:
+    assert DealQuery(solution=f" {'a' * 200} ").solution == "a" * 200
+    with pytest.raises(InvalidValueError):
+        DealQuery(solution=f" {'a' * 201} ")
+
+
+def test_solution_filter_with_nul_is_rejected() -> None:
+    with pytest.raises(InvalidValueError):
+        DealQuery(solution="a\x00b")
 
 
 def test_quarter_without_year_is_accepted() -> None:

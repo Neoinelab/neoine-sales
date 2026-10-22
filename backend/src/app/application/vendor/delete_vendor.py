@@ -6,7 +6,7 @@ if TYPE_CHECKING:
 
 
 class DeleteVendor:
-    """Vendor를 소속 Solution과 함께 물리 삭제한다. Deal이 쓰면 VendorInUseError."""
+    """Vendor를 물리 삭제한다. Deal이 쓰면 VendorInUseError."""
 
     def __init__(self, uow_factory: UnitOfWorkFactory) -> None:
         self._uow_factory = uow_factory

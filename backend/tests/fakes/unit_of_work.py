@@ -69,7 +69,7 @@ class FakeUnitOfWork:
         # 사용 중인 코드 삭제는 CodeInUseError (FK RESTRICT): Deal 사용이 먼저, Action 스냅숏이 다음
         self.codes.wire(deals=self.deals, actions=self.deal_actions)
         self.bant_labels.wire(deals=self.deals)  # 사용 중인 Label 삭제는 LabelInUseError
-        self.vendors.wire(deals=self.deals)  # 사용 중인 Vendor·Solution 삭제는 InUseError
+        self.vendors.wire(deals=self.deals)  # 사용 중인 Vendor 삭제는 InUseError
         self.contacts.restrict_delete_by(self.deals)  # FK RESTRICT (고객·파트너 링크 모두)
         self._wire_user_references()
         self.commits = 0

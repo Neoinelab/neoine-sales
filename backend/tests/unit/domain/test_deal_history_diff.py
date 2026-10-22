@@ -19,8 +19,6 @@ from tests.support.history_diff import (
     OTHER_CUSTOMER,
     PARTNER_1,
     PARTNER_2,
-    SOLUTION_EBS,
-    SOLUTION_S4,
     VENDOR_ORACLE,
     VENDOR_SAP,
     base_deal,
@@ -147,51 +145,71 @@ def test_plain_fields_are_other_entries_named_after_the_field(
 
 
 def test_vendor_change_is_recorded_with_names() -> None:
-    deal = base_deal(vendor_id=None, solution_id=None)
+    deal = base_deal(vendor_id=None)
 
     rows = diff_after(edit_of("vendor_id", VENDOR_SAP), deal)
 
     assert rows == [("other", "Vendor", "선택 안 함", "SAP")]
 
 
-def test_solution_change_is_recorded_with_names() -> None:
-    deal = base_deal(vendor_id=VENDOR_SAP, solution_id=None)
+def test_solution_change_is_recorded_as_text() -> None:
+    deal = base_deal(solution="MFA")
 
-    rows = diff_after(edit_of("solution_id", SOLUTION_S4), deal)
+    rows = diff_after(edit_of("solution", "ITDR"), deal)
 
-    assert rows == [("other", "Solution", "선택 안 함", "S/4HANA")]
-
-
-def test_clearing_vendor_and_solution_is_written_as_not_selected() -> None:
-    def clear(deal: Deal) -> None:
-        revise_with(
-            deal, details=dataclasses.replace(deal.details, vendor_id=None, solution_id=None)
-        )
-
-    rows = diff_after(clear)
-
-    assert rows == [
-        ("other", "Vendor", "SAP", "선택 안 함"),
-        ("other", "Solution", "S/4HANA", "선택 안 함"),
-    ]
+    assert rows == [("other", "Solution", "MFA", "ITDR")]
 
 
-def test_changing_the_vendor_and_clearing_the_solution_records_two_entries() -> None:
+def test_legacy_empty_solution_is_shown_as_dash_in_history() -> None:
+    """마이그레이션이 채운 ''(레거시 미입력)에서 값으로 바뀔 때만 '-'가 나온다."""
+    deal = base_deal()
+    object.__setattr__(deal.details, "solution", "")  # 도메인 검증을 거치지 않은 레거시 행
+    before = deal.snapshot()
+    edit_of("solution", "ITDR")(deal)
+
+    assert rows_of(before, deal.snapshot()) == [("other", "Solution", "-", "ITDR")]
+
+
+def test_solution_case_only_change_is_recorded() -> None:
+    deal = base_deal(solution="itdr")
+
+    rows = diff_after(edit_of("solution", "ITDR"), deal)
+
+    assert rows == [("other", "Solution", "itdr", "ITDR")]
+
+
+def test_whitespace_only_solution_difference_records_nothing() -> None:
+    deal = base_deal(solution="ITDR")
+
+    rows = diff_after(edit_of("solution", "  ITDR  "), deal)
+
+    assert rows == []
+
+
+def test_unchanged_solution_records_nothing() -> None:
+    assert diff_after(edit_of("solution", "S/4HANA")) == []
+
+
+def test_vendor_change_does_not_record_solution() -> None:
     def change(deal: Deal) -> None:
-        details = dataclasses.replace(deal.details, vendor_id=VENDOR_ORACLE, solution_id=None)
-        revise_with(deal, details=details)
+        revise_with(deal, details=dataclasses.replace(deal.details, vendor_id=VENDOR_ORACLE))
 
     rows = diff_after(change)
 
-    assert rows == [
-        ("other", "Vendor", "SAP", "Oracle"),
-        ("other", "Solution", "S/4HANA", "선택 안 함"),
-    ]
+    assert rows == [("other", "Vendor", "SAP", "Oracle")]
 
 
-def test_unchanged_vendor_and_solution_record_nothing() -> None:
+def test_clearing_the_vendor_keeps_the_solution_untouched() -> None:
+    def clear(deal: Deal) -> None:
+        revise_with(deal, details=dataclasses.replace(deal.details, vendor_id=None))
+
+    rows = diff_after(clear)
+
+    assert rows == [("other", "Vendor", "SAP", "선택 안 함")]
+
+
+def test_unchanged_vendor_records_nothing() -> None:
     assert diff_after(edit_of("vendor_id", VENDOR_SAP)) == []
-    assert diff_after(edit_of("solution_id", SOLUTION_S4)) == []
 
 
 def test_users_set_to_zero_is_written_as_zero() -> None:
@@ -232,7 +250,7 @@ def _change_everything(deal: Deal) -> None:
         deal.details,
         name="B",
         vendor_id=VENDOR_ORACLE,
-        solution_id=SOLUTION_EBS,
+        solution="EBS",
         users=3,
         revenue_amount=RevenueAmount(2_000),
         revenue_date=date(2026, 10, 20),

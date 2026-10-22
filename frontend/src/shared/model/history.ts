@@ -39,7 +39,6 @@ export interface HistoryLookup {
   bantLabelName(id: number | null): string
   /** Vendor 이름. id가 null이거나 없으면 '선택 안 함'. */
   vendorName(id: number | null): string
-  solutionName(id: number | null): string
 }
 
 /**
@@ -76,7 +75,7 @@ export function diffDeal(
   }
   push('other', 'Deal Name', before.name, after.name)
   push('other', 'Vendor', lookup.vendorName(before.vendorId), lookup.vendorName(after.vendorId))
-  push('other', 'Solution', lookup.solutionName(before.solutionId), lookup.solutionName(after.solutionId))
+  push('other', 'Solution', before.solution || '-', after.solution || '-')
   push('other', 'Users', numberText(before.users), numberText(after.users))
   push('other', '견적', quoteText(before), quoteText(after))
   push('other', 'POC', pocText(before), pocText(after))

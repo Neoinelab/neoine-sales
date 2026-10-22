@@ -21,7 +21,6 @@ export function lookupFor(ctx: MockContext): HistoryLookup {
       return c ? `${c.company} ${c.name}` : String(id)
     },
     vendorName: (id) => (id === null ? '선택 안 함' : (data.vendors.find((v) => v.id === id)?.name ?? String(id))),
-    solutionName: (id) => (id === null ? '선택 안 함' : (data.solutions.find((x) => x.id === id)?.name ?? String(id))),
     bantLabelName: (id) => (id === null ? '선택 안 함' : (data.labels.find((l) => l.id === id)?.name ?? String(id))),
   }
 }

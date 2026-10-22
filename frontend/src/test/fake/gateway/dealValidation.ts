@@ -7,33 +7,42 @@ import type { ContactDraft, Deal, DealInput } from '../../../shared/model/types'
 import { validation } from '../errors'
 import { checkBant, type BantChoices, type BantDraft } from './bantChoice'
 import type { MockContext } from './context'
-import { SOLUTION_MISMATCH_MESSAGE, SOLUTION_NEEDS_VENDOR_MESSAGE, UNKNOWN_VENDOR_MESSAGE } from './vendors'
+import { UNKNOWN_VENDOR_MESSAGE } from './vendors'
 
 export const SYNC_MISMATCH_MESSAGE = 'Status와 Forecast의 동기화가 맞지 않습니다.'
 export const PARTNER_INCOMPLETE_MESSAGE = '파트너를 입력하면 회사명과 담당자명이 모두 필요합니다.'
 
-/** 서버 값 규칙(Deal Name 200자, 구매절차 500자, Users는 DB 정수 상한). */
+export const SOLUTION_REQUIRED_MESSAGE = 'Solution을 입력하세요.'
+export const SOLUTION_TOO_LONG_MESSAGE = 'Solution은 200자 이내로 입력하세요.'
+
+/** 서버 값 규칙(Deal Name 200자, Solution 200자, 구매절차 500자, Users는 DB 정수 상한). */
 const NAME_MAX = 200
+const SOLUTION_MAX = 200
 const PROCUREMENT_MAX = 500
 const USERS_MAX = 2_147_483_647
 
 type Scalars = Pick<
   Deal,
-  'name' | 'vendorId' | 'solutionId' | 'ownerId' | 'users' | 'procurement' | 'statusKey' | 'forecastKey' | 'revenueAmount' | 'revenueDate'
+  'name' | 'vendorId' | 'solution' | 'ownerId' | 'users' | 'procurement' | 'statusKey' | 'forecastKey' | 'revenueAmount' | 'revenueDate'
 >
 
 /** 선택 필드를 쓰지 않으면 `provided('bant')`가 false인 입력(등록은 항상 true). */
 export type ProvidedKeys = (key: keyof Scalars | 'bant') => boolean
 
-/** Vendor·Solution 선택 검증(서버와 같은 순서: Deal Name 다음, Owner 앞). */
+/** Vendor 선택 검증(서버와 같은 순서: Deal Name 다음, Solution 앞). Solution은 Vendor와 무관한 텍스트다. */
 function validateVendorChoice(ctx: MockContext, effective: Scalars, check: boolean): void {
-  const { vendors, solutions } = ctx.store.data
-  if (effective.solutionId !== null && effective.vendorId === null) throw validation(SOLUTION_NEEDS_VENDOR_MESSAGE)
   if (!check) return
-  if (effective.vendorId !== null && !vendors.some((v) => v.id === effective.vendorId)) throw validation(UNKNOWN_VENDOR_MESSAGE)
-  if (effective.solutionId !== null && !solutions.some((s) => s.id === effective.solutionId && s.vendorId === effective.vendorId)) {
-    throw validation(SOLUTION_MISMATCH_MESSAGE)
+  if (effective.vendorId !== null && !ctx.store.data.vendors.some((v) => v.id === effective.vendorId)) {
+    throw validation(UNKNOWN_VENDOR_MESSAGE)
   }
+}
+
+/** Solution 텍스트 검증(필수: 앞뒤 공백을 지운 뒤 1~200자, NUL 거부). */
+function validateSolution(effective: Scalars, check: boolean): void {
+  if (!check) return
+  if (effective.solution.includes('\u0000')) throw validation('Solution에 사용할 수 없는 문자가 있습니다.')
+  if (effective.solution.trim() === '') throw validation(SOLUTION_REQUIRED_MESSAGE)
+  if (Array.from(effective.solution.trim()).length > SOLUTION_MAX) throw validation(SOLUTION_TOO_LONG_MESSAGE)
 }
 
 /**
@@ -50,7 +59,8 @@ export function validateDealFields(
   const { data } = ctx.store
   if (provided('name') && effective.name.trim() === '') throw validation('Deal Name을 입력하세요.')
   if (provided('name') && Array.from(effective.name.trim()).length > NAME_MAX) throw validation('Deal Name은 200자 이내로 입력하세요.')
-  validateVendorChoice(ctx, effective, provided('vendorId') || provided('solutionId'))
+  validateVendorChoice(ctx, effective, provided('vendorId'))
+  validateSolution(effective, provided('solution'))
   if (provided('ownerId')) {
     const owner = data.users.find((u) => u.id === effective.ownerId)
     if (owner?.status === 'resigned') throw validation('퇴사한 사용자는 Owner로 지정할 수 없습니다. 다른 담당자를 선택하세요.')

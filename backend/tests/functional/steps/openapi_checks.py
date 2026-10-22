@@ -75,15 +75,16 @@ def _max_lengths(parameter: dict[str, Any]) -> list[int]:
 
 
 def then_deal_search_text_params_document_max_length(response: Response) -> None:
-    """Deal 검색의 keyword는 최대 길이 100을, Vendor·Solution 조건은 정수 id를 문서화한다."""
+    """Deal 검색의 keyword는 최대 100자, solution은 최대 200자, vendor_id는 정수로 문서화된다."""
     params = {
         p["name"]: p for p in spec_of(response)["paths"]["/api/v1/deals"]["get"]["parameters"]
     }
     assert _max_lengths(params["keyword"]) == [100], "keyword 파라미터에 maxLength 100이 없다"
-    assert not {"vendor", "solution"} & set(params)  # 이름 조건은 id 조건으로 바뀌었다
-    for name in ("vendor_id", "solution_id"):
-        kinds = {o.get("type") for o in params[name]["schema"]["anyOf"]}
-        assert "integer" in kinds, f"{name} 파라미터가 정수가 아니다"
+    assert _max_lengths(params["solution"]) == [200], "solution 파라미터에 maxLength 200이 없다"
+    assert "vendor" not in params  # 이름 조건은 id 조건(vendor_id)으로 바뀌었다
+    assert "solution_id" not in params  # Solution은 목록 id가 아니라 텍스트 조건이다
+    kinds = {o.get("type") for o in params["vendor_id"]["schema"]["anyOf"]}
+    assert "integer" in kinds, "vendor_id 파라미터가 정수가 아니다"
     assert "owner" not in params  # 텍스트 담당자 필터는 owner_user_id(정수)로 바뀌었다
     owner_types = {o.get("type") for o in params["owner_user_id"]["schema"]["anyOf"]}
     assert "integer" in owner_types

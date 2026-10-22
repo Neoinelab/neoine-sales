@@ -12,7 +12,6 @@ from app.application.action_type.register_action_type import RegisterActionType
 from app.application.bant.register_label import RegisterBantLabel
 from app.application.code.register_code import RegisterCode
 from app.application.contact.register_contact import RegisterContact
-from app.application.vendor.register_solution import RegisterSolution
 from app.application.vendor.register_vendor import RegisterVendor
 from app.domain.auth.credentials import LoginId
 from app.domain.auth.principal import Role
@@ -43,27 +42,12 @@ async def test_register_vendor_assigns_the_next_vendor_id(
     assert (first.vendor.id, second.vendor.id) == (1, 2)
 
 
-async def test_register_solution_assigns_the_next_solution_id(
-    uow_factory: UnitOfWorkFactory, clock: FixedClock
-) -> None:
-    vendor = await RegisterVendor(uow_factory, clock).execute("SAP")
-    register = RegisterSolution(uow_factory, clock)
+def test_there_is_no_solution_id_kind() -> None:
+    from app.application import ids  # noqa: PLC0415
+    from app.application.ports.id_allocator import IdKind  # noqa: PLC0415
 
-    first = await register.execute(vendor.vendor.id, "S/4HANA")
-    second = await register.execute(vendor.vendor.id, "Ariba")
-
-    assert (first.solution.id, second.solution.id) == (1, 2)
-
-
-async def test_vendor_and_solution_ids_are_numbered_independently(
-    uow_factory: UnitOfWorkFactory, clock: FixedClock
-) -> None:
-    first_vendor = await RegisterVendor(uow_factory, clock).execute("SAP")
-    second_vendor = await RegisterVendor(uow_factory, clock).execute("Oracle")
-
-    solution = await RegisterSolution(uow_factory, clock).execute(second_vendor.vendor.id, "EBS")
-
-    assert (first_vendor.vendor.id, second_vendor.vendor.id, solution.solution.id) == (1, 2, 1)
+    assert not hasattr(IdKind, "SOLUTION")
+    assert not hasattr(ids, "new_solution_id")
 
 
 async def test_register_code_assigns_the_next_code_id(

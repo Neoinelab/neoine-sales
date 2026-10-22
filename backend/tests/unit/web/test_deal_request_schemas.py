@@ -19,6 +19,7 @@ def _create(**overrides: object) -> dict[str, object]:
     values: dict[str, object] = {
         "name": "ERP 구축",
         "owner_user_id": OWNER_ID,
+        "solution": "ITDR",
         "users": 10,
         "status_key": "prospecting",
         "forecast_key": "pipeline",
@@ -32,7 +33,7 @@ def _create(**overrides: object) -> dict[str, object]:
 def test_a_minimal_create_body_gets_the_documented_defaults() -> None:
     request = DealCreateRequest(**_create())
 
-    assert (request.vendor_id, request.solution_id, request.procurement) == (None, None, "")
+    assert (request.vendor_id, request.solution, request.procurement) == (None, "ITDR", "")
     assert request.users == 10
     assert request.partner is None
     assert request.customer.contact_id is None
@@ -62,11 +63,11 @@ def test_create_request_with_a_non_integer_users_is_a_validation_error(users: ob
 
 
 def test_the_create_body_maps_to_the_use_case_input() -> None:
-    partner_id, vendor_id, solution_id, budget_id = new_id(), new_id(), new_id(), new_id()
+    partner_id, vendor_id, budget_id = new_id(), new_id(), new_id()
     request = DealCreateRequest(
         **_create(
             vendor_id=vendor_id,
-            solution_id=solution_id,
+            solution="ITDR",
             users=250,
             partner={"contact_id": partner_id, "company": "코어테크", "name": "민지훈"},
             quote={"submitted": "YES", "submitted_date": "2026-10-01"},
@@ -78,11 +79,11 @@ def test_the_create_body_maps_to_the_use_case_input() -> None:
 
     data = request.to_input()
 
-    assert (data.name, data.owner_user_id, data.vendor_id, data.solution_id) == (
+    assert (data.name, data.owner_user_id, data.vendor_id, data.solution) == (
         "ERP 구축",
         OWNER_ID,
         vendor_id,
-        solution_id,
+        "ITDR",
     )
     assert (data.users, data.revenue_amount, data.revenue_date) == (
         250,
@@ -138,9 +139,11 @@ def test_range_and_length_rules_are_left_to_the_domain(overrides: dict[str, obje
         {"bant": {"budget": {"id": "not-an-id"}}},
         {"bant": {"budget": "풀 예산 확보"}},
         {"vendor_id": "SAP"},  # 이름이 아니라 정수 id여야 한다
-        {"solution_id": "not-an-id"},
+        {"solution_id": 1},  # 구 필드(id)는 모르는 필드다
         {"vendor": "SAP"},  # 구 필드(문자열)는 모르는 필드다
-        {"solution": "S/4HANA"},
+        {"solution": 1},  # 문자열이 아닌 값은 거절한다
+        {"solution": ["ITDR"]},
+        {"solution": {"name": "ITDR"}},
     ],
 )
 def test_wrong_types_unknown_values_and_unknown_fields_are_rejected(
@@ -201,7 +204,7 @@ BAD_JSON_IDS = ["5", True, 5.0, 0, -3, 2**53]  # 문자열·불리언·실수·0
 
 
 @pytest.mark.parametrize("bad", BAD_JSON_IDS)
-@pytest.mark.parametrize("field", ["owner_user_id", "vendor_id", "solution_id"])
+@pytest.mark.parametrize("field", ["owner_user_id", "vendor_id"])
 def test_reference_ids_must_be_json_integers(field: str, bad: object) -> None:
     with pytest.raises(ValidationError) as caught:
         DealCreateRequest(**_create(**{field: bad}))
@@ -225,46 +228,108 @@ def test_patch_reference_ids_must_be_json_integers(bad: object) -> None:
     with pytest.raises(ValidationError):
         DealPatchRequest(vendor_id=bad)
     with pytest.raises(ValidationError):
-        DealPatchRequest(solution_id=bad)
-    with pytest.raises(ValidationError):
         DealPatchRequest(owner_user_id=bad)
 
 
 def test_the_largest_allowed_reference_id_is_accepted() -> None:
     top = 2**53 - 1
 
-    data = DealCreateRequest(**_create(vendor_id=top, solution_id=1)).to_input()
+    data = DealCreateRequest(**_create(vendor_id=top)).to_input()
 
-    assert (data.vendor_id, data.solution_id) == (top, 1)
+    assert data.vendor_id == top
 
 
-def test_create_accepts_vendor_id_and_solution_id_as_null() -> None:
-    request = DealCreateRequest(**_create(vendor_id=None, solution_id=None))
+def test_create_accepts_vendor_id_as_null() -> None:
+    request = DealCreateRequest(**_create(vendor_id=None))
 
     data = request.to_input()
 
-    assert (data.vendor_id, data.solution_id) == (None, None)
+    assert (data.vendor_id, data.solution) == (None, "ITDR")
+
+
+def test_create_request_accepts_solution_text() -> None:
+    data = DealCreateRequest(**_create(solution="ITDR")).to_input()
+
+    assert data.solution == "ITDR"
+
+
+def test_create_request_without_solution_is_a_validation_error() -> None:
+    body = _create()
+    del body["solution"]
+
+    with pytest.raises(ValidationError) as caught:
+        DealCreateRequest(**body)
+
+    assert [(e["type"], e["loc"]) for e in caught.value.errors()] == [("missing", ("solution",))]
+
+
+def test_create_request_with_null_solution_is_a_validation_error() -> None:
+    with pytest.raises(ValidationError) as caught:
+        DealCreateRequest(**_create(solution=None))
+
+    assert [e["loc"] for e in caught.value.errors()] == [("solution",)]
+
+
+def test_create_request_keeps_a_blank_solution_for_the_domain_to_judge() -> None:
+    """공백만은 도메인 문구(422 invalid-value)로 나가야 하므로 스키마가 거르지 않는다."""
+    assert DealCreateRequest(**_create(solution="   ")).to_input().solution == "   "
+
+
+def test_create_request_keeps_a_long_solution_for_the_domain_to_judge() -> None:
+    """길이 규칙은 도메인 문구(422 invalid-value)로 나가야 하므로 스키마가 자르지 않는다."""
+    data = DealCreateRequest(**_create(solution="a" * 201)).to_input()
+
+    assert data.solution == "a" * 201
+
+
+def test_create_request_rejects_solution_id_field() -> None:
+    with pytest.raises(ValidationError):
+        DealCreateRequest(**_create(solution_id=1))
+
+
+@pytest.mark.parametrize("bad", [1, 1.5, True, ["a"], {"a": 1}])
+def test_create_request_rejects_non_string_solution(bad: object) -> None:
+    with pytest.raises(ValidationError) as caught:
+        DealCreateRequest(**_create(solution=bad))
+
+    assert [e["loc"] for e in caught.value.errors()] == [("solution",)]
 
 
 class TestPatchRequest:
-    def test_patch_null_solution_id_is_sent(self) -> None:
+    def test_patch_null_solution_is_provided(self) -> None:
+        data = DealPatchRequest(solution=None).to_input()
+
+        assert data.provided == frozenset({"solution"})
+        assert data.solution is None
+
+    def test_patch_solution_text_is_provided(self) -> None:
+        data = DealPatchRequest(solution="ITDR").to_input()
+
+        assert data.provided == frozenset({"solution"})
+        assert data.solution == "ITDR"
+
+    def test_patch_vendor_only_does_not_provide_solution(self) -> None:
         vendor_id = new_id()
 
-        data = DealPatchRequest(vendor_id=vendor_id, solution_id=None).to_input()
+        data = DealPatchRequest(vendor_id=vendor_id).to_input()
 
-        assert data.provided == frozenset({"vendor_id", "solution_id"})
-        assert (data.vendor_id, data.solution_id) == (vendor_id, None)
+        assert data.provided == frozenset({"vendor_id"})
 
-    def test_patch_without_vendor_fields_does_not_provide_them(self) -> None:
+    def test_patch_without_vendor_or_solution_does_not_provide_them(self) -> None:
         data = DealPatchRequest(name="B").to_input()
 
-        assert not {"vendor_id", "solution_id"} & data.provided
+        assert not {"vendor_id", "solution"} & data.provided
 
-    def test_patch_rejects_the_old_text_fields(self) -> None:
+    def test_patch_rejects_the_old_fields(self) -> None:
         with pytest.raises(ValidationError):
             DealPatchRequest(vendor="SAP")  # type: ignore[call-arg]
         with pytest.raises(ValidationError):
-            DealPatchRequest(solution="S/4HANA")  # type: ignore[call-arg]
+            DealPatchRequest(solution_id=1)  # type: ignore[call-arg]
+
+    @pytest.mark.parametrize("bad", [1, 1.5, True, ["a"]])
+    def test_patch_rejects_a_non_string_solution(self, bad: object) -> None:
+        with pytest.raises(ValidationError):
+            DealPatchRequest(solution=bad)
 
     def test_patch_rejects_a_non_integer_vendor_id(self) -> None:
         with pytest.raises(ValidationError):

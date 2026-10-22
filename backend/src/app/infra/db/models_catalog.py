@@ -111,18 +111,3 @@ class VendorRow(AuditColumns, Base):
     name: Mapped[str] = mapped_column(String(100))
 
     __table_args__ = (Index("uq_vendors_name_lower", func.lower(name), unique=True),)
-
-
-class SolutionRow(AuditColumns, Base):
-    """Vendor 소속 Solution. Vendor를 지우면 함께 지워지고, 이름은 Vendor 안에서 고유하다."""
-
-    __tablename__ = "solutions"
-
-    vendor_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("vendors.id", ondelete="CASCADE"))
-    name: Mapped[str] = mapped_column(String(200))
-
-    __table_args__ = (
-        # Deal의 복합 FK(solution_id, vendor_id)가 가리키려면 인덱스가 아니라 제약이어야 한다.
-        UniqueConstraint("id", "vendor_id", name="uq_solutions_id_vendor_id"),
-        Index("uq_solutions_vendor_id_name_lower", "vendor_id", func.lower(name), unique=True),
-    )

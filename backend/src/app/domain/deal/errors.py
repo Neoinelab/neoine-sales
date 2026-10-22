@@ -12,7 +12,6 @@ SYNC_MISMATCH_MESSAGE = "Status와 Forecast의 동기화가 맞지 않습니다.
 STATUS_REQUIRED_MESSAGE = "Status를 선택하세요."
 FORECAST_REQUIRED_MESSAGE = "Forecast를 선택하세요."
 UNKNOWN_CODE_MESSAGE = "존재하지 않는 코드입니다."
-SOLUTION_NEEDS_VENDOR_MESSAGE = "Solution을 선택하려면 Vendor를 먼저 선택하세요."
 
 
 class DealNotFoundError(NotFoundError):
@@ -70,10 +69,3 @@ class UnknownVendorError(InvalidValueError):
 
     def __init__(self) -> None:
         super().__init__("선택한 Vendor가 없습니다. 목록에서 다시 선택하세요.")
-
-
-class SolutionVendorMismatchError(InvalidValueError):
-    """Deal에 고른 Solution이 고른 Vendor의 것이 아니다."""
-
-    def __init__(self) -> None:
-        super().__init__("선택한 Solution은 이 Vendor에 속하지 않습니다.")

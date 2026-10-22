@@ -28,7 +28,8 @@ DEAL_TABLES: Final = ("deal_history", "deal_partners", "deal_bant_labels")
 FILE_TABLES: Final = ("deal_attachments", "storage_settings")
 # P3 경고 기준. 과거 리비전 DB에는 없을 수 있어 있는 것만 비운다(users CASCADE로도 비워진다).
 ALERT_TABLES: Final = ("alert_settings",)
-# Vendor·Solution 관리. 과거 리비전 DB에는 없을 수 있어 있는 것만 비운다(deals가 참조).
+# Vendor 관리. 과거 리비전 DB에는 없을 수 있어 있는 것만 비운다(deals가 참조).
+# `solutions`는 Solution 텍스트 리비전이 지웠지만 그 아래 리비전 DB(과거 스키마 테스트)엔 있다.
 VENDOR_TABLES: Final = ("solutions", "vendors")
 # Forecast 월말 스냅숏(P6 R2). 셀은 users CASCADE로 비워지지만 열·헤더는 아니므로 함께 비운다.
 FORECAST_TABLES: Final = (

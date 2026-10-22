@@ -27,4 +27,4 @@ class RegisterVendor:
             )
             await uow.vendors.add(vendor)
             await uow.commit()
-        return VendorUsage(vendor, 0, ())
+        return VendorUsage(vendor, 0)

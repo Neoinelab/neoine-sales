@@ -6,7 +6,7 @@ import { USER_ID } from '../../../test/fake/seed/ids'
 const params = (query: string) => new URLSearchParams(query)
 
 const VENDOR = 3
-const SOLUTION = 12
+const SOLUTION = 'ITDR'
 
 describe('listQueryFromParams (T-LIST-05, T-LIST-09)', () => {
   it('returns only paging for empty params', () => {
@@ -23,7 +23,7 @@ describe('listQueryFromParams (T-LIST-05, T-LIST-09)', () => {
       keyword: '한빛',
       ownerId: USER_ID.kim,
       vendorId: VENDOR,
-      solutionId: SOLUTION,
+      solution: SOLUTION,
       statusKey: 'prospecting',
       forecastKey: 'best',
       year: 2026,
@@ -88,23 +88,44 @@ describe('listQueryFromParams (T-LIST-05, T-LIST-09)', () => {
     expect(listQueryFromParams(params('quarter=5'))).toEqual({ offset: 0, limit: 20 })
   })
 
-  it('reads integer vendor and solution ids', () => {
-    expect(listQueryFromParams(params('vendor=12&solution=3'))).toEqual({ offset: 0, limit: 20, vendorId: 12, solutionId: 3 })
+  it('reads the integer vendor id and the solution as text', () => {
+    expect(listQueryFromParams(params('vendor=12&solution=ITDR'))).toEqual({ offset: 0, limit: 20, vendorId: 12, solution: 'ITDR' })
   })
 
-  it('ignores uuid and name values for vendor and solution', () => {
-    expect(listQueryFromParams(params('vendor=Okta&solution=SSO'))).toEqual({ offset: 0, limit: 20 })
-    expect(
-      listQueryFromParams(params('vendor=10000000-0000-4000-8000-000000000003&solution=20000000-0000-4000-8000-000000000003')),
-    ).toEqual({ offset: 0, limit: 20 })
-    expect(listQueryFromParams(params(`vendor=${VENDOR}&solution=ITDR`))).toEqual({ offset: 0, limit: 20, vendorId: VENDOR })
+  it('passes the solution text as is', () => {
+    expect(listQueryFromParams(params(`solution=${encodeURIComponent('통합 itdr')}`))).toEqual({ offset: 0, limit: 20, solution: '통합 itdr' })
+    expect(listQueryFromParams(params('solution=12'))).toEqual({ offset: 0, limit: 20, solution: '12' })
+  })
+
+  it('trims the solution text and ignores a blank solution', () => {
+    expect(listQueryFromParams(params('solution=%20itd%20'))).toEqual({ offset: 0, limit: 20, solution: 'itd' })
+    expect(listQueryFromParams(params('solution='))).toEqual({ offset: 0, limit: 20 })
+    expect(listQueryFromParams(params('solution=%20%20'))).toEqual({ offset: 0, limit: 20 })
+  })
+
+  it('ignores a solution longer than 200 characters after trimming, like other invalid values', () => {
+    const over = 'a'.repeat(201)
+    expect(listQueryFromParams(params(`solution=${over}`))).toEqual({ offset: 0, limit: 20 })
+    expect(listQueryFromParams(params(`solution=%20${over}%20`))).toEqual({ offset: 0, limit: 20 })
+    expect(listQueryFromParams(params(`vendor=12&solution=${over}`))).toEqual({ offset: 0, limit: 20, vendorId: 12 })
+  })
+
+  it('keeps a solution of exactly 200 characters even with surrounding spaces', () => {
+    const edge = 'a'.repeat(200)
+    expect(listQueryFromParams(params(`solution=%20${edge}%20`))).toEqual({ offset: 0, limit: 20, solution: edge })
+  })
+
+  it('ignores uuid and name values for vendor but not for the solution text', () => {
+    expect(listQueryFromParams(params('vendor=Okta'))).toEqual({ offset: 0, limit: 20 })
+    expect(listQueryFromParams(params('vendor=10000000-0000-4000-8000-000000000003'))).toEqual({ offset: 0, limit: 20 })
+    expect(listQueryFromParams(params(`vendor=${VENDOR}&solution=ITDR`))).toEqual({ offset: 0, limit: 20, vendorId: VENDOR, solution: 'ITDR' })
   })
 
   it.each(['0', '-1', '1.5', '1e3', '01', '+3', '9007199254740992'])(
     'ignores the out-of-range or non-integer id %j in every id parameter',
     (raw) => {
       const encoded = encodeURIComponent(raw)
-      expect(listQueryFromParams(params(`vendor=${encoded}&solution=${encoded}&owner=${encoded}`))).toEqual({
+      expect(listQueryFromParams(params(`vendor=${encoded}&owner=${encoded}`))).toEqual({
         offset: 0,
         limit: 20,
       })

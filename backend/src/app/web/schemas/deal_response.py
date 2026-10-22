@@ -75,7 +75,7 @@ class DealRowResponse(BaseModel):
     owner_user_id: int
     owner: UserRef
     vendor: NamedRefResponse | None
-    solution: NamedRefResponse | None
+    solution: str
     users: int
     status_key: str
     forecast_key: str
@@ -141,7 +141,7 @@ def _row_fields(view: DealView) -> dict[str, object]:
         "owner_user_id": details.owner_user_id,
         "owner": UserRef.from_domain(view.owner),
         "vendor": _named(view.vendor),
-        "solution": _named(view.solution),
+        "solution": details.solution,
         "users": details.users,
         "status_key": deal.sync.status_key,
         "forecast_key": deal.sync.forecast_key,

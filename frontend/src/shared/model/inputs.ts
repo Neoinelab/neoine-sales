@@ -58,9 +58,10 @@ export interface ContactListQuery {
 export interface DealInput {
   name: string
   ownerId: number
-  /** Vendor/Solution id. 선택 안 함은 null. */
+  /** Vendor id. 선택 안 함은 null. */
   vendorId: number | null
-  solutionId: number | null
+  /** Solution 자유 텍스트. 필수(서버가 공백·200자 초과를 거절한다). */
+  solution: string
   users: number
   statusKey: string
   forecastKey: string
@@ -108,7 +109,8 @@ export interface DealListQuery {
   keyword?: string
   ownerId?: number
   vendorId?: number
-  solutionId?: number
+  /** Solution 텍스트 부분 일치(대소문자 무시). */
+  solution?: string
   statusKey?: string
   forecastKey?: string
   /** Expected Close(revenueDate) 기준 연도/분기. quarter만 있으면 서버가 올해로 본다. */

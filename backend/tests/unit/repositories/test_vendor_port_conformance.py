@@ -23,10 +23,8 @@ VENDOR_USE_CASES = (
     "register_vendor",
     "rename_vendor",
     "delete_vendor",
-    "register_solution",
-    "rename_solution",
-    "delete_solution",
 )
+RETIRED_VENDOR_USE_CASES = ("register_solution", "rename_solution", "delete_solution")
 
 
 def test_vendor_repositories_satisfy_the_port() -> None:
@@ -55,3 +53,10 @@ def test_the_web_port_exposes_the_vendor_use_cases() -> None:
         assert hasattr(UseCaseProvider, name), name
         assert hasattr(FakeUseCases, name), name
         assert hasattr(Container, name), name
+
+
+def test_the_solution_use_cases_are_retired_everywhere() -> None:
+    for name in RETIRED_VENDOR_USE_CASES:
+        assert not hasattr(UseCaseProvider, name), name
+        assert not hasattr(FakeUseCases, name), name
+        assert not hasattr(Container, name), name

@@ -83,7 +83,6 @@ import type {
   UserRef,
   UserRemoveResult,
   Vendor,
-  Solution,
 } from '../shared/model/types'
 import type { CoChange } from '../shared/model/sync'
 
@@ -285,16 +284,13 @@ export interface ForecastGateway {
 }
 
 export interface VendorsGateway {
-  /** 모든 로그인 사용자. Vendor 이름순, 각 Vendor의 Solution은 이름순, 사용 중 Deal 수 포함. */
+  /** 모든 로그인 사용자. Vendor 이름순, 사용 중 Deal 수 포함. */
   list(): Promise<Vendor[]>
   /** admin만. 이름 규칙·대소문자 무시 중복(409)은 서버 문구 그대로. */
   create(name: string): Promise<Vendor>
   rename(id: number, name: string): Promise<Vendor>
-  /** admin만. 사용 중이면 409. 소속 Solution도 함께 삭제된다. */
+  /** admin만. 사용 중이면 409. */
   remove(id: number): Promise<void>
-  createSolution(vendorId: number, name: string): Promise<Solution>
-  renameSolution(vendorId: number, solutionId: number, name: string): Promise<Solution>
-  removeSolution(vendorId: number, solutionId: number): Promise<void>
 }
 
 export interface UsersGateway {

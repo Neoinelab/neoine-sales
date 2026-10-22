@@ -30,7 +30,7 @@ export function listMemoryKey(userId: number): string {
 }
 
 /** id 값을 받는 키. 값이 정수 id가 아니면(예전 UUID 등) 복원하지 않는다. */
-const ID_KEYS: readonly string[] = ['owner', 'vendor', 'solution']
+const ID_KEYS: readonly string[] = ['owner', 'vendor']
 
 /** 아는 키만 남긴 쿼리 문자열(앞의 '?' 없음). 키 순서는 입력 순서를 유지한다. id 키는 값이 정수 id일 때만 남기고 나머지 값은 검증하지 않는다. */
 export function sanitizeListSearch(search: string | URLSearchParams): string {

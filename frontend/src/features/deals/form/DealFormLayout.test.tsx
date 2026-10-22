@@ -117,6 +117,7 @@ describe('Deal 정보 타일의 항목 (AC-11, AC-12, AC-14, AC-15)', () => {
     await user.type(screen.getByLabelText('Deal Name'), '견적 저장 테스트')
     await pickPerson(user, '고객', '한빛은행', /정민수/)
     await user.type(screen.getByLabelText('금액(단위:천원)'), '100000')
+    await user.type(screen.getByLabelText('Solution'), 'ITDR')
     await user.type(screen.getByLabelText('Users'), '10')
     fireEvent.change(screen.getByLabelText('Expected Close'), { target: { value: '2027-06-01' } })
     await user.selectOptions(screen.getByLabelText('견적 제출여부'), 'YES')
@@ -159,6 +160,7 @@ describe('라벨-입력 한 행 (AC-13)', () => {
     for (const [label, message] of [
       ['Deal Name', 'Deal Name을 입력하세요.'],
       ['Expected Close', 'Expected Close를 입력하세요.'],
+      ['Solution', 'Solution을 입력하세요.'],
     ] as const) {
       const row = screen.getByLabelText(label).closest('.kv-row, .field') as HTMLElement
       expect(within(row).getByRole('alert')).toHaveTextContent(message)

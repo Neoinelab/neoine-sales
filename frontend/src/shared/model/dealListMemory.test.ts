@@ -32,8 +32,25 @@ describe('sanitizeListSearch (AC-08, AC-09)', () => {
   })
 })
 
+describe('sanitizeListSearch solution text (AC-16)', () => {
+  it('remembers the solution as text', () => {
+    expect(sanitizeListSearch('solution=ITDR&status=a')).toBe('solution=ITDR&status=a')
+    expect(sanitizeListSearch(`solution=${encodeURIComponent('통합 itdr')}`)).toBe(`solution=${encodeURIComponent('통합 itdr').replace(/%20/g, '+')}`)
+  })
+
+  it('keeps an old integer solution id as text', () => {
+    expect(sanitizeListSearch('solution=12&status=a')).toBe('solution=12&status=a')
+  })
+
+  it('restores the remembered solution text in the list path', () => {
+    window.sessionStorage.setItem(listMemoryKey(USER_ID.kim), 'solution=ITDR&status=a')
+
+    expect(rememberedListPath(USER_ID.kim)).toBe('/deals?solution=ITDR&status=a')
+  })
+})
+
 describe('sanitizeListSearch id parameters (AC-22)', () => {
-  const ID_KEYS = ['owner', 'vendor', 'solution']
+  const ID_KEYS = ['owner', 'vendor']
 
   it('keeps integer ids of every id parameter', () => {
     const search = ID_KEYS.map((key, index) => `${key}=${index + 1}`).join('&')

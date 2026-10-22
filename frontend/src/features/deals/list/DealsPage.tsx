@@ -24,9 +24,9 @@ export function DealsPage() {
   const meId = useMe().data?.id
   const vendors = useVendors().data
   const query = useMemo(() => {
-    const { vendorId, solutionId, ...rest } = listQueryFromParams(params)
-    const effective = effectiveVendorFilter(vendors, vendorId, solutionId)
-    return { ...rest, ...(effective.vendorId && { vendorId: effective.vendorId }), ...(effective.solutionId && { solutionId: effective.solutionId }) }
+    const { vendorId, ...rest } = listQueryFromParams(params)
+    const effective = effectiveVendorFilter(vendors, vendorId)
+    return { ...rest, ...(effective.vendorId && { vendorId: effective.vendorId }) }
   }, [params, vendors])
   const deals = useDeals(query)
   const alerts = useAlertSettings()

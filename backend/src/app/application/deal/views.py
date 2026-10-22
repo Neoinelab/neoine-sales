@@ -46,19 +46,15 @@ def _require_owner(owners: Mapping[UserId, UserRef], user_id: UserId) -> UserRef
     return owner
 
 
-def _refs(item: DealListItem, vendors: Mapping[VendorId, Vendor]) -> dict[str, NamedRef | None]:
-    """Deal의 Vendor·Solution 참조. 참조가 사라진 경우는 FK가 막으므로 정상 경로에서는 없다."""
-    details = item.deal.details
-    if details.vendor_id is None:
-        return {"vendor": None, "solution": None}
-    vendor = vendors.get(details.vendor_id)
+def _vendor_ref(item: DealListItem, vendors: Mapping[VendorId, Vendor]) -> NamedRef | None:
+    """Deal의 Vendor 참조. 참조가 사라진 경우는 FK가 막으므로 정상 경로에서는 없다."""
+    vendor_id = item.deal.details.vendor_id
+    if vendor_id is None:
+        return None
+    vendor = vendors.get(vendor_id)
     if vendor is None:
-        raise VendorNotFoundError(details.vendor_id)
-    solution = None
-    if details.solution_id is not None:
-        found = vendor.solution(details.solution_id)  # 없으면 SolutionNotFoundError
-        solution = NamedRef(found.id, found.name)
-    return {"vendor": NamedRef(vendor.id, vendor.name), "solution": solution}
+        raise VendorNotFoundError(vendor_id)
+    return NamedRef(vendor.id, vendor.name)
 
 
 async def load_thresholds(uow: UnitOfWork) -> AlertThresholds:
@@ -106,7 +102,7 @@ async def build_views(
                 stale_days=thresholds.stale_days,
             ),
             status_days=status_days(item.deal.status_changed_at, today),
-            **_refs(item, vendors),
+            vendor=_vendor_ref(item, vendors),
         )
         for item in items
     ]

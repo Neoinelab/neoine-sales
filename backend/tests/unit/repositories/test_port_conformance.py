@@ -63,7 +63,6 @@ DEAL_PORT_METHODS = (
     "count_by_forecast",
     "count_by_bant_label",
     "count_by_vendor",
-    "count_by_solution",
     "count_by_contacts",
 )
 CONTACT_USE_CASES = (
@@ -85,7 +84,7 @@ DEAL_USE_CASES = (
     "get_deal_deletion_impact",
 )
 RETIRED_DEAL_USE_CASES = (
-    "list_deal_facets",  # Vendor·Solution 선택지는 /vendors 목록에서 온다
+    "list_deal_facets",  # Vendor 선택지는 /vendors 목록에서 온다
     "get_deal_by_code",
     "change_deal_stage",
     "list_deal_stage_changes",

@@ -55,20 +55,23 @@ export function DealFilterBar({ params, onChange, onReset }: DealFilterBarProps)
     setSeenQ(q)
     setKeyword(q)
   }
+  // Solution도 키워드처럼 검색(버튼·Enter)으로 URL에 반영한다. URL이 바깥에서 바뀌면(초기화·뒤로 가기) 입력란도 따라간다.
+  const urlSolution = params.get('solution') ?? ''
+  const [solution, setSolution] = useState(urlSolution)
+  const [seenSolution, setSeenSolution] = useState(urlSolution)
+  if (urlSolution !== seenSolution) {
+    setSeenSolution(urlSolution)
+    setSolution(urlSolution)
+  }
   // 모르는 값은 '전체'로 보이고 조회에도 쓰이지 않는다(listQueryFromParams와 같은 판정).
   const nextStatus = nextActionStatusFromParam(params.get('next_status'))
   const hasQuarter = value('quarter') !== ''
   const hasYear = value('year') !== ''
   const showMonthHint = !hasQuarter && !hasYear && parseMonth(params.get('month')) !== undefined
-  // 목록이 로드된 뒤 목록에 없는 id(예전 이름 값 등)·소속이 맞지 않는 Solution은 '전체'로 보인다.
-  // 조건 형식은 listQueryFromParams가, 목록 없는 id·소속 불일치는 DealsPage의 effectiveVendorFilter가 판정한다.
-  // 목록이 없는 동안(로딩·오류)에는 URL 값이 조회에 쓰이므로 '선택한 …' 옵션 하나로 선택 상태를 보인다.
+  // 목록이 로드된 뒤 목록에 없는 Vendor id(예전 이름 값 등)는 '전체'로 보인다.
+  // 조건 형식은 listQueryFromParams가, 목록 없는 id 판정은 DealsPage의 effectiveVendorFilter가 한다.
+  // 목록이 없는 동안(로딩·오류)에는 URL 값이 조회에 쓰이므로 '선택한 Vendor' 옵션 하나로 선택 상태를 보인다.
   const vendorId = !loaded ? value('vendor') : vendors.some((v) => String(v.id) === value('vendor')) ? value('vendor') : ''
-  const chosenVendor = vendors.find((v) => String(v.id) === vendorId)
-  const solutionOptions = chosenVendor
-    ? chosenVendor.solutions.map((s) => ({ id: s.id, label: s.name }))
-    : vendors.flatMap((v) => v.solutions.map((s) => ({ id: s.id, label: `${v.name} / ${s.name}` })))
-  const solutionId = !loaded ? value('solution') : solutionOptions.some((s) => String(s.id) === value('solution')) ? value('solution') : ''
 
   /** 프리셋은 서버가 준 날짜를 그대로 URL에 쓰고, 전체는 두 키를 지운다. 직접 지정은 URL을 바꾸지 않는다. */
   async function changePeriod(next: string) {
@@ -100,13 +103,6 @@ export function DealFilterBar({ params, onChange, onReset }: DealFilterBarProps)
     onChange(patch)
   }
 
-  /** Vendor를 바꾸면 새 Vendor 소속이 아닌 Solution 조건은 지운다. 전체로 돌리면 유지한다. */
-  function changeVendor(next: string) {
-    const target = vendors.find((v) => String(v.id) === next)
-    const keep = !target || target.solutions.some((s) => String(s.id) === value('solution'))
-    onChange({ vendor: next, ...(keep ? {} : { solution: '' }) })
-  }
-
   return (
     <form
       className="deal-filters"
@@ -114,12 +110,12 @@ export function DealFilterBar({ params, onChange, onReset }: DealFilterBarProps)
       aria-label="Deal 필터"
       onSubmit={(event) => {
         event.preventDefault()
-        onChange({ q: keyword.trim() })
+        onChange({ q: keyword.trim(), solution: solution.trim() })
       }}
     >
       <TextField label="키워드" name="keyword" value={keyword} onChange={setKeyword} />
       <UserSelect label="담당자" name="owner" value={value('owner')} onChange={(owner) => onChange({ owner })} includeResigned />
-      <SelectField label="Vendor" name="vendor" value={vendorId} onChange={changeVendor}>
+      <SelectField label="Vendor" name="vendor" value={vendorId} onChange={(vendor) => onChange({ vendor })}>
         <option value="">전체</option>
         {!loaded && vendorId && <option value={vendorId}>선택한 Vendor</option>}
         {vendors.map((v) => (
@@ -128,15 +124,7 @@ export function DealFilterBar({ params, onChange, onReset }: DealFilterBarProps)
           </option>
         ))}
       </SelectField>
-      <SelectField label="Solution" name="solution" value={solutionId} onChange={(solution) => onChange({ solution })}>
-        <option value="">전체</option>
-        {!loaded && solutionId && <option value={solutionId}>선택한 Solution</option>}
-        {solutionOptions.map((s) => (
-          <option key={s.id} value={s.id}>
-            {s.label}
-          </option>
-        ))}
-      </SelectField>
+      <TextField label="Solution" name="solution" value={solution} onChange={setSolution} />
       <SelectField label="Status" name="status" value={value('status')} onChange={(status) => onChange({ status })}>
         <option value="">전체</option>
         {codes?.statuses.map((c) => (

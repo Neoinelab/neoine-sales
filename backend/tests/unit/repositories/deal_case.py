@@ -101,9 +101,9 @@ class DealCase:
         await self.labels.add(label)
         return label
 
-    async def new_vendor(self, name: str, solutions: tuple[str, ...] = ()) -> Vendor:
-        """Vendor와 소속 Solution을 저장한다(Deal이 고를 수 있는 선택지)."""
-        return await store_vendor(self.vendors, name, solutions)
+    async def new_vendor(self, name: str) -> Vendor:
+        """Vendor를 저장한다(Deal이 고를 수 있는 선택지)."""
+        return await store_vendor(self.vendors, name)
 
     async def add_action(
         self,

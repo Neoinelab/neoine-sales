@@ -2,7 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { gateway } from '../../../gateway'
 import { resetMock } from '../../../test/fake/default'
-import { seedSolutionId, seedVendorId } from '../../../test/fixtures/vendors'
+import { seedVendorId } from '../../../test/fixtures/vendors'
 import { renderAt } from '../../../test/mockApp'
 import { dataRows } from './testHelpers'
 
@@ -85,7 +85,7 @@ describe('Quarter 단독 선택 (AC-18)', () => {
   })
 })
 
-describe('Vendor·Solution 필터 (AC-15)', () => {
+describe('Vendor 필터와 Solution 텍스트 필터 (AC-15)', () => {
   it('uses the vendor id as the option value and the name as the label', async () => {
     await listReady()
 
@@ -96,91 +96,60 @@ describe('Vendor·Solution 필터 (AC-15)', () => {
     ])
   })
 
-  it('lists every solution as Vendor / Solution while no vendor is chosen', async () => {
+  it('shows Solution as a text input, not a select', async () => {
     await listReady()
 
-    expect(optionNames(screen.getByLabelText('Solution'))).toEqual([
-      '전체',
-      'CrowdStrike / EDR',
-      'CyberArk / PAM',
-      'Okta / SSO',
-      'Palo Alto / NGFW',
-      'SentinelOne / EDR',
-      'Silverfort / ITDR',
-      'Silverfort / MFA',
-      'Splunk / SIEM',
-      'Splunk / SOAR',
-      'Tenable / VM',
-      'Zscaler / ZTNA',
-    ])
+    const solution = screen.getByLabelText('Solution')
+    expect(solution.tagName).toBe('INPUT')
+    expect(within(solution).queryAllByRole('option')).toHaveLength(0)
   })
 
-  it('limits the solution options to the chosen vendor and shows the bare names', async () => {
-    const { user } = await listReady()
-
-    await user.selectOptions(screen.getByLabelText('Vendor'), 'Silverfort')
-
-    expect(optionNames(screen.getByLabelText('Solution'))).toEqual(['전체', 'ITDR', 'MFA'])
-  })
-
-  it('filters by the vendor id and by the solution id', async () => {
+  it('filters by the vendor id and then by the solution text', async () => {
     const { user, location } = await listReady()
 
     await user.selectOptions(screen.getByLabelText('Vendor'), 'Silverfort')
     await waitFor(() => expect(dataRows()).toHaveLength(7))
     expect(location()).toContain(`vendor=${seedVendorId('Silverfort')}`)
 
-    await user.selectOptions(screen.getByLabelText('Solution'), 'MFA')
+    await user.type(screen.getByLabelText('Solution'), 'mfa')
+    await user.click(screen.getByRole('button', { name: '검색' }))
     await waitFor(() => expect(dataRows()).toHaveLength(3))
-    expect(location()).toContain(`solution=${seedSolutionId('Silverfort', 'MFA')}`)
+    expect(location()).toContain('solution=mfa')
+    expect(location()).toContain(`vendor=${seedVendorId('Silverfort')}`)
   })
 
-  it('does not fill the vendor in when only a solution is chosen', async () => {
+  it('does not fill the vendor in when only a solution text is searched', async () => {
     const { user, location } = await listReady()
 
-    await user.selectOptions(screen.getByLabelText('Solution'), 'Okta / SSO')
+    await user.type(screen.getByLabelText('Solution'), 'SSO')
+    await user.click(screen.getByRole('button', { name: '검색' }))
 
     await waitFor(() => expect(dataRows()).toHaveLength(3))
     expect(location()).not.toContain('vendor=')
     expect(screen.getByLabelText('Vendor')).toHaveDisplayValue('전체')
   })
 
-  it('drops the solution condition when the vendor changes to one that does not own it', async () => {
-    const { user, location } = await listReady()
-    await user.selectOptions(screen.getByLabelText('Solution'), 'Silverfort / ITDR')
-    expect(location()).toContain('solution=')
-
-    await user.selectOptions(screen.getByLabelText('Vendor'), 'Okta')
-
-    expect(location()).toContain(`vendor=${seedVendorId('Okta')}`)
-    expect(location()).not.toContain('solution=')
-    expect(screen.getByLabelText('Solution')).toHaveDisplayValue('전체')
-  })
-
-  it('keeps the solution condition when the chosen vendor owns it', async () => {
-    const { user, location } = await listReady()
-    await user.selectOptions(screen.getByLabelText('Solution'), 'Silverfort / ITDR')
-
-    await user.selectOptions(screen.getByLabelText('Vendor'), 'Silverfort')
-
-    expect(location()).toContain(`solution=${seedSolutionId('Silverfort', 'ITDR')}`)
-    expect(screen.getByLabelText('Solution')).toHaveDisplayValue('ITDR')
-  })
-
-  it('restores the vendor and solution from the URL ids', async () => {
-    await renderAt(`/deals?vendor=${seedVendorId('Silverfort')}&solution=${seedSolutionId('Silverfort', 'ITDR')}`)
+  it('restores the vendor and the solution text from the URL', async () => {
+    await renderAt(`/deals?vendor=${seedVendorId('Silverfort')}&solution=ITDR`)
 
     await waitFor(() => expect(screen.getByLabelText('Vendor')).toHaveDisplayValue('Silverfort'))
-    await waitFor(() => expect(screen.getByLabelText('Solution')).toHaveDisplayValue('ITDR'))
+    expect(screen.getByLabelText('Solution')).toHaveValue('ITDR')
     await waitFor(() => expect(dataRows()).toHaveLength(4))
   })
 
   it('ignores an old name-based vendor in the URL and lists everything', async () => {
-    await renderAt('/deals?vendor=Okta&solution=SSO')
+    await renderAt('/deals?vendor=Okta')
 
     await screen.findByRole('row', { name: /한빛은행 ITDR 도입/ })
     expect(dataRows()).toHaveLength(20)
     expect(screen.getByLabelText('Vendor')).toHaveDisplayValue('전체')
+  })
+
+  it('treats an old numeric solution id in the URL as plain text', async () => {
+    await renderAt('/deals?solution=12')
+
+    await waitFor(() => expect(screen.getByLabelText('Solution')).toHaveValue('12'))
+    expect(await screen.findByText('조건에 맞는 Deal이 없습니다.')).toBeVisible()
   })
 })
 

@@ -46,9 +46,9 @@ async def test_the_largest_limit_and_the_longest_text_conditions_are_accepted(ap
         {"offset": -1},
         {"keyword": "a" * 101},
         {"vendor_id": "SAP"},  # 이름이 아니라 정수 id여야 한다
-        {"solution_id": "not-an-id"},
+        {"solution_id": "1"},  # 구 id 파라미터는 모르는 파라미터다
         {"vendor": "SAP"},  # 구 파라미터(이름)는 모르는 파라미터다
-        {"solution": "S/4HANA"},
+        {"solution": "a" * 201},  # Solution 텍스트 조건은 최대 200자다
         {"updated_from": "2026/06/01"},
         {"updated_to": "abc"},
         {"updated_from": "2026-06-01T10:00:00"},

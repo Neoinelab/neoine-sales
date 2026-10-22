@@ -9,7 +9,7 @@ describe('Deal 수정 (T-FORM-06)', () => {
     expect(screen.getByLabelText('Deal Name')).toHaveValue('누리통신 MFA')
     await waitFor(() => expect(screen.getByLabelText('Owner')).toHaveDisplayValue('이영업'))
     await waitFor(() => expect(screen.getByLabelText('Vendor')).toHaveDisplayValue('Silverfort'))
-    await waitFor(() => expect(screen.getByLabelText('Solution')).toHaveDisplayValue('MFA'))
+    expect(screen.getByLabelText('Solution')).toHaveValue('MFA')
     expect(screen.getByLabelText('고객 회사명')).toHaveValue('누리통신')
     expect(screen.getByLabelText('고객 담당자명')).toHaveValue('배성훈')
     expect(screen.getByLabelText('고객 직급')).toHaveValue('과장')

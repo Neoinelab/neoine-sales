@@ -23,6 +23,7 @@ import type {
 
 export const OWNER_RESIGNED_MESSAGE = '퇴사한 사용자는 Owner로 지정할 수 없습니다. 다른 담당자를 선택하세요.'
 export const PARTNER_INCOMPLETE_MESSAGE = '파트너를 입력하면 회사명과 담당자명이 모두 필요합니다.'
+export const SOLUTION_REQUIRED_MESSAGE = 'Solution을 입력하세요.'
 export const USERS_REQUIRED_MESSAGE = 'Users를 입력하세요.'
 export const USERS_MESSAGE = 'Users는 0 이상의 정수로 입력하세요.'
 
@@ -32,9 +33,10 @@ export const EMPTY_DRAFT: ContactDraft = { contactId: null, company: '', name: '
 export interface DealFormState {
   name: string
   ownerId: string
-  /** Owner·Vendor·Solution id는 select 값(10진 문자열)으로 들고, 저장할 때 `parseId`로 정수로 바꾼다. 빈 문자열은 선택 안 함. */
+  /** Owner·Vendor id는 select 값(10진 문자열)으로 들고, 저장할 때 `parseId`로 정수로 바꾼다. 빈 문자열은 선택 안 함. */
   vendorId: string
-  solutionId: string
+  /** Solution 자유 텍스트(필수). */
+  solution: string
   users: string
   statusKey: string
   forecastKey: string
@@ -54,6 +56,7 @@ export interface DealFormState {
 export interface FormErrors {
   name?: string
   ownerId?: string
+  solution?: string
   users?: string
   revenueAmount?: string
   revenueDate?: string
@@ -69,7 +72,7 @@ export function emptyForm(ownerId: string): DealFormState {
     name: '',
     ownerId,
     vendorId: '',
-    solutionId: '',
+    solution: '',
     users: '',
     statusKey: STATUS_PROSPECTING,
     forecastKey: FORECAST_PIPELINE,
@@ -111,7 +114,7 @@ export function formFromDeal(deal: DealDetail, labels: readonly BantLabel[]): De
     name: deal.name,
     ownerId: String(deal.ownerId),
     vendorId: deal.vendor ? String(deal.vendor.id) : '',
-    solutionId: deal.solution ? String(deal.solution.id) : '',
+    solution: deal.solution,
     users: String(deal.users),
     statusKey: deal.statusKey,
     forecastKey: deal.forecastKey,
@@ -177,6 +180,7 @@ export function validateForm(
   if (state.name.trim() === '') errors.name = 'Deal Name을 입력하세요.'
   if (parseId(state.ownerId) === undefined) errors.ownerId = 'Owner를 선택하세요.'
   else if (originalOwner?.status === 'resigned' && String(originalOwner.id) === state.ownerId) errors.ownerId = OWNER_RESIGNED_MESSAGE
+  if (state.solution.trim() === '') errors.solution = SOLUTION_REQUIRED_MESSAGE
   const users = state.users.trim()
   if (users === '') errors.users = USERS_REQUIRED_MESSAGE
   else if (!/^\d+$/.test(users)) errors.users = USERS_MESSAGE
@@ -214,7 +218,7 @@ export function toDealInput(state: DealFormState, labels: readonly BantLabel[]):
     name: state.name.trim(),
     ownerId,
     vendorId: parseId(state.vendorId) ?? null,
-    solutionId: parseId(state.solutionId) ?? null,
+    solution: state.solution.trim(),
     users: Number(users),
     statusKey: state.statusKey,
     forecastKey: state.forecastKey,

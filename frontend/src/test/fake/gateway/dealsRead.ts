@@ -22,7 +22,8 @@ function matches(row: DealRow, query: DealListQuery, viewerId: number, thisYear:
   }
   if (query.ownerId && row.ownerId !== query.ownerId) return false
   if (query.vendorId && row.vendor?.id !== query.vendorId) return false
-  if (query.solutionId && row.solution?.id !== query.solutionId) return false
+  const solution = query.solution?.trim().toLowerCase()
+  if (solution && !row.solution.toLowerCase().includes(solution)) return false
   if (query.statusKey && row.statusKey !== query.statusKey) return false
   if (query.forecastKey && row.forecastKey !== query.forecastKey) return false
   // 분기만 있으면 올해(Fake 시계의 업무 날짜 연도)의 그 분기다.

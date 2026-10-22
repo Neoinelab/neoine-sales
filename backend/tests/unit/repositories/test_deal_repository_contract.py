@@ -13,8 +13,17 @@ from app.domain.bant.values import BantCategory
 from app.domain.common.errors import InvalidReferenceError
 from app.domain.contact.values import ContactKind
 from app.domain.deal.errors import DealNotFoundError, DuplicateDealCodeError
-from app.domain.deal.values import AMOUNT_MAX, USERS_MAX, Poc, PocState, Quote, QuoteSubmitted
+from app.domain.deal.values import (
+    AMOUNT_MAX,
+    USERS_MAX,
+    Poc,
+    PocState,
+    Quote,
+    QuoteSubmitted,
+    RevenueAmount,
+)
 from tests.factories import NOW, make_bant, make_deal, make_deal_code, new_contact_id
+from tests.support.legacy_solution import blank_solution
 from tests.support.user_ids import uid
 
 if TYPE_CHECKING:
@@ -35,7 +44,7 @@ class TestAddAndGet:
         partner = await deal_case.new_contact(ContactKind.PARTNER)
         customer = await deal_case.new_contact()
         budget = await deal_case.new_label(BantCategory.BUDGET, "테스트 예산")
-        sap = await deal_case.new_vendor("ZZ SAP", ("S/4HANA",))
+        sap = await deal_case.new_vendor("ZZ SAP")
         deal = make_deal(
             NOW,
             code=CODE,
@@ -46,7 +55,7 @@ class TestAddAndGet:
             bant=make_bant(budget=budget.id),
             name="ERP 구축",
             vendor_id=sap.id,
-            solution_id=sap.solutions[0].id,
+            solution="S/4HANA",
             users=250,
             revenue_amount=1_870_000_000,
             revenue_date=date(2026, 12, 31),
@@ -67,6 +76,30 @@ class TestAddAndGet:
         assert loaded.bant == deal.bant
         assert (loaded.created_at, loaded.updated_at) == (NOW, NOW)
 
+    async def test_legacy_empty_solution_round_trips(self, deal_case: DealCase) -> None:
+        # Solution 도입 전 행(빈 문자열)도 저장하고 그대로 읽는다(리뷰 후속 결정).
+        deal = make_deal(NOW, code=CODE, customer_id=(await _referenceable_customer(deal_case)).id)
+        blank_solution(deal)
+        await deal_case.add(deal)
+
+        loaded = await deal_case.deals.get(deal.id)
+
+        assert loaded.details.solution == ""
+        assert loaded.details == deal.details
+
+    async def test_legacy_empty_solution_survives_update(self, deal_case: DealCase) -> None:
+        customer = await _referenceable_customer(deal_case)
+        deal = make_deal(NOW, code=CODE, customer_id=customer.id)
+        blank_solution(deal)
+        await deal_case.add(deal)
+        loaded = await deal_case.deals.get(deal.id)
+
+        loaded.change_revenue_amount(RevenueAmount(4_000))
+        await deal_case.deals.update(loaded)
+
+        reloaded = await deal_case.deals.get(deal.id)
+        assert (reloaded.details.revenue_amount.value, reloaded.details.solution) == (4_000, "")
+
     async def test_extreme_values_round_trip(self, deal_case: DealCase) -> None:
         deal = make_deal(code=CODE, revenue_amount=AMOUNT_MAX, users=USERS_MAX)
         await deal_case.add(deal)
@@ -74,11 +107,30 @@ class TestAddAndGet:
         loaded = await deal_case.deals.get(deal.id)
 
         assert loaded.details.revenue_amount.value == AMOUNT_MAX
-        assert (loaded.details.users, loaded.details.vendor_id, loaded.details.solution_id) == (
+        assert (loaded.details.users, loaded.details.vendor_id, loaded.details.solution) == (
             USERS_MAX,
             None,
-            None,
+            "S/4HANA",
         )
+
+    async def test_solution_text_round_trips(self, deal_case: DealCase) -> None:
+        deal = make_deal(code=CODE, solution="ITDR 2.0 / 한글 Solution")
+        await deal_case.add(deal)
+
+        assert (await deal_case.deals.get(deal.id)).details.solution == "ITDR 2.0 / 한글 Solution"
+
+    async def test_solution_text_is_saved_without_a_vendor(self, deal_case: DealCase) -> None:
+        deal = make_deal(code=CODE, vendor_id=None, solution="ITDR")
+        await deal_case.add(deal)
+
+        loaded = await deal_case.deals.get(deal.id)
+        assert (loaded.details.vendor_id, loaded.details.solution) == (None, "ITDR")
+
+    async def test_solution_text_of_200_characters_round_trips(self, deal_case: DealCase) -> None:
+        deal = make_deal(code=CODE, solution="가" * 200)
+        await deal_case.add(deal)
+
+        assert (await deal_case.deals.get(deal.id)).details.solution == "가" * 200
 
     async def test_the_owner_is_a_user_id(self, deal_case: DealCase) -> None:
         deal = make_deal(code=CODE, owner_user_id=uid("alice"))

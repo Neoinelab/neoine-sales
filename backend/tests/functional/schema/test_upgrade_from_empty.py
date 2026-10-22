@@ -39,15 +39,14 @@ EXPECTED_TABLES = {
     "directory_settings",
     "storage_settings",  # P2b
     "deal_attachments",  # P2b
-    "vendors",  # Vendor·Solution 관리
-    "solutions",
+    "vendors",  # Vendor 관리
     "action_types",  # Action 유형 카탈로그
     "forecast_snapshots",  # Forecast 월말 스냅숏(P6 R2)
     "forecast_snapshot_cells",
     "forecast_snapshot_columns",
 }
 # contacts로 통합된 customers·partners, 이력 테이블로 바뀐 deal_stage_changes는 head에 없다
-RETIRED_TABLES = {"customers", "partners", "deal_stage_changes"}
+RETIRED_TABLES = {"customers", "partners", "deal_stage_changes", "solutions"}
 
 
 async def test_operator_upgrade_to_head_creates_the_expected_tables(blank_database: URL) -> None:

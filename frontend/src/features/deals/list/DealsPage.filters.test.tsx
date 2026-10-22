@@ -4,7 +4,7 @@ import { gateway } from '../../../gateway'
 import { ApiError } from '../../../shared/api/problem'
 import { resetMock } from '../../../test/fake/default'
 import { renderAt } from '../../../test/mockApp'
-import { seedSolutionId, seedVendorId } from '../../../test/fixtures/vendors'
+import { seedVendorId } from '../../../test/fixtures/vendors'
 import { dealInput } from '../../../test/fake/testing'
 import { dataRows } from './testHelpers'
 import { USER_ID } from '../../../test/fake/seed/ids'
@@ -61,14 +61,70 @@ describe('필터와 정렬 (T-LIST-05~09)', () => {
     expect(location()).toContain('forecast=lost')
   })
 
-  it('filters by solution', async () => {
+  it('applies the solution text on search', async () => {
     const { user, location } = await renderAt('/deals')
-    const solution = await screen.findByLabelText('Solution')
-    await within(solution).findByRole('option', { name: 'Silverfort / ITDR' })
-    await user.selectOptions(solution, 'Silverfort / ITDR')
+    await screen.findByRole('row', { name: /한빛은행 ITDR 도입/ })
+    const solution = screen.getByLabelText('Solution')
+    expect(solution.tagName).toBe('INPUT')
+
+    await user.type(solution, '  itdr  ')
+    expect(location()).not.toContain('solution=')
+    await user.click(screen.getByRole('button', { name: '검색' }))
+
     await screen.findByRole('row', { name: /미래전자 ITDR/ })
+    expect(location()).toContain('solution=itdr')
     expect(dataRows()).toHaveLength(4)
-    expect(location()).toContain(`solution=${seedSolutionId('Silverfort', 'ITDR')}`)
+  })
+
+  it('applies the solution text with Enter and sends it as the solution condition', async () => {
+    const list = vi.spyOn(gateway.deals, 'list')
+    const { user } = await renderAt('/deals')
+    await screen.findByRole('row', { name: /한빛은행 ITDR 도입/ })
+
+    await user.type(screen.getByLabelText('Solution'), 'MFA{Enter}')
+
+    await waitFor(() => expect(dataRows()).toHaveLength(3))
+    expect(list.mock.calls.at(-1)?.[0]).toMatchObject({ solution: 'MFA' })
+    expect(list.mock.calls.at(-1)?.[0]).not.toHaveProperty('solutionId')
+  })
+
+  it('removes solution from the URL when it is emptied and searched', async () => {
+    const { user, location } = await renderAt('/deals?solution=itdr')
+    await screen.findByRole('row', { name: /미래전자 ITDR/ })
+    expect(screen.getByLabelText('Solution')).toHaveValue('itdr')
+
+    await user.clear(screen.getByLabelText('Solution'))
+    await user.click(screen.getByRole('button', { name: '검색' }))
+
+    await waitFor(() => expect(location()).not.toContain('solution'))
+    await waitFor(() => expect(dataRows()).toHaveLength(20))
+  })
+
+  it('keeps the solution text when the vendor changes', async () => {
+    const { user, location } = await renderAt('/deals?solution=itdr')
+    await screen.findByRole('row', { name: /미래전자 ITDR/ })
+    const vendor = screen.getByLabelText('Vendor')
+    await within(vendor).findByRole('option', { name: 'Silverfort' })
+
+    await user.selectOptions(vendor, 'Silverfort')
+    await user.selectOptions(screen.getByLabelText('Vendor'), 'Okta')
+
+    expect(location()).toContain(`vendor=${seedVendorId('Okta')}`)
+    expect(location()).toContain('solution=itdr')
+    expect(screen.getByLabelText('Solution')).toHaveValue('itdr')
+  })
+
+  it('combines keyword and solution text on one search', async () => {
+    const { user, location } = await renderAt('/deals')
+    await screen.findByRole('row', { name: /한빛은행 ITDR 도입/ })
+
+    await user.type(screen.getByLabelText('키워드'), '한빛은행')
+    await user.type(screen.getByLabelText('Solution'), 'ITDR')
+    await user.click(screen.getByRole('button', { name: '검색' }))
+
+    await waitFor(() => expect(dataRows()).toHaveLength(1))
+    expect(location()).toContain('solution=ITDR')
+    expect(location()).toContain(`q=${encodeURIComponent('한빛은행')}`)
   })
 
   it('puts year and quarter in the URL', async () => {
@@ -134,11 +190,12 @@ describe('필터와 정렬 (T-LIST-05~09)', () => {
   })
 
   it('clears every condition with the reset button', async () => {
-    const { user, location } = await renderAt(`/deals?q=한빛&vendor=${seedVendorId('Okta')}&sort=name&order=asc`)
+    const { user, location } = await renderAt(`/deals?q=한빛&vendor=${seedVendorId('Okta')}&solution=ITDR&sort=name&order=asc`)
     await user.click(await screen.findByRole('button', { name: '초기화' }))
     expect(location()).toBe('/deals')
     await screen.findByRole('row', { name: /한빛은행 ITDR 도입/ })
     expect(screen.getByLabelText('키워드')).toHaveValue('')
+    expect(screen.getByLabelText('Solution')).toHaveValue('')
   })
 
   it('sorts by Expected Close and flips the direction', async () => {

@@ -86,8 +86,8 @@ async def deal_body(api: Api, **overrides: object) -> dict[str, Any]:
     values: dict[str, Any] = {
         "name": "ERP 구축",
         "owner_user_id": await given_my_user_id(api),
-        "vendor_id": None,  # 등록된 Vendor·Solution의 id(없으면 선택 안 함)
-        "solution_id": None,
+        "vendor_id": None,  # 등록된 Vendor의 id(없으면 선택 안 함)
+        "solution": "S/4HANA",  # 자유 텍스트(필수, 앞뒤 공백 제거 후 1~200자)
         "users": 10,
         "status_key": "prospecting",
         "forecast_key": "pipeline",
@@ -173,6 +173,14 @@ async def given_clock_at(api: Api, moment: datetime) -> None:
 
 async def when_register_deal(api: Api, **overrides: object) -> Response:
     return await api.post(DEALS, json=await deal_body(api, **overrides))
+
+
+async def when_register_deal_omitting(api: Api, *omitted: str, **overrides: object) -> Response:
+    """기본 본문에서 omitted 키를 아예 빼고 보낸다(필드를 생략한 요청 시나리오)."""
+    body = await deal_body(api, **overrides)
+    for key in omitted:
+        del body[key]
+    return await api.post(DEALS, json=body)
 
 
 async def when_update_deal(api: Api, code: str, **patch: object) -> Response:

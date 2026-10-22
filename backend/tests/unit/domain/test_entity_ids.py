@@ -25,7 +25,7 @@ from app.domain.deal_action.value_objects import DealActionId
 from app.domain.user.entities import User
 from app.domain.user.value_objects import UserId
 from app.domain.vendor.entities import Vendor
-from app.domain.vendor.values import SolutionId, VendorId
+from app.domain.vendor.values import VendorId
 from tests.factories import NOW, make_action_content, make_deal_code, make_sync
 from tests.factories_contact import make_contact_details
 from tests.support.user_ids import ACTOR_ID, uid
@@ -158,20 +158,3 @@ def test_register_keeps_the_creator_separate_from_the_given_id() -> None:
     user = _user(entity_id=7)
 
     assert (user.id, user.created_by_user_id) == (7, CREATOR)
-
-
-def test_add_solution_uses_the_given_id() -> None:
-    vendor = _vendor(entity_id=1)
-
-    solution = vendor.add_solution("S/4HANA", NOW, entity_id=SolutionId(3))
-
-    assert solution.id == 3
-    assert [s.id for s in vendor.solutions] == [3]
-
-
-def test_add_solution_without_an_entity_id_is_a_type_error() -> None:
-    vendor = _vendor(entity_id=1)
-
-    with pytest.raises(TypeError, match="entity_id"):
-        vendor.add_solution("S/4HANA", NOW)  # type: ignore[call-arg]
-    assert vendor.solutions == []

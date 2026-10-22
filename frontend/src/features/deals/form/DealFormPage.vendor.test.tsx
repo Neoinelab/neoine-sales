@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { gateway } from '../../../gateway'
 import { ApiError } from '../../../shared/api/problem'
 import { renderAt } from '../../../test/mockApp'
-import { seedSolutionId, seedVendorId } from '../../../test/fixtures/vendors'
+import { seedVendorId } from '../../../test/fixtures/vendors'
 import { DETAIL_URL, openEdit, pickPerson, save } from './testHelpers'
 
 afterEach(() => vi.restoreAllMocks())
@@ -17,7 +17,7 @@ async function openNew() {
 
 const optionNames = (select: HTMLElement) => within(select).getAllByRole('option').map((o) => o.textContent)
 const vendorSelect = () => screen.getByLabelText('Vendor')
-const solutionSelect = () => screen.getByLabelText('Solution')
+const solutionInput = () => screen.getByLabelText('Solution')
 
 /** Vendor 목록이 로딩된 뒤의 select. */
 async function loadedVendor() {
@@ -25,7 +25,15 @@ async function loadedVendor() {
   return vendorSelect()
 }
 
-describe('Vendor·Solution 선택 (AC-9)', () => {
+async function fillRequired(user: Awaited<ReturnType<typeof openNew>>['user'], name: string) {
+  await user.type(screen.getByLabelText('Deal Name'), name)
+  await pickPerson(user, '고객', '한빛은행', /정민수/)
+  await user.type(screen.getByLabelText('금액(단위:천원)'), '100000')
+  await user.type(screen.getByLabelText('Users'), '10')
+  fireEvent.change(screen.getByLabelText('Expected Close'), { target: { value: '2027-05-01' } })
+}
+
+describe('Vendor 선택과 Solution 텍스트 (AC-12)', () => {
   it('lists none plus every registered vendor in the Vendor select', async () => {
     await openNew()
     const vendor = await loadedVendor()
@@ -37,164 +45,167 @@ describe('Vendor·Solution 선택 (AC-9)', () => {
     expect(vendor).toHaveDisplayValue('선택 안 함')
   })
 
-  it('disables Solution with a hint until a vendor is chosen', async () => {
-    const { user } = await openNew()
+  it('solution is a text input enabled without a vendor', async () => {
+    await openNew()
     await loadedVendor()
 
-    expect(solutionSelect()).toBeDisabled()
-    expect(screen.getByText('Vendor를 먼저 선택하세요.')).toBeVisible()
-
-    await user.selectOptions(vendorSelect(), 'Silverfort')
-
-    expect(solutionSelect()).toBeEnabled()
+    expect(solutionInput().tagName).toBe('INPUT')
+    expect(solutionInput()).toHaveAttribute('name', 'solution')
+    expect(solutionInput()).toBeEnabled()
     expect(screen.queryByText('Vendor를 먼저 선택하세요.')).not.toBeInTheDocument()
   })
 
-  it('shows only the solutions of the chosen vendor, plus none', async () => {
-    const { user } = await openNew()
-    await loadedVendor()
+  it('marks Solution as required', async () => {
+    await openNew()
 
-    await user.selectOptions(vendorSelect(), 'Silverfort')
-    expect(optionNames(solutionSelect())).toEqual(['선택 안 함', 'ITDR', 'MFA'])
-
-    await user.selectOptions(vendorSelect(), 'Okta')
-    expect(optionNames(solutionSelect())).toEqual(['선택 안 함', 'SSO'])
-
-    await user.selectOptions(vendorSelect(), 'Veeam')
-    expect(optionNames(solutionSelect())).toEqual(['선택 안 함'])
+    expect(solutionInput().closest('.field')).toHaveClass('required')
   })
 
-  it('offers no way to create a vendor or a solution on the form', async () => {
+  it('changing the vendor keeps the typed solution', async () => {
+    const { user } = await openNew()
+    await loadedVendor()
+    await user.type(solutionInput(), 'ITDR')
+
+    await user.selectOptions(vendorSelect(), 'Silverfort')
+    await user.selectOptions(vendorSelect(), 'Okta')
+    await user.selectOptions(vendorSelect(), '선택 안 함')
+
+    expect(solutionInput()).toHaveValue('ITDR')
+    expect(solutionInput()).toBeEnabled()
+  })
+
+  it('offers no way to create a vendor on the form and no solution list', async () => {
     await openNew()
     await loadedVendor()
     const info = screen.getByRole('region', { name: 'Deal 정보' })
 
     expect(within(info).queryByRole('button', { name: /새 (Vendor|Solution)|(Vendor|Solution) (추가|등록)/ })).not.toBeInTheDocument()
-    expect(within(info).queryByRole('option', { name: /새로|직접 입력|\+/ })).not.toBeInTheDocument()
-    expect(within(info).queryByRole('textbox', { name: /Vendor|Solution/ })).not.toBeInTheDocument()
-  })
-
-  it('AC-22 puts Vendor and Solution in div.kv-row > SelectField rows like Status', async () => {
-    await openNew()
-    await loadedVendor()
-
-    for (const label of ['Status', 'Vendor', 'Solution']) {
-      const row = screen.getByLabelText(label).closest('label')?.parentElement as HTMLElement
-      expect(row.tagName).toBe('DIV')
-      expect(row).toHaveClass('kv-row')
-    }
+    expect(within(info).queryByRole('combobox', { name: 'Solution' })).not.toBeInTheDocument()
+    expect(within(info).queryByRole('textbox', { name: 'Vendor' })).not.toBeInTheDocument()
   })
 })
 
-describe('Vendor를 바꾸면 Solution을 비운다 (AC-10)', () => {
-  it('clears the solution when another vendor is chosen', async () => {
-    const { user } = await openNew()
-    await loadedVendor()
-    await user.selectOptions(vendorSelect(), 'Silverfort')
-    await user.selectOptions(solutionSelect(), 'ITDR')
-    expect(solutionSelect()).toHaveDisplayValue('ITDR')
-
-    await user.selectOptions(vendorSelect(), 'Okta')
-
-    expect(solutionSelect()).toHaveDisplayValue('선택 안 함')
-  })
-
-  it('clears the solution and disables it again when the vendor is set back to none', async () => {
-    const { user } = await openNew()
-    await loadedVendor()
-    await user.selectOptions(vendorSelect(), 'Silverfort')
-    await user.selectOptions(solutionSelect(), 'MFA')
-
-    await user.selectOptions(vendorSelect(), '선택 안 함')
-
-    expect(solutionSelect()).toBeDisabled()
-    expect(solutionSelect()).toHaveDisplayValue('선택 안 함')
-    expect(screen.getByText('Vendor를 먼저 선택하세요.')).toBeVisible()
-  })
-
-  it('keeps the solution when the same vendor is chosen again', async () => {
-    const { user } = await openNew()
-    await loadedVendor()
-    await user.selectOptions(vendorSelect(), 'Silverfort')
-    await user.selectOptions(solutionSelect(), 'ITDR')
-
-    await user.selectOptions(vendorSelect(), 'Silverfort')
-
-    expect(solutionSelect()).toHaveDisplayValue('ITDR')
-  })
-})
-
-describe('저장 (AC-9, AC-10, AC-13)', () => {
-  it('registers a deal with the chosen vendor and solution ids', async () => {
+describe('Solution 필수 (Q1 변경)', () => {
+  it('asks for a solution and does not call the gateway when it is blank', async () => {
+    const create = vi.spyOn(gateway.deals, 'create')
     const { user, location } = await openNew()
     await loadedVendor()
-    await user.type(screen.getByLabelText('Deal Name'), 'Vendor 연동 등록')
+    await fillRequired(user, 'Solution 비움')
+    await user.type(solutionInput(), '   ')
+
+    await save(user)
+
+    const row = solutionInput().closest('.kv-row, .field') as HTMLElement
+    expect(await within(row).findByRole('alert')).toHaveTextContent('Solution을 입력하세요.')
+    expect(create).not.toHaveBeenCalled()
+    expect(location()).toBe('/deals/new')
+  })
+
+  it('is listed with the other required messages when the form is saved empty', async () => {
+    const { user } = await openNew()
+
+    await save(user)
+
+    const alerts = (await screen.findAllByRole('alert')).map((a) => a.textContent)
+    expect(alerts).toContain('Solution을 입력하세요.')
+  })
+})
+
+describe('저장 (AC-12, AC-7)', () => {
+  it('saves the trimmed solution text with the chosen vendor id', async () => {
+    const { user, location } = await openNew()
+    await loadedVendor()
     await user.selectOptions(vendorSelect(), 'Silverfort')
-    await user.selectOptions(solutionSelect(), 'ITDR')
-    await pickPerson(user, '고객', '한빛은행', /정민수/)
-    await user.type(screen.getByLabelText('금액(단위:천원)'), '100000')
-    await user.type(screen.getByLabelText('Users'), '10')
-    fireEvent.change(screen.getByLabelText('Expected Close'), { target: { value: '2027-05-01' } })
+    await user.type(solutionInput(), '  ITDR ')
+    await fillRequired(user, 'Vendor 연동 등록')
 
     await save(user)
 
     await waitFor(() => expect(location()).toMatch(DETAIL_URL))
-    const code = location().replace('/deals/', '')
-    const saved = await gateway.deals.get(code)
+    const saved = await gateway.deals.get(location().replace('/deals/', ''))
     expect(saved.vendor).toEqual({ id: seedVendorId('Silverfort'), name: 'Silverfort' })
-    expect(saved.solution).toEqual({ id: seedSolutionId('Silverfort', 'ITDR'), name: 'ITDR' })
+    expect(saved.solution).toBe('ITDR')
   })
 
-  it('registers a deal without vendor and solution as null', async () => {
+  it('registers a deal without a vendor but with a solution text', async () => {
     const { user, location } = await openNew()
-    await user.type(screen.getByLabelText('Deal Name'), 'Vendor 없는 등록')
-    await pickPerson(user, '고객', '한빛은행', /정민수/)
-    await user.type(screen.getByLabelText('금액(단위:천원)'), '100000')
-    await user.type(screen.getByLabelText('Users'), '10')
-    fireEvent.change(screen.getByLabelText('Expected Close'), { target: { value: '2027-05-01' } })
+    await user.type(solutionInput(), 'MFA')
+    await fillRequired(user, 'Vendor 없는 등록')
 
     await save(user)
 
     await waitFor(() => expect(location()).toMatch(DETAIL_URL))
     const saved = await gateway.deals.get(location().replace('/deals/', ''))
     expect(saved.vendor).toBeNull()
-    expect(saved.solution).toBeNull()
+    expect(saved.solution).toBe('MFA')
   })
 
-  it('loads the saved vendor and solution into the edit form and saves a changed vendor with an empty solution', async () => {
+  it('loads the saved vendor and solution into the edit form and keeps the solution when the vendor changes', async () => {
     const { user, location, code } = await openEdit('누리통신 MFA') // Silverfort / MFA
     await waitFor(() => expect(vendorSelect()).toHaveDisplayValue('Silverfort'))
-    await waitFor(() => expect(solutionSelect()).toHaveDisplayValue('MFA'))
+    expect(solutionInput()).toHaveValue('MFA')
 
     await user.selectOptions(vendorSelect(), 'Okta')
-    expect(solutionSelect()).toHaveDisplayValue('선택 안 함')
+    expect(solutionInput()).toHaveValue('MFA')
     await save(user)
 
     await waitFor(() => expect(location()).toBe(`/deals/${code}`))
     const saved = await gateway.deals.get(code)
     expect(saved.vendor?.name).toBe('Okta')
-    expect(saved.solution).toBeNull()
+    expect(saved.solution).toBe('MFA')
+  })
+
+  it('saves a changed solution text from the edit form', async () => {
+    const { user, location, code } = await openEdit('누리통신 MFA')
+    await waitFor(() => expect(solutionInput()).toHaveValue('MFA'))
+
+    await user.clear(solutionInput())
+    await user.type(solutionInput(), 'Identity Threat')
+    await save(user)
+
+    await waitFor(() => expect(location()).toBe(`/deals/${code}`))
+    expect((await gateway.deals.get(code)).solution).toBe('Identity Threat')
+  })
+
+  it('does not save the edit form when the solution is cleared', async () => {
+    const update = vi.spyOn(gateway.deals, 'update')
+    const { user, location, code } = await openEdit('누리통신 MFA')
+    await waitFor(() => expect(solutionInput()).toHaveValue('MFA'))
+
+    await user.clear(solutionInput())
+    await save(user)
+
+    expect(await screen.findByText('Solution을 입력하세요.')).toBeVisible()
+    expect(update).not.toHaveBeenCalled()
+    expect(location()).toBe(`/deals/${code}/edit`)
   })
 
   it.each([
-    'Solution을 선택하려면 Vendor를 먼저 선택하세요.',
     '선택한 Vendor가 없습니다. 목록에서 다시 선택하세요.',
-    '선택한 Solution은 이 Vendor에 속하지 않습니다.',
+    'Solution은 200자 이내로 입력하세요.',
   ])('shows the server message "%s" in the error banner and stays on the form', async (detail) => {
     vi.spyOn(gateway.deals, 'create').mockRejectedValue(
       new ApiError(422, { type: 'https://sales.neoine.test/problems/invalid-value', title: 'x', status: 422, detail }),
     )
     const { user, location } = await openNew()
     await loadedVendor()
-    await user.type(screen.getByLabelText('Deal Name'), '422 확인')
-    await pickPerson(user, '고객', '한빛은행', /정민수/)
-    await user.type(screen.getByLabelText('금액(단위:천원)'), '100000')
-    await user.type(screen.getByLabelText('Users'), '10')
-    fireEvent.change(screen.getByLabelText('Expected Close'), { target: { value: '2027-05-01' } })
+    await user.type(solutionInput(), 'ITDR')
+    await fillRequired(user, '422 확인')
 
     await save(user)
 
     expect(await screen.findByRole('alert')).toHaveTextContent(detail)
+    expect(location()).toBe('/deals/new')
+  })
+
+  it('shows the server message for a solution over 200 characters from the real fake gateway', async () => {
+    const { user, location } = await openNew()
+    fireEvent.change(solutionInput(), { target: { value: 'a'.repeat(201) } })
+    await fillRequired(user, '길이 초과')
+
+    await save(user)
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Solution은 200자 이내로 입력하세요.')
     expect(location()).toBe('/deals/new')
   })
 })

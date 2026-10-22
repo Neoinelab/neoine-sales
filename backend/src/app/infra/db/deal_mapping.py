@@ -18,7 +18,7 @@ from app.domain.deal.values import (
     RevenueAmount,
 )
 from app.domain.user.value_objects import UserId
-from app.domain.vendor.values import SolutionId, VendorId
+from app.domain.vendor.values import VendorId
 from app.infra.db.models_deal import DealBantLabelRow, DealPartnerRow, DealRow
 
 if TYPE_CHECKING:
@@ -31,7 +31,7 @@ def apply_fields(row: DealRow, deal: Deal) -> None:
     row.name = details.name
     row.owner_user_id = details.owner_user_id
     row.vendor_id = details.vendor_id
-    row.solution_id = details.solution_id
+    row.solution = details.solution
     row.users = details.users
     row.status_key = deal.sync.status_key
     row.forecast_key = deal.sync.forecast_key
@@ -70,11 +70,11 @@ def _bant_selection(rows: Iterable[DealBantLabelRow]) -> BantSelection:
 
 
 def _details(row: DealRow) -> DealDetails:
-    return DealDetails(
+    return DealDetails.from_storage(
         name=row.name,
         owner_user_id=UserId(row.owner_user_id),
         vendor_id=VendorId(row.vendor_id) if row.vendor_id is not None else None,
-        solution_id=SolutionId(row.solution_id) if row.solution_id is not None else None,
+        solution=row.solution,
         users=row.users,
         revenue_amount=RevenueAmount(int(row.revenue_amount)),
         revenue_date=row.revenue_date,

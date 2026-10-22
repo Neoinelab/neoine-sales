@@ -20,12 +20,9 @@ if TYPE_CHECKING:
     from app.application.action_type.rename_action_type import RenameActionType
     from app.application.ports.clock import Clock
     from app.application.ports.unit_of_work import UnitOfWorkFactory
-    from app.application.vendor.delete_solution import DeleteSolution
     from app.application.vendor.delete_vendor import DeleteVendor
     from app.application.vendor.list_vendors import ListVendors
-    from app.application.vendor.register_solution import RegisterSolution
     from app.application.vendor.register_vendor import RegisterVendor
-    from app.application.vendor.rename_solution import RenameSolution
     from app.application.vendor.rename_vendor import RenameVendor
 
 
@@ -121,18 +118,3 @@ class CatalogUseCases:
         from app.application.vendor.delete_vendor import DeleteVendor  # noqa: PLC0415
 
         return DeleteVendor(self._uow_factory())
-
-    def register_solution(self) -> RegisterSolution:
-        from app.application.vendor.register_solution import RegisterSolution  # noqa: PLC0415
-
-        return RegisterSolution(self._uow_factory(), self.clock)
-
-    def rename_solution(self) -> RenameSolution:
-        from app.application.vendor.rename_solution import RenameSolution  # noqa: PLC0415
-
-        return RenameSolution(self._uow_factory(), self.clock)
-
-    def delete_solution(self) -> DeleteSolution:
-        from app.application.vendor.delete_solution import DeleteSolution  # noqa: PLC0415
-
-        return DeleteSolution(self._uow_factory())

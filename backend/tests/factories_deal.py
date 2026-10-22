@@ -80,8 +80,8 @@ def make_create_input(**overrides: Any) -> DealCreateInput:  # noqa: ANN401
     values: dict[str, Any] = {
         "name": "ERP 구축",
         "owner_user_id": OWNER_ID,
-        "vendor_id": None,  # 등록된 Vendor·Solution의 id(없으면 선택 안 함)
-        "solution_id": None,
+        "vendor_id": None,  # 등록된 Vendor의 id(없으면 선택 안 함)
+        "solution": "S/4HANA",  # 자유 텍스트(필수, 앞뒤 공백 제거 후 1~200자)
         "users": 10,
         "status_key": "prospecting",
         "forecast_key": "pipeline",

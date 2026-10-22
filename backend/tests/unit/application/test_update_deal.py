@@ -20,10 +20,8 @@ NOT_FOUND = "Deal을 찾을 수 없습니다."
 
 class TestSentFieldsOnly:
     async def test_only_the_sent_fields_change(self, env: DealEnv) -> None:
-        sap = await env.new_vendor("SAP", ("S/4HANA",))
-        view = await env.new_deal(
-            name="ERP 구축", vendor_id=sap.id, solution_id=sap.solutions[0].id
-        )
+        sap = await env.new_vendor("SAP")
+        view = await env.new_deal(name="ERP 구축", vendor_id=sap.id, solution="S/4HANA")
         env.clock.advance(60)
 
         updated = await env.update.execute(
@@ -32,7 +30,7 @@ class TestSentFieldsOnly:
 
         details = updated.item.deal.details
         assert details.name == "확장 프로젝트"
-        assert (details.vendor_id, details.solution_id) == (sap.id, sap.solutions[0].id)
+        assert (details.vendor_id, details.solution) == (sap.id, "S/4HANA")
         assert details.revenue_amount.value == 150_000_000
         assert updated.item.deal.updated_at == env.clock.now()
         assert (await env.uow.deals.get(view.item.deal.id)).details.name == "확장 프로젝트"

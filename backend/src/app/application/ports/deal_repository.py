@@ -8,6 +8,7 @@ from app.domain.common.business_date import start_of_business_day
 from app.domain.common.errors import InvalidValueError
 from app.domain.common.validation import check_date_in_bounds, optional_text
 from app.domain.deal.period import QUARTER_MONTH_EXCLUSIVE, month_range, quarter_range
+from app.domain.deal.values import SOLUTION_MAX
 
 if TYPE_CHECKING:
     from collections.abc import Collection, Mapping, Sequence
@@ -20,7 +21,7 @@ if TYPE_CHECKING:
     from app.domain.deal.risk import RiskBasis
     from app.domain.deal_action.next_action_status import NextActionStatus
     from app.domain.user.value_objects import UserId
-    from app.domain.vendor.values import SolutionId, VendorId
+    from app.domain.vendor.values import VendorId
 
 KEYWORD_MAX = 100
 DEFAULT_PAGE_SIZE = 20
@@ -59,7 +60,7 @@ class DealQuery:
     keyword: str | None = None  # Deal Name·고객 회사·활성 파트너 회사·code 부분 일치(대소문자 무시)
     owner_user_id: UserId | None = None
     vendor_id: VendorId | None = None
-    solution_id: SolutionId | None = None
+    solution: str | None = None  # Solution 텍스트 부분 일치(대소문자 무시)
     status_key: str | None = None
     forecast_key: str | None = None
     year: int | None = None  # Expected Close 연도(필터 확장 R3)
@@ -90,6 +91,9 @@ class DealQuery:
         self._check_year_and_quarter()
         object.__setattr__(
             self, "keyword", optional_text(self.keyword, "검색어", max_length=KEYWORD_MAX)
+        )
+        object.__setattr__(
+            self, "solution", optional_text(self.solution, "Solution", max_length=SOLUTION_MAX)
         )
 
     def _check_year_and_quarter(self) -> None:
@@ -244,10 +248,6 @@ class DealRepository(Protocol):
 
     async def count_by_vendor(self) -> Mapping[VendorId, int]:
         """Vendor별 Deal 수. 쓰는 Deal이 없는 Vendor는 빠질 수 있다."""
-        ...
-
-    async def count_by_solution(self) -> Mapping[SolutionId, int]:
-        """Solution별 Deal 수. 쓰는 Deal이 없는 Solution은 빠질 수 있다."""
         ...
 
     async def count_by_contacts(self, contact_ids: Sequence[ContactId]) -> Mapping[ContactId, int]:

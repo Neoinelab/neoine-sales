@@ -101,7 +101,7 @@ export function toCreateBody(input: DealInput): Schemas['DealCreateRequest'] {
     name: input.name,
     owner_user_id: input.ownerId,
     vendor_id: input.vendorId,
-    solution_id: input.solutionId,
+    solution: input.solution,
     users: input.users,
     status_key: input.statusKey,
     forecast_key: input.forecastKey,
@@ -122,7 +122,7 @@ export function toPatchBody(patch: DealPatch): Schemas['DealPatchRequest'] {
   if (patch.name !== undefined) body.name = patch.name
   if (patch.ownerId !== undefined) body.owner_user_id = patch.ownerId
   if (patch.vendorId !== undefined) body.vendor_id = patch.vendorId
-  if (patch.solutionId !== undefined) body.solution_id = patch.solutionId
+  if (patch.solution !== undefined) body.solution = patch.solution
   if (patch.users !== undefined) body.users = patch.users
   if (patch.statusKey !== undefined) body.status_key = patch.statusKey
   if (patch.forecastKey !== undefined) body.forecast_key = patch.forecastKey

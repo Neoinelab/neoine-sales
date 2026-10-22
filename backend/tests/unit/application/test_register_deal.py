@@ -11,6 +11,7 @@ from app.application.deal.inputs import Actor
 from app.application.deal.register_deal import RegisterDeal
 from app.domain.auth.principal import Role
 from app.domain.bant.values import BantCategory
+from app.domain.common.errors import InvalidValueError
 from app.domain.contact.values import ContactKind
 from app.domain.deal.errors import DealCodeIssueError, InvalidBantLabelError
 from app.domain.deal.values import PocState, QuoteSubmitted
@@ -114,13 +115,45 @@ class TestCodeIssue:
         assert len(env.uow.deal_history._items) == 0
 
 
+class TestRegisteredSolutionText:
+    async def test_register_saves_trimmed_solution_text(self, env: DealEnv) -> None:
+        view = await env.new_deal(solution="  MFA ")
+
+        stored = await env.uow.deals.get(view.item.deal.id)
+        assert view.item.deal.details.solution == "MFA"
+        assert stored.details.solution == "MFA"
+
+    async def test_register_with_a_blank_solution_is_rejected_and_stores_nothing(
+        self, env: DealEnv
+    ) -> None:
+        with raises_with(InvalidValueError, "Solution을 입력하세요."):
+            await env.new_deal(solution="   ")
+
+        assert list(env.uow.deals._items) == []
+
+    def test_create_input_requires_solution(self) -> None:
+        from dataclasses import MISSING  # noqa: PLC0415
+
+        from app.application.deal.inputs import DealCreateInput  # noqa: PLC0415
+
+        field = DealCreateInput.__dataclass_fields__["solution"]
+        assert field.default is MISSING
+        assert field.default_factory is MISSING
+        assert "solution_id" not in DealCreateInput.__dataclass_fields__
+
+    async def test_register_keeps_the_letter_case_of_the_solution(self, env: DealEnv) -> None:
+        view = await env.new_deal(solution="itDR")
+
+        assert view.item.deal.details.solution == "itDR"
+
+
 class TestRegisteredValues:
     async def test_the_view_has_the_given_values_and_the_clock_time(self, env: DealEnv) -> None:
-        sap = await env.new_vendor("SAP", ("S/4HANA",))
+        sap = await env.new_vendor("SAP")
         view = await env.new_deal(
             name="  ERP 구축  ",
             vendor_id=sap.id,
-            solution_id=sap.solutions[0].id,
+            solution="S/4HANA",
             users=250,
             revenue_amount=1_870_000_000,
             revenue_date=date(2026, 12, 31),
@@ -129,11 +162,8 @@ class TestRegisteredValues:
 
         deal = view.item.deal
         assert deal.details.name == "ERP 구축"
-        assert (deal.details.vendor_id, deal.details.solution_id) == (sap.id, sap.solutions[0].id)
-        assert (view.vendor, view.solution) == (
-            NamedRef(sap.id, "SAP"),
-            NamedRef(sap.solutions[0].id, "S/4HANA"),
-        )
+        assert (deal.details.vendor_id, deal.details.solution) == (sap.id, "S/4HANA")
+        assert view.vendor == NamedRef(sap.id, "SAP")
         assert deal.details.users == 250
         assert deal.details.revenue_amount.value == 1_870_000_000
         assert deal.details.revenue_date == date(2026, 12, 31)

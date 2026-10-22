@@ -2,7 +2,7 @@
 
 mine=true는 요청자가 Owner인 딜이고 owner_user_id보다 우선한다. 연/분기·정렬 파라미터는 R3다.
 최종 업데이트 기간은 updated_from/to다.
-Vendor·Solution 조건은 id(int)다.
+Vendor 조건은 id(int), Solution 조건은 텍스트(부분 일치, 최대 200자)다.
 """
 
 import importlib
@@ -120,7 +120,7 @@ def test_malformed_values_are_rejected(params: dict[str, object]) -> None:
     [
         {"owner": "박영업"},  # 이름 문자열 조건은 없다
         {"vendor": "SAP"},  # 이름 조건은 id 조건(vendor_id)으로 바뀌었다
-        {"solution": "S/4HANA"},
+        {"solution_id": 7},  # 구 id 조건은 폐지됐다
         {"stage": "lost"},
         {"customer_id": MISSING_ID},
         {"partner_id": MISSING_ID},
@@ -137,22 +137,22 @@ def test_the_pipeline_params_model_is_gone() -> None:
         importlib.import_module("app.web.schemas.deal_stage")
 
 
-def test_vendor_id_and_solution_id_are_integers() -> None:
-    vendor, solution = new_id(), new_id()
+def test_vendor_id_is_an_integer() -> None:
+    vendor = new_id()
 
-    query = DealSearchParams(vendor_id=vendor, solution_id=solution).to_query(VIEWER)
+    query = DealSearchParams(vendor_id=vendor).to_query(VIEWER)
 
-    assert (query.vendor_id, query.solution_id) == (vendor, solution)
+    assert query.vendor_id == vendor
 
 
-@pytest.mark.parametrize("field", ["owner_user_id", "vendor_id", "solution_id"])
+@pytest.mark.parametrize("field", ["owner_user_id", "vendor_id"])
 @pytest.mark.parametrize("bad", ["abc", "1.5", "0", "-1", 0, -1, 2**53, "9007199254740992"])
 def test_id_query_parameters_must_be_positive_integers(field: str, bad: object) -> None:
     with pytest.raises(ValidationError):
         DealSearchParams(**{field: bad})
 
 
-@pytest.mark.parametrize("field", ["owner_user_id", "vendor_id", "solution_id"])
+@pytest.mark.parametrize("field", ["owner_user_id", "vendor_id"])
 def test_id_query_parameters_arrive_as_text_and_become_integers(field: str) -> None:
     params = DealSearchParams.model_validate({field: "7"})
 
@@ -163,10 +163,50 @@ def test_the_largest_allowed_id_query_parameter_is_accepted() -> None:
     assert DealSearchParams.model_validate({"vendor_id": str(2**53 - 1)}).vendor_id == 2**53 - 1
 
 
-def test_vendor_conditions_default_to_none() -> None:
+def test_vendor_and_solution_conditions_default_to_none() -> None:
     query = DealSearchParams().to_query(VIEWER)
 
-    assert (query.vendor_id, query.solution_id) == (None, None)
+    assert (query.vendor_id, query.solution) == (None, None)
+
+
+def test_solution_param_is_text() -> None:
+    query = DealSearchParams.model_validate({"solution": "itd"}).to_query(VIEWER)
+
+    assert query.solution == "itd"
+
+
+def test_solution_param_is_trimmed_and_blank_means_no_condition() -> None:
+    trimmed = DealSearchParams(solution="  itd ").to_query(VIEWER)
+    blank = DealSearchParams(solution="   ").to_query(VIEWER)
+
+    assert (trimmed.solution, blank.solution) == ("itd", None)
+
+
+def test_solution_param_allows_200_and_rejects_201() -> None:
+    assert DealSearchParams(solution="a" * 200).to_query(VIEWER).solution == "a" * 200
+    with pytest.raises(ValidationError):
+        DealSearchParams(solution="a" * 201)
+
+
+def test_solution_param_length_is_measured_after_trimming() -> None:
+    padded = f" {'a' * 200} "  # 202자이지만 트림 후 200자
+
+    assert DealSearchParams(solution=padded).to_query(VIEWER).solution == "a" * 200
+
+
+def test_solution_param_over_200_after_trimming_is_rejected() -> None:
+    with pytest.raises((ValidationError, InvalidValueError)):
+        DealSearchParams(solution=f" {'a' * 201} ").to_query(VIEWER)
+
+
+def test_solution_id_param_is_rejected() -> None:
+    with pytest.raises(ValidationError):
+        DealSearchParams.model_validate({"solution_id": "1"})
+
+
+def test_solution_param_with_nul_is_rejected() -> None:
+    with pytest.raises((ValidationError, InvalidValueError)):
+        DealSearchParams(solution="a\x00b").to_query(VIEWER)
 
 
 @pytest.mark.parametrize("field", ["updated_from", "updated_to"])

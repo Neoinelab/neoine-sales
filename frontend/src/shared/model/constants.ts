@@ -16,6 +16,9 @@ export const DEAL_CODE_PATTERN = /^\d{8}-[A-Z0-9]{4}$/
 /** Action 유형 이름 최대 길이(서버와 같다). */
 export const ACTION_TYPE_NAME_MAX_LENGTH = 50
 
+/** Deal Solution 텍스트 최대 길이(서버와 같다). 목록 URL 필터도 이 길이를 넘으면 무시한다. */
+export const SOLUTION_MAX_LENGTH = 200
+
 export const BANT_CATEGORIES = ['budget', 'authority', 'need', 'timeline'] as const
 export type BantCategory = (typeof BANT_CATEGORIES)[number]
 export const BANT_CATEGORY_NAMES: Record<BantCategory, string> = {

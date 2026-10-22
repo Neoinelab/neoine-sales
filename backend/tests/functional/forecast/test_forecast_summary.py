@@ -159,7 +159,7 @@ async def test_period_boundaries_put_deals_in_the_right_bucket(
 async def test_owner_and_vendor_conditions_narrow_the_rows(api: Api) -> None:
     """Scenario: owner_user_id는 그 담당자 행만, vendor_id는 그 Vendor의 Deal만 집계한다."""
     # Given
-    sap = await given_vendor(api, "SAP", ["S/4HANA"])
+    sap = await given_vendor(api, "SAP")
     kim = await given_sales_user(api, "kim")
     lee = await given_sales_user(api, "lee")
     await given_forecast_deal(api, owner=kim, amount=1, vendor_id=sap.id)

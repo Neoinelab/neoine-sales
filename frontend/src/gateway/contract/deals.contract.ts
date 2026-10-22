@@ -14,14 +14,14 @@ const SYNC_MISMATCH = 'Status와 Forecast의 동기화가 맞지 않습니다.'
 const REVENUE_NEEDED = 'Won·계약완료로 바꾸려면 매출금액과 매출일이 필요합니다.'
 const CHOICE_NEEDED = '함께 바꿀 값을 선택하세요.'
 
-/** 유효한 등록 입력. 이름·고객 회사명은 호출마다 고유하다(Vendor·Solution은 선택 안 함). */
+/** 유효한 등록 입력. 이름·고객 회사명은 호출마다 고유하다(Vendor는 선택 안 함, Solution은 필수 텍스트). */
 async function validInput(gateway: Gateway, over: Partial<DealInput> = {}): Promise<DealInput> {
   const me = await gateway.auth.me()
   return {
     name: unique('deal'),
     ownerId: me.id,
     vendorId: null,
-    solutionId: null,
+    solution: 'ITDR',
     users: 10,
     statusKey: 'prospecting',
     forecastKey: 'pipeline',
@@ -201,56 +201,107 @@ export function dealsContract(make: MakeGateway): void {
       await sales.deals.remove(created.code, created.code)
     })
 
-    it('returns vendor and solution as null when none is chosen', async () => {
+    it('returns vendor as null when none is chosen and the solution as entered', async () => {
       const sales = await make('sales')
-      const created = await sales.deals.create(await validInput(sales))
+      const created = await sales.deals.create(await validInput(sales, { solution: 'ITDR' }))
 
       expect(created.vendor).toBeNull()
-      expect(created.solution).toBeNull()
+      expect(created.solution).toBe('ITDR')
       await sales.deals.remove(created.code, created.code)
     })
 
-    it('registers a deal with a vendor and its solution as {id, name} and filters by their ids', async () => {
+    it('registers a deal with a vendor as {id, name} and a trimmed solution text and filters by them', async () => {
       const admin = await make('admin')
       const vendor = await admin.vendors.create(unique('vendor'))
-      const solution = await admin.vendors.createSolution(vendor.id, unique('solution'))
       const sales = await make('sales')
+      const text = unique('Solution')
 
-      const created = await sales.deals.create(await validInput(sales, { vendorId: vendor.id, solutionId: solution.id }))
+      const created = await sales.deals.create(await validInput(sales, { vendorId: vendor.id, solution: `  ${text}  ` }))
 
       expect(created.vendor).toEqual({ id: vendor.id, name: vendor.name })
-      expect(created.solution).toEqual({ id: solution.id, name: solution.name })
+      expect(created.solution).toBe(text)
       expect((await sales.deals.list({ vendorId: vendor.id })).items.map((d) => d.code)).toEqual([created.code])
-      expect((await sales.deals.list({ solutionId: solution.id })).items.map((d) => d.code)).toEqual([created.code])
-      expect((await sales.deals.list({ vendorId: vendor.id, solutionId: NO_SUCH_ID })).total).toBe(0)
+      expect((await sales.deals.list({ solution: text.toLowerCase() })).items.map((d) => d.code)).toEqual([created.code])
+      expect((await sales.deals.list({ vendorId: vendor.id, solution: 'no-such-solution-text' })).total).toBe(0)
       await sales.deals.remove(created.code, created.code)
       const cleanup = await make('admin')
       await cleanup.vendors.remove(vendor.id)
     })
 
-    it('refuses a solution without a vendor, an unknown vendor and a solution of another vendor, right after the name check', async () => {
+    it('accepts a solution text without a vendor and keeps it when the vendor changes', async () => {
       const admin = await make('admin')
-      const first = await admin.vendors.create(unique('vendor'))
-      const second = await admin.vendors.create(unique('vendor'))
-      const solution = await admin.vendors.createSolution(second.id, unique('solution'))
+      const vendor = await admin.vendors.create(unique('vendor'))
+      const sales = await make('sales')
+      const created = await sales.deals.create(await validInput(sales, { solution: 'ITDR' }))
+
+      const withVendor = await sales.deals.update(created.code, { vendorId: vendor.id })
+      const cleared = await sales.deals.update(created.code, { vendorId: null })
+
+      expect(created.vendor).toBeNull()
+      expect(withVendor.solution).toBe('ITDR')
+      expect(cleared.solution).toBe('ITDR')
+      await sales.deals.remove(created.code, created.code)
+      await (await make('admin')).vendors.remove(vendor.id)
+    })
+
+    it('replaces the solution text on update, refuses to clear it and records the change in the history', async () => {
+      const sales = await make('sales')
+      const created = await sales.deals.create(await validInput(sales, { solution: 'MFA' }))
+
+      const replaced = await sales.deals.update(created.code, { solution: '  ITDR ' })
+      await expectRejects(sales.deals.update(created.code, { solution: '   ' }), 422, 'Solution을 입력하세요.')
+      await expectRejects(sales.deals.update(created.code, { solution: '' }), 422, 'Solution을 입력하세요.')
+      const kept = await sales.deals.update(created.code, { name: unique('renamed') })
+
+      expect(replaced.solution).toBe('ITDR')
+      expect(kept.solution).toBe('ITDR')
+      const entries = (await sales.history.list(created.code, {})).filter((h) => h.target === 'Solution')
+      expect(entries.map((h) => [h.before, h.after])).toEqual([['MFA', 'ITDR']])
+      await sales.deals.remove(created.code, created.code)
+    })
+
+    it('requires a solution on registration', async () => {
       const sales = await make('sales')
       const base = await validInput(sales)
 
-      await expectRejects(sales.deals.create({ ...base, solutionId: solution.id }), 422, 'Solution을 선택하려면 Vendor를 먼저 선택하세요.')
+      await expectRejects(sales.deals.create({ ...base, solution: '' }), 422, 'Solution을 입력하세요.')
+      await expectRejects(sales.deals.create({ ...base, solution: '   ' }), 422, 'Solution을 입력하세요.')
+    })
+
+    it('filters the list by a case-insensitive part of the solution text', async () => {
+      const sales = await make('sales')
+      const token = unique('Tok').toLowerCase()
+      const hit = await sales.deals.create(await validInput(sales, { solution: `Pre-${token.toUpperCase()}-Post` }))
+      const miss = await sales.deals.create(await validInput(sales, { solution: 'other' }))
+
+      const found = await sales.deals.list({ solution: token })
+
+      expect(found.items.map((d) => d.code)).toEqual([hit.code])
+      await sales.deals.remove(hit.code, hit.code)
+      await sales.deals.remove(miss.code, miss.code)
+    })
+
+    it('accepts a 200 character solution text', async () => {
+      const sales = await make('sales')
+
+      const created = await sales.deals.create(await validInput(sales, { solution: 'a'.repeat(200) }))
+
+      expect(created.solution).toBe('a'.repeat(200))
+      await sales.deals.remove(created.code, created.code)
+    })
+
+    it('refuses an unknown vendor and a too long solution in the server order, after the name check', async () => {
+      const sales = await make('sales')
+      const base = await validInput(sales)
+      const tooLong = 'a'.repeat(201)
+
+      await expectRejects(sales.deals.create({ ...base, solution: tooLong }), 422, 'Solution은 200자 이내로 입력하세요.')
       await expectRejects(
-        sales.deals.create({ ...base, vendorId: NO_SUCH_ID }),
+        sales.deals.create({ ...base, vendorId: NO_SUCH_ID, solution: tooLong }),
         422,
         '선택한 Vendor가 없습니다. 목록에서 다시 선택하세요.',
       )
-      await expectRejects(
-        sales.deals.create({ ...base, vendorId: first.id, solutionId: solution.id }),
-        422,
-        '선택한 Solution은 이 Vendor에 속하지 않습니다.',
-      )
-      await expectRejects(sales.deals.create({ ...base, name: '  ', vendorId: first.id, solutionId: solution.id }), 422, 'Deal Name을 입력하세요.')
-      const cleanup = await make('admin')
-      await cleanup.vendors.remove(first.id)
-      await cleanup.vendors.remove(second.id)
+      await expectRejects(sales.deals.create({ ...base, name: '  ', solution: tooLong }), 422, 'Deal Name을 입력하세요.')
     })
 
     it('combines the filters with AND', async () => {

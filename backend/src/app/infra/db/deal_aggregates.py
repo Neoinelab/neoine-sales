@@ -1,4 +1,4 @@
-"""Deal 집계 질의: 코드·Label별 건수, Vendor·Solution별 건수, 삭제 영향 건수."""
+"""Deal 집계 질의: 코드·Label별 건수, Vendor별 건수, 삭제 영향 건수."""
 
 from typing import TYPE_CHECKING
 
@@ -6,7 +6,7 @@ from sqlalchemy import func, select
 
 from app.application.ports.deal_repository import DealDeletionImpact
 from app.domain.bant.values import BantLabelId
-from app.domain.vendor.values import SolutionId, VendorId
+from app.domain.vendor.values import VendorId
 from app.infra.db.models import DealActionRow
 from app.infra.db.models_attachment import DealAttachmentRow
 from app.infra.db.models_deal import DealBantLabelRow, DealHistoryRow, DealRow
@@ -41,11 +41,6 @@ async def count_by_bant_label(session: AsyncSession) -> Mapping[BantLabelId, int
 async def count_by_vendor(session: AsyncSession) -> Mapping[VendorId, int]:
     counts = await _counts(session, DealRow.vendor_id)
     return {VendorId(key): count for key, count in counts.items() if key is not None}
-
-
-async def count_by_solution(session: AsyncSession) -> Mapping[SolutionId, int]:
-    counts = await _counts(session, DealRow.solution_id)
-    return {SolutionId(key): count for key, count in counts.items() if key is not None}
 
 
 async def deletion_impact(session: AsyncSession, deal_id: int) -> DealDeletionImpact:

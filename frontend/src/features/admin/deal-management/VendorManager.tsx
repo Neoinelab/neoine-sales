@@ -1,95 +1,95 @@
 import { useState } from 'react'
-import {
-  useCreateSolution,
-  useCreateVendor,
-  useRemoveSolution,
-  useRemoveVendor,
-  useRenameSolution,
-  useRenameVendor,
-  useVendors,
-} from '../../../data/vendors'
-import type { Solution, Vendor } from '../../../shared/model/types'
+import { useCreateVendor, useRemoveVendor, useRenameVendor, useVendors } from '../../../data/vendors'
+import type { Vendor } from '../../../shared/model/types'
 import { ConfirmDialog } from '../../../shared/ui/ConfirmDialog'
 import { ErrorBanner } from '../../../shared/ui/ErrorBanner'
 import { TextField } from '../../../shared/ui/fields'
-import { VendorCard } from './VendorCard'
+import { InlineNameEdit } from './InlineNameEdit'
 
-type Deleting = { kind: 'vendor'; vendor: Vendor } | { kind: 'solution'; solution: Solution }
-
-function deleteMessage(target: Deleting): string {
-  if (target.kind === 'solution') return `'${target.solution.name}' Solution을 삭제할까요?`
-  const { name, solutions } = target.vendor
-  const tail = solutions.length > 0 ? ` 소속 Solution ${solutions.length}개도 함께 삭제됩니다.` : ''
-  return `'${name}' Vendor를 삭제할까요?${tail}`
-}
-
-/** Vendor·Solution 관리: Vendor 카드별 Solution 목록, 추가·이름 수정·삭제. 사용 중인 항목의 삭제 거절(409)은 서버 문구를 그대로 보인다. */
+/** Vendor 관리: 이름순 단일 표, 추가·이름 수정·삭제. 사용 중인 Vendor의 삭제 거절(409)은 서버 문구를 그대로 보인다. */
 export function VendorManager() {
   const vendors = useVendors()
   const createVendor = useCreateVendor()
   const renameVendor = useRenameVendor()
   const removeVendor = useRemoveVendor()
-  const createSolution = useCreateSolution()
-  const renameSolution = useRenameSolution()
-  const removeSolution = useRemoveSolution()
   const [newName, setNewName] = useState('')
-  const [editingKey, setEditingKey] = useState<string | null>(null)
-  const [deleting, setDeleting] = useState<Deleting | null>(null)
+  const [editingId, setEditingId] = useState<number | null>(null)
+  const [deleting, setDeleting] = useState<Vendor | null>(null)
   const [error, setError] = useState<unknown>(null)
-  const busy = [createVendor, renameVendor, removeVendor, createSolution, renameSolution, removeSolution].some((m) => m.isPending)
-  const deletePending = removeVendor.isPending || removeSolution.isPending
+  const busy = createVendor.isPending || renameVendor.isPending || removeVendor.isPending
 
   function addVendor() {
     setError(null)
     createVendor.mutate(newName, { onSuccess: () => setNewName(''), onError: setError })
   }
 
-  function confirmDelete(target: Deleting) {
+  function confirmDelete(target: Vendor) {
     setError(null)
-    const options = { onError: setError, onSettled: () => setDeleting(null) }
-    if (target.kind === 'vendor') removeVendor.mutate(target.vendor.id, options)
-    else removeSolution.mutate({ vendorId: target.solution.vendorId, solutionId: target.solution.id }, options)
+    removeVendor.mutate(target.id, { onError: setError, onSettled: () => setDeleting(null) })
   }
 
   return (
     <div className="admin-page">
       <p className="hint">
-        Vendor 이름은 대소문자 구분 없이 중복될 수 없고, Solution 이름은 같은 Vendor 안에서 중복될 수 없습니다. 사용 중인 항목은 이름을
-        바꿀 수 있지만 삭제할 수 없습니다.
+        Vendor 이름은 대소문자 구분 없이 중복될 수 없습니다. 사용 중인 Vendor는 이름을 바꿀 수 있지만 삭제할 수 없습니다.
       </p>
       <ErrorBanner error={error ?? vendors.error} />
       {vendors.isPending && <p className="hint">불러오는 중…</p>}
       {vendors.isSuccess && vendors.data.length === 0 && <p className="empty">등록된 Vendor가 없습니다.</p>}
-      {vendors.isSuccess &&
-        vendors.data.map((vendor) => (
-          <VendorCard
-            key={vendor.id}
-            vendor={vendor}
-            editingKey={editingKey}
-            busy={busy}
-            onEdit={(key) => {
-              setError(null)
-              setEditingKey(key)
-            }}
-            onRenameVendor={(v, name) => {
-              setError(null)
-              renameVendor.mutate({ id: v.id, name }, { onSuccess: () => setEditingKey(null), onError: setError })
-            }}
-            onDeleteVendor={(v) => setDeleting({ kind: 'vendor', vendor: v })}
-            onAddSolution={(v, name, done) => {
-              setError(null)
-              createSolution.mutate({ vendorId: v.id, name }, { onSuccess: done, onError: setError })
-            }}
-            onRenameSolution={(s, name) => {
-              setError(null)
-              renameSolution.mutate(
-                { vendorId: s.vendorId, solutionId: s.id, name },
-                { onSuccess: () => setEditingKey(null), onError: setError },
-              )
-            }}
-            onDeleteSolution={(s) => setDeleting({ kind: 'solution', solution: s })}
-          />
-        ))}
+      {vendors.isSuccess && (
+        <div className="table-wrap">
+          <table aria-label="Vendor 목록">
+            <thead>
+              <tr>
+                <th>이름</th>
+                <th>사용</th>
+                <th>작업</th>
+              </tr>
+            </thead>
+            <tbody>
+              {vendors.data.map((vendor) => (
+                <tr key={vendor.id}>
+                  <td>
+                    {editingId === vendor.id ? (
+                      <InlineNameEdit
+                        label="Vendor 이름"
+                        initial={vendor.name}
+                        busy={busy}
+                        onSave={(name) => {
+                          setError(null)
+                          renameVendor.mutate({ id: vendor.id, name }, { onSuccess: () => setEditingId(null), onError: setError })
+                        }}
+                        onCancel={() => setEditingId(null)}
+                      />
+                    ) : (
+                      vendor.name
+                    )}
+                  </td>
+                  <td className="stat">{`Deal ${vendor.usageCount}건`}</td>
+                  <td>
+                    <div className="row-actions">
+                      <button
+                        type="button"
+                        className="small"
+                        disabled={editingId === vendor.id}
+                        onClick={() => {
+                          setError(null)
+                          setEditingId(vendor.id)
+                        }}
+                      >
+                        이름 수정
+                      </button>
+                      <button type="button" className="small" disabled={busy} onClick={() => setDeleting(vendor)}>
+                        삭제
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
       <form
         className="admin-card"
         aria-label="Vendor 추가"
@@ -107,11 +107,11 @@ export function VendorManager() {
       </form>
       {deleting && (
         <ConfirmDialog
-          title={deleting.kind === 'vendor' ? 'Vendor 삭제' : 'Solution 삭제'}
+          title="Vendor 삭제"
           confirmLabel="삭제"
           danger
-          busy={deletePending}
-          message={deleteMessage(deleting)}
+          busy={removeVendor.isPending}
+          message={`'${deleting.name}' Vendor를 삭제할까요?`}
           onConfirm={() => confirmDelete(deleting)}
           onCancel={() => setDeleting(null)}
         />

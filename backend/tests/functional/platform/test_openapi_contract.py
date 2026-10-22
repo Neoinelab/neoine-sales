@@ -102,7 +102,9 @@ async def test_deal_endpoints_use_the_code_path_and_share_the_deals_tag(api: Api
         "/api/v1/deals/{deal_id}/stage",
         "/api/v1/deals/{deal_id}/stage-changes",
         "/api/v1/deals/pipeline",
-        "/api/v1/deals/facets",  # Vendor·Solution 선택지는 /api/v1/vendors 목록에서 온다
+        "/api/v1/deals/facets",  # Vendor 선택지는 /api/v1/vendors 목록에서 온다
+        "/api/v1/vendors/{vendor_id}/solutions",  # Solution은 Deal의 자유 텍스트다
+        "/api/v1/vendors/{vendor_id}/solutions/{solution_id}",
     )
     assert not set(retired) & set(paths)
 

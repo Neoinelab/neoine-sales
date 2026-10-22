@@ -91,7 +91,7 @@ describe('deals.list quarter', () => {
   })
 })
 
-describe('trim before the length check (P2 carry-over 1, AC-24; Vendor·Solution 길이는 이제 관리 목록 규칙)', () => {
+describe('trim before the length check (P2 carry-over 1, AC-24)', () => {
   it('accepts a 500 character procurement with surrounding spaces and stores it trimmed', async () => {
     const { gateway } = await mockAs('kim')
 

@@ -40,7 +40,7 @@ BUSINESS_READS: Final = (
     ("GET", "/api/v1/codes"),
     ("GET", "/api/v1/bant-labels"),
     ("GET", "/api/v1/action-types"),  # Action 폼·검색의 유형 선택지: 모든 역할
-    ("GET", "/api/v1/vendors"),  # Deal 폼·필터의 Vendor·Solution 선택지: 모든 역할
+    ("GET", "/api/v1/vendors"),  # Deal 폼·필터의 Vendor 선택지: 모든 역할
     ("GET", "/api/v1/alert-settings"),  # P3: 경고 기준 조회는 모든 역할(목록 범례에 숫자가 필요)
 )
 BUSINESS_WRITES: Final = (
@@ -80,12 +80,9 @@ ADMIN_ONLY: Final = (
     ("PUT", "/api/v1/settings/storage"),
     ("POST", "/api/v1/settings/storage/test"),
     ("PUT", "/api/v1/alert-settings"),  # P3: 경고 기준 변경은 admin만
-    ("POST", "/api/v1/vendors"),  # Vendor·Solution 관리는 생성도 admin만(D11)
+    ("POST", "/api/v1/vendors"),  # Vendor 관리는 생성도 admin만(D11)
     ("PATCH", "/api/v1/vendors/{vendor_id}"),
     ("DELETE", "/api/v1/vendors/{vendor_id}"),
-    ("POST", "/api/v1/vendors/{vendor_id}/solutions"),
-    ("PATCH", "/api/v1/vendors/{vendor_id}/solutions/{solution_id}"),
-    ("DELETE", "/api/v1/vendors/{vendor_id}/solutions/{solution_id}"),
 )
 PUBLIC: Final = (
     ("GET", "/healthz"),
