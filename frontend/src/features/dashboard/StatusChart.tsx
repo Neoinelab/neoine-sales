@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router'
 import { AMOUNT_LABEL, formatThousandWon } from '../../shared/model/money'
 import type { DashboardStatusItem } from '../../shared/model/types'
 import { chartTheme, pointerOnBar, SERIES_COLORS, thousandTick } from './chartSetup'
+import { useDrillEnabled } from './DrillLink'
 import { statusPath, type DashboardScope } from './drillDown'
 
 interface Props {
@@ -17,6 +18,7 @@ interface Props {
  */
 export function StatusChart({ items, scope }: Props) {
   const navigate = useNavigate()
+  const drillEnabled = useDrillEnabled()
   const theme = chartTheme()
   const data: ChartData<'bar', number[], string> = {
     labels: items.map((i) => `${i.name} (${i.count}건)`),
@@ -27,7 +29,7 @@ export function StatusChart({ items, scope }: Props) {
     maintainAspectRatio: false,
     onClick: (_event, elements) => {
       const item = items[elements[0]?.index ?? -1]
-      if (item) void navigate(statusPath(scope, item.key))
+      if (drillEnabled && item) void navigate(statusPath(scope, item.key))
     },
     onHover: pointerOnBar,
     plugins: {

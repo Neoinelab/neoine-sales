@@ -84,7 +84,7 @@ describe('이동과 목록 조건 (AC-17)', () => {
 
     await waitFor(() => expect(view.location()).toBe(start))
     expect(await screen.findByRole('tab', { name: 'Forecast' })).toHaveAttribute('aria-selected', 'true')
-    expect(screen.getByLabelText('Quarter')).toHaveDisplayValue('Q3')
+    expect(screen.queryByLabelText('Quarter')).not.toBeInTheDocument()
   })
 
   it('does not store the Dashboard condition as the remembered list condition', async () => {

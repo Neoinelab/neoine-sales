@@ -18,7 +18,7 @@ function yearOptions(base: number, current: number): number[] {
   return [...new Set([base - 1, base, base + 1, current])].sort((a, b) => a - b)
 }
 
-/** Dashboard 필터: 연도 / Quarter / 담당자 / Vendor(기간은 Expected Close 기준). 값은 URL이 가진다(제어 컴포넌트). */
+/** Dashboard 필터: 연도 / Quarter(Status 탭만) / 담당자 / Vendor(기간은 Expected Close 기준). 값은 URL이 가진다(제어 컴포넌트). */
 export function DashboardFilterBar({ filters, onChange }: Props) {
   const { year: thisYear } = useToday()
   const vendorsQuery = useVendors()
@@ -36,17 +36,19 @@ export function DashboardFilterBar({ filters, onChange }: Props) {
           </option>
         ))}
       </SelectField>
-      <SelectField
-        label="Quarter"
-        name="quarter"
-        value={filters.quarter ? String(filters.quarter) : ''}
-        onChange={(v) => onChange({ quarter: v ? (Number(v) as 1 | 2 | 3 | 4) : undefined })}
-      >
-        <option value="">전체</option>
-        {[1, 2, 3, 4].map((q) => (
-          <option key={q} value={q}>{`Q${q}`}</option>
-        ))}
-      </SelectField>
+      {filters.tab === 'status' && (
+        <SelectField
+          label="Quarter"
+          name="quarter"
+          value={filters.quarter ? String(filters.quarter) : ''}
+          onChange={(v) => onChange({ quarter: v ? (Number(v) as 1 | 2 | 3 | 4) : undefined })}
+        >
+          <option value="">전체</option>
+          {[1, 2, 3, 4].map((q) => (
+            <option key={q} value={q}>{`Q${q}`}</option>
+          ))}
+        </SelectField>
+      )}
       <UserSelect label="담당자" name="owner" value={textOf(filters.ownerId)} onChange={(v) => onChange({ ownerId: parseId(v) })} includeResigned />
       <SelectField label="Vendor" name="vendor" value={vendorValue} onChange={(v) => onChange({ vendor: parseId(v) })}>
         <option value="">전체</option>

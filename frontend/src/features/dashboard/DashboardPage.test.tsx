@@ -109,13 +109,13 @@ describe('필터 (AC-11)', () => {
 
   it('puts a chosen quarter in the URL, keeps the tab and sends it to the server', async () => {
     const summary = vi.spyOn(gateway.dashboard, 'summary')
-    const { user, location } = await renderAt('/dashboard?tab=forecast')
+    const { user, location } = await renderAt('/dashboard?tab=status')
     await screen.findByLabelText('Quarter')
 
     await user.selectOptions(screen.getByLabelText('Quarter'), 'Q2')
 
     await waitFor(() => expect(location()).toContain('quarter=2'))
-    expect(location()).toContain('tab=forecast')
+    expect(location()).toContain('tab=status')
     expect(location()).toContain('year=2026')
     await waitFor(() => expect(lastQuery(summary)).toEqual({ year: 2026, quarter: 2 }))
   })
@@ -146,21 +146,45 @@ describe('필터 (AC-11)', () => {
 
     expect(await screen.findByRole('tab', { name: 'Forecast' })).toHaveAttribute('aria-selected', 'true')
     expect(screen.getByLabelText('연도')).toHaveValue('2027')
-    expect(screen.getByLabelText('Quarter')).toHaveDisplayValue('Q3')
+    expect(screen.queryByLabelText('Quarter')).not.toBeInTheDocument()
     await waitFor(() => expect(screen.getByLabelText('담당자')).toHaveDisplayValue('박영업'))
     await waitFor(() => expect(screen.getByLabelText('Vendor')).toHaveDisplayValue('Okta'))
   })
 
-  it('applies the same condition to both tabs', async () => {
+  it('applies year, owner and vendor to both tabs but the quarter filter only to the Status tab (AC1·2)', async () => {
     const summary = vi.spyOn(gateway.dashboard, 'summary')
-    const { user } = await renderAt('/dashboard?year=2026&quarter=3')
+    const { user } = await renderAt(`/dashboard?year=2026&quarter=3&owner=${USER_ID.kim}`)
     await screen.findByRole('heading', { name: STATUS_HEADING })
+    expect(lastQuery(summary)).toEqual({ year: 2026, quarter: 3, ownerId: USER_ID.kim })
 
     await user.click(screen.getByRole('tab', { name: 'Forecast' }))
     await screen.findByRole('heading', { name: FORECAST_HEADING })
 
-    expect(screen.getByLabelText('Quarter')).toHaveDisplayValue('Q3')
-    expect(lastQuery(summary)).toEqual({ year: 2026, quarter: 3 })
+    expect(screen.getByLabelText('담당자')).toHaveDisplayValue('김영업')
+    expect(screen.queryByLabelText('Quarter')).not.toBeInTheDocument()
+    await waitFor(() => expect(lastQuery(summary)).toEqual({ year: 2026, ownerId: USER_ID.kim }))
+  })
+
+  it('has year, owner and vendor but no Quarter filter on the Forecast tab (AC1)', async () => {
+    await renderAt('/dashboard?tab=forecast&year=2026&quarter=2')
+    await screen.findByRole('heading', { name: FORECAST_HEADING })
+
+    expect(screen.getByLabelText('연도')).toBeVisible()
+    expect(screen.getByLabelText('담당자')).toBeVisible()
+    expect(screen.getByLabelText('Vendor')).toBeVisible()
+    expect(screen.queryByLabelText('Quarter')).not.toBeInTheDocument()
+  })
+
+  it('shows the Quarter filter on the Status tab and brings it back with the same value after the Forecast tab (AC1·7)', async () => {
+    const { user } = await renderAt('/dashboard?tab=status&year=2026&quarter=2')
+    expect(await screen.findByLabelText('Quarter')).toHaveDisplayValue('Q2')
+
+    await user.click(screen.getByRole('tab', { name: 'Forecast' }))
+    await screen.findByRole('heading', { name: FORECAST_HEADING })
+    expect(screen.queryByLabelText('Quarter')).not.toBeInTheDocument()
+    await user.click(screen.getByRole('tab', { name: 'Status' }))
+
+    expect(await screen.findByLabelText('Quarter')).toHaveDisplayValue('Q2')
   })
 
   it('shows an unregistered vendor id as all and leaves it out of the request', async () => {

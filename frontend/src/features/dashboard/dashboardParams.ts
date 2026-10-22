@@ -3,11 +3,13 @@ import type { DashboardQuery } from '../../shared/model/types'
 
 export type DashboardTab = 'status' | 'forecast'
 
-/** 화면 필터 상태. URL 쿼리(`tab`, `year`, `quarter`, `owner`, `vendor`)와 1:1로 대응한다. 두 탭이 같은 조건을 쓴다. */
+/** 화면 필터 상태. URL 쿼리(`tab`, `year`, `quarter`, `sq`, `owner`, `vendor`)와 1:1로 대응한다. Quarter는 Status 탭에만 적용된다. */
 export interface DashboardFilters {
   tab: DashboardTab
   year: number
   quarter?: 1 | 2 | 3 | 4
+  /** Forecast 탭 하단 Selected Quarter(URL `sq`). 서버 조회 조건이 아니다. */
+  selectedQuarter?: 1 | 2 | 3 | 4
   ownerId?: number
   /** Vendor id(URL `vendor=<id>`). */
   vendor?: number
@@ -34,6 +36,8 @@ export function filtersFromParams(params: URLSearchParams, thisYear: number): Da
   const filters: DashboardFilters = { tab: parseTab(params.get('tab')), year: parseYear(params.get('year'), thisYear) }
   const quarter = parseQuarter(params.get('quarter'))
   if (quarter) filters.quarter = quarter
+  const selectedQuarter = parseQuarter(params.get('sq'))
+  if (selectedQuarter) filters.selectedQuarter = selectedQuarter
   const ownerId = parseId(params.get('owner'))
   if (ownerId !== undefined) filters.ownerId = ownerId
   const vendor = parseId(params.get('vendor'))
@@ -47,16 +51,24 @@ export function paramsFromFilters(filters: DashboardFilters): URLSearchParams {
   params.set('tab', filters.tab)
   params.set('year', String(filters.year))
   if (filters.quarter) params.set('quarter', String(filters.quarter))
+  if (filters.selectedQuarter) params.set('sq', String(filters.selectedQuarter))
   if (filters.ownerId) params.set('owner', String(filters.ownerId))
   if (filters.vendor) params.set('vendor', String(filters.vendor))
   return params
 }
 
-/** 요약 조회 조건. 탭은 조건이 아니다. */
+/** 요약 조회 조건. Forecast 탭은 Quarter 필터를 쓰지 않으므로 quarter를 보내지 않는다(연간 값 + 4분기 전체). `selectedQuarter`는 보내지 않는다. */
 export function queryOf(filters: DashboardFilters): DashboardQuery {
   const query: DashboardQuery = { year: filters.year }
-  if (filters.quarter) query.quarter = filters.quarter
+  if (filters.quarter && filters.tab !== 'forecast') query.quarter = filters.quarter
   if (filters.ownerId) query.ownerId = filters.ownerId
   if (filters.vendor) query.vendorId = filters.vendor
   return query
+}
+
+/** Forecast 탭 하단에서 선택된 분기. 명시 값 우선, 없으면 선택 연도가 올해일 때 오늘이 속한 분기, 아니면 Q1. */
+export function selectedQuarterOf(filters: DashboardFilters, today: string): 1 | 2 | 3 | 4 {
+  if (filters.selectedQuarter) return filters.selectedQuarter
+  if (filters.year !== Number(today.slice(0, 4))) return 1
+  return (Math.floor((Number(today.slice(5, 7)) - 1) / 3) + 1) as 1 | 2 | 3 | 4
 }

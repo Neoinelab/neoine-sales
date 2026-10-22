@@ -29,13 +29,15 @@ async function openForecastTab(url = '/dashboard?tab=forecast&year=2026') {
 describe('Forecast 탭의 Forecast 타일', () => {
   it('shows the same tiles as the Status tab', async () => {
     await openForecastTab()
+    // 하단 Selected Quarter 타일도 같은 제목을 쓰므로 상단(연간) 타일 영역으로 한정한다.
+    const top = within(screen.getByRole('region', { name: 'Forecast 구분별 금액(단위:천원)' }))
 
-    const tile = screen.getByRole('link', { name: /Pipeline/ })
+    const tile = top.getByRole('link', { name: /Pipeline/ })
 
     expect(tile).toHaveTextContent('18건')
     expect(tile).toHaveTextContent(won(320_000_000))
-    expect(screen.getByRole('link', { name: /Open 합계/ })).toHaveTextContent('31건')
-    expect(screen.getByRole('link', { name: /Won/ })).toHaveTextContent('Won (2026)')
+    expect(top.getByRole('link', { name: /Open 합계/ })).toHaveTextContent('31건')
+    expect(top.getByRole('link', { name: /Won/ })).toHaveTextContent('Won (2026)')
     expect(screen.queryByRole('link', { name: /Lost/ })).not.toBeInTheDocument()
   })
 })
@@ -95,27 +97,42 @@ describe('분기 표 (AC-15)', () => {
     expect(hrefs).toContain(`/deals?year=2026&quarter=4&owner=${USER_ID.kim}&vendor=${vendor}&outcome=not_lost`)
   })
 
-  it('shows all four quarters even when one Quarter is chosen', async () => {
-    await openForecastTab('/dashboard?tab=forecast&year=2026&quarter=3')
+  it('shows all four quarters whatever the URL quarter or sq is', async () => {
+    await openForecastTab('/dashboard?tab=forecast&year=2026&quarter=3&sq=2')
 
     expect(within(screen.getByRole('table')).getAllByRole('row')).toHaveLength(5)
   })
 })
 
-describe('선택한 Quarter 강조 (AC-15, Q3=A)', () => {
-  it('marks the chosen quarter row and says which quarter is selected', async () => {
-    await openForecastTab('/dashboard?tab=forecast&year=2026&quarter=3')
+/**
+ * 계약 변경(2026-10-23): 선택 분기는 상단 Quarter 필터(`quarter`)가 아니라 하단 Selected Quarter(`sq`)가 정한다.
+ * 항상 한 분기가 선택되므로(기본: 올해면 오늘 분기, 아니면 Q1) '아무것도 강조하지 않음' 기대는 폐기했다.
+ * 세부 시나리오는 DashboardPage.selectedQuarter.test.tsx.
+ */
+describe('선택한 Quarter 강조 (AC-15, AC6)', () => {
+  it('marks the sq quarter row and says which quarter is selected in the heading', async () => {
+    await openForecastTab('/dashboard?tab=forecast&year=2026&sq=3')
 
-    expect(screen.getByText(/Selected Quarter: Q3/)).toBeVisible()
+    expect(screen.getByRole('heading', { level: 2, name: 'Selected Quarter : Q3' })).toBeVisible()
     expect(screen.getByRole('row', { name: /Q3/ })).toHaveAttribute('aria-current', 'true')
     for (const other of [/Q1/, /Q2/, /Q4/]) expect(screen.getByRole('row', { name: other })).not.toHaveAttribute('aria-current', 'true')
   })
 
-  it('marks nothing when the whole year is shown', async () => {
+  it('marks exactly one row by default (the quarter of today)', async () => {
     await openForecastTab()
 
-    expect(screen.queryByText(/Selected Quarter/)).not.toBeInTheDocument()
-    for (const row of within(screen.getByRole('table')).getAllByRole('row')) expect(row).not.toHaveAttribute('aria-current', 'true')
+    const marked = within(screen.getByRole('table'))
+      .getAllByRole('row')
+      .filter((row) => row.getAttribute('aria-current') === 'true')
+    expect(marked).toHaveLength(1)
+    expect(marked[0]).toHaveTextContent('Q4')
+  })
+
+  it('ignores the Quarter filter of the Status tab for the highlight', async () => {
+    await openForecastTab('/dashboard?tab=forecast&year=2026&quarter=3')
+
+    expect(screen.getByRole('row', { name: /Q4/ })).toHaveAttribute('aria-current', 'true')
+    expect(screen.getByRole('row', { name: /Q3/ })).not.toHaveAttribute('aria-current', 'true')
   })
 })
 

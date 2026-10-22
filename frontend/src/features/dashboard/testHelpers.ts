@@ -2,6 +2,8 @@ import { screen, within } from '@testing-library/react'
 import { vi } from 'vitest'
 import { gateway } from '../../gateway'
 import type { DashboardSummary } from '../../shared/model/types'
+// App은 DashboardPage를 React.lazy로 불러온다. 첫 테스트가 청크 로딩으로 findBy 기본 대기(1초)를 넘기지 않도록 미리 읽어 둔다.
+import './DashboardPage'
 
 /** 시드 날짜가 기준일 상대값이라 기준일을 고정한다(2026-10-15, 올해 = 2026, 이번 달 10월, 이번 분기 Q4). */
 export const NOW = '2026-10-15T09:00:00+09:00'

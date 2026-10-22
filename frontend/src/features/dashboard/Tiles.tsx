@@ -1,4 +1,4 @@
-import { Link } from 'react-router'
+import { DrillLink } from './DrillLink'
 import type { DashboardSummary, ForecastCell } from '../../shared/model/types'
 import { AmountText } from '../../shared/ui/AmountText'
 import {
@@ -19,15 +19,15 @@ interface TileProps {
 }
 
 /** 건수와 금액(천원) 타일. 타일 전체가 Deal 목록으로 가는 링크다. */
-function AmountTile({ to, title, cell, tone }: TileProps) {
+export function AmountTile({ to, title, cell, tone }: TileProps) {
   return (
-    <Link to={to} className={tone ? `db-tile db-tile-${tone}` : 'db-tile'}>
+    <DrillLink to={to} className={tone ? `db-tile db-tile-${tone}` : 'db-tile'}>
       <span className="db-tile-title">{title}</span>
       <span className="db-tile-count">{cell.count}건</span>
       <span className="db-tile-value">
         <AmountText amount={cell.amount} />
       </span>
-    </Link>
+    </DrillLink>
   )
 }
 
@@ -64,10 +64,10 @@ export function ForecastTiles({ summary, scope }: Props) {
 
 function CountTile({ to, title, count }: { to: string; title: string; count: number }) {
   return (
-    <Link to={to} className="db-tile db-tile-attention">
+    <DrillLink to={to} className="db-tile db-tile-attention">
       <span className="db-tile-title">{title}</span>
       <span className="db-tile-count">{count}건</span>
-    </Link>
+    </DrillLink>
   )
 }
 

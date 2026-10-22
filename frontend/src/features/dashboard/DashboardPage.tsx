@@ -6,8 +6,9 @@ import type { DashboardSummary } from '../../shared/model/types'
 import { effectiveVendorFilter } from '../../shared/model/vendorFilter'
 import { ErrorBanner } from '../../shared/ui/ErrorBanner'
 import { Tabs } from '../../shared/ui/Tabs'
+import { DrillEnabledContext } from './DrillLink'
 import { DashboardFilterBar } from './DashboardFilters'
-import { filtersFromParams, paramsFromFilters, queryOf, type DashboardFilters, type DashboardTab } from './dashboardParams'
+import { filtersFromParams, paramsFromFilters, queryOf, selectedQuarterOf, type DashboardFilters, type DashboardTab } from './dashboardParams'
 import type { DashboardScope } from './drillDown'
 import { ForecastTab } from './ForecastTab'
 import { StatusTab } from './StatusTab'
@@ -31,29 +32,35 @@ function isEmpty(summary: DashboardSummary, tab: DashboardTab): boolean {
 }
 
 /**
- * Dashboard `/dashboard`. 필터는 URL 쿼리가 가진다(탭 포함, 두 탭이 같은 조건·같은 요청을 쓴다).
+ * Dashboard `/dashboard`. 필터는 URL 쿼리가 가진다(탭 포함). Quarter는 Status 탭에만 적용되므로 Quarter를 고르면 두 탭의 요청이 다르다.
  * 숫자를 누르면 Deal 목록(`/deals?...`)으로 이동하고 목록 조건이 자동으로 채워진다. 모든 로그인 사용자가 조회하며 쓰기 동작은 없다.
  */
 export function DashboardPage() {
   const [params, setParams] = useSearchParams()
-  const { year: thisYear } = useToday()
+  const { year: thisYear, today: clientToday } = useToday()
   const filters = filtersFromParams(params, thisYear)
   const vendors = useVendors().data
   // 표시와 조회 조건을 맞춘다: 목록에 없는 Vendor는 조회·이동 조건에서 제외한다.
   const vendor = effectiveVendorFilter(vendors, filters.vendor).vendorId
   const effective: DashboardFilters = { ...filters, vendor }
   const summary = useDashboardSummary(queryOf(effective))
-  const scope: DashboardScope = { year: effective.year, quarter: effective.quarter, ownerId: effective.ownerId, vendor }
+  // Forecast 탭은 Quarter 필터를 쓰지 않는다(연간 범위). 선택 분기는 하단 영역과 강조에만 쓴다.
+  const quarter = filters.tab === 'status' ? effective.quarter : undefined
+  const scope: DashboardScope = { year: effective.year, quarter, ownerId: effective.ownerId, vendor }
 
   const update = (patch: Partial<DashboardFilters>) => setParams(paramsFromFilters({ ...filters, ...patch }))
 
   const data = summary.data
+  // 새 조건의 응답이 오기 전에는 이전 응답(placeholder)이 남아 있으므로 불러오는 중으로 보고 Drill-down 링크를 내지 않는다.
+  const loading = summary.isPending || summary.isPlaceholderData
+  // Selected Quarter 기본값은 서버 업무 날짜(응답 today) 기준. 응답 전에는 클라이언트 날짜로 대체한다.
+  const today = data?.today ?? clientToday
   return (
     <section className="db-page">
       <h1>Dashboard</h1>
       <DashboardFilterBar filters={filters} onChange={update} />
       <ErrorBanner error={summary.error} />
-      {summary.isPending && (
+      {loading && (
         <p role="status" className="hint">
           불러오는 중…
         </p>
@@ -64,9 +71,11 @@ export function DashboardPage() {
           {isEmpty(data, filters.tab) && <p className="db-empty">조건에 맞는 Deal이 없습니다.</p>}
         </>
       )}
-      <Tabs label="Dashboard 보기" tabs={TABS} active={filters.tab} onChange={(id) => isTab(id) && update({ tab: id })}>
-        {data && (filters.tab === 'status' ? <StatusTab summary={data} scope={scope} /> : <ForecastTab summary={data} scope={scope} />)}
+      <DrillEnabledContext.Provider value={!loading}>
+<Tabs label="Dashboard 보기" tabs={TABS} active={filters.tab} onChange={(id) => isTab(id) && update({ tab: id })}>
+        {data && (filters.tab === 'status' ? <StatusTab summary={data} scope={scope} /> : <ForecastTab summary={data} scope={scope} selectedQuarter={selectedQuarterOf(filters, today)} onSelectQuarter={(sq) => update({ selectedQuarter: sq })} />)}
       </Tabs>
+      </DrillEnabledContext.Provider>
     </section>
   )
 }

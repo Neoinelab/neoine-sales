@@ -80,8 +80,8 @@ describe('차트 데이터', () => {
     expect(lastChart().data.datasets[3]?.data).toEqual([7_000_000, 7_000_000, 7_000_000, 7_000_000])
   })
 
-  it('keeps all four quarters when one Quarter is chosen', async () => {
-    await openForecastTab('/dashboard?tab=forecast&year=2026&quarter=3')
+  it('keeps all four quarters when sq is chosen', async () => {
+    await openForecastTab('/dashboard?tab=forecast&year=2026&sq=3')
 
     expect(lastChart().data.labels).toEqual(['Q1', 'Q2', 'Q3', 'Q4'])
   })

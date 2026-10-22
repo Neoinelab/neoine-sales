@@ -26,7 +26,8 @@
 .db-total { background: var(--ui-info-bg); }
 .db-table tfoot th, .db-table tfoot td { font-weight: 700; border-top: 2px solid var(--line); }
 .db-table tr.db-selected th, .db-table tr.db-selected td { background: var(--ui-info-bg); }
-.db-selected-note { margin: 0; font-weight: 600; color: var(--accent-text); }
+.db-quarter-buttons { display: flex; flex-wrap: wrap; gap: 8px; }
+.db-quarter-buttons button[aria-pressed='true'] { background: var(--accent); border-color: var(--accent); color: var(--on-accent, #fff); font-weight: 700; }
 .db-empty { padding: 20px 16px; text-align: center; color: var(--muted); background: var(--panel); border: 1px dashed var(--line); border-radius: 8px; margin: 0; }
 
 @media (max-width: 640px) {

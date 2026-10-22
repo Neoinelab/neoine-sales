@@ -1,4 +1,4 @@
-import { Link } from 'react-router'
+import { DrillLink } from './DrillLink'
 import { AMOUNT_LABEL } from '../../shared/model/money'
 import type { DashboardSummary } from '../../shared/model/types'
 import { AmountText } from '../../shared/ui/AmountText'
@@ -32,7 +32,7 @@ function StatusTable({ summary, scope }: Props) {
           {items.map((item) => (
             <tr key={item.key}>
               <th scope="row">
-                <Link to={statusPath(scope, item.key)}>{item.name}</Link>
+                <DrillLink to={statusPath(scope, item.key)}>{item.name}</DrillLink>
               </th>
               <td className="db-num">{item.count}건</td>
               <td className="db-num">
@@ -44,7 +44,7 @@ function StatusTable({ summary, scope }: Props) {
         <tfoot>
           <tr>
             <th scope="row">
-              <Link to={statusTotalPath(scope)}>합계</Link>
+              <DrillLink to={statusTotalPath(scope)}>합계</DrillLink>
             </th>
             <td className="db-num">{total.count}건</td>
             <td className="db-num">
