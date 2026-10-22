@@ -7,6 +7,7 @@ import { createAuthGateway, createSetupGateway } from './auth'
 import { createCodesGateway } from './codes'
 import type { MockContext } from './context'
 import { createContactsGateway } from './contacts'
+import { createDashboardGateway } from './dashboard'
 import { dealsReadApi } from './dealsRead'
 import { dealsWriteApi } from './dealsWrite'
 import { createForecastGateway } from './forecast'
@@ -31,6 +32,7 @@ export function createGatewayFor(ctx: MockContext): Gateway {
     labels: createLabelsGateway(ctx),
     vendors: createVendorsGateway(ctx),
     forecast: createForecastGateway(ctx),
+    dashboard: createDashboardGateway(ctx),
     users: createUsersGateway(ctx),
     settings: createSettingsGateway(ctx),
     alerts: createAlertsGateway(ctx),

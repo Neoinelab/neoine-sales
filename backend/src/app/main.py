@@ -21,6 +21,7 @@ from app.web.routers import (
     bant_labels,
     codes,
     contacts,
+    dashboard,
     deal_actions,
     deals,
     forecast,
@@ -90,6 +91,7 @@ def create_app(
         action_types,
         vendors,
         forecast,
+        dashboard,
     )
     for module in (
         *business,

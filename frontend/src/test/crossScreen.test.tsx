@@ -107,16 +107,25 @@ describe('Label 관리에서 만든 Label이 Deal 폼에 나타난다 (6-c)', ()
 })
 
 describe('범위 밖 메뉴 (6-d)', () => {
-  it.each([
-    ['Dashboard', '/dashboard'],
-    ['Reports', '/reports'],
-  ])('shows %s as not ready', async (menu, path) => {
+  it('shows Reports as not ready', async () => {
     const { user, location } = await renderAt('/deals')
     await screen.findByRole('row', { name: /한빛은행 ITDR 도입/ })
-    await goTo(user, menu)
-    expect(location()).toBe(path)
-    expect(await screen.findByRole('heading', { level: 1, name: menu })).toBeVisible()
+    await goTo(user, 'Reports')
+    expect(location()).toBe('/reports')
+    expect(await screen.findByRole('heading', { level: 1, name: 'Reports' })).toBeVisible()
     expect(screen.getByText(/준비 중입니다/)).toBeVisible()
+  })
+})
+
+describe('Dashboard 메뉴 (Dashboard AC-10)', () => {
+  it('opens the Dashboard from the menu instead of a coming soon page', async () => {
+    const { user, location } = await renderAt('/deals')
+    await screen.findByRole('row', { name: /한빛은행 ITDR 도입/ })
+    await goTo(user, 'Dashboard')
+    expect(location()).toBe('/dashboard')
+    expect(await screen.findByRole('heading', { level: 1, name: 'Dashboard' })).toBeVisible()
+    expect(await screen.findByRole('tab', { name: 'Status' })).toBeVisible()
+    expect(screen.queryByText(/준비 중입니다/)).not.toBeInTheDocument()
   })
 })
 

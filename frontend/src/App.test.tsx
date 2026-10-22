@@ -58,14 +58,32 @@ describe('메뉴 (T-SHELL-04~05)', () => {
 })
 
 describe('준비 중 화면 (T-SHELL-06, S2)', () => {
-  it.each([
-    ['/dashboard', 'Dashboard'],
-    ['/reports', 'Reports'],
-  ])('coming soon pages do not mention the mock (%s)', async (url, title) => {
-    await renderAt(url)
-    expect(await screen.findByRole('heading', { name: title })).toBeVisible()
+  it('coming soon pages do not mention the mock (/reports)', async () => {
+    await renderAt('/reports')
+    expect(await screen.findByRole('heading', { name: 'Reports' })).toBeVisible()
     expect(screen.getByText(/준비 중입니다/)).toBeVisible()
     expect(document.body.textContent).not.toContain('목업')
+  })
+})
+
+describe('Dashboard 화면 (Dashboard AC-10)', () => {
+  it('shows the Dashboard instead of the coming soon page', async () => {
+    await renderAt('/dashboard')
+    expect(await screen.findByRole('heading', { level: 1, name: 'Dashboard' })).toBeVisible()
+    expect(await screen.findByRole('tab', { name: 'Status' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('tab', { name: 'Forecast' })).toBeVisible()
+    expect(screen.queryByText(/준비 중입니다/)).not.toBeInTheDocument()
+    expect(document.body.textContent).not.toContain('목업')
+  })
+
+  it.each(['admin', 'sales', 'user'] as const)('is open to the %s role', async (role) => {
+    await renderAt('/dashboard', { role })
+    expect(await screen.findByRole('tab', { name: 'Status' })).toBeVisible()
+  })
+
+  it('sends an anonymous visitor to the login page', async () => {
+    const { location } = await renderAt('/dashboard', { role: null })
+    await waitFor(() => expect(location()).toBe('/login'))
   })
 })
 

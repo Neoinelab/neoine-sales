@@ -9,6 +9,8 @@
 
 이 모듈은 Deal·연락처 도메인 객체를 속성으로만 읽는다(새 모델 구현이 없어도 가져올 수 있다).
 - 연/분기/월: Expected Close가 그 해(분기·월)에 속함(Q1=1~3월 … Q4=10~12월)
+- forecast_outcome: Forecast 코드의 outcome이 허용 집합에 듦(open/won/lost, not_lost=open+won).
+  outcome은 코드 저장소에서 읽는다(구현의 `ForecastOutcomeFilter.outcomes()`를 베끼지 않는다)
 - updated_from/to: last_updated_at의 로컬 업무 날짜가 양끝 포함 범위 안(`updated_in_range`)
 - overdue/stale: compute_risk 결과가 해당 집합에 드는 Deal(둘 다면 OR). basis가 없으면 ValueError
 """
@@ -20,7 +22,7 @@ from typing import TYPE_CHECKING, Any
 from app.domain.deal.risk import Risk, compute_risk
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Callable, Mapping
 
     from app.application.ports.deal_repository import DealQuery
     from app.domain.deal.risk import RiskBasis
@@ -31,12 +33,31 @@ def company_of(contacts: Mapping[Any, Any], contact_id: Any) -> str:  # noqa: AN
     return str(contact.details.company) if contact is not None else ""
 
 
+_ALLOWED_OUTCOMES: dict[str, frozenset[str]] = {
+    "open": frozenset({"open"}),
+    "won": frozenset({"won"}),
+    "lost": frozenset({"lost"}),
+    "not_lost": frozenset({"open", "won"}),
+}
+
+
+def outcome_allowed(query: DealQuery, forecast_key: str, outcome_of: Callable[[str], str]) -> bool:
+    """query.forecast_outcome이 있으면 그 Forecast 코드의 outcome이 허용 집합에 드는가."""
+    wanted = getattr(query, "forecast_outcome", None)
+    if wanted is None:
+        return True
+    return outcome_of(forecast_key) in _ALLOWED_OUTCOMES[str(wanted)]
+
+
 def matches(
     deal: Any,  # noqa: ANN401
     query: DealQuery,
     contacts: Mapping[Any, Any],
+    outcome_of: Callable[[str], str] | None = None,
 ) -> bool:
     details = deal.details
+    if outcome_of is not None and not outcome_allowed(query, deal.sync.forecast_key, outcome_of):
+        return False
     if query.keyword:
         needle = query.keyword.lower()
         active = deal.active_partner_id()

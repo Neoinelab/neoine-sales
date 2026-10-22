@@ -56,6 +56,7 @@ async def test_the_largest_limit_and_the_longest_text_conditions_are_accepted(ap
         {"revenue_to": "2026-06-30"},
         {"owner_user_id": "not-an-id"},
         {"unknown": "x"},
+        {"forecast_outcome": "foo"},  # open·won·lost·not_lost 밖의 값
     ],
 )
 async def test_out_of_range_or_malformed_conditions_are_request_validation_errors(

@@ -1,5 +1,5 @@
 import { DEAL_PAGE_SIZE, SOLUTION_MAX_LENGTH } from '../../../shared/model/constants'
-import type { DealListQuery, DealSortKey, SortOrder } from '../../../shared/model/types'
+import type { DealListQuery, DealSortKey, ForecastOutcomeFilter, SortOrder } from '../../../shared/model/types'
 
 import { nextActionStatusFromParam } from '../../../shared/model/nextActionStatus'
 import { parseId } from '../../../shared/model/ids'
@@ -31,6 +31,11 @@ const NATURAL_ORDER: Record<DealSortKey, SortOrder> = {
   partner: 'asc',
   vendor: 'asc',
   forecastKey: 'asc',
+}
+
+/** Forecast 구분 필터의 URL 값 → 선택지. 모르는 값은 undefined('전체')다. */
+export function outcomeFromParam(value: string | null): ForecastOutcomeFilter | undefined {
+  return value === 'open' || value === 'won' || value === 'lost' || value === 'not_lost' ? value : undefined
 }
 
 function isSortKey(value: string | null): value is DealSortKey {
@@ -74,6 +79,8 @@ export function listQueryFromParams(params: URLSearchParams): DealListQuery {
     const value = text(param)
     if (value) query[field] = value
   }
+  const outcome = outcomeFromParam(params.get('outcome'))
+  if (outcome) query.forecastOutcome = outcome
   // 최종 업데이트 기간: 실제 달력 날짜만 쓰고 잘못된 값은 무시한다.
   const updatedFrom = text('updated_from')
   if (isCalendarDate(updatedFrom)) query.updatedFrom = updatedFrom

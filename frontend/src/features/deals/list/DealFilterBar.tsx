@@ -10,6 +10,7 @@ import { selectedUpdatedPeriod } from '../../../shared/model/updatedPeriod'
 import { ErrorBanner } from '../../../shared/ui/ErrorBanner'
 import { CheckboxField, SelectField, TextField } from '../../../shared/ui/fields'
 import { UserSelect } from '../../../shared/ui/UserSelect'
+import { outcomeFromParam } from './listQuery'
 
 interface DealFilterBarProps {
   params: URLSearchParams
@@ -21,8 +22,11 @@ interface DealFilterBarProps {
 const QUARTERS = [1, 2, 3, 4] as const
 const MONTHS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] as const
 
-function yearOptions(year: number): number[] {
-  return [year - 1, year, year + 1, year + 2]
+/** 올해-1~+2에, URL로 들어온 유효한 연도(Dashboard Drill-down 등)가 범위 밖이면 그 값을 더한다. */
+function yearOptions(year: number, urlYear: string): number[] {
+  const years = [year - 1, year, year + 1, year + 2]
+  const current = /^\d+$/.test(urlYear) ? Number(urlYear) : 0
+  return current >= 1 && !years.includes(current) ? [...years, current].sort((a, b) => a - b) : years
 }
 
 /** Deal 목록 필터(DL-04, LB-06). 키워드는 검색 버튼, 나머지는 바꾸는 즉시 URL에 반영한다. */
@@ -141,6 +145,13 @@ export function DealFilterBar({ params, onChange, onReset }: DealFilterBarProps)
           </option>
         ))}
       </SelectField>
+      <SelectField label="Forecast 구분" name="outcome" value={outcomeFromParam(params.get('outcome')) ?? ''} onChange={(outcome) => onChange({ outcome })}>
+        <option value="">전체</option>
+        <option value="open">Open</option>
+        <option value="won">Won</option>
+        <option value="lost">Lost</option>
+        <option value="not_lost">Lost 제외</option>
+      </SelectField>
       <SelectField
         label="Next Action 상태"
         name="next_status"
@@ -160,7 +171,7 @@ export function DealFilterBar({ params, onChange, onReset }: DealFilterBarProps)
         onChange={(year) => onChange({ year })}
       >
         <option value="">전체</option>
-        {yearOptions(thisYear).map((y) => (
+        {yearOptions(thisYear, value('year')).map((y) => (
           <option key={y} value={String(y)}>
             {y}
           </option>

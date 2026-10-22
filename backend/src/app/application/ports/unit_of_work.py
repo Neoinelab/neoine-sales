@@ -8,6 +8,7 @@ if TYPE_CHECKING:
     from app.application.ports.bant_label_repository import BantLabelRepository
     from app.application.ports.code_repository import CodeRepository
     from app.application.ports.contact_repository import ContactRepository
+    from app.application.ports.dashboard_repository import DashboardTallyRepository
     from app.application.ports.deal_action_repository import DealActionRepository
     from app.application.ports.deal_history_repository import DealHistoryRepository
     from app.application.ports.deal_repository import DealRepository
@@ -81,6 +82,9 @@ class UnitOfWork(Protocol):
 
     @property
     def forecast(self) -> ForecastTallyRepository: ...
+
+    @property
+    def dashboard(self) -> DashboardTallyRepository: ...
 
     @property
     def forecast_snapshots(self) -> ForecastSnapshotRepository: ...

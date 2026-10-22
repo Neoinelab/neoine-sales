@@ -73,7 +73,7 @@ code{background:var(--soft);padding:1px 5px;border-radius:3px;font-size:12.5px}
 <main>
 
 <h1>NEOINE 영업관리 프로그램 PRD</h1>
-<p class="meta">제품 요구사항 문서 · 기준 문서: NEOINE_영업관리_프로그램_명세서_v4.pptx(표지 표기 v5.0, 20장) · 코드 기준: 2026-10-14 현재 main 작업 트리 · 문서 갱신: 2026-10-22 · 상태 표기: <span class="b ok">구현</span> <span class="b part">부분</span> <span class="b todo">예정</span> <span class="b chg">확인 필요</span></p>
+<p class="meta">제품 요구사항 문서 · 기준 문서: NEOINE_영업관리_프로그램_명세서_v4.pptx(표지 표기 v5.0, 20장) · 코드 기준: 2026-10-14 현재 main 작업 트리 · 문서 갱신: 2026-10-23 · 상태 표기: <span class="b ok">구현</span> <span class="b part">부분</span> <span class="b todo">예정</span> <span class="b chg">확인 필요</span></p>
 
 <h2 id="s1">1. 개요</h2>
 <h3>1.1 목적</h3>
@@ -94,7 +94,7 @@ code{background:var(--soft);padding:1px 5px;border-radius:3px;font-size:12.5px}
 <div class="cards">
 <div class="card"><div class="n">Deal·연락처·활동</div>원장과 Next Action 이력, 단계 변경 이력은 구현됨</div>
 <div class="card"><div class="n">인증·권한·사용자</div>AD 로그인, 3개 역할, 사용자 관리·퇴사 처리는 구현됨</div>
-<div class="card"><div class="n">Forecast·Dashboard·Reports</div>Forecast 요약은 실시간 집계와 월말 스냅숏으로 구현(P6). Dashboard·Reports는 “준비 중”(P4·P7 대기). BANT Label은 구현됨</div>
+<div class="card"><div class="n">Forecast·Dashboard·Reports</div>Forecast 요약은 실시간 집계와 월말 스냅숏으로 구현(P6). Dashboard는 Status·Forecast 탭으로 구현(P4, 2026-10-23). Reports만 “준비 중”(P7 대기). BANT Label은 구현됨</div>
 </div>
 <p>세부 목록은 <a href="#sa">부록 A(구현된 항목)</a>와 <a href="#sb">부록 B(구현할 항목)</a>에 있다.</p>
 
@@ -128,7 +128,7 @@ code{background:var(--soft);padding:1px 5px;border-radius:3px;font-size:12.5px}
 <h3>4.1 명세서의 메뉴 구조</h3>
 <table>
 <tr><th>메뉴</th><th>하위 화면</th></tr>
-<tr><td>Dashboard</td><td>Overview · Forecast / Closing · (Deal Drill-down 팝업)</td></tr>
+<tr><td>Dashboard</td><td>Status 탭(Overview) · Forecast 탭(Forecast / Closing) · <s>(Deal Drill-down 팝업)</s> 클릭 시 Deal 목록 이동(2026-10-23 결정)</td></tr>
 <tr><td>Deals</td><td>Deal 목록 · Deal 등록 · Deal 상세 · Next Action</td></tr>
 <tr><td>Forecast</td><td>Forecast 요약 (별도의 “담당자 상세” 메뉴는 없다)</td></tr>
 <tr><td>Reports</td><td>영업 분석 · Vendor / Solution · Status 분석 · Forecast 추이</td></tr>
@@ -146,8 +146,8 @@ code{background:var(--soft);padding:1px 5px;border-radius:3px;font-size:12.5px}
 <table>
 <tr><th>경로</th><th>화면</th><th>접근</th></tr>
 <tr><td><code>/</code></td><td><code>/deals</code>로 이동(첫 화면을 Dashboard로 바꾸는 것은 P4)</td><td>로그인 사용자</td></tr>
-<tr><td><code>/dashboard</code></td><td>“준비 중” 표시(P4 대기)</td><td>로그인 사용자</td></tr>
-<tr><td><code>/deals</code></td><td>Deal 목록(12열: DL-05 11개 + BANT, 헤더 정렬, Risk 색상, Quick View, Inline Update, 조회 조건 유지) + 단계별 요약 + “내 딜”·기한초과·미업데이트 필터</td><td>로그인 사용자</td></tr>
+<tr><td><code>/dashboard</code></td><td>Dashboard(P4, 2026-10-23): Status·Forecast 탭(URL <code>tab</code>), 공통 필터 연도(기본 올해)·Quarter·담당자·Vendor(URL <code>year</code>·<code>quarter</code>·<code>owner</code>·<code>vendor</code>), 막대·표·타일 클릭 시 같은 조건의 Deal 목록으로 이동. 읽기 전용</td><td>로그인 사용자</td></tr>
+<tr><td><code>/deals</code></td><td>Deal 목록(12열: DL-05 11개 + BANT, 헤더 정렬, Risk 색상, Quick View, Inline Update, 조회 조건 유지) + “내 딜”·기한초과·미업데이트·Forecast 구분 필터(단계별 요약은 Deal 목록이 아니라 Dashboard Status 탭에 있다)</td><td>로그인 사용자</td></tr>
 <tr><td><code>/deals/new</code>, <code>/deals/:dealCode/edit</code></td><td>Deal 등록·수정</td><td>sales·admin</td></tr>
 <tr><td><code>/deals/:dealCode</code></td><td>Deal 상세. 탭 3개: Deal 상세(기본, BANT·견적·POC·첨부 파일) / Actions(<code>?tab=actions</code>) / Deal History(<code>?tab=history</code>)</td><td>로그인 사용자</td></tr>
 <tr><td><code>/forecast</code></td><td>Forecast 요약(연도·Quarter·월·담당자·Vendor 필터, Deal 원장 실시간 집계)과 담당자 선택 시 같은 화면의 Deal 목록(P6 R1, 2026-10-21)</td><td>로그인 사용자</td></tr>
@@ -156,7 +156,7 @@ code{background:var(--soft);padding:1px 5px;border-radius:3px;font-size:12.5px}
 <tr><td><code>/login</code>, <code>/setup</code></td><td>로그인, 최초 설정(AD 서버 → 저장 위치 → admin 등록)</td><td>공개</td></tr>
 </table>
 <p>구 경로 <code>/customers</code>·<code>/partners</code>·<code>/actions</code>는 폐지되어 알 수 없는 경로와 같이 <code>/</code>(→ <code>/deals</code>)로 이동한다. <code>/users</code>·<code>/settings</code>는 Admin 화면으로 리다이렉트한다. 앱은 항상 실제 서버 API를 쓰며 목업 모드는 없다(P8).</p>
-<div class="box warn">사용자 메뉴는 명세서대로 Dashboard / Deals / Forecast / Reports 4개로 확정했고 P8에서 구현했다(admin에게만 Admin 메뉴가 추가로 보인다). <span class="b ok">구현</span> Dashboard·Reports는 메뉴와 경로만 있고 내용은 “준비 중”이다(P4·P7). Forecast는 P6 R1에서 구현했다. 고객·파트너는 별도 메뉴 없이 Deal 등록·수정·상세 안의 연락처 선택으로 다루고, 전체 관리는 Admin &gt; contacts 관리에서 한다(5.6절). 활동 검색은 Deal 상세의 Actions 탭으로 옮긴다(7.2절).</div>
+<div class="box warn">사용자 메뉴는 명세서대로 Dashboard / Deals / Forecast / Reports 4개로 확정했고 P8에서 구현했다(admin에게만 Admin 메뉴가 추가로 보인다). <span class="b ok">구현</span> Dashboard는 P4에서 구현했고(2026-10-23), Reports는 메뉴와 경로만 있고 내용은 “준비 중”이다(P7). Forecast는 P6 R1에서 구현했다. 고객·파트너는 별도 메뉴 없이 Deal 등록·수정·상세 안의 연락처 선택으로 다루고, 전체 관리는 Admin &gt; contacts 관리에서 한다(5.6절). 활동 검색은 Deal 상세의 Actions 탭으로 옮긴다(7.2절).</div>
 
 <h2 id="s5">5. 데이터 모델</h2>
 <p>명세서는 Master / Update / Forecast / Code 4개 테이블 구조를 제시한다. 현재 DB는 정규화되어 있어 매핑이 다르다.</p>
@@ -336,12 +336,12 @@ code{background:var(--soft);padding:1px 5px;border-radius:3px;font-size:12.5px}
 <h3 id="s7-1">7.1 Dashboard</h3>
 <table>
 <tr><th>ID</th><th>요구사항</th><th>상태</th></tr>
-<tr><td>DB-01</td><td>첫 화면에 모든 Status 단계를 Funnel/Pipeline 형태로 표시한다(단계별 건수·금액).</td><td><span class="b part">부분</span> 단계별 건수·금액 요약은 Deal 목록에 있음. Dashboard 화면은 예정</td></tr>
-<tr><td>DB-02</td><td>KPI 카드: Total Pipeline, Commit, Best, Won YTD.</td><td><span class="b todo">예정</span></td></tr>
-<tr><td>DB-03</td><td>공통 Filter(Year / Quarter / 담당자 / Vendor)를 Dashboard 전체에 적용한다.</td><td><span class="b todo">예정</span></td></tr>
-<tr><td>DB-04</td><td>단계 막대를 클릭하면 해당 Status의 Deal 목록 팝업(Drill-down)을 연다. 목록 열: Deal / 고객사 / 파트너사 / 담당자 / Vendor / Status / Forecast / 금액 / Expected Close / Next Action.</td><td><span class="b todo">예정</span></td></tr>
-<tr><td>DB-05</td><td>“주의 필요 Deal”: 기한초과, 14일 이상 미업데이트, 이번 분기 Expected Close 건수를 표시하고 클릭하면 목록으로 이동한다.</td><td><span class="b todo">예정</span></td></tr>
-<tr><td>DB-06</td><td>Forecast &amp; Closing: Commit / Best / Pipeline / Won QTR와 분기별 Closing Forecast 막대, 이번달·이번분기 Expected Close 건수.</td><td><span class="b todo">예정</span></td></tr>
+<tr><td>DB-01</td><td>첫 화면에 모든 Status 단계를 Funnel/Pipeline 형태로 표시한다(단계별 건수·금액).</td><td><span class="b ok">구현</span> P4(2026-10-23): Status 탭 “전체 Status Pipeline”. Status 코드마다(order 순, Deal 없으면 0) 건수·금액 막대(Chart.js, 높이=금액, 라벨 <code>이름 (N건)</code>)와 같은 값의 표·합계 행. <b>Lost Deal은 제외</b>하고 Won(계약완료)은 포함(사용자 결정 Q2). 기간은 Expected Close(<code>revenue_date</code>) 기준. <s>단계별 건수·금액 요약은 Deal 목록에 있음</s>(사실이 아니었음: Deal 목록에는 단계 요약이 없었고 이번에 Dashboard에 새로 만듦). 첫 화면은 지금처럼 <code>/deals</code>(사용자 결정 Q5)</td></tr>
+<tr><td>DB-02</td><td>KPI 카드: Total Pipeline, Commit, Best, Won YTD.</td><td><span class="b ok">구현</span> P4(2026-10-23): 결정(Q1) — Lost를 뺀 Forecast 코드마다 타일(Open 코드 순서, admin이 추가한 Open 코드 포함) + “Open 합계”(= Total Pipeline) + Won 타일(제목에 기간, 예: <code>Won (2026)</code>·<code>Won (2026 Q3)</code>, 올해면 Won YTD 자리). 값은 같은 조건의 Forecast 요약 <code>total</code>과 같다. 두 탭 상단에 같이 표시</td></tr>
+<tr><td>DB-03</td><td>공통 Filter(Year / Quarter / 담당자 / Vendor)를 Dashboard 전체에 적용한다.</td><td><span class="b ok">구현</span> P4(2026-10-23): Year는 항상 선택(기본 올해, 선택지 올해±1 + URL 값, “전체” 없음), Quarter·담당자(퇴사자 포함)·Vendor는 기본 전체. 기간은 Expected Close 기준이다(Expected Close는 등록 필수·NOT NULL이라 빠지는 Deal 없음). 예외: “주의 필요 Deal”은 담당자·Vendor만 적용(DB-05). 필터는 두 탭이 공유하고 URL에 남는다</td></tr>
+<tr><td>DB-04</td><td><s>단계 막대를 클릭하면 해당 Status의 Deal 목록 팝업(Drill-down)을 연다. 목록 열: Deal / 고객사 / 파트너사 / 담당자 / Vendor / Status / Forecast / 금액 / Expected Close / Next Action.</s> <b>결정(2026-10-23, 사용자 지시)</b>: 팝업 대신 막대·표 행·타일을 누르면 그 숫자를 만든 조건이 검색 조건으로 자동 등록된 채 <b>Deal 목록 페이지(<code>/deals?…</code>)로 이동</b>한다. 이동 URL은 새로 만들며(이전에 기억한 목록 조건·정렬·페이지를 잇지 않음) Deal 목록이 이 조건을 기억(DL-06)으로 덮어쓴다. 뒤로 가기는 같은 필터·탭의 Dashboard로 돌아온다</td><td><span class="b ok">구현</span> P4(2026-10-23)</td></tr>
+<tr><td>DB-05</td><td>“주의 필요 Deal”: 기한초과, 14일 이상 미업데이트, 이번 분기 Expected Close 건수를 표시하고 클릭하면 목록으로 이동한다.</td><td><span class="b ok">구현</span> P4(2026-10-23): 결정(Q4) — <b>담당자·Vendor만 적용하고 Year·Quarter는 적용하지 않는다</b>. 기한초과·미업데이트는 Deal 목록 <code>overdue</code>·<code>stale</code> 필터와 같은 판정(Won·Lost 제외), “N일”은 Admin 경고 기준 값(기본 14일). 이번 분기 Expected Close는 서버 업무 날짜 기준 이번 분기의 Open Deal만 센다. 장기 Status 체류는 범위 밖(C2)</td></tr>
+<tr><td>DB-06</td><td>Forecast &amp; Closing: Commit / Best / Pipeline / Won QTR와 분기별 Closing Forecast 막대, 이번달·이번분기 Expected Close 건수.</td><td><span class="b ok">구현</span> P4(2026-10-23): Forecast 탭(Q3) — DB-02와 같은 타일, “Quarter Closing Forecast”(선택 연도 Q1~Q4 항상 4개, Lost를 뺀 Forecast 구분별 누적 막대와 같은 값의 표·분기 합계(Open+Won), Quarter를 고르면 그 분기 강조), Closing Attention 타일(이번 달 Expected Close / 이번 분기 Expected Close / N일 이상 미업데이트, DB-05와 같이 담당자·Vendor만 적용)</td></tr>
 </table>
 
 <h3 id="s7-2">7.2 Deals</h3>
@@ -350,7 +350,7 @@ code{background:var(--soft);padding:1px 5px;border-radius:3px;font-size:12.5px}
 <tr><td>DL-01</td><td>Deal 등록: 고객사·Deal Name·담당자(기본값은 현재 접속한 사용자, sales만)·금액·Expected Close·Status·Forecast 등 대부분 필수. <b>고객은 반드시 입력하며 최소 회사명+담당자명까지 필수</b>이고, 파트너는 선택(입력하면 회사명+담당자명 필수)이다. Users(견적 단위인 사용자 수)는 Deal 정보로 필수 입력한다(0 이상 정수. 기존에 비어 있던 Deal은 마이그레이션이 0으로 채운다, 2026-10-21). Solution은 필수로 직접 입력한다(200자 이내, 앞뒤 공백 제거, Vendor와 독립, 2026-10-22 결정, 5.1절). 신규 Deal의 Status 기본값은 기회발굴. Deal 등록도 Deal History에 한 건으로 기록한다.</td><td><span class="b ok">구현</span> P1</td></tr>
 <tr><td>DL-02</td><td>Deal 등록·수정·상세 화면에서 연락처를 선택·등록·수정한다: 회사명 distinct 목록 선택 또는 직접 입력, 담당자 목록 선택 또는 직접 입력, 기존 담당자 선택 시 연락 정보 자동 입력, 수정하면 연락처 데이터 갱신(5.6절). 회사명·담당자명·이메일·전화에는 공백을 입력할 수 없고 대소문자는 구분하지 않는다. 파트너도 같은 방식이다.</td><td><span class="b ok">구현</span> P1</td></tr>
 <tr><td>DL-03</td><td>Deal 수정·조회·삭제. <b>삭제는 sales 본인의 Deal 또는 admin만</b> 할 수 있고, 삭제 전 <b>확인 팝업에서 Deal code를 직접 텍스트로 입력</b>해야 하며 일치하지 않으면 삭제할 수 없다(sales·admin 모두 동일). Deal History가 있어도 삭제할 수 있다. <b>Deal을 삭제하면 관련된 모든 데이터를 함께 삭제</b>한다: Deal History, Action, 단계 변경 이력, Label 연결, 파트너 연결, 첨부 파일과 Deal code별 디렉터리. 삭제 사실은 Deal 데이터로 남지 않으므로 삭제자·Deal code·시각은 서버 운영 로그에 남긴다(제안). “본인의 Deal”은 <b>Owner가 본인인 Deal</b>이다.</td><td><span class="b ok">구현</span> P1(첨부 디렉터리 삭제는 P2b)</td></tr>
-<tr><td>DL-04</td><td>Deal 목록 Filter: 담당자 / Vendor / Solution / Status / Forecast / 기간(Expected Close 연도·Quarter, 최종 업데이트 기간) 조합 조회, 키워드 검색, “내 딜”. <b>결정(2026-10-22)</b>: Solution 필터는 <s>목록에서 고르는 선택(<code>solution_id</code>)</s>을 텍스트 입력으로 바꾸고 대소문자 무시 부분 일치로 거른다(API 쿼리 <code>solution</code>, 최대 200자, <code>%</code>·<code>_</code>는 글자 그대로, Vendor 조건과 AND, 화면 URL <code>solution=</code> 조건 유지 대상). Vendor는 목록 선택(<code>vendor_id</code>) 그대로. <b>결정(2026-10-20)</b>: “Next Action 상태” 필터(전체 / Open / 종료(수행) / 종료(미수행) / 종료(전체), 단일 선택)를 추가한다. 기준은 <b>Next Action이 있는 가장 최근 Action</b>이며, 그런 Action이 없는 Deal은 필터 사용 시 제외. API 쿼리 <code>next_action_status</code>(<code>open</code>/<code>done</code>/<code>not_done</code>/<code>closed</code>), 화면 URL 조건 유지 대상. <b>결정(2026-10-21)</b>: Expected Close 기간(시작/끝) 조건을 없애고(연도·Quarter는 유지) <b>“최종 업데이트” 기간</b> 조건으로 바꾼다. 옵션은 전체 / 최근 2주 / 최근 1개월 / 최근 2개월 / 최근 3개월 / 최근 6개월 / 직접 지정(시작·끝, 한쪽만 가능, 양끝 포함)이며 기준은 서버 날짜(오늘 포함, 달력 기준). 화면은 서버가 계산한 날짜를 URL(<code>updated_from</code>/<code>updated_to</code>)에 날짜로 저장한다. <b>결정(2026-10-22)</b>: 목록의 <s>BANT Label 필터(구분별 Label, AND)</s>를 화면·API에서 없애고(LB-06), <b>“기한초과”·“미업데이트”</b> 체크박스를 추가한다. 판정은 Risk 배지(DL-07)와 같다: Won·Lost 제외, 기한초과는 기준 행(Next Action이 있는 가장 최근 Action)의 Due가 오늘(서버 업무 날짜)보다 앞(Next Action 상태 무관, 종료된 것도 포함), 미업데이트는 최근 Action이 경고 기준 일수(기본 14일, <code>alert_settings</code>) 이상 없음. 둘 다 켜면 OR, 다른 조건과는 AND이며 서버 조건이라 건수·페이지가 맞는다. API 쿼리 <code>overdue</code>·<code>stale</code>(bool, 기본 false), 화면 URL <code>overdue=1</code>·<code>stale=1</code>, 조건 유지(DL-06) 대상. Forecast 화면·API에는 넣지 않는다</td><td><span class="b ok">구현</span> P1(필터·정렬·total을 P5에서 당김). 조회 조건 유지는 P5(DL-06). Next Action 상태 필터 2026-10-20. BANT 필터 폐지·기한초과/미업데이트 필터 2026-10-22. Solution 텍스트 부분 일치 필터 2026-10-22</td></tr>
+<tr><td>DL-04</td><td>Deal 목록 Filter: 담당자 / Vendor / Solution / Status / Forecast / 기간(Expected Close 연도·Quarter, 최종 업데이트 기간) 조합 조회, 키워드 검색, “내 딜”. <b>결정(2026-10-22)</b>: Solution 필터는 <s>목록에서 고르는 선택(<code>solution_id</code>)</s>을 텍스트 입력으로 바꾸고 대소문자 무시 부분 일치로 거른다(API 쿼리 <code>solution</code>, 최대 200자, <code>%</code>·<code>_</code>는 글자 그대로, Vendor 조건과 AND, 화면 URL <code>solution=</code> 조건 유지 대상). Vendor는 목록 선택(<code>vendor_id</code>) 그대로. <b>결정(2026-10-20)</b>: “Next Action 상태” 필터(전체 / Open / 종료(수행) / 종료(미수행) / 종료(전체), 단일 선택)를 추가한다. 기준은 <b>Next Action이 있는 가장 최근 Action</b>이며, 그런 Action이 없는 Deal은 필터 사용 시 제외. API 쿼리 <code>next_action_status</code>(<code>open</code>/<code>done</code>/<code>not_done</code>/<code>closed</code>), 화면 URL 조건 유지 대상. <b>결정(2026-10-21)</b>: Expected Close 기간(시작/끝) 조건을 없애고(연도·Quarter는 유지) <b>“최종 업데이트” 기간</b> 조건으로 바꾼다. 옵션은 전체 / 최근 2주 / 최근 1개월 / 최근 2개월 / 최근 3개월 / 최근 6개월 / 직접 지정(시작·끝, 한쪽만 가능, 양끝 포함)이며 기준은 서버 날짜(오늘 포함, 달력 기준). 화면은 서버가 계산한 날짜를 URL(<code>updated_from</code>/<code>updated_to</code>)에 날짜로 저장한다. <b>결정(2026-10-22)</b>: 목록의 <s>BANT Label 필터(구분별 Label, AND)</s>를 화면·API에서 없애고(LB-06), <b>“기한초과”·“미업데이트”</b> 체크박스를 추가한다. 판정은 Risk 배지(DL-07)와 같다: Won·Lost 제외, 기한초과는 기준 행(Next Action이 있는 가장 최근 Action)의 Due가 오늘(서버 업무 날짜)보다 앞(Next Action 상태 무관, 종료된 것도 포함), 미업데이트는 최근 Action이 경고 기준 일수(기본 14일, <code>alert_settings</code>) 이상 없음. 둘 다 켜면 OR, 다른 조건과는 AND이며 서버 조건이라 건수·페이지가 맞는다. API 쿼리 <code>overdue</code>·<code>stale</code>(bool, 기본 false), 화면 URL <code>overdue=1</code>·<code>stale=1</code>, 조건 유지(DL-06) 대상. Forecast 화면·API에는 넣지 않는다. <b>결정(2026-10-23)</b>: “Forecast 구분” 필터(전체 / Open / Won / Lost / Lost 제외, 단일 선택)를 추가한다. 기준은 Deal Forecast 코드의 outcome(Open은 admin이 추가한 Open 코드 포함, Lost 제외 = Open+Won). Forecast 필터와 AND. API 쿼리 <code>forecast_outcome</code>(<code>open</code>/<code>won</code>/<code>lost</code>/<code>not_lost</code>, 그 밖의 값 422 <code>request-validation</code>, 없으면 기존과 같음), 화면 URL <code>outcome</code>(모르는 값은 ‘전체’로 보이고 조회에 쓰지 않음), 조건 유지(DL-06) 대상. Dashboard Drill-down(DB-04)이 이 조건을 쓴다</td><td><span class="b ok">구현</span> P1(필터·정렬·total을 P5에서 당김). 조회 조건 유지는 P5(DL-06). Next Action 상태 필터 2026-10-20. BANT 필터 폐지·기한초과/미업데이트 필터 2026-10-22. Solution 텍스트 부분 일치 필터 2026-10-22. Forecast 구분 필터 2026-10-23</td></tr>
 <tr><td>DL-05</td><td>목록 컬럼: Deal / 고객사 / 파트너사 / 담당자 / Vendor / Status / Forecast / BANT / 금액 / Expected Close / Next Action / 최종 업데이트. 견적제출·POC·고객담당자·파트너 영업대표는 행 확장 또는 Quick View.</td><td><span class="b ok">구현</span> 11개 컬럼은 P1. Quick View(행 펼침: 견적·POC·고객 담당자·파트너 영업대표, BANT·Users·구매절차, “상세 보기”)는 P5(2026-10-17). BANT 열은 P8(LB-06)로 12열. <b>결정(2026-10-20)</b>: Next Action 열은 Next Action이 있는 가장 최근 Action(기준 행)의 값과 상태 라벨을 보인다. 최종 업데이트는 <b>모든 Action(진행사항만 있는 것 포함) 중 가장 최근 수행 시각</b>, Action이 없으면 Deal 등록 시각이며 Deal 자체 수정은 반영하지 않는다(기본 정렬도 같은 값). <b>결정(2026-10-22)</b>: 열 순서는 Deal / 담당자 / 고객사 / 파트너사 / Vendor / Status / Forecast / BANT / 금액 / Expected Close / Next Action / 최종 업데이트. <b>BANT·Next Action을 뺀 10개 열</b>의 헤더를 눌러 정렬한다(서버 정렬, 페이지 전체에 적용). 같은 헤더를 다시 누르면 오름차순·내림차순이 바뀌고 정렬 중인 헤더에 ▲/▼를 보인다. 기본은 최종 업데이트 내림차순, 처음 누를 때는 금액·최종 업데이트 내림차순, 나머지(Deal·담당자·고객사·파트너사·Vendor·Status·Forecast·Expected Close) 오름차순. 이름 정렬은 영문(대소문자 무시) → 한글 가나다순(담당자는 표시 이름, 없으면 로그인 ID), Status·Forecast는 코드 순서, 파트너(활성 파트너만)·Vendor가 없는 Deal은 방향과 관계없이 맨 뒤, 동률은 Deal code 오름차순. 정렬은 URL과 조건 유지(DL-06)에 저장한다(API <code>sort</code> 값 <code>owner</code>·<code>customer</code>·<code>partner</code>·<code>vendor</code>·<code>forecast</code> 추가, 기존 값 유지). Next Action 열은 기준 행의 내용·Due·상태 라벨(Open / 종료(수행) / 종료(미수행))을 보이고, <b>내용을 누르면 그 Deal 상세의 Actions 탭</b>(<code>/deals/{code}?tab=actions</code>)으로 이동한다(Next Action이 없으면 “—”, 링크 없음). 2026-10-22 헤더 정렬·Next Action 바로가기</td></tr>
 <tr><td>DL-06</td><td>Sort와 Filter 조건은 Drill-down 이동 후에도 유지한다.</td><td><span class="b ok">구현</span> P5(2026-10-17): 상세·수정·등록·삭제 후 목록 복귀와 상단 메뉴 “Deals”가 마지막 목록 조건(필터·정렬·페이지)을 복원. 결정: 메뉴도 복원(Q1), 로그인 사용자별 키의 sessionStorage(탭 단위, Q2), Quick View 펼침·스크롤 위치는 복원 안 함(Q3). Next Action 상태 필터도 URL로 유지(2026-10-20)</td></tr>
 <tr><td>DL-07</td><td>기한초과 또는 미업데이트 Deal 행에 Risk 색상을 적용한다.</td><td><span class="b ok">구현</span> P3(서버 <code>risk</code>, 행 색·배지·범례). <b>결정(2026-10-20)</b>: 기한초과는 기준 행(Next Action이 있는 가장 최근 Action)의 Due가 오늘보다 앞이면 Next Action 상태와 무관하게 표시(종료해도 표시, 상태 라벨로 구분). 미업데이트는 최근 Action이 기준 일수 동안 없던 것(Action이 없으면 등록 시각부터)이며 Deal 수정으로 풀리지 않음(R03·R04)</td></tr>
@@ -431,8 +431,8 @@ code{background:var(--soft);padding:1px 5px;border-radius:3px;font-size:12.5px}
 <tr><td>R03</td><td>Next Action Due 경과 → “기한초과”</td><td><span class="b ok">구현</span> P3, 서버 계산. <b>결정(2026-10-20)</b>: Next Action이 있는 가장 최근 Action의 Due 기준, Next Action 상태와 무관</td></tr>
 <tr><td>R04</td><td>14일 이상 Update 없음 → “미업데이트”(일수는 CM-05 설정값)</td><td><span class="b ok">구현</span> P3. <b>결정(2026-10-20)</b>: Update는 Action 등록(진행사항만 있는 Action 포함)만 뜻하고 Deal 자체 수정은 제외. Action이 없으면 Deal 등록 시각부터 센다</td></tr>
 <tr><td>R05</td><td>Status 단계별 체류기간 계산(Status 진입일 기록)</td><td><span class="b ok">구현</span> P3: 현재 Status 진입 시각과 체류 일수만, 화면은 Deal 상세 Status 옆 “N일째”만(2026-10-17 결정). 단계별 체류 이력·보고는 P7</td></tr>
-<tr><td>R06</td><td>Forecast가 Won/Lost → Open Pipeline에서 제외</td><td><span class="b part">부분</span> P3: 종결 판정 규칙과 Risk 제외까지(2026-10-17 결정). Open Pipeline 필터·집계는 P4/P6/P7</td></tr>
-<tr><td>R08</td><td>Dashboard 클릭 → 동일 조건 Deal 목록 Drill-down</td><td><span class="b todo">예정</span></td></tr>
+<tr><td>R06</td><td>Forecast가 Won/Lost → Open Pipeline에서 제외</td><td><span class="b part">부분</span> P3: 종결 판정 규칙과 Risk 제외까지(2026-10-17 결정). 집계는 P6(Forecast Open 합계)·P4(Dashboard Open 합계, Status 막대 Lost 제외)에서 구현, Deal 목록 “Forecast 구분” 필터(<code>forecast_outcome</code>)로 Open Pipeline 조회 가능(2026-10-23). Reports는 P7</td></tr>
+<tr><td>R08</td><td>Dashboard 클릭 → 동일 조건 Deal 목록 Drill-down</td><td><span class="b ok">구현</span> P4(2026-10-23): 팝업이 아니라 Deal 목록 페이지로 이동(DB-04). 숫자마다 서버 조건 정의(<code>DashboardCriteria</code>)와 프런트 이동 URL(<code>drillDown.ts</code>)이 1:1이라 목록 “총 N건”·금액 합이 누른 숫자와 같다</td></tr>
 <tr><td>R09</td><td>Forecast가 Won(또는 Status가 계약완료)이 되면 매출금액과 <code>revenue_date</code>를 실제 값으로 입력받아 갱신하고, Lost는 <code>revenue_date</code>를 그대로 둔다(6.6절)</td><td><span class="b ok">구현</span> P1</td></tr>
 <tr><td>R10</td><td>종결된 Deal(Forecast Won/Lost)의 Forecast를 바꾸거나 Status를 계약완료에서 이전 단계로 바꾸면, 동기화할 반대쪽 값을 사용자에게 묻고 선택한 값으로 함께 변경한다(6.7절)</td><td><span class="b ok">구현</span> P1</td></tr>
 </table>
@@ -442,7 +442,7 @@ code{background:var(--soft);padding:1px 5px;border-radius:3px;font-size:12.5px}
 <h2 id="s9">9. 비기능 요구사항</h2>
 <table>
 <tr><th>항목</th><th>요구사항</th><th>상태</th></tr>
-<tr><td>데이터 정합성</td><td>Dashboard 합계 = Forecast 합계 = Deal 목록 원장. 단일 집계 로직을 쓰고 테스트로 일치를 검증한다.</td><td><span class="b todo">예정</span></td></tr>
+<tr><td>데이터 정합성</td><td>Dashboard 합계 = Forecast 합계 = Deal 목록 원장. 단일 집계 로직을 쓰고 테스트로 일치를 검증한다.</td><td><span class="b ok">구현</span> Forecast(P6)·Dashboard(P4, 2026-10-23): 모든 집계가 Deal 목록과 같은 WHERE(<code>infra/db/deal_search.conditions</code>)를 쓰고, Dashboard Forecast 타일은 Forecast 요약과 같은 Port·도메인 함수를 재사용한다. functional(원장 일치)·프런트 Fake 계약 테스트로 검증. Reports는 P7</td></tr>
 <tr><td>구조</td><td>FastAPI(DDD 4계층, import-linter로 강제) + React. 프로파일 local / dev / product.</td><td><span class="b ok">구현</span></td></tr>
 <tr><td>배포</td><td>온프레미스 Linux, Jenkins CI/CD, Nginx 정적 서빙 + <code>/api</code> 프록시. product 승인 후 순차 배포(Jenkins의 dev 자동 배포는 2026-10-20 제거, dev DB는 로컬 <code>start-backend.sh --profile dev</code>로 사용).</td><td><span class="b ok">구현</span></td></tr>
 <tr><td>마이그레이션</td><td>Alembic. local·dev는 로컬 실행 스크립트가 자동 적용, product는 사람 승인. 원칙은 expand/contract.</td><td><span class="b ok">구현</span> 예외 3건은 CLAUDE.md에 기록</td></tr>
@@ -456,12 +456,12 @@ code{background:var(--soft);padding:1px 5px;border-radius:3px;font-size:12.5px}
 <table>
 <tr><th>#</th><th>검수 기준</th><th>상태</th></tr>
 <tr><td>1</td><td>Deal 등록·수정·조회 및 추가 컬럼 저장</td><td><span class="b ok">구현</span> P1</td></tr>
-<tr><td>2</td><td>Status 전체 단계 Dashboard 집계 정확성</td><td><span class="b part">부분</span> 단계별 요약 API는 있음, Dashboard 화면 없음</td></tr>
-<tr><td>3</td><td>Filter / Sort / Drill-down 조건 유지</td><td><span class="b part">부분</span> Filter는 있음, Drill-down 없음</td></tr>
+<tr><td>2</td><td>Status 전체 단계 Dashboard 집계 정확성</td><td><span class="b ok">구현</span> P4(2026-10-23, Lost 제외 결정)</td></tr>
+<tr><td>3</td><td>Filter / Sort / Drill-down 조건 유지</td><td><span class="b ok">구현</span> Filter·Sort 조건 유지(P5), Dashboard → Deal 목록 Drill-down(P4, 2026-10-23)</td></tr>
 <tr><td>4</td><td>Forecast 월·분기·담당자 집계 정확성</td><td><span class="b todo">예정</span></td></tr>
 <tr><td>5</td><td>Next Action History / 기한초과 / 미업데이트</td><td><span class="b ok">구현</span> P2·P3</td></tr>
-<tr><td>6</td><td>Dashboard 합계와 Deal 목록 원장 일치</td><td><span class="b todo">예정</span></td></tr>
-<tr><td>7</td><td>첫 Dashboard에서 모든 Status 단계가 정확히 표시되고 클릭 시 해당 Deal이 일치</td><td><span class="b todo">예정</span></td></tr>
+<tr><td>6</td><td>Dashboard 합계와 Deal 목록 원장 일치</td><td><span class="b ok">구현</span> P4(2026-10-23, 9장 데이터 정합성)</td></tr>
+<tr><td>7</td><td>첫 Dashboard에서 모든 Status 단계가 정확히 표시되고 클릭 시 해당 Deal이 일치</td><td><span class="b ok">구현</span> P4(2026-10-23). 로그인 후 첫 화면은 <code>/deals</code> 유지(Q5), Dashboard는 메뉴로 연다</td></tr>
 </table>
 
 <h2 id="s11">11. 미결 사항</h2>
@@ -504,6 +504,7 @@ code{background:var(--soft);padding:1px 5px;border-radius:3px;font-size:12.5px}
 <tr><td>Forecast 코드</td><td>슬라이드 4 기준: Pipeline(0–50) / Best(51–75) / Most Likely(75–85) / Commit(85–100) / Won / Lost</td></tr>
 <tr><td>매출일</td><td><code>revenue_date</code> = 매출일 = Expected Close. Won이면 최종 매출일자로 갱신, Lost면 마지막 Expected Close 유지</td></tr>
 <tr><td>Status</td><td>7단계. POC 단계는 POC 준비·POC 완료 두 개뿐. Lost는 Status에서 제외</td></tr>
+<tr><td>Dashboard</td><td>2026-10-23. 탭 2개(Status 기본, Forecast). 상단 타일은 Forecast 구분별(Lost 제외) + Open 합계(Q1). Status 막대는 Lost 제외·Won 포함(Q2). Forecast 탭은 명세서 슬라이드 9 구성(Q3). 주의 필요 Deal은 담당자·Vendor만 적용, N일은 경고 기준(Q4). 첫 화면은 <code>/deals</code> 유지(Q5). Drill-down은 팝업 대신 Deal 목록 이동.</td></tr>
 </table>
 <h3>11.2 남은 질문</h3>
 <p>아래 결정이 남아 있다. 결정 전에는 해당 기능을 구현하지 않는다.</p>
@@ -569,7 +570,7 @@ code{background:var(--soft);padding:1px 5px;border-radius:3px;font-size:12.5px}
 <tr><td>P2 <span class="b ok">완료</span></td><td>Tracking 강화</td><td>Deal 상세 하단 Actions / Deal History 탭(DL-09~11), 모든 변경을 기록하는 <code>deal_history</code>(5.7절), Action에 등록 시점 Status/Forecast 저장, Action 수정의 Deal History 기록, 변경 이력을 모든 변경 종류로 확장(R02), 기존 단계 변경 이력 통합, Action 검색을 Deal 상세로 이동</td><td>—</td></tr>
 <tr><td>P2b <span class="b ok">완료</span></td><td>파일 업로드</td><td>Deal 첨부 파일 업로드·목록·다운로드·삭제와 설명 100자(FL-01~07), Deal id별 디렉터리·같은 이름 교체/skip 확인·Deal 삭제 시 디렉터리 삭제, 100MB 제한·실행/설치 파일 차단, 삭제 권한 규칙, 최초 설정 3단계(저장 위치), 파일 저장 Port와 저장소 구현, 업로드·삭제 이력 기록</td><td>Nginx·서버 디렉터리 설정 승인</td></tr>
 <tr><td>P3 <span class="b ok">완료</span></td><td>자동 규칙·경고</td><td>기한초과(R03), 14일 미업데이트(R04), Status 체류기간(R05), Won/Lost 제외(R06), 경고 기준 Admin 설정(CM-05)</td><td>—</td></tr>
-<tr><td>P4</td><td>Dashboard</td><td>단계 Funnel(DB-01), KPI(DB-02), 공통 필터(DB-03), Drill-down 팝업(DB-04, R08), 주의 필요 Deal(DB-05), Forecast &amp; Closing(DB-06)</td><td>—</td></tr>
+<tr><td>P4 <span class="b ok">완료</span></td><td>Dashboard</td><td>단계 Funnel(DB-01), KPI(DB-02), 공통 필터(DB-03), <s>Drill-down 팝업</s> Deal 목록 이동 Drill-down(DB-04, R08), 주의 필요 Deal(DB-05), Forecast &amp; Closing(DB-06), Deal 목록 “Forecast 구분” 필터</td><td>2026-10-23: 사용자 결정 Q1~Q5(A·A·A·A·B), 차트 의존성 chart.js·react-chartjs-2 사용자 지정·승인. 마이그레이션 없음</td></tr>
 <tr><td>P5 <span class="b ok">완료</span></td><td>Deals 목록 개선</td><td>컬럼 확장·Quick View(DL-05), Solution·Forecast·Year/Quarter 필터(DL-04), 조건 유지(DL-06), Risk 색상(DL-07), Inline Update(DL-08)</td><td>—</td></tr>
 <tr><td>P6 <span class="b ok">완료</span></td><td>Forecast 메뉴</td><td>Forecast 요약과 화면 안 담당자별 Deal 목록(FC-04·05, “담당자 상세” 메뉴 없음), 기간 자동 집계(R01), 월말 Batch(FC-06)</td><td>2026-10-21: R1 실시간 요약·담당자 Deal 목록·월 필터(Deal 목록 포함), R2 월말 스냅숏(systemd timer, 기준 시점 선택). 서버 반영은 사람이 <code>bootstrap.sh</code> 재실행</td></tr>
 <tr><td>P7</td><td>Reports</td><td>담당자 실적, Vendor/Solution, Status 전환, Forecast Mix, Forecast 추이(표·그래프), Excel Export(RP-01~06)</td><td>차트·Excel 의존성 승인</td></tr>
@@ -588,7 +589,7 @@ code{background:var(--soft);padding:1px 5px;border-radius:3px;font-size:12.5px}
 <h3>C.1 명세서가 맞아서 명세서대로 구현할 것</h3>
 <table>
 <tr><th>#</th><th>항목</th><th>명세서</th><th>현재 구현</th><th>PRD 확정 기준</th><th>단계</th></tr>
-<tr><td>A1</td><td>Dashboard</td><td>첫 화면에 Status Funnel·KPI·주의 Deal</td><td>없음(Deal 목록에 단계 요약만 있음)</td><td>명세서대로</td><td>P4</td></tr>
+<tr><td>A1</td><td>Dashboard</td><td>첫 화면에 Status Funnel·KPI·주의 Deal</td><td>구현(2026-10-23). 첫 화면은 <code>/deals</code> 유지</td><td>명세서대로(Drill-down은 팝업 대신 Deal 목록 이동)</td><td>P4 <span class="b ok">완료</span></td></tr>
 <tr><td>A2</td><td>Forecast 메뉴</td><td>요약·담당자 상세·Review(“담당자 상세” 메뉴는 두지 않음)</td><td>없음</td><td>명세서대로(“담당자 상세” 메뉴 제외)</td><td>P6</td></tr>
 <tr><td>A3</td><td>Reports 메뉴</td><td>담당자·Vendor·Status·Forecast 분석</td><td>없음</td><td>명세서대로(Forecast 추이는 표+그래프)</td><td>P7</td></tr>
 <tr><td>A4</td><td>Forecast 값</td><td>Pipeline / Best / Most Likely / Commit / Won / Lost</td><td>없음</td><td>명세서 슬라이드 4 기준 그대로</td><td>P0·P1</td></tr>

@@ -208,3 +208,22 @@ describe('BANT 키 폐지와 overdue·stale (AC-7, AC-9)', () => {
     expect(rememberedListPath(USER_ID.kim)).toBe('/deals?stale=1&sort=owner&order=desc')
   })
 })
+
+describe('outcome 기억 (Dashboard AC-17·19)', () => {
+  it.each(['open', 'won', 'lost', 'not_lost'])('remembers outcome=%s next to the other list keys', (value) => {
+    expect(sanitizeListSearch(`year=2026&outcome=${value}&foo=1`)).toBe(`year=2026&outcome=${value}`)
+  })
+
+  it('writes the outcome to the remembered search and restores it in the list path', () => {
+    rememberListSearch(USER_ID.kim, params('year=2026&quarter=4&outcome=not_lost&status=poc_completed'))
+
+    expect(rememberedListPath(USER_ID.kim)).toBe('/deals?year=2026&quarter=4&outcome=not_lost&status=poc_completed')
+  })
+
+  it('replaces an older remembered search completely (no merge with the old keys)', () => {
+    rememberListSearch(USER_ID.kim, params('status=prospecting&sort=owner&page=3'))
+    rememberListSearch(USER_ID.kim, params('year=2026&outcome=open'))
+
+    expect(rememberedListPath(USER_ID.kim)).toBe('/deals?year=2026&outcome=open')
+  })
+})

@@ -214,9 +214,17 @@ class FakeDealRepository(DealCountsMixin, InMemoryStore["Deal"]):
             vendors=self._vendors._items if self._vendors is not None else {},
         )
 
+    def _outcome_of(self, forecast_key: str) -> str:
+        """Forecast 코드의 outcome(코드 저장소가 없거나 모르는 key면 'open')."""
+        if self._codes is not None:
+            for code in self._codes._items.values():
+                if code.kind.value == "forecast" and code.key.value == forecast_key:
+                    return str(code.outcome.value)
+        return "open"
+
     def _found(self, query: DealQuery) -> list[Deal]:
         contacts = self._contact_map()
-        found = [d for d in self._items.values() if matches(d, query, contacts)]
+        found = [d for d in self._items.values() if matches(d, query, contacts, self._outcome_of)]
         if has_updated_period(query):
             found = [d for d in found if updated_in_range(self._item(d).last_updated_at, query)]
         if query.wants_risk():

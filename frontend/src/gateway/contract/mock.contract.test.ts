@@ -12,6 +12,7 @@ import { dealBantContract } from './dealBant.contract'
 import { attachmentsContract } from './attachments.contract'
 import { codesContract } from './codes.contract'
 import { contactsContract } from './contacts.contract'
+import { dashboardContract } from './dashboard.contract'
 import { dealsContract } from './deals.contract'
 import { forecastContract } from './forecast.contract'
 import { labelsContract } from './labels.contract'
@@ -54,3 +55,4 @@ dealBantContract(makeMock)
 attachmentsContract(makeMock)
 alertsContract(makeMock)
 forecastContract(makeMock)
+dashboardContract(makeMock)

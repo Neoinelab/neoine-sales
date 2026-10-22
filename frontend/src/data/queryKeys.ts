@@ -3,6 +3,7 @@ import type {
   ContactKind,
   ContactListQuery,
   CodeKind,
+  DashboardQuery,
   DealListQuery,
   ForecastQuery,
   HistoryQuery,
@@ -43,6 +44,9 @@ export const keys = {
   forecastSnapshots: ['forecast', 'snapshots'] as const,
   forecastSnapshotSummary: (period: string, q: Omit<ForecastQuery, 'vendorId'>) => ['forecast', 'snapshot', period, q] as const,
   forecastSummary: (q: ForecastQuery) => ['forecast', q] as const,
+  // Forecast 집계와 같은 데이터라 ['forecast'] 아래에 둔다: Deal·Code·User·Action 변경 훅이 keys.forecast를 무효화하면 함께 갱신된다.
+  dashboard: ['forecast', 'dashboard'] as const,
+  dashboardSummary: (q: DashboardQuery) => ['forecast', 'dashboard', q] as const,
   users: ['users'] as const,
   userList: (f: UserListFilter) => ['users', 'list', f] as const,
   userOptions: (q: UserOptionsQuery) => ['users', 'options', q] as const,

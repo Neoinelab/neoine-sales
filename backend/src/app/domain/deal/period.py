@@ -30,3 +30,8 @@ def month_range(year: int, month: int) -> tuple[date, date]:
     if not 1 <= month <= MONTHS_PER_YEAR:
         raise InvalidValueError(MONTH_MESSAGE)
     return date(year, month, 1), date(year, month, calendar.monthrange(year, month)[1])
+
+
+def quarter_of(day: date) -> int:
+    """day가 속한 분기(1~4)."""
+    return (day.month - 1) // MONTHS_PER_QUARTER + 1

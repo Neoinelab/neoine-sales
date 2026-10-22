@@ -16,10 +16,6 @@ from tests.fakes.file_storage import FakeFileStorage
 from tests.fakes.unit_of_work import FakeUnitOfWork, SteppingClock
 
 if TYPE_CHECKING:
-    from app.application.forecast.get_snapshot_summary import GetForecastSnapshotSummary
-    from app.application.forecast.list_snapshots import ListForecastSnapshots
-    from app.application.forecast.take_snapshot import TakeForecastSnapshot
-
     from app.application.alert.get_alert_settings import GetAlertSettings
     from app.application.alert.update_alert_settings import UpdateAlertSettings
     from app.application.auth.auth_status import GetAuthStatus
@@ -30,6 +26,7 @@ if TYPE_CHECKING:
     from app.application.auth.setup_directory import RegisterSetupDirectory
     from app.application.auth.setup_first_admin import SetupFirstAdmin
     from app.application.auth.setup_storage import RegisterSetupStorage, TestSetupStorage
+    from app.application.dashboard.get_summary import GetDashboardSummary
     from app.application.deal_action.change_next_action_status import ChangeNextActionStatus
     from app.application.deal_action.delete_deal_action import DeleteDealAction
     from app.application.deal_action.get_deal_action import GetDealAction
@@ -39,7 +36,10 @@ if TYPE_CHECKING:
     from app.application.directory.get_settings import GetDirectorySettings
     from app.application.directory.test_settings import TestDirectorySettings
     from app.application.directory.update_settings import UpdateDirectorySettings
+    from app.application.forecast.get_snapshot_summary import GetForecastSnapshotSummary
     from app.application.forecast.get_summary import GetForecastSummary
+    from app.application.forecast.list_snapshots import ListForecastSnapshots
+    from app.application.forecast.take_snapshot import TakeForecastSnapshot
     from app.application.ports.unit_of_work import UnitOfWorkFactory
     from app.application.storage.get_settings import GetStorageSettings
     from app.application.storage.test_settings import TestStorageSettings
@@ -174,6 +174,12 @@ class FakeUseCases(CatalogUseCases, ContactUseCases, DealUseCases, AttachmentUse
         from app.application.forecast.get_summary import GetForecastSummary  # noqa: PLC0415
 
         return GetForecastSummary(self._factory, self.clock)
+
+    # Dashboard 요약 유스케이스도 사용 시점에 가져온다(구현 전에도 수집된다)
+    def get_dashboard_summary(self) -> GetDashboardSummary:
+        from app.application.dashboard.get_summary import GetDashboardSummary  # noqa: PLC0415
+
+        return GetDashboardSummary(self._factory, self.clock)
 
     # 월말 스냅숏 유스케이스도 사용 시점에 가져온다(P6 R2: 구현 전에도 수집된다)
     def take_forecast_snapshot(self) -> TakeForecastSnapshot:

@@ -104,6 +104,9 @@ export type DealSortKey =
   | 'forecastKey'
 export type SortOrder = 'asc' | 'desc'
 
+/** Deal 목록의 Forecast 구분 필터 값(URL `outcome`, 서버 `forecast_outcome`). */
+export type ForecastOutcomeFilter = 'open' | 'won' | 'lost' | 'not_lost'
+
 export interface DealListQuery {
   /** Deal 이름·고객사·파트너사·Deal code 부분 일치(대소문자 무시). */
   keyword?: string
@@ -113,6 +116,8 @@ export interface DealListQuery {
   solution?: string
   statusKey?: string
   forecastKey?: string
+  /** Forecast 코드의 구분(outcome) 기준. `not_lost` = Open + Won. forecastKey와 함께 쓰면 둘 다 만족해야 한다(AND). */
+  forecastOutcome?: ForecastOutcomeFilter
   /** Expected Close(revenueDate) 기준 연도/분기. quarter만 있으면 서버가 올해로 본다. */
   year?: number
   quarter?: 1 | 2 | 3 | 4
@@ -302,4 +307,59 @@ export interface ForecastSummary {
   columns: ForecastColumn[]
   rows: ForecastSummaryRow[]
   totalRow: ForecastSummaryRow
+}
+
+// ───────────────────────── Dashboard ─────────────────────────
+
+/** Dashboard 요약 조회 조건. 기간 기준은 Expected Close. year는 필수, 나머지는 없으면 전체. */
+export interface DashboardQuery {
+  year: number
+  quarter?: 1 | 2 | 3 | 4
+  ownerId?: number
+  vendorId?: number
+}
+
+/** 분기 하나의 Forecast 구분별 셀(Lost 제외). `total` = Open 합 + Won. */
+export interface DashboardQuarter {
+  quarter: 1 | 2 | 3 | 4
+  from: string
+  to: string
+  /** forecastKey → 셀. `DashboardSummary.forecast.columns`의 모든 key가 존재한다. */
+  cells: Record<string, ForecastCell>
+  openTotal: ForecastCell
+  total: ForecastCell
+}
+
+export interface DashboardStatusItem extends ForecastCell {
+  key: string
+  name: string
+  order: number
+}
+
+/**
+ * Dashboard 요약(서버 계산값을 그대로 쓴다). 타일·막대·표가 모두 이 한 응답에서 나온다.
+ * `attention`은 담당자·Vendor만 적용하고 기간(year·quarter)은 적용하지 않는다.
+ */
+export interface DashboardSummary {
+  asOf: string
+  /** 서버 업무 날짜('YYYY-MM-DD'). */
+  today: string
+  period: { year: number; quarter: number | null; from: string; to: string }
+  forecast: {
+    /** Forecast 코드 order 순, Lost 제외. */
+    columns: ForecastColumn[]
+    cells: Record<string, ForecastCell>
+    openTotal: ForecastCell
+  }
+  /** Lost Deal 제외, Status 코드 order 순. */
+  statuses: { items: DashboardStatusItem[]; total: ForecastCell }
+  /** 항상 Q1~Q4. */
+  quarters: DashboardQuarter[]
+  attention: {
+    staleDays: number
+    overdue: number
+    stale: number
+    closingThisMonth: { year: number; month: number; count: number }
+    closingThisQuarter: { year: number; quarter: number; count: number }
+  }
 }

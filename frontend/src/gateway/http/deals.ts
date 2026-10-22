@@ -28,6 +28,7 @@ function toListParams(q: DealListQuery) {
     ...(q.solution ? { solution: q.solution } : {}),
     ...(q.statusKey ? { status_key: q.statusKey } : {}),
     ...(q.forecastKey ? { forecast_key: q.forecastKey } : {}),
+    ...(q.forecastOutcome ? { forecast_outcome: q.forecastOutcome } : {}),
     ...(q.year !== undefined ? { year: q.year } : {}),
     ...(q.quarter !== undefined ? { quarter: q.quarter } : {}),
     ...(q.month !== undefined ? { month: q.month } : {}),

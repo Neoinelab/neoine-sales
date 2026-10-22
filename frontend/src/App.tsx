@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react'
 import { Navigate, Route, Routes } from 'react-router'
 import { AdminLayout } from './features/admin/AdminLayout'
 import { ContactsPage } from './features/admin/contacts/ContactsPage'
@@ -15,6 +16,9 @@ import { ForecastPage } from './features/forecast/ForecastPage'
 import { ComingSoonPage } from './features/placeholder/ComingSoonPage'
 import { SetupPage } from './features/setup/SetupPage'
 
+// Chart.js가 커서 Dashboard는 처음 열 때 내려받는다(나머지 화면의 첫 로딩을 늘리지 않는다).
+const DashboardPage = lazy(() => import('./features/dashboard/DashboardPage').then((m) => ({ default: m.DashboardPage })))
+
 /** 라우트는 이 파일 한 곳에서만 정의한다(계획 5장). */
 export function App() {
   return (
@@ -26,7 +30,11 @@ export function App() {
       <Route path="/settings" element={<Navigate to="/admin/integrations" replace />} />
       <Route element={<RequireAuth />}>
         <Route index element={<Navigate to="/deals" replace />} />
-        <Route path="/dashboard" element={<ComingSoonPage title="Dashboard" />} />
+        <Route path="/dashboard" element={
+            <Suspense fallback={<p className="hint">불러오는 중…</p>}>
+              <DashboardPage />
+            </Suspense>
+          } />
         <Route path="/deals" element={<DealsPage />} />
         <Route element={<RequireWrite />}>
           <Route path="/deals/new" element={<DealFormPage />} />

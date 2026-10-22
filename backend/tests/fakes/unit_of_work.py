@@ -13,6 +13,7 @@ from tests.fakes.alert_settings_repository import FakeAlertSettingsRepository
 from tests.fakes.attachments import FakeAttachmentRepository
 from tests.fakes.catalog import FakeBantLabelRepository, FakeCodeRepository
 from tests.fakes.contacts import FakeContactRepository
+from tests.fakes.dashboard import FakeDashboardTallyRepository
 from tests.fakes.deal_history import FakeDealHistoryRepository
 from tests.fakes.directory_settings_repository import FakeDirectorySettingsRepository
 from tests.fakes.forecast import FakeForecastTallyRepository
@@ -49,6 +50,7 @@ class FakeUnitOfWork:
         self.vendors = FakeVendorRepository()
         self.forecast = FakeForecastTallyRepository(self.deals)  # 읽기 전용 집계(Deal 저장소 위)
         self.forecast_snapshots = FakeForecastSnapshotRepository()  # 월말 스냅숏(P6 R2)
+        self.dashboard = FakeDashboardTallyRepository(self.deals)  # Dashboard 집계(읽기 전용)
         self.deals.wire(
             contacts=self.contacts,
             codes=self.codes,

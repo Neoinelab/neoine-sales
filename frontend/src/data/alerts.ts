@@ -14,11 +14,11 @@ export function useAlertSettings(): Query<AlertSettings> {
   })
 }
 
-/** gateway.alerts.save(staleDays). 성공: Risk가 바뀌므로 Deal 목록·상세(keys.deals)와 keys.alerts 무효화. */
+/** gateway.alerts.save(staleDays). 성공: Risk가 바뀌므로 Deal 목록·상세(keys.deals)와 keys.alerts, Dashboard 주의 타일(keys.dashboard) 무효화. */
 export function useSaveAlertSettings(): Mutation<number, AlertSettings> {
   const invalidate = useInvalidate()
   return useMutation<AlertSettings, ApiError, number>({
     mutationFn: (staleDays) => gateway.alerts.save(staleDays),
-    onSuccess: () => invalidate(keys.alerts, keys.deals),
+    onSuccess: () => invalidate(keys.alerts, keys.deals, keys.dashboard),
   })
 }

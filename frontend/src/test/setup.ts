@@ -1,6 +1,7 @@
 import '@testing-library/jest-dom/vitest'
 import { cleanup } from '@testing-library/react'
 import { afterEach, beforeEach } from 'vitest'
+import { resetCharts } from './chartMock'
 import { defaultMock } from './fake/default'
 import { buildSampleSeed } from './fixtures/sampleSeed'
 
@@ -11,9 +12,16 @@ vi.mock('../gateway', async () => {
   return { gateway: fake.defaultMock.gateway, clock: fake.defaultMock.clock }
 })
 
+// jsdom에는 canvas가 없어 Chart.js를 만들 수 없다. react-chartjs-2의 Bar를 props 기록용 대체(chartMock)로 바꿔 끼운다.
+vi.mock('react-chartjs-2', async () => {
+  const mock = await import('./chartMock')
+  return { Bar: mock.Bar, Chart: mock.Bar }
+})
+
 // 앱 기본 시드는 업무 데이터가 없다. 테스트는 매번 샘플 픽스처 시드로 시작한다(빈 상태 테스트는 renderAt의 seed: 'empty').
 beforeEach(() => {
   defaultMock.setSeed(buildSampleSeed)
+  resetCharts()
 })
 
 afterEach(() => {

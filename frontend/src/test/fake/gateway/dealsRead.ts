@@ -3,7 +3,7 @@
 import { DEAL_PAGE_SIZE } from '../../../shared/model/constants'
 import { compareIso, datePart } from '../../../shared/model/dates'
 import { inPeriod } from '../../../shared/model/period'
-import type { DealListQuery, DealRow, DealSortKey, Page } from '../../../shared/model/types'
+import type { DealListQuery, DealRow, DealSortKey, ForecastOutcome, Page } from '../../../shared/model/types'
 import { QUARTER_MONTH_EXCLUSIVE, validation } from '../errors'
 import { read, requireUser, type MockContext } from './context'
 import { codeSetOf } from './dealChange'
@@ -14,7 +14,13 @@ import { dealDetail, dealRow, findDeal } from './views'
 /** 서버 `MAX_LIMIT`와 같은 값. */
 export const MAX_PAGE_SIZE = 200
 
-function matches(row: DealRow, query: DealListQuery, viewerId: number, thisYear: number): boolean {
+function matches(
+  row: DealRow,
+  query: DealListQuery,
+  viewerId: number,
+  thisYear: number,
+  outcomeOf: ReadonlyMap<string, ForecastOutcome>,
+): boolean {
   if (query.keyword) {
     const needle = query.keyword.trim().toLowerCase()
     const haystack = [row.name, row.customer.company, row.activePartner?.company ?? '', row.code]
@@ -26,6 +32,12 @@ function matches(row: DealRow, query: DealListQuery, viewerId: number, thisYear:
   if (solution && !row.solution.toLowerCase().includes(solution)) return false
   if (query.statusKey && row.statusKey !== query.statusKey) return false
   if (query.forecastKey && row.forecastKey !== query.forecastKey) return false
+  // Forecast 코드의 outcome 기준(not_lost = open + won). 코드를 모르는 key는 open으로 본다.
+  if (query.forecastOutcome) {
+    const outcome = outcomeOf.get(row.forecastKey) ?? 'open'
+    const allowed = query.forecastOutcome === 'not_lost' ? ['open', 'won'] : [query.forecastOutcome]
+    if (!allowed.includes(outcome)) return false
+  }
   // 분기만 있으면 올해(Fake 시계의 업무 날짜 연도)의 그 분기다.
   const year = query.year ?? (query.quarter !== undefined || query.month !== undefined ? thisYear : undefined)
   if (year !== undefined && !inPeriod(row.revenueDate, year, query.quarter)) return false
@@ -73,6 +85,7 @@ export function listDeals(ctx: MockContext, query: DealListQuery): Page<DealRow>
   const codes = codeSetOf(ctx)
   const statusOrder = codes.statuses.map((c) => c.key)
   const forecastOrder = codes.forecasts.map((c) => c.key)
+  const outcomeOf = new Map(codes.forecasts.map((c) => [c.key, c.outcome]))
   const sort = query.sort ?? 'lastUpdatedAt'
   const sign = (query.order ?? 'desc') === 'asc' ? 1 : -1
   const compare = (a: DealRow, b: DealRow): number => {
@@ -101,7 +114,7 @@ export function listDeals(ctx: MockContext, query: DealListQuery): Page<DealRow>
   }
   const rows = ctx.store.data.deals
     .map((deal) => dealRow(ctx, deal))
-    .filter((row) => matches(row, query, viewer.id, thisYear))
+    .filter((row) => matches(row, query, viewer.id, thisYear, outcomeOf))
     .sort((a, b) => {
       const absentA = isAbsent(a, sort)
       const absentB = isAbsent(b, sort)

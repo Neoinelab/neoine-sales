@@ -20,6 +20,8 @@ from tests.unit.repositories.catalog_case import PARAMS as CATALOG_PARAMS
 from tests.unit.repositories.catalog_case import CatalogCase, open_catalog
 from tests.unit.repositories.contact_case import PARAMS as CONTACT_PARAMS
 from tests.unit.repositories.contact_case import ContactCase, open_contacts
+from tests.unit.repositories.dashboard_case import PARAMS as DASHBOARD_PARAMS
+from tests.unit.repositories.dashboard_case import DashboardCase, open_dashboard_case
 from tests.unit.repositories.deal_action_case import PARAMS as ACTION_PARAMS
 from tests.unit.repositories.deal_action_case import Case as ActionCase
 from tests.unit.repositories.deal_action_case import open_case
@@ -120,4 +122,12 @@ async def snapshot_case(request: pytest.FixtureRequest) -> AsyncIterator[Snapsho
     """ForecastSnapshotRepository 계약 테스트용 case (fake / sql)."""
     url = request.getfixturevalue("test_database_url") if request.param == "sql" else None
     async with open_snapshot_case(request.param, url) as provided:
+        yield provided
+
+
+@pytest_asyncio.fixture(params=DASHBOARD_PARAMS)
+async def dashboard_case(request: pytest.FixtureRequest) -> AsyncIterator[DashboardCase]:
+    """DashboardTallyRepository 계약 테스트용 case (fake / sql)."""
+    url = request.getfixturevalue("test_database_url") if request.param == "sql" else None
+    async with open_dashboard_case(request.param, url) as provided:
         yield provided

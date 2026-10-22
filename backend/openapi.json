@@ -255,6 +255,37 @@
         "title": "AttachmentUploadResponse",
         "type": "object"
       },
+      "AttentionResponse": {
+        "properties": {
+          "closing_this_month": {
+            "$ref": "#/components/schemas/MonthRefResponse"
+          },
+          "closing_this_quarter": {
+            "$ref": "#/components/schemas/QuarterRefResponse"
+          },
+          "overdue": {
+            "title": "Overdue",
+            "type": "integer"
+          },
+          "stale": {
+            "title": "Stale",
+            "type": "integer"
+          },
+          "stale_days": {
+            "title": "Stale Days",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "stale_days",
+          "overdue",
+          "stale",
+          "closing_this_month",
+          "closing_this_quarter"
+        ],
+        "title": "AttentionResponse",
+        "type": "object"
+      },
       "AuthConfigResponse": {
         "properties": {
           "dev_login": {
@@ -1256,6 +1287,135 @@
           "total"
         ],
         "title": "CountedPage[DealRowResponse]",
+        "type": "object"
+      },
+      "DashboardForecastsResponse": {
+        "properties": {
+          "cells": {
+            "items": {
+              "$ref": "#/components/schemas/CellResponse"
+            },
+            "title": "Cells",
+            "type": "array"
+          },
+          "columns": {
+            "items": {
+              "$ref": "#/components/schemas/ColumnResponse"
+            },
+            "title": "Columns",
+            "type": "array"
+          },
+          "open_total": {
+            "$ref": "#/components/schemas/TallyResponse"
+          }
+        },
+        "required": [
+          "columns",
+          "cells",
+          "open_total"
+        ],
+        "title": "DashboardForecastsResponse",
+        "type": "object"
+      },
+      "DashboardPeriodResponse": {
+        "properties": {
+          "from": {
+            "format": "date",
+            "title": "From",
+            "type": "string"
+          },
+          "quarter": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quarter"
+          },
+          "to": {
+            "format": "date",
+            "title": "To",
+            "type": "string"
+          },
+          "year": {
+            "title": "Year",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "year",
+          "quarter",
+          "from",
+          "to"
+        ],
+        "title": "DashboardPeriodResponse",
+        "type": "object"
+      },
+      "DashboardStatusesResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/StatusItemResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "total": {
+            "$ref": "#/components/schemas/TallyResponse"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "DashboardStatusesResponse",
+        "type": "object"
+      },
+      "DashboardSummaryResponse": {
+        "properties": {
+          "as_of": {
+            "format": "date-time",
+            "title": "As Of",
+            "type": "string"
+          },
+          "attention": {
+            "$ref": "#/components/schemas/AttentionResponse"
+          },
+          "forecasts": {
+            "$ref": "#/components/schemas/DashboardForecastsResponse"
+          },
+          "period": {
+            "$ref": "#/components/schemas/DashboardPeriodResponse"
+          },
+          "quarters": {
+            "items": {
+              "$ref": "#/components/schemas/QuarterClosingResponse"
+            },
+            "title": "Quarters",
+            "type": "array"
+          },
+          "statuses": {
+            "$ref": "#/components/schemas/DashboardStatusesResponse"
+          },
+          "today": {
+            "format": "date",
+            "title": "Today",
+            "type": "string"
+          }
+        },
+        "required": [
+          "as_of",
+          "today",
+          "period",
+          "forecasts",
+          "statuses",
+          "quarters",
+          "attention"
+        ],
+        "title": "DashboardSummaryResponse",
         "type": "object"
       },
       "DateChange": {
@@ -2669,6 +2829,17 @@
         "title": "ForecastOutcome",
         "type": "string"
       },
+      "ForecastOutcomeFilter": {
+        "description": "Forecast 코드 outcome 필터. not_lost는 open과 won.",
+        "enum": [
+          "open",
+          "won",
+          "lost",
+          "not_lost"
+        ],
+        "title": "ForecastOutcomeFilter",
+        "type": "string"
+      },
       "ForecastSummaryResponse": {
         "properties": {
           "as_of": {
@@ -2823,6 +2994,29 @@
           "password"
         ],
         "title": "LoginRequest",
+        "type": "object"
+      },
+      "MonthRefResponse": {
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "month": {
+            "title": "Month",
+            "type": "integer"
+          },
+          "year": {
+            "title": "Year",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "year",
+          "month",
+          "count"
+        ],
+        "title": "MonthRefResponse",
         "type": "object"
       },
       "NamedRefResponse": {
@@ -3221,6 +3415,70 @@
         "title": "Problem",
         "type": "object"
       },
+      "QuarterClosingResponse": {
+        "properties": {
+          "cells": {
+            "items": {
+              "$ref": "#/components/schemas/CellResponse"
+            },
+            "title": "Cells",
+            "type": "array"
+          },
+          "from": {
+            "format": "date",
+            "title": "From",
+            "type": "string"
+          },
+          "open_total": {
+            "$ref": "#/components/schemas/TallyResponse"
+          },
+          "quarter": {
+            "title": "Quarter",
+            "type": "integer"
+          },
+          "to": {
+            "format": "date",
+            "title": "To",
+            "type": "string"
+          },
+          "total": {
+            "$ref": "#/components/schemas/TallyResponse"
+          }
+        },
+        "required": [
+          "quarter",
+          "from",
+          "to",
+          "cells",
+          "open_total",
+          "total"
+        ],
+        "title": "QuarterClosingResponse",
+        "type": "object"
+      },
+      "QuarterRefResponse": {
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "quarter": {
+            "title": "Quarter",
+            "type": "integer"
+          },
+          "year": {
+            "title": "Year",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "year",
+          "quarter",
+          "count"
+        ],
+        "title": "QuarterRefResponse",
+        "type": "object"
+      },
       "QuoteRequest": {
         "additionalProperties": false,
         "properties": {
@@ -3448,6 +3706,39 @@
         ],
         "title": "SortOrder",
         "type": "string"
+      },
+      "StatusItemResponse": {
+        "properties": {
+          "amount": {
+            "title": "Amount",
+            "type": "integer"
+          },
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "order": {
+            "title": "Order",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "count",
+          "amount",
+          "key",
+          "name",
+          "order"
+        ],
+        "title": "StatusItemResponse",
+        "type": "object"
       },
       "StorageSettingsRequest": {
         "additionalProperties": false,
@@ -6086,6 +6377,114 @@
         ]
       }
     },
+    "/api/v1/dashboard/summary": {
+      "get": {
+        "operationId": "get_dashboard_summary_api_v1_dashboard_summary_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "year",
+            "required": true,
+            "schema": {
+              "maximum": 9999,
+              "minimum": 1900,
+              "title": "Year",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "quarter",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 4,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Quarter"
+            }
+          },
+          {
+            "in": "query",
+            "name": "owner_user_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 9007199254740991,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Owner User Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "vendor_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 9007199254740991,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Vendor Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardSummaryResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          }
+        },
+        "summary": "Get Dashboard Summary",
+        "tags": [
+          "dashboard"
+        ]
+      }
+    },
     "/api/v1/deal-actions/{action_id}": {
       "delete": {
         "operationId": "delete_deal_action_api_v1_deal_actions__action_id__delete",
@@ -6517,6 +6916,22 @@
                 }
               ],
               "title": "Forecast Key"
+            }
+          },
+          {
+            "in": "query",
+            "name": "forecast_outcome",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/ForecastOutcomeFilter"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Forecast Outcome"
             }
           },
           {

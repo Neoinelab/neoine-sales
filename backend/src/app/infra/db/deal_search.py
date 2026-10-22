@@ -20,6 +20,7 @@ from app.infra.db.deal_derived import (
 )
 from app.infra.db.deal_list_order import order_clause
 from app.infra.db.like import LIKE_ESCAPE, like_pattern
+from app.infra.db.models_catalog import CodeRow
 from app.infra.db.models_contact import ContactRow
 from app.infra.db.models_deal import DealPartnerRow, DealRow
 
@@ -28,6 +29,7 @@ if TYPE_CHECKING:
 
     from sqlalchemy import Select
 
+    from app.application.ports.deal_outcome_filter import ForecastOutcomeFilter
     from app.application.ports.deal_repository import DealQuery
 
 # 목록 질의의 한 행: (Deal 행, last_updated_at, 기준 행의 next_action·due_date·상태)
@@ -73,6 +75,21 @@ def _risk_condition(query: DealQuery) -> ColumnElement[bool]:
     return and_(DealRow.forecast_key.not_in(sorted(CLOSED_FORECASTS)), or_(*selected))
 
 
+def _outcome_condition(outcome: ForecastOutcomeFilter) -> ColumnElement[bool]:
+    """Forecast 코드의 outcome이 필터에 속하는 Deal(forecast_key 조건과 AND로 결합된다)."""
+    wanted = [item.value for item in outcome.outcomes()]
+    return (
+        select(CodeRow.id)
+        .where(
+            CodeRow.kind == DealRow.forecast_kind,
+            CodeRow.key == DealRow.forecast_key,
+            CodeRow.outcome.in_(wanted),
+        )
+        .correlate(DealRow)
+        .exists()
+    )
+
+
 def conditions(query: DealQuery) -> list[ColumnElement[bool]]:
     """query의 조건을 AND로 결합할 WHERE 절 목록. 기간은 양끝을 포함한다."""
     found: list[ColumnElement[bool]] = []
@@ -84,6 +101,8 @@ def conditions(query: DealQuery) -> list[ColumnElement[bool]]:
         (DealRow.status_key, query.status_key),
         (DealRow.forecast_key, query.forecast_key),
     )
+    if query.forecast_outcome is not None:
+        found.append(_outcome_condition(query.forecast_outcome))
     if query.next_action_status is not None:
         wanted_statuses = [status.value for status in query.next_action_status.statuses()]
         found.append(

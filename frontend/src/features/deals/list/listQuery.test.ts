@@ -182,8 +182,10 @@ describe('hasActiveFilter', () => {
 })
 
 describe('FILTER_KEYS', () => {
-  it('has fifteen keys: no BANT keys, with month (P6) and overdue/stale', () => {
-    expect(FILTER_KEYS).toHaveLength(15)
+  it('has sixteen keys: no BANT keys, with month (P6), overdue/stale and outcome (Dashboard)', () => {
+    expect(FILTER_KEYS).toHaveLength(16)
+    expect(FILTER_KEYS).toContain('outcome')
+    expect(REMEMBERED_LIST_KEYS).toContain('outcome')
     expect(FILTER_KEYS).toContain('month')
     expect(REMEMBERED_LIST_KEYS).toContain('month')
     expect(FILTER_KEYS).toContain('updated_from')
@@ -354,5 +356,45 @@ describe('month URL value format matches the Forecast screen (R1 Nit)', () => {
 
   it.each(['1', '9', '10', '12'])('accepts the plain month %j', (raw) => {
     expect(listQueryFromParams(params(`month=${raw}`))).toMatchObject({ month: Number(raw) })
+  })
+})
+
+describe('outcome URL 키 (Dashboard AC-19)', () => {
+  it.each([
+    ['open', 'open'],
+    ['won', 'won'],
+    ['lost', 'lost'],
+    ['not_lost', 'not_lost'],
+  ] as const)('maps outcome=%s to forecastOutcome %s', (wire, outcome) => {
+    expect(listQueryFromParams(params(`outcome=${wire}`))).toEqual({ offset: 0, limit: 20, forecastOutcome: outcome })
+  })
+
+  it.each(['', 'bogus', 'OPEN', 'notLost', 'not-lost', 'all', ' open'])('ignores outcome=%j', (value) => {
+    expect(listQueryFromParams(params(`outcome=${encodeURIComponent(value)}`))).toEqual({ offset: 0, limit: 20 })
+  })
+
+  it('combines with the forecast key (the server ANDs them)', () => {
+    expect(listQueryFromParams(params('forecast=commit&outcome=open'))).toEqual({
+      offset: 0,
+      limit: 20,
+      forecastKey: 'commit',
+      forecastOutcome: 'open',
+    })
+  })
+
+  it('counts outcome as an active filter and an empty value as none', () => {
+    expect(hasActiveFilter(params('outcome=open'))).toBe(true)
+    expect(hasActiveFilter(params('outcome='))).toBe(false)
+  })
+
+  it('returns to the first page when outcome changes', () => {
+    const next = updateParams(params('page=3'), { outcome: 'not_lost' })
+
+    expect(next.get('outcome')).toBe('not_lost')
+    expect(next.has('page')).toBe(false)
+  })
+
+  it('removes the outcome when it is cleared', () => {
+    expect(updateParams(params('outcome=open&year=2026'), { outcome: '' }).toString()).toBe('year=2026')
   })
 })

@@ -101,14 +101,22 @@ def _owner_of(row: ForecastRow) -> UserId:
     return row.owner_id
 
 
-def _row(
-    owner_id: UserId | None, columns: Sequence[ForecastColumn], cells: Mapping[str, Tally]
-) -> ForecastRow:
+def tally_row(
+    columns: Iterable[ForecastColumn], cells: Mapping[str, Tally]
+) -> tuple[dict[str, Tally], Tally]:
+    """columns의 모든 key를 채운 셀(없으면 ZERO)과 OPEN 열만 합친 open_total. 모르는 key는 무시."""
     full = {column.key: cells.get(column.key, Tally.ZERO) for column in columns}
     open_total = Tally.ZERO
     for column in columns:
         if column.outcome is ForecastOutcome.OPEN:
             open_total = open_total.add(full[column.key])
+    return full, open_total
+
+
+def _row(
+    owner_id: UserId | None, columns: Sequence[ForecastColumn], cells: Mapping[str, Tally]
+) -> ForecastRow:
+    full, open_total = tally_row(columns, cells)
     return ForecastRow(owner_id, full, open_total)
 
 

@@ -55,6 +55,8 @@ import type {
   ContactKind,
   ContactListQuery,
   ContactRow,
+  DashboardQuery,
+  DashboardSummary,
   DealAction,
   DealDeletionImpact,
   DealDetail,
@@ -283,6 +285,14 @@ export interface ForecastGateway {
   snapshotSummary(period: string, query: Omit<ForecastQuery, 'vendorId'>): Promise<ForecastSummary>
 }
 
+export interface DashboardGateway {
+  /**
+   * Dashboard 요약. 기간은 Expected Close 기준. Forecast 타일·Status(Lost 제외)는 기간·담당자·Vendor,
+   * 분기(Q1~Q4)는 연도·담당자·Vendor, 주의 필요 Deal은 담당자·Vendor만 적용한다. 모든 로그인 사용자가 조회한다.
+   */
+  summary(query: DashboardQuery): Promise<DashboardSummary>
+}
+
 export interface VendorsGateway {
   /** 모든 로그인 사용자. Vendor 이름순, 사용 중 Deal 수 포함. */
   list(): Promise<Vendor[]>
@@ -353,6 +363,7 @@ export interface Gateway {
   labels: LabelsGateway
   vendors: VendorsGateway
   forecast: ForecastGateway
+  dashboard: DashboardGateway
   users: UsersGateway
   settings: SettingsGateway
   alerts: AlertsGateway

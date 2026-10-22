@@ -422,6 +422,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/dashboard/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Dashboard Summary */
+        get: operations["get_dashboard_summary_api_v1_dashboard_summary_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/deal-actions/{action_id}": {
         parameters: {
             query?: never;
@@ -942,6 +959,17 @@ export interface components {
              */
             outcome: "uploaded" | "replaced" | "skipped";
         };
+        /** AttentionResponse */
+        AttentionResponse: {
+            closing_this_month: components["schemas"]["MonthRefResponse"];
+            closing_this_quarter: components["schemas"]["QuarterRefResponse"];
+            /** Overdue */
+            overdue: number;
+            /** Stale */
+            stale: number;
+            /** Stale Days */
+            stale_days: number;
+        };
         /** AuthConfigResponse */
         AuthConfigResponse: {
             /** Dev Login */
@@ -1275,6 +1303,56 @@ export interface components {
             offset: number;
             /** Total */
             total: number;
+        };
+        /** DashboardForecastsResponse */
+        DashboardForecastsResponse: {
+            /** Cells */
+            cells: components["schemas"]["CellResponse"][];
+            /** Columns */
+            columns: components["schemas"]["ColumnResponse"][];
+            open_total: components["schemas"]["TallyResponse"];
+        };
+        /** DashboardPeriodResponse */
+        DashboardPeriodResponse: {
+            /**
+             * From
+             * Format: date
+             */
+            from: string;
+            /** Quarter */
+            quarter: number | null;
+            /**
+             * To
+             * Format: date
+             */
+            to: string;
+            /** Year */
+            year: number;
+        };
+        /** DashboardStatusesResponse */
+        DashboardStatusesResponse: {
+            /** Items */
+            items: components["schemas"]["StatusItemResponse"][];
+            total: components["schemas"]["TallyResponse"];
+        };
+        /** DashboardSummaryResponse */
+        DashboardSummaryResponse: {
+            /**
+             * As Of
+             * Format: date-time
+             */
+            as_of: string;
+            attention: components["schemas"]["AttentionResponse"];
+            forecasts: components["schemas"]["DashboardForecastsResponse"];
+            period: components["schemas"]["DashboardPeriodResponse"];
+            /** Quarters */
+            quarters: components["schemas"]["QuarterClosingResponse"][];
+            statuses: components["schemas"]["DashboardStatusesResponse"];
+            /**
+             * Today
+             * Format: date
+             */
+            today: string;
         };
         /** DateChange */
         DateChange: {
@@ -1788,6 +1866,12 @@ export interface components {
          * @enum {string}
          */
         ForecastOutcome: "open" | "won" | "lost";
+        /**
+         * ForecastOutcomeFilter
+         * @description Forecast 코드 outcome 필터. not_lost는 open과 won.
+         * @enum {string}
+         */
+        ForecastOutcomeFilter: "open" | "won" | "lost" | "not_lost";
         /** ForecastSummaryResponse */
         ForecastSummaryResponse: {
             /**
@@ -1845,6 +1929,15 @@ export interface components {
              * Format: password
              */
             password: string;
+        };
+        /** MonthRefResponse */
+        MonthRefResponse: {
+            /** Count */
+            count: number;
+            /** Month */
+            month: number;
+            /** Year */
+            year: number;
         };
         /** NamedRefResponse */
         NamedRefResponse: {
@@ -1997,6 +2090,34 @@ export interface components {
             /** Type */
             type: string;
         };
+        /** QuarterClosingResponse */
+        QuarterClosingResponse: {
+            /** Cells */
+            cells: components["schemas"]["CellResponse"][];
+            /**
+             * From
+             * Format: date
+             */
+            from: string;
+            open_total: components["schemas"]["TallyResponse"];
+            /** Quarter */
+            quarter: number;
+            /**
+             * To
+             * Format: date
+             */
+            to: string;
+            total: components["schemas"]["TallyResponse"];
+        };
+        /** QuarterRefResponse */
+        QuarterRefResponse: {
+            /** Count */
+            count: number;
+            /** Quarter */
+            quarter: number;
+            /** Year */
+            year: number;
+        };
         /** QuoteRequest */
         QuoteRequest: {
             submitted?: components["schemas"]["QuoteSubmitted"] | null;
@@ -2070,6 +2191,19 @@ export interface components {
          * @enum {string}
          */
         SortOrder: "asc" | "desc";
+        /** StatusItemResponse */
+        StatusItemResponse: {
+            /** Amount */
+            amount: number;
+            /** Count */
+            count: number;
+            /** Key */
+            key: string;
+            /** Name */
+            name: string;
+            /** Order */
+            order: number;
+        };
         /** StorageSettingsRequest */
         StorageSettingsRequest: {
             /** Path */
@@ -4027,6 +4161,49 @@ export interface operations {
             };
         };
     };
+    get_dashboard_summary_api_v1_dashboard_summary_get: {
+        parameters: {
+            query: {
+                year: number;
+                quarter?: number | null;
+                owner_user_id?: number | null;
+                vendor_id?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardSummaryResponse"];
+                };
+            };
+            /** @description problem+json */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     get_deal_action_api_v1_deal_actions__action_id__get: {
         parameters: {
             query?: never;
@@ -4284,6 +4461,7 @@ export interface operations {
                 solution?: string | null;
                 status_key?: string | null;
                 forecast_key?: string | null;
+                forecast_outcome?: components["schemas"]["ForecastOutcomeFilter"] | null;
                 year?: number | null;
                 quarter?: number | null;
                 month?: number | null;

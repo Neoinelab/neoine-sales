@@ -8,6 +8,7 @@ from app.infra.db.attachment_repository import SqlAttachmentRepository
 from app.infra.db.bant_label_repository import SqlBantLabelRepository
 from app.infra.db.code_repository import SqlCodeRepository
 from app.infra.db.contact_repository import SqlContactRepository
+from app.infra.db.dashboard_tally import SqlDashboardTallyRepository
 from app.infra.db.deal_action_repository import SqlDealActionRepository
 from app.infra.db.deal_history_repository import SqlDealHistoryRepository
 from app.infra.db.deal_repository import SqlDealRepository
@@ -47,6 +48,7 @@ class SqlUnitOfWork:
     action_types: SqlActionTypeRepository
     forecast: SqlForecastTallyRepository
     forecast_snapshots: SqlForecastSnapshotRepository
+    dashboard: SqlDashboardTallyRepository
     ids: SqlIdAllocator
 
     def __init__(self, session_factory: async_sessionmaker[AsyncSession]) -> None:
@@ -71,6 +73,7 @@ class SqlUnitOfWork:
         self.action_types = SqlActionTypeRepository(self._session)
         self.forecast = SqlForecastTallyRepository(self._session)
         self.forecast_snapshots = SqlForecastSnapshotRepository(self._session)
+        self.dashboard = SqlDashboardTallyRepository(self._session)
         self.ids = SqlIdAllocator(self._session)
         return self
 

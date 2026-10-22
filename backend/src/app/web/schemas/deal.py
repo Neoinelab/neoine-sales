@@ -8,6 +8,7 @@ from pydantic import Field, StrictInt, field_validator, model_validator
 from app.application.choice import CatalogChoice
 from app.application.deal.inputs import ContactDraftInput, DealCreateInput, DealPatchInput
 from app.application.ports.deal_action_repository import NextActionStatusFilter
+from app.application.ports.deal_outcome_filter import ForecastOutcomeFilter
 from app.application.ports.deal_repository import (
     DEFAULT_PAGE_SIZE,
     KEYWORD_MAX,
@@ -189,6 +190,7 @@ class DealSearchParams(RequestModel):
     solution: Annotated[str | None, Field(json_schema_extra=_document_solution_max)] = None
     status_key: Annotated[str | None, Field(max_length=STATUS_KEY_MAX)] = None
     forecast_key: Annotated[str | None, Field(max_length=STATUS_KEY_MAX)] = None
+    forecast_outcome: ForecastOutcomeFilter | None = None
     year: Annotated[int | None, Field(ge=1900, le=9999)] = None
     quarter: Annotated[int | None, Field(ge=1, le=4)] = None
     month: Annotated[int | None, Field(ge=1, le=12)] = None

@@ -48,6 +48,32 @@ describe('deals.list month over HTTP (P6 AC-12)', () => {
   })
 })
 
+describe('deals.list forecast outcome over HTTP (Dashboard AC-9)', () => {
+  it.each(['open', 'won', 'lost', 'not_lost'] as const)('sends forecastOutcome %s as forecast_outcome', async (outcome) => {
+    const { calls } = stubFetch(json(page([])))
+
+    await createDealsHttp().list({ year: 2026, forecastOutcome: outcome })
+
+    expect(Object.fromEntries(query(calls[0]?.path ?? ''))).toEqual({ year: '2026', forecast_outcome: outcome })
+  })
+
+  it('sends it next to forecast_key (the server ANDs them)', async () => {
+    const { calls } = stubFetch(json(page([])))
+
+    await createDealsHttp().list({ forecastKey: 'commit', forecastOutcome: 'open' })
+
+    expect(Object.fromEntries(query(calls[0]?.path ?? ''))).toEqual({ forecast_key: 'commit', forecast_outcome: 'open' })
+  })
+
+  it('does not send forecast_outcome when it is not set', async () => {
+    const { calls } = stubFetch(json(page([])))
+
+    await createDealsHttp().list({ year: 2026, quarter: 4 })
+
+    expect(query(calls[0]?.path ?? '').has('forecast_outcome')).toBe(false)
+  })
+})
+
 describe('deals.list over HTTP', () => {
   it('sends GET /deals without a query when nothing is set', async () => {
     const { calls } = stubFetch(json(page([])))

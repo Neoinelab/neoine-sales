@@ -14,6 +14,7 @@ if TYPE_CHECKING:
     from collections.abc import Collection, Mapping, Sequence
 
     from app.application.ports.deal_action_repository import NextActionStatusFilter
+    from app.application.ports.deal_outcome_filter import ForecastOutcomeFilter
     from app.domain.bant.values import BantLabelId
     from app.domain.contact.values import ContactId, ContactKind
     from app.domain.deal.code import DealCode
@@ -63,6 +64,7 @@ class DealQuery:
     solution: str | None = None  # Solution 텍스트 부분 일치(대소문자 무시)
     status_key: str | None = None
     forecast_key: str | None = None
+    forecast_outcome: ForecastOutcomeFilter | None = None  # 코드 outcome 기준. forecast_key와 AND
     year: int | None = None  # Expected Close 연도(필터 확장 R3)
     quarter: int | None = None  # 1~4. 연도가 없으면 호출자가 `with_year_for`로 올해를 채운다
     month: int | None = None  # 1~12. quarter와 함께 쓸 수 없고, 연도가 없으면 올해를 채운다
