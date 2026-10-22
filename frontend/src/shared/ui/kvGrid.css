@@ -61,9 +61,6 @@
   color: var(--fg);
   overflow-wrap: anywhere;
 }
-.kv-grid .combo > .combo-list {
-  grid-column: 2;
-}
 /* kv-row 안에 놓은 자동완성(BANT 폼)은 행 전체를 차지하고 라벨·입력을 두 열에 나눈다 */
 .kv-grid > .kv-row > .combo {
   grid-column: 1 / -1;

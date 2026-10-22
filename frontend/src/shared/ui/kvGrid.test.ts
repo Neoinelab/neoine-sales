@@ -23,6 +23,17 @@ describe('kvGrid.css (정적 점검)', () => {
     expect(ruleOf(read(), '.kv-grid dd')).toContain('overflow-wrap: anywhere')
   })
 
+  it('places the combo list only for a combo that is itself a grid row', () => {
+    // 값 칸(dd) 안의 콤보(상세 인라인 편집)는 1열 grid라, 목록에 2열을 주면 폭 0인 암묵 열에 붙어 스크롤바만 보인다.
+    const css = read()
+    for (const m of css.matchAll(/([^{}]+)\{([^}]*)\}/g)) {
+      const selector = (m[1] ?? '').trim()
+      if (selector.includes('.combo-list') && (m[2] ?? '').includes('grid-column')) {
+        expect(selector).toMatch(/^\.kv-grid > /)
+      }
+    }
+  })
+
   it('lets a long value shrink inside its column', () => {
     expect(ruleOf(read(), '.kv-grid > :is(.kv-row, .field)')).toContain('min-width: 0')
   })
