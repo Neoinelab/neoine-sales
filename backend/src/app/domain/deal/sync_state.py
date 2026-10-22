@@ -14,6 +14,8 @@ STATUS_CONTRACT_COMPLETED = "contract_completed"
 FORECAST_PIPELINE = "pipeline"
 FORECAST_WON = "won"
 FORECAST_LOST = "lost"
+# 종결 Forecast(Open Pipeline 아님). Risk 판정과 목록 기한초과·미업데이트 필터가 함께 쓴다.
+CLOSED_FORECASTS: frozenset[str] = frozenset({FORECAST_WON, FORECAST_LOST})
 
 
 class SyncField(StrEnum):

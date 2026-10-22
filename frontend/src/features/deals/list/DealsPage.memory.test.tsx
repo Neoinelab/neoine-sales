@@ -310,3 +310,50 @@ describe('최종 업데이트 기간 기억 (AC-20, AC-21)', () => {
     expect(view.location()).toBe(CONDITION)
   })
 })
+
+describe('정렬·기한초과·미업데이트 기억 (AC-2·9)', () => {
+  const RISK_SORT = '/deals?overdue=1&stale=1&sort=owner&order=desc'
+
+  it('returns from detail to the same owner sort and risk filters', async () => {
+    const view = await renderAt(RISK_SORT)
+    await waitFor(() => expect(dataRows().length).toBeGreaterThan(0))
+    const link = within(dataRows()[0] as HTMLElement).getAllByRole('link')[0] as HTMLElement
+    const name = link.textContent ?? ''
+    await view.user.click(link)
+    await screen.findByRole('heading', { level: 1, name })
+
+    expect(screen.getByRole('link', { name: '← 목록' })).toHaveAttribute('href', RISK_SORT)
+    await view.user.click(screen.getByRole('link', { name: '← 목록' }))
+
+    await waitFor(() => expect(view.location()).toBe(RISK_SORT))
+    expect(await screen.findByRole('columnheader', { name: '담당자' })).toHaveAttribute('aria-sort', 'descending')
+    expect(screen.getByRole('checkbox', { name: '기한초과' })).toBeChecked()
+    expect(screen.getByRole('checkbox', { name: '미업데이트' })).toBeChecked()
+  })
+
+  it('stores the new sort and the risk keys in session storage', async () => {
+    await renderAt(RISK_SORT)
+    await waitFor(() => expect(window.sessionStorage.getItem(listMemoryKey(USER_ID.kim))).toBe('overdue=1&stale=1&sort=owner&order=desc'))
+  })
+
+  it('menu deals href follows a new-column sort change immediately', async () => {
+    const deals = () => screen.getByRole('link', { name: 'Deals' })
+    const view = await renderAt('/deals')
+    await screen.findByRole('row', { name: /한빛은행 ITDR 도입/ })
+
+    await view.user.click(screen.getByRole('button', { name: '담당자' }))
+    await waitFor(() => expect(screen.getByRole('columnheader', { name: '담당자' })).toHaveAttribute('aria-sort', 'ascending'))
+
+    expect(deals()).toHaveAttribute('href', '/deals?sort=owner&order=asc')
+  })
+
+  it('does not restore old BANT keys that an earlier version stored', async () => {
+    // 목록 밖(없는 Deal 상세)에서 기억된 조건으로 돌아가는 링크를 본다. 목록 화면 안에서는 메뉴가 현재 URL을 따른다.
+    window.sessionStorage.setItem(listMemoryKey(USER_ID.kim), 'budget=1&need=3&stale=1')
+    await renderAt('/deals/20000101-ZZZZ')
+    expect(await screen.findByRole('alert')).toHaveTextContent('Deal을 찾을 수 없습니다.')
+
+    expect(screen.getByRole('link', { name: 'Deal 목록으로' })).toHaveAttribute('href', '/deals?stale=1')
+    expect(screen.getByRole('link', { name: 'Deals' })).toHaveAttribute('href', '/deals?stale=1')
+  })
+})

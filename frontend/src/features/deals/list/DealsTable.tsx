@@ -1,6 +1,5 @@
-import { useLabels } from '../../../data/labels'
 import { AMOUNT_LABEL } from '../../../shared/model/money'
-import type { DealRow, DealSortKey } from '../../../shared/model/types'
+import type { BantLabel, DealRow, DealSortKey } from '../../../shared/model/types'
 import { SortableHeader } from '../../../shared/ui/SortableHeader'
 import { DealRowItem } from './DealRowItem'
 import type { SortState } from './listQuery'
@@ -13,12 +12,12 @@ interface Column {
 /** PRD DL-05의 11개 + BANT(LB-06) 컬럼. 정렬 가능한 열만 sort 키를 가진다. */
 const COLUMNS: readonly Column[] = [
   { label: 'Deal', sort: 'name' },
-  { label: '담당자' },
-  { label: '고객사' },
-  { label: '파트너사' },
-  { label: 'Vendor' },
+  { label: '담당자', sort: 'owner' },
+  { label: '고객사', sort: 'customer' },
+  { label: '파트너사', sort: 'partner' },
+  { label: 'Vendor', sort: 'vendor' },
   { label: 'Status', sort: 'statusKey' },
-  { label: 'Forecast' },
+  { label: 'Forecast', sort: 'forecastKey' },
   { label: 'BANT' },
   { label: AMOUNT_LABEL, sort: 'revenueAmount' },
   { label: 'Expected Close', sort: 'revenueDate' },
@@ -28,17 +27,16 @@ const COLUMNS: readonly Column[] = [
 
 interface DealsTableProps {
   rows: readonly DealRow[]
+  labels: readonly BantLabel[]
+  /** Label 조회 실패: BANT 칸에 이름을 만들 수 없다고 알린다. */
+  labelsFailed: boolean
   canWrite: boolean
   sort: SortState
   onSort: (key: DealSortKey) => void
   onSaved: (message: string) => void
 }
 
-export function DealsTable({ rows, canWrite, sort, onSort, onSaved }: DealsTableProps) {
-  // Label 이름은 행마다 읽지 않고 한 번 읽어 넘긴다(목록 캐시와 별개로 Label 이름 변경은 keys.labels 무효화로 반영된다).
-  const labelsQuery = useLabels()
-  const labels = labelsQuery.data ?? []
-  const labelsFailed = labelsQuery.isError
+export function DealsTable({ rows, labels, labelsFailed, canWrite, sort, onSort, onSaved }: DealsTableProps) {
   return (
     <div className="table-scroll">
       <table className="deals-table">

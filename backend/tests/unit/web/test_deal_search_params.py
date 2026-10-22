@@ -1,6 +1,6 @@
 """웹 쿼리 모델(R2): 목록 검색 파라미터가 DealQuery로 바뀌는 방식과 검증 (AC-22·22a·22e).
 
-mine=true는 요청자가 Owner인 딜이고 owner_user_id보다 우선한다. 연/분기·BANT·정렬 파라미터는 R3다.
+mine=true는 요청자가 Owner인 딜이고 owner_user_id보다 우선한다. 연/분기·정렬 파라미터는 R3다.
 최종 업데이트 기간은 updated_from/to다.
 Vendor·Solution 조건은 id(int)다.
 """

@@ -1,4 +1,4 @@
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, replace
 from datetime import date, datetime, timedelta
 from enum import StrEnum
 from typing import TYPE_CHECKING, Protocol
@@ -13,10 +13,11 @@ if TYPE_CHECKING:
     from collections.abc import Collection, Mapping, Sequence
 
     from app.application.ports.deal_action_repository import NextActionStatusFilter
-    from app.domain.bant.values import BantCategory, BantLabelId
+    from app.domain.bant.values import BantLabelId
     from app.domain.contact.values import ContactId, ContactKind
     from app.domain.deal.code import DealCode
     from app.domain.deal.entities import Deal
+    from app.domain.deal.risk import RiskBasis
     from app.domain.deal_action.next_action_status import NextActionStatus
     from app.domain.user.value_objects import UserId
     from app.domain.vendor.values import SolutionId, VendorId
@@ -34,6 +35,11 @@ class DealSort(StrEnum):
     REVENUE_DATE = "revenue_date"
     LAST_UPDATED_AT = "last_updated_at"
     STATUS = "status"  # Status 코드의 현재 순서
+    OWNER = "owner"  # 담당자 표시 이름(없으면 login_id), 소문자
+    CUSTOMER = "customer"  # 고객 회사명, 소문자
+    PARTNER = "partner"  # 활성 파트너 회사명. 없으면 방향과 무관하게 맨 뒤
+    VENDOR = "vendor"  # Vendor 이름. 없으면 방향과 무관하게 맨 뒤
+    FORECAST = "forecast"  # Forecast 코드의 현재 순서
 
 
 class SortOrder(StrEnum):
@@ -61,10 +67,12 @@ class DealQuery:
     month: int | None = None  # 1~12. quarter와 함께 쓸 수 없고, 연도가 없으면 올해를 채운다
     updated_from: date | None = None  # 최종 업데이트(last_updated_at) 기간, 서버 업무 날짜
     updated_to: date | None = None
-    bant_label_ids: Mapping[BantCategory, BantLabelId] = field(default_factory=dict)  # 구분별 AND
     next_action_status: NextActionStatusFilter | None = (
         None  # 기준 행(Next Action 있는 최근 행)의 상태
     )
+    overdue: bool = False  # 기한초과 Deal만(stale와 함께면 OR). Won·Lost 제외
+    stale: bool = False  # 미업데이트 Deal만
+    risk_basis: RiskBasis | None = None  # overdue/stale 판정 기준(`with_risk_basis`로 채운다)
     sort: DealSort = DealSort.LAST_UPDATED_AT
     order: SortOrder = SortOrder.DESC
     offset: int = 0
@@ -93,6 +101,16 @@ class DealQuery:
             quarter_range(self.year or YEAR_MIN, self.quarter)  # 1~4 밖이면 InvalidValueError
         if self.month is not None:
             month_range(self.year or YEAR_MIN, self.month)  # 1~12 밖이면 InvalidValueError
+
+    def wants_risk(self) -> bool:
+        return self.overdue or self.stale
+
+    def with_risk_basis(self, basis: RiskBasis) -> DealQuery:
+        """위험 필터가 있으면 basis를 채운 사본, 없으면 self.
+
+        저장소 계약: `wants_risk()`인데 `risk_basis`가 None이면 저장소는 ValueError를 낸다.
+        """
+        return replace(self, risk_basis=basis) if self.wants_risk() else self
 
     def with_year_for(self, today: date) -> DealQuery:
         """분기·월만 있고 연도가 없으면 today의 연도를 채운 사본, 아니면 self."""

@@ -34,10 +34,6 @@ ID_NAMES = {
     "code_id",
     "label_id",
     "ordered_ids",
-    "bant_budget",
-    "bant_authority",
-    "bant_need",
-    "bant_timeline",
 }
 
 

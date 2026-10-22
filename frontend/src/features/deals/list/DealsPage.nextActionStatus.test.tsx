@@ -1,5 +1,7 @@
-import { screen, within } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
+import { gateway } from '../../../gateway'
+import { dealCodeOf } from '../../../test/detailTestUtils'
 import { renderAt } from '../../../test/mockApp'
 import { dataRows } from './testHelpers'
 
@@ -79,5 +81,31 @@ describe('Deals 목록: Next Action 열의 상태 라벨 (AC-23)', () => {
 
     expect(row).toHaveTextContent('계약서 초안 검토')
     expect(row).toHaveTextContent('Open')
+  })
+})
+
+describe('Deals 목록: Next Action 칸은 모든 상태에서 내용·Due·상태 라벨을 보인다 (AC-5)', () => {
+  it.each([
+    ['open', 'Open'],
+    ['done', '종료(수행)'],
+    ['notDone', '종료(미수행)'],
+  ] as const)('shows the text, the due date and the label of a %s Next Action', async (status, label) => {
+    const code = await dealCodeOf(1)
+    const { client } = await renderAt('/deals?q=한빛은행 ITDR')
+    await screen.findByRole('row', { name: /한빛은행 ITDR 도입/ })
+    const basis = (await gateway.actions.list(code, {})).find((a) => a.nextAction === '계약서 초안 검토')
+    if (!basis) throw new Error('기준 Action이 없습니다.')
+    if (status !== 'open') await gateway.actions.changeNextActionStatus(basis.id, { status, memo: '' }) // 시드는 이미 Open
+    await client.invalidateQueries()
+
+    await waitFor(() => {
+      const row = screen.getByRole('row', { name: /한빛은행 ITDR 도입/ })
+      expect(within(row).getByText(label, { selector: 'small' })).toBeVisible()
+      expect(row).toHaveTextContent('계약서 초안 검토')
+      expect(row).toHaveTextContent(`Due ${basis.dueDate}`)
+    })
+    const labels = ['Open', '종료(수행)', '종료(미수행)'].filter((l) => l !== label)
+    const row = screen.getByRole('row', { name: /한빛은행 ITDR 도입/ })
+    for (const other of labels) expect(within(row).queryByText(other, { selector: 'small' })).not.toBeInTheDocument()
   })
 })

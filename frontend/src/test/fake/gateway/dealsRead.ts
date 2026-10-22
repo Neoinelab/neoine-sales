@@ -3,7 +3,7 @@
 import { DEAL_PAGE_SIZE } from '../../../shared/model/constants'
 import { compareIso, datePart } from '../../../shared/model/dates'
 import { inPeriod } from '../../../shared/model/period'
-import type { DealListQuery, DealRow, Page } from '../../../shared/model/types'
+import type { DealListQuery, DealRow, DealSortKey, Page } from '../../../shared/model/types'
 import { QUARTER_MONTH_EXCLUSIVE, validation } from '../errors'
 import { read, requireUser, type MockContext } from './context'
 import { codeSetOf } from './dealChange'
@@ -37,10 +37,27 @@ function matches(row: DealRow, query: DealListQuery, viewerId: number, thisYear:
   if (query.mine && row.ownerId !== viewerId) return false
   // 기준 행(Next Action이 있는 가장 최근 Action)의 상태로 거른다. Next Action이 없는 Deal은 제외된다.
   if (query.nextActionStatus && !(row.nextAction && statusesOf(query.nextActionStatus).includes(row.nextAction.status))) return false
-  for (const [category, labelId] of Object.entries(query.bantLabelIds ?? {})) {
-    if (labelId && row.bant[category as keyof typeof row.bant] !== labelId) return false
+  // 기한초과·미업데이트: 이미 계산된 row.risk(종결 Deal은 null)로 판정한다. 둘 다 켜면 어느 하나라도 해당(OR).
+  if (query.overdue || query.stale) {
+    const overdue = row.risk === 'overdue' || row.risk === 'overdue_stale'
+    const stale = row.risk === 'stale' || row.risk === 'overdue_stale'
+    if (!((query.overdue && overdue) || (query.stale && stale))) return false
   }
   return true
+}
+
+/** 서버 정렬 규칙: 텍스트는 소문자 기준(코드 포인트 순). */
+function compareText(a: string, b: string): number {
+  const x = a.toLowerCase()
+  const y = b.toLowerCase()
+  return x < y ? -1 : x > y ? 1 : 0
+}
+
+/** 값이 없는 행(활성 파트너·Vendor 없음)은 방향과 무관하게 맨 뒤에 둔다. */
+function isAbsent(row: DealRow, sort: DealSortKey): boolean {
+  if (sort === 'partner') return row.activePartner === null
+  if (sort === 'vendor') return row.vendor === null
+  return false
 }
 
 export function listDeals(ctx: MockContext, query: DealListQuery): Page<DealRow> {
@@ -52,7 +69,9 @@ export function listDeals(ctx: MockContext, query: DealListQuery): Page<DealRow>
   // 서버 한도: 한 번에 최대 200건(그 이상은 422).
   if ((query.limit ?? 0) > MAX_PAGE_SIZE) throw validation(`limit은 ${MAX_PAGE_SIZE} 이하여야 합니다.`)
   const thisYear = Number(ctx.clock.today().slice(0, 4))
-  const statusOrder = codeSetOf(ctx).statuses.map((c) => c.key)
+  const codes = codeSetOf(ctx)
+  const statusOrder = codes.statuses.map((c) => c.key)
+  const forecastOrder = codes.forecasts.map((c) => c.key)
   const sort = query.sort ?? 'lastUpdatedAt'
   const sign = (query.order ?? 'desc') === 'asc' ? 1 : -1
   const compare = (a: DealRow, b: DealRow): number => {
@@ -65,6 +84,16 @@ export function listDeals(ctx: MockContext, query: DealListQuery): Page<DealRow>
         return a.revenueDate.localeCompare(b.revenueDate)
       case 'statusKey':
         return statusOrder.indexOf(a.statusKey) - statusOrder.indexOf(b.statusKey)
+      case 'forecastKey':
+        return forecastOrder.indexOf(a.forecastKey) - forecastOrder.indexOf(b.forecastKey)
+      case 'owner':
+        return compareText(a.owner.name, b.owner.name)
+      case 'customer':
+        return compareText(a.customer.company, b.customer.company)
+      case 'partner':
+        return compareText(a.activePartner?.company ?? '', b.activePartner?.company ?? '')
+      case 'vendor':
+        return compareText(a.vendor?.name ?? '', b.vendor?.name ?? '')
       default:
         return compareIso(a.lastUpdatedAt, b.lastUpdatedAt)
     }
@@ -72,7 +101,12 @@ export function listDeals(ctx: MockContext, query: DealListQuery): Page<DealRow>
   const rows = ctx.store.data.deals
     .map((deal) => dealRow(ctx, deal))
     .filter((row) => matches(row, query, viewer.id, thisYear))
-    .sort((a, b) => sign * compare(a, b) || a.code.localeCompare(b.code))
+    .sort((a, b) => {
+      const absentA = isAbsent(a, sort)
+      const absentB = isAbsent(b, sort)
+      if (absentA !== absentB) return absentA ? 1 : -1
+      return (absentA ? 0 : sign * compare(a, b)) || a.code.localeCompare(b.code)
+    })
   const offset = query.offset ?? 0
   const limit = query.limit ?? DEAL_PAGE_SIZE
   return { items: rows.slice(offset, offset + limit), total: rows.length, offset, limit }

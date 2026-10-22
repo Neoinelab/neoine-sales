@@ -16,7 +16,7 @@ describe('listQueryFromParams (T-LIST-05, T-LIST-09)', () => {
   it('maps every filter, sort and page from the URL', () => {
     const query = listQueryFromParams(
       params(
-        `q=한빛&owner=${USER_ID.kim}&vendor=${VENDOR}&solution=${SOLUTION}&status=prospecting&forecast=best&year=2026&quarter=4&updated_from=2026-01-01&updated_to=2026-12-31&budget=1&need=9&mine=1&sort=revenueAmount&order=asc&page=3`,
+        `q=한빛&owner=${USER_ID.kim}&vendor=${VENDOR}&solution=${SOLUTION}&status=prospecting&forecast=best&year=2026&quarter=4&updated_from=2026-01-01&updated_to=2026-12-31&mine=1&overdue=1&stale=1&sort=revenueAmount&order=asc&page=3`,
       ),
     )
     expect(query).toEqual({
@@ -30,8 +30,9 @@ describe('listQueryFromParams (T-LIST-05, T-LIST-09)', () => {
       quarter: 4,
       updatedFrom: '2026-01-01',
       updatedTo: '2026-12-31',
-      bantLabelIds: { budget: 1, need: 9 },
       mine: true,
+      overdue: true,
+      stale: true,
       sort: 'revenueAmount',
       order: 'asc',
       offset: 40,
@@ -103,7 +104,7 @@ describe('listQueryFromParams (T-LIST-05, T-LIST-09)', () => {
     'ignores the out-of-range or non-integer id %j in every id parameter',
     (raw) => {
       const encoded = encodeURIComponent(raw)
-      expect(listQueryFromParams(params(`vendor=${encoded}&solution=${encoded}&owner=${encoded}&budget=${encoded}&need=${encoded}`))).toEqual({
+      expect(listQueryFromParams(params(`vendor=${encoded}&solution=${encoded}&owner=${encoded}`))).toEqual({
         offset: 0,
         limit: 20,
       })
@@ -114,11 +115,9 @@ describe('listQueryFromParams (T-LIST-05, T-LIST-09)', () => {
     expect(listQueryFromParams(params('vendor=9007199254740991'))).toEqual({ offset: 0, limit: 20, vendorId: 9007199254740991 })
   })
 
-  it('ignores an old uuid or user key in the owner and bant parameters', () => {
-    expect(listQueryFromParams(params('owner=u-kim&budget=lb-1&authority=0f0e0d0c-0b0a-4908-8706-050403020100'))).toEqual({
-      offset: 0,
-      limit: 20,
-    })
+  it('ignores an old uuid or user key in the owner parameter', () => {
+    expect(listQueryFromParams(params('owner=u-kim'))).toEqual({ offset: 0, limit: 20 })
+    expect(listQueryFromParams(params('owner=0f0e0d0c-0b0a-4908-8706-050403020100'))).toEqual({ offset: 0, limit: 20 })
   })
 })
 
@@ -157,14 +156,13 @@ describe('hasActiveFilter', () => {
   })
   it('is true for any condition including mine', () => {
     expect(hasActiveFilter(params('mine=1'))).toBe(true)
-    expect(hasActiveFilter(params('budget=1'))).toBe(true)
     expect(hasActiveFilter(params('q=a'))).toBe(true)
   })
 })
 
 describe('FILTER_KEYS', () => {
-  it('replaces from/to with updated_from/updated_to and has seventeen keys with month (P6)', () => {
-    expect(FILTER_KEYS).toHaveLength(17)
+  it('has fifteen keys: no BANT keys, with month (P6) and overdue/stale', () => {
+    expect(FILTER_KEYS).toHaveLength(15)
     expect(FILTER_KEYS).toContain('month')
     expect(REMEMBERED_LIST_KEYS).toContain('month')
     expect(FILTER_KEYS).toContain('updated_from')
@@ -173,6 +171,16 @@ describe('FILTER_KEYS', () => {
     expect(FILTER_KEYS).not.toContain('to')
     expect(REMEMBERED_LIST_KEYS).toContain('updated_from')
     expect(REMEMBERED_LIST_KEYS).not.toContain('from')
+  })
+
+  it.each(['budget', 'authority', 'need', 'timeline'])('no longer has the BANT key %s', (key) => {
+    expect(FILTER_KEYS).not.toContain(key)
+    expect(REMEMBERED_LIST_KEYS).not.toContain(key)
+  })
+
+  it.each(['overdue', 'stale'])('has %s as a filter and a remembered key', (key) => {
+    expect(FILTER_KEYS).toContain(key)
+    expect(REMEMBERED_LIST_KEYS).toContain(key)
   })
 })
 
@@ -185,6 +193,78 @@ describe('sorting', () => {
     expect(nextSort({ sort: 'lastUpdatedAt', order: 'desc' }, 'revenueDate')).toEqual({ sort: 'revenueDate', order: 'asc' })
     expect(nextSort({ sort: 'revenueDate', order: 'asc' }, 'revenueDate')).toEqual({ sort: 'revenueDate', order: 'desc' })
     expect(nextSort({ sort: 'name', order: 'asc' }, 'revenueAmount')).toEqual({ sort: 'revenueAmount', order: 'desc' })
+  })
+})
+
+describe('sorting by the new columns (AC-2)', () => {
+  const NEW_KEYS = ['owner', 'customer', 'partner', 'vendor', 'forecastKey'] as const
+
+  it.each(NEW_KEYS)('starts %s in ascending order', (key) => {
+    expect(nextSort({ sort: 'lastUpdatedAt', order: 'desc' }, key)).toEqual({ sort: key, order: 'asc' })
+  })
+
+  it.each(NEW_KEYS)('flips %s on the second click in both directions', (key) => {
+    expect(nextSort({ sort: key, order: 'asc' }, key)).toEqual({ sort: key, order: 'desc' })
+    expect(nextSort({ sort: key, order: 'desc' }, key)).toEqual({ sort: key, order: 'asc' })
+  })
+
+  it.each(NEW_KEYS)('reads sort=%s from the URL with its natural order and an explicit order', (key) => {
+    expect(currentSort(params(`sort=${key}`))).toEqual({ sort: key, order: 'asc' })
+    expect(currentSort(params(`sort=${key}&order=desc`))).toEqual({ sort: key, order: 'desc' })
+    expect(listQueryFromParams(params(`sort=${key}&order=desc`))).toEqual({ offset: 0, limit: 20, sort: key, order: 'desc' })
+  })
+
+  it.each(['forecast', 'bant', 'nextAction', 'risk', 'OWNER'])('falls back to the default sort for the unknown sort %s', (raw) => {
+    expect(currentSort(params(`sort=${raw}&order=asc`))).toEqual({ sort: 'lastUpdatedAt', order: 'desc' })
+    expect(listQueryFromParams(params(`sort=${raw}`))).toEqual({ offset: 0, limit: 20 })
+  })
+
+  it('keeps the existing natural orders', () => {
+    expect(nextSort({ sort: 'name', order: 'asc' }, 'revenueAmount')).toEqual({ sort: 'revenueAmount', order: 'desc' })
+    expect(nextSort({ sort: 'name', order: 'asc' }, 'lastUpdatedAt')).toEqual({ sort: 'lastUpdatedAt', order: 'desc' })
+    expect(nextSort({ sort: 'name', order: 'desc' }, 'statusKey')).toEqual({ sort: 'statusKey', order: 'asc' })
+  })
+})
+
+describe('retired BANT URL keys (AC-7)', () => {
+  it('never turn the old budget/authority/need/timeline keys into a query condition', () => {
+    const query = listQueryFromParams(params('budget=1&authority=2&need=3&timeline=4'))
+
+    expect(query).toEqual({ offset: 0, limit: 20 })
+    expect(query).not.toHaveProperty('bantLabelIds')
+  })
+
+  it('does not count the old BANT keys as an active filter', () => {
+    expect(hasActiveFilter(params('budget=1&authority=2&need=3&timeline=4'))).toBe(false)
+  })
+
+  it('keeps the other conditions when old BANT keys are present', () => {
+    expect(listQueryFromParams(params('budget=1&status=best'))).toEqual({ offset: 0, limit: 20, statusKey: 'best' })
+  })
+})
+
+describe('overdue and stale URL keys (AC-9)', () => {
+  it('maps overdue=1 and stale=1 to true, each alone', () => {
+    expect(listQueryFromParams(params('overdue=1'))).toEqual({ offset: 0, limit: 20, overdue: true })
+    expect(listQueryFromParams(params('stale=1'))).toEqual({ offset: 0, limit: 20, stale: true })
+  })
+
+  it.each(['0', 'yes', 'true', '', '2'])('ignores the value %j for overdue and stale like mine', (raw) => {
+    expect(listQueryFromParams(params(`overdue=${raw}&stale=${raw}`))).toEqual({ offset: 0, limit: 20 })
+  })
+
+  it('counts them as active filters', () => {
+    expect(hasActiveFilter(params('overdue=1'))).toBe(true)
+    expect(hasActiveFilter(params('stale=1'))).toBe(true)
+    expect(hasActiveFilter(params('overdue=&stale='))).toBe(false)
+  })
+
+  it('returns to the first page when one changes and drops the key when it is cleared', () => {
+    const on = updateParams(params('page=3'), { overdue: '1' })
+    expect(on.get('overdue')).toBe('1')
+    expect(on.has('page')).toBe(false)
+    expect(updateParams(on, { overdue: '' }).has('overdue')).toBe(false)
+    expect(updateParams(params('page=2'), { stale: '1' }).has('page')).toBe(false)
   })
 })
 

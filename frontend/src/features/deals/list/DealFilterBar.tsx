@@ -1,10 +1,8 @@
 import { useId, useRef, useState } from 'react'
 import { useFreshUpdatedPeriods, useUpdatedPeriods } from '../../../data/deals'
 import { useCodeSet } from '../../../data/codes'
-import { useLabels } from '../../../data/labels'
 import { useToday } from '../../../data/today'
 import { useVendors } from '../../../data/vendors'
-import { BANT_CATEGORIES, BANT_CATEGORY_NAMES } from '../../../shared/model/constants'
 import { NEXT_ACTION_STATUS_FILTER_OPTIONS, nextActionStatusFromParam, nextActionStatusToParam } from '../../../shared/model/nextActionStatus'
 import { parseMonth } from '../../../shared/model/month'
 import { PAST_PERIOD_LABELS } from '../../../shared/model/periodChoice'
@@ -50,7 +48,6 @@ export function DealFilterBar({ params, onChange, onReset }: DealFilterBarProps)
   const [customKey, setCustomKey] = useState<string | null>(null)
   const customOpen = customKey === `${updatedFrom}|${updatedTo}`
   const period = customOpen ? 'custom' : selectedUpdatedPeriod(updatedFrom || undefined, updatedTo || undefined, periods)
-  const labels = useLabels().data ?? []
   const q = params.get('q') ?? ''
   const [keyword, setKeyword] = useState(q)
   const [seenQ, setSeenQ] = useState(q)
@@ -238,25 +235,9 @@ export function DealFilterBar({ params, onChange, onReset }: DealFilterBarProps)
           <TextField label="종료일" name="updated_to" type="date" value={updatedTo} onChange={(updated_to) => changeCustomDate({ updated_to })} />
         </>
       )}
-      {BANT_CATEGORIES.map((category) => (
-        <SelectField
-          key={category}
-          label={`${BANT_CATEGORY_NAMES[category]} Label`}
-          name={category}
-          value={value(category)}
-          onChange={(id) => onChange({ [category]: id })}
-        >
-          <option value="">전체</option>
-          {labels
-            .filter((l) => l.category === category)
-            .map((l) => (
-              <option key={l.id} value={l.id}>
-                {l.name}
-              </option>
-            ))}
-        </SelectField>
-      ))}
       <CheckboxField label="내 딜만" name="mine" checked={value('mine') === '1'} onChange={(on) => onChange({ mine: on ? '1' : '' })} />
+      <CheckboxField label="기한초과" name="overdue" checked={value('overdue') === '1'} onChange={(on) => onChange({ overdue: on ? '1' : '' })} />
+      <CheckboxField label="미업데이트" name="stale" checked={value('stale') === '1'} onChange={(on) => onChange({ stale: on ? '1' : '' })} />
       <ErrorBanner error={vendorsQuery.error} />
       <ErrorBanner error={periodsQuery.error} />
       <ErrorBanner error={refreshError} />

@@ -113,6 +113,36 @@ describe('목록의 BANT 열 (P8 AC-14~18)', () => {
   })
 })
 
+describe('목록 필터에는 BANT Label 선택이 없다 (AC-7)', () => {
+  it('has no Budget, Authority, Need or Timeline Label select in the filter area', async () => {
+    await renderAt('/deals')
+    await rowOf(/한빛은행 ITDR 도입/)
+
+    const filters = screen.getByRole('search', { name: 'Deal 필터' })
+    for (const name of ['Budget Label', 'Authority Label', 'Need Label', 'Timeline Label']) {
+      expect(within(filters).queryByLabelText(name)).not.toBeInTheDocument()
+    }
+    expect(within(filters).queryAllByLabelText(/Label$/)).toEqual([])
+  })
+
+  it('lists every deal and keeps the page working with old BANT keys in the URL', async () => {
+    const { location } = await renderAt('/deals?budget=1&authority=2&need=3&timeline=4')
+    await rowOf(/한빛은행 ITDR 도입/)
+
+    expect(screen.queryByText(/조건에 맞는 Deal이 없습니다/)).not.toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(location()).toContain('budget=1') // URL은 건드리지 않는다
+    expect(screen.getAllByRole('row').length).toBeGreaterThan(1)
+  })
+
+  it('does not treat the old BANT keys as an active filter for the empty message', async () => {
+    await renderAt('/deals?budget=1&authority=2&need=3&timeline=4', { seed: 'empty' })
+
+    expect(await screen.findByText('등록된 Deal이 없습니다.')).toBeVisible()
+    expect(screen.queryByText('조건에 맞는 Deal이 없습니다.')).not.toBeInTheDocument()
+  })
+})
+
 describe('목록의 BANT 열 갱신 (P8 AC-18)', () => {
   it('renamed label shows up in the list', async () => {
     const { client } = await renderAt('/deals?q=한빛은행 ITDR', { role: 'admin' })

@@ -1,6 +1,6 @@
 """DealQuery 검증: 기본값, 페이지, 최종 업데이트 기간(양끝 포함), 텍스트 정규화·길이.
 
-연/분기(`year`·`quarter`)와 BANT 조건의 검증은 R3(`revenue_window`)에서 본다.
+연/분기(`year`·`quarter`)의 검증은 R3(`revenue_window`)에서 본다.
 """
 
 from dataclasses import fields
@@ -38,7 +38,6 @@ def test_defaults_are_the_first_page_of_twenty_newest_first_without_conditions()
         "updated_to",
     ):
         assert getattr(query, condition) is None, condition
-    assert dict(query.bant_label_ids) == {}
 
 
 def test_sort_and_order_values_are_the_wire_values() -> None:
@@ -48,6 +47,11 @@ def test_sort_and_order_values_are_the_wire_values() -> None:
         "revenue_date",
         "last_updated_at",
         "status",
+        "owner",
+        "customer",
+        "partner",
+        "vendor",
+        "forecast",
     }
     assert {o.value for o in SortOrder} == {"asc", "desc"}
 

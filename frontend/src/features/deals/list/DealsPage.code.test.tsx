@@ -30,7 +30,7 @@ describe('목록에서 Deal code 숨김', () => {
   it('still finds a deal by searching its code', async () => {
     const { user } = await renderAt('/deals?q=대한제조 MFA')
     const row = await rowOf(/대한제조 MFA 확대/)
-    const code = within(row).getByRole('link').getAttribute('href')?.split('/').pop() ?? ''
+    const code = within(row).getByRole('link', { name: '대한제조 MFA 확대' }).getAttribute('href')?.split('/').pop() ?? ''
     expect(code).toMatch(CODE_PATTERN)
     await user.clear(screen.getByLabelText('키워드'))
     await user.type(screen.getByLabelText('키워드'), `${code}{Enter}`)

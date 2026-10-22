@@ -44,7 +44,7 @@ function NextAction({ row }: { row: DealRow }) {
   const overdue = row.risk === 'overdue' || row.risk === 'overdue_stale'
   return (
     <>
-      <span>{row.nextAction.text}</span>
+      <Link to={`/deals/${row.code}?tab=actions`}>{row.nextAction.text}</Link>
       <small className={overdue ? 'due overdue' : 'due'}>Due {row.nextAction.dueDate}</small>
       <small className="hint">{NEXT_ACTION_STATUS_LABEL[row.nextAction.status]}</small>
     </>

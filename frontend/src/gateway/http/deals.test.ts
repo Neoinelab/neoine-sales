@@ -71,8 +71,9 @@ describe('deals.list over HTTP', () => {
       quarter: 4,
       updatedFrom: '2026-10-01',
       updatedTo: '2026-12-31',
-      bantLabelIds: { budget: 1, authority: 2, need: 3, timeline: 4 },
       mine: true,
+      overdue: true,
+      stale: true,
       nextActionStatus: 'closed',
       sort: 'revenueAmount',
       order: 'asc',
@@ -92,11 +93,9 @@ describe('deals.list over HTTP', () => {
       quarter: '4',
       updated_from: '2026-10-01',
       updated_to: '2026-12-31',
-      bant_budget: '1',
-      bant_authority: '2',
-      bant_need: '3',
-      bant_timeline: '4',
       mine: 'true',
+      overdue: 'true',
+      stale: 'true',
       next_action_status: 'closed',
       sort: 'revenue_amount',
       order: 'asc',
@@ -145,6 +144,11 @@ describe('deals.list over HTTP', () => {
     ['revenueDate', 'revenue_date'],
     ['lastUpdatedAt', 'last_updated_at'],
     ['statusKey', 'status'],
+    ['owner', 'owner'],
+    ['customer', 'customer'],
+    ['partner', 'partner'],
+    ['vendor', 'vendor'],
+    ['forecastKey', 'forecast'],
   ] as [DealSortKey, string][])('maps the sort key %s to %s', async (sort, server) => {
     const { calls } = stubFetch(json(page([])))
 
@@ -153,12 +157,28 @@ describe('deals.list over HTTP', () => {
     expect(query(calls[0]?.path ?? '').get('sort')).toBe(server)
   })
 
-  it('sends only the bant categories that are chosen', async () => {
+  it('never sends a bant_ parameter', async () => {
     const { calls } = stubFetch(json(page([])))
 
-    await createDealsHttp().list({ bantLabelIds: { need: 3 } })
+    await createDealsHttp().list({ ownerId: 3, vendorId: 12, mine: true, overdue: true, sort: 'owner', order: 'desc' })
 
-    expect(Object.fromEntries(query(calls[0]?.path ?? ''))).toEqual({ bant_need: '3' })
+    expect([...query(calls[0]?.path ?? '').keys()].filter((key) => key.startsWith('bant_'))).toEqual([])
+  })
+
+  it('sends overdue and stale only when they are on, and each alone', async () => {
+    const { calls } = stubFetch(json(page([])), json(page([])), json(page([])), json(page([])))
+
+    await createDealsHttp().list({ overdue: true })
+    await createDealsHttp().list({ stale: true })
+    await createDealsHttp().list({ overdue: false, stale: false })
+    await createDealsHttp().list({})
+
+    expect(Object.fromEntries(query(calls[0]?.path ?? ''))).toEqual({ overdue: 'true' })
+    expect(Object.fromEntries(query(calls[1]?.path ?? ''))).toEqual({ stale: 'true' })
+    for (const index of [2, 3]) {
+      const sent = query(calls[index]?.path ?? '')
+      expect(sent.has('overdue') || sent.has('stale')).toBe(false)
+    }
   })
 
   it('does not send mine when it is false and sends offset 0 when asked', async () => {
@@ -202,14 +222,12 @@ describe('deals.list over HTTP', () => {
   it('sends id filters as integer query values', async () => {
     const { calls } = stubFetch(json(page([])))
 
-    await createDealsHttp().list({ ownerId: 3, vendorId: 12, solutionId: 9007199254740991, bantLabelIds: { budget: 5, timeline: 7 } })
+    await createDealsHttp().list({ ownerId: 3, vendorId: 12, solutionId: 9007199254740991 })
 
     expect(Object.fromEntries(query(calls[0]?.path ?? ''))).toEqual({
       owner_user_id: '3',
       vendor_id: '12',
       solution_id: '9007199254740991',
-      bant_budget: '5',
-      bant_timeline: '7',
     })
   })
 })

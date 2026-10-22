@@ -1,25 +1,27 @@
-"""Deal 목록 질의: 조건, 정렬, 활동에서 파생되는 값(last_updated_at, next_action).
+"""Deal 목록 질의의 조건과 select. 파생값은 deal_derived, 정렬은 deal_list_order.
 
-last_updated_at = 모든 Action 중 가장 최근 acted_at(없으면 Deal 등록 시각, Deal 수정은 무시).
-next_action 요약과 상태 필터의 기준 행 = Next Action이 있는 가장 최근 Action.
-
-keyword·owner·vendor·solution·status·forecast·연/분기·최종 업데이트 기간·BANT Label 필터와
-정렬 선택을 적용한다.
+keyword·owner·vendor·solution·status·forecast·연/분기·최종 업데이트 기간·Next Action 상태·
+기한초과/미업데이트 필터를 적용한다.
 Expected Close 연/분기는 DealQuery.revenue_window()의 양끝 포함 범위다.
 최종 업데이트 기간은 updated_window()의 반개구간 [시작, 끝)이며 상관 스칼라 서브쿼리로 비교한다.
+기한초과·미업데이트는 compute_risk와 같은 판정이며 둘 다 켜면 OR, 종결(won·lost)은 제외한다.
 """
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
-from sqlalchemy import ColumnElement, collate, exists, func, or_, select
+from sqlalchemy import ColumnElement, and_, exists, or_, select
 
-from app.application.ports.deal_repository import DealSort, SortOrder
-from app.domain.code.values import CodeKind
+from app.domain.deal.sync_state import CLOSED_FORECASTS
+from app.infra.db.deal_derived import (
+    LAST_UPDATED,
+    LATEST_ACTED,
+    LATEST_NEXT,
+    last_updated_scalar,
+)
+from app.infra.db.deal_list_order import order_clause
 from app.infra.db.like import LIKE_ESCAPE, like_pattern
-from app.infra.db.models import DealActionRow
-from app.infra.db.models_catalog import CodeRow
 from app.infra.db.models_contact import ContactRow
-from app.infra.db.models_deal import DealBantLabelRow, DealPartnerRow, DealRow
+from app.infra.db.models_deal import DealPartnerRow, DealRow
 
 if TYPE_CHECKING:
     from datetime import date, datetime
@@ -31,53 +33,6 @@ if TYPE_CHECKING:
 # 목록 질의의 한 행: (Deal 행, last_updated_at, 기준 행의 next_action·due_date·상태)
 # 기준 행 outer join이라 Next Action이 없는 Deal은 세 값이 모두 NULL이다.
 type ItemSelect = Select[tuple[DealRow, datetime, str | None, date | None, str | None]]
-
-# Deal별 모든 Action 중 가장 최근 수행 시각(진행사항만 있는 행 포함).
-LATEST_ACTED = (
-    select(
-        DealActionRow.deal_id.label("deal_id"),
-        func.max(DealActionRow.acted_at).label("acted_at"),
-    )
-    .group_by(DealActionRow.deal_id)
-    .subquery("latest_acted")
-)
-
-# Next Action이 있는 Action 중 가장 최근 행(acted_at, id 내림차순 첫 행)만 남기는 부분 질의.
-_RANKED = (
-    select(
-        DealActionRow.deal_id.label("deal_id"),
-        DealActionRow.next_action.label("next_action"),
-        DealActionRow.due_date.label("due_date"),
-        DealActionRow.next_action_status.label("next_action_status"),
-        func.row_number()
-        .over(
-            partition_by=DealActionRow.deal_id,
-            order_by=(DealActionRow.acted_at.desc(), DealActionRow.id.desc()),
-        )
-        .label("position"),
-    )
-    .where(DealActionRow.next_action.is_not(None))
-    .subquery("ranked_next_actions")
-)
-LATEST_NEXT = select(_RANKED).where(_RANKED.c.position == 1).subquery("latest_next_action")
-
-LAST_UPDATED = func.coalesce(LATEST_ACTED.c.acted_at, DealRow.created_at)
-_STATUS_ORDER = (
-    select(CodeRow.sort_order)
-    .where(CodeRow.kind == CodeKind.STATUS.value, CodeRow.key == DealRow.status_key)
-    .scalar_subquery()
-)
-
-
-def _last_updated_scalar() -> ColumnElement[datetime]:
-    """LAST_UPDATED와 같은 값을 조인 없이 계산하는 상관 스칼라 서브쿼리(count가 조건만 쓴다)."""
-    latest = (
-        select(func.max(DealActionRow.acted_at))
-        .where(DealActionRow.deal_id == DealRow.id)
-        .correlate(DealRow)
-        .scalar_subquery()
-    )
-    return func.coalesce(latest, DealRow.created_at)
 
 
 def _keyword_condition(keyword: str) -> ColumnElement[bool]:
@@ -98,6 +53,24 @@ def _keyword_condition(keyword: str) -> ColumnElement[bool]:
         customer,
         partner,
     )
+
+
+def _risk_condition(query: DealQuery) -> ColumnElement[bool]:
+    """기한초과/미업데이트(OR) 조건. 종결(won·lost) Deal은 제외한다. basis가 없으면 ValueError."""
+    basis = query.risk_basis
+    if basis is None:
+        raise ValueError("기한초과·미업데이트 필터에는 risk_basis가 필요합니다.")
+    selected: list[ColumnElement[bool]] = []
+    if query.overdue:
+        selected.append(
+            select(LATEST_NEXT.c.deal_id)
+            .where(LATEST_NEXT.c.deal_id == DealRow.id, LATEST_NEXT.c.due_date < basis.today)
+            .correlate(DealRow)
+            .exists()
+        )
+    if query.stale:
+        selected.append(last_updated_scalar() < basis.stale_before())
+    return and_(DealRow.forecast_key.not_in(sorted(CLOSED_FORECASTS)), or_(*selected))
 
 
 def conditions(query: DealQuery) -> list[ColumnElement[bool]]:
@@ -131,17 +104,11 @@ def conditions(query: DealQuery) -> list[ColumnElement[bool]]:
         found.append(DealRow.revenue_date <= window_to)
     updated_start, updated_end = query.updated_window()
     if updated_start is not None:
-        found.append(_last_updated_scalar() >= updated_start)
+        found.append(last_updated_scalar() >= updated_start)
     if updated_end is not None:
-        found.append(_last_updated_scalar() < updated_end)
-    found.extend(
-        exists().where(
-            DealBantLabelRow.deal_id == DealRow.id,
-            DealBantLabelRow.category == category.value,
-            DealBantLabelRow.label_id == label_id,
-        )
-        for category, label_id in query.bant_label_ids.items()
-    )
+        found.append(last_updated_scalar() < updated_end)
+    if query.wants_risk():
+        found.append(_risk_condition(query))
     return found
 
 
@@ -160,26 +127,12 @@ def item_select() -> ItemSelect:
     )
 
 
-def _sort_column(sort: DealSort) -> ColumnElement[Any]:
-    columns: dict[DealSort, Any] = {
-        DealSort.NAME: collate(func.lower(DealRow.name), "C"),
-        DealSort.REVENUE_AMOUNT: DealRow.revenue_amount,
-        DealSort.REVENUE_DATE: DealRow.revenue_date,
-        DealSort.STATUS: _STATUS_ORDER,
-        DealSort.LAST_UPDATED_AT: LAST_UPDATED,
-    }
-    column: ColumnElement[Any] = columns[sort]
-    return column
-
-
 def search_select(query: DealQuery) -> ItemSelect:
     """조건·정렬·페이지를 적용한 목록 질의. 정렬의 동률은 항상 Deal code 오름차순이다."""
-    column = _sort_column(query.sort)
-    ordered = column.desc() if query.order is SortOrder.DESC else column.asc()
     return (
         item_select()
         .where(*conditions(query))
-        .order_by(ordered, DealRow.deal_code.asc())
+        .order_by(*order_clause(query.sort, query.order))
         .offset(query.offset)
         .limit(query.limit)
     )

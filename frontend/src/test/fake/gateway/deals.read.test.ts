@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { seedSolutionId, seedVendorId } from '../../fixtures/vendors'
+import type { DealRow } from '../../../shared/model/types'
 import { dealCode, dealInput, expectApiError, mockAs } from '../testing'
 import { NO_SUCH_ID, USER_ID } from '../seed/ids'
 
@@ -184,16 +185,142 @@ describe('deals.list', () => {
     expect(status[status.length - 1]?.statusKey).toBe('contract_completed')
   })
 
-  it('BANT Label 필터는 구분별 AND다', async () => {
+  it('AC-7 BANT Label 목록 필터는 없다: bantLabelIds를 줘도 조건이 되지 않는다', async () => {
     const { gateway } = await mockAs('kim')
     const d1 = await gateway.deals.get(dealCode(1))
     const budget = d1.bant.budget
-    const authority = d1.bant.authority
-    if (!budget || !authority) throw new Error('Deal 1은 BANT를 모두 선택해야 한다')
-    const one = await gateway.deals.list({ bantLabelIds: { budget } })
-    expect(one.items.map((d) => d.code)).toContain(dealCode(1))
-    const both = await gateway.deals.list({ bantLabelIds: { budget, authority } })
-    for (const d of both.items) expect(d.bant.budget === budget && d.bant.authority === authority).toBe(true)
+    if (!budget) throw new Error('Deal 1은 Budget을 선택해야 한다')
+    const all = await gateway.deals.list({ limit: 100 })
+
+    const withOldKey = await gateway.deals.list({ limit: 100, bantLabelIds: { budget } } as never)
+
+    expect(withOldKey.total).toBe(all.total)
+  })
+
+  it('AC-10 overdue는 risk가 overdue·overdue_stale인 Deal만, stale은 stale·overdue_stale인 Deal만 돌려주고 total이 맞다', async () => {
+    const { gateway } = await mockAs('kim')
+    const all = (await gateway.deals.list({ limit: 100 })).items
+    const overdue = all.filter((d) => d.risk === 'overdue' || d.risk === 'overdue_stale')
+    const stale = all.filter((d) => d.risk === 'stale' || d.risk === 'overdue_stale')
+    expect(overdue.length).toBeGreaterThan(0)
+    expect(overdue.length).toBeLessThan(all.length)
+    expect(stale.length).toBeGreaterThan(0)
+    expect(stale.length).toBeLessThan(all.length)
+
+    const foundOverdue = await gateway.deals.list({ overdue: true, limit: 100 })
+    const foundStale = await gateway.deals.list({ stale: true, limit: 100 })
+
+    expect(codes(foundOverdue.items)).toEqual(codes(overdue))
+    expect(foundOverdue.total).toBe(overdue.length)
+    expect(codes(foundStale.items)).toEqual(codes(stale))
+    expect(foundStale.total).toBe(stale.length)
+  })
+
+  it('AC-10 둘 다 켜면 어느 하나라도 해당하는 Deal이고 Won·Lost는 어느 쪽에도 걸리지 않는다', async () => {
+    const { gateway } = await mockAs('kim')
+    const all = (await gateway.deals.list({ limit: 100 })).items
+    const either = all.filter((d) => d.risk !== null)
+
+    const found = await gateway.deals.list({ overdue: true, stale: true, limit: 100 })
+
+    expect(codes(found.items)).toEqual(codes(either))
+    expect(found.total).toBe(either.length)
+    for (const d of found.items) expect(['won', 'lost']).not.toContain(d.forecastKey)
+  })
+
+  it('AC-10 위험 필터는 다른 조건과 AND이다', async () => {
+    const { gateway } = await mockAs('kim')
+    const all = (await gateway.deals.list({ limit: 100 })).items
+    const risky = all.filter((d) => d.risk !== null)
+    const mineRisky = risky.filter((d) => d.ownerId === USER_ID.kim)
+    expect(mineRisky.length).toBeGreaterThan(0)
+    expect(mineRisky.length).toBeLessThan(risky.length)
+
+    const found = await gateway.deals.list({ mine: true, overdue: true, stale: true, limit: 100 })
+
+    expect(codes(found.items)).toEqual(codes(mineRisky))
+    expect(found.total).toBe(mineRisky.length)
+  })
+
+  it('AC-10 total은 페이지와 무관하게 필터 결과 전체를 센다', async () => {
+    const { gateway } = await mockAs('kim')
+    const risky = (await gateway.deals.list({ limit: 100 })).items.filter((d) => d.risk !== null)
+    expect(risky.length).toBeGreaterThan(1)
+
+    const page = await gateway.deals.list({ overdue: true, stale: true, limit: 1 })
+
+    expect(page.items).toHaveLength(1)
+    expect(page.total).toBe(risky.length)
+  })
+
+  it('AC-10 위험 필터를 끄면 아무 조건도 아니다', async () => {
+    const { gateway } = await mockAs('kim')
+    const all = await gateway.deals.list({ limit: 100 })
+
+    const off = await gateway.deals.list({ overdue: false, stale: false, limit: 100 })
+
+    expect(off.total).toBe(all.total)
+  })
+
+  it('AC-3·4 새 정렬: 담당자·고객사·파트너사·Vendor는 소문자 기준 오름차순·내림차순이고 동률은 code 오름차순이다', async () => {
+    const { gateway } = await mockAs('kim')
+    const key: Record<'owner' | 'customer' | 'partner' | 'vendor', (d: DealRow) => string> = {
+      owner: (d) => d.owner.name,
+      customer: (d) => d.customer.company,
+      partner: (d) => d.activePartner?.company ?? '',
+      vendor: (d) => d.vendor?.name ?? '',
+    }
+    for (const sort of ['owner', 'customer', 'partner', 'vendor'] as const) {
+      for (const order of ['asc', 'desc'] as const) {
+        const rows = (await gateway.deals.list({ sort, order, limit: 100 })).items
+        const present = rows.filter((d) => key[sort](d) !== '')
+        for (let i = 1; i < present.length; i++) {
+          const prev = key[sort](present[i - 1]!).toLowerCase()
+          const next = key[sort](present[i]!).toLowerCase()
+          if (prev === next) expect(present[i - 1]!.code < present[i]!.code).toBe(true)
+          else expect(order === 'asc' ? prev < next : prev > next).toBe(true)
+        }
+      }
+    }
+  })
+
+  it('AC-4 파트너나 Vendor가 없는 Deal은 오름차순·내림차순 모두 맨 뒤다', async () => {
+    const { gateway } = await mockAs('kim')
+    const rows = (await gateway.deals.list({ limit: 100 })).items
+    expect(rows.some((d) => d.activePartner === null)).toBe(true)
+    const noVendor = await gateway.deals.create(dealInput(USER_ID.kim, { name: '벤더 없는 Deal', vendorId: null, solutionId: null }))
+    expect(noVendor.vendor).toBeNull()
+
+    for (const order of ['asc', 'desc'] as const) {
+      const byPartner = (await gateway.deals.list({ sort: 'partner', order, limit: 100 })).items
+      const firstAbsent = byPartner.findIndex((d) => d.activePartner === null)
+      expect(byPartner.slice(firstAbsent).every((d) => d.activePartner === null)).toBe(true)
+      expect(byPartner.slice(0, firstAbsent).every((d) => d.activePartner !== null)).toBe(true)
+      const byVendor = (await gateway.deals.list({ sort: 'vendor', order, limit: 100 })).items
+      const firstNoVendor = byVendor.findIndex((d) => d.vendor === null)
+      expect(firstNoVendor).toBeGreaterThanOrEqual(0)
+      expect(byVendor.slice(firstNoVendor).every((d) => d.vendor === null)).toBe(true)
+      expect(byVendor.slice(0, firstNoVendor).every((d) => d.vendor !== null)).toBe(true)
+    }
+  })
+
+  it('AC-4 Forecast 정렬은 Forecast 코드의 현재 순서다', async () => {
+    const { gateway } = await mockAs('kim')
+    const order = (await gateway.codes.all()).forecasts.map((c) => c.key)
+    for (const dir of ['asc', 'desc'] as const) {
+      const rows = (await gateway.deals.list({ sort: 'forecastKey', order: dir, limit: 100 })).items
+      const positions = rows.map((d) => order.indexOf(d.forecastKey))
+      expect(positions).toEqual([...positions].sort((a, b) => (dir === 'asc' ? a - b : b - a)))
+    }
+  })
+
+  it('정렬은 페이지 전체에 적용된다: 2페이지는 1페이지 다음 순서다', async () => {
+    const { gateway } = await mockAs('kim')
+    const whole = (await gateway.deals.list({ sort: 'owner', order: 'asc', limit: 100 })).items.map((d) => d.code)
+    const first = (await gateway.deals.list({ sort: 'owner', order: 'asc', offset: 0, limit: 10 })).items.map((d) => d.code)
+    const second = (await gateway.deals.list({ sort: 'owner', order: 'asc', offset: 10, limit: 10 })).items.map((d) => d.code)
+
+    expect([...first, ...second]).toEqual(whole.slice(0, 20))
   })
 
   it('행에는 파생값이 채워진다(고객·활성 파트너·Next Action·퇴사자 Owner)', async () => {

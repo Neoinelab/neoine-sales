@@ -18,11 +18,13 @@ from app.domain.common.errors import InvalidReferenceError
 from app.domain.deal.errors import DealNotFoundError, DuplicateDealCodeError
 from tests.fakes.deal_counts import DealCountsMixin
 from tests.fakes.deal_search import (
+    check_risk_basis,
     has_updated_period,
     matches,
-    sort_key,
+    risk_matches,
     updated_in_range,
 )
+from tests.fakes.deal_sort import SortLookups, sort_key
 from tests.fakes.in_memory import InMemoryStore
 
 if TYPE_CHECKING:
@@ -50,6 +52,7 @@ class FakeDealRepository(DealCountsMixin, InMemoryStore["Deal"]):
         self._codes: Any = None
         self._labels: Any = None
         self._vendors: Any = None
+        self._users: Any = None
         self._actions: Any = None
         self._history: Any = None
         self._attachments: Any = None
@@ -70,10 +73,11 @@ class FakeDealRepository(DealCountsMixin, InMemoryStore["Deal"]):
         actions: Any = None,  # noqa: ANN401
         history: Any = None,  # noqa: ANN401
         attachments: Any = None,  # noqa: ANN401
+        users: Any = None,  # noqa: ANN401
     ) -> None:
         """FK 모사와 파생값에 쓸 저장소를 연결한다(FakeUnitOfWork가 호출한다)."""
         self._contacts, self._codes, self._labels = contacts, codes, labels
-        self._vendors = vendors
+        self._vendors, self._users = vendors, users
         self._actions, self._history, self._attachments = actions, history, attachments
 
     # --- 참조 확인(FK 모사) ---
@@ -197,19 +201,31 @@ class FakeDealRepository(DealCountsMixin, InMemoryStore["Deal"]):
     def _missing(self, code: DealCode) -> Any:  # noqa: ANN401
         raise DealNotFoundError(code.value)
 
-    def _status_order(self, key: str) -> int:
+    def _code_order(self, kind: str, key: str) -> int:
         if self._codes is None:
             return UNKNOWN_ORDER
         orders: dict[str, int] = {
-            c.key.value: c.order for c in self._codes._items.values() if c.kind == "status"
+            c.key.value: c.order for c in self._codes._items.values() if c.kind == kind
         }
         return orders.get(key, UNKNOWN_ORDER)
+
+    def _lookups(self) -> SortLookups:
+        return SortLookups(
+            status_order=lambda key: self._code_order("status", key),
+            forecast_order=lambda key: self._code_order("forecast", key),
+            contacts=self._contact_map(),
+            users=self._users._items if self._users is not None else {},
+            vendors=self._vendors._items if self._vendors is not None else {},
+        )
 
     def _found(self, query: DealQuery) -> list[Deal]:
         contacts = self._contact_map()
         found = [d for d in self._items.values() if matches(d, query, contacts)]
         if has_updated_period(query):
             found = [d for d in found if updated_in_range(self._item(d).last_updated_at, query)]
+        if query.wants_risk():
+            check_risk_basis(query)  # 대상이 없어도 기준 누락은 오류
+            found = [d for d in found if self._risk_matches(d, query)]
         wanted = query.next_action_status
         if wanted is None:
             return found
@@ -221,13 +237,26 @@ class FakeDealRepository(DealCountsMixin, InMemoryStore["Deal"]):
             and basis.next_action_state.status in statuses
         ]
 
+    def _risk_matches(self, deal: Deal, query: DealQuery) -> bool:
+        item = self._item(deal)
+        return risk_matches(
+            query,
+            forecast_key=deal.sync.forecast_key,
+            due_date=item.next_action.due_date if item.next_action else None,
+            last_updated_at=item.last_updated_at,
+        )
+
     async def search(self, query: DealQuery) -> Sequence[DealListItem]:
         self.queries += 1
         items = [self._item(d) for d in self._found(query)]
         items.sort(key=lambda i: i.deal.id.value)  # 동률은 code 오름차순(안정 정렬)
-        key = sort_key(str(query.sort), self._status_order)
-        items.sort(key=lambda i: key(i.deal, i.last_updated_at), reverse=query.order == "desc")
-        return items[query.offset : query.offset + query.limit]
+        key = sort_key(str(query.sort), self._lookups())
+        keyed = [(key(i.deal, i.last_updated_at), i) for i in items]
+        present = [pair for pair in keyed if pair[0] is not None]
+        absent = [pair[1] for pair in keyed if pair[0] is None]  # 방향과 무관하게 맨 뒤(code 순)
+        present.sort(key=lambda pair: pair[0], reverse=query.order == "desc")
+        ordered = [pair[1] for pair in present] + absent
+        return ordered[query.offset : query.offset + query.limit]
 
     async def count(self, query: DealQuery) -> int:
         self.queries += 1

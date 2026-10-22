@@ -1,8 +1,8 @@
-"""Feature: 영업은 목록을 vendor_id·solution_id·forecast·연/분기·BANT Label로 좁혀 Deal을 찾는다.
+"""Feature: 영업은 목록을 vendor_id·solution_id·forecast·연/분기로 좁혀 Deal을 찾는다.
 
 연/분기는 Expected Close 기준이고 양끝을 포함한다(12-31은 Q4, 01-01은 Q1). 연/분기와
 최종 업데이트 기간은 AND이고, quarter만 주면 서버 업무 날짜의 올해 분기다.
-BANT Label은 구분별로 고르며 여러 구분은 AND다.
+BANT Label 조건(bant_*)은 폐지되어 보내면 422다.
 모든 필터는 서로 AND로 결합하고 total은 페이지와 무관하다.
 """
 
@@ -22,7 +22,6 @@ from tests.functional.steps.deal_risk import given_days_pass
 from tests.functional.steps.deals import (
     given_clock_at,
     given_deal,
-    given_label_id,
     when_list_deals,
 )
 from tests.functional.steps.updated_period import days_from_today
@@ -212,48 +211,16 @@ async def test_a_quarter_outside_one_to_four_is_rejected(api: Api, params: dict[
     then_status_is(response, 422)
 
 
-async def test_bant_labels_of_one_and_several_categories(api: Api) -> None:
-    """Scenario: BANT Label은 구분별로 고르고 여러 구분은 AND로 결합한다."""
-    # Given
-    await given_logged_in_as(api, role="sales")
-    full_budget = await given_label_id(api, category="budget", name="풀 예산 확보")
-    ceo = await given_label_id(api, category="authority", name="CEO 보고 완료")
-    both = await given_deal(api, bant={"budget": full_budget, "authority": ceo})
-    only_budget = await given_deal(api, bant={"budget": full_budget})
-    await given_deal(api, bant={"authority": ceo})
-    await given_deal(api)
-    # When
-    one = await when_list_deals(api, bant_budget=full_budget)
-    several = await when_list_deals(api, bant_budget=full_budget, bant_authority=ceo)
-    # Then
-    then_codes_are_exactly(one, [both["code"], only_budget["code"]])
-    then_codes_are(several, [both["code"]])
-    then_total_is(several, 1)
-
-
-async def test_an_unknown_bant_label_gives_an_empty_list_not_an_error(api: Api) -> None:
-    """Scenario: 없는 Label id는 오류 없이 0건이다."""
+@pytest.mark.parametrize("param", ["bant_budget", "bant_authority", "bant_need", "bant_timeline"])
+async def test_bant_parameters_are_no_longer_accepted(api: Api, param: str) -> None:
+    """Scenario: 폐지된 bant_* 조건을 보내면 조용히 무시하지 않고 request-validation 422이다."""
     # Given
     await given_logged_in_as(api, role="sales")
     await given_deal(api)
     # When
-    response = await when_list_deals(api, bant_need=MISSING_ID)
+    response = await when_list_deals(api, **{param: MISSING_ID})
     # Then
-    then_status_is(response, 200)
-    then_total_is(response, 0)
-
-
-async def test_a_label_of_another_category_matches_nothing(api: Api) -> None:
-    """Scenario: 예산 Label을 필요 구분 조건으로 주면 0건이다(오류 아님)."""
-    # Given
-    await given_logged_in_as(api, role="sales")
-    full_budget = await given_label_id(api, category="budget", name="풀 예산 확보")
-    await given_deal(api, bant={"budget": full_budget})
-    # When
-    response = await when_list_deals(api, bant_need=full_budget)
-    # Then
-    then_status_is(response, 200)
-    then_total_is(response, 0)
+    then_problem_is(response, status=422, type_suffix="request-validation")
 
 
 async def test_all_filters_are_combined_and_total_ignores_the_page(api: Api) -> None:

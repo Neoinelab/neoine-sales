@@ -13,15 +13,13 @@ export const FILTER_KEYS = [
   'month',
   'updated_from',
   'updated_to',
-  'budget',
-  'authority',
-  'need',
-  'timeline',
   'mine',
   'next_status',
+  'overdue',
+  'stale',
 ] as const
 
-/** 목록 조건으로 기억하는 쿼리 키: 필터 17개 + 정렬·페이지. */
+/** 목록 조건으로 기억하는 쿼리 키: 필터 15개 + 정렬·페이지. */
 export const REMEMBERED_LIST_KEYS: readonly string[] = [...FILTER_KEYS, 'sort', 'order', 'page']
 
 const LIST_PATH = '/deals'
@@ -32,7 +30,7 @@ export function listMemoryKey(userId: number): string {
 }
 
 /** id 값을 받는 키. 값이 정수 id가 아니면(예전 UUID 등) 복원하지 않는다. */
-const ID_KEYS: readonly string[] = ['owner', 'vendor', 'solution', 'budget', 'authority', 'need', 'timeline']
+const ID_KEYS: readonly string[] = ['owner', 'vendor', 'solution']
 
 /** 아는 키만 남긴 쿼리 문자열(앞의 '?' 없음). 키 순서는 입력 순서를 유지한다. id 키는 값이 정수 id일 때만 남기고 나머지 값은 검증하지 않는다. */
 export function sanitizeListSearch(search: string | URLSearchParams): string {

@@ -33,7 +33,7 @@ describe('sanitizeListSearch (AC-08, AC-09)', () => {
 })
 
 describe('sanitizeListSearch id parameters (AC-22)', () => {
-  const ID_KEYS = ['owner', 'vendor', 'solution', 'budget', 'authority', 'need', 'timeline']
+  const ID_KEYS = ['owner', 'vendor', 'solution']
 
   it('keeps integer ids of every id parameter', () => {
     const search = ID_KEYS.map((key, index) => `${key}=${index + 1}`).join('&')
@@ -128,8 +128,8 @@ describe('rememberedListPath (AC-01, AC-07~AC-10)', () => {
   })
 
   it('stored garbage is filtered on read', () => {
-    // x는 목록 키가 아니라 버리고, owner=9는 유효한 id라 남고, vendor=u9·budget=abc는 id가 아니라 버린다.
-    window.sessionStorage.setItem(listMemoryKey(USER_ID.kim), 'x=1&owner=9&vendor=u9&budget=abc')
+    // x는 목록 키가 아니라 버리고, owner=9는 유효한 id라 남고, vendor=u9는 id가 아니라 버린다.
+    window.sessionStorage.setItem(listMemoryKey(USER_ID.kim), 'x=1&owner=9&vendor=u9')
     expect(rememberedListPath(USER_ID.kim)).toBe('/deals?owner=9')
   })
 
@@ -169,5 +169,25 @@ describe('next_status (AC-24)', () => {
     rememberListSearch(USER_ID.kim, params('status=a&next_status=not_done'))
 
     expect(rememberedListPath(USER_ID.kim)).toBe('/deals?status=a&next_status=not_done')
+  })
+})
+
+describe('BANT 키 폐지와 overdue·stale (AC-7, AC-9)', () => {
+  it('does not remember the old BANT keys', () => {
+    expect(sanitizeListSearch('budget=1&authority=2&need=3&timeline=4&status=a')).toBe('status=a')
+    rememberListSearch(USER_ID.kim, params('budget=1&need=3'))
+    expect(window.sessionStorage.getItem(listMemoryKey(USER_ID.kim))).toBeNull()
+  })
+
+  it('drops the BANT keys of an old stored entry on restore and keeps the other conditions', () => {
+    window.sessionStorage.setItem(listMemoryKey(USER_ID.kim), 'budget=1&status=a&timeline=4&overdue=1')
+
+    expect(rememberedListPath(USER_ID.kim)).toBe('/deals?status=a&overdue=1')
+  })
+
+  it('keeps overdue and stale', () => {
+    expect(sanitizeListSearch('overdue=1&stale=1&foo=1')).toBe('overdue=1&stale=1')
+    rememberListSearch(USER_ID.kim, params('stale=1&sort=owner&order=desc'))
+    expect(rememberedListPath(USER_ID.kim)).toBe('/deals?stale=1&sort=owner&order=desc')
   })
 })

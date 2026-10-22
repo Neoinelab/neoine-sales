@@ -187,10 +187,8 @@ class DealSearchParams(RequestModel):
     month: Annotated[int | None, Field(ge=1, le=12)] = None
     updated_from: date | None = None
     updated_to: date | None = None
-    bant_budget: QueryId | None = None
-    bant_authority: QueryId | None = None
-    bant_need: QueryId | None = None
-    bant_timeline: QueryId | None = None
+    overdue: bool = False
+    stale: bool = False
     next_action_status: NextActionStatusFilter | None = None
     sort: DealSort = DealSort.LAST_UPDATED_AT
     order: SortOrder = SortOrder.DESC
@@ -201,15 +199,8 @@ class DealSearchParams(RequestModel):
         return None if self.owner_user_id is None else UserId(self.owner_user_id)
 
     def to_query(self, viewer_user_id: UserId) -> DealQuery:
-        bant_fields = {category: f"bant_{category.value}" for category in BantCategory}
-        criteria = self.model_dump(exclude={"mine", "owner_user_id", *bant_fields.values()})
-        bant = {
-            category: getattr(self, name)
-            for category, name in bant_fields.items()
-            if getattr(self, name) is not None
-        }
+        criteria = self.model_dump(exclude={"mine", "owner_user_id"})
         return DealQuery(
             owner_user_id=viewer_user_id if self.mine else self._owner(),
-            bant_label_ids=bant,
             **criteria,
         )

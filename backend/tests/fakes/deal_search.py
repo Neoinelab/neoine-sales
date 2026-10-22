@@ -9,17 +9,20 @@
 이 모듈은 Deal·연락처 도메인 객체를 속성으로만 읽는다(새 모델 구현이 없어도 가져올 수 있다).
 - 연/분기/월: Expected Close가 그 해(분기·월)에 속함(Q1=1~3월 … Q4=10~12월)
 - updated_from/to: last_updated_at의 로컬 업무 날짜가 양끝 포함 범위 안(`updated_in_range`)
-- BANT: 구분별로 그 Label이 선택된 Deal만, 여러 구분이면 AND
+- overdue/stale: compute_risk 결과가 해당 집합에 드는 Deal(둘 다면 OR). basis가 없으면 ValueError
 """
 
 import calendar
 from datetime import date, datetime
 from typing import TYPE_CHECKING, Any
 
+from app.domain.deal.risk import Risk, compute_risk
+
 if TYPE_CHECKING:
-    from collections.abc import Callable, Mapping
+    from collections.abc import Mapping
 
     from app.application.ports.deal_repository import DealQuery
+    from app.domain.deal.risk import RiskBasis
 
 
 def company_of(contacts: Mapping[Any, Any], contact_id: Any) -> str:  # noqa: ANN401
@@ -56,11 +59,7 @@ def matches(
     start, end = revenue_bounds(query)
     if start is not None and details.revenue_date < start:
         return False
-    if end is not None and details.revenue_date > end:
-        return False
-    return all(
-        deal.bant.get(category) == label_id for category, label_id in query.bant_label_ids.items()
-    )
+    return not (end is not None and details.revenue_date > end)
 
 
 def revenue_bounds(query: DealQuery) -> tuple[date | None, date | None]:
@@ -105,19 +104,31 @@ def has_updated_period(query: DealQuery) -> bool:
     return _updated_bounds(query) != (None, None)
 
 
-def sort_key(sort: str, status_order: Callable[[str], int]) -> Callable[[Any, Any], Any]:
-    """(deal, last_updated_at) -> 정렬 키. 동률 처리(code 오름차순)는 호출부가 한다."""
+def check_risk_basis(query: DealQuery) -> RiskBasis:
+    """위험 필터가 있는데 기준이 없으면 프로그래밍 오류(저장소 계약)."""
+    if query.risk_basis is None:
+        msg = "overdue/stale 필터에는 risk_basis가 필요하다"
+        raise ValueError(msg)
+    return query.risk_basis
 
-    def key(deal: Any, last_updated: Any) -> Any:  # noqa: ANN401
-        details = deal.details
-        if sort == "name":
-            return details.name.lower()
-        if sort == "revenue_amount":
-            return details.revenue_amount.value
-        if sort == "revenue_date":
-            return details.revenue_date
-        if sort == "status":
-            return status_order(deal.sync.status_key)
-        return last_updated
 
-    return key
+def risk_matches(
+    query: DealQuery, *, forecast_key: str, due_date: date | None, last_updated_at: datetime
+) -> bool:
+    """overdue/stale 필터. 판정은 compute_risk로 독립 계산한다(SQL 경계 변환을 베끼지 않음)."""
+    if not query.wants_risk():
+        return True
+    basis = check_risk_basis(query)
+    risk = compute_risk(
+        forecast_key=forecast_key,
+        due_date=due_date,
+        last_updated_at=last_updated_at,
+        today=basis.today,
+        stale_days=basis.stale_days,
+    )
+    wanted: set[Risk] = set()
+    if query.overdue:
+        wanted |= {Risk.OVERDUE, Risk.OVERDUE_STALE}
+    if query.stale:
+        wanted |= {Risk.STALE, Risk.OVERDUE_STALE}
+    return risk in wanted

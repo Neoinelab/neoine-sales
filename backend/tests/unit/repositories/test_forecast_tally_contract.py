@@ -10,15 +10,15 @@ from datetime import date
 from typing import TYPE_CHECKING
 
 import pytest
-from app.application.ports.forecast_repository import ForecastCriteria
-from app.domain.forecast.period import ForecastPeriod
 
+from app.application.ports.forecast_repository import ForecastCriteria
+from app.domain.deal.code import DealCode
+from app.domain.forecast.period import ForecastPeriod
 from tests.factories import later
 from tests.support.user_ids import OWNER_ID, uid
 
 if TYPE_CHECKING:
     from app.domain.forecast.summary import ForecastBucket
-
     from tests.unit.repositories.forecast_case import ForecastCase
 
 KIM = uid("tally-kim")
@@ -198,3 +198,26 @@ async def test_tally_totals_equal_the_deal_list_ledger_for_the_same_condition(
     assert sum(b.tally.amount for b in buckets) == sum(
         item.deal.details.revenue_amount.value for item in ledger
     )
+
+
+async def test_forecast_summary_is_unchanged_by_the_risk_fields(
+    forecast_case: ForecastCase,
+) -> None:
+    """Deal 목록의 기한초과·미업데이트 필터 추가가 Forecast 집계를 바꾸지 않는다(AC-11).
+
+    등록 시각이 오래되어 미업데이트이고 Due가 지난 Deal도, 종결 Deal도 모두 센다.
+    """
+    overdue_code = await forecast_case.add_deal(forecast="pipeline", amount=100)
+    stale_code = await forecast_case.add_deal(forecast="commit", amount=7)
+    await forecast_case.add_deal(forecast="won", amount=11)
+    deal = await forecast_case.deals.deals.get(DealCode(overdue_code))
+    await forecast_case.deals.add_action(deal, acted_at=later(5), due_date=date(2026, 1, 2))
+    assert stale_code != overdue_code
+
+    found = await _tally(forecast_case, _criteria())
+
+    assert found == {
+        (OWNER_ID, "pipeline"): (1, 100),
+        (OWNER_ID, "commit"): (1, 7),
+        (OWNER_ID, "won"): (1, 11),
+    }

@@ -1,4 +1,4 @@
-import { BANT_CATEGORIES, DEAL_PAGE_SIZE, type BantCategory } from '../../../shared/model/constants'
+import { DEAL_PAGE_SIZE } from '../../../shared/model/constants'
 import type { DealListQuery, DealSortKey, SortOrder } from '../../../shared/model/types'
 
 import { nextActionStatusFromParam } from '../../../shared/model/nextActionStatus'
@@ -10,7 +10,7 @@ import { FILTER_KEYS } from '../../../shared/model/dealListMemory'
 /** URL 쿼리 키(정의는 shared의 기억 모듈에 있고 여기서 다시 내보낸다). */
 export { FILTER_KEYS }
 
-const SORT_KEYS: readonly DealSortKey[] = ['name', 'revenueAmount', 'revenueDate', 'lastUpdatedAt', 'statusKey']
+const SORT_KEYS: readonly DealSortKey[] = ['name', 'revenueAmount', 'revenueDate', 'lastUpdatedAt', 'statusKey', 'owner', 'customer', 'partner', 'vendor', 'forecastKey']
 
 export interface SortState {
   sort: DealSortKey
@@ -26,6 +26,11 @@ const NATURAL_ORDER: Record<DealSortKey, SortOrder> = {
   revenueDate: 'asc',
   revenueAmount: 'desc',
   lastUpdatedAt: 'desc',
+  owner: 'asc',
+  customer: 'asc',
+  partner: 'asc',
+  vendor: 'asc',
+  forecastKey: 'asc',
 }
 
 function isSortKey(value: string | null): value is DealSortKey {
@@ -92,13 +97,9 @@ export function listQueryFromParams(params: URLSearchParams): DealListQuery {
   const month = parseMonth(params.get('month'))
   if (query.quarter === undefined && month !== undefined) query.month = month
 
-  const bant: Partial<Record<BantCategory, number>> = {}
-  for (const category of BANT_CATEGORIES) {
-    const id = parseId(params.get(category))
-    if (id !== undefined) bant[category] = id
-  }
-  if (Object.keys(bant).length > 0) query.bantLabelIds = bant
   if (params.get('mine') === '1') query.mine = true
+  if (params.get('overdue') === '1') query.overdue = true
+  if (params.get('stale') === '1') query.stale = true
   const nextStatus = nextActionStatusFromParam(params.get('next_status'))
   if (nextStatus) query.nextActionStatus = nextStatus
 

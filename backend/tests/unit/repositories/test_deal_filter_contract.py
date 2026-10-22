@@ -1,8 +1,7 @@
 """DealRepository.search/count의 확장 필터 계약(R3, AC-22a~22c): Fake와 SQL에 같은 기대값.
 
 forecast 정확 일치(vendor_id·solution_id는 test_deal_search_contract), 연/분기(Expected Close
-기준, 양끝 포함), BANT Label
-(구분별 AND). 모든 조건은 count와 같은 결과를 내고 페이지와 무관하게 센다.
+기준, 양끝 포함). 모든 조건은 count와 같은 결과를 내고 페이지와 무관하게 센다.
 """
 
 from datetime import date, datetime
@@ -11,9 +10,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 from app.application.ports.deal_repository import DealQuery
-from app.domain.bant.values import BantCategory, BantLabelId
-from tests.factories import later, make_bant, make_deal
-from tests.support.ids import new_id
+from tests.factories import later, make_deal
 
 if TYPE_CHECKING:
     from tests.unit.repositories.deal_case import DealCase
@@ -132,82 +129,3 @@ class TestYearAndQuarter:
 
     async def _by_day_other_year(self, case: DealCase) -> None:
         await case.add(make_deal(later(9), code=_code(9), revenue_date=date(2027, 2, 5)))
-
-
-class TestBantLabels:
-    async def _setup(self, case: DealCase) -> dict[str, BantLabelId]:
-        labels = {
-            "budget_a": (await case.new_label(BantCategory.BUDGET, "예산 가")).id,
-            "budget_b": (await case.new_label(BantCategory.BUDGET, "예산 나")).id,
-            "need_a": (await case.new_label(BantCategory.NEED, "필요 가")).id,
-        }
-        await case.add(
-            make_deal(later(1), code=_code(1), bant=make_bant(budget=labels["budget_a"]))
-        )
-        await case.add(
-            make_deal(
-                later(2),
-                code=_code(2),
-                bant=make_bant(budget=labels["budget_a"], need=labels["need_a"]),
-            )
-        )
-        await case.add(make_deal(later(3), code=_code(3), bant=make_bant(need=labels["need_a"])))
-        await case.add(
-            make_deal(later(4), code=_code(4), bant=make_bant(budget=labels["budget_b"]))
-        )
-        await case.add(make_deal(later(5), code=_code(5)))
-        return labels
-
-    async def test_one_category_matches_the_deals_that_selected_the_label(
-        self, deal_case: DealCase
-    ) -> None:
-        labels = await self._setup(deal_case)
-
-        found = await _codes(deal_case, bant_label_ids={BantCategory.BUDGET: labels["budget_a"]})
-
-        assert found == [_code(1), _code(2)]
-        assert (
-            await _count(deal_case, bant_label_ids={BantCategory.BUDGET: labels["budget_a"]}) == 2
-        )
-
-    async def test_several_categories_are_combined_with_and(self, deal_case: DealCase) -> None:
-        labels = await self._setup(deal_case)
-
-        found = await _codes(
-            deal_case,
-            bant_label_ids={
-                BantCategory.BUDGET: labels["budget_a"],
-                BantCategory.NEED: labels["need_a"],
-            },
-        )
-
-        assert found == [_code(2)]
-
-    async def test_a_label_asked_under_another_category_matches_nothing(
-        self, deal_case: DealCase
-    ) -> None:
-        labels = await self._setup(deal_case)
-
-        found = await _codes(deal_case, bant_label_ids={BantCategory.NEED: labels["budget_a"]})
-
-        assert found == []
-
-    async def test_an_unknown_label_id_is_zero_results_not_an_error(
-        self, deal_case: DealCase
-    ) -> None:
-        await self._setup(deal_case)
-        unknown = BantLabelId(new_id())
-
-        assert await _codes(deal_case, bant_label_ids={BantCategory.BUDGET: unknown}) == []
-        assert await _count(deal_case, bant_label_ids={BantCategory.BUDGET: unknown}) == 0
-
-    async def test_bant_combines_with_other_conditions(self, deal_case: DealCase) -> None:
-        labels = await self._setup(deal_case)
-
-        found = await _codes(
-            deal_case,
-            bant_label_ids={BantCategory.BUDGET: labels["budget_a"]},
-            keyword=_code(2),
-        )
-
-        assert found == [_code(2)]

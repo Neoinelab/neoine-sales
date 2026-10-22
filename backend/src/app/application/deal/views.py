@@ -61,12 +61,24 @@ def _refs(item: DealListItem, vendors: Mapping[VendorId, Vendor]) -> dict[str, N
     return {"vendor": NamedRef(vendor.id, vendor.name), "solution": solution}
 
 
-async def build_views(
-    uow: UnitOfWork, items: Sequence[DealListItem], *, now: datetime
-) -> list[DealView]:
-    """경고 기준을 한 번 읽고(없으면 기본값) 각 행의 risk·status_days를 계산한다."""
+async def load_thresholds(uow: UnitOfWork) -> AlertThresholds:
+    """저장된 경고 기준, 없으면 기본값."""
     stored = await uow.alert_settings.get()
-    thresholds = stored.thresholds if stored else AlertThresholds.default()
+    return stored.thresholds if stored else AlertThresholds.default()
+
+
+async def build_views(
+    uow: UnitOfWork,
+    items: Sequence[DealListItem],
+    *,
+    now: datetime,
+    thresholds: AlertThresholds | None = None,
+) -> list[DealView]:
+    """경고 기준을 한 번 읽고(없으면 기본값) 각 행의 risk·status_days를 계산한다.
+
+    thresholds를 넘기면 다시 읽지 않는다(목록 필터와 같은 기준을 쓰기 위해).
+    """
+    thresholds = thresholds or await load_thresholds(uow)
     today = business_date(now)
     owner_ids = {item.deal.details.owner_user_id for item in items}
     owners = await uow.users.get_refs(owner_ids) if owner_ids else {}

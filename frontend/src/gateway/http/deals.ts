@@ -12,6 +12,11 @@ const SORT = {
   revenueDate: 'revenue_date',
   lastUpdatedAt: 'last_updated_at',
   statusKey: 'status',
+  owner: 'owner',
+  customer: 'customer',
+  partner: 'partner',
+  vendor: 'vendor',
+  forecastKey: 'forecast',
 } as const
 
 /** 지정하지 않은 조건은 보내지 않는다(서버 기본값을 쓴다). mine=false도 보내지 않는다. */
@@ -28,11 +33,9 @@ function toListParams(q: DealListQuery) {
     ...(q.month !== undefined ? { month: q.month } : {}),
     ...(q.updatedFrom ? { updated_from: q.updatedFrom } : {}),
     ...(q.updatedTo ? { updated_to: q.updatedTo } : {}),
-    ...(q.bantLabelIds?.budget ? { bant_budget: q.bantLabelIds.budget } : {}),
-    ...(q.bantLabelIds?.authority ? { bant_authority: q.bantLabelIds.authority } : {}),
-    ...(q.bantLabelIds?.need ? { bant_need: q.bantLabelIds.need } : {}),
-    ...(q.bantLabelIds?.timeline ? { bant_timeline: q.bantLabelIds.timeline } : {}),
     ...(q.mine ? { mine: true } : {}),
+    ...(q.overdue ? { overdue: true } : {}),
+    ...(q.stale ? { stale: true } : {}),
     ...(q.nextActionStatus ? { next_action_status: toNextActionStatusParam(q.nextActionStatus) } : {}),
     ...(q.sort ? { sort: SORT[q.sort] } : {}),
     ...(q.order ? { order: q.order } : {}),

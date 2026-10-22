@@ -90,7 +90,17 @@ export interface ApplyChangeRequest {
   resolution?: SyncResolution
 }
 
-export type DealSortKey = 'name' | 'revenueAmount' | 'revenueDate' | 'lastUpdatedAt' | 'statusKey'
+export type DealSortKey =
+  | 'name'
+  | 'revenueAmount'
+  | 'revenueDate'
+  | 'lastUpdatedAt'
+  | 'statusKey'
+  | 'owner'
+  | 'customer'
+  | 'partner'
+  | 'vendor'
+  | 'forecastKey'
 export type SortOrder = 'asc' | 'desc'
 
 export interface DealListQuery {
@@ -109,8 +119,10 @@ export interface DealListQuery {
   /** 최종 업데이트 기간(양끝 포함, 'YYYY-MM-DD'). 한쪽만 있어도 된다. */
   updatedFrom?: string
   updatedTo?: string
-  /** 구분별 Label(AND). */
-  bantLabelIds?: Partial<Record<BantCategory, number>>
+  /** true면 기한초과(overdue) Deal만. stale과 함께면 둘 중 하나(OR). */
+  overdue?: boolean
+  /** true면 미업데이트(stale) Deal만. */
+  stale?: boolean
   /** true면 현재 로그인 사용자가 Owner인 Deal만. */
   mine?: boolean
   /** Next Action이 있는 가장 최근 Action의 상태. */

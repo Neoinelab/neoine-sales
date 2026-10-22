@@ -1630,7 +1630,7 @@ export interface components {
          * DealSort
          * @enum {string}
          */
-        DealSort: "name" | "revenue_amount" | "revenue_date" | "last_updated_at" | "status";
+        DealSort: "name" | "revenue_amount" | "revenue_date" | "last_updated_at" | "status" | "owner" | "customer" | "partner" | "vendor" | "forecast";
         /**
          * DeleteUserResponse
          * @description outcome: 연결된 데이터가 없어 완전히 삭제(deleted) 또는 있어서 퇴사 처리(resigned).
@@ -4350,10 +4350,8 @@ export interface operations {
                 month?: number | null;
                 updated_from?: string | null;
                 updated_to?: string | null;
-                bant_budget?: number | null;
-                bant_authority?: number | null;
-                bant_need?: number | null;
-                bant_timeline?: number | null;
+                overdue?: boolean;
+                stale?: boolean;
                 next_action_status?: components["schemas"]["NextActionStatusFilter"] | null;
                 sort?: components["schemas"]["DealSort"];
                 order?: components["schemas"]["SortOrder"];

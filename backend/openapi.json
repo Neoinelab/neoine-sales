@@ -2258,7 +2258,12 @@
           "revenue_amount",
           "revenue_date",
           "last_updated_at",
-          "status"
+          "status",
+          "owner",
+          "customer",
+          "partner",
+          "vendor",
+          "forecast"
         ],
         "title": "DealSort",
         "type": "string"
@@ -6689,74 +6694,22 @@
           },
           {
             "in": "query",
-            "name": "bant_budget",
+            "name": "overdue",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "maximum": 9007199254740991,
-                  "minimum": 1,
-                  "type": "integer"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Bant Budget"
+              "default": false,
+              "title": "Overdue",
+              "type": "boolean"
             }
           },
           {
             "in": "query",
-            "name": "bant_authority",
+            "name": "stale",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "maximum": 9007199254740991,
-                  "minimum": 1,
-                  "type": "integer"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Bant Authority"
-            }
-          },
-          {
-            "in": "query",
-            "name": "bant_need",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "maximum": 9007199254740991,
-                  "minimum": 1,
-                  "type": "integer"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Bant Need"
-            }
-          },
-          {
-            "in": "query",
-            "name": "bant_timeline",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "maximum": 9007199254740991,
-                  "minimum": 1,
-                  "type": "integer"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Bant Timeline"
+              "default": false,
+              "title": "Stale",
+              "type": "boolean"
             }
           },
           {

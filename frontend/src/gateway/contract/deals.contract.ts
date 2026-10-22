@@ -7,6 +7,7 @@ import { describe, expect, it } from 'vitest'
 import { DEAL_CODE_PATTERN } from '../../shared/model/constants'
 import type { DealInput } from '../../shared/model/types'
 import type { Gateway } from '../types'
+import { action } from './actions.contract'
 import { expectRejects, unique, type MakeGateway, NO_SUCH_ID } from './support'
 
 const SYNC_MISMATCH = 'Status와 Forecast의 동기화가 맞지 않습니다.'
@@ -325,21 +326,82 @@ export function dealsContract(make: MakeGateway): void {
       }
     })
 
-    it('filters by a BANT label of one category', async () => {
+    it('sorts by owner, customer, partner, vendor and forecast in both directions with code ties ascending', async () => {
+      const admin = await make('admin')
+      const vendors = [await admin.vendors.create(unique('vb')), await admin.vendors.create(unique('va'))]
       const sales = await make('sales')
-      const label = (await sales.labels.list()).find((l) => l.category === 'budget' && l.isDefault)
-      if (!label) throw new Error('기본 Budget Label이 없습니다.')
       const tag = unique('tag')
-      const withLabel = await sales.deals.create(
-        await validInput(sales, { name: `${tag}${unique('d')}`, bant: { budget: { id: label.id }, authority: null, need: null, timeline: null } }),
-      )
+      const rows: [string, string, string][] = [
+        ['Cc', 'pipeline', 'ZZb'],
+        ['aa', 'commit', 'ZZa'],
+        ['Bb', 'best', 'ZZc'],
+      ]
+      const made = []
+      for (const [index, [company, forecastKey, partnerCompany]] of rows.entries()) {
+        const base = await validInput(sales, { name: `${tag}${unique('d')}`, forecastKey, vendorId: vendors[index % 2]?.id ?? null })
+        made.push(
+          await sales.deals.create({
+            ...base,
+            customer: { ...base.customer, company: `${tag}${company}` },
+            partner: { contactId: null, company: `${tag}${partnerCompany}`, name: unique('pn'), title: '', email: null, phone: null },
+          }),
+        )
+      }
+      const byCustomer = made.map((d) => d.code)
+      const asc = (await sales.deals.list({ keyword: tag, sort: 'customer', order: 'asc' })).items.map((d) => d.code)
+      const desc = (await sales.deals.list({ keyword: tag, sort: 'customer', order: 'desc' })).items.map((d) => d.code)
+
+      // 소문자 기준: aa < bb < cc
+      expect(asc).toEqual([byCustomer[1], byCustomer[2], byCustomer[0]])
+      expect(desc).toEqual([byCustomer[0], byCustomer[2], byCustomer[1]])
+      const partner = (await sales.deals.list({ keyword: tag, sort: 'partner', order: 'asc' })).items.map((d) => d.code)
+      expect(partner).toEqual([byCustomer[1], byCustomer[0], byCustomer[2]])
+      for (const sort of ['owner', 'vendor', 'forecastKey'] as const) {
+        const found = await sales.deals.list({ keyword: tag, sort, order: 'desc' })
+        expect(found.total).toBe(3)
+      }
+      for (const d of made) await sales.deals.remove(d.code, d.code)
+      const cleanup = await make('admin')
+      for (const v of vendors) await cleanup.vendors.remove(v.id)
+    })
+
+    it('puts deals without a partner or vendor last in both directions', async () => {
+      const sales = await make('sales')
+      const tag = unique('tag')
+      const base = await validInput(sales, { name: `${tag}${unique('d')}` })
+      const withPartner = await sales.deals.create({
+        ...base,
+        partner: { contactId: null, company: `${tag}partner`, name: unique('pn'), title: '', email: null, phone: null },
+      })
       const without = await sales.deals.create(await validInput(sales, { name: `${tag}${unique('d')}` }))
 
-      const found = await sales.deals.list({ keyword: tag, bantLabelIds: { budget: label.id } })
+      for (const order of ['asc', 'desc'] as const) {
+        const found = await sales.deals.list({ keyword: tag, sort: 'partner', order })
+        expect(found.items.map((d) => d.code)).toEqual([withPartner.code, without.code])
+        const byVendor = await sales.deals.list({ keyword: tag, sort: 'vendor', order })
+        expect(byVendor.items.map((d) => d.code)).toEqual([withPartner.code, without.code].sort())
+      }
+      for (const d of [withPartner, without]) await sales.deals.remove(d.code, d.code)
+    })
 
-      expect(found.items.map((d) => d.code)).toEqual([withLabel.code])
-      expect(found.items[0]?.bant.budget).toBe(label.id)
-      for (const d of [withLabel, without]) await sales.deals.remove(d.code, d.code)
+    it('lists only overdue deals with overdue and only stale-or-overdue deals with both, as the badge says', async () => {
+      const sales = await make('sales')
+      const tag = unique('tag')
+      const overdue = await sales.deals.create(await validInput(sales, { name: `${tag}${unique('d')}` }))
+      const onTime = await sales.deals.create(await validInput(sales, { name: `${tag}${unique('d')}` }))
+      await sales.actions.create(overdue.code, action({ progress: '', nextAction: '지난 계획', dueDate: '2000-01-01' }))
+      await sales.actions.create(onTime.code, action({ progress: '', nextAction: '먼 계획', dueDate: '2999-01-01' }))
+
+      const found = await sales.deals.list({ keyword: tag, overdue: true })
+      const either = await sales.deals.list({ keyword: tag, overdue: true, stale: true })
+      const none = await sales.deals.list({ keyword: tag, stale: true })
+
+      expect(found.items.map((d) => d.code)).toEqual([overdue.code])
+      expect(found.total).toBe(1)
+      expect(found.items[0]?.risk === 'overdue' || found.items[0]?.risk === 'overdue_stale').toBe(true)
+      expect(either.items.map((d) => d.code)).toEqual([overdue.code])
+      expect(none.items.map((d) => d.code)).not.toContain(onTime.code)
+      for (const d of [overdue, onTime]) await sales.deals.remove(d.code, d.code)
     })
 
     it('orders ties by code ascending whatever the sort direction', async () => {

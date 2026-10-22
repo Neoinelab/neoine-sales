@@ -71,18 +71,6 @@ describe('필터와 정렬 (T-LIST-05~09)', () => {
     expect(location()).toContain(`solution=${seedSolutionId('Silverfort', 'ITDR')}`)
   })
 
-  it('filters by a BANT label of one category', async () => {
-    const { user, location } = await renderAt('/deals')
-    await screen.findByRole('row', { name: /한빛은행 ITDR 도입/ })
-    const budget = await screen.findByLabelText('Budget Label')
-    await within(budget).findByRole('option', { name: '단독 예산 확보' })
-    await user.selectOptions(budget, '단독 예산 확보')
-    await screen.findByRole('row', { name: /우주항공연구원 ZTNA/ })
-    expect(dataRows()).toHaveLength(2)
-    // Fake 시드에서 '단독 예산 확보'는 첫 Label이라 id 1이다(정확히 그 값이어야 한다).
-    expect(new URLSearchParams(location().split('?')[1] ?? '').get('budget')).toBe('1')
-  })
-
   it('puts year and quarter in the URL', async () => {
     const { user, location } = await renderAt('/deals')
     await screen.findByRole('row', { name: /한빛은행 ITDR 도입/ })

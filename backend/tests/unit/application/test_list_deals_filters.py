@@ -1,5 +1,5 @@
 """ListDeals의 확장 필터·정렬(AC-22a~22d, R3): forecast, 연/분기(연도 없는 분기는 올해),
-BANT Label, 최종 업데이트 기간, sort/order.
+최종 업데이트 기간, sort/order.
 
 저장소 계약(tests/unit/repositories)이 조건별 세부를 검증하므로 여기서는 유스케이스가 조건을
 그대로 전달하고 total·페이지를 함께 돌려주는지를 본다.
@@ -11,8 +11,6 @@ from typing import TYPE_CHECKING
 import pytest
 
 from app.application.ports.deal_repository import DealQuery, DealSort, SortOrder
-from app.domain.bant.values import BantCategory
-from tests.support.catalog import label_by_name
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -133,28 +131,6 @@ async def test_updated_period_is_combined_with_year_and_quarter(env: DealEnv) ->
     assert other_quarter.item.deal.id.value not in codes  # 연/분기는 Expected Close 기준
     assert old_update_excluded.item.deal.id.value not in codes  # 최종 업데이트가 기간 밖
     assert page.total == 2
-
-
-async def test_bant_labels_of_several_categories_are_combined_with_and(env: DealEnv) -> None:
-    full_budget = await label_by_name(env.uow, BantCategory.BUDGET, "풀 예산 확보")
-    ceo = await label_by_name(env.uow, BantCategory.AUTHORITY, "CEO 보고 완료")
-    both = await env.new_deal(
-        bant={BantCategory.BUDGET: full_budget.id, BantCategory.AUTHORITY: ceo.id}
-    )
-    await env.new_deal(bant={BantCategory.BUDGET: full_budget.id})
-    await env.new_deal(bant={BantCategory.AUTHORITY: ceo.id})
-
-    only_budget = await env.list.execute(
-        DealQuery(bant_label_ids={BantCategory.BUDGET: full_budget.id})
-    )
-    page = await env.list.execute(
-        DealQuery(
-            bant_label_ids={BantCategory.BUDGET: full_budget.id, BantCategory.AUTHORITY: ceo.id}
-        )
-    )
-
-    assert only_budget.total == 2
-    assert _codes(page) == [both.item.deal.id.value]
 
 
 async def test_sorting_and_ordering_reach_the_repository_and_total_ignores_the_page(

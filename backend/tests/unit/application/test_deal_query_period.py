@@ -1,4 +1,4 @@
-"""DealQuery의 연/분기·BANT 조건: 검증과 `revenue_window()`, 최종 업데이트 `updated_window()`.
+"""DealQuery의 연/분기 조건: 검증과 `revenue_window()`, 최종 업데이트 `updated_window()`.
 
 revenue_window는 (시작, 끝) 양끝 포함이고 None은 한쪽이 열려 있다는 뜻이다. 연/분기만 반영한다.
 updated_window는 last_updated_at의 반개구간 [시작, 끝)이다. 검증 오류는 만들 때 또는
@@ -10,10 +10,8 @@ from datetime import date, timedelta
 import pytest
 
 from app.application.ports.deal_repository import DealQuery
-from app.domain.bant.values import BantCategory, BantLabelId
 from app.domain.common.business_date import start_of_business_day
 from app.domain.common.errors import InvalidValueError
-from tests.factories import new_contact_id
 from tests.support.expect import raises_with
 
 
@@ -160,11 +158,3 @@ def test_a_year_outside_1900_to_9999_is_rejected(year: int) -> None:
 @pytest.mark.parametrize("year", [1900, 9999])
 def test_the_year_boundaries_are_accepted(year: int) -> None:
     assert _window(year=year, quarter=4)[1] == date(year, 12, 31)
-
-
-def test_bant_labels_are_kept_per_category() -> None:
-    budget, need = BantLabelId(new_contact_id()), BantLabelId(new_contact_id())
-
-    query = DealQuery(bant_label_ids={BantCategory.BUDGET: budget, BantCategory.NEED: need})
-
-    assert dict(query.bant_label_ids) == {BantCategory.BUDGET: budget, BantCategory.NEED: need}

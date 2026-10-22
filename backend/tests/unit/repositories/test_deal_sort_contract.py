@@ -1,7 +1,10 @@
-"""DealRepository.search의 정렬 계약(R3, AC-22d·22e): sort 5종 x order, 동률은 항상 code 오름차순.
+"""DealRepository.search의 정렬 계약(R3, AC-22d·22e + 목록 열 정렬 AC-3·4): sort 10종 x order,
+동률은 항상 code 오름차순.
 
-Fake와 SQL(PostgreSQL)에 같은 기대값. `name`은 대소문자 무시(lower) 순이고 이 계약은 같은 문자군
-(영문 또는 한글)만 쓴다. `status`는 Status 코드의 현재 order 순이라 순서를 바꾸면 결과도 바뀐다.
+Fake와 SQL(PostgreSQL)에 같은 기대값. `name`·`owner`·`customer`·`partner`·`vendor`는 대소문자
+무시(lower) 순이고 이 계약은 같은 문자군(영문 또는 한글)만 쓴다. `status`·`forecast`는 코드의 현재
+order 순이라 순서를 바꾸면 결과도 바뀐다. 파트너·Vendor가 없는 Deal 등 새 열의 세부는
+test_deal_sort_columns_contract.
 """
 
 from datetime import date
@@ -16,7 +19,10 @@ from app.application.ports.deal_repository import (
     SortOrder,
 )
 from app.domain.code.values import CodeKind
+from app.domain.contact.values import ContactKind
 from tests.factories import NOW, later, make_deal
+from tests.factories_auth import make_user
+from tests.support.user_ids import uid
 
 if TYPE_CHECKING:
     from tests.unit.repositories.deal_case import DealCase
@@ -37,13 +43,28 @@ async def _codes(
 
 
 async def _three(case: DealCase) -> None:
-    """정렬 키마다 오름차순 결과가 서로 다르게 만든 Deal 3건(갱신 시각은 A1 < A2 < A3)."""
+    """정렬 키마다 오름차순 결과가 서로 다르게 만든 Deal 3건(갱신 시각은 A1 < A2 < A3).
+
+    owner/customer/partner/vendor는 대소문자를 섞어 소문자 기준과 원문 바이트 기준이 달라지게 했다.
+    """
+    owners = {A1: "bob", A2: "Carol", A3: "alice"}
+    customers = {A1: "Bravo", A2: "alpha", A3: "charlie"}
+    partners = {A1: "delta", A2: "Echo", A3: "Charlie"}
+    vendors = {A1: "ZZ beta", A2: "ZZ Gamma", A3: "ZZ alpha"}
+    forecasts = {A1: "commit", A2: "pipeline", A3: "best"}
     rows = [
         (A1, "charlie", 200, date(2026, 1, 1), "price_negotiation"),
         (A2, "alpha", 300, date(2026, 3, 1), "introduction"),
         (A3, "Bravo", 100, date(2026, 2, 1), "prospecting"),
     ]
     for number, (code, name, amount, day, status) in enumerate(rows, start=1):
+        owner = uid(f"sc_{owners[code].lower()}")
+        await case.users.add(
+            make_user(f"sc_{owners[code].lower()}", entity_id=owner, display_name=owners[code])
+        )
+        customer = await case.new_contact(ContactKind.CUSTOMER, company=customers[code])
+        partner = await case.new_contact(ContactKind.PARTNER, company=partners[code])
+        vendor = await case.new_vendor(vendors[code])
         await case.add(
             make_deal(
                 later(number),
@@ -52,6 +73,11 @@ async def _three(case: DealCase) -> None:
                 revenue_amount=amount,
                 revenue_date=day,
                 status_key=status,
+                forecast_key=forecasts[code],
+                owner_user_id=owner,
+                customer_id=customer.id,
+                partner_id=partner.id,
+                vendor_id=vendor.id,
             )
         )
 
@@ -62,6 +88,11 @@ ASCENDING = [
     (DealSort.REVENUE_DATE, [A1, A3, A2]),
     (DealSort.LAST_UPDATED_AT, [A1, A2, A3]),
     (DealSort.STATUS, [A3, A2, A1]),
+    (DealSort.OWNER, [A3, A1, A2]),
+    (DealSort.CUSTOMER, [A2, A1, A3]),
+    (DealSort.PARTNER, [A3, A1, A2]),
+    (DealSort.VENDOR, [A3, A1, A2]),
+    (DealSort.FORECAST, [A2, A3, A1]),
 ]
 
 

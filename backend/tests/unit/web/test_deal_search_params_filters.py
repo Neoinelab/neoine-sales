@@ -1,4 +1,4 @@
-"""웹 쿼리 모델의 확장 필터·정렬(R3, AC-22a~22d): forecast, 연/분기, BANT, sort/order.
+"""웹 쿼리 모델의 확장 필터·정렬(R3, AC-22a~22d): forecast, 연/분기, sort/order, 위험 필터.
 
 `DealSearchParams.to_query(viewer)`가 `DealQuery`를 만든다. sort·order는 화이트리스트 밖이면 422,
 quarter는 연도 없이도 쓸 수 있다(올해 채우기는 ListDeals가 한다). 모르는 파라미터는 여전히 거절한다.
@@ -9,10 +9,8 @@ from pydantic import ValidationError
 
 from app.application.ports.deal_action_repository import NextActionStatusFilter
 from app.application.ports.deal_repository import DealSort, SortOrder
-from app.domain.bant.values import BantCategory
 from app.domain.common.errors import InvalidValueError
 from app.web.schemas.deal import DealSearchParams
-from tests.support.ids import new_id
 from tests.support.user_ids import uid
 
 VIEWER = uid("viewer")
@@ -29,33 +27,7 @@ def test_the_new_conditions_default_to_none() -> None:
     query = DealSearchParams().to_query(VIEWER)
 
     assert (query.forecast_key, query.year, query.quarter) == (None,) * 3
-    assert dict(query.bant_label_ids) == {}
-
-
-def test_each_bant_parameter_maps_to_its_category() -> None:
-    ids = {name: new_id() for name in ("budget", "authority", "need", "timeline")}
-
-    query = DealSearchParams(
-        bant_budget=ids["budget"],
-        bant_authority=ids["authority"],
-        bant_need=ids["need"],
-        bant_timeline=ids["timeline"],
-    ).to_query(VIEWER)
-
-    assert dict(query.bant_label_ids) == {
-        BantCategory.BUDGET: ids["budget"],
-        BantCategory.AUTHORITY: ids["authority"],
-        BantCategory.NEED: ids["need"],
-        BantCategory.TIMELINE: ids["timeline"],
-    }
-
-
-def test_only_the_given_bant_parameters_become_conditions() -> None:
-    label = new_id()
-
-    query = DealSearchParams(bant_need=label).to_query(VIEWER)
-
-    assert dict(query.bant_label_ids) == {BantCategory.NEED: label}
+    assert (query.overdue, query.stale) == (False, False)
 
 
 @pytest.mark.parametrize("sort", list(DealSort))
@@ -117,7 +89,6 @@ def test_the_year_boundaries_are_accepted(year: int) -> None:
     [
         {"solution_id": "S/4HANA"},
         {"forecast_key": "a" * 51},
-        {"bant_budget": "not-an-id"},
         {"year": "twenty"},
         {"quarter": "q2"},
     ],
@@ -127,21 +98,54 @@ def test_malformed_new_values_are_rejected(params: dict[str, object]) -> None:
         DealSearchParams(**params)
 
 
-BANT_PARAMS = ["bant_budget", "bant_authority", "bant_need", "bant_timeline"]
+RETIRED_BANT_PARAMS = ["bant_budget", "bant_authority", "bant_need", "bant_timeline"]
 
 
-@pytest.mark.parametrize("field", BANT_PARAMS)
-@pytest.mark.parametrize("bad", ["abc", "1.5", "0", "-1", 0, -1, 2**53, "9007199254740992"])
-def test_id_query_parameters_must_be_positive_integers(field: str, bad: object) -> None:
+@pytest.mark.parametrize("field", RETIRED_BANT_PARAMS)
+def test_retired_bant_parameters_are_rejected(field: str) -> None:
+    """BANT 목록 필터 폐지(2026-10-22): 모르는 파라미터처럼 거절한다(조용히 무시 안 함)."""
     with pytest.raises(ValidationError):
-        DealSearchParams(**{field: bad})
+        DealSearchParams.model_validate({field: "5"})
 
 
-@pytest.mark.parametrize("field", BANT_PARAMS)
-def test_bant_id_query_parameters_arrive_as_text_and_become_integers(field: str) -> None:
-    query = DealSearchParams.model_validate({field: "5"}).to_query(VIEWER)
+def test_overdue_and_stale_default_to_false_and_reach_the_query() -> None:
+    query = DealSearchParams().to_query(VIEWER)
 
-    assert list(query.bant_label_ids.values()) == [5]
+    assert (query.overdue, query.stale) == (False, False)
+    assert query.wants_risk() is False
+
+
+@pytest.mark.parametrize("raw", ["true", "1", True])
+def test_overdue_and_stale_true_reach_the_query(raw: object) -> None:
+    overdue = DealSearchParams.model_validate({"overdue": raw}).to_query(VIEWER)
+    stale = DealSearchParams.model_validate({"stale": raw}).to_query(VIEWER)
+    both = DealSearchParams.model_validate({"overdue": raw, "stale": raw}).to_query(VIEWER)
+
+    assert (overdue.overdue, overdue.stale) == (True, False)
+    assert (stale.overdue, stale.stale) == (False, True)
+    assert (both.overdue, both.stale) == (True, True)
+
+
+@pytest.mark.parametrize("raw", ["false", "0"])
+def test_overdue_and_stale_false_values_are_no_condition(raw: str) -> None:
+    query = DealSearchParams.model_validate({"overdue": raw, "stale": raw}).to_query(VIEWER)
+
+    assert query.wants_risk() is False
+
+
+@pytest.mark.parametrize("field", ["overdue", "stale"])
+@pytest.mark.parametrize("raw", ["abc", "yes please", "2"])
+def test_a_non_boolean_overdue_or_stale_is_rejected(field: str, raw: str) -> None:
+    with pytest.raises(ValidationError):
+        DealSearchParams.model_validate({field: raw})
+
+
+def test_the_risk_filters_combine_with_mine_and_sort() -> None:
+    query = DealSearchParams(mine=True, stale=True, sort="owner", order="desc").to_query(VIEWER)
+
+    assert query.owner_user_id == VIEWER
+    assert query.stale is True
+    assert (query.sort, query.order) == (DealSort.OWNER, SortOrder.DESC)
 
 
 def test_the_new_conditions_keep_working_together_with_mine() -> None:
