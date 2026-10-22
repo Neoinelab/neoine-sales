@@ -1,5 +1,5 @@
 import { api } from '../../shared/api/client'
-import { isPeriodKey } from '../../shared/model/updatedPeriod'
+import { isPeriodKey, isUpcomingKey } from '../../shared/model/updatedPeriod'
 import type { DealListQuery } from '../../shared/model/types'
 import type { DealsGateway } from '../types'
 import { toNextActionStatusParam } from './mappers/nextActionStatus'
@@ -51,7 +51,8 @@ export function createDealsHttp(): DealsGateway {
     updatedPeriods: async () => {
       const result = await unwrap(api.GET('/api/v1/deals/updated-periods'))
       const periods = result.periods.flatMap(({ key, from, to }) => (isPeriodKey(key) ? [{ key, from, to }] : []))
-      return { today: result.today, periods }
+      const upcoming = result.upcoming.flatMap(({ key, from, to }) => (isUpcomingKey(key) ? [{ key, from, to }] : []))
+      return { today: result.today, periods, upcoming }
     },
     get: async (code) => toDealDetail(await unwrap(api.GET('/api/v1/deals/{code}', path(code)))),
     impact: async (code) => {

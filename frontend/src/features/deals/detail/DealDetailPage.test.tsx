@@ -160,25 +160,89 @@ describe('Deal 상세 정보 카드 (T-DETAIL-02)', () => {
 })
 
 describe('Deal 상세 탭 (T-DETAIL-03)', () => {
-  it('has exactly two tabs, Actions and Deal History, and starts on Actions', async () => {
+  it('has three tabs in order and starts on Deal 상세', async () => {
     await renderAt(await detailPath(1))
     await heading('한빛은행 ITDR 도입')
     const tabs = within(screen.getByRole('tablist', { name: '상세 탭' })).getAllByRole('tab')
-    expect(tabs.map((t) => t.textContent)).toEqual(['Actions', 'Deal History'])
-    expect(screen.getByRole('tab', { name: 'Actions' })).toHaveAttribute('aria-selected', 'true')
+    expect(tabs.map((t) => t.textContent)).toEqual(['Deal 상세', 'Actions', 'Deal History'])
+    expect(screen.getByRole('tab', { name: 'Deal 상세' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('tab', { name: 'Actions' })).toHaveAttribute('aria-selected', 'false')
+  })
+
+  it('shows info cards and attachments only on the Deal 상세 tab', async () => {
+    await renderAt(await detailPath(1))
+    await heading('한빛은행 ITDR 도입')
+    expect(await screen.findByRole('region', { name: 'BANT' })).toBeVisible()
+    expect(screen.getByRole('region', { name: '고객' })).toBeVisible()
+    expect(screen.getByRole('region', { name: '파트너' })).toBeVisible()
+    expect(screen.getByRole('heading', { name: '첨부 파일' })).toBeVisible()
+    expect(screen.queryByRole('table', { name: 'Action 목록' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('search', { name: 'Action 검색' })).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('변경 대상')).not.toBeInTheDocument()
+  })
+
+  it('shows the Actions list and search but not the info cards on the Actions tab', async () => {
+    await renderAt(await detailPath(1, '?tab=actions'))
+    await heading('한빛은행 ITDR 도입')
+    expect(await screen.findByRole('table', { name: 'Action 목록' })).toBeVisible()
+    expect(screen.getByRole('search', { name: 'Action 검색' })).toBeVisible()
+    expect(screen.queryByRole('region', { name: 'BANT' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: '첨부 파일' })).not.toBeInTheDocument()
+  })
+
+  it('shows the history but not the info cards on the Deal History tab', async () => {
+    await renderAt(await detailPath(1, '?tab=history'))
+    await heading('한빛은행 ITDR 도입')
+    expect(await screen.findByLabelText('변경 대상')).toBeVisible()
+    expect(screen.queryByRole('region', { name: 'BANT' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('table', { name: 'Action 목록' })).not.toBeInTheDocument()
+  })
+
+  it('keeps header and summary bar above every tab', async () => {
+    const { user } = await renderAt(await detailPath(1))
+    await heading('한빛은행 ITDR 도입')
+    for (const tab of ['Deal 상세', 'Actions', 'Deal History']) {
+      await user.click(screen.getByRole('tab', { name: tab }))
+      expect(screen.getByRole('heading', { level: 1, name: '한빛은행 ITDR 도입' })).toBeVisible()
+      expect(screen.getByRole('link', { name: '← 목록' })).toBeVisible()
+      expect(screen.getByRole('button', { name: 'Deal 삭제' })).toBeVisible()
+      expect(screen.getByRole('region', { name: 'Deal 정보' })).toBeVisible()
+    }
   })
 
   it('keeps the selected tab in the url', async () => {
-    const { user, location } = await renderAt(await detailPath(1))
+    const { user, location } = await renderAt(await detailPath(1, '?x=1'))
     await heading('한빛은행 ITDR 도입')
+
+    await user.click(screen.getByRole('tab', { name: 'Actions' }))
+    expect(location()).toMatch(/\?(x=1&tab=actions|tab=actions&x=1)$/)
+
     await user.click(screen.getByRole('tab', { name: 'Deal History' }))
-    expect(location()).toMatch(/\?tab=history$/)
+    expect(location()).toMatch(/\?(x=1&tab=history|tab=history&x=1)$/)
+
+    await user.click(screen.getByRole('tab', { name: 'Deal 상세' }))
+    expect(location()).toMatch(/\?x=1$/)
   })
 
-  it('opens the history tab straight from the url', async () => {
-    await renderAt(await detailPath(1, '?tab=history'))
+  it('drops the tab parameter completely when returning to Deal 상세', async () => {
+    const { user, location } = await renderAt(await detailPath(1, '?tab=actions'))
     await heading('한빛은행 ITDR 도입')
-    expect(screen.getByRole('tab', { name: 'Deal History' })).toHaveAttribute('aria-selected', 'true')
+
+    await user.click(screen.getByRole('tab', { name: 'Deal 상세' }))
+
+    expect(location()).not.toContain('tab=')
+    expect(screen.getByRole('tab', { name: 'Deal 상세' })).toHaveAttribute('aria-selected', 'true')
+  })
+
+  it.each([
+    ['?tab=actions', 'Actions'],
+    ['?tab=history', 'Deal History'],
+    ['?tab=foo', 'Deal 상세'],
+    ['?tab=info', 'Deal 상세'],
+  ])('opens a tab straight from the url %s -> %s', async (query, selected) => {
+    await renderAt(await detailPath(1, query))
+    await heading('한빛은행 ITDR 도입')
+    expect(screen.getByRole('tab', { name: selected })).toHaveAttribute('aria-selected', 'true')
   })
 })
 
@@ -214,7 +278,7 @@ describe('Deal 상세 역할별 버튼과 오류 (T-DETAIL-04)', () => {
     expect(screen.queryByRole('button', { name: 'Deal 삭제' })).not.toBeInTheDocument()
     expect(screen.queryByLabelText('Status')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: '금액(단위:천원) 수정' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Next Action 업데이트' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Action 추가' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: '고객 회사명 수정' })).not.toBeInTheDocument()
     expect(screen.queryByTitle('Deal 이름 수정')).not.toBeInTheDocument()
     const bant = screen.getByRole('region', { name: 'BANT' })

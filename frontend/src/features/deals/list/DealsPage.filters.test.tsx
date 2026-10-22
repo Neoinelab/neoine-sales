@@ -412,7 +412,11 @@ describe('최종 업데이트 기간 필터', () => {
     const spy = vi.spyOn(gateway.deals, 'updatedPeriods').mockImplementation(async () => {
       if (spy.mock.calls.length === 1) return original()
       const first = await original()
-      return { today: nextDay.to, periods: first.periods.map((p) => (p.key === '2w' ? { ...p, ...nextDay } : p)) }
+      return {
+        today: nextDay.to,
+        periods: first.periods.map((p) => (p.key === '2w' ? { ...p, ...nextDay } : p)),
+        upcoming: first.upcoming,
+      }
     })
     const { user, location } = await renderAt('/deals')
     await screen.findByRole('row', { name: /한빛은행 ITDR 도입/ })

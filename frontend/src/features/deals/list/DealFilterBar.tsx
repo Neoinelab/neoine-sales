@@ -1,9 +1,5 @@
 import { useId, useRef, useState } from 'react'
-import { useQueryClient } from '@tanstack/react-query'
-import { gateway } from '../../../gateway'
-import { keys } from '../../../data/queryKeys'
-import { NO_RETRY } from '../../../data/result'
-import { useUpdatedPeriods } from '../../../data/deals'
+import { useFreshUpdatedPeriods, useUpdatedPeriods } from '../../../data/deals'
 import { useCodeSet } from '../../../data/codes'
 import { useLabels } from '../../../data/labels'
 import { useToday } from '../../../data/today'
@@ -11,6 +7,7 @@ import { useVendors } from '../../../data/vendors'
 import { BANT_CATEGORIES, BANT_CATEGORY_NAMES } from '../../../shared/model/constants'
 import { NEXT_ACTION_STATUS_FILTER_OPTIONS, nextActionStatusFromParam, nextActionStatusToParam } from '../../../shared/model/nextActionStatus'
 import { parseMonth } from '../../../shared/model/month'
+import { PAST_PERIOD_LABELS } from '../../../shared/model/periodChoice'
 import { selectedUpdatedPeriod } from '../../../shared/model/updatedPeriod'
 import { ErrorBanner } from '../../../shared/ui/ErrorBanner'
 import { CheckboxField, SelectField, TextField } from '../../../shared/ui/fields'
@@ -25,8 +22,6 @@ interface DealFilterBarProps {
 
 const QUARTERS = [1, 2, 3, 4] as const
 const MONTHS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] as const
-
-const PERIOD_LABELS = { '2w': '최근 2주', '1m': '최근 1개월', '2m': '최근 2개월', '3m': '최근 3개월', '6m': '최근 6개월' } as const
 
 function yearOptions(year: number): number[] {
   return [year - 1, year, year + 1, year + 2]
@@ -44,7 +39,7 @@ export function DealFilterBar({ params, onChange, onReset }: DealFilterBarProps)
   const monthHintId = useId()
   const periodsQuery = useUpdatedPeriods()
   const periods = periodsQuery.data?.periods
-  const queryClient = useQueryClient()
+  const fetchFresh = useFreshUpdatedPeriods()
   // 기간 선택(프리셋·전체·직접 지정·날짜 입력·초기화)마다 올린다. 늦게 온 이전 프리셋 응답은 순번이 달라 버린다.
   const periodSeq = useRef(0)
   const [refreshError, setRefreshError] = useState<unknown>(null)
@@ -93,7 +88,7 @@ export function DealFilterBar({ params, onChange, onReset }: DealFilterBarProps)
     }
     // 자정이 지났을 수 있어 캐시를 쓰지 않고 서버에 다시 묻는다. 실패하면 URL은 그대로 두고 오류를 보인다.
     try {
-      const fresh = await queryClient.fetchQuery({ queryKey: keys.updatedPeriods, queryFn: () => gateway.deals.updatedPeriods(), staleTime: 0, ...NO_RETRY })
+      const fresh = await fetchFresh()
       if (seq !== periodSeq.current) return
       const chosen = fresh.periods.find((p) => p.key === next)
       onChange({ updated_from: chosen?.from, updated_to: chosen?.to })
@@ -230,9 +225,9 @@ export function DealFilterBar({ params, onChange, onReset }: DealFilterBarProps)
       </label>
       <SelectField label="최종 업데이트" name="updated_period" value={period} onChange={changePeriod}>
         <option value="">전체</option>
-        {(Object.keys(PERIOD_LABELS) as (keyof typeof PERIOD_LABELS)[]).map((key) => (
+        {(Object.keys(PAST_PERIOD_LABELS) as (keyof typeof PAST_PERIOD_LABELS)[]).map((key) => (
           <option key={key} value={key} disabled={!periods?.some((p) => p.key === key)}>
-            {PERIOD_LABELS[key]}
+            {PAST_PERIOD_LABELS[key]}
           </option>
         ))}
         <option value="custom">직접 지정</option>

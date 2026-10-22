@@ -28,6 +28,7 @@ from tests.functional.steps.updated_period import (
     days_from_today,
     then_period_starts_are,
     then_periods_follow_the_server_date,
+    then_upcoming_ends_are,
     when_list_updated_periods,
 )
 
@@ -181,6 +182,21 @@ async def test_presets_fall_back_to_the_month_end(api: Api) -> None:
     then_period_starts_are(
         response,
         {"2w": date(2026, 3, 17), "1m": date(2026, 2, 28), "6m": date(2025, 9, 30)},
+    )
+
+
+async def test_upcoming_presets_run_from_today_to_n_months_later(api: Api) -> None:
+    """Scenario: 1월 31일의 향후 1개월은 2월 28일까지, 2개월은 3월 31일까지다."""
+    # Given
+    await given_clock_at(api, datetime(2026, 1, 31, 12, 0).astimezone())
+    await given_logged_in_as(api, role="sales")
+    # When
+    response = await when_list_updated_periods(api)
+    # Then
+    then_upcoming_ends_are(
+        response,
+        date(2026, 1, 31),
+        {"1m": date(2026, 2, 28), "2m": date(2026, 3, 31)},
     )
 
 

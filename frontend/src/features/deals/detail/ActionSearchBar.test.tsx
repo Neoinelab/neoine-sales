@@ -4,7 +4,7 @@ import { renderAt } from '../../../test/mockApp'
 import { detailPath } from '../../../test/detailTestUtils'
 
 async function openSearch() {
-  const view = await renderAt(await detailPath(1), { role: 'sales' })
+  const view = await renderAt(await detailPath(1, '?tab=actions'), { role: 'sales' })
   await screen.findByRole('heading', { level: 1, name: '한빛은행 ITDR 도입' })
   await screen.findByRole('table', { name: 'Action 목록' })
   return { ...view, keyword: screen.getByLabelText('키워드') }

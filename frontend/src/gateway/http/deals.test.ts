@@ -549,6 +549,10 @@ describe('deals.updatedPeriods over HTTP', () => {
         { key: '3m', from: '2026-07-21', to: '2026-10-21' },
         { key: '6m', from: '2026-04-21', to: '2026-10-21' },
       ],
+      upcoming: [
+        { key: '1m', from: '2026-10-21', to: '2026-11-21' },
+        { key: '2m', from: '2026-10-21', to: '2026-12-21' },
+      ],
     }
     const { calls } = stubFetch(json(body))
 
@@ -556,5 +560,25 @@ describe('deals.updatedPeriods over HTTP', () => {
 
     expect(calls[0]).toMatchObject({ method: 'GET', path: '/api/v1/deals/updated-periods' })
     expect(result).toEqual(body)
+  })
+
+  it('updatedPeriods maps upcoming and drops unknown keys', async () => {
+    const body = {
+      today: '2026-10-21',
+      periods: [{ key: '2w', from: '2026-10-07', to: '2026-10-21' }],
+      upcoming: [
+        { key: '1m', from: '2026-10-21', to: '2026-11-21' },
+        { key: '9m', from: '2026-10-21', to: '2027-07-21' },
+        { key: '2m', from: '2026-10-21', to: '2026-12-21' },
+      ],
+    }
+    stubFetch(json(body))
+
+    const result = await createDealsHttp().updatedPeriods()
+
+    expect(result.upcoming).toEqual([
+      { key: '1m', from: '2026-10-21', to: '2026-11-21' },
+      { key: '2m', from: '2026-10-21', to: '2026-12-21' },
+    ])
   })
 })

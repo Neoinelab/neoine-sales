@@ -16,6 +16,8 @@ describe('deals.updatedPeriods', () => {
     expect(result.today).toBe(control.now().slice(0, 10))
     expect(result.periods.map((p) => p.key)).toEqual(['2w', '1m', '2m', '3m', '6m'])
     for (const period of result.periods) expect(period.to).toBe(result.today)
+    expect(result.upcoming.map((p) => p.key)).toEqual(['1m', '2m'])
+    for (const period of result.upcoming) expect(period.from).toBe(result.today)
   })
 
   it('로그인하지 않으면 401이다', async () => {

@@ -54,18 +54,21 @@ describe('업무 데이터가 없는 첫 실행 상태', () => {
     await waitFor(() => expect(location()).toMatch(DETAIL_URL))
     expect(await screen.findByRole('heading', { level: 1, name: '첫 Deal' })).toBeVisible()
 
-    // Action 추가
-    await user.click(await screen.findByRole('button', { name: 'Next Action 업데이트' }))
-    const form = screen.getByRole('form', { name: 'Next Action 업데이트' })
+    // Action 추가 (기본 탭은 Deal 상세라 Actions 탭으로 옮긴다)
+    await user.click(await screen.findByRole('tab', { name: 'Actions' }))
+    await user.click(await screen.findByRole('button', { name: 'Action 추가' }))
+    const form = screen.getByRole('form', { name: 'Action 추가' })
     await user.type(within(form).getByLabelText('유형'), '미팅')
     await user.type(within(form).getByLabelText('진행사항'), '킥오프 미팅')
     await user.type(within(form).getByLabelText('Next Action'), '제안서 전달')
     fireEvent.change(within(form).getByLabelText('Due Date'), { target: { value: '2026-12-01' } })
     await user.click(within(form).getByRole('button', { name: '등록' }))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Action 추가' })).not.toBeInTheDocument())
     const table = await screen.findByRole('table', { name: 'Action 목록' })
     expect(await within(table).findByText('킥오프 미팅')).toBeVisible()
 
-    // 파일 업로드
+    // 파일 업로드 (첨부 파일은 Deal 상세 탭에 있다)
+    await user.click(screen.getByRole('tab', { name: 'Deal 상세' }))
     const panel = await screen.findByRole('region', { name: '첨부 파일' })
     expect(await within(panel).findByText('첨부된 파일이 없습니다.')).toBeVisible()
     await user.upload(within(panel).getByLabelText('파일'), new File(['x'], '제안서.pdf', { type: 'application/pdf' }))

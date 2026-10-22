@@ -26,7 +26,7 @@ describe('상세와 mock 시계 (useToday)', () => {
 
   it('marks the overdue due date of the current next action by the mock clock date', async () => {
     const code = await dealCodeOf(3)
-    await renderAt(`/deals/${code}`)
+    await renderAt(`/deals/${code}?tab=actions`)
     const table = await screen.findByRole('table', { name: 'Action 목록' })
     const rows = within(table).getAllByRole('row').slice(1)
     expect(within(rows[0]!).getByText('기한초과')).toBeVisible()

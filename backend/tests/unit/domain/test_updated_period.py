@@ -3,7 +3,13 @@
 from datetime import date
 
 import pytest
-from app.domain.deal.updated_period import UpdatedPeriodPreset, months_before
+
+from app.domain.deal.updated_period import (
+    UpcomingPeriodPreset,
+    UpdatedPeriodPreset,
+    months_after,
+    months_before,
+)
 
 
 def test_presets_are_listed_in_api_order() -> None:
@@ -79,3 +85,65 @@ def test_months_before_twelve_lands_on_the_same_day_a_year_earlier() -> None:
 def test_negative_months_are_a_programming_error() -> None:
     with pytest.raises(ValueError, match="months"):
         months_before(date(2026, 10, 21), -1)
+
+
+def test_upcoming_presets_are_listed_in_api_order() -> None:
+    assert [p.value for p in UpcomingPeriodPreset] == ["1m", "2m"]
+
+
+@pytest.mark.parametrize(
+    ("preset", "end"),
+    [
+        (UpcomingPeriodPreset.ONE_MONTH, date(2026, 11, 22)),
+        (UpcomingPeriodPreset.TWO_MONTHS, date(2026, 12, 22)),
+    ],
+)
+def test_upcoming_range_starts_today_and_ends_n_months_later(
+    preset: UpcomingPeriodPreset, end: date
+) -> None:
+    today = date(2026, 10, 22)
+
+    assert preset.range_from(today) == (today, end)
+
+
+@pytest.mark.parametrize(
+    ("today", "preset", "end"),
+    [
+        (date(2026, 1, 31), UpcomingPeriodPreset.ONE_MONTH, date(2026, 2, 28)),
+        (date(2024, 1, 31), UpcomingPeriodPreset.ONE_MONTH, date(2024, 2, 29)),
+        (date(2026, 12, 31), UpcomingPeriodPreset.TWO_MONTHS, date(2027, 2, 28)),
+        (date(2026, 3, 31), UpcomingPeriodPreset.ONE_MONTH, date(2026, 4, 30)),
+        (date(2026, 7, 31), UpcomingPeriodPreset.TWO_MONTHS, date(2026, 9, 30)),
+    ],
+)
+def test_upcoming_missing_day_falls_back_to_month_end(
+    today: date, preset: UpcomingPeriodPreset, end: date
+) -> None:
+    assert preset.range_from(today) == (today, end)
+
+
+@pytest.mark.parametrize(
+    ("today", "preset", "end"),
+    [
+        (date(2026, 11, 15), UpcomingPeriodPreset.TWO_MONTHS, date(2027, 1, 15)),
+        (date(2026, 12, 1), UpcomingPeriodPreset.ONE_MONTH, date(2027, 1, 1)),
+    ],
+)
+def test_upcoming_range_crosses_the_year_boundary(
+    today: date, preset: UpcomingPeriodPreset, end: date
+) -> None:
+    assert preset.range_from(today) == (today, end)
+
+
+def test_months_after_zero_is_the_same_day() -> None:
+    assert months_after(date(2026, 10, 22), 0) == date(2026, 10, 22)
+
+
+def test_months_after_twelve_lands_on_the_same_day_a_year_later() -> None:
+    assert months_after(date(2026, 10, 22), 12) == date(2027, 10, 22)
+    assert months_after(date(2024, 2, 29), 12) == date(2025, 2, 28)
+
+
+def test_negative_months_after_is_a_programming_error() -> None:
+    with pytest.raises(ValueError, match="months"):
+        months_after(date(2026, 10, 22), -1)

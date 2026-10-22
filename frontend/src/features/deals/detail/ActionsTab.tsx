@@ -21,7 +21,7 @@ interface ActionsTabProps {
 
 type FormState = { mode: 'closed' } | { mode: 'create' } | { mode: 'edit'; action: DealAction }
 
-/** Actions 탭: 검색 + 목록 + Next Action 업데이트 폼(등록·수정) + 삭제 확인. */
+/** Actions 탭: 검색 + 목록 + Action 추가·수정 팝업 + 삭제 확인. */
 export function ActionsTab({ deal, canWrite, me, onNotice }: ActionsTabProps) {
   const [query, setQuery] = useState<ActionQuery>({})
   const [form, setForm] = useState<FormState>({ mode: 'closed' })
@@ -87,10 +87,10 @@ export function ActionsTab({ deal, canWrite, me, onNotice }: ActionsTabProps) {
 
   return (
     <div className="dd-page">
-      {canWrite && form.mode === 'closed' && (
+      {canWrite && (
         <div className="dd-row">
           <button type="button" className="primary" onClick={() => setForm({ mode: 'create' })}>
-            Next Action 업데이트
+            Action 추가
           </button>
         </div>
       )}

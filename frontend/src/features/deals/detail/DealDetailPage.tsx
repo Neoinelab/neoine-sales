@@ -22,11 +22,12 @@ import { SummaryBar } from './SummaryBar'
 import './detail.css'
 
 const TABS = [
+  { id: 'info', label: 'Deal 상세' },
   { id: 'actions', label: 'Actions' },
   { id: 'history', label: 'Deal History' },
 ] as const
 
-/** Deal 상세 `/deals/:dealCode`: 현재값 바 · 정보 카드 · 첨부 파일 · 하단 탭(Actions / Deal History) · 삭제. */
+/** Deal 상세 `/deals/:dealCode`: 머리 · 알림 · 현재값 바 · 탭 3개(Deal 상세: 정보 카드·첨부 파일 / Actions / Deal History, 기본은 Deal 상세) · 삭제. */
 export function DealDetailPage() {
   const { dealCode } = useParams()
   const navigate = useNavigate()
@@ -39,7 +40,9 @@ export function DealDetailPage() {
   const [deleting, setDeleting] = useState(false)
   const [deleted, setDeleted] = useState(false)
   const listPath = useDealListPath()
-  const tab = params.get('tab') === 'history' ? 'history' : 'actions'
+  const tabParam = params.get('tab')
+  // 모르는 값은 Deal 상세 탭이다.
+  const tab = tabParam === 'actions' || tabParam === 'history' ? tabParam : 'info'
 
   if (deleted) return null
   if (deal.isError) {
@@ -60,7 +63,7 @@ export function DealDetailPage() {
 
   function changeTab(id: string) {
     const next = new URLSearchParams(params)
-    if (id === 'history') next.set('tab', 'history')
+    if (id === 'actions' || id === 'history') next.set('tab', id)
     else next.delete('tab')
     setParams(next)
   }
@@ -93,12 +96,15 @@ export function DealDetailPage() {
         </Notice>
       )}
       <SummaryBar deal={data} canWrite={canWrite} onNotice={setNotice} />
-      <InfoCards deal={data} canWrite={canWrite} onNotice={setNotice} />
-      <AttachmentsPanel dealCode={data.code} me={me} canWrite={canWrite} />
       <Tabs label="상세 탭" tabs={TABS} active={tab} onChange={changeTab}>
-        {tab === 'history' ? (
-          <HistoryTab dealCode={data.code} />
-        ) : (
+        {tab === 'info' && (
+          <>
+            <InfoCards deal={data} canWrite={canWrite} onNotice={setNotice} />
+            <AttachmentsPanel dealCode={data.code} me={me} canWrite={canWrite} />
+          </>
+        )}
+        {tab === 'history' && <HistoryTab dealCode={data.code} />}
+        {tab === 'actions' && (
           <ActionsTab
             deal={data}
             canWrite={canWrite}

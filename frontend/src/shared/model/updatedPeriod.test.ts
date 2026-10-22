@@ -37,3 +37,15 @@ describe('selectedUpdatedPeriod (AC-18, AC-19)', () => {
     expect(selectedUpdatedPeriod(undefined, '2026-10-21', undefined)).toBe('custom')
   })
 })
+
+describe('isUpcomingKey', () => {
+  it('accepts only the upcoming keys', async () => {
+    const { isUpcomingKey } = await import('./updatedPeriod')
+
+    expect(isUpcomingKey('1m')).toBe(true)
+    expect(isUpcomingKey('2m')).toBe(true)
+    expect(isUpcomingKey('2w')).toBe(false)
+    expect(isUpcomingKey('3m')).toBe(false)
+    expect(isUpcomingKey('')).toBe(false)
+  })
+})

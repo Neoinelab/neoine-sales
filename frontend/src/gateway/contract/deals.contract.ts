@@ -318,6 +318,11 @@ export function dealsContract(make: MakeGateway): void {
       expect(result.periods[0]?.from).toBe(
         new Date(Date.parse(`${result.today}T00:00:00Z`) - 14 * 86_400_000).toISOString().slice(0, 10),
       )
+      expect(result.upcoming.map((p) => p.key)).toEqual(['1m', '2m'])
+      for (const period of result.upcoming) {
+        expect(period.from).toBe(result.today)
+        expect(period.to > period.from).toBe(true)
+      }
     })
 
     it('filters by a BANT label of one category', async () => {

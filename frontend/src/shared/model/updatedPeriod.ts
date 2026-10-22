@@ -1,9 +1,15 @@
-import type { UpdatedPeriodKey, UpdatedPeriods } from './types'
+import type { UpcomingPeriodKey, UpdatedPeriodKey, UpdatedPeriods } from './types'
 
 const KEYS: readonly string[] = ['2w', '1m', '2m', '3m', '6m']
 
 export function isPeriodKey(value: string): value is UpdatedPeriodKey {
   return KEYS.includes(value)
+}
+
+const UPCOMING_KEYS: readonly string[] = ['1m', '2m']
+
+export function isUpcomingKey(value: string): value is UpcomingPeriodKey {
+  return UPCOMING_KEYS.includes(value)
 }
 
 /** 'YYYY-MM-DD' 형식의 실제 달력 날짜인지(2026-02-30 같은 값은 아니다). */

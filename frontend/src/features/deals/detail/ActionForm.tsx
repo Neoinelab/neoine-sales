@@ -9,6 +9,7 @@ import { ACTION_TYPE_NAME_MAX_LENGTH } from '../../../shared/model/constants'
 import { userLabel } from '../../../shared/model/period'
 import type { DealAction, DealDetail } from '../../../shared/model/types'
 import { ErrorBanner } from '../../../shared/ui/ErrorBanner'
+import { Modal } from '../../../shared/ui/Modal'
 import { ActionTypeInput } from './ActionTypeInput'
 import { ActionSyncFields } from './ActionSyncFields'
 import { messageOf } from './detailHelpers'
@@ -64,7 +65,8 @@ function PreviousUpdate({ previous, onFill }: { previous: DealAction; onFill: (t
   )
 }
 
-/** Next Action 업데이트 폼(등록·수정). 등록은 Status 변경 시 동기화 팝업, 수정은 Deal History에 기록됨을 안내한다. */
+/** Action 추가·수정 팝업(Modal 안의 폼). 등록은 Status 변경 시 동기화 팝업(겹친 팝업), 수정은 Deal History에 기록됨을 안내한다.
+ * 저장 중에는 취소·Esc로 닫히지 않는다. 닫으면 입력은 버려진다. */
 export function ActionForm({ deal, editing, previous, onDone, onCancel }: ActionFormProps) {
   const codes = useCodeSet().data
   const me = useMe().data
@@ -91,7 +93,7 @@ export function ActionForm({ deal, editing, previous, onDone, onCancel }: Action
   const progressRef = useRef<HTMLTextAreaElement>(null)
   const dueRef = useRef<HTMLInputElement>(null)
   const busy = create.isPending || update.isPending
-  const title = editing ? 'Action 수정' : 'Next Action 업데이트'
+  const title = editing ? 'Action 수정' : 'Action 추가'
   const actor = editing ? userLabel(editing.actor) : (me?.name ?? '')
 
   function validate(): Errors {
@@ -143,10 +145,10 @@ export function ActionForm({ deal, editing, previous, onDone, onCancel }: Action
   const typeInput = <ActionTypeInput value={type} onChange={setType} error={errors.type} inputRef={typeRef} />
 
   return (
-    <>
-      <div className={editing ? 'dd-page' : 'dd-action-grid'}>
+    <Modal title={title} wide onClose={busy ? () => undefined : onCancel}>
+      <div className="dd-action-popup">
+        {!editing && previous && <PreviousUpdate previous={previous} onFill={setProgress} />}
         <form aria-label={title} className="dd-form" onSubmit={(e) => void submit(e)} noValidate>
-          <h3>{title}</h3>
           {editing && <p className="hint">수정한 내용은 Deal History에 기록됩니다. 등록 시점의 Status·Forecast는 바뀌지 않습니다.</p>}
           <p className="hint">
             {editing ? `수행일시: ${formatDateTime(editing.actedAt)}` : '업데이트 일자: 등록 시각으로 자동 기록'} · 담당자: {actor}
@@ -158,7 +160,7 @@ export function ActionForm({ deal, editing, previous, onDone, onCancel }: Action
           )}
           <label className="field">
             <span>진행사항</span>
-            <textarea ref={progressRef} value={progress} onChange={(e) => setProgress(e.target.value)} aria-invalid={errors.progress ? true : undefined} />
+            <textarea ref={progressRef} data-autofocus="" value={progress} onChange={(e) => setProgress(e.target.value)} aria-invalid={errors.progress ? true : undefined} />
           </label>
           <FieldError message={errors.progress} />
           <label className="field">
@@ -179,14 +181,13 @@ export function ActionForm({ deal, editing, previous, onDone, onCancel }: Action
             <button type="submit" className="primary" disabled={busy}>
               {editing ? '저장' : '등록'}
             </button>
-            <button type="button" onClick={onCancel}>
+            <button type="button" disabled={busy} onClick={onCancel}>
               취소
             </button>
           </div>
         </form>
-        {!editing && previous && <PreviousUpdate previous={previous} onFill={setProgress} />}
       </div>
       {sync.dialogs}
-    </>
+    </Modal>
   )
 }

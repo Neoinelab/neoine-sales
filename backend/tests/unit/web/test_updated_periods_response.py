@@ -49,7 +49,7 @@ async def test_every_role_gets_the_five_presets_with_from_and_to_keys(role: Role
 
     assert response.status_code == 200, response.text
     body = response.json()
-    assert set(body) == {"today", "periods"}
+    assert set(body) == {"today", "periods", "upcoming"}
     assert body["today"] == "2026-10-21"
     assert [p["key"] for p in body["periods"]] == ["2w", "1m", "2m", "3m", "6m"]
     assert all(set(p) == {"key", "from", "to"} for p in body["periods"])
@@ -57,6 +57,19 @@ async def test_every_role_gets_the_five_presets_with_from_and_to_keys(role: Role
     assert body["periods"][0]["from"] == "2026-10-07"
     assert body["periods"][4]["from"] == "2026-04-21"
     assert all(date.fromisoformat(p["from"]) for p in body["periods"])
+
+
+@pytest.mark.parametrize("role", list(Role))
+async def test_every_role_gets_the_upcoming_presets(role: Role) -> None:
+    async with _client(role=role) as http:
+        response = await http.get(URL)
+
+    assert response.status_code == 200, response.text
+    upcoming = response.json()["upcoming"]
+    assert [u["key"] for u in upcoming] == ["1m", "2m"]
+    assert all(set(u) == {"key", "from", "to"} for u in upcoming)
+    assert all(u["from"] == "2026-10-21" for u in upcoming)
+    assert [u["to"] for u in upcoming] == ["2026-11-21", "2026-12-21"]
 
 
 async def test_the_path_is_not_taken_for_a_deal_code() -> None:
@@ -86,3 +99,12 @@ async def test_openapi_documents_from_and_to_keys() -> None:
         if "UpdatedPeriod" in name and "properties" in s and "key" in s["properties"]
     )
     assert {"key", "from", "to"} <= set(period["properties"])
+
+
+async def test_openapi_documents_upcoming() -> None:
+    app = create_app(settings=make_settings(UNUSED_DATABASE_URL), use_cases=FakeUseCases())
+
+    schema = app.openapi()["components"]["schemas"]["UpdatedPeriodsResponse"]
+
+    assert "upcoming" in schema["properties"]
+    assert "upcoming" in schema["required"]

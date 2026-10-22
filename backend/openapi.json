@@ -3583,6 +3583,39 @@
         "title": "TallyResponse",
         "type": "object"
       },
+      "UpcomingPeriodPreset": {
+        "description": "향후 기한 프리셋. 값은 API 키이고 정의 순서가 응답 순서다.",
+        "enum": [
+          "1m",
+          "2m"
+        ],
+        "title": "UpcomingPeriodPreset",
+        "type": "string"
+      },
+      "UpcomingPeriodResponse": {
+        "properties": {
+          "from": {
+            "format": "date",
+            "title": "From",
+            "type": "string"
+          },
+          "key": {
+            "$ref": "#/components/schemas/UpcomingPeriodPreset"
+          },
+          "to": {
+            "format": "date",
+            "title": "To",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "from",
+          "to"
+        ],
+        "title": "UpcomingPeriodResponse",
+        "type": "object"
+      },
       "UpdatedPeriodPreset": {
         "description": "값은 API 키다. 정의 순서가 응답 순서다.",
         "enum": [
@@ -3632,11 +3665,19 @@
             "format": "date",
             "title": "Today",
             "type": "string"
+          },
+          "upcoming": {
+            "items": {
+              "$ref": "#/components/schemas/UpcomingPeriodResponse"
+            },
+            "title": "Upcoming",
+            "type": "array"
           }
         },
         "required": [
           "today",
-          "periods"
+          "periods",
+          "upcoming"
         ],
         "title": "UpdatedPeriodsResponse",
         "type": "object"

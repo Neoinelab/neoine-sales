@@ -19,6 +19,7 @@ if TYPE_CHECKING:
 
 UPDATED_PERIODS: Final = f"{DEALS}/updated-periods"
 PRESET_KEYS: Final = ["2w", "1m", "2m", "3m", "6m"]
+UPCOMING_KEYS: Final = ["1m", "2m"]
 
 
 def days_from_today(api: Api, offset: int) -> str:
@@ -42,6 +43,28 @@ def then_periods_follow_the_server_date(response: Response) -> None:
     for period in body["periods"]:
         start, end = UpdatedPeriodPreset(period["key"]).range_until(today)
         assert (period["from"], period["to"]) == (start.isoformat(), end.isoformat())
+    then_upcoming_follow_the_server_date(response)
+
+
+def then_upcoming_follow_the_server_date(response: Response) -> None:
+    """upcoming은 정해진 순서이고 각 범위가 도메인 규칙(오늘~N개월 뒤)과 같다."""
+    from app.domain.deal.updated_period import UpcomingPeriodPreset  # noqa: PLC0415 - 지연 import
+
+    assert response.status_code == 200, f"{response.status_code}: {response.text}"
+    today = business_date(active_clock().now())
+    upcoming = response.json()["upcoming"]
+    assert [u["key"] for u in upcoming] == UPCOMING_KEYS
+    for item in upcoming:
+        start, end = UpcomingPeriodPreset(item["key"]).range_from(today)
+        assert (item["from"], item["to"]) == (start.isoformat(), end.isoformat())
+
+
+def then_upcoming_ends_are(response: Response, today: date, expected: dict[str, date]) -> None:
+    assert response.status_code == 200, f"{response.status_code}: {response.text}"
+    upcoming = {u["key"]: u for u in response.json()["upcoming"]}
+    assert {k: upcoming[k]["from"] for k in expected} == {k: today.isoformat() for k in expected}
+    ends = {k: v.isoformat() for k, v in expected.items()}
+    assert {k: upcoming[k]["to"] for k in expected} == ends
 
 
 def then_period_starts_are(response: Response, expected: dict[str, date]) -> None:

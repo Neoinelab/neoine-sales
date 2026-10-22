@@ -16,7 +16,7 @@ const HINT = '목록에 없는 유형입니다. 저장하면 새 유형으로 �
 const bodyRows = (table: HTMLElement) => within(table).getAllByRole('row').slice(1)
 
 async function openEditForm() {
-  const view = await renderAt(await detailPath(1), { role: 'admin' }) // 이름 변경은 admin만
+  const view = await renderAt(await detailPath(1, '?tab=actions'), { role: 'admin' }) // 이름 변경은 admin만
   const table = await screen.findByRole('table', { name: 'Action 목록' })
   await view.user.click(within(bodyRows(table)[0]!).getByRole('button', { name: '수정' }))
   const form = screen.getByRole('form', { name: 'Action 수정' })
@@ -57,7 +57,7 @@ describe('유형 이름이 바뀐 뒤 목록이 재조회될 때의 수정 폼',
     await view.user.type(within(view.form).getByLabelText('진행사항'), ' 추가')
     await view.user.click(within(view.form).getByRole('button', { name: '저장' }))
 
-    await waitFor(() => expect(screen.queryByRole('form', { name: 'Action 수정' })).not.toBeInTheDocument())
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Action 수정' })).not.toBeInTheDocument())
     expect(update.mock.calls[0]?.[1].type).toEqual({ id: seedActionTypeId('협상') })
     expect(await gateway.actionTypes.list()).toHaveLength(typesBefore.length)
   })

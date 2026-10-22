@@ -125,6 +125,7 @@ describe('Admin의 Action 유형 변경이 Deal 상세에 반영된다 (AC-26·2
     await goTo(user, 'Deals')
     const dealLink = (await screen.findAllByRole('link')).find((a) => /^\/deals\/\d{8}-/.test(a.getAttribute('href') ?? ''))
     await user.click(dealLink!)
+    await user.click(await screen.findByRole('tab', { name: 'Actions' }))
     await screen.findByRole('table', { name: 'Action 목록' })
   }
 
@@ -136,8 +137,9 @@ describe('Admin의 Action 유형 변경이 Deal 상세에 반영된다 (AC-26·2
     await screen.findByText('웨비나')
 
     await openFirstDeal(user)
-    await user.click(await screen.findByRole('button', { name: 'Next Action 업데이트' }))
-    await user.click(within(screen.getByRole('form', { name: 'Next Action 업데이트' })).getByLabelText('유형'))
+    await user.click(await screen.findByRole('button', { name: 'Action 추가' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Action 추가' })
+    await user.click(within(within(dialog).getByRole('form', { name: 'Action 추가' })).getByLabelText('유형'))
 
     expect(within(await screen.findByRole('listbox', { name: '유형' })).getByRole('option', { name: '웨비나' })).toBeVisible()
   })
@@ -154,6 +156,7 @@ describe('Admin의 Action 유형 변경이 Deal 상세에 반영된다 (AC-26·2
 
     await goTo(user, 'Deals')
     await user.click(await screen.findByRole('link', { name: '한빛은행 ITDR 도입' }))
+    await user.click(await screen.findByRole('tab', { name: 'Actions' }))
     const table = await screen.findByRole('table', { name: 'Action 목록' })
 
     expect(await within(table).findByText('가격 협상')).toBeVisible()

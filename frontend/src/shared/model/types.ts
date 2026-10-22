@@ -20,11 +20,15 @@ export type * from './settings'
 
 /** 최종 업데이트 기간 프리셋 키(서버가 정한다). */
 export type UpdatedPeriodKey = '2w' | '1m' | '2m' | '3m' | '6m'
+/** 향후 기간 프리셋 키(서버가 정한다). */
+export type UpcomingPeriodKey = '1m' | '2m'
 export interface UpdatedPeriods {
   /** 서버 업무 날짜('YYYY-MM-DD'). */
   today: string
   /** 프리셋별 양끝 포함 날짜 범위. */
   periods: { key: UpdatedPeriodKey; from: string; to: string }[]
+  /** 향후 프리셋: 오늘부터 N개월 뒤까지(양끝 포함). */
+  upcoming: { key: UpcomingPeriodKey; from: string; to: string }[]
 }
 
 export type Role = 'admin' | 'sales' | 'user'

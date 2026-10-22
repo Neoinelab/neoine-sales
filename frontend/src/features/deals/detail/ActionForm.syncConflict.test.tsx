@@ -9,6 +9,7 @@ import {
   REVERTED_FORECAST,
   REVERTED_STATUS,
   statusSelect,
+  expectOnlyActionPopup,
 } from '../../../test/actionFormUtils'
 
 describe('두 번째 변경이 첫 변경과 충돌 (AC-16)', () => {
@@ -19,7 +20,7 @@ describe('두 번째 변경이 첫 변경과 충돌 (AC-16)', () => {
 
     await user.selectOptions(forecastSelect(form), 'Commit')
 
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expectOnlyActionPopup()
     expect(await within(form).findByRole('alert')).toHaveTextContent(CONFLICT)
     expect(statusSelect(form)).toHaveDisplayValue('계약완료')
     expect(forecastSelect(form)).toHaveDisplayValue('Won')
@@ -74,7 +75,7 @@ describe('대화상자 취소와 되돌리기 (AC-14·17)', () => {
     await user.selectOptions(forecastSelect(form), 'Commit')
     const dialog = await screen.findByRole('dialog', { name: '함께 바꿀 값 선택' })
     await user.click(within(dialog).getByRole('button', { name: '취소' }))
-    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    await waitFor(() => expectOnlyActionPopup())
 
     expect(statusSelect(form)).toHaveDisplayValue('기술평가')
     expect(forecastSelect(form)).toHaveDisplayValue('Lost')
@@ -87,7 +88,7 @@ describe('대화상자 취소와 되돌리기 (AC-14·17)', () => {
     await user.selectOptions(forecastSelect(form), 'Best')
 
     await user.selectOptions(statusSelect(form), '계약완료')
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expectOnlyActionPopup()
 
     expect(statusSelect(form)).toHaveDisplayValue('가격협상')
     expect(forecastSelect(form)).toHaveDisplayValue('Best')

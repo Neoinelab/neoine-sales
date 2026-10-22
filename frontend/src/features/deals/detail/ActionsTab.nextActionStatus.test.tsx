@@ -8,7 +8,7 @@ import { USER_ID } from '../../../test/fake/seed/ids'
 type View = Awaited<ReturnType<typeof renderAt>>
 
 async function openActions(role: 'sales' | 'admin' | 'user' = 'sales', userId?: number) {
-  const view = await renderAt(await detailPath(1), userId ? { userId } : { role })
+  const view = await renderAt(await detailPath(1, '?tab=actions'), userId ? { userId } : { role })
   await screen.findByRole('heading', { level: 1, name: '한빛은행 ITDR 도입' })
   const table = await screen.findByRole('table', { name: 'Action 목록' })
   return { ...view, table }
@@ -17,8 +17,8 @@ async function openActions(role: 'sales' | 'admin' | 'user' = 'sales', userId?: 
 const bodyRows = (table: HTMLElement) => within(table).getAllByRole('row').slice(1)
 
 async function openForm(user: View['user']) {
-  await user.click(screen.getByRole('button', { name: 'Next Action 업데이트' }))
-  return screen.getByRole('form', { name: 'Next Action 업데이트' })
+  await user.click(screen.getByRole('button', { name: 'Action 추가' }))
+  return screen.getByRole('form', { name: 'Action 추가' })
 }
 
 async function register(user: View['user'], form: HTMLElement, fill: { progress?: string; next?: string; due?: string }) {
@@ -320,7 +320,7 @@ describe('종료 상태 간 직접 전환 (사용자 결정 2026-10-20)', () => 
   })
 
   it('does not show switch buttons on a closed row to another sales', async () => {
-    const path = await detailPath(1)
+    const path = await detailPath(1, '?tab=actions')
     const park = await openActions('sales', USER_ID.park)
     const { gateway } = defaultMock
     const [first] = await gateway.actions.list(await dealCodeOf(1), {})

@@ -10,7 +10,7 @@ async function typeAction(user: Awaited<ReturnType<typeof renderAt>>['user'], fo
 }
 
 async function openActions(no: number, title: string, role: 'sales' | 'admin' | 'user' = 'sales') {
-  const view = await renderAt(await detailPath(no), { role })
+  const view = await renderAt(await detailPath(no, '?tab=actions'), { role })
   await screen.findByRole('heading', { level: 1, name: title })
   const table = await screen.findByRole('table', { name: 'Action 목록' })
   return { ...view, table }
@@ -58,11 +58,11 @@ describe('Actions 탭 목록 (T-ACTION-01)', () => {
   })
 })
 
-describe('Next Action 업데이트 등록 (T-ACTION-02~05)', () => {
+describe('Action 추가 등록 (T-ACTION-02~05)', () => {
   it('opens the form with the previous update as a read-only reference and an empty type', async () => {
     const { user } = await openActions(1, '한빛은행 ITDR 도입')
-    await user.click(screen.getByRole('button', { name: 'Next Action 업데이트' }))
-    const form = screen.getByRole('form', { name: 'Next Action 업데이트' })
+    await user.click(screen.getByRole('button', { name: 'Action 추가' }))
+    const form = screen.getByRole('form', { name: 'Action 추가' })
     expect(within(form).getByLabelText('유형')).toHaveDisplayValue('')
     expect(within(form).getByLabelText('Status')).toHaveDisplayValue('가격협상')
     const previous = screen.getByRole('complementary', { name: '이전 Update' })
@@ -73,15 +73,15 @@ describe('Next Action 업데이트 등록 (T-ACTION-02~05)', () => {
 
   it('fills the progress with the previous next action', async () => {
     const { user } = await openActions(1, '한빛은행 ITDR 도입')
-    await user.click(screen.getByRole('button', { name: 'Next Action 업데이트' }))
+    await user.click(screen.getByRole('button', { name: 'Action 추가' }))
     await user.click(screen.getByRole('button', { name: '이전 Next Action을 진행사항에 채우기' }))
     expect(screen.getByLabelText('진행사항')).toHaveValue('계약서 초안 검토')
   })
 
   it('registers an action at the top of the list and refreshes the summary bar', async () => {
     const { user, table } = await openActions(1, '한빛은행 ITDR 도입')
-    await user.click(screen.getByRole('button', { name: 'Next Action 업데이트' }))
-    const form = screen.getByRole('form', { name: 'Next Action 업데이트' })
+    await user.click(screen.getByRole('button', { name: 'Action 추가' }))
+    const form = screen.getByRole('form', { name: 'Action 추가' })
     await typeAction(user, form, '미팅')
     await user.type(within(form).getByLabelText('진행사항'), '법무팀 계약 검토 미팅')
     await user.type(within(form).getByLabelText('Next Action'), '날인본 수령')
@@ -91,7 +91,7 @@ describe('Next Action 업데이트 등록 (T-ACTION-02~05)', () => {
     await waitFor(() => expect(bodyRows(table)[0]).toHaveTextContent('법무팀 계약 검토 미팅'))
     expect(bodyRows(table)[0]).toHaveTextContent('날인본 수령')
     expect(bodyRows(table)[0]).toHaveTextContent('2026-12-20')
-    expect(screen.queryByRole('form', { name: 'Next Action 업데이트' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('dialog', { name: 'Action 추가' })).not.toBeInTheDocument()
     const bar = screen.getByRole('region', { name: 'Deal 정보' })
     expect(within(bar).getByText(/날인본 수령/)).toBeVisible()
     expect(screen.getByText('Action이 등록되었습니다.')).toBeVisible()
@@ -99,8 +99,8 @@ describe('Next Action 업데이트 등록 (T-ACTION-02~05)', () => {
 
   it('shows the type, "progress or Next Action" and Due Date messages and focuses the type first (AC-27)', async () => {
     const { user } = await openActions(1, '한빛은행 ITDR 도입')
-    await user.click(screen.getByRole('button', { name: 'Next Action 업데이트' }))
-    const form = screen.getByRole('form', { name: 'Next Action 업데이트' })
+    await user.click(screen.getByRole('button', { name: 'Action 추가' }))
+    const form = screen.getByRole('form', { name: 'Action 추가' })
     await user.click(within(form).getByRole('button', { name: '등록' }))
     expect(within(form).getByText('유형을 입력하세요.')).toBeVisible()
     expect(within(form).getByText('진행사항 또는 Next Action을 입력하세요.')).toBeVisible()
@@ -114,8 +114,8 @@ describe('Next Action 업데이트 등록 (T-ACTION-02~05)', () => {
 
   it('accepts a past due date', async () => {
     const { user, table } = await openActions(2, '대한제조 MFA 확대')
-    await user.click(screen.getByRole('button', { name: 'Next Action 업데이트' }))
-    const form = screen.getByRole('form', { name: 'Next Action 업데이트' })
+    await user.click(screen.getByRole('button', { name: 'Action 추가' }))
+    const form = screen.getByRole('form', { name: 'Action 추가' })
     await typeAction(user, form, '기타')
     await user.type(within(form).getByLabelText('진행사항'), '지난 일정 정리')
     await user.type(within(form).getByLabelText('Next Action'), '후속 확인')
@@ -127,17 +127,17 @@ describe('Next Action 업데이트 등록 (T-ACTION-02~05)', () => {
   it('cancels the form without registering anything', async () => {
     const { user, table } = await openActions(1, '한빛은행 ITDR 도입')
     const before = bodyRows(table).length
-    await user.click(screen.getByRole('button', { name: 'Next Action 업데이트' }))
+    await user.click(screen.getByRole('button', { name: 'Action 추가' }))
     await user.type(screen.getByLabelText('진행사항'), '버릴 내용')
     await user.click(screen.getByRole('button', { name: '취소' }))
-    expect(screen.queryByRole('form', { name: 'Next Action 업데이트' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('dialog', { name: 'Action 추가' })).not.toBeInTheDocument()
     expect(bodyRows(table)).toHaveLength(before)
   })
 
   it('stores the status at registration time when the status is changed in the form (sync popup)', async () => {
     const { user, table } = await openActions(1, '한빛은행 ITDR 도입')
-    await user.click(screen.getByRole('button', { name: 'Next Action 업데이트' }))
-    const form = screen.getByRole('form', { name: 'Next Action 업데이트' })
+    await user.click(screen.getByRole('button', { name: 'Action 추가' }))
+    const form = screen.getByRole('form', { name: 'Action 추가' })
     await user.selectOptions(within(form).getByLabelText('Status'), '계약완료')
     const dialog = await screen.findByRole('dialog', { name: '매출 확정' })
     await user.clear(within(dialog).getByLabelText('매출금액(단위:천원, 실제 값)'))
@@ -161,12 +161,13 @@ describe('Next Action 업데이트 등록 (T-ACTION-02~05)', () => {
 
   it('keeps the status when the sync popup in the form is cancelled', async () => {
     const { user } = await openActions(1, '한빛은행 ITDR 도입')
-    await user.click(screen.getByRole('button', { name: 'Next Action 업데이트' }))
-    const form = screen.getByRole('form', { name: 'Next Action 업데이트' })
+    await user.click(screen.getByRole('button', { name: 'Action 추가' }))
+    const form = screen.getByRole('form', { name: 'Action 추가' })
     await user.selectOptions(within(form).getByLabelText('Status'), '계약완료')
     const dialog = await screen.findByRole('dialog', { name: '매출 확정' })
     await user.click(within(dialog).getByRole('button', { name: '취소' }))
-    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: '매출 확정' })).not.toBeInTheDocument())
+    expect(screen.getByRole('dialog', { name: 'Action 추가' })).toBeVisible()
     expect(within(form).getByLabelText('Status')).toHaveDisplayValue('가격협상')
     expect(within(form).queryByText(/저장하면 반영됩니다/)).not.toBeInTheDocument()
   })
@@ -225,7 +226,7 @@ describe('Action 수정·삭제 (T-ACTION-06~07)', () => {
 
   it('shows a viewer the actions without register, edit or delete controls', async () => {
     const { table } = await openActions(1, '한빛은행 ITDR 도입', 'user')
-    expect(screen.queryByRole('button', { name: 'Next Action 업데이트' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Action 추가' })).not.toBeInTheDocument()
     expect(within(table).queryByRole('button', { name: '수정' })).not.toBeInTheDocument()
     expect(within(table).queryByRole('button', { name: '삭제' })).not.toBeInTheDocument()
     expect(bodyRows(table).length).toBeGreaterThan(1)
@@ -240,8 +241,13 @@ describe('Actions 검색 (T-ACTION-08~09)', () => {
 
   it('offers the six conditions', async () => {
     const { form } = await search()
-    for (const label of ['유형', '담당자', '키워드', '수행일 시작', '수행일 끝', '기한 시작', '기한 끝', '정렬']) {
+    for (const label of ['유형', '담당자', '키워드', '수행일', '기한', '정렬']) {
       expect(within(form).getByLabelText(label)).toBeVisible()
+    }
+    expect(within(form).getByLabelText('수행일')).toHaveDisplayValue('전체')
+    expect(within(form).getByLabelText('기한')).toHaveDisplayValue('전체')
+    for (const label of ['수행일 시작', '수행일 끝', '기한 시작', '기한 끝']) {
+      expect(within(form).queryByLabelText(label)).not.toBeInTheDocument()
     }
   })
 
@@ -284,11 +290,13 @@ describe('Actions 검색 (T-ACTION-08~09)', () => {
 
   it('filters by a due date range and an acted date range', async () => {
     const { user, form } = await search()
+    await user.selectOptions(within(form).getByLabelText('기한'), '직접 지정')
     await user.type(within(form).getByLabelText('기한 시작'), '2100-01-01')
     await user.click(within(form).getByRole('button', { name: '검색' }))
     expect(await screen.findByText('조건에 맞는 Action이 없습니다.')).toBeVisible()
     await user.click(within(form).getByRole('button', { name: '초기화' }))
     expect(await screen.findByRole('table', { name: 'Action 목록' })).toBeVisible()
+    await user.selectOptions(within(form).getByLabelText('수행일'), '직접 지정')
     await user.type(within(form).getByLabelText('수행일 끝'), '2000-01-01')
     await user.click(within(form).getByRole('button', { name: '검색' }))
     expect(await screen.findByText('조건에 맞는 Action이 없습니다.')).toBeVisible()
@@ -311,7 +319,7 @@ describe('Action 수정·삭제 버튼 권한 (AC-25, Q8)', () => {
   const DELETE_TITLE = '본인 Action 또는 admin만 삭제할 수 있습니다.'
 
   async function openAs(userId: number) {
-    const view = await renderAt(await detailPath(1), { userId })
+    const view = await renderAt(await detailPath(1, '?tab=actions'), { userId })
     await screen.findByRole('heading', { level: 1, name: '한빛은행 ITDR 도입' })
     const table = await screen.findByRole('table', { name: 'Action 목록' })
     return { ...view, table }
@@ -348,7 +356,7 @@ describe('Action 수정·삭제 버튼 권한 (AC-25, Q8)', () => {
     const { table } = await openAs(USER_ID.park)
 
     expect(within(table).getByRole('columnheader', { name: '관리' })).toBeVisible()
-    expect(screen.getByRole('button', { name: 'Next Action 업데이트' })).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Action 추가' })).toBeVisible()
   })
 
   it('does not open the edit form when a disabled edit button is clicked', async () => {
@@ -356,7 +364,7 @@ describe('Action 수정·삭제 버튼 권한 (AC-25, Q8)', () => {
 
     await user.click(within(bodyRows(table)[0]!).getByRole('button', { name: '수정' }))
 
-    expect(screen.queryByRole('form', { name: 'Action 수정' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('dialog', { name: 'Action 수정' })).not.toBeInTheDocument()
   })
 
   it('enables both buttons on every row for admin, including actions of other users', async () => {
@@ -370,8 +378,8 @@ describe('Action 수정·삭제 버튼 권한 (AC-25, Q8)', () => {
 
   it('enables only the rows of the viewer when rows of two different users are mixed', async () => {
     const { user, table } = await openAs(USER_ID.park)
-    await user.click(screen.getByRole('button', { name: 'Next Action 업데이트' }))
-    const form = screen.getByRole('form', { name: 'Next Action 업데이트' })
+    await user.click(screen.getByRole('button', { name: 'Action 추가' }))
+    const form = screen.getByRole('form', { name: 'Action 추가' })
     await typeAction(user, form, '통화')
     await user.type(within(form).getByLabelText('진행사항'), '박영업 후속 연락')
     await user.type(within(form).getByLabelText('Next Action'), '미팅 일정 확정')

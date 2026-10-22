@@ -18,18 +18,18 @@ const LOAD_ERROR = '유형 목록을 불러오지 못했습니다.'
 const bodyRows = (table: HTMLElement) => within(table).getAllByRole('row').slice(1)
 
 async function openAddForm() {
-  const view = await renderAt(await detailPath(1), { role: 'sales' })
+  const view = await renderAt(await detailPath(1, '?tab=actions'), { role: 'sales' })
   await screen.findByRole('heading', { level: 1, name: '한빛은행 ITDR 도입' })
   await screen.findByRole('table', { name: 'Action 목록' })
-  await view.user.click(screen.getByRole('button', { name: 'Next Action 업데이트' }))
-  const form = screen.getByRole('form', { name: 'Next Action 업데이트' })
+  await view.user.click(screen.getByRole('button', { name: 'Action 추가' }))
+  const form = screen.getByRole('form', { name: 'Action 추가' })
   return { ...view, form, type: within(form).getByLabelText('유형') }
 }
 
 describe('수정 폼에서 건드리지 않은 유형', () => {
   it('is sent as the original id and creates no type when an admin renamed it after the form was opened', async () => {
     const update = vi.spyOn(gateway.actions, 'update')
-    const view = await renderAt(await detailPath(1), { role: 'admin' }) // 이름 변경은 admin만
+    const view = await renderAt(await detailPath(1, '?tab=actions'), { role: 'admin' }) // 이름 변경은 admin만
     const table = await screen.findByRole('table', { name: 'Action 목록' })
     await view.user.click(within(bodyRows(table)[0]!).getByRole('button', { name: '수정' }))
     const form = screen.getByRole('form', { name: 'Action 수정' })
@@ -42,7 +42,7 @@ describe('수정 폼에서 건드리지 않은 유형', () => {
     await view.user.type(within(form).getByLabelText('진행사항'), ' 추가')
     await view.user.click(within(form).getByRole('button', { name: '저장' }))
 
-    await waitFor(() => expect(screen.queryByRole('form', { name: 'Action 수정' })).not.toBeInTheDocument())
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Action 수정' })).not.toBeInTheDocument())
     expect(update.mock.calls[0]?.[1].type).toEqual({ id: seedActionTypeId('협상') })
     const typesAfter = await gateway.actionTypes.list()
     expect(typesAfter).toHaveLength(typesBefore.length)

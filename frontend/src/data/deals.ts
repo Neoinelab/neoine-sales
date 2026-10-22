@@ -38,6 +38,21 @@ export function useUpdatedPeriods(): Query<UpdatedPeriods> {
   })
 }
 
+/**
+ * 기간 프리셋을 캐시 없이 서버에서 새로 받는 함수. 자정이 지났을 수 있어 선택·검색 시점마다 쓴다.
+ * 호출마다 별개의 요청이라(진행 중인 요청에 합쳐지지 않는다) 늦게 온 이전 응답은 호출처가 순번으로 버린다.
+ * 성공하면 캐시(`keys.updatedPeriods`)도 새 값으로 바꾼다(캐시가 더 새 날짜면 유지). 실패하면 reject한다(호출처가 오류를 보인다).
+ */
+export function useFreshUpdatedPeriods(): () => Promise<UpdatedPeriods> {
+  const queryClient = useQueryClient()
+  return async () => {
+    const fresh = await gateway.deals.updatedPeriods()
+    // 늦게 온 이전 응답이 더 새 날짜의 캐시를 덮어쓰지 않게 한다(today는 YYYY-MM-DD라 문자열 비교로 충분).
+    queryClient.setQueryData<UpdatedPeriods>(keys.updatedPeriods, (cached) => (cached && cached.today > fresh.today ? cached : fresh))
+    return fresh
+  }
+}
+
 /** gateway.deals.get(code). 키 keys.deal(code). code가 undefined면 비활성. 없으면 ApiError 404. */
 export function useDeal(code: string | undefined): Query<DealDetail> {
   return useQuery<DealDetail, ApiError>({

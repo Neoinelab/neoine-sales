@@ -2158,6 +2158,26 @@ export interface components {
             count: number;
         };
         /**
+         * UpcomingPeriodPreset
+         * @description 향후 기한 프리셋. 값은 API 키이고 정의 순서가 응답 순서다.
+         * @enum {string}
+         */
+        UpcomingPeriodPreset: "1m" | "2m";
+        /** UpcomingPeriodResponse */
+        UpcomingPeriodResponse: {
+            /**
+             * From
+             * Format: date
+             */
+            from: string;
+            key: components["schemas"]["UpcomingPeriodPreset"];
+            /**
+             * To
+             * Format: date
+             */
+            to: string;
+        };
+        /**
          * UpdatedPeriodPreset
          * @description 값은 API 키다. 정의 순서가 응답 순서다.
          * @enum {string}
@@ -2186,6 +2206,8 @@ export interface components {
              * Format: date
              */
             today: string;
+            /** Upcoming */
+            upcoming: components["schemas"]["UpcomingPeriodResponse"][];
         };
         /**
          * UserDeleteReason

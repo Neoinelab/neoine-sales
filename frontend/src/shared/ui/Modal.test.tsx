@@ -77,6 +77,101 @@ describe('Modal', () => {
   })
 })
 
+describe('겹친 Modal', () => {
+  /** 바깥 Modal 안에서 버튼으로 안쪽 Modal을 연다(실제 화면의 동기화 팝업처럼 나중에 마운트된다). */
+  function Stacked({ onOuter, onInner }: { onOuter: () => void; onInner: () => void }) {
+    const [innerOpen, setInnerOpen] = useState(false)
+    return (
+      <Modal title="바깥" onClose={onOuter}>
+        {innerOpen && (
+          <Modal
+            title="안쪽"
+            onClose={() => {
+              onInner()
+              setInnerOpen(false)
+            }}
+          >
+            <button type="button">안쪽 첫째</button>
+            <button type="button">안쪽 둘째</button>
+          </Modal>
+        )}
+        <button type="button" onClick={() => setInnerOpen(true)}>
+          안쪽 열기
+        </button>
+        <button type="button">바깥 끝</button>
+      </Modal>
+    )
+  }
+
+  async function openInner() {
+    await userEvent.click(screen.getByRole('button', { name: '안쪽 열기' }))
+    expect(screen.getByRole('dialog', { name: '안쪽' })).toBeInTheDocument()
+  }
+
+  it('only the top modal handles escape', async () => {
+    const onOuter = vi.fn()
+    const onInner = vi.fn()
+    render(<Stacked onOuter={onOuter} onInner={onInner} />)
+    await openInner()
+
+    await userEvent.keyboard('{Escape}')
+
+    expect(onInner).toHaveBeenCalledTimes(1)
+    expect(onOuter).not.toHaveBeenCalled()
+    expect(screen.queryByRole('dialog', { name: '안쪽' })).not.toBeInTheDocument()
+    expect(screen.getByRole('dialog', { name: '바깥' })).toBeInTheDocument()
+  })
+
+  it('hands escape to the outer modal once the inner one is gone', async () => {
+    const onOuter = vi.fn()
+    render(<Stacked onOuter={onOuter} onInner={() => {}} />)
+    await openInner()
+
+    await userEvent.keyboard('{Escape}')
+    expect(onOuter).not.toHaveBeenCalled()
+    await userEvent.keyboard('{Escape}')
+
+    expect(onOuter).toHaveBeenCalledTimes(1)
+  })
+
+  it('tab cycles inside the top modal only', async () => {
+    render(<Stacked onOuter={() => {}} onInner={() => {}} />)
+    await openInner()
+    expect(screen.getByRole('button', { name: '안쪽 첫째' })).toHaveFocus()
+    await userEvent.tab() // 안쪽 둘째(마지막)
+    expect(screen.getByRole('button', { name: '안쪽 둘째' })).toHaveFocus()
+
+    await userEvent.tab()
+
+    expect(screen.getByRole('button', { name: '안쪽 첫째' })).toHaveFocus()
+  })
+
+  it('shift+tab from the first element of the top modal wraps to its last element', async () => {
+    render(<Stacked onOuter={() => {}} onInner={() => {}} />)
+    await openInner()
+
+    await userEvent.tab({ shift: true })
+
+    expect(screen.getByRole('button', { name: '안쪽 둘째' })).toHaveFocus()
+  })
+
+  it('does not leave the stack dirty after unmount: a later single modal still closes on escape', async () => {
+    const first = render(<Stacked onOuter={() => {}} onInner={() => {}} />)
+    await openInner()
+    first.unmount()
+    const onClose = vi.fn()
+    render(
+      <Modal title="새 모달" onClose={onClose}>
+        <button type="button">내용</button>
+      </Modal>,
+    )
+
+    await userEvent.keyboard('{Escape}')
+
+    expect(onClose).toHaveBeenCalledTimes(1)
+  })
+})
+
 describe('ConfirmDialog', () => {
   it('shows the message and calls the handlers', async () => {
     const onConfirm = vi.fn()

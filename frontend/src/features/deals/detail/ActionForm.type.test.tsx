@@ -18,11 +18,11 @@ const DEFAULTS = ['통화', '미팅', '이메일', '데모', '제안', '협상',
 type View = Awaited<ReturnType<typeof renderAt>>
 
 async function openForm(role: 'sales' | 'admin' = 'sales') {
-  const view = await renderAt(await detailPath(1), { role })
+  const view = await renderAt(await detailPath(1, '?tab=actions'), { role })
   await screen.findByRole('heading', { level: 1, name: '한빛은행 ITDR 도입' })
   const table = await screen.findByRole('table', { name: 'Action 목록' })
-  await view.user.click(screen.getByRole('button', { name: 'Next Action 업데이트' }))
-  const form = screen.getByRole('form', { name: 'Next Action 업데이트' })
+  await view.user.click(screen.getByRole('button', { name: 'Action 추가' }))
+  const form = screen.getByRole('form', { name: 'Action 추가' })
   return { ...view, table, form, type: within(form).getByLabelText('유형') }
 }
 
@@ -128,7 +128,7 @@ describe('후보 목록과 필터 (AC-25)', () => {
     await user.keyboard('{ArrowDown}{ArrowDown}{Enter}')
 
     expect(type).toHaveDisplayValue('미팅')
-    expect(screen.getByRole('form', { name: 'Next Action 업데이트' })).toBeVisible()
+    expect(screen.getByRole('form', { name: 'Action 추가' })).toBeVisible()
     expect(screen.queryByText('진행사항을 입력하세요.')).not.toBeInTheDocument()
   })
 
@@ -140,6 +140,18 @@ describe('후보 목록과 필터 (AC-25)', () => {
     await user.keyboard('{Escape}')
 
     expect(screen.queryByRole('listbox', { name: '유형' })).not.toBeInTheDocument()
+  })
+
+  it('escape closes the type suggestions but not the dialog', async () => {
+    const { user, type } = await openForm()
+    await user.type(type, '미')
+    await screen.findByRole('listbox', { name: '유형' })
+
+    await user.keyboard('{Escape}')
+
+    expect(screen.queryByRole('listbox', { name: '유형' })).not.toBeInTheDocument()
+    expect(screen.getByRole('dialog', { name: 'Action 추가' })).toBeVisible()
+    expect(type).toHaveDisplayValue('미')
   })
 })
 
@@ -173,8 +185,8 @@ describe('없는 유형 안내와 저장 (AC-26)', () => {
 
     await waitFor(() => expect(bodyRows(view.table)[0]).toHaveTextContent('웨비나'))
     expect(create.mock.calls[0]?.[1].type).toEqual({ name: '웨비나' })
-    await view.user.click(screen.getByRole('button', { name: 'Next Action 업데이트' }))
-    await view.user.click(within(screen.getByRole('form', { name: 'Next Action 업데이트' })).getByLabelText('유형'))
+    await view.user.click(screen.getByRole('button', { name: 'Action 추가' }))
+    await view.user.click(within(screen.getByRole('form', { name: 'Action 추가' })).getByLabelText('유형'))
     await waitFor(() => expect(optionNames()).toContain('웨비나'))
   })
 
@@ -221,7 +233,7 @@ describe('없는 유형 안내와 저장 (AC-26)', () => {
     await view.user.click(within(view.form).getByRole('button', { name: '등록' }))
 
     expect(await within(view.form).findByRole('alert')).toHaveTextContent('선택한 유형이 없습니다. 목록에서 다시 선택하세요.')
-    expect(screen.getByRole('form', { name: 'Next Action 업데이트' })).toBeVisible()
+    expect(screen.getByRole('form', { name: 'Action 추가' })).toBeVisible()
   })
 })
 
@@ -264,7 +276,7 @@ describe('유형 검증과 수정 폼 (AC-27)', () => {
   })
 
   it('prefills the current type name when editing and saves a changed one with history', async () => {
-    const view = await renderAt(await detailPath(1), { role: 'sales' })
+    const view = await renderAt(await detailPath(1, '?tab=actions'), { role: 'sales' })
     const table = await screen.findByRole('table', { name: 'Action 목록' })
     await view.user.click(within(bodyRows(table)[0]!).getByRole('button', { name: '수정' }))
     const form = screen.getByRole('form', { name: 'Action 수정' })
@@ -282,21 +294,21 @@ describe('유형 검증과 수정 폼 (AC-27)', () => {
   })
 
   it('does not ask for a type again when editing and leaving it as it is', async () => {
-    const view = await renderAt(await detailPath(1), { role: 'sales' })
+    const view = await renderAt(await detailPath(1, '?tab=actions'), { role: 'sales' })
     const table = await screen.findByRole('table', { name: 'Action 목록' })
     await view.user.click(within(bodyRows(table)[1]!).getByRole('button', { name: '수정' }))
     const form = screen.getByRole('form', { name: 'Action 수정' })
 
     await view.user.click(within(form).getByRole('button', { name: '저장' }))
 
-    await waitFor(() => expect(screen.queryByRole('form', { name: 'Action 수정' })).not.toBeInTheDocument())
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Action 수정' })).not.toBeInTheDocument())
     expect(screen.getByText('Action이 수정되었습니다.')).toBeVisible()
   })
 })
 
 describe('표와 검색 바의 유형 (AC-28)', () => {
   async function openSearch(role: 'sales' | 'admin' = 'sales') {
-    const view = await renderAt(await detailPath(1), { role })
+    const view = await renderAt(await detailPath(1, '?tab=actions'), { role })
     const table = await screen.findByRole('table', { name: 'Action 목록' })
     const search = screen.getByRole('search', { name: 'Action 검색' })
     return { ...view, table, search, select: within(search).getByLabelText('유형') }
