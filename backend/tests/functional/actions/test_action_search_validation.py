@@ -66,7 +66,7 @@ async def test_equal_range_bounds_are_allowed(api: Api) -> None:
 @pytest.mark.parametrize(
     "params",
     [
-        pytest.param({"sort": "due_date_desc"}, id="retired-sort"),
+        pytest.param({"sort": "actor"}, id="sort-without-direction"),
         pytest.param({"sort": "created_asc"}, id="unknown-sort"),
         pytest.param({"sort": "DUE_DATE_ASC"}, id="sort-is-case-sensitive"),
         pytest.param({"offset": 0}, id="offset-is-gone"),

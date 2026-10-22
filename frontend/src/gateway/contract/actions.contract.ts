@@ -365,11 +365,41 @@ export function actionsContract(make: MakeGateway): void {
       const early = await sales.actions.create(deal.code, action({ dueDate: '2026-12-02' }))
       const middle = await sales.actions.create(deal.code, action({ dueDate: '2026-12-15' }))
 
-      const byDue = (await sales.actions.list(deal.code, { sort: 'dueAsc' })).map((a) => a.id)
+      const byDue = (await sales.actions.list(deal.code, { sort: 'dueDate', order: 'asc' })).map((a) => a.id)
+      const byDueDesc = (await sales.actions.list(deal.code, { sort: 'dueDate', order: 'desc' })).map((a) => a.id)
       const byDefault = (await sales.actions.list(deal.code, {})).map((a) => a.id)
 
       expect(byDue).toEqual([early.id, middle.id, late.id])
+      expect(byDueDesc).toEqual([late.id, middle.id, early.id])
       expect(byDefault).toEqual([middle.id, early.id, late.id])
+      await sales.deals.remove(deal.code, deal.code)
+    })
+
+    it('sorts by type name case-insensitively in either direction, with the same ties kept newest first', async () => {
+      const sales = await make('sales')
+      const deal = await newDeal(sales)
+      const beta = await sales.actions.create(deal.code, action({ type: { name: 'Beta' } }))
+      const call = await sales.actions.create(deal.code, action({ type: { name: '통화' } }))
+      const alpha = await sales.actions.create(deal.code, action({ type: { name: 'alpha' } }))
+      const meeting = await sales.actions.create(deal.code, action({ type: { name: '미팅' } }))
+      const ids = async (order: 'asc' | 'desc') => (await sales.actions.list(deal.code, { sort: 'type', order })).map((a) => a.id)
+
+      expect(await ids('asc')).toEqual([alpha.id, beta.id, meeting.id, call.id])
+      expect(await ids('desc')).toEqual([call.id, meeting.id, beta.id, alpha.id])
+      await sales.deals.remove(deal.code, deal.code)
+    })
+
+    it('sorts by actor name and keeps the newest first among the same actor in both directions', async () => {
+      const sales = await make('sales')
+      const deal = await newDeal(sales)
+      const older = await sales.actions.create(deal.code, action({ progress: '먼저' }))
+      const newer = await sales.actions.create(deal.code, action({ progress: '나중' }))
+
+      const asc = (await sales.actions.list(deal.code, { sort: 'actor', order: 'asc' })).map((a) => a.id)
+      const desc = (await sales.actions.list(deal.code, { sort: 'actor', order: 'desc' })).map((a) => a.id)
+
+      expect(asc).toEqual([newer.id, older.id])
+      expect(desc).toEqual([newer.id, older.id])
       await sales.deals.remove(deal.code, deal.code)
     })
 

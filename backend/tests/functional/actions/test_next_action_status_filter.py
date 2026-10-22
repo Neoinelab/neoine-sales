@@ -102,3 +102,22 @@ async def test_a_status_outside_the_allowed_values_is_rejected(api: Api, value: 
     response = await when_list_actions(api, code, next_action_status=value)
     # Then
     then_problem_is(response, status=422, type_suffix="request-validation")
+
+
+@pytest.mark.parametrize(
+    ("sort", "expected"),
+    [
+        pytest.param("next_action_status_asc", ["열림", "수행", "미수행", "진행만"], id="asc"),
+        pytest.param("next_action_status_desc", ["미수행", "수행", "열림", "진행만"], id="desc"),
+    ],
+)
+async def test_status_sort_orders_open_done_not_done_with_no_status_last(
+    api: Api, sort: str, expected: list[str]
+) -> None:
+    """Scenario: 상태 정렬은 Open, 수행, 미수행 순이고 상태 없음은 방향과 관계없이 맨 뒤다."""
+    # Given
+    code = await _deal_with_four_actions(api)
+    # When
+    response = await when_list_actions(api, code, sort=sort)
+    # Then
+    then_action_names_are(response, expected)

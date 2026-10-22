@@ -27,9 +27,18 @@ beforeEach(() => {
   current = newMock()
 })
 
+/**
+ * 실제 서버는 Action마다 수행 시각이 다르다. 고정 시계의 mock에서는 같은 시각이 되어 동률(id 오름차순) 규칙이
+ * 최신순 기대를 가리므로, Action을 만들기 전에 시계를 1초 보낸다.
+ */
 const makeMock: MakeGateway = async (role) => {
-  await current.gateway.auth.quickLogin(ROLE_USER_ID[role])
-  return current.gateway
+  const { gateway } = current
+  await gateway.auth.quickLogin(ROLE_USER_ID[role])
+  const create: typeof gateway.actions.create = (dealCode, input) => {
+    current.clock.advance(1000)
+    return gateway.actions.create(dealCode, input)
+  }
+  return { ...gateway, actions: { ...gateway.actions, create } }
 }
 
 codesContract(makeMock)

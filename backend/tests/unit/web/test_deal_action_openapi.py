@@ -100,7 +100,7 @@ def test_response_exposes_the_snapshot_and_nullable_plan_fields(schema: dict[str
     assert "actor_user_id" not in props
 
 
-def test_search_documents_the_date_filters_and_the_three_sorts_without_paging(
+def test_search_documents_the_date_filters_and_the_sorts_without_paging(
     schema: dict[str, Any],
 ) -> None:
     operation = schema["paths"]["/api/v1/deals/{code}/actions"]["get"]
@@ -119,7 +119,18 @@ def test_search_documents_the_date_filters_and_the_three_sorts_without_paging(
     assert not {"offset", "limit", "deal_code", "action_type"} & set(params)
     assert params["sort"]["required"] is False
     sort_schema = schema["components"]["schemas"]["DealActionSort"]
-    assert sort_schema["enum"] == ["acted_at_desc", "acted_at_asc", "due_date_asc"]
+    assert sort_schema["enum"] == [
+        "acted_at_desc",
+        "acted_at_asc",
+        "due_date_asc",
+        "due_date_desc",
+        "actor_asc",
+        "actor_desc",
+        "action_type_asc",
+        "action_type_desc",
+        "next_action_status_asc",
+        "next_action_status_desc",
+    ]
 
 
 def test_the_list_response_is_an_items_object_without_a_page(schema: dict[str, Any]) -> None:

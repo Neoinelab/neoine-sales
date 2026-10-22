@@ -23,7 +23,7 @@ async function renderTable(risk: Risk, clockNow = NOW) {
   expect(deal.nextAction).not.toBeNull()
   render(
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-      <ActionTable actions={actions} deal={deal} canEdit={false} me={null} onEdit={() => {}} onDelete={() => {}} />
+      <ActionTable actions={actions} deal={deal} canEdit={false} me={null} onEdit={() => {}} onDelete={() => {}} sort={{ sort: 'actedAt', order: 'desc' }} onSort={() => {}} />
     </QueryClientProvider>,
   )
   const table = screen.getByRole('table', { name: 'Action 목록' })

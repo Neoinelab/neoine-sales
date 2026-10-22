@@ -4,7 +4,7 @@ import { useFreshUpdatedPeriods, useUpdatedPeriods } from '../../../data/deals'
 import { resolvePeriodChoice, type DuePeriodChoice, type PastPeriodChoice } from '../../../shared/model/periodChoice'
 import { ErrorBanner } from '../../../shared/ui/ErrorBanner'
 import { NEXT_ACTION_STATUS_FILTER_OPTIONS, isNextActionStatusFilter } from '../../../shared/model/nextActionStatus'
-import type { ActionQuery, ActionSort, NextActionStatusFilter, UpdatedPeriods } from '../../../shared/model/types'
+import type { ActionQuery, NextActionStatusFilter, UpdatedPeriods } from '../../../shared/model/types'
 import { UserSelect } from '../../../shared/ui/UserSelect'
 import { ActionPeriodField } from './ActionPeriodField'
 import './detail.css'
@@ -26,14 +26,13 @@ interface Draft {
   dueFrom: string
   dueTo: string
   nextStatus: NextActionStatusFilter | ''
-  sort: ActionSort
 }
 
-const EMPTY: Draft = { typeId: '', actorId: '', keyword: '', actedPeriod: '', duePeriod: '', actedFrom: '', actedTo: '', dueFrom: '', dueTo: '', nextStatus: '', sort: 'actedDesc' }
+const EMPTY: Draft = { typeId: '', actorId: '', keyword: '', actedPeriod: '', duePeriod: '', actedFrom: '', actedTo: '', dueFrom: '', dueTo: '', nextStatus: '' }
 
 /** 채워진 조건만 질의로 만든다(빈 값은 보내지 않는다). 프리셋은 서버가 준 날짜로 푼다. */
 function toActionQuery(draft: Draft, presets: UpdatedPeriods | undefined): ActionQuery {
-  const query: ActionQuery = { sort: draft.sort }
+  const query: ActionQuery = {}
   const typeId = parseId(draft.typeId)
   if (typeId !== undefined) query.typeId = typeId
   const actorId = parseId(draft.actorId)
@@ -59,7 +58,7 @@ function toActionQuery(draft: Draft, presets: UpdatedPeriods | undefined): Actio
   return query
 }
 
-/** Actions 검색: 유형 / 담당자 / 키워드 / 수행일 / 기한 범위 / Next Action 상태 / 정렬. */
+/** Actions 검색: 유형 / 담당자 / 키워드 / 수행일 / 기한 범위 / Next Action 상태. */
 export function ActionSearchBar({ onSearch }: ActionSearchBarProps) {
   const types = useActionTypes().data ?? []
   const [draft, setDraft] = useState<Draft>(EMPTY)
@@ -139,14 +138,6 @@ export function ActionSearchBar({ onSearch }: ActionSearchBarProps) {
               {o.label}
             </option>
           ))}
-        </select>
-      </label>
-      <label className="field">
-        <span>정렬</span>
-        <select value={draft.sort} onChange={(e) => set('sort', e.target.value as ActionSort)}>
-          <option value="actedDesc">수행일 최신순</option>
-          <option value="actedAsc">수행일 오래된순</option>
-          <option value="dueAsc">기한 임박순</option>
         </select>
       </label>
       {periodsQuery.data === undefined && <ErrorBanner error={periodsQuery.error} />}

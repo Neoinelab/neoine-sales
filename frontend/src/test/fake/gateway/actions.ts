@@ -8,14 +8,14 @@ import type {
   NextActionStatus,
 } from '../../../shared/model/types'
 import { conflict, forbidden, notFound, validation } from '../errors'
-import { takeId, type ActionRecord } from '../store'
+import { takeId, type ActionRecord, type SeedData } from '../store'
 import { read, requireUser, requireWrite, viewerOf, write, type MockContext } from './context'
 import { assertSequenceShape, planSequence } from './actionChanges'
 import { commitDealChange } from './dealChange'
 import { commitActionType, planActionType } from './actionTypes'
 import { logHistory } from './historyLog'
 import { ACTION_OR_NEXT_REQUIRED, DUE_WITHOUT_NEXT, NO_NEXT_ACTION, STATUS_FORBIDDEN, STATUS_LABEL, statusesOf } from './nextActionStatus'
-import { actionView, findDeal } from './views'
+import { actionView, findDeal, userRef } from './views'
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/
 
@@ -88,12 +88,43 @@ function matches(a: ActionRecord, q: ActionQuery): boolean {
   return true
 }
 
-function sorted(rows: ActionRecord[], sort: ActionQuery['sort']): ActionRecord[] {
-  const byActedDesc = (a: ActionRecord, b: ActionRecord) => compareIso(b.actedAt, a.actedAt) || b.id - a.id
-  if (sort === 'actedAsc') return rows.sort((a, b) => byActedDesc(b, a))
-  // Due가 없는 행은 맨 뒤(NULLS LAST).
-  if (sort === 'dueAsc') return rows.sort((a, b) => (a.dueDate ?? '9999-12-31').localeCompare(b.dueDate ?? '9999-12-31') || byActedDesc(a, b))
-  return rows.sort(byActedDesc)
+/** 상태 정렬 순위(서버 `NextActionStatus.sort_rank`): open 0, done 1, notDone 2. */
+const STATUS_RANK: Record<NextActionStatus, number> = { open: 0, done: 1, notDone: 2 }
+
+type Sorter = (a: ActionRecord, b: ActionRecord) => number
+
+/** 비교 키. null은 방향과 관계없이 맨 뒤다. 문자열은 소문자로 바꿔 코드 포인트 순(`localeCompare` 쓰지 않음: 서버 COLLATE "C"와 같게). */
+function byKey(key: (a: ActionRecord) => string | number | null, order: 'asc' | 'desc'): Sorter {
+  const sign = order === 'asc' ? 1 : -1
+  return (a, b) => {
+    const x = key(a)
+    const y = key(b)
+    if (x === null || y === null) return x === y ? 0 : x === null ? 1 : -1
+    return x === y ? 0 : (x < y ? -1 : 1) * sign
+  }
+}
+
+/**
+ * 서버 정렬 표와 같은 순서. 수행일시 정렬의 동률은 id 오름차순, 그 밖의 정렬은 주 키 -> 수행일시 내림차순 -> id 오름차순이다.
+ * 동률 규칙은 방향을 바꿔도 뒤집히지 않는다.
+ */
+function sorted(rows: ActionRecord[], data: SeedData, q: ActionQuery): ActionRecord[] {
+  const byActedDesc: Sorter = (a, b) => compareIso(b.actedAt, a.actedAt) || a.id - b.id
+  const order = q.order ?? 'desc'
+  const lower = (text: string) => text.toLowerCase()
+  const typeName = (a: ActionRecord) => lower(data.actionTypes.find((t) => t.id === a.typeId)?.name ?? String(a.typeId))
+  const actorName = (a: ActionRecord) => lower(userRef(data, a.actorId).name)
+  const primary: Record<string, Sorter | undefined> = {
+    dueDate: byKey((a) => a.dueDate, order),
+    actor: byKey(actorName, order),
+    type: byKey(typeName, order),
+    nextActionStatus: byKey((a) => (a.nextActionStatus === null ? null : STATUS_RANK[a.nextActionStatus]), order),
+  }
+  if (q.sort === undefined || q.sort === 'actedAt') {
+    return rows.sort(order === 'asc' ? (a, b) => compareIso(a.actedAt, b.actedAt) || a.id - b.id : byActedDesc)
+  }
+  const main = primary[q.sort]
+  return rows.sort((a, b) => (main ? main(a, b) : 0) || byActedDesc(a, b))
 }
 
 export function createActionsGateway(ctx: MockContext): ActionsGateway {
@@ -104,7 +135,7 @@ export function createActionsGateway(ctx: MockContext): ActionsGateway {
         validateRanges(query)
         findDeal(ctx.store.data, dealCode)
         const rows = ctx.store.data.actions.filter((a) => a.dealCode === dealCode && matches(a, query))
-        return sorted(rows, query.sort).map((a) => actionView(ctx.store.data, a))
+        return sorted(rows, ctx.store.data, query).map((a) => actionView(ctx.store.data, a))
       }),
     create: (dealCode, input: ActionInput) =>
       write(ctx, () => {

@@ -60,7 +60,8 @@ describe('actions.list over HTTP (AC-14~16)', () => {
       dueFrom: '2026-10-16',
       dueTo: '2026-10-31',
       nextActionStatus: 'closed',
-      sort: 'dueAsc',
+      sort: 'dueDate',
+      order: 'asc',
     }
 
     await createActionsHttp().list(CODE, full)
@@ -80,15 +81,34 @@ describe('actions.list over HTTP (AC-14~16)', () => {
   })
 
   it.each([
-    ['actedDesc', 'acted_at_desc'],
-    ['actedAsc', 'acted_at_asc'],
-    ['dueAsc', 'due_date_asc'],
-  ] as const)('maps sort %s to %s', async (sort, wire) => {
+    ['actedAt', 'desc', 'acted_at_desc'],
+    ['actedAt', 'asc', 'acted_at_asc'],
+    ['dueDate', 'asc', 'due_date_asc'],
+    ['dueDate', 'desc', 'due_date_desc'],
+    ['actor', 'asc', 'actor_asc'],
+    ['actor', 'desc', 'actor_desc'],
+    ['type', 'asc', 'action_type_asc'],
+    ['type', 'desc', 'action_type_desc'],
+    ['nextActionStatus', 'asc', 'next_action_status_asc'],
+    ['nextActionStatus', 'desc', 'next_action_status_desc'],
+  ] as const)('maps sort %s %s to %s', async (sort, order, wire) => {
     const { calls } = stubFetch(json({ items: [] }))
 
-    await createActionsHttp().list(CODE, { sort })
+    await createActionsHttp().list(CODE, { sort, order })
 
     expect(query(calls[0]?.path ?? '').get('sort')).toBe(wire)
+  })
+
+  it.each([
+    [{ sort: 'actor' }],
+    [{ order: 'desc' }],
+    [{}],
+  ] as const)('sends no sort parameter unless both sort and order are given: %j', async (partial) => {
+    const { calls } = stubFetch(json({ items: [] }))
+
+    await createActionsHttp().list(CODE, partial)
+
+    expect(query(calls[0]?.path ?? '').has('sort')).toBe(false)
   })
 
   it('leaves out empty values instead of sending blanks', async () => {

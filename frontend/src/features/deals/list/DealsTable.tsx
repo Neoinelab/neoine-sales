@@ -1,6 +1,7 @@
 import { useLabels } from '../../../data/labels'
 import { AMOUNT_LABEL } from '../../../shared/model/money'
 import type { DealRow, DealSortKey } from '../../../shared/model/types'
+import { SortableHeader } from '../../../shared/ui/SortableHeader'
 import { DealRowItem } from './DealRowItem'
 import type { SortState } from './listQuery'
 
@@ -46,24 +47,13 @@ export function DealsTable({ rows, canWrite, sort, onSort, onSaved }: DealsTable
             {COLUMNS.map((column) => {
               const active = column.sort !== undefined && column.sort === sort.sort
               return (
-                <th
+                <SortableHeader
                   key={column.label}
-                  scope="col"
-                  aria-sort={active ? (sort.order === 'asc' ? 'ascending' : 'descending') : undefined}
-                >
-                  {column.sort ? (
-                    <button
-                      type="button"
-                      className="th-sort"
-                      data-dir={active ? sort.order : undefined}
-                      onClick={() => column.sort && onSort(column.sort)}
-                    >
-                      {column.label}
-                    </button>
-                  ) : (
-                    column.label
-                  )}
-                </th>
+                  label={column.label}
+                  active={active}
+                  order={sort.order}
+                  onSort={column.sort ? () => column.sort && onSort(column.sort) : undefined}
+                />
               )
             })}
           </tr>

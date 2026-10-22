@@ -12,6 +12,7 @@ from app.domain.deal.errors import DealNotFoundError
 from tests.factories_action_type import type_id
 from tests.support.ids import new_id
 from tests.support.user_ids import uid
+from tests.support.user_seed import ensure_users
 from tests.unit.application.action_env import BOSS, KIM, PARK
 
 if TYPE_CHECKING:
@@ -159,3 +160,14 @@ async def test_acted_date_range_covers_whole_local_days_on_both_ends(
         "당일 23:59",
     ]
     assert sorted(await _names(action_env, acted_to=date(2026, 10, 15))) == ["전날 23:59"]
+
+
+async def test_list_passes_the_requested_sort_to_the_repository(action_env: ActionEnv) -> None:
+    await ensure_users(
+        action_env.env.uow.users, KIM.user_id, PARK.user_id
+    )  # 로그인 아이디 kim, park
+    await action_env.act(PARK, action="박 먼저")
+    await action_env.act(KIM, action="김 나중")
+
+    assert await _names(action_env, sort=DealActionSort.ACTOR_ASC) == ["김 나중", "박 먼저"]
+    assert await _names(action_env, sort=DealActionSort.ACTOR_DESC) == ["박 먼저", "김 나중"]

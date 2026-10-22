@@ -60,7 +60,9 @@ class FakeUnitOfWork:
         )
         self.attachments.wire(deals=self.deals)  # 소속 Deal이 없으면 DealNotFoundError
         # 소속 Deal이 없으면 DealNotFoundError, 스냅숏 코드가 없으면 InvalidReferenceError
-        self.deal_actions.wire(deals=self.deals, codes=self.codes, action_types=self.action_types)
+        self.deal_actions.wire(
+            deals=self.deals, codes=self.codes, action_types=self.action_types, users=self.users
+        )
         # 쓰는 Action이 있는 유형 삭제는 ActionTypeInUseError, 생성자 행이 없으면 InvalidReference
         self.action_types.wire(actions=self.deal_actions, users=self.users)
         # 사용 중인 코드 삭제는 CodeInUseError (FK RESTRICT): Deal 사용이 먼저, Action 스냅숏이 다음

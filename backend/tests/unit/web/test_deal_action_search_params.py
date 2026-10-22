@@ -1,4 +1,4 @@
-"""Action 검색 쿼리 파라미터(AC-18): 조건 매핑, 정렬 3종, 상태 필터, 거절되는 파라미터."""
+"""Action 검색 쿼리 파라미터(AC-18): 조건 매핑, 정렬 10종, 상태 필터, 거절되는 파라미터."""
 
 from datetime import date
 from typing import Any
@@ -66,12 +66,28 @@ def test_any_other_status_filter_is_rejected(value: str) -> None:
         DealActionSearchParams(next_action_status=value)
 
 
-@pytest.mark.parametrize("sort", ["acted_at_desc", "acted_at_asc", "due_date_asc"])
-def test_the_three_sorts_are_accepted(sort: str) -> None:
+@pytest.mark.parametrize(
+    "sort",
+    [
+        "acted_at_desc",
+        "acted_at_asc",
+        "due_date_asc",
+        "due_date_desc",
+        "actor_asc",
+        "actor_desc",
+        "action_type_asc",
+        "action_type_desc",
+        "next_action_status_asc",
+        "next_action_status_desc",
+    ],
+)
+def test_every_sort_value_is_accepted(sort: str) -> None:
     assert DealActionSearchParams(sort=sort).sort.value == sort
 
 
-@pytest.mark.parametrize("sort", ["due_date_desc", "created_asc", "DUE_DATE_ASC", ""])
+@pytest.mark.parametrize(
+    "sort", ["created_asc", "DUE_DATE_ASC", "", "actor", "status_asc", "ACTOR_ASC"]
+)
 def test_any_other_sort_is_rejected(sort: str) -> None:
     with pytest.raises(ValidationError):
         DealActionSearchParams(sort=sort)

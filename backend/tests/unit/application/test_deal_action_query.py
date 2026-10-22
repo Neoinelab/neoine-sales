@@ -1,4 +1,4 @@
-"""DealActionQuery(AC-15·16): Deal 필수, 날짜 범위(양끝 포함, 로컬 업무 날짜), 정렬 3종, 검색어."""
+"""DealActionQuery(AC-15·16): Deal 필수, 날짜 범위(양끝 포함, 로컬 업무 날짜), 정렬 10종, 검색어."""
 
 from datetime import UTC, date, datetime
 from typing import TYPE_CHECKING, Any
@@ -31,8 +31,19 @@ def test_the_query_has_no_paging_and_no_free_text_actor(removed: dict[str, Any])
         DealActionQuery(deal_code=CODE, **removed)
 
 
-def test_sort_values_are_the_three_api_names_and_the_default_is_latest_first() -> None:
-    assert [s.value for s in DealActionSort] == ["acted_at_desc", "acted_at_asc", "due_date_asc"]
+def test_sort_values_are_the_ten_api_names_and_the_default_is_latest_first() -> None:
+    assert [s.value for s in DealActionSort] == [
+        "acted_at_desc",
+        "acted_at_asc",
+        "due_date_asc",
+        "due_date_desc",
+        "actor_asc",
+        "actor_desc",
+        "action_type_asc",
+        "action_type_desc",
+        "next_action_status_asc",
+        "next_action_status_desc",
+    ]
     assert _query().sort is DealActionSort.ACTED_AT_DESC
 
 

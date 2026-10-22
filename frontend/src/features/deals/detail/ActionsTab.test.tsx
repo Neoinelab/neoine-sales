@@ -239,9 +239,10 @@ describe('Actions 검색 (T-ACTION-08~09)', () => {
     return { ...view, form: screen.getByRole('search', { name: 'Action 검색' }) }
   }
 
-  it('offers the six conditions', async () => {
+  it('offers the five conditions and no sort input', async () => {
     const { form } = await search()
-    for (const label of ['유형', '담당자', '키워드', '수행일', '기한', '정렬']) {
+    expect(within(form).queryByLabelText('정렬')).not.toBeInTheDocument()
+    for (const label of ['유형', '담당자', '키워드', '수행일', '기한']) {
       expect(within(form).getByLabelText(label)).toBeVisible()
     }
     expect(within(form).getByLabelText('수행일')).toHaveDisplayValue('전체')
@@ -277,10 +278,9 @@ describe('Actions 검색 (T-ACTION-08~09)', () => {
     expect(await screen.findByText('조건에 맞는 Action이 없습니다.')).toBeVisible()
   })
 
-  it('sorts by due date soonest first', async () => {
-    const { user, form, table } = await search()
-    await user.selectOptions(within(form).getByLabelText('정렬'), '기한 임박순')
-    await user.click(within(form).getByRole('button', { name: '검색' }))
+  it('sorts by due date soonest first with the Due Date header', async () => {
+    const { user, table } = await search()
+    await user.click(within(table).getByRole('button', { name: 'Due Date' }))
     await waitFor(() => {
       const dues = bodyRows(table).map((r) => /\d{4}-\d{2}-\d{2}/.exec(within(r).getAllByRole('cell')[6]?.textContent ?? '')?.[0] ?? '')
       expect(dues.length).toBeGreaterThan(1)

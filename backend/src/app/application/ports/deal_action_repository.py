@@ -28,6 +28,13 @@ class DealActionSort(StrEnum):
     ACTED_AT_DESC = "acted_at_desc"  # 기본
     ACTED_AT_ASC = "acted_at_asc"
     DUE_DATE_ASC = "due_date_asc"
+    DUE_DATE_DESC = "due_date_desc"
+    ACTOR_ASC = "actor_asc"
+    ACTOR_DESC = "actor_desc"
+    ACTION_TYPE_ASC = "action_type_asc"
+    ACTION_TYPE_DESC = "action_type_desc"
+    NEXT_ACTION_STATUS_ASC = "next_action_status_asc"
+    NEXT_ACTION_STATUS_DESC = "next_action_status_desc"
 
 
 class NextActionStatusFilter(StrEnum):
@@ -101,8 +108,11 @@ class DealActionRepository(Protocol):
     async def search(self, query: DealActionQuery) -> Sequence[DealAction]:
         """조건에 맞는 Action 전부를 query.sort 순서로 돌려준다(페이지 없음).
 
-        acted_at 정렬은 같은 시각이면 id 오름차순, due_date_asc는 같은 날이면 acted_at 내림차순
-        이고 Due Date가 없는 Action은 맨 뒤(NULLS LAST)다.
+        수행일시 정렬은 같은 시각이면 id 오름차순이다. 그 밖의 정렬은 주 키, 수행일시 내림차순,
+        id 오름차순 순이며 이 동률 규칙은 방향에 따라 뒤집히지 않는다.
+        담당자는 lower(표시 이름, 비어 있으면 login_id), 유형은 lower(현재 유형 이름)를 코드 포인트
+        순으로 비교한다(퇴사자 포함). 상태는 `NextActionStatus.sort_rank` 순(desc는 반대)이다.
+        Due Date·상태가 없는(Next Action 없는) Action은 방향과 무관하게 맨 뒤(NULLS LAST)다.
         """
         ...
 

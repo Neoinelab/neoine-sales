@@ -1406,7 +1406,7 @@ export interface components {
          * DealActionSort
          * @enum {string}
          */
-        DealActionSort: "acted_at_desc" | "acted_at_asc" | "due_date_asc";
+        DealActionSort: "acted_at_desc" | "acted_at_asc" | "due_date_asc" | "due_date_desc" | "actor_asc" | "actor_desc" | "action_type_asc" | "action_type_desc" | "next_action_status_asc" | "next_action_status_desc";
         /** DealActionUpdateRequest */
         DealActionUpdateRequest: {
             /**

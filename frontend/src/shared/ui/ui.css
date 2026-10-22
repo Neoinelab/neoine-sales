@@ -73,3 +73,9 @@ tr.risk-stale > td { background: var(--risk-stale); }
 .field-error { color: var(--danger); margin: 2px 0 0; font-size: 0.8rem; }
 .field-hint { color: var(--muted); margin: 2px 0 0; font-size: 0.8rem; }
 .amount { font-variant-numeric: tabular-nums; }
+
+/* 정렬 가능한 표 머리글(SortableHeader). */
+.th-sort { border: none; background: transparent; padding: 0; font: inherit; color: inherit; cursor: pointer; font-weight: 600; }
+.th-sort:hover, .th-sort:focus-visible { color: var(--fg); text-decoration: underline; }
+.th-sort[data-dir='asc']::after { content: ' ▲'; font-size: 0.7em; }
+.th-sort[data-dir='desc']::after { content: ' ▼'; font-size: 0.7em; }

@@ -16,10 +16,6 @@
 .deals-table { min-width: 1340px; font-size: 0.9rem; }
 .deals-table th { white-space: nowrap; }
 .deals-table td { vertical-align: middle; }
-.th-sort { border: none; background: transparent; padding: 0; font: inherit; color: inherit; cursor: pointer; font-weight: 600; }
-.th-sort:hover, .th-sort:focus-visible { color: var(--fg); text-decoration: underline; }
-.th-sort[data-dir='asc']::after { content: ' ▲'; font-size: 0.7em; }
-.th-sort[data-dir='desc']::after { content: ' ▼'; font-size: 0.7em; }
 
 .deal-name-cell { display: flex; align-items: flex-start; gap: 4px; min-width: 240px; }
 .deal-name { display: grid; gap: 2px; justify-items: start; }

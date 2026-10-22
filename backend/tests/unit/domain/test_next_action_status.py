@@ -20,6 +20,12 @@ class TestStatusValues:
     def test_only_closed_statuses_are_closed(self) -> None:
         assert [s.is_closed for s in NextActionStatus] == [False, True, True]
 
+    def test_sort_rank_orders_open_then_done_then_not_done(self) -> None:
+        ranks = [NextActionStatus.OPEN, NextActionStatus.DONE, NextActionStatus.NOT_DONE]
+
+        assert [s.sort_rank for s in ranks] == sorted(s.sort_rank for s in ranks)
+        assert len({s.sort_rank for s in ranks}) == 3
+
     def test_values_and_labels(self) -> None:
         assert [(s.value, s.label) for s in NextActionStatus] == [
             ("open", "Open"),

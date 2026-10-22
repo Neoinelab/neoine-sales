@@ -5,13 +5,17 @@ Action은 Deal(code) 아래에 있으므로 case가 필요한 Deal·담당자 �
 """
 
 from contextlib import asynccontextmanager
+from datetime import timedelta
 from typing import TYPE_CHECKING
 
 import pytest
 
 from app.application.ports.deal_action_repository import DealActionQuery
-from tests.factories import make_deal, make_deal_code
+from app.domain.user.errors import UserNotFoundError
+from tests.factories import NOW, make_deal, make_deal_code
 from tests.factories_action_type import attach_catalog_type
+from tests.factories_auth import make_user
+from tests.support.user_ids import login_of
 from tests.support.user_seed import ensure_users
 from tests.unit.repositories.deal_case import DealCase, open_deal_case
 
@@ -23,6 +27,7 @@ if TYPE_CHECKING:
     from app.application.ports.deal_action_repository import DealActionRepository
     from app.domain.deal.code import DealCode
     from app.domain.deal_action.entities import DealAction
+    from app.domain.user.value_objects import UserId
 
 PARAMS = [
     pytest.param("fake", id="fake"),
@@ -44,6 +49,22 @@ class Case:
 
     async def ensure_actor(self, action: DealAction) -> None:
         await ensure_users(self._deal_case.users, action.actor_user_id)  # FK: 담당자 행
+
+    async def ensure_actor_named(
+        self, user_id: UserId, display_name: str | None, *, login_id: str | None = None
+    ) -> None:
+        """담당자 행을 표시 이름(비어 있으면 None)과 함께 만든다. 이미 있으면 건드리지 않는다."""
+        try:
+            await self._deal_case.users.get(user_id)
+        except UserNotFoundError:
+            await self._deal_case.users.add(
+                make_user(
+                    login_id or login_of(user_id), entity_id=user_id, display_name=display_name
+                )
+            )
+
+    async def resign_actor(self, user_id: UserId) -> None:
+        await self._deal_case.resign(user_id, NOW + timedelta(days=30))
 
     async def add(self, action: DealAction) -> None:
         """Deal·담당자 행을 (없으면) 만들고 유형을 저장소의 같은 이름 유형으로 맞춘 뒤 저장한다.

@@ -5,7 +5,13 @@ import { toNextActionStatusParam } from './mappers/nextActionStatus'
 import { toActionCreateBody, toNextActionStatusBody, toActionUpdateBody, toDealAction } from './mappers/action'
 import { unwrap, unwrapVoid } from './request'
 
-const SORT = { actedDesc: 'acted_at_desc', actedAsc: 'acted_at_asc', dueAsc: 'due_date_asc' } as const
+const SORT = {
+  actedAt: { asc: 'acted_at_asc', desc: 'acted_at_desc' },
+  dueDate: { asc: 'due_date_asc', desc: 'due_date_desc' },
+  actor: { asc: 'actor_asc', desc: 'actor_desc' },
+  type: { asc: 'action_type_asc', desc: 'action_type_desc' },
+  nextActionStatus: { asc: 'next_action_status_asc', desc: 'next_action_status_desc' },
+} as const
 
 /** 지정하지 않은 조건('' 포함)은 보내지 않는다. 서버에 페이지가 없으므로 offset/limit도 없다. */
 function toListParams(q: ActionQuery) {
@@ -18,7 +24,7 @@ function toListParams(q: ActionQuery) {
     ...(q.dueFrom ? { due_from: q.dueFrom } : {}),
     ...(q.dueTo ? { due_to: q.dueTo } : {}),
     ...(q.nextActionStatus ? { next_action_status: toNextActionStatusParam(q.nextActionStatus) } : {}),
-    ...(q.sort ? { sort: SORT[q.sort] } : {}),
+    ...(q.sort && q.order ? { sort: SORT[q.sort][q.order] } : {}),
   }
 }
 

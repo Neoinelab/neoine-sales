@@ -113,10 +113,107 @@ describe('actions.list', () => {
     expect(onlyLatest.map((a) => a.id)).toEqual([all[0]?.id])
     const due = await gateway.actions.list(code, { dueFrom: '2026-10-18', dueTo: '2026-10-18' })
     expect(due.every((a) => a.dueDate === '2026-10-18')).toBe(true)
-    const asc = await gateway.actions.list(code, { sort: 'actedAsc' })
+    const asc = await gateway.actions.list(code, { sort: 'actedAt', order: 'asc' })
     expect(asc.map((a) => a.id)).toEqual([...all].reverse().map((a) => a.id))
-    const dueAsc = (await gateway.actions.list(code, { sort: 'dueAsc' })).map((a) => a.dueDate)
+    const dueAsc = (await gateway.actions.list(code, { sort: 'dueDate', order: 'asc' })).map((a) => a.dueDate)
     expect(dueAsc).toEqual([...dueAsc].sort())
+  })
+})
+
+describe('actions.list 헤더 정렬 (서버 정렬 표와 같은 순서)', () => {
+  /** 한 Deal에 (담당자, 유형, 진행사항, Due)별 Action을 만들고 진행사항 목록으로 본다. 시계는 한 건마다 1분 간다. */
+  async function seeded(rows: readonly (readonly [keyof typeof USER_ID, string, string, string | null])[]) {
+    const mock = await mockAs('root')
+    const code = dealCode(2)
+    for (const [login, type, progress, due] of rows) {
+      await mock.gateway.auth.quickLogin(USER_ID[login])
+      mock.clock.advance(60_000)
+      await mock.gateway.actions.create(
+        code,
+        input({ type: { name: type }, progress, nextAction: due === null ? '' : `${progress} 계획`, dueDate: due ?? '' }),
+      )
+    }
+    await mock.gateway.auth.quickLogin(USER_ID.root)
+    const names = async (query: Parameters<typeof mock.gateway.actions.list>[1]) =>
+      (await mock.gateway.actions.list(code, query)).filter((a) => rows.some((r) => r[2] === a.progress)).map((a) => a.progress)
+    return { names }
+  }
+
+  it('수행일시 정렬의 동률은 id 오름차순이다(서버와 같음)', async () => {
+    const mock = await mockAs('kim')
+    const code = dealCode(2)
+    const first = await mock.gateway.actions.create(code, input({ progress: '동시 1' }))
+    const second = await mock.gateway.actions.create(code, input({ progress: '동시 2' }))
+    expect(second.actedAt).toBe(first.actedAt)
+
+    const desc = (await mock.gateway.actions.list(code, {})).filter((a) => a.actedAt === first.actedAt).map((a) => a.id)
+    const asc = (await mock.gateway.actions.list(code, { sort: 'actedAt', order: 'asc' })).filter((a) => a.actedAt === first.actedAt).map((a) => a.id)
+
+    expect(desc).toEqual([first.id, second.id])
+    expect(asc).toEqual([first.id, second.id])
+  })
+
+  it('dueDate desc는 늦은 날짜부터이고 Due가 없는 Action은 방향과 관계없이 맨 뒤다', async () => {
+    const { names } = await seeded([
+      ['kim', '미팅', 'Z빠름', '2026-12-01'],
+      ['kim', '미팅', 'Z없음', null],
+      ['kim', '미팅', 'Z늦음', '2026-12-20'],
+    ])
+
+    expect(await names({ sort: 'dueDate', order: 'desc' })).toEqual(['Z늦음', 'Z빠름', 'Z없음'])
+    expect(await names({ sort: 'dueDate', order: 'asc' })).toEqual(['Z빠름', 'Z늦음', 'Z없음'])
+  })
+
+  it('동률은 방향을 바꿔도 최신 수행 먼저(그 다음 id 오름차순)이다', async () => {
+    const { names } = await seeded([
+      ['kim', '미팅', 'T오래됨', '2026-12-01'],
+      ['kim', '미팅', 'T최신', '2026-12-01'],
+    ])
+
+    expect(await names({ sort: 'dueDate', order: 'asc' })).toEqual(['T최신', 'T오래됨'])
+    expect(await names({ sort: 'dueDate', order: 'desc' })).toEqual(['T최신', 'T오래됨'])
+    expect(await names({ sort: 'actor', order: 'desc' })).toEqual(['T최신', 'T오래됨'])
+  })
+
+  it('담당자는 표시 이름을 대소문자 구분 없이 코드 포인트 순으로 비교한다(김영업 < 박영업)', async () => {
+    const { names } = await seeded([
+      ['park', '미팅', 'A박', '2026-12-01'],
+      ['kim', '미팅', 'A김', '2026-12-01'],
+    ])
+
+    expect(await names({ sort: 'actor', order: 'asc' })).toEqual(['A김', 'A박'])
+    expect(await names({ sort: 'actor', order: 'desc' })).toEqual(['A박', 'A김'])
+  })
+
+  it('유형은 현재 유형 이름을 대소문자 구분 없이 코드 포인트 순으로 비교한다', async () => {
+    const { names } = await seeded([
+      ['kim', '통화', 'Y통화', '2026-12-01'],
+      ['kim', 'Beta', 'Y베타', '2026-12-01'],
+      ['kim', '미팅', 'Y미팅', '2026-12-01'],
+      ['kim', 'alpha', 'Y알파', '2026-12-01'],
+    ])
+
+    expect(await names({ sort: 'type', order: 'asc' })).toEqual(['Y알파', 'Y베타', 'Y미팅', 'Y통화'])
+    expect(await names({ sort: 'type', order: 'desc' })).toEqual(['Y통화', 'Y미팅', 'Y베타', 'Y알파'])
+  })
+
+  it('상태는 open, done, not_done 순이고 상태 없음은 방향과 관계없이 맨 뒤다', async () => {
+    const mock = await mockAs('kim')
+    const code = dealCode(2)
+    const notDone = await mock.gateway.actions.create(code, input({ progress: 'S미수행' }))
+    mock.clock.advance(60_000)
+    await mock.gateway.actions.create(code, input({ progress: 'S없음', nextAction: '', dueDate: '' }))
+    mock.clock.advance(60_000)
+    const done = await mock.gateway.actions.create(code, input({ progress: 'S수행' }))
+    mock.clock.advance(60_000)
+    await mock.gateway.actions.create(code, input({ progress: 'S열림' }))
+    await mock.gateway.actions.changeNextActionStatus(notDone.id, { status: 'notDone', memo: '' })
+    await mock.gateway.actions.changeNextActionStatus(done.id, { status: 'done', memo: '' })
+    const names = async (order: 'asc' | 'desc') =>
+      (await mock.gateway.actions.list(code, { sort: 'nextActionStatus', order })).map((a) => a.progress).filter((p) => ['S열림', 'S수행', 'S미수행', 'S없음'].includes(p ?? ''))
+
+    expect(await names('asc')).toEqual(['S열림', 'S수행', 'S미수행', 'S없음'])
+    expect(await names('desc')).toEqual(['S미수행', 'S수행', 'S열림', 'S없음'])
   })
 })
 

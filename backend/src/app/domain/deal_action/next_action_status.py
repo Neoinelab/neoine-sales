@@ -11,6 +11,7 @@ if TYPE_CHECKING:
     from datetime import datetime
 
 _LABELS = {"open": "Open", "done": "종료(수행)", "not_done": "종료(미수행)"}
+_SORT_RANKS = {"open": 0, "done": 1, "not_done": 2}
 
 
 class NextActionStatus(StrEnum):
@@ -25,6 +26,11 @@ class NextActionStatus(StrEnum):
     @property
     def label(self) -> str:
         return _LABELS[self.value]
+
+    @property
+    def sort_rank(self) -> int:
+        """정렬 순위: open 0, done 1, not_done 2(상태 정렬 asc 순서)."""
+        return _SORT_RANKS[self.value]
 
 
 @dataclass(frozen=True, slots=True)

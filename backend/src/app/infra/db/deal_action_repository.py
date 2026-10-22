@@ -4,7 +4,6 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import exists, func, select
 
-from app.application.ports.deal_action_repository import DealActionSort
 from app.domain.action_type.values import ActionTypeId, ActionTypeRef
 from app.domain.code.values import CodeKind
 from app.domain.common.errors import AlreadyExistsError, InvalidReferenceError
@@ -17,6 +16,7 @@ from app.domain.deal_action.next_action_status import NextActionState, NextActio
 from app.domain.deal_action.value_objects import ActionContent, DealActionId
 from app.domain.user.value_objects import UserId
 from app.infra.db.base_repository import ConstraintErrors, SqlRepository
+from app.infra.db.deal_action_order import apply_order
 from app.infra.db.deal_keys import deal_id_of
 from app.infra.db.like import keyword_filter
 from app.infra.db.models import DealActionRow
@@ -143,21 +143,6 @@ def _filtered(query: DealActionQuery) -> Select[DealActionRow, str, str]:
     return statement
 
 
-def _ordered(
-    statement: Select[DealActionRow, str, str], sort: DealActionSort
-) -> Select[DealActionRow, str, str]:
-    """정렬. acted_at 정렬의 동률은 id 오름차순, due_date 정렬의 동률은 acted_at 내림차순 -> id."""
-    if sort is DealActionSort.ACTED_AT_ASC:
-        return statement.order_by(DealActionRow.acted_at.asc(), DealActionRow.id)
-    if sort is DealActionSort.DUE_DATE_ASC:
-        return statement.order_by(
-            DealActionRow.due_date.asc().nulls_last(),
-            DealActionRow.acted_at.desc(),
-            DealActionRow.id,
-        )
-    return statement.order_by(DealActionRow.acted_at.desc(), DealActionRow.id)
-
-
 class SqlDealActionRepository(SqlRepository[DealActionRow]):
     row_type = DealActionRow
 
@@ -193,7 +178,9 @@ class SqlDealActionRepository(SqlRepository[DealActionRow]):
         return _to_entity(row, type_name, deal_code)
 
     async def search(self, query: DealActionQuery) -> Sequence[DealAction]:
-        statement = _ordered(_filtered(query), query.sort).execution_options(populate_existing=True)
+        statement = apply_order(_filtered(query), query.sort).execution_options(
+            populate_existing=True
+        )
         rows = (await self._session.execute(statement)).all()
         return [_to_entity(row, name, code) for row, name, code in rows]
 

@@ -6,6 +6,7 @@ import { ConfirmDialog } from '../../../shared/ui/ConfirmDialog'
 import { ErrorBanner } from '../../../shared/ui/ErrorBanner'
 import { ActionForm } from './ActionForm'
 import { ActionSearchBar } from './ActionSearchBar'
+import { DEFAULT_ACTION_SORT, nextActionSort, type ActionSortState } from './actionSort'
 import { ActionTable } from './ActionTable'
 import { messageOf } from './detailHelpers'
 import { NextActionCloseDialog } from './NextActionCloseDialog'
@@ -24,17 +25,20 @@ type FormState = { mode: 'closed' } | { mode: 'create' } | { mode: 'edit'; actio
 /** Actions 탭: 검색 + 목록 + Action 추가·수정 팝업 + 삭제 확인. */
 export function ActionsTab({ deal, canWrite, me, onNotice }: ActionsTabProps) {
   const [query, setQuery] = useState<ActionQuery>({})
+  // 정렬은 검색 조건과 따로 둔다(초기화해도 유지, 조건 없음 판정에도 포함하지 않는다).
+  const [sort, setSort] = useState<ActionSortState>(DEFAULT_ACTION_SORT)
   const [form, setForm] = useState<FormState>({ mode: 'closed' })
   const [target, setTarget] = useState<DealAction | null>(null)
   const [closing, setClosing] = useState<{ action: DealAction; status: Exclude<NextActionStatus, 'open'> } | null>(null)
   const [closingError, setClosingError] = useState<unknown>(null)
   const [error, setError] = useState<unknown>(null)
-  const list = useActions(deal.code, query)
-  const all = useActions(deal.code)
+  const list = useActions(deal.code, { ...query, ...sort })
+  // 기본 정렬로 조회해 조건 없는 목록과 쿼리 키를 맞춘다(같은 GET을 두 번 보내지 않는다).
+  const all = useActions(deal.code, DEFAULT_ACTION_SORT)
   const remove = useRemoveAction()
   const changeStatus = useChangeNextActionStatus()
   const items = useLatest(list.data) ?? []
-  const filtered = Object.keys(query).some((k) => k !== 'sort') || (query.sort !== undefined && query.sort !== 'actedDesc')
+  const filtered = Object.keys(query).length > 0
 
   async function confirmDelete() {
     if (!target) return
@@ -117,6 +121,8 @@ export function ActionsTab({ deal, canWrite, me, onNotice }: ActionsTabProps) {
           deal={deal}
           canEdit={canWrite}
           me={me}
+          sort={sort}
+          onSort={(key) => setSort((current) => nextActionSort(current, key))}
           onEdit={(action) => setForm({ mode: 'edit', action })}
           onDelete={setTarget}
           onChangeStatus={requestStatus}

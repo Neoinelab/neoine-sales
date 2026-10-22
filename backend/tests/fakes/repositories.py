@@ -11,7 +11,6 @@ Action 저장소(P2 모델)는 실제 DB처럼 동작한다: 소속 Deal이 없�
 
 import copy
 from dataclasses import replace
-from datetime import date
 from typing import TYPE_CHECKING, Any
 
 from app.domain.common.errors import InvalidReferenceError
@@ -22,7 +21,7 @@ from tests.fakes.deals import FakeDealRepository
 from tests.fakes.in_memory import InMemoryStore
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping, Sequence
+    from collections.abc import Callable, Mapping, Sequence
 
     from app.application.ports.deal_action_repository import DealActionQuery
     from app.domain.action_type.values import ActionTypeId
@@ -61,17 +60,34 @@ def _status_matches(action: DealAction, query: DealActionQuery) -> bool:
     return state is not None and state.status in wanted.statuses()
 
 
-def _sorted(found: list[DealAction], sort: str) -> list[DealAction]:
-    """acted_at 두 정렬은 동률을 id 오름차순, due_date_asc는 동률을 acted_at 내림차순으로 정한다."""
+def _sorted(
+    found: list[DealAction],
+    sort: str,
+    actor_name: Callable[[DealAction], str],
+) -> list[DealAction]:
+    """Port 정렬 규칙: 수행일시 정렬은 동률 id 오름차순, 그 밖은 수행일시 내림차순 -> id 오름차순.
+
+    주 키가 없는 행(Due Date 없음, 상태 없음)은 방향과 관계없이 맨 뒤다.
+    """
     if sort == "acted_at_asc":
         return sorted(found, key=lambda a: (a.acted_at, a.id))
-    by_latest = sorted(found, key=lambda a: (-a.acted_at.timestamp(), a.id))
-    if sort == "acted_at_desc":
-        return by_latest
-    # 안정 정렬: 동률은 최신순 유지. Due가 없는 행은 맨 뒤(NULLS LAST)
-    return sorted(
-        by_latest, key=lambda a: (a.content.due_date is None, a.content.due_date or date.max)
-    )
+    ordered = sorted(found, key=lambda a: (-a.acted_at.timestamp(), a.id))
+    column = sort.removesuffix("_asc").removesuffix("_desc")
+    keys: dict[str, Callable[[DealAction], Any]] = {
+        "due_date": lambda a: a.content.due_date,
+        "actor": lambda a: actor_name(a).lower(),
+        "action_type": lambda a: a.content.action_type.name.lower(),
+        "next_action_status": lambda a: (
+            None if a.next_action_state is None else a.next_action_state.status.sort_rank
+        ),
+    }
+    key = keys.get(column)
+    if key is None:  # acted_at_desc
+        return ordered
+    present = [a for a in ordered if key(a) is not None]
+    missing = [a for a in ordered if key(a) is None]
+    # reverse=True도 안정 정렬이라 동률은 위 순서를 유지한다
+    return sorted(present, key=key, reverse=sort.endswith("_desc")) + missing
 
 
 class FakeDealActionRepository(InMemoryStore[DealAction]):
@@ -80,12 +96,28 @@ class FakeDealActionRepository(InMemoryStore[DealAction]):
         self._deals: Any = None
         self._codes: Any = None
         self._action_types: Any = None
+        self._users: Any = None
 
-    def wire(self, *, deals: Any, codes: Any = None, action_types: Any = None) -> None:  # noqa: ANN401
-        """소속 Deal·스냅숏 코드·유형 존재 확인(FK 모사)과 유형 이름 읽기에 쓸 저장소를 연결한다."""
+    def wire(
+        self,
+        *,
+        deals: Any,  # noqa: ANN401
+        codes: Any = None,  # noqa: ANN401
+        action_types: Any = None,  # noqa: ANN401
+        users: Any = None,  # noqa: ANN401
+    ) -> None:
+        """Deal·코드·유형 존재 확인(FK 모사)과 유형·담당자 이름 읽기에 쓸 저장소를 연결한다."""
         self._deals = deals
         self._codes = codes
         self._action_types = action_types
+        self._users = users
+
+    def _actor_name(self, action: DealAction) -> str:
+        """담당자 정렬 이름: 표시 이름, 비어 있으면 login_id(퇴사자 포함). 사용자를 모르면 id."""
+        user = None if self._users is None else self._users._items.get(action.actor_user_id)
+        if user is None:
+            return str(action.actor_user_id)
+        return str(user.display_name or user.login_id.value)
 
     def _ensure_type(self, action: DealAction) -> None:
         types = self._action_types
@@ -132,8 +164,8 @@ class FakeDealActionRepository(InMemoryStore[DealAction]):
         return self._named(self._fetch(action_id))
 
     async def search(self, query: DealActionQuery) -> Sequence[DealAction]:
-        found = [a for a in self._items.values() if _matches(a, query)]
-        return [self._named(a) for a in _sorted(found, str(query.sort))]
+        found = [self._named(a) for a in self._items.values() if _matches(a, query)]
+        return _sorted(found, str(query.sort), self._actor_name)
 
     async def update(self, action: DealAction) -> None:
         """content·Next Action 상태·updated_at만 저장한다(스냅숏·수행 시각·담당자는 그대로)."""

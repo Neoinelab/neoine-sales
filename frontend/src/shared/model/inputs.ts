@@ -155,7 +155,7 @@ export interface NextActionStatusInput {
   memo: string
 }
 
-export type ActionSort = 'actedDesc' | 'actedAsc' | 'dueAsc'
+export type ActionSortKey = 'actedAt' | 'actor' | 'type' | 'dueDate' | 'nextActionStatus'
 
 export interface ActionQuery {
   typeId?: number
@@ -167,8 +167,9 @@ export interface ActionQuery {
   dueFrom?: string
   dueTo?: string
   nextActionStatus?: NextActionStatusFilter
-  /** 기본 'actedDesc'. */
-  sort?: ActionSort
+  /** sort와 order가 모두 있을 때만 정렬을 요청한다(없으면 서버 기본: 수행일시 최신순). */
+  sort?: ActionSortKey
+  order?: SortOrder
 }
 
 export interface HistoryQuery {

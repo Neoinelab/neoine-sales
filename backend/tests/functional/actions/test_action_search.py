@@ -1,7 +1,8 @@
 """Feature: 영업은 Deal 상세에서 그 Deal의 Action을 조건으로 찾고 정렬한다.
 
 조건(유형·담당자·검색어·수행일·Due Date)은 AND로 결합하고, 수행일은 OS 로컬 업무 날짜 기준 양끝
-포함이다. 정렬은 수행일시 최신순(기본)·오래된 순·Due Date 순 세 가지이고, 페이지 없이 전부 돌려준다.
+포함이다. 정렬은 수행일시·Due Date·담당자·유형·상태 기준 오름/내림차순(기본 수행일시 최신순)이고,
+페이지 없이 전부 돌려준다.
 전역 검색(GET /deal-actions)은 폐지됐다.
 """
 
@@ -144,10 +145,15 @@ async def test_due_range_is_inclusive_on_both_ends(
         pytest.param("acted_at_desc", ["킥오프 2", "견적 발송", "킥오프"], id="newest-first"),
         pytest.param("acted_at_asc", ["킥오프", "견적 발송", "킥오프 2"], id="oldest-first"),
         pytest.param("due_date_asc", ["견적 발송", "킥오프 2", "킥오프"], id="due-date"),
+        pytest.param("due_date_desc", ["킥오프 2", "킥오프", "견적 발송"], id="due-date-desc"),
+        pytest.param("actor_asc", ["킥오프", "킥오프 2", "견적 발송"], id="actor"),
+        pytest.param("actor_desc", ["킥오프 2", "견적 발송", "킥오프"], id="actor-desc"),
+        pytest.param("action_type_asc", ["킥오프 2", "킥오프", "견적 발송"], id="type"),
+        pytest.param("action_type_desc", ["견적 발송", "킥오프 2", "킥오프"], id="type-desc"),
     ],
 )
 async def test_sorting_orders_the_actions(api: Api, sort: str, expected: list[str]) -> None:
-    """Scenario: 정렬은 수행일시 최신순·오래된 순·Due Date 순이고 동률은 최신 수행이 먼저다."""
+    """Scenario: 정렬 값마다 순서가 정해지고 동률은 최신 수행이 먼저다(kim<park, 미팅<이메일)."""
     # Given
     code, _ = await given_searchable_actions(api)
     # When

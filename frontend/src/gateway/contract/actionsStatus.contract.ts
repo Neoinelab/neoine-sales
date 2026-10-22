@@ -195,7 +195,7 @@ export function actionsStatusContract(make: MakeGateway): void {
       await sales.actions.changeNextActionStatus(done.id, { status: 'done', memo: '' })
       await sales.actions.changeNextActionStatus(notDone.id, { status: 'notDone', memo: '' })
       const ids = async (nextActionStatus?: 'open' | 'done' | 'notDone' | 'closed') =>
-        (await sales.actions.list(deal.code, { sort: 'actedAsc', ...(nextActionStatus ? { nextActionStatus } : {}) })).map((a) => a.id)
+        (await sales.actions.list(deal.code, { sort: 'actedAt', order: 'asc', ...(nextActionStatus ? { nextActionStatus } : {}) })).map((a) => a.id)
 
       expect(await ids('open')).toEqual([open.id])
       expect(await ids('done')).toEqual([done.id])
@@ -212,9 +212,28 @@ export function actionsStatusContract(make: MakeGateway): void {
       const late = await sales.actions.create(deal.code, action({ dueDate: '2026-12-30' }))
       const early = await sales.actions.create(deal.code, action({ dueDate: '2026-12-02' }))
 
-      const byDue = (await sales.actions.list(deal.code, { sort: 'dueAsc' })).map((a) => a.id)
+      const byDue = (await sales.actions.list(deal.code, { sort: 'dueDate', order: 'asc' })).map((a) => a.id)
+      const byDueDesc = (await sales.actions.list(deal.code, { sort: 'dueDate', order: 'desc' })).map((a) => a.id)
 
       expect(byDue).toEqual([early.id, late.id, noDue.id])
+      expect(byDueDesc).toEqual([late.id, early.id, noDue.id])
+      await sales.deals.remove(deal.code, deal.code)
+    })
+
+    it('sorts by status open, done, notDone in either direction with the rows without a Next Action last', async () => {
+      const sales = await make('sales')
+      const deal = await newDeal(sales)
+      const notDone = await sales.actions.create(deal.code, action({ progress: '미수행' }))
+      const noNext = await sales.actions.create(deal.code, action({ progress: '진행만', ...ONLY_PROGRESS }))
+      const done = await sales.actions.create(deal.code, action({ progress: '수행' }))
+      const open = await sales.actions.create(deal.code, action({ progress: '열림' }))
+      await sales.actions.changeNextActionStatus(done.id, { status: 'done', memo: '' })
+      await sales.actions.changeNextActionStatus(notDone.id, { status: 'notDone', memo: '' })
+      const ids = async (order: 'asc' | 'desc') =>
+        (await sales.actions.list(deal.code, { sort: 'nextActionStatus', order })).map((a) => a.id)
+
+      expect(await ids('asc')).toEqual([open.id, done.id, notDone.id, noNext.id])
+      expect(await ids('desc')).toEqual([notDone.id, done.id, open.id, noNext.id])
       await sales.deals.remove(deal.code, deal.code)
     })
 

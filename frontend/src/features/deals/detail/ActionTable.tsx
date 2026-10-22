@@ -1,9 +1,11 @@
 import { formatDateTime } from '../../../shared/format'
 import { canEditAction, type Viewer } from '../../../shared/model/permissions'
 import { userLabel } from '../../../shared/model/period'
-import type { DealAction, DealDetail, NextActionStatus } from '../../../shared/model/types'
+import type { ActionSortKey, DealAction, DealDetail, NextActionStatus } from '../../../shared/model/types'
 import { ForecastBadge, StatusBadge } from '../../../shared/ui/Badges'
 import { RiskBadge } from '../../../shared/ui/RiskBadge'
+import { SortableHeader } from '../../../shared/ui/SortableHeader'
+import type { ActionSortState } from './actionSort'
 import { NextActionStatusCell } from './NextActionStatusCell'
 import './detail.css'
 
@@ -12,6 +14,8 @@ interface ActionTableProps {
   deal: DealDetail
   canEdit: boolean
   me: Viewer | null
+  sort: ActionSortState
+  onSort: (key: ActionSortKey) => void
   onEdit: (action: DealAction) => void
   onDelete: (action: DealAction) => void
   /** 없으면 상태 변경 버튼을 보이지 않는다. */
@@ -32,23 +36,26 @@ function isCurrentOverdue(action: DealAction, deal: DealDetail): boolean {
 const noop = () => undefined
 
 /** Actions 목록 표: 수행일시 / 담당자 / 등록 시점 Status·Forecast / 유형 / 진행사항 / Next Action / Due / 상태 / Memo / 관리. */
-export function ActionTable({ actions, deal, canEdit, me, onEdit, onDelete, onChangeStatus, statusBusy = false }: ActionTableProps) {
+export function ActionTable({ actions, deal, canEdit, me, sort, onSort, onEdit, onDelete, onChangeStatus, statusBusy = false }: ActionTableProps) {
+  const header = (label: string, key: ActionSortKey) => (
+    <SortableHeader label={label} active={sort.sort === key} order={sort.order} onSort={() => onSort(key)} />
+  )
   const own = (a: DealAction) => me !== null && canEditAction(me, a.actor.id)
   return (
     <div className="dd-scroll">
       <table className="dd-table" aria-label="Action 목록">
         <thead>
           <tr>
-            <th>수행일시</th>
-            <th>담당자</th>
-            <th>등록 시점 Status·Forecast</th>
-            <th>유형</th>
-            <th>진행사항</th>
-            <th>Next Action</th>
-            <th>Due Date</th>
-            <th>상태</th>
-            <th>Memo</th>
-            {canEdit && <th>관리</th>}
+            {header('수행일시', 'actedAt')}
+            {header('담당자', 'actor')}
+            <SortableHeader label="등록 시점 Status·Forecast" active={false} order={sort.order} />
+            {header('유형', 'type')}
+            <SortableHeader label="진행사항" active={false} order={sort.order} />
+            <SortableHeader label="Next Action" active={false} order={sort.order} />
+            {header('Due Date', 'dueDate')}
+            {header('상태', 'nextActionStatus')}
+            <SortableHeader label="Memo" active={false} order={sort.order} />
+            {canEdit && <th scope="col">관리</th>}
           </tr>
         </thead>
         <tbody>
