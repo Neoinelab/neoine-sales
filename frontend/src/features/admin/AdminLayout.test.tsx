@@ -1,6 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { renderAt } from '../../test/mockApp'
+import { DEFAULT_DEALS_URL_PATTERN } from '../../test/dealsUrl'
 
 describe('Admin 공통 틀 (T-ADMIN-13)', () => {
   it('shows the title and the four sub menus', async () => {
@@ -35,7 +36,7 @@ describe('Admin 공통 틀 (T-ADMIN-13)', () => {
   it.each(['sales', 'user'] as const)('sends a %s user away from every Admin page (T-ADMIN-14)', async (role) => {
     const { location } = await renderAt('/admin/contacts', { role })
 
-    await waitFor(() => expect(location()).toBe('/deals'))
+    await waitFor(() => expect(location()).toMatch(DEFAULT_DEALS_URL_PATTERN))
     expect(screen.queryByRole('navigation', { name: 'Admin 메뉴' })).not.toBeInTheDocument()
   })
 })

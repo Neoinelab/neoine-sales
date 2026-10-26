@@ -6928,8 +6928,12 @@
             "schema": {
               "anyOf": [
                 {
-                  "maxLength": 50,
-                  "type": "string"
+                  "items": {
+                    "maxLength": 50,
+                    "type": "string"
+                  },
+                  "maxItems": 100,
+                  "type": "array"
                 },
                 {
                   "type": "null"

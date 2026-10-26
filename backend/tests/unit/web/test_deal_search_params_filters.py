@@ -17,16 +17,62 @@ VIEWER = uid("viewer")
 
 
 def test_forecast_year_and_quarter_reach_the_query() -> None:
-    query = DealSearchParams(forecast_key="commit", year=2026, quarter=2).to_query(VIEWER)
+    query = DealSearchParams(forecast_key=["commit"], year=2026, quarter=2).to_query(VIEWER)
 
-    assert query.forecast_key == "commit"
+    assert query.forecast_keys == frozenset({"commit"})
     assert (query.year, query.quarter) == (2026, 2)
+
+
+def test_several_forecast_keys_reach_the_query() -> None:
+    query = DealSearchParams(forecast_key=["pipeline", "best"]).to_query(VIEWER)
+
+    assert query.forecast_keys == frozenset({"pipeline", "best"})
+
+
+def test_duplicate_forecast_keys_are_one_key() -> None:
+    query = DealSearchParams(forecast_key=["a", "a"]).to_query(VIEWER)
+
+    assert query.forecast_keys == frozenset({"a"})
+
+
+def test_an_empty_forecast_key_list_means_no_condition() -> None:
+    assert DealSearchParams(forecast_key=[]).to_query(VIEWER).forecast_keys is None
+
+
+def test_a_comma_inside_a_forecast_key_is_part_of_that_one_key() -> None:
+    query = DealSearchParams(forecast_key=["a,b"]).to_query(VIEWER)
+
+    assert query.forecast_keys == frozenset({"a,b"})
+
+
+def test_an_empty_string_forecast_key_is_accepted_as_an_unknown_key() -> None:
+    query = DealSearchParams(forecast_key=[""]).to_query(VIEWER)
+
+    assert query.forecast_keys == frozenset({""})
+
+
+def test_fifty_character_keys_and_one_hundred_keys_are_accepted() -> None:
+    long_key = DealSearchParams(forecast_key=["a" * 50]).to_query(VIEWER)
+    many = DealSearchParams(forecast_key=[f"k{i}" for i in range(100)]).to_query(VIEWER)
+
+    assert long_key.forecast_keys == frozenset({"a" * 50})
+    assert many.forecast_keys is not None
+    assert len(many.forecast_keys) == 100
+
+
+@pytest.mark.parametrize(
+    "keys",
+    [["a" * 51], ["ok", "a" * 51], [f"k{i}" for i in range(101)]],
+)
+def test_too_long_a_key_or_too_many_forecast_keys_are_rejected(keys: list[str]) -> None:
+    with pytest.raises(ValidationError):
+        DealSearchParams(forecast_key=keys)
 
 
 def test_the_new_conditions_default_to_none() -> None:
     query = DealSearchParams().to_query(VIEWER)
 
-    assert (query.forecast_key, query.year, query.quarter) == (None,) * 3
+    assert (query.forecast_keys, query.year, query.quarter) == (None,) * 3
     assert (query.overdue, query.stale) == (False, False)
 
 
@@ -89,7 +135,8 @@ def test_the_year_boundaries_are_accepted(year: int) -> None:
     [
         {"solution_id": "7"},  # 구 id 조건은 폐지됐다
         {"solution": "a" * 201},
-        {"forecast_key": "a" * 51},
+        {"forecast_key": ["a" * 51]},
+        {"forecast_key": [f"k{i}" for i in range(101)]},
         {"year": "twenty"},
         {"quarter": "q2"},
     ],
@@ -180,3 +227,9 @@ def test_next_action_status_defaults_to_no_condition() -> None:
 def test_a_next_action_status_outside_the_whitelist_is_rejected(value: str) -> None:
     with pytest.raises(ValidationError):
         DealSearchParams(next_action_status=value)
+
+
+def test_forecast_key_limits_are_named_constants_with_the_documented_values() -> None:
+    from app.web.schemas.deal import FORECAST_KEYS_MAX, STATUS_KEY_MAX  # noqa: PLC0415
+
+    assert (FORECAST_KEYS_MAX, STATUS_KEY_MAX) == (100, 50)

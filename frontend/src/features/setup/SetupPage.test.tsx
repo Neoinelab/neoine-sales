@@ -4,6 +4,7 @@ import { gateway } from '../../gateway'
 import { mockControl } from '../../test/fake/default'
 import { fillDirectoryForm, setField } from '../../test/directoryForm'
 import { renderAt } from '../../test/mockApp'
+import { DEFAULT_DEALS_URL_PATTERN } from '../../test/dealsUrl'
 
 afterEach(() => vi.restoreAllMocks())
 
@@ -218,7 +219,7 @@ describe('최초 설정 3단계: 관리자 등록 (T-SETUP-03)', () => {
 
     await registerAdmin(user, 'boss', 'secret')
 
-    await waitFor(() => expect(location()).toBe('/deals'))
+    await waitFor(() => expect(location()).toMatch(DEFAULT_DEALS_URL_PATTERN))
     expect(await screen.findByRole('link', { name: 'Admin' })).toBeInTheDocument()
     expect(screen.getByText('boss (admin)')).toBeInTheDocument()
   })
@@ -230,7 +231,7 @@ describe('최초 설정 3단계: 관리자 등록 (T-SETUP-03)', () => {
 
     await registerAdmin(user, 'kim', 'secret')
 
-    await waitFor(() => expect(location()).toBe('/deals'))
+    await waitFor(() => expect(location()).toMatch(DEFAULT_DEALS_URL_PATTERN))
     expect(await screen.findByText('김영업 (admin)')).toBeInTheDocument()
   })
 

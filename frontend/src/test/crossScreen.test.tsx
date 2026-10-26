@@ -1,5 +1,8 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
+import { ALL_DEALS } from '../features/deals/list/testHelpers'
+import { listMemoryKey } from '../shared/model/dealListMemory'
+import { USER_ID } from './fake/seed/ids'
 import { renderAt } from './mockApp'
 
 type Rendered = Awaited<ReturnType<typeof renderAt>>
@@ -7,6 +10,11 @@ type Rendered = Awaited<ReturnType<typeof renderAt>>
 /** 상단 메뉴 링크로 이동한다(같은 앱·같은 쿼리 캐시 안에서 화면을 오가며 반영을 본다). */
 async function goTo(user: Rendered['user'], menu: string) {
   await user.click(within(screen.getByRole('navigation', { name: '주 메뉴' })).getByRole('link', { name: menu }))
+}
+
+/** 목록 밖에서 시작해 메뉴로 Deals에 들어가는 테스트가 전체 Deal을 보도록, 기억한 목록 조건을 '연도 전체'로 둔다(기억이 없으면 기본 조건 올해가 붙는다). */
+function rememberAllDeals(userId: number = USER_ID.root) {
+  window.sessionStorage.setItem(listMemoryKey(userId), 'year=all')
 }
 
 async function renameCode(user: Rendered['user'], rowName: RegExp, next: string) {
@@ -21,6 +29,7 @@ async function renameCode(user: Rendered['user'], rowName: RegExp, next: string)
 
 describe('Admin 변경이 다른 화면에 반영된다 (6-a Status/Forecast 이름)', () => {
   it('shows a renamed Status in the Deals filter, the list rows and the detail', async () => {
+    rememberAllDeals()
     const { user } = await renderAt('/admin/deal', { role: 'admin' })
     await renameCode(user, /가격협상/, '가격 협의')
 
@@ -45,6 +54,7 @@ describe('Admin 변경이 다른 화면에 반영된다 (6-a Status/Forecast 이
   })
 
   it('shows a renamed Forecast in the Forecast screen and the Deals list', async () => {
+    rememberAllDeals()
     const { user } = await renderAt('/admin/deal', { role: 'admin' })
     await user.click(await screen.findByRole('tab', { name: 'Forecast 코드' }))
     await renameCode(user, /Commit/, '확정예상')
@@ -54,9 +64,11 @@ describe('Admin 변경이 다른 화면에 반영된다 (6-a Status/Forecast 이
     expect(screen.queryByRole('columnheader', { name: /^Commit/ })).not.toBeInTheDocument()
 
     await goTo(user, 'Deals')
-    const filter = await screen.findByLabelText('Forecast')
-    await within(filter).findByRole('option', { name: '확정예상' })
-    await user.selectOptions(filter, '확정예상')
+    const bar = within(await screen.findByRole('search', { name: 'Deal 필터' }))
+    await user.click(await bar.findByRole('button', { name: /^Forecast / }))
+    const panel = within(await screen.findByRole('group', { name: 'Forecast' }))
+    expect(panel.queryByRole('checkbox', { name: 'Commit' })).not.toBeInTheDocument()
+    await user.click(await panel.findByRole('checkbox', { name: '확정예상' }))
     await waitFor(() => expect(screen.getAllByRole('button', { name: /Forecast 편집/ }).length).toBeGreaterThan(0))
     for (const b of screen.getAllByRole('button', { name: /Forecast 편집/ })) expect(b).toHaveTextContent('확정예상')
   })
@@ -64,6 +76,7 @@ describe('Admin 변경이 다른 화면에 반영된다 (6-a Status/Forecast 이
 
 describe('contacts 수정이 Deal 화면에 반영된다 (6-b)', () => {
   it('shows the edited title in the list quick view and in the deal detail', async () => {
+    rememberAllDeals()
     const { user } = await renderAt('/admin/contacts', { role: 'admin' })
     const keyword = await screen.findByLabelText('검색어')
     await user.type(keyword, '정민수')
@@ -108,7 +121,7 @@ describe('Label 관리에서 만든 Label이 Deal 폼에 나타난다 (6-c)', ()
 
 describe('범위 밖 메뉴 (6-d)', () => {
   it('shows Reports as not ready', async () => {
-    const { user, location } = await renderAt('/deals')
+    const { user, location } = await renderAt(ALL_DEALS)
     await screen.findByRole('row', { name: /한빛은행 ITDR 도입/ })
     await goTo(user, 'Reports')
     expect(location()).toBe('/reports')
@@ -119,7 +132,7 @@ describe('범위 밖 메뉴 (6-d)', () => {
 
 describe('Dashboard 메뉴 (Dashboard AC-10)', () => {
   it('opens the Dashboard from the menu instead of a coming soon page', async () => {
-    const { user, location } = await renderAt('/deals')
+    const { user, location } = await renderAt(ALL_DEALS)
     await screen.findByRole('row', { name: /한빛은행 ITDR 도입/ })
     await goTo(user, 'Dashboard')
     expect(location()).toBe('/dashboard')
@@ -139,6 +152,7 @@ describe('Admin의 Action 유형 변경이 Deal 상세에 반영된다 (AC-26·2
   }
 
   it('offers a type added in Deal management as a candidate in the Action form', async () => {
+    rememberAllDeals()
     const { user } = await renderAt('/admin/deal?tab=action-type', { role: 'admin' })
     const add = await screen.findByRole('form', { name: 'Action 유형 추가' })
     await user.type(within(add).getByLabelText('새 유형 이름'), '웨비나')
@@ -154,6 +168,7 @@ describe('Admin의 Action 유형 변경이 Deal 상세에 반영된다 (AC-26·2
   })
 
   it('shows a renamed type in the Actions table of a deal', async () => {
+    rememberAllDeals()
     const { user } = await renderAt('/admin/deal?tab=action-type', { role: 'admin' })
     const row = within(await screen.findByRole('row', { name: /협상/ }))
     await user.click(row.getByRole('button', { name: '이름 수정' }))

@@ -2,13 +2,13 @@ import { screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { gateway } from '../../../gateway'
 import { renderAt } from '../../../test/mockApp'
-import { dataRows } from './testHelpers'
+import { ALL_DEALS, dataRows } from './testHelpers'
 
 afterEach(() => vi.restoreAllMocks())
 
 describe('목록 조건 전환 (keepPreviousData)', () => {
   it('keeps the previous table on screen while the next condition loads', async () => {
-    const { user, location } = await renderAt('/deals')
+    const { user, location } = await renderAt(ALL_DEALS)
     await screen.findByRole('row', { name: /한빛은행 ITDR 도입/ })
     const before = dataRows().length
 

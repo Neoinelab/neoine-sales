@@ -4,7 +4,8 @@ import { listMemoryKey } from '../../../shared/model/dealListMemory'
 import { resetMock } from '../../../test/fake/default'
 import { renderAt } from '../../../test/mockApp'
 import { dealCodeOf } from '../../../test/detailTestUtils'
-import { dataRows, rowOf } from './testHelpers'
+import { defaultDealsUrl } from '../../../test/dealsUrl'
+import { ALL_DEALS, dataRows, rowOf } from './testHelpers'
 import { USER_ID } from '../../../test/fake/seed/ids'
 
 /**
@@ -13,7 +14,9 @@ import { USER_ID } from '../../../test/fake/seed/ids'
  */
 
 const CONDITION = '/deals?mine=1&status=contract_completed&sort=name&order=asc'
-const PAGED = '/deals?sort=revenueAmount&order=desc&page=2'
+const PAGED = '/deals?year=all&sort=revenueAmount&order=desc&page=2'
+/** 초기화·빈 진입이 쓰는 기준일(앱 시계). 시드 Deal 날짜는 이 시각 기준 상대값이다. */
+const NOW = '2026-10-15T09:00:00+09:00'
 const NOT_FOUND = '/deals/20000101-ZZZZ'
 const QINGMYEONG = /청명대학교 SSO\/MFA/
 
@@ -177,16 +180,18 @@ describe('상단 메뉴와 초기화 (AC-07, AC-08)', () => {
     expect(screen.getByLabelText('Status')).toHaveDisplayValue('계약완료')
   })
 
-  it('reset clears remembered conditions', async () => {
+  it('reset replaces the remembered conditions with the default period', async () => {
+    resetMock({ now: NOW })
     const view = await renderAt(CONDITION)
     await screen.findByRole('row', { name: QINGMYEONG })
     await view.user.click(screen.getByRole('button', { name: '초기화' }))
-    await waitFor(() => expect(view.location()).toBe('/deals'))
+    await waitFor(() => expect(view.location()).toBe(defaultDealsUrl(NOW)))
     await screen.findByRole('row', { name: /한빛은행 ITDR 도입/ })
     await view.user.click(within(await rowOf(/한빛은행 ITDR 도입/)).getByRole('link', { name: '한빛은행 ITDR 도입' }))
     await screen.findByRole('heading', { level: 1, name: '한빛은행 ITDR 도입' })
 
-    expect(screen.getByRole('link', { name: '← 목록' })).toHaveAttribute('href', '/deals')
+    expect(screen.getByRole('link', { name: '← 목록' })).toHaveAttribute('href', defaultDealsUrl(NOW))
+    resetMock({ now: null })
   })
 })
 
@@ -219,30 +224,33 @@ describe('탭·사용자 단위 기억 (AC-10)', () => {
 describe('목록에 머무는 동안 상단 메뉴 (AC-07, 리뷰 Major)', () => {
   const deals = () => screen.getByRole('link', { name: 'Deals' })
 
-  it('menu deals href is the bare list right after reset', async () => {
+  beforeEach(() => resetMock({ now: NOW }))
+  afterEach(() => resetMock({ now: null }))
+
+  it('menu deals href is the default list right after reset', async () => {
     const view = await renderAt(CONDITION)
     await screen.findByRole('row', { name: QINGMYEONG })
 
     await view.user.click(screen.getByRole('button', { name: '초기화' }))
     await screen.findByRole('row', { name: /한빛은행 ITDR 도입/ })
 
-    expect(view.location()).toBe('/deals')
-    expect(deals()).toHaveAttribute('href', '/deals')
+    expect(view.location()).toBe(defaultDealsUrl(NOW))
+    expect(deals()).toHaveAttribute('href', defaultDealsUrl(NOW))
   })
 
   it('menu deals href follows a filter change immediately', async () => {
-    const view = await renderAt('/deals')
+    const view = await renderAt(ALL_DEALS)
     await screen.findByRole('row', { name: /한빛은행 ITDR 도입/ })
 
     await view.user.selectOptions(screen.getByLabelText('Status'), '계약완료')
     await screen.findByRole('row', { name: QINGMYEONG })
 
-    expect(view.location()).toBe('/deals?status=contract_completed')
-    expect(deals()).toHaveAttribute('href', '/deals?status=contract_completed')
+    expect(view.location()).toBe('/deals?year=all&status=contract_completed')
+    expect(deals()).toHaveAttribute('href', '/deals?year=all&status=contract_completed')
   })
 
   it('menu deals href follows a sort change immediately', async () => {
-    const view = await renderAt('/deals')
+    const view = await renderAt(ALL_DEALS)
     await screen.findByRole('row', { name: /한빛은행 ITDR 도입/ })
 
     await view.user.click(screen.getByRole('button', { name: '금액(단위:천원)' }))
@@ -338,13 +346,13 @@ describe('정렬·기한초과·미업데이트 기억 (AC-2·9)', () => {
 
   it('menu deals href follows a new-column sort change immediately', async () => {
     const deals = () => screen.getByRole('link', { name: 'Deals' })
-    const view = await renderAt('/deals')
+    const view = await renderAt(ALL_DEALS)
     await screen.findByRole('row', { name: /한빛은행 ITDR 도입/ })
 
     await view.user.click(screen.getByRole('button', { name: '담당자' }))
     await waitFor(() => expect(screen.getByRole('columnheader', { name: '담당자' })).toHaveAttribute('aria-sort', 'ascending'))
 
-    expect(deals()).toHaveAttribute('href', '/deals?sort=owner&order=asc')
+    expect(deals()).toHaveAttribute('href', '/deals?year=all&sort=owner&order=asc')
   })
 
   it('does not restore old BANT keys that an earlier version stored', async () => {

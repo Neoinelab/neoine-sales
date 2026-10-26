@@ -1,6 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { renderAt } from '../../test/mockApp'
+import { DEFAULT_DEALS_URL_PATTERN } from '../../test/dealsUrl'
 
 async function openLogin() {
   const view = await renderAt('/login', { role: null })
@@ -61,7 +62,7 @@ describe('로그인 화면 (계획 6.1, T-SHELL-08)', () => {
     const { user, location } = await openLogin()
     await fill(user, 'kim', 'whatever')
     await user.click(screen.getByRole('button', { name: '로그인' }))
-    await waitFor(() => expect(location()).toBe('/deals'))
+    await waitFor(() => expect(location()).toMatch(DEFAULT_DEALS_URL_PATTERN))
     expect(await screen.findByText('김영업 (sales)')).toBeVisible()
   })
 
@@ -72,13 +73,13 @@ describe('로그인 화면 (계획 6.1, T-SHELL-08)', () => {
   ])('signs in with the quick login %s by its role', async (button, shown) => {
     const { user, location } = await openLogin()
     await user.click(screen.getByRole('button', { name: button }))
-    await waitFor(() => expect(location()).toBe('/deals'))
+    await waitFor(() => expect(location()).toMatch(DEFAULT_DEALS_URL_PATTERN))
     expect(await screen.findByText(shown)).toBeVisible()
   })
 
   it('goes to the main page when already signed in', async () => {
     const { location } = await renderAt('/login', { role: 'sales' })
-    await waitFor(() => expect(location()).toBe('/deals'))
+    await waitFor(() => expect(location()).toMatch(DEFAULT_DEALS_URL_PATTERN))
   })
 
   it('does not keep the typed password in the mutation cache, on success or failure', async () => {
@@ -90,7 +91,7 @@ describe('로그인 화면 (계획 6.1, T-SHELL-08)', () => {
     await user.type(screen.getByLabelText('아이디'), 'kim')
     await user.type(screen.getByLabelText('비밀번호'), 'pw-secret-2')
     await user.click(screen.getByRole('button', { name: '로그인' }))
-    await waitFor(() => expect(location()).toBe('/deals'))
+    await waitFor(() => expect(location()).toMatch(DEFAULT_DEALS_URL_PATTERN))
     await waitFor(() => {
       const kept = JSON.stringify(client.getMutationCache().getAll().map((m) => m.state.variables))
       expect(kept).not.toContain('pw-secret-1')

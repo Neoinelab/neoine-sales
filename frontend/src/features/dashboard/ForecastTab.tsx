@@ -2,7 +2,7 @@ import { DrillLink } from './DrillLink'
 import { AMOUNT_LABEL } from '../../shared/model/money'
 import type { DashboardSummary, ForecastCell } from '../../shared/model/types'
 import { AmountText } from '../../shared/ui/AmountText'
-import { closingQuarterPath, quarterCellPath, quarterTotalPath, type DashboardScope } from './drillDown'
+import { closingQuarterPath, forecastSetsOf, quarterCellPath, quarterTotalPath, type DashboardScope } from './drillDown'
 import { QuarterChart } from './QuarterChart'
 import { SelectedQuarterSection } from './SelectedQuarterSection'
 import { ClosingAttention, ForecastTiles } from './Tiles'
@@ -14,7 +14,7 @@ interface Props {
   onSelectQuarter: (quarter: 1 | 2 | 3 | 4) => void
 }
 
-function CellLink({ to, cell }: { to: string; cell: ForecastCell | undefined }) {
+function CellLink({ to, cell }: { to: string | null; cell: ForecastCell | undefined }) {
   const { count, amount } = cell ?? { count: 0, amount: 0 }
   return (
     <DrillLink to={to}>
@@ -26,6 +26,7 @@ function CellLink({ to, cell }: { to: string; cell: ForecastCell | undefined }) 
 /** 분기 표: 차트와 같은 값을 글자로 보인다. 모든 셀이 Deal 목록 링크다. Selected Quarter 행은 `aria-current`. */
 function QuarterTable({ summary, scope, selectedQuarter }: Pick<Props, 'summary' | 'scope' | 'selectedQuarter'>) {
   const { columns } = summary.forecast
+  const sets = forecastSetsOf(columns)
   return (
     <div className="db-scroll">
       <table className="db-table" aria-label="분기별 Forecast 구분 금액">
@@ -56,10 +57,10 @@ function QuarterTable({ summary, scope, selectedQuarter }: Pick<Props, 'summary'
                 </td>
               ))}
               <td className="db-num">
-                <CellLink to={closingQuarterPath(scope, { year: scope.year, quarter: q.quarter })} cell={q.openTotal} />
+                <CellLink to={closingQuarterPath(scope, { year: scope.year, quarter: q.quarter }, sets)} cell={q.openTotal} />
               </td>
               <td className="db-num db-total">
-                <CellLink to={quarterTotalPath(scope, q.quarter)} cell={q.total} />
+                <CellLink to={quarterTotalPath(scope, q.quarter, sets)} cell={q.total} />
               </td>
             </tr>
           ))}

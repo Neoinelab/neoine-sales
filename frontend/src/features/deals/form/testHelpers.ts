@@ -41,6 +41,8 @@ export async function save(user: UserEvent) {
 export async function openList(user: UserEvent, query: string) {
   await waitFor(() => expect(screen.getByRole('link', { name: 'Deals' })).toBeVisible())
   await user.click(screen.getByRole('link', { name: 'Deals' }))
+  // 기본 조건(올해)에 새 Deal의 Expected Close가 없을 수 있어, 사용자처럼 연도를 '전체'로 바꾼다.
+  await user.selectOptions(await screen.findByLabelText('연도'), '전체')
   const keyword = await screen.findByLabelText('키워드')
   await user.clear(keyword) // P5 Q1: 메뉴가 마지막 목록 조건(키워드 포함)을 복원한다
   await user.type(keyword, query)

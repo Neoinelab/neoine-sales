@@ -2,13 +2,13 @@ import { cleanup, screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { gateway } from '../../../gateway'
 import { renderAt } from '../../../test/mockApp'
-import { dataRows, rowOf } from './testHelpers'
+import { ALL_DEALS, dataRows, rowOf } from './testHelpers'
 
 const HEADERS = ['Deal', '담당자', '고객사', '파트너사', 'Vendor', 'Status', 'Forecast', '금액(단위:천원)', 'Expected Close', 'Next Action', 'Due', 'Next Action 상태', '최종 업데이트']
 
 describe('목록 표 (T-LIST-01~04)', () => {
   it('shows the PRD columns with the split Next Action columns', async () => {
-    await renderAt('/deals')
+    await renderAt(ALL_DEALS)
     await screen.findByRole('row', { name: /한빛은행 ITDR 도입/ })
     const headers = screen.getAllByRole('columnheader').map((h) => h.textContent?.trim())
     expect(headers).toEqual(HEADERS)
@@ -37,15 +37,15 @@ describe('목록 표 (T-LIST-01~04)', () => {
   })
 
   it('shows twenty deals on the first page and the rest on the second', async () => {
-    const { user, location } = await renderAt('/deals')
+    const { user, location } = await renderAt(ALL_DEALS)
     await screen.findByRole('row', { name: /한빛은행 ITDR 도입/ })
     expect(dataRows()).toHaveLength(20)
     await user.click(screen.getByRole('button', { name: '다음' }))
-    expect(location()).toBe('/deals?page=2')
+    expect(location()).toBe('/deals?year=all&page=2')
     await screen.findByRole('button', { name: '이전' })
     expect(dataRows()).toHaveLength(4)
     await user.click(screen.getByRole('button', { name: '이전' }))
-    expect(location()).toBe('/deals')
+    expect(location()).toBe('/deals?year=all')
   })
 
   it('shows the customer, only the active partner, the owner and the formatted amount', async () => {
@@ -102,7 +102,7 @@ describe('목록 표 (T-LIST-01~04)', () => {
   })
 
   it('explains the risk colors with a legend, not by color alone', async () => {
-    await renderAt('/deals')
+    await renderAt(ALL_DEALS)
     const legend = await screen.findByRole('list', { name: 'Risk 범례' })
     expect(within(legend).getByText('기한초과')).toBeVisible()
     expect(await within(legend).findByText('14일 이상 미업데이트')).toBeVisible()
@@ -148,14 +148,14 @@ describe('빠른 보기 (T-LIST-10)', () => {
 
 describe('권한 (T-LIST-11)', () => {
   it('gives a viewer the list without register or edit controls', async () => {
-    await renderAt('/deals', { role: 'user' })
+    await renderAt(ALL_DEALS, { role: 'user' })
     await screen.findByRole('row', { name: /한빛은행 ITDR 도입/ })
     expect(screen.queryByRole('link', { name: /Deal 등록/ })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /편집/ })).not.toBeInTheDocument()
   })
 
   it.each(['sales', 'admin'] as const)('shows the register link and edit buttons to %s', async (role) => {
-    await renderAt('/deals', { role })
+    await renderAt(ALL_DEALS, { role })
     await screen.findByRole('row', { name: /한빛은행 ITDR 도입/ })
     expect(screen.getByRole('link', { name: '+ Deal 등록' })).toHaveAttribute('href', '/deals/new')
     expect(screen.getAllByRole('button', { name: /Forecast 편집/ }).length).toBeGreaterThan(0)

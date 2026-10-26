@@ -28,7 +28,7 @@ def test_deal_search_params_reject_unknown_forecast_outcome(value: str) -> None:
 
 
 def test_the_outcome_combines_with_forecast_key_in_one_query() -> None:
-    query = DealSearchParams(forecast_key="commit", forecast_outcome="open").to_query(VIEWER)
+    query = DealSearchParams(forecast_key=["commit"], forecast_outcome="open").to_query(VIEWER)
 
-    assert query.forecast_key == "commit"
+    assert query.forecast_keys == frozenset({"commit"})
     assert query.forecast_outcome is ForecastOutcomeFilter.OPEN

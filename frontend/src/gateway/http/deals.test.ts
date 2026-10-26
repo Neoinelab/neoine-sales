@@ -60,7 +60,7 @@ describe('deals.list forecast outcome over HTTP (Dashboard AC-9)', () => {
   it('sends it next to forecast_key (the server ANDs them)', async () => {
     const { calls } = stubFetch(json(page([])))
 
-    await createDealsHttp().list({ forecastKey: 'commit', forecastOutcome: 'open' })
+    await createDealsHttp().list({ forecastKeys: ['commit'], forecastOutcome: 'open' })
 
     expect(Object.fromEntries(query(calls[0]?.path ?? ''))).toEqual({ forecast_key: 'commit', forecast_outcome: 'open' })
   })
@@ -71,6 +71,35 @@ describe('deals.list forecast outcome over HTTP (Dashboard AC-9)', () => {
     await createDealsHttp().list({ year: 2026, quarter: 4 })
 
     expect(query(calls[0]?.path ?? '').has('forecast_outcome')).toBe(false)
+  })
+})
+
+describe('deals.list forecast keys over HTTP (Forecast 다중 조건 AC-06)', () => {
+  const sent = (path: string) => query(path).getAll('forecast_key')
+
+  it('repeats forecast_key once per key', async () => {
+    const { calls } = stubFetch(json(page([])))
+
+    await createDealsHttp().list({ forecastKeys: ['best', 'pipeline'] })
+
+    expect(sent(calls[0]?.path ?? '')).toEqual(['best', 'pipeline'])
+    expect(calls[0]?.path).toContain('forecast_key=best&forecast_key=pipeline')
+  })
+
+  it('sends a single key as one forecast_key', async () => {
+    const { calls } = stubFetch(json(page([])))
+
+    await createDealsHttp().list({ forecastKeys: ['commit'] })
+
+    expect(sent(calls[0]?.path ?? '')).toEqual(['commit'])
+  })
+
+  it.each([[[]], [undefined]] as const)('sends no forecast_key for %j', async (keys) => {
+    const { calls } = stubFetch(json(page([])))
+
+    await createDealsHttp().list({ year: 2026, forecastKeys: keys })
+
+    expect(query(calls[0]?.path ?? '').has('forecast_key')).toBe(false)
   })
 })
 
@@ -92,7 +121,7 @@ describe('deals.list over HTTP', () => {
       vendorId: 6,
       solution: 'ITDR',
       statusKey: 'prospecting',
-      forecastKey: 'pipeline',
+      forecastKeys: ['pipeline'],
       year: 2026,
       quarter: 4,
       updatedFrom: '2026-10-01',

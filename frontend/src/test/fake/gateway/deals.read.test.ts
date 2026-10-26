@@ -55,10 +55,24 @@ describe('deals.list', () => {
     expect(codes(mine.items)).toEqual(codesOf(1, 2, 7, 11, 13, 16, 20, 24))
     expect(codes((await gateway.deals.list({ ownerId: USER_ID.kim })).items)).toEqual(codes(mine.items))
     expect((await gateway.deals.list({ vendorId: seedVendorId('Silverfort') })).total).toBe(7)
-    expect(codes((await gateway.deals.list({ forecastKey: 'won' })).items)).toEqual(codesOf(11, 12, 24))
-    expect(codes((await gateway.deals.list({ forecastKey: 'lost' })).items)).toEqual(codesOf(16))
+    expect(codes((await gateway.deals.list({ forecastKeys: ['won'] })).items)).toEqual(codesOf(11, 12, 24))
+    expect(codes((await gateway.deals.list({ forecastKeys: ['lost'] })).items)).toEqual(codesOf(16))
     expect((await gateway.deals.list({ statusKey: 'contract_completed' })).total).toBe(3)
     expect((await gateway.deals.list({ ownerId: USER_ID.old })).total).toBe(1)
+  })
+
+  it('Forecast 조건은 여러 key 중 하나와 일치하는 Deal(OR)이다 (다중 조건 AC-01·03)', async () => {
+    const { gateway } = await mockAs('kim')
+    const won = codes((await gateway.deals.list({ forecastKeys: ['won'] })).items)
+    const lost = codes((await gateway.deals.list({ forecastKeys: ['lost'] })).items)
+
+    const both = codes((await gateway.deals.list({ forecastKeys: ['won', 'lost'] })).items)
+    expect(both).toEqual(expect.arrayContaining([...won, ...lost]))
+    expect(both).toHaveLength(won.length + lost.length)
+    expect(codes((await gateway.deals.list({ forecastKeys: ['lost', 'lost'] })).items)).toEqual(lost)
+    expect((await gateway.deals.list({ forecastKeys: ['no_such'] })).total).toBe(0)
+    expect(codes((await gateway.deals.list({ forecastKeys: ['no_such', 'lost'] })).items)).toEqual(lost)
+    expect((await gateway.deals.list({ forecastKeys: [] })).total).toBe((await gateway.deals.list({})).total)
   })
 
   it('AC-16 Vendor 필터는 id가 같은 Deal만, 없는 id는 0건이다', async () => {

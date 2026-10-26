@@ -4,6 +4,7 @@ import { AmountText } from '../../shared/ui/AmountText'
 import {
   closingMonthPath,
   closingQuarterPath,
+  forecastSetsOf,
   forecastTilePath,
   openTotalPath,
   overduePath,
@@ -12,7 +13,7 @@ import {
 } from './drillDown'
 
 interface TileProps {
-  to: string
+  to: string | null
   title: string
   cell: ForecastCell
   tone?: 'ok' | 'total'
@@ -45,6 +46,7 @@ interface Props {
 export function ForecastTiles({ summary, scope }: Props) {
   const { columns, cells, openTotal } = summary.forecast
   const zero = { count: 0, amount: 0 }
+  const sets = forecastSetsOf(columns)
   return (
     <section className="db-tiles" aria-label="Forecast 구분별 금액(단위:천원)">
       {columns
@@ -52,7 +54,7 @@ export function ForecastTiles({ summary, scope }: Props) {
         .map((c) => (
           <AmountTile key={c.key} to={forecastTilePath(scope, c.key)} title={c.name} cell={cells[c.key] ?? zero} />
         ))}
-      <AmountTile to={openTotalPath(scope)} title="Open 합계" cell={openTotal} tone="total" />
+      <AmountTile to={openTotalPath(scope, sets)} title="Open 합계" cell={openTotal} tone="total" />
       {columns
         .filter((c) => c.outcome === 'won')
         .map((c) => (
@@ -62,7 +64,7 @@ export function ForecastTiles({ summary, scope }: Props) {
   )
 }
 
-function CountTile({ to, title, count }: { to: string; title: string; count: number }) {
+function CountTile({ to, title, count }: { to: string | null; title: string; count: number }) {
   return (
     <DrillLink to={to} className="db-tile db-tile-attention">
       <span className="db-tile-title">{title}</span>
@@ -79,11 +81,12 @@ const quarterTitle = (q: { year: number; quarter: number }): string => `이번 �
 /** Status 탭: 기한초과 / 미업데이트 / 이번 분기 Expected Close. 담당자·Vendor만 적용하고 기간은 적용하지 않는다. */
 export function StatusAttention({ summary, scope }: Props) {
   const { attention } = summary
+  const sets = forecastSetsOf(summary.forecast.columns)
   return (
     <section className="db-tiles" aria-label="주의 필요 Deal">
       <CountTile to={overduePath(scope)} title="기한초과" count={attention.overdue} />
       <CountTile to={stalePath(scope)} title={staleTitle(attention.staleDays)} count={attention.stale} />
-      <CountTile to={closingQuarterPath(scope, attention.closingThisQuarter)} title={quarterTitle(attention.closingThisQuarter)} count={attention.closingThisQuarter.count} />
+      <CountTile to={closingQuarterPath(scope, attention.closingThisQuarter, sets)} title={quarterTitle(attention.closingThisQuarter)} count={attention.closingThisQuarter.count} />
     </section>
   )
 }
@@ -91,14 +94,15 @@ export function StatusAttention({ summary, scope }: Props) {
 /** Forecast 탭: 이번 달 / 이번 분기 Expected Close, 미업데이트. */
 export function ClosingAttention({ summary, scope }: Props) {
   const { attention } = summary
+  const sets = forecastSetsOf(summary.forecast.columns)
   return (
     <section className="db-tiles" aria-label="Closing Attention">
       <CountTile
-        to={closingMonthPath(scope, attention.closingThisMonth)}
+        to={closingMonthPath(scope, attention.closingThisMonth, sets)}
         title={`이번 달(${attention.closingThisMonth.month}월) Expected Close`}
         count={attention.closingThisMonth.count}
       />
-      <CountTile to={closingQuarterPath(scope, attention.closingThisQuarter)} title={quarterTitle(attention.closingThisQuarter)} count={attention.closingThisQuarter.count} />
+      <CountTile to={closingQuarterPath(scope, attention.closingThisQuarter, sets)} title={quarterTitle(attention.closingThisQuarter)} count={attention.closingThisQuarter.count} />
       <CountTile to={stalePath(scope)} title={staleTitle(attention.staleDays)} count={attention.stale} />
     </section>
   )

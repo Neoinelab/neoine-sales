@@ -1,14 +1,18 @@
+import type { Quarter } from '../../../shared/model/period'
 import { DEAL_PAGE_SIZE, SOLUTION_MAX_LENGTH } from '../../../shared/model/constants'
-import type { DealListQuery, DealSortKey, ForecastOutcomeFilter, SortOrder } from '../../../shared/model/types'
+import type { DealListQuery, DealSortKey, SortOrder } from '../../../shared/model/types'
 
 import { nextActionStatusFromParam } from '../../../shared/model/nextActionStatus'
 import { parseId } from '../../../shared/model/ids'
-import { parseMonth } from '../../../shared/model/month'
+import { monthsOfQuarter, parseMonth } from '../../../shared/model/month'
 import { isCalendarDate } from '../../../shared/model/updatedPeriod'
 import { FILTER_KEYS } from '../../../shared/model/dealListMemory'
+import { parseForecastParam } from '../../../shared/model/forecastKeys'
 
 /** URL 쿼리 키(정의는 shared의 기억 모듈에 있고 여기서 다시 내보낸다). */
 export { FILTER_KEYS }
+
+const ALL_MONTHS: readonly number[] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
 
 const SORT_KEYS: readonly DealSortKey[] = ['name', 'revenueAmount', 'revenueDate', 'lastUpdatedAt', 'statusKey', 'owner', 'customer', 'partner', 'vendor', 'forecastKey']
 
@@ -33,13 +37,33 @@ const NATURAL_ORDER: Record<DealSortKey, SortOrder> = {
   forecastKey: 'asc',
 }
 
-/** Forecast 구분 필터의 URL 값 → 선택지. 모르는 값은 undefined('전체')다. */
-export function outcomeFromParam(value: string | null): ForecastOutcomeFilter | undefined {
-  return value === 'open' || value === 'won' || value === 'lost' || value === 'not_lost' ? value : undefined
-}
-
 function isSortKey(value: string | null): value is DealSortKey {
   return SORT_KEYS.some((key) => key === value)
+}
+
+function quarterOf(params: URLSearchParams): Quarter | undefined {
+  const quarter = Number(params.get('quarter'))
+  return quarter === 1 || quarter === 2 || quarter === 3 || quarter === 4 ? quarter : undefined
+}
+
+/** 화면과 질의가 쓰는 월: 분기가 있으면 그 분기에 속한 월만, 분기가 없으면(또는 모르는 분기면) 형식이 맞는 월. */
+export function effectiveMonth(params: URLSearchParams): number | undefined {
+  const month = parseMonth(params.get('month'))
+  const quarter = quarterOf(params)
+  if (month === undefined || quarter === undefined) return month
+  return monthsOfQuarter(quarter).includes(month) ? month : undefined
+}
+
+/** 월 선택지: 분기를 골랐으면 그 분기의 세 달, 아니면 12달. */
+export function monthOptions(params: URLSearchParams): readonly number[] {
+  const quarter = quarterOf(params)
+  return quarter === undefined ? ALL_MONTHS : monthsOfQuarter(quarter)
+}
+
+/** Quarter를 바꿀 때 URL에 적용할 변경. 다른 분기면 월을 지우고, 전체면 화면에 보이던 월만 남긴다. */
+export function quarterChangePatch(params: URLSearchParams, next: string): Record<string, string> {
+  if (next === '' && effectiveMonth(params) !== undefined) return { quarter: '' }
+  return { quarter: next, month: '' }
 }
 
 function positiveInt(value: string | null): number | null {
@@ -71,16 +95,10 @@ export function listQueryFromParams(params: URLSearchParams): DealListQuery {
 
   const keyword = text('q')
   if (keyword) query.keyword = keyword
-  const pairs = [
-    ['status', 'statusKey'],
-    ['forecast', 'forecastKey'],
-  ] as const
-  for (const [param, field] of pairs) {
-    const value = text(param)
-    if (value) query[field] = value
-  }
-  const outcome = outcomeFromParam(params.get('outcome'))
-  if (outcome) query.forecastOutcome = outcome
+  const status = text('status')
+  if (status) query.statusKey = status
+  const forecastKeys = parseForecastParam(params.get('forecast'))
+  if (forecastKeys.length > 0) query.forecastKeys = forecastKeys
   // 최종 업데이트 기간: 실제 달력 날짜만 쓰고 잘못된 값은 무시한다.
   const updatedFrom = text('updated_from')
   if (isCalendarDate(updatedFrom)) query.updatedFrom = updatedFrom
@@ -100,11 +118,11 @@ export function listQueryFromParams(params: URLSearchParams): DealListQuery {
   const year = positiveInt(params.get('year'))
   if (year !== null) query.year = year
   // 분기는 연도와 따로 보낸다(연도 없이 분기만 있으면 서버가 올해로 본다).
-  const quarter = Number(params.get('quarter'))
-  if (quarter === 1 || quarter === 2 || quarter === 3 || quarter === 4) query.quarter = quarter
-  // 월은 분기와 함께 쓸 수 없다(서버 422). 둘 다 있으면 분기를 유지한다.
-  const month = parseMonth(params.get('month'))
-  if (query.quarter === undefined && month !== undefined) query.month = month
+  // 월은 분기와 함께 보내지 않는다(서버 422). 분기에 속한 월이면 월만, 속하지 않으면 분기만 보낸다.
+  const quarter = quarterOf(params)
+  const month = effectiveMonth(params)
+  if (month !== undefined) query.month = month
+  else if (quarter !== undefined) query.quarter = quarter
 
   if (params.get('mine') === '1') query.mine = true
   if (params.get('overdue') === '1') query.overdue = true
@@ -132,7 +150,25 @@ export function updateParams(params: URLSearchParams, patch: Record<string, stri
   return next
 }
 
-/** 정렬·페이지를 뺀 조건이 하나라도 있으면 true(빈 상태 문구 구분). */
+/** 정렬·페이지를 뺀 조건이 하나라도 있으면 true. 연도 '전체'(`year=all`)는 조건이 아니다(빈 상태 문구 구분). */
 export function hasActiveFilter(params: URLSearchParams): boolean {
+  return FILTER_KEYS.some((key) => {
+    const value = (params.get(key) ?? '').trim()
+    return value !== '' && !(key === 'year' && value === 'all')
+  })
+}
+
+/** 필터 키가 하나라도 값을 가지면 true(`year=all` 포함). false면 목록은 기본 조건을 적용한다. */
+export function hasListCondition(params: URLSearchParams): boolean {
   return FILTER_KEYS.some((key) => (params.get(key) ?? '').trim() !== '')
+}
+
+/** 조건 없이 들어온 목록의 기본 조건: 올해만(Quarter 전체). 정렬은 이어받고 페이지·모르는 키는 버린다. today는 'YYYY-MM-DD'. */
+export function defaultListParams(today: string, current?: URLSearchParams): URLSearchParams {
+  const next = new URLSearchParams({ year: today.slice(0, 4) })
+  for (const key of ['sort', 'order']) {
+    const value = current?.get(key)
+    if (value) next.set(key, value)
+  }
+  return next
 }

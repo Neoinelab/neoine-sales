@@ -1,6 +1,9 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
+import { listMemoryKey } from '../../shared/model/dealListMemory'
+import { USER_ID } from '../../test/fake/seed/ids'
 import { renderAt } from '../../test/mockApp'
+import { ALL_DEALS } from './list/testHelpers'
 import { dealCodeOf, detailPath } from '../../test/detailTestUtils'
 import { DETAIL_URL, openEdit, pickPerson, save } from './form/testHelpers'
 
@@ -8,6 +11,8 @@ import { DETAIL_URL, openEdit, pickPerson, save } from './form/testHelpers'
 
 describe('삭제 후 목록 알림', () => {
   it('shows the deletion notice on the list and drops it after leaving the list', async () => {
+    // 기억한 목록 조건이 없으면 기본 조건(올해)이 붙으므로, 전체 Deal을 보도록 '연도 전체'를 기억해 둔다.
+    window.sessionStorage.setItem(listMemoryKey(USER_ID.kim), 'year=all')
     const code = await dealCodeOf(11)
     const view = await renderAt(await detailPath(11))
     await screen.findByRole('heading', { level: 1, name: '청명대학교 SSO/MFA' })
@@ -43,7 +48,7 @@ describe('삭제 후 목록 알림', () => {
   })
 
   it('shows no notice when the list is opened directly', async () => {
-    await renderAt('/deals')
+    await renderAt(ALL_DEALS)
     await screen.findByRole('row', { name: /한빛은행 ITDR 도입/ })
     expect(screen.queryByText(/삭제되었습니다/)).not.toBeInTheDocument()
   })

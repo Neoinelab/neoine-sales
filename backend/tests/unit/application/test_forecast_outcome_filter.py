@@ -43,8 +43,10 @@ def test_deal_query_defaults_to_no_outcome_filter() -> None:
     assert DealQuery().forecast_outcome is None
 
 
-def test_deal_query_accepts_forecast_outcome_with_forecast_key() -> None:
-    query = DealQuery(forecast_key="commit", forecast_outcome=ForecastOutcomeFilter.OPEN)
+def test_deal_query_accepts_forecast_outcome_with_forecast_keys() -> None:
+    query = DealQuery(
+        forecast_keys=frozenset({"commit"}), forecast_outcome=ForecastOutcomeFilter.OPEN
+    )
 
-    assert query.forecast_key == "commit"
+    assert query.forecast_keys == frozenset({"commit"})
     assert query.forecast_outcome is ForecastOutcomeFilter.OPEN

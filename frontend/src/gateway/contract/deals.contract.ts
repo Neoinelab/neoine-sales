@@ -310,8 +310,10 @@ export function dealsContract(make: MakeGateway): void {
       const created = await sales.deals.create(input)
 
       expect((await sales.deals.list({ keyword: input.name })).total).toBe(1)
-      expect((await sales.deals.list({ keyword: input.name, statusKey: 'prospecting', forecastKey: 'pipeline' })).total).toBe(1)
-      expect((await sales.deals.list({ keyword: input.name, forecastKey: 'commit' })).total).toBe(0)
+      expect((await sales.deals.list({ keyword: input.name, statusKey: 'prospecting', forecastKeys: ['pipeline'] })).total).toBe(1)
+      expect((await sales.deals.list({ keyword: input.name, forecastKeys: ['commit'] })).total).toBe(0)
+      expect((await sales.deals.list({ keyword: input.name, forecastKeys: ['commit', 'pipeline'] })).total).toBe(1)
+      expect((await sales.deals.list({ keyword: input.name, forecastKeys: ['pipeline', 'pipeline'] })).total).toBe(1)
       expect((await sales.deals.list({ keyword: input.name, vendorId: NO_SUCH_ID })).total).toBe(0)
       await sales.deals.remove(created.code, created.code)
     })

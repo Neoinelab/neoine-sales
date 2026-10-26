@@ -4,7 +4,7 @@ import { gateway } from '../../../gateway'
 import { resetMock } from '../../../test/fake/default'
 import { seedVendorId } from '../../../test/fixtures/vendors'
 import { renderAt } from '../../../test/mockApp'
-import { dataRows } from './testHelpers'
+import { ALL_DEALS, dataRows } from './testHelpers'
 
 /** 시드 날짜가 기준일 상대값이고 "올해" 안내가 시계에 의존하므로 기준일을 고정한다(2026-10-15). */
 const NOW = '2026-10-15T09:00:00+09:00'
@@ -15,7 +15,7 @@ afterEach(() => resetMock({ now: null }))
 const optionNames = (select: HTMLElement) => within(select).getAllByRole('option').map((o) => o.textContent)
 
 async function listReady() {
-  const view = await renderAt('/deals')
+  const view = await renderAt(ALL_DEALS)
   await screen.findByRole('row', { name: /한빛은행 ITDR 도입/ })
   const vendor = screen.getByLabelText('Vendor')
   await within(vendor).findByRole('option', { name: 'Silverfort' })
@@ -31,13 +31,13 @@ describe('Quarter 단독 선택 (AC-18)', () => {
     expect(optionNames(quarter)).toEqual(['전체', 'Q1', 'Q2', 'Q3', 'Q4'])
   })
 
-  it('puts only the quarter in the URL and lists that quarter of this year', async () => {
+  it('puts the quarter next to year=all in the URL and lists that quarter of this year', async () => {
     const { user, location } = await listReady()
 
     await user.selectOptions(screen.getByLabelText('Quarter'), 'Q4')
 
     expect(location()).toContain('quarter=4')
-    expect(location()).not.toContain('year=')
+    expect(location()).toContain('year=all')
     const thisYearQ4 = (await gateway.deals.list({ year: 2026, quarter: 4, limit: 100 })).items
     expect(thisYearQ4.length).toBeGreaterThan(0)
     await waitFor(() => expect(dataRows()).toHaveLength(Math.min(thisYearQ4.length, 20)))
@@ -51,7 +51,7 @@ describe('Quarter 단독 선택 (AC-18)', () => {
     await user.selectOptions(screen.getByLabelText('연도'), '전체')
 
     expect(location()).toContain('quarter=3')
-    expect(location()).not.toContain('year=')
+    expect(location()).toContain('year=all')
     expect(screen.getByLabelText('Quarter')).toHaveDisplayValue('Q3')
   })
 
@@ -67,13 +67,13 @@ describe('Quarter 단독 선택 (AC-18)', () => {
 
   it('tells that a quarter without a year means this year', async () => {
     const { user } = await listReady()
-    expect(screen.queryByText(/연도를 고르지 않으면/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/연도가 전체이면/)).not.toBeInTheDocument()
 
     await user.selectOptions(screen.getByLabelText('Quarter'), 'Q2')
 
-    expect(screen.getByText('연도를 고르지 않으면 올해(2026) 기준입니다.')).toBeVisible()
+    expect(screen.getByText('연도가 전체이면 올해(2026) 기준입니다.')).toBeVisible()
     await user.selectOptions(screen.getByLabelText('연도'), '2027')
-    expect(screen.queryByText(/연도를 고르지 않으면/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/연도가 전체이면/)).not.toBeInTheDocument()
   })
 
   it('shows the hint inside the Quarter label', async () => {
@@ -81,7 +81,7 @@ describe('Quarter 단독 선택 (AC-18)', () => {
     await screen.findByLabelText('Quarter')
 
     const label = screen.getByLabelText('Quarter').closest('label') as HTMLElement
-    expect(within(label).getByText('연도를 고르지 않으면 올해(2026) 기준입니다.')).toBeVisible()
+    expect(within(label).getByText('연도가 전체이면 올해(2026) 기준입니다.')).toBeVisible()
   })
 })
 
@@ -154,12 +154,12 @@ describe('Vendor 필터와 Solution 텍스트 필터 (AC-15)', () => {
 })
 
 describe('월 선택 표시 (R1 Minor 2·3)', () => {
-  it('shows the month select as all when both quarter and month are in the URL (the query uses the quarter only)', async () => {
+  it('shows the month when it belongs to the quarter in the URL', async () => {
     await renderAt('/deals?year=2026&quarter=4&month=11')
     await screen.findByLabelText('월')
 
     expect(screen.getByLabelText('Quarter')).toHaveValue('4')
-    expect(screen.getByLabelText('월')).toHaveValue('')
+    expect(screen.getByLabelText('월')).toHaveValue('11')
   })
 
   it('tells that a month without a year means this year', async () => {
@@ -167,13 +167,13 @@ describe('월 선택 표시 (R1 Minor 2·3)', () => {
     await screen.findByLabelText('월')
 
     const label = screen.getByLabelText('월').closest('label') as HTMLElement
-    expect(within(label).getByText('연도를 고르지 않으면 올해(2026) 기준입니다.')).toBeVisible()
+    expect(within(label).getByText('연도가 전체이면 올해(2026) 기준입니다.')).toBeVisible()
   })
 
   it('does not show the this-year hint when a year is chosen with the month', async () => {
     await renderAt('/deals?year=2026&month=3')
     await screen.findByLabelText('월')
 
-    expect(screen.queryByText(/연도를 고르지 않으면/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/연도가 전체이면/)).not.toBeInTheDocument()
   })
 })

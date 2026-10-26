@@ -10,7 +10,7 @@ import { USER_ID } from '../../test/fake/seed/ids'
 import { dashboardSummaryFixture } from '../../test/fixtures/dashboardSummary'
 import { seedVendorId } from '../../test/fixtures/vendors'
 import { renderAt } from '../../test/mockApp'
-import { lastQuery, mockSummary, NOW } from './testHelpers'
+import { lastQuery, mockSummary, NOT_LOST_PARAM, NOW, OPEN_PARAM } from './testHelpers'
 
 /**
  * Forecast 탭의 하단 Selected Quarter (AC2~AC7, 2026-10-23 개편).
@@ -192,7 +192,7 @@ describe('연간 상단 타일 (AC2)', () => {
     await open('/dashboard?tab=forecast&year=2026&quarter=3&sq=2')
 
     expect(top().getByRole('link', { name: /Pipeline/ })).toHaveAttribute('href', '/deals?year=2026&forecast=pipeline')
-    expect(top().getByRole('link', { name: /Open 합계/ })).toHaveAttribute('href', '/deals?year=2026&outcome=open')
+    expect(top().getByRole('link', { name: /Open 합계/ })).toHaveAttribute('href', `/deals?year=2026&forecast=${OPEN_PARAM}`)
   })
 
   it('shows the yearly values on the upper tiles whatever sq is', async () => {
@@ -252,11 +252,11 @@ describe('하단 타일 Drill-down (AC5)', () => {
     expect(bottom().getByRole('link', { name: /Won/ })).toHaveAttribute('href', `${base}&forecast=won`)
   })
 
-  it('links the open total with outcome=open and the total with outcome=not_lost', async () => {
+  it('links the open total to the open forecasts and the total to the not-lost forecasts of the selected quarter', async () => {
     await open(url)
 
-    expect(bottom().getByRole('link', { name: /Open 합계/ })).toHaveAttribute('href', `${base}&outcome=open`)
-    expect(bottom().getByRole('link', { name: /^합계/ })).toHaveAttribute('href', `${base}&outcome=not_lost`)
+    expect(bottom().getByRole('link', { name: /Open 합계/ })).toHaveAttribute('href', `${base}&forecast=${OPEN_PARAM}`)
+    expect(bottom().getByRole('link', { name: /^합계/ })).toHaveAttribute('href', `${base}&forecast=${NOT_LOST_PARAM}`)
   })
 
   it('uses the default quarter in the links when sq is not in the URL', async () => {
@@ -278,9 +278,9 @@ describe('하단 타일 Drill-down (AC5)', () => {
     const query = (name: RegExp) => listQueryFromParams(new URLSearchParams((bottom().getByRole('link', { name }).getAttribute('href') ?? '').split('?')[1]))
     const common = { offset: 0, limit: 20, year: 2026, quarter: 3, ownerId: USER_ID.kim, vendorId: vendor }
 
-    expect(query(/Commit/)).toEqual({ ...common, forecastKey: 'commit' })
-    expect(query(/Open 합계/)).toEqual({ ...common, forecastOutcome: 'open' })
-    expect(query(/^합계/)).toEqual({ ...common, forecastOutcome: 'not_lost' })
+    expect(query(/Commit/)).toEqual({ ...common, forecastKeys: ['commit'] })
+    expect(query(/Open 합계/)).toEqual({ ...common, forecastKeys: ['best', 'commit', 'most_likely', 'pipeline'] })
+    expect(query(/^합계/)).toEqual({ ...common, forecastKeys: ['best', 'commit', 'most_likely', 'pipeline', 'won'] })
   })
 
   it('opens the Deals list from a lower tile and stores only the list condition in the memory', async () => {
@@ -296,7 +296,7 @@ describe('하단 타일 Drill-down (AC5)', () => {
     const start = '/dashboard?tab=forecast&year=2026&sq=2'
     const view = await open(start)
     await view.user.click(bottom().getByRole('link', { name: /Best/ }))
-    await screen.findByLabelText('Forecast 구분')
+    await screen.findByLabelText('Status')
 
     view.goTo(-1)
 

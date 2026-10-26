@@ -2,12 +2,13 @@ import { screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { gateway } from '../../../gateway'
 import { dealCodeOf } from '../../../test/detailTestUtils'
+import { DEFAULT_DEALS_URL_PATTERN } from '../../../test/dealsUrl'
 import { renderAt } from '../../../test/mockApp'
-import { dataRows } from './testHelpers'
+import { ALL_DEALS, dataRows } from './testHelpers'
 
 describe('Deals 필터: Next Action 상태 (AC-23·24)', () => {
   it('offers the five choices in the "Next Action 상태" select', async () => {
-    await renderAt('/deals')
+    await renderAt(ALL_DEALS)
     const select = await screen.findByLabelText('Next Action 상태')
 
     expect(within(select).getAllByRole('option').map((o) => o.textContent)).toEqual([
@@ -20,7 +21,7 @@ describe('Deals 필터: Next Action 상태 (AC-23·24)', () => {
   })
 
   it('puts the choice in the URL as next_status and keeps the first page', async () => {
-    const { user, location } = await renderAt('/deals?page=2')
+    const { user, location } = await renderAt('/deals?year=all&page=2')
     await user.selectOptions(await screen.findByLabelText('Next Action 상태'), 'Open')
 
     expect(location()).toContain('next_status=open')
@@ -33,7 +34,7 @@ describe('Deals 필터: Next Action 상태 (AC-23·24)', () => {
     ['종료(미수행)', 'not_done'],
     ['종료(전체)', 'closed'],
   ])('writes %s as next_status=%s and tells nothing matches while every Next Action is Open', async (label, wire) => {
-    const { user, location } = await renderAt('/deals')
+    const { user, location } = await renderAt(ALL_DEALS)
     await screen.findByRole('row', { name: /한빛은행 ITDR 도입/ })
 
     await user.selectOptions(screen.getByLabelText('Next Action 상태'), label)
@@ -69,13 +70,14 @@ describe('Deals 필터: Next Action 상태 (AC-23·24)', () => {
     const { user, location } = await renderAt('/deals?next_status=closed')
     await user.click(await screen.findByRole('button', { name: '초기화' }))
 
-    expect(location()).toBe('/deals')
+    expect(location()).toMatch(DEFAULT_DEALS_URL_PATTERN)
+    expect(screen.getByLabelText('Next Action 상태')).toHaveDisplayValue('전체')
   })
 })
 
 describe('Deals 목록: Next Action 열의 상태 라벨 (AC-23)', () => {
   it('shows the text, the due date and the status label of the basis Next Action in separate columns', async () => {
-    await renderAt('/deals')
+    await renderAt(ALL_DEALS)
 
     const row = await screen.findByRole('row', { name: /한빛은행 ITDR 도입/ })
 

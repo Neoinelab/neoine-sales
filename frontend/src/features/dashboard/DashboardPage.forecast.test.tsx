@@ -6,7 +6,7 @@ import { USER_ID } from '../../test/fake/seed/ids'
 import { dashboardSummaryFixture } from '../../test/fixtures/dashboardSummary'
 import { seedVendorId } from '../../test/fixtures/vendors'
 import { renderAt } from '../../test/mockApp'
-import { mockSummary, NOW } from './testHelpers'
+import { mockSummary, NOT_LOST_PARAM, NOW, OPEN_PARAM } from './testHelpers'
 
 /** Forecast 탭(슬라이드 9): Forecast 타일, 분기 표(Q1~Q4), 선택 Quarter 강조, Closing Attention 타일. AC-15. */
 
@@ -84,7 +84,9 @@ describe('분기 표 (AC-15)', () => {
 
     expect(hrefs).toContain('/deals?year=2026&quarter=2&forecast=pipeline')
     expect(hrefs).toContain('/deals?year=2026&quarter=2&forecast=best')
-    expect(hrefs).toContain('/deals?year=2026&quarter=2&outcome=not_lost')
+    expect(hrefs).toContain(`/deals?year=2026&quarter=2&forecast=${OPEN_PARAM}`)
+    expect(hrefs).toContain(`/deals?year=2026&quarter=2&forecast=${NOT_LOST_PARAM}`)
+    expect(hrefs).not.toContain('/deals?year=2026&quarter=2')
   })
 
   it('carries only the owner and vendor into the quarter links, never the chosen quarter', async () => {
@@ -94,7 +96,8 @@ describe('분기 표 (AC-15)', () => {
     const hrefs = hrefsOf(screen.getByRole('row', { name: /Q4/ }))
 
     expect(hrefs).toContain(`/deals?year=2026&quarter=4&owner=${USER_ID.kim}&vendor=${vendor}&forecast=pipeline`)
-    expect(hrefs).toContain(`/deals?year=2026&quarter=4&owner=${USER_ID.kim}&vendor=${vendor}&outcome=not_lost`)
+    expect(hrefs).toContain(`/deals?year=2026&quarter=4&owner=${USER_ID.kim}&vendor=${vendor}&forecast=${OPEN_PARAM}`)
+    expect(hrefs).toContain(`/deals?year=2026&quarter=4&owner=${USER_ID.kim}&vendor=${vendor}&forecast=${NOT_LOST_PARAM}`)
   })
 
   it('shows all four quarters whatever the URL quarter or sq is', async () => {
@@ -140,8 +143,8 @@ describe('Closing Attention 타일 (AC-15)', () => {
   it('shows this month, this quarter and the stale tiles', async () => {
     await openForecastTab()
 
-    expect(screen.getByRole('link', { name: /이번 달.*10월.*Expected Close\s*4/ })).toHaveAttribute('href', '/deals?year=2026&month=10&outcome=open')
-    expect(screen.getByRole('link', { name: /이번 분기.*Expected Close\s*7/ })).toHaveAttribute('href', '/deals?year=2026&quarter=4&outcome=open')
+    expect(screen.getByRole('link', { name: /이번 달.*10월.*Expected Close\s*4/ })).toHaveAttribute('href', `/deals?year=2026&month=10&forecast=${OPEN_PARAM}`)
+    expect(screen.getByRole('link', { name: /이번 분기.*Expected Close\s*7/ })).toHaveAttribute('href', `/deals?year=2026&quarter=4&forecast=${OPEN_PARAM}`)
     expect(screen.getByRole('link', { name: /14일 이상 미업데이트\D*5/ })).toHaveAttribute('href', '/deals?stale=1')
   })
 
@@ -158,7 +161,7 @@ describe('Closing Attention 타일 (AC-15)', () => {
 
     const tile = await screen.findByRole('link', { name: /이번 달.*1월/ })
 
-    expect(tile).toHaveAttribute('href', `/deals?year=2027&month=1&owner=${USER_ID.kim}&outcome=open`)
+    expect(tile).toHaveAttribute('href', `/deals?year=2027&month=1&owner=${USER_ID.kim}&forecast=${OPEN_PARAM}`)
   })
 
   it('shows the alert setting as the stale days', async () => {

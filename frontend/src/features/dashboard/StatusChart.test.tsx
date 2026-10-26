@@ -6,7 +6,7 @@ import { clickBar, clickEmptyArea, lastChart, renderedCharts } from '../../test/
 import { dashboardSummaryFixture } from '../../test/fixtures/dashboardSummary'
 import { seedVendorId } from '../../test/fixtures/vendors'
 import { renderAt } from '../../test/mockApp'
-import { canvases, mockSummary, NOW } from './testHelpers'
+import { canvases, mockSummary, NOT_LOST_PARAM, NOW } from './testHelpers'
 
 /**
  * Status 막대 차트(AC-13·16·21). react-chartjs-2는 setup.ts의 전역 mock(test/chartMock)이 바꿔 끼워 받은 data·options를 기록한다.
@@ -92,7 +92,7 @@ describe('막대 클릭은 Deal 목록으로 이동한다 (AC-16)', () => {
 
     clickBar(lastChart(), { index: 2 })
 
-    await waitFor(() => expect(location()).toBe('/deals?year=2026&status=poc_preparation&outcome=not_lost'))
+    await waitFor(() => expect(location()).toBe(`/deals?year=2026&status=poc_preparation&forecast=${NOT_LOST_PARAM}`))
   })
 
   it.each([
@@ -104,7 +104,7 @@ describe('막대 클릭은 Deal 목록으로 이동한다 (AC-16)', () => {
 
     clickBar(lastChart(), { index })
 
-    await waitFor(() => expect(location()).toBe(`/deals?year=2026&status=${key}&outcome=not_lost`))
+    await waitFor(() => expect(location()).toBe(`/deals?year=2026&status=${key}&forecast=${NOT_LOST_PARAM}`))
   })
 
   it('carries the quarter, owner and vendor of the Dashboard', async () => {
@@ -113,7 +113,7 @@ describe('막대 클릭은 Deal 목록으로 이동한다 (AC-16)', () => {
 
     clickBar(lastChart(), { index: 3 })
 
-    await waitFor(() => expect(location()).toBe(`/deals?year=2026&quarter=3&owner=${USER_ID.kim}&vendor=${vendor}&status=poc_completed&outcome=not_lost`))
+    await waitFor(() => expect(location()).toBe(`/deals?year=2026&quarter=3&owner=${USER_ID.kim}&vendor=${vendor}&status=poc_completed&forecast=${NOT_LOST_PARAM}`))
   })
 
   it('does nothing when the click hits no bar', async () => {
@@ -163,7 +163,7 @@ describe('접근성 (AC-21)', () => {
     expect(rowLink).toHaveFocus()
     await user.keyboard('{Enter}')
 
-    await waitFor(() => expect(location()).toBe('/deals?year=2026&status=price_negotiation&outcome=not_lost'))
+    await waitFor(() => expect(location()).toBe(`/deals?year=2026&status=price_negotiation&forecast=${NOT_LOST_PARAM}`))
   })
 
   it('reaches every row link and the total link with Tab', async () => {

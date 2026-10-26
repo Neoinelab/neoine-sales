@@ -8,6 +8,11 @@
 .deal-filters .field.checkbox { display: flex; align-items: center; gap: 6px; padding-bottom: 6px; }
 .deal-filters .field.checkbox input { width: auto; }
 .filter-buttons { display: flex; gap: 8px; }
+.deal-filter-errors { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 8px; }
+.deal-filter-errors:empty { display: none; }
+.deal-filter-actions { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; }
+.deal-filter-flags { display: flex; flex-wrap: nowrap; align-items: center; gap: 16px; }
+.deal-filter-actions .filter-buttons { margin-left: auto; }
 
 .risk-legend { display: flex; flex-wrap: wrap; gap: 6px 20px; list-style: none; margin: 0; padding: 0; }
 .risk-legend li { display: flex; align-items: center; gap: 6px; font-size: 0.85rem; }

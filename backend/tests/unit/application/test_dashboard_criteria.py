@@ -43,7 +43,7 @@ def test_status_query_excludes_lost_and_keeps_period_owner_vendor() -> None:
     assert query.owner_user_id == OWNER
     assert query.vendor_id == VENDOR
     assert query.forecast_outcome is ForecastOutcomeFilter.NOT_LOST
-    assert (query.status_key, query.forecast_key) == (None, None)
+    assert (query.status_key, query.forecast_keys) == (None, None)
     assert (query.overdue, query.stale) == (False, False)
 
 

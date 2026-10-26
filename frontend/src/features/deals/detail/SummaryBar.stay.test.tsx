@@ -8,6 +8,7 @@ import { renderAt } from '../../../test/mockApp'
 import { formatDateTime } from '../../../shared/format'
 import { dealCodeOf, detailPath } from '../../../test/detailTestUtils'
 import { USER_ID } from '../../../test/fake/seed/ids'
+import { ALL_DEALS } from '../list/testHelpers'
 
 const DAY_MS = 86_400_000
 
@@ -59,7 +60,7 @@ describe('상세 Status 체류 표시 (AC-13, Q3)', () => {
   })
 
   it('shows the stale badge on a deal that has no action at all', async () => {
-    const { client, user } = await renderAt('/deals', { role: 'admin' })
+    const { client, user } = await renderAt(ALL_DEALS, { role: 'admin' })
     await screen.findByRole('row', { name: /한빛은행 ITDR 도입/ })
     const created = await gateway.deals.create(dealInput(USER_ID.kim, { name: '액션 없는 Deal' }))
     defaultMock.clock.advance(15 * DAY_MS)

@@ -1,7 +1,7 @@
 """DealRepository.search/count의 확장 필터 계약(R3, AC-22a~22c): Fake와 SQL에 같은 기대값.
 
-forecast 정확 일치(vendor_id·solution은 test_deal_search_contract), 연/분기(Expected Close
-기준, 양끝 포함). 모든 조건은 count와 같은 결과를 내고 페이지와 무관하게 센다.
+forecast_keys 중 하나와 일치(OR; vendor_id·solution은 test_deal_search_contract), 연/분기
+(Expected Close 기준, 양끝 포함). 모든 조건은 count와 같은 결과를 내고 페이지와 무관하게 센다.
 """
 
 from datetime import date, datetime
@@ -35,16 +35,51 @@ class TestForecast:
         await deal_case.add(make_deal(later(2), code=_code(2), forecast_key="commit"))
         await deal_case.add(make_deal(later(3), code=_code(3), forecast_key="lost"))
 
-        assert await _codes(deal_case, forecast_key="commit") == [_code(2)]
-        assert await _codes(deal_case, forecast_key="lost") == [_code(3)]
+        assert await _codes(deal_case, forecast_keys=frozenset({"commit"})) == [_code(2)]
+        assert await _codes(deal_case, forecast_keys=frozenset({"lost"})) == [_code(3)]
+
+    async def test_forecast_keys_match_any_of_the_keys(self, deal_case: DealCase) -> None:
+        await deal_case.add(make_deal(later(1), code=_code(1), forecast_key="pipeline"))
+        await deal_case.add(make_deal(later(2), code=_code(2), forecast_key="commit"))
+        await deal_case.add(make_deal(later(3), code=_code(3), forecast_key="lost"))
+
+        both = frozenset({"pipeline", "commit"})
+        assert await _codes(deal_case, forecast_keys=both) == [_code(1), _code(2)]
+        assert await _count(deal_case, forecast_keys=both) == 2
+        assert await _codes(deal_case, forecast_keys=frozenset({"lost"})) == [_code(3)]
+
+    async def test_without_forecast_keys_every_forecast_is_returned(
+        self, deal_case: DealCase
+    ) -> None:
+        await deal_case.add(make_deal(later(1), code=_code(1), forecast_key="pipeline"))
+        await deal_case.add(make_deal(later(2), code=_code(2), forecast_key="lost"))
+
+        assert await _codes(deal_case) == [_code(1), _code(2)]
+
+    async def test_unknown_keys_next_to_known_ones_match_only_the_known(
+        self, deal_case: DealCase
+    ) -> None:
+        await deal_case.add(make_deal(later(1), code=_code(1), forecast_key="pipeline"))
+        await deal_case.add(make_deal(later(2), code=_code(2), forecast_key="commit"))
+
+        keys = frozenset({"commit", "no_such", ""})
+        assert await _codes(deal_case, forecast_keys=keys) == [_code(2)]
+        assert await _count(deal_case, forecast_keys=keys) == 1
+
+    async def test_unknown_keys_only_match_nothing(self, deal_case: DealCase) -> None:
+        await deal_case.add(make_deal(later(1), code=_code(1)))
+
+        only_unknown = frozenset({"no_such"})
+        assert await _codes(deal_case, forecast_keys=only_unknown) == []
+        assert await _count(deal_case, forecast_keys=only_unknown) == 0
 
     async def test_an_unknown_forecast_key_is_zero_results_not_an_error(
         self, deal_case: DealCase
     ) -> None:
         await deal_case.add(make_deal(later(1), code=_code(1)))
 
-        assert await _codes(deal_case, forecast_key="no_such_forecast") == []
-        assert await _count(deal_case, forecast_key="no_such_forecast") == 0
+        assert await _codes(deal_case, forecast_keys=frozenset({"no_such_forecast"})) == []
+        assert await _count(deal_case, forecast_keys=frozenset({"no_such_forecast"})) == 0
 
 
 class TestYearAndQuarter:

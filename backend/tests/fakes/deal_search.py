@@ -2,7 +2,8 @@
 
 - keyword: Deal Name·고객 회사명·**활성** 파트너 회사명·Deal code의 대소문자 무시 부분 일치
   (`%`, `_`, `\\`는 글자 그대로)
-- owner_user_id·vendor_id·status_key·forecast_key: 정확 일치
+- owner_user_id·vendor_id·status_key: 정확 일치
+- forecast_keys: 그중 하나와 일치(OR). None이면 조건 없음. forecast_outcome과 AND
 - solution: Solution 텍스트의 대소문자 무시 부분 일치(`%`, `_`는 글자 그대로)
 - 정렬: 기본 last_updated_at 내림차순, 모든 정렬의 동률은 code 오름차순
 - last_updated_at = 가장 최근 활동의 acted_at(없으면 created_at, Deal 수정은 반영하지 않음)
@@ -75,9 +76,11 @@ def matches(
         (query.owner_user_id, details.owner_user_id),
         (query.vendor_id, details.vendor_id),
         (query.status_key, deal.sync.status_key),
-        (query.forecast_key, deal.sync.forecast_key),
     )
-    if any(wanted is not None and wanted != actual for wanted, actual in equals):
+    keys = query.forecast_keys
+    if any(wanted is not None and wanted != actual for wanted, actual in equals) or (
+        keys is not None and deal.sync.forecast_key not in keys
+    ):
         return False
     start, end = revenue_bounds(query)
     if start is not None and details.revenue_date < start:

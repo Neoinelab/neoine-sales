@@ -6,10 +6,17 @@ const EMPTY = { seed: 'empty' } as const
 const DETAIL_URL = /^\/deals\/\d{8}-[A-Z0-9]{4}$/
 
 describe('업무 데이터가 없는 첫 실행 상태', () => {
-  it('shows the empty Deals list with the register button', async () => {
-    await renderAt('/deals', EMPTY)
+  it('shows the empty Deals list with the register button when all years are chosen', async () => {
+    await renderAt('/deals?year=all', EMPTY)
     expect(await screen.findByText('등록된 Deal이 없습니다.')).toBeVisible()
     expect(screen.getByRole('link', { name: '+ Deal 등록' })).toBeVisible()
+  })
+
+  it('counts the default period as a condition in the empty message (AC-18)', async () => {
+    const { location } = await renderAt('/deals', EMPTY)
+    expect(await screen.findByText('조건에 맞는 Deal이 없습니다.')).toBeVisible()
+    expect(screen.queryByText('등록된 Deal이 없습니다.')).not.toBeInTheDocument()
+    expect(location()).toMatch(/^\/deals\?year=\d{4}$/)
   })
 
   it('shows the Forecast screen without crashing when there are no deals', async () => {

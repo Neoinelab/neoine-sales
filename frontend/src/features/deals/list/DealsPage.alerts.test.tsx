@@ -2,7 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { gateway } from '../../../gateway'
 import { renderAt } from '../../../test/mockApp'
-import { rowOf } from './testHelpers'
+import { ALL_DEALS, rowOf } from './testHelpers'
 
 describe('목록과 경고 기준 (AC-13)', () => {
   it('writes the saved threshold into the legend and recolors rows after the save', async () => {
@@ -19,7 +19,7 @@ describe('목록과 경고 기준 (AC-13)', () => {
   })
 
   it('has no stay-days column or text in the list (the stay is shown on the detail only)', async () => {
-    await renderAt('/deals')
+    await renderAt(ALL_DEALS)
     await rowOf(/한빛은행 ITDR 도입/)
 
     expect(screen.queryByRole('columnheader', { name: /체류/ })).not.toBeInTheDocument()
@@ -36,7 +36,7 @@ describe('범례 로딩 (R3 Minor 3)', () => {
     })
     const spy = vi.spyOn(gateway.alerts, 'get').mockReturnValue(pending)
     try {
-      await renderAt('/deals')
+      await renderAt(ALL_DEALS)
       const legend = await screen.findByRole('list', { name: 'Risk 범례' })
       expect(within(legend).getByText('기준일 이상 미업데이트')).toBeVisible()
       expect(within(legend).queryByText(/\d+일 이상 미업데이트/)).not.toBeInTheDocument()

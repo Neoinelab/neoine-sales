@@ -31,7 +31,7 @@ function matches(
   const solution = query.solution?.trim().toLowerCase()
   if (solution && !row.solution.toLowerCase().includes(solution)) return false
   if (query.statusKey && row.statusKey !== query.statusKey) return false
-  if (query.forecastKey && row.forecastKey !== query.forecastKey) return false
+  if (query.forecastKeys?.length && !query.forecastKeys.includes(row.forecastKey)) return false
   // Forecast 코드의 outcome 기준(not_lost = open + won). 코드를 모르는 key는 open으로 본다.
   if (query.forecastOutcome) {
     const outcome = outcomeOf.get(row.forecastKey) ?? 'open'

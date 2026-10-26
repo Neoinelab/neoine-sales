@@ -30,7 +30,7 @@ def test_defaults_are_the_first_page_of_twenty_newest_first_without_conditions()
         "vendor_id",
         "solution",
         "status_key",
-        "forecast_key",
+        "forecast_keys",
         "year",
         "quarter",
         "updated_from",
@@ -62,7 +62,7 @@ def test_given_conditions_are_kept() -> None:
         vendor_id=VENDOR,
         solution="itd",
         status_key="introduction",
-        forecast_key="best",
+        forecast_keys=frozenset({"best", "commit"}),
         updated_from=date(2026, 6, 1),
         updated_to=date(2026, 6, 30),
         offset=3,
@@ -71,9 +71,27 @@ def test_given_conditions_are_kept() -> None:
 
     assert (query.keyword, query.owner_user_id) == ("erp", uid("park"))
     assert (query.vendor_id, query.solution) == (VENDOR, "itd")
-    assert (query.status_key, query.forecast_key) == ("introduction", "best")
+    assert (query.status_key, query.forecast_keys) == (
+        "introduction",
+        frozenset({"best", "commit"}),
+    )
     assert (query.updated_from, query.updated_to) == (date(2026, 6, 1), date(2026, 6, 30))
     assert (query.offset, query.limit) == (3, 7)
+
+
+def test_forecast_keys_default_to_none() -> None:
+    assert DealQuery().forecast_keys is None
+
+
+def test_empty_forecast_keys_is_a_programming_error() -> None:
+    with pytest.raises(ValueError, match="forecast_keys"):
+        DealQuery(forecast_keys=frozenset())
+
+
+def test_the_single_forecast_key_field_is_gone() -> None:
+    assert not hasattr(DealQuery(), "forecast_key")
+    with pytest.raises(TypeError):
+        DealQuery(forecast_key="commit")  # type: ignore[call-arg]
 
 
 def test_the_old_conditions_are_gone() -> None:

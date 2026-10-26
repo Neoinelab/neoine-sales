@@ -1,6 +1,18 @@
 import { describe, expect, it } from 'vitest'
 import { REMEMBERED_LIST_KEYS } from '../../../shared/model/dealListMemory'
-import { FILTER_KEYS, currentSort, hasActiveFilter, listQueryFromParams, nextSort, updateParams } from './listQuery'
+import {
+  FILTER_KEYS,
+  currentSort,
+  defaultListParams,
+  effectiveMonth,
+  hasActiveFilter,
+  hasListCondition,
+  listQueryFromParams,
+  monthOptions,
+  nextSort,
+  quarterChangePatch,
+  updateParams,
+} from './listQuery'
 import { USER_ID } from '../../../test/fake/seed/ids'
 
 const params = (query: string) => new URLSearchParams(query)
@@ -25,7 +37,7 @@ describe('listQueryFromParams (T-LIST-05, T-LIST-09)', () => {
       vendorId: VENDOR,
       solution: SOLUTION,
       statusKey: 'prospecting',
-      forecastKey: 'best',
+      forecastKeys: ['best'],
       year: 2026,
       quarter: 4,
       updatedFrom: '2026-01-01',
@@ -182,10 +194,10 @@ describe('hasActiveFilter', () => {
 })
 
 describe('FILTER_KEYS', () => {
-  it('has sixteen keys: no BANT keys, with month (P6), overdue/stale and outcome (Dashboard)', () => {
-    expect(FILTER_KEYS).toHaveLength(16)
-    expect(FILTER_KEYS).toContain('outcome')
-    expect(REMEMBERED_LIST_KEYS).toContain('outcome')
+  it('has fifteen keys without outcome: no BANT keys, with month (P6) and overdue/stale', () => {
+    expect(FILTER_KEYS).toHaveLength(15)
+    expect(FILTER_KEYS).not.toContain('outcome')
+    expect(REMEMBERED_LIST_KEYS).not.toContain('outcome')
     expect(FILTER_KEYS).toContain('month')
     expect(REMEMBERED_LIST_KEYS).toContain('month')
     expect(FILTER_KEYS).toContain('updated_from')
@@ -339,8 +351,10 @@ describe('month URL key (P6 Q3-b)', () => {
     expect(listQueryFromParams(params(`month=${raw}`))).toEqual({ offset: 0, limit: 20 })
   })
 
-  it('keeps the quarter and drops the month when both are in the URL', () => {
-    expect(listQueryFromParams(params('year=2026&quarter=4&month=11'))).toEqual({ offset: 0, limit: 20, year: 2026, quarter: 4 })
+  it('sends only the month when it belongs to the chosen quarter', () => {
+    const query = listQueryFromParams(params('year=2026&quarter=4&month=11'))
+    expect(query).toEqual({ offset: 0, limit: 20, year: 2026, month: 11 })
+    expect(query).not.toHaveProperty('quarter')
   })
 
   it('counts a month as an active filter and returns to the first page when it changes', () => {
@@ -359,42 +373,145 @@ describe('month URL value format matches the Forecast screen (R1 Nit)', () => {
   })
 })
 
-describe('outcome URL 키 (Dashboard AC-19)', () => {
+describe('forecast URL value is a comma separated key list (다중 조건 AC-11·12)', () => {
+  it('reads sorted, de-duplicated keys', () => {
+    expect(listQueryFromParams(params('forecast=pipeline%2Cbest'))).toEqual({ offset: 0, limit: 20, forecastKeys: ['best', 'pipeline'] })
+    expect(listQueryFromParams(params('forecast=best%2Cbest%2C'))).toEqual({ offset: 0, limit: 20, forecastKeys: ['best'] })
+  })
+
+  it('reads an old single value as one key', () => {
+    expect(listQueryFromParams(params('forecast=commit'))).toMatchObject({ forecastKeys: ['commit'] })
+  })
+
+  it('drops keys whose format is wrong', () => {
+    expect(listQueryFromParams(params('forecast=Commit%2Cbest'))).toMatchObject({ forecastKeys: ['best'] })
+    expect(listQueryFromParams(params('forecast=XYZ'))).not.toHaveProperty('forecastKeys')
+  })
+
+  it('keeps a well formed key that no code has (the server answers with zero deals)', () => {
+    expect(listQueryFromParams(params('forecast=no_such'))).toMatchObject({ forecastKeys: ['no_such'] })
+  })
+
+  it('ignores the whole condition above one hundred distinct keys', () => {
+    const many = Array.from({ length: 101 }, (_, i) => `k${i}`).join('%2C')
+    expect(listQueryFromParams(params(`forecast=${many}`))).not.toHaveProperty('forecastKeys')
+  })
+
+  it('does not send the retired single key field', () => {
+    expect(listQueryFromParams(params('forecast=commit'))).not.toHaveProperty('forecastKey')
+  })
+
+  it('still counts a malformed value as a condition key', () => {
+    expect(hasListCondition(params('forecast=XYZ'))).toBe(true)
+  })
+})
+
+describe('outcome URL key is retired', () => {
+  it.each(['open', 'won', 'lost', 'not_lost'])('ignores outcome=%s', (value) => {
+    const query = listQueryFromParams(params(`outcome=${value}`))
+    expect(query).toEqual({ offset: 0, limit: 20 })
+    expect(query).not.toHaveProperty('forecastOutcome')
+  })
+
+  it('ignores outcome next to the forecast key', () => {
+    const query = listQueryFromParams(params('forecast=commit&outcome=open'))
+    expect(query).toEqual({ offset: 0, limit: 20, forecastKeys: ['commit'] })
+    expect(query).not.toHaveProperty('forecastOutcome')
+  })
+
+  it('does not count outcome as an active filter', () => {
+    expect(hasActiveFilter(params('outcome=open'))).toBe(false)
+  })
+})
+
+describe('year=all (AC-09, AC-18)', () => {
+  it('is not sent as a year', () => {
+    expect(listQueryFromParams(params('year=all&quarter=4'))).toEqual({ offset: 0, limit: 20, quarter: 4 })
+  })
+
+  it('is not an active filter for the empty-state wording', () => {
+    expect(hasActiveFilter(params('year=all'))).toBe(false)
+    expect(hasActiveFilter(params('year=all&quarter=4'))).toBe(true)
+    expect(hasActiveFilter(params('year=2026'))).toBe(true)
+    expect(hasActiveFilter(params('outcome=open'))).toBe(false)
+  })
+})
+
+describe('defaultListParams (AC-04, AC-06)', () => {
   it.each([
-    ['open', 'open'],
-    ['won', 'won'],
-    ['lost', 'lost'],
-    ['not_lost', 'not_lost'],
-  ] as const)('maps outcome=%s to forecastOutcome %s', (wire, outcome) => {
-    expect(listQueryFromParams(params(`outcome=${wire}`))).toEqual({ offset: 0, limit: 20, forecastOutcome: outcome })
+    ['2026-10-26', 'year=2026'],
+    ['2027-01-01', 'year=2027'],
+    ['2026-03-31', 'year=2026'],
+    ['2026-04-01', 'year=2026'],
+  ])('uses this year only, without a quarter, on %s', (today, expected) => {
+    expect(defaultListParams(today).toString()).toBe(expected)
   })
 
-  it.each(['', 'bogus', 'OPEN', 'notLost', 'not-lost', 'all', ' open'])('ignores outcome=%j', (value) => {
-    expect(listQueryFromParams(params(`outcome=${encodeURIComponent(value)}`))).toEqual({ offset: 0, limit: 20 })
+  it('keeps sort and order and drops page and unknown keys', () => {
+    const current = params('sort=owner&order=asc&page=3&outcome=open')
+    expect(defaultListParams('2026-10-26', current).toString()).toBe('year=2026&sort=owner&order=asc')
+  })
+})
+
+describe('hasListCondition (AC-04, AC-09)', () => {
+  it.each(['', 'q=', 'q=%20', 'sort=name&page=2', 'outcome=open', 'foo=1'])('is false for %j', (query) => {
+    expect(hasListCondition(params(query))).toBe(false)
   })
 
-  it('combines with the forecast key (the server ANDs them)', () => {
-    expect(listQueryFromParams(params('forecast=commit&outcome=open'))).toEqual({
-      offset: 0,
-      limit: 20,
-      forecastKey: 'commit',
-      forecastOutcome: 'open',
-    })
+  it.each(['year=all', 'quarter=4', 'overdue=1', 'owner=abc', 'month=3'])('is true for %j', (query) => {
+    expect(hasListCondition(params(query))).toBe(true)
+  })
+})
+
+describe('quarter and month rules (AC-10 to AC-13)', () => {
+  it('never sends quarter and month together', () => {
+    for (let quarter = 1; quarter <= 4; quarter += 1) {
+      for (let month = 1; month <= 12; month += 1) {
+        const query = listQueryFromParams(params(`year=2026&quarter=${quarter}&month=${month}`))
+        expect(query.quarter !== undefined && query.month !== undefined).toBe(false)
+        expect(query.quarter !== undefined || query.month !== undefined).toBe(true)
+      }
+    }
   })
 
-  it('counts outcome as an active filter and an empty value as none', () => {
-    expect(hasActiveFilter(params('outcome=open'))).toBe(true)
-    expect(hasActiveFilter(params('outcome='))).toBe(false)
+  it('keeps only the quarter when the month is outside it', () => {
+    expect(listQueryFromParams(params('year=2026&quarter=4&month=3'))).toEqual({ offset: 0, limit: 20, year: 2026, quarter: 4 })
   })
 
-  it('returns to the first page when outcome changes', () => {
-    const next = updateParams(params('page=3'), { outcome: 'not_lost' })
-
-    expect(next.get('outcome')).toBe('not_lost')
-    expect(next.has('page')).toBe(false)
+  it('keeps the month when the quarter is not a real quarter', () => {
+    expect(listQueryFromParams(params('quarter=9&month=3'))).toEqual({ offset: 0, limit: 20, month: 3 })
   })
 
-  it('removes the outcome when it is cleared', () => {
-    expect(updateParams(params('outcome=open&year=2026'), { outcome: '' }).toString()).toBe('year=2026')
+  it.each([
+    ['quarter=4&month=11', 11],
+    ['quarter=4&month=3', undefined],
+    ['month=3', 3],
+    ['quarter=9&month=3', 3],
+    ['month=13', undefined],
+    ['', undefined],
+  ])('effectiveMonth of %j is %s', (query, expected) => {
+    expect(effectiveMonth(params(query))).toBe(expected)
+  })
+
+  it('offers the three months of the chosen quarter and all twelve otherwise', () => {
+    expect(monthOptions(params('quarter=2'))).toEqual([4, 5, 6])
+    expect(monthOptions(params('quarter=4'))).toEqual([10, 11, 12])
+    expect(monthOptions(params(''))).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12])
+    expect(monthOptions(params('quarter=9'))).toHaveLength(12)
+  })
+
+  it('clears the month when another quarter is chosen', () => {
+    expect(quarterChangePatch(params('quarter=4&month=11'), '3')).toEqual({ quarter: '3', month: '' })
+    expect(quarterChangePatch(params('month=5'), '2')).toEqual({ quarter: '2', month: '' })
+  })
+
+  it('keeps a visible month when the quarter is set to all', () => {
+    const patch = quarterChangePatch(params('quarter=4&month=11'), '')
+    expect(patch).toEqual({ quarter: '' })
+    expect(patch).not.toHaveProperty('month')
+  })
+
+  it('clears a hidden month when the quarter is set to all', () => {
+    expect(quarterChangePatch(params('quarter=4&month=3'), '')).toEqual({ quarter: '', month: '' })
   })
 })

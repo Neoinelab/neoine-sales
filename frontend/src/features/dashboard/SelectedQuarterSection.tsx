@@ -1,5 +1,5 @@
 import type { DashboardSummary } from '../../shared/model/types'
-import { forecastTilePath, openTotalPath, quarterTotalPath, type DashboardScope } from './drillDown'
+import { forecastSetsOf, forecastTilePath, openTotalPath, quarterTotalPath, type DashboardScope } from './drillDown'
 import { AmountTile } from './Tiles'
 
 const QUARTERS = [1, 2, 3, 4] as const
@@ -20,6 +20,7 @@ export function SelectedQuarterSection({ summary, scope, selectedQuarter, onSele
   const zero = { count: 0, amount: 0 }
   const inQuarter: DashboardScope = { ...scope, quarter: selectedQuarter }
   const { columns } = summary.forecast
+  const sets = forecastSetsOf(columns)
   return (
     <section className="db-panel" aria-labelledby="db-selected-quarter-heading">
       <h2 id="db-selected-quarter-heading">{`Selected Quarter : Q${selectedQuarter}`}</h2>
@@ -36,13 +37,13 @@ export function SelectedQuarterSection({ summary, scope, selectedQuarter, onSele
           .map((c) => (
             <AmountTile key={c.key} to={forecastTilePath(inQuarter, c.key)} title={c.name} cell={quarter?.cells[c.key] ?? zero} />
           ))}
-        <AmountTile to={openTotalPath(inQuarter)} title="Open 합계" cell={quarter?.openTotal ?? zero} tone="total" />
+        <AmountTile to={openTotalPath(inQuarter, sets)} title="Open 합계" cell={quarter?.openTotal ?? zero} tone="total" />
         {columns
           .filter((c) => c.outcome === 'won')
           .map((c) => (
             <AmountTile key={c.key} to={forecastTilePath(inQuarter, c.key)} title={`${c.name} (${scope.year} Q${selectedQuarter})`} cell={quarter?.cells[c.key] ?? zero} tone="ok" />
           ))}
-        <AmountTile to={quarterTotalPath(inQuarter, selectedQuarter)} title="합계" cell={quarter?.total ?? zero} tone="total" />
+        <AmountTile to={quarterTotalPath(inQuarter, selectedQuarter, sets)} title="합계" cell={quarter?.total ?? zero} tone="total" />
       </section>
     </section>
   )

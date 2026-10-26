@@ -27,15 +27,26 @@ async def test_forecast_matches_the_forecast_key(env: DealEnv) -> None:
     await env.new_deal(forecast_key="pipeline")
     hit = await env.new_deal(forecast_key="commit")
 
-    page = await env.list.execute(DealQuery(forecast_key="commit"))
+    page = await env.list.execute(DealQuery(forecast_keys=frozenset({"commit"})))
 
     assert _codes(page) == [hit.item.deal.id.value]
+
+
+async def test_several_forecast_keys_match_any_of_them(env: DealEnv) -> None:
+    first = await env.new_deal(forecast_key="pipeline")
+    second = await env.new_deal(forecast_key="commit")
+    await env.new_deal(forecast_key="best")
+
+    page = await env.list.execute(DealQuery(forecast_keys=frozenset({"pipeline", "commit"})))
+
+    assert sorted(_codes(page)) == sorted([first.item.deal.id.value, second.item.deal.id.value])
+    assert page.total == 2
 
 
 async def test_an_unknown_forecast_key_is_zero_results_not_an_error(env: DealEnv) -> None:
     await env.new_deal()
 
-    page = await env.list.execute(DealQuery(forecast_key="no_such_forecast"))
+    page = await env.list.execute(DealQuery(forecast_keys=frozenset({"no_such_forecast"})))
 
     assert (page.items, page.total) == ([], 0)
 

@@ -63,8 +63,8 @@ class DealQuery:
     vendor_id: VendorId | None = None
     solution: str | None = None  # Solution 텍스트 부분 일치(대소문자 무시)
     status_key: str | None = None
-    forecast_key: str | None = None
-    forecast_outcome: ForecastOutcomeFilter | None = None  # 코드 outcome 기준. forecast_key와 AND
+    forecast_keys: frozenset[str] | None = None  # 이 중 하나와 일치(OR). None이면 조건 없음
+    forecast_outcome: ForecastOutcomeFilter | None = None  # 코드 outcome 기준. forecast_keys와 AND
     year: int | None = None  # Expected Close 연도(필터 확장 R3)
     quarter: int | None = None  # 1~4. 연도가 없으면 호출자가 `with_year_for`로 올해를 채운다
     month: int | None = None  # 1~12. quarter와 함께 쓸 수 없고, 연도가 없으면 올해를 채운다
@@ -83,6 +83,8 @@ class DealQuery:
 
     def __post_init__(self) -> None:
         check_page(self.offset, self.limit)
+        if self.forecast_keys is not None and not self.forecast_keys:
+            raise ValueError("forecast_keys가 비었습니다. 조건이 없으면 None을 쓰세요.")
         for name in ("updated_from", "updated_to"):
             if isinstance(getattr(self, name), datetime):
                 raise InvalidValueError(f"{name}은(는) 시각 없는 날짜여야 합니다")

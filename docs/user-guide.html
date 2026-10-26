@@ -84,7 +84,7 @@
 <main>
 
 <h1>neoine-sales 사용자 가이드</h1>
-<p class="meta">기준: 2026-10-23, <code>develop</code> 브랜치 구현(P0~P3, P4 Dashboard, P5, P6 Forecast, P8, Vendor 관리·Solution 직접 입력(2026-10-22 변경), Action 유형·BANT 입력 방식, Next Action 상태, Deal 목록 열 정렬·기한초과/미업데이트·Forecast 구분 검색, Deal 목록 열 개편(BANT 열 제거·Next Action 3열, 2026-10-23)). 화면 조작보다 Deal이 어떤 규칙으로 관리되는지를 설명합니다.</p>
+<p class="meta">기준: 2026-10-26, <code>develop</code> 브랜치 구현(P0~P3, P4 Dashboard, P5, P6 Forecast, P8, Vendor 관리·Solution 직접 입력(2026-10-22 변경), Action 유형·BANT 입력 방식, Next Action 상태, Deal 목록 열 정렬·기한초과/미업데이트, Deal 목록 열 개편(BANT 열 제거·Next Action 3열, 2026-10-23), Deal 목록 검색 조건 개편(Forecast 구분 폐지·기본 연도·분기 안 월·빠른 조건 줄, 2026-10-26)). 화면 조작보다 Deal이 어떤 규칙으로 관리되는지를 설명합니다.</p>
 
 <!-- 1 -->
 <h2 id="overview">1. 개요</h2>
@@ -388,15 +388,16 @@
 <table>
   <tr><th>조건</th><th>동작</th></tr>
   <tr><td>키워드</td><td>Deal Name, 고객 회사, 현재 파트너 회사, Deal code에서 부분 일치(대소문자 무시)</td></tr>
-  <tr><td>담당자 / 내 딜만</td><td>Owner로 거름(퇴사자도 선택 가능). "내 딜만"은 내가 Owner인 Deal</td></tr>
+  <tr><td>담당자</td><td>Owner로 거름(퇴사자도 선택 가능)</td></tr>
   <tr><td>Vendor</td><td>관리자가 등록한 목록에서 선택. 목록에 없는 Vendor가 주소에 들어 있으면 그 조건은 빼고 조회합니다.</td></tr>
   <tr><td>Solution</td><td>텍스트를 입력하고 검색(또는 Enter)하면 Solution에 그 글자가 들어 있는 Deal을 찾습니다(부분 일치, 대소문자 무시). Vendor를 바꿔도 Solution 조건은 남습니다. <s>관리자 목록에서 고르고, 고른 Vendor의 Solution만 나왔습니다</s>(2026-10-22 변경).</td></tr>
-  <tr><td>Status / Forecast</td><td>코드 하나 선택</td></tr>
-  <tr><td>Forecast 구분</td><td>전체 / Open / Won / Lost / Lost 제외 중 하나. Deal의 Forecast가 어느 묶음인지로 거릅니다. <b>Open</b>은 Won·Lost가 아닌 모든 Forecast(Pipeline·Best·Most Likely·Commit과 관리자가 추가한 Open 코드), <b>Lost 제외</b>는 Open과 Won입니다. Forecast 조건과 함께 고르면 둘 다 맞는 Deal만 보입니다. Dashboard에서 숫자를 눌러 들어오면 자동으로 채워지는 경우가 많습니다(<a href="#dashboard">14장</a>). (2026-10-23 추가)</td></tr>
-  <tr><td>연도·분기·월</td><td>Expected Close 기준. 분기는 Q1(1~3월), Q2(4~6월), Q3(7~9월), Q4(10~12월)입니다. 연도를 고르지 않고 분기만 고르면 <b>올해</b>(서버 날짜 기준)의 그 분기로 조회합니다. <b>월</b>(1월~12월)로도 고를 수 있으며, 분기와 월은 함께 쓸 수 없어 하나를 고르면 다른 하나는 풀립니다. 월만 고르면 올해의 그 달입니다</td></tr>
+  <tr><td>Status</td><td>코드 하나 선택</td></tr>
+  <tr><td>Forecast</td><td>버튼을 누르면 펼쳐지는 체크박스 목록에서 <b>여러 개</b>를 고를 수 있고, 고른 것 중 하나라도 맞는 Deal이 보입니다. 체크할 때마다 바로 조회합니다. 버튼에는 고른 내용이 요약됩니다(전체 / 코드 이름 / Lost 제외 / Open 전체 / 모두 선택 / N개 선택). 아무것도 고르지 않거나 "전체"를 누르면 전체입니다. Escape나 바깥을 누르면 닫힙니다. (2026-10-26 변경: 예전에는 하나만 골랐습니다)</td></tr>
+  <tr><td><s>Forecast 구분</s></td><td><s>전체 / Open / Won / Lost / Lost 제외</s> — 2026-10-26 폐지(대신 Forecast를 여러 개 고를 수 있음). 예전 주소·기억된 조건에 들어 있어도 무시됩니다.</td></tr>
+  <tr><td>연도·분기·월</td><td>Expected Close 기준. 분기는 Q1(1~3월), Q2(4~6월), Q3(7~9월), Q4(10~12월)입니다. 조건 없이 목록에 들어오거나 초기화하면 <b>연도는 올해</b>(서버 날짜 기준), 분기·월은 '전체'입니다. 연도 '전체'도 고를 수 있으며, 연도가 '전체'인데 분기(또는 월)를 고르면 <b>올해</b>의 그 분기(달)로 조회합니다. 분기를 고르면 월은 <b>그 분기에 속한 3개월만</b> 고를 수 있고, 월을 골라도 분기는 그대로 남습니다(조회는 그 달). 분기를 다른 분기로 바꾸면 월은 '전체'로 돌아갑니다. (2026-10-26 변경: 예전에는 분기와 월 중 하나만 고를 수 있었습니다)</td></tr>
   <tr><td>최종 업데이트</td><td>목록의 “최종 업데이트”(마지막 Action 수행 시각, Action이 없으면 등록 시각) 기준. 전체 / 최근 2주 / 최근 1개월 / 최근 2개월 / 최근 3개월 / 최근 6개월 / 직접 지정에서 고릅니다. 기간은 서버 날짜 기준이며 오늘을 포함합니다(최근 1개월은 한 달 전 같은 날부터, 그런 날이 없으면 그 달 말일부터). 직접 지정은 시작일·종료일 중 한쪽만 넣어도 되고 양끝을 포함합니다. 시작일이 종료일보다 늦으면 오류가 표시됩니다</td></tr>
   <tr><td>Next Action 상태</td><td>전체 / Open / 종료(수행) / 종료(미수행) / 종료(전체) 중 하나. <b>Next Action이 있는 가장 최근 Action</b>의 상태로 거릅니다. 상태를 고르면 Next Action을 적은 Action이 하나도 없는 Deal은 빠집니다(<a href="#next-status">7.4</a>).</td></tr>
-  <tr><td>기한초과 / 미업데이트</td><td>체크박스 두 개. 목록의 경고 배지와 <b>같은 규칙</b>으로 거릅니다(<a href="#risk">8장</a>). Forecast가 Won·Lost인 Deal은 어느 쪽에도 걸리지 않습니다.<br><b>기한초과</b>: Next Action이 있는 가장 최근 Action의 Due Date가 오늘(서버 날짜)보다 앞선 Deal. Next Action 상태는 보지 않으므로 종료한 Next Action도 Due Date가 지났으면 포함됩니다.<br><b>미업데이트</b>: 마지막 업데이트 뒤 관리자가 정한 경고 기준 일수(기본 14일, <a href="#admin">16.6</a>) 이상 Action이 없는 Deal.<br>둘 다 켜면 <b>둘 중 하나라도 해당하는</b> Deal이 보입니다.</td></tr>
+  <tr><td>내 딜만 / 기한초과 / 미업데이트</td><td>입력란 아래 <b>별도의 한 줄</b>에 있는 체크박스 세 개이며, 같은 줄 오른쪽 끝에 검색·초기화 버튼이 있습니다. "내 딜만"은 내가 Owner인 Deal입니다. 기한초과·미업데이트는 목록의 경고 배지와 <b>같은 규칙</b>으로 거릅니다(<a href="#risk">8장</a>). Forecast가 Won·Lost인 Deal은 어느 쪽에도 걸리지 않습니다.<br><b>기한초과</b>: Next Action이 있는 가장 최근 Action의 Due Date가 오늘(서버 날짜)보다 앞선 Deal. Next Action 상태는 보지 않으므로 종료한 Next Action도 Due Date가 지났으면 포함됩니다.<br><b>미업데이트</b>: 마지막 업데이트 뒤 관리자가 정한 경고 기준 일수(기본 14일, <a href="#admin">16.6</a>) 이상 Action이 없는 Deal.<br>둘 다 켜면 <b>둘 중 하나라도 해당하는</b> Deal이 보입니다.</td></tr>
 </table>
 <p>조건은 모두 AND로 결합합니다(기한초과와 미업데이트 두 체크박스끼리만 OR). 한 페이지에 20건씩 보이며, 정렬은 목록 헤더로 합니다(<a href="#list-sort">12.4</a>).</p>
 <div class="callout"><p>목록의 BANT Label 검색 조건은 2026-10-22에 없어졌고, 목록의 BANT 열도 2026-10-23에 없어졌습니다. BANT는 행을 펼친 빠른 보기와 상세 화면에서 확인합니다. 예전에 저장한 주소나 기억된 조건에 BANT 조건이 들어 있어도 무시되고, 나머지 조건으로 목록이 보입니다.</p></div>
@@ -405,7 +406,7 @@
   <li>검색 조건(기한초과·미업데이트 체크 포함), 정렬, 페이지는 화면 주소(URL)에 들어갑니다. 주소를 복사해 동료에게 보내면 같은 결과가 보입니다. 조건을 바꾸면 첫 페이지로 돌아갑니다.</li>
   <li>최종 업데이트 기간은 고른 순간의 <b>날짜</b>로 주소에 저장됩니다. 그래서 “최근 2주”로 만든 주소를 다음 날 열면 같은 날짜 범위가 보이고, 선택 상자는 “직접 지정”으로 표시됩니다.</li>
   <li>상세 화면에 갔다가 Deals 메뉴로 돌아와도 마지막 조건과 정렬이 복원됩니다. 이 기억은 사용자별로, 브라우저 탭 세션 동안만 유지됩니다.</li>
-  <li>"초기화"는 검색 조건과 정렬을 모두 기본값(최종 업데이트 ▼)으로 되돌립니다.</li>
+  <li>"초기화"는 검색 조건과 정렬을 모두 기본값(연도 올해, 나머지 '전체', 최종 업데이트 ▼)으로 되돌립니다. 기억한 조건이 없을 때 메뉴로 들어와도 같은 기본값입니다. 초기화 직후 브라우저 뒤로 가기를 누르면 직전 조건으로 돌아갑니다.</li>
   <li>Dashboard에서 숫자를 눌러 목록으로 오면 그 조건이 새 기억이 됩니다. 이전에 기억한 조건·정렬·페이지는 남지 않습니다(<a href="#dashboard">14.4</a>).</li>
 </ul>
 <h3>12.3 목록에서 하는 일</h3>
@@ -504,16 +505,16 @@
   <li><b>이번 달·이번 분기 Expected Close</b>: 오늘(서버 날짜)이 속한 달·분기에 Expected Close가 있는 <b>Open Deal</b>(Won·Lost 제외) 수입니다.</li>
 </ul>
 <h3>14.4 숫자를 누르면 Deals 목록으로</h3>
-<p>막대(또는 막대 조각), 표의 이름·숫자, 타일을 누르면 <b>그 숫자를 만든 조건이 검색 조건으로 자동 등록된 채 Deals 목록으로 이동</b>합니다. 목록의 "총 N건"과 금액 합은 누른 숫자와 같습니다. 팝업은 열리지 않습니다.</p>
+<p>막대(또는 막대 조각), 표의 이름·숫자, 타일을 누르면 <b>그 숫자를 만든 조건이 검색 조건으로 자동 등록된 채 Deals 목록으로 이동</b>합니다. 목록의 "총 N건"과 금액 합은 누른 숫자와 같습니다. 팝업은 열리지 않습니다. Lost 제외·Open 합계 같은 숫자는 목록의 <b>Forecast 조건에 해당 Forecast들을 모두 골라</b> 넘깁니다(관리자가 추가한 Open 코드도 포함). 넘길 Forecast가 하나도 없으면 그 숫자는 누를 수 없습니다.</p>
 <table>
   <tr><th>누른 곳</th><th>Deals 목록에 들어가는 조건</th></tr>
   <tr><td>Forecast 타일</td><td>연도·Quarter·담당자·Vendor + 그 Forecast(Forecast 탭은 Quarter 없이 연도 전체)</td></tr>
-  <tr><td>Open 합계 타일</td><td>연도·Quarter·담당자·Vendor + Forecast 구분 "Open"(Forecast 탭은 Quarter 없이 연도 전체)</td></tr>
-  <tr><td>Status 막대·표 행 / 표 합계</td><td>연도·Quarter·담당자·Vendor + 그 Status(합계는 Status 없음) + Forecast 구분 "Lost 제외"</td></tr>
+  <tr><td>Open 합계 타일</td><td>연도·Quarter·담당자·Vendor + Forecast <b>Open 전체</b>(Won·Lost가 아닌 모든 Forecast)(Forecast 탭은 Quarter 없이 연도 전체)</td></tr>
+  <tr><td>Status 막대·표 행 / 표 합계</td><td>연도·Quarter·담당자·Vendor + 그 Status(합계는 Status 없음) + Forecast <b>Lost 제외</b>(Lost가 아닌 모든 Forecast)</td></tr>
   <tr><td>기한초과 / 미업데이트</td><td>담당자·Vendor + 기한초과 또는 미업데이트 체크(연도·Quarter 없음)</td></tr>
-  <tr><td>이번 달 / 이번 분기 Expected Close</td><td>오늘이 속한 연도·월(또는 분기) + 담당자·Vendor + Forecast 구분 "Open"</td></tr>
-  <tr><td>분기 막대 조각·표 칸</td><td>연도·그 분기·담당자·Vendor + 그 Forecast(표의 Open 합계 칸은 Forecast 구분 "Open", 합계 칸은 "Lost 제외")</td></tr>
-  <tr><td>Selected Quarter 타일</td><td>연도·선택한 분기·담당자·Vendor + 그 Forecast(Open 합계 타일은 Forecast 구분 "Open", 합계 타일은 "Lost 제외")</td></tr>
+  <tr><td>이번 달 / 이번 분기 Expected Close</td><td>오늘이 속한 연도·월(또는 분기) + 담당자·Vendor + Forecast <b>Open 전체</b>(Won·Lost가 아닌 모든 Forecast)</td></tr>
+  <tr><td>분기 막대 조각·표 칸</td><td>연도·그 분기·담당자·Vendor + 그 Forecast(표의 Open 합계 칸은 Open 전체, 합계 칸은 Lost 제외)</td></tr>
+  <tr><td>Selected Quarter 타일</td><td>연도·선택한 분기·담당자·Vendor + 그 Forecast(Open 합계 타일은 Open 전체, 합계 타일은 Lost 제외)</td></tr>
 </table>
 <ul>
   <li>Vendor는 관리 목록에 있는 것만 넘어갑니다.</li>
@@ -646,8 +647,10 @@
 <p>같은 회사가 "네오인 주식회사"와 "네오인"처럼 다르게 쌓이는 것을 막으려고 공백을 금지합니다. 회사를 구분하는 핵심 이름만 붙여서 입력하세요.</p>
 <h3>Forecast 합계가 Deals 목록에서 센 것과 달라요.</h3>
 <p>Forecast는 Lost를 세지 않고, 기간을 Expected Close로 거릅니다. Deals 목록에서 같은 연도·Quarter(또는 월)·담당자·Vendor를 고르고 Forecast를 Lost가 아닌 값으로 보면 같은 숫자가 나옵니다. “기준 시점”이 월말 스냅숏이면 그달 말의 값이라 지금 목록과 다를 수 있습니다(<a href="#forecast">13장</a>).</p>
+<h3>Deals 목록에 다른 연도 Deal이 안 보여요.</h3>
+<p>조건 없이 Deals 목록에 들어오거나 초기화하면 연도가 <b>올해</b>로 정해집니다(2026-10-26부터). 다른 연도나 모든 연도의 Deal을 보려면 검색 조건의 연도를 그 연도나 '전체'로 고르세요(<a href="#list">12.1</a>).</p>
 <h3>Dashboard 숫자와 Deals 목록 건수가 달라요.</h3>
-<p>Dashboard에서 숫자를 눌러 들어온 목록은 같은 조건이라 건수·금액이 같습니다. 직접 조건을 고른 목록과 비교한다면 다음을 확인하세요. Status 막대는 Lost를 빼므로 Forecast 구분을 "Lost 제외"로, Open 합계는 "Open"으로 골라야 합니다. 기간은 Expected Close 기준입니다. 주의 필요 Deal·Closing Attention 타일은 연도·Quarter를 따르지 않습니다(<a href="#dashboard">14장</a>).</p>
+<p>Dashboard에서 숫자를 눌러 들어온 목록은 같은 조건이라 건수·금액이 같습니다. 직접 조건을 고른 목록과 비교한다면 다음을 확인하세요. Status 막대·합계는 Lost를 빼므로 Forecast를 Lost가 아닌 것 모두("Lost 제외")로, Open 합계는 Won·Lost가 아닌 것 모두("Open 전체")로 골라야 합니다. 기간은 Expected Close 기준입니다. 주의 필요 Deal·Closing Attention 타일은 연도·Quarter를 따르지 않습니다(<a href="#dashboard">14장</a>).</p>
 <h3>“기준 시점”에 지난달이 없어요.</h3>
 <p>월말 스냅숏은 매월 1일 00:05에 저장됩니다. 서버가 꺼져 있었으면 켜진 뒤 실행되고, 실패했으면 관리자가 서버에서 다시 실행해야 합니다. 다시 실행할 수 있는 달은 지난달과 이번 달뿐입니다.</p>
 <h3>업로드가 "사용할 수 없는 파일 이름입니다."로 거절돼요.</h3>

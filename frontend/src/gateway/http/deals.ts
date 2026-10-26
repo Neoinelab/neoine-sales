@@ -27,7 +27,7 @@ function toListParams(q: DealListQuery) {
     ...(q.vendorId ? { vendor_id: q.vendorId } : {}),
     ...(q.solution ? { solution: q.solution } : {}),
     ...(q.statusKey ? { status_key: q.statusKey } : {}),
-    ...(q.forecastKey ? { forecast_key: q.forecastKey } : {}),
+    ...(q.forecastKeys?.length ? { forecast_key: [...q.forecastKeys] } : {}),
     ...(q.forecastOutcome ? { forecast_outcome: q.forecastOutcome } : {}),
     ...(q.year !== undefined ? { year: q.year } : {}),
     ...(q.quarter !== undefined ? { quarter: q.quarter } : {}),

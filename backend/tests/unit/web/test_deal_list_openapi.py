@@ -72,3 +72,18 @@ def test_sort_documents_the_ten_sortable_values(
     parameters: dict[str, dict[str, Any]], contract: dict[str, Any]
 ) -> None:
     assert _enum_values(parameters["sort"]["schema"], contract) == SORTS
+
+
+def test_forecast_key_is_an_array_parameter(parameters: dict[str, dict[str, Any]]) -> None:
+    parameter = parameters["forecast_key"]
+    options = parameter["schema"].get("anyOf", [parameter["schema"]])
+    arrays = [o for o in options if o.get("type") == "array"]
+    assert arrays, f"forecast_key must accept an array: {parameter['schema']}"
+    array = arrays[0]
+
+    assert parameter["in"] == "query"
+    assert parameter.get("required", False) is False
+    assert array["items"]["type"] == "string"
+    assert array["items"]["maxLength"] == 50
+    assert array["maxItems"] == 100
+    assert parameter.get("explode", True) is True

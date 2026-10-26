@@ -4,13 +4,14 @@ import { useCodeSet } from '../../../data/codes'
 import { useToday } from '../../../data/today'
 import { useVendors } from '../../../data/vendors'
 import { NEXT_ACTION_STATUS_FILTER_OPTIONS, nextActionStatusFromParam, nextActionStatusToParam } from '../../../shared/model/nextActionStatus'
-import { parseMonth } from '../../../shared/model/month'
 import { PAST_PERIOD_LABELS } from '../../../shared/model/periodChoice'
 import { selectedUpdatedPeriod } from '../../../shared/model/updatedPeriod'
+import { forecastSummary, parseForecastParam, toggleForecastParam } from '../../../shared/model/forecastKeys'
 import { ErrorBanner } from '../../../shared/ui/ErrorBanner'
 import { CheckboxField, SelectField, TextField } from '../../../shared/ui/fields'
+import { MultiCheckSelect } from '../../../shared/ui/MultiCheckSelect'
 import { UserSelect } from '../../../shared/ui/UserSelect'
-import { outcomeFromParam } from './listQuery'
+import { effectiveMonth, monthOptions, quarterChangePatch } from './listQuery'
 
 interface DealFilterBarProps {
   params: URLSearchParams
@@ -20,7 +21,6 @@ interface DealFilterBarProps {
 }
 
 const QUARTERS = [1, 2, 3, 4] as const
-const MONTHS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] as const
 
 /** 올해-1~+2에, URL로 들어온 유효한 연도(Dashboard Drill-down 등)가 범위 밖이면 그 값을 더한다. */
 function yearOptions(year: number, urlYear: string): number[] {
@@ -37,6 +37,7 @@ export function DealFilterBar({ params, onChange, onReset }: DealFilterBarProps)
   const vendors = vendorsQuery.data ?? []
   const loaded = vendorsQuery.data !== undefined
   const value = (key: string) => params.get(key) ?? ''
+  const forecastKeys = parseForecastParam(params.get('forecast'))
   const hintId = useId()
   const monthHintId = useId()
   const periodsQuery = useUpdatedPeriods()
@@ -70,8 +71,11 @@ export function DealFilterBar({ params, onChange, onReset }: DealFilterBarProps)
   // 모르는 값은 '전체'로 보이고 조회에도 쓰이지 않는다(listQueryFromParams와 같은 판정).
   const nextStatus = nextActionStatusFromParam(params.get('next_status'))
   const hasQuarter = value('quarter') !== ''
-  const hasYear = value('year') !== ''
-  const showMonthHint = !hasQuarter && !hasYear && parseMonth(params.get('month')) !== undefined
+  // 연도 '전체'는 URL에 year=all로 두지만, year가 없는 주소(예: ?quarter=4)도 같은 '전체'로 보인다.
+  const allYears = value('year') === '' || value('year') === 'all'
+  const month = effectiveMonth(params)
+  const showQuarterHint = hasQuarter && allYears
+  const showMonthHint = !hasQuarter && allYears && month !== undefined
   // 목록이 로드된 뒤 목록에 없는 Vendor id(예전 이름 값 등)는 '전체'로 보인다.
   // 조건 형식은 listQueryFromParams가, 목록 없는 id 판정은 DealsPage의 effectiveVendorFilter가 한다.
   // 목록이 없는 동안(로딩·오류)에는 URL 값이 조회에 쓰이므로 '선택한 Vendor' 옵션 하나로 선택 상태를 보인다.
@@ -137,21 +141,15 @@ export function DealFilterBar({ params, onChange, onReset }: DealFilterBarProps)
           </option>
         ))}
       </SelectField>
-      <SelectField label="Forecast" name="forecast" value={value('forecast')} onChange={(forecast) => onChange({ forecast })}>
-        <option value="">전체</option>
-        {codes?.forecasts.map((c) => (
-          <option key={c.key} value={c.key}>
-            {c.name}
-          </option>
-        ))}
-      </SelectField>
-      <SelectField label="Forecast 구분" name="outcome" value={outcomeFromParam(params.get('outcome')) ?? ''} onChange={(outcome) => onChange({ outcome })}>
-        <option value="">전체</option>
-        <option value="open">Open</option>
-        <option value="won">Won</option>
-        <option value="lost">Lost</option>
-        <option value="not_lost">Lost 제외</option>
-      </SelectField>
+      <MultiCheckSelect
+        label="Forecast"
+        name="forecast"
+        options={(codes?.forecasts ?? []).map((c) => ({ value: c.key, label: c.name }))}
+        selected={forecastKeys}
+        summary={forecastSummary(forecastKeys, codes?.forecasts)}
+        onToggle={(key, on) => onChange({ forecast: toggleForecastParam(params.get('forecast'), key, on) })}
+        onClear={() => onChange({ forecast: '' })}
+      />
       <SelectField
         label="Next Action 상태"
         name="next_status"
@@ -167,10 +165,10 @@ export function DealFilterBar({ params, onChange, onReset }: DealFilterBarProps)
       <SelectField
         label="연도"
         name="year"
-        value={value('year')}
+        value={allYears ? 'all' : value('year')}
         onChange={(year) => onChange({ year })}
       >
-        <option value="">전체</option>
+        <option value="all">전체</option>
         {yearOptions(thisYear, value('year')).map((y) => (
           <option key={y} value={String(y)}>
             {y}
@@ -182,9 +180,9 @@ export function DealFilterBar({ params, onChange, onReset }: DealFilterBarProps)
         <select
           name="quarter"
           aria-label="Quarter"
-          aria-describedby={hasQuarter && !hasYear ? hintId : undefined}
+          aria-describedby={showQuarterHint ? hintId : undefined}
           value={value('quarter')}
-          onChange={(e) => onChange({ quarter: e.target.value, month: '' })}
+          onChange={(e) => onChange(quarterChangePatch(params, e.target.value))}
         >
           <option value="">전체</option>
           {QUARTERS.map((n) => (
@@ -193,9 +191,9 @@ export function DealFilterBar({ params, onChange, onReset }: DealFilterBarProps)
             </option>
           ))}
         </select>
-        {hasQuarter && !hasYear && (
+        {showQuarterHint && (
           <small id={hintId} className="field-hint">
-            연도를 고르지 않으면 올해({thisYear}) 기준입니다.
+            연도가 전체이면 올해({thisYear}) 기준입니다.
           </small>
         )}
       </label>
@@ -205,17 +203,17 @@ export function DealFilterBar({ params, onChange, onReset }: DealFilterBarProps)
           name="month"
           aria-label="월"
           aria-describedby={showMonthHint ? monthHintId : undefined}
-          value={hasQuarter ? '' : value('month')}
-          onChange={(e) => onChange(e.target.value ? { month: e.target.value, quarter: '' } : { month: '' })}
+          value={month === undefined ? '' : String(month)}
+          onChange={(e) => onChange({ month: e.target.value })}
         >
           <option value="">전체</option>
-          {MONTHS.map((n) => (
+          {monthOptions(params).map((n) => (
             <option key={n} value={String(n)}>{`${n}월`}</option>
           ))}
         </select>
         {showMonthHint && (
           <small id={monthHintId} className="field-hint">
-            연도를 고르지 않으면 올해({thisYear}) 기준입니다.
+            연도가 전체이면 올해({thisYear}) 기준입니다.
           </small>
         )}
       </label>
@@ -234,27 +232,33 @@ export function DealFilterBar({ params, onChange, onReset }: DealFilterBarProps)
           <TextField label="종료일" name="updated_to" type="date" value={updatedTo} onChange={(updated_to) => changeCustomDate({ updated_to })} />
         </>
       )}
-      <CheckboxField label="내 딜만" name="mine" checked={value('mine') === '1'} onChange={(on) => onChange({ mine: on ? '1' : '' })} />
-      <CheckboxField label="기한초과" name="overdue" checked={value('overdue') === '1'} onChange={(on) => onChange({ overdue: on ? '1' : '' })} />
-      <CheckboxField label="미업데이트" name="stale" checked={value('stale') === '1'} onChange={(on) => onChange({ stale: on ? '1' : '' })} />
-      <ErrorBanner error={vendorsQuery.error} />
-      <ErrorBanner error={periodsQuery.error} />
-      <ErrorBanner error={refreshError} />
-      <div className="filter-buttons">
-        <button type="submit" className="primary">
-          검색
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            periodSeq.current += 1
-            setCustomKey(null)
-            setRefreshError(null)
-            onReset()
-          }}
-        >
-          초기화
-        </button>
+      <div className="deal-filter-errors">
+        <ErrorBanner error={vendorsQuery.error} />
+        <ErrorBanner error={periodsQuery.error} />
+        <ErrorBanner error={refreshError} />
+      </div>
+      <div className="deal-filter-actions" role="group" aria-label="빠른 조건">
+        <div className="deal-filter-flags">
+          <CheckboxField label="내 딜만" name="mine" checked={value('mine') === '1'} onChange={(on) => onChange({ mine: on ? '1' : '' })} />
+          <CheckboxField label="기한초과" name="overdue" checked={value('overdue') === '1'} onChange={(on) => onChange({ overdue: on ? '1' : '' })} />
+          <CheckboxField label="미업데이트" name="stale" checked={value('stale') === '1'} onChange={(on) => onChange({ stale: on ? '1' : '' })} />
+        </div>
+        <div className="filter-buttons">
+          <button type="submit" className="primary">
+            검색
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              periodSeq.current += 1
+              setCustomKey(null)
+              setRefreshError(null)
+              onReset()
+            }}
+          >
+            초기화
+          </button>
+        </div>
       </div>
     </form>
   )

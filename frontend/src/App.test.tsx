@@ -1,6 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { renderAt } from './test/mockApp'
+import { DEFAULT_DEALS_URL_PATTERN } from './test/dealsUrl'
 
 function mainMenu() {
   return within(screen.getByRole('navigation', { name: '주 메뉴' }))
@@ -95,12 +96,12 @@ describe('가드와 리다이렉트 (T-SHELL-07~08)', () => {
 
   it('sends / to the deals list', async () => {
     const { location } = await renderAt('/')
-    await waitFor(() => expect(location()).toBe('/deals'))
+    await waitFor(() => expect(location()).toMatch(DEFAULT_DEALS_URL_PATTERN))
   })
 
   it.each(['sales', 'user'] as const)('keeps %s out of the admin pages', async (role) => {
     const { location } = await renderAt('/admin/users', { role })
-    await waitFor(() => expect(location()).toBe('/deals'))
+    await waitFor(() => expect(location()).toMatch(DEFAULT_DEALS_URL_PATTERN))
   })
 
   it('opens the admin pages for admin and sends /admin to the user management', async () => {
@@ -120,11 +121,11 @@ describe('가드와 리다이렉트 (T-SHELL-07~08)', () => {
     admin.unmount()
 
     const viewer = await renderAt('/deals/new', { role: 'user' })
-    await waitFor(() => expect(viewer.location()).toBe('/deals'))
+    await waitFor(() => expect(viewer.location()).toMatch(DEFAULT_DEALS_URL_PATTERN))
     viewer.unmount()
 
     const viewerEdit = await renderAt('/deals/20261001-AB12/edit', { role: 'user' })
-    await waitFor(() => expect(viewerEdit.location()).toBe('/deals'))
+    await waitFor(() => expect(viewerEdit.location()).toMatch(DEFAULT_DEALS_URL_PATTERN))
   })
 
   it('lets everyone open a deal detail and the forecast', async () => {
@@ -148,7 +149,7 @@ describe('가드와 리다이렉트 (T-SHELL-07~08)', () => {
 
   it.each(['/customers', '/partners', '/actions', '/nowhere'])('retires %s', async (url) => {
     const { location } = await renderAt(url)
-    await waitFor(() => expect(location()).toBe('/deals'))
+    await waitFor(() => expect(location()).toMatch(DEFAULT_DEALS_URL_PATTERN))
   })
 
   it('signs out and returns to the login page', async () => {

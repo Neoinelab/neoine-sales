@@ -5,7 +5,7 @@ import { dealCodeOf } from '../../../test/detailTestUtils'
 import { USER_ID } from '../../../test/fake/seed/ids'
 import { dealInput } from '../../../test/fake/testing'
 import { renderAt } from '../../../test/mockApp'
-import { rowOf } from './testHelpers'
+import { ALL_DEALS, rowOf } from './testHelpers'
 
 afterEach(() => {
   vi.restoreAllMocks()
@@ -47,7 +47,7 @@ async function nextActionOf(name: string) {
 
 describe('목록 열 정리: 헤더 (AC1·AC2)', () => {
   it('shows the 13 headers in order without BANT', async () => {
-    await renderAt('/deals')
+    await renderAt(ALL_DEALS)
     await rowOf(/한빛은행 ITDR 도입/)
 
     expect(screen.getAllByRole('columnheader').map((h) => h.textContent?.trim())).toEqual(HEADERS)
@@ -55,7 +55,7 @@ describe('목록 열 정리: 헤더 (AC1·AC2)', () => {
   })
 
   it('new Next Action columns are not sortable', async () => {
-    await renderAt('/deals')
+    await renderAt(ALL_DEALS)
     await rowOf(/한빛은행 ITDR 도입/)
 
     for (const name of ['Next Action', 'Due', 'Next Action 상태']) {
@@ -128,7 +128,7 @@ describe('목록 열 정리: Next Action 세 칸 (AC3)', () => {
     const overdueDeal = await nextActionOf('미래전자 EDR 교체')
     expect(overdueDeal.risk === 'overdue' || overdueDeal.risk === 'overdue_stale').toBe(true)
     if (!overdueDeal.nextAction) throw new Error('기한초과 시드 Deal에 Next Action이 필요합니다.')
-    await renderAt('/deals')
+    await renderAt(ALL_DEALS)
     const overdueRow = await rowOf(/미래전자 EDR 교체/)
     const normalRow = await rowOf(/한빛은행 ITDR 도입/)
 

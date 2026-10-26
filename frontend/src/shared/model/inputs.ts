@@ -104,7 +104,7 @@ export type DealSortKey =
   | 'forecastKey'
 export type SortOrder = 'asc' | 'desc'
 
-/** Deal 목록의 Forecast 구분 필터 값(URL `outcome`, 서버 `forecast_outcome`). */
+/** Deal 목록의 Forecast 구분 필터 값(서버 `forecast_outcome`. 목록 화면은 쓰지 않는다). */
 export type ForecastOutcomeFilter = 'open' | 'won' | 'lost' | 'not_lost'
 
 export interface DealListQuery {
@@ -115,8 +115,9 @@ export interface DealListQuery {
   /** Solution 텍스트 부분 일치(대소문자 무시). */
   solution?: string
   statusKey?: string
-  forecastKey?: string
-  /** Forecast 코드의 구분(outcome) 기준. `not_lost` = Open + Won. forecastKey와 함께 쓰면 둘 다 만족해야 한다(AND). */
+  /** 이 중 하나와 일치(OR). 비면 보내지 않는다. */
+  forecastKeys?: readonly string[]
+  /** Forecast 코드의 구분(outcome) 기준. `not_lost` = Open + Won. forecastKeys와 함께 쓰면 둘 다 만족해야 한다(AND). */
   forecastOutcome?: ForecastOutcomeFilter
   /** Expected Close(revenueDate) 기준 연도/분기. quarter만 있으면 서버가 올해로 본다. */
   year?: number

@@ -5,18 +5,19 @@ import { AMOUNT_LABEL, formatThousandWon } from '../../shared/model/money'
 import type { DashboardStatusItem } from '../../shared/model/types'
 import { chartTheme, pointerOnBar, SERIES_COLORS, thousandTick } from './chartSetup'
 import { useDrillEnabled } from './DrillLink'
-import { statusPath, type DashboardScope } from './drillDown'
+import { statusPath, type DashboardScope, type ForecastSets } from './drillDown'
 
 interface Props {
   items: readonly DashboardStatusItem[]
   scope: DashboardScope
+  sets: ForecastSets
 }
 
 /**
  * Status별 금액 막대(Lost 제외). 막대 높이는 금액(원), 건수는 축 라벨 `이름 (N건)`에 둔다.
  * 막대를 누르면 표의 행 링크와 같은 곳(Deal 목록)으로 이동한다. 같은 값은 아래 표에도 있다.
  */
-export function StatusChart({ items, scope }: Props) {
+export function StatusChart({ items, scope, sets }: Props) {
   const navigate = useNavigate()
   const drillEnabled = useDrillEnabled()
   const theme = chartTheme()
@@ -29,7 +30,8 @@ export function StatusChart({ items, scope }: Props) {
     maintainAspectRatio: false,
     onClick: (_event, elements) => {
       const item = items[elements[0]?.index ?? -1]
-      if (drillEnabled && item) void navigate(statusPath(scope, item.key))
+      const path = item ? statusPath(scope, item.key, sets) : null
+      if (drillEnabled && path) void navigate(path)
     },
     onHover: pointerOnBar,
     plugins: {

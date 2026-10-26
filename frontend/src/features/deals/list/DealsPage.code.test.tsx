@@ -1,7 +1,7 @@
 import { screen, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { renderAt } from '../../../test/mockApp'
-import { rowOf } from './testHelpers'
+import { ALL_DEALS, rowOf } from './testHelpers'
 
 const CODE_PATTERN = /\d{8}-[A-Z0-9]{4}/
 
@@ -18,7 +18,7 @@ describe('목록에서 Deal code 숨김', () => {
   })
 
   it('keeps accessible names and titles free of the code on the whole list', async () => {
-    await renderAt('/deals')
+    await renderAt(ALL_DEALS)
     await rowOf(/한빛은행 ITDR 도입/)
     const names = [...document.querySelectorAll('[aria-label], [title]')].map(
       (el) => `${el.getAttribute('aria-label') ?? ''} ${el.getAttribute('title') ?? ''}`,

@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router'
 import { useMe, usePermissions } from '../../../data/auth'
 import { useAlertSettings } from '../../../data/alerts'
 import { useDeals } from '../../../data/deals'
+import { useToday } from '../../../data/today'
 import { useVendors } from '../../../data/vendors'
 import { rememberListSearch } from '../../../shared/model/dealListMemory'
 import { effectiveVendorFilter } from '../../../shared/model/vendorFilter'
@@ -13,12 +14,16 @@ import { Pager } from '../../../shared/ui/Pager'
 import { useLocationNotice } from '../../../shared/ui/useLocationNotice'
 import { DealFilterBar } from './DealFilterBar'
 import { DealsTable } from './DealsTable'
-import { currentPage, currentSort, hasActiveFilter, listQueryFromParams, nextSort, updateParams } from './listQuery'
+import { currentPage, currentSort, defaultListParams, hasActiveFilter, hasListCondition, listQueryFromParams, nextSort, updateParams } from './listQuery'
 import './list.css'
 
 /** Deals 목록(`/deals`, 계획 6.3). 조건·정렬·페이지는 모두 URL 쿼리에 있다. */
 export function DealsPage() {
-  const [params, setParams] = useSearchParams()
+  const [urlParams, setParams] = useSearchParams()
+  const { today } = useToday()
+  // 조건이 하나도 없는 주소는 기본 조건(올해만)을 적용한 것으로 본다: 조건 없는 요청이 나가지 않게 첫 렌더부터 이 값을 쓰고, 주소는 replace로 맞춘다.
+  const bare = !hasListCondition(urlParams)
+  const params = useMemo(() => (bare ? defaultListParams(today, urlParams) : urlParams), [bare, today, urlParams])
   const { canWrite } = usePermissions()
   const meId = useMe().data?.id
   const vendors = useVendors().data
@@ -36,13 +41,21 @@ export function DealsPage() {
   const sort = currentSort(params)
   const page = deals.data
 
+  useEffect(() => {
+    if (bare) setParams(defaultListParams(today, urlParams), { replace: true })
+  }, [bare, today, urlParams, setParams])
+
   // URL이 진실이다: 목록에 마지막으로 보인 조건을 기억한다(초기화하면 빈 조건이 기록되어 지워진다).
   useEffect(() => {
     if (meId) rememberListSearch(meId, params)
   }, [meId, params])
 
   function change(patch: Record<string, string | undefined>) {
-    setParams((prev) => updateParams(prev, patch))
+    setParams((prev) => {
+      const next = updateParams(hasListCondition(prev) ? prev : defaultListParams(today, prev), patch)
+      // 사용자가 마지막 조건을 직접 지우면 기본값이 되살아나지 않고 연도 '전체'로 남긴다(AC-09).
+      return hasListCondition(next) ? next : updateParams(next, { year: 'all', page: next.get('page') ?? undefined })
+    })
   }
 
   function onSort(key: DealSortKey) {
@@ -61,7 +74,7 @@ export function DealsPage() {
         )}
       </div>
 
-      <DealFilterBar params={params} onChange={change} onReset={() => setParams(new URLSearchParams())} />
+      <DealFilterBar params={params} onChange={change} onReset={() => setParams(defaultListParams(today))} />
 
       <ul className="risk-legend" aria-label="Risk 범례">
         <li>

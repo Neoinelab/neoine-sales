@@ -2,7 +2,7 @@
 
 outcome은 Forecast 코드의 outcome이다. open은 추가된 Open 코드를 포함하고,
 not_lost는 open + won이며,
-`forecast_key`와는 AND로 결합한다. 지정하지 않으면 지금과 같다(하위 호환).
+`forecast_keys`와는 AND로 결합한다. 지정하지 않으면 지금과 같다(하위 호환).
 """
 
 from typing import TYPE_CHECKING
@@ -90,18 +90,32 @@ async def test_outcome_filter_includes_deals_of_an_added_open_code(deal_case: De
     ]
 
 
-async def test_outcome_filter_is_anded_with_forecast_key(deal_case: DealCase) -> None:
+async def test_outcome_filter_is_anded_with_forecast_keys(deal_case: DealCase) -> None:
     await _seed(deal_case)
 
     assert await _codes(
-        deal_case, forecast_key="commit", forecast_outcome=ForecastOutcomeFilter.OPEN
+        deal_case, forecast_keys=frozenset({"commit"}), forecast_outcome=ForecastOutcomeFilter.OPEN
     ) == [_code(2)]
     assert (
         await _codes(
-            deal_case, forecast_key="lost", forecast_outcome=ForecastOutcomeFilter.NOT_LOST
+            deal_case,
+            forecast_keys=frozenset({"lost"}),
+            forecast_outcome=ForecastOutcomeFilter.NOT_LOST,
         )
         == []
     )
+
+
+async def test_forecast_keys_and_outcome_are_combined(deal_case: DealCase) -> None:
+    await _seed(deal_case)
+
+    found = await _codes(
+        deal_case,
+        forecast_keys=frozenset({"lost", "pipeline"}),
+        forecast_outcome=ForecastOutcomeFilter.OPEN,
+    )
+
+    assert found == [_code(1)]
 
 
 async def test_outcome_filter_is_anded_with_other_conditions(deal_case: DealCase) -> None:

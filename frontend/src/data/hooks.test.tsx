@@ -85,7 +85,7 @@ describe('인증 훅', () => {
 describe('Deal 훅', () => {
   it('useDeals 필터와 useDeal 404', async () => {
     const { wrapper } = setup()
-    const list = renderHook(() => useDeals({ forecastKey: 'won' }), { wrapper })
+    const list = renderHook(() => useDeals({ forecastKeys: ['won'] }), { wrapper })
     await waitFor(() => expect(list.result.current.isSuccess).toBe(true))
     expect(list.result.current.data?.total).toBe(3)
     const missing = renderHook(() => useDeal('20000101-ZZZZ'), { wrapper })

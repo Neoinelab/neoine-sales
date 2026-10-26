@@ -25,6 +25,14 @@ async function ledger(gateway: Gateway, query: DealListQuery): Promise<ForecastC
 const sum = (cells: ForecastCell[]): ForecastCell =>
   cells.reduce((total, c) => ({ count: total.count + c.count, amount: total.amount + c.amount }), { count: 0, amount: 0 })
 
+/** 응답 forecast.columns에서 만든 Drill-down Forecast key 집합(Lost 제외 = open + won, Open = open). */
+function keySets(columns: { key: string; outcome: string }[]): { open: string[]; notLost: string[] } {
+  return {
+    open: columns.filter((c) => c.outcome === 'open').map((c) => c.key),
+    notLost: columns.filter((c) => c.outcome !== 'lost').map((c) => c.key),
+  }
+}
+
 const cellOf = ({ count, amount }: ForecastCell): ForecastCell => ({ count, amount })
 
 export function dashboardContract(make: MakeGateway): void {
@@ -222,6 +230,53 @@ export function dashboardContract(make: MakeGateway): void {
       expect(mine.attention.overdue).toBe((await ledger(gateway, { ownerId, overdue: true })).count)
       expect(mine.attention.stale).toBe((await ledger(gateway, { ownerId, stale: true })).count)
       expect(mine.statuses.total.count).toBeLessThanOrEqual(all.statuses.total.count)
+    })
+
+    it('matches the Deal list ledger of the Forecast key sets that Drill-down sends (다중 조건 AC-16)', async () => {
+      const gateway = await make('user')
+      const query: DashboardQuery = { year: 2026, quarter: 4 }
+
+      const { statuses, forecast, quarters } = await gateway.dashboard.summary(query)
+      const sets = keySets(forecast.columns)
+
+      expect(sets.open.length).toBeGreaterThan(0)
+      for (const item of statuses.items) {
+        const found = await ledger(gateway, { ...query, statusKey: item.key, forecastKeys: sets.notLost })
+        expect(found, item.key).toEqual(cellOf(item))
+      }
+      expect(await ledger(gateway, { ...query, forecastKeys: sets.notLost })).toEqual(statuses.total)
+      expect(await ledger(gateway, { ...query, forecastKeys: sets.open })).toEqual(forecast.openTotal)
+      for (const row of quarters) {
+        const scope = { year: 2026, quarter: row.quarter } as const
+        expect(await ledger(gateway, { ...scope, forecastKeys: sets.notLost }), `Q${row.quarter} total`).toEqual(row.total)
+        expect(await ledger(gateway, { ...scope, forecastKeys: sets.open }), `Q${row.quarter} open`).toEqual(row.openTotal)
+      }
+    })
+
+    it('matches the Forecast key set ledger of the closing counts (다중 조건 AC-16)', async () => {
+      const gateway = await make('user')
+
+      const { attention, today, forecast } = await gateway.dashboard.summary({ year: 2020 })
+      const { open } = keySets(forecast.columns)
+
+      const year = Number(today.slice(0, 4))
+      const month = Number(today.slice(5, 7))
+      expect(attention.closingThisMonth.count).toBe((await ledger(gateway, { year, month, forecastKeys: open })).count)
+      expect(attention.closingThisQuarter.count).toBe(
+        (await ledger(gateway, { year, quarter: attention.closingThisQuarter.quarter as 1 | 2 | 3 | 4, forecastKeys: open })).count,
+      )
+    })
+
+    it('includes an open Forecast code added by the admin in both key sets and the ledger (다중 조건 AC-14·16)', async () => {
+      const admin = await make('admin')
+      const added = await admin.codes.create({ kind: 'forecast', name: 'Verbal' })
+
+      const { forecast } = await admin.dashboard.summary({ year: 2026 })
+      const sets = keySets(forecast.columns)
+
+      expect(sets.open).toContain(added.key)
+      expect(sets.notLost).toContain(added.key)
+      expect(await ledger(admin, { year: 2026, forecastKeys: sets.open })).toEqual(forecast.openTotal)
     })
   })
 }

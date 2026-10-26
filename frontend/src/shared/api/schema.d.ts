@@ -4490,7 +4490,7 @@ export interface operations {
                 vendor_id?: number | null;
                 solution?: string | null;
                 status_key?: string | null;
-                forecast_key?: string | null;
+                forecast_key?: string[] | null;
                 forecast_outcome?: components["schemas"]["ForecastOutcomeFilter"] | null;
                 year?: number | null;
                 quarter?: number | null;

@@ -37,6 +37,7 @@ __all__ = [
 ]
 
 STATUS_KEY_MAX = 50
+FORECAST_KEYS_MAX = 100
 PATCH_SECTIONS = frozenset({"quote", "poc", "bant", "customer", "partner"})
 
 
@@ -180,6 +181,9 @@ def _document_solution_max(schema: dict[str, Any]) -> None:
             branch["maxLength"] = SOLUTION_MAX
 
 
+ForecastKeyParam = Annotated[str, Field(max_length=STATUS_KEY_MAX)]
+
+
 class DealSearchParams(RequestModel):
     """Deal 목록 검색 쿼리 파라미터. 기간은 양끝을 포함한다. mine=true가 owner_user_id보다 우선."""
 
@@ -189,7 +193,9 @@ class DealSearchParams(RequestModel):
     vendor_id: QueryId | None = None
     solution: Annotated[str | None, Field(json_schema_extra=_document_solution_max)] = None
     status_key: Annotated[str | None, Field(max_length=STATUS_KEY_MAX)] = None
-    forecast_key: Annotated[str | None, Field(max_length=STATUS_KEY_MAX)] = None
+    forecast_key: Annotated[list[ForecastKeyParam], Field(max_length=FORECAST_KEYS_MAX)] | None = (
+        None
+    )
     forecast_outcome: ForecastOutcomeFilter | None = None
     year: Annotated[int | None, Field(ge=1900, le=9999)] = None
     quarter: Annotated[int | None, Field(ge=1, le=4)] = None
@@ -216,8 +222,9 @@ class DealSearchParams(RequestModel):
         return None if self.owner_user_id is None else UserId(self.owner_user_id)
 
     def to_query(self, viewer_user_id: UserId) -> DealQuery:
-        criteria = self.model_dump(exclude={"mine", "owner_user_id"})
+        criteria = self.model_dump(exclude={"mine", "owner_user_id", "forecast_key"})
         return DealQuery(
             owner_user_id=viewer_user_id if self.mine else self._owner(),
+            forecast_keys=frozenset(self.forecast_key) if self.forecast_key else None,
             **criteria,
         )

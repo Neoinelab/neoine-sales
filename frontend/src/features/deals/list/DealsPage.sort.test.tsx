@@ -2,7 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { gateway } from '../../../gateway'
 import { renderAt } from '../../../test/mockApp'
-import { dataRows, rowOf } from './testHelpers'
+import { ALL_DEALS, dataRows, rowOf } from './testHelpers'
 
 /** 정렬 버튼이 있는 10개 머리글(Next Action·Due·Next Action 상태 제외). */
 const SORTABLE = ['Deal', '담당자', '고객사', '파트너사', 'Vendor', 'Status', 'Forecast', '금액(단위:천원)', 'Expected Close', '최종 업데이트']
@@ -23,7 +23,7 @@ function rowNames(): string[] {
 
 describe('목록 머리글 정렬 (AC-1)', () => {
   it('Next Action·Due·Next Action 상태를 뺀 10개 헤더만 정렬 버튼이다', async () => {
-    await renderAt('/deals')
+    await renderAt(ALL_DEALS)
     await rowOf(/한빛은행 ITDR 도입/)
 
     const headers = screen.getAllByRole('columnheader')
@@ -40,22 +40,22 @@ describe('목록 머리글 정렬 (AC-1)', () => {
 
 describe('목록 머리글 정렬 토글 (AC-2)', () => {
   it.each(NEW_COLUMNS)('%s 헤더를 누르면 오름차순, 다시 누르면 내림차순이고 표시·aria-sort·URL이 맞다', async (label, sort) => {
-    const { user, location } = await renderAt('/deals')
+    const { user, location } = await renderAt(ALL_DEALS)
     await rowOf(/한빛은행 ITDR 도입/)
 
     await user.click(screen.getByRole('button', { name: label }))
     await waitFor(() => expect(screen.getByRole('columnheader', { name: label })).toHaveAttribute('aria-sort', 'ascending'))
-    expect(location()).toBe(`/deals?sort=${sort}&order=asc`)
+    expect(location()).toBe(`/deals?year=all&sort=${sort}&order=asc`)
     expect(screen.getByRole('button', { name: label })).toHaveAttribute('data-dir', 'asc')
 
     await user.click(screen.getByRole('button', { name: label }))
     await waitFor(() => expect(screen.getByRole('columnheader', { name: label })).toHaveAttribute('aria-sort', 'descending'))
-    expect(location()).toBe(`/deals?sort=${sort}&order=desc`)
+    expect(location()).toBe(`/deals?year=all&sort=${sort}&order=desc`)
     expect(screen.getByRole('button', { name: label })).toHaveAttribute('data-dir', 'desc')
   })
 
   it('정렬 중인 열에만 방향 표시와 aria-sort가 있다', async () => {
-    const { user } = await renderAt('/deals')
+    const { user } = await renderAt(ALL_DEALS)
     await rowOf(/한빛은행 ITDR 도입/)
 
     await user.click(screen.getByRole('button', { name: '담당자' }))
@@ -69,27 +69,27 @@ describe('목록 머리글 정렬 토글 (AC-2)', () => {
   })
 
   it('다른 열로 옮기면 그 열의 기본 방향으로 시작하고 이전 열 표시는 사라진다', async () => {
-    const { user, location } = await renderAt('/deals?sort=owner&order=desc')
+    const { user, location } = await renderAt('/deals?year=all&sort=owner&order=desc')
     await rowOf(/한빛은행 ITDR 도입/)
 
     await user.click(screen.getByRole('button', { name: '금액(단위:천원)' }))
 
     await waitFor(() => expect(screen.getByRole('columnheader', { name: '금액(단위:천원)' })).toHaveAttribute('aria-sort', 'descending'))
     expect(screen.getByRole('columnheader', { name: '담당자' })).not.toHaveAttribute('aria-sort')
-    expect(location()).toBe('/deals?sort=revenueAmount&order=desc')
+    expect(location()).toBe('/deals?year=all&sort=revenueAmount&order=desc')
   })
 
   it('정렬을 바꾸면 첫 페이지로 돌아간다', async () => {
-    const { user, location } = await renderAt('/deals?page=2')
+    const { user, location } = await renderAt('/deals?year=all&page=2')
     await screen.findByRole('button', { name: '이전' })
 
     await user.click(screen.getByRole('button', { name: '고객사' }))
 
-    await waitFor(() => expect(location()).toBe('/deals?sort=customer&order=asc'))
+    await waitFor(() => expect(location()).toBe('/deals?year=all&sort=customer&order=asc'))
   })
 
   it('URL의 새 정렬 값을 머리글 표시로 복원한다', async () => {
-    await renderAt('/deals?sort=vendor&order=desc')
+    await renderAt('/deals?year=all&sort=vendor&order=desc')
 
     expect(await screen.findByRole('columnheader', { name: 'Vendor' })).toHaveAttribute('aria-sort', 'descending')
   })
@@ -97,7 +97,7 @@ describe('목록 머리글 정렬 토글 (AC-2)', () => {
 
 describe('새 정렬이 행 순서에 반영된다 (AC-2·4)', () => {
   it.each(NEW_COLUMNS)('%s 정렬 오름차순·내림차순은 게이트웨이 정렬 결과와 같은 순서로 행을 보인다', async (label, sort) => {
-    const { user } = await renderAt('/deals')
+    const { user } = await renderAt(ALL_DEALS)
     await rowOf(/한빛은행 ITDR 도입/)
     const initial = rowNames()
     const expectedAsc = (await gateway.deals.list({ sort, order: 'asc', limit: 20 })).items.map((d) => d.name)

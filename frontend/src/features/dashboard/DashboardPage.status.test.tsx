@@ -6,7 +6,7 @@ import { USER_ID } from '../../test/fake/seed/ids'
 import { dashboardSummaryFixture } from '../../test/fixtures/dashboardSummary'
 import { seedVendorId } from '../../test/fixtures/vendors'
 import { renderAt } from '../../test/mockApp'
-import { link, mockSummary, NOW } from './testHelpers'
+import { link, mockSummary, NOT_LOST_PARAM, NOW, OPEN_PARAM } from './testHelpers'
 
 /** Status 탭(슬라이드 7): Forecast 타일, Status 표, 주의 필요 Deal 타일. AC-12·13·14. 요약은 고정 값으로 바꿔 끼운다. */
 
@@ -43,7 +43,7 @@ describe('Forecast 타일 (AC-12)', () => {
 
     expect(tile).toHaveTextContent('31건')
     expect(tile).toHaveTextContent(won(630_000_000))
-    expect(tile).toHaveAttribute('href', '/deals?year=2026&outcome=open')
+    expect(tile).toHaveAttribute('href', `/deals?year=2026&forecast=${OPEN_PARAM}`)
   })
 
   it('puts the period in the Won tile title: the year, or the year and quarter', async () => {
@@ -74,10 +74,10 @@ describe('Forecast 타일 (AC-12)', () => {
     await renderAt('/dashboard?year=2026')
     await screen.findByRole('link', { name: /Open 합계/ })
 
-    const keys = screen
-      .getAllByRole('link')
-      .map((a) => new URLSearchParams((a.getAttribute('href') ?? '').split('?')[1] ?? '').get('forecast'))
-      .filter((key): key is string => key !== null)
+    const tiles = [/Pipeline/, /Best/, /Most Likely/, /Commit/, /^Won/]
+    const keys = tiles.map((name) => new URLSearchParams((screen.getByRole('link', { name }).getAttribute('href') ?? '').split('?')[1] ?? '').get('forecast'))
+    const positions = tiles.map((name) => screen.getAllByRole('link').indexOf(screen.getByRole('link', { name })))
+    expect(positions).toEqual([...positions].sort((a, b) => a - b))
 
     expect(keys).toEqual(['pipeline', 'best', 'most_likely', 'commit', 'won'])
   })
@@ -128,8 +128,39 @@ describe('Forecast 타일 (AC-12)', () => {
     expect(tile).toHaveAttribute('href', `/deals?year=2026&quarter=3&owner=${USER_ID.kim}&vendor=${vendor}&forecast=pipeline`)
     expect(screen.getByRole('link', { name: /Open 합계/ })).toHaveAttribute(
       'href',
-      `/deals?year=2026&quarter=3&owner=${USER_ID.kim}&vendor=${vendor}&outcome=open`,
+      `/deals?year=2026&quarter=3&owner=${USER_ID.kim}&vendor=${vendor}&forecast=${OPEN_PARAM}`,
     )
+  })
+
+  it('puts an open code added by the admin into the Open total link, not into the Won tile', async () => {
+    const base = dashboardSummaryFixture()
+    mockSummary({
+      ...base,
+      forecast: {
+        ...base.forecast,
+        columns: [...base.forecast.columns.slice(0, 3), { key: 'verbal', name: 'Verbal', outcome: 'open', order: 35 }, ...base.forecast.columns.slice(3)],
+        cells: { ...base.forecast.cells, verbal: { count: 5, amount: 55_000_000 } },
+      },
+    })
+    await renderAt('/dashboard?year=2026')
+
+    const href = (await screen.findByRole('link', { name: /Open 합계/ })).getAttribute('href') ?? ''
+
+    expect(new URLSearchParams(href.split('?')[1]).get('forecast')?.split(',')).toEqual(['best', 'commit', 'most_likely', 'pipeline', 'verbal'])
+  })
+
+  it('shows the Open total as plain text, not a link, when there is no open forecast code (AC-17)', async () => {
+    const base = dashboardSummaryFixture()
+    mockSummary({
+      ...base,
+      forecast: { columns: [{ key: 'won', name: 'Won', outcome: 'won', order: 5 }], cells: { won: { count: 2, amount: 40_000_000 } }, openTotal: { count: 0, amount: 0 } },
+    })
+    await renderAt('/dashboard?year=2026')
+
+    await screen.findByRole('link', { name: /Won/ })
+
+    expect(screen.queryByRole('link', { name: /Open 합계/ })).not.toBeInTheDocument()
+    expect(screen.getAllByText('Open 합계').length).toBeGreaterThan(0)
   })
 })
 
@@ -171,7 +202,7 @@ describe('Status 표 (AC-13)', () => {
 
     expect(cells.at(-2)).toMatch(new RegExp(`^${count}건?$`))
     expect(cells.at(-1)).toBe(won(amount))
-    expect(within(row).getByRole('link')).toHaveAttribute('href', `/deals?year=2026&status=${key}&outcome=not_lost`)
+    expect(within(row).getByRole('link')).toHaveAttribute('href', `/deals?year=2026&status=${key}&forecast=${NOT_LOST_PARAM}`)
   })
 
   it('lists the statuses in code order with the total row last', async () => {
@@ -197,7 +228,7 @@ describe('Status 표 (AC-13)', () => {
     expect(cells.at(-1)).toBe(won(670_000_000))
     expect(ITEMS.reduce((sum, item) => sum + item[1], 0)).toBe(33)
     expect(ITEMS.reduce((sum, item) => sum + item[2], 0)).toBe(670_000_000)
-    expect(within(totalRow).getByRole('link')).toHaveAttribute('href', '/deals?year=2026&outcome=not_lost')
+    expect(within(totalRow).getByRole('link')).toHaveAttribute('href', `/deals?year=2026&forecast=${NOT_LOST_PARAM}`)
   })
 
   it('keeps a status with no deals in the table as zero', async () => {
@@ -224,7 +255,7 @@ describe('Status 표 (AC-13)', () => {
     await renderAt('/dashboard?year=2026')
     await screen.findByRole('table')
 
-    expect(within(screen.getByRole('row', { name: /소개/ })).getByRole('link')).toHaveAttribute('href', '/deals?year=2026&status=introduction&outcome=not_lost')
+    expect(within(screen.getByRole('row', { name: /소개/ })).getByRole('link')).toHaveAttribute('href', `/deals?year=2026&status=introduction&forecast=${NOT_LOST_PARAM}`)
   })
 })
 
@@ -239,7 +270,7 @@ describe('주의 필요 Deal 타일 (AC-14)', () => {
 
     expect(overdue).toHaveAttribute('href', '/deals?overdue=1')
     expect(stale).toHaveAttribute('href', '/deals?stale=1')
-    expect(closing).toHaveAttribute('href', '/deals?year=2026&quarter=4&outcome=open')
+    expect(closing).toHaveAttribute('href', `/deals?year=2026&quarter=4&forecast=${OPEN_PARAM}`)
   })
 
   it('shows the alert setting as the stale days, not a fixed 15', async () => {
@@ -260,7 +291,7 @@ describe('주의 필요 Deal 타일 (AC-14)', () => {
     expect(screen.getByRole('link', { name: /미업데이트/ })).toHaveAttribute('href', `/deals?owner=${USER_ID.kim}&vendor=${vendor}&stale=1`)
     expect(screen.getByRole('link', { name: /이번 분기/ })).toHaveAttribute(
       'href',
-      `/deals?year=2026&quarter=4&owner=${USER_ID.kim}&vendor=${vendor}&outcome=open`,
+      `/deals?year=2026&quarter=4&owner=${USER_ID.kim}&vendor=${vendor}&forecast=${OPEN_PARAM}`,
     )
   })
 
@@ -272,7 +303,7 @@ describe('주의 필요 Deal 타일 (AC-14)', () => {
     const closing = await screen.findByRole('link', { name: /이번 분기.*2027 Q1/ })
 
     expect(closing).toHaveTextContent('3')
-    expect(closing).toHaveAttribute('href', '/deals?year=2027&quarter=1&outcome=open')
+    expect(closing).toHaveAttribute('href', `/deals?year=2027&quarter=1&forecast=${OPEN_PARAM}`)
   })
 
   it('shows zero counts as tiles too', async () => {

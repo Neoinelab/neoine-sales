@@ -209,21 +209,41 @@ describe('BANT 키 폐지와 overdue·stale (AC-7, AC-9)', () => {
   })
 })
 
-describe('outcome 기억 (Dashboard AC-17·19)', () => {
-  it.each(['open', 'won', 'lost', 'not_lost'])('remembers outcome=%s next to the other list keys', (value) => {
-    expect(sanitizeListSearch(`year=2026&outcome=${value}&foo=1`)).toBe(`year=2026&outcome=${value}`)
+describe('outcome is no longer remembered (AC-02)', () => {
+  it('drops outcome from an old remembered search', () => {
+    expect(sanitizeListSearch('year=2026&outcome=open&foo=1')).toBe('year=2026')
   })
 
-  it('writes the outcome to the remembered search and restores it in the list path', () => {
+  it('does not write outcome to the remembered search', () => {
     rememberListSearch(USER_ID.kim, params('year=2026&quarter=4&outcome=not_lost&status=poc_completed'))
 
-    expect(rememberedListPath(USER_ID.kim)).toBe('/deals?year=2026&quarter=4&outcome=not_lost&status=poc_completed')
+    expect(window.sessionStorage.getItem(listMemoryKey(USER_ID.kim))).toBe('year=2026&quarter=4&status=poc_completed')
+  })
+
+  it('restores the bare list path when an old entry has only an outcome', () => {
+    window.sessionStorage.setItem(listMemoryKey(USER_ID.kim), 'outcome=open')
+
+    expect(rememberedListPath(USER_ID.kim)).toBe('/deals')
+  })
+
+  it('drops only the outcome of an old entry that has other conditions', () => {
+    window.sessionStorage.setItem(listMemoryKey(USER_ID.kim), 'outcome=open&year=2026')
+
+    expect(rememberedListPath(USER_ID.kim)).toBe('/deals?year=2026')
+  })
+})
+
+describe('year=all memory (AC-09)', () => {
+  it('remembers year=all and restores it in the list path', () => {
+    rememberListSearch(USER_ID.kim, params('year=all'))
+
+    expect(rememberedListPath(USER_ID.kim)).toBe('/deals?year=all')
   })
 
   it('replaces an older remembered search completely (no merge with the old keys)', () => {
     rememberListSearch(USER_ID.kim, params('status=prospecting&sort=owner&page=3'))
-    rememberListSearch(USER_ID.kim, params('year=2026&outcome=open'))
+    rememberListSearch(USER_ID.kim, params('year=2026&quarter=4'))
 
-    expect(rememberedListPath(USER_ID.kim)).toBe('/deals?year=2026&outcome=open')
+    expect(rememberedListPath(USER_ID.kim)).toBe('/deals?year=2026&quarter=4')
   })
 })

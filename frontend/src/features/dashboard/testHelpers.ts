@@ -32,3 +32,10 @@ export function rowLink(rowName: RegExp | string): HTMLElement {
 export function canvases(): HTMLElement[] {
   return screen.queryAllByRole('img').filter((el) => el.tagName === 'CANVAS')
 }
+
+/**
+ * Lost 제외·Open 숫자를 누를 때 목록 `forecast`에 실리는 값(Fake 시드와 요약 픽스처의 Forecast 코드 기준).
+ * key를 알파벳순으로 이은 값을 URLSearchParams가 인코딩한 모양이다(콤마 → %2C).
+ */
+export const OPEN_PARAM = 'best%2Ccommit%2Cmost_likely%2Cpipeline'
+export const NOT_LOST_PARAM = `${OPEN_PARAM}%2Cwon`

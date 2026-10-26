@@ -6,22 +6,25 @@ import { resetMock } from '../../../test/fake/default'
 import { renderAt } from '../../../test/mockApp'
 import { seedVendorId } from '../../../test/fixtures/vendors'
 import { dealInput } from '../../../test/fake/testing'
-import { dataRows } from './testHelpers'
+import { ALL_DEALS, dataRows, toggleForecast } from './testHelpers'
 import { USER_ID } from '../../../test/fake/seed/ids'
+import { DEFAULT_DEALS_URL_PATTERN, defaultDealsUrl } from '../../../test/dealsUrl'
+
+afterEach(() => vi.restoreAllMocks())
 
 describe('필터와 정렬 (T-LIST-05~09)', () => {
   it('filters by keyword on submit and keeps it in the URL', async () => {
-    const { user, location } = await renderAt('/deals')
+    const { user, location } = await renderAt(ALL_DEALS)
     await screen.findByRole('row', { name: /한빛은행 ITDR 도입/ })
     await user.type(screen.getByLabelText('키워드'), '한빛은행')
     await user.click(screen.getByRole('button', { name: '검색' }))
-    expect(location()).toBe(`/deals?q=${encodeURIComponent('한빛은행')}`)
+    expect(location()).toBe(`/deals?year=all&q=${encodeURIComponent('한빛은행')}`)
     await screen.findByRole('row', { name: /한빛은행 PAM/ })
     expect(dataRows()).toHaveLength(3)
   })
 
   it('filters by owner', async () => {
-    const { user, location } = await renderAt('/deals')
+    const { user, location } = await renderAt(ALL_DEALS)
     await screen.findByRole('row', { name: /한빛은행 ITDR 도입/ })
     await user.selectOptions(await screen.findByLabelText('담당자'), '박영업')
     await screen.findByRole('row', { name: /미래전자 EDR 교체/ })
@@ -30,7 +33,7 @@ describe('필터와 정렬 (T-LIST-05~09)', () => {
   })
 
   it('offers resigned owners in the owner filter', async () => {
-    const { user } = await renderAt('/deals')
+    const { user } = await renderAt(ALL_DEALS)
     const owner = await screen.findByLabelText('담당자')
     await within(owner).findByRole('option', { name: '강퇴사(퇴사)' })
     await user.selectOptions(owner, '강퇴사(퇴사)')
@@ -39,7 +42,7 @@ describe('필터와 정렬 (T-LIST-05~09)', () => {
   })
 
   it('filters by vendor, status and forecast', async () => {
-    const { user, location } = await renderAt('/deals')
+    const { user, location } = await renderAt(ALL_DEALS)
     await screen.findByRole('row', { name: /한빛은행 ITDR 도입/ })
     const vendor = await screen.findByLabelText('Vendor')
     await within(vendor).findByRole('option', { name: 'Silverfort' })
@@ -55,14 +58,15 @@ describe('필터와 정렬 (T-LIST-05~09)', () => {
 
     await user.selectOptions(screen.getByLabelText('Status'), '전체')
     await user.selectOptions(screen.getByLabelText('Vendor'), '전체')
-    await user.selectOptions(screen.getByLabelText('Forecast'), 'Lost')
+    await toggleForecast(user, 'Lost')
     await screen.findByRole('row', { name: /새론병원 SSO/ })
     expect(dataRows()).toHaveLength(1)
     expect(location()).toContain('forecast=lost')
+    expect(location()).not.toContain('forecast=lost%2C')
   })
 
   it('applies the solution text on search', async () => {
-    const { user, location } = await renderAt('/deals')
+    const { user, location } = await renderAt(ALL_DEALS)
     await screen.findByRole('row', { name: /한빛은행 ITDR 도입/ })
     const solution = screen.getByLabelText('Solution')
     expect(solution.tagName).toBe('INPUT')
@@ -78,7 +82,7 @@ describe('필터와 정렬 (T-LIST-05~09)', () => {
 
   it('applies the solution text with Enter and sends it as the solution condition', async () => {
     const list = vi.spyOn(gateway.deals, 'list')
-    const { user } = await renderAt('/deals')
+    const { user } = await renderAt(ALL_DEALS)
     await screen.findByRole('row', { name: /한빛은행 ITDR 도입/ })
 
     await user.type(screen.getByLabelText('Solution'), 'MFA{Enter}')
@@ -115,7 +119,7 @@ describe('필터와 정렬 (T-LIST-05~09)', () => {
   })
 
   it('combines keyword and solution text on one search', async () => {
-    const { user, location } = await renderAt('/deals')
+    const { user, location } = await renderAt(ALL_DEALS)
     await screen.findByRole('row', { name: /한빛은행 ITDR 도입/ })
 
     await user.type(screen.getByLabelText('키워드'), '한빛은행')
@@ -128,7 +132,7 @@ describe('필터와 정렬 (T-LIST-05~09)', () => {
   })
 
   it('puts year and quarter in the URL', async () => {
-    const { user, location } = await renderAt('/deals')
+    const { user, location } = await renderAt(ALL_DEALS)
     await screen.findByRole('row', { name: /한빛은행 ITDR 도입/ })
     const year = String(new Date().getFullYear())
     await user.selectOptions(screen.getByLabelText('연도'), year)
@@ -137,14 +141,15 @@ describe('필터와 정렬 (T-LIST-05~09)', () => {
     expect(location()).toContain('quarter=4')
   })
 
-  it('puts the month in the URL and clears the quarter (P6 Q3-b)', async () => {
+  it('puts the month in the URL and keeps the quarter (AC-11)', async () => {
     const { user, location } = await renderAt('/deals?year=2026&quarter=4')
-    await screen.findByRole('row', { name: /한빛은행 ITDR 도입/ })
+    await screen.findByLabelText('월')
 
-    await user.selectOptions(screen.getByLabelText('월'), '3월')
+    await user.selectOptions(screen.getByLabelText('월'), '11월')
 
-    expect(location()).toContain('month=3')
-    expect(location()).not.toContain('quarter=')
+    expect(location()).toContain('month=11')
+    expect(location()).toContain('quarter=4')
+    expect(screen.getByLabelText('Quarter')).toHaveDisplayValue('Q4')
   })
 
   it('clears the month when a quarter is chosen', async () => {
@@ -171,14 +176,14 @@ describe('필터와 정렬 (T-LIST-05~09)', () => {
   })
 
   it('shows only my deals with the my-deals toggle and removes the filter when turned off', async () => {
-    const { user, location } = await renderAt('/deals')
+    const { user, location } = await renderAt(ALL_DEALS)
     await screen.findByRole('row', { name: /한빛은행 ITDR 도입/ })
     await user.click(screen.getByRole('checkbox', { name: '내 딜만' }))
     expect(location()).toContain('mine=1')
     await screen.findByRole('row', { name: /새론병원 SSO/ })
     expect(dataRows()).toHaveLength(8)
     await user.click(screen.getByRole('checkbox', { name: '내 딜만' }))
-    expect(location()).toBe('/deals')
+    expect(location()).toBe('/deals?year=all')
   })
 
   it('restores every control from the URL, as when coming back from a detail page', async () => {
@@ -189,17 +194,19 @@ describe('필터와 정렬 (T-LIST-05~09)', () => {
     expect(screen.getByLabelText('Status')).toHaveDisplayValue('계약완료')
   })
 
-  it('clears every condition with the reset button', async () => {
+  it('clears every condition with the reset button and goes back to the default period (this year)', async () => {
+    const list = vi.spyOn(gateway.deals, 'list')
     const { user, location } = await renderAt(`/deals?q=한빛&vendor=${seedVendorId('Okta')}&solution=ITDR&sort=name&order=asc`)
     await user.click(await screen.findByRole('button', { name: '초기화' }))
-    expect(location()).toBe('/deals')
-    await screen.findByRole('row', { name: /한빛은행 ITDR 도입/ })
-    expect(screen.getByLabelText('키워드')).toHaveValue('')
+    expect(location()).toMatch(DEFAULT_DEALS_URL_PATTERN)
+    await waitFor(() => expect(screen.getByLabelText('키워드')).toHaveValue(''))
     expect(screen.getByLabelText('Solution')).toHaveValue('')
+    expect(screen.getByLabelText('Vendor')).toHaveDisplayValue('전체')
+    await waitFor(() => expect(Object.keys(list.mock.calls.at(-1)?.[0] ?? {}).sort()).toEqual(['limit', 'offset', 'year']))
   })
 
   it('sorts by Expected Close and flips the direction', async () => {
-    const { user, location } = await renderAt('/deals')
+    const { user, location } = await renderAt(ALL_DEALS)
     await screen.findByRole('row', { name: /한빛은행 ITDR 도입/ })
     await user.click(screen.getByRole('button', { name: 'Expected Close' }))
     expect(location()).toContain('sort=revenueDate')
@@ -211,7 +218,7 @@ describe('필터와 정렬 (T-LIST-05~09)', () => {
   })
 
   it('sorts by amount with the largest first and marks the default sort on the last update', async () => {
-    const { user } = await renderAt('/deals')
+    const { user } = await renderAt(ALL_DEALS)
     await screen.findByRole('row', { name: /한빛은행 ITDR 도입/ })
     expect(screen.getByRole('columnheader', { name: '최종 업데이트' })).toHaveAttribute('aria-sort', 'descending')
     await user.click(screen.getByRole('button', { name: '금액(단위:천원)' }))
@@ -246,7 +253,7 @@ describe('최종 업데이트 기간 필터', () => {
   }
 
   it('no longer shows the Expected Close period inputs and offers seven options', async () => {
-    await renderAt('/deals')
+    await renderAt(ALL_DEALS)
     await screen.findByRole('row', { name: /한빛은행 ITDR 도입/ })
 
     expect(screen.queryByLabelText('기간 시작')).not.toBeInTheDocument()
@@ -260,7 +267,7 @@ describe('최종 업데이트 기간 필터', () => {
   })
 
   it('filters by the recent-two-weeks preset and puts the server dates in the URL', async () => {
-    const { user, location } = await renderAt('/deals?page=2')
+    const { user, location } = await renderAt('/deals?year=all&page=2')
     await waitFor(() => expect(dataRows().length).toBeGreaterThan(0))
     const all = await expectedIn({})
     const expected = await expectedIn(TWO_WEEKS)
@@ -280,7 +287,7 @@ describe('최종 업데이트 기간 필터', () => {
   })
 
   it('uses the dates the server resolved for a longer preset', async () => {
-    const { user, location } = await renderAt('/deals')
+    const { user, location } = await renderAt(ALL_DEALS)
     await screen.findByRole('row', { name: /한빛은행 ITDR 도입/ })
     const select = await screen.findByLabelText('최종 업데이트')
     await waitFor(() => expect(within(select).getByRole('option', { name: '최근 3개월' })).toBeEnabled())
@@ -305,7 +312,7 @@ describe('최종 업데이트 기간 필터', () => {
     await waitFor(() => expect(search(location()).get('updated_from')).toBe(TWO_WEEKS.from))
     await user.click(screen.getByRole('button', { name: '초기화' }))
 
-    expect(location()).toBe('/deals')
+    expect(location()).toBe(defaultDealsUrl(NOW))
     expect(screen.getByLabelText('최종 업데이트')).toHaveDisplayValue('전체')
     expect(screen.queryByLabelText('시작일')).not.toBeInTheDocument()
   })
@@ -324,7 +331,7 @@ describe('최종 업데이트 기간 필터', () => {
   })
 
   it('opens empty date inputs from 전체 and filters with only a start date, then clears it', async () => {
-    const { user, location } = await renderAt('/deals')
+    const { user, location } = await renderAt(ALL_DEALS)
     await screen.findByRole('row', { name: /한빛은행 ITDR 도입/ })
     await user.selectOptions(await screen.findByLabelText('최종 업데이트'), '직접 지정')
     expect(screen.getByLabelText('시작일')).toHaveValue('')
@@ -342,7 +349,7 @@ describe('최종 업데이트 기간 필터', () => {
   })
 
   it('shows the server error when the start date is after the end date', async () => {
-    const { user, location } = await renderAt('/deals')
+    const { user, location } = await renderAt(ALL_DEALS)
     await screen.findByRole('row', { name: /한빛은행 ITDR 도입/ })
     await user.selectOptions(await screen.findByLabelText('최종 업데이트'), '직접 지정')
 
@@ -392,7 +399,7 @@ describe('최종 업데이트 기간 필터', () => {
 
   it('ignores the old from/to keys: no Expected Close period and no filter marker', async () => {
     const list = vi.spyOn(gateway.deals, 'list')
-    await renderAt('/deals?from=2099-01-01&to=2099-12-31')
+    await renderAt('/deals?year=all&from=2099-01-01&to=2099-12-31')
     await screen.findByRole('row', { name: /한빛은행 ITDR 도입/ })
 
     expect(Object.keys(list.mock.calls.at(-1)?.[0] ?? {}).sort()).toEqual(['limit', 'offset'])
@@ -420,7 +427,7 @@ describe('최종 업데이트 기간 필터', () => {
   })
 
   it('goes back to 전체 and hides the date inputs when browser back removes the custom dates', async () => {
-    const { user, location, goTo } = await renderAt('/deals')
+    const { user, location, goTo } = await renderAt(ALL_DEALS)
     await screen.findByRole('row', { name: /한빛은행 ITDR 도입/ })
     await user.selectOptions(await screen.findByLabelText('최종 업데이트'), '직접 지정')
     fireEvent.change(screen.getByLabelText('시작일'), { target: { value: '2026-10-01' } })
@@ -428,7 +435,7 @@ describe('최종 업데이트 기간 필터', () => {
 
     goTo(-1)
 
-    await waitFor(() => expect(location()).toBe('/deals'))
+    await waitFor(() => expect(location()).toBe('/deals?year=all'))
     await waitFor(() => expect(screen.getByLabelText('최종 업데이트')).toHaveDisplayValue('전체'))
     expect(screen.queryByLabelText('시작일')).not.toBeInTheDocument()
     expect(screen.queryByLabelText('종료일')).not.toBeInTheDocument()
@@ -463,7 +470,7 @@ describe('최종 업데이트 기간 필터', () => {
         upcoming: first.upcoming,
       }
     })
-    const { user, location } = await renderAt('/deals')
+    const { user, location } = await renderAt(ALL_DEALS)
     await screen.findByRole('row', { name: /한빛은행 ITDR 도입/ })
     const select = await screen.findByLabelText('최종 업데이트')
     await waitFor(() => expect(within(select).getByRole('option', { name: '최근 2주' })).toBeEnabled())
@@ -489,7 +496,7 @@ describe('최종 업데이트 기간 필터', () => {
       if (failing) throw failure
       return original()
     })
-    const { user, location } = await renderAt('/deals')
+    const { user, location } = await renderAt(ALL_DEALS)
     await screen.findByRole('row', { name: /한빛은행 ITDR 도입/ })
     const select = await screen.findByLabelText('최종 업데이트')
     await waitFor(() => expect(within(select).getByRole('option', { name: '최근 2주' })).toBeEnabled())
