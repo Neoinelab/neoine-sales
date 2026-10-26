@@ -42,4 +42,10 @@ describe('Dashboard 배치', () => {
     expect(icon).toHaveAttribute('aria-hidden', 'true')
     expect(follows(icon as Element, within(tab).getByText(name))).toBe(true)
   })
+
+  it('uses the shared prominent tab style', async () => {
+    await renderAt('/dashboard')
+
+    expect((await screen.findByRole('tablist', { name: 'Dashboard 보기' })).parentElement).toHaveClass('tabs-prominent')
+  })
 })

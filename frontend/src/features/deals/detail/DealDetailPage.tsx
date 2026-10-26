@@ -8,6 +8,7 @@ import { canDeleteDeal, canWrite as canWriteRole } from '../../../shared/model/p
 import '../../../shared/ui/kvGrid.css'
 import { ErrorBanner } from '../../../shared/ui/ErrorBanner'
 import { Notice } from '../../../shared/ui/Notice'
+import { tabIcon } from '../../../shared/ui/tabIcon'
 import { Tabs } from '../../../shared/ui/Tabs'
 import { useDealListPath } from '../../../shared/ui/useDealListPath'
 import { useLocationNotice } from '../../../shared/ui/useLocationNotice'
@@ -21,10 +22,11 @@ import { InfoCards } from './InfoCards'
 import { SummaryBar } from './SummaryBar'
 import './detail.css'
 
+/** 탭 아이콘(Dashboard 탭과 같은 모양): Deal 상세는 문서, Actions는 체크 목록, Deal History는 시계. */
 const TABS = [
-  { id: 'info', label: 'Deal 상세' },
-  { id: 'actions', label: 'Actions' },
-  { id: 'history', label: 'Deal History' },
+  { id: 'info', label: 'Deal 상세', icon: tabIcon('M5 2.5h7l3.5 3.5v11.5h-10.5zM12 2.5V6h3.5M7.5 10h5M7.5 13.5h5') },
+  { id: 'actions', label: 'Actions', icon: tabIcon('M3 5.5l1.5 1.5 3-3M3 13.5l1.5 1.5 3-3M10 6h7M10 14h7') },
+  { id: 'history', label: 'Deal History', icon: tabIcon('M10 2.5a7.5 7.5 0 1 1 0 15a7.5 7.5 0 1 1 0-15M10 6v4l2.5 2.5') },
 ] as const
 
 /** Deal 상세 `/deals/:dealCode`: 머리(이름) 바로 아래 탭 3개(Deal 상세: Deal 정보·정보 카드·첨부 파일 / Actions / Deal History, 기본은 Deal 상세) · 알림(탭 패널 맨 위) · 삭제. */
@@ -90,7 +92,7 @@ export function DealDetailPage() {
           )}
         </div>
       </header>
-      <Tabs label="상세 탭" tabs={TABS} active={tab} onChange={changeTab}>
+      <Tabs className="tabs-prominent" label="상세 탭" tabs={TABS} active={tab} onChange={changeTab}>
         {notice && (
           <Notice kind="success" onClose={() => setNotice(null)}>
             {notice}

@@ -49,6 +49,12 @@ button.danger:hover:not(:disabled) { background: var(--danger-hover); border-col
 .tab:hover:not(:disabled) { background: transparent; color: var(--fg); }
 .tab[aria-selected='true'] { background: transparent; border-bottom-color: var(--accent); color: var(--accent-text); font-weight: 600; }
 .tabpanel { padding-top: 12px; }
+/* 눈에 띄는 탭(Dashboard·Deal 상세): 제목(h1, --font-title)보다 약간 작은 굵은 글자 + 왼쪽 아이콘으로 탭임을 드러낸다.
+   글자(span)에도 크기를 물려 Deal 상세의 글자 크기 통일 규칙보다 우선하게 한다. */
+.tabs-prominent .tab { display: inline-flex; align-items: center; gap: 8px; font-size: 1.2rem; font-weight: 700; padding: 10px 18px; border-bottom-width: 3px; }
+.tabs-prominent .tab[aria-selected='true'] { font-weight: 700; }
+.tabs-prominent .tab > span { font-size: inherit; }
+.tabs-prominent .tab-icon { display: inline-flex; }
 
 /* Notice */
 .notice { display: flex; align-items: flex-start; gap: 8px; padding: 10px 14px; border-radius: var(--radius); background: var(--ui-info-bg); color: var(--ui-info-fg); }

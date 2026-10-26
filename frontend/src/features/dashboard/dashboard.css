@@ -3,10 +3,6 @@
 .db-filters { padding: 14px 16px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); }
 .db-filters .field { min-width: 120px; }
 .db-stack { display: grid; gap: 16px; min-width: 0; }
-/* 탭: 제목(h1, --font-title)보다 약간 작은 굵은 글자 + 왼쪽 아이콘으로 탭임을 드러낸다. */
-.db-tabs .tab { display: inline-flex; align-items: center; gap: 8px; font-size: 1.2rem; font-weight: 700; padding: 10px 18px; border-bottom-width: 3px; }
-.db-tabs .tab[aria-selected='true'] { font-weight: 700; }
-.db-tabs .tab-icon { display: inline-flex; }
 
 .db-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
 .db-tile { display: grid; gap: 2px; padding: 14px 18px; color: var(--text); text-decoration: none; background: var(--panel); border: 1px solid var(--line); border-left: 4px solid var(--accent); border-radius: var(--radius-lg); box-shadow: var(--shadow-md); }

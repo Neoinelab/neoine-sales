@@ -5,6 +5,7 @@ import { useVendors } from '../../data/vendors'
 import type { DashboardSummary } from '../../shared/model/types'
 import { effectiveVendorFilter } from '../../shared/model/vendorFilter'
 import { ErrorBanner } from '../../shared/ui/ErrorBanner'
+import { tabIcon } from '../../shared/ui/tabIcon'
 import { Tabs } from '../../shared/ui/Tabs'
 import { DrillEnabledContext } from './DrillLink'
 import { DashboardFilterBar } from './DashboardFilters'
@@ -14,12 +15,7 @@ import { ForecastTab } from './ForecastTab'
 import { StatusTab } from './StatusTab'
 import './dashboard.css'
 
-/** 탭 아이콘: Status는 단계별 막대, Forecast는 상승 추세선. 색은 글자색(currentColor)을 따른다. */
-const tabIcon = (path: string) => (
-  <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-    <path d={path} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-  </svg>
-)
+/** 탭 아이콘: Status는 단계별 막대, Forecast는 상승 추세선. */
 
 const TABS = [
   { id: 'status', label: 'Status', icon: tabIcon('M3 17h14M5 14V9M10 14V4M15 14v-7') },
@@ -64,7 +60,7 @@ export function DashboardPage() {
     <section className="db-page">
       <h1>Dashboard</h1>
       {/* 탭이 맨 위에 오고, 검색 조건·안내·내용은 활성 탭 패널 안에 둔다(탭마다 조건 항목이 다르다). */}
-      <Tabs className="db-tabs" label="Dashboard 보기" tabs={TABS} active={filters.tab} onChange={(id) => isTab(id) && update({ tab: id })}>
+      <Tabs className="tabs-prominent" label="Dashboard 보기" tabs={TABS} active={filters.tab} onChange={(id) => isTab(id) && update({ tab: id })}>
         <div className="db-stack">
           <DashboardFilterBar filters={filters} onChange={update} />
           <ErrorBanner error={summary.error} />
