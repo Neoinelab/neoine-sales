@@ -207,4 +207,27 @@ describe('users over HTTP', () => {
 
     await expect(createUsersHttp().remove(1)).rejects.toMatchObject({ status: 403, message: '본인 계정은 삭제할 수 없습니다.' })
   })
+
+  it('changeRole sends PUT /users/{id}/role with the role body and maps the user', async () => {
+    const { calls } = stubFetch(json(row({ role: 'user' })))
+
+    const changed = await createUsersHttp().changeRole(2, 'user')
+
+    expect(calls).toHaveLength(1)
+    expect(calls[0]).toMatchObject({ method: 'PUT', path: '/api/v1/users/2/role', body: { role: 'user' } })
+    expect(changed).toMatchObject({ id: 2, loginId: 'park', role: 'user', status: 'active' })
+  })
+
+  it.each([
+    [409, 'invalid-state', '자기 자신의 역할은 바꿀 수 없습니다.', 'conflict'],
+    [409, 'invalid-state', '마지막 관리자의 역할은 바꿀 수 없습니다.', 'conflict'],
+    [409, 'invalid-state', '이미 퇴사 처리된 사용자입니다', 'conflict'],
+    [409, 'invalid-state', '개발 로그인 전용 사용자의 역할은 바꿀 수 없습니다.', 'conflict'],
+    [403, 'forbidden', '이 작업을 할 권한이 없습니다.', 'forbidden'],
+    [404, 'not-found', '사용자를 찾을 수 없습니다.', 'not-found'],
+  ])('changeRole shows the %s answer %s with the server message', async (status, serverKind, detail, kind) => {
+    stubFetch(problem(status, serverKind, detail))
+
+    await expect(createUsersHttp().changeRole(2, 'user')).rejects.toMatchObject({ status, kind, message: detail })
+  })
 })

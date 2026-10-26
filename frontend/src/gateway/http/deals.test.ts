@@ -673,3 +673,28 @@ describe('deals.updatedPeriods over HTTP', () => {
     ])
   })
 })
+
+describe('deals.years over HTTP', () => {
+  it('maps GET /deals/years earliest_year to earliestYear', async () => {
+    const { calls } = stubFetch(json({ earliest_year: 2019 }))
+
+    const result = await createDealsHttp().years()
+
+    expect(calls).toHaveLength(1)
+    expect(calls[0]).toMatchObject({ method: 'GET', path: '/api/v1/deals/years' })
+    expect(result).toEqual({ earliestYear: 2019 })
+  })
+
+  it('keeps null when there is no deal', async () => {
+    stubFetch(json({ earliest_year: null }))
+
+    await expect(createDealsHttp().years()).resolves.toEqual({ earliestYear: null })
+  })
+
+  it('shows the server message when the request is not allowed', async () => {
+    stubFetch(problem(401, 'unauthenticated', '로그인이 필요합니다.'))
+
+    await expect(createDealsHttp().years()).rejects.toMatchObject({ status: 401, message: '로그인이 필요합니다.' })
+  })
+})
+

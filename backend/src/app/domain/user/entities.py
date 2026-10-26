@@ -83,6 +83,17 @@ class User(AuditedEntity[UserId]):
         self.deleted_at = now
         self.delete_reason = reason
 
+    def change_role(self, role: Role, now: datetime) -> bool:
+        """역할을 바꾼다. 같은 역할이면 아무것도 바꾸지 않고 False. 퇴사한 행은 바꿀 수 없다."""
+        require_aware(now, "now")
+        if not self.is_active:
+            raise InvalidStateError(ALREADY_RESIGNED)
+        if role is self.role:
+            return False
+        self._touch(now)
+        self.role = role
+        return True
+
     def record_login(self, now: datetime, *, display_name: str | None, email: str | None) -> None:
         """로그인 성공 시각을 남기고 디렉터리의 표시 이름·메일로 프로필을 덮어쓴다."""
         self._touch(now)

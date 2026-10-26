@@ -1,5 +1,4 @@
-import { forecastParam } from '../../shared/model/forecastKeys'
-import type { ForecastColumn } from '../../shared/model/types'
+import { forecastParam, type ForecastSets } from '../../shared/model/forecastKeys'
 
 /**
  * Drill-down: Dashboard의 숫자를 눌렀을 때 여는 Deal 목록 주소. 목록의 조건은 이 주소의 쿼리가 전부다(이전 정렬·페이지는 이어받지 않는다).
@@ -39,20 +38,6 @@ function pathOf(c: Condition): string {
   if (c.forecast !== undefined) params.set('forecast', forecastParam(c.forecast))
   if (c.flag !== undefined) params.set(c.flag, '1')
   return `/deals?${params.toString()}`
-}
-
-/** Drill-down에 싣는 Forecast 집합(정렬된 key). */
-export interface ForecastSets {
-  /** outcome이 open인 열. */
-  open: readonly string[]
-  /** outcome이 lost가 아닌 열(open + won). */
-  notLost: readonly string[]
-}
-
-/** Dashboard 응답 `forecast.columns`(Lost 제외)로 만든다. 혹시 lost 열이 있어도 뺀다. */
-export function forecastSetsOf(columns: readonly ForecastColumn[]): ForecastSets {
-  const keys = (pick: (outcome: string) => boolean) => columns.filter((c) => pick(c.outcome)).map((c) => c.key).sort()
-  return { open: keys((o) => o === 'open'), notLost: keys((o) => o !== 'lost') }
 }
 
 /** 집합이 비면 null(조건 없는 목록으로 가면 건수가 달라진다). */

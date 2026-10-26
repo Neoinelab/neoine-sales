@@ -1,10 +1,10 @@
+import { forecastSetsOf } from '../../shared/model/forecastKeys'
 import { DrillLink } from './DrillLink'
 import type { DashboardSummary, ForecastCell } from '../../shared/model/types'
 import { AmountText } from '../../shared/ui/AmountText'
 import {
   closingMonthPath,
   closingQuarterPath,
-  forecastSetsOf,
   forecastTilePath,
   openTotalPath,
   overduePath,

@@ -52,6 +52,8 @@ export function createUsersHttp(): UsersGateway {
           api.POST('/api/v1/users', { body: { login_id: input.loginId, role: input.role, display_name: input.name } }),
         ),
       ),
+    changeRole: async (id, role) =>
+      toUser(await unwrap(api.PUT('/api/v1/users/{user_id}/role', { params: { path: { user_id: id } }, body: { role } }))),
     remove: (id) => unwrap(api.DELETE('/api/v1/users/{user_id}', { params: { path: { user_id: id } } })),
   }
 }

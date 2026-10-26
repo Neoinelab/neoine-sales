@@ -27,6 +27,10 @@ export function useCreateAction(): Mutation<{ dealCode: string; input: ActionInp
   return useMutation<DealAction, ApiError, { dealCode: string; input: ActionInput }>({
     mutationFn: ({ dealCode, input }) => gateway.actions.create(dealCode, input),
     onSuccess: (_action, { dealCode }) => invalidate(dealCode),
+    // 기준 행이 그사이 바뀐 409·403 뒤에는 Action 목록을 다시 받아, 대화상자를 다시 열면 최신 기준 행이 보이게 한다(입력은 폼 상태라 유지된다).
+    onError: (error, { dealCode }) => {
+      if (error.status === 409 || error.status === 403) void invalidate(dealCode)
+    },
   })
 }
 

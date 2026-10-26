@@ -8,7 +8,7 @@ import는 Deal 구현이 없는 동안 그 테스트의 수집까지 막는다(t
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from app.application.deal.updated_periods import ListUpdatedPeriods
+    from app.application.deal.deal_years import GetDealYears
 
     from app.application.deal.apply_change import ApplyDealChange
     from app.application.deal.delete_deal import DeleteDeal
@@ -18,6 +18,7 @@ if TYPE_CHECKING:
     from app.application.deal.list_deals import ListDeals
     from app.application.deal.register_deal import RegisterDeal
     from app.application.deal.update_deal import UpdateDeal
+    from app.application.deal.updated_periods import ListUpdatedPeriods
     from app.application.ports.clock import Clock
     from app.application.ports.unit_of_work import UnitOfWorkFactory
     from tests.fakes.deal_code_source import FakeDealCodeSuffixSource
@@ -78,3 +79,8 @@ class DealUseCases:
         from app.application.deal.list_deal_history import ListDealHistory  # noqa: PLC0415
 
         return ListDealHistory(self._deal_uow_factory())
+
+    def get_deal_years(self) -> GetDealYears:
+        from app.application.deal.deal_years import GetDealYears  # noqa: PLC0415
+
+        return GetDealYears(self._deal_uow_factory())

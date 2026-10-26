@@ -2,12 +2,13 @@ import { describe, expect, it } from 'vitest'
 import {
   FORECAST_KEYS_MAX,
   forecastParam,
+  forecastSetsOf,
   forecastSummary,
   parseForecastParam,
   toggleForecastParam,
 } from './forecastKeys'
 import { testCodes } from './testing'
-import type { Code } from './types'
+import type { Code, ForecastColumn } from './types'
 
 /** Forecast 다중 조건: URL `forecast` 값(콤마 구분)과 필터 버튼 요약 (AC-08·10·11·12). */
 
@@ -142,5 +143,49 @@ describe('forecastSummary', () => {
   it('shows the name when the only open code is selected alone', () => {
     const onlyOne = codes.filter((c) => c.outcome !== 'open' || c.key === 'commit')
     expect(forecastSummary(['commit'], onlyOne)).toBe('Commit')
+  })
+})
+
+const column = (key: string, outcome: 'open' | 'won', order: number): ForecastColumn => ({ key, name: key, outcome, order })
+// 응답 columns(Lost 제외): Pipeline·Best·Most Likely·Commit과 admin이 추가한 Open 코드 verbal, Won
+const COLUMNS: ForecastColumn[] = [
+  column('pipeline', 'open', 1),
+  column('best', 'open', 2),
+  column('verbal', 'open', 3),
+  column('most_likely', 'open', 4),
+  column('commit', 'open', 5),
+  column('won', 'won', 6),
+]
+const SETS = forecastSetsOf(COLUMNS)
+const NO_OPEN = forecastSetsOf([column('won', 'won', 1)])
+const NOTHING = forecastSetsOf([])
+
+describe('forecastSetsOf (Dashboard AC-14, Forecast 링크 R3가 함께 쓴다)', () => {
+  it('collects the open keys and the not-lost keys, sorted', () => {
+    expect(SETS.open).toEqual(['best', 'commit', 'most_likely', 'pipeline', 'verbal'])
+    expect(SETS.notLost).toEqual(['best', 'commit', 'most_likely', 'pipeline', 'verbal', 'won'])
+  })
+
+  it('includes an open code added by the admin in both sets', () => {
+    expect(SETS.open).toContain('verbal')
+    expect(SETS.notLost).toContain('verbal')
+  })
+
+  it('leaves a lost column out even if one slips into the response', () => {
+    const withLost = [...COLUMNS, { key: 'lost', name: 'Lost', outcome: 'lost', order: 7 } as unknown as ForecastColumn]
+    const sets = forecastSetsOf(withLost)
+
+    expect(sets.open).not.toContain('lost')
+    expect(sets.notLost).not.toContain('lost')
+    expect(sets).toEqual(SETS)
+  })
+
+  it('does not depend on the order of the columns', () => {
+    expect(forecastSetsOf([...COLUMNS].reverse())).toEqual(SETS)
+  })
+
+  it('is empty for no columns, and has no open keys when only Won exists', () => {
+    expect(NOTHING).toEqual({ open: [], notLost: [] })
+    expect(NO_OPEN).toEqual({ open: [], notLost: ['won'] })
   })
 })

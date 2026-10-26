@@ -75,11 +75,13 @@ import type {
   Me,
   Page,
   UpdatedPeriods,
+  DealYears,
   SetupState,
   StorageSettings,
   UploadInput,
   User,
   UserCreateInput,
+  Role,
   UserListFilter,
   UserOptionsQuery,
   UserRef,
@@ -141,6 +143,8 @@ export interface DealsGateway {
   list(query: DealListQuery): Promise<Page<DealRow>>
   /** 최종 업데이트 기간 프리셋을 서버 업무 날짜 기준으로 푼 범위. 로그인한 누구나 읽는다. */
   updatedPeriods(): Promise<UpdatedPeriods>
+  /** 모든 로그인 사용자. Deal이 없으면 earliestYear null. */
+  years(): Promise<DealYears>
   /** 없으면 404 "Deal을 찾을 수 없습니다." */
   get(code: string): Promise<DealDetail>
   /** 삭제 확인 팝업의 연쇄 삭제 건수. */
@@ -315,6 +319,8 @@ export interface UsersGateway {
    * 퇴사 처리(status 'resigned', resignedAt), 없으면 물리 삭제.
    */
   remove(id: number): Promise<UserRemoveResult>
+  /** admin만. 본인·마지막 admin·퇴사자·개발 전용 사용자는 409. 같은 역할이면 그대로 돌려준다. */
+  changeRole(id: number, role: Role): Promise<User>
 }
 
 export interface SettingsGateway {

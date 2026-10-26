@@ -164,10 +164,12 @@ export interface ActionInput {
   memo: string
   /** 사용자가 바꾼 순서대로 최대 2개(Status·Forecast 각 1개). 없으면 보내지 않는다. */
   statusChanges?: StatusChangeRequest[]
+  /** 있으면 저장 때 그 이전 Next Action(Action id)을 종료(수행)로 바꾼다. 지금 기준 행이 아니면 409. */
+  closePreviousNextActionId?: number
 }
 
 /** Action 수정 입력. 등록 시점 Status/Forecast와 수행일시·담당자는 바꿀 수 없다. */
-export type ActionUpdateInput = Omit<ActionInput, 'statusChanges'>
+export type ActionUpdateInput = Omit<ActionInput, 'statusChanges' | 'closePreviousNextActionId'>
 
 /** Next Action 상태 변경. memo는 종료할 때만(Open으로 되돌릴 때는 빈 문자열). */
 export interface NextActionStatusInput {

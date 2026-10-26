@@ -1,13 +1,14 @@
 import { useState } from 'react'
-import { useRemoveUser, useUsers } from '../../../data/users'
+import { useChangeUserRole, useRemoveUser, useUsers } from '../../../data/users'
 import { usePermissions } from '../../../data/auth'
-import type { User, UserListFilter } from '../../../shared/model/types'
+import type { Role, User, UserListFilter } from '../../../shared/model/types'
 import { ConfirmDialog } from '../../../shared/ui/ConfirmDialog'
 import { ErrorBanner } from '../../../shared/ui/ErrorBanner'
 import { SelectField } from '../../../shared/ui/fields'
 import { Notice } from '../../../shared/ui/Notice'
 import '../admin.css'
 import { AddUserForm } from './AddUserForm'
+import { ChangeRoleDialog } from './ChangeRoleDialog'
 import { UsersTable } from './UsersTable'
 
 const OUTCOME_TEXT = { deleted: '삭제', resigned: '퇴사 처리' } as const
@@ -16,13 +17,16 @@ const OUTCOME_TEXT = { deleted: '삭제', resigned: '퇴사 처리' } as const
 export function UsersPage() {
   const [filter, setFilter] = useState<UserListFilter>('active')
   const [target, setTarget] = useState<User | null>(null)
+  const [roleTarget, setRoleTarget] = useState<User | null>(null)
   const [result, setResult] = useState<string | null>(null)
   const users = useUsers(filter)
   const { me } = usePermissions()
   const remove = useRemoveUser()
+  const changeRole = useChangeUserRole()
 
   function confirmDelete(user: User) {
     setResult(null)
+    changeRole.reset()
     remove.reset()
     remove.mutate(user.id, {
       onSuccess: (r) => setResult(`${user.loginId} 사용자가 ${OUTCOME_TEXT[r.outcome]}되었습니다.`),
@@ -30,10 +34,28 @@ export function UsersPage() {
     })
   }
 
+  function confirmRole(user: User, role: Role) {
+    setResult(null)
+    remove.reset()
+    changeRole.reset()
+    changeRole.mutate(
+      { id: user.id, role },
+      {
+        onSuccess: () => setResult(`${user.loginId} 사용자의 역할이 ${user.role}에서 ${role}(으)로 바뀌었습니다.`),
+        onSettled: () => setRoleTarget(null),
+      },
+    )
+  }
+
+  function startRoleChange(user: User) {
+    changeRole.reset()
+    setRoleTarget(user)
+  }
+
   return (
     <section className="admin-page" aria-labelledby="users-title">
       <h2 id="users-title">사용자 관리</h2>
-      <ErrorBanner error={users.error ?? remove.error} />
+      <ErrorBanner error={users.error ?? remove.error ?? changeRole.error} />
       {result && (
         <Notice kind="success" onClose={() => setResult(null)}>
           {result}
@@ -48,7 +70,10 @@ export function UsersPage() {
         </SelectField>
       </div>
       {users.isPending && <p className="hint">불러오는 중…</p>}
-      {users.isSuccess && <UsersTable users={users.data} filter={filter} meId={me?.id} onDelete={setTarget} />}
+      {users.isSuccess && <UsersTable users={users.data} filter={filter} meId={me?.id} onChangeRole={startRoleChange} onDelete={setTarget} />}
+      {roleTarget && (
+        <ChangeRoleDialog user={roleTarget} busy={changeRole.isPending} onConfirm={(role) => confirmRole(roleTarget, role)} onCancel={() => setRoleTarget(null)} />
+      )}
       {target && (
         <ConfirmDialog
           title="사용자 삭제"

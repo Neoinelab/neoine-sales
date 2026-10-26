@@ -8,6 +8,8 @@ import { read, requireAdmin, requireUser, write, type MockContext } from './cont
 import { userRef, userView } from './views'
 
 const ROLES: readonly Role[] = ['admin', 'sales', 'user']
+/** 서버 `DEV_LOGIN_IDS`: 개발 로그인 전용 사용자의 로그인 아이디. */
+const DEV_LOGIN_IDS: readonly string[] = ['dev-admin', 'dev-sales', 'dev-user']
 
 /** 사용자와 연결된 데이터(Deal 담당, Action, History, 첨부, Label, 다른 사용자 등록자)가 있는지. */
 function hasLinks(ctx: MockContext, id: number): boolean {
@@ -69,6 +71,21 @@ export function createUsersGateway(ctx: MockContext): UsersGateway {
         }
         data.users.push(record)
         return userView(data, record)
+      }),
+    changeRole: (id, role) =>
+      write(ctx, () => {
+        const admin = requireAdmin(ctx)
+        if (!ROLES.includes(role)) throw validation('역할을 선택하세요.')
+        const { data } = ctx.store
+        const target = data.users.find((u) => u.id === id)
+        if (!target) throw notFound('사용자를 찾을 수 없습니다.')
+        if (target.status === 'resigned') throw conflict('이미 퇴사 처리된 사용자입니다.')
+        if (target.id === admin.id) throw conflict('자기 자신의 역할은 바꿀 수 없습니다.')
+        const activeAdmins = data.users.filter((u) => u.status === 'active' && u.role === 'admin').length
+        if (target.role === 'admin' && role !== 'admin' && activeAdmins <= 1) throw conflict('마지막 관리자의 역할은 바꿀 수 없습니다.')
+        if (DEV_LOGIN_IDS.includes(target.loginId)) throw conflict('개발 로그인 전용 사용자의 역할은 바꿀 수 없습니다.')
+        target.role = role
+        return userView(data, target)
       }),
     remove: (id) =>
       write(ctx, () => {

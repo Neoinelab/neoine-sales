@@ -8,13 +8,21 @@ import type {
   NextActionStatus,
 } from '../../../shared/model/types'
 import { conflict, forbidden, notFound, validation } from '../errors'
-import { takeId, type ActionRecord, type SeedData } from '../store'
+import { takeId, type ActionRecord, type SeedData, type UserRecord } from '../store'
 import { read, requireUser, requireWrite, viewerOf, write, type MockContext } from './context'
 import { assertSequenceShape, planSequence } from './actionChanges'
 import { commitDealChange } from './dealChange'
 import { commitActionType, planActionType } from './actionTypes'
 import { logHistory } from './historyLog'
-import { ACTION_OR_NEXT_REQUIRED, DUE_WITHOUT_NEXT, NO_NEXT_ACTION, STATUS_FORBIDDEN, STATUS_LABEL, statusesOf } from './nextActionStatus'
+import {
+  ACTION_OR_NEXT_REQUIRED,
+  DUE_WITHOUT_NEXT,
+  NO_NEXT_ACTION,
+  PREVIOUS_NEXT_ACTION_CHANGED,
+  STATUS_FORBIDDEN,
+  STATUS_LABEL,
+  statusesOf,
+} from './nextActionStatus'
 import { actionView, findDeal, userRef } from './views'
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/
@@ -63,6 +71,20 @@ function validateRanges(q: ActionQuery): void {
   if (q.keyword !== undefined && Array.from(q.keyword).length > KEYWORD_MAX) throw validation('요청 형식이 올바르지 않습니다')
   if (q.actedFrom && q.actedTo && q.actedFrom > q.actedTo) throw validation('수행일 범위의 시작은 끝보다 늦을 수 없습니다.')
   if (q.dueFrom && q.dueTo && q.dueFrom > q.dueTo) throw validation('Due Date 범위의 시작은 끝보다 늦을 수 없습니다.')
+}
+
+/** 서버 기준 행: 그 Deal에서 Next Action이 있는 가장 최근 Action(수행일시 내림차순, 같으면 id 내림차순). */
+function basisOf(ctx: MockContext, dealCode: string): ActionRecord | null {
+  const rows = ctx.store.data.actions.filter((a) => a.dealCode === dealCode && a.nextAction !== null)
+  return rows.reduce<ActionRecord | null>((best, a) => (best === null || compareIso(a.actedAt, best.actedAt) > 0 || (compareIso(a.actedAt, best.actedAt) === 0 && a.id > best.id) ? a : best), null)
+}
+
+/** 새 Action 저장과 함께 닫을 이전 Next Action을 확인한다(기준 행이 아니면 409, 권한 없으면 403). 이미 종료면 null(건너뜀). */
+function planClosePrevious(ctx: MockContext, dealCode: string, previousId: number, user: UserRecord): ActionRecord | null {
+  const basis = basisOf(ctx, dealCode)
+  if (basis === null || basis.id !== previousId) throw conflict(PREVIOUS_NEXT_ACTION_CHANGED)
+  if (!canEditAction(viewerOf(user), basis.actorId)) throw forbidden(STATUS_FORBIDDEN)
+  return basis.nextActionStatus === 'open' ? basis : null
 }
 
 function findAction(ctx: MockContext, id: number): ActionRecord {
@@ -146,13 +168,21 @@ export function createActionsGateway(ctx: MockContext): ActionsGateway {
         // 서버 순서: Deal(404) → 유형 → 진행사항 → Next Action → Due Date. 새 유형은 모든 검증이 끝난 뒤에만 만든다.
         const typePlan = planActionType(ctx, input.type)
         const content = normalize(input, 0)
+        // 서버 순서: 입력 422 → 이전 Next Action 409 → 상태 변경 권한 403 → Status 동기화 판정. 모두 통과한 뒤에만 바꾼다.
+        const closing = input.closePreviousNextActionId === undefined ? null : planClosePrevious(ctx, dealCode, input.closePreviousNextActionId, user)
         const outcomes = planSequence(ctx, deal, input.statusChanges ?? [])
         const chosen = commitActionType(ctx, typePlan, user.id)
         for (const outcome of outcomes) commitDealChange(ctx, deal, outcome, user.id)
+        const now = ctx.clock.now()
+        if (closing !== null) {
+          const planned = `${closing.nextAction} (Due ${closing.dueDate}) · ${STATUS_LABEL.open}`
+          Object.assign(closing, { nextActionStatus: 'done', nextActionClosedAt: now })
+          logHistory(ctx, dealCode, user.id, 'action', 'Next Action', planned, STATUS_LABEL.done)
+        }
         const record: ActionRecord = {
           id: takeId(data.counters, 'act'),
           dealCode,
-          actedAt: ctx.clock.now(),
+          actedAt: now,
           actorId: user.id,
           ...content,
           typeId: chosen.id,

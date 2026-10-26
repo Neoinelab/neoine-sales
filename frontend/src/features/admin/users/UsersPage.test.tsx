@@ -2,6 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { keys } from '../../../data/queryKeys'
 import { gateway } from '../../../gateway'
+import { USER_ID } from '../../../test/fake/seed/ids'
 import { renderAt } from '../../../test/mockApp'
 
 type Rendered = Awaited<ReturnType<typeof renderAt>>
@@ -257,3 +258,171 @@ describe('사용자 삭제·퇴사 (T-ADMIN-01)', () => {
     expect(inPage().queryByRole('status')).not.toBeInTheDocument()
   })
 })
+
+describe('역할 변경 (R1 AC1-10~12)', () => {
+  const OWNER_WARNING = 'sales가 아니면 새 Deal의 Owner로 지정할 수 없습니다. 이미 Owner인 Deal은 그대로 남습니다.'
+
+  async function openRoleDialog(user: Rendered['user'], loginId: string) {
+    await user.click(within(rowOf(loginId)).getByRole('button', { name: '역할 변경' }))
+    return within(await screen.findByRole('dialog', { name: '역할 변경' }))
+  }
+
+  it('shows 역할 변경 only on active rows other than the signed-in admin', async () => {
+    const { user } = await openUsers()
+
+    expect(within(rowOf('kim')).getByRole('button', { name: '역할 변경' })).toBeInTheDocument()
+    expect(within(rowOf('han')).getByRole('button', { name: '역할 변경' })).toBeInTheDocument()
+    expect(within(rowOf('root')).queryByRole('button', { name: '역할 변경' })).not.toBeInTheDocument()
+
+    await user.selectOptions(screen.getByLabelText('상태'), '퇴사')
+    const resigned = within(await screen.findByRole('row', { name: /^old\b/ }))
+    expect(resigned.queryByRole('button', { name: '역할 변경' })).not.toBeInTheDocument()
+  })
+
+  it('opens a dialog with the current role selected and the 변경 button disabled', async () => {
+    const { user } = await openUsers()
+
+    const dialog = await openRoleDialog(user, 'kim')
+
+    expect(dialog.getByLabelText('역할')).toHaveValue('sales')
+    expect(dialog.getByRole('button', { name: '변경' })).toBeDisabled()
+    expect(within(await screen.findByRole('dialog')).getByText(/kim \(김영업\)/)).toBeInTheDocument()
+    expect(within(screen.getByRole('dialog')).getByText(/다음 요청부터 적용/)).toBeInTheDocument()
+  })
+
+  it('offers admin, sales and user', async () => {
+    const { user } = await openUsers()
+
+    const dialog = await openRoleDialog(user, 'kim')
+
+    expect(within(dialog.getByLabelText('역할')).getAllByRole('option').map((o) => o.textContent)).toEqual(['admin', 'sales', 'user'])
+  })
+
+  it('enables 변경 only for a different role', async () => {
+    const { user } = await openUsers()
+    const dialog = await openRoleDialog(user, 'kim')
+
+    await user.selectOptions(dialog.getByLabelText('역할'), 'user')
+    expect(dialog.getByRole('button', { name: '변경' })).toBeEnabled()
+
+    await user.selectOptions(dialog.getByLabelText('역할'), 'sales')
+    expect(dialog.getByRole('button', { name: '변경' })).toBeDisabled()
+  })
+
+  it('changes the role, closes the dialog, announces it and updates the role cell', async () => {
+    const { user } = await openUsers()
+    const dialog = await openRoleDialog(user, 'kim')
+    await user.selectOptions(dialog.getByLabelText('역할'), 'user')
+
+    await user.click(dialog.getByRole('button', { name: '변경' }))
+
+    expect(await inPage().findByRole('status')).toHaveTextContent('kim 사용자의 역할이 sales에서 user(으)로 바뀌었습니다.')
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    await waitFor(() => expect(within(rowOf('kim')).getByText('user')).toBeInTheDocument())
+    expect(within(rowOf('kim')).queryByText('sales')).not.toBeInTheDocument()
+  })
+
+  it('sends the user id and the chosen role to the gateway', async () => {
+    const changeRole = vi.spyOn(gateway.users, 'changeRole')
+    const { user } = await openUsers()
+    const dialog = await openRoleDialog(user, 'han')
+    await user.selectOptions(dialog.getByLabelText('역할'), 'sales')
+
+    await user.click(dialog.getByRole('button', { name: '변경' }))
+
+    await waitFor(() => expect(changeRole).toHaveBeenCalledTimes(1))
+    expect(changeRole).toHaveBeenCalledWith(USER_ID.han, 'sales')
+  })
+
+  it('does nothing when the dialog is cancelled', async () => {
+    const changeRole = vi.spyOn(gateway.users, 'changeRole')
+    const { user } = await openUsers()
+    const dialog = await openRoleDialog(user, 'kim')
+    await user.selectOptions(dialog.getByLabelText('역할'), 'user')
+
+    await user.click(dialog.getByRole('button', { name: '취소' }))
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(changeRole).not.toHaveBeenCalled()
+    expect(within(rowOf('kim')).getByText('sales')).toBeInTheDocument()
+  })
+
+  it('shows the server message in the page error banner when the change is refused', async () => {
+    const error = await serverError()
+    const { user } = await openUsers()
+    vi.spyOn(gateway.users, 'changeRole').mockRejectedValue(error)
+    const dialog = await openRoleDialog(user, 'kim')
+    await user.selectOptions(dialog.getByLabelText('역할'), 'user')
+
+    await user.click(dialog.getByRole('button', { name: '변경' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(SERVER_MESSAGE)
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(within(rowOf('kim')).getByText('sales')).toBeInTheDocument()
+  })
+
+  it('clears the previous result message when the next change fails', async () => {
+    const error = await serverError()
+    const { user } = await openUsers()
+    let dialog = await openRoleDialog(user, 'kim')
+    await user.selectOptions(dialog.getByLabelText('역할'), 'user')
+    await user.click(dialog.getByRole('button', { name: '변경' }))
+    await inPage().findByRole('status')
+    vi.spyOn(gateway.users, 'changeRole').mockRejectedValue(error)
+
+    dialog = await openRoleDialog(user, 'park')
+    await user.selectOptions(dialog.getByLabelText('역할'), 'user')
+    await user.click(dialog.getByRole('button', { name: '변경' }))
+
+    expect(await screen.findByRole('alert')).toBeInTheDocument()
+    expect(inPage().queryByRole('status')).not.toBeInTheDocument()
+  })
+
+  it('warns about owner eligibility when a sales user is moved to another role', async () => {
+    const { user } = await openUsers()
+    const dialog = await openRoleDialog(user, 'kim')
+    expect(dialog.queryByText(OWNER_WARNING)).not.toBeInTheDocument()
+
+    await user.selectOptions(dialog.getByLabelText('역할'), 'user')
+
+    expect(dialog.getByText(OWNER_WARNING)).toBeInTheDocument()
+  })
+
+  it('does not warn when the user was not sales or stays sales', async () => {
+    const { user } = await openUsers()
+    const dialog = await openRoleDialog(user, 'han')
+
+    await user.selectOptions(dialog.getByLabelText('역할'), 'sales')
+    expect(dialog.queryByText(OWNER_WARNING)).not.toBeInTheDocument()
+
+    await user.selectOptions(dialog.getByLabelText('역할'), 'admin')
+    expect(dialog.queryByText(OWNER_WARNING)).not.toBeInTheDocument()
+  })
+
+  it('invalidates user-options and the deal lists after a role change', async () => {
+    const { user, client } = await openUsers()
+    const queryKey = keys.userOptions({ role: 'sales' })
+    await client.prefetchQuery({ queryKey, queryFn: () => gateway.users.options({ role: 'sales' }) })
+    await client.prefetchQuery({ queryKey: keys.dealList({}), queryFn: () => gateway.deals.list({}) })
+    const dialog = await openRoleDialog(user, 'kim')
+    await user.selectOptions(dialog.getByLabelText('역할'), 'user')
+
+    await user.click(dialog.getByRole('button', { name: '변경' }))
+
+    await waitFor(() => expect(client.getQueryState(queryKey)?.isInvalidated).toBe(true))
+    await waitFor(() => expect(client.getQueryState(keys.dealList({}))?.isInvalidated).toBe(true))
+  })
+
+  it('drops the changed user from the sales owner options', async () => {
+    const { user } = await openUsers()
+    const dialog = await openRoleDialog(user, 'kim')
+    await user.selectOptions(dialog.getByLabelText('역할'), 'user')
+    await user.click(dialog.getByRole('button', { name: '변경' }))
+    await inPage().findByRole('status')
+
+    const sales = await gateway.users.options({ role: 'sales' })
+
+    expect(sales.map((u) => u.id)).not.toContain(USER_ID.kim)
+  })
+})
+

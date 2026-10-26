@@ -135,6 +135,13 @@ export function dealsReadApi(ctx: MockContext) {
         requireUser(ctx)
         return updatedPeriods(ctx.clock.today())
       }),
+    /** 모든 Deal의 Expected Close 중 가장 이른 연도(서버 `earliest_revenue_year`). Deal이 없으면 null. 로그인한 누구나 읽는다. */
+    years: () =>
+      read(ctx, () => {
+        requireUser(ctx)
+        const years = ctx.store.data.deals.map((d) => Number(d.revenueDate.slice(0, 4)))
+        return { earliestYear: years.length === 0 ? null : Math.min(...years) }
+      }),
     get: (code: string) =>
       read(ctx, () => {
         requireUser(ctx)

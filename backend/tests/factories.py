@@ -186,11 +186,22 @@ def make_deal_action_input(**overrides: Any) -> ActionContentInput:  # noqa: ANN
 
 def make_register_input(
     status_changes: tuple[Any, ...] = (),
+    *,
+    close_previous_next_action_id: Any = None,  # noqa: ANN401 - DealActionId 또는 None
     **content_overrides: Any,  # noqa: ANN401
 ) -> DealActionInput:
-    """등록 입력(`DealActionInput`): 내용 + 순서대로 적용할 `StatusChangeInput`들."""
+    """등록 입력(`DealActionInput`): 내용 + 순서대로 적용할 `StatusChangeInput`들.
+
+    close_previous_next_action_id를 주면 저장하면서 그 이전 Next Action을 종료(수행)로 바꾼다
+    (R4). 주지 않으면 필드를 아예 넘기지 않아 기본값(None) 동작을 그대로 시험한다.
+    """
     from app.application.deal_action.inputs import DealActionInput  # noqa: PLC0415 - 지연 import
 
+    extra: dict[str, Any] = {}
+    if close_previous_next_action_id is not None:
+        extra["close_previous_next_action_id"] = close_previous_next_action_id
     return DealActionInput(
-        content=make_deal_action_input(**content_overrides), status_changes=status_changes
+        content=make_deal_action_input(**content_overrides),
+        status_changes=status_changes,
+        **extra,
     )

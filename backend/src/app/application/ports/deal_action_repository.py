@@ -116,6 +116,13 @@ class DealActionRepository(Protocol):
         """
         ...
 
+    async def latest_with_next_action(self, deal_code: DealCode) -> DealAction | None:
+        """그 Deal에서 Next Action이 있는 가장 최근 Action(수행일시, 같으면 id 내림차순, 상태 무관).
+
+        없으면 None. Deal 목록·상세의 next_action 기준 행과 같은 정의다.
+        """
+        ...
+
     async def update(self, action: DealAction) -> None:
         """내용(content), Next Action 상태·종료 시각, updated_at만 저장한다.
 

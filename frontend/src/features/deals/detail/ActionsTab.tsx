@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useActions, useChangeNextActionStatus, useRemoveAction } from '../../../data/actions'
+import { latestWithNextAction } from '../../../shared/model/nextActionBasis'
 import type { Viewer } from '../../../shared/model/permissions'
 import type { ActionQuery, DealAction, DealDetail, NextActionStatus } from '../../../shared/model/types'
 import { ConfirmDialog } from '../../../shared/ui/ConfirmDialog'
@@ -103,7 +104,7 @@ export function ActionsTab({ deal, canWrite, me, onNotice }: ActionsTabProps) {
           key={form.mode === 'edit' ? form.action.id : 'create'}
           deal={deal}
           editing={form.mode === 'edit' ? form.action : null}
-          previous={all.data?.find((a) => a.nextAction !== null) ?? null}
+          previous={all.data ? latestWithNextAction(all.data) : null}
           onDone={done}
           onCancel={() => setForm({ mode: 'closed' })}
         />

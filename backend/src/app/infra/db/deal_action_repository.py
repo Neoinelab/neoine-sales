@@ -177,6 +177,21 @@ class SqlDealActionRepository(SqlRepository[DealActionRow]):
         row, type_name, deal_code = found
         return _to_entity(row, type_name, deal_code)
 
+    async def latest_with_next_action(self, deal_code: DealCode) -> DealAction | None:
+        """Next Action이 있는 가장 최근 행(상태 무관). 잠금은 호출 쪽이 Deal 행에 건다."""
+        statement = (
+            _with_type_name()
+            .where(DealRow.deal_code == deal_code.value, DealActionRow.next_action.is_not(None))
+            .order_by(DealActionRow.acted_at.desc(), DealActionRow.id.desc())
+            .limit(1)
+            .execution_options(populate_existing=True)
+        )
+        found = (await self._session.execute(statement)).one_or_none()
+        if found is None:
+            return None
+        row, type_name, code = found
+        return _to_entity(row, type_name, code)
+
     async def search(self, query: DealActionQuery) -> Sequence[DealAction]:
         statement = apply_order(_filtered(query), query.sort).execution_options(
             populate_existing=True

@@ -5,7 +5,8 @@ import { AMOUNT_LABEL, formatThousandWon } from '../../shared/model/money'
 import type { DashboardStatusItem } from '../../shared/model/types'
 import { chartTheme, pointerOnBar, SERIES_COLORS, thousandTick } from './chartSetup'
 import { useDrillEnabled } from './DrillLink'
-import { statusPath, type DashboardScope, type ForecastSets } from './drillDown'
+import type { ForecastSets } from '../../shared/model/forecastKeys'
+import { statusPath, type DashboardScope } from './drillDown'
 
 interface Props {
   items: readonly DashboardStatusItem[]

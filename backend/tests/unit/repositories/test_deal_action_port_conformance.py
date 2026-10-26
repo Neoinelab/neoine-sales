@@ -19,6 +19,7 @@ ACTION_PORT_METHODS = (
     "delete",
     "count_by_code",
     "count_by_action_type",
+    "latest_with_next_action",
 )
 ACTION_USE_CASES = (
     "register_deal_action",

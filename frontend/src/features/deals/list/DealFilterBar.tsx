@@ -1,6 +1,7 @@
 import { useId, useRef, useState } from 'react'
 import { useFreshUpdatedPeriods, useUpdatedPeriods } from '../../../data/deals'
 import { useCodeSet } from '../../../data/codes'
+import { useYearOptions } from '../../../data/dealYears'
 import { useToday } from '../../../data/today'
 import { useVendors } from '../../../data/vendors'
 import { NEXT_ACTION_STATUS_FILTER_OPTIONS, nextActionStatusFromParam, nextActionStatusToParam } from '../../../shared/model/nextActionStatus'
@@ -22,13 +23,6 @@ interface DealFilterBarProps {
 
 const QUARTERS = [1, 2, 3, 4] as const
 
-/** 올해-1~+2에, URL로 들어온 유효한 연도(Dashboard Drill-down 등)가 범위 밖이면 그 값을 더한다. */
-function yearOptions(year: number, urlYear: string): number[] {
-  const years = [year - 1, year, year + 1, year + 2]
-  const current = /^\d+$/.test(urlYear) ? Number(urlYear) : 0
-  return current >= 1 && !years.includes(current) ? [...years, current].sort((a, b) => a - b) : years
-}
-
 /** Deal 목록 필터(DL-04, LB-06). 키워드는 검색 버튼, 나머지는 바꾸는 즉시 URL에 반영한다. */
 export function DealFilterBar({ params, onChange, onReset }: DealFilterBarProps) {
   const { year: thisYear } = useToday()
@@ -37,6 +31,9 @@ export function DealFilterBar({ params, onChange, onReset }: DealFilterBarProps)
   const vendors = vendorsQuery.data ?? []
   const loaded = vendorsQuery.data !== undefined
   const value = (key: string) => params.get(key) ?? ''
+  // URL 연도가 유효한 양의 정수면 선택지 범위 밖이어도 더해 보인다.
+  const urlYear = /^\d+$/.test(value('year')) && Number(value('year')) >= 1 ? Number(value('year')) : undefined
+  const yearOptions = useYearOptions(urlYear)
   const forecastKeys = parseForecastParam(params.get('forecast'))
   const hintId = useId()
   const monthHintId = useId()
@@ -169,7 +166,7 @@ export function DealFilterBar({ params, onChange, onReset }: DealFilterBarProps)
         onChange={(year) => onChange({ year })}
       >
         <option value="all">전체</option>
-        {yearOptions(thisYear, value('year')).map((y) => (
+        {yearOptions.years.map((y) => (
           <option key={y} value={String(y)}>
             {y}
           </option>
@@ -233,6 +230,7 @@ export function DealFilterBar({ params, onChange, onReset }: DealFilterBarProps)
         </>
       )}
       <div className="deal-filter-errors">
+        <ErrorBanner error={yearOptions.error} />
         <ErrorBanner error={vendorsQuery.error} />
         <ErrorBanner error={periodsQuery.error} />
         <ErrorBanner error={refreshError} />

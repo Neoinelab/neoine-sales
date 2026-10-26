@@ -226,6 +226,37 @@ async def test_update_persists_resignation(repository: UserRepository) -> None:
     assert await repository.get_active_by_login_id(LoginId("kim")) is None
 
 
+@pytest.mark.parametrize(("before", "after"), [(Role.SALES, Role.USER), (Role.USER, Role.ADMIN)])
+async def test_update_persists_role_change(
+    repository: UserRepository, before: Role, after: Role
+) -> None:
+    user = make_user("kim", before)
+    await repository.add(user)
+    user.change_role(after, later(30))
+
+    await repository.update(user)
+
+    stored = await repository.get(user.id)
+    assert stored.role is after
+    assert stored.updated_at == later(30)
+    assert (await repository.get_active_by_login_id(LoginId("kim"))) is not None
+
+
+async def test_role_change_moves_the_user_between_admin_counts(repository: UserRepository) -> None:
+    boss = make_user("boss", Role.ADMIN)
+    kim = make_user("kim", Role.SALES)
+    await repository.add(boss)
+    await repository.add(kim)
+    kim.change_role(Role.ADMIN, later(1))
+    await repository.update(kim)
+    assert await repository.count_active_admins() == 2
+
+    boss.change_role(Role.USER, later(2))
+    await repository.update(boss)
+
+    assert await repository.count_active_admins() == 1
+
+
 async def test_update_unknown_user_raises_not_found(repository: UserRepository) -> None:
     with pytest.raises(NotFoundError):
         await repository.update(make_user("ghost"))

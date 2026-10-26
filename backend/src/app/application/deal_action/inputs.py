@@ -12,6 +12,7 @@ if TYPE_CHECKING:
     from app.domain.action_type.values import ActionTypeRef
     from app.domain.deal.sync import SyncResolution
     from app.domain.deal_action.next_action_status import NextActionStatus
+    from app.domain.deal_action.value_objects import DealActionId
 
 
 @dataclass(frozen=True, slots=True)
@@ -57,3 +58,4 @@ class DealActionInput:
 
     content: ActionContentInput
     status_changes: tuple[StatusChangeInput, ...] = ()
+    close_previous_next_action_id: DealActionId | None = None  # 저장하며 종료(수행)로 닫을 기준 행

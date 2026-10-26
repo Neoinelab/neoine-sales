@@ -31,6 +31,11 @@ export interface UpdatedPeriods {
   upcoming: { key: UpcomingPeriodKey; from: string; to: string }[]
 }
 
+export interface DealYears {
+  /** Deal의 Expected Close 중 가장 이른 연도. Deal이 없으면 null. */
+  earliestYear: number | null
+}
+
 export type Role = 'admin' | 'sales' | 'user'
 export type UserStatus = 'active' | 'resigned'
 

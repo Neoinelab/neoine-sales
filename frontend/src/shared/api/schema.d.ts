@@ -510,6 +510,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/deals/years": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Deal Years */
+        get: operations["get_deal_years_api_v1_deals_years_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/deals/{code}": {
         parameters: {
             query?: never;
@@ -801,6 +818,23 @@ export interface paths {
         post?: never;
         /** Delete User */
         delete: operations["delete_user_api_v1_users__user_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/{user_id}/role": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Change User Role */
+        put: operations["change_user_role_api_v1_users__user_id__role_put"];
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -1395,6 +1429,11 @@ export interface components {
              */
             action: string;
             action_type: components["schemas"]["CatalogChoiceRequest"];
+            /**
+             * Close Previous Next Action Id
+             * @description 저장하며 종료(수행)로 바꿀 이전 Next Action의 Action id. 그 Deal의 'Next Action이 있는 가장 최근 Action'과 다르면 409(invalid-state), 담당자 본인·admin이 아니면 403. 이미 종료된 행이면 상태를 바꾸지 않는다. 생략하거나 null이면 이전 행을 바꾸지 않는다.
+             */
+            close_previous_next_action_id?: number | null;
             /** Due Date */
             due_date?: string | null;
             /**
@@ -1693,6 +1732,14 @@ export interface components {
          * @enum {string}
          */
         DealSort: "name" | "revenue_amount" | "revenue_date" | "last_updated_at" | "status" | "owner" | "customer" | "partner" | "vendor" | "forecast";
+        /** DealYearsResponse */
+        DealYearsResponse: {
+            /**
+             * Earliest Year
+             * @description Expected Close가 가장 이른 Deal의 연도. Deal이 없으면 null.
+             */
+            earliest_year: number | null;
+        };
         /**
          * DeleteUserResponse
          * @description outcome: 연결된 데이터가 없어 완전히 삭제(deleted) 또는 있어서 퇴사 처리(resigned).
@@ -2381,6 +2428,13 @@ export interface components {
              * @enum {string}
              */
             status: "active" | "resigned";
+        };
+        /**
+         * UserRoleRequest
+         * @description 역할 변경 본문. 다음 요청부터 적용되며 세션은 유지된다.
+         */
+        UserRoleRequest: {
+            role: components["schemas"]["Role"];
         };
         /** ValidationError */
         ValidationError: {
@@ -4638,6 +4692,35 @@ export interface operations {
             };
         };
     };
+    get_deal_years_api_v1_deals_years_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DealYearsResponse"];
+                };
+            };
+            /** @description problem+json */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     get_deal_api_v1_deals__code__get: {
         parameters: {
             query?: never;
@@ -5953,6 +6036,77 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DeleteUserResponse"];
+                };
+            };
+            /** @description problem+json */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    change_user_role_api_v1_users__user_id__role_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UserRoleRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserResponse"];
                 };
             };
             /** @description problem+json */

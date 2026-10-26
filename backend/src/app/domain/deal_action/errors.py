@@ -20,3 +20,6 @@ class DealActionDeleteForbiddenError(AccessDeniedError):
 class DealActionStatusForbiddenError(AccessDeniedError):
     def __init__(self) -> None:
         super().__init__("본인 Action 또는 admin만 Next Action 상태를 바꿀 수 있습니다.")
+
+
+PREVIOUS_NEXT_ACTION_CHANGED = "이전 Next Action이 바뀌었습니다. 창을 닫고 다시 열어 주세요."

@@ -227,3 +227,24 @@ describe('request bodies of a partial input (AC-1·2)', () => {
     expect(body).toMatchObject({ action: '', next_action: '견적', due_date: '2026-11-01' })
   })
 })
+
+describe('closePreviousNextActionId mapping (R4)', () => {
+  it('maps closePreviousNextActionId to close_previous_next_action_id', () => {
+    const body = toActionCreateBody(input({ closePreviousNextActionId: 41 }))
+
+    expect(body).toMatchObject({ close_previous_next_action_id: 41 })
+  })
+
+  it('omits the field when it is absent so older servers see the same body', () => {
+    const body = toActionCreateBody(input())
+
+    expect(body).not.toHaveProperty('close_previous_next_action_id')
+  })
+
+  it('never sends it in an update body', () => {
+    const body = toActionUpdateBody({ ...input() })
+
+    expect(body).not.toHaveProperty('close_previous_next_action_id')
+  })
+})
+

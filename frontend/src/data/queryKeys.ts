@@ -21,6 +21,7 @@ export const keys = {
   setup: ['setup'] as const,
   deals: ['deals'] as const,
   updatedPeriods: ['deals', 'updated-periods'] as const,
+  dealYears: ['deals', 'years'] as const,
   dealList: (q: DealListQuery) => ['deals', 'list', q] as const,
   deal: (code: string) => ['deals', 'detail', code] as const,
   dealImpact: (code: string) => ['deals', 'impact', code] as const,

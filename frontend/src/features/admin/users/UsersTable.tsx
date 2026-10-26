@@ -9,13 +9,14 @@ function emptyMessage(filter: UserListFilter): string {
 interface Props {
   users: readonly User[]
   filter: UserListFilter
-  /** 로그인한 사용자 id. 본인 행에는 삭제 버튼을 두지 않는다(마지막 admin 보호). */
+  /** 로그인한 사용자 id. 본인 행에는 역할 변경·삭제 버튼을 두지 않는다(마지막 admin 보호). */
   meId: number | undefined
+  onChangeRole: (user: User) => void
   onDelete: (user: User) => void
 }
 
 /** 사용자 목록 표. 퇴사자는 이름 뒤에 (퇴사)를 붙이고 삭제 버튼이 없다. */
-export function UsersTable({ users, filter, meId, onDelete }: Props) {
+export function UsersTable({ users, filter, meId, onChangeRole, onDelete }: Props) {
   return (
     <div className="table-wrap">
       <table>
@@ -47,9 +48,14 @@ export function UsersTable({ users, filter, meId, onDelete }: Props) {
               <td>{u.resignReason ?? '-'}</td>
               <td>
                 {u.status === 'active' && u.id !== meId && (
-                  <button type="button" className="small" onClick={() => onDelete(u)}>
-                    삭제
-                  </button>
+                  <>
+                    <button type="button" className="small" onClick={() => onChangeRole(u)}>
+                      역할 변경
+                    </button>{' '}
+                    <button type="button" className="small" onClick={() => onDelete(u)}>
+                      삭제
+                    </button>
+                  </>
                 )}
               </td>
             </tr>

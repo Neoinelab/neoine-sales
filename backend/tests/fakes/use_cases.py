@@ -16,7 +16,7 @@ from tests.fakes.file_storage import FakeFileStorage
 from tests.fakes.unit_of_work import FakeUnitOfWork, SteppingClock
 
 if TYPE_CHECKING:
-    from app.application.time.get_server_time import GetServerTime
+    from app.application.user.change_user_role import ChangeUserRole
 
     from app.application.alert.get_alert_settings import GetAlertSettings
     from app.application.alert.update_alert_settings import UpdateAlertSettings
@@ -46,6 +46,7 @@ if TYPE_CHECKING:
     from app.application.storage.get_settings import GetStorageSettings
     from app.application.storage.test_settings import TestStorageSettings
     from app.application.storage.update_settings import UpdateStorageSettings
+    from app.application.time.get_server_time import GetServerTime
     from app.application.user.delete_user import DeleteUser
     from app.application.user.list_user_options import ListUserOptions
     from app.application.user.list_users import ListUsers
@@ -236,6 +237,12 @@ class FakeUseCases(CatalogUseCases, ContactUseCases, DealUseCases, AttachmentUse
 
     def delete_user(self) -> DeleteUser:
         return self._admin.delete_user
+
+    # 역할 변경 유스케이스도 사용 시점에 가져온다(구현 전에도 이 Fake를 쓰는 테스트가 수집된다)
+    def change_user_role(self) -> ChangeUserRole:
+        from app.application.user.change_user_role import ChangeUserRole  # noqa: PLC0415
+
+        return ChangeUserRole(self._factory, self.clock)
 
     def list_user_options(self) -> ListUserOptions:
         return self._admin.list_user_options

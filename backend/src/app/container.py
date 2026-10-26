@@ -15,24 +15,21 @@ from app.application.contact.search_contacts import SearchContacts
 from app.application.contact.update_contact import UpdateContact
 from app.application.deal.apply_change import ApplyDealChange
 from app.application.deal.delete_deal import DeleteDeal
-from app.application.deal.deletion_impact import GetDealDeletionImpact
-from app.application.deal.get_deal import GetDeal
-from app.application.deal.list_deal_history import ListDealHistory
-from app.application.deal.list_deals import ListDeals
 from app.application.deal.register_deal import RegisterDeal
 from app.application.deal.update_deal import UpdateDeal
-from app.application.deal.updated_periods import ListUpdatedPeriods
 from app.application.deal_action.change_next_action_status import ChangeNextActionStatus
 from app.application.deal_action.delete_deal_action import DeleteDealAction
 from app.application.deal_action.get_deal_action import GetDealAction
 from app.application.deal_action.list_deal_actions import ListDealActions
 from app.application.deal_action.register_deal_action import RegisterDealAction
 from app.application.deal_action.update_deal_action import UpdateDealAction
+from app.application.user.change_user_role import ChangeUserRole
 from app.container_action_type import ActionTypeUseCases
 from app.container_admin import AdminAssembly
 from app.container_auth import AuthAssembly
 from app.container_catalog import CatalogAssembly
 from app.container_dashboard import DashboardUseCases
+from app.container_deal_reads import DealReadUseCases
 from app.container_forecast import ForecastUseCases
 from app.container_storage import StorageAssembly
 from app.container_time import TimeUseCases
@@ -84,7 +81,12 @@ if TYPE_CHECKING:
 
 
 class Container(
-    VendorUseCases, ActionTypeUseCases, ForecastUseCases, DashboardUseCases, TimeUseCases
+    VendorUseCases,
+    ActionTypeUseCases,
+    ForecastUseCases,
+    DashboardUseCases,
+    TimeUseCases,
+    DealReadUseCases,
 ):
     def __init__(
         self,
@@ -169,6 +171,9 @@ class Container(
     def register_user(self) -> RegisterUser:
         return self._admin.register_user()
 
+    def change_user_role(self) -> ChangeUserRole:
+        return ChangeUserRole(self._uow, self._clock)
+
     def delete_user(self) -> DeleteUser:
         return self._admin.delete_user()
 
@@ -208,23 +213,8 @@ class Container(
     def register_deal(self) -> RegisterDeal:
         return RegisterDeal(self._uow, self._clock, self._suffix_source)
 
-    def get_deal(self) -> GetDeal:
-        return GetDeal(self._uow, self._clock)
-
-    def list_deals(self) -> ListDeals:
-        return ListDeals(self._uow, self._clock)
-
-    def list_updated_periods(self) -> ListUpdatedPeriods:
-        return ListUpdatedPeriods(self._clock)
-
-    def list_deal_history(self) -> ListDealHistory:
-        return ListDealHistory(self._uow)
-
     def apply_deal_change(self) -> ApplyDealChange:
         return ApplyDealChange(self._uow, self._clock)
-
-    def get_deal_deletion_impact(self) -> GetDealDeletionImpact:
-        return GetDealDeletionImpact(self._uow)
 
     def update_deal(self) -> UpdateDeal:
         return UpdateDeal(self._uow, self._clock)

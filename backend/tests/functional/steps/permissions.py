@@ -25,6 +25,7 @@ BUSINESS_READS: Final = (
     ("GET", "/api/v1/contacts/companies"),  # Deal 화면의 연락처 선택: 로그인한 모든 역할
     ("GET", "/api/v1/contacts/by-company"),
     ("GET", "/api/v1/deals"),
+    ("GET", "/api/v1/deals/years"),  # 연도 선택지 기준(가장 이른 Expected Close 연도): 모든 역할
     ("GET", "/api/v1/deals/{code}"),
     ("GET", "/api/v1/deals/{code}/deletion-impact"),
     ("GET", "/api/v1/deals/{code}/history"),
@@ -41,6 +42,12 @@ BUSINESS_READS: Final = (
     ("GET", "/api/v1/bant-labels"),
     ("GET", "/api/v1/action-types"),  # Action 폼·검색의 유형 선택지: 모든 역할
     ("GET", "/api/v1/vendors"),  # Deal 폼·필터의 Vendor 선택지: 모든 역할
+    ("GET", "/api/v1/dashboard/summary"),  # 조회 전용: 모든 역할
+    ("GET", "/api/v1/deals/updated-periods"),
+    ("GET", "/api/v1/forecast/summary"),
+    ("GET", "/api/v1/forecast/snapshots"),
+    ("GET", "/api/v1/forecast/snapshots/{period}/summary"),
+    ("GET", "/api/v1/time"),  # 서버 시각: 로그인한 모든 역할
     ("GET", "/api/v1/alert-settings"),  # P3: 경고 기준 조회는 모든 역할(목록 범례에 숫자가 필요)
 )
 BUSINESS_WRITES: Final = (
@@ -53,6 +60,10 @@ BUSINESS_WRITES: Final = (
     ("POST", "/api/v1/deals/{code}/actions"),
     ("PUT", "/api/v1/deal-actions/{action_id}"),
     ("DELETE", "/api/v1/deal-actions/{action_id}"),
+    (
+        "PUT",
+        "/api/v1/deal-actions/{action_id}/next-action-status",
+    ),  # 상태 변경은 sales·admin(본인 판정은 그 다음)
     ("POST", "/api/v1/deals/{code}/attachments"),  # P2b: 업로드·삭제는 sales·admin
     ("DELETE", "/api/v1/attachments/{attachment_id}"),
 )
@@ -73,6 +84,7 @@ ADMIN_ONLY: Final = (
     ("DELETE", "/api/v1/action-types/{type_id}"),
     ("POST", "/api/v1/users"),
     ("DELETE", "/api/v1/users/{user_id}"),
+    ("PUT", "/api/v1/users/{user_id}/role"),  # 역할 변경은 admin만
     ("GET", "/api/v1/settings/directory"),
     ("PUT", "/api/v1/settings/directory"),
     ("POST", "/api/v1/settings/directory/test"),

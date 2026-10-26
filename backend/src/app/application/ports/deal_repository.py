@@ -238,6 +238,10 @@ class DealRepository(Protocol):
         """연락처를 고객으로 또는 파트너(비활성 링크 포함)로 참조하는 Deal."""
         ...
 
+    async def earliest_revenue_year(self) -> int | None:
+        """모든 Deal 중 Expected Close(revenue_date)가 가장 이른 Deal의 연도. Deal이 없으면 None."""
+        ...
+
     async def count_by_status(self) -> Mapping[str, int]:
         """Status key별 Deal 수. Deal이 없는 key는 빠질 수 있다."""
         ...

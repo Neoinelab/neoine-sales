@@ -150,11 +150,9 @@ describe('Forecast 요약 표', () => {
     await user.click(await screen.findByRole('button', { name: '김영업' }))
     const section = await screen.findByRole('region', { name: '선택한 담당자: 김영업' })
     const all = await ledger({ year: 2026, quarter: 4, ownerId: USER_ID.kim })
-    await waitFor(() => expect(within(section).getAllByRole('link')).toHaveLength(all.length))
-    const open = sumOf(
-      all.filter((d) => d.forecastKey !== 'lost'),
-      (d) => OPEN.has(d.forecastKey),
-    )
+    const notLost = all.filter((d) => d.forecastKey !== 'lost')
+    await waitFor(() => expect(within(section).getAllByRole('link')).toHaveLength(notLost.length))
+    const open = sumOf(notLost, (d) => OPEN.has(d.forecastKey))
     expect(section).toHaveTextContent(`Open ${open.count}건 · 금액(단위:천원) ${formatThousandWon(open.amount)}`)
   })
 
@@ -199,19 +197,21 @@ describe('담당자 선택: 같은 화면 아래 Deal 목록', () => {
     const section = await screen.findByRole('region', { name: '선택한 담당자: 김영업' })
     const all = await ledger({ year: 2026, ownerId: USER_ID.kim })
     const deals = all.filter((d) => d.forecastKey !== 'lost')
-    await waitFor(() => expect(within(section).getAllByRole('link')).toHaveLength(all.length))
+    await waitFor(() => expect(within(section).getAllByRole('link')).toHaveLength(deals.length))
+    expect(deals.length).toBeLessThan(all.length) // Lost는 표에 없다
     const open = sumOf(deals, (d) => OPEN.has(d.forecastKey))
     expect(readRow('김영업')[4]).toBe(cellText(open.count, open.amount))
     expect(section).toHaveTextContent(`Open ${open.count}건`)
     expect(section).toHaveTextContent(formatThousandWon(open.amount))
   })
 
-  it('Lost Deal은 목록에 보이지만 합계에서는 제외된다는 안내가 있다', async () => {
+  it('Lost Deal은 목록에 없고 Lost 안내 문구도 없다', async () => {
     await renderAt(`/forecast?year=2026&sel=${USER_ID.kim}`)
     const section = await screen.findByRole('region', { name: '선택한 담당자: 김영업' })
-    expect(await within(section).findByRole('link', { name: '새론병원 SSO' })).toBeInTheDocument()
-    expect(section).toHaveTextContent('Lost')
-    expect(section).toHaveTextContent('합계에서 제외')
+    expect(await within(section).findByRole('link', { name: '한빛은행 ITDR 도입' })).toBeInTheDocument()
+    expect(within(section).queryByRole('link', { name: '새론병원 SSO' })).not.toBeInTheDocument()
+    expect(section).not.toHaveTextContent(/Lost \d+건/)
+    expect(section).not.toHaveTextContent('합계에서 제외')
   })
 
   it('선택 해제 버튼으로 목록을 닫고 URL에서 선택이 사라진다', async () => {

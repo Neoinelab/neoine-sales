@@ -20,12 +20,13 @@ from app.domain.deal.errors import DealNotFoundError
 from app.domain.deal.sync import SyncResolution
 from app.domain.deal_action.entities import DealAction
 from app.domain.deal_action.next_action_status import NextActionStatus
+from app.domain.deal_action.value_objects import DealActionId
 from app.domain.user.value_objects import UserId
 from app.web.schemas.choice import CatalogChoiceRequest
 from app.web.schemas.common import RequestModel, ResponseModel
 from app.web.schemas.deal_change import CodeChange, ResolutionRequest
 from app.web.schemas.deal_response import NamedRefResponse
-from app.web.schemas.ids import QueryId
+from app.web.schemas.ids import BodyId, QueryId
 from app.web.schemas.server_datetime import ServerDateTime
 from app.web.schemas.user_ref import UserRef, ref_of, resolve_refs
 
@@ -106,6 +107,17 @@ class DealActionCreateRequest(ActionContentRequest):
             ),
         ),
     ] = None
+    close_previous_next_action_id: Annotated[
+        BodyId | None,
+        Field(
+            description=(
+                "저장하며 종료(수행)로 바꿀 이전 Next Action의 Action id. 그 Deal의 "
+                "'Next Action이 있는 가장 최근 Action'과 다르면 409(invalid-state), "
+                "담당자 본인·admin이 아니면 403. 이미 종료된 행이면 상태를 바꾸지 않는다. "
+                "생략하거나 null이면 이전 행을 바꾸지 않는다."
+            )
+        ),
+    ] = None
 
     @model_validator(mode="after")
     def _check_status_changes(self) -> Self:
@@ -121,7 +133,12 @@ class DealActionCreateRequest(ActionContentRequest):
     def to_input(self) -> DealActionInput:
         requests = self.status_changes or ([self.status_change] if self.status_change else [])
         changes = tuple(r.to_input() for r in requests)
-        return DealActionInput(content=self.to_content(), status_changes=changes)
+        previous = self.close_previous_next_action_id
+        return DealActionInput(
+            content=self.to_content(),
+            status_changes=changes,
+            close_previous_next_action_id=None if previous is None else DealActionId(previous),
+        )
 
 
 class DealActionUpdateRequest(ActionContentRequest):

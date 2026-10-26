@@ -64,13 +64,18 @@ class ActionEnv:
         code: str | None = None,
         status_changes: tuple[Any, ...] = (),
         advance: int = 60,
+        close_previous: DealActionId | None = None,
         **content: Any,  # noqa: ANN401
     ) -> DealAction:
-        """Action을 등록한다(기본은 시계가 60초 흐른 뒤라 수행 시각이 서로 다르다)."""
+        """Action을 등록한다(기본은 시계가 60초 흐른 뒤라 수행 시각이 서로 다르다).
+
+        close_previous를 주면 저장하면서 그 이전 Next Action을 종료(수행)로 바꾼다(R4).
+        """
         self.env.clock.advance(advance)
-        return await self.register.execute(
-            code or self.code, make_register_input(status_changes, **content), actor
+        data = make_register_input(
+            status_changes, close_previous_next_action_id=close_previous, **content
         )
+        return await self.register.execute(code or self.code, data, actor)
 
     def set_clock(self, moment: datetime) -> None:
         """서버 시계를 주어진 시각으로 맞춘다(앞으로도 뒤로도)."""

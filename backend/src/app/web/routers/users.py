@@ -10,7 +10,13 @@ from app.web.dependencies import DEFAULT_LIMIT, Limit, Offset, Provider
 from app.web.permissions import admin_router
 from app.web.routers.responses import READ_ERRORS, WRITE_ERRORS
 from app.web.schemas.ids import PathId
-from app.web.schemas.user import DeleteUserResponse, UserPage, UserRequest, UserResponse
+from app.web.schemas.user import (
+    DeleteUserResponse,
+    UserPage,
+    UserRequest,
+    UserResponse,
+    UserRoleRequest,
+)
 from app.web.schemas.user_ref import resolve_refs
 from app.web.security import CurrentUser
 
@@ -65,3 +71,14 @@ async def delete_user(
         user_id=UserId(user_id), actor=actor, reason=UserDeleteReason(reason)
     )
     return DeleteUserResponse.from_outcome(outcome)
+
+
+@router.put("/{user_id}/role", response_model=UserResponse, responses=WRITE_ERRORS)
+async def change_user_role(
+    user_id: PathId, body: UserRoleRequest, provider: Provider, actor: CurrentUser
+) -> UserResponse:
+    user = await provider.change_user_role().execute(
+        user_id=UserId(user_id), role=body.role, actor=actor
+    )
+    (item,) = await _responses(provider, [user])
+    return item

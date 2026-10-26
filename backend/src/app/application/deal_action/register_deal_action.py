@@ -4,11 +4,13 @@ from app.application.deal.history_writer import record_deal_diff, write_history
 from app.application.deal.sync_change import load_catalog, to_sync_step
 from app.application.deal_action.type_choice import choose_action_type
 from app.application.ids import new_deal_action_id
+from app.domain.common.errors import InvalidStateError
 from app.domain.deal.code import DealCode
 from app.domain.deal.errors import DealNotFoundError
 from app.domain.deal.sync import SyncState, finalize_sequence
 from app.domain.deal_action.entities import DealAction
-from app.domain.deal_action.history import action_created_draft
+from app.domain.deal_action.errors import PREVIOUS_NEXT_ACTION_CHANGED
+from app.domain.deal_action.history import action_created_draft, next_action_status_draft
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -19,6 +21,7 @@ if TYPE_CHECKING:
     from app.application.ports.clock import Clock
     from app.application.ports.unit_of_work import UnitOfWork, UnitOfWorkFactory
     from app.domain.deal.entities import Deal
+    from app.domain.deal.history import HistoryDraft
 
 
 class RegisterDealAction:
@@ -44,6 +47,7 @@ class RegisterDealAction:
                 uow, data.content.action_type, actor.user_id, now
             )
             content = data.content.to_content(action_type)
+            drafts = await self._close_previous(uow, deal_code, data, actor, now)
             if data.status_changes:
                 await self._change_deal(uow, deal, data.status_changes, actor, now)
             action = DealAction.record(
@@ -55,9 +59,31 @@ class RegisterDealAction:
                 entity_id=await new_deal_action_id(uow.ids),
             )
             await uow.deal_actions.add(action)
-            await write_history(uow, deal_code, actor.user_id, [action_created_draft(content)], now)
+            drafts.append(action_created_draft(content))
+            await write_history(uow, deal_code, actor.user_id, drafts, now)
             await uow.commit()
         return action
+
+    async def _close_previous(
+        self,
+        uow: UnitOfWork,
+        deal_code: DealCode,
+        data: DealActionInput,
+        actor: Actor,
+        now: datetime,
+    ) -> list[HistoryDraft]:
+        """기준 행이면 종료(수행)로 닫고 이력 초안을 돌려준다. 이미 종료면 건너뛴다(빈 목록)."""
+        if data.close_previous_next_action_id is None:
+            return []
+        basis = await uow.deal_actions.latest_with_next_action(deal_code)
+        if basis is None or basis.id != data.close_previous_next_action_id:
+            raise InvalidStateError(PREVIOUS_NEXT_ACTION_CHANGED)
+        basis.ensure_status_changeable_by(actor.user_id, actor.role)
+        change = basis.close_as_done_for_next_update(now)
+        if change is None:
+            return []
+        await uow.deal_actions.update(basis)
+        return [next_action_status_draft(basis.content, change)]
 
     async def _change_deal(
         self,

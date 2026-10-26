@@ -1,4 +1,4 @@
-import type { Code } from './types'
+import type { Code, ForecastColumn } from './types'
 
 /** Forecast 다중 조건: URL `forecast` 값(콤마 구분)과 필터 버튼 요약. */
 
@@ -46,4 +46,18 @@ export function forecastSummary(selected: readonly string[], codes: readonly Cod
     if (sameSet(set, keys((c) => c.outcome === 'open'))) return 'Open 전체'
   }
   return `${selected.length}개 선택`
+}
+
+/** Dashboard Drill-down·Forecast 목록 링크에 싣는 Forecast 집합(정렬된 key). */
+export interface ForecastSets {
+  /** outcome이 open인 열. */
+  open: readonly string[]
+  /** outcome이 lost가 아닌 열(open + won). */
+  notLost: readonly string[]
+}
+
+/** Dashboard 응답 `forecast.columns`(Lost 제외)로 만든다. 혹시 lost 열이 있어도 뺀다. */
+export function forecastSetsOf(columns: readonly ForecastColumn[]): ForecastSets {
+  const keys = (pick: (outcome: string) => boolean) => columns.filter((c) => pick(c.outcome)).map((c) => c.key).sort()
+  return { open: keys((o) => o === 'open'), notLost: keys((o) => o !== 'lost') }
 }

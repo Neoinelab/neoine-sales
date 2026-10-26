@@ -26,3 +26,13 @@ describe('빠른 조건 줄 스타일 (정적 점검, AC-15~17)', () => {
     expect(ruleOf(css, '.deal-filter-errors:empty')).toContain('display: none')
   })
 })
+
+describe('Deal 이름 칸의 경고 배지 (정적 점검, 2026-10-26)', () => {
+  it('puts the overdue/stale badges on the same line, right of the deal name', () => {
+    const rule = ruleOf(css, '.deal-name')
+    expect(rule).toMatch(/display:\s*flex/)
+    expect(rule).not.toMatch(/display:\s*grid/)
+    expect(rule).not.toMatch(/flex-direction:\s*column/)
+    expect(rule).toMatch(/align-items:\s*center/)
+  })
+})

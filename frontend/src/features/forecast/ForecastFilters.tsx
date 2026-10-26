@@ -4,7 +4,7 @@ import { ErrorBanner } from '../../shared/ui/ErrorBanner'
 import { SelectField } from '../../shared/ui/fields'
 import { UserSelect } from '../../shared/ui/UserSelect'
 import { useForecastSnapshots } from '../../data/forecast'
-import { useToday } from '../../data/today'
+import { useYearOptions } from '../../data/dealYears'
 import type { ForecastFilters } from './forecastParams'
 
 interface Props {
@@ -16,14 +16,9 @@ const MONTHS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] as const
 
 const textOf = (id: number | undefined): string => (id === undefined ? '' : String(id))
 
-/** 연도는 기준 연도(올해) ±1에 URL로 들어온 값을 더한다. */
-function yearOptions(base: number, current: number): number[] {
-  return [...new Set([base - 1, base, base + 1, current])].sort((a, b) => a - b)
-}
-
 /** Forecast 필터: 연도 / Quarter / 월 / 담당자 / Vendor. 값은 URL이 가진다(제어 컴포넌트). */
 export function ForecastFilterBar({ filters, onChange }: Props) {
-  const { year: thisYear } = useToday()
+  const yearOptions = useYearOptions(filters.year)
   const vendorsQuery = useVendors()
   const snapshotsQuery = useForecastSnapshots()
   const snapshots = snapshotsQuery.data ?? []
@@ -43,7 +38,7 @@ export function ForecastFilterBar({ filters, onChange }: Props) {
         ))}
       </SelectField>
       <SelectField label="연도" name="year" value={String(filters.year)} onChange={(v) => onChange({ year: Number(v) })}>
-        {yearOptions(thisYear, filters.year).map((y) => (
+        {yearOptions.years.map((y) => (
           <option key={y} value={y}>
             {y}
           </option>
@@ -88,6 +83,7 @@ export function ForecastFilterBar({ filters, onChange }: Props) {
         ))}
       </SelectField>
       {snap !== undefined && <p className="hint">스냅숏에서는 Vendor 필터를 사용할 수 없습니다.</p>}
+      <ErrorBanner error={yearOptions.error} />
       <ErrorBanner error={vendorsQuery.error} />
       <ErrorBanner error={snapshotsQuery.error} />
     </form>

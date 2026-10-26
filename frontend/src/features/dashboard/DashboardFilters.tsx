@@ -1,4 +1,4 @@
-import { useToday } from '../../data/today'
+import { useYearOptions } from '../../data/dealYears'
 import { useVendors } from '../../data/vendors'
 import { parseId } from '../../shared/model/ids'
 import { ErrorBanner } from '../../shared/ui/ErrorBanner'
@@ -13,14 +13,9 @@ interface Props {
 
 const textOf = (id: number | undefined): string => (id === undefined ? '' : String(id))
 
-/** 연도는 기준 연도(올해) ±1에 URL로 들어온 값을 더한다. */
-function yearOptions(base: number, current: number): number[] {
-  return [...new Set([base - 1, base, base + 1, current])].sort((a, b) => a - b)
-}
-
 /** Dashboard 필터: 연도 / Quarter(Status 탭만) / 담당자 / Vendor(기간은 Expected Close 기준). 값은 URL이 가진다(제어 컴포넌트). */
 export function DashboardFilterBar({ filters, onChange }: Props) {
-  const { year: thisYear } = useToday()
+  const yearOptions = useYearOptions(filters.year)
   const vendorsQuery = useVendors()
   const vendors = vendorsQuery.data ?? []
   const loaded = vendorsQuery.data !== undefined
@@ -30,7 +25,7 @@ export function DashboardFilterBar({ filters, onChange }: Props) {
   return (
     <form className="filters db-filters" aria-label="Dashboard 필터" onSubmit={(e) => e.preventDefault()}>
       <SelectField label="연도" name="year" value={String(filters.year)} onChange={(v) => onChange({ year: Number(v) })}>
-        {yearOptions(thisYear, filters.year).map((y) => (
+        {yearOptions.years.map((y) => (
           <option key={y} value={y}>
             {y}
           </option>
@@ -59,6 +54,7 @@ export function DashboardFilterBar({ filters, onChange }: Props) {
           </option>
         ))}
       </SelectField>
+      <ErrorBanner error={yearOptions.error} />
       <ErrorBanner error={vendorsQuery.error} />
     </form>
   )

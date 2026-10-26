@@ -77,6 +77,7 @@ export function ForecastPage() {
           ownerId={filters.selectedId}
           ownerName={selectedName ?? '선택한 담당자'}
           filters={queryFilters}
+          columns={data.columns}
           openTotal={data.rows.find((r) => r.ownerId === filters.selectedId)?.total}
           onClear={() => update({ selectedId: undefined })}
         />

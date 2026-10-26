@@ -181,6 +181,32 @@ describe('actions.create over HTTP (AC-01·02·05)', () => {
     expect(body.memo).toHaveLength(20000)
   })
 
+  it('sends close_previous_next_action_id in the same POST body (one request)', async () => {
+    const { calls } = stubFetch(json(serverAction(), 201))
+
+    await createActionsHttp().create(CODE, { ...newAction, closePreviousNextActionId: 41 })
+
+    expect(calls).toHaveLength(1)
+    expect(calls[0]).toMatchObject({ method: 'POST', body: { close_previous_next_action_id: 41 } })
+  })
+
+  it('does not send the field when it is not asked for', async () => {
+    const { calls } = stubFetch(json(serverAction(), 201))
+
+    await createActionsHttp().create(CODE, newAction)
+
+    expect(calls[0]?.body).not.toHaveProperty('close_previous_next_action_id')
+  })
+
+  it('shows the server message when the previous next action has changed', async () => {
+    stubFetch(problem(409, 'invalid-state', '이전 Next Action이 바뀌었습니다. 창을 닫고 다시 열어 주세요.'))
+
+    await expect(createActionsHttp().create(CODE, { ...newAction, closePreviousNextActionId: 41 })).rejects.toMatchObject({
+      status: 409,
+      message: '이전 Next Action이 바뀌었습니다. 창을 닫고 다시 열어 주세요.',
+    })
+  })
+
   it('sends status_changes with the resolution of a closing', async () => {
     const { calls } = stubFetch(json(serverAction({ status_key: 'contract_completed', forecast_key: 'won' }), 201))
 

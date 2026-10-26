@@ -34,7 +34,7 @@ def _actor(user: CurrentUser) -> Actor:
     "/deals/{code}/actions",
     status_code=status.HTTP_201_CREATED,
     response_model=DealActionResponse,
-    responses=WRITE_ERRORS,
+    responses=STATUS_ERRORS,
 )
 async def register_deal_action(
     code: str,

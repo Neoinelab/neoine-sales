@@ -2,6 +2,7 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { gateway } from '../gateway'
 import type { ApiError } from '../shared/api/problem'
 import type {
+  Role,
   User,
   UserCreateInput,
   UserListFilter,
@@ -32,6 +33,15 @@ export function useCreateUser(): Mutation<UserCreateInput, User> {
   return useMutation<User, ApiError, UserCreateInput>({
     mutationFn: (input) => gateway.users.create(input),
     onSuccess: () => invalidate(keys.users),
+  })
+}
+
+/** gateway.users.changeRole. 성공: keys.users 무효화(Owner 후보·UserRef 역할 표시가 바뀌므로 keys.deals·keys.forecast도). */
+export function useChangeUserRole(): Mutation<{ id: number; role: Role }, User> {
+  const invalidate = useInvalidate()
+  return useMutation<User, ApiError, { id: number; role: Role }>({
+    mutationFn: ({ id, role }) => gateway.users.changeRole(id, role),
+    onSuccess: () => invalidate(keys.users, keys.deals, keys.forecast),
   })
 }
 

@@ -179,6 +179,10 @@ class SqlDealRepository(SavepointWriter):
             raise DealNotFoundError(code.value)
         return await deal_aggregates.deletion_impact(self._session, deal_id)
 
+    async def earliest_revenue_year(self) -> int | None:
+        earliest = await self._session.scalar(select(func.min(DealRow.revenue_date)))
+        return None if earliest is None else earliest.year
+
     async def count_by_status(self) -> Mapping[str, int]:
         return await deal_aggregates.count_by_status(self._session)
 

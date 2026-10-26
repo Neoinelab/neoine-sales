@@ -98,12 +98,11 @@ describe('필터 (AC-11)', () => {
     expect(screen.queryByLabelText('월')).not.toBeInTheDocument()
   })
 
-  it('lists the years around this year and the one in the URL', async () => {
+  it('lists the years from the earliest deal to next year and the one in the URL', async () => {
     await renderAt('/dashboard?year=2031')
 
     const year = await screen.findByLabelText('연도')
-    const options = within(year).getAllByRole('option').map((o) => o.textContent)
-    expect(options).toEqual(expect.arrayContaining(['2025', '2026', '2027', '2031']))
+    await waitFor(() => expect(within(year).getAllByRole('option').map((o) => o.textContent)).toEqual(['2026', '2027', '2031']))
     expect(year).toHaveValue('2031')
   })
 

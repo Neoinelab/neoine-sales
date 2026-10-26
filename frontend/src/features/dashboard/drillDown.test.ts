@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { listQueryFromParams } from '../deals/list/listQuery'
+import { forecastSetsOf } from '../../shared/model/forecastKeys'
 import type { ForecastColumn } from '../../shared/model/types'
 import {
   closingMonthPath,
   closingQuarterPath,
-  forecastSetsOf,
   forecastTilePath,
   openTotalPath,
   overduePath,
@@ -45,36 +45,6 @@ const NOT_LOST = `${OPEN}%2Cwon`
 
 const queryOf = (path: string) => listQueryFromParams(new URLSearchParams(path.split('?')[1] ?? ''))
 const PAGING = { offset: 0, limit: 20 }
-
-describe('forecastSetsOf (AC-14)', () => {
-  it('collects the open keys and the not-lost keys, sorted', () => {
-    expect(SETS.open).toEqual(['best', 'commit', 'most_likely', 'pipeline', 'verbal'])
-    expect(SETS.notLost).toEqual(['best', 'commit', 'most_likely', 'pipeline', 'verbal', 'won'])
-  })
-
-  it('includes an open code added by the admin in both sets', () => {
-    expect(SETS.open).toContain('verbal')
-    expect(SETS.notLost).toContain('verbal')
-  })
-
-  it('leaves a lost column out even if one slips into the response', () => {
-    const withLost = [...COLUMNS, { key: 'lost', name: 'Lost', outcome: 'lost', order: 7 } as unknown as ForecastColumn]
-    const sets = forecastSetsOf(withLost)
-
-    expect(sets.open).not.toContain('lost')
-    expect(sets.notLost).not.toContain('lost')
-    expect(sets).toEqual(SETS)
-  })
-
-  it('does not depend on the order of the columns', () => {
-    expect(forecastSetsOf([...COLUMNS].reverse())).toEqual(SETS)
-  })
-
-  it('is empty for no columns, and has no open keys when only Won exists', () => {
-    expect(NOTHING).toEqual({ open: [], notLost: [] })
-    expect(NO_OPEN).toEqual({ open: [], notLost: ['won'] })
-  })
-})
 
 describe('Forecast tile (하나)', () => {
   it('opens the deals of one forecast code with the whole filter', () => {

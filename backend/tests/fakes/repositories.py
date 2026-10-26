@@ -176,6 +176,19 @@ class FakeDealActionRepository(InMemoryStore[DealAction]):
         stored.updated_at = action.updated_at
         self._replace(stored)
 
+    async def latest_with_next_action(self, deal_code: DealCode) -> DealAction | None:
+        """그 Deal에서 Next Action이 있는 가장 최근 Action(수행일시·id 내림차순 첫 행). 없으면 None.
+
+        Deal 목록·상세의 Next Action 기준 행과 같은 정의다(`FakeDealRepository`와 같은 정렬).
+        """
+        found = [
+            a
+            for a in self._items.values()
+            if a.deal_code == deal_code and a.content.next_action is not None
+        ]
+        latest = max(found, key=lambda a: (a.acted_at, a.id), default=None)
+        return None if latest is None else self._named(latest)
+
     async def delete(self, action_id: DealActionId) -> None:
         """물리 삭제. 없으면 DealActionNotFoundError."""
         self._fetch(action_id)

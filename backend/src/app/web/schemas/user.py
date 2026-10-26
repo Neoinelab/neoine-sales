@@ -25,6 +25,12 @@ class UserRequest(RequestModel):
     display_name: str | None = None
 
 
+class UserRoleRequest(RequestModel):
+    """역할 변경 본문. 다음 요청부터 적용되며 세션은 유지된다."""
+
+    role: Role
+
+
 class UserResponse(BaseModel):
     id: int
     login_id: str

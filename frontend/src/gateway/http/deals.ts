@@ -58,6 +58,10 @@ export function createDealsHttp(): DealsGateway {
       const upcoming = result.upcoming.flatMap(({ key, from, to }) => (isUpcomingKey(key) ? [{ key, from, to }] : []))
       return { today: result.today, periods, upcoming }
     },
+    years: async () => {
+      const result = await unwrap(api.GET('/api/v1/deals/years'))
+      return { earliestYear: result.earliest_year }
+    },
     get: async (code) => toDealDetail(await unwrap(api.GET('/api/v1/deals/{code}', path(code)))),
     impact: async (code) => {
       const impact = await unwrap(api.GET('/api/v1/deals/{code}/deletion-impact', path(code)))

@@ -25,12 +25,13 @@ describe('목록과 mock 시계 (useToday)', () => {
     expect(within(row).getByText(expected)).toBeVisible()
   })
 
-  it('offers the year filter around the mock clock year', async () => {
+  it('offers the year filter from the mock clock year to next year', async () => {
     await renderAt(ALL_DEALS)
     await screen.findByRole('row', { name: /한빛은행 ITDR 도입/ })
     const year = screen.getByLabelText('연도')
     expect(within(year).getByRole('option', { name: '2030' })).toBeInTheDocument()
-    expect(within(year).getByRole('option', { name: '2032' })).toBeInTheDocument()
+    expect(within(year).getByRole('option', { name: '2031' })).toBeInTheDocument()
+    expect(within(year).queryByRole('option', { name: '2032' })).not.toBeInTheDocument() // 내년까지만
     expect(within(year).queryByRole('option', { name: '2026' })).not.toBeInTheDocument()
   })
 

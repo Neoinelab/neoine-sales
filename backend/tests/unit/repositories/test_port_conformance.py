@@ -64,6 +64,7 @@ DEAL_PORT_METHODS = (
     "count_by_bant_label",
     "count_by_vendor",
     "count_by_contacts",
+    "earliest_revenue_year",
 )
 CONTACT_USE_CASES = (
     "search_contacts",
@@ -82,6 +83,7 @@ DEAL_USE_CASES = (
     "list_deal_history",
     "apply_deal_change",
     "get_deal_deletion_impact",
+    "get_deal_years",
 )
 RETIRED_DEAL_USE_CASES = (
     "list_deal_facets",  # Vendor 선택지는 /vendors 목록에서 온다

@@ -203,7 +203,7 @@ features/*  화면 ──▶ data/*  TanStack Query 훅 ──▶ gateway  (http
 | `src/shared/model/` | 화면 모델 타입과 규칙: 권한, 경고 표시(`risk.ts`, 값은 서버 `risk` 사용), 기간, 금액, 파일 이름 규칙, 연락처 규칙, Status·Forecast 동기화, 목록 조건 기억(`dealListMemory.ts`) |
 | `src/shared/ui/` | 공통 UI(레이아웃·메뉴, 모달, 탭, 콤보박스, 페이저, 배지, 검색창, "준비 중" 화면), 목록 복귀 경로 훅(`useDealListPath.ts`) |
 | `src/shared/sync/`, `shared/contact/`, `shared/directory/` | Status·Forecast 동기화 확인 대화상자, 연락처 선택기, AD 설정 입력 필드 |
-| `src/features/deals/list/` | Deals 목록(13열: Next Action·Due·Next Action 상태 분리, BANT 열은 2026-10-23 폐지되어 `bantSummary.ts` 삭제), 필터·키워드(<s>“Forecast 구분” URL `outcome`</s> 2026-10-26 폐지, 기본 조건 `year=<올해>`·연도 전체 `year=all`, Quarter 안 월, 빠른 조건 줄, Forecast 다중 선택 `shared/ui/MultiCheckSelect.tsx`·`shared/model/forecastKeys.ts`), Quick View, 경고 범례 |
+| `src/features/deals/list/` | Deals 목록(13열: Next Action·Due·Next Action 상태 분리, BANT 열은 2026-10-23 폐지되어 `bantSummary.ts` 삭제), 필터·키워드(<s>“Forecast 구분” URL `outcome`</s> 2026-10-26 폐지, 기본 조건 `year=<올해>`·연도 전체 `year=all`, Quarter 안 월, 빠른 조건 줄, Forecast 다중 선택 `shared/ui/MultiCheckSelect.tsx`·`shared/model/forecastKeys.ts`). 공용 연도 선택지 `shared/model/yearOptions.ts`·`data/dealYears.ts`, 이전 Next Action 기준 행 `shared/model/nextActionBasis.ts`(2026-10-26), Quick View, 경고 범례 |
 | `src/features/deals/detail/` | Deal 상세: 요약 바(Status 체류 "N일째"), 정보·연락처·BANT 카드와 인라인 수정, Actions·History 탭, 첨부 패널, 삭제 |
 | `src/features/deals/form/` | Deal 등록·수정 폼 |
 | `src/features/admin/` | Admin 레이아웃과 탭: `users/`, `deal-management/`(Status·Forecast 코드, BANT Label, Action 유형, Vendor, 경고 기준), `contacts/`, `integrations/`(AD 서버, 저장 위치) |

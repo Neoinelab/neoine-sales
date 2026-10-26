@@ -59,7 +59,7 @@ describe('이전 응답을 보이는 동안 Drill-down 차단 (Minor 1)', () => 
     expect(panelLinks().length).toBeGreaterThan(0)
     hang(spy)
 
-    await user.selectOptions(screen.getByLabelText('연도'), '2025')
+    await user.selectOptions(screen.getByLabelText('연도'), '2027')
 
     expect(await screen.findByRole('status')).toHaveTextContent('불러오는 중…')
     expect(panelLinks()).toHaveLength(0)

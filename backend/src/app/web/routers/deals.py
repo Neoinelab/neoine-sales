@@ -21,6 +21,7 @@ from app.web.schemas.deal_response import (
     HistoryEntryResponse,
     row_page,
 )
+from app.web.schemas.deal_years import DealYearsResponse
 from app.web.schemas.updated_period import UpdatedPeriodsResponse
 from app.web.security import CurrentUser
 
@@ -55,6 +56,11 @@ async def list_deals(
 @router.get("/updated-periods", response_model=UpdatedPeriodsResponse)
 async def list_updated_periods(provider: Provider) -> UpdatedPeriodsResponse:
     return UpdatedPeriodsResponse.from_view(await provider.list_updated_periods().execute())
+
+
+@router.get("/years", response_model=DealYearsResponse)
+async def get_deal_years(provider: Provider) -> DealYearsResponse:
+    return DealYearsResponse.from_view(await provider.get_deal_years().execute())
 
 
 @router.get("/{code}", response_model=DealDetailResponse, responses=READ_ERRORS)

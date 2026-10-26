@@ -23,7 +23,7 @@
 .deals-table td { vertical-align: middle; }
 
 .deal-name-cell { display: flex; align-items: flex-start; gap: 4px; min-width: 240px; }
-.deal-name { display: grid; gap: 2px; justify-items: start; }
+.deal-name { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; } /* 기한초과·미업데이트 배지는 Deal 이름과 같은 줄 오른쪽(좁으면 다음 줄로) */
 .quick-toggle { padding: 0 6px; border: none; background: transparent; color: var(--muted); }
 .quick-toggle:hover, .quick-toggle:focus-visible { color: var(--fg); }
 .next-action { min-width: 180px; }

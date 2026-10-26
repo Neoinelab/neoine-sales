@@ -110,6 +110,16 @@ class DealAction(AuditedEntity[DealActionId]):
         self._touch(now)
         return NextActionStatusChange(before=current.status, after=status, note=note)
 
+    def close_as_done_for_next_update(self, now: datetime) -> NextActionStatusChange | None:
+        """다음 Action을 기록하며 이 Next Action을 종료(수행)로 닫는다. Memo는 바꾸지 않는다.
+
+        이미 종료된 상태면 아무것도 바꾸지 않고 None. Next Action이 없으면 InvalidStateError.
+        """
+        current = self.next_action_state
+        if current is not None and current.status.is_closed:
+            return None
+        return self.change_next_action_status(NextActionStatus.DONE, "", now)
+
     def ensure_status_changeable_by(self, user_id: UserId, role: Role) -> None:
         if not can_edit_action(user_id, role, self.actor_user_id):
             raise DealActionStatusForbiddenError

@@ -6,10 +6,12 @@ import { formatDateTime } from '../../../shared/format'
 import { useActionTypes } from '../../../data/actionTypes'
 import { toChoice } from '../../../shared/model/catalogChoice'
 import { ACTION_TYPE_NAME_MAX_LENGTH } from '../../../shared/model/constants'
+import { canEditAction } from '../../../shared/model/permissions'
 import { userLabel } from '../../../shared/model/period'
 import type { DealAction, DealDetail } from '../../../shared/model/types'
 import { ErrorBanner } from '../../../shared/ui/ErrorBanner'
 import { Modal } from '../../../shared/ui/Modal'
+import { PreviousUpdate } from './PreviousUpdate'
 import { ActionTypeInput } from './ActionTypeInput'
 import { ActionSyncFields } from './ActionSyncFields'
 import { messageOf } from './detailHelpers'
@@ -42,29 +44,6 @@ function FieldError({ message }: { message: string | undefined }) {
   )
 }
 
-/** 이전 Update 참조 카드: Next Action이 있는 가장 최근 Action을 읽기 전용으로 보여 주고 Next Action을 진행사항으로 채울 수 있다. */
-function PreviousUpdate({ previous, onFill }: { previous: DealAction; onFill: (text: string) => void }) {
-  const next = previous.nextAction
-  return (
-    <aside aria-label="이전 Update" className="dd-prev">
-      <h3>이전 Update</h3>
-      <dl className="dd-dl">
-        <dt>진행사항</dt>
-        <dd>{previous.progress ?? '—'}</dd>
-        <dt>Next Action</dt>
-        <dd>{next ?? '—'}</dd>
-        <dt>Due</dt>
-        <dd>{previous.dueDate ?? '—'}</dd>
-      </dl>
-      {next !== null && (
-        <button type="button" className="dd-small" onClick={() => onFill(next)}>
-          이전 Next Action을 진행사항에 채우기
-        </button>
-      )}
-    </aside>
-  )
-}
-
 /** Action 추가·수정 팝업(Modal 안의 폼). 등록은 Status 변경 시 동기화 팝업(겹친 팝업), 수정은 Deal History에 기록됨을 안내한다.
  * 저장 중에는 취소·Esc로 닫히지 않는다. 닫으면 입력은 버려진다. */
 export function ActionForm({ deal, editing, previous, onDone, onCancel }: ActionFormProps) {
@@ -86,6 +65,9 @@ export function ActionForm({ deal, editing, previous, onDone, onCancel }: Action
     setShownType(currentType)
     if (type === shownType) setType(currentType)
   }
+  // 채우기 버튼을 누르면 켜진 채 나타난다(닫을 수 있을 때만). 끄면 요청에 id를 보내지 않는다.
+  const [filledFromId, setFilledFromId] = useState<number | null>(null)
+  const [closePrevious, setClosePrevious] = useState(false)
   const [memo, setMemo] = useState(editing?.memo ?? '')
   const [errors, setErrors] = useState<Errors>({})
   const [error, setError] = useState<unknown>(null)
@@ -94,6 +76,20 @@ export function ActionForm({ deal, editing, previous, onDone, onCancel }: Action
   const dueRef = useRef<HTMLInputElement>(null)
   const busy = create.isPending || update.isPending
   const title = editing ? 'Action 수정' : 'Action 추가'
+  const previousOpen = previous?.nextActionStatus === 'open'
+  const previousClosable = previousOpen && me !== undefined && previous !== null && canEditAction({ id: me.id, role: me.role }, previous.actor.id)
+
+  // 채운 뒤 이전 Update 카드가 다른 행으로 바뀌면 채움·체크는 무효다(입력한 진행사항은 그대로 둔다).
+  const cardChanged = filledFromId !== null && previous?.id !== filledFromId
+  const filled = filledFromId !== null && !cardChanged
+
+  function fillFromPrevious(text: string) {
+    setProgress(text)
+    // 처음(또는 카드가 바뀐 뒤 다시) 누를 때만 체크를 켠다. 같은 행을 다시 눌러도 사용자가 끈 체크는 유지한다.
+    if (!filled) setClosePrevious(previousClosable)
+    setFilledFromId(previous?.id ?? null)
+  }
+
   const actor = editing ? userLabel(editing.actor) : (me?.name ?? '')
 
   function validate(): Errors {
@@ -134,9 +130,15 @@ export function ActionForm({ deal, editing, previous, onDone, onCancel }: Action
         return
       }
       const statusChanges = toStatusChanges(sync.entries)
-      await create.mutateAsync({ dealCode: deal.code, input: statusChanges.length > 0 ? { ...fields, statusChanges } : fields })
+      const closing = filledFromId !== null && filled && previousClosable && closePrevious
+      const input = {
+        ...fields,
+        ...(statusChanges.length > 0 ? { statusChanges } : {}),
+        ...(closing ? { closePreviousNextActionId: filledFromId } : {}),
+      }
+      await create.mutateAsync({ dealCode: deal.code, input })
       const summary = codes ? changeSummary(sync.base, sync.entries, codes) : null
-      onDone(['Action이 등록되었습니다.', summary].filter(Boolean).join(' '))
+      onDone(['Action이 등록되었습니다.', closing ? '이전 Next Action을 종료(수행)로 바꿨습니다.' : null, summary].filter(Boolean).join(' '))
     } catch (caught) {
       setError(caught)
     }
@@ -147,7 +149,22 @@ export function ActionForm({ deal, editing, previous, onDone, onCancel }: Action
   return (
     <Modal title={title} wide onClose={busy ? () => undefined : onCancel}>
       <div className="dd-action-popup">
-        {!editing && previous && <PreviousUpdate previous={previous} onFill={setProgress} />}
+        {!editing && previous && (
+          <PreviousUpdate
+            previous={previous}
+            filled={filled}
+            open={previousOpen}
+            closable={previousClosable}
+            closeChecked={closePrevious}
+            onFill={fillFromPrevious}
+            onCloseChange={setClosePrevious}
+          />
+        )}
+        {!editing && cardChanged && (
+          <p role="alert" className="hint">
+            이전 Update가 바뀌었습니다. 확인 후 다시 채우세요.
+          </p>
+        )}
         <form aria-label={title} className="dd-form" onSubmit={(e) => void submit(e)} noValidate>
           {editing && <p className="hint">수정한 내용은 Deal History에 기록됩니다. 등록 시점의 Status·Forecast는 바뀌지 않습니다.</p>}
           <p className="hint">

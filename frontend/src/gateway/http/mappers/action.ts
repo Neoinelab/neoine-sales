@@ -59,6 +59,7 @@ function toStatusChange(change: StatusChangeRequest): Schemas['ActionStatusChang
 export function toActionCreateBody(input: ActionInput): Schemas['DealActionCreateRequest'] {
   const body: Schemas['DealActionCreateRequest'] = toActionUpdateBody(input)
   if (input.statusChanges && input.statusChanges.length > 0) body.status_changes = input.statusChanges.map(toStatusChange)
+  if (input.closePreviousNextActionId !== undefined) body.close_previous_next_action_id = input.closePreviousNextActionId
   return body
 }
 

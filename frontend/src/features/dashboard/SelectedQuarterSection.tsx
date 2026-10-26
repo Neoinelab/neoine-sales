@@ -1,5 +1,6 @@
 import type { DashboardSummary } from '../../shared/model/types'
-import { forecastSetsOf, forecastTilePath, openTotalPath, quarterTotalPath, type DashboardScope } from './drillDown'
+import { forecastSetsOf } from '../../shared/model/forecastKeys'
+import { forecastTilePath, openTotalPath, quarterTotalPath, type DashboardScope } from './drillDown'
 import { AmountTile } from './Tiles'
 
 const QUARTERS = [1, 2, 3, 4] as const

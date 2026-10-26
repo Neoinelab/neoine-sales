@@ -58,3 +58,8 @@ class DealCountsMixin:
                 or any(link.contact_id == contact_id for link in d.partner_links)
             )
         return counts
+
+    async def earliest_revenue_year(self) -> int | None:
+        """모든 Deal의 Expected Close(revenue_date) 중 가장 이른 연도. Deal이 없으면 None."""
+        years = [d.details.revenue_date.year for d in self._items.values()]
+        return min(years) if years else None
