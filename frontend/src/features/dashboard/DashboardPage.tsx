@@ -14,9 +14,16 @@ import { ForecastTab } from './ForecastTab'
 import { StatusTab } from './StatusTab'
 import './dashboard.css'
 
+/** 탭 아이콘: Status는 단계별 막대, Forecast는 상승 추세선. 색은 글자색(currentColor)을 따른다. */
+const tabIcon = (path: string) => (
+  <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+    <path d={path} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+)
+
 const TABS = [
-  { id: 'status', label: 'Status' },
-  { id: 'forecast', label: 'Forecast' },
+  { id: 'status', label: 'Status', icon: tabIcon('M3 17h14M5 14V9M10 14V4M15 14v-7') },
+  { id: 'forecast', label: 'Forecast', icon: tabIcon('M3 15l5-5 3 3 6-7M13 6h4v4') },
 ] as const
 
 const isTab = (id: string): id is DashboardTab => TABS.some((t) => t.id === id)
@@ -56,24 +63,32 @@ export function DashboardPage() {
   return (
     <section className="db-page">
       <h1>Dashboard</h1>
-      <DashboardFilterBar filters={filters} onChange={update} />
-      <ErrorBanner error={summary.error} />
-      {loading && (
-        <p role="status" className="hint">
-          불러오는 중…
-        </p>
-      )}
-      {data && (
-        <>
-          <p className="hint">기간은 Expected Close 기준이며 금액 단위는 천원입니다. 기준일 {data.today}</p>
-          {isEmpty(data, filters.tab) && <p className="db-empty">조건에 맞는 Deal이 없습니다.</p>}
-        </>
-      )}
-      <DrillEnabledContext.Provider value={!loading}>
-<Tabs label="Dashboard 보기" tabs={TABS} active={filters.tab} onChange={(id) => isTab(id) && update({ tab: id })}>
-        {data && (filters.tab === 'status' ? <StatusTab summary={data} scope={scope} /> : <ForecastTab summary={data} scope={scope} selectedQuarter={selectedQuarterOf(filters, today)} onSelectQuarter={(sq) => update({ selectedQuarter: sq })} />)}
+      {/* 탭이 맨 위에 오고, 검색 조건·안내·내용은 활성 탭 패널 안에 둔다(탭마다 조건 항목이 다르다). */}
+      <Tabs className="db-tabs" label="Dashboard 보기" tabs={TABS} active={filters.tab} onChange={(id) => isTab(id) && update({ tab: id })}>
+        <div className="db-stack">
+          <DashboardFilterBar filters={filters} onChange={update} />
+          <ErrorBanner error={summary.error} />
+          {loading && (
+            <p role="status" className="hint">
+              불러오는 중…
+            </p>
+          )}
+          {data && (
+            <>
+              <p className="hint">기간은 Expected Close 기준이며 금액 단위는 천원입니다. 기준일 {data.today}</p>
+              {isEmpty(data, filters.tab) && <p className="db-empty">조건에 맞는 Deal이 없습니다.</p>}
+            </>
+          )}
+          <DrillEnabledContext.Provider value={!loading}>
+            {data &&
+              (filters.tab === 'status' ? (
+                <StatusTab summary={data} scope={scope} />
+              ) : (
+                <ForecastTab summary={data} scope={scope} selectedQuarter={selectedQuarterOf(filters, today)} onSelectQuarter={(sq) => update({ selectedQuarter: sq })} />
+              ))}
+          </DrillEnabledContext.Provider>
+        </div>
       </Tabs>
-      </DrillEnabledContext.Provider>
     </section>
   )
 }
