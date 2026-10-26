@@ -21,15 +21,9 @@
 .deal-name { display: grid; gap: 2px; justify-items: start; }
 .quick-toggle { padding: 0 6px; border: none; background: transparent; color: var(--muted); }
 .quick-toggle:hover, .quick-toggle:focus-visible { color: var(--fg); }
-
-.bant-cell { min-width: 9em; }
-.deal-bant-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; max-width: 12em; }
-.deal-bant-item { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.deal-bant-item abbr { font-weight: 600; text-decoration: none; color: var(--muted); }
-
 .next-action { min-width: 180px; }
-.next-action small.due { display: block; color: var(--muted); }
-.next-action small.due.overdue { color: var(--danger); font-weight: 600; }
+.deals-table td.due { white-space: nowrap; }
+.deals-table td.due.overdue { color: var(--danger); font-weight: 600; }
 
 .cell-edit-wrap { display: inline-flex; align-items: center; gap: 4px; }
 .cell-edit { padding: 2px 6px; border: 1px dashed transparent; border-radius: 6px; background: transparent; text-align: left; }

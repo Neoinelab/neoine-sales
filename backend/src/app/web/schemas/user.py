@@ -1,4 +1,3 @@
-from datetime import datetime
 from typing import TYPE_CHECKING, Literal
 
 from pydantic import BaseModel
@@ -6,6 +5,7 @@ from pydantic import BaseModel
 from app.domain.auth.principal import Role
 from app.domain.user.value_objects import UserDeleteReason
 from app.web.schemas.common import Page, RequestModel
+from app.web.schemas.server_datetime import ServerDateTime
 from app.web.schemas.user_ref import UserRef, ref_of
 
 if TYPE_CHECKING:
@@ -31,11 +31,11 @@ class UserResponse(BaseModel):
     role: Role
     display_name: str | None
     email: str | None
-    created_at: datetime
+    created_at: ServerDateTime
     created_by: UserRef
-    last_login_at: datetime | None
+    last_login_at: ServerDateTime | None
     status: Literal["active", "resigned"]
-    deleted_at: datetime | None
+    deleted_at: ServerDateTime | None
     delete_reason: UserDeleteReason | None
 
     @classmethod

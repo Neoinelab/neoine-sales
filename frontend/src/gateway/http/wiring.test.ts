@@ -8,6 +8,7 @@ describe('every domain is wired to the server', () => {
   const gateway = createHttpGateway()
 
   it.each([
+    ['time.get', () => gateway.time.get()],
     ['forecast.summary', () => gateway.forecast.summary({ year: 2026 })],
     ['attachments.list', () => gateway.attachments.list('20260101-AAAA')],
     ['attachments.remove', () => gateway.attachments.remove(1)],

@@ -1,6 +1,6 @@
 import type { ActionsGateway } from '../../../gateway/types'
 import { canEditAction } from '../../../shared/model/permissions'
-import { compareIso } from '../../../shared/model/dates'
+import { compareIso, datePart, formatWithOffset, offsetMinutes } from '../../../shared/model/dates'
 import type {
   ActionInput,
   ActionQuery,
@@ -48,12 +48,12 @@ function summary(ctx: MockContext, a: Content): string {
 const same = (a: Content, b: Content): boolean =>
   a.typeId === b.typeId && a.progress === b.progress && a.nextAction === b.nextAction && a.dueDate === b.dueDate && a.memo === b.memo
 
-const pad = (n: number): string => String(n).padStart(2, '0')
-
-/** 인스턴트를 브라우저(로컬) 달력 날짜로 바꾼다. 문자열 날짜 부분은 오프셋에 따라 어긋날 수 있다. */
-function localDate(iso: string): string {
-  const d = new Date(iso)
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+/**
+ * 인스턴트를 Fake 서버 시간대의 달력 날짜로 바꾼다. 서버 시간대는 Fake 서버 시계(`ctx.clock.now()`)의 오프셋이며
+ * 브라우저 시간대를 쓰지 않는다. 문자열의 날짜 부분은 저장 당시 오프셋에 묶이므로 순간으로 다시 계산한다.
+ */
+function serverDate(iso: string, serverOffset: number): string {
+  return datePart(formatWithOffset(Date.parse(iso), serverOffset))
 }
 
 const KEYWORD_MAX = 100
@@ -71,14 +71,14 @@ function findAction(ctx: MockContext, id: number): ActionRecord {
   return found
 }
 
-function matches(a: ActionRecord, q: ActionQuery): boolean {
+function matches(a: ActionRecord, q: ActionQuery, serverOffset: number): boolean {
   if (q.typeId && a.typeId !== q.typeId) return false
   if (q.actorId && a.actorId !== q.actorId) return false
   if (q.keyword) {
     const needle = q.keyword.trim().toLowerCase()
     if (![a.progress, a.nextAction, a.memo].some((t) => t !== null && t.toLowerCase().includes(needle))) return false
   }
-  const acted = localDate(a.actedAt)
+  const acted = serverDate(a.actedAt, serverOffset)
   if (q.actedFrom && acted < q.actedFrom) return false
   if (q.actedTo && acted > q.actedTo) return false
   if (q.dueFrom && (a.dueDate === null || a.dueDate < q.dueFrom)) return false
@@ -134,7 +134,7 @@ export function createActionsGateway(ctx: MockContext): ActionsGateway {
         requireUser(ctx)
         validateRanges(query)
         findDeal(ctx.store.data, dealCode)
-        const rows = ctx.store.data.actions.filter((a) => a.dealCode === dealCode && matches(a, query))
+        const rows = ctx.store.data.actions.filter((a) => a.dealCode === dealCode && matches(a, query, offsetMinutes(ctx.clock.now())))
         return sorted(rows, ctx.store.data, query).map((a) => actionView(ctx.store.data, a))
       }),
     create: (dealCode, input: ActionInput) =>

@@ -1,6 +1,6 @@
-from datetime import datetime
-
 from pydantic import BaseModel, ConfigDict
+
+from app.web.schemas.server_datetime import ServerDateTime
 
 
 class RequestModel(BaseModel):
@@ -11,8 +11,8 @@ class RequestModel(BaseModel):
 
 class ResponseModel(BaseModel):
     id: int
-    created_at: datetime
-    updated_at: datetime
+    created_at: ServerDateTime
+    updated_at: ServerDateTime
 
 
 class Page[ItemT](BaseModel):

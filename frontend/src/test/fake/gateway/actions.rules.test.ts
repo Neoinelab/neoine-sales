@@ -2,6 +2,7 @@
 
 import { describe, expect, it } from 'vitest'
 import type { ActionInput, ActionUpdateInput } from '../../../shared/model/types'
+import { addDays } from '../../../shared/model/dates'
 import { dealCode, expectApiError, mockAs } from '../testing'
 import { NO_SUCH_ID, USER_ID } from '../seed/ids'
 
@@ -342,27 +343,18 @@ describe('내용이 바뀌지 않은 수정 (AC-11, Q4)', () => {
 })
 
 describe('Action 검색 날짜와 범위 (AC-15, Q2, R-14)', () => {
-  /** 서버·mock이 같이 쓰는 "업무 날짜"는 실행 환경의 로컬 날짜다. */
-  const localDate = (iso: string): string => {
-    const d = new Date(iso)
-    const pad = (n: number) => String(n).padStart(2, '0')
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
-  }
-  const nextDay = (day: string): string => {
-    const d = new Date(`${day}T12:00:00`)
-    d.setDate(d.getDate() + 1)
-    return localDate(d.toISOString())
-  }
+  /** 업무 날짜는 서버 시간대(Fake 서버 시계의 오프셋)의 달력 날짜다. 브라우저 시간대에는 의존하지 않는다. */
+  const SERVER_NOW = '2026-10-16T10:00:00+09:00'
+  const nextDay = (day: string): string => addDays(day, 1)
 
   it('compares the acted date by the local calendar day of the instant, not by the offset text', async () => {
     const mock = await mockAs('kim')
     const code = dealCode(2)
-    // -12:00 오프셋의 10-15 20:00 = UTC 10-16 08:00. 문자열의 날짜 부분(10-15)은 어떤 시간대에서도 로컬 날짜와 다르다.
-    const at = '2026-10-15T20:00:00-12:00'
-    mock.clock.setNow(at)
+    // -12:00 오프셋의 10-15 20:00 = UTC 10-16 08:00 = 서버(+09:00) 10-16 17:00. 문자열의 날짜 부분(10-15)은 서버 날짜와 다르다.
+    mock.clock.setNow('2026-10-15T20:00:00-12:00')
     const created = await mock.gateway.actions.create(code, input())
-    const day = localDate(at)
-    expect(day).not.toBe('2026-10-15')
+    mock.clock.setNow(SERVER_NOW)
+    const day = '2026-10-16'
 
     const found = await mock.gateway.actions.list(code, { actedFrom: day, actedTo: day })
     const wrongDay = await mock.gateway.actions.list(code, { actedFrom: '2026-10-15', actedTo: '2026-10-15' })
@@ -376,7 +368,7 @@ describe('Action 검색 날짜와 범위 (AC-15, Q2, R-14)', () => {
     const code = dealCode(2)
     mock.clock.setNow('2026-10-15T09:00:00+09:00')
     const created = await mock.gateway.actions.create(code, input())
-    const day = localDate('2026-10-15T09:00:00+09:00')
+    const day = '2026-10-15'
 
     const ids = async (from: string, to: string) => (await mock.gateway.actions.list(code, { actedFrom: from, actedTo: to })).map((a) => a.id)
 

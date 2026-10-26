@@ -35,6 +35,7 @@ from app.container_catalog import CatalogAssembly
 from app.container_dashboard import DashboardUseCases
 from app.container_forecast import ForecastUseCases
 from app.container_storage import StorageAssembly
+from app.container_time import TimeUseCases
 from app.container_vendor import VendorUseCases
 from app.infra.auth.ldap import LdapDirectoryAuthenticator
 from app.infra.db.unit_of_work import sql_unit_of_work_factory
@@ -82,7 +83,9 @@ if TYPE_CHECKING:
     from app.config.base import Settings
 
 
-class Container(VendorUseCases, ActionTypeUseCases, ForecastUseCases, DashboardUseCases):
+class Container(
+    VendorUseCases, ActionTypeUseCases, ForecastUseCases, DashboardUseCases, TimeUseCases
+):
     def __init__(
         self,
         settings: Settings,

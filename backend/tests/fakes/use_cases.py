@@ -16,6 +16,8 @@ from tests.fakes.file_storage import FakeFileStorage
 from tests.fakes.unit_of_work import FakeUnitOfWork, SteppingClock
 
 if TYPE_CHECKING:
+    from app.application.time.get_server_time import GetServerTime
+
     from app.application.alert.get_alert_settings import GetAlertSettings
     from app.application.alert.update_alert_settings import UpdateAlertSettings
     from app.application.auth.auth_status import GetAuthStatus
@@ -180,6 +182,12 @@ class FakeUseCases(CatalogUseCases, ContactUseCases, DealUseCases, AttachmentUse
         from app.application.dashboard.get_summary import GetDashboardSummary  # noqa: PLC0415
 
         return GetDashboardSummary(self._factory, self.clock)
+
+    # 서버 시각 유스케이스도 사용 시점에 가져온다(구현 전에도 수집된다). DB를 쓰지 않는다
+    def get_server_time(self) -> GetServerTime:
+        from app.application.time.get_server_time import GetServerTime  # noqa: PLC0415
+
+        return GetServerTime(self.clock)
 
     # 월말 스냅숏 유스케이스도 사용 시점에 가져온다(P6 R2: 구현 전에도 수집된다)
     def take_forecast_snapshot(self) -> TakeForecastSnapshot:

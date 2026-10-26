@@ -28,6 +28,7 @@ from app.web.routers import (
     health,
     settings_directory,
     settings_storage,
+    time,
     user_options,
     users,
     vendors,
@@ -92,6 +93,7 @@ def create_app(
         vendors,
         forecast,
         dashboard,
+        time,
     )
     for module in (
         *business,

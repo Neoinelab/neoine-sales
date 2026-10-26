@@ -1,6 +1,6 @@
 """Deal 응답 스키마. 도메인 객체를 그대로 노출하지 않고 화면 계약 모양으로 바꾼다."""
 
-from datetime import date, datetime
+from datetime import date
 from typing import TYPE_CHECKING, Annotated, Literal
 
 from pydantic import BaseModel, Field
@@ -11,6 +11,7 @@ from app.domain.deal.values import PocState, QuoteSubmitted
 from app.domain.deal_action.next_action_status import NextActionStatus
 from app.web.schemas.common import CountedPage
 from app.web.schemas.contact import ContactResponse
+from app.web.schemas.server_datetime import ServerDateTime
 from app.web.schemas.user_ref import UserRef
 
 if TYPE_CHECKING:
@@ -21,8 +22,8 @@ if TYPE_CHECKING:
 class PartnerLinkResponse(BaseModel):
     contact_id: int
     active: bool
-    linked_at: datetime
-    unlinked_at: datetime | None
+    linked_at: ServerDateTime
+    unlinked_at: ServerDateTime | None
 
     @classmethod
     def from_link(cls, link: PartnerLink) -> PartnerLinkResponse:
@@ -37,8 +38,8 @@ class PartnerLinkResponse(BaseModel):
 class PartnerHistoryResponse(BaseModel):
     contact: ContactResponse
     active: bool
-    linked_at: datetime
-    unlinked_at: datetime | None
+    linked_at: ServerDateTime
+    unlinked_at: ServerDateTime | None
 
 
 class NextActionResponse(BaseModel):
@@ -90,7 +91,7 @@ class DealRowResponse(BaseModel):
     bant: BantResponse
     next_action: NextActionResponse | None
     last_updated_at: Annotated[
-        datetime,
+        ServerDateTime,
         Field(
             description=(
                 "모든 Action 중 가장 최근 수행 시각. Action이 없으면 Deal 등록 시각. "
@@ -99,10 +100,10 @@ class DealRowResponse(BaseModel):
         ),
     ]
     risk: Literal["overdue", "stale", "overdue_stale"] | None
-    status_changed_at: datetime
+    status_changed_at: ServerDateTime
     status_days: int
-    created_at: datetime
-    updated_at: datetime
+    created_at: ServerDateTime
+    updated_at: ServerDateTime
 
     @classmethod
     def from_view(cls, view: DealView) -> DealRowResponse:
@@ -197,7 +198,7 @@ def row_page(page: DealPage) -> DealRowPage:
 class HistoryEntryResponse(BaseModel):
     id: int
     deal_code: str
-    at: datetime
+    at: ServerDateTime
     by: UserRef
     category: HistoryCategory
     target: str

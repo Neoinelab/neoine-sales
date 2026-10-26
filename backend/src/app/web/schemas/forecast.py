@@ -1,6 +1,6 @@
 """Forecast 요약 쿼리·응답 스키마. 기간 조합(Quarter와 월 배타)은 도메인이 판정한다."""
 
-from datetime import date, datetime
+from datetime import date
 from typing import TYPE_CHECKING, Annotated
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -13,6 +13,7 @@ from app.domain.user.value_objects import UserId
 from app.domain.vendor.values import VendorId
 from app.web.schemas.common import RequestModel
 from app.web.schemas.ids import QueryId
+from app.web.schemas.server_datetime import ServerDateTime
 from app.web.schemas.user_ref import UserRef
 
 if TYPE_CHECKING:
@@ -53,7 +54,7 @@ class ForecastSearchParams(ForecastSnapshotSearchParams):
 
 class SnapshotItemResponse(BaseModel):
     period: str
-    taken_at: datetime
+    taken_at: ServerDateTime
 
 
 class SnapshotListResponse(BaseModel):
@@ -100,7 +101,7 @@ class RowResponse(BaseModel):
 
 class ForecastSummaryResponse(BaseModel):
     basis: SummaryBasis
-    as_of: datetime
+    as_of: ServerDateTime
     snapshot_period: str | None
     period: PeriodResponse
     columns: list[ColumnResponse]

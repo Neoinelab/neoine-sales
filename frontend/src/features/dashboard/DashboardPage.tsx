@@ -37,7 +37,7 @@ function isEmpty(summary: DashboardSummary, tab: DashboardTab): boolean {
  */
 export function DashboardPage() {
   const [params, setParams] = useSearchParams()
-  const { year: thisYear, today: clientToday } = useToday()
+  const { year: thisYear, today } = useToday()
   const filters = filtersFromParams(params, thisYear)
   const vendors = useVendors().data
   // 표시와 조회 조건을 맞춘다: 목록에 없는 Vendor는 조회·이동 조건에서 제외한다.
@@ -53,8 +53,6 @@ export function DashboardPage() {
   const data = summary.data
   // 새 조건의 응답이 오기 전에는 이전 응답(placeholder)이 남아 있으므로 불러오는 중으로 보고 Drill-down 링크를 내지 않는다.
   const loading = summary.isPending || summary.isPlaceholderData
-  // Selected Quarter 기본값은 서버 업무 날짜(응답 today) 기준. 응답 전에는 클라이언트 날짜로 대체한다.
-  const today = data?.today ?? clientToday
   return (
     <section className="db-page">
       <h1>Dashboard</h1>

@@ -6,6 +6,7 @@
 
 import { describe, expect, it } from 'vitest'
 import type { ActionInput, DealInput } from '../../shared/model/types'
+import { addDays, datePart } from '../../shared/model/dates'
 import type { Gateway } from '../types'
 import { expectRejects, unique, type MakeGateway, NO_SUCH_ID } from './support'
 
@@ -44,12 +45,9 @@ export const action = (over: Partial<ActionInput> = {}): ActionInput => ({
   ...over,
 })
 
-/** 실행 환경의 로컬 달력 날짜(업무 날짜, Q2). */
+/** 서버 업무 날짜(Q2). 응답의 `actedAt`은 서버 시간대 오프셋을 담으므로 그 달력 날짜가 서버 날짜다(브라우저 시간대와 무관). */
 function localDay(iso: string, plusDays = 0): string {
-  const d = new Date(iso)
-  d.setDate(d.getDate() + plusDays)
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+  return addDays(datePart(iso), plusDays)
 }
 
 export function actionsContract(make: MakeGateway): void {

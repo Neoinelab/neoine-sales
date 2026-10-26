@@ -1,58 +1,47 @@
 import { Fragment, useState } from 'react'
 import { Link } from 'react-router'
 import { useToday } from '../../../data/today'
-import { formatDate, formatRelativeTime } from '../../../shared/format'
+import { formatRelativeTime, formatStamp } from '../../../shared/format'
 import { NEXT_ACTION_STATUS_LABEL } from '../../../shared/model/nextActionStatus'
 import { userLabel } from '../../../shared/model/period'
-import type { BantLabel, DealRow } from '../../../shared/model/types'
+import type { DealRow } from '../../../shared/model/types'
 import { RiskBadge, riskRowClass } from '../../../shared/ui/RiskBadge'
-import { bantSummary } from './bantSummary'
 import { InlineCell } from './InlineCell'
 import { QuickView } from './QuickView'
 
-export const COLUMN_COUNT = 12
+export const COLUMN_COUNT = 13
 
 interface DealRowItemProps {
   row: DealRow
-  labels: readonly BantLabel[]
-  /** Label 조회 실패: BANT 칸에 이름을 만들 수 없다고 알린다(로딩 중은 '—'). */
-  labelsFailed: boolean
   canWrite: boolean
   onSaved: (message: string) => void
 }
 
-function BantCell({ row, labels, failed }: { row: DealRow; labels: readonly BantLabel[]; failed: boolean }) {
-  if (failed) return <>불러오지 못함</>
-  const items = bantSummary(row.bant, labels)
-  if (items.length === 0) return <>—</>
-  return (
-    <ul className="deal-bant-list">
-      {items.map((item) => {
-        const full = `${item.categoryName}: ${item.labelName}`
-        return (
-          <li key={item.category} className="deal-bant-item" title={full} aria-label={full}>
-            <abbr aria-hidden="true">{item.abbr}</abbr> {item.labelName}
-          </li>
-        )
-      })}
-    </ul>
-  )
-}
-
-function NextAction({ row }: { row: DealRow }) {
-  if (!row.nextAction) return <>—</>
+function NextActionCells({ row }: { row: DealRow }) {
+  const next = row.nextAction
+  if (!next) {
+    return (
+      <>
+        <td className="next-action">—</td>
+        <td>—</td>
+        <td>—</td>
+      </>
+    )
+  }
   const overdue = row.risk === 'overdue' || row.risk === 'overdue_stale'
   return (
     <>
-      <Link to={`/deals/${row.code}?tab=actions`}>{row.nextAction.text}</Link>
-      <small className={overdue ? 'due overdue' : 'due'}>Due {row.nextAction.dueDate}</small>
-      <small className="hint">{NEXT_ACTION_STATUS_LABEL[row.nextAction.status]}</small>
+      <td className="next-action">
+        <Link to={`/deals/${row.code}?tab=actions`}>{next.text}</Link>
+      </td>
+      <td className={overdue ? 'due overdue' : 'due'}>{next.dueDate}</td>
+      <td>{NEXT_ACTION_STATUS_LABEL[next.status]}</td>
     </>
   )
 }
 
 /** 목록 한 줄(+ 펼친 빠른 보기). Risk 행 색은 배지 텍스트와 함께 쓴다(색만으로 구분하지 않음). */
-export function DealRowItem({ row, labels, labelsFailed, canWrite, onSaved }: DealRowItemProps) {
+export function DealRowItem({ row, canWrite, onSaved }: DealRowItemProps) {
   const [open, setOpen] = useState(false)
   const { now } = useToday()
   const lastUpdated = formatRelativeTime(row.lastUpdatedAt, now)
@@ -86,16 +75,11 @@ export function DealRowItem({ row, labels, labelsFailed, canWrite, onSaved }: De
         <td>{row.vendor?.name ?? '—'}</td>
         <td>{cell('statusKey')}</td>
         <td>{cell('forecastKey')}</td>
-        <td className="bant-cell">
-          <BantCell row={row} labels={labels} failed={labelsFailed} />
-        </td>
         <td className="num">{cell('revenueAmount')}</td>
         <td>{cell('revenueDate')}</td>
-        <td className="next-action">
-          <NextAction row={row} />
-        </td>
+        <NextActionCells row={row} />
         <td>
-          <time dateTime={row.lastUpdatedAt} title={`${formatDate(row.lastUpdatedAt)} ${row.lastUpdatedAt.slice(11, 16)}`}>
+          <time dateTime={row.lastUpdatedAt} title={formatStamp(row.lastUpdatedAt)}>
             {lastUpdated}
           </time>
         </td>

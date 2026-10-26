@@ -3641,6 +3641,26 @@
         "title": "RowResponse",
         "type": "object"
       },
+      "ServerTimeResponse": {
+        "properties": {
+          "now": {
+            "format": "date-time",
+            "title": "Now",
+            "type": "string"
+          },
+          "today": {
+            "format": "date",
+            "title": "Today",
+            "type": "string"
+          }
+        },
+        "required": [
+          "now",
+          "today"
+        ],
+        "title": "ServerTimeResponse",
+        "type": "object"
+      },
       "SetupAdminRequest": {
         "additionalProperties": false,
         "properties": {
@@ -8865,6 +8885,37 @@
         "summary": "Test Storage Settings",
         "tags": [
           "settings"
+        ]
+      }
+    },
+    "/api/v1/time": {
+      "get": {
+        "operationId": "get_server_time_api_v1_time_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServerTimeResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          }
+        },
+        "summary": "Get Server Time",
+        "tags": [
+          "time"
         ]
       }
     },

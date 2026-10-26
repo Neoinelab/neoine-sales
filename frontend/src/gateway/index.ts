@@ -3,11 +3,11 @@
  * 앱에는 실제 서버(`gateway/http`) 구현만 있다. 테스트는 `test/setup.ts`가 이 모듈을 Fake(`test/fake`)로 바꿔 끼운다.
  */
 
-import { systemClock } from './clock'
+import { createServerClock } from './clock'
 import { createHttpGateway } from './http'
 import type { Clock, Gateway } from './types'
 
 export type { Gateway, Clock } from './types'
 
 export const gateway: Gateway = createHttpGateway()
-export const clock: Clock = systemClock
+export const clock: Clock = createServerClock()

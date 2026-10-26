@@ -355,10 +355,9 @@ describe('상태와 접근 권한', () => {
   })
 })
 
-function localStamp(iso: string): string {
-  const d = new Date(iso)
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+/** 서버 문자열의 오프셋 벽시계(YYYY-MM-DD HH:mm). 브라우저 시간대로 바꾸지 않는다. */
+function offsetStamp(iso: string): string {
+  return `${iso.slice(0, 10)} ${iso.slice(11, 16)}`
 }
 
 describe('기준 시각 (P6 AC-9)', () => {
@@ -368,7 +367,16 @@ describe('기준 시각 (P6 AC-9)', () => {
 
     const summary = await gateway.forecast.summary({ year: 2026 })
     expect(summary.basis).toBe('live')
-    expect(screen.getByText(`기준: 지금(${localStamp(summary.asOf)})`)).toBeVisible()
+    expect(screen.getByText(`기준: 지금(${offsetStamp(summary.asOf)})`)).toBeVisible()
+  })
+
+  it('shows the basis time in the server offset', async () => {
+    const original = gateway.forecast.summary.bind(gateway.forecast)
+    vi.spyOn(gateway.forecast, 'summary').mockImplementation(async (query) => ({ ...(await original(query)), asOf: '2026-10-23T23:30:00-05:00' }))
+
+    await renderAt('/forecast?year=2026')
+
+    expect(await screen.findByText('기준: 지금(2026-10-23 23:30)')).toBeVisible()
   })
 
   it('shows the as-of line even when the period has no deals', async () => {

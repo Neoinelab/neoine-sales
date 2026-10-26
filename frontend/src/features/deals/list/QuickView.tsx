@@ -14,8 +14,13 @@ function dated(value: string | null, date: string | null): string {
 
 /** 행 아래로 펼치는 빠른 보기: 견적·POC·고객 담당자·파트너 영업대표·BANT·Users·구매절차. */
 export function QuickView({ row }: { row: DealRow }) {
-  const labels = useLabels().data ?? []
-  const labelName = (id: number | null) => labels.find((l) => l.id === id)?.name ?? '—'
+  // 목록은 Label을 미리 읽지 않는다. 고른 Label이 있는 구분만 로딩·실패를 보이고, 고르지 않은 구분은 '—'.
+  const labels = useLabels()
+  const labelName = (id: number | null) => {
+    if (id === null) return '—'
+    if (labels.data) return labels.data.find((l) => l.id === id)?.name ?? '—'
+    return labels.error ? '불러오지 못함' : '불러오는 중…'
+  }
 
   return (
     <section className="quick-view" aria-label={`빠른 보기: ${row.name}`}>

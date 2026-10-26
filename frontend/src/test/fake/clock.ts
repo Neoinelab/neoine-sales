@@ -1,5 +1,6 @@
 /** mock 시계. 실제 시각 또는 테스트용 고정 시각을 돌려준다. 모든 mock 시각은 이 시계에서 나온다. */
 
+import type { ServerTime } from '../../gateway/types'
 import { datePart, formatWithOffset, offsetMinutes } from '../../shared/model/dates'
 
 export interface MockClock {
@@ -12,6 +13,11 @@ export interface MockClock {
   /** 시계를 ms만큼 앞으로 보낸다(실제 시각 모드였다면 그 시점에서 고정된다). */
   advance(ms: number): void
   isFixed(): boolean
+  /**
+   * 앱 `Clock` 계약. Fake 시계가 곧 서버 시계라서 `fetch()` 결과를 그대로 돌려주고 시계는 바꾸지 않는다.
+   * 실패하면 그대로 reject한다.
+   */
+  syncWith(fetch: () => Promise<ServerTime>): Promise<ServerTime>
 }
 
 export function createClock(fixed: string | null = null): MockClock {
@@ -29,5 +35,6 @@ export function createClock(fixed: string | null = null): MockClock {
       current = formatWithOffset(Date.parse(base) + ms, offsetMinutes(base))
     },
     isFixed: () => current !== null,
+    syncWith: (fetch) => fetch(),
   }
 }

@@ -16,6 +16,7 @@ import { dashboardContract } from './dashboard.contract'
 import { dealsContract } from './deals.contract'
 import { forecastContract } from './forecast.contract'
 import { labelsContract } from './labels.contract'
+import { timeContract } from './time.contract'
 import { vendorsContract } from './vendors.contract'
 import type { MakeGateway } from './support'
 import { USER_ID } from '../../test/fake/seed/ids'
@@ -56,3 +57,4 @@ attachmentsContract(makeMock)
 alertsContract(makeMock)
 forecastContract(makeMock)
 dashboardContract(makeMock)
+timeContract(makeMock)

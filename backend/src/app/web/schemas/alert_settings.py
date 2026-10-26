@@ -1,11 +1,11 @@
 """경고 기준 스키마(P3). 범위 판단은 도메인이 하고 스키마는 정수 형식만 본다."""
 
-from datetime import datetime
 from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, StrictInt
 
 from app.web.schemas.common import RequestModel
+from app.web.schemas.server_datetime import ServerDateTime
 from app.web.schemas.user_ref import UserRef
 
 if TYPE_CHECKING:
@@ -18,7 +18,7 @@ class AlertSettingsRequest(RequestModel):
 
 class AlertSettingsResponse(BaseModel):
     stale_days: int
-    updated_at: datetime | None
+    updated_at: ServerDateTime | None
     updated_by: UserRef | None
 
 

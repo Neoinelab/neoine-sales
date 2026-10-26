@@ -24,7 +24,7 @@ describe('목록과 경고 기준 (AC-13)', () => {
 
     expect(screen.queryByRole('columnheader', { name: /체류/ })).not.toBeInTheDocument()
     expect(screen.queryByText(/\d+일째/)).not.toBeInTheDocument()
-    expect(screen.getAllByRole('columnheader')).toHaveLength(12)
+    expect(screen.getAllByRole('columnheader')).toHaveLength(13)
   })
 })
 

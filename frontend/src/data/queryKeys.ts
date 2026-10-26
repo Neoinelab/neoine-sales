@@ -53,4 +53,5 @@ export const keys = {
   directory: ['settings', 'directory'] as const,
   storage: ['settings', 'storage'] as const,
   alerts: ['alerts'] as const,
+  serverTime: ['server-time'] as const,
 }

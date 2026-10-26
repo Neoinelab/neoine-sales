@@ -3,7 +3,6 @@ import { Link, useSearchParams } from 'react-router'
 import { useMe, usePermissions } from '../../../data/auth'
 import { useAlertSettings } from '../../../data/alerts'
 import { useDeals } from '../../../data/deals'
-import { useLabels } from '../../../data/labels'
 import { useVendors } from '../../../data/vendors'
 import { rememberListSearch } from '../../../shared/model/dealListMemory'
 import { effectiveVendorFilter } from '../../../shared/model/vendorFilter'
@@ -30,8 +29,6 @@ export function DealsPage() {
   }, [params, vendors])
   const deals = useDeals(query)
   const alerts = useAlertSettings()
-  // BANT 칸 이름용 Label은 목록 조회와 함께 미리 읽는다(표가 나타난 뒤 읽으면 칸이 늦게 채워진다).
-  const labelsQuery = useLabels()
   // 기준을 아직 모르거나(로딩) 가져오지 못하면(오류) 숫자 없는 문구를 보인다.
   const staleDays = alerts.data?.staleDays
   const staleLegend = staleDays === undefined ? '기준일 이상 미업데이트' : `${staleDays}일 이상 미업데이트`
@@ -100,7 +97,7 @@ export function DealsPage() {
             </p>
           )}
           {page.items.length > 0 && (
-            <DealsTable rows={page.items} labels={labelsQuery.data ?? []} labelsFailed={labelsQuery.isError} canWrite={canWrite} sort={sort} onSort={onSort} onSaved={setNotice} />
+            <DealsTable rows={page.items} canWrite={canWrite} sort={sort} onSort={onSort} onSaved={setNotice} />
           )}
           {page.total > 0 && (
             <Pager

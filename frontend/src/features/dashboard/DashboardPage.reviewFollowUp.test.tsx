@@ -11,7 +11,8 @@ import { mockSummary, NOW } from './testHelpers'
  * Minor 1 계약: 조건이 바뀐 뒤 새 응답이 오기 전(이전 응답을 placeholder로 보이는 동안)에는
  * - "불러오는 중…" status가 보이고,
  * - 탭 패널(role=tabpanel) 안에 role=link인 Drill-down이 하나도 없다(숫자만 보이거나 비활성이어도 링크 역할은 없어야 한다).
- * Minor 2 계약: Selected Quarter 기본값은 요약 응답의 `today`(서버 업무 날짜) 기준이다. 클라이언트 시계는 응답 전 대체값일 뿐이다.
+ * Minor 2 계약(2026-10-23 시간 기준 서버 통일로 변경): Selected Quarter 기본값은 앱 시계(`useToday`, 서버 동기 시계) 기준이다.
+ * 요약 응답의 `today`는 "기준일" 안내 문구에만 쓰고 기본값 계산에 섞지 않는다(기본 연도와 같은 시계).
  */
 
 beforeEach(() => resetMock({ now: NOW })) // 클라이언트 오늘 2026-10-15 (Q4)
@@ -77,12 +78,12 @@ describe('이전 응답을 보이는 동안 Drill-down 차단 (Minor 1)', () => 
   })
 })
 
-describe('Selected Quarter 기본값은 응답의 today 기준 (Minor 2)', () => {
+describe('Selected Quarter 기본값은 앱 시계 기준 (Minor 2, 서버 시간 통일 AC5)', () => {
   it.each([
-    ['2026-07-01', 3],
-    ['2026-04-01', 2],
-  ])('selects the quarter of the response today %s (Q%i) even though the client clock is in Q4', async (serverToday, quarter) => {
-    mockSummary(dashboardSummaryFixture({ today: serverToday }))
+    ['2026-07-01', 4],
+    ['2026-04-01', 4],
+  ])('ignores the response today %s and selects the quarter of the app clock (Q%i)', async (responseToday, quarter) => {
+    mockSummary(dashboardSummaryFixture({ today: responseToday }))
     await renderAt('/dashboard?tab=forecast&year=2026')
 
     const group = await screen.findByRole('group', { name: 'Selected Quarter' })
@@ -91,7 +92,14 @@ describe('Selected Quarter 기본값은 응답의 today 기준 (Minor 2)', () =>
     expect(screen.getByRole('heading', { level: 2, name: `Selected Quarter : Q${quarter}` })).toBeVisible()
   })
 
-  it('still lets an explicit sq win over the response today', async () => {
+  it('still shows the response today in the notice', async () => {
+    mockSummary(dashboardSummaryFixture({ today: '2026-07-01' }))
+    await renderAt('/dashboard?tab=forecast&year=2026')
+
+    expect(await screen.findByText(/기준일 2026-07-01/)).toBeVisible()
+  })
+
+  it('still lets an explicit sq win over the app clock', async () => {
     mockSummary(dashboardSummaryFixture({ today: '2026-07-01' }))
     await renderAt('/dashboard?tab=forecast&year=2026&sq=1')
 

@@ -9,9 +9,14 @@ if TYPE_CHECKING:
     from datetime import date
 
 
+def business_time(moment: datetime) -> datetime:
+    """같은 순간을 OS 로컬 시간대 오프셋으로 바꾼다. 시간대 정보가 없는 시각은 거절한다."""
+    return require_aware(moment, "moment").astimezone()
+
+
 def business_date(now: datetime) -> date:
     """시각을 OS 로컬 시간대로 바꾼 달력 날짜. 시간대 정보가 없는 시각은 거절한다."""
-    return require_aware(now, "now").astimezone().date()
+    return business_time(now).date()
 
 
 def start_of_business_day(day: date) -> datetime:

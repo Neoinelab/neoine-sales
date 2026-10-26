@@ -14,6 +14,7 @@ import { createForecastGateway } from './forecast'
 import { createHistoryGateway } from './history'
 import { createLabelsGateway } from './labels'
 import { createSettingsGateway } from './settings'
+import { createTimeGateway } from './time'
 import { createUsersGateway } from './users'
 import { createVendorsGateway } from './vendors'
 
@@ -36,5 +37,6 @@ export function createGatewayFor(ctx: MockContext): Gateway {
     users: createUsersGateway(ctx),
     settings: createSettingsGateway(ctx),
     alerts: createAlertsGateway(ctx),
+    time: createTimeGateway(ctx),
   }
 }

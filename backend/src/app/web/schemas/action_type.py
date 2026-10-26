@@ -1,11 +1,11 @@
 """Action 유형 요청·응답 스키마. 이름 규칙 검사는 도메인이 한다."""
 
-from datetime import datetime
 from typing import TYPE_CHECKING
 
 from pydantic import BaseModel
 
 from app.web.schemas.common import RequestModel
+from app.web.schemas.server_datetime import ServerDateTime
 from app.web.schemas.user_ref import UserRef, resolve_refs
 
 if TYPE_CHECKING:
@@ -26,8 +26,8 @@ class ActionTypeResponse(BaseModel):
     name: str
     is_default: bool
     created_by: UserRef | None
-    created_at: datetime
-    updated_at: datetime
+    created_at: ServerDateTime
+    updated_at: ServerDateTime
     usage_count: int
 
     @classmethod

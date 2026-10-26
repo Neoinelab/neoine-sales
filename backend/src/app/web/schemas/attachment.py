@@ -1,10 +1,10 @@
 """첨부 응답 스키마. 도메인 객체를 그대로 노출하지 않는다."""
 
-from datetime import datetime
 from typing import TYPE_CHECKING, Literal
 
 from pydantic import BaseModel
 
+from app.web.schemas.server_datetime import ServerDateTime
 from app.web.schemas.user_ref import UserRef, ref_of, resolve_refs
 
 if TYPE_CHECKING:
@@ -25,7 +25,7 @@ class AttachmentResponse(BaseModel):
     size: int
     mime: str
     uploaded_by: UserRef
-    uploaded_at: datetime
+    uploaded_at: ServerDateTime
 
     @classmethod
     def from_entity(

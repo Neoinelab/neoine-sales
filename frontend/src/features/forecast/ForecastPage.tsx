@@ -4,6 +4,7 @@ import { useUserOptions } from '../../data/users'
 import { userLabel } from '../../shared/model/period'
 import { useVendors } from '../../data/vendors'
 import { useToday } from '../../data/today'
+import { formatStamp } from '../../shared/format'
 import { ErrorBanner } from '../../shared/ui/ErrorBanner'
 import type { ForecastSummary } from '../../shared/model/types'
 import { effectiveVendorFilter } from '../../shared/model/vendorFilter'
@@ -14,12 +15,9 @@ import { QuarterCards } from './QuarterCards'
 import { SummaryTable } from './SummaryTable'
 import './forecast.css'
 
-const pad = (n: number) => String(n).padStart(2, '0')
-
-/** 집계 기준 문구. 서버 시각을 브라우저 로컬 시간으로 보인다. */
+/** 집계 기준 문구. 서버가 준 시각을 그 오프셋 그대로 보인다. */
 function basisText(summary: ForecastSummary): string {
-  const d = new Date(summary.asOf)
-  const stamp = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+  const stamp = formatStamp(summary.asOf)
   return summary.basis === 'snapshot' ? `기준: ${summary.snapshotPeriod ?? ''} 월말(생성 ${stamp})` : `기준: 지금(${stamp})`
 }
 

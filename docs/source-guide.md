@@ -81,12 +81,13 @@ infra ──┘
 | `container_vendor.py` | `Container`가 상속하는 Vendor 유스케이스 위임 mixin(`container.py` 길이 분리) |
 | `container_storage.py` | 저장 위치 설정과 첨부 유스케이스 조립(FileStorage 하나를 공유) |
 | `container_dashboard.py` | `Container`가 상속하는 Dashboard 유스케이스(`GetDashboardSummary`) 조립 mixin(`DashboardUseCases`) |
+| `container_time.py` | `Container`가 상속하는 서버 시각 유스케이스(`GetServerTime`, 기존 `Clock` 주입) 조립 mixin(`TimeUseCases`) |
 
 ### 2.4 `domain/` — 비즈니스 규칙
 
 | 폴더 | 내용 |
 | --- | --- |
-| `common/` | 공통 엔티티 기반, 오류, 검증(`required_text` 등, NUL 문자 거부), 업무 날짜(`business_date.py`, OS 로컬 시간대), 금액·원화 표기, 한국어 조사 |
+| `common/` | 공통 엔티티 기반, 오류, 검증(`required_text` 등, NUL 문자 거부), 업무 날짜·업무 시각(`business_date.py`: `business_date`, `business_time`(같은 순간을 OS 로컬 오프셋으로), OS 로컬 시간대), 금액·원화 표기, 한국어 조사 |
 | `deal/` | Deal 엔티티와 값 객체(금액, 견적, POC, BANT 선택), Deal code(`YYYYMMDD-XXXX`), Status·Forecast 동기화(`sync*.py`, `contract_completed` ⇔ `won`), 변경 이력 diff(`history.py`), 연/분기 기간, Owner 자격·삭제 권한(`policy.py`), 경고(`risk.py`: 기한 초과·미업데이트, Won/Lost 제외)와 Status 체류 일수 |
 | `deal_action/` | Action(진행사항·Next Action·Due Date·Memo, Status/Forecast 스냅숏) 엔티티, 이력, 수정·삭제 권한(admin 전부, sales 본인만) |
 | `contact/` | 연락처(고객·파트너) 엔티티·값 객체, 같은 사람 판정(`identity.py`), 입력 초안 병합(`draft.py`) |
@@ -116,6 +117,7 @@ infra ──┘
 - `storage/`, `alert/`, `directory/`: 저장 위치·경고 기준·AD 설정의 조회·확인·변경
 - `dashboard/`: `criteria.py`(`DashboardCriteria`: Dashboard 숫자마다의 조건을 `DealQuery`로 정의하는 단일 출처, Drill-down URL과 1:1), `get_summary.py`(`GetDashboardSummary`: Forecast·Status·분기·주의 타일을 한 UoW에서 집계), `views.py`(응답 뷰)
 - `auth/`: `directory_login.py`(AD 로그인), `authenticate.py`(요청마다 활성 사용자·역할 확인), `throttle.py`(로그인 시도 제한), `setup_directory.py`·`setup_storage.py`·`setup_first_admin.py`(최초 설정 3단계), `auth_status.py`, `dev_login.py`, `logout.py`, `issue_session.py`, `tokens.py`
+- `time/`: `get_server_time.py`(`GetServerTime`·`ServerTimeView`: `Clock`을 한 번 읽어 서버 OS 로컬 오프셋 `now`와 업무 날짜 `today`를 돌려줌, DB 미사용, `GET /api/v1/time`)
 - `user/`: 사용자 등록·삭제·목록(페이징), 사용자 선택 후보(`list_user_options.py`), 참조 해석
 
 ### 2.6 `infra/` — Port 구현체
@@ -136,8 +138,8 @@ infra ──┘
 
 | 파일/폴더 | 의미 |
 | --- | --- |
-| `routers/` | 엔드포인트. `deals.py`, `deal_actions.py`, `attachments.py`·`attachment_items.py`, `contacts.py`, `codes.py`, `bant_labels.py`, `action_types.py`, `vendors.py`, `alert_settings.py`, `forecast.py`, `dashboard.py`, `users.py`, `user_options.py`, `settings_directory.py`, `settings_storage.py`, `auth*.py`(로그인·로그아웃·상태·최초 설정), `health.py`(`/healthz`, `/readyz`) |
-| `schemas/` | 요청·응답 Pydantic 모델 |
+| `routers/` | 엔드포인트. `deals.py`, `deal_actions.py`, `attachments.py`·`attachment_items.py`, `contacts.py`, `codes.py`, `bant_labels.py`, `action_types.py`, `vendors.py`, `alert_settings.py`, `forecast.py`, `dashboard.py`, `time.py`(`GET /api/v1/time`, 로그인 사용자), `users.py`, `user_options.py`, `settings_directory.py`, `settings_storage.py`, `auth*.py`(로그인·로그아웃·상태·최초 설정), `health.py`(`/healthz`, `/readyz`) |
+| `schemas/` | 요청·응답 Pydantic 모델. 응답 시각 필드는 `server_datetime.py`의 `ServerDateTime`(서버 OS 로컬 오프셋으로 직렬화, 같은 순간·openapi 스키마 동일)을 쓰고 맨 `datetime`은 쓰지 않음(단위 테스트가 검사). `time.py`는 `ServerTimeResponse{now, today}` |
 | `permissions.py` | `BusinessRouter`(sales 이상만 쓰기)와 `admin_router`(admin 전용)로 권한을 라우터 등록 시점에 적용 |
 | `security.py` | 쿠키 세션 확인(`require_login`), CSRF 헤더(`X-Requested-With`) 검사 |
 | `error_handlers.py` | 도메인 오류 → HTTP 상태·`application/problem+json` 매핑(400/401/403/404/409/422/429/503) |
@@ -195,20 +197,22 @@ features/*  화면 ──▶ data/*  TanStack Query 훅 ──▶ gateway  (http
 | `vite.config.ts` | 개발 서버(5173), `/api`를 8000번으로 프록시, Vitest(jsdom, `src/test/setup.ts`) 설정 |
 | `eslint.config.js`, `tsconfig.json` | 린트·타입 설정 |
 | `src/main.tsx`, `src/App.tsx` | 진입점, 라우팅. `/login`·`/setup`은 인증 밖, `/deals/new`·`/deals/:code/edit`는 쓰기 권한, `/admin/*`는 admin 전용 |
-| `src/gateway/` | 게이트웨이 진입점(`index.ts`: `gateway`·`clock`), 계약 타입(`types.ts`, `contract/*.contract.ts`), 실제 서버 구현 `http/`(영역별 호출과 `mappers/`의 응답 → 화면 모델 변환, 미구현 API 501 처리 `unsupported.ts`) |
-| `src/data/` | 영역별 TanStack Query 훅(`deals`, `actions`, `attachments`, `contacts`, `codes`, `labels`, `alerts`, `users`, `settings`, `setup`, `auth`, `history`, `forecast`, `dashboard` 등)과 쿼리 키(`queryKeys.ts`, Dashboard 키는 `forecast` 아래) |
+| `src/gateway/` | 게이트웨이 진입점(`index.ts`: `gateway`·`clock`(서버 동기 시계)), 앱 시계 `clock.ts`(`createServerClock`: `/api/v1/time`으로 동기, 왕복 지연 절반 보정, 서버 오프셋으로 표기. 브라우저 시계를 읽는 유일한 파일, T-ARCH-03), 계약 타입(`types.ts`, `contract/*.contract.ts`), 실제 서버 구현 `http/`(영역별 호출, 서버 시각 `time.ts`과 `mappers/`의 응답 → 화면 모델 변환, 미구현 API 501 처리 `unsupported.ts`) |
+| `src/data/` | 영역별 TanStack Query 훅(`deals`, `actions`, `attachments`, `contacts`, `codes`, `labels`, `alerts`, `users`, `settings`, `setup`, `auth`, `history`, `forecast`, `dashboard`, `time`(`useServerTimeSync`: 30분 주기·30분 경과 후 포커스 재동기) 등)과 쿼리 키(`queryKeys.ts`, Dashboard 키는 `forecast` 아래) |
 | `src/shared/api/` | openapi-fetch 클라이언트(`client.ts`, `X-Requested-With` 헤더 포함), **생성 파일** `schema.d.ts`(`pnpm gen:api`), 오류 응답 해석(`problem.ts`) |
 | `src/shared/model/` | 화면 모델 타입과 규칙: 권한, 경고 표시(`risk.ts`, 값은 서버 `risk` 사용), 기간, 금액, 파일 이름 규칙, 연락처 규칙, Status·Forecast 동기화, 목록 조건 기억(`dealListMemory.ts`) |
 | `src/shared/ui/` | 공통 UI(레이아웃·메뉴, 모달, 탭, 콤보박스, 페이저, 배지, 검색창, "준비 중" 화면), 목록 복귀 경로 훅(`useDealListPath.ts`) |
 | `src/shared/sync/`, `shared/contact/`, `shared/directory/` | Status·Forecast 동기화 확인 대화상자, 연락처 선택기, AD 설정 입력 필드 |
-| `src/features/deals/list/` | Deals 목록(12열, BANT 열 포함), 필터·키워드(“Forecast 구분” URL `outcome` 포함), Quick View, 경고 범례 |
+| `src/features/deals/list/` | Deals 목록(13열: Next Action·Due·Next Action 상태 분리, BANT 열은 2026-10-23 폐지되어 `bantSummary.ts` 삭제), 필터·키워드(“Forecast 구분” URL `outcome` 포함), Quick View, 경고 범례 |
 | `src/features/deals/detail/` | Deal 상세: 요약 바(Status 체류 "N일째"), 정보·연락처·BANT 카드와 인라인 수정, Actions·History 탭, 첨부 패널, 삭제 |
 | `src/features/deals/form/` | Deal 등록·수정 폼 |
 | `src/features/admin/` | Admin 레이아웃과 탭: `users/`, `deal-management/`(Status·Forecast 코드, BANT Label, Action 유형, Vendor, 경고 기준), `contacts/`, `integrations/`(AD 서버, 저장 위치) |
-| `src/features/auth/`, `features/setup/` | 로그인(local·dev는 역할별 빠른 로그인 3개), `RequireAuth`·`RequireWrite`·`RequireAdmin`, 최초 설정 마법사(AD → 저장 위치 → admin) |
+| `src/features/auth/`, `features/setup/` | 로그인(local·dev는 역할별 빠른 로그인 3개), `RequireAuth`(로그인 확인 뒤 서버 시각 첫 동기 전에는 “불러오는 중…”)·`RequireWrite`·`RequireAdmin`, 최초 설정 마법사(AD → 저장 위치 → admin) |
 | `src/features/dashboard/` | Dashboard 화면: `DashboardPage.tsx`(Status·Forecast 탭, `App.tsx`가 `React.lazy`로 별도 청크 로드), `DashboardFilters.tsx`, `dashboardParams.ts`(URL ↔ 필터), `drillDown.ts`(Deal 목록 이동 주소의 단일 출처), `Tiles.tsx`, `StatusTab.tsx`·`StatusChart.tsx`, `ForecastTab.tsx`·`QuarterChart.tsx`, `chartSetup.ts`(Chart.js 필요한 요소만 등록), `dashboard.css`. 게이트웨이는 `gateway/http/dashboard.ts`, 계약 `gateway/contract/dashboard.contract.ts`, Fake `test/fake/gateway/dashboard.ts` |
 | `src/features/forecast/`, `features/placeholder/` | Forecast 화면(서버가 501이면 "준비 중"), Reports 자리 화면 |
 | `src/test/` | 테스트 설정(`setup.ts`가 `vi.mock('../gateway')`로 Fake 주입, `vi.mock('react-chartjs-2')`로 `chartMock.tsx` 주입 — jsdom에 canvas가 없음), 테스트 전용 Fake 게이트웨이와 시드(`fake/`), 픽스처(`fixtures/`), 앱 렌더 도우미. 각 `*.test.ts(x)`는 대상 옆에 위치 |
+
+화면의 지금·오늘은 `data/today`의 `useToday()`(서버 동기 시계)로만 읽고, 시각 표시는 `shared/format.ts`(`formatDateTime`·`formatStamp`·`formatDate`·`formatRelativeTime`)가 서버 문자열의 오프셋 그대로 보입니다(브라우저 시간대 미사용, `src/test/architecture.test.ts`의 T-ARCH-03이 검사).
 
 `user` 역할에는 쓰기 UI를 숨기지만 최종 판단은 서버가 합니다. Deals 목록의 검색 조건은 사용자별로 탭 세션(sessionStorage)에 기억해 상세·폼·메뉴에서 돌아올 때 복원합니다.
 
@@ -307,7 +311,7 @@ Multibranch 파이프라인입니다. 모든 브랜치·PR은 검증만 하고, 
 - 앱 서버에서 AD로 나가는 방화벽(LDAPS 636 또는 389+StartTLS)을 미리 엽니다.
 - AD 설정을 바꾸기 전에 현재 값을 따로 기록합니다(변경 이력 없음).
 - `infra/server/**`가 바뀐 릴리스(systemd·Nginx·저장 디렉터리)는 서버에서 `bootstrap.sh`를 다시 실행하고 `nginx -t`로 확인합니다. `deploy.sh`는 이 파일들을 설치하지 않습니다.
-- 업무 날짜(Deal code 날짜, 경고·체류 일수)는 서버 OS 로컬 시간대를 따르므로 서버 시간대를 업무 시간대(예: `Asia/Seoul`)로 맞춥니다.
+- 업무 날짜(Deal code 날짜, 경고·체류 일수)와 화면에 보이는 날짜·시각(응답 시각의 오프셋, 앱 시계)은 서버 OS 로컬 시간대를 따르므로 서버 시간대를 업무 시간대(예: `Asia/Seoul`)로 맞춥니다(`timedatectl`로 확인). 서버 시간대가 화면 표시 시간대도 됩니다.
 - 첨부 파일은 DB 밖(저장 위치 디렉터리)에 있으므로 DB와 함께 백업합니다.
 - Nginx 뒤에서는 IP별 로그인 제한이 프록시 주소에 걸릴 수 있습니다(`X-Forwarded-For` 신뢰 정책 미정).
 

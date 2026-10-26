@@ -1,11 +1,11 @@
 """파일 저장 위치 스키마(P2b). 경로 형식·길이 판단은 도메인이 하고 스키마는 모양만 본다."""
 
-from datetime import datetime
 from typing import TYPE_CHECKING
 
 from pydantic import BaseModel
 
 from app.web.schemas.common import RequestModel
+from app.web.schemas.server_datetime import ServerDateTime
 from app.web.schemas.user_ref import UserRef, ref_of, resolve_refs
 
 if TYPE_CHECKING:
@@ -19,7 +19,7 @@ class StorageSettingsRequest(RequestModel):
 
 class StorageSettingsResponse(BaseModel):
     path: str
-    updated_at: datetime
+    updated_at: ServerDateTime
     updated_by: UserRef | None
 
 

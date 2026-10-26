@@ -1,5 +1,5 @@
 import { screen, within } from '@testing-library/react'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { gateway } from '../../../gateway'
 import { resetMock } from '../../../test/fake/default'
 import { formatRelativeTime } from '../../../shared/format'
@@ -10,7 +10,10 @@ import { rowOf } from './testHelpers'
 const NOW = '2030-06-15T09:00:00+09:00'
 
 beforeEach(() => resetMock({ now: NOW }))
-afterEach(() => resetMock({ now: null }))
+afterEach(() => {
+  vi.restoreAllMocks()
+  resetMock({ now: null })
+})
 
 describe('목록과 mock 시계 (useToday)', () => {
   it('shows the last update relative to the mock clock, not the real clock', async () => {
@@ -29,5 +32,20 @@ describe('목록과 mock 시계 (useToday)', () => {
     expect(within(year).getByRole('option', { name: '2030' })).toBeInTheDocument()
     expect(within(year).getByRole('option', { name: '2032' })).toBeInTheDocument()
     expect(within(year).queryByRole('option', { name: '2026' })).not.toBeInTheDocument()
+  })
+
+  it('shows the last update stamp in the server offset', async () => {
+    const original = gateway.deals.list.bind(gateway.deals)
+    vi.spyOn(gateway.deals, 'list').mockImplementation(async (query) => {
+      const page = await original(query)
+      return { ...page, items: page.items.map((item) => ({ ...item, lastUpdatedAt: '2030-06-14T23:30:00-05:00' })) }
+    })
+
+    await renderAt('/deals?q=새론병원 PAM')
+    const row = await rowOf(/새론병원 PAM/)
+
+    const stamp = row.querySelector('time')
+    expect(stamp).toHaveAttribute('title', '2030-06-14 23:30')
+    expect(stamp).toHaveAttribute('datetime', '2030-06-14T23:30:00-05:00')
   })
 })

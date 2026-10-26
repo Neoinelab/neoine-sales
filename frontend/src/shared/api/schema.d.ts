@@ -737,6 +737,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/time": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Server Time */
+        get: operations["get_server_time_api_v1_time_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/user-options": {
         parameters: {
             query?: never;
@@ -2160,6 +2177,19 @@ export interface components {
             cells: components["schemas"]["CellResponse"][];
             open_total: components["schemas"]["TallyResponse"];
             owner: components["schemas"]["UserRef"] | null;
+        };
+        /** ServerTimeResponse */
+        ServerTimeResponse: {
+            /**
+             * Now
+             * Format: date-time
+             */
+            now: string;
+            /**
+             * Today
+             * Format: date
+             */
+            today: string;
         };
         /** SetupAdminRequest */
         SetupAdminRequest: {
@@ -5703,6 +5733,35 @@ export interface operations {
             };
             /** @description problem+json */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    get_server_time_api_v1_time_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServerTimeResponse"];
+                };
+            };
+            /** @description problem+json */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };

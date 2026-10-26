@@ -4,9 +4,9 @@ import { gateway } from '../../../gateway'
 import { renderAt } from '../../../test/mockApp'
 import { dataRows, rowOf } from './testHelpers'
 
-/** 정렬 버튼이 있는 10개 머리글(BANT·Next Action 제외). */
+/** 정렬 버튼이 있는 10개 머리글(Next Action·Due·Next Action 상태 제외). */
 const SORTABLE = ['Deal', '담당자', '고객사', '파트너사', 'Vendor', 'Status', 'Forecast', '금액(단위:천원)', 'Expected Close', '최종 업데이트']
-const NOT_SORTABLE = ['BANT', 'Next Action']
+const NOT_SORTABLE = ['Next Action', 'Due', 'Next Action 상태']
 
 /** 새로 정렬할 수 있게 된 5개 열: 머리글, URL sort 값. */
 const NEW_COLUMNS = [
@@ -22,7 +22,7 @@ function rowNames(): string[] {
 }
 
 describe('목록 머리글 정렬 (AC-1)', () => {
-  it('BANT와 Next Action을 뺀 10개 헤더만 정렬 버튼이다', async () => {
+  it('Next Action·Due·Next Action 상태를 뺀 10개 헤더만 정렬 버튼이다', async () => {
     await renderAt('/deals')
     await rowOf(/한빛은행 ITDR 도입/)
 

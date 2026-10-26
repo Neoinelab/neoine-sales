@@ -1,5 +1,25 @@
+import { offsetMinutes } from './model/dates'
+
+/** 시각 뒤에 오프셋(Z 또는 ±HH:MM)이 적힌 ISO 문자열만 시각으로 읽는다. 오프셋이 없으면 브라우저 시간대로 해석되므로 읽지 않는다. */
+const WITH_OFFSET = /T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:\d{2})$/
+
+/** 오프셋이 적힌 ISO 시각의 벽시계(오프셋만큼 옮긴 UTC 시각). 브라우저 시간대를 쓰지 않는다. 읽을 수 없으면 null. */
+function wallClock(iso: string): Date | null {
+  if (!WITH_OFFSET.test(iso)) return null
+  const wall = new Date(Date.parse(iso) + offsetMinutes(iso) * 60_000)
+  return Number.isNaN(wall.getTime()) ? null : wall
+}
+
+/** 서버가 준 문자열의 오프셋 기준 표시(예: 2026. 10. 23. 오전 9:30). 브라우저 시간대로 바꾸지 않는다. 읽을 수 없는 값은 원문 그대로. */
 export function formatDateTime(iso: string): string {
-  return new Date(iso).toLocaleString('ko-KR', { dateStyle: 'medium', timeStyle: 'short' })
+  const wall = wallClock(iso)
+  return wall ? new Intl.DateTimeFormat('ko-KR', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'UTC' }).format(wall) : iso
+}
+
+/** 서버가 준 문자열의 오프셋 기준 'YYYY-MM-DD HH:mm'. 읽을 수 없는 값은 원문 그대로. */
+export function formatStamp(iso: string): string {
+  const wall = wallClock(iso)
+  return wall ? wall.toISOString().slice(0, 16).replace('T', ' ') : iso
 }
 
 /** 'YYYY-MM-DD' 또는 ISO 시각에서 날짜 부분(YYYY-MM-DD). 입력에 적힌 달력 날짜를 그대로 쓴다. */
@@ -21,25 +41,6 @@ export function formatRelativeTime(iso: string, now: string): string {
   const days = Math.floor(hours / 24)
   if (days < 30) return `${days}일 전`
   return formatDate(iso)
-}
-
-/** ISO 시각 → <input type="datetime-local"> 값(브라우저 시간대 기준). */
-export function toLocalInput(iso: string): string {
-  const date = new Date(iso)
-  const shifted = new Date(date.getTime() - date.getTimezoneOffset() * 60_000)
-  return shifted.toISOString().slice(0, 16)
-}
-
-/** <input type="datetime-local"> 값 → 시간대가 있는 ISO 문자열. */
-export function fromLocalInput(value: string): string {
-  return new Date(value).toISOString()
-}
-
-/** 날짜(YYYY-MM-DD) 입력의 하루 시작 시각(브라우저 시간대). */
-export function dayStart(date: string, plusDays = 0): string {
-  const start = new Date(`${date}T00:00:00`)
-  start.setDate(start.getDate() + plusDays)
-  return start.toISOString()
 }
 
 /** 날짜(YYYY-MM-DD)의 다음 날(YYYY-MM-DD). 시간대와 무관하게 달력 계산만 한다. */

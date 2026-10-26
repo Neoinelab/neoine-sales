@@ -350,6 +350,16 @@ export interface DirectorySaveAuth {
   expectedRevision: number
 }
 
+/** 서버 시각. now는 서버 오프셋 ISO, today는 서버 업무 날짜(YYYY-MM-DD). */
+export interface ServerTime {
+  now: string
+  today: string
+}
+
+export interface TimeGateway {
+  get(): Promise<ServerTime>
+}
+
 export interface Gateway {
   auth: AuthGateway
   setup: SetupGateway
@@ -367,10 +377,16 @@ export interface Gateway {
   users: UsersGateway
   settings: SettingsGateway
   alerts: AlertsGateway
+  time: TimeGateway
 }
 
 /** 앱의 지금. 화면은 `useToday()`로만 읽는다. */
 export interface Clock {
-  /** 오프셋 포함 ISO(예: 2026-10-17T09:00:00+09:00). */
+  /** 오프셋 포함 ISO(예: 2026-10-17T09:00:00+09:00). 첫 동기 전에는 브라우저 시각. */
   now(): string
+  /**
+   * `fetch` 앞뒤 브라우저 시각의 중간을 서버 now에 맞춘다. 성공하면 받은 값을 돌려준다.
+   * 실패하거나 서버 now에 오프셋이 없으면 reject하고 직전 상태를 유지한다.
+   */
+  syncWith(fetch: () => Promise<ServerTime>): Promise<ServerTime>
 }

@@ -7,7 +7,7 @@ import { resetMock } from '../../test/fake/default'
 import { dealInput } from '../../test/fake/testing'
 import { SNAPSHOT_NOT_FOUND } from '../../test/fake/gateway/forecastSnapshots'
 import { USER_ID } from '../../test/fake/seed/ids'
-import { SNAPSHOT_COMMIT_NAME, SNAPSHOT_PERIOD, SNAPSHOT_TAKEN_AT } from '../../test/fixtures/forecastSnapshot'
+import { SNAPSHOT_COMMIT_NAME, SNAPSHOT_PERIOD } from '../../test/fixtures/forecastSnapshot'
 import { seedVendorId } from '../../test/fixtures/vendors'
 import { renderAt } from '../../test/mockApp'
 
@@ -29,13 +29,8 @@ afterEach(() => {
 
 const cellText = (count: number, amount: number): string => (count === 0 ? '—' : `${count}건 · ${formatThousandWon(amount)}`)
 
-function localStamp(iso: string): string {
-  const d = new Date(iso)
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
-}
-
-const SNAPSHOT_BASIS = `기준: ${SNAPSHOT_PERIOD} 월말(생성 ${localStamp(SNAPSHOT_TAKEN_AT)})`
+// 생성 시각은 서버 문자열의 오프셋 벽시계 그대로 보인다(SNAPSHOT_TAKEN_AT = 2026-10-01T00:05:00+09:00). 브라우저 시간대로 바꾸지 않는다.
+const SNAPSHOT_BASIS = `기준: ${SNAPSHOT_PERIOD} 월말(생성 2026-10-01 00:05)`
 
 /** 표의 행(rowheader 이름)에서 셀 텍스트를 읽는다. */
 function readRow(name: string | RegExp): string[] {

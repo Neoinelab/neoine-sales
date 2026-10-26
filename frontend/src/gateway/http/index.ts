@@ -18,6 +18,7 @@ import { createHistoryHttp } from './history'
 import { createLabelsHttp } from './labels'
 import { createSettingsHttp } from './settings'
 import { createSetupHttp } from './setup'
+import { createTimeHttp } from './time'
 import { createUsersHttp } from './users'
 import { createVendorsHttp } from './vendors'
 
@@ -39,5 +40,6 @@ export function createHttpGateway(): Gateway {
     attachments: createAttachmentsHttp(),
     forecast: createForecastHttp(),
     dashboard: createDashboardHttp(),
+    time: createTimeHttp(),
   }
 }

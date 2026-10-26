@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import date
 from typing import TYPE_CHECKING, Annotated, Self
 
 from pydantic import BaseModel, Field, model_validator
@@ -26,6 +26,7 @@ from app.web.schemas.common import RequestModel, ResponseModel
 from app.web.schemas.deal_change import CodeChange, ResolutionRequest
 from app.web.schemas.deal_response import NamedRefResponse
 from app.web.schemas.ids import QueryId
+from app.web.schemas.server_datetime import ServerDateTime
 from app.web.schemas.user_ref import UserRef, ref_of, resolve_refs
 
 if TYPE_CHECKING:
@@ -145,9 +146,9 @@ class DealActionResponse(ResponseModel):
     next_action: str | None
     due_date: date | None
     next_action_status: NextActionStatus | None
-    next_action_closed_at: datetime | None
+    next_action_closed_at: ServerDateTime | None
     memo: str
-    acted_at: datetime
+    acted_at: ServerDateTime
     actor: UserRef
     status_key: str
     forecast_key: str

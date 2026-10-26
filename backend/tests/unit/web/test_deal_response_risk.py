@@ -1,7 +1,7 @@
 """Deal 응답의 risk·status_changed_at·status_days(P3 AC-01·10): 행과 상세가 같은 값을 노출한다."""
 
-from datetime import timedelta
-from typing import Any
+from datetime import datetime, timedelta
+from typing import TYPE_CHECKING, Any
 
 import pytest
 
@@ -17,6 +17,9 @@ from tests.factories_contact import make_customer
 from tests.fakes.use_cases import FakeUseCases
 from tests.functional.conftest import make_settings
 from tests.support.user_ids import OWNER_ID
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 UNUSED_DATABASE_URL = "postgresql+asyncpg://user:pw@localhost:5432/none"  # 접속하지 않는다
 RISK_VALUES = {"overdue", "stale", "overdue_stale"}
@@ -42,7 +45,10 @@ def _schema(name: str) -> dict[str, Any]:
     return dict(schemas[name])
 
 
-def test_row_and_detail_expose_risk_status_changed_at_and_status_days() -> None:
+def test_row_and_detail_expose_risk_status_changed_at_and_status_days(
+    local_tz: Callable[[str], None],
+) -> None:
+    local_tz("Asia/Seoul")
     view = _view(risk=Risk.OVERDUE_STALE, status_days=6)
 
     row = DealRowResponse.from_view(view).model_dump(mode="json")
@@ -51,7 +57,10 @@ def test_row_and_detail_expose_risk_status_changed_at_and_status_days() -> None:
     for body in (row, detail):
         assert body["risk"] == "overdue_stale"
         assert body["status_days"] == 6
-        assert body["status_changed_at"] == NOW.isoformat().replace("+00:00", "Z")
+        # 시간 기준 서버 통일(AC2): 같은 순간(NOW=2026-01-01T09:00Z)을 서버 오프셋 문자열로 낸다.
+        # 'Z' 비교를 '+09:00' 정확 비교로 바꾼 것이며 순간 일치는 아래 fromisoformat 단언이 지킨다.
+        assert body["status_changed_at"] == "2026-01-01T18:00:00+09:00"
+        assert datetime.fromisoformat(body["status_changed_at"]) == NOW
     assert row["updated_at"] != row["status_changed_at"]  # 진입 시각은 수정 시각과 다른 값이다
 
 
@@ -92,3 +101,17 @@ def test_openapi_lists_the_risk_enum_and_requires_the_new_fields(name: str) -> N
     assert enum_values == RISK_VALUES
     assert any(option.get("type") == "null" for option in options)
     assert properties["status_days"]["type"] == "integer"
+
+
+@pytest.mark.parametrize("response_type", [DealRowResponse, DealDetailResponse])
+def test_every_timestamp_of_a_deal_response_carries_the_server_offset(
+    response_type: type[DealRowResponse] | type[DealDetailResponse],
+    local_tz: Callable[[str], None],
+) -> None:
+    local_tz("Asia/Seoul")
+    body = response_type.from_view(_view(risk=None, status_days=0)).model_dump(mode="json")
+
+    for field in ("created_at", "updated_at", "status_changed_at", "last_updated_at"):
+        assert field in body, field
+        assert body[field].endswith("+09:00"), (field, body[field])
+    assert body["created_at"].endswith("+09:00")

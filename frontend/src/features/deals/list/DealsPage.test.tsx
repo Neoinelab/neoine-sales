@@ -4,10 +4,10 @@ import { gateway } from '../../../gateway'
 import { renderAt } from '../../../test/mockApp'
 import { dataRows, rowOf } from './testHelpers'
 
-const HEADERS = ['Deal', '담당자', '고객사', '파트너사', 'Vendor', 'Status', 'Forecast', 'BANT', '금액(단위:천원)', 'Expected Close', 'Next Action', '최종 업데이트']
+const HEADERS = ['Deal', '담당자', '고객사', '파트너사', 'Vendor', 'Status', 'Forecast', '금액(단위:천원)', 'Expected Close', 'Next Action', 'Due', 'Next Action 상태', '최종 업데이트']
 
 describe('목록 표 (T-LIST-01~04)', () => {
-  it('shows the PRD columns with the BANT column', async () => {
+  it('shows the PRD columns with the split Next Action columns', async () => {
     await renderAt('/deals')
     await screen.findByRole('row', { name: /한빛은행 ITDR 도입/ })
     const headers = screen.getAllByRole('columnheader').map((h) => h.textContent?.trim())

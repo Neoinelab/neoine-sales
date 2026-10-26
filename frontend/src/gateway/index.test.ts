@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 /** 앱이 실제로 쓰는 gateway/index 모듈(테스트 setup이 주입한 Fake가 아니라 원본). */
 interface Clock {
   now(): string
+  syncWith(fetch: () => Promise<{ now: string; today: string }>): Promise<{ now: string; today: string }>
 }
 
 interface AppGatewayModule {
@@ -27,11 +28,25 @@ describe('app gateway module (P8 T2)', () => {
     expect(fetchSpy).toHaveBeenCalledTimes(1)
   })
 
-  it('app clock is the system clock', async () => {
+  it('app clock is the server clock that falls back to the browser clock before the first sync', async () => {
     const { clock } = await loadAppGateway()
 
     const now = clock.now()
+    expect(typeof clock.syncWith).toBe('function')
     expect(now).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:[+-]\d{2}:\d{2}|Z)$/)
     expect(Math.abs(Date.parse(now) - Date.now())).toBeLessThan(1000)
+  })
+
+  it('app clock follows the server time after a sync through the app gateway', async () => {
+    const body = { now: '2031-05-06T07:08:09+02:00', today: '2031-05-06' }
+    const fetchSpy = vi.fn().mockResolvedValue(new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } }))
+    vi.stubGlobal('fetch', fetchSpy)
+    const { gateway, clock } = await loadAppGateway()
+
+    await clock.syncWith(() => gateway.time.get())
+
+    expect(fetchSpy).toHaveBeenCalledTimes(1)
+    expect(clock.now().startsWith('2031-05-06T07:08:')).toBe(true)
+    expect(clock.now().endsWith('+02:00')).toBe(true)
   })
 })

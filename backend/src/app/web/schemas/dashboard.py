@@ -1,6 +1,6 @@
 """Dashboard 요약 쿼리·응답 스키마. 집계 규칙은 application·domain이 정한다."""
 
-from datetime import date, datetime
+from datetime import date
 from typing import TYPE_CHECKING, Annotated
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -13,6 +13,7 @@ from app.domain.vendor.values import VendorId
 from app.web.schemas.common import RequestModel
 from app.web.schemas.forecast import CellResponse, ColumnResponse, TallyResponse
 from app.web.schemas.ids import QueryId
+from app.web.schemas.server_datetime import ServerDateTime
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
@@ -100,7 +101,7 @@ class AttentionResponse(BaseModel):
 
 
 class DashboardSummaryResponse(BaseModel):
-    as_of: datetime
+    as_of: ServerDateTime
     today: date
     period: DashboardPeriodResponse
     forecasts: DashboardForecastsResponse

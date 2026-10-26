@@ -1,4 +1,3 @@
-from datetime import datetime
 from typing import TYPE_CHECKING
 
 from pydantic import BaseModel
@@ -6,6 +5,7 @@ from pydantic import BaseModel
 from app.domain.directory.settings import DirectorySettings, StoredDirectorySettings
 from app.domain.directory.url import DEFAULT_PORTS, DirectoryUrl
 from app.web.schemas.common import RequestModel
+from app.web.schemas.server_datetime import ServerDateTime
 from app.web.schemas.user_ref import UserRef, ref_of, resolve_refs
 
 if TYPE_CHECKING:
@@ -64,7 +64,7 @@ class DirectorySettingsResponse(BaseModel):
     connect_timeout_seconds: int
     receive_timeout_seconds: int
     revision: int
-    updated_at: datetime
+    updated_at: ServerDateTime
     updated_by: UserRef | None
 
     @classmethod

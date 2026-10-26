@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { dayStart, formatDate, formatRelativeTime, fromLocalInput, nextDay, toLocalInput } from './format'
+import { formatDate, formatDateTime, formatRelativeTime, formatStamp, nextDay } from './format'
 
 describe('nextDay', () => {
   it('returns the following date across month and year ends', () => {
@@ -41,22 +41,80 @@ describe('formatDate', () => {
   })
 })
 
-describe('datetime helpers', () => {
-  it('round-trips a datetime-local value', () => {
-    const local = '2026-03-02T10:30'
-
-    expect(toLocalInput(fromLocalInput(local))).toBe(local)
+/**
+ * 시각 표시는 문자열에 붙은 오프셋의 벽시계 그대로다(시간 기준 서버 통일 AC6). 러너(브라우저) 시간대와 무관하다.
+ * (계약 변경: 이전 `datetime helpers`의 toLocalInput/fromLocalInput/dayStart는 브라우저 시간대에 의존하고
+ * 앱 사용처가 없어 D8에 따라 함수와 테스트를 함께 지웠다.)
+ */
+describe('formatDateTime', () => {
+  it('shows the wall time of the given offset', () => {
+    expect(formatDateTime('2026-10-23T00:30:00-05:00')).toBe('2026. 10. 23. 오전 12:30')
   })
 
-  it('sends a timezone-aware instant', () => {
-    expect(fromLocalInput('2026-03-02T10:30')).toMatch(/Z$/)
+  it('keeps the Korean format with the afternoon marker', () => {
+    expect(formatDateTime('2026-10-23T15:04:59+09:00')).toBe('2026. 10. 23. 오후 3:04')
   })
 
-  it('moves a date to the start of a later day', () => {
-    const start = new Date(dayStart('2026-03-02'))
-    const next = new Date(dayStart('2026-03-02', 1))
+  it('shows the UTC wall time for Z', () => {
+    expect(formatDateTime('2030-06-14T16:00:00Z')).toBe('2030. 6. 14. 오후 4:00')
+  })
 
-    expect(next.getTime() - start.getTime()).toBeGreaterThanOrEqual(23 * 3_600_000)
-    expect(start.getHours()).toBe(0)
+  it('does not move the date when the offset day differs from the UTC day', () => {
+    expect(formatDateTime('2026-10-23T08:00:00+09:00')).toBe('2026. 10. 23. 오전 8:00') // UTC로는 10월 22일 23:00
+  })
+
+  it('accepts the microsecond fraction the server sends', () => {
+    expect(formatDateTime('2026-10-23T09:30:00.123456+09:00')).toBe('2026. 10. 23. 오전 9:30')
+  })
+
+  it('handles a half-hour offset', () => {
+    expect(formatDateTime('2026-10-23T09:30:00+05:30')).toBe('2026. 10. 23. 오전 9:30')
+  })
+})
+
+describe('formatStamp', () => {
+  it('keeps the offset wall time as YYYY-MM-DD HH:mm', () => {
+    expect(formatStamp('2026-10-23T15:04:59.123456+09:00')).toBe('2026-10-23 15:04')
+  })
+
+  it('does not convert to the UTC date', () => {
+    expect(formatStamp('2026-10-23T00:30:00+09:00')).toBe('2026-10-23 00:30')
+  })
+
+  it('does not convert to the browser zone for a negative offset', () => {
+    expect(formatStamp('2026-10-23T23:30:00-05:00')).toBe('2026-10-23 23:30')
+  })
+
+  it('shows the UTC wall time for Z', () => {
+    expect(formatStamp('2026-10-23T00:30:00Z')).toBe('2026-10-23 00:30')
+  })
+
+  it('accepts a time without fractional seconds', () => {
+    expect(formatStamp('2026-01-02T03:04:05+09:00')).toBe('2026-01-02 03:04')
+  })
+})
+
+describe('unreadable time strings are returned as written', () => {
+  // 오프셋 없는 문자열은 브라우저 시간대로 해석하지 않고 원문을 돌려준다(계약).
+  const UNREADABLE = ['', 'abc', '2026-10-23', '2026-10-23T09:30:00', '2026-10-23 09:30', '2026-13-45T99:99:99+09:00']
+
+  it.each(UNREADABLE)('formatDateTime returns %j without throwing', (value) => {
+    expect(formatDateTime(value)).toBe(value)
+  })
+
+  it.each(UNREADABLE)('formatStamp returns %j without throwing', (value) => {
+    expect(formatStamp(value)).toBe(value)
+  })
+})
+
+describe('date parts written in the string offset', () => {
+  it('formatDate keeps the calendar date of the string', () => {
+    expect(formatDate('2026-10-23T00:30:00+09:00')).toBe('2026-10-23')
+    expect(formatDate('2026-10-23T23:30:00-05:00')).toBe('2026-10-23')
+  })
+
+  it('formatRelativeTime shows the string date after 30 days', () => {
+    expect(formatRelativeTime('2026-08-01T00:30:00+09:00', '2026-10-23T09:30:00+09:00')).toBe('2026-08-01')
+    expect(formatRelativeTime('2026-08-01T23:30:00-05:00', '2026-10-23T09:30:00+09:00')).toBe('2026-08-01')
   })
 })

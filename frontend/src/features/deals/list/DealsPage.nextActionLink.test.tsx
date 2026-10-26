@@ -40,7 +40,7 @@ describe('목록의 Next Action 바로가기 (AC-6)', () => {
     expect(await screen.findByRole('tab', { name: 'Actions' })).toHaveAttribute('aria-selected', 'true')
   })
 
-  it('링크 안에는 내용만 있고 Due와 상태 라벨은 링크 밖에 그대로 보인다', async () => {
+  it('링크 안에는 내용만 있고 Due와 상태 라벨은 링크 밖 별도 칸에 보인다', async () => {
     await renderAt('/deals?q=한빛은행 ITDR')
     const row = await rowOf(/한빛은행 ITDR 도입/)
     const due = (await gateway.deals.list({ keyword: '한빛은행 ITDR' })).items.find((d) => d.name === '한빛은행 ITDR 도입')?.nextAction?.dueDate
@@ -49,9 +49,10 @@ describe('목록의 Next Action 바로가기 (AC-6)', () => {
     const link = within(row).getByRole('link', { name: NEXT_ACTION_TEXT })
 
     expect(link).toHaveTextContent(/^계약서 초안 검토$/)
-    expect(within(row).getByText(`Due ${due}`)).toBeVisible()
-    expect(link).not.toContainElement(within(row).getByText(`Due ${due}`))
+    expect(within(row).getByText(due)).toBeVisible()
+    expect(link).not.toContainElement(within(row).getByText(due))
     expect(within(row).getByText('Open')).toBeVisible()
+    expect(within(row).queryByText(`Due ${due}`)).not.toBeInTheDocument()
   })
 
   it('Deal 이름 링크는 그대로 상세(첫 탭)로 간다', async () => {
