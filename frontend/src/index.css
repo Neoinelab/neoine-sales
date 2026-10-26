@@ -93,7 +93,7 @@ button.logout { padding: 4px 10px; font-size: 0.8rem; background: var(--danger);
 button.logout:hover:not(:disabled) { background: var(--danger-hover); border-color: var(--danger-hover); }
 .topbar-toggle { display: none; padding: 6px; line-height: 0; }
 .spacer { flex: 1; }
-.content { padding: 24px; max-width: 1280px; margin: 0 auto; display: grid; gap: 16px; }
+.content { padding: 24px 5%; display: grid; gap: 16px; } /* 좌우 여백은 화면 너비의 5%씩(최대 너비 제한 없음) */
 .heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 
 /* 버튼 */
@@ -152,5 +152,5 @@ td.wrap { white-space: pre-wrap; max-width: 360px; }
 }
 @media (max-width: 720px) {
   .admin-body { grid-template-columns: 1fr; }
-  .content { padding: 16px; }
+  .content { padding: 16px 5%; }
 }
