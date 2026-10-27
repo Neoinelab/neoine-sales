@@ -91,3 +91,5 @@ tr.risk-stale > td { background: var(--risk-stale); }
 .multi-check-button { font: inherit; font-weight: 400; text-align: left; width: 100%; min-width: 0; padding: 7px 10px; border: 1px solid var(--line-strong); border-radius: var(--radius); background: var(--input-bg); color: var(--fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .multi-check-panel { position: absolute; top: 100%; left: 0; z-index: 10; min-width: 100%; margin-top: 4px; display: flex; flex-direction: column; align-items: stretch; gap: 6px; padding: 8px 10px; background: var(--panel); border: 1px solid var(--line-strong); border-radius: var(--radius); box-shadow: var(--shadow-sm); }
 .multi-check-option { display: flex; align-items: center; gap: 6px; font-weight: 400; white-space: nowrap; }
+/* 감싼 화면의 `.field input { width: 100% }` 같은 규칙을 이겨 체크박스를 항상 맨 왼쪽 고정 크기로 둔다 */
+.multi-check-panel .multi-check-option input[type='checkbox'] { flex: none; width: auto; min-width: 0; margin: 0; padding: 0; }
