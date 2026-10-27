@@ -73,7 +73,7 @@ code{background:var(--soft);padding:1px 5px;border-radius:3px;font-size:12.5px}
 <main>
 
 <h1>NEOINE 영업관리 프로그램 PRD</h1>
-<p class="meta">제품 요구사항 문서 · 기준 문서: NEOINE_영업관리_프로그램_명세서_v4.pptx(표지 표기 v5.0, 20장) · 코드 기준: 2026-10-14 현재 main 작업 트리 · 문서 갱신: 2026-10-23 · 상태 표기: <span class="b ok">구현</span> <span class="b part">부분</span> <span class="b todo">예정</span> <span class="b chg">확인 필요</span></p>
+<p class="meta">제품 요구사항 문서 · 기준 문서: NEOINE_영업관리_프로그램_명세서_v4.pptx(표지 표기 v5.0, 20장) · 코드 기준: 2026-10-14 현재 main 작업 트리 · 문서 갱신: 2026-10-27 · 상태 표기: <span class="b ok">구현</span> <span class="b part">부분</span> <span class="b todo">예정</span> <span class="b chg">확인 필요</span></p>
 
 <h2 id="s1">1. 개요</h2>
 <h3>1.1 목적</h3>
@@ -94,7 +94,7 @@ code{background:var(--soft);padding:1px 5px;border-radius:3px;font-size:12.5px}
 <div class="cards">
 <div class="card"><div class="n">Deal·연락처·활동</div>원장과 Next Action 이력, 단계 변경 이력은 구현됨</div>
 <div class="card"><div class="n">인증·권한·사용자</div>AD 로그인, 3개 역할, 사용자 관리·퇴사 처리는 구현됨</div>
-<div class="card"><div class="n">Forecast·Dashboard·Reports</div>Forecast 요약은 실시간 집계와 월말 스냅숏으로 구현(P6). Dashboard는 Status·Forecast 탭으로 구현(P4, 2026-10-23). Reports만 “준비 중”(P7 대기). BANT Label은 구현됨</div>
+<div class="card"><div class="n">Forecast·Dashboard·Reports</div>Forecast 요약은 실시간 집계와 월말 스냅숏으로 구현(P6). Dashboard는 Status·Forecast 탭으로 구현(P4, 2026-10-23). Reports는 범용 리포트 디자이너(조회·저장·차트)로 구현(P7, 2026-10-27). Excel Export와 Status 전환 이력 분석은 남음. BANT Label은 구현됨</div>
 </div>
 <p>세부 목록은 <a href="#sa">부록 A(구현된 항목)</a>와 <a href="#sb">부록 B(구현할 항목)</a>에 있다.</p>
 
@@ -105,7 +105,7 @@ code{background:var(--soft);padding:1px 5px;border-radius:3px;font-size:12.5px}
 <tr><td>Dashboard</td><td>전체 Status 단계별 Pipeline, KPI, Closing 예상, 주의 필요 Deal, Drill-down</td></tr>
 <tr><td>Deals</td><td>등록 / 목록 / 상세 / Tracking(Next Action Update, 변경 이력)</td></tr>
 <tr><td>Forecast</td><td>담당자 / Quarter / Forecast Review</td></tr>
-<tr><td>Reports</td><td>담당자 / Vendor / Status / Forecast 분석, Excel Export</td></tr>
+<tr><td>Reports</td><td>담당자 / Vendor / Status / Forecast 분석, Excel Export. 2026-10-26 결정: 고정 분석 화면 대신 사용자가 설계·저장하는 범용 리포트로 만들고, Excel Export는 이후 단계로 미룸(7.4절)</td></tr>
 </table>
 <h3>2.2 후속(2차) 확장 — 이번 범위 아님</h3>
 <p>견적/PO 자동화, 이메일/캘린더 연동, 승인 Workflow, 외부 CRM 연계. (명세서 20장은 첨부파일도 2차로 두었으나, Deal 상세의 파일 업로드는 1차 범위로 당겼다. 7.7절)</p>
@@ -131,7 +131,7 @@ code{background:var(--soft);padding:1px 5px;border-radius:3px;font-size:12.5px}
 <tr><td>Dashboard</td><td>Status 탭(Overview) · Forecast 탭(Forecast / Closing) · <s>(Deal Drill-down 팝업)</s> 클릭 시 Deal 목록 이동(2026-10-23 결정)</td></tr>
 <tr><td>Deals</td><td>Deal 목록 · Deal 등록 · Deal 상세 · Next Action</td></tr>
 <tr><td>Forecast</td><td>Forecast 요약 (별도의 “담당자 상세” 메뉴는 없다)</td></tr>
-<tr><td>Reports</td><td>영업 분석 · Vendor / Solution · Status 분석 · Forecast 추이</td></tr>
+<tr><td>Reports</td><td><s>영업 분석 · Vendor / Solution · Status 분석 · Forecast 추이</s> 리포트 목록 · 리포트 디자이너 · 리포트 보기 · 리포트 편집(2026-10-26 결정: 고정 하위 화면 대신 사용자가 같은 분석을 리포트로 설계·저장, 7.4절)</td></tr>
 </table>
 <h3>4.1.1 Admin 메뉴 (확정)</h3>
 <p>사용자 메뉴 4개와 별도로 admin만 보이는 최상위 메뉴를 둔다. 구조는 다음과 같다.</p>
@@ -151,12 +151,14 @@ code{background:var(--soft);padding:1px 5px;border-radius:3px;font-size:12.5px}
 <tr><td><code>/deals/new</code>, <code>/deals/:dealCode/edit</code></td><td>Deal 등록·수정</td><td>sales·admin</td></tr>
 <tr><td><code>/deals/:dealCode</code></td><td>Deal 상세. 탭 3개: Deal 상세(기본, BANT·견적·POC·첨부 파일) / Actions(<code>?tab=actions</code>) / Deal History(<code>?tab=history</code>)</td><td>로그인 사용자</td></tr>
 <tr><td><code>/forecast</code></td><td>Forecast 요약(연도·Quarter·월·담당자·Vendor 필터, Deal 원장 실시간 집계)과 담당자 선택 시 같은 화면의 Deal 목록(P6 R1, 2026-10-21)</td><td>로그인 사용자</td></tr>
-<tr><td><code>/reports</code></td><td>“준비 중” 표시(P7 대기)</td><td>로그인 사용자</td></tr>
+<tr><td><code>/reports</code></td><td>저장 리포트 목록(P7, 2026-10-27): 검색·“내 리포트만”(URL <code>q</code>·<code>mine=1</code>), 데이터 태그(Deal·Deal Actions), 차트 종류, 비공개 표시, ⋯ 메뉴(보기·편집·복제·삭제), “+ 새 리포트”</td><td>로그인 사용자(모든 역할)</td></tr>
+<tr><td><code>/reports/new</code></td><td>리포트 디자이너: 필드 목록·컬럼 칩·컬럼 설정(포맷·그룹핑·집계)·조건(전부 AND 또는 전부 OR)·데이터 범위 표시·결과 표(합계 행·구성비)·차트 탭·생성 SQL 보기(읽기 전용)·저장 대화상자. 저장 전 떠날 때 확인(앱 안 링크·새로고침·탭 닫기)</td><td>로그인 사용자(모든 역할)</td></tr>
+<tr><td><code>/reports/:id</code>, <code>/reports/:id/edit</code></td><td>리포트 보기(열 때 최신 데이터로 다시 조회, 결과 표·차트), 편집(디자이너, 덮어쓰기·다른 이름으로 저장)</td><td>볼 수 있는 사용자(만든 사람·공개·admin). 수정·삭제 권한은 7.4절</td></tr>
 <tr><td><code>/admin/users</code>, <code>/admin/deal</code>, <code>/admin/contacts</code>, <code>/admin/integrations</code></td><td>사용자 관리, Deal 관리(코드·Label·경고 기준), contacts 관리, 외부연동(AD 설정)</td><td>admin</td></tr>
 <tr><td><code>/login</code>, <code>/setup</code></td><td>로그인, 최초 설정(AD 서버 → 저장 위치 → admin 등록)</td><td>공개</td></tr>
 </table>
 <p>구 경로 <code>/customers</code>·<code>/partners</code>·<code>/actions</code>는 폐지되어 알 수 없는 경로와 같이 <code>/</code>(→ <code>/deals</code>)로 이동한다. <code>/users</code>·<code>/settings</code>는 Admin 화면으로 리다이렉트한다. 앱은 항상 실제 서버 API를 쓰며 목업 모드는 없다(P8).</p>
-<div class="box warn">사용자 메뉴는 명세서대로 Dashboard / Deals / Forecast / Reports 4개로 확정했고 P8에서 구현했다(admin에게만 Admin 메뉴가 추가로 보인다). <span class="b ok">구현</span> Dashboard는 P4에서 구현했고(2026-10-23), Reports는 메뉴와 경로만 있고 내용은 “준비 중”이다(P7). Forecast는 P6 R1에서 구현했다. 고객·파트너는 별도 메뉴 없이 Deal 등록·수정·상세 안의 연락처 선택으로 다루고, 전체 관리는 Admin &gt; contacts 관리에서 한다(5.6절). 활동 검색은 Deal 상세의 Actions 탭으로 옮긴다(7.2절).</div>
+<div class="box warn">사용자 메뉴는 명세서대로 Dashboard / Deals / Forecast / Reports 4개로 확정했고 P8에서 구현했다(admin에게만 Admin 메뉴가 추가로 보인다). <span class="b ok">구현</span> Dashboard는 P4에서 구현했고(2026-10-23), Reports는 P7에서 범용 리포트 디자이너로 구현했다(2026-10-27, 7.4절). Forecast는 P6 R1에서 구현했다. 고객·파트너는 별도 메뉴 없이 Deal 등록·수정·상세 안의 연락처 선택으로 다루고, 전체 관리는 Admin &gt; contacts 관리에서 한다(5.6절). 활동 검색은 Deal 상세의 Actions 탭으로 옮긴다(7.2절).</div>
 
 <h2 id="s5">5. 데이터 모델</h2>
 <p>명세서는 Master / Update / Forecast / Code 4개 테이블 구조를 제시한다. 현재 DB는 정규화되어 있어 매핑이 다르다.</p>
@@ -376,15 +378,29 @@ code{background:var(--soft);padding:1px 5px;border-radius:3px;font-size:12.5px}
 </table>
 
 <h3 id="s7-4">7.4 Reports</h3>
+<p>명세서는 고정 분석 화면(담당자 실적·Vendor/Solution·Status 전환·Forecast Mix·Forecast 추이)과 Excel Export를 요구한다. <b>결정(2026-10-26, 시안 <code>docs/temp/reports-ui.html</code>, 2026-10-27 확정 문서로 옮긴 뒤 삭제 — 커밋 <code>da1f67a</code>에 있음)</b>: 고정 리포트를 미리 만드는 대신 사용자가 Deal·Deal Actions 필드로 리포트를 직접 설계·조회하고 이름을 붙여 저장하는 <b>범용 리포트 디자이너</b>로 만든다. 저장한 리포트는 열 때마다 최신 데이터로 다시 조회하고, 결과로 차트를 만든다. 아래 RP 행은 명세서 요구를 이 디자이너로 어디까지 만들 수 있는지 정리한 것이다. <span class="b part">부분</span> P7(2026-10-27, 1~4단계)</p>
 <table>
 <tr><th>ID</th><th>요구사항</th><th>상태</th></tr>
-<tr><td>RP-01</td><td>담당자 실적: Pipeline / Commit / Won의 건수·금액·달성률.</td><td><span class="b todo">예정</span></td></tr>
-<tr><td>RP-02</td><td>Vendor / Solution별 Pipeline / Won.</td><td><span class="b todo">예정</span></td></tr>
-<tr><td>RP-03</td><td>Status 전환: 기회발굴 → 계약완료 단계별 건수·전환율, 체류 Deal로 병목 확인.</td><td><span class="b todo">예정</span> 단계 변경 이력 데이터는 이미 있음</td></tr>
-<tr><td>RP-04</td><td>Forecast Mix: Pipeline / Best / Commit 금액·건수 비중.</td><td><span class="b todo">예정</span></td></tr>
-<tr><td>RP-05</td><td>Forecast 추이: 담당자 × 월 × (Won / Commit / Most Likely / Best / Pipeline)의 건수·금액을 <b>표와 그래프 둘 다</b> 제공한다.</td><td><span class="b todo">예정</span> 그래프 라이브러리가 필요하면 의존성 승인 필요</td></tr>
-<tr><td>RP-06</td><td>조회 조건을 유지한 Excel Export.</td><td><span class="b todo">예정</span> 새 의존성이 필요하면 승인 필요</td></tr>
+<tr><td>RP-01</td><td>담당자 실적: Pipeline / Commit / Won의 건수·금액·달성률.</td><td><span class="b part">부분</span> 담당자 × Forecast로 그룹핑해 금액 합계·건수, 구성비(%) 포맷으로 담당자 안 비중까지 만들 수 있다. <b>달성률</b>은 목표(Quota) 데이터가 없어 만들 수 없다(목표 관리는 범위 밖)</td></tr>
+<tr><td>RP-02</td><td>Vendor / Solution별 Pipeline / Won.</td><td><span class="b ok">구현</span> Vendor·Solution(자유 텍스트) × Forecast 또는 Forecast 구분(Open/Won/Lost)으로 그룹핑, 금액 합계·건수, 표와 차트</td></tr>
+<tr><td>RP-03</td><td>Status 전환: 기회발굴 → 계약완료 단계별 건수·전환율, 체류 Deal로 병목 확인.</td><td><span class="b part">부분</span> <b>현재</b> Status별 건수·금액과 현재 Status 체류 일수(<code>Status 체류 일수</code>·<code>Status 진입 시각</code> 필드, 평균·최대)로 오래 머문 Deal은 찾을 수 있다. 단계 사이 <b>전환율과 단계별 체류 이력</b>은 만들 수 없다: 과거 Status 변경은 Deal History(5.7절)에 text로만 남고 Reports 데이터에 Deal History를 넣지 않기로 했다(Q9). <s>단계 변경 이력 데이터는 이미 있음</s></td></tr>
+<tr><td>RP-04</td><td>Forecast Mix: Pipeline / Best / Commit 금액·건수 비중.</td><td><span class="b ok">구현</span> Forecast로 그룹핑해 금액 합계·건수, 구성비(%) 포맷과 원·도넛·100% 누적 차트. 비율은 서버 <code>totals</code> 기준</td></tr>
+<tr><td>RP-05</td><td>Forecast 추이: 담당자 × 월 × (Won / Commit / Most Likely / Best / Pipeline)의 건수·금액을 <b>표와 그래프 둘 다</b> 제공한다.</td><td><span class="b ok">구현</span> 표는 담당자 × Expected Close(월) × Forecast 그룹핑으로 만든다. 차트는 그룹 2개(범주 + 계열)까지라 월 × Forecast 차트에 담당자는 조건으로 고른다. “추이”는 <b>현재</b> Forecast 값을 Expected Close 월로 나눈 것이며, 과거 시점의 Forecast 변화(P6 월말 스냅숏)는 Reports 데이터에 없다(Forecast 화면 “기준 시점”에서 본다). 차트 데이터 레이블 의존성 <code>chartjs-plugin-datalabels</code> 2.2.0은 사용자 승인(2026-10-27)</td></tr>
+<tr><td>RP-06</td><td>조회 조건을 유지한 Excel Export.</td><td><span class="b todo">예정</span> 이후 단계(Q8, 이번 범위 밖). 새 의존성이 필요하면 승인 필요</td></tr>
 </table>
+<p>구현 내용(2026-10-27):</p>
+<table>
+<tr><th>항목</th><th>내용</th><th>상태</th></tr>
+<tr><td>데이터·필드</td><td>Deal 28개·Deal Actions 12개 필드(서버 카탈로그 <code>GET /api/v1/reports/fields</code>). 두 엔티티 컬럼을 섞어 고른다. Deal History·Forecast 스냅숏은 포함하지 않는다(Q9)</td><td><span class="b ok">구현</span> 1단계</td></tr>
+<tr><td>컬럼·조건</td><td>컬럼 1~30개(같은 필드 여러 번 가능, 표시 이름·포맷), 조건 0~20개, 결합은 리포트 단위로 <b>전부 AND 또는 전부 OR</b>(Q4), 정렬 1개, 최대 행 100 / 1,000 / 10,000. 상대 기간(올해·이번 분기·이번 달·최근 N일·오늘 이전)은 서버 업무 날짜로 푼다</td><td><span class="b ok">구현</span> 1·2단계</td></tr>
+<tr><td>그룹핑·집계</td><td>그룹 컬럼이 있으면 나머지는 집계 필수: 숫자는 합계·평균·최소·최대, 그 밖은 건수·고유 건수(Q3). 날짜는 연·분기·월로 묶는다. 결과 표 합계 행과 구성비(%)는 서버가 그룹 없이 한 번 더 집계한 <code>totals</code>로 계산(Q-B)</td><td><span class="b ok">구현</span> 1·2단계</td></tr>
+<tr><td>행 단위와 Deal당 한 번</td><td>Action 필드가 컬럼에 있으면 행 = Action(JOIN), 조건에만 있으면 행 = Deal(EXISTS, Q2). 행이 Action이어도 Deal 금액·Users·체류 일수의 합계·평균과 Deal 필드 건수는 <b>Deal마다 한 번</b>(Q5=B, Q-A). 화면 위쪽 데이터 범위 표시로 지금 행 단위를 알린다</td><td><span class="b ok">구현</span> 1·2단계</td></tr>
+<tr><td>SQL과 안전</td><td>사용자는 SQL을 쓰거나 고칠 수 없다(Q1). 서버가 허용 필드 목록과 파라미터 바인딩으로만 SQL을 만들고 읽기 전용·문장 시간 제한 10초로 실행(그룹핑 리포트는 문장 2개라 최대 약 20초, 사용자 수용). “생성 SQL 보기”는 읽기 전용 표시이고 저장된 SQL은 실행에 쓰지 않는다. 요청 빈도 제한은 두지 않는다(받아들인 위험)</td><td><span class="b ok">구현</span> 1단계</td></tr>
+<tr><td>저장·권한</td><td>이름(100자, <b>모든 리포트 사이에서 대소문자 무시 고유</b>)·설명(1,000자)·공개 범위(모든 사용자 / 나만 보기, Q6). 만들기·조회는 <b>로그인한 모든 역할</b>(user 포함). 보기는 만든 사람·공개 리포트·admin(admin은 남의 비공개도 “비공개” 표시로 봄), 수정은 볼 수 있는 리포트 모두, 삭제·공개 범위 변경은 만든 사람·admin. 볼 수 없는 리포트는 404. 덮어쓰기 충돌은 409(낙관적 잠금), 마지막 수정자 표시. 리포트를 만들거나 수정한 사용자는 삭제 대신 퇴사 처리되고 이름은 “이름(퇴사)”로 남는다</td><td><span class="b ok">구현</span> 3단계</td></tr>
+<tr><td>차트</td><td>결과 카드의 “차트” 탭과 보기 화면. 종류 10개(세로·가로 막대, 누적, 100% 누적, 꺾은선, 영역, 원, 도넛, 분산형, 콤보), 범주·계열은 그룹 컬럼, 값은 집계 컬럼(최대 10개), 행/열 전환, 제목, 범례, 데이터 레이블, 축 제목, 세로축 최소·최대, 콤보 보조 축. 그룹 3개 이상이면 차트를 만들 수 없다. 저장된 차트가 깨지면 차트 없이 열고 안내</td><td><span class="b ok">구현</span> 4단계</td></tr>
+<tr><td>범위 밖</td><td>Excel 내보내기(Q8), AND/OR 섞기·묶음(Q4), Deal History 데이터(Q9), Drill-down(Q7: 두지 않음)</td><td><span class="b todo">예정</span>(Drill-down 제외)</td></tr>
+</table>
+<div class="box"><b>결정 이력</b>: 2026-10-26 시안 Q1~Q9 — Q1 SQL 직접 작성 불가, Q2 Action이 조건에만 있으면 EXISTS, Q3 그룹핑 시 숫자가 아닌 컬럼은 건수·고유 건수만, Q4 전부 AND 또는 전부 OR, Q5 Action 행에서 Deal 숫자는 Deal마다 한 번, Q6 공개 범위 “모든 사용자 / 나만 보기”, Q7 Drill-down 없음, Q8 Excel은 이후 단계, Q9 데이터는 Deal·Deal Actions만. 2026-10-27 — 1단계 Q-A(Deal 필드 건수도 Deal당 한 번)·Q-B(합계 행·구성비는 서버 <code>totals</code>), 2단계 Q1=B(디자이너는 로그인한 모든 역할)·Q2=A(떠날 때 확인은 링크·새로고침·탭 닫기만, 뒤로 가기 제외), 3단계 Q1~Q4=A(admin은 전부 보기·수정·삭제, 덮어쓰기 낙관적 잠금, 마지막 수정자 기록, 공개 범위 변경은 만든 사람·admin)와 리뷰 후 이름 전체 고유·깨진 저장 정의는 목록에 남기고 상세·실행·복제만 422, 4단계 Q1 차트 10종·Q3=A(정의와 맞지 않는 차트는 422)·Q4=A(깨진 저장 차트는 차트 없이 열기)·Q5=B(<code>chartjs-plugin-datalabels</code> 추가 승인). 마이그레이션은 3단계 <code>reports</code> 테이블 1개(순수 expand)</div>
 
 <h3 id="s7-5">7.5 공통·관리</h3>
 <table>
@@ -430,8 +446,8 @@ code{background:var(--soft);padding:1px 5px;border-radius:3px;font-size:12.5px}
 <tr><td>R02</td><td>Deal 등록과 Deal 및 Deal과 연결된 모든 정보의 변경(Status / Forecast / 금액 / Expected Close / Owner / 파트너 / 연락처 / BANT Label / Action 등록·수정·삭제 / 첨부 파일 업로드·삭제)을 Deal History에 저장</td><td><span class="b ok">구현</span> P1·P2·P2b</td></tr>
 <tr><td>R03</td><td>Next Action Due 경과 → “기한초과”</td><td><span class="b ok">구현</span> P3, 서버 계산. <b>결정(2026-10-20)</b>: Next Action이 있는 가장 최근 Action의 Due 기준, Next Action 상태와 무관</td></tr>
 <tr><td>R04</td><td>14일 이상 Update 없음 → “미업데이트”(일수는 CM-05 설정값)</td><td><span class="b ok">구현</span> P3. <b>결정(2026-10-20)</b>: Update는 Action 등록(진행사항만 있는 Action 포함)만 뜻하고 Deal 자체 수정은 제외. Action이 없으면 Deal 등록 시각부터 센다</td></tr>
-<tr><td>R05</td><td>Status 단계별 체류기간 계산(Status 진입일 기록)</td><td><span class="b ok">구현</span> P3: 현재 Status 진입 시각과 체류 일수만, 화면은 Deal 상세 Status 옆 “N일째”만(2026-10-17 결정). 단계별 체류 이력·보고는 P7</td></tr>
-<tr><td>R06</td><td>Forecast가 Won/Lost → Open Pipeline에서 제외</td><td><span class="b part">부분</span> P3: 종결 판정 규칙과 Risk 제외까지(2026-10-17 결정). 집계는 P6(Forecast Open 합계)·P4(Dashboard Open 합계, Status 막대 Lost 제외)에서 구현, <s>Deal 목록 “Forecast 구분” 필터(<code>forecast_outcome</code>)로 Open Pipeline 조회 가능(2026-10-23)</s> → 2026-10-26 목록 화면에서 폐지(API 파라미터는 유지). Open Pipeline은 Forecast 다중 선택(Open 코드 전체)으로 조회. Reports는 P7</td></tr>
+<tr><td>R05</td><td>Status 단계별 체류기간 계산(Status 진입일 기록)</td><td><span class="b ok">구현</span> P3: 현재 Status 진입 시각과 체류 일수만, 화면은 Deal 상세 Status 옆 “N일째”만(2026-10-17 결정). Reports(P7, 2026-10-27)는 현재 Status의 체류 일수·진입 시각만 필드로 제공한다. <b>단계별 체류 이력·보고는 미구현</b>: 과거 체류 이력을 남기지 않고 Deal History는 Reports 데이터 밖(Q9, 7.4절 RP-03)</td></tr>
+<tr><td>R06</td><td>Forecast가 Won/Lost → Open Pipeline에서 제외</td><td><span class="b part">부분</span> P3: 종결 판정 규칙과 Risk 제외까지(2026-10-17 결정). 집계는 P6(Forecast Open 합계)·P4(Dashboard Open 합계, Status 막대 Lost 제외)에서 구현, <s>Deal 목록 “Forecast 구분” 필터(<code>forecast_outcome</code>)로 Open Pipeline 조회 가능(2026-10-23)</s> → 2026-10-26 목록 화면에서 폐지(API 파라미터는 유지). Open Pipeline은 Forecast 다중 선택(Open 코드 전체)으로 조회. Reports(P7, 2026-10-27)는 <code>Forecast 구분</code>(Open/Won/Lost) 필드의 조건·그룹핑으로 Open Pipeline을 집계하고, <code>경고</code> 필드는 종결 Deal에 값이 없다(같은 판정식)</td></tr>
 <tr><td>R08</td><td>Dashboard 클릭 → 동일 조건 Deal 목록 Drill-down</td><td><span class="b ok">구현</span> P4(2026-10-23): 팝업이 아니라 Deal 목록 페이지로 이동(DB-04). 숫자마다 서버 조건 정의(<code>DashboardCriteria</code>)와 프런트 이동 URL(<code>drillDown.ts</code>). 가 1:1이라 목록 “총 N건”·금액 합이 누른 숫자와 같다. 2026-10-26부터 Lost 제외·Open 조건은 Forecast 구분(<code>outcome</code>) 대신 해당 Forecast 코드 묶음(다중 선택)으로 넘긴다</td></tr>
 <tr><td>R09</td><td>Forecast가 Won(또는 Status가 계약완료)이 되면 매출금액과 <code>revenue_date</code>를 실제 값으로 입력받아 갱신하고, Lost는 <code>revenue_date</code>를 그대로 둔다(6.6절)</td><td><span class="b ok">구현</span> P1</td></tr>
 <tr><td>R10</td><td>종결된 Deal(Forecast Won/Lost)의 Forecast를 바꾸거나 Status를 계약완료에서 이전 단계로 바꾸면, 동기화할 반대쪽 값을 사용자에게 묻고 선택한 값으로 함께 변경한다(6.7절)</td><td><span class="b ok">구현</span> P1</td></tr>
@@ -442,7 +458,7 @@ code{background:var(--soft);padding:1px 5px;border-radius:3px;font-size:12.5px}
 <h2 id="s9">9. 비기능 요구사항</h2>
 <table>
 <tr><th>항목</th><th>요구사항</th><th>상태</th></tr>
-<tr><td>데이터 정합성</td><td>Dashboard 합계 = Forecast 합계 = Deal 목록 원장. 단일 집계 로직을 쓰고 테스트로 일치를 검증한다.</td><td><span class="b ok">구현</span> Forecast(P6)·Dashboard(P4, 2026-10-23): 모든 집계가 Deal 목록과 같은 WHERE(<code>infra/db/deal_search.conditions</code>)를 쓰고, Dashboard Forecast 타일은 Forecast 요약과 같은 Port·도메인 함수를 재사용한다. functional(원장 일치)·프런트 Fake 계약 테스트로 검증. Reports는 P7</td></tr>
+<tr><td>데이터 정합성</td><td>Dashboard 합계 = Forecast 합계 = Deal 목록 원장. 단일 집계 로직을 쓰고 테스트로 일치를 검증한다.</td><td><span class="b ok">구현</span> Forecast(P6)·Dashboard(P4, 2026-10-23): 모든 집계가 Deal 목록과 같은 WHERE(<code>infra/db/deal_search.conditions</code>)를 쓰고, Dashboard Forecast 타일은 Forecast 요약과 같은 Port·도메인 함수를 재사용한다. functional(원장 일치)·프런트 Fake 계약 테스트로 검증. Reports(P7, 2026-10-27)는 정의를 SQL로 바꾸는 별도 생성기(<code>infra/db/report_*.py</code>)이지만 경고 판정식은 Deal 목록과 같은 <code>infra/db/deal_risk.py</code>를 쓰고, Action 행에서도 Deal 숫자는 Deal마다 한 번 집계한다. functional(“Vendor × 분기 금액 합계(Lost 제외, 올해)가 Deals 목록 숫자와 같다”)과 실제 DB 계약 테스트(경고·체류 일수·최종 업데이트가 목록과 같음)로 검증</td></tr>
 <tr><td>구조</td><td>FastAPI(DDD 4계층, import-linter로 강제) + React. 프로파일 local / dev / product.</td><td><span class="b ok">구현</span></td></tr>
 <tr><td>배포</td><td>온프레미스 Linux, Jenkins CI/CD, Nginx 정적 서빙 + <code>/api</code> 프록시. product 승인 후 순차 배포(Jenkins의 dev 자동 배포는 2026-10-20 제거, dev DB는 로컬 <code>start-backend.sh --profile dev</code>로 사용).</td><td><span class="b ok">구현</span></td></tr>
 <tr><td>마이그레이션</td><td>Alembic. local·dev는 로컬 실행 스크립트가 자동 적용, product는 사람 승인. 원칙은 expand/contract.</td><td><span class="b ok">구현</span> 예외 3건은 CLAUDE.md에 기록</td></tr>
@@ -458,7 +474,7 @@ code{background:var(--soft);padding:1px 5px;border-radius:3px;font-size:12.5px}
 <tr><td>1</td><td>Deal 등록·수정·조회 및 추가 컬럼 저장</td><td><span class="b ok">구현</span> P1</td></tr>
 <tr><td>2</td><td>Status 전체 단계 Dashboard 집계 정확성</td><td><span class="b ok">구현</span> P4(2026-10-23, Lost 제외 결정)</td></tr>
 <tr><td>3</td><td>Filter / Sort / Drill-down 조건 유지</td><td><span class="b ok">구현</span> Filter·Sort 조건 유지(P5), Dashboard → Deal 목록 Drill-down(P4, 2026-10-23)</td></tr>
-<tr><td>4</td><td>Forecast 월·분기·담당자 집계 정확성</td><td><span class="b todo">예정</span></td></tr>
+<tr><td>4</td><td>Forecast 월·분기·담당자 집계 정확성</td><td><span class="b ok">구현</span> P6 R1(2026-10-21): Deal 목록과 같은 조건으로 실시간 집계해 원장과 일치(functional 원장 일치 테스트), 월말 스냅숏은 P6 R2</td></tr>
 <tr><td>5</td><td>Next Action History / 기한초과 / 미업데이트</td><td><span class="b ok">구현</span> P2·P3</td></tr>
 <tr><td>6</td><td>Dashboard 합계와 Deal 목록 원장 일치</td><td><span class="b ok">구현</span> P4(2026-10-23, 9장 데이터 정합성)</td></tr>
 <tr><td>7</td><td>첫 Dashboard에서 모든 Status 단계가 정확히 표시되고 클릭 시 해당 Deal이 일치</td><td><span class="b ok">구현</span> P4(2026-10-23). 로그인 후 첫 화면은 <code>/deals</code> 유지(Q5), Dashboard는 메뉴로 연다</td></tr>
@@ -485,7 +501,8 @@ code{background:var(--soft);padding:1px 5px;border-radius:3px;font-size:12.5px}
 <tr><td>Users</td><td>견적의 단위가 사용자 수이므로 “Users”라 부르는 Deal 정보. 고객사 직원 수가 아니다. 필수이며 0 이상 정수(0은 '실제로 0'과 '이전에 비어 있던 값'을 함께 나타낸다)</td></tr>
 <tr><td>contacts 관리</td><td>admin 메뉴에서 모든 고객·파트너 CRUD. Deal에 연결된 연락처는 삭제 불가</td></tr>
 <tr><td>코드 관리</td><td>Status·Forecast 코드는 admin이 관리. 시스템 내부 고유 코드 값으로 연결되고 이름·순서는 자유롭게 변경 가능. 참조된 코드는 삭제 불가</td></tr>
-<tr><td>Forecast 추이</td><td>표와 그래프 둘 다 제공</td></tr>
+<tr><td>Forecast 추이</td><td>표와 그래프 둘 다 제공. 2026-10-27: Reports 디자이너의 결과 표와 차트로 만든다(현재 Forecast 값 × Expected Close 월)</td></tr>
+<tr><td>Reports</td><td>2026-10-26·27. 고정 분석 화면 대신 범용 리포트 디자이너(Deal·Deal Actions 필드, 컬럼·조건·그룹핑·집계, 저장, 차트). SQL은 서버만 생성(사용자 작성 불가), 조건은 전부 AND 또는 전부 OR, Action 행에서도 Deal 숫자는 Deal마다 한 번, 공개 범위 모든 사용자 / 나만 보기, 만들기는 모든 역할, Drill-down 없음, Excel Export와 Deal History 데이터는 이후 단계(7.4절 결정 이력)</td></tr>
 <tr><td>사용 규모</td><td>사용자 100명 미만. 대용량 처리 고려 불필요</td></tr>
 <tr><td>Deal History</td><td>Deal 및 연결된 모든 정보(파트너, Action, 연락처, Label, 파일 등)의 변경을 <code>deal_history</code> 하나에 기록. Deal 상세의 Deal History 탭에서 조회</td></tr>
 <tr><td>파일 저장 구조</td><td>저장 위치 아래 Deal id별 디렉터리. Deal 삭제 시 디렉터리 삭제. 같은 이름 파일은 교체/skip을 사용자에게 확인. 저장 위치 변경 시 기존 파일 이동은 관리자 수작업(시스템 범위 밖)</td></tr>
@@ -573,8 +590,8 @@ code{background:var(--soft);padding:1px 5px;border-radius:3px;font-size:12.5px}
 <tr><td>P4 <span class="b ok">완료</span></td><td>Dashboard</td><td>단계 Funnel(DB-01), KPI(DB-02), 공통 필터(DB-03), <s>Drill-down 팝업</s> Deal 목록 이동 Drill-down(DB-04, R08), 주의 필요 Deal(DB-05), Forecast &amp; Closing(DB-06), <s>Deal 목록 “Forecast 구분” 필터</s>(2026-10-26 폐지)</td><td>2026-10-23: 사용자 결정 Q1~Q5(A·A·A·A·B), 차트 의존성 chart.js·react-chartjs-2 사용자 지정·승인. 마이그레이션 없음</td></tr>
 <tr><td>P5 <span class="b ok">완료</span></td><td>Deals 목록 개선</td><td>컬럼 확장·Quick View(DL-05), Solution·Forecast·Year/Quarter 필터(DL-04), 조건 유지(DL-06), Risk 색상(DL-07), Inline Update(DL-08)</td><td>—</td></tr>
 <tr><td>P6 <span class="b ok">완료</span></td><td>Forecast 메뉴</td><td>Forecast 요약과 화면 안 담당자별 Deal 목록(FC-04·05, “담당자 상세” 메뉴 없음), 기간 자동 집계(R01), 월말 Batch(FC-06)</td><td>2026-10-21: R1 실시간 요약·담당자 Deal 목록·월 필터(Deal 목록 포함), R2 월말 스냅숏(systemd timer, 기준 시점 선택). 서버 반영은 사람이 <code>bootstrap.sh</code> 재실행</td></tr>
-<tr><td>P7</td><td>Reports</td><td>담당자 실적, Vendor/Solution, Status 전환, Forecast Mix, Forecast 추이(표·그래프), Excel Export(RP-01~06)</td><td>차트·Excel 의존성 승인</td></tr>
-<tr><td>P8 <span class="b ok">완료</span></td><td>메뉴 정리·실제 연동 전환</td><td>사용자 메뉴 4개 재편(Dashboard·Forecast·Reports 추가, 내용은 P4·P6·P7 전까지 “준비 중” — Forecast는 서버 501일 때만), <s>목록 BANT 열(LB-06)</s>(2026-10-23 폐지), 앱은 항상 HTTP(목업 모드·MockBanner 제거, mock은 테스트 전용 Fake로 이동), 빠른 로그인은 서버 개발용 로그인(local·dev)일 때 역할 3개</td><td>—</td></tr>
+<tr><td>P7 <span class="b part">부분</span></td><td>Reports</td><td><s>담당자 실적, Vendor/Solution, Status 전환, Forecast Mix, Forecast 추이(표·그래프), Excel Export(RP-01~06)</s> 범용 리포트 디자이너로 구현(2026-10-27): 1단계 필드 카탈로그·조회 엔진, 2단계 디자이너 화면, 3단계 저장·목록·열기·편집(<code>reports</code> 테이블), 4단계 차트. RP-02·04·05 충족, RP-01(달성률)·RP-03(전환율·체류 이력) 부분, <b>Excel Export(RP-06) 남음</b></td><td>2026-10-26 시안 Q1~Q9, 2026-10-27 단계별 결정(7.4절). 차트는 기존 chart.js·react-chartjs-2 + <code>chartjs-plugin-datalabels</code> 2.2.0(사용자 승인). Excel 의존성은 Export 단계에서 승인. 마이그레이션 <code>f1c6a8e2b904</code>(순수 expand)</td></tr>
+<tr><td>P8 <span class="b ok">완료</span></td><td>메뉴 정리·실제 연동 전환</td><td>사용자 메뉴 4개 재편(Dashboard·Forecast·Reports 추가, 내용은 P4·P6·P7 전까지 “준비 중”이었고 Dashboard는 P4, Forecast는 P6, Reports는 2026-10-27 P7로 대체), <s>목록 BANT 열(LB-06)</s>(2026-10-23 폐지), 앱은 항상 HTTP(목업 모드·MockBanner 제거, mock은 테스트 전용 Fake로 이동), 빠른 로그인은 서버 개발용 로그인(local·dev)일 때 역할 3개</td><td>—</td></tr>
 </table>
 <h3>B.1 개발 시 공통 조건</h3>
 <ul>
@@ -590,14 +607,14 @@ code{background:var(--soft);padding:1px 5px;border-radius:3px;font-size:12.5px}
 <table>
 <tr><th>#</th><th>항목</th><th>명세서</th><th>현재 구현</th><th>PRD 확정 기준</th><th>단계</th></tr>
 <tr><td>A1</td><td>Dashboard</td><td>첫 화면에 Status Funnel·KPI·주의 Deal</td><td>구현(2026-10-23). 첫 화면은 <code>/deals</code> 유지</td><td>명세서대로(Drill-down은 팝업 대신 Deal 목록 이동)</td><td>P4 <span class="b ok">완료</span></td></tr>
-<tr><td>A2</td><td>Forecast 메뉴</td><td>요약·담당자 상세·Review(“담당자 상세” 메뉴는 두지 않음)</td><td>없음</td><td>명세서대로(“담당자 상세” 메뉴 제외)</td><td>P6</td></tr>
-<tr><td>A3</td><td>Reports 메뉴</td><td>담당자·Vendor·Status·Forecast 분석</td><td>없음</td><td>명세서대로(Forecast 추이는 표+그래프)</td><td>P7</td></tr>
-<tr><td>A4</td><td>Forecast 값</td><td>Pipeline / Best / Most Likely / Commit / Won / Lost</td><td>없음</td><td>명세서 슬라이드 4 기준 그대로</td><td>P0·P1</td></tr>
+<tr><td>A2</td><td>Forecast 메뉴</td><td>요약·담당자 상세·Review(“담당자 상세” 메뉴는 두지 않음)</td><td>구현(2026-10-21): 요약 화면에서 담당자 선택 시 같은 화면에 Deal 목록(7.3절 FC-04·FC-05)</td><td>명세서대로(“담당자 상세” 메뉴 제외)</td><td>P6 <span class="b ok">완료</span></td></tr>
+<tr><td>A3</td><td>Reports 메뉴</td><td>담당자·Vendor·Status·Forecast 분석</td><td>범용 리포트 디자이너(조회·저장·차트, 2026-10-27)</td><td><s>명세서대로(Forecast 추이는 표+그래프)</s> 2026-10-26 결정: 명세서의 분석을 사용자가 설계·저장하는 범용 리포트로 만든다(Forecast 추이는 표+차트). Status 전환율·단계 체류 이력·달성률은 데이터가 없어 미충족(7.4절)</td><td>P7 <span class="b part">부분</span></td></tr>
+<tr><td>A4</td><td>Forecast 값</td><td>Pipeline / Best / Most Likely / Commit / Won / Lost</td><td>구현(P0 코드 관리·P1 Deal 필드, 7.3절 FC-02)</td><td>명세서 슬라이드 4 기준 그대로</td><td>P0·P1</td></tr>
 <tr><td>A5</td><td>견적·POC·구매절차</td><td>견적 제출여부·제출일, POC 여부·완료일, 구매절차</td><td>없음</td><td>명세서대로</td><td>P1</td></tr>
 <tr><td>A6</td><td>경고와 체류기간</td><td>기한초과, 14일 미업데이트, 단계별 체류기간</td><td>없음(Due Date 데이터만 있음)</td><td>명세서대로</td><td>P3</td></tr>
 <tr><td>A7</td><td>경고 기준 설정</td><td>Admin 설정값</td><td>없음</td><td>명세서대로</td><td>P3</td></tr>
-<tr><td>A8</td><td>Forecast 월말 Batch</td><td>매월 말일 Batch로 집계 테이블 갱신</td><td>없음</td><td>명세서대로</td><td>P6</td></tr>
-<tr><td>A9</td><td>Excel Export</td><td>조회 조건 유지</td><td>없음</td><td>명세서대로</td><td>P7</td></tr>
+<tr><td>A8</td><td>Forecast 월말 Batch</td><td>매월 말일 Batch로 집계 테이블 갱신</td><td>구현(2026-10-21): 매월 1일 00:05 전월분 스냅숏(systemd timer), 화면 “기준 시점”(7.3절 FC-06)</td><td>명세서대로(말일 대신 다음 달 1일 00:05 실행)</td><td>P6 <span class="b ok">완료</span></td></tr>
+<tr><td>A9</td><td>Excel Export</td><td>조회 조건 유지</td><td>없음</td><td>명세서대로. 2026-10-26 Q8: Reports 이후 단계(이번 범위 밖)</td><td>P7 이후 <span class="b todo">예정</span></td></tr>
 <tr><td>A10</td><td>Inline Update</td><td>Status·Forecast 등 일부 권한 범위</td><td>없음</td><td>명세서 취지대로, 대상은 Status / Forecast / 금액 / Expected Close 네 컬럼</td><td>P5</td></tr>
 <tr><td>A11</td><td>사용자 메뉴</td><td>Dashboard / Deals / Forecast / Reports 4개</td><td>Deals·고객·파트너·활동 등 별도 메뉴</td><td>명세서대로 4개(+admin 전용 Admin 메뉴)</td><td>P8 <span class="b ok">완료</span></td></tr>
 <tr><td>A12</td><td>Status 단계</td><td>7단계(기회발굴 … 계약완료)</td><td>7단계 + <code>lost</code>, 고정 enum</td><td>명세서 7단계, POC는 준비·완료 두 개. <code>lost</code> 제거. Status는 DB 관리 코드</td><td>P0·P1</td></tr>

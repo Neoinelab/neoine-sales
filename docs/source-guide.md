@@ -5,12 +5,12 @@
 
 ## 1. 한눈에 보기
 
-영업 Deal 관리 웹 앱입니다. Deal(영업 기회)을 Status·Forecast·BANT·연락처(고객·파트너)와 함께 기록하고, Deal별 Action(진행사항·Next Action)·첨부 파일·변경 이력을 관리합니다. 미업데이트·기한 초과 Deal은 서버가 경고(Risk)로 계산합니다. PRD의 P0~P6, P8까지 구현했고(Forecast는 P6, Dashboard는 P4·2026-10-23) Reports(P7)만 메뉴만 있고 "준비 중"입니다.
+영업 Deal 관리 웹 앱입니다. Deal(영업 기회)을 Status·Forecast·BANT·연락처(고객·파트너)와 함께 기록하고, Deal별 Action(진행사항·Next Action)·첨부 파일·변경 이력을 관리합니다. 미업데이트·기한 초과 Deal은 서버가 경고(Risk)로 계산합니다. PRD의 P0~P8을 구현했습니다(Forecast는 P6, Dashboard는 P4·2026-10-23, Reports는 P7·2026-10-27 범용 리포트 디자이너: 조회·저장·차트). Reports의 Excel Export는 이후 단계입니다.
 
 | 영역 | 기술 |
 | --- | --- |
 | 백엔드 | Python 3.14, FastAPI, SQLAlchemy 2(async) + asyncpg, Alembic, ldap3, pydantic-settings, structlog |
-| 프런트엔드 | React 19, TypeScript, Vite, React Router, TanStack Query v5, openapi-fetch, Chart.js 4.5.1 + react-chartjs-2 5.3.1(Dashboard 차트), Vitest |
+| 프런트엔드 | React 19, TypeScript, Vite, React Router, TanStack Query v5, openapi-fetch, Chart.js 4.5.1 + react-chartjs-2 5.3.1(Dashboard·Reports 차트), chartjs-plugin-datalabels 2.2.0(Reports 차트 데이터 레이블, 인스턴스 plugins로만 사용), Vitest |
 | DB | PostgreSQL (DB명 `neoinesales`) |
 | 인증 | AD(LDAP) 아이디·비밀번호 → 서버 세션(HttpOnly 쿠키). local·dev는 개발용 빠른 로그인(기본 켜짐, product는 불가) |
 | 권한 | 역할 3종: `admin`(전부 + Admin 메뉴), `sales`(업무 쓰기), `user`(조회만) |
@@ -59,7 +59,7 @@ infra ──┘
 | `pyproject.toml` | 의존성, ruff·mypy·pytest·import-linter 설정의 **정본** |
 | `uv.lock`, `.python-version` | 잠긴 의존성, Python 버전(3.14) |
 | `.env.example` | 필요한 환경변수 이름 예시(실제 `.env`는 Git 제외, 읽지도 쓰지도 않음) |
-| `alembic.ini`, `alembic/` | DB 마이그레이션. `versions/`에 리비전 22개, head는 `d4b8f6a2c013`(Solution 자유 텍스트, 2026-10-22). P0 이후는 단계별 단일 스키마 마이그레이션(코드·BANT Label → 연락처 → Deal 모델 v2 → Action 스냅숏 → 첨부 → 경고 기준 → Vendor·Solution → Action 유형 → Next Action 상태 → Deal users 필수 → bigint id(전체 초기화) → Forecast 스냅숏 → Solution 관리 목록 폐지·Deal Solution 필수 텍스트) |
+| `alembic.ini`, `alembic/` | DB 마이그레이션. `versions/`에 리비전 23개, head는 `f1c6a8e2b904`(저장 리포트 `reports` 테이블, 순수 expand, 2026-10-27). P0 이후는 단계별 단일 스키마 마이그레이션(코드·BANT Label → 연락처 → Deal 모델 v2 → Action 스냅숏 → 첨부 → 경고 기준 → Vendor·Solution → Action 유형 → Next Action 상태 → Deal users 필수 → bigint id(전체 초기화) → Forecast 스냅숏 → Solution 관리 목록 폐지·Deal Solution 필수 텍스트 → 저장 리포트) |
 | `openapi.json` | API 계약 파일. 코드와 다르면 테스트가 실패(드리프트 검사), 프런트 타입의 원본 |
 | `scripts/run_gates.py` | 품질 게이트 6종 실행(기본은 단위 테스트만, `--full`이면 functional 포함). 결과: `artifacts/30-review/gate.md` |
 | `scripts/check_file_length.py` | 파일 300줄 제한 검사 |
@@ -81,6 +81,7 @@ infra ──┘
 | `container_vendor.py` | `Container`가 상속하는 Vendor 유스케이스 위임 mixin(`container.py` 길이 분리) |
 | `container_storage.py` | 저장 위치 설정과 첨부 유스케이스 조립(FileStorage 하나를 공유) |
 | `container_dashboard.py` | `Container`가 상속하는 Dashboard 유스케이스(`GetDashboardSummary`) 조립 mixin(`DashboardUseCases`) |
+| `container_reports.py` | `Container`가 상속하는 Reports 유스케이스 조립 mixin(`ReportUseCases`: 필드 카탈로그, 임시 조회, 저장 리포트 목록·보기·만들기·수정·복제·삭제·실행) |
 | `container_time.py` | `Container`가 상속하는 서버 시각 유스케이스(`GetServerTime`, 기존 `Clock` 주입) 조립 mixin(`TimeUseCases`) |
 
 ### 2.4 `domain/` — 비즈니스 규칙
@@ -99,13 +100,15 @@ infra ──┘
 | `storage/` | 저장 위치 설정과 경로 값 객체(절대 POSIX 경로 검증·정규화) |
 | `alert/` | 경고 기준 설정(미업데이트 기준 일수 1~365, 기본 14) |
 | `dashboard/` | Dashboard 집계 조립 규칙: `status_pipeline.py`(Status 코드 순서대로 건수·금액, 없는 Status는 0), `quarter_closing.py`(Q1~Q4 × Forecast 열, Lost 제외, 분기 Open 합계·합계). Forecast 셀 계산은 `forecast/summary.py`의 `tally_row`를 함께 씀. 분기 판정은 `deal/period.py`의 `quarter_of` |
+| `report/` | Reports 정의와 규칙(순수 파이썬). 어휘·한도 상수 `vocabulary.py`, 필드 항목 `fields.py`(`FieldSpec`), 허용 필드 화이트리스트 `catalog.py`(`FIELD_CATALOG`·`find_field`) = `catalog_deal.py`(Deal 28개) + `catalog_action.py`(Deal Actions 12개), 원시 정의 `raw.py` → 검증 `parse*.py`·`condition_values.py` → `definition.py`(`ReportDefinition`: 행 단위 JOIN/EXISTS 판정, Deal당 한 번 집계 판정) → `resolve.py`(상대 기간을 서버 업무 날짜로 풂), 저장 JSON `stored.py`·`stored_chart.py`, 차트 `chart.py`(`KIND_RULES` 정본)·`parse_chart.py`, 위반 모음 `errors.py`, 표시 이름 `labels.py` |
+| `saved_report/` | 저장 리포트 엔티티 `entities.py`(`Report`: 정의·차트·공개 범위·`revision`·마지막 수정자), 권한 `policy.py`(보기·수정·삭제·공개 범위 변경, 목록 범위), 이름(100자)·설명(1,000자)·공개 범위 `values.py`, 오류 `errors.py` |
 | `auth/` | `principal.py`(Role·Permission·Principal), `credentials.py`(LoginId·Password, 비밀번호는 로그에 마스킹), `session.py`, `login_failure.py`(시도 제한 카운터) |
 | `user/` | 사용자 엔티티(연결이 있으면 퇴사 처리·없으면 물리 삭제, `UserRef` 표시 라벨과 역할, 마지막 로그인 시각), `policy.py`(자기 자신·마지막 admin 삭제 금지) |
 | `directory/` | AD 설정 값 객체(`settings.py`), LDAP URL·필터 규칙 검증(평문 LDAP 금지, `{login_id}` 템플릿) |
 
 ### 2.5 `application/` — 유스케이스와 Port
 
-- `ports/`: 외부와 통신하는 인터페이스. 저장소(`*_repository.py`: Deal·Deal 이력·Action·연락처·코드·BANT Label·Action 유형·Vendor·첨부·사용자·세션·로그인 실패·AD 설정·저장 위치 설정·경고 기준), `dashboard_repository.py`(`DashboardTallyRepository`: Status별·분기별 집계, `uow.dashboard`), `deal_outcome_filter.py`(`ForecastOutcomeFilter`: Deal 목록 `forecast_outcome` 필터 값), `unit_of_work.py`(트랜잭션 경계), `file_storage.py`(파일 저장), `deal_code_source.py`(Deal code 발급), `directory.py`(AD 인증기), `clock.py`, `pagination.py`
+- `ports/`: 외부와 통신하는 인터페이스. 저장소(`*_repository.py`: Deal·Deal 이력·Action·연락처·코드·BANT Label·Action 유형·Vendor·첨부·사용자·세션·로그인 실패·AD 설정·저장 위치 설정·경고 기준), `dashboard_repository.py`(`DashboardTallyRepository`: Status별·분기별 집계, `uow.dashboard`), `deal_outcome_filter.py`(`ForecastOutcomeFilter`: Deal 목록 `forecast_outcome` 필터 값), `report_query_runner.py`(`ReportQueryRunner`: 정의 → 행·표시 SQL, `ReportQueryTimeoutError`, `uow.reports`), `report_repository.py`(`ReportRepository`: 저장 리포트, `uow.saved_reports`), `unit_of_work.py`(트랜잭션 경계), `file_storage.py`(파일 저장), `deal_code_source.py`(Deal code 발급), `directory.py`(AD 인증기), `clock.py`, `pagination.py`
 - `deal/`: 등록·조회·목록·수정·삭제와 삭제 영향(`deletion-impact`), 단일 변경 적용(`apply_change.py`·`sync_change.py`: Status·Forecast 동기화 확인), 변경 이력 기록·조회, 화면용 뷰(`views.py`: 서버가 `risk`·`status_days` 계산)
 - `deal_action/`: Deal별 Action 등록·조회·수정·삭제(수행일시·담당자는 서버가 채움)
 - `contact/`: 연락처 등록·수정·삭제·검색, 회사 목록·회사별 연락처, 사용처 확인
@@ -117,6 +120,7 @@ infra ──┘
 - `storage/`, `alert/`, `directory/`: 저장 위치·경고 기준·AD 설정의 조회·확인·변경
 - `dashboard/`: `criteria.py`(`DashboardCriteria`: Dashboard 숫자마다의 조건을 `DealQuery`로 정의하는 단일 출처, Drill-down URL과 1:1), `get_summary.py`(`GetDashboardSummary`: Forecast·Status·분기·주의 타일을 한 UoW에서 집계), `views.py`(응답 뷰)
 - `auth/`: `directory_login.py`(AD 로그인), `authenticate.py`(요청마다 활성 사용자·역할 확인), `throttle.py`(로그인 시도 제한), `setup_directory.py`·`setup_storage.py`·`setup_first_admin.py`(최초 설정 3단계), `auth_status.py`, `dev_login.py`, `logout.py`, `issue_session.py`, `tokens.py`
+- `report/`: `list_fields.py`(필드 카탈로그), `run_report.py`(임시 조회), 저장 리포트 `create_report`·`update_report`(`revision` 낙관적 잠금)·`copy_report`·`delete_report`·`get_report`·`list_reports`·`run_saved_report`, 공통 `execution.py`(`report_context`: 업무 날짜·오프셋·경고 기준, `prepare_content`: 저장할 때마다 정의·차트를 다시 검증하고 표시 SQL 생성), 응답 뷰 `views.py`·`saved_views.py`, 입력 `saved_inputs.py`
 - `time/`: `get_server_time.py`(`GetServerTime`·`ServerTimeView`: `Clock`을 한 번 읽어 서버 OS 로컬 오프셋 `now`와 업무 날짜 `today`를 돌려줌, DB 미사용, `GET /api/v1/time`)
 - `user/`: 사용자 등록·삭제·목록(페이징), 사용자 선택 후보(`list_user_options.py`), 참조 해석
 
@@ -127,6 +131,10 @@ infra ──┘
 | `db/base.py`, `db/models*.py` | SQLAlchemy 선언 베이스와 ORM 모델(`models_deal`·`models_contact`·`models_catalog`·`models_attachment`·`models_alert`·`models_auth` 등 영역별 분리) |
 | `db/*_repository.py` | 각 저장소 Port의 PostgreSQL 구현. Deal은 `deal_mapping.py`(행 ↔ 엔티티), `deal_children.py`(파트너·BANT 자식 행), `deal_search.py`(목록 검색·필터), `deal_aggregates.py`(최근 Action 등 파생 값)로 나뉨. `deal_search.conditions`는 Deal 목록·Forecast·Dashboard 집계가 함께 쓰는 WHERE(Forecast 구분 `forecast_outcome` 조건 포함) |
 | `db/dashboard_tally.py` | `DashboardTallyRepository` 구현(`SqlDashboardTallyRepository`). `deal_search.conditions` 재사용, 분기는 월별 group 후 파이썬에서 합산 |
+| `db/report_*.py` | Reports SQL 생성기(SQLAlchemy Core). `report_runner.py`(`SqlReportQueryRunner`: 읽기 전용 가드 안에서 결과·합계 실행) → `report_select.py`(`build_select`·`build_totals_select`) → 그룹핑 `report_grouped.py`(안쪽 하위 쿼리 + `row_number()`로 Deal당 한 번 집계) → `report_parts.py`(`ReportParts`: 조각 공급자). 필드 key → SQL 식 `report_fields.py`(`FieldSql`)·`report_fields_deal.py`·`report_fields_action.py`, 필요한 LEFT JOIN만 등록 `report_joins.py`(`Joins`), WHERE·EXISTS `report_conditions.py`(값은 바인딩 파라미터), 날짜 묶음 `report_buckets.py`, 경고·체류 일수 `report_risk.py`, 표시 SQL·결과 변환 `report_render.py` |
+| `db/read_only.py` | `read_only_guard`: SAVEPOINT 안 `SET TRANSACTION READ ONLY` + `SET LOCAL statement_timeout`(10초), 항상 되돌림, 시간 초과(57014) → `ReportQueryTimeoutError` |
+| `db/deal_risk.py` | 경고(기한초과·미업데이트, 종결 Deal 제외) 판정식의 단일 출처. Deal 목록 필터(`deal_search`)와 Reports(`report_risk`)가 함께 씀 |
+| `db/report_repository.py`, `db/models_report.py` | `ReportRepository` 구현(`SqlReportRepository`)과 `reports` 테이블 모델(정의·차트 JSONB, `generated_sql`은 표시용, 이름 대소문자 무시 유니크, owner·updated_by는 users FK RESTRICT). 읽을 수 없는 저장 정의는 깨진 리포트(목록·삭제만 가능), 깨진 차트는 차트 없이 읽음 |
 | `db/unit_of_work.py` | 트랜잭션 단위 구현 |
 | `db/like.py` | 키워드 검색용 LIKE 이스케이프 |
 | `deal_code_source.py` | Deal code 발급 Port 구현 |
@@ -138,7 +146,7 @@ infra ──┘
 
 | 파일/폴더 | 의미 |
 | --- | --- |
-| `routers/` | 엔드포인트. `deals.py`, `deal_actions.py`, `attachments.py`·`attachment_items.py`, `contacts.py`, `codes.py`, `bant_labels.py`, `action_types.py`, `vendors.py`, `alert_settings.py`, `forecast.py`, `dashboard.py`, `time.py`(`GET /api/v1/time`, 로그인 사용자), `users.py`, `user_options.py`, `settings_directory.py`, `settings_storage.py`, `auth*.py`(로그인·로그아웃·상태·최초 설정), `health.py`(`/healthz`, `/readyz`) |
+| `routers/` | 엔드포인트. `deals.py`, `deal_actions.py`, `attachments.py`·`attachment_items.py`, `contacts.py`, `codes.py`, `bant_labels.py`, `action_types.py`, `vendors.py`, `alert_settings.py`, `forecast.py`, `dashboard.py`, `reports.py`(`/reports/fields`·`/reports/query`, 모든 로그인 역할), `saved_reports.py`(저장 리포트, `reports.py` 뒤에 등록), `time.py`(`GET /api/v1/time`, 로그인 사용자), `users.py`, `user_options.py`, `settings_directory.py`, `settings_storage.py`, `auth*.py`(로그인·로그아웃·상태·최초 설정), `health.py`(`/healthz`, `/readyz`) |
 | `schemas/` | 요청·응답 Pydantic 모델. 응답 시각 필드는 `server_datetime.py`의 `ServerDateTime`(서버 OS 로컬 오프셋으로 직렬화, 같은 순간·openapi 스키마 동일)을 쓰고 맨 `datetime`은 쓰지 않음(단위 테스트가 검사). `time.py`는 `ServerTimeResponse{now, today}` |
 | `permissions.py` | `BusinessRouter`(sales 이상만 쓰기)와 `admin_router`(admin 전용)로 권한을 라우터 등록 시점에 적용 |
 | `security.py` | 쿠키 세션 확인(`require_login`), CSRF 헤더(`X-Requested-With`) 검사 |
@@ -158,6 +166,7 @@ infra ──┘
 | 설정(admin) | `/users`, `/settings/directory`, `/settings/storage`, `/alert-settings`(조회는 로그인 사용자 모두) |
 | 인증 | `/auth/login`, `/auth/logout`, `/auth/me`, `/auth/config`, `/auth/dev-login`, `/auth/setup/*` |
 | Forecast·Dashboard | `/forecast/summary`, `/forecast/snapshots`, `/forecast/snapshots/{period}/summary`, `/dashboard/summary`(조회 전용, 로그인 사용자 모두) |
+| Reports | `/reports/fields`, `/reports/query`(임시 조회, 저장 안 함), `/reports`(목록·만들기), `/reports/{id}`(보기·수정·삭제), `/reports/{id}/copy`, `/reports/{id}/run`(로그인 사용자 모두, 보기·수정·삭제 권한은 `domain/saved_report/policy.py`) |
 | 기타 | `/user-options`(사용자 선택 후보) |
 
 전체 목록은 `openapi.json` 또는 local의 `/docs`를 봅니다.
@@ -171,7 +180,7 @@ infra ──┘
 | `unit/` | **단위 테스트**: 함수·클래스 하나. domain·application(Fake Port 사용), infra(Repository 계약·스키마·LDAP 어댑터, 실제 PostgreSQL 임시 DB), web, 설정, 훅·게이트 스크립트 |
 | `functional/` | **functional test**: feature 하나의 end-to-end. 실제 Container와 PostgreSQL 임시 DB 위에서 HTTP API를 호출하고 BDD 형식(Given–When–Then)으로 씀. step 함수는 `functional/steps/`, AD는 Fake 디렉터리, 시계는 고정 시계(`api.clock`) |
 | `e2e/` | 전 구간 NUL 문자 거부 점검(구 층에서 남은 것) |
-| `fakes/`, `support/`, `factories*.py` | Fake 저장소·UoW·스택(Dashboard 집계 Fake는 `fakes/dashboard.py`), DB·시드·LDAP mock 도우미, 데이터 팩토리 |
+| `fakes/`, `support/`, `factories*.py` | Fake 저장소·UoW·스택(Dashboard 집계 Fake는 `fakes/dashboard.py`, Reports는 `fakes/report_runner.py`·`fakes/report_repository.py`), DB·시드·LDAP mock 도우미(Reports 정의 도우미 `support/report_defs.py`·`chart_defs.py`), 데이터 팩토리(`factories_report.py`) |
 
 개발 중에는 단위 테스트만 실행합니다(`run_gates.py` 기본값). functional을 포함한 전체는 Jenkins Verify 단계가 실행하고, 로컬 전체 실행은 `run_gates.py --full`입니다. 테스트 함수명은 영문 ASCII. CI에서는 `REQUIRE_INTEGRATION_DB=1`로 DB 없이 건너뛰지 못하게 합니다.
 
@@ -198,10 +207,10 @@ features/*  화면 ──▶ data/*  TanStack Query 훅 ──▶ gateway  (http
 | `eslint.config.js`, `tsconfig.json` | 린트·타입 설정 |
 | `src/main.tsx`, `src/App.tsx` | 진입점, 라우팅. `/login`·`/setup`은 인증 밖, `/deals/new`·`/deals/:code/edit`는 쓰기 권한, `/admin/*`는 admin 전용 |
 | `src/gateway/` | 게이트웨이 진입점(`index.ts`: `gateway`·`clock`(서버 동기 시계)), 앱 시계 `clock.ts`(`createServerClock`: `/api/v1/time`으로 동기, 왕복 지연 절반 보정, 서버 오프셋으로 표기. 브라우저 시계를 읽는 유일한 파일, T-ARCH-03), 계약 타입(`types.ts`, `contract/*.contract.ts`), 실제 서버 구현 `http/`(영역별 호출, 서버 시각 `time.ts`과 `mappers/`의 응답 → 화면 모델 변환, 미구현 API 501 처리 `unsupported.ts`) |
-| `src/data/` | 영역별 TanStack Query 훅(`deals`, `actions`, `attachments`, `contacts`, `codes`, `labels`, `alerts`, `users`, `settings`, `setup`, `auth`, `history`, `forecast`, `dashboard`, `time`(`useServerTimeSync`: 30분 주기·30분 경과 후 포커스 재동기) 등)과 쿼리 키(`queryKeys.ts`, Dashboard 키는 `forecast` 아래) |
+| `src/data/` | 영역별 TanStack Query 훅(`deals`, `actions`, `attachments`, `contacts`, `codes`, `labels`, `alerts`, `users`, `settings`, `setup`, `auth`, `history`, `forecast`, `dashboard`, `reports`(필드 카탈로그·임시 조회·저장 리포트 훅), `time`(`useServerTimeSync`: 30분 주기·30분 경과 후 포커스 재동기) 등)과 쿼리 키(`queryKeys.ts`, Dashboard 키는 `forecast` 아래) |
 | `src/shared/api/` | openapi-fetch 클라이언트(`client.ts`, `X-Requested-With` 헤더 포함), **생성 파일** `schema.d.ts`(`pnpm gen:api`), 오류 응답 해석(`problem.ts`) |
-| `src/shared/model/` | 화면 모델 타입과 규칙: 권한, 경고 표시(`risk.ts`, 값은 서버 `risk` 사용), 기간, 금액, 파일 이름 규칙, 연락처 규칙, Status·Forecast 동기화, 목록 조건 기억(`dealListMemory.ts`) |
-| `src/shared/ui/` | 공통 UI(레이아웃·메뉴, 모달, 탭, 콤보박스, 페이저, 배지, 검색창, "준비 중" 화면), 목록 복귀 경로 훅(`useDealListPath.ts`) |
+| `src/shared/model/` | 화면 모델 타입과 규칙: 권한, 경고 표시(`risk.ts`, 값은 서버 `risk` 사용), 기간, 금액, 파일 이름 규칙, 연락처 규칙, Status·Forecast 동기화, 목록 조건 기억(`dealListMemory.ts`), Reports 화면 모델 `reportTypes.ts`, 리포트 권한 `permissions.ts`의 `canViewReport`·`canEditReport`·`canDeleteReport`·`canChangeReportVisibility`(서버와 같은 규칙) |
+| `src/shared/ui/` | 공통 UI(레이아웃·메뉴, 모달, 탭, 콤보박스, 페이저, 배지, 검색창, 다중 선택, 차트 색·테마 `chartTheme.ts`(Dashboard·Reports 공유). "준비 중" 화면은 Reports 구현으로 삭제), 목록 복귀 경로 훅(`useDealListPath.ts`) |
 | `src/shared/sync/`, `shared/contact/`, `shared/directory/` | Status·Forecast 동기화 확인 대화상자, 연락처 선택기, AD 설정 입력 필드 |
 | `src/features/deals/list/` | Deals 목록(13열: Next Action·Due·Next Action 상태 분리, BANT 열은 2026-10-23 폐지되어 `bantSummary.ts` 삭제), 필터·키워드(<s>“Forecast 구분” URL `outcome`</s> 2026-10-26 폐지, 기본 조건 `year=<올해>`·연도 전체 `year=all`, Quarter 안 월, 빠른 조건 줄, Forecast 다중 선택 `shared/ui/MultiCheckSelect.tsx`·`shared/model/forecastKeys.ts`). 공용 연도 선택지 `shared/model/yearOptions.ts`·`data/dealYears.ts`, 이전 Next Action 기준 행 `shared/model/nextActionBasis.ts`(2026-10-26), Quick View, 경고 범례 |
 | `src/features/deals/detail/` | Deal 상세: 요약 바(Status 체류 "N일째"), 정보·연락처·BANT 카드와 인라인 수정, Actions·History 탭, 첨부 패널, 삭제 |
@@ -209,7 +218,8 @@ features/*  화면 ──▶ data/*  TanStack Query 훅 ──▶ gateway  (http
 | `src/features/admin/` | Admin 레이아웃과 탭: `users/`, `deal-management/`(Status·Forecast 코드, BANT Label, Action 유형, Vendor, 경고 기준), `contacts/`, `integrations/`(AD 서버, 저장 위치) |
 | `src/features/auth/`, `features/setup/` | 로그인(local·dev는 역할별 빠른 로그인 3개), `RequireAuth`(로그인 확인 뒤 서버 시각 첫 동기 전에는 “불러오는 중…”)·`RequireWrite`·`RequireAdmin`, 최초 설정 마법사(AD → 저장 위치 → admin) |
 | `src/features/dashboard/` | Dashboard 화면: `DashboardPage.tsx`(Status·Forecast 탭, `App.tsx`가 `React.lazy`로 별도 청크 로드), `DashboardFilters.tsx`, `dashboardParams.ts`(URL ↔ 필터), `drillDown.ts`(Deal 목록 이동 주소의 단일 출처), `Tiles.tsx`, `StatusTab.tsx`·`StatusChart.tsx`, `ForecastTab.tsx`·`QuarterChart.tsx`, `chartSetup.ts`(Chart.js 필요한 요소만 등록), `dashboard.css`. 게이트웨이는 `gateway/http/dashboard.ts`, 계약 `gateway/contract/dashboard.contract.ts`, Fake `test/fake/gateway/dashboard.ts` |
-| `src/features/forecast/`, `features/placeholder/` | Forecast 화면(서버가 501이면 "준비 중"), Reports 자리 화면 |
+| `src/features/forecast/` | Forecast 화면(실패는 501 포함 오류 배너. 예전 "준비 중" 분기와 `features/placeholder/`는 삭제) |
+| `src/features/reports/` | Reports(2026-10-27). `ReportsPage.tsx`(저장 리포트 목록, `?q=&mine=1`)와 `list/`(`filterReports.ts`, ⋯ 메뉴 `ReportRowMenu.tsx`), 저장 대화상자 `SaveReportDialog.tsx`, `ReportNotFound.tsx`. `designer/`: `ReportDesignerPage.tsx`(`/reports/new`)·`ReportEditPage.tsx`(`/reports/:id/edit`)가 함께 쓰는 본체 `Designer.tsx`, 필드 목록·컬럼 칩·컬럼 설정·조건·범위 표시·실행 바·결과 카드/표·생성 SQL 보기 컴포넌트, 조회 `useDesignerRun.ts`, 저장 흐름 `useSaveFlow.ts`, 떠날 때 확인 `useLeaveGuard.ts`, 설계 상태 `state/`(리듀서 `designerState.ts`, 요청 변환 `toRequest.ts`·`fromRequest.ts`, 범위 예측 `scope.ts`, 위반 표시 `issues.ts`·`issueView.ts`, 저장 안 됨 판정 `designKey.ts`, 컬럼 규칙 `columnRules.ts`), 표시 포맷 `format/formatCell.ts`. `view/ReportViewPage.tsx`(`/reports/:id`, 열 때 실행). `chart/`: 규칙표 `chartKinds.ts`(backend `KIND_RULES` 복제), 초안 `chartDraft.ts`, 변환 `buildChart.ts`·`pivot.ts`, 요소 등록 `chartRegistry.ts`, 설정 패널, lazy 진입점 `ChartTab.tsx`. 화면은 모두 `App.tsx`의 `React.lazy` 청크(목록 제외). 게이트웨이 `gateway/http/reports.ts`(매퍼 `mappers/report.ts`·`reportChart.ts`), 계약 `gateway/contract/reports.contract.ts`·`savedReports.contract.ts`, Fake `test/fake/gateway/reports.ts`·`savedReports.ts`, Fake 필드 카탈로그 `test/fake/seed/reportCatalog.ts`(서버 카탈로그를 바꾸면 함께 고침) |
 | `src/test/` | 테스트 설정(`setup.ts`가 `vi.mock('../gateway')`로 Fake 주입, `vi.mock('react-chartjs-2')`로 `chartMock.tsx` 주입 — jsdom에 canvas가 없음), 테스트 전용 Fake 게이트웨이와 시드(`fake/`), 픽스처(`fixtures/`), 앱 렌더 도우미. 각 `*.test.ts(x)`는 대상 옆에 위치 |
 
 화면의 지금·오늘은 `data/today`의 `useToday()`(서버 동기 시계)로만 읽고, 시각 표시는 `shared/format.ts`(`formatDateTime`·`formatStamp`·`formatDate`·`formatRelativeTime`)가 서버 문자열의 오프셋 그대로 보입니다(브라우저 시간대 미사용, `src/test/architecture.test.ts`의 T-ARCH-03이 검사).
@@ -326,7 +336,10 @@ Multibranch 파이프라인입니다. 모든 브랜치·PR은 검증만 하고, 
 
 ## 8. 현재 한계와 미결정 사항
 
-- Reports(PRD P7)는 미구현입니다. 메뉴와 경로만 있고 "준비 중"을 보여 줍니다. Dashboard 차트의 실제 그리기는 테스트에서 mock하므로 사람이 브라우저에서 확인합니다.
+- Reports(PRD P7)는 범용 리포트 디자이너로 구현했지만 Excel Export(시안 Q8), 조건 AND/OR 섞기·묶음(Q4), Deal History 데이터(Q9)는 이후 단계입니다. 그래서 Status 단계 전환율·단계별 체류 이력과 목표 대비 달성률은 리포트로 만들 수 없습니다(PRD 7.4절).
+- Reports 조회는 문장당 10초 제한뿐이고(그룹핑은 두 문장이라 최대 약 20초) 요청 빈도 제한이 없습니다(받아들인 위험). 큰 데이터에서의 조회 시간·인덱스 필요 여부는 아직 점검하지 않았습니다.
+- Reports 허용 필드는 backend 카탈로그와 프런트 테스트 Fake 카탈로그(`test/fake/seed/reportCatalog.ts`), 차트 규칙은 backend `KIND_RULES`와 frontend `chartKinds.ts`에 두 벌로 있어 바꿀 때 함께 고쳐야 합니다(자동 동기화 검사 없음, 절차는 개발 가이드 10.6절).
+- Dashboard·Reports 차트의 실제 그리기는 테스트에서 mock하므로 사람이 브라우저에서 확인합니다.
 - 실제 AD(LDAPS 인증서 검증, StartTLS, 여러 DC 전환, 잠금 임계치)는 mock으로만 검증했습니다.
 - 서버 시간대 설정과 첨부 저장 디렉터리 백업은 운영 절차로만 보장합니다(앱이 검사하지 않음).
 - Jenkinsfile의 호스트·자격 증명·승인 그룹은 예시 값입니다.
