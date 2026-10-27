@@ -11,7 +11,6 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import ColumnElement, and_, exists, or_, select
 
-from app.domain.deal.sync_state import CLOSED_FORECASTS
 from app.infra.db.deal_derived import (
     LAST_UPDATED,
     LATEST_ACTED,
@@ -19,6 +18,7 @@ from app.infra.db.deal_derived import (
     last_updated_scalar,
 )
 from app.infra.db.deal_list_order import order_clause
+from app.infra.db.deal_risk import not_closed_condition, overdue_condition, stale_condition
 from app.infra.db.like import LIKE_ESCAPE, like_pattern
 from app.infra.db.models_catalog import CodeRow
 from app.infra.db.models_contact import ContactRow
@@ -65,15 +65,10 @@ def _risk_condition(query: DealQuery) -> ColumnElement[bool]:
         raise ValueError("기한초과·미업데이트 필터에는 risk_basis가 필요합니다.")
     selected: list[ColumnElement[bool]] = []
     if query.overdue:
-        selected.append(
-            select(LATEST_NEXT.c.deal_id)
-            .where(LATEST_NEXT.c.deal_id == DealRow.id, LATEST_NEXT.c.due_date < basis.today)
-            .correlate(DealRow)
-            .exists()
-        )
+        selected.append(overdue_condition(basis.today))
     if query.stale:
-        selected.append(last_updated_scalar() < basis.stale_before())
-    return and_(DealRow.forecast_key.not_in(sorted(CLOSED_FORECASTS)), or_(*selected))
+        selected.append(stale_condition(basis.stale_before()))
+    return and_(not_closed_condition(), or_(*selected))
 
 
 def _outcome_condition(outcome: ForecastOutcomeFilter) -> ColumnElement[bool]:

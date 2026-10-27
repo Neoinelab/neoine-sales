@@ -1,6 +1,16 @@
 {
   "components": {
     "schemas": {
+      "ActionFilter": {
+        "description": "Action 필드가 쓰이는 방식: 없음 / 조건에만(EXISTS) / 컬럼(JOIN).",
+        "enum": [
+          "none",
+          "exists",
+          "join"
+        ],
+        "title": "ActionFilter",
+        "type": "string"
+      },
       "ActionStatusChangeRequest": {
         "additionalProperties": false,
         "description": "Action을 기록하면서 함께 바꿀 Status 또는 Forecast.",
@@ -89,6 +99,18 @@
         ],
         "title": "ActionTypeResponse",
         "type": "object"
+      },
+      "Aggregate": {
+        "enum": [
+          "sum",
+          "avg",
+          "min",
+          "max",
+          "count",
+          "count_distinct"
+        ],
+        "title": "Aggregate",
+        "type": "string"
       },
       "AlertSettingsRequest": {
         "additionalProperties": false,
@@ -2854,6 +2876,26 @@
         "title": "DirectoryTestResultResponse",
         "type": "object"
       },
+      "Entity": {
+        "enum": [
+          "deal",
+          "action"
+        ],
+        "title": "Entity",
+        "type": "string"
+      },
+      "FieldType": {
+        "enum": [
+          "text",
+          "code",
+          "user",
+          "number",
+          "date",
+          "datetime"
+        ],
+        "title": "FieldType",
+        "type": "string"
+      },
       "ForecastOutcome": {
         "description": "Forecast가 시스템에 알려 주는 결과. 일반 코드와 Status는 항상 OPEN이다.",
         "enum": [
@@ -2928,6 +2970,28 @@
         ],
         "title": "ForecastSummaryResponse",
         "type": "object"
+      },
+      "Format": {
+        "enum": [
+          "as_is",
+          "prefix",
+          "name",
+          "key",
+          "thousands",
+          "krw_thousand",
+          "krw_million",
+          "decimal1",
+          "percent_share",
+          "ymd",
+          "ymd_hm",
+          "year",
+          "quarter",
+          "month",
+          "weekday",
+          "relative"
+        ],
+        "title": "Format",
+        "type": "string"
       },
       "HTTPValidationError": {
         "properties": {
@@ -3142,6 +3206,56 @@
           "skip"
         ],
         "title": "OnExists",
+        "type": "string"
+      },
+      "Operator": {
+        "enum": [
+          "contains",
+          "equals",
+          "starts_with",
+          "is_empty",
+          "is_not_empty",
+          "in",
+          "not_in",
+          "eq",
+          "ne",
+          "gt",
+          "gte",
+          "lt",
+          "lte",
+          "between",
+          "before",
+          "after",
+          "relative"
+        ],
+        "title": "Operator",
+        "type": "string"
+      },
+      "OperatorShape": {
+        "description": "연산자가 받는 값의 모양(프런트가 입력 위젯을 고르는 힌트). between은 형식에 따라\n숫자는 `range`, 날짜는 `date_range`로 해석한다.",
+        "enum": [
+          "text",
+          "list",
+          "number",
+          "range",
+          "date",
+          "relative",
+          "none"
+        ],
+        "title": "OperatorShape",
+        "type": "string"
+      },
+      "OptionsSource": {
+        "description": "DB 목록 선택지의 출처(기존 API). 카탈로그는 출처만 알린다.",
+        "enum": [
+          "users",
+          "vendors",
+          "status_codes",
+          "forecast_codes",
+          "bant_labels",
+          "action_types"
+        ],
+        "title": "OptionsSource",
         "type": "string"
       },
       "Page_UserResponse_": {
@@ -3583,6 +3697,683 @@
         "title": "QuoteSubmitted",
         "type": "string"
       },
+      "RelativePeriod": {
+        "enum": [
+          "this_year",
+          "this_quarter",
+          "this_month",
+          "last_n_days",
+          "before_today"
+        ],
+        "title": "RelativePeriod",
+        "type": "string"
+      },
+      "ReportAggregateResponse": {
+        "properties": {
+          "key": {
+            "$ref": "#/components/schemas/Aggregate"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "label"
+        ],
+        "title": "ReportAggregateResponse",
+        "type": "object"
+      },
+      "ReportCatalogResponse": {
+        "properties": {
+          "aggregates": {
+            "items": {
+              "$ref": "#/components/schemas/ReportAggregateResponse"
+            },
+            "title": "Aggregates",
+            "type": "array"
+          },
+          "entities": {
+            "items": {
+              "$ref": "#/components/schemas/ReportEntityResponse"
+            },
+            "title": "Entities",
+            "type": "array"
+          },
+          "fields": {
+            "items": {
+              "$ref": "#/components/schemas/ReportFieldResponse"
+            },
+            "title": "Fields",
+            "type": "array"
+          },
+          "formats": {
+            "items": {
+              "$ref": "#/components/schemas/ReportFormatResponse"
+            },
+            "title": "Formats",
+            "type": "array"
+          },
+          "limits": {
+            "$ref": "#/components/schemas/ReportLimitsResponse"
+          },
+          "operators": {
+            "items": {
+              "$ref": "#/components/schemas/ReportOperatorResponse"
+            },
+            "title": "Operators",
+            "type": "array"
+          },
+          "relative_periods": {
+            "items": {
+              "$ref": "#/components/schemas/ReportRelativePeriodResponse"
+            },
+            "title": "Relative Periods",
+            "type": "array"
+          }
+        },
+        "required": [
+          "limits",
+          "entities",
+          "formats",
+          "operators",
+          "aggregates",
+          "relative_periods",
+          "fields"
+        ],
+        "title": "ReportCatalogResponse",
+        "type": "object"
+      },
+      "ReportColumnRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "aggregate": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Aggregate"
+          },
+          "field": {
+            "title": "Field",
+            "type": "string"
+          },
+          "format": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Format"
+          },
+          "group": {
+            "default": false,
+            "title": "Group",
+            "type": "boolean"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "prefix_length": {
+            "title": "Prefix Length"
+          }
+        },
+        "required": [
+          "field"
+        ],
+        "title": "ReportColumnRequest",
+        "type": "object"
+      },
+      "ReportConditionRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "field": {
+            "title": "Field",
+            "type": "string"
+          },
+          "operator": {
+            "title": "Operator",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value"
+          }
+        },
+        "required": [
+          "field",
+          "operator"
+        ],
+        "title": "ReportConditionRequest",
+        "type": "object"
+      },
+      "ReportEntityResponse": {
+        "properties": {
+          "key": {
+            "$ref": "#/components/schemas/Entity"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "label"
+        ],
+        "title": "ReportEntityResponse",
+        "type": "object"
+      },
+      "ReportFieldOptionResponse": {
+        "properties": {
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "value",
+          "label"
+        ],
+        "title": "ReportFieldOptionResponse",
+        "type": "object"
+      },
+      "ReportFieldResponse": {
+        "properties": {
+          "aggregates": {
+            "items": {
+              "$ref": "#/components/schemas/Aggregate"
+            },
+            "title": "Aggregates",
+            "type": "array"
+          },
+          "deal_number": {
+            "title": "Deal Number",
+            "type": "boolean"
+          },
+          "default_aggregate": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Aggregate"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "default_format": {
+            "$ref": "#/components/schemas/Format"
+          },
+          "entity": {
+            "$ref": "#/components/schemas/Entity"
+          },
+          "filterable": {
+            "title": "Filterable",
+            "type": "boolean"
+          },
+          "formats": {
+            "items": {
+              "$ref": "#/components/schemas/Format"
+            },
+            "title": "Formats",
+            "type": "array"
+          },
+          "groupable": {
+            "title": "Groupable",
+            "type": "boolean"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "operators": {
+            "items": {
+              "$ref": "#/components/schemas/Operator"
+            },
+            "title": "Operators",
+            "type": "array"
+          },
+          "options": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ReportFieldOptionResponse"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Options"
+          },
+          "options_category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Options Category"
+          },
+          "options_source": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OptionsSource"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "requires_grouping": {
+            "title": "Requires Grouping",
+            "type": "boolean"
+          },
+          "type": {
+            "$ref": "#/components/schemas/FieldType"
+          },
+          "value_kind": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ValueKind"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "entity",
+          "type",
+          "formats",
+          "default_format",
+          "operators",
+          "aggregates",
+          "default_aggregate",
+          "groupable",
+          "filterable",
+          "requires_grouping",
+          "deal_number",
+          "value_kind",
+          "options",
+          "options_source",
+          "options_category"
+        ],
+        "title": "ReportFieldResponse",
+        "type": "object"
+      },
+      "ReportFormatResponse": {
+        "properties": {
+          "affects_query": {
+            "title": "Affects Query",
+            "type": "boolean"
+          },
+          "key": {
+            "$ref": "#/components/schemas/Format"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "affects_query"
+        ],
+        "title": "ReportFormatResponse",
+        "type": "object"
+      },
+      "ReportLimitsResponse": {
+        "properties": {
+          "columns_max": {
+            "title": "Columns Max",
+            "type": "integer"
+          },
+          "columns_min": {
+            "title": "Columns Min",
+            "type": "integer"
+          },
+          "conditions_max": {
+            "title": "Conditions Max",
+            "type": "integer"
+          },
+          "default_row_limit": {
+            "title": "Default Row Limit",
+            "type": "integer"
+          },
+          "label_max": {
+            "title": "Label Max",
+            "type": "integer"
+          },
+          "last_n_days_max": {
+            "title": "Last N Days Max",
+            "type": "integer"
+          },
+          "list_value_max": {
+            "title": "List Value Max",
+            "type": "integer"
+          },
+          "prefix_max": {
+            "title": "Prefix Max",
+            "type": "integer"
+          },
+          "row_limits": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Row Limits",
+            "type": "array"
+          },
+          "statement_timeout_seconds": {
+            "title": "Statement Timeout Seconds",
+            "type": "integer"
+          },
+          "text_value_max": {
+            "title": "Text Value Max",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "columns_min",
+          "columns_max",
+          "conditions_max",
+          "row_limits",
+          "default_row_limit",
+          "statement_timeout_seconds",
+          "text_value_max",
+          "list_value_max",
+          "last_n_days_max",
+          "label_max",
+          "prefix_max"
+        ],
+        "title": "ReportLimitsResponse",
+        "type": "object"
+      },
+      "ReportOperatorResponse": {
+        "properties": {
+          "key": {
+            "$ref": "#/components/schemas/Operator"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "value": {
+            "$ref": "#/components/schemas/OperatorShape"
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "value"
+        ],
+        "title": "ReportOperatorResponse",
+        "type": "object"
+      },
+      "ReportQueryRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "columns": {
+            "items": {
+              "$ref": "#/components/schemas/ReportColumnRequest"
+            },
+            "title": "Columns",
+            "type": "array"
+          },
+          "combine": {
+            "default": "and",
+            "title": "Combine"
+          },
+          "conditions": {
+            "items": {
+              "$ref": "#/components/schemas/ReportConditionRequest"
+            },
+            "title": "Conditions",
+            "type": "array"
+          },
+          "row_limit": {
+            "default": 1000,
+            "title": "Row Limit"
+          },
+          "sort": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReportSortRequest"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "columns"
+        ],
+        "title": "ReportQueryRequest",
+        "type": "object"
+      },
+      "ReportQueryResponse": {
+        "properties": {
+          "action_filter": {
+            "$ref": "#/components/schemas/ActionFilter"
+          },
+          "columns": {
+            "items": {
+              "$ref": "#/components/schemas/ReportResultColumn"
+            },
+            "title": "Columns",
+            "type": "array"
+          },
+          "deal_numbers_once": {
+            "title": "Deal Numbers Once",
+            "type": "boolean"
+          },
+          "elapsed_ms": {
+            "title": "Elapsed Ms",
+            "type": "integer"
+          },
+          "row_limit": {
+            "title": "Row Limit",
+            "type": "integer"
+          },
+          "row_scope": {
+            "$ref": "#/components/schemas/RowScope"
+          },
+          "rows": {
+            "items": {
+              "items": {
+                "$ref": "#/components/schemas/ResultCell"
+              },
+              "type": "array"
+            },
+            "title": "Rows",
+            "type": "array"
+          },
+          "sql": {
+            "title": "Sql",
+            "type": "string"
+          },
+          "today": {
+            "format": "date",
+            "title": "Today",
+            "type": "string"
+          },
+          "total_count": {
+            "title": "Total Count",
+            "type": "integer"
+          },
+          "totals": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ResultCell"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Totals"
+          },
+          "truncated": {
+            "title": "Truncated",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "row_scope",
+          "action_filter",
+          "deal_numbers_once",
+          "columns",
+          "rows",
+          "totals",
+          "total_count",
+          "truncated",
+          "row_limit",
+          "sql",
+          "elapsed_ms",
+          "today"
+        ],
+        "title": "ReportQueryResponse",
+        "type": "object"
+      },
+      "ReportRelativePeriodResponse": {
+        "properties": {
+          "key": {
+            "$ref": "#/components/schemas/RelativePeriod"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "needs_days": {
+            "title": "Needs Days",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "needs_days"
+        ],
+        "title": "ReportRelativePeriodResponse",
+        "type": "object"
+      },
+      "ReportResultColumn": {
+        "properties": {
+          "aggregate": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Aggregate"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "entity": {
+            "$ref": "#/components/schemas/Entity"
+          },
+          "field": {
+            "title": "Field",
+            "type": "string"
+          },
+          "format": {
+            "$ref": "#/components/schemas/Format"
+          },
+          "group": {
+            "title": "Group",
+            "type": "boolean"
+          },
+          "index": {
+            "title": "Index",
+            "type": "integer"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "prefix_length": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prefix Length"
+          },
+          "type": {
+            "$ref": "#/components/schemas/FieldType"
+          },
+          "value_type": {
+            "$ref": "#/components/schemas/ResultValueType"
+          }
+        },
+        "required": [
+          "index",
+          "field",
+          "label",
+          "entity",
+          "type",
+          "value_type",
+          "format",
+          "prefix_length",
+          "group",
+          "aggregate"
+        ],
+        "title": "ReportResultColumn",
+        "type": "object"
+      },
+      "ReportSortRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "column": {
+            "title": "Column"
+          },
+          "direction": {
+            "default": "asc",
+            "title": "Direction"
+          }
+        },
+        "required": [
+          "column"
+        ],
+        "title": "ReportSortRequest",
+        "type": "object"
+      },
       "ResolutionRequest": {
         "additionalProperties": false,
         "description": "프런트가 사용자에게 물어 얻은 답. 보내지 않은 답은 비워 둔다.",
@@ -3636,6 +4427,34 @@
         "title": "ResolutionRequest",
         "type": "object"
       },
+      "ResultCell": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "integer"
+          },
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "ResultValueType": {
+        "description": "결과 열 값의 JSON 모양.",
+        "enum": [
+          "text",
+          "integer",
+          "decimal",
+          "date",
+          "datetime"
+        ],
+        "title": "ResultValueType",
+        "type": "string"
+      },
       "Role": {
         "enum": [
           "admin",
@@ -3675,6 +4494,15 @@
         ],
         "title": "RowResponse",
         "type": "object"
+      },
+      "RowScope": {
+        "description": "결과 행 1개가 가리키는 단위.",
+        "enum": [
+          "deal",
+          "action"
+        ],
+        "title": "RowScope",
+        "type": "string"
       },
       "ServerTimeResponse": {
         "properties": {
@@ -4207,6 +5035,15 @@
         ],
         "title": "ValidationError",
         "type": "object"
+      },
+      "ValueKind": {
+        "description": "코드·사용자 조건 값의 모양: 문자열 key 또는 정수 id.",
+        "enum": [
+          "key",
+          "id"
+        ],
+        "title": "ValueKind",
+        "type": "string"
       },
       "VendorNameRequest": {
         "additionalProperties": false,
@@ -8574,6 +9411,98 @@
         "summary": "Get Forecast Summary",
         "tags": [
           "forecast"
+        ]
+      }
+    },
+    "/api/v1/reports/fields": {
+      "get": {
+        "operationId": "list_report_fields_api_v1_reports_fields_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportCatalogResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          }
+        },
+        "summary": "List Report Fields",
+        "tags": [
+          "reports"
+        ]
+      }
+    },
+    "/api/v1/reports/query": {
+      "post": {
+        "operationId": "run_report_api_v1_reports_query_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReportQueryRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportQueryResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          }
+        },
+        "summary": "Run Report",
+        "tags": [
+          "reports"
         ]
       }
     },

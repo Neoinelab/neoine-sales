@@ -49,6 +49,8 @@ BUSINESS_READS: Final = (
     ("GET", "/api/v1/forecast/snapshots/{period}/summary"),
     ("GET", "/api/v1/time"),  # 서버 시각: 로그인한 모든 역할
     ("GET", "/api/v1/alert-settings"),  # P3: 경고 기준 조회는 모든 역할(목록 범례에 숫자가 필요)
+    ("GET", "/api/v1/reports/fields"),  # Reports 1단계: 필드 카탈로그는 모든 역할
+    ("POST", "/api/v1/reports/query"),  # POST지만 조회 전용(저장 없음)이라 user도 쓸 수 있다
 )
 BUSINESS_WRITES: Final = (
     ("POST", "/api/v1/bant-labels"),  # 자기 Label을 만든다(user는 조회 전용)

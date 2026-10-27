@@ -684,6 +684,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/reports/fields": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Report Fields */
+        get: operations["list_report_fields_api_v1_reports_fields_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reports/query": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Run Report */
+        post: operations["run_report_api_v1_reports_query_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/settings/directory": {
         parameters: {
             query?: never;
@@ -915,6 +949,12 @@ export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
         /**
+         * ActionFilter
+         * @description Action 필드가 쓰이는 방식: 없음 / 조건에만(EXISTS) / 컬럼(JOIN).
+         * @enum {string}
+         */
+        ActionFilter: "none" | "exists" | "join";
+        /**
          * ActionStatusChangeRequest
          * @description Action을 기록하면서 함께 바꿀 Status 또는 Forecast.
          */
@@ -949,6 +989,11 @@ export interface components {
             /** Usage Count */
             usage_count: number;
         };
+        /**
+         * Aggregate
+         * @enum {string}
+         */
+        Aggregate: "sum" | "avg" | "min" | "max" | "count" | "count_distinct";
         /** AlertSettingsRequest */
         AlertSettingsRequest: {
             /** Stale Days */
@@ -1925,6 +1970,16 @@ export interface components {
             success: boolean;
         };
         /**
+         * Entity
+         * @enum {string}
+         */
+        Entity: "deal" | "action";
+        /**
+         * FieldType
+         * @enum {string}
+         */
+        FieldType: "text" | "code" | "user" | "number" | "date" | "datetime";
+        /**
          * ForecastOutcome
          * @description Forecast가 시스템에 알려 주는 결과. 일반 코드와 Status는 항상 OPEN이다.
          * @enum {string}
@@ -1953,6 +2008,11 @@ export interface components {
             snapshot_period: string | null;
             total: components["schemas"]["RowResponse"];
         };
+        /**
+         * Format
+         * @enum {string}
+         */
+        Format: "as_is" | "prefix" | "name" | "key" | "thousands" | "krw_thousand" | "krw_million" | "decimal1" | "percent_share" | "ymd" | "ymd_hm" | "year" | "quarter" | "month" | "weekday" | "relative";
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -2050,6 +2110,24 @@ export interface components {
          * @enum {string}
          */
         OnExists: "ask" | "replace" | "skip";
+        /**
+         * Operator
+         * @enum {string}
+         */
+        Operator: "contains" | "equals" | "starts_with" | "is_empty" | "is_not_empty" | "in" | "not_in" | "eq" | "ne" | "gt" | "gte" | "lt" | "lte" | "between" | "before" | "after" | "relative";
+        /**
+         * OperatorShape
+         * @description 연산자가 받는 값의 모양(프런트가 입력 위젯을 고르는 힌트). between은 형식에 따라
+         *     숫자는 `range`, 날짜는 `date_range`로 해석한다.
+         * @enum {string}
+         */
+        OperatorShape: "text" | "list" | "number" | "range" | "date" | "relative" | "none";
+        /**
+         * OptionsSource
+         * @description DB 목록 선택지의 출처(기존 API). 카탈로그는 출처만 알린다.
+         * @enum {string}
+         */
+        OptionsSource: "users" | "vendors" | "status_codes" | "forecast_codes" | "bant_labels" | "action_types";
         /** Page[UserResponse] */
         Page_UserResponse_: {
             /** Items */
@@ -2200,6 +2278,226 @@ export interface components {
          */
         QuoteSubmitted: "YES" | "NO";
         /**
+         * RelativePeriod
+         * @enum {string}
+         */
+        RelativePeriod: "this_year" | "this_quarter" | "this_month" | "last_n_days" | "before_today";
+        /** ReportAggregateResponse */
+        ReportAggregateResponse: {
+            key: components["schemas"]["Aggregate"];
+            /** Label */
+            label: string;
+        };
+        /** ReportCatalogResponse */
+        ReportCatalogResponse: {
+            /** Aggregates */
+            aggregates: components["schemas"]["ReportAggregateResponse"][];
+            /** Entities */
+            entities: components["schemas"]["ReportEntityResponse"][];
+            /** Fields */
+            fields: components["schemas"]["ReportFieldResponse"][];
+            /** Formats */
+            formats: components["schemas"]["ReportFormatResponse"][];
+            limits: components["schemas"]["ReportLimitsResponse"];
+            /** Operators */
+            operators: components["schemas"]["ReportOperatorResponse"][];
+            /** Relative Periods */
+            relative_periods: components["schemas"]["ReportRelativePeriodResponse"][];
+        };
+        /** ReportColumnRequest */
+        ReportColumnRequest: {
+            /** Aggregate */
+            aggregate?: string | null;
+            /** Field */
+            field: string;
+            /** Format */
+            format?: string | null;
+            /**
+             * Group
+             * @default false
+             */
+            group: boolean;
+            /** Label */
+            label?: string | null;
+            /** Prefix Length */
+            prefix_length?: unknown;
+        };
+        /** ReportConditionRequest */
+        ReportConditionRequest: {
+            /** Field */
+            field: string;
+            /** Operator */
+            operator: string;
+            /** Value */
+            value?: unknown;
+        };
+        /** ReportEntityResponse */
+        ReportEntityResponse: {
+            key: components["schemas"]["Entity"];
+            /** Label */
+            label: string;
+        };
+        /** ReportFieldOptionResponse */
+        ReportFieldOptionResponse: {
+            /** Label */
+            label: string;
+            /** Value */
+            value: string;
+        };
+        /** ReportFieldResponse */
+        ReportFieldResponse: {
+            /** Aggregates */
+            aggregates: components["schemas"]["Aggregate"][];
+            /** Deal Number */
+            deal_number: boolean;
+            default_aggregate: components["schemas"]["Aggregate"] | null;
+            default_format: components["schemas"]["Format"];
+            entity: components["schemas"]["Entity"];
+            /** Filterable */
+            filterable: boolean;
+            /** Formats */
+            formats: components["schemas"]["Format"][];
+            /** Groupable */
+            groupable: boolean;
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+            /** Operators */
+            operators: components["schemas"]["Operator"][];
+            /** Options */
+            options: components["schemas"]["ReportFieldOptionResponse"][] | null;
+            /** Options Category */
+            options_category: string | null;
+            options_source: components["schemas"]["OptionsSource"] | null;
+            /** Requires Grouping */
+            requires_grouping: boolean;
+            type: components["schemas"]["FieldType"];
+            value_kind: components["schemas"]["ValueKind"] | null;
+        };
+        /** ReportFormatResponse */
+        ReportFormatResponse: {
+            /** Affects Query */
+            affects_query: boolean;
+            key: components["schemas"]["Format"];
+            /** Label */
+            label: string;
+        };
+        /** ReportLimitsResponse */
+        ReportLimitsResponse: {
+            /** Columns Max */
+            columns_max: number;
+            /** Columns Min */
+            columns_min: number;
+            /** Conditions Max */
+            conditions_max: number;
+            /** Default Row Limit */
+            default_row_limit: number;
+            /** Label Max */
+            label_max: number;
+            /** Last N Days Max */
+            last_n_days_max: number;
+            /** List Value Max */
+            list_value_max: number;
+            /** Prefix Max */
+            prefix_max: number;
+            /** Row Limits */
+            row_limits: number[];
+            /** Statement Timeout Seconds */
+            statement_timeout_seconds: number;
+            /** Text Value Max */
+            text_value_max: number;
+        };
+        /** ReportOperatorResponse */
+        ReportOperatorResponse: {
+            key: components["schemas"]["Operator"];
+            /** Label */
+            label: string;
+            value: components["schemas"]["OperatorShape"];
+        };
+        /** ReportQueryRequest */
+        ReportQueryRequest: {
+            /** Columns */
+            columns: components["schemas"]["ReportColumnRequest"][];
+            /**
+             * Combine
+             * @default and
+             */
+            combine: unknown;
+            /** Conditions */
+            conditions?: components["schemas"]["ReportConditionRequest"][];
+            /**
+             * Row Limit
+             * @default 1000
+             */
+            row_limit: unknown;
+            sort?: components["schemas"]["ReportSortRequest"] | null;
+        };
+        /** ReportQueryResponse */
+        ReportQueryResponse: {
+            action_filter: components["schemas"]["ActionFilter"];
+            /** Columns */
+            columns: components["schemas"]["ReportResultColumn"][];
+            /** Deal Numbers Once */
+            deal_numbers_once: boolean;
+            /** Elapsed Ms */
+            elapsed_ms: number;
+            /** Row Limit */
+            row_limit: number;
+            row_scope: components["schemas"]["RowScope"];
+            /** Rows */
+            rows: components["schemas"]["ResultCell"][][];
+            /** Sql */
+            sql: string;
+            /**
+             * Today
+             * Format: date
+             */
+            today: string;
+            /** Total Count */
+            total_count: number;
+            /** Totals */
+            totals: components["schemas"]["ResultCell"][] | null;
+            /** Truncated */
+            truncated: boolean;
+        };
+        /** ReportRelativePeriodResponse */
+        ReportRelativePeriodResponse: {
+            key: components["schemas"]["RelativePeriod"];
+            /** Label */
+            label: string;
+            /** Needs Days */
+            needs_days: boolean;
+        };
+        /** ReportResultColumn */
+        ReportResultColumn: {
+            aggregate: components["schemas"]["Aggregate"] | null;
+            entity: components["schemas"]["Entity"];
+            /** Field */
+            field: string;
+            format: components["schemas"]["Format"];
+            /** Group */
+            group: boolean;
+            /** Index */
+            index: number;
+            /** Label */
+            label: string;
+            /** Prefix Length */
+            prefix_length: number | null;
+            type: components["schemas"]["FieldType"];
+            value_type: components["schemas"]["ResultValueType"];
+        };
+        /** ReportSortRequest */
+        ReportSortRequest: {
+            /** Column */
+            column: unknown;
+            /**
+             * Direction
+             * @default asc
+             */
+            direction: unknown;
+        };
+        /**
          * ResolutionRequest
          * @description 프런트가 사용자에게 물어 얻은 답. 보내지 않은 답은 비워 둔다.
          */
@@ -2213,6 +2511,13 @@ export interface components {
             /** Status Key */
             status_key?: string | null;
         };
+        ResultCell: string | number | null;
+        /**
+         * ResultValueType
+         * @description 결과 열 값의 JSON 모양.
+         * @enum {string}
+         */
+        ResultValueType: "text" | "integer" | "decimal" | "date" | "datetime";
         /**
          * Role
          * @enum {string}
@@ -2225,6 +2530,12 @@ export interface components {
             open_total: components["schemas"]["TallyResponse"];
             owner: components["schemas"]["UserRef"] | null;
         };
+        /**
+         * RowScope
+         * @description 결과 행 1개가 가리키는 단위.
+         * @enum {string}
+         */
+        RowScope: "deal" | "action";
         /** ServerTimeResponse */
         ServerTimeResponse: {
             /**
@@ -2449,6 +2760,12 @@ export interface components {
             /** Error Type */
             type: string;
         };
+        /**
+         * ValueKind
+         * @description 코드·사용자 조건 값의 모양: 문자열 key 또는 정수 id.
+         * @enum {string}
+         */
+        ValueKind: "key" | "id";
         /** VendorNameRequest */
         VendorNameRequest: {
             /** Name */
@@ -5466,6 +5783,86 @@ export interface operations {
             };
             /** @description problem+json */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    list_report_fields_api_v1_reports_fields_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReportCatalogResponse"];
+                };
+            };
+            /** @description problem+json */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    run_report_api_v1_reports_query_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReportQueryRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReportQueryResponse"];
+                };
+            };
+            /** @description problem+json */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };

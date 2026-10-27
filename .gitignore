@@ -29,6 +29,9 @@ artifacts/
 .claude/settings.local.json
 build/
 reports/
+# Reports 기능 소스·테스트 폴더는 추적한다(위 reports/ 규칙의 예외)
+!backend/tests/functional/reports/
+!frontend/src/**/reports/
 
 # 로컬 실행 로그(scripts/start-*.sh)
 logs/

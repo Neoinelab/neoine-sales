@@ -37,11 +37,13 @@ from tests.unit.repositories.forecast_case import PARAMS as FORECAST_PARAMS
 from tests.unit.repositories.forecast_case import ForecastCase, open_forecast_case
 from tests.unit.repositories.forecast_snapshot_case import PARAMS as SNAPSHOT_PARAMS
 from tests.unit.repositories.forecast_snapshot_case import SnapshotCase, open_snapshot_case
+from tests.unit.repositories.report_case import PARAMS as REPORT_PARAMS
+from tests.unit.repositories.report_case import ReportCase, open_report_case
 from tests.unit.repositories.vendor_case import PARAMS as VENDOR_PARAMS
 from tests.unit.repositories.vendor_case import VendorCase, open_vendor_case
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncIterator
+    from collections.abc import AsyncIterator, Callable
     from pathlib import Path
 
 
@@ -130,4 +132,15 @@ async def dashboard_case(request: pytest.FixtureRequest) -> AsyncIterator[Dashbo
     """DashboardTallyRepository 계약 테스트용 case (fake / sql)."""
     url = request.getfixturevalue("test_database_url") if request.param == "sql" else None
     async with open_dashboard_case(request.param, url) as provided:
+        yield provided
+
+
+@pytest_asyncio.fixture(params=REPORT_PARAMS)
+async def report_case(
+    request: pytest.FixtureRequest, local_tz: Callable[[str], None]
+) -> AsyncIterator[ReportCase]:
+    """ReportQueryRunner(SQL 전용) 계약 테스트용 case. 업무 시간대를 Asia/Seoul로 맞춘다."""
+    local_tz("Asia/Seoul")
+    url = request.getfixturevalue("test_database_url")
+    async with open_report_case(request.param, url) as provided:
         yield provided

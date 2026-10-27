@@ -19,6 +19,7 @@ from tests.fakes.directory_settings_repository import FakeDirectorySettingsRepos
 from tests.fakes.forecast import FakeForecastTallyRepository
 from tests.fakes.forecast_snapshots import FakeForecastSnapshotRepository
 from tests.fakes.id_allocator import FakeIdAllocator
+from tests.fakes.report_runner import FakeReportQueryRunner
 from tests.fakes.repositories import (
     FakeDealActionRepository,
     FakeDealRepository,
@@ -30,7 +31,7 @@ from tests.fakes.vendors import FakeVendorRepository
 
 
 class FakeUnitOfWork:
-    def __init__(self) -> None:
+    def __init__(self) -> None:  # noqa: PLR0915 - 저장소 Fake를 모두 조립한다
         # 시퀀스는 트랜잭션 밖에 있다: 롤백 스냅숏(_repositories)에 넣지 않는다
         self.ids = FakeIdAllocator()
         self.contacts = FakeContactRepository()
@@ -51,6 +52,7 @@ class FakeUnitOfWork:
         self.forecast = FakeForecastTallyRepository(self.deals)  # 읽기 전용 집계(Deal 저장소 위)
         self.forecast_snapshots = FakeForecastSnapshotRepository()  # 월말 스냅숏(P6 R2)
         self.dashboard = FakeDashboardTallyRepository(self.deals)  # Dashboard 집계(읽기 전용)
+        self.reports = FakeReportQueryRunner()  # Reports 조회(기록·고정 응답만 하는 Fake)
         self.deals.wire(
             contacts=self.contacts,
             codes=self.codes,

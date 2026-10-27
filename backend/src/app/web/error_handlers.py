@@ -8,6 +8,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.application.directory.errors import DirectoryVerificationError
 from app.application.ports.directory import DirectoryUnavailableError
+from app.application.ports.report_query_runner import ReportQueryTimeoutError
 from app.application.storage.errors import StorageUnavailableError
 from app.domain.attachment.errors import AttachmentNameTakenError
 from app.domain.auth.errors import AccessDeniedError, AuthenticationError, TooManyAttemptsError
@@ -19,6 +20,8 @@ from app.domain.common.errors import (
     InvalidValueError,
     NotFoundError,
 )
+from app.domain.report.errors import ReportDefinitionError
+from app.domain.report.vocabulary import STATEMENT_TIMEOUT_SECONDS
 from app.web.security import CsrfRejectedError
 
 PROBLEM_JSON = "application/problem+json"
@@ -53,6 +56,8 @@ _TITLES = {
     "directory-unavailable": "Directory Unavailable",
     "directory-verification-failed": "Directory Verification Failed",
     "storage-unavailable": "Storage Unavailable",
+    "invalid-report": "Invalid Report",
+    "report-timeout": "Report Timeout",
     "csrf": "CSRF Check Failed",
     "http-error": "HTTP Error",
 }
@@ -88,6 +93,24 @@ async def _directory_unavailable(request: Request, _: Exception) -> JSONResponse
 async def _storage_unavailable(request: Request, exc: Exception) -> JSONResponse:
     assert isinstance(exc, StorageUnavailableError)  # noqa: S101 - 핸들러 등록 대상 보장
     return problem(request, 503, "storage-unavailable", exc.message)
+
+
+REPORT_TIMEOUT_DETAIL = (
+    f"조회가 {STATEMENT_TIMEOUT_SECONDS}초 안에 끝나지 않았습니다. 조건을 좁히거나 컬럼을 줄이세요"
+)
+
+
+async def _report_timeout(request: Request, _: Exception) -> JSONResponse:
+    """DB 취소 사유는 응답에 싣지 않고 고정 문구만 낸다."""
+    return problem(request, 503, "report-timeout", REPORT_TIMEOUT_DETAIL)
+
+
+async def _invalid_report(request: Request, exc: Exception) -> JSONResponse:
+    assert isinstance(exc, ReportDefinitionError)  # noqa: S101 - 핸들러 등록 대상 보장
+    errors = [
+        {"location": list(i.location), "code": i.code, "message": i.message} for i in exc.issues
+    ]
+    return problem(request, 422, "invalid-report", str(exc), {"errors": errors})
 
 
 async def _directory_verification(request: Request, exc: Exception) -> JSONResponse:
@@ -131,6 +154,8 @@ def register_error_handlers(app: FastAPI) -> None:
     app.add_exception_handler(DirectoryVerificationError, _directory_verification)
     app.add_exception_handler(DirectoryUnavailableError, _directory_unavailable)
     app.add_exception_handler(StorageUnavailableError, _storage_unavailable)
+    app.add_exception_handler(ReportQueryTimeoutError, _report_timeout)
+    app.add_exception_handler(ReportDefinitionError, _invalid_report)
     app.add_exception_handler(DomainError, _domain_error)
     app.add_exception_handler(RequestValidationError, _validation_error)
     app.add_exception_handler(StarletteHTTPException, _http_error)

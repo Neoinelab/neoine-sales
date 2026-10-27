@@ -19,6 +19,7 @@ if TYPE_CHECKING:
     )
     from app.application.ports.id_allocator import IdAllocator
     from app.application.ports.login_failure_repository import LoginFailureRepository
+    from app.application.ports.report_query_runner import ReportQueryRunner
     from app.application.ports.session_repository import SessionRepository
     from app.application.ports.storage_settings_repository import StorageSettingsRepository
     from app.application.ports.user_repository import UserRepository
@@ -88,6 +89,9 @@ class UnitOfWork(Protocol):
 
     @property
     def forecast_snapshots(self) -> ForecastSnapshotRepository: ...
+
+    @property
+    def reports(self) -> ReportQueryRunner: ...
 
     async def __aenter__(self) -> Self: ...
 

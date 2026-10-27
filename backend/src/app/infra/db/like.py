@@ -10,10 +10,18 @@ if TYPE_CHECKING:
 LIKE_ESCAPE = "\\"
 
 
+def _escape(keyword: str) -> str:
+    return keyword.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+
 def like_pattern(keyword: str) -> str:
     """LIKE 와일드카드(% _)와 이스케이프 문자를 글자 그대로 찾도록 이스케이프한다."""
-    escaped = keyword.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
-    return f"%{escaped}%"
+    return f"%{_escape(keyword)}%"
+
+
+def like_prefix_pattern(keyword: str) -> str:
+    """keyword로 시작하는 값을 찾는 패턴(뒤에만 %). 와일드카드는 글자 그대로 취급한다."""
+    return f"{_escape(keyword)}%"
 
 
 def keyword_filter(

@@ -26,6 +26,7 @@ from app.web.routers import (
     deals,
     forecast,
     health,
+    reports,
     settings_directory,
     settings_storage,
     time,
@@ -98,6 +99,7 @@ def create_app(
     for module in (
         *business,
         user_options,
+        reports,
         users,
         settings_directory,
         settings_storage,

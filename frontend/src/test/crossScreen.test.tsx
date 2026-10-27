@@ -4,6 +4,8 @@ import { ALL_DEALS } from '../features/deals/list/testHelpers'
 import { listMemoryKey } from '../shared/model/dealListMemory'
 import { USER_ID } from './fake/seed/ids'
 import { renderAt } from './mockApp'
+// App은 DashboardPage를 React.lazy로 불러오므로 청크 로딩이 findBy 기본 대기(1초)를 넘기지 않게 미리 읽어 둔다(Dashboard AC-10).
+import '../features/dashboard/DashboardPage'
 
 type Rendered = Awaited<ReturnType<typeof renderAt>>
 

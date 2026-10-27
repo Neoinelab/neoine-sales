@@ -16,8 +16,6 @@ from tests.fakes.file_storage import FakeFileStorage
 from tests.fakes.unit_of_work import FakeUnitOfWork, SteppingClock
 
 if TYPE_CHECKING:
-    from app.application.user.change_user_role import ChangeUserRole
-
     from app.application.alert.get_alert_settings import GetAlertSettings
     from app.application.alert.update_alert_settings import UpdateAlertSettings
     from app.application.auth.auth_status import GetAuthStatus
@@ -43,10 +41,13 @@ if TYPE_CHECKING:
     from app.application.forecast.list_snapshots import ListForecastSnapshots
     from app.application.forecast.take_snapshot import TakeForecastSnapshot
     from app.application.ports.unit_of_work import UnitOfWorkFactory
+    from app.application.report.list_fields import ListReportFields
+    from app.application.report.run_report import RunReport
     from app.application.storage.get_settings import GetStorageSettings
     from app.application.storage.test_settings import TestStorageSettings
     from app.application.storage.update_settings import UpdateStorageSettings
     from app.application.time.get_server_time import GetServerTime
+    from app.application.user.change_user_role import ChangeUserRole
     from app.application.user.delete_user import DeleteUser
     from app.application.user.list_user_options import ListUserOptions
     from app.application.user.list_users import ListUsers
@@ -183,6 +184,17 @@ class FakeUseCases(CatalogUseCases, ContactUseCases, DealUseCases, AttachmentUse
         from app.application.dashboard.get_summary import GetDashboardSummary  # noqa: PLC0415
 
         return GetDashboardSummary(self._factory, self.clock)
+
+    # Reports 유스케이스도 사용 시점에 가져온다(구현 전에도 수집된다)
+    def list_report_fields(self) -> ListReportFields:
+        from app.application.report.list_fields import ListReportFields  # noqa: PLC0415
+
+        return ListReportFields()
+
+    def run_report(self) -> RunReport:
+        from app.application.report.run_report import RunReport  # noqa: PLC0415
+
+        return RunReport(self._factory, self.clock)
 
     # 서버 시각 유스케이스도 사용 시점에 가져온다(구현 전에도 수집된다). DB를 쓰지 않는다
     def get_server_time(self) -> GetServerTime:
