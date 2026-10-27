@@ -201,7 +201,7 @@ code{background:var(--soft);padding:1px 5px;border-radius:3px;font-size:12.5px}
 <li>고객사·파트너사는 5.6절 연락처에서, Deal Owner는 사용자(<code>users</code>)에서 선택한다. 코드 테이블이 아니다.</li>
 <li><s>Vendor·Solution은 자유 입력이다.</s>(2026-10-22 변경) Vendor는 코드가 아니라 admin이 관리하는 선택 목록이고, Solution은 필수 자유 입력 텍스트다(5.1절). 견적여부(YES/NO)·POC여부(YES/ING/NO)는 고정 선택값이다.</li>
 <li>BANT 4항목은 코드가 아니라 5.5절의 Label이다.</li>
-<li>현재 Status는 코드(enum)로 고정되어 있다. DB 관리 코드로 바꾸는 작업이 필요하다. <span class="b todo">예정</span></li>
+<li><s>현재 Status는 코드(enum)로 고정되어 있다. DB 관리 코드로 바꾸는 작업이 필요하다.</s> <span class="b ok">구현</span> P0: Status는 DB 관리 코드(<code>codes</code>, admin 관리)</li>
 </ul>
 <h3 id="s5-5">5.5 BANT Label (확정)</h3>
 <p>BANT의 Budget / Authority / Need / Timeline은 코드가 아니라 <b>Label</b>로 관리한다(태그가 아니라 라벨로 부른다). Label은 사용자가 직접 늘릴 수 있는 선택값이다. Deal은 BANT 항목마다 <b>Label을 하나만</b> 가질 수 있다. <b>현재 단계에서는 점수를 관리하지 않는다.</b> 점수가 필요해지면 후속으로 확장한다.</p>
@@ -442,7 +442,7 @@ code{background:var(--soft);padding:1px 5px;border-radius:3px;font-size:12.5px}
 <h2 id="s8">8. 자동 규칙</h2>
 <table>
 <tr><th>ID</th><th>규칙</th><th>상태</th></tr>
-<tr><td>R01</td><td>Expected Close → Month / Quarter / Year 자동 분류</td><td><span class="b todo">예정</span></td></tr>
+<tr><td>R01</td><td>Expected Close → Month / Quarter / Year 자동 분류</td><td><span class="b ok">구현</span> P6 R1(2026-10-21): Forecast 요약·Deal 목록의 연도·Quarter·월 조건(7.3절 FC-03), Reports의 날짜 포맷(연·분기·월)</td></tr>
 <tr><td>R02</td><td>Deal 등록과 Deal 및 Deal과 연결된 모든 정보의 변경(Status / Forecast / 금액 / Expected Close / Owner / 파트너 / 연락처 / BANT Label / Action 등록·수정·삭제 / 첨부 파일 업로드·삭제)을 Deal History에 저장</td><td><span class="b ok">구현</span> P1·P2·P2b</td></tr>
 <tr><td>R03</td><td>Next Action Due 경과 → “기한초과”</td><td><span class="b ok">구현</span> P3, 서버 계산. <b>결정(2026-10-20)</b>: Next Action이 있는 가장 최근 Action의 Due 기준, Next Action 상태와 무관</td></tr>
 <tr><td>R04</td><td>14일 이상 Update 없음 → “미업데이트”(일수는 CM-05 설정값)</td><td><span class="b ok">구현</span> P3. <b>결정(2026-10-20)</b>: Update는 Action 등록(진행사항만 있는 Action 포함)만 뜻하고 Deal 자체 수정은 제외. Action이 없으면 Deal 등록 시각부터 센다</td></tr>
@@ -532,7 +532,7 @@ code{background:var(--soft);padding:1px 5px;border-radius:3px;font-size:12.5px}
 
 <!-- ===================== 부록 ===================== -->
 <h2 id="sa">부록 A. 구현된 항목</h2>
-<p>2026-10-14 기준 코드(<code>backend/openapi.json</code>, <code>frontend/src</code>)에서 확인한 내용이다. 게이트 통과 기준은 백엔드 pytest 2710건(skip 0), 프런트엔드 276건이다.</p>
+<p>2026-10-14 시점의 기록이다(이후 변경은 7장 요구사항 표와 부록 B·C를 본다). 그 시점 코드(<code>backend/openapi.json</code>, <code>frontend/src</code>)에서 확인한 내용이다. 게이트 통과 기준은 백엔드 pytest 2710건(skip 0), 프런트엔드 276건이다.</p>
 
 <h3>A.1 Deal</h3>
 <ul>
@@ -602,7 +602,7 @@ code{background:var(--soft);padding:1px 5px;border-radius:3px;font-size:12.5px}
 </ul>
 
 <h2 id="sc">부록 C. PRD 확정 기준과 현재 구현의 차이</h2>
-<p>이 표는 <b>명세서대로 고친다는 뜻이 아니다.</b> 각 행의 “PRD 확정 기준” 열이 구현의 기준이며, 명세서와 다른 곳은 대화에서 정한 결정이 명세서를 대체했다. “단계”는 부록 B의 개발 단계다.</p>
+<p>이 표는 <b>명세서대로 고친다는 뜻이 아니다.</b> 각 행의 “PRD 확정 기준” 열이 구현의 기준이며, 명세서와 다른 곳은 대화에서 정한 결정이 명세서를 대체했다. “단계”는 부록 B의 개발 단계다. <b>“현재 구현” 열은 2026-10-27 기준</b>이다(C.3은 명세서에 없던 기존 기능이 지금 어떻게 남아 있거나 대체됐는지를 적는다).</p>
 <h3>C.1 명세서가 맞아서 명세서대로 구현할 것</h3>
 <table>
 <tr><th>#</th><th>항목</th><th>명세서</th><th>현재 구현</th><th>PRD 확정 기준</th><th>단계</th></tr>
@@ -610,51 +610,51 @@ code{background:var(--soft);padding:1px 5px;border-radius:3px;font-size:12.5px}
 <tr><td>A2</td><td>Forecast 메뉴</td><td>요약·담당자 상세·Review(“담당자 상세” 메뉴는 두지 않음)</td><td>구현(2026-10-21): 요약 화면에서 담당자 선택 시 같은 화면에 Deal 목록(7.3절 FC-04·FC-05)</td><td>명세서대로(“담당자 상세” 메뉴 제외)</td><td>P6 <span class="b ok">완료</span></td></tr>
 <tr><td>A3</td><td>Reports 메뉴</td><td>담당자·Vendor·Status·Forecast 분석</td><td>범용 리포트 디자이너(조회·저장·차트, 2026-10-27)</td><td><s>명세서대로(Forecast 추이는 표+그래프)</s> 2026-10-26 결정: 명세서의 분석을 사용자가 설계·저장하는 범용 리포트로 만든다(Forecast 추이는 표+차트). Status 전환율·단계 체류 이력·달성률은 데이터가 없어 미충족(7.4절)</td><td>P7 <span class="b part">부분</span></td></tr>
 <tr><td>A4</td><td>Forecast 값</td><td>Pipeline / Best / Most Likely / Commit / Won / Lost</td><td>구현(P0 코드 관리·P1 Deal 필드, 7.3절 FC-02)</td><td>명세서 슬라이드 4 기준 그대로</td><td>P0·P1</td></tr>
-<tr><td>A5</td><td>견적·POC·구매절차</td><td>견적 제출여부·제출일, POC 여부·완료일, 구매절차</td><td>없음</td><td>명세서대로</td><td>P1</td></tr>
-<tr><td>A6</td><td>경고와 체류기간</td><td>기한초과, 14일 미업데이트, 단계별 체류기간</td><td>없음(Due Date 데이터만 있음)</td><td>명세서대로</td><td>P3</td></tr>
-<tr><td>A7</td><td>경고 기준 설정</td><td>Admin 설정값</td><td>없음</td><td>명세서대로</td><td>P3</td></tr>
+<tr><td>A5</td><td>견적·POC·구매절차</td><td>견적 제출여부·제출일, POC 여부·완료일, 구매절차</td><td>구현(P1): 견적 제출여부(YES/NO)·제출일, POC 여부(YES/ING/NO)·완료일, 구매절차. 상세와 목록 Quick View에 표시(7.2절 DL-05·DL-09)</td><td>명세서대로</td><td>P1 <span class="b ok">완료</span></td></tr>
+<tr><td>A6</td><td>경고와 체류기간</td><td>기한초과, 14일 미업데이트, 단계별 체류기간</td><td>구현(P3): 서버 계산 기한초과·미업데이트(<code>risk</code>)와 현재 Status 체류 일수(8장 R03~R05, 7.2절 DL-07). 단계별 체류 이력은 남기지 않음</td><td>명세서대로</td><td>P3 <span class="b ok">완료</span></td></tr>
+<tr><td>A7</td><td>경고 기준 설정</td><td>Admin 설정값</td><td>구현(P3): Admin &gt; Deal 관리 “경고 기준” 탭, 미업데이트 기준 일수 1~365일·기본 14(7.5절 CM-05)</td><td>명세서대로</td><td>P3 <span class="b ok">완료</span></td></tr>
 <tr><td>A8</td><td>Forecast 월말 Batch</td><td>매월 말일 Batch로 집계 테이블 갱신</td><td>구현(2026-10-21): 매월 1일 00:05 전월분 스냅숏(systemd timer), 화면 “기준 시점”(7.3절 FC-06)</td><td>명세서대로(말일 대신 다음 달 1일 00:05 실행)</td><td>P6 <span class="b ok">완료</span></td></tr>
 <tr><td>A9</td><td>Excel Export</td><td>조회 조건 유지</td><td>없음</td><td>명세서대로. 2026-10-26 Q8: Reports 이후 단계(이번 범위 밖)</td><td>P7 이후 <span class="b todo">예정</span></td></tr>
-<tr><td>A10</td><td>Inline Update</td><td>Status·Forecast 등 일부 권한 범위</td><td>없음</td><td>명세서 취지대로, 대상은 Status / Forecast / 금액 / Expected Close 네 컬럼</td><td>P5</td></tr>
-<tr><td>A11</td><td>사용자 메뉴</td><td>Dashboard / Deals / Forecast / Reports 4개</td><td>Deals·고객·파트너·활동 등 별도 메뉴</td><td>명세서대로 4개(+admin 전용 Admin 메뉴)</td><td>P8 <span class="b ok">완료</span></td></tr>
-<tr><td>A12</td><td>Status 단계</td><td>7단계(기회발굴 … 계약완료)</td><td>7단계 + <code>lost</code>, 고정 enum</td><td>명세서 7단계, POC는 준비·완료 두 개. <code>lost</code> 제거. Status는 DB 관리 코드</td><td>P0·P1</td></tr>
+<tr><td>A10</td><td>Inline Update</td><td>Status·Forecast 등 일부 권한 범위</td><td>구현: Deal 목록에서 Status·Forecast·금액·Expected Close 바로 수정, Won 전환 입력 강제·동기화 질문 포함(7.2절 DL-08, P1의 변경 로직 재사용)</td><td>명세서 취지대로, 대상은 Status / Forecast / 금액 / Expected Close 네 컬럼</td><td>P5 <span class="b ok">완료</span></td></tr>
+<tr><td>A11</td><td>사용자 메뉴</td><td>Dashboard / Deals / Forecast / Reports 4개</td><td>구현(P8): Dashboard·Deals·Forecast·Reports 4개 + admin에게만 Admin 메뉴, 구 <code>/users</code>·<code>/settings</code>는 Admin 화면으로 이동(7.5절 CM-06)</td><td>명세서대로 4개(+admin 전용 Admin 메뉴)</td><td>P8 <span class="b ok">완료</span></td></tr>
+<tr><td>A12</td><td>Status 단계</td><td>7단계(기회발굴 … 계약완료)</td><td>구현(P0): Status는 DB 관리 코드(<code>codes</code>), 기본 7단계(POC준비·POC완료 포함), <code>lost</code> 없음, 계약완료⇔Won은 DB CHECK로도 보장(6.1절, 7.5절 CM-07)</td><td>명세서 7단계, POC는 준비·완료 두 개. <code>lost</code> 제거. Status는 DB 관리 코드</td><td>P0·P1 <span class="b ok">완료</span></td></tr>
 </table>
 <h3>C.2 확정 결정이 명세서를 대체한 것 (명세서가 아니라 결정대로 구현)</h3>
 <table>
 <tr><th>#</th><th>항목</th><th>명세서</th><th>현재 구현</th><th>PRD 확정 기준</th><th>단계</th></tr>
-<tr><td>B1</td><td>첨부파일</td><td>2차 확장</td><td>없음</td><td><b>1차로 당김</b>. Deal 상세에서 파일+설명(100자) 업로드·삭제</td><td>P2b</td></tr>
-<tr><td>B2</td><td>Result 속성</td><td>Open / Won / Lost 분리 권장(슬라이드 17)</td><td>없음</td><td><b>두지 않음</b>. 결과는 Forecast(Won/Lost)로 판단</td><td>—</td></tr>
-<tr><td>B3</td><td>Forecast 구간</td><td>슬라이드 4와 17이 서로 다름</td><td>없음</td><td><b>슬라이드 4 기준</b>(슬라이드 17의 Omitted는 무시), 확률은 참고용</td><td>P0</td></tr>
-<tr><td>B4</td><td>BANT</td><td>선택지 코드값(Budget / Authority / Need / Timeline)</td><td>없음</td><td><b>점수 없는 Label</b>(항목당 하나). 명세서 선택지는 기본 Label, 사용자가 추가 가능</td><td>P0·P1</td></tr>
-<tr><td>B5</td><td>코드 테이블</td><td>파트너·Owner·Vendor·Status·Forecast·BANT·견적·POC 모두 코드</td><td>Status만 enum</td><td><b>Status와 Forecast만</b> 코드(admin 관리). <s>Vendor·Solution은 자유 입력</s>(2026-10-22 변경) Vendor는 admin 관리 목록 선택, Solution은 필수 자유 입력</td><td>P0</td></tr>
-<tr><td>B6</td><td>고객·파트너</td><td>고객정보와 파트너정보 별도, 파트너사 1·2 표기</td><td><code>customers</code>·<code>partners</code> 별도 테이블과 별도 화면</td><td><b>연락처 하나의 테이블</b>(고객/파트너 구분자). 회사+담당자 한 행. Deal 화면에서 선택·수정, 파트너는 1:N 중 활성 1건·선택</td><td>P1</td></tr>
-<tr><td>B7</td><td>직원수</td><td>고객 정보의 직원수</td><td><code>customers.employee_count</code></td><td><b>Deal의 Users</b>(견적 단위 사용자 수, 필수)로 대체</td><td>P1</td></tr>
-<tr><td>B8</td><td>Deal code</td><td>자동입력</td><td>입력값(고유), 기본키는 UUID <code>id</code></td><td><b>자동 채번</b> <code>YYYYMMDD-XXXX</code>, <code>deal_code</code>는 UNIQUE 업무 키, 기본키는 내부 정수 <code>id</code>(2026-10-21)</td><td>P1</td></tr>
-<tr><td>B9</td><td>매출일과 Expected Close</td><td>다른 항목처럼 보임</td><td><code>revenue_date</code> 하나</td><td><b>같은 값</b>. Won이면 최종 매출일로 갱신</td><td>P1</td></tr>
-<tr><td>B10</td><td>Next Action 이력</td><td>이전 Update는 Read Only</td><td>수정·삭제 API 있음</td><td><b>수정 가능</b>, 수정은 Deal History에 기록</td><td>P2</td></tr>
-<tr><td>B11</td><td>딜 이력</td><td>변경일 / 변경항목 / 이전 / 이후</td><td>Status 변경 이력만</td><td><b>모든 변경</b>을 <code>deal_history</code>에 기록(등록 포함)</td><td>P2</td></tr>
-<tr><td>B12</td><td>Status⇄Forecast</td><td>Status와 Forecast를 독립적으로 변경</td><td>독립(Forecast 자체가 없음)</td><td>독립이되 <b>Won ⇔ 계약완료는 동기화</b>, Won 전환 시 매출금액·매출일 강제 입력, 종결 Deal 되돌릴 때 사용자에게 질문</td><td>P1</td></tr>
-<tr><td>B13</td><td>Deal 삭제</td><td>(규정 없음)</td><td>활동·단계 이력이 있으면 409</td><td><b>본인(Owner) 또는 admin</b>, Deal code 입력 확인, 관련 데이터·파일 디렉터리 전부 삭제</td><td>P1</td></tr>
-<tr><td>B14</td><td>Owner·등록자</td><td>담당자</td><td><code>owner_user_id</code>(역할 제한 없음) + <code>registered_by_user_id</code></td><td>Owner만 존재, 기본값은 접속 사용자, <b>sales만</b> 지정. <code>registered_by_user_id</code> 제거</td><td>P1</td></tr>
+<tr><td>B1</td><td>첨부파일</td><td>2차 확장</td><td>구현(P2b): Deal 상세에서 파일+설명(100자) 업로드·목록·다운로드·삭제, 100MB·차단 확장자 24개(7.7절 FL-01~07)</td><td><b>1차로 당김</b>. Deal 상세에서 파일+설명(100자) 업로드·삭제</td><td>P2b <span class="b ok">완료</span></td></tr>
+<tr><td>B2</td><td>Result 속성</td><td>Open / Won / Lost 분리 권장(슬라이드 17)</td><td>확정대로 별도 속성 없음. Open/Won/Lost는 Forecast 코드의 구분(outcome)으로 계산(Dashboard·Forecast 집계, Reports “Forecast 구분” 필드)</td><td><b>두지 않음</b>. 결과는 Forecast(Won/Lost)로 판단</td><td>—</td></tr>
+<tr><td>B3</td><td>Forecast 구간</td><td>슬라이드 4와 17이 서로 다름</td><td>구현(P0): Forecast 코드 6개(슬라이드 4), 확률은 코드의 참고 표시(<code>probability_hint</code>)일 뿐 집계에 쓰지 않음(6.2절)</td><td><b>슬라이드 4 기준</b>(슬라이드 17의 Omitted는 무시), 확률은 참고용</td><td>P0 <span class="b ok">완료</span></td></tr>
+<tr><td>B4</td><td>BANT</td><td>선택지 코드값(Budget / Authority / Need / Timeline)</td><td>구현(P0·P1): 4항목별 점수 없는 Label(<code>bant_labels</code>), 기본 Label 시드, 항목당 하나 선택·없는 이름은 저장 시 생성(5.5절, 7.6절 LB-01~05·07)</td><td><b>점수 없는 Label</b>(항목당 하나). 명세서 선택지는 기본 Label, 사용자가 추가 가능</td><td>P0·P1 <span class="b ok">완료</span></td></tr>
+<tr><td>B5</td><td>코드 테이블</td><td>파트너·Owner·Vendor·Status·Forecast·BANT·견적·POC 모두 코드</td><td>구현(P0): Status·Forecast는 DB 관리 코드(<code>codes</code>, admin). 그 밖에 Vendor·Action 유형은 admin 관리 목록(2026-10-19), Solution은 필수 자유 텍스트(2026-10-22)(5.4절)</td><td><b>Status와 Forecast만</b> 코드(admin 관리). <s>Vendor·Solution은 자유 입력</s>(2026-10-22 변경) Vendor는 admin 관리 목록 선택, Solution은 필수 자유 입력</td><td>P0 <span class="b ok">완료</span></td></tr>
+<tr><td>B6</td><td>고객·파트너</td><td>고객정보와 파트너정보 별도, 파트너사 1·2 표기</td><td>구현(P1): <code>contacts</code> 한 테이블(고객/파트너 구분), <code>customers</code>·<code>partners</code> 테이블·화면 폐지, 파트너는 <code>deal_partners</code> 1:N·활성 1건(5.6절, 7.2절 DL-02·DL-14)</td><td><b>연락처 하나의 테이블</b>(고객/파트너 구분자). 회사+담당자 한 행. Deal 화면에서 선택·수정, 파트너는 1:N 중 활성 1건·선택</td><td>P1 <span class="b ok">완료</span></td></tr>
+<tr><td>B7</td><td>직원수</td><td>고객 정보의 직원수</td><td>구현(P1, 2026-10-21 필수화): <code>deals.users</code> 0 이상 정수 필수, <code>employee_count</code> 제거(7.2절 DL-01)</td><td><b>Deal의 Users</b>(견적 단위 사용자 수, 필수)로 대체</td><td>P1 <span class="b ok">완료</span></td></tr>
+<tr><td>B8</td><td>Deal code</td><td>자동입력</td><td>구현(P1): <code>YYYYMMDD-XXXX</code> 자동 채번, <code>deal_code</code> UNIQUE·API 경로 <code>/deals/{code}</code>, 기본키는 BIGINT identity <code>id</code>(2026-10-21, 5.1절)</td><td><b>자동 채번</b> <code>YYYYMMDD-XXXX</code>, <code>deal_code</code>는 UNIQUE 업무 키, 기본키는 내부 정수 <code>id</code>(2026-10-21)</td><td>P1 <span class="b ok">완료</span></td></tr>
+<tr><td>B9</td><td>매출일과 Expected Close</td><td>다른 항목처럼 보임</td><td>구현(P1): <code>revenue_date</code> 하나를 Expected Close로 사용, Won 전환 시 매출금액·매출일 입력(6.6절, 8장 R09)</td><td><b>같은 값</b>. Won이면 최종 매출일로 갱신</td><td>P1 <span class="b ok">완료</span></td></tr>
+<tr><td>B10</td><td>Next Action 이력</td><td>이전 Update는 Read Only</td><td>구현(P2): Action 수정·삭제는 Action 담당자 본인·admin, 수정·삭제는 Deal History에 기록(7.2절 DL-10·DL-11)</td><td><b>수정 가능</b>, 수정은 Deal History에 기록</td><td>P2 <span class="b ok">완료</span></td></tr>
+<tr><td>B11</td><td>딜 이력</td><td>변경일 / 변경항목 / 이전 / 이후</td><td>구현(P2): <code>deal_history</code>에 등록·Deal 변경·파트너·Action·연락처·Label·파일 등 모든 변경 기록, 단계 변경 이력 테이블은 폐지(5.7절, 7.2절 DL-11, 8장 R02)</td><td><b>모든 변경</b>을 <code>deal_history</code>에 기록(등록 포함)</td><td>P2 <span class="b ok">완료</span></td></tr>
+<tr><td>B12</td><td>Status⇄Forecast</td><td>Status와 Forecast를 독립적으로 변경</td><td>구현(P1): 독립 변경, 계약완료⇔Won 동기화(DB CHECK 포함)·매출 입력 강제·종결 Deal 되돌릴 때 질문(6.7절, 7.2절 DL-15, 8장 R10)</td><td>독립이되 <b>Won ⇔ 계약완료는 동기화</b>, Won 전환 시 매출금액·매출일 강제 입력, 종결 Deal 되돌릴 때 사용자에게 질문</td><td>P1 <span class="b ok">완료</span></td></tr>
+<tr><td>B13</td><td>Deal 삭제</td><td>(규정 없음)</td><td>구현(P1): Owner 본인 또는 admin, Deal code 입력 확인, Deal History·Action·Label·파트너 연결·첨부 디렉터리 함께 삭제(7.2절 DL-03)</td><td><b>본인(Owner) 또는 admin</b>, Deal code 입력 확인, 관련 데이터·파일 디렉터리 전부 삭제</td><td>P1 <span class="b ok">완료</span></td></tr>
+<tr><td>B14</td><td>Owner·등록자</td><td>담당자</td><td>구현(P1): <code>owner_user_id</code>만, 기본값 접속 사용자, sales만 지정, <code>registered_by_user_id</code> 제거(7.2절 DL-12)</td><td>Owner만 존재, 기본값은 접속 사용자, <b>sales만</b> 지정. <code>registered_by_user_id</code> 제거</td><td>P1 <span class="b ok">완료</span></td></tr>
 </table>
 <h3>C.3 현재 구현에만 있는 것 (유지 또는 대체)</h3>
 <table>
 <tr><th>#</th><th>항목</th><th>명세서</th><th>현재 구현</th><th>PRD 확정 기준</th><th>단계</th></tr>
-<tr><td>C1</td><td>사용자 관리·퇴사 처리</td><td>(언급 없음)</td><td>구현(퇴사 시 이력 보존)</td><td><b>유지</b>. Admin &gt; Settings &gt; 사용자 관리로 이동</td><td>P0</td></tr>
-<tr><td>C2</td><td>AD 설정 화면</td><td>(언급 없음)</td><td>구현(<code>/settings</code>)</td><td><b>유지</b>. Admin &gt; Settings &gt; 외부연동으로 이동</td><td>P0</td></tr>
-<tr><td>C3</td><td>로그인 실패 제한</td><td>(언급 없음)</td><td>구현</td><td><b>유지</b></td><td>—</td></tr>
-<tr><td>C4</td><td>내 딜 필터</td><td>(언급 없음)</td><td>구현</td><td><b>유지</b></td><td>—</td></tr>
-<tr><td>C5</td><td>활동 유형(통화/미팅 등)</td><td>진행사항만</td><td>구현</td><td><b>유지</b></td><td>—</td></tr>
-<tr><td>C6</td><td>역할 admin / sales / user</td><td>Admin 별도 접근</td><td>구현</td><td><b>유지</b></td><td>—</td></tr>
-<tr><td>C7</td><td>활동 통합 검색(<code>/actions</code>)</td><td>(언급 없음)</td><td>구현</td><td><b>대체</b>: Deal 상세의 Actions 탭 검색</td><td>P2</td></tr>
-<tr><td>C8</td><td>고객·파트너 독립 화면</td><td>(언급 없음)</td><td>구현(<code>/customers</code>, <code>/partners</code>)</td><td><b>대체</b>: Deal 화면의 연락처 선택과 Admin &gt; contacts 관리</td><td>P0·P1(구 경로 정리 P8) <span class="b ok">완료</span></td></tr>
+<tr><td>C1</td><td>사용자 관리·퇴사 처리</td><td>(언급 없음)</td><td>구현: Admin &gt; Settings &gt; 사용자 관리(<code>/admin/users</code>), 퇴사 처리(이력 보존), 역할 변경(2026-10-26)(7.5절 CM-03)</td><td><b>유지</b>. Admin &gt; Settings &gt; 사용자 관리로 이동</td><td>P0 <span class="b ok">완료</span></td></tr>
+<tr><td>C2</td><td>AD 설정 화면</td><td>(언급 없음)</td><td>구현: Admin &gt; Settings &gt; 외부연동(<code>/admin/integrations</code>), 구 <code>/settings</code>는 그곳으로 이동</td><td><b>유지</b>. Admin &gt; Settings &gt; 외부연동으로 이동</td><td>P0 <span class="b ok">완료</span></td></tr>
+<tr><td>C3</td><td>로그인 실패 제한</td><td>(언급 없음)</td><td>구현(유지, 7.5절 CM-01)</td><td><b>유지</b></td><td>—</td></tr>
+<tr><td>C4</td><td>내 딜 필터</td><td>(언급 없음)</td><td>구현(유지): Deal 목록 “내 딜만”(7.2절 DL-04)</td><td><b>유지</b></td><td>—</td></tr>
+<tr><td>C5</td><td>활동 유형(통화/미팅 등)</td><td>진행사항만</td><td>구현(2026-10-19 관리 목록으로 변경): <code>action_types</code>(기본 8개), Admin &gt; Deal 관리 “Action 유형” 탭, 없는 이름은 Action 저장 시 생성(7.2절 DL-10)</td><td><b>유지</b></td><td>—</td></tr>
+<tr><td>C6</td><td>역할 admin / sales / user</td><td>Admin 별도 접근</td><td>구현(유지, 7.5절 CM-02)</td><td><b>유지</b></td><td>—</td></tr>
+<tr><td>C7</td><td>활동 통합 검색(<code>/actions</code>)</td><td>(언급 없음)</td><td>대체 완료(P2): <code>/actions</code> 화면과 전역 <code>/deal-actions</code> 검색 폐지, Deal 상세 Actions 탭에서 검색(7.2절 DL-10)</td><td><b>대체</b>: Deal 상세의 Actions 탭 검색</td><td>P2 <span class="b ok">완료</span></td></tr>
+<tr><td>C8</td><td>고객·파트너 독립 화면</td><td>(언급 없음)</td><td>대체 완료: <code>customers</code>·<code>partners</code> 테이블과 <code>/customers</code>·<code>/partners</code> API·화면 폐지, <code>contacts</code>와 Admin &gt; contacts 관리(<code>/admin/contacts</code>)(7.2절 DL-02·DL-13)</td><td><b>대체</b>: Deal 화면의 연락처 선택과 Admin &gt; contacts 관리</td><td>P0·P1(구 경로 정리 P8) <span class="b ok">완료</span></td></tr>
 </table>
 <h3>C.4 명세서 내부 불일치 (해소됨)</h3>
 <table>
 <tr><th>#</th><th>항목</th><th>명세서</th><th>현재 구현</th><th>해소</th></tr>
-<tr><td>D1</td><td>Forecast 확률 구간</td><td>슬라이드 4 vs 17</td><td>—</td><td>슬라이드 4로 확정(참고용)</td></tr>
-<tr><td>D2</td><td>POC 단계명</td><td>“POC 준비” / “POC 일정” / “POC 일정 확정”</td><td><code>poc_preparation</code></td><td>POC 준비·POC 완료 두 개로 확정</td></tr>
-<tr><td>D3</td><td>매출일 vs Expected Close</td><td>다른 항목처럼 표기</td><td><code>revenue_date</code></td><td>같은 값으로 확정</td></tr>
+<tr><td>D1</td><td>Forecast 확률 구간</td><td>슬라이드 4 vs 17</td><td>Forecast 코드의 참고 표시(<code>probability_hint</code>, 슬라이드 4 값)</td><td>슬라이드 4로 확정(참고용)</td></tr>
+<tr><td>D2</td><td>POC 단계명</td><td>“POC 준비” / “POC 일정” / “POC 일정 확정”</td><td>Status 코드 <code>poc_preparation</code>(POC준비)·<code>poc_completed</code>(POC완료)</td><td>POC 준비·POC 완료 두 개로 확정</td></tr>
+<tr><td>D3</td><td>매출일 vs Expected Close</td><td>다른 항목처럼 표기</td><td><code>revenue_date</code> 하나(화면 표기 Expected Close)</td><td>같은 값으로 확정</td></tr>
 <tr><td>D4</td><td>오탈자·버전</td><td>Yearear, Pipelie, 표지 v5.0 / 파일명 v4</td><td>—</td><td>PRD에서는 Year, Pipeline으로 표기</td></tr>
 </table>
 
