@@ -88,3 +88,46 @@ describe('permission and verification problems (UI-10)', () => {
     expect((error as ApiError & { stage?: string }).stage).toBeUndefined()
   })
 })
+
+describe('problems with error items of another shape (Reports)', () => {
+  it('ignores error items without loc instead of throwing', () => {
+    const body = {
+      type: 'https://x/problems/invalid-report',
+      title: 't',
+      status: 422,
+      detail: '허용되지 않은 필드입니다: deal.nope',
+      errors: [{ location: ['columns', 1, 'field'], code: 'unknown-field', message: '허용되지 않은 필드입니다: deal.nope' }],
+    } as never
+
+    const create = () => new ApiError(422, body)
+
+    expect(create).not.toThrow()
+    expect(create().message).toBe('허용되지 않은 필드입니다: deal.nope')
+  })
+
+  it('still lists the items that do have loc next to ones that do not', () => {
+    const body = {
+      type: 'https://x/problems/request-validation',
+      title: 't',
+      status: 422,
+      detail: '요청 형식이 올바르지 않습니다',
+      errors: [{ code: 'x', message: 'y' }, { loc: ['body', 'row_limit'], msg: 'Field required' }],
+    } as never
+
+    expect(new ApiError(422, body).message).toBe('요청 형식이 올바르지 않습니다 — row_limit: Field required')
+  })
+
+  it('carries the report issues of an invalid report problem', () => {
+    const reportErrors = [{ location: ['row_limit'], code: 'row-limit-invalid', message: '최대 행 수가 올바르지 않습니다' }]
+    const error = new ApiError(422, {
+      type: 'https://x/problems/invalid-report',
+      title: 't',
+      status: 422,
+      detail: '최대 행 수가 올바르지 않습니다',
+      reportErrors,
+    })
+
+    expect(error.kind).toBe('invalid-report')
+    expect(error.problem?.reportErrors).toEqual(reportErrors)
+  })
+})

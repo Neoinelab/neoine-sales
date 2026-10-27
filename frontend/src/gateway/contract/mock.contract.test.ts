@@ -16,6 +16,7 @@ import { dashboardContract } from './dashboard.contract'
 import { dealsContract } from './deals.contract'
 import { forecastContract } from './forecast.contract'
 import { labelsContract } from './labels.contract'
+import { reportsContract } from './reports.contract'
 import { timeContract } from './time.contract'
 import { vendorsContract } from './vendors.contract'
 import type { MakeGateway } from './support'
@@ -57,4 +58,5 @@ attachmentsContract(makeMock)
 alertsContract(makeMock)
 forecastContract(makeMock)
 dashboardContract(makeMock)
+reportsContract(makeMock)
 timeContract(makeMock)

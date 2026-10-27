@@ -1,3 +1,6 @@
+import type { ReportQueryInput } from '../../shared/model/reportTypes'
+import type { ReportQueryHandler } from './store'
+
 /**
  * Fake 전용 제어(테스트가 사용). `default.ts`가 `mockControl`로 내보낸다.
  * 게이트웨이 메서드가 아니므로 권한·History와 무관하다.
@@ -13,4 +16,8 @@ export interface MockControl {
   now(): string // Fake 시계의 지금(ISO). 화면은 `useToday()`(data/today.ts)로만 읽는다.
   setLatency(on: boolean): void
   isLatencyOn(): boolean
+  /** 리포트 조회 응답을 지정한다(결과를 돌려주거나 ApiError를 throw). null이면 Fake의 기본 규칙. `resetData`가 지운다. */
+  setReportQueryHandler(handler: ReportQueryHandler | null): void
+  /** Fake가 받은 리포트 조회 요청 기록(오래된 것부터). `resetData`가 비운다. */
+  reportQueries(): ReportQueryInput[]
 }

@@ -58,11 +58,12 @@ describe('메뉴 (T-SHELL-04~05)', () => {
   })
 })
 
-describe('준비 중 화면 (T-SHELL-06, S2)', () => {
-  it('coming soon pages do not mention the mock (/reports)', async () => {
+describe('Reports 화면 (T-SHELL-06, Reports AC1)', () => {
+  it('shows the empty report list instead of the coming soon page (/reports)', async () => {
     await renderAt('/reports')
     expect(await screen.findByRole('heading', { name: 'Reports' })).toBeVisible()
-    expect(screen.getByText(/준비 중입니다/)).toBeVisible()
+    expect(screen.getByText(/아직 저장한 리포트가 없습니다/)).toBeVisible()
+    expect(screen.queryByText(/준비 중입니다/)).not.toBeInTheDocument()
     expect(document.body.textContent).not.toContain('목업')
   })
 })

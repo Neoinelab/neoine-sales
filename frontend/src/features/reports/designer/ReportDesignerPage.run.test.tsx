@@ -1,0 +1,343 @@
+import { screen, within } from '@testing-library/react'
+import { describe, expect, it } from 'vitest'
+import type { ReportResult } from '../../../shared/model/reportTypes'
+import { mockControl } from '../../../test/fake/default'
+import { seedVendorId } from '../../../test/fixtures/vendors'
+import { groupedAmountResult, resultColumn, resultOf } from '../../../test/reportDesigner'
+import {
+  addColumn,
+  addCondition,
+  chipButton,
+  openAndRun,
+  openDesigner,
+  resultTable,
+  runButton,
+  runQuery,
+  settingsOf,
+  tableTexts,
+  setupReportClock,
+} from '../../../test/reportScreen'
+
+setupReportClock()
+
+describe('조회 요청 (AC11)', () => {
+  it('sends the designed request and shows the result table', async () => {
+    const { user } = await openDesigner()
+    await addColumn(user, 'Vendor')
+    await addColumn(user, '금액(원)')
+    await user.click(chipButton(0))
+    await user.click(within(settingsOf('Vendor')).getByRole('checkbox', { name: '그룹핑' }))
+    await addCondition(user, 'Vendor')
+    await user.click(screen.getByRole('button', { name: /^조건 1 값/ }))
+    await user.click(within(screen.getByRole('group', { name: '조건 1 값' })).getByRole('checkbox', { name: 'Silverfort' }))
+    await user.selectOptions(screen.getByRole('combobox', { name: '정렬' }), '금액(원)')
+    await user.selectOptions(screen.getByRole('combobox', { name: '정렬 방향' }), 'desc')
+
+    await runQuery(user)
+
+    expect(await screen.findByRole('table', { name: '조회 결과' })).toBeVisible()
+    expect(mockControl.reportQueries()).toEqual([
+      {
+        columns: [
+          { field: 'deal.vendor', format: 'name', group: true },
+          { field: 'deal.amount', format: 'krw_thousand', group: false, aggregate: 'sum' },
+        ],
+        conditions: [{ field: 'deal.vendor', operator: 'in', value: [seedVendorId('Silverfort')] }],
+        combine: 'and',
+        sort: { column: 1, direction: 'desc' },
+        rowLimit: 1000,
+      },
+    ])
+    expect(tableTexts()).toEqual([
+      ['Vendor 1', '1'],
+      ['Vendor 2', '2'],
+      ['Vendor 3', '3'],
+    ])
+  })
+
+  it('offers the sort choices with the no sort option first and numbers duplicated names', async () => {
+    const { user } = await openDesigner()
+    await addColumn(user, 'Expected Close')
+    await addColumn(user, 'Expected Close')
+    await addColumn(user, 'Deal code')
+
+    const options = within(screen.getByRole('combobox', { name: '정렬' })).getAllByRole('option').map((o) => o.textContent)
+
+    expect(options).toEqual(['(정렬 없음)', '1. Expected Close', '2. Expected Close', 'Deal code'])
+  })
+
+  it('goes back to no sort when the sorted column is removed', async () => {
+    const { user } = await openDesigner()
+    await addColumn(user, 'Deal code')
+    await addColumn(user, 'Deal 이름')
+    await user.selectOptions(screen.getByRole('combobox', { name: '정렬' }), 'Deal 이름')
+
+    await user.click(screen.getByRole('button', { name: 'Deal 이름 빼기' }))
+
+    expect(screen.getByRole('combobox', { name: '정렬' })).toHaveDisplayValue('(정렬 없음)')
+  })
+
+  it('offers the row limits with 1,000 as the default and sends the chosen one', async () => {
+    const { user } = await openDesigner()
+    await addColumn(user, 'Deal code')
+    const select = screen.getByRole('combobox', { name: '최대 행' })
+
+    expect(within(select).getAllByRole('option').map((o) => o.textContent)).toEqual(['100', '1,000', '10,000'])
+    expect(select).toHaveDisplayValue('1,000')
+
+    await user.selectOptions(select, '100')
+    await runQuery(user)
+
+    await screen.findByRole('table', { name: '조회 결과' })
+    expect(mockControl.reportQueries()[0]?.rowLimit).toBe(100)
+  })
+
+  it('does not send a request when an input cannot be read', async () => {
+    const { user } = await openDesigner()
+    await addColumn(user, 'Deal code')
+    await addCondition(user, 'Users')
+    const input = screen.getByRole('textbox', { name: '조건 1 값' })
+    await user.type(input, '1.5')
+
+    await runQuery(user)
+
+    expect(mockControl.reportQueries()).toHaveLength(0)
+    expect(screen.queryByRole('table', { name: '조회 결과' })).not.toBeInTheDocument()
+    expect(input).toHaveAttribute('aria-invalid', 'true')
+    expect(input).toHaveAccessibleDescription(/정수로 입력하세요/)
+
+    await user.clear(input)
+    await user.type(input, '15')
+    await runQuery(user)
+
+    expect(await screen.findByRole('table', { name: '조회 결과' })).toBeVisible()
+    expect(mockControl.reportQueries()).toHaveLength(1)
+    expect(screen.getByRole('textbox', { name: '조건 1 값' })).not.toHaveAttribute('aria-invalid', 'true')
+  })
+
+  it('names the thousand won unit and the empty list in the input messages', async () => {
+    const { user } = await openDesigner()
+    await addColumn(user, 'Deal code')
+    await addCondition(user, '금액(원)')
+    await addCondition(user, 'Vendor')
+    await user.type(screen.getByRole('textbox', { name: '조건 1 값' }), 'abc')
+
+    await runQuery(user)
+
+    expect(screen.getByText('천원 단위 정수로 입력하세요')).toBeVisible()
+    expect(screen.getByText('하나 이상 선택하세요')).toBeVisible()
+    expect(mockControl.reportQueries()).toHaveLength(0)
+  })
+
+  it('shows the running state and blocks a second run', async () => {
+    const { user } = await openDesigner()
+    await addColumn(user, 'Deal code')
+    let release: (result: ReportResult) => void = () => undefined
+    mockControl.setReportQueryHandler(() => new Promise<ReportResult>((resolve) => (release = resolve)))
+
+    await runQuery(user)
+
+    const running = await screen.findByRole('button', { name: '조회 중…' })
+    expect(running).toBeDisabled()
+
+    release(resultOf())
+
+    expect(await screen.findByRole('table', { name: '조회 결과' })).toBeVisible()
+    expect(runButton()).toBeEnabled()
+  })
+})
+
+describe('결과 표 (AC12)', () => {
+  it('shows the total rows and the elapsed time', async () => {
+    await openAndRun(resultOf({ rows: [['A'], ['B'], ['C']], elapsedMs: 210 }), 'Deal code')
+
+    expect(screen.getByText(/총 3행 · 조회 0\.21초/)).toBeVisible()
+  })
+
+  it('formats amounts in thousand won with a unit in the header and aligns numbers to the right', async () => {
+    await openAndRun(groupedAmountResult([['Silverfort', 1_234_500], ['Okta', 999_999], ['Zscaler', null]], null), 'Vendor')
+
+    expect(within(resultTable()).getByRole('columnheader', { name: /^금액 합계\s?\(천원\)$/ })).toBeVisible()
+    expect(within(resultTable()).getByRole('columnheader', { name: 'Vendor' })).toBeVisible()
+    expect(tableTexts()).toEqual([
+      ['Silverfort', '1,235'],
+      ['Okta', '1,000'],
+      ['Zscaler', '—'],
+    ])
+    const [firstRow] = within(resultTable()).getAllByRole('row').slice(1)
+    const cells = within(firstRow as HTMLElement).getAllByRole('cell')
+    expect(cells[1]).toHaveClass('report-num')
+    expect(cells[0]).not.toHaveClass('report-num')
+    expect(within(resultTable()).getByRole('columnheader', { name: /금액 합계/ })).toHaveClass('report-num')
+  })
+
+  it('shows dates and times with the server offset and the app clock', async () => {
+    await openAndRun(
+      resultOf({
+        today: '2026-10-15',
+        columns: [
+          resultColumn({ index: 0, field: 'deal.created_at', label: '등록', type: 'datetime', valueType: 'datetime', format: 'ymd_hm' }),
+          resultColumn({ index: 1, field: 'deal.expected_close', label: '마감', type: 'date', valueType: 'date', format: 'relative' }),
+        ],
+        rows: [['2026-04-01T00:30:00+09:00', '2026-10-24']],
+      }),
+      'Deal code',
+    )
+
+    expect(tableTexts()).toEqual([['2026-04-01 00:30', '3일 전']])
+  })
+
+  it('toggles the totals row only for grouped results and shows percent share', async () => {
+    const result = groupedAmountResult(
+      [
+        ['A', 1000],
+        ['B', 3000],
+      ],
+      [null, 4000],
+    )
+    const { user } = await openAndRun(
+      { ...result, columns: result.columns.map((c) => (c.index === 1 ? { ...c, format: 'percent_share' as const } : c)) },
+      'Vendor',
+    )
+
+    expect(tableTexts()).toEqual([
+      ['A', '25.0%'],
+      ['B', '75.0%'],
+    ])
+    const toggle = screen.getByRole('checkbox', { name: '합계 행' })
+    expect(toggle).not.toBeChecked()
+
+    await user.click(toggle)
+
+    expect(tableTexts()).toEqual([
+      ['A', '25.0%'],
+      ['B', '75.0%'],
+      ['합계', '100.0%'],
+    ])
+    expect(within(resultTable()).getAllByRole('row').at(-1)?.closest('tfoot')).not.toBeNull()
+
+    await user.click(toggle)
+
+    expect(tableTexts()).toHaveLength(2)
+  })
+
+  it('has no totals checkbox when the result has no totals', async () => {
+    await openAndRun(resultOf({ rows: [['A']], totals: null }), 'Deal code')
+
+    expect(screen.queryByRole('checkbox', { name: '합계 행' })).not.toBeInTheDocument()
+  })
+
+  it('warns that group values may add up to more than the totals row when Deal numbers are counted once', async () => {
+    const { user } = await openAndRun(
+      { ...groupedAmountResult([['A', 1000]], [null, 1000]), rowScope: 'action', actionFilter: 'join', dealNumbersOnce: true },
+      'Vendor',
+    )
+    expect(screen.queryByText(/그룹 값의 합이 합계 행보다 클 수 있습니다/)).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('checkbox', { name: '합계 행' }))
+
+    expect(screen.getByText(/한 Deal이 여러 그룹에 나오면 그룹마다 한 번씩 더하므로 그룹 값의 합이 합계 행보다 클 수 있습니다/)).toBeVisible()
+  })
+
+  it('shows truncation and pages over 100 rows', async () => {
+    const rows = Array.from({ length: 1000 }, (_, i) => [`행 ${i + 1}`])
+    const { user } = await openAndRun(resultOf({ rows, totalCount: 12_345, truncated: true, rowLimit: 1000 }), 'Deal code')
+
+    expect(screen.getByText(/총 12,345행 중 1,000행 표시\(최대 행 수 제한\)/)).toBeVisible()
+    expect(tableTexts()).toHaveLength(100)
+    expect(tableTexts()[0]).toEqual(['행 1'])
+    expect(screen.getByRole('navigation', { name: '페이지' })).toHaveTextContent('1 페이지')
+
+    await user.click(screen.getByRole('button', { name: '다음' }))
+
+    expect(tableTexts()).toHaveLength(100)
+    expect(tableTexts()[0]).toEqual(['행 101'])
+    expect(screen.getByRole('navigation', { name: '페이지' })).toHaveTextContent('2 페이지')
+  })
+
+  it('shows no pager for 100 rows or fewer', async () => {
+    await openAndRun(resultOf({ rows: Array.from({ length: 100 }, (_, i) => [`행 ${i + 1}`]), totalCount: 100 }), 'Deal code')
+
+    expect(tableTexts()).toHaveLength(100)
+    expect(screen.queryByRole('navigation', { name: '페이지' })).not.toBeInTheDocument()
+    expect(screen.queryByText(/최대 행 수 제한/)).not.toBeInTheDocument()
+  })
+
+  it('scrolls the table sideways inside its own container', async () => {
+    await openAndRun(null, 'Deal code')
+
+    expect(resultTable().parentElement).toHaveClass('report-scroll')
+  })
+})
+
+describe('다시 조회 (리뷰 후속)', () => {
+  const rowsOf = (n: number, prefix: string) => Array.from({ length: n }, (_, i) => [`${prefix} ${i + 1}`])
+
+  it('shows the first page again when a new result has fewer rows than the page we were on', async () => {
+    const { user } = await openAndRun(resultOf({ rows: rowsOf(300, '행'), totalCount: 300 }), 'Deal code')
+    await user.click(screen.getByRole('button', { name: '다음' }))
+    await user.click(screen.getByRole('button', { name: '다음' }))
+    expect(tableTexts()[0]).toEqual(['행 201'])
+
+    mockControl.setReportQueryHandler(() => resultOf({ rows: rowsOf(3, '새'), totalCount: 3 }))
+    await runQuery(user)
+
+    await screen.findByText('새 1')
+    expect(tableTexts()).toEqual([['새 1'], ['새 2'], ['새 3']])
+    expect(screen.queryByRole('navigation', { name: '페이지' })).not.toBeInTheDocument()
+  })
+
+  it('starts at the first page again even when the new result is long too', async () => {
+    const { user } = await openAndRun(resultOf({ rows: rowsOf(300, '행'), totalCount: 300 }), 'Deal code')
+    await user.click(screen.getByRole('button', { name: '다음' }))
+
+    mockControl.setReportQueryHandler(() => resultOf({ rows: rowsOf(250, '새'), totalCount: 250 }))
+    await runQuery(user)
+
+    await screen.findByText('새 1')
+    expect(tableTexts()[0]).toEqual(['새 1'])
+    expect(screen.getByRole('navigation', { name: '페이지' })).toHaveTextContent('1 페이지')
+  })
+
+  it('turns the totals row off when a new result arrives', async () => {
+    const grouped = groupedAmountResult([['A', 1000]], [null, 1000])
+    const { user } = await openAndRun(grouped, 'Vendor')
+    await user.click(screen.getByRole('checkbox', { name: '합계 행' }))
+    expect(tableTexts()).toHaveLength(2)
+
+    mockControl.setReportQueryHandler(() => groupedAmountResult([['B', 2000]], [null, 2000]))
+    await runQuery(user)
+
+    await screen.findByText('B')
+    expect(screen.getByRole('checkbox', { name: '합계 행' })).not.toBeChecked()
+    expect(tableTexts()).toHaveLength(1)
+  })
+})
+
+describe('설계 변경 안내 (AC15)', () => {
+  it('marks the result as outdated after a change and clears the note on the next run', async () => {
+    const { user } = await openDesigner()
+    await addColumn(user, 'Deal code')
+    await runQuery(user)
+    await screen.findByRole('table', { name: '조회 결과' })
+    expect(screen.queryByText(/설계가 바뀌었습니다/)).not.toBeInTheDocument()
+
+    await addColumn(user, 'Deal 이름')
+
+    expect(screen.getByText("설계가 바뀌었습니다. '조회'를 눌러 다시 조회하세요")).toBeVisible()
+    expect(screen.getByRole('table', { name: '조회 결과' })).toBeVisible()
+
+    await runQuery(user)
+
+    await screen.findByRole('columnheader', { name: 'Deal 이름' })
+    expect(screen.queryByText(/설계가 바뀌었습니다/)).not.toBeInTheDocument()
+  })
+
+  it('shows no outdated note before the first run', async () => {
+    const { user } = await openDesigner()
+
+    await addColumn(user, 'Deal code')
+
+    expect(screen.queryByText(/설계가 바뀌었습니다/)).not.toBeInTheDocument()
+  })
+})

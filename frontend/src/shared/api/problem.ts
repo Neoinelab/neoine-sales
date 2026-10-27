@@ -1,11 +1,15 @@
 /** 백엔드의 RFC 9457 problem+json 오류를 다루는 도구. */
 
+import type { ReportIssue } from '../model/reportTypes'
+
 export interface Problem {
   type: string
   title: string
   status: number
   detail: string
   errors?: { loc: (string | number)[]; msg: string }[]
+  /** invalid-report(리포트 정의 위반) 문제의 위반 목록. HTTP 어댑터가 서버의 `errors`에서 옮겨 담는다. */
+  reportErrors?: ReportIssue[]
   /** directory-verification-failed 등이 싣는 실패 단계(connect·tls·bind·search). */
   stage?: string
 }
@@ -38,7 +42,8 @@ export class ApiError extends Error {
 function describeProblem(status: number, problem?: Problem): string {
   if (!problem && status === 403) return '이 작업을 수행할 권한이 없습니다. 관리자에게 문의하세요.'
   if (!problem) return `요청에 실패했습니다 (${status})`
-  const fields = problem.errors?.map((e) => `${e.loc.slice(1).join('.')}: ${e.msg}`) ?? []
+  // 서버가 loc 없는 항목을 실을 수 있으므로(invalid-report의 location/code/message) loc 배열이 있는 항목만 쓴다.
+  const fields = problem.errors?.filter((e) => Array.isArray(e.loc)).map((e) => `${e.loc.slice(1).join('.')}: ${e.msg}`) ?? []
   return fields.length > 0 ? `${problem.detail} — ${fields.join(', ')}` : problem.detail
 }
 

@@ -16,5 +16,9 @@ export function createMockControl(ctx: MockContext, reseed: () => void): MockCon
     now: () => ctx.clock.now(),
     setLatency: (on) => ctx.latency.setOn(on),
     isLatencyOn: () => ctx.latency.isOn(),
+    setReportQueryHandler(handler) {
+      ctx.store.reports.handler = handler
+    },
+    reportQueries: () => [...ctx.store.reports.queries],
   }
 }

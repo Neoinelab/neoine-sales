@@ -1,5 +1,6 @@
 /** 메모리 저장소. 시드의 사본을 들고 있고, 변경은 게이트웨이가 한다. 반환 시에는 뷰 변환으로 복사본을 만든다. */
 
+import type { ReportQueryInput, ReportResult } from '../../shared/model/reportTypes'
 import type {
   BantCategory,
   Code,
@@ -158,10 +159,20 @@ export interface SeedData {
   counters: Record<string, number>
 }
 
+/** 테스트가 지정하는 리포트 조회 응답. 결과를 돌려주거나 throw(ApiError)하면 reject된다. */
+export type ReportQueryHandler = (input: ReportQueryInput) => ReportResult | Promise<ReportResult>
+
+/** 리포트 Fake 제어 상태: 지정 응답과 받은 요청 기록. 시드 복원(`resetData`)이 비운다. */
+export interface ReportsControlState {
+  handler: ReportQueryHandler | null
+  queries: ReportQueryInput[]
+}
+
 export interface MockStore {
   data: SeedData
   session: { userId: number | null }
   storageFailure: boolean
+  reports: ReportsControlState
 }
 
 /** 종류(접두사)별 순번 id를 만든다. 서버의 BIGINT 시퀀스처럼 1부터 1씩 커지는 정수다. */
@@ -179,5 +190,5 @@ export function nextSeq(counters: Record<string, number>): number {
 }
 
 export function createStore(seed: SeedData, userId: number | null): MockStore {
-  return { data: seed, session: { userId }, storageFailure: false }
+  return { data: seed, session: { userId }, storageFailure: false, reports: { handler: null, queries: [] } }
 }

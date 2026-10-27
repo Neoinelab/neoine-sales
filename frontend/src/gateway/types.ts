@@ -89,6 +89,7 @@ import type {
   Vendor,
 } from '../shared/model/types'
 import type { CoChange } from '../shared/model/sync'
+import type { ReportCatalog, ReportQueryInput, ReportResult } from '../shared/model/reportTypes'
 
 /** `deals.applyChange` 결과. */
 export interface ApplyChangeResult {
@@ -297,6 +298,16 @@ export interface DashboardGateway {
   summary(query: DashboardQuery): Promise<DashboardSummary>
 }
 
+export interface ReportsGateway {
+  /** 로그인한 모든 역할. 리포트 필드 카탈로그(서버가 DB를 읽지 않는다). */
+  fields(): Promise<ReportCatalog>
+  /**
+   * 로그인한 모든 역할. 설계를 실행하고 저장하지 않는다. 정의 위반은 422 kind `invalid-report`(`problem.reportErrors`),
+   * 제한 시간 초과는 503 `report-timeout`, 요청 모양 오류는 422 `validation`, 서버에 닿지 못하면 `network`.
+   */
+  query(input: ReportQueryInput): Promise<ReportResult>
+}
+
 export interface VendorsGateway {
   /** 모든 로그인 사용자. Vendor 이름순, 사용 중 Deal 수 포함. */
   list(): Promise<Vendor[]>
@@ -380,6 +391,7 @@ export interface Gateway {
   vendors: VendorsGateway
   forecast: ForecastGateway
   dashboard: DashboardGateway
+  reports: ReportsGateway
   users: UsersGateway
   settings: SettingsGateway
   alerts: AlertsGateway

@@ -11,10 +11,14 @@ interface MultiCheckSelectProps {
   onToggle: (value: string, on: boolean) => void
   /** 선택을 모두 지운다. */
   onClear: () => void
+  /** 지우기 버튼 글자(기본 '전체'). 조건 값처럼 '전체'가 의미가 없는 곳에서 바꾼다. */
+  clearLabel?: string
+  /** 입력 문제 문구 요소의 id(들). */
+  describedBy?: string
 }
 
 /** 체크박스 드롭다운. 열림 상태만 갖고 선택은 호출자(URL)가 정한다. Escape(포커스는 버튼으로)·바깥 클릭으로 닫는다. */
-export function MultiCheckSelect({ label, name, options, selected, summary, onToggle, onClear }: MultiCheckSelectProps) {
+export function MultiCheckSelect({ label, name, options, selected, summary, onToggle, onClear, clearLabel = '전체', describedBy }: MultiCheckSelectProps) {
   const [open, setOpen] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
   const buttonRef = useRef<HTMLButtonElement>(null)
@@ -59,6 +63,7 @@ export function MultiCheckSelect({ label, name, options, selected, summary, onTo
         aria-labelledby={`${labelId} ${buttonId}`}
         aria-expanded={open}
         aria-controls={open ? panelId : undefined}
+        aria-describedby={describedBy}
         onClick={() => setOpen((v) => !v)}
       >
         {summary}
@@ -72,7 +77,7 @@ export function MultiCheckSelect({ label, name, options, selected, summary, onTo
             </label>
           ))}
           <button type="button" onClick={onClear}>
-            전체
+            {clearLabel}
           </button>
         </div>
       )}

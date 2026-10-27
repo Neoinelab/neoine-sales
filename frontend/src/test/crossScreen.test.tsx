@@ -121,14 +121,15 @@ describe('Label 관리에서 만든 Label이 Deal 폼에 나타난다 (6-c)', ()
   })
 })
 
-describe('범위 밖 메뉴 (6-d)', () => {
-  it('shows Reports as not ready', async () => {
+describe('Reports 메뉴 (Reports AC1)', () => {
+  it('opens the empty report list from the menu instead of a coming soon page', async () => {
     const { user, location } = await renderAt(ALL_DEALS)
     await screen.findByRole('row', { name: /한빛은행 ITDR 도입/ })
     await goTo(user, 'Reports')
     expect(location()).toBe('/reports')
     expect(await screen.findByRole('heading', { level: 1, name: 'Reports' })).toBeVisible()
-    expect(screen.getByText(/준비 중입니다/)).toBeVisible()
+    expect(screen.getByText(/아직 저장한 리포트가 없습니다/)).toBeVisible()
+    expect(screen.queryByText(/준비 중입니다/)).not.toBeInTheDocument()
   })
 })
 

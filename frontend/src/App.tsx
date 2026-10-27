@@ -13,11 +13,14 @@ import { DealFormPage } from './features/deals/form/DealFormPage'
 import { DealDetailPage } from './features/deals/detail/DealDetailPage'
 import { DealsPage } from './features/deals/list/DealsPage'
 import { ForecastPage } from './features/forecast/ForecastPage'
-import { ComingSoonPage } from './features/placeholder/ComingSoonPage'
+import { ReportsPage } from './features/reports/ReportsPage'
 import { SetupPage } from './features/setup/SetupPage'
 
 // Chart.js가 커서 Dashboard는 처음 열 때 내려받는다(나머지 화면의 첫 로딩을 늘리지 않는다).
 const DashboardPage = lazy(() => import('./features/dashboard/DashboardPage').then((m) => ({ default: m.DashboardPage })))
+
+// 디자이너는 화면이 커서 처음 열 때 내려받는다.
+const ReportDesignerPage = lazy(() => import('./features/reports/designer/ReportDesignerPage').then((m) => ({ default: m.ReportDesignerPage })))
 
 /** 라우트는 이 파일 한 곳에서만 정의한다(계획 5장). */
 export function App() {
@@ -42,7 +45,12 @@ export function App() {
         </Route>
         <Route path="/deals/:dealCode" element={<DealDetailPage />} />
         <Route path="/forecast" element={<ForecastPage />} />
-        <Route path="/reports" element={<ComingSoonPage title="Reports" />} />
+        <Route path="/reports" element={<ReportsPage />} />
+        <Route path="/reports/new" element={
+            <Suspense fallback={<p className="hint">불러오는 중…</p>}>
+              <ReportDesignerPage />
+            </Suspense>
+          } />
         <Route element={<RequireAdmin />}>
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<Navigate to="/admin/users" replace />} />

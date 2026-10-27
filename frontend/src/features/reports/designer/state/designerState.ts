@@ -1,0 +1,233 @@
+import type {
+  ReportAggregate,
+  ReportCatalog,
+  ReportCombine,
+  ReportField,
+  ReportFormat,
+  ReportLimits,
+  ReportOperator,
+  ReportSortDirection,
+} from '../../../../shared/model/reportTypes'
+import { fieldByKey } from './columnRules'
+import { emptyDraft, type ConditionDraft } from './conditionDraft'
+
+export type { ConditionDraft } from './conditionDraft'
+
+/** 앞 N자 포맷의 N 기본값. */
+const DEFAULT_PREFIX_LENGTH = 20
+
+export interface DesignerColumn {
+  uid: number
+  field: string
+  /** 비면(공백 제외) 요청에서 생략하고 필드 이름을 쓴다. */
+  label: string
+  format: ReportFormat
+  prefixLength: number | null
+  group: boolean
+  aggregate: ReportAggregate | null
+}
+
+export interface DesignerCondition {
+  uid: number
+  field: string
+  operator: ReportOperator
+  draft: ConditionDraft
+}
+
+export interface DesignerState {
+  columns: DesignerColumn[]
+  conditions: DesignerCondition[]
+  combine: ReportCombine
+  /** 정렬 기준 컬럼은 uid로 가진다(순서를 바꿔도 같은 컬럼). */
+  sort: { uid: number; direction: ReportSortDirection } | null
+  rowLimit: number
+  selectedUid: number | null
+  /** 다음에 발급할 uid. 한 번 쓴 uid는 다시 쓰지 않는다. */
+  nextUid: number
+}
+
+export type DesignerAction =
+  | { type: 'addColumn'; field: ReportField }
+  | { type: 'removeColumn'; uid: number }
+  | { type: 'moveColumn'; uid: number; to: number }
+  | { type: 'selectColumn'; uid: number | null }
+  | { type: 'updateColumn'; uid: number; patch: Partial<Omit<DesignerColumn, 'uid' | 'field'>> }
+  | { type: 'addCondition'; field: ReportField }
+  | { type: 'changeConditionField'; uid: number; field: ReportField }
+  | { type: 'changeOperator'; uid: number; operator: ReportOperator }
+  | { type: 'changeDraft'; uid: number; draft: ConditionDraft }
+  | { type: 'removeCondition'; uid: number }
+  | { type: 'setCombine'; combine: ReportCombine }
+  | { type: 'setSort'; sort: DesignerState['sort'] }
+  | { type: 'setRowLimit'; rowLimit: number }
+  | { type: 'reset' }
+
+export function initialDesignerState(limits: ReportLimits): DesignerState {
+  return { columns: [], conditions: [], combine: 'and', sort: null, rowLimit: limits.defaultRowLimit, selectedUid: null, nextUid: 1 }
+}
+
+/** 초기 상태와 내용이 다르면 true(uid·선택은 보지 않는다). 컬럼을 넣었다 빼면 다시 false다. */
+export function isDirty(state: DesignerState, limits: ReportLimits): boolean {
+  return (
+    state.columns.length > 0 ||
+    state.conditions.length > 0 ||
+    state.combine !== 'and' ||
+    state.sort !== null ||
+    state.rowLimit !== limits.defaultRowLimit
+  )
+}
+
+/** 컬럼·조건·결합·정렬·최대 행이 같은 객체인지(선택 변경은 설계 변경이 아니다). */
+export function sameDesign(a: DesignerState, b: DesignerState): boolean {
+  return a.columns === b.columns && a.conditions === b.conditions && a.combine === b.combine && a.sort === b.sort && a.rowLimit === b.rowLimit
+}
+
+const hasGroup = (columns: readonly DesignerColumn[]): boolean => columns.some((c) => c.group)
+
+/**
+ * 그룹 컬럼 유무가 바뀐 뒤 집계를 맞춘다. 그룹이 없으면 모든 집계를 비우고,
+ * 그룹이 있으면 집계가 비어 있는 비그룹 컬럼에 필드의 기본 집계를 채운다(숫자 합계·평균, Action 건수. 텍스트는 비워 둔다).
+ */
+function reconcileAggregates(columns: DesignerColumn[], catalog: ReportCatalog): DesignerColumn[] {
+  const grouped = hasGroup(columns)
+  return columns.map((column) => {
+    if (column.group || !grouped) return column.aggregate === null ? column : { ...column, aggregate: null }
+    if (column.aggregate !== null) return column
+    const fallback = fieldByKey(catalog, column.field)?.defaultAggregate ?? null
+    return fallback === null ? column : { ...column, aggregate: fallback }
+  })
+}
+
+function newColumn(uid: number, field: ReportField, grouped: boolean): DesignerColumn {
+  return {
+    uid,
+    field: field.key,
+    label: '',
+    format: field.defaultFormat,
+    prefixLength: field.defaultFormat === 'prefix' ? DEFAULT_PREFIX_LENGTH : null,
+    group: false,
+    aggregate: grouped ? field.defaultAggregate : null,
+  }
+}
+
+function patchColumn(column: DesignerColumn, patch: Partial<Omit<DesignerColumn, 'uid' | 'field'>>): DesignerColumn {
+  const next = { ...column, ...patch }
+  if (patch.format !== undefined && patch.format !== column.format) {
+    next.prefixLength = patch.format === 'prefix' ? (patch.prefixLength ?? DEFAULT_PREFIX_LENGTH) : null
+  }
+  if (patch.group === true && !column.group) next.aggregate = null
+  return next
+}
+
+function moveTo(columns: DesignerColumn[], uid: number, to: number): DesignerColumn[] | null {
+  const from = columns.findIndex((c) => c.uid === uid)
+  if (from < 0) return null
+  const target = Math.max(0, Math.min(to, columns.length - 1))
+  if (target === from) return null
+  const next = [...columns]
+  const [moved] = next.splice(from, 1)
+  if (!moved) return null
+  next.splice(target, 0, moved)
+  return next
+}
+
+function reduceColumns(state: DesignerState, action: DesignerAction, catalog: ReportCatalog): DesignerState | undefined {
+  switch (action.type) {
+    case 'addColumn': {
+      if (state.columns.length >= catalog.limits.columnsMax) return state
+      const column = newColumn(state.nextUid, action.field, hasGroup(state.columns))
+      return { ...state, columns: [...state.columns, column], selectedUid: column.uid, nextUid: state.nextUid + 1 }
+    }
+    case 'removeColumn': {
+      if (!state.columns.some((c) => c.uid === action.uid)) return state
+      const columns = reconcileAggregates(
+        state.columns.filter((c) => c.uid !== action.uid),
+        catalog,
+      )
+      return {
+        ...state,
+        columns,
+        sort: state.sort?.uid === action.uid ? null : state.sort,
+        selectedUid: state.selectedUid === action.uid ? null : state.selectedUid,
+      }
+    }
+    case 'moveColumn': {
+      const columns = moveTo(state.columns, action.uid, action.to)
+      return columns ? { ...state, columns } : state
+    }
+    case 'selectColumn': {
+      if (state.selectedUid === action.uid) return state
+      if (action.uid !== null && !state.columns.some((c) => c.uid === action.uid)) return state
+      return { ...state, selectedUid: action.uid }
+    }
+    case 'updateColumn': {
+      const current = state.columns.find((c) => c.uid === action.uid)
+      if (!current) return state
+      const field = fieldByKey(catalog, current.field)
+      if (action.patch.group === true && field && !field.groupable) return state
+      const patched = state.columns.map((c) => (c.uid === action.uid ? patchColumn(c, action.patch) : c))
+      const groupChanged = action.patch.group !== undefined && action.patch.group !== current.group
+      return { ...state, columns: groupChanged ? reconcileAggregates(patched, catalog) : patched }
+    }
+    default:
+      return undefined
+  }
+}
+
+function replaceCondition(state: DesignerState, uid: number, change: (c: DesignerCondition) => DesignerCondition): DesignerState {
+  if (!state.conditions.some((c) => c.uid === uid)) return state
+  return { ...state, conditions: state.conditions.map((c) => (c.uid === uid ? change(c) : c)) }
+}
+
+function reduceConditions(state: DesignerState, action: DesignerAction, catalog: ReportCatalog): DesignerState | undefined {
+  switch (action.type) {
+    case 'addCondition': {
+      const operator = action.field.operators[0]
+      if (state.conditions.length >= catalog.limits.conditionsMax || operator === undefined) return state
+      const condition: DesignerCondition = { uid: state.nextUid, field: action.field.key, operator, draft: emptyDraft(action.field, operator, catalog) }
+      return { ...state, conditions: [...state.conditions, condition], nextUid: state.nextUid + 1 }
+    }
+    case 'changeConditionField': {
+      const operator = action.field.operators[0]
+      if (operator === undefined) return state
+      return replaceCondition(state, action.uid, (c) => ({ ...c, field: action.field.key, operator, draft: emptyDraft(action.field, operator, catalog) }))
+    }
+    case 'changeOperator':
+      return replaceCondition(state, action.uid, (c) => {
+        const field = fieldByKey(catalog, c.field)
+        const draft = field ? emptyDraft(field, action.operator, catalog) : c.draft
+        return { ...c, operator: action.operator, draft: draft.shape === c.draft.shape ? c.draft : draft }
+      })
+    case 'changeDraft':
+      return replaceCondition(state, action.uid, (c) => ({ ...c, draft: action.draft }))
+    case 'removeCondition':
+      return state.conditions.some((c) => c.uid === action.uid) ? { ...state, conditions: state.conditions.filter((c) => c.uid !== action.uid) } : state
+    default:
+      return undefined
+  }
+}
+
+/**
+ * 설계 상태 전이(순수). 바뀌는 것이 없으면 같은 객체를 돌려준다. 카탈로그는 호출처가 클로저로 넘긴다.
+ * 한도(컬럼 `columnsMax`, 조건 `conditionsMax`)에서는 추가를 무시한다.
+ */
+export function designerReducer(state: DesignerState, action: DesignerAction, catalog: ReportCatalog): DesignerState {
+  const columnResult = reduceColumns(state, action, catalog)
+  if (columnResult) return columnResult
+  const conditionResult = reduceConditions(state, action, catalog)
+  if (conditionResult) return conditionResult
+  switch (action.type) {
+    case 'setCombine':
+      return state.combine === action.combine ? state : { ...state, combine: action.combine }
+    case 'setSort': {
+      const same = state.sort?.uid === action.sort?.uid && state.sort?.direction === action.sort?.direction
+      return same ? state : { ...state, sort: action.sort }
+    }
+    case 'setRowLimit':
+      return state.rowLimit === action.rowLimit ? state : { ...state, rowLimit: action.rowLimit }
+    case 'reset':
+      return { ...initialDesignerState(catalog.limits), nextUid: state.nextUid }
+    default:
+      return state
+  }
+}

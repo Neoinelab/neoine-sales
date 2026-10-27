@@ -69,6 +69,7 @@ export function createMockGateway(options: MockOptions = {}): MockInstance {
     const keep = ctx.store.session.userId
     ctx.store.data = seed(clock)
     ctx.store.storageFailure = false
+    ctx.store.reports = { handler: null, queries: [] }
     signIn(keep)
   }
   return {

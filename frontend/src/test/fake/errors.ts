@@ -1,6 +1,7 @@
 /** mock 게이트웨이의 오류 규약. 실패는 모두 `ApiError`(status, problem)로 던진다. detail이 사용자 문구다. */
 
 import { ApiError } from '../../shared/api/problem'
+import type { ReportIssue } from '../../shared/model/reportTypes'
 
 const PROBLEM_BASE = 'https://sales.neoine.test/problems/'
 
@@ -32,3 +33,18 @@ export const directoryFailed = (detail: string, stage: string): ApiError =>
 
 /** 서버와 같은 문구: Quarter와 월은 함께 쓸 수 없다(422). */
 export const QUARTER_MONTH_EXCLUSIVE = 'Quarter와 월은 함께 선택할 수 없습니다.'
+
+/** 리포트 정의 위반(422 invalid-report). detail은 첫 위반 문구이고 위반 전체는 `problem.reportErrors`에 싣는다. */
+export const invalidReport = (issues: ReportIssue[]): ApiError =>
+  new ApiError(422, {
+    type: `${PROBLEM_BASE}invalid-report`,
+    title: 'Invalid Report',
+    status: 422,
+    detail: issues[0]?.message ?? '리포트 정의가 올바르지 않습니다.',
+    reportErrors: issues,
+  })
+
+/** 서버와 같은 고정 문구: 조회가 제한 시간 안에 끝나지 않음(503 report-timeout). */
+export const REPORT_TIMEOUT_MESSAGE = '조회가 10초 안에 끝나지 않았습니다. 조건을 좁히거나 컬럼을 줄이세요'
+export const reportTimeout = (): ApiError =>
+  problem(503, 'report-timeout', 'Report Timeout', REPORT_TIMEOUT_MESSAGE)
