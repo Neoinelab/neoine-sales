@@ -1,0 +1,186 @@
+import { describe, expect, it } from 'vitest'
+import type { ReportQueryInput } from '../../../../shared/model/reportTypes'
+import { REPORT_CATALOG } from '../../../../test/reportDesigner'
+import { fromReportRequest } from './fromRequest'
+import { toReportRequest } from './toRequest'
+
+/** 저장된 요청 → 디자이너 상태(Reports 3단계 P1·P2, AC15). toReportRequest의 역변환이다. */
+
+const load = (input: ReportQueryInput) => fromReportRequest(input, REPORT_CATALOG, REPORT_CATALOG.limits)
+
+function requestOf(input: ReportQueryInput): ReportQueryInput {
+  const built = toReportRequest(load(input), REPORT_CATALOG)
+  if (!('request' in built)) throw new Error(`요청을 만들지 못함: ${JSON.stringify(built)}`)
+  return built.request
+}
+
+const CODE: ReportQueryInput['columns'][number] = { field: 'deal.code', format: 'as_is', group: false }
+const withConditions = (conditions: ReportQueryInput['conditions']): ReportQueryInput => ({
+  columns: [CODE],
+  conditions,
+  combine: 'and',
+  rowLimit: 100,
+})
+
+const SHAPES: readonly (readonly [string, ReportQueryInput])[] = [
+  [
+    'a grouped vendor by quarter report with money, list, label and sort',
+    {
+      columns: [
+        { field: 'deal.vendor', format: 'name', group: true },
+        { field: 'deal.expected_close', format: 'quarter', group: true },
+        { field: 'deal.amount', format: 'krw_thousand', group: false, aggregate: 'sum', label: '금액 합계' },
+      ],
+      conditions: [
+        { field: 'deal.vendor', operator: 'in', value: [6, 1] },
+        { field: 'deal.amount', operator: 'gte', value: 1_500_000 },
+      ],
+      combine: 'and',
+      sort: { column: 2, direction: 'desc' },
+      rowLimit: 1000,
+    },
+  ],
+  ['a prefix column with its length', { columns: [{ field: 'deal.name', format: 'prefix', prefixLength: 7, group: false }], conditions: [], combine: 'and', rowLimit: 100 }],
+  ['a money range', withConditions([{ field: 'deal.amount', operator: 'between', value: [1_000_000, 2_000_000] }])],
+  ['a zero money value', withConditions([{ field: 'deal.amount', operator: 'eq', value: 0 }])],
+  ['a text condition', withConditions([{ field: 'deal.name', operator: 'contains', value: 'ITDR' }])],
+  ['a condition without a value', withConditions([{ field: 'deal.name', operator: 'is_empty' }])],
+  ['a key list', withConditions([{ field: 'deal.risk', operator: 'in', value: ['overdue', 'stale'] }])],
+  ['an id list', withConditions([{ field: 'deal.owner', operator: 'not_in', value: [2, 3] }])],
+  ['a date range', withConditions([{ field: 'deal.expected_close', operator: 'between', value: ['2026-01-01', '2026-03-31'] }])],
+  ['a single date', withConditions([{ field: 'deal.expected_close', operator: 'before', value: '2026-12-31' }])],
+  ['a relative period without days', withConditions([{ field: 'deal.expected_close', operator: 'relative', value: { period: 'this_year' } }])],
+  ['a relative period with days', withConditions([{ field: 'deal.created_at', operator: 'relative', value: { period: 'last_n_days', days: 30 } }])],
+  ['an OR combine with the largest row limit', { columns: [CODE], conditions: [], combine: 'or', rowLimit: 10000 }],
+  [
+    'an Action column grouped with a count',
+    {
+      columns: [
+        { field: 'deal.vendor', format: 'name', group: true },
+        { field: 'action.count', format: 'thousands', group: false, aggregate: 'count' },
+      ],
+      conditions: [],
+      combine: 'and',
+      sort: { column: 0, direction: 'asc' },
+      rowLimit: 100,
+    },
+  ],
+]
+
+describe('fromReportRequest', () => {
+  it.each(SHAPES)('round trips %s through the designer state', (_name, input) => {
+    expect(requestOf(input)).toEqual(input)
+  })
+
+  it('turns money back into thousand won text and ids into strings', () => {
+    const state = load({
+      columns: [CODE],
+      conditions: [
+        { field: 'deal.amount', operator: 'gte', value: 1_500_000 },
+        { field: 'deal.amount', operator: 'between', value: [1_000_000, 2_000_000] },
+        { field: 'deal.vendor', operator: 'in', value: [6, 1] },
+      ],
+      combine: 'and',
+      rowLimit: 100,
+    })
+
+    expect(state.conditions.map((c) => c.draft)).toEqual([
+      { shape: 'number', text: '1500' },
+      { shape: 'range', low: '1000', high: '2000' },
+      { shape: 'list', values: ['6', '1'] },
+    ])
+  })
+
+  it('reads date and relative drafts', () => {
+    const state = load({
+      columns: [CODE],
+      conditions: [
+        { field: 'deal.expected_close', operator: 'between', value: ['2026-01-01', '2026-03-31'] },
+        { field: 'deal.expected_close', operator: 'after', value: '2026-06-30' },
+        { field: 'deal.created_at', operator: 'relative', value: { period: 'last_n_days', days: 30 } },
+        { field: 'deal.expected_close', operator: 'relative', value: { period: 'this_quarter' } },
+      ],
+      combine: 'and',
+      rowLimit: 100,
+    })
+
+    expect(state.conditions.map((c) => c.draft)).toEqual([
+      { shape: 'date_range', first: '2026-01-01', last: '2026-03-31' },
+      { shape: 'date', day: '2026-06-30' },
+      { shape: 'relative', period: 'last_n_days', days: '30' },
+      { shape: 'relative', period: 'this_quarter', days: '' },
+    ])
+  })
+
+  it('maps the sort column index to the uid of that column and leaves selection empty', () => {
+    const state = load({
+      columns: [CODE, { field: 'deal.name', format: 'as_is', group: false }, { field: 'deal.solution', format: 'as_is', group: false }],
+      conditions: [],
+      combine: 'and',
+      sort: { column: 1, direction: 'desc' },
+      rowLimit: 1000,
+    })
+
+    expect(state.sort).toEqual({ uid: state.columns[1]?.uid, direction: 'desc' })
+    expect(state.selectedUid).toBeNull()
+  })
+
+  it('gives every column and condition its own uid and leaves nextUid above them', () => {
+    const state = load({
+      columns: [CODE, { field: 'deal.name', format: 'as_is', group: false }],
+      conditions: [{ field: 'deal.name', operator: 'is_empty' }],
+      combine: 'and',
+      rowLimit: 100,
+    })
+
+    const uids = [...state.columns.map((c) => c.uid), ...state.conditions.map((c) => c.uid)]
+    expect(new Set(uids).size).toBe(3)
+    expect(state.nextUid).toBeGreaterThan(Math.max(...uids))
+  })
+
+  it('keeps a missing label empty and a given label as typed', () => {
+    const state = load({
+      columns: [CODE, { field: 'deal.amount', format: 'krw_thousand', group: false, label: '금액 합계' }],
+      conditions: [],
+      combine: 'and',
+      rowLimit: 100,
+    })
+
+    expect(state.columns.map((c) => c.label)).toEqual(['', '금액 합계'])
+  })
+
+  it('keeps the column settings: format, prefix length, group and aggregate', () => {
+    const state = load({
+      columns: [
+        { field: 'deal.name', format: 'prefix', prefixLength: 7, group: true },
+        { field: 'deal.amount', format: 'krw_million', group: false, aggregate: 'avg' },
+      ],
+      conditions: [],
+      combine: 'or',
+      rowLimit: 10000,
+    })
+
+    expect(state.columns[0]).toMatchObject({ field: 'deal.name', format: 'prefix', prefixLength: 7, group: true, aggregate: null })
+    expect(state.columns[1]).toMatchObject({ field: 'deal.amount', format: 'krw_million', prefixLength: null, group: false, aggregate: 'avg' })
+    expect(state).toMatchObject({ combine: 'or', rowLimit: 10000, sort: null })
+  })
+})
+
+describe('fromReportRequest with fields the catalog no longer has', () => {
+  it('keeps unknown fields so the server can report them', () => {
+    const input: ReportQueryInput = {
+      columns: [CODE, { field: 'deal.nope', format: 'as_is', group: false, label: '없는 필드' }],
+      conditions: [{ field: 'deal.nada', operator: 'contains', value: 'x' }],
+      combine: 'and',
+      rowLimit: 100,
+    }
+
+    const state = load(input)
+    const request = requestOf(input)
+
+    expect(state.columns.map((c) => c.field)).toEqual(['deal.code', 'deal.nope'])
+    expect(state.conditions.map((c) => c.field)).toEqual(['deal.nada'])
+    expect(request.columns).toEqual(input.columns)
+    expect(request.conditions[0]).toMatchObject({ field: 'deal.nada', operator: 'contains' })
+  })
+})

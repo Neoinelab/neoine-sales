@@ -34,6 +34,8 @@ USER_FK_NAMES = {
     ("deal_attachments", "uploaded_by_user_id"): "fk_deal_attachments_uploaded_by_user_id_users",
     ("alert_settings", "updated_by_user_id"): "fk_alert_settings_updated_by_user_id_users",
     ("forecast_snapshot_cells", "owner_user_id"): "fk_forecast_snapshot_cells_owner_user_id_users",
+    ("reports", "owner_user_id"): "fk_reports_owner_user_id_users",
+    ("reports", "updated_by_user_id"): "fk_reports_updated_by_user_id_users",
 }
 OLD_STRING_COLUMNS = {
     ("deals", "owner"),

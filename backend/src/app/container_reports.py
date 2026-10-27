@@ -2,8 +2,15 @@
 
 from typing import TYPE_CHECKING
 
+from app.application.report.copy_report import CopyReport
+from app.application.report.create_report import CreateReport
+from app.application.report.delete_report import DeleteReport
+from app.application.report.get_report import GetReport
 from app.application.report.list_fields import ListReportFields
+from app.application.report.list_reports import ListReports
 from app.application.report.run_report import RunReport
+from app.application.report.run_saved_report import RunSavedReport
+from app.application.report.update_report import UpdateReport
 
 if TYPE_CHECKING:
     from app.application.ports.clock import Clock
@@ -19,3 +26,24 @@ class ReportUseCases:
 
     def run_report(self) -> RunReport:
         return RunReport(self._uow, self._clock)
+
+    def list_reports(self) -> ListReports:
+        return ListReports(self._uow)
+
+    def get_report(self) -> GetReport:
+        return GetReport(self._uow)
+
+    def create_report(self) -> CreateReport:
+        return CreateReport(self._uow, self._clock)
+
+    def update_report(self) -> UpdateReport:
+        return UpdateReport(self._uow, self._clock)
+
+    def copy_report(self) -> CopyReport:
+        return CopyReport(self._uow, self._clock)
+
+    def delete_report(self) -> DeleteReport:
+        return DeleteReport(self._uow)
+
+    def run_saved_report(self) -> RunSavedReport:
+        return RunSavedReport(self._uow, self._clock)

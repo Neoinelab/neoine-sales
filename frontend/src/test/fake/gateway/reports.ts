@@ -14,6 +14,8 @@ import type {
 import { invalidReport } from '../errors'
 import { REPORT_CATALOG } from '../seed/reportCatalog'
 import { clone, read, requireUser, type MockContext } from './context'
+import type { ReportQueryHandler } from '../store'
+import { createSavedReportsGateway } from './savedReports'
 
 /**
  * 리포트 Fake. 서버 규칙 중 컬럼·조건 개수·집계·그룹핑·행 수 위반만 서버와 같은 code·location·문구로 흉내 낸다.
@@ -126,7 +128,7 @@ function conditionIssues(catalog: ReportCatalog, input: ReportQueryInput): Repor
   return issues
 }
 
-function violations(catalog: ReportCatalog, input: ReportQueryInput): ReportIssue[] {
+export function violations(catalog: ReportCatalog, input: ReportQueryInput): ReportIssue[] {
   const issues = [...columnIssues(catalog, input), ...conditionIssues(catalog, input)]
   if (!catalog.limits.rowLimits.includes(input.rowLimit)) {
     issues.push({
@@ -228,6 +230,27 @@ function synthesize(ctx: MockContext, catalog: ReportCatalog, input: ReportQuery
   }
 }
 
+/** 조회 한 번의 계획: 지정 응답(handler)이 있으면 그것을, 없으면 규칙 검사 뒤 합성 결과를 쓴다. 위반이면 던진다. */
+export interface QueryPlan {
+  handler: ReportQueryHandler | null
+  result: ReportResult | null
+}
+
+/** 요청 기록(`record`)과 규칙 검사. `/query`만 설계 요청 기록에 남기고, 저장 리포트 실행은 따로 기록한다. */
+export function planQuery(ctx: MockContext, input: ReportQueryInput, record: boolean): QueryPlan {
+  const { reports } = ctx.store
+  if (record) reports.queries.push(clone(input))
+  if (reports.handler) return { handler: reports.handler, result: null }
+  const issues = violations(REPORT_CATALOG, input)
+  if (issues.length > 0) throw invalidReport(issues)
+  return { handler: null, result: synthesize(ctx, REPORT_CATALOG, input) }
+}
+
+export async function settlePlan(plan: QueryPlan, input: ReportQueryInput): Promise<ReportResult> {
+  if (plan.handler) return clone(await plan.handler(input))
+  return plan.result as ReportResult
+}
+
 export function createReportsGateway(ctx: MockContext): ReportsGateway {
   return {
     fields: () =>
@@ -238,16 +261,10 @@ export function createReportsGateway(ctx: MockContext): ReportsGateway {
     query: async (input) => {
       const plan = await read(ctx, () => {
         requireUser(ctx)
-        const { reports } = ctx.store
-        reports.queries.push(clone(input))
-        const handler = reports.handler
-        if (handler) return { handler, result: null }
-        const issues = violations(REPORT_CATALOG, input)
-        if (issues.length > 0) throw invalidReport(issues)
-        return { handler: null, result: synthesize(ctx, REPORT_CATALOG, input) }
+        return planQuery(ctx, input, true)
       })
-      if (plan.handler) return clone(await plan.handler(input))
-      return plan.result as ReportResult
+      return settlePlan(plan, input)
     },
+    ...createSavedReportsGateway(ctx, { issuesOf: (input) => violations(REPORT_CATALOG, input), planQuery, settlePlan }),
   }
 }

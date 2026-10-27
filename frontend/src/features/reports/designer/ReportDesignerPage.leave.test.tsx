@@ -5,7 +5,7 @@ import { addColumn, addCondition, chipItems, openDesigner, setupReportClock } fr
 setupReportClock()
 
 const menuLink = (name: string): HTMLElement => within(screen.getByRole('navigation', { name: '주 메뉴' })).getByRole('link', { name })
-const LEAVE_TITLE = '리포트 설계를 떠날까요?'
+const LEAVE_TITLE = '저장하지 않은 변경이 있습니다'
 
 /** beforeunload를 보내고 막았는지(기본 동작 취소) 돌려준다. */
 function unloadIsBlocked(): boolean {
@@ -14,7 +14,7 @@ function unloadIsBlocked(): boolean {
   return event.defaultPrevented
 }
 
-describe('떠날 때 확인 (AC16)', () => {
+describe('떠날 때 확인 (AC16, S19: 문구는 저장하지 않은 변경 기준)', () => {
   it('asks before leaving with changes and stays on cancel', async () => {
     const { user, location } = await openDesigner()
     await addColumn(user, 'Deal code')
@@ -22,7 +22,7 @@ describe('떠날 때 확인 (AC16)', () => {
     await user.click(menuLink('Deals'))
 
     const dialog = await screen.findByRole('dialog', { name: LEAVE_TITLE })
-    expect(dialog).toHaveTextContent('작성 중인 리포트 설계가 사라집니다. 이 화면을 떠날까요?')
+    expect(dialog).toHaveTextContent('저장하지 않은 변경이 사라집니다. 이 화면을 떠날까요?')
 
     await user.click(within(dialog).getByRole('button', { name: '머물기' }))
 

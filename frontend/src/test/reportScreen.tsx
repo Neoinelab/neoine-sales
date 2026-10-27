@@ -11,6 +11,7 @@ import { afterEach, beforeEach, vi } from 'vitest'
 import { mockControl, resetMock } from './fake/default'
 import { renderAt, type RenderAtOptions } from './mockApp'
 import { REPORT_CATALOG } from './fake/seed/reportCatalog'
+import { SAVED_SAMPLES } from './savedReports'
 import type { ReportQueryInput, ReportResult } from '../shared/model/reportTypes'
 
 /** 테스트 기준 시각(서버 OS 오프셋 +09:00). */
@@ -110,4 +111,50 @@ export async function openAndRun(result: ReportResult | null, ...labels: string[
   await runQuery(rendered.user)
   await screen.findByRole('table', { name: '조회 결과' })
   return rendered
+}
+
+/** 저장 리포트 샘플(`SAVED_SAMPLES`)을 채우고 `/reports/<id>/edit`를 열어 자동 조회 결과가 나올 때까지 기다린다. */
+export async function openEditor(id: number, options: RenderAtOptions = {}): Promise<Designer> {
+  const rendered = await renderAt(`/reports/${id}/edit`, { savedReports: SAVED_SAMPLES, ...options })
+  await screen.findByRole('table', { name: '조회 결과' })
+  return rendered
+}
+
+/** 샘플을 채우고 `/reports/<id>`(보기)를 연다. 결과를 기다리지 않는다. */
+export async function openView(id: number, options: RenderAtOptions = {}): Promise<Designer> {
+  return renderAt(`/reports/${id}`, { savedReports: SAVED_SAMPLES, ...options })
+}
+
+/** 샘플을 채우고 `/reports` 목록을 열어 첫 행이 나올 때까지 기다린다. */
+export async function openList(options: RenderAtOptions & { path?: string } = {}): Promise<Designer> {
+  const { path = '/reports', ...rest } = options
+  const rendered = await renderAt(path, { savedReports: SAVED_SAMPLES, ...rest })
+  await screen.findByRole('table', { name: '리포트 목록' })
+  return rendered
+}
+
+export const SAVE_DIALOG = '리포트 저장'
+export const saveDialog = async (): Promise<HTMLElement> => screen.findByRole('dialog', { name: SAVE_DIALOG })
+export const UNSAVED_MARK = '● 저장 안 됨'
+
+/** 디자이너 위쪽 "저장" 버튼. 대화상자 안의 "저장"과 구분하려고 대화상자가 없을 때만 쓴다. */
+export const saveButton = (): HTMLElement => screen.getByRole('button', { name: '저장' })
+
+/** 저장 대화상자의 이름 칸에 새 이름을 입력한다. */
+export async function typeName(user: UserEvent, dialog: HTMLElement, name: string): Promise<void> {
+  const input = within(dialog).getByRole('textbox', { name: '이름' })
+  await user.clear(input)
+  if (name !== '') await user.type(input, name)
+}
+
+/**
+ * 필드를 컬럼에 추가하고 집계를 '건수'로 고른다.
+ * 그룹핑 중인 설계에 텍스트 필드를 더하면 집계가 없어 서버가 aggregate-required로 거절하므로(2단계 계약),
+ * 조회가 성공하는 설계 변경이 필요한 테스트에서 쓴다.
+ */
+export async function addCountedColumn(user: UserEvent, label: string): Promise<void> {
+  await addColumn(user, label)
+  const last = chipItems().length - 1
+  await user.click(chipButton(last))
+  await user.selectOptions(within(settingsOf(label)).getByRole('combobox', { name: '집계' }), 'count')
 }

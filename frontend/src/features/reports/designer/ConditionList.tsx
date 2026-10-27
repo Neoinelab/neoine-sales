@@ -45,7 +45,20 @@ export function ConditionList({ state, catalog, scope, issues, dispatch }: Condi
       {state.conditions.length === 0 && <p className="hint">조건이 없으면 모든 {scope.rowScope === 'action' ? 'Action' : 'Deal'}이 대상입니다</p>}
       {state.conditions.map((condition, i) => {
         const field = fieldByKey(catalog, condition.field)
-        if (!field) return null
+        if (!field) {
+          // 지금 카탈로그에 없는 필드(저장 뒤 규칙이 바뀐 경우): 값을 편집할 수 없으니 알리고 지울 수 있게만 한다.
+          return (
+            <div key={condition.uid} className="report-condition-item">
+              <div className="report-condition">
+                <span className="report-join">{i > 0 ? state.combine.toUpperCase() : ''}</span>
+                <span className="error">알 수 없는 필드: {condition.field}</span>
+                <button type="button" className="report-condition-remove" aria-label={`조건 ${i + 1} 삭제`} onClick={() => dispatch({ type: 'removeCondition', uid: condition.uid })}>
+                  ×
+                </button>
+              </div>
+            </div>
+          )
+        }
         return (
           <ConditionRow
             key={condition.uid}

@@ -39,6 +39,7 @@ KIND_VALUES = {
     "vendor",
     "deal_action",
     "attachment",
+    "report",
 }
 
 

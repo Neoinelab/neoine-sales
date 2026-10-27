@@ -17,10 +17,16 @@ if TYPE_CHECKING:
     from app.domain.report.resolve import ResolvedReport
 
 
+RENDERED_SQL = (
+    "SELECT rendered_by_fake"  # render_sql이 돌려주는 고정 문자열(저장 리포트 테스트가 쓴다)
+)
+
+
 class FakeReportQueryRunner:
     def __init__(self) -> None:
         self.calls: list[ResolvedReport] = []
         self.error: Exception | None = None
+        self.rendered: list[ResolvedReport] = []  # render_sql에 넘어온 정의(실행하지 않는다)
         self._response: ReportRows | None = None
 
     def respond_with(
@@ -41,6 +47,11 @@ class FakeReportQueryRunner:
             elapsed_ms=elapsed_ms,
             totals=None if totals is None else tuple(totals),
         )
+
+    def render_sql(self, report: ResolvedReport) -> str:
+        """실행하지 않고 표시용 SQL만 돌려준다: 받은 값을 기록하고 고정 문자열을 낸다."""
+        self.rendered.append(report)
+        return RENDERED_SQL
 
     async def run(self, report: ResolvedReport) -> ReportRows:
         self.calls.append(report)

@@ -41,8 +41,15 @@ if TYPE_CHECKING:
     from app.application.forecast.list_snapshots import ListForecastSnapshots
     from app.application.forecast.take_snapshot import TakeForecastSnapshot
     from app.application.ports.unit_of_work import UnitOfWorkFactory
+    from app.application.report.copy_report import CopyReport
+    from app.application.report.create_report import CreateReport
+    from app.application.report.delete_report import DeleteReport
+    from app.application.report.get_report import GetReport
     from app.application.report.list_fields import ListReportFields
+    from app.application.report.list_reports import ListReports
     from app.application.report.run_report import RunReport
+    from app.application.report.run_saved_report import RunSavedReport
+    from app.application.report.update_report import UpdateReport
     from app.application.storage.get_settings import GetStorageSettings
     from app.application.storage.test_settings import TestStorageSettings
     from app.application.storage.update_settings import UpdateStorageSettings
@@ -195,6 +202,42 @@ class FakeUseCases(CatalogUseCases, ContactUseCases, DealUseCases, AttachmentUse
         from app.application.report.run_report import RunReport  # noqa: PLC0415
 
         return RunReport(self._factory, self.clock)
+
+    # 저장 리포트 유스케이스(Reports 3단계)도 사용 시점에 가져온다(구현 전에도 수집된다)
+    def list_reports(self) -> ListReports:
+        from app.application.report.list_reports import ListReports  # noqa: PLC0415
+
+        return ListReports(self._factory)
+
+    def get_report(self) -> GetReport:
+        from app.application.report.get_report import GetReport  # noqa: PLC0415
+
+        return GetReport(self._factory)
+
+    def create_report(self) -> CreateReport:
+        from app.application.report.create_report import CreateReport  # noqa: PLC0415
+
+        return CreateReport(self._factory, self.clock)
+
+    def update_report(self) -> UpdateReport:
+        from app.application.report.update_report import UpdateReport  # noqa: PLC0415
+
+        return UpdateReport(self._factory, self.clock)
+
+    def copy_report(self) -> CopyReport:
+        from app.application.report.copy_report import CopyReport  # noqa: PLC0415
+
+        return CopyReport(self._factory, self.clock)
+
+    def delete_report(self) -> DeleteReport:
+        from app.application.report.delete_report import DeleteReport  # noqa: PLC0415
+
+        return DeleteReport(self._factory)
+
+    def run_saved_report(self) -> RunSavedReport:
+        from app.application.report.run_saved_report import RunSavedReport  # noqa: PLC0415
+
+        return RunSavedReport(self._factory, self.clock)
 
     # 서버 시각 유스케이스도 사용 시점에 가져온다(구현 전에도 수집된다). DB를 쓰지 않는다
     def get_server_time(self) -> GetServerTime:

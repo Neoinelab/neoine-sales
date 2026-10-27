@@ -35,16 +35,28 @@ BIGINT_IDS_REVISION = "a3f7c1d95b28"  # P6 R2 스냅숏 리비전의 down_revisi
 FORECAST_SNAPSHOTS_REVISION = "11bfe225caf5"  # Solution 자유 텍스트 리비전의 down_revision이다
 
 
-def test_the_solution_text_revision_follows_the_forecast_snapshots_and_is_the_single_head() -> None:
+SOLUTION_FREE_TEXT_REVISION = "d4b8f6a2c013"  # Reports 리비전의 down_revision다
+REPORTS_REVISION = "f1c6a8e2b904"  # 현재 단일 head
+
+
+def test_the_solution_text_revision_follows_the_forecast_snapshots() -> None:
     script = ScriptDirectory.from_config(_alembic_config())
 
-    heads = script.get_heads()
-
-    assert heads == [solution_free_text_revision()]
+    assert solution_free_text_revision() == SOLUTION_FREE_TEXT_REVISION
     assert solution_free_text_revision() != forecast_snapshots_revision()
-    head = script.get_revision(solution_free_text_revision())
+    revision = script.get_revision(solution_free_text_revision())
+    assert revision is not None
+    assert revision.down_revision == forecast_snapshots_revision() == FORECAST_SNAPSHOTS_REVISION
+
+
+def test_the_reports_revision_follows_the_solution_text_and_is_the_single_head() -> None:
+    script = ScriptDirectory.from_config(_alembic_config())
+
+    assert script.get_heads() == [REPORTS_REVISION]
+    head = script.get_revision(REPORTS_REVISION)
     assert head is not None
-    assert head.down_revision == forecast_snapshots_revision() == FORECAST_SNAPSHOTS_REVISION
+    assert head.down_revision == SOLUTION_FREE_TEXT_REVISION
+    assert head.path.endswith(f"20261027_{REPORTS_REVISION}_reports.py")
 
 
 def test_the_solution_free_text_revision_file_is_named_after_its_purpose() -> None:

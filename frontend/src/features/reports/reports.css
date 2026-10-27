@@ -85,6 +85,31 @@
 .report-sql summary { cursor: pointer; }
 .report-sql pre { margin: 8px 0 0; padding: 10px 12px; max-height: 320px; overflow: auto; white-space: pre-wrap; word-break: break-word; border: 1px solid var(--line); border-radius: var(--radius); background: var(--head-bg); font-size: 0.8rem; }
 
+/* 저장 목록·메뉴·태그 */
+.report-filters { align-items: end; }
+.report-filters input[type='text'] { min-width: 220px; }
+.report-desc { max-width: 28ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
+.report-tag { display: inline-block; margin-left: 6px; padding: 0 8px; font-size: 0.7rem; border-radius: 999px; background: var(--ui-neutral-bg); color: var(--ui-neutral-fg); }
+.report-tag.tag-deal { margin-left: 0; margin-right: 4px; background: var(--report-deal-bg); color: var(--report-deal); }
+.report-tag.tag-action { margin-left: 0; background: var(--report-action-bg); color: var(--report-action); }
+.report-tag.tag-private { background: var(--ui-warn-bg); color: var(--ui-warn-fg); }
+.report-edited-by { font-size: 0.8rem; }
+.report-menu { position: relative; display: inline-block; }
+.report-menu-button { padding: 0 8px; line-height: 1.4; }
+.report-menu-list { position: absolute; right: 0; top: 100%; z-index: 20; min-width: 110px; margin: 4px 0 0; padding: 4px; list-style: none; display: grid; gap: 2px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow-pop); }
+.report-menu-list a, .report-menu-list button { display: block; width: 100%; padding: 6px 10px; text-align: left; text-decoration: none; color: var(--text); border: none; background: transparent; border-radius: 6px; }
+.report-menu-list a:hover, .report-menu-list button:hover { background: var(--hover); }
+.report-menu-list .danger-text { color: var(--danger); }
+
+/* 제목 줄·저장 안 됨 표시·저장 대화상자 */
+.report-title { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.report-unsaved { font-size: 0.85rem; font-weight: 600; color: var(--warn); }
+.report-heading-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.report-save-form { display: grid; gap: 12px; min-width: min(420px, 80vw); }
+.report-save-form textarea { font: inherit; padding: 6px 10px; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--input-bg); color: var(--fg); resize: vertical; }
+.report-conflict { display: grid; gap: 8px; margin-top: 12px; padding: 10px 14px; border-radius: var(--radius); background: var(--ui-warn-bg); color: var(--ui-warn-fg); }
+.report-conflict p { margin: 0; }
+
 .report-sr { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 
 @media (max-width: 900px) {

@@ -61,6 +61,8 @@ export type DesignerAction =
   | { type: 'setSort'; sort: DesignerState['sort'] }
   | { type: 'setRowLimit'; rowLimit: number }
   | { type: 'reset' }
+  /** 저장된 설계로 통째로 바꾼다(되돌리기). uid는 되돌아가지 않게 nextUid를 이어 간다. */
+  | { type: 'load'; state: DesignerState }
 
 export function initialDesignerState(limits: ReportLimits): DesignerState {
   return { columns: [], conditions: [], combine: 'and', sort: null, rowLimit: limits.defaultRowLimit, selectedUid: null, nextUid: 1 }
@@ -227,6 +229,8 @@ export function designerReducer(state: DesignerState, action: DesignerAction, ca
       return state.rowLimit === action.rowLimit ? state : { ...state, rowLimit: action.rowLimit }
     case 'reset':
       return { ...initialDesignerState(catalog.limits), nextUid: state.nextUid }
+    case 'load':
+      return { ...action.state, nextUid: Math.max(action.state.nextUid, state.nextUid) }
     default:
       return state
   }

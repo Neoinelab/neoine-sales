@@ -1,13 +1,25 @@
 import type { Schemas } from '../../../shared/api/client'
 import type {
+  ReportAggregate,
   ReportCatalog,
   ReportCell,
+  ReportColumnInput,
+  ReportCombine,
+  ReportConditionInput,
+  ReportConditionValue,
   ReportField,
+  ReportFormat,
+  ReportOperator,
   ReportQueryInput,
   ReportResult,
   ReportResultColumn,
+  ReportSortDirection,
+  ReportVisibility,
+  SavedReport,
+  SavedReportSummary,
 } from '../../../shared/model/reportTypes'
 import { malformedResponse } from '../request'
+import { toUserRef } from './user'
 
 type Field = Schemas['ReportFieldResponse']
 type ResultColumn = Schemas['ReportResultColumn']
@@ -125,5 +137,66 @@ export function toQueryBody(input: ReportQueryInput): Schemas['ReportQueryReques
     combine: input.combine,
     ...(input.sort ? { sort: { column: input.sort.column, direction: input.sort.direction } } : {}),
     row_limit: input.rowLimit,
+  }
+}
+
+// ── 저장 리포트 ──────────────────────────────────────────────
+
+function toVisibility(value: string): ReportVisibility {
+  if (value === 'public' || value === 'private') return value
+  throw malformedResponse()
+}
+
+export function toSummary(body: Schemas['ReportSummaryResponse']): SavedReportSummary {
+  return {
+    id: body.id,
+    name: body.name,
+    description: body.description,
+    visibility: toVisibility(body.visibility),
+    owner: toUserRef(body.owner),
+    updatedBy: toUserRef(body.updated_by),
+    entities: [...body.entities],
+    createdAt: body.created_at,
+    updatedAt: body.updated_at,
+  }
+}
+
+function toColumnInput(c: Schemas['ReportColumnRequest']): ReportColumnInput {
+  return {
+    field: c.field,
+    format: (c.format ?? 'as_is') as ReportFormat,
+    group: c.group,
+    ...(typeof c.label === 'string' ? { label: c.label } : {}),
+    ...(typeof c.prefix_length === 'number' ? { prefixLength: c.prefix_length } : {}),
+    ...(typeof c.aggregate === 'string' ? { aggregate: c.aggregate as ReportAggregate } : {}),
+  }
+}
+
+function toConditionInput(c: Schemas['ReportConditionRequest']): ReportConditionInput {
+  return {
+    field: c.field,
+    operator: c.operator as ReportOperator,
+    ...(c.value !== undefined && c.value !== null ? { value: c.value as ReportConditionValue } : {}),
+  }
+}
+
+/** 저장된 정의(서버 요청 모양, snake_case) → 화면의 요청 모델. 없는 키는 두지 않는다. */
+export function toDefinition(body: Schemas['ReportQueryRequest']): ReportQueryInput {
+  const sort = body.sort
+  return {
+    columns: body.columns.map(toColumnInput),
+    conditions: (body.conditions ?? []).map(toConditionInput),
+    combine: body.combine as ReportCombine,
+    ...(sort ? { sort: { column: sort.column as number, direction: sort.direction as ReportSortDirection } } : {}),
+    rowLimit: body.row_limit as number,
+  }
+}
+
+export function toSavedReport(body: Schemas['ReportDetailResponse']): SavedReport {
+  return {
+    ...toSummary(body),
+    revision: body.revision,
+    definition: toDefinition(body.definition),
+    generatedSql: body.generated_sql,
   }
 }

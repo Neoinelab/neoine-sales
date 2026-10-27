@@ -1,6 +1,6 @@
 import { useCallback, useId, useRef, useState } from 'react'
 import { reportRunFailure, useRunReport } from '../../../data/reports'
-import type { ReportCatalog, ReportResult, ReportRunFailure } from '../../../shared/model/reportTypes'
+import type { ReportCatalog, ReportIssue, ReportResult, ReportRunFailure } from '../../../shared/model/reportTypes'
 import { columnName } from './names'
 import type { SummaryItem } from './ResultCard'
 import { fieldByKey } from './state/columnRules'
@@ -94,6 +94,10 @@ export interface DesignerRun {
   noteEdit: (action: DesignerAction) => void
   /** 조회 기록·위반 표시를 모두 지운다(초기화). */
   clear: () => void
+  /** 요청을 만들 수 없는 입력 문제를 조회 때와 같은 방식으로 보인다(저장 흐름용). */
+  showInputIssues: (issues: InputIssue[]) => void
+  /** 저장 요청이 정의 위반(422)이면 조회 실패와 같은 방식으로 위반을 보인다(결과는 그대로 둔다). */
+  showSaveIssues: (message: string, issues: ReportIssue[]) => void
   result: ReportResult | null
   failure: ReportRunFailure | null
   stale: boolean
@@ -104,11 +108,14 @@ export interface DesignerRun {
 }
 
 /** 조회 실행과 결과·실패·위반 표시 상태. 화면은 이 훅의 값만 그린다. */
-export function useDesignerRun(state: DesignerState, catalog: ReportCatalog): DesignerRun {
+export function useDesignerRun(state: DesignerState, catalog: ReportCatalog, seed: ReportResult | null = null): DesignerRun {
   const mutation = useRunReport()
   const idPrefix = useId()
-  const seq = useRef(0)
-  const [lastRun, setLastRun] = useState<LastRun | null>(null)
+  const seq = useRef(seed ? 1 : 0)
+  // 저장 직후 이어 받은 결과가 있으면 그 설계로 이미 조회한 것으로 둔다.
+  const [lastRun, setLastRun] = useState<LastRun | null>(() =>
+    seed ? { id: 1, columnUids: state.columns.map((c) => c.uid), conditionUids: state.conditions.map((c) => c.uid), requestState: state, result: seed } : null,
+  )
   const [inputIssues, setInputIssues] = useState<InputIssue[]>([])
   const [dismissed, setDismissed] = useState<Dismissed>(NOTHING)
 
@@ -131,6 +138,17 @@ export function useDesignerRun(state: DesignerState, catalog: ReportCatalog): De
   }
 
   const noteEdit = useCallback((action: DesignerAction) => setDismissed((prev) => dismissFor(prev, action)), [])
+  const showSaveIssues = (message: string, issues: ReportIssue[]) => {
+    setDismissed(NOTHING)
+    setLastRun((prev) => ({
+      id: prev?.id ?? (seq.current += 1),
+      columnUids: state.columns.map((c) => c.uid),
+      conditionUids: state.conditions.map((c) => c.uid),
+      requestState: state,
+      ...(prev?.result ? { result: prev.result } : {}),
+      failure: { kind: 'invalid', message, issues },
+    }))
+  }
   const clear = useCallback(() => {
     setLastRun(null)
     setInputIssues([])
@@ -149,6 +167,11 @@ export function useDesignerRun(state: DesignerState, catalog: ReportCatalog): De
     running: mutation.isPending,
     noteEdit,
     clear,
+    showSaveIssues,
+    showInputIssues: (list) => {
+      setDismissed(NOTHING)
+      setInputIssues(list)
+    },
     result: lastRun?.result ?? null,
     failure,
     runId: lastRun?.id ?? 0,

@@ -17,7 +17,7 @@ import { readStoredSession, setSession, type MockContext } from './gateway/conte
 import { createGatewayFor } from './gateway'
 import { createLatency } from './latency'
 import { emptyBusinessSeed, type SeedFactory } from './seed'
-import { createStore } from './store'
+import { createStore, emptyReportsState } from './store'
 
 export type { SeedFactory } from './seed'
 
@@ -69,7 +69,7 @@ export function createMockGateway(options: MockOptions = {}): MockInstance {
     const keep = ctx.store.session.userId
     ctx.store.data = seed(clock)
     ctx.store.storageFailure = false
-    ctx.store.reports = { handler: null, queries: [] }
+    ctx.store.reports = emptyReportsState()
     signIn(keep)
   }
   return {

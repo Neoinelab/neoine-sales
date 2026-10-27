@@ -27,6 +27,10 @@ class SqlReportQueryRunner:
         self._session = session
         self._timeout_ms = timeout_ms
 
+    def render_sql(self, report: ResolvedReport) -> str:
+        """실행하지 않고 표시용 SQL만 만든다(세션을 쓰지 않는다). `run`의 sql과 같은 문자열."""
+        return display_sql(build_select(report))
+
     async def run(self, report: ResolvedReport) -> ReportRows:
         """정의를 SQL로 바꿔 읽기 전용으로 실행한다. 시간 초과면 ReportQueryTimeoutError."""
         value_types = [column.value_type() for column in report.definition.columns]
@@ -41,7 +45,7 @@ class SqlReportQueryRunner:
         return ReportRows(
             rows=tuple(convert_row(row[:-1], value_types) for row in found),
             total_count=total_count,
-            sql=display_sql(data),
+            sql=self.render_sql(report),
             elapsed_ms=elapsed_ms,
             totals=convert_row(totals_row, value_types) if totals_row is not None else None,
         )

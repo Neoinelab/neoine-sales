@@ -1,6 +1,6 @@
 /** 메모리 저장소. 시드의 사본을 들고 있고, 변경은 게이트웨이가 한다. 반환 시에는 뷰 변환으로 복사본을 만든다. */
 
-import type { ReportQueryInput, ReportResult } from '../../shared/model/reportTypes'
+import type { ReportQueryInput, ReportResult, SavedReport } from '../../shared/model/reportTypes'
 import type {
   BantCategory,
   Code,
@@ -162,10 +162,28 @@ export interface SeedData {
 /** 테스트가 지정하는 리포트 조회 응답. 결과를 돌려주거나 throw(ApiError)하면 reject된다. */
 export type ReportQueryHandler = (input: ReportQueryInput) => ReportResult | Promise<ReportResult>
 
-/** 리포트 Fake 제어 상태: 지정 응답과 받은 요청 기록. 시드 복원(`resetData`)이 비운다. */
+/** Fake가 받은 저장 리포트 요청 기록 한 건(쓰기와 실행만 남기고, 목록·상세 조회는 남기지 않는다). */
+export interface SavedReportRequest {
+  op: 'create' | 'update' | 'copy' | 'remove' | 'run'
+  /** create는 null, 나머지는 대상 리포트 id. */
+  id: number | null
+  /** create·update는 보낸 입력(update는 revision 포함), copy는 메타, remove·run은 undefined. */
+  body?: unknown
+}
+
+/** 리포트 Fake 제어 상태: 지정 응답, 받은 조회 요청 기록, 저장 리포트 저장소와 요청 기록. 시드 복원(`resetData`)이 비운다. */
 export interface ReportsControlState {
   handler: ReportQueryHandler | null
   queries: ReportQueryInput[]
+  /** 저장된 리포트(기본은 비어 있다). 만든 사람·수정자는 id로 들고 화면에는 사용자 목록에서 풀어 준다. */
+  saved: SavedReport[]
+  /** 다음에 발급할 리포트 id. */
+  nextSavedId: number
+  requests: SavedReportRequest[]
+}
+
+export function emptyReportsState(): ReportsControlState {
+  return { handler: null, queries: [], saved: [], nextSavedId: 1, requests: [] }
 }
 
 export interface MockStore {
@@ -190,5 +208,5 @@ export function nextSeq(counters: Record<string, number>): number {
 }
 
 export function createStore(seed: SeedData, userId: number | null): MockStore {
-  return { data: seed, session: { userId }, storageFailure: false, reports: { handler: null, queries: [] } }
+  return { data: seed, session: { userId }, storageFailure: false, reports: emptyReportsState() }
 }

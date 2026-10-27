@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, type ReactNode } from 'react'
 import { Navigate, Route, Routes } from 'react-router'
 import { AdminLayout } from './features/admin/AdminLayout'
 import { ContactsPage } from './features/admin/contacts/ContactsPage'
@@ -19,8 +19,14 @@ import { SetupPage } from './features/setup/SetupPage'
 // Chart.js가 커서 Dashboard는 처음 열 때 내려받는다(나머지 화면의 첫 로딩을 늘리지 않는다).
 const DashboardPage = lazy(() => import('./features/dashboard/DashboardPage').then((m) => ({ default: m.DashboardPage })))
 
-// 디자이너는 화면이 커서 처음 열 때 내려받는다.
+// 디자이너·편집·보기 화면은 커서 처음 열 때 내려받는다.
 const ReportDesignerPage = lazy(() => import('./features/reports/designer/ReportDesignerPage').then((m) => ({ default: m.ReportDesignerPage })))
+const ReportEditPage = lazy(() => import('./features/reports/designer/ReportEditPage').then((m) => ({ default: m.ReportEditPage })))
+const ReportViewPage = lazy(() => import('./features/reports/view/ReportViewPage').then((m) => ({ default: m.ReportViewPage })))
+
+function Lazy({ children }: { children: ReactNode }) {
+  return <Suspense fallback={<p className="hint">불러오는 중…</p>}>{children}</Suspense>
+}
 
 /** 라우트는 이 파일 한 곳에서만 정의한다(계획 5장). */
 export function App() {
@@ -46,11 +52,9 @@ export function App() {
         <Route path="/deals/:dealCode" element={<DealDetailPage />} />
         <Route path="/forecast" element={<ForecastPage />} />
         <Route path="/reports" element={<ReportsPage />} />
-        <Route path="/reports/new" element={
-            <Suspense fallback={<p className="hint">불러오는 중…</p>}>
-              <ReportDesignerPage />
-            </Suspense>
-          } />
+        <Route path="/reports/new" element={<Lazy><ReportDesignerPage /></Lazy>} />
+        <Route path="/reports/:id" element={<Lazy><ReportViewPage /></Lazy>} />
+        <Route path="/reports/:id/edit" element={<Lazy><ReportEditPage /></Lazy>} />
         <Route element={<RequireAdmin />}>
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<Navigate to="/admin/users" replace />} />

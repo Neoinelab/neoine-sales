@@ -4,7 +4,12 @@ import { addColumn, addCondition, chipButton, openDesigner, settingsOf, setupRep
 
 setupReportClock()
 
-const scope = (): HTMLElement => screen.getByRole('status')
+// 저장 안 됨 표시(Reports 3단계)도 role=status라서, 행 단위 안내는 자기 클래스로 가른다.
+const scope = (): HTMLElement => {
+  const found = screen.getAllByRole('status').find((el) => el.classList.contains('report-scope'))
+  if (!found) throw new Error('행 단위 안내 없음')
+  return found
+}
 
 describe('데이터 범위 표시 (AC9)', () => {
   it('changes the row scope when an action column is added', async () => {

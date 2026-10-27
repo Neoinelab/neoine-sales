@@ -49,6 +49,12 @@ export const keys = {
   dashboard: ['forecast', 'dashboard'] as const,
   dashboardSummary: (q: DashboardQuery) => ['forecast', 'dashboard', q] as const,
   reportFields: ['reports', 'fields'] as const,
+  // 저장 리포트는 카탈로그(reportFields)와 키를 나눠, 저장·삭제가 카탈로그를 다시 받게 하지 않는다.
+  savedReports: ['reports', 'saved'] as const,
+  savedReport: (id: number) => ['reports', 'saved', id] as const,
+  savedReportRun: (id: number) => ['reports', 'run', id] as const,
+  // 저장 직후 편집 화면으로 넘기는 조회 결과(다시 조회하지 않게). 편집 화면이 읽고 지운다.
+  savedReportHandoff: (id: number) => ['reports', 'handoff', id] as const,
   users: ['users'] as const,
   userList: (f: UserListFilter) => ['users', 'list', f] as const,
   userOptions: (q: UserOptionsQuery) => ['users', 'options', q] as const,

@@ -14,6 +14,7 @@ class IdKind(StrEnum):
     VENDOR = "vendor"
     DEAL_ACTION = "deal_action"
     ATTACHMENT = "attachment"
+    REPORT = "report"
 
 
 class IdAllocator(Protocol):

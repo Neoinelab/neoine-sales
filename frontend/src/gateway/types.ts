@@ -89,7 +89,7 @@ import type {
   Vendor,
 } from '../shared/model/types'
 import type { CoChange } from '../shared/model/sync'
-import type { ReportCatalog, ReportQueryInput, ReportResult } from '../shared/model/reportTypes'
+import type { ReportCatalog, ReportQueryInput, ReportResult, SavedReport, SavedReportInput, SavedReportMeta, SavedReportSummary } from '../shared/model/reportTypes'
 
 /** `deals.applyChange` 결과. */
 export interface ApplyChangeResult {
@@ -306,6 +306,20 @@ export interface ReportsGateway {
    * 제한 시간 초과는 503 `report-timeout`, 요청 모양 오류는 422 `validation`, 서버에 닿지 못하면 `network`.
    */
   query(input: ReportQueryInput): Promise<ReportResult>
+  /** 볼 수 있는 저장 리포트(최종 수정 시각 내림차순). */
+  list(): Promise<SavedReportSummary[]>
+  /** 상세(정의 포함). 없거나 볼 수 없으면 똑같이 404 `not-found`. */
+  get(id: number): Promise<SavedReport>
+  /** 저장(모든 역할). 409 `already-exists`(모든 리포트 사이에서 대소문자 무시로 같은 이름), 422 `invalid-value`·`invalid-report`(reportErrors). */
+  create(input: SavedReportInput): Promise<SavedReport>
+  /** 덮어쓰기. `revision`이 다르면 409 `invalid-state`(충돌). 공개 범위 변경은 만든 사람·admin만(403). 이름 충돌 409 `already-exists`. */
+  update(id: number, input: SavedReportInput & { revision: number }): Promise<SavedReport>
+  /** 복제(정의는 원본 그대로). */
+  copy(id: number, meta: SavedReportMeta): Promise<SavedReport>
+  /** 삭제: 만든 사람·admin만, 남의 공개 리포트는 403. */
+  remove(id: number): Promise<void>
+  /** 저장된 정의를 지금 날짜로 다시 검증해 실행(`query`와 같은 결과 모양). 422 `invalid-report`, 503 `report-timeout`. */
+  run(id: number): Promise<ReportResult>
 }
 
 export interface VendorsGateway {

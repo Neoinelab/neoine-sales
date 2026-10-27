@@ -10,6 +10,7 @@ from app.domain.bant.values import BantLabelId
 from app.domain.code.values import CodeId
 from app.domain.contact.values import ContactId
 from app.domain.deal_action.value_objects import DealActionId
+from app.domain.saved_report.values import ReportId
 from app.domain.user.value_objects import UserId
 from app.domain.vendor.values import VendorId
 
@@ -51,3 +52,7 @@ async def new_deal_action_id(ids: IdAllocator) -> DealActionId:
 
 async def new_attachment_id(ids: IdAllocator) -> AttachmentId:
     return AttachmentId(await ids.next_id(IdKind.ATTACHMENT))
+
+
+async def new_report_id(ids: IdAllocator) -> ReportId:
+    return ReportId(await ids.next_id(IdKind.REPORT))

@@ -48,3 +48,16 @@ export const invalidReport = (issues: ReportIssue[]): ApiError =>
 export const REPORT_TIMEOUT_MESSAGE = '조회가 10초 안에 끝나지 않았습니다. 조건을 좁히거나 컬럼을 줄이세요'
 export const reportTimeout = (): ApiError =>
   problem(503, 'report-timeout', 'Report Timeout', REPORT_TIMEOUT_MESSAGE)
+
+/** 저장 리포트: 모든 리포트 사이에서 대소문자 무시로 같은 이름(409). 서버 kind 표기(`already-exists`)를 그대로 쓴다(게이트웨이 정규화 `conflict`로 합치지 않는다). */
+export const SAVED_REPORT_DUPLICATE_MESSAGE = '같은 이름의 리포트가 이미 있습니다.'
+export const alreadyExists = (detail: string): ApiError => problem(409, 'already-exists', 'Already Exists', detail)
+
+/** 저장 리포트: 먼저 저장된 revision과 어긋남(409). 서버 kind 표기(`invalid-state`) 그대로. */
+export const SAVED_REPORT_CONFLICT_MESSAGE = '다른 사용자가 먼저 이 리포트를 저장했습니다. 다시 불러온 뒤 수정하거나 다른 이름으로 저장하세요.'
+export const invalidState = (detail: string): ApiError => problem(409, 'invalid-state', 'Invalid State', detail)
+
+/** 저장 리포트: 없는 리포트와 볼 수 없는 리포트에 같은 문구(존재를 숨긴다). */
+export const SAVED_REPORT_NOT_FOUND_MESSAGE = '리포트를 찾을 수 없습니다.'
+export const SAVED_REPORT_DELETE_FORBIDDEN_MESSAGE = '리포트를 만든 사람 또는 admin만 삭제할 수 있습니다.'
+export const SAVED_REPORT_VISIBILITY_FORBIDDEN_MESSAGE = '공개 범위는 만든 사람 또는 admin만 바꿀 수 있습니다.'

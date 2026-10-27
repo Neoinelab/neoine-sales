@@ -39,6 +39,8 @@ from tests.unit.repositories.forecast_snapshot_case import PARAMS as SNAPSHOT_PA
 from tests.unit.repositories.forecast_snapshot_case import SnapshotCase, open_snapshot_case
 from tests.unit.repositories.report_case import PARAMS as REPORT_PARAMS
 from tests.unit.repositories.report_case import ReportCase, open_report_case
+from tests.unit.repositories.saved_report_case import PARAMS as SAVED_REPORT_PARAMS
+from tests.unit.repositories.saved_report_case import SavedReportCase, open_saved_report_case
 from tests.unit.repositories.vendor_case import PARAMS as VENDOR_PARAMS
 from tests.unit.repositories.vendor_case import VendorCase, open_vendor_case
 
@@ -143,4 +145,12 @@ async def report_case(
     local_tz("Asia/Seoul")
     url = request.getfixturevalue("test_database_url")
     async with open_report_case(request.param, url) as provided:
+        yield provided
+
+
+@pytest_asyncio.fixture(params=SAVED_REPORT_PARAMS)
+async def saved_report_case(request: pytest.FixtureRequest) -> AsyncIterator[SavedReportCase]:
+    """ReportRepository(저장 리포트) 계약 테스트용 case (fake / sql)."""
+    url = request.getfixturevalue("test_database_url") if request.param == "sql" else None
+    async with open_saved_report_case(request.param, url) as provided:
         yield provided

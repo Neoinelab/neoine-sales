@@ -42,6 +42,7 @@ SURROGATE_KEY_TABLES = [
     "deal_actions",
     "deal_attachments",
     "deal_history",
+    "reports",
 ]
 DEAL_CHILD_TABLES = [
     "deal_partners",

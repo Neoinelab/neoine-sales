@@ -20,5 +20,11 @@ export function createMockControl(ctx: MockContext, reseed: () => void): MockCon
       ctx.store.reports.handler = handler
     },
     reportQueries: () => [...ctx.store.reports.queries],
+    seedSavedReports(reports) {
+      const state = ctx.store.reports
+      state.saved = JSON.parse(JSON.stringify(reports)) as typeof reports
+      state.nextSavedId = reports.reduce((max, r) => Math.max(max, r.id), 0) + 1
+    },
+    savedReportRequests: () => ctx.store.reports.requests.map((r) => JSON.parse(JSON.stringify(r)) as typeof r),
   }
 }

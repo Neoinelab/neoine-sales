@@ -1,5 +1,5 @@
-import type { ReportQueryInput } from '../../shared/model/reportTypes'
-import type { ReportQueryHandler } from './store'
+import type { ReportQueryInput, SavedReport } from '../../shared/model/reportTypes'
+import type { ReportQueryHandler, SavedReportRequest } from './store'
 
 /**
  * Fake 전용 제어(테스트가 사용). `default.ts`가 `mockControl`로 내보낸다.
@@ -20,4 +20,8 @@ export interface MockControl {
   setReportQueryHandler(handler: ReportQueryHandler | null): void
   /** Fake가 받은 리포트 조회 요청 기록(오래된 것부터). `resetData`가 비운다. */
   reportQueries(): ReportQueryInput[]
+  /** 저장된 리포트를 이 목록으로 바꾼다(비어 있던 저장소 기준). 다음 id는 가장 큰 id + 1이다. `resetData`가 비운다. */
+  seedSavedReports(reports: SavedReport[]): void
+  /** Fake가 받은 저장 리포트 요청(create·update·copy·remove·run) 기록, 오래된 것부터. `resetData`가 비운다. */
+  savedReportRequests(): SavedReportRequest[]
 }

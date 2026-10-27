@@ -69,6 +69,17 @@ BUSINESS_WRITES: Final = (
     ("POST", "/api/v1/deals/{code}/attachments"),  # P2b: 업로드·삭제는 sales·admin
     ("DELETE", "/api/v1/attachments/{attachment_id}"),
 )
+# Reports 3단계: 저장 리포트. 만들기·수정·삭제를 로그인한 모든 역할이 한다(user 포함).
+# 수정·삭제 가능 여부는 리포트마다 다르며(만든 사람·공개 범위·admin) 도메인 정책이 판정한다.
+REPORT_ROUTES: Final = (
+    ("GET", "/api/v1/reports"),
+    ("POST", "/api/v1/reports"),
+    ("GET", "/api/v1/reports/{report_id}"),
+    ("PUT", "/api/v1/reports/{report_id}"),
+    ("DELETE", "/api/v1/reports/{report_id}"),
+    ("POST", "/api/v1/reports/{report_id}/copy"),
+    ("POST", "/api/v1/reports/{report_id}/run"),
+)
 ADMIN_ONLY: Final = (
     ("GET", "/api/v1/users"),
     ("GET", "/api/v1/contacts"),  # 연락처 관리(목록·등록·수정·삭제)는 admin 전용
@@ -116,6 +127,7 @@ EXPECTED: Final[dict[Route, frozenset[Role] | None]] = {
     **dict.fromkeys(PUBLIC),
     **dict.fromkeys(LOGGED_IN_ANY, EVERYONE),
     **dict.fromkeys(BUSINESS_READS, EVERYONE),
+    **dict.fromkeys(REPORT_ROUTES, EVERYONE),
     **dict.fromkeys(BUSINESS_WRITES, WRITERS),
     **dict.fromkeys(ADMIN_ONLY, ADMINS),
 }

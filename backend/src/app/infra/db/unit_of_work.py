@@ -19,6 +19,7 @@ from app.infra.db.forecast_repository import (
 )
 from app.infra.db.id_allocator import SqlIdAllocator
 from app.infra.db.login_failure_repository import SqlLoginFailureRepository
+from app.infra.db.report_repository import SqlReportRepository
 from app.infra.db.report_runner import SqlReportQueryRunner
 from app.infra.db.session_repository import SqlSessionRepository
 from app.infra.db.storage_settings_repository import SqlStorageSettingsRepository
@@ -51,6 +52,7 @@ class SqlUnitOfWork:
     forecast_snapshots: SqlForecastSnapshotRepository
     dashboard: SqlDashboardTallyRepository
     reports: SqlReportQueryRunner
+    saved_reports: SqlReportRepository
     ids: SqlIdAllocator
 
     def __init__(self, session_factory: async_sessionmaker[AsyncSession]) -> None:
@@ -77,6 +79,7 @@ class SqlUnitOfWork:
         self.forecast_snapshots = SqlForecastSnapshotRepository(self._session)
         self.dashboard = SqlDashboardTallyRepository(self._session)
         self.reports = SqlReportQueryRunner(self._session)
+        self.saved_reports = SqlReportRepository(self._session)
         self.ids = SqlIdAllocator(self._session)
         return self
 

@@ -29,3 +29,7 @@ class ReportQueryRunner(Protocol):
     async def run(self, report: ResolvedReport) -> ReportRows:
         """검증·해석이 끝난 정의를 읽기 전용으로 실행한다. 시간 초과면 ReportQueryTimeoutError."""
         ...
+
+    def render_sql(self, report: ResolvedReport) -> str:
+        """실행하지 않고 표시용 SQL만 만든다(DB 호출 없음). `run`이 돌려주는 sql과 같은 문자열."""
+        ...

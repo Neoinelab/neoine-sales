@@ -11,6 +11,7 @@ import { emptyBusinessSeed } from './fake/seed'
 import { buildLegacySolutionSeed } from './fixtures/legacySolution'
 import { buildSampleSeed } from './fixtures/sampleSeed'
 import { USER_ID } from './fake/seed/ids'
+import type { SavedReport } from '../shared/model/reportTypes'
 
 /** 테스트에서 고를 수 있는 역할. null은 로그인하지 않은 상태. */
 export type TestRole = 'admin' | 'sales' | 'user' | null
@@ -27,6 +28,8 @@ export interface RenderAtOptions {
   userId?: number
   /** 'sample'(기본)은 테스트 픽스처 시드, 'empty'는 앱 기본(업무 데이터 없음) 시드, 'legacy-solution'은 모든 Deal의 Solution이 빈 레거시 시드. */
   seed?: 'sample' | 'empty' | 'legacy-solution'
+  /** 저장 리포트를 이 목록으로 채우고 시작한다(Reports 3단계). 기본은 비어 있다. */
+  savedReports?: SavedReport[]
 }
 
 function LocationProbe() {
@@ -53,6 +56,7 @@ export async function renderAt(url: string, options: RenderAtOptions = {}) {
   defaultMock.setSeed(SEEDS[options.seed ?? 'sample'])
   mockControl.resetData() // 일부 테스트는 resetData를 감싸 최초 설정 상태를 만든다
   mockControl.setStorageFailure(false)
+  if (options.savedReports) mockControl.seedSavedReports(options.savedReports)
   const role = options.role === undefined ? 'sales' : options.role
   const userId = options.userId ?? (role ? ROLE_USER_ID[role] : null)
   if (userId) await gateway.auth.quickLogin(userId)

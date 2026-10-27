@@ -36,6 +36,8 @@ LINK_KINDS: Final = (
     "attachment_uploader",  # deal_attachments.uploaded_by_user_id (P2b: 첨부를 올린 사용자)
     "alert_settings",  # alert_settings.updated_by_user_id (P3: 경고 기준을 저장한 admin)
     "forecast_snapshot",  # forecast_snapshot_cells.owner_user_id (P6 R2: 스냅숏에만 남은 담당자)
+    "report_owner",  # reports.owner_user_id (Reports 3단계: 리포트를 만든 사람)
+    "report_editor",  # reports.updated_by_user_id (Reports 3단계: 리포트를 마지막으로 수정한 사람)
 )
 
 
@@ -52,6 +54,8 @@ LINK_COLUMNS: Final = {
     "attachment_uploader": ("deal_attachments", "uploaded_by_user_id"),
     "alert_settings": ("alert_settings", "updated_by_user_id"),
     "forecast_snapshot": ("forecast_snapshot_cells", "owner_user_id"),
+    "report_owner": ("reports", "owner_user_id"),
+    "report_editor": ("reports", "updated_by_user_id"),
 }
 SESSION_COLUMN: Final = ("auth_sessions", "user_id")
 EXPECTED_USER_FKS: Final = frozenset({*LINK_COLUMNS.values(), SESSION_COLUMN})
@@ -144,6 +148,8 @@ async def _create_file_or_setting_link(uow: UnitOfWork, user: User, kind: str) -
         await uow.alert_settings.save(AlertThresholds(stale_days=7), updated_by=user.id, now=NOW)
     elif kind == "forecast_snapshot":
         await _create_snapshot_link(uow, user)
+    elif kind in {"report_owner", "report_editor"}:
+        await _create_report_link(uow, user, kind)
     else:
         raise AssertionError(kind)
 
@@ -170,3 +176,15 @@ async def _create_snapshot_link(uow: UnitOfWork, user: User) -> None:
     await uow.forecast_snapshots.replace(
         ForecastSnapshot(period=YearMonth(2026, 9), taken_at=NOW, columns=[column], cells=[cell])
     )
+
+
+async def _create_report_link(uow: UnitOfWork, user: User, kind: str) -> None:
+    """report_owner: user가 만든 리포트. report_editor: 남이 만들고 user가 마지막 수정한 리포트."""
+    from tests.factories_report import make_report  # noqa: PLC0415 - 리포트 구현 지연 import
+
+    name = f"R{uuid4().hex[:12]}"
+    if kind == "report_owner":
+        await uow.saved_reports.add(make_report(name, owner=user.id))
+        return
+    helper = await _helper_user(uow)
+    await uow.saved_reports.add(make_report(name, owner=helper.id, editor=user.id, revision=2))

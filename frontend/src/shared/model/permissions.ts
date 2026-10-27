@@ -10,6 +10,7 @@
  * | 코드·Label 수정/삭제, 사용자, contacts, 설정 | O      | X                             | X    |
  */
 
+import type { ReportVisibility } from './reportTypes'
 import type { Role, UserRef } from './types'
 
 export interface Viewer {
@@ -73,4 +74,30 @@ export function canBeOwner(user: Pick<UserRef, 'role' | 'status'>): boolean {
 export function visibleMenu(role: Role | null | undefined): readonly string[] {
   const base = ['/dashboard', '/deals', '/forecast', '/reports']
   return role === 'admin' ? [...base, '/admin'] : base
+}
+
+/**
+ * 저장 리포트 권한(서버 `saved_report/policy.py`와 같은 규칙, 소유는 id로 판정한다).
+ * | 대상                 | 보기·복제 | 수정 | 공개 범위 변경 | 삭제 |
+ * | 내가 만든 것          | O        | O    | O            | O    |
+ * | 남이 만든 공개        | O        | O    | admin만       | admin만 |
+ * | 남이 만든 비공개      | admin만   | admin만 | admin만     | admin만 |
+ */
+type ReportRef = { owner: Pick<UserRef, 'id'>; visibility: ReportVisibility }
+
+export function canViewReport(viewer: Viewer, report: ReportRef): boolean {
+  return viewer.role === 'admin' || viewer.id === report.owner.id || report.visibility === 'public'
+}
+
+export function canEditReport(viewer: Viewer, report: ReportRef): boolean {
+  return canViewReport(viewer, report)
+}
+
+/** 삭제: 만든 사람(공개·비공개 무관) 또는 admin. 남의 공개 리포트는 수정만 되고 삭제는 안 된다. */
+export function canDeleteReport(viewer: Viewer, report: Pick<ReportRef, 'owner'>): boolean {
+  return viewer.role === 'admin' || viewer.id === report.owner.id
+}
+
+export function canChangeReportVisibility(viewer: Viewer, report: Pick<ReportRef, 'owner'>): boolean {
+  return canDeleteReport(viewer, report)
 }

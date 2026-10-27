@@ -1,3 +1,5 @@
+import type { UserRef } from './types'
+
 /**
  * Reports(리포트 디자이너) 모델 타입. 서버 계약(`schema.d.ts`의 Report*)을 화면용 camelCase로 옮긴 것이다.
  * 서버 응답 키는 `gateway/http/mappers/report.ts`가 이 모양으로 바꾼다.
@@ -165,3 +167,35 @@ export type ReportRunFailure =
   | { kind: 'timeout'; message: string }
   | { kind: 'network'; message: string }
   | { kind: 'other'; message: string }
+
+export type ReportVisibility = 'public' | 'private'
+
+/** 저장된 리포트 목록 한 줄. 결과 데이터는 저장하지 않는다. */
+export interface SavedReportSummary {
+  id: number
+  name: string
+  description: string
+  visibility: ReportVisibility
+  owner: UserRef
+  updatedBy: UserRef
+  entities: ReportEntity[]
+  createdAt: string
+  updatedAt: string
+}
+
+/** 저장된 리포트 상세: 정의(요청 모양)와 서버가 만든 표시용 SQL, 덮어쓰기 충돌 판정용 revision. */
+export interface SavedReport extends SavedReportSummary {
+  revision: number
+  definition: ReportQueryInput
+  generatedSql: string
+}
+
+export interface SavedReportMeta {
+  name: string
+  description: string
+  visibility: ReportVisibility
+}
+
+export interface SavedReportInput extends SavedReportMeta {
+  definition: ReportQueryInput
+}

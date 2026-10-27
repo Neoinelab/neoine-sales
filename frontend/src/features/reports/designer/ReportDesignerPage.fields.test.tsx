@@ -85,15 +85,15 @@ describe('디자이너 첫 화면 (AC14, AC20)', () => {
     expect(screen.getByRole('heading', { level: 1, name: '새 리포트' })).toBeVisible()
     expect(screen.getByRole('button', { name: '초기화' })).toBeVisible()
     expect(screen.getByText(/조건이 없으면 모든 Deal이 대상입니다/)).toBeVisible()
-    expect(screen.getByRole('status')).toHaveTextContent('행 단위: Deal 1건')
+    expect(screen.getAllByRole('status').find((el) => el.classList.contains('report-scope'))).toHaveTextContent('행 단위: Deal 1건')
   })
 
-  it('has no chart tab and no save button', async () => {
+  it('has no chart tab, a save button that waits for a result and no unsaved mark', async () => {
     await openDesigner()
 
     expect(screen.queryByRole('tab', { name: /차트/ })).not.toBeInTheDocument()
     expect(screen.queryByText('차트')).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /저장/ })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '저장' })).toBeDisabled()
     expect(screen.queryByText(/저장 안 됨/)).not.toBeInTheDocument()
   })
 
