@@ -8,6 +8,7 @@ from app.application.report.views import ReportColumnView, ReportResultView
 from app.domain.common.business_date import business_date, business_time
 from app.domain.deal.risk import RiskBasis
 from app.domain.report.parse import parse_report_definition
+from app.domain.report.parse_chart import parse_chart
 from app.domain.report.resolve import ReportContext, resolve_report
 from app.domain.saved_report.values import (
     ReportContent,
@@ -21,8 +22,8 @@ if TYPE_CHECKING:
 
     from app.application.ports.report_query_runner import ReportRows
     from app.application.ports.unit_of_work import UnitOfWork
+    from app.application.report.saved_inputs import ReportContentInput
     from app.domain.report.definition import ReportDefinition
-    from app.domain.report.raw import RawReportDefinition
 
 
 async def report_context(uow: UnitOfWork, now: datetime) -> ReportContext:
@@ -50,23 +51,20 @@ def result_view(definition: ReportDefinition, rows: ReportRows, today: date) -> 
     )
 
 
-async def prepare_content(  # noqa: PLR0913 - 저장 내용에 필요한 값이 모두 다르다
-    uow: UnitOfWork,
-    now: datetime,
-    *,
-    name: str,
-    description: str,
-    visibility: str,
-    definition: RawReportDefinition,
+async def prepare_content(
+    uow: UnitOfWork, now: datetime, data: ReportContentInput
 ) -> ReportContent:
-    """이름·설명·공개 범위를 정규화하고 정의를 검증해, 서버가 만든 SQL과 함께 저장 내용으로 묶는다.
+    """메타 정규화, 정의·차트 검증, 서버가 만든 SQL을 묶어 저장 내용으로 만든다.
 
-    이름 등 메타 오류가 있으면 그것만 먼저 알린다(정의 검증·SQL 생성 전).
+    메타 오류가 있으면 그것만 먼저 알리고, 정의 위반이 있으면 차트는 검사하지 않는다.
     """
-    clean_name = normalize_report_name(name)
-    clean_description = normalize_report_description(description)
-    parsed_visibility = ReportVisibility.parse(visibility)
-    parsed = parse_report_definition(definition)
+    clean_name = normalize_report_name(data.name)
+    clean_description = normalize_report_description(data.description)
+    parsed_visibility = ReportVisibility.parse(data.visibility)
+    parsed = parse_report_definition(data.definition)
+    chart = None if data.chart is None else parse_chart(data.chart, parsed).to_raw()
     context = await report_context(uow, now)
     sql = uow.reports.render_sql(resolve_report(parsed, context))
-    return ReportContent(clean_name, clean_description, parsed_visibility, definition, sql)
+    return ReportContent(
+        clean_name, clean_description, parsed_visibility, data.definition, sql, chart
+    )

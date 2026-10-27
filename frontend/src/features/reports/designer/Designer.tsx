@@ -10,12 +10,13 @@ import { SaveReportDialog } from '../SaveReportDialog'
 import { ColumnShelf } from './ColumnShelf'
 import { ConditionList } from './ConditionList'
 import { FieldPanel } from './FieldPanel'
-import { ResultCard } from './ResultCard'
+import { ResultCard, type ResultTab } from './ResultCard'
 import { RunBar } from './RunBar'
 import { ScopeBar } from './ScopeBar'
 import { designKey } from './state/designKey'
-import { designerReducer, initialDesignerState, isDirty, type DesignerAction, type DesignerState } from './state/designerState'
-import { fromReportRequest } from './state/fromRequest'
+import { designerReducer, initialDesignerState, isDirty, sameDesign, type DesignerAction, type DesignerState } from './state/designerState'
+import { fromChartInput } from '../chart/chartDraft'
+import { fromReportRequest, fromSavedReport } from './state/fromRequest'
 import { predictScope } from './state/scope'
 import { useDesignerRun } from './useDesignerRun'
 import { useLeaveGuard } from './useLeaveGuard'
@@ -79,7 +80,13 @@ export function Designer({ catalog, mode }: { catalog: ReportCatalog; mode: Desi
   const [state, dispatch] = useReducer(reducer, mode, (m) => (m.kind === 'edit' ? m.initial : initialDesignerState(catalog.limits)))
   const run = useDesignerRun(state, catalog, mode.kind === 'edit' ? mode.seed : null)
   // 편집 화면의 "저장된 설계": 처음 불러온 정의, 덮어쓰기 뒤에는 그때 저장한 정의.
-  const [saved, setSaved] = useState(() => ({ key: mode.kind === 'edit' ? designKey(mode.initial, catalog) : '', definition: report?.definition ?? null }))
+  const [saved, setSaved] = useState(() => ({
+    key: mode.kind === 'edit' ? designKey(mode.initial, catalog) : '',
+    definition: report?.definition ?? null,
+    chart: report?.chart ?? null,
+  }))
+  // 결과 카드의 탭은 조회마다 카드가 다시 만들어져도 유지되도록 여기에 둔다.
+  const [tab, setTab] = useState<ResultTab>('table')
   const { me, role } = usePermissions()
   const viewer: Viewer | null = me && role ? { id: me.id, role } : null
   const flow = useSaveFlow({
@@ -88,9 +95,13 @@ export function Designer({ catalog, mode }: { catalog: ReportCatalog; mode: Desi
     run,
     report,
     viewer,
-    onOverwritten: (savedReport, key) => {
+    onOverwritten: (savedReport) => {
       setReport(savedReport)
-      setSaved({ key, definition: savedReport.definition })
+      // 기준선은 서버가 돌려준 값(공백 정리 등이 반영된)으로 계산한다: 보낸 설계로 계산하면 되돌린 뒤 키가 어긋난다.
+      const key = designKey(fromSavedReport(savedReport, catalog, catalog.limits), catalog)
+      // 화면의 차트 초안도 서버가 정리한 값(제목 앞뒤 공백 제거 등)으로 맞춘다. 조회에 영향 없는 부분이라 결과 표는 그대로 둔다.
+      dispatch({ type: 'load', state: { ...state, chart: fromChartInput(savedReport.chart, state.columns) } })
+      setSaved({ key, definition: savedReport.definition, chart: savedReport.chart })
     },
   })
   const handoff = useReportHandoff()
@@ -120,9 +131,19 @@ export function Designer({ catalog, mode }: { catalog: ReportCatalog; mode: Desi
   const scope = predictScope(state, catalog)
   const resetDesign = () => {
     setConfirming(false)
+    if (mode.kind === 'edit' && saved.definition) {
+      const restored = fromReportRequest(saved.definition, catalog, catalog.limits)
+      // 조회가 달라지는 설계(컬럼·조건 등)가 그대로이면 지금 결과와 열 대응을 유지한 채 차트만 저장된 것으로 되돌린다.
+      if (sameDesign(restored, state)) {
+        dispatch({ type: 'load', state: { ...state, chart: fromChartInput(saved.chart, state.columns) } })
+        return
+      }
+      run.clear()
+      dispatch({ type: 'load', state: { ...restored, chart: fromChartInput(saved.chart, restored.columns) } })
+      return
+    }
     run.clear()
-    if (mode.kind === 'edit' && saved.definition) dispatch({ type: 'load', state: fromReportRequest(saved.definition, catalog, catalog.limits) })
-    else dispatch({ type: 'reset' })
+    dispatch({ type: 'reset' })
   }
   const canSave = run.result !== null && !run.stale && !run.running
   const saveTitle = canSave ? undefined : run.result === null ? '먼저 조회하세요' : '바뀐 설계를 다시 조회한 뒤 저장하세요'
@@ -156,7 +177,26 @@ export function Designer({ catalog, mode }: { catalog: ReportCatalog; mode: Desi
           <ColumnShelf state={state} catalog={catalog} issues={run.issues} dispatch={edit} />
           <ConditionList state={state} catalog={catalog} scope={scope} issues={run.issues} dispatch={edit} />
           <RunBar state={state} catalog={catalog} issues={run.issues} running={run.running} dispatch={edit} onRun={() => void run.run()} />
-          <ResultCard key={run.runId} result={run.result} failure={run.failure} summary={run.summary} stale={run.stale} sql={run.result?.sql ?? null} />
+          <ResultCard
+            key={run.runId}
+            result={run.result}
+            failure={run.failure}
+            summary={run.summary}
+            stale={run.stale}
+            sql={run.result?.sql ?? null}
+            tab={tab}
+            onTab={setTab}
+            chart={{
+              mode: 'edit',
+              draft: state.chart,
+              columns: state.columns,
+              catalog,
+              resultColumnUids: run.resultColumnUids,
+              issues: run.issues.chart,
+              problem: report?.chartProblem ?? null,
+              dispatch: edit,
+            }}
+          />
         </div>
       </div>
       {leave.pending !== null && (

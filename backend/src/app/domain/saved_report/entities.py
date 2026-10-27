@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Self
 
 from app.domain.common.entity import AuditedEntity
+from app.domain.report.chart import ChartKind
 from app.domain.report.errors import ReportDefinitionError
 from app.domain.report.stored import BROKEN_DEFINITION, definition_entities
 from app.domain.saved_report.errors import (
@@ -23,7 +24,7 @@ if TYPE_CHECKING:
     from datetime import datetime
 
     from app.domain.auth.principal import Role
-    from app.domain.report.raw import RawReportDefinition
+    from app.domain.report.raw import RawChart, RawReportDefinition
     from app.domain.report.vocabulary import Entity
     from app.domain.user.value_objects import UserId
 
@@ -43,6 +44,8 @@ class Report(AuditedEntity[ReportId]):
     definition: RawReportDefinition | None
     generated_sql: str
     revision: int
+    chart: RawChart | None = None
+    chart_unreadable: bool = False  # 저장된 chart를 읽지 못함(chart는 None)
 
     @classmethod
     def create(
@@ -57,6 +60,7 @@ class Report(AuditedEntity[ReportId]):
             updated_by_user_id=owner,
             definition=content.definition,
             generated_sql=content.generated_sql,
+            chart=content.chart,
             revision=1,
             created_at=now,
             updated_at=now,
@@ -99,6 +103,8 @@ class Report(AuditedEntity[ReportId]):
         self.visibility = content.visibility
         self.definition = content.definition
         self.generated_sql = content.generated_sql
+        self.chart = content.chart
+        self.chart_unreadable = False
         self.updated_by_user_id = editor
         self.revision += 1
         self._touch(now)
@@ -113,6 +119,7 @@ class Report(AuditedEntity[ReportId]):
         generated_sql: str,
         owner: UserId,
         now: datetime,
+        chart: RawChart | None = None,
     ) -> Self:
         """정의는 이 리포트의 것을 그대로 쓰고 나머지는 새로 정한다."""
         content = ReportContent(
@@ -121,6 +128,7 @@ class Report(AuditedEntity[ReportId]):
             visibility=visibility,
             definition=self.readable_definition(),
             generated_sql=generated_sql,
+            chart=chart,
         )
         return type(self).create(entity_id=entity_id, content=content, owner=owner, now=now)
 
@@ -129,6 +137,10 @@ class Report(AuditedEntity[ReportId]):
         if self.definition is None:
             raise ReportDefinitionError([BROKEN_DEFINITION])
         return self.definition
+
+    def chart_kind(self) -> ChartKind | None:
+        """목록에 보일 차트 종류. 차트가 없거나 읽을 수 없으면 None."""
+        return None if self.chart is None else ChartKind(str(self.chart.kind))
 
     def entities(self) -> tuple[Entity, ...]:
         if self.definition is None:

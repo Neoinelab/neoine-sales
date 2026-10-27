@@ -2,6 +2,7 @@ from typing import TYPE_CHECKING
 
 from app.application.ids import new_report_id
 from app.application.report.execution import prepare_content
+from app.application.report.saved_inputs import ReportContentInput
 
 if TYPE_CHECKING:
     from app.application.ports.clock import Clock
@@ -25,13 +26,16 @@ class CopyReport:
         async with self._uow_factory() as uow:
             source = await uow.saved_reports.get(report_id)
             source.ensure_visible_to(viewer.user_id, viewer.role)
-            content = await prepare_content(  # 원본 정의도 지금 규칙으로 다시 검증한다
+            content = await prepare_content(  # 원본 정의·차트도 지금 규칙으로 다시 검증한다
                 uow,
                 now,
-                name=meta.name,
-                description=meta.description,
-                visibility=meta.visibility,
-                definition=source.readable_definition(),
+                ReportContentInput(
+                    name=meta.name,
+                    description=meta.description,
+                    visibility=meta.visibility,
+                    definition=source.readable_definition(),
+                    chart=source.chart,
+                ),
             )
             copied = source.copy_as(
                 entity_id=await new_report_id(uow.ids),
@@ -39,6 +43,7 @@ class CopyReport:
                 meta_description=content.description,
                 visibility=content.visibility,
                 generated_sql=content.generated_sql,
+                chart=content.chart,
                 owner=viewer.user_id,
                 now=now,
             )

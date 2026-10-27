@@ -20,14 +20,7 @@ class CreateReport:
     async def execute(self, data: ReportContentInput, viewer: ReportViewer) -> Report:
         now = self._clock.now()
         async with self._uow_factory() as uow:
-            content = await prepare_content(
-                uow,
-                now,
-                name=data.name,
-                description=data.description,
-                visibility=data.visibility,
-                definition=data.definition,
-            )
+            content = await prepare_content(uow, now, data)
             report = Report.create(
                 entity_id=await new_report_id(uow.ids),
                 content=content,

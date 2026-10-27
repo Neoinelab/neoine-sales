@@ -3,9 +3,9 @@ import { useNavigate } from 'react-router'
 import { saveFailure, useCreateReport, useReportHandoff, useUpdateReport, type SaveFailure } from '../../../data/reports'
 import { canChangeReportVisibility, type Viewer } from '../../../shared/model/permissions'
 import type { ReportCatalog, SavedReport, SavedReportMeta } from '../../../shared/model/reportTypes'
+import { toChartInput } from '../chart/chartDraft'
 import type { SaveMode } from '../SaveReportDialog'
 import type { DesignerRun } from './useDesignerRun'
-import { designKey } from './state/designKey'
 import type { DesignerState } from './state/designerState'
 import { toReportRequest } from './state/toRequest'
 
@@ -28,8 +28,8 @@ interface Args {
   /** 편집 중인 저장 리포트(새 리포트면 null). */
   report: SavedReport | null
   viewer: Viewer | null
-  /** 덮어쓰기에 성공했을 때: 새로 저장된 리포트와 그때의 설계 키(기준선). */
-  onOverwritten: (saved: SavedReport, key: string) => void
+  /** 덮어쓰기에 성공했을 때: 서버가 돌려준 저장된 리포트(기준선은 이것으로 계산한다). */
+  onOverwritten: (saved: SavedReport) => void
 }
 
 /**
@@ -54,14 +54,16 @@ export function useSaveFlow({ catalog, state, run, report, viewer, onOverwritten
       return
     }
     setFailure(null)
+    // 차트는 불완전해도 그대로 보낸다(없는 참조는 null): 서버가 위치와 함께 거절한다. 수정에서 차트를 빼면 서버가 지우므로 항상 보낸다.
+    const chart = state.chart ? toChartInput(state.chart, state.columns) : null
     try {
       if (mode === 'overwrite' && report) {
-        const saved = await update.mutateAsync({ id: report.id, input: { ...meta, definition: built.request, revision: report.revision } })
-        onOverwritten(saved, designKey(state, catalog))
+        const saved = await update.mutateAsync({ id: report.id, input: { ...meta, definition: built.request, chart, revision: report.revision } })
+        onOverwritten(saved)
         setMode(null)
         return
       }
-      const saved = await create.mutateAsync({ ...meta, definition: built.request })
+      const saved = await create.mutateAsync({ ...meta, definition: built.request, chart })
       // 결과가 지금 설계와 같을 때만 넘긴다(아니면 새 편집 화면이 자동 조회한다).
       if (run.result && !run.stale && !run.running) handoff.stash(saved.id, run.result)
       void navigate(`/reports/${saved.id}/edit`, { replace: true })

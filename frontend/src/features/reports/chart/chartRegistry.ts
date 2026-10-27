@@ -1,0 +1,37 @@
+import {
+  ArcElement,
+  BarController,
+  BarElement,
+  CategoryScale,
+  Chart as ChartJS,
+  DoughnutController,
+  Filler,
+  Legend,
+  LinearScale,
+  LineController,
+  LineElement,
+  PieController,
+  PointElement,
+  ScatterController,
+  Title,
+  Tooltip,
+} from 'chart.js'
+
+// `chart.js/auto` 대신 리포트 차트에 필요한 요소만 등록한다(번들 크기). 데이터 레이블 플러그인은 전역 등록하지 않고 차트 인스턴스에만 넘긴다.
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  BarController,
+  BarElement,
+  LineController,
+  LineElement,
+  PointElement,
+  PieController,
+  DoughnutController,
+  ArcElement,
+  ScatterController,
+  Filler,
+  Title,
+  Tooltip,
+  Legend,
+)

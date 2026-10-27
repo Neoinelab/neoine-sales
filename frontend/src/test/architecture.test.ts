@@ -222,3 +222,50 @@ describe('T-ARCH-03 앱 코드의 브라우저 시계·시간대 경계', () => 
     expect(timeOffenders([['x.ts', code]])).toEqual([])
   })
 })
+
+/**
+ * T-ARCH-04 (Reports 4단계 AC21): 차트 코드(Chart.js)는 차트 탭을 처음 열 때 받는 lazy 청크에만 있다.
+ * 결과 카드·디자이너·보기 화면은 차트 모듈을 정적으로 import하지 않고(타입 import만 허용) `chart/ChartTab`을 동적 import한다.
+ */
+const reportSources = import.meta.glob('../features/reports/**/*.{ts,tsx}', { query: '?raw', import: 'default', eager: true }) as Record<string, string>
+
+const EAGER_FILES = ['../features/reports/designer/ResultCard.tsx', '../features/reports/designer/Designer.tsx', '../features/reports/view/ReportViewPage.tsx']
+const CHART_MODULE = /^(?:chart\.js(?:\/.*)?|react-chartjs-2|chartjs-plugin-datalabels)$|(?:^|\/)chart\/(?:ChartTab|ChartSettingsPanel|ReportChart|chartRegistry|buildChart|pivot)$/
+const STATIC_IMPORT = /^import\s+(?!type\b)(?:[^'";]*?\s+from\s+)?['"]([^'"]+)['"]/gm
+
+function staticChartImports(text: string): string[] {
+  return [...text.matchAll(STATIC_IMPORT)].map((m) => m[1] ?? '').filter((spec) => CHART_MODULE.test(spec))
+}
+
+describe('T-ARCH-04 리포트 차트 코드의 lazy 경계', () => {
+  it('has the chart tab module as the lazy entry', () => {
+    expect(Object.keys(reportSources)).toContain('../features/reports/chart/ChartTab.tsx')
+  })
+
+  it.each(EAGER_FILES)('%s imports no chart module statically', (file) => {
+    const text = reportSources[file]
+
+    expect(text).toBeDefined()
+    expect(staticChartImports(text ?? '')).toEqual([])
+  })
+
+  it('loads the chart tab through a dynamic import in the result card', () => {
+    expect(reportSources['../features/reports/designer/ResultCard.tsx']).toMatch(/import\(\s*['"][^'"]*chart\/ChartTab['"]\s*\)/)
+  })
+
+  it('imports Chart.js only inside the chart folder', () => {
+    const offenders = Object.entries(reportSources)
+      .filter(([path]) => !/\.test\.tsx?$/.test(path) && !path.includes('/reports/chart/'))
+      .filter(([, text]) => staticChartImports(text).length > 0)
+      .map(([path]) => path)
+
+    expect(offenders).toEqual([])
+  })
+
+  it('detects a static chart import and ignores type imports and dynamic imports (self check of the pattern)', () => {
+    expect(staticChartImports("import { Chart } from 'react-chartjs-2'")).toEqual(['react-chartjs-2'])
+    expect(staticChartImports("import ChartTab from '../chart/ChartTab'")).toEqual(['../chart/ChartTab'])
+    expect(staticChartImports("import type { ChartData } from 'chart.js'")).toEqual([])
+    expect(staticChartImports("const Tab = lazy(() => import('../chart/ChartTab'))")).toEqual([])
+  })
+})

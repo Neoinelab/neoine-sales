@@ -25,6 +25,7 @@ interface Dismissed {
   kinds: ReadonlySet<IssueTarget['kind']>
 }
 
+const NO_UIDS: readonly number[] = []
 const NOTHING: Dismissed = { uids: new Set(), kinds: new Set() }
 
 function addUid(prev: Dismissed, uid: number): Dismissed {
@@ -55,6 +56,11 @@ function dismissFor(prev: Dismissed, action: DesignerAction): Dismissed {
       return addKind(prev, 'sort')
     case 'setRowLimit':
       return addKind(prev, 'rowLimit')
+    case 'createChart':
+    case 'changeChart':
+    case 'setChartKind':
+    case 'removeChart':
+      return addKind(prev, 'chart')
     default:
       return prev
   }
@@ -82,6 +88,8 @@ function whereOf(target: IssueTarget, state: DesignerState, catalog: ReportCatal
       return '정렬'
     case 'rowLimit':
       return '최대 행'
+    case 'chart':
+      return '차트'
     default:
       return null
   }
@@ -103,6 +111,8 @@ export interface DesignerRun {
   stale: boolean
   /** 조회마다 바뀌는 번호. 결과 화면 상태(페이지·합계 행)를 새 결과에서 처음으로 되돌리는 key로 쓴다. */
   runId: number
+  /** 마지막으로 보낸 조회의 열 i번째 uid(차트의 참조를 결과 열로 옮기는 데 쓴다). 조회한 적이 없으면 빈 배열. */
+  resultColumnUids: readonly number[]
   issues: IssueView
   summary: SummaryItem[]
 }
@@ -175,6 +185,7 @@ export function useDesignerRun(state: DesignerState, catalog: ReportCatalog, see
     result: lastRun?.result ?? null,
     failure,
     runId: lastRun?.id ?? 0,
+    resultColumnUids: lastRun?.columnUids ?? NO_UIDS,
     stale: lastRun?.result !== undefined && !sameDesign(state, lastRun.requestState),
     issues,
     summary: visible.map(({ issue, target }, i) => ({ key: `${i}`, where: whereOf(target, state, catalog), message: issue.message })),

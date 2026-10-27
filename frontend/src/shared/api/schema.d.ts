@@ -1239,6 +1239,11 @@ export interface components {
             /** Key */
             key: string;
         };
+        /**
+         * ChartKind
+         * @enum {string}
+         */
+        ChartKind: "bar" | "horizontal_bar" | "stacked_bar" | "stacked_100_bar" | "line" | "area" | "pie" | "doughnut" | "scatter" | "combo";
         /** CoChangedResponse */
         CoChangedResponse: {
             /** Field */
@@ -2115,6 +2120,11 @@ export interface components {
             /** Target */
             target: string;
         };
+        /**
+         * LegendPosition
+         * @enum {string}
+         */
+        LegendPosition: "top" | "right" | "bottom" | "none";
         /** LoginRequest */
         LoginRequest: {
             /** Login Id */
@@ -2375,6 +2385,89 @@ export interface components {
             /** Relative Periods */
             relative_periods: components["schemas"]["ReportRelativePeriodResponse"][];
         };
+        /**
+         * ReportChartRequest
+         * @description 차트 요청: 모양(필수 키·알 수 없는 키 거부)만 확인하고 값은 원시 그대로 도메인에 넘긴다.
+         */
+        ReportChartRequest: {
+            /** Category */
+            category: unknown;
+            /**
+             * Category Axis Title
+             * @default
+             */
+            category_axis_title: unknown;
+            /**
+             * Data Labels
+             * @default false
+             */
+            data_labels: unknown;
+            /** Kind */
+            kind: unknown;
+            /**
+             * Legend
+             * @default top
+             */
+            legend: unknown;
+            /**
+             * Secondary Axis
+             * @default false
+             */
+            secondary_axis: unknown;
+            /** Series */
+            series?: unknown;
+            /**
+             * Swap
+             * @default false
+             */
+            swap: unknown;
+            /**
+             * Title
+             * @default
+             */
+            title: unknown;
+            /**
+             * Value Axis Title
+             * @default
+             */
+            value_axis_title: unknown;
+            /** Value Max */
+            value_max?: unknown;
+            /** Value Min */
+            value_min?: unknown;
+            /** Values */
+            values: unknown;
+        };
+        /**
+         * ReportChartResponse
+         * @description 저장된(정규화된) 차트. 키가 모두 있다.
+         */
+        ReportChartResponse: {
+            /** Category */
+            category: number;
+            /** Category Axis Title */
+            category_axis_title: string;
+            /** Data Labels */
+            data_labels: boolean;
+            kind: components["schemas"]["ChartKind"];
+            legend: components["schemas"]["LegendPosition"];
+            /** Secondary Axis */
+            secondary_axis: boolean;
+            /** Series */
+            series: number | null;
+            /** Swap */
+            swap: boolean;
+            /** Title */
+            title: string;
+            /** Value Axis Title */
+            value_axis_title: string;
+            /** Value Max */
+            value_max: number | null;
+            /** Value Min */
+            value_min: number | null;
+            /** Values */
+            values: number[];
+        };
         /** ReportColumnRequest */
         ReportColumnRequest: {
             /** Aggregate */
@@ -2416,6 +2509,7 @@ export interface components {
         };
         /** ReportCreateRequest */
         ReportCreateRequest: {
+            chart?: components["schemas"]["ReportChartRequest"] | null;
             definition: components["schemas"]["ReportQueryRequest"];
             /**
              * Description
@@ -2429,6 +2523,10 @@ export interface components {
         };
         /** ReportDetailResponse */
         ReportDetailResponse: {
+            chart: components["schemas"]["ReportChartResponse"] | null;
+            chart_kind: components["schemas"]["ChartKind"] | null;
+            /** Chart Problem */
+            chart_problem: string | null;
             /**
              * Created At
              * Format: date-time
@@ -2625,6 +2723,7 @@ export interface components {
         };
         /** ReportSummaryResponse */
         ReportSummaryResponse: {
+            chart_kind: components["schemas"]["ChartKind"] | null;
             /**
              * Created At
              * Format: date-time
@@ -2650,6 +2749,7 @@ export interface components {
         };
         /** ReportUpdateRequest */
         ReportUpdateRequest: {
+            chart?: components["schemas"]["ReportChartRequest"] | null;
             definition: components["schemas"]["ReportQueryRequest"];
             /**
              * Description

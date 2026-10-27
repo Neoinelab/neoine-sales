@@ -624,6 +624,22 @@
         "title": "CellResponse",
         "type": "object"
       },
+      "ChartKind": {
+        "enum": [
+          "bar",
+          "horizontal_bar",
+          "stacked_bar",
+          "stacked_100_bar",
+          "line",
+          "area",
+          "pie",
+          "doughnut",
+          "scatter",
+          "combo"
+        ],
+        "title": "ChartKind",
+        "type": "string"
+      },
       "CoChangedResponse": {
         "properties": {
           "field": {
@@ -3072,6 +3088,16 @@
         "title": "HistoryEntryResponse",
         "type": "object"
       },
+      "LegendPosition": {
+        "enum": [
+          "top",
+          "right",
+          "bottom",
+          "none"
+        ],
+        "title": "LegendPosition",
+        "type": "string"
+      },
       "LoginRequest": {
         "additionalProperties": false,
         "properties": {
@@ -3785,6 +3811,167 @@
         "title": "ReportCatalogResponse",
         "type": "object"
       },
+      "ReportChartRequest": {
+        "additionalProperties": false,
+        "description": "차트 요청: 모양(필수 키·알 수 없는 키 거부)만 확인하고 값은 원시 그대로 도메인에 넘긴다.",
+        "properties": {
+          "category": {
+            "title": "Category"
+          },
+          "category_axis_title": {
+            "default": "",
+            "title": "Category Axis Title"
+          },
+          "data_labels": {
+            "default": false,
+            "title": "Data Labels"
+          },
+          "kind": {
+            "title": "Kind"
+          },
+          "legend": {
+            "default": "top",
+            "title": "Legend"
+          },
+          "secondary_axis": {
+            "default": false,
+            "title": "Secondary Axis"
+          },
+          "series": {
+            "title": "Series"
+          },
+          "swap": {
+            "default": false,
+            "title": "Swap"
+          },
+          "title": {
+            "default": "",
+            "title": "Title"
+          },
+          "value_axis_title": {
+            "default": "",
+            "title": "Value Axis Title"
+          },
+          "value_max": {
+            "title": "Value Max"
+          },
+          "value_min": {
+            "title": "Value Min"
+          },
+          "values": {
+            "title": "Values"
+          }
+        },
+        "required": [
+          "kind",
+          "category",
+          "values"
+        ],
+        "title": "ReportChartRequest",
+        "type": "object"
+      },
+      "ReportChartResponse": {
+        "description": "저장된(정규화된) 차트. 키가 모두 있다.",
+        "properties": {
+          "category": {
+            "title": "Category",
+            "type": "integer"
+          },
+          "category_axis_title": {
+            "title": "Category Axis Title",
+            "type": "string"
+          },
+          "data_labels": {
+            "title": "Data Labels",
+            "type": "boolean"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/ChartKind"
+          },
+          "legend": {
+            "$ref": "#/components/schemas/LegendPosition"
+          },
+          "secondary_axis": {
+            "title": "Secondary Axis",
+            "type": "boolean"
+          },
+          "series": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Series"
+          },
+          "swap": {
+            "title": "Swap",
+            "type": "boolean"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "value_axis_title": {
+            "title": "Value Axis Title",
+            "type": "string"
+          },
+          "value_max": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value Max"
+          },
+          "value_min": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value Min"
+          },
+          "values": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Values",
+            "type": "array"
+          }
+        },
+        "required": [
+          "kind",
+          "category",
+          "series",
+          "values",
+          "swap",
+          "title",
+          "legend",
+          "data_labels",
+          "category_axis_title",
+          "value_axis_title",
+          "value_min",
+          "value_max",
+          "secondary_axis"
+        ],
+        "title": "ReportChartResponse",
+        "type": "object"
+      },
       "ReportColumnRequest": {
         "additionalProperties": false,
         "properties": {
@@ -3889,6 +4076,16 @@
       "ReportCreateRequest": {
         "additionalProperties": false,
         "properties": {
+          "chart": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReportChartRequest"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "definition": {
             "$ref": "#/components/schemas/ReportQueryRequest"
           },
@@ -3916,6 +4113,37 @@
       },
       "ReportDetailResponse": {
         "properties": {
+          "chart": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReportChartResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "chart_kind": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ChartKind"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "chart_problem": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chart Problem"
+          },
           "created_at": {
             "format": "date-time",
             "title": "Created At",
@@ -3977,9 +4205,12 @@
           "entities",
           "created_at",
           "updated_at",
+          "chart_kind",
           "revision",
           "definition",
-          "generated_sql"
+          "generated_sql",
+          "chart",
+          "chart_problem"
         ],
         "title": "ReportDetailResponse",
         "type": "object"
@@ -4498,6 +4729,16 @@
       },
       "ReportSummaryResponse": {
         "properties": {
+          "chart_kind": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ChartKind"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "created_at": {
             "format": "date-time",
             "title": "Created At",
@@ -4547,7 +4788,8 @@
           "updated_by",
           "entities",
           "created_at",
-          "updated_at"
+          "updated_at",
+          "chart_kind"
         ],
         "title": "ReportSummaryResponse",
         "type": "object"
@@ -4555,6 +4797,16 @@
       "ReportUpdateRequest": {
         "additionalProperties": false,
         "properties": {
+          "chart": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReportChartRequest"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "definition": {
             "$ref": "#/components/schemas/ReportQueryRequest"
           },

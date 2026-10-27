@@ -11,6 +11,7 @@ from sqlalchemy import or_, select
 from app.domain.common.errors import AlreadyExistsError
 from app.domain.report.errors import ReportDefinitionError
 from app.domain.report.stored import definition_from_json, definition_to_json
+from app.domain.report.stored_chart import chart_from_json, chart_to_json
 from app.domain.saved_report.entities import Report
 from app.domain.saved_report.errors import DuplicateReportNameError, ReportNotFoundError
 from app.domain.saved_report.values import ReportId, ReportVisibility
@@ -21,7 +22,7 @@ from app.infra.db.models_report import ReportRow
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from app.domain.report.raw import RawReportDefinition
+    from app.domain.report.raw import RawChart, RawReportDefinition
     from app.domain.saved_report.values import ReportListScope
 
 
@@ -33,7 +34,18 @@ def _stored_definition(row: ReportRow) -> RawReportDefinition | None:
         return None
 
 
+def _stored_chart(row: ReportRow) -> tuple[RawChart | None, bool]:
+    """(차트, 읽기 불가 여부). 깨진 차트는 (None, True)로 두어 열기·삭제·덮어쓰기가 가능하다."""
+    if row.chart is None:
+        return None, False
+    try:
+        return chart_from_json(row.chart), False
+    except ReportDefinitionError:
+        return None, True
+
+
 def _entity(row: ReportRow) -> Report:
+    chart, unreadable = _stored_chart(row)
     return Report(
         id=ReportId(row.id),
         name=row.name,
@@ -44,6 +56,8 @@ def _entity(row: ReportRow) -> Report:
         definition=_stored_definition(row),
         generated_sql=row.generated_sql,
         revision=row.revision,
+        chart=chart,
+        chart_unreadable=unreadable,
         created_at=row.created_at,
         updated_at=row.updated_at,
     )
@@ -120,6 +134,7 @@ def _content(report: Report) -> dict[str, object]:
         "updated_by_user_id": report.updated_by_user_id,
         "definition": definition_to_json(report.readable_definition()),
         "generated_sql": report.generated_sql,
+        "chart": None if report.chart is None else chart_to_json(report.chart),
         "revision": report.revision,
         "updated_at": report.updated_at,
     }

@@ -14,6 +14,7 @@ export type IssueTarget =
   | { kind: 'combine' }
   | { kind: 'sort' }
   | { kind: 'rowLimit' }
+  | { kind: 'chart'; part: string | null }
   | { kind: 'general' }
 
 export interface AnchoredIssue {
@@ -44,6 +45,10 @@ function targetOf(location: ReportIssue['location'], run: RunUids): IssueTarget 
       return { kind: 'sort' }
     case 'row_limit':
       return { kind: 'rowLimit' }
+    case 'chart': {
+      const part = location[1]
+      return { kind: 'chart', part: typeof part === 'string' ? part : null }
+    }
     default:
       return GENERAL
   }

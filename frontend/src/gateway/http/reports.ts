@@ -2,6 +2,7 @@ import { api } from '../../shared/api/client'
 import { ApiError } from '../../shared/api/problem'
 import type { ReportIssue } from '../../shared/model/reportTypes'
 import type { ReportsGateway } from '../types'
+import { toChartBody } from './mappers/reportChart'
 import { toCatalog, toQueryBody, toResult, toSavedReport, toSummary } from './mappers/report'
 import { malformedResponse, networkError, toApiError, unwrap } from './request'
 
@@ -73,7 +74,7 @@ export function createReportsHttp(): ReportsGateway {
       toSavedReport(
         await sendBody(
           api.POST('/api/v1/reports', {
-            body: { name: input.name, description: input.description, visibility: input.visibility, definition: toQueryBody(input.definition) },
+            body: { name: input.name, description: input.description, visibility: input.visibility, definition: toQueryBody(input.definition), chart: input.chart ? toChartBody(input.chart) : null },
           }),
         ),
       ),
@@ -87,6 +88,7 @@ export function createReportsHttp(): ReportsGateway {
               description: input.description,
               visibility: input.visibility,
               definition: toQueryBody(input.definition),
+              chart: input.chart ? toChartBody(input.chart) : null,
               revision: input.revision,
             },
           }),

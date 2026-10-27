@@ -10,7 +10,7 @@
  * | 15 | 퇴사자 공개 리포트    | 강퇴사(퇴사)   | O   | 강퇴사      | 2026-10-22 09:00 | Deal         |
  */
 
-import type { ReportQueryInput, SavedReport } from '../shared/model/reportTypes'
+import type { ReportChartInput, ReportQueryInput, SavedReport } from '../shared/model/reportTypes'
 import type { UserRef } from '../shared/model/types'
 import { USER_ID } from './fake/seed/ids'
 
@@ -64,6 +64,8 @@ export function savedReport(over: Partial<SavedReport> & { id: number }): SavedR
     revision: 1,
     definition: VENDOR_DEFINITION,
     generatedSql: 'SELECT stored',
+    chart: null,
+    chartProblem: null,
     ...over,
   }
 }
@@ -93,9 +95,29 @@ export const SAVED_SAMPLES: SavedReport[] = [MINE_PUBLIC, MINE_PRIVATE, PARK_PUB
 /** 목록 화면(김영업)에서 보이는 순서: 최종 수정 시각 내림차순. 박영업 비공개(14)는 보이지 않는다. */
 export const KIM_LIST_ORDER = [PARK_PUBLIC, MINE_PUBLIC, MINE_PRIVATE, OLD_PUBLIC].map((r) => r.name)
 
+/** VENDOR_DEFINITION(0: Vendor 그룹, 1: 금액 합계)에 맞는 세로 막대 차트 설정. */
+export const VENDOR_CHART: ReportChartInput = {
+  kind: 'bar',
+  category: 0,
+  series: null,
+  values: [1],
+  swap: false,
+  title: 'Vendor별 금액',
+  legend: 'top',
+  dataLabels: false,
+  categoryAxisTitle: 'Vendor',
+  valueAxisTitle: '금액 합계',
+  valueMin: null,
+  valueMax: null,
+  secondaryAxis: false,
+}
+
+/** 차트가 저장된 리포트(누적 막대 목록 표시용은 kind를 바꿔 쓴다). */
+export const WITH_CHART = savedReport({ id: 21, name: '차트 있는 리포트', chart: VENDOR_CHART, updatedAt: '2026-10-26T09:00:00+09:00' })
+
 /** 저장 대화상자 입력의 기본 모양. */
-export function reportInput(over: Partial<{ name: string; description: string; visibility: 'public' | 'private' }> = {}) {
-  return { name: '새 리포트 이름', description: '', visibility: 'public' as const, definition: VENDOR_DEFINITION, ...over }
+export function reportInput(over: Partial<{ name: string; description: string; visibility: 'public' | 'private'; chart: ReportChartInput | null }> = {}) {
+  return { name: '새 리포트 이름', description: '', visibility: 'public' as const, definition: VENDOR_DEFINITION, chart: null as ReportChartInput | null, ...over }
 }
 
 /** 어디에도 없는 리포트 id(서버 허용 범위 1~2^53−1 안의 최댓값). */

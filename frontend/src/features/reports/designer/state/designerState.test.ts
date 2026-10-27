@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { columnAt, conditionUidAt, emptyDesign, fieldOf, reduce, REPORT_CATALOG, uidAt, withColumns } from '../../../../test/reportDesigner'
-import { designerReducer, initialDesignerState, isDirty } from './designerState'
+import type { ChartDraft } from '../../chart/chartDraft'
+import { designKey } from './designKey'
+import { designerReducer, initialDesignerState, isDirty, sameDesign, type DesignerState } from './designerState'
 import { toReportRequest } from './toRequest'
 
 const LIMITS = REPORT_CATALOG.limits
@@ -209,5 +211,100 @@ describe('reset and isDirty (AC15, AC16)', () => {
 
     expect(designerReducer(state, { type: 'removeColumn', uid: 9999 }, REPORT_CATALOG)).toBe(state)
     expect(columnAt(state, 0).field).toBe('deal.code')
+  })
+})
+
+describe('chart in the designer state (Reports 4단계 AC16, AC17, P12)', () => {
+  const CHART: ChartDraft = {
+    kind: 'bar',
+    categoryUid: 1,
+    seriesUid: null,
+    valueUids: [2],
+    swap: false,
+    title: '',
+    legend: 'top',
+    dataLabels: false,
+    categoryAxisTitle: 'Vendor',
+    valueAxisTitle: '금액',
+    valueMin: '',
+    valueMax: '',
+    secondaryAxis: false,
+  }
+
+  /** Vendor(그룹, uid 1) + 금액(합계, uid 2) + Users(합계, uid 3) 설계. 차트는 load로 직접 넣는다. */
+  function grouped(chart: ChartDraft | null): DesignerState {
+    let state = withColumns('deal.vendor', 'deal.amount', 'deal.users')
+    state = reduce(state, { type: 'updateColumn', uid: 1, patch: { group: true } })
+    return reduce(state, { type: 'load', state: { ...state, chart } })
+  }
+
+  it('starts without a chart', () => {
+    expect(initialDesignerState(LIMITS).chart).toBeNull()
+  })
+
+  it('changes the design key and dirtiness but not the query design when the chart changes', () => {
+    const plain = grouped(null)
+    const charted = grouped(CHART)
+    const edited = reduce(charted, { type: 'changeChart', patch: { title: '새 제목' } })
+
+    expect(sameDesign(plain, charted)).toBe(true)
+    expect(sameDesign(charted, edited)).toBe(true)
+    expect(designKey(plain, REPORT_CATALOG)).not.toBe(designKey(charted, REPORT_CATALOG))
+    expect(designKey(charted, REPORT_CATALOG)).not.toBe(designKey(edited, REPORT_CATALOG))
+  })
+
+  it('gets the same key again when the chart is changed back or removed', () => {
+    const plain = grouped(null)
+    const charted = grouped(CHART)
+
+    const removed = reduce(charted, { type: 'removeChart' })
+    const back = reduce(reduce(charted, { type: 'changeChart', patch: { title: 'x' } }), { type: 'changeChart', patch: { title: '' } })
+
+    expect(designKey(removed, REPORT_CATALOG)).toBe(designKey(plain, REPORT_CATALOG))
+    expect(designKey(back, REPORT_CATALOG)).toBe(designKey(charted, REPORT_CATALOG))
+  })
+
+  it('counts a chart as a change even without columns', () => {
+    expect(isDirty({ ...emptyDesign(), chart: CHART }, LIMITS)).toBe(true)
+    expect(isDirty(emptyDesign(), LIMITS)).toBe(false)
+  })
+
+  it('sets the kind through setChartKind following the rules of the kind', () => {
+    const wide = grouped({ ...CHART, valueUids: [2, 3], swap: true })
+
+    const pie = reduce(wide, { type: 'setChartKind', kind: 'pie' })
+
+    expect(pie.chart).toMatchObject({ kind: 'pie', valueUids: [2], swap: false })
+  })
+
+  it('drops the chart reference of a removed column and keeps the other settings', () => {
+    const state = grouped({ ...CHART, valueUids: [2, 3], title: '유지' })
+
+    const after = reduce(state, { type: 'removeColumn', uid: 3 })
+
+    expect(after.chart).toMatchObject({ valueUids: [2], title: '유지' })
+  })
+
+  it('clears the category reference when its grouping is turned off', () => {
+    const after = reduce(grouped(CHART), { type: 'updateColumn', uid: 1, patch: { group: false } })
+
+    expect(after.chart?.categoryUid).toBeNull()
+  })
+
+  it('does not touch a missing chart on column actions', () => {
+    expect(reduce(grouped(null), { type: 'removeColumn', uid: 3 }).chart).toBeNull()
+  })
+
+  it('removes the chart with removeChart and with reset', () => {
+    const state = grouped(CHART)
+
+    expect(reduce(state, { type: 'removeChart' }).chart).toBeNull()
+    expect(reduce(state, { type: 'reset' }).chart).toBeNull()
+  })
+
+  it('does not touch the chart when a column only moves', () => {
+    const state = grouped(CHART)
+
+    expect(reduce(state, { type: 'moveColumn', uid: 3, to: 0 }).chart).toEqual(CHART)
   })
 })

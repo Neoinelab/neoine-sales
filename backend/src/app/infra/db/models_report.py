@@ -1,7 +1,7 @@
 """저장 리포트 ORM 모델. models.py 끝에서 import해 등록한다.
 
 definition은 검증을 통과한 원시 정의 JSON, generated_sql은 표시용 문자열이다. 결과 데이터는 저장하지
-않는다. chart는 4단계(차트) 자리이며 지금은 항상 NULL이다.
+않는다. chart는 차트 설정 JSON이며 차트가 없으면 NULL이다.
 """
 
 from typing import Any

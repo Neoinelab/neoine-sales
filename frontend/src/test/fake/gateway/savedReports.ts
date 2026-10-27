@@ -2,6 +2,7 @@ import { canChangeReportVisibility, canDeleteReport, canEditReport, canViewRepor
 import { compareIso } from '../../../shared/model/dates'
 import type { ReportsGateway } from '../../../gateway/types'
 import type {
+  ReportChartInput,
   ReportIssue,
   ReportQueryInput,
   ReportResult,
@@ -60,6 +61,20 @@ function normalizeMeta(meta: SavedReportMeta): SavedReportMeta {
   return { name, description, visibility: meta.visibility as ReportVisibility }
 }
 
+/**
+ * 차트 검증(서버 `parse_chart`의 일부만 흉내 낸다. 전체 규칙은 backend 단위 테스트가 정본):
+ * 정의에 그룹 컬럼이 없으면 `["chart"]`, 범주가 그룹 컬럼의 index가 아니면 `["chart","category"]`. 문자열은 앞뒤 공백을 지운다.
+ */
+function normalizeChart(chart: ReportChartInput | null | undefined, definition: ReportQueryInput): ReportChartInput | null {
+  if (chart === null || chart === undefined) return null
+  const groups = definition.columns.map((c, i) => (c.group ? i : -1)).filter((i) => i >= 0)
+  if (groups.length === 0) throw invalidReport([{ location: ['chart'], code: 'chart-needs-grouping', message: '그룹핑한 결과로 차트를 만들 수 있습니다' }])
+  if (typeof chart.category !== 'number' || !groups.includes(chart.category)) {
+    throw invalidReport([{ location: ['chart', 'category'], code: 'chart-category-invalid', message: '범주 열은 그룹핑한 컬럼이어야 합니다' }])
+  }
+  return { ...clone(chart), title: chart.title.trim(), categoryAxisTitle: chart.categoryAxisTitle.trim(), valueAxisTitle: chart.valueAxisTitle.trim() }
+}
+
 function entitiesOf(input: ReportQueryInput): SavedReportSummary['entities'] {
   const keys = [...input.columns.map((c) => c.field), ...input.conditions.map((c) => c.field)]
   const hasAction = keys.some((key) => REPORT_CATALOG.fields.find((f) => f.key === key)?.entity === 'action')
@@ -88,6 +103,7 @@ export function createSavedReportsGateway(ctx: MockContext, engine: QueryEngine)
       entities: full.entities,
       createdAt: full.createdAt,
       updatedAt: full.updatedAt,
+      chartKind: full.chart?.kind ?? null,
     }
   }
 
@@ -98,16 +114,18 @@ export function createSavedReportsGateway(ctx: MockContext, engine: QueryEngine)
   }
   const duplicated = (name: string, exceptId: number | null): boolean =>
     state().saved.some((r) => r.id !== exceptId && r.name.toLowerCase() === name.toLowerCase())
-  const checkDefinition = (input: ReportQueryInput): void => {
+  /** 정의 위반이 있으면 그것만(차트는 검사하지 않음), 없으면 차트를 검사해 정규화한 값을 돌려준다. */
+  const checkDefinition = (input: ReportQueryInput, chart: ReportChartInput | null | undefined = null): ReportChartInput | null => {
     const issues = engine.issuesOf(input)
     if (issues.length > 0) throw invalidReport(issues)
+    return normalizeChart(chart, input)
   }
   const nextId = (): number => {
     const id = state().nextSavedId
     state().nextSavedId = id + 1
     return id
   }
-  const insert = (ownerId: number, meta: SavedReportMeta, definition: ReportQueryInput): SavedReport => {
+  const insert = (ownerId: number, meta: SavedReportMeta, definition: ReportQueryInput, chart: ReportChartInput | null): SavedReport => {
     const now = ctx.clock.now()
     const owner = userRef(ctx.store.data, ownerId)
     const created: SavedReport = {
@@ -121,6 +139,8 @@ export function createSavedReportsGateway(ctx: MockContext, engine: QueryEngine)
       revision: 1,
       definition: clone(definition),
       generatedSql: GENERATED_SQL,
+      chart,
+      chartProblem: null,
     }
     state().saved.push(created)
     return view(created)
@@ -145,9 +165,9 @@ export function createSavedReportsGateway(ctx: MockContext, engine: QueryEngine)
         const user = requireUser(ctx)
         record({ op: 'create', id: null, body: input })
         const meta = normalizeMeta(input)
-        checkDefinition(input.definition)
+        const chart = checkDefinition(input.definition, input.chart)
         if (duplicated(meta.name, null)) throw alreadyExists(SAVED_REPORT_DUPLICATE_MESSAGE)
-        return insert(user.id, meta, input.definition)
+        return insert(user.id, meta, input.definition, chart)
       }),
     update: (id, input) =>
       write(ctx, () => {
@@ -156,7 +176,7 @@ export function createSavedReportsGateway(ctx: MockContext, engine: QueryEngine)
         record({ op: 'update', id, body: input })
         const target = visible(id, viewer)
         const meta = normalizeMeta(input)
-        checkDefinition(input.definition)
+        const chart = checkDefinition(input.definition, input.chart)
         if (!canEditReport(viewer, target)) throw forbidden('이 리포트를 수정할 권한이 없습니다.')
         if (input.revision !== target.revision) throw invalidState(SAVED_REPORT_CONFLICT_MESSAGE)
         if (meta.visibility !== target.visibility && !canChangeReportVisibility(viewer, target)) {
@@ -168,6 +188,8 @@ export function createSavedReportsGateway(ctx: MockContext, engine: QueryEngine)
           definition: clone(input.definition),
           entities: entitiesOf(input.definition),
           generatedSql: GENERATED_SQL,
+          chart,
+          chartProblem: null,
           updatedBy: userRef(ctx.store.data, user.id),
           updatedAt: ctx.clock.now(),
           revision: target.revision + 1,
@@ -180,9 +202,9 @@ export function createSavedReportsGateway(ctx: MockContext, engine: QueryEngine)
         record({ op: 'copy', id, body: metaInput })
         const source = visible(id, viewerOf(user))
         const meta = normalizeMeta(metaInput)
-        checkDefinition(source.definition)
+        const chart = checkDefinition(source.definition, source.chart)
         if (duplicated(meta.name, null)) throw alreadyExists(SAVED_REPORT_DUPLICATE_MESSAGE)
-        return insert(user.id, meta, source.definition)
+        return insert(user.id, meta, source.definition, chart)
       }),
     remove: (id) =>
       write(ctx, () => {

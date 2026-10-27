@@ -8,6 +8,7 @@ import type {
   ReportOperator,
   ReportSortDirection,
 } from '../../../../shared/model/reportTypes'
+import { normalizeForKind, reconcileChart, type ChartDraft } from '../../chart/chartDraft'
 import { fieldByKey } from './columnRules'
 import { emptyDraft, type ConditionDraft } from './conditionDraft'
 
@@ -41,6 +42,8 @@ export interface DesignerState {
   /** 정렬 기준 컬럼은 uid로 가진다(순서를 바꿔도 같은 컬럼). */
   sort: { uid: number; direction: ReportSortDirection } | null
   rowLimit: number
+  /** 차트 초안(저장·되돌리기 대상이지만 조회 결과를 낡게 하지 않는다). */
+  chart: ChartDraft | null
   selectedUid: number | null
   /** 다음에 발급할 uid. 한 번 쓴 uid는 다시 쓰지 않는다. */
   nextUid: number
@@ -60,12 +63,16 @@ export type DesignerAction =
   | { type: 'setCombine'; combine: ReportCombine }
   | { type: 'setSort'; sort: DesignerState['sort'] }
   | { type: 'setRowLimit'; rowLimit: number }
+  | { type: 'createChart'; chart: ChartDraft }
+  | { type: 'changeChart'; patch: Partial<ChartDraft> }
+  | { type: 'setChartKind'; kind: ChartDraft['kind'] }
+  | { type: 'removeChart' }
   | { type: 'reset' }
   /** 저장된 설계로 통째로 바꾼다(되돌리기). uid는 되돌아가지 않게 nextUid를 이어 간다. */
   | { type: 'load'; state: DesignerState }
 
 export function initialDesignerState(limits: ReportLimits): DesignerState {
-  return { columns: [], conditions: [], combine: 'and', sort: null, rowLimit: limits.defaultRowLimit, selectedUid: null, nextUid: 1 }
+  return { columns: [], conditions: [], combine: 'and', sort: null, rowLimit: limits.defaultRowLimit, chart: null, selectedUid: null, nextUid: 1 }
 }
 
 /** 초기 상태와 내용이 다르면 true(uid·선택은 보지 않는다). 컬럼을 넣었다 빼면 다시 false다. */
@@ -75,13 +82,18 @@ export function isDirty(state: DesignerState, limits: ReportLimits): boolean {
     state.conditions.length > 0 ||
     state.combine !== 'and' ||
     state.sort !== null ||
-    state.rowLimit !== limits.defaultRowLimit
+    state.rowLimit !== limits.defaultRowLimit ||
+    state.chart !== null
   )
 }
 
-/** 컬럼·조건·결합·정렬·최대 행이 같은 객체인지(선택 변경은 설계 변경이 아니다). */
+const sameValue = (a: unknown, b: unknown): boolean => a === b || JSON.stringify(a) === JSON.stringify(b)
+
+/** 컬럼·조건·결합·정렬·최대 행이 같은 내용인지(선택·차트 변경은 조회가 달라지는 설계 변경이 아니다). */
 export function sameDesign(a: DesignerState, b: DesignerState): boolean {
-  return a.columns === b.columns && a.conditions === b.conditions && a.combine === b.combine && a.sort === b.sort && a.rowLimit === b.rowLimit
+  return (
+    sameValue(a.columns, b.columns) && sameValue(a.conditions, b.conditions) && a.combine === b.combine && sameValue(a.sort, b.sort) && a.rowLimit === b.rowLimit
+  )
 }
 
 const hasGroup = (columns: readonly DesignerColumn[]): boolean => columns.some((c) => c.group)
@@ -176,6 +188,27 @@ function reduceColumns(state: DesignerState, action: DesignerAction, catalog: Re
   }
 }
 
+/** 컬럼 편집 뒤 차트가 가리키는 열이 없어졌거나 역할이 바뀌었으면 그 참조만 뺀다. */
+function withChartReconciled(state: DesignerState): DesignerState {
+  const chart = reconcileChart(state.chart, state.columns)
+  return chart === state.chart ? state : { ...state, chart }
+}
+
+function reduceChart(state: DesignerState, action: DesignerAction): DesignerState | undefined {
+  switch (action.type) {
+    case 'createChart':
+      return { ...state, chart: action.chart }
+    case 'changeChart':
+      return state.chart ? { ...state, chart: { ...state.chart, ...action.patch } } : state
+    case 'setChartKind':
+      return state.chart ? { ...state, chart: normalizeForKind(state.chart, action.kind, state.columns) } : state
+    case 'removeChart':
+      return state.chart ? { ...state, chart: null } : state
+    default:
+      return undefined
+  }
+}
+
 function replaceCondition(state: DesignerState, uid: number, change: (c: DesignerCondition) => DesignerCondition): DesignerState {
   if (!state.conditions.some((c) => c.uid === uid)) return state
   return { ...state, conditions: state.conditions.map((c) => (c.uid === uid ? change(c) : c)) }
@@ -215,7 +248,9 @@ function reduceConditions(state: DesignerState, action: DesignerAction, catalog:
  */
 export function designerReducer(state: DesignerState, action: DesignerAction, catalog: ReportCatalog): DesignerState {
   const columnResult = reduceColumns(state, action, catalog)
-  if (columnResult) return columnResult
+  if (columnResult) return action.type === 'removeColumn' || action.type === 'updateColumn' ? withChartReconciled(columnResult) : columnResult
+  const chartResult = reduceChart(state, action)
+  if (chartResult) return chartResult
   const conditionResult = reduceConditions(state, action, catalog)
   if (conditionResult) return conditionResult
   switch (action.type) {

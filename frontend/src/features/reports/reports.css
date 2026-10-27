@@ -114,9 +114,30 @@
 
 @media (max-width: 900px) {
   .report-designer { grid-template-columns: 1fr; }
+  .report-chart-wrap { grid-template-columns: 1fr; }
   .report-fields { position: static; max-height: 220px; }
 }
 @media (max-width: 640px) {
   .report-condition { grid-template-columns: 1fr 1fr; }
   .report-condition-value { grid-column: 1 / -1; }
 }
+
+/* 결과 카드 탭과 차트(시안 9장: 미리보기 + 설정 패널 2열, 좁은 화면은 1열) */
+.report-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); }
+.report-tabs [role='tab'] { border: none; border-bottom: 2px solid transparent; border-radius: 0; background: transparent; padding: 6px 14px; color: var(--muted); }
+.report-tabs [role='tab'].is-active { color: var(--text); border-bottom-color: var(--accent); font-weight: 600; }
+.report-pane { display: grid; gap: 10px; min-width: 0; }
+.report-chart-empty { display: grid; gap: 8px; justify-items: start; }
+.report-chart-wrap { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 16px; align-items: start; }
+.report-chart-view { display: grid; gap: 8px; min-width: 0; }
+.report-chart-canvas { position: relative; height: 380px; min-width: 0; }
+.report-chart-side { display: grid; gap: 10px; }
+.report-chart-panel { display: grid; gap: 10px; }
+.report-kinds { display: flex; flex-wrap: wrap; gap: 4px; }
+.report-kinds button { padding: 3px 10px; }
+.report-kinds button[aria-pressed='true'] { background: var(--accent-soft); border-color: var(--accent); }
+.report-chart-group { display: grid; gap: 8px; margin: 0; padding: 8px 12px 12px; border: 1px solid var(--line); border-radius: var(--radius); }
+.report-chart-group legend { font-size: 0.8rem; color: var(--muted); padding: 0 4px; }
+.report-chart-group .field input[type='text'], .report-chart-group .field select { width: 100%; font: inherit; padding: 5px 8px; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--input-bg); color: var(--fg); min-width: 0; }
+.report-chart-values { display: grid; gap: 4px; margin: 0; padding: 0; border: none; }
+.report-chart-values legend { font-size: 0.85rem; padding: 0; }

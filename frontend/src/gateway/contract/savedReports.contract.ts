@@ -4,7 +4,7 @@
  */
 
 import { describe, expect, it } from 'vitest'
-import type { ReportQueryInput, SavedReportInput } from '../../shared/model/reportTypes'
+import type { ReportChartInput, ReportQueryInput, SavedReportInput } from '../../shared/model/reportTypes'
 import { expectRejects, NO_SUCH_ID, unique, type ContractRole, type MakeGateway } from './support'
 
 const DEFINITION: ReportQueryInput = {
@@ -30,11 +30,29 @@ const OTHER_DEFINITION: ReportQueryInput = {
 
 const NOT_FOUND = '리포트를 찾을 수 없습니다.'
 
+/** DEFINITION(0: Vendor 그룹, 1: 금액 합계)에 맞는 누적 막대 아닌 세로 막대 차트(Reports 4단계). */
+const CHART: ReportChartInput = {
+  kind: 'bar',
+  category: 0,
+  series: null,
+  values: [1],
+  swap: false,
+  title: 'Vendor별 금액',
+  legend: 'bottom',
+  dataLabels: true,
+  categoryAxisTitle: 'Vendor',
+  valueAxisTitle: '금액',
+  valueMin: 0,
+  valueMax: 12.5,
+  secondaryAxis: false,
+}
+
 const input = (over: Partial<SavedReportInput> = {}): SavedReportInput => ({
   name: unique('rpt'),
   description: '계약 시험',
   visibility: 'public',
   definition: DEFINITION,
+  chart: null,
   ...over,
 })
 
@@ -249,7 +267,7 @@ export function savedReportsContract(make: MakeGateway): void {
       const { reports } = await make('sales')
       const name = unique('renamed')
 
-      const updated = await reports.update(created.id, { name, description: '', visibility: 'public', definition: OTHER_DEFINITION, revision: created.revision })
+      const updated = await reports.update(created.id, { name, description: '', visibility: 'public', definition: OTHER_DEFINITION, chart: null, revision: created.revision })
       const reread = await reports.get(created.id)
 
       expect(updated).toMatchObject({ id: created.id, name, description: '', revision: 2, entities: ['deal', 'action'] })
@@ -334,6 +352,84 @@ export function savedReportsContract(make: MakeGateway): void {
 
       await expectRejects(reports.get(created.id), 404)
       expect((await reports.list()).map((r) => r.id)).not.toContain(created.id)
+    })
+
+    it('keeps the chart of a saved report, lists its kind and reads no problem (4단계 AC1, AC8, AC18, G3)', async () => {
+      const { reports } = await make('sales')
+
+      const created = await reports.create(input({ chart: { ...CHART, title: '  Vendor별 금액  ' } }))
+
+      expect(created.chart).toEqual(CHART)
+      expect(created.chartProblem).toBeNull()
+      expect((await reports.get(created.id)).chart).toEqual(CHART)
+      expect((await reports.list()).find((r) => r.id === created.id)?.chartKind).toBe('bar')
+      await cleanup(created.id)
+    })
+
+    it('saves without a chart as null and lists no chart kind (4단계 AC1, AC9)', async () => {
+      const { reports } = await make('sales')
+
+      const created = await reports.create(input())
+
+      expect(created.chart).toBeNull()
+      expect(created.chartProblem).toBeNull()
+      expect((await reports.list()).find((r) => r.id === created.id)?.chartKind).toBeNull()
+      await cleanup(created.id)
+    })
+
+    it('changes only the chart on overwrite, bumps the revision and clears it with null (4단계 AC1, AC5)', async () => {
+      const { reports } = await make('sales')
+      const created = await reports.create(input({ chart: CHART }))
+
+      const changed = await reports.update(created.id, { ...input({ name: created.name, chart: { ...CHART, kind: 'line', title: '추이' } }), revision: created.revision })
+      const cleared = await reports.update(created.id, { ...input({ name: created.name, chart: null }), revision: changed.revision })
+
+      expect(changed).toMatchObject({ revision: 2, chart: { kind: 'line', title: '추이' } })
+      expect(cleared).toMatchObject({ revision: 3, chart: null })
+      expect((await reports.list()).find((r) => r.id === created.id)?.chartKind).toBeNull()
+      await cleanup(created.id)
+    })
+
+    it('rejects a chart whose category is not a group column with its location and saves nothing (4단계 AC2, AC4)', async () => {
+      const { reports } = await make('sales')
+      const before = (await reports.list()).length
+
+      const error = await expectRejects(reports.create(input({ chart: { ...CHART, category: 1 } })), 422)
+
+      expect(error.kind).toBe('invalid-report')
+      expect(error.problem?.reportErrors?.[0]?.location).toEqual(['chart', 'category'])
+      expect((await reports.list()).length).toBe(before)
+    })
+
+    it('rejects a chart for a definition without grouping at the chart location (4단계 AC2, AC4)', async () => {
+      const { reports } = await make('sales')
+
+      const error = await expectRejects(reports.create(input({ definition: OTHER_DEFINITION, chart: CHART })), 422)
+
+      expect(error.kind).toBe('invalid-report')
+      expect(error.problem?.reportErrors?.[0]?.location).toEqual(['chart'])
+    })
+
+    it('rejects an overwrite whose chart no longer fits the new definition and keeps the stored one (4단계 AC4)', async () => {
+      const { reports } = await make('sales')
+      const created = await reports.create(input({ chart: CHART }))
+
+      const error = await expectRejects(reports.update(created.id, { ...input({ name: created.name, definition: OTHER_DEFINITION, chart: CHART }), revision: created.revision }), 422)
+
+      expect(error.kind).toBe('invalid-report')
+      expect(await reports.get(created.id)).toMatchObject({ revision: 1, chart: CHART })
+      await cleanup(created.id)
+    })
+
+    it('copies the chart together with the definition (4단계 AC6)', async () => {
+      const { reports } = await make('sales')
+      const created = await reports.create(input({ chart: CHART }))
+
+      const copy = await reports.copy(created.id, { name: unique('copy'), description: '', visibility: 'public' })
+
+      expect(copy.chart).toEqual(CHART)
+      expect((await reports.list()).find((r) => r.id === copy.id)?.chartKind).toBe('bar')
+      await cleanup(created.id, copy.id)
     })
 
     it('refuses an anonymous visitor (AC1)', async () => {

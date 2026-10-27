@@ -9,7 +9,7 @@ import { userLabel } from '../../../shared/model/period'
 import type { ReportRunFailure, SavedReport } from '../../../shared/model/reportTypes'
 import { ConfirmDialog } from '../../../shared/ui/ConfirmDialog'
 import { ErrorBanner } from '../../../shared/ui/ErrorBanner'
-import { ResultCard } from '../designer/ResultCard'
+import { ResultCard, type ResultTab } from '../designer/ResultCard'
 import '../reports.css'
 import { ReportNotFound } from '../ReportNotFound'
 import { SaveReportDialog } from '../SaveReportDialog'
@@ -51,6 +51,8 @@ export function ReportViewPage() {
   const copy = useCopyReport()
   const [deleting, setDeleting] = useState(false)
   const [copying, setCopying] = useState(false)
+  // 차트가 있는 리포트는 차트 탭으로 열고, 사용자가 고른 뒤에는 그 탭을 유지한다.
+  const [chosenTab, setChosenTab] = useState<ResultTab | null>(null)
   const [copyFailure, setCopyFailure] = useState<ReturnType<typeof saveFailure> | null>(null)
   const viewer: Viewer | null = me && role ? { id: me.id, role } : null
 
@@ -59,6 +61,7 @@ export function ReportViewPage() {
   const data = report.data
   if (!data || !viewer) return <p className="hint">불러오는 중…</p>
   const failure = run.error ? reportRunFailure(run.error) : null
+  const tab = chosenTab ?? (data.chart ? 'chart' : 'table')
 
   return (
     <section className="report-page">
@@ -101,7 +104,18 @@ export function ReportViewPage() {
         </div>
       </header>
       {failure && <RunFailure failure={failure} />}
-      {run.data ? <ResultCard result={run.data} failure={null} summary={[]} stale={false} sql={run.data.sql} /> : !failure && <p className="hint">불러오는 중…</p>}
+      {run.data ? (
+        <ResultCard
+          result={run.data}
+          failure={null}
+          summary={[]}
+          stale={false}
+          sql={run.data.sql}
+          tab={tab}
+          onTab={setChosenTab}
+          chart={{ mode: 'view', chart: data.chart, problem: data.chartProblem }}
+        />
+      ) : !failure && <p className="hint">불러오는 중…</p>}
       {deleting && (
         <ConfirmDialog
           title="리포트 삭제"

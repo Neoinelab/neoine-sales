@@ -171,6 +171,37 @@ export type ReportRunFailure =
 export type ReportVisibility = 'public' | 'private'
 
 /** 저장된 리포트 목록 한 줄. 결과 데이터는 저장하지 않는다. */
+export type ReportChartKind =
+  | 'bar'
+  | 'horizontal_bar'
+  | 'stacked_bar'
+  | 'stacked_100_bar'
+  | 'line'
+  | 'area'
+  | 'pie'
+  | 'doughnut'
+  | 'scatter'
+  | 'combo'
+export type ReportChartLegend = 'top' | 'right' | 'bottom' | 'none'
+
+/** 저장·요청용 차트 설정. 컬럼은 정의 columns의 index로 가리킨다. */
+export interface ReportChartInput {
+  kind: ReportChartKind
+  category: number | null
+  series: number | null
+  values: number[]
+  swap: boolean
+  title: string
+  legend: ReportChartLegend
+  dataLabels: boolean
+  categoryAxisTitle: string
+  valueAxisTitle: string
+  /** 숫자 칸이 잘못 입력되면 글자 그대로 보내 서버가 위치와 함께 거절한다. */
+  valueMin: number | string | null
+  valueMax: number | string | null
+  secondaryAxis: boolean
+}
+
 export interface SavedReportSummary {
   id: number
   name: string
@@ -181,6 +212,8 @@ export interface SavedReportSummary {
   entities: ReportEntity[]
   createdAt: string
   updatedAt: string
+  /** 목록 응답에서는 항상 있다(차트가 없으면 null). 상세(`SavedReport`)는 `chart`로 알 수 있어 채우지 않는다. */
+  chartKind?: ReportChartKind | null
 }
 
 /** 저장된 리포트 상세: 정의(요청 모양)와 서버가 만든 표시용 SQL, 덮어쓰기 충돌 판정용 revision. */
@@ -188,6 +221,8 @@ export interface SavedReport extends SavedReportSummary {
   revision: number
   definition: ReportQueryInput
   generatedSql: string
+  chart: ReportChartInput | null
+  chartProblem: string | null
 }
 
 export interface SavedReportMeta {
@@ -198,4 +233,6 @@ export interface SavedReportMeta {
 
 export interface SavedReportInput extends SavedReportMeta {
   definition: ReportQueryInput
+  /** null이면 차트 없음. 수정(덮어쓰기)에서 빠뜨리면 서버가 차트를 지우므로 항상 명시한다. */
+  chart: ReportChartInput | null
 }

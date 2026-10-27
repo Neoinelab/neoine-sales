@@ -15,7 +15,7 @@ from tests.functional.conftest import make_settings
 UNUSED_DATABASE_URL = "postgresql+asyncpg://user:pw@localhost:5432/none"  # 접속하지 않는다
 BASE = "/api/v1/reports"
 ID_ROUTE = f"{BASE}/{{report_id}}"
-DETAIL_ONLY = {"revision", "definition", "generated_sql"}
+DETAIL_ONLY = {"revision", "definition", "generated_sql", "chart", "chart_problem"}
 SUMMARY_FIELDS = {
     "id",
     "name",
@@ -26,6 +26,7 @@ SUMMARY_FIELDS = {
     "entities",
     "created_at",
     "updated_at",
+    "chart_kind",
 }
 
 
@@ -126,12 +127,19 @@ def test_request_bodies_have_the_planned_fields_and_no_sql(schema: dict[str, Any
     update = _body_schema(schema, "put", ID_ROUTE)
     copy = _body_schema(schema, "post", f"{ID_ROUTE}/copy")
 
-    assert set(create["properties"]) == {"name", "description", "visibility", "definition"}
+    assert set(create["properties"]) == {
+        "name",
+        "description",
+        "visibility",
+        "definition",
+        "chart",
+    }
     assert set(update["properties"]) == {
         "name",
         "description",
         "visibility",
         "definition",
+        "chart",
         "revision",
     }
     assert set(copy["properties"]) == {"name", "description", "visibility"}

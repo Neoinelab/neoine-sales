@@ -28,14 +28,7 @@ class UpdateReport:
         async with self._uow_factory() as uow:
             report = await uow.saved_reports.get(report_id, for_update=True)
             report.ensure_visible_to(viewer.user_id, viewer.role)  # 숨겨야 하는 404가 먼저
-            content = await prepare_content(
-                uow,
-                now,
-                name=data.name,
-                description=data.description,
-                visibility=data.visibility,
-                definition=data.definition,
-            )
+            content = await prepare_content(uow, now, data)
             report.overwrite(
                 content,
                 editor=viewer.user_id,

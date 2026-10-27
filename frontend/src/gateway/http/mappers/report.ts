@@ -19,6 +19,7 @@ import type {
   SavedReportSummary,
 } from '../../../shared/model/reportTypes'
 import { malformedResponse } from '../request'
+import { toChart, toChartKind } from './reportChart'
 import { toUserRef } from './user'
 
 type Field = Schemas['ReportFieldResponse']
@@ -147,7 +148,9 @@ function toVisibility(value: string): ReportVisibility {
   throw malformedResponse()
 }
 
-export function toSummary(body: Schemas['ReportSummaryResponse']): SavedReportSummary {
+type Head = Pick<Schemas['ReportSummaryResponse'], 'id' | 'name' | 'description' | 'visibility' | 'owner' | 'updated_by' | 'entities' | 'created_at' | 'updated_at'>
+
+function toHead(body: Head): Omit<SavedReportSummary, 'chartKind'> {
   return {
     id: body.id,
     name: body.name,
@@ -159,6 +162,10 @@ export function toSummary(body: Schemas['ReportSummaryResponse']): SavedReportSu
     createdAt: body.created_at,
     updatedAt: body.updated_at,
   }
+}
+
+export function toSummary(body: Schemas['ReportSummaryResponse']): SavedReportSummary {
+  return { ...toHead(body), chartKind: body.chart_kind === null ? null : toChartKind(body.chart_kind) }
 }
 
 function toColumnInput(c: Schemas['ReportColumnRequest']): ReportColumnInput {
@@ -194,9 +201,11 @@ export function toDefinition(body: Schemas['ReportQueryRequest']): ReportQueryIn
 
 export function toSavedReport(body: Schemas['ReportDetailResponse']): SavedReport {
   return {
-    ...toSummary(body),
+    ...toHead(body),
     revision: body.revision,
     definition: toDefinition(body.definition),
     generatedSql: body.generated_sql,
+    chart: body.chart === null ? null : toChart(body.chart),
+    chartProblem: body.chart_problem,
   }
 }

@@ -8,7 +8,7 @@ export type SaveMode = 'create' | 'overwrite' | 'saveAs' | 'copy'
 
 const NAME_MAX = 100
 const DESCRIPTION_MAX = 1000
-const GUIDE = '저장 내용: 컬럼·조건·정렬·행 수와 생성 SQL. 결과 데이터는 저장하지 않고 열 때마다 다시 조회합니다.'
+const GUIDE = '저장 내용: 컬럼·조건·정렬·행 수·차트 설정과 생성 SQL. 결과 데이터는 저장하지 않고 열 때마다 다시 조회합니다.'
 const VISIBILITY_LOCKED = '공개 범위는 만든 사람 또는 admin만 바꿀 수 있습니다'
 
 const BLANK: SavedReportMeta = { name: '', description: '', visibility: 'public' }
@@ -64,7 +64,10 @@ export function SaveReportDialog({ mode, base, canChangeVisibility, busy, failur
   return (
     <Modal
       title="리포트 저장"
-      onClose={onCancel}
+      onClose={() => {
+        // 요청 중에는 닫지 않는다(응답이 닫힌 뒤 도착해 그 사이 편집을 덮어쓰지 않게)
+        if (!busy) onCancel()
+      }}
       footer={
         conflict ? (
           <button type="button" onClick={onCancel}>
@@ -72,7 +75,7 @@ export function SaveReportDialog({ mode, base, canChangeVisibility, busy, failur
           </button>
         ) : (
           <>
-            <button type="button" onClick={onCancel}>
+            <button type="button" onClick={onCancel} disabled={busy}>
               취소
             </button>
             <button type="submit" form={ids.form} className="primary" disabled={busy}>

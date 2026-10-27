@@ -8,7 +8,7 @@ from app.domain.common.errors import InvalidValueError
 from app.domain.common.validation import reject_nul
 
 if TYPE_CHECKING:
-    from app.domain.report.raw import RawReportDefinition
+    from app.domain.report.raw import RawChart, RawReportDefinition
     from app.domain.user.value_objects import UserId
 
 ReportId = NewType("ReportId", int)
@@ -58,6 +58,7 @@ class ReportContent:
     visibility: ReportVisibility
     definition: RawReportDefinition
     generated_sql: str
+    chart: RawChart | None = None  # 검증·정규화를 통과한 차트
 
 
 @dataclass(frozen=True, slots=True)

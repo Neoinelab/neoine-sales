@@ -34,11 +34,17 @@ def content_input(
     description: str = "",
     visibility: str = "public",
     definition: Any = VALID_DEFINITION,  # noqa: ANN401 - RawReportDefinition
+    chart: Any = None,  # noqa: ANN401 - RawChart | None
 ) -> Any:  # noqa: ANN401 - ReportContentInput
     from app.application.report.saved_inputs import ReportContentInput  # noqa: PLC0415
 
+    chart_fields = {} if chart is None else {"chart": chart}  # 지정했을 때만 넘긴다
     return ReportContentInput(
-        name=name, description=description, visibility=visibility, definition=definition
+        name=name,
+        description=description,
+        visibility=visibility,
+        definition=definition,
+        **chart_fields,
     )
 
 

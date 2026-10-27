@@ -8,6 +8,7 @@ import type { Viewer } from '../../shared/model/permissions'
 import type { SavedReportSummary } from '../../shared/model/reportTypes'
 import { ConfirmDialog } from '../../shared/ui/ConfirmDialog'
 import { ErrorBanner } from '../../shared/ui/ErrorBanner'
+import { kindLabel } from './chart/chartKinds'
 import { filterReports } from './list/filterReports'
 import { ReportRowMenu } from './list/ReportRowMenu'
 import './reports.css'
@@ -25,6 +26,7 @@ function ReportRow({ report, viewer, onCopy, onDelete }: { report: SavedReportSu
         <span className="report-tag tag-deal">Deal</span>
         {report.entities.includes('action') && <span className="report-tag tag-action">Actions</span>}
       </td>
+      <td>{report.chartKind ? kindLabel(report.chartKind) : '—'}</td>
       <td>{userLabel(report.owner)}</td>
       <td>
         <span>{formatStamp(report.updatedAt)}</span>
@@ -100,6 +102,7 @@ export function ReportsPage() {
                   <th scope="col">이름</th>
                   <th scope="col">설명</th>
                   <th scope="col">데이터</th>
+                  <th scope="col">차트</th>
                   <th scope="col">만든 사람</th>
                   <th scope="col">최종 수정</th>
                   <th scope="col">

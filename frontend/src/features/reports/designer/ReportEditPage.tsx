@@ -10,13 +10,13 @@ import { Link } from 'react-router'
 import '../reports.css'
 import { ReportNotFound } from '../ReportNotFound'
 import { Designer } from './Designer'
-import { fromReportRequest } from './state/fromRequest'
+import { fromSavedReport } from './state/fromRequest'
 
 /** 불러온 리포트로 디자이너를 연다. 처음 설계는 한 번만 만든다(이후 리포트 데이터가 갱신돼도 편집 중인 설계는 그대로). */
 function Loaded({ catalog, report }: { catalog: ReportCatalog; report: SavedReport }) {
   const handoff = useReportHandoff()
   const [start] = useState(() => ({
-    initial: fromReportRequest(report.definition, catalog, catalog.limits),
+    initial: fromSavedReport(report, catalog, catalog.limits),
     seed: handoff.peek(report.id) ?? null,
   }))
   return <Designer catalog={catalog} mode={{ kind: 'edit', report, initial: start.initial, seed: start.seed }} />

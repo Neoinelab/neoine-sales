@@ -70,3 +70,20 @@ describe('visibleIssues (AC13)', () => {
     expect(visible.map((a) => a.issue.message)).toEqual(['b', 'c', 'd', 'e'])
   })
 })
+
+describe('chart locations (Reports 4단계 AC17, P13)', () => {
+  it('maps chart locations to the chart target with the part name', () => {
+    const anchored = issueAnchors(
+      [issue(['chart']), issue(['chart', 'category']), issue(['chart', 'values']), issue(['chart', 'values', 1]), issue(['chart', 'value_min'])],
+      RUN,
+    )
+
+    expect(anchored.map((a) => a.target)).toEqual([
+      { kind: 'chart', part: null },
+      { kind: 'chart', part: 'category' },
+      { kind: 'chart', part: 'values' },
+      { kind: 'chart', part: 'values' },
+      { kind: 'chart', part: 'value_min' },
+    ])
+  })
+})

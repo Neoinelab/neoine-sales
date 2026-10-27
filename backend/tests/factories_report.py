@@ -6,7 +6,8 @@
 
 계약(구현 담당이 맞춘다): `Report`는 키워드로 만들 수 있는 dataclass이고 필드는
 id, name, description, visibility, owner_user_id, updated_by_user_id, definition,
-generated_sql, revision, created_at, updated_at 이다.
+generated_sql, revision, created_at, updated_at 이다. 4단계부터 `chart: RawChart | None = None`,
+`chart_unreadable: bool = False`가 더해진다(키워드, 기본값 있음).
 """
 
 from typing import TYPE_CHECKING, Any
@@ -29,7 +30,7 @@ def make_report(
     **overrides: Any,  # noqa: ANN401 - 필드를 그대로 덮어쓴다
 ) -> Report:
     """저장하지 않은 Report. overrides: visibility('public'|'private'|ReportVisibility), editor,
-    definition, generated_sql, revision, description, now, report_id.
+    definition, generated_sql, revision, description, now, report_id, chart, chart_unreadable.
     """
     from app.domain.saved_report.entities import Report  # noqa: PLC0415 - 지연 import(모듈 설명)
     from app.domain.saved_report.values import ReportId, ReportVisibility  # noqa: PLC0415
@@ -37,6 +38,8 @@ def make_report(
 
     owner_id = owner if owner is not None else OWNER_ID
     now = overrides.pop("now", NOW)
+    # 차트 필드는 지정했을 때만 넘긴다(4단계 구현 전에도 차트와 무관한 테스트가 만들 수 있게)
+    chart_fields = {k: overrides.pop(k) for k in ("chart", "chart_unreadable") if k in overrides}
     return Report(
         id=overrides.pop("report_id", ReportId(new_id())),
         name=name,
@@ -49,6 +52,7 @@ def make_report(
         revision=overrides.pop("revision", 1),
         created_at=now,
         updated_at=overrides.pop("updated_at", now),
+        **chart_fields,
     )
 
 
@@ -68,17 +72,19 @@ def make_broken_report(
 
 def make_content(name: str = "새 이름", **overrides: Any) -> ReportContent:  # noqa: ANN401
     """덮어쓰기·생성 입력용 ReportContent(정규화가 끝난 값). overrides: description, visibility,
-    definition, generated_sql.
+    definition, generated_sql, chart.
     """
     from app.domain.saved_report.values import (  # noqa: PLC0415
         ReportContent,
         ReportVisibility,
     )
 
+    chart_fields = {k: overrides.pop(k) for k in ("chart",) if k in overrides}
     return ReportContent(
         name=name,
         description=overrides.pop("description", ""),
         visibility=ReportVisibility(overrides.pop("visibility", "public")),
         definition=overrides.pop("definition", raw([col("deal.code")])),
         generated_sql=overrides.pop("generated_sql", DEFAULT_SQL),
+        **chart_fields,
     )

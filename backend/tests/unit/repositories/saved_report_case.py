@@ -68,6 +68,24 @@ class SavedReportCase:
             {"d": raw_json, "id": report.id},
         )
 
+    async def corrupt_chart(self, report: Report, raw_json: str) -> None:
+        """저장 형식으로 읽을 수 없는 차트 JSON을 직접 써 넣는다(저장소를 거치지 않는다).
+
+        sql은 chart 컬럼을 원시 UPDATE하고(제약이 없어 어떤 JSON이든 들어간다), fake는 저장된
+        엔티티를 "차트를 읽을 수 없음"(chart=None, chart_unreadable=True)으로 만든다.
+        """
+        if self._session is None:
+            stored = self.reports._items[report.id]
+            stored.chart = None
+            stored.chart_unreadable = True
+            return
+        from sqlalchemy import text  # noqa: PLC0415
+
+        await self._session.execute(
+            text("update reports set chart = cast(:d as jsonb) where id = :id"),
+            {"d": raw_json, "id": report.id},
+        )
+
     async def resign(self, user_id: UserId, at: datetime) -> None:
         user = await self.users.get(user_id)
         user.resign(at)

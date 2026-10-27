@@ -9,7 +9,7 @@ import { MINE_PUBLIC, SAVED_SAMPLES } from '../../../test/savedReports'
 
 setupReportClock()
 
-const GUIDE = '저장 내용: 컬럼·조건·정렬·행 수와 생성 SQL. 결과 데이터는 저장하지 않고 열 때마다 다시 조회합니다.'
+const GUIDE = '저장 내용: 컬럼·조건·정렬·행 수·차트 설정과 생성 SQL. 결과 데이터는 저장하지 않고 열 때마다 다시 조회합니다.'
 const CREATED = '/reports/16/edit'
 
 /** 새 리포트에서 컬럼 하나를 넣고 조회해 저장할 수 있는 상태로 만든다. */

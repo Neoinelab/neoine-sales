@@ -1,4 +1,5 @@
-import type { ReportCatalog, ReportConditionInput, ReportConditionValue, ReportField, ReportLimits, ReportQueryInput } from '../../../../shared/model/reportTypes'
+import { fromChartInput } from '../../chart/chartDraft'
+import type { ReportCatalog, ReportChartInput, ReportConditionInput, ReportConditionValue, ReportField, ReportLimits, ReportQueryInput } from '../../../../shared/model/reportTypes'
 import { fieldByKey, isMoneyField } from './columnRules'
 import { emptyDraft, type ConditionDraft } from './conditionDraft'
 import type { DesignerColumn, DesignerCondition, DesignerState } from './designerState'
@@ -91,7 +92,14 @@ export function fromReportRequest(input: ReportQueryInput, catalog: ReportCatalo
     combine: input.combine,
     sort: input.sort && sortColumn ? { uid: sortColumn.uid, direction: input.sort.direction } : null,
     rowLimit: input.rowLimit || limits.defaultRowLimit,
+    chart: null,
     selectedUid: null,
     nextUid: uid,
   }
+}
+
+/** 저장된 리포트(정의 + 차트)로 디자이너 상태를 만든다. 차트의 컬럼 index는 정의의 컬럼 uid로 바뀐다. */
+export function fromSavedReport(report: { definition: ReportQueryInput; chart: ReportChartInput | null }, catalog: ReportCatalog, limits: ReportLimits): DesignerState {
+  const state = fromReportRequest(report.definition, catalog, limits)
+  return { ...state, chart: fromChartInput(report.chart, state.columns) }
 }
