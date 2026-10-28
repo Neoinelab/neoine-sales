@@ -112,12 +112,4 @@ class ForecastSnapshot:
 
 
 def _in_period(cell: SnapshotCell, period: ForecastPeriod) -> bool:
-    start, end = period.date_range()
-    return (
-        (start.year, start.month)
-        <= (cell.revenue_year, cell.revenue_month)
-        <= (
-            end.year,
-            end.month,
-        )
-    )
+    return period.contains_month(cell.revenue_year, cell.revenue_month)

@@ -6,7 +6,7 @@ import { defaultDealsUrl } from '../../../test/dealsUrl'
 import { resetMock } from '../../../test/fake/default'
 import { USER_ID } from '../../../test/fake/seed/ids'
 import { renderAt } from '../../../test/mockApp'
-import { dataRows, rowOf } from './testHelpers'
+import { clearQuarter, dataRows, quarterButton, rowOf } from './testHelpers'
 // 기록 테스트는 /dashboard에서 시작한다. App은 DashboardPage를 React.lazy로 불러오므로 청크 로딩이 findBy 기본 대기(1초)를 넘기지 않게 미리 읽어 둔다.
 import '../../dashboard/DashboardPage'
 
@@ -31,7 +31,7 @@ describe('조건 없는 목록 진입 (AC-04, AC-05)', () => {
 
     await waitFor(() => expect(location()).toBe('/deals?year=2026'))
     expect(await screen.findByLabelText('연도')).toHaveDisplayValue('2026')
-    expect(screen.getByLabelText('Quarter')).toHaveDisplayValue('전체')
+    expect(quarterButton('전체')).toBeInTheDocument()
     expect(screen.getByLabelText('월')).toHaveDisplayValue('전체')
     expect(optionNames(screen.getByLabelText('월'))).toHaveLength(13)
   })
@@ -157,7 +157,7 @@ describe('초기화 (AC-07)', () => {
     await waitFor(() => expect(location()).toBe('/deals?year=2026'))
     expect(screen.getByLabelText('Status')).toHaveDisplayValue('전체')
     expect(screen.getByLabelText('연도')).toHaveDisplayValue('2026')
-    expect(screen.getByLabelText('Quarter')).toHaveDisplayValue('전체')
+    expect(quarterButton('전체')).toBeInTheDocument()
     expect(await screen.findByRole('columnheader', { name: '최종 업데이트' })).toHaveAttribute('aria-sort', 'descending')
     expect(window.sessionStorage.getItem(listMemoryKey(USER_ID.kim))).toBe('year=2026')
 
@@ -215,7 +215,7 @@ describe('연도 전체 (AC-09)', () => {
 
     await user.selectOptions(screen.getByLabelText('연도'), '전체')
     await waitFor(() => expect(location()).toBe('/deals?year=all&quarter=4'))
-    await user.selectOptions(screen.getByLabelText('Quarter'), '전체')
+    await clearQuarter(user)
 
     await waitFor(() => expect(location()).toBe('/deals?year=all'))
     await act(async () => {
@@ -234,7 +234,7 @@ describe('연도 전체 (AC-09)', () => {
 
     await user.selectOptions(screen.getByLabelText('연도'), '전체')
 
-    await waitFor(() => expect(list.mock.calls.at(-1)?.[0]).toEqual({ offset: 0, limit: 20, quarter: 4 }))
+    await waitFor(() => expect(list.mock.calls.at(-1)?.[0]).toEqual({ offset: 0, limit: 20, quarters: [4] }))
   })
 
   it('restores all years after a detail round trip', async () => {

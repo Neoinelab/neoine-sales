@@ -1,4 +1,4 @@
-/** 연/분기 분류와 사용자 표시명(A-0 계약). Forecast 요약·Deal 목록의 year/quarter 필터가 같은 함수를 쓴다. */
+/** 연/분기 분류와 사용자 표시명(A-0 계약). */
 
 import type { UserRef } from './types'
 

@@ -37,12 +37,15 @@ def test_a_year_alone_is_january_first_to_december_31() -> None:
     ],
 )
 def test_a_year_and_quarter_is_that_quarter(quarter: int, start: date, end: date) -> None:
-    assert _window(year=2026, quarter=quarter) == (start, end)
+    assert _window(year=2026, quarters=frozenset({quarter})) == (start, end)
 
 
 def test_the_updated_period_does_not_change_the_revenue_window() -> None:
     window = _window(
-        year=2026, quarter=2, updated_from=date(2026, 5, 10), updated_to=date(2026, 5, 20)
+        year=2026,
+        quarters=frozenset({2}),
+        updated_from=date(2026, 5, 10),
+        updated_to=date(2026, 5, 20),
     )
 
     assert window == (date(2026, 4, 1), date(2026, 6, 30))
@@ -95,17 +98,19 @@ def test_updated_window_of_a_single_day_spans_that_local_day() -> None:
 
 
 def test_a_quarter_without_a_year_is_no_longer_rejected_at_creation() -> None:
-    assert DealQuery(quarter=2).quarter == 2
+    assert DealQuery(quarters=frozenset({2})).quarters == frozenset({2})
 
 
 @pytest.mark.parametrize("quarter", [0, 5, -1])
 def test_a_quarter_outside_one_to_four_is_rejected_even_without_a_year(quarter: int) -> None:
     with raises_with(InvalidValueError, "분기는 1~4 중에서 선택하세요."):
-        DealQuery(quarter=quarter)
+        DealQuery(quarters=frozenset({quarter}))
 
 
 def test_revenue_window_of_an_unresolved_quarter_is_a_programming_error() -> None:
-    query = DealQuery(quarter=2)  # 연도 없는 분기는 만들 수 있다(올해 채우기는 ListDeals 몫)
+    query = DealQuery(
+        quarters=frozenset({2})
+    )  # 연도 없는 분기는 만들 수 있다(올해 채우기는 ListDeals 몫)
 
     with pytest.raises(ValueError) as raised:  # noqa: PT011 - 호출 순서 오류
         query.revenue_window()
@@ -116,14 +121,14 @@ def test_revenue_window_of_an_unresolved_quarter_is_a_programming_error() -> Non
 def test_with_year_for_fills_this_year_only_when_quarter_has_no_year() -> None:
     today = date(2026, 10, 19)
 
-    filled = DealQuery(quarter=2, keyword="erp").with_year_for(today)
+    filled = DealQuery(quarters=frozenset({2}), keyword="erp").with_year_for(today)
 
-    assert (filled.year, filled.quarter, filled.keyword) == (2026, 2, "erp")
+    assert (filled.year, filled.quarters, filled.keyword) == (2026, frozenset({2}), "erp")
     assert filled.revenue_window() == (date(2026, 4, 1), date(2026, 6, 30))
 
 
 def test_with_year_for_keeps_an_explicit_year() -> None:
-    query = DealQuery(year=2025, quarter=2)
+    query = DealQuery(year=2025, quarters=frozenset({2}))
 
     assert query.with_year_for(date(2026, 10, 19)).year == 2025
 
@@ -136,7 +141,7 @@ def test_with_year_for_leaves_a_query_without_quarter_alone() -> None:
 
 
 def test_with_year_for_does_not_change_the_original_query() -> None:
-    query = DealQuery(quarter=3)
+    query = DealQuery(quarters=frozenset({3}))
 
     query.with_year_for(date(2026, 10, 19))
 
@@ -146,7 +151,7 @@ def test_with_year_for_does_not_change_the_original_query() -> None:
 @pytest.mark.parametrize("quarter", [0, 5, -1])
 def test_a_quarter_outside_one_to_four_is_rejected(quarter: int) -> None:
     with raises_with(InvalidValueError, "분기는 1~4 중에서 선택하세요."):
-        _window(year=2026, quarter=quarter)
+        _window(year=2026, quarters=frozenset({quarter}))
 
 
 @pytest.mark.parametrize("year", [1899, 10000, 0, -1])
@@ -157,4 +162,4 @@ def test_a_year_outside_1900_to_9999_is_rejected(year: int) -> None:
 
 @pytest.mark.parametrize("year", [1900, 9999])
 def test_the_year_boundaries_are_accepted(year: int) -> None:
-    assert _window(year=year, quarter=4)[1] == date(year, 12, 31)
+    assert _window(year=year, quarters=frozenset({4}))[1] == date(year, 12, 31)

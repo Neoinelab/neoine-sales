@@ -21,6 +21,10 @@ afterEach(() => {
 const STATUS_HEADING = /전체 Status Pipeline/
 const FORECAST_HEADING = /Quarter Closing Forecast/
 
+/** 필터 줄의 Quarter 토글 묶음(Q1~Q4 버튼)과 그 버튼. */
+const quarterGroup = () => screen.getByRole('group', { name: 'Quarter' })
+const quarterButton = (n: number) => within(quarterGroup()).getByRole('button', { name: `Q${n}` })
+
 describe('Dashboard 화면과 탭 (AC-10)', () => {
   it('replaces the coming soon page with the Dashboard and two tabs', async () => {
     await renderAt('/dashboard')
@@ -52,15 +56,16 @@ describe('Dashboard 화면과 탭 (AC-10)', () => {
     expect(await screen.findByRole('tab', { name: 'Status' })).toHaveAttribute('aria-selected', 'true')
   })
 
-  it('puts the tab in the URL when it is switched and keeps the other conditions', async () => {
-    const { user, location } = await renderAt('/dashboard?tab=status&year=2026&quarter=3')
+  it('puts the tab in the URL when it is switched and keeps the conditions of both tabs', async () => {
+    const { user, location } = await renderAt('/dashboard?tab=status&status.year=2026&status.quarter=3')
     await screen.findByRole('heading', { name: STATUS_HEADING })
 
     await user.click(screen.getByRole('tab', { name: 'Forecast' }))
 
     await waitFor(() => expect(location()).toContain('tab=forecast'))
-    expect(location()).toContain('year=2026')
-    expect(location()).toContain('quarter=3')
+    expect(location()).toContain('status.year=2026')
+    expect(location()).toContain('status.quarter=3')
+    expect(location()).toContain('forecast.year=2026')
     expect(await screen.findByRole('heading', { name: FORECAST_HEADING })).toBeVisible()
   })
 
@@ -85,7 +90,7 @@ describe('필터 (AC-11)', () => {
     await renderAt('/dashboard')
 
     expect(await screen.findByLabelText('연도')).toHaveValue('2026')
-    expect(screen.getByLabelText('Quarter')).toHaveDisplayValue('전체')
+    for (const n of [1, 2, 3, 4]) expect(quarterButton(n)).toHaveAttribute('aria-pressed', 'false')
     expect(screen.getByLabelText('담당자')).toHaveDisplayValue('전체')
     expect(screen.getByLabelText('Vendor')).toHaveDisplayValue('전체')
     await waitFor(() => expect(lastQuery(summary)).toEqual({ year: 2026 }))
@@ -109,14 +114,14 @@ describe('필터 (AC-11)', () => {
   it('puts a chosen quarter in the URL, keeps the tab and sends it to the server', async () => {
     const summary = vi.spyOn(gateway.dashboard, 'summary')
     const { user, location } = await renderAt('/dashboard?tab=status')
-    await screen.findByLabelText('Quarter')
+    await screen.findByRole('group', { name: 'Quarter' })
 
-    await user.selectOptions(screen.getByLabelText('Quarter'), 'Q2')
+    await user.click(quarterButton(2))
 
-    await waitFor(() => expect(location()).toContain('quarter=2'))
+    await waitFor(() => expect(location()).toContain('status.quarter=2'))
     expect(location()).toContain('tab=status')
-    expect(location()).toContain('year=2026')
-    await waitFor(() => expect(lastQuery(summary)).toEqual({ year: 2026, quarter: 2 }))
+    expect(location()).toContain('status.year=2026')
+    await waitFor(() => expect(lastQuery(summary)).toEqual({ year: 2026, quarters: [2] }))
   })
 
   it('puts a chosen owner and vendor in the URL as ids', async () => {
@@ -129,8 +134,8 @@ describe('필터 (AC-11)', () => {
     await user.selectOptions(screen.getByLabelText('담당자'), '김영업')
     await user.selectOptions(screen.getByLabelText('Vendor'), 'Okta')
 
-    await waitFor(() => expect(location()).toContain(`owner=${USER_ID.kim}`))
-    expect(location()).toContain(`vendor=${seedVendorId('Okta')}`)
+    await waitFor(() => expect(location()).toContain(`status.owner=${USER_ID.kim}`))
+    expect(location()).toContain(`status.vendor=${seedVendorId('Okta')}`)
     await waitFor(() => expect(lastQuery(summary)).toEqual({ year: 2026, ownerId: USER_ID.kim, vendorId: seedVendorId('Okta') }))
   })
 
@@ -141,49 +146,52 @@ describe('필터 (AC-11)', () => {
   })
 
   it('shows the same selection after a reload (the URL is the truth)', async () => {
-    await renderAt(`/dashboard?tab=forecast&year=2027&quarter=3&owner=${USER_ID.park}&vendor=${seedVendorId('Okta')}`)
+    await renderAt(`/dashboard?tab=forecast&forecast.year=2027&forecast.quarter=3&forecast.owner=${USER_ID.park}&forecast.vendor=${seedVendorId('Okta')}`)
 
     expect(await screen.findByRole('tab', { name: 'Forecast' })).toHaveAttribute('aria-selected', 'true')
     expect(screen.getByLabelText('연도')).toHaveValue('2027')
-    expect(screen.queryByLabelText('Quarter')).not.toBeInTheDocument()
+    expect(quarterButton(3)).toHaveAttribute('aria-pressed', 'true')
     await waitFor(() => expect(screen.getByLabelText('담당자')).toHaveDisplayValue('박영업'))
     await waitFor(() => expect(screen.getByLabelText('Vendor')).toHaveDisplayValue('Okta'))
   })
 
-  it('applies year, owner and vendor to both tabs but the quarter filter only to the Status tab (AC1·2)', async () => {
+  it('opens an old shared address: year and owner on both tabs, the quarter on the Status tab only (AC-34)', async () => {
     const summary = vi.spyOn(gateway.dashboard, 'summary')
     const { user } = await renderAt(`/dashboard?year=2026&quarter=3&owner=${USER_ID.kim}`)
     await screen.findByRole('heading', { name: STATUS_HEADING })
-    expect(lastQuery(summary)).toEqual({ year: 2026, quarter: 3, ownerId: USER_ID.kim })
+    expect(lastQuery(summary)).toEqual({ year: 2026, quarters: [3], ownerId: USER_ID.kim })
 
     await user.click(screen.getByRole('tab', { name: 'Forecast' }))
     await screen.findByRole('heading', { name: FORECAST_HEADING })
 
     expect(screen.getByLabelText('담당자')).toHaveDisplayValue('김영업')
-    expect(screen.queryByLabelText('Quarter')).not.toBeInTheDocument()
+    for (const n of [1, 2, 3, 4]) expect(quarterButton(n)).toHaveAttribute('aria-pressed', 'false')
     await waitFor(() => expect(lastQuery(summary)).toEqual({ year: 2026, ownerId: USER_ID.kim }))
   })
 
-  it('has year, owner and vendor but no Quarter filter on the Forecast tab (AC1)', async () => {
-    await renderAt('/dashboard?tab=forecast&year=2026&quarter=2')
+  it('has year, Quarter toggles, owner and vendor on the Forecast tab too (AC-12)', async () => {
+    await renderAt('/dashboard?tab=forecast&forecast.year=2026&forecast.quarter=2')
     await screen.findByRole('heading', { name: FORECAST_HEADING })
 
     expect(screen.getByLabelText('연도')).toBeVisible()
     expect(screen.getByLabelText('담당자')).toBeVisible()
     expect(screen.getByLabelText('Vendor')).toBeVisible()
-    expect(screen.queryByLabelText('Quarter')).not.toBeInTheDocument()
+    expect(quarterButton(2)).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.queryByRole('combobox', { name: 'Quarter' })).not.toBeInTheDocument()
   })
 
-  it('shows the Quarter filter on the Status tab and brings it back with the same value after the Forecast tab (AC1·7)', async () => {
-    const { user } = await renderAt('/dashboard?tab=status&year=2026&quarter=2')
-    expect(await screen.findByLabelText('Quarter')).toHaveDisplayValue('Q2')
+  it('brings the Status quarters back with the same value after the Forecast tab (AC-31)', async () => {
+    const { user } = await renderAt('/dashboard?tab=status&status.year=2026&status.quarter=2')
+    await screen.findByRole('group', { name: 'Quarter' })
+    expect(quarterButton(2)).toHaveAttribute('aria-pressed', 'true')
 
     await user.click(screen.getByRole('tab', { name: 'Forecast' }))
     await screen.findByRole('heading', { name: FORECAST_HEADING })
-    expect(screen.queryByLabelText('Quarter')).not.toBeInTheDocument()
+    expect(quarterButton(2)).toHaveAttribute('aria-pressed', 'false')
     await user.click(screen.getByRole('tab', { name: 'Status' }))
 
-    expect(await screen.findByLabelText('Quarter')).toHaveDisplayValue('Q2')
+    await screen.findByRole('heading', { name: STATUS_HEADING })
+    expect(quarterButton(2)).toHaveAttribute('aria-pressed', 'true')
   })
 
   it('shows an unregistered vendor id as all and leaves it out of the request', async () => {
@@ -238,10 +246,10 @@ describe('빈 상태·오류·이전 값 유지 (AC-20)', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent('서버 오류가 발생했습니다.')
     expect(screen.getByLabelText('연도')).toBeEnabled()
-    await user.selectOptions(screen.getByLabelText('Quarter'), 'Q1')
+    await user.click(quarterButton(1))
 
-    await waitFor(() => expect(location()).toContain('quarter=1'))
-    await waitFor(() => expect(lastQuery(summary)).toEqual({ year: 2026, quarter: 1 }))
+    await waitFor(() => expect(location()).toContain('status.quarter=1'))
+    await waitFor(() => expect(lastQuery(summary)).toEqual({ year: 2026, quarters: [1] }))
   })
 
   it('does not show the coming soon text for a 501 either', async () => {
@@ -268,8 +276,8 @@ describe('빈 상태·오류·이전 값 유지 (AC-20)', () => {
       return original(query)
     })
 
-    await user.selectOptions(screen.getByLabelText('Quarter'), 'Q2')
-    expect(location()).toContain('quarter=2')
+    await user.click(quarterButton(2))
+    expect(location()).toContain('status.quarter=2')
 
     expect(screen.getByRole('table')).toBeVisible()
     expect(screen.queryByText('조건에 맞는 Deal이 없습니다.')).not.toBeInTheDocument()

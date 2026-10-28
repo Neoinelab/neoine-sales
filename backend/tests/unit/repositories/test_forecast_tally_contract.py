@@ -26,9 +26,15 @@ LEE = uid("tally-lee")
 
 
 def _criteria(
-    year: int = 2026, quarter: int | None = None, month: int | None = None, **rest: object
+    year: int = 2026,
+    quarter: int | None = None,
+    month: int | None = None,
+    quarters: frozenset[int] | None = None,
+    **rest: object,
 ) -> ForecastCriteria:
-    period = ForecastPeriod(year=year, quarter=quarter, month=month)
+    period = ForecastPeriod(
+        year=year, quarters=quarters if quarter is None else frozenset({quarter}), month=month
+    )
     return ForecastCriteria(period=period, **rest)  # type: ignore[arg-type]
 
 
@@ -221,3 +227,21 @@ async def test_forecast_summary_is_unchanged_by_the_risk_fields(
         (OWNER_ID, "commit"): (1, 7),
         (OWNER_ID, "won"): (1, 11),
     }
+
+
+async def test_separated_quarters_are_summed_without_the_quarter_between_them(
+    forecast_case: ForecastCase,
+) -> None:
+    for day, amount in (
+        (date(2026, 3, 31), 1),
+        (date(2026, 4, 1), 100),
+        (date(2026, 6, 30), 100),
+        (date(2026, 7, 1), 10),
+        (date(2026, 9, 30), 20),
+        (date(2026, 10, 1), 1000),
+    ):
+        await forecast_case.add_deal(day=day, amount=amount)
+
+    found = await _tally(forecast_case, _criteria(quarters=frozenset({1, 3})))
+
+    assert found == {(OWNER_ID, "pipeline"): (3, 31)}

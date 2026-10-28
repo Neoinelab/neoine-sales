@@ -404,7 +404,7 @@
   <tr><td>Forecast</td><td>버튼을 누르면 펼쳐지는 체크박스 목록에서 <b>여러 개</b>를 고를 수 있고, 고른 것 중 하나라도 맞는 Deal이 보입니다. 체크할 때마다 바로 조회합니다. 버튼에는 고른 내용이 요약됩니다(전체 / 코드 이름 / Lost 제외 / Open 전체 / 모두 선택 / N개 선택). 아무것도 고르지 않거나 "전체"를 누르면 전체입니다. Escape나 바깥을 누르면 닫힙니다. (2026-10-26 변경: 예전에는 하나만 골랐습니다)</td></tr>
   <tr><td>Next Action 상태</td><td>전체 / Open / 종료(수행) / 종료(미수행) / 종료(전체) 중 하나. <b>Next Action이 있는 가장 최근 Action</b>의 상태로 거릅니다. 상태를 고르면 Next Action을 적은 Action이 하나도 없는 Deal은 빠집니다(<a href="#next-status">7.4</a>).</td></tr>
   <tr><td><s>Forecast 구분</s></td><td><s>전체 / Open / Won / Lost / Lost 제외</s> — 2026-10-26 폐지(대신 Forecast를 여러 개 고를 수 있음). 예전 주소·기억된 조건에 들어 있어도 무시됩니다.</td></tr>
-  <tr><td>연도·Quarter·월</td><td>Expected Close 기준. 분기(화면 이름 Quarter)는 Q1(1~3월), Q2(4~6월), Q3(7~9월), Q4(10~12월)입니다. 조건 없이 목록에 들어오거나 초기화하면 <b>연도는 올해</b>(서버 날짜 기준), 분기·월은 '전체'입니다. 연도 선택지는 <b>Deal의 Expected Close 중 가장 이른 연도부터 내년까지</b>입니다(올해·내년은 Deal이 없어도 항상 보임, 주소에 범위 밖 연도가 들어 있으면 그 연도도 더해 보임). Deals 목록·Dashboard·Forecast가 같은 규칙입니다(2026-10-26 통일). 연도 '전체'도 고를 수 있으며, 연도가 '전체'인데 분기(또는 월)를 고르면 <b>올해</b>의 그 분기(달)로 조회합니다. 분기를 고르면 월은 <b>그 분기에 속한 3개월만</b> 고를 수 있고, 월을 골라도 분기는 그대로 남습니다(조회는 그 달). 분기를 다른 분기로 바꾸면 월은 '전체'로 돌아가고, 분기를 '전체'로 바꾸면 고른 월은 그대로 남아 그 달로 조회합니다. 연도가 '전체'인데 분기나 월을 고르면 그 칸 아래에 "연도가 전체이면 올해(YYYY) 기준입니다."가 보입니다. (2026-10-26 변경: 예전에는 분기와 월 중 하나만 고를 수 있었습니다)</td></tr>
+  <tr><td>연도·Quarter·월</td><td>Expected Close 기준. 분기(화면 이름 Quarter)는 Q1(1~3월), Q2(4~6월), Q3(7~9월), Q4(10~12월)입니다. 조건 없이 목록에 들어오거나 초기화하면 <b>연도는 올해</b>(서버 날짜 기준), 분기·월은 '전체'입니다. 연도 선택지는 <b>Deal의 Expected Close 중 가장 이른 연도부터 내년까지</b>입니다(올해·내년은 Deal이 없어도 항상 보임, 주소에 범위 밖 연도가 들어 있으면 그 연도도 더해 보임). Deals 목록·Dashboard·Forecast가 같은 규칙입니다(2026-10-26 통일). 연도 '전체'도 고를 수 있으며, 연도가 '전체'인데 분기(또는 월)를 고르면 <b>올해</b>의 그 분기(달)로 조회합니다. 분기는 <b>여러 개를 함께</b> 고를 수 있습니다(체크박스, 2026-10-28). 아무것도 고르지 않은 것과 넷 다 고른 것은 같은 '전체'입니다(넷 다 고르면 체크는 그대로 보입니다). Q1·Q3처럼 떨어진 분기를 고르면 그 분기들만 조회합니다. 분기를 고르면 월은 <b>고른 분기들에 속한 달만</b> 고를 수 있고, 월을 골라도 분기는 그대로 남습니다(조회는 그 달). 분기를 바꿀 때 고른 월이 새 선택지에 있으면 남고, 없으면 '전체'로 돌아갑니다. 분기를 '전체'로 바꾸면 고른 월은 그대로 남아 그 달로 조회합니다. 연도가 '전체'인데 분기나 월을 고르면 그 칸 아래에 "연도가 전체이면 올해(YYYY) 기준입니다."가 보입니다. (2026-10-26 변경: 예전에는 분기와 월 중 하나만 고를 수 있었습니다. 2026-10-28 변경: 예전에는 분기를 하나만 고를 수 있었습니다)</td></tr>
   <tr><td>최종 업데이트</td><td>목록의 “최종 업데이트”(마지막 Action 수행 시각, Action이 없으면 등록 시각) 기준. 전체 / 최근 2주 / 최근 1개월 / 최근 2개월 / 최근 3개월 / 최근 6개월 / 직접 지정에서 고릅니다. 기간은 서버 날짜 기준이며 오늘을 포함합니다(최근 1개월은 한 달 전 같은 날부터, 그런 날이 없으면 그 달 말일부터). 직접 지정은 시작일·종료일 중 한쪽만 넣어도 되고 양끝을 포함합니다. 시작일이 종료일보다 늦으면 오류가 표시됩니다</td></tr>
   <tr><td>내 딜만 / 기한초과 / 미업데이트</td><td>입력란 아래 <b>별도의 한 줄</b>에 있는 체크박스 세 개이며, 같은 줄 오른쪽 끝에 검색·초기화 버튼이 있습니다. "내 딜만"은 내가 Owner인 Deal입니다. 기한초과·미업데이트는 목록의 경고 배지와 <b>같은 규칙</b>으로 거릅니다(<a href="#risk">8장</a>). Forecast가 Won·Lost인 Deal은 어느 쪽에도 걸리지 않습니다.<br><b>기한초과</b>: Next Action이 있는 가장 최근 Action의 Due Date가 오늘(서버 날짜)보다 앞선 Deal. Next Action 상태는 보지 않으므로 종료한 Next Action도 Due Date가 지났으면 포함됩니다.<br><b>미업데이트</b>: 마지막 업데이트 뒤 관리자가 정한 경고 기준 일수(기본 14일, <a href="#admin">17.6</a>) 이상 Action이 없는 Deal.<br>둘 다 켜면 <b>둘 중 하나라도 해당하는</b> Deal이 보입니다.</td></tr>
 </table>
@@ -487,26 +487,25 @@
 <p>Dashboard 메뉴는 Pipeline이 어느 단계에 얼마나 있는지, 언제 얼마가 Closing될지를 한 화면에서 보여 줍니다. 모든 역할이 볼 수 있고, 이 화면에서 바꿀 수 있는 값은 없습니다. 로그인 후 첫 화면은 지금처럼 Deals 목록이며, Dashboard는 메뉴로 엽니다.</p>
 <h3>14.1 탭과 조건</h3>
 <ul>
-  <li>탭은 <b>Status</b>(처음 열면 이 탭)와 <b>Forecast</b> 두 개이며 화면 맨 위(제목 바로 아래)에 있습니다. 조건 입력란은 각 탭 안의 맨 위에 있습니다. 연도·담당자·Vendor 조건은 두 탭이 함께 씁니다. Quarter를 고르지 않았다면 탭을 바꿔도 다시 불러오지 않습니다.</li>
-  <li>조건은 <b>연도</b>(기본 올해, 항상 선택), <b>Quarter</b>(Status 탭에만 있음), <b>담당자</b>(퇴사자 포함), <b>Vendor</b>입니다. Quarter·담당자·Vendor는 처음에 아무것도 고르지 않은 '전체'입니다. 연도에는 '전체'가 없습니다. 연도 선택지는 <b>Deal의 Expected Close 중 가장 이른 연도부터 내년까지</b>입니다(올해·내년은 Deal이 없어도 항상 보임, 주소에 범위 밖 연도가 들어 있으면 그 연도도 더해 보임).</li>
-  <li><b>Forecast 탭에는 Quarter 조건이 없습니다</b>(연도·담당자·Vendor만). Status 탭에서 고른 Quarter는 Forecast 탭에서 쓰이지 않고, Status 탭으로 돌아가면 그대로 남아 있습니다. Forecast 탭에서 분기를 보려면 아래 Selected Quarter 버튼을 씁니다(14.3).</li>
+  <li>탭은 <b>Status</b>(처음 열면 이 탭)와 <b>Forecast</b> 두 개이며 화면 맨 위(제목 바로 아래)에 있습니다. 조건 입력란은 각 탭 안의 맨 위에 있습니다. <b>조건은 탭마다 따로</b>입니다(2026-10-28): Status 탭에서 바꾼 연도·Quarter·담당자·Vendor는 Forecast 탭에 영향을 주지 않고, 탭을 바꾸면 그 탭에서 마지막으로 고른 조건이 그대로 보입니다. 한 번 본 조건의 결과는 탭을 오가도 바로 보입니다.</li>
+  <li>조건은 <b>연도</b>(기본 올해, 항상 선택), <b>Quarter</b>(연도 바로 오른쪽의 Q1~Q4 버튼, 두 탭 모두), <b>담당자</b>(퇴사자 포함), <b>Vendor</b>입니다. Quarter 버튼은 여러 개를 함께 누를 수 있고 고른 분기만 조회합니다. 아무것도 누르지 않은 것과 넷 다 누른 것은 같은 '전체'입니다(넷 다 누르면 버튼은 눌린 채 보입니다). Quarter·담당자·Vendor는 처음에 아무것도 고르지 않은 '전체'입니다. 연도에는 '전체'가 없습니다. 연도 선택지는 <b>Deal의 Expected Close 중 가장 이른 연도부터 내년까지</b>입니다(올해·내년은 Deal이 없어도 항상 보임, 주소에 범위 밖 연도가 들어 있으면 그 연도도 더해 보임).</li>
+  <li>예전 주소(탭 구분 없는 <code>year</code>·<code>owner</code>·<code>vendor</code>는 두 탭 모두에, <code>quarter</code>는 Status 탭에만)로 들어와도 같은 조건으로 열립니다. 예전 Selected Quarter 주소 값(<code>sq</code>)은 무시합니다.</li>
   <li><b>기간은 Expected Close 기준</b>입니다(Won이면 실제 매출일). Expected Close는 Deal 등록 때 필수라 모든 Deal이 어느 한 연도에 속합니다.</li>
-  <li>탭과 조건은 화면 주소(URL)에 들어가므로 새로고침하거나 주소를 공유해도 같은 화면이 보입니다. Dashboard 조건은 따로 기억하지 않아 메뉴로 다시 들어오면 기본값(올해·전체)입니다.</li>
+  <li>탭과 두 탭의 조건은 모두 화면 주소(URL)에 들어가므로 새로고침하거나 주소를 공유해도 같은 화면이 보입니다. Dashboard 조건은 따로 기억하지 않아 메뉴로 다시 들어오면 기본값(올해·전체)입니다.</li>
   <li>금액은 다른 화면처럼 천원 단위입니다. 조건 아래 안내 줄("기간은 Expected Close 기준이며 금액 단위는 천원입니다. 기준일 YYYY-MM-DD")에 기준일(서버 날짜)이 표시됩니다. 조건에 맞는 Deal이 없으면 "조건에 맞는 Deal이 없습니다."가 보입니다.</li>
 </ul>
 <h3>14.2 Status 탭</h3>
 <table>
   <tr><th>영역</th><th>내용</th></tr>
-  <tr><td>Forecast 타일(맨 위, 두 탭 공통)</td><td>Lost를 뺀 Forecast마다 건수·금액(Pipeline, Best, Most Likely, Commit 등 관리자가 정한 순서), 그 합계인 <b>Open 합계</b>, 그리고 <b>Won</b>입니다. Won 타일 제목에는 기간이 붙습니다(예: "Won (2026)", "Won (2026 Q3)"). 값은 같은 조건의 Forecast 메뉴 합계와 같습니다. Forecast 탭에서는 항상 연도 전체 값입니다(14.3).</td></tr>
+  <tr><td>Forecast 타일(맨 위, 두 탭 공통)</td><td>Lost를 뺀 Forecast마다 건수·금액(Pipeline, Best, Most Likely, Commit 등 관리자가 정한 순서), 그 합계인 <b>Open 합계</b>, 그리고 <b>Won</b>입니다. Won 타일 제목에는 기간이 붙습니다(예: "Won (2026)", "Won (2026 Q3)", "Won (2026 Q1, Q3)"). 값은 고른 연도·분기의 합계입니다.</td></tr>
   <tr><td>전체 Status Pipeline</td><td>Status마다 막대(높이 = 금액, 아래 라벨에 건수)와 같은 값의 표(Status / 건수 / 금액, 맨 아래 합계)입니다. Deal이 없는 Status도 0으로 나옵니다. <b>Forecast가 Lost인 Deal은 빠지고</b>, Won(계약완료) Deal은 들어갑니다.</td></tr>
   <tr><td>주의 필요 Deal</td><td>기한초과 / N일 이상 미업데이트 / 이번 분기(예: 2026 Q4) Expected Close 건수입니다(아래 14.3).</td></tr>
 </table>
 <h3>14.3 Forecast 탭</h3>
 <table>
   <tr><th>영역</th><th>내용</th></tr>
-  <tr><td>Forecast 타일</td><td>Status 탭과 같은 구성이지만 <b>고른 연도 전체 값</b>입니다(Won 제목은 "Won (2026)"처럼 연도만).</td></tr>
-  <tr><td>Quarter Closing Forecast</td><td>고른 연도의 Q1~Q4 막대입니다. 막대마다 Forecast별(Lost 제외) 금액이 색으로 쌓입니다. 아래 표는 같은 값을 "건수 · 금액"으로 보여 주며, 분기마다 Open 합계와 합계(Open + Won) 칸이 있습니다. 4개 분기가 항상 모두 보이고, 아래 Selected Quarter에서 고른 분기의 막대와 표 행이 진하게 강조됩니다(나머지 분기는 흐리게).</td></tr>
-  <tr><td>Selected Quarter</td><td>제목 "Selected Quarter : Qn"과 Q1~Q4 버튼입니다. 버튼을 누르면 고른 분기의 Forecast별(Lost 제외) 건수·금액, <b>Open 합계</b>, <b>Won</b>(제목 예: "Won (2026 Q3)"), <b>합계</b>(Open + Won) 타일이 그 분기 값으로 바뀝니다. 이미 받은 값을 쓰므로 다시 불러오지 않습니다. 처음에는 고른 연도가 올해면 오늘이 속한 분기, 다른 연도면 Q1이 선택되어 있습니다. 고른 분기도 화면 주소에 남습니다.</td></tr>
+  <tr><td>Forecast 타일</td><td>Status 탭과 같은 구성이며 <b>고른 분기들의 합계</b>입니다(분기를 고르지 않았으면 연도 전체).</td></tr>
+  <tr><td>Quarter Closing Forecast</td><td>고른 연도의 분기별 막대입니다. 막대마다 Forecast별(Lost 제외) 금액이 색으로 쌓입니다. 아래 표는 같은 값을 "건수 · 금액"으로 보여 주며, 분기마다 Open 합계와 합계(Open + Won) 칸이 있습니다. <b>고른 분기만</b> 막대와 표 행으로 보이고, 분기를 고르지 않았거나 넷 다 골랐으면 Q1~Q4가 모두 보입니다. (2026-10-28 변경: 예전 하단 Selected Quarter 영역은 없어지고 위 Quarter 버튼으로 대신합니다)</td></tr>
   <tr><td>Closing Attention</td><td>이번 달 Expected Close / 이번 분기 Expected Close / N일 이상 미업데이트 건수입니다.</td></tr>
 </table>
 <p><b>주의 필요 Deal·Closing Attention 타일은 담당자·Vendor 조건만 따르고 연도·Quarter 조건은 따르지 않습니다.</b> 작년 Expected Close로 밀려 있는 위험 Deal도 보이게 하기 위해서입니다.</p>
@@ -518,13 +517,12 @@
 <p>막대(또는 막대 조각), 타일, 전체 Status Pipeline 표의 Status 이름·합계, Quarter Closing Forecast 표의 숫자 칸을 누르면 <b>그 숫자를 만든 조건이 검색 조건으로 자동 등록된 채 Deals 목록으로 이동</b>합니다. 목록의 "총 N건"과 금액 합은 누른 숫자와 같습니다. 팝업은 열리지 않습니다. Status 표의 건수·금액 칸과 분기 표의 분기 이름(Q1~Q4)은 누를 수 없습니다. Lost 제외·Open 합계 같은 숫자는 목록의 <b>Forecast 조건에 해당 Forecast들을 모두 골라</b> 넘깁니다(관리자가 추가한 Open 코드도 포함). 넘길 Forecast가 하나도 없으면 그 숫자는 누를 수 없습니다.</p>
 <table>
   <tr><th>누른 곳</th><th>Deals 목록에 들어가는 조건</th></tr>
-  <tr><td>Forecast 타일</td><td>연도·Quarter·담당자·Vendor + 그 Forecast(Forecast 탭은 Quarter 없이 연도 전체)</td></tr>
-  <tr><td>Open 합계 타일</td><td>연도·Quarter·담당자·Vendor + Forecast <b>Open 전체</b>(Won·Lost가 아닌 모든 Forecast)(Forecast 탭은 Quarter 없이 연도 전체)</td></tr>
-  <tr><td>Status 막대·표 행 / 표 합계</td><td>연도·Quarter·담당자·Vendor + 그 Status(합계는 Status 없음) + Forecast <b>Lost 제외</b>(Lost가 아닌 모든 Forecast)</td></tr>
+  <tr><td>Forecast 타일</td><td>연도·고른 Quarter들·담당자·Vendor + 그 Forecast</td></tr>
+  <tr><td>Open 합계 타일</td><td>연도·Quarter·담당자·Vendor + Forecast <b>Open 전체</b>(Won·Lost가 아닌 모든 Forecast)</td></tr>
+  <tr><td>Status 막대·표 행 / 표 합계</td><td>연도·고른 Quarter들·담당자·Vendor + 그 Status(합계는 Status 없음) + Forecast <b>Lost 제외</b>(Lost가 아닌 모든 Forecast)</td></tr>
   <tr><td>기한초과 / 미업데이트</td><td>담당자·Vendor + 기한초과 또는 미업데이트 체크(연도·Quarter 없음)</td></tr>
   <tr><td>이번 달 / 이번 분기 Expected Close</td><td>오늘이 속한 연도·월(또는 분기) + 담당자·Vendor + Forecast <b>Open 전체</b>(Won·Lost가 아닌 모든 Forecast)</td></tr>
   <tr><td>분기 막대 조각·표 칸</td><td>연도·그 분기·담당자·Vendor + 그 Forecast(표의 Open 합계 칸은 Open 전체, 합계 칸은 Lost 제외)</td></tr>
-  <tr><td>Selected Quarter 타일</td><td>연도·선택한 분기·담당자·Vendor + 그 Forecast(Open 합계 타일은 Open 전체, 합계 타일은 Lost 제외)</td></tr>
 </table>
 <ul>
   <li>Vendor는 관리 목록에 있는 것만 넘어갑니다.</li>

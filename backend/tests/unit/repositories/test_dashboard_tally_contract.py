@@ -102,7 +102,7 @@ async def test_status_tally_period_bounds_are_inclusive(dashboard_case: Dashboar
         await dashboard_case.add_deal(day=day, amount=1)
 
     year = await _by_status(dashboard_case, year=2026)
-    q4 = await _by_status(dashboard_case, year=2026, quarter=4)
+    q4 = await _by_status(dashboard_case, year=2026, quarters=frozenset({4}))
     jan = await _by_status(dashboard_case, year=2027, month=1)
 
     assert year == {"prospecting": Tally(2, 2)}
@@ -210,14 +210,42 @@ async def test_quarter_buckets_follow_owner_and_vendor(dashboard_case: Dashboard
 
 @pytest.mark.parametrize(
     "criteria",
-    [{}, {"quarter": 2}, {"year": 2026, "quarter": 2}, {"year": 2026, "month": 5}],
-    ids=["no-year", "quarter-without-year", "with-quarter", "with-month"],
+    [
+        {},
+        {"quarters": frozenset({2})},
+        {"year": 2026, "quarters": frozenset({2})},
+        {"year": 2026, "quarters": frozenset({1, 3})},
+        {"year": 2026, "month": 5},
+    ],
+    ids=["no-year", "quarter-without-year", "with-quarter", "with-several-quarters", "with-month"],
 )
 async def test_quarter_tally_rejects_queries_that_are_not_whole_year(
     dashboard_case: DashboardCase, criteria: dict[str, Any]
 ) -> None:
     with pytest.raises(ValueError, match=r"."):
         await dashboard_case.dashboard.tally_by_quarter(DealQuery(**criteria))
+
+
+async def test_quarter_tally_accepts_all_four_quarters_as_a_whole_year(
+    dashboard_case: DashboardCase,
+) -> None:
+    await dashboard_case.add_deal(day=date(2026, 2, 1), amount=3)
+
+    found = await _by_quarter(dashboard_case, year=2026, quarters=frozenset({1, 2, 3, 4}))
+
+    assert found == {(1, "pipeline"): Tally(1, 3)}
+
+
+async def test_status_tally_of_separated_quarters_leaves_out_the_gap_quarter(
+    dashboard_case: DashboardCase,
+) -> None:
+    await dashboard_case.add_deal(day=date(2026, 2, 1), amount=1)
+    await dashboard_case.add_deal(day=date(2026, 5, 1), amount=10)
+    await dashboard_case.add_deal(day=date(2026, 8, 1), amount=100)
+
+    found = await _by_status(dashboard_case, year=2026, quarters=frozenset({1, 3}))
+
+    assert found == {"prospecting": Tally(2, 101)}
 
 
 # ---- 원장 일치 ----
@@ -227,13 +255,22 @@ async def test_quarter_tally_rejects_queries_that_are_not_whole_year(
     "query",
     [
         DealQuery(year=2026),
-        DealQuery(year=2026, quarter=4),
+        DealQuery(year=2026, quarters=frozenset({4})),
+        DealQuery(year=2026, quarters=frozenset({1, 3})),
         DealQuery(year=2026, owner_user_id=KIM),
         DealQuery(year=2026, forecast_outcome=ForecastOutcomeFilter.NOT_LOST),
-        DealQuery(year=2026, quarter=4, forecast_outcome=ForecastOutcomeFilter.OPEN),
+        DealQuery(year=2026, quarters=frozenset({4}), forecast_outcome=ForecastOutcomeFilter.OPEN),
         DealQuery(year=2026, month=11, forecast_outcome=ForecastOutcomeFilter.NOT_LOST),
     ],
-    ids=["year", "quarter", "owner", "not-lost", "quarter-open", "month-not-lost"],
+    ids=[
+        "year",
+        "quarter",
+        "several-quarters",
+        "owner",
+        "not-lost",
+        "quarter-open",
+        "month-not-lost",
+    ],
 )
 async def test_status_totals_equal_the_deal_list_ledger_for_the_same_condition(
     dashboard_case: DashboardCase, query: DealQuery
@@ -270,7 +307,7 @@ async def test_quarter_totals_equal_the_deal_list_ledger_per_quarter(
 
     for quarter in (1, 2, 3, 4):
         ledger = await dashboard_case.deals.deals.search(
-            DealQuery(year=2026, quarter=quarter, limit=200)
+            DealQuery(year=2026, quarters=frozenset({quarter}), limit=200)
         )
         cells = [t for (q, _), t in buckets.items() if q == quarter]
         assert sum(t.count for t in cells) == len(ledger)

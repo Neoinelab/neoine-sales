@@ -1,14 +1,14 @@
-import { screen, within } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { formatThousandWon } from '../../shared/model/money'
 import { resetMock } from '../../test/fake/default'
 import { USER_ID } from '../../test/fake/seed/ids'
-import { dashboardSummaryFixture } from '../../test/fixtures/dashboardSummary'
+import { dashboardSummaryFixture, emptyDashboardSummary } from '../../test/fixtures/dashboardSummary'
 import { seedVendorId } from '../../test/fixtures/vendors'
 import { renderAt } from '../../test/mockApp'
 import { mockSummary, NOT_LOST_PARAM, NOW, OPEN_PARAM } from './testHelpers'
 
-/** Forecast 탭(슬라이드 9): Forecast 타일, 분기 표(Q1~Q4), 선택 Quarter 강조, Closing Attention 타일. AC-15. */
+/** Forecast 탭(슬라이드 9): Forecast 타일, 분기 표(고른 분기 행), Closing Attention 타일. AC-15·16·18. Selected Quarter는 2026-10-28에 폐지됐다. */
 
 beforeEach(() => resetMock({ now: NOW }))
 afterEach(() => {
@@ -19,8 +19,8 @@ afterEach(() => {
 const won = (n: number) => formatThousandWon(n)
 const hrefsOf = (row: HTMLElement) => within(row).getAllByRole('link').map((a) => a.getAttribute('href'))
 
-async function openForecastTab(url = '/dashboard?tab=forecast&year=2026') {
-  mockSummary(dashboardSummaryFixture())
+async function openForecastTab(url = '/dashboard?tab=forecast&forecast.year=2026', summary = dashboardSummaryFixture()) {
+  mockSummary(summary)
   const view = await renderAt(url)
   await screen.findByRole('table')
   return view
@@ -29,7 +29,6 @@ async function openForecastTab(url = '/dashboard?tab=forecast&year=2026') {
 describe('Forecast 탭의 Forecast 타일', () => {
   it('shows the same tiles as the Status tab', async () => {
     await openForecastTab()
-    // 하단 Selected Quarter 타일도 같은 제목을 쓰므로 상단(연간) 타일 영역으로 한정한다.
     const top = within(screen.getByRole('region', { name: 'Forecast 구분별 금액(단위:천원)' }))
 
     const tile = top.getByRole('link', { name: /Pipeline/ })
@@ -89,9 +88,9 @@ describe('분기 표 (AC-15)', () => {
     expect(hrefs).not.toContain('/deals?year=2026&quarter=2')
   })
 
-  it('carries only the owner and vendor into the quarter links, never the chosen quarter', async () => {
+  it('carries only the owner and vendor into the quarter cell links, never the chosen quarters', async () => {
     const vendor = seedVendorId('Okta')
-    await openForecastTab(`/dashboard?tab=forecast&year=2026&quarter=3&owner=${USER_ID.kim}&vendor=${vendor}`)
+    await openForecastTab(`/dashboard?tab=forecast&forecast.year=2026&forecast.quarter=3%2C4&forecast.owner=${USER_ID.kim}&forecast.vendor=${vendor}`)
 
     const hrefs = hrefsOf(screen.getByRole('row', { name: /Q4/ }))
 
@@ -100,42 +99,98 @@ describe('분기 표 (AC-15)', () => {
     expect(hrefs).toContain(`/deals?year=2026&quarter=4&owner=${USER_ID.kim}&vendor=${vendor}&forecast=${NOT_LOST_PARAM}`)
   })
 
-  it('shows all four quarters whatever the URL quarter or sq is', async () => {
-    await openForecastTab('/dashboard?tab=forecast&year=2026&quarter=3&sq=2')
+  it('shows all four quarters when none or all four are chosen', async () => {
+    await openForecastTab('/dashboard?tab=forecast&forecast.year=2026')
+    expect(within(screen.getByRole('table')).getAllByRole('row')).toHaveLength(5)
+  })
+
+  it('shows all four quarters for all four chosen buttons (they stay pressed)', async () => {
+    await openForecastTab('/dashboard?tab=forecast&forecast.year=2026&forecast.quarter=1%2C2%2C3%2C4')
 
     expect(within(screen.getByRole('table')).getAllByRole('row')).toHaveLength(5)
+    for (const n of [1, 2, 3, 4]) expect(within(screen.getByRole('group', { name: 'Quarter' })).getByRole('button', { name: `Q${n}` })).toHaveAttribute('aria-pressed', 'true')
   })
 })
 
-/**
- * 계약 변경(2026-10-23): 선택 분기는 상단 Quarter 필터(`quarter`)가 아니라 하단 Selected Quarter(`sq`)가 정한다.
- * 항상 한 분기가 선택되므로(기본: 올해면 오늘 분기, 아니면 Q1) '아무것도 강조하지 않음' 기대는 폐기했다.
- * 세부 시나리오는 DashboardPage.selectedQuarter.test.tsx.
- */
-describe('선택한 Quarter 강조 (AC-15, AC6)', () => {
-  it('marks the sq quarter row and says which quarter is selected in the heading', async () => {
-    await openForecastTab('/dashboard?tab=forecast&year=2026&sq=3')
+describe('고른 분기만 보이는 Quarter Closing Forecast (AC-16·18, Selected Quarter 폐지)', () => {
+  it('shows only the chosen quarter rows in ascending order', async () => {
+    await openForecastTab('/dashboard?tab=forecast&forecast.year=2026&forecast.quarter=3%2C1')
 
-    expect(screen.getByRole('heading', { level: 2, name: 'Selected Quarter : Q3' })).toBeVisible()
-    expect(screen.getByRole('row', { name: /Q3/ })).toHaveAttribute('aria-current', 'true')
-    for (const other of [/Q1/, /Q2/, /Q4/]) expect(screen.getByRole('row', { name: other })).not.toHaveAttribute('aria-current', 'true')
+    const rows = within(screen.getByRole('table')).getAllByRole('row')
+
+    expect(rows).toHaveLength(3)
+    expect(rows[1]).toHaveTextContent('Q1')
+    expect(rows[2]).toHaveTextContent('Q3')
+    expect(screen.queryByRole('row', { name: /Q2/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('row', { name: /Q4/ })).not.toBeInTheDocument()
   })
 
-  it('marks exactly one row by default (the quarter of today)', async () => {
-    await openForecastTab()
+  it('shows one row for one chosen quarter', async () => {
+    await openForecastTab('/dashboard?tab=forecast&forecast.year=2026&forecast.quarter=4')
+
+    expect(within(screen.getByRole('table')).getAllByRole('row')).toHaveLength(2)
+    expect(screen.getByRole('row', { name: /Q4/ })).toBeVisible()
+  })
+
+  it('does not mark any row as current or selected', async () => {
+    await openForecastTab('/dashboard?tab=forecast&forecast.year=2026&forecast.quarter=1%2C3')
 
     const marked = within(screen.getByRole('table'))
       .getAllByRole('row')
-      .filter((row) => row.getAttribute('aria-current') === 'true')
-    expect(marked).toHaveLength(1)
-    expect(marked[0]).toHaveTextContent('Q4')
+      .filter((row) => row.hasAttribute('aria-current'))
+    expect(marked).toHaveLength(0)
   })
 
-  it('ignores the Quarter filter of the Status tab for the highlight', async () => {
-    await openForecastTab('/dashboard?tab=forecast&year=2026&quarter=3')
+  it('has no Selected Quarter section (no heading, no group, no text)', async () => {
+    await openForecastTab('/dashboard?tab=forecast&forecast.year=2026&forecast.quarter=1%2C3')
 
-    expect(screen.getByRole('row', { name: /Q4/ })).toHaveAttribute('aria-current', 'true')
-    expect(screen.getByRole('row', { name: /Q3/ })).not.toHaveAttribute('aria-current', 'true')
+    expect(screen.queryByRole('group', { name: 'Selected Quarter' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: /Selected Quarter/ })).not.toBeInTheDocument()
+    expect(screen.queryByText(/Selected Quarter/)).not.toBeInTheDocument()
+  })
+
+  it('ignores the old sq key', async () => {
+    const { user, location } = await openForecastTab('/dashboard?tab=forecast&forecast.year=2026&sq=3')
+
+    expect(within(screen.getByRole('table')).getAllByRole('row')).toHaveLength(5)
+    expect(screen.queryByText(/Selected Quarter/)).not.toBeInTheDocument()
+    await user.click(within(screen.getByRole('group', { name: 'Quarter' })).getByRole('button', { name: 'Q2' }))
+    await waitFor(() => expect(location()).toContain('forecast.quarter=2'))
+    expect(location()).not.toContain('sq=')
+  })
+
+  it('shows the tiles exactly as the server answered for the chosen quarters', async () => {
+    const base = dashboardSummaryFixture()
+    const [q1, , q3] = base.quarters
+    const sum = (pick: (q: NonNullable<typeof q1>) => { count: number; amount: number }) =>
+      [q1, q3].reduce((t, q) => ({ count: t.count + pick(q as NonNullable<typeof q1>).count, amount: t.amount + pick(q as NonNullable<typeof q1>).amount }), { count: 0, amount: 0 })
+    const pipeline = sum((q) => q.cells.pipeline ?? { count: 0, amount: 0 })
+    const summary = dashboardSummaryFixture({
+      period: { year: 2026, quarter: null, quarters: [1, 3], from: '2026-01-01', to: '2026-09-30' },
+      forecast: { ...base.forecast, cells: { ...base.forecast.cells, pipeline } },
+    })
+    await openForecastTab('/dashboard?tab=forecast&forecast.year=2026&forecast.quarter=1%2C3', summary)
+
+    const top = within(screen.getByRole('region', { name: 'Forecast 구분별 금액(단위:천원)' }))
+
+    expect(top.getByRole('link', { name: /Pipeline/ })).toHaveTextContent(`${pipeline.count}건`)
+    expect(top.getByRole('link', { name: /Pipeline/ })).toHaveTextContent(won(pipeline.amount))
+    expect(top.getByRole('link', { name: /Won/ })).toHaveTextContent('Won (2026 Q1, Q3)')
+  })
+
+  it('shows the empty message when the visible quarter rows have no deal (AC-18)', async () => {
+    const empty = emptyDashboardSummary()
+    const full = dashboardSummaryFixture()
+    const summary = { ...empty, quarters: empty.quarters.map((q) => (q.quarter === 2 || q.quarter === 4 ? (full.quarters[q.quarter - 1] ?? q) : q)) }
+    await openForecastTab('/dashboard?tab=forecast&forecast.year=2026&forecast.quarter=1%2C3', summary)
+
+    expect(await screen.findByText('조건에 맞는 Deal이 없습니다.')).toBeVisible()
+  })
+
+  it('shows no empty message when a visible quarter row has deals', async () => {
+    await openForecastTab('/dashboard?tab=forecast&forecast.year=2026&forecast.quarter=1%2C3')
+
+    expect(screen.queryByText('조건에 맞는 Deal이 없습니다.')).not.toBeInTheDocument()
   })
 })
 

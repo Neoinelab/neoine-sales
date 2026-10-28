@@ -6,7 +6,7 @@ import { resetMock } from '../../../test/fake/default'
 import { renderAt } from '../../../test/mockApp'
 import { seedVendorId } from '../../../test/fixtures/vendors'
 import { dealInput } from '../../../test/fake/testing'
-import { ALL_DEALS, dataRows, toggleForecast } from './testHelpers'
+import { ALL_DEALS, dataRows, quarterButton, toggleForecast, toggleQuarter } from './testHelpers'
 import { USER_ID } from '../../../test/fake/seed/ids'
 import { DEFAULT_DEALS_URL_PATTERN, defaultDealsUrl } from '../../../test/dealsUrl'
 
@@ -136,7 +136,7 @@ describe('필터와 정렬 (T-LIST-05~09)', () => {
     await screen.findByRole('row', { name: /한빛은행 ITDR 도입/ })
     const year = String(new Date().getFullYear())
     await user.selectOptions(screen.getByLabelText('연도'), year)
-    await user.selectOptions(screen.getByLabelText('Quarter'), 'Q4')
+    await toggleQuarter(user, 'Q4')
     expect(location()).toContain(`year=${year}`)
     expect(location()).toContain('quarter=4')
   })
@@ -149,16 +149,26 @@ describe('필터와 정렬 (T-LIST-05~09)', () => {
 
     expect(location()).toContain('month=11')
     expect(location()).toContain('quarter=4')
-    expect(screen.getByLabelText('Quarter')).toHaveDisplayValue('Q4')
+    expect(quarterButton('Q4')).toBeInTheDocument()
   })
 
-  it('clears the month when a quarter is chosen', async () => {
+  it('keeps the month when the chosen quarter contains it (AC-25)', async () => {
     const { user, location } = await renderAt('/deals?year=2026&month=11')
     await screen.findByLabelText('월')
 
-    await user.selectOptions(screen.getByLabelText('Quarter'), 'Q4')
+    await toggleQuarter(user, 'Q4')
 
-    expect(location()).toContain('quarter=4')
+    await waitFor(() => expect(location()).toContain('quarter=4'))
+    expect(location()).toContain('month=11')
+  })
+
+  it('clears the month when the chosen quarter does not contain it (AC-25)', async () => {
+    const { user, location } = await renderAt('/deals?year=2026&month=11')
+    await screen.findByLabelText('월')
+
+    await toggleQuarter(user, 'Q1')
+
+    await waitFor(() => expect(location()).toContain('quarter=1'))
     expect(location()).not.toContain('month=')
   })
 

@@ -64,7 +64,9 @@ async def test_vendor_by_quarter_cells_equal_the_deal_list_ledger(report_case: R
     cells = {(row[0], row[1]): (row[3], row[2]) for row in rows}
     for vendor_id in (sap, ibm):
         for quarter in range(1, 5):
-            expected = await _ledger(report_case, quarter=quarter, vendor_id=vendor_id)
+            expected = await _ledger(
+                report_case, quarters=frozenset({quarter}), vendor_id=vendor_id
+            )
             assert cells[(names[vendor_id], f"2026 Q{quarter}")] == expected, (vendor_id, quarter)
 
 
@@ -77,8 +79,11 @@ async def test_deals_without_a_vendor_equal_the_quarter_ledger_minus_the_vendors
 
     cells = {(row[0], row[1]): (row[3], row[2]) for row in rows}
     for quarter in range(1, 5):
-        whole = await _ledger(report_case, quarter=quarter)
-        with_vendor = [await _ledger(report_case, quarter=quarter, vendor_id=v) for v in (sap, ibm)]
+        whole = await _ledger(report_case, quarters=frozenset({quarter}))
+        with_vendor = [
+            await _ledger(report_case, quarters=frozenset({quarter}), vendor_id=v)
+            for v in (sap, ibm)
+        ]
         expected = (
             whole[0] - sum(c for c, _ in with_vendor),
             whole[1] - sum(a for _, a in with_vendor),

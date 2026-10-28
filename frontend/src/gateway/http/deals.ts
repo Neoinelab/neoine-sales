@@ -30,7 +30,7 @@ function toListParams(q: DealListQuery) {
     ...(q.forecastKeys?.length ? { forecast_key: [...q.forecastKeys] } : {}),
     ...(q.forecastOutcome ? { forecast_outcome: q.forecastOutcome } : {}),
     ...(q.year !== undefined ? { year: q.year } : {}),
-    ...(q.quarter !== undefined ? { quarter: q.quarter } : {}),
+    ...(q.quarters?.length ? { quarter: [...q.quarters] } : {}),
     ...(q.month !== undefined ? { month: q.month } : {}),
     ...(q.updatedFrom ? { updated_from: q.updatedFrom } : {}),
     ...(q.updatedTo ? { updated_to: q.updatedTo } : {}),

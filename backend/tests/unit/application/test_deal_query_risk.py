@@ -43,7 +43,9 @@ def test_with_risk_basis_fills_the_basis_only_when_a_risk_filter_is_set() -> Non
 
 
 def test_forecast_query_has_no_risk_filter() -> None:
-    query = ForecastCriteria(period=ForecastPeriod(year=2026, quarter=4)).to_deal_query()
+    query = ForecastCriteria(
+        period=ForecastPeriod(year=2026, quarters=frozenset({4}))
+    ).to_deal_query()
 
     assert (query.overdue, query.stale, query.risk_basis) == (False, False, None)
     assert query.wants_risk() is False

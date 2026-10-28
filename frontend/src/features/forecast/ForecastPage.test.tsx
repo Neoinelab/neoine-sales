@@ -36,7 +36,8 @@ function readRow(name: string | RegExp): string[] {
 }
 
 async function ledger(query: { year: number; quarter?: 1 | 2 | 3 | 4; month?: number; vendorId?: number; ownerId?: number }): Promise<DealRow[]> {
-  const page = await gateway.deals.list({ ...query, limit: 200 })
+  const { quarter, ...rest } = query
+  const page = await gateway.deals.list({ ...rest, ...(quarter ? { quarters: [quarter] } : {}), limit: 200 })
   return page.items
 }
 

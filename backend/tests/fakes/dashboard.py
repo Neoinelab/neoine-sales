@@ -38,8 +38,12 @@ class FakeDashboardTallyRepository:
         from app.domain.dashboard.quarter_closing import QuarterBucket  # noqa: PLC0415
         from app.domain.forecast.summary import Tally  # noqa: PLC0415
 
-        if query.year is None or query.quarter is not None or query.month is not None:
-            msg = "tally_by_quarter는 연 단위 질의(year만, quarter·month 없음) 전용이다"
+        if (
+            query.year is None
+            or getattr(query, "quarters", None) is not None
+            or query.month is not None
+        ):
+            msg = "tally_by_quarter는 연 단위 질의(year만, quarters·month 없음) 전용이다"
             raise ValueError(msg)
         counts: dict[tuple[int, str], list[int]] = defaultdict(lambda: [0, 0])
         for deal in self._deals._found(query):

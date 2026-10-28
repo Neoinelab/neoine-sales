@@ -69,7 +69,7 @@ function OwnerDealsSection({ ownerName, onClear, children }: SectionProps) {
 
 function OwnerDealsList({ ownerId, ownerName, filters, openTotal, notLost }: Props & { notLost: readonly string[] }) {
   const { year, quarter, month, vendorId } = queryOf(filters)
-  const deals = useDeals({ ownerId, year, quarter, month, vendorId, forecastKeys: notLost, sort: 'revenueDate', order: 'asc', limit: DEAL_LIMIT })
+  const deals = useDeals({ ownerId, year, quarters: quarter ? [quarter] : undefined, month, vendorId, forecastKeys: notLost, sort: 'revenueDate', order: 'asc', limit: DEAL_LIMIT })
   const items = deals.data?.items ?? []
   const total = deals.data?.total ?? 0
   const limit = deals.data?.limit ?? DEAL_LIMIT

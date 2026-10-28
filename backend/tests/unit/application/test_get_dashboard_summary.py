@@ -149,7 +149,9 @@ async def test_status_follows_year_quarter_owner_and_vendor(env: DealEnv) -> Non
     await _deal(env, "pipeline", 32, date(2026, 2, 3), vendor_id=sap.id)
 
     year = await _summary(env)
-    q1 = await _summary(env, DashboardCriteria(period=ForecastPeriod(year=2026, quarter=1)))
+    q1 = await _summary(
+        env, DashboardCriteria(period=ForecastPeriod(year=2026, quarters=frozenset({1})))
+    )
     by_owner = await _summary(
         env, DashboardCriteria(period=ForecastPeriod(year=2026), owner_user_id=other)
     )
@@ -172,11 +174,11 @@ async def test_summary_forecast_part_equals_forecast_summary_total(env: DealEnv)
     await _deal(env, "commit", 40, owner_user_id=other)
     await _deal(env, "won", 500, date(2026, 12, 31))
     await _deal(env, "lost", 999)
-    criteria = DashboardCriteria(period=ForecastPeriod(year=2026, quarter=4))
+    criteria = DashboardCriteria(period=ForecastPeriod(year=2026, quarters=frozenset({4})))
 
     view = await _summary(env, criteria)
     expected = await GetForecastSummary(env.uow_factory, env.clock).execute(
-        ForecastCriteria(period=ForecastPeriod(year=2026, quarter=4))
+        ForecastCriteria(period=ForecastPeriod(year=2026, quarters=frozenset({4})))
     )
 
     assert dict(view.forecast_cells) == dict(expected.total.cells)
@@ -220,7 +222,9 @@ async def test_quarters_cover_the_whole_year_even_with_a_quarter_filter(env: Dea
     await _deal(env, "won", 8, date(2026, 12, 31))
     await _deal(env, "lost", 99, date(2026, 12, 30))
 
-    view = await _summary(env, DashboardCriteria(period=ForecastPeriod(year=2026, quarter=2)))
+    view = await _summary(
+        env, DashboardCriteria(period=ForecastPeriod(year=2026, quarters=frozenset({2})))
+    )
 
     assert [row.quarter for row in view.quarters] == [1, 2, 3, 4]
     assert [row.total for row in view.quarters] == [
@@ -255,7 +259,8 @@ async def test_quarters_match_the_forecast_summary_of_each_quarter(env: DealEnv)
     for row in view.quarters:
         expected = await use_case.execute(
             ForecastCriteria(
-                period=ForecastPeriod(year=2026, quarter=row.quarter), owner_user_id=other
+                period=ForecastPeriod(year=2026, quarters=frozenset({row.quarter})),
+                owner_user_id=other,
             )
         )
         assert dict(row.cells) == dict(expected.total.cells)
@@ -300,7 +305,9 @@ async def test_closing_counts_ignore_the_selected_period(env: DealEnv) -> None:
     await _deal(env, "pipeline", 1, date(2026, 10, 5))
 
     attention = (
-        await _summary(env, DashboardCriteria(period=ForecastPeriod(year=2020, quarter=1)))
+        await _summary(
+            env, DashboardCriteria(period=ForecastPeriod(year=2020, quarters=frozenset({1})))
+        )
     ).attention
 
     assert attention.closing_this_month.count == 1
@@ -344,7 +351,9 @@ async def test_overdue_count_ignores_period_and_excludes_closed_deals(env: DealE
         )
 
     attention = (
-        await _summary(env, DashboardCriteria(period=ForecastPeriod(year=2026, quarter=1)))
+        await _summary(
+            env, DashboardCriteria(period=ForecastPeriod(year=2026, quarters=frozenset({1})))
+        )
     ).attention
 
     assert (
@@ -439,9 +448,11 @@ async def test_summary_as_of_and_today_come_from_clock(env: DealEnv) -> None:
 
 
 async def test_summary_echoes_the_period(env: DealEnv) -> None:
-    criteria = DashboardCriteria(period=ForecastPeriod(year=2026, quarter=3))
+    criteria = DashboardCriteria(period=ForecastPeriod(year=2026, quarters=frozenset({3})))
 
-    assert (await _summary(env, criteria)).period == ForecastPeriod(year=2026, quarter=3)
+    assert (await _summary(env, criteria)).period == ForecastPeriod(
+        year=2026, quarters=frozenset({3})
+    )
 
 
 async def test_summary_with_no_deals_is_all_zero(env: DealEnv) -> None:
@@ -453,3 +464,64 @@ async def test_summary_with_no_deals_is_all_zero(env: DealEnv) -> None:
     attention = view.attention
     assert (attention.overdue, attention.stale) == (0, 0)
     assert (attention.closing_this_month.count, attention.closing_this_quarter.count) == (0, 0)
+
+
+# ---- Quarter 다중 선택 ----
+
+
+async def test_chosen_quarters_limit_tiles_and_status_but_not_the_quarter_rows(
+    env: DealEnv,
+) -> None:
+    await _deal(env, "pipeline", 1, date(2026, 2, 1))  # Q1
+    await _deal(env, "commit", 2, date(2026, 5, 1))  # Q2
+    await _deal(env, "best", 4, date(2026, 8, 1))  # Q3
+    await _deal(env, "pipeline", 8, date(2025, 8, 1))  # 작년 Q3
+
+    view = await _summary(
+        env, DashboardCriteria(period=ForecastPeriod(year=2026, quarters=frozenset({1, 3})))
+    )
+
+    assert view.status_total == Tally(2, 1 + 4)
+    assert view.open_total == Tally(2, 1 + 4)
+    assert view.forecast_cells["pipeline"] == Tally(1, 1)
+    assert view.forecast_cells["best"] == Tally(1, 4)
+    assert view.forecast_cells["commit"] == Tally.ZERO
+    assert [row.quarter for row in view.quarters] == [1, 2, 3, 4]
+    assert view.quarters[1].total == Tally(1, 2)  # 고르지 않은 Q2 행도 값이 있다
+
+
+async def test_forecast_tiles_equal_the_sum_of_the_chosen_quarter_rows(env: DealEnv) -> None:
+    await _deal(env, "pipeline", 1, date(2026, 2, 1))
+    await _deal(env, "pipeline", 2, date(2026, 5, 1))
+    await _deal(env, "pipeline", 4, date(2026, 8, 1))
+    await _deal(env, "pipeline", 8, date(2026, 11, 1))
+
+    view = await _summary(
+        env, DashboardCriteria(period=ForecastPeriod(year=2026, quarters=frozenset({1, 3})))
+    )
+
+    rows = {row.quarter: row for row in view.quarters}
+    assert view.forecast_cells["pipeline"] == Tally(
+        rows[1].cells["pipeline"].count + rows[3].cells["pipeline"].count,
+        rows[1].cells["pipeline"].amount + rows[3].cells["pipeline"].amount,
+    )
+
+
+async def test_attention_does_not_depend_on_the_chosen_quarters(env: DealEnv) -> None:
+    await _deal(env, "pipeline", 1, date(2026, 10, 5))
+    await _deal(env, "pipeline", 2, date(2026, 2, 5))
+
+    plain = await _summary(env)
+    chosen = await _summary(
+        env, DashboardCriteria(period=ForecastPeriod(year=2026, quarters=frozenset({1, 2})))
+    )
+
+    assert chosen.attention == plain.attention
+
+
+async def test_the_summary_period_keeps_the_chosen_quarters(env: DealEnv) -> None:
+    period = ForecastPeriod(year=2026, quarters=frozenset({1, 3}))
+
+    view = await _summary(env, DashboardCriteria(period=period))
+
+    assert view.period == period

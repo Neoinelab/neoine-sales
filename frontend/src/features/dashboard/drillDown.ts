@@ -1,4 +1,6 @@
 import { forecastParam, type ForecastSets } from '../../shared/model/forecastKeys'
+import type { Quarter } from '../../shared/model/period'
+import { quarterParam } from '../../shared/model/quarterSet'
 
 /**
  * Drill-down: Dashboard의 숫자를 눌렀을 때 여는 Deal 목록 주소. 목록의 조건은 이 주소의 쿼리가 전부다(이전 정렬·페이지는 이어받지 않는다).
@@ -6,19 +8,21 @@ import { forecastParam, type ForecastSets } from '../../shared/model/forecastKey
  * 목록 건수가 누른 숫자와 같다(2026-10-26). 집합이 비면(예: Open 코드가 없음) 주소를 만들지 않고 null을 돌려준다.
  * 서버 정의(`DashboardCriteria`)와의 대응: Open 합계·이번 분기/달 Expected Close = Open 집합, Status·분기 합계 = Lost 제외 집합.
  * 키 순서는 year, quarter, month, owner, vendor, status, forecast, overdue, stale로 고정한다.
+ * `scope`는 활성 탭의 조건이고, `quarter`는 분기 목록(오름차순, 콤마)이다.
  */
 
-/** Dashboard 필터. Vendor는 목록에 있는 id만 넘긴다. */
+/** 활성 탭의 Dashboard 조건. Vendor는 목록에 있는 id만 넘긴다. */
 export interface DashboardScope {
   year: number
-  quarter?: number
+  /** 활성 탭의 정규화된 분기(effectiveQuarters). 비면 분기 조건 없음. */
+  quarters: readonly Quarter[]
   ownerId?: number
   vendor?: number
 }
 
 interface Condition {
   year?: number
-  quarter?: number
+  quarters?: readonly number[]
   month?: number
   ownerId?: number
   vendor?: number
@@ -30,7 +34,7 @@ interface Condition {
 function pathOf(c: Condition): string {
   const params = new URLSearchParams()
   if (c.year !== undefined) params.set('year', String(c.year))
-  if (c.quarter !== undefined) params.set('quarter', String(c.quarter))
+  if (c.quarters?.length) params.set('quarter', quarterParam(c.quarters as readonly Quarter[]))
   if (c.month !== undefined) params.set('month', String(c.month))
   if (c.ownerId !== undefined) params.set('owner', String(c.ownerId))
   if (c.vendor !== undefined) params.set('vendor', String(c.vendor))
@@ -67,16 +71,16 @@ export const stalePath = (scope: DashboardScope): string => pathOf({ ...who(scop
 
 /** 이번 분기 Expected Close: 연·분기는 서버가 알려준 오늘 기준 값이다. */
 export const closingQuarterPath = (scope: DashboardScope, thisQuarter: { year: number; quarter: number }, sets: ForecastSets): string | null =>
-  withSet(sets.open, { year: thisQuarter.year, quarter: thisQuarter.quarter, ...who(scope) })
+  withSet(sets.open, { year: thisQuarter.year, quarters: [thisQuarter.quarter], ...who(scope) })
 
 /** 이번 달 Expected Close: 연·월은 서버가 알려준 오늘 기준 값이다. */
 export const closingMonthPath = (scope: DashboardScope, thisMonth: { year: number; month: number }, sets: ForecastSets): string | null =>
   withSet(sets.open, { year: thisMonth.year, month: thisMonth.month, ...who(scope) })
 
-/** 분기 막대 조각·표 셀: 그 분기와 Forecast 코드(선택한 Quarter는 따르지 않는다). */
+/** 분기 막대 조각·표 셀: 그 분기와 Forecast 코드(고른 분기는 따르지 않는다). */
 export const quarterCellPath = (scope: DashboardScope, quarter: number, forecastKey: string): string =>
-  pathOf({ year: scope.year, quarter, ...who(scope), forecast: [forecastKey] })
+  pathOf({ year: scope.year, quarters: [quarter], ...who(scope), forecast: [forecastKey] })
 
 /** 분기 표 합계: 그 분기 + Lost 제외 코드 전부. */
 export const quarterTotalPath = (scope: DashboardScope, quarter: number, sets: ForecastSets): string | null =>
-  withSet(sets.notLost, { year: scope.year, quarter, ...who(scope) })
+  withSet(sets.notLost, { year: scope.year, quarters: [quarter], ...who(scope) })

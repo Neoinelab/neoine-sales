@@ -50,6 +50,12 @@ def outcome_allowed(query: DealQuery, forecast_key: str, outcome_of: Callable[[s
     return outcome_of(forecast_key) in _ALLOWED_OUTCOMES[str(wanted)]
 
 
+def _in_quarters(query: DealQuery, day: date) -> bool:
+    """범위 안에서 분기 집합으로 한 번 더 거른다(떨어진 분기 Q1·Q3 사이의 Q2 제외)."""
+    quarters = getattr(query, "quarters", None)
+    return quarters is None or (day.month - 1) // 3 + 1 in quarters
+
+
 def matches(
     deal: Any,  # noqa: ANN401
     query: DealQuery,
@@ -85,7 +91,9 @@ def matches(
     start, end = revenue_bounds(query)
     if start is not None and details.revenue_date < start:
         return False
-    return not (end is not None and details.revenue_date > end)
+    return (end is None or details.revenue_date <= end) and _in_quarters(
+        query, details.revenue_date
+    )
 
 
 def revenue_bounds(query: DealQuery) -> tuple[date | None, date | None]:
@@ -94,7 +102,10 @@ def revenue_bounds(query: DealQuery) -> tuple[date | None, date | None]:
     DealQuery.revenue_window와 독립적으로 계산한다(Fake가 구현을 베끼지 않도록).
     """
     if query.year is None:
-        if query.quarter is not None or getattr(query, "month", None) is not None:
+        if (
+            getattr(query, "quarters", None) is not None
+            or getattr(query, "month", None) is not None
+        ):
             # 저장소는 연도가 정해진 질의만 받는다
             msg = "quarter만 있는 질의는 연도를 채운 뒤 조회해야 한다"
             raise ValueError(msg)
@@ -103,8 +114,10 @@ def revenue_bounds(query: DealQuery) -> tuple[date | None, date | None]:
     if month is not None:
         first_month = last_month = month
     else:
-        first_month = 1 if query.quarter is None else (query.quarter - 1) * 3 + 1
-        last_month = 12 if query.quarter is None else query.quarter * 3
+        quarters = getattr(query, "quarters", None)
+        picked = sorted(quarters) if quarters else [1, 2, 3, 4]
+        first_month = (picked[0] - 1) * 3 + 1
+        last_month = picked[-1] * 3
     period_start = date(query.year, first_month, 1)
     period_end = date(query.year, last_month, calendar.monthrange(query.year, last_month)[1])
     return period_start, period_end

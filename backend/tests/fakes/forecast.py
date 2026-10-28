@@ -21,11 +21,11 @@ if TYPE_CHECKING:
     from app.domain.forecast.summary import ForecastBucket
 
 
-def _bounds(year: int, quarter: int | None, month: int | None) -> tuple[date, date]:
+def _bounds(year: int, quarters: frozenset[int] | None, month: int | None) -> tuple[date, date]:
     if month is not None:
         first = last = month
-    elif quarter is not None:
-        first, last = (quarter - 1) * 3 + 1, quarter * 3
+    elif quarters:
+        first, last = (min(quarters) - 1) * 3 + 1, max(quarters) * 3
     else:
         first, last = 1, 12
     return date(year, first, 1), date(year, last, calendar.monthrange(year, last)[1])
@@ -39,11 +39,14 @@ class FakeForecastTallyRepository:
         from app.domain.forecast.summary import ForecastBucket, Tally  # noqa: PLC0415
 
         period = criteria.period
-        start, end = _bounds(period.year, period.quarter, period.month)
+        quarters = getattr(period, "quarters", None)
+        start, end = _bounds(period.year, getattr(period, "quarters", None), period.month)
         counts: dict[tuple[Any, str], list[int]] = defaultdict(lambda: [0, 0])
         for deal in self._deals._items.values():
             details = deal.details
             if not start <= details.revenue_date <= end:
+                continue
+            if quarters and (details.revenue_date.month - 1) // 3 + 1 not in quarters:
                 continue
             if (
                 criteria.owner_user_id is not None

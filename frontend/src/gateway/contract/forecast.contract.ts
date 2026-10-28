@@ -14,7 +14,8 @@ const QUARTER_MONTH = 'Quarter와 월은 함께 선택할 수 없습니다.'
 async function ledger(gateway: Gateway, query: ForecastQuery) {
   const items = []
   for (let offset = 0; ; offset += 200) {
-    const page = await gateway.deals.list({ ...query, offset, limit: 200 })
+    const { quarter, ...rest } = query
+    const page = await gateway.deals.list({ ...rest, ...(quarter ? { quarters: [quarter] } : {}), offset, limit: 200 })
     items.push(...page.items)
     if (items.length >= page.total || page.items.length === 0) break
   }

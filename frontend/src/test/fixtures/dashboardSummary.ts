@@ -14,7 +14,7 @@ export function dashboardSummaryFixture(over: Partial<DashboardSummary> = {}): D
   return {
     asOf: '2026-10-15T09:00:00+09:00',
     today: '2026-10-15',
-    period: { year: 2026, quarter: null, from: '2026-01-01', to: '2026-12-31' },
+    period: { year: 2026, quarter: null, quarters: [], from: '2026-01-01', to: '2026-12-31' },
     forecast: {
       columns: [
         { key: 'pipeline', name: 'Pipeline', outcome: 'open', order: 1 },

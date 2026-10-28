@@ -92,7 +92,13 @@ async def test_response_has_the_documented_top_level_shape() -> None:
     }
     assert ISO_WITH_OFFSET.match(body["as_of"]), body["as_of"]
     assert re.fullmatch(r"\d{4}-\d{2}-\d{2}", body["today"])
-    assert body["period"] == {"year": 2026, "quarter": 4, "from": "2026-10-01", "to": "2026-12-31"}
+    assert body["period"] == {
+        "year": 2026,
+        "quarter": 4,
+        "quarters": [4],
+        "from": "2026-10-01",
+        "to": "2026-12-31",
+    }
 
 
 async def test_a_year_only_period_has_a_null_quarter_and_the_whole_year() -> None:
@@ -102,6 +108,7 @@ async def test_a_year_only_period_has_a_null_quarter_and_the_whole_year() -> Non
     assert body["period"] == {
         "year": 2026,
         "quarter": None,
+        "quarters": [],
         "from": "2026-01-01",
         "to": "2026-12-31",
     }
@@ -202,3 +209,55 @@ async def test_the_openapi_declares_forecast_outcome_on_the_deal_list() -> None:
 
     names = {p["name"] for p in spec["paths"]["/api/v1/deals"]["get"]["parameters"]}
     assert "forecast_outcome" in names
+
+
+# ---- Quarter 다중 선택 ----
+
+
+async def test_several_quarters_give_a_period_from_the_first_start_to_the_last_end() -> None:
+    async with _client(_seeded(), role=Role.USER) as http:
+        response = await http.get(URL, params=[("year", 2026), ("quarter", 3), ("quarter", 1)])
+
+    assert response.status_code == 200, response.text
+    assert response.json()["period"] == {
+        "year": 2026,
+        "quarter": None,
+        "quarters": [1, 3],
+        "from": "2026-01-01",
+        "to": "2026-09-30",
+    }
+
+
+async def test_all_four_quarters_read_like_no_quarter() -> None:
+    async with _client(_seeded(), role=Role.USER) as http:
+        four = await http.get(URL, params=(("year", 2026), *(("quarter", q) for q in (1, 2, 3, 4))))
+        none = await http.get(URL, params={"year": 2026})
+
+    assert four.json()["period"] == none.json()["period"]
+    assert four.json()["period"]["quarters"] == []
+
+
+async def test_the_quarter_rows_are_always_the_four_quarters_with_several_chosen() -> None:
+    async with _client(_seeded(), role=Role.USER) as http:
+        body = (await http.get(URL, params=[("year", 2026), ("quarter", 1), ("quarter", 3)])).json()
+
+    assert [row["quarter"] for row in body["quarters"]] == [1, 2, 3, 4]
+
+
+@pytest.mark.parametrize("bad", ["0", "5", "x"])
+async def test_a_quarter_outside_one_to_four_is_request_validation(bad: str) -> None:
+    async with _client(_seeded(), role=Role.USER) as http:
+        response = await http.get(URL, params=[("year", 2026), ("quarter", 1), ("quarter", bad)])
+
+    assert response.status_code == 422, response.text
+    assert str(response.json()["type"]).endswith("request-validation")
+
+
+async def test_more_than_four_quarter_values_is_request_validation() -> None:
+    async with _client(_seeded(), role=Role.USER) as http:
+        response = await http.get(
+            URL, params=(("year", 2026), *(("quarter", q) for q in (1, 2, 3, 4, 2)))
+        )
+
+    assert response.status_code == 422, response.text
+    assert str(response.json()["type"]).endswith("request-validation")

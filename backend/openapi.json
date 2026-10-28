@@ -1373,6 +1373,13 @@
             ],
             "title": "Quarter"
           },
+          "quarters": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Quarters",
+            "type": "array"
+          },
           "to": {
             "format": "date",
             "title": "To",
@@ -1386,6 +1393,7 @@
         "required": [
           "year",
           "quarter",
+          "quarters",
           "from",
           "to"
         ],
@@ -7769,9 +7777,13 @@
             "schema": {
               "anyOf": [
                 {
-                  "maximum": 4,
-                  "minimum": 1,
-                  "type": "integer"
+                  "items": {
+                    "maximum": 4,
+                    "minimum": 1,
+                    "type": "integer"
+                  },
+                  "maxItems": 4,
+                  "type": "array"
                 },
                 {
                   "type": "null"
@@ -8333,9 +8345,13 @@
             "schema": {
               "anyOf": [
                 {
-                  "maximum": 4,
-                  "minimum": 1,
-                  "type": "integer"
+                  "items": {
+                    "maximum": 4,
+                    "minimum": 1,
+                    "type": "integer"
+                  },
+                  "maxItems": 4,
+                  "type": "array"
                 },
                 {
                   "type": "null"

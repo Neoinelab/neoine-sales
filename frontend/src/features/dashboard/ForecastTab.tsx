@@ -1,18 +1,20 @@
 import { DrillLink } from './DrillLink'
 import { AMOUNT_LABEL } from '../../shared/model/money'
-import type { DashboardSummary, ForecastCell } from '../../shared/model/types'
+import type { DashboardQuarter, DashboardSummary, ForecastCell } from '../../shared/model/types'
 import { AmountText } from '../../shared/ui/AmountText'
 import { forecastSetsOf } from '../../shared/model/forecastKeys'
 import { closingQuarterPath, quarterCellPath, quarterTotalPath, type DashboardScope } from './drillDown'
 import { QuarterChart } from './QuarterChart'
-import { SelectedQuarterSection } from './SelectedQuarterSection'
 import { ClosingAttention, ForecastTiles } from './Tiles'
 
 interface Props {
   summary: DashboardSummary
   scope: DashboardScope
-  selectedQuarter: 1 | 2 | 3 | 4
-  onSelectQuarter: (quarter: 1 | 2 | 3 | 4) => void
+}
+
+/** 보이는 분기 행: 활성 탭에서 고른 분기만(scope.quarters, 비면 4개 모두). 오름차순은 서버 응답 순서. */
+export function visibleQuarters(summary: DashboardSummary, scope: DashboardScope): DashboardQuarter[] {
+  return scope.quarters.length > 0 ? summary.quarters.filter((q) => scope.quarters.includes(q.quarter)) : summary.quarters
 }
 
 function CellLink({ to, cell }: { to: string | null; cell: ForecastCell | undefined }) {
@@ -24,8 +26,8 @@ function CellLink({ to, cell }: { to: string | null; cell: ForecastCell | undefi
   )
 }
 
-/** 분기 표: 차트와 같은 값을 글자로 보인다. 모든 셀이 Deal 목록 링크다. Selected Quarter 행은 `aria-current`. */
-function QuarterTable({ summary, scope, selectedQuarter }: Pick<Props, 'summary' | 'scope' | 'selectedQuarter'>) {
+/** 분기 표: 차트와 같은 값을 글자로 보인다. 모든 셀이 Deal 목록 링크다. 보이는 분기 행만 낸다. */
+function QuarterTable({ summary, scope, rows }: Pick<Props, 'summary' | 'scope'> & { rows: readonly DashboardQuarter[] }) {
   const { columns } = summary.forecast
   const sets = forecastSetsOf(columns)
   return (
@@ -49,8 +51,8 @@ function QuarterTable({ summary, scope, selectedQuarter }: Pick<Props, 'summary'
           </tr>
         </thead>
         <tbody>
-          {summary.quarters.map((q) => (
-            <tr key={q.quarter} aria-current={selectedQuarter === q.quarter ? 'true' : undefined} className={selectedQuarter === q.quarter ? 'db-selected' : undefined}>
+          {rows.map((q) => (
+            <tr key={q.quarter}>
               <th scope="row">Q{q.quarter}</th>
               {columns.map((c) => (
                 <td key={c.key} className="db-num">
@@ -71,20 +73,20 @@ function QuarterTable({ summary, scope, selectedQuarter }: Pick<Props, 'summary'
   )
 }
 
-/** Forecast 탭(슬라이드 9): Forecast 구분별 타일(연간) → Quarter Closing Forecast(누적 막대 + 표) → Selected Quarter → Closing Attention. */
-export function ForecastTab({ summary, scope, selectedQuarter, onSelectQuarter }: Props) {
+/** Forecast 탭(슬라이드 9): Forecast 구분별 타일(고른 분기 합계) → Quarter Closing Forecast(누적 막대 + 표) → Closing Attention. 타일·차트·표는 고른 분기만 집계한다. */
+export function ForecastTab({ summary, scope }: Props) {
+  const rows = visibleQuarters(summary, scope)
   return (
     <div className="db-stack">
       <ForecastTiles summary={summary} scope={scope} />
       <section className="db-panel" aria-labelledby="db-quarter-heading">
         <h2 id="db-quarter-heading">Quarter Closing Forecast</h2>
         <p className="hint">
-          Expected Close가 속한 분기별 Forecast 구분 금액입니다(Lost 제외). 4개 분기를 모두 보이며 아래 Selected Quarter의 분기를 진하게 표시합니다.
+          Expected Close가 속한 분기별 Forecast 구분 금액입니다(Lost 제외). 고른 분기만 보이며, 고르지 않으면 4개 분기를 모두 보입니다.
         </p>
-        <QuarterChart columns={summary.forecast.columns} quarters={summary.quarters} scope={scope} selectedQuarter={selectedQuarter} />
-        <QuarterTable summary={summary} scope={scope} selectedQuarter={selectedQuarter} />
+        <QuarterChart columns={summary.forecast.columns} quarters={rows} scope={scope} />
+        <QuarterTable summary={summary} scope={scope} rows={rows} />
       </section>
-      <SelectedQuarterSection summary={summary} scope={scope} selectedQuarter={selectedQuarter} onSelect={onSelectQuarter} />
       <ClosingAttention summary={summary} scope={scope} />
     </div>
   )

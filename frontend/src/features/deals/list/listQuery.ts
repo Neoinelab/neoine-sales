@@ -4,15 +4,14 @@ import type { DealListQuery, DealSortKey, SortOrder } from '../../../shared/mode
 
 import { nextActionStatusFromParam } from '../../../shared/model/nextActionStatus'
 import { parseId } from '../../../shared/model/ids'
-import { monthsOfQuarter, parseMonth } from '../../../shared/model/month'
+import { parseMonth } from '../../../shared/model/month'
+import { effectiveQuarters, monthsOfQuarters, parseQuarterParam, quarterParam, toggleQuarter } from '../../../shared/model/quarterSet'
 import { isCalendarDate } from '../../../shared/model/updatedPeriod'
 import { FILTER_KEYS } from '../../../shared/model/dealListMemory'
 import { parseForecastParam } from '../../../shared/model/forecastKeys'
 
 /** URL 쿼리 키(정의는 shared의 기억 모듈에 있고 여기서 다시 내보낸다). */
 export { FILTER_KEYS }
-
-const ALL_MONTHS: readonly number[] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
 
 const SORT_KEYS: readonly DealSortKey[] = ['name', 'revenueAmount', 'revenueDate', 'lastUpdatedAt', 'statusKey', 'owner', 'customer', 'partner', 'vendor', 'forecastKey']
 
@@ -41,29 +40,39 @@ function isSortKey(value: string | null): value is DealSortKey {
   return SORT_KEYS.some((key) => key === value)
 }
 
-function quarterOf(params: URLSearchParams): Quarter | undefined {
-  const quarter = Number(params.get('quarter'))
-  return quarter === 1 || quarter === 2 || quarter === 3 || quarter === 4 ? quarter : undefined
+/** URL의 분기 목록(오름차순, 중복 제거, 형식이 틀린 항목은 버림). 넷 다여도 누른 그대로다. */
+export function quartersOf(params: URLSearchParams): Quarter[] {
+  return parseQuarterParam(params.get('quarter'))
 }
 
-/** 화면과 질의가 쓰는 월: 분기가 있으면 그 분기에 속한 월만, 분기가 없으면(또는 모르는 분기면) 형식이 맞는 월. */
+/** 월 선택지: 고른 분기들의 월 합집합, 분기가 없거나 넷 다면 12달. */
+export function monthOptions(params: URLSearchParams): readonly number[] {
+  return monthsOfQuarters(quartersOf(params))
+}
+
+/** 화면과 질의가 쓰는 월: 월 선택지에 있는 월만, 아니면 undefined. */
 export function effectiveMonth(params: URLSearchParams): number | undefined {
   const month = parseMonth(params.get('month'))
-  const quarter = quarterOf(params)
-  if (month === undefined || quarter === undefined) return month
-  return monthsOfQuarter(quarter).includes(month) ? month : undefined
+  return month !== undefined && monthOptions(params).includes(month) ? month : undefined
 }
 
-/** 월 선택지: 분기를 골랐으면 그 분기의 세 달, 아니면 12달. */
-export function monthOptions(params: URLSearchParams): readonly number[] {
-  const quarter = quarterOf(params)
-  return quarter === undefined ? ALL_MONTHS : monthsOfQuarter(quarter)
+/** 분기 목록을 바꿀 때의 URL 변경. 보이던 월이 새 선택지에 없거나, 지금 선택지 밖이라 숨어 있던 월이면 월을 지운다(숨은 월이 되살아나지 않게). */
+function quarterPatch(params: URLSearchParams, next: readonly Quarter[]): Record<string, string> {
+  const raw = params.get('month')
+  const month = effectiveMonth(params)
+  const patch = { quarter: quarterParam(next) }
+  const hidden = raw !== null && raw !== '' && month === undefined
+  return hidden || (month !== undefined && !monthsOfQuarters(next).includes(month)) ? { ...patch, month: '' } : patch
 }
 
-/** Quarter를 바꿀 때 URL에 적용할 변경. 다른 분기면 월을 지우고, 전체면 화면에 보이던 월만 남긴다. */
-export function quarterChangePatch(params: URLSearchParams, next: string): Record<string, string> {
-  if (next === '' && effectiveMonth(params) !== undefined) return { quarter: '' }
-  return { quarter: next, month: '' }
+/** 분기 하나를 켜거나 끌 때 URL에 적용할 변경. */
+export function quarterTogglePatch(params: URLSearchParams, quarter: Quarter, on: boolean): Record<string, string> {
+  return quarterPatch(params, toggleQuarter(quartersOf(params), quarter, on))
+}
+
+/** "전체"(선택 해제): 보이던 월은 남기고, 보이지 않던 월(선택지 밖)은 지운다. */
+export function quarterClearPatch(params: URLSearchParams): Record<string, string> {
+  return effectiveMonth(params) !== undefined ? { quarter: '' } : { quarter: '', month: '' }
 }
 
 function positiveInt(value: string | null): number | null {
@@ -118,11 +127,11 @@ export function listQueryFromParams(params: URLSearchParams): DealListQuery {
   const year = positiveInt(params.get('year'))
   if (year !== null) query.year = year
   // 분기는 연도와 따로 보낸다(연도 없이 분기만 있으면 서버가 올해로 본다).
-  // 월은 분기와 함께 보내지 않는다(서버 422). 분기에 속한 월이면 월만, 속하지 않으면 분기만 보낸다.
-  const quarter = quarterOf(params)
+  // 월은 분기와 함께 보내지 않는다(서버 422). 월 선택지에 있는 월이면 월만, 아니면 정규화한 분기 목록(넷 다면 생략)만 보낸다.
+  const quarters = effectiveQuarters(quartersOf(params))
   const month = effectiveMonth(params)
   if (month !== undefined) query.month = month
-  else if (quarter !== undefined) query.quarter = quarter
+  else if (quarters.length > 0) query.quarters = quarters
 
   if (params.get('mine') === '1') query.mine = true
   if (params.get('overdue') === '1') query.overdue = true

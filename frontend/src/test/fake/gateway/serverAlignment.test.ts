@@ -76,8 +76,8 @@ describe('deals.list quarter', () => {
   it('accepts a quarter without a year and reads it as this year (AC-19)', async () => {
     const { gateway } = await mockAs('kim') // Fake 시계 2026-10-15
 
-    const quarterOnly = await gateway.deals.list({ quarter: 4, limit: 100 })
-    const explicit = await gateway.deals.list({ year: 2026, quarter: 4, limit: 100 })
+    const quarterOnly = await gateway.deals.list({ quarters: [4], limit: 100 })
+    const explicit = await gateway.deals.list({ year: 2026, quarters: [4], limit: 100 })
 
     expect(quarterOnly.total).toBeGreaterThan(0)
     expect(quarterOnly.items.map((d) => d.code)).toEqual(explicit.items.map((d) => d.code))
@@ -87,7 +87,7 @@ describe('deals.list quarter', () => {
     const { gateway } = await mockAs('kim')
 
     await expect(gateway.deals.list({ year: 2026 })).resolves.toHaveProperty('total')
-    await expect(gateway.deals.list({ year: 2026, quarter: 4 })).resolves.toHaveProperty('total')
+    await expect(gateway.deals.list({ year: 2026, quarters: [4] })).resolves.toHaveProperty('total')
   })
 })
 

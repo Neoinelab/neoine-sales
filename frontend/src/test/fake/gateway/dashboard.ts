@@ -11,6 +11,7 @@ import type {
 import { validation } from '../errors'
 import { read, requireUser, type MockContext } from './context'
 import { codeSetOf } from './dealChange'
+import { normalizedQuarters, quarterOfMonth } from './quarters'
 import { dealRow } from './views'
 
 const YEAR_MIN = 1900
@@ -39,14 +40,15 @@ function quarterRange(year: number, quarter: Quarter): { from: string; to: strin
  * Deal을 직접 훑어서, Drill-down 조건과 일치하는지를 계약 테스트가 따로 확인할 수 있다.
  * - Forecast 타일: 기간·담당자·Vendor, Lost 제외
  * - Status: 같은 조건 + Forecast가 Lost가 아닌 Deal
- * - 분기: 연도·담당자·Vendor(Quarter 무시), 항상 Q1~Q4
+ * - 분기: 연도·담당자·Vendor(고른 분기 무시), 항상 Q1~Q4
+ * - 고른 분기(quarters): 타일·Status만 그 분기 합. 없음·넷 다 = 전체(period.quarters = [])
  * - 주의: 담당자·Vendor만(기간 무시). 이번 달·분기 Expected Close는 Open Deal만, 기준은 Fake 시계의 업무 날짜
  */
 function summarize(ctx: MockContext, query: DashboardQuery): DashboardSummary {
   if (!Number.isInteger(query.year) || query.year < YEAR_MIN || query.year > YEAR_MAX) {
     throw validation(`연도는 ${YEAR_MIN}~${YEAR_MAX} 중에서 입력하세요.`)
   }
-  if (query.quarter !== undefined && ![1, 2, 3, 4].includes(query.quarter)) throw validation('분기는 1~4 중에서 선택하세요.')
+  const chosen = normalizedQuarters(query.quarters) // 서버처럼 없음·넷 다는 조건 없음, 범위 밖은 422
   const { data } = ctx.store
   const codes = codeSetOf(ctx)
   const outcomeOf = new Map(codes.forecasts.map((c) => [c.key, c.outcome]))
@@ -60,7 +62,7 @@ function summarize(ctx: MockContext, query: DashboardQuery): DashboardSummary {
     (d) => (query.ownerId ? d.ownerId === query.ownerId : true) && (query.vendorId ? d.vendorId === query.vendorId : true),
   )
   const inYear = scoped.filter((d) => periodOf(d.revenueDate).year === query.year)
-  const inPeriod = inYear.filter((d) => query.quarter === undefined || periodOf(d.revenueDate).quarter === query.quarter)
+  const inPeriod = inYear.filter((d) => chosen === undefined || chosen.includes(quarterOfMonth(Number(d.revenueDate.slice(5, 7)))))
 
   const cells = blank()
   for (const deal of inPeriod) {
@@ -96,8 +98,11 @@ function summarize(ctx: MockContext, query: DashboardQuery): DashboardSummary {
     today,
     period: {
       year: query.year,
-      quarter: query.quarter ?? null,
-      ...(query.quarter === undefined ? { from: `${query.year}-01-01`, to: `${query.year}-12-31` } : quarterRange(query.year, query.quarter)),
+      quarter: chosen?.length === 1 ? (chosen[0] as Quarter) : null,
+      quarters: (chosen ?? []) as Quarter[],
+      ...(chosen === undefined
+        ? { from: `${query.year}-01-01`, to: `${query.year}-12-31` }
+        : { from: quarterRange(query.year, chosen[0] as Quarter).from, to: quarterRange(query.year, chosen[chosen.length - 1] as Quarter).to }),
     },
     forecast: { columns, cells, openTotal: sumOf(openKeys.map((k) => cells[k] as ForecastCell)) },
     statuses: { items: statuses, total: sumOf(statuses) },

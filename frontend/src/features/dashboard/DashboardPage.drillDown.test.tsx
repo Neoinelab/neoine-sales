@@ -63,7 +63,7 @@ describe('이동과 목록 조건 (AC-17)', () => {
     expect(await screen.findByLabelText('Status')).toHaveDisplayValue('기회발굴')
     expect(screen.queryByLabelText('Forecast 구분')).not.toBeInTheDocument()
     expect(screen.getByLabelText('연도')).toHaveDisplayValue('2026')
-    expect(screen.getByLabelText('Quarter')).toHaveDisplayValue('Q4')
+    expect(screen.getByRole('button', { name: 'Quarter Q4' })).toBeVisible()
     expect(screen.getByLabelText('담당자')).toHaveDisplayValue('김영업')
   })
 
@@ -81,7 +81,7 @@ describe('이동과 목록 조건 (AC-17)', () => {
   })
 
   it('goes back to the Dashboard with the same tab and filters', async () => {
-    const start = '/dashboard?tab=forecast&year=2026&quarter=3'
+    const start = '/dashboard?tab=forecast&forecast.year=2026&forecast.quarter=3%2C4'
     const view = await renderAt(start)
     const row = await screen.findByRole('row', { name: /Q4/ })
     await view.user.click(within(row).getAllByRole('link')[0] as HTMLElement)
@@ -91,7 +91,7 @@ describe('이동과 목록 조건 (AC-17)', () => {
 
     await waitFor(() => expect(view.location()).toBe(start))
     expect(await screen.findByRole('tab', { name: 'Forecast' })).toHaveAttribute('aria-selected', 'true')
-    expect(screen.queryByLabelText('Quarter')).not.toBeInTheDocument()
+    expect(within(await screen.findByRole('group', { name: 'Quarter' })).getByRole('button', { name: 'Q3' })).toHaveAttribute('aria-pressed', 'true')
   })
 
   it('does not store the Dashboard condition as the remembered list condition', async () => {
@@ -166,7 +166,7 @@ describe('목록의 건수가 누른 숫자와 같다 (AC-18)', () => {
 
   it('overdue and stale tiles ignore the period', async () => {
     const view = await renderAt('/dashboard?year=2026&quarter=1')
-    const { attention } = await summaryOf({ year: 2026, quarter: 1 })
+    const { attention } = await summaryOf({ year: 2026, quarters: [1] })
     expect(attention.overdue).toBeGreaterThan(0)
 
     await view.user.click(await screen.findByRole('link', { name: /기한초과/ }))
@@ -232,23 +232,6 @@ describe('목록의 건수가 누른 숫자와 같다 (AC-18)', () => {
     expect(view.location()).toBe(`/deals?year=2026&quarter=${target.quarter}&forecast=${OPEN_PARAM}`)
   })
 
-  it('the Selected Quarter Open total and total tiles equal the quarter numbers', async () => {
-    const view = await renderAt('/dashboard?tab=forecast&year=2026&sq=3')
-    const { quarters } = await summaryOf({ year: 2026 })
-    const q3 = quarters.find((q) => q.quarter === 3)
-    if (!q3) throw new Error('Q3가 없습니다.')
-    const bottom = async () => within(await screen.findByRole('region', { name: 'Selected Quarter 구분별 금액(단위:천원)' }))
-
-    await view.user.click(await (await bottom()).findByRole('link', { name: /Open 합계/ }))
-    await listCount(view, q3.openTotal.count)
-    expect(view.location()).toBe(`/deals?year=2026&quarter=3&forecast=${OPEN_PARAM}`)
-
-    view.goTo(-1)
-    await view.user.click(await (await bottom()).findByRole('link', { name: /^합계/ }))
-    await listCount(view, q3.total.count)
-    expect(view.location()).toBe(`/deals?year=2026&quarter=3&forecast=${NOT_LOST_PARAM}`)
-  })
-
   it('an open forecast code added by the admin is in the Open total link and the list count equals the tile (AC-14·16)', async () => {
     const view = await renderAt('/deals?year=all', { role: 'admin' })
     await screen.findByRole('search', { name: 'Deal 필터' })
@@ -270,5 +253,86 @@ describe('목록의 건수가 누른 숫자와 같다 (AC-18)', () => {
     await view.user.click(within(await screen.findByRole('row', { name: /합계/ })).getByRole('link'))
     await listCount(view, statuses.total.count)
     expect(view.location().split('forecast=')[1]).toContain(encodeURIComponent(verbal.key))
+  })
+})
+
+describe('고른 분기의 Drill-down은 목록 건수와 같다 (Quarter 다중 선택 AC-19~21·36)', () => {
+  const SEVERAL = '/dashboard?tab=status&status.year=2026&status.quarter=1%2C3&forecast.year=2026'
+
+  it('Forecast tile of several quarters opens the list of the same quarters with the same count', async () => {
+    const view = await renderAt(SEVERAL)
+    const { forecast } = await summaryOf({ year: 2026, quarters: [1, 3] })
+    const column = forecast.columns.find((c) => (forecast.cells[c.key]?.count ?? 0) > 0)
+    if (!column) throw new Error('Q1·Q3에 건수가 있는 Forecast가 없습니다(시드 Deal 필요).')
+
+    await view.user.click(await screen.findByRole('link', { name: new RegExp(column.name) }))
+
+    await listCount(view, forecast.cells[column.key]?.count ?? -1)
+    expect(view.location()).toBe(`/deals?year=2026&quarter=1%2C3&forecast=${column.key}`)
+  })
+
+  it('Open total tile of several quarters equals the list total', async () => {
+    const view = await renderAt(SEVERAL)
+    await gateway.deals.create(dealInput(USER_ID.kim, { name: 'Q1 Open Deal', forecastKey: 'pipeline', revenueDate: '2026-02-10' }))
+    await view.client.invalidateQueries()
+    const open = (await summaryOf({ year: 2026, quarters: [1, 3] })).forecast.openTotal.count
+    expect(open).toBeGreaterThan(0)
+
+    await view.user.click(await screen.findByRole('link', { name: /Open 합계/ }))
+
+    await listCount(view, open)
+    expect(view.location()).toBe(`/deals?year=2026&quarter=1%2C3&forecast=${OPEN_PARAM}`)
+  })
+
+  it('Status row and total row of several quarters equal their list totals', async () => {
+    const view = await renderAt(SEVERAL)
+    const { statuses } = await summaryOf({ year: 2026, quarters: [1, 3] })
+    const first = statuses.items.find((item) => item.count > 0)
+    if (!first) throw new Error('Q1·Q3에 건수가 있는 Status가 없습니다(시드 Deal 필요).')
+
+    await view.user.click(within(await screen.findByRole('row', { name: new RegExp(first.name) })).getByRole('link'))
+    await listCount(view, first.count)
+    expect(view.location()).toBe(`/deals?year=2026&quarter=1%2C3&status=${first.key}&forecast=${NOT_LOST_PARAM}`)
+
+    view.goTo(-1)
+    await view.user.click(within(await screen.findByRole('row', { name: /합계/ })).getByRole('link'))
+    await listCount(view, statuses.total.count)
+    expect(view.location()).toBe(`/deals?year=2026&quarter=1%2C3&forecast=${NOT_LOST_PARAM}`)
+  })
+
+  it('opens the whole year for all four quarters pressed (no quarter key in the link)', async () => {
+    const view = await renderAt('/dashboard?status.year=2026&status.quarter=1%2C2%2C3%2C4')
+
+    await view.user.click(await screen.findByRole('link', { name: /Open 합계/ }))
+
+    await waitFor(() => expect(view.location()).toBe(`/deals?year=2026&forecast=${OPEN_PARAM}`))
+  })
+
+  it('a quarter cell opens exactly that one quarter whatever quarters are chosen', async () => {
+    const view = await renderAt('/dashboard?tab=forecast&forecast.year=2026&forecast.quarter=1%2C3')
+    const { quarters } = await summaryOf({ year: 2026, quarters: [1, 3] })
+    const target = quarters.find((q) => q.quarter === 3 && q.total.count > 0)
+    if (!target) throw new Error('Q3에 건수가 있는 분기가 없습니다(시드 Deal 필요).')
+
+    const row = await screen.findByRole('row', { name: /Q3/ })
+    await view.user.click(within(row).getAllByRole('link').at(-1) as HTMLElement)
+
+    await listCount(view, target.total.count)
+    expect(view.location()).toBe(`/deals?year=2026&quarter=3&forecast=${NOT_LOST_PARAM}`)
+  })
+
+  it('this quarter, this month and overdue tiles are the same addresses whatever quarters are chosen', async () => {
+    await renderAt(SEVERAL)
+
+    expect(await screen.findByRole('link', { name: /이번 분기/ })).toHaveAttribute('href', `/deals?year=2026&quarter=4&forecast=${OPEN_PARAM}`)
+    expect(screen.getByRole('link', { name: /기한초과/ })).toHaveAttribute('href', '/deals?overdue=1')
+  })
+
+  it('uses the conditions of the active tab only for the links and the vendor check (AC-36)', async () => {
+    await renderAt(`/dashboard?tab=forecast&status.year=2025&status.owner=${USER_ID.kim}&forecast.year=2026`)
+
+    const tile = await screen.findByRole('link', { name: /Open 합계/ })
+
+    expect(tile).toHaveAttribute('href', `/deals?year=2026&forecast=${OPEN_PARAM}`)
   })
 })

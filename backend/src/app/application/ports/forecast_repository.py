@@ -25,7 +25,7 @@ class ForecastCriteria:
     def to_deal_query(self) -> DealQuery:
         return DealQuery(
             year=self.period.year,
-            quarter=self.period.quarter,
+            quarters=self.period.quarters,
             month=self.period.month,
             owner_user_id=self.owner_user_id,
             vendor_id=self.vendor_id,

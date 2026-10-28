@@ -6,9 +6,6 @@ ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip, Legend)
 
 export { SERIES_COLORS } from '../../shared/ui/chartTheme'
 
-/** 선택하지 않은 막대를 흐리게 하는 투명도(16진 알파). */
-export const DIMMED_ALPHA = '55'
-
 export { chartTheme } from '../../shared/ui/chartTheme'
 
 /** 금액 축 눈금: 천원 콤마 숫자. */

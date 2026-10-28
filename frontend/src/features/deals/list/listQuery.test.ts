@@ -10,7 +10,9 @@ import {
   listQueryFromParams,
   monthOptions,
   nextSort,
-  quarterChangePatch,
+  quarterClearPatch,
+  quarterTogglePatch,
+  quartersOf,
   updateParams,
 } from './listQuery'
 import { USER_ID } from '../../../test/fake/seed/ids'
@@ -39,7 +41,7 @@ describe('listQueryFromParams (T-LIST-05, T-LIST-09)', () => {
       statusKey: 'prospecting',
       forecastKeys: ['best'],
       year: 2026,
-      quarter: 4,
+      quarters: [4],
       updatedFrom: '2026-01-01',
       updatedTo: '2026-12-31',
       mine: true,
@@ -88,11 +90,11 @@ describe('listQueryFromParams (T-LIST-05, T-LIST-09)', () => {
   })
 
   it('AC-18 sends a quarter without a year (it means this year on the server)', () => {
-    expect(listQueryFromParams(params('quarter=2'))).toEqual({ offset: 0, limit: 20, quarter: 2 })
+    expect(listQueryFromParams(params('quarter=2'))).toEqual({ offset: 0, limit: 20, quarters: [2] })
   })
 
   it('keeps year and quarter together when both are present', () => {
-    expect(listQueryFromParams(params('year=2027&quarter=1'))).toEqual({ offset: 0, limit: 20, year: 2027, quarter: 1 })
+    expect(listQueryFromParams(params('year=2027&quarter=1'))).toEqual({ offset: 0, limit: 20, year: 2027, quarters: [1] })
   })
 
   it('ignores a quarter outside 1 to 4 even without a year', () => {
@@ -354,7 +356,7 @@ describe('month URL key (P6 Q3-b)', () => {
   it('sends only the month when it belongs to the chosen quarter', () => {
     const query = listQueryFromParams(params('year=2026&quarter=4&month=11'))
     expect(query).toEqual({ offset: 0, limit: 20, year: 2026, month: 11 })
-    expect(query).not.toHaveProperty('quarter')
+    expect(query).not.toHaveProperty('quarters')
   })
 
   it('counts a month as an active filter and returns to the first page when it changes', () => {
@@ -426,7 +428,7 @@ describe('outcome URL key is retired', () => {
 
 describe('year=all (AC-09, AC-18)', () => {
   it('is not sent as a year', () => {
-    expect(listQueryFromParams(params('year=all&quarter=4'))).toEqual({ offset: 0, limit: 20, quarter: 4 })
+    expect(listQueryFromParams(params('year=all&quarter=4'))).toEqual({ offset: 0, limit: 20, quarters: [4] })
   })
 
   it('is not an active filter for the empty-state wording', () => {
@@ -468,14 +470,14 @@ describe('quarter and month rules (AC-10 to AC-13)', () => {
     for (let quarter = 1; quarter <= 4; quarter += 1) {
       for (let month = 1; month <= 12; month += 1) {
         const query = listQueryFromParams(params(`year=2026&quarter=${quarter}&month=${month}`))
-        expect(query.quarter !== undefined && query.month !== undefined).toBe(false)
-        expect(query.quarter !== undefined || query.month !== undefined).toBe(true)
+        expect(query.quarters !== undefined && query.month !== undefined).toBe(false)
+        expect(query.quarters !== undefined || query.month !== undefined).toBe(true)
       }
     }
   })
 
   it('keeps only the quarter when the month is outside it', () => {
-    expect(listQueryFromParams(params('year=2026&quarter=4&month=3'))).toEqual({ offset: 0, limit: 20, year: 2026, quarter: 4 })
+    expect(listQueryFromParams(params('year=2026&quarter=4&month=3'))).toEqual({ offset: 0, limit: 20, year: 2026, quarters: [4] })
   })
 
   it('keeps the month when the quarter is not a real quarter', () => {
@@ -500,18 +502,99 @@ describe('quarter and month rules (AC-10 to AC-13)', () => {
     expect(monthOptions(params('quarter=9'))).toHaveLength(12)
   })
 
-  it('clears the month when another quarter is chosen', () => {
-    expect(quarterChangePatch(params('quarter=4&month=11'), '3')).toEqual({ quarter: '3', month: '' })
-    expect(quarterChangePatch(params('month=5'), '2')).toEqual({ quarter: '2', month: '' })
+  it('offers the union of the months of several chosen quarters (AC-24)', () => {
+    expect(monthOptions(params('quarter=1%2C3'))).toEqual([1, 2, 3, 7, 8, 9])
+    expect(monthOptions(params('quarter=4%2C2'))).toEqual([4, 5, 6, 10, 11, 12])
   })
 
-  it('keeps a visible month when the quarter is set to all', () => {
-    const patch = quarterChangePatch(params('quarter=4&month=11'), '')
-    expect(patch).toEqual({ quarter: '' })
-    expect(patch).not.toHaveProperty('month')
+  it('offers twelve months for all four quarters', () => {
+    expect(monthOptions(params('quarter=1%2C2%2C3%2C4'))).toHaveLength(12)
   })
 
-  it('clears a hidden month when the quarter is set to all', () => {
-    expect(quarterChangePatch(params('quarter=4&month=3'), '')).toEqual({ quarter: '', month: '' })
+  it('clears the month when the toggled quarters no longer contain it (AC-25)', () => {
+    // Q1만 고른 상태에서 월 2 → Q3 켜고 Q1 끔은 두 번의 토글이다. Q1을 끄면 Q3만 남아 월 2는 사라진다.
+    expect(quarterTogglePatch(params('quarter=1%2C3&month=2'), 1, false)).toEqual({ quarter: '3', month: '' })
+  })
+
+  it('keeps the visible month when the new quarters still contain it (AC-25)', () => {
+    expect(quarterTogglePatch(params('quarter=1&month=2'), 2, true)).toEqual({ quarter: '1,2' })
+    expect(quarterTogglePatch(params('quarter=1%2C3&month=8'), 1, false)).toEqual({ quarter: '3' })
+  })
+
+  it('turns the first quarter on without touching a month that is visible', () => {
+    expect(quarterTogglePatch(params('month=5'), 2, true)).toEqual({ quarter: '2' })
+  })
+
+  it('clears a month the first quarter does not contain', () => {
+    expect(quarterTogglePatch(params('month=5'), 1, true)).toEqual({ quarter: '1', month: '' })
+  })
+
+  it('writes the toggled quarters ascending with commas', () => {
+    expect(quarterTogglePatch(params('quarter=3'), 1, true).quarter).toBe('1,3')
+    expect(quarterTogglePatch(params('quarter=1%2C3'), 3, false).quarter).toBe('1')
+  })
+
+  it('writes an empty quarter when the last one is turned off', () => {
+    expect(quarterTogglePatch(params('quarter=2'), 2, false)).toEqual({ quarter: '' })
+  })
+
+  it('drops a month hidden by the current quarters even when the new quarters would include it', () => {
+    expect(quarterTogglePatch(params('year=2026&quarter=1%2C3&month=5'), 2, true)).toEqual({ quarter: '1,2,3', month: '' })
+  })
+
+  it('keeps all four quarters in the URL when the fourth is turned on (U6)', () => {
+    expect(quarterTogglePatch(params('quarter=1%2C2%2C3'), 4, true)).toEqual({ quarter: '1,2,3,4' })
+  })
+
+  it('keeps a visible month when the quarters are cleared with the all button', () => {
+    expect(quarterClearPatch(params('quarter=4&month=11'))).toEqual({ quarter: '' })
+    expect(quarterClearPatch(params('quarter=1%2C3&month=8'))).not.toHaveProperty('month')
+  })
+
+  it('clears a hidden month when the quarters are cleared with the all button', () => {
+    expect(quarterClearPatch(params('quarter=4&month=3'))).toEqual({ quarter: '', month: '' })
+  })
+})
+
+describe('Quarter multi-select in the URL (AC-23·26)', () => {
+  it('reads several quarters into an ascending list', () => {
+    expect(quartersOf(params('quarter=3%2C1'))).toEqual([1, 3])
+    expect(listQueryFromParams(params('year=2026&quarter=1%2C3'))).toEqual({ offset: 0, limit: 20, year: 2026, quarters: [1, 3] })
+  })
+
+  it('sends only the month when it belongs to one of the chosen quarters', () => {
+    const query = listQueryFromParams(params('year=2026&quarter=1%2C3&month=8'))
+
+    expect(query).toEqual({ offset: 0, limit: 20, year: 2026, month: 8 })
+  })
+
+  it('sends only the quarters when the month is outside the chosen quarters', () => {
+    expect(listQueryFromParams(params('year=2026&quarter=1%2C3&month=5'))).toEqual({ offset: 0, limit: 20, year: 2026, quarters: [1, 3] })
+  })
+
+  it('sends no quarters for all four (same as none) but keeps them readable for the screen', () => {
+    expect(listQueryFromParams(params('year=2026&quarter=1%2C2%2C3%2C4'))).toEqual({ offset: 0, limit: 20, year: 2026 })
+    expect(quartersOf(params('quarter=1%2C2%2C3%2C4'))).toEqual([1, 2, 3, 4])
+  })
+
+  it('opens an old single-quarter address as that one quarter', () => {
+    expect(quartersOf(params('quarter=4'))).toEqual([4])
+    expect(listQueryFromParams(params('quarter=4'))).toEqual({ offset: 0, limit: 20, quarters: [4] })
+  })
+
+  it('drops items in the wrong format', () => {
+    expect(quartersOf(params('quarter=1%2C9%2Cx'))).toEqual([1])
+    expect(listQueryFromParams(params('quarter=9%2Cx'))).toEqual({ offset: 0, limit: 20 })
+  })
+
+  it('keeps the month visible when several quarters hold it', () => {
+    expect(effectiveMonth(params('quarter=1%2C3&month=8'))).toBe(8)
+    expect(effectiveMonth(params('quarter=1%2C3&month=5'))).toBeUndefined()
+    expect(effectiveMonth(params('quarter=1%2C2%2C3%2C4&month=5'))).toBe(5)
+  })
+
+  it('counts several quarters as a list condition', () => {
+    expect(hasActiveFilter(params('quarter=1%2C3'))).toBe(true)
+    expect(hasListCondition(params('quarter=1%2C3'))).toBe(true)
   })
 })

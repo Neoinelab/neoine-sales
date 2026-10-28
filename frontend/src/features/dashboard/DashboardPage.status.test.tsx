@@ -46,19 +46,30 @@ describe('Forecast 타일 (AC-12)', () => {
     expect(tile).toHaveAttribute('href', `/deals?year=2026&forecast=${OPEN_PARAM}`)
   })
 
-  it('puts the period in the Won tile title: the year, or the year and quarter', async () => {
+  it('puts the period in the Won tile title: the year, or the year and the chosen quarters (AC-17)', async () => {
     mockSummary(dashboardSummaryFixture())
-    const first = await renderAt('/dashboard?year=2026')
+    const first = await renderAt('/dashboard?status.year=2026')
     const tile = await screen.findByRole('link', { name: /Won/ })
     expect(tile).toHaveTextContent('Won (2026)')
     expect(tile).toHaveTextContent('2건')
     expect(tile).toHaveTextContent(won(40_000_000))
     first.unmount()
 
-    mockSummary(dashboardSummaryFixture({ period: { year: 2026, quarter: 3, from: '2026-07-01', to: '2026-09-30' } }))
-    await renderAt('/dashboard?year=2026&quarter=3')
-
+    mockSummary(dashboardSummaryFixture({ period: { year: 2026, quarter: 3, quarters: [3], from: '2026-07-01', to: '2026-09-30' } }))
+    const second = await renderAt('/dashboard?status.year=2026&status.quarter=3')
     expect(await screen.findByRole('link', { name: /Won/ })).toHaveTextContent('Won (2026 Q3)')
+    second.unmount()
+
+    mockSummary(dashboardSummaryFixture({ period: { year: 2026, quarter: null, quarters: [1, 3], from: '2026-01-01', to: '2026-09-30' } }))
+    await renderAt('/dashboard?status.year=2026&status.quarter=1%2C3')
+    expect(await screen.findByRole('link', { name: /Won/ })).toHaveTextContent('Won (2026 Q1, Q3)')
+  })
+
+  it('says only the year in the Won title when the server answers no quarters (all four chosen)', async () => {
+    mockSummary(dashboardSummaryFixture())
+    await renderAt('/dashboard?status.year=2026&status.quarter=1%2C2%2C3%2C4')
+
+    expect(await screen.findByRole('link', { name: /Won/ })).toHaveTextContent('Won (2026)')
   })
 
   it('has no Lost tile', async () => {

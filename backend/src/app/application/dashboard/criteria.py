@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 class DashboardCriteria:
     """Dashboard 각 숫자의 조건을 정의하는 단일 출처. Drill-down URL과 1:1로 대응한다."""
 
-    period: ForecastPeriod  # year + 선택 quarter
+    period: ForecastPeriod  # year + 고른 분기 집합(없으면 None)
     owner_user_id: UserId | None = None
     vendor_id: VendorId | None = None
 
@@ -70,7 +70,7 @@ class DashboardCriteria:
     def closing_quarter_query(self, today: date) -> DealQuery:
         return DealQuery(
             year=today.year,
-            quarter=quarter_of(today),
+            quarters=frozenset({quarter_of(today)}),
             owner_user_id=self.owner_user_id,
             vendor_id=self.vendor_id,
             forecast_outcome=ForecastOutcomeFilter.OPEN,
@@ -79,7 +79,7 @@ class DashboardCriteria:
     def _period_query(self, outcome: ForecastOutcomeFilter) -> DealQuery:
         return DealQuery(
             year=self.period.year,
-            quarter=self.period.quarter,
+            quarters=self.period.quarters,
             owner_user_id=self.owner_user_id,
             vendor_id=self.vendor_id,
             forecast_outcome=outcome,

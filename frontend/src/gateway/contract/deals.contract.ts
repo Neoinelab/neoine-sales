@@ -5,7 +5,7 @@
 
 import { describe, expect, it } from 'vitest'
 import { DEAL_CODE_PATTERN } from '../../shared/model/constants'
-import type { DealInput } from '../../shared/model/types'
+import type { DealDetail, DealInput } from '../../shared/model/types'
 import type { Gateway } from '../types'
 import { action } from './actions.contract'
 import { expectRejects, unique, type MakeGateway, NO_SUCH_ID } from './support'
@@ -325,8 +325,8 @@ export function dealsContract(make: MakeGateway): void {
       const last = await sales.deals.create(await validInput(sales, { name: `${tag}${unique('d')}`, revenueDate: '2027-03-31' }))
       const next = await sales.deals.create(await validInput(sales, { name: `${tag}${unique('d')}`, revenueDate: '2027-04-01' }))
 
-      const q1 = await sales.deals.list({ keyword: tag, year: 2027, quarter: 1 })
-      const q2 = await sales.deals.list({ keyword: tag, year: 2027, quarter: 2 })
+      const q1 = await sales.deals.list({ keyword: tag, year: 2027, quarters: [1] })
+      const q2 = await sales.deals.list({ keyword: tag, year: 2027, quarters: [2] })
       const year = await sales.deals.list({ keyword: tag, year: 2027 })
       const other = await sales.deals.list({ keyword: tag, year: 2026 })
 
@@ -335,6 +335,57 @@ export function dealsContract(make: MakeGateway): void {
       expect(year.total).toBe(3)
       expect(other.total).toBe(0)
       for (const d of [first, last, next]) await sales.deals.remove(d.code, d.code)
+    })
+
+    it('filters by several quarters of Expected Close without the quarter between them (Quarter 다중 선택 AC-01)', async () => {
+      const sales = await make('sales')
+      const tag = unique('tag')
+      const days = ['2027-01-01', '2027-03-31', '2027-04-01', '2027-06-30', '2027-07-01', '2027-09-30', '2027-10-01']
+      const created: DealDetail[] = []
+      for (const revenueDate of days) created.push(await sales.deals.create(await validInput(sales, { name: `${tag}${unique('d')}`, revenueDate })))
+
+      const q13 = await sales.deals.list({ keyword: tag, year: 2027, quarters: [1, 3] })
+      const single = await sales.deals.list({ keyword: tag, year: 2027, quarters: [2] })
+
+      const code = (index: number) => created[index]?.code
+      expect(q13.items.map((d) => d.code).sort()).toEqual([0, 1, 4, 5].map(code).sort())
+      expect(q13.total).toBe(4)
+      expect(single.items.map((d) => d.code).sort()).toEqual([2, 3].map(code).sort())
+      for (const d of created) await sales.deals.remove(d.code, d.code)
+    })
+
+    it('reads no quarters, an empty list and all four quarters as no quarter condition (Quarter 다중 선택 AC-02)', async () => {
+      const sales = await make('sales')
+      const tag = unique('tag')
+      const created = [
+        await sales.deals.create(await validInput(sales, { name: `${tag}${unique('d')}`, revenueDate: '2027-02-01' })),
+        await sales.deals.create(await validInput(sales, { name: `${tag}${unique('d')}`, revenueDate: '2027-11-01' })),
+      ]
+
+      const none = await sales.deals.list({ keyword: tag, year: 2027 })
+      const empty = await sales.deals.list({ keyword: tag, year: 2027, quarters: [] })
+      const four = await sales.deals.list({ keyword: tag, year: 2027, quarters: [4, 3, 2, 1] })
+      const twice = await sales.deals.list({ keyword: tag, year: 2027, quarters: [1, 1] })
+
+      expect([none.total, empty.total, four.total]).toEqual([2, 2, 2])
+      expect(twice.total).toBe(1)
+      for (const d of created) await sales.deals.remove(d.code, d.code)
+    })
+
+    it('refuses several quarters together with a month, but all four quarters with a month pass (Quarter 다중 선택 AC-05)', async () => {
+      const sales = await make('sales')
+
+      await expectRejects(sales.deals.list({ year: 2027, quarters: [1, 3], month: 2 }), 422)
+      await expectRejects(sales.deals.list({ year: 2027, quarters: [1], month: 2 }), 422)
+      await expect(sales.deals.list({ year: 2027, quarters: [1, 2, 3, 4], month: 2 })).resolves.toHaveProperty('total')
+    })
+
+    it('refuses a quarter outside 1 to 4 and more than four quarters (Quarter 다중 선택 AC-04)', async () => {
+      const sales = await make('sales')
+
+      await expectRejects(sales.deals.list({ year: 2027, quarters: [0] as never }), 422)
+      await expectRejects(sales.deals.list({ year: 2027, quarters: [1, 5] as never }), 422)
+      await expectRejects(sales.deals.list({ year: 2027, quarters: [1, 2, 3, 4, 1] as never }), 422)
     })
 
     it('includes the updatedFrom and updatedTo days themselves', async () => {

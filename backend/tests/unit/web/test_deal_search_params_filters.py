@@ -17,10 +17,10 @@ VIEWER = uid("viewer")
 
 
 def test_forecast_year_and_quarter_reach_the_query() -> None:
-    query = DealSearchParams(forecast_key=["commit"], year=2026, quarter=2).to_query(VIEWER)
+    query = DealSearchParams(forecast_key=["commit"], year=2026, quarter=[2]).to_query(VIEWER)
 
     assert query.forecast_keys == frozenset({"commit"})
-    assert (query.year, query.quarter) == (2026, 2)
+    assert (query.year, query.quarters) == (2026, frozenset({2}))
 
 
 def test_several_forecast_keys_reach_the_query() -> None:
@@ -72,7 +72,7 @@ def test_too_long_a_key_or_too_many_forecast_keys_are_rejected(keys: list[str]) 
 def test_the_new_conditions_default_to_none() -> None:
     query = DealSearchParams().to_query(VIEWER)
 
-    assert (query.forecast_keys, query.year, query.quarter) == (None,) * 3
+    assert (query.forecast_keys, query.year, query.quarters) == (None,) * 3
     assert (query.overdue, query.stale) == (False, False)
 
 
@@ -102,7 +102,9 @@ def test_a_sort_or_order_outside_the_whitelist_is_rejected(params: dict[str, str
         DealSearchParams(**params)
 
 
-@pytest.mark.parametrize("params", [{"year": 1899}, {"year": 10000}, {"year": 2026, "quarter": 0}])
+@pytest.mark.parametrize(
+    "params", [{"year": 1899}, {"year": 10000}, {"year": 2026, "quarter": [0]}]
+)
 def test_a_year_or_quarter_out_of_range_is_rejected(params: dict[str, int]) -> None:
     with pytest.raises((ValidationError, InvalidValueError)):
         DealSearchParams(**params).to_query(VIEWER).revenue_window()
@@ -110,19 +112,19 @@ def test_a_year_or_quarter_out_of_range_is_rejected(params: dict[str, int]) -> N
 
 def test_a_quarter_above_four_is_rejected() -> None:
     with pytest.raises((ValidationError, InvalidValueError)):
-        DealSearchParams(year=2026, quarter=5).to_query(VIEWER).revenue_window()
+        DealSearchParams(year=2026, quarter=[5]).to_query(VIEWER).revenue_window()
 
 
 def test_quarter_without_year_reaches_the_query() -> None:
-    query = DealSearchParams(quarter=2).to_query(VIEWER)
+    query = DealSearchParams(quarter=[2]).to_query(VIEWER)
 
-    assert (query.year, query.quarter) == (None, 2)
+    assert (query.year, query.quarters) == (None, frozenset({2}))
 
 
 @pytest.mark.parametrize("quarter", [0, 5])
 def test_quarter_out_of_range_is_rejected(quarter: int) -> None:
     with pytest.raises(ValidationError):
-        DealSearchParams(quarter=quarter)
+        DealSearchParams(quarter=[quarter])
 
 
 @pytest.mark.parametrize("year", [1900, 9999])
@@ -197,12 +199,12 @@ def test_the_risk_filters_combine_with_mine_and_sort() -> None:
 
 
 def test_the_new_conditions_keep_working_together_with_mine() -> None:
-    query = DealSearchParams(mine=True, year=2026, quarter=3, sort="name", order="asc").to_query(
+    query = DealSearchParams(mine=True, year=2026, quarter=[3], sort="name", order="asc").to_query(
         VIEWER
     )
 
     assert query.owner_user_id == VIEWER
-    assert (query.year, query.quarter) == (2026, 3)
+    assert (query.year, query.quarters) == (2026, frozenset({3}))
     assert (query.sort, query.order) == (DealSort.NAME, SortOrder.ASC)
 
 
@@ -233,3 +235,39 @@ def test_forecast_key_limits_are_named_constants_with_the_documented_values() ->
     from app.web.schemas.deal import FORECAST_KEYS_MAX, STATUS_KEY_MAX  # noqa: PLC0415
 
     assert (FORECAST_KEYS_MAX, STATUS_KEY_MAX) == (100, 50)
+
+
+# ---- Quarter 다중 선택 ----
+
+
+def test_several_quarters_reach_the_query_as_a_set() -> None:
+    query = DealSearchParams(year=2026, quarter=[3, 1]).to_query(VIEWER)
+
+    assert query.quarters == frozenset({1, 3})
+
+
+def test_a_repeated_quarter_equals_one() -> None:
+    assert DealSearchParams(quarter=[1, 1]).to_query(VIEWER).quarters == frozenset({1})
+
+
+def test_all_four_quarters_become_no_quarter_condition() -> None:
+    assert DealSearchParams(year=2026, quarter=[1, 2, 3, 4]).to_query(VIEWER).quarters is None
+
+
+def test_no_quarter_gives_no_quarter_condition() -> None:
+    assert DealSearchParams().to_query(VIEWER).quarters is None
+
+
+@pytest.mark.parametrize("quarter", [[0], [5], [1, 5], [1, 2, 3, 4, 1]])
+def test_a_bad_quarter_list_is_rejected(quarter: list[int]) -> None:
+    with pytest.raises(ValidationError):
+        DealSearchParams(year=2026, quarter=quarter)
+
+
+def test_four_quarter_values_are_accepted() -> None:
+    assert DealSearchParams(year=2026, quarter=[1, 2, 3, 4]).quarter == [1, 2, 3, 4]
+
+
+def test_a_scalar_quarter_is_no_longer_a_model_value() -> None:
+    with pytest.raises(ValidationError):
+        DealSearchParams(year=2026, quarter=2)

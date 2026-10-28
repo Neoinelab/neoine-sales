@@ -61,7 +61,7 @@ async def test_year_and_quarter_follow_the_expected_close_with_boundaries(env: D
     }
     views = {name: await env.new_deal(revenue_date=day) for name, day in days.items()}
 
-    page = await env.list.execute(DealQuery(year=2026, quarter=2))
+    page = await env.list.execute(DealQuery(year=2026, quarters=frozenset({2})))
 
     assert set(_codes(page)) == {views[n].item.deal.id.value for n in ("q2_start", "q2_end")}
     assert page.total == 2
@@ -78,7 +78,7 @@ async def test_quarter_only_filters_this_years_quarter_by_business_date(env: Dea
     await env.new_deal(revenue_date=date(2027, 5, 20))
     await env.new_deal(revenue_date=date(2026, 8, 20))
 
-    page = await env.list.execute(DealQuery(quarter=2))
+    page = await env.list.execute(DealQuery(quarters=frozenset({2})))
 
     assert _codes(page) == [this_year.item.deal.id.value]
     assert page.total == 1
@@ -89,7 +89,7 @@ async def test_quarter_only_follows_the_year_of_the_clock(env: DealEnv) -> None:
     await env.new_deal(revenue_date=date(2026, 5, 20))
     next_year = await env.new_deal(revenue_date=date(2027, 5, 20))
 
-    page = await env.list.execute(DealQuery(quarter=2))
+    page = await env.list.execute(DealQuery(quarters=frozenset({2})))
 
     assert _codes(page) == [next_year.item.deal.id.value]
 
@@ -100,7 +100,7 @@ async def test_quarter_boundaries_without_a_year_include_both_ends(env: DealEnv)
     q4_end = await env.new_deal(revenue_date=date(2026, 12, 31))
     await env.new_deal(revenue_date=date(2026, 9, 30))
 
-    page = await env.list.execute(DealQuery(quarter=4))
+    page = await env.list.execute(DealQuery(quarters=frozenset({4})))
 
     assert set(_codes(page)) == {q4_start.item.deal.id.value, q4_end.item.deal.id.value}
 
@@ -110,7 +110,7 @@ async def test_an_explicit_year_wins_over_the_clock_year(env: DealEnv) -> None:
     await env.new_deal(revenue_date=date(2026, 5, 20))
     past = await env.new_deal(revenue_date=date(2025, 5, 20))
 
-    page = await env.list.execute(DealQuery(year=2025, quarter=2))
+    page = await env.list.execute(DealQuery(year=2025, quarters=frozenset({2})))
 
     assert _codes(page) == [past.item.deal.id.value]
 
@@ -134,7 +134,12 @@ async def test_updated_period_is_combined_with_year_and_quarter(env: DealEnv) ->
     old_update_excluded = await env.new_deal(revenue_date=date(2026, 5, 21))
 
     page = await env.list.execute(
-        DealQuery(year=2026, quarter=2, updated_from=date(2026, 6, 1), updated_to=date(2026, 6, 30))
+        DealQuery(
+            year=2026,
+            quarters=frozenset({2}),
+            updated_from=date(2026, 6, 1),
+            updated_to=date(2026, 6, 30),
+        )
     )
 
     codes = set(_codes(page))
@@ -191,6 +196,6 @@ async def test_quarter_only_uses_the_business_date_year_across_new_year(
     in_business_year = await env.new_deal(revenue_date=date(expected_year, 2, 10))
     await env.new_deal(revenue_date=date(2026 if expected_year == 2027 else 2027, 2, 10))
 
-    page = await env.list.execute(DealQuery(quarter=1))
+    page = await env.list.execute(DealQuery(quarters=frozenset({1})))
 
     assert _codes(page) == [in_business_year.item.deal.id.value]

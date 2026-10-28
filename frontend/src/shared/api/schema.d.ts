@@ -1493,6 +1493,8 @@ export interface components {
             from: string;
             /** Quarter */
             quarter: number | null;
+            /** Quarters */
+            quarters: number[];
             /**
              * To
              * Format: date
@@ -4832,7 +4834,7 @@ export interface operations {
         parameters: {
             query: {
                 year: number;
-                quarter?: number | null;
+                quarter?: number[] | null;
                 owner_user_id?: number | null;
                 vendor_id?: number | null;
             };
@@ -5130,7 +5132,7 @@ export interface operations {
                 forecast_key?: string[] | null;
                 forecast_outcome?: components["schemas"]["ForecastOutcomeFilter"] | null;
                 year?: number | null;
-                quarter?: number | null;
+                quarter?: number[] | null;
                 month?: number | null;
                 updated_from?: string | null;
                 updated_to?: string | null;

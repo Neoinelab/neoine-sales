@@ -12,12 +12,14 @@ def test_criteria_maps_to_same_deal_query_conditions() -> None:
     vendor_id = VendorId(new_id())
     owner = uid("crit-owner")
     criteria = ForecastCriteria(
-        period=ForecastPeriod(year=2026, quarter=4), owner_user_id=owner, vendor_id=vendor_id
+        period=ForecastPeriod(year=2026, quarters=frozenset({4})),
+        owner_user_id=owner,
+        vendor_id=vendor_id,
     )
 
     query = criteria.to_deal_query()
 
-    assert (query.year, query.quarter, query.month) == (2026, 4, None)
+    assert (query.year, query.quarters, query.month) == (2026, frozenset({4}), None)
     assert query.owner_user_id == owner
     assert query.vendor_id == vendor_id
 
@@ -25,7 +27,7 @@ def test_criteria_maps_to_same_deal_query_conditions() -> None:
 def test_month_period_maps_to_the_month_condition() -> None:
     query = ForecastCriteria(period=ForecastPeriod(year=2026, month=3)).to_deal_query()
 
-    assert (query.year, query.quarter, query.month) == (2026, None, 3)
+    assert (query.year, query.quarters, query.month) == (2026, None, 3)
     assert query.owner_user_id is None
     assert query.vendor_id is None
 
@@ -42,3 +44,12 @@ def test_the_deal_query_window_equals_the_forecast_period_range() -> None:
     window = ForecastCriteria(period=period).to_deal_query().revenue_window()
 
     assert window == period.date_range()
+
+
+def test_chosen_quarters_map_to_the_deal_query_quarters() -> None:
+    query = ForecastCriteria(
+        period=ForecastPeriod(year=2026, quarters=frozenset({1, 3}))
+    ).to_deal_query()
+
+    assert query.quarters == frozenset({1, 3})
+    assert query.revenue_quarters() == frozenset({1, 3})

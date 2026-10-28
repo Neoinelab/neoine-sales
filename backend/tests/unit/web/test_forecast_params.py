@@ -61,7 +61,9 @@ def test_to_criteria_carries_period_owner_and_vendor() -> None:
     ).to_criteria()
 
     assert criteria == ForecastCriteria(
-        period=ForecastPeriod(year=2026, quarter=4), owner_user_id=owner, vendor_id=vendor
+        period=ForecastPeriod(year=2026, quarters=frozenset({4})),
+        owner_user_id=owner,
+        vendor_id=vendor,
     )
 
 

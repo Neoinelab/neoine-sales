@@ -22,6 +22,6 @@ class DashboardTallyRepository(Protocol):
     async def tally_by_quarter(self, query: DealQuery) -> Sequence[QuarterBucket]:
         """query 조건의 Deal을 (revenue_date 분기, forecast_key)로 묶은 건수·금액. Lost 포함.
 
-        query.year가 없거나 quarter·month가 있으면 ValueError(연 단위 질의 전용).
+        query.year가 없거나 quarters·month가 있으면 ValueError(연 단위 질의 전용).
         """
         ...

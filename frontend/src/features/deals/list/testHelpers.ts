@@ -50,3 +50,34 @@ export async function toggleForecast(user: UserEvent, name: string | RegExp) {
   const panel = await openForecastPanel(user)
   await user.click(panel.getByRole('checkbox', { name }))
 }
+
+/** 필터 바의 Quarter 버튼(접근 이름 "Quarter <요약>", 요약: 전체 또는 "Q1, Q3"). */
+export function quarterButton(summary: string | RegExp = /^Quarter /) {
+  return filterBar().getByRole('button', { name: typeof summary === 'string' ? `Quarter ${summary}` : summary })
+}
+
+/** Quarter 패널이 닫혀 있으면 열고, 그 안의 질의 도구를 돌려준다. */
+export async function openQuarterPanel(user: UserEvent) {
+  await screen.findByRole('search', { name: 'Deal 필터' })
+  const button = quarterButton()
+  if (button.getAttribute('aria-expanded') !== 'true') await user.click(button)
+  return within(screen.getByRole('group', { name: 'Quarter' }))
+}
+
+/** Quarter 체크박스(이름 "Q1"~"Q4")를 켜거나 끈다(패널은 열린 채 둔다). */
+export async function toggleQuarter(user: UserEvent, name: string) {
+  const panel = await openQuarterPanel(user)
+  await user.click(panel.getByRole('checkbox', { name }))
+}
+
+/** Quarter 패널의 "전체" 버튼으로 선택을 모두 지운다. */
+export async function clearQuarter(user: UserEvent) {
+  const panel = await openQuarterPanel(user)
+  await user.click(panel.getByRole('button', { name: '전체' }))
+}
+
+/** 버튼의 aria-describedby가 가리키는 안내 문구(없으면 null). */
+export function describedText(button: HTMLElement): string | null {
+  const id = button.getAttribute('aria-describedby')
+  return id ? (document.getElementById(id)?.textContent ?? null) : null
+}

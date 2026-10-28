@@ -55,7 +55,7 @@ describe('Fake dashboard.summary', () => {
     await gateway.deals.create(dealInput(USER_ID.kim, { name: 'Q1', revenueDate: '2034-02-01', forecastKey: 'commit', revenueAmount: 1_000_000 }))
     await gateway.deals.create(dealInput(USER_ID.kim, { name: 'Q3', revenueDate: '2034-08-01', forecastKey: 'commit', revenueAmount: 2_000_000 }))
 
-    const q3 = await gateway.dashboard.summary({ year: 2034, quarter: 3 })
+    const q3 = await gateway.dashboard.summary({ year: 2034, quarters: [3] })
 
     expect(q3.quarters.map((q) => q.quarter)).toEqual([1, 2, 3, 4])
     expect(q3.quarters.map((q) => q.total.count)).toEqual([1, 0, 1, 0])
@@ -98,7 +98,7 @@ describe('Fake dashboard.summary', () => {
     const { gateway } = await mockAs('kim', { now: TEST_NOW })
 
     const whole = await gateway.dashboard.summary({ year: 2026 })
-    const other = await gateway.dashboard.summary({ year: 1999, quarter: 2 })
+    const other = await gateway.dashboard.summary({ year: 1999, quarters: [2] })
     const mine = await gateway.dashboard.summary({ year: 1999, ownerId: USER_ID.kim })
 
     expect(other.attention).toEqual(whole.attention)
@@ -110,7 +110,7 @@ describe('Fake dashboard.summary', () => {
     const { gateway } = await mockAs('kim', { now: TEST_NOW })
 
     await expectApiError(gateway.dashboard.summary({ year: 1899 }), 422)
-    await expectApiError(gateway.dashboard.summary({ year: 2026, quarter: 5 as never }), 422)
+    await expectApiError(gateway.dashboard.summary({ year: 2026, quarters: [5] as never }), 422)
   })
 
   it('answers 401 without a login', async () => {

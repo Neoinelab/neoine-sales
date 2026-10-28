@@ -91,7 +91,7 @@ async def test_the_equality_holds_with_year_and_quarter_conditions(deal_case: De
     open_keys = await _keys(deal_case, {ForecastOutcome.OPEN})
     not_lost = await _keys(deal_case, {ForecastOutcome.OPEN, ForecastOutcome.WON})
 
-    scope = {"year": 2026, "quarter": 2}
+    scope = {"year": 2026, "quarters": frozenset({2})}
     assert await _count(deal_case, forecast_keys=open_keys, **scope) == await _count(
         deal_case, forecast_outcome=ForecastOutcomeFilter.OPEN, **scope
     )

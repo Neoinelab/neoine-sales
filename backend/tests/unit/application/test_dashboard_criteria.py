@@ -26,20 +26,24 @@ TODAY = date(2026, 10, 23)
 
 def _full() -> DashboardCriteria:
     return DashboardCriteria(
-        period=ForecastPeriod(year=2025, quarter=2), owner_user_id=OWNER, vendor_id=VENDOR
+        period=ForecastPeriod(year=2025, quarters=frozenset({2})),
+        owner_user_id=OWNER,
+        vendor_id=VENDOR,
     )
 
 
 def test_forecast_criteria_carries_period_owner_and_vendor() -> None:
     assert _full().forecast_criteria() == ForecastCriteria(
-        period=ForecastPeriod(year=2025, quarter=2), owner_user_id=OWNER, vendor_id=VENDOR
+        period=ForecastPeriod(year=2025, quarters=frozenset({2})),
+        owner_user_id=OWNER,
+        vendor_id=VENDOR,
     )
 
 
 def test_status_query_excludes_lost_and_keeps_period_owner_vendor() -> None:
     query = _full().status_query()
 
-    assert (query.year, query.quarter, query.month) == (2025, 2, None)
+    assert (query.year, query.quarters, query.month) == (2025, frozenset({2}), None)
     assert query.owner_user_id == OWNER
     assert query.vendor_id == VENDOR
     assert query.forecast_outcome is ForecastOutcomeFilter.NOT_LOST
@@ -50,7 +54,7 @@ def test_status_query_excludes_lost_and_keeps_period_owner_vendor() -> None:
 def test_open_query_selects_open_outcome() -> None:
     query = _full().open_query()
 
-    assert (query.year, query.quarter) == (2025, 2)
+    assert (query.year, query.quarters) == (2025, frozenset({2}))
     assert (query.owner_user_id, query.vendor_id) == (OWNER, VENDOR)
     assert query.forecast_outcome is ForecastOutcomeFilter.OPEN
 
@@ -58,7 +62,7 @@ def test_open_query_selects_open_outcome() -> None:
 def test_year_query_drops_quarter() -> None:
     query = _full().year_query()
 
-    assert (query.year, query.quarter, query.month) == (2025, None, None)
+    assert (query.year, query.quarters, query.month) == (2025, None, None)
     assert (query.owner_user_id, query.vendor_id) == (OWNER, VENDOR)
     assert query.forecast_outcome is None
 
@@ -77,7 +81,7 @@ def test_overdue_and_stale_queries_ignore_period() -> None:
     stale = _full().stale_query(BASIS)
 
     for query in (overdue, stale):
-        assert (query.year, query.quarter, query.month) == (None, None, None)
+        assert (query.year, query.quarters, query.month) == (None, None, None)
         assert (query.owner_user_id, query.vendor_id) == (OWNER, VENDOR)
         assert query.risk_basis == BASIS
         assert query.forecast_outcome is None
@@ -88,7 +92,7 @@ def test_overdue_and_stale_queries_ignore_period() -> None:
 def test_closing_quarter_query_uses_today_quarter() -> None:
     query = _full().closing_quarter_query(date(2026, 8, 15))
 
-    assert (query.year, query.quarter, query.month) == (2026, 3, None)
+    assert (query.year, query.quarters, query.month) == (2026, frozenset({3}), None)
     assert (query.owner_user_id, query.vendor_id) == (OWNER, VENDOR)
     assert query.forecast_outcome is ForecastOutcomeFilter.OPEN
 
@@ -96,13 +100,13 @@ def test_closing_quarter_query_uses_today_quarter() -> None:
 def test_closing_month_query_uses_today_month() -> None:
     query = _full().closing_month_query(date(2026, 8, 15))
 
-    assert (query.year, query.quarter, query.month) == (2026, None, 8)
+    assert (query.year, query.quarters, query.month) == (2026, None, 8)
     assert (query.owner_user_id, query.vendor_id) == (OWNER, VENDOR)
     assert query.forecast_outcome is ForecastOutcomeFilter.OPEN
 
 
 def test_closing_queries_ignore_the_selected_period() -> None:
-    criteria = DashboardCriteria(period=ForecastPeriod(year=2020, quarter=1))
+    criteria = DashboardCriteria(period=ForecastPeriod(year=2020, quarters=frozenset({1})))
 
     assert criteria.closing_quarter_query(TODAY).year == 2026
     assert criteria.closing_month_query(TODAY).year == 2026
@@ -123,10 +127,35 @@ def test_closing_queries_on_new_year_day_use_new_year(
     quarter_query = criteria.closing_quarter_query(today)
     month_query = criteria.closing_month_query(today)
 
-    assert (quarter_query.year, quarter_query.quarter) == (year, quarter)
+    assert (quarter_query.year, quarter_query.quarters) == (year, frozenset({quarter}))
     assert (month_query.year, month_query.month) == (year, month)
 
 
 def test_criteria_with_month_raises() -> None:
     with pytest.raises(ValueError, match=r"."):
         DashboardCriteria(period=ForecastPeriod(year=2026, month=3))
+
+
+def test_chosen_quarters_reach_the_status_open_and_forecast_conditions() -> None:
+    criteria = DashboardCriteria(
+        period=ForecastPeriod(year=2026, quarters=frozenset({1, 3})), owner_user_id=OWNER
+    )
+
+    assert criteria.status_query().quarters == frozenset({1, 3})
+    assert criteria.open_query().quarters == frozenset({1, 3})
+    assert criteria.forecast_criteria().to_deal_query().quarters == frozenset({1, 3})
+
+
+def test_year_overdue_stale_and_closing_month_queries_ignore_chosen_quarters() -> None:
+    criteria = DashboardCriteria(period=ForecastPeriod(year=2026, quarters=frozenset({1, 3})))
+
+    assert criteria.year_query().quarters is None
+    assert criteria.overdue_query(BASIS).quarters is None
+    assert criteria.stale_query(BASIS).quarters is None
+    assert criteria.closing_month_query(TODAY).quarters is None
+
+
+def test_closing_quarter_query_is_todays_single_quarter_whatever_is_chosen() -> None:
+    criteria = DashboardCriteria(period=ForecastPeriod(year=2026, quarters=frozenset({1, 2})))
+
+    assert criteria.closing_quarter_query(date(2026, 8, 15)).quarters == frozenset({3})

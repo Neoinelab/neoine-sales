@@ -13,6 +13,7 @@ import type {
   Role,
   UserStatus,
 } from './types'
+import type { Quarter } from './period'
 import type { SyncChange, SyncResolution } from './sync'
 
 // ───────────────────────── 연락처 ─────────────────────────
@@ -121,8 +122,9 @@ export interface DealListQuery {
   forecastOutcome?: ForecastOutcomeFilter
   /** Expected Close(revenueDate) 기준 연도/분기. quarter만 있으면 서버가 올해로 본다. */
   year?: number
-  quarter?: 1 | 2 | 3 | 4
-  /** Expected Close의 월(1~12). quarter와 함께 쓸 수 없다(서버 422). month만 있으면 서버가 올해로 본다. */
+  /** 이 중 하나(OR). 비면 보내지 않는다. month와 함께 쓸 수 없다(서버 422). */
+  quarters?: readonly Quarter[]
+  /** Expected Close의 월(1~12). quarters와 함께 쓸 수 없다(서버 422). month만 있으면 서버가 올해로 본다. */
   month?: number
   /** 최종 업데이트 기간(양끝 포함, 'YYYY-MM-DD'). 한쪽만 있어도 된다. */
   updatedFrom?: string
@@ -317,7 +319,8 @@ export interface ForecastSummary {
 /** Dashboard 요약 조회 조건. 기간 기준은 Expected Close. year는 필수, 나머지는 없으면 전체. */
 export interface DashboardQuery {
   year: number
-  quarter?: 1 | 2 | 3 | 4
+  /** 이 중 하나(OR). 비면 보내지 않는다(호출자가 effectiveQuarters로 정규화). */
+  quarters?: readonly Quarter[]
   ownerId?: number
   vendorId?: number
 }
@@ -347,7 +350,7 @@ export interface DashboardSummary {
   asOf: string
   /** 서버 업무 날짜('YYYY-MM-DD'). */
   today: string
-  period: { year: number; quarter: number | null; from: string; to: string }
+  period: { year: number; quarter: number | null; quarters: Quarter[]; from: string; to: string }
   forecast: {
     /** Forecast 코드 order 순, Lost 제외. */
     columns: ForecastColumn[]

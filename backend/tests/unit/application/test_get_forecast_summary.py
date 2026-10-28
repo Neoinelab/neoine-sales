@@ -11,11 +11,10 @@ from typing import TYPE_CHECKING, Any
 from app.application.forecast.get_summary import GetForecastSummary
 from app.application.forecast.views import SummaryBasis
 from app.application.ports.forecast_repository import ForecastCriteria
-from app.domain.forecast.period import ForecastPeriod
-from app.domain.forecast.summary import Tally
-
 from app.domain.code.entities import Code
 from app.domain.code.values import CodeId, CodeKey, CodeKind
+from app.domain.forecast.period import ForecastPeriod
+from app.domain.forecast.summary import Tally
 from tests.factories_auth import make_user
 from tests.support.ids import new_id
 from tests.support.user_ids import OWNER_ID, uid
@@ -24,7 +23,7 @@ if TYPE_CHECKING:
     from app.domain.user.value_objects import UserId
     from tests.unit.application.deal_env import DealEnv
 
-Q4 = ForecastPeriod(year=2026, quarter=4)
+Q4 = ForecastPeriod(year=2026, quarters=frozenset({4}))
 IN_Q4 = date(2026, 11, 15)
 
 

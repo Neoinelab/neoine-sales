@@ -210,3 +210,28 @@ describe('MultiCheckSelect', () => {
     expect(button()).not.toHaveAttribute('aria-controls')
   })
 })
+
+describe('MultiCheckSelect hint (Quarter 다중 선택 AC-27)', () => {
+  it('points the button at the hint text with aria-describedby', () => {
+    setup({ hint: '연도가 전체이면 올해(2026) 기준입니다.' })
+
+    const target = button().getAttribute('aria-describedby')
+    expect(target).toBeTruthy()
+    expect(document.getElementById(target ?? '')).toHaveTextContent('연도가 전체이면 올해(2026) 기준입니다.')
+    expect(screen.getByText('연도가 전체이면 올해(2026) 기준입니다.')).toBeVisible()
+  })
+
+  it('has no aria-describedby and no hint text without the hint prop (Forecast keeps working as before)', () => {
+    setup()
+
+    expect(button()).not.toHaveAttribute('aria-describedby')
+  })
+
+  it('keeps the hint when the panel is closed and when it is open', async () => {
+    const { user } = setup({ hint: '안내 문구' })
+
+    expect(screen.getByText('안내 문구')).toBeVisible()
+    await user.click(button())
+    expect(screen.getByText('안내 문구')).toBeVisible()
+  })
+})

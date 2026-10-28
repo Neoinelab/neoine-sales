@@ -4,7 +4,7 @@ import { gateway } from '../../../gateway'
 import { resetMock } from '../../../test/fake/default'
 import { seedVendorId } from '../../../test/fixtures/vendors'
 import { renderAt } from '../../../test/mockApp'
-import { ALL_DEALS, dataRows } from './testHelpers'
+import { ALL_DEALS, dataRows, describedText, openQuarterPanel, quarterButton, toggleQuarter } from './testHelpers'
 
 /** 시드 날짜가 기준일 상대값이고 "올해" 안내가 시계에 의존하므로 기준일을 고정한다(2026-10-15). */
 const NOW = '2026-10-15T09:00:00+09:00'
@@ -23,25 +23,27 @@ async function listReady() {
 }
 
 describe('Quarter 단독 선택 (AC-18)', () => {
-  it('enables the quarter select without a year and offers all, Q1 to Q4', async () => {
-    await listReady()
+  it('enables the quarter checkboxes without a year and offers Q1 to Q4 and the all button', async () => {
+    const { user } = await listReady()
 
-    const quarter = screen.getByLabelText('Quarter')
-    expect(quarter).toBeEnabled()
-    expect(optionNames(quarter)).toEqual(['전체', 'Q1', 'Q2', 'Q3', 'Q4'])
+    expect(quarterButton('전체')).toBeEnabled()
+    const panel = await openQuarterPanel(user)
+    expect(panel.getAllByRole('checkbox').map((c) => c.getAttribute('value'))).toEqual(['1', '2', '3', '4'])
+    expect(panel.getAllByRole('checkbox').map((c) => c.closest('label')?.textContent)).toEqual(['Q1', 'Q2', 'Q3', 'Q4'])
+    expect(panel.getByRole('button', { name: '전체' })).toBeVisible()
   })
 
   it('puts the quarter next to year=all in the URL and lists that quarter of this year', async () => {
     const { user, location } = await listReady()
 
-    await user.selectOptions(screen.getByLabelText('Quarter'), 'Q4')
+    await toggleQuarter(user, 'Q4')
 
-    expect(location()).toContain('quarter=4')
+    await waitFor(() => expect(location()).toContain('quarter=4'))
     expect(location()).toContain('year=all')
-    const thisYearQ4 = (await gateway.deals.list({ year: 2026, quarter: 4, limit: 100 })).items
+    const thisYearQ4 = (await gateway.deals.list({ year: 2026, quarters: [4], limit: 100 })).items
     expect(thisYearQ4.length).toBeGreaterThan(0)
     await waitFor(() => expect(dataRows()).toHaveLength(Math.min(thisYearQ4.length, 20)))
-    expect(screen.getByLabelText('Quarter')).toHaveDisplayValue('Q4')
+    expect(quarterButton('Q4')).toBeInTheDocument()
   })
 
   it('keeps the chosen quarter when the year is cleared', async () => {
@@ -52,12 +54,12 @@ describe('Quarter 단독 선택 (AC-18)', () => {
 
     expect(location()).toContain('quarter=3')
     expect(location()).toContain('year=all')
-    expect(screen.getByLabelText('Quarter')).toHaveDisplayValue('Q3')
+    expect(quarterButton('Q3')).toBeInTheDocument()
   })
 
   it('keeps the quarter when a year is chosen later', async () => {
     const { user, location } = await listReady()
-    await user.selectOptions(screen.getByLabelText('Quarter'), 'Q2')
+    await toggleQuarter(user, 'Q2')
 
     await user.selectOptions(screen.getByLabelText('연도'), '2027')
 
@@ -69,19 +71,19 @@ describe('Quarter 단독 선택 (AC-18)', () => {
     const { user } = await listReady()
     expect(screen.queryByText(/연도가 전체이면/)).not.toBeInTheDocument()
 
-    await user.selectOptions(screen.getByLabelText('Quarter'), 'Q2')
+    await toggleQuarter(user, 'Q2')
 
     expect(screen.getByText('연도가 전체이면 올해(2026) 기준입니다.')).toBeVisible()
+    expect(describedText(quarterButton('Q2'))).toBe('연도가 전체이면 올해(2026) 기준입니다.')
     await user.selectOptions(screen.getByLabelText('연도'), '2027')
     expect(screen.queryByText(/연도가 전체이면/)).not.toBeInTheDocument()
   })
 
-  it('shows the hint inside the Quarter label', async () => {
+  it('links the hint to the Quarter button', async () => {
     await renderAt('/deals?quarter=1')
     await screen.findByLabelText('Quarter')
 
-    const label = screen.getByLabelText('Quarter').closest('label') as HTMLElement
-    expect(within(label).getByText('연도가 전체이면 올해(2026) 기준입니다.')).toBeVisible()
+    expect(describedText(quarterButton('Q1'))).toBe('연도가 전체이면 올해(2026) 기준입니다.')
   })
 })
 
@@ -158,7 +160,7 @@ describe('월 선택 표시 (R1 Minor 2·3)', () => {
     await renderAt('/deals?year=2026&quarter=4&month=11')
     await screen.findByLabelText('월')
 
-    expect(screen.getByLabelText('Quarter')).toHaveValue('4')
+    expect(quarterButton('Q4')).toBeInTheDocument()
     expect(screen.getByLabelText('월')).toHaveValue('11')
   })
 

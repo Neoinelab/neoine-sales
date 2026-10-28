@@ -36,7 +36,7 @@ class SqlDashboardTallyRepository:
         return {key: Tally(int(count), int(amount)) for key, count, amount in result}
 
     async def tally_by_quarter(self, query: DealQuery) -> Sequence[QuarterBucket]:
-        if query.year is None or query.quarter is not None or query.month is not None:
+        if query.year is None or query.quarters is not None or query.month is not None:
             raise ValueError("분기별 집계는 연 단위 질의(year만)에서만 쓸 수 있습니다.")
         month = extract("month", DealRow.revenue_date)
         statement = (

@@ -24,6 +24,7 @@ from app.web.schemas.choice import CatalogChoiceRequest
 from app.web.schemas.common import RequestModel
 from app.web.schemas.deal_change import DealChangeRequest
 from app.web.schemas.ids import BodyId, QueryId
+from app.web.schemas.period_params import QuartersParam, quarter_set
 
 __all__ = [
     "BantRequest",
@@ -198,7 +199,7 @@ class DealSearchParams(RequestModel):
     )
     forecast_outcome: ForecastOutcomeFilter | None = None
     year: Annotated[int | None, Field(ge=1900, le=9999)] = None
-    quarter: Annotated[int | None, Field(ge=1, le=4)] = None
+    quarter: QuartersParam = None
     month: Annotated[int | None, Field(ge=1, le=12)] = None
     updated_from: date | None = None
     updated_to: date | None = None
@@ -222,9 +223,10 @@ class DealSearchParams(RequestModel):
         return None if self.owner_user_id is None else UserId(self.owner_user_id)
 
     def to_query(self, viewer_user_id: UserId) -> DealQuery:
-        criteria = self.model_dump(exclude={"mine", "owner_user_id", "forecast_key"})
+        criteria = self.model_dump(exclude={"mine", "owner_user_id", "forecast_key", "quarter"})
         return DealQuery(
             owner_user_id=viewer_user_id if self.mine else self._owner(),
             forecast_keys=frozenset(self.forecast_key) if self.forecast_key else None,
+            quarters=quarter_set(self.quarter),
             **criteria,
         )

@@ -50,7 +50,9 @@ def test_snapshot_to_criteria_carries_period_and_owner_without_vendor() -> None:
     criteria = ForecastSnapshotSearchParams(year=2026, quarter=3, owner_user_id=owner).to_criteria()
 
     assert criteria == ForecastCriteria(
-        period=ForecastPeriod(year=2026, quarter=3), owner_user_id=owner, vendor_id=None
+        period=ForecastPeriod(year=2026, quarters=frozenset({3})),
+        owner_user_id=owner,
+        vendor_id=None,
     )
 
 

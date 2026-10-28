@@ -42,9 +42,44 @@ describe('deals.list month over HTTP (P6 AC-12)', () => {
   it('does not send month when it is not set', async () => {
     const { calls } = stubFetch(json(page([])))
 
-    await createDealsHttp().list({ year: 2026, quarter: 4 })
+    await createDealsHttp().list({ year: 2026, quarters: [4] })
 
     expect(query(calls[0]?.path ?? '').has('month')).toBe(false)
+  })
+})
+
+describe('deals.list quarters over HTTP (Quarter 다중 선택 AC-10)', () => {
+  it('repeats the quarter key once per chosen quarter', async () => {
+    const { calls } = stubFetch(json(page([])))
+
+    await createDealsHttp().list({ year: 2026, quarters: [1, 3] })
+
+    expect(query(calls[0]?.path ?? '').getAll('quarter')).toEqual(['1', '3'])
+    expect(query(calls[0]?.path ?? '').get('year')).toBe('2026')
+  })
+
+  it('sends a single quarter as one quarter key', async () => {
+    const { calls } = stubFetch(json(page([])))
+
+    await createDealsHttp().list({ year: 2026, quarters: [2] })
+
+    expect(query(calls[0]?.path ?? '').getAll('quarter')).toEqual(['2'])
+  })
+
+  it.each([[[]], [undefined]])('sends no quarter key for %j', async (quarters) => {
+    const { calls } = stubFetch(json(page([])))
+
+    await createDealsHttp().list({ year: 2026, quarters })
+
+    expect(query(calls[0]?.path ?? '').has('quarter')).toBe(false)
+  })
+
+  it('never sends the old single-quarter query field', async () => {
+    const { calls } = stubFetch(json(page([])))
+
+    await createDealsHttp().list({ year: 2026, quarters: [1, 3], month: undefined })
+
+    expect(calls[0]?.path).not.toContain('quarters=')
   })
 })
 
@@ -68,7 +103,7 @@ describe('deals.list forecast outcome over HTTP (Dashboard AC-9)', () => {
   it('does not send forecast_outcome when it is not set', async () => {
     const { calls } = stubFetch(json(page([])))
 
-    await createDealsHttp().list({ year: 2026, quarter: 4 })
+    await createDealsHttp().list({ year: 2026, quarters: [4] })
 
     expect(query(calls[0]?.path ?? '').has('forecast_outcome')).toBe(false)
   })
@@ -123,7 +158,7 @@ describe('deals.list over HTTP', () => {
       statusKey: 'prospecting',
       forecastKeys: ['pipeline'],
       year: 2026,
-      quarter: 4,
+      quarters: [4],
       updatedFrom: '2026-10-01',
       updatedTo: '2026-12-31',
       mine: true,
@@ -258,7 +293,7 @@ describe('deals.list over HTTP', () => {
   it('AC-18/19 sends a quarter without a year as the quarter alone (the server reads it as this year)', async () => {
     const { calls } = stubFetch(json(page([])))
 
-    await createDealsHttp().list({ quarter: 2 })
+    await createDealsHttp().list({ quarters: [2] })
 
     expect(Object.fromEntries(query(calls[0]?.path ?? ''))).toEqual({ quarter: '2' })
   })

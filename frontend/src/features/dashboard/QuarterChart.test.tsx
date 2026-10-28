@@ -19,7 +19,7 @@ afterEach(() => {
   resetMock({ now: null })
 })
 
-async function openForecastTab(url = '/dashboard?tab=forecast&year=2026', summary = dashboardSummaryFixture()) {
+async function openForecastTab(url = '/dashboard?tab=forecast&forecast.year=2026', summary = dashboardSummaryFixture()) {
   mockSummary(summary)
   const view = await renderAt(url)
   await screen.findByRole('table')
@@ -70,7 +70,7 @@ describe('차트 데이터', () => {
   it('adds a dataset for a forecast code the admin added, in code order', async () => {
     const base = dashboardSummaryFixture()
     const verbal = { key: 'verbal', name: 'Verbal', outcome: 'open' as const, order: 35 }
-    await openForecastTab('/dashboard?tab=forecast&year=2026', {
+    await openForecastTab('/dashboard?tab=forecast&forecast.year=2026', {
       ...base,
       forecast: { ...base.forecast, columns: [...base.forecast.columns.slice(0, 3), verbal, ...base.forecast.columns.slice(3)] },
       quarters: base.quarters.map((q) => ({ ...q, cells: { ...q.cells, verbal: { count: 1, amount: 7_000_000 } } })),
@@ -80,10 +80,46 @@ describe('차트 데이터', () => {
     expect(lastChart().data.datasets[3]?.data).toEqual([7_000_000, 7_000_000, 7_000_000, 7_000_000])
   })
 
-  it('keeps all four quarters when sq is chosen', async () => {
-    await openForecastTab('/dashboard?tab=forecast&year=2026&sq=3')
+  it('keeps all four quarters when sq is in the address (sq is ignored)', async () => {
+    await openForecastTab('/dashboard?tab=forecast&forecast.year=2026&sq=3')
 
     expect(lastChart().data.labels).toEqual(['Q1', 'Q2', 'Q3', 'Q4'])
+  })
+
+  it('has only the chosen quarters on the axis in ascending order (AC-16)', async () => {
+    await openForecastTab('/dashboard?tab=forecast&forecast.year=2026&forecast.quarter=3%2C1')
+
+    expect(lastChart().data.labels).toEqual(['Q1', 'Q3'])
+  })
+
+  it('holds the amounts of the chosen quarters only', async () => {
+    await openForecastTab('/dashboard?tab=forecast&forecast.year=2026&forecast.quarter=1%2C3')
+
+    const [pipeline, best] = lastChart().data.datasets.map((d) => d.data)
+
+    expect(pipeline).toEqual([40_000_000, 100_000_000])
+    expect(best).toEqual([20_000_000, 50_000_000])
+  })
+
+  it('has a single quarter on the axis for one chosen quarter', async () => {
+    await openForecastTab('/dashboard?tab=forecast&forecast.year=2026&forecast.quarter=2')
+
+    expect(lastChart().data.labels).toEqual(['Q2'])
+  })
+
+  it('has all four quarters when all four are chosen', async () => {
+    await openForecastTab('/dashboard?tab=forecast&forecast.year=2026&forecast.quarter=1%2C2%2C3%2C4')
+
+    expect(lastChart().data.labels).toEqual(['Q1', 'Q2', 'Q3', 'Q4'])
+  })
+
+  it('does not dim any bar (the highlight is gone with Selected Quarter)', async () => {
+    await openForecastTab('/dashboard?tab=forecast&forecast.year=2026&forecast.quarter=1%2C3')
+
+    for (const dataset of lastChart().data.datasets) {
+      const colours = [dataset.backgroundColor].flat().map(String)
+      expect(new Set(colours).size, String(dataset.label)).toBe(1)
+    }
   })
 })
 
@@ -111,7 +147,7 @@ describe('조각 클릭은 Deal 목록으로 이동한다 (AC-16)', () => {
   it('maps the dataset to its code key even when a code was added in the middle', async () => {
     const base = dashboardSummaryFixture()
     const verbal = { key: 'verbal', name: 'Verbal', outcome: 'open' as const, order: 35 }
-    const { location } = await openForecastTab('/dashboard?tab=forecast&year=2026', {
+    const { location } = await openForecastTab('/dashboard?tab=forecast&forecast.year=2026', {
       ...base,
       forecast: { ...base.forecast, columns: [...base.forecast.columns.slice(0, 3), verbal, ...base.forecast.columns.slice(3)] },
       quarters: base.quarters.map((q) => ({ ...q, cells: { ...q.cells, verbal: { count: 1, amount: 7_000_000 } } })),
@@ -122,13 +158,21 @@ describe('조각 클릭은 Deal 목록으로 이동한다 (AC-16)', () => {
     await waitFor(() => expect(location()).toBe('/deals?year=2026&quarter=1&forecast=verbal'))
   })
 
-  it('ignores the chosen Quarter and keeps only the owner and vendor', async () => {
+  it('opens exactly the clicked quarter, not the chosen quarters, and keeps the owner and vendor', async () => {
     const vendor = seedVendorId('Okta')
-    const { location } = await openForecastTab(`/dashboard?tab=forecast&year=2026&quarter=3&owner=${USER_ID.kim}&vendor=${vendor}`)
+    const { location } = await openForecastTab(`/dashboard?tab=forecast&forecast.year=2026&forecast.quarter=1%2C3&forecast.owner=${USER_ID.kim}&forecast.vendor=${vendor}`)
 
-    clickBar(lastChart(), { index: 0, datasetIndex: 1 })
+    clickBar(lastChart(), { index: 1, datasetIndex: 1 }) // 축은 Q1, Q3이므로 index 1 = Q3
 
-    await waitFor(() => expect(location()).toBe(`/deals?year=2026&quarter=1&owner=${USER_ID.kim}&vendor=${vendor}&forecast=best`))
+    await waitFor(() => expect(location()).toBe(`/deals?year=2026&quarter=3&owner=${USER_ID.kim}&vendor=${vendor}&forecast=best`))
+  })
+
+  it('maps the index to the quarter of the visible rows', async () => {
+    const { location } = await openForecastTab('/dashboard?tab=forecast&forecast.year=2026&forecast.quarter=2%2C4')
+
+    clickBar(lastChart(), { index: 0, datasetIndex: 0 })
+
+    await waitFor(() => expect(location()).toBe('/deals?year=2026&quarter=2&forecast=pipeline'))
   })
 
   it('does nothing when the click hits no bar', async () => {
@@ -136,7 +180,7 @@ describe('조각 클릭은 Deal 목록으로 이동한다 (AC-16)', () => {
 
     clickEmptyArea(lastChart())
 
-    expect(location()).toBe('/dashboard?tab=forecast&year=2026')
+    expect(location()).toBe('/dashboard?tab=forecast&forecast.year=2026')
   })
 
   it('goes to the same place as the table cell link of that quarter and code', async () => {

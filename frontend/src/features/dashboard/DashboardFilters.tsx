@@ -1,20 +1,24 @@
 import { useYearOptions } from '../../data/dealYears'
+import { useId } from 'react'
 import { useVendors } from '../../data/vendors'
 import { parseId } from '../../shared/model/ids'
+import { QUARTERS, toggleQuarter } from '../../shared/model/quarterSet'
 import { ErrorBanner } from '../../shared/ui/ErrorBanner'
 import { SelectField } from '../../shared/ui/fields'
 import { UserSelect } from '../../shared/ui/UserSelect'
-import type { DashboardFilters } from './dashboardParams'
+import type { TabFilters } from './dashboardParams'
 
 interface Props {
-  filters: DashboardFilters
-  onChange: (patch: Partial<DashboardFilters>) => void
+  /** 활성 탭의 조건. */
+  filters: TabFilters
+  onChange: (patch: Partial<TabFilters>) => void
 }
 
 const textOf = (id: number | undefined): string => (id === undefined ? '' : String(id))
 
-/** Dashboard 필터: 연도 / Quarter(Status 탭만) / 담당자 / Vendor(기간은 Expected Close 기준). 값은 URL이 가진다(제어 컴포넌트). */
+/** Dashboard 필터(활성 탭 조건): 연도 / Quarter(Q1~Q4 토글, 여러 개, 없음=넷 다=전체) / 담당자 / Vendor(기간은 Expected Close 기준). 값은 URL이 가진다(제어 컴포넌트). */
 export function DashboardFilterBar({ filters, onChange }: Props) {
+  const quarterLabelId = useId()
   const yearOptions = useYearOptions(filters.year)
   const vendorsQuery = useVendors()
   const vendors = vendorsQuery.data ?? []
@@ -31,19 +35,19 @@ export function DashboardFilterBar({ filters, onChange }: Props) {
           </option>
         ))}
       </SelectField>
-      {filters.tab === 'status' && (
-        <SelectField
-          label="Quarter"
-          name="quarter"
-          value={filters.quarter ? String(filters.quarter) : ''}
-          onChange={(v) => onChange({ quarter: v ? (Number(v) as 1 | 2 | 3 | 4) : undefined })}
-        >
-          <option value="">전체</option>
-          {[1, 2, 3, 4].map((q) => (
-            <option key={q} value={q}>{`Q${q}`}</option>
-          ))}
-        </SelectField>
-      )}
+      <div className="field">
+        <span id={quarterLabelId}>Quarter</span>
+        <div className="db-quarter-buttons" role="group" aria-labelledby={quarterLabelId}>
+          {QUARTERS.map((q) => {
+            const on = filters.quarters.includes(q)
+            return (
+              <button key={q} type="button" aria-pressed={on} onClick={() => onChange({ quarters: toggleQuarter(filters.quarters, q, !on) })}>
+                {`Q${q}`}
+              </button>
+            )
+          })}
+        </div>
+      </div>
       <UserSelect label="담당자" name="owner" value={textOf(filters.ownerId)} onChange={(v) => onChange({ ownerId: parseId(v) })} includeResigned />
       <SelectField label="Vendor" name="vendor" value={vendorValue} onChange={(v) => onChange({ vendor: parseId(v) })}>
         <option value="">전체</option>

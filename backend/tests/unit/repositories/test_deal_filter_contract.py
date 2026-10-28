@@ -117,17 +117,19 @@ class TestYearAndQuarter:
         after = date.fromordinal(last_day.toordinal() + 1)
         codes = await self._by_day(deal_case, [before, first_day, last_day, after])
 
-        found = await _codes(deal_case, year=2026, quarter=quarter)
+        found = await _codes(deal_case, year=2026, quarters=frozenset({quarter}))
 
         assert found == sorted([codes[first_day], codes[last_day]])
-        assert await _count(deal_case, year=2026, quarter=quarter) == 2
+        assert await _count(deal_case, year=2026, quarters=frozenset({quarter})) == 2
 
     async def test_the_same_quarter_of_another_year_is_not_included(
         self, deal_case: DealCase
     ) -> None:
         codes = await self._by_day(deal_case, [date(2026, 5, 1), date(2027, 5, 1)])
 
-        assert await _codes(deal_case, year=2027, quarter=2) == [codes[date(2027, 5, 1)]]
+        assert await _codes(deal_case, year=2027, quarters=frozenset({2})) == [
+            codes[date(2027, 5, 1)]
+        ]
 
     async def test_the_quarter_is_combined_with_the_updated_period_using_and(
         self, deal_case: DealCase
@@ -144,12 +146,79 @@ class TestYearAndQuarter:
         found = await _codes(
             deal_case,
             year=2026,
-            quarter=2,
+            quarters=frozenset({2}),
             updated_from=date(2026, 6, 1),
             updated_to=date(2026, 6, 30),
         )
 
         assert found == [_code(1)]
+
+    async def test_separated_quarters_include_only_their_boundary_days(
+        self, deal_case: DealCase
+    ) -> None:
+        days = [
+            date(2026, 1, 1),
+            date(2026, 3, 31),
+            date(2026, 4, 1),
+            date(2026, 6, 30),
+            date(2026, 7, 1),
+            date(2026, 9, 30),
+            date(2026, 10, 1),
+            date(2025, 8, 1),
+        ]
+        codes = await self._by_day(deal_case, days)
+        wanted = sorted(codes[d] for d in days[:2] + days[4:6])
+
+        found = await _codes(deal_case, year=2026, quarters=frozenset({1, 3}))
+
+        assert found == wanted
+        assert await _count(deal_case, year=2026, quarters=frozenset({1, 3})) == 4
+
+    async def test_the_quarter_between_separated_quarters_is_not_included(
+        self, deal_case: DealCase
+    ) -> None:
+        codes = await self._by_day(deal_case, [date(2026, 5, 15), date(2026, 2, 15)])
+
+        found = await _codes(deal_case, year=2026, quarters=frozenset({1, 3}))
+
+        assert found == [codes[date(2026, 2, 15)]]
+
+    async def test_adjacent_quarters_include_both_and_exclude_the_others(
+        self, deal_case: DealCase
+    ) -> None:
+        days = [date(2026, 3, 31), date(2026, 4, 1), date(2026, 6, 30), date(2026, 7, 1)]
+        codes = await self._by_day(deal_case, days)
+
+        found = await _codes(deal_case, year=2026, quarters=frozenset({1, 2}))
+
+        assert found == sorted(codes[d] for d in days[:3])
+
+    async def test_all_four_quarters_equal_the_whole_year(self, deal_case: DealCase) -> None:
+        days = [date(2025, 12, 31), date(2026, 1, 1), date(2026, 12, 31), date(2027, 1, 1)]
+        codes = await self._by_day(deal_case, days)
+
+        found = await _codes(deal_case, year=2026, quarters=frozenset({1, 2, 3, 4}))
+
+        assert found == sorted([codes[days[1]], codes[days[2]]])
+
+    async def test_quarters_of_another_year_are_not_included(self, deal_case: DealCase) -> None:
+        codes = await self._by_day(deal_case, [date(2026, 2, 1), date(2027, 2, 1)])
+
+        found = await _codes(deal_case, year=2027, quarters=frozenset({1, 3}))
+
+        assert found == [codes[date(2027, 2, 1)]]
+
+    async def test_chosen_quarters_without_a_year_use_the_filled_year(
+        self, deal_case: DealCase
+    ) -> None:
+        codes = await self._by_day(
+            deal_case, [date(2026, 2, 1), date(2026, 5, 1), date(2025, 2, 1)]
+        )
+        query = DealQuery(quarters=frozenset({1, 3})).with_year_for(date(2026, 10, 19))
+
+        found = await deal_case.deals.search(query)
+
+        assert sorted(item.deal.id.value for item in found) == [codes[date(2026, 2, 1)]]
 
     async def test_the_year_filter_combines_with_the_page_and_total(
         self, deal_case: DealCase

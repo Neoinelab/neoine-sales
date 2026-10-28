@@ -28,18 +28,18 @@ describe('useDashboardSummary', () => {
     const { result } = renderHook(() => useDashboardSummary({ year: 2026 }), { wrapper })
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
-    expect(result.current.data?.period).toMatchObject({ year: 2026, quarter: null })
+    expect(result.current.data?.period).toMatchObject({ year: 2026, quarter: null, quarters: [] })
   })
 
   it('keeps the previous summary while the next condition loads', async () => {
     const { wrapper } = setup()
-    const { result, rerender } = renderHook(({ quarter }: { quarter?: 1 | 2 | 3 | 4 }) => useDashboardSummary({ year: 2026, quarter }), {
+    const { result, rerender } = renderHook(({ quarters }: { quarters?: (1 | 2 | 3 | 4)[] }) => useDashboardSummary({ year: 2026, quarters }), {
       wrapper,
       initialProps: {},
     })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
-    rerender({ quarter: 2 })
+    rerender({ quarters: [2] })
 
     expect(result.current.data).toBeDefined()
     await waitFor(() => expect(result.current.data?.period.quarter).toBe(2))

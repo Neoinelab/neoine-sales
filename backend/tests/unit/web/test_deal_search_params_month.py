@@ -13,7 +13,7 @@ VIEWER = uid("viewer")
 def test_year_and_month_reach_the_query() -> None:
     query = DealSearchParams(year=2026, month=3).to_query(VIEWER)
 
-    assert (query.year, query.quarter, query.month) == (2026, None, 3)
+    assert (query.year, query.quarters, query.month) == (2026, None, 3)
 
 
 def test_month_defaults_to_none() -> None:
@@ -31,7 +31,20 @@ def test_month_outside_one_to_twelve_is_a_validation_error(month: int) -> None:
 
 
 def test_quarter_and_month_together_raise_invalid_value_on_conversion() -> None:
-    params = DealSearchParams(year=2026, quarter=1, month=1)
+    params = DealSearchParams(year=2026, quarter=[1], month=1)
 
     with pytest.raises(InvalidValueError):
         params.to_query(VIEWER)
+
+
+def test_several_quarters_and_month_together_raise_invalid_value_on_conversion() -> None:
+    params = DealSearchParams(year=2026, quarter=[1, 3], month=2)
+
+    with pytest.raises(InvalidValueError):
+        params.to_query(VIEWER)
+
+
+def test_all_four_quarters_with_a_month_convert_to_a_month_only_query() -> None:
+    query = DealSearchParams(year=2026, quarter=[1, 2, 3, 4], month=2).to_query(VIEWER)
+
+    assert (query.quarters, query.month) == (None, 2)

@@ -2,14 +2,15 @@
 
 keyword·owner·vendor·solution·status·forecast(여러 값 OR)·연/분기·최종 업데이트 기간·
 Next Action 상태·기한초과/미업데이트 필터를 적용한다.
-Expected Close 연/분기는 DealQuery.revenue_window()의 양끝 포함 범위다.
+Expected Close 연/분기는 DealQuery.revenue_window()의 양끝 포함 범위에 revenue_quarters()의
+분기 IN 조건을 AND로 더한다(Q1·Q3처럼 떨어진 분기를 정확히 거른다).
 최종 업데이트 기간은 updated_window()의 반개구간 [시작, 끝)이며 상관 스칼라 서브쿼리로 비교한다.
 기한초과·미업데이트는 compute_risk와 같은 판정이며 둘 다 켜면 OR, 종결(won·lost)은 제외한다.
 """
 
 from typing import TYPE_CHECKING
 
-from sqlalchemy import ColumnElement, and_, exists, or_, select
+from sqlalchemy import ColumnElement, and_, exists, extract, or_, select
 
 from app.infra.db.deal_derived import (
     LAST_UPDATED,
@@ -98,13 +99,16 @@ def _next_action_condition(statuses: NextActionStatusFilter) -> ColumnElement[bo
 
 
 def _window_conditions(query: DealQuery) -> list[ColumnElement[bool]]:
-    """Expected Close 범위(양끝 포함)와 최종 업데이트 기간([시작, 끝)) 조건."""
+    """Expected Close 범위(양끝 포함)·분기 IN과 최종 업데이트 기간([시작, 끝)) 조건."""
     found: list[ColumnElement[bool]] = []
     window_from, window_to = query.revenue_window()  # 연/분기 범위
     if window_from is not None:
         found.append(DealRow.revenue_date >= window_from)
     if window_to is not None:
         found.append(DealRow.revenue_date <= window_to)
+    quarters = query.revenue_quarters()  # 범위는 사이 분기를 포함하므로 분기로 다시 거른다
+    if quarters is not None:
+        found.append(extract("quarter", DealRow.revenue_date).in_(sorted(quarters)))
     updated_start, updated_end = query.updated_window()
     if updated_start is not None:
         found.append(last_updated_scalar() >= updated_start)

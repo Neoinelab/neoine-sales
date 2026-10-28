@@ -28,7 +28,7 @@ describe('담당자 Deal 목록 요청 한도 (P6 AC-11)', () => {
     await screen.findByRole('region', { name: '선택한 담당자: 김영업' })
     await waitFor(() => expect(list).toHaveBeenCalled())
 
-    expect(list).toHaveBeenCalledWith(expect.objectContaining({ ownerId: USER_ID.kim, year: 2026, quarter: 4, limit: 200 }))
+    expect(list).toHaveBeenCalledWith(expect.objectContaining({ ownerId: USER_ID.kim, year: 2026, quarters: [4], limit: 200 }))
     for (const [query] of list.mock.calls) expect(query.limit ?? 0).toBeLessThanOrEqual(200)
   })
 
@@ -61,7 +61,7 @@ describe('담당자 Deal 목록 요청 한도 (P6 AC-11)', () => {
     await screen.findByRole('region', { name: '선택한 담당자: 김영업' })
 
     await waitFor(() => expect(list).toHaveBeenCalledWith(expect.objectContaining({ ownerId: USER_ID.kim, year: 2026, month: 11 })))
-    for (const [query] of list.mock.calls) expect(query.quarter).toBeUndefined()
+    for (const [query] of list.mock.calls) expect(query.quarters).toBeUndefined()
   })
 })
 

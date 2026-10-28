@@ -11,8 +11,8 @@ import { mockSummary, NOW } from './testHelpers'
  * Minor 1 계약: 조건이 바뀐 뒤 새 응답이 오기 전(이전 응답을 placeholder로 보이는 동안)에는
  * - "불러오는 중…" status가 보이고,
  * - 탭 패널(role=tabpanel) 안에 role=link인 Drill-down이 하나도 없다(숫자만 보이거나 비활성이어도 링크 역할은 없어야 한다).
- * Minor 2 계약(2026-10-23 시간 기준 서버 통일로 변경): Selected Quarter 기본값은 앱 시계(`useToday`, 서버 동기 시계) 기준이다.
- * 요약 응답의 `today`는 "기준일" 안내 문구에만 쓰고 기본값 계산에 섞지 않는다(기본 연도와 같은 시계).
+ * Minor 2 계약: 요약 응답의 `today`는 "기준일" 안내 문구에만 쓰고 기본값 계산에 섞지 않는다(기본 연도는 앱 시계 `useToday`).
+ * Selected Quarter는 2026-10-28에 폐지됐다(Quarter 다중 선택으로 대체).
  */
 
 beforeEach(() => resetMock({ now: NOW })) // 클라이언트 오늘 2026-10-15 (Q4)
@@ -28,7 +28,7 @@ const hang = (spy: ReturnType<typeof mockSummary>) => spy.mockImplementation(() 
 describe('이전 응답을 보이는 동안 Drill-down 차단 (Minor 1)', () => {
   it('shows loading and no drill-down links after switching from Status quarter=3 to Forecast', async () => {
     const spy = mockSummary(dashboardSummaryFixture())
-    const { user } = await renderAt('/dashboard?tab=status&year=2026&quarter=3')
+    const { user } = await renderAt('/dashboard?tab=status&status.year=2026&status.quarter=3')
     await screen.findByText(/기준일 2026-10-15/)
     expect(panelLinks().length).toBeGreaterThan(0) // 전제: 응답이 온 뒤에는 링크가 있다
     hang(spy)
@@ -41,7 +41,7 @@ describe('이전 응답을 보이는 동안 Drill-down 차단 (Minor 1)', () => 
 
   it('shows loading and no drill-down links after switching from Forecast to Status with quarter=3', async () => {
     const spy = mockSummary(dashboardSummaryFixture())
-    const { user } = await renderAt('/dashboard?tab=forecast&year=2026&quarter=3')
+    const { user } = await renderAt('/dashboard?tab=forecast&forecast.year=2026&forecast.quarter=3')
     await screen.findByText(/기준일 2026-10-15/)
     expect(panelLinks().length).toBeGreaterThan(0)
     hang(spy)
@@ -54,7 +54,7 @@ describe('이전 응답을 보이는 동안 Drill-down 차단 (Minor 1)', () => 
 
   it('shows loading and no drill-down links after changing the year', async () => {
     const spy = mockSummary(dashboardSummaryFixture())
-    const { user } = await renderAt('/dashboard?tab=forecast&year=2026')
+    const { user } = await renderAt('/dashboard?tab=forecast&forecast.year=2026')
     await screen.findByText(/기준일 2026-10-15/)
     expect(panelLinks().length).toBeGreaterThan(0)
     hang(spy)
@@ -67,7 +67,7 @@ describe('이전 응답을 보이는 동안 Drill-down 차단 (Minor 1)', () => 
 
   it('brings the drill-down links back once the new response arrives', async () => {
     const spy = mockSummary(dashboardSummaryFixture())
-    const { user } = await renderAt('/dashboard?tab=status&year=2026&quarter=3')
+    const { user } = await renderAt('/dashboard?tab=status&status.year=2026&status.quarter=3')
     await screen.findByText(/기준일 2026-10-15/)
     spy.mockResolvedValue(dashboardSummaryFixture())
 
@@ -78,33 +78,21 @@ describe('이전 응답을 보이는 동안 Drill-down 차단 (Minor 1)', () => 
   })
 })
 
-describe('Selected Quarter 기본값은 앱 시계 기준 (Minor 2, 서버 시간 통일 AC5)', () => {
-  it.each([
-    ['2026-07-01', 4],
-    ['2026-04-01', 4],
-  ])('ignores the response today %s and selects the quarter of the app clock (Q%i)', async (responseToday, quarter) => {
-    mockSummary(dashboardSummaryFixture({ today: responseToday }))
-    await renderAt('/dashboard?tab=forecast&year=2026')
-
-    const group = await screen.findByRole('group', { name: 'Selected Quarter' })
-
-    for (const n of [1, 2, 3, 4]) expect(within(group).getByRole('button', { name: `Q${n}` })).toHaveAttribute('aria-pressed', n === quarter ? 'true' : 'false')
-    expect(screen.getByRole('heading', { level: 2, name: `Selected Quarter : Q${quarter}` })).toBeVisible()
-  })
-
+describe('기준일 안내와 기본값은 앱 시계 기준 (Minor 2, Selected Quarter 폐지)', () => {
   it('still shows the response today in the notice', async () => {
     mockSummary(dashboardSummaryFixture({ today: '2026-07-01' }))
-    await renderAt('/dashboard?tab=forecast&year=2026')
+    await renderAt('/dashboard?tab=forecast&forecast.year=2026')
 
     expect(await screen.findByText(/기준일 2026-07-01/)).toBeVisible()
   })
 
-  it('still lets an explicit sq win over the app clock', async () => {
-    mockSummary(dashboardSummaryFixture({ today: '2026-07-01' }))
-    await renderAt('/dashboard?tab=forecast&year=2026&sq=1')
+  it.each(['2026-07-01', '2026-04-01'])('does not select a quarter from the response today %s (no quarter is chosen by default)', async (responseToday) => {
+    mockSummary(dashboardSummaryFixture({ today: responseToday }))
+    await renderAt('/dashboard?tab=forecast&forecast.year=2026')
 
-    const group = await screen.findByRole('group', { name: 'Selected Quarter' })
+    const group = await screen.findByRole('group', { name: 'Quarter' })
 
-    expect(within(group).getByRole('button', { name: 'Q1' })).toHaveAttribute('aria-pressed', 'true')
+    for (const n of [1, 2, 3, 4]) expect(within(group).getByRole('button', { name: `Q${n}` })).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.queryByRole('group', { name: 'Selected Quarter' })).not.toBeInTheDocument()
   })
 })

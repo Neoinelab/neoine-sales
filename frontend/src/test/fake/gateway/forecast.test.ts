@@ -8,7 +8,8 @@ type Gw = Awaited<ReturnType<typeof mockAs>>['gateway']
 
 /** Deal 원장(목록)에서 직접 합산한 값. summary와 같아야 한다. */
 async function ledger(gw: Gw, query: ForecastQuery) {
-  const items = (await gw.deals.list({ ...query, limit: 200 })).items
+  const { quarter, ...rest } = query
+  const items = (await gw.deals.list({ ...rest, ...(quarter ? { quarters: [quarter] } : {}), limit: 200 })).items
   const sum = (filter: (d: (typeof items)[number]) => boolean) => {
     const rows = items.filter(filter)
     return { count: rows.length, amount: rows.reduce((s, d) => s + d.revenueAmount, 0) }

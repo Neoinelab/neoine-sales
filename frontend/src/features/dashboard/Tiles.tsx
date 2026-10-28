@@ -32,7 +32,8 @@ export function AmountTile({ to, title, cell, tone }: TileProps) {
   )
 }
 
-const periodText = (period: DashboardSummary['period']): string => (period.quarter ? `${period.year} Q${period.quarter}` : String(period.year))
+const periodText = (period: DashboardSummary['period']): string =>
+  period.quarters.length > 0 ? `${period.year} ${period.quarters.map((q) => `Q${q}`).join(', ')}` : String(period.year)
 
 interface Props {
   summary: DashboardSummary

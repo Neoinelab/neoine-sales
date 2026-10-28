@@ -5,7 +5,7 @@ import { resetMock } from '../../../test/fake/default'
 import { renderAt } from '../../../test/mockApp'
 import { dealCodeOf } from '../../../test/detailTestUtils'
 import { defaultDealsUrl } from '../../../test/dealsUrl'
-import { ALL_DEALS, dataRows, rowOf } from './testHelpers'
+import { ALL_DEALS, dataRows, quarterButton, rowOf } from './testHelpers'
 import { USER_ID } from '../../../test/fake/seed/ids'
 
 /**
@@ -287,7 +287,7 @@ describe('Quarter만 있는 조건의 기억 (AC-20)', () => {
 
     await screen.findByRole('button', { name: '초기화' })
     expect(view.location()).toBe('/deals?quarter=4')
-    expect(screen.getByLabelText('Quarter')).toHaveDisplayValue('Q4')
+    expect(quarterButton('Q4')).toBeInTheDocument()
     expect(screen.getByLabelText('연도')).toHaveDisplayValue('전체')
   })
 })

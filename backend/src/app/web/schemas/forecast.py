@@ -31,9 +31,12 @@ class ForecastSnapshotSearchParams(RequestModel):
     month: Annotated[int | None, Field(ge=1, le=12)] = None
     owner_user_id: QueryId | None = None
 
+    def _quarters(self) -> frozenset[int] | None:
+        return None if self.quarter is None else frozenset({self.quarter})
+
     def to_criteria(self) -> ForecastCriteria:
         return ForecastCriteria(
-            period=ForecastPeriod(year=self.year, quarter=self.quarter, month=self.month),
+            period=ForecastPeriod(year=self.year, quarters=self._quarters(), month=self.month),
             owner_user_id=None if self.owner_user_id is None else UserId(self.owner_user_id),
             vendor_id=None,
         )
@@ -46,7 +49,7 @@ class ForecastSearchParams(ForecastSnapshotSearchParams):
 
     def to_criteria(self) -> ForecastCriteria:
         return ForecastCriteria(
-            period=ForecastPeriod(year=self.year, quarter=self.quarter, month=self.month),
+            period=ForecastPeriod(year=self.year, quarters=self._quarters(), month=self.month),
             owner_user_id=None if self.owner_user_id is None else UserId(self.owner_user_id),
             vendor_id=None if self.vendor_id is None else VendorId(self.vendor_id),
         )
@@ -118,7 +121,7 @@ class ForecastSummaryResponse(BaseModel):
             snapshot_period=view.snapshot_period,
             period=PeriodResponse(
                 year=view.period.year,
-                quarter=view.period.quarter,
+                quarter=view.period.single_quarter,
                 month=view.period.month,
                 from_=start,
                 to=end,

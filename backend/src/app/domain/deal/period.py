@@ -2,8 +2,12 @@
 
 import calendar
 from datetime import date
+from typing import TYPE_CHECKING
 
 from app.domain.common.errors import InvalidValueError
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 QUARTER_MESSAGE = "분기는 1~4 중에서 선택하세요."
 QUARTER_MONTH_EXCLUSIVE = "Quarter와 월은 함께 선택할 수 없습니다."
@@ -11,6 +15,7 @@ MONTH_MESSAGE = "월은 1~12 중에서 선택하세요."
 QUARTERS = 4
 MONTHS_PER_YEAR = 12
 MONTHS_PER_QUARTER = 3
+ALL_QUARTERS: frozenset[int] = frozenset(range(1, QUARTERS + 1))
 
 
 def quarter_range(year: int, quarter: int | None) -> tuple[date, date]:
@@ -35,3 +40,28 @@ def month_range(year: int, month: int) -> tuple[date, date]:
 def quarter_of(day: date) -> int:
     """day가 속한 분기(1~4)."""
     return (day.month - 1) // MONTHS_PER_QUARTER + 1
+
+
+def normalize_quarters(quarters: Iterable[int] | None) -> frozenset[int] | None:
+    """분기 조건을 정규화한다. None·빈 집합·네 분기 전부는 '조건 없음'(None)이다.
+
+    1~4 밖 값이 있으면 InvalidValueError.
+    """
+    if quarters is None:
+        return None
+    found = frozenset(quarters)
+    if not found <= ALL_QUARTERS:
+        raise InvalidValueError(QUARTER_MESSAGE)
+    if not found or found == ALL_QUARTERS:
+        return None
+    return found
+
+
+def quarters_span(year: int, quarters: frozenset[int] | None) -> tuple[date, date]:
+    """(첫 분기 시작일, 마지막 분기 끝일). None이면 그 해 전체.
+
+    사이 분기를 포함하는 범위이므로 포함 판정은 quarter_of(day) in quarters로 따로 한다.
+    """
+    if not quarters:
+        return quarter_range(year, None)
+    return quarter_range(year, min(quarters))[0], quarter_range(year, max(quarters))[1]

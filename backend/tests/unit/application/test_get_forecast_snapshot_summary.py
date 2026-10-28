@@ -34,7 +34,7 @@ if TYPE_CHECKING:
 
 SEPT = YearMonth(2026, 9)
 TAKEN_AT = local(2026, 10, 1, 0, 5)
-Q3 = ForecastPeriod(year=2026, quarter=3)
+Q3 = ForecastPeriod(year=2026, quarters=frozenset({3}))
 
 
 def _use_case(env: DealEnv) -> GetForecastSnapshotSummary:

@@ -18,7 +18,7 @@ def test_month_window_in_a_leap_february_ends_on_the_29th() -> None:
 
 def test_quarter_and_month_together_raise_invalid_value() -> None:
     with pytest.raises(InvalidValueError):
-        DealQuery(year=2026, quarter=1, month=1)
+        DealQuery(year=2026, quarters=frozenset({1}), month=1)
 
 
 @pytest.mark.parametrize("month", [0, 13])
@@ -46,6 +46,6 @@ def test_month_only_window_without_the_year_filled_is_a_programming_error() -> N
 
 
 def test_no_month_leaves_quarter_behaviour_unchanged() -> None:
-    window = DealQuery(year=2026, quarter=4).revenue_window()
+    window = DealQuery(year=2026, quarters=frozenset({4})).revenue_window()
 
     assert window == (date(2026, 10, 1), date(2026, 12, 31))

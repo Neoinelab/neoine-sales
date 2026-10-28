@@ -13,6 +13,7 @@ from app.domain.vendor.values import VendorId
 from app.web.schemas.common import RequestModel
 from app.web.schemas.forecast import CellResponse, ColumnResponse, TallyResponse
 from app.web.schemas.ids import QueryId
+from app.web.schemas.period_params import QuartersParam, quarter_set
 from app.web.schemas.server_datetime import ServerDateTime
 
 if TYPE_CHECKING:
@@ -31,13 +32,13 @@ class DashboardSearchParams(RequestModel):
     """GET /dashboard/summary 쿼리. year 필수, 월 조건은 없다(알 수 없는 파라미터는 422)."""
 
     year: Annotated[int, Field(ge=YEAR_MIN, le=YEAR_MAX)]
-    quarter: Annotated[int | None, Field(ge=1, le=4)] = None
+    quarter: QuartersParam = None
     owner_user_id: QueryId | None = None
     vendor_id: QueryId | None = None
 
     def to_criteria(self) -> DashboardCriteria:
         return DashboardCriteria(
-            period=ForecastPeriod(year=self.year, quarter=self.quarter),
+            period=ForecastPeriod(year=self.year, quarters=quarter_set(self.quarter)),
             owner_user_id=None if self.owner_user_id is None else UserId(self.owner_user_id),
             vendor_id=None if self.vendor_id is None else VendorId(self.vendor_id),
         )
@@ -48,6 +49,7 @@ class DashboardPeriodResponse(BaseModel):
 
     year: int
     quarter: int | None
+    quarters: list[int]
     from_: date = Field(alias="from")
     to: date
 
@@ -116,7 +118,11 @@ class DashboardSummaryResponse(BaseModel):
             as_of=view.as_of,
             today=view.today,
             period=DashboardPeriodResponse(
-                year=view.period.year, quarter=view.period.quarter, from_=start, to=end
+                year=view.period.year,
+                quarter=view.period.single_quarter,
+                quarters=list(view.period.sorted_quarters()),
+                from_=start,
+                to=end,
             ),
             forecasts=DashboardForecastsResponse(
                 columns=[_column(c) for c in view.forecast_columns],

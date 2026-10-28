@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { gateway } from '../../../gateway'
 import { resetMock } from '../../../test/fake/default'
 import { renderAt } from '../../../test/mockApp'
-import { dataRows } from './testHelpers'
+import { clearQuarter, dataRows, describedText, quarterButton, toggleQuarter } from './testHelpers'
 
 /** Quarter와 월(2026-10-26 개편, AC-10~14). 기준일 2026-10-15(올해 2026). */
 const NOW = '2026-10-15T09:00:00+09:00'
@@ -40,7 +40,7 @@ describe('분기 안의 월만 선택 (AC-10)', () => {
     const { user } = await renderAt('/deals?year=2026&quarter=2')
     await screen.findByLabelText('월')
 
-    await user.selectOptions(screen.getByLabelText('Quarter'), '전체')
+    await clearQuarter(user)
 
     expect(optionNames(screen.getByLabelText('월'))).toEqual(['전체', ...Array.from({ length: 12 }, (_, i) => `${i + 1}월`)])
   })
@@ -55,12 +55,12 @@ describe('월을 골라도 분기는 유지 (AC-11)', () => {
     await user.selectOptions(screen.getByLabelText('월'), '11월')
 
     await waitFor(() => expect(location()).toBe('/deals?year=2026&quarter=4&month=11'))
-    expect(screen.getByLabelText('Quarter')).toHaveDisplayValue('Q4')
+    expect(quarterButton('Q4')).toBeInTheDocument()
     await waitFor(() => expect(lastQuery(list)).toMatchObject({ year: 2026, month: 11 }))
-    expect(lastQuery(list)).not.toHaveProperty('quarter')
+    expect(lastQuery(list)).not.toHaveProperty('quarters')
 
     const expected = await gateway.deals.list({ year: 2026, month: 11, limit: 100 })
-    const quarter = await gateway.deals.list({ year: 2026, quarter: 4, limit: 100 })
+    const quarter = await gateway.deals.list({ year: 2026, quarters: [4], limit: 100 })
     expect(expected.total).toBeGreaterThan(0)
     expect(expected.total).toBeLessThan(quarter.total)
     for (const item of expected.items) expect(item.revenueDate.startsWith('2026-11')).toBe(true)
@@ -75,7 +75,7 @@ describe('분기에 속하지 않는 월 (AC-12)', () => {
     await screen.findByText(/총 \d+건/)
 
     expect(screen.getByLabelText('월')).toHaveDisplayValue('전체')
-    expect(lastQuery(list)).toMatchObject({ year: 2026, quarter: 4 })
+    expect(lastQuery(list)).toMatchObject({ year: 2026, quarters: [4] })
     expect(lastQuery(list)).not.toHaveProperty('month')
   })
 
@@ -87,32 +87,35 @@ describe('분기에 속하지 않는 월 (AC-12)', () => {
   })
 })
 
-describe('분기를 바꿀 때 월 (AC-13)', () => {
-  it('clears the month when another quarter is chosen', async () => {
+describe('분기를 바꿀 때 월 (AC-13, Quarter 다중 선택 AC-25)', () => {
+  it('keeps the month while a checked quarter set still contains it, and clears it once it does not', async () => {
     const { user, location } = await renderAt('/deals?year=2026&quarter=4&month=11')
     await screen.findByLabelText('월')
 
-    await user.selectOptions(screen.getByLabelText('Quarter'), 'Q3')
+    await toggleQuarter(user, 'Q3') // Q3·Q4 → 7~12월에 11월이 있다
+    await waitFor(() => expect(location()).toBe('/deals?year=2026&quarter=3%2C4&month=11'))
+    expect(screen.getByLabelText('월')).toHaveDisplayValue('11월')
 
+    await toggleQuarter(user, 'Q4') // Q3만 → 11월은 선택지에 없다
     await waitFor(() => expect(location()).toBe('/deals?year=2026&quarter=3'))
     expect(screen.getByLabelText('월')).toHaveDisplayValue('전체')
   })
 
-  it('keeps the visible month when the quarter is set to all', async () => {
+  it('keeps the visible month when the quarters are cleared with the all button', async () => {
     const { user, location } = await renderAt('/deals?year=2026&quarter=4&month=11')
     await screen.findByLabelText('월')
 
-    await user.selectOptions(screen.getByLabelText('Quarter'), '전체')
+    await clearQuarter(user)
 
     await waitFor(() => expect(location()).toBe('/deals?year=2026&month=11'))
     expect(screen.getByLabelText('월')).toHaveDisplayValue('11월')
   })
 
-  it('drops a month hidden by the quarter when the quarter is set to all', async () => {
+  it('drops a month hidden by the quarter when the quarters are cleared', async () => {
     const { user, location } = await renderAt('/deals?year=2026&quarter=4&month=3')
     await screen.findByLabelText('월')
 
-    await user.selectOptions(screen.getByLabelText('Quarter'), '전체')
+    await clearQuarter(user)
 
     await waitFor(() => expect(location()).toBe('/deals?year=2026'))
   })
@@ -123,8 +126,8 @@ describe('연도가 전체일 때 안내 (AC-14)', () => {
     const { user } = await renderAt('/deals?year=all&quarter=1')
     await screen.findByLabelText('Quarter')
 
-    const label = screen.getByLabelText('Quarter').closest('label') as HTMLElement
-    expect(within(label).getByText('연도가 전체이면 올해(2026) 기준입니다.')).toBeVisible()
+    expect(describedText(quarterButton('Q1'))).toBe('연도가 전체이면 올해(2026) 기준입니다.')
+    expect(screen.getByText('연도가 전체이면 올해(2026) 기준입니다.')).toBeVisible()
     expect(screen.queryByText(/연도를 고르지 않으면/)).not.toBeInTheDocument()
 
     await user.selectOptions(screen.getByLabelText('연도'), '2027')

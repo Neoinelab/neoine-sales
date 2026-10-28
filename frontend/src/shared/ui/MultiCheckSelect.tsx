@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 
 interface MultiCheckSelectProps {
   label: string
@@ -15,16 +15,19 @@ interface MultiCheckSelectProps {
   clearLabel?: string
   /** 입력 문제 문구 요소의 id(들). */
   describedBy?: string
+  /** 버튼 아래에 늘 보이는 안내 문구. 버튼의 aria-describedby가 가리킨다. */
+  hint?: ReactNode
 }
 
 /** 체크박스 드롭다운. 열림 상태만 갖고 선택은 호출자(URL)가 정한다. Escape(포커스는 버튼으로)·바깥 클릭으로 닫는다. */
-export function MultiCheckSelect({ label, name, options, selected, summary, onToggle, onClear, clearLabel = '전체', describedBy }: MultiCheckSelectProps) {
+export function MultiCheckSelect({ label, name, options, selected, summary, onToggle, onClear, clearLabel = '전체', describedBy, hint }: MultiCheckSelectProps) {
   const [open, setOpen] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
   const buttonRef = useRef<HTMLButtonElement>(null)
   const labelId = useId()
   const buttonId = useId()
   const panelId = useId()
+  const hintId = useId()
 
   useEffect(() => {
     if (!open) return
@@ -63,11 +66,16 @@ export function MultiCheckSelect({ label, name, options, selected, summary, onTo
         aria-labelledby={`${labelId} ${buttonId}`}
         aria-expanded={open}
         aria-controls={open ? panelId : undefined}
-        aria-describedby={describedBy}
+        aria-describedby={[describedBy, hint ? hintId : undefined].filter(Boolean).join(' ') || undefined}
         onClick={() => setOpen((v) => !v)}
       >
         {summary}
       </button>
+      {hint && (
+        <small id={hintId} className="field-hint">
+          {hint}
+        </small>
+      )}
       {open && (
         <div id={panelId} role="group" aria-label={label} className="multi-check-panel" tabIndex={-1}>
           {options.map((o) => (

@@ -54,7 +54,7 @@ export function dashboardContract(make: MakeGateway): void {
     it('refuses a quarter outside 1 to 4 with 422', async () => {
       const { dashboard } = await make('user')
 
-      await expectRejects(dashboard.summary({ year: 2026, quarter: 5 as never }), 422)
+      await expectRejects(dashboard.summary({ year: 2026, quarters: [5] as never }), 422)
     })
 
     it('answers the server time as asOf and the business date as today', async () => {
@@ -69,8 +69,8 @@ export function dashboardContract(make: MakeGateway): void {
     it('echoes the period with its date range', async () => {
       const { dashboard } = await make('user')
 
-      expect((await dashboard.summary({ year: 2026 })).period).toEqual({ year: 2026, quarter: null, from: '2026-01-01', to: '2026-12-31' })
-      expect((await dashboard.summary({ year: 2026, quarter: 3 })).period).toEqual({ year: 2026, quarter: 3, from: '2026-07-01', to: '2026-09-30' })
+      expect((await dashboard.summary({ year: 2026 })).period).toEqual({ year: 2026, quarter: null, quarters: [], from: '2026-01-01', to: '2026-12-31' })
+      expect((await dashboard.summary({ year: 2026, quarters: [3] })).period).toEqual({ year: 2026, quarter: 3, quarters: [3], from: '2026-07-01', to: '2026-09-30' })
     })
 
     it('lists the forecast codes without Lost, in code order, with a cell for every column', async () => {
@@ -84,14 +84,14 @@ export function dashboardContract(make: MakeGateway): void {
       expect(Object.keys(forecast.cells).sort()).toEqual(forecast.columns.map((c) => c.key).sort())
     })
 
-    it.each<[string, DashboardQuery]>([
-      ['year', { year: 2026 }],
-      ['quarter', { year: 2026, quarter: 4 }],
-    ])('makes the forecast tiles equal the forecast summary total for the %s condition (AC-3)', async (_name, query) => {
+    it.each<[string, DashboardQuery, { year: number; quarter?: 1 | 2 | 3 | 4 }]>([
+      ['year', { year: 2026 }, { year: 2026 }],
+      ['quarter', { year: 2026, quarters: [4] }, { year: 2026, quarter: 4 }],
+    ])('makes the forecast tiles equal the forecast summary total for the %s condition (AC-3)', async (_name, query, forecastQuery) => {
       const gateway = await make('user')
 
       const dashboard = await gateway.dashboard.summary(query)
-      const summary = await gateway.forecast.summary(query)
+      const summary = await gateway.forecast.summary(forecastQuery)
 
       expect(dashboard.forecast.columns.map((c) => c.key)).toEqual(summary.columns.map((c) => c.key))
       for (const column of summary.columns) expect(cellOf(dashboard.forecast.cells[column.key] ?? { count: -1, amount: -1 })).toEqual(summary.totalRow.cells[column.key])
@@ -119,7 +119,8 @@ export function dashboardContract(make: MakeGateway): void {
 
     it.each<[string, DashboardQuery]>([
       ['year', { year: 2026 }],
-      ['quarter', { year: 2026, quarter: 4 }],
+      ['quarter', { year: 2026, quarters: [4] }],
+      ['several quarters', { year: 2026, quarters: [1, 3] }],
     ])('matches the Deal list ledger of the status drill-down for the %s condition (AC-18)', async (_name, query) => {
       const gateway = await make('user')
 
@@ -135,16 +136,16 @@ export function dashboardContract(make: MakeGateway): void {
     it('matches the Deal list ledger of the Open total (AC-18)', async () => {
       const gateway = await make('user')
 
-      const { forecast } = await gateway.dashboard.summary({ year: 2026, quarter: 4 })
+      const { forecast } = await gateway.dashboard.summary({ year: 2026, quarters: [4] })
 
-      expect(await ledger(gateway, { year: 2026, quarter: 4, forecastOutcome: 'open' })).toEqual(forecast.openTotal)
+      expect(await ledger(gateway, { year: 2026, quarters: [4], forecastOutcome: 'open' })).toEqual(forecast.openTotal)
     })
 
     it('always answers Q1 to Q4 whatever quarter is chosen (AC-5)', async () => {
       const { dashboard } = await make('user')
 
       const whole = await dashboard.summary({ year: 2026 })
-      const second = await dashboard.summary({ year: 2026, quarter: 2 })
+      const second = await dashboard.summary({ year: 2026, quarters: [2] })
 
       expect(whole.quarters.map((q) => q.quarter)).toEqual([1, 2, 3, 4])
       expect(second.quarters).toEqual(whole.quarters)
@@ -153,7 +154,7 @@ export function dashboardContract(make: MakeGateway): void {
     it('makes each quarter equal the forecast summary of that quarter (AC-5)', async () => {
       const gateway = await make('user')
 
-      const { quarters } = await gateway.dashboard.summary({ year: 2026, quarter: 2 })
+      const { quarters } = await gateway.dashboard.summary({ year: 2026, quarters: [2] })
 
       for (const row of quarters) {
         const summary = await gateway.forecast.summary({ year: 2026, quarter: row.quarter })
@@ -170,7 +171,7 @@ export function dashboardContract(make: MakeGateway): void {
       const { quarters } = await gateway.dashboard.summary({ year: 2026 })
 
       for (const row of quarters) {
-        expect(await ledger(gateway, { year: 2026, quarter: row.quarter, forecastOutcome: 'not_lost' }), `Q${row.quarter}`).toEqual(row.total)
+        expect(await ledger(gateway, { year: 2026, quarters: [row.quarter], forecastOutcome: 'not_lost' }), `Q${row.quarter}`).toEqual(row.total)
       }
     })
 
@@ -178,7 +179,7 @@ export function dashboardContract(make: MakeGateway): void {
       const { dashboard } = await make('user')
 
       const thisYear = await dashboard.summary({ year: 2026 })
-      const quarter = await dashboard.summary({ year: 2026, quarter: 1 })
+      const quarter = await dashboard.summary({ year: 2026, quarters: [1] })
       const ancient = await dashboard.summary({ year: 1999 })
 
       expect(quarter.attention).toEqual(thisYear.attention)
@@ -205,7 +206,7 @@ export function dashboardContract(make: MakeGateway): void {
       expect(attention.closingThisQuarter).toMatchObject({ year, quarter: Math.ceil(month / 3) })
       expect(attention.closingThisMonth.count).toBe((await ledger(gateway, { year, month, forecastOutcome: 'open' })).count)
       expect(attention.closingThisQuarter.count).toBe(
-        (await ledger(gateway, { year, quarter: attention.closingThisQuarter.quarter as 1 | 2 | 3 | 4, forecastOutcome: 'open' })).count,
+        (await ledger(gateway, { year, quarters: [attention.closingThisQuarter.quarter as 1 | 2 | 3 | 4], forecastOutcome: 'open' })).count,
       )
     })
 
@@ -234,7 +235,7 @@ export function dashboardContract(make: MakeGateway): void {
 
     it('matches the Deal list ledger of the Forecast key sets that Drill-down sends (다중 조건 AC-16)', async () => {
       const gateway = await make('user')
-      const query: DashboardQuery = { year: 2026, quarter: 4 }
+      const query: DashboardQuery = { year: 2026, quarters: [4] }
 
       const { statuses, forecast, quarters } = await gateway.dashboard.summary(query)
       const sets = keySets(forecast.columns)
@@ -247,7 +248,7 @@ export function dashboardContract(make: MakeGateway): void {
       expect(await ledger(gateway, { ...query, forecastKeys: sets.notLost })).toEqual(statuses.total)
       expect(await ledger(gateway, { ...query, forecastKeys: sets.open })).toEqual(forecast.openTotal)
       for (const row of quarters) {
-        const scope = { year: 2026, quarter: row.quarter } as const
+        const scope = { year: 2026, quarters: [row.quarter] } as const
         expect(await ledger(gateway, { ...scope, forecastKeys: sets.notLost }), `Q${row.quarter} total`).toEqual(row.total)
         expect(await ledger(gateway, { ...scope, forecastKeys: sets.open }), `Q${row.quarter} open`).toEqual(row.openTotal)
       }
@@ -263,7 +264,7 @@ export function dashboardContract(make: MakeGateway): void {
       const month = Number(today.slice(5, 7))
       expect(attention.closingThisMonth.count).toBe((await ledger(gateway, { year, month, forecastKeys: open })).count)
       expect(attention.closingThisQuarter.count).toBe(
-        (await ledger(gateway, { year, quarter: attention.closingThisQuarter.quarter as 1 | 2 | 3 | 4, forecastKeys: open })).count,
+        (await ledger(gateway, { year, quarters: [attention.closingThisQuarter.quarter as 1 | 2 | 3 | 4], forecastKeys: open })).count,
       )
     })
 
@@ -277,6 +278,74 @@ export function dashboardContract(make: MakeGateway): void {
       expect(sets.open).toContain(added.key)
       expect(sets.notLost).toContain(added.key)
       expect(await ledger(admin, { year: 2026, forecastKeys: sets.open })).toEqual(forecast.openTotal)
+    })
+
+    describe('Quarter 다중 선택 (AC-06·07·08·21)', () => {
+      it('makes the forecast tiles the sum of the chosen quarter rows (AC-06)', async () => {
+        const { dashboard } = await make('user')
+
+        const chosen = await dashboard.summary({ year: 2026, quarters: [1, 3] })
+
+        const rows = chosen.quarters.filter((q) => q.quarter === 1 || q.quarter === 3)
+        for (const column of chosen.forecast.columns) {
+          expect(chosen.forecast.cells[column.key], column.key).toEqual(sum(rows.map((r) => r.cells[column.key] ?? { count: 0, amount: 0 })))
+        }
+        expect(chosen.forecast.openTotal).toEqual(sum(rows.map((r) => r.openTotal)))
+      })
+
+      it('makes the status total the sum of the chosen quarter totals (Lost excluded) (AC-06)', async () => {
+        const { dashboard } = await make('user')
+
+        const chosen = await dashboard.summary({ year: 2026, quarters: [1, 3] })
+
+        expect(chosen.statuses.total).toEqual(sum(chosen.quarters.filter((q) => q.quarter === 1 || q.quarter === 3).map((q) => q.total)))
+      })
+
+      it('keeps the four quarter rows and the attention counts whatever quarters are chosen (AC-07)', async () => {
+        const { dashboard } = await make('user')
+
+        const whole = await dashboard.summary({ year: 2026 })
+        const chosen = await dashboard.summary({ year: 2026, quarters: [1, 3] })
+
+        expect(chosen.quarters).toEqual(whole.quarters)
+        expect(chosen.attention).toEqual(whole.attention)
+      })
+
+      it('describes several chosen quarters in the period (AC-08)', async () => {
+        const { dashboard } = await make('user')
+
+        expect((await dashboard.summary({ year: 2026, quarters: [3, 1] })).period).toEqual({ year: 2026, quarter: null, quarters: [1, 3], from: '2026-01-01', to: '2026-09-30' })
+      })
+
+      it('reads all four quarters like no quarter (AC-02·08)', async () => {
+        const { dashboard } = await make('user')
+
+        const four = await dashboard.summary({ year: 2026, quarters: [1, 2, 3, 4] })
+        const none = await dashboard.summary({ year: 2026 })
+
+        expect(four.period).toEqual(none.period)
+        expect(four.period.quarters).toEqual([])
+        expect(four.statuses).toEqual(none.statuses)
+        expect(four.forecast).toEqual(none.forecast)
+      })
+
+      it('matches the Deal list ledger of the same several quarters (AC-21)', async () => {
+        const gateway = await make('user')
+        const query = { year: 2026, quarters: [1, 3] } as const
+
+        const { statuses, forecast } = await gateway.dashboard.summary(query)
+        const sets = keySets(forecast.columns)
+
+        expect(await ledger(gateway, { ...query, forecastKeys: sets.notLost })).toEqual(statuses.total)
+        expect(await ledger(gateway, { ...query, forecastKeys: sets.open })).toEqual(forecast.openTotal)
+        for (const item of statuses.items) expect(await ledger(gateway, { ...query, statusKey: item.key, forecastKeys: sets.notLost }), item.key).toEqual(cellOf(item))
+      })
+
+      it.each([[[0]], [[1, 7]], [[1, 2, 3, 4, 1]]])('refuses the quarters %j with 422', async (quarters) => {
+        const { dashboard } = await make('user')
+
+        await expectRejects(dashboard.summary({ year: 2026, quarters: quarters as never }), 422)
+      })
     })
   })
 }

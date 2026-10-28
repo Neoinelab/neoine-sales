@@ -99,25 +99,25 @@ describe('deals.list', () => {
     const created = await gateway.deals.create({
       ...dealInputFor('2025-11-15'),
     })
-    const quarterOnly = (await gateway.deals.list({ quarter: 4, limit: 100 })).items
-    const thisYear = (await gateway.deals.list({ year: 2026, quarter: 4, limit: 100 })).items
+    const quarterOnly = (await gateway.deals.list({ quarters: [4], limit: 100 })).items
+    const thisYear = (await gateway.deals.list({ year: 2026, quarters: [4], limit: 100 })).items
 
     expect(quarterOnly.map((d) => d.code).sort()).toEqual(thisYear.map((d) => d.code).sort())
     expect(quarterOnly.map((d) => d.code)).not.toContain(created.code)
-    const lastYear = (await gateway.deals.list({ year: 2025, quarter: 4, limit: 100 })).items
+    const lastYear = (await gateway.deals.list({ year: 2025, quarters: [4], limit: 100 })).items
     expect(lastYear.map((d) => d.code)).toContain(created.code)
   })
 
   it('연도·분기 필터는 Expected Close 기준이고 경계를 포함한다', async () => {
     const { gateway } = await mockAs('kim')
     const all = (await gateway.deals.list({ limit: 100 })).items
-    const q4 = (await gateway.deals.list({ year: 2026, quarter: 4, limit: 100 })).items
+    const q4 = (await gateway.deals.list({ year: 2026, quarters: [4], limit: 100 })).items
     expect(q4.length).toBeGreaterThan(0)
     for (const d of q4) expect(d.revenueDate >= '2026-10-01' && d.revenueDate <= '2026-12-31').toBe(true)
     const byYear = (await gateway.deals.list({ year: 2026, limit: 100 })).items
     let sum = 0
     for (const quarter of [1, 2, 3, 4] as const) {
-      sum += (await gateway.deals.list({ year: 2026, quarter, limit: 100 })).total
+      sum += (await gateway.deals.list({ year: 2026, quarters: [quarter], limit: 100 })).total
     }
     expect(sum).toBe(byYear.length)
     expect(all.length).toBeGreaterThan(byYear.length)
@@ -149,7 +149,7 @@ describe('deals.list', () => {
 
   it('P6 분기와 월을 함께 주면 422다', async () => {
     const { gateway } = await mockAs('kim')
-    await expectApiError(gateway.deals.list({ year: 2026, quarter: 1, month: 1 }), 422, 'Quarter와 월은 함께 선택할 수 없습니다.')
+    await expectApiError(gateway.deals.list({ year: 2026, quarters: [1], month: 1 }), 422, 'Quarter와 월은 함께 선택할 수 없습니다.')
   })
 
   it('P6 서버 한도: limit이 200을 넘으면 422이고 200은 허용된다', async () => {
@@ -187,10 +187,10 @@ describe('deals.list', () => {
 
   it('최종 업데이트 기간은 연도·분기와 AND로 결합한다', async () => {
     const { gateway } = await mockAs('kim')
-    const q4 = (await gateway.deals.list({ year: 2026, quarter: 4, limit: 100 })).items
+    const q4 = (await gateway.deals.list({ year: 2026, quarters: [4], limit: 100 })).items
     const day = q4[0]!.lastUpdatedAt.slice(0, 10)
 
-    const both = await gateway.deals.list({ year: 2026, quarter: 4, updatedFrom: day, updatedTo: day, limit: 100 })
+    const both = await gateway.deals.list({ year: 2026, quarters: [4], updatedFrom: day, updatedTo: day, limit: 100 })
 
     expect(codes(both.items)).toEqual(codes(q4.filter((d) => d.lastUpdatedAt.slice(0, 10) === day)))
   })

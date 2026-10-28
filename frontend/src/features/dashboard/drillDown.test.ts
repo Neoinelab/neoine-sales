@@ -21,10 +21,12 @@ import {
  * scope = 대시보드 필터(연도·Quarter·담당자·Vendor). Vendor는 목록에 있는 id만 호출자가 넘긴다.
  */
 
-const FULL = { year: 2026, quarter: 4, ownerId: 7, vendor: 3 } as const
-const YEAR_ONLY = { year: 2026 } as const
-const OWNER_ONLY = { year: 2026, ownerId: 7 } as const
-const VENDOR_ONLY = { year: 2026, vendor: 3 } as const
+const FULL = { year: 2026, quarters: [4], ownerId: 7, vendor: 3 } as const
+const YEAR_ONLY = { year: 2026, quarters: [] } as const
+const OWNER_ONLY = { year: 2026, quarters: [], ownerId: 7 } as const
+const VENDOR_ONLY = { year: 2026, quarters: [], vendor: 3 } as const
+// Quarter 다중 선택(2026-10-28): 활성 탭에서 고른 분기(오름차순). 넷 다·없음은 호출자가 []로 정규화해 넘긴다
+const SEVERAL = { year: 2026, quarters: [1, 3], ownerId: 7, vendor: 3 } as const
 
 const column = (key: string, outcome: 'open' | 'won', order: number): ForecastColumn => ({ key, name: key, outcome, order })
 // 응답 columns(Lost 제외): Pipeline·Best·Most Likely·Commit과 admin이 추가한 Open 코드 verbal, Won
@@ -107,12 +109,12 @@ describe('attention tiles', () => {
 
   it('uses the server year and quarter of this quarter with the open forecasts', () => {
     expect(closingQuarterPath(FULL, { year: 2026, quarter: 4 }, SETS)).toBe(`/deals?year=2026&quarter=4&owner=7&vendor=3&forecast=${OPEN}`)
-    expect(closingQuarterPath({ year: 2020, quarter: 1 }, { year: 2027, quarter: 1 }, SETS)).toBe(`/deals?year=2027&quarter=1&forecast=${OPEN}`)
+    expect(closingQuarterPath({ year: 2020, quarters: [1] }, { year: 2027, quarter: 1 }, SETS)).toBe(`/deals?year=2027&quarter=1&forecast=${OPEN}`)
   })
 
   it('uses the server year and month of this month with the open forecasts', () => {
     expect(closingMonthPath(FULL, { year: 2026, month: 10 }, SETS)).toBe(`/deals?year=2026&month=10&owner=7&vendor=3&forecast=${OPEN}`)
-    expect(closingMonthPath({ year: 2020, quarter: 1 }, { year: 2027, month: 1 }, SETS)).toBe(`/deals?year=2027&month=1&forecast=${OPEN}`)
+    expect(closingMonthPath({ year: 2020, quarters: [1] }, { year: 2027, month: 1 }, SETS)).toBe(`/deals?year=2027&month=1&forecast=${OPEN}`)
   })
 
   it('has no link for the closing tiles when there is no open code', () => {
@@ -139,7 +141,7 @@ describe('quarter chart and table (Forecast 탭)', () => {
 
 describe('round trip: the Deals list reads back the same condition (AC-15·16)', () => {
   it('forecast tile', () => {
-    expect(queryOf(forecastTilePath(FULL, 'commit'))).toEqual({ ...PAGING, year: 2026, quarter: 4, ownerId: 7, vendorId: 3, forecastKeys: ['commit'] })
+    expect(queryOf(forecastTilePath(FULL, 'commit'))).toEqual({ ...PAGING, year: 2026, quarters: [4], ownerId: 7, vendorId: 3, forecastKeys: ['commit'] })
   })
 
   it('Open total', () => {
@@ -150,7 +152,7 @@ describe('round trip: the Deals list reads back the same condition (AC-15·16)',
     expect(queryOf(statusPath(FULL, 'poc_completed', SETS) ?? '')).toEqual({
       ...PAGING,
       year: 2026,
-      quarter: 4,
+      quarters: [4],
       ownerId: 7,
       vendorId: 3,
       statusKey: 'poc_completed',
@@ -171,7 +173,7 @@ describe('round trip: the Deals list reads back the same condition (AC-15·16)',
     expect(queryOf(closingQuarterPath(FULL, { year: 2026, quarter: 4 }, SETS) ?? '')).toEqual({
       ...PAGING,
       year: 2026,
-      quarter: 4,
+      quarters: [4],
       ownerId: 7,
       vendorId: 3,
       forecastKeys: SETS.open,
@@ -186,11 +188,11 @@ describe('round trip: the Deals list reads back the same condition (AC-15·16)',
   })
 
   it('quarter cell and quarter total', () => {
-    expect(queryOf(quarterCellPath(FULL, 2, 'commit'))).toEqual({ ...PAGING, year: 2026, quarter: 2, ownerId: 7, vendorId: 3, forecastKeys: ['commit'] })
+    expect(queryOf(quarterCellPath(FULL, 2, 'commit'))).toEqual({ ...PAGING, year: 2026, quarters: [2], ownerId: 7, vendorId: 3, forecastKeys: ['commit'] })
     expect(queryOf(quarterTotalPath(FULL, 3, SETS) ?? '')).toEqual({
       ...PAGING,
       year: 2026,
-      quarter: 3,
+      quarters: [3],
       ownerId: 7,
       vendorId: 3,
       forecastKeys: SETS.notLost,
@@ -247,5 +249,44 @@ describe('outcome is gone from every path (AC-03)', () => {
     expect(statusPath(FULL, 'prospecting', SETS)).toMatch(/\?year=2026&quarter=4&owner=7&vendor=3&status=prospecting&forecast=/)
     expect(closingMonthPath(FULL, { year: 2026, month: 10 }, SETS)).toMatch(/\?year=2026&month=10&owner=7&vendor=3&forecast=/)
     expect(quarterTotalPath(FULL, 1, SETS)).toMatch(/\?year=2026&quarter=1&owner=7&vendor=3&forecast=/)
+  })
+})
+
+describe('several chosen quarters (Quarter 다중 선택 AC-19·20)', () => {
+  const PARAM = 'quarter=1%2C3'
+
+  it('passes the chosen quarters as one ascending comma list on every period-bound link', () => {
+    expect(forecastTilePath(SEVERAL, 'commit')).toBe(`/deals?year=2026&${PARAM}&owner=7&vendor=3&forecast=commit`)
+    expect(openTotalPath(SEVERAL, SETS)).toBe(`/deals?year=2026&${PARAM}&owner=7&vendor=3&forecast=${OPEN}`)
+    expect(statusPath(SEVERAL, 'poc_completed', SETS)).toBe(`/deals?year=2026&${PARAM}&owner=7&vendor=3&status=poc_completed&forecast=${NOT_LOST}`)
+    expect(statusTotalPath(SEVERAL, SETS)).toBe(`/deals?year=2026&${PARAM}&owner=7&vendor=3&forecast=${NOT_LOST}`)
+  })
+
+  it('leaves out the quarter key when no quarter is passed (none and all four are normalized by the caller)', () => {
+    expect(forecastTilePath(YEAR_ONLY, 'commit')).not.toContain('quarter')
+    expect(statusTotalPath(YEAR_ONLY, SETS)).not.toContain('quarter')
+  })
+
+  it('opens exactly one quarter for a quarter cell and a quarter total, ignoring the chosen quarters', () => {
+    expect(quarterCellPath(SEVERAL, 2, 'commit')).toBe('/deals?year=2026&quarter=2&owner=7&vendor=3&forecast=commit')
+    expect(quarterTotalPath(SEVERAL, 4, SETS)).toBe(`/deals?year=2026&quarter=4&owner=7&vendor=3&forecast=${NOT_LOST}`)
+  })
+
+  it('keeps this-quarter, this-month, overdue and stale links as before whatever is chosen', () => {
+    expect(closingQuarterPath(SEVERAL, { year: 2026, quarter: 4 }, SETS)).toBe(`/deals?year=2026&quarter=4&owner=7&vendor=3&forecast=${OPEN}`)
+    expect(closingMonthPath(SEVERAL, { year: 2026, month: 10 }, SETS)).toBe(`/deals?year=2026&month=10&owner=7&vendor=3&forecast=${OPEN}`)
+    expect(overduePath(SEVERAL)).toBe('/deals?owner=7&vendor=3&overdue=1')
+    expect(stalePath(SEVERAL)).toBe('/deals?owner=7&vendor=3&stale=1')
+  })
+
+  it('round trip: the Deals list reads back the chosen quarters', () => {
+    expect(queryOf(forecastTilePath(SEVERAL, 'commit'))).toMatchObject({ year: 2026, quarters: [1, 3], forecastKeys: ['commit'] })
+    expect(queryOf(openTotalPath(SEVERAL, SETS) ?? '')).toMatchObject({ quarters: [1, 3], forecastKeys: SETS.open })
+    expect(queryOf(statusPath(SEVERAL, 'poc_completed', SETS) ?? '')).toMatchObject({ quarters: [1, 3], statusKey: 'poc_completed', forecastKeys: SETS.notLost })
+    expect(queryOf(statusTotalPath(SEVERAL, SETS) ?? '')).toMatchObject({ quarters: [1, 3], forecastKeys: SETS.notLost })
+  })
+
+  it('round trip without quarters has no quarters in the list query', () => {
+    expect(queryOf(statusTotalPath(YEAR_ONLY, SETS) ?? '')).not.toHaveProperty('quarters')
   })
 })

@@ -12,7 +12,9 @@ import { ErrorBanner } from '../../../shared/ui/ErrorBanner'
 import { CheckboxField, SelectField, TextField } from '../../../shared/ui/fields'
 import { MultiCheckSelect } from '../../../shared/ui/MultiCheckSelect'
 import { UserSelect } from '../../../shared/ui/UserSelect'
-import { effectiveMonth, monthOptions, quarterChangePatch } from './listQuery'
+import type { Quarter } from '../../../shared/model/period'
+import { QUARTERS, effectiveQuarters, quarterSummary } from '../../../shared/model/quarterSet'
+import { effectiveMonth, monthOptions, quarterClearPatch, quartersOf, quarterTogglePatch } from './listQuery'
 
 interface DealFilterBarProps {
   params: URLSearchParams
@@ -21,7 +23,6 @@ interface DealFilterBarProps {
   onReset: () => void
 }
 
-const QUARTERS = [1, 2, 3, 4] as const
 
 /** Deal 목록 필터(DL-04, LB-06). 키워드는 검색 버튼, 나머지는 바꾸는 즉시 URL에 반영한다. */
 export function DealFilterBar({ params, onChange, onReset }: DealFilterBarProps) {
@@ -35,7 +36,6 @@ export function DealFilterBar({ params, onChange, onReset }: DealFilterBarProps)
   const urlYear = /^\d+$/.test(value('year')) && Number(value('year')) >= 1 ? Number(value('year')) : undefined
   const yearOptions = useYearOptions(urlYear)
   const forecastKeys = parseForecastParam(params.get('forecast'))
-  const hintId = useId()
   const monthHintId = useId()
   const periodsQuery = useUpdatedPeriods()
   const periods = periodsQuery.data?.periods
@@ -67,7 +67,8 @@ export function DealFilterBar({ params, onChange, onReset }: DealFilterBarProps)
   }
   // 모르는 값은 '전체'로 보이고 조회에도 쓰이지 않는다(listQueryFromParams와 같은 판정).
   const nextStatus = nextActionStatusFromParam(params.get('next_status'))
-  const hasQuarter = value('quarter') !== ''
+  const quarters = quartersOf(params)
+  const hasQuarter = effectiveQuarters(quarters).length > 0
   // 연도 '전체'는 URL에 year=all로 두지만, year가 없는 주소(예: ?quarter=4)도 같은 '전체'로 보인다.
   const allYears = value('year') === '' || value('year') === 'all'
   const month = effectiveMonth(params)
@@ -172,28 +173,16 @@ export function DealFilterBar({ params, onChange, onReset }: DealFilterBarProps)
           </option>
         ))}
       </SelectField>
-      <label className="field">
-        <span>Quarter</span>
-        <select
-          name="quarter"
-          aria-label="Quarter"
-          aria-describedby={showQuarterHint ? hintId : undefined}
-          value={value('quarter')}
-          onChange={(e) => onChange(quarterChangePatch(params, e.target.value))}
-        >
-          <option value="">전체</option>
-          {QUARTERS.map((n) => (
-            <option key={n} value={String(n)}>
-              Q{n}
-            </option>
-          ))}
-        </select>
-        {showQuarterHint && (
-          <small id={hintId} className="field-hint">
-            연도가 전체이면 올해({thisYear}) 기준입니다.
-          </small>
-        )}
-      </label>
+      <MultiCheckSelect
+        label="Quarter"
+        name="quarter"
+        options={QUARTERS.map((q) => ({ value: String(q), label: `Q${q}` }))}
+        selected={quarters.map(String)}
+        summary={quarterSummary(quarters)}
+        onToggle={(v, on) => onChange(quarterTogglePatch(params, Number(v) as Quarter, on))}
+        onClear={() => onChange(quarterClearPatch(params))}
+        hint={showQuarterHint ? `연도가 전체이면 올해(${thisYear}) 기준입니다.` : undefined}
+      />
       <label className="field">
         <span>월</span>
         <select

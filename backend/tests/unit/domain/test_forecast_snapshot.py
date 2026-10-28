@@ -66,7 +66,7 @@ def test_quarter_sums_its_three_months() -> None:
         _cell(2026, 7, amount=10), _cell(2026, 8, amount=20), _cell(2026, 9, amount=30)
     )
 
-    summary = snapshot.summary(ForecastPeriod(year=2026, quarter=3), None)
+    summary = snapshot.summary(ForecastPeriod(year=2026, quarters=frozenset({3})), None)
 
     assert summary.rows[0].cells["pipeline"] == Tally(3, 60)
 
@@ -74,7 +74,7 @@ def test_quarter_sums_its_three_months() -> None:
 def test_months_outside_the_quarter_are_left_out() -> None:
     snapshot = _snapshot(_cell(2026, 6), _cell(2026, 7), _cell(2026, 10), _cell(2025, 8))
 
-    summary = snapshot.summary(ForecastPeriod(year=2026, quarter=3), None)
+    summary = snapshot.summary(ForecastPeriod(year=2026, quarters=frozenset({3})), None)
 
     assert summary.rows[0].cells["pipeline"] == Tally(1, 100)
 
@@ -148,7 +148,7 @@ def test_a_code_without_any_deal_is_still_a_zero_column() -> None:
 def test_columns_are_the_same_whatever_period_is_selected() -> None:
     snapshot = _snapshot(_cell(2026, 1, "commit"), _cell(2026, 7, "pipeline"))
 
-    q3 = snapshot.summary(ForecastPeriod(year=2026, quarter=3), None)
+    q3 = snapshot.summary(ForecastPeriod(year=2026, quarters=frozenset({3})), None)
     year = snapshot.summary(ForecastPeriod(year=2026), None)
     empty_period = snapshot.summary(ForecastPeriod(year=2030), None)
 
@@ -205,3 +205,20 @@ def test_snapshot_without_columns_has_no_columns() -> None:
 
     assert list(summary.columns) == []
     assert list(summary.rows) == []
+
+
+def test_separated_quarters_sum_only_their_months() -> None:
+    cells = [_cell(2026, month, amount=month) for month in range(1, 13)]
+    snapshot = _snapshot(*cells)
+
+    summary = snapshot.summary(ForecastPeriod(year=2026, quarters=frozenset({1, 3})), None)
+
+    assert summary.total.cells["pipeline"] == Tally(6, 1 + 2 + 3 + 7 + 8 + 9)
+
+
+def test_the_gap_quarter_between_chosen_quarters_is_left_out() -> None:
+    snapshot = _snapshot(_cell(2026, 5, amount=1000), _cell(2026, 2, amount=1))
+
+    summary = snapshot.summary(ForecastPeriod(year=2026, quarters=frozenset({1, 3})), None)
+
+    assert summary.total.cells["pipeline"] == Tally(1, 1)

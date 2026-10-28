@@ -18,7 +18,7 @@ function serverSummary(over: Record<string, unknown> = {}) {
   return {
     as_of: '2026-10-23T09:00:00+09:00',
     today: '2026-10-23',
-    period: { year: 2026, quarter: null, from: '2026-01-01', to: '2026-12-31' },
+    period: { year: 2026, quarter: null, quarters: [], from: '2026-01-01', to: '2026-12-31' },
     forecasts: {
       columns: COLUMNS,
       cells: [
@@ -70,7 +70,7 @@ describe('dashboard.summary over HTTP', () => {
   it('maps every condition to its snake_case query key', async () => {
     const { calls } = stubFetch(json(serverSummary()))
 
-    await createDashboardHttp().summary({ year: 2026, quarter: 4, ownerId: 7, vendorId: 6 })
+    await createDashboardHttp().summary({ year: 2026, quarters: [4], ownerId: 7, vendorId: 6 })
 
     expect(Object.fromEntries(query(calls[0]?.path ?? ''))).toEqual({
       year: '2026',
@@ -83,7 +83,7 @@ describe('dashboard.summary over HTTP', () => {
   it('does not send empty conditions and never sends a month', async () => {
     const { calls } = stubFetch(json(serverSummary()))
 
-    await createDashboardHttp().summary({ year: 2026, quarter: undefined, ownerId: undefined, vendorId: undefined })
+    await createDashboardHttp().summary({ year: 2026, quarters: undefined, ownerId: undefined, vendorId: undefined })
 
     const sent = query(calls[0]?.path ?? '')
     expect([...sent.keys()]).toEqual(['year'])
@@ -96,7 +96,7 @@ describe('dashboard.summary over HTTP', () => {
 
     expect(summary.asOf).toBe('2026-10-23T09:00:00+09:00')
     expect(summary.today).toBe('2026-10-23')
-    expect(summary.period).toEqual({ year: 2026, quarter: null, from: '2026-01-01', to: '2026-12-31' })
+    expect(summary.period).toEqual({ year: 2026, quarter: null, quarters: [], from: '2026-01-01', to: '2026-12-31' })
   })
 
   it('maps the forecast columns and turns the cell list into a record by key', async () => {
@@ -166,11 +166,41 @@ describe('dashboard.summary over HTTP', () => {
   })
 
   it('keeps a chosen quarter in the period', async () => {
-    stubFetch(json(serverSummary({ period: { year: 2026, quarter: 3, from: '2026-07-01', to: '2026-09-30' } })))
+    stubFetch(json(serverSummary({ period: { year: 2026, quarter: 3, quarters: [3], from: '2026-07-01', to: '2026-09-30' } })))
 
-    const { period } = await createDashboardHttp().summary({ year: 2026, quarter: 3 })
+    const { period } = await createDashboardHttp().summary({ year: 2026, quarters: [3] })
 
-    expect(period).toEqual({ year: 2026, quarter: 3, from: '2026-07-01', to: '2026-09-30' })
+    expect(period).toEqual({ year: 2026, quarter: 3, quarters: [3], from: '2026-07-01', to: '2026-09-30' })
+  })
+
+  it('repeats the quarter key once per chosen quarter', async () => {
+    const { calls } = stubFetch(json(serverSummary()))
+
+    await createDashboardHttp().summary({ year: 2026, quarters: [1, 3] })
+
+    expect(query(calls[0]?.path ?? '').getAll('quarter')).toEqual(['1', '3'])
+  })
+
+  it('sends no quarter key for an empty quarter list', async () => {
+    const { calls } = stubFetch(json(serverSummary()))
+
+    await createDashboardHttp().summary({ year: 2026, quarters: [] })
+
+    expect(query(calls[0]?.path ?? '').has('quarter')).toBe(false)
+  })
+
+  it('maps several chosen quarters in the period', async () => {
+    stubFetch(json(serverSummary({ period: { year: 2026, quarter: null, quarters: [1, 3], from: '2026-01-01', to: '2026-09-30' } })))
+
+    const { period } = await createDashboardHttp().summary({ year: 2026, quarters: [1, 3] })
+
+    expect(period).toEqual({ year: 2026, quarter: null, quarters: [1, 3], from: '2026-01-01', to: '2026-09-30' })
+  })
+
+  it.each([[[0]], [[5]], [[1, 7]]])('rejects the period quarters %j as a malformed response', async (quarters) => {
+    stubFetch(json(serverSummary({ period: { year: 2026, quarter: null, quarters, from: '2026-01-01', to: '2026-12-31' } })))
+
+    await expect(createDashboardHttp().summary({ year: 2026 })).rejects.toMatchObject({ kind: 'malformed-response' })
   })
 
   it('passes a 422 request-validation problem to the caller as an ApiError', async () => {

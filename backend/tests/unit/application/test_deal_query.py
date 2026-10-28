@@ -32,7 +32,7 @@ def test_defaults_are_the_first_page_of_twenty_newest_first_without_conditions()
         "status_key",
         "forecast_keys",
         "year",
-        "quarter",
+        "quarters",
         "updated_from",
         "updated_to",
     ):
@@ -211,12 +211,12 @@ def test_solution_filter_with_nul_is_rejected() -> None:
 
 
 def test_quarter_without_year_is_accepted() -> None:
-    query = DealQuery(quarter=2)
+    query = DealQuery(quarters=frozenset({2}))
 
-    assert (query.year, query.quarter) == (None, 2)
+    assert (query.year, query.quarters) == (None, frozenset({2}))
 
 
 @pytest.mark.parametrize("quarter", [0, 5])
 def test_quarter_out_of_range_is_rejected_without_year(quarter: int) -> None:
     with raises_with(InvalidValueError, "분기는 1~4 중에서 선택하세요."):
-        DealQuery(quarter=quarter)
+        DealQuery(quarters=frozenset({quarter}))

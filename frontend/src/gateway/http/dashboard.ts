@@ -42,7 +42,7 @@ function toSummary(body: Response): DashboardSummary {
   return {
     asOf: body.as_of,
     today: body.today,
-    period: { year: body.period.year, quarter: body.period.quarter, from: body.period.from, to: body.period.to },
+    period: { year: body.period.year, quarter: body.period.quarter, quarters: body.period.quarters.map(toQuarterNumber), from: body.period.from, to: body.period.to },
     forecast: {
       columns: body.forecasts.columns.map((c) => ({ key: c.key, name: c.name, outcome: c.outcome === 'won' ? 'won' : 'open', order: c.order })),
       cells: cellsByKey(body.forecasts.cells, keys),
@@ -71,7 +71,7 @@ function toSummary(body: Response): DashboardSummary {
 function toQueryParams(q: DashboardQuery) {
   return {
     year: q.year,
-    ...(q.quarter !== undefined ? { quarter: q.quarter } : {}),
+    ...(q.quarters?.length ? { quarter: [...q.quarters] } : {}),
     ...(q.ownerId !== undefined ? { owner_user_id: q.ownerId } : {}),
     ...(q.vendorId !== undefined ? { vendor_id: q.vendorId } : {}),
   }
