@@ -156,22 +156,49 @@ describe('컬럼 순서 (AC5)', () => {
     expect(order()).toEqual(['Deal code', 'Deal 이름', 'Solution'])
   })
 
-  it('reorders chips with the move buttons of the setting panel', async () => {
+  it('has no move buttons in the setting panel', async () => {
     const { user } = await threeColumns()
-    await user.click(chipButton(0))
+    await user.click(chipButton(1))
+    const panel = settingsOf('Deal 이름')
+
+    expect(within(panel).queryByRole('button', { name: '앞으로' })).toBeNull()
+    expect(within(panel).queryByRole('button', { name: '뒤로' })).toBeNull()
+    expect(chipList()).toBeVisible()
+  })
+})
+
+describe('컬럼 설정 한 줄 행', () => {
+  it('shows the column name as the first cell and every control inside the panel', async () => {
+    const { user } = await openDesigner()
+    await addColumn(user, 'Deal code')
     const panel = settingsOf('Deal code')
 
-    expect(within(panel).getByRole('button', { name: '앞으로' })).toBeDisabled()
+    expect(within(panel).getByText('Deal code')).toBeVisible()
+    expect(within(panel).getByLabelText('표시 이름')).toBeVisible()
+    expect(within(panel).getByLabelText('앞 N자만 보기')).toBeVisible()
+    expect(within(panel).getByLabelText('앞 N자의 N')).toBeVisible()
+    expect(within(panel).getByLabelText('그룹핑')).toBeVisible()
+    expect(within(panel).getByLabelText('집계')).toBeVisible()
+  })
 
-    await user.click(within(panel).getByRole('button', { name: '뒤로' }))
-    await user.click(within(settingsOf('Deal code')).getByRole('button', { name: '뒤로' }))
+  it('names text, number and select controls with aria-label instead of visible labels', async () => {
+    const { user } = await openDesigner()
+    await addColumn(user, 'Deal code')
+    const panel = settingsOf('Deal code')
 
-    expect(order()).toEqual(['Deal 이름', 'Solution', 'Deal code'])
-    expect(within(settingsOf('Deal code')).getByRole('button', { name: '뒤로' })).toBeDisabled()
+    for (const name of ['표시 이름', '앞 N자의 N', '집계']) {
+      expect(within(panel).getByLabelText(name)).toHaveAttribute('aria-label', name)
+    }
+  })
 
-    await user.click(within(settingsOf('Deal code')).getByRole('button', { name: '앞으로' }))
+  it('shows the display name in the first cell when it is changed', async () => {
+    const { user } = await openDesigner()
+    await addColumn(user, 'Deal code')
 
-    expect(order()).toEqual(['Deal 이름', 'Deal code', 'Solution'])
-    expect(chipList()).toBeVisible()
+    await user.type(within(settingsOf('Deal code')).getByLabelText('표시 이름'), '코드값')
+
+    const panel = screen.getByRole('region', { name: '컬럼 설정: 코드값' })
+    expect(within(panel).getByText('코드값')).toBeVisible()
+    expect(within(panel).queryByText('Deal code')).toBeNull()
   })
 })

@@ -1,13 +1,10 @@
 import { useEffect, useRef, useState, type DragEvent, type KeyboardEvent } from 'react'
 import type { ReportCatalog } from '../../../shared/model/reportTypes'
-import { ColumnSettings } from './ColumnSettings'
+import { ColumnSettings, PANEL_PARTS } from './ColumnSettings'
 import { columnName } from './names'
 import { fieldByKey } from './state/columnRules'
 import type { DesignerAction, DesignerColumn, DesignerState } from './state/designerState'
 import { idsOf, type IssueView, type Message } from './state/issueView'
-
-/** 설정 패널이 자기 입력에 붙이는 위반의 part. 이 밖의 위반은 칩 쪽에 보인다. */
-const PANEL_PARTS = ['label', 'format', 'prefix_length', 'group', 'aggregate']
 
 interface ColumnShelfProps {
   state: DesignerState
@@ -77,7 +74,6 @@ export function ColumnShelf({ state, catalog, issues, dispatch }: ColumnShelfPro
 
   const selected = columns.find((c) => c.uid === selectedUid)
   const selectedField = selected ? fieldByKey(catalog, selected.field) : undefined
-  const selectedIndex = selected ? columns.indexOf(selected) : -1
 
   const chipMessages = (column: DesignerColumn): readonly Message[] => {
     const all = issues.column(column.uid)
@@ -161,11 +157,8 @@ export function ColumnShelf({ state, catalog, issues, dispatch }: ColumnShelfPro
           field={selectedField}
           catalog={catalog}
           hasGroup={hasGroup}
-          index={selectedIndex}
-          count={columns.length}
           messages={issues.column(selected.uid).filter((m) => m.part !== null && PANEL_PARTS.includes(m.part))}
           onPatch={(patch) => dispatch({ type: 'updateColumn', uid: selected.uid, patch })}
-          onMove={(to) => move(selected, to)}
         />
       )}
     </section>
