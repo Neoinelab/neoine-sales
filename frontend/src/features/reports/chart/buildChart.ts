@@ -154,10 +154,14 @@ function texts(parts: Parts, scatterInfos: { x: PivotCell; y: PivotCell }[] | nu
         return `${c.label}: (${info ? show(info.x) : '—'}, ${info ? show(info.y) : '—'})`
       }
       const cell = cellAt(grid, c.datasetIndex, c.dataIndex)
-      const head = pie ? c.label : (c.dataset.label ?? '')
+      const head = pie ? (grid.titles[c.dataIndex] ?? c.label) : (grid.sets[c.datasetIndex]?.title ?? c.dataset.label ?? '')
       if (!percent) return `${head}: ${show(cell)}`
       const shares = numbers(grid, parts.input, true)
       return `${head}: ${fixed(shares[c.datasetIndex]?.[c.dataIndex] ?? 0)}% (${show(cell)})`
+    },
+    title: (items: readonly { dataIndex: number; label: string }[]): string => {
+      const first = items[0]
+      return first ? (grid.titles[first.dataIndex] ?? first.label) : ''
     },
     label: (value: unknown, c: { datasetIndex: number; dataIndex: number }): string => {
       if (scatterInfos) return show(scatterInfos[c.dataIndex]?.y ?? null)
@@ -180,7 +184,7 @@ function optionsOf(parts: Parts, scatterInfos: { x: PivotCell; y: PivotCell }[] 
     plugins: {
       title: { display: input.title !== '', text: input.title, color: theme.text },
       legend: { display: input.legend !== 'none', position: input.legend === 'none' ? 'top' : input.legend, labels: { color: theme.text } },
-      tooltip: { callbacks: { label: text.tooltip } },
+      tooltip: { callbacks: { label: text.tooltip, ...(scatterInfos ? {} : { title: text.title }) } },
       datalabels: { display: input.dataLabels, color: theme.text, formatter: text.label },
     },
   }
@@ -217,7 +221,7 @@ export function buildChart(input: ReportChartInput, result: ReportResult, ctx: F
   if (input.kind === 'scatter') {
     if (result.rows.length > CHART_POINTS_MAX) return { problem: CHART_TOO_MANY }
     const plotted = scatter(result, columns, ctx)
-    const parts: Parts = { input, columns, grid: { labels: plotted.labels, sets: [] }, ctx, percent }
+    const parts: Parts = { input, columns, grid: { labels: plotted.labels, titles: plotted.labels, sets: [] }, ctx, percent }
     const yColumn = columns.values[1]
     const data = chartData(plotted.labels, [{ label: yColumn ? columnHeader(yColumn) : '', data: plotted.points, backgroundColor: color(0) }])
     return { type: 'scatter', data, options: optionsOf(parts, plotted.infos), description }

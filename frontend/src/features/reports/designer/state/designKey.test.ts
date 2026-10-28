@@ -8,7 +8,7 @@ import { fromReportRequest } from './fromRequest'
 
 const SAVED: ReportQueryInput = {
   columns: [
-    { field: 'deal.vendor', format: 'name', group: true },
+    { field: 'deal.vendor', group: true },
     { field: 'deal.amount', format: 'krw_thousand', group: false, aggregate: 'sum' },
   ],
   conditions: [{ field: 'deal.amount', operator: 'gte', value: 1_500_000 }],
@@ -46,6 +46,7 @@ describe('designKey', () => {
 
   it.each([
     ['a label', (s: ReturnType<typeof load>) => reduce(s, { type: 'updateColumn', uid: uidAt(s, 1), patch: { label: '합계' } })],
+    ['the prefix option', (s: ReturnType<typeof load>) => reduce(s, { type: 'updateColumn', uid: uidAt(s, 0), patch: { prefixOn: true, prefixLength: 4 } })],
     ['the combine', (s: ReturnType<typeof load>) => reduce(s, { type: 'setCombine', combine: 'or' })],
     ['the row limit', (s: ReturnType<typeof load>) => reduce(s, { type: 'setRowLimit', rowLimit: 100 })],
     ['the sort direction', (s: ReturnType<typeof load>) => reduce(s, { type: 'setSort', sort: { uid: uidAt(s, 1), direction: 'asc' } })],

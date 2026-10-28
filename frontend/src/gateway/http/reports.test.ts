@@ -55,8 +55,8 @@ function serverCatalog() {
         label: '경고',
         entity: 'deal',
         type: 'code',
-        formats: ['name', 'key'],
-        default_format: 'name',
+        formats: [],
+        default_format: null,
         operators: ['in', 'not_in', 'is_empty'],
         aggregates: ['count', 'count_distinct'],
         default_aggregate: null,
@@ -74,7 +74,7 @@ function serverCatalog() {
 }
 
 const SERVER_COLUMNS = [
-  { index: 0, field: 'deal.vendor', label: 'Vendor', entity: 'deal', type: 'code', value_type: 'text', format: 'name', prefix_length: null, group: true, aggregate: null },
+  { index: 0, field: 'deal.vendor', label: 'Vendor', entity: 'deal', type: 'code', value_type: 'text', format: null, prefix_length: null, group: true, aggregate: null },
   { index: 1, field: 'deal.amount', label: '금액 합계', entity: 'deal', type: 'number', value_type: 'integer', format: 'krw_thousand', prefix_length: null, group: false, aggregate: 'sum' },
 ]
 
@@ -100,7 +100,7 @@ function serverResult(over: Record<string, unknown> = {}) {
 }
 
 const REQUEST: ReportQueryInput = {
-  columns: [{ field: 'deal.vendor', format: 'name', group: true }],
+  columns: [{ field: 'deal.vendor', group: true }],
   conditions: [],
   combine: 'and',
   rowLimit: 1000,
@@ -187,8 +187,8 @@ describe('reports.query over HTTP', () => {
     const { calls } = stubFetch(json(serverResult()))
     const input: ReportQueryInput = {
       columns: [
-        { field: 'deal.vendor', format: 'name', group: true },
-        { field: 'deal.name', format: 'prefix', prefixLength: 5, group: false, label: '이름 앞부분', aggregate: 'count' },
+        { field: 'deal.vendor', group: true },
+        { field: 'deal.name', prefixLength: 5, group: false, label: '이름 앞부분', aggregate: 'count' },
       ],
       conditions: [
         { field: 'deal.amount', operator: 'between', value: [1_000_000, 2_000_000] },
@@ -204,8 +204,8 @@ describe('reports.query over HTTP', () => {
     expect(calls[0]).toMatchObject({ method: 'POST', path: '/api/v1/reports/query' })
     expect(calls[0]?.body).toEqual({
       columns: [
-        { field: 'deal.vendor', format: 'name', group: true },
-        { field: 'deal.name', format: 'prefix', prefix_length: 5, group: false, label: '이름 앞부분', aggregate: 'count' },
+        { field: 'deal.vendor', group: true },
+        { field: 'deal.name', prefix_length: 5, group: false, label: '이름 앞부분', aggregate: 'count' },
       ],
       conditions: [
         { field: 'deal.amount', operator: 'between', value: [1_000_000, 2_000_000] },
@@ -221,7 +221,7 @@ describe('reports.query over HTTP', () => {
     const { calls } = stubFetch(json(serverResult()))
 
     await createReportsHttp().query({
-      columns: [{ field: 'deal.code', format: 'as_is', group: false }],
+      columns: [{ field: 'deal.code', group: false }],
       conditions: [{ field: 'deal.name', operator: 'is_empty' }],
       combine: 'and',
       rowLimit: 100,
@@ -229,7 +229,7 @@ describe('reports.query over HTTP', () => {
 
     const body = calls[0]?.body as { columns: object[]; conditions: object[] } & Record<string, unknown>
     expect(Object.keys(body).sort()).toEqual(['columns', 'combine', 'conditions', 'row_limit'])
-    expect(Object.keys(body.columns[0] ?? {}).sort()).toEqual(['field', 'format', 'group'])
+    expect(Object.keys(body.columns[0] ?? {}).sort()).toEqual(['field', 'group'])
     expect(Object.keys(body.conditions[0] ?? {}).sort()).toEqual(['field', 'operator'])
   })
 
@@ -266,6 +266,48 @@ describe('reports.query over HTTP', () => {
       group: false,
       aggregate: 'sum',
     })
+  })
+
+  it('keeps a null format and the prefix length of a result column', async () => {
+    stubFetch(json(serverResult()))
+
+    const result = await createReportsHttp().query(REQUEST)
+
+    expect(result.columns[0]).toMatchObject({ field: 'deal.vendor', format: null, prefixLength: null })
+  })
+
+  it('maps a prefix length on a column of any type', async () => {
+    const columns = [{ ...SERVER_COLUMNS[0], prefix_length: 4 }, SERVER_COLUMNS[1]]
+    stubFetch(json(serverResult({ columns })))
+
+    const result = await createReportsHttp().query(REQUEST)
+
+    expect(result.columns[0]?.prefixLength).toBe(4)
+  })
+
+  it('maps a catalog field without formats to an empty list and a null default', async () => {
+    const catalog = serverCatalog()
+    stubFetch(json(catalog))
+
+    const mapped = await createReportsHttp().fields()
+
+    const risk = mapped.fields.find((f) => f.key === 'deal.risk')
+    expect(risk).toMatchObject({ formats: [], defaultFormat: null })
+  })
+
+  it('sends a format only when the design has one', async () => {
+    const { calls } = stubFetch(json(serverResult()))
+
+    await createReportsHttp().query({
+      columns: [{ field: 'deal.amount', format: 'krw_million', group: false }, { field: 'deal.name', group: false }],
+      conditions: [],
+      combine: 'and',
+      rowLimit: 100,
+    })
+
+    const body = calls[0]?.body as { columns: Record<string, unknown>[] }
+    expect(body.columns[0]).toEqual({ field: 'deal.amount', format: 'krw_million', group: false })
+    expect('format' in (body.columns[1] ?? {})).toBe(false)
   })
 
   it('keeps null totals when nothing is grouped', async () => {

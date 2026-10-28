@@ -60,7 +60,7 @@ export function buildIssueView(visible: readonly AnchoredIssue[], inputIssues: r
         loose[target.kind].push({ id: nextId(), part: null, text })
     }
   }
-  for (const input of inputIssues) push(byCondition, input.uid, { id: nextId(), part: input.part, text: input.message })
+  for (const input of inputIssues) push(input.part === 'prefix_length' ? byColumn : byCondition, input.uid, { id: nextId(), part: input.part, text: input.message })
 
   return {
     column: (uid) => byColumn.get(uid) ?? NONE,

@@ -104,7 +104,7 @@ describe('그룹핑 없는 결과 안내 (AC11)', () => {
         columns: [
           VENDOR_COL,
           STATUS_COL,
-          resultColumn({ index: 2, field: 'deal.forecast', label: 'Forecast', type: 'code', valueType: 'text', format: 'name', group: true }),
+          resultColumn({ index: 2, field: 'deal.forecast', label: 'Forecast', type: 'code', valueType: 'text', format: null, group: true }),
           amountCol(3),
         ],
         rows: [['Silverfort', 'Won', '90', 1_000_000]],

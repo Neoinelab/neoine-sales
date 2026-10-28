@@ -4,7 +4,7 @@
 import pytest
 
 from app.domain.report.errors import ReportDefinitionError
-from app.domain.report.vocabulary import Combine, Format, SortDirection
+from app.domain.report.vocabulary import Combine, SortDirection
 from tests.support.report_defs import col, cond, issues, parse
 
 CODE = col("deal.code")
@@ -151,25 +151,81 @@ def test_blank_overlong_or_nul_label_is_rejected(label: str) -> None:
     assert issues([col("deal.code", label=label)]) == [(("columns", 0, "label"), "label-invalid")]
 
 
-# ---- prefix 길이 ----
+# ---- 포맷 없는 필드와 앞 N자 옵션 (2026-10-28) ----
+
+LEGACY_FORMATS = ["as_is", "prefix", "name", "key"]
+ANY_TYPE_FIELDS = [
+    "deal.name",
+    "deal.status",
+    "deal.owner",
+    "deal.amount",
+    "deal.expected_close",
+    "deal.created_at",
+]
 
 
+@pytest.mark.parametrize("field", ["deal.name", "deal.status", "deal.owner", "deal.amount"])
+@pytest.mark.parametrize("legacy", LEGACY_FORMATS)
+def test_legacy_format_is_rejected(field: str, legacy: str) -> None:
+    found = issues([col(field, format=legacy)])
+
+    assert found == [(("columns", 0, "format"), "format-not-allowed")]
+
+
+def test_any_format_on_formatless_field_is_rejected_with_message() -> None:
+    from app.domain.report.errors import ReportDefinitionError  # noqa: PLC0415
+    from app.domain.report.parse import parse_report_definition  # noqa: PLC0415
+    from tests.support.report_defs import raw  # noqa: PLC0415
+
+    with pytest.raises(ReportDefinitionError) as caught:
+        parse_report_definition(raw([col("deal.name", format="thousands")]))
+
+    (issue,) = caught.value.issues
+    assert (tuple(issue.location), issue.code) == (("columns", 0, "format"), "format-not-allowed")
+    assert issue.message == "이 필드는 포맷을 고를 수 없습니다"
+
+
+@pytest.mark.parametrize("field", ["deal.name", "deal.status", "deal.owner"])
+def test_formatless_field_accepts_omitted_format(field: str) -> None:
+    assert parse([col(field)]).columns[0].format is None
+
+
+@pytest.mark.parametrize("field", ANY_TYPE_FIELDS)
 @pytest.mark.parametrize("length", [1, 200])
-def test_prefix_format_accepts_length_one_to_two_hundred(length: int) -> None:
-    column = parse([col("deal.name", format="prefix", prefix_length=length)]).columns[0]
+def test_prefix_length_is_accepted_on_every_field_type(field: str, length: int) -> None:
+    column = parse([col(field, prefix_length=length)]).columns[0]
 
-    assert column.format == Format.PREFIX
     assert column.prefix_length == length
 
 
-@pytest.mark.parametrize("length", [0, 201, -1, None, True, "5"])
-def test_prefix_format_rejects_missing_or_out_of_range_length(length: object) -> None:
-    found = issues([col("deal.name", format="prefix", prefix_length=length)])
+def test_prefix_length_on_group_and_aggregate_columns_is_accepted() -> None:
+    columns = parse(
+        [
+            col("deal.vendor", group=True, prefix_length=3),
+            col("deal.amount", aggregate="sum", prefix_length=5),
+            col("action.count", prefix_length=2),
+        ]
+    ).columns
 
-    assert found == [(("columns", 0, "prefix_length"), "value-invalid")]
+    assert [c.prefix_length for c in columns] == [3, 5, 2]
 
 
-def test_prefix_length_on_another_format_is_rejected() -> None:
-    found = issues([col("deal.name", format="as_is", prefix_length=5)])
+@pytest.mark.parametrize("length", [0, 201, -1, "20", 1.5, True])
+def test_prefix_length_out_of_range_or_not_integer_is_rejected(length: object) -> None:
+    from app.domain.report.errors import ReportDefinitionError  # noqa: PLC0415
+    from app.domain.report.parse import parse_report_definition  # noqa: PLC0415
+    from tests.support.report_defs import raw  # noqa: PLC0415
 
-    assert found == [(("columns", 0, "prefix_length"), "value-invalid")]
+    with pytest.raises(ReportDefinitionError) as caught:
+        parse_report_definition(raw([col("deal.name", prefix_length=length)]))
+
+    (issue,) = caught.value.issues
+    assert (tuple(issue.location), issue.code) == (
+        ("columns", 0, "prefix_length"),
+        "value-invalid",
+    )
+    assert issue.message == "앞 N자의 N은 1~200의 정수여야 합니다"
+
+
+def test_omitted_prefix_length_is_none() -> None:
+    assert parse([col("deal.name")]).columns[0].prefix_length is None

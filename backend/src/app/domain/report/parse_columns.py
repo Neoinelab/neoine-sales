@@ -61,9 +61,9 @@ def _parse_column(i: int, raw: RawColumn, grouped: bool, log: IssueLog) -> Repor
         return None
     label = _label(raw.label, field, scope)
     fmt = _format(raw.format, field, scope)
-    prefix_length = _prefix_length(raw.prefix_length, fmt, scope)
+    prefix_length = _prefix_length(raw.prefix_length, scope)
     aggregate = _aggregate(raw, field, grouped=grouped, scope=scope)
-    if scope.failed or fmt is None:
+    if scope.failed:
         return None
     return ReportColumn(field, label, fmt, prefix_length, raw.group, aggregate)
 
@@ -84,20 +84,20 @@ def _format(raw: str | None, field: FieldSpec, scope: IssueScope) -> Format | No
         return field.default_format
     fmt = enum_member(Format, raw)
     if fmt is None or fmt not in field.formats:
-        names = ", ".join(f.value for f in field.formats)
-        scope.add("format-not-allowed", f"이 필드에 쓸 수 없는 포맷입니다. 가능: {names}", "format")
+        message = (
+            "이 필드는 포맷을 고를 수 없습니다"
+            if not field.formats
+            else "이 필드에 쓸 수 없는 포맷입니다. 가능: "
+            + ", ".join(f.value for f in field.formats)
+        )
+        scope.add("format-not-allowed", message, "format")
         return None
     return fmt
 
 
-def _prefix_length(raw: object, fmt: Format | None, scope: IssueScope) -> int | None:
-    if fmt is None:
-        return None
-    if fmt is not Format.PREFIX:
-        if raw is not None:
-            scope.add(
-                "value-invalid", "prefix_length는 앞 N자 포맷에서만 쓸 수 있습니다", "prefix_length"
-            )
+def _prefix_length(raw: object, scope: IssueScope) -> int | None:
+    """앞 N자 보기 옵션. 모든 컬럼에서 null 또는 1~200의 정수(bool 제외)."""
+    if raw is None:
         return None
     if type(raw) is not int or not PREFIX_MIN <= raw <= PREFIX_MAX:
         scope.add(

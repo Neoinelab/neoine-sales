@@ -16,6 +16,23 @@ const heading = (name: string) => screen.findByRole('heading', { level: 1, name 
 const editControl = (): HTMLElement | null => screen.queryByRole('link', { name: '편집' }) ?? screen.queryByRole('button', { name: '편집' })
 const resultReady = () => screen.findByRole('table', { name: '조회 결과' })
 
+describe('보기 화면 앞 N자 (AC19)', () => {
+  it('cuts the data cells of a column saved with a prefix length and keeps the whole value in the title', async () => {
+    const prefixed = savedReport({
+      id: 16,
+      name: '앞 N자 리포트',
+      definition: { columns: [{ field: 'deal.name', prefixLength: 4, group: false }], conditions: [], combine: 'and', rowLimit: 100 },
+    })
+    await openView(prefixed.id, { savedReports: [...SAVED_SAMPLES, prefixed] })
+
+    const table = await resultReady()
+    const [cell] = within(table).getAllByRole('cell')
+
+    expect(cell).toHaveTextContent('Deal…')
+    expect(cell).toHaveAttribute('title', 'Deal 이름 1')
+  })
+})
+
 describe('보기 화면 (AC16, S16)', () => {
   it('runs the saved report and shows meta result and sql', async () => {
     await openView(MINE_PUBLIC.id)

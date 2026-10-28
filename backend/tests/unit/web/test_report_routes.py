@@ -253,7 +253,7 @@ async def test_query_route_describes_each_column() -> None:
             "entity": "deal",
             "type": "code",
             "value_type": "text",
-            "format": "name",
+            "format": None,
             "prefix_length": None,
             "group": True,
             "aggregate": None,
@@ -391,3 +391,77 @@ async def test_timeout_returns_503_report_timeout_with_a_fixed_message() -> None
     assert body["title"] == "Report Timeout"
     assert body["detail"] == TIMEOUT_DETAIL
     assert "secret" not in response.text
+
+
+# ---- 포맷 정리 (2026-10-28) ----
+
+
+@pytest.mark.parametrize("legacy", ["as_is", "prefix", "name", "key"])
+async def test_query_with_legacy_format_returns_invalid_report(legacy: str) -> None:
+    body_in = {"columns": [{"field": "deal.name", "format": legacy}]}
+    async with _client(FakeUseCases(), role=Role.USER) as http:
+        response = await http.post(QUERY, json=body_in)
+
+    assert response.status_code == 422
+    body = response.json()
+    assert str(body["type"]).endswith("invalid-report")
+    assert [(e["location"], e["code"]) for e in body["errors"]] == [
+        (["columns", 0, "format"], "format-not-allowed")
+    ]
+
+
+async def test_query_with_format_on_a_text_field_says_it_cannot_be_chosen() -> None:
+    body_in = {"columns": [{"field": "deal.name", "format": "thousands"}]}
+    async with _client(FakeUseCases(), role=Role.USER) as http:
+        body = (await http.post(QUERY, json=body_in)).json()
+
+    assert body["errors"][0]["message"] == "이 필드는 포맷을 고를 수 없습니다"
+
+
+@pytest.mark.parametrize("length", [0, 201, "20", 1.5, True])
+async def test_query_with_bad_prefix_length_returns_invalid_report(length: object) -> None:
+    body_in = {"columns": [{"field": "deal.name", "prefix_length": length}]}
+    async with _client(FakeUseCases(), role=Role.USER) as http:
+        response = await http.post(QUERY, json=body_in)
+
+    assert response.status_code == 422
+    errors = response.json()["errors"]
+    assert [(e["location"], e["code"]) for e in errors] == [
+        (["columns", 0, "prefix_length"], "value-invalid")
+    ]
+    assert errors[0]["message"] == "앞 N자의 N은 1~200의 정수여야 합니다"
+
+
+async def test_result_column_format_is_null_for_code_field_and_carries_prefix_length() -> None:
+    body_in = {
+        "columns": [
+            {"field": "deal.status", "prefix_length": 4},
+            {"field": "deal.name"},
+            {"field": "deal.amount", "prefix_length": 200},
+        ]
+    }
+    async with _client(FakeUseCases(), role=Role.USER) as http:
+        columns = (await http.post(QUERY, json=body_in)).json()["columns"]
+
+    assert [(c["format"], c["prefix_length"]) for c in columns] == [
+        (None, 4),
+        (None, None),
+        ("krw_thousand", 200),
+    ]
+
+
+async def test_catalog_formatless_fields() -> None:
+    async with _client(FakeUseCases(), role=Role.USER) as http:
+        body = (await http.get(FIELDS)).json()
+
+    fields = body["fields"]
+    formatless = [f for f in fields if f["type"] in {"text", "code", "user"}]
+    assert formatless
+    assert all(f["formats"] == [] and f["default_format"] is None for f in formatless)
+    assert len(body["formats"]) == 12
+    assert {f["key"] for f in body["formats"] if f["affects_query"]} == {
+        "ymd",
+        "year",
+        "quarter",
+        "month",
+    }

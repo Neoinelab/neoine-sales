@@ -7,7 +7,7 @@ import { expectApiError, mockAs } from '../testing'
 /** Reports Fake 자체의 규칙(계약 스위트가 다루지 않는 제어 도구와 합성 결과). */
 
 const CODE_ONLY: ReportQueryInput = {
-  columns: [{ field: 'deal.code', format: 'as_is', group: false }],
+  columns: [{ field: 'deal.code', group: false }],
   conditions: [],
   combine: 'and',
   rowLimit: 100,
@@ -18,7 +18,7 @@ const CANNED: ReportResult = {
   actionFilter: 'none',
   dealNumbersOnce: false,
   columns: [
-    { index: 0, field: 'deal.code', label: 'Deal code', entity: 'deal', type: 'text', valueType: 'text', format: 'as_is', prefixLength: null, group: false, aggregate: null },
+    { index: 0, field: 'deal.code', label: 'Deal code', entity: 'deal', type: 'text', valueType: 'text', format: null, prefixLength: null, group: false, aggregate: null },
   ],
   rows: [['20261016-0001']],
   totals: null,
@@ -103,7 +103,7 @@ describe('reports Fake', () => {
     const result = await mock.gateway.reports.query({
       ...CODE_ONLY,
       columns: [
-        { field: 'deal.vendor', format: 'name', group: true },
+        { field: 'deal.vendor', group: true },
         { field: 'deal.amount', format: 'krw_thousand', group: false },
       ],
     })
@@ -118,7 +118,7 @@ describe('reports Fake', () => {
     const result = await mock.gateway.reports.query({
       ...CODE_ONLY,
       columns: [
-        { field: 'action.type', format: 'name', group: true },
+        { field: 'action.type', group: true },
         { field: 'deal.amount', format: 'krw_thousand', group: false },
       ],
     })

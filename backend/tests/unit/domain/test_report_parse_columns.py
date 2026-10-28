@@ -28,10 +28,26 @@ def test_date_field_rejects_ymd_hm_but_datetime_field_accepts_it() -> None:
     assert parse([col("deal.created_at", format="ymd_hm")]).columns[0].format == Format.YMD_HM
 
 
-def test_omitted_format_uses_the_field_default() -> None:
-    columns = parse([col("deal.amount"), col("deal.vendor"), col("deal.created_at")]).columns
+def test_omitted_format_is_none_for_text_code_user_and_default_otherwise() -> None:
+    columns = parse(
+        [
+            col("deal.name"),
+            col("deal.status"),
+            col("deal.owner"),
+            col("deal.amount"),
+            col("deal.expected_close"),
+            col("deal.created_at"),
+        ]
+    ).columns
 
-    assert [c.format for c in columns] == [Format.KRW_THOUSAND, Format.NAME, Format.YMD_HM]
+    assert [c.format for c in columns] == [
+        None,
+        None,
+        None,
+        Format.KRW_THOUSAND,
+        Format.YMD,
+        Format.YMD_HM,
+    ]
 
 
 # ---- 그룹핑과 집계 (Q3) ----

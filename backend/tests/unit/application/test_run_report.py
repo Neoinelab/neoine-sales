@@ -197,7 +197,7 @@ async def test_run_report_describes_columns_from_the_definition(run: RunReport) 
     first, second, third = view.columns
     assert (first.index, first.field, first.label) == (0, "deal.vendor", "벤더")
     assert (first.entity, first.type, first.group) == ("deal", "code", True)
-    assert (first.format, first.aggregate) == (Format.NAME, None)
+    assert (first.format, first.aggregate) == (None, None)
     assert (second.format, second.value_type) == (Format.QUARTER, "text")
     assert (third.aggregate, third.format, third.group) == (
         Aggregate.SUM,

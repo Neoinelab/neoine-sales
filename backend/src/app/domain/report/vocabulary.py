@@ -39,10 +39,6 @@ class OptionsSource(StrEnum):
 
 
 class Format(StrEnum):
-    AS_IS = "as_is"
-    PREFIX = "prefix"
-    NAME = "name"
-    KEY = "key"
     THOUSANDS = "thousands"
     KRW_THOUSAND = "krw_thousand"
     KRW_MILLION = "krw_million"
@@ -62,9 +58,7 @@ class Format(StrEnum):
         return self in _QUERY_FORMATS
 
 
-_QUERY_FORMATS = frozenset(
-    {Format.NAME, Format.KEY, Format.YMD, Format.YEAR, Format.QUARTER, Format.MONTH}
-)
+_QUERY_FORMATS = frozenset({Format.YMD, Format.YEAR, Format.QUARTER, Format.MONTH})
 
 
 class Operator(StrEnum):
@@ -139,11 +133,11 @@ ROW_LIMITS = (100, 1000, 10000)
 DEFAULT_ROW_LIMIT = 1000
 STATEMENT_TIMEOUT_SECONDS = 10
 
-# ---- 형식별 허용표 (첫 포맷이 기본이지만 숫자는 필드가 기본을 따로 정한다) ----
+# ---- 형식별 허용표 (포맷 없는 형식은 빈 튜플·기본 None. 숫자는 필드가 기본을 따로 정한다) ----
 TYPE_FORMATS: dict[FieldType, tuple[Format, ...]] = {
-    FieldType.TEXT: (Format.AS_IS, Format.PREFIX),
-    FieldType.CODE: (Format.NAME, Format.KEY),
-    FieldType.USER: (Format.NAME,),
+    FieldType.TEXT: (),
+    FieldType.CODE: (),
+    FieldType.USER: (),
     FieldType.NUMBER: (
         Format.THOUSANDS,
         Format.KRW_THOUSAND,
@@ -203,10 +197,10 @@ TYPE_AGGREGATES: dict[FieldType, tuple[Aggregate, ...]] = {
     FieldType.DATE: _COUNT_AGGREGATES,
     FieldType.DATETIME: _COUNT_AGGREGATES,
 }
-TYPE_DEFAULT_FORMAT: dict[FieldType, Format] = {
-    FieldType.TEXT: Format.AS_IS,
-    FieldType.CODE: Format.NAME,
-    FieldType.USER: Format.NAME,
+TYPE_DEFAULT_FORMAT: dict[FieldType, Format | None] = {
+    FieldType.TEXT: None,
+    FieldType.CODE: None,
+    FieldType.USER: None,
     FieldType.NUMBER: Format.THOUSANDS,
     FieldType.DATE: Format.YMD,
     FieldType.DATETIME: Format.YMD_HM,

@@ -77,10 +77,6 @@ function formatText(value: string, column: ReportResultColumn, ctx: FormatContex
     if (column.format === 'ymd') return datePart(value)
     return formatStamp(value)
   }
-  if (column.format === 'prefix' && column.prefixLength !== null) {
-    const chars = Array.from(value)
-    return chars.length > column.prefixLength ? `${chars.slice(0, column.prefixLength).join('')}…` : value
-  }
   return value
 }
 
@@ -93,8 +89,24 @@ export function formatCell(value: ReportCell, column: ReportResultColumn, ctx: F
   return typeof value === 'number' ? formatNumber(value, column, ctx) : formatText(value, column, ctx)
 }
 
-/** 긴 글 셀의 title(전체 글). text·code·user 열의 문자열만 갖는다. */
-export function cellTitle(value: ReportCell, column: ReportResultColumn): string | undefined {
+/** 글자를 코드 포인트 기준 앞 n자만 남기고 넘으면 `…`을 붙인다(n이 없으면 그대로). */
+export function truncateLabel(text: string, n: number | null): string {
+  if (n === null) return text
+  const chars = Array.from(text)
+  return chars.length > n ? `${chars.slice(0, n).join('')}…` : text
+}
+
+/** 화면에 보이는 글자: 포맷한 결과 문자열에 앞 N자 보기를 적용한다(빈 값 "—"은 자르지 않는다). 합계 행·툴팁은 `formatCell`을 쓴다. */
+export function formatShownCell(value: ReportCell, column: ReportResultColumn, ctx: FormatContext): string {
+  const text = formatCell(value, column, ctx)
+  return value === null ? text : truncateLabel(text, column.prefixLength)
+}
+
+/** 셀의 title(전체 글). 잘렸으면 포맷한 전체 값, 아니면 text·code·user 열의 문자열만 갖는다. */
+export function cellTitle(value: ReportCell, column: ReportResultColumn, ctx: FormatContext): string | undefined {
+  if (value === null) return undefined
+  const full = formatCell(value, column, ctx)
+  if (formatShownCell(value, column, ctx) !== full) return full
   if (typeof value !== 'string') return undefined
   return column.valueType === 'text' && (column.type === 'text' || column.type === 'code' || column.type === 'user') ? value : undefined
 }

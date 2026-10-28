@@ -12,8 +12,8 @@ afterEach(() => vi.unstubAllGlobals())
 
 const SERVER_DEFINITION = {
   columns: [
-    { field: 'deal.vendor', format: 'name', group: true },
-    { field: 'deal.name', format: 'prefix', prefix_length: 5, group: false, label: '이름 앞부분', aggregate: 'count' },
+    { field: 'deal.vendor', group: true },
+    { field: 'deal.name', prefix_length: 5, group: false, label: '이름 앞부분', aggregate: 'count' },
     { field: 'deal.amount', format: 'krw_thousand', group: false, aggregate: 'sum' },
   ],
   conditions: [
@@ -28,8 +28,8 @@ const SERVER_DEFINITION = {
 
 const CAMEL_DEFINITION = {
   columns: [
-    { field: 'deal.vendor', format: 'name', group: true },
-    { field: 'deal.name', format: 'prefix', prefixLength: 5, group: false, label: '이름 앞부분', aggregate: 'count' },
+    { field: 'deal.vendor', group: true },
+    { field: 'deal.name', prefixLength: 5, group: false, label: '이름 앞부분', aggregate: 'count' },
     { field: 'deal.amount', format: 'krw_thousand', group: false, aggregate: 'sum' },
   ],
   conditions: [
@@ -104,7 +104,7 @@ const serverResult = () => ({
   row_scope: 'deal',
   action_filter: 'none',
   deal_numbers_once: false,
-  columns: [{ index: 0, field: 'deal.vendor', label: 'Vendor', entity: 'deal', type: 'code', value_type: 'text', format: 'name', prefix_length: null, group: true, aggregate: null }],
+  columns: [{ index: 0, field: 'deal.vendor', label: 'Vendor', entity: 'deal', type: 'code', value_type: 'text', format: null, prefix_length: null, group: true, aggregate: null }],
   rows: [['Silverfort']],
   totals: null,
   total_count: 1,
@@ -156,12 +156,21 @@ describe('saved reports over HTTP: reading', () => {
     expect(report.definition).toEqual(CAMEL_DEFINITION)
   })
 
+  it('maps a null format of a stored definition to no format key', async () => {
+    const definition = { columns: [{ field: 'deal.name', format: null, group: false }], conditions: [], combine: 'and', row_limit: 100 }
+    stubFetch(json(serverDetail({ definition })))
+
+    const { definition: mapped } = await createReportsHttp().get(12)
+
+    expect('format' in (mapped.columns[0] ?? {})).toBe(false)
+  })
+
   it('leaves out the keys a definition does not have', async () => {
-    stubFetch(json(serverDetail({ definition: { columns: [{ field: 'deal.code', format: 'as_is', group: false }], conditions: [], combine: 'and', row_limit: 100 } })))
+    stubFetch(json(serverDetail({ definition: { columns: [{ field: 'deal.code', group: false }], conditions: [], combine: 'and', row_limit: 100 } })))
 
     const { definition } = await createReportsHttp().get(12)
 
-    expect(definition).toEqual({ columns: [{ field: 'deal.code', format: 'as_is', group: false }], conditions: [], combine: 'and', rowLimit: 100 })
+    expect(definition).toEqual({ columns: [{ field: 'deal.code', group: false }], conditions: [], combine: 'and', rowLimit: 100 })
     expect('sort' in definition).toBe(false)
     expect('label' in (definition.columns[0] ?? {})).toBe(false)
   })

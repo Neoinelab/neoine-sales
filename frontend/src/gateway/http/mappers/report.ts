@@ -124,7 +124,7 @@ export function toQueryBody(input: ReportQueryInput): Schemas['ReportQueryReques
   return {
     columns: input.columns.map((c) => ({
       field: c.field,
-      format: c.format,
+      ...(c.format !== undefined ? { format: c.format } : {}),
       group: c.group,
       ...(c.label !== undefined ? { label: c.label } : {}),
       ...(c.prefixLength !== undefined ? { prefix_length: c.prefixLength } : {}),
@@ -171,7 +171,7 @@ export function toSummary(body: Schemas['ReportSummaryResponse']): SavedReportSu
 function toColumnInput(c: Schemas['ReportColumnRequest']): ReportColumnInput {
   return {
     field: c.field,
-    format: (c.format ?? 'as_is') as ReportFormat,
+    ...(typeof c.format === 'string' ? { format: c.format as ReportFormat } : {}),
     group: c.group,
     ...(typeof c.label === 'string' ? { label: c.label } : {}),
     ...(typeof c.prefix_length === 'number' ? { prefixLength: c.prefix_length } : {}),

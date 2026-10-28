@@ -52,37 +52,42 @@ export function ColumnSettings({ column, field, catalog, hasGroup, index, count,
           />
           {shown('label')}
         </div>
-        <div className="field">
-          <label htmlFor={ids.format}>포맷</label>
-          <select id={ids.format} value={column.format} onChange={(e) => onPatch({ format: e.target.value as ReportFormat })} {...own(['format'])}>
-            {field.formats.map((key) => {
-              const info = formatLabel(key)
-              return (
-                <option key={key} value={key}>
-                  {info?.label ?? key}
-                  {info?.affectsQuery ? ' (묶음)' : ''}
-                </option>
-              )
-            })}
-          </select>
-          {shown('format')}
-          {column.format === 'percent_share' && <p className="field-hint">구성비는 그룹핑한 결과의 합계·건수에서만 계산됩니다</p>}
-        </div>
-        {column.format === 'prefix' && (
+        {field.formats.length > 0 && (
           <div className="field">
-            <label htmlFor={ids.prefix}>앞 N자의 N</label>
-            <input
-              id={ids.prefix}
-              type="number"
-              min={1}
-              max={catalog.limits.prefixMax}
-              value={column.prefixLength ?? ''}
-              onChange={(e) => onPatch({ prefixLength: e.target.value === '' ? null : Number(e.target.value) })}
-              {...own(['prefix_length'])}
-            />
-            {shown('prefix_length')}
+            <label htmlFor={ids.format}>포맷</label>
+            <select id={ids.format} value={column.format ?? ''} onChange={(e) => onPatch({ format: e.target.value as ReportFormat })} {...own(['format'])}>
+              {field.formats.map((key) => {
+                const info = formatLabel(key)
+                return (
+                  <option key={key} value={key}>
+                    {info?.label ?? key}
+                    {info?.affectsQuery ? ' (묶음)' : ''}
+                  </option>
+                )
+              })}
+            </select>
+            {shown('format')}
+            {column.format === 'percent_share' && <p className="field-hint">구성비는 그룹핑한 결과의 합계·건수에서만 계산됩니다</p>}
           </div>
         )}
+        <div className="field">
+          <label className="report-check">
+            <input type="checkbox" checked={column.prefixOn} onChange={(e) => onPatch({ prefixOn: e.target.checked })} />
+            앞 N자만 보기
+          </label>
+          <label htmlFor={ids.prefix}>앞 N자의 N</label>
+          <input
+            id={ids.prefix}
+            type="number"
+            min={1}
+            max={catalog.limits.prefixMax}
+            disabled={!column.prefixOn}
+            value={column.prefixLength ?? ''}
+            onChange={(e) => onPatch({ prefixLength: e.target.value === '' ? null : Number(e.target.value) })}
+            {...own(['prefix_length'])}
+          />
+          {shown('prefix_length')}
+        </div>
         <div className="field">
           <label className="report-check">
             <input type="checkbox" checked={column.group} disabled={!field.groupable} onChange={(e) => onPatch({ group: e.target.checked })} {...own(['group'])} />

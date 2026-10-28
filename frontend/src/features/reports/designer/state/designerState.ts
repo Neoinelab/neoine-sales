@@ -14,7 +14,7 @@ import { emptyDraft, type ConditionDraft } from './conditionDraft'
 
 export type { ConditionDraft } from './conditionDraft'
 
-/** 앞 N자 포맷의 N 기본값. */
+/** 앞 N자 보기를 켤 때의 N 기본값. */
 const DEFAULT_PREFIX_LENGTH = 20
 
 export interface DesignerColumn {
@@ -22,7 +22,10 @@ export interface DesignerColumn {
   field: string
   /** 비면(공백 제외) 요청에서 생략하고 필드 이름을 쓴다. */
   label: string
-  format: ReportFormat
+  /** 포맷이 없는 필드(텍스트·코드·사용자)는 null. */
+  format: ReportFormat | null
+  /** 앞 N자만 보기(표시 전용, 서버는 N만 저장). */
+  prefixOn: boolean
   prefixLength: number | null
   group: boolean
   aggregate: ReportAggregate | null
@@ -118,7 +121,8 @@ function newColumn(uid: number, field: ReportField, grouped: boolean): DesignerC
     field: field.key,
     label: '',
     format: field.defaultFormat,
-    prefixLength: field.defaultFormat === 'prefix' ? DEFAULT_PREFIX_LENGTH : null,
+    prefixOn: false,
+    prefixLength: null,
     group: false,
     aggregate: grouped ? field.defaultAggregate : null,
   }
@@ -126,9 +130,7 @@ function newColumn(uid: number, field: ReportField, grouped: boolean): DesignerC
 
 function patchColumn(column: DesignerColumn, patch: Partial<Omit<DesignerColumn, 'uid' | 'field'>>): DesignerColumn {
   const next = { ...column, ...patch }
-  if (patch.format !== undefined && patch.format !== column.format) {
-    next.prefixLength = patch.format === 'prefix' ? (patch.prefixLength ?? DEFAULT_PREFIX_LENGTH) : null
-  }
+  if (patch.prefixOn === true && next.prefixLength === null && patch.prefixLength === undefined) next.prefixLength = DEFAULT_PREFIX_LENGTH
   if (patch.group === true && !column.group) next.aggregate = null
   return next
 }

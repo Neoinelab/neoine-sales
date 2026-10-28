@@ -20,6 +20,35 @@ import {
 
 setupReportClock()
 
+describe('앞 N자 입력 검사 (AC15)', () => {
+  it('makes no request and tells the user to fix N when it is empty', async () => {
+    const { user } = await openDesigner()
+    await addColumn(user, 'Deal 이름')
+    await user.click(chipButton(0))
+    await user.click(within(settingsOf('Deal 이름')).getByRole('checkbox', { name: '앞 N자만 보기' }))
+    await user.clear(within(settingsOf('Deal 이름')).getByLabelText('앞 N자의 N'))
+
+    await runQuery(user)
+
+    expect(mockControl.reportQueries()).toEqual([])
+    expect(within(settingsOf('Deal 이름')).getByText('1~200 사이 정수를 입력하세요')).toBeVisible()
+    expect(within(settingsOf('Deal 이름')).getByLabelText('앞 N자의 N')).toBeInvalid()
+  })
+
+  it('sends the prefix length without any format key once N is valid', async () => {
+    const { user } = await openDesigner()
+    await addColumn(user, 'Deal 이름')
+    await user.click(chipButton(0))
+    await user.click(within(settingsOf('Deal 이름')).getByRole('checkbox', { name: '앞 N자만 보기' }))
+
+    await runQuery(user)
+
+    expect(mockControl.reportQueries()).toEqual([
+      { columns: [{ field: 'deal.name', prefixLength: 20, group: false }], conditions: [], combine: 'and', rowLimit: 1000 },
+    ])
+  })
+})
+
 describe('조회 요청 (AC11)', () => {
   it('sends the designed request and shows the result table', async () => {
     const { user } = await openDesigner()
@@ -39,7 +68,7 @@ describe('조회 요청 (AC11)', () => {
     expect(mockControl.reportQueries()).toEqual([
       {
         columns: [
-          { field: 'deal.vendor', format: 'name', group: true },
+          { field: 'deal.vendor', group: true },
           { field: 'deal.amount', format: 'krw_thousand', group: false, aggregate: 'sum' },
         ],
         conditions: [{ field: 'deal.vendor', operator: 'in', value: [seedVendorId('Silverfort')] }],
@@ -237,6 +266,40 @@ describe('결과 표 (AC12)', () => {
     await user.click(screen.getByRole('checkbox', { name: '합계 행' }))
 
     expect(screen.getByText(/한 Deal이 여러 그룹에 나오면 그룹마다 한 번씩 더하므로 그룹 값의 합이 합계 행보다 클 수 있습니다/)).toBeVisible()
+  })
+
+  it('cuts data cells to the prefix length, keeps the whole value in the title and never cuts the totals row', async () => {
+    const result = resultOf({
+      columns: [
+        resultColumn({ index: 0, field: 'deal.vendor', label: 'Vendor', type: 'code', group: true, prefixLength: 3 }),
+        resultColumn({ index: 1, field: 'deal.amount', label: 'Users 합계', type: 'number', valueType: 'integer', format: 'thousands', aggregate: 'sum', prefixLength: 3 }),
+      ],
+      rows: [['ABCDEF', 1_234_567]],
+      totals: [null, 1_234_567],
+    })
+    const { user } = await openAndRun(result, 'Vendor')
+    await user.click(screen.getByRole('checkbox', { name: '합계 행' }))
+
+    const [dataRow, totalRow] = within(resultTable()).getAllByRole('row').slice(1) as [HTMLElement, HTMLElement]
+    const [textCell, numberCell] = within(dataRow).getAllByRole('cell')
+
+    expect(tableTexts()).toEqual([
+      ['ABC…', '1,2…'],
+      ['합계', '1,234,567'],
+    ])
+    expect(textCell).toHaveAttribute('title', 'ABCDEF')
+    expect(numberCell).toHaveAttribute('title', '1,234,567')
+    expect(within(totalRow).getAllByRole('cell')[1]).toHaveTextContent('1,234,567')
+  })
+
+  it('does not cut an empty dash or a value of exactly N characters', async () => {
+    const result = resultOf({
+      columns: [resultColumn({ index: 0, label: 'Deal code', prefixLength: 3 })],
+      rows: [['ABC'], [null]],
+    })
+    await openAndRun(result, 'Deal code')
+
+    expect(tableTexts()).toEqual([['ABC'], ['—']])
   })
 
   it('shows truncation and pages over 100 rows', async () => {

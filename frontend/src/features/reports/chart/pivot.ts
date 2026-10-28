@@ -1,5 +1,5 @@
 import type { ReportCell, ReportChartInput, ReportResult, ReportResultColumn } from '../../../shared/model/reportTypes'
-import { columnHeader, formatCell, isNumericColumn, type FormatContext } from '../designer/format/formatCell'
+import { columnHeader, formatCell, formatShownCell, isNumericColumn, type FormatContext } from '../designer/format/formatCell'
 import { kindRule } from './chartKinds'
 
 const NONE_LABEL = '(없음)'
@@ -14,13 +14,19 @@ export interface PivotCell {
 }
 
 export interface PivotSet {
+  /** 범례에 보이는 이름(앞 N자 적용). */
   label: string
+  /** 툴팁에 쓰는 전체 이름. */
+  title: string
   cells: (PivotCell | null)[]
 }
 
 /** 결과 행을 범주(가로) × 데이터셋(계열 또는 값 열) 행렬로 옮긴 것. */
 export interface Pivot {
+  /** 축·범례에 보이는 범주 이름(앞 N자 적용). */
   labels: string[]
+  /** `labels`와 같은 순서의 전체 이름(툴팁 제목). */
+  titles: string[]
   sets: PivotSet[]
 }
 
@@ -41,7 +47,12 @@ export function cellOf(raw: ReportCell, column: ReportResultColumn): PivotCell {
   return { raw, column, value: typeof raw === 'number' ? raw / unitDivisor(column) : null }
 }
 
+/** 전체 이름(툴팁·분산형 점 이름). */
 export const nameOf = (cell: ReportCell, column: ReportResultColumn, ctx: FormatContext): string => (cell === null ? NONE_LABEL : formatCell(cell, column, ctx))
+
+/** 축·범례에 보이는 이름: 앞 N자를 적용한다. */
+export const shownNameOf = (cell: ReportCell, column: ReportResultColumn, ctx: FormatContext): string =>
+  cell === null ? NONE_LABEL : formatShownCell(cell, column, ctx)
 
 /** 설정(index)을 결과 열로 풀고 규칙(그룹 열·숫자 열·개수)을 확인한다. 어긋나면 null. */
 export function resolveColumns(input: ReportChartInput, result: ReportResult): ChartColumns | null {
@@ -92,13 +103,14 @@ export function pivot(input: ReportChartInput, result: ReportResult, columns: Ch
   const categories = indexer()
   const seriesKeys = indexer()
   const first = columns.values[0]
-  const sets: PivotSet[] = columns.values.map(() => ({ label: '', cells: [] }))
+  const sets: PivotSet[] = columns.values.map(() => ({ label: '', title: '', cells: [] }))
   const seriesSets: PivotSet[] = []
   for (const row of result.rows) {
     const at = categories.of(row[columns.category.index] ?? null)
     if (columns.series && first) {
       const si = seriesKeys.of(row[columns.series.index] ?? null)
-      seriesSets[si] ??= { label: nameOf(seriesKeys.keys[si] ?? null, columns.series, ctx), cells: [] }
+      const key = seriesKeys.keys[si] ?? null
+      seriesSets[si] ??= { label: shownNameOf(key, columns.series, ctx), title: nameOf(key, columns.series, ctx), cells: [] }
       const target = seriesSets[si]
       if (target) target.cells[at] = cellOf(row[first.index] ?? null, first)
     } else {
@@ -108,12 +120,21 @@ export function pivot(input: ReportChartInput, result: ReportResult, columns: Ch
       })
     }
   }
-  const labels = categories.keys.map((key) => nameOf(key, columns.category, ctx))
+  const labels = categories.keys.map((key) => shownNameOf(key, columns.category, ctx))
+  const titles = categories.keys.map((key) => nameOf(key, columns.category, ctx))
   const base = columns.series ? seriesSets : sets
-  const filled = base.map((set, j) => ({ label: columns.series ? set.label : columnHeaderAt(columns, j), cells: Array.from({ length: labels.length }, (_, i) => set.cells[i] ?? null) }))
-  if (!(input.swap && kindRule(input.kind).allowsSwap)) return { labels, sets: filled }
+  const filled = base.map((set, j) => {
+    const header = columnHeaderAt(columns, j)
+    return {
+      label: columns.series ? set.label : header,
+      title: columns.series ? set.title : header,
+      cells: Array.from({ length: labels.length }, (_, i) => set.cells[i] ?? null),
+    }
+  })
+  if (!(input.swap && kindRule(input.kind).allowsSwap)) return { labels, titles, sets: filled }
   return {
     labels: filled.map((set) => set.label),
-    sets: labels.map((label, i) => ({ label, cells: filled.map((set) => set.cells[i] ?? null) })),
+    titles: filled.map((set) => set.title),
+    sets: labels.map((label, i) => ({ label, title: titles[i] ?? label, cells: filled.map((set) => set.cells[i] ?? null) })),
   }
 }

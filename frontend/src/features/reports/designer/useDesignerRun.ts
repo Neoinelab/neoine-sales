@@ -169,7 +169,7 @@ export function useDesignerRun(state: DesignerState, catalog: ReportCatalog, see
   const failure = lastRun?.failure ?? null
   const anchored: AnchoredIssue[] = failure?.kind === 'invalid' && lastRun ? issueAnchors(failure.issues, lastRun) : []
   const visible = visibleIssues(anchored, live, dismissed.uids).filter((a) => !dismissed.kinds.has(a.target.kind))
-  const shownInput = inputIssues.filter((i) => live.conditionUids.includes(i.uid) && !dismissed.uids.has(i.uid))
+  const shownInput = inputIssues.filter((i) => (live.conditionUids.includes(i.uid) || live.columnUids.includes(i.uid)) && !dismissed.uids.has(i.uid))
   const issues = visible.length > 0 || shownInput.length > 0 ? buildIssueView(visible, shownInput, idPrefix) : EMPTY_ISSUE_VIEW
 
   return {

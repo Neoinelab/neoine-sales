@@ -5,10 +5,12 @@ Then은 응답과 읽기 API로 본 상태만 단언한다. 여러 사용자는 
 `given_logged_in`으로 바꿔 로그인한다(등록하려고 admin이 로그인한 상태가 된다).
 """
 
+import json
 from typing import TYPE_CHECKING, Any, Final
 
 from tests.functional.steps.auth import ADMIN_LOGIN, RoleName, given_user_registered
 from tests.functional.steps.common import then_problem_is, then_status_is
+from tests.functional.steps.login_db import sql_rows
 from tests.functional.steps.users import log_in
 from tests.support.ids import MISSING_ID
 
@@ -89,6 +91,21 @@ async def given_query_body(api: Api, definition: dict[str, Any]) -> dict[str, An
     response = await api.post(QUERY, json=definition)
     assert response.status_code == 200, f"Given 실패 {response.status_code}: {response.text}"
     return dict(response.json())
+
+
+async def given_stored_definition_uses_legacy_formats(
+    api: Api, report_id: object, definition: dict[str, Any]
+) -> None:
+    """DB에서 그 리포트의 정의 JSON을 예전 포맷(as_is·name·key·prefix)으로 바꿨다.
+
+    API는 예전 포맷을 받지 않으므로 이전 버전이 저장해 둔 상태를 DB로 직접 만든다.
+    """
+    await sql_rows(
+        api,
+        "update reports set definition = cast(:definition as jsonb) where id = :id",
+        definition=json.dumps(definition),
+        id=int(str(report_id)),
+    )
 
 
 # --------------------------------------------------------------------------- When

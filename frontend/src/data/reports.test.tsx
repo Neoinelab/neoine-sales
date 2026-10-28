@@ -14,7 +14,7 @@ import { reportRunFailure, useReportFields, useRunReport } from './reports'
 /** Reports 데이터 훅(Reports 2단계 P25). 조회는 버튼으로만, 무효화 없음, 카탈로그는 한 번만. */
 
 const REQUEST: ReportQueryInput = {
-  columns: [{ field: 'deal.code', format: 'as_is', group: false }],
+  columns: [{ field: 'deal.code', group: false }],
   conditions: [],
   combine: 'and',
   rowLimit: 100,

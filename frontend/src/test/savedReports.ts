@@ -22,7 +22,7 @@ export const ROOT: UserRef = { id: USER_ID.root, name: '최관리', role: 'admin
 /** Vendor별 금액 합계, 금액 하한 조건, 합계 내림차순. 서버 규칙에 맞는 정의다. */
 export const VENDOR_DEFINITION: ReportQueryInput = {
   columns: [
-    { field: 'deal.vendor', format: 'name', group: true },
+    { field: 'deal.vendor', group: true },
     { field: 'deal.amount', format: 'krw_thousand', group: false, aggregate: 'sum', label: '금액 합계' },
   ],
   conditions: [{ field: 'deal.amount', operator: 'gte', value: 1_500_000 }],
@@ -34,8 +34,8 @@ export const VENDOR_DEFINITION: ReportQueryInput = {
 /** Action 컬럼을 쓰는 정의(데이터 태그에 Actions가 붙는다). */
 export const ACTION_DEFINITION: ReportQueryInput = {
   columns: [
-    { field: 'deal.code', format: 'as_is', group: false },
-    { field: 'action.action', format: 'as_is', group: false },
+    { field: 'deal.code', group: false },
+    { field: 'action.action', group: false },
   ],
   conditions: [],
   combine: 'and',
@@ -44,7 +44,7 @@ export const ACTION_DEFINITION: ReportQueryInput = {
 
 /** 지금 카탈로그에 없는 필드를 쓰는 정의(저장 뒤 규칙이 바뀐 경우). */
 export const BROKEN_DEFINITION: ReportQueryInput = {
-  columns: [{ field: 'deal.nope', format: 'as_is', group: false }],
+  columns: [{ field: 'deal.nope', group: false }],
   conditions: [],
   combine: 'and',
   rowLimit: 100,

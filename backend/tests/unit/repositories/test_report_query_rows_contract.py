@@ -16,6 +16,14 @@ if TYPE_CHECKING:
 COUNT = col("deal.code", aggregate="count")
 
 
+async def _code_names(report_case: ReportCase, kind: str) -> dict[str, str]:
+    """코드 key -> 표시 이름 (DB에 시드된 값)."""
+    from app.domain.code.values import CodeKind  # noqa: PLC0415
+
+    codes = await report_case.deals.codes.list(CodeKind(kind))
+    return {c.key.value: c.name for c in codes}
+
+
 # ---- 행 수와 total_count ----
 
 
@@ -136,14 +144,16 @@ async def test_status_groups_follow_the_code_order_not_the_alphabet(
     await report_case.add_deal(status="poc_completed")
     await report_case.add_deal(status="introduction")
     await report_case.add_deal(status="prospecting")
-    columns = [col("deal.status", group=True, format="key"), COUNT]
+    columns = [col("deal.status", group=True), COUNT]
+    names = await _code_names(report_case, "status")
 
     ascending = await report_case.rows(columns, sort={"column": 0, "direction": "asc"})
     descending = await report_case.rows(columns, sort={"column": 0, "direction": "desc"})
     default = await report_case.rows(columns)
 
-    assert [row[0] for row in ascending] == ["prospecting", "introduction", "poc_completed"]
-    assert [row[0] for row in descending] == ["poc_completed", "introduction", "prospecting"]
+    in_order = [names[k] for k in ("prospecting", "introduction", "poc_completed")]
+    assert [row[0] for row in ascending] == in_order
+    assert [row[0] for row in descending] == in_order[::-1]
     assert default == ascending
 
 
@@ -269,13 +279,14 @@ async def test_count_distinct_uses_keys_not_names(report_case: ReportCase) -> No
 
     rows = await report_case.rows(
         [
-            col("deal.status", group=True, format="key"),
+            col("deal.status", group=True),
             col("deal.owner", aggregate="count_distinct"),
             col("deal.owner", aggregate="count"),
         ]
     )
 
-    assert rows == [("prospecting", 2, 3)]  # 표시 이름이 같아도 id가 다르면 2명
+    prospecting = (await _code_names(report_case, "status"))["prospecting"]
+    assert rows == [(prospecting, 2, 3)]  # 표시 이름이 같아도 id가 다르면 2명
 
 
 # ---- 값 변환 ----
@@ -370,9 +381,26 @@ async def test_group_only_report_has_rows_and_no_totals(
     if deals:
         await report_case.add_deal(forecast="pipeline")
 
-    result = await report_case.run([col("deal.forecast", group=True, format="key")])
+    result = await report_case.run([col("deal.forecast", group=True)])
 
-    expected = [] if deals == 0 else [("pipeline",), ("commit",)]
+    names = await _code_names(report_case, "forecast")
+    expected = [] if deals == 0 else [(names["pipeline"],), (names["commit"],)]
     assert sorted(tuple(r) for r in result.rows) == sorted(expected)
     assert result.total_count == len(expected)
     assert result.totals is None  # 합계 대상 컬럼이 없다
+
+
+# ---- 앞 N자는 표시 전용: 그룹핑은 전체 값 (2026-10-28) ----
+
+
+async def test_prefix_length_keeps_full_value_grouping(report_case: ReportCase) -> None:
+    await report_case.add_deal(name="ABC-first")
+    await report_case.add_deal(name="ABC-second")
+    await report_case.add_deal(name="ABC-second")
+
+    rows = await report_case.rows(
+        [col("deal.name", group=True, prefix_length=3), COUNT],
+        sort={"column": 0, "direction": "asc"},
+    )
+
+    assert rows == [("ABC-first", 1), ("ABC-second", 2)]

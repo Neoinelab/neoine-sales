@@ -507,3 +507,23 @@ async def test_delete_removes_a_broken_report() -> None:
 
     assert deleted.status_code == 204
     assert listed.json() == []
+
+
+# ---- 예전 포맷 요청은 거절 (2026-10-28) ----
+
+
+@pytest.mark.parametrize("legacy", ["as_is", "prefix", "name", "key"])
+async def test_create_and_update_with_legacy_format_are_rejected(legacy: str) -> None:
+    definition = {"columns": [{"field": "deal.name", "format": legacy}]}
+    async with clients(FakeUseCases(), {"alice": Role.SALES}) as c:
+        made = await create(c["alice"])
+        created = await c["alice"].post(URL, json=create_body("새것", definition=definition))
+        updated = await c["alice"].put(
+            f"{URL}/{made['id']}", json=update_body(1, definition=definition)
+        )
+
+    for response in (created, updated):
+        body = problem(response, 422, "invalid-report")
+        assert [(e["location"], e["code"]) for e in body["errors"]] == [
+            (["columns", 0, "format"], "format-not-allowed")
+        ]

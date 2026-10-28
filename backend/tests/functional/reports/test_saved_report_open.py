@@ -25,6 +25,7 @@ from tests.functional.steps.saved_reports import (
     given_logged_in,
     given_query_body,
     given_saved_report,
+    given_stored_definition_uses_legacy_formats,
     given_users,
     report_body,
     then_listed_ids_are,
@@ -205,3 +206,51 @@ async def test_list_orders_by_last_update_and_shows_the_data_entities(api: Api) 
     # Then
     then_listed_ids_are(response, [second["id"], first["id"]])
     assert [item["entities"] for item in response.json()] == [["deal", "action"], ["deal"]]
+
+
+LEGACY_DEFINITION = {
+    "columns": [
+        {"field": "deal.name", "format": "as_is"},
+        {"field": "deal.status", "format": "name"},
+        {"field": "deal.forecast", "format": "key"},
+        {"field": "deal.code", "format": "prefix", "prefix_length": 5},
+    ],
+    "conditions": [],
+    "combine": "and",
+    "sort": None,
+    "row_limit": 100,
+}
+UPGRADED_DEFINITION = {
+    "columns": [
+        {"field": "deal.name"},
+        {"field": "deal.status"},
+        {"field": "deal.forecast"},
+        {"field": "deal.code", "prefix_length": 5},
+    ],
+    "row_limit": 100,
+}
+
+
+async def test_saved_report_with_legacy_formats_opens_in_new_shape(api: Api) -> None:
+    """Scenario: 예전 포맷으로 저장된 리포트를 열면 새 형식으로 보이고 코드 열은 이름으로 나온다."""
+    # Given
+    await given_today_is(api, TODAY)
+    owner = await given_sales_user(api, "kim")
+    await given_dashboard_deal(api, owner=owner, forecast="pipeline", amount=10, day="2026-02-14")
+    await given_users(api, alice="sales")
+    await given_logged_in(api, "alice")
+    saved = await given_saved_report(api, "예전 포맷", definition=UPGRADED_DEFINITION)
+    await given_stored_definition_uses_legacy_formats(api, saved["id"], LEGACY_DEFINITION)
+    # When
+    detail = await when_get_report(api, saved["id"])
+    response = await when_run_saved_report(api, saved["id"])
+    # Then
+    then_status_is(detail, 200)
+    columns = detail.json()["definition"]["columns"]
+    assert [c["format"] for c in columns] == [None, None, None, None]
+    assert [c["prefix_length"] for c in columns] == [None, None, None, 5]
+    then_status_is(response, 200)
+    status_value, forecast_value = response.json()["rows"][0][1:3]
+    assert status_value != "prospecting"  # key가 아니라 표시 이름
+    assert forecast_value != "pipeline"
+    assert [c["format"] for c in response.json()["columns"]] == [None, None, None, None]

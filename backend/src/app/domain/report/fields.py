@@ -53,7 +53,7 @@ class FieldSpec:
     label: str
     type: FieldType
     formats: tuple[Format, ...]
-    default_format: Format
+    default_format: Format | None
     operators: tuple[Operator, ...]
     aggregates: tuple[Aggregate, ...]
     default_aggregate: Aggregate | None = None

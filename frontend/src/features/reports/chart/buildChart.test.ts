@@ -14,8 +14,8 @@ import { buildChart } from './buildChart'
 const CTX = { now: '2026-10-27T09:00:00+09:00', today: '2026-10-27', totals: null }
 const COLORS = ['#94a3b8', '#60a5fa', '#34d399', '#fbbf24', '#f472b6']
 
-const VENDOR = resultColumn({ index: 0, field: 'deal.vendor', label: 'Vendor', type: 'code', valueType: 'text', format: 'name', group: true })
-const STATUS = resultColumn({ index: 1, field: 'deal.status', label: 'Status', type: 'code', valueType: 'text', format: 'name', group: true })
+const VENDOR = resultColumn({ index: 0, field: 'deal.vendor', label: 'Vendor', type: 'code', valueType: 'text', format: null, group: true })
+const STATUS = resultColumn({ index: 1, field: 'deal.status', label: 'Status', type: 'code', valueType: 'text', format: null, group: true })
 const amount = (index: number, format: 'krw_thousand' | 'krw_million' = 'krw_thousand') =>
   resultColumn({ index, field: 'deal.amount', label: '금액 합계', type: 'number', valueType: 'integer', format, aggregate: 'sum' })
 const users = (index: number) =>
@@ -393,5 +393,97 @@ describe('buildChart: problems (AC19, AC20)', () => {
 
     expect(problemOf(at, many(2, 500))).toBeNull()
     expect(problemOf(at, many(2, 501))).toBe(TOO_MANY)
+  })
+})
+
+describe('buildChart: prefix length cuts axis and legend only (AC18, AC20)', () => {
+  const cut = (column: ReturnType<typeof resultColumn>, prefixLength: number) => ({ ...column, prefixLength })
+  const NAMES = resultOf({
+    columns: [cut(VENDOR, 3), cut(STATUS, 2), amount(2)],
+    rows: [
+      ['Alpha-1', 'Won', 3_000_000],
+      ['Alpha-2', 'Open', 1_000_000],
+      ['Alpha-2', 'Won', 2_000_000],
+    ],
+  })
+  const tip = (b: Built, kind: 'title' | 'label') => get(b.options, 'plugins', 'tooltip', 'callbacks', kind) as (c: unknown) => unknown
+  const text = (value: unknown): string => [value].flat().join('')
+
+  it('cuts the category axis labels but keeps one slot per original value', () => {
+    const b = build(chart({ category: 0, values: [2] }), resultOf({ columns: [cut(VENDOR, 3), STATUS, amount(2)], rows: NAMES.rows }))
+
+    expect(b.data.labels).toEqual(['Alp…', 'Alp…'])
+    expect(dataOf(b)).toEqual([3000, 2000])
+  })
+
+  it('cuts the legend names of a series column', () => {
+    const b = build(chart({ kind: 'stacked_bar', series: 1, values: [2] }), NAMES)
+
+    expect(b.data.datasets.map((d) => d.label)).toEqual(['Wo…', 'Op…'])
+  })
+
+  it('cuts the category legend of a pie chart', () => {
+    const b = build(chart({ kind: 'pie', values: [2] }), resultOf({ columns: [cut(VENDOR, 2), STATUS, amount(2)], rows: [['Alpha-1', 'Won', 3_000_000], ['Beta-1', 'Open', 1_000_000]] }))
+
+    expect(b.data.labels).toEqual(['Al…', 'Be…'])
+  })
+
+  it('shows the whole category name in the tooltip title', () => {
+    const b = build(chart({ kind: 'stacked_bar', series: 1, values: [2] }), NAMES)
+
+    expect(text(tip(b, 'title')([{ datasetIndex: 0, dataIndex: 0, label: 'Alp…' }]))).toBe('Alpha-1')
+    expect(text(tip(b, 'title')([{ datasetIndex: 0, dataIndex: 1, label: 'Alp…' }]))).toBe('Alpha-2')
+  })
+
+  it('shows the whole series name before the value in the tooltip', () => {
+    const b = build(chart({ kind: 'stacked_bar', series: 1, values: [2] }), NAMES)
+
+    const label = tip(b, 'label')({ dataset: b.data.datasets[1], datasetIndex: 1, dataIndex: 1, raw: 1000, parsed: { x: 0, y: 1000 }, label: 'Alp…' })
+
+    expect(label).toBe(`Open: ${formatCell(1_000_000, amount(2), CTX)}`)
+  })
+
+  it('shows the whole category name before the value in a pie tooltip', () => {
+    const b = build(chart({ kind: 'pie', values: [2] }), resultOf({ columns: [cut(VENDOR, 2), STATUS, amount(2)], rows: [['Alpha-1', 'Won', 3_000_000], ['Beta-1', 'Open', 1_000_000]] }))
+
+    const label = tip(b, 'label')({ dataset: b.data.datasets[0], datasetIndex: 0, dataIndex: 0, raw: 3000, parsed: 3000, label: 'Al…' })
+
+    expect(String(label).startsWith('Alpha-1: ')).toBe(true)
+  })
+
+  it('keeps cut and whole names paired when categories and datasets are swapped', () => {
+    const b = build(chart({ kind: 'bar', series: 1, values: [2], swap: true }), NAMES)
+
+    expect(b.data.labels).toEqual(['Wo…', 'Op…'])
+    expect(b.data.datasets.map((d) => d.label)).toEqual(['Alp…', 'Alp…'])
+    expect(text(tip(b, 'title')([{ datasetIndex: 0, dataIndex: 1, label: 'Op…' }]))).toBe('Open')
+    expect(String(tip(b, 'label')({ dataset: b.data.datasets[1], datasetIndex: 1, dataIndex: 0, raw: 2000, parsed: { x: 0, y: 2000 }, label: 'Wo…' }))).toMatch(/^Alpha-2: /)
+  })
+
+  it('keeps the whole value in the data label and the tooltip when a value column has a prefix length', () => {
+    const b = build(chart({ values: [1], dataLabels: true }), resultOf({ columns: [VENDOR, cut(amount(1), 2)], rows: [['Silverfort', 3_000_000]] }))
+    const formatter = get(b.options, 'plugins', 'datalabels', 'formatter') as (v: unknown, c: unknown) => string
+
+    const shown = formatter(3000, { dataIndex: 0, datasetIndex: 0, dataset: b.data.datasets[0] })
+    const label = tip(b, 'label')({ dataset: b.data.datasets[0], datasetIndex: 0, dataIndex: 0, raw: 3000, parsed: { x: 0, y: 3000 }, label: 'Silverfort' })
+
+    expect(shown).toBe('3,000')
+    expect(String(label).endsWith('3,000')).toBe(true)
+  })
+
+  it('keeps the whole data label of a cut category', () => {
+    const b = build(chart({ category: 0, values: [2], dataLabels: true }), resultOf({ columns: [cut(VENDOR, 3), STATUS, amount(2)], rows: NAMES.rows }))
+    const formatter = get(b.options, 'plugins', 'datalabels', 'formatter') as (v: unknown, c: unknown) => string
+
+    expect(formatter(3000, { dataIndex: 0, datasetIndex: 0, dataset: b.data.datasets[0] })).toBe('3,000')
+  })
+
+  it('names a scatter point by its whole category in the tooltip', () => {
+    const b = build(chart({ kind: 'scatter', values: [1, 2] }), resultOf({ columns: [cut(VENDOR, 2), amount(1), users(2)], rows: [['Alpha-1', 3_000_000, 30]] }))
+
+    const label = tip(b, 'label')({ dataset: b.data.datasets[0], datasetIndex: 0, dataIndex: 0, raw: { x: 3000, y: 30 }, parsed: { x: 3000, y: 30 }, label: 'Alpha-1' })
+
+    expect(String(label).startsWith('Alpha-1: (')).toBe(true)
+    expect(b.data.labels).toEqual(['Alpha-1'])
   })
 })

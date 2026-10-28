@@ -158,3 +158,30 @@ def test_totals_statement_is_none_when_no_measure_column_exists() -> None:
     report = resolved([col("deal.forecast", group=True), col("deal.vendor", group=True)])
 
     assert build_totals_select(report) is None
+
+
+# ---- 앞 N자는 SQL에 쓰지 않는다 / 코드 컬럼 값은 이름 식 (2026-10-28) ----
+
+
+def test_prefix_length_does_not_change_sql() -> None:
+    plain = sql_of(resolved([col("deal.name", group=True), col("deal.amount")]))
+    prefixed = sql_of(resolved([col("deal.name", group=True, prefix_length=3), col("deal.amount")]))
+
+    assert plain == prefixed
+
+
+def test_prefix_length_does_not_change_sql_for_aggregate_and_date_columns() -> None:
+    columns = [col("deal.expected_close", format="quarter", group=True), col("deal.amount")]
+    prefixed = [
+        col("deal.expected_close", format="quarter", group=True, prefix_length=2),
+        col("deal.amount", prefix_length=4),
+    ]
+
+    assert sql_of(resolved(columns)) == sql_of(resolved(prefixed))
+
+
+def test_code_column_value_is_name_expression() -> None:
+    sql = sql_of(resolved([col("deal.status", group=True), col("deal.amount")]))
+
+    assert "cs.name AS" in sql
+    assert sql.startswith("SELECT base.i1 AS c0")  # 첫 컬럼의 값은 key(i0)가 아니라 이름(i1)

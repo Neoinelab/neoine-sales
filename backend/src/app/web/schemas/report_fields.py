@@ -77,7 +77,7 @@ class ReportFieldResponse(_FromView):
     entity: Entity
     type: FieldType
     formats: list[Format]
-    default_format: Format
+    default_format: Format | None
     operators: list[Operator]
     aggregates: list[Aggregate]
     default_aggregate: Aggregate | None

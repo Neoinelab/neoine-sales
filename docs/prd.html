@@ -392,7 +392,7 @@ code{background:var(--soft);padding:1px 5px;border-radius:3px;font-size:12.5px}
 <table>
 <tr><th>항목</th><th>내용</th><th>상태</th></tr>
 <tr><td>데이터·필드</td><td>Deal 28개·Deal Actions 12개 필드(서버 카탈로그 <code>GET /api/v1/reports/fields</code>). 두 엔티티 컬럼을 섞어 고른다. Deal History·Forecast 스냅숏은 포함하지 않는다(Q9)</td><td><span class="b ok">구현</span> 1단계</td></tr>
-<tr><td>컬럼·조건</td><td>컬럼 1~30개(같은 필드 여러 번 가능, 표시 이름·포맷), 조건 0~20개, 결합은 리포트 단위로 <b>전부 AND 또는 전부 OR</b>(Q4), 정렬 1개, 최대 행 100 / 1,000 / 10,000. 상대 기간(올해·이번 분기·이번 달·최근 N일·오늘 이전)은 서버 업무 날짜로 푼다</td><td><span class="b ok">구현</span> 1·2단계</td></tr>
+<tr><td>컬럼·조건</td><td>컬럼 1~30개(같은 필드 여러 번 가능, 표시 이름·포맷·앞 N자 표시 옵션. 2026-10-28: 텍스트·코드·사용자 필드는 포맷 없음, 코드·사용자는 항상 이름, 앞 N자는 모든 컬럼 공통 옵션으로 결과 표 칸·차트 축·범례에만 적용), 조건 0~20개, 결합은 리포트 단위로 <b>전부 AND 또는 전부 OR</b>(Q4), 정렬 1개, 최대 행 100 / 1,000 / 10,000. 상대 기간(올해·이번 분기·이번 달·최근 N일·오늘 이전)은 서버 업무 날짜로 푼다</td><td><span class="b ok">구현</span> 1·2단계</td></tr>
 <tr><td>그룹핑·집계</td><td>그룹 컬럼이 있으면 나머지는 집계 필수: 숫자는 합계·평균·최소·최대, 그 밖은 건수·고유 건수(Q3). 날짜는 연·분기·월로 묶는다. 결과 표 합계 행과 구성비(%)는 서버가 그룹 없이 한 번 더 집계한 <code>totals</code>로 계산(Q-B)</td><td><span class="b ok">구현</span> 1·2단계</td></tr>
 <tr><td>행 단위와 Deal당 한 번</td><td>Action 필드가 컬럼에 있으면 행 = Action(JOIN), 조건에만 있으면 행 = Deal(EXISTS, Q2). 행이 Action이어도 Deal 금액·Users·체류 일수의 합계·평균과 Deal 필드 건수는 <b>Deal마다 한 번</b>(Q5=B, Q-A). 화면 위쪽 데이터 범위 표시로 지금 행 단위를 알린다</td><td><span class="b ok">구현</span> 1·2단계</td></tr>
 <tr><td>SQL과 안전</td><td>사용자는 SQL을 쓰거나 고칠 수 없다(Q1). 서버가 허용 필드 목록과 파라미터 바인딩으로만 SQL을 만들고 읽기 전용·문장 시간 제한 10초로 실행(그룹핑 리포트는 문장 2개라 최대 약 20초, 사용자 수용). “생성 SQL 보기”는 읽기 전용 표시이고 저장된 SQL은 실행에 쓰지 않는다. 요청 빈도 제한은 두지 않는다(받아들인 위험)</td><td><span class="b ok">구현</span> 1단계</td></tr>

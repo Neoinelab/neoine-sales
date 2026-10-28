@@ -22,7 +22,8 @@ function badgesOf(column: DesignerColumn, catalog: ReportCatalog, hasGroup: bool
   const badges: string[] = []
   if (column.group) badges.push('그룹')
   else if (column.aggregate) badges.push(catalog.aggregates.find((a) => a.key === column.aggregate)?.label ?? column.aggregate)
-  if (column.format !== field.defaultFormat) badges.push(catalog.formats.find((f) => f.key === column.format)?.label ?? column.format)
+  if (column.format !== null && column.format !== field.defaultFormat) badges.push(catalog.formats.find((f) => f.key === column.format)?.label ?? column.format)
+  if (column.prefixOn && column.prefixLength !== null) badges.push(`앞 ${column.prefixLength}자`)
   if (field.requiresGrouping && !hasGroup) badges.push('그룹핑할 때만')
   return badges
 }

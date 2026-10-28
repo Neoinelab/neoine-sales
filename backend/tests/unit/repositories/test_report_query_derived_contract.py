@@ -46,6 +46,9 @@ async def _list_codes(case: ReportCase, **criteria: object) -> list[str]:
     return sorted(item.deal.id.value for item in await case.deals.deals.search(query))
 
 
+_RISK_NAMES = {"overdue": "기한초과", "stale": "미업데이트", "overdue_stale": "기한초과·미업데이트"}
+
+
 async def _report_codes(case: ReportCase, operator: str, value: object) -> list[str]:
     rows = await case.rows([col("deal.code")], [cond("deal.risk", operator, value)])
     return sorted(row[0] for row in rows)
@@ -59,7 +62,7 @@ async def test_risk_status_days_and_last_updated_match_the_deal_list(
     rows = await report_case.rows(
         [
             col("deal.code"),
-            col("deal.risk", format="key"),
+            col("deal.risk"),
             col("deal.status_days"),
             col("deal.last_updated_at"),
         ]
@@ -76,12 +79,17 @@ async def test_risk_status_days_and_last_updated_match_the_deal_list(
             stale_days=14,
         )
         expected[item.deal.id.value] = (
-            risk.value if risk else None,
+            _RISK_NAMES[risk.value] if risk else None,
             status_days(item.deal.status_changed_at, TODAY),
             item.last_updated_at,
         )
     assert {row[0]: tuple(row[1:]) for row in rows} == expected
-    assert {e[0] for e in expected.values()} == {"overdue", "stale", "overdue_stale", None}
+    assert {e[0] for e in expected.values()} == {
+        "기한초과",
+        "미업데이트",
+        "기한초과·미업데이트",
+        None,
+    }
 
 
 async def test_risk_in_overdue_equals_the_list_overdue_filter(report_case: ReportCase) -> None:
@@ -127,7 +135,7 @@ async def test_a_closed_deal_never_has_a_risk(report_case: ReportCase) -> None:
     await _seed(report_case)
 
     rows = await report_case.rows(
-        [col("deal.name"), col("deal.risk", format="key")],
+        [col("deal.name"), col("deal.risk")],
         [cond("deal.name", "equals", "closed")],
     )
 

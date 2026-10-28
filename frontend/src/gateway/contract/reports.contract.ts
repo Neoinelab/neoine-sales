@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest'
 import type { ReportQueryInput } from '../../shared/model/reportTypes'
 import { expectRejects, type MakeGateway } from './support'
 
-const DEAL_CODE_COLUMN = { field: 'deal.code', format: 'as_is', group: false } as const
+const DEAL_CODE_COLUMN = { field: 'deal.code', group: false } as const
 
 const query = (over: Partial<ReportQueryInput> = {}): ReportQueryInput => ({
   columns: [DEAL_CODE_COLUMN],
@@ -38,11 +38,34 @@ export function reportsContract(make: MakeGateway): void {
       expect(catalog.fields.filter((f) => f.entity === 'deal')).toHaveLength(28)
       expect(catalog.fields.filter((f) => f.entity === 'action')).toHaveLength(12)
       for (const field of catalog.fields) {
-        expect(field.formats, field.key).toContain(field.defaultFormat)
+        if (['text', 'code', 'user'].includes(field.type)) {
+          expect(field.formats, field.key).toEqual([])
+          expect(field.defaultFormat, field.key).toBeNull()
+        } else {
+          expect(field.formats, field.key).toContain(field.defaultFormat)
+        }
         if (field.defaultAggregate !== null && field.aggregates.length > 0) {
           expect(field.aggregates, field.key).toContain(field.defaultAggregate)
         }
       }
+    })
+
+    it('lists twelve formats and only the date buckets change the grouping', async () => {
+      const { reports } = await make('user')
+
+      const catalog = await reports.fields()
+
+      expect(catalog.formats).toHaveLength(12)
+      for (const legacy of ['as_is', 'prefix', 'name', 'key']) expect(catalog.formats.map((f) => f.key)).not.toContain(legacy)
+      expect(catalog.formats.filter((f) => f.affectsQuery).map((f) => f.key)).toEqual(['ymd', 'year', 'quarter', 'month'])
+    })
+
+    it('answers a column of a field without formats with a null format and keeps the prefix length', async () => {
+      const { reports } = await make('user')
+
+      const result = await reports.query(query({ columns: [{ field: 'deal.name', prefixLength: 4, group: false }] }))
+
+      expect(result.columns[0]).toMatchObject({ field: 'deal.name', format: null, prefixLength: 4 })
     })
 
     it('exposes the limits, the labels and the shape of every operator', async () => {
@@ -63,7 +86,7 @@ export function reportsContract(make: MakeGateway): void {
       const { reports } = await make('sales')
 
       const result = await reports.query(
-        query({ columns: [DEAL_CODE_COLUMN, { field: 'deal.name', format: 'as_is', group: false }, { field: 'deal.amount', format: 'krw_thousand', group: false }] }),
+        query({ columns: [DEAL_CODE_COLUMN, { field: 'deal.name', group: false }, { field: 'deal.amount', format: 'krw_thousand', group: false }] }),
       )
 
       expect(result.columns.map((c) => c.index)).toEqual([0, 1, 2])
@@ -79,7 +102,7 @@ export function reportsContract(make: MakeGateway): void {
       const result = await reports.query(
         query({
           columns: [
-            { field: 'deal.vendor', format: 'name', group: true },
+            { field: 'deal.vendor', group: true },
             { field: 'deal.amount', format: 'krw_thousand', group: false, aggregate: 'sum' },
           ],
         }),
@@ -94,7 +117,7 @@ export function reportsContract(make: MakeGateway): void {
     it('uses Action rows when an Action column is chosen', async () => {
       const { reports } = await make('sales')
 
-      const result = await reports.query(query({ columns: [DEAL_CODE_COLUMN, { field: 'action.action', format: 'as_is', group: false }] }))
+      const result = await reports.query(query({ columns: [DEAL_CODE_COLUMN, { field: 'action.action', group: false }] }))
 
       expect(result).toMatchObject({ rowScope: 'action', actionFilter: 'join' })
     })
@@ -112,7 +135,7 @@ export function reportsContract(make: MakeGateway): void {
     it('rejects an unknown field with its location', async () => {
       const { reports } = await make('user')
 
-      const error = await expectRejects(reports.query(query({ columns: [DEAL_CODE_COLUMN, { field: 'deal.nope', format: 'as_is', group: false }] })), 422)
+      const error = await expectRejects(reports.query(query({ columns: [DEAL_CODE_COLUMN, { field: 'deal.nope', group: false }] })), 422)
 
       expect(error.kind).toBe('invalid-report')
       expect(error.problem?.reportErrors).toEqual([expect.objectContaining({ location: ['columns', 1, 'field'], code: 'unknown-field' })])
@@ -122,7 +145,7 @@ export function reportsContract(make: MakeGateway): void {
       const { reports } = await make('user')
 
       const error = await expectRejects(
-        reports.query(query({ columns: [{ field: 'deal.vendor', format: 'name', group: true }, DEAL_CODE_COLUMN] })),
+        reports.query(query({ columns: [{ field: 'deal.vendor', group: true }, DEAL_CODE_COLUMN] })),
         422,
       )
 
@@ -165,7 +188,7 @@ export function reportsContract(make: MakeGateway): void {
       const { reports } = await make('user')
 
       const error = await expectRejects(
-        reports.query(query({ columns: [{ field: 'deal.nope', format: 'as_is', group: false }, { field: 'deal.nada', format: 'as_is', group: false }] })),
+        reports.query(query({ columns: [{ field: 'deal.nope', group: false }, { field: 'deal.nada', group: false }] })),
         422,
       )
 

@@ -8,10 +8,6 @@ import type { UserRef } from './types'
 export type ReportEntity = 'deal' | 'action'
 export type ReportFieldType = 'text' | 'code' | 'user' | 'number' | 'date' | 'datetime'
 export type ReportFormat =
-  | 'as_is'
-  | 'prefix'
-  | 'name'
-  | 'key'
   | 'thousands'
   | 'krw_thousand'
   | 'krw_million'
@@ -58,7 +54,7 @@ export interface ReportField {
   entity: ReportEntity
   type: ReportFieldType
   formats: ReportFormat[]
-  defaultFormat: ReportFormat
+  defaultFormat: ReportFormat | null
   operators: ReportOperator[]
   aggregates: ReportAggregate[]
   defaultAggregate: ReportAggregate | null
@@ -107,7 +103,7 @@ export type ReportConditionValue =
 export interface ReportColumnInput {
   field: string
   label?: string
-  format: ReportFormat
+  format?: ReportFormat
   prefixLength?: number
   group: boolean
   aggregate?: ReportAggregate
@@ -134,7 +130,7 @@ export interface ReportResultColumn {
   entity: ReportEntity
   type: ReportFieldType
   valueType: ReportValueType
-  format: ReportFormat
+  format: ReportFormat | null
   prefixLength: number | null
   group: boolean
   aggregate: ReportAggregate | null

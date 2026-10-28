@@ -46,7 +46,7 @@ describe('toReportRequest column rules (AC11)', () => {
 
     expect(request).toEqual({
       columns: [
-        { field: 'deal.vendor', format: 'name', group: true },
+        { field: 'deal.vendor', group: true },
         { field: 'deal.expected_close', format: 'quarter', group: true },
         { field: 'deal.amount', format: 'krw_thousand', group: false, aggregate: 'sum', label: '금액 합계' },
       ],
@@ -71,21 +71,21 @@ describe('toReportRequest column rules (AC11)', () => {
     expect('sort' in request).toBe(false)
   })
 
-  it('omits label when blank or equal to the field name, omits prefix length unless prefix', () => {
+  it('omits label when blank or equal to the field name', () => {
     let state = withColumns('deal.name', 'deal.name', 'deal.name', 'deal.name')
     state = reduce(
       state,
       { type: 'updateColumn', uid: uidAt(state, 0), patch: { label: '   ' } },
       { type: 'updateColumn', uid: uidAt(state, 1), patch: { label: ' Deal 이름 ' } },
-      { type: 'updateColumn', uid: uidAt(state, 2), patch: { label: '  이름 앞부분  ', format: 'prefix', prefixLength: 7 } },
+      { type: 'updateColumn', uid: uidAt(state, 2), patch: { label: '  이름 앞부분  ', prefixOn: true, prefixLength: 7 } },
     )
 
     const { columns } = build(state).request
 
-    expect(columns[0]).toEqual({ field: 'deal.name', format: 'as_is', group: false })
-    expect(columns[1]).toEqual({ field: 'deal.name', format: 'as_is', group: false })
-    expect(columns[2]).toEqual({ field: 'deal.name', format: 'prefix', prefixLength: 7, group: false, label: '이름 앞부분' })
-    expect(columns[3]).toEqual({ field: 'deal.name', format: 'as_is', group: false })
+    expect(columns[0]).toEqual({ field: 'deal.name', group: false })
+    expect(columns[1]).toEqual({ field: 'deal.name', group: false })
+    expect(columns[2]).toEqual({ field: 'deal.name', prefixLength: 7, group: false, label: '이름 앞부분' })
+    expect(columns[3]).toEqual({ field: 'deal.name', group: false })
   })
 
   it('sends the aggregate only when the column has one', () => {
@@ -96,6 +96,51 @@ describe('toReportRequest column rules (AC11)', () => {
 
     expect(columns.map((c) => c.aggregate)).toEqual([undefined, 'avg', undefined])
     expect('aggregate' in (columns[0] ?? {})).toBe(false)
+  })
+})
+
+describe('toReportRequest prefix option (AC14, AC15)', () => {
+  const on = (state: DesignerState, index: number, prefixLength: number | null) =>
+    reduce(state, { type: 'updateColumn', uid: uidAt(state, index), patch: { prefixOn: true, prefixLength } })
+
+  it('sends no format key for a field without formats', () => {
+    const { columns } = build(withColumns('deal.name', 'deal.status', 'deal.owner')).request
+
+    for (const column of columns) expect('format' in column).toBe(false)
+  })
+
+  it('sends the format of a number field and the prefix length together', () => {
+    const { columns } = build(on(withColumns('deal.amount'), 0, 5)).request
+
+    expect(columns[0]).toEqual({ field: 'deal.amount', format: 'krw_thousand', prefixLength: 5, group: false })
+  })
+
+  it('sends the prefix length only while the option is on', () => {
+    const state = on(withColumns('deal.name'), 0, 5)
+    const off = reduce(state, { type: 'updateColumn', uid: uidAt(state, 0), patch: { prefixOn: false } })
+
+    expect(build(state).request.columns[0]).toMatchObject({ prefixLength: 5 })
+    expect('prefixLength' in (build(off).request.columns[0] ?? {})).toBe(false)
+  })
+
+  it.each([
+    ['empty', null],
+    ['zero', 0],
+    ['above the limit', 201],
+    ['fractional', 1.5],
+  ])('makes no request and points at the column when N is %s', (_name, value) => {
+    const state = on(withColumns('deal.code', 'deal.name'), 1, value)
+
+    const result = toReportRequest(state, REPORT_CATALOG)
+
+    expect('request' in result).toBe(false)
+    expect(issuesOf(state)).toEqual([{ uid: uidAt(state, 1), part: 'prefix_length', message: '1~200 사이 정수를 입력하세요' }])
+  })
+
+  it.each([1, 200])('accepts N=%i at the limits', (value) => {
+    const { columns } = build(on(withColumns('deal.name'), 0, value)).request
+
+    expect(columns[0]).toMatchObject({ prefixLength: value })
   })
 })
 

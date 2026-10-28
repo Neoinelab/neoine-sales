@@ -166,3 +166,60 @@ def test_unknown_field_keys_are_ignored() -> None:
     assert _entities([col("deal.code"), col("nope.field")], [cond("x.y", "eq", 1)]) == (
         Entity.DEAL,
     )
+
+
+# ---- 예전 포맷 자동 변환 (2026-10-28) ----
+
+
+def _stored(*columns: dict[str, Any]) -> dict[str, Any]:
+    return {"columns": list(columns), "conditions": [], "combine": "and", "row_limit": 1000}
+
+
+@pytest.mark.parametrize("legacy", ["as_is", "name", "key"])
+def test_legacy_formats_are_upgraded_when_read(legacy: str) -> None:
+    stored = _stored(col("deal.name", format=legacy))
+
+    column = definition_from_json(stored).columns[0]
+
+    assert (column.format, column.prefix_length) == (None, None)
+
+
+def test_legacy_prefix_becomes_prefix_option() -> None:
+    stored = _stored(col("deal.name", format="prefix", prefix_length=7))
+
+    column = definition_from_json(stored).columns[0]
+
+    assert (column.format, column.prefix_length) == (None, 7)
+
+
+def test_current_formats_are_kept_when_read() -> None:
+    stored = _stored(
+        col("deal.amount", format="thousands"),
+        col("deal.expected_close", format="quarter"),
+        col("deal.name"),
+    )
+
+    columns = definition_from_json(stored).columns
+
+    assert [c.format for c in columns] == ["thousands", "quarter", None]
+
+
+def test_upgraded_definition_parses_and_writes_new_shape() -> None:
+    from app.domain.report.parse import parse_report_definition  # noqa: PLC0415
+
+    stored = _stored(
+        col("deal.name", format="as_is"),
+        col("deal.owner", format="name"),
+        col("deal.status", format="key"),
+        col("deal.code", format="prefix", prefix_length=4),
+        col("deal.amount", format="thousands"),
+    )
+
+    upgraded = definition_from_json(stored)
+    parsed = parse_report_definition(upgraded)
+    written: Any = definition_to_json(upgraded)
+
+    assert [c.prefix_length for c in parsed.columns] == [None, None, None, 4, None]
+    assert [c["format"] for c in written["columns"]] == [None, None, None, None, "thousands"]
+    assert written["columns"][3]["prefix_length"] == 4
+    assert not {"as_is", "prefix", "name", "key"} & {c["format"] for c in written["columns"]}

@@ -106,12 +106,25 @@ describe('포맷·표시 이름 (AC6)', () => {
 
     const formats = async (index: number, name: string) =>
       optionTexts(within(await open(user, index, name)).getByRole('combobox', { name: '포맷' }))
+    const hasFormat = async (index: number, name: string) =>
+      within(await open(user, index, name)).queryByRole('combobox', { name: '포맷' }) !== null
 
-    expect(plain(await formats(0, 'Deal code'))).toEqual(['그대로', '앞 N자'])
-    expect(plain(await formats(1, 'Vendor'))).toEqual(['이름', '코드'])
+    expect(await hasFormat(0, 'Deal code')).toBe(false)
+    expect(await hasFormat(1, 'Vendor')).toBe(false)
     expect(plain(await formats(2, '금액(원)'))).toEqual(['천 단위 구분', '천원', '백만원', '소수 1자리', '구성비(%)'])
     expect(plain(await formats(3, 'Expected Close'))).toEqual(['연-월-일', '연도', '분기', '월', '요일', '상대 시각'])
     expect(plain(await formats(4, '등록일'))).toEqual(['연-월-일 시:분', '연-월-일', '연도', '분기', '월', '요일', '상대 시각'])
+  })
+
+  it('shows no format choice for text, code and user fields', async () => {
+    const { user } = await openDesigner()
+    await addColumn(user, 'Deal 이름')
+    await addColumn(user, 'Status')
+    await addColumn(user, '담당자')
+
+    for (const [index, name] of [[0, 'Deal 이름'], [1, 'Status'], [2, '담당자']] as const) {
+      expect(within(await open(user, index, name)).queryByRole('combobox', { name: '포맷' })).not.toBeInTheDocument()
+    }
   })
 
   it('marks the formats that change the grouping with (묶음)', async () => {
@@ -123,22 +136,61 @@ describe('포맷·표시 이름 (AC6)', () => {
     expect(options.filter((t) => t.includes('(묶음)')).map((t) => t.replace(/\s*\(묶음\)$/, ''))).toEqual(['연-월-일', '연도', '분기', '월'])
   })
 
-  it('shows the length input only for the prefix format with the default 20', async () => {
+  it('offers the prefix option on every field with N locked until it is turned on', async () => {
+    const { user } = await openDesigner()
+    await addColumn(user, 'Deal 이름')
+    await addColumn(user, '금액(원)')
+    await addColumn(user, 'Expected Close')
+
+    for (const [index, name] of [[0, 'Deal 이름'], [1, '금액(원)'], [2, 'Expected Close']] as const) {
+      const panel = await open(user, index, name)
+      expect(within(panel).getByRole('checkbox', { name: '앞 N자만 보기' })).not.toBeChecked()
+      expect(within(panel).getByLabelText('앞 N자의 N')).toBeDisabled()
+    }
+  })
+
+  it('turns the prefix option on with N 20, a chip badge, and off again', async () => {
     const { user } = await openDesigner()
     await addColumn(user, 'Deal 이름')
     const panel = await open(user, 0, 'Deal 이름')
-    expect(within(panel).queryByLabelText('앞 N자의 N')).not.toBeInTheDocument()
+    expect(chipTexts()[0]).not.toContain('앞 20자')
 
-    await user.selectOptions(within(panel).getByRole('combobox', { name: '포맷' }), 'prefix')
+    await user.click(within(panel).getByRole('checkbox', { name: '앞 N자만 보기' }))
     const length = within(settingsOf('Deal 이름')).getByLabelText('앞 N자의 N')
 
+    expect(length).toBeEnabled()
     expect(length).toHaveValue(20)
     expect(length).toHaveAttribute('min', '1')
     expect(length).toHaveAttribute('max', '200')
+    expect(chipTexts()[0]).toContain('앞 20자')
 
-    await user.selectOptions(within(settingsOf('Deal 이름')).getByRole('combobox', { name: '포맷' }), 'as_is')
+    await user.click(within(settingsOf('Deal 이름')).getByRole('checkbox', { name: '앞 N자만 보기' }))
 
-    expect(within(settingsOf('Deal 이름')).queryByLabelText('앞 N자의 N')).not.toBeInTheDocument()
+    expect(within(settingsOf('Deal 이름')).getByLabelText('앞 N자의 N')).toBeDisabled()
+    expect(chipTexts()[0]).not.toContain('앞')
+  })
+
+  it('shows the typed N on the badge and keeps the option when the format changes', async () => {
+    const { user } = await openDesigner()
+    await addColumn(user, 'Expected Close')
+    const panel = await open(user, 0, 'Expected Close')
+    await user.click(within(panel).getByRole('checkbox', { name: '앞 N자만 보기' }))
+    const length = within(settingsOf('Expected Close')).getByLabelText('앞 N자의 N')
+    await user.clear(length)
+    await user.type(length, '7')
+
+    await user.selectOptions(within(settingsOf('Expected Close')).getByRole('combobox', { name: '포맷' }), 'weekday')
+
+    expect(chipTexts()[0]).toContain('앞 7자')
+    expect(within(settingsOf('Expected Close')).getByRole('checkbox', { name: '앞 N자만 보기' })).toBeChecked()
+  })
+
+  it('shows no format badge for a field without formats', async () => {
+    const { user } = await openDesigner()
+    await addColumn(user, 'Vendor')
+
+    expect(chipTexts()[0]).not.toMatch(/이름|코드|그대로/)
+    await open(user, 0, 'Vendor')
   })
 
   it('shows the typed display name on the chip and falls back to the field name when cleared', async () => {

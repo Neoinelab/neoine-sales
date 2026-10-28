@@ -27,10 +27,6 @@ class OperatorShape(StrEnum):
 ENTITY_LABELS: dict[Entity, str] = {Entity.DEAL: "Deal", Entity.ACTION: "Deal Actions"}
 
 FORMAT_LABELS: dict[Format, str] = {
-    Format.AS_IS: "그대로",
-    Format.PREFIX: "앞 N자",
-    Format.NAME: "이름",
-    Format.KEY: "코드",
     Format.THOUSANDS: "천 단위 구분",
     Format.KRW_THOUSAND: "천원",
     Format.KRW_MILLION: "백만원",

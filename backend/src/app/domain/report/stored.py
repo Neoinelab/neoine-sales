@@ -63,6 +63,9 @@ def _optional_text(item: Mapping[str, object], key: str) -> str | None:
     return value
 
 
+_LEGACY_FORMATS = frozenset({"as_is", "prefix", "name", "key"})
+
+
 def _column(item: Mapping[str, object]) -> RawColumn:
     group = item.get("group", False)
     if type(group) is not bool:
@@ -70,11 +73,16 @@ def _column(item: Mapping[str, object]) -> RawColumn:
     return RawColumn(
         field=_text(item, "field"),
         label=_optional_text(item, "label"),
-        format=_optional_text(item, "format"),
+        format=_current_format(_optional_text(item, "format")),
         prefix_length=item.get("prefix_length"),
         group=group,
         aggregate=_optional_text(item, "aggregate"),
     )
+
+
+def _current_format(raw: str | None) -> str | None:
+    """예전 포맷(그대로·앞 N자·이름·코드)은 포맷 없음으로 읽는다. 앞 N자의 N은 그대로 둔다."""
+    return None if raw in _LEGACY_FORMATS else raw
 
 
 def _sort(data: object) -> RawSort | None:

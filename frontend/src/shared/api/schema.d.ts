@@ -2090,7 +2090,7 @@ export interface components {
          * Format
          * @enum {string}
          */
-        Format: "as_is" | "prefix" | "name" | "key" | "thousands" | "krw_thousand" | "krw_million" | "decimal1" | "percent_share" | "ymd" | "ymd_hm" | "year" | "quarter" | "month" | "weekday" | "relative";
+        Format: "thousands" | "krw_thousand" | "krw_million" | "decimal1" | "percent_share" | "ymd" | "ymd_hm" | "year" | "quarter" | "month" | "weekday" | "relative";
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -2577,7 +2577,7 @@ export interface components {
             /** Deal Number */
             deal_number: boolean;
             default_aggregate: components["schemas"]["Aggregate"] | null;
-            default_format: components["schemas"]["Format"];
+            default_format: components["schemas"]["Format"] | null;
             entity: components["schemas"]["Entity"];
             /** Filterable */
             filterable: boolean;
@@ -2701,7 +2701,7 @@ export interface components {
             entity: components["schemas"]["Entity"];
             /** Field */
             field: string;
-            format: components["schemas"]["Format"];
+            format: components["schemas"]["Format"] | null;
             /** Group */
             group: boolean;
             /** Index */

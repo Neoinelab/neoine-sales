@@ -9,7 +9,7 @@ import { expectRejects, NO_SUCH_ID, unique, type ContractRole, type MakeGateway 
 
 const DEFINITION: ReportQueryInput = {
   columns: [
-    { field: 'deal.vendor', format: 'name', group: true },
+    { field: 'deal.vendor', group: true },
     { field: 'deal.amount', format: 'krw_thousand', group: false, aggregate: 'sum', label: '금액 합계' },
   ],
   conditions: [{ field: 'deal.amount', operator: 'gte', value: 1_500_000 }],
@@ -20,8 +20,8 @@ const DEFINITION: ReportQueryInput = {
 
 const OTHER_DEFINITION: ReportQueryInput = {
   columns: [
-    { field: 'deal.code', format: 'as_is', group: false },
-    { field: 'action.action', format: 'as_is', group: false },
+    { field: 'deal.code', group: false },
+    { field: 'action.action', group: false },
   ],
   conditions: [],
   combine: 'and',
@@ -121,7 +121,7 @@ export function savedReportsContract(make: MakeGateway): void {
       const { reports } = await make('sales')
       const before = (await reports.list()).length
       const broken: ReportQueryInput = {
-        columns: [{ field: 'deal.nope', format: 'as_is', group: false }, { field: 'deal.nada', format: 'as_is', group: false }],
+        columns: [{ field: 'deal.nope', group: false }, { field: 'deal.nada', group: false }],
         conditions: [],
         combine: 'and',
         rowLimit: 100,

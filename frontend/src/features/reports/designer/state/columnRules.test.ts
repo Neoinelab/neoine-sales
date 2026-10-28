@@ -81,20 +81,34 @@ describe('aggregate choices (AC6)', () => {
   })
 })
 
-describe('format change (AC6)', () => {
-  it('format change to prefix sets length 20 and other formats clear it', () => {
+describe('prefix option (AC14)', () => {
+  it('turning the option on sets N to 20 and a typed N is kept', () => {
     const state = withColumns('deal.name')
     const uid = uidAt(state, 0)
 
-    const prefix = reduce(state, { type: 'updateColumn', uid, patch: { format: 'prefix' } })
-    const longer = reduce(prefix, { type: 'updateColumn', uid, patch: { prefixLength: 5 } })
-    const plain = reduce(longer, { type: 'updateColumn', uid, patch: { format: 'as_is' } })
-    const again = reduce(plain, { type: 'updateColumn', uid, patch: { format: 'prefix' } })
+    const on = reduce(state, { type: 'updateColumn', uid, patch: { prefixOn: true } })
+    const longer = reduce(on, { type: 'updateColumn', uid, patch: { prefixLength: 5 } })
 
-    expect(columnAt(prefix, 0)).toMatchObject({ format: 'prefix', prefixLength: 20 })
-    expect(columnAt(longer, 0).prefixLength).toBe(5)
-    expect(columnAt(plain, 0)).toMatchObject({ format: 'as_is', prefixLength: null })
-    expect(columnAt(again, 0).prefixLength).toBe(20)
+    expect(columnAt(state, 0)).toMatchObject({ prefixOn: false, prefixLength: null })
+    expect(columnAt(on, 0)).toMatchObject({ prefixOn: true, prefixLength: 20 })
+    expect(columnAt(longer, 0)).toMatchObject({ prefixOn: true, prefixLength: 5 })
+  })
+
+  it('changing the format keeps the prefix option', () => {
+    const state = withColumns('deal.expected_close')
+    const uid = uidAt(state, 0)
+
+    const on = reduce(state, { type: 'updateColumn', uid, patch: { prefixOn: true, prefixLength: 4 } })
+    const changed = reduce(on, { type: 'updateColumn', uid, patch: { format: 'weekday' } })
+
+    expect(columnAt(changed, 0)).toMatchObject({ format: 'weekday', prefixOn: true, prefixLength: 4 })
+  })
+
+  it('text, code and user columns start without a format, number and date columns with the default', () => {
+    const state = withColumns('deal.name', 'deal.status', 'deal.owner', 'deal.amount', 'deal.expected_close', 'deal.created_at')
+
+    expect(state.columns.map((c) => c.format)).toEqual([null, null, null, 'krw_thousand', 'ymd', 'ymd_hm'])
+    expect(state.columns.every((c) => !c.prefixOn && c.prefixLength === null)).toBe(true)
   })
 })
 

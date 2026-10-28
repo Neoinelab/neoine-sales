@@ -57,7 +57,7 @@ export function resultColumn(over: Partial<ReportResultColumn> = {}): ReportResu
     entity: 'deal',
     type: 'text',
     valueType: 'text',
-    format: 'as_is',
+    format: null,
     prefixLength: null,
     group: false,
     aggregate: null,
@@ -89,7 +89,7 @@ export function resultOf(over: Partial<ReportResult> = {}): ReportResult {
 export function groupedAmountResult(rows: ReportCell[][], totals: ReportCell[] | null): ReportResult {
   return resultOf({
     columns: [
-      resultColumn({ index: 0, field: 'deal.vendor', label: 'Vendor', type: 'code', format: 'name', group: true }),
+      resultColumn({ index: 0, field: 'deal.vendor', label: 'Vendor', type: 'code', format: null, group: true }),
       resultColumn({ index: 1, field: 'deal.amount', label: '금액 합계', type: 'number', valueType: 'integer', format: 'krw_thousand', aggregate: 'sum' }),
     ],
     rows,

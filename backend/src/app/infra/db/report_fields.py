@@ -3,7 +3,6 @@
 식은 팩토리로 받아 처음 쓸 때만 만든다(그때 필요한 JOIN이 등록된다).
  - key: 그룹핑·고유 건수·조건 비교에 쓰는 식(id·key·원래 열)
  - value: 결과에 나오는 값(이름 표시). 없으면 key
- - key_value: 포맷이 key일 때의 값. 없으면 key
  - order: 정렬 식. 없으면 value
 """
 
@@ -32,12 +31,10 @@ class FieldSql:
         key: Factory,
         *,
         value: Factory | None = None,
-        key_value: Factory | None = None,
         order: Factory | None = None,
     ) -> None:
         self._key = key
         self._value = value
-        self._key_value = key_value
         self._order = order
 
     @cached_property
@@ -47,10 +44,6 @@ class FieldSql:
     @cached_property
     def value(self) -> Expr:
         return self._value() if self._value else self.key
-
-    @cached_property
-    def key_value(self) -> Expr:
-        return self._key_value() if self._key_value else self.key
 
     @cached_property
     def order(self) -> Expr:

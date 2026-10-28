@@ -44,7 +44,7 @@ class ActionFilter(StrEnum):
 class ReportColumn:
     field: FieldSpec
     label: str
-    format: Format
+    format: Format | None
     prefix_length: int | None
     group: bool
     aggregate: Aggregate | None

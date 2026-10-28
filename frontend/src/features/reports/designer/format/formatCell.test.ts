@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { resultColumn } from '../../../../test/reportDesigner'
-import { cellTitle, columnHeader, formatCell } from './formatCell'
+import { cellTitle, columnHeader, formatCell, formatShownCell, truncateLabel } from './formatCell'
 
 const CTX = { now: '2026-10-27T09:00:00+09:00', today: '2026-10-27', totals: null }
 
@@ -76,28 +76,78 @@ describe('formatCell percent share (AC12)', () => {
 })
 
 describe('formatCell text (AC12)', () => {
-  const text = (prefixLength: number | null, format: 'as_is' | 'prefix' = 'prefix') => resultColumn({ format, prefixLength })
-
-  it('formats text prefix and keeps full text for the title', () => {
-    const column = text(5)
-
-    expect(formatCell('abcdefghij', column, CTX)).toBe('abcde…')
-    expect(formatCell('abcde', column, CTX)).toBe('abcde')
-    expect(formatCell('abc', column, CTX)).toBe('abc')
-    expect(cellTitle('abcdefghij', column)).toBe('abcdefghij')
-  })
-
   it('shows text, codes and users as they are', () => {
     expect(formatCell('한빛은행 도입', resultColumn(), CTX)).toBe('한빛은행 도입')
-    expect(formatCell('기회발굴', resultColumn({ type: 'code', format: 'name' }), CTX)).toBe('기회발굴')
-    expect(formatCell('prospecting', resultColumn({ type: 'code', format: 'key' }), CTX)).toBe('prospecting')
-    expect(formatCell('김영업', resultColumn({ type: 'user', format: 'name' }), CTX)).toBe('김영업')
+    expect(formatCell('기회발굴', resultColumn({ type: 'code', format: null }), CTX)).toBe('기회발굴')
+    expect(formatCell('김영업', resultColumn({ type: 'user', format: null }), CTX)).toBe('김영업')
   })
 
-  it('gives a title for text cells only', () => {
-    expect(cellTitle('긴 문장입니다', resultColumn())).toBe('긴 문장입니다')
-    expect(cellTitle(null, resultColumn())).toBeUndefined()
-    expect(cellTitle(1234, number('thousands'))).toBeUndefined()
+  it('does not cut a value even when the column has a prefix length', () => {
+    expect(formatCell('abcdefghij', resultColumn({ prefixLength: 3 }), CTX)).toBe('abcdefghij')
+    expect(formatCell(1_234_567, number('thousands', { prefixLength: 3 }), CTX)).toBe('1,234,567')
+  })
+})
+
+describe('truncateLabel (AC16)', () => {
+  it.each([
+    ['ABCDEF', 3, 'ABC…'],
+    ['ABC', 3, 'ABC'],
+    ['AB', 3, 'AB'],
+    ['가나다라마', 2, '가나…'],
+    ['😀😀😀😀', 2, '😀😀…'],
+    ['😀😀', 2, '😀😀'],
+  ])('cuts %s at %i characters by code point', (text, n, expected) => {
+    expect(truncateLabel(text, n)).toBe(expected)
+  })
+
+  it('keeps the text when there is no prefix length', () => {
+    expect(truncateLabel('ABCDEF', null)).toBe('ABCDEF')
+  })
+})
+
+describe('formatShownCell (AC16)', () => {
+  it('cuts a text cell and adds an ellipsis only above the limit', () => {
+    const column = resultColumn({ prefixLength: 3 })
+
+    expect(formatShownCell('ABCDEF', column, CTX)).toBe('ABC…')
+    expect(formatShownCell('ABC', column, CTX)).toBe('ABC')
+  })
+
+  it('cuts the formatted string of a number', () => {
+    expect(formatShownCell(1_234_567, number('thousands', { prefixLength: 3 }), CTX)).toBe('1,2…')
+  })
+
+  it('cuts the formatted string of a date', () => {
+    const column = resultColumn({ field: 'deal.expected_close', type: 'date', valueType: 'date', format: 'weekday', prefixLength: 4 })
+
+    expect(formatShownCell('2026-10-27', column, CTX)).toBe('2026…')
+  })
+
+  it('never cuts an empty value dash', () => {
+    expect(formatShownCell(null, resultColumn({ prefixLength: 1 }), CTX)).toBe('—')
+  })
+
+  it('shows the whole formatted value without a prefix length', () => {
+    expect(formatShownCell(1_234_567, number('thousands'), CTX)).toBe('1,234,567')
+    expect(formatShownCell('ABCDEF', resultColumn(), CTX)).toBe('ABCDEF')
+  })
+})
+
+describe('cellTitle (AC17)', () => {
+  it('gives the whole formatted value when the cell is cut, whatever the type', () => {
+    expect(cellTitle(1_234_567, number('thousands', { prefixLength: 3 }), CTX)).toBe('1,234,567')
+    expect(cellTitle('ABCDEF', resultColumn({ prefixLength: 3 }), CTX)).toBe('ABCDEF')
+  })
+
+  it('gives the text of a text cell that is not cut', () => {
+    expect(cellTitle('긴 문장입니다', resultColumn(), CTX)).toBe('긴 문장입니다')
+    expect(cellTitle('ABC', resultColumn({ prefixLength: 3 }), CTX)).toBe('ABC')
+  })
+
+  it('gives nothing for an empty cell or a number that is not cut', () => {
+    expect(cellTitle(null, resultColumn(), CTX)).toBeUndefined()
+    expect(cellTitle(1234, number('thousands'), CTX)).toBeUndefined()
+    expect(cellTitle(12, number('thousands', { prefixLength: 5 }), CTX)).toBeUndefined()
   })
 })
 

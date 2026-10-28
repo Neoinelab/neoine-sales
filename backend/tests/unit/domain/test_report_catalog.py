@@ -58,9 +58,9 @@ ACTION_KEYS = [
     "action.count",
 ]
 ALLOWED_FORMATS = {
-    FieldType.TEXT: {Format.AS_IS, Format.PREFIX},
-    FieldType.CODE: {Format.NAME, Format.KEY},
-    FieldType.USER: {Format.NAME},
+    FieldType.TEXT: set(),
+    FieldType.CODE: set(),
+    FieldType.USER: set(),
     FieldType.NUMBER: {
         Format.THOUSANDS,
         Format.KRW_THOUSAND,
@@ -132,7 +132,10 @@ def test_each_field_allows_only_its_type_formats_operators_and_aggregates(
     spec: FieldSpec,
 ) -> None:
     assert set(spec.formats) <= ALLOWED_FORMATS[spec.type]
-    assert spec.default_format in spec.formats
+    if spec.formats:
+        assert spec.default_format in spec.formats
+    else:
+        assert spec.default_format is None
     assert set(spec.operators) <= ALLOWED_OPERATORS[spec.type]
     expected = NUMERIC_AGGREGATES if spec.type == FieldType.NUMBER else COUNT_AGGREGATES
     assert set(spec.aggregates) <= expected
@@ -200,3 +203,40 @@ def test_risk_options_are_overdue_and_stale() -> None:
 
     assert risk is not None
     assert [o.value for o in risk.options or ()] == ["overdue", "stale"]
+
+
+# ---- 포맷 정리 (2026-10-28) ----
+
+LEGACY_FORMAT_NAMES = ["as_is", "prefix", "name", "key"]
+DATE_BUCKETS = {Format.YMD, Format.YEAR, Format.QUARTER, Format.MONTH}
+
+
+@pytest.mark.parametrize("field_type", [FieldType.TEXT, FieldType.CODE, FieldType.USER])
+def test_text_code_user_types_have_no_formats(field_type: FieldType) -> None:
+    from app.domain.report.vocabulary import TYPE_DEFAULT_FORMAT, TYPE_FORMATS  # noqa: PLC0415
+
+    assert tuple(TYPE_FORMATS[field_type]) == ()
+    assert TYPE_DEFAULT_FORMAT[field_type] is None
+
+
+@pytest.mark.parametrize("name", LEGACY_FORMAT_NAMES)
+def test_format_vocabulary_has_no_legacy_values(name: str) -> None:
+    from app.domain.report.labels import FORMAT_LABELS  # noqa: PLC0415
+
+    assert name not in {f.value for f in Format}
+    assert set(FORMAT_LABELS) == set(Format)
+    assert len(Format) == 12
+
+
+def test_affects_query_is_date_buckets_only() -> None:
+    assert {f for f in Format if f.affects_query} == DATE_BUCKETS
+
+
+@pytest.mark.parametrize(
+    "spec",
+    [f for f in FIELD_CATALOG if f.type in {FieldType.TEXT, FieldType.CODE, FieldType.USER}],
+    ids=lambda f: f.key,
+)
+def test_formatless_fields_have_empty_formats_and_null_default(spec: FieldSpec) -> None:
+    assert tuple(spec.formats) == ()
+    assert spec.default_format is None

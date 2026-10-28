@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from app.domain.report.definition import RowScope
-from app.domain.report.vocabulary import Aggregate, FieldType, Format
+from app.domain.report.vocabulary import Aggregate, FieldType
 from app.infra.db.report_buckets import bucket
 from app.infra.db.report_conditions import where_clause
 from app.infra.db.report_fields_action import action_fields
@@ -60,8 +60,6 @@ class ReportParts:
         sql = self.field(spec)
         if spec.type in _DATE_TYPES:
             return bucket(sql.key, spec.type, column.format, self.context)
-        if column.format is Format.KEY and spec.type in {FieldType.CODE, FieldType.USER}:
-            return sql.key_value
         return sql.value
 
     def group_exprs(self, column: ReportColumn) -> GroupExprs:

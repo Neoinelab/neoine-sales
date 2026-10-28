@@ -74,8 +74,9 @@ export function fromReportRequest(input: ReportQueryInput, catalog: ReportCatalo
     uid: uid++,
     field: c.field,
     label: c.label ?? '',
-    format: c.format,
-    prefixLength: c.format === 'prefix' ? (c.prefixLength ?? null) : null,
+    format: c.format ?? fieldByKey(catalog, c.field)?.defaultFormat ?? null,
+    prefixOn: c.prefixLength !== undefined,
+    prefixLength: c.prefixLength ?? null,
     group: c.group,
     aggregate: c.aggregate ?? null,
   }))

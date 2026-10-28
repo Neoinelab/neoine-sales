@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useToday } from '../../../data/today'
 import type { ReportResult } from '../../../shared/model/reportTypes'
 import { Pager } from '../../../shared/ui/Pager'
-import { cellTitle, columnHeader, formatCell, isNumericColumn } from './format/formatCell'
+import { cellTitle, columnHeader, formatCell, formatShownCell, isNumericColumn } from './format/formatCell'
 
 const PAGE_SIZE = 100
 
@@ -41,8 +41,8 @@ export function ResultTable({ result, showTotals }: ResultTableProps) {
                 {result.columns.map((column, c) => {
                   const value = row[c] ?? null
                   return (
-                    <td key={column.index} className={isNumericColumn(column) ? 'report-num' : 'report-text'} title={cellTitle(value, column)}>
-                      {formatCell(value, column, ctx)}
+                    <td key={column.index} className={isNumericColumn(column) ? 'report-num' : 'report-text'} title={cellTitle(value, column, ctx)}>
+                      {formatShownCell(value, column, ctx)}
                     </td>
                   )
                 })}

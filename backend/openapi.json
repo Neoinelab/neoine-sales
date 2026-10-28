@@ -2997,10 +2997,6 @@
       },
       "Format": {
         "enum": [
-          "as_is",
-          "prefix",
-          "name",
-          "key",
           "thousands",
           "krw_thousand",
           "krw_million",
@@ -4282,7 +4278,14 @@
             ]
           },
           "default_format": {
-            "$ref": "#/components/schemas/Format"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Format"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "entity": {
             "$ref": "#/components/schemas/Entity"
@@ -4671,7 +4674,14 @@
             "type": "string"
           },
           "format": {
-            "$ref": "#/components/schemas/Format"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Format"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "group": {
             "title": "Group",

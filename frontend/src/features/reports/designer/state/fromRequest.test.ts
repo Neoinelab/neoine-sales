@@ -14,7 +14,7 @@ function requestOf(input: ReportQueryInput): ReportQueryInput {
   return built.request
 }
 
-const CODE: ReportQueryInput['columns'][number] = { field: 'deal.code', format: 'as_is', group: false }
+const CODE: ReportQueryInput['columns'][number] = { field: 'deal.code', group: false }
 const withConditions = (conditions: ReportQueryInput['conditions']): ReportQueryInput => ({
   columns: [CODE],
   conditions,
@@ -27,7 +27,7 @@ const SHAPES: readonly (readonly [string, ReportQueryInput])[] = [
     'a grouped vendor by quarter report with money, list, label and sort',
     {
       columns: [
-        { field: 'deal.vendor', format: 'name', group: true },
+        { field: 'deal.vendor', group: true },
         { field: 'deal.expected_close', format: 'quarter', group: true },
         { field: 'deal.amount', format: 'krw_thousand', group: false, aggregate: 'sum', label: '금액 합계' },
       ],
@@ -40,7 +40,8 @@ const SHAPES: readonly (readonly [string, ReportQueryInput])[] = [
       rowLimit: 1000,
     },
   ],
-  ['a prefix column with its length', { columns: [{ field: 'deal.name', format: 'prefix', prefixLength: 7, group: false }], conditions: [], combine: 'and', rowLimit: 100 }],
+  ['a prefix column with its length', { columns: [{ field: 'deal.name', prefixLength: 7, group: false }], conditions: [], combine: 'and', rowLimit: 100 }],
+  ['a prefix length on a number column with its format', { columns: [{ field: 'deal.amount', format: 'thousands', prefixLength: 3, group: false }], conditions: [], combine: 'and', rowLimit: 100 }],
   ['a money range', withConditions([{ field: 'deal.amount', operator: 'between', value: [1_000_000, 2_000_000] }])],
   ['a zero money value', withConditions([{ field: 'deal.amount', operator: 'eq', value: 0 }])],
   ['a text condition', withConditions([{ field: 'deal.name', operator: 'contains', value: 'ITDR' }])],
@@ -56,7 +57,7 @@ const SHAPES: readonly (readonly [string, ReportQueryInput])[] = [
     'an Action column grouped with a count',
     {
       columns: [
-        { field: 'deal.vendor', format: 'name', group: true },
+        { field: 'deal.vendor', group: true },
         { field: 'action.count', format: 'thousands', group: false, aggregate: 'count' },
       ],
       conditions: [],
@@ -114,7 +115,7 @@ describe('fromReportRequest', () => {
 
   it('maps the sort column index to the uid of that column and leaves selection empty', () => {
     const state = load({
-      columns: [CODE, { field: 'deal.name', format: 'as_is', group: false }, { field: 'deal.solution', format: 'as_is', group: false }],
+      columns: [CODE, { field: 'deal.name', group: false }, { field: 'deal.solution', group: false }],
       conditions: [],
       combine: 'and',
       sort: { column: 1, direction: 'desc' },
@@ -127,7 +128,7 @@ describe('fromReportRequest', () => {
 
   it('gives every column and condition its own uid and leaves nextUid above them', () => {
     const state = load({
-      columns: [CODE, { field: 'deal.name', format: 'as_is', group: false }],
+      columns: [CODE, { field: 'deal.name', group: false }],
       conditions: [{ field: 'deal.name', operator: 'is_empty' }],
       combine: 'and',
       rowLimit: 100,
@@ -152,7 +153,7 @@ describe('fromReportRequest', () => {
   it('keeps the column settings: format, prefix length, group and aggregate', () => {
     const state = load({
       columns: [
-        { field: 'deal.name', format: 'prefix', prefixLength: 7, group: true },
+        { field: 'deal.name', prefixLength: 7, group: true },
         { field: 'deal.amount', format: 'krw_million', group: false, aggregate: 'avg' },
       ],
       conditions: [],
@@ -160,16 +161,36 @@ describe('fromReportRequest', () => {
       rowLimit: 10000,
     })
 
-    expect(state.columns[0]).toMatchObject({ field: 'deal.name', format: 'prefix', prefixLength: 7, group: true, aggregate: null })
-    expect(state.columns[1]).toMatchObject({ field: 'deal.amount', format: 'krw_million', prefixLength: null, group: false, aggregate: 'avg' })
+    expect(state.columns[0]).toMatchObject({ field: 'deal.name', format: null, prefixOn: true, prefixLength: 7, group: true, aggregate: null })
+    expect(state.columns[1]).toMatchObject({ field: 'deal.amount', format: 'krw_million', prefixOn: false, prefixLength: null, group: false, aggregate: 'avg' })
     expect(state).toMatchObject({ combine: 'or', rowLimit: 10000, sort: null })
+  })
+})
+
+describe('fromReportRequest prefix option (AC19)', () => {
+  it('turns a request prefix length into an enabled option with the same N', () => {
+    const state = load({ columns: [{ field: 'deal.name', prefixLength: 5, group: false }], conditions: [], combine: 'and', rowLimit: 100 })
+
+    expect(state.columns[0]).toMatchObject({ format: null, prefixOn: true, prefixLength: 5 })
+  })
+
+  it('leaves the option off and the format empty for a plain text column', () => {
+    const state = load({ columns: [CODE], conditions: [], combine: 'and', rowLimit: 100 })
+
+    expect(state.columns[0]).toMatchObject({ format: null, prefixOn: false, prefixLength: null })
+  })
+
+  it('never writes a legacy format when the loaded design is requested again', () => {
+    const request = requestOf({ columns: [{ field: 'deal.name', prefixLength: 5, group: false }], conditions: [], combine: 'and', rowLimit: 100 })
+
+    expect(request.columns[0]).toEqual({ field: 'deal.name', prefixLength: 5, group: false })
   })
 })
 
 describe('fromReportRequest with fields the catalog no longer has', () => {
   it('keeps unknown fields so the server can report them', () => {
     const input: ReportQueryInput = {
-      columns: [CODE, { field: 'deal.nope', format: 'as_is', group: false, label: '없는 필드' }],
+      columns: [CODE, { field: 'deal.nope', group: false, label: '없는 필드' }],
       conditions: [{ field: 'deal.nada', operator: 'contains', value: 'x' }],
       combine: 'and',
       rowLimit: 100,

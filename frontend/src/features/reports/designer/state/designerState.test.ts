@@ -27,7 +27,7 @@ describe('designerReducer columns (AC4)', () => {
     expect(state.columns).toHaveLength(2)
     expect(uidAt(state, 0)).not.toBe(uidAt(state, 1))
     for (const column of state.columns) {
-      expect(column).toMatchObject({ field: 'deal.amount', format: 'krw_thousand', label: '', group: false, aggregate: null, prefixLength: null })
+      expect(column).toMatchObject({ field: 'deal.amount', format: 'krw_thousand', label: '', group: false, aggregate: null, prefixOn: false, prefixLength: null })
     }
   })
 

@@ -203,8 +203,8 @@ function synthesize(ctx: MockContext, catalog: ReportCatalog, input: ReportQuery
       entity: field.entity,
       type: field.type,
       valueType: valueTypeOf(field, column, aggregate),
-      format: column.format,
-      prefixLength: column.format === 'prefix' ? (column.prefixLength ?? null) : null,
+      format: column.format ?? field.defaultFormat,
+      prefixLength: column.prefixLength ?? null,
       group: column.group,
       aggregate,
     }

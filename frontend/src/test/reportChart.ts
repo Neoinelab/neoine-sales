@@ -21,8 +21,8 @@ import { addColumn, answerWith, chipButton, openDesigner, runQuery, settingsOf, 
 // 차트 탭은 React.lazy 청크이므로 첫 로딩이 findBy 기본 대기(1초)를 넘기지 않게 미리 읽어 둔다.
 import '../features/reports/chart/ChartTab'
 
-export const VENDOR_COL = resultColumn({ index: 0, field: 'deal.vendor', label: 'Vendor', type: 'code', valueType: 'text', format: 'name', group: true })
-export const STATUS_COL = resultColumn({ index: 1, field: 'deal.status', label: 'Status', type: 'code', valueType: 'text', format: 'name', group: true })
+export const VENDOR_COL = resultColumn({ index: 0, field: 'deal.vendor', label: 'Vendor', type: 'code', valueType: 'text', format: null, group: true })
+export const STATUS_COL = resultColumn({ index: 1, field: 'deal.status', label: 'Status', type: 'code', valueType: 'text', format: null, group: true })
 export const amountCol = (index: number): ReportResultColumn =>
   resultColumn({ index, field: 'deal.amount', label: '금액(원)', type: 'number', valueType: 'integer', format: 'krw_thousand', aggregate: 'sum' })
 export const usersCol = (index: number): ReportResultColumn =>

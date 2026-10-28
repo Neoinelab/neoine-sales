@@ -67,7 +67,7 @@ class ReportResultColumn(BaseModel):
     entity: Entity
     type: FieldType
     value_type: ResultValueType
-    format: Format
+    format: Format | None
     prefix_length: int | None
     group: bool
     aggregate: Aggregate | None

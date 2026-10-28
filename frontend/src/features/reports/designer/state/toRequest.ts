@@ -10,10 +10,10 @@ import { fieldByKey, isMoneyField } from './columnRules'
 import type { ConditionDraft } from './conditionDraft'
 import type { DesignerColumn, DesignerCondition, DesignerState } from './designerState'
 
-/** 요청을 만들 수 없는 입력. `uid`는 조건, `part`는 그 조건의 입력 칸이다. */
+/** 요청을 만들 수 없는 입력. `uid`는 조건 또는 컬럼(`prefix_length`), `part`는 그 입력 칸이다. */
 export interface InputIssue {
   uid: number
-  part: 'value' | 'low' | 'high' | 'day' | 'first' | 'last' | 'days'
+  part: 'value' | 'low' | 'high' | 'day' | 'first' | 'last' | 'days' | 'prefix_length'
   message: string
 }
 
@@ -28,12 +28,19 @@ function columnInput(column: DesignerColumn, field: ReportField | undefined): Re
   const label = column.label.trim()
   return {
     field: column.field,
-    format: column.format,
+    ...(column.format !== null ? { format: column.format } : {}),
     group: column.group,
     ...(label !== '' && label !== field?.label ? { label } : {}),
-    ...(column.format === 'prefix' && column.prefixLength !== null ? { prefixLength: column.prefixLength } : {}),
+    ...(column.prefixOn && column.prefixLength !== null ? { prefixLength: column.prefixLength } : {}),
     ...(column.aggregate !== null ? { aggregate: column.aggregate } : {}),
   }
+}
+
+function columnIssues(column: DesignerColumn, max: number): InputIssue[] {
+  if (!column.prefixOn) return []
+  const n = column.prefixLength
+  if (n !== null && Number.isInteger(n) && n >= 1 && n <= max) return []
+  return [{ uid: column.uid, part: 'prefix_length', message: `1~${max} 사이 정수를 입력하세요` }]
 }
 
 /** 쉼표를 뺀 정수 문자열을 읽는다. 정수가 아니거나 safe integer를 넘으면 null(-0은 0). */
@@ -120,7 +127,7 @@ function conditionInput(condition: DesignerCondition, catalog: ReportCatalog): {
  */
 export function toReportRequest(state: DesignerState, catalog: ReportCatalog): RequestBuild {
   const conditions: ReportConditionInput[] = []
-  const inputIssues: InputIssue[] = []
+  const inputIssues: InputIssue[] = state.columns.flatMap((c) => columnIssues(c, catalog.limits.prefixMax))
   for (const condition of state.conditions) {
     const built = conditionInput(condition, catalog)
     inputIssues.push(...built.issues)
