@@ -11,6 +11,7 @@ class RawColumn:
     prefix_length: object = None
     group: bool = False
     aggregate: str | None = None
+    sort: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -21,17 +22,10 @@ class RawCondition:
 
 
 @dataclass(frozen=True, slots=True)
-class RawSort:
-    column: object
-    direction: object = "asc"
-
-
-@dataclass(frozen=True, slots=True)
 class RawReportDefinition:
     columns: tuple[RawColumn, ...]
     conditions: tuple[RawCondition, ...] = ()
     combine: object = "and"
-    sort: RawSort | None = None
     row_limit: object = 1000
 
 

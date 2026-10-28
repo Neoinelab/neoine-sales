@@ -66,9 +66,8 @@ def test_only_needed_name_joins_are_added() -> None:
 def test_vendor_column_adds_the_vendors_join_exactly_once() -> None:
     sql = sql_of(
         resolved(
-            [col("deal.vendor")],
+            [col("deal.vendor", sort="asc")],
             [cond("deal.vendor", "in", [1])],
-            sort={"column": 0, "direction": "asc"},
         )
     )
 

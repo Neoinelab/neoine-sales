@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 QUARTER_DAYS = [date(2026, 2, 10), date(2026, 5, 10), date(2026, 8, 10), date(2026, 11, 10)]
 COLUMNS = [
     col("deal.vendor", group=True),
-    col("deal.expected_close", format="quarter", group=True),
+    col("deal.expected_close", format="quarter", group=True, sort="asc"),
     col("deal.amount", aggregate="sum", label="금액 합계"),
     col("deal.code", aggregate="count", label="건수"),
 ]
@@ -59,7 +59,7 @@ async def test_vendor_by_quarter_cells_equal_the_deal_list_ledger(report_case: R
     sap, ibm, _ = await _seed(report_case)
     names = {sap: "SAP", ibm: "IBM"}
 
-    rows = await report_case.rows(COLUMNS, CONDITIONS, sort={"column": 1, "direction": "asc"})
+    rows = await report_case.rows(COLUMNS, CONDITIONS)
 
     cells = {(row[0], row[1]): (row[3], row[2]) for row in rows}
     for vendor_id in (sap, ibm):

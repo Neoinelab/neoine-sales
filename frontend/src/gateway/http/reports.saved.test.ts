@@ -14,7 +14,7 @@ const SERVER_DEFINITION = {
   columns: [
     { field: 'deal.vendor', group: true },
     { field: 'deal.name', prefix_length: 5, group: false, label: '이름 앞부분', aggregate: 'count' },
-    { field: 'deal.amount', format: 'krw_thousand', group: false, aggregate: 'sum' },
+    { field: 'deal.amount', format: 'krw_thousand', group: false, aggregate: 'sum', sort: 'desc' },
   ],
   conditions: [
     { field: 'deal.amount', operator: 'between', value: [1_000_000, 2_000_000] },
@@ -22,7 +22,6 @@ const SERVER_DEFINITION = {
     { field: 'deal.name', operator: 'is_empty' },
   ],
   combine: 'or',
-  sort: { column: 2, direction: 'desc' },
   row_limit: 10000,
 }
 
@@ -30,7 +29,7 @@ const CAMEL_DEFINITION = {
   columns: [
     { field: 'deal.vendor', group: true },
     { field: 'deal.name', prefixLength: 5, group: false, label: '이름 앞부분', aggregate: 'count' },
-    { field: 'deal.amount', format: 'krw_thousand', group: false, aggregate: 'sum' },
+    { field: 'deal.amount', format: 'krw_thousand', group: false, aggregate: 'sum', sort: 'desc' },
   ],
   conditions: [
     { field: 'deal.amount', operator: 'between', value: [1_000_000, 2_000_000] },
@@ -38,7 +37,6 @@ const CAMEL_DEFINITION = {
     { field: 'deal.name', operator: 'is_empty' },
   ],
   combine: 'or',
-  sort: { column: 2, direction: 'desc' },
   rowLimit: 10000,
 }
 
@@ -173,6 +171,22 @@ describe('saved reports over HTTP: reading', () => {
     expect(definition).toEqual({ columns: [{ field: 'deal.code', group: false }], conditions: [], combine: 'and', rowLimit: 100 })
     expect('sort' in definition).toBe(false)
     expect('label' in (definition.columns[0] ?? {})).toBe(false)
+  })
+
+  it('reads the sort of each column and drops values it does not know', async () => {
+    const columns = [
+      { field: 'deal.code', group: false, sort: 'asc' },
+      { field: 'deal.name', group: false, sort: null },
+      { field: 'deal.vendor', group: false, sort: 'desc' },
+      { field: 'deal.owner', group: false, sort: 'sideways' },
+    ]
+    stubFetch(json(serverDetail({ definition: { columns, conditions: [], combine: 'and', row_limit: 100 } })))
+
+    const { definition } = await createReportsHttp().get(12)
+
+    expect(definition.columns.map((c) => c.sort)).toEqual(['asc', undefined, 'desc', undefined])
+    expect('sort' in (definition.columns[1] ?? {})).toBe(false)
+    expect('sort' in definition).toBe(false)
   })
 
   it('is wired into the HTTP gateway as reports', () => {

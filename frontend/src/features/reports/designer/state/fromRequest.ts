@@ -79,6 +79,7 @@ export function fromReportRequest(input: ReportQueryInput, catalog: ReportCatalo
     prefixLength: c.prefixLength ?? null,
     group: c.group,
     aggregate: c.aggregate ?? null,
+    sort: c.sort ?? null,
   }))
   const conditions: DesignerCondition[] = input.conditions.map((c) => ({
     uid: uid++,
@@ -86,12 +87,10 @@ export function fromReportRequest(input: ReportQueryInput, catalog: ReportCatalo
     operator: c.operator,
     draft: draftOf(c, fieldByKey(catalog, c.field), catalog),
   }))
-  const sortColumn = input.sort ? columns[input.sort.column] : undefined
   return {
     columns,
     conditions,
     combine: input.combine,
-    sort: input.sort && sortColumn ? { uid: sortColumn.uid, direction: input.sort.direction } : null,
     rowLimit: input.rowLimit || limits.defaultRowLimit,
     chart: null,
     selectedUid: null,

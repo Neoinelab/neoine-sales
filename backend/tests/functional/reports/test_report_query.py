@@ -215,10 +215,9 @@ async def test_grouped_report_returns_totals_beside_the_groups(api: Api) -> None
     await given_dashboard_deal(api, owner=owner, amount=30, vendor_id=ibm.id)
     body = {
         "columns": [
-            {"field": "deal.vendor", "group": True},
+            {"field": "deal.vendor", "group": True, "sort": "asc"},
             {"field": "deal.amount", "aggregate": "sum"},
         ],
-        "sort": {"column": 0, "direction": "asc"},
     }
     # When
     response = await when_query_report(api, body)
@@ -245,3 +244,54 @@ async def test_values_that_look_like_sql_are_matched_as_text(api: Api) -> None:
     then_rows_are(response, [])
     again = await when_query_report(api, {"columns": [{"field": "deal.name"}]})
     then_rows_are(again, [["Safe"]])
+
+
+async def test_report_rows_follow_column_sorts_in_column_order(api: Api) -> None:
+    """Scenario: 컬럼마다 정한 정렬이 컬럼 순서(왼쪽 먼저)대로 적용되어 행이 정렬된다."""
+    # Given
+    await given_today_is(api, TODAY)
+    ibm = await given_vendor(api, "IBM")
+    sap = await given_vendor(api, "SAP")
+    owner = await given_sales_user(api, "kim")
+    await given_dashboard_deal(api, owner=owner, name="Alpha", vendor_id=ibm.id)
+    await given_dashboard_deal(api, owner=owner, name="Alpha", vendor_id=sap.id)
+    await given_dashboard_deal(api, owner=owner, name="Beta", vendor_id=ibm.id)
+    await given_dashboard_deal(api, owner=owner, name="Alpha")
+    body = {
+        "columns": [
+            {"field": "deal.name", "sort": "asc"},
+            {"field": "deal.vendor", "sort": "desc"},
+        ],
+    }
+    # When
+    response = await when_query_report(api, body)
+    # Then
+    then_rows_are(
+        response,
+        [["Alpha", "SAP"], ["Alpha", "IBM"], ["Alpha", None], ["Beta", "IBM"]],
+    )
+
+
+async def test_unknown_column_sort_is_reported_at_that_column(api: Api) -> None:
+    """Scenario: asc/desc가 아닌 정렬 값은 그 컬럼 위치의 위반으로 거절된다."""
+    # Given
+    await given_today_is(api, TODAY)
+    body = {"columns": [{"field": "deal.name"}, {"field": "deal.vendor", "sort": "up"}]}
+    # When
+    response = await when_query_report(api, body)
+    # Then
+    then_report_error_locations_are(response, [(["columns", 1, "sort"], "sort-invalid")])
+
+
+async def test_old_top_level_sort_request_is_rejected(api: Api) -> None:
+    """Scenario: 예전 형식의 최상위 sort로 조회하면 요청 형식 오류로 거절된다."""
+    # Given
+    await given_today_is(api, TODAY)
+    body = {
+        "columns": [{"field": "deal.name"}],
+        "sort": {"column": 0, "direction": "asc"},
+    }
+    # When
+    response = await when_query_report(api, body)
+    # Then
+    then_problem_is(response, status=422, type_suffix="request-validation")

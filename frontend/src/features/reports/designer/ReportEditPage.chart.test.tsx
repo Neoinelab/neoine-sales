@@ -6,7 +6,7 @@ import { gateway } from '../../../gateway'
 import { lastChart } from '../../../test/chartMock'
 import { mockControl } from '../../../test/fake/default'
 import { createChart, expectPressed, kindButton, openChartTab, optionAt, panelField } from '../../../test/reportChart'
-import { addCountedColumn, chipItems, openEditor, saveButton, saveDialog, setupReportClock, UNSAVED_MARK } from '../../../test/reportScreen'
+import { addCountedColumn, chipButton, chipItems, chipTexts, openEditor, settingsOf, saveButton, saveDialog, setupReportClock, UNSAVED_MARK } from '../../../test/reportScreen'
 import { MINE_PUBLIC, SAVED_SAMPLES, VENDOR_CHART, WITH_CHART, savedReport } from '../../../test/savedReports'
 
 setupReportClock()
@@ -228,7 +228,9 @@ describe('되돌리기 분기 (리뷰 Minor, 분기 고정용: 현재 구현에�
 
   it('clears the result and restores the design and the chart when the query design was also changed', async () => {
     const { user } = await openWithChart()
-    await user.selectOptions(screen.getByRole('combobox', { name: '정렬' }), '(정렬 없음)')
+    await user.click(chipButton(1))
+    await user.selectOptions(within(settingsOf('금액 합계')).getByRole('combobox', { name: '정렬' }), '정렬 없음')
+    expect(chipTexts()[1]).not.toMatch(/[▲▼]/)
     await addCountedColumn(user, 'Deal code')
     await openChartTab(user)
     await user.type(panelField('차트 제목'), ' 바뀜')
@@ -237,8 +239,7 @@ describe('되돌리기 분기 (리뷰 Minor, 분기 고정용: 현재 구현에�
     await revert(user)
 
     expect(chipItems()).toHaveLength(2)
-    expect(screen.getByRole('combobox', { name: '정렬' })).toHaveDisplayValue(/금액 합계/)
-    expect(screen.getByRole('combobox', { name: '정렬 방향' })).toHaveDisplayValue(/내림|desc/i)
+    expect(chipTexts()[1]).toContain('▼ 내림')
     expect(screen.queryByRole('table', { name: '조회 결과' })).not.toBeInTheDocument()
     await openChartTab(user)
     expect(panelField('차트 제목')).toHaveValue('Vendor별 금액')

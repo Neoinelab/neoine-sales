@@ -1,8 +1,9 @@
-"""리포트 정의 검증의 한도와 최상위 필드 (AC4, AC8): 컬럼·조건 수, 필드 key, 행 수, 정렬, 결합,
-표시 이름, prefix 길이, 위반을 한꺼번에 보고하는 방식."""
+"""리포트 정의 검증의 한도와 최상위 필드 (AC4, AC8): 컬럼·조건 수, 필드 key, 행 수,
+컬럼별 정렬, 결합, 표시 이름, prefix 길이, 위반을 한꺼번에 보고하는 방식."""
 
 import pytest
 
+from app.domain.report.definition import ReportSort
 from app.domain.report.errors import ReportDefinitionError
 from app.domain.report.vocabulary import Combine, SortDirection
 from tests.support.report_defs import col, cond, issues, parse
@@ -79,26 +80,59 @@ def test_combine_accepts_and_or_only() -> None:
     assert issues([CODE], combine="xor") == [(("combine",), "combine-invalid")]
 
 
-def test_sort_points_to_a_column_and_defaults_ascending() -> None:
-    definition = parse([CODE, col("deal.name")], sort={"column": 1, "direction": "desc"})
+def test_column_sort_directions_become_sort_keys_in_column_order() -> None:
+    definition = parse(
+        [col("deal.name", sort="asc"), CODE, col("deal.vendor", sort="desc")],
+    )
 
-    assert definition.sort is not None
-    assert definition.sort.column == 1
-    assert definition.sort.direction == SortDirection.DESC
-    assert parse([CODE]).sort is None
-
-
-@pytest.mark.parametrize("position", [-1, 2, 99, "0", True])
-def test_sort_column_outside_the_columns_is_rejected(position: object) -> None:
-    found = issues([CODE, col("deal.name")], sort={"column": position, "direction": "asc"})
-
-    assert found == [(("sort", "column"), "sort-invalid")]
+    assert definition.sort_keys() == (
+        ReportSort(0, SortDirection.ASC),
+        ReportSort(2, SortDirection.DESC),
+    )
+    assert definition.columns[1].sort is None
 
 
-def test_sort_direction_other_than_asc_desc_is_rejected() -> None:
-    found = issues([CODE], sort={"column": 0, "direction": "up"})
+def test_definition_without_column_sort_has_no_sort_keys() -> None:
+    assert parse([CODE, col("deal.name")]).sort_keys() == ()
 
-    assert found == [(("sort", "direction"), "sort-invalid")]
+
+@pytest.mark.parametrize("value", ["ASC", "up", ""])
+def test_invalid_column_sort_is_reported_at_that_column(value: str) -> None:
+    found = issues([col("deal.name", sort=value)])
+
+    assert found == [(("columns", 0, "sort"), "sort-invalid")]
+
+
+def test_every_invalid_column_sort_is_reported() -> None:
+    found = issues(
+        [col("deal.name", sort="up"), col("deal.vendor", sort="asc"), col("deal.code", sort="DESC")]
+    )
+
+    assert found == [
+        (("columns", 0, "sort"), "sort-invalid"),
+        (("columns", 2, "sort"), "sort-invalid"),
+    ]
+
+
+def test_group_and_aggregate_columns_can_be_sorted() -> None:
+    definition = parse(
+        [
+            col("deal.status", group=True, sort="desc"),
+            col("deal.amount", aggregate="sum", sort="asc"),
+        ]
+    )
+
+    assert definition.sort_keys() == (
+        ReportSort(0, SortDirection.DESC),
+        ReportSort(1, SortDirection.ASC),
+    )
+
+
+def test_raw_definition_has_no_top_level_sort() -> None:
+    from app.domain.report.raw import RawColumn, RawReportDefinition  # noqa: PLC0415
+
+    assert "sort" not in RawReportDefinition.__dataclass_fields__
+    assert RawColumn(field="deal.name", sort="asc").sort == "asc"
 
 
 def test_all_violations_are_reported_together() -> None:

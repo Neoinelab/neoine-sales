@@ -48,6 +48,7 @@ class ReportColumn:
     prefix_length: int | None
     group: bool
     aggregate: Aggregate | None
+    sort: SortDirection | None
 
     def value_type(self) -> ResultValueType:
         """결과 열 값의 JSON 모양(포맷·집계 반영)."""
@@ -93,8 +94,13 @@ class ReportDefinition:
     columns: tuple[ReportColumn, ...]
     conditions: tuple[ReportCondition, ...]
     combine: Combine
-    sort: ReportSort | None
     row_limit: int
+
+    def sort_keys(self) -> tuple[ReportSort, ...]:
+        """정렬을 지정한 컬럼만, 컬럼 순서대로(앞 컬럼이 우선)."""
+        return tuple(
+            ReportSort(i, column.sort) for i, column in enumerate(self.columns) if column.sort
+        )
 
     def is_grouped(self) -> bool:
         return any(column.group for column in self.columns)

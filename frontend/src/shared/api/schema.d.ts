@@ -2487,6 +2487,8 @@ export interface components {
             label?: string | null;
             /** Prefix Length */
             prefix_length?: unknown;
+            /** Sort */
+            sort?: string | null;
         };
         /** ReportConditionRequest */
         ReportConditionRequest: {
@@ -2657,7 +2659,6 @@ export interface components {
              * @default 1000
              */
             row_limit: unknown;
-            sort?: components["schemas"]["ReportSortRequest"] | null;
         };
         /** ReportQueryResponse */
         ReportQueryResponse: {
@@ -2712,16 +2713,6 @@ export interface components {
             prefix_length: number | null;
             type: components["schemas"]["FieldType"];
             value_type: components["schemas"]["ResultValueType"];
-        };
-        /** ReportSortRequest */
-        ReportSortRequest: {
-            /** Column */
-            column: unknown;
-            /**
-             * Direction
-             * @default asc
-             */
-            direction: unknown;
         };
         /** ReportSummaryResponse */
         ReportSummaryResponse: {

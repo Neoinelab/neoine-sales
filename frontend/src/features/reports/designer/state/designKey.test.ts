@@ -9,11 +9,10 @@ import { fromReportRequest } from './fromRequest'
 const SAVED: ReportQueryInput = {
   columns: [
     { field: 'deal.vendor', group: true },
-    { field: 'deal.amount', format: 'krw_thousand', group: false, aggregate: 'sum' },
+    { field: 'deal.amount', format: 'krw_thousand', group: false, aggregate: 'sum', sort: 'desc' },
   ],
   conditions: [{ field: 'deal.amount', operator: 'gte', value: 1_500_000 }],
   combine: 'and',
-  sort: { column: 1, direction: 'desc' },
   rowLimit: 1000,
 }
 
@@ -49,8 +48,9 @@ describe('designKey', () => {
     ['the prefix option', (s: ReturnType<typeof load>) => reduce(s, { type: 'updateColumn', uid: uidAt(s, 0), patch: { prefixOn: true, prefixLength: 4 } })],
     ['the combine', (s: ReturnType<typeof load>) => reduce(s, { type: 'setCombine', combine: 'or' })],
     ['the row limit', (s: ReturnType<typeof load>) => reduce(s, { type: 'setRowLimit', rowLimit: 100 })],
-    ['the sort direction', (s: ReturnType<typeof load>) => reduce(s, { type: 'setSort', sort: { uid: uidAt(s, 1), direction: 'asc' } })],
-    ['the sort off', (s: ReturnType<typeof load>) => reduce(s, { type: 'setSort', sort: null })],
+    ['a column sort direction', (s: ReturnType<typeof load>) => reduce(s, { type: 'updateColumn', uid: uidAt(s, 1), patch: { sort: 'asc' } })],
+    ['a column sort off', (s: ReturnType<typeof load>) => reduce(s, { type: 'updateColumn', uid: uidAt(s, 1), patch: { sort: null } })],
+    ['a sort on another column', (s: ReturnType<typeof load>) => reduce(s, { type: 'updateColumn', uid: uidAt(s, 0), patch: { sort: 'asc' } })],
     ['the column order', (s: ReturnType<typeof load>) => reduce(s, { type: 'moveColumn', uid: uidAt(s, 1), to: 0 })],
     ['a condition value', (s: ReturnType<typeof load>) => reduce(s, { type: 'changeDraft', uid: s.conditions[0]?.uid ?? -1, draft: { shape: 'number', text: '2000' } })],
   ])('changes when %s changes', (_name, edit) => {
@@ -66,5 +66,24 @@ describe('designKey', () => {
     expect(keyOf(unreadable)).not.toBe(keyOf(loaded))
     expect(keyOf(unreadable)).not.toBe(keyOf(other))
     expect(keyOf(unreadable)).toBe(keyOf(reduce(loaded, { type: 'changeDraft', uid, draft: { shape: 'number', text: 'abc' } })))
+  })
+
+  it('gets the same key again when a column sort is changed back', () => {
+    const loaded = load()
+    const flipped = reduce(loaded, { type: 'updateColumn', uid: uidAt(loaded, 1), patch: { sort: 'asc' } })
+    const back = reduce(flipped, { type: 'updateColumn', uid: uidAt(flipped, 1), patch: { sort: 'desc' } })
+
+    expect(keyOf(back)).toBe(keyOf(loaded))
+  })
+
+  it('tells which column carries the sort', () => {
+    const loaded = load()
+    const moved = reduce(
+      loaded,
+      { type: 'updateColumn', uid: uidAt(loaded, 1), patch: { sort: null } },
+      { type: 'updateColumn', uid: uidAt(loaded, 0), patch: { sort: 'desc' } },
+    )
+
+    expect(keyOf(moved)).not.toBe(keyOf(loaded))
   })
 })

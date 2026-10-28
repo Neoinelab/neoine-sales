@@ -29,14 +29,13 @@ const SHAPES: readonly (readonly [string, ReportQueryInput])[] = [
       columns: [
         { field: 'deal.vendor', group: true },
         { field: 'deal.expected_close', format: 'quarter', group: true },
-        { field: 'deal.amount', format: 'krw_thousand', group: false, aggregate: 'sum', label: '금액 합계' },
+        { field: 'deal.amount', format: 'krw_thousand', group: false, aggregate: 'sum', label: '금액 합계', sort: 'desc' },
       ],
       conditions: [
         { field: 'deal.vendor', operator: 'in', value: [6, 1] },
         { field: 'deal.amount', operator: 'gte', value: 1_500_000 },
       ],
       combine: 'and',
-      sort: { column: 2, direction: 'desc' },
       rowLimit: 1000,
     },
   ],
@@ -57,12 +56,11 @@ const SHAPES: readonly (readonly [string, ReportQueryInput])[] = [
     'an Action column grouped with a count',
     {
       columns: [
-        { field: 'deal.vendor', group: true },
+        { field: 'deal.vendor', group: true, sort: 'asc' },
         { field: 'action.count', format: 'thousands', group: false, aggregate: 'count' },
       ],
       conditions: [],
       combine: 'and',
-      sort: { column: 0, direction: 'asc' },
       rowLimit: 100,
     },
   ],
@@ -113,17 +111,23 @@ describe('fromReportRequest', () => {
     ])
   })
 
-  it('maps the sort column index to the uid of that column and leaves selection empty', () => {
+  it('restores the sort of each column and leaves selection empty', () => {
     const state = load({
-      columns: [CODE, { field: 'deal.name', group: false }, { field: 'deal.solution', group: false }],
+      columns: [CODE, { field: 'deal.name', group: false, sort: 'desc' }, { field: 'deal.solution', group: false, sort: 'asc' }],
       conditions: [],
       combine: 'and',
-      sort: { column: 1, direction: 'desc' },
       rowLimit: 1000,
     })
 
-    expect(state.sort).toEqual({ uid: state.columns[1]?.uid, direction: 'desc' })
+    expect(state.columns.map((c) => c.sort)).toEqual([null, 'desc', 'asc'])
+    expect('sort' in state).toBe(false)
     expect(state.selectedUid).toBeNull()
+  })
+
+  it('treats a column without sort as no sort', () => {
+    const state = load({ columns: [CODE], conditions: [], combine: 'and', rowLimit: 1000 })
+
+    expect(state.columns[0]?.sort).toBeNull()
   })
 
   it('gives every column and condition its own uid and leaves nextUid above them', () => {
@@ -163,7 +167,7 @@ describe('fromReportRequest', () => {
 
     expect(state.columns[0]).toMatchObject({ field: 'deal.name', format: null, prefixOn: true, prefixLength: 7, group: true, aggregate: null })
     expect(state.columns[1]).toMatchObject({ field: 'deal.amount', format: 'krw_million', prefixOn: false, prefixLength: null, group: false, aggregate: 'avg' })
-    expect(state).toMatchObject({ combine: 'or', rowLimit: 10000, sort: null })
+    expect(state).toMatchObject({ combine: 'or', rowLimit: 10000 })
   })
 })
 

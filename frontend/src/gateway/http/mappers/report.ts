@@ -13,7 +13,6 @@ import type {
   ReportQueryInput,
   ReportResult,
   ReportResultColumn,
-  ReportSortDirection,
   ReportVisibility,
   SavedReport,
   SavedReportSummary,
@@ -129,6 +128,7 @@ export function toQueryBody(input: ReportQueryInput): Schemas['ReportQueryReques
       ...(c.label !== undefined ? { label: c.label } : {}),
       ...(c.prefixLength !== undefined ? { prefix_length: c.prefixLength } : {}),
       ...(c.aggregate !== undefined ? { aggregate: c.aggregate } : {}),
+      ...(c.sort !== undefined ? { sort: c.sort } : {}),
     })),
     conditions: input.conditions.map((c) => ({
       field: c.field,
@@ -136,7 +136,6 @@ export function toQueryBody(input: ReportQueryInput): Schemas['ReportQueryReques
       ...(c.value !== undefined ? { value: c.value } : {}),
     })),
     combine: input.combine,
-    ...(input.sort ? { sort: { column: input.sort.column, direction: input.sort.direction } } : {}),
     row_limit: input.rowLimit,
   }
 }
@@ -176,6 +175,7 @@ function toColumnInput(c: Schemas['ReportColumnRequest']): ReportColumnInput {
     ...(typeof c.label === 'string' ? { label: c.label } : {}),
     ...(typeof c.prefix_length === 'number' ? { prefixLength: c.prefix_length } : {}),
     ...(typeof c.aggregate === 'string' ? { aggregate: c.aggregate as ReportAggregate } : {}),
+    ...(c.sort === 'asc' || c.sort === 'desc' ? { sort: c.sort } : {}),
   }
 }
 
@@ -189,12 +189,10 @@ function toConditionInput(c: Schemas['ReportConditionRequest']): ReportCondition
 
 /** 저장된 정의(서버 요청 모양, snake_case) → 화면의 요청 모델. 없는 키는 두지 않는다. */
 export function toDefinition(body: Schemas['ReportQueryRequest']): ReportQueryInput {
-  const sort = body.sort
   return {
     columns: body.columns.map(toColumnInput),
     conditions: (body.conditions ?? []).map(toConditionInput),
     combine: body.combine as ReportCombine,
-    ...(sort ? { sort: { column: sort.column as number, direction: sort.direction as ReportSortDirection } } : {}),
     rowLimit: body.row_limit as number,
   }
 }

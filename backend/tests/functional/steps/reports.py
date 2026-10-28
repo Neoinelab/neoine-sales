@@ -20,7 +20,7 @@ QUERY: Final = "/api/v1/reports/query"
 VENDOR_QUARTER_BODY: Final[dict[str, Any]] = {
     "columns": [
         {"field": "deal.vendor", "group": True},
-        {"field": "deal.expected_close", "format": "quarter", "group": True},
+        {"field": "deal.expected_close", "format": "quarter", "group": True, "sort": "asc"},
         {"field": "deal.amount", "aggregate": "sum", "label": "금액 합계"},
         {"field": "deal.code", "aggregate": "count", "label": "건수"},
     ],
@@ -29,7 +29,6 @@ VENDOR_QUARTER_BODY: Final[dict[str, Any]] = {
         {"field": "deal.expected_close", "operator": "relative", "value": {"period": "this_year"}},
     ],
     "combine": "and",
-    "sort": {"column": 1, "direction": "asc"},
     "row_limit": 1000,
 }
 # (Vendor 이름 또는 None, Expected Close, Forecast, 금액): 연도 밖·Lost 포함

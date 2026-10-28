@@ -188,14 +188,13 @@ describe('reports.query over HTTP', () => {
     const input: ReportQueryInput = {
       columns: [
         { field: 'deal.vendor', group: true },
-        { field: 'deal.name', prefixLength: 5, group: false, label: '이름 앞부분', aggregate: 'count' },
+        { field: 'deal.name', prefixLength: 5, group: false, label: '이름 앞부분', aggregate: 'count', sort: 'desc' },
       ],
       conditions: [
         { field: 'deal.amount', operator: 'between', value: [1_000_000, 2_000_000] },
         { field: 'deal.expected_close', operator: 'relative', value: { period: 'last_n_days', days: 30 } },
       ],
       combine: 'or',
-      sort: { column: 1, direction: 'desc' },
       rowLimit: 10000,
     }
 
@@ -205,14 +204,13 @@ describe('reports.query over HTTP', () => {
     expect(calls[0]?.body).toEqual({
       columns: [
         { field: 'deal.vendor', group: true },
-        { field: 'deal.name', prefix_length: 5, group: false, label: '이름 앞부분', aggregate: 'count' },
+        { field: 'deal.name', prefix_length: 5, group: false, label: '이름 앞부분', aggregate: 'count', sort: 'desc' },
       ],
       conditions: [
         { field: 'deal.amount', operator: 'between', value: [1_000_000, 2_000_000] },
         { field: 'deal.expected_close', operator: 'relative', value: { period: 'last_n_days', days: 30 } },
       ],
       combine: 'or',
-      sort: { column: 1, direction: 'desc' },
       row_limit: 10000,
     })
   })
@@ -230,6 +228,7 @@ describe('reports.query over HTTP', () => {
     const body = calls[0]?.body as { columns: object[]; conditions: object[] } & Record<string, unknown>
     expect(Object.keys(body).sort()).toEqual(['columns', 'combine', 'conditions', 'row_limit'])
     expect(Object.keys(body.columns[0] ?? {}).sort()).toEqual(['field', 'group'])
+    expect('sort' in (body.columns[0] ?? {})).toBe(false)
     expect(Object.keys(body.conditions[0] ?? {}).sort()).toEqual(['field', 'operator'])
   })
 

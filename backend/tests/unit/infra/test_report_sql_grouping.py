@@ -67,8 +67,7 @@ def test_display_only_format_does_not_change_the_statement() -> None:
 def test_nulls_last_and_tie_breakers_are_appended() -> None:
     sql = sql_of(
         resolved(
-            [col("deal.name"), col("deal.code")],
-            sort={"column": 0, "direction": "desc"},
+            [col("deal.name", sort="desc"), col("deal.code")],
         )
     )
 

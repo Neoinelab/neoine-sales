@@ -107,6 +107,7 @@ export interface ReportColumnInput {
   prefixLength?: number
   group: boolean
   aggregate?: ReportAggregate
+  sort?: ReportSortDirection
 }
 
 export interface ReportConditionInput {
@@ -119,7 +120,6 @@ export interface ReportQueryInput {
   columns: ReportColumnInput[]
   conditions: ReportConditionInput[]
   combine: ReportCombine
-  sort?: { column: number; direction: ReportSortDirection }
   rowLimit: number
 }
 

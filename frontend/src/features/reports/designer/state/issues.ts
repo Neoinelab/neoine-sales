@@ -12,7 +12,6 @@ export type IssueTarget =
   | { kind: 'columns' }
   | { kind: 'conditions' }
   | { kind: 'combine' }
-  | { kind: 'sort' }
   | { kind: 'rowLimit' }
   | { kind: 'chart'; part: string | null }
   | { kind: 'general' }
@@ -41,8 +40,6 @@ function targetOf(location: ReportIssue['location'], run: RunUids): IssueTarget 
       return location.length === 1 ? { kind: 'conditions' } : itemTarget('condition', run.conditionUids, location)
     case 'combine':
       return { kind: 'combine' }
-    case 'sort':
-      return { kind: 'sort' }
     case 'row_limit':
       return { kind: 'rowLimit' }
     case 'chart': {

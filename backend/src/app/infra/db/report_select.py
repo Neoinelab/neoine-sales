@@ -25,11 +25,12 @@ def _plain_select(parts: ReportParts) -> Select[Any]:
     definition = parts.definition
     values = [parts.value_of(column).label(f"c{i}") for i, column in enumerate(definition.columns)]
     order = []
-    if definition.sort is not None:
-        sort_column = definition.columns[definition.sort.column]
-        order.append(
-            direction_order(parts.field(sort_column.field).order, definition.sort.direction)
-        )
+    seen: set[int] = set()
+    for sort in definition.sort_keys():
+        expr = parts.field(definition.columns[sort.column].field).order
+        if id(expr) not in seen:
+            seen.add(id(expr))
+            order.append(direction_order(expr, sort.direction))
     order.append(DEALS.c.deal_code.asc())
     if parts.is_action_scope():
         order.extend([ACTIONS.c.acted_at.asc(), ACTIONS.c.id.asc()])

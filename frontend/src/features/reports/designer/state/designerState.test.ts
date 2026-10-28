@@ -8,15 +8,15 @@ import { toReportRequest } from './toRequest'
 const LIMITS = REPORT_CATALOG.limits
 
 describe('initialDesignerState', () => {
-  it('starts without columns or conditions, with AND, no sort and the default row limit', () => {
+  it('starts without columns or conditions, with AND and the default row limit', () => {
     expect(initialDesignerState(LIMITS)).toMatchObject({
       columns: [],
       conditions: [],
       combine: 'and',
-      sort: null,
       rowLimit: 1000,
       selectedUid: null,
     })
+    expect('sort' in initialDesignerState(LIMITS)).toBe(false)
   })
 })
 
@@ -27,7 +27,7 @@ describe('designerReducer columns (AC4)', () => {
     expect(state.columns).toHaveLength(2)
     expect(uidAt(state, 0)).not.toBe(uidAt(state, 1))
     for (const column of state.columns) {
-      expect(column).toMatchObject({ field: 'deal.amount', format: 'krw_thousand', label: '', group: false, aggregate: null, prefixOn: false, prefixLength: null })
+      expect(column).toMatchObject({ field: 'deal.amount', format: 'krw_thousand', label: '', group: false, aggregate: null, prefixOn: false, prefixLength: null, sort: null })
     }
   })
 
@@ -97,35 +97,57 @@ describe('designerReducer moving (AC5)', () => {
     expect(reduce(state, { type: 'moveColumn', uid: uidAt(state, 1), to: 1 })).toBe(state)
   })
 
-  it('moves a column and keeps the sort on the same column', () => {
+  it('moves a column and its sort goes with it', () => {
     const base = withColumns('deal.code', 'deal.name', 'deal.solution')
-    const sorted = reduce(base, { type: 'setSort', sort: { uid: uidAt(base, 0), direction: 'desc' } })
+    const sorted = reduce(base, { type: 'updateColumn', uid: uidAt(base, 0), patch: { sort: 'desc' } })
 
     const next = reduce(sorted, { type: 'moveColumn', uid: uidAt(sorted, 0), to: 2 })
     const request = toReportRequest(next, REPORT_CATALOG)
 
-    expect(next.sort).toEqual({ uid: uidAt(sorted, 0), direction: 'desc' })
-    expect('request' in request && request.request.sort).toEqual({ column: 2, direction: 'desc' })
+    expect(next.columns.map((c) => c.sort)).toEqual([null, null, 'desc'])
+    expect('request' in request && request.request.columns.map((c) => c.sort)).toEqual([undefined, undefined, 'desc'])
+    expect('request' in request && 'sort' in request.request).toBe(false)
   })
 })
 
-describe('designerReducer sort (AC10)', () => {
-  it('removing the sorted column clears the sort', () => {
+describe('designerReducer sort (AC3, AC10)', () => {
+  it('sets the sort of one column only and clears it with null', () => {
     const state = withColumns('deal.code', 'deal.name')
-    const sorted = reduce(state, { type: 'setSort', sort: { uid: uidAt(state, 1), direction: 'asc' } })
 
-    const next = reduce(sorted, { type: 'removeColumn', uid: uidAt(sorted, 1) })
+    const set = reduce(state, { type: 'updateColumn', uid: uidAt(state, 1), patch: { sort: 'asc' } })
+    const cleared = reduce(set, { type: 'updateColumn', uid: uidAt(set, 1), patch: { sort: null } })
 
-    expect(next.sort).toBeNull()
+    expect(set.columns.map((c) => c.sort)).toEqual([null, 'asc'])
+    expect(cleared.columns.map((c) => c.sort)).toEqual([null, null])
   })
 
-  it('keeps the sort when another column is removed', () => {
+  it('removing a sorted column removes its sort from the request', () => {
     const state = withColumns('deal.code', 'deal.name')
-    const sorted = reduce(state, { type: 'setSort', sort: { uid: uidAt(state, 1), direction: 'asc' } })
+    const sorted = reduce(state, { type: 'updateColumn', uid: uidAt(state, 1), patch: { sort: 'asc' } })
+
+    const next = reduce(sorted, { type: 'removeColumn', uid: uidAt(sorted, 1) })
+    const request = toReportRequest(next, REPORT_CATALOG)
+
+    expect(next.columns.map((c) => c.sort)).toEqual([null])
+    expect('request' in request && request.request.columns.some((c) => c.sort !== undefined)).toBe(false)
+  })
+
+  it('keeps the sort of the other column when a column is removed', () => {
+    const state = withColumns('deal.code', 'deal.name')
+    const sorted = reduce(state, { type: 'updateColumn', uid: uidAt(state, 1), patch: { sort: 'asc' } })
 
     const next = reduce(sorted, { type: 'removeColumn', uid: uidAt(sorted, 0) })
 
-    expect(next.sort).toEqual({ uid: uidAt(sorted, 1), direction: 'asc' })
+    expect(next.columns.map((c) => c.sort)).toEqual(['asc'])
+  })
+
+  it('is a different design when a column sort changes and the same again when changed back', () => {
+    const base = withColumns('deal.code', 'deal.name')
+    const sorted = reduce(base, { type: 'updateColumn', uid: uidAt(base, 1), patch: { sort: 'desc' } })
+    const back = reduce(sorted, { type: 'updateColumn', uid: uidAt(sorted, 1), patch: { sort: null } })
+
+    expect(sameDesign(base, sorted)).toBe(false)
+    expect(sameDesign(base, back)).toBe(true)
   })
 
   it('sets and clears the row limit', () => {
@@ -193,7 +215,8 @@ describe('reset and isDirty (AC15, AC16)', () => {
   it('goes back to the initial design on reset', () => {
     const state = reduce(withColumns('deal.code'), { type: 'setCombine', combine: 'or' }, { type: 'reset' })
 
-    expect(state).toMatchObject({ columns: [], conditions: [], combine: 'and', sort: null, rowLimit: 1000, selectedUid: null })
+    expect(state).toMatchObject({ columns: [], conditions: [], combine: 'and', rowLimit: 1000, selectedUid: null })
+    expect('sort' in state).toBe(false)
     expect(isDirty(state, LIMITS)).toBe(false)
   })
 

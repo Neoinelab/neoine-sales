@@ -1,4 +1,5 @@
-"""ReportQueryRunner(SQL) 계약: 정렬, 행 수, 합계, 표시 이름, 키 기준 고유 건수 (AC1, AC7, AC13)."""
+"""ReportQueryRunner(SQL) 계약: 컬럼별 정렬, 행 수, 합계, 표시 이름,
+키 기준 고유 건수 (AC1, AC7, AC13)."""
 
 from datetime import timedelta
 from typing import TYPE_CHECKING
@@ -144,12 +145,12 @@ async def test_status_groups_follow_the_code_order_not_the_alphabet(
     await report_case.add_deal(status="poc_completed")
     await report_case.add_deal(status="introduction")
     await report_case.add_deal(status="prospecting")
-    columns = [col("deal.status", group=True), COUNT]
+    columns = [col("deal.status", group=True, sort="asc"), COUNT]
     names = await _code_names(report_case, "status")
 
-    ascending = await report_case.rows(columns, sort={"column": 0, "direction": "asc"})
-    descending = await report_case.rows(columns, sort={"column": 0, "direction": "desc"})
-    default = await report_case.rows(columns)
+    ascending = await report_case.rows(columns)
+    descending = await report_case.rows([col("deal.status", group=True, sort="desc"), COUNT])
+    default = await report_case.rows([col("deal.status", group=True), COUNT])
 
     in_order = [names[k] for k in ("prospecting", "introduction", "poc_completed")]
     assert [row[0] for row in ascending] == in_order
@@ -163,10 +164,9 @@ async def test_nulls_come_last_in_both_directions(report_case: ReportCase) -> No
     await report_case.add_deal(vendor_id=sap.id)
     await report_case.add_deal(vendor_id=ibm.id)
     await report_case.add_deal()
-    columns = [col("deal.vendor", group=True), COUNT]
 
-    ascending = await report_case.rows(columns, sort={"column": 0, "direction": "asc"})
-    descending = await report_case.rows(columns, sort={"column": 0, "direction": "desc"})
+    ascending = await report_case.rows([col("deal.vendor", group=True, sort="asc"), COUNT])
+    descending = await report_case.rows([col("deal.vendor", group=True, sort="desc"), COUNT])
 
     assert [row[0] for row in ascending] == ["IBM", "SAP", None]
     assert [row[0] for row in descending] == ["SAP", "IBM", None]
@@ -179,8 +179,7 @@ async def test_grouped_rows_can_be_sorted_by_an_aggregate_column(report_case: Re
     await report_case.add_deal(vendor_id=ibm.id, amount=300)
 
     rows = await report_case.rows(
-        [col("deal.vendor", group=True), col("deal.amount", aggregate="sum")],
-        sort={"column": 1, "direction": "desc"},
+        [col("deal.vendor", group=True), col("deal.amount", aggregate="sum", sort="desc")],
     )
 
     assert rows == [("IBM", 300), ("SAP", 100)]
@@ -190,9 +189,7 @@ async def test_ties_are_broken_by_deal_code(report_case: ReportCase) -> None:
     for amount in (3, 1, 2):
         await report_case.add_deal(name="Same", amount=amount)
 
-    rows = await report_case.rows(
-        [col("deal.name"), col("deal.amount")], sort={"column": 0, "direction": "desc"}
-    )
+    rows = await report_case.rows([col("deal.name", sort="desc"), col("deal.amount")])
 
     assert rows == [("Same", 3), ("Same", 1), ("Same", 2)]  # 등록 순서 = code 오름차순
 
@@ -334,11 +331,10 @@ async def test_totals_count_distinct_is_the_overall_distinct_count_not_the_sum_o
 
     result = await report_case.run(
         [
-            col("deal.vendor", group=True),
+            col("deal.vendor", group=True, sort="asc"),
             col("deal.owner", aggregate="count_distinct"),
             col("deal.owner", aggregate="count"),
         ],
-        sort={"column": 0, "direction": "asc"},
     )
 
     assert [tuple(r) for r in result.rows] == [("IBM", 1, 1), ("SAP", 2, 2)]  # 그룹 합 = 3
@@ -399,8 +395,109 @@ async def test_prefix_length_keeps_full_value_grouping(report_case: ReportCase) 
     await report_case.add_deal(name="ABC-second")
 
     rows = await report_case.rows(
-        [col("deal.name", group=True, prefix_length=3), COUNT],
-        sort={"column": 0, "direction": "asc"},
+        [col("deal.name", group=True, prefix_length=3, sort="asc"), COUNT],
     )
 
     assert rows == [("ABC-first", 1), ("ABC-second", 2)]
+
+
+# ---- 컬럼별 정렬: 컬럼 순서가 우선순위 (2026-10-28) ----
+
+
+async def _name_vendor_deals(report_case: ReportCase) -> None:
+    ibm = await report_case.deals.new_vendor("IBM")
+    sap = await report_case.deals.new_vendor("SAP")
+    await report_case.add_deal(name="a", vendor_id=ibm.id)
+    await report_case.add_deal(name="a", vendor_id=sap.id)
+    await report_case.add_deal(name="b", vendor_id=ibm.id)
+    await report_case.add_deal(name="a")
+
+
+async def test_rows_are_sorted_by_name_then_vendor_desc(report_case: ReportCase) -> None:
+    await _name_vendor_deals(report_case)
+
+    rows = await report_case.rows([col("deal.name", sort="asc"), col("deal.vendor", sort="desc")])
+
+    assert rows == [("a", "SAP"), ("a", "IBM"), ("a", None), ("b", "IBM")]
+
+
+async def test_column_order_decides_sort_priority(report_case: ReportCase) -> None:
+    await _name_vendor_deals(report_case)
+
+    rows = await report_case.rows([col("deal.vendor", sort="desc"), col("deal.name", sort="asc")])
+
+    assert rows == [("SAP", "a"), ("IBM", "a"), ("IBM", "b"), (None, "a")]
+
+
+async def test_unsorted_column_does_not_affect_the_order(report_case: ReportCase) -> None:
+    await _name_vendor_deals(report_case)
+
+    rows = await report_case.rows([col("deal.vendor"), col("deal.name", sort="desc")])
+
+    assert [row[1] for row in rows] == ["b", "a", "a", "a"]
+
+
+async def test_ties_after_sort_keys_fall_back_to_deal_code(report_case: ReportCase) -> None:
+    for amount in (30, 10, 20):
+        await report_case.add_deal(name="Same", amount=amount)
+
+    rows = await report_case.rows([col("deal.name", sort="asc"), col("deal.amount")])
+
+    assert rows == [("Same", 30), ("Same", 10), ("Same", 20)]  # 등록 순서 = code 오름차순
+
+
+async def test_row_limit_applies_after_sorting(report_case: ReportCase) -> None:
+    for number in range(105):
+        await report_case.add_deal(name=f"d{number:03d}")
+
+    result = await report_case.run([col("deal.name", sort="desc")], row_limit=100)
+
+    assert result.total_count == 105
+    assert result.rows[0] == ("d104",)  # 정렬이 먼저, 제한은 그 뒤
+    assert result.rows[-1] == ("d005",)
+
+
+async def test_grouped_rows_sorted_by_group_then_aggregate(report_case: ReportCase) -> None:
+    ibm = await report_case.deals.new_vendor("IBM")
+    sap = await report_case.deals.new_vendor("SAP")
+    await report_case.add_deal(vendor_id=sap.id, status="prospecting", amount=10)
+    await report_case.add_deal(vendor_id=sap.id, status="introduction", amount=50)
+    await report_case.add_deal(vendor_id=ibm.id, status="prospecting", amount=70)
+    await report_case.add_deal(vendor_id=ibm.id, status="introduction", amount=20)
+    names = await _code_names(report_case, "status")
+
+    rows = await report_case.rows(
+        [
+            col("deal.vendor", group=True, sort="asc"),
+            col("deal.status", group=True),
+            col("deal.amount", aggregate="sum", sort="desc"),
+        ]
+    )
+
+    assert rows == [
+        ("IBM", names["prospecting"], 70),
+        ("IBM", names["introduction"], 20),
+        ("SAP", names["introduction"], 50),
+        ("SAP", names["prospecting"], 10),
+    ]
+
+
+async def test_grouped_aggregate_sort_before_group_follows_column_order(
+    report_case: ReportCase,
+) -> None:
+    ibm = await report_case.deals.new_vendor("IBM")
+    sap = await report_case.deals.new_vendor("SAP")
+    zed = await report_case.deals.new_vendor("ZED")
+    await report_case.add_deal(vendor_id=ibm.id, amount=10)
+    await report_case.add_deal(vendor_id=sap.id, amount=4)
+    await report_case.add_deal(vendor_id=sap.id, amount=6)
+    await report_case.add_deal(vendor_id=zed.id, amount=20)
+
+    rows = await report_case.rows(
+        [
+            col("deal.amount", aggregate="sum", sort="asc"),
+            col("deal.vendor", group=True, sort="desc"),
+        ]
+    )
+
+    assert rows == [(10, "SAP"), (10, "IBM"), (20, "ZED")]

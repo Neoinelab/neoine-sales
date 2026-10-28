@@ -89,7 +89,7 @@ class ReportCase:
         self,
         columns: Sequence[dict[str, Any]],
         conditions: Sequence[dict[str, Any]] = (),
-        **top: Any,  # noqa: ANN401 - combine, sort, row_limit
+        **top: Any,  # noqa: ANN401 - combine, row_limit
     ) -> ReportRows:
         result: ReportRows = await self.runner.run(
             resolved(columns, conditions, ctx=context(), **top)

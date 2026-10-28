@@ -17,7 +17,6 @@ export interface IssueView {
   columns: readonly Message[]
   conditions: readonly Message[]
   combine: readonly Message[]
-  sort: readonly Message[]
   rowLimit: readonly Message[]
   /** 차트 설정 칸에 붙을 서버 위반(`part`는 칸 이름, 없으면 차트 전체). */
   chart: readonly Message[]
@@ -29,7 +28,6 @@ export const EMPTY_ISSUE_VIEW: IssueView = {
   columns: NONE,
   conditions: NONE,
   combine: NONE,
-  sort: NONE,
   rowLimit: NONE,
   chart: NONE,
 }
@@ -39,7 +37,7 @@ export function buildIssueView(visible: readonly AnchoredIssue[], inputIssues: r
   const nextId = () => `${idPrefix}-issue-${(counter += 1)}`
   const byColumn = new Map<number, Message[]>()
   const byCondition = new Map<number, Message[]>()
-  const loose = { columns: [] as Message[], conditions: [] as Message[], combine: [] as Message[], sort: [] as Message[], rowLimit: [] as Message[], chart: [] as Message[] }
+  const loose = { columns: [] as Message[], conditions: [] as Message[], combine: [] as Message[], rowLimit: [] as Message[], chart: [] as Message[] }
   const push = (map: Map<number, Message[]>, uid: number, message: Message) => map.set(uid, [...(map.get(uid) ?? []), message])
 
   for (const { issue, target } of visible) {

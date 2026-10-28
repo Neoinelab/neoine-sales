@@ -25,33 +25,30 @@ const failWith = (...issues: ReportIssue[]): void =>
 const issue = (location: (string | number)[], message: string, code = 'x'): ReportIssue => ({ location, code, message })
 
 describe('정의 위반 표시 (AC13)', () => {
-  it('shows invalid report issues next to the chip, setting, condition, combine, sort and row limit', async () => {
+  it('shows invalid report issues next to the chip, setting, condition, combine and row limit', async () => {
     const { user } = await openDesigner()
     await addColumn(user, 'Deal code')
     await addColumn(user, '금액(원)')
     await addCondition(user, 'Deal 이름')
     await user.type(screen.getByRole('textbox', { name: '조건 1 값' }), '은행')
-    await user.selectOptions(screen.getByRole('combobox', { name: '정렬' }), 'Deal code')
     failWith(
       issue(['columns', 0], '첫 컬럼 문구'),
       issue(['columns', 1, 'aggregate'], '집계 문구'),
       issue(['conditions', 0, 'value'], '조건 값 문구'),
       issue(['combine'], '결합 문구'),
-      issue(['sort', 'column'], '정렬 문구'),
       issue(['row_limit'], '최대 행 문구'),
     )
 
     await runQuery(user)
 
     const summary = await screen.findByRole('alert')
-    expect(summary).toHaveTextContent('고칠 곳 6개')
+    expect(summary).toHaveTextContent('고칠 곳 5개')
     expect(summary).toHaveTextContent('컬럼 1(Deal code)')
     expect(summary).toHaveTextContent('컬럼 2(금액(원))')
     expect(summary).toHaveTextContent('조건 1(Deal 이름)')
     expect(summary).toHaveTextContent('조건 결합')
-    expect(summary).toHaveTextContent('정렬')
     expect(summary).toHaveTextContent('최대 행')
-    for (const message of ['첫 컬럼 문구', '집계 문구', '조건 값 문구', '결합 문구', '정렬 문구', '최대 행 문구']) {
+    for (const message of ['첫 컬럼 문구', '집계 문구', '조건 값 문구', '결합 문구', '최대 행 문구']) {
       expect(summary).toHaveTextContent(message)
     }
     expect(chipItems()[0]).toHaveClass('is-invalid')
@@ -64,9 +61,43 @@ describe('정의 위반 표시 (AC13)', () => {
     expect(value).toHaveAttribute('aria-invalid', 'true')
     expect(value).toHaveAccessibleDescription(/조건 값 문구/)
     expect(screen.getByRole('group', { name: '조건 결합' })).toHaveAccessibleDescription(/결합 문구/)
-    expect(screen.getByRole('combobox', { name: '정렬' })).toHaveAccessibleDescription(/정렬 문구/)
     expect(screen.getByRole('combobox', { name: '최대 행' })).toHaveAccessibleDescription(/최대 행 문구/)
     expect(screen.queryByRole('table', { name: '조회 결과' })).not.toBeInTheDocument()
+  })
+
+  it('shows a column sort issue at the sort select of that column and clears it when the sort is changed', async () => {
+    const { user } = await openDesigner()
+    await addColumn(user, 'Deal code')
+    await addColumn(user, 'Deal 이름')
+    await user.selectOptions(within(settingsOf('Deal 이름')).getByRole('combobox', { name: '정렬' }), 'desc')
+    failWith(issue(['columns', 1, 'sort'], '정렬 문구', 'sort-invalid'))
+
+    await runQuery(user)
+
+    const summary = await screen.findByRole('alert')
+    expect(summary).toHaveTextContent('컬럼 2(Deal 이름)')
+    expect(summary).toHaveTextContent('정렬 문구')
+    expect(chipItems()[1]).toHaveClass('is-invalid')
+    expect(chipItems()[0]).not.toHaveClass('is-invalid')
+    const select = within(settingsOf('Deal 이름')).getByRole('combobox', { name: '정렬' })
+    expect(select).toHaveAttribute('aria-invalid', 'true')
+    expect(select).toHaveAccessibleDescription(/정렬 문구/)
+
+    await user.selectOptions(select, 'asc')
+
+    expect(within(settingsOf('Deal 이름')).getByRole('combobox', { name: '정렬' })).not.toHaveAttribute('aria-invalid', 'true')
+    expect(screen.queryByText('정렬 문구')).not.toBeInTheDocument()
+  })
+
+  it('puts an old top-level sort location in the summary only', async () => {
+    const { user } = await openDesigner()
+    await addColumn(user, 'Deal code')
+    failWith(issue(['sort', 'column'], '예전 정렬 위치 문구'))
+
+    await runQuery(user)
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('예전 정렬 위치 문구')
+    expect(chipItems()[0]).not.toHaveClass('is-invalid')
   })
 
   it('lists an issue it cannot place in the summary only', async () => {

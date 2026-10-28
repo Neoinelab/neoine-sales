@@ -14,6 +14,7 @@ from app.domain.report.vocabulary import (
     PREFIX_MIN,
     Aggregate,
     Format,
+    SortDirection,
 )
 
 if TYPE_CHECKING:
@@ -63,9 +64,10 @@ def _parse_column(i: int, raw: RawColumn, grouped: bool, log: IssueLog) -> Repor
     fmt = _format(raw.format, field, scope)
     prefix_length = _prefix_length(raw.prefix_length, scope)
     aggregate = _aggregate(raw, field, grouped=grouped, scope=scope)
+    sort = _sort(raw.sort, scope)
     if scope.failed:
         return None
-    return ReportColumn(field, label, fmt, prefix_length, raw.group, aggregate)
+    return ReportColumn(field, label, fmt, prefix_length, raw.group, aggregate, sort)
 
 
 def _label(raw: str | None, field: FieldSpec, scope: IssueScope) -> str:
@@ -107,6 +109,15 @@ def _prefix_length(raw: object, scope: IssueScope) -> int | None:
         )
         return None
     return raw
+
+
+def _sort(raw: str | None, scope: IssueScope) -> SortDirection | None:
+    if raw is None:
+        return None
+    direction = enum_member(SortDirection, raw)
+    if direction is None:
+        scope.add("sort-invalid", "정렬은 asc 또는 desc만 쓸 수 있습니다", "sort")
+    return direction
 
 
 def _aggregate(

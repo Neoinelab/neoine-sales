@@ -8,6 +8,8 @@ import {
   addColumn,
   addCondition,
   chipButton,
+  chipTexts,
+  lastQuery,
   openAndRun,
   openDesigner,
   resultTable,
@@ -59,8 +61,8 @@ describe('조회 요청 (AC11)', () => {
     await addCondition(user, 'Vendor')
     await user.click(screen.getByRole('button', { name: /^조건 1 값/ }))
     await user.click(within(screen.getByRole('group', { name: '조건 1 값' })).getByRole('checkbox', { name: 'Silverfort' }))
-    await user.selectOptions(screen.getByRole('combobox', { name: '정렬' }), '금액(원)')
-    await user.selectOptions(screen.getByRole('combobox', { name: '정렬 방향' }), 'desc')
+    await user.click(chipButton(1))
+    await user.selectOptions(within(settingsOf('금액(원)')).getByRole('combobox', { name: '정렬' }), 'desc')
 
     await runQuery(user)
 
@@ -69,11 +71,10 @@ describe('조회 요청 (AC11)', () => {
       {
         columns: [
           { field: 'deal.vendor', group: true },
-          { field: 'deal.amount', format: 'krw_thousand', group: false, aggregate: 'sum' },
+          { field: 'deal.amount', format: 'krw_thousand', group: false, aggregate: 'sum', sort: 'desc' },
         ],
         conditions: [{ field: 'deal.vendor', operator: 'in', value: [seedVendorId('Silverfort')] }],
         combine: 'and',
-        sort: { column: 1, direction: 'desc' },
         rowLimit: 1000,
       },
     ])
@@ -84,26 +85,75 @@ describe('조회 요청 (AC11)', () => {
     ])
   })
 
-  it('offers the sort choices with the no sort option first and numbers duplicated names', async () => {
+  it('offers the sort in the column settings with no sort first and leaves it out of the run bar', async () => {
     const { user } = await openDesigner()
-    await addColumn(user, 'Expected Close')
-    await addColumn(user, 'Expected Close')
     await addColumn(user, 'Deal code')
 
-    const options = within(screen.getByRole('combobox', { name: '정렬' })).getAllByRole('option').map((o) => o.textContent)
+    const select = within(settingsOf('Deal code')).getByRole('combobox', { name: '정렬' })
 
-    expect(options).toEqual(['(정렬 없음)', '1. Expected Close', '2. Expected Close', 'Deal code'])
+    expect(within(select).getAllByRole('option').map((o) => o.textContent)).toEqual(['정렬 없음', '오름차순', '내림차순'])
+    expect(select).toHaveDisplayValue('정렬 없음')
+    expect(screen.getAllByRole('combobox', { name: '정렬' })).toHaveLength(1)
+    expect(screen.queryByRole('combobox', { name: '정렬 방향' })).not.toBeInTheDocument()
+    expect(screen.getByRole('combobox', { name: '최대 행' })).toBeVisible()
+    expect(runButton()).toBeVisible()
+    await user.selectOptions(select, 'desc')
+    expect(chipTexts()[0]).toContain('▼ 내림')
+    expect(chipTexts()[0]).not.toMatch(/내림 \d/)
   })
 
-  it('goes back to no sort when the sorted column is removed', async () => {
+  it('shows a badge only on the sorted chip and numbers the badges when two columns are sorted', async () => {
     const { user } = await openDesigner()
     await addColumn(user, 'Deal code')
     await addColumn(user, 'Deal 이름')
-    await user.selectOptions(screen.getByRole('combobox', { name: '정렬' }), 'Deal 이름')
+    await addColumn(user, 'Solution')
+    await user.selectOptions(within(settingsOf('Solution')).getByRole('combobox', { name: '정렬' }), 'asc')
+    expect(chipTexts()[2]).toContain('▲ 오름')
+    expect(chipTexts()[2]).not.toMatch(/오름 \d/)
+
+    await user.click(chipButton(0))
+    await user.selectOptions(within(settingsOf('Deal code')).getByRole('combobox', { name: '정렬' }), 'desc')
+
+    expect(chipTexts()[0]).toContain('▼ 내림 1')
+    expect(chipTexts()[1]).not.toMatch(/[▲▼]/)
+    expect(chipTexts()[2]).toContain('▲ 오름 2')
+  })
+
+  it('sends the column sorts in column order', async () => {
+    const { user } = await openDesigner()
+    await addColumn(user, 'Deal code')
+    await user.selectOptions(within(settingsOf('Deal code')).getByRole('combobox', { name: '정렬' }), 'asc')
+    await addColumn(user, 'Deal 이름')
+    await user.selectOptions(within(settingsOf('Deal 이름')).getByRole('combobox', { name: '정렬' }), 'desc')
+
+    await runQuery(user)
+
+    await screen.findByRole('table', { name: '조회 결과' })
+    expect(mockControl.reportQueries()).toEqual([
+      {
+        columns: [
+          { field: 'deal.code', group: false, sort: 'asc' },
+          { field: 'deal.name', group: false, sort: 'desc' },
+        ],
+        conditions: [],
+        combine: 'and',
+        rowLimit: 1000,
+      },
+    ])
+  })
+
+  it('removes the sort and its badge together with the sorted column', async () => {
+    const { user } = await openDesigner()
+    await addColumn(user, 'Deal code')
+    await addColumn(user, 'Deal 이름')
+    await user.selectOptions(within(settingsOf('Deal 이름')).getByRole('combobox', { name: '정렬' }), 'asc')
 
     await user.click(screen.getByRole('button', { name: 'Deal 이름 빼기' }))
+    await runQuery(user)
 
-    expect(screen.getByRole('combobox', { name: '정렬' })).toHaveDisplayValue('(정렬 없음)')
+    await screen.findByRole('table', { name: '조회 결과' })
+    expect(chipTexts()[0]).not.toMatch(/[▲▼]/)
+    expect(lastQuery().columns).toEqual([{ field: 'deal.code', group: false }])
   })
 
   it('offers the row limits with 1,000 as the default and sends the chosen one', async () => {
@@ -393,6 +443,23 @@ describe('설계 변경 안내 (AC15)', () => {
     await runQuery(user)
 
     await screen.findByRole('columnheader', { name: 'Deal 이름' })
+    expect(screen.queryByText(/설계가 바뀌었습니다/)).not.toBeInTheDocument()
+  })
+
+  it('marks the result as outdated when a column sort is changed after a run', async () => {
+    const { user } = await openDesigner()
+    await addColumn(user, 'Deal code')
+    await runQuery(user)
+    await screen.findByRole('table', { name: '조회 결과' })
+
+    await user.selectOptions(within(settingsOf('Deal code')).getByRole('combobox', { name: '정렬' }), 'desc')
+
+    expect(screen.getByText("설계가 바뀌었습니다. '조회'를 눌러 다시 조회하세요")).toBeVisible()
+
+    await user.selectOptions(within(settingsOf('Deal code')).getByRole('combobox', { name: '정렬' }), 'asc')
+    await runQuery(user)
+
+    await screen.findByRole('table', { name: '조회 결과' })
     expect(screen.queryByText(/설계가 바뀌었습니다/)).not.toBeInTheDocument()
   })
 

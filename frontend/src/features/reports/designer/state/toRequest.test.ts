@@ -36,11 +36,10 @@ describe('toReportRequest column rules (AC11)', () => {
       state,
       { type: 'updateColumn', uid: uidAt(state, 0), patch: { group: true } },
       { type: 'updateColumn', uid: uidAt(state, 1), patch: { group: true, format: 'quarter' } },
-      { type: 'updateColumn', uid: uidAt(state, 2), patch: { label: '금액 합계' } },
+      { type: 'updateColumn', uid: uidAt(state, 2), patch: { label: '금액 합계', sort: 'desc' } },
     )
     state = withCondition(state, 'deal.vendor', 'in', { shape: 'list', values: ['6', '1'] })
     state = withCondition(state, 'deal.amount', 'gte', { shape: 'number', text: '1,500' })
-    state = reduce(state, { type: 'setSort', sort: { uid: uidAt(state, 2), direction: 'desc' } })
 
     const { request, columnUids, conditionUids } = build(state)
 
@@ -48,21 +47,20 @@ describe('toReportRequest column rules (AC11)', () => {
       columns: [
         { field: 'deal.vendor', group: true },
         { field: 'deal.expected_close', format: 'quarter', group: true },
-        { field: 'deal.amount', format: 'krw_thousand', group: false, aggregate: 'sum', label: '금액 합계' },
+        { field: 'deal.amount', format: 'krw_thousand', group: false, aggregate: 'sum', label: '금액 합계', sort: 'desc' },
       ],
       conditions: [
         { field: 'deal.vendor', operator: 'in', value: [6, 1] },
         { field: 'deal.amount', operator: 'gte', value: 1_500_000 },
       ],
       combine: 'and',
-      sort: { column: 2, direction: 'desc' },
       rowLimit: 1000,
     })
     expect(columnUids).toEqual(state.columns.map((c) => c.uid))
     expect(conditionUids).toEqual(state.conditions.map((c) => c.uid))
   })
 
-  it('sends combine and row limit as designed and leaves the sort out when there is none', () => {
+  it('sends combine and row limit as designed and never has a top-level sort', () => {
     const state = reduce(withColumns('deal.code'), { type: 'setCombine', combine: 'or' }, { type: 'setRowLimit', rowLimit: 10000 })
 
     const { request } = build(state)
@@ -244,5 +242,22 @@ describe('toReportRequest unreadable inputs (AC11)', () => {
     const issues = issuesOf(state)
 
     expect(issues.map((i) => i.uid)).toEqual([conditionUidAt(state, 0), conditionUidAt(state, 1)])
+  })
+})
+
+describe('toReportRequest column sort (AC2, AC7)', () => {
+  it('puts sort only on the columns that have one, in column order', () => {
+    let state = withColumns('deal.name', 'deal.vendor', 'deal.code')
+    state = reduce(
+      state,
+      { type: 'updateColumn', uid: uidAt(state, 0), patch: { sort: 'asc' } },
+      { type: 'updateColumn', uid: uidAt(state, 2), patch: { sort: 'desc' } },
+    )
+
+    const { request } = build(state)
+
+    expect(request.columns.map((c) => c.sort)).toEqual(['asc', undefined, 'desc'])
+    expect('sort' in (request.columns[1] ?? {})).toBe(false)
+    expect('sort' in request).toBe(false)
   })
 })

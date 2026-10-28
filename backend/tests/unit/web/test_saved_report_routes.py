@@ -67,11 +67,11 @@ async def test_create_returns_201_location_and_detail() -> None:
                 "prefix_length": None,
                 "group": False,
                 "aggregate": None,
+                "sort": None,
             }
         ],
         "conditions": [],
         "combine": "and",
-        "sort": None,
         "row_limit": 1000,
     }
     assert body["created_at"].endswith("+09:00")

@@ -72,3 +72,11 @@ def test_format_schema_is_nullable_with_twelve_values(source: str) -> None:
     assert schemas["Format"]["enum"] == TWELVE_FORMATS
     assert _nullable_format_ref(schemas["ReportResultColumn"]["properties"]["format"])
     assert _nullable_format_ref(schemas["ReportFieldResponse"]["properties"]["default_format"])
+
+
+def test_report_openapi_has_column_sort_and_no_top_level_sort() -> None:
+    schemas = _spec()["components"]["schemas"]
+
+    assert "sort" in schemas["ReportColumnRequest"]["properties"]
+    assert "sort" not in schemas["ReportQueryRequest"]["properties"]
+    assert "ReportSortRequest" not in schemas

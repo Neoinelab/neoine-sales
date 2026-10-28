@@ -4023,6 +4023,17 @@
           },
           "prefix_length": {
             "title": "Prefix Length"
+          },
+          "sort": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sort"
           }
         },
         "required": [
@@ -4528,16 +4539,6 @@
           "row_limit": {
             "default": 1000,
             "title": "Row Limit"
-          },
-          "sort": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/ReportSortRequest"
-              },
-              {
-                "type": "null"
-              }
-            ]
           }
         },
         "required": [
@@ -4726,23 +4727,6 @@
           "aggregate"
         ],
         "title": "ReportResultColumn",
-        "type": "object"
-      },
-      "ReportSortRequest": {
-        "additionalProperties": false,
-        "properties": {
-          "column": {
-            "title": "Column"
-          },
-          "direction": {
-            "default": "asc",
-            "title": "Direction"
-          }
-        },
-        "required": [
-          "column"
-        ],
-        "title": "ReportSortRequest",
         "type": "object"
       },
       "ReportSummaryResponse": {

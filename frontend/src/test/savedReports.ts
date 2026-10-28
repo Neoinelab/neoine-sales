@@ -23,11 +23,10 @@ export const ROOT: UserRef = { id: USER_ID.root, name: '최관리', role: 'admin
 export const VENDOR_DEFINITION: ReportQueryInput = {
   columns: [
     { field: 'deal.vendor', group: true },
-    { field: 'deal.amount', format: 'krw_thousand', group: false, aggregate: 'sum', label: '금액 합계' },
+    { field: 'deal.amount', format: 'krw_thousand', group: false, aggregate: 'sum', label: '금액 합계', sort: 'desc' },
   ],
   conditions: [{ field: 'deal.amount', operator: 'gte', value: 1_500_000 }],
   combine: 'and',
-  sort: { column: 1, direction: 'desc' },
   rowLimit: 1000,
 }
 

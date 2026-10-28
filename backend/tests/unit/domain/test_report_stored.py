@@ -27,11 +27,10 @@ def test_definition_json_has_the_query_request_shape() -> None:
     definition = raw(
         [
             col("deal.vendor", group=True, label="벤더"),
-            col("deal.amount", aggregate="sum", format="krw_million"),
+            col("deal.amount", aggregate="sum", format="krw_million", sort="desc"),
         ],
         [cond("deal.name", "contains", "abc")],
         combine="or",
-        sort={"column": 1, "direction": "desc"},
         row_limit=100,
     )
 
@@ -46,6 +45,7 @@ def test_definition_json_has_the_query_request_shape() -> None:
                 "prefix_length": None,
                 "group": True,
                 "aggregate": None,
+                "sort": None,
             },
             {
                 "field": "deal.amount",
@@ -54,17 +54,22 @@ def test_definition_json_has_the_query_request_shape() -> None:
                 "prefix_length": None,
                 "group": False,
                 "aggregate": "sum",
+                "sort": "desc",
             },
         ],
         "conditions": [{"field": "deal.name", "operator": "contains", "value": "abc"}],
         "combine": "or",
-        "sort": {"column": 1, "direction": "desc"},
         "row_limit": 100,
     }
 
 
-def test_definition_json_has_null_sort_when_there_is_none() -> None:
-    assert definition_to_json(raw([col("deal.code")]))["sort"] is None
+def test_definition_json_writes_column_sort_and_no_top_level_sort() -> None:
+    data: dict[str, Any] = definition_to_json(
+        raw([col("deal.code"), col("deal.name", sort="desc")])
+    )
+
+    assert [c["sort"] for c in data["columns"]] == [None, "desc"]
+    assert "sort" not in data
 
 
 def test_stored_definition_round_trips_through_json() -> None:
@@ -72,7 +77,6 @@ def test_stored_definition_round_trips_through_json() -> None:
         [col("deal.vendor", group=True), col("deal.amount", label="금액 합계")],
         [cond(field, operator, value) for field, operator, value in VALID_CONDITIONS],
         combine="or",
-        sort={"column": 1, "direction": "desc"},
         row_limit=10000,
     )
 
@@ -223,3 +227,119 @@ def test_upgraded_definition_parses_and_writes_new_shape() -> None:
     assert [c["format"] for c in written["columns"]] == [None, None, None, None, "thousands"]
     assert written["columns"][3]["prefix_length"] == 4
     assert not {"as_is", "prefix", "name", "key"} & {c["format"] for c in written["columns"]}
+
+
+# ---- 컬럼별 정렬 (2026-10-28) ----
+
+
+def test_column_sort_round_trips_through_json() -> None:
+    definition = raw(
+        [col("deal.name", sort="asc"), col("deal.vendor", sort="desc"), col("deal.code")]
+    )
+
+    assert _through_json(definition) == definition
+
+
+def _with_top_sort(top: object, n: int = 3) -> dict[str, Any]:
+    names = ["deal.code", "deal.name", "deal.vendor"][:n]
+    stored = _stored(*[col(name) for name in names])
+    stored["sort"] = top
+    return stored
+
+
+def test_legacy_top_level_sort_moves_to_that_column() -> None:
+    stored = _with_top_sort({"column": 1, "direction": "desc"})
+
+    columns = definition_from_json(stored).columns
+
+    assert [c.sort for c in columns] == [None, "desc", None]
+
+
+def test_legacy_sort_without_direction_is_ascending() -> None:
+    columns = definition_from_json(_with_top_sort({"column": 0})).columns
+
+    assert [c.sort for c in columns] == ["asc", None, None]
+
+
+def test_legacy_null_sort_means_no_sort() -> None:
+    columns = definition_from_json(_with_top_sort(None)).columns
+
+    assert [c.sort for c in columns] == [None, None, None]
+
+
+@pytest.mark.parametrize(
+    "broken",
+    [
+        "x",
+        {"column": 5},
+        {"column": 3},
+        {"column": -1},
+        {"column": "0"},
+        {"column": True},
+        {"column": 0, "direction": 1},
+    ],
+    ids=[
+        "string",
+        "out-of-range",
+        "equal-to-length",
+        "negative",
+        "text-index",
+        "bool-index",
+        "number-direction",
+    ],
+)
+def test_broken_legacy_sort_is_stored_invalid(broken: object) -> None:
+    with pytest.raises(ReportDefinitionError) as caught:
+        definition_from_json(_with_top_sort(broken))
+
+    (issue,) = caught.value.issues
+    assert issue.code == "stored-invalid"
+
+
+def test_legacy_sort_with_unknown_direction_is_reported_when_run() -> None:
+    from app.domain.report.parse import parse_report_definition  # noqa: PLC0415
+
+    restored = definition_from_json(_with_top_sort({"column": 1, "direction": "up"}))
+
+    with pytest.raises(ReportDefinitionError) as caught:
+        parse_report_definition(restored)
+
+    assert [(tuple(i.location), i.code) for i in caught.value.issues] == [
+        (("columns", 1, "sort"), "sort-invalid")
+    ]
+
+
+def test_column_own_sort_wins_over_legacy_sort() -> None:
+    stored = _stored(col("deal.code"), col("deal.name", sort="asc"))
+    stored["sort"] = {"column": 1, "direction": "desc"}
+
+    columns = definition_from_json(stored).columns
+
+    assert columns[1].sort == "asc"
+
+
+def test_column_empty_sort_is_kept_over_legacy_sort() -> None:
+    stored = _stored(col("deal.code"), col("deal.name", sort=""))
+    stored["sort"] = {"column": 1, "direction": "desc"}
+
+    columns = definition_from_json(stored).columns
+
+    assert columns[1].sort == ""
+
+
+def test_non_text_column_sort_is_stored_invalid() -> None:
+    stored = _stored(col("deal.code", sort=1))
+
+    with pytest.raises(ReportDefinitionError) as caught:
+        definition_from_json(stored)
+
+    assert caught.value.issues[0].code == "stored-invalid"
+
+
+def test_upgraded_legacy_sort_is_written_in_the_new_shape() -> None:
+    upgraded = definition_from_json(_with_top_sort({"column": 2, "direction": "desc"}))
+
+    written: Any = definition_to_json(upgraded)
+
+    assert "sort" not in written
+    assert [c["sort"] for c in written["columns"]] == [None, None, "desc"]

@@ -254,3 +254,40 @@ async def test_saved_report_with_legacy_formats_opens_in_new_shape(api: Api) -> 
     assert status_value != "prospecting"  # key가 아니라 표시 이름
     assert forecast_value != "pipeline"
     assert [c["format"] for c in response.json()["columns"]] == [None, None, None, None]
+
+
+LEGACY_SORT_DEFINITION = {
+    "columns": [
+        {"field": "deal.name"},
+        {"field": "deal.vendor"},
+    ],
+    "conditions": [],
+    "combine": "and",
+    "sort": {"column": 1, "direction": "desc"},
+    "row_limit": 100,
+}
+
+
+async def test_saved_report_with_old_sort_opens_with_column_sort(api: Api) -> None:
+    """Scenario: 예전 최상위 정렬로 저장된 리포트는 컬럼 정렬로 보이고 같은 순서로 실행된다."""
+    # Given
+    await given_today_is(api, TODAY)
+    ibm = await given_vendor(api, "IBM")
+    sap = await given_vendor(api, "SAP")
+    owner = await given_sales_user(api, "kim")
+    await given_dashboard_deal(api, owner=owner, name="Alpha", vendor_id=ibm.id)
+    await given_dashboard_deal(api, owner=owner, name="Beta", vendor_id=sap.id)
+    await given_users(api, alice="sales")
+    await given_logged_in(api, "alice")
+    saved = await given_saved_report(api, "예전 정렬", definition=SIMPLE_DEFINITION)
+    await given_stored_definition_uses_legacy_formats(api, saved["id"], LEGACY_SORT_DEFINITION)
+    # When
+    detail = await when_get_report(api, saved["id"])
+    response = await when_run_saved_report(api, saved["id"])
+    # Then
+    then_status_is(detail, 200)
+    definition = detail.json()["definition"]
+    assert [c["sort"] for c in definition["columns"]] == [None, "desc"]
+    assert "sort" not in definition
+    then_status_is(response, 200)
+    assert response.json()["rows"] == [["Beta", "SAP"], ["Alpha", "IBM"]]

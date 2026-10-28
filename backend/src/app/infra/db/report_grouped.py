@@ -118,17 +118,16 @@ def _aggregate(
 def _order_by(
     parts: ReportParts, plans: list[_Plan], base: Subquery, outer: list[Label[Any]]
 ) -> list[Any]:
-    """지정한 정렬 -> 그룹 컬럼의 정렬 식 -> 그룹 키(동률 해소). 같은 열은 한 번만."""
+    """지정한 정렬들(컬럼 순서) -> 그룹 컬럼의 정렬 식 -> 그룹 키(동률 해소). 같은 열은 한 번만."""
     order: list[Any] = []
     seen: set[str] = set()
-    sort = parts.definition.sort
-    if sort is not None:
+    for sort in parts.definition.sort_keys():
         picked = plans[sort.column]
-        if picked.group is not None:
+        if picked.group is None:
+            order.append(direction_order(outer[sort.column], sort.direction))
+        elif picked.group.order not in seen:
             seen.add(picked.group.order)
             order.append(direction_order(base.c[picked.group.order], sort.direction))
-        else:
-            order.append(direction_order(outer[sort.column], sort.direction))
     for plan in plans:
         if plan.group is None:
             continue

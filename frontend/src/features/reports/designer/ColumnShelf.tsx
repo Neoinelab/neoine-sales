@@ -13,7 +13,7 @@ interface ColumnShelfProps {
   dispatch: (action: DesignerAction) => void
 }
 
-function badgesOf(column: DesignerColumn, catalog: ReportCatalog, hasGroup: boolean): string[] {
+function badgesOf(column: DesignerColumn, catalog: ReportCatalog, hasGroup: boolean, sortRank: number | null): string[] {
   const field = fieldByKey(catalog, column.field)
   if (!field) return []
   const badges: string[] = []
@@ -21,6 +21,7 @@ function badgesOf(column: DesignerColumn, catalog: ReportCatalog, hasGroup: bool
   else if (column.aggregate) badges.push(catalog.aggregates.find((a) => a.key === column.aggregate)?.label ?? column.aggregate)
   if (column.format !== null && column.format !== field.defaultFormat) badges.push(catalog.formats.find((f) => f.key === column.format)?.label ?? column.format)
   if (column.prefixOn && column.prefixLength !== null) badges.push(`앞 ${column.prefixLength}자`)
+  if (column.sort !== null) badges.push(`${column.sort === 'asc' ? '▲ 오름' : '▼ 내림'}${sortRank !== null ? ` ${sortRank}` : ''}`)
   if (field.requiresGrouping && !hasGroup) badges.push('그룹핑할 때만')
   return badges
 }
@@ -34,6 +35,7 @@ export function ColumnShelf({ state, catalog, issues, dispatch }: ColumnShelfPro
   const chipRefs = useRef(new Map<number, HTMLButtonElement>())
   const focusAfterMove = useRef<number | null>(null)
   const hasGroup = columns.some((c) => c.group)
+  const sorted = columns.filter((c) => c.sort !== null)
   const full = columns.length >= catalog.limits.columnsMax
 
   // 칩을 옮긴 뒤 DOM이 다시 배치되면 키보드로 옮긴 칩에 포커스를 되돌린다.
@@ -123,7 +125,7 @@ export function ColumnShelf({ state, catalog, issues, dispatch }: ColumnShelfPro
                   onKeyDown={(event) => onKeyDown(event, column, index)}
                 >
                   <span className="report-chip-name">{name}</span>
-                  {badgesOf(column, catalog, hasGroup).map((badge) => (
+                  {badgesOf(column, catalog, hasGroup, sorted.length > 1 ? sorted.indexOf(column) + 1 : null).map((badge) => (
                     <span key={badge} className="report-badge">
                       {badge}
                     </span>

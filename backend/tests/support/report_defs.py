@@ -3,9 +3,9 @@
 원시 입력(`RawReportDefinition`)을 JSON 모양의 dict로 적고, 파싱·해석까지 한 줄로 부른다.
 도메인 모듈은 사용 시점에 가져온다(구현 전에도 이 모듈을 쓰는 다른 테스트의 수집이 막히지 않게).
 
-계약(구현 담당이 맞춘다): `RawColumn(field, label, format, prefix_length, group, aggregate)`,
-`RawCondition(field, operator, value)`, `RawSort(column, direction)`,
-`RawReportDefinition(columns, conditions, combine, sort, row_limit)`는 키워드로 만들 수 있는
+계약(구현 담당이 맞춘다): `RawColumn(field, label, format, prefix_length, group, aggregate, sort)`,
+`RawCondition(field, operator, value)`,
+`RawReportDefinition(columns, conditions, combine, row_limit)`는 키워드로 만들 수 있는
 frozen dataclass이고 값은 JSON에서 온 그대로(`object`)다. columns·conditions는 tuple이다.
 """
 
@@ -60,7 +60,7 @@ VALID_CONDITIONS: list[tuple[str, str, object]] = [
 
 
 def col(field: str, **overrides: Any) -> dict[str, Any]:  # noqa: ANN401
-    """컬럼 JSON. 생략한 값은 API 기본값(null, group=false)이다."""
+    """컬럼 JSON. 생략한 값은 API 기본값(null, group=false, sort 없음)이다."""
     return {
         "field": field,
         "label": None,
@@ -81,21 +81,18 @@ def raw(
     conditions: Sequence[dict[str, Any]] = (),
     *,
     combine: object = "and",
-    sort: dict[str, Any] | None = None,
     row_limit: object = 1000,
 ) -> Any:  # noqa: ANN401 - RawReportDefinition
     from app.domain.report.raw import (  # noqa: PLC0415
         RawColumn,
         RawCondition,
         RawReportDefinition,
-        RawSort,
     )
 
     return RawReportDefinition(
         columns=tuple(RawColumn(**c) for c in columns),
         conditions=tuple(RawCondition(**c) for c in conditions),
         combine=combine,
-        sort=None if sort is None else RawSort(**sort),
         row_limit=row_limit,
     )
 

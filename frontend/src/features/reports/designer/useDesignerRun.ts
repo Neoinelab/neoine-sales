@@ -52,8 +52,6 @@ function dismissFor(prev: Dismissed, action: DesignerAction): Dismissed {
       return addKind(prev, 'conditions')
     case 'setCombine':
       return addKind(prev, 'combine')
-    case 'setSort':
-      return addKind(prev, 'sort')
     case 'setRowLimit':
       return addKind(prev, 'rowLimit')
     case 'createChart':
@@ -84,8 +82,6 @@ function whereOf(target: IssueTarget, state: DesignerState, catalog: ReportCatal
       return '조건'
     case 'combine':
       return '조건 결합'
-    case 'sort':
-      return '정렬'
     case 'rowLimit':
       return '최대 행'
     case 'chart':

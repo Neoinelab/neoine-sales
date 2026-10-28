@@ -11,7 +11,7 @@ from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictStr
 
 from app.domain.common.business_date import business_time
 from app.domain.report.definition import ActionFilter, RowScope
-from app.domain.report.raw import RawColumn, RawCondition, RawReportDefinition, RawSort
+from app.domain.report.raw import RawColumn, RawCondition, RawReportDefinition
 from app.domain.report.vocabulary import Aggregate, Entity, FieldType, Format, ResultValueType
 from app.web.schemas.common import RequestModel
 
@@ -28,6 +28,7 @@ class ReportColumnRequest(RequestModel):
     prefix_length: Any = None
     group: StrictBool = False
     aggregate: StrictStr | None = None
+    sort: StrictStr | None = None
 
 
 class ReportConditionRequest(RequestModel):
@@ -36,16 +37,10 @@ class ReportConditionRequest(RequestModel):
     value: Any = None
 
 
-class ReportSortRequest(RequestModel):
-    column: Any
-    direction: Any = "asc"
-
-
 class ReportQueryRequest(RequestModel):
     columns: list[ReportColumnRequest]
     conditions: list[ReportConditionRequest] = Field(default_factory=list)
     combine: Any = "and"
-    sort: ReportSortRequest | None = None
     row_limit: Any = 1000
 
     def to_raw(self) -> RawReportDefinition:
@@ -53,7 +48,6 @@ class ReportQueryRequest(RequestModel):
             columns=tuple(RawColumn(**c.model_dump()) for c in self.columns),
             conditions=tuple(RawCondition(**c.model_dump()) for c in self.conditions),
             combine=self.combine,
-            sort=RawSort(**self.sort.model_dump()) if self.sort else None,
             row_limit=self.row_limit,
         )
 

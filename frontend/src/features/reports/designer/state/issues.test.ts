@@ -16,8 +16,7 @@ describe('issueAnchors (AC13)', () => {
       issue(['conditions', 1]),
       issue(['conditions']),
       issue(['combine']),
-      issue(['sort', 'column']),
-      issue(['sort']),
+      issue(['columns', 0, 'sort']),
       issue(['row_limit']),
     ]
 
@@ -31,8 +30,7 @@ describe('issueAnchors (AC13)', () => {
       { kind: 'condition', uid: 21, part: null },
       { kind: 'conditions' },
       { kind: 'combine' },
-      { kind: 'sort' },
-      { kind: 'sort' },
+      { kind: 'column', uid: 10, part: 'sort' },
       { kind: 'rowLimit' },
     ])
     expect(anchored.map((a) => a.issue)).toEqual(issues)
@@ -42,6 +40,12 @@ describe('issueAnchors (AC13)', () => {
     const anchored = issueAnchors([issue(['nowhere']), issue(['columns', 9, 'field']), issue([])], RUN)
 
     expect(anchored.map((a) => a.target)).toEqual([{ kind: 'general' }, { kind: 'general' }, { kind: 'general' }])
+  })
+
+  it('no longer has a top-level sort location and puts it in the general list', () => {
+    const anchored = issueAnchors([issue(['sort', 'column']), issue(['sort'])], RUN)
+
+    expect(anchored.map((a) => a.target)).toEqual([{ kind: 'general' }, { kind: 'general' }])
   })
 })
 

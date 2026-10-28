@@ -10,11 +10,10 @@ import { expectRejects, NO_SUCH_ID, unique, type ContractRole, type MakeGateway 
 const DEFINITION: ReportQueryInput = {
   columns: [
     { field: 'deal.vendor', group: true },
-    { field: 'deal.amount', format: 'krw_thousand', group: false, aggregate: 'sum', label: '금액 합계' },
+    { field: 'deal.amount', format: 'krw_thousand', group: false, aggregate: 'sum', label: '금액 합계', sort: 'desc' },
   ],
   conditions: [{ field: 'deal.amount', operator: 'gte', value: 1_500_000 }],
   combine: 'and',
-  sort: { column: 1, direction: 'desc' },
   rowLimit: 1000,
 }
 

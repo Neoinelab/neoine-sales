@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest'
 import { gateway } from '../../../gateway'
 import { mockControl } from '../../../test/fake/default'
 import { renderAt } from '../../../test/mockApp'
-import { addCountedColumn, chipItems, chipTexts, lastQuery, openEditor, runQuery, saveButton, saveDialog, setupReportClock, typeName, UNSAVED_MARK } from '../../../test/reportScreen'
+import { addCountedColumn, chipButton, chipItems, chipTexts, lastQuery, openEditor, runQuery, saveButton, saveDialog, settingsOf, setupReportClock, typeName, UNSAVED_MARK } from '../../../test/reportScreen'
 import {
   BROKEN_DEFINITION,
   MINE_PUBLIC,
@@ -31,8 +31,8 @@ describe('저장된 설계 불러오기 (AC15, S10)', () => {
     expect(screen.getByRole('heading', { level: 1, name: MINE_PUBLIC.name })).toBeVisible()
     expect(chipItems()).toHaveLength(2)
     expect(chipTexts()[1]).toContain('금액 합계')
-    expect(screen.getByRole('combobox', { name: '정렬' })).toHaveDisplayValue('금액 합계')
-    expect(screen.getByRole('combobox', { name: '정렬 방향' })).toHaveDisplayValue('내림차순')
+    expect(chipTexts()[1]).toContain('▼ 내림')
+    expect(screen.queryByRole('combobox', { name: '정렬 방향' })).not.toBeInTheDocument()
     expect(screen.getByRole('combobox', { name: '최대 행' })).toHaveDisplayValue('1,000')
     expect(screen.getByRole('combobox', { name: '조건 1 필드' })).toBeVisible()
     expect(mockControl.reportQueries()).toEqual([VENDOR_DEFINITION])
@@ -40,6 +40,14 @@ describe('저장된 설계 불러오기 (AC15, S10)', () => {
     expect(unsavedMark()).not.toBeInTheDocument()
     for (const name of ['저장', '다른 이름으로 저장', '되돌리기']) expect(screen.getByRole('button', { name })).toBeVisible()
     expect(screen.queryByRole('button', { name: '초기화' })).not.toBeInTheDocument()
+  })
+
+  it('shows the saved column sort in the settings of that column', async () => {
+    const { user } = await openEditor(MINE_PUBLIC.id)
+
+    await user.click(chipButton(1))
+
+    expect(within(settingsOf('금액 합계')).getByRole('combobox', { name: '정렬' })).toHaveDisplayValue('내림차순')
   })
 
   it('does not run again by itself after the first result', async () => {

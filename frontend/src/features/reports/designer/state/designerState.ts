@@ -29,6 +29,8 @@ export interface DesignerColumn {
   prefixLength: number | null
   group: boolean
   aggregate: ReportAggregate | null
+  /** 정렬 방향(없으면 정렬하지 않음). 우선순위는 컬럼 순서(왼쪽 먼저)다. */
+  sort: ReportSortDirection | null
 }
 
 export interface DesignerCondition {
@@ -42,8 +44,6 @@ export interface DesignerState {
   columns: DesignerColumn[]
   conditions: DesignerCondition[]
   combine: ReportCombine
-  /** 정렬 기준 컬럼은 uid로 가진다(순서를 바꿔도 같은 컬럼). */
-  sort: { uid: number; direction: ReportSortDirection } | null
   rowLimit: number
   /** 차트 초안(저장·되돌리기 대상이지만 조회 결과를 낡게 하지 않는다). */
   chart: ChartDraft | null
@@ -64,7 +64,6 @@ export type DesignerAction =
   | { type: 'changeDraft'; uid: number; draft: ConditionDraft }
   | { type: 'removeCondition'; uid: number }
   | { type: 'setCombine'; combine: ReportCombine }
-  | { type: 'setSort'; sort: DesignerState['sort'] }
   | { type: 'setRowLimit'; rowLimit: number }
   | { type: 'createChart'; chart: ChartDraft }
   | { type: 'changeChart'; patch: Partial<ChartDraft> }
@@ -75,7 +74,7 @@ export type DesignerAction =
   | { type: 'load'; state: DesignerState }
 
 export function initialDesignerState(limits: ReportLimits): DesignerState {
-  return { columns: [], conditions: [], combine: 'and', sort: null, rowLimit: limits.defaultRowLimit, chart: null, selectedUid: null, nextUid: 1 }
+  return { columns: [], conditions: [], combine: 'and', rowLimit: limits.defaultRowLimit, chart: null, selectedUid: null, nextUid: 1 }
 }
 
 /** 초기 상태와 내용이 다르면 true(uid·선택은 보지 않는다). 컬럼을 넣었다 빼면 다시 false다. */
@@ -84,7 +83,6 @@ export function isDirty(state: DesignerState, limits: ReportLimits): boolean {
     state.columns.length > 0 ||
     state.conditions.length > 0 ||
     state.combine !== 'and' ||
-    state.sort !== null ||
     state.rowLimit !== limits.defaultRowLimit ||
     state.chart !== null
   )
@@ -95,7 +93,7 @@ const sameValue = (a: unknown, b: unknown): boolean => a === b || JSON.stringify
 /** 컬럼·조건·결합·정렬·최대 행이 같은 내용인지(선택·차트 변경은 조회가 달라지는 설계 변경이 아니다). */
 export function sameDesign(a: DesignerState, b: DesignerState): boolean {
   return (
-    sameValue(a.columns, b.columns) && sameValue(a.conditions, b.conditions) && a.combine === b.combine && sameValue(a.sort, b.sort) && a.rowLimit === b.rowLimit
+    sameValue(a.columns, b.columns) && sameValue(a.conditions, b.conditions) && a.combine === b.combine && a.rowLimit === b.rowLimit
   )
 }
 
@@ -125,6 +123,7 @@ function newColumn(uid: number, field: ReportField, grouped: boolean): DesignerC
     prefixLength: null,
     group: false,
     aggregate: grouped ? field.defaultAggregate : null,
+    sort: null,
   }
 }
 
@@ -163,7 +162,6 @@ function reduceColumns(state: DesignerState, action: DesignerAction, catalog: Re
       return {
         ...state,
         columns,
-        sort: state.sort?.uid === action.uid ? null : state.sort,
         selectedUid: state.selectedUid === action.uid ? null : state.selectedUid,
       }
     }
@@ -258,10 +256,6 @@ export function designerReducer(state: DesignerState, action: DesignerAction, ca
   switch (action.type) {
     case 'setCombine':
       return state.combine === action.combine ? state : { ...state, combine: action.combine }
-    case 'setSort': {
-      const same = state.sort?.uid === action.sort?.uid && state.sort?.direction === action.sort?.direction
-      return same ? state : { ...state, sort: action.sort }
-    }
     case 'setRowLimit':
       return state.rowLimit === action.rowLimit ? state : { ...state, rowLimit: action.rowLimit }
     case 'reset':

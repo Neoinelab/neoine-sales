@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 
 from app.domain.report.catalog import find_field
 from app.domain.report.errors import ReportDefinitionError, ReportIssue
-from app.domain.report.raw import RawColumn, RawCondition, RawReportDefinition, RawSort
+from app.domain.report.raw import RawColumn, RawCondition, RawReportDefinition
 from app.domain.report.vocabulary import DEFAULT_ROW_LIMIT, Entity
 
 if TYPE_CHECKING:
@@ -28,6 +28,7 @@ def definition_to_json(raw: RawReportDefinition) -> dict[str, object]:
                 "prefix_length": c.prefix_length,
                 "group": c.group,
                 "aggregate": c.aggregate,
+                "sort": c.sort,
             }
             for c in raw.columns
         ],
@@ -35,9 +36,6 @@ def definition_to_json(raw: RawReportDefinition) -> dict[str, object]:
             {"field": c.field, "operator": c.operator, "value": c.value} for c in raw.conditions
         ],
         "combine": raw.combine,
-        "sort": None
-        if raw.sort is None
-        else {"column": raw.sort.column, "direction": raw.sort.direction},
         "row_limit": raw.row_limit,
     }
 
@@ -66,10 +64,12 @@ def _optional_text(item: Mapping[str, object], key: str) -> str | None:
 _LEGACY_FORMATS = frozenset({"as_is", "prefix", "name", "key"})
 
 
-def _column(item: Mapping[str, object]) -> RawColumn:
+def _column(item: Mapping[str, object], legacy_sort: str | None) -> RawColumn:
     group = item.get("group", False)
     if type(group) is not bool:
         raise ReportDefinitionError([BROKEN_DEFINITION])
+    # 컬럼에 정렬 값이 있으면(빈 문자열 포함, 실행 때 검증) 예전 최상위 정렬보다 우선한다
+    own_sort = _optional_text(item, "sort")
     return RawColumn(
         field=_text(item, "field"),
         label=_optional_text(item, "label"),
@@ -77,6 +77,7 @@ def _column(item: Mapping[str, object]) -> RawColumn:
         prefix_length=item.get("prefix_length"),
         group=group,
         aggregate=_optional_text(item, "aggregate"),
+        sort=own_sort if own_sort is not None else legacy_sort,
     )
 
 
@@ -85,19 +86,28 @@ def _current_format(raw: str | None) -> str | None:
     return None if raw in _LEGACY_FORMATS else raw
 
 
-def _sort(data: object) -> RawSort | None:
+def _legacy_sort(data: object, column_count: int) -> tuple[int, str] | None:
+    """예전 최상위 `sort`({column, direction})를 (컬럼 위치, 방향)으로. 깨졌으면 stored-invalid."""
     if data is None:
         return None
     if not isinstance(data, dict):
         raise ReportDefinitionError([BROKEN_DEFINITION])
-    return RawSort(column=data.get("column"), direction=data.get("direction", "asc"))
+    column = data.get("column")
+    direction = data.get("direction", "asc")
+    if type(column) is not int or not 0 <= column < column_count or type(direction) is not str:
+        raise ReportDefinitionError([BROKEN_DEFINITION])
+    return column, direction
 
 
 def definition_from_json(data: object) -> RawReportDefinition:
     """깨진 모양이면 ReportDefinitionError(stored-invalid). 값 검증은 실행 때 다시 한다."""
     if not isinstance(data, dict):
         raise ReportDefinitionError([BROKEN_DEFINITION])
-    columns = tuple(_column(c) for c in _items(data, "columns", required=True))
+    items = _items(data, "columns", required=True)
+    legacy = _legacy_sort(data.get("sort"), len(items))
+    columns = tuple(
+        _column(c, legacy[1] if legacy and legacy[0] == i else None) for i, c in enumerate(items)
+    )
     conditions = tuple(
         RawCondition(field=_text(c, "field"), operator=_text(c, "operator"), value=c.get("value"))
         for c in _items(data, "conditions", required=False)
@@ -106,7 +116,6 @@ def definition_from_json(data: object) -> RawReportDefinition:
         columns=columns,
         conditions=conditions,
         combine=data.get("combine", "and"),
-        sort=_sort(data.get("sort")),
         row_limit=data.get("row_limit", DEFAULT_ROW_LIMIT),
     )
 

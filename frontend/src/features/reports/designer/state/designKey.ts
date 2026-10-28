@@ -12,13 +12,11 @@ export function designKey(state: DesignerState, catalog: ReportCatalog): string 
   const built = toReportRequest(state, catalog)
   const chart = state.chart ? toChartInput(state.chart, state.columns) : null
   if ('request' in built) return JSON.stringify({ request: built.request, chart })
-  const sortIndex = state.sort ? state.columns.findIndex((c) => c.uid === state.sort?.uid) : -1
   return JSON.stringify({
     raw: {
       columns: state.columns.map((c) => ({ ...c, uid: 0 })),
       conditions: state.conditions.map((c) => ({ ...c, uid: 0 })),
       combine: state.combine,
-      sort: state.sort ? { index: sortIndex, direction: state.sort.direction } : null,
       rowLimit: state.rowLimit,
     },
     chart,

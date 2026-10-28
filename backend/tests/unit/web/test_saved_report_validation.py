@@ -181,7 +181,10 @@ async def test_update_with_a_bad_definition_is_422_invalid_report_and_keeps_the_
 
 async def test_a_valid_definition_with_conditions_round_trips_through_the_api() -> None:
     definition = {
-        "columns": [{"field": "deal.vendor", "group": True}, {"field": "deal.amount"}],
+        "columns": [
+            {"field": "deal.vendor", "group": True},
+            {"field": "deal.amount", "sort": "desc"},
+        ],
         "conditions": [
             {
                 "field": "deal.expected_close",
@@ -190,7 +193,6 @@ async def test_a_valid_definition_with_conditions_round_trips_through_the_api() 
             }
         ],
         "combine": "or",
-        "sort": {"column": 1, "direction": "desc"},
         "row_limit": 100,
     }
     async with clients(FakeUseCases(), {"alice": Role.SALES}) as c:
@@ -199,7 +201,37 @@ async def test_a_valid_definition_with_conditions_round_trips_through_the_api() 
 
     stored = reread.json()["definition"]
     assert stored["combine"] == "or"
-    assert stored["sort"] == {"column": 1, "direction": "desc"}
+    assert "sort" not in stored
+    assert [c["sort"] for c in stored["columns"]] == [None, "desc"]
     assert stored["row_limit"] == 100
     assert stored["conditions"] == definition["conditions"]
     assert [c["field"] for c in stored["columns"]] == ["deal.vendor", "deal.amount"]
+
+
+async def test_saved_report_stores_and_returns_column_sort() -> None:
+    definition = {"columns": [{"field": "deal.code", "sort": "asc"}, {"field": "deal.name"}]}
+    async with clients(FakeUseCases(), {"alice": Role.SALES}) as c:
+        made = await create(c["alice"], definition=definition)
+        reread = await c["alice"].get(f"{URL}/{made['id']}")
+
+    assert [col["sort"] for col in reread.json()["definition"]["columns"]] == ["asc", None]
+    assert "sort" not in reread.json()["definition"]
+
+
+async def test_saved_report_with_unknown_column_sort_is_invalid_report_at_column() -> None:
+    bad = {"columns": [{"field": "deal.code"}, {"field": "deal.name", "sort": "up"}]}
+    async with clients(FakeUseCases(), {"alice": Role.SALES}) as c:
+        response = await c["alice"].post(URL, json=create_body(definition=bad))
+
+    body = problem(response, 422, "invalid-report")
+    assert [(e["location"], e["code"]) for e in body["errors"]] == [
+        (["columns", 1, "sort"], "sort-invalid")
+    ]
+
+
+async def test_saved_report_with_top_level_sort_is_request_validation() -> None:
+    bad = {"columns": [{"field": "deal.code"}], "sort": {"column": 0, "direction": "asc"}}
+    async with clients(FakeUseCases(), {"alice": Role.SALES}) as c:
+        response = await c["alice"].post(URL, json=create_body(definition=bad))
+
+    problem(response, 422, "request-validation")

@@ -286,10 +286,12 @@ async def test_query_route_returns_grouped_totals() -> None:
 async def test_query_route_passes_the_whole_definition_to_the_use_case() -> None:
     use_cases = FakeUseCases()
     body_in = {
-        "columns": [{"field": "deal.code"}, {"field": "deal.name", "label": " 이름 "}],
+        "columns": [
+            {"field": "deal.code"},
+            {"field": "deal.name", "label": " 이름 ", "sort": "desc"},
+        ],
         "conditions": [{"field": "deal.amount", "operator": "gte", "value": 5}],
         "combine": "or",
-        "sort": {"column": 1, "direction": "desc"},
         "row_limit": 10000,
     }
     async with _client(use_cases, role=Role.USER) as http:
@@ -299,7 +301,8 @@ async def test_query_route_passes_the_whole_definition_to_the_use_case() -> None
     definition = call.definition
     assert [c.label for c in definition.columns] == ["Deal code", "이름"]
     assert str(definition.combine) == "or"
-    assert (definition.sort.column, str(definition.sort.direction)) == (1, "desc")  # type: ignore[union-attr]
+    assert [str(k.direction) for k in definition.sort_keys()] == ["desc"]
+    assert definition.sort_keys()[0].column == 1
     assert definition.row_limit == 10000
     assert call.conditions[0].condition.field.key == "deal.amount"
 
@@ -332,6 +335,58 @@ async def test_invalid_definition_returns_422_invalid_report_with_errors() -> No
     assert body["detail"] == body["errors"][0]["message"]
 
 
+async def test_query_passes_column_sort_to_the_definition() -> None:
+    use_cases = FakeUseCases()
+    body_in = {"columns": [{"field": "deal.code"}, {"field": "deal.name", "sort": "desc"}]}
+    async with _client(use_cases, role=Role.USER) as http:
+        response = await http.post(QUERY, json=body_in)
+
+    assert response.status_code == 200
+    (call,) = use_cases.uow.reports.calls
+    assert [c.sort for c in call.definition.columns] == [None, "desc"]
+
+
+@pytest.mark.parametrize("sort", ["asc", "desc", None])
+async def test_column_sort_asc_desc_null_or_omitted_is_accepted(sort: str | None) -> None:
+    body_in = {"columns": [{"field": "deal.code", "sort": sort}, {"field": "deal.name"}]}
+    async with _client(FakeUseCases(), role=Role.USER) as http:
+        response = await http.post(QUERY, json=body_in)
+
+    assert response.status_code == 200
+
+
+@pytest.mark.parametrize("sort", ["ASC", "up", ""])
+async def test_unknown_column_sort_is_invalid_report_at_column(sort: str) -> None:
+    body_in = {"columns": [{"field": "deal.code"}, {"field": "deal.name", "sort": sort}]}
+    async with _client(FakeUseCases(), role=Role.USER) as http:
+        response = await http.post(QUERY, json=body_in)
+
+    assert response.status_code == 422
+    body = response.json()
+    assert str(body["type"]).endswith("invalid-report")
+    assert [(e["location"], e["code"]) for e in body["errors"]] == [
+        (["columns", 1, "sort"], "sort-invalid")
+    ]
+    assert body["errors"][0]["message"] == "정렬은 asc 또는 desc만 쓸 수 있습니다"
+
+
+async def test_every_unknown_column_sort_is_reported() -> None:
+    body_in = {
+        "columns": [
+            {"field": "deal.code", "sort": "up"},
+            {"field": "deal.name", "sort": "asc"},
+            {"field": "deal.vendor", "sort": "DESC"},
+        ]
+    }
+    async with _client(FakeUseCases(), role=Role.USER) as http:
+        response = await http.post(QUERY, json=body_in)
+
+    assert [e["location"] for e in response.json()["errors"]] == [
+        ["columns", 0, "sort"],
+        ["columns", 2, "sort"],
+    ]
+
+
 async def test_invalid_definition_does_not_run_the_query() -> None:
     use_cases = FakeUseCases()
     async with _client(use_cases, role=Role.USER) as http:
@@ -354,6 +409,11 @@ async def test_invalid_definition_does_not_run_the_query() -> None:
         {"columns": [{"field": "deal.code"}], "conditions": "x"},
         {"columns": [{"field": "deal.code"}], "conditions": [{"field": "deal.name"}]},
         {"columns": [{"field": "deal.code"}], "sort": {"direction": "asc"}},
+        {"columns": [{"field": "deal.code"}], "sort": {"column": 0, "direction": "asc"}},
+        {"columns": [{"field": "deal.code"}], "sort": None},
+        {"columns": [{"field": "deal.code", "sort": 1}]},
+        {"columns": [{"field": "deal.code", "sort": True}]},
+        {"columns": [{"field": "deal.code", "sort": {}}]},
         {"columns": [{"field": "deal.code"}], "group": "yes"},
     ],
     ids=[
@@ -367,7 +427,12 @@ async def test_invalid_definition_does_not_run_the_query() -> None:
         "top-unknown-attr",
         "conditions-string",
         "condition-without-operator",
-        "sort-without-column",
+        "top-level-sort-without-column",
+        "top-level-sort-object",
+        "top-level-sort-null",
+        "column-sort-number",
+        "column-sort-bool",
+        "column-sort-object",
         "unknown-top-group",
     ],
 )

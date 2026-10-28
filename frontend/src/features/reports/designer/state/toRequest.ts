@@ -33,6 +33,7 @@ function columnInput(column: DesignerColumn, field: ReportField | undefined): Re
     ...(label !== '' && label !== field?.label ? { label } : {}),
     ...(column.prefixOn && column.prefixLength !== null ? { prefixLength: column.prefixLength } : {}),
     ...(column.aggregate !== null ? { aggregate: column.aggregate } : {}),
+    ...(column.sort !== null ? { sort: column.sort } : {}),
   }
 }
 
@@ -134,13 +135,11 @@ export function toReportRequest(state: DesignerState, catalog: ReportCatalog): R
     if (built.input) conditions.push(built.input)
   }
   if (inputIssues.length > 0) return { inputIssues }
-  const sortIndex = state.sort ? state.columns.findIndex((c) => c.uid === state.sort?.uid) : -1
   return {
     request: {
       columns: state.columns.map((c) => columnInput(c, fieldByKey(catalog, c.field))),
       conditions,
       combine: state.combine,
-      ...(state.sort && sortIndex >= 0 ? { sort: { column: sortIndex, direction: state.sort.direction } } : {}),
       rowLimit: state.rowLimit,
     },
     columnUids: state.columns.map((c) => c.uid),
