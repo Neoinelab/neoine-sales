@@ -2,7 +2,7 @@
 
 from app.application.report.list_fields import ListReportFields
 from app.domain.report.catalog import FIELD_CATALOG
-from app.domain.report.vocabulary import FieldType, Format
+from app.domain.report.vocabulary import FieldType, NumberUnit
 
 
 def test_list_report_fields_returns_the_whole_catalog() -> None:
@@ -29,18 +29,37 @@ def test_list_report_fields_returns_the_limits_of_the_design() -> None:
 
 def test_catalog_fields_without_formats_have_null_default() -> None:
     fields = ListReportFields().execute().fields
-    formatless = [f for f in fields if f.type in {FieldType.TEXT, FieldType.CODE, FieldType.USER}]
+    formatless = [
+        f
+        for f in fields
+        if f.type in {FieldType.TEXT, FieldType.CODE, FieldType.USER, FieldType.NUMBER}
+    ]
 
     assert formatless
     assert all(tuple(f.formats) == () and f.default_format is None for f in formatless)
+
+
+def test_catalog_fields_carry_the_unit_and_only_amount_has_one() -> None:
+    fields = ListReportFields().execute().fields
+
     amount = next(f for f in fields if f.key == "deal.amount")
-    assert amount.default_format == Format.KRW_THOUSAND
+    assert amount.unit == NumberUnit.KRW_THOUSAND
+    assert amount.label == "금액"
+    assert [f.key for f in fields if f.unit is not None] == ["deal.amount"]
 
 
-def test_catalog_formats_are_twelve_and_query_affecting_ones_are_date_buckets() -> None:
+def test_catalog_formats_are_seven_date_formats_and_query_affecting_ones_are_date_buckets() -> None:
     view = ListReportFields().execute()
 
-    assert len(view.formats) == 12
+    assert [f.key.value for f in view.formats] == [
+        "ymd",
+        "ymd_hm",
+        "year",
+        "quarter",
+        "month",
+        "weekday",
+        "relative",
+    ]
     assert {f.key.value for f in view.formats if f.affects_query} == {
         "ymd",
         "year",

@@ -38,7 +38,7 @@ async def test_add_and_get_round_trip_keeps_definition_json(
     definition = raw(
         [
             col("deal.vendor", group=True, label="벤더 이름"),
-            col("deal.amount", aggregate="sum", format="krw_million", sort="desc"),
+            col("deal.amount", aggregate="sum", sort="desc"),
         ],
         [
             cond("deal.status", "in", ["prospecting", "introduction"]),

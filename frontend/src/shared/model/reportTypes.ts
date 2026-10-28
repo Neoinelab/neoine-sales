@@ -8,11 +8,6 @@ import type { UserRef } from './types'
 export type ReportEntity = 'deal' | 'action'
 export type ReportFieldType = 'text' | 'code' | 'user' | 'number' | 'date' | 'datetime'
 export type ReportFormat =
-  | 'thousands'
-  | 'krw_thousand'
-  | 'krw_million'
-  | 'decimal1'
-  | 'percent_share'
   | 'ymd'
   | 'ymd_hm'
   | 'year'
@@ -20,6 +15,8 @@ export type ReportFormat =
   | 'month'
   | 'weekday'
   | 'relative'
+/** 숫자 값의 표시 단위. 값은 원 단위 그대로 오고 화면이 이 단위로 나눠 보인다. */
+export type ReportNumberUnit = 'krw_thousand'
 export type ReportOperator =
   | 'contains'
   | 'equals'
@@ -55,6 +52,7 @@ export interface ReportField {
   type: ReportFieldType
   formats: ReportFormat[]
   defaultFormat: ReportFormat | null
+  unit: ReportNumberUnit | null
   operators: ReportOperator[]
   aggregates: ReportAggregate[]
   defaultAggregate: ReportAggregate | null
@@ -131,6 +129,7 @@ export interface ReportResultColumn {
   type: ReportFieldType
   valueType: ReportValueType
   format: ReportFormat | null
+  unit: ReportNumberUnit | null
   prefixLength: number | null
   group: boolean
   aggregate: ReportAggregate | null

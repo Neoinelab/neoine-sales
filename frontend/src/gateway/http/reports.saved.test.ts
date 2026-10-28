@@ -14,7 +14,7 @@ const SERVER_DEFINITION = {
   columns: [
     { field: 'deal.vendor', group: true },
     { field: 'deal.name', prefix_length: 5, group: false, label: '이름 앞부분', aggregate: 'count' },
-    { field: 'deal.amount', format: 'krw_thousand', group: false, aggregate: 'sum', sort: 'desc' },
+    { field: 'deal.amount', group: false, aggregate: 'sum', sort: 'desc' },
   ],
   conditions: [
     { field: 'deal.amount', operator: 'between', value: [1_000_000, 2_000_000] },
@@ -29,7 +29,7 @@ const CAMEL_DEFINITION = {
   columns: [
     { field: 'deal.vendor', group: true },
     { field: 'deal.name', prefixLength: 5, group: false, label: '이름 앞부분', aggregate: 'count' },
-    { field: 'deal.amount', format: 'krw_thousand', group: false, aggregate: 'sum', sort: 'desc' },
+    { field: 'deal.amount', group: false, aggregate: 'sum', sort: 'desc' },
   ],
   conditions: [
     { field: 'deal.amount', operator: 'between', value: [1_000_000, 2_000_000] },
@@ -102,7 +102,7 @@ const serverResult = () => ({
   row_scope: 'deal',
   action_filter: 'none',
   deal_numbers_once: false,
-  columns: [{ index: 0, field: 'deal.vendor', label: 'Vendor', entity: 'deal', type: 'code', value_type: 'text', format: null, prefix_length: null, group: true, aggregate: null }],
+  columns: [{ index: 0, field: 'deal.vendor', label: 'Vendor', entity: 'deal', type: 'code', value_type: 'text', format: null, unit: null, prefix_length: null, group: true, aggregate: null }],
   rows: [['Silverfort']],
   totals: null,
   total_count: 1,

@@ -187,7 +187,17 @@ def test_blank_overlong_or_nul_label_is_rejected(label: str) -> None:
 
 # ---- 포맷 없는 필드와 앞 N자 옵션 (2026-10-28) ----
 
-LEGACY_FORMATS = ["as_is", "prefix", "name", "key"]
+LEGACY_FORMATS = [
+    "as_is",
+    "prefix",
+    "name",
+    "key",
+    "thousands",
+    "krw_thousand",
+    "krw_million",
+    "decimal1",
+    "percent_share",
+]
 ANY_TYPE_FIELDS = [
     "deal.name",
     "deal.status",

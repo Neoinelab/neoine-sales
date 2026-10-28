@@ -15,7 +15,7 @@ from app.domain.alert.thresholds import AlertThresholds
 from app.domain.report.definition import ActionFilter, RowScope
 from app.domain.report.errors import ReportDefinitionError
 from app.domain.report.resolve import DateBounds
-from app.domain.report.vocabulary import Aggregate, Format
+from app.domain.report.vocabulary import Aggregate, Format, NumberUnit
 from tests.fakes.unit_of_work import FixedClock
 from tests.support.report_defs import col, cond, raw
 from tests.support.user_ids import OWNER_ID
@@ -190,20 +190,36 @@ async def test_run_report_describes_columns_from_the_definition(run: RunReport) 
                 col("deal.vendor", group=True, label="벤더"),
                 col("deal.expected_close", group=True, format="quarter"),
                 col("deal.amount", aggregate="sum", label="금액 합계"),
+                col("deal.users", aggregate="sum"),
             ]
         )
     )
 
-    first, second, third = view.columns
+    first, second, third, fourth = view.columns
     assert (first.index, first.field, first.label) == (0, "deal.vendor", "벤더")
     assert (first.entity, first.type, first.group) == ("deal", "code", True)
     assert (first.format, first.aggregate) == (None, None)
     assert (second.format, second.value_type) == (Format.QUARTER, "text")
     assert (third.aggregate, third.format, third.group) == (
         Aggregate.SUM,
-        Format.KRW_THOUSAND,
+        None,
         False,
     )
+    assert (first.unit, second.unit) == (None, None)
+    assert third.unit == NumberUnit.KRW_THOUSAND
+    assert fourth.unit is None
+
+
+@pytest.mark.parametrize("aggregate", ["sum", "avg", "min", "max"])
+async def test_run_report_amount_column_has_krw_thousand_unit_for_every_aggregate(
+    run: RunReport, aggregate: str
+) -> None:
+    view = await run.execute(
+        raw([col("deal.vendor", group=True), col("deal.amount", aggregate=aggregate)])
+    )
+
+    assert [c.unit for c in view.columns] == [None, NumberUnit.KRW_THOUSAND]
+    assert view.columns[1].format is None
 
 
 @pytest.mark.parametrize(

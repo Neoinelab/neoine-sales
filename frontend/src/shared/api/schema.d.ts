@@ -2090,7 +2090,7 @@ export interface components {
          * Format
          * @enum {string}
          */
-        Format: "thousands" | "krw_thousand" | "krw_million" | "decimal1" | "percent_share" | "ymd" | "ymd_hm" | "year" | "quarter" | "month" | "weekday" | "relative";
+        Format: "ymd" | "ymd_hm" | "year" | "quarter" | "month" | "weekday" | "relative";
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -2187,6 +2187,12 @@ export interface components {
             memo: string;
             status: components["schemas"]["NextActionStatus"];
         };
+        /**
+         * NumberUnit
+         * @description 숫자 값의 표시 단위. 값은 원 단위 그대로 주고 화면이 이 단위로 나눠 보인다.
+         * @enum {string}
+         */
+        NumberUnit: "krw_thousand";
         /**
          * OnExists
          * @description 같은 이름의 파일이 이미 있을 때의 선택.
@@ -2601,6 +2607,7 @@ export interface components {
             /** Requires Grouping */
             requires_grouping: boolean;
             type: components["schemas"]["FieldType"];
+            unit: components["schemas"]["NumberUnit"] | null;
             value_kind: components["schemas"]["ValueKind"] | null;
         };
         /** ReportFormatResponse */
@@ -2712,6 +2719,7 @@ export interface components {
             /** Prefix Length */
             prefix_length: number | null;
             type: components["schemas"]["FieldType"];
+            unit: components["schemas"]["NumberUnit"] | null;
             value_type: components["schemas"]["ResultValueType"];
         };
         /** ReportSummaryResponse */

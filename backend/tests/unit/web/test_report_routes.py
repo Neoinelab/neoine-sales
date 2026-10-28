@@ -100,11 +100,12 @@ async def test_amount_field_has_the_documented_shape() -> None:
 
     assert fields["deal.amount"] == {
         "key": "deal.amount",
-        "label": "금액(원)",
+        "label": "금액",
         "entity": "deal",
         "type": "number",
-        "formats": ["thousands", "krw_thousand", "krw_million", "decimal1", "percent_share"],
-        "default_format": "krw_thousand",
+        "formats": [],
+        "default_format": None,
+        "unit": "krw_thousand",
         "operators": ["eq", "ne", "gt", "gte", "lt", "lte", "between"],
         "aggregates": ["sum", "avg", "min", "max"],
         "default_aggregate": "sum",
@@ -254,6 +255,7 @@ async def test_query_route_describes_each_column() -> None:
             "type": "code",
             "value_type": "text",
             "format": None,
+            "unit": None,
             "prefix_length": None,
             "group": True,
             "aggregate": None,
@@ -261,11 +263,12 @@ async def test_query_route_describes_each_column() -> None:
         {
             "index": 1,
             "field": "deal.amount",
-            "label": "금액(원)",
+            "label": "금액",
             "entity": "deal",
             "type": "number",
             "value_type": "integer",
-            "format": "krw_thousand",
+            "format": None,
+            "unit": "krw_thousand",
             "prefix_length": None,
             "group": False,
             "aggregate": "sum",
@@ -461,9 +464,17 @@ async def test_timeout_returns_503_report_timeout_with_a_fixed_message() -> None
 # ---- 포맷 정리 (2026-10-28) ----
 
 
-@pytest.mark.parametrize("legacy", ["as_is", "prefix", "name", "key"])
-async def test_query_with_legacy_format_returns_invalid_report(legacy: str) -> None:
-    body_in = {"columns": [{"field": "deal.name", "format": legacy}]}
+LEGACY_NUMBER_FORMATS = ["thousands", "krw_thousand", "krw_million", "decimal1", "percent_share"]
+
+
+@pytest.mark.parametrize(
+    ("field", "legacy"),
+    [("deal.name", x) for x in ["as_is", "prefix", "name", "key"]]
+    + [("deal.amount", x) for x in LEGACY_NUMBER_FORMATS]
+    + [("deal.name", x) for x in LEGACY_NUMBER_FORMATS],
+)
+async def test_query_with_legacy_format_returns_invalid_report(field: str, legacy: str) -> None:
+    body_in = {"columns": [{"field": field, "format": legacy}]}
     async with _client(FakeUseCases(), role=Role.USER) as http:
         response = await http.post(QUERY, json=body_in)
 
@@ -473,10 +484,11 @@ async def test_query_with_legacy_format_returns_invalid_report(legacy: str) -> N
     assert [(e["location"], e["code"]) for e in body["errors"]] == [
         (["columns", 0, "format"], "format-not-allowed")
     ]
+    assert body["errors"][0]["message"] == "이 필드는 포맷을 고를 수 없습니다"
 
 
 async def test_query_with_format_on_a_text_field_says_it_cannot_be_chosen() -> None:
-    body_in = {"columns": [{"field": "deal.name", "format": "thousands"}]}
+    body_in = {"columns": [{"field": "deal.name", "format": "quarter"}]}
     async with _client(FakeUseCases(), role=Role.USER) as http:
         body = (await http.post(QUERY, json=body_in)).json()
 
@@ -511,7 +523,7 @@ async def test_result_column_format_is_null_for_code_field_and_carries_prefix_le
     assert [(c["format"], c["prefix_length"]) for c in columns] == [
         (None, 4),
         (None, None),
-        ("krw_thousand", 200),
+        (None, 200),
     ]
 
 
@@ -520,13 +532,32 @@ async def test_catalog_formatless_fields() -> None:
         body = (await http.get(FIELDS)).json()
 
     fields = body["fields"]
-    formatless = [f for f in fields if f["type"] in {"text", "code", "user"}]
+    formatless = [f for f in fields if f["type"] in {"text", "code", "user", "number"}]
     assert formatless
     assert all(f["formats"] == [] and f["default_format"] is None for f in formatless)
-    assert len(body["formats"]) == 12
+    assert [f["key"] for f in body["formats"]] == [
+        "ymd",
+        "ymd_hm",
+        "year",
+        "quarter",
+        "month",
+        "weekday",
+        "relative",
+    ]
     assert {f["key"] for f in body["formats"] if f["affects_query"]} == {
         "ymd",
         "year",
         "quarter",
         "month",
     }
+
+
+async def test_catalog_only_amount_has_a_unit() -> None:
+    async with _client(FakeUseCases(), role=Role.USER) as http:
+        fields = (await http.get(FIELDS)).json()["fields"]
+
+    assert all("unit" in f for f in fields)
+    assert {f["key"]: f["unit"] for f in fields if f["unit"] is not None} == {
+        "deal.amount": "krw_thousand"
+    }
+    assert len(fields) == 40

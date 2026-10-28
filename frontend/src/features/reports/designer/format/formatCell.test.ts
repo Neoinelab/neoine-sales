@@ -1,33 +1,66 @@
 import { describe, expect, it } from 'vitest'
 import { resultColumn } from '../../../../test/reportDesigner'
-import { cellTitle, columnHeader, formatCell, formatShownCell, truncateLabel } from './formatCell'
+import { cellTitle, columnHeader, formatCell, formatShownCell, isThousandWonColumn, truncateLabel } from './formatCell'
 
-const CTX = { now: '2026-10-27T09:00:00+09:00', today: '2026-10-27', totals: null }
+const CTX = { now: '2026-10-27T09:00:00+09:00', today: '2026-10-27' }
 
-const number = (format: string, over: object = {}) =>
-  resultColumn({ field: 'deal.amount', type: 'number', valueType: 'integer', format: format as never, ...over })
+/** 금액 열: 서버가 unit 'krw_thousand'를 준다(format은 항상 null). */
+const amount = (over: object = {}) =>
+  resultColumn({ field: 'deal.amount', type: 'number', valueType: 'integer', format: null, unit: 'krw_thousand', aggregate: 'sum', ...over })
 
-describe('formatCell numbers (AC12)', () => {
+/** 금액이 아닌 숫자 열(Users 등): unit 없음. */
+const plain = (over: object = {}) =>
+  resultColumn({ field: 'deal.users', type: 'number', valueType: 'integer', format: null, unit: null, aggregate: 'sum', ...over })
+
+describe('formatCell amount in thousand won (AC-6)', () => {
   it.each([
-    ['thousands', 1_234_567, 'integer', '1,234,567'],
-    ['thousands', 1234.567, 'decimal', '1,234.57'],
-    ['thousands', 1234.5, 'decimal', '1,234.5'],
-    ['krw_thousand', 1_234_500, 'integer', '1,235'],
-    ['krw_thousand', 1_234_499, 'integer', '1,234'],
-    ['krw_thousand', 1_234_500.4, 'decimal', '1,235'],
-    ['krw_million', 1_500_000, 'integer', '2'],
-    ['krw_million', 1_499_999, 'integer', '1'],
-    ['krw_million', 2_500_000, 'integer', '3'],
-    ['krw_million', 3_456_000_000, 'integer', '3,456'],
-    ['decimal1', 2.25, 'decimal', '2.3'],
-    ['decimal1', 2.24, 'decimal', '2.2'],
-    ['decimal1', 12, 'integer', '12.0'],
-  ] as const)('formats numbers by column format: %s %s', (format, value, valueType, expected) => {
-    expect(formatCell(value, number(format, { valueType }), CTX)).toBe(expected)
+    ['sum', 123_456_789, 'integer', '123,457'],
+    ['sum', 1_234_499, 'integer', '1,234'],
+    ['sum', 1_234_500, 'integer', '1,235'],
+    ['avg', 1499.5, 'decimal', '2'],
+    ['avg', 1234.4, 'decimal', '1'],
+    ['min', 500, 'integer', '1'],
+    ['max', 499, 'integer', '0'],
+    ['sum', 0, 'integer', '0'],
+    ['sum', 3_456_000_000, 'integer', '3,456,000'],
+  ] as const)('rounds %s %s won to thousand won: %s', (aggregate, value, valueType, expected) => {
+    expect(formatCell(value, amount({ aggregate, valueType }), CTX)).toBe(expected)
+  })
+
+  it('shows a count aggregate of an amount-unit column as a plain count', () => {
+    expect(formatCell(1_234_567, amount({ aggregate: 'count' }), CTX)).toBe('1,234,567')
+  })
+
+  it('shows the amount column of a plain row (no aggregate) in thousand won too', () => {
+    expect(formatCell(5_000_000, amount({ aggregate: null }), CTX)).toBe('5,000')
+  })
+})
+
+describe('formatCell other numbers (AC-7)', () => {
+  it.each([
+    [1234, 'integer', 'sum', '1,234'],
+    [0, 'integer', 'sum', '0'],
+    [2.5, 'decimal', 'avg', '3'],
+    [12.49, 'decimal', 'avg', '12'],
+    [1234.5, 'decimal', 'avg', '1,235'],
+    [1_234_567, 'integer', 'count', '1,234,567'],
+  ] as const)('shows %s as a whole number with separators: %s', (value, valueType, aggregate, expected) => {
+    expect(formatCell(value, plain({ valueType, aggregate }), CTX)).toBe(expected)
+  })
+
+  it('does not separate a year bucket', () => {
+    const year = resultColumn({ type: 'date', valueType: 'integer', format: 'year' })
+
+    expect(formatCell(2026, year, CTX)).toBe('2026')
+  })
+
+  it('does not divide an amount-unit year bucket either', () => {
+    expect(formatCell(2026, amount({ format: 'year', aggregate: null }), CTX)).toBe('2026')
   })
 
   it('shows a dash for an empty cell in every kind of column', () => {
-    expect(formatCell(null, number('krw_thousand'), CTX)).toBe('—')
+    expect(formatCell(null, amount(), CTX)).toBe('—')
+    expect(formatCell(null, plain(), CTX)).toBe('—')
     expect(formatCell(null, resultColumn(), CTX)).toBe('—')
     expect(formatCell(null, resultColumn({ type: 'date', valueType: 'date', format: 'ymd' }), CTX)).toBe('—')
   })
@@ -40,38 +73,13 @@ describe('formatCell numbers (AC12)', () => {
   })
 })
 
-describe('formatCell percent share (AC12)', () => {
-  const share = (aggregate: 'sum' | 'count' | 'avg' | null) => number('percent_share', { index: 1, aggregate })
-
-  it('formats percent share against totals only for sum and count', () => {
-    const ctx = { ...CTX, totals: [null, 1000] }
-
-    expect(formatCell(250, share('sum'), ctx)).toBe('25.0%')
-    expect(formatCell(1, resultColumn({ index: 1, valueType: 'integer', format: 'percent_share', aggregate: 'count' }), { ...CTX, totals: [null, 3] })).toBe('33.3%')
-    expect(formatCell(250, share('avg'), ctx)).toBe('250')
-    expect(formatCell(250, share(null), ctx)).toBe('250')
-  })
-
-  it.each([
-    [1445, 10_000, '14.5%'],
-    [4445, 10_000, '44.5%'],
-    [2255, 10_000, '22.6%'],
-    [2885, 20_000, '14.4%'],
-    [5, 40, '12.5%'],
-  ])('rounds the share of %i in %i half up to one decimal', (value, total, expected) => {
-    expect(formatCell(value, share('sum'), { ...CTX, totals: [null, total] })).toBe(expected)
-  })
-
-  it('falls back to separated thousands without usable totals', () => {
-    expect(formatCell(1250, share('sum'), CTX)).toBe('1,250')
-    expect(formatCell(1250, share('sum'), { ...CTX, totals: [null, 0] })).toBe('1,250')
-    expect(formatCell(1250, share('sum'), { ...CTX, totals: [null, null] })).toBe('1,250')
-  })
-
-  it('reads the total of the same column index', () => {
-    const column = number('percent_share', { index: 2, aggregate: 'sum' })
-
-    expect(formatCell(50, column, { ...CTX, totals: [null, 999, 200] })).toBe('25.0%')
+describe('isThousandWonColumn (AC-6)', () => {
+  it('is true only for an amount-unit column that is not a count', () => {
+    expect(isThousandWonColumn(amount())).toBe(true)
+    expect(isThousandWonColumn(amount({ aggregate: null }))).toBe(true)
+    expect(isThousandWonColumn(amount({ aggregate: 'count' }))).toBe(false)
+    expect(isThousandWonColumn(amount({ aggregate: 'count_distinct' }))).toBe(false)
+    expect(isThousandWonColumn(plain())).toBe(false)
   })
 })
 
@@ -84,7 +92,7 @@ describe('formatCell text (AC12)', () => {
 
   it('does not cut a value even when the column has a prefix length', () => {
     expect(formatCell('abcdefghij', resultColumn({ prefixLength: 3 }), CTX)).toBe('abcdefghij')
-    expect(formatCell(1_234_567, number('thousands', { prefixLength: 3 }), CTX)).toBe('1,234,567')
+    expect(formatCell(1_234_567, plain({ prefixLength: 3 }), CTX)).toBe('1,234,567')
   })
 })
 
@@ -114,7 +122,7 @@ describe('formatShownCell (AC16)', () => {
   })
 
   it('cuts the formatted string of a number', () => {
-    expect(formatShownCell(1_234_567, number('thousands', { prefixLength: 3 }), CTX)).toBe('1,2…')
+    expect(formatShownCell(1_234_567, plain({ prefixLength: 3 }), CTX)).toBe('1,2…')
   })
 
   it('cuts the formatted string of a date', () => {
@@ -128,14 +136,14 @@ describe('formatShownCell (AC16)', () => {
   })
 
   it('shows the whole formatted value without a prefix length', () => {
-    expect(formatShownCell(1_234_567, number('thousands'), CTX)).toBe('1,234,567')
+    expect(formatShownCell(1_234_567, plain(), CTX)).toBe('1,234,567')
     expect(formatShownCell('ABCDEF', resultColumn(), CTX)).toBe('ABCDEF')
   })
 })
 
 describe('cellTitle (AC17)', () => {
   it('gives the whole formatted value when the cell is cut, whatever the type', () => {
-    expect(cellTitle(1_234_567, number('thousands', { prefixLength: 3 }), CTX)).toBe('1,234,567')
+    expect(cellTitle(1_234_567, plain({ prefixLength: 3 }), CTX)).toBe('1,234,567')
     expect(cellTitle('ABCDEF', resultColumn({ prefixLength: 3 }), CTX)).toBe('ABCDEF')
   })
 
@@ -146,8 +154,8 @@ describe('cellTitle (AC17)', () => {
 
   it('gives nothing for an empty cell or a number that is not cut', () => {
     expect(cellTitle(null, resultColumn(), CTX)).toBeUndefined()
-    expect(cellTitle(1234, number('thousands'), CTX)).toBeUndefined()
-    expect(cellTitle(12, number('thousands', { prefixLength: 5 }), CTX)).toBeUndefined()
+    expect(cellTitle(1234, plain(), CTX)).toBeUndefined()
+    expect(cellTitle(12, plain({ prefixLength: 5 }), CTX)).toBeUndefined()
   })
 })
 
@@ -179,14 +187,18 @@ describe('formatCell dates and times (AC12, AC17)', () => {
   })
 })
 
-describe('columnHeader (AC12)', () => {
-  it('adds the unit of an amount format to the header', () => {
-    expect(columnHeader(number('krw_thousand', { label: '금액 합계' }))).toMatch(/^금액 합계\s?\(천원\)$/)
-    expect(columnHeader(number('krw_million', { label: '금액 합계' }))).toMatch(/^금액 합계\s?\(백만원\)$/)
+describe('columnHeader (AC-6)', () => {
+  it('adds the thousand won unit to the header of an amount column', () => {
+    expect(columnHeader(amount({ label: '금액 합계' }))).toMatch(/^금액 합계\s?\(천원\)$/)
+    expect(columnHeader(amount({ label: '금액 평균', aggregate: 'avg' }))).toMatch(/^금액 평균\s?\(천원\)$/)
   })
 
-  it('keeps the label of every other format', () => {
-    expect(columnHeader(number('thousands', { label: 'Users 합계' }))).toBe('Users 합계')
+  it('has no unit when the amount column is only counted', () => {
+    expect(columnHeader(amount({ label: '건수', aggregate: 'count' }))).toBe('건수')
+  })
+
+  it('keeps the label of every other column', () => {
+    expect(columnHeader(plain({ label: 'Users 합계' }))).toBe('Users 합계')
     expect(columnHeader(resultColumn({ label: 'Deal code' }))).toBe('Deal code')
   })
 })

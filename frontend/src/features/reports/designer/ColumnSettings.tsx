@@ -112,7 +112,6 @@ export function ColumnSettings({ column, field, catalog, hasGroup, messages, onP
           <option value="desc">내림차순</option>
         </select>
       </div>
-      {column.format === 'percent_share' && <p className="field-hint">구성비는 그룹핑한 결과의 합계·건수에서만 계산됩니다</p>}
       {PANEL_PARTS.map((part) => (
         <Fragment key={part}>{shown(part)}</Fragment>
       ))}

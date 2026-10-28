@@ -77,6 +77,74 @@ async def test_read_only_user_can_read_the_field_list(api: Api) -> None:
     then_fields_are_listed(response, count=40)
 
 
+async def test_catalog_number_fields_have_no_format_and_amount_is_thousand_won(api: Api) -> None:
+    """Scenario: 숫자 필드는 포맷이 없고 금액만 천원 단위(unit)와 이름 '금액'을 갖는다."""
+    # Given
+    await given_logged_in_as(api, role="user")
+    # When
+    response = await when_get_report_fields(api)
+    # Then
+    then_status_is(response, 200)
+    body = response.json()
+    fields = {f["key"]: f for f in body["fields"]}
+    for key in ("deal.amount", "deal.users", "deal.status_days", "action.count"):
+        assert (fields[key]["formats"], fields[key]["default_format"]) == ([], None), key
+    assert {k: f["unit"] for k, f in fields.items() if f["unit"] is not None} == {
+        "deal.amount": "krw_thousand"
+    }
+    assert fields["deal.amount"]["label"] == "금액"
+    assert [f["key"] for f in body["formats"]] == [
+        "ymd",
+        "ymd_hm",
+        "year",
+        "quarter",
+        "month",
+        "weekday",
+        "relative",
+    ]
+
+
+async def test_query_with_legacy_number_format_is_rejected(api: Api) -> None:
+    """Scenario: 금액 컬럼에 예전 숫자 포맷(krw_thousand)을 보내면 422 invalid-report다."""
+    # Given
+    await given_logged_in_as(api, role="sales")
+    body = {"columns": [{"field": "deal.amount", "format": "krw_thousand"}]}
+    # When
+    response = await when_query_report(api, body)
+    # Then
+    then_report_error_locations_are(response, [(["columns", 0, "format"], "format-not-allowed")])
+
+
+async def test_query_result_columns_carry_the_unit_and_keep_won_values(api: Api) -> None:
+    """Scenario: 결과의 금액 열은 unit이 천원이고 값은 원 단위 그대로이며 format은 null이다."""
+    # Given
+    await given_today_is(api, TODAY)
+    sap = await given_vendor(api, "SAP")
+    owner = await given_sales_user(api, "kim")
+    await given_dashboard_deal(
+        api, owner=owner, amount=123_456_789, day="2026-11-15", vendor_id=sap.id
+    )
+    await given_logged_in_as(api, role="sales")
+    body = {
+        "columns": [
+            {"field": "deal.vendor", "group": True},
+            {"field": "deal.amount", "aggregate": "sum"},
+            {"field": "deal.users", "aggregate": "sum"},
+        ]
+    }
+    # When
+    response = await when_query_report(api, body)
+    # Then
+    then_status_is(response, 200)
+    columns = response.json()["columns"]
+    assert [(c["format"], c["unit"]) for c in columns] == [
+        (None, None),
+        (None, "krw_thousand"),
+        (None, None),
+    ]
+    assert response.json()["rows"][0][1] == 123_456_789
+
+
 async def test_read_only_user_can_query_a_report(api: Api) -> None:
     """Scenario: 읽기 전용(user) 역할도 리포트를 조회한다(쓰기 권한이 필요 없다)."""
     # Given

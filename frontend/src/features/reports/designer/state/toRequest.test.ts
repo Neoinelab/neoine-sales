@@ -47,7 +47,7 @@ describe('toReportRequest column rules (AC11)', () => {
       columns: [
         { field: 'deal.vendor', group: true },
         { field: 'deal.expected_close', format: 'quarter', group: true },
-        { field: 'deal.amount', format: 'krw_thousand', group: false, aggregate: 'sum', label: '금액 합계', sort: 'desc' },
+        { field: 'deal.amount', group: false, aggregate: 'sum', label: '금액 합계', sort: 'desc' },
       ],
       conditions: [
         { field: 'deal.vendor', operator: 'in', value: [6, 1] },
@@ -101,16 +101,16 @@ describe('toReportRequest prefix option (AC14, AC15)', () => {
   const on = (state: DesignerState, index: number, prefixLength: number | null) =>
     reduce(state, { type: 'updateColumn', uid: uidAt(state, index), patch: { prefixOn: true, prefixLength } })
 
-  it('sends no format key for a field without formats', () => {
-    const { columns } = build(withColumns('deal.name', 'deal.status', 'deal.owner')).request
+  it('sends no format key for a field without formats, numbers included', () => {
+    const { columns } = build(withColumns('deal.name', 'deal.status', 'deal.owner', 'deal.amount', 'deal.users')).request
 
     for (const column of columns) expect('format' in column).toBe(false)
   })
 
-  it('sends the format of a number field and the prefix length together', () => {
+  it('sends the prefix length of a number field without a format key', () => {
     const { columns } = build(on(withColumns('deal.amount'), 0, 5)).request
 
-    expect(columns[0]).toEqual({ field: 'deal.amount', format: 'krw_thousand', prefixLength: 5, group: false })
+    expect(columns[0]).toEqual({ field: 'deal.amount', prefixLength: 5, group: false })
   })
 
   it('sends the prefix length only while the option is on', () => {
@@ -259,5 +259,18 @@ describe('toReportRequest column sort (AC2, AC7)', () => {
     expect(request.columns.map((c) => c.sort)).toEqual(['asc', undefined, 'desc'])
     expect('sort' in (request.columns[1] ?? {})).toBe(false)
     expect('sort' in request).toBe(false)
+  })
+})
+
+describe('toReportRequest money conditions (AC-9)', () => {
+  it('multiplies only the amount input (thousand won) by 1,000 and keeps Users and days as typed', () => {
+    let state = withColumns('deal.code')
+    state = withCondition(state, 'deal.amount', 'gte', { shape: 'number', text: '1,500' })
+    state = withCondition(state, 'deal.users', 'gte', { shape: 'number', text: '5' })
+    state = withCondition(state, 'deal.status_days', 'lte', { shape: 'number', text: '30' })
+
+    const { request } = build(state)
+
+    expect(request.conditions.map((c) => c.value)).toEqual([1_500_000, 5, 30])
   })
 })

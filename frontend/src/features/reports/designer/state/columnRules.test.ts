@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { ReportOperator } from '../../../../shared/model/reportTypes'
 import { columnAt, conditionUidAt, emptyDesign, fieldOf, reduce, REPORT_CATALOG, uidAt, withColumns } from '../../../../test/reportDesigner'
-import { aggregateChoices, filterableFields } from './columnRules'
+import { aggregateChoices, filterableFields, isMoneyField } from './columnRules'
 
 describe('grouping transitions (AC6)', () => {
   it('turning on the first group fills number defaults and counts text columns', () => {
@@ -131,10 +131,10 @@ describe('prefix option (AC14)', () => {
     expect(columnAt(changed, 0)).toMatchObject({ format: 'weekday', prefixOn: true, prefixLength: 4 })
   })
 
-  it('text, code and user columns start without a format, number and date columns with the default', () => {
+  it('text, code, user and number columns start without a format, date columns with the default', () => {
     const state = withColumns('deal.name', 'deal.status', 'deal.owner', 'deal.amount', 'deal.expected_close', 'deal.created_at')
 
-    expect(state.columns.map((c) => c.format)).toEqual([null, null, null, 'krw_thousand', 'ymd', 'ymd_hm'])
+    expect(state.columns.map((c) => c.format)).toEqual([null, null, null, null, 'ymd', 'ymd_hm'])
     expect(state.columns.every((c) => !c.prefixOn && c.prefixLength === null)).toBe(true)
   })
 })
@@ -184,5 +184,21 @@ describe('condition rules (AC7)', () => {
 
     expect(sameShape.conditions[0]?.draft).toEqual({ shape: 'number', text: '1,500' })
     expect(otherShape.conditions[0]?.draft).toEqual({ shape: 'range', low: '', high: '' })
+  })
+})
+
+describe('money field rule (AC-9)', () => {
+  it('is decided by the catalog unit of the field', () => {
+    expect(isMoneyField(fieldOf('deal.amount'))).toBe(true)
+    expect(isMoneyField(fieldOf('deal.users'))).toBe(false)
+    expect(isMoneyField(fieldOf('deal.status_days'))).toBe(false)
+    expect(isMoneyField(fieldOf('action.count'))).toBe(false)
+  })
+
+  it('does not depend on the default format any more', () => {
+    const amount = fieldOf('deal.amount')
+
+    expect(isMoneyField({ ...amount, defaultFormat: 'ymd' })).toBe(true)
+    expect(isMoneyField({ ...amount, unit: null })).toBe(false)
   })
 })

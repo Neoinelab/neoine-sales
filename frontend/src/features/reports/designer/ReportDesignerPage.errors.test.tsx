@@ -29,7 +29,7 @@ describe('정의 위반 표시 (AC13)', () => {
   it('shows invalid report issues next to the chip, setting, condition, combine and row limit', async () => {
     const { user } = await openDesigner()
     await addColumn(user, 'Deal code')
-    await addColumn(user, '금액(원)')
+    await addColumn(user, '금액')
     await addCondition(user, 'Deal 이름')
     await user.type(screen.getByRole('textbox', { name: '조건 1 값' }), '은행')
     failWith(
@@ -45,7 +45,7 @@ describe('정의 위반 표시 (AC13)', () => {
     const summary = await screen.findByRole('alert')
     expect(summary).toHaveTextContent('고칠 곳 5개')
     expect(summary).toHaveTextContent('컬럼 1(Deal code)')
-    expect(summary).toHaveTextContent('컬럼 2(금액(원))')
+    expect(summary).toHaveTextContent('컬럼 2(금액)')
     expect(summary).toHaveTextContent('조건 1(Deal 이름)')
     expect(summary).toHaveTextContent('조건 결합')
     expect(summary).toHaveTextContent('최대 행')
@@ -55,7 +55,7 @@ describe('정의 위반 표시 (AC13)', () => {
     expect(chipItems()[0]).toHaveClass('is-invalid')
     expect(chipButton(0)).toHaveAccessibleDescription(/첫 컬럼 문구/)
     expect(chipItems()[1]).toHaveClass('is-invalid')
-    const aggregate = within(settingsOf('금액(원)')).getByRole('combobox', { name: '집계' })
+    const aggregate = within(settingsOf('금액')).getByRole('combobox', { name: '집계' })
     expect(aggregate).toHaveAttribute('aria-invalid', 'true')
     expect(aggregate).toHaveAccessibleDescription(/집계 문구/)
     const value = screen.getByRole('textbox', { name: '조건 1 값' })

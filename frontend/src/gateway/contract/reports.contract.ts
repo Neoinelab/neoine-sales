@@ -38,25 +38,26 @@ export function reportsContract(make: MakeGateway): void {
       expect(catalog.fields.filter((f) => f.entity === 'deal')).toHaveLength(28)
       expect(catalog.fields.filter((f) => f.entity === 'action')).toHaveLength(12)
       for (const field of catalog.fields) {
-        if (['text', 'code', 'user'].includes(field.type)) {
+        if (['text', 'code', 'user', 'number'].includes(field.type)) {
           expect(field.formats, field.key).toEqual([])
           expect(field.defaultFormat, field.key).toBeNull()
         } else {
           expect(field.formats, field.key).toContain(field.defaultFormat)
         }
+        expect(field.unit, field.key).toBe(field.key === 'deal.amount' ? 'krw_thousand' : null)
         if (field.defaultAggregate !== null && field.aggregates.length > 0) {
           expect(field.aggregates, field.key).toContain(field.defaultAggregate)
         }
       }
     })
 
-    it('lists twelve formats and only the date buckets change the grouping', async () => {
+    it('lists the seven date formats and only the date buckets change the grouping', async () => {
       const { reports } = await make('user')
 
       const catalog = await reports.fields()
 
-      expect(catalog.formats).toHaveLength(12)
-      for (const legacy of ['as_is', 'prefix', 'name', 'key']) expect(catalog.formats.map((f) => f.key)).not.toContain(legacy)
+      expect(catalog.formats.map((f) => f.key)).toEqual(['ymd', 'ymd_hm', 'year', 'quarter', 'month', 'weekday', 'relative'])
+      for (const legacy of ['as_is', 'prefix', 'name', 'key', 'thousands', 'krw_thousand', 'krw_million', 'decimal1', 'percent_share']) expect(catalog.formats.map((f) => f.key)).not.toContain(legacy)
       expect(catalog.formats.filter((f) => f.affectsQuery).map((f) => f.key)).toEqual(['ymd', 'year', 'quarter', 'month'])
     })
 
@@ -86,7 +87,7 @@ export function reportsContract(make: MakeGateway): void {
       const { reports } = await make('sales')
 
       const result = await reports.query(
-        query({ columns: [DEAL_CODE_COLUMN, { field: 'deal.name', group: false }, { field: 'deal.amount', format: 'krw_thousand', group: false }] }),
+        query({ columns: [DEAL_CODE_COLUMN, { field: 'deal.name', group: false }, { field: 'deal.amount', group: false }] }),
       )
 
       expect(result.columns.map((c) => c.index)).toEqual([0, 1, 2])
@@ -103,7 +104,7 @@ export function reportsContract(make: MakeGateway): void {
         query({
           columns: [
             { field: 'deal.vendor', group: true },
-            { field: 'deal.amount', format: 'krw_thousand', group: false, aggregate: 'sum' },
+            { field: 'deal.amount', group: false, aggregate: 'sum' },
           ],
         }),
       )
@@ -112,6 +113,7 @@ export function reportsContract(make: MakeGateway): void {
       for (const row of result.rows) expect(row).toHaveLength(2)
       expect(result.columns.map((c) => c.group)).toEqual([true, false])
       expect(result.columns[1]?.aggregate).toBe('sum')
+      expect(result.columns.map((c) => [c.format, c.unit])).toEqual([[null, null], [null, 'krw_thousand']])
     })
 
     it('uses Action rows when an Action column is chosen', async () => {
@@ -156,7 +158,7 @@ export function reportsContract(make: MakeGateway): void {
       const { reports } = await make('user')
 
       const error = await expectRejects(
-        reports.query(query({ columns: [{ field: 'deal.amount', format: 'krw_thousand', group: false, aggregate: 'sum' }] })),
+        reports.query(query({ columns: [{ field: 'deal.amount', group: false, aggregate: 'sum' }] })),
         422,
       )
 
@@ -167,7 +169,7 @@ export function reportsContract(make: MakeGateway): void {
       const { reports } = await make('user')
 
       const error = await expectRejects(
-        reports.query(query({ columns: [{ field: 'action.count', format: 'thousands', group: false }] })),
+        reports.query(query({ columns: [{ field: 'action.count', group: false }] })),
         422,
       )
 

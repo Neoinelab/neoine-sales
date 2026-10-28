@@ -11,6 +11,7 @@ from app.domain.report.vocabulary import (
     Entity,
     FieldType,
     Format,
+    NumberUnit,
     Operator,
     OptionsSource,
     ValueKind,
@@ -65,6 +66,7 @@ class FieldSpec:
     options: tuple[FieldOption, ...] | None = None
     options_source: OptionsSource | None = None
     options_category: str | None = None
+    unit: NumberUnit | None = None
 
     @property
     def entity(self) -> Entity:
@@ -115,13 +117,13 @@ def number_field(
     key: str,
     label: str,
     *,
-    default_format: Format = Format.THOUSANDS,
+    unit: NumberUnit | None = None,
     default_aggregate: Aggregate = Aggregate.SUM,
 ) -> FieldSpec:
     """Deal 숫자(금액·Users·Status 체류 일수). 행 범위가 Action이면 Deal당 한 번 계산한다."""
     return replace(
         _base(key, label, FieldType.NUMBER),
-        default_format=default_format,
+        unit=unit,
         default_aggregate=default_aggregate,
         deal_number=True,
     )

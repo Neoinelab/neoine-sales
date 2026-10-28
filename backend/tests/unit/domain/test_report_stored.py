@@ -27,7 +27,7 @@ def test_definition_json_has_the_query_request_shape() -> None:
     definition = raw(
         [
             col("deal.vendor", group=True, label="벤더"),
-            col("deal.amount", aggregate="sum", format="krw_million", sort="desc"),
+            col("deal.amount", aggregate="sum", sort="desc"),
         ],
         [cond("deal.name", "contains", "abc")],
         combine="or",
@@ -50,7 +50,7 @@ def test_definition_json_has_the_query_request_shape() -> None:
             {
                 "field": "deal.amount",
                 "label": None,
-                "format": "krw_million",
+                "format": None,
                 "prefix_length": None,
                 "group": False,
                 "aggregate": "sum",
@@ -196,16 +196,27 @@ def test_legacy_prefix_becomes_prefix_option() -> None:
     assert (column.format, column.prefix_length) == (None, 7)
 
 
+@pytest.mark.parametrize(
+    "legacy", ["thousands", "krw_thousand", "krw_million", "decimal1", "percent_share"]
+)
+def test_legacy_number_formats_are_dropped_when_read(legacy: str) -> None:
+    stored = _stored(col("deal.amount", format=legacy, prefix_length=3))
+
+    column = definition_from_json(stored).columns[0]
+
+    assert (column.format, column.prefix_length) == (None, 3)
+
+
 def test_current_formats_are_kept_when_read() -> None:
     stored = _stored(
-        col("deal.amount", format="thousands"),
+        col("deal.expected_close", format="ymd"),
         col("deal.expected_close", format="quarter"),
-        col("deal.name"),
+        col("deal.amount"),
     )
 
     columns = definition_from_json(stored).columns
 
-    assert [c.format for c in columns] == ["thousands", "quarter", None]
+    assert [c.format for c in columns] == ["ymd", "quarter", None]
 
 
 def test_upgraded_definition_parses_and_writes_new_shape() -> None:
@@ -216,7 +227,7 @@ def test_upgraded_definition_parses_and_writes_new_shape() -> None:
         col("deal.owner", format="name"),
         col("deal.status", format="key"),
         col("deal.code", format="prefix", prefix_length=4),
-        col("deal.amount", format="thousands"),
+        col("deal.amount", format="percent_share"),
     )
 
     upgraded = definition_from_json(stored)
@@ -224,9 +235,10 @@ def test_upgraded_definition_parses_and_writes_new_shape() -> None:
     written: Any = definition_to_json(upgraded)
 
     assert [c.prefix_length for c in parsed.columns] == [None, None, None, 4, None]
-    assert [c["format"] for c in written["columns"]] == [None, None, None, None, "thousands"]
+    assert [c["format"] for c in written["columns"]] == [None, None, None, None, None]
     assert written["columns"][3]["prefix_length"] == 4
-    assert not {"as_is", "prefix", "name", "key"} & {c["format"] for c in written["columns"]}
+    legacy = {"as_is", "prefix", "name", "key", "thousands", "krw_thousand", "krw_million"}
+    assert not legacy & {c["format"] for c in written["columns"]}
 
 
 # ---- 컬럼별 정렬 (2026-10-28) ----

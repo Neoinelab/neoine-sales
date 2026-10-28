@@ -61,7 +61,11 @@ def _optional_text(item: Mapping[str, object], key: str) -> str | None:
     return value
 
 
-_LEGACY_FORMATS = frozenset({"as_is", "prefix", "name", "key"})
+_LEGACY_TEXT_FORMATS = frozenset({"as_is", "prefix", "name", "key"})
+_LEGACY_NUMBER_FORMATS = frozenset(
+    {"thousands", "krw_thousand", "krw_million", "decimal1", "percent_share"}
+)
+_LEGACY_FORMATS = _LEGACY_TEXT_FORMATS | _LEGACY_NUMBER_FORMATS
 
 
 def _column(item: Mapping[str, object], legacy_sort: str | None) -> RawColumn:
@@ -82,7 +86,11 @@ def _column(item: Mapping[str, object], legacy_sort: str | None) -> RawColumn:
 
 
 def _current_format(raw: str | None) -> str | None:
-    """예전 포맷(그대로·앞 N자·이름·코드)은 포맷 없음으로 읽는다. 앞 N자의 N은 그대로 둔다."""
+    """예전 포맷은 포맷 없음으로 읽는다.
+
+    텍스트(그대로·앞 N자·이름·코드)와 숫자(천 단위·천원·백만원·소수1·구성비)가 대상이다.
+    앞 N자의 N은 그대로 둔다.
+    """
     return None if raw in _LEGACY_FORMATS else raw
 
 

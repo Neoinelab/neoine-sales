@@ -29,7 +29,7 @@ const SHAPES: readonly (readonly [string, ReportQueryInput])[] = [
       columns: [
         { field: 'deal.vendor', group: true },
         { field: 'deal.expected_close', format: 'quarter', group: true },
-        { field: 'deal.amount', format: 'krw_thousand', group: false, aggregate: 'sum', label: '금액 합계', sort: 'desc' },
+        { field: 'deal.amount', group: false, aggregate: 'sum', label: '금액 합계', sort: 'desc' },
       ],
       conditions: [
         { field: 'deal.vendor', operator: 'in', value: [6, 1] },
@@ -40,7 +40,7 @@ const SHAPES: readonly (readonly [string, ReportQueryInput])[] = [
     },
   ],
   ['a prefix column with its length', { columns: [{ field: 'deal.name', prefixLength: 7, group: false }], conditions: [], combine: 'and', rowLimit: 100 }],
-  ['a prefix length on a number column with its format', { columns: [{ field: 'deal.amount', format: 'thousands', prefixLength: 3, group: false }], conditions: [], combine: 'and', rowLimit: 100 }],
+  ['a prefix length on a number column', { columns: [{ field: 'deal.amount', prefixLength: 3, group: false }], conditions: [], combine: 'and', rowLimit: 100 }],
   ['a money range', withConditions([{ field: 'deal.amount', operator: 'between', value: [1_000_000, 2_000_000] }])],
   ['a zero money value', withConditions([{ field: 'deal.amount', operator: 'eq', value: 0 }])],
   ['a text condition', withConditions([{ field: 'deal.name', operator: 'contains', value: 'ITDR' }])],
@@ -57,7 +57,7 @@ const SHAPES: readonly (readonly [string, ReportQueryInput])[] = [
     {
       columns: [
         { field: 'deal.vendor', group: true, sort: 'asc' },
-        { field: 'action.count', format: 'thousands', group: false, aggregate: 'count' },
+        { field: 'action.count', group: false, aggregate: 'count' },
       ],
       conditions: [],
       combine: 'and',
@@ -145,7 +145,7 @@ describe('fromReportRequest', () => {
 
   it('keeps a missing label empty and a given label as typed', () => {
     const state = load({
-      columns: [CODE, { field: 'deal.amount', format: 'krw_thousand', group: false, label: '금액 합계' }],
+      columns: [CODE, { field: 'deal.amount', group: false, label: '금액 합계' }],
       conditions: [],
       combine: 'and',
       rowLimit: 100,
@@ -154,11 +154,11 @@ describe('fromReportRequest', () => {
     expect(state.columns.map((c) => c.label)).toEqual(['', '금액 합계'])
   })
 
-  it('keeps the column settings: format, prefix length, group and aggregate', () => {
+  it('keeps the column settings: prefix length, group and aggregate, and a number column has no format', () => {
     const state = load({
       columns: [
         { field: 'deal.name', prefixLength: 7, group: true },
-        { field: 'deal.amount', format: 'krw_million', group: false, aggregate: 'avg' },
+        { field: 'deal.amount', group: false, aggregate: 'avg' },
       ],
       conditions: [],
       combine: 'or',
@@ -166,8 +166,27 @@ describe('fromReportRequest', () => {
     })
 
     expect(state.columns[0]).toMatchObject({ field: 'deal.name', format: null, prefixOn: true, prefixLength: 7, group: true, aggregate: null })
-    expect(state.columns[1]).toMatchObject({ field: 'deal.amount', format: 'krw_million', prefixOn: false, prefixLength: null, group: false, aggregate: 'avg' })
+    expect(state.columns[1]).toMatchObject({ field: 'deal.amount', format: null, prefixOn: false, prefixLength: null, group: false, aggregate: 'avg' })
     expect(state).toMatchObject({ combine: 'or', rowLimit: 10000 })
+  })
+})
+
+describe('fromReportRequest number columns (AC-10)', () => {
+  it('opens a number column without a format and sends none when requested again', () => {
+    const input: ReportQueryInput = {
+      columns: [
+        { field: 'deal.amount', group: false, aggregate: 'sum', prefixLength: 3 },
+        { field: 'deal.users', group: false },
+      ],
+      conditions: [],
+      combine: 'and',
+      rowLimit: 100,
+    }
+
+    const state = load(input)
+
+    expect(state.columns.map((c) => c.format)).toEqual([null, null])
+    expect(requestOf(input).columns.some((c) => 'format' in c)).toBe(false)
   })
 })
 
@@ -207,5 +226,21 @@ describe('fromReportRequest with fields the catalog no longer has', () => {
     expect(state.conditions.map((c) => c.field)).toEqual(['deal.nada'])
     expect(request.columns).toEqual(input.columns)
     expect(request.conditions[0]).toMatchObject({ field: 'deal.nada', operator: 'contains' })
+  })
+})
+
+describe('fromReportRequest money conditions (AC-9)', () => {
+  it('divides only the amount by 1,000 for the input text', () => {
+    const state = load(
+      withConditions([
+        { field: 'deal.amount', operator: 'gte', value: 1_500_000 },
+        { field: 'deal.users', operator: 'gte', value: 5 },
+      ]),
+    )
+
+    expect(state.conditions.map((c) => c.draft)).toEqual([
+      { shape: 'number', text: '1500' },
+      { shape: 'number', text: '5' },
+    ])
   })
 })

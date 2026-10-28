@@ -3,21 +3,21 @@ import { daysBetween, datePart } from '../../../../shared/model/dates'
 import { formatThousandWon } from '../../../../shared/model/money'
 import type { ReportCell, ReportResultColumn } from '../../../../shared/model/reportTypes'
 
-/** 표시 전용 포맷 맥락. `now`·`today`는 앱 시계(`useToday`), `totals`는 응답의 합계 행이다. */
+/** 표시 전용 포맷 맥락. `now`·`today`는 앱 시계(`useToday`)다. */
 export interface FormatContext {
   now: string
   today: string
-  totals: readonly ReportCell[] | null
 }
 
 const EMPTY = '—'
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'] as const
-const MILLION = 1_000_000
-const HALF_MILLION = 500_000
 
-const separated = (value: number, maxFraction = 0): string => value.toLocaleString('en-US', { maximumFractionDigits: maxFraction })
+const separated = (value: number): string => value.toLocaleString('en-US', { maximumFractionDigits: 0 })
 
 const isCount = (column: ReportResultColumn): boolean => column.aggregate === 'count' || column.aggregate === 'count_distinct'
+
+/** 천원 단위로 보이는 열: 단위가 천원인 필드(금액)이고 건수 집계가 아닌 열. 머리글·표·차트가 이 판정 하나를 쓴다. */
+export const isThousandWonColumn = (column: ReportResultColumn): boolean => column.unit === 'krw_thousand' && !isCount(column)
 
 /** 'YYYY-MM-DD'의 요일(달력 계산만 한다. 브라우저 시간대를 쓰지 않는다). */
 function weekdayOf(date: string): string {
@@ -32,37 +32,11 @@ function relativeDay(date: string, today: string): string {
   return diff < 0 ? `${-diff}일 전` : `${diff}일 후`
 }
 
-function percentShare(value: number, column: ReportResultColumn, totals: FormatContext['totals']): string | null {
-  if (column.aggregate !== 'sum' && column.aggregate !== 'count') return null
-  const total = totals?.[column.index]
-  if (typeof total !== 'number' || total === 0) return null
-  return `${tenthsPercent(value, total)}%`
-}
-
-/** value/total×100을 소수 1자리로 half-up한다. 정수끼리면 BigInt 정수 연산으로 부동소수 오차를 피한다. */
-function tenthsPercent(value: number, total: number): string {
-  if (!Number.isInteger(value) || !Number.isInteger(total) || value < 0 || total < 0) return ((value / total) * 100).toFixed(1)
-  const v = BigInt(value)
-  const t = BigInt(total)
-  const tenths = (v * 2000n + t) / (2n * t)
-  return `${tenths / 10n}.${tenths % 10n}`
-}
-
-function formatNumber(value: number, column: ReportResultColumn, ctx: FormatContext): string {
-  if (column.format === 'percent_share') return percentShare(value, column, ctx.totals) ?? separated(value, 2)
+function formatNumber(value: number, column: ReportResultColumn): string {
   if (isCount(column)) return separated(value)
-  switch (column.format) {
-    case 'krw_thousand':
-      return formatThousandWon(Math.round(value))
-    case 'krw_million':
-      return separated(Math.floor((Math.round(value) + HALF_MILLION) / MILLION))
-    case 'decimal1':
-      return value.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
-    case 'year':
-      return String(value)
-    default:
-      return separated(value, 2)
-  }
+  if (column.format === 'year') return String(value)
+  if (isThousandWonColumn(column)) return formatThousandWon(Math.round(value))
+  return separated(value)
 }
 
 function formatText(value: string, column: ReportResultColumn, ctx: FormatContext): string {
@@ -86,7 +60,7 @@ function formatText(value: string, column: ReportResultColumn, ctx: FormatContex
  */
 export function formatCell(value: ReportCell, column: ReportResultColumn, ctx: FormatContext): string {
   if (value === null) return EMPTY
-  return typeof value === 'number' ? formatNumber(value, column, ctx) : formatText(value, column, ctx)
+  return typeof value === 'number' ? formatNumber(value, column) : formatText(value, column, ctx)
 }
 
 /** 글자를 코드 포인트 기준 앞 n자만 남기고 넘으면 `…`을 붙인다(n이 없으면 그대로). */
@@ -111,12 +85,9 @@ export function cellTitle(value: ReportCell, column: ReportResultColumn, ctx: Fo
   return column.valueType === 'text' && (column.type === 'text' || column.type === 'code' || column.type === 'user') ? value : undefined
 }
 
-/** 머리글. 금액 포맷은 단위를 덧붙인다(건수 집계는 금액이 아니므로 제외). */
+/** 머리글. 천원 단위 열은 단위를 덧붙인다. */
 export function columnHeader(column: ReportResultColumn): string {
-  if (isCount(column)) return column.label
-  if (column.format === 'krw_thousand') return `${column.label} (천원)`
-  if (column.format === 'krw_million') return `${column.label} (백만원)`
-  return column.label
+  return isThousandWonColumn(column) ? `${column.label} (천원)` : column.label
 }
 
 export const isNumericColumn = (column: ReportResultColumn): boolean => column.valueType === 'integer' || column.valueType === 'decimal'

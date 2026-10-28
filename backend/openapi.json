@@ -2997,11 +2997,6 @@
       },
       "Format": {
         "enum": [
-          "thousands",
-          "krw_thousand",
-          "krw_million",
-          "decimal1",
-          "percent_share",
           "ymd",
           "ymd_hm",
           "year",
@@ -3227,6 +3222,14 @@
         ],
         "title": "NextActionStatusRequest",
         "type": "object"
+      },
+      "NumberUnit": {
+        "description": "숫자 값의 표시 단위. 값은 원 단위 그대로 주고 화면이 이 단위로 나눠 보인다.",
+        "enum": [
+          "krw_thousand"
+        ],
+        "title": "NumberUnit",
+        "type": "string"
       },
       "OnExists": {
         "description": "같은 이름의 파일이 이미 있을 때의 선택.",
@@ -4373,6 +4376,16 @@
           "type": {
             "$ref": "#/components/schemas/FieldType"
           },
+          "unit": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/NumberUnit"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "value_kind": {
             "anyOf": [
               {
@@ -4391,6 +4404,7 @@
           "type",
           "formats",
           "default_format",
+          "unit",
           "operators",
           "aggregates",
           "default_aggregate",
@@ -4710,6 +4724,16 @@
           "type": {
             "$ref": "#/components/schemas/FieldType"
           },
+          "unit": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/NumberUnit"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "value_type": {
             "$ref": "#/components/schemas/ResultValueType"
           }
@@ -4722,6 +4746,7 @@
           "type",
           "value_type",
           "format",
+          "unit",
           "prefix_length",
           "group",
           "aggregate"

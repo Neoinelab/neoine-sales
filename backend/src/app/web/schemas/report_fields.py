@@ -10,6 +10,7 @@ from app.domain.report.vocabulary import (
     Entity,
     FieldType,
     Format,
+    NumberUnit,
     Operator,
     OptionsSource,
     RelativePeriod,
@@ -78,6 +79,7 @@ class ReportFieldResponse(_FromView):
     type: FieldType
     formats: list[Format]
     default_format: Format | None
+    unit: NumberUnit | None
     operators: list[Operator]
     aggregates: list[Aggregate]
     default_aggregate: Aggregate | None

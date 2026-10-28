@@ -8,7 +8,14 @@ from typing import TYPE_CHECKING
 import pytest
 
 from app.domain.report.catalog import FIELD_CATALOG, find_field
-from app.domain.report.vocabulary import Aggregate, Entity, FieldType, Format, Operator
+from app.domain.report.vocabulary import (
+    Aggregate,
+    Entity,
+    FieldType,
+    Format,
+    NumberUnit,
+    Operator,
+)
 
 if TYPE_CHECKING:
     from app.domain.report.fields import FieldSpec
@@ -61,13 +68,7 @@ ALLOWED_FORMATS = {
     FieldType.TEXT: set(),
     FieldType.CODE: set(),
     FieldType.USER: set(),
-    FieldType.NUMBER: {
-        Format.THOUSANDS,
-        Format.KRW_THOUSAND,
-        Format.KRW_MILLION,
-        Format.DECIMAL1,
-        Format.PERCENT_SHARE,
-    },
+    FieldType.NUMBER: set(),
     FieldType.DATE: {
         Format.YMD,
         Format.YEAR,
@@ -141,13 +142,46 @@ def test_each_field_allows_only_its_type_formats_operators_and_aggregates(
     assert set(spec.aggregates) <= expected
 
 
-def test_amount_defaults_to_krw_thousand_and_sum() -> None:
+def test_amount_is_thousand_won_and_sums_by_default() -> None:
     amount = find_field("deal.amount")
 
     assert amount is not None
-    assert amount.default_format == Format.KRW_THOUSAND
+    assert amount.unit == NumberUnit.KRW_THOUSAND
     assert amount.default_aggregate == Aggregate.SUM
+    assert amount.label == "금액"
     assert amount.deal_number is True
+
+
+@pytest.mark.parametrize("key", ["deal.amount", "deal.users", "deal.status_days", "action.count"])
+def test_number_fields_have_no_formats(key: str) -> None:
+    spec = find_field(key)
+
+    assert spec is not None
+    assert spec.type == FieldType.NUMBER
+    assert spec.formats == ()
+    assert spec.default_format is None
+
+
+def test_only_amount_has_a_unit() -> None:
+    with_unit = [f.key for f in FIELD_CATALOG if f.unit is not None]
+
+    assert with_unit == ["deal.amount"]
+
+
+def test_format_has_only_date_formats() -> None:
+    assert [f.value for f in Format] == [
+        "ymd",
+        "ymd_hm",
+        "year",
+        "quarter",
+        "month",
+        "weekday",
+        "relative",
+    ]
+
+
+def test_number_unit_has_only_krw_thousand() -> None:
+    assert [u.value for u in NumberUnit] == ["krw_thousand"]
 
 
 def test_status_days_defaults_to_average_and_is_a_deal_number() -> None:
@@ -225,7 +259,7 @@ def test_format_vocabulary_has_no_legacy_values(name: str) -> None:
 
     assert name not in {f.value for f in Format}
     assert set(FORMAT_LABELS) == set(Format)
-    assert len(Format) == 12
+    assert len(Format) == 7
 
 
 def test_affects_query_is_date_buckets_only() -> None:

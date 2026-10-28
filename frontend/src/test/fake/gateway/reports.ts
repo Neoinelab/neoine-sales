@@ -204,6 +204,7 @@ function synthesize(ctx: MockContext, catalog: ReportCatalog, input: ReportQuery
       type: field.type,
       valueType: valueTypeOf(field, column, aggregate),
       format: column.format ?? field.defaultFormat,
+      unit: field.unit,
       prefixLength: column.prefixLength ?? null,
       group: column.group,
       aggregate,

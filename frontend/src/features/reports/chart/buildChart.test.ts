@@ -11,15 +11,15 @@ import { buildChart } from './buildChart'
  * 데이터 레이블은 options.plugins.datalabels.formatter(value, { dataIndex, datasetIndex, dataset }).
  */
 
-const CTX = { now: '2026-10-27T09:00:00+09:00', today: '2026-10-27', totals: null }
+const CTX = { now: '2026-10-27T09:00:00+09:00', today: '2026-10-27' }
 const COLORS = ['#94a3b8', '#60a5fa', '#34d399', '#fbbf24', '#f472b6']
 
 const VENDOR = resultColumn({ index: 0, field: 'deal.vendor', label: 'Vendor', type: 'code', valueType: 'text', format: null, group: true })
 const STATUS = resultColumn({ index: 1, field: 'deal.status', label: 'Status', type: 'code', valueType: 'text', format: null, group: true })
-const amount = (index: number, format: 'krw_thousand' | 'krw_million' = 'krw_thousand') =>
-  resultColumn({ index, field: 'deal.amount', label: '금액 합계', type: 'number', valueType: 'integer', format, aggregate: 'sum' })
+const amount = (index: number, aggregate: 'sum' | 'avg' | 'count' = 'sum') =>
+  resultColumn({ index, field: 'deal.amount', label: '금액 합계', type: 'number', valueType: 'integer', format: null, unit: 'krw_thousand', aggregate })
 const users = (index: number) =>
-  resultColumn({ index, field: 'deal.users', label: 'Users', type: 'number', valueType: 'integer', format: 'thousands', aggregate: 'sum' })
+  resultColumn({ index, field: 'deal.users', label: 'Users', type: 'number', valueType: 'integer', format: null, unit: null, aggregate: 'sum' })
 
 /** 그룹 1개 + 금액 + Users. 마지막 Vendor는 값이 없다. */
 const ONE: ReportResult = resultOf({
@@ -336,16 +336,42 @@ describe('buildChart: title, legend, labels, axes and range', () => {
 })
 
 describe('buildChart: units (AC15)', () => {
-  it('divides won by 1,000 for the thousand format and by 1,000,000 for the million format', () => {
-    const thousand = build(chart(), ONE)
-    const million = build(chart(), resultOf({ columns: [VENDOR, amount(1, 'krw_million')], rows: [['Silverfort', 3_000_000], ['Okta', 1_500_000]] }))
-
-    expect(dataOf(thousand)).toEqual([3000, 1500, 500])
-    expect(dataOf(million)).toEqual([3, 1.5])
+  it('divides amount-unit values by 1,000 (AC-6)', () => {
+    expect(dataOf(build(chart(), ONE))).toEqual([3000, 1500, 500])
   })
 
-  it('leaves values of other formats as they are', () => {
+  it('does not divide an amount column that is only counted', () => {
+    const counted = resultOf({ columns: [VENDOR, amount(1, 'count')], rows: [['Silverfort', 7], ['Okta', 3]] })
+
+    expect(dataOf(build(chart(), counted))).toEqual([7, 3])
+  })
+
+  it('leaves values of columns without a unit as they are', () => {
     expect(dataOf(build(chart({ values: [2] }), ONE))).toEqual([30, 10, 5])
+  })
+
+  it('writes the amount tooltip in rounded thousand won', () => {
+    const odd = resultOf({ columns: [VENDOR, amount(1)], rows: [['Silverfort', 123_456_789]] })
+    const b = build(chart(), odd)
+    const tooltip = get(b.options, 'plugins', 'tooltip', 'callbacks', 'label') as (c: unknown) => string
+
+    const tip = tooltip({ dataset: b.data.datasets[0], datasetIndex: 0, dataIndex: 0, raw: 123_456.789, parsed: { x: 0, y: 123_456.789 }, label: 'Silverfort' })
+
+    expect(tip).toContain('123,457')
+  })
+
+  it('writes the Users tooltip as a rounded whole number (AC-7)', () => {
+    const avg = resultOf({
+      columns: [VENDOR, resultColumn({ index: 1, field: 'deal.users', label: 'Users', type: 'number', valueType: 'decimal', format: null, unit: null, aggregate: 'avg' })],
+      rows: [['Silverfort', 2.5]],
+    })
+    const b = build(chart(), avg)
+    const tooltip = get(b.options, 'plugins', 'tooltip', 'callbacks', 'label') as (c: unknown) => string
+
+    const tip = tooltip({ dataset: b.data.datasets[0], datasetIndex: 0, dataIndex: 0, raw: 2.5, parsed: { x: 0, y: 2.5 }, label: 'Silverfort' })
+
+    expect(tip).toContain('3')
+    expect(tip).not.toContain('2.5')
   })
 
   it('writes the tooltip with the same text as the table cell', () => {

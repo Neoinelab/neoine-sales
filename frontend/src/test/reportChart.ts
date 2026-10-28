@@ -24,9 +24,9 @@ import '../features/reports/chart/ChartTab'
 export const VENDOR_COL = resultColumn({ index: 0, field: 'deal.vendor', label: 'Vendor', type: 'code', valueType: 'text', format: null, group: true })
 export const STATUS_COL = resultColumn({ index: 1, field: 'deal.status', label: 'Status', type: 'code', valueType: 'text', format: null, group: true })
 export const amountCol = (index: number): ReportResultColumn =>
-  resultColumn({ index, field: 'deal.amount', label: '금액(원)', type: 'number', valueType: 'integer', format: 'krw_thousand', aggregate: 'sum' })
+  resultColumn({ index, field: 'deal.amount', label: '금액', type: 'number', valueType: 'integer', format: null, unit: 'krw_thousand', aggregate: 'sum' })
 export const usersCol = (index: number): ReportResultColumn =>
-  resultColumn({ index, field: 'deal.users', label: 'Users', type: 'number', valueType: 'integer', format: 'thousands', aggregate: 'sum' })
+  resultColumn({ index, field: 'deal.users', label: 'Users', type: 'number', valueType: 'integer', format: null, unit: null, aggregate: 'sum' })
 
 /** Vendor 그룹 + 금액 + Users. 마지막 행의 Vendor는 비어 있다. */
 export const ONE_GROUP_RESULT: ReportResult = resultOf({
@@ -63,7 +63,7 @@ export async function openGroupedDesigner(groups: 1 | 2): Promise<Designer> {
     await user.click(chipButton(1))
     await user.click(within(settingsOf('Status')).getByRole('checkbox', { name: '그룹핑' }))
   }
-  await addColumn(user, '금액(원)')
+  await addColumn(user, '금액')
   await addColumn(user, 'Users')
   answerWith(groups === 1 ? ONE_GROUP_RESULT : TWO_GROUP_RESULT)
   await runQuery(user)

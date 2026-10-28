@@ -34,6 +34,7 @@ LEGACY = {
         {"field": "deal.status", "format": "key"},
         {"field": "deal.code", "format": "prefix", "prefix_length": 7},
         {"field": "deal.amount", "format": "thousands"},
+        {"field": "deal.amount", "format": "percent_share", "aggregate": "sum"},
     ],
     "conditions": [],
     "combine": "and",
@@ -72,8 +73,8 @@ async def test_legacy_definition_row_is_read_in_new_shape(case: SavedReportCase)
 
     assert stored.definition is not None
     columns = stored.definition.columns
-    assert [c.format for c in columns] == [None, None, None, None, "thousands"]
-    assert [c.prefix_length for c in columns] == [None, None, None, 7, None]
+    assert [c.format for c in columns] == [None] * 6
+    assert [c.prefix_length for c in columns] == [None, None, None, 7, None, None]
 
 
 async def test_updating_a_legacy_report_stores_the_new_shape(case: SavedReportCase) -> None:
@@ -93,7 +94,7 @@ async def test_updating_a_legacy_report_stores_the_new_shape(case: SavedReportCa
         text("select definition from reports where id = :id"), {"id": report_id}
     )
     columns = row.scalar_one()["columns"]
-    assert [c["format"] for c in columns] == [None, None, None, None, "thousands"]
+    assert [c["format"] for c in columns] == [None] * 6
     assert columns[3]["prefix_length"] == 7
 
 

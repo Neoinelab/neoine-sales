@@ -58,6 +58,7 @@ export function resultColumn(over: Partial<ReportResultColumn> = {}): ReportResu
     type: 'text',
     valueType: 'text',
     format: null,
+    unit: null,
     prefixLength: null,
     group: false,
     aggregate: null,
@@ -85,12 +86,12 @@ export function resultOf(over: Partial<ReportResult> = {}): ReportResult {
   }
 }
 
-/** Vendor별 금액 합계(그룹 1 + 합계 1) 결과. 합계 행·구성비 확인용. */
+/** Vendor별 금액 합계(그룹 1 + 합계 1) 결과. 합계 행 확인용. */
 export function groupedAmountResult(rows: ReportCell[][], totals: ReportCell[] | null): ReportResult {
   return resultOf({
     columns: [
       resultColumn({ index: 0, field: 'deal.vendor', label: 'Vendor', type: 'code', format: null, group: true }),
-      resultColumn({ index: 1, field: 'deal.amount', label: '금액 합계', type: 'number', valueType: 'integer', format: 'krw_thousand', aggregate: 'sum' }),
+      resultColumn({ index: 1, field: 'deal.amount', label: '금액 합계', type: 'number', valueType: 'integer', format: null, unit: 'krw_thousand', aggregate: 'sum' }),
     ],
     rows,
     totals,

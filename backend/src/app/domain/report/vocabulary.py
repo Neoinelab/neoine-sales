@@ -39,11 +39,6 @@ class OptionsSource(StrEnum):
 
 
 class Format(StrEnum):
-    THOUSANDS = "thousands"
-    KRW_THOUSAND = "krw_thousand"
-    KRW_MILLION = "krw_million"
-    DECIMAL1 = "decimal1"
-    PERCENT_SHARE = "percent_share"
     YMD = "ymd"
     YMD_HM = "ymd_hm"
     YEAR = "year"
@@ -59,6 +54,12 @@ class Format(StrEnum):
 
 
 _QUERY_FORMATS = frozenset({Format.YMD, Format.YEAR, Format.QUARTER, Format.MONTH})
+
+
+class NumberUnit(StrEnum):
+    """숫자 값의 표시 단위. 값은 원 단위 그대로 주고 화면이 이 단위로 나눠 보인다."""
+
+    KRW_THOUSAND = "krw_thousand"
 
 
 class Operator(StrEnum):
@@ -133,18 +134,12 @@ ROW_LIMITS = (100, 1000, 10000)
 DEFAULT_ROW_LIMIT = 1000
 STATEMENT_TIMEOUT_SECONDS = 10
 
-# ---- 형식별 허용표 (포맷 없는 형식은 빈 튜플·기본 None. 숫자는 필드가 기본을 따로 정한다) ----
+# ---- 형식별 허용표 (포맷 없는 형식은 빈 튜플·기본 None) ----
 TYPE_FORMATS: dict[FieldType, tuple[Format, ...]] = {
     FieldType.TEXT: (),
     FieldType.CODE: (),
     FieldType.USER: (),
-    FieldType.NUMBER: (
-        Format.THOUSANDS,
-        Format.KRW_THOUSAND,
-        Format.KRW_MILLION,
-        Format.DECIMAL1,
-        Format.PERCENT_SHARE,
-    ),
+    FieldType.NUMBER: (),
     FieldType.DATE: (
         Format.YMD,
         Format.YEAR,
@@ -201,7 +196,7 @@ TYPE_DEFAULT_FORMAT: dict[FieldType, Format | None] = {
     FieldType.TEXT: None,
     FieldType.CODE: None,
     FieldType.USER: None,
-    FieldType.NUMBER: Format.THOUSANDS,
+    FieldType.NUMBER: None,
     FieldType.DATE: Format.YMD,
     FieldType.DATETIME: Format.YMD_HM,
 }

@@ -15,7 +15,7 @@ describe('필드 목록 (AC3)', () => {
     const action = screen.getByRole('group', { name: 'Deal Actions' })
     expect(within(deal).getAllByRole('button', { name: /컬럼에 추가$/ })).toHaveLength(28)
     expect(within(action).getAllByRole('button', { name: /컬럼에 추가$/ })).toHaveLength(12)
-    expect(within(deal).getByRole('button', { name: '금액(원) 컬럼에 추가' })).toBeVisible()
+    expect(within(deal).getByRole('button', { name: '금액 컬럼에 추가' })).toBeVisible()
     expect(within(action).getByRole('button', { name: 'Action 건수 컬럼에 추가' })).toBeVisible()
 
     await user.type(screen.getByLabelText('필드 검색'), 'VENDOR')
@@ -36,7 +36,7 @@ describe('필드 목록 (AC3)', () => {
     ['Deal code', '텍스트'],
     ['Vendor', '코드'],
     ['담당자', '사용자'],
-    ['금액(원)', '숫자'],
+    ['금액', '숫자'],
     ['Expected Close', '날짜'],
     ['등록일', '시각'],
   ])('shows the kind of %s as %s', async (label, kind) => {

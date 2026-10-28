@@ -56,7 +56,7 @@ describe('데이터 범위 표시 (AC9)', () => {
   it('shows exists and deal numbers once notes', async () => {
     const { user } = await openDesigner()
     await addColumn(user, 'Action 유형')
-    await addColumn(user, '금액(원)')
+    await addColumn(user, '금액')
     expect(scope()).not.toHaveTextContent('한 번만 더합니다')
 
     await user.click(chipButton(0))
@@ -65,7 +65,7 @@ describe('데이터 범위 표시 (AC9)', () => {
     expect(scope()).toHaveTextContent('Deal 숫자(금액 등)는 Deal마다 한 번만 더합니다')
 
     await user.click(chipButton(1))
-    await user.selectOptions(within(settingsOf('금액(원)')).getByRole('combobox', { name: '집계' }), 'min')
+    await user.selectOptions(within(settingsOf('금액')).getByRole('combobox', { name: '집계' }), 'min')
 
     expect(scope()).not.toHaveTextContent('한 번만 더합니다')
   })

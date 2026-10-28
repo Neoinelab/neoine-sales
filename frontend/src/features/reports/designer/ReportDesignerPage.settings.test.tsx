@@ -17,16 +17,16 @@ describe('집계 선택 (AC6)', () => {
   it('enables aggregates when a group exists and offers only count kinds for text', async () => {
     const { user } = await openDesigner()
     await addColumn(user, 'Vendor')
-    await addColumn(user, '금액(원)')
+    await addColumn(user, '금액')
     await addColumn(user, 'Deal code')
 
-    const before = await open(user, 1, '금액(원)')
+    const before = await open(user, 1, '금액')
     expect(within(before).getByRole('combobox', { name: '집계' })).toBeDisabled()
     expect(within(before).getByText('(그룹핑이 있을 때)')).toBeVisible()
 
     await user.click(within(await open(user, 0, 'Vendor')).getByRole('checkbox', { name: '그룹핑' }))
 
-    const amount = within(await open(user, 1, '금액(원)')).getByRole('combobox', { name: '집계' })
+    const amount = within(await open(user, 1, '금액')).getByRole('combobox', { name: '집계' })
     expect(amount).toBeEnabled()
     expect(amount).toHaveDisplayValue('합계')
     expect(optionTexts(amount)).toEqual(['합계', '평균', '최소', '최대'])
@@ -59,35 +59,35 @@ describe('집계 선택 (AC6)', () => {
   it('shows a dash in the disabled aggregate of a group column and keeps numbers on sum', async () => {
     const { user } = await openDesigner()
     await addColumn(user, 'Vendor')
-    await addColumn(user, '금액(원)')
+    await addColumn(user, '금액')
     await user.click(within(await open(user, 0, 'Vendor')).getByRole('checkbox', { name: '그룹핑' }))
 
     const group = within(await open(user, 0, 'Vendor')).getByRole('combobox', { name: '집계' })
 
     expect(group).toBeDisabled()
     expect(group).toHaveDisplayValue('—')
-    expect(within(await open(user, 1, '금액(원)')).getByRole('combobox', { name: '집계' })).toHaveDisplayValue('합계')
+    expect(within(await open(user, 1, '금액')).getByRole('combobox', { name: '집계' })).toHaveDisplayValue('합계')
   })
 
   it('lets the user pick another aggregate and clears it when the group is turned off', async () => {
     const { user } = await openDesigner()
     await addColumn(user, 'Vendor')
-    await addColumn(user, '금액(원)')
+    await addColumn(user, '금액')
     await user.click(within(await open(user, 0, 'Vendor')).getByRole('checkbox', { name: '그룹핑' }))
 
-    await user.selectOptions(within(await open(user, 1, '금액(원)')).getByRole('combobox', { name: '집계' }), 'max')
+    await user.selectOptions(within(await open(user, 1, '금액')).getByRole('combobox', { name: '집계' }), 'max')
     expect(chipTexts()[1]).toContain('최대')
 
     await user.click(within(await open(user, 0, 'Vendor')).getByRole('checkbox', { name: '그룹핑' }))
 
-    expect(within(await open(user, 1, '금액(원)')).getByRole('combobox', { name: '집계' })).toBeDisabled()
+    expect(within(await open(user, 1, '금액')).getByRole('combobox', { name: '집계' })).toBeDisabled()
     expect(chipTexts()[1]).not.toContain('최대')
   })
 
   it('shows group and aggregate badges on chips', async () => {
     const { user } = await openDesigner()
     await addColumn(user, 'Vendor')
-    await addColumn(user, '금액(원)')
+    await addColumn(user, '금액')
     await addColumn(user, 'Status 체류 일수')
     await user.click(within(await open(user, 0, 'Vendor')).getByRole('checkbox', { name: '그룹핑' }))
 
@@ -98,17 +98,16 @@ describe('집계 선택 (AC6)', () => {
     expect(days).toContain('평균')
   })
 
-  it('shows the name of a format that is not the default as a badge', async () => {
+  it('shows the name of a date format that is not the default as a badge and none for numbers (AC-8)', async () => {
     const { user } = await openDesigner()
-    await addColumn(user, '금액(원)')
+    await addColumn(user, '금액')
     await addColumn(user, 'Expected Close')
     expect(chipTexts()[0]).not.toContain('천원')
 
-    await user.selectOptions(within(await open(user, 0, '금액(원)')).getByRole('combobox', { name: '포맷' }), 'krw_million')
     await user.selectOptions(within(await open(user, 1, 'Expected Close')).getByRole('combobox', { name: '포맷' }), 'quarter')
 
-    expect(chipTexts()[0]).toContain('백만원')
     expect(chipTexts()[1]).toContain('분기')
+    for (const unit of ['천원', '백만원', '천 단위', '소수 1자리', '구성비']) expect(chipTexts()[0]).not.toContain(unit)
   })
 
   it('locks grouping and the aggregate of action count', async () => {
@@ -132,7 +131,7 @@ describe('포맷·표시 이름 (AC6)', () => {
     const { user } = await openDesigner()
     await addColumn(user, 'Deal code')
     await addColumn(user, 'Vendor')
-    await addColumn(user, '금액(원)')
+    await addColumn(user, '금액')
     await addColumn(user, 'Expected Close')
     await addColumn(user, '등록일')
 
@@ -143,18 +142,21 @@ describe('포맷·표시 이름 (AC6)', () => {
 
     expect(await hasFormat(0, 'Deal code')).toBe(false)
     expect(await hasFormat(1, 'Vendor')).toBe(false)
-    expect(plain(await formats(2, '금액(원)'))).toEqual(['천 단위 구분', '천원', '백만원', '소수 1자리', '구성비(%)'])
+    expect(await hasFormat(2, '금액')).toBe(false)
     expect(plain(await formats(3, 'Expected Close'))).toEqual(['연-월-일', '연도', '분기', '월', '요일', '상대 시각'])
     expect(plain(await formats(4, '등록일'))).toEqual(['연-월-일 시:분', '연-월-일', '연도', '분기', '월', '요일', '상대 시각'])
   })
 
-  it('shows no format choice for text, code and user fields', async () => {
+  it('shows no format choice for text, code, user and number fields (AC-8)', async () => {
     const { user } = await openDesigner()
     await addColumn(user, 'Deal 이름')
     await addColumn(user, 'Status')
     await addColumn(user, '담당자')
+    await addColumn(user, '금액')
+    await addColumn(user, 'Users')
+    await addColumn(user, 'Status 체류 일수')
 
-    for (const [index, name] of [[0, 'Deal 이름'], [1, 'Status'], [2, '담당자']] as const) {
+    for (const [index, name] of [[0, 'Deal 이름'], [1, 'Status'], [2, '담당자'], [3, '금액'], [4, 'Users'], [5, 'Status 체류 일수']] as const) {
       expect(within(await open(user, index, name)).queryByRole('combobox', { name: '포맷' })).not.toBeInTheDocument()
     }
   })
@@ -171,10 +173,10 @@ describe('포맷·표시 이름 (AC6)', () => {
   it('offers the prefix option on every field with N locked until it is turned on', async () => {
     const { user } = await openDesigner()
     await addColumn(user, 'Deal 이름')
-    await addColumn(user, '금액(원)')
+    await addColumn(user, '금액')
     await addColumn(user, 'Expected Close')
 
-    for (const [index, name] of [[0, 'Deal 이름'], [1, '금액(원)'], [2, 'Expected Close']] as const) {
+    for (const [index, name] of [[0, 'Deal 이름'], [1, '금액'], [2, 'Expected Close']] as const) {
       const panel = await open(user, index, name)
       expect(within(panel).getByRole('checkbox', { name: '앞 N자만 보기' })).not.toBeChecked()
       expect(within(panel).getByLabelText('앞 N자의 N')).toBeDisabled()
@@ -227,8 +229,8 @@ describe('포맷·표시 이름 (AC6)', () => {
 
   it('shows the typed display name on the chip and falls back to the field name when cleared', async () => {
     const { user } = await openDesigner()
-    await addColumn(user, '금액(원)')
-    const input = within(await open(user, 0, '금액(원)')).getByRole('textbox', { name: '표시 이름' })
+    await addColumn(user, '금액')
+    const input = within(await open(user, 0, '금액')).getByRole('textbox', { name: '표시 이름' })
 
     expect(input).toHaveAttribute('maxLength', '100')
 
@@ -239,17 +241,18 @@ describe('포맷·표시 이름 (AC6)', () => {
 
     await user.clear(screen.getByRole('textbox', { name: '표시 이름' }))
 
-    expect(chipTexts()[0]).toContain('금액(원)')
+    expect(chipTexts()[0]).toContain('금액')
   })
 
-  it('explains that the share is calculated only for grouped sums and counts', async () => {
+  it('has no share hint on any column (AC-8)', async () => {
     const { user } = await openDesigner()
-    await addColumn(user, '금액(원)')
-    const panel = await open(user, 0, '금액(원)')
-    expect(screen.queryByText(/구성비는 그룹핑한 결과의 합계·건수에서만 계산됩니다/)).not.toBeInTheDocument()
+    await addColumn(user, '금액')
+    await addColumn(user, 'Expected Close')
+    await open(user, 0, '금액')
+    expect(screen.queryByText(/구성비/)).not.toBeInTheDocument()
 
-    await user.selectOptions(within(panel).getByRole('combobox', { name: '포맷' }), 'percent_share')
+    await open(user, 1, 'Expected Close')
 
-    expect(screen.getByText(/구성비는 그룹핑한 결과의 합계·건수에서만 계산됩니다/)).toBeVisible()
+    expect(screen.queryByText(/구성비/)).not.toBeInTheDocument()
   })
 })

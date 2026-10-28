@@ -1,10 +1,9 @@
 import type { ReportCell, ReportChartInput, ReportResult, ReportResultColumn } from '../../../shared/model/reportTypes'
-import { columnHeader, formatCell, formatShownCell, isNumericColumn, type FormatContext } from '../designer/format/formatCell'
+import { columnHeader, formatCell, formatShownCell, isNumericColumn, isThousandWonColumn, type FormatContext } from '../designer/format/formatCell'
 import { kindRule } from './chartKinds'
 
 const NONE_LABEL = '(없음)'
 const THOUSAND = 1000
-const MILLION = 1_000_000
 
 /** 차트 칸 하나: 결과 셀 원본, 그 열, 차트에 쓰는 값(단위 변환 뒤). 값이 없으면 null. */
 export interface PivotCell {
@@ -37,10 +36,9 @@ export interface ChartColumns {
   values: ReportResultColumn[]
 }
 
-/** 값 = 셀 값. 천원 포맷은 ÷1,000, 백만원 포맷은 ÷1,000,000, 그 밖은 그대로. */
+/** 값 = 셀 값. 천원 단위 열(금액)은 ÷1,000, 그 밖은 그대로. */
 export function unitDivisor(column: ReportResultColumn): number {
-  if (column.format === 'krw_thousand') return THOUSAND
-  return column.format === 'krw_million' ? MILLION : 1
+  return isThousandWonColumn(column) ? THOUSAND : 1
 }
 
 export function cellOf(raw: ReportCell, column: ReportResultColumn): PivotCell {

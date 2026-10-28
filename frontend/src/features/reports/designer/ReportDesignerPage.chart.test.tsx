@@ -98,7 +98,7 @@ describe('그룹핑 없는 결과 안내 (AC11)', () => {
       await user.click(chipButton(['Vendor', 'Status', 'Forecast'].indexOf(label)))
       await user.click(within(settingsOf(label)).getByRole('checkbox', { name: '그룹핑' }))
     }
-    await addColumn(user, '금액(원)')
+    await addColumn(user, '금액')
     answerWith(
       resultOf({
         columns: [

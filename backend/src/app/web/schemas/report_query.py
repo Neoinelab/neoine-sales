@@ -12,7 +12,14 @@ from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictStr
 from app.domain.common.business_date import business_time
 from app.domain.report.definition import ActionFilter, RowScope
 from app.domain.report.raw import RawColumn, RawCondition, RawReportDefinition
-from app.domain.report.vocabulary import Aggregate, Entity, FieldType, Format, ResultValueType
+from app.domain.report.vocabulary import (
+    Aggregate,
+    Entity,
+    FieldType,
+    Format,
+    NumberUnit,
+    ResultValueType,
+)
 from app.web.schemas.common import RequestModel
 
 if TYPE_CHECKING:
@@ -62,6 +69,7 @@ class ReportResultColumn(BaseModel):
     type: FieldType
     value_type: ResultValueType
     format: Format | None
+    unit: NumberUnit | None
     prefix_length: int | None
     group: bool
     aggregate: Aggregate | None

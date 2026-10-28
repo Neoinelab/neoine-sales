@@ -10,7 +10,7 @@ from app.domain.report.fields import (
     text_field,
     user_field,
 )
-from app.domain.report.vocabulary import Aggregate, Format, OptionsSource
+from app.domain.report.vocabulary import Aggregate, NumberUnit, OptionsSource
 
 _BANT = [
     ("budget", "BANT Budget"),
@@ -57,7 +57,7 @@ DEAL_FIELDS: tuple[FieldSpec, ...] = (
         "경고",
         CodeSource.static(("overdue", "기한초과"), ("stale", "미업데이트")),
     ),
-    number_field("deal.amount", "금액(원)", default_format=Format.KRW_THOUSAND),
+    number_field("deal.amount", "금액", unit=NumberUnit.KRW_THOUSAND),
     number_field("deal.users", "Users"),
     number_field("deal.status_days", "Status 체류 일수", default_aggregate=Aggregate.AVG),
     date_field("deal.expected_close", "Expected Close"),

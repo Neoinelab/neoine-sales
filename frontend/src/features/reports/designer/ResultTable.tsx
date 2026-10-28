@@ -16,7 +16,7 @@ interface ResultTableProps {
 export function ResultTable({ result, showTotals }: ResultTableProps) {
   const { now, today } = useToday()
   const [offset, setOffset] = useState(0)
-  const ctx = { now, today, totals: result.totals }
+  const ctx = { now, today }
   const firstGroup = result.columns.findIndex((c) => c.group)
   const page = result.rows.slice(offset, offset + PAGE_SIZE)
   const totals = showTotals ? result.totals : null

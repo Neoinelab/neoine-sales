@@ -179,7 +179,7 @@ describe('조건 값 입력 (AC7)', () => {
 
   it('asks for the amount in thousand won', async () => {
     const { user } = await openDesigner()
-    await addCondition(user, '금액(원)')
+    await addCondition(user, '금액')
 
     expect(screen.getAllByText(/\(천원\)/).length).toBeGreaterThan(0)
 
@@ -188,6 +188,14 @@ describe('조건 값 입력 (AC7)', () => {
     expect(screen.getByRole('textbox', { name: '조건 1 시작' })).toBeVisible()
     expect(screen.getByRole('textbox', { name: '조건 1 끝' })).toBeVisible()
     expect(screen.getAllByText(/\(천원\)/).length).toBeGreaterThan(0)
+  })
+
+  it('does not ask for thousand won on Users or days (AC-9)', async () => {
+    const { user } = await openDesigner()
+    await addCondition(user, 'Users')
+    await addCondition(user, 'Status 체류 일수')
+
+    expect(screen.queryByText(/\(천원\)/)).not.toBeInTheDocument()
   })
 
   it('does not keep an old value when the field changes to another kind', async () => {

@@ -18,7 +18,7 @@ const CANNED: ReportResult = {
   actionFilter: 'none',
   dealNumbersOnce: false,
   columns: [
-    { index: 0, field: 'deal.code', label: 'Deal code', entity: 'deal', type: 'text', valueType: 'text', format: null, prefixLength: null, group: false, aggregate: null },
+    { index: 0, field: 'deal.code', label: 'Deal code', entity: 'deal', type: 'text', valueType: 'text', format: null, unit: null, prefixLength: null, group: false, aggregate: null },
   ],
   rows: [['20261016-0001']],
   totals: null,
@@ -104,11 +104,12 @@ describe('reports Fake', () => {
       ...CODE_ONLY,
       columns: [
         { field: 'deal.vendor', group: true },
-        { field: 'deal.amount', format: 'krw_thousand', group: false },
+        { field: 'deal.amount', group: false },
       ],
     })
 
-    expect(result.columns[1]).toMatchObject({ aggregate: 'sum', valueType: 'integer' })
+    expect(result.columns[1]).toMatchObject({ aggregate: 'sum', valueType: 'integer', format: null, unit: 'krw_thousand' })
+    expect(result.columns[0]?.unit).toBeNull()
     expect(result.totals).toEqual([null, 6000])
   })
 
@@ -119,7 +120,7 @@ describe('reports Fake', () => {
       ...CODE_ONLY,
       columns: [
         { field: 'action.type', group: true },
-        { field: 'deal.amount', format: 'krw_thousand', group: false },
+        { field: 'deal.amount', group: false },
       ],
     })
 

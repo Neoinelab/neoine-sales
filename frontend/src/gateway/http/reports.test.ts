@@ -26,18 +26,19 @@ function serverCatalog() {
       { key: 'deal', label: 'Deal' },
       { key: 'action', label: 'Deal Actions' },
     ],
-    formats: [{ key: 'krw_thousand', label: '천원', affects_query: false }],
+    formats: [{ key: 'quarter', label: '분기', affects_query: true }],
     operators: [{ key: 'between', label: '범위', value: 'range' }],
     aggregates: [{ key: 'sum', label: '합계' }],
     relative_periods: [{ key: 'last_n_days', label: '최근 N일', needs_days: true }],
     fields: [
       {
         key: 'deal.amount',
-        label: '금액(원)',
+        label: '금액',
         entity: 'deal',
         type: 'number',
-        formats: ['thousands', 'krw_thousand'],
-        default_format: 'krw_thousand',
+        formats: [],
+        default_format: null,
+        unit: 'krw_thousand',
         operators: ['eq', 'between'],
         aggregates: ['sum', 'avg'],
         default_aggregate: 'sum',
@@ -57,6 +58,7 @@ function serverCatalog() {
         type: 'code',
         formats: [],
         default_format: null,
+        unit: null,
         operators: ['in', 'not_in', 'is_empty'],
         aggregates: ['count', 'count_distinct'],
         default_aggregate: null,
@@ -74,8 +76,8 @@ function serverCatalog() {
 }
 
 const SERVER_COLUMNS = [
-  { index: 0, field: 'deal.vendor', label: 'Vendor', entity: 'deal', type: 'code', value_type: 'text', format: null, prefix_length: null, group: true, aggregate: null },
-  { index: 1, field: 'deal.amount', label: '금액 합계', entity: 'deal', type: 'number', value_type: 'integer', format: 'krw_thousand', prefix_length: null, group: false, aggregate: 'sum' },
+  { index: 0, field: 'deal.vendor', label: 'Vendor', entity: 'deal', type: 'code', value_type: 'text', format: null, unit: null, prefix_length: null, group: true, aggregate: null },
+  { index: 1, field: 'deal.amount', label: '금액 합계', entity: 'deal', type: 'number', value_type: 'integer', format: null, unit: 'krw_thousand', prefix_length: null, group: false, aggregate: 'sum' },
 ]
 
 function serverResult(over: Record<string, unknown> = {}) {
@@ -137,7 +139,7 @@ describe('reports.fields over HTTP', () => {
       { key: 'deal', label: 'Deal' },
       { key: 'action', label: 'Deal Actions' },
     ])
-    expect(catalog.formats).toEqual([{ key: 'krw_thousand', label: '천원', affectsQuery: false }])
+    expect(catalog.formats).toEqual([{ key: 'quarter', label: '분기', affectsQuery: true }])
     expect(catalog.operators).toEqual([{ key: 'between', label: '범위', shape: 'range' }])
     expect(catalog.aggregates).toEqual([{ key: 'sum', label: '합계' }])
     expect(catalog.relativePeriods).toEqual([{ key: 'last_n_days', label: '최근 N일', needsDays: true }])
@@ -150,11 +152,12 @@ describe('reports.fields over HTTP', () => {
 
     expect(fields[0]).toEqual({
       key: 'deal.amount',
-      label: '금액(원)',
+      label: '금액',
       entity: 'deal',
       type: 'number',
-      formats: ['thousands', 'krw_thousand'],
-      defaultFormat: 'krw_thousand',
+      formats: [],
+      defaultFormat: null,
+      unit: 'krw_thousand',
       operators: ['eq', 'between'],
       aggregates: ['sum', 'avg'],
       defaultAggregate: 'sum',
@@ -260,11 +263,20 @@ describe('reports.query over HTTP', () => {
       entity: 'deal',
       type: 'number',
       valueType: 'integer',
-      format: 'krw_thousand',
+      format: null,
+      unit: 'krw_thousand',
       prefixLength: null,
       group: false,
       aggregate: 'sum',
     })
+  })
+
+  it('maps the unit of a result column and keeps it null for other columns', async () => {
+    stubFetch(json(serverResult()))
+
+    const result = await createReportsHttp().query(REQUEST)
+
+    expect(result.columns.map((c) => c.unit)).toEqual([null, 'krw_thousand'])
   })
 
   it('keeps a null format and the prefix length of a result column', async () => {
@@ -291,21 +303,21 @@ describe('reports.query over HTTP', () => {
     const mapped = await createReportsHttp().fields()
 
     const risk = mapped.fields.find((f) => f.key === 'deal.risk')
-    expect(risk).toMatchObject({ formats: [], defaultFormat: null })
+    expect(risk).toMatchObject({ formats: [], defaultFormat: null, unit: null })
   })
 
   it('sends a format only when the design has one', async () => {
     const { calls } = stubFetch(json(serverResult()))
 
     await createReportsHttp().query({
-      columns: [{ field: 'deal.amount', format: 'krw_million', group: false }, { field: 'deal.name', group: false }],
+      columns: [{ field: 'deal.expected_close', format: 'quarter', group: false }, { field: 'deal.name', group: false }],
       conditions: [],
       combine: 'and',
       rowLimit: 100,
     })
 
     const body = calls[0]?.body as { columns: Record<string, unknown>[] }
-    expect(body.columns[0]).toEqual({ field: 'deal.amount', format: 'krw_million', group: false })
+    expect(body.columns[0]).toEqual({ field: 'deal.expected_close', format: 'quarter', group: false })
     expect('format' in (body.columns[1] ?? {})).toBe(false)
   })
 

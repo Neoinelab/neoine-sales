@@ -512,9 +512,16 @@ async def test_delete_removes_a_broken_report() -> None:
 # ---- 예전 포맷 요청은 거절 (2026-10-28) ----
 
 
-@pytest.mark.parametrize("legacy", ["as_is", "prefix", "name", "key"])
-async def test_create_and_update_with_legacy_format_are_rejected(legacy: str) -> None:
-    definition = {"columns": [{"field": "deal.name", "format": legacy}]}
+@pytest.mark.parametrize(
+    ("field", "legacy"),
+    [("deal.name", x) for x in ["as_is", "prefix", "name", "key"]]
+    + [
+        ("deal.amount", x)
+        for x in ["thousands", "krw_thousand", "krw_million", "decimal1", "percent_share"]
+    ],
+)
+async def test_create_and_update_with_legacy_format_are_rejected(field: str, legacy: str) -> None:
+    definition = {"columns": [{"field": field, "format": legacy}]}
     async with clients(FakeUseCases(), {"alice": Role.SALES}) as c:
         made = await create(c["alice"])
         created = await c["alice"].post(URL, json=create_body("새것", definition=definition))

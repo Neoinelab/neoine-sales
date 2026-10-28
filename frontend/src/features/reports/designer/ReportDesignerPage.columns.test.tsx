@@ -23,19 +23,19 @@ describe('컬럼 칩 (AC4)', () => {
     const { user } = await openDesigner()
 
     await addColumn(user, 'Deal code')
-    await addColumn(user, '금액(원)')
-    await addColumn(user, '금액(원)')
+    await addColumn(user, '금액')
+    await addColumn(user, '금액')
 
     expect(chipItems()).toHaveLength(3)
-    expect(chipTexts()[1]).toContain('금액(원)')
-    expect(chipTexts()[2]).toContain('금액(원)')
-    expect(screen.getAllByRole('button', { name: '금액(원) 빼기' })).toHaveLength(2)
+    expect(chipTexts()[1]).toContain('금액')
+    expect(chipTexts()[2]).toContain('금액')
+    expect(screen.getAllByRole('button', { name: '금액 빼기' })).toHaveLength(2)
 
-    await user.click(screen.getAllByRole('button', { name: '금액(원) 빼기' })[0] as HTMLElement)
+    await user.click(screen.getAllByRole('button', { name: '금액 빼기' })[0] as HTMLElement)
 
     expect(chipItems()).toHaveLength(2)
     expect(chipTexts()[0]).toContain('Deal code')
-    expect(chipTexts()[1]).toContain('금액(원)')
+    expect(chipTexts()[1]).toContain('금액')
   })
 
   it('selects the chip it just added and moves the selection with a click', async () => {

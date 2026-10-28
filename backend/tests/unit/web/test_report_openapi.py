@@ -42,20 +42,7 @@ def test_timeout_message_takes_its_seconds_from_the_domain_constant() -> None:
 # ---- 포맷 정리 (2026-10-28) ----
 
 COMMITTED = Path(__file__).resolve().parents[3] / "openapi.json"
-TWELVE_FORMATS = [
-    "thousands",
-    "krw_thousand",
-    "krw_million",
-    "decimal1",
-    "percent_share",
-    "ymd",
-    "ymd_hm",
-    "year",
-    "quarter",
-    "month",
-    "weekday",
-    "relative",
-]
+SEVEN_FORMATS = ["ymd", "ymd_hm", "year", "quarter", "month", "weekday", "relative"]
 
 
 def _nullable_format_ref(node: dict[str, Any]) -> bool:
@@ -65,13 +52,33 @@ def _nullable_format_ref(node: dict[str, Any]) -> bool:
 
 
 @pytest.mark.parametrize("source", ["app", "committed"])
-def test_format_schema_is_nullable_with_twelve_values(source: str) -> None:
+def test_format_schema_is_nullable_with_seven_date_values(source: str) -> None:
     spec = _spec() if source == "app" else json.loads(COMMITTED.read_text(encoding="utf-8"))
     schemas = spec["components"]["schemas"]
 
-    assert schemas["Format"]["enum"] == TWELVE_FORMATS
+    assert schemas["Format"]["enum"] == SEVEN_FORMATS
     assert _nullable_format_ref(schemas["ReportResultColumn"]["properties"]["format"])
     assert _nullable_format_ref(schemas["ReportFieldResponse"]["properties"]["default_format"])
+
+
+def _nullable_unit_ref(node: dict[str, Any]) -> bool:
+    options = node.get("anyOf", [])
+    refs = [o.get("$ref") for o in options]
+    return "#/components/schemas/NumberUnit" in refs and {"type": "null"} in options
+
+
+@pytest.mark.parametrize("source", ["app", "committed"])
+def test_unit_schema_is_a_nullable_number_unit_on_fields_and_result_columns(
+    source: str,
+) -> None:
+    spec = _spec() if source == "app" else json.loads(COMMITTED.read_text(encoding="utf-8"))
+    schemas = spec["components"]["schemas"]
+
+    assert schemas["NumberUnit"]["enum"] == ["krw_thousand"]
+    assert _nullable_unit_ref(schemas["ReportFieldResponse"]["properties"]["unit"])
+    assert _nullable_unit_ref(schemas["ReportResultColumn"]["properties"]["unit"])
+    assert "unit" in schemas["ReportFieldResponse"]["required"]
+    assert "unit" in schemas["ReportResultColumn"]["required"]
 
 
 def test_report_openapi_has_column_sort_and_no_top_level_sort() -> None:

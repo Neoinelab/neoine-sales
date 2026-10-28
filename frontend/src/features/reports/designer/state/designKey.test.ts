@@ -9,7 +9,7 @@ import { fromReportRequest } from './fromRequest'
 const SAVED: ReportQueryInput = {
   columns: [
     { field: 'deal.vendor', group: true },
-    { field: 'deal.amount', format: 'krw_thousand', group: false, aggregate: 'sum', sort: 'desc' },
+    { field: 'deal.amount', group: false, aggregate: 'sum', sort: 'desc' },
   ],
   conditions: [{ field: 'deal.amount', operator: 'gte', value: 1_500_000 }],
   combine: 'and',

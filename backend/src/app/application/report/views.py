@@ -13,6 +13,7 @@ if TYPE_CHECKING:
         Entity,
         FieldType,
         Format,
+        NumberUnit,
         Operator,
         RelativePeriod,
         ResultValueType,
@@ -90,6 +91,7 @@ class ReportColumnView:
     prefix_length: int | None
     group: bool
     aggregate: Aggregate | None
+    unit: NumberUnit | None
 
     @classmethod
     def of(cls, index: int, column: ReportColumn) -> ReportColumnView:
@@ -104,6 +106,7 @@ class ReportColumnView:
             prefix_length=column.prefix_length,
             group=column.group,
             aggregate=column.aggregate,
+            unit=column.field.unit,
         )
 
 

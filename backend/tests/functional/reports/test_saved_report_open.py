@@ -256,6 +256,55 @@ async def test_saved_report_with_legacy_formats_opens_in_new_shape(api: Api) -> 
     assert [c["format"] for c in response.json()["columns"]] == [None, None, None, None]
 
 
+NUMBER_DEFINITION = {
+    "columns": [
+        {"field": "deal.vendor", "group": True},
+        {"field": "deal.amount", "aggregate": "sum"},
+        {"field": "deal.users", "aggregate": "sum"},
+        {"field": "deal.code", "aggregate": "count"},
+    ],
+    "row_limit": 100,
+}
+LEGACY_NUMBER_DEFINITION = {
+    "columns": [
+        {"field": "deal.vendor", "group": True},
+        {"field": "deal.amount", "aggregate": "sum", "format": "percent_share"},
+        {"field": "deal.users", "aggregate": "sum", "format": "krw_million"},
+        {"field": "deal.code", "aggregate": "count", "format": "decimal1"},
+    ],
+    "conditions": [],
+    "combine": "and",
+    "sort": None,
+    "row_limit": 100,
+}
+
+
+async def test_saved_report_with_legacy_number_formats_opens_without_format(api: Api) -> None:
+    """Scenario: 예전 숫자 포맷(구성비 등)의 리포트는 포맷 없이 열리고 값은 합계 그대로다."""
+    # Given
+    await given_today_is(api, TODAY)
+    sap = await given_vendor(api, "SAP")
+    owner = await given_sales_user(api, "kim")
+    await given_dashboard_deal(api, owner=owner, amount=100, day="2026-02-14", vendor_id=sap.id)
+    await given_dashboard_deal(api, owner=owner, amount=200, day="2026-03-14", vendor_id=sap.id)
+    await given_users(api, alice="sales")
+    await given_logged_in(api, "alice")
+    saved = await given_saved_report(api, "예전 숫자 포맷", definition=NUMBER_DEFINITION)
+    await given_stored_definition_uses_legacy_formats(api, saved["id"], LEGACY_NUMBER_DEFINITION)
+    # When
+    detail = await when_get_report(api, saved["id"])
+    response = await when_run_saved_report(api, saved["id"])
+    # Then
+    then_status_is(detail, 200)
+    columns = detail.json()["definition"]["columns"]
+    assert [c["format"] for c in columns] == [None, None, None, None]
+    then_status_is(response, 200)
+    body = response.json()
+    assert [c["format"] for c in body["columns"]] == [None, None, None, None]
+    assert [c["unit"] for c in body["columns"]] == [None, "krw_thousand", None, None]
+    assert body["rows"][0][:2] == ["SAP", 300]  # 구성비가 아니라 그룹의 금액 합계(원)
+
+
 LEGACY_SORT_DEFINITION = {
     "columns": [
         {"field": "deal.name"},

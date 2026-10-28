@@ -55,14 +55,14 @@ describe('조회 요청 (AC11)', () => {
   it('sends the designed request and shows the result table', async () => {
     const { user } = await openDesigner()
     await addColumn(user, 'Vendor')
-    await addColumn(user, '금액(원)')
+    await addColumn(user, '금액')
     await user.click(chipButton(0))
     await user.click(within(settingsOf('Vendor')).getByRole('checkbox', { name: '그룹핑' }))
     await addCondition(user, 'Vendor')
     await user.click(screen.getByRole('button', { name: /^조건 1 값/ }))
     await user.click(within(screen.getByRole('group', { name: '조건 1 값' })).getByRole('checkbox', { name: 'Silverfort' }))
     await user.click(chipButton(1))
-    await user.selectOptions(within(settingsOf('금액(원)')).getByRole('combobox', { name: '정렬' }), 'desc')
+    await user.selectOptions(within(settingsOf('금액')).getByRole('combobox', { name: '정렬' }), 'desc')
 
     await runQuery(user)
 
@@ -71,7 +71,7 @@ describe('조회 요청 (AC11)', () => {
       {
         columns: [
           { field: 'deal.vendor', group: true },
-          { field: 'deal.amount', format: 'krw_thousand', group: false, aggregate: 'sum', sort: 'desc' },
+          { field: 'deal.amount', group: false, aggregate: 'sum', sort: 'desc' },
         ],
         conditions: [{ field: 'deal.vendor', operator: 'in', value: [seedVendorId('Silverfort')] }],
         combine: 'and',
@@ -197,7 +197,7 @@ describe('조회 요청 (AC11)', () => {
   it('names the thousand won unit and the empty list in the input messages', async () => {
     const { user } = await openDesigner()
     await addColumn(user, 'Deal code')
-    await addCondition(user, '금액(원)')
+    await addCondition(user, '금액')
     await addCondition(user, 'Vendor')
     await user.type(screen.getByRole('textbox', { name: '조건 1 값' }), 'abc')
 
@@ -266,22 +266,19 @@ describe('결과 표 (AC12)', () => {
     expect(tableTexts()).toEqual([['2026-04-01 00:30', '3일 전']])
   })
 
-  it('toggles the totals row only for grouped results and shows percent share', async () => {
+  it('toggles the totals row only for grouped results and shows amounts in thousand won (AC-6)', async () => {
     const result = groupedAmountResult(
       [
-        ['A', 1000],
-        ['B', 3000],
+        ['A', 1_000_000],
+        ['B', 3_000_000],
       ],
-      [null, 4000],
+      [null, 4_000_000],
     )
-    const { user } = await openAndRun(
-      { ...result, columns: result.columns.map((c) => (c.index === 1 ? { ...c, format: 'percent_share' as const } : c)) },
-      'Vendor',
-    )
+    const { user } = await openAndRun(result, 'Vendor')
 
     expect(tableTexts()).toEqual([
-      ['A', '25.0%'],
-      ['B', '75.0%'],
+      ['A', '1,000'],
+      ['B', '3,000'],
     ])
     const toggle = screen.getByRole('checkbox', { name: '합계 행' })
     expect(toggle).not.toBeChecked()
@@ -289,15 +286,35 @@ describe('결과 표 (AC12)', () => {
     await user.click(toggle)
 
     expect(tableTexts()).toEqual([
-      ['A', '25.0%'],
-      ['B', '75.0%'],
-      ['합계', '100.0%'],
+      ['A', '1,000'],
+      ['B', '3,000'],
+      ['합계', '4,000'],
     ])
     expect(within(resultTable()).getAllByRole('row').at(-1)?.closest('tfoot')).not.toBeNull()
 
     await user.click(toggle)
 
     expect(tableTexts()).toHaveLength(2)
+  })
+
+  it('shows the thousand won unit in the header of an amount column only', async () => {
+    await openAndRun(groupedAmountResult([['A', 1_000_000]], [null, 1_000_000]), 'Vendor')
+
+    const headers = within(resultTable()).getAllByRole('columnheader').map((h) => h.textContent)
+
+    expect(headers[0]).toContain('Vendor')
+    expect(headers[1]).toMatch(/금액 합계\s?\(천원\)/)
+  })
+
+  it('rounds an amount total to thousand won and keeps no share or decimal formats', async () => {
+    const result = groupedAmountResult([['A', 123_456_789]], [null, 123_456_789])
+    const { user } = await openAndRun(result, 'Vendor')
+    await user.click(screen.getByRole('checkbox', { name: '합계 행' }))
+
+    expect(tableTexts()).toEqual([
+      ['A', '123,457'],
+      ['합계', '123,457'],
+    ])
   })
 
   it('has no totals checkbox when the result has no totals', async () => {
@@ -322,7 +339,7 @@ describe('결과 표 (AC12)', () => {
     const result = resultOf({
       columns: [
         resultColumn({ index: 0, field: 'deal.vendor', label: 'Vendor', type: 'code', group: true, prefixLength: 3 }),
-        resultColumn({ index: 1, field: 'deal.amount', label: 'Users 합계', type: 'number', valueType: 'integer', format: 'thousands', aggregate: 'sum', prefixLength: 3 }),
+        resultColumn({ index: 1, field: 'deal.users', label: 'Users 합계', type: 'number', valueType: 'integer', format: null, unit: null, aggregate: 'sum', prefixLength: 3 }),
       ],
       rows: [['ABCDEF', 1_234_567]],
       totals: [null, 1_234_567],

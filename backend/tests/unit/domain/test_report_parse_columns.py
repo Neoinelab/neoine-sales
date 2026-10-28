@@ -21,6 +21,22 @@ def test_number_field_rejects_quarter_format() -> None:
     assert found == [(("columns", 0, "format"), "format-not-allowed")]
 
 
+@pytest.mark.parametrize(
+    "legacy", ["thousands", "krw_thousand", "krw_million", "decimal1", "percent_share"]
+)
+def test_legacy_number_format_is_not_allowed(legacy: str) -> None:
+    from app.domain.report.errors import ReportDefinitionError  # noqa: PLC0415
+    from app.domain.report.parse import parse_report_definition  # noqa: PLC0415
+    from tests.support.report_defs import raw  # noqa: PLC0415
+
+    with pytest.raises(ReportDefinitionError) as caught:
+        parse_report_definition(raw([col("deal.amount", format=legacy)]))
+
+    (issue,) = caught.value.issues
+    assert (tuple(issue.location), issue.code) == (("columns", 0, "format"), "format-not-allowed")
+    assert issue.message == "이 필드는 포맷을 고를 수 없습니다"
+
+
 def test_date_field_rejects_ymd_hm_but_datetime_field_accepts_it() -> None:
     assert issues([col("deal.expected_close", format="ymd_hm")]) == [
         (("columns", 0, "format"), "format-not-allowed")
@@ -28,7 +44,7 @@ def test_date_field_rejects_ymd_hm_but_datetime_field_accepts_it() -> None:
     assert parse([col("deal.created_at", format="ymd_hm")]).columns[0].format == Format.YMD_HM
 
 
-def test_omitted_format_is_none_for_text_code_user_and_default_otherwise() -> None:
+def test_omitted_format_is_none_for_non_date_and_default_for_date() -> None:
     columns = parse(
         [
             col("deal.name"),
@@ -44,7 +60,7 @@ def test_omitted_format_is_none_for_text_code_user_and_default_otherwise() -> No
         None,
         None,
         None,
-        Format.KRW_THOUSAND,
+        None,
         Format.YMD,
         Format.YMD_HM,
     ]
