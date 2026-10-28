@@ -92,7 +92,7 @@ export function ColumnSettings({ column, field, catalog, hasGroup, messages, onP
           onChange={(e) => onPatch({ aggregate: e.target.value === '' ? null : (e.target.value as ReportAggregate) })}
           {...own(['aggregate'])}
         >
-          {column.aggregate === null && <option value="">{aggregateOn ? '집계 선택' : '—'}</option>}
+          {column.aggregate === null && !aggregateOn && <option value="">—</option>}
           {choices.map((key) => (
             <option key={key} value={key}>
               {label(catalog, key)}

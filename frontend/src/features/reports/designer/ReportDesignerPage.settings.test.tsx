@@ -33,8 +33,40 @@ describe('집계 선택 (AC6)', () => {
 
     const code = within(await open(user, 2, 'Deal code')).getByRole('combobox', { name: '집계' })
     expect(code).toBeEnabled()
-    expect(code).toHaveDisplayValue('집계 선택')
-    expect(optionTexts(code)).toEqual(['집계 선택', '건수', '고유 건수'])
+    expect(code).toHaveDisplayValue('건수')
+    expect(optionTexts(code)).toEqual(['건수', '고유 건수'])
+    expect(within(code).queryByRole('option', { name: '' })).not.toBeInTheDocument()
+    expect(screen.queryByText('집계 선택')).not.toBeInTheDocument()
+  })
+
+  it('counts a text column picked later while grouped and never shows an empty aggregate option', async () => {
+    const { user } = await openDesigner()
+    await addColumn(user, 'Vendor')
+    await user.click(within(await open(user, 0, 'Vendor')).getByRole('checkbox', { name: '그룹핑' }))
+    await addColumn(user, 'Deal 이름')
+
+    const name = within(await open(user, 1, 'Deal 이름')).getByRole('combobox', { name: '집계' })
+
+    expect(name).toBeEnabled()
+    expect(name).toHaveDisplayValue('건수')
+    expect(chipTexts()[1]).toContain('건수')
+    expect(screen.queryByText('집계 선택')).not.toBeInTheDocument()
+    for (const select of screen.getAllByRole('combobox', { name: '집계' })) {
+      expect(within(select).queryByRole('option', { name: '' })).not.toBeInTheDocument()
+    }
+  })
+
+  it('shows a dash in the disabled aggregate of a group column and keeps numbers on sum', async () => {
+    const { user } = await openDesigner()
+    await addColumn(user, 'Vendor')
+    await addColumn(user, '금액(원)')
+    await user.click(within(await open(user, 0, 'Vendor')).getByRole('checkbox', { name: '그룹핑' }))
+
+    const group = within(await open(user, 0, 'Vendor')).getByRole('combobox', { name: '집계' })
+
+    expect(group).toBeDisabled()
+    expect(group).toHaveDisplayValue('—')
+    expect(within(await open(user, 1, '금액(원)')).getByRole('combobox', { name: '집계' })).toHaveDisplayValue('합계')
   })
 
   it('lets the user pick another aggregate and clears it when the group is turned off', async () => {

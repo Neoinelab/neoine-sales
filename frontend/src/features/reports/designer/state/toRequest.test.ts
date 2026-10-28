@@ -92,7 +92,7 @@ describe('toReportRequest column rules (AC11)', () => {
 
     const { columns } = build(state).request
 
-    expect(columns.map((c) => c.aggregate)).toEqual([undefined, 'avg', undefined])
+    expect(columns.map((c) => c.aggregate)).toEqual([undefined, 'avg', 'count'])
     expect('aggregate' in (columns[0] ?? {})).toBe(false)
   })
 })

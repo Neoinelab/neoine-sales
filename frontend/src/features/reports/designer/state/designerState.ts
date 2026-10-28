@@ -9,7 +9,7 @@ import type {
   ReportSortDirection,
 } from '../../../../shared/model/reportTypes'
 import { normalizeForKind, reconcileChart, type ChartDraft } from '../../chart/chartDraft'
-import { fieldByKey } from './columnRules'
+import { fieldByKey, groupedDefaultAggregate } from './columnRules'
 import { emptyDraft, type ConditionDraft } from './conditionDraft'
 
 export type { ConditionDraft } from './conditionDraft'
@@ -101,14 +101,15 @@ const hasGroup = (columns: readonly DesignerColumn[]): boolean => columns.some((
 
 /**
  * 그룹 컬럼 유무가 바뀐 뒤 집계를 맞춘다. 그룹이 없으면 모든 집계를 비우고,
- * 그룹이 있으면 집계가 비어 있는 비그룹 컬럼에 필드의 기본 집계를 채운다(숫자 합계·평균, Action 건수. 텍스트는 비워 둔다).
+ * 그룹이 있으면 집계가 비어 있는 비그룹 컬럼에 필드의 기본 집계(숫자 합계·평균, Action 건수)를, 없으면 건수(또는 첫 선택지)를 채운다. 빈 집계는 그룹핑 중에 남지 않는다.
  */
 function reconcileAggregates(columns: DesignerColumn[], catalog: ReportCatalog): DesignerColumn[] {
   const grouped = hasGroup(columns)
   return columns.map((column) => {
     if (column.group || !grouped) return column.aggregate === null ? column : { ...column, aggregate: null }
     if (column.aggregate !== null) return column
-    const fallback = fieldByKey(catalog, column.field)?.defaultAggregate ?? null
+    const field = fieldByKey(catalog, column.field)
+    const fallback = field ? groupedDefaultAggregate(field) : null
     return fallback === null ? column : { ...column, aggregate: fallback }
   })
 }
@@ -122,7 +123,7 @@ function newColumn(uid: number, field: ReportField, grouped: boolean): DesignerC
     prefixOn: false,
     prefixLength: null,
     group: false,
-    aggregate: grouped ? field.defaultAggregate : null,
+    aggregate: grouped ? groupedDefaultAggregate(field) : null,
     sort: null,
   }
 }

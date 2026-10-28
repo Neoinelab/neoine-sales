@@ -4,14 +4,14 @@ import { columnAt, conditionUidAt, emptyDesign, fieldOf, reduce, REPORT_CATALOG,
 import { aggregateChoices, filterableFields } from './columnRules'
 
 describe('grouping transitions (AC6)', () => {
-  it('turning on the first group fills number defaults and leaves text empty', () => {
+  it('turning on the first group fills number defaults and counts text columns', () => {
     const state = withColumns('deal.vendor', 'deal.code', 'deal.amount', 'deal.status_days', 'action.count')
 
     const grouped = reduce(state, { type: 'updateColumn', uid: uidAt(state, 0), patch: { group: true } })
 
     expect(grouped.columns.map((c) => [c.field, c.group, c.aggregate])).toEqual([
       ['deal.vendor', true, null],
-      ['deal.code', false, null],
+      ['deal.code', false, 'count'],
       ['deal.amount', false, 'sum'],
       ['deal.status_days', false, 'avg'],
       ['action.count', false, 'count'],
@@ -49,7 +49,7 @@ describe('grouping transitions (AC6)', () => {
     expect(columnAt(regrouped, 1)).toMatchObject({ group: true, aggregate: null })
   })
 
-  it('gives a column added later the default aggregate only when a group exists', () => {
+  it('gives a column added later an aggregate (default or count) only when a group exists', () => {
     const flat = withColumns('deal.vendor')
     const grouped = reduce(flat, { type: 'updateColumn', uid: uidAt(flat, 0), patch: { group: true } })
 
@@ -58,8 +58,35 @@ describe('grouping transitions (AC6)', () => {
     const ungrouped = reduce(flat, { type: 'addColumn', field: fieldOf('deal.amount') })
 
     expect(columnAt(withNumber, 1).aggregate).toBe('sum')
-    expect(columnAt(withText, 1).aggregate).toBeNull()
+    expect(columnAt(withText, 1).aggregate).toBe('count')
     expect(columnAt(ungrouped, 1).aggregate).toBeNull()
+  })
+
+  it('counts a text column when another group remains after one group is turned off', () => {
+    const state = withColumns('deal.vendor', 'deal.status', 'deal.name')
+    const both = reduce(
+      state,
+      { type: 'updateColumn', uid: uidAt(state, 0), patch: { group: true } },
+      { type: 'updateColumn', uid: uidAt(state, 1), patch: { group: true } },
+    )
+
+    const one = reduce(both, { type: 'updateColumn', uid: uidAt(both, 0), patch: { group: false } })
+
+    expect(columnAt(one, 0)).toMatchObject({ group: false, aggregate: 'count' })
+    expect(columnAt(one, 2).aggregate).toBe('count')
+  })
+
+  it('counts a text column that was ungrouped while a group exists', () => {
+    const state = withColumns('deal.vendor', 'deal.status')
+    const grouped = reduce(
+      state,
+      { type: 'updateColumn', uid: uidAt(state, 0), patch: { group: true } },
+      { type: 'updateColumn', uid: uidAt(state, 1), patch: { group: true } },
+    )
+
+    const ungrouped = reduce(grouped, { type: 'updateColumn', uid: uidAt(grouped, 1), patch: { group: false } })
+
+    expect(columnAt(ungrouped, 1)).toMatchObject({ group: false, aggregate: 'count' })
   })
 
   it('keeps an aggregate the user picked', () => {

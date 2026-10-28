@@ -29,3 +29,10 @@ export function fieldByKey(catalog: ReportCatalog, key: string): ReportField | u
 export function isMoneyField(field: ReportField): boolean {
   return field.type === 'number' && field.defaultFormat === 'krw_thousand'
 }
+
+/** 그룹핑 리포트에서 비그룹 컬럼에 처음 채우는 집계: 기본 집계, 없으면 건수, 건수가 없으면 첫 선택지. */
+export function groupedDefaultAggregate(field: ReportField): ReportAggregate | null {
+  if (field.defaultAggregate !== null) return field.defaultAggregate
+  const choices = aggregateChoices(field)
+  return choices.includes('count') ? 'count' : (choices[0] ?? null)
+}

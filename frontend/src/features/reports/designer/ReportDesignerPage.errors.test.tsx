@@ -9,6 +9,7 @@ import {
   addCondition,
   chipButton,
   chipItems,
+  lastQuery,
   openDesigner,
   runQuery,
   settingsOf,
@@ -113,7 +114,21 @@ describe('정의 위반 표시 (AC13)', () => {
     expect(chipItems()[0]).not.toHaveClass('is-invalid')
   })
 
-  it('shows the server aggregate-required issue from the fake rules', async () => {
+  it('shows an aggregate-required issue the server returns next to the chip and setting', async () => {
+    const { user } = await openDesigner()
+    await addColumn(user, 'Vendor')
+    await addColumn(user, 'Deal code')
+    failWith(issue(['columns', 1, 'aggregate'], '집계를 골라야 합니다 서버 문구', 'aggregate-required'))
+
+    await runQuery(user)
+
+    const summary = await screen.findByRole('alert')
+    expect(summary).toHaveTextContent('고칠 곳 1개')
+    expect(summary).toHaveTextContent('집계를 골라야 합니다 서버 문구')
+    expect(chipItems()[1]).toHaveClass('is-invalid')
+  })
+
+  it('sends count for a text column when grouping and runs without an aggregate-required issue', async () => {
     const { user } = await openDesigner()
     await addColumn(user, 'Vendor')
     await addColumn(user, 'Deal code')
@@ -122,17 +137,12 @@ describe('정의 위반 표시 (AC13)', () => {
 
     await runQuery(user)
 
-    const summary = await screen.findByRole('alert')
-    expect(summary).toHaveTextContent('고칠 곳 1개')
-    expect(summary).toHaveTextContent('그룹핑할 때 이 컬럼은 집계(건수 또는 고유 건수)를 골라야 합니다. 그룹핑하거나 빼세요')
-    expect(chipItems()[1]).toHaveClass('is-invalid')
-
-    await user.click(chipButton(1))
-    await user.selectOptions(within(settingsOf('Deal code')).getByRole('combobox', { name: '집계' }), 'count')
-    await runQuery(user)
-
     expect(await screen.findByRole('table', { name: '조회 결과' })).toBeVisible()
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(lastQuery().columns).toEqual([
+      { field: 'deal.vendor', group: true },
+      { field: 'deal.code', group: false, aggregate: 'count' },
+    ])
   })
 
   it('shows the server issue of a count column without grouping', async () => {

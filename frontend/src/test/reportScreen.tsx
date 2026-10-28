@@ -149,8 +149,7 @@ export async function typeName(user: UserEvent, dialog: HTMLElement, name: strin
 
 /**
  * 필드를 컬럼에 추가하고 집계를 '건수'로 고른다.
- * 그룹핑 중인 설계에 텍스트 필드를 더하면 집계가 없어 서버가 aggregate-required로 거절하므로(2단계 계약),
- * 조회가 성공하는 설계 변경이 필요한 테스트에서 쓴다.
+ * 그룹핑이 없는 설계에서도 집계 칸이 건수로 명시되도록 하는 헬퍼(그룹핑 중이면 이미 건수라 값이 같다).
  */
 export async function addCountedColumn(user: UserEvent, label: string): Promise<void> {
   await addColumn(user, label)
