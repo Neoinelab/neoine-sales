@@ -2,21 +2,29 @@ import { useCallback, useId, useRef, useState } from 'react'
 import { reportRunFailure, useRunReport } from '../../../data/reports'
 import type { ReportCatalog, ReportIssue, ReportResult, ReportRunFailure } from '../../../shared/model/reportTypes'
 import { columnName } from './names'
-import type { SummaryItem } from './ResultCard'
+import type { SummaryItem } from './RunFailure'
 import { fieldByKey } from './state/columnRules'
 import { sameDesign, type DesignerAction, type DesignerState } from './state/designerState'
 import { buildIssueView, EMPTY_ISSUE_VIEW, type IssueView } from './state/issueView'
 import { issueAnchors, visibleIssues, type AnchoredIssue, type IssueTarget } from './state/issues'
 import { toReportRequest, type InputIssue } from './state/toRequest'
 
-/** 마지막으로 보낸 조회: 요청 index → uid 대응(위반 위치 매핑)과 그때의 설계, 결과 또는 실패. */
-interface LastRun {
+/** 보낸 조회: 요청 index → uid 대응(위반 위치 매핑)과 그때의 설계. */
+interface Attempt {
   id: number
   columnUids: number[]
   conditionUids: number[]
   requestState: DesignerState
-  result?: ReportResult
-  failure?: ReportRunFailure
+}
+
+/** 마지막으로 성공한 조회와 그 결과. 뒤의 조회가 실패해도 지워지지 않는다(결과 탭에 이전 결과가 남는다). */
+interface LastOk extends Attempt {
+  result: ReportResult
+}
+
+/** 마지막 조회가 실패했을 때의 실패와 위반 위치 매핑. 새 조회를 시작하거나 성공하면 사라진다. */
+interface LastFail extends Attempt {
+  failure: ReportRunFailure
 }
 
 /** 사용자가 고친 항목의 위반 표시를 지우기 위한 기록(uid는 컬럼·조건, kinds는 결합·정렬·최대 행 같은 항목). */
@@ -92,7 +100,8 @@ function whereOf(target: IssueTarget, state: DesignerState, catalog: ReportCatal
 }
 
 export interface DesignerRun {
-  run: () => Promise<void>
+  /** 조회한다. 성공하면 'ok', 입력 문제·서버 거절·시간 초과 같은 실패는 'failed'(결과 탭으로 옮길지는 부른 쪽이 정한다). */
+  run: () => Promise<'ok' | 'failed'>
   running: boolean
   /** 설계 편집을 알려 해당 위반 표시를 지운다. */
   noteEdit: (action: DesignerAction) => void
@@ -119,51 +128,54 @@ export function useDesignerRun(state: DesignerState, catalog: ReportCatalog, see
   const idPrefix = useId()
   const seq = useRef(seed ? 1 : 0)
   // 저장 직후 이어 받은 결과가 있으면 그 설계로 이미 조회한 것으로 둔다.
-  const [lastRun, setLastRun] = useState<LastRun | null>(() =>
+  const [ok, setOk] = useState<LastOk | null>(() =>
     seed ? { id: 1, columnUids: state.columns.map((c) => c.uid), conditionUids: state.conditions.map((c) => c.uid), requestState: state, result: seed } : null,
   )
+  const [fail, setFail] = useState<LastFail | null>(null)
   const [inputIssues, setInputIssues] = useState<InputIssue[]>([])
   const [dismissed, setDismissed] = useState<Dismissed>(NOTHING)
 
-  const run = async () => {
+  const run = async (): Promise<'ok' | 'failed'> => {
     setDismissed(NOTHING)
     const built = toReportRequest(state, catalog)
     if ('inputIssues' in built) {
       setInputIssues(built.inputIssues)
-      return
+      return 'failed'
     }
     setInputIssues([])
-    // 새 조회를 시작하면 이전 실패 표시는 걷는다(이전 결과는 응답이 올 때까지 남긴다).
-    setLastRun((prev) => (prev?.failure ? null : prev))
+    // 새 조회를 시작하면 이전 실패 표시는 걷는다(이전 결과는 응답이 올 때까지, 실패해도 남긴다).
+    setFail(null)
     const base = { id: (seq.current += 1), columnUids: built.columnUids, conditionUids: built.conditionUids, requestState: state }
     try {
-      setLastRun({ ...base, result: await mutation.mutateAsync(built.request) })
+      setOk({ ...base, result: await mutation.mutateAsync(built.request) })
+      return 'ok'
     } catch (error) {
-      setLastRun({ ...base, failure: reportRunFailure(error) })
+      setFail({ ...base, failure: reportRunFailure(error) })
+      return 'failed'
     }
   }
 
   const noteEdit = useCallback((action: DesignerAction) => setDismissed((prev) => dismissFor(prev, action)), [])
   const showSaveIssues = (message: string, issues: ReportIssue[]) => {
     setDismissed(NOTHING)
-    setLastRun((prev) => ({
-      id: prev?.id ?? (seq.current += 1),
+    setFail({
+      id: ok?.id ?? (seq.current += 1),
       columnUids: state.columns.map((c) => c.uid),
       conditionUids: state.conditions.map((c) => c.uid),
       requestState: state,
-      ...(prev?.result ? { result: prev.result } : {}),
       failure: { kind: 'invalid', message, issues },
-    }))
+    })
   }
   const clear = useCallback(() => {
-    setLastRun(null)
+    setOk(null)
+    setFail(null)
     setInputIssues([])
     setDismissed(NOTHING)
   }, [])
 
   const live = { columnUids: state.columns.map((c) => c.uid), conditionUids: state.conditions.map((c) => c.uid) }
-  const failure = lastRun?.failure ?? null
-  const anchored: AnchoredIssue[] = failure?.kind === 'invalid' && lastRun ? issueAnchors(failure.issues, lastRun) : []
+  const failure = fail?.failure ?? null
+  const anchored: AnchoredIssue[] = fail && fail.failure.kind === 'invalid' ? issueAnchors(fail.failure.issues, fail) : []
   const visible = visibleIssues(anchored, live, dismissed.uids).filter((a) => !dismissed.kinds.has(a.target.kind))
   const shownInput = inputIssues.filter((i) => (live.conditionUids.includes(i.uid) || live.columnUids.includes(i.uid)) && !dismissed.uids.has(i.uid))
   const issues = visible.length > 0 || shownInput.length > 0 ? buildIssueView(visible, shownInput, idPrefix) : EMPTY_ISSUE_VIEW
@@ -178,11 +190,11 @@ export function useDesignerRun(state: DesignerState, catalog: ReportCatalog, see
       setDismissed(NOTHING)
       setInputIssues(list)
     },
-    result: lastRun?.result ?? null,
+    result: ok?.result ?? null,
     failure,
-    runId: lastRun?.id ?? 0,
-    resultColumnUids: lastRun?.columnUids ?? NO_UIDS,
-    stale: lastRun?.result !== undefined && !sameDesign(state, lastRun.requestState),
+    runId: ok?.id ?? 0,
+    resultColumnUids: ok?.columnUids ?? NO_UIDS,
+    stale: ok !== null && !sameDesign(state, ok.requestState),
     issues,
     summary: visible.map(({ issue, target }, i) => ({ key: `${i}`, where: whereOf(target, state, catalog), message: issue.message })),
   }

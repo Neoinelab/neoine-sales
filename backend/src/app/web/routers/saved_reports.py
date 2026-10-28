@@ -18,6 +18,7 @@ from app.web.schemas.saved_report import (
     ReportCopyRequest,
     ReportCreateRequest,
     ReportDetailResponse,
+    ReportLayoutUpdateRequest,
     ReportSummaryResponse,
     ReportUpdateRequest,
     report_user_ids,
@@ -79,6 +80,20 @@ async def update_report(
 ) -> ReportDetailResponse:
     report = await provider.update_report().execute(
         ReportId(report_id), body.to_input(), body.revision, _viewer(user)
+    )
+    return await _detail(provider, report)
+
+
+@router.put(
+    "/{report_id}/layout",
+    response_model=ReportDetailResponse,
+    responses={403: PROBLEM, 404: PROBLEM, **SAVE_ERRORS},
+)
+async def change_report_layout(
+    report_id: PathId, body: ReportLayoutUpdateRequest, user: CurrentUser, provider: Provider
+) -> ReportDetailResponse:
+    report = await provider.change_report_layout().execute(
+        ReportId(report_id), body.layout.to_raw(), body.revision, _viewer(user)
     )
     return await _detail(provider, report)
 

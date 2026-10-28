@@ -30,7 +30,8 @@ def make_report(
     **overrides: Any,  # noqa: ANN401 - 필드를 그대로 덮어쓴다
 ) -> Report:
     """저장하지 않은 Report. overrides: visibility('public'|'private'|ReportVisibility), editor,
-    definition, generated_sql, revision, description, now, report_id, chart, chart_unreadable.
+    definition, generated_sql, revision, description, now, report_id, chart, chart_unreadable,
+    layout(ReportLayout, 생략하면 기본 배치).
     """
     from app.domain.saved_report.entities import Report  # noqa: PLC0415 - 지연 import(모듈 설명)
     from app.domain.saved_report.values import ReportId, ReportVisibility  # noqa: PLC0415
@@ -38,8 +39,10 @@ def make_report(
 
     owner_id = owner if owner is not None else OWNER_ID
     now = overrides.pop("now", NOW)
-    # 차트 필드는 지정했을 때만 넘긴다(4단계 구현 전에도 차트와 무관한 테스트가 만들 수 있게)
-    chart_fields = {k: overrides.pop(k) for k in ("chart", "chart_unreadable") if k in overrides}
+    # 차트·배치 필드는 지정했을 때만 넘긴다(구현 전에도 그것과 무관한 테스트가 만들 수 있게)
+    chart_fields = {
+        k: overrides.pop(k) for k in ("chart", "chart_unreadable", "layout") if k in overrides
+    }
     return Report(
         id=overrides.pop("report_id", ReportId(new_id())),
         name=name,
@@ -72,14 +75,14 @@ def make_broken_report(
 
 def make_content(name: str = "새 이름", **overrides: Any) -> ReportContent:  # noqa: ANN401
     """덮어쓰기·생성 입력용 ReportContent(정규화가 끝난 값). overrides: description, visibility,
-    definition, generated_sql, chart.
+    definition, generated_sql, chart, layout(ReportLayout, 생략하면 None = 기본값·유지).
     """
     from app.domain.saved_report.values import (  # noqa: PLC0415
         ReportContent,
         ReportVisibility,
     )
 
-    chart_fields = {k: overrides.pop(k) for k in ("chart",) if k in overrides}
+    chart_fields = {k: overrides.pop(k) for k in ("chart", "layout") if k in overrides}
     return ReportContent(
         name=name,
         description=overrides.pop("description", ""),

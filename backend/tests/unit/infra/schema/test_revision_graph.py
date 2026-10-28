@@ -36,7 +36,8 @@ FORECAST_SNAPSHOTS_REVISION = "11bfe225caf5"  # Solution 자유 텍스트 리비
 
 
 SOLUTION_FREE_TEXT_REVISION = "d4b8f6a2c013"  # Reports 리비전의 down_revision다
-REPORTS_REVISION = "f1c6a8e2b904"  # 현재 단일 head
+REPORTS_REVISION = "f1c6a8e2b904"  # 배치 리비전의 down_revision이다
+REPORTS_LAYOUT_REVISION = "b7d2e9a4c156"  # 현재 단일 head
 
 
 def test_the_solution_text_revision_follows_the_forecast_snapshots() -> None:
@@ -49,10 +50,19 @@ def test_the_solution_text_revision_follows_the_forecast_snapshots() -> None:
     assert revision.down_revision == forecast_snapshots_revision() == FORECAST_SNAPSHOTS_REVISION
 
 
-def test_the_reports_revision_follows_the_solution_text_and_is_the_single_head() -> None:
+def test_the_reports_layout_revision_follows_the_reports_and_is_the_single_head() -> None:
     script = ScriptDirectory.from_config(_alembic_config())
 
-    assert script.get_heads() == [REPORTS_REVISION]
+    assert script.get_heads() == [REPORTS_LAYOUT_REVISION]
+    head = script.get_revision(REPORTS_LAYOUT_REVISION)
+    assert head is not None
+    assert head.down_revision == REPORTS_REVISION
+    assert head.path.endswith(f"20261028_{REPORTS_LAYOUT_REVISION}_reports_layout.py")
+
+
+def test_the_reports_revision_follows_the_solution_text() -> None:
+    script = ScriptDirectory.from_config(_alembic_config())
+
     head = script.get_revision(REPORTS_REVISION)
     assert head is not None
     assert head.down_revision == SOLUTION_FREE_TEXT_REVISION

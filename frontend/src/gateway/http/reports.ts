@@ -3,7 +3,7 @@ import { ApiError } from '../../shared/api/problem'
 import type { ReportIssue } from '../../shared/model/reportTypes'
 import type { ReportsGateway } from '../types'
 import { toChartBody } from './mappers/reportChart'
-import { toCatalog, toQueryBody, toResult, toSavedReport, toSummary } from './mappers/report'
+import { toCatalog, toLayoutBody, toQueryBody, toResult, toSavedReport, toSummary } from './mappers/report'
 import { malformedResponse, networkError, toApiError, unwrap } from './request'
 
 const INVALID_REPORT_KIND = 'invalid-report'
@@ -74,7 +74,7 @@ export function createReportsHttp(): ReportsGateway {
       toSavedReport(
         await sendBody(
           api.POST('/api/v1/reports', {
-            body: { name: input.name, description: input.description, visibility: input.visibility, definition: toQueryBody(input.definition), chart: input.chart ? toChartBody(input.chart) : null },
+            body: { name: input.name, description: input.description, visibility: input.visibility, definition: toQueryBody(input.definition), chart: input.chart ? toChartBody(input.chart) : null, layout: toLayoutBody(input.layout) },
           }),
         ),
       ),
@@ -89,6 +89,7 @@ export function createReportsHttp(): ReportsGateway {
               visibility: input.visibility,
               definition: toQueryBody(input.definition),
               chart: input.chart ? toChartBody(input.chart) : null,
+              layout: toLayoutBody(input.layout),
               revision: input.revision,
             },
           }),
@@ -106,6 +107,15 @@ export function createReportsHttp(): ReportsGateway {
     remove: async (id) => {
       await send(api.DELETE('/api/v1/reports/{report_id}', { params: { path: { report_id: id } } }))
     },
+    saveReportLayout: async (id, input) =>
+      toSavedReport(
+        await sendBody(
+          api.PUT('/api/v1/reports/{report_id}/layout', {
+            params: { path: { report_id: id } },
+            body: { layout: toLayoutBody(input.layout), revision: input.revision },
+          }),
+        ),
+      ),
     run: async (id) => toResult(await sendBody(api.POST('/api/v1/reports/{report_id}/run', { params: { path: { report_id: id } } }))),
   }
 }

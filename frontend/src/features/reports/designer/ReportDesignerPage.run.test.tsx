@@ -4,6 +4,7 @@ import type { ReportResult } from '../../../shared/model/reportTypes'
 import { mockControl } from '../../../test/fake/default'
 import { seedVendorId } from '../../../test/fixtures/vendors'
 import { groupedAmountResult, resultColumn, resultOf } from '../../../test/reportDesigner'
+import { showTab, STALE_NOTE } from '../../../test/reportLayout'
 import {
   addColumn,
   addCondition,
@@ -12,6 +13,7 @@ import {
   lastQuery,
   openAndRun,
   openDesigner,
+  rerun,
   resultTable,
   runButton,
   runQuery,
@@ -152,6 +154,7 @@ describe('조회 요청 (AC11)', () => {
     await runQuery(user)
 
     await screen.findByRole('table', { name: '조회 결과' })
+    await showTab(user, 'design')
     expect(chipTexts()[0]).not.toMatch(/[▲▼]/)
     expect(lastQuery().columns).toEqual([{ field: 'deal.code', group: false }])
   })
@@ -191,6 +194,7 @@ describe('조회 요청 (AC11)', () => {
 
     expect(await screen.findByRole('table', { name: '조회 결과' })).toBeVisible()
     expect(mockControl.reportQueries()).toHaveLength(1)
+    await showTab(user, 'design')
     expect(screen.getByRole('textbox', { name: '조건 1 값' })).not.toHaveAttribute('aria-invalid', 'true')
   })
 
@@ -222,6 +226,7 @@ describe('조회 요청 (AC11)', () => {
     release(resultOf())
 
     expect(await screen.findByRole('table', { name: '조회 결과' })).toBeVisible()
+    await showTab(user, 'design')
     expect(runButton()).toBeEnabled()
   })
 })
@@ -410,7 +415,7 @@ describe('다시 조회 (리뷰 후속)', () => {
     expect(tableTexts()[0]).toEqual(['행 201'])
 
     mockControl.setReportQueryHandler(() => resultOf({ rows: rowsOf(3, '새'), totalCount: 3 }))
-    await runQuery(user)
+    await rerun(user)
 
     await screen.findByText('새 1')
     expect(tableTexts()).toEqual([['새 1'], ['새 2'], ['새 3']])
@@ -422,7 +427,7 @@ describe('다시 조회 (리뷰 후속)', () => {
     await user.click(screen.getByRole('button', { name: '다음' }))
 
     mockControl.setReportQueryHandler(() => resultOf({ rows: rowsOf(250, '새'), totalCount: 250 }))
-    await runQuery(user)
+    await rerun(user)
 
     await screen.findByText('새 1')
     expect(tableTexts()[0]).toEqual(['새 1'])
@@ -436,7 +441,7 @@ describe('다시 조회 (리뷰 후속)', () => {
     expect(tableTexts()).toHaveLength(2)
 
     mockControl.setReportQueryHandler(() => groupedAmountResult([['B', 2000]], [null, 2000]))
-    await runQuery(user)
+    await rerun(user)
 
     await screen.findByText('B')
     expect(screen.getByRole('checkbox', { name: '합계 행' })).not.toBeChecked()
@@ -444,7 +449,7 @@ describe('다시 조회 (리뷰 후속)', () => {
   })
 })
 
-describe('설계 변경 안내 (AC15)', () => {
+describe('설계 변경 안내 (AC15, 작성/결과 탭 분리 AC5)', () => {
   it('marks the result as outdated after a change and clears the note on the next run', async () => {
     const { user } = await openDesigner()
     await addColumn(user, 'Deal code')
@@ -452,12 +457,14 @@ describe('설계 변경 안내 (AC15)', () => {
     await screen.findByRole('table', { name: '조회 결과' })
     expect(screen.queryByText(/설계가 바뀌었습니다/)).not.toBeInTheDocument()
 
+    await showTab(user, 'design')
     await addColumn(user, 'Deal 이름')
+    await showTab(user, 'result')
 
-    expect(screen.getByText("설계가 바뀌었습니다. '조회'를 눌러 다시 조회하세요")).toBeVisible()
+    expect(screen.getByText(STALE_NOTE)).toBeVisible()
     expect(screen.getByRole('table', { name: '조회 결과' })).toBeVisible()
 
-    await runQuery(user)
+    await rerun(user)
 
     await screen.findByRole('columnheader', { name: 'Deal 이름' })
     expect(screen.queryByText(/설계가 바뀌었습니다/)).not.toBeInTheDocument()
@@ -469,10 +476,13 @@ describe('설계 변경 안내 (AC15)', () => {
     await runQuery(user)
     await screen.findByRole('table', { name: '조회 결과' })
 
+    await showTab(user, 'design')
     await user.selectOptions(within(settingsOf('Deal code')).getByRole('combobox', { name: '정렬' }), 'desc')
+    await showTab(user, 'result')
 
-    expect(screen.getByText("설계가 바뀌었습니다. '조회'를 눌러 다시 조회하세요")).toBeVisible()
+    expect(screen.getByText(STALE_NOTE)).toBeVisible()
 
+    await showTab(user, 'design')
     await user.selectOptions(within(settingsOf('Deal code')).getByRole('combobox', { name: '정렬' }), 'asc')
     await runQuery(user)
 
@@ -484,7 +494,22 @@ describe('설계 변경 안내 (AC15)', () => {
     const { user } = await openDesigner()
 
     await addColumn(user, 'Deal code')
+    await showTab(user, 'result')
 
     expect(screen.queryByText(/설계가 바뀌었습니다/)).not.toBeInTheDocument()
+  })
+
+  it('shows the outdated note on the result tab and not on the design tab', async () => {
+    const { user } = await openDesigner()
+    await addColumn(user, 'Deal code')
+    await runQuery(user)
+    await screen.findByRole('table', { name: '조회 결과' })
+    await showTab(user, 'design')
+
+    await addColumn(user, 'Deal 이름')
+
+    expect(screen.getByText(STALE_NOTE)).not.toBeVisible() // 결과 탭의 안내라 작성 탭에서는 숨은 패널 안에 있다
+    await showTab(user, 'result')
+    expect(screen.getByText(STALE_NOTE)).toBeVisible()
   })
 })

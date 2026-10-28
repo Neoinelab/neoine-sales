@@ -2,6 +2,7 @@
 
 from typing import TYPE_CHECKING
 
+from app.application.report.change_report_layout import ChangeReportLayout
 from app.application.report.copy_report import CopyReport
 from app.application.report.create_report import CreateReport
 from app.application.report.delete_report import DeleteReport
@@ -38,6 +39,9 @@ class ReportUseCases:
 
     def update_report(self) -> UpdateReport:
         return UpdateReport(self._uow, self._clock)
+
+    def change_report_layout(self) -> ChangeReportLayout:
+        return ChangeReportLayout(self._uow, self._clock)
 
     def copy_report(self) -> CopyReport:
         return CopyReport(self._uow, self._clock)

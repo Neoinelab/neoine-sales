@@ -10,9 +10,12 @@
  * | 15 | 퇴사자 공개 리포트    | 강퇴사(퇴사)   | O   | 강퇴사      | 2026-10-22 09:00 | Deal         |
  */
 
-import type { ReportChartInput, ReportQueryInput, SavedReport } from '../shared/model/reportTypes'
+import type { ReportChartInput, ReportLayout, ReportQueryInput, SavedReport } from '../shared/model/reportTypes'
 import type { UserRef } from '../shared/model/types'
 import { USER_ID } from './fake/seed/ids'
+
+/** 서버의 기본 배치(저장된 값이 없을 때). */
+export const DEFAULT_LAYOUT_FIXTURE: ReportLayout = { view: 'both', order: ['table', 'chart'], arrange: 'stacked' }
 
 export const KIM: UserRef = { id: USER_ID.kim, name: '김영업', role: 'sales', status: 'active' }
 export const PARK: UserRef = { id: USER_ID.park, name: '박영업', role: 'sales', status: 'active' }
@@ -65,6 +68,7 @@ export function savedReport(over: Partial<SavedReport> & { id: number }): SavedR
     generatedSql: 'SELECT stored',
     chart: null,
     chartProblem: null,
+    layout: DEFAULT_LAYOUT_FIXTURE,
     ...over,
   }
 }
@@ -115,8 +119,18 @@ export const VENDOR_CHART: ReportChartInput = {
 export const WITH_CHART = savedReport({ id: 21, name: '차트 있는 리포트', chart: VENDOR_CHART, updatedAt: '2026-10-26T09:00:00+09:00' })
 
 /** 저장 대화상자 입력의 기본 모양. */
-export function reportInput(over: Partial<{ name: string; description: string; visibility: 'public' | 'private'; chart: ReportChartInput | null }> = {}) {
-  return { name: '새 리포트 이름', description: '', visibility: 'public' as const, definition: VENDOR_DEFINITION, chart: null as ReportChartInput | null, ...over }
+export function reportInput(
+  over: Partial<{ name: string; description: string; visibility: 'public' | 'private'; chart: ReportChartInput | null; layout: ReportLayout }> = {},
+) {
+  return {
+    name: '새 리포트 이름',
+    description: '',
+    visibility: 'public' as const,
+    definition: VENDOR_DEFINITION,
+    chart: null as ReportChartInput | null,
+    layout: DEFAULT_LAYOUT_FIXTURE,
+    ...over,
+  }
 }
 
 /** 어디에도 없는 리포트 id(서버 허용 범위 1~2^53−1 안의 최댓값). */

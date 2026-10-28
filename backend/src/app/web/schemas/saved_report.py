@@ -7,9 +7,15 @@ from pydantic import BaseModel, Field, StrictInt, StrictStr
 
 from app.application.report.saved_inputs import ReportContentInput, ReportMetaInput
 from app.domain.report.chart import ChartKind, LegendPosition
-from app.domain.report.raw import RawChart
+from app.domain.report.raw import RawChart, RawLayout
 from app.domain.report.stored import definition_to_json
 from app.domain.report.vocabulary import Entity
+from app.domain.saved_report.layout import (
+    ResultTile,
+    ResultView,
+    TileArrange,
+    layout_to_json,
+)
 from app.web.schemas.common import RequestModel
 from app.web.schemas.report_query import ReportQueryRequest
 from app.web.schemas.server_datetime import ServerDateTime
@@ -56,6 +62,25 @@ class ReportChartRequest(RequestModel):
         return RawChart(**self.model_dump())
 
 
+class ReportLayoutRequest(RequestModel):
+    """결과 배치 요청: 모양(필수 키·알 수 없는 키 거부)만 확인하고 값은 도메인이 판단한다."""
+
+    view: Any
+    order: Any
+    arrange: Any
+
+    def to_raw(self) -> RawLayout:
+        return RawLayout(**self.model_dump())
+
+
+class ReportLayoutResponse(BaseModel):
+    """저장된 결과 배치. order의 앞이 왼쪽(한 줄) 또는 위(두 줄)다."""
+
+    view: ResultView
+    order: Annotated[list[ResultTile], Field(min_length=2, max_length=2)]
+    arrange: TileArrange
+
+
 class ReportChartResponse(BaseModel):
     """저장된(정규화된) 차트. 키가 모두 있다."""
 
@@ -77,6 +102,7 @@ class ReportChartResponse(BaseModel):
 class ReportCreateRequest(ReportMetaRequest):
     definition: ReportQueryRequest
     chart: ReportChartRequest | None = None
+    layout: ReportLayoutRequest | None = None
 
     def to_input(self) -> ReportContentInput:
         return ReportContentInput(
@@ -85,10 +111,16 @@ class ReportCreateRequest(ReportMetaRequest):
             self.visibility,
             self.definition.to_raw(),
             self.chart.to_raw() if self.chart else None,
+            self.layout.to_raw() if self.layout else None,
         )
 
 
 class ReportUpdateRequest(ReportCreateRequest):
+    revision: Annotated[StrictInt, Field(ge=1)]
+
+
+class ReportLayoutUpdateRequest(RequestModel):
+    layout: ReportLayoutRequest
     revision: Annotated[StrictInt, Field(ge=1)]
 
 
@@ -124,6 +156,7 @@ class ReportDetailResponse(ReportSummaryResponse):
     generated_sql: str
     chart: ReportChartResponse | None
     chart_problem: str | None
+    layout: ReportLayoutResponse
 
     @classmethod
     def from_detail(
@@ -138,6 +171,7 @@ class ReportDetailResponse(ReportSummaryResponse):
             generated_sql=report.generated_sql,
             chart=_chart(report),
             chart_problem=CHART_PROBLEM if report.chart_unreadable else None,
+            layout=ReportLayoutResponse.model_validate(layout_to_json(report.layout)),
         )
 
 

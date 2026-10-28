@@ -9,6 +9,7 @@ from app.domain.common.validation import reject_nul
 
 if TYPE_CHECKING:
     from app.domain.report.raw import RawChart, RawReportDefinition
+    from app.domain.saved_report.layout import ReportLayout
     from app.domain.user.value_objects import UserId
 
 ReportId = NewType("ReportId", int)
@@ -59,6 +60,7 @@ class ReportContent:
     definition: RawReportDefinition
     generated_sql: str
     chart: RawChart | None = None  # 검증·정규화를 통과한 차트
+    layout: ReportLayout | None = None  # None: 만들기는 기본 배치, 덮어쓰기는 유지
 
 
 @dataclass(frozen=True, slots=True)

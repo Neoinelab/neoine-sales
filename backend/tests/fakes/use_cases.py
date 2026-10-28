@@ -41,6 +41,7 @@ if TYPE_CHECKING:
     from app.application.forecast.list_snapshots import ListForecastSnapshots
     from app.application.forecast.take_snapshot import TakeForecastSnapshot
     from app.application.ports.unit_of_work import UnitOfWorkFactory
+    from app.application.report.change_report_layout import ChangeReportLayout
     from app.application.report.copy_report import CopyReport
     from app.application.report.create_report import CreateReport
     from app.application.report.delete_report import DeleteReport
@@ -223,6 +224,13 @@ class FakeUseCases(CatalogUseCases, ContactUseCases, DealUseCases, AttachmentUse
         from app.application.report.update_report import UpdateReport  # noqa: PLC0415
 
         return UpdateReport(self._factory, self.clock)
+
+    def change_report_layout(self) -> ChangeReportLayout:
+        from app.application.report.change_report_layout import (  # noqa: PLC0415
+            ChangeReportLayout,
+        )
+
+        return ChangeReportLayout(self._factory, self.clock)
 
     def copy_report(self) -> CopyReport:
         from app.application.report.copy_report import CopyReport  # noqa: PLC0415

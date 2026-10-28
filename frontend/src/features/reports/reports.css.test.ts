@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { ruleOf } from '../../test/cssRule'
+import { ruleOf, rulesMatching } from '../../test/cssRule'
 
 /** Reports 디자이너 반응형·표시 규칙(정적 점검, Reports AC19). jsdom은 CSS를 계산하지 못하므로 선언을 문자열로 읽는다. */
 
@@ -62,5 +62,32 @@ describe('Reports 디자이너 배치 (정적 점검)', () => {
     const dark = css.slice(css.indexOf('@media (prefers-color-scheme: dark)'))
     expect(dark).toMatch(/--report-deal\s*:/)
     expect(dark).toMatch(/--report-action\s*:/)
+  })
+})
+
+describe('결과 타일 배치 (정적 점검, 작성/결과 탭 분리 AC12, AC14, AC16)', () => {
+  it('lays the tiles out as a grid', () => {
+    expect(ruleOf(css, '.report-tiles')).toMatch(/display:\s*grid/)
+  })
+
+  it('puts the tiles of one row side by side with the same width', () => {
+    expect(ruleOf(css, '.report-tiles.is-side')).toMatch(/grid-template-columns:\s*minmax\(0,\s*1fr\)\s+minmax\(0,\s*1fr\)/)
+  })
+
+  it('puts the tiles of two rows on top of each other', () => {
+    expect(ruleOf(css, '.report-tiles.is-stacked')).toMatch(/grid-template-columns:\s*(?:minmax\(0,\s*1fr\)|1fr)\s*(;|$)/)
+  })
+
+  it('stacks the one-row layout into one column at 900px and below without touching the saved order', () => {
+    const narrow = mediaBlock(900)
+    expect(ruleOf(narrow, '.report-tiles.is-side')).toMatch(/grid-template-columns:\s*1fr\s*(;|$)/)
+  })
+
+  it.each(['left', 'right', 'top', 'bottom'])('marks the %s edge of the tile a drop would go to', (edge) => {
+    expect(rulesMatching(css, new RegExp(`\\.report-tile\\.is-drop-${edge}\\b`)).length).toBeGreaterThan(0)
+  })
+
+  it('lets the chart tile stack the settings panel under the chart in the one-row layout', () => {
+    expect(ruleOf(css, '.report-tiles.is-side .report-chart-wrap')).toMatch(/grid-template-columns:\s*1fr\s*(;|$)/)
   })
 })

@@ -20,13 +20,14 @@ from tests.fakes.report_runner import FakeReportQueryRunner
 from tests.fakes.unit_of_work import FakeUnitOfWork
 from tests.fakes.use_cases import FakeUseCases
 
-PORT_METHODS = ("list", "get", "add", "update", "delete")
+PORT_METHODS = ("list", "get", "add", "update", "update_layout", "delete")
 SAVED_REPORT_USE_CASES = (
     "list_reports",
     "get_report",
     "create_report",
     "update_report",
     "copy_report",
+    "change_report_layout",
     "delete_report",
     "run_saved_report",
 )

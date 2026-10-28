@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { ReportQueryInput } from '../../../../shared/model/reportTypes'
 import { REPORT_CATALOG } from '../../../../test/reportDesigner'
-import { fromReportRequest } from './fromRequest'
+import { fromReportRequest, fromSavedReport } from './fromRequest'
 import { toReportRequest } from './toRequest'
 
 /** 저장된 요청 → 디자이너 상태(Reports 3단계 P1·P2, AC15). toReportRequest의 역변환이다. */
@@ -242,5 +242,21 @@ describe('fromReportRequest money conditions (AC-9)', () => {
       { shape: 'number', text: '1500' },
       { shape: 'number', text: '5' },
     ])
+  })
+})
+
+describe('fromSavedReport and the result layout (작성/결과 탭 분리 AC18)', () => {
+  const definition: ReportQueryInput = { columns: [CODE], conditions: [], combine: 'and', rowLimit: 100 }
+
+  it('takes the saved layout into the designer state', () => {
+    const layout = { view: 'chart', order: ['chart', 'table'], arrange: 'side_by_side' } as const
+
+    const state = fromSavedReport({ definition, chart: null, layout }, REPORT_CATALOG, REPORT_CATALOG.limits)
+
+    expect(state.layout).toEqual(layout)
+  })
+
+  it('opens a plain definition with the default layout', () => {
+    expect(load(definition).layout).toEqual({ view: 'both', order: ['table', 'chart'], arrange: 'stacked' })
   })
 })

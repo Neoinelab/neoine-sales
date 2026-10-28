@@ -4,11 +4,15 @@ import type {
   ReportCombine,
   ReportField,
   ReportFormat,
+  ReportLayout,
   ReportLimits,
   ReportOperator,
+  ReportResultView,
   ReportSortDirection,
+  ReportTile,
 } from '../../../../shared/model/reportTypes'
 import { normalizeForKind, reconcileChart, type ChartDraft } from '../../chart/chartDraft'
+import { DEFAULT_LAYOUT, placeTile, sameLayout, type DropEdge } from '../../result/layout'
 import { fieldByKey, groupedDefaultAggregate } from './columnRules'
 import { emptyDraft, type ConditionDraft } from './conditionDraft'
 
@@ -47,6 +51,8 @@ export interface DesignerState {
   rowLimit: number
   /** 차트 초안(저장·되돌리기 대상이지만 조회 결과를 낡게 하지 않는다). */
   chart: ChartDraft | null
+  /** 결과 배치(보기 방식·타일 순서·한 줄/두 줄). 저장 대상이지만 조회 결과를 낡게 하지 않는다. */
+  layout: ReportLayout
   selectedUid: number | null
   /** 다음에 발급할 uid. 한 번 쓴 uid는 다시 쓰지 않는다. */
   nextUid: number
@@ -69,15 +75,17 @@ export type DesignerAction =
   | { type: 'changeChart'; patch: Partial<ChartDraft> }
   | { type: 'setChartKind'; kind: ChartDraft['kind'] }
   | { type: 'removeChart' }
+  | { type: 'setResultView'; view: ReportResultView }
+  | { type: 'placeTile'; dragged: ReportTile; target: ReportTile; edge: DropEdge }
   | { type: 'reset' }
   /** 저장된 설계로 통째로 바꾼다(되돌리기). uid는 되돌아가지 않게 nextUid를 이어 간다. */
   | { type: 'load'; state: DesignerState }
 
 export function initialDesignerState(limits: ReportLimits): DesignerState {
-  return { columns: [], conditions: [], combine: 'and', rowLimit: limits.defaultRowLimit, chart: null, selectedUid: null, nextUid: 1 }
+  return { columns: [], conditions: [], combine: 'and', rowLimit: limits.defaultRowLimit, chart: null, layout: DEFAULT_LAYOUT, selectedUid: null, nextUid: 1 }
 }
 
-/** 초기 상태와 내용이 다르면 true(uid·선택은 보지 않는다). 컬럼을 넣었다 빼면 다시 false다. */
+/** 초기 상태와 내용이 다르면 true(uid·선택은 보지 않는다). 컬럼을 넣었다 빼면 다시 false다. 결과 배치만 바뀐 것은 치지 않는다. */
 export function isDirty(state: DesignerState, limits: ReportLimits): boolean {
   return (
     state.columns.length > 0 ||
@@ -259,6 +267,12 @@ export function designerReducer(state: DesignerState, action: DesignerAction, ca
       return state.combine === action.combine ? state : { ...state, combine: action.combine }
     case 'setRowLimit':
       return state.rowLimit === action.rowLimit ? state : { ...state, rowLimit: action.rowLimit }
+    case 'setResultView':
+      return state.layout.view === action.view ? state : { ...state, layout: { ...state.layout, view: action.view } }
+    case 'placeTile': {
+      const layout = placeTile(state.layout, action.dragged, action.target, action.edge)
+      return sameLayout(layout, state.layout) ? state : { ...state, layout }
+    }
     case 'reset':
       return { ...initialDesignerState(catalog.limits), nextUid: state.nextUid }
     case 'load':

@@ -4,6 +4,7 @@ import { ApiError, errorMessage } from '../shared/api/problem'
 import type {
   ReportCatalog,
   ReportIssue,
+  ReportLayout,
   ReportQueryInput,
   ReportResult,
   ReportRunFailure,
@@ -115,6 +116,30 @@ export function useCopyReport(): Mutation<{ id: number; meta: SavedReportMeta },
   })
 }
 
+/**
+ * gateway.reports.saveReportLayout. 변수 = { id, layout, revision }. 성공: 상세 캐시를 응답으로 바꾸고 목록을 다시 받는다.
+ * 실행 결과 캐시는 건드리지 않는다(배치만 바뀌었으므로 다시 조회하지 않는다). 보기 화면의 배치 자동 저장이 쓴다.
+ */
+export function useSaveReportLayout(): Mutation<{ id: number; layout: ReportLayout; revision: number }, SavedReport> {
+  const queryClient = useQueryClient()
+  return useMutation<SavedReport, ApiError, { id: number; layout: ReportLayout; revision: number }>({
+    mutationFn: ({ id, layout, revision }) => gateway.reports.saveReportLayout(id, { layout, revision }),
+    onSuccess: async (saved) => {
+      queryClient.setQueryData(keys.savedReport(saved.id), saved)
+      await queryClient.invalidateQueries({ queryKey: keys.savedReports, exact: true })
+    },
+  })
+}
+
+/**
+ * 저장 리포트 상세를 서버에서 다시 읽어 캐시에 넣고 돌려준다(화면의 `useSavedReport`도 새 값으로 바뀐다).
+ * 읽지 못하면 던진다. 보기 화면 자동 저장이 충돌(409)·권한 변경(403) 뒤 최신 값을 가져오는 데 쓴다.
+ */
+export function useReloadSavedReport(): (id: number) => Promise<SavedReport> {
+  const queryClient = useQueryClient()
+  return (id) => queryClient.fetchQuery({ queryKey: keys.savedReport(id), queryFn: () => gateway.reports.get(id), staleTime: 0 })
+}
+
 /** gateway.reports.remove(id). 성공: 목록 무효화, 그 리포트의 상세·실행 캐시 제거. */
 export function useDeleteReport(): Mutation<number> {
   const queryClient = useQueryClient()
@@ -152,19 +177,25 @@ export function saveFailure(error: unknown): SaveFailure {
   }
 }
 
+/** 저장 직후 편집 화면이 이어 받는 것: 방금 조회한 결과와 저장 전에 선택돼 있던 디자이너 탭. */
+export interface ReportHandoff {
+  result: ReportResult
+  tab: 'design' | 'result'
+}
+
 /**
  * 저장 직후 이동하는 편집 화면이 방금 조회한 결과를 이어 받는 통로(같은 설계라 다시 조회하지 않는다).
  * `peek`은 지우지 않고 읽고, 편집 화면이 쓴 뒤 `drop`한다.
  */
 export function useReportHandoff(): {
-  stash: (id: number, result: ReportResult) => void
-  peek: (id: number) => ReportResult | undefined
+  stash: (id: number, result: ReportResult, tab?: ReportHandoff['tab']) => void
+  peek: (id: number) => ReportHandoff | undefined
   drop: (id: number) => void
 } {
   const queryClient = useQueryClient()
   return {
-    stash: (id, result) => queryClient.setQueryData(keys.savedReportHandoff(id), result),
-    peek: (id) => queryClient.getQueryData<ReportResult>(keys.savedReportHandoff(id)),
+    stash: (id, result, tab = 'design') => queryClient.setQueryData<ReportHandoff>(keys.savedReportHandoff(id), { result, tab }),
+    peek: (id) => queryClient.getQueryData<ReportHandoff>(keys.savedReportHandoff(id)),
     drop: (id) => queryClient.removeQueries({ queryKey: keys.savedReportHandoff(id), exact: true }),
   }
 }

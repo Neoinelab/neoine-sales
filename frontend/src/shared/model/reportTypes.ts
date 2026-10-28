@@ -1,3 +1,4 @@
+import type { Schemas } from '../api/client'
 import type { UserRef } from './types'
 
 /**
@@ -211,6 +212,19 @@ export interface SavedReportSummary {
   chartKind?: ReportChartKind | null
 }
 
+/** 결과 보기 방식: 표+차트 / 차트만 / 표만. 서버 스키마(`ResultView`)에서 가져온다. */
+export type ReportResultView = Schemas['ResultView']
+export type ReportTile = Schemas['ResultTile']
+/** 한 줄(side_by_side) 또는 두 줄(stacked). */
+export type ReportTileArrange = Schemas['TileArrange']
+
+/** 결과 배치: 보기 방식, 타일 순서(앞이 왼쪽 또는 위), 한 줄/두 줄. */
+export interface ReportLayout {
+  view: ReportResultView
+  order: readonly [ReportTile, ReportTile]
+  arrange: ReportTileArrange
+}
+
 /** 저장된 리포트 상세: 정의(요청 모양)와 서버가 만든 표시용 SQL, 덮어쓰기 충돌 판정용 revision. */
 export interface SavedReport extends SavedReportSummary {
   revision: number
@@ -218,6 +232,7 @@ export interface SavedReport extends SavedReportSummary {
   generatedSql: string
   chart: ReportChartInput | null
   chartProblem: string | null
+  layout: ReportLayout
 }
 
 export interface SavedReportMeta {
@@ -230,4 +245,6 @@ export interface SavedReportInput extends SavedReportMeta {
   definition: ReportQueryInput
   /** null이면 차트 없음. 수정(덮어쓰기)에서 빠뜨리면 서버가 차트를 지우므로 항상 명시한다. */
   chart: ReportChartInput | null
+  /** 항상 보낸다(서버는 생략하면 만들기는 기본 배치, 수정은 저장된 배치를 유지한다). */
+  layout: ReportLayout
 }

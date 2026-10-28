@@ -4,6 +4,7 @@ import type { ReportsGateway } from '../../../gateway/types'
 import type {
   ReportChartInput,
   ReportIssue,
+  ReportLayout,
   ReportQueryInput,
   ReportResult,
   ReportVisibility,
@@ -41,8 +42,32 @@ const NAME_MAX = 100
 const DESCRIPTION_MAX = 1000
 const GENERATED_SQL = 'SELECT … /* fake saved */'
 const VISIBILITIES: readonly string[] = ['public', 'private']
+const VIEWS: readonly string[] = ['both', 'chart', 'table']
+const ARRANGES: readonly string[] = ['side_by_side', 'stacked']
+const TILES: readonly string[] = ['table', 'chart']
 
-type SavedMethods = Pick<ReportsGateway, 'list' | 'get' | 'create' | 'update' | 'copy' | 'remove' | 'run'>
+/** 서버의 기본 배치(표+차트, 표 → 차트, 두 줄). 저장된 배치가 없으면 이 값으로 열린다. */
+export const DEFAULT_REPORT_LAYOUT: ReportLayout = { view: 'both', order: ['table', 'chart'], arrange: 'stacked' }
+
+/** 서버 `parse_layout`과 같은 위치·코드: 값이 위반이면 `["layout", 항목]` 위반을 모두 모아 422(invalid-report). */
+function checkLayout(layout: ReportLayout): ReportLayout {
+  const raw = layout as unknown as { view: unknown; order: unknown; arrange: unknown }
+  const issues: ReportIssue[] = []
+  if (typeof raw.view !== 'string' || !VIEWS.includes(raw.view)) {
+    issues.push({ location: ['layout', 'view'], code: 'invalid-value', message: '보기 방식은 both, chart, table 중 하나입니다' })
+  }
+  const order = raw.order
+  const orderOk =
+    Array.isArray(order) && order.length === 2 && order.every((t) => typeof t === 'string' && TILES.includes(t)) && order[0] !== order[1]
+  if (!orderOk) issues.push({ location: ['layout', 'order'], code: 'invalid-value', message: '타일 순서는 table과 chart를 한 번씩 담아야 합니다' })
+  if (typeof raw.arrange !== 'string' || !ARRANGES.includes(raw.arrange)) {
+    issues.push({ location: ['layout', 'arrange'], code: 'invalid-value', message: '배치는 side_by_side 또는 stacked입니다' })
+  }
+  if (issues.length > 0) throw invalidReport(issues)
+  return clone(layout)
+}
+
+type SavedMethods = Pick<ReportsGateway, 'list' | 'get' | 'create' | 'update' | 'copy' | 'remove' | 'run' | 'saveReportLayout'>
 
 /** 조회 엔진(reports.ts)에서 받는 부분. 순환 import를 피하려고 인자로 받는다. */
 export interface QueryEngine {
@@ -125,7 +150,13 @@ export function createSavedReportsGateway(ctx: MockContext, engine: QueryEngine)
     state().nextSavedId = id + 1
     return id
   }
-  const insert = (ownerId: number, meta: SavedReportMeta, definition: ReportQueryInput, chart: ReportChartInput | null): SavedReport => {
+  const insert = (
+    ownerId: number,
+    meta: SavedReportMeta,
+    definition: ReportQueryInput,
+    chart: ReportChartInput | null,
+    layout: ReportLayout,
+  ): SavedReport => {
     const now = ctx.clock.now()
     const owner = userRef(ctx.store.data, ownerId)
     const created: SavedReport = {
@@ -141,6 +172,7 @@ export function createSavedReportsGateway(ctx: MockContext, engine: QueryEngine)
       generatedSql: GENERATED_SQL,
       chart,
       chartProblem: null,
+      layout,
     }
     state().saved.push(created)
     return view(created)
@@ -166,8 +198,9 @@ export function createSavedReportsGateway(ctx: MockContext, engine: QueryEngine)
         record({ op: 'create', id: null, body: input })
         const meta = normalizeMeta(input)
         const chart = checkDefinition(input.definition, input.chart)
+        const layout = input.layout ? checkLayout(input.layout) : clone(DEFAULT_REPORT_LAYOUT)
         if (duplicated(meta.name, null)) throw alreadyExists(SAVED_REPORT_DUPLICATE_MESSAGE)
-        return insert(user.id, meta, input.definition, chart)
+        return insert(user.id, meta, input.definition, chart, layout)
       }),
     update: (id, input) =>
       write(ctx, () => {
@@ -177,6 +210,7 @@ export function createSavedReportsGateway(ctx: MockContext, engine: QueryEngine)
         const target = visible(id, viewer)
         const meta = normalizeMeta(input)
         const chart = checkDefinition(input.definition, input.chart)
+        const layout = input.layout ? checkLayout(input.layout) : null
         if (!canEditReport(viewer, target)) throw forbidden('이 리포트를 수정할 권한이 없습니다.')
         if (input.revision !== target.revision) throw invalidState(SAVED_REPORT_CONFLICT_MESSAGE)
         if (meta.visibility !== target.visibility && !canChangeReportVisibility(viewer, target)) {
@@ -190,6 +224,8 @@ export function createSavedReportsGateway(ctx: MockContext, engine: QueryEngine)
           generatedSql: GENERATED_SQL,
           chart,
           chartProblem: null,
+          // layout을 보내지 않으면 저장된 배치를 유지한다(차트와 달리 생략이 삭제가 아니다).
+          ...(layout ? { layout } : {}),
           updatedBy: userRef(ctx.store.data, user.id),
           updatedAt: ctx.clock.now(),
           revision: target.revision + 1,
@@ -204,8 +240,31 @@ export function createSavedReportsGateway(ctx: MockContext, engine: QueryEngine)
         const meta = normalizeMeta(metaInput)
         const chart = checkDefinition(source.definition, source.chart)
         if (duplicated(meta.name, null)) throw alreadyExists(SAVED_REPORT_DUPLICATE_MESSAGE)
-        return insert(user.id, meta, source.definition, chart)
+        return insert(user.id, meta, source.definition, chart, clone(source.layout ?? DEFAULT_REPORT_LAYOUT))
       }),
+    saveReportLayout: async (id, body) => {
+      const user = requireUser(ctx)
+      record({ op: 'layout', id, body })
+      const gate = state().layoutGate
+      if (gate) {
+        const attempt = state().requests.filter((r) => r.op === 'layout').length
+        await gate({ id, attempt, body })
+      }
+      return write(ctx, () => {
+        const viewer = viewerOf(user)
+        const target = visible(id, viewer)
+        const layout = checkLayout(body.layout)
+        if (!canEditReport(viewer, target)) throw forbidden('이 리포트를 수정할 권한이 없습니다.')
+        if (body.revision !== target.revision) throw invalidState(SAVED_REPORT_CONFLICT_MESSAGE)
+        Object.assign(target, {
+          layout,
+          updatedBy: userRef(ctx.store.data, user.id),
+          updatedAt: ctx.clock.now(),
+          revision: target.revision + 1,
+        })
+        return view(target)
+      })
+    },
     remove: (id) =>
       write(ctx, () => {
         const viewer = viewerOf(requireUser(ctx))

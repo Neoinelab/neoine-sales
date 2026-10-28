@@ -77,6 +77,7 @@ REPORT_ROUTES: Final = (
     ("GET", "/api/v1/reports/{report_id}"),
     ("PUT", "/api/v1/reports/{report_id}"),
     ("DELETE", "/api/v1/reports/{report_id}"),
+    ("PUT", "/api/v1/reports/{report_id}/layout"),  # 배치만 저장: 보기 화면 자동 저장이 쓴다
     ("POST", "/api/v1/reports/{report_id}/copy"),
     ("POST", "/api/v1/reports/{report_id}/run"),
 )

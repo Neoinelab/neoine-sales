@@ -772,6 +772,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/reports/{report_id}/layout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Change Report Layout */
+        put: operations["change_report_layout_api_v1_reports__report_id__layout_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/reports/{report_id}/run": {
         parameters: {
             query?: never;
@@ -2526,6 +2543,7 @@ export interface components {
              * @default
              */
             description: string;
+            layout?: components["schemas"]["ReportLayoutRequest"] | null;
             /** Name */
             name: string;
             /** Visibility */
@@ -2551,6 +2569,7 @@ export interface components {
             generated_sql: string;
             /** Id */
             id: number;
+            layout: components["schemas"]["ReportLayoutResponse"];
             /** Name */
             name: string;
             owner: components["schemas"]["UserRef"];
@@ -2617,6 +2636,34 @@ export interface components {
             key: components["schemas"]["Format"];
             /** Label */
             label: string;
+        };
+        /**
+         * ReportLayoutRequest
+         * @description 결과 배치 요청: 모양(필수 키·알 수 없는 키 거부)만 확인하고 값은 도메인이 판단한다.
+         */
+        ReportLayoutRequest: {
+            /** Arrange */
+            arrange: unknown;
+            /** Order */
+            order: unknown;
+            /** View */
+            view: unknown;
+        };
+        /**
+         * ReportLayoutResponse
+         * @description 저장된 결과 배치. order의 앞이 왼쪽(한 줄) 또는 위(두 줄)다.
+         */
+        ReportLayoutResponse: {
+            arrange: components["schemas"]["TileArrange"];
+            /** Order */
+            order: components["schemas"]["ResultTile"][];
+            view: components["schemas"]["ResultView"];
+        };
+        /** ReportLayoutUpdateRequest */
+        ReportLayoutUpdateRequest: {
+            layout: components["schemas"]["ReportLayoutRequest"];
+            /** Revision */
+            revision: number;
         };
         /** ReportLimitsResponse */
         ReportLimitsResponse: {
@@ -2757,6 +2804,7 @@ export interface components {
              * @default
              */
             description: string;
+            layout?: components["schemas"]["ReportLayoutRequest"] | null;
             /** Name */
             name: string;
             /** Revision */
@@ -2780,11 +2828,21 @@ export interface components {
         };
         ResultCell: string | number | null;
         /**
+         * ResultTile
+         * @enum {string}
+         */
+        ResultTile: "table" | "chart";
+        /**
          * ResultValueType
          * @description 결과 열 값의 JSON 모양.
          * @enum {string}
          */
         ResultValueType: "text" | "integer" | "decimal" | "date" | "datetime";
+        /**
+         * ResultView
+         * @enum {string}
+         */
+        ResultView: "both" | "chart" | "table";
         /**
          * Role
          * @enum {string}
@@ -2887,6 +2945,11 @@ export interface components {
             /** Count */
             count: number;
         };
+        /**
+         * TileArrange
+         * @enum {string}
+         */
+        TileArrange: "side_by_side" | "stacked";
         /**
          * UpcomingPeriodPreset
          * @description 향후 기한 프리셋. 값은 API 키이고 정의 순서가 응답 순서다.
@@ -6421,6 +6484,77 @@ export interface operations {
             };
             /** @description problem+json */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    change_report_layout_api_v1_reports__report_id__layout_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                report_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReportLayoutUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReportDetailResponse"];
+                };
+            };
+            /** @description problem+json */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };

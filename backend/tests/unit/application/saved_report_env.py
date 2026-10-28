@@ -28,17 +28,20 @@ def viewer(user_id: UserId, role: Role = Role.SALES) -> Any:  # noqa: ANN401 - R
     return ReportViewer(user_id=user_id, role=role)
 
 
-def content_input(
+def content_input(  # noqa: PLR0913
     name: str = "분기 Pipeline",
     *,
     description: str = "",
     visibility: str = "public",
     definition: Any = VALID_DEFINITION,  # noqa: ANN401 - RawReportDefinition
     chart: Any = None,  # noqa: ANN401 - RawChart | None
+    layout: Any = None,  # noqa: ANN401 - RawLayout | None
 ) -> Any:  # noqa: ANN401 - ReportContentInput
     from app.application.report.saved_inputs import ReportContentInput  # noqa: PLC0415
 
-    chart_fields = {} if chart is None else {"chart": chart}  # 지정했을 때만 넘긴다
+    chart_fields: dict[str, Any] = {} if chart is None else {"chart": chart}  # 지정했을 때만
+    if layout is not None:
+        chart_fields["layout"] = layout
     return ReportContentInput(
         name=name,
         description=description,

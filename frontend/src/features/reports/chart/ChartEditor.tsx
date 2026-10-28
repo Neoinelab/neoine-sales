@@ -23,9 +23,9 @@ function Preview({ draft, source, result, incomplete }: { draft: ChartDraft; sou
   return <ChartPreview input={input} result={result} />
 }
 
-/** 디자이너의 차트 탭: 차트가 없으면 만들기, 있으면 미리보기 + 설정 패널 + 삭제. */
+/** 디자이너의 차트 타일 본문: 차트가 없으면 만들기, 있으면 미리보기(+ 열려 있으면 설정 패널과 삭제). */
 export function ChartEditor({ source, result }: { source: ChartEditSource; result: ReportResult | null }) {
-  const { draft, columns, catalog, resultColumnUids, dispatch } = source
+  const { draft, columns, catalog, resultColumnUids, settingsOpen, dispatch } = source
   const headerOf = (uid: number): string => {
     const at = resultColumnUids.indexOf(uid)
     const shown = at < 0 ? undefined : result?.columns.find((c) => c.index === at)
@@ -50,16 +50,18 @@ export function ChartEditor({ source, result }: { source: ChartEditSource; resul
   }
   const issues = chartDraftIssues(draft, columns)
   return (
-    <div className="report-chart-wrap">
+    <div className={settingsOpen ? 'report-chart-wrap' : 'report-chart-wrap is-closed'}>
       <div className="report-chart-view">
         <Preview draft={draft} source={source} result={result} incomplete={issues.length > 0} />
       </div>
-      <div className="report-chart-side">
-        <ChartSettingsPanel draft={draft} columns={columns} headerOf={headerOf} issues={issues} serverIssues={source.issues} dispatch={dispatch} />
-        <button type="button" className="danger" onClick={() => dispatch({ type: 'removeChart' })}>
-          차트 삭제
-        </button>
-      </div>
+      {settingsOpen && (
+        <div className="report-chart-side">
+          <ChartSettingsPanel draft={draft} columns={columns} headerOf={headerOf} issues={issues} serverIssues={source.issues} dispatch={dispatch} />
+          <button type="button" className="danger" onClick={() => dispatch({ type: 'removeChart' })}>
+            차트 삭제
+          </button>
+        </div>
+      )}
     </div>
   )
 }

@@ -9,6 +9,7 @@ import type {
   ReportConditionValue,
   ReportField,
   ReportFormat,
+  ReportLayout,
   ReportOperator,
   ReportQueryInput,
   ReportResult,
@@ -199,6 +200,18 @@ export function toDefinition(body: Schemas['ReportQueryRequest']): ReportQueryIn
   }
 }
 
+/** 서버 배치 응답 → 화면 모델. 순서가 두 칸이 아니면 계약 밖 응답이다. */
+export function toLayout(body: Schemas['ReportLayoutResponse']): ReportLayout {
+  const [first, second] = body.order
+  if (body.order.length !== 2 || first === undefined || second === undefined) throw malformedResponse()
+  return { view: body.view, order: [first, second], arrange: body.arrange }
+}
+
+/** 화면 배치 → 요청 본문. */
+export function toLayoutBody(layout: ReportLayout): Schemas['ReportLayoutRequest'] {
+  return { view: layout.view, order: [...layout.order], arrange: layout.arrange }
+}
+
 export function toSavedReport(body: Schemas['ReportDetailResponse']): SavedReport {
   return {
     ...toHead(body),
@@ -207,5 +220,6 @@ export function toSavedReport(body: Schemas['ReportDetailResponse']): SavedRepor
     generatedSql: body.generated_sql,
     chart: body.chart === null ? null : toChart(body.chart),
     chartProblem: body.chart_problem,
+    layout: toLayout(body.layout),
   }
 }

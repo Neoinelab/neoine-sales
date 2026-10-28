@@ -46,3 +46,12 @@ class RawChart:
     value_min: object = None
     value_max: object = None
     secondary_axis: object = False
+
+
+@dataclass(frozen=True, slots=True)
+class RawLayout:
+    """웹이 넘기는 원시 결과 배치. 값은 JSON에서 온 그대로이며 허용 여부는 도메인이 판단한다."""
+
+    view: object
+    order: object
+    arrange: object

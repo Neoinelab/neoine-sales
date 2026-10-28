@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import type { SavedReportInput } from '../../shared/model/reportTypes'
+import type { ReportLayout, SavedReportInput } from '../../shared/model/reportTypes'
 import { serverUserRef } from '../../test/fixtures/serverDeal'
 import { USER_ID } from '../../test/fake/seed/ids'
 import { createHttpGateway } from './index'
@@ -88,6 +88,9 @@ const CAMEL_CHART = {
   secondaryAxis: false,
 }
 
+const SERVER_LAYOUT = { view: 'chart', order: ['chart', 'table'], arrange: 'side_by_side' }
+const CAMEL_LAYOUT: ReportLayout = { view: 'chart', order: ['chart', 'table'], arrange: 'side_by_side' }
+
 const serverDetail = (over: Record<string, unknown> = {}) => ({
   ...serverSummary(),
   revision: 3,
@@ -95,6 +98,7 @@ const serverDetail = (over: Record<string, unknown> = {}) => ({
   generated_sql: 'SELECT deal.vendor FROM deals',
   chart: null,
   chart_problem: null,
+  layout: SERVER_LAYOUT,
   ...over,
 })
 
@@ -119,6 +123,7 @@ const INPUT: SavedReportInput = {
   visibility: 'private',
   definition: CAMEL_DEFINITION as SavedReportInput['definition'],
   chart: null,
+  layout: CAMEL_LAYOUT,
 }
 
 describe('saved reports over HTTP: reading', () => {
@@ -192,7 +197,7 @@ describe('saved reports over HTTP: reading', () => {
   it('is wired into the HTTP gateway as reports', () => {
     const reports = createHttpGateway().reports
 
-    for (const name of ['list', 'get', 'create', 'update', 'copy', 'remove', 'run'] as const) expect(typeof reports[name]).toBe('function')
+    for (const name of ['list', 'get', 'create', 'update', 'copy', 'remove', 'run', 'saveReportLayout'] as const) expect(typeof reports[name]).toBe('function')
   })
 
   it('runs a saved report with POST /reports/{id}/run and maps it like a query', async () => {
@@ -217,9 +222,9 @@ describe('saved reports over HTTP: writing', () => {
     await http.remove(12)
 
     expect(calls[0]).toMatchObject({ method: 'POST', path: '/api/v1/reports' })
-    expect(calls[0]?.body).toEqual({ name: ' 새 리포트 ', description: '설명', visibility: 'private', definition: SERVER_DEFINITION, chart: null })
+    expect(calls[0]?.body).toEqual({ name: ' 새 리포트 ', description: '설명', visibility: 'private', definition: SERVER_DEFINITION, chart: null, layout: SERVER_LAYOUT })
     expect(calls[1]).toMatchObject({ method: 'PUT', path: '/api/v1/reports/12' })
-    expect(calls[1]?.body).toEqual({ name: ' 새 리포트 ', description: '설명', visibility: 'private', definition: SERVER_DEFINITION, chart: null, revision: 3 })
+    expect(calls[1]?.body).toEqual({ name: ' 새 리포트 ', description: '설명', visibility: 'private', definition: SERVER_DEFINITION, chart: null, layout: SERVER_LAYOUT, revision: 3 })
     expect(calls[2]).toMatchObject({ method: 'POST', path: '/api/v1/reports/12/copy' })
     expect(calls[2]?.body).toEqual({ name: '복사본', description: '', visibility: 'public' })
     expect(calls[3]).toMatchObject({ method: 'DELETE', path: '/api/v1/reports/12' })
@@ -233,7 +238,7 @@ describe('saved reports over HTTP: writing', () => {
 
     await createReportsHttp().create(INPUT)
 
-    expect(Object.keys(calls[0]?.body as object).sort()).toEqual(['chart', 'definition', 'description', 'name', 'visibility'])
+    expect(Object.keys(calls[0]?.body as object).sort()).toEqual(['chart', 'definition', 'description', 'layout', 'name', 'visibility'])
   })
 
   it('resolves a delete without a body', async () => {
@@ -397,5 +402,93 @@ describe('saved reports over HTTP: chart (Reports 4단계 G1, G2)', () => {
     const error = await createReportsHttp().create(INPUT).catch((e: unknown) => e)
 
     expect((error as { problem: { reportErrors: unknown } }).problem.reportErrors).toEqual(issues)
+  })
+})
+
+describe('saved reports over HTTP: result layout (작성/결과 탭 분리 AC18, AC22, AC24~27)', () => {
+  it('maps the layout of a detail as it is', async () => {
+    stubFetch(json(serverDetail()), json(serverDetail({ layout: { view: 'both', order: ['table', 'chart'], arrange: 'stacked' } })))
+    const http = createReportsHttp()
+
+    const sided = await http.get(12)
+    const stacked = await http.get(12)
+
+    expect(sided.layout).toEqual(CAMEL_LAYOUT)
+    expect(stacked.layout).toEqual({ view: 'both', order: ['table', 'chart'], arrange: 'stacked' })
+  })
+
+  it('maps the layout of the responses of create, update and copy too', async () => {
+    stubFetch(json(serverDetail(), 201), json(serverDetail({ revision: 4 })), json(serverDetail({ id: 13 }), 201))
+    const http = createReportsHttp()
+
+    const created = await http.create(INPUT)
+    const updated = await http.update(12, { ...INPUT, revision: 3 })
+    const copied = await http.copy(12, { name: '복사본', description: '', visibility: 'public' })
+
+    for (const report of [created, updated, copied]) expect(report.layout).toEqual(CAMEL_LAYOUT)
+  })
+
+  it('keeps the list items without a layout', async () => {
+    stubFetch(json([serverSummary()]))
+
+    const [item] = await createReportsHttp().list()
+
+    expect(item).not.toHaveProperty('layout')
+  })
+
+  it('sends PUT /reports/{id}/layout with the layout and the revision and maps the detail', async () => {
+    const { calls } = stubFetch(json(serverDetail({ revision: 4, updated_by: serverUserRef({ id: USER_ID.kim }) })))
+
+    const saved = await createReportsHttp().saveReportLayout(12, { layout: CAMEL_LAYOUT, revision: 3 })
+
+    expect(calls[0]).toMatchObject({ method: 'PUT', path: '/api/v1/reports/12/layout' })
+    expect(calls[0]?.body).toEqual({ layout: SERVER_LAYOUT, revision: 3 })
+    expect(saved).toMatchObject({ id: 12, revision: 4, layout: CAMEL_LAYOUT, updatedBy: { id: USER_ID.kim } })
+    expect(saved.definition).toEqual(CAMEL_DEFINITION)
+  })
+
+  it('does not send anything but the layout and the revision', async () => {
+    const { calls } = stubFetch(json(serverDetail()))
+
+    await createReportsHttp().saveReportLayout(12, { layout: CAMEL_LAYOUT, revision: 3 })
+
+    expect(Object.keys(calls[0]?.body as object).sort()).toEqual(['layout', 'revision'])
+  })
+
+  it('turns a stale revision into the invalid-state kind', async () => {
+    stubFetch(problem(409, 'invalid-state', '다른 사용자가 먼저 이 리포트를 저장했습니다.'))
+
+    await expect(createReportsHttp().saveReportLayout(12, { layout: CAMEL_LAYOUT, revision: 1 })).rejects.toMatchObject({
+      status: 409,
+      kind: 'invalid-state',
+      message: '다른 사용자가 먼저 이 리포트를 저장했습니다.',
+    })
+  })
+
+  it.each([
+    [404, 'not-found', 'not-found'],
+    [403, 'forbidden', 'forbidden'],
+    [401, 'unauthenticated', 'unauthorized'],
+    [422, 'request-validation', 'validation'],
+  ] as const)('turns %s %s into the %s kind for a layout save', async (status, serverKind, kind) => {
+    stubFetch(problem(status, serverKind, '서버 문구'))
+
+    await expect(createReportsHttp().saveReportLayout(12, { layout: CAMEL_LAYOUT, revision: 1 })).rejects.toMatchObject({ status, kind, message: '서버 문구' })
+  })
+
+  it('moves the layout violations into reportErrors with their location', async () => {
+    const issues = [{ location: ['layout', 'order'], code: 'invalid-value', message: '타일 순서는 table과 chart를 한 번씩 담아야 합니다' }]
+    stubFetch(problem(422, 'invalid-report', '타일 순서는 table과 chart를 한 번씩 담아야 합니다', { errors: issues }))
+
+    const error = await createReportsHttp().saveReportLayout(12, { layout: CAMEL_LAYOUT, revision: 1 }).catch((e: unknown) => e)
+
+    expect(error).toMatchObject({ status: 422, kind: 'invalid-report' })
+    expect((error as { problem: { reportErrors: unknown } }).problem.reportErrors).toEqual(issues)
+  })
+
+  it('turns a lost connection into the network error', async () => {
+    stubNetworkDown()
+
+    await expect(createReportsHttp().saveReportLayout(12, { layout: CAMEL_LAYOUT, revision: 1 })).rejects.toMatchObject({ status: 0, kind: 'network' })
   })
 })

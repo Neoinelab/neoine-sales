@@ -4,7 +4,7 @@
  */
 
 import { describe, expect, it } from 'vitest'
-import type { ReportChartInput, ReportQueryInput, SavedReportInput } from '../../shared/model/reportTypes'
+import type { ReportChartInput, ReportLayout, ReportQueryInput, SavedReportInput } from '../../shared/model/reportTypes'
 import { expectRejects, NO_SUCH_ID, unique, type ContractRole, type MakeGateway } from './support'
 
 const DEFINITION: ReportQueryInput = {
@@ -46,12 +46,18 @@ const CHART: ReportChartInput = {
   secondaryAxis: false,
 }
 
+/** 서버의 기본 배치와 시험용 배치(작성/결과 탭 분리). */
+const DEFAULT_LAYOUT: ReportLayout = { view: 'both', order: ['table', 'chart'], arrange: 'stacked' }
+const SIDE_LAYOUT: ReportLayout = { view: 'chart', order: ['chart', 'table'], arrange: 'side_by_side' }
+const TABLE_LAYOUT: ReportLayout = { view: 'table', order: ['table', 'chart'], arrange: 'stacked' }
+
 const input = (over: Partial<SavedReportInput> = {}): SavedReportInput => ({
   name: unique('rpt'),
   description: '계약 시험',
   visibility: 'public',
   definition: DEFINITION,
   chart: null,
+  layout: DEFAULT_LAYOUT,
   ...over,
 })
 
@@ -266,7 +272,7 @@ export function savedReportsContract(make: MakeGateway): void {
       const { reports } = await make('sales')
       const name = unique('renamed')
 
-      const updated = await reports.update(created.id, { name, description: '', visibility: 'public', definition: OTHER_DEFINITION, chart: null, revision: created.revision })
+      const updated = await reports.update(created.id, { name, description: '', visibility: 'public', definition: OTHER_DEFINITION, chart: null, layout: DEFAULT_LAYOUT, revision: created.revision })
       const reread = await reports.get(created.id)
 
       expect(updated).toMatchObject({ id: created.id, name, description: '', revision: 2, entities: ['deal', 'action'] })
@@ -439,6 +445,133 @@ export function savedReportsContract(make: MakeGateway): void {
       await expectRejects(gateway.reports.get(1), 401)
       await expectRejects(gateway.reports.create(input()), 401)
       await expectRejects(gateway.reports.run(1), 401)
+    })
+
+    describe('결과 배치 (작성/결과 탭 분리 AC18, AC22, AC24~28)', () => {
+      it('keeps the layout it was saved with and reads it again', async () => {
+        const { reports } = await make('sales')
+
+        const created = await reports.create(input({ layout: SIDE_LAYOUT }))
+
+        expect(created.layout).toEqual(SIDE_LAYOUT)
+        expect((await reports.get(created.id)).layout).toEqual(SIDE_LAYOUT)
+        await cleanup(created.id)
+      })
+
+      it('gives the default layout to a report saved with the default one', async () => {
+        const { reports } = await make('sales')
+
+        const created = await reports.create(input())
+
+        expect(created.layout).toEqual(DEFAULT_LAYOUT)
+        await cleanup(created.id)
+      })
+
+      it('replaces the layout on overwrite and keeps it when the request carries the stored one', async () => {
+        const { reports } = await make('sales')
+        const created = await reports.create(input({ layout: SIDE_LAYOUT }))
+
+        const same = await reports.update(created.id, { ...input({ name: created.name, layout: created.layout }), revision: created.revision })
+        const replaced = await reports.update(created.id, { ...input({ name: created.name, layout: TABLE_LAYOUT }), revision: same.revision })
+
+        expect(same.layout).toEqual(SIDE_LAYOUT)
+        expect(replaced).toMatchObject({ revision: 3, layout: TABLE_LAYOUT })
+        await cleanup(created.id)
+      })
+
+      it('copies the layout of the source report', async () => {
+        const created = await createAs('sales', { layout: SIDE_LAYOUT })
+        const { reports } = await make('user')
+
+        const copy = await reports.copy(created.id, { name: unique('copy'), description: '', visibility: 'public' })
+
+        expect(copy.layout).toEqual(SIDE_LAYOUT)
+        await cleanup(created.id, copy.id)
+      })
+
+      it('saves only the layout, bumps the revision and records the editor, leaving definition and chart alone', async () => {
+        const created = await createAs('sales', { chart: CHART })
+        const { reports } = await make('user')
+        const me = await (await make('user')).auth.me()
+
+        const saved = await reports.saveReportLayout(created.id, { layout: SIDE_LAYOUT, revision: created.revision })
+        const reread = await reports.get(created.id)
+
+        expect(saved).toMatchObject({ revision: 2, layout: SIDE_LAYOUT, name: created.name, visibility: 'public', chart: CHART })
+        expect(saved.definition).toEqual(DEFINITION)
+        expect(saved.generatedSql).toBe(created.generatedSql)
+        expect(saved.owner.id).toBe(created.owner.id)
+        expect(saved.updatedBy.id).toBe(me.id)
+        expect(reread).toEqual(saved)
+        await cleanup(created.id)
+      })
+
+      it('accepts consecutive layout saves that carry the revision of the previous response', async () => {
+        const { reports } = await make('sales')
+        const created = await reports.create(input())
+
+        const first = await reports.saveReportLayout(created.id, { layout: SIDE_LAYOUT, revision: created.revision })
+        const second = await reports.saveReportLayout(created.id, { layout: TABLE_LAYOUT, revision: first.revision })
+        const third = await reports.saveReportLayout(created.id, { layout: DEFAULT_LAYOUT, revision: second.revision })
+
+        expect([first.revision, second.revision, third.revision]).toEqual([2, 3, 4])
+        expect((await reports.get(created.id)).layout).toEqual(DEFAULT_LAYOUT)
+        await cleanup(created.id)
+      })
+
+      it('rejects a stale revision with invalid-state and keeps the stored layout', async () => {
+        const { reports } = await make('sales')
+        const created = await reports.create(input({ layout: SIDE_LAYOUT }))
+        await reports.saveReportLayout(created.id, { layout: TABLE_LAYOUT, revision: 1 })
+
+        const stale = await expectRejects(reports.saveReportLayout(created.id, { layout: DEFAULT_LAYOUT, revision: 1 }), 409)
+
+        expect(stale.kind).toBe('invalid-state')
+        expect(await reports.get(created.id)).toMatchObject({ revision: 2, layout: TABLE_LAYOUT })
+        await cleanup(created.id)
+      })
+
+      it('hides the private report of someone else as not found, like a missing one', async () => {
+        const created = await createAs('sales', { visibility: 'private' })
+        const { reports } = await make('user')
+
+        const hidden = await expectRejects(reports.saveReportLayout(created.id, { layout: TABLE_LAYOUT, revision: 1 }), 404)
+        const missing = await expectRejects(reports.saveReportLayout(NO_SUCH_ID, { layout: TABLE_LAYOUT, revision: 1 }), 404)
+
+        expect(hidden.kind).toBe('not-found')
+        expect(hidden.message).toBe(missing.message)
+        expect(hidden.message).toBe(NOT_FOUND)
+        await cleanup(created.id)
+      })
+
+      it('lets an admin save the layout of a private report of someone else', async () => {
+        const created = await createAs('sales', { visibility: 'private' })
+        const { reports } = await make('admin')
+
+        const saved = await reports.saveReportLayout(created.id, { layout: TABLE_LAYOUT, revision: 1 })
+
+        expect(saved).toMatchObject({ revision: 2, layout: TABLE_LAYOUT })
+        expect(saved.owner.id).toBe(created.owner.id)
+        await cleanup(created.id)
+      })
+
+      it.each([
+        ['view', { ...DEFAULT_LAYOUT, view: 'grid' }],
+        ['order', { ...DEFAULT_LAYOUT, order: ['table', 'table'] }],
+        ['arrange', { ...DEFAULT_LAYOUT, arrange: 'row' }],
+      ] as const)('rejects a layout with a wrong %s at its location and saves nothing', async (field, layout) => {
+        const { reports } = await make('sales')
+        const created = await reports.create(input({ layout: SIDE_LAYOUT }))
+
+        const onSave = await expectRejects(reports.saveReportLayout(created.id, { layout: layout as unknown as ReportLayout, revision: 1 }), 422)
+        const onCreate = await expectRejects(reports.create(input({ layout: layout as unknown as ReportLayout })), 422)
+
+        expect(onSave.kind).toBe('invalid-report')
+        expect(onSave.problem?.reportErrors?.map((e) => e.location)).toEqual([['layout', field]])
+        expect(onCreate.problem?.reportErrors?.map((e) => e.location)).toEqual([['layout', field]])
+        expect(await reports.get(created.id)).toMatchObject({ revision: 1, layout: SIDE_LAYOUT })
+        await cleanup(created.id)
+      })
     })
   })
 }

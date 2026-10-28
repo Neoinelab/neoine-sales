@@ -2,6 +2,7 @@
 
 definition은 검증을 통과한 원시 정의 JSON, generated_sql은 표시용 문자열이다. 결과 데이터는 저장하지
 않는다. chart는 차트 설정 JSON이며 차트가 없으면 NULL이다.
+layout은 결과 배치 JSON이며 NULL이면 기본 배치로 읽는다.
 """
 
 from typing import Any
@@ -34,12 +35,14 @@ class ReportRow(AuditColumns, Base):
     definition: Mapped[dict[str, Any]] = mapped_column(JSONB)
     generated_sql: Mapped[str] = mapped_column(Text)
     chart: Mapped[dict[str, Any] | None] = mapped_column(JSONB, default=None)
+    layout: Mapped[dict[str, Any] | None] = mapped_column(JSONB, default=None)
     revision: Mapped[int] = mapped_column(Integer)
 
     __table_args__ = (
         CheckConstraint(f"visibility in ({_VISIBILITIES})", name="visibility_valid"),
         CheckConstraint("revision >= 1", name="revision_positive"),
         CheckConstraint("jsonb_typeof(definition) = 'object'", name="definition_object"),
+        CheckConstraint("layout is null or jsonb_typeof(layout) = 'object'", name="layout_object"),
         Index("uq_reports_name_lower", func.lower(name), unique=True),
         Index("ix_reports_owner_user_id", "owner_user_id"),
         Index("ix_reports_updated_by_user_id", "updated_by_user_id"),

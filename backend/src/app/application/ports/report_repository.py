@@ -31,10 +31,17 @@ class ReportRepository(Protocol):
     async def update(self, report: Report) -> None:
         """변경 가능한 내용만 맞춘다.
 
-        name·description·visibility·definition·generated_sql·updated_by·revision·updated_at.
+        name·description·visibility·definition·generated_sql·chart·layout·updated_by·revision·updated_at.
 
         만든 사람·생성 시각은 유지한다. 없으면 ReportNotFoundError,
         이름이 겹치면 DuplicateReportNameError.
+        """
+        ...
+
+    async def update_layout(self, report: Report) -> None:
+        """layout·updated_by·revision·updated_at만 맞춘다(정의·차트 JSON은 다시 쓰지 않는다).
+
+        없으면 ReportNotFoundError.
         """
         ...
 

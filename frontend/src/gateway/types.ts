@@ -89,7 +89,7 @@ import type {
   Vendor,
 } from '../shared/model/types'
 import type { CoChange } from '../shared/model/sync'
-import type { ReportCatalog, ReportQueryInput, ReportResult, SavedReport, SavedReportInput, SavedReportMeta, SavedReportSummary } from '../shared/model/reportTypes'
+import type { ReportCatalog, ReportLayout, ReportQueryInput, ReportResult, SavedReport, SavedReportInput, SavedReportMeta, SavedReportSummary } from '../shared/model/reportTypes'
 
 /** `deals.applyChange` 결과. */
 export interface ApplyChangeResult {
@@ -320,6 +320,11 @@ export interface ReportsGateway {
   remove(id: number): Promise<void>
   /** 저장된 정의를 지금 날짜로 다시 검증해 실행(`query`와 같은 결과 모양). 422 `invalid-report`, 503 `report-timeout`. */
   run(id: number): Promise<ReportResult>
+  /**
+   * 결과 배치만 저장한다(정의·차트·이름은 그대로, revision +1). 404 `not-found`, 403 `forbidden`,
+   * `revision`이 다르면 409 `invalid-state`, 값 위반은 422 `invalid-report`(reportErrors).
+   */
+  saveReportLayout(id: number, input: { layout: ReportLayout; revision: number }): Promise<SavedReport>
 }
 
 export interface VendorsGateway {

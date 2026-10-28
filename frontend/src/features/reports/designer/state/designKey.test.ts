@@ -87,3 +87,35 @@ describe('designKey', () => {
     expect(keyOf(moved)).not.toBe(keyOf(loaded))
   })
 })
+
+describe('designKey and the result layout (작성/결과 탭 분리 AC19)', () => {
+  it('changes when only the layout changes and gets the same key again when it is put back', () => {
+    const loaded = load()
+    const baseline = keyOf(loaded)
+
+    const sided = reduce(loaded, { type: 'placeTile', dragged: 'table', target: 'chart', edge: 'right' })
+    const viewed = reduce(loaded, { type: 'setResultView', view: 'table' })
+    const back = reduce(sided, { type: 'placeTile', dragged: 'chart', target: 'table', edge: 'bottom' })
+
+    expect(keyOf(sided)).not.toBe(baseline)
+    expect(keyOf(viewed)).not.toBe(baseline)
+    expect(keyOf(sided)).not.toBe(keyOf(viewed))
+    expect(keyOf(back)).toBe(baseline)
+  })
+
+  it('tells the order apart even when the arrangement is the same', () => {
+    const loaded = load()
+    const tableFirst = reduce(loaded, { type: 'placeTile', dragged: 'chart', target: 'table', edge: 'right' })
+    const chartFirst = reduce(loaded, { type: 'placeTile', dragged: 'table', target: 'chart', edge: 'right' })
+
+    expect(keyOf(tableFirst)).not.toBe(keyOf(chartFirst))
+  })
+
+  it('still gives a key that carries the layout when a condition value cannot be read', () => {
+    const loaded = load()
+    const uid = loaded.conditions[0]?.uid ?? -1
+    const unreadable = reduce(loaded, { type: 'changeDraft', uid, draft: { shape: 'number', text: 'abc' } })
+
+    expect(keyOf(reduce(unreadable, { type: 'setResultView', view: 'chart' }))).not.toBe(keyOf(unreadable))
+  })
+})

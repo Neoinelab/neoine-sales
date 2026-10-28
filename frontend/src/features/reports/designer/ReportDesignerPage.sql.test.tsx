@@ -2,6 +2,7 @@ import { screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { mockControl } from '../../../test/fake/default'
 import { resultOf } from '../../../test/reportDesigner'
+import { showTab } from '../../../test/reportLayout'
 import { addColumn, openAndRun, openDesigner, setupReportClock } from '../../../test/reportScreen'
 
 setupReportClock()
@@ -33,6 +34,7 @@ describe('생성 SQL (AC14)', () => {
   it('shows the SQL of the latest run', async () => {
     const { user } = await openAndRun(resultOf({ sql: SQL }), 'Deal code')
 
+    await showTab(user, 'design')
     await addColumn(user, 'Deal 이름')
     const next = 'SELECT d.deal_code, d.name FROM deals d LIMIT 100'
     mockControl.setReportQueryHandler(() => resultOf({ sql: next }))
@@ -40,5 +42,14 @@ describe('생성 SQL (AC14)', () => {
 
     expect(await screen.findByText(next)).toBeInTheDocument()
     expect(screen.queryByText(SQL)).not.toBeInTheDocument()
+  })
+
+  it('puts the SQL viewer on the result tab, hidden while the design tab is shown', async () => {
+    const { user } = await openAndRun(resultOf({ sql: SQL }), 'Deal code')
+    expect(screen.getByText('생성 SQL 보기(읽기 전용)')).toBeVisible()
+
+    await showTab(user, 'design')
+
+    expect(screen.getByText('생성 SQL 보기(읽기 전용)')).not.toBeVisible()
   })
 })

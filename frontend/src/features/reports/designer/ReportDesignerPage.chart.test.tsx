@@ -16,18 +16,20 @@ import {
   optionAt,
   panelField,
   STATUS_COL,
-  tabNamed,
+  chartToggle,
   USERS_HEADER,
   usersCol,
   VENDOR_COL,
   valueGroup,
 } from '../../../test/reportChart'
 import { resultColumn, resultOf } from '../../../test/reportDesigner'
+import { expectTab, resultTab, showTab, tile } from '../../../test/reportLayout'
 import {
   addColumn,
   answerWith,
   chipButton,
   openDesigner,
+  rerun,
   runQuery,
   saveButton,
   saveDialog,
@@ -42,39 +44,66 @@ const NEEDS_GROUPING = '그룹핑한 결과로 차트를 만들 수 있습니다
 const TOO_MANY_GROUPS = '차트는 그룹핑 컬럼이 1~2개일 때 만들 수 있습니다'
 const ALL_KINDS = ['세로 막대', '가로 막대', '누적 막대', '100% 누적', '꺾은선', '영역', '원', '도넛', '분산형', '콤보']
 
-describe('결과 카드 탭 (AC10)', () => {
-  it('opens on the result table tab with a chart tab next to it', async () => {
+describe('결과 탭의 차트 타일 (작성/결과 탭 분리 AC9, AC10, AC16)', () => {
+  it('has no chart tab: the chart is a tile next to the table tile on the result tab', async () => {
     await openGroupedDesigner(1)
 
-    const tablist = screen.getByRole('tablist')
-    expect(within(tablist).getAllByRole('tab').map((t) => t.textContent)).toEqual(['결과 표', '차트'])
-    expect(tabNamed('결과 표')).toHaveAttribute('aria-selected', 'true')
-    expect(tabNamed('차트')).toHaveAttribute('aria-selected', 'false')
-    expect(within(screen.getByRole('tabpanel')).getByRole('table', { name: '조회 결과' })).toBeVisible()
+    expect(screen.getAllByRole('tab').map((t) => t.textContent)).toEqual(['작성', '결과'])
+    expectTab('result')
+    expect(within(tile('표')).getByRole('table', { name: '조회 결과' })).toBeVisible()
+    expect(await screen.findByRole('region', { name: '차트 타일' })).toBeVisible()
     expect(renderedCharts()).toHaveLength(0)
   })
 
-  it('shows the chart tab and hides the table when the chart tab is chosen', async () => {
-    const { user } = await openGroupedDesigner(1)
+  it('shows the make-chart empty state in the chart tile before a chart exists', async () => {
+    await openGroupedDesigner(1)
 
-    await openChartTab(user)
-
-    expect(tabNamed('차트')).toHaveAttribute('aria-selected', 'true')
-    expect(tabNamed('결과 표')).toHaveAttribute('aria-selected', 'false')
-    expect(screen.queryByRole('table', { name: '조회 결과' })).not.toBeInTheDocument()
-    await user.click(tabNamed('결과 표'))
-    expect(await screen.findByRole('table', { name: '조회 결과' })).toBeVisible()
+    expect(await within(tile('차트')).findByRole('button', { name: '차트 만들기' })).toBeEnabled()
+    expect(chartToggle()).toBeNull()
   })
 
-  it('keeps the chosen tab after running again', async () => {
+  it('opens the settings panel when a chart is made and toggles it with the chart settings button', async () => {
     const { user } = await openGroupedDesigner(1)
-    await openChartTab(user)
+    await createChart(user)
 
-    await runQuery(user)
+    expect(chartToggle()).toHaveAttribute('aria-expanded', 'true')
+    expect(kindButton('세로 막대')).toBeVisible()
+
+    await user.click(chartToggle() as HTMLElement)
+
+    expect(chartToggle()).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByRole('button', { name: '세로 막대' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '차트 삭제' })).not.toBeInTheDocument()
+    expect(screen.getByRole('img')).toBeVisible() // 그림은 설정 패널과 무관하게 남는다
+
+    await user.click(chartToggle() as HTMLElement)
+
+    expect(chartToggle()).toHaveAttribute('aria-expanded', 'true')
+    expect(kindButton('세로 막대')).toBeVisible()
+  })
+
+  it('keeps the chart, the open settings and the result tab after running again', async () => {
+    const { user } = await openGroupedDesigner(1)
+    await createChart(user)
+
+    await rerun(user)
 
     await waitFor(() => expect(mockControl.reportQueries()).toHaveLength(2))
-    expect(await screen.findByRole('tab', { name: '차트', selected: true })).toBeVisible()
-    expect(screen.queryByRole('table', { name: '조회 결과' })).not.toBeInTheDocument()
+    expectTab('result')
+    expect(await screen.findByRole('img')).toBeVisible()
+    expect(chartToggle()).toHaveAttribute('aria-expanded', 'true')
+    expect(panelField('범주')).toHaveDisplayValue('Vendor')
+  })
+
+  it('removes the chart tile and its drawing for the table-only view', async () => {
+    const { user } = await openGroupedDesigner(1)
+    await createChart(user)
+
+    await user.click(screen.getByRole('radio', { name: '표만' }))
+
+    expect(screen.queryByRole('region', { name: '차트 타일' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('img')).not.toBeInTheDocument()
+    expect(screen.getByRole('table', { name: '조회 결과' })).toBeVisible()
   })
 })
 
@@ -407,7 +436,7 @@ describe('컬럼 편집과 차트 (AC17)', () => {
     await createChart(user)
     await user.type(panelField('차트 제목'), '유지할 제목')
 
-    await user.click(tabNamed('결과 표'))
+    await showTab(user, 'design')
     await user.click(screen.getByRole('button', { name: 'Vendor 빼기' }))
     await openChartTab(user)
 
@@ -415,24 +444,27 @@ describe('컬럼 편집과 차트 (AC17)', () => {
     expect(panelField('차트 제목')).toHaveValue('유지할 제목')
   })
 
-  it('shows the server chart issue in the result summary when saving an incomplete chart', async () => {
+  it('moves to the result tab and opens the settings when saving an incomplete chart is rejected (AC8)', async () => {
     const { user } = await openGroupedDesigner(2)
     await openChartTab(user)
     await createChart(user)
-    await user.click(tabNamed('결과 표'))
+    await showTab(user, 'design')
     await user.click(screen.getByRole('button', { name: 'Vendor 빼기' }))
     answerWith(resultOf({ columns: [{ ...STATUS_COL, index: 0 }, amountCol(1), usersCol(2)], rows: [['Won', 1_000_000, 10]] }))
     await runQuery(user)
     await waitFor(() => expect(mockControl.reportQueries()).toHaveLength(2))
     await waitFor(() => expect(saveButton()).toBeEnabled())
+    await showTab(user, 'design') // 저장 전 탭을 작성 탭으로 두고, 위반 위치(차트)를 따라 결과 탭으로 옮겨지는지 본다
 
     await user.click(saveButton())
     const dialog = await saveDialog()
     await typeName(user, dialog, '차트 있는 새 리포트')
     await user.click(within(dialog).getByRole('button', { name: '저장' }))
 
-    const alert = await screen.findByRole('alert')
-    expect(alert).toHaveTextContent('차트: 범주 열은 그룹핑한 컬럼이어야 합니다')
+    await waitFor(() => expect(resultTab()).toHaveAttribute('aria-selected', 'true'))
+    expect(chartToggle()).toHaveAttribute('aria-expanded', 'true')
+    expect(await within(tile('차트')).findByText(/범주 열은 그룹핑한 컬럼이어야 합니다/)).toBeVisible()
+    expect(resultTab()).toHaveTextContent('결과 (고칠 곳 1)')
     expect(mockControl.savedReportRequests().filter((r) => r.op === 'create')).toHaveLength(1)
   })
 })
@@ -451,7 +483,7 @@ describe('큰 결과 (AC20)', () => {
   async function chartOf(result: ReturnType<typeof manyCategories>) {
     const { user } = await openGroupedDesigner(1)
     answerWith(result)
-    await runQuery(user)
+    await rerun(user)
     await waitFor(() => expect(mockControl.reportQueries()).toHaveLength(2))
     await openChartTab(user)
     await user.click(await screen.findByRole('button', { name: '차트 만들기' }))

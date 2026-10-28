@@ -34,7 +34,7 @@ if TYPE_CHECKING:
     from tests.functional.conftest import Api
 
 pytestmark = pytest.mark.integration
-METHODS = ["GET", "PUT", "DELETE", "COPY", "RUN"]
+METHODS = ["GET", "PUT", "LAYOUT", "DELETE", "COPY", "RUN"]
 
 
 @pytest.mark.parametrize("method", METHODS)
@@ -42,7 +42,7 @@ METHODS = ["GET", "PUT", "DELETE", "COPY", "RUN"]
 async def test_others_private_report_is_hidden_like_a_missing_one(
     api: Api, role: str, method: str
 ) -> None:
-    """Scenario: 남의 비공개 리포트는 보기·수정·삭제·복제·실행 모두 없는 id와 같은 404이다."""
+    """Scenario: 남의 비공개 리포트는 보기·수정·배치·삭제·복제·실행 모두 없는 id와 같은 404이다."""
     # Given
     await given_users(api, alice="sales", bob=role)  # type: ignore[arg-type]
     await given_logged_in(api, "alice")

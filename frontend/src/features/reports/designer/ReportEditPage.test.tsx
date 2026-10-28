@@ -5,7 +5,8 @@ import { describe, expect, it } from 'vitest'
 import { gateway } from '../../../gateway'
 import { mockControl } from '../../../test/fake/default'
 import { renderAt } from '../../../test/mockApp'
-import { addCountedColumn, chipButton, chipItems, chipTexts, lastQuery, openEditor, runQuery, saveButton, saveDialog, settingsOf, setupReportClock, typeName, UNSAVED_MARK } from '../../../test/reportScreen'
+import { showTab } from '../../../test/reportLayout'
+import { addCountedColumn, chipButton, chipItems, chipTexts, lastQuery, openEditor, runQuery, saveButton, saveDialog, settingsOf, setupReportClock, typeName, UNSAVED_MARK, waitForHiddenResult } from '../../../test/reportScreen'
 import {
   BROKEN_DEFINITION,
   MINE_PUBLIC,
@@ -134,6 +135,7 @@ describe('저장 안 됨 표시와 덮어쓰기 (AC15, S11)', () => {
   it('overwrites again with the new revision after the first overwrite', async () => {
     const { user } = await openEditor(MINE_PUBLIC.id)
     for (const label of ['Deal code', 'Deal 이름']) {
+      await showTab(user, 'design')
       await addCountedColumn(user, label)
       await runQuery(user)
       await waitFor(() => expect(saveButton()).toBeEnabled())
@@ -155,6 +157,7 @@ describe('저장 안 됨 표시와 덮어쓰기 (AC15, S11)', () => {
     await user.click((await dialogOf()).getByRole('button', { name: '저장' }))
     await waitFor(() => expect(unsavedMark()).not.toBeInTheDocument())
 
+    await showTab(user, 'design')
     await user.click(screen.getByRole('button', { name: 'Deal code 빼기' }))
 
     expect(screen.getByText(UNSAVED_MARK)).toBeVisible()
@@ -196,6 +199,7 @@ describe('충돌 (AC8, S12)', () => {
     expect(alert).toHaveTextContent('다른 사용자가 먼저 이 리포트를 저장했습니다')
     expect(within(alert).getByRole('button', { name: '다른 이름으로 저장' })).toBeVisible()
     expect(dialog.getByRole('button', { name: '닫기' })).toBeVisible()
+    await showTab(user, 'design')
     expect(chipItems()).toHaveLength(3)
     expect(screen.getByText(UNSAVED_MARK)).toBeVisible()
     expect(await gateway.reports.get(MINE_PUBLIC.id)).toMatchObject({ revision: 2 })
@@ -215,6 +219,7 @@ describe('충돌 (AC8, S12)', () => {
     await user.click(dialog.getByRole('button', { name: '닫기' }))
 
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    await showTab(user, 'design')
     expect(chipItems()).toHaveLength(3)
     expect(screen.getByText(UNSAVED_MARK)).toBeVisible()
   })
@@ -263,7 +268,7 @@ describe('다른 이름으로 저장 (AC15, S13)', () => {
   it('cuts the copy name to 100 characters', async () => {
     const longName = 'x'.repeat(98)
     const { user } = await renderAt('/reports/30/edit', { savedReports: [savedReport({ id: 30, name: longName })] })
-    await screen.findByRole('table', { name: '조회 결과' })
+    await waitForHiddenResult()
 
     await user.click(screen.getByRole('button', { name: '다른 이름으로 저장' }))
 
@@ -371,6 +376,7 @@ describe('되돌리기 (AC15, S15)', () => {
     await user.click(saveButton())
     await user.click((await dialogOf()).getByRole('button', { name: '저장' }))
     await waitFor(() => expect(unsavedMark()).not.toBeInTheDocument())
+    await showTab(user, 'design')
     await addCountedColumn(user, 'Deal 이름')
 
     await user.click(screen.getByRole('button', { name: '되돌리기' }))

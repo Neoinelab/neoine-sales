@@ -4,6 +4,7 @@ import { screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { mockControl } from '../../../test/fake/default'
 import { resultColumn, resultOf } from '../../../test/reportDesigner'
+import { arrangement, chooseView, dragTile, expectTab, showTab, tileOrder } from '../../../test/reportLayout'
 import { addColumn, lastQuery, openAndRun, openDesigner, runQuery, saveButton, saveDialog, setupReportClock, typeName, UNSAVED_MARK } from '../../../test/reportScreen'
 import { MINE_PUBLIC, SAVED_SAMPLES } from '../../../test/savedReports'
 
@@ -36,6 +37,7 @@ describe('저장 단추 활성 조건 (AC14, S6)', () => {
     expect(saveButton()).toBeEnabled()
     expect(saveButton().getAttribute('title') ?? '').not.toMatch(/조회/)
 
+    await showTab(user, 'design')
     await addColumn(user, 'Deal 이름')
     expect(saveButton()).toBeDisabled()
     expect(saveButton()).toHaveAttribute('title', '바뀐 설계를 다시 조회한 뒤 저장하세요')
@@ -140,6 +142,8 @@ describe('저장 대화상자 (AC13, S7)', () => {
 
     await waitFor(() => expect(screen.queryByRole('dialog', { name: '리포트 저장' })).not.toBeInTheDocument())
     expect((await screen.findAllByText(/이 컬럼은 그룹핑할 때만 쓸 수 있습니다/)).length).toBeGreaterThan(0)
+    expectTab('design') // 첫 위반이 차트가 아니면 작성 탭으로 옮겨 위반 위치를 보인다 (작성/결과 탭 분리 AC8)
+    expect(screen.getByRole('alert')).toHaveTextContent('이 컬럼은 그룹핑할 때만 쓸 수 있습니다')
     expect(mockControl.savedReportRequests().map((r) => r.op)).toEqual(['create'])
   })
 })
@@ -205,5 +209,79 @@ describe('user 역할 저장 (AC19, S9)', () => {
 
     expect(await within(dialog).findByText('같은 이름의 리포트가 이미 있습니다.')).toBeVisible()
     expect(location()).toBe('/reports/new')
+  })
+})
+
+describe('결과 배치 저장 (작성/결과 탭 분리 AC7, AC18)', () => {
+  const SIDE_CHART_FIRST = { view: 'both', order: ['chart', 'table'], arrange: 'side_by_side' }
+
+  async function saveAs(user: Awaited<ReturnType<typeof openReady>>['user'], name: string): Promise<void> {
+    await user.click(saveButton())
+    const dialog = await saveDialog()
+    await typeName(user, dialog, name)
+    await user.click(within(dialog).getByRole('button', { name: '저장' }))
+  }
+
+  it('sends the default layout with the create request when the layout was not touched', async () => {
+    const { user } = await openReady()
+
+    await saveAs(user, '기본 배치')
+
+    await waitFor(() => expect(mockControl.savedReportRequests()).toHaveLength(1))
+    expect(mockControl.savedReportRequests()[0]).toMatchObject({
+      op: 'create',
+      body: { layout: { view: 'both', order: ['table', 'chart'], arrange: 'stacked' } },
+    })
+  })
+
+  it('sends the chosen view, order and arrangement with the create request', async () => {
+    const { user } = await openReady()
+    dragTile('표', '차트', 'right')
+    await chooseView(user, '차트만')
+
+    await saveAs(user, '내 배치')
+
+    await waitFor(() => expect(mockControl.savedReportRequests()).toHaveLength(1))
+    expect(mockControl.savedReportRequests()[0]).toMatchObject({ op: 'create', body: { layout: { ...SIDE_CHART_FIRST, view: 'chart' } } })
+  })
+
+  it('opens the new editor with the same layout it was saved with', async () => {
+    const { user, location } = await openReady()
+    dragTile('표', '차트', 'right')
+
+    await saveAs(user, '배치 그대로')
+
+    await waitFor(() => expect(location()).toBe(CREATED))
+    expect(await screen.findByRole('heading', { level: 1, name: '배치 그대로' })).toBeVisible()
+    expect(tileOrder()).toEqual(['차트', '표'])
+    expect(arrangement()).toBe('side')
+    expect(screen.queryByText(UNSAVED_MARK)).not.toBeInTheDocument()
+  })
+
+  it('opens the new editor on the result tab when the result tab was shown before saving', async () => {
+    const { user, location } = await openReady()
+    expectTab('result')
+
+    await saveAs(user, '결과 탭에서 저장')
+
+    await waitFor(() => expect(location()).toBe(CREATED))
+    await screen.findByRole('heading', { level: 1, name: '결과 탭에서 저장' })
+    expectTab('result')
+    expect(screen.getByRole('table', { name: '조회 결과' })).toBeVisible()
+    expect(mockControl.reportQueries()).toHaveLength(1) // 결과를 넘겨 받으므로 다시 조회하지 않는다
+  })
+
+  it('opens the new editor on the design tab when the design tab was shown before saving', async () => {
+    const { user, location } = await openReady()
+    await showTab(user, 'design')
+
+    await saveAs(user, '작성 탭에서 저장')
+
+    await waitFor(() => expect(location()).toBe(CREATED))
+    await screen.findByRole('heading', { level: 1, name: '작성 탭에서 저장' })
+    expectTab('design')
+    expect(mockControl.reportQueries()).toHaveLength(1)
+    await showTab(user, 'result')
+    expect(screen.getByRole('table', { name: '조회 결과' })).toBeVisible()
   })
 })

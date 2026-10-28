@@ -6,7 +6,8 @@ import { gateway } from '../../../gateway'
 import { lastChart } from '../../../test/chartMock'
 import { mockControl } from '../../../test/fake/default'
 import { createChart, expectPressed, kindButton, openChartTab, optionAt, panelField } from '../../../test/reportChart'
-import { addCountedColumn, chipButton, chipItems, chipTexts, openEditor, settingsOf, saveButton, saveDialog, setupReportClock, UNSAVED_MARK } from '../../../test/reportScreen'
+import { NO_RESULT_NOTE, showTab } from '../../../test/reportLayout'
+import { addCountedColumn, chipButton, chipItems, chipTexts, openEditor, settingsOf, saveButton, saveDialog, setupReportClock, UNSAVED_MARK, waitForHiddenResult } from '../../../test/reportScreen'
 import { MINE_PUBLIC, SAVED_SAMPLES, VENDOR_CHART, WITH_CHART, savedReport } from '../../../test/savedReports'
 
 setupReportClock()
@@ -76,7 +77,7 @@ describe('저장된 차트 열기 (AC18)', () => {
     goTo('/reports')
     await screen.findByRole('table', { name: '리포트 목록' })
     goTo(`/reports/${MINE_PUBLIC.id}/edit`)
-    await screen.findByRole('table', { name: '조회 결과' })
+    await waitForHiddenResult()
     await openChartTab(user)
     expectPressed('꺾은선')
     expect(panelField('차트 제목')).toHaveValue('저장할 제목')
@@ -217,7 +218,7 @@ describe('되돌리기 분기 (리뷰 Minor, 분기 고정용: 현재 구현에�
 
     await revert(user)
 
-    await user.click(screen.getByRole('tab', { name: '결과 표' }))
+    await showTab(user, 'result')
     expect(await screen.findByRole('table', { name: '조회 결과' })).toBeVisible()
     expect(screen.queryByText(/설계가 바뀌었습니다/)).not.toBeInTheDocument()
     await openChartTab(user)
@@ -234,13 +235,16 @@ describe('되돌리기 분기 (리뷰 Minor, 분기 고정용: 현재 구현에�
     await addCountedColumn(user, 'Deal code')
     await openChartTab(user)
     await user.type(panelField('차트 제목'), ' 바뀜')
+    await showTab(user, 'design')
     expect(chipItems()).toHaveLength(3)
 
     await revert(user)
 
     expect(chipItems()).toHaveLength(2)
     expect(chipTexts()[1]).toContain('▼ 내림')
+    await showTab(user, 'result')
     expect(screen.queryByRole('table', { name: '조회 결과' })).not.toBeInTheDocument()
+    expect(screen.getByText(NO_RESULT_NOTE)).toBeVisible()
     await openChartTab(user)
     expect(panelField('차트 제목')).toHaveValue('Vendor별 금액')
     expect(panelField('범주')).toHaveDisplayValue('Vendor')

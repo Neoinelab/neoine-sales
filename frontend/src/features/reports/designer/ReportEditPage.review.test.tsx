@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest'
 import { keys } from '../../../data/queryKeys'
 import { gateway } from '../../../gateway'
 import { mockControl } from '../../../test/fake/default'
+import { showTab } from '../../../test/reportLayout'
 import { addCountedColumn, openEditor, runQuery, saveButton, saveDialog, setupReportClock, UNSAVED_MARK } from '../../../test/reportScreen'
 import { MINE_PUBLIC, reportInput } from '../../../test/savedReports'
 
@@ -28,6 +29,7 @@ async function refetchDetail(client: Editor['client']): Promise<void> {
 }
 
 async function changeAndRun(user: Editor['user'], label: string): Promise<void> {
+  await showTab(user, 'design')
   await addCountedColumn(user, label)
   await runQuery(user)
   await waitFor(() => expect(saveButton()).toBeEnabled())
@@ -113,6 +115,7 @@ describe('다른 이름으로 저장은 지난 결과를 새 설계의 결과로
     await waitFor(() => expect(location()).toBe('/reports/16/edit'))
     await waitFor(() => expect(mockControl.reportQueries()).toHaveLength(2))
     expect(mockControl.reportQueries()[1]?.columns).toHaveLength(3)
+    await showTab(user, 'result') // 낡은 결과는 넘기지 않으므로 새 편집 화면은 작성 탭으로 열리고 자동 조회 결과는 결과 탭에 채워진다
     await waitFor(() => expect(headers()).toHaveLength(3))
     expect(screen.queryByText(UNSAVED_MARK)).not.toBeInTheDocument()
   })
@@ -156,6 +159,7 @@ describe('변경이 없을 때의 되돌리기 (리뷰 Nit, 계획 4.8: 변경�
     await user.click(screen.getByRole('button', { name: '되돌리기' }))
 
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    await showTab(user, 'result')
     expect(screen.getByRole('table', { name: '조회 결과' })).toBeVisible()
     expect(saveButton()).toBeEnabled()
     expect(mockControl.reportQueries()).toHaveLength(1)

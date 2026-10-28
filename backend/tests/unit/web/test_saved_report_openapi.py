@@ -15,7 +15,7 @@ from tests.functional.conftest import make_settings
 UNUSED_DATABASE_URL = "postgresql+asyncpg://user:pw@localhost:5432/none"  # 접속하지 않는다
 BASE = "/api/v1/reports"
 ID_ROUTE = f"{BASE}/{{report_id}}"
-DETAIL_ONLY = {"revision", "definition", "generated_sql", "chart", "chart_problem"}
+DETAIL_ONLY = {"revision", "definition", "generated_sql", "chart", "chart_problem", "layout"}
 SUMMARY_FIELDS = {
     "id",
     "name",
@@ -133,6 +133,7 @@ def test_request_bodies_have_the_planned_fields_and_no_sql(schema: dict[str, Any
         "visibility",
         "definition",
         "chart",
+        "layout",
     }
     assert set(update["properties"]) == {
         "name",
@@ -140,6 +141,7 @@ def test_request_bodies_have_the_planned_fields_and_no_sql(schema: dict[str, Any
         "visibility",
         "definition",
         "chart",
+        "layout",
         "revision",
     }
     assert set(copy["properties"]) == {"name", "description", "visibility"}

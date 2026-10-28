@@ -86,6 +86,27 @@ class SavedReportCase:
             {"d": raw_json, "id": report.id},
         )
 
+    async def set_layout_json(self, report: Report, raw_json: str | None) -> None:
+        """저장된 layout 값을 직접 바꾼다(저장소를 거치지 않는다). None이면 NULL.
+
+        sql은 layout 컬럼을 원시 UPDATE하고, fake는 같은 JSON을 읽은 것처럼 엔티티에 반영한다
+        (NULL·읽을 수 없는 값은 기본 배치).
+        """
+        if self._session is None:
+            import json  # noqa: PLC0415
+
+            from app.domain.saved_report.layout import layout_from_json  # noqa: PLC0415
+
+            data = None if raw_json is None else json.loads(raw_json)
+            self.reports._items[report.id].layout = layout_from_json(data)
+            return
+        from sqlalchemy import text  # noqa: PLC0415
+
+        await self._session.execute(
+            text("update reports set layout = cast(:d as jsonb) where id = :id"),
+            {"d": raw_json, "id": report.id},
+        )
+
     async def resign(self, user_id: UserId, at: datetime) -> None:
         user = await self.users.get(user_id)
         user.resign(at)

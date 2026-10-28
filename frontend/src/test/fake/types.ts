@@ -1,5 +1,5 @@
-import type { ReportQueryInput, SavedReport } from '../../shared/model/reportTypes'
-import type { ReportQueryHandler, SavedReportRequest } from './store'
+import type { ReportLayout, ReportQueryInput, SavedReport } from '../../shared/model/reportTypes'
+import type { LayoutSaveGate, ReportQueryHandler, SavedReportRequest } from './store'
 
 /**
  * Fake 전용 제어(테스트가 사용). `default.ts`가 `mockControl`로 내보낸다.
@@ -22,6 +22,16 @@ export interface MockControl {
   reportQueries(): ReportQueryInput[]
   /** 저장된 리포트를 이 목록으로 바꾼다(비어 있던 저장소 기준). 다음 id는 가장 큰 id + 1이다. `resetData`가 비운다. */
   seedSavedReports(reports: SavedReport[]): void
-  /** Fake가 받은 저장 리포트 요청(create·update·copy·remove·run) 기록, 오래된 것부터. `resetData`가 비운다. */
+  /** Fake가 받은 저장 리포트 요청(create·update·copy·remove·run·layout) 기록, 오래된 것부터. `resetData`가 비운다. */
   savedReportRequests(): SavedReportRequest[]
+  /**
+   * 배치 저장 요청의 관문을 건다(null이면 해제). 관문이 Promise를 돌려주면 그것이 끝날 때까지 응답이 늦어지고, throw하면
+   * (ApiError) 서버 처리 없이 실패한다. 관문을 통과한 요청만 revision을 검사하고 반영한다. `resetData`가 지운다.
+   */
+  setLayoutSaveGate(gate: LayoutSaveGate | null): void
+  /**
+   * 다른 사람이 그 리포트를 저장한 것처럼 revision을 올린다(수정자는 박영업, 시각은 시계를 따른다). layout을 주면 배치도 바꾼다.
+   * 409(낡은 revision)를 순차 이벤트로 재현할 때 쓴다.
+   */
+  touchSavedReport(id: number, change?: { layout?: ReportLayout; name?: string }): void
 }

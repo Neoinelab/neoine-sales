@@ -36,9 +36,17 @@ DETAIL_KEYS = {
     "generated_sql",
     "chart",
     "chart_problem",
+    "layout",
     "chart_kind",  # 상세 응답은 목록 항목(요약)을 상속하므로 종류도 함께 있다
 }
-SUMMARY_KEYS = DETAIL_KEYS - {"revision", "definition", "generated_sql", "chart", "chart_problem"}
+SUMMARY_KEYS = DETAIL_KEYS - {
+    "revision",
+    "definition",
+    "generated_sql",
+    "chart",
+    "chart_problem",
+    "layout",
+}
 NOT_FOUND_DETAIL = "리포트를 찾을 수 없습니다."
 
 

@@ -22,6 +22,8 @@ export interface ChartEditSource {
   issues: readonly Message[]
   /** 서버가 저장된 차트를 읽지 못했을 때의 안내(보기 화면과 같은 문구). */
   problem?: string | null
+  /** 차트 타일 안의 설정 패널(종류·열·옵션과 '차트 삭제')을 보일지. 열림 상태는 디자이너가 쥐고 저장하지 않는다. */
+  settingsOpen: boolean
   dispatch: (action: DesignerAction) => void
 }
 

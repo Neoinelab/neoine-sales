@@ -108,6 +108,16 @@ async def given_stored_definition_uses_legacy_formats(
     )
 
 
+async def given_stored_definition_is_unreadable(api: Api, report_id: object) -> None:
+    """DB에서 그 리포트의 정의 JSON을 읽을 수 없는 모양(컬럼 없음)으로 바꿨다."""
+    await sql_rows(
+        api,
+        "update reports set definition = cast(:definition as jsonb) where id = :id",
+        definition=json.dumps({"combine": "and"}),
+        id=int(str(report_id)),
+    )
+
+
 # --------------------------------------------------------------------------- When
 
 
@@ -145,7 +155,7 @@ async def when_run_saved_report(api: Api, report_id: object) -> Response:
 async def when_touch_report(
     api: Api, method: str, report_id: object, name: str = "침입"
 ) -> Response:
-    """method에 맞는 본문으로 리포트 하나를 건드린다(GET·PUT·DELETE·copy·run)."""
+    """method에 맞는 본문으로 리포트 하나를 건드린다(GET·PUT·DELETE·copy·run·layout)."""
     path = f"{REPORTS}/{report_id}"
     if method == "GET":
         return await api.get(path)
@@ -153,6 +163,9 @@ async def when_touch_report(
         return await api.request("PUT", path, json={**report_body(name), "revision": 1})
     if method == "DELETE":
         return await api.request("DELETE", path)
+    if method == "LAYOUT":
+        layout = {"view": "table", "order": ["table", "chart"], "arrange": "stacked"}
+        return await api.request("PUT", f"{path}/layout", json={"layout": layout, "revision": 1})
     if method == "COPY":
         return await api.post(f"{path}/copy", json={"name": name, "visibility": "public"})
     assert method == "RUN", method

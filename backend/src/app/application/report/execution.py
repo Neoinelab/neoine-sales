@@ -10,6 +10,7 @@ from app.domain.deal.risk import RiskBasis
 from app.domain.report.parse import parse_report_definition
 from app.domain.report.parse_chart import parse_chart
 from app.domain.report.resolve import ReportContext, resolve_report
+from app.domain.saved_report.layout import parse_layout
 from app.domain.saved_report.values import (
     ReportContent,
     ReportVisibility,
@@ -56,15 +57,17 @@ async def prepare_content(
 ) -> ReportContent:
     """메타 정규화, 정의·차트 검증, 서버가 만든 SQL을 묶어 저장 내용으로 만든다.
 
-    메타 오류가 있으면 그것만 먼저 알리고, 정의 위반이 있으면 차트는 검사하지 않는다.
+    메타 오류가 있으면 그것만 먼저 알리고, 정의 위반이 있으면 차트·배치는 검사하지 않는다.
+    차트 위반이 있으면 배치는 검사하지 않는다.
     """
     clean_name = normalize_report_name(data.name)
     clean_description = normalize_report_description(data.description)
     parsed_visibility = ReportVisibility.parse(data.visibility)
     parsed = parse_report_definition(data.definition)
     chart = None if data.chart is None else parse_chart(data.chart, parsed).to_raw()
+    layout = None if data.layout is None else parse_layout(data.layout)
     context = await report_context(uow, now)
     sql = uow.reports.render_sql(resolve_report(parsed, context))
     return ReportContent(
-        clean_name, clean_description, parsed_visibility, data.definition, sql, chart
+        clean_name, clean_description, parsed_visibility, data.definition, sql, chart, layout
     )

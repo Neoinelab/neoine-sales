@@ -52,6 +52,7 @@ async def test_reports_columns_types_and_nullability(session: AsyncSession) -> N
         "definition": ("jsonb", None, "NO"),
         "generated_sql": ("text", None, "NO"),
         "chart": ("jsonb", None, "YES"),
+        "layout": ("jsonb", None, "YES"),
         "revision": ("integer", None, "NO"),
         "created_at": ("timestamp with time zone", None, "NO"),
         "updated_at": ("timestamp with time zone", None, "NO"),

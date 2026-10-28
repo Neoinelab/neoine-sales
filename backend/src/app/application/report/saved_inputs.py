@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from app.domain.auth.principal import Role
-    from app.domain.report.raw import RawChart, RawReportDefinition
+    from app.domain.report.raw import RawChart, RawLayout, RawReportDefinition
     from app.domain.user.value_objects import UserId
 
 
@@ -22,6 +22,7 @@ class ReportContentInput:
     visibility: str
     definition: RawReportDefinition
     chart: RawChart | None = None
+    layout: RawLayout | None = None
 
 
 @dataclass(frozen=True, slots=True)

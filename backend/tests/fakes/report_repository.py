@@ -8,9 +8,11 @@
   DuplicateReportNameError)
 - `list(scope)`: see_all이면 전부, 아니면 owner가 viewer이거나 public. updated_at 내림차순, 동률은
   id 내림차순
-- `update`는 name·description·visibility·definition·generated_sql·chart·chart_unreadable·
+- `update`는 name·description·visibility·definition·generated_sql·chart·chart_unreadable·layout·
   updated_by·revision·updated_at만 바꾼다(owner·created_at은 저장된 값을 유지).
   없으면 ReportNotFoundError
+- `update_layout`은 layout·updated_by·revision·updated_at만 바꾼다(정의·차트·이름은 저장된 값을
+  그대로 둔다). 없으면 ReportNotFoundError
 - `delete`는 물리 삭제. 없으면 ReportNotFoundError
 - get은 복사본을 돌려준다(저장소를 거치지 않은 변경이 저장되지 않는다)
 """
@@ -72,6 +74,16 @@ class FakeReportRepository(InMemoryStore["Report"]):
         # getattr: 차트 필드가 생기기 전의 엔티티로도 이 Fake가 동작하게 한다(4단계 구현 전 테스트)
         stored.chart = getattr(report, "chart", None)
         stored.chart_unreadable = getattr(report, "chart_unreadable", False)
+        if hasattr(report, "layout"):  # 배치 필드가 생기기 전의 엔티티로도 동작하게 한다
+            stored.layout = report.layout
+        stored.updated_by_user_id = report.updated_by_user_id
+        stored.revision = report.revision
+        stored.updated_at = report.updated_at
+        self._replace(stored)
+
+    async def update_layout(self, report: Report) -> None:
+        stored = self._fetch(report.id)  # 없으면 ReportNotFoundError
+        stored.layout = report.layout
         stored.updated_by_user_id = report.updated_by_user_id
         stored.revision = report.revision
         stored.updated_at = report.updated_at

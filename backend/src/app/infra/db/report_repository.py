@@ -14,6 +14,7 @@ from app.domain.report.stored import definition_from_json, definition_to_json
 from app.domain.report.stored_chart import chart_from_json, chart_to_json
 from app.domain.saved_report.entities import Report
 from app.domain.saved_report.errors import DuplicateReportNameError, ReportNotFoundError
+from app.domain.saved_report.layout import layout_from_json, layout_to_json
 from app.domain.saved_report.values import ReportId, ReportVisibility
 from app.domain.user.value_objects import UserId
 from app.infra.db.base_repository import ConstraintErrors, SqlRepository
@@ -57,6 +58,7 @@ def _entity(row: ReportRow) -> Report:
         generated_sql=row.generated_sql,
         revision=row.revision,
         chart=chart,
+        layout=layout_from_json(row.layout),
         chart_unreadable=unreadable,
         created_at=row.created_at,
         updated_at=row.updated_at,
@@ -110,6 +112,20 @@ class SqlReportRepository(SqlRepository[ReportRow]):
             _write_errors(report), work, not_found=lambda: ReportNotFoundError(report.id)
         )
 
+    async def update_layout(self, report: Report) -> None:
+        """layout·수정자·revision·수정 시각만 쓴다. 정의·차트 JSON은 다시 쓰지 않는다."""
+        row = await self._row(report.id)
+
+        async def work() -> None:
+            row.layout = layout_to_json(report.layout)
+            row.updated_by_user_id = report.updated_by_user_id
+            row.revision = report.revision
+            row.updated_at = report.updated_at
+
+        await self._atomic(
+            _write_errors(report), work, not_found=lambda: ReportNotFoundError(report.id)
+        )
+
     async def delete(self, report_id: ReportId) -> None:
         await self._remove(await self._row(report_id), {})
 
@@ -135,6 +151,7 @@ def _content(report: Report) -> dict[str, object]:
         "definition": definition_to_json(report.readable_definition()),
         "generated_sql": report.generated_sql,
         "chart": None if report.chart is None else chart_to_json(report.chart),
+        "layout": layout_to_json(report.layout),
         "revision": report.revision,
         "updated_at": report.updated_at,
     }

@@ -12,6 +12,7 @@ from app.domain.saved_report.errors import (
     ReportNotFoundError,
     ReportVisibilityForbiddenError,
 )
+from app.domain.saved_report.layout import DEFAULT_LAYOUT, ReportLayout
 from app.domain.saved_report.policy import (
     can_change_report_visibility,
     can_delete_report,
@@ -46,6 +47,7 @@ class Report(AuditedEntity[ReportId]):
     revision: int
     chart: RawChart | None = None
     chart_unreadable: bool = False  # 저장된 chart를 읽지 못함(chart는 None)
+    layout: ReportLayout = DEFAULT_LAYOUT
 
     @classmethod
     def create(
@@ -61,6 +63,7 @@ class Report(AuditedEntity[ReportId]):
             definition=content.definition,
             generated_sql=content.generated_sql,
             chart=content.chart,
+            layout=content.layout or DEFAULT_LAYOUT,
             revision=1,
             created_at=now,
             updated_at=now,
@@ -88,16 +91,12 @@ class Report(AuditedEntity[ReportId]):
     ) -> None:
         """판정 순서: 볼 수 있는가(404) -> 고칠 수 있는가·공개 범위(403) -> revision(409)."""
         self.ensure_visible_to(editor, role)
-        if not can_edit_report(
-            editor, role, owner_id=self.owner_user_id, visibility=self.visibility
-        ):
-            raise ReportEditForbiddenError
+        self._ensure_editable_by(editor, role)
         if content.visibility is not self.visibility and not can_change_report_visibility(
             editor, role, owner_id=self.owner_user_id
         ):
             raise ReportVisibilityForbiddenError
-        if expected_revision != self.revision:
-            raise ReportEditConflictError
+        self._ensure_revision(expected_revision)
         self.name = content.name
         self.description = content.description
         self.visibility = content.visibility
@@ -105,9 +104,39 @@ class Report(AuditedEntity[ReportId]):
         self.generated_sql = content.generated_sql
         self.chart = content.chart
         self.chart_unreadable = False
+        if content.layout is not None:
+            self.layout = content.layout
         self.updated_by_user_id = editor
         self.revision += 1
         self._touch(now)
+
+    def change_layout(
+        self,
+        layout: ReportLayout,
+        *,
+        editor: UserId,
+        role: Role,
+        expected_revision: int,
+        now: datetime,
+    ) -> None:
+        """배치만 바꾼다. 판정 순서: 볼 수 있는가(404) -> 고칠 수 있는가(403) -> revision(409)."""
+        self.ensure_visible_to(editor, role)
+        self._ensure_editable_by(editor, role)
+        self._ensure_revision(expected_revision)
+        self.layout = layout
+        self.updated_by_user_id = editor
+        self.revision += 1
+        self._touch(now)
+
+    def _ensure_editable_by(self, editor: UserId, role: Role) -> None:
+        if not can_edit_report(
+            editor, role, owner_id=self.owner_user_id, visibility=self.visibility
+        ):
+            raise ReportEditForbiddenError
+
+    def _ensure_revision(self, expected_revision: int) -> None:
+        if expected_revision != self.revision:
+            raise ReportEditConflictError
 
     def copy_as(  # noqa: PLR0913
         self,
@@ -129,6 +158,7 @@ class Report(AuditedEntity[ReportId]):
             definition=self.readable_definition(),
             generated_sql=generated_sql,
             chart=chart,
+            layout=self.layout,
         )
         return type(self).create(entity_id=entity_id, content=content, owner=owner, now=now)
 

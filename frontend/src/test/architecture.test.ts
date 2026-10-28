@@ -224,12 +224,20 @@ describe('T-ARCH-03 앱 코드의 브라우저 시계·시간대 경계', () => 
 })
 
 /**
- * T-ARCH-04 (Reports 4단계 AC21): 차트 코드(Chart.js)는 차트 탭을 처음 열 때 받는 lazy 청크에만 있다.
- * 결과 카드·디자이너·보기 화면은 차트 모듈을 정적으로 import하지 않고(타입 import만 허용) `chart/ChartTab`을 동적 import한다.
+ * T-ARCH-04 (Reports 4단계 AC21, 작성/결과 탭 분리 AC17): 차트 코드(Chart.js)는 차트 타일이 처음 보일 때 받는 lazy 청크에만 있다.
+ * 디자이너·보기 화면·결과 패널·타일은 차트 모듈을 정적으로 import하지 않고(타입 import만 허용) 차트 타일이 `chart/ChartTab`을 동적 import한다.
  */
 const reportSources = import.meta.glob('../features/reports/**/*.{ts,tsx}', { query: '?raw', import: 'default', eager: true }) as Record<string, string>
 
-const EAGER_FILES = ['../features/reports/designer/ResultCard.tsx', '../features/reports/designer/Designer.tsx', '../features/reports/view/ReportViewPage.tsx']
+const EAGER_FILES = [
+  '../features/reports/designer/Designer.tsx',
+  '../features/reports/designer/DesignPanel.tsx',
+  '../features/reports/view/ReportViewPage.tsx',
+  '../features/reports/result/ResultPanel.tsx',
+  '../features/reports/result/ResultTiles.tsx',
+  '../features/reports/result/TableTile.tsx',
+  '../features/reports/result/ChartTile.tsx',
+]
 const CHART_MODULE = /^(?:chart\.js(?:\/.*)?|react-chartjs-2|chartjs-plugin-datalabels)$|(?:^|\/)chart\/(?:ChartTab|ChartSettingsPanel|ReportChart|chartRegistry|buildChart|pivot)$/
 const STATIC_IMPORT = /^import\s+(?!type\b)(?:[^'";]*?\s+from\s+)?['"]([^'"]+)['"]/gm
 
@@ -249,8 +257,8 @@ describe('T-ARCH-04 리포트 차트 코드의 lazy 경계', () => {
     expect(staticChartImports(text ?? '')).toEqual([])
   })
 
-  it('loads the chart tab through a dynamic import in the result card', () => {
-    expect(reportSources['../features/reports/designer/ResultCard.tsx']).toMatch(/import\(\s*['"][^'"]*chart\/ChartTab['"]\s*\)/)
+  it('loads the chart tab module through a dynamic import in the chart tile', () => {
+    expect(reportSources['../features/reports/result/ChartTile.tsx']).toMatch(/import\(\s*['"][^'"]*chart\/ChartTab['"]\s*\)/)
   })
 
   it('imports Chart.js only inside the chart folder', () => {

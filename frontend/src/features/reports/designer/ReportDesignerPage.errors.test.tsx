@@ -11,10 +11,12 @@ import {
   chipItems,
   lastQuery,
   openDesigner,
+  rerun,
   runQuery,
   settingsOf,
   setupReportClock,
 } from '../../../test/reportScreen'
+import { expectTab, showTab } from '../../../test/reportLayout'
 
 setupReportClock()
 
@@ -206,7 +208,7 @@ describe('위반 표시 해제 (AC13)', () => {
 })
 
 describe('그 밖의 실패 (AC13)', () => {
-  it('shows the timeout and network messages and clears the old result', async () => {
+  it('shows the timeout and network messages on the design tab and keeps the old result on the result tab', async () => {
     const { user } = await openDesigner()
     await addColumn(user, 'Deal code')
     await runQuery(user)
@@ -215,10 +217,13 @@ describe('그 밖의 실패 (AC13)', () => {
     mockControl.setReportQueryHandler(() => {
       throw reportTimeout()
     })
-    await runQuery(user)
+    await rerun(user)
 
     expect(await screen.findByRole('alert')).toHaveTextContent(REPORT_TIMEOUT_MESSAGE)
-    expect(screen.queryByRole('table', { name: '조회 결과' })).not.toBeInTheDocument()
+    expectTab('design')
+    await showTab(user, 'result')
+    expect(screen.getByRole('table', { name: '조회 결과' })).toBeVisible()
+    await showTab(user, 'design')
 
     mockControl.setReportQueryHandler(() => {
       throw new ApiError(0, { type: 'https://x/problems/network', title: 'Network Error', status: 0, detail: '서버에 연결할 수 없습니다.' })
@@ -227,6 +232,7 @@ describe('그 밖의 실패 (AC13)', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent('서버에 연결할 수 없습니다.')
     expect(screen.getByRole('alert')).not.toHaveTextContent(REPORT_TIMEOUT_MESSAGE)
+    expectTab('design')
   })
 
   it('shows the message of another server error', async () => {

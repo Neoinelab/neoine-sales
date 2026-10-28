@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { reportTimeout } from '../errors'
+import { forbidden, reportTimeout } from '../errors'
 import { USER_ID } from '../seed/ids'
 import { expectApiError, mockAs } from '../testing'
 import { BROKEN_DEFINITION, MINE_PRIVATE, MINE_PUBLIC, OLD_PUBLIC, PARK_PRIVATE, PARK_PUBLIC, SAVED_SAMPLES, VENDOR_DEFINITION, reportInput, savedReport } from '../../savedReports'
@@ -175,5 +175,106 @@ describe('saved reports Fake', () => {
     await expectApiError(gateway.reports.get(MINE_PRIVATE.id), 404)
     await expectApiError(gateway.reports.remove(MINE_PUBLIC.id), 403)
     expect((await gateway.reports.list()).map((r) => r.id)).toEqual([PARK_PUBLIC.id, MINE_PUBLIC.id, OLD_PUBLIC.id])
+  })
+})
+
+describe('saved reports Fake: result layout (작성/결과 탭 분리)', () => {
+  const SIDE = { view: 'chart', order: ['chart', 'table'], arrange: 'side_by_side' } as const
+  const TABLE = { view: 'table', order: ['table', 'chart'], arrange: 'stacked' } as const
+
+  it('gives the default layout to a report created without one and keeps the stored one on an update without one', async () => {
+    const { gateway, control } = await mockAs('kim')
+    control.seedSavedReports([savedReport({ id: 11, layout: SIDE })])
+
+    const kept = await gateway.reports.update(11, { name: '새 이름', description: '', visibility: 'public', definition: VENDOR_DEFINITION, chart: null, revision: 1 } as never)
+    const created = await gateway.reports.create({ name: '배치 없는 새 리포트', description: '', visibility: 'public', definition: VENDOR_DEFINITION, chart: null } as never)
+
+    expect(kept.layout).toEqual(SIDE)
+    expect(created.layout).toEqual({ view: 'both', order: ['table', 'chart'], arrange: 'stacked' })
+  })
+
+  it('copies the layout of the source report', async () => {
+    const { gateway, control } = await mockAs('kim')
+    control.seedSavedReports([savedReport({ id: 11, layout: SIDE })])
+
+    const copy = await gateway.reports.copy(11, { name: '복사본', description: '', visibility: 'public' })
+
+    expect(copy.layout).toEqual(SIDE)
+  })
+
+  it('saves only the layout with the revision rules of the server and records the request', async () => {
+    const { gateway, control } = await mockAs('kim')
+    control.seedSavedReports([PARK_PUBLIC])
+
+    const saved = await gateway.reports.saveReportLayout(PARK_PUBLIC.id, { layout: SIDE, revision: 1 })
+    const stale = await expectApiError(gateway.reports.saveReportLayout(PARK_PUBLIC.id, { layout: TABLE, revision: 1 }), 409)
+
+    expect(saved).toMatchObject({ revision: 2, layout: SIDE, name: PARK_PUBLIC.name, updatedBy: { id: USER_ID.kim } })
+    expect(saved.definition).toEqual(PARK_PUBLIC.definition)
+    expect(stale.kind).toBe('invalid-state')
+    expect(control.savedReportRequests().map((r) => [r.op, r.id])).toEqual([
+      ['layout', PARK_PUBLIC.id],
+      ['layout', PARK_PUBLIC.id],
+    ])
+    expect(control.savedReportRequests()[0]?.body).toEqual({ layout: SIDE, revision: 1 })
+  })
+
+  it('hides a private report of someone else and rejects a wrong layout value at its location', async () => {
+    const { gateway, control } = await mockAs('kim')
+    control.seedSavedReports(SAVED_SAMPLES)
+
+    const hidden = await expectApiError(gateway.reports.saveReportLayout(PARK_PRIVATE.id, { layout: SIDE, revision: 1 }), 404)
+    const wrong = await expectApiError(gateway.reports.saveReportLayout(MINE_PUBLIC.id, { layout: { ...SIDE, order: ['table', 'table'] } as never, revision: 1 }), 422)
+
+    expect(hidden.message).toBe('리포트를 찾을 수 없습니다.')
+    expect(wrong.kind).toBe('invalid-report')
+    expect(wrong.problem?.reportErrors?.map((e) => e.location)).toEqual([['layout', 'order']])
+  })
+
+  it('holds the response of a layout save at the gate and numbers the attempts', async () => {
+    const { gateway, control } = await mockAs('kim')
+    control.seedSavedReports([MINE_PUBLIC])
+    const attempts: number[] = []
+    let release: () => void = () => undefined
+    control.setLayoutSaveGate(({ attempt }) => {
+      attempts.push(attempt)
+      return new Promise<void>((resolve) => (release = resolve))
+    })
+
+    const pending = gateway.reports.saveReportLayout(MINE_PUBLIC.id, { layout: SIDE, revision: 1 })
+    await Promise.resolve()
+    expect(attempts).toEqual([1])
+    expect((await gateway.reports.get(MINE_PUBLIC.id)).revision).toBe(1) // 관문을 통과하기 전에는 서버에 반영되지 않는다
+    release()
+    await pending
+
+    expect((await gateway.reports.get(MINE_PUBLIC.id)).revision).toBe(2)
+  })
+
+  it('fails a layout save at the gate without touching the report, and clears the gate on reset', async () => {
+    const { gateway, control } = await mockAs('kim')
+    control.seedSavedReports([MINE_PUBLIC])
+    control.setLayoutSaveGate(() => {
+      throw forbidden('안 됨')
+    })
+
+    await expectApiError(gateway.reports.saveReportLayout(MINE_PUBLIC.id, { layout: SIDE, revision: 1 }), 403)
+    expect(await gateway.reports.get(MINE_PUBLIC.id)).toMatchObject({ revision: 1 })
+    control.resetData()
+    control.seedSavedReports([MINE_PUBLIC])
+    const saved = await gateway.reports.saveReportLayout(MINE_PUBLIC.id, { layout: SIDE, revision: 1 })
+
+    expect(saved.revision).toBe(2)
+  })
+
+  it('lets a test play another user saving the report: the revision goes up and the stale layout save is refused', async () => {
+    const { gateway, control } = await mockAs('kim')
+    control.seedSavedReports([MINE_PUBLIC])
+
+    control.touchSavedReport(MINE_PUBLIC.id, { layout: TABLE })
+    const stale = await expectApiError(gateway.reports.saveReportLayout(MINE_PUBLIC.id, { layout: SIDE, revision: 1 }), 409)
+
+    expect(stale.kind).toBe('invalid-state')
+    expect(await gateway.reports.get(MINE_PUBLIC.id)).toMatchObject({ revision: 2, layout: TABLE, updatedBy: { name: '박영업' } })
   })
 })

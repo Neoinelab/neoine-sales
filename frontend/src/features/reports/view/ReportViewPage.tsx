@@ -9,10 +9,13 @@ import { userLabel } from '../../../shared/model/period'
 import type { ReportRunFailure, SavedReport } from '../../../shared/model/reportTypes'
 import { ConfirmDialog } from '../../../shared/ui/ConfirmDialog'
 import { ErrorBanner } from '../../../shared/ui/ErrorBanner'
-import { ResultCard, type ResultTab } from '../designer/ResultCard'
 import '../reports.css'
+import { ResultPanel } from '../result/ResultPanel'
+import { placeTile } from '../result/layout'
 import { ReportNotFound } from '../ReportNotFound'
 import { SaveReportDialog } from '../SaveReportDialog'
+import { LayoutSaveAlert, LayoutSaveStatus } from './LayoutSaveStatus'
+import { useLayoutAutosave } from './useLayoutAutosave'
 
 function metaLine(report: SavedReport): string {
   const edited = report.updatedBy.id !== report.owner.id ? ` (수정: ${userLabel(report.updatedBy)})` : ''
@@ -38,30 +41,35 @@ function RunFailure({ failure }: { failure: ReportRunFailure }) {
   )
 }
 
-/** `/reports/:id`: 저장된 리포트를 열 때마다 다시 조회해 결과 표와 생성 SQL(읽기 전용)을 보인다. */
+const BUSY_TITLE = '배치를 저장하는 중입니다'
+
+/** `/reports/:id`: 저장된 리포트를 열 때마다 다시 조회해 결과 타일(표·차트)과 생성 SQL(읽기 전용)을 보인다. */
 export function ReportViewPage() {
   const { id: raw } = useParams()
   const id = parseId(raw)
-  const navigate = useNavigate()
   const { me, role } = usePermissions()
   const report = useSavedReport(id)
-  // 보이지 않는 리포트는 실행 요청도 보내지 않는다(없는 id와 똑같이 404).
-  const run = useRunSavedReport(report.data ? id : undefined)
-  const remove = useDeleteReport()
-  const copy = useCopyReport()
-  const [deleting, setDeleting] = useState(false)
-  const [copying, setCopying] = useState(false)
-  // 차트가 있는 리포트는 차트 탭으로 열고, 사용자가 고른 뒤에는 그 탭을 유지한다.
-  const [chosenTab, setChosenTab] = useState<ResultTab | null>(null)
-  const [copyFailure, setCopyFailure] = useState<ReturnType<typeof saveFailure> | null>(null)
   const viewer: Viewer | null = me && role ? { id: me.id, role } : null
 
   if (id === undefined || (report.error && saveFailure(report.error).kind === 'notFound')) return <ReportNotFound />
   if (report.error) return <ErrorBanner error={report.error} />
-  const data = report.data
-  if (!data || !viewer) return <p className="hint">불러오는 중…</p>
+  if (!report.data || !viewer) return <p className="hint">불러오는 중…</p>
+  return <ReportView key={report.data.id} data={report.data} viewer={viewer} />
+}
+
+function ReportView({ data, viewer }: { data: SavedReport; viewer: Viewer }) {
+  const navigate = useNavigate()
+  const run = useRunSavedReport(data.id)
+  const remove = useDeleteReport()
+  const copy = useCopyReport()
+  const [deleting, setDeleting] = useState(false)
+  const [copying, setCopying] = useState(false)
+  const [copyFailure, setCopyFailure] = useState<ReturnType<typeof saveFailure> | null>(null)
+  const canEdit = canEditReport(viewer, data)
+  // 수정 권한이 있으면 배치를 바꿀 때마다 저장하고, 없으면 이 화면에서만 바꾼다. 충돌(409) 뒤에는 결과를 다시 조회한다.
+  const autosave = useLayoutAutosave(data, canEdit, () => void run.refetch())
   const failure = run.error ? reportRunFailure(run.error) : null
-  const tab = chosenTab ?? (data.chart ? 'chart' : 'table')
+  const { busy } = autosave
 
   return (
     <section className="report-page">
@@ -82,13 +90,24 @@ export function ReportViewPage() {
           <button type="button" disabled={run.isFetching} onClick={() => void run.refetch()}>
             다시 조회
           </button>
-          {canEditReport(viewer, data) && (
-            <Link to={`/reports/${data.id}/edit`} className="button">
+          {canEdit && (
+            // 서버에 아직 없는 배치로 편집이 시작되지 않도록, 저장 중에는 링크를 따라가지 않는다.
+            <Link
+              to={`/reports/${data.id}/edit`}
+              className="button"
+              aria-disabled={busy ? true : undefined}
+              title={busy ? BUSY_TITLE : undefined}
+              onClick={(event) => {
+                if (busy) event.preventDefault()
+              }}
+            >
               편집
             </Link>
           )}
           <button
             type="button"
+            disabled={busy}
+            title={busy ? BUSY_TITLE : undefined}
             onClick={() => {
               setCopyFailure(null)
               setCopying(true)
@@ -105,17 +124,20 @@ export function ReportViewPage() {
       </header>
       {failure && <RunFailure failure={failure} />}
       {run.data ? (
-        <ResultCard
+        <ResultPanel
+          layout={autosave.layout}
+          onView={(view) => autosave.change({ ...autosave.layout, view })}
+          onPlace={(dragged, target, edge) => autosave.change(placeTile(autosave.layout, dragged, target, edge))}
           result={run.data}
-          failure={null}
-          summary={[]}
-          stale={false}
+          runId={run.dataUpdatedAt}
           sql={run.data.sql}
-          tab={tab}
-          onTab={setChosenTab}
           chart={{ mode: 'view', chart: data.chart, problem: data.chartProblem }}
+          viewNote={<LayoutSaveStatus autosave={autosave} canEdit={canEdit} />}
+          notice={<LayoutSaveAlert autosave={autosave} />}
         />
-      ) : !failure && <p className="hint">불러오는 중…</p>}
+      ) : (
+        !failure && <p className="hint">불러오는 중…</p>
+      )}
       {deleting && (
         <ConfirmDialog
           title="리포트 삭제"

@@ -25,6 +25,20 @@ export function createMockControl(ctx: MockContext, reseed: () => void): MockCon
       state.saved = JSON.parse(JSON.stringify(reports)) as typeof reports
       state.nextSavedId = reports.reduce((max, r) => Math.max(max, r.id), 0) + 1
     },
+    setLayoutSaveGate(gate) {
+      ctx.store.reports.layoutGate = gate
+    },
+    touchSavedReport(id, change = {}) {
+      const target = ctx.store.reports.saved.find((r) => r.id === id)
+      if (!target) throw new Error(`저장 리포트 없음: ${id}`)
+      const park = ctx.store.data.users.find((u) => u.name === '박영업')
+      if (!park) throw new Error('박영업 사용자가 없습니다.')
+      target.revision += 1
+      target.updatedAt = ctx.clock.now()
+      target.updatedBy = { id: park.id, name: park.name, role: park.role, status: 'active' }
+      if (change.layout) target.layout = JSON.parse(JSON.stringify(change.layout)) as typeof change.layout
+      if (change.name) target.name = change.name
+    },
     savedReportRequests: () => ctx.store.reports.requests.map((r) => JSON.parse(JSON.stringify(r)) as typeof r),
   }
 }

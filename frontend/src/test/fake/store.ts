@@ -164,10 +164,10 @@ export type ReportQueryHandler = (input: ReportQueryInput) => ReportResult | Pro
 
 /** Fake가 받은 저장 리포트 요청 기록 한 건(쓰기와 실행만 남기고, 목록·상세 조회는 남기지 않는다). */
 export interface SavedReportRequest {
-  op: 'create' | 'update' | 'copy' | 'remove' | 'run'
+  op: 'create' | 'update' | 'copy' | 'remove' | 'run' | 'layout'
   /** create는 null, 나머지는 대상 리포트 id. */
   id: number | null
-  /** create·update는 보낸 입력(update는 revision 포함), copy는 메타, remove·run은 undefined. */
+  /** create·update는 보낸 입력(update는 revision 포함), layout은 `{ layout, revision }`, copy는 메타, remove·run은 undefined. */
   body?: unknown
 }
 
@@ -180,10 +180,17 @@ export interface ReportsControlState {
   /** 다음에 발급할 리포트 id. */
   nextSavedId: number
   requests: SavedReportRequest[]
+  /**
+   * 배치 저장(`saveReportLayout`) 요청이 들어올 때마다 서버 처리 전에 불리는 관문. 테스트가 응답을 늦추거나(Promise를 나중에 끝냄)
+   * 실패시키려고(throw) 건다. 요청 번호는 1부터. `resetData`가 지운다.
+   */
+  layoutGate: LayoutSaveGate | null
 }
 
+export type LayoutSaveGate = (call: { id: number; attempt: number; body: { layout: unknown; revision: number } }) => void | Promise<void>
+
 export function emptyReportsState(): ReportsControlState {
-  return { handler: null, queries: [], saved: [], nextSavedId: 1, requests: [] }
+  return { handler: null, queries: [], saved: [], nextSavedId: 1, requests: [], layoutGate: null }
 }
 
 export interface MockStore {

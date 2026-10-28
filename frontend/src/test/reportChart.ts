@@ -2,8 +2,9 @@
  * Reports 4단계(차트) 화면 테스트 공용 도구(운영 코드에서 쓰지 않는다).
  *
  * 화면 계약(접근 가능한 이름, 테스트가 정한 것):
- * - 결과 카드: role=tablist 안에 tab "결과 표"·"차트"(aria-selected), 선택한 탭의 role=tabpanel.
- * - 차트 탭: 버튼 "차트 만들기"·"차트 삭제", 종류 버튼 10개(aria-pressed, 이름은 화면 이름), 그림은 role=img.
+ * - 디자이너는 "작성"·"결과" 탭이고 차트는 결과 탭의 "차트 타일"(role=region)에 있다(결과 표 타일과 나란히). 배치 계약은 `reportLayout.ts`.
+ * - 차트 타일: 빈 상태에 버튼 "차트 만들기", 차트가 있으면 머리에 버튼 "차트 설정"(aria-expanded)이 있어 설정 패널을 열고 닫는다
+ *   (기본은 닫힘, "차트 만들기"로 만들면 열림). 패널 안에 버튼 "차트 삭제", 종류 버튼 10개(aria-pressed, 이름은 화면 이름). 그림은 role=img.
  * - 설정 칸(getByLabelText): "범주"(select), "계열"(select), "값"(그룹 안에 값 열마다 checkbox), "행/열 전환", "차트 제목",
  *   "범례"(select: 위·오른쪽·아래·숨김), "데이터 레이블", "가로축 제목", "세로축 제목", "세로축 최소", "세로축 최대", "보조 축".
  * - 안내 문구는 계획 AC11·AC17·AC19·AC20의 글자 그대로.
@@ -71,15 +72,23 @@ export async function openGroupedDesigner(groups: 1 | 2): Promise<Designer> {
   return rendered
 }
 
-export const tabNamed = (name: '결과 표' | '차트'): HTMLElement => screen.getByRole('tab', { name })
+/** 차트 타일 머리의 '차트 설정' 버튼(차트가 있을 때만 있다). */
+export const chartToggle = (): HTMLElement | null => screen.queryByRole('button', { name: '차트 설정' })
 
-/** 차트 탭을 열고 안쪽이 나올 때까지 기다린다(lazy 청크). */
+/**
+ * 결과 탭의 차트 타일을 보이게 하고(결과 탭으로 이동, lazy 청크가 나올 때까지 기다림) 설정 패널이 닫혀 있으면 연다.
+ * 차트가 없는 빈 상태에는 설정 버튼이 없으므로 열 것이 없다.
+ */
 export async function openChartTab(user: UserEvent): Promise<void> {
-  await user.click(tabNamed('차트'))
-  await screen.findByRole('tabpanel')
+  await user.click(screen.getByRole('tab', { name: /^결과/ }))
+  await screen.findByRole('region', { name: '차트 타일' })
+  const toggle = chartToggle()
+  if (!toggle) return
+  if (toggle.getAttribute('aria-expanded') === 'false') await user.click(toggle)
+  await screen.findByRole('button', { name: '차트 삭제' }) // 설정 패널은 차트 청크 안에 있다
 }
 
-/** 차트 탭에서 "차트 만들기"를 눌러 첫 차트가 그려질 때까지 기다린다. */
+/** 차트 타일에서 "차트 만들기"를 눌러 첫 차트가 그려질 때까지 기다린다(설정 패널이 열린다). */
 export async function createChart(user: UserEvent): Promise<void> {
   await user.click(await screen.findByRole('button', { name: '차트 만들기' }))
   await screen.findByRole('img')

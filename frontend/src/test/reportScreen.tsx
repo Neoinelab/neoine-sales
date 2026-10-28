@@ -113,11 +113,25 @@ export async function openAndRun(result: ReportResult | null, ...labels: string[
   return rendered
 }
 
-/** 저장 리포트 샘플(`SAVED_SAMPLES`)을 채우고 `/reports/<id>/edit`를 열어 자동 조회 결과가 나올 때까지 기다린다. */
+/**
+ * 저장 리포트 샘플(`SAVED_SAMPLES`)을 채우고 `/reports/<id>/edit`를 열어 자동 조회 결과가 채워질 때까지 기다린다.
+ * 편집 화면은 "작성" 탭으로 열리고 결과는 숨겨진 "결과" 탭에 채워진다(탭을 옮기지 않는다).
+ */
 export async function openEditor(id: number, options: RenderAtOptions = {}): Promise<Designer> {
   const rendered = await renderAt(`/reports/${id}/edit`, { savedReports: SAVED_SAMPLES, ...options })
-  await screen.findByRole('table', { name: '조회 결과' })
+  await waitForHiddenResult()
   return rendered
+}
+
+/** 결과 탭이 숨겨져 있어도 조회 결과 표가 DOM에 채워질 때까지 기다린다. */
+export async function waitForHiddenResult(): Promise<HTMLElement> {
+  return screen.findByRole('table', { name: '조회 결과', hidden: true })
+}
+
+/** "작성" 탭으로 돌아가 다시 조회한다. 성공하면 결과 탭이 선택된다. */
+export async function rerun(user: UserEvent): Promise<void> {
+  await user.click(screen.getByRole('tab', { name: /^작성/ }))
+  await runQuery(user)
 }
 
 /** 샘플을 채우고 `/reports/<id>`(보기)를 연다. 결과를 기다리지 않는다. */

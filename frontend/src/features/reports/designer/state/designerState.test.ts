@@ -331,3 +331,94 @@ describe('chart in the designer state (Reports 4단계 AC16, AC17, P12)', () => 
     expect(reduce(state, { type: 'moveColumn', uid: 3, to: 0 }).chart).toEqual(CHART)
   })
 })
+
+describe('result layout in the designer state (작성/결과 탭 분리 AC9, AC12, AC19, AC20)', () => {
+  const DEFAULT = { view: 'both', order: ['table', 'chart'], arrange: 'stacked' } as const
+
+  it('starts with the default layout', () => {
+    expect(initialDesignerState(LIMITS).layout).toEqual(DEFAULT)
+  })
+
+  it('sets the view with setResultView and keeps the order and arrangement', () => {
+    const state = reduce(emptyDesign(), { type: 'placeTile', dragged: 'table', target: 'chart', edge: 'right' })
+
+    const next = reduce(state, { type: 'setResultView', view: 'chart' })
+
+    expect(next.layout).toEqual({ view: 'chart', order: ['chart', 'table'], arrange: 'side_by_side' })
+  })
+
+  it('returns the same state for a view that is already chosen', () => {
+    const state = reduce(emptyDesign(), { type: 'setResultView', view: 'chart' })
+    expect(state.layout.view).toBe('chart')
+
+    expect(designerReducer(state, { type: 'setResultView', view: 'chart' }, REPORT_CATALOG)).toBe(state)
+  })
+
+  it('puts a tile with placeTile like a drop: table right of chart makes chart then table in one row', () => {
+    const next = reduce(emptyDesign(), { type: 'placeTile', dragged: 'table', target: 'chart', edge: 'right' })
+
+    expect(next.layout).toEqual({ view: 'both', order: ['chart', 'table'], arrange: 'side_by_side' })
+  })
+
+  it('puts the table below the chart: chart then table in two rows', () => {
+    const next = reduce(emptyDesign(), { type: 'placeTile', dragged: 'table', target: 'chart', edge: 'bottom' })
+
+    expect(next.layout).toEqual({ view: 'both', order: ['chart', 'table'], arrange: 'stacked' })
+  })
+
+  it('returns the same state when a tile is dropped on itself', () => {
+    const state = reduce(emptyDesign(), { type: 'placeTile', dragged: 'table', target: 'chart', edge: 'right' })
+    expect(state.layout.arrange).toBe('side_by_side')
+
+    expect(designerReducer(state, { type: 'placeTile', dragged: 'chart', target: 'chart', edge: 'left' }, REPORT_CATALOG)).toBe(state)
+  })
+
+  it('does not touch the columns, the conditions or the chart', () => {
+    const state = withColumns('deal.code', 'deal.name')
+
+    const next = reduce(state, { type: 'setResultView', view: 'table' }, { type: 'placeTile', dragged: 'table', target: 'chart', edge: 'right' })
+
+    expect(next.layout).toEqual({ view: 'table', order: ['chart', 'table'], arrange: 'side_by_side' })
+    expect(next.columns).toBe(state.columns)
+    expect(next.conditions).toBe(state.conditions)
+    expect(next.chart).toBe(state.chart)
+  })
+
+  it('goes back to the default layout on reset', () => {
+    const changed = reduce(emptyDesign(), { type: 'setResultView', view: 'table' }, { type: 'placeTile', dragged: 'table', target: 'chart', edge: 'right' })
+
+    expect(reduce(changed, { type: 'reset' }).layout).toEqual(DEFAULT)
+  })
+
+  it('takes the layout of a loaded state', () => {
+    const loaded = { ...emptyDesign(), layout: { view: 'chart', order: ['chart', 'table'], arrange: 'side_by_side' } } as const
+
+    expect(reduce(emptyDesign(), { type: 'load', state: loaded }).layout).toEqual(loaded.layout)
+  })
+
+  it('is not dirty for a new report when only the layout changed (D9)', () => {
+    const changed = reduce(emptyDesign(), { type: 'setResultView', view: 'table' }, { type: 'placeTile', dragged: 'table', target: 'chart', edge: 'right' })
+
+    expect(changed.layout.view).toBe('table')
+    expect(isDirty(changed, LIMITS)).toBe(false)
+  })
+
+  it('keeps the query design and the result valid when only the layout changed', () => {
+    const state = withColumns('deal.code')
+
+    const next = reduce(state, { type: 'placeTile', dragged: 'table', target: 'chart', edge: 'right' })
+
+    expect(next.layout.order).toEqual(['chart', 'table'])
+    expect(sameDesign(state, next)).toBe(true)
+  })
+
+  it('gives another design key for another layout and the same key again when it is put back', () => {
+    const state = withColumns('deal.code')
+    const moved = reduce(state, { type: 'placeTile', dragged: 'table', target: 'chart', edge: 'right' })
+    const backToStacked = reduce(moved, { type: 'placeTile', dragged: 'chart', target: 'table', edge: 'bottom' })
+
+    expect(designKey(moved, REPORT_CATALOG)).not.toBe(designKey(state, REPORT_CATALOG))
+    expect(designKey(reduce(state, { type: 'setResultView', view: 'chart' }), REPORT_CATALOG)).not.toBe(designKey(state, REPORT_CATALOG))
+    expect(designKey(backToStacked, REPORT_CATALOG)).toBe(designKey(state, REPORT_CATALOG))
+  })
+})
