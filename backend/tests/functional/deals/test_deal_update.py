@@ -65,7 +65,7 @@ async def test_only_the_sent_fields_change_and_each_is_logged(api: Api) -> None:
             ("expectedClose", "Expected Close", "2026-06-30", "2026-12-31"),
             ("other", "Deal Name", "ERP 구축", "확장 프로젝트"),
             ("other", "Vendor", "선택 안 함", "Oracle"),
-            ("other", "Users", "10", "20"),
+            ("other", "Users count", "10", "20"),
         ],
     )
     assert body["updated_at"] > deal["updated_at"]
@@ -80,7 +80,7 @@ async def test_clearing_users_is_rejected_and_the_deal_keeps_its_value(api: Api)
     response = await when_update_deal(api, deal["code"], users=None)
     # Then
     then_problem_is(response, status=422, type_suffix="invalid-value")
-    assert response.json()["detail"] == "Users를 입력하세요."
+    assert response.json()["detail"] == "Users count를 입력하세요."
     await then_deal_keeps(api, deal["code"], users=10)
     await then_history_is(api, deal["code"], [])
 
@@ -107,7 +107,7 @@ async def test_users_can_be_changed_to_zero_and_is_recorded(api: Api) -> None:
     # Then
     then_status_is(response, 200)
     assert response.json()["users"] == 0
-    await then_history_is(api, deal["code"], [("other", "Users", "10", "0")])
+    await then_history_is(api, deal["code"], [("other", "Users count", "10", "0")])
 
 
 async def test_negative_users_in_a_patch_is_rejected(api: Api) -> None:
@@ -119,7 +119,7 @@ async def test_negative_users_in_a_patch_is_rejected(api: Api) -> None:
     response = await when_update_deal(api, deal["code"], users=-1)
     # Then
     then_problem_is(response, status=422, type_suffix="invalid-value")
-    assert response.json()["detail"] == "Users는 0 이상의 정수로 입력하세요."
+    assert response.json()["detail"] == "Users count는 0 이상의 정수로 입력하세요."
     await then_deal_keeps(api, deal["code"], users=10)
 
 

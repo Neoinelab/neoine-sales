@@ -120,7 +120,7 @@ def number_field(
     unit: NumberUnit | None = None,
     default_aggregate: Aggregate = Aggregate.SUM,
 ) -> FieldSpec:
-    """Deal 숫자(금액·Users·Status 체류 일수). 행 범위가 Action이면 Deal당 한 번 계산한다."""
+    """Deal 숫자(금액·Users count·Status 체류 일수). 행 범위가 Action이면 Deal당 한 번 계산한다."""
     return replace(
         _base(key, label, FieldType.NUMBER),
         unit=unit,

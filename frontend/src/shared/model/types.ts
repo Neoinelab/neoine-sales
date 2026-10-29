@@ -197,7 +197,7 @@ export interface Deal {
   vendorId: number | null
   /** Solution 자유 텍스트(필수, 200자 이내, Vendor와 무관). 예전 데이터는 빈 문자열일 수 있다. */
   solution: string
-  /** 견적 단위 사용자 수(Users). 필수, 0 이상. */
+  /** 견적 단위 사용자 수(Users count). 필수, 0 이상. */
   users: number
   statusKey: string
   forecastKey: string

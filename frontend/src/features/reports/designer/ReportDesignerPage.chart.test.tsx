@@ -473,7 +473,7 @@ describe('큰 결과 (AC20)', () => {
   const TOO_MANY = '범주가 너무 많아 차트를 그리지 않습니다(최대 1,000개). 조건을 좁히세요'
   const TRUNCATED = '최대 행 수 제한으로 표시된 행만 차트에 그렸습니다'
 
-  /** Vendor 그룹 + 금액 + Users, 범주 n개. */
+  /** Vendor 그룹 + 금액 + Users count, 범주 n개. */
   const manyCategories = (n: number) =>
     resultOf({
       columns: [VENDOR_COL, amountCol(1), usersCol(2)],

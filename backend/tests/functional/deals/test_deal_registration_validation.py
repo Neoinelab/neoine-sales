@@ -31,7 +31,7 @@ if TYPE_CHECKING:
 pytestmark = pytest.mark.integration
 
 AMOUNT = "매출금액은 1원 이상의 정수로 입력하세요."
-USERS = "Users는 0 이상의 정수로 입력하세요."
+USERS = "Users count는 0 이상의 정수로 입력하세요."
 
 
 @pytest.mark.parametrize(

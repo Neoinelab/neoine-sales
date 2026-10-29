@@ -28,7 +28,7 @@ describe('수정 버튼 제거와 권한 (클릭 편집)', () => {
       'Owner 수정',
       'Vendor 수정',
       'Solution 수정',
-      'Users 수정',
+      'Users count 수정',
       '견적 제출여부 수정',
       '견적 제출일 수정',
       'POC 여부 수정',
@@ -126,7 +126,7 @@ describe('값 클릭 → 입력기 (Enter 저장 / Esc 취소 / 키보드)', () 
   })
 })
 
-describe('Owner · Vendor · Solution · Users · 견적 · POC · 구매절차', () => {
+describe('Owner · Vendor · Solution · Users count · 견적 · POC · 구매절차', () => {
   it('lets the writer pick another sales owner and never offers the resigned one', async () => {
     const { user } = await openDeal(1, '한빛은행 ITDR 도입')
     await user.click(screen.getByRole('button', { name: 'Owner 수정' }))
@@ -164,39 +164,39 @@ describe('Owner · Vendor · Solution · Users · 견적 · POC · 구매절차'
     expect(screen.getByRole('button', { name: 'Solution 수정' })).toHaveTextContent('ITDR')
   })
 
-  it('saves Users as a non-negative integer', async () => {
+  it('saves Users count as a non-negative integer', async () => {
     const { user } = await openDeal(1, '한빛은행 ITDR 도입')
-    await user.click(screen.getByRole('button', { name: 'Users 수정' }))
-    const users = screen.getByLabelText('Users')
+    await user.click(screen.getByRole('button', { name: 'Users count 수정' }))
+    const users = screen.getByLabelText('Users count')
     await user.clear(users)
     await user.type(users, '-1{Enter}')
-    expect(await screen.findByRole('alert')).toHaveTextContent('Users는 0 이상의 정수로 입력하세요.')
+    expect(await screen.findByRole('alert')).toHaveTextContent('Users count는 0 이상의 정수로 입력하세요.')
     await user.clear(users)
     await user.type(users, '2500{Enter}')
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Users 수정' })).toHaveTextContent('2500'))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Users count 수정' })).toHaveTextContent('2500'))
   })
 
-  it('does not save an empty Users and keeps the shown value', async () => {
+  it('does not save an empty Users count and keeps the shown value', async () => {
     const update = vi.spyOn(gateway.deals, 'update')
     const { user } = await openDeal(1, '한빛은행 ITDR 도입')
-    const shown = screen.getByRole('button', { name: 'Users 수정' }).textContent
-    await user.click(screen.getByRole('button', { name: 'Users 수정' }))
-    const users = screen.getByLabelText('Users')
+    const shown = screen.getByRole('button', { name: 'Users count 수정' }).textContent
+    await user.click(screen.getByRole('button', { name: 'Users count 수정' }))
+    const users = screen.getByLabelText('Users count')
     await user.clear(users)
     await user.type(users, '{Enter}')
-    expect(await screen.findByRole('alert')).toHaveTextContent('Users를 입력하세요.')
+    expect(await screen.findByRole('alert')).toHaveTextContent('Users count를 입력하세요.')
     expect(update).not.toHaveBeenCalled()
     await user.keyboard('{Escape}')
-    expect(screen.getByRole('button', { name: 'Users 수정' })).toHaveTextContent(shown ?? '')
+    expect(screen.getByRole('button', { name: 'Users count 수정' })).toHaveTextContent(shown ?? '')
   })
 
-  it('saves Users of zero and shows it as 0', async () => {
+  it('saves Users count of zero and shows it as 0', async () => {
     const { user } = await openDeal(1, '한빛은행 ITDR 도입')
-    await user.click(screen.getByRole('button', { name: 'Users 수정' }))
-    const users = screen.getByLabelText('Users')
+    await user.click(screen.getByRole('button', { name: 'Users count 수정' }))
+    const users = screen.getByLabelText('Users count')
     await user.clear(users)
     await user.type(users, '0{Enter}')
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Users 수정' })).toHaveTextContent(/^0$/))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Users count 수정' })).toHaveTextContent(/^0$/))
   })
 
   it('edits the quote, the POC and the procurement in place', async () => {

@@ -25,7 +25,7 @@ const INFO_LABELS = [
   '최종 업데이트',
   'Vendor',
   'Solution',
-  'Users',
+  'Users count',
   '견적',
   'POC',
   '구매절차',
@@ -44,7 +44,7 @@ describe('Deal 정보 타일 (상단 통합 영역)', () => {
     const facts = Object.fromEntries(pairsOf(bar))
     expect(facts['Vendor']).toBe('Silverfort')
     expect(facts['Solution']).toBe('ITDR')
-    expect(facts['Users']).toBe('1500')
+    expect(facts['Users count']).toBe('1500')
     expect(facts['견적']).toMatch(/^제출/)
     expect(facts['POC']).toMatch(/^YES · 완료/)
     expect(facts['구매절차']).toBe('조달청 경쟁 입찰')

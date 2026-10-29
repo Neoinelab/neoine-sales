@@ -8,7 +8,7 @@ const CTX = { now: '2026-10-27T09:00:00+09:00', today: '2026-10-27' }
 const amount = (over: object = {}) =>
   resultColumn({ field: 'deal.amount', type: 'number', valueType: 'integer', format: null, unit: 'krw_thousand', aggregate: 'sum', ...over })
 
-/** 금액이 아닌 숫자 열(Users 등): unit 없음. */
+/** 금액이 아닌 숫자 열(Users count 등): unit 없음. */
 const plain = (over: object = {}) =>
   resultColumn({ field: 'deal.users', type: 'number', valueType: 'integer', format: null, unit: null, aggregate: 'sum', ...over })
 
@@ -198,7 +198,7 @@ describe('columnHeader (AC-6)', () => {
   })
 
   it('keeps the label of every other column', () => {
-    expect(columnHeader(plain({ label: 'Users 합계' }))).toBe('Users 합계')
+    expect(columnHeader(plain({ label: 'Users count 합계' }))).toBe('Users count 합계')
     expect(columnHeader(resultColumn({ label: 'Deal code' }))).toBe('Deal code')
   })
 })

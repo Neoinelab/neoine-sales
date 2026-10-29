@@ -132,7 +132,7 @@ def test_clearing_a_bant_label_is_written_as_not_selected() -> None:
     ("field", "value", "target", "before", "after"),
     [
         ("name", "B", "Deal Name", "A", "B"),
-        ("users", 250, "Users", "10", "250"),
+        ("users", 250, "Users count", "10", "250"),
         ("procurement", "조달청 입찰", "구매절차", "-", "조달청 입찰"),
     ],
 )
@@ -217,7 +217,7 @@ def test_users_set_to_zero_is_written_as_zero() -> None:
 
     rows = diff_after(edit_of("users", 0), deal)
 
-    assert rows == [("other", "Users", "5", "0")]
+    assert rows == [("other", "Users count", "5", "0")]
 
 
 @pytest.mark.parametrize(
@@ -284,7 +284,7 @@ def test_several_changes_are_listed_in_the_fixed_field_order() -> None:
         ("other", "Deal Name"),
         ("other", "Vendor"),
         ("other", "Solution"),
-        ("other", "Users"),
+        ("other", "Users count"),
         ("other", "견적"),
         ("other", "POC"),
         ("other", "구매절차"),

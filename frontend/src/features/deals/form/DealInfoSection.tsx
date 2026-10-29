@@ -25,7 +25,7 @@ function CodeRow({ code }: { code: string }) {
   )
 }
 
-/** 첫 타일 Deal 정보: 상세와 같은 순서(Deal Name, [Deal code], Owner, Status~Expected Close, Vendor~Users, 견적·POC·구매절차). */
+/** 첫 타일 Deal 정보: 상세와 같은 순서(Deal Name, [Deal code], Owner, Status~Expected Close, Vendor~Users count, 견적·POC·구매절차). */
 export function DealInfoSection(props: DealInfoSectionProps) {
   const { state, set, errors, original, onApplied } = props
   return (
@@ -55,7 +55,7 @@ export function DealInfoSection(props: DealInfoSectionProps) {
         <ProgressRows state={state} set={set} errors={errors} onApplied={onApplied} />
         <VendorRows state={state} set={set} errors={errors} original={original} />
         <FormField
-          label="Users"
+          label="Users count"
           name="users"
           inputMode="numeric"
           value={state.users}

@@ -39,7 +39,7 @@ class TestSentFieldsOnly:
         view = await env.new_deal(users=5)
         env.uow.commits = 0
 
-        with raises_with(InvalidValueError, "Users를 입력하세요."):
+        with raises_with(InvalidValueError, "Users count를 입력하세요."):
             await env.update.execute(view.item.deal.id.value, make_patch(users=None), SALES)
 
         stored = await env.uow.deals.get(view.item.deal.id)
@@ -54,7 +54,7 @@ class TestSentFieldsOnly:
 
         stored = await env.uow.deals.get(view.item.deal.id)
         assert stored.details.users == 0
-        assert await env.changes(updated) == [("other", "Users", "10", "0")]
+        assert await env.changes(updated) == [("other", "Users count", "10", "0")]
 
     async def test_users_not_sent_keeps_the_current_value(self, env: DealEnv) -> None:
         view = await env.new_deal(users=5)
@@ -104,7 +104,7 @@ class TestSentFieldsOnly:
             ("owner", "Owner", "owner", "park"),
             ("other", "Deal Name", "ERP 구축", "확장 프로젝트"),
             ("other", "Vendor", "선택 안 함", "Oracle"),
-            ("other", "Users", "10", "20"),
+            ("other", "Users count", "10", "20"),
         ]
 
     async def test_the_history_entries_are_authored_by_the_requester(self, env: DealEnv) -> None:

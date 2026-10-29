@@ -66,14 +66,14 @@ export function dealsContract(make: MakeGateway): void {
       await expectRejects(deals.get('20000101-ZZZZ'), 404)
     })
 
-    it('reports the first violation in the fixed order: name, amount, Expected Close, Users, sync', async () => {
+    it('reports the first violation in the fixed order: name, amount, Expected Close, Users count, sync', async () => {
       const sales = await make('sales')
       const base = await validInput(sales)
 
       await expectRejects(sales.deals.create({ ...base, name: '  ', revenueAmount: 0 }), 422, 'Deal Name을 입력하세요.')
       await expectRejects(sales.deals.create({ ...base, revenueAmount: 0, revenueDate: '' }), 422, '매출금액은 1원 이상의 정수로 입력하세요.')
       await expectRejects(sales.deals.create({ ...base, revenueDate: '', users: -1 }), 422, 'Expected Close를 입력하세요.')
-      await expectRejects(sales.deals.create({ ...base, users: -1, statusKey: 'contract_completed' }), 422, 'Users는 0 이상의 정수로 입력하세요.')
+      await expectRejects(sales.deals.create({ ...base, users: -1, statusKey: 'contract_completed' }), 422, 'Users count는 0 이상의 정수로 입력하세요.')
       await expectRejects(sales.deals.create({ ...base, statusKey: 'contract_completed' }), 422, SYNC_MISMATCH)
     })
 

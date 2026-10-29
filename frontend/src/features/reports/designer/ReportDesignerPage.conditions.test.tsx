@@ -245,9 +245,9 @@ describe('조건 값 입력 (AC7)', () => {
     expect(screen.getAllByText(/\(천원\)/).length).toBeGreaterThan(0)
   })
 
-  it('does not ask for thousand won on Users or days (AC-9)', async () => {
+  it('does not ask for thousand won on Users count or days (AC-9)', async () => {
     const { user } = await openDesigner()
-    await addCondition(user, 'Users')
+    await addCondition(user, 'Users count')
     await addCondition(user, 'Status 체류 일수')
 
     expect(screen.queryByText(/\(천원\)/)).not.toBeInTheDocument()

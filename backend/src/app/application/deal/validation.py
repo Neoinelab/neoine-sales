@@ -1,7 +1,7 @@
 """등록·수정 폼 검증: 프런트 목업 `validateDealFields`와 같은 순서·문구(AC-05).
 
-순서: Deal Name -> Vendor -> Solution -> Owner -> 매출금액 -> Expected Close -> Users -> Status ->
-Forecast -> 동기화 -> BANT Label -> 구매절차 -> 고객 -> 파트너 -> 연락처 형식.
+순서: Deal Name -> Vendor -> Solution -> Owner -> 매출금액 -> Expected Close -> Users count ->
+Status -> Forecast -> 동기화 -> BANT Label -> 구매절차 -> 고객 -> 파트너 -> 연락처 형식.
 값 자체의 규칙은 도메인 값 객체가 갖고, 여기서는 순서와 저장소를 읽어야 하는 검사(Owner, 코드,
 Label)를 맡는다. 저장소를 읽는 검사는 보낸 필드에 대해서만 한다.
 """

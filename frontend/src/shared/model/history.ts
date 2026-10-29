@@ -45,7 +45,7 @@ export interface HistoryLookup {
  * 변경 전/후 Deal을 비교해 History 초안 목록을 만든다.
  * 불변식
  * - 바뀐 필드마다 1건. 바뀌지 않았으면 0건(빈 배열).
- * - 이름·Vendor·Solution·Users·견적·POC·구매절차는 category 'other'(target은 필드 표시명).
+ * - 이름·Vendor·Solution·Users count·견적·POC·구매절차는 category 'other'(target은 필드 표시명).
  * - 활성 파트너가 바뀌면 category 'partner', before/after는 contactName(없으면 '없음').
  * - `coChanged`가 있으면 요청 필드가 아닌 쪽의 after를 "계약완료 (Forecast Won과 함께 변경)"처럼 표기하거나
  *   별도 행으로 남긴다(구현 재량, 단 둘 다 기록되어야 한다).
@@ -76,7 +76,7 @@ export function diffDeal(
   push('other', 'Deal Name', before.name, after.name)
   push('other', 'Vendor', lookup.vendorName(before.vendorId), lookup.vendorName(after.vendorId))
   push('other', 'Solution', before.solution || '-', after.solution || '-')
-  push('other', 'Users', numberText(before.users), numberText(after.users))
+  push('other', 'Users count', numberText(before.users), numberText(after.users))
   push('other', '견적', quoteText(before), quoteText(after))
   push('other', 'POC', pocText(before), pocText(after))
   push('other', '구매절차', before.procurement || '-', after.procurement || '-')

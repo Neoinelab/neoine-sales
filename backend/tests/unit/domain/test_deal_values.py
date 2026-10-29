@@ -1,4 +1,5 @@
-"""Deal 값 객체(AC-05): 금액·이름·Vendor 선택·Solution 텍스트·Users·구매절차·견적·POC·BANT 선택.
+"""Deal 값 객체(AC-05): 금액·이름·Vendor 선택·Solution 텍스트·Users count·구매절차·견적·POC·
+BANT 선택.
 
 문구는 프런트 목업 `validateDealFields`와 같다. 여기서는 경계값만 본다(순서는 application 테스트).
 """
@@ -30,8 +31,8 @@ from tests.support.ids import new_id
 from tests.support.user_ids import OWNER_ID, uid
 
 AMOUNT_MESSAGE = "매출금액은 1원 이상의 정수로 입력하세요."
-USERS_MESSAGE = "Users는 0 이상의 정수로 입력하세요."
-USERS_REQUIRED_MESSAGE = "Users를 입력하세요."
+USERS_MESSAGE = "Users count는 0 이상의 정수로 입력하세요."
+USERS_REQUIRED_MESSAGE = "Users count를 입력하세요."
 SOLUTION_MAX = 200  # 정본은 app.domain.deal.values.SOLUTION_MAX(아래 테스트가 같은 값인지 확인)
 
 

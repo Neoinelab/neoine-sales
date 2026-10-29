@@ -47,7 +47,7 @@ describe('procurement length', () => {
   })
 })
 
-describe('Users upper bound', () => {
+describe('Users count upper bound', () => {
   it('accepts the largest integer the server stores (2147483647)', async () => {
     const { gateway } = await mockAs('kim')
 
@@ -56,14 +56,14 @@ describe('Users upper bound', () => {
     expect(created.users).toBe(2_147_483_647)
   })
 
-  it('rejects one more with the Users message on create and on update', async () => {
+  it('rejects one more with the Users count message on create and on update', async () => {
     const { gateway } = await mockAs('kim')
 
-    await expectApiError(gateway.deals.create(dealInput(USER_ID.kim, { users: 2_147_483_648 })), 422, 'Users는 0 이상의 정수로 입력하세요.')
-    await expectApiError(gateway.deals.update(dealCode(2), { users: 2_147_483_648 }), 422, 'Users는 0 이상의 정수로 입력하세요.')
+    await expectApiError(gateway.deals.create(dealInput(USER_ID.kim, { users: 2_147_483_648 })), 422, 'Users count는 0 이상의 정수로 입력하세요.')
+    await expectApiError(gateway.deals.update(dealCode(2), { users: 2_147_483_648 }), 422, 'Users count는 0 이상의 정수로 입력하세요.')
   })
 
-  it('accepts Users of zero on create', async () => {
+  it('accepts Users count of zero on create', async () => {
     const { gateway } = await mockAs('kim')
 
     const created = await gateway.deals.create(dealInput(USER_ID.kim, { users: 0 }))

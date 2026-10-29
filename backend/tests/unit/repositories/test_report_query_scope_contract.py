@@ -145,7 +145,7 @@ async def test_deal_users_and_status_days_follow_the_once_per_deal_rule(
         ]
     )
 
-    assert rows == [("owner", 7, 10.0)]  # Action 3건이어도 Users 7, 체류 10일(10-17 -> 10-27)
+    assert rows == [("owner", 7, 10.0)]  # Action 3건이어도 Users count 7, 체류 10일(10-17 -> 10-27)
 
 
 async def test_deal_in_two_groups_counts_once_in_each_group(report_case: ReportCase) -> None:

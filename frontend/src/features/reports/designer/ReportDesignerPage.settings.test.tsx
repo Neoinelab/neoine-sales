@@ -153,10 +153,10 @@ describe('포맷·표시 이름 (AC6)', () => {
     await addColumn(user, 'Status')
     await addColumn(user, '담당자')
     await addColumn(user, '금액')
-    await addColumn(user, 'Users')
+    await addColumn(user, 'Users count')
     await addColumn(user, 'Status 체류 일수')
 
-    for (const [index, name] of [[0, 'Deal 이름'], [1, 'Status'], [2, '담당자'], [3, '금액'], [4, 'Users'], [5, 'Status 체류 일수']] as const) {
+    for (const [index, name] of [[0, 'Deal 이름'], [1, 'Status'], [2, '담당자'], [3, '금액'], [4, 'Users count'], [5, 'Status 체류 일수']] as const) {
       expect(within(await open(user, index, name)).queryByRole('combobox', { name: '포맷' })).not.toBeInTheDocument()
     }
   })

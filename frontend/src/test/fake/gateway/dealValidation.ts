@@ -15,7 +15,7 @@ export const PARTNER_INCOMPLETE_MESSAGE = '파트너를 입력하면 회사명�
 export const SOLUTION_REQUIRED_MESSAGE = 'Solution을 입력하세요.'
 export const SOLUTION_TOO_LONG_MESSAGE = 'Solution은 200자 이내로 입력하세요.'
 
-/** 서버 값 규칙(Deal Name 200자, Solution 200자, 구매절차 500자, Users는 DB 정수 상한). */
+/** 서버 값 규칙(Deal Name 200자, Solution 200자, 구매절차 500자, Users count는 DB 정수 상한). */
 const NAME_MAX = 200
 const SOLUTION_MAX = 200
 const PROCUREMENT_MAX = 500
@@ -74,9 +74,9 @@ export function validateDealFields(
   }
   if (provided('users')) {
     const users: unknown = effective.users
-    if (users === null || users === undefined) throw validation('Users를 입력하세요.')
+    if (users === null || users === undefined) throw validation('Users count를 입력하세요.')
     if (typeof users !== 'number' || !Number.isInteger(users) || users < 0 || users > USERS_MAX) {
-      throw validation('Users는 0 이상의 정수로 입력하세요.')
+      throw validation('Users count는 0 이상의 정수로 입력하세요.')
     }
   }
   if (provided('statusKey') && !data.codes.some((c) => c.kind === 'status' && c.key === effective.statusKey)) {

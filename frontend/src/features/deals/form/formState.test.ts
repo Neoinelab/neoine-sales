@@ -194,10 +194,10 @@ describe('validateForm (T-FORM-01)', () => {
     expect(validateForm(filled({ revenueAmount: text }), undefined).revenueAmount).toBe(AMOUNT_INPUT_MESSAGE)
   })
 
-  it('requires Users and accepts zero or a positive integer', () => {
-    expect(validateForm(filled({ users: '' }), undefined).users).toBe('Users를 입력하세요.')
-    expect(validateForm(filled({ users: '-1' }), undefined).users).toBe('Users는 0 이상의 정수로 입력하세요.')
-    expect(validateForm(filled({ users: '2.5' }), undefined).users).toBe('Users는 0 이상의 정수로 입력하세요.')
+  it('requires Users count and accepts zero or a positive integer', () => {
+    expect(validateForm(filled({ users: '' }), undefined).users).toBe('Users count를 입력하세요.')
+    expect(validateForm(filled({ users: '-1' }), undefined).users).toBe('Users count는 0 이상의 정수로 입력하세요.')
+    expect(validateForm(filled({ users: '2.5' }), undefined).users).toBe('Users count는 0 이상의 정수로 입력하세요.')
     expect(validateForm(filled({ users: '0' }), undefined).users).toBeUndefined()
     expect(validateForm(filled({ users: '10' }), undefined).users).toBeUndefined()
   })

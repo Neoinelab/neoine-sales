@@ -261,7 +261,7 @@ def _detail_pairs(before: DealDetails, after: DealDetails, lookup: HistoryLookup
             lookup.vendor_name(after.vendor_id),
         ),
         (other, "Solution", before.solution or "-", after.solution or "-"),
-        (other, "Users", _number_text(before.users), _number_text(after.users)),
+        (other, "Users count", _number_text(before.users), _number_text(after.users)),
         (other, "견적", _quote_text(before.quote), _quote_text(after.quote)),
         (other, "POC", _poc_text(before.poc), _poc_text(after.poc)),
         (other, "구매절차", before.procurement or "-", after.procurement or "-"),

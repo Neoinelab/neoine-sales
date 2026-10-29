@@ -25,7 +25,7 @@ function dateDisplay(date: string | null, canWrite: boolean): ReactNode {
   return canWrite ? <span className="dd-muted"> 일자 입력</span> : null
 }
 
-/** Deal 정보 타일의 항목 행(Vendor·Solution·Users·견적·POC·구매절차·등록일). 값을 클릭해 그 자리에서 고친다. */
+/** Deal 정보 타일의 항목 행(Vendor·Solution·Users count·견적·POC·구매절차·등록일). 값을 클릭해 그 자리에서 고친다. */
 export function DealFacts({ deal, canWrite, onNotice }: DealFactsProps) {
   const { save } = useDealPatch(deal.code, onNotice)
   const vendors = useVendors().data ?? []
@@ -56,7 +56,7 @@ export function DealFacts({ deal, canWrite, onNotice }: DealFactsProps) {
     if (raw === '') throw new Error(USERS_REQUIRED_MESSAGE)
     if (!/^\d+$/.test(raw)) throw new Error(USERS_MESSAGE)
     const users = Number(raw)
-    if (users !== deal.users) await save({ users }, 'Users가 변경되었습니다.')
+    if (users !== deal.users) await save({ users }, 'Users count가 변경되었습니다.')
   }
 
   async function saveQuote(patch: Partial<typeof quote>, message: string) {
@@ -93,10 +93,10 @@ export function DealFacts({ deal, canWrite, onNotice }: DealFactsProps) {
       />,
     ],
     [
-      'Users',
+      'Users count',
       <InlineEdit
         key="users"
-        label="Users"
+        label="Users count"
         canEdit={canWrite}
         kind="number"
         display={String(deal.users)}

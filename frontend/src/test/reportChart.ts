@@ -27,9 +27,9 @@ export const STATUS_COL = resultColumn({ index: 1, field: 'deal.status', label: 
 export const amountCol = (index: number): ReportResultColumn =>
   resultColumn({ index, field: 'deal.amount', label: '금액', type: 'number', valueType: 'integer', format: null, unit: 'krw_thousand', aggregate: 'sum' })
 export const usersCol = (index: number): ReportResultColumn =>
-  resultColumn({ index, field: 'deal.users', label: 'Users', type: 'number', valueType: 'integer', format: null, unit: null, aggregate: 'sum' })
+  resultColumn({ index, field: 'deal.users', label: 'Users count', type: 'number', valueType: 'integer', format: null, unit: null, aggregate: 'sum' })
 
-/** Vendor 그룹 + 금액 + Users. 마지막 행의 Vendor는 비어 있다. */
+/** Vendor 그룹 + 금액 + Users count. 마지막 행의 Vendor는 비어 있다. */
 export const ONE_GROUP_RESULT: ReportResult = resultOf({
   columns: [VENDOR_COL, amountCol(1), usersCol(2)],
   rows: [
@@ -39,7 +39,7 @@ export const ONE_GROUP_RESULT: ReportResult = resultOf({
   ],
 })
 
-/** Vendor·Status 그룹 + 금액 + Users. Okta에는 Won 조합이 없다. */
+/** Vendor·Status 그룹 + 금액 + Users count. Okta에는 Won 조합이 없다. */
 export const TWO_GROUP_RESULT: ReportResult = resultOf({
   columns: [VENDOR_COL, STATUS_COL, amountCol(2), usersCol(3)],
   rows: [
@@ -52,7 +52,7 @@ export const TWO_GROUP_RESULT: ReportResult = resultOf({
 export const AMOUNT_HEADER = columnHeader(amountCol(1))
 export const USERS_HEADER = columnHeader(usersCol(2))
 
-/** 그룹 컬럼 1개(Vendor)·값 2개(금액, Users) 또는 그룹 2개(Vendor, Status)·값 2개로 설계하고 조회해 결과 표까지 기다린다. */
+/** 그룹 컬럼 1개(Vendor)·값 2개(금액, Users count) 또는 그룹 2개(Vendor, Status)·값 2개로 설계하고 조회해 결과 표까지 기다린다. */
 export async function openGroupedDesigner(groups: 1 | 2): Promise<Designer> {
   const rendered = await openDesigner()
   const { user } = rendered
@@ -65,7 +65,7 @@ export async function openGroupedDesigner(groups: 1 | 2): Promise<Designer> {
     await user.click(within(settingsOf('Status')).getByRole('checkbox', { name: '그룹핑' }))
   }
   await addColumn(user, '금액')
-  await addColumn(user, 'Users')
+  await addColumn(user, 'Users count')
   answerWith(groups === 1 ? ONE_GROUP_RESULT : TWO_GROUP_RESULT)
   await runQuery(user)
   await screen.findByRole('table', { name: '조회 결과' })

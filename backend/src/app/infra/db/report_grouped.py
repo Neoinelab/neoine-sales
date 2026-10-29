@@ -1,7 +1,7 @@
 """그룹핑 리포트의 SQL. 안쪽 하위 쿼리(base)에서 식을 한 번씩 계산하고 바깥에서 집계한다.
 
 안쪽에서 식을 한 번만 계산하면 SELECT·GROUP BY의 식이 어긋나지 않는다(바인딩 파라미터 포함).
-행 범위가 Action이면 Deal 단위 값(금액·Users·Status 체류 일수의 합계·평균, Deal 필드의 건수)은
+행 범위가 Action이면 Deal 단위 값(금액·Users count·Status 체류 일수의 합계·평균, Deal 필드의 건수)은
 `row_number() OVER (PARTITION BY <그룹 키>, deals.id)`의 첫 행만 세어 그룹마다 Deal당 한 번 센다.
 """
 

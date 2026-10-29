@@ -47,7 +47,7 @@ describe('Deal 정보 타일의 항목 (AC-11, AC-12, AC-14, AC-15)', () => {
       within(info).getByLabelText('Expected Close'),
       within(info).getByLabelText('Vendor'),
       within(info).getByLabelText('Solution'),
-      within(info).getByLabelText('Users'),
+      within(info).getByLabelText('Users count'),
       within(info).getByRole('group', { name: '견적' }),
       within(info).getByRole('group', { name: 'POC' }),
       within(info).getByLabelText('구매절차'),
@@ -58,10 +58,10 @@ describe('Deal 정보 타일의 항목 (AC-11, AC-12, AC-14, AC-15)', () => {
     }
   })
 
-  it('marks Users as required and no longer calls it optional', async () => {
+  it('marks Users count as required and no longer calls it optional', async () => {
     await openNew()
     const info = tile('Deal 정보')
-    expect(within(info).getByLabelText('Users').closest('.field')).toHaveClass('required')
+    expect(within(info).getByLabelText('Users count').closest('.field')).toHaveClass('required')
     expect(within(info).queryByText(/\(선택\)/)).not.toBeInTheDocument()
     expect(within(info).getByText('견적 단위 사용자 수')).toBeVisible()
   })
@@ -118,7 +118,7 @@ describe('Deal 정보 타일의 항목 (AC-11, AC-12, AC-14, AC-15)', () => {
     await pickPerson(user, '고객', '한빛은행', /정민수/)
     await user.type(screen.getByLabelText('금액(단위:천원)'), '100000')
     await user.type(screen.getByLabelText('Solution'), 'ITDR')
-    await user.type(screen.getByLabelText('Users'), '10')
+    await user.type(screen.getByLabelText('Users count'), '10')
     fireEvent.change(screen.getByLabelText('Expected Close'), { target: { value: '2027-06-01' } })
     await user.selectOptions(screen.getByLabelText('견적 제출여부'), 'YES')
     fireEvent.change(screen.getByLabelText('견적 제출일'), { target: { value: '2027-01-10' } })

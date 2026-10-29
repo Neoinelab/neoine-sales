@@ -263,7 +263,7 @@ describe('toReportRequest column sort (AC2, AC7)', () => {
 })
 
 describe('toReportRequest money conditions (AC-9)', () => {
-  it('multiplies only the amount input (thousand won) by 1,000 and keeps Users and days as typed', () => {
+  it('multiplies only the amount input (thousand won) by 1,000 and keeps Users count and days as typed', () => {
     let state = withColumns('deal.code')
     state = withCondition(state, 'deal.amount', 'gte', { shape: 'number', text: '1,500' })
     state = withCondition(state, 'deal.users', 'gte', { shape: 'number', text: '5' })

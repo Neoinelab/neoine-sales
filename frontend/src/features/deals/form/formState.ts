@@ -25,8 +25,8 @@ import type {
 export const OWNER_RESIGNED_MESSAGE = '퇴사한 사용자는 Owner로 지정할 수 없습니다. 다른 담당자를 선택하세요.'
 export const PARTNER_INCOMPLETE_MESSAGE = '파트너를 입력하면 회사명과 담당자명이 모두 필요합니다.'
 export const SOLUTION_REQUIRED_MESSAGE = 'Solution을 입력하세요.'
-export const USERS_REQUIRED_MESSAGE = 'Users를 입력하세요.'
-export const USERS_MESSAGE = 'Users는 0 이상의 정수로 입력하세요.'
+export const USERS_REQUIRED_MESSAGE = 'Users count를 입력하세요.'
+export const USERS_MESSAGE = 'Users count는 0 이상의 정수로 입력하세요.'
 
 export const EMPTY_DRAFT: ContactDraft = { contactId: null, company: '', name: '', title: '', email: null, phone: null }
 

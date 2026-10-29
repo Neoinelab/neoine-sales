@@ -12,7 +12,7 @@ function dated(value: string | null, date: string | null): string {
   return date ? `${value} (${date})` : value
 }
 
-/** 행 아래로 펼치는 빠른 보기: 견적·POC·고객 담당자·파트너 영업대표·BANT·Users·구매절차. */
+/** 행 아래로 펼치는 빠른 보기: 견적·POC·고객 담당자·파트너 영업대표·BANT·Users count·구매절차. */
 export function QuickView({ row }: { row: DealRow }) {
   // 목록은 Label을 미리 읽지 않는다. 고른 Label이 있는 구분만 로딩·실패를 보이고, 고르지 않은 구분은 '—'.
   const labels = useLabels()
@@ -48,7 +48,7 @@ export function QuickView({ row }: { row: DealRow }) {
           </div>
         ))}
         <div>
-          <dt>Users</dt>
+          <dt>Users count</dt>
           <dd>{row.users.toLocaleString('en-US')}</dd>
         </div>
         <div>

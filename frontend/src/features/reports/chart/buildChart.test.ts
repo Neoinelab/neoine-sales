@@ -19,9 +19,9 @@ const STATUS = resultColumn({ index: 1, field: 'deal.status', label: 'Status', t
 const amount = (index: number, aggregate: 'sum' | 'avg' | 'count' = 'sum') =>
   resultColumn({ index, field: 'deal.amount', label: '금액 합계', type: 'number', valueType: 'integer', format: null, unit: 'krw_thousand', aggregate })
 const users = (index: number) =>
-  resultColumn({ index, field: 'deal.users', label: 'Users', type: 'number', valueType: 'integer', format: null, unit: null, aggregate: 'sum' })
+  resultColumn({ index, field: 'deal.users', label: 'Users count', type: 'number', valueType: 'integer', format: null, unit: null, aggregate: 'sum' })
 
-/** 그룹 1개 + 금액 + Users. 마지막 Vendor는 값이 없다. */
+/** 그룹 1개 + 금액 + Users count. 마지막 Vendor는 값이 없다. */
 const ONE: ReportResult = resultOf({
   columns: [VENDOR, amount(1), users(2)],
   rows: [
@@ -191,7 +191,7 @@ describe('buildChart: categories, series and values', () => {
   it('makes one dataset per value column named by the column header', () => {
     const b = build(chart({ values: [1, 2] }), ONE)
 
-    expect(b.data.datasets.map((d) => d.label)).toEqual([columnHeader(amount(1)), 'Users'])
+    expect(b.data.datasets.map((d) => d.label)).toEqual([columnHeader(amount(1)), 'Users count'])
     expect(dataOf(b, 1)).toEqual([30, 10, 5])
   })
 
@@ -321,10 +321,10 @@ describe('buildChart: title, legend, labels, axes and range', () => {
   })
 
   it('titles the first value on x and the second on y for scatter and ranges y', () => {
-    const b = build(chart({ kind: 'scatter', values: [1, 2], categoryAxisTitle: '금액', valueAxisTitle: 'Users', valueMin: 0 }), ONE)
+    const b = build(chart({ kind: 'scatter', values: [1, 2], categoryAxisTitle: '금액', valueAxisTitle: 'Users count', valueMin: 0 }), ONE)
 
     expect(get(b.options, 'scales', 'x', 'title', 'text')).toBe('금액')
-    expect(get(b.options, 'scales', 'y', 'title', 'text')).toBe('Users')
+    expect(get(b.options, 'scales', 'y', 'title', 'text')).toBe('Users count')
     expect(get(b.options, 'scales', 'y', 'min')).toBe(0)
   })
 
@@ -360,9 +360,9 @@ describe('buildChart: units (AC15)', () => {
     expect(tip).toContain('123,457')
   })
 
-  it('writes the Users tooltip as a rounded whole number (AC-7)', () => {
+  it('writes the Users count tooltip as a rounded whole number (AC-7)', () => {
     const avg = resultOf({
-      columns: [VENDOR, resultColumn({ index: 1, field: 'deal.users', label: 'Users', type: 'number', valueType: 'decimal', format: null, unit: null, aggregate: 'avg' })],
+      columns: [VENDOR, resultColumn({ index: 1, field: 'deal.users', label: 'Users count', type: 'number', valueType: 'decimal', format: null, unit: null, aggregate: 'avg' })],
       rows: [['Silverfort', 2.5]],
     })
     const b = build(chart(), avg)

@@ -72,7 +72,7 @@ describe('diffDeal', () => {
     expect(drafts.find((d) => d.category === 'status')?.after).toBe('계약완료')
   })
 
-  it('AC-11 Vendor와 Solution 변경은 기타 1건씩 남고 Solution은 텍스트이며 순서는 Deal Name, Vendor, Solution, Users이다', () => {
+  it('AC-11 Vendor와 Solution 변경은 기타 1건씩 남고 Solution은 텍스트이며 순서는 Deal Name, Vendor, Solution, Users count이다', () => {
     const after = deal({ name: 'B', vendorId: 2, solution: 'SSO', users: 5 })
 
     const others = diffDeal(deal(), after, lookup).filter((d) => d.category === 'other')
@@ -81,7 +81,7 @@ describe('diffDeal', () => {
       { category: 'other', target: 'Deal Name', before: 'A', after: 'B' },
       { category: 'other', target: 'Vendor', before: 'SAP', after: 'Okta' },
       { category: 'other', target: 'Solution', before: 'S/4', after: 'SSO' },
-      { category: 'other', target: 'Users', before: '10', after: '5' },
+      { category: 'other', target: 'Users count', before: '10', after: '5' },
     ])
   })
 

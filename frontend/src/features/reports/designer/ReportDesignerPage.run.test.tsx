@@ -177,7 +177,7 @@ describe('조회 요청 (AC11)', () => {
   it('does not send a request when an input cannot be read', async () => {
     const { user } = await openDesigner()
     await addColumn(user, 'Deal code')
-    await addCondition(user, 'Users')
+    await addCondition(user, 'Users count')
     const input = screen.getByRole('textbox', { name: '조건 1 값' })
     await user.type(input, '1.5')
 
@@ -344,7 +344,7 @@ describe('결과 표 (AC12)', () => {
     const result = resultOf({
       columns: [
         resultColumn({ index: 0, field: 'deal.vendor', label: 'Vendor', type: 'code', group: true, prefixLength: 3 }),
-        resultColumn({ index: 1, field: 'deal.users', label: 'Users 합계', type: 'number', valueType: 'integer', format: null, unit: null, aggregate: 'sum', prefixLength: 3 }),
+        resultColumn({ index: 1, field: 'deal.users', label: 'Users count 합계', type: 'number', valueType: 'integer', format: null, unit: null, aggregate: 'sum', prefixLength: 3 }),
       ],
       rows: [['ABCDEF', 1_234_567]],
       totals: [null, 1_234_567],

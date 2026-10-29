@@ -23,7 +23,10 @@ pytestmark = pytest.mark.integration
 
 
 async def test_partial_update_without_solution_succeeds_on_a_legacy_deal(api: Api) -> None:
-    """Scenario: Solution이 빈 Deal의 Users와 이름만 수정하면 성공하고 Solution은 빈 채로 남는다."""
+    """Scenario: Solution이 빈 Deal의 Users count와 이름만 수정하면 성공하고
+
+    Solution은 빈 채로 남는다.
+    """
     # Given
     await given_logged_in_as(api, role="sales")
     code = await given_legacy_deal_without_solution(api)

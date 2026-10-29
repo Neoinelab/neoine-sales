@@ -151,8 +151,8 @@ class TestAtomicity:
             ({"name": "  "}, "Deal Name을 입력하세요."),
             ({"revenue_amount": 0}, "매출금액은 1원 이상의 정수로 입력하세요."),
             ({"revenue_date": None}, "Expected Close를 입력하세요."),
-            ({"users": -1}, "Users는 0 이상의 정수로 입력하세요."),
-            ({"users": None}, "Users를 입력하세요."),
+            ({"users": -1}, "Users count는 0 이상의 정수로 입력하세요."),
+            ({"users": None}, "Users count를 입력하세요."),
             ({"procurement": "가" * 501}, "구매절차는 500자 이내로 입력하세요."),
         ],
     )

@@ -52,33 +52,33 @@ describe('deals.update', () => {
     const cats = await categories(gateway, code, base)
     const expected: HistoryCategory[] = ['owner', 'amount', 'expectedClose', 'bant', 'other']
     for (const c of expected) expect(cats).toContain(c)
-    expect(cats.filter((c) => c === 'other').length).toBe(7) // 이름, Vendor, Solution, Users, 견적, POC, 구매절차
+    expect(cats.filter((c) => c === 'other').length).toBe(7) // 이름, Vendor, Solution, Users count, 견적, POC, 구매절차
     const owner = (await gateway.history.list(code, { category: 'owner' }))[0]
     expect(owner).toMatchObject({ before: '김영업', after: '박영업', by: { id: USER_ID.kim }, at: TEST_NOW })
     expect((await gateway.history.list(code, { category: 'amount' }))[0]).toMatchObject({ target: '금액(단위:천원)', before: '420,000', after: '777,000' })
   })
 
-  it('rejects clearing Users and keeps the value', async () => {
+  it('rejects clearing Users count and keeps the value', async () => {
     const { gateway } = await mockAs('kim')
     const code = dealCode(2)
     const before = await gateway.deals.get(code)
     const history = (await gateway.history.list(code, {})).length
 
-    await expectApiError(gateway.deals.update(code, { users: null } as unknown as DealPatch), 422, 'Users를 입력하세요.')
+    await expectApiError(gateway.deals.update(code, { users: null } as unknown as DealPatch), 422, 'Users count를 입력하세요.')
 
     expect((await gateway.deals.get(code)).users).toBe(before.users)
     expect((await gateway.history.list(code, {})).length).toBe(history)
   })
 
-  it('rejects a negative or fractional Users with the non-negative message', async () => {
+  it('rejects a negative or fractional Users count with the non-negative message', async () => {
     const { gateway } = await mockAs('kim')
     const code = dealCode(2)
 
-    await expectApiError(gateway.deals.update(code, { users: -1 }), 422, 'Users는 0 이상의 정수로 입력하세요.')
-    await expectApiError(gateway.deals.update(code, { users: 2.5 }), 422, 'Users는 0 이상의 정수로 입력하세요.')
+    await expectApiError(gateway.deals.update(code, { users: -1 }), 422, 'Users count는 0 이상의 정수로 입력하세요.')
+    await expectApiError(gateway.deals.update(code, { users: 2.5 }), 422, 'Users count는 0 이상의 정수로 입력하세요.')
   })
 
-  it('accepts Users of zero and records it in History', async () => {
+  it('accepts Users count of zero and records it in History', async () => {
     const { gateway } = await mockAs('kim')
     const code = dealCode(2)
     const before = await gateway.deals.get(code)
@@ -87,10 +87,10 @@ describe('deals.update', () => {
 
     expect(updated.users).toBe(0)
     const entry = (await gateway.history.list(code, { category: 'other' }))[0]
-    expect(entry).toMatchObject({ target: 'Users', before: String(before.users), after: '0' })
+    expect(entry).toMatchObject({ target: 'Users count', before: String(before.users), after: '0' })
   })
 
-  it('reports the Deal Name error before the cleared Users', async () => {
+  it('reports the Deal Name error before the cleared Users count', async () => {
     const { gateway } = await mockAs('kim')
 
     await expectApiError(

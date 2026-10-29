@@ -193,7 +193,7 @@ describe('조회 실패 (AC3)', () => {
   it('stays on the design tab when the input cannot be read and sends nothing', async () => {
     const { user } = await openDesigner()
     await addColumn(user, 'Deal code')
-    await addCondition(user, 'Users')
+    await addCondition(user, 'Users count')
     await user.type(screen.getByRole('textbox', { name: '조건 1 값' }), '1.5')
 
     await runQuery(user)
