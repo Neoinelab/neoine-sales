@@ -155,3 +155,82 @@ class TestOtherGuards:
     def test_ordinary_commands_pass(self) -> None:
         assert bash("uv run pytest -q") is None
         assert bash("git status") is None
+
+
+class TestSetupScriptPolicy:
+    """setup.sh의 product·서버 모드(sudo, systemd, product 준비)는 Claude가 실행하지 않는다."""
+
+    @pytest.mark.parametrize(
+        "command",
+        [
+            "scripts/setup.sh --profile product",
+            "./scripts/setup.sh --profile product --skip-migrate",
+            "bash scripts/setup.sh --profile product",
+            "cd /repo && ./scripts/setup.sh --profile product",
+            "./scripts/setup.sh --server",
+            "bash scripts/setup.sh --profile dev --server",
+            "sudo ./scripts/setup.sh --profile dev --server --tag v1",
+            "APP_PROFILE=dev ./scripts/setup.sh --profile product",
+            "/abs/path/scripts/setup.sh --profile dev --server",
+            "bash -x scripts/setup.sh --profile product",
+            "/bin/bash -x scripts/setup.sh --profile dev --server",
+            "bash -e scripts/setup.sh --server",
+            "bash -c 'scripts/setup.sh --profile product'",
+            "sudo -u me ./scripts/setup.sh --server",
+            "env -i ./scripts/setup.sh --server",
+            "(cd scripts && ./setup.sh --profile product)",
+            "./scripts/setup.sh --profile=product",
+            "bash scripts/setup.sh --profile=product",
+            "bash -lc 'cd x && ./scripts/setup.sh --server'",
+            "bash -xc './scripts/setup.sh --profile product'",
+            "zsh -ic './setup.sh --server'",
+            "X=$(./scripts/setup.sh --server)",
+            "echo $(./scripts/setup.sh --server)",
+            "echo `./scripts/setup.sh --server`",
+        ],
+    )
+    def test_product_or_server_mode_is_denied(self, command: str) -> None:
+        decision = bash(command)
+
+        assert decision is not None
+        assert decision[0] == "deny"
+
+    @pytest.mark.parametrize("profile", [None, "local", "dev", "product"])
+    def test_product_or_server_mode_is_denied_regardless_of_active_profile(
+        self, profile: str | None
+    ) -> None:
+        decision = bash("./scripts/setup.sh --profile dev --server", profile)
+
+        assert decision is not None
+        assert decision[0] == "deny"
+
+    @pytest.mark.parametrize(
+        "command",
+        [
+            "scripts/setup.sh",
+            "./scripts/setup.sh --profile local",
+            "./scripts/setup.sh --profile dev",
+            "./scripts/setup.sh --profile dev --skip-migrate",
+            "bash scripts/setup.sh --help",
+            "bash scripts/setup.sh -h",
+            "./scripts/setup.sh --profile product --help",
+            "git commit -m './scripts/setup.sh --server 추가 && 기타'",
+        ],
+    )
+    def test_local_and_dev_pc_modes_are_allowed(self, command: str) -> None:
+        assert bash(command) is None
+
+    @pytest.mark.parametrize(
+        "command",
+        [
+            "bash -n scripts/setup.sh",
+            "cat scripts/setup.sh",
+            "git add scripts/setup.sh",
+            "bash scripts/tests/test_setup.sh",
+            "bash infra/server/tests/test_env_secrets.sh",
+            "grep -n server scripts/setup.sh",
+            "./scripts/start-backend.sh --profile dev",
+        ],
+    )
+    def test_commands_that_only_mention_setup_script_are_allowed(self, command: str) -> None:
+        assert bash(command) is None
