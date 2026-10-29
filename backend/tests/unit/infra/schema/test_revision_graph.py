@@ -37,7 +37,8 @@ FORECAST_SNAPSHOTS_REVISION = "11bfe225caf5"  # Solution 자유 텍스트 리비
 
 SOLUTION_FREE_TEXT_REVISION = "d4b8f6a2c013"  # Reports 리비전의 down_revision다
 REPORTS_REVISION = "f1c6a8e2b904"  # 배치 리비전의 down_revision이다
-REPORTS_LAYOUT_REVISION = "b7d2e9a4c156"  # 현재 단일 head
+REPORTS_LAYOUT_REVISION = "b7d2e9a4c156"  # 파트너 미팅 리비전의 down_revision이다
+PARTNER_MEETINGS_REVISION = "c4e8a1d7f203"  # 현재 단일 head
 
 
 def test_the_solution_text_revision_follows_the_forecast_snapshots() -> None:
@@ -50,14 +51,25 @@ def test_the_solution_text_revision_follows_the_forecast_snapshots() -> None:
     assert revision.down_revision == forecast_snapshots_revision() == FORECAST_SNAPSHOTS_REVISION
 
 
-def test_the_reports_layout_revision_follows_the_reports_and_is_the_single_head() -> None:
+def test_the_partner_meetings_revision_follows_the_reports_layout_and_is_the_single_head() -> None:
     script = ScriptDirectory.from_config(_alembic_config())
 
-    assert script.get_heads() == [REPORTS_LAYOUT_REVISION]
-    head = script.get_revision(REPORTS_LAYOUT_REVISION)
+    assert script.get_heads() == [PARTNER_MEETINGS_REVISION]
+    head = script.get_revision(PARTNER_MEETINGS_REVISION)
     assert head is not None
-    assert head.down_revision == REPORTS_REVISION
-    assert head.path.endswith(f"20261028_{REPORTS_LAYOUT_REVISION}_reports_layout.py")
+    assert head.down_revision == REPORTS_LAYOUT_REVISION
+    assert head.path.endswith(f"20261028_{PARTNER_MEETINGS_REVISION}_partner_meetings.py")
+
+
+def test_the_reports_layout_revision_follows_the_reports_in_the_head_history() -> None:
+    script = ScriptDirectory.from_config(_alembic_config())
+
+    layout = script.get_revision(REPORTS_LAYOUT_REVISION)
+    assert layout is not None
+    assert layout.down_revision == REPORTS_REVISION
+    assert layout.path.endswith(f"20261028_{REPORTS_LAYOUT_REVISION}_reports_layout.py")
+    history = {r.revision for r in script.iterate_revisions(script.get_heads()[0], "base")}
+    assert REPORTS_LAYOUT_REVISION in history
 
 
 def test_the_reports_revision_follows_the_solution_text() -> None:

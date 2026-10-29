@@ -5,6 +5,7 @@ import {
   canDeleteAttachment,
   canDeleteDeal,
   canDeleteReport,
+  canEditMeeting,
   canEditAction,
   canEditReport,
   canViewReport,
@@ -22,8 +23,8 @@ describe('permissions', () => {
   it('쓰기와 메뉴', () => {
     expect(canWrite('user')).toBe(false)
     expect(canWrite('sales')).toBe(true)
-    expect(visibleMenu('admin')).toHaveLength(5)
-    expect(visibleMenu('sales')).toHaveLength(4)
+    expect(visibleMenu('admin')).toHaveLength(6)
+    expect(visibleMenu('sales')).toHaveLength(5)
   })
 
   it('Deal 삭제: admin 전체, sales 본인, user 불가', () => {
@@ -107,3 +108,23 @@ describe('report permissions follow the decision table', () => {
     expect(canDeleteReport({ id: USER_ID.root, role: 'admin' }, { owner: resignedOwner })).toBe(true)
   })
 })
+
+describe('파트너 Activity 권한', () => {
+  it('메뉴는 Deals 다음에 /partner-activities가 오고 모든 역할에 보인다', () => {
+    expect(visibleMenu('sales')).toEqual(['/dashboard', '/deals', '/partner-activities', '/forecast', '/reports'])
+    expect(visibleMenu('user')).toEqual(['/dashboard', '/deals', '/partner-activities', '/forecast', '/reports'])
+    expect(visibleMenu('admin')).toEqual(['/dashboard', '/deals', '/partner-activities', '/forecast', '/reports', '/admin'])
+  })
+
+  it.each([
+    ['admin edits the record of another user', { id: USER_ID.root, role: 'admin' }, USER_ID.kim, true],
+    ['admin edits their own record', { id: USER_ID.root, role: 'admin' }, USER_ID.root, true],
+    ['sales edits their own record', { id: USER_ID.kim, role: 'sales' }, USER_ID.kim, true],
+    ['sales cannot edit the record of another sales', { id: USER_ID.park, role: 'sales' }, USER_ID.kim, false],
+    ['user cannot edit even a record with the same id', { id: USER_ID.han, role: 'user' }, USER_ID.han, false],
+    ['user cannot edit the record of another user', { id: USER_ID.han, role: 'user' }, USER_ID.kim, false],
+  ] as const)('수정·삭제: %s', (_name, viewer, authorId, expected) => {
+    expect(canEditMeeting(viewer, authorId)).toBe(expected)
+  })
+})
+

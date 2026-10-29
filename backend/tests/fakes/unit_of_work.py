@@ -19,6 +19,7 @@ from tests.fakes.directory_settings_repository import FakeDirectorySettingsRepos
 from tests.fakes.forecast import FakeForecastTallyRepository
 from tests.fakes.forecast_snapshots import FakeForecastSnapshotRepository
 from tests.fakes.id_allocator import FakeIdAllocator
+from tests.fakes.partner_meetings import FakePartnerMeetingRepository
 from tests.fakes.report_repository import FakeReportRepository
 from tests.fakes.report_runner import FakeReportQueryRunner
 from tests.fakes.repositories import (
@@ -55,6 +56,7 @@ class FakeUnitOfWork:
         self.dashboard = FakeDashboardTallyRepository(self.deals)  # Dashboard 집계(읽기 전용)
         self.reports = FakeReportQueryRunner()  # Reports 조회(기록·고정 응답만 하는 Fake)
         self.saved_reports = FakeReportRepository()  # 저장 리포트(Reports 3단계)
+        self.partner_meetings = FakePartnerMeetingRepository()  # 파트너 Activity 미팅 기록
         self.deals.wire(
             contacts=self.contacts,
             codes=self.codes,
@@ -64,7 +66,9 @@ class FakeUnitOfWork:
             history=self.deal_history,
             attachments=self.attachments,
             users=self.users,
+            meetings=self.partner_meetings,
         )
+        self.partner_meetings.wire(deals=self.deals, contacts=self.contacts, users=self.users)
         self.attachments.wire(deals=self.deals)  # 소속 Deal이 없으면 DealNotFoundError
         # 소속 Deal이 없으면 DealNotFoundError, 스냅숏 코드가 없으면 InvalidReferenceError
         self.deal_actions.wire(
@@ -126,6 +130,10 @@ class FakeUnitOfWork:
         self.users.add_referrer(  # reports.updated_by_user_id (최종 수정자도 연결 있음)
             lambda uid: any(r.updated_by_user_id == uid for r in saved._items.values())
         )
+        meetings = self.partner_meetings
+        self.users.add_referrer(  # partner_meetings.created_by_user_id (파트너 Activity 작성자)
+            lambda uid: any(m.author_user_id == uid for m in meetings._items.values())
+        )
         types = self.action_types
         self.users.add_referrer(  # action_types.created_by_user_id (AC-36: 만든 사람은 연결 있음)
             lambda uid: any(t.created_by_user_id == uid for t in types._items.values())
@@ -150,6 +158,7 @@ class FakeUnitOfWork:
             self.vendors,
             self.forecast_snapshots,
             self.saved_reports,
+            self.partner_meetings,
         )
 
     def _take(self) -> tuple[Any, ...]:

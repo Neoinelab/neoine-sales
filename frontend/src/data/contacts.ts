@@ -47,7 +47,7 @@ export function useUpdateContact(): Mutation<{ id: number; input: ContactInput }
   const invalidate = useInvalidate()
   return useMutation<Contact, ApiError, { id: number; input: ContactInput }>({
     mutationFn: ({ id, input }) => gateway.contacts.update(id, input),
-    onSuccess: () => invalidate(keys.contacts, keys.deals, keys.historyAll),
+    onSuccess: () => invalidate(keys.contacts, keys.deals, keys.historyAll, keys.partnerMeetings),
   })
 }
 

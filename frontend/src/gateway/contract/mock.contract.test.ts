@@ -16,6 +16,7 @@ import { dashboardContract } from './dashboard.contract'
 import { dealsContract } from './deals.contract'
 import { forecastContract } from './forecast.contract'
 import { labelsContract } from './labels.contract'
+import { partnerMeetingsContract } from './partnerMeetings.contract'
 import { reportsContract } from './reports.contract'
 import { savedReportsContract } from './savedReports.contract'
 import { timeContract } from './time.contract'
@@ -62,3 +63,4 @@ dashboardContract(makeMock)
 reportsContract(makeMock)
 savedReportsContract(makeMock)
 timeContract(makeMock)
+partnerMeetingsContract(makeMock)

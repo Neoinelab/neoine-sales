@@ -51,6 +51,8 @@ BUSINESS_READS: Final = (
     ("GET", "/api/v1/alert-settings"),  # P3: 경고 기준 조회는 모든 역할(목록 범례에 숫자가 필요)
     ("GET", "/api/v1/reports/fields"),  # Reports 1단계: 필드 카탈로그는 모든 역할
     ("POST", "/api/v1/reports/query"),  # POST지만 조회 전용(저장 없음)이라 user도 쓸 수 있다
+    ("GET", "/api/v1/partner-meetings"),  # 파트너 Activity 목록·Deal 선택지: 모든 역할
+    ("GET", "/api/v1/partner-meetings/deal-options"),
 )
 BUSINESS_WRITES: Final = (
     ("POST", "/api/v1/bant-labels"),  # 자기 Label을 만든다(user는 조회 전용)
@@ -68,6 +70,9 @@ BUSINESS_WRITES: Final = (
     ),  # 상태 변경은 sales·admin(본인 판정은 그 다음)
     ("POST", "/api/v1/deals/{code}/attachments"),  # P2b: 업로드·삭제는 sales·admin
     ("DELETE", "/api/v1/attachments/{attachment_id}"),
+    ("POST", "/api/v1/partner-meetings"),  # 파트너 Activity 입력·수정·삭제는 sales·admin
+    ("PUT", "/api/v1/partner-meetings/{meeting_id}"),  # 본인 판정은 그 다음
+    ("DELETE", "/api/v1/partner-meetings/{meeting_id}"),
 )
 # Reports 3단계: 저장 리포트. 만들기·수정·삭제를 로그인한 모든 역할이 한다(user 포함).
 # 수정·삭제 가능 여부는 리포트마다 다르며(만든 사람·공개 범위·admin) 도메인 정책이 판정한다.

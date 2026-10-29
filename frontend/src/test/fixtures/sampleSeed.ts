@@ -11,6 +11,7 @@ import { seedContacts } from './contacts'
 import { seedForecastSnapshots } from './forecastSnapshot'
 import { DEAL_SPECS } from './dealSpecs'
 import { dealCodeOf, seedDeals } from './deals'
+import { seedPartnerMeetings } from './partnerMeetings'
 import { SEED_VENDORS } from './vendors'
 
 export function buildSampleSeed(clock: MockClock): SeedData {
@@ -34,6 +35,7 @@ export function buildSampleSeed(clock: MockClock): SeedData {
     history: [...activity.history, ...files.history],
     attachments: files.attachments,
     forecastSnapshots: seedForecastSnapshots(),
+    partnerMeetings: seedPartnerMeetings(env, counters),
   }
 }
 

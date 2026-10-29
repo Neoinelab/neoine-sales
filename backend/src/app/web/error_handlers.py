@@ -20,6 +20,7 @@ from app.domain.common.errors import (
     InvalidValueError,
     NotFoundError,
 )
+from app.domain.partner_meeting.errors import MeetingInputError
 from app.domain.report.errors import ReportDefinitionError
 from app.domain.report.vocabulary import STATEMENT_TIMEOUT_SECONDS
 from app.web.security import CsrfRejectedError
@@ -113,6 +114,12 @@ async def _invalid_report(request: Request, exc: Exception) -> JSONResponse:
     return problem(request, 422, "invalid-report", str(exc), {"errors": errors})
 
 
+async def _invalid_meeting(request: Request, exc: Exception) -> JSONResponse:
+    assert isinstance(exc, MeetingInputError)  # noqa: S101 - 핸들러 등록 대상 보장
+    errors = [{"location": list(i.location), "message": i.message} for i in exc.issues]
+    return problem(request, 422, "invalid-value", str(exc), {"errors": errors})
+
+
 async def _directory_verification(request: Request, exc: Exception) -> JSONResponse:
     assert isinstance(exc, DirectoryVerificationError)  # noqa: S101 - 핸들러 등록 대상 보장
     return problem(
@@ -156,6 +163,7 @@ def register_error_handlers(app: FastAPI) -> None:
     app.add_exception_handler(StorageUnavailableError, _storage_unavailable)
     app.add_exception_handler(ReportQueryTimeoutError, _report_timeout)
     app.add_exception_handler(ReportDefinitionError, _invalid_report)
+    app.add_exception_handler(MeetingInputError, _invalid_meeting)
     app.add_exception_handler(DomainError, _domain_error)
     app.add_exception_handler(RequestValidationError, _validation_error)
     app.add_exception_handler(StarletteHTTPException, _http_error)

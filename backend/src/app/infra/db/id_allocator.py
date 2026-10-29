@@ -23,6 +23,7 @@ _TABLES: Final[Mapping[IdKind, str]] = {
     IdKind.DEAL_ACTION: "deal_actions",
     IdKind.ATTACHMENT: "deal_attachments",
     IdKind.REPORT: "reports",
+    IdKind.PARTNER_MEETING: "partner_meetings",
 }
 
 

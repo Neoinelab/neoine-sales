@@ -18,7 +18,9 @@ async def test_a_deal_without_attachments_counts_zero(attachment_case: Attachmen
 
     impact = await attachment_case.deals.deletion_impact(DEAL)
 
-    assert impact == DealDeletionImpact(history_count=0, action_count=0, attachment_count=0)
+    assert impact == DealDeletionImpact(
+        history_count=0, action_count=0, attachment_count=0, partner_meeting_count=0
+    )
 
 
 async def test_each_attachment_of_the_deal_is_counted_once(attachment_case: AttachmentCase) -> None:

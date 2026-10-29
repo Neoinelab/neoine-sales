@@ -349,12 +349,12 @@ describe('deals.get / impact over HTTP', () => {
   })
 
   it('impact reads GET /deals/{code}/deletion-impact in camelCase', async () => {
-    const { calls } = stubFetch(json({ history_count: 5, action_count: 3, attachment_count: 2 }))
+    const { calls } = stubFetch(json({ history_count: 5, action_count: 3, attachment_count: 2, partner_meeting_count: 4 }))
 
     const impact = await createDealsHttp().impact(CODE)
 
     expect(calls[0]).toMatchObject({ method: 'GET', path: `/api/v1/deals/${CODE}/deletion-impact` })
-    expect(impact).toEqual({ historyCount: 5, actionCount: 3, attachmentCount: 2 })
+    expect(impact).toEqual({ historyCount: 5, actionCount: 3, attachmentCount: 2, partnerMeetingCount: 4 })
   })
 
   it('impact shows the 404 of an unknown deal', async () => {

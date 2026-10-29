@@ -36,8 +36,8 @@ export function DeleteDealDialog({ deal, onCancel, onDeleted }: DeleteDealDialog
       title="Deal 삭제"
       message={
         impact
-          ? `삭제하면 Deal History ${impact.historyCount}건, Action ${impact.actionCount}건, 첨부 파일 ${impact.attachmentCount}개와 파일 저장 디렉터리가 함께 삭제되며 복구할 수 없습니다.`
-          : '삭제 대상 건수를 확인하는 중입니다. 삭제하면 Deal History, Action, 첨부 파일이 함께 삭제되며 복구할 수 없습니다.'
+          ? `삭제하면 Deal History ${impact.historyCount}건, Action ${impact.actionCount}건, 파트너 미팅 ${impact.partnerMeetingCount}건, 첨부 파일 ${impact.attachmentCount}개와 파일 저장 디렉터리가 함께 삭제되며 복구할 수 없습니다.`
+          : '삭제 대상 건수를 확인하는 중입니다. 삭제하면 Deal History, Action, 파트너 미팅, 첨부 파일이 함께 삭제되며 복구할 수 없습니다.'
       }
       confirmLabel="삭제"
       danger

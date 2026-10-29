@@ -10,6 +10,8 @@ export interface Problem {
   errors?: { loc: (string | number)[]; msg: string }[]
   /** invalid-report(리포트 정의 위반) 문제의 위반 목록. HTTP 어댑터가 서버의 `errors`에서 옮겨 담는다. */
   reportErrors?: ReportIssue[]
+  /** 일괄 입력(파트너 미팅)의 422 위반 목록. HTTP 어댑터가 서버의 `errors`에서 옮겨 담는다. */
+  itemErrors?: { location: (string | number)[]; message: string }[]
   /** directory-verification-failed 등이 싣는 실패 단계(connect·tls·bind·search). */
   stage?: string
 }

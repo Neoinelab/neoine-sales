@@ -19,6 +19,7 @@ from app.infra.db.forecast_repository import (
 )
 from app.infra.db.id_allocator import SqlIdAllocator
 from app.infra.db.login_failure_repository import SqlLoginFailureRepository
+from app.infra.db.partner_meeting_repository import SqlPartnerMeetingRepository
 from app.infra.db.report_repository import SqlReportRepository
 from app.infra.db.report_runner import SqlReportQueryRunner
 from app.infra.db.session_repository import SqlSessionRepository
@@ -53,6 +54,7 @@ class SqlUnitOfWork:
     dashboard: SqlDashboardTallyRepository
     reports: SqlReportQueryRunner
     saved_reports: SqlReportRepository
+    partner_meetings: SqlPartnerMeetingRepository
     ids: SqlIdAllocator
 
     def __init__(self, session_factory: async_sessionmaker[AsyncSession]) -> None:
@@ -80,6 +82,7 @@ class SqlUnitOfWork:
         self.dashboard = SqlDashboardTallyRepository(self._session)
         self.reports = SqlReportQueryRunner(self._session)
         self.saved_reports = SqlReportRepository(self._session)
+        self.partner_meetings = SqlPartnerMeetingRepository(self._session)
         self.ids = SqlIdAllocator(self._session)
         return self
 

@@ -7,6 +7,7 @@ import { useDealListPath } from './useDealListPath'
 const MENU_LABELS: Record<string, string> = {
   '/dashboard': 'Dashboard',
   '/deals': 'Deals',
+  '/partner-activities': '파트너 Activity',
   '/forecast': 'Forecast',
   '/reports': 'Reports',
   '/admin': 'Admin',

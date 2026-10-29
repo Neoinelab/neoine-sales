@@ -33,11 +33,13 @@ interface ComboBoxProps {
   hint?: string
   /** 입력란에 포커스를 옮기려는 호출처용. */
   inputRef?: Ref<HTMLInputElement>
+  /** 포커스만으로 목록을 열지(기본 true). false이면 클릭·입력·방향키로 연다(팝업이 열릴 때 첫 칸의 목록이 저절로 열리지 않게). */
+  openOnFocus?: boolean
 }
 
 /** 목록에서 고르거나 직접 입력하는 콤보박스(ARIA combobox/listbox, 키보드 지원). */
 export function ComboBox(props: ComboBoxProps) {
-  const { label, visibleLabel, name, value, onChange, options, onSelectOption, transform, required, disabled, placeholder, error, hint, inputRef } = props
+  const { label, visibleLabel, name, value, onChange, options, onSelectOption, transform, required, disabled, placeholder, error, hint, inputRef, openOnFocus = true } = props
   const baseId = useId()
   const listId = `${baseId}-list`
   const [open, setOpen] = useState(false)
@@ -95,7 +97,8 @@ export function ComboBox(props: ComboBoxProps) {
         required={required}
         disabled={disabled}
         placeholder={placeholder}
-        onFocus={() => setOpen(true)}
+        onFocus={() => openOnFocus && setOpen(true)}
+        onClick={() => setOpen(true)}
         onBlur={() => {
           setOpen(false)
           setActive(-1)

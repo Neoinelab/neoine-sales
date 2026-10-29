@@ -59,6 +59,10 @@ import type {
   DashboardSummary,
   DealAction,
   DealDeletionImpact,
+  PartnerDealOption,
+  PartnerMeeting,
+  PartnerMeetingInput,
+  PartnerMeetingQuery,
   DealDetail,
   DealInput,
   DealListQuery,
@@ -298,6 +302,17 @@ export interface DashboardGateway {
   summary(query: DashboardQuery): Promise<DashboardSummary>
 }
 
+/** 파트너 Activity(미팅 기록). 읽기는 모든 역할, 입력·수정·삭제는 sales·admin(수정·삭제는 작성자 본인 또는 admin). */
+export interface PartnerMeetingsGateway {
+  list(query: PartnerMeetingQuery, offset: number, limit: number): Promise<Page<PartnerMeeting>>
+  /** 원자적 일괄 등록(1~50건). 위반은 422 `problem.itemErrors`(위치 + 문구). */
+  create(items: PartnerMeetingInput[]): Promise<PartnerMeeting[]>
+  update(id: number, input: PartnerMeetingInput): Promise<PartnerMeeting>
+  remove(id: number): Promise<void>
+  /** 회사와 연결된 Deal 선택지. */
+  dealOptions(company: string): Promise<PartnerDealOption[]>
+}
+
 export interface ReportsGateway {
   /** 로그인한 모든 역할. 리포트 필드 카탈로그(서버가 DB를 읽지 않는다). */
   fields(): Promise<ReportCatalog>
@@ -411,6 +426,7 @@ export interface Gateway {
   forecast: ForecastGateway
   dashboard: DashboardGateway
   reports: ReportsGateway
+  partnerMeetings: PartnerMeetingsGateway
   users: UsersGateway
   settings: SettingsGateway
   alerts: AlertsGateway

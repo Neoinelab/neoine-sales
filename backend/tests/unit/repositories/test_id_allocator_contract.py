@@ -40,6 +40,7 @@ KIND_VALUES = {
     "deal_action",
     "attachment",
     "report",
+    "partner_meeting",
 }
 
 

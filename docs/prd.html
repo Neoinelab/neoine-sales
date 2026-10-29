@@ -52,6 +52,7 @@ code{background:var(--soft);padding:1px 5px;border-radius:3px;font-size:12.5px}
 <a href="#s5-6">5.6 연락처 관리</a>
 <a class="sub" href="#s5-7">5.7 Deal History</a>
 <a class="sub" href="#s5-8">5.8 첨부 파일</a>
+<a class="sub" href="#s5-9">5.9 파트너 미팅 기록</a>
 <a href="#s6">6. 코드값·판단 기준</a>
 <a class="sub" href="#s6-7">6.7 Status⇄Forecast</a>
 <a href="#s7">7. 기능 요구사항</a>
@@ -114,8 +115,8 @@ code{background:var(--soft);padding:1px 5px;border-radius:3px;font-size:12.5px}
 <table>
 <tr><th>역할</th><th>설명</th><th>권한</th><th>상태</th></tr>
 <tr><td><code>admin</code></td><td>관리자</td><td>모든 기능, 사용자 관리, AD 설정, 경고 기준 설정</td><td><span class="b ok">구현</span> 경고 기준 설정은 P3(2026-10-17)</td></tr>
-<tr><td><code>sales</code></td><td>영업담당자</td><td>Deal·연락처·활동 등록/수정/삭제, Forecast 판단 입력</td><td><span class="b ok">구현</span></td></tr>
-<tr><td><code>user</code></td><td>조회 사용자</td><td>조회 전용</td><td><span class="b ok">구현</span></td></tr>
+<tr><td><code>sales</code></td><td>영업담당자</td><td>Deal·연락처·활동 등록/수정/삭제, 파트너 미팅 입력(수정·삭제는 본인 기록만), Forecast 판단 입력</td><td><span class="b ok">구현</span></td></tr>
+<tr><td><code>user</code></td><td>조회 사용자</td><td>조회 전용(파트너 미팅 기록 보기 포함)</td><td><span class="b ok">구현</span></td></tr>
 </table>
 <ul>
 <li>로그인은 AD(LDAP)로 한다. AD 서버 정보는 화면에서 등록해 DB에 저장한다. <span class="b ok">구현</span></li>
@@ -130,6 +131,7 @@ code{background:var(--soft);padding:1px 5px;border-radius:3px;font-size:12.5px}
 <tr><th>메뉴</th><th>하위 화면</th></tr>
 <tr><td>Dashboard</td><td>Status 탭(Overview) · Forecast 탭(Forecast / Closing) · <s>(Deal Drill-down 팝업)</s> 클릭 시 Deal 목록 이동(2026-10-23 결정)</td></tr>
 <tr><td>Deals</td><td>Deal 목록 · Deal 등록 · Deal 상세 · Next Action</td></tr>
+<tr><td>파트너 Activity</td><td>파트너 미팅 기록 목록 · 미팅 내용 입력 팝업(2026-10-28 추가 메뉴, Deals 다음, <code>/partner-activities</code>)</td></tr>
 <tr><td>Forecast</td><td>Forecast 요약 (별도의 “담당자 상세” 메뉴는 없다)</td></tr>
 <tr><td>Reports</td><td><s>영업 분석 · Vendor / Solution · Status 분석 · Forecast 추이</s> 리포트 목록 · 리포트 디자이너 · 리포트 보기 · 리포트 편집(2026-10-26 결정: 고정 하위 화면 대신 사용자가 같은 분석을 리포트로 설계·저장, 7.4절)</td></tr>
 </table>
@@ -151,6 +153,7 @@ code{background:var(--soft);padding:1px 5px;border-radius:3px;font-size:12.5px}
 <tr><td><code>/deals/new</code>, <code>/deals/:dealCode/edit</code></td><td>Deal 등록·수정</td><td>sales·admin</td></tr>
 <tr><td><code>/deals/:dealCode</code></td><td>Deal 상세. 탭 3개: Deal 상세(기본, BANT·견적·POC·첨부 파일) / Actions(<code>?tab=actions</code>) / Deal History(<code>?tab=history</code>)</td><td>로그인 사용자</td></tr>
 <tr><td><code>/forecast</code></td><td>Forecast 요약(연도·Quarter·월·담당자·Vendor 필터, Deal 원장 실시간 집계)과 담당자 선택 시 같은 화면의 Deal 목록(P6 R1, 2026-10-21)</td><td>로그인 사용자</td></tr>
+<tr><td><code>/partner-activities</code></td><td>파트너 Activity(2026-10-28, 메뉴는 Deals 다음): 파트너 회사별 Deal 미팅 기록 목록(파트너·Deal·미팅 날짜·미팅 내용·작성자, 항목별 검색, 열 정렬, 기본 미팅 날짜 최신순, 10건씩 무한 스크롤)과 “미팅 내용 입력” 팝업(여러 건 일괄 입력, 파트너 회사 → 그 회사 담당자가 활성 파트너인 Deal(Won·Lost 포함) → 날짜(기본 오늘) → 내용, 선택·Enter로 다음 칸, 줄 마지막 Enter로 새 줄, Shift+Enter 줄바꿈), 행 수정·삭제(작성자·admin). Deal 삭제 시 함께 삭제</td><td>조회 모든 역할, 입력 sales·admin</td></tr>
 <tr><td><code>/reports</code></td><td>저장 리포트 목록(P7, 2026-10-27): 검색·“내 리포트만”(URL <code>q</code>·<code>mine=1</code>), 데이터 태그(Deal·Deal Actions), 차트 종류, 비공개 표시, ⋯ 메뉴(보기·편집·복제·삭제), “+ 새 리포트”</td><td>로그인 사용자(모든 역할)</td></tr>
 <tr><td><code>/reports/new</code></td><td>리포트 디자이너: 필드 목록·컬럼 칩·컬럼 설정(포맷·그룹핑·집계)·조건(전부 AND 또는 전부 OR)·데이터 범위 표시·작성/결과 탭(2026-10-28, 결과 탭은 표·차트 타일 배치와 보기 방식, 결과 표 합계 행)·생성 SQL 보기(읽기 전용)·저장 대화상자. 저장 전 떠날 때 확인(앱 안 링크·새로고침·탭 닫기)</td><td>로그인 사용자(모든 역할)</td></tr>
 <tr><td><code>/reports/:id</code>, <code>/reports/:id/edit</code></td><td>리포트 보기(열 때 최신 데이터로 다시 조회, 결과 표·차트, 저장된 보기 방식·타일 배치, 수정 권한자가 배치를 바꾸면 자동 저장), 편집(디자이너, 덮어쓰기·다른 이름으로 저장). 2026-10-28: 디자이너는 작성/결과 탭으로 나뉘고 조회 성공 시 결과 탭으로 이동, 결과 탭은 표+차트·차트만·표만과 표·차트 타일 끌어서 배치(한 줄·두 줄), 배치는 리포트에 저장</td><td>볼 수 있는 사용자(만든 사람·공개·admin). 수정·삭제 권한은 7.4절</td></tr>
@@ -271,6 +274,8 @@ code{background:var(--soft);padding:1px 5px;border-radius:3px;font-size:12.5px}
 </ul>
 <p>저장 위치를 바꿀 때 기존 파일을 옮기는 일은 관리자가 수작업으로 처리하며 시스템은 다루지 않는다. 조회 전용인 user도 파일 목록을 보고 내려받을 수 있다(가정). <span class="b ok">구현</span> P2b</p>
 
+<h3 id="s5-9">5.9 파트너 미팅 기록 (<code>partner_meetings</code>, 2026-10-28)</h3>
+<p>파트너 Activity 메뉴의 미팅 기록. 열: <code>id</code>, <code>deal_id</code>(FK, Deal 삭제 시 함께 삭제), <code>partner_company</code>(입력 시점 파트너 회사명 텍스트, 연락처 FK 없음 — 나중에 회사명을 바꿔도 기록은 그대로), <code>meeting_date</code>(1900-01-01~2999-12-31, 미래 허용), <code>content</code>(공백만은 금지, 길이 제한 없음), <code>created_by_user_id</code>(users FK RESTRICT — 작성자는 삭제 대신 퇴사 처리), <code>created_at</code>·<code>updated_at</code>. 등록·회사·Deal 변경 때 그 회사 담당자가 Deal의 활성 파트너인지 확인한다(Won·Lost 포함). 마이그레이션 <code>c4e8a1d7f203</code>(순수 expand). <span class="b ok">구현</span></p>
 <h2 id="s6">6. 코드값·판단 기준</h2>
 <h3>6.1 Status — “현재 어디까지 진행되었는가?”</h3>
 <table>

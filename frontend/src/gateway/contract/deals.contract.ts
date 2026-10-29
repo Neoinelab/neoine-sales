@@ -197,7 +197,7 @@ export function dealsContract(make: MakeGateway): void {
 
       const impact = await sales.deals.impact(created.code)
 
-      expect(impact).toEqual({ historyCount: 1, actionCount: 0, attachmentCount: 0 })
+      expect(impact).toEqual({ historyCount: 1, actionCount: 0, attachmentCount: 0, partnerMeetingCount: 0 })
       await sales.deals.remove(created.code, created.code)
     })
 

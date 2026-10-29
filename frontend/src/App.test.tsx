@@ -31,7 +31,7 @@ describe('메뉴 (T-SHELL-04~05)', () => {
     const labels = mainMenu()
       .getAllByRole('link')
       .map((a) => a.textContent)
-    expect(labels).toEqual(['Dashboard', 'Deals', 'Forecast', 'Reports'])
+    expect(labels).toEqual(['Dashboard', 'Deals', '파트너 Activity', 'Forecast', 'Reports'])
   })
 
   it('adds Admin to the four menus for admin only', async () => {
@@ -40,7 +40,7 @@ describe('메뉴 (T-SHELL-04~05)', () => {
     const labels = mainMenu()
       .getAllByRole('link')
       .map((a) => a.textContent)
-    expect(labels).toEqual(['Dashboard', 'Deals', 'Forecast', 'Reports', 'Admin'])
+    expect(labels).toEqual(['Dashboard', 'Deals', '파트너 Activity', 'Forecast', 'Reports', 'Admin'])
   })
 
   it('shows the signed-in name and role', async () => {

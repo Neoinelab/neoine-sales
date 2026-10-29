@@ -229,3 +229,9 @@ def solution_free_text_revision() -> str:
     children = [r.revision for r in script.walk_revisions() if r.down_revision == previous]
     assert len(children) == 1, f"Forecast 스냅숏 다음 리비전이 정확히 하나여야 한다: {children}"
     return children[0]
+
+
+REPORTS_LAYOUT_REVISION: Final = "b7d2e9a4c156"  # 파트너 미팅 리비전의 down_revision
+PARTNER_MEETINGS_REVISION: Final = (
+    "c4e8a1d7f203"  # 파트너 Activity(`partner_meetings`) 리비전, head
+)

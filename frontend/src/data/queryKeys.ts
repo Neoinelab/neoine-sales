@@ -7,6 +7,7 @@ import type {
   DealListQuery,
   ForecastQuery,
   HistoryQuery,
+  PartnerMeetingQuery,
   UserListFilter,
   UserOptionsQuery,
 } from '../shared/model/types'
@@ -55,6 +56,10 @@ export const keys = {
   savedReportRun: (id: number) => ['reports', 'run', id] as const,
   // 저장 직후 편집 화면으로 넘기는 조회 결과(다시 조회하지 않게). 편집 화면이 읽고 지운다.
   savedReportHandoff: (id: number) => ['reports', 'handoff', id] as const,
+  partnerMeetings: ['partnerMeetings'] as const,
+  partnerMeetingLists: ['partnerMeetings', 'list'] as const,
+  partnerMeetingList: (q: PartnerMeetingQuery) => ['partnerMeetings', 'list', q] as const,
+  partnerDealOptions: (company: string) => ['partnerMeetings', 'deal-options', company] as const,
   users: ['users'] as const,
   userList: (f: UserListFilter) => ['users', 'list', f] as const,
   userOptions: (q: UserOptionsQuery) => ['users', 'options', q] as const,

@@ -23,6 +23,7 @@ from tests.support.head_rows import (
     insert_user,
 )
 from tests.support.ids import MAX_ID
+from tests.support.partner_meeting_rows import insert_meeting
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
@@ -43,6 +44,7 @@ SURROGATE_KEY_TABLES = [
     "deal_attachments",
     "deal_history",
     "reports",
+    "partner_meetings",
 ]
 DEAL_CHILD_TABLES = [
     "deal_partners",
@@ -50,6 +52,7 @@ DEAL_CHILD_TABLES = [
     "deal_history",
     "deal_actions",
     "deal_attachments",
+    "partner_meetings",
 ]
 UUID_COLUMNS = (
     "select table_name, column_name from information_schema.columns"
@@ -176,6 +179,7 @@ async def test_deleting_a_deal_removes_its_children(session: AsyncSession) -> No
     await insert_history(session, code, owner)
     await insert_action(session, code, owner)
     await insert_attachment(session, code, owner)
+    await insert_meeting(session, code, owner)
 
     await session.execute(text("delete from deals where deal_code = :code"), {"code": code})
 
@@ -183,7 +187,7 @@ async def test_deleting_a_deal_removes_its_children(session: AsyncSession) -> No
         (await session.execute(text(f"select count(*) from {table}"))).scalar_one()  # noqa: S608
         for table in DEAL_CHILD_TABLES
     ]
-    assert counts == [0, 0, 0, 0, 0]
+    assert counts == [0, 0, 0, 0, 0, 0]
 
 
 async def test_meaningful_keys_are_kept(session: AsyncSession) -> None:

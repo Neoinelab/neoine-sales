@@ -224,3 +224,4 @@ class DeletionImpactResponse(BaseModel):
     history_count: int
     action_count: int
     attachment_count: int
+    partner_meeting_count: int

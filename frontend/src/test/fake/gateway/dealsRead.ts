@@ -159,6 +159,7 @@ export function dealsReadApi(ctx: MockContext) {
           historyCount: history.filter((h) => h.dealCode === code).length,
           actionCount: actions.filter((a) => a.dealCode === code).length,
           attachmentCount: attachments.filter((a) => a.dealCode === code).length,
+          partnerMeetingCount: (ctx.store.data.partnerMeetings ?? []).filter((m) => m.dealCode === code).length,
         }
       }),
   }

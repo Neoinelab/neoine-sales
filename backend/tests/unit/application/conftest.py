@@ -18,6 +18,7 @@ if TYPE_CHECKING:
     from tests.unit.application.action_env import ActionEnv
     from tests.unit.application.attachment_env import AttachmentEnv
     from tests.unit.application.deal_env import DealEnv
+    from tests.unit.application.partner_meeting_env import MeetingEnv
 
 
 @pytest.fixture
@@ -105,6 +106,22 @@ async def attachment_env(env: DealEnv) -> AttachmentEnv:
 
     await prepare_users(env)
     return build_attachment_env(env, await env.new_deal())
+
+
+@pytest.fixture
+async def meeting_env(
+    uow: FakeUnitOfWork, uow_factory: UnitOfWorkFactory, clock: FixedClock
+) -> MeetingEnv:
+    """파트너 Activity 유스케이스 환경: 요청자(kim·park sales, boss admin, viewer user)가 있는 UoW.
+
+    Deal·파트너 연락처는 `meeting_env.deal(...)`로 둔다. 준비용 commit은 커밋 횟수 단언에 섞이지
+    않도록 0으로 되돌린다.
+    """
+    from tests.unit.application.partner_meeting_env import (  # noqa: PLC0415 - 구현 지연 import
+        build_meeting_env,
+    )
+
+    return await build_meeting_env(uow, uow_factory, clock)
 
 
 @pytest.fixture

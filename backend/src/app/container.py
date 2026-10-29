@@ -31,6 +31,7 @@ from app.container_catalog import CatalogAssembly
 from app.container_dashboard import DashboardUseCases
 from app.container_deal_reads import DealReadUseCases
 from app.container_forecast import ForecastUseCases
+from app.container_partner_meeting import PartnerMeetingUseCases
 from app.container_reports import ReportUseCases
 from app.container_storage import StorageAssembly
 from app.container_time import TimeUseCases
@@ -89,6 +90,7 @@ class Container(
     TimeUseCases,
     DealReadUseCases,
     ReportUseCases,
+    PartnerMeetingUseCases,
 ):
     def __init__(
         self,

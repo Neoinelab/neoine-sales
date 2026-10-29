@@ -24,6 +24,8 @@ const ReportDesignerPage = lazy(() => import('./features/reports/designer/Report
 const ReportEditPage = lazy(() => import('./features/reports/designer/ReportEditPage').then((m) => ({ default: m.ReportEditPage })))
 const ReportViewPage = lazy(() => import('./features/reports/view/ReportViewPage').then((m) => ({ default: m.ReportViewPage })))
 
+const PartnerActivityPage = lazy(() => import('./features/partner-activity/PartnerActivityPage').then((m) => ({ default: m.PartnerActivityPage })))
+
 function Lazy({ children }: { children: ReactNode }) {
   return <Suspense fallback={<p className="hint">불러오는 중…</p>}>{children}</Suspense>
 }
@@ -50,6 +52,7 @@ export function App() {
           <Route path="/deals/:dealCode/edit" element={<DealFormPage />} />
         </Route>
         <Route path="/deals/:dealCode" element={<DealDetailPage />} />
+        <Route path="/partner-activities" element={<Lazy><PartnerActivityPage /></Lazy>} />
         <Route path="/forecast" element={<ForecastPage />} />
         <Route path="/reports" element={<ReportsPage />} />
         <Route path="/reports/new" element={<Lazy><ReportDesignerPage /></Lazy>} />

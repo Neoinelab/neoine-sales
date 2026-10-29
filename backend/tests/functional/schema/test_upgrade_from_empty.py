@@ -44,6 +44,7 @@ EXPECTED_TABLES = {
     "forecast_snapshots",  # Forecast 월말 스냅숏(P6 R2)
     "forecast_snapshot_cells",
     "forecast_snapshot_columns",
+    "partner_meetings",  # 파트너 Activity 미팅 기록
 }
 # contacts로 통합된 customers·partners, 이력 테이블로 바뀐 deal_stage_changes는 head에 없다
 RETIRED_TABLES = {"customers", "partners", "deal_stage_changes", "solutions"}

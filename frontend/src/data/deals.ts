@@ -87,7 +87,7 @@ export function useUpdateDeal(): Mutation<{ code: string; patch: DealPatch }, De
   const invalidate = useInvalidate()
   return useMutation<DealDetail, ApiError, { code: string; patch: DealPatch }>({
     mutationFn: ({ code, patch }) => gateway.deals.update(code, patch),
-    onSuccess: (_deal, { code }) => invalidate(keys.deals, keys.contacts, keys.labels, keys.history(code), keys.forecast),
+    onSuccess: (_deal, { code }) => invalidate(keys.deals, keys.contacts, keys.labels, keys.history(code), keys.forecast, keys.partnerMeetings),
   })
 }
 
@@ -116,7 +116,7 @@ export function useRemoveDeal(): Mutation<{ code: string; confirmCode: string }>
       for (const queryKey of [keys.deal(code), keys.dealImpact(code), keys.actions(code), keys.history(code), keys.attachments(code)]) {
         queryClient.removeQueries({ queryKey })
       }
-      return invalidate(keys.deals, keys.forecast)
+      return invalidate(keys.deals, keys.forecast, keys.partnerMeetings)
     },
   })
 }

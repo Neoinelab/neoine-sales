@@ -38,6 +38,7 @@ LINK_KINDS: Final = (
     "forecast_snapshot",  # forecast_snapshot_cells.owner_user_id (P6 R2: 스냅숏에만 남은 담당자)
     "report_owner",  # reports.owner_user_id (Reports 3단계: 리포트를 만든 사람)
     "report_editor",  # reports.updated_by_user_id (Reports 3단계: 리포트를 마지막으로 수정한 사람)
+    "meeting_author",  # partner_meetings.created_by_user_id (파트너 Activity: 미팅을 기록한 사람)
 )
 
 
@@ -56,6 +57,7 @@ LINK_COLUMNS: Final = {
     "forecast_snapshot": ("forecast_snapshot_cells", "owner_user_id"),
     "report_owner": ("reports", "owner_user_id"),
     "report_editor": ("reports", "updated_by_user_id"),
+    "meeting_author": ("partner_meetings", "created_by_user_id"),
 }
 SESSION_COLUMN: Final = ("auth_sessions", "user_id")
 EXPECTED_USER_FKS: Final = frozenset({*LINK_COLUMNS.values(), SESSION_COLUMN})
@@ -150,6 +152,8 @@ async def _create_file_or_setting_link(uow: UnitOfWork, user: User, kind: str) -
         await _create_snapshot_link(uow, user)
     elif kind in {"report_owner", "report_editor"}:
         await _create_report_link(uow, user, kind)
+    elif kind == "meeting_author":
+        await _create_meeting_link(uow, user)
     else:
         raise AssertionError(kind)
 
@@ -188,3 +192,27 @@ async def _create_report_link(uow: UnitOfWork, user: User, kind: str) -> None:
         return
     helper = await _helper_user(uow)
     await uow.saved_reports.add(make_report(name, owner=helper.id, editor=user.id, revision=2))
+
+
+async def _create_meeting_link(uow: UnitOfWork, user: User) -> None:
+    """user가 작성한 파트너 미팅 기록(파트너가 연결된 Deal은 보조 사용자가 담당한다)."""
+    from tests.factories_contact import (  # noqa: PLC0415 - 연락처 구현 지연 import
+        make_customer,
+        make_partner,
+    )
+    from tests.factories_partner_meeting import make_meeting  # noqa: PLC0415
+
+    helper = await _helper_user(uow)
+    customer, partner = make_customer(), make_partner()
+    await uow.contacts.add(customer)
+    await uow.contacts.add(partner)
+    deal = make_deal(
+        code=f"20261016-{uuid4().hex[:4].upper()}",
+        customer_id=customer.id,
+        partner_id=partner.id,
+        owner_user_id=helper.id,
+    )
+    await uow.deals.add(deal)
+    await uow.partner_meetings.add(
+        make_meeting(deal_code=deal.id, company=partner.details.company, author=user.id)
+    )

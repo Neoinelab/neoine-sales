@@ -125,7 +125,9 @@ async def test_the_deletion_impact_counts_the_attachments_of_that_deal(
 
     impact = await attachment_env.env.impact.execute(attachment_env.code)
 
-    assert impact == DealDeletionImpact(history_count=3, action_count=0, attachment_count=2)
+    assert impact == DealDeletionImpact(
+        history_count=3, action_count=0, attachment_count=2, partner_meeting_count=0
+    )
 
 
 async def test_the_impact_counts_a_replaced_file_once_and_drops_a_deleted_one(

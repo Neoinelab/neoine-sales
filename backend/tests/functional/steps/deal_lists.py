@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 
     from tests.functional.conftest import Api
 
-IMPACT_KEYS: Final = {"history_count", "action_count", "attachment_count"}
+IMPACT_KEYS: Final = {"history_count", "action_count", "attachment_count", "partner_meeting_count"}
 
 
 async def given_action(
@@ -78,4 +78,5 @@ def then_impact_is(response: Response, *, history: int, actions: int) -> None:
         "history_count": history,
         "action_count": actions,
         "attachment_count": 0,
+        "partner_meeting_count": 0,
     }, response.json()

@@ -11,6 +11,7 @@
  */
 
 import type { BantCategory } from './constants'
+import type { SortOrder } from './inputs'
 
 export type { BantCategory } from './constants'
 export type * from './inputs'
@@ -258,6 +259,7 @@ export interface DealDeletionImpact {
   historyCount: number
   actionCount: number
   attachmentCount: number
+  partnerMeetingCount: number
 }
 
 // ───────────────────────── Action / History / 첨부 ─────────────────────────
@@ -346,4 +348,46 @@ export interface AlertSettings {
   staleDays: number
   updatedAt: string | null
   updatedBy: UserRef | null
+}
+
+// ───────────────────────── 파트너 Activity ─────────────────────────
+
+export type PartnerMeetingSort = 'meetingDate' | 'partner' | 'deal' | 'content' | 'author'
+
+/** 파트너 미팅 기록 한 건. */
+export interface PartnerMeeting {
+  id: number
+  partnerCompany: string
+  deal: { code: string; name: string }
+  /** 'YYYY-MM-DD'. */
+  meetingDate: string
+  content: string
+  author: UserRef
+  createdAt: string
+  updatedAt: string
+}
+
+export interface PartnerMeetingQuery {
+  partner?: string
+  deal?: string
+  content?: string
+  dateFrom?: string
+  dateTo?: string
+  authorId?: number
+  sort: PartnerMeetingSort
+  order: SortOrder
+}
+
+export interface PartnerMeetingInput {
+  partnerCompany: string
+  dealCode: string
+  meetingDate: string
+  content: string
+}
+
+/** 파트너 회사와 연결된 Deal 선택지. */
+export interface PartnerDealOption {
+  code: string
+  name: string
+  customerCompany: string
 }

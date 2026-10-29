@@ -36,6 +36,7 @@ USER_FK_NAMES = {
     ("forecast_snapshot_cells", "owner_user_id"): "fk_forecast_snapshot_cells_owner_user_id_users",
     ("reports", "owner_user_id"): "fk_reports_owner_user_id_users",
     ("reports", "updated_by_user_id"): "fk_reports_updated_by_user_id_users",
+    ("partner_meetings", "created_by_user_id"): "fk_partner_meetings_created_by_user_id_users",
 }
 OLD_STRING_COLUMNS = {
     ("deals", "owner"),
@@ -177,6 +178,7 @@ async def test_only_owned_data_cascades(session: AsyncSession) -> None:
         "deal_history.deal_id",
         "deal_actions.deal_id",
         "deal_attachments.deal_id",  # P2b: 첨부 메타데이터도 Deal 소속이다
+        "partner_meetings.deal_id",  # 파트너 Activity: 미팅 기록도 Deal 소속이다(D6)
         "forecast_snapshot_columns.snapshot_id",  # P6 R2 Q6: 저장 당시 코드 목록은 스냅숏 소속
         "forecast_snapshot_cells.snapshot_id",  # 셀은 (snapshot_id, forecast_key)로 열 소속
     }

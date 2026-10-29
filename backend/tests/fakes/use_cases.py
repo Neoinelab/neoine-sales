@@ -13,6 +13,7 @@ from tests.fakes.contact_use_cases import ContactUseCases
 from tests.fakes.deal_code_source import FakeDealCodeSuffixSource
 from tests.fakes.deal_use_cases import DealUseCases
 from tests.fakes.file_storage import FakeFileStorage
+from tests.fakes.partner_meeting_use_cases import PartnerMeetingUseCases
 from tests.fakes.unit_of_work import FakeUnitOfWork, SteppingClock
 
 if TYPE_CHECKING:
@@ -69,7 +70,9 @@ if TYPE_CHECKING:
     from tests.fakes.directory import FakeDirectoryAuthenticator
 
 
-class FakeUseCases(CatalogUseCases, ContactUseCases, DealUseCases, AttachmentUseCases):
+class FakeUseCases(
+    CatalogUseCases, ContactUseCases, DealUseCases, AttachmentUseCases, PartnerMeetingUseCases
+):
     def __init__(self, *, allow_dev_sessions: bool = True) -> None:
         self.uow = FakeUnitOfWork()
         self.clock = SteppingClock(NOW)
@@ -99,6 +102,9 @@ class FakeUseCases(CatalogUseCases, ContactUseCases, DealUseCases, AttachmentUse
         return self._factory
 
     def _attachment_uow_factory(self) -> UnitOfWorkFactory:
+        return self._factory
+
+    def _meeting_uow_factory(self) -> UnitOfWorkFactory:
         return self._factory
 
     # Action 유스케이스는 사용 시점에 가져온다(P2 R1: 구현 전에도 이 Fake를 쓰는 테스트가 수집된다)

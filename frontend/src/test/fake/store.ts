@@ -102,6 +102,18 @@ export interface VendorRecord {
   updatedAt: string
 }
 
+/** 파트너 Activity 미팅 기록. 회사는 저장 당시 대표 표기 텍스트이고, Deal 이름은 읽을 때 조인한다. */
+export interface PartnerMeetingRecord {
+  id: number
+  partnerCompany: string
+  dealCode: string
+  meetingDate: string
+  content: string
+  authorId: number
+  createdAt: string
+  updatedAt: string
+}
+
 export type DirectoryRecord = Omit<DirectorySettings, 'updatedBy'> & { updatedById: number | null }
 
 export interface StorageRecord {
@@ -154,6 +166,8 @@ export interface SeedData {
   alerts: AlertRecord
   /** 월말 스냅숏(없으면 비어 있는 것과 같다). 샘플 시드(`test/fixtures`)만 채운다. */
   forecastSnapshots?: ForecastSnapshotRecord[]
+  /** 파트너 Activity 미팅 기록(없으면 비어 있는 것과 같다). 샘플 시드(`test/fixtures`)만 채운다. */
+  partnerMeetings?: PartnerMeetingRecord[]
   setup: SetupState
   /** 접두사별 마지막 순번. `takeId`가 올린다. */
   counters: Record<string, number>

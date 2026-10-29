@@ -10,10 +10,10 @@ const OPTIONS: ComboOption[] = [
   { value: '대한소프트', label: '대한소프트', description: '3명' },
 ]
 
-function Host({ onSelect, transform }: { onSelect?: (o: ComboOption) => void; transform?: (raw: string) => string }) {
+function Host({ onSelect, transform, openOnFocus }: { onSelect?: (o: ComboOption) => void; transform?: (raw: string) => string; openOnFocus?: boolean }) {
   const [value, setValue] = useState('')
   return (
-    <ComboBox label="회사명" name="company" value={value} onChange={setValue} options={OPTIONS} onSelectOption={onSelect} transform={transform} />
+    <ComboBox label="회사명" name="company" value={value} onChange={setValue} options={OPTIONS} onSelectOption={onSelect} transform={transform} openOnFocus={openOnFocus} />
   )
 }
 
@@ -116,3 +116,62 @@ describe('ComboBox', () => {
     expect(screen.getByRole('combobox', { name: '회사명' })).toHaveFocus()
   })
 })
+
+describe('ComboBox openOnFocus', () => {
+  const box = () => screen.getByRole('combobox', { name: '회사명' })
+
+  it('opens the list on focus by default', async () => {
+    render(<Host />)
+
+    await userEvent.tab()
+
+    expect(box()).toHaveFocus()
+    expect(screen.getByRole('listbox')).toBeInTheDocument()
+  })
+
+  it('opens the list on focus when openOnFocus is true', async () => {
+    render(<Host openOnFocus />)
+
+    await userEvent.tab()
+
+    expect(screen.getByRole('listbox')).toBeInTheDocument()
+  })
+
+  it('does not open on focus alone when openOnFocus is false', async () => {
+    render(<Host openOnFocus={false} />)
+
+    await userEvent.tab()
+
+    expect(box()).toHaveFocus()
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
+  })
+
+  it('opens on click, typing and ArrowDown when openOnFocus is false', async () => {
+    render(<Host openOnFocus={false} />)
+    await userEvent.tab()
+
+    await userEvent.click(box())
+    expect(screen.getByRole('listbox')).toBeInTheDocument()
+
+    await userEvent.keyboard('{Escape}')
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
+    await userEvent.keyboard('{ArrowDown}')
+    expect(screen.getByRole('listbox')).toBeInTheDocument()
+
+    await userEvent.keyboard('{Escape}')
+    await userEvent.type(box(), '하')
+    expect(screen.getByRole('listbox')).toBeInTheDocument()
+  })
+
+  it('opens the list again with a click on a combobox that already has focus', async () => {
+    render(<Host />)
+    await userEvent.click(box())
+    await userEvent.keyboard('{Escape}')
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
+
+    await userEvent.click(box())
+
+    expect(screen.getByRole('listbox')).toBeInTheDocument()
+  })
+})
+

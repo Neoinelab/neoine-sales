@@ -65,7 +65,12 @@ export function createDealsHttp(): DealsGateway {
     get: async (code) => toDealDetail(await unwrap(api.GET('/api/v1/deals/{code}', path(code)))),
     impact: async (code) => {
       const impact = await unwrap(api.GET('/api/v1/deals/{code}/deletion-impact', path(code)))
-      return { historyCount: impact.history_count, actionCount: impact.action_count, attachmentCount: impact.attachment_count }
+      return {
+        historyCount: impact.history_count,
+        actionCount: impact.action_count,
+        attachmentCount: impact.attachment_count,
+        partnerMeetingCount: impact.partner_meeting_count,
+      }
     },
     create: async (input) => toDealDetail(await unwrap(api.POST('/api/v1/deals', { body: toCreateBody(input) }))),
     update: async (code, patch) =>
