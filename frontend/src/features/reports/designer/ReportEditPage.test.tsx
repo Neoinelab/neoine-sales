@@ -320,7 +320,7 @@ describe('공개 범위 (AC15, S14)', () => {
 
   it('disables visibility for a non owner editor and still saves with the current visibility', async () => {
     const { user, location } = await openEditor(PARK_PUBLIC.id)
-    await addCountedColumn(user, 'Deal code')
+    await addCountedColumn(user, 'Deal 이름')
     await runQuery(user)
     await waitFor(() => expect(saveButton()).toBeEnabled())
     await user.click(saveButton())

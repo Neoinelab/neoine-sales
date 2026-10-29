@@ -43,9 +43,16 @@ export const fieldLabel = (key: string): string => {
   return found.label
 }
 
-/** 필드 이름(표시 이름)으로 컬럼에 추가한다. */
-export async function addColumn(user: UserEvent, label: string): Promise<void> {
+/** 이미 컬럼에 있는 필드를 또 넣을 때 뜨는 확인 대화상자. */
+export const duplicateDialog = (): HTMLElement => screen.getByRole('dialog', { name: '같은 필드 추가' })
+
+/**
+ * 필드 이름(표시 이름)으로 컬럼에 추가한다.
+ * 이미 컬럼에 있는 필드를 한 번 더 넣을 때는 again: true — 확인 대화상자가 떠야 하고 "추가"로 확정한다(안 뜨면 실패).
+ */
+export async function addColumn(user: UserEvent, label: string, options: { again?: boolean } = {}): Promise<void> {
   await user.click(screen.getByRole('button', { name: `${label} 컬럼에 추가` }))
+  if (options.again) await user.click(within(duplicateDialog()).getByRole('button', { name: '추가' }))
 }
 
 export async function addCondition(user: UserEvent, label: string): Promise<void> {

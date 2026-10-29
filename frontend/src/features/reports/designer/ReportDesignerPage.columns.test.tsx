@@ -1,6 +1,6 @@
 import { fireEvent, screen, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import { addColumn, chipButton, chipItems, chipList, chipTexts, openDesigner, settingsOf, setupReportClock } from '../../../test/reportScreen'
+import { addColumn, chipButton, chipItems, chipList, chipTexts, duplicateDialog, openDesigner, settingsOf, setupReportClock } from '../../../test/reportScreen'
 
 setupReportClock()
 
@@ -24,7 +24,7 @@ describe('컬럼 칩 (AC4)', () => {
 
     await addColumn(user, 'Deal code')
     await addColumn(user, '금액')
-    await addColumn(user, '금액')
+    await addColumn(user, '금액', { again: true })
 
     expect(chipItems()).toHaveLength(3)
     expect(chipTexts()[1]).toContain('금액')
@@ -56,7 +56,7 @@ describe('컬럼 칩 (AC4)', () => {
 
   it('disables adding at the column limit', async () => {
     const { user } = await openDesigner()
-    for (let i = 0; i < 30; i += 1) await addColumn(user, 'Deal code')
+    for (let i = 0; i < 30; i += 1) await addColumn(user, 'Deal code', { again: i > 0 })
 
     expect(chipItems()).toHaveLength(30)
     expect(screen.getByText('컬럼은 최대 30개입니다')).toBeVisible()
@@ -67,6 +67,74 @@ describe('컬럼 칩 (AC4)', () => {
     expect(screen.queryByText('컬럼은 최대 30개입니다')).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Deal 이름 컬럼에 추가' })).toBeEnabled()
   }, 30_000)
+})
+
+describe('같은 필드 추가 확인', () => {
+  const MESSAGE = "'금액'은(는) 이미 컬럼에 있습니다. 한 번 더 추가할까요?"
+
+  it('adds a field that is not in the columns yet without asking (AC1)', async () => {
+    const { user } = await openDesigner()
+
+    await addColumn(user, '금액')
+
+    expect(chipItems()).toHaveLength(1)
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('asks before adding a field that is already a column and shows the message (AC2)', async () => {
+    const { user } = await openDesigner()
+    await addColumn(user, '금액')
+
+    await addColumn(user, '금액')
+
+    const dialog = duplicateDialog()
+    expect(within(dialog).getByText(MESSAGE)).toBeVisible()
+    expect(within(dialog).getByRole('button', { name: '추가' })).toBeVisible()
+    expect(within(dialog).getByRole('button', { name: '취소' })).toBeVisible()
+    expect(chipItems()).toHaveLength(1)
+  })
+
+  it('adds a second chip of the same field and closes the dialog on confirm (AC3)', async () => {
+    const { user } = await openDesigner()
+    await addColumn(user, '금액')
+    await addColumn(user, '금액')
+
+    await user.click(within(duplicateDialog()).getByRole('button', { name: '추가' }))
+
+    expect(chipItems()).toHaveLength(2)
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('keeps the column count and closes the dialog on cancel (AC4)', async () => {
+    const { user } = await openDesigner()
+    await addColumn(user, '금액')
+    await addColumn(user, '금액')
+
+    await user.click(within(duplicateDialog()).getByRole('button', { name: '취소' }))
+
+    expect(chipItems()).toHaveLength(1)
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('keeps the column count and closes the dialog on Escape (AC4)', async () => {
+    const { user } = await openDesigner()
+    await addColumn(user, '금액')
+    await addColumn(user, '금액')
+
+    await user.keyboard('{Escape}')
+
+    expect(chipItems()).toHaveLength(1)
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('does not ask when adding a condition for a field that is already a column', async () => {
+    const { user } = await openDesigner()
+    await addColumn(user, '금액')
+
+    await user.click(screen.getByRole('button', { name: '금액 조건 추가' }))
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
 })
 
 describe('컬럼 순서 (AC5)', () => {
