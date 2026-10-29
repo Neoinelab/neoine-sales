@@ -32,7 +32,7 @@ if ! command -v corepack >/dev/null 2>&1; then
 fi
 cd "$ROOT/frontend"
 if [[ ! -d node_modules ]]; then
-  echo "오류: frontend/node_modules가 없습니다. 먼저 ./scripts/setup-ubuntu.sh(우분투)를 실행하세요." >&2
+  echo "오류: frontend/node_modules가 없습니다. 먼저 ./scripts/setup.sh를 실행하세요." >&2
   exit 1
 fi
 

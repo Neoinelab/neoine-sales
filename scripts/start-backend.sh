@@ -24,7 +24,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 if ! command -v uv >/dev/null 2>&1; then
-  echo "오류: 'uv' 명령이 없습니다. 먼저 ./scripts/setup-ubuntu.sh(우분투)를 실행하세요." >&2
+  echo "오류: 'uv' 명령이 없습니다. 먼저 ./scripts/setup.sh를 실행하세요." >&2
   exit 1
 fi
 case "$PROFILE" in
@@ -34,12 +34,12 @@ case "$PROFILE" in
   *) echo "오류: 알 수 없는 프로파일 '$PROFILE' (local 또는 dev)" >&2; exit 2 ;;
 esac
 if [[ ! -d "$ROOT/backend/.venv" ]]; then
-  echo "오류: backend/.venv가 없습니다. 먼저 ./scripts/setup-ubuntu.sh(우분투)를 실행하세요." >&2
+  echo "오류: backend/.venv가 없습니다. 먼저 ./scripts/setup.sh를 실행하세요." >&2
   exit 1
 fi
 if [[ ! -f "$ROOT/backend/$ENV_FILE" ]]; then
   if [[ "$PROFILE" == local ]]; then
-    echo "오류: backend/.env가 없습니다. 먼저 ./scripts/setup-ubuntu.sh(우분투)를 실행하세요." >&2
+    echo "오류: backend/.env가 없습니다. 먼저 ./scripts/setup.sh를 실행하세요." >&2
   else
     echo "오류: backend/${ENV_FILE} 파일이 없습니다. backend/.env.example을 복사해 APP_PROFILE=${PROFILE} 설정과 접속 정보를 넣으세요." >&2
   fi

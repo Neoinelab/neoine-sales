@@ -45,8 +45,10 @@ pipeline {
                 stage('Infra scripts') {
                     agent { label 'linux-build' }
                     steps {
-                        sh 'bash -n infra/server/deploy.sh infra/server/bootstrap.sh infra/build_release.sh'
+                        sh 'bash -n infra/server/deploy.sh infra/server/bootstrap.sh infra/build_release.sh scripts/setup.sh infra/server/lib/env_secrets.sh'
                         sh 'bash infra/server/tests/test_deploy.sh'
+                        sh 'bash infra/server/tests/test_env_secrets.sh'
+                        sh 'bash scripts/tests/test_setup.sh'
                     }
                 }
 
