@@ -123,7 +123,7 @@
 <tr><td>CI/CD</td><td><strong>Jenkins</strong> (Declarative Pipeline, Multibranch)</td><td>사내 설치형, Pipeline as Code, PR 검증·릴리스 번들 빌드·배포 자동화</td></tr>
 <tr><td>릴리스 보관</td><td>Jenkins 아티팩트(<code>archiveArtifacts</code>) + 서버의 <code>releases/</code> 최근 5개</td><td>롤백·감사용. 별도 아티팩트 저장소 없음</td></tr>
 <tr><td>웹 서버/프록시</td><td>Nginx (+ HAProxy/keepalived)</td><td>TLS 종료, 정적 파일, API 프록시, 이중화</td></tr>
-<tr><td>서버 구성</td><td>셸 스크립트(<code>infra/server/bootstrap.sh</code>, 멱등) + 문서화된 수동 절차</td><td>서버 최초 구성·설정 파일 설치. 도구 버전은 mise로 고정</td></tr>
+<tr><td>서버 구성</td><td>셸 스크립트(<code>scripts/setup.sh</code> 서버 모드 → <code>infra/server/bootstrap.sh</code>, 멱등) + 문서화된 수동 절차</td><td>서버 최초 구성·설정 파일 설치. 도구 버전은 mise로 고정</td></tr>
 </table>
 
 <div class="callout">
@@ -168,7 +168,7 @@ cd backend &amp;&amp; uv run alembic upgrade head
 uv run fastapi dev src/app/main.py      # http://localhost:8000/docs
 cd ../frontend &amp;&amp; pnpm dev              # http://localhost:5173 (앱은 항상 위 backend API를 씀, 목업 모드 없음)</code></pre>
 
-<p><strong>스크립트로 실행(권장, 백그라운드)</strong>: 우분투 최초 구성은 <code>./scripts/setup-ubuntu.sh</code>가 uv·Node.js·corepack 설치부터 의존성·<code>backend/.env</code>·마이그레이션까지 맡습니다. 실행 스크립트는 서버를 <code>nohup</code>으로 백그라운드에 띄우므로 터미널을 닫아도 계속 돌고, Ctrl+C 대신 <code>kill</code>로 종료합니다.</p>
+<p><strong>스크립트로 실행(권장, 백그라운드)</strong>: 최초 구성은 <code>./scripts/setup.sh</code>(macOS·여러 리눅스 공용, 일반 사용자로 실행하고 필요한 단계에서만 sudo)가 맡습니다. 인자 없이(<code>--profile local</code>) 또는 <code>--profile dev</code>(<code>backend/.env.dev</code>)로 실행하면 개발 PC 모드로 기본 도구(curl·tar·gzip·git, 없을 때만 brew/apt-get/dnf/yum/zypper/pacman으로 설치), uv(버전 고정), Node.js(없거나 22 미만이면 nodejs.org 공식 tarball을 체크섬 검증 뒤 <code>~/.local</code>에 sudo 없이 설치), corepack·pnpm, 의존성, env 파일, 마이그레이션까지 진행합니다. env 파일이 없으면 <code>.env.example</code>을 복사하고 <code>APP_JWT_SECRET</code>·<code>APP_SETTINGS_ENCRYPTION_KEY</code>는 무작위 값으로 바꿉니다(값은 출력하지 않음, 이미 있는 파일의 값은 보존). 사람이 넣는 값은 <code>APP_DATABASE_URL</code>뿐이고, 비어 있거나 <code>CHANGE_ME</code>면 종료 코드 <strong>3</strong>(사람 입력 필요)으로 멈추므로 채운 뒤 다시 실행합니다. 종료 코드는 0 성공, 1 실행 실패, 2 잘못된 인자·지원하지 않는 환경, 3 사람 입력 필요입니다. 서버 모드(<code>--profile dev --server</code>, <code>--profile product</code>)는 16.6절을 봅니다. 실행 스크립트는 서버를 <code>nohup</code>으로 백그라운드에 띄우므로 터미널을 닫아도 계속 돌고, Ctrl+C 대신 <code>kill</code>로 종료합니다.</p>
 <table>
 <tr><th>스크립트</th><th>동작</th><th>로그 · PID</th></tr>
 <tr><td><code>./scripts/start-backend.sh [--profile local|dev] [--skip-migrate] [--port 8000]</code></td><td>시작 전에 그 프로파일 DB에 <code>alembic upgrade head</code>(화면에 출력, 실패 시 중단) 후 <code>.venv/bin/uvicorn --reload</code>를 백그라운드로 실행</td><td><code>logs/backend.log</code> · <code>logs/backend.pid</code></td></tr>
@@ -1783,8 +1783,10 @@ exit 1</code></pre>
 
 <h3>16.6 서버 최초 구성 (수동 부트스트랩)</h3>
 <p>서버 구성 자산은 저장소의 <code>infra/server/</code>에 두고, 서버당 <strong>최초 1회 관리자가 <code>bootstrap.sh</code>를 실행</strong>합니다. 스크립트는 <strong>멱등</strong>(여러 번 실행해도 같은 결과)이며, 설정 파일(systemd·Nginx·sudoers)을 바꿀 때도 같은 스크립트를 다시 실행합니다. 서버가 여러 대면 서버마다 실행합니다.</p>
+<p><strong><code>scripts/setup.sh</code> 서버 모드(리눅스+systemd 전용, macOS·musl·systemd 없음은 종료 코드 2로 거부)</strong>: 서버의 저장소 checkout에서 일반 사용자로 실행합니다. <code>--profile product</code>는 <strong>준비까지만</strong> — <code>sudo bootstrap.sh product</code>와 서버 <code>.env</code> 필수값 점검(<code>APP_PROFILE</code>·<code>APP_DATABASE_URL</code>·<code>APP_JWT_SECRET</code>·<code>APP_SETTINGS_ENCRYPTION_KEY</code>·<code>APP_SENTRY_DSN</code>, 이름만 표시하고 값은 출력하지 않음, 누락이면 종료 코드 3)을 하고 빌드·배포·마이그레이션은 하지 않습니다(배포는 Jenkins <code>Deploy: Product</code>). <code>--profile dev --server</code>는 같은 준비 뒤 서버에서 프런트 빌드(<code>pnpm build</code>) → <code>infra/build_release.sh &lt;tag&gt;</code>(기본 태그는 git 커밋 12자리, 작업 트리가 깨끗하지 않으면 <code>-dirty-&lt;시각&gt;</code>) → 번들·<code>deploy.sh</code>를 <code>/opt/neoine-sales/incoming</code>에 설치 → <code>sudo -u neoine deploy.sh dev &lt;tag&gt;</code>(마이그레이션 포함)까지 합니다. 서버 모드에서 <code>--skip-migrate</code>는 거부합니다. 하네스는 Claude가 <code>setup.sh</code>를 product·서버 모드로 실행하지 못하게 막습니다(<code>.claude/hooks/guard.py</code>, 사람만 실행). Jenkins + docker-compose 배포로의 전환은 다음 작업으로 예정되어 있습니다.</p>
 <pre><code>infra/server/
 ├─ bootstrap.sh                    # 최초 구성·설정 재적용 (root/sudo)
+├─ lib/env_secrets.sh              # 비밀 생성·.env 줄 편집 공용 함수(bootstrap.sh, scripts/setup.sh가 source)
 ├─ deploy.sh                       # 배포/롤백 (16.4절, Jenkins가 매 배포 시 전달)
 ├─ systemd/ (neoine-sales-api.service, neoine-sales-forecast-snapshot.service·.timer)
 ├─ nginx/neoine-sales.conf         # 16.5절
@@ -1800,8 +1802,10 @@ PYTHON_VERSION="3.14"        # backend/.python-version 과 일치
 HERE="$(cd "$(dirname "$0")" &amp;&amp; pwd)"
 APP_HOME=/opt/neoine-sales
 
-# 0) 사전 설치(OS 패키지, 배포판에 맞게 수동): nginx, curl, tar, (DB 서버는 별도 호스트)
-#    예) Ubuntu: apt install nginx curl    /  Rocky: dnf install nginx curl
+# 비밀 생성·.env 줄 편집 공용 함수(scripts/setup.sh와 함께 쓴다)
+source "$HERE/lib/env_secrets.sh"
+
+# 0) 사전 설치(OS 패키지, 배포판에 맞게 수동): curl, tar, (DB 서버는 별도 호스트). nginx는 있을 때만 설정을 설치한다
 
 # 1) 서비스/배포 계정 (SSH 키 인증 전용. 키는 Jenkins 배포 키의 공개키를 등록)
 id neoine &amp;&gt;/dev/null || useradd --create-home --shell /bin/bash neoine
@@ -1811,23 +1815,31 @@ install -d -o neoine -g neoine -m 750 "$APP_HOME" "$APP_HOME/incoming" "$APP_HOM
 sudo -u neoine -H sh -c "curl -LsSf https://astral.sh/uv/$UV_VERSION/install.sh | sh"
 sudo -u neoine -H "/home/neoine/.local/bin/uv" python install "$PYTHON_VERSION"
 
-# 3) 설정 파일 설치 (systemd, nginx, sudoers) - 배포판별 nginx 경로(conf.d / sites-enabled)에 맞게 조정
+# 3) 설정 파일 설치 (systemd, sudoers, nginx는 있을 때만) - 배포판별 nginx 경로(conf.d / sites-enabled)에 맞게 조정
 install -m 644 "$HERE"/systemd/*.service /etc/systemd/system/
 install -m 644 "$HERE"/systemd/*.timer /etc/systemd/system/
-install -m 644 "$HERE/nginx/neoine-sales.conf" /etc/nginx/conf.d/neoine-sales.conf
 install -m 440 "$HERE/sudoers/neoine-sales" /etc/sudoers.d/neoine-sales
 visudo -cf /etc/sudoers.d/neoine-sales
 systemctl daemon-reload
 systemctl enable neoine-sales-api     # 시작은 첫 배포 때
 systemctl enable --now neoine-sales-forecast-snapshot.timer   # 월말 Forecast 스냅숏(service가 아니라 timer를 enable)
-nginx -t &amp;&amp; systemctl reload nginx
+if command -v nginx &gt; /dev/null; then
+  install -m 644 "$HERE/nginx/neoine-sales.conf" /etc/nginx/conf.d/neoine-sales.conf
+  nginx -t &amp;&amp; systemctl reload nginx
+else
+  echo "nginx가 없어 nginx 설정 설치와 reload를 건너뜁니다"
+fi
 
 # 4) .env 생성: APP_PROFILE만 채우고 나머지 비밀은 관리자가 직접 입력 (이미 있으면 보존)
 if [ ! -f "$APP_HOME/.env" ]; then
   install -m 600 -o neoine -g neoine /dev/null "$APP_HOME/.env"
   echo "APP_PROFILE=$ENV_NAME" &gt; "$APP_HOME/.env"
   echo "필수 변수(3.5.3절)를 neoine 계정으로 $APP_HOME/.env 에 입력하세요."
-fi</code></pre>
+fi
+
+# 5) 비밀 키: 줄이 없을 때만 만들고 값은 출력하지 않는다(이미 있으면 보존, 재실행 안전)
+env_ensure_line "$APP_HOME/.env" APP_JWT_SECRET gen_jwt_secret
+env_ensure_line "$APP_HOME/.env" APP_SETTINGS_ENCRYPTION_KEY gen_fernet_key   # 잃으면 AD 바인드 비밀번호 재입력, DB 백업과 따로 보관</code></pre>
 
 <pre><code># infra/server/sudoers/neoine-sales  (명령 경로는 배포판에 맞게: which systemctl)
 neoine ALL=(root) NOPASSWD: /usr/bin/systemctl restart neoine-sales-api</code></pre>
@@ -1835,7 +1847,7 @@ neoine ALL=(root) NOPASSWD: /usr/bin/systemctl restart neoine-sales-api</code></
 <h4>최초 구성 체크리스트 (서버마다)</h4>
 <ul>
   <li>☐ OS 패키지 설치(nginx 등), 시간 동기화(chrony), 패치 정책 수립(월간)과 재부팅 윈도우 정의</li>
-  <li>☐ <code>bootstrap.sh &lt;dev|product&gt;</code> 실행, Jenkins 배포 공개키를 <code>neoine</code> 계정 <code>~/.ssh/authorized_keys</code>에 등록</li>
+  <li>☐ <code>bootstrap.sh &lt;dev|product&gt;</code> 실행(또는 <code>scripts/setup.sh --profile product</code> / <code>--profile dev --server</code>, <code>APP_JWT_SECRET</code>·<code>APP_SETTINGS_ENCRYPTION_KEY</code>는 없을 때만 자동 생성), Jenkins 배포 공개키를 <code>neoine</code> 계정 <code>~/.ssh/authorized_keys</code>에 등록</li>
   <li>☐ TLS 인증서 배치(사내 CA 등), <code>/opt/neoine-sales/.env</code>에 필수 변수 입력(권한 600, 소유자 neoine)</li>
   <li>☐ DB(PostgreSQL)에 애플리케이션용 최소 권한 계정 생성, 마이그레이션 계정과 분리 여부 결정</li>
   <li>☐ SSH 하드닝: 비밀번호 로그인 차단, root 직접 로그인 차단, 키 인증만 허용</li>

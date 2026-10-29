@@ -65,6 +65,8 @@ infra ──┘
 | `scripts/check_file_length.py` | 파일 300줄 제한 검사 |
 | `scripts/export_openapi.py` | `openapi.json` 생성 |
 
+저장소 루트 `scripts/`(셸): `setup.sh`(설치 — 개발 PC 모드 `--profile local|dev`, 서버 모드 `--profile dev --server`·`--profile product`(준비까지만), macOS·여러 리눅스, 종료 코드 0/1/2/3), `start-backend.sh`·`start-frontend.sh`(백그라운드 실행), `tests/test_setup.sh`(셸 테스트, Jenkins `Infra scripts`가 실행). 서버 공용 함수 테스트는 `infra/server/tests/test_env_secrets.sh`.
+
 ### 2.3 `src/app/` 진입점·설정·조립
 
 | 파일 | 의미 |
@@ -237,7 +239,8 @@ features/*  화면 ──▶ data/*  TanStack Query 훅 ──▶ gateway  (http
 | 파일 | 의미 |
 | --- | --- |
 | `build_release.sh` | 릴리스 번들 `build/neoine-sales-<tag>.tar.gz` 생성 |
-| `server/bootstrap.sh` | 서버당 최초 1회(root, 다시 실행해도 안전). `neoine` 계정, 디렉터리(첨부 저장용 `/var/lib/neoine-sales` 포함), uv·Python, systemd·Nginx·sudoers 설치, `.env` 뼈대 |
+| `server/bootstrap.sh` | 서버당 최초 1회(root, 다시 실행해도 안전). `neoine` 계정, 디렉터리(첨부 저장용 `/var/lib/neoine-sales` 포함), uv·Python, systemd·sudoers 설치(Nginx 설정은 nginx가 있을 때만), `.env` 뼈대와 `APP_JWT_SECRET`·`APP_SETTINGS_ENCRYPTION_KEY`를 없을 때만 생성(값 출력 없음). 보통 `scripts/setup.sh` 서버 모드가 호출 |
+| `server/lib/env_secrets.sh` | 비밀 생성(`gen_jwt_secret`, `gen_fernet_key`)과 `.env` 줄 편집(`env_ensure_line`, `env_replace_value`) 공용 함수. `bootstrap.sh`·`scripts/setup.sh`가 source, 값은 출력·argv에 싣지 않음 |
 | `server/deploy.sh` | 배포 본체(멱등, 실패 시 롤백) |
 | `server/systemd/neoine-sales-api.service` | Uvicorn 서비스(127.0.0.1:8000, 하드닝, 쓰기 허용은 `ReadWritePaths=/var/lib/neoine-sales`만) |
 | `server/nginx/neoine-sales.conf` | 80→443 리다이렉트, 정적 파일 서빙, `/api` 프록시, 보안 헤더. 첨부 업로드 경로만 본문 101MB·타임아웃 300초 |
@@ -284,7 +287,7 @@ cd frontend && pnpm gen:api                              # src/shared/api/schema
 
 ### 5.5 릴리스 번들 만들기
 
-`pnpm build`로 `frontend/dist`를 만든 뒤 `infra/build_release.sh <tag>`를 실행합니다. 번들에는 `backend/{src,alembic,alembic.ini,pyproject.toml,uv.lock}`, `frontend/dist`, `infra/server`, `VERSION`이 들어갑니다(테스트·개발 생성물 제외). 서버는 번들로 `uv sync --locked --no-dev`만 하므로 서버에서 빌드하지 않습니다.
+`pnpm build`로 `frontend/dist`를 만든 뒤 `infra/build_release.sh <tag>`를 실행합니다. 번들에는 `backend/{src,alembic,alembic.ini,pyproject.toml,uv.lock}`, `frontend/dist`, `infra/server`, `VERSION`이 들어갑니다(테스트·개발 생성물 제외). 서버는 번들로 `uv sync --locked --no-dev`만 하므로 Jenkins 배포에서는 서버에서 빌드하지 않습니다. 예외로 `scripts/setup.sh --profile dev --server`는 dev 서버의 checkout에서 직접 `pnpm build`·번들 생성·`deploy.sh`까지 합니다(product는 `--profile product`로 준비까지만, 배포는 Jenkins).
 
 ## 6. CI/CD (`Jenkinsfile`)
 
