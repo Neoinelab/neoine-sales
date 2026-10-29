@@ -43,4 +43,13 @@ if [ ! -f "$APP_HOME/.env" ]; then
   echo "APP_PROFILE=$ENV_NAME" > "$APP_HOME/.env"
   echo "필수 변수(.env.example 참고)를 neoine 계정으로 $APP_HOME/.env 에 입력하세요."
 fi
+
+# 5) 설정 암호화 키(AD 바인드 비밀번호 암호화, Fernet 형식 = 32바이트 URL-safe base64): 줄이 없을 때만 만들고
+#    값은 출력하지 않는다(이미 있으면 보존, 재실행 안전). 키를 잃거나 바꾸면 저장된 바인드 비밀번호를 풀 수 없어
+#    외부연동 설정에서 다시 입력해야 하므로 DB 백업과 다른 곳에 따로 보관한다
+if ! grep -q '^APP_SETTINGS_ENCRYPTION_KEY=' "$APP_HOME/.env"; then
+  [ -z "$(tail -c 1 "$APP_HOME/.env")" ] || echo >> "$APP_HOME/.env" # 마지막 줄에 개행이 없으면 붙여 줄이 합쳐지지 않게
+  printf 'APP_SETTINGS_ENCRYPTION_KEY=%s\n' "$(head -c 32 /dev/urandom | base64 | tr '+/' '-_' | tr -d '\n')" >> "$APP_HOME/.env"
+  echo "APP_SETTINGS_ENCRYPTION_KEY를 새로 만들어 $APP_HOME/.env 에 넣었습니다(값은 출력하지 않음). DB 백업과 다른 곳에 따로 보관하세요."
+fi
 echo "bootstrap 완료: $ENV_NAME"
