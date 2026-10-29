@@ -38,6 +38,7 @@ backend/src/app/config/
 | `APP_JWT_SECRET` | JWT 서명 키 | ● | 필수 | 로컬 전용 값 | dev 전용 키 | product 전용 키(**32자 이상**) |
 | `APP_ACCESS_TOKEN_TTL_MINUTES` | 액세스 토큰 수명(분, ≥1) | | 15 | | | |
 | `APP_REFRESH_TOKEN_TTL_DAYS` | 리프레시 토큰 수명(일, ≥1) | | 7 | | | |
+| `APP_SETTINGS_ENCRYPTION_KEY` | DB에 저장하는 설정 비밀(AD 바인드 비밀번호)을 암호화하는 Fernet 키(URL-safe base64, 32바이트, `Fernet.generate_key()`로 생성). 형식이 틀리면 기동 실패(값은 오류 메시지에 안 나옴). 서버는 `infra/server/bootstrap.sh`가 줄이 없을 때만 무작위로 만들어 `.env`에 넣으며(값 출력 없음, 있으면 보존), 코드 배포 전에 있어야 하고 **DB 백업과 분리 보관**. 분실·변경 시 저장된 바인드 비밀번호를 풀 수 없어 admin이 외부연동 설정에서 다시 입력(2026-10-29) | ● | **모든 프로파일 필수** | 개발용 키 | dev 전용 키 | product 전용 키(**`.env.example` 예시 키 거부**) |
 | `APP_DATABASE_URL` | PostgreSQL URL(`postgresql+asyncpg://…`) | ● | 필수 | localhost | dev DB | product DB |
 | `APP_DB_POOL_SIZE` | 커넥션 풀(≥1) | | 10 | 5 | 10 | 워커·DB 한도에 맞춤 |
 | `APP_DB_ECHO` | SQL 로그 | | false | true | false | **false 필수** |
@@ -62,4 +63,4 @@ backend/src/app/config/
 | --- | --- |
 | `LocalSettings` | debug=True, enable_docs=True, log DEBUG+console, cookie_secure=False, db_pool_size=5, db_echo=True, workers=1 |
 | `DevSettings` | enable_docs=True, log DEBUG, sentry_traces_sample_rate=1.0 |
-| `ProductSettings` | workers=4, sentry_traces_sample_rate=0.1, **기동 시 안전 검증**: debug/enable_docs/db_echo 꺼짐, cookie_secure, CORS `*` 금지, JWT 32자 이상, Sentry DSN 필수 |
+| `ProductSettings` | workers=4, sentry_traces_sample_rate=0.1, **기동 시 안전 검증**: debug/enable_docs/db_echo 꺼짐, cookie_secure, CORS `*` 금지, JWT 32자 이상, Sentry DSN 필수, `APP_SETTINGS_ENCRYPTION_KEY`가 예시 키(`EXAMPLE_SETTINGS_ENCRYPTION_KEY`)가 아님 |

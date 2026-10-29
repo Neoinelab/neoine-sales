@@ -68,16 +68,17 @@ corepack pnpm dev
 이 기능은 local 프로파일에서만 켤 수 있고, dev·product에서 켜면 서버가 기동되지 않습니다.
 (user는 조회만 가능하고, 사용자 관리·설정 메뉴는 admin에게만 보입니다.)
 
-실제 AD 로그인은 앱 화면에서 설정합니다. 처음 접속하면 `/setup`에서 **① AD 서버 등록 → ② admin 등록(AD 아이디·비밀번호)** 을 차례로 하고, 성공하면 자동 로그인됩니다. AD 서버 정보는 환경변수가 아니라 DB에 저장되며 이후 admin이 설정 메뉴에서 바꿉니다. 로컬에서 실제 AD 로그인을 시험하려면 앱 서버에서 AD에 접근할 수 있어야 합니다.
+실제 AD 로그인은 앱 화면에서 설정합니다. 처음 접속하면 `/setup`에서 **① AD 서버 등록 → ② 첨부 파일 저장 위치 → ③ admin 등록(AD 아이디·비밀번호)** 을 차례로 하고, 성공하면 자동 로그인됩니다. AD 서버 정보는 환경변수가 아니라 DB에 저장되며 이후 admin이 설정 메뉴에서 바꿉니다. 로컬에서 실제 AD 로그인을 시험하려면 앱 서버에서 AD에 접근할 수 있어야 합니다.
 
 ### 막힐 때
 
 | 증상 | 확인할 것 |
 | --- | --- |
-| 백엔드가 `Field required`로 기동하지 않음 | `backend/.env`에 `APP_DATABASE_URL`과 `APP_JWT_SECRET`이 있는지 |
+| 백엔드가 `Field required`로 기동하지 않음 | `backend/.env`에 `APP_DATABASE_URL`, `APP_JWT_SECRET`, `APP_SETTINGS_ENCRYPTION_KEY`가 있는지. 암호화 키는 `uv run python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`로 만들어 넣습니다(형식이 틀려도 기동 실패) |
 | `/readyz`가 503 | DB가 떠 있는지, `APP_DATABASE_URL`의 DB 이름·계정·비밀번호가 맞는지 |
 | 로그인 화면에 개발용 로그인이 없음 | 백엔드가 떠 있는지, `APP_DEV_LOGIN_ENABLED`를 끄지 않았는지 |
-| 실제 AD로 로그인하고 싶음 | `/setup`에서 AD 서버(LDAPS 주소, 바인드 템플릿 등)와 admin을 등록합니다. 값은 AD 관리자에게 받습니다 |
+| 실제 AD로 로그인하고 싶음 | `/setup`에서 AD 서버(호스트·포트·보안 연결·바인드 계정·비밀번호·사용자 필터·연결 제한 시간, Base DN은 자동)와 admin을 등록합니다. 값은 AD 관리자에게 받습니다 |
+| AD 장애 중 로그인 / "AD 연결 경고" 팝업 | AD 설정이 없거나 AD에 접속할 수 없으면 이전에 로그인에 성공한 비밀번호로 들어갈 수 있고, admin에게는 원인 팝업이 뜹니다. 외부연동 설정에서 AD 설정을 확인하세요 |
 | 로그인이 계속 401 | AD 아이디가 앱에 등록되어 있는지(admin이 사용자 관리에서 추가), 아이디·비밀번호가 맞는지. 실패 사유는 보안상 구분해서 알려 주지 않습니다 |
 | 로그인이 429 | 짧은 시간에 여러 번 실패해 잠겼습니다. 15분 뒤 다시 시도하세요 |
 

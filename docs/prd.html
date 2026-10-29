@@ -119,7 +119,8 @@ code{background:var(--soft);padding:1px 5px;border-radius:3px;font-size:12.5px}
 <tr><td><code>user</code></td><td>조회 사용자</td><td>조회 전용(파트너 미팅 기록 보기 포함)</td><td><span class="b ok">구현</span></td></tr>
 </table>
 <ul>
-<li>로그인은 AD(LDAP)로 한다. AD 서버 정보는 화면에서 등록해 DB에 저장한다. <span class="b ok">구현</span></li>
+<li>로그인은 AD(LDAP)로 한다. AD 서버 정보(호스트·포트·보안 연결 없음/SSL/StartTLS·바인드 계정·비밀번호·사용자 필터·연결 제한 시간)는 화면에서 등록해 DB에 저장하고, 바인드 비밀번호는 암호화한다. Base DN은 AD에서 자동으로 찾고 서버 인증서는 검증하지 않는다. <span class="b ok">구현</span> 2026-10-29 서비스 계정 방식</li>
+<li>AD 설정이 없거나 AD 서버에 접속할 수 없을 때는, 이전에 로그인에 성공한 비밀번호(해시로 저장)로 로그인할 수 있다. admin이 이렇게 로그인하면 로그인 후 팝업으로 오류 내용을 보여 준다. <span class="b ok">구현</span> 2026-10-29</li>
 <li>퇴사한 사용자는 로그인과 신규 담당자 지정이 불가하며, 과거 이력은 “이름(퇴사)”로 보존한다. <span class="b ok">구현</span></li>
 <li><b>Admin 메뉴</b>(Status·Forecast 코드, BANT Label, 사용자, 설정)는 admin만 접근한다. 다른 역할에는 메뉴가 보이지 않고 API도 403이다. 사용자 관리·Deal 관리(코드·Label·경고 기준)·contacts 관리·외부연동 4개 화면이 admin 전용으로 구현되어 있다. <span class="b ok">구현</span> P0·P8</li>
 <li>Inline Update(Deal 목록에서 바로 수정)는 목록에 보이는 <b>Status / Forecast / 금액 / Expected Close(<code>revenue_date</code>)</b> 네 컬럼만 허용한다. 수정 권한은 Deal을 수정할 수 있는 sales와 admin이며 user는 조회 전용이다(DL-08).</li>

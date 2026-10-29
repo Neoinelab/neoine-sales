@@ -9,7 +9,7 @@
 
 | 영역 | 기술 |
 | --- | --- |
-| 백엔드 | Python 3.14, FastAPI, SQLAlchemy 2(async) + asyncpg, Alembic, ldap3, pydantic-settings, structlog |
+| 백엔드 | Python 3.14, FastAPI, SQLAlchemy 2(async) + asyncpg, Alembic, ldap3, cryptography(Fernet), pydantic-settings, structlog |
 | 프런트엔드 | React 19, TypeScript, Vite, React Router, TanStack Query v5, openapi-fetch, Chart.js 4.5.1 + react-chartjs-2 5.3.1(Dashboard·Reports 차트), chartjs-plugin-datalabels 2.2.0(Reports 차트 데이터 레이블, 인스턴스 plugins로만 사용), Vitest |
 | DB | PostgreSQL (DB명 `neoinesales`) |
 | 인증 | AD(LDAP) 아이디·비밀번호 → 서버 세션(HttpOnly 쿠키). local·dev는 개발용 빠른 로그인(기본 켜짐, product는 불가) |
@@ -105,7 +105,8 @@ infra ──┘
 | `saved_report/` | 저장 리포트 엔티티 `entities.py`(`Report`: 정의·차트·공개 범위·`revision`·마지막 수정자), 권한 `policy.py`(보기·수정·삭제·공개 범위 변경, 목록 범위), 이름(100자)·설명(1,000자)·공개 범위 `values.py`, 오류 `errors.py` |
 | `auth/` | `principal.py`(Role·Permission·Principal), `credentials.py`(LoginId·Password, 비밀번호는 로그에 마스킹), `session.py`, `login_failure.py`(시도 제한 카운터) |
 | `user/` | 사용자 엔티티(연결이 있으면 퇴사 처리·없으면 물리 삭제, `UserRef` 표시 라벨과 역할, 마지막 로그인 시각), `policy.py`(자기 자신·마지막 admin 삭제 금지) |
-| `directory/` | AD 설정 값 객체(`settings.py`), LDAP URL·필터 규칙 검증(평문 LDAP 금지, `{login_id}` 템플릿) |
+| `directory/` | AD 설정 값 객체(`settings.py`: `SecurityMode` none·ssl·starttls, `DirectoryConnection`, `DirectorySettings`, `DirectorySettingsDraft`, `StoredDirectorySettings`), 호스트 규칙(`host.py`), 필터·길이 규칙(`rules.py`, `{login_id}` 자리표시자) |
+| `common/secret.py`, `auth/password_hash.py` | 암호화된 비밀(`SealedSecret`)과 대체 로그인 해시(`PasswordHash`) 값 객체. repr에 값이 나오지 않음 |
 
 ### 2.5 `application/` — 유스케이스와 Port
 
@@ -120,7 +121,7 @@ infra ──┘
 - `attachment/`: 업로드·목록·다운로드·삭제, 저장 실패 시 정리(`storage_cleanup.py`)
 - `storage/`, `alert/`, `directory/`: 저장 위치·경고 기준·AD 설정의 조회·확인·변경
 - `dashboard/`: `criteria.py`(`DashboardCriteria`: Dashboard 숫자마다의 조건을 `DealQuery`로 정의하는 단일 출처, Drill-down URL과 1:1), `get_summary.py`(`GetDashboardSummary`: Forecast·Status·분기·주의 타일을 한 UoW에서 집계), `views.py`(응답 뷰)
-- `auth/`: `directory_login.py`(AD 로그인), `authenticate.py`(요청마다 활성 사용자·역할 확인), `throttle.py`(로그인 시도 제한), `setup_directory.py`·`setup_storage.py`·`setup_first_admin.py`(최초 설정 3단계), `auth_status.py`, `dev_login.py`, `logout.py`, `issue_session.py`, `tokens.py`
+- `auth/`: `directory_login.py`(AD 로그인, `LoginOutcome`), `fallback_login.py`(AD가 답할 수 없을 때만 저장 해시로 로그인, `warning_stage.py`·`messages.py`의 admin 경고 단계·문구), `authenticate.py`(요청마다 활성 사용자·역할 확인), `throttle.py`(로그인 시도 제한), `setup_directory.py`·`setup_storage.py`·`setup_first_admin.py`(최초 설정 3단계), `auth_status.py`, `dev_login.py`, `logout.py`, `issue_session.py`, `tokens.py`
 - `report/`: `list_fields.py`(필드 카탈로그), `run_report.py`(임시 조회), 저장 리포트 `create_report`·`update_report`(`revision` 낙관적 잠금)·`copy_report`·`delete_report`·`get_report`·`list_reports`·`run_saved_report`, 공통 `execution.py`(`report_context`: 업무 날짜·오프셋·경고 기준, `prepare_content`: 저장할 때마다 정의·차트를 다시 검증하고 표시 SQL 생성), 응답 뷰 `views.py`·`saved_views.py`, 입력 `saved_inputs.py`
 - `time/`: `get_server_time.py`(`GetServerTime`·`ServerTimeView`: `Clock`을 한 번 읽어 서버 OS 로컬 오프셋 `now`와 업무 날짜 `today`를 돌려줌, DB 미사용, `GET /api/v1/time`)
 - `user/`: 사용자 등록·삭제·목록(페이징), 사용자 선택 후보(`list_user_options.py`), 참조 해석
@@ -140,7 +141,9 @@ infra ──┘
 | `db/like.py` | 키워드 검색용 LIKE 이스케이프 |
 | `deal_code_source.py` | Deal code 발급 Port 구현 |
 | `storage/local_file_storage.py` | FileStorage Port의 로컬 디스크 구현(`<root>/<deal_code>/<key>`, I/O는 스레드에서) |
-| `auth/ldap.py`, `auth/ldap_errors.py` | ldap3 기반 AD 인증·연결 확인. 서버 URL을 순서대로 시도, 서버별 타임아웃, TLS 검증 필수, 사용자 본인 계정으로 바인드 |
+| `auth/ldap.py`, `auth/ldap_connection.py`, `auth/ldap_errors.py` | ldap3 기반 AD 인증. 서비스 계정 바인드 → RootDSE `defaultNamingContext`로 Base DN 찾기 → 사용자 검색 → 찾은 DN으로 사용자 바인드(search-then-bind). 보안 연결 none·ssl·starttls, 서버 인증서 미검증 |
+| `crypto/fernet_cipher.py`, `crypto/scrypt_hasher.py` | `SecretCipher`(AD 바인드 비밀번호 암호화, `APP_SETTINGS_ENCRYPTION_KEY`)와 `PasswordHasher`(대체 로그인 scrypt 해시, `ln=17,r=8,p=1`, 스레드 계산) 구현 |
+| `db/user_password_hash_repository.py` | `UserPasswordHashRepository` 구현(`user_password_hashes`, users FK CASCADE, `uow.password_hashes`) |
 | `system_clock.py` | `Clock` Port 구현 |
 
 ### 2.7 `web/` — HTTP 계층
@@ -189,7 +192,7 @@ infra ──┘
 ### 2.9 인증·권한 흐름 요약
 
 1. 최초 접속 시 admin이 없으면 `/setup`: ① AD 서버 등록(연결 확인 후 DB 저장) → ② 첨부 파일 저장 위치 등록(쓰기 확인) → ③ AD 아이디·비밀번호로 첫 admin 등록(성공 시 자동 로그인). admin이 생기면 영구히 닫힙니다.
-2. 이후 로그인: AD 바인드로 비밀번호 검증 → 앱에 등록된 활성 사용자만 세션 쿠키 발급. 실패 사유는 구분하지 않음(401), AD 장애는 503, 시도 제한은 429.
+2. 이후 로그인: 서비스 계정으로 AD 사용자 검색 → 사용자 바인드로 비밀번호 검증 → 앱에 등록된 활성 사용자만 세션 쿠키 발급(성공 비밀번호의 scrypt 해시 저장). 실패 사유는 구분하지 않음(401), 시도 제한은 429. AD가 답할 수 없으면(설정 없음·연결·TLS·서비스 계정·Base DN·검색 2건 이상·복호화 실패·알 수 없는 통신 실패) 저장 해시로 대체 로그인하고 admin에게 "AD 연결 경고" 팝업, 대체 로그인도 안 되면 503(설정 없음 409).
 3. 요청마다 users 테이블에서 활성 여부와 역할을 다시 읽어 즉시 반영. user 역할은 조회만(쓰기 403). Action·첨부의 수정·삭제는 작성자 본인 또는 admin만.
 4. admin은 Admin 메뉴에서 사용자(AD 계정 id + 역할) 추가·삭제, Deal 관리(Status·Forecast 코드, BANT Label, Action 유형, Vendor, 경고 기준), 연락처 관리, 연동 설정(AD 서버, 저장 위치)을 합니다.
 
@@ -321,7 +324,8 @@ Multibranch 파이프라인입니다. 모든 브랜치·PR은 검증만 하고, 
 ### 6.3 운영 필수 절차와 주의
 
 - **배포 직후 즉시 최초 설정 3단계(AD 서버 → 저장 위치 → admin)를 마칩니다.** 설정되지 않은 상태로 방치하면 먼저 접속한 사람이 admin이 되거나 악의적인 LDAP 서버가 등록될 수 있습니다(위험 수용, 완화책 없음).
-- 앱 서버에서 AD로 나가는 방화벽(LDAPS 636 또는 389+StartTLS)을 미리 엽니다.
+- 앱 서버에서 AD로 나가는 방화벽(LDAPS 636 또는 389 평문·StartTLS)을 미리 엽니다. 바인드 계정은 읽기 전용 서비스 계정을 권장합니다. 서버 인증서는 검증하지 않습니다(사용자 결정).
+- 서버 `.env`에 `APP_SETTINGS_ENCRYPTION_KEY`(Fernet 키, 모든 프로파일 필수, product 예시 키 거부)가 코드 배포 전에 있어야 합니다(`infra/server/bootstrap.sh`가 없을 때만 무작위로 생성, 값 출력 없음). DB 백업과 분리해 보관합니다. 키를 잃으면 AD 바인드 비밀번호를 다시 입력합니다.
 - AD 설정을 바꾸기 전에 현재 값을 따로 기록합니다(변경 이력 없음).
 - `infra/server/**`가 바뀐 릴리스(systemd·Nginx·저장 디렉터리)는 서버에서 `bootstrap.sh`를 다시 실행하고 `nginx -t`로 확인합니다. `deploy.sh`는 이 파일들을 설치하지 않습니다.
 - 업무 날짜(Deal code 날짜, 경고·체류 일수)와 화면에 보이는 날짜·시각(응답 시각의 오프셋, 앱 시계)은 서버 OS 로컬 시간대를 따르므로 서버 시간대를 업무 시간대(예: `Asia/Seoul`)로 맞춥니다(`timedatectl`로 확인). 서버 시간대가 화면 표시 시간대도 됩니다.
@@ -343,7 +347,7 @@ Multibranch 파이프라인입니다. 모든 브랜치·PR은 검증만 하고, 
 - Reports 조회는 문장당 10초 제한뿐이고(그룹핑은 두 문장이라 최대 약 20초) 요청 빈도 제한이 없습니다(받아들인 위험). 큰 데이터에서의 조회 시간·인덱스 필요 여부는 아직 점검하지 않았습니다.
 - Reports 허용 필드는 backend 카탈로그와 프런트 테스트 Fake 카탈로그(`test/fake/seed/reportCatalog.ts`), 차트 규칙은 backend `KIND_RULES`와 frontend `chartKinds.ts`에 두 벌로 있어 바꿀 때 함께 고쳐야 합니다(자동 동기화 검사 없음, 절차는 개발 가이드 10.6절).
 - Dashboard·Reports 차트의 실제 그리기는 테스트에서 mock하므로 사람이 브라우저에서 확인합니다.
-- 실제 AD(LDAPS 인증서 검증, StartTLS, 여러 DC 전환, 잠금 임계치)는 mock으로만 검증했습니다.
+- 실제 AD(LDAPS·StartTLS 협상, RootDSE 응답, UPN·`DOMAIN\id` 서비스 계정 바인드, 잠금 임계치)는 mock으로만 검증했습니다(dev 서버에서 사람이 확인).
 - 서버 시간대 설정과 첨부 저장 디렉터리 백업은 운영 절차로만 보장합니다(앱이 검사하지 않음).
 - Jenkinsfile의 호스트·자격 증명·승인 그룹은 예시 값입니다.
 - Nginx의 도메인·인증서 경로(`sales.internal.example.com`)는 예시 값입니다.
