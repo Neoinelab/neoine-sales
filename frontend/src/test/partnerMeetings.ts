@@ -38,8 +38,17 @@ export function shownContents(): string[] {
   return meetingRows().map((row) => cellsOf(row)[3]?.textContent ?? '')
 }
 
+/**
+ * 화면을 처음 여는 대기의 제한 시간. 파트너 Activity 화면은 `React.lazy` 동적 import라서 파일에서 처음 쓸 때
+ * 화면 모듈 트리를 변환·로드하는 비용이 들고, 전체 실행(워커 병렬) 부하에서는 이것만으로 기본 1초(waitFor)를
+ * 넘길 수 있다(단독 재실행은 통과). 단언은 그대로 두고 로드 대기만 늘린다.
+ */
+export const LOAD_TIMEOUT_MS = 8000
+
 export async function waitForRows(count: number): Promise<void> {
-  await waitFor(() => expect(meetingRows()).toHaveLength(count))
+  // 표가 나타날 때까지(모듈 로드·첫 조회)를 먼저 명확히 기다린 뒤 행 수를 단언한다
+  await screen.findByRole('table', { name: '파트너 미팅 기록' }, { timeout: LOAD_TIMEOUT_MS })
+  await waitFor(() => expect(meetingRows()).toHaveLength(count), { timeout: LOAD_TIMEOUT_MS })
 }
 
 /** 기본 목록 순서(미팅 날짜 내림차순)의 시드 내용. */
@@ -57,8 +66,8 @@ export function rowWithContent(content: string): HTMLElement {
 
 /** "미팅 내용 입력" 팝업을 연다. */
 export async function openEntryDialog(user: UserEvent): Promise<HTMLElement> {
-  await user.click(await screen.findByRole('button', { name: '미팅 내용 입력' }))
-  return screen.findByRole('dialog', { name: '미팅 내용 입력' })
+  await user.click(await screen.findByRole('button', { name: '미팅 내용 입력' }, { timeout: LOAD_TIMEOUT_MS }))
+  return screen.findByRole('dialog', { name: '미팅 내용 입력' }, { timeout: LOAD_TIMEOUT_MS })
 }
 
 /** 팝업의 n번째(1부터) 행 요소. 행은 role=group, 이름 "미팅 n"이다. */
