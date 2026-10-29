@@ -6,7 +6,6 @@ from typing import TYPE_CHECKING, Any, cast
 from app.domain.auth.credentials import LoginId
 from app.domain.auth.login_failure import FailureCounter, FailurePolicy
 from app.domain.auth.principal import Principal, Role
-from app.domain.directory.settings import DirectorySettings, DirectoryUrl
 from app.domain.user.entities import User
 from app.domain.user.value_objects import UserId
 from tests.factories import NOW
@@ -15,28 +14,16 @@ from tests.support.ids import new_id
 if TYPE_CHECKING:
     from datetime import datetime
 
-BIND_TEMPLATE = "cn={login_id},ou=users,dc=corp,dc=test"
-BASE_DN = "dc=corp,dc=test"
+# AD 설정 값 상수. 설정 객체를 만드는 `make_directory_settings` 등은
+# `tests/factories_directory.py`다(새 도메인 모듈을 가져오므로 사용자·세션 테스트의 수집이
+# 거기에 묶이지 않게 나눈다).
+BIND_ACCOUNT = "cn=svc-sales,ou=services,dc=corp,dc=test"  # 서비스(바인드) 계정 DN
+BIND_PASSWORD = "Svc-Dummy-pw-1!"  # noqa: S105 - 가짜 값. 로그·응답·DB 누출 검사에도 쓴다
+BASE_DN = "dc=corp,dc=test"  # 자동 탐색(RootDSE defaultNamingContext)으로 찾은 값의 예
 USER_FILTER = "(&(objectClass=user)(sAMAccountName={login_id}))"
 ADMIN_LOGIN = "root"  # 관리 API 테스트의 admin 아이디(AD 계정도 같은 이름)
 ADMIN_PASSWORD = "pw-root"  # noqa: S105 - 가짜 값
 WRONG_PASSWORD = "wrong-password"  # noqa: S105 - 가짜 값
-CERT_BEGIN = "-----BEGIN CERTIFICATE-----"
-CERT_END = "-----END CERTIFICATE-----"
-# 도메인은 형식(CERTIFICATE 블록)만 본다. 실제 인증서가 아니라 base64 문자만 채운 더미다.
-DUMMY_PEM = f"{CERT_BEGIN}\n{'A' * 64}\n{'B' * 40}\n{CERT_END}\n"
-
-
-def make_directory_settings(**overrides: object) -> DirectorySettings:
-    values: dict[str, Any] = {
-        "server_urls": (DirectoryUrl.parse("ldaps://dc1.corp.test"),),
-        "use_starttls": False,
-        "ca_cert_pem": None,
-        "bind_template": BIND_TEMPLATE,
-        "base_dn": BASE_DN,
-        "user_filter": USER_FILTER,
-    }
-    return DirectorySettings(**{**values, **overrides})
 
 
 def make_user(login_id: str = "kim", role: Role = Role.SALES, **overrides: object) -> User:

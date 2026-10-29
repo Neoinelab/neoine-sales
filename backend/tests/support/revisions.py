@@ -235,3 +235,23 @@ REPORTS_LAYOUT_REVISION: Final = "b7d2e9a4c156"  # 파트너 미팅 리비전의
 PARTNER_MEETINGS_REVISION: Final = (
     "c4e8a1d7f203"  # 파트너 Activity(`partner_meetings`) 리비전, head
 )
+
+
+def directory_service_account_revision() -> str:
+    """AD 설정 개편(`directory_service_account`) 리비전 id: 파트너 Activity 리비전 다음이고 head다.
+
+    `directory_settings`를 비우고 서비스 계정 구조(host·port·security·bind_account·
+    bind_password_encrypted)로 바꾸며 `user_password_hashes` 테이블을 만드는 단일 리비전이다.
+    id는 구현이 정하므로 그래프에서 찾는다. 없거나 둘 이상이면 AssertionError(구현 전에는 이것이
+    red다).
+    """
+    from alembic.script import ScriptDirectory  # noqa: PLC0415
+
+    from tests.support.database import _alembic_config  # noqa: PLC0415
+
+    script = ScriptDirectory.from_config(_alembic_config())
+    children = [
+        r.revision for r in script.walk_revisions() if r.down_revision == PARTNER_MEETINGS_REVISION
+    ]
+    assert len(children) == 1, f"파트너 Activity 다음 리비전이 정확히 하나여야 한다: {children}"
+    return children[0]

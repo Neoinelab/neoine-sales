@@ -4,9 +4,8 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from tests.factories_auth import WRONG_PASSWORD
+from tests.factories_auth import BASE_DN, BIND_ACCOUNT, BIND_PASSWORD, WRONG_PASSWORD
 from tests.functional.steps.auth import (
-    directory_payload,
     given_ad_account,
     given_admin_exists,
     given_logged_out,
@@ -30,12 +29,12 @@ from tests.functional.steps.session import (
 )
 from tests.functional.steps.setup import (
     SETTINGS_KEYS,
+    discover_count,
     given_directory_step_done,
     given_setup_completed_by,
     given_storage_step_done,
-    probe_count,
+    then_directory_discover_count_is,
     then_directory_must_be_saved_first,
-    then_directory_probe_count_is,
     then_setup_is_closed,
     then_user_is_not_registered,
     when_read_auth_config,
@@ -88,30 +87,47 @@ async def test_three_step_setup_signs_in_the_first_admin(api: Api) -> None:
     then_body_includes(await api.get("/api/v1/auth/config"), directory_login=True)
 
 
-async def test_setup_directory_returns_the_saved_settings_with_revision(api: Api) -> None:
-    """Scenario: 1단계 저장 응답은 저장된 설정과 revision 1을 돌려주고 저장자는 비어 있다."""
+async def test_setup_directory_saves_seven_fields_and_discovered_base_dn(api: Api) -> None:
+    """Scenario: 1단계 저장 응답은 비밀번호를 뺀 입력 값과 AD에서 찾은 Base DN, revision 1이다."""
     # Given
     # (아무것도 설정되지 않은 새 시스템)
     # When
     response = await when_save_directory(api)
     # Then
+    then_status_is(response, 200)
     body = response.json()
-    assert set(body) == SETTINGS_KEYS
+    assert set(body) == SETTINGS_KEYS  # 정확히 이 키들뿐(구 필드·비밀번호 없음)
     assert (body["revision"], body["updated_by"]) == (1, None)
-    assert body["server_urls"] == ["ldaps://dc1.corp.test"]
-    assert body["base_dn"] == directory_payload()["base_dn"]
+    assert (body["host"], body["port"], body["security"]) == ("dc1.corp.test", 636, "ssl")
+    assert body["bind_account"] == BIND_ACCOUNT
+    assert body["connect_timeout_seconds"] == 5
+    assert body["base_dn"] == BASE_DN  # 입력이 아니라 서버가 AD(RootDSE)에서 찾은 값
+    assert body["bind_credential_status"] == "ok"
+    assert BIND_PASSWORD not in response.text
+
+
+async def test_setup_directory_stores_the_base_dn_the_directory_reports(api: Api) -> None:
+    """Scenario: AD가 알려 주는 Base DN이 저장된다(입력으로 정할 수 없다)."""
+    # Given
+    api.directory.base_dn = "dc=found,dc=test"
+    # When
+    response = await when_save_directory(api)
+    # Then
+    then_status_is(response, 200)
+    then_body_includes(response, base_dn="dc=found,dc=test")
 
 
 async def test_setup_directory_can_be_overwritten_before_the_first_admin(api: Api) -> None:
     """Scenario: 최초 admin이 생기기 전에는 1단계를 다시 저장해 덮어쓸 수 있다(revision 증가)."""
     # Given
     await given_directory_step_done(api)
+    api.directory.base_dn = "dc=other,dc=test"
     # When
-    response = await when_save_directory(api, base_dn="dc=other,dc=test")
+    response = await when_save_directory(api, host="dc2.corp.test")
     # Then
     then_status_is(response, 200)
-    then_body_includes(response, revision=2, base_dn="dc=other,dc=test")
-    then_directory_probe_count_is(api, 2)
+    then_body_includes(response, revision=2, host="dc2.corp.test", base_dn="dc=other,dc=test")
+    then_directory_discover_count_is(api, 2)
 
 
 async def test_setup_directory_requires_no_session(api: Api) -> None:
@@ -132,13 +148,13 @@ async def test_setup_endpoints_close_after_the_first_admin(api: Api, step: str) 
     await given_admin_exists(api)
     await given_logged_out(api)
     given_ad_account(api, login_id="kim")
-    auth_calls_before, probes_before = directory_call_count(api), probe_count(api)
+    auth_calls_before, discovers_before = directory_call_count(api), discover_count(api)
     # When
     response = await when_setup_step_is_requested(api, step=step)
     # Then
     then_setup_is_closed(response)
     then_directory_was_not_asked_again(api, calls_before=auth_calls_before)
-    then_directory_probe_count_is(api, probes_before)
+    then_directory_discover_count_is(api, discovers_before)
     await then_auth_flags_are(api, needs_directory=False, needs_storage=False, needs_admin=False)
 
 
@@ -173,13 +189,13 @@ async def test_setup_requests_need_the_csrf_header(api: Api, step: str) -> None:
     # Given
     given_ad_account(api, login_id="kim")
     await given_directory_step_done(api)
-    calls_before, probes_before = directory_call_count(api), probe_count(api)
+    calls_before, discovers_before = directory_call_count(api), discover_count(api)
     # When
     response = await when_setup_step_is_requested_without_csrf_header(api, step=step)
     # Then
     then_problem_is(response, status=403, type_suffix="csrf")
     then_directory_was_not_asked_again(api, calls_before=calls_before)
-    then_directory_probe_count_is(api, probes_before)
+    then_directory_discover_count_is(api, discovers_before)
 
 
 async def test_setup_admin_wrong_password_is_the_login_failure(api: Api) -> None:

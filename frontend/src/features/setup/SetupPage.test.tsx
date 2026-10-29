@@ -1,8 +1,9 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { gateway } from '../../gateway'
+import { ApiError } from '../../shared/api/problem'
 import { mockControl } from '../../test/fake/default'
-import { fillDirectoryForm, setField } from '../../test/directoryForm'
+import { fillDirectoryForm, selectSecurity } from '../../test/directoryForm'
 import { renderAt } from '../../test/mockApp'
 import { DEFAULT_DEALS_URL_PATTERN } from '../../test/dealsUrl'
 
@@ -55,12 +56,13 @@ describe('최초 설정 1단계: AD 서버 (T-SETUP-01)', () => {
     await openSetup()
 
     expect(screen.getByLabelText(/사용자 검색 필터/)).toHaveValue('(&(objectClass=user)(sAMAccountName={login_id}))')
-    expect(screen.getByLabelText(/표시 이름 속성/)).toHaveValue('displayName')
-    expect(screen.getByLabelText(/이메일 속성/)).toHaveValue('mail')
     expect(screen.getByLabelText(/연결 제한 시간/)).toHaveValue(5)
-    expect(screen.getByLabelText(/응답 제한 시간/)).toHaveValue(10)
-    expect(screen.getByLabelText(/StartTLS/)).toHaveAttribute('type', 'checkbox')
-    expect(screen.getByLabelText(/CA 인증서/)).toBeInTheDocument()
+    expect(screen.getByLabelText(/^보안 연결/)).toHaveValue('ssl')
+    expect(screen.getByLabelText(/^포트/)).toHaveValue(636)
+    expect(screen.getByLabelText(/^바인드 비밀번호/)).toHaveValue('')
+    for (const removed of [/서버 URL/, /StartTLS 사용/, /CA 인증서/, /바인드 템플릿/, /^Base DN/, /표시 이름 속성/, /이메일 속성/, /응답 제한 시간/]) {
+      expect(screen.queryByLabelText(removed)).not.toBeInTheDocument()
+    }
   })
 
   it('shows the three steps with the first one current, and no later step content', async () => {
@@ -82,53 +84,70 @@ describe('최초 설정 1단계: AD 서버 (T-SETUP-01)', () => {
     expect(screen.queryByText(/UI 목업/)).not.toBeInTheDocument()
   })
 
-  it('saves the directory settings as one URL per line and moves to step 2', async () => {
+  it('saves the seven directory inputs (host, port, security, account, password, filter, timeout) and moves to step 2', async () => {
     const { user } = await openSetup()
     const save = vi.spyOn(gateway.setup, 'saveDirectory')
     fillDirectoryForm()
-    const starttls = screen.getByLabelText(/StartTLS/) as HTMLInputElement
-    const before = starttls.checked
-    await user.click(starttls)
+    await selectSecurity(user, 'starttls')
 
     await user.click(screen.getByRole('button', { name: 'AD 서버 등록' }))
 
     expect(await screen.findByRole('heading', { name: '파일 저장 위치' })).toBeInTheDocument()
     expect(save).toHaveBeenCalledWith({
-      serverUrls: ['ldaps://dc1.corp.test', 'ldaps://dc2.corp.test:6636'],
-      useStarttls: !before,
-      caCertPem: null,
-      bindTemplate: 'CORP\\{login_id}',
-      baseDn: 'dc=corp,dc=test',
+      host: 'dc1.corp.test',
+      port: 389,
+      security: 'starttls',
+      bindAccount: 'CORP\\svc-sales',
+      bindPassword: 'Svc-Dummy-pw-1!',
       userFilter: '(&(objectClass=user)(sAMAccountName={login_id}))',
-      displayNameAttribute: 'displayName',
-      emailAttribute: 'mail',
       connectTimeoutSeconds: 5,
-      receiveTimeoutSeconds: 10,
     })
     expect(steps().getByText('1. AD 서버 등록').closest('li')).toHaveTextContent('완료')
     expect(steps().getByText('2. 파일 저장 위치').closest('li')).toHaveAttribute('aria-current', 'step')
   })
 
-  it('sends the pasted CA certificate', async () => {
+  it('asks for the bind password on the screen before calling the server', async () => {
     const { user } = await openSetup()
     const save = vi.spyOn(gateway.setup, 'saveDirectory')
-    fillDirectoryForm()
-    setField(/CA 인증서/, '-----BEGIN CERTIFICATE-----\nMIIB\n-----END CERTIFICATE-----')
+    fillDirectoryForm({ bindPassword: '' })
 
     await user.click(screen.getByRole('button', { name: 'AD 서버 등록' }))
 
-    await screen.findByRole('heading', { name: '파일 저장 위치' })
-    expect(save.mock.calls[0]?.[0].caCertPem).toBe('-----BEGIN CERTIFICATE-----\nMIIB\n-----END CERTIFICATE-----')
+    expect(await screen.findByRole('alert')).toHaveTextContent('바인드 비밀번호를 입력하세요')
+    expect(save).not.toHaveBeenCalled()
+    expect(screen.getByRole('heading', { name: 'AD 서버 등록' })).toBeInTheDocument()
   })
 
   it('shows the server message for an invalid value, keeps the input and stays on step 1', async () => {
     const { user } = await openSetup()
-    fillDirectoryForm({ baseDn: '' })
+    fillDirectoryForm({ host: '' })
 
     await user.click(screen.getByRole('button', { name: 'AD 서버 등록' }))
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('Base DN을 입력하세요.')
-    expect(screen.getByLabelText(/서버 URL/)).toHaveValue('ldaps://dc1.corp.test\nldaps://dc2.corp.test:6636')
+    expect(await screen.findByRole('alert')).toHaveTextContent('호스트를 입력하세요.')
+    expect(screen.getByLabelText(/^바인드 계정/)).toHaveValue('CORP\\svc-sales')
+    expect(screen.getByRole('heading', { name: 'AD 서버 등록' })).toBeInTheDocument()
+  })
+
+  it.each([
+    ['connect', 'AD 서버에 연결하지 못했습니다. 호스트·포트·방화벽을 확인하세요'],
+    ['service_bind', '바인드 계정으로 AD에 로그인하지 못했습니다'],
+    ['base_dn', 'AD에서 Base DN(defaultNamingContext)을 찾지 못했습니다'],
+  ])('explains the %s stage when the server cannot verify the settings', async (stage, text) => {
+    const { user } = await openSetup()
+    fillDirectoryForm()
+    const failure = new ApiError(422, {
+      type: 'https://sales.neoine.test/problems/directory-verification-failed',
+      title: 'Directory Verification Failed',
+      status: 422,
+      detail: '서버 문구',
+      stage,
+    })
+    vi.spyOn(gateway.setup, 'saveDirectory').mockRejectedValue(failure)
+
+    await user.click(screen.getByRole('button', { name: 'AD 서버 등록' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(text)
     expect(screen.getByRole('heading', { name: 'AD 서버 등록' })).toBeInTheDocument()
   })
 })
@@ -182,7 +201,7 @@ describe('최초 설정 2단계: 파일 저장 위치 (T-SETUP-02)', () => {
     await user.click(screen.getByRole('button', { name: 'AD 서버 다시 등록' }))
 
     expect(await screen.findByRole('heading', { name: 'AD 서버 등록' })).toBeInTheDocument()
-    fillDirectoryForm({ baseDn: 'dc=other,dc=test' })
+    fillDirectoryForm({ host: 'dc2.corp.test' })
     await user.click(screen.getByRole('button', { name: 'AD 서버 등록' }))
     expect(await screen.findByRole('heading', { name: '파일 저장 위치' })).toBeInTheDocument()
   })

@@ -8,7 +8,7 @@ afterEach(() => vi.restoreAllMocks())
 
 async function openIntegrations() {
   const view = await renderAt('/admin/integrations', { role: 'admin' })
-  await screen.findByLabelText(/서버 URL/)
+  await screen.findByLabelText(/^호스트/)
   return view
 }
 

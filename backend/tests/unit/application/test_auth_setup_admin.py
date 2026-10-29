@@ -5,12 +5,14 @@ from typing import TYPE_CHECKING
 import pytest
 
 from app.application.auth.messages import DIRECTORY_FIRST, LOGIN_FAILED, SETUP_CLOSED
+from app.application.directory.errors import DirectoryCredentialUnreadableError
 from app.application.ports.directory import DirectoryUnavailableError, VerificationStage
 from app.domain.auth.credentials import LoginId, Password
 from app.domain.auth.errors import AuthenticationError, TooManyAttemptsError
 from app.domain.auth.principal import Role
 from app.domain.common.errors import AlreadyExistsError, InvalidStateError
 from tests.factories import NOW
+from tests.factories_auth import BIND_PASSWORD
 from tests.fakes.auth_stack import MAX_PER_ACCOUNT
 from tests.support.auth_seed import (
     account_key,
@@ -87,7 +89,10 @@ async def test_setup_admin_authenticates_with_the_stored_settings(
 
     await _setup(auth)
 
-    assert auth.directory.authenticate_calls[0].settings == stored.settings
+    call = auth.directory.authenticate_calls[0]
+    assert call.settings.connection == stored.connection
+    assert call.settings.bind_password.reveal() == BIND_PASSWORD  # 저장된 암호문을 풀어 쓴다
+    assert call.base_dn == stored.base_dn
 
 
 async def test_setup_admin_after_admin_exists_is_rejected_without_calling_directory(
@@ -150,7 +155,9 @@ async def test_setup_admin_directory_outage_is_propagated_and_not_counted(
     auth: AuthStack, uow_factory: UnitOfWorkFactory, uow: FakeUnitOfWork
 ) -> None:
     await seed_setup_prerequisites(uow_factory)
-    auth.directory.fail_with = DirectoryUnavailableError(stage=VerificationStage.CONNECT)
+    auth.directory.authenticate_fails_with = DirectoryUnavailableError(
+        stage=VerificationStage.CONNECT
+    )
 
     with pytest.raises(DirectoryUnavailableError):
         await _setup(auth)
@@ -185,3 +192,63 @@ async def test_setup_admin_rejects_an_existing_active_user_with_the_same_login_i
         existing = await uow.users.get_active_by_login_id(LoginId("kim"))
     assert existing is not None
     assert existing.role is Role.SALES
+
+
+async def test_setup_first_admin_saves_password_hash(
+    auth: AuthStack, uow_factory: UnitOfWorkFactory, uow: FakeUnitOfWork
+) -> None:
+    """최초 admin 등록 성공 때도 대체 로그인용 해시를 저장한다(AC13)."""
+    await seed_setup_prerequisites(uow_factory)
+
+    await _setup(auth)
+
+    user = await uow.users.get_active_by_login_id(LoginId("kim"))
+    assert user is not None
+    stored = await uow.password_hashes.get(user.id)
+    assert stored is not None
+    assert await auth.hasher.verify(Password("pw-kim"), stored)
+    assert "pw-kim" not in stored.encoded
+
+
+async def test_setup_first_admin_with_a_wrong_password_saves_no_hash(
+    auth: AuthStack, uow_factory: UnitOfWorkFactory, uow: FakeUnitOfWork
+) -> None:
+    await seed_setup_prerequisites(uow_factory)
+
+    with pytest.raises(AuthenticationError):
+        await _setup(auth, "kim", "wrong")
+
+    assert uow.password_hashes._items == {}
+    assert auth.hasher.hash_calls == 0
+
+
+async def test_setup_first_admin_with_unreadable_password_raises_unavailable(
+    auth: AuthStack, uow_factory: UnitOfWorkFactory, uow: FakeUnitOfWork
+) -> None:
+    """저장된 바인드 비밀번호를 풀 수 없으면 503 계열이고 시도는 실패로 세지 않는다(AC10)."""
+    await seed_directory(uow_factory, unreadable=True)
+    await seed_storage(uow_factory)
+
+    with pytest.raises(DirectoryCredentialUnreadableError) as caught:
+        await _setup(auth)
+
+    assert isinstance(caught.value, DirectoryUnavailableError)
+    assert auth.directory.authenticate_calls == []
+    assert uow.login_failures._items == {}  # 선점한 시도를 되돌렸다
+    assert await active_admin_logins(uow_factory) == []
+    assert uow.password_hashes._items == {}
+
+
+async def test_setup_first_admin_does_not_fall_back_to_a_stored_hash(
+    auth: AuthStack, uow_factory: UnitOfWorkFactory
+) -> None:
+    """최초 admin 등록은 AD 인증이 목적이라 AD가 답하지 않으면 대체 로그인 없이 실패한다."""
+    await seed_setup_prerequisites(uow_factory)
+    auth.directory.authenticate_fails_with = DirectoryUnavailableError(
+        stage=VerificationStage.CONNECT
+    )
+
+    with pytest.raises(DirectoryUnavailableError):
+        await _setup(auth)
+
+    assert auth.hasher.verify_calls == []

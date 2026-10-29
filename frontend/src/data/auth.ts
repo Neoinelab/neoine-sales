@@ -3,7 +3,7 @@ import { gateway } from '../gateway'
 import type { AuthConfig } from '../gateway/types'
 import type { ApiError } from '../shared/api/problem'
 import { canAccessAdmin, canWrite } from '../shared/model/permissions'
-import type { Me } from '../shared/model/types'
+import type { DirectoryWarning, LoginResult, Me } from '../shared/model/types'
 import { keys } from './queryKeys'
 import { NO_RETRY, type Mutation, type Query } from './result'
 
@@ -19,15 +19,31 @@ export function useAuthConfig(): Query<AuthConfig> {
 
 /**
  * gateway.auth.login. gcTime 0(비밀번호가 든 variables를 캐시에 남기지 않는다).
- * 성공: keys.me 갱신. 이동(`/`)은 호출 화면이 한다.
+ * 성공: keys.me 갱신, AD 경고(있으면)는 keys.directoryWarning에 메모리로만 둔다. 이동(`/`)은 호출 화면이 한다.
  */
-export function useLogin(): Mutation<{ loginId: string; password: string }, Me> {
+export function useLogin(): Mutation<{ loginId: string; password: string }, LoginResult> {
   const queryClient = useQueryClient()
-  return useMutation<Me, ApiError, { loginId: string; password: string }>({
+  return useMutation<LoginResult, ApiError, { loginId: string; password: string }>({
     mutationFn: ({ loginId, password }) => gateway.auth.login(loginId, password),
     gcTime: 0,
-    onSuccess: (me) => queryClient.setQueryData(keys.me, me),
+    onSuccess: ({ me, directoryWarning }) => {
+      queryClient.setQueryData(keys.me, me)
+      queryClient.setQueryData(keys.directoryWarning, directoryWarning)
+    },
   })
+}
+
+/** 로그인 응답으로 받은 AD 경고(없거나 닫았으면 null). 서버에 다시 묻지 않는다. */
+export function useDirectoryWarning(): { warning: DirectoryWarning | null; dismiss: () => void } {
+  const queryClient = useQueryClient()
+  const { data } = useQuery<DirectoryWarning | null>({
+    queryKey: keys.directoryWarning,
+    queryFn: () => null,
+    enabled: false,
+    staleTime: Infinity,
+    gcTime: Infinity,
+  })
+  return { warning: data ?? null, dismiss: () => queryClient.setQueryData(keys.directoryWarning, null) }
 }
 
 /** gateway.auth.quickLogin(userId). 성공 처리는 useLogin과 같다. */

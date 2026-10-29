@@ -17,7 +17,9 @@ if TYPE_CHECKING:
 
 @dataclass(eq=False, kw_only=True)
 class User(AuditedEntity[UserId]):
-    """이 시스템을 쓸 수 있도록 등록된 AD 계정. 비밀번호는 저장하지 않는다.
+    """이 시스템을 쓸 수 있도록 등록된 AD 계정.
+
+    비밀번호 평문은 저장하지 않는다(대체 로그인용 해시는 별도 저장소).
 
     퇴사 처리된 행(deleted_at)은 이력 보존용 불변 기록이다. 복구하지 않고, 같은 login_id로
     다시 등록하면 항상 새 행(새 id)이 생긴다.
@@ -101,6 +103,14 @@ class User(AuditedEntity[UserId]):
         self.display_name = _directory_text(display_name, NAME_MAX, truncate=True)
         mail = _directory_text(email, EMAIL_MAX_LENGTH, truncate=False)
         self.email = mail if mail is not None and "@" in mail else None
+
+    def record_fallback_login(self, now: datetime) -> None:
+        """대체 로그인 성공 시각만 남긴다. 디렉터리 값이 없으므로 표시 이름·메일은 그대로 둔다."""
+        require_aware(now, "now")
+        if not self.is_active:
+            raise InvalidStateError(ALREADY_RESIGNED)
+        self._touch(now)
+        self.last_login_at = now
 
     def to_ref(self) -> UserRef:
         return UserRef(

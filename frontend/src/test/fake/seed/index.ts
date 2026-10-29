@@ -24,16 +24,14 @@ export const emptyBusinessSeed: SeedFactory = (clock) => {
   const actionTypes = seedActionTypes(env, counters)
 
   const directory: DirectoryRecord = {
-    serverUrls: ['ldaps://dc1.corp.test', 'ldaps://dc2.corp.test'],
-    useStarttls: false,
-    caCertPem: null,
-    bindTemplate: 'CORP\\{login_id}',
-    baseDn: 'dc=corp,dc=test',
+    host: 'dc1.corp.test',
+    port: 636,
+    security: 'ssl',
+    bindAccount: 'CORP\\svc-sales',
+    bindCredentialStatus: 'ok',
     userFilter: '(&(objectClass=user)(sAMAccountName={login_id}))',
-    displayNameAttribute: 'displayName',
-    emailAttribute: 'mail',
     connectTimeoutSeconds: 5,
-    receiveTimeoutSeconds: 10,
+    baseDn: 'dc=corp,dc=test',
     revision: 3,
     updatedAt: env.at(100, 9),
     updatedById: USER_ID.root,

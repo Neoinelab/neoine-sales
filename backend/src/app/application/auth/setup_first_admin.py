@@ -3,6 +3,8 @@ from typing import TYPE_CHECKING
 from app.application.auth.credential_check import parse_login_id, verify_credentials
 from app.application.auth.dev_login import ensure_not_reserved_login_id
 from app.application.auth.messages import DIRECTORY_FIRST, SETUP_CLOSED, STORAGE_FIRST
+from app.application.directory.credentials import unseal_settings
+from app.application.directory.errors import DirectoryCredentialUnreadableError
 from app.application.ids import new_user_id
 from app.domain.auth.principal import Role
 from app.domain.common.errors import AlreadyExistsError, InvalidStateError
@@ -14,6 +16,7 @@ if TYPE_CHECKING:
     from app.application.auth.issue_session import IssuedSession, IssueSession
     from app.application.ports.directory import DirectoryUser
     from app.domain.auth.credentials import LoginId, Password
+    from app.domain.auth.password_hash import PasswordHash
     from app.domain.directory.settings import DirectorySettings
 
 
@@ -29,16 +32,19 @@ class SetupFirstAdmin:
         ensure_not_reserved_login_id(account)
         await self._deps.throttle.ensure_allowed(account, client_ip)
         try:
-            settings = await self._load_settings()
-        except InvalidStateError:
+            settings, base_dn = await self._load_settings()
+        except InvalidStateError, DirectoryCredentialUnreadableError:
             await self._deps.throttle.release(account, client_ip)
             raise
-        profile = await verify_credentials(self._deps, settings, account, password, client_ip)
-        user = await self._register(account, profile)
+        profile = await verify_credentials(
+            self._deps, settings, base_dn, account, password, client_ip=client_ip
+        )
+        password_hash = await self._deps.hasher.hash(password)
+        user = await self._register(account, profile, password_hash)
         await self._deps.throttle.succeeded(account, client_ip)
         return await self._issue_session.execute(user.to_principal())
 
-    async def _load_settings(self) -> DirectorySettings:
+    async def _load_settings(self) -> tuple[DirectorySettings, str]:
         async with self._deps.uow_factory() as uow:
             if await uow.users.count_active_admins() > 0:
                 raise InvalidStateError(SETUP_CLOSED)
@@ -47,9 +53,11 @@ class SetupFirstAdmin:
                 raise InvalidStateError(DIRECTORY_FIRST)
             if await uow.storage_settings.get() is None:
                 raise InvalidStateError(STORAGE_FIRST)
-        return stored.settings
+        return unseal_settings(self._deps.cipher, stored), stored.base_dn
 
-    async def _register(self, account: LoginId, profile: DirectoryUser) -> User:
+    async def _register(
+        self, account: LoginId, profile: DirectoryUser, password_hash: PasswordHash
+    ) -> User:
         now = self._deps.clock.now()
         async with self._deps.uow_factory() as uow:
             await uow.users.lock_roster()
@@ -66,5 +74,6 @@ class SetupFirstAdmin:
             )
             user.record_login(now, display_name=profile.display_name, email=profile.email)
             await uow.users.add(user)
+            await uow.password_hashes.save(user.id, password_hash, now)
             await uow.commit()
         return user

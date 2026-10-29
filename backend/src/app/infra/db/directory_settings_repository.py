@@ -5,8 +5,9 @@ from typing import TYPE_CHECKING
 from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 
+from app.domain.common.secret import SealedSecret
 from app.domain.directory.errors import DirectorySettingsConflictError
-from app.domain.directory.settings import DirectorySettings, DirectoryUrl, StoredDirectorySettings
+from app.domain.directory.settings import DirectoryConnection, SecurityMode, StoredDirectorySettings
 from app.domain.user.value_objects import UserId
 from app.infra.db.models_auth import DirectorySettingsRow
 
@@ -18,35 +19,33 @@ if TYPE_CHECKING:
 _ROW_ID = 1
 
 
-def _values(settings: DirectorySettings) -> dict[str, object]:
+def _values(
+    connection: DirectoryConnection, sealed_bind_password: SealedSecret, base_dn: str
+) -> dict[str, object]:
     return {
-        "server_urls": [url.uri for url in settings.server_urls],
-        "use_starttls": settings.use_starttls,
-        "ca_cert_pem": settings.ca_cert_pem,
-        "bind_template": settings.bind_template,
-        "base_dn": settings.base_dn,
-        "user_filter": settings.user_filter,
-        "display_name_attribute": settings.display_name_attribute,
-        "email_attribute": settings.email_attribute,
-        "connect_timeout_seconds": settings.connect_timeout_seconds,
-        "receive_timeout_seconds": settings.receive_timeout_seconds,
+        "host": connection.host,
+        "port": connection.port,
+        "security": connection.security.value,
+        "bind_account": connection.bind_account,
+        "bind_password_encrypted": sealed_bind_password.token,
+        "base_dn": base_dn,
+        "user_filter": connection.user_filter,
+        "connect_timeout_seconds": connection.connect_timeout_seconds,
     }
 
 
 def _to_entity(row: DirectorySettingsRow) -> StoredDirectorySettings:
     return StoredDirectorySettings(
-        settings=DirectorySettings(
-            server_urls=tuple(DirectoryUrl.parse(str(url)) for url in row.server_urls),
-            use_starttls=row.use_starttls,
-            ca_cert_pem=row.ca_cert_pem,
-            bind_template=row.bind_template,
-            base_dn=row.base_dn,
+        connection=DirectoryConnection(
+            host=row.host,
+            port=row.port,
+            security=SecurityMode(row.security),
+            bind_account=row.bind_account,
             user_filter=row.user_filter,
-            display_name_attribute=row.display_name_attribute,
-            email_attribute=row.email_attribute,
             connect_timeout_seconds=row.connect_timeout_seconds,
-            receive_timeout_seconds=row.receive_timeout_seconds,
         ),
+        sealed_bind_password=SealedSecret(row.bind_password_encrypted),
+        base_dn=row.base_dn,
         revision=row.revision,
         updated_at=row.updated_at,
         updated_by=UserId(row.updated_by_user_id) if row.updated_by_user_id is not None else None,
@@ -66,32 +65,35 @@ class SqlDirectorySettingsRepository:
         row = (await self._session.scalars(statement)).one_or_none()
         return _to_entity(row) if row else None
 
-    async def save(
+    async def save(  # noqa: PLR0913 - 접속 정보·암호문·Base DN + 잠금·감사 값이 모두 필요
         self,
-        settings: DirectorySettings,
+        connection: DirectoryConnection,
+        sealed_bind_password: SealedSecret,
+        base_dn: str,
         *,
         expected_revision: int | None,
         updated_by: UserId | None,
         now: datetime,
     ) -> StoredDirectorySettings:
+        values = _values(connection, sealed_bind_password, base_dn)
         if expected_revision is None:
-            await self._create(settings, updated_by, now)
+            await self._create(values, updated_by, now)
         else:
-            await self._replace(settings, expected_revision, updated_by, now)
+            await self._replace(values, expected_revision, updated_by, now)
         stored = await self.get()
         if stored is None:  # 같은 트랜잭션에서 방금 쓴 행이므로 일어나지 않는다
             raise DirectorySettingsConflictError
         return stored
 
     async def _create(
-        self, settings: DirectorySettings, updated_by: UserId | None, now: datetime
+        self, values: dict[str, object], updated_by: UserId | None, now: datetime
     ) -> None:
         row = DirectorySettingsRow(
             id=_ROW_ID,
             revision=1,
             updated_at=now,
             updated_by_user_id=updated_by,
-            **_values(settings),
+            **values,
         )
         try:
             async with self._session.begin_nested():
@@ -102,7 +104,7 @@ class SqlDirectorySettingsRepository:
 
     async def _replace(
         self,
-        settings: DirectorySettings,
+        values: dict[str, object],
         expected_revision: int,
         updated_by: UserId | None,
         now: datetime,
@@ -117,7 +119,7 @@ class SqlDirectorySettingsRepository:
                 revision=expected_revision + 1,
                 updated_at=now,
                 updated_by_user_id=updated_by,
-                **_values(settings),
+                **values,
             )
             .returning(DirectorySettingsRow.id)
             .execution_options(synchronize_session=False)

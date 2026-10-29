@@ -13,6 +13,7 @@ sys.path[:0] = [str(ROOT / "src"), str(ROOT)]
 from app.config.profiles import LocalSettings  # noqa: E402
 from app.main import create_app  # noqa: E402
 from tests.fakes.use_cases import FakeUseCases  # noqa: E402
+from tests.support.crypto_keys import TEST_FERNET_KEY  # noqa: E402
 
 TARGET = ROOT / "openapi.json"
 
@@ -22,6 +23,7 @@ def main() -> None:
         _env_file=None,
         database_url="postgresql+asyncpg://user:pw@localhost:5432/none",
         jwt_secret="x" * 40,
+        settings_encryption_key=TEST_FERNET_KEY,
         enable_docs=True,
     )
     schema = create_app(settings=settings, use_cases=FakeUseCases()).openapi()

@@ -11,6 +11,11 @@ from tests.functional.steps.auth import (
     given_user_registered,
 )
 from tests.functional.steps.common import then_body_is, then_problem_is, then_status_is
+from tests.functional.steps.login import (
+    then_no_password_hash_is_stored,
+    then_no_password_hash_row_for_user_id,
+    then_password_hash_is_stored_for,
+)
 from tests.functional.steps.requests import when_get
 from tests.functional.steps.rereads import then_session_is_rejected
 from tests.functional.steps.users import (
@@ -18,6 +23,7 @@ from tests.functional.steps.users import (
     given_dev_login,
     given_signed_in_session,
     given_user_deleted,
+    given_user_signed_in_once,
     id_of,
     then_first_setup_stays_closed,
     then_logins_listed,
@@ -250,3 +256,27 @@ async def test_a_dev_login_admin_is_listed_as_a_regular_user(api: Api) -> None:
     # Then
     then_status_is(response, 200)
     assert "dev-admin" in [i["login_id"] for i in response.json()["items"]]
+
+
+async def test_deleting_a_user_who_signed_in_removes_the_stored_password_hash(api: Api) -> None:
+    """Scenario: AD로 로그인한 적이 있는 사용자도 연결이 없으면 물리 삭제되고 해시 행도 사라진다."""
+    # Given
+    kim_id = await given_user_signed_in_once(api, login_id="kim", role="sales")
+    await then_password_hash_is_stored_for(api, login_id="kim", password="pw-kim")  # noqa: S106 - 가짜 값
+    # When
+    response = await when_delete_user(api, kim_id)
+    # Then
+    then_body_is(response, {"outcome": "deleted"})  # 해시는 삭제를 막는 연결이 아니다
+    await then_no_password_hash_row_for_user_id(api, kim_id)
+
+
+async def test_resigning_a_linked_user_removes_the_stored_password_hash(api: Api) -> None:
+    """Scenario: 연결이 있어 퇴사 처리되는 사용자의 해시 행도 지워진다(행은 남는다)."""
+    # Given
+    kim_id = await given_user_signed_in_once(api, login_id="kim", role="sales")
+    await given_user_linked(api, login_id="kim", kind="deal_owner")
+    # When
+    response = await when_delete_user(api, kim_id)
+    # Then
+    then_body_is(response, {"outcome": "resigned"})
+    await then_no_password_hash_is_stored(api, login_id="kim")

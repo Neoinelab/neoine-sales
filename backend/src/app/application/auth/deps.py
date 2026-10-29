@@ -5,6 +5,8 @@ if TYPE_CHECKING:
     from app.application.auth.throttle import LoginThrottle
     from app.application.ports.clock import Clock
     from app.application.ports.directory import DirectoryAuthenticator
+    from app.application.ports.password_hasher import PasswordHasher
+    from app.application.ports.secret_cipher import SecretCipher
     from app.application.ports.unit_of_work import UnitOfWorkFactory
 
 
@@ -16,3 +18,5 @@ class AuthDeps:
     clock: Clock
     directory: DirectoryAuthenticator
     throttle: LoginThrottle
+    cipher: SecretCipher
+    hasher: PasswordHasher

@@ -9,9 +9,10 @@ from app.application.auth.messages import DIRECTORY_NOT_CONFIGURED
 from app.application.ports.directory import (
     DirectoryMisconfiguredError,
     DirectoryUnavailableError,
+    InvalidCredentialsError,
     VerificationStage,
 )
-from tests.functional.steps.auth import given_ad_account
+from tests.functional.steps.auth import given_ad_account, password_of
 from tests.functional.steps.common import (
     then_body_includes,
     then_problem_is,
@@ -24,6 +25,7 @@ from tests.functional.steps.login import (
     given_employee,
     given_employee_deleted,
     then_directory_was_not_asked_again,
+    then_failure_count_is,
     then_login_failed_with_the_common_401,
     then_no_cookie_is_set,
     when_log_in,
@@ -105,10 +107,10 @@ async def test_empty_or_nul_password_never_reaches_the_directory(api: Api, passw
 async def test_directory_outage_is_503_with_a_fixed_message(
     api: Api, error: DirectoryUnavailableError
 ) -> None:
-    """Scenario: AD 장애는 원인 문구를 숨긴 503이고 세션 쿠키가 없다."""
+    """Scenario: AD 장애 중 대체 로그인도 못 하면 원인 문구를 숨긴 503이고 세션 쿠키가 없다."""
     # Given
     await given_employee(api)
-    api.directory.fail_with = error
+    api.directory.authenticate_fails_with = error
     # When
     response = await when_log_in(api)
     # Then
@@ -129,7 +131,7 @@ async def test_directory_outage_message_is_identical_for_every_cause(api: Api) -
 
 
 async def test_login_before_directory_setup_is_409_without_asking_the_directory(api: Api) -> None:
-    """Scenario: AD 연결 설정 전에 로그인하면 409이고 AD를 호출하지 않는다."""
+    """Scenario: AD 연결 설정 전에 해시 없는 사용자가 로그인하면 409이고 AD를 호출하지 않는다."""
     # Given
     given_ad_account(api, login_id="kim")
     calls_before = directory_call_count(api)
@@ -202,14 +204,45 @@ async def test_legacy_oidc_routes_do_not_exist(api: Api, path: str, allowed: set
 async def test_password_never_appears_in_responses_or_logs(
     api: Api, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """Scenario: 성공·실패·검증 오류·AD 장애 어느 응답과 로그에도 입력한 비밀번호가 없다."""
+    """Scenario: 성공·실패·검증 오류·AD 장애(대체 로그인 성공·실패) 어디에도 비밀번호가 없다."""
     # Given
     caplog.set_level("DEBUG")
     await given_employee(api)
+    await given_employee(api, login_id="lee", display_name="이영업", email="lee@corp.test")
     api.directory.add_account("kim", DUMMY_PASSWORD)
+    api.directory.add_account("lee", DUMMY_PASSWORD)
     # When
     responses = await when_submit_password_in_every_outcome(api, DUMMY_PASSWORD)
     # Then
-    assert [r.status_code for r in responses] == [200, 401, 422, 503]
+    assert [r.status_code for r in responses] == [200, 401, 422, 200, 503]
     then_no_response_mentions(responses, DUMMY_PASSWORD)
     assert DUMMY_PASSWORD not in caplog.text
+
+
+async def test_user_missing_in_directory_gets_401_and_counts_failure(api: Api) -> None:
+    """Scenario: AD 검색에 사용자가 없으면 공통 401이고 실패 1회로 센다(대체 로그인 없음)."""
+    # Given
+    await given_employee(api, login_id="kim")
+    await when_log_in(api)  # 성공해 해시가 생긴다
+    api.directory.authenticate_fails_with = InvalidCredentialsError(stage=VerificationStage.SEARCH)
+    # When
+    response = await when_log_in(api)
+    # Then
+    then_login_failed_with_the_common_401(response)
+    then_no_cookie_is_set(response)
+    await then_failure_count_is(api, 1)
+
+
+async def test_wrong_password_gets_401_even_with_stored_hash(api: Api) -> None:
+    """Scenario: AD가 비밀번호를 바꿔 거부하면 저장된 예전 비밀번호 해시가 맞아도 401이다."""
+    # Given
+    await given_employee(api)
+    old_password = password_of("kim")
+    assert (await when_log_in(api, password=old_password)).status_code == 200
+    api.directory.add_account("kim", "changed-in-directory-1!")  # AD에서 비밀번호가 바뀌었다
+    # When
+    response = await when_log_in(api, password=old_password)
+    # Then
+    then_login_failed_with_the_common_401(response)
+    then_no_cookie_is_set(response)
+    await then_failure_count_is(api, 1)

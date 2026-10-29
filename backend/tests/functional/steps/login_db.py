@@ -88,7 +88,13 @@ async def then_no_failure_is_counted(api: Api) -> None:
 
 async def then_no_secret_is_stored(api: Api, *, secrets: list[str]) -> None:
     """인증 관련 4개 테이블 어디에도 주어진 비밀 값이 없다. 검사가 의미 있도록 행이 있어야 한다."""
-    tables = ("users", "login_failures", "directory_settings", "auth_sessions")
+    tables = (
+        "users",
+        "login_failures",
+        "directory_settings",
+        "auth_sessions",
+        "user_password_hashes",
+    )
     for table in tables:
         rows = await sql_rows(api, f"select t::text from {table} t")  # noqa: S608
         content = "\n".join(str(row[0]) for row in rows)

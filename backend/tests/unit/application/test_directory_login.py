@@ -1,23 +1,23 @@
-"""DirectoryLogin 유스케이스(AUTH-1~6·13·14·7, T-U1~U6·U17·U18)."""
+"""DirectoryLogin 유스케이스: 서비스 계정 search-then-bind 로그인과 비밀번호 해시 저장(AC7·AC13).
+
+AD가 답하지 못할 때의 대체 로그인은 test_directory_login_fallback.py다.
+"""
 
 from typing import TYPE_CHECKING
 
 import pytest
 
 from app.application.auth.messages import DIRECTORY_NOT_CONFIGURED, LOGIN_FAILED
-from app.application.ports.directory import (
-    DirectoryMisconfiguredError,
-    DirectoryUnavailableError,
-    VerificationStage,
-)
+from app.application.ports.directory import InvalidCredentialsError, VerificationStage
 from app.domain.auth.credentials import LoginId, Password
 from app.domain.auth.errors import AuthenticationError
 from app.domain.auth.principal import Role
 from app.domain.common.errors import InvalidStateError
 from tests.factories import NOW
-from tests.factories_auth import make_directory_settings
+from tests.factories_auth import BASE_DN, BIND_PASSWORD
+from tests.factories_directory import make_directory_connection
 from tests.fakes.auth_stack import SESSION_TTL
-from tests.support.auth_seed import DUMMY_PASSWORD, seed_directory, seed_user
+from tests.support.auth_seed import DUMMY_PASSWORD, account_key, seed_directory, seed_user
 
 if TYPE_CHECKING:
     from app.application.auth.issue_session import IssuedSession
@@ -42,12 +42,15 @@ async def _login(
     login_id: str = "kim",
     password: str = "pw-kim",  # noqa: S107
 ) -> IssuedSession:
-    return await auth.login.execute(login_id=login_id, password=Password(password), client_ip=IP)
+    outcome = await auth.login.execute(login_id=login_id, password=Password(password), client_ip=IP)
+    return outcome.session
 
 
 @pytest.mark.usefixtures("ready")
 async def test_login_issues_session_for_registered_user(auth: AuthStack, clock: FixedClock) -> None:
-    issued = await auth.login.execute(login_id="kim", password=Password("pw-kim"), client_ip=IP)
+    issued = (
+        await auth.login.execute(login_id="kim", password=Password("pw-kim"), client_ip=IP)
+    ).session
 
     assert issued.principal.subject == "kim"
     assert issued.principal.role is Role.SALES
@@ -74,7 +77,9 @@ async def test_login_after_reregistration_uses_the_new_row_not_the_resigned_one(
     new = await seed_user(uow_factory, "lee", Role.SALES)
     auth.directory.add_account("lee", "pw-lee")
 
-    issued = await auth.login.execute(login_id="lee", password=Password("pw-lee"), client_ip=IP)
+    issued = (
+        await auth.login.execute(login_id="lee", password=Password("pw-lee"), client_ip=IP)
+    ).session
 
     assert issued.principal.user_id == new.id
     assert issued.principal.user_id != old.id
@@ -89,7 +94,9 @@ async def test_login_role_comes_from_the_users_table(
     await seed_user(uow_factory, "lee", Role.USER)
     auth.directory.add_account("lee", "pw-lee")
 
-    issued = await auth.login.execute(login_id="lee", password=Password("pw-lee"), client_ip=IP)
+    issued = (
+        await auth.login.execute(login_id="lee", password=Password("pw-lee"), client_ip=IP)
+    ).session
 
     assert issued.principal.role is Role.USER
 
@@ -182,45 +189,43 @@ async def test_login_failure_exception_never_contains_the_password(auth: AuthSta
 
 
 @pytest.mark.usefixtures("ready")
-@pytest.mark.parametrize(
-    "error",
-    [
-        DirectoryUnavailableError(stage=VerificationStage.CONNECT),
-        DirectoryUnavailableError(stage=VerificationStage.TLS),
-        DirectoryMisconfiguredError(stage=VerificationStage.SEARCH),
-    ],
-)
-async def test_directory_unavailable_is_propagated_and_not_counted(
-    auth: AuthStack, directory: FakeDirectoryAuthenticator, uow: FakeUnitOfWork, error: Exception
-) -> None:
-    directory.fail_with = error  # type: ignore[assignment]
-
-    with pytest.raises(DirectoryUnavailableError):
-        await _login(auth)
-
-    assert uow.login_failures._items == {}
-    assert uow.sessions._items == {}
-
-
-@pytest.mark.usefixtures("ready")
 async def test_login_id_is_normalized_before_lookup(
     auth: AuthStack, directory: FakeDirectoryAuthenticator
 ) -> None:
-    issued = await auth.login.execute(login_id="  Kim ", password=Password("pw-kim"), client_ip=IP)
+    issued = (
+        await auth.login.execute(login_id="  Kim ", password=Password("pw-kim"), client_ip=IP)
+    ).session
 
     assert issued.principal.subject == "kim"
     assert [call.login_id for call in directory.authenticate_calls] == [LoginId("kim")]
 
 
-async def test_login_without_directory_settings_is_rejected_without_calling_directory(
+async def test_login_without_directory_settings_and_without_a_hash_is_rejected_and_counted(
     auth: AuthStack, directory: FakeDirectoryAuthenticator, uow: FakeUnitOfWork
 ) -> None:
+    """설정이 없으면 AD를 부르지 않고 대체 로그인으로 넘어가며, 해시가 없으면 실패 1회다(AC14)."""
     with pytest.raises(InvalidStateError) as caught:
         await _login(auth)
 
     assert str(caught.value) == DIRECTORY_NOT_CONFIGURED
     assert directory.authenticate_calls == []
-    assert uow.login_failures._items == {}
+    assert directory.discover_calls == []
+    assert uow.login_failures._items[account_key("kim")].failures == 1
+
+
+@pytest.mark.usefixtures("ready")
+async def test_login_passes_stored_base_dn_and_unsealed_password(
+    auth: AuthStack, directory: FakeDirectoryAuthenticator
+) -> None:
+    await _login(auth)
+
+    (call,) = directory.authenticate_calls
+    assert call.base_dn == BASE_DN  # 로그인마다 다시 찾지 않고 저장된 값을 쓴다
+    assert directory.discover_calls == []
+    assert call.settings.connection == make_directory_connection()
+    assert call.settings.bind_password.reveal() == BIND_PASSWORD  # 암호문을 풀어 쓴다
+    assert call.login_id == LoginId("kim")
+    assert call.password == "pw-kim"  # noqa: S105 - 가짜 값
 
 
 @pytest.mark.usefixtures("ready")
@@ -228,16 +233,26 @@ async def test_login_uses_the_current_settings_each_time(
     auth: AuthStack, uow_factory: UnitOfWorkFactory, directory: FakeDirectoryAuthenticator
 ) -> None:
     await _login(auth)
-    changed = make_directory_settings(base_dn="dc=other,dc=test")
     async with uow_factory() as uow:
-        await uow.directory_settings.save(changed, expected_revision=1, updated_by=None, now=NOW)
+        await uow.directory_settings.save(
+            make_directory_connection(host="dc2.corp.test"),
+            auth.cipher.seal("Rotated-pw-9!"),
+            "dc=other,dc=test",
+            expected_revision=1,
+            updated_by=None,
+            now=NOW,
+        )
         await uow.commit()
 
     await _login(auth)
 
     first, second = directory.authenticate_calls
-    assert first.settings.base_dn == "dc=corp,dc=test"
-    assert second.settings == changed
+    assert first.base_dn == BASE_DN
+    assert (second.base_dn, second.settings.connection.host) == (
+        "dc=other,dc=test",
+        "dc2.corp.test",
+    )
+    assert second.settings.bind_password.reveal() == "Rotated-pw-9!"
 
 
 @pytest.mark.usefixtures("ready")
@@ -275,3 +290,107 @@ async def test_login_of_a_user_deleted_during_the_login_is_a_plain_login_failure
     assert type(caught.value) is AuthenticationError
     assert str(caught.value) == LOGIN_FAILED
     assert uow.sessions._items == {}
+
+
+@pytest.mark.usefixtures("ready")
+async def test_successful_directory_login_saves_new_password_hash(
+    auth: AuthStack, uow: FakeUnitOfWork, clock: FixedClock
+) -> None:
+    await _login(auth)
+
+    user = await uow.users.get_active_by_login_id(LoginId("kim"))
+    assert user is not None
+    first = await uow.password_hashes.get(user.id)
+    assert first is not None
+    assert await auth.hasher.verify(Password("pw-kim"), first)
+    assert "pw-kim" not in repr(first)
+    assert "pw-kim" not in first.encoded
+    assert uow.password_hashes.saved_at(user.id) == NOW
+
+    clock.advance(60)
+    await _login(auth)
+
+    second = await uow.password_hashes.get(user.id)
+    assert second is not None
+    assert second != first  # 새 솔트로 덮어쓴다
+    assert uow.password_hashes.saved_at(user.id) == clock.now()
+    assert len(uow.password_hashes._items) == 1
+
+
+@pytest.mark.usefixtures("ready")
+async def test_hash_follows_the_latest_directory_password(
+    auth: AuthStack, directory: FakeDirectoryAuthenticator, uow: FakeUnitOfWork
+) -> None:
+    await _login(auth)
+    directory.add_account("kim", "pw-kim-changed", display_name="김영업", email="kim@corp.test")
+
+    await _login(auth, "kim", "pw-kim-changed")
+
+    user = await uow.users.get_active_by_login_id(LoginId("kim"))
+    assert user is not None
+    stored = await uow.password_hashes.get(user.id)
+    assert stored is not None
+    assert await auth.hasher.verify(Password("pw-kim-changed"), stored)
+    assert not await auth.hasher.verify(Password("pw-kim"), stored)
+
+
+@pytest.mark.usefixtures("ready")
+@pytest.mark.parametrize("stage", [VerificationStage.BIND, VerificationStage.SEARCH])
+async def test_rejected_password_gets_401_even_when_hash_matches(
+    auth: AuthStack,
+    directory: FakeDirectoryAuthenticator,
+    uow: FakeUnitOfWork,
+    stage: VerificationStage,
+) -> None:
+    await _login(auth)  # 해시가 생긴다
+    directory.authenticate_fails_with = InvalidCredentialsError(stage=stage)
+    saved = dict(uow.password_hashes._items)
+    verify_calls = len(auth.hasher.verify_calls)
+
+    with pytest.raises(AuthenticationError) as caught:
+        await _login(auth)  # 같은 비밀번호(해시와 일치)
+
+    assert type(caught.value) is AuthenticationError
+    assert str(caught.value) == LOGIN_FAILED
+    assert uow.password_hashes._items == saved  # AD가 거부해도 해시는 지우지 않는다
+    assert len(auth.hasher.verify_calls) == verify_calls  # 대체 로그인을 시도하지 않았다
+    assert uow.login_failures._items[account_key("kim")].failures == 1
+
+
+@pytest.mark.usefixtures("ready")
+async def test_failed_directory_login_saves_no_hash(auth: AuthStack, uow: FakeUnitOfWork) -> None:
+    with pytest.raises(AuthenticationError):
+        await _login(auth, "kim", "not-the-password")
+
+    assert uow.password_hashes._items == {}
+    assert auth.hasher.hash_calls == 0
+
+
+async def test_login_of_an_unregistered_user_saves_no_hash(
+    auth: AuthStack, uow_factory: UnitOfWorkFactory, uow: FakeUnitOfWork
+) -> None:
+    await seed_directory(uow_factory)
+    auth.directory.add_account("newbie", "pw-newbie")
+
+    with pytest.raises(AuthenticationError):
+        await _login(auth, "newbie", "pw-newbie")
+
+    assert uow.password_hashes._items == {}
+
+
+@pytest.mark.usefixtures("ready")
+async def test_a_directory_login_carries_no_directory_warning(auth: AuthStack) -> None:
+    outcome = await auth.login.execute(login_id="kim", password=Password("pw-kim"), client_ip=IP)
+
+    assert outcome.directory_warning is None
+
+
+@pytest.mark.usefixtures("ready")
+async def test_login_password_never_reaches_stored_rows_in_plain_text(
+    auth: AuthStack, uow: FakeUnitOfWork
+) -> None:
+    await _login(auth, "kim", "pw-kim")
+
+    stored = repr(uow.password_hashes._items) + repr(uow.directory_settings._items)
+    assert "pw-kim" not in stored
+    assert BIND_PASSWORD not in stored

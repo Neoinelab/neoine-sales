@@ -1,7 +1,8 @@
 """사용자를 FK로 참조하는 행을 하나씩 만드는 도우미(퇴사/물리 삭제 분기와 has_links 검증용).
 
 Fake와 SQL UoW 어느 쪽에나 쓴다. 참조 대상 사용자 외에 필요한 보조 사용자·고객·Deal은 함께 만든다.
-LINK_KINDS가 users를 가리키는 FK 종류의 전부여야 한다(스키마 점검 테스트가 FK 집합과 대조한다).
+LINK_KINDS가 (세션·비밀번호 해시를 뺀) users를 가리키는 FK 종류의 전부여야 한다
+(스키마 점검 테스트가 FK 집합과 대조한다).
 Deal 모델 모듈은 사용 시점에 가져온다(사용자 테스트의 수집이 Deal 구현에 묶이지 않게 한다).
 """
 
@@ -15,7 +16,7 @@ from tests.factories import (
     make_deal_action,
 )
 from tests.factories_action_type import attach_catalog_type, make_action_type
-from tests.factories_auth import make_directory_settings, make_user
+from tests.factories_auth import BASE_DN, make_user
 from tests.factories_catalog import make_label
 
 if TYPE_CHECKING:
@@ -60,7 +61,9 @@ LINK_COLUMNS: Final = {
     "meeting_author": ("partner_meetings", "created_by_user_id"),
 }
 SESSION_COLUMN: Final = ("auth_sessions", "user_id")
-EXPECTED_USER_FKS: Final = frozenset({*LINK_COLUMNS.values(), SESSION_COLUMN})
+# 대체 로그인용 비밀번호 해시도 사용자 삭제 때 먼저 지우거나 CASCADE로 지워지므로 연결이 아니다.
+PASSWORD_HASH_COLUMN: Final = ("user_password_hashes", "user_id")
+EXPECTED_USER_FKS: Final = frozenset({*LINK_COLUMNS.values(), SESSION_COLUMN, PASSWORD_HASH_COLUMN})
 
 
 async def _helper_user(uow: UnitOfWork) -> User:
@@ -114,9 +117,15 @@ async def _create_link(uow: UnitOfWork, user: User, kind: str) -> None:
         await uow.users.add(make_user(f"c{uuid4().hex[:12]}", created_by_user_id=user.id))
     elif kind == "directory_settings":
         # 이미 설정이 있는 환경(e2e admin 앱)에서는 현재 revision으로 갱신한다.
+        from app.domain.common.secret import SealedSecret  # noqa: PLC0415
+
+        from tests.factories_directory import make_directory_connection  # noqa: PLC0415
+
         stored = await uow.directory_settings.get()
         await uow.directory_settings.save(
-            make_directory_settings(),
+            make_directory_connection(),
+            SealedSecret("sealed-dummy-token"),
+            BASE_DN,
             expected_revision=None if stored is None else stored.revision,
             updated_by=user.id,
             now=NOW,

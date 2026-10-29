@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 from app.domain.auth.principal import Role
+from tests.factories_auth import BASE_DN
 from tests.functional.steps.auth import given_logged_out, password_of
 from tests.functional.steps.common import then_status_is
 from tests.functional.steps.login import (
@@ -13,6 +14,8 @@ from tests.functional.steps.login import (
     then_last_login_is_recorded,
     then_login_failed_with_the_common_401,
     then_no_cookie_is_set,
+    then_no_password_hash_is_stored,
+    then_password_hash_is_stored_for,
     then_signed_in_as,
     when_log_in,
 )
@@ -147,3 +150,48 @@ async def test_new_directory_settings_apply_to_the_next_login(api: Api) -> None:
     # Then
     then_status_is(response, 200)
     then_directory_was_asked_with_base_dn(api, "dc=changed,dc=test")
+
+
+async def test_registered_user_logs_in_through_service_account_search(api: Api) -> None:
+    """Scenario: 저장된 Base DN으로 사용자를 찾아 인증하고, 성공하면 비밀번호 해시가 남는다."""
+    # Given
+    await given_employee(api)
+    api.directory.authenticate_calls.clear()
+    api.directory.discover_calls.clear()
+    # When
+    response = await when_log_in(api)
+    # Then
+    then_signed_in_as(response, subject="kim", email="kim@corp.test", name="김영업", role="sales")
+    (call,) = api.directory.authenticate_calls
+    assert (call.base_dn, call.login_id.value) == (BASE_DN, "kim")
+    assert api.directory.discover_calls == []  # 로그인마다 Base DN을 다시 찾지 않는다
+    stored = await then_password_hash_is_stored_for(
+        api, login_id="kim", password=password_of("kim")
+    )
+    assert stored not in response.text
+
+
+async def test_each_successful_login_replaces_the_stored_hash_with_a_new_salt(api: Api) -> None:
+    """Scenario: 로그인에 성공할 때마다 같은 비밀번호도 새 솔트의 해시로 덮어쓴다."""
+    # Given
+    await given_employee(api)
+    await when_log_in(api)
+    first = await then_password_hash_is_stored_for(api, login_id="kim", password=password_of("kim"))
+    # When
+    await when_log_in(api)
+    # Then
+    second = await then_password_hash_is_stored_for(
+        api, login_id="kim", password=password_of("kim")
+    )
+    assert second != first
+
+
+async def test_a_failed_login_stores_no_hash(api: Api) -> None:
+    """Scenario: 비밀번호가 틀린 로그인은 해시를 만들지 않는다."""
+    # Given
+    await given_employee(api)
+    # When
+    response = await when_log_in(api, password="wrong-password")  # noqa: S106 - 가짜 값
+    # Then
+    then_login_failed_with_the_common_401(response)
+    await then_no_password_hash_is_stored(api, login_id="kim")

@@ -7,6 +7,7 @@ import pytest
 
 from app.config import Profile, get_settings
 from app.config.profiles import DevSettings, LocalSettings
+from tests.support.crypto_keys import TEST_FERNET_KEY
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -31,6 +32,7 @@ def _isolated_env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Iterator[N
     for key in [k for k in os.environ if k.startswith("APP_")]:
         monkeypatch.delenv(key)
     monkeypatch.setenv("APP_JWT_SECRET", JWT_SECRET)
+    monkeypatch.setenv("APP_SETTINGS_ENCRYPTION_KEY", TEST_FERNET_KEY)
     get_settings.cache_clear()
     yield
     get_settings.cache_clear()

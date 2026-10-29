@@ -1,5 +1,6 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { gateway } from '../gateway'
+import type { DirectoryTestResult } from '../gateway/types'
 import type { ApiError } from '../shared/api/problem'
 import type { DirectorySettings, DirectorySettingsInput, StorageSettings } from '../shared/model/types'
 import { keys } from './queryKeys'
@@ -18,8 +19,8 @@ export interface SaveDirectoryVariables {
   input: DirectorySettingsInput
   /** 현재 관리자 비밀번호(개발용 로그인은 null). */
   password: string | null
-  /** 화면이 읽은 설정 버전(낙관적 잠금). */
-  expectedRevision: number
+  /** 화면이 읽은 설정 버전(낙관적 잠금). 설정이 없을 때 새로 등록하면 null. */
+  expectedRevision: number | null
 }
 
 export interface TestDirectoryVariables {
@@ -38,8 +39,8 @@ export function useSaveDirectory(): Mutation<SaveDirectoryVariables, DirectorySe
 }
 
 /** gateway.settings.testDirectory. gcTime 0(비밀번호). 실패는 ApiError(kind directory-verification-failed, stage). 캐시 영향 없음. */
-export function useTestDirectory(): Mutation<TestDirectoryVariables> {
-  return useMutation<void, ApiError, TestDirectoryVariables>({
+export function useTestDirectory(): Mutation<TestDirectoryVariables, DirectoryTestResult> {
+  return useMutation<DirectoryTestResult, ApiError, TestDirectoryVariables>({
     mutationFn: ({ input, password }) => gateway.settings.testDirectory(input, password),
     gcTime: 0,
   })

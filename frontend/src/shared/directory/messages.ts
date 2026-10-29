@@ -1,10 +1,12 @@
 import { ApiError, errorMessage } from '../api/problem'
 
 const STAGE_MESSAGES: Record<string, string> = {
-  connect: 'AD 서버에 연결할 수 없습니다. 서버 URL과 네트워크를 확인하세요.',
-  tls: 'TLS 연결을 확인하지 못했습니다. CA 인증서와 StartTLS 설정을 확인하세요.',
-  bind: '바인드 템플릿 또는 계정 정보를 확인하세요.',
-  search: '사용자 검색에 실패했습니다. Base DN과 사용자 검색 필터를 확인하세요.',
+  connect: 'AD 서버에 연결하지 못했습니다. 호스트·포트·방화벽을 확인하세요.',
+  tls: 'SSL/StartTLS 연결을 맺지 못했습니다. 보안 연결 방식과 포트가 서버 설정과 맞는지 확인하세요.',
+  service_bind: '바인드 계정으로 AD에 로그인하지 못했습니다. 바인드 계정과 바인드 비밀번호를 확인하세요.',
+  base_dn: 'AD에서 Base DN(defaultNamingContext)을 찾지 못했습니다. AD 서버 설정과 바인드 계정의 조회 권한을 확인하세요.',
+  search: '사용자 검색에 실패했습니다. 사용자 필터와 바인드 계정의 검색 권한을 확인하세요.',
+  bind: '입력한 관리자 비밀번호로 AD에 로그인하지 못했습니다. 관리자 비밀번호를 확인하세요.',
 }
 
 /** AD 검증이 실패한 단계에 맞는 안내. 모르는 단계면 undefined. */

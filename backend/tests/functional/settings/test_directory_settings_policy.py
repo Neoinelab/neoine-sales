@@ -4,7 +4,6 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from app.application.ports.directory import DirectoryUnavailableError, VerificationStage
 from tests.functional.steps.auth import (
     ADMIN_LOGIN,
     ME,
@@ -24,8 +23,10 @@ from tests.functional.steps.settings import (
     NEW_DN,
     SETTINGS,
     current_user_id,
+    directory_error,
     given_dev_login_admin,
-    given_directory_probe_fails_with,
+    given_directory_discovery_fails_with,
+    given_directory_reports_base_dn,
     given_no_directory_calls_yet,
     given_session_token,
     given_wrong_password_attempts,
@@ -53,7 +54,8 @@ async def test_update_attempts_are_limited_per_admin_account(api: Api) -> None:
     await given_wrong_password_attempts(api, endpoint=SETTINGS)
     given_no_directory_calls_yet(api)
     # When
-    response = await when_update_settings(api, update_payload(base_dn=NEW_DN))
+    given_directory_reports_base_dn(api, NEW_DN)
+    response = await when_update_settings(api, update_payload(connect_timeout_seconds=9))
     # Then
     then_problem_kind_is(response, status=429, kinds=("too-many-attempts",))
     then_directory_not_called(api)
@@ -70,30 +72,31 @@ async def test_update_requires_the_csrf_header(api: Api) -> None:
     await then_stored_settings_are(api, revision=1, base_dn="dc=corp,dc=test")
 
 
-async def test_a_dev_login_admin_saves_after_a_probe_only_check(api: Api) -> None:
-    """Scenario: 개발 로그인 admin은 비밀번호 없이 저장하고 AD에는 연결 확인(probe)만 한다."""
+async def test_a_dev_login_admin_saves_after_discovering_the_base_dn_only(api: Api) -> None:
+    """Scenario: 개발 로그인 admin은 admin 비밀번호 없이 저장하고 AD에는 Base DN 탐색까지만 한다."""
     # Given
     await given_dev_login_admin(api)
+    given_directory_reports_base_dn(api, NEW_DN)
     given_no_directory_calls_yet(api)
     # When
-    response = await when_update_settings(api, update_payload(password=None, base_dn=NEW_DN))
+    response = await when_update_settings(
+        api, update_payload(password=None, connect_timeout_seconds=9)
+    )
     # Then
     then_status_is(response, 200)
     body = response.json()
-    assert body["revision"] == 2
+    assert (body["revision"], body["base_dn"]) == (2, NEW_DN)
     then_updated_by_is_user_ref(body, user_id=await current_user_id(api), name="개발 사용자(admin)")
     assert "login_id" not in body["updated_by"]
-    assert len(api.directory.probe_calls) == 1
+    assert len(api.directory.discover_calls) == 1
     assert api.directory.authenticate_calls == []
 
 
-async def test_a_dev_login_admin_update_fails_422_when_the_probe_fails(api: Api) -> None:
-    """Scenario: 개발 로그인 admin의 연결 확인이 실패하면 422이고 실패한 단계를 알려 준다."""
+async def test_a_dev_login_admin_update_fails_422_when_the_discovery_fails(api: Api) -> None:
+    """Scenario: 개발 로그인 admin의 Base DN 탐색이 실패하면 422이고 실패한 단계를 알려 준다."""
     # Given
     await given_dev_login_admin(api)
-    given_directory_probe_fails_with(
-        api, DirectoryUnavailableError(stage=VerificationStage.CONNECT)
-    )
+    given_directory_discovery_fails_with(api, directory_error("unavailable", "connect"))
     # When
     response = await when_update_settings(api, update_payload(password=None))
     # Then
@@ -108,7 +111,8 @@ async def test_changing_settings_keeps_every_existing_session(api: Api) -> None:
     kim_token = await given_session_token(api, login_id="kim")
     await given_logged_in_as(api, role="admin")
     # When
-    saved = await when_update_settings(api, update_payload(base_dn=NEW_DN))
+    given_directory_reports_base_dn(api, NEW_DN)
+    saved = await when_update_settings(api, update_payload(connect_timeout_seconds=9))
     # Then
     then_status_is(saved, 200)
     await then_session_still_works(api, ME, token=kim_token, role="sales")
@@ -119,8 +123,9 @@ async def test_a_saved_update_is_attributed_to_the_admin_and_visible_to_everyone
     """Scenario: 저장 결과는 저장한 admin 이름으로 남고 GET과 같으며 로그인 화면 설정에 반영된다."""
     # Given
     await given_logged_in_as(api, role="admin")
+    given_directory_reports_base_dn(api, NEW_DN)
     # When
-    saved = await when_update_settings(api, update_payload(base_dn=NEW_DN))
+    saved = await when_update_settings(api, update_payload(connect_timeout_seconds=9))
     # Then
     then_status_is(saved, 200)
     assert saved.json()["revision"] == 2
@@ -131,10 +136,11 @@ async def test_a_saved_update_is_attributed_to_the_admin_and_visible_to_everyone
 
 
 async def test_new_settings_apply_to_the_next_login(api: Api) -> None:
-    """Scenario: 저장한 새 설정(Base DN)이 다음 로그인의 AD 인증에 쓰인다."""
+    """Scenario: 저장해 둔 Base DN과 비밀번호가 다음 로그인의 AD 인증에 쓰인다(다시 찾지 않는다)."""
     # Given
     await given_user_registered(api, login_id="kim", role="sales")
-    saved = await when_update_settings(api, update_payload(base_dn=NEW_DN))
+    given_directory_reports_base_dn(api, NEW_DN)
+    saved = await when_update_settings(api, update_payload(connect_timeout_seconds=9))
     then_status_is(saved, 200)
     api.forget_session()
     given_no_directory_calls_yet(api)
@@ -145,6 +151,7 @@ async def test_new_settings_apply_to_the_next_login(api: Api) -> None:
     then_directory_authenticated_once(
         api, login_id="kim", password=password_of("kim"), base_dn=NEW_DN
     )
+    assert api.directory.discover_calls == []  # 로그인마다 Base DN을 다시 찾지 않는다
 
 
 async def test_settings_are_read_from_the_database_by_every_app_instance(api: Api) -> None:
@@ -152,7 +159,8 @@ async def test_settings_are_read_from_the_database_by_every_app_instance(api: Ap
     # Given
     await given_logged_in_as(api, role="admin")
     token = await given_session_token(api, login_id=ADMIN_LOGIN)
-    await when_update_settings(api, update_payload(base_dn=NEW_DN))
+    given_directory_reports_base_dn(api, NEW_DN)
+    await when_update_settings(api, update_payload(connect_timeout_seconds=9))
     await api.reopen()  # 같은 DB를 보는 새 앱 인스턴스(다른 워커·서버)
     # When
     response = await when_get_with_session(api, SETTINGS, token=token)

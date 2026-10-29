@@ -20,12 +20,12 @@ PASSWORD_REQUIRED = "AD 설정을 확인하려면 현재 관리자의 비밀번�
 
 
 class VerifyDirectorySettings:
-    """후보 AD 설정이 실제로 동작하는지 확인한다. 실패하면 DirectoryVerificationError(stage).
+    """후보 AD 설정이 실제로 동작하는지 확인하고 찾은 Base DN을 돌려준다.
 
-    요청한 admin이 새 설정으로 AD 인증에 성공해야 통과한다. 허용된 경우 dev-login 사용자
-    (예약 아이디 dev-*)는 AD 계정이 없으므로 연결 확인(probe)만 한다.
-    비밀번호는 로그·예외에 담지 않는다.
-    성공하면 선점한 시도를 1회 되돌린다(계정 카운터는 지우지 않는다).
+    서비스 계정으로 Base DN을 찾은 뒤, 요청한 admin이 새 설정으로 검색·바인드되는지 본다.
+    실패하면 DirectoryVerificationError(stage). 허용된 경우 dev-login 사용자(예약 아이디 dev-*)는
+    AD 계정이 없으므로 Base DN 탐색까지만 한다. 비밀번호는 로그·예외에 담지 않는다.
+    admin 인증이 끝나면 선점한 시도를 되돌리되, 비밀번호가 틀린 경우는 실패 1회로 남긴다.
     """
 
     def __init__(self, deps: AuthDeps, *, allow_dev_sessions: bool) -> None:
@@ -39,29 +39,36 @@ class VerifyDirectorySettings:
         settings: DirectorySettings,
         password: Password | None,
         client_ip: str,
-    ) -> None:
-        if self._allow_dev_sessions and actor.subject in DEV_LOGIN_IDS:
-            await self._probe(settings)
-            return
-        if password is None:
+    ) -> str:
+        discover_only = self._allow_dev_sessions and actor.subject in DEV_LOGIN_IDS
+        if not discover_only and password is None:
             raise InvalidValueError(PASSWORD_REQUIRED)
-        await self._authenticate(actor, settings, password, client_ip)
+        base_dn = await self._discover(settings)
+        if not discover_only and password is not None:
+            await self._authenticate(actor, settings, base_dn, password, client_ip)
+        return base_dn
 
-    async def _probe(self, settings: DirectorySettings) -> None:
+    async def _discover(self, settings: DirectorySettings) -> str:
         try:
-            await self._deps.directory.probe(settings)
+            return await self._deps.directory.discover_base_dn(settings)
         except DirectoryUnavailableError as error:
+            # 원인 문구는 서버 내부 정보를 담을 수 있어 단계만 옮긴다
             raise DirectoryVerificationError(error.stage or VerificationStage.CONNECT) from None
 
     async def _authenticate(
-        self, actor: Principal, settings: DirectorySettings, password: Password, client_ip: str
+        self,
+        actor: Principal,
+        settings: DirectorySettings,
+        base_dn: str,
+        password: Password,
+        client_ip: str,
     ) -> None:
         account = parse_login_id(actor.subject)
         await self._deps.throttle.ensure_allowed(account, client_ip)
         try:
-            await self._deps.directory.authenticate(settings, account, password)
-        except InvalidCredentialsError:  # 선점한 시도가 실패 1회로 남는다
-            raise DirectoryVerificationError(VerificationStage.BIND) from None
+            await self._deps.directory.authenticate(settings, base_dn, account, password)
+        except InvalidCredentialsError as error:  # 선점한 시도가 실패 1회로 남는다
+            raise DirectoryVerificationError(error.stage or VerificationStage.BIND) from None
         except DirectoryUnavailableError as error:
             await self._deps.throttle.release(account, client_ip)
             raise DirectoryVerificationError(error.stage or VerificationStage.CONNECT) from None

@@ -17,10 +17,11 @@ CASES = [
     ((True, False, False), (False, True, False)),
     ((False, True, False), (True, False, False)),
     ((True, True, False), (False, False, True)),
+    # admin이 있으면 AD 설정이 없어도 최초 설정 1단계는 열리지 않는다(AC11)
     # admin이 있으면 저장 위치 단계는 더 이상 열려 있지 않다(저장 위치가 없는 옛 DB도 마찬가지)
-    ((False, False, True), (True, False, False)),
+    ((False, False, True), (False, False, False)),
     ((True, False, True), (False, False, False)),
-    ((False, True, True), (True, False, False)),
+    ((False, True, True), (False, False, False)),
     ((True, True, True), (False, False, False)),
 ]
 

@@ -16,7 +16,7 @@ export function createSetupHttp(): SetupGateway {
       }
     },
     saveDirectory: async (input) => {
-      await unwrap(api.PUT('/api/v1/auth/setup/directory', { body: toDirectoryRequest(input) }))
+      await unwrap(api.PUT('/api/v1/auth/setup/directory', { body: { ...toDirectoryRequest(input), bind_password: input.bindPassword ?? '' } }))
     },
     saveStorage: (path) => unwrapVoid(api.PUT('/api/v1/auth/setup/storage', { body: { path } })),
     testStorage: (path) => unwrapVoid(api.POST('/api/v1/auth/setup/storage/test', { body: { path } })),

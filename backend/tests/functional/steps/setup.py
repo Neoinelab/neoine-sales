@@ -32,19 +32,27 @@ if TYPE_CHECKING:
     from tests.functional.conftest import Api
 
 SETTINGS_KEYS = {
-    "server_urls",
-    "use_starttls",
-    "ca_cert_pem",
-    "bind_template",
-    "base_dn",
+    "host",
+    "port",
+    "security",
+    "bind_account",
+    "bind_credential_status",
     "user_filter",
-    "display_name_attribute",
-    "email_attribute",
     "connect_timeout_seconds",
-    "receive_timeout_seconds",
+    "base_dn",
     "revision",
     "updated_at",
     "updated_by",
+}
+OLD_FIELDS = {
+    "server_urls": ["ldaps://dc1.corp.test"],
+    "use_starttls": False,
+    "ca_cert_pem": None,
+    "bind_template": "cn={login_id},ou=users,dc=corp,dc=test",
+    "base_dn": "dc=corp,dc=test",
+    "display_name_attribute": "displayName",
+    "email_attribute": "mail",
+    "receive_timeout_seconds": 10,
 }
 SETTINGS = "/api/v1/settings/directory"
 
@@ -56,9 +64,9 @@ def setup_credentials(login_id: str = "kim", password: str | None = None) -> dic
     }
 
 
-def probe_count(api: Api) -> int:
-    """지금까지 AD(Port 대역)로 나간 연결 확인(probe) 수."""
-    return len(api.directory.probe_calls)
+def discover_count(api: Api) -> int:
+    """지금까지 AD(Port 대역)로 나간 서비스 계정 접속·Base DN 탐색 수."""
+    return len(api.directory.discover_calls)
 
 
 # ---- Given ----
@@ -209,8 +217,8 @@ async def when_read_auth_config(api: Api) -> Response:
     return await api.get(CONFIG)
 
 
-def then_directory_probe_count_is(api: Api, expected: int) -> None:
-    assert probe_count(api) == expected
+def then_directory_discover_count_is(api: Api, expected: int) -> None:
+    assert discover_count(api) == expected
 
 
 async def then_user_is_not_registered(api: Api, *, login_id: str) -> None:

@@ -4,12 +4,7 @@ from typing import TYPE_CHECKING, Any
 
 import pytest
 
-from app.application.ports.directory import (
-    DirectoryMisconfiguredError,
-    DirectoryUnavailableError,
-    InvalidCredentialsError,
-    VerificationStage,
-)
+from tests.factories_auth import BIND_PASSWORD
 from tests.functional.steps.auth import given_logged_in_as
 from tests.functional.steps.common import then_status_is
 from tests.functional.steps.platform import then_problem_kind_is
@@ -20,16 +15,22 @@ from tests.functional.steps.rereads import (
 )
 from tests.functional.steps.settings import (
     ADMIN_PASSWORD,
+    NEW_BIND_PASSWORD,
     NEW_DN,
     SETTINGS_TEST,
     STORED_DN,
     WRONG_PASSWORD,
+    directory_error,
     given_dev_login_admin,
+    given_directory_discovery_fails_with,
     given_directory_fails_with,
+    given_directory_reports_base_dn,
     given_no_directory_calls_yet,
     given_wrong_password_attempts,
     probe_payload,
     then_directory_authenticated_once,
+    then_directory_not_called,
+    then_directory_used_bind_password,
     then_stored_settings_are,
     when_test_connection,
     when_test_connection_without_csrf_header,
@@ -41,18 +42,19 @@ if TYPE_CHECKING:
 pytestmark = pytest.mark.integration
 
 
-async def test_test_endpoint_reports_success_without_saving(api: Api) -> None:
-    """Scenario: 연결 테스트가 성공하면 성공 결과를 돌려주고 저장은 하지 않는다."""
+async def test_successful_test_returns_base_dn(api: Api) -> None:
+    """Scenario: 연결 테스트가 성공하면 찾은 Base DN을 담은 결과를 돌려주고 저장은 하지 않는다."""
     # Given
     await given_logged_in_as(api, role="admin")
+    given_directory_reports_base_dn(api, NEW_DN)
     given_no_directory_calls_yet(api)
     # When
-    response = await when_test_connection(api, probe_payload(base_dn=NEW_DN))
+    response = await when_test_connection(api, probe_payload(connect_timeout_seconds=9))
     # Then
     then_status_is(response, 200)
     body = response.json()
-    assert set(body) == {"success", "stage", "message"}
-    assert (body["success"], body["stage"]) == (True, None)
+    assert set(body) == {"success", "stage", "message", "base_dn"}
+    assert (body["success"], body["stage"], body["base_dn"]) == (True, None, NEW_DN)
     assert body["message"]
     then_directory_authenticated_once(api, login_id="root", password=ADMIN_PASSWORD, base_dn=NEW_DN)
     await then_settings_are_unsaved_defaults(api, base_dn=STORED_DN)
@@ -63,8 +65,9 @@ async def test_test_endpoint_leaves_the_stored_row_untouched(api: Api) -> None:
     # Given
     await given_logged_in_as(api, role="admin")
     before = await given_current_settings(api)
+    given_directory_reports_base_dn(api, NEW_DN)
     # When
-    response = await when_test_connection(api, probe_payload(base_dn=NEW_DN))
+    response = await when_test_connection(api, probe_payload(connect_timeout_seconds=9))
     # Then
     assert response.json()["success"] is True
     await then_settings_equal(api, before)
@@ -81,32 +84,80 @@ async def test_test_endpoint_reports_a_wrong_password_as_a_failed_result_not_an_
     # Then
     then_status_is(response, 200)
     body = response.json()
-    assert (body["success"], body["stage"]) == (False, "bind")
+    assert (body["success"], body["stage"], body["base_dn"]) == (False, "bind", None)
     assert body["message"]
     assert WRONG_PASSWORD not in response.text
 
 
 @pytest.mark.parametrize(
-    ("error", "stage"),
+    ("discovery", "kind", "stage"),
     [
-        (DirectoryUnavailableError(stage=VerificationStage.CONNECT), "connect"),
-        (DirectoryUnavailableError(stage=VerificationStage.TLS), "tls"),
-        (DirectoryMisconfiguredError(stage=VerificationStage.SEARCH), "search"),
-        (InvalidCredentialsError(stage=VerificationStage.BIND), "bind"),
+        (True, "unavailable", "connect"),
+        (True, "unavailable", "tls"),
+        (True, "misconfigured", "service_bind"),
+        (True, "misconfigured", "base_dn"),
+        (False, "misconfigured", "search"),
+        (False, "invalid", "search"),
+        (False, "invalid", "bind"),
     ],
 )
-async def test_test_endpoint_reports_each_failure_stage(
-    api: Api, error: Exception, stage: str
-) -> None:
-    """Scenario: 연결·TLS·검색·bind 어느 단계에서 실패해도 그 단계를 결과(200)에 담는다."""
+async def test_failed_stage_is_reported(api: Api, discovery: bool, kind: str, stage: str) -> None:
+    """Scenario: 어느 단계에서 실패해도(연결·TLS·서비스 계정·Base DN·검색·bind) 그 단계를 알린다."""
     # Given
     await given_logged_in_as(api, role="admin")
-    given_directory_fails_with(api, error)  # type: ignore[arg-type]
+    error = directory_error(kind, stage)
+    if discovery:
+        given_directory_discovery_fails_with(api, error)
+    else:
+        given_directory_fails_with(api, error)
     # When
     response = await when_test_connection(api, probe_payload())
     # Then
     then_status_is(response, 200)
-    assert (response.json()["success"], response.json()["stage"]) == (False, stage)
+    body = response.json()
+    assert (body["success"], body["stage"], body["base_dn"]) == (False, stage, None)
+    assert body["message"]
+
+
+async def test_test_endpoint_without_bind_password_uses_the_stored_one(api: Api) -> None:
+    """Scenario: bind_password를 생략하면 저장된 비밀번호로 서비스 계정에 접속한다."""
+    # Given
+    await given_logged_in_as(api, role="admin")
+    given_no_directory_calls_yet(api)
+    # When
+    response = await when_test_connection(api, probe_payload(user_filter="(uid={login_id})"))
+    # Then
+    then_status_is(response, 200)
+    assert response.json()["success"] is True
+    then_directory_used_bind_password(api, BIND_PASSWORD)
+
+
+async def test_test_endpoint_with_a_new_bind_password_uses_it_without_saving(api: Api) -> None:
+    """Scenario: 새 바인드 비밀번호로 테스트해도 저장하지 않고 응답에 값이 없다."""
+    # Given
+    await given_logged_in_as(api, role="admin")
+    # When
+    response = await when_test_connection(
+        api, probe_payload(host="dc2.corp.test", bind_password=NEW_BIND_PASSWORD)
+    )
+    # Then
+    then_status_is(response, 200)
+    then_directory_used_bind_password(api, NEW_BIND_PASSWORD)
+    assert NEW_BIND_PASSWORD not in response.text
+    await then_stored_settings_are(api, revision=1, base_dn=STORED_DN)
+
+
+async def test_changing_the_host_without_bind_password_is_rejected(api: Api) -> None:
+    """Scenario: 호스트를 바꾸면서 바인드 비밀번호를 생략하면 422이고 AD를 부르지 않는다."""
+    # Given
+    await given_logged_in_as(api, role="admin")
+    given_no_directory_calls_yet(api)
+    # When
+    response = await when_test_connection(api, probe_payload(host="dc2.corp.test"))
+    # Then
+    then_problem_kind_is(response, status=422, kinds=("invalid-value",))
+    assert "bind_password" in response.text
+    then_directory_not_called(api)
 
 
 async def test_test_endpoint_without_a_password_is_422(api: Api) -> None:
@@ -123,7 +174,18 @@ async def test_test_endpoint_without_a_password_is_422(api: Api) -> None:
 
 @pytest.mark.parametrize(
     "overrides",
-    [{"server_urls": []}, {"base_dn": ""}, {"receive_timeout_seconds": 0}, {"unknown": 1}],
+    [
+        {"host": ""},
+        {"host": "ldaps://dc1.corp.test"},
+        {"port": 0},
+        {"security": "tls"},
+        {"bind_account": ""},
+        {"bind_password": ""},
+        {"connect_timeout_seconds": 0},
+        {"base_dn": "dc=x"},
+        {"server_urls": ["ldaps://dc1.corp.test"]},
+        {"unknown": 1},
+    ],
 )
 async def test_test_endpoint_rejects_invalid_settings_with_422(
     api: Api, overrides: dict[str, Any]
@@ -136,7 +198,7 @@ async def test_test_endpoint_rejects_invalid_settings_with_422(
     response = await when_test_connection(api, probe_payload(**overrides))
     # Then
     then_problem_kind_is(response, status=422, kinds=("invalid-value", "request-validation"))
-    assert api.directory.authenticate_calls == []
+    then_directory_not_called(api)
 
 
 async def test_test_endpoint_attempts_are_limited_per_admin_account(api: Api) -> None:
@@ -152,17 +214,19 @@ async def test_test_endpoint_attempts_are_limited_per_admin_account(api: Api) ->
     assert api.directory.authenticate_calls == []
 
 
-async def test_a_dev_login_admin_test_only_probes(api: Api) -> None:
-    """Scenario: 개발 로그인 admin의 연결 테스트는 비밀번호 없이 연결 확인(probe)만 한다."""
+async def test_a_dev_login_admin_test_only_discovers_the_base_dn(api: Api) -> None:
+    """Scenario: 개발 로그인 admin의 연결 테스트는 비밀번호 없이 Base DN 탐색까지만 한다."""
     # Given
     await given_dev_login_admin(api)
+    given_directory_reports_base_dn(api, NEW_DN)
     given_no_directory_calls_yet(api)
     # When
     response = await when_test_connection(api, probe_payload(password=None))
     # Then
     then_status_is(response, 200)
     assert response.json()["success"] is True
-    assert len(api.directory.probe_calls) == 1
+    assert response.json()["base_dn"] == NEW_DN
+    assert len(api.directory.discover_calls) == 1
     assert api.directory.authenticate_calls == []
 
 

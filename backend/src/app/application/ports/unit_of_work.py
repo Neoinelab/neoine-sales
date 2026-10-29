@@ -24,6 +24,7 @@ if TYPE_CHECKING:
     from app.application.ports.report_repository import ReportRepository
     from app.application.ports.session_repository import SessionRepository
     from app.application.ports.storage_settings_repository import StorageSettingsRepository
+    from app.application.ports.user_password_hash_repository import UserPasswordHashRepository
     from app.application.ports.user_repository import UserRepository
     from app.application.ports.vendor_repository import VendorRepository
 
@@ -58,6 +59,9 @@ class UnitOfWork(Protocol):
 
     @property
     def users(self) -> UserRepository: ...
+
+    @property
+    def password_hashes(self) -> UserPasswordHashRepository: ...
 
     @property
     def login_failures(self) -> LoginFailureRepository: ...

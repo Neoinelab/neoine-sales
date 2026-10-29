@@ -18,6 +18,8 @@ from app.domain.auth.login_failure import FailurePolicy
 if TYPE_CHECKING:
     from app.application.ports.clock import Clock
     from app.application.ports.directory import DirectoryAuthenticator
+    from app.application.ports.password_hasher import PasswordHasher
+    from app.application.ports.secret_cipher import SecretCipher
     from app.application.ports.unit_of_work import UnitOfWorkFactory
     from app.config.base import Settings
 
@@ -25,12 +27,15 @@ if TYPE_CHECKING:
 class AuthAssembly:
     """설정과 Port 구현체로 인증 유스케이스를 만든다."""
 
-    def __init__(
+    def __init__(  # noqa: PLR0913 - 조립 지점이라 Port 구현체를 모두 받는다
         self,
         settings: Settings,
         uow_factory: UnitOfWorkFactory,
         clock: Clock,
         directory: DirectoryAuthenticator,
+        *,
+        cipher: SecretCipher,
+        hasher: PasswordHasher,
     ) -> None:
         window = timedelta(minutes=settings.login_failure_window_minutes)
         lock = timedelta(minutes=settings.login_lock_minutes)
@@ -44,7 +49,8 @@ class AuthAssembly:
         self._uow_factory = uow_factory
         self._clock = clock
         self._directory = directory
-        self._deps = AuthDeps(uow_factory, clock, directory, throttle)
+        self._cipher = cipher
+        self._deps = AuthDeps(uow_factory, clock, directory, throttle, cipher, hasher)
         self._issue_session = IssueSession(
             uow_factory, clock, timedelta(hours=settings.session_ttl_hours)
         )
@@ -62,7 +68,7 @@ class AuthAssembly:
         return GetAuthStatus(self._uow_factory)
 
     def register_setup_directory(self) -> RegisterSetupDirectory:
-        return RegisterSetupDirectory(self._uow_factory, self._clock, self._directory)
+        return RegisterSetupDirectory(self._uow_factory, self._clock, self._directory, self._cipher)
 
     def setup_first_admin(self) -> SetupFirstAdmin:
         return SetupFirstAdmin(self._deps, self._issue_session)

@@ -8,6 +8,7 @@ from pydantic import ValidationError
 
 from app.config import get_settings
 from app.config.profiles import LocalSettings
+from tests.support.crypto_keys import TEST_FERNET_KEY
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -28,6 +29,7 @@ def _isolated_env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Iterator[N
         monkeypatch.delenv(key)
     monkeypatch.setenv("APP_DATABASE_URL", "postgresql+asyncpg://u:p@localhost:5432/app")
     monkeypatch.setenv("APP_JWT_SECRET", "x" * 40)
+    monkeypatch.setenv("APP_SETTINGS_ENCRYPTION_KEY", TEST_FERNET_KEY)
     get_settings.cache_clear()
     yield
     get_settings.cache_clear()

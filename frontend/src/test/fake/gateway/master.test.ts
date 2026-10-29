@@ -1,5 +1,6 @@
+import { BIND_PASSWORD } from '../../directoryFixtures'
 import { describe, expect, it } from 'vitest'
-import { dealCode, expectApiError, mockAs, TEST_NOW } from '../testing'
+import { dealCode, expectApiError, mockAs, newMock, TEST_NOW } from '../testing'
 import { NO_SUCH_ID, USER_ID } from '../seed/ids'
 
 describe('codes', () => {
@@ -200,11 +201,7 @@ describe('users', () => {
 })
 
 describe('settings', () => {
-  const validInput = {
-    serverUrls: ['ldaps://dc1.corp.test'], useStarttls: true, caCertPem: null, bindTemplate: 'CORP\\{login_id}',
-    baseDn: 'dc=corp,dc=test', userFilter: '(sAMAccountName={login_id})', displayNameAttribute: 'displayName',
-    emailAttribute: 'mail', connectTimeoutSeconds: 5, receiveTimeoutSeconds: 10,
-  }
+  const validInput = { host: 'dc1.corp.test', port: 636, security: 'ssl' as const, bindAccount: 'CORP\\svc-sales', bindPassword: BIND_PASSWORD, userFilter: '(sAMAccountName={login_id})', connectTimeoutSeconds: 5 }
 
   it('admin만 접근한다', async () => {
     for (const key of ['kim', 'han'] as const) {
@@ -215,20 +212,60 @@ describe('settings', () => {
     }
   })
 
-  it('AD 설정 저장은 revision을 올리고 수정자·시각을 기록한다', async () => {
+  it('AD 설정 저장은 revision을 올리고 수정자·시각을 기록하며 비밀번호는 응답에 없다', async () => {
     const { gateway } = await mockAs('root')
     const before = await gateway.settings.getDirectory()
-    expect(before?.serverUrls).toEqual(['ldaps://dc1.corp.test', 'ldaps://dc2.corp.test'])
-    const saved = await gateway.settings.saveDirectory({ ...validInput, baseDn: 'dc=new,dc=test' }, { password: null, expectedRevision: before?.revision ?? 1 })
-    expect(saved).toMatchObject({ revision: (before?.revision ?? 0) + 1, baseDn: 'dc=new,dc=test', updatedAt: TEST_NOW, updatedBy: { id: USER_ID.root }, useStarttls: true })
-    await expectApiError(gateway.settings.saveDirectory({ ...validInput, serverUrls: [] }, { password: null, expectedRevision: 1 }), 422)
-    await expectApiError(gateway.settings.saveDirectory({ ...validInput, baseDn: '' }, { password: null, expectedRevision: 1 }), 422)
+    expect(before).toMatchObject({ host: 'dc1.corp.test', port: 636, security: 'ssl', bindCredentialStatus: 'ok', baseDn: 'dc=corp,dc=test' })
+    const saved = await gateway.settings.saveDirectory({ ...validInput, bindPassword: null, connectTimeoutSeconds: 9 }, { password: null, expectedRevision: before?.revision ?? 1 })
+    expect(saved).toMatchObject({ revision: (before?.revision ?? 0) + 1, connectTimeoutSeconds: 9, baseDn: 'dc=corp,dc=test', bindCredentialStatus: 'ok', updatedAt: TEST_NOW, updatedBy: { id: USER_ID.root } })
+    expect(JSON.stringify(saved)).not.toContain(validInput.bindPassword)
+    expect(Object.keys(saved).some((key) => /password/i.test(key))).toBe(false)
   })
 
-  it('연결 테스트: 서버 URL에 fail이 들어가면 directory-verification-failed(stage connect)', async () => {
+  it('AD 설정 저장 검증: 필수 값·포트·타임아웃 범위는 422', async () => {
     const { gateway } = await mockAs('root')
-    await gateway.settings.testDirectory(validInput, null)
-    const error = await expectApiError(gateway.settings.testDirectory({ ...validInput, serverUrls: ['ldaps://fail.corp.test'] }, null), 422, /연결 단계에서 실패했습니다/)
+    const keep = { ...validInput, bindPassword: null }
+    await expectApiError(gateway.settings.saveDirectory({ ...keep, host: '' }, { password: null, expectedRevision: 1 }), 422)
+    await expectApiError(gateway.settings.saveDirectory({ ...keep, bindAccount: '' }, { password: null, expectedRevision: 1 }), 422)
+    await expectApiError(gateway.settings.saveDirectory({ ...keep, port: 0 }, { password: null, expectedRevision: 1 }), 422)
+    await expectApiError(gateway.settings.saveDirectory({ ...keep, port: 65536 }, { password: null, expectedRevision: 1 }), 422)
+    await expectApiError(gateway.settings.saveDirectory({ ...keep, connectTimeoutSeconds: 31 }, { password: null, expectedRevision: 1 }), 422)
+  })
+
+  it('서버·바인드 계정을 바꾸면서 바인드 비밀번호를 생략하면 422(비밀번호 재입력)', async () => {
+    const { gateway } = await mockAs('root')
+    const before = await gateway.settings.getDirectory()
+    const auth = { password: null, expectedRevision: before?.revision ?? 1 }
+    for (const change of [{ host: 'dc9.corp.test' }, { port: 3269 }, { security: 'starttls' as const }, { bindAccount: 'CORP\\other' }]) {
+      await expectApiError(gateway.settings.saveDirectory({ ...validInput, bindPassword: null, ...change }, auth), 422, /비밀번호/)
+    }
+    expect((await gateway.settings.getDirectory())?.revision).toBe(before?.revision)
+  })
+
+  it('새 바인드 비밀번호를 주면 서버를 바꿔 저장할 수 있다', async () => {
+    const { gateway } = await mockAs('root')
+    const before = await gateway.settings.getDirectory()
+
+    const saved = await gateway.settings.saveDirectory({ ...validInput, host: 'dc9.corp.test' }, { password: null, expectedRevision: before?.revision ?? 1 })
+
+    expect(saved).toMatchObject({ host: 'dc9.corp.test', bindCredentialStatus: 'ok' })
+  })
+
+  it('expectedRevision이 null이면 설정이 없을 때만 새로 만든다(비밀번호 필수), 있으면 409', async () => {
+    const mock = newMock()
+    const { gateway } = mock
+    mock.control.restartSetup()
+    await mock.gateway.auth.login('root', 'anything')
+    await expectApiError(gateway.settings.saveDirectory({ ...validInput, bindPassword: null }, { password: null, expectedRevision: null }), 422, /비밀번호/)
+    const created = await gateway.settings.saveDirectory(validInput, { password: null, expectedRevision: null })
+    expect(created.revision).toBe(1)
+    await expectApiError(gateway.settings.saveDirectory(validInput, { password: null, expectedRevision: null }), 409)
+  })
+
+  it('연결 테스트: 성공하면 찾은 Base DN을 돌려주고, 호스트에 fail이 들어가면 directory-verification-failed(stage connect)', async () => {
+    const { gateway } = await mockAs('root')
+    await expect(gateway.settings.testDirectory(validInput, null)).resolves.toEqual({ baseDn: 'dc=corp,dc=test' })
+    const error = await expectApiError(gateway.settings.testDirectory({ ...validInput, host: 'fail.corp.test' }, null), 422, /연결 단계에서 실패했습니다/)
     expect(error.kind).toBe('directory-verification-failed')
     expect(error.stage).toBe('connect')
   })

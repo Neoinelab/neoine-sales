@@ -6,6 +6,7 @@ from pydantic import ValidationError
 
 from app.config import Profile, get_settings
 from app.config.profiles import DevSettings, LocalSettings, ProductSettings
+from tests.support.crypto_keys import TEST_FERNET_KEY
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -15,6 +16,7 @@ JWT_SECRET = "x" * 40
 BASE_ENV = {
     "APP_DATABASE_URL": "postgresql+asyncpg://u:p@localhost:5432/app",
     "APP_JWT_SECRET": JWT_SECRET,
+    "APP_SETTINGS_ENCRYPTION_KEY": TEST_FERNET_KEY,
 }
 PRODUCT_ENV = {
     "APP_PROFILE": "product",

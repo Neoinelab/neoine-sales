@@ -34,12 +34,20 @@ class FakeUserRepository(InMemoryStore["User"]):
     def __init__(self) -> None:
         super().__init__("사용자", UserNotFoundError)
         self._referrers: list[Callable[[UserId], bool]] = []
+        self._cascades: list[Callable[[UserId], None]] = []
         # True면 없는 사용자(자기 자신 제외)를 created_by로 가리키는 add를 거부한다(SQL FK 모사)
         self.enforce_creator_fk = False
 
     def add_referrer(self, referrer: Callable[[UserId], bool]) -> None:
         """users를 FK로 참조하는 다른 저장소를 등록한다(has_links·물리 삭제 RESTRICT 모사)."""
         self._referrers.append(referrer)
+
+    def add_cascade(self, cascade: Callable[[UserId], None]) -> None:
+        """사용자 물리 삭제 때 함께 지워지는 행(ON DELETE CASCADE)을 정리하는 함수를 등록한다.
+
+        연결(has_links)로 세지 않는 종속 행(예: 대체 로그인용 비밀번호 해시)에 쓴다.
+        """
+        self._cascades.append(cascade)
 
     async def add(self, user: User) -> None:
         creator = user.created_by_user_id
@@ -132,6 +140,8 @@ class FakeUserRepository(InMemoryStore["User"]):
         if self._linked(user_id):
             raise UserInUseError(user_id)  # FK RESTRICT 모사
         self._remove(user_id)
+        for cascade in self._cascades:
+            cascade(user_id)
 
     async def lock_roster(self) -> None:
         """단일 스레드 Fake에는 경쟁이 없어 잠금 자체는 없다."""

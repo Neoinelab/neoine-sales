@@ -2618,57 +2618,33 @@
       },
       "DirectorySettingsRequest": {
         "additionalProperties": false,
-        "description": "AD 서버 설정. 값 검증은 도메인(DirectorySettings)이 하고 메시지에 필드 이름이 들어간다.",
+        "description": "최초 설정 본문: 바인드 비밀번호 필수.",
         "properties": {
-          "base_dn": {
-            "title": "Base Dn",
+          "bind_account": {
+            "title": "Bind Account",
             "type": "string"
           },
-          "bind_template": {
-            "title": "Bind Template",
-            "type": "string"
-          },
-          "ca_cert_pem": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Ca Cert Pem"
+          "bind_password": {
+            "format": "password",
+            "title": "Bind Password",
+            "type": "string",
+            "writeOnly": true
           },
           "connect_timeout_seconds": {
             "default": 5,
             "title": "Connect Timeout Seconds",
             "type": "integer"
           },
-          "display_name_attribute": {
-            "default": "displayName",
-            "title": "Display Name Attribute",
+          "host": {
+            "title": "Host",
             "type": "string"
           },
-          "email_attribute": {
-            "default": "mail",
-            "title": "Email Attribute",
-            "type": "string"
-          },
-          "receive_timeout_seconds": {
-            "default": 10,
-            "title": "Receive Timeout Seconds",
+          "port": {
+            "title": "Port",
             "type": "integer"
           },
-          "server_urls": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Server Urls",
-            "type": "array"
-          },
-          "use_starttls": {
-            "title": "Use Starttls",
-            "type": "boolean"
+          "security": {
+            "$ref": "#/components/schemas/SecurityMode"
           },
           "user_filter": {
             "title": "User Filter",
@@ -2676,62 +2652,53 @@
           }
         },
         "required": [
-          "server_urls",
-          "use_starttls",
-          "bind_template",
-          "base_dn",
-          "user_filter"
+          "host",
+          "port",
+          "security",
+          "bind_account",
+          "user_filter",
+          "bind_password"
         ],
         "title": "DirectorySettingsRequest",
         "type": "object"
       },
       "DirectorySettingsResponse": {
+        "description": "저장된 설정. 비밀번호는 어떤 형태로도 담지 않는다.",
         "properties": {
           "base_dn": {
             "title": "Base Dn",
             "type": "string"
           },
-          "bind_template": {
-            "title": "Bind Template",
+          "bind_account": {
+            "title": "Bind Account",
             "type": "string"
           },
-          "ca_cert_pem": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
+          "bind_credential_status": {
+            "enum": [
+              "ok",
+              "unreadable"
             ],
-            "title": "Ca Cert Pem"
+            "title": "Bind Credential Status",
+            "type": "string"
           },
           "connect_timeout_seconds": {
             "title": "Connect Timeout Seconds",
             "type": "integer"
           },
-          "display_name_attribute": {
-            "title": "Display Name Attribute",
+          "host": {
+            "title": "Host",
             "type": "string"
           },
-          "email_attribute": {
-            "title": "Email Attribute",
-            "type": "string"
-          },
-          "receive_timeout_seconds": {
-            "title": "Receive Timeout Seconds",
+          "port": {
+            "title": "Port",
             "type": "integer"
           },
           "revision": {
             "title": "Revision",
             "type": "integer"
           },
-          "server_urls": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Server Urls",
-            "type": "array"
+          "security": {
+            "$ref": "#/components/schemas/SecurityMode"
           },
           "updated_at": {
             "format": "date-time",
@@ -2748,26 +2715,20 @@
               }
             ]
           },
-          "use_starttls": {
-            "title": "Use Starttls",
-            "type": "boolean"
-          },
           "user_filter": {
             "title": "User Filter",
             "type": "string"
           }
         },
         "required": [
-          "server_urls",
-          "use_starttls",
-          "ca_cert_pem",
-          "bind_template",
-          "base_dn",
+          "host",
+          "port",
+          "security",
+          "bind_account",
+          "bind_credential_status",
           "user_filter",
-          "display_name_attribute",
-          "email_attribute",
           "connect_timeout_seconds",
-          "receive_timeout_seconds",
+          "base_dn",
           "revision",
           "updated_at",
           "updated_by"
@@ -2777,40 +2738,32 @@
       },
       "DirectorySettingsTestRequest": {
         "additionalProperties": false,
-        "description": "연결 테스트 본문: 설정 + 현재 로그인한 admin의 비밀번호(dev 로그인 admin은 생략).",
+        "description": "연결 테스트 본문: 접속 정보 + 바인드 비밀번호(생략·null이면 저장된 값 유지) +\n현재 로그인한 admin의 비밀번호(dev 로그인 admin은 생략).",
         "properties": {
-          "base_dn": {
-            "title": "Base Dn",
+          "bind_account": {
+            "title": "Bind Account",
             "type": "string"
           },
-          "bind_template": {
-            "title": "Bind Template",
-            "type": "string"
-          },
-          "ca_cert_pem": {
+          "bind_password": {
             "anyOf": [
               {
-                "type": "string"
+                "format": "password",
+                "type": "string",
+                "writeOnly": true
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Ca Cert Pem"
+            "title": "Bind Password"
           },
           "connect_timeout_seconds": {
             "default": 5,
             "title": "Connect Timeout Seconds",
             "type": "integer"
           },
-          "display_name_attribute": {
-            "default": "displayName",
-            "title": "Display Name Attribute",
-            "type": "string"
-          },
-          "email_attribute": {
-            "default": "mail",
-            "title": "Email Attribute",
+          "host": {
+            "title": "Host",
             "type": "string"
           },
           "password": {
@@ -2826,21 +2779,12 @@
             ],
             "title": "Password"
           },
-          "receive_timeout_seconds": {
-            "default": 10,
-            "title": "Receive Timeout Seconds",
+          "port": {
+            "title": "Port",
             "type": "integer"
           },
-          "server_urls": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Server Urls",
-            "type": "array"
-          },
-          "use_starttls": {
-            "title": "Use Starttls",
-            "type": "boolean"
+          "security": {
+            "$ref": "#/components/schemas/SecurityMode"
           },
           "user_filter": {
             "title": "User Filter",
@@ -2848,10 +2792,10 @@
           }
         },
         "required": [
-          "server_urls",
-          "use_starttls",
-          "bind_template",
-          "base_dn",
+          "host",
+          "port",
+          "security",
+          "bind_account",
           "user_filter"
         ],
         "title": "DirectorySettingsTestRequest",
@@ -2859,46 +2803,45 @@
       },
       "DirectorySettingsUpdateRequest": {
         "additionalProperties": false,
-        "description": "저장 본문: 연결 테스트 본문 + 낙관적 잠금용 revision(1 이상).",
+        "description": "저장 본문: 테스트 본문 + 낙관적 잠금용 revision(키 필수, null이면 설정 없을 때 생성).",
         "properties": {
-          "base_dn": {
-            "title": "Base Dn",
+          "bind_account": {
+            "title": "Bind Account",
             "type": "string"
           },
-          "bind_template": {
-            "title": "Bind Template",
-            "type": "string"
-          },
-          "ca_cert_pem": {
+          "bind_password": {
             "anyOf": [
               {
-                "type": "string"
+                "format": "password",
+                "type": "string",
+                "writeOnly": true
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Ca Cert Pem"
+            "title": "Bind Password"
           },
           "connect_timeout_seconds": {
             "default": 5,
             "title": "Connect Timeout Seconds",
             "type": "integer"
           },
-          "display_name_attribute": {
-            "default": "displayName",
-            "title": "Display Name Attribute",
-            "type": "string"
-          },
-          "email_attribute": {
-            "default": "mail",
-            "title": "Email Attribute",
-            "type": "string"
-          },
           "expected_revision": {
-            "minimum": 1.0,
-            "title": "Expected Revision",
-            "type": "integer"
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Revision"
+          },
+          "host": {
+            "title": "Host",
+            "type": "string"
           },
           "password": {
             "anyOf": [
@@ -2913,21 +2856,12 @@
             ],
             "title": "Password"
           },
-          "receive_timeout_seconds": {
-            "default": 10,
-            "title": "Receive Timeout Seconds",
+          "port": {
+            "title": "Port",
             "type": "integer"
           },
-          "server_urls": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Server Urls",
-            "type": "array"
-          },
-          "use_starttls": {
-            "title": "Use Starttls",
-            "type": "boolean"
+          "security": {
+            "$ref": "#/components/schemas/SecurityMode"
           },
           "user_filter": {
             "title": "User Filter",
@@ -2935,10 +2869,10 @@
           }
         },
         "required": [
-          "server_urls",
-          "use_starttls",
-          "bind_template",
-          "base_dn",
+          "host",
+          "port",
+          "security",
+          "bind_account",
           "user_filter",
           "expected_revision"
         ],
@@ -2947,6 +2881,17 @@
       },
       "DirectoryTestResultResponse": {
         "properties": {
+          "base_dn": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Base Dn"
+          },
           "message": {
             "title": "Message",
             "type": "string"
@@ -2970,10 +2915,44 @@
         "required": [
           "success",
           "stage",
-          "message"
+          "message",
+          "base_dn"
         ],
         "title": "DirectoryTestResultResponse",
         "type": "object"
+      },
+      "DirectoryWarningResponse": {
+        "description": "AD 대신 이전 로그인 비밀번호로 들어갔을 때의 안내(admin에게만 온다).",
+        "properties": {
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "stage": {
+            "$ref": "#/components/schemas/DirectoryWarningStage"
+          }
+        },
+        "required": [
+          "stage",
+          "message"
+        ],
+        "title": "DirectoryWarningResponse",
+        "type": "object"
+      },
+      "DirectoryWarningStage": {
+        "description": "AD가 답하지 못해 대체 로그인으로 넘어간 이유(admin 경고 팝업과 로그에 쓴다).",
+        "enum": [
+          "not_configured",
+          "connect",
+          "tls",
+          "service_bind",
+          "base_dn",
+          "search",
+          "credential_unreadable",
+          "unknown"
+        ],
+        "title": "DirectoryWarningStage",
+        "type": "string"
       },
       "Entity": {
         "enum": [
@@ -3193,6 +3172,56 @@
           "password"
         ],
         "title": "LoginRequest",
+        "type": "object"
+      },
+      "LoginResponse": {
+        "properties": {
+          "directory_warning": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DirectoryWarningResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "role": {
+            "$ref": "#/components/schemas/Role"
+          },
+          "subject": {
+            "title": "Subject",
+            "type": "string"
+          },
+          "user_id": {
+            "title": "User Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "user_id",
+          "subject",
+          "email",
+          "name",
+          "role",
+          "directory_warning"
+        ],
+        "title": "LoginResponse",
         "type": "object"
       },
       "MeetingBatchRequest": {
@@ -5324,6 +5353,15 @@
         "title": "RowScope",
         "type": "string"
       },
+      "SecurityMode": {
+        "enum": [
+          "none",
+          "ssl",
+          "starttls"
+        ],
+        "title": "SecurityMode",
+        "type": "string"
+      },
       "ServerTimeResponse": {
         "properties": {
           "now": {
@@ -6587,7 +6625,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PrincipalResponse"
+                  "$ref": "#/components/schemas/LoginResponse"
                 }
               }
             },

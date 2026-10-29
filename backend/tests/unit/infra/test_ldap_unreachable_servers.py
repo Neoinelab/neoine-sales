@@ -1,8 +1,7 @@
-"""도달 불가 DC가 여러 개여도 LDAP 호출은 제한 시간 안에 CONNECT 단계 오류로 끝난다(리뷰 Blocker).
+"""도달 불가 서버에 대한 LDAP 호출은 제한 시간 안에 CONNECT 단계 오류로 끝난다(리뷰 Blocker).
 
-ldap3 ServerPool(active=True, exhaust=True)은 서버가 모두 제외되면 영원히 기다린다.
-무한 대기가 재발해도 러너가 멈추지 않도록 어댑터 호출은 별도 프로세스에서 하고 상한 뒤 종료한다.
-구현 방식(풀 사용 여부)에는 묶이지 않고 동작만 검증한다.
+서버는 호스트 하나·포트 하나다(여러 서버 순회는 없다). 무한 대기가 재발해도 러너가 멈추지 않도록
+어댑터 호출은 별도 프로세스에서 하고 상한 뒤 종료한다. 구현 방식에는 묶이지 않고 동작만 검증한다.
 """
 
 import json
@@ -27,25 +26,28 @@ SCRIPT = """
 import asyncio, json, sys, time
 from app.application.ports.directory import DirectoryError
 from app.domain.auth.credentials import LoginId, Password
-from app.domain.directory.settings import DirectoryUrl
+from app.domain.directory.settings import SecurityMode
 from app.infra.auth.ldap import LdapDirectoryAuthenticator
-from tests.factories_auth import make_directory_settings
+from tests.factories_directory import make_directory_settings
 
-urls, method = json.loads(sys.argv[1]), sys.argv[2]
+port, method, security = int(sys.argv[1]), sys.argv[2], sys.argv[3]
 settings = make_directory_settings(
-    server_urls=tuple(DirectoryUrl.parse(u) for u in urls),
+    host="127.0.0.1",
+    port=port,
+    security=SecurityMode(security),
     connect_timeout_seconds=1,
-    receive_timeout_seconds=1,
 )
 
 async def main():
     adapter = LdapDirectoryAuthenticator()
     started = time.monotonic()
     try:
-        if method == "probe":
-            await adapter.probe(settings)
+        if method == "discover":
+            await adapter.discover_base_dn(settings)
         else:
-            await adapter.authenticate(settings, LoginId("kim"), Password("pw-dummy"))
+            await adapter.authenticate(
+                settings, "dc=corp,dc=test", LoginId("kim"), Password("pw-dummy")
+            )
         outcome = {"error": None, "stage": None}
     except DirectoryError as error:
         outcome = {"error": type(error).__name__, "stage": getattr(error.stage, "value", None)}
@@ -96,11 +98,11 @@ def listener() -> Iterator[_Listener]:
         active.close()
 
 
-def _run(urls: list[str], method: str) -> dict[str, object]:
+def _run(port: int, method: str, security: str) -> dict[str, object]:
     env = {**os.environ, "PYTHONPATH": os.pathsep.join([str(BACKEND / "src"), str(BACKEND)])}
     try:
         done = subprocess.run(  # noqa: S603 - 고정 인자, 신뢰된 로컬 스크립트
-            [sys.executable, "-c", SCRIPT, json.dumps(urls), method],
+            [sys.executable, "-c", SCRIPT, str(port), method, security],
             cwd=BACKEND,
             env=env,
             capture_output=True,
@@ -115,28 +117,25 @@ def _run(urls: list[str], method: str) -> dict[str, object]:
     return result
 
 
-@pytest.mark.parametrize("method", ["probe", "authenticate"])
-def test_two_unreachable_servers_fail_fast_with_a_connect_stage_error(method: str) -> None:
-    urls = [f"ldaps://127.0.0.1:{_closed_port()}", f"ldaps://127.0.0.1:{_closed_port()}"]
-
-    outcome = _run(urls, method)
+@pytest.mark.parametrize("security", ["ssl", "starttls", "none"])
+@pytest.mark.parametrize("method", ["discover", "authenticate"])
+def test_an_unreachable_server_fails_fast_with_a_connect_stage_error(
+    method: str, security: str
+) -> None:
+    outcome = _run(_closed_port(), method, security)
 
     assert outcome["error"] == "DirectoryUnavailableError"
     assert outcome["stage"] == "connect"
     assert float(str(outcome["elapsed"])) < EXPECTED_WITHIN_SECONDS
 
 
-def test_one_unreachable_server_still_fails_fast_with_a_connect_stage_error() -> None:
-    outcome = _run([f"ldaps://127.0.0.1:{_closed_port()}"], "probe")
+@pytest.mark.parametrize("method", ["discover", "authenticate"])
+def test_a_server_that_hangs_up_on_connect_fails_fast_instead_of_waiting(
+    listener: _Listener, method: str
+) -> None:
+    outcome = _run(listener.port, method, "ssl")
 
-    assert (outcome["error"], outcome["stage"]) == ("DirectoryUnavailableError", "connect")
-
-
-def test_the_next_server_is_tried_when_the_first_one_is_unreachable(listener: _Listener) -> None:
-    urls = [f"ldaps://127.0.0.1:{_closed_port()}", f"ldaps://127.0.0.1:{listener.port}"]
-
-    outcome = _run(urls, "probe")
-
-    assert listener.accepted >= 1, "첫 서버가 닫혀 있으면 다음 서버를 시도해야 한다"
-    assert outcome["error"] == "DirectoryUnavailableError"  # 두 번째는 TLS가 아니라 실패한다
+    assert listener.accepted >= 1
+    assert outcome["error"] == "DirectoryUnavailableError"  # TLS 핸드셰이크가 끝나지 못한다
+    assert outcome["stage"] in {"connect", "tls"}
     assert float(str(outcome["elapsed"])) < EXPECTED_WITHIN_SECONDS

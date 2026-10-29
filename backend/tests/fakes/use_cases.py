@@ -1,12 +1,13 @@
 """UseCaseProvider의 Fake. 실제 유스케이스를 FakeUnitOfWork·FixedClock으로 조립한다(DB 없음)."""
 
 from dataclasses import replace
+from functools import cached_property
 from typing import TYPE_CHECKING
 
 from app.domain.auth.credentials import LoginId
 from app.domain.auth.principal import Role
 from tests.factories import NOW
-from tests.factories_auth import make_directory_settings, make_user
+from tests.factories_auth import BASE_DN, make_user
 from tests.fakes.attachment_use_cases import AttachmentUseCases
 from tests.fakes.catalog_use_cases import CatalogUseCases
 from tests.fakes.contact_use_cases import ContactUseCases
@@ -66,6 +67,7 @@ if TYPE_CHECKING:
     from app.domain.directory.settings import DirectorySettings
     from app.domain.user.entities import User
     from app.domain.user.value_objects import UserId
+    from tests.fakes.admin_stack import AdminStack
     from tests.fakes.auth_stack import AuthStack
     from tests.fakes.directory import FakeDirectoryAuthenticator
 
@@ -79,18 +81,29 @@ class FakeUseCases(
         self.suffix_source = FakeDealCodeSuffixSource()
         self.ready_error: Exception | None = None
         self.file_storage = FakeFileStorage()
-        # 인증 모듈이 없으면 인증과 무관한 테스트의 수집까지 막히므로 사용 시점에 가져온다
+        self._allow_dev_sessions = allow_dev_sessions
+
+    # 인증 조립은 처음 쓸 때 만든다: 인증과 무관한 테스트가 인증 구현(새 Port·Fake 포함)에
+    # 묶이지 않는다
+    @cached_property
+    def _auth(self) -> AuthStack:
         from tests.fakes.auth_stack import build_auth_stack  # noqa: PLC0415
 
-        self._auth: AuthStack = build_auth_stack(
-            self._factory, self.clock, allow_dev_sessions=allow_dev_sessions
+        return build_auth_stack(
+            self._factory, self.clock, allow_dev_sessions=self._allow_dev_sessions
         )
-        self.directory: FakeDirectoryAuthenticator = self._auth.directory
+
+    @cached_property
+    def _admin(self) -> AdminStack:
         from tests.fakes.admin_stack import build_admin_stack  # noqa: PLC0415
 
-        self._admin = build_admin_stack(
-            self._auth, self._factory, self.clock, allow_dev_sessions=allow_dev_sessions
+        return build_admin_stack(
+            self._auth, self._factory, self.clock, allow_dev_sessions=self._allow_dev_sessions
         )
+
+    @property
+    def directory(self) -> FakeDirectoryAuthenticator:
+        return self._auth.directory
 
     def _factory(self) -> FakeUnitOfWork:
         return self.uow
@@ -330,9 +343,14 @@ class FakeUseCases(
 
     async def seed_directory(self, settings: DirectorySettings | None = None) -> None:
         """AD 설정을 저장소에 직접 넣는다(1단계를 마친 상태). 유스케이스를 거치지 않는다."""
+        from tests.factories_directory import make_directory_settings  # noqa: PLC0415
+
+        given = settings or make_directory_settings()
         async with self._factory() as uow:
             await uow.directory_settings.save(
-                settings or make_directory_settings(),
+                given.connection,
+                self._auth.cipher.seal(given.bind_password.reveal()),
+                BASE_DN,
                 expected_revision=None,
                 updated_by=None,
                 now=self.clock.now(),

@@ -1,7 +1,8 @@
 """Feature: 운영자는 파트너 Activity 리비전을 올리고 내려 partner_meetings 테이블을 둔다.
 
 When: 운영자 명령(alembic upgrade/downgrade). 이 리비전은 Reports 배치 리비전(`b7d2e9a4c156`) 바로
-다음이고 head다. `partner_meetings` 테이블 하나만 추가하는 순수 expand라 기존 테이블 구조와 행은
+다음이다(그 뒤에 AD 설정 개편 리비전이 이어진다). `partner_meetings` 테이블 하나만 추가하는
+순수 expand라 기존 테이블 구조와 행은
 그대로이고(구 앱과 같은 DB에서 공존 가능), 시드 행도 없다. 내리면 그 테이블만 사라진다(기록 소실은
 개발 단계라 허용).
 """
@@ -20,7 +21,11 @@ from tests.functional.steps.schema import (
     when_operator_upgrades,
 )
 from tests.support.head_rows import insert_user
-from tests.support.revisions import PARTNER_MEETINGS_REVISION, REPORTS_LAYOUT_REVISION
+from tests.support.revisions import (
+    PARTNER_MEETINGS_REVISION,
+    REPORTS_LAYOUT_REVISION,
+    directory_service_account_revision,
+)
 from tests.support.user_fk_migration import run_sql
 
 if TYPE_CHECKING:
@@ -64,16 +69,16 @@ async def test_upgrade_seeds_no_meeting_rows(blank_database: URL) -> None:
     assert await run_sql(blank_database, "select count(*) from partner_meetings") == [(0,)]
 
 
-async def test_upgrade_to_head_ends_at_the_partner_meetings_revision(
+async def test_upgrade_to_head_passes_the_partner_meetings_revision(
     blank_database: URL,
 ) -> None:
-    """Scenario: 빈 DB를 head로 올리면 이 리비전에 이른다(head는 이 리비전이다)."""
+    """Scenario: 빈 DB를 head로 올리면 partner_meetings 테이블이 있고 head는 그 뒤 리비전이다."""
     # Given
     # (마이그레이션이 하나도 적용되지 않은 빈 DB)
     # When
     await when_operator_upgrades(blank_database)
     # Then
-    await then_schema_is_at(blank_database, PARTNER_MEETINGS_REVISION)
+    await then_schema_is_at(blank_database, directory_service_account_revision())
     assert "partner_meetings" in await table_names(blank_database)
 
 

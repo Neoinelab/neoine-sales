@@ -22,6 +22,7 @@ from tests.support.revisions import (
     contacts_revision,
     deal_model_revision,
     deals_users_required_revision,
+    directory_service_account_revision,
     forecast_snapshots_revision,
     next_action_status_revision,
     solution_free_text_revision,
@@ -38,7 +39,7 @@ FORECAST_SNAPSHOTS_REVISION = "11bfe225caf5"  # Solution 자유 텍스트 리비
 SOLUTION_FREE_TEXT_REVISION = "d4b8f6a2c013"  # Reports 리비전의 down_revision다
 REPORTS_REVISION = "f1c6a8e2b904"  # 배치 리비전의 down_revision이다
 REPORTS_LAYOUT_REVISION = "b7d2e9a4c156"  # 파트너 미팅 리비전의 down_revision이다
-PARTNER_MEETINGS_REVISION = "c4e8a1d7f203"  # 현재 단일 head
+PARTNER_MEETINGS_REVISION = "c4e8a1d7f203"  # AD 설정 개편 리비전의 down_revision이다
 
 
 def test_the_solution_text_revision_follows_the_forecast_snapshots() -> None:
@@ -51,14 +52,26 @@ def test_the_solution_text_revision_follows_the_forecast_snapshots() -> None:
     assert revision.down_revision == forecast_snapshots_revision() == FORECAST_SNAPSHOTS_REVISION
 
 
-def test_the_partner_meetings_revision_follows_the_reports_layout_and_is_the_single_head() -> None:
+def test_directory_service_account_revision_follows_partner_meetings_as_single_head() -> None:
     script = ScriptDirectory.from_config(_alembic_config())
 
-    assert script.get_heads() == [PARTNER_MEETINGS_REVISION]
-    head = script.get_revision(PARTNER_MEETINGS_REVISION)
+    head = script.get_revision(directory_service_account_revision())
+    assert script.get_heads() == [directory_service_account_revision()]
+    assert directory_service_account_revision() != PARTNER_MEETINGS_REVISION
     assert head is not None
-    assert head.down_revision == REPORTS_LAYOUT_REVISION
-    assert head.path.endswith(f"20261028_{PARTNER_MEETINGS_REVISION}_partner_meetings.py")
+    assert head.down_revision == PARTNER_MEETINGS_REVISION
+    assert head.path.endswith(f"20261029_{head.revision}_directory_service_account.py")
+
+
+def test_the_partner_meetings_revision_follows_the_reports_layout_in_the_head_history() -> None:
+    script = ScriptDirectory.from_config(_alembic_config())
+
+    revision = script.get_revision(PARTNER_MEETINGS_REVISION)
+    assert revision is not None
+    assert revision.down_revision == REPORTS_LAYOUT_REVISION
+    assert revision.path.endswith(f"20261028_{PARTNER_MEETINGS_REVISION}_partner_meetings.py")
+    history = {r.revision for r in script.iterate_revisions(script.get_heads()[0], "base")}
+    assert PARTNER_MEETINGS_REVISION in history
 
 
 def test_the_reports_layout_revision_follows_the_reports_in_the_head_history() -> None:

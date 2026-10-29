@@ -66,3 +66,38 @@ async def test_container_accepts_an_injected_directory_authenticator() -> None:
 
 async def test_container_uses_the_ldap_adapter_by_default(container: Container) -> None:
     assert isinstance(container.directory, LdapDirectoryAuthenticator)
+
+
+async def test_container_builds_the_cipher_from_the_configured_key_and_the_scrypt_hasher(
+    container: Container,
+) -> None:
+    from app.infra.crypto.fernet_cipher import FernetSecretCipher  # noqa: PLC0415
+    from app.infra.crypto.scrypt_hasher import ScryptPasswordHasher  # noqa: PLC0415
+
+    from tests.support.crypto_keys import OTHER_FERNET_KEY, TEST_FERNET_KEY  # noqa: PLC0415
+
+    assert isinstance(container.cipher, FernetSecretCipher)
+    assert isinstance(container.password_hasher, ScryptPasswordHasher)
+    sealed = container.cipher.seal("Dummy-bind-pw-1!")
+    assert container.cipher.unseal(sealed) == "Dummy-bind-pw-1!"
+    other = Container(make_settings(UNUSED_DATABASE_URL, settings_encryption_key=OTHER_FERNET_KEY))
+    try:
+        assert TEST_FERNET_KEY != OTHER_FERNET_KEY
+        with pytest.raises(Exception, match=r"."):
+            other.cipher.unseal(sealed)
+    finally:
+        await other.dispose()
+
+
+async def test_container_accepts_an_injected_cipher_and_hasher() -> None:
+    from tests.fakes.password_hasher import FakePasswordHasher  # noqa: PLC0415
+    from tests.fakes.secret_cipher import FakeSecretCipher  # noqa: PLC0415
+
+    cipher, hasher = FakeSecretCipher(), FakePasswordHasher()
+    built = Container(make_settings(UNUSED_DATABASE_URL), cipher=cipher, password_hasher=hasher)
+    try:
+        assert built.cipher is cipher
+        assert built.password_hasher is hasher
+        assert isinstance(built.directory_login(), DirectoryLogin)
+    finally:
+        await built.dispose()

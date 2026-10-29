@@ -63,9 +63,9 @@ async def test_lock_applies_to_that_account_only(
     auth.directory.add_account("lee", "pw-lee")
     await _fail(auth, times=MAX_PER_ACCOUNT)
 
-    issued = await auth.login.execute(login_id="lee", password=Password("pw-lee"), client_ip=IP)
+    outcome = await auth.login.execute(login_id="lee", password=Password("pw-lee"), client_ip=IP)
 
-    assert issued.principal.subject == "lee"
+    assert outcome.session.principal.subject == "lee"
 
 
 async def test_lock_ends_exactly_after_the_lock_duration(
@@ -138,16 +138,17 @@ async def test_ip_is_locked_after_its_limit_across_different_accounts(
     await _succeed(auth, ip="10.0.0.2")  # 다른 IP는 영향이 없다
 
 
-async def test_directory_outage_does_not_count_toward_the_limit(
+async def test_directory_outage_without_a_stored_hash_counts_toward_the_limit(
     auth: AuthStack, directory: FakeDirectoryAuthenticator
 ) -> None:
-    directory.fail_with = DirectoryUnavailableError(stage=VerificationStage.CONNECT)
-    for _ in range(MAX_PER_ACCOUNT + 1):
+    """AD 장애 중 대체 로그인도 실패하면 일반 실패와 같게 센다(AC14: 존재 여부를 숨긴다)."""
+    directory.fail_all_with(DirectoryUnavailableError(stage=VerificationStage.CONNECT))
+    for _ in range(MAX_PER_ACCOUNT):
         with pytest.raises(DirectoryUnavailableError):
             await _succeed(auth)
-    directory.fail_with = None
 
-    await _succeed(auth)
+    with pytest.raises(TooManyAttemptsError):
+        await _succeed(auth)
 
 
 async def test_counter_keys_are_keyed_hashes_not_raw_values(

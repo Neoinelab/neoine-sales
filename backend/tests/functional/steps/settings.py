@@ -1,8 +1,9 @@
 """AD(디렉터리) 설정 관리 step: 설정 조회·저장·연결 테스트와 관련 상태 준비·확인.
 
 회사 AD는 `api.directory`(Port 대역)로 대체된다(사유는 `tests/functional/conftest.py`).
-AD가 받은 호출 기록(`authenticate_calls`, `probe_calls`)은 "AD를 호출하지 않았다/이 설정으로
-호출했다"를 확인하는 Then에만 쓴다.
+AD가 받은 호출 기록(`discover_calls`, `authenticate_calls`)은 "AD를 호출하지 않았다/이 설정으로
+호출했다"를 확인하는 Then에만 쓴다. Base DN은 서버가 AD(RootDSE)에서 찾아 저장하므로 시나리오는
+`api.directory.base_dn`(AD가 알려 주는 값)을 바꿔 다른 Base DN을 만든다.
 """
 
 from datetime import datetime
@@ -12,6 +13,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.pool import NullPool
 
+from tests.factories_auth import BASE_DN
 from tests.functional.conftest import make_settings
 from tests.functional.steps.auth import (
     ADMIN_LOGIN,
@@ -35,21 +37,21 @@ SETTINGS_TEST = "/api/v1/settings/directory/test"
 DEV_LOGIN = "/api/v1/auth/dev-login"
 SESSION_COOKIE = "neoine_session"
 CSRF_HEADER_NAME = "X-Requested-With"
-NEW_DN = "dc=new,dc=test"
-STORED_DN = "dc=corp,dc=test"
+NEW_DN = "dc=new,dc=test"  # AD가 새로 알려 주는 Base DN(`given_directory_reports_base_dn`)
+STORED_DN = BASE_DN  # Fake AD의 기본 Base DN = 최초 설정 때 저장된 값
+NEW_BIND_PASSWORD = "New-bind-pw-2!"  # noqa: S105 - 가짜 값
+KEEP: Any = object()  # 요청 본문에서 bind_password 키를 빼라는 표시(저장된 값 유지)
 ADMIN_PASSWORD = password_of(ADMIN_LOGIN)
 WRONG_PASSWORD = "wrong-password"  # noqa: S105 - 가짜 값
 SETTINGS_FIELDS = {
-    "server_urls",
-    "use_starttls",
-    "ca_cert_pem",
-    "bind_template",
-    "base_dn",
+    "host",
+    "port",
+    "security",
+    "bind_account",
+    "bind_credential_status",
     "user_filter",
-    "display_name_attribute",
-    "email_attribute",
     "connect_timeout_seconds",
-    "receive_timeout_seconds",
+    "base_dn",
     "revision",
     "updated_at",
     "updated_by",
@@ -60,20 +62,61 @@ MAX_FAILURES_PER_ACCOUNT = make_settings(
 ).login_max_failures_per_account
 
 
-def update_payload(
-    expected_revision: int = 1, password: str | None = ADMIN_PASSWORD, **overrides: object
-) -> dict[str, Any]:
-    """PUT /settings/directory 본문: 설정 필드 + expected_revision + 현재 admin의 password."""
-    return {
-        **directory_payload(**overrides),
-        "expected_revision": expected_revision,
-        "password": password,
+def directory_error(kind: str, stage: str, message: str = "") -> DirectoryError:
+    """AD 장애 객체를 시나리오 실행 시점에 만든다(stage는 `VerificationStage` 값 문자열).
+
+    kind: "unavailable"(연결·TLS 등), "misconfigured"(서비스 계정·Base DN·검색 설정 오류),
+    "invalid"(자격증명 거부). 새 단계 값을 쓰는 파라미터가 수집 시점에 평가되지 않게 한다.
+    """
+    from app.application.ports.directory import (  # noqa: PLC0415
+        DirectoryMisconfiguredError,
+        DirectoryUnavailableError,
+        InvalidCredentialsError,
+        VerificationStage,
+    )
+
+    errors = {
+        "unavailable": DirectoryUnavailableError,
+        "misconfigured": DirectoryMisconfiguredError,
+        "invalid": InvalidCredentialsError,
     }
+    return errors[kind](message, stage=VerificationStage(stage))
 
 
-def probe_payload(password: str | None = ADMIN_PASSWORD, **overrides: object) -> dict[str, Any]:
-    """POST /settings/directory/test 본문: 설정 필드 + 현재 admin의 password."""
-    return {**directory_payload(**overrides), "password": password}
+def _with_bind_password(body: dict[str, Any], bind_password: Any) -> dict[str, Any]:  # noqa: ANN401
+    """KEEP이면 키를 뺀다(저장된 비밀번호 유지), 아니면 값(None 포함)을 그대로 보낸다."""
+    body = dict(body)
+    if bind_password is KEEP:
+        body.pop("bind_password", None)
+    else:
+        body["bind_password"] = bind_password
+    return body
+
+
+def update_payload(
+    expected_revision: int | None = 1,
+    password: str | None = ADMIN_PASSWORD,
+    *,
+    bind_password: Any = KEEP,  # noqa: ANN401
+    **overrides: object,
+) -> dict[str, Any]:
+    """PUT /settings/directory 본문: 설정 필드 7개 + expected_revision + 현재 admin의 password.
+
+    기본은 bind_password를 보내지 않는다(저장된 값 유지). None은 명시적 null이다.
+    """
+    body = _with_bind_password(directory_payload(**overrides), bind_password)
+    return {**body, "expected_revision": expected_revision, "password": password}
+
+
+def probe_payload(
+    password: str | None = ADMIN_PASSWORD,
+    *,
+    bind_password: Any = KEEP,  # noqa: ANN401
+    **overrides: object,
+) -> dict[str, Any]:
+    """POST /settings/directory/test 본문: 설정 필드 7개 + 현재 admin의 password."""
+    body = _with_bind_password(directory_payload(**overrides), bind_password)
+    return {**body, "password": password}
 
 
 # ---------------------------------------------------------------- Given
@@ -82,16 +125,22 @@ def probe_payload(password: str | None = ADMIN_PASSWORD, **overrides: object) ->
 def given_no_directory_calls_yet(api: Api) -> None:
     """AD가 받은 호출 기록을 비운다(앞선 로그인·설정 호출과 구분하려는 것)."""
     api.directory.authenticate_calls.clear()
-    api.directory.probe_calls.clear()
+    api.directory.discover_calls.clear()
 
 
 def given_directory_fails_with(api: Api, error: DirectoryError) -> None:
-    """AD 인증 호출이 해당 오류로 실패한다."""
-    api.directory.fail_with = error
+    """AD의 사용자 인증(검색·바인드) 호출이 해당 오류로 실패한다."""
+    api.directory.authenticate_fails_with = error
 
 
-def given_directory_probe_fails_with(api: Api, error: DirectoryError) -> None:
-    api.directory.probe_fails_with = error
+def given_directory_discovery_fails_with(api: Api, error: DirectoryError) -> None:
+    """서비스 계정 연결·바인드·Base DN 탐색이 해당 오류로 실패한다."""
+    api.directory.discover_fails_with = error
+
+
+def given_directory_reports_base_dn(api: Api, base_dn: str) -> None:
+    """AD(RootDSE)가 이제 이 Base DN을 알려 준다. 다음 저장·테스트가 이 값을 찾는다."""
+    api.directory.base_dn = base_dn
 
 
 def given_admin_directory_password(api: Api, password: str) -> None:
@@ -102,8 +151,14 @@ def given_admin_directory_password(api: Api, password: str) -> None:
 async def given_settings_saved(
     api: Api, *, expected_revision: int = 1, base_dn: str = NEW_DN
 ) -> None:
-    """admin이 Base DN을 바꿔 설정을 한 번 저장해 두었다."""
-    response = await api.put(SETTINGS, json=update_payload(expected_revision, base_dn=base_dn))
+    """AD가 알려 주는 Base DN이 base_dn일 때 admin이 설정을 한 번 저장해 두었다.
+
+    저장된 비밀번호를 그대로 쓰고 연결 제한 시간(7초)만 바꾼다.
+    """
+    given_directory_reports_base_dn(api, base_dn)
+    response = await api.put(
+        SETTINGS, json=update_payload(expected_revision, connect_timeout_seconds=7)
+    )
     assert response.status_code == 200, response.text
 
 
@@ -185,18 +240,19 @@ async def then_stored_revision_is(api: Api, revision: int) -> None:
 
 def then_directory_not_called(api: Api) -> None:
     assert api.directory.authenticate_calls == []
-    assert api.directory.probe_calls == []
+    assert api.directory.discover_calls == []
 
 
 def then_directory_authenticated_once(
     api: Api, *, login_id: str, password: str, base_dn: str
 ) -> None:
     (call,) = api.directory.authenticate_calls
-    assert (call.login_id.value, call.password, call.settings.base_dn) == (
-        login_id,
-        password,
-        base_dn,
-    )
+    assert (call.login_id.value, call.password, call.base_dn) == (login_id, password, base_dn)
+
+
+def then_directory_used_bind_password(api: Api, bind_password: str) -> None:
+    """AD에 마지막으로 서비스 계정 접속을 요청할 때 쓴 비밀번호가 주어진 값이다."""
+    assert api.directory.discover_calls[-1].bind_password.reveal() == bind_password
 
 
 def then_updated_by_is_user_ref(body: dict[str, Any], *, user_id: int, name: str) -> None:

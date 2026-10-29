@@ -21,16 +21,21 @@ def parse_login_id(raw: str) -> LoginId:
         raise AuthenticationError(LOGIN_FAILED) from None
 
 
-async def verify_credentials(
+async def verify_credentials(  # noqa: PLR0913 - AD 인증에 필요한 값이 모두 의미 있다
     deps: AuthDeps,
     settings: DirectorySettings,
+    base_dn: str,
     login_id: LoginId,
     password: Password,
+    *,
     client_ip: str,
 ) -> DirectoryUser:
-    """AD에 인증한다. 자격증명 실패는 LOGIN_FAILED(선점=실패 1회), 연결 불가는 선점 반환."""
+    """AD에 인증한다(최초 admin 등록용).
+
+    자격증명 실패는 LOGIN_FAILED(선점=실패 1회), 연결 불가는 선점 반환.
+    """
     try:
-        return await deps.directory.authenticate(settings, login_id, password)
+        return await deps.directory.authenticate(settings, base_dn, login_id, password)
     except InvalidCredentialsError:
         raise AuthenticationError(LOGIN_FAILED) from None
     except DirectoryError:

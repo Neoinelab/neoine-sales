@@ -38,6 +38,7 @@ from app.main import create_app
 from tests.factories_action_type import default_action_types
 from tests.fakes.catalog_seed import default_codes, default_labels
 from tests.fakes.directory import FakeDirectoryAuthenticator
+from tests.support.crypto_keys import TEST_FERNET_KEY
 from tests.support.database import apply_migrations, resolve_admin_url, temporary_database
 from tests.support.functional_clock import activate, new_clock
 from tests.support.skips import skip_or_fail
@@ -65,6 +66,7 @@ def make_settings(database_url: str, **overrides: object) -> LocalSettings:
     values: dict[str, object] = {
         "database_url": database_url,
         "jwt_secret": "x" * 40,
+        "settings_encryption_key": TEST_FERNET_KEY,
         "cors_allowed_origins": [ALLOWED_ORIGIN],
     }
     return LocalSettings(_env_file=None, **{**values, **overrides})  # type: ignore[arg-type]

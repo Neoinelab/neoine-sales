@@ -28,7 +28,7 @@ class GetAuthStatus:
         return AuthStatus(
             directory_configured=directory,
             storage_configured=storage,
-            needs_directory_setup=not directory,
+            needs_directory_setup=not directory and not has_admin,
             needs_storage_setup=not has_admin and not storage,
             needs_admin_setup=directory and storage and not has_admin,
         )

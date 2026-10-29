@@ -4,13 +4,16 @@ from typing import TYPE_CHECKING
 
 import pytest
 import pytest_asyncio
+from app.domain.auth.password_hash import PasswordHash
+from app.domain.common.secret import SealedSecret
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
 from app.domain.auth.credentials import LoginId
 from app.infra.db.unit_of_work import sql_unit_of_work_factory
 from tests.factories import NOW, later
-from tests.factories_auth import make_counter, make_directory_settings, make_user
+from tests.factories_auth import BASE_DN, make_counter, make_user
+from tests.factories_directory import make_directory_connection
 from tests.fakes.unit_of_work import FakeUnitOfWork
 from tests.support.truncate import truncate_business_tables
 from tests.support.user_ids import uid
@@ -21,6 +24,24 @@ if TYPE_CHECKING:
     from collections.abc import AsyncIterator
 
     from app.application.ports.unit_of_work import UnitOfWorkFactory
+    from app.domain.user.value_objects import UserId
+
+SEALED = SealedSecret("sealed-dummy-token")
+HASH = PasswordHash(
+    "scrypt$ln=14,r=8,p=1$c2FsdHNhbHRzYWx0c2FsdA$aGFzaGhhc2hoYXNoaGFzaGhhc2hoYXNoaGFzaGhhc2g"
+)
+
+
+async def _save_settings(uow: object) -> None:
+    await uow.directory_settings.save(  # type: ignore[attr-defined]
+        make_directory_connection(),
+        SEALED,
+        BASE_DN,
+        expected_revision=None,
+        updated_by=None,
+        now=NOW,
+    )
+
 
 PARAMS = [
     pytest.param("fake", id="fake"),
@@ -44,15 +65,16 @@ async def uow_factory(request: pytest.FixtureRequest) -> AsyncIterator[UnitOfWor
         await engine.dispose()
 
 
-async def _write_everything(uow_factory: UnitOfWorkFactory, *, commit: bool) -> None:
+async def _write_everything(uow_factory: UnitOfWorkFactory, *, commit: bool) -> UserId:
     async with uow_factory() as uow:
-        await uow.users.add(make_user("kim"))
+        user = make_user("kim")
+        await uow.users.add(user)
         await uow.login_failures.save(make_counter("a" * 64, failures=2))
-        await uow.directory_settings.save(
-            make_directory_settings(), expected_revision=None, updated_by=None, now=NOW
-        )
+        await _save_settings(uow)
+        await uow.password_hashes.save(user.id, HASH, NOW)
         if commit:
             await uow.commit()
+        return user.id
 
 
 async def test_committed_auth_changes_are_visible_to_later_units(
@@ -68,16 +90,20 @@ async def test_committed_auth_changes_are_visible_to_later_units(
         stored = await uow.directory_settings.get()
         assert stored is not None
         assert stored.revision == 1
+        kim = await uow.users.get_active_by_login_id(LoginId("kim"))
+        assert kim is not None
+        assert await uow.password_hashes.get(kim.id) == HASH
 
 
 async def test_uncommitted_auth_changes_are_discarded(uow_factory: UnitOfWorkFactory) -> None:
-    await _write_everything(uow_factory, commit=False)
+    user_id = await _write_everything(uow_factory, commit=False)
 
     async with uow_factory() as uow:
         assert await uow.users.get_active_by_login_id(LoginId("kim")) is None
         assert await uow.login_failures.get_for_update("a" * 64) is None
         assert await uow.directory_settings.get() is None
         assert await uow.users.count_active_admins() == 0
+        assert await uow.password_hashes.get(user_id) is None
 
 
 async def test_exception_rolls_back_auth_changes(uow_factory: UnitOfWorkFactory) -> None:
@@ -103,9 +129,7 @@ async def test_changes_after_commit_are_discarded(uow_factory: UnitOfWorkFactory
         await uow.commit()
         user.record_login(later(10), display_name="나중", email=None)
         await uow.users.update(user)
-        await uow.directory_settings.save(
-            make_directory_settings(), expected_revision=None, updated_by=None, now=NOW
-        )
+        await _save_settings(uow)
 
     async with uow_factory() as check:
         stored = await check.users.get(user.id)

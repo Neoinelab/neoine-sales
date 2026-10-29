@@ -14,6 +14,7 @@ import type {
   UserStatus,
 } from './types'
 import type { Quarter } from './period'
+import type { DirectorySecurity } from './settings'
 import type { SyncChange, SyncResolution } from './sync'
 
 // ───────────────────────── 연락처 ─────────────────────────
@@ -241,16 +242,14 @@ export interface UserRemoveResult {
 }
 
 export interface DirectorySettingsInput {
-  serverUrls: string[]
-  useStarttls: boolean
-  caCertPem: string | null
-  bindTemplate: string
-  baseDn: string
+  host: string
+  port: number
+  security: DirectorySecurity
+  bindAccount: string
+  /** null이면 저장된 비밀번호를 유지한다(설정 화면에서 손대지 않았을 때). */
+  bindPassword: string | null
   userFilter: string
-  displayNameAttribute: string
-  emailAttribute: string
   connectTimeoutSeconds: number
-  receiveTimeoutSeconds: number
 }
 
 // ───────────────────────── Forecast ─────────────────────────

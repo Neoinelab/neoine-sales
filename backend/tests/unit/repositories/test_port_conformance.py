@@ -27,6 +27,7 @@ from tests.fakes.id_allocator import FakeIdAllocator
 from tests.fakes.repositories import FakeDealRepository
 from tests.fakes.unit_of_work import FakeUnitOfWork, FixedClock
 from tests.fakes.use_cases import FakeUseCases
+from tests.support.crypto_keys import TEST_FERNET_KEY
 
 if TYPE_CHECKING:
     from app.application.ports.clock import Clock
@@ -243,6 +244,7 @@ async def test_use_case_providers_satisfy_the_web_port() -> None:
         _env_file=None,
         database_url="postgresql+asyncpg://user:pw@localhost/none",  # 접속하지 않는다
         jwt_secret="x" * 40,
+        settings_encryption_key=TEST_FERNET_KEY,
     )
     container = Container(settings)
     try:

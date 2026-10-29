@@ -31,6 +31,10 @@ FORECAST_OWNED_CASCADES: Final = (
     ("forecast_snapshot_cells", "snapshot_id", "forecast_snapshot_columns"),
 )
 
+# 예외: 대체 로그인용 비밀번호 해시는 사용자에 딸린 데이터라 사용자를 물리 삭제하면 함께 지워진다
+# (ON DELETE CASCADE). 사용자 삭제를 막는 '연결'로 세지 않는다.
+USER_OWNED_CASCADES: Final = (("user_password_hashes", "user_id", "users"),)
+
 FOREIGN_KEYS_SQL = text(
     "select c.conname as name, c.conrelid::regclass::text as tbl, a.attname as col,"
     " c.confrelid::regclass::text as ref_tbl, c.confdeltype::text as on_delete,"
@@ -98,14 +102,15 @@ async def foreign_keys(session: AsyncSession) -> list[ForeignKey]:
 def _delete_rule_violated(fk: ForeignKey) -> bool:
     """RESTRICT가 기본이다. CASCADE는 Deal 소속→deals,
     forecast_snapshot_columns.snapshot_id→forecast_snapshots, forecast_snapshot_cells→
-    forecast_snapshot_columns(복합 FK)만 허용한다."""
+    forecast_snapshot_columns(복합 FK), user_password_hashes.user_id→users만 허용한다."""
     if fk.on_delete == RESTRICT:
         return False
     if fk.on_delete != CASCADE:
         return True
     if fk.ref_table == DEAL_OWNED_PARENT:
         return False
-    return (fk.table, fk.column, fk.ref_table) not in set(FORECAST_OWNED_CASCADES)
+    allowed = {*FORECAST_OWNED_CASCADES, *USER_OWNED_CASCADES}
+    return (fk.table, fk.column, fk.ref_table) not in allowed
 
 
 async def check_schema(

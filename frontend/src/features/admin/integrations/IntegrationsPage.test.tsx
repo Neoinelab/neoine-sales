@@ -1,9 +1,9 @@
 import { screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { stageMessage } from '../../../shared/directory/messages'
 import { gateway } from '../../../gateway'
 import { renderAt } from '../../../test/mockApp'
 import { setField } from '../../../test/directoryForm'
+import { DIRECTORY_SAVED } from '../../../test/directoryFixtures'
 
 afterEach(() => vi.restoreAllMocks())
 
@@ -16,7 +16,7 @@ async function serverError(): Promise<unknown> {
 async function openIntegrations() {
   const view = await renderAt('/admin/integrations', { role: 'admin' })
   await screen.findByRole('heading', { name: 'AD(LDAP) 서버 설정' })
-  await screen.findByLabelText(/서버 URL/)
+  await screen.findByLabelText(/^호스트/)
   return view
 }
 
@@ -29,12 +29,14 @@ function storage() {
 }
 
 describe('외부연동 AD 설정 (T-ADMIN-11)', () => {
-  it('shows the saved settings in the edit form', async () => {
+  it('shows the saved settings in the edit form, the discovered Base DN and a masked password', async () => {
     await openIntegrations()
 
-    expect(screen.getByLabelText(/서버 URL/)).toHaveValue('ldaps://dc1.corp.test\nldaps://dc2.corp.test')
-    expect(screen.getByLabelText(/Base DN/)).toHaveValue('dc=corp,dc=test')
-    expect(screen.getByLabelText(/StartTLS/)).toHaveAttribute('type', 'checkbox')
+    expect(screen.getByLabelText(/^호스트/)).toHaveValue('dc1.corp.test')
+    expect(screen.getByLabelText(/^포트/)).toHaveValue(636)
+    expect(screen.getByLabelText(/^보안 연결/)).toHaveValue('ssl')
+    expect(screen.getByLabelText(/^바인드 비밀번호/)).toHaveValue('********')
+    expect(directory().getByText('dc=corp,dc=test')).toBeInTheDocument()
     expect(screen.getByLabelText(/연결 제한 시간/)).toHaveValue(5)
   })
 
@@ -55,66 +57,67 @@ describe('외부연동 AD 설정 (T-ADMIN-11)', () => {
   it('shows a result and the who/when after saving, and raises the revision', async () => {
     const { user } = await openIntegrations()
     const before = Number(/설정 버전 (\d+)/.exec(directory().getByText(/설정 버전 \d+/).textContent ?? '')?.[1])
-    setField(/Base DN/, 'dc=new,dc=test')
+    setField(/연결 제한 시간/, '9')
 
     await user.click(directory().getByRole('button', { name: '저장' }))
 
     expect(await directory().findByText('저장했습니다')).toBeInTheDocument()
     expect(directory().getByText(`설정 버전 ${before + 1}`)).toBeInTheDocument()
     expect(directory().getByText(/마지막 수정: 최관리 · /)).toBeInTheDocument()
-    expect(screen.getByLabelText(/Base DN/)).toHaveValue('dc=new,dc=test')
+    expect(screen.getByLabelText(/연결 제한 시간/)).toHaveValue(9)
   })
 
   it('shows the server message for a missing required value', async () => {
     const { user } = await openIntegrations()
-    setField(/바인드 템플릿/, '')
+    setField(/^바인드 계정/, '')
+    await user.type(screen.getByLabelText(/^바인드 비밀번호/), 'Typed-pw-1!')
 
     await user.click(directory().getByRole('button', { name: '저장' }))
 
-    expect(await directory().findByRole('alert')).toHaveTextContent('바인드 템플릿을 입력하세요.')
+    expect(await directory().findByRole('alert')).toHaveTextContent('바인드 계정을 입력하세요.')
   })
 
-  it('tests the form values without saving', async () => {
+  it('tests the form values without saving and shows the discovered Base DN', async () => {
     const { user } = await openIntegrations()
-    setField(/Base DN/, 'dc=probe,dc=test')
+    setField(/연결 제한 시간/, '9')
     const save = vi.spyOn(gateway.settings, 'saveDirectory')
 
     await user.click(directory().getByRole('button', { name: '연결 테스트' }))
 
-    expect(await directory().findByRole('status')).toHaveTextContent('연결 테스트에 성공했습니다.')
+    expect(await directory().findByRole('status')).toHaveTextContent('연결 테스트에 성공했습니다. Base DN: dc=corp,dc=test')
     expect(save).not.toHaveBeenCalled()
+  })
+
+  it('shows the Base DN the test discovered', async () => {
+    vi.spyOn(gateway.settings, 'testDirectory').mockResolvedValue({ baseDn: 'dc=found,dc=test' })
+    const { user } = await openIntegrations()
+
+    await user.click(directory().getByRole('button', { name: '연결 테스트' }))
+
+    expect(await directory().findByRole('status')).toHaveTextContent('Base DN: dc=found,dc=test')
   })
 
   it('explains the failed stage when the connection test fails', async () => {
     const { user } = await openIntegrations()
-    setField(/서버 URL/, 'ldaps://fail.corp.test')
+    setField(/^호스트/, 'fail.corp.test')
+    await user.type(screen.getByLabelText(/^바인드 비밀번호/), 'Typed-pw-1!')
 
     await user.click(directory().getByRole('button', { name: '연결 테스트' }))
 
-    expect(await directory().findByRole('alert')).toHaveTextContent('AD 서버에 연결할 수 없습니다. 서버 URL과 네트워크를 확인하세요.')
+    expect(await directory().findByRole('alert')).toHaveTextContent('AD 서버에 연결하지 못했습니다. 호스트·포트·방화벽을 확인하세요')
   })
 
   it('clears the previous result when the next action starts', async () => {
     const { user } = await openIntegrations()
     await user.click(directory().getByRole('button', { name: '연결 테스트' }))
     await directory().findByRole('status')
-    setField(/서버 URL/, 'ldaps://fail.corp.test')
+    setField(/^호스트/, 'fail.corp.test')
+    await user.type(screen.getByLabelText(/^바인드 비밀번호/), 'Typed-pw-1!')
 
     await user.click(directory().getByRole('button', { name: '연결 테스트' }))
 
     await directory().findByRole('alert')
     expect(directory().queryByRole('status')).not.toBeInTheDocument()
-  })
-})
-
-describe('AD 검증 실패 단계 문구 (옛 settings·setup it.each 이관)', () => {
-  it.each([
-    ['connect', 'AD 서버에 연결할 수 없습니다'],
-    ['tls', 'TLS 연결을 확인하지 못했습니다'],
-    ['bind', '바인드 템플릿'],
-    ['search', '사용자 검색에 실패했습니다'],
-  ])('explains the %s stage', (stage, text) => {
-    expect(stageMessage(stage)).toContain(text)
   })
 })
 
@@ -178,20 +181,57 @@ describe('외부연동 AD 설정: 브라우저 자동 채움', () => {
     await openIntegrations()
 
     expect(screen.getByLabelText(/현재 관리자 비밀번호/)).toHaveAttribute('autocomplete', 'current-password')
-    expect(screen.getByLabelText(/Base DN/)).toHaveAttribute('autocomplete', 'off')
-    expect(screen.getByLabelText(/바인드 템플릿/)).toHaveAttribute('autocomplete', 'off')
+    expect(screen.getByLabelText(/^호스트/)).toHaveAttribute('autocomplete', 'off')
+    expect(screen.getByLabelText(/^바인드 계정/)).toHaveAttribute('autocomplete', 'off')
+    expect(screen.getByLabelText(/^바인드 비밀번호/)).toHaveAttribute('autocomplete', 'new-password')
   })
 })
 
-describe('외부연동 AD 설정이 아직 없을 때', () => {
-  it('points to the first-time setup when no AD settings exist', async () => {
+describe('외부연동 AD 설정이 아직 없을 때 (AC12)', () => {
+  async function openEmpty() {
     vi.spyOn(gateway.settings, 'getDirectory').mockResolvedValue(null)
-    await renderAt('/admin/integrations', { role: 'admin' })
+    const view = await renderAt('/admin/integrations', { role: 'admin' })
     await screen.findByRole('heading', { name: 'AD(LDAP) 서버 설정' })
+    await screen.findByLabelText(/^호스트/)
+    return view
+  }
 
-    expect(await directory().findByText('AD 서버가 아직 설정되지 않았습니다. 최초 설정에서 등록하세요.')).toBeInTheDocument()
-    expect(directory().getByRole('link', { name: /최초 설정/ })).toHaveAttribute('href', '/setup')
-    expect(directory().queryByRole('button', { name: '저장' })).not.toBeInTheDocument()
-    expect(screen.queryByLabelText(/서버 URL/)).not.toBeInTheDocument()
+  it('shows a registration form instead of a link to the first-time setup', async () => {
+    await openEmpty()
+
+    expect(directory().queryByRole('link', { name: /최초 설정/ })).not.toBeInTheDocument()
+    expect(directory().queryByText(/최초 설정에서 등록하세요/)).not.toBeInTheDocument()
+    expect(directory().getByRole('button', { name: '저장' })).toBeInTheDocument()
+    expect(directory().getByRole('button', { name: '연결 테스트' })).toBeInTheDocument()
+    expect(screen.getByLabelText(/^바인드 비밀번호/)).toHaveValue('')
+  })
+
+  it('requires the bind password before sending a creation request', async () => {
+    const save = vi.spyOn(gateway.settings, 'saveDirectory')
+    const { user } = await openEmpty()
+    setField(/^호스트/, 'dc1.corp.test')
+    setField(/^바인드 계정/, 'CORP\\svc-sales')
+
+    await user.click(directory().getByRole('button', { name: '저장' }))
+
+    expect(await directory().findByRole('alert')).toHaveTextContent('바인드 비밀번호를 입력하세요')
+    expect(save).not.toHaveBeenCalled()
+  })
+
+  it('creates the settings with a null expected revision and the admin password', async () => {
+    const save = vi.spyOn(gateway.settings, 'saveDirectory').mockResolvedValue({ ...DIRECTORY_SAVED, revision: 1 })
+    const { user } = await openEmpty()
+    setField(/^호스트/, 'dc1.corp.test')
+    setField(/^바인드 계정/, 'CORP\\svc-sales')
+    await user.type(screen.getByLabelText(/^바인드 비밀번호/), 'Typed-pw-1!')
+    await user.type(directory().getByLabelText(/현재 관리자 비밀번호/), 'pw-root')
+
+    await user.click(directory().getByRole('button', { name: '저장' }))
+
+    await directory().findByText('저장했습니다')
+    expect(save).toHaveBeenCalledWith(
+      expect.objectContaining({ host: 'dc1.corp.test', bindAccount: 'CORP\\svc-sales', bindPassword: 'Typed-pw-1!' }),
+      { password: 'pw-root', expectedRevision: null },
+    )
   })
 })

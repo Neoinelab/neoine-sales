@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { LOCKED_KEYS, QUICK_LOGIN_USERS } from '../../../shared/model/constants'
 import { expectApiError, mockAs } from '../testing'
 import { USER_ID } from '../seed/ids'
+import { BIND_PASSWORD } from '../../directoryFixtures'
 
 describe('빠른 로그인 사용자', () => {
   it('역할 이름만 라벨로 쓰고 가상 인물 이름을 담지 않는다', () => {
@@ -103,24 +104,13 @@ describe('contacts.list는 admin 전용', () => {
 })
 
 describe('AD 설정 저장·테스트 인자', () => {
-  const input = {
-    serverUrls: ['ldaps://dc.corp.test'],
-    useStarttls: false,
-    caCertPem: null,
-    bindTemplate: 'CORP\\{login_id}',
-    baseDn: 'dc=corp,dc=test',
-    userFilter: '(x)',
-    displayNameAttribute: 'displayName',
-    emailAttribute: 'mail',
-    connectTimeoutSeconds: 5,
-    receiveTimeoutSeconds: 10,
-  }
+  const input = { host: 'dc1.corp.test', port: 636, security: 'ssl' as const, bindAccount: 'CORP\\svc-sales', bindPassword: BIND_PASSWORD, userFilter: '(sAMAccountName={login_id})', connectTimeoutSeconds: 5 }
 
   it('saveDirectory는 비밀번호와 expectedRevision을 받기만 하고 revision을 올린다', async () => {
     const { gateway } = await mockAs('root')
     const before = await gateway.settings.getDirectory()
 
-    const saved = await gateway.settings.saveDirectory(input, { password: 'pw', expectedRevision: before?.revision ?? 1 })
+    const saved = await gateway.settings.saveDirectory({ ...input, bindPassword: null }, { password: 'pw', expectedRevision: before?.revision ?? 1 })
 
     expect(saved.revision).toBe((before?.revision ?? 0) + 1)
   })
@@ -128,7 +118,7 @@ describe('AD 설정 저장·테스트 인자', () => {
   it('testDirectory는 비밀번호를 받는다', async () => {
     const { gateway } = await mockAs('root')
 
-    await expect(gateway.settings.testDirectory(input, 'pw')).resolves.toBeUndefined()
-    await expectApiError(gateway.settings.testDirectory({ ...input, serverUrls: ['ldaps://fail.test'] }, null), 422)
+    await expect(gateway.settings.testDirectory(input, 'pw')).resolves.toEqual({ baseDn: expect.any(String) })
+    await expectApiError(gateway.settings.testDirectory({ ...input, host: 'fail.test' }, null), 422)
   })
 })

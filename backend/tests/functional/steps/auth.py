@@ -7,7 +7,7 @@
 
 from typing import TYPE_CHECKING, Literal
 
-from tests.factories_auth import BASE_DN, BIND_TEMPLATE, USER_FILTER
+from tests.factories_auth import BIND_ACCOUNT, BIND_PASSWORD, USER_FILTER
 
 if TYPE_CHECKING:
     from httpx import Response
@@ -36,18 +36,16 @@ def password_of(login_id: str) -> str:
 
 
 def directory_payload(**overrides: object) -> dict[str, object]:
-    """AD 연결 설정 본문(최초 설정 1단계·설정 화면 공용). 유효한 더미 값."""
+    """AD 연결 설정 본문(최초 설정 1단계의 요청 본문). 유효한 더미 값 7개: 호스트·포트·보안 연결·
+    바인드 계정·바인드 비밀번호·사용자 필터·연결 제한 시간. Base DN은 서버가 AD에서 찾는다."""
     values: dict[str, object] = {
-        "server_urls": ["ldaps://dc1.corp.test"],
-        "use_starttls": False,
-        "ca_cert_pem": None,
-        "bind_template": BIND_TEMPLATE,
-        "base_dn": BASE_DN,
+        "host": "dc1.corp.test",
+        "port": 636,
+        "security": "ssl",
+        "bind_account": BIND_ACCOUNT,
+        "bind_password": BIND_PASSWORD,
         "user_filter": USER_FILTER,
-        "display_name_attribute": "displayName",
-        "email_attribute": "mail",
         "connect_timeout_seconds": 5,
-        "receive_timeout_seconds": 10,
     }
     return {**values, **overrides}
 

@@ -73,15 +73,26 @@ async def test_login_with_duplicate_active_rows_updates_neither_row(
 
 
 @pytest.mark.usefixtures("duplicated")
+@pytest.mark.usefixtures("duplicated")
+async def test_login_with_duplicate_active_rows_saves_no_hash(
+    auth: AuthStack, uow: FakeUnitOfWork
+) -> None:
+    with pytest.raises(AuthenticationError):
+        await auth.login.execute(login_id="kim", password=Password(DUMMY_PASSWORD), client_ip=IP)
+
+    assert uow.password_hashes._items == {}
+
+
+@pytest.mark.usefixtures("duplicated")
 async def test_duplicate_login_id_does_not_block_other_users(
     auth: AuthStack, uow_factory: UnitOfWorkFactory
 ) -> None:
     await seed_user(uow_factory, "lee", Role.USER)
     auth.directory.add_account("lee", "pw-lee")
 
-    issued = await auth.login.execute(login_id="lee", password=Password("pw-lee"), client_ip=IP)
+    outcome = await auth.login.execute(login_id="lee", password=Password("pw-lee"), client_ip=IP)
 
-    assert issued.principal.subject == "lee"
+    assert outcome.session.principal.subject == "lee"
 
 
 async def test_fake_repository_raises_for_duplicates_so_the_use_case_must_translate(

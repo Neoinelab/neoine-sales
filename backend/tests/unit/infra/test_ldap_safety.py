@@ -1,4 +1,4 @@
-"""T-A10·A12: 비밀번호가 오류·로그에 남지 않고(AUTH-7), ldap3 호출이 이벤트 루프를 막지 않는다."""
+"""T-A10·A12: 서비스·사용자 비밀번호가 오류·로그에 남지 않고(AC3), 이벤트 루프를 막지 않는다."""
 
 import asyncio
 import logging
@@ -11,13 +11,14 @@ from ldap3.core.exceptions import LDAPSocketOpenError
 from app.application.ports.directory import DirectoryError
 from app.domain.auth.credentials import LoginId, Password
 from app.infra.auth.ldap import LdapDirectoryAuthenticator
-from tests.factories_auth import make_directory_settings
+from tests.factories_auth import BASE_DN, BIND_ACCOUNT, BIND_PASSWORD
+from tests.factories_directory import make_directory_settings
 from tests.support.ldap_mock import MockDirectory
 
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-SECRET = "Zq9-never-leak-this-4242"  # noqa: S105 - 테스트용 더미 값
+SECRET = "Zq9-never-leak-this-4242"  # noqa: S105 - 테스트용 더미 값(사용자 비밀번호)
 WRONG = "Wr0ng-attempt-9191"
 
 
@@ -43,16 +44,29 @@ def _socket_down(mock: MockDirectory) -> None:
     mock.faults["open"] = LDAPSocketOpenError("cannot reach server")
 
 
-def _bind_rejected(mock: MockDirectory) -> None:
-    mock.bind_code = 53
+def _service_rejected(mock: MockDirectory) -> None:
+    mock.bind_codes_by_user[BIND_ACCOUNT] = 53
+
+
+def _user_rejected(mock: MockDirectory) -> None:
+    mock.bind_codes_by_user["cn=kim,ou=users,dc=corp,dc=test"] = 53
 
 
 def _search_fails(mock: MockDirectory) -> None:
     mock.faults["search"] = LDAPSocketOpenError("reset during search")
 
 
-@pytest.mark.parametrize("arrange", [_wrong_password, _socket_down, _bind_rejected, _search_fails])
-async def test_errors_and_logs_never_contain_the_password(
+ARRANGEMENTS = [
+    _wrong_password,
+    _socket_down,
+    _service_rejected,
+    _user_rejected,
+    _search_fails,
+]
+
+
+@pytest.mark.parametrize("arrange", ARRANGEMENTS)
+async def test_errors_and_logs_never_contain_either_password(
     caplog: pytest.LogCaptureFixture, arrange: Callable[[MockDirectory], None]
 ) -> None:
     mock = _directory()
@@ -63,15 +77,31 @@ async def test_errors_and_logs_never_contain_the_password(
 
     with pytest.raises(DirectoryError) as caught:
         await LdapDirectoryAuthenticator(mock.factory).authenticate(
-            make_directory_settings(), LoginId("kim"), Password(attempt)
+            make_directory_settings(), BASE_DN, LoginId("kim"), Password(attempt)
         )
 
     for error in _chain(caught.value):
         text = f"{error!s}|{error!r}|{error.args!r}"
-        assert SECRET not in text
-        assert WRONG not in text
-    assert SECRET not in caplog.text
-    assert WRONG not in caplog.text
+        for secret in (SECRET, WRONG, BIND_PASSWORD):
+            assert secret not in text
+    for secret in (SECRET, WRONG, BIND_PASSWORD):
+        assert secret not in caplog.text
+
+
+@pytest.mark.parametrize("arrange", [_socket_down, _service_rejected])
+async def test_discovery_errors_and_logs_never_contain_the_service_password(
+    caplog: pytest.LogCaptureFixture, arrange: Callable[[MockDirectory], None]
+) -> None:
+    mock = _directory()
+    arrange(mock)
+    caplog.set_level(logging.DEBUG)
+
+    with pytest.raises(DirectoryError) as caught:
+        await LdapDirectoryAuthenticator(mock.factory).discover_base_dn(make_directory_settings())
+
+    for error in _chain(caught.value):
+        assert BIND_PASSWORD not in f"{error!s}|{error!r}|{error.args!r}"
+    assert BIND_PASSWORD not in caplog.text
 
 
 async def test_errors_never_contain_the_password_when_the_search_matches_nothing(
@@ -84,6 +114,7 @@ async def test_errors_never_contain_the_password_when_the_search_matches_nothing
     with pytest.raises(DirectoryError) as caught:
         await LdapDirectoryAuthenticator(mock.factory).authenticate(
             make_directory_settings(user_filter="(sAMAccountName=zz{login_id})"),
+            BASE_DN,
             LoginId("kim"),
             Password(SECRET),
         )
@@ -91,24 +122,12 @@ async def test_errors_never_contain_the_password_when_the_search_matches_nothing
     for error in _chain(caught.value):
         assert SECRET not in f"{error!s}|{error!r}|{error.args!r}"
     assert SECRET not in caplog.text
-
-
-async def test_probe_errors_do_not_leak_connection_details_of_credentials(
-    caplog: pytest.LogCaptureFixture,
-) -> None:
-    mock = _directory()
-    mock.faults["open"] = LDAPSocketOpenError("refused")
-    caplog.set_level(logging.DEBUG)
-
-    with pytest.raises(DirectoryError) as caught:
-        await LdapDirectoryAuthenticator(mock.factory).probe(make_directory_settings())
-
-    assert SECRET not in f"{caught.value!r}{caplog.text}"
+    assert BIND_PASSWORD not in caplog.text
 
 
 async def test_calls_run_off_the_event_loop() -> None:
     mock = _directory()
-    mock.delay = 0.4
+    mock.delay = 0.2
     adapter = LdapDirectoryAuthenticator(mock.factory)
     loop_thread = threading.get_ident()
     ticks = 0
@@ -121,22 +140,13 @@ async def test_calls_run_off_the_event_loop() -> None:
 
     task = asyncio.create_task(ticker())
     try:
-        await adapter.authenticate(make_directory_settings(), LoginId("kim"), Password(SECRET))
+        await adapter.authenticate(
+            make_directory_settings(), BASE_DN, LoginId("kim"), Password(SECRET)
+        )
     finally:
         task.cancel()
 
     assert ticks >= 4, "bind가 이벤트 루프를 막으면 그 동안 다른 코루틴이 돌지 못한다"
-    assert mock.factory_threads
-    assert all(thread != loop_thread for thread in mock.factory_threads)
-    assert all(thread != loop_thread for _, thread in mock.log)
-
-
-async def test_probe_runs_off_the_event_loop() -> None:
-    mock = _directory()
-
-    await LdapDirectoryAuthenticator(mock.factory).probe(make_directory_settings())
-
-    loop_thread = threading.get_ident()
     assert mock.factory_threads
     assert all(thread != loop_thread for thread in mock.factory_threads)
     assert all(thread != loop_thread for _, thread in mock.log)

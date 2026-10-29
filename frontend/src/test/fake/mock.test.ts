@@ -1,3 +1,4 @@
+import { BIND_PASSWORD } from '../directoryFixtures'
 import { describe, expect, it } from 'vitest'
 import { DEAL_CODE_PATTERN, QUICK_LOGIN_USERS } from '../../shared/model/constants'
 import { isSyncConsistent } from '../../shared/model/sync'
@@ -136,11 +137,33 @@ describe('인증', () => {
 
   it('아무 비밀번호나 통과하고 me가 사용자를 돌려주며 로그아웃하면 401이다', async () => {
     const { gateway } = await mockAs(null)
-    const me = await gateway.auth.login('kim', 'anything')
-    expect(me).toEqual({ id: USER_ID.kim, loginId: 'kim', name: '김영업', role: 'sales' })
-    expect(await gateway.auth.me()).toEqual(me)
+    const result = await gateway.auth.login('kim', 'anything')
+    expect(result.me).toEqual({ id: USER_ID.kim, loginId: 'kim', name: '김영업', role: 'sales' })
+    expect(result.directoryWarning).toBeNull()
+    expect(await gateway.auth.me()).toEqual(result.me)
     await gateway.auth.logout()
     await expectApiError(gateway.auth.me(), 401)
+  })
+
+  it('AD 설정이 없으면 admin 로그인 결과에만 not_configured 경고가 실린다(AC15)', async () => {
+    const mock = newMock()
+    mock.control.restartSetup() // AD 설정 1단계가 끝나지 않은 상태
+
+    const admin = await mock.gateway.auth.login('root', 'anything')
+    await mock.gateway.auth.logout()
+    const sales = await mock.gateway.auth.login('kim', 'anything')
+
+    expect(admin.directoryWarning).toMatchObject({ stage: 'not_configured' })
+    expect(admin.directoryWarning?.message).toBeTruthy()
+    expect(sales.directoryWarning).toBeNull()
+  })
+
+  it('AD 설정이 있으면 admin 로그인에도 경고가 없다', async () => {
+    const { gateway } = await mockAs(null)
+
+    const admin = await gateway.auth.login('root', 'anything')
+
+    expect(admin.directoryWarning).toBeNull()
   })
 
   it('로그인하면 lastLoginAt이 시계의 now로 갱신된다', async () => {
@@ -165,11 +188,9 @@ describe('최초 설정(setup)', () => {
     mock.control.restartSetup()
     await expectApiError(setup.saveStorage('/data/files'), 409)
     await expectApiError(setup.registerAdmin('root', 'pw'), 409)
-    const input = {
-      serverUrls: ['ldaps://dc1.corp.test'], useStarttls: false, caCertPem: null, bindTemplate: 'CORP\\{login_id}',
-      baseDn: 'dc=corp,dc=test', userFilter: '(sAMAccountName={login_id})', displayNameAttribute: 'displayName',
-      emailAttribute: 'mail', connectTimeoutSeconds: 5, receiveTimeoutSeconds: 10,
-    }
+    const input = { host: 'dc1.corp.test', port: 636, security: 'ssl' as const, bindAccount: 'CORP\\svc-sales', bindPassword: BIND_PASSWORD, userFilter: '(sAMAccountName={login_id})', connectTimeoutSeconds: 5 }
+    await expectApiError(setup.saveDirectory({ ...input, bindPassword: '' }), 422, /비밀번호/)
+    expect((await setup.status()).directoryDone).toBe(false)
     await setup.saveDirectory(input)
     expect((await setup.status()).directoryDone).toBe(true)
     await expectApiError(setup.saveStorage('relative/path'), 422, '절대 경로를 입력하세요.')

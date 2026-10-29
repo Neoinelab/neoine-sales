@@ -1986,157 +1986,116 @@ export interface components {
         };
         /**
          * DirectorySettingsRequest
-         * @description AD 서버 설정. 값 검증은 도메인(DirectorySettings)이 하고 메시지에 필드 이름이 들어간다.
+         * @description 최초 설정 본문: 바인드 비밀번호 필수.
          */
         DirectorySettingsRequest: {
-            /** Base Dn */
-            base_dn: string;
-            /** Bind Template */
-            bind_template: string;
-            /** Ca Cert Pem */
-            ca_cert_pem?: string | null;
+            /** Bind Account */
+            bind_account: string;
+            /**
+             * Bind Password
+             * Format: password
+             */
+            bind_password: string;
             /**
              * Connect Timeout Seconds
              * @default 5
              */
             connect_timeout_seconds: number;
-            /**
-             * Display Name Attribute
-             * @default displayName
-             */
-            display_name_attribute: string;
-            /**
-             * Email Attribute
-             * @default mail
-             */
-            email_attribute: string;
-            /**
-             * Receive Timeout Seconds
-             * @default 10
-             */
-            receive_timeout_seconds: number;
-            /** Server Urls */
-            server_urls: string[];
-            /** Use Starttls */
-            use_starttls: boolean;
+            /** Host */
+            host: string;
+            /** Port */
+            port: number;
+            security: components["schemas"]["SecurityMode"];
             /** User Filter */
             user_filter: string;
         };
-        /** DirectorySettingsResponse */
+        /**
+         * DirectorySettingsResponse
+         * @description 저장된 설정. 비밀번호는 어떤 형태로도 담지 않는다.
+         */
         DirectorySettingsResponse: {
             /** Base Dn */
             base_dn: string;
-            /** Bind Template */
-            bind_template: string;
-            /** Ca Cert Pem */
-            ca_cert_pem: string | null;
+            /** Bind Account */
+            bind_account: string;
+            /**
+             * Bind Credential Status
+             * @enum {string}
+             */
+            bind_credential_status: "ok" | "unreadable";
             /** Connect Timeout Seconds */
             connect_timeout_seconds: number;
-            /** Display Name Attribute */
-            display_name_attribute: string;
-            /** Email Attribute */
-            email_attribute: string;
-            /** Receive Timeout Seconds */
-            receive_timeout_seconds: number;
+            /** Host */
+            host: string;
+            /** Port */
+            port: number;
             /** Revision */
             revision: number;
-            /** Server Urls */
-            server_urls: string[];
+            security: components["schemas"]["SecurityMode"];
             /**
              * Updated At
              * Format: date-time
              */
             updated_at: string;
             updated_by: components["schemas"]["UserRef"] | null;
-            /** Use Starttls */
-            use_starttls: boolean;
             /** User Filter */
             user_filter: string;
         };
         /**
          * DirectorySettingsTestRequest
-         * @description 연결 테스트 본문: 설정 + 현재 로그인한 admin의 비밀번호(dev 로그인 admin은 생략).
+         * @description 연결 테스트 본문: 접속 정보 + 바인드 비밀번호(생략·null이면 저장된 값 유지) +
+         *     현재 로그인한 admin의 비밀번호(dev 로그인 admin은 생략).
          */
         DirectorySettingsTestRequest: {
-            /** Base Dn */
-            base_dn: string;
-            /** Bind Template */
-            bind_template: string;
-            /** Ca Cert Pem */
-            ca_cert_pem?: string | null;
+            /** Bind Account */
+            bind_account: string;
+            /** Bind Password */
+            bind_password?: string | null;
             /**
              * Connect Timeout Seconds
              * @default 5
              */
             connect_timeout_seconds: number;
-            /**
-             * Display Name Attribute
-             * @default displayName
-             */
-            display_name_attribute: string;
-            /**
-             * Email Attribute
-             * @default mail
-             */
-            email_attribute: string;
+            /** Host */
+            host: string;
             /** Password */
             password?: string | null;
-            /**
-             * Receive Timeout Seconds
-             * @default 10
-             */
-            receive_timeout_seconds: number;
-            /** Server Urls */
-            server_urls: string[];
-            /** Use Starttls */
-            use_starttls: boolean;
+            /** Port */
+            port: number;
+            security: components["schemas"]["SecurityMode"];
             /** User Filter */
             user_filter: string;
         };
         /**
          * DirectorySettingsUpdateRequest
-         * @description 저장 본문: 연결 테스트 본문 + 낙관적 잠금용 revision(1 이상).
+         * @description 저장 본문: 테스트 본문 + 낙관적 잠금용 revision(키 필수, null이면 설정 없을 때 생성).
          */
         DirectorySettingsUpdateRequest: {
-            /** Base Dn */
-            base_dn: string;
-            /** Bind Template */
-            bind_template: string;
-            /** Ca Cert Pem */
-            ca_cert_pem?: string | null;
+            /** Bind Account */
+            bind_account: string;
+            /** Bind Password */
+            bind_password?: string | null;
             /**
              * Connect Timeout Seconds
              * @default 5
              */
             connect_timeout_seconds: number;
-            /**
-             * Display Name Attribute
-             * @default displayName
-             */
-            display_name_attribute: string;
-            /**
-             * Email Attribute
-             * @default mail
-             */
-            email_attribute: string;
             /** Expected Revision */
-            expected_revision: number;
+            expected_revision: number | null;
+            /** Host */
+            host: string;
             /** Password */
             password?: string | null;
-            /**
-             * Receive Timeout Seconds
-             * @default 10
-             */
-            receive_timeout_seconds: number;
-            /** Server Urls */
-            server_urls: string[];
-            /** Use Starttls */
-            use_starttls: boolean;
+            /** Port */
+            port: number;
+            security: components["schemas"]["SecurityMode"];
             /** User Filter */
             user_filter: string;
         };
         /** DirectoryTestResultResponse */
         DirectoryTestResultResponse: {
+            /** Base Dn */
+            base_dn: string | null;
             /** Message */
             message: string;
             /** Stage */
@@ -2144,6 +2103,21 @@ export interface components {
             /** Success */
             success: boolean;
         };
+        /**
+         * DirectoryWarningResponse
+         * @description AD 대신 이전 로그인 비밀번호로 들어갔을 때의 안내(admin에게만 온다).
+         */
+        DirectoryWarningResponse: {
+            /** Message */
+            message: string;
+            stage: components["schemas"]["DirectoryWarningStage"];
+        };
+        /**
+         * DirectoryWarningStage
+         * @description AD가 답하지 못해 대체 로그인으로 넘어간 이유(admin 경고 팝업과 로그에 쓴다).
+         * @enum {string}
+         */
+        DirectoryWarningStage: "not_configured" | "connect" | "tls" | "service_bind" | "base_dn" | "search" | "credential_unreadable" | "unknown";
         /**
          * Entity
          * @enum {string}
@@ -2233,6 +2207,19 @@ export interface components {
              * Format: password
              */
             password: string;
+        };
+        /** LoginResponse */
+        LoginResponse: {
+            directory_warning: components["schemas"]["DirectoryWarningResponse"] | null;
+            /** Email */
+            email: string | null;
+            /** Name */
+            name: string;
+            role: components["schemas"]["Role"];
+            /** Subject */
+            subject: string;
+            /** User Id */
+            user_id: number;
         };
         /** MeetingBatchRequest */
         MeetingBatchRequest: {
@@ -3003,6 +2990,11 @@ export interface components {
          * @enum {string}
          */
         RowScope: "deal" | "action";
+        /**
+         * SecurityMode
+         * @enum {string}
+         */
+        SecurityMode: "none" | "ssl" | "starttls";
         /** ServerTimeResponse */
         ServerTimeResponse: {
             /**
@@ -3820,7 +3812,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["PrincipalResponse"];
+                    "application/json": components["schemas"]["LoginResponse"];
                 };
             };
             /** @description problem+json */

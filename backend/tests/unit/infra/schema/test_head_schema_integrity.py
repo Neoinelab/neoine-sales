@@ -38,6 +38,10 @@ USER_FK_NAMES = {
     ("reports", "updated_by_user_id"): "fk_reports_updated_by_user_id_users",
     ("partner_meetings", "created_by_user_id"): "fk_partner_meetings_created_by_user_id_users",
 }
+# 대체 로그인용 비밀번호 해시는 사용자 삭제 때 함께 지워지므로(연결 아님) 유일하게 CASCADE다.
+CASCADE_USER_FK_NAMES = {
+    ("user_password_hashes", "user_id"): "fk_user_password_hashes_user_id_users",
+}
 OLD_STRING_COLUMNS = {
     ("deals", "owner"),
     ("deal_actions", "actor"),
@@ -87,7 +91,9 @@ async def test_user_foreign_keys_use_the_planned_names_and_restrict(session: Asy
 
     found = {(r[0], r[1]): (r[2], r[3].strip(), r[4]) for r in rows}
 
-    assert found == {key: (name, "r", False) for key, name in USER_FK_NAMES.items()}
+    expected = {key: (name, "r", False) for key, name in USER_FK_NAMES.items()}
+    expected |= {key: (name, "c", False) for key, name in CASCADE_USER_FK_NAMES.items()}
+    assert found == expected
 
 
 async def test_user_reference_columns_are_bigint_and_the_old_string_columns_are_gone(
@@ -181,8 +187,10 @@ async def test_only_owned_data_cascades(session: AsyncSession) -> None:
         "partner_meetings.deal_id",  # 파트너 Activity: 미팅 기록도 Deal 소속이다(D6)
         "forecast_snapshot_columns.snapshot_id",  # P6 R2 Q6: 저장 당시 코드 목록은 스냅숏 소속
         "forecast_snapshot_cells.snapshot_id",  # 셀은 (snapshot_id, forecast_key)로 열 소속
+        "user_password_hashes.user_id",  # 대체 로그인 해시는 사용자 소속(CASCADE_USER_FK_NAMES)
     }
     parents = {
+        "user_password_hashes": "users",
         "forecast_snapshot_columns": "forecast_snapshots",
         "forecast_snapshot_cells": "forecast_snapshot_columns",
     }

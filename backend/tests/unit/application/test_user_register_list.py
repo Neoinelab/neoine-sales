@@ -67,7 +67,7 @@ async def test_register_user_does_not_ask_the_directory(
     await admin.register_user.execute(login_id="not-in-ad", role=Role.SALES, actor=ADMIN_ACTOR)
 
     assert directory.authenticate_calls == []
-    assert directory.probe_calls == []
+    assert directory.discover_calls == []
 
 
 async def test_register_user_accepts_a_64_character_login_id(admin: AdminStack) -> None:

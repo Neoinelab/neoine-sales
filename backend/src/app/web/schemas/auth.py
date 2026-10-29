@@ -1,6 +1,8 @@
 from pydantic import BaseModel, Field, SecretStr
 
 from app.application.auth.auth_status import AuthStatus
+from app.application.auth.directory_login import LoginOutcome
+from app.application.auth.warning_stage import DirectoryWarningStage
 from app.domain.auth.credentials import PASSWORD_MAX, Password
 from app.domain.auth.errors import AuthenticationError
 from app.domain.auth.principal import Principal, Role
@@ -26,6 +28,27 @@ class PrincipalResponse(BaseModel):
             email=principal.email,
             name=principal.name,
             role=principal.role,
+        )
+
+
+class DirectoryWarningResponse(BaseModel):
+    """AD 대신 이전 로그인 비밀번호로 들어갔을 때의 안내(admin에게만 온다)."""
+
+    stage: DirectoryWarningStage
+    message: str
+
+
+class LoginResponse(PrincipalResponse):
+    directory_warning: DirectoryWarningResponse | None
+
+    @classmethod
+    def from_outcome(cls, outcome: LoginOutcome) -> LoginResponse:
+        warning = outcome.directory_warning
+        return cls(
+            **PrincipalResponse.from_principal(outcome.session.principal).model_dump(),
+            directory_warning=None
+            if warning is None
+            else DirectoryWarningResponse(stage=warning.stage, message=warning.message),
         )
 
 

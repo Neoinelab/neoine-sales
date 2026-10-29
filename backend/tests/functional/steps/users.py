@@ -128,7 +128,7 @@ async def id_of(api: Api, login_id: str, *, status: str = "active") -> int:
 
 def directory_calls(api: Api) -> int:
     """지금까지 AD(Fake)에 들어간 인증·연결 시험 호출 수. 이후 증가 여부를 보려는 기준값."""
-    return len(api.directory.authenticate_calls) + len(api.directory.probe_calls)
+    return len(api.directory.authenticate_calls) + len(api.directory.discover_calls)
 
 
 # --------------------------------------------------------------------------- When

@@ -50,9 +50,9 @@ async def test_login_of_an_existing_user_still_issues_a_session_with_the_fk_chec
     await seed_user(uow_factory, "kim", Role.SALES)
     uow.sessions.user_exists = lambda user_id: user_id in uow.users._items
 
-    issued = await auth.login.execute(login_id="kim", password=Password("pw-kim"), client_ip=IP)
+    outcome = await auth.login.execute(login_id="kim", password=Password("pw-kim"), client_ip=IP)
 
-    assert issued.principal.subject == "kim"
+    assert outcome.session.principal.subject == "kim"
     assert len(uow.sessions._items) == 1
 
 

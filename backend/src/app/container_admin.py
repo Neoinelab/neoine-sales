@@ -15,6 +15,7 @@ from app.application.user.resolve_user_refs import ResolveUserRefs
 if TYPE_CHECKING:
     from app.application.auth.deps import AuthDeps
     from app.application.ports.clock import Clock
+    from app.application.ports.secret_cipher import SecretCipher
     from app.application.ports.unit_of_work import UnitOfWorkFactory
 
 
@@ -26,11 +27,13 @@ class AdminAssembly:
         uow_factory: UnitOfWorkFactory,
         clock: Clock,
         auth_deps: AuthDeps,
+        cipher: SecretCipher,
         *,
         allow_dev_sessions: bool,
     ) -> None:
         self._uow_factory = uow_factory
         self._clock = clock
+        self._cipher = cipher
         self._verify = VerifyDirectorySettings(auth_deps, allow_dev_sessions=allow_dev_sessions)
 
     def list_users(self) -> ListUsers:
@@ -49,10 +52,10 @@ class AdminAssembly:
         return ResolveUserRefs(self._uow_factory)
 
     def get_directory_settings(self) -> GetDirectorySettings:
-        return GetDirectorySettings(self._uow_factory)
+        return GetDirectorySettings(self._uow_factory, self._cipher)
 
     def test_directory_settings(self) -> TestDirectorySettings:
-        return TestDirectorySettings(self._verify)
+        return TestDirectorySettings(self._uow_factory, self._cipher, self._verify)
 
     def update_directory_settings(self) -> UpdateDirectorySettings:
-        return UpdateDirectorySettings(self._uow_factory, self._clock, self._verify)
+        return UpdateDirectorySettings(self._uow_factory, self._clock, self._cipher, self._verify)

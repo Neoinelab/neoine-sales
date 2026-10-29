@@ -27,8 +27,10 @@ CHANGE_ERRORS: dict[int | str, dict[str, Any]] = {
 
 @router.get("", response_model=DirectorySettingsResponse, responses={404: READ_ERRORS[404]})
 async def get_directory_settings(provider: Provider) -> DirectorySettingsResponse:
-    stored = await provider.get_directory_settings().execute()
-    return await directory_response(provider, stored)
+    view = await provider.get_directory_settings().execute()
+    return await directory_response(
+        provider, view.stored, credential_readable=view.credential_readable
+    )
 
 
 @router.put("", response_model=DirectorySettingsResponse, responses=CHANGE_ERRORS)
@@ -37,7 +39,7 @@ async def update_directory_settings(
 ) -> DirectorySettingsResponse:
     stored = await provider.update_directory_settings().execute(
         actor=actor,
-        settings=body.to_domain(),
+        draft=body.to_draft(),
         expected_revision=body.expected_revision,
         password=body.to_password(),
         client_ip=client_ip(request),
@@ -51,7 +53,7 @@ async def test_directory_settings(
 ) -> DirectoryTestResultResponse:
     result = await provider.test_directory_settings().execute(
         actor=actor,
-        settings=body.to_domain(),
+        draft=body.to_draft(),
         password=body.to_password(),
         client_ip=client_ip(request),
     )

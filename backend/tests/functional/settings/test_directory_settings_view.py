@@ -1,9 +1,10 @@
-"""Feature: admin은 저장된 AD 연결 설정을 조회할 수 있다(비밀번호는 보이지 않는다)."""
+"""Feature: admin은 저장된 AD 연결 설정을 조회한다(비밀번호는 없고 저장 상태만 나온다)."""
 
 from typing import TYPE_CHECKING
 
 import pytest
 
+from tests.factories_auth import BIND_PASSWORD
 from tests.functional.steps.auth import directory_payload, given_logged_in_as
 from tests.functional.steps.common import then_status_is
 from tests.functional.steps.platform import then_problem_kind_is
@@ -31,9 +32,11 @@ async def test_admin_reads_the_current_settings(api: Api) -> None:
     then_status_is(response, 200)
     body = response.json()
     assert set(body) == SETTINGS_FIELDS
-    expected = directory_payload()
+    expected = {k: v for k, v in directory_payload().items() if k != "bind_password"}
     assert {k: v for k, v in body.items() if k in expected} == expected
-    assert body["base_dn"] == STORED_DN
+    assert body["base_dn"] == STORED_DN  # 읽기 전용(자동 탐색 결과)
+    assert body["bind_credential_status"] == "ok"
+    assert BIND_PASSWORD not in response.text
     assert (body["revision"], body["updated_by"]) == (1, None)
     then_updated_at_is_just_now(body)
     assert not any("password" in key.lower() or "secret" in key.lower() for key in body)

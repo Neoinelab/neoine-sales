@@ -28,6 +28,7 @@ from tests.fakes.repositories import (
 )
 from tests.fakes.session_repository import FakeSessionRepository
 from tests.fakes.storage_settings_repository import FakeStorageSettingsRepository
+from tests.fakes.user_password_hashes import FakeUserPasswordHashRepository
 from tests.fakes.user_repository import FakeLoginFailureRepository, FakeUserRepository
 from tests.fakes.vendors import FakeVendorRepository
 
@@ -43,6 +44,14 @@ class FakeUnitOfWork:
         self.sessions = FakeSessionRepository()
         self.users = FakeUserRepository()
         self.login_failures = FakeLoginFailureRepository()
+        # 대체 로그인용 비밀번호 해시: users FK(없는 사용자는 UserNotFoundError)와
+        # CASCADE 삭제를 모사
+        self.password_hashes = FakeUserPasswordHashRepository(
+            user_exists=lambda user_id: user_id in self.users._items
+        )
+        self.users.add_cascade(
+            lambda user_id: self.password_hashes._items.pop(user_id, None) and None
+        )
         self.directory_settings = FakeDirectorySettingsRepository()
         self.storage_settings = FakeStorageSettingsRepository()
         self.alert_settings = FakeAlertSettingsRepository()
@@ -83,6 +92,9 @@ class FakeUnitOfWork:
         self.contacts.restrict_delete_by(self.deals)  # FK RESTRICT (고객·파트너 링크 모두)
         self._wire_user_references()
         self.commits = 0
+        self.open_units = (
+            0  # 지금 열려 있는 `async with` 블록 수(오래 걸리는 계산 중 트랜잭션 확인용)
+        )
         self._snapshot: tuple[Any, ...] | None = None
 
     def _wire_user_references(self) -> None:
@@ -148,6 +160,7 @@ class FakeUnitOfWork:
             self.sessions,
             self.users,
             self.login_failures,
+            self.password_hashes,
             self.directory_settings,
             self.storage_settings,
             self.alert_settings,
@@ -165,10 +178,12 @@ class FakeUnitOfWork:
         return tuple(copy.deepcopy(repo._items) for repo in self._repositories())
 
     async def __aenter__(self) -> Self:
+        self.open_units += 1
         self._snapshot = self._take()
         return self
 
     async def __aexit__(self, *exc: object) -> None:
+        self.open_units -= 1
         await self.rollback()
 
     async def commit(self) -> None:

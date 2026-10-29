@@ -17,18 +17,13 @@ from app.application.deal.apply_change import ApplyDealChange
 from app.application.deal.delete_deal import DeleteDeal
 from app.application.deal.register_deal import RegisterDeal
 from app.application.deal.update_deal import UpdateDeal
-from app.application.deal_action.change_next_action_status import ChangeNextActionStatus
-from app.application.deal_action.delete_deal_action import DeleteDealAction
-from app.application.deal_action.get_deal_action import GetDealAction
-from app.application.deal_action.list_deal_actions import ListDealActions
-from app.application.deal_action.register_deal_action import RegisterDealAction
-from app.application.deal_action.update_deal_action import UpdateDealAction
 from app.application.user.change_user_role import ChangeUserRole
 from app.container_action_type import ActionTypeUseCases
 from app.container_admin import AdminAssembly
 from app.container_auth import AuthAssembly
 from app.container_catalog import CatalogAssembly
 from app.container_dashboard import DashboardUseCases
+from app.container_deal_action import DealActionUseCases
 from app.container_deal_reads import DealReadUseCases
 from app.container_forecast import ForecastUseCases
 from app.container_partner_meeting import PartnerMeetingUseCases
@@ -37,6 +32,8 @@ from app.container_storage import StorageAssembly
 from app.container_time import TimeUseCases
 from app.container_vendor import VendorUseCases
 from app.infra.auth.ldap import LdapDirectoryAuthenticator
+from app.infra.crypto.fernet_cipher import FernetSecretCipher
+from app.infra.crypto.scrypt_hasher import ScryptPasswordHasher
 from app.infra.db.unit_of_work import sql_unit_of_work_factory
 from app.infra.deal_code_source import RandomDealCodeSuffixSource
 from app.infra.system_clock import SystemClock
@@ -71,6 +68,8 @@ if TYPE_CHECKING:
     from app.application.directory.update_settings import UpdateDirectorySettings
     from app.application.ports.clock import Clock
     from app.application.ports.directory import DirectoryAuthenticator
+    from app.application.ports.password_hasher import PasswordHasher
+    from app.application.ports.secret_cipher import SecretCipher
     from app.application.storage.get_settings import GetStorageSettings
     from app.application.storage.test_settings import TestStorageSettings as ProbeStorageSettings
     from app.application.storage.update_settings import UpdateStorageSettings
@@ -89,6 +88,7 @@ class Container(
     DashboardUseCases,
     TimeUseCases,
     DealReadUseCases,
+    DealActionUseCases,
     ReportUseCases,
     PartnerMeetingUseCases,
 ):
@@ -98,6 +98,8 @@ class Container(
         *,
         directory: DirectoryAuthenticator | None = None,
         clock: Clock | None = None,
+        cipher: SecretCipher | None = None,
+        password_hasher: PasswordHasher | None = None,
     ) -> None:
         self._engine: AsyncEngine = create_async_engine(
             str(settings.database_url),
@@ -110,13 +112,23 @@ class Container(
         self._clock: Clock = clock or SystemClock()
         self._suffix_source = RandomDealCodeSuffixSource()
         self.directory: DirectoryAuthenticator = directory or LdapDirectoryAuthenticator()
-        self._auth = AuthAssembly(settings, self._uow, self._clock, self.directory)
+        self.cipher: SecretCipher = cipher or FernetSecretCipher(settings.settings_encryption_key)
+        self.password_hasher: PasswordHasher = password_hasher or ScryptPasswordHasher()
+        self._auth = AuthAssembly(
+            settings,
+            self._uow,
+            self._clock,
+            self.directory,
+            cipher=self.cipher,
+            hasher=self.password_hasher,
+        )
         self._catalog = CatalogAssembly(self._uow, self._clock)
         self._storage = StorageAssembly(self._uow, self._clock)
         self._admin = AdminAssembly(
             self._uow,
             self._clock,
             self._auth.deps,
+            self.cipher,
             allow_dev_sessions=self._auth.allow_dev_sessions,
         )
 
@@ -240,24 +252,6 @@ class Container(
 
     def download_attachment(self) -> DownloadAttachment:
         return self._storage.download_attachment()
-
-    def register_deal_action(self) -> RegisterDealAction:
-        return RegisterDealAction(self._uow, self._clock)
-
-    def get_deal_action(self) -> GetDealAction:
-        return GetDealAction(self._uow)
-
-    def list_deal_actions(self) -> ListDealActions:
-        return ListDealActions(self._uow)
-
-    def update_deal_action(self) -> UpdateDealAction:
-        return UpdateDealAction(self._uow, self._clock)
-
-    def change_next_action_status(self) -> ChangeNextActionStatus:
-        return ChangeNextActionStatus(self._uow, self._clock)
-
-    def delete_deal_action(self) -> DeleteDealAction:
-        return DeleteDealAction(self._uow, self._clock)
 
     def list_code_set(self) -> ListCodeSet:
         return self._catalog.list_code_set()

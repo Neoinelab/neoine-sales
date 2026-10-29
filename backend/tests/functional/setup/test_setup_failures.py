@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 from app.application.ports.directory import DirectoryUnavailableError, VerificationStage
+from tests.factories_auth import BIND_PASSWORD
 from tests.functional.steps.auth import (
     directory_payload,
     given_ad_account,
@@ -21,9 +22,11 @@ from tests.functional.steps.login import (
     then_auth_flags_are,
     then_directory_was_not_asked_again,
 )
+from tests.functional.steps.settings import directory_error
 from tests.functional.steps.setup import (
+    OLD_FIELDS,
     given_failed_setup_attempts,
-    then_directory_probe_count_is,
+    then_directory_discover_count_is,
     then_no_response_mentions,
     then_validation_error_names_field,
     when_password_is_submitted_in_every_setup_outcome,
@@ -40,28 +43,34 @@ pytestmark = pytest.mark.integration
 
 LEAK = "internal-ldap-server-banner"
 INVALID_DIRECTORY_SETTINGS = [
-    ({"server_urls": ["http://dc1.corp.test"]}, "server_urls"),
-    ({"server_urls": ["ldaps://dc1.corp.test/path"]}, "server_urls"),
-    ({"server_urls": ["ldaps://dc1.corp.test:70000"]}, "server_urls"),
-    ({"server_urls": ["ldaps://dc1.corp.test", "ldaps://dc1.corp.test:636"]}, "server_urls"),
-    ({"server_urls": []}, "server_urls"),
-    ({"server_urls": [f"ldaps://dc{n}.corp.test" for n in range(6)]}, "server_urls"),
-    ({"server_urls": ["ldap://dc1.corp.test"], "use_starttls": False}, "use_starttls"),
-    ({"bind_template": "cn=fixed,dc=corp"}, "bind_template"),
-    ({"bind_template": "cn={login_id},cn={login_id}"}, "bind_template"),
+    ({"host": "ldaps://dc1.corp.test"}, "host"),
+    ({"host": "dc1.corp.test:636"}, "host"),
+    ({"host": "dc1.corp.test/path"}, "host"),
+    ({"host": "dc 1"}, "host"),
+    ({"host": ""}, "host"),
+    ({"port": 0}, "port"),
+    ({"port": 65536}, "port"),
+    ({"port": -1}, "port"),
+    ({"port": "636"}, "port"),
+    ({"security": "tls"}, "security"),
+    ({"security": "SSL"}, "security"),
+    ({"bind_account": ""}, "bind_account"),
+    ({"bind_account": "x" * 257}, "bind_account"),
+    ({"bind_account": "svc\x01"}, "bind_account"),
+    ({"bind_password": ""}, "bind_password"),
+    ({"bind_password": "   "}, "bind_password"),
+    ({"bind_password": "pw\u0000x"}, "bind_password"),
+    ({"bind_password": "p" * 257}, "bind_password"),
     ({"user_filter": "sAMAccountName={login_id}"}, "user_filter"),
-    ({"base_dn": ""}, "base_dn"),
-    ({"display_name_attribute": "1bad"}, "display_name_attribute"),
-    ({"email_attribute": "ma il"}, "email_attribute"),
-    ({"ca_cert_pem": "not a pem"}, "ca_cert_pem"),
+    ({"user_filter": "(sAMAccountName=nobody)"}, "user_filter"),
+    ({"user_filter": "(a={login_id})(b={login_id})"}, "user_filter"),
     ({"connect_timeout_seconds": 0}, "connect_timeout_seconds"),
     ({"connect_timeout_seconds": 31}, "connect_timeout_seconds"),
-    ({"receive_timeout_seconds": 61}, "receive_timeout_seconds"),
 ]
 
 
 @pytest.mark.parametrize(("override", "field"), INVALID_DIRECTORY_SETTINGS)
-async def test_setup_directory_validation_errors_are_422_naming_the_field(
+async def test_invalid_values_name_the_field(
     api: Api, override: dict[str, object], field: str
 ) -> None:
     """Scenario: 잘못된 AD 설정 값은 422로 거절되고 문제의 필드를 알려주며 저장되지 않는다."""
@@ -71,35 +80,68 @@ async def test_setup_directory_validation_errors_are_422_naming_the_field(
     response = await when_save_directory(api, **override)
     # Then
     then_validation_error_names_field(response, field)
-    then_directory_probe_count_is(api, 0)
+    then_directory_discover_count_is(api, 0)
     await then_auth_flags_are(api, needs_directory=True, needs_storage=True, needs_admin=False)
 
 
-async def test_setup_directory_rejects_unknown_fields(api: Api) -> None:
-    """Scenario: 정의되지 않은 필드(bind_password 등)가 든 1단계 본문은 422이다."""
+@pytest.mark.parametrize("old_field", sorted(OLD_FIELDS))
+async def test_old_fields_are_rejected(api: Api, old_field: str) -> None:
+    """Scenario: 폐지된 구 필드(서버 URL·StartTLS·CA·바인드 템플릿 등)가 든 본문은 422이다."""
+    # Given
+    # (아무것도 설정되지 않은 새 시스템)
+    body = {**directory_payload(), old_field: OLD_FIELDS[old_field]}
+    # When
+    response = await when_save_directory_body(api, body)
+    # Then
+    then_problem_is(response, status=422, type_suffix="request-validation")
+    then_directory_discover_count_is(api, 0)
+
+
+async def test_missing_bind_password_is_rejected(api: Api) -> None:
+    """Scenario: 최초 설정 1단계는 바인드 비밀번호가 필수라 빠지면 422(request-validation)이다."""
+    # Given
+    body = directory_payload()
+    del body["bind_password"]
+    # When
+    response = await when_save_directory_body(api, body)
+    # Then
+    then_problem_is(response, status=422, type_suffix="request-validation")
+    then_validation_error_names_field(response, "bind_password")
+    then_directory_discover_count_is(api, 0)
+
+
+async def test_null_bind_password_is_rejected(api: Api) -> None:
+    """Scenario: 최초 설정에서는 '저장된 값 유지'(null)가 없어 bind_password null도 422이다."""
     # Given
     # (아무것도 설정되지 않은 새 시스템)
     # When
-    response = await when_save_directory_body(api, {**directory_payload(), "bind_password": "x"})
+    response = await when_save_directory(api, bind_password=None)
     # Then
-    then_problem_is(response, status=422, type_suffix="request-validation")
+    then_validation_error_names_field(response, "bind_password")
+    then_directory_discover_count_is(api, 0)
 
 
 @pytest.mark.parametrize(
-    "stage", [VerificationStage.CONNECT, VerificationStage.TLS], ids=["connect", "tls"]
+    ("kind", "stage"),
+    [
+        ("unavailable", "connect"),
+        ("unavailable", "tls"),
+        ("misconfigured", "service_bind"),
+        ("misconfigured", "base_dn"),
+    ],
 )
-async def test_setup_directory_probe_failure_is_422_with_only_the_coarse_stage(
-    api: Api, stage: VerificationStage
+async def test_each_verification_stage_failure_saves_nothing(
+    api: Api, kind: str, stage: str
 ) -> None:
-    """Scenario: AD 연결 확인이 실패하면 422이고 대략적인 단계만 알려주며 저장되지 않는다."""
+    """Scenario: 확인이 단계별로 실패하면 422이고 실패한 단계만 알려주며 저장되지 않는다."""
     # Given
-    api.directory.probe_fails_with = DirectoryUnavailableError(LEAK, stage=stage)
+    api.directory.discover_fails_with = directory_error(kind, stage, LEAK)
     # When
     response = await when_save_directory(api)
     # Then
     then_problem_is(response, status=422, type_suffix="directory-verification-failed")
-    assert response.json()["stage"] == stage.value
-    then_response_does_not_mention(response, LEAK)
+    assert response.json()["stage"] == stage
+    then_response_does_not_mention(response, LEAK, BIND_PASSWORD)
     await then_auth_flags_are(api, needs_directory=True, needs_storage=True, needs_admin=False)
 
 
@@ -122,7 +164,9 @@ async def test_setup_admin_directory_outage_is_503(api: Api) -> None:
     """Scenario: 최초 admin 확인 중 AD 장애는 원인 문구를 숨긴 503이다."""
     # Given
     await given_setup_prerequisites_configured(api)
-    api.directory.fail_with = DirectoryUnavailableError(LEAK, stage=VerificationStage.TLS)
+    api.directory.authenticate_fails_with = DirectoryUnavailableError(
+        LEAK, stage=VerificationStage.TLS
+    )
     # When
     response = await when_set_up_admin(api)
     # Then

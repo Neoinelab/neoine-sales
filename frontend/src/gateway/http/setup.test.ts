@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { BIND_PASSWORD, DIRECTORY_INPUT } from '../../test/directoryFixtures'
 import type { DirectorySettingsInput } from '../../shared/model/types'
 import { json, noContent, problem, stubFetch } from './testHelpers'
 import { createSetupHttp } from './setup'
@@ -14,18 +15,7 @@ const config = (needsDirectory: boolean, needsStorage: boolean, needsAdmin: bool
     needs_storage_setup: needsStorage,
   })
 
-const INPUT: DirectorySettingsInput = {
-  serverUrls: ['ldaps://dc1.corp.test'],
-  useStarttls: false,
-  caCertPem: null,
-  bindTemplate: 'CORP\\{login_id}',
-  baseDn: 'dc=corp,dc=test',
-  userFilter: '(sAMAccountName={login_id})',
-  displayNameAttribute: 'displayName',
-  emailAttribute: 'mail',
-  connectTimeoutSeconds: 5,
-  receiveTimeoutSeconds: 10,
-}
+const INPUT: DirectorySettingsInput = DIRECTORY_INPUT
 
 describe('setup over HTTP', () => {
   // 서버는 AD 설정과 저장 위치가 모두 있을 때만 needs_admin_setup=true를 준다. 관리자가 없으면 세 값 중 하나는 true이므로
@@ -47,7 +37,7 @@ describe('setup over HTTP', () => {
     },
   )
 
-  it('saveDirectory puts the snake_case settings to /auth/setup/directory', async () => {
+  it('saveDirectory puts the seven snake_case fields (with the bind password) to /auth/setup/directory', async () => {
     const { calls } = stubFetch(json({}))
 
     await createSetupHttp().saveDirectory(INPUT)
@@ -56,17 +46,25 @@ describe('setup over HTTP', () => {
       method: 'PUT',
       path: '/api/v1/auth/setup/directory',
       body: {
-        server_urls: ['ldaps://dc1.corp.test'],
-        use_starttls: false,
-        ca_cert_pem: null,
-        bind_template: 'CORP\\{login_id}',
-        base_dn: 'dc=corp,dc=test',
+        host: 'dc1.corp.test',
+        port: 636,
+        security: 'ssl',
+        bind_account: 'CORP\\svc-sales',
+        bind_password: BIND_PASSWORD,
         user_filter: '(sAMAccountName={login_id})',
-        display_name_attribute: 'displayName',
-        email_attribute: 'mail',
         connect_timeout_seconds: 5,
-        receive_timeout_seconds: 10,
       },
+    })
+    expect(Object.keys(calls[0]?.body as object)).toHaveLength(7)
+  })
+
+  it('saveDirectory shows the failed stage of the verification', async () => {
+    stubFetch(problem(422, 'directory-verification-failed', '바인드 실패', { stage: 'service_bind' }))
+
+    await expect(createSetupHttp().saveDirectory(INPUT)).rejects.toMatchObject({
+      status: 422,
+      kind: 'directory-verification-failed',
+      stage: 'service_bind',
     })
   })
 

@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 
 from app.domain.auth.principal import Role
 from tests.factories import NOW
-from tests.factories_auth import make_directory_settings, make_user
+from tests.factories_auth import BASE_DN, make_user
 from tests.fakes.auth_stack import THROTTLE_SECRET
 
 if TYPE_CHECKING:
@@ -34,17 +34,47 @@ def ip_key(client_ip: str, secret: str = THROTTLE_SECRET) -> str:
 
 
 async def seed_directory(
-    uow_factory: UnitOfWorkFactory, settings: DirectorySettings | None = None
+    uow_factory: UnitOfWorkFactory,
+    settings: DirectorySettings | None = None,
+    *,
+    base_dn: str = BASE_DN,
+    unreadable: bool = False,
 ) -> StoredDirectorySettings:
+    """AD 설정을 저장소에 직접 넣는다. 비밀번호는 FakeSecretCipher로 봉인한다.
+
+    unreadable=True면 Fake가 풀 수 없는 토큰(키가 바뀐 상황)으로 넣는다.
+    새 Port의 Fake는 사용 시점에 가져온다(구현 전에도 이 모듈을 쓰는 다른 테스트가 수집된다).
+    """
+    from tests.factories_directory import make_directory_settings  # noqa: PLC0415
+    from tests.fakes.secret_cipher import FakeSecretCipher, foreign_secret  # noqa: PLC0415
+
+    given = settings or make_directory_settings()
+    sealed = (
+        foreign_secret() if unreadable else FakeSecretCipher().seal(given.bind_password.reveal())
+    )
     async with uow_factory() as uow:
         stored = await uow.directory_settings.save(
-            settings or make_directory_settings(),
+            given.connection,
+            sealed,
+            base_dn,
             expected_revision=None,
             updated_by=None,
             now=NOW,
         )
         await uow.commit()
     return stored
+
+
+async def seed_password_hash(uow_factory: UnitOfWorkFactory, user: User, password: str) -> None:
+    """user가 AD 로그인에 성공한 적이 있는 상태(대체 로그인용 해시가 있는 상태)를 만든다.
+
+    해시는 FakePasswordHasher 형식이다(Fake 스택에서만 쓴다).
+    """
+    from tests.fakes.password_hasher import fake_hash_of  # noqa: PLC0415
+
+    async with uow_factory() as uow:
+        await uow.password_hashes.save(user.id, fake_hash_of(password), NOW)
+        await uow.commit()
 
 
 async def seed_storage(

@@ -20,7 +20,8 @@ class DeleteOutcome(StrEnum):
 class DeleteUser:
     """사용자를 삭제한다. 다른 데이터가 참조하면 퇴사 처리하고, 없으면 물리 삭제한다.
 
-    어느 쪽이든 세션 행은 모두 지우고 자기 자신·마지막 admin 보호를 똑같이 적용한다.
+    어느 쪽이든 세션 행과 대체 로그인용 비밀번호 해시는 모두 지우고
+    자기 자신·마지막 admin 보호를 똑같이 적용한다.
     """
 
     def __init__(self, uow_factory: UnitOfWorkFactory, clock: Clock) -> None:
@@ -43,6 +44,7 @@ class DeleteUser:
                 active_admin_count=await uow.users.count_active_admins(),
             )
             await uow.sessions.delete_all_for_user(user_id)
+            await uow.password_hashes.delete(user_id)
             outcome = await self._remove(uow, user_id, reason)
             await uow.commit()
         return outcome

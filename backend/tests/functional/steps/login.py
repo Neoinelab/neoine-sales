@@ -121,20 +121,24 @@ async def when_log_in_during_each_outage(
     """AD 장애 원인을 하나씩 바꿔 가며 같은 로그인 요청을 보낸다."""
     responses: list[Response] = []
     for error in errors:
-        api.directory.fail_with = error
+        api.directory.authenticate_fails_with = error
         responses.append(await when_log_in(api))
     return responses
 
 
 async def when_submit_password_in_every_outcome(api: Api, password: str) -> list[Response]:
-    """같은 비밀번호로 성공·오답(접미사)·너무 긴 값·AD 장애를 차례로 일으킨다."""
+    """같은 비밀번호로 성공·오답(접미사)·너무 긴 값을 낸 뒤, AD 장애 중 해시가 있는 kim(대체 로그인
+    성공)과 해시가 없는 lee(503)로 로그인한다."""
     responses = [
         await when_log_in(api, password=password),
         await when_log_in(api, password=password + "x"),
         await when_log_in(api, password=password * 20),
     ]
-    api.directory.fail_with = DirectoryUnavailableError(stage=VerificationStage.CONNECT)
+    api.directory.authenticate_fails_with = DirectoryUnavailableError(
+        stage=VerificationStage.CONNECT
+    )
     responses.append(await when_log_in(api, password=password))
+    responses.append(await when_log_in(api, login_id="lee", password=password))
     return responses
 
 
@@ -147,7 +151,7 @@ def then_directory_was_not_asked_again(api: Api, *, calls_before: int) -> None:
 
 def then_directory_was_asked_with_base_dn(api: Api, base_dn: str) -> None:
     """가장 최근 AD 인증 호출이 이 base_dn 설정으로 나갔다."""
-    assert api.directory.authenticate_calls[-1].settings.base_dn == base_dn
+    assert api.directory.authenticate_calls[-1].base_dn == base_dn
 
 
 def then_no_cookie_is_set(response: Response) -> None:
@@ -165,9 +169,13 @@ def then_login_failed_with_the_common_401(response: Response) -> None:
 def then_signed_in_as(
     response: Response, *, subject: str, email: str | None, name: str, role: str
 ) -> None:
-    """로그인(또는 최초 설정) 응답이 users 행의 id(정수)와 주체 정보를 정확히 담는다."""
+    """로그인(또는 최초 설정) 응답이 users 행의 id(정수)와 주체 정보를 정확히 담는다.
+
+    로그인 응답의 `directory_warning`은 AD로 정상 로그인했을 때 null이다(최초 설정 응답에는 없다).
+    """
     assert response.status_code == 200, response.text
     body = dict(response.json())
+    assert body.pop("directory_warning", None) is None
     user_id = body.pop("user_id")
     assert type(user_id) is int
     assert user_id >= 1
@@ -196,3 +204,53 @@ async def then_auth_flags_are(
         body["needs_storage_setup"],
         body["needs_admin_setup"],
     ) == (needs_directory, needs_storage, needs_admin)
+
+
+async def then_password_hash_is_stored_for(api: Api, *, login_id: str, password: str) -> str:
+    """그 사용자의 대체 로그인용 해시가 scrypt 형식으로 저장돼 있다. 해시 문자열을 돌려준다.
+
+    평문 비밀번호는 해시 문자열 어디에도 없다.
+    """
+    from tests.functional.steps.login_db import sql_rows  # noqa: PLC0415
+
+    rows = await sql_rows(
+        api,
+        "select h.password_hash from user_password_hashes h join users u on u.id = h.user_id"
+        " where u.login_id = :login_id",
+        login_id=login_id,
+    )
+    assert len(rows) == 1, rows
+    stored = str(rows[0][0])
+    assert stored.startswith("scrypt$ln=14,r=8,p=1$"), stored
+    assert password not in stored
+    return stored
+
+
+async def then_no_password_hash_is_stored(api: Api, *, login_id: str) -> None:
+    from tests.functional.steps.login_db import sql_rows  # noqa: PLC0415
+
+    rows = await sql_rows(
+        api,
+        "select count(*) from user_password_hashes h join users u on u.id = h.user_id"
+        " where u.login_id = :login_id",
+        login_id=login_id,
+    )
+    assert rows == [(0,)]
+
+
+async def then_failure_count_is(api: Api, expected: int) -> None:
+    """kim 계정의 로그인 실패 횟수 카운터 값이다(HMAC 키라 계정별 행 중 가장 큰 값을 본다)."""
+    from tests.functional.steps.login_db import sql_rows  # noqa: PLC0415
+
+    rows = await sql_rows(api, "select coalesce(max(failures), 0) from login_failures")
+    assert rows == [(expected,)]
+
+
+async def then_no_password_hash_row_for_user_id(api: Api, user_id: int) -> None:
+    """user_password_hashes에 그 사용자 id의 행이 없다(삭제된 사용자의 해시가 남지 않았다)."""
+    from tests.functional.steps.login_db import sql_rows  # noqa: PLC0415
+
+    rows = await sql_rows(
+        api, "select count(*) from user_password_hashes where user_id = :id", id=user_id
+    )
+    assert rows == [(0,)]

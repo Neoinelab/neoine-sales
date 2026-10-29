@@ -1,9 +1,11 @@
 import { useId, useState } from 'react'
-import { Link } from 'react-router'
 import { useDirectorySettings, useSaveDirectory, useTestDirectory } from '../../../data/settings'
 import {
+  DEFAULT_DIRECTORY_FORM,
+  clearTypedBindPassword,
   formFromDirectory,
   inputFromForm,
+  validateForm,
   type DirectoryFormValues,
 } from '../../../shared/directory/directoryForm'
 import { DirectoryFields } from '../../../shared/directory/DirectoryFields'
@@ -15,33 +17,55 @@ import { ErrorBanner } from '../../../shared/ui/ErrorBanner'
 import { TextField } from '../../../shared/ui/fields'
 import { Notice } from '../../../shared/ui/Notice'
 
-type Result = { kind: 'success' | 'error'; text: string } | null
+type Result = { kind: 'success' | 'error'; text: string; baseDn?: string | null } | null
 
-/** 저장된 설정을 고친다. 설정이 없으면 이 폼 대신 최초 설정 안내를 보인다(DirectorySection). */
-function DirectoryForm({ saved }: { saved: DirectorySettings }) {
+/** 저장된 설정을 고치거나(saved 있음), 설정이 없을 때 처음 등록한다(saved null, expectedRevision null). */
+function DirectoryForm({ saved }: { saved: DirectorySettings | null }) {
   const save = useSaveDirectory()
   const test = useTestDirectory()
-  const [values, setValues] = useState<DirectoryFormValues>(() => formFromDirectory(saved))
+  const [values, setValues] = useState<DirectoryFormValues>(() => (saved ? formFromDirectory(saved) : DEFAULT_DIRECTORY_FORM))
   const [password, setPassword] = useState('')
   const [result, setResult] = useState<Result>(null)
   const busy = save.isPending || test.isPending
 
   function run(action: 'test' | 'save') {
     setResult(null)
+    const invalid = validateForm(values, 'settings')
+    if (invalid) {
+      setResult({ kind: 'error', text: invalid })
+      return
+    }
     const input = inputFromForm(values)
-    // 비어 있으면 null(개발용 로그인 관리자는 비밀번호가 없다). 요청이 끝나면 비밀번호 칸을 비운다.
+    // 비어 있으면 null(개발용 로그인 관리자는 비밀번호가 없다). 요청이 끝나면 비밀번호 칸들을 비운다.
     const confirm = password === '' ? null : password
-    const onError = (error: unknown) => setResult({ kind: 'error', text: directoryErrorMessage(error) })
     const onSettled = () => setPassword('')
+    const onError = (error: unknown) => {
+      setResult({ kind: 'error', text: directoryErrorMessage(error) })
+      setValues(clearTypedBindPassword)
+    }
     if (action === 'test') {
       test.mutate(
         { input, password: confirm },
-        { onSuccess: () => setResult({ kind: 'success', text: '연결 테스트에 성공했습니다.' }), onError, onSettled },
+        {
+          onSuccess: (found) => {
+            setResult({ kind: 'success', text: '연결 테스트에 성공했습니다.', baseDn: found.baseDn })
+            setValues(clearTypedBindPassword)
+          },
+          onError,
+          onSettled,
+        },
       )
     } else {
       save.mutate(
-        { input, password: confirm, expectedRevision: saved.revision },
-        { onSuccess: () => setResult({ kind: 'success', text: '저장했습니다' }), onError, onSettled },
+        { input, password: confirm, expectedRevision: saved?.revision ?? null },
+        {
+          onSuccess: (stored) => {
+            setValues(formFromDirectory(stored))
+            setResult({ kind: 'success', text: '저장했습니다' })
+          },
+          onError,
+          onSettled,
+        },
       )
     }
   }
@@ -59,12 +83,19 @@ function DirectoryForm({ saved }: { saved: DirectorySettings }) {
         <div className="wide">
           <Notice kind={result.kind} onClose={() => setResult(null)}>
             {result.text}
+            {result.baseDn ? <span>{` Base DN: ${result.baseDn}`}</span> : null}
           </Notice>
         </div>
       )}
       <div className="wide admin-grid">
-        <DirectoryFields values={values} onChange={(patch) => setValues((prev) => ({ ...prev, ...patch }))} />
+        <DirectoryFields values={values} onChange={setValues} />
       </div>
+      {saved && (
+        <p className="wide hint">
+          {'Base DN(AD에서 자동 확인): '}
+          <code>{saved.baseDn}</code>
+        </p>
+      )}
       <div className="wide">
         <TextField
           label="현재 관리자 비밀번호(새 설정으로 인증을 확인합니다)"
@@ -93,8 +124,6 @@ export function DirectorySection() {
   const titleId = useId()
   const settings = useDirectorySettings()
   const saved = settings.data
-  // 실제 서버는 설정이 없을 때 저장(PUT)을 항상 404로 거절한다. 최초 설정(/setup)이 등록 경로다.
-  const needsSetup = settings.isSuccess && saved === null
   return (
     <section className="admin-card" aria-labelledby={titleId}>
       <header>
@@ -108,12 +137,8 @@ export function DirectorySection() {
       </header>
       <ErrorBanner error={settings.error} format={directoryErrorMessage} />
       {settings.isPending && <p className="hint">불러오는 중…</p>}
-      {needsSetup && (
-        <p>
-          AD 서버가 아직 설정되지 않았습니다. 최초 설정에서 등록하세요. <Link to="/setup">최초 설정으로 이동</Link>
-        </p>
-      )}
-      {saved && <DirectoryForm saved={saved} />}
+      {settings.isSuccess && saved === null && <p className="hint">AD 서버가 아직 설정되지 않았습니다. 아래에서 등록하세요.</p>}
+      {settings.isSuccess && <DirectoryForm saved={saved ?? null} />}
     </section>
   )
 }

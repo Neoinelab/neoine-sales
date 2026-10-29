@@ -30,7 +30,7 @@ export function createSettingsHttp(): SettingsGateway {
       const result = await unwrap(
         api.POST('/api/v1/settings/directory/test', { body: { ...toDirectoryRequest(input), password } }),
       )
-      if (result.success) return
+      if (result.success) return { baseDn: result.base_dn }
       throw new ApiError(422, {
         type: FAILED_TYPE,
         title: 'Directory Verification Failed',

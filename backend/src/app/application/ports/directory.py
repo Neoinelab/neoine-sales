@@ -19,8 +19,10 @@ class DirectoryUser:
 class VerificationStage(StrEnum):
     CONNECT = "connect"
     TLS = "tls"
-    BIND = "bind"
-    SEARCH = "search"
+    SERVICE_BIND = "service_bind"  # 서비스 계정 바인드
+    BASE_DN = "base_dn"  # RootDSE defaultNamingContext
+    SEARCH = "search"  # 사용자 검색(0건은 InvalidCredentials, 2건 이상은 Misconfigured)
+    BIND = "bind"  # 사용자(admin) 비밀번호 바인드
 
 
 class DirectoryError(Exception):
@@ -40,20 +42,25 @@ class DirectoryUnavailableError(DirectoryError):
 
 
 class DirectoryMisconfiguredError(DirectoryUnavailableError):
-    """설정(바인드 템플릿·Base DN·필터 등)이 서버와 맞지 않는다."""
+    """설정(서비스 계정·Base DN·필터 등)이 서버와 맞지 않는다."""
 
 
 class DirectoryAuthenticator(Protocol):
-    async def authenticate(
-        self, settings: DirectorySettings, login_id: LoginId, password: Password
-    ) -> DirectoryUser:
-        """사용자 자격증명으로 바인드해 인증하고 표시 이름·메일을 읽는다.
+    async def discover_base_dn(self, settings: DirectorySettings) -> str:
+        """연결(+TLS) -> 서비스 계정 바인드 -> RootDSE defaultNamingContext를 읽어 돌려준다.
 
-        자격증명 오류는 InvalidCredentialsError, 그 밖의 실패는 DirectoryUnavailableError /
-        DirectoryMisconfiguredError(stage 포함).
+        실패: DirectoryUnavailableError(CONNECT|TLS|SERVICE_BIND),
+        DirectoryMisconfiguredError(SERVICE_BIND|BASE_DN).
         """
         ...
 
-    async def probe(self, settings: DirectorySettings) -> None:
-        """바인드 없이 설정된 서버와 TCP·TLS 연결만 확인한다. 실패하면 DirectoryUnavailableError."""
+    async def authenticate(
+        self, settings: DirectorySettings, base_dn: str, login_id: LoginId, password: Password
+    ) -> DirectoryUser:
+        """서비스 계정으로 사용자를 찾고(search) 찾은 DN과 비밀번호로 바인드한다(search-then-bind).
+
+        0건·사용자 비밀번호 거부는 InvalidCredentialsError(SEARCH|BIND), 2건 이상은
+        DirectoryMisconfiguredError(SEARCH), 서비스 계정 거부는
+        DirectoryMisconfiguredError(SERVICE_BIND), 연결·TLS는 DirectoryUnavailableError.
+        """
         ...

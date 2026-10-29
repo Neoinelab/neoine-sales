@@ -7,6 +7,7 @@ export function createMockControl(ctx: MockContext, reseed: () => void): MockCon
     resetData: reseed,
     restartSetup() {
       ctx.store.data.setup = { directoryDone: false, storageDone: false, adminDone: false }
+      ctx.store.data.directory = null
       setSession(ctx, null)
     },
     setStorageFailure(on) {

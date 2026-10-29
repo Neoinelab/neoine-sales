@@ -22,6 +22,7 @@ from app.main import create_app
 from tests.e2e.contact_support import CONTACT_ADMIN, set_admin
 from tests.fakes.directory import FakeDirectoryAuthenticator
 from tests.fakes.use_cases import FakeUseCases
+from tests.support.crypto_keys import TEST_FERNET_KEY
 from tests.support.ids import new_id
 from tests.support.truncate import truncate_business_tables
 from tests.support.user_ids import ACTOR_ID, OWNER_ID, uid
@@ -48,6 +49,7 @@ def make_settings(**overrides: object) -> LocalSettings:
     values: dict[str, object] = {
         "database_url": TEST_DATABASE_URL,
         "jwt_secret": "x" * 40,
+        "settings_encryption_key": TEST_FERNET_KEY,
         "cors_allowed_origins": [ALLOWED_ORIGIN],
     }
     return LocalSettings(_env_file=None, **{**values, **overrides})  # type: ignore[arg-type]

@@ -70,6 +70,7 @@ import type {
   DealRow,
   DirectorySettings,
   DirectorySettingsInput,
+  LoginResult,
   DownloadedFile,
   ForecastQuery,
   ForecastSnapshotInfo,
@@ -116,9 +117,9 @@ export interface AuthGateway {
   /**
    * 빈 아이디/비밀번호 422 "아이디와 비밀번호를 입력하세요.", 없는 아이디 401
    * "아이디 또는 비밀번호가 올바르지 않습니다.", 퇴사자 403 "퇴사한 사용자는 로그인할 수 없습니다."
-   * 성공 시 lastLoginAt 갱신(서버가 세션 쿠키를 설정한다).
+   * 성공 시 lastLoginAt 갱신(서버가 세션 쿠키를 설정한다). 결과의 `directoryWarning`은 AD 대신 저장된 비밀번호로 들어온 admin에게만 있다.
    */
-  login(loginId: string, password: string): Promise<Me>
+  login(loginId: string, password: string): Promise<LoginResult>
   /** 빠른 로그인(`QUICK_LOGIN_USERS`). 퇴사자·없는 id는 login과 같은 오류. */
   quickLogin(userId: number): Promise<Me>
   logout(): Promise<void>
@@ -134,7 +135,7 @@ export interface AuthConfig {
 
 export interface SetupGateway {
   status(): Promise<SetupState>
-  /** 1단계. 항상 가능(재저장 허용). directoryDone=true. */
+  /** 1단계. 항상 가능(재저장 허용). directoryDone=true. `bindPassword`가 비면 422. */
   saveDirectory(input: DirectorySettingsInput): Promise<void>
   /** 2단계. directoryDone이 false면 409. 검증은 settings.storage.save와 같다. */
   saveStorage(path: string): Promise<void>
@@ -372,16 +373,17 @@ export interface SettingsGateway {
   /** admin만. 설정이 없으면 null. */
   getDirectory(): Promise<DirectorySettings | null>
   /**
-   * revision +1, updatedBy/updatedAt 갱신. 검증 422(서버 URL 1개 이상, 필수 필드).
+   * revision +1, updatedBy/updatedAt 갱신. 검증 422(호스트·바인드 계정 필수, 포트·시간 범위). 접속 정보가 바뀌었는데
+   * `bindPassword`가 null이면 422, null이면 저장된 비밀번호를 유지한다.
    * `auth.password`는 현재 관리자 비밀번호(새 설정으로 인증을 확인한다, 개발용 로그인은 null), `expectedRevision`은
    * 화면이 읽은 설정 버전(낙관적 잠금, 어긋나면 409). Fake는 값을 받기만 한다.
    */
   saveDirectory(input: DirectorySettingsInput, auth: DirectorySaveAuth): Promise<DirectorySettings>
   /**
-   * 서버 URL 중 'fail'이 들어간 것이 있으면 422(kind `directory-verification-failed`, stage 'connect', detail "연결 단계에서 실패했습니다").
-   * `password`는 현재 관리자 비밀번호(개발용 로그인은 null).
+   * 호스트에 'fail'이 들어가면 422(kind `directory-verification-failed`, stage 'connect', detail "연결 단계에서 실패했습니다").
+   * 성공하면 서버가 AD에서 찾은 Base DN을 돌려준다. `password`는 현재 관리자 비밀번호(개발용 로그인은 null).
    */
-  testDirectory(input: DirectorySettingsInput, password: string | null): Promise<void>
+  testDirectory(input: DirectorySettingsInput, password: string | null): Promise<DirectoryTestResult>
   getStorage(): Promise<StorageSettings | null>
   /** 절대 경로 아니면 422 "절대 경로를 입력하세요.", '/readonly'로 시작하면 422 "해당 위치에 쓸 수 없습니다." */
   saveStorage(path: string): Promise<StorageSettings>
@@ -398,7 +400,13 @@ export interface AlertsGateway {
 
 export interface DirectorySaveAuth {
   password: string | null
-  expectedRevision: number
+  /** 화면이 읽은 설정 버전. null이면 설정이 없을 때 새로 만든다(있으면 409). */
+  expectedRevision: number | null
+}
+
+export interface DirectoryTestResult {
+  /** 연결 테스트가 AD에서 찾은 Base DN. */
+  baseDn: string | null
 }
 
 /** 서버 시각. now는 서버 오프셋 ISO, today는 서버 업무 날짜(YYYY-MM-DD). */

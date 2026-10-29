@@ -19,6 +19,8 @@ import type {
 export const keys = {
   me: ['me'] as const,
   authConfig: ['auth', 'config'] as const,
+  /** 로그인 응답의 AD 경고. 메모리(쿼리 캐시)에만 두고 로그아웃하면 지워진다. */
+  directoryWarning: ['auth', 'directory-warning'] as const,
   setup: ['setup'] as const,
   deals: ['deals'] as const,
   updatedPeriods: ['deals', 'updated-periods'] as const,

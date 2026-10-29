@@ -1,11 +1,16 @@
 """T-D6~D10: User 엔티티(AUTH-2·10). 퇴사 처리와 삭제 정책은 test_user_resign / test_user_policy."""
 
+from datetime import datetime
+
+import pytest
+
 from app.domain.auth.credentials import LoginId
 from app.domain.auth.principal import Permission, Role
 from app.domain.common.contact import EMAIL_MAX_LENGTH
+from app.domain.common.errors import InvalidStateError, InvalidValueError
 from app.domain.user.value_objects import UserId
 from tests.factories import NOW, later
-from tests.factories_auth import make_user
+from tests.factories_auth import make_resigned_user, make_user
 from tests.support.user_ids import uid
 
 
@@ -54,6 +59,42 @@ def test_record_login_overwrites_previous_profile_with_directory_values() -> Non
         "new@corp.test",
         later(20),
     )
+
+
+def test_fallback_login_updates_last_login_only() -> None:
+    user = make_user()
+    user.record_login(later(10), display_name="김영업", email="kim@corp.test")
+
+    user.record_fallback_login(later(30))
+
+    assert user.last_login_at == later(30)
+    assert user.updated_at == later(30)
+    assert (user.display_name, user.email) == ("김영업", "kim@corp.test")  # 디렉터리 값이 없다
+
+
+def test_fallback_login_keeps_an_unknown_profile_unknown() -> None:
+    user = make_user()
+
+    user.record_fallback_login(later(30))
+
+    assert (user.display_name, user.email, user.last_login_at) == (None, None, later(30))
+
+
+def test_fallback_login_of_resigned_user_is_rejected() -> None:
+    user = make_resigned_user()
+    before = (user.last_login_at, user.updated_at)
+
+    with pytest.raises(InvalidStateError):
+        user.record_fallback_login(later(9999))
+
+    assert (user.last_login_at, user.updated_at) == before
+
+
+def test_fallback_login_needs_a_timezone_aware_time() -> None:
+    user = make_user()
+
+    with pytest.raises(InvalidValueError):
+        user.record_fallback_login(datetime(2026, 1, 2, 9, 0))
 
 
 AD_DISPLAY_NAME_LIMIT = 256  # AD displayName 스키마 상한

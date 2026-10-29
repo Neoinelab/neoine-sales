@@ -1,21 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import type { DirectorySettingsInput } from '../../../shared/model/types'
+import { DIRECTORY_INPUT } from '../../directoryFixtures'
 import type { SeedData } from '../store'
 import { buildSampleSeed } from '../../fixtures/sampleSeed'
 import { expectApiError, mockAs, newMock } from '../testing'
 
-const DIRECTORY: DirectorySettingsInput = {
-  serverUrls: ['ldaps://dc1.corp.test'],
-  useStarttls: false,
-  caCertPem: null,
-  bindTemplate: 'CORP\\{login_id}',
-  baseDn: 'dc=corp,dc=test',
-  userFilter: '(sAMAccountName={login_id})',
-  displayNameAttribute: 'displayName',
-  emailAttribute: 'mail',
-  connectTimeoutSeconds: 5,
-  receiveTimeoutSeconds: 10,
-}
+const DIRECTORY: DirectorySettingsInput = DIRECTORY_INPUT
 
 const ADMIN_EXISTS = '이미 관리자가 등록되어 최초 설정을 진행할 수 없습니다'
 

@@ -17,13 +17,40 @@ describe('auth over HTTP', () => {
     expect(calls[0]).toMatchObject({ method: 'GET', path: '/api/v1/auth/me' })
   })
 
-  it('login posts the credentials and returns the signed-in user', async () => {
-    const { calls } = stubFetch(json(PRINCIPAL))
+  it('login posts the credentials and returns the signed-in user without a warning', async () => {
+    const { calls } = stubFetch(json({ ...PRINCIPAL, directory_warning: null }))
 
-    await expect(createAuthHttp().login('kim', 'pw')).resolves.toEqual(ME)
+    await expect(createAuthHttp().login('kim', 'pw')).resolves.toEqual({ me: ME, directoryWarning: null })
 
     expect(calls).toHaveLength(1)
     expect(calls[0]).toMatchObject({ method: 'POST', path: '/api/v1/auth/login', body: { login_id: 'kim', password: 'pw' } })
+  })
+
+  it('login maps the admin directory warning of a fallback login', async () => {
+    const message = 'AD 서버에 연결하지 못해 이전에 로그인한 비밀번호로 로그인했습니다.'
+    stubFetch(json({ ...PRINCIPAL, role: 'admin', directory_warning: { stage: 'connect', message } }))
+
+    await expect(createAuthHttp().login('kim', 'pw')).resolves.toEqual({
+      me: { ...ME, role: 'admin' },
+      directoryWarning: { stage: 'connect', message },
+    })
+  })
+
+  it.each(['not_configured', 'connect', 'tls', 'service_bind', 'base_dn', 'search', 'credential_unreadable', 'unknown'])(
+    'login keeps the %s warning stage',
+    async (stage) => {
+      stubFetch(json({ ...PRINCIPAL, role: 'admin', directory_warning: { stage, message: '안내' } }))
+
+      const result = await createAuthHttp().login('kim', 'pw')
+
+      expect(result.directoryWarning).toEqual({ stage, message: '안내' })
+    },
+  )
+
+  it('login treats a response without the warning key as no warning', async () => {
+    stubFetch(json(PRINCIPAL))
+
+    await expect(createAuthHttp().login('kim', 'pw')).resolves.toMatchObject({ directoryWarning: null })
   })
 
   it('shows the server message and the unauthorized kind for wrong credentials', async () => {

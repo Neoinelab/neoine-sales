@@ -24,6 +24,7 @@ from app.infra.db.report_repository import SqlReportRepository
 from app.infra.db.report_runner import SqlReportQueryRunner
 from app.infra.db.session_repository import SqlSessionRepository
 from app.infra.db.storage_settings_repository import SqlStorageSettingsRepository
+from app.infra.db.user_password_hash_repository import SqlUserPasswordHashRepository
 from app.infra.db.user_repository import SqlUserRepository
 from app.infra.db.vendor_repository import SqlVendorRepository
 
@@ -41,6 +42,7 @@ class SqlUnitOfWork:
     sessions: SqlSessionRepository
     users: SqlUserRepository
     login_failures: SqlLoginFailureRepository
+    password_hashes: SqlUserPasswordHashRepository
     directory_settings: SqlDirectorySettingsRepository
     storage_settings: SqlStorageSettingsRepository
     codes: SqlCodeRepository
@@ -69,6 +71,7 @@ class SqlUnitOfWork:
         self.sessions = SqlSessionRepository(self._session)
         self.users = SqlUserRepository(self._session)
         self.login_failures = SqlLoginFailureRepository(self._session)
+        self.password_hashes = SqlUserPasswordHashRepository(self._session)
         self.directory_settings = SqlDirectorySettingsRepository(self._session)
         self.storage_settings = SqlStorageSettingsRepository(self._session)
         self.codes = SqlCodeRepository(self._session)

@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, Request, Response
 from app.web.dependencies import Provider
 from app.web.request_info import client_ip
 from app.web.routers.responses import PROBLEM
-from app.web.schemas.auth import LoginRequest, PrincipalResponse
+from app.web.schemas.auth import LoginRequest, LoginResponse
 from app.web.security import AUTH_PATH, Options, require_csrf_header, set_session_cookie
 
 router = APIRouter(prefix=AUTH_PATH, tags=["auth"])
@@ -18,9 +18,9 @@ router = APIRouter(prefix=AUTH_PATH, tags=["auth"])
 )
 async def login(
     body: LoginRequest, request: Request, response: Response, provider: Provider, options: Options
-) -> PrincipalResponse:
-    issued = await provider.directory_login().execute(
+) -> LoginResponse:
+    outcome = await provider.directory_login().execute(
         login_id=body.login_id, password=body.to_password(), client_ip=client_ip(request)
     )
-    set_session_cookie(response, issued.token, options)
-    return PrincipalResponse.from_principal(issued.principal)
+    set_session_cookie(response, outcome.session.token, options)
+    return LoginResponse.from_outcome(outcome)

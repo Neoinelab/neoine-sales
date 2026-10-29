@@ -10,19 +10,23 @@
 - DeleteUser.execute(*, user_id, actor, reason=UserDeleteReason.RESIGNED) -> DeleteOutcome
 - RegisterUser(uow_factory, clock)                          ...user.register_user
 - DeleteUser(uow_factory, clock)                            ...user.delete_user
-- GetDirectorySettings(uow_factory)                         app.application.directory.get_settings
+- GetDirectorySettings(uow_factory, cipher)                 app.application.directory.get_settings
+  execute() -> DirectorySettingsView(.stored, .credential_readable)
 - VerifyDirectorySettings(deps, *, allow_dev_sessions)      ...directory.verify_settings
-- TestDirectorySettings(verify)                             ...directory.test_settings
-- UpdateDirectorySettings(uow_factory, clock, verify)       ...directory.update_settings
+  execute(*, actor, settings: DirectorySettings, password, client_ip) -> str (찾은 base_dn)
+- TestDirectorySettings(uow_factory, cipher, verify)        ...directory.test_settings
+  execute(*, actor, draft: DirectorySettingsDraft, password, client_ip) -> TestResult(base_dn 포함)
+- UpdateDirectorySettings(uow_factory, clock, cipher, verify)  ...directory.update_settings
+  execute(*, actor, draft: DirectorySettingsDraft, expected_revision: int | None, password,
+  client_ip) -> StoredDirectorySettings
+
+설정 유스케이스 4개는 새 Port(SecretCipher)가 필요해 처음 쓸 때 만든다. 사용자 관리만 쓰는 테스트가
+AD 개편 구현에 묶이지 않는다.
 """
 
-from dataclasses import dataclass
+from functools import cached_property
 from typing import TYPE_CHECKING
 
-from app.application.directory.get_settings import GetDirectorySettings
-from app.application.directory.test_settings import TestDirectorySettings as TestSettingsUseCase
-from app.application.directory.update_settings import UpdateDirectorySettings
-from app.application.directory.verify_settings import VerifyDirectorySettings
 from app.application.user.delete_user import DeleteUser
 from app.application.user.list_user_options import ListUserOptions
 from app.application.user.list_users import ListUsers
@@ -33,6 +37,10 @@ from tests.factories_auth import ADMIN_LOGIN, ADMIN_PASSWORD
 from tests.support.user_ids import uid
 
 if TYPE_CHECKING:
+    from app.application.directory.get_settings import GetDirectorySettings
+    from app.application.directory.test_settings import TestDirectorySettings
+    from app.application.directory.update_settings import UpdateDirectorySettings
+    from app.application.directory.verify_settings import VerifyDirectorySettings
     from app.application.ports.clock import Clock
     from app.application.ports.unit_of_work import UnitOfWorkFactory
     from tests.fakes.auth_stack import AuthStack
@@ -51,17 +59,58 @@ ADMIN_ACTOR = Principal(uid(ADMIN_LOGIN), ADMIN_LOGIN, "root@corp.test", "루트
 DEV_ACTOR = Principal(uid("dev-admin"), "dev-admin", None, "dev admin", Role.ADMIN)
 
 
-@dataclass(frozen=True, slots=True)
 class AdminStack:
-    list_users: ListUsers
-    register_user: RegisterUser
-    delete_user: DeleteUser
-    list_user_options: ListUserOptions
-    resolve_user_refs: ResolveUserRefs
-    get_settings: GetDirectorySettings
-    verify: VerifyDirectorySettings
-    test_settings: TestSettingsUseCase
-    update_settings: UpdateDirectorySettings
+    """사용자 관리·AD 설정 관리 유스케이스 묶음(설정 유스케이스는 처음 쓸 때 만든다)."""
+
+    def __init__(
+        self,
+        auth: AuthStack,
+        uow_factory: UnitOfWorkFactory,
+        clock: Clock,
+        *,
+        allow_dev_sessions: bool,
+    ) -> None:
+        self._auth = auth
+        self._uow_factory = uow_factory
+        self._clock = clock
+        self._allow_dev_sessions = allow_dev_sessions
+        self.list_users = ListUsers(uow_factory)
+        self.register_user = RegisterUser(uow_factory, clock)
+        self.delete_user = DeleteUser(uow_factory, clock)
+        self.list_user_options = ListUserOptions(uow_factory)
+        self.resolve_user_refs = ResolveUserRefs(uow_factory)
+
+    @cached_property
+    def get_settings(self) -> GetDirectorySettings:
+        from app.application.directory.get_settings import GetDirectorySettings  # noqa: PLC0415
+
+        return GetDirectorySettings(self._uow_factory, self._auth.cipher)
+
+    @cached_property
+    def verify(self) -> VerifyDirectorySettings:
+        from app.application.directory.verify_settings import (  # noqa: PLC0415
+            VerifyDirectorySettings,
+        )
+
+        return VerifyDirectorySettings(self._auth.deps, allow_dev_sessions=self._allow_dev_sessions)
+
+    @cached_property
+    def test_settings(self) -> TestDirectorySettings:
+        from app.application.directory.test_settings import (  # noqa: PLC0415
+            TestDirectorySettings,
+        )
+
+        return TestDirectorySettings(self._uow_factory, self._auth.cipher, self.verify)
+
+    @cached_property
+    def update_settings(self) -> UpdateDirectorySettings:
+        from app.application.directory.update_settings import (  # noqa: PLC0415
+            UpdateDirectorySettings,
+        )
+
+        return UpdateDirectorySettings(
+            self._uow_factory, self._clock, self._auth.cipher, self.verify
+        )
 
 
 def build_admin_stack(
@@ -71,15 +120,4 @@ def build_admin_stack(
     *,
     allow_dev_sessions: bool = True,
 ) -> AdminStack:
-    verify = VerifyDirectorySettings(auth.deps, allow_dev_sessions=allow_dev_sessions)
-    return AdminStack(
-        list_users=ListUsers(uow_factory),
-        register_user=RegisterUser(uow_factory, clock),
-        delete_user=DeleteUser(uow_factory, clock),
-        list_user_options=ListUserOptions(uow_factory),
-        resolve_user_refs=ResolveUserRefs(uow_factory),
-        get_settings=GetDirectorySettings(uow_factory),
-        verify=verify,
-        test_settings=TestSettingsUseCase(verify),
-        update_settings=UpdateDirectorySettings(uow_factory, clock, verify),
-    )
+    return AdminStack(auth, uow_factory, clock, allow_dev_sessions=allow_dev_sessions)
