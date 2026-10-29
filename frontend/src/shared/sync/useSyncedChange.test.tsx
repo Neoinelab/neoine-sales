@@ -87,7 +87,7 @@ describe('useSyncedChange', () => {
       const occurrences = (dialog.textContent ?? '').split('실제 매출금액과 매출일을 입력해야 저장할 수 있습니다.').length - 1
       expect(occurrences).toBe(1)
       expect(screen.getByLabelText('매출금액(단위:천원, 실제 값)')).toHaveValue('150,000')
-      expect(screen.getByLabelText('매출일(실제 값)')).toHaveValue('2026-12-31')
+      expect(screen.getByLabelText('매출일(실제 값)')).toHaveValue('2026.12.31')
       expect(screen.getByRole('button', { name: '확정' })).toBeEnabled()
     })
 
@@ -108,6 +108,49 @@ describe('useSyncedChange', () => {
       await userEvent.type(screen.getByLabelText('매출금액(단위:천원, 실제 값)'), '200,000')
       await userEvent.type(screen.getByLabelText('매출일(실제 값)'), '2026-10-15')
       expect(screen.getByRole('button', { name: '확정' })).toBeEnabled()
+    })
+
+    it('keeps confirm disabled and shows the date message while the revenue date is a wrong text', async () => {
+      model.plan = plan
+      render(<Harness onResult={() => {}} />)
+      await userEvent.click(screen.getByRole('button', { name: '요청' }))
+      await userEvent.clear(screen.getByLabelText('매출일(실제 값)'))
+      await userEvent.type(screen.getByLabelText('매출일(실제 값)'), '20261340')
+      await userEvent.tab()
+
+      expect(screen.getByRole('button', { name: '확정' })).toBeDisabled()
+      expect(screen.getByText('없는 날짜입니다.')).toBeVisible()
+      expect(model.finalize).not.toHaveBeenCalled()
+    })
+
+    it('keeps confirm disabled while the revenue date is partly typed', async () => {
+      model.plan = plan
+      render(<Harness onResult={() => {}} />)
+      await userEvent.click(screen.getByRole('button', { name: '요청' }))
+      await userEvent.clear(screen.getByLabelText('매출일(실제 값)'))
+      await userEvent.type(screen.getByLabelText('매출일(실제 값)'), '2026.10')
+
+      expect(screen.getByRole('button', { name: '확정' })).toBeDisabled()
+    })
+
+    it('finalizes with the ISO date when the revenue date is typed as yyyymmdd', async () => {
+      model.plan = plan
+      model.finalize.mockReturnValue(okFinalize())
+      render(<Harness onResult={() => {}} />)
+      await userEvent.click(screen.getByRole('button', { name: '요청' }))
+      await userEvent.clear(screen.getByLabelText('매출일(실제 값)'))
+      await userEvent.type(screen.getByLabelText('매출일(실제 값)'), '20261015')
+      expect(screen.getByLabelText('매출일(실제 값)')).toHaveValue('2026.10.15')
+
+      await userEvent.click(screen.getByRole('button', { name: '확정' }))
+
+      await waitFor(() => expect(model.finalize).toHaveBeenCalled())
+      expect(model.finalize).toHaveBeenLastCalledWith(
+        expect.anything(),
+        plan,
+        { revenueAmount: 150000000, revenueDate: '2026-10-15' },
+        CODES,
+      )
     })
 
     it('finalizes with the entered values and resolves with the result', async () => {

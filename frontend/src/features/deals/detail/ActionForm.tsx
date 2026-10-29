@@ -1,4 +1,4 @@
-import { useRef, useState, type FormEvent } from 'react'
+import { useId, useRef, useState, type FormEvent } from 'react'
 import { useCodeSet } from '../../../data/codes'
 import { useCreateAction, useUpdateAction } from '../../../data/actions'
 import { useMe } from '../../../data/auth'
@@ -6,9 +6,11 @@ import { formatDateTime } from '../../../shared/format'
 import { useActionTypes } from '../../../data/actionTypes'
 import { toChoice } from '../../../shared/model/catalogChoice'
 import { ACTION_TYPE_NAME_MAX_LENGTH } from '../../../shared/model/constants'
+import { dateValueError } from '../../../shared/model/dateText'
 import { canEditAction } from '../../../shared/model/permissions'
 import { userLabel } from '../../../shared/model/period'
 import type { DealAction, DealDetail } from '../../../shared/model/types'
+import { DateInput } from '../../../shared/ui/DateInput'
 import { ErrorBanner } from '../../../shared/ui/ErrorBanner'
 import { Modal } from '../../../shared/ui/Modal'
 import { PreviousUpdate } from './PreviousUpdate'
@@ -52,6 +54,7 @@ export function ActionForm({ deal, editing, previous, onDone, onCancel }: Action
   const create = useCreateAction()
   const update = useUpdateAction()
   const sync = useActionSync(deal)
+  const formId = useId()
   const types = useActionTypes().data
   const [type, setType] = useState(editing?.type ?? '')
   const [progress, setProgress] = useState(editing?.progress ?? '')
@@ -101,6 +104,7 @@ export function ActionForm({ deal, editing, previous, onDone, onCancel }: Action
     const hasNext = nextAction.trim() !== ''
     if (progress.trim() === '' && !hasNext) found.progress = '진행사항 또는 Next Action을 입력하세요.'
     else if (hasNext && dueDate === '') found.dueDate = 'Due Date를 입력하세요.'
+    else if (dateValueError(dueDate) !== null) found.dueDate = dateValueError(dueDate) ?? undefined
     else if (!hasNext && dueDate !== '') found.dueDate = 'Next Action 없이 Due Date를 입력할 수 없습니다.'
     return found
   }
@@ -184,11 +188,10 @@ export function ActionForm({ deal, editing, previous, onDone, onCancel }: Action
             <span>Next Action</span>
             <input value={nextAction} onChange={(e) => changeNextAction(e.target.value)} />
           </label>
-          <label className="field">
-            <span>Due Date</span>
-            <input ref={dueRef} type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} aria-invalid={errors.dueDate ? true : undefined} />
-          </label>
-          <FieldError message={errors.dueDate} />
+          <div className="field">
+            <label htmlFor={`${formId}-due`}>Due Date</label>
+            <DateInput id={`${formId}-due`} aria-label="Due Date" inputRef={dueRef} value={dueDate} onChange={setDueDate} error={errors.dueDate} />
+          </div>
           <label className="field">
             <span>Memo</span>
             <textarea value={memo} onChange={(e) => setMemo(e.target.value)} />

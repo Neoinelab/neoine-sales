@@ -1,4 +1,5 @@
 import type { ChangeEvent, ReactNode } from 'react'
+import { DateInput } from './DateInput'
 
 interface BaseProps {
   label: string
@@ -13,9 +14,18 @@ export function TextField(
     type?: 'text' | 'password' | 'email' | 'tel' | 'number' | 'date' | 'datetime-local'
     /** 브라우저 자동 채움 힌트(`username`, `current-password`, `off` …). 생략하면 브라우저가 정한다. */
     autoComplete?: string
+    maxLength?: number
   },
 ) {
-  const { label, name, value, onChange, type = 'text', required, autoComplete } = props
+  const { label, name, value, onChange, type = 'text', required, autoComplete, maxLength } = props
+  if (type === 'date') {
+    return (
+      <div className="field">
+        <label htmlFor={`${name}-date`}>{label}</label>
+        <DateInput id={`${name}-date`} name={name} aria-label={label} value={value} onChange={onChange} required={required} />
+      </div>
+    )
+  }
   return (
     <label className="field">
       <span>{label}</span>
@@ -25,6 +35,7 @@ export function TextField(
         value={value}
         required={required}
         autoComplete={autoComplete}
+        maxLength={maxLength}
         onChange={(e: ChangeEvent<HTMLInputElement>) => onChange(e.target.value)}
       />
     </label>

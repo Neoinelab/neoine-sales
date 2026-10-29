@@ -1,6 +1,8 @@
-import { useState } from 'react'
+import { useId, useState } from 'react'
+import { dateValueError } from '../model/dateText'
 import { amountInputError, formatThousandWon, parseAmountInput, REVENUE_AMOUNT_LABEL } from '../model/money'
 import { AmountInput } from '../ui/AmountInput'
+import { DateInput } from '../ui/DateInput'
 import { Modal } from '../ui/Modal'
 
 export const DATE_MESSAGE = '매출일을 입력하세요.'
@@ -25,7 +27,8 @@ export function RevenueDialog({ notice, defaultAmount, defaultDate, error, onCon
   const [touched, setTouched] = useState({ amount: false, date: false })
   // 보이는 값을 건드리지 않았으면 원래 원 값을 그대로 쓴다.
   const parsed = defaultAmount !== undefined && amount === initialAmount ? defaultAmount : parseAmountInput(amount)
-  const valid = parsed !== null && date !== ''
+  const dateId = useId()
+  const valid = parsed !== null && date !== '' && dateValueError(date) === null
 
   return (
     <Modal
@@ -64,19 +67,20 @@ export function RevenueDialog({ notice, defaultAmount, defaultDate, error, onCon
         {touched.amount && parsed === null && <p className="field-error">{amountInputError(amount)}</p>}
       </div>
       <div className="field">
-        <label>
+        <label htmlFor={dateId}>
           <span>매출일(실제 값)</span>
-          <input
-            name="revenueDate"
-            type="date"
-            value={date}
-            onChange={(e) => {
-              setDate(e.target.value)
-              setTouched((t) => ({ ...t, date: true }))
-            }}
-            onBlur={() => setTouched((t) => ({ ...t, date: true }))}
-          />
         </label>
+        <DateInput
+          id={dateId}
+          name="revenueDate"
+          aria-label="매출일(실제 값)"
+          value={date}
+          onChange={(next) => {
+            setDate(next)
+            setTouched((t) => ({ ...t, date: true }))
+          }}
+          onBlur={() => setTouched((t) => ({ ...t, date: true }))}
+        />
         {touched.date && date === '' && <p className="field-error">{DATE_MESSAGE}</p>}
       </div>
       {error && (

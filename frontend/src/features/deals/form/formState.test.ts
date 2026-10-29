@@ -169,6 +169,23 @@ describe('validateForm (T-FORM-01)', () => {
     expect(hasErrors(validateForm(filled(), undefined))).toBe(false)
   })
 
+  it('keeps the required message for an empty Expected Close and refuses a wrong date text with the date message', () => {
+    expect(validateForm(filled({ revenueDate: '' }), undefined).revenueDate).toBe('Expected Close를 입력하세요.')
+    expect(validateForm(filled({ revenueDate: '2027.13.01' }), undefined).revenueDate).toBe('없는 날짜입니다.')
+    expect(validateForm(filled({ revenueDate: '2027.1' }), undefined).revenueDate).toBe('날짜를 yyyymmdd 형식으로 입력하세요.')
+    expect(validateForm(filled({ revenueDate: '3000-01-01' }), undefined).revenueDate).toBe('1900.01.01부터 2999.12.31 사이로 입력하세요.')
+  })
+
+  it('refuses a wrong quote or POC date text but accepts empty and valid dates', () => {
+    expect(validateForm(filled({ quoteDate: '2027.1.' , pocDate: '2027.02.30' }), undefined)).toMatchObject({
+      quoteDate: '날짜를 yyyymmdd 형식으로 입력하세요.',
+      pocDate: '없는 날짜입니다.',
+    })
+    const ok = validateForm(filled({ quoteDate: '', pocDate: '2027-03-04' }), undefined)
+    expect(ok.quoteDate).toBeUndefined()
+    expect(ok.pocDate).toBeUndefined()
+  })
+
   it('treats a blank name as missing', () => {
     expect(validateForm(filled({ name: '   ' }), undefined).name).toBe('Deal Name을 입력하세요.')
   })

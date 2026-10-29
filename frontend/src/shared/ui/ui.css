@@ -75,6 +75,14 @@ button.danger:hover:not(:disabled) { background: var(--danger-hover); border-col
 tr.risk-overdue > td { background: var(--risk-overdue); }
 tr.risk-stale > td { background: var(--risk-stale); }
 
+/* 날짜 입력(DateInput): 텍스트 칸 + 달력 버튼, 숨긴 native 날짜 칸은 버튼 아래에 두어 showPicker가 그 위치에 열린다 */
+.date-input { position: relative; display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px; min-width: 0; }
+.date-input > input[type='text'] { flex: 1 1 8.5em; min-width: 0; width: 8.5em; }
+.field .date-input, .dd-form .date-input { display: flex; }
+.date-input-button { flex: none; display: inline-flex; align-items: center; justify-content: center; padding: 5px 7px; }
+.date-input.date-input > input.date-input-native.date-input-native { position: absolute; right: 0; bottom: 0; width: 1px; height: 1px; padding: 0; border: 0; opacity: 0; pointer-events: none; }
+.date-input > .field-error { flex-basis: 100%; }
+
 /* 입력 아래 문구 */
 .field-error { color: var(--danger); margin: 2px 0 0; font-size: 0.8rem; }
 .field-hint { color: var(--muted); margin: 2px 0 0; font-size: 0.8rem; }

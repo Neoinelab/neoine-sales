@@ -335,8 +335,8 @@ describe('최종 업데이트 기간 필터', () => {
 
     await user.selectOptions(select, '직접 지정')
 
-    expect(screen.getByLabelText('시작일')).toHaveValue(TWO_WEEKS.from)
-    expect(screen.getByLabelText('종료일')).toHaveValue(TWO_WEEKS.to)
+    expect(screen.getByLabelText('시작일')).toHaveValue(TWO_WEEKS.from.replaceAll('-', '.'))
+    expect(screen.getByLabelText('종료일')).toHaveValue(TWO_WEEKS.to.replaceAll('-', '.'))
     expect(location()).toBe(before)
   })
 
@@ -356,6 +356,43 @@ describe('최종 업데이트 기간 필터', () => {
 
     fireEvent.change(screen.getByLabelText('시작일'), { target: { value: '' } })
     await waitFor(() => expect(search(location()).has('updated_from')).toBe(false))
+  })
+
+  it('types yyyymmdd in the start date and puts the ISO date in the URL (AC-D1)', async () => {
+    const { user, location } = await renderAt(ALL_DEALS)
+    await screen.findByRole('row', { name: /한빛은행 ITDR 도입/ })
+    await user.selectOptions(await screen.findByLabelText('최종 업데이트'), '직접 지정')
+
+    await user.type(screen.getByLabelText('시작일'), '20261001')
+
+    expect(screen.getByLabelText('시작일')).toHaveValue('2026.10.01')
+    await waitFor(() => expect(search(location()).get('updated_from')).toBe('2026-10-01'))
+  })
+
+  it('does not change the URL for a partly typed start date and shows the message after leaving (AC-D3)', async () => {
+    const { user, location } = await renderAt(ALL_DEALS)
+    await screen.findByRole('row', { name: /한빛은행 ITDR 도입/ })
+    await user.selectOptions(await screen.findByLabelText('최종 업데이트'), '직접 지정')
+    const before = location()
+
+    await user.type(screen.getByLabelText('시작일'), '2026.10')
+    await user.tab()
+
+    expect(location()).toBe(before)
+    expect(search(location()).has('updated_from')).toBe(false)
+    expect(await screen.findByText('날짜를 yyyymmdd 형식으로 입력하세요.')).toBeVisible()
+  })
+
+  it('does not change the URL for a non-existing end date (AC-D3)', async () => {
+    const { user, location } = await renderAt(ALL_DEALS)
+    await screen.findByRole('row', { name: /한빛은행 ITDR 도입/ })
+    await user.selectOptions(await screen.findByLabelText('최종 업데이트'), '직접 지정')
+
+    await user.type(screen.getByLabelText('종료일'), '20261340')
+    await user.tab()
+
+    expect(search(location()).has('updated_to')).toBe(false)
+    expect(await screen.findByText('없는 날짜입니다.')).toBeVisible()
   })
 
   it('shows the server error when the start date is after the end date', async () => {
@@ -384,8 +421,8 @@ describe('최종 업데이트 기간 필터', () => {
     const select = await screen.findByLabelText('최종 업데이트')
 
     await waitFor(() => expect(select).toHaveDisplayValue('직접 지정'))
-    expect(screen.getByLabelText('시작일')).toHaveValue('2026-10-02')
-    expect(screen.getByLabelText('종료일')).toHaveValue('2026-10-15')
+    expect(screen.getByLabelText('시작일')).toHaveValue('2026.10.02')
+    expect(screen.getByLabelText('종료일')).toHaveValue('2026.10.15')
   })
 
   it('shows 직접 지정 when only one side is in the URL', async () => {
@@ -394,7 +431,7 @@ describe('최종 업데이트 기간 필터', () => {
 
     await waitFor(() => expect(select).toHaveDisplayValue('직접 지정'))
     expect(screen.getByLabelText('시작일')).toHaveValue('')
-    expect(screen.getByLabelText('종료일')).toHaveValue('2026-10-15')
+    expect(screen.getByLabelText('종료일')).toHaveValue('2026.10.15')
   })
 
   it('ignores a malformed updated date in the URL for the query', async () => {
@@ -431,7 +468,7 @@ describe('최종 업데이트 기간 필터', () => {
     await waitFor(() => expect(list.mock.calls.at(-1)?.[0]).toMatchObject({ updatedFrom: TWO_WEEKS.from, updatedTo: TWO_WEEKS.to }))
     const select = screen.getByLabelText('최종 업데이트')
     expect(select).toHaveDisplayValue('직접 지정')
-    expect(screen.getByLabelText('시작일')).toHaveValue(TWO_WEEKS.from)
+    expect(screen.getByLabelText('시작일')).toHaveValue(TWO_WEEKS.from.replaceAll('-', '.'))
     expect(within(select).getByRole('option', { name: '최근 2주' })).toBeDisabled()
     expect(within(select).getByRole('option', { name: '최근 6개월' })).toBeDisabled()
   })

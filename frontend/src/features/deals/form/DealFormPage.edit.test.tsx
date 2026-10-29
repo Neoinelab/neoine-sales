@@ -129,7 +129,7 @@ describe('Status⇄Forecast 동기화 (T-SYNC-UI, 폼)', () => {
     fireEvent.change(within(dialog).getByLabelText('매출일(실제 값)'), { target: { value: '2026-12-01' } })
     await user.click(within(dialog).getByRole('button', { name: '확정' }))
     expect(screen.getByLabelText('금액(단위:천원)')).toHaveValue('400,000')
-    expect(screen.getByLabelText('Expected Close')).toHaveValue('2026-12-01')
+    expect(screen.getByLabelText('Expected Close')).toHaveValue('2026.12.01')
     expect(screen.getByLabelText('Status')).toHaveDisplayValue('계약완료')
   })
 

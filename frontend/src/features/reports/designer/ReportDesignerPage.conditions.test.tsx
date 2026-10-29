@@ -1,5 +1,6 @@
 import { screen, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
+import { mockControl } from '../../../test/fake/default'
 import { addColumn, addCondition, lastQuery, openDesigner, runQuery, setupReportClock } from '../../../test/reportScreen'
 
 setupReportClock()
@@ -159,11 +160,11 @@ describe('조건 값 입력 (AC7)', () => {
     await addCondition(user, 'Expected Close')
 
     expect(optionTexts(screen.getByRole('combobox', { name: '조건 1 연산자' }))).toEqual(['범위', '이전', '이후', '상대 기간'])
-    expect(screen.getByLabelText('조건 1 시작')).toHaveAttribute('type', 'date')
-    expect(screen.getByLabelText('조건 1 끝')).toHaveAttribute('type', 'date')
+    expect(screen.getByLabelText('조건 1 시작')).toHaveAttribute('placeholder', 'yyyymmdd')
+    expect(screen.getByLabelText('조건 1 끝')).toHaveAttribute('placeholder', 'yyyymmdd')
 
     await user.selectOptions(screen.getByRole('combobox', { name: '조건 1 연산자' }), 'before')
-    expect(screen.getByLabelText('조건 1 값')).toHaveAttribute('type', 'date')
+    expect(screen.getByLabelText('조건 1 값')).toHaveAttribute('placeholder', 'yyyymmdd')
 
     await user.selectOptions(screen.getByRole('combobox', { name: '조건 1 연산자' }), 'relative')
     const period = screen.getByRole('combobox', { name: '조건 1 기간' })
@@ -175,6 +176,60 @@ describe('조건 값 입력 (AC7)', () => {
 
     await user.selectOptions(period, 'this_month')
     expect(screen.queryByLabelText('조건 1 일수')).not.toBeInTheDocument()
+  })
+
+  it('types the date range as yyyymmdd and sends ISO dates (AC-D1)', async () => {
+    const { user } = await openDesigner()
+    await addColumn(user, 'Deal 이름')
+    await addCondition(user, 'Expected Close')
+
+    await user.type(screen.getByLabelText('조건 1 시작'), '20261001')
+    await user.type(screen.getByLabelText('조건 1 끝'), '20261231')
+    expect(screen.getByLabelText('조건 1 시작')).toHaveValue('2026.10.01')
+    await runQuery(user)
+
+    expect(lastQuery().conditions?.[0]).toMatchObject({ field: 'deal.expected_close', value: ['2026-10-01', '2026-12-31'] })
+  })
+
+  it('does not run and shows the message at the wrong date field (AC-D3)', async () => {
+    const { user } = await openDesigner()
+    await addColumn(user, 'Deal 이름')
+    await addCondition(user, 'Expected Close')
+
+    await user.type(screen.getByLabelText('조건 1 시작'), '20261340')
+    await user.type(screen.getByLabelText('조건 1 끝'), '20261231')
+    await runQuery(user)
+
+    expect(mockControl.reportQueries()).toHaveLength(0)
+    expect(screen.getByLabelText('조건 1 시작')).toHaveAttribute('aria-invalid', 'true')
+    expect(screen.getByLabelText('조건 1 끝')).not.toHaveAttribute('aria-invalid')
+    expect(screen.getByText('없는 날짜입니다.')).toBeVisible()
+  })
+
+  it('does not run for a partly typed single date (AC-D3)', async () => {
+    const { user } = await openDesigner()
+    await addColumn(user, 'Deal 이름')
+    await addCondition(user, 'Expected Close')
+    await user.selectOptions(screen.getByRole('combobox', { name: '조건 1 연산자' }), 'before')
+
+    await user.type(screen.getByLabelText('조건 1 값'), '2026.1')
+    await runQuery(user)
+
+    expect(mockControl.reportQueries()).toHaveLength(0)
+    expect(screen.getByLabelText('조건 1 값')).toHaveAttribute('aria-invalid', 'true')
+    expect(screen.getByText('날짜를 yyyymmdd 형식으로 입력하세요.')).toBeVisible()
+  })
+
+  it('keeps the empty-date message for an empty date', async () => {
+    const { user } = await openDesigner()
+    await addColumn(user, 'Deal 이름')
+    await addCondition(user, 'Expected Close')
+    await user.selectOptions(screen.getByRole('combobox', { name: '조건 1 연산자' }), 'before')
+
+    await runQuery(user)
+
+    expect(mockControl.reportQueries()).toHaveLength(0)
+    expect(screen.getByText('날짜를 고르세요')).toBeVisible()
   })
 
   it('asks for the amount in thousand won', async () => {

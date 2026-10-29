@@ -1,9 +1,11 @@
 import { fireEvent, screen, within } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { AMOUNT_INPUT_MESSAGE } from '../../../shared/model/money'
 import { gateway } from '../../../gateway'
 import { renderAt } from '../../../test/mockApp'
 import { rowOf } from './testHelpers'
+
+afterEach(() => vi.restoreAllMocks())
 
 const SEARCH = '/deals?q=대한제조 MFA'
 
@@ -115,6 +117,80 @@ describe('Inline Update 즉시 저장 (T-LIST-12~14)', () => {
     await user.click(within(row).getByRole('button', { name: /Expected Close 편집/ }))
     fireEvent.change(within(row).getByLabelText('Expected Close 값'), { target: { value: '2027-02-03' } })
     expect(await within(row).findByRole('button', { name: /Expected Close 편집/ })).toHaveTextContent('2027-02-03')
+  })
+
+  it('saves Expected Close typed as yyyymmdd once the date is complete', async () => {
+    const { user } = await renderAt(SEARCH)
+    const row = await rowOf(/대한제조 MFA 확대/)
+    await user.click(within(row).getByRole('button', { name: /Expected Close 편집/ }))
+    const input = within(row).getByLabelText('Expected Close 값')
+    await user.clear(input)
+    await user.type(input, '20270203')
+    expect(await within(row).findByRole('button', { name: /Expected Close 편집/ })).toHaveTextContent('2027-02-03')
+  })
+
+  it('does not save while the date is partly typed and shows no message before Enter', async () => {
+    const update = vi.spyOn(gateway.deals, 'update')
+    const { user } = await renderAt(SEARCH)
+    const row = await rowOf(/대한제조 MFA 확대/)
+    await user.click(within(row).getByRole('button', { name: /Expected Close 편집/ }))
+    const input = within(row).getByLabelText('Expected Close 값')
+    await user.clear(input)
+    await user.type(input, '2027.0')
+    expect(update).not.toHaveBeenCalled()
+    expect(within(row).queryByRole('alert')).not.toBeInTheDocument()
+    expect(within(row).getByLabelText('Expected Close 값')).toBeVisible()
+  })
+
+  it('rejects a non-existing Expected Close on Enter and keeps editing', async () => {
+    const update = vi.spyOn(gateway.deals, 'update')
+    const { user } = await renderAt(SEARCH)
+    const row = await rowOf(/대한제조 MFA 확대/)
+    await user.click(within(row).getByRole('button', { name: /Expected Close 편집/ }))
+    const input = within(row).getByLabelText('Expected Close 값')
+    await user.clear(input)
+    await user.type(input, '20271301{Enter}')
+    expect(await within(row).findByRole('alert')).toHaveTextContent('없는 날짜입니다.')
+    expect(update).not.toHaveBeenCalled()
+    expect(within(row).getByLabelText('Expected Close 값')).toBeVisible()
+  })
+
+  it('closes the Expected Close editor with Tab through the calendar button and out, keeping the old value', async () => {
+    const update = vi.spyOn(gateway.deals, 'update')
+    const { user } = await renderAt(SEARCH)
+    const row = await rowOf(/대한제조 MFA 확대/)
+    const before = within(row).getByRole('button', { name: /Expected Close 편집/ }).textContent
+    await user.click(within(row).getByRole('button', { name: /Expected Close 편집/ }))
+    await user.tab()
+    expect(within(row).getByRole('button', { name: /달력 열기/ })).toHaveFocus()
+    await user.tab()
+
+    expect(within(row).queryByLabelText('Expected Close 값')).not.toBeInTheDocument()
+    expect(within(row).getByRole('button', { name: /Expected Close 편집/ })).toHaveTextContent(before ?? '')
+    expect(update).not.toHaveBeenCalled()
+  })
+
+  it('closes a partly typed Expected Close editor without saving or an error when Tab leaves it', async () => {
+    const update = vi.spyOn(gateway.deals, 'update')
+    const { user } = await renderAt(SEARCH)
+    const row = await rowOf(/대한제조 MFA 확대/)
+    await user.click(within(row).getByRole('button', { name: /Expected Close 편집/ }))
+    const input = within(row).getByLabelText('Expected Close 값')
+    await user.clear(input)
+    await user.type(input, '2027.0')
+    await user.tab()
+    await user.tab()
+
+    expect(within(row).queryByLabelText('Expected Close 값')).not.toBeInTheDocument()
+    expect(update).not.toHaveBeenCalled()
+  })
+
+  it('does not close the editor when Tab only moves from the text to the calendar button', async () => {
+    const { user } = await renderAt(SEARCH)
+    const row = await rowOf(/대한제조 MFA 확대/)
+    await user.click(within(row).getByRole('button', { name: /Expected Close 편집/ }))
+    await user.tab()
+    expect(within(row).getByLabelText('Expected Close 값')).toBeVisible()
   })
 
   it('rejects an empty Expected Close and keeps editing', async () => {

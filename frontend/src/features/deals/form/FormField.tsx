@@ -1,4 +1,5 @@
 import { useId } from 'react'
+import { DateInput } from '../../../shared/ui/DateInput'
 import { AmountInput } from '../../../shared/ui/AmountInput'
 
 interface FormFieldProps {
@@ -33,10 +34,12 @@ export function FormField({ label, name, value, onChange, error, hint, type = 't
       <label htmlFor={id}>{label}</label>
       {type === 'amount' ? (
         <AmountInput {...common} onChange={onChange} />
+      ) : type === 'date' ? (
+        <DateInput id={id} name={name} value={value} onChange={onChange} error={error} />
       ) : (
         <input {...common} type={type} inputMode={inputMode} onChange={(e) => onChange(e.target.value)} />
       )}
-      {error && (
+      {error && type !== 'date' && (
         <p id={errorId} role="alert" className="field-error">
           {error}
         </p>

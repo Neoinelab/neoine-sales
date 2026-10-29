@@ -101,10 +101,10 @@ describe('Deal 정보 타일의 항목 (AC-11, AC-12, AC-14, AC-15)', () => {
     await openNew()
     const quote = screen.getByRole('group', { name: '견적' })
     expect(within(quote).getByLabelText('견적 제출여부').tagName).toBe('SELECT')
-    expect(within(quote).getByLabelText('견적 제출일')).toHaveAttribute('type', 'date')
+    expect(within(quote).getByLabelText('견적 제출일')).toHaveAttribute('placeholder', 'yyyymmdd')
     const poc = screen.getByRole('group', { name: 'POC' })
     expect(within(poc).getByLabelText('POC 여부').tagName).toBe('SELECT')
-    expect(within(poc).getByLabelText('POC 완료일')).toHaveAttribute('type', 'date')
+    expect(within(poc).getByLabelText('POC 완료일')).toHaveAttribute('placeholder', 'yyyymmdd')
   })
 
   it('keeps the currency notice inside the deal info tile', async () => {

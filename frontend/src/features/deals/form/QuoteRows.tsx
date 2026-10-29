@@ -1,4 +1,5 @@
 import { useId, type ReactNode } from 'react'
+import { DateInput } from '../../../shared/ui/DateInput'
 import { FormField } from './FormField'
 import type { SectionProps } from './sectionTypes'
 
@@ -16,7 +17,7 @@ function PairRow({ label, children }: { label: string; children: ReactNode }) {
 }
 
 /** Deal 정보 타일의 견적·POC·구매절차 행. 모두 선택 입력이다. */
-export function QuoteRows({ state, set }: SectionProps) {
+export function QuoteRows({ state, set, errors }: SectionProps) {
   return (
     <>
       <PairRow label="견적">
@@ -30,7 +31,7 @@ export function QuoteRows({ state, set }: SectionProps) {
           <option value="YES">YES</option>
           <option value="NO">NO</option>
         </select>
-        <input type="date" name="quoteDate" aria-label="견적 제출일" value={state.quoteDate} onChange={(e) => set('quoteDate', e.target.value)} />
+        <DateInput name="quoteDate" aria-label="견적 제출일" value={state.quoteDate} onChange={(v) => set('quoteDate', v)} error={errors.quoteDate} />
       </PairRow>
       <PairRow label="POC">
         <select
@@ -44,7 +45,7 @@ export function QuoteRows({ state, set }: SectionProps) {
           <option value="ING">ING</option>
           <option value="NO">NO</option>
         </select>
-        <input type="date" name="pocDate" aria-label="POC 완료일" value={state.pocDate} onChange={(e) => set('pocDate', e.target.value)} />
+        <DateInput name="pocDate" aria-label="POC 완료일" value={state.pocDate} onChange={(v) => set('pocDate', v)} error={errors.pocDate} />
       </PairRow>
       <FormField label="구매절차" name="procurement" value={state.procurement} onChange={(v) => set('procurement', v)} />
     </>

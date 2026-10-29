@@ -205,6 +205,68 @@ describe('직접 지정과 전체 (AC-19, AC-20)', () => {
     expect(lastQuery(onSearch)).toMatchObject({ dueFrom: '2026-11-01', dueTo: '2026-11-30' })
   })
 
+  it('types the custom date as yyyymmdd and searches with the ISO date (AC-D1)', async () => {
+    const { user, onSearch, form, acted } = await renderBar()
+
+    await user.selectOptions(acted, '직접 지정')
+    await user.type(within(form).getByLabelText('수행일 시작'), '20260901')
+    expect(within(form).getByLabelText('수행일 시작')).toHaveValue('2026.09.01')
+    await user.click(within(form).getByRole('button', { name: '검색' }))
+
+    expect(lastQuery(onSearch)).toMatchObject({ actedFrom: '2026-09-01' })
+  })
+
+  it('does not search while a custom date is wrong and shows the message in the field (AC-D3)', async () => {
+    const { user, onSearch, form, due } = await renderBar()
+
+    await user.selectOptions(due, '직접 지정')
+    await user.type(within(form).getByLabelText('기한 끝'), '20261340')
+    await user.click(within(form).getByRole('button', { name: '검색' }))
+
+    expect(onSearch).not.toHaveBeenCalled()
+    expect(within(form).getByText('없는 날짜입니다.')).toBeVisible()
+    expect(within(form).getByLabelText('기한 끝')).toHaveAttribute('aria-invalid', 'true')
+  })
+
+  it('does not search while a custom date is only partly typed (AC-D3)', async () => {
+    const { user, onSearch, form, acted } = await renderBar()
+
+    await user.selectOptions(acted, '직접 지정')
+    await user.type(within(form).getByLabelText('수행일 시작'), '2026.09')
+    await user.click(within(form).getByRole('button', { name: '검색' }))
+
+    expect(onSearch).not.toHaveBeenCalled()
+    expect(within(form).getByText('날짜를 yyyymmdd 형식으로 입력하세요.')).toBeVisible()
+  })
+
+  it('shows no message or aria-invalid while typing again after a successful search (AC-D3)', async () => {
+    const { user, onSearch, form, acted } = await renderBar()
+    await user.selectOptions(acted, '직접 지정')
+    const from = within(form).getByLabelText('수행일 시작')
+    await user.type(from, '20260901')
+    await user.click(within(form).getByRole('button', { name: '검색' }))
+    expect(onSearch).toHaveBeenCalledTimes(1)
+
+    await user.clear(from)
+    await user.type(from, '2026.1')
+
+    expect(within(form).queryByRole('alert')).not.toBeInTheDocument()
+    expect(from).not.toHaveAttribute('aria-invalid')
+  })
+
+  it('shows the message again only after leaving the field following the successful search', async () => {
+    const { user, form, acted } = await renderBar()
+    await user.selectOptions(acted, '직접 지정')
+    const from = within(form).getByLabelText('수행일 시작')
+    await user.type(from, '20260901')
+    await user.click(within(form).getByRole('button', { name: '검색' }))
+    await user.clear(from)
+    await user.type(from, '2026.1')
+    await user.tab()
+
+    expect(within(form).getByText('날짜를 yyyymmdd 형식으로 입력하세요.')).toBeVisible()
+  })
+
   it('hides the inputs and ignores the typed dates after switching to a preset or to all', async () => {
     const { user, onSearch, form, acted } = await renderBar()
     await presetsLoaded(acted)

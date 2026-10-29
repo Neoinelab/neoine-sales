@@ -1,3 +1,4 @@
+import { dateValueError } from '../../../../shared/model/dateText'
 import type {
   ReportCatalog,
   ReportColumnInput,
@@ -93,11 +94,14 @@ function readDraft(draft: ConditionDraft, field: ReportField, catalog: ReportCat
     case 'range':
       return readNumbers(draft, unit, wholeMessage)
     case 'date':
-      return draft.day === '' ? bad('day', '날짜를 고르세요') : ok(draft.day)
+      if (draft.day === '') return bad('day', '날짜를 고르세요')
+      return dateValueError(draft.day) === null ? ok(draft.day) : bad('day', dateValueError(draft.day) ?? '')
     case 'date_range': {
       const issues: Reading['issues'] = []
-      if (draft.first === '') issues.push({ part: 'first', message: '날짜를 고르세요' })
-      if (draft.last === '') issues.push({ part: 'last', message: '날짜를 고르세요' })
+      const firstError = draft.first === '' ? '날짜를 고르세요' : dateValueError(draft.first)
+      const lastError = draft.last === '' ? '날짜를 고르세요' : dateValueError(draft.last)
+      if (firstError !== null) issues.push({ part: 'first', message: firstError })
+      if (lastError !== null) issues.push({ part: 'last', message: lastError })
       return issues.length > 0 ? { issues } : ok([draft.first, draft.last])
     }
     case 'relative': {

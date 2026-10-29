@@ -1,4 +1,6 @@
+import { useId } from 'react'
 import { PAST_PERIOD_LABELS, UPCOMING_PERIOD_LABELS, type DuePeriodChoice } from '../../../shared/model/periodChoice'
+import { DateInput } from '../../../shared/ui/DateInput'
 import type { UpcomingPeriodKey, UpdatedPeriodKey, UpdatedPeriods } from '../../../shared/model/types'
 
 interface ActionPeriodFieldProps {
@@ -14,13 +16,18 @@ interface ActionPeriodFieldProps {
   to: string
   onFromChange: (value: string) => void
   onToChange: (value: string) => void
+  /** 검색을 시도했는데 틀린 날짜일 때 칸에 보일 문구(칸을 벗어난 뒤의 자체 문구와는 별개). */
+  fromError?: string
+  toError?: string
 }
 
 const PAST_KEYS = Object.keys(PAST_PERIOD_LABELS) as UpdatedPeriodKey[]
 const UPCOMING_KEYS = Object.keys(UPCOMING_PERIOD_LABELS) as UpcomingPeriodKey[]
 
 /** 기간 조건 한 칸: 전체 / 프리셋 / 직접 지정(선택하면 시작·끝 날짜 입력이 나타난다). */
-export function ActionPeriodField({ label, value, onChange, presets, withUpcoming = false, from, to, onFromChange, onToChange }: ActionPeriodFieldProps) {
+export function ActionPeriodField({ label, value, onChange, presets, withUpcoming = false, from, to, onFromChange, onToChange, fromError, toError }: ActionPeriodFieldProps) {
+  const fromId = useId()
+  const toId = useId()
   return (
     <>
       <label className="field">
@@ -43,14 +50,14 @@ export function ActionPeriodField({ label, value, onChange, presets, withUpcomin
       </label>
       {value === 'custom' && (
         <>
-          <label className="field">
-            <span>{label} 시작</span>
-            <input type="date" value={from} onChange={(e) => onFromChange(e.target.value)} />
-          </label>
-          <label className="field">
-            <span>{label} 끝</span>
-            <input type="date" value={to} onChange={(e) => onToChange(e.target.value)} />
-          </label>
+          <div className="field">
+            <label htmlFor={`${fromId}`}>{label} 시작</label>
+            <DateInput id={fromId} aria-label={`${label} 시작`} value={from} onChange={onFromChange} error={fromError} />
+          </div>
+          <div className="field">
+            <label htmlFor={`${toId}`}>{label} 끝</label>
+            <DateInput id={toId} aria-label={`${label} 끝`} value={to} onChange={onToChange} error={toError} />
+          </div>
         </>
       )}
     </>

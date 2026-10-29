@@ -1,9 +1,11 @@
-import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
+import { useEffect, useRef, useState, type FocusEvent, type KeyboardEvent } from 'react'
 import { useCodeSet } from '../../../data/codes'
 import { useApplyDealChange } from '../../../data/deals'
+import { isDateValue } from '../../../shared/model/dateText'
 import { amountInputError, isSameShownAmount, parseAmountInput } from '../../../shared/model/money'
 import type { ApplyChangeRequest, DealChange, DealRow } from '../../../shared/model/types'
 import { AmountInput } from '../../../shared/ui/AmountInput'
+import { DateInput } from '../../../shared/ui/DateInput'
 import { useSyncedChange } from '../../../shared/sync/useSyncedChange'
 import { initialDraft, INLINE_LABEL, savedMessage, type InlineField } from './inline'
 
@@ -88,6 +90,18 @@ export function InlineEditor({ row, field, onDone }: InlineEditorProps) {
     void save(value)
   }
 
+  /** 날짜 칸: 비었거나 올바른 날짜가 되는 순간 저장한다. 덜 친·틀린 글자는 저장하지 않고(문구는 칸이 보인다) 이전 오류만 지운다. */
+  function changeDate(value: string) {
+    if (value === '' || isDateValue(value)) return pick(value)
+    setDraft(value)
+    setError(null)
+  }
+
+  function onRootBlur(event: FocusEvent) {
+    if (event.relatedTarget instanceof Node && root.current?.contains(event.relatedTarget)) return
+    onBlur()
+  }
+
   function cancel() {
     settled.current = true
     onDone()
@@ -113,7 +127,8 @@ export function InlineEditor({ row, field, onDone }: InlineEditorProps) {
   const list = field === 'statusKey' ? codes?.statuses : codes?.forecasts
 
   return (
-    <div className="inline-editor" ref={root}>
+    // 날짜 칸은 텍스트 칸·달력 버튼 어디서든 편집 영역 밖으로 포커스가 나가면 닫는다(다른 칸의 blur 규칙과 같다).
+    <div className="inline-editor" ref={root} onBlur={field === 'revenueDate' ? onRootBlur : undefined}>
       {(field === 'statusKey' || field === 'forecastKey') && (
         <select {...common} value={draft} onChange={(e) => pick(e.target.value)}>
           {list?.map((c) => (
@@ -126,7 +141,14 @@ export function InlineEditor({ row, field, onDone }: InlineEditorProps) {
       {field === 'revenueAmount' && (
         <AmountInput {...common} value={draft} onChange={setDraft} />
       )}
-      {field === 'revenueDate' && <input {...common} type="date" value={draft} onChange={(e) => pick(e.target.value)} />}
+      {field === 'revenueDate' && (
+        <DateInput
+          aria-label={common['aria-label']}
+          value={draft}
+          onChange={changeDate}
+          onKeyDown={onKeyDown}
+        />
+      )}
       {error && (
         <p role="alert" className="field-error">
           {error}

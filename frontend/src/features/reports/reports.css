@@ -65,7 +65,7 @@
 .report-combine legend { font-size: 0.8rem; color: var(--muted); padding: 0 4px; }
 .report-condition-item { display: grid; gap: 2px; }
 .report-condition { display: grid; grid-template-columns: 3.2em minmax(120px, 1fr) minmax(100px, 0.8fr) minmax(160px, 2fr) auto; gap: 8px; align-items: center; }
-.report-condition select, .report-condition input[type='text'], .report-condition input[type='date'] { font: inherit; padding: 5px 8px; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--input-bg); color: var(--fg); min-width: 0; }
+.report-condition select, .report-condition input[type='text'], .report-condition .date-input input[type='text'] { font: inherit; padding: 5px 8px; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--input-bg); color: var(--fg); min-width: 0; }
 .report-condition-value { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-width: 0; }
 .report-join { font-size: 0.75rem; font-weight: 700; color: var(--muted); text-align: right; }
 

@@ -304,8 +304,8 @@ describe('최종 업데이트 기간 기억 (AC-20, AC-21)', () => {
     await screen.findByRole('row', { name: QINGMYEONG })
     expect(view.location()).toBe(UPDATED)
     expect(screen.getByLabelText('최종 업데이트')).toHaveDisplayValue('직접 지정')
-    expect(screen.getByLabelText('시작일')).toHaveValue('2000-01-01')
-    expect(screen.getByLabelText('종료일')).toHaveValue('2099-12-31')
+    expect(screen.getByLabelText('시작일')).toHaveValue('2000.01.01')
+    expect(screen.getByLabelText('종료일')).toHaveValue('2099.12.31')
   })
 
   it('does not restore the old expected-close period from and to', async () => {

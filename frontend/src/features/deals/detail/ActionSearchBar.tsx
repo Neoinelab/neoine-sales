@@ -8,6 +8,7 @@ import type { ActionQuery, NextActionStatusFilter, UpdatedPeriods } from '../../
 import { UserSelect } from '../../../shared/ui/UserSelect'
 import { ActionPeriodField } from './ActionPeriodField'
 import './detail.css'
+import { dateValueError } from '../../../shared/model/dateText'
 import { parseId } from '../../../shared/model/ids'
 
 interface ActionSearchBarProps {
@@ -67,11 +68,21 @@ export function ActionSearchBar({ onSearch }: ActionSearchBarProps) {
   // 검색·초기화마다 올린다. 늦게 온 이전 프리셋 응답은 순번이 달라 버린다.
   const searchSeq = useRef(0)
   const [refreshError, setRefreshError] = useState<unknown>(null)
-  const set = <K extends keyof Draft>(key: K, value: Draft[K]) => setDraft((d) => ({ ...d, [key]: value }))
+  const [tried, setTried] = useState(false)
+  const custom = (period: string, ...values: string[]) => (period === 'custom' ? values.map((v) => dateValueError(v)) : [])
+  const hasWrongDate = [...custom(draft.actedPeriod, draft.actedFrom, draft.actedTo), ...custom(draft.duePeriod, draft.dueFrom, draft.dueTo)].some((m) => m !== null)
+  const shownError = (period: string, value: string) => (tried && period === 'custom' ? (dateValueError(value) ?? undefined) : undefined)
+  const set = <K extends keyof Draft>(key: K, value: Draft[K]) => {
+    setTried(false)
+    setDraft((d) => ({ ...d, [key]: value }))
+  }
 
   /** 프리셋이 있으면 그 시점에 서버에서 새로 받아 날짜를 푼다(자정 경과 대비). 실패하면 질의를 바꾸지 않는다. */
   async function submit(event: FormEvent) {
     event.preventDefault()
+    setTried(true)
+    if (hasWrongDate) return
+    setTried(false)
     const seq = ++searchSeq.current
     setRefreshError(null)
     const usesPreset = (draft.actedPeriod !== '' && draft.actedPeriod !== 'custom') || (draft.duePeriod !== '' && draft.duePeriod !== 'custom')
@@ -115,6 +126,8 @@ export function ActionSearchBar({ onSearch }: ActionSearchBarProps) {
         to={draft.actedTo}
         onFromChange={(v) => set('actedFrom', v)}
         onToChange={(v) => set('actedTo', v)}
+        fromError={shownError(draft.actedPeriod, draft.actedFrom)}
+        toError={shownError(draft.actedPeriod, draft.actedTo)}
       />
       <ActionPeriodField
         label="기한"
@@ -126,6 +139,8 @@ export function ActionSearchBar({ onSearch }: ActionSearchBarProps) {
         to={draft.dueTo}
         onFromChange={(v) => set('dueFrom', v)}
         onToChange={(v) => set('dueTo', v)}
+        fromError={shownError(draft.duePeriod, draft.dueFrom)}
+        toError={shownError(draft.duePeriod, draft.dueTo)}
       />
       <label className="field">
         <span>Next Action 상태</span>
@@ -152,6 +167,7 @@ export function ActionSearchBar({ onSearch }: ActionSearchBarProps) {
             searchSeq.current += 1
             setRefreshError(null)
             setDraft(EMPTY)
+            setTried(false)
             onSearch({})
           }}
         >

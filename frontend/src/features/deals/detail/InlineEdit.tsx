@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FocusEvent, type KeyboardEvent, type ReactNode } from 'react'
 import { useWhitespaceGuard } from '../../../shared/contact/useWhitespaceGuard'
 import { WHITESPACE_MESSAGE } from '../../../shared/model/contactRules'
+import { dateTextToValue, dateValueError, finalizeDateText } from '../../../shared/model/dateText'
 import type { ComboOption } from '../../../shared/ui/ComboBox'
 import { ErrorBanner } from '../../../shared/ui/ErrorBanner'
 import { messageOf } from './detailHelpers'
@@ -82,7 +83,9 @@ export function InlineEdit(props: InlineEditProps) {
 
   async function commit(override?: string, option?: ComboOption) {
     if (busy) return
-    const value = override ?? text
+    // 날짜 칸은 DateInput이 글자를 확정한 값(blur 직전 상태 포함)을 쓰고, 틀린 날짜는 저장하지 않는다(문구는 칸이 보인다).
+    const value = override ?? (kind === 'date' ? dateTextToValue(finalizeDateText(text)) : text)
+    if (kind === 'date' && dateValueError(value) !== null) return
     if (value === initial) return close()
     setBusy(true)
     setError(null)
@@ -101,7 +104,7 @@ export function InlineEdit(props: InlineEditProps) {
     if (event.key === 'Escape') {
       event.stopPropagation()
       close()
-    } else if (event.key === 'Enter' && !(event.target instanceof HTMLElement && event.target.tagName === 'SELECT')) {
+    } else if (event.key === 'Enter' && !(event.target instanceof HTMLElement && (event.target.tagName === 'SELECT' || event.target.closest('.date-input-button')))) {
       event.preventDefault()
       void commit()
     }

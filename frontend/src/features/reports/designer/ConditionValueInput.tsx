@@ -1,3 +1,4 @@
+import { DateInput } from '../../../shared/ui/DateInput'
 import type { ReportCatalog, ReportField } from '../../../shared/model/reportTypes'
 import { ChoiceValueInput } from './ChoiceValueInput'
 import { isMoneyField } from './state/columnRules'
@@ -11,6 +12,12 @@ interface ConditionValueInputProps {
   catalog: ReportCatalog
   messages: readonly Message[]
   onChange: (draft: ConditionDraft) => void
+}
+
+/** 문구는 조건 행 아래에서 부모가 보이므로 DateInput에는 접근성 속성만 넘긴다. */
+function dateProps(messages: readonly Message[], parts: readonly string[]): { invalid?: boolean; 'aria-describedby'?: string } {
+  const attrs = describe(messages, parts)
+  return { invalid: attrs['aria-invalid'], 'aria-describedby': attrs['aria-describedby'] }
 }
 
 /** 조건 값 입력. 연산자 모양(draft.shape)에 맞는 칸을 보인다. 금액은 천원 단위로 입력받는다. */
@@ -41,13 +48,13 @@ export function ConditionValueInput({ n, draft, field, catalog, messages, onChan
         </>
       )
     case 'date':
-      return <input type="date" aria-label={`${name} 값`} value={draft.day} onChange={(e) => onChange({ shape: 'date', day: e.target.value })} {...describe(messages, ['day', 'value'])} />
+      return <DateInput quiet aria-label={`${name} 값`} value={draft.day} onChange={(day) => onChange({ shape: 'date', day })} {...dateProps(messages, ['day', 'value'])} />
     case 'date_range':
       return (
         <>
-          <input type="date" aria-label={`${name} 시작`} value={draft.first} onChange={(e) => onChange({ ...draft, first: e.target.value })} {...describe(messages, ['first', 'value'])} />
+          <DateInput quiet aria-label={`${name} 시작`} value={draft.first} onChange={(first) => onChange({ ...draft, first })} {...dateProps(messages, ['first', 'value'])} />
           <span aria-hidden="true">~</span>
-          <input type="date" aria-label={`${name} 끝`} value={draft.last} onChange={(e) => onChange({ ...draft, last: e.target.value })} {...describe(messages, ['last'])} />
+          <DateInput quiet aria-label={`${name} 끝`} value={draft.last} onChange={(last) => onChange({ ...draft, last })} {...dateProps(messages, ['last'])} />
         </>
       )
     case 'relative': {

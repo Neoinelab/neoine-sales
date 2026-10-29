@@ -4,6 +4,7 @@ import { useCodeSet } from '../../../data/codes'
 import { useYearOptions } from '../../../data/dealYears'
 import { useToday } from '../../../data/today'
 import { useVendors } from '../../../data/vendors'
+import { isDateValue } from '../../../shared/model/dateText'
 import { NEXT_ACTION_STATUS_FILTER_OPTIONS, nextActionStatusFromParam, nextActionStatusToParam } from '../../../shared/model/nextActionStatus'
 import { PAST_PERIOD_LABELS } from '../../../shared/model/periodChoice'
 import { selectedUpdatedPeriod } from '../../../shared/model/updatedPeriod'
@@ -103,7 +104,10 @@ export function DealFilterBar({ params, onChange, onReset }: DealFilterBarProps)
     }
   }
 
+  /** 비었거나 올바른 날짜일 때만 URL 조건을 바꾼다. 틀린 글자는 칸에만 남고 칸이 문구를 보인다. */
   function changeCustomDate(patch: { updated_from?: string; updated_to?: string }) {
+    const typed = patch.updated_from ?? patch.updated_to ?? ''
+    if (typed !== '' && !isDateValue(typed)) return
     periodSeq.current += 1
     setCustomKey(`${patch.updated_from ?? updatedFrom}|${patch.updated_to ?? updatedTo}`)
     onChange(patch)

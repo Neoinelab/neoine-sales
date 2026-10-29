@@ -7,6 +7,7 @@ import {
   type BantCategory,
 } from '../../../shared/model/constants'
 import { validateContactInput, type ContactFieldErrors } from '../../../shared/model/contactRules'
+import { dateValueError } from '../../../shared/model/dateText'
 import { parseId } from '../../../shared/model/ids'
 import type { ContactDraft } from '../../../shared/model/inputs'
 import { amountInputError, formatThousandWon, isSameShownAmount, parseAmountInput } from '../../../shared/model/money'
@@ -60,6 +61,8 @@ export interface FormErrors {
   users?: string
   revenueAmount?: string
   revenueDate?: string
+  quoteDate?: string
+  pocDate?: string
   customer?: ContactFieldErrors
   partner?: ContactFieldErrors
   bant?: Partial<Record<BantCategory, string>>
@@ -193,6 +196,14 @@ export function validateForm(
   const amountError = untouched ? null : amountInputError(state.revenueAmount)
   if (amountError !== null) errors.revenueAmount = amountError
   if (state.revenueDate === '') errors.revenueDate = 'Expected Close를 입력하세요.'
+  else {
+    const dateError = dateValueError(state.revenueDate)
+    if (dateError !== null) errors.revenueDate = dateError
+  }
+  const quoteDateError = dateValueError(state.quoteDate)
+  if (quoteDateError !== null) errors.quoteDate = quoteDateError
+  const pocDateError = dateValueError(state.pocDate)
+  if (pocDateError !== null) errors.pocDate = pocDateError
   const bant = bantErrors(state.bant)
   if (bant) errors.bant = bant
   return errors
