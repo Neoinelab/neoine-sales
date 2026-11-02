@@ -158,7 +158,10 @@ class TestOtherGuards:
 
 
 class TestSetupScriptPolicy:
-    """setup.sh의 product·서버 모드(sudo, systemd, product 준비)는 Claude가 실행하지 않는다."""
+    """setup.sh의 product 모드(sudo, docker 그룹, 서버 준비)는 Claude가 실행하지 않는다.
+
+    `--server` 모드는 폐지됐다(계획 D13): 판정 대상이 아니고 setup.sh가 스스로 거부한다.
+    """
 
     @pytest.mark.parametrize(
         "command",
@@ -167,39 +170,29 @@ class TestSetupScriptPolicy:
             "./scripts/setup.sh --profile product --skip-migrate",
             "bash scripts/setup.sh --profile product",
             "cd /repo && ./scripts/setup.sh --profile product",
-            "./scripts/setup.sh --server",
-            "bash scripts/setup.sh --profile dev --server",
-            "sudo ./scripts/setup.sh --profile dev --server --tag v1",
+            "sudo ./scripts/setup.sh --profile product",
             "APP_PROFILE=dev ./scripts/setup.sh --profile product",
-            "/abs/path/scripts/setup.sh --profile dev --server",
+            "/abs/path/scripts/setup.sh --profile product",
             "bash -x scripts/setup.sh --profile product",
-            "/bin/bash -x scripts/setup.sh --profile dev --server",
-            "bash -e scripts/setup.sh --server",
             "bash -c 'scripts/setup.sh --profile product'",
-            "sudo -u me ./scripts/setup.sh --server",
-            "env -i ./scripts/setup.sh --server",
             "(cd scripts && ./setup.sh --profile product)",
             "./scripts/setup.sh --profile=product",
             "bash scripts/setup.sh --profile=product",
-            "bash -lc 'cd x && ./scripts/setup.sh --server'",
             "bash -xc './scripts/setup.sh --profile product'",
-            "zsh -ic './setup.sh --server'",
-            "X=$(./scripts/setup.sh --server)",
-            "echo $(./scripts/setup.sh --server)",
-            "echo `./scripts/setup.sh --server`",
+            "X=$(./scripts/setup.sh --profile product)",
+            "echo $(./scripts/setup.sh --profile=product)",
+            "echo `./scripts/setup.sh --profile product`",
         ],
     )
-    def test_product_or_server_mode_is_denied(self, command: str) -> None:
+    def test_product_mode_is_denied(self, command: str) -> None:
         decision = bash(command)
 
         assert decision is not None
         assert decision[0] == "deny"
 
     @pytest.mark.parametrize("profile", [None, "local", "dev", "product"])
-    def test_product_or_server_mode_is_denied_regardless_of_active_profile(
-        self, profile: str | None
-    ) -> None:
-        decision = bash("./scripts/setup.sh --profile dev --server", profile)
+    def test_product_mode_is_denied_regardless_of_active_profile(self, profile: str | None) -> None:
+        decision = bash("./scripts/setup.sh --profile product", profile)
 
         assert decision is not None
         assert decision[0] == "deny"
@@ -214,10 +207,15 @@ class TestSetupScriptPolicy:
             "bash scripts/setup.sh --help",
             "bash scripts/setup.sh -h",
             "./scripts/setup.sh --profile product --help",
-            "git commit -m './scripts/setup.sh --server 추가 && 기타'",
+            "git commit -m './scripts/setup.sh --profile product 추가 && 기타'",
+            "./scripts/setup.sh --server",
+            "bash scripts/setup.sh --profile dev --server",
+            "sudo ./scripts/setup.sh --profile dev --server --tag v1",
         ],
     )
-    def test_local_and_dev_pc_modes_are_allowed(self, command: str) -> None:
+    def test_local_and_dev_pc_modes_and_removed_server_option_are_not_denied(
+        self, command: str
+    ) -> None:
         assert bash(command) is None
 
     @pytest.mark.parametrize(
@@ -233,4 +231,20 @@ class TestSetupScriptPolicy:
         ],
     )
     def test_commands_that_only_mention_setup_script_are_allowed(self, command: str) -> None:
+        assert bash(command) is None
+
+
+class TestDeployScriptPolicy:
+    """infra/docker/deploy.sh 실행은 막지 않는다(사용자 결정 2026-10-29, 계획 A8)."""
+
+    @pytest.mark.parametrize(
+        "command",
+        [
+            "bash infra/docker/deploy.sh product abc123",
+            "./infra/docker/deploy.sh product abc123 --no-migrate",
+            "bash infra/docker/tests/test_deploy.sh",
+            "bash infra/docker/tests/test_compose.sh",
+        ],
+    )
+    def test_docker_deploy_scripts_are_not_denied(self, command: str) -> None:
         assert bash(command) is None
