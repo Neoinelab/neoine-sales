@@ -254,7 +254,7 @@ code{background:var(--soft);padding:1px 5px;border-radius:3px;font-size:12.5px}
 <tr><th>컬럼</th><th>설명</th></tr>
 <tr><td>변경 시각</td><td>언제</td></tr>
 <tr><td>변경자</td><td>누가 (<code>users.id</code> FK)</td></tr>
-<tr><td>변경 대상</td><td>무엇을 (text). 예: Status, Forecast, 금액(단위:천원), Expected Close, Owner, 파트너, 고객 연락처, BANT Label, Action, 첨부 파일</td></tr>
+<tr><td>변경 대상</td><td>무엇을 (text). 예: Status, Forecast, 금액(단위:원), Expected Close, Owner, 파트너, 고객 연락처, BANT Label, Action, 첨부 파일</td></tr>
 <tr><td>변경 전 · 변경 후</td><td>text. 변경 종류에 따라 각 서비스(유스케이스)가 알맞은 내용을 채운다</td></tr>
 </table>
 <p>변경 대상이 매우 다양하므로 구조화된 컬럼 대신 text로 보관한다. 기존 단계 변경 이력(<code>deal_stage_changes</code>)은 이 테이블로 통합한다. <span class="b ok">구현</span> P1(통합 완료)·P2·P2b</p>
@@ -317,7 +317,7 @@ code{background:var(--soft);padding:1px 5px;border-radius:3px;font-size:12.5px}
 <p>초기 등록 시 선택 입력이며, Qualification이 진행되면서 채운다. <span class="b ok">구현</span> P1</p>
 
 <h3>6.5 금액 표기</h3>
-<p>금액은 KRW이며 저장·API는 <b>원 단위 정수</b>다. 화면은 모든 곳에서 <b>천원 단위</b>로 표시·입력한다. 값은 천 단위 콤마가 있는 숫자만 쓰고(예: 1,870,000 = 18억 7천만 원), 단위는 항목 이름에 <code>금액(단위:천원)</code>처럼 표시한다. 1000원 단위로 떨어지지 않는 원 값은 천원으로 반올림(0.5 올림)해 보이며, 값을 고치지 않으면 원 값을 그대로 둔다. 입력란은 숫자와 콤마만 받고 콤마는 입력 중 자동으로 넣는다. History의 금액 행도 같은 표기(<code>금액(단위:천원)</code>, 숫자만)를 쓴다.</p>
+<p>금액은 KRW이며 저장·API는 <b>원 단위 정수</b>다. 화면도 모든 곳에서 <b>원 단위</b>로 표시·입력한다(2026-11-03 천원에서 변경). 값은 천 단위 콤마가 있는 숫자만 쓰고(예: 1,870,000,000 = 18억 7천만 원), 단위는 항목 이름에 <code>금액(단위:원)</code>처럼 표시한다. 차트의 금액 축 눈금만 "18.7억"처럼 줄여 보인다. 입력란은 숫자와 콤마만 받고 콤마는 입력 중 자동으로 넣는다. History의 금액 행도 같은 표기(<code>금액(단위:원)</code>, 숫자만)를 쓴다.</p>
 <h3 id="s6-6">6.6 매출일 = Expected Close (확정)</h3>
 <p><code>revenue_date</code> 하나가 매출일이자 Expected Close 날짜다. Deal이 진행 중이면 예상 매출일(Expected Close)이고, Deal이 성공(Won)하면 <b>최종 매출일자로 갱신</b>한다. Deal이 실패(Lost)하면 값을 바꾸지 않아 마지막 Expected Close가 그대로 남는다. 기간 집계(R01)는 이 값을 기준으로 한다.</p>
 
@@ -378,7 +378,7 @@ code{background:var(--soft);padding:1px 5px;border-radius:3px;font-size:12.5px}
 <tr><td>FC-01</td><td>Forecast는 Status와 독립적으로 변경할 수 있다.</td><td><span class="b ok">구현</span> P1</td></tr>
 <tr><td>FC-02</td><td>Forecast 코드는 Pipeline / Best / Most Likely / Commit / Won / Lost이다(admin이 관리). Won/Lost는 종료 결과이고 나머지는 Open이다.</td><td><span class="b ok">구현</span> P0·P1(코드 관리는 P0)</td></tr>
 <tr><td>FC-03</td><td><code>revenue_date</code>(= Expected Close) 기준으로 Month / Quarter / Year를 자동 집계한다.</td><td><span class="b ok">구현</span> P6 R1(2026-10-21): Forecast 요약과 Deal 목록에 연도·Quarter·<b>월</b>(Quarter와 함께 선택 불가) 조건, Deal 원장을 Deal 목록과 같은 조건으로 실시간 집계해 금액·건수가 항상 일치</td></tr>
-<tr><td>FC-04</td><td>Forecast 요약: 연도 / Quarter / 담당자 / Vendor 필터, 담당자별 Commit / Best / Pipeline / Total.</td><td><span class="b ok">구현</span> P6 R1(2026-10-21): 결정 — Open 코드(Pipeline·Best·Most Likely·Commit)마다 열, Total = Open 합계, Won은 별도 열, Lost는 제외. 각 칸은 건수·금액(천원), 합계 행 포함. 모든 역할 조회 2026-10-26: 담당자별 Deal 목록과 "Deals 목록에서 모두 보기" 링크는 Lost Deal을 제외(링크는 Forecast Lost 제외 묶음). 연도 선택지는 Deals 목록·Dashboard·Forecast 공통으로 Expected Close 가장 이른 연도~내년(<code>GET /api/v1/deals/years</code>).</td></tr>
+<tr><td>FC-04</td><td>Forecast 요약: 연도 / Quarter / 담당자 / Vendor 필터, 담당자별 Commit / Best / Pipeline / Total.</td><td><span class="b ok">구현</span> P6 R1(2026-10-21): 결정 — Open 코드(Pipeline·Best·Most Likely·Commit)마다 열, Total = Open 합계, Won은 별도 열, Lost는 제외. 각 칸은 건수·금액(원), 합계 행 포함. 모든 역할 조회 2026-10-26: 담당자별 Deal 목록과 "Deals 목록에서 모두 보기" 링크는 Lost Deal을 제외(링크는 Forecast Lost 제외 묶음). 연도 선택지는 Deals 목록·Dashboard·Forecast 공통으로 Expected Close 가장 이른 연도~내년(<code>GET /api/v1/deals/years</code>).</td></tr>
 <tr><td>FC-05</td><td>별도의 “담당자 상세” 메뉴는 두지 않는다. Forecast 요약 화면에서 담당자별 합계를 보여주고, 담당자를 선택하면 같은 화면에서 그 담당자의 Deal 목록(Deal / Status / Forecast / 금액 / Expected Close / Next Action)을 보여 Forecast Review 미팅에 쓴다(화면 안 목록은 가정).</td><td><span class="b ok">구현</span> P6 R1(2026-10-21): 담당자 선택 시 같은 화면에 Deal 목록(최대 200건, 넘으면 Deals 목록 링크), Open 합계는 요약 행 값 사용</td></tr>
 <tr><td>FC-06</td><td>Forecast 집계 테이블은 매월 말일 Batch Job으로 갱신한다. 수작업 입력은 없다.</td><td><span class="b ok">구현</span> P6 R2(2026-10-21): 전월분 스냅숏 저장(서버 OS 로컬 업무 날짜). 2026-11-02부터 systemd timer·CLI 대신 앱 내 스케줄러(워커별 확인 + PostgreSQL advisory lock, 이미 있으면 건너뜀, 놓친 달 보충), 수동 재실행 없음. 화면은 기본 실시간이고 “기준 시점”에서 스냅숏을 읽기 전용으로 선택(Vendor 필터·담당자 Deal 목록 없음). 스냅숏에는 그 시점 Forecast 코드 목록(이름·순서)도 저장해 0건 열과 옛 이름을 유지</td></tr>
 </table>
@@ -491,7 +491,7 @@ code{background:var(--soft);padding:1px 5px;border-radius:3px;font-size:12.5px}
 <table>
 <tr><th>항목</th><th>결정</th></tr>
 <tr><td>사용자 메뉴</td><td>Dashboard / Deals / Forecast / Reports 4개. admin에게만 Admin 메뉴 추가</td></tr>
-<tr><td>통화·단위</td><td>KRW 고정. 저장·API는 원 단위 정수, 화면 표시·입력은 천원 단위(콤마 숫자, 단위는 항목 이름 <code>금액(단위:천원)</code>에 표시)</td></tr>
+<tr><td>통화·단위</td><td>KRW 고정. 저장·API는 원 단위 정수, 화면 표시·입력도 원 단위(콤마 숫자, 단위는 항목 이름 <code>금액(단위:원)</code>에 표시, 차트 금액 축 눈금만 억·만 단축)</td></tr>
 <tr><td>AD 설정 위치</td><td>Admin &gt; Settings &gt; 외부연동</td></tr>
 <tr><td>코드 관리 대상</td><td>Status, Forecast만 (admin 전용, Deal 관리 메뉴)</td></tr>
 <tr><td>BANT</td><td>점수 없는 Label. 항목당 하나. 점수는 현재 관리하지 않음(후속 확장)</td></tr>
