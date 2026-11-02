@@ -198,7 +198,7 @@ code{background:var(--soft);padding:1px 5px;border-radius:3px;font-size:12.5px}
 <tr><td>Status 입력 연동(업데이트 시 Status 함께 갱신)</td><td>단계 변경은 별도 API(<code>POST /deals/{id}/stage</code>). Action에는 <b>등록 시점의 Deal Status와 Forecast를 함께 저장</b>한다</td><td><span class="b ok">구현</span> P2: 스냅숏 저장, 등록 시 <code>status_changes</code>(최대 2건, Status·Forecast 순차 동기화, 2026-10-20)로 동시 변경, 단건 <code>status_change</code>도 계속 받음</td></tr>
 </table>
 <h3>5.3 Forecast Table (집계)</h3>
-<p>Year, Quarter, Deal Owner 단위로 Pipeline / Best / Most likely / Commit / Won의 건수(cnt)와 금액(amt)을 저장한다. 매월 말일 Batch Job이 갱신하며 수작업 입력은 없다. <span class="b ok">구현</span> P6 R2(2026-10-21): <code>forecast_snapshots</code>(기준 월)·<code>forecast_snapshot_columns</code>(그 시점 Forecast 코드)·<code>forecast_snapshot_cells</code>(매출 연·월 × 담당자 × Forecast의 cnt·amt)에 저장하고, 매월 1일 00:05에 전월분을 만든다. 화면의 기본 값은 Deal 원장 실시간 집계다</p>
+<p>Year, Quarter, Deal Owner 단위로 Pipeline / Best / Most likely / Commit / Won의 건수(cnt)와 금액(amt)을 저장한다. 매월 말일 Batch Job이 갱신하며 수작업 입력은 없다. <span class="b ok">구현</span> P6 R2(2026-10-21): <code>forecast_snapshots</code>(기준 월)·<code>forecast_snapshot_columns</code>(그 시점 Forecast 코드)·<code>forecast_snapshot_cells</code>(매출 연·월 × 담당자 × Forecast의 cnt·amt)에 저장하고, 전월분을 만든다(2026-11-02부터 앱 내 스케줄러가 기동 직후와 10분마다 확인해 전월분이 없을 때만 생성, 놓친 달은 다음 기동 때 보충). 화면의 기본 값은 Deal 원장 실시간 집계다</p>
 <h3>5.4 Code Table (확정)</h3>
 <p><b>코드로 관리하는 것은 Status와 Forecast 둘뿐이다.</b> 코드의 추가·수정·정렬·삭제는 admin만 Deal 관리 메뉴에서 한다.</p>
 <ul>
@@ -380,7 +380,7 @@ code{background:var(--soft);padding:1px 5px;border-radius:3px;font-size:12.5px}
 <tr><td>FC-03</td><td><code>revenue_date</code>(= Expected Close) 기준으로 Month / Quarter / Year를 자동 집계한다.</td><td><span class="b ok">구현</span> P6 R1(2026-10-21): Forecast 요약과 Deal 목록에 연도·Quarter·<b>월</b>(Quarter와 함께 선택 불가) 조건, Deal 원장을 Deal 목록과 같은 조건으로 실시간 집계해 금액·건수가 항상 일치</td></tr>
 <tr><td>FC-04</td><td>Forecast 요약: 연도 / Quarter / 담당자 / Vendor 필터, 담당자별 Commit / Best / Pipeline / Total.</td><td><span class="b ok">구현</span> P6 R1(2026-10-21): 결정 — Open 코드(Pipeline·Best·Most Likely·Commit)마다 열, Total = Open 합계, Won은 별도 열, Lost는 제외. 각 칸은 건수·금액(천원), 합계 행 포함. 모든 역할 조회 2026-10-26: 담당자별 Deal 목록과 "Deals 목록에서 모두 보기" 링크는 Lost Deal을 제외(링크는 Forecast Lost 제외 묶음). 연도 선택지는 Deals 목록·Dashboard·Forecast 공통으로 Expected Close 가장 이른 연도~내년(<code>GET /api/v1/deals/years</code>).</td></tr>
 <tr><td>FC-05</td><td>별도의 “담당자 상세” 메뉴는 두지 않는다. Forecast 요약 화면에서 담당자별 합계를 보여주고, 담당자를 선택하면 같은 화면에서 그 담당자의 Deal 목록(Deal / Status / Forecast / 금액 / Expected Close / Next Action)을 보여 Forecast Review 미팅에 쓴다(화면 안 목록은 가정).</td><td><span class="b ok">구현</span> P6 R1(2026-10-21): 담당자 선택 시 같은 화면에 Deal 목록(최대 200건, 넘으면 Deals 목록 링크), Open 합계는 요약 행 값 사용</td></tr>
-<tr><td>FC-06</td><td>Forecast 집계 테이블은 매월 말일 Batch Job으로 갱신한다. 수작업 입력은 없다.</td><td><span class="b ok">구현</span> P6 R2(2026-10-21): 매월 1일 00:05(서버 OS 로컬)에 전월분 스냅숏 저장(systemd timer), 재실행은 전월·당월만. 화면은 기본 실시간이고 “기준 시점”에서 스냅숏을 읽기 전용으로 선택(Vendor 필터·담당자 Deal 목록 없음). 스냅숏에는 그 시점 Forecast 코드 목록(이름·순서)도 저장해 0건 열과 옛 이름을 유지</td></tr>
+<tr><td>FC-06</td><td>Forecast 집계 테이블은 매월 말일 Batch Job으로 갱신한다. 수작업 입력은 없다.</td><td><span class="b ok">구현</span> P6 R2(2026-10-21): 전월분 스냅숏 저장(서버 OS 로컬 업무 날짜). 2026-11-02부터 systemd timer·CLI 대신 앱 내 스케줄러(워커별 확인 + PostgreSQL advisory lock, 이미 있으면 건너뜀, 놓친 달 보충), 수동 재실행 없음. 화면은 기본 실시간이고 “기준 시점”에서 스냅숏을 읽기 전용으로 선택(Vendor 필터·담당자 Deal 목록 없음). 스냅숏에는 그 시점 Forecast 코드 목록(이름·순서)도 저장해 0건 열과 옛 이름을 유지</td></tr>
 </table>
 
 <h3 id="s7-4">7.4 Reports</h3>
@@ -466,7 +466,7 @@ code{background:var(--soft);padding:1px 5px;border-radius:3px;font-size:12.5px}
 <tr><th>항목</th><th>요구사항</th><th>상태</th></tr>
 <tr><td>데이터 정합성</td><td>Dashboard 합계 = Forecast 합계 = Deal 목록 원장. 단일 집계 로직을 쓰고 테스트로 일치를 검증한다.</td><td><span class="b ok">구현</span> Forecast(P6)·Dashboard(P4, 2026-10-23): 모든 집계가 Deal 목록과 같은 WHERE(<code>infra/db/deal_search.conditions</code>)를 쓰고, Dashboard Forecast 타일은 Forecast 요약과 같은 Port·도메인 함수를 재사용한다. functional(원장 일치)·프런트 Fake 계약 테스트로 검증. Reports(P7, 2026-10-27)는 정의를 SQL로 바꾸는 별도 생성기(<code>infra/db/report_*.py</code>)이지만 경고 판정식은 Deal 목록과 같은 <code>infra/db/deal_risk.py</code>를 쓰고, Action 행에서도 Deal 숫자는 Deal마다 한 번 집계한다. functional(“Vendor × 분기 금액 합계(Lost 제외, 올해)가 Deals 목록 숫자와 같다”)과 실제 DB 계약 테스트(경고·체류 일수·최종 업데이트가 목록과 같음)로 검증</td></tr>
 <tr><td>구조</td><td>FastAPI(DDD 4계층, import-linter로 강제) + React. 프로파일 local / dev / product.</td><td><span class="b ok">구현</span></td></tr>
-<tr><td>배포</td><td>온프레미스 Linux, Jenkins CI/CD, Nginx 정적 서빙 + <code>/api</code> 프록시. product 승인 후 순차 배포(Jenkins의 dev 자동 배포는 2026-10-20 제거, dev DB는 로컬 <code>start-backend.sh --profile dev</code>로 사용).</td><td><span class="b ok">구현</span></td></tr>
+<tr><td>배포</td><td>온프레미스 Linux, Jenkins CI/CD, docker compose(product 서버 1대: nginx web·api·PostgreSQL 18 db, 2026-11-02), 사내 레지스트리 이미지. product 승인 후 배포(Jenkins의 dev 자동 배포는 2026-10-20 제거, dev DB는 로컬 <code>start-backend.sh --profile dev</code>로 사용).</td><td><span class="b ok">구현</span></td></tr>
 <tr><td>마이그레이션</td><td>Alembic. local·dev는 로컬 실행 스크립트가 자동 적용, product는 사람 승인. 원칙은 expand/contract.</td><td><span class="b ok">구현</span> 예외 3건은 CLAUDE.md에 기록</td></tr>
 <tr><td>품질 게이트</td><td>ruff, format, mypy strict, import-linter, 파일 300줄 이하, pytest, 프런트 typecheck/lint/test/build.</td><td><span class="b ok">구현</span></td></tr>
 <tr><td>성능</td><td>사용자 100명 미만이므로 대용량 처리 설계는 필요하지 않다. 목록·집계는 일반 쿼리로 충분하다.</td><td><span class="b ok">구현</span> 확정</td></tr>
@@ -579,7 +579,7 @@ code{background:var(--soft);padding:1px 5px;border-radius:3px;font-size:12.5px}
 <h3>A.6 플랫폼</h3>
 <ul>
 <li>DDD 4계층 + Port/UoW, Fake·계약·통합·E2E 테스트, openapi.json 드리프트 테스트</li>
-<li>프로파일 local / dev / product, Jenkins CI/CD, Nginx + systemd 배포 자산, 서버 스크립트 테스트</li>
+<li>프로파일 local / dev / product, Jenkins CI/CD, 배포 자산(2026-11-02 docker compose로 전환), 서버 스크립트 테스트</li>
 <li>Alembic 마이그레이션(현재 head <code>0d248153ec93</code>)</li>
 <li>하네스: 8개 Agent 흐름(planner → test → core → infra → web → frontend → gate → reviewer)</li>
 </ul>
@@ -595,7 +595,7 @@ code{background:var(--soft);padding:1px 5px;border-radius:3px;font-size:12.5px}
 <tr><td>P3 <span class="b ok">완료</span></td><td>자동 규칙·경고</td><td>기한초과(R03), 14일 미업데이트(R04), Status 체류기간(R05), Won/Lost 제외(R06), 경고 기준 Admin 설정(CM-05)</td><td>—</td></tr>
 <tr><td>P4 <span class="b ok">완료</span></td><td>Dashboard</td><td>단계 Funnel(DB-01), KPI(DB-02), 공통 필터(DB-03), <s>Drill-down 팝업</s> Deal 목록 이동 Drill-down(DB-04, R08), 주의 필요 Deal(DB-05), Forecast &amp; Closing(DB-06), <s>Deal 목록 “Forecast 구분” 필터</s>(2026-10-26 폐지)</td><td>2026-10-23: 사용자 결정 Q1~Q5(A·A·A·A·B), 차트 의존성 chart.js·react-chartjs-2 사용자 지정·승인. 마이그레이션 없음</td></tr>
 <tr><td>P5 <span class="b ok">완료</span></td><td>Deals 목록 개선</td><td>컬럼 확장·Quick View(DL-05), Solution·Forecast·Year/Quarter 필터(DL-04), 조건 유지(DL-06), Risk 색상(DL-07), Inline Update(DL-08)</td><td>—</td></tr>
-<tr><td>P6 <span class="b ok">완료</span></td><td>Forecast 메뉴</td><td>Forecast 요약과 화면 안 담당자별 Deal 목록(FC-04·05, “담당자 상세” 메뉴 없음), 기간 자동 집계(R01), 월말 Batch(FC-06)</td><td>2026-10-21: R1 실시간 요약·담당자 Deal 목록·월 필터(Deal 목록 포함), R2 월말 스냅숏(systemd timer, 기준 시점 선택). 서버 반영은 사람이 <code>bootstrap.sh</code> 재실행</td></tr>
+<tr><td>P6 <span class="b ok">완료</span></td><td>Forecast 메뉴</td><td>Forecast 요약과 화면 안 담당자별 Deal 목록(FC-04·05, “담당자 상세” 메뉴 없음), 기간 자동 집계(R01), 월말 Batch(FC-06)</td><td>2026-10-21: R1 실시간 요약·담당자 Deal 목록·월 필터(Deal 목록 포함), R2 월말 스냅숏(systemd timer, 기준 시점 선택). 서버 반영은 사람이 <code>bootstrap.sh</code> 재실행. 2026-11-02: timer·CLI·bootstrap.sh 폐지, 앱 내 스케줄러와 docker compose 배포로 대체</td></tr>
 <tr><td>P7 <span class="b part">부분</span></td><td>Reports</td><td><s>담당자 실적, Vendor/Solution, Status 전환, Forecast Mix, Forecast 추이(표·그래프), Excel Export(RP-01~06)</s> 범용 리포트 디자이너로 구현(2026-10-27): 1단계 필드 카탈로그·조회 엔진, 2단계 디자이너 화면, 3단계 저장·목록·열기·편집(<code>reports</code> 테이블), 4단계 차트. RP-02·04·05 충족, RP-01(달성률)·RP-03(전환율·체류 이력) 부분, <b>Excel Export(RP-06) 남음</b></td><td>2026-10-26 시안 Q1~Q9, 2026-10-27 단계별 결정(7.4절). 차트는 기존 chart.js·react-chartjs-2 + <code>chartjs-plugin-datalabels</code> 2.2.0(사용자 승인). Excel 의존성은 Export 단계에서 승인. 마이그레이션 <code>f1c6a8e2b904</code>(순수 expand)</td></tr>
 <tr><td>P8 <span class="b ok">완료</span></td><td>메뉴 정리·실제 연동 전환</td><td>사용자 메뉴 4개 재편(Dashboard·Forecast·Reports 추가, 내용은 P4·P6·P7 전까지 “준비 중”이었고 Dashboard는 P4, Forecast는 P6, Reports는 2026-10-27 P7로 대체), <s>목록 BANT 열(LB-06)</s>(2026-10-23 폐지), 앱은 항상 HTTP(목업 모드·MockBanner 제거, mock은 테스트 전용 Fake로 이동), 빠른 로그인은 서버 개발용 로그인(local·dev)일 때 역할 3개</td><td>—</td></tr>
 </table>
@@ -619,7 +619,7 @@ code{background:var(--soft);padding:1px 5px;border-radius:3px;font-size:12.5px}
 <tr><td>A5</td><td>견적·POC·구매절차</td><td>견적 제출여부·제출일, POC 여부·완료일, 구매절차</td><td>구현(P1): 견적 제출여부(YES/NO)·제출일, POC 여부(YES/ING/NO)·완료일, 구매절차. 상세와 목록 Quick View에 표시(7.2절 DL-05·DL-09)</td><td>명세서대로</td><td>P1 <span class="b ok">완료</span></td></tr>
 <tr><td>A6</td><td>경고와 체류기간</td><td>기한초과, 14일 미업데이트, 단계별 체류기간</td><td>구현(P3): 서버 계산 기한초과·미업데이트(<code>risk</code>)와 현재 Status 체류 일수(8장 R03~R05, 7.2절 DL-07). 단계별 체류 이력은 남기지 않음</td><td>명세서대로</td><td>P3 <span class="b ok">완료</span></td></tr>
 <tr><td>A7</td><td>경고 기준 설정</td><td>Admin 설정값</td><td>구현(P3): Admin &gt; Deal 관리 “경고 기준” 탭, 미업데이트 기준 일수 1~365일·기본 14(7.5절 CM-05)</td><td>명세서대로</td><td>P3 <span class="b ok">완료</span></td></tr>
-<tr><td>A8</td><td>Forecast 월말 Batch</td><td>매월 말일 Batch로 집계 테이블 갱신</td><td>구현(2026-10-21): 매월 1일 00:05 전월분 스냅숏(systemd timer), 화면 “기준 시점”(7.3절 FC-06)</td><td>명세서대로(말일 대신 다음 달 1일 00:05 실행)</td><td>P6 <span class="b ok">완료</span></td></tr>
+<tr><td>A8</td><td>Forecast 월말 Batch</td><td>매월 말일 Batch로 집계 테이블 갱신</td><td>구현(2026-10-21): 전월분 스냅숏(2026-11-02부터 앱 내 스케줄러, 이전 systemd timer 폐지), 화면 “기준 시점”(7.3절 FC-06)</td><td>명세서대로(말일 대신 다음 달 1일 00:05 실행)</td><td>P6 <span class="b ok">완료</span></td></tr>
 <tr><td>A9</td><td>Excel Export</td><td>조회 조건 유지</td><td>없음</td><td>명세서대로. 2026-10-26 Q8: Reports 이후 단계(이번 범위 밖)</td><td>P7 이후 <span class="b todo">예정</span></td></tr>
 <tr><td>A10</td><td>Inline Update</td><td>Status·Forecast 등 일부 권한 범위</td><td>구현: Deal 목록에서 Status·Forecast·금액·Expected Close 바로 수정, Won 전환 입력 강제·동기화 질문 포함(7.2절 DL-08, P1의 변경 로직 재사용)</td><td>명세서 취지대로, 대상은 Status / Forecast / 금액 / Expected Close 네 컬럼</td><td>P5 <span class="b ok">완료</span></td></tr>
 <tr><td>A11</td><td>사용자 메뉴</td><td>Dashboard / Deals / Forecast / Reports 4개</td><td>구현(P8): Dashboard·Deals·Forecast·Reports 4개 + admin에게만 Admin 메뉴, 구 <code>/users</code>·<code>/settings</code>는 Admin 화면으로 이동(7.5절 CM-06)</td><td>명세서대로 4개(+admin 전용 Admin 메뉴)</td><td>P8 <span class="b ok">완료</span></td></tr>

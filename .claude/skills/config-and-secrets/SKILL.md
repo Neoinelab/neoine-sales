@@ -10,7 +10,7 @@ description: 환경변수, 프로파일(local/dev/product) 설정, 비밀 값, �
 ## 사용 조건
 
 - 사용: 새 설정 항목 추가, 프로파일별 기본 동작 변경, `.env.example` 수정, 설정 검증 실패 진단, 설정 코드 리뷰
-- 사용하지 않음: 비즈니스 로직, 계층/Port 설계(`layer-architecture-rules`), `deploy.sh`·systemd·Nginx 같은 서버 구성(사람이 담당)
+- 사용하지 않음: 비즈니스 로직, 계층/Port 설계(`layer-architecture-rules`), `infra/docker/deploy.sh`·compose·Dockerfile 같은 배포 구성(infra-engineer·사람 담당)
 
 ## 절대 규칙
 

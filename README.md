@@ -13,7 +13,7 @@ Python(FastAPI) 백엔드와 React 프런트엔드로 만든 영업 파이프라
 
 ### 2. 처음 한 번만
 
-**스크립트(권장, macOS·리눅스 공용)**: `./scripts/setup.sh`(dev 프로파일은 `--profile dev`)가 uv·Node.js·corepack 설치, 의존성, `backend/.env` 생성(비밀 `APP_JWT_SECRET`·`APP_SETTINGS_ENCRYPTION_KEY`는 무작위 생성, 값은 출력하지 않음), 마이그레이션까지 합니다. 처음 실행하면 `APP_DATABASE_URL`의 `CHANGE_ME`를 채우라고 안내하고 종료 코드 3으로 멈추므로, 채운 뒤 다시 실행합니다. 서버 준비(`--profile product`, `--profile dev --server`)는 [개발 가이드 16.6절](docs/dev-guide.html)을 보세요.
+**스크립트(권장, macOS·리눅스 공용)**: `./scripts/setup.sh`(dev 프로파일은 `--profile dev`)가 uv·Node.js·corepack 설치, 의존성, `backend/.env` 생성(비밀 `APP_JWT_SECRET`·`APP_SETTINGS_ENCRYPTION_KEY`는 무작위 생성, 값은 출력하지 않음), 마이그레이션까지 합니다. 처음 실행하면 `APP_DATABASE_URL`의 `CHANGE_ME`를 채우라고 안내하고 종료 코드 3으로 멈추므로, 채운 뒤 다시 실행합니다. product 서버 준비(`--profile product`)는 [개발 가이드 16.8절](docs/dev-guide.html)을 보세요.
 
 수동으로 할 때:
 
@@ -105,19 +105,22 @@ cd frontend && corepack pnpm gen:api                    # src/shared/api/schema.
 
 ## 운영(product) 배포 방식
 
-화면과 API가 **하나의 주소**로 제공됩니다. 프런트엔드는 정적 파일(`frontend/dist`)로 빌드되어 릴리스 번들에 함께 들어가고,
-서버의 Nginx가 정적 파일을 직접 서빙하면서 `/api`만 백엔드(Uvicorn, 127.0.0.1:8000)로 넘깁니다.
-서버에서 실행되는 것은 백엔드(systemd 서비스 `neoine-sales-api`)와 Nginx뿐이며 프런트엔드용 Node 서버는 없습니다.
-Jenkins가 `main` 머지 시 번들을 만들고, 승인 후 product에 한 대씩 순차 배포합니다(실패하면 이전 릴리스로 자동 롤백). dev 자동 배포는 2026-10-20에 없앴으며 dev 서버는 `scripts/setup.sh --profile dev --server`로 설치·배포합니다.
-자세한 내용은 [개발 가이드 16장](docs/dev-guide.html)과 `infra/server/`를 보세요.
+화면과 API가 **하나의 주소**로 제공됩니다. product는 서버 1대에서 **docker compose**로 돌고(2026-11-02 전환),
+`web`(nginx: TLS 종료, 빌드된 `frontend/dist` 서빙, `/api` 프록시), `api`(Uvicorn), `db`(PostgreSQL 18) 컨테이너가 상시 실행되며
+마이그레이션은 배포 때 `migrate` 컨테이너가 한 번 실행합니다. 프런트엔드용 Node 서버는 없습니다.
+Jenkins가 `main` 머지 시 api·web 이미지를 만들어 사내 레지스트리(`REGISTRY`)에 push하고, 사람이 승인하면 서버(`PRODUCT_HOST`)에서
+`infra/docker/deploy.sh`가 pull → 설정 검증 → DB 덤프 → 마이그레이션 → 전환 → 헬스체크를 합니다(실패하면 이전 이미지로 자동 롤백).
+서버 준비는 `scripts/setup.sh --profile product`(리눅스, Docker Engine + Compose v2 필요, 준비까지만)로 합니다. dev 서버는 두지 않습니다.
+월말 Forecast 스냅숏은 앱이 스스로 만듭니다(별도 cron·timer 없음).
+자세한 내용은 [개발 가이드 14·16장](docs/dev-guide.html)과 `infra/docker/`를 보세요.
 
 ## 구조
 
 ```
 backend/    FastAPI (domain / application / infra / web 4계층, uv 관리)
 frontend/   React + TypeScript (Vite)
-scripts/    setup.sh(설치: 개발 PC·서버 준비), start-backend.sh·start-frontend.sh, tests/(셸 테스트)
-infra/      릴리스 번들 스크립트, 서버 구성·배포 자산(infra/server: systemd, Nginx, deploy.sh, bootstrap.sh, lib/env_secrets.sh)
+scripts/    setup.sh(설치: 개발 PC·product 서버 준비), start-backend.sh·start-frontend.sh, tests/(셸 테스트)
+infra/      docker/(compose.yaml, deploy.sh, build_images.sh, web 이미지), server/lib/env_secrets.sh(비밀 생성 공용 함수)
 docs/       dev-guide.html (개발 가이드), harness-guide.html (AI 하네스 가이드)
 Jenkinsfile CI 파이프라인
 ```

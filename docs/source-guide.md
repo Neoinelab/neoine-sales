@@ -16,15 +16,15 @@
 | 권한 | 역할 3종: `admin`(전부 + Admin 메뉴), `sales`(업무 쓰기), `user`(조회만) |
 | 파일 | 첨부 파일은 서버 로컬 디스크. 저장 위치는 최초 설정·Admin에서 등록(DB 저장), 서버는 `/var/lib/neoine-sales`를 준비 |
 | 패키지 | 백엔드 uv, 프런트엔드 pnpm(corepack) |
-| CI/CD | Jenkins(Multibranch) → 릴리스 번들(tar.gz) → SSH로 서버에 `deploy.sh` 실행 |
-| 서버 | on-prem Linux, Nginx(정적 파일 + `/api` 프록시) + systemd(`neoine-sales-api`), 컨테이너 없음 |
+| CI/CD | Jenkins(Multibranch) → api·web 이미지를 사내 레지스트리에 push → SSH로 서버에 `infra/docker/deploy.sh` 실행 |
+| 서버 | on-prem Linux, docker compose(product 1대: postgres 18 `db`, `api`, nginx `web`(TLS·정적 파일·`/api` 프록시)) |
 
 최상위 구조:
 
 ```
 backend/     FastAPI 백엔드 (uv 관리)
 frontend/    React 프런트엔드 (pnpm 관리)
-infra/       릴리스 번들 스크립트, 서버 구성·배포 자산
+infra/       docker(이미지·compose·배포 스크립트), server/lib(비밀 생성 공용 함수)
 docs/        개발 가이드, PRD, 하네스 가이드, 이 문서
 Jenkinsfile  CI/CD 파이프라인
 CLAUDE.md    AI 에이전트(Claude Code) 작업 규칙
@@ -59,13 +59,13 @@ infra ──┘
 | `pyproject.toml` | 의존성, ruff·mypy·pytest·import-linter 설정의 **정본** |
 | `uv.lock`, `.python-version` | 잠긴 의존성, Python 버전(3.14) |
 | `.env.example` | 필요한 환경변수 이름 예시(실제 `.env`는 Git 제외, 읽지도 쓰지도 않음) |
-| `alembic.ini`, `alembic/` | DB 마이그레이션. `versions/`에 리비전 23개, head는 `f1c6a8e2b904`(저장 리포트 `reports` 테이블, 순수 expand, 2026-10-27). P0 이후는 단계별 단일 스키마 마이그레이션(코드·BANT Label → 연락처 → Deal 모델 v2 → Action 스냅숏 → 첨부 → 경고 기준 → Vendor·Solution → Action 유형 → Next Action 상태 → Deal users 필수 → bigint id(전체 초기화) → Forecast 스냅숏 → Solution 관리 목록 폐지·Deal Solution 필수 텍스트 → 저장 리포트) |
+| `alembic.ini`, `alembic/` | DB 마이그레이션. `versions/`에 리비전 26개, head는 `e5a2d8c7b310`(AD 서비스 계정 방식·대체 로그인 해시 테이블, expand/contract 예외, 2026-10-29). P0 이후는 단계별 단일 스키마 마이그레이션(코드·BANT Label → 연락처 → Deal 모델 v2 → Action 스냅숏 → 첨부 → 경고 기준 → Vendor·Solution → Action 유형 → Next Action 상태 → Deal users 필수 → bigint id(전체 초기화) → Forecast 스냅숏 → Solution 관리 목록 폐지·Deal Solution 필수 텍스트 → 저장 리포트) |
 | `openapi.json` | API 계약 파일. 코드와 다르면 테스트가 실패(드리프트 검사), 프런트 타입의 원본 |
 | `scripts/run_gates.py` | 품질 게이트 6종 실행(기본은 단위 테스트만, `--full`이면 functional 포함). 결과: `artifacts/30-review/gate.md` |
 | `scripts/check_file_length.py` | 파일 300줄 제한 검사 |
 | `scripts/export_openapi.py` | `openapi.json` 생성 |
 
-저장소 루트 `scripts/`(셸): `setup.sh`(설치 — 개발 PC 모드 `--profile local|dev`, 서버 모드 `--profile dev --server`·`--profile product`(준비까지만), macOS·여러 리눅스, 종료 코드 0/1/2/3), `start-backend.sh`·`start-frontend.sh`(백그라운드 실행), `tests/test_setup.sh`(셸 테스트, Jenkins `Infra scripts`가 실행). 서버 공용 함수 테스트는 `infra/server/tests/test_env_secrets.sh`.
+저장소 루트 `scripts/`(셸): `setup.sh`(설치 — 개발 PC 모드 `--profile local|dev`, product 서버 준비(리눅스·docker, 준비까지만 — 배포는 Jenkins, `--server`·`--tag`는 2026-11-02 폐지), macOS·여러 리눅스, 종료 코드 0/1/2/3), `start-backend.sh`·`start-frontend.sh`(백그라운드 실행), `tests/test_setup.sh`(셸 테스트, Jenkins `Infra scripts`가 실행). 서버 공용 함수 테스트는 `infra/server/tests/test_env_secrets.sh`.
 
 ### 2.3 `src/app/` 진입점·설정·조립
 
@@ -84,6 +84,7 @@ infra ──┘
 | `container_storage.py` | 저장 위치 설정과 첨부 유스케이스 조립(FileStorage 하나를 공유) |
 | `container_dashboard.py` | `Container`가 상속하는 Dashboard 유스케이스(`GetDashboardSummary`) 조립 mixin(`DashboardUseCases`) |
 | `container_reports.py` | `Container`가 상속하는 Reports 유스케이스 조립 mixin(`ReportUseCases`: 필드 카탈로그, 임시 조회, 저장 리포트 목록·보기·만들기·수정·복제·삭제·실행) |
+| `container_forecast.py` | Forecast 유스케이스 조립과 월말 스냅숏 스케줄러(`ensure_monthly_forecast_snapshot()`, `forecast_snapshot_scheduler()` → `PeriodicTask`). `main.py`의 lifespan이 `APP_SCHEDULER_ENABLED`일 때만 시작하고 종료 때 취소(2026-11-02, CLI `app/jobs/` 폐지) |
 | `container_time.py` | `Container`가 상속하는 서버 시각 유스케이스(`GetServerTime`, 기존 `Clock` 주입) 조립 mixin(`TimeUseCases`) |
 
 ### 2.4 `domain/` — 비즈니스 규칙
@@ -138,6 +139,8 @@ infra ──┘
 | `db/report_*.py` | Reports SQL 생성기(SQLAlchemy Core). `report_runner.py`(`SqlReportQueryRunner`: 읽기 전용 가드 안에서 결과·합계 실행) → `report_select.py`(`build_select`·`build_totals_select`) → 그룹핑 `report_grouped.py`(안쪽 하위 쿼리 + `row_number()`로 Deal당 한 번 집계) → `report_parts.py`(`ReportParts`: 조각 공급자). 필드 key → SQL 식 `report_fields.py`(`FieldSql`)·`report_fields_deal.py`·`report_fields_action.py`, 필요한 LEFT JOIN만 등록 `report_joins.py`(`Joins`), WHERE·EXISTS `report_conditions.py`(값은 바인딩 파라미터), 날짜 묶음 `report_buckets.py`, 경고·체류 일수 `report_risk.py`, 표시 SQL·결과 변환 `report_render.py` |
 | `db/read_only.py` | `read_only_guard`: SAVEPOINT 안 `SET TRANSACTION READ ONLY` + `SET LOCAL statement_timeout`(10초), 항상 되돌림, 시간 초과(57014) → `ReportQueryTimeoutError` |
 | `db/deal_risk.py` | 경고(기한초과·미업데이트, 종결 Deal 제외) 판정식의 단일 출처. Deal 목록 필터(`deal_search`)와 Reports(`report_risk`)가 함께 씀 |
+| `db/advisory_job_lock.py` | `JobLock` 구현(`PgAdvisoryJobLock`, `pg_try_advisory_lock`, 키는 `lock_key(job)`). 해제 실패 시 연결을 버려 잠금이 풀에 남지 않게 함 |
+| `scheduling/periodic.py` | `PeriodicTask`: 기동 직후 1회, 이후 주기마다 실행. 한 번의 예외는 기록만 하고 다음 주기 계속, 취소 시 종료 |
 | `db/report_repository.py`, `db/models_report.py` | `ReportRepository` 구현(`SqlReportRepository`)과 `reports` 테이블 모델(정의·차트 JSONB, `generated_sql`은 표시용, 이름 대소문자 무시 유니크, owner·updated_by는 users FK RESTRICT). 읽을 수 없는 저장 정의는 깨진 리포트(목록·삭제만 가능), 깨진 차트는 차트 없이 읽음 |
 | `db/unit_of_work.py` | 트랜잭션 단위 구현 |
 | `db/like.py` | 키워드 검색용 LIKE 이스케이프 |
@@ -236,19 +239,21 @@ features/*  화면 ──▶ data/*  TanStack Query 훅 ──▶ gateway  (http
 
 ## 4. 인프라 (`infra/`)
 
+2026-11-02부터 product는 **docker compose**(서버 1대: db·api·web, 배포 때만 migrate)로 운영합니다. 이전의 systemd 유닛·호스트 Nginx·`bootstrap.sh`·`build_release.sh`·`server/deploy.sh`·sudoers는 삭제했습니다.
+
 | 파일 | 의미 |
 | --- | --- |
-| `build_release.sh` | 릴리스 번들 `build/neoine-sales-<tag>.tar.gz` 생성 |
-| `server/bootstrap.sh` | 서버당 최초 1회(root, 다시 실행해도 안전). `neoine` 계정, 디렉터리(첨부 저장용 `/var/lib/neoine-sales` 포함), uv·Python, systemd·sudoers 설치(Nginx 설정은 nginx가 있을 때만), `.env` 뼈대와 `APP_JWT_SECRET`·`APP_SETTINGS_ENCRYPTION_KEY`를 없을 때만 생성(값 출력 없음). 보통 `scripts/setup.sh` 서버 모드가 호출 |
-| `server/lib/env_secrets.sh` | 비밀 생성(`gen_jwt_secret`, `gen_fernet_key`)과 `.env` 줄 편집(`env_ensure_line`, `env_replace_value`) 공용 함수. `bootstrap.sh`·`scripts/setup.sh`가 source, 값은 출력·argv에 싣지 않음 |
-| `server/deploy.sh` | 배포 본체(멱등, 실패 시 롤백) |
-| `server/systemd/neoine-sales-api.service` | Uvicorn 서비스(127.0.0.1:8000, 하드닝, 쓰기 허용은 `ReadWritePaths=/var/lib/neoine-sales`만) |
-| `server/nginx/neoine-sales.conf` | 80→443 리다이렉트, 정적 파일 서빙, `/api` 프록시, 보안 헤더. 첨부 업로드 경로만 본문 101MB·타임아웃 300초 |
-| `server/sudoers/neoine-sales` | `neoine` 계정이 서비스 재시작만 할 수 있게 허용 |
-| `server/config/config.{dev,product}.json` | 프런트 런타임 설정(비밀 없음, `/config.json`으로 제공) |
-| `server/tests/test_deploy.sh` | deploy.sh 시나리오 9개 테스트 |
+| `../backend/Dockerfile`, `../backend/.dockerignore` | api 이미지(python 3.14 slim, uv 0.10.4로 `--no-dev --no-editable` 설치, 비root, `.env*` 미포함). 마이그레이션도 같은 이미지 |
+| `docker/web/Dockerfile`, `docker/web/templates/default.conf.template`, `docker/web/config/config.product.json` | web 이미지(nginx alpine + Jenkins가 검증한 `frontend/dist`). 80→443, TLS 종료, 정적 파일, `/config.json`, `/api`·`/healthz`·`/readyz` 프록시, 첨부 업로드 경로만 본문 101MB·타임아웃 300초 |
+| `docker/compose.yaml` | 서비스 `db`(postgres 18, 포트 미노출, `pg_isready`), `api`(uvicorn `--workers ${API_WORKERS}`, 읽기 전용 루트, `.env`를 `/app/.env`로 읽기 전용 mount, `/etc/localtime` mount), `web`(80·443), `migrate`(profile, `alembic upgrade head`) |
+| `docker/build_images.sh <태그> [--push]` | 두 이미지와 배포 키트 `build/deploy-<태그>.tar.gz` 생성(`REGISTRY` 필요, 로그인은 Jenkins) |
+| `docker/deploy.sh product <태그> [--no-migrate]` | 서버 배포 본체(멱등): 환경 확인(`REGISTRY` 비었거나 `CHANGE_ME`면 거부) → pull → 설정 검증 → db 기동 → `pg_dump` → migrate → 전환 → 헬스체크, 실패 시 이전 태그로 롤백. 종료 코드 0/1/2/3/4/5 |
+| `docker/deploy.env.example` | 서버 `deploy.env`(compose 변수, 비밀 없음) 예시 |
+| `docker/tests/` | `test_deploy.sh`·`test_build_images.sh`·`test_compose.sh`(가짜 docker, CI Infra scripts), `test_images.sh`(실제 이미지, Jenkins Package) |
+| `server/lib/env_secrets.sh` | 비밀 생성(`gen_jwt_secret`, `gen_fernet_key`, `gen_db_password`)과 `.env` 줄 편집(`env_ensure_line`, `env_replace_value`, `env_ensure_database_url`) 공용 함수. `scripts/setup.sh`가 source, 값은 출력·argv에 싣지 않음 |
+| `server/tests/test_env_secrets.sh` | 위 함수 테스트 |
 
-서버 디렉터리 구성(`/opt/neoine-sales`): `incoming/`(받은 번들), `releases/<tag>/`(릴리스), `current`(현재 릴리스 심볼릭 링크), `shared/config.json`, `.env`(비밀, 서버에서만 관리).
+서버 디렉터리(`/opt/neoine-sales`, 소유자 neoine·docker 그룹): `.env`(비밀, 600), `deploy.env`(640), `certs/`(TLS), `incoming/`(받은 배포 키트), `deploys/<태그>/`(compose project directory), `current`(현재 버전 링크), `backups/`(배포 전 덤프, 최근 10개). 첨부는 `/var/lib/neoine-sales/files`, DB 데이터는 `/var/lib/neoine-sales-postgres`. 상세는 `dev-guide.html` 16장.
 
 ## 5. 개발·빌드
 
@@ -269,7 +274,7 @@ cd frontend && corepack pnpm install && corepack pnpm dev        # 터미널 2 (
 cd backend && uv run python scripts/run_gates.py     # ruff, format, mypy, import-linter, 파일 길이, pytest(단위만)
 cd backend && uv run python scripts/run_gates.py --full   # functional 포함 전체(필요할 때만, 수 분 소요)
 cd frontend && pnpm typecheck && pnpm lint && pnpm test && pnpm build
-bash infra/server/tests/test_deploy.sh               # 배포 스크립트 테스트
+bash infra/docker/tests/test_deploy.sh               # 배포 스크립트 테스트(가짜 docker)
 ```
 
 ### 5.3 API 계약 갱신
@@ -283,57 +288,60 @@ cd frontend && pnpm gen:api                              # src/shared/api/schema
 
 ### 5.4 마이그레이션
 
-`cd backend && uv run alembic revision --autogenerate -m "..."` → 검토 → `uv run alembic upgrade head`. **local·dev는 자동 적용**(로컬 `./scripts/start-backend.sh --profile local|dev`가 시작 전에 `alembic upgrade head` 실행), **product만 사람 승인 후** `deploy.sh`가 적용합니다. product에서는 앱과 함께 배포되고 롤백은 코드만 되돌리므로 원칙은 하위 호환(expand/contract)입니다. 다만 개발 단계라 보존할 업무 데이터가 없어 P0~P3은 사용자 결정으로 예외(구 테이블 drop, 구 앱과 같은 DB 공존 불가, 앱과 같은 배포 전제)로 작성했습니다(`CLAUDE.md` 변경 이력). 운영 데이터가 생기면 이 예외는 끝납니다. local·dev의 `downgrade`/`stamp`는 확인 없이 실행할 수 있고(2026-10-20), product 대상 alembic 명령은 하네스가 거부합니다.
+`cd backend && uv run alembic revision --autogenerate -m "..."` → 검토 → `uv run alembic upgrade head`. **local·dev는 자동 적용**(로컬 `./scripts/start-backend.sh --profile local|dev`가 시작 전에 `alembic upgrade head` 실행), **product만 사람 승인 후** Jenkins `Deploy: Product`의 `infra/docker/deploy.sh`가 적용합니다(배포 전 `pg_dump`). product에서는 앱과 함께 배포되고 롤백은 코드만 되돌리므로 원칙은 하위 호환(expand/contract)입니다. 다만 개발 단계라 보존할 업무 데이터가 없어 P0~P3은 사용자 결정으로 예외(구 테이블 drop, 구 앱과 같은 DB 공존 불가, 앱과 같은 배포 전제)로 작성했습니다(`CLAUDE.md` 변경 이력). 운영 데이터가 생기면 이 예외는 끝납니다. local·dev의 `downgrade`/`stamp`는 확인 없이 실행할 수 있고(2026-10-20), product 대상 alembic 명령은 하네스가 거부합니다.
 
-### 5.5 릴리스 번들 만들기
+### 5.5 이미지 만들기
 
-`pnpm build`로 `frontend/dist`를 만든 뒤 `infra/build_release.sh <tag>`를 실행합니다. 번들에는 `backend/{src,alembic,alembic.ini,pyproject.toml,uv.lock}`, `frontend/dist`, `infra/server`, `VERSION`이 들어갑니다(테스트·개발 생성물 제외). 서버는 번들로 `uv sync --locked --no-dev`만 하므로 Jenkins 배포에서는 서버에서 빌드하지 않습니다. 예외로 `scripts/setup.sh --profile dev --server`는 dev 서버의 checkout에서 직접 `pnpm build`·번들 생성·`deploy.sh`까지 합니다(product는 `--profile product`로 준비까지만, 배포는 Jenkins).
+`pnpm build`로 `frontend/dist`를 만든 뒤 `REGISTRY=<주소> infra/docker/build_images.sh <태그>`를 실행합니다. api 이미지는 `backend/`에서 빌드하고, web 이미지는 `frontend/dist`를 그대로 담습니다(이미지 안에서 다시 빌드하지 않음). 서버는 빌드하지 않고 레지스트리에서 받기만 합니다. 베이스 이미지(python, uv, nginx, postgres)는 Docker Hub(uv는 ghcr.io)에서 태그+digest로 고정합니다(`dev-guide.html` 14.1절).
 
 ## 6. CI/CD (`Jenkinsfile`)
 
-Multibranch 파이프라인입니다. 모든 브랜치·PR은 검증만 하고, `main`에서만 번들 생성과 product 배포(사람 승인 후)를 합니다. dev 자동 배포(`Deploy: Dev`)는 2026-10-20에 제거했습니다. dev DB는 로컬 `start-backend.sh --profile dev`로 쓰고, dev 서버가 필요하면 사람이 `deploy.sh dev`로 수동 배포합니다. 이 서버는 개발용 로그인이 기본으로 켜지므로(비밀번호 없이 admin) 여러 사람이 접근하는 서버라면 서버 `.env`에 `APP_DEV_LOGIN_ENABLED=false`를 넣습니다.
+Multibranch 파이프라인입니다. 모든 브랜치·PR은 검증만 하고, `main`에서만 이미지 빌드·push와 product 배포(사람 승인 후)를 합니다. dev 자동 배포(`Deploy: Dev`)는 2026-10-20에 제거했고, dev 서버는 두지 않습니다(dev DB는 로컬 `start-backend.sh --profile dev`).
 
 | 단계 | 대상 | 내용 |
 | --- | --- | --- |
-| Verify (병렬) | 모든 브랜치 | **Backend**: `uv sync --locked`, ruff, format, mypy, lint-imports, 파일 길이, pytest(+커버리지, JUnit). **Infra scripts**: `bash -n`, `test_deploy.sh`. **Frontend**: `pnpm install --frozen-lockfile`, lint, typecheck, test, build(결과 stash) |
+| Verify (병렬) | 모든 브랜치 | **Backend**: `uv sync --locked`, ruff, format, mypy, lint-imports, 파일 길이, pytest(+커버리지, JUnit). **Infra scripts**: `bash -n`, `infra/docker/tests/{test_deploy,test_build_images,test_compose}.sh`, `scripts/tests/test_setup.sh`, `infra/server/tests/test_env_secrets.sh`. **Frontend**: `pnpm install --frozen-lockfile`, lint, typecheck, test, build(결과 stash) |
 | Contract & Security | 모든 브랜치 | `openapi.json`·`schema.d.ts`가 코드와 같은지 `git diff --exit-code`, `pnpm audit`, `pip-audit`, `trivy`(CRITICAL/HIGH), `gitleaks` |
-| Package | main | `build_release.sh`로 tar.gz 생성·보관(아티팩트 fingerprint) |
-| Deploy: Product | main | `release-managers`의 **수동 승인(input)** 후, 번들과 `deploy.sh`를 SSH/scp로 전달해 운영 서버를 **한 대씩 순차 배포**(한 대라도 실패하면 중단, 마이그레이션 적용) |
+| Package | main | `build_images.sh`로 api·web 이미지와 배포 키트 생성 → `test_images.sh` → `trivy image` → `registry-push` 자격 증명으로 레지스트리 push, 배포 키트 보관 |
+| Deploy: Product | main | `release-managers`의 **수동 승인(input)** 후, 배포 키트와 `infra/docker/deploy.sh`를 scp로 `PRODUCT_HOST`(1대)에 전달해 실행 |
 
-환경변수: `RELEASE_TAG`(커밋 12자), `TEST_DATABASE_ADMIN_URL`(CI용 PostgreSQL), `REQUIRE_INTEGRATION_DB=1`. 호스트 이름·자격 증명 ID(`deploy-ssh-product`)·승인 그룹은 **예시 값**이므로 실제 환경에 맞게 바꿔야 합니다. 실패 시 메일을 보냅니다.
+환경변수: `RELEASE_TAG`(커밋 12자), `TEST_DATABASE_ADMIN_URL`(CI용 PostgreSQL 18), `REQUIRE_INTEGRATION_DB=1`, Jenkins 전역 `REGISTRY`·`PRODUCT_HOST`. 자격 증명 ID(`registry-push`, `deploy-ssh-product`)·승인 그룹은 **예시 값**이므로 실제 환경에 맞게 바꿔야 합니다. agent 요구: `linux-build`(docker, trivy, PostgreSQL 18, openssl), `deploy`(ssh). 실패 시 메일을 보냅니다.
 
-### 6.1 `deploy.sh <dev|product> <tag>` 동작
+### 6.1 `infra/docker/deploy.sh product <태그>` 동작
 
-1. 입력 검증: 환경 이름, 태그 형식, 서버 `.env`의 `APP_PROFILE`이 대상 환경과 같은지(dev 설정이 product에 올라가는 사고 방지), 번들 존재.
-2. 번들 풀기 → `uv sync --locked --no-dev` → `get_settings()`로 **설정 사전 검증**(필수 변수 누락·product 안전 조건 위반이면 전환 전에 중단).
-3. 프런트 런타임 설정(`config.<env>.json`)을 `shared/config.json`으로 설치.
-4. `alembic upgrade head` (실패하면 전환 전 중단).
-5. `current` 심볼릭 링크를 원자적으로 교체하고 `systemctl restart neoine-sales-api`.
-6. `/readyz`를 재시도하며 확인. 성공하면 오래된 릴리스 정리(최근 5개 + 현재 + 직전), **실패하면 직전 릴리스로 롤백**(코드만 되돌리므로 마이그레이션은 하위 호환이어야 함).
+1. 환경 확인(docker 호출 전): 태그 형식, 서버 `.env`·`deploy.env`의 `APP_PROFILE=product`, `REGISTRY`가 비었거나 `CHANGE_ME`면 거부, 배포 키트 존재.
+2. 배포 키트를 `deploys/<태그>`에 설치 → `api`·`web`·`db` 이미지 pull(서버는 읽기 전용 계정으로 `docker login` 되어 있어야 함).
+3. 새 api 이미지로 `get_settings()` **설정 사전 검증**(실패하면 전환 전 중단, 종료 3).
+4. db 기동 → **배포 전 `pg_dump -Fc`**(`backups/`, 실패하면 종료 4) → `migrate` 서비스로 `alembic upgrade head`(실패하면 종료 5).
+5. `current` 링크 교체 후 `docker compose up -d --wait`.
+6. web을 거쳐 `/readyz` 확인. 성공하면 정리(배포 디렉터리 최근 5개+현재+직전, 덤프 최근 10개), **실패하면 이전 태그로 롤백**(마이그레이션은 되돌리지 않으므로 하위 호환이어야 함, 종료 1).
 
-같은 태그로 다시 실행해도 안전합니다(멱등).
+같은 태그로 다시 실행해도 안전합니다(멱등). 사람이 이전 태그로 되돌릴 때는 `--no-migrate`를 붙여 덤프·마이그레이션을 건너뜁니다.
 
 ### 6.2 환경별 차이
 
 | 항목 | local | dev | product |
 | --- | --- | --- | --- |
-| 실행 | 개발 서버 2개 | 로컬 `start-backend.sh --profile dev`(또는 수동 배포한 서버의 Nginx + systemd) | Nginx + systemd (여러 대 순차) |
-| 설정 위치 | `backend/.env` | 로컬 `backend/.env.dev`(`APP_ENV_FILE`) / 서버 `/opt/neoine-sales/.env` | 서버 `/opt/neoine-sales/.env` |
+| 실행 | 개발 서버 2개 | 로컬 `start-backend.sh --profile dev` | docker compose(서버 1대: db·api·web) |
+| 설정 위치 | `backend/.env` | 로컬 `backend/.env.dev`(`APP_ENV_FILE`) | 서버 `/opt/neoine-sales/.env`(+ `deploy.env`) |
 | 로그인 | AD + 개발용 로그인(기본 켜짐) | AD + 개발용 로그인(기본 켜짐) | AD만(개발용 로그인 켤 수 없음) |
 | API 문서(`/docs`) | 열림 | 열림 | 닫힘 |
-| 마이그레이션 | 시작 스크립트가 자동 | 시작 스크립트가 자동(수동 서버 배포 시 `deploy.sh dev`) | 승인 후 배포 시 |
+| 마이그레이션 | 시작 스크립트가 자동 | 시작 스크립트가 자동 | 승인 후 배포 시(`deploy.sh`의 migrate) |
+| 월말 스냅숏 스케줄러 | 꺼짐(기본) | 켜짐 | 켜짐 |
 | 쿠키 Secure | 끔(http) | 켬 | 켬(강제) |
 
 ### 6.3 운영 필수 절차와 주의
 
+- 서버 준비는 `scripts/setup.sh --profile product`(리눅스, Docker Engine + Compose v2 필요)로 합니다: neoine 계정·docker 그룹, 디렉터리, 서버 `.env`(`APP_JWT_SECRET`·`APP_SETTINGS_ENCRYPTION_KEY`·DB 비밀번호·`APP_DATABASE_URL`을 없을 때만 생성, 값 출력 없음)·`deploy.env`, 사람이 채울 값 점검(종료 코드 3). 배포는 하지 않습니다.
+- 사람이 할 일: Jenkins 전역 `REGISTRY`·`PRODUCT_HOST`와 자격 증명 `registry-push` 등록, 서버에서 neoine 계정으로 레지스트리 읽기 전용 계정 `docker login`, TLS 인증서(`certs/fullchain.pem`·`privkey.pem`) 배치.
 - **배포 직후 즉시 최초 설정 3단계(AD 서버 → 저장 위치 → admin)를 마칩니다.** 설정되지 않은 상태로 방치하면 먼저 접속한 사람이 admin이 되거나 악의적인 LDAP 서버가 등록될 수 있습니다(위험 수용, 완화책 없음).
 - 앱 서버에서 AD로 나가는 방화벽(LDAPS 636 또는 389 평문·StartTLS)을 미리 엽니다. 바인드 계정은 읽기 전용 서비스 계정을 권장합니다. 서버 인증서는 검증하지 않습니다(사용자 결정).
-- 서버 `.env`에 `APP_SETTINGS_ENCRYPTION_KEY`(Fernet 키, 모든 프로파일 필수, product 예시 키 거부)가 코드 배포 전에 있어야 합니다(`infra/server/bootstrap.sh`가 없을 때만 무작위로 생성, 값 출력 없음). DB 백업과 분리해 보관합니다. 키를 잃으면 AD 바인드 비밀번호를 다시 입력합니다.
+- `APP_SETTINGS_ENCRYPTION_KEY`는 DB 덤프와 분리해 보관합니다. 키를 잃으면 AD 바인드 비밀번호를 다시 입력합니다.
 - AD 설정을 바꾸기 전에 현재 값을 따로 기록합니다(변경 이력 없음).
-- `infra/server/**`가 바뀐 릴리스(systemd·Nginx·저장 디렉터리)는 서버에서 `bootstrap.sh`를 다시 실행하고 `nginx -t`로 확인합니다. `deploy.sh`는 이 파일들을 설치하지 않습니다.
-- 업무 날짜(Deal code 날짜, 경고·체류 일수)와 화면에 보이는 날짜·시각(응답 시각의 오프셋, 앱 시계)은 서버 OS 로컬 시간대를 따르므로 서버 시간대를 업무 시간대(예: `Asia/Seoul`)로 맞춥니다(`timedatectl`로 확인). 서버 시간대가 화면 표시 시간대도 됩니다.
-- 첨부 파일은 DB 밖(저장 위치 디렉터리)에 있으므로 DB와 함께 백업합니다.
-- Nginx 뒤에서는 IP별 로그인 제한이 프록시 주소에 걸릴 수 있습니다(`X-Forwarded-For` 신뢰 정책 미정).
+- 업무 날짜와 화면 날짜·시각은 서버 OS 로컬 시간대를 따르고 컨테이너는 호스트 `/etc/localtime`을 mount하므로, 서버 시간대를 `Asia/Seoul`로 맞춥니다(`timedatectl`로 확인).
+- DB와 배포 전 덤프가 같은 서버에 있으므로 덤프와 첨부 파일(`/var/lib/neoine-sales/files`)을 사람이 정기적으로 다른 곳에 복사합니다.
+- 서버가 1대라 배포 때 수 초~수십 초 서비스가 멈춥니다.
+- 월말 Forecast 스냅숏은 앱이 스스로 만듭니다(워커별 확인 + PostgreSQL advisory lock, 이미 있으면 건너뜀, 놓친 달은 다음 기동 때 보충). CLI·systemd timer는 없고 수동 재실행 수단도 없습니다.
 
 ## 7. AI 하네스 (`.claude/`, `CLAUDE.md`)
 
