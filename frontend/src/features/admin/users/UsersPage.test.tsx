@@ -67,7 +67,8 @@ describe('사용자 관리 목록 (T-ADMIN-01)', () => {
   it('shows "-" for resignation columns of active users', async () => {
     await openUsers()
 
-    expect(within(rowOf('kim')).getAllByText('-')).toHaveLength(2)
+    // 퇴사 일시·퇴사 사유 두 칸과, 전화번호가 없는 시드 사용자의 전화번호 칸이 '-'다(이메일은 있다).
+    expect(within(rowOf('kim')).getAllByText('-')).toHaveLength(3)
   })
 
   it('offers 재직, 퇴사 and 전체 and can list only the resigned', async () => {
@@ -93,10 +94,10 @@ describe('사용자 관리 목록 (T-ADMIN-01)', () => {
     expect(screen.getAllByRole('row')).toHaveLength(1 + 7)
   })
 
-  it('has no edit button and no password column or field anywhere', async () => {
+  it('has no password column, field or reset button in AD mode', async () => {
     await openUsers()
 
-    expect(screen.queryByRole('button', { name: /수정/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '비밀번호 재설정' })).not.toBeInTheDocument()
     expect(screen.queryByText(/비밀번호/)).not.toBeInTheDocument()
     expect(screen.queryByLabelText(/비밀번호/)).not.toBeInTheDocument()
   })

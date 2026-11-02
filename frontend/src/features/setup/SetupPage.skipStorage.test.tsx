@@ -17,6 +17,8 @@ async function openSetupWithStorageDone() {
   const real = gateway.setup.status.bind(gateway.setup)
   vi.spyOn(gateway.setup, 'status').mockImplementation(async () => ({ ...(await real()), storageDone: true }))
   const view = await renderAt('/setup', { role: null })
+  await screen.findByRole('heading', { name: '인증 방식' })
+  await view.user.click(screen.getByRole('button', { name: 'AD 연동' }))
   await screen.findByRole('heading', { name: 'AD 서버 등록' })
   return view
 }
@@ -29,7 +31,7 @@ describe('최초 설정: 저장 위치 단계가 이미 완료된 경우 (AC-27)
     const storage = steps.getByText('2. 파일 저장 위치').closest('li')
     expect(storage).toHaveAttribute('data-done', 'true')
     expect(within(storage as HTMLElement).getByText('완료')).toBeInTheDocument()
-    expect(steps.getByText('1. AD 서버 등록').closest('li')).toHaveAttribute('aria-current', 'step')
+    expect(steps.getByText('1. 인증 방식').closest('li')).toHaveAttribute('aria-current', 'step')
   })
 
   it('goes from the AD server step straight to the admin step', async () => {
@@ -49,9 +51,9 @@ describe('최초 설정: 저장 위치 단계가 이미 완료된 경우 (AC-27)
     await user.click(screen.getByRole('button', { name: 'AD 서버 등록' }))
     await screen.findByRole('heading', { name: '관리자 등록' })
 
-    await user.click(screen.getByRole('button', { name: 'AD 서버 다시 등록' }))
+    await user.click(screen.getByRole('button', { name: '인증 방식 다시 선택' }))
 
-    expect(await screen.findByRole('heading', { name: 'AD 서버 등록' })).toBeVisible()
+    expect(await screen.findByRole('heading', { name: '인증 방식' })).toBeVisible()
     expect(screen.queryByRole('heading', { name: '파일 저장 위치' })).not.toBeInTheDocument()
   })
 })

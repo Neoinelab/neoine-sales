@@ -52,7 +52,7 @@ export const emptyBusinessSeed: SeedFactory = (clock) => {
     directory,
     storage,
     alerts: { staleDays: DEFAULT_STALE_DAYS, updatedAt: null, updatedById: null },
-    setup: { directoryDone: true, storageDone: true, adminDone: true },
+    setup: { authMode: 'ad', directoryDone: true, storageDone: true, adminDone: true },
     counters,
   }
 }

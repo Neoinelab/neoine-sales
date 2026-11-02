@@ -1,7 +1,7 @@
 import { api } from '../../shared/api/client'
 import type { UsersGateway } from '../types'
-import { toUser, toUserRef } from './mappers/user'
-import { unwrap } from './request'
+import { toProfileBody, toUser, toUserRef } from './mappers/user'
+import { unwrap, unwrapVoid } from './request'
 
 /** 서버 목록 한 번에 받을 수 있는 최대 개수. */
 const MAX_PAGE = 200
@@ -46,12 +46,28 @@ export function createUsersHttp(): UsersGateway {
           }),
         )
       ).items.map(toUserRef),
+    // 비밀번호·이메일·전화는 값이 있을 때만 보낸다(AD 모드에서 비밀번호를 보내면 서버가 422).
     create: async (input) =>
       toUser(
         await unwrap(
-          api.POST('/api/v1/users', { body: { login_id: input.loginId, role: input.role, display_name: input.name } }),
+          api.POST('/api/v1/users', {
+            body: {
+              login_id: input.loginId,
+              role: input.role,
+              display_name: input.name,
+              ...(input.password ? { password: input.password } : {}),
+              ...(input.email ? { email: input.email } : {}),
+              ...(input.phone ? { phone: input.phone } : {}),
+            },
+          }),
         ),
       ),
+    update: async (id, change) =>
+      toUser(
+        await unwrap(api.PATCH('/api/v1/users/{user_id}', { params: { path: { user_id: id } }, body: toProfileBody(change) })),
+      ),
+    resetPassword: (id, password) =>
+      unwrapVoid(api.PUT('/api/v1/users/{user_id}/password', { params: { path: { user_id: id } }, body: { password } })),
     changeRole: async (id, role) =>
       toUser(await unwrap(api.PUT('/api/v1/users/{user_id}/role', { params: { path: { user_id: id } }, body: { role } }))),
     remove: (id) => unwrap(api.DELETE('/api/v1/users/{user_id}', { params: { path: { user_id: id } } })),

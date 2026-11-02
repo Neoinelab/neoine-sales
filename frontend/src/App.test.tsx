@@ -1,5 +1,6 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
+import { logOutFromMenu, openUserMenu } from './test/localAccounts'
 import { renderAt } from './test/mockApp'
 import { DEFAULT_DEALS_URL_PATTERN } from './test/dealsUrl'
 
@@ -43,8 +44,9 @@ describe('메뉴 (T-SHELL-04~05)', () => {
     expect(labels).toEqual(['Deals', '파트너 Activity', 'Dashboard', 'Forecast', 'Reports', 'Admin'])
   })
 
-  it('shows the signed-in name and role', async () => {
-    await renderAt('/deals', { role: 'sales' })
+  it('shows the signed-in name and role in the user menu', async () => {
+    const { user } = await renderAt('/deals', { role: 'sales' })
+    await openUserMenu(user)
     expect(await screen.findByText('김영업 (sales)')).toBeVisible()
   })
 
@@ -155,7 +157,7 @@ describe('가드와 리다이렉트 (T-SHELL-07~08)', () => {
 
   it('signs out and returns to the login page', async () => {
     const { user, location } = await renderAt('/deals', { role: 'sales' })
-    await user.click(await screen.findByRole('button', { name: '로그아웃' }))
+    await logOutFromMenu(user)
     await waitFor(() => expect(location()).toBe('/login'))
   })
 })

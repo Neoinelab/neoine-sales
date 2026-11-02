@@ -19,11 +19,11 @@ const PHONE_PATTERN = /^[0-9+\-()]+$/
 const PHONE_MIN_DIGITS = 7
 const PHONE_MAX_DIGITS = 15
 
-function isEmail(text: string): boolean {
+export function isEmail(text: string): boolean {
   return text.length <= EMAIL_MAX_LENGTH && EMAIL_PATTERN.test(text)
 }
 
-function isPhone(text: string): boolean {
+export function isPhone(text: string): boolean {
   const digits = text.replace(/[^0-9]/g, '').length
   return PHONE_PATTERN.test(text) && digits >= PHONE_MIN_DIGITS && digits <= PHONE_MAX_DIGITS
 }

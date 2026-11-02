@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useAuthConfig } from '../../../data/auth'
 import { useChangeUserRole, useRemoveUser, useUsers } from '../../../data/users'
 import { usePermissions } from '../../../data/auth'
 import type { Role, User, UserListFilter } from '../../../shared/model/types'
@@ -9,17 +10,23 @@ import { Notice } from '../../../shared/ui/Notice'
 import '../admin.css'
 import { AddUserForm } from './AddUserForm'
 import { ChangeRoleDialog } from './ChangeRoleDialog'
+import { EditUserDialog } from './EditUserDialog'
+import { ResetPasswordDialog } from './ResetPasswordDialog'
 import { UsersTable } from './UsersTable'
 
 const OUTCOME_TEXT = { deleted: '삭제', resigned: '퇴사 처리' } as const
 
-/** 관리자 전용: 로그인할 수 있는 AD 계정과 역할을 관리한다. 삭제는 연결된 데이터가 있으면 퇴사 처리된다. */
+/** 관리자 전용: 로그인할 수 있는 계정(AD 연동 또는 앱에서 직접 관리)과 역할·연락처를 관리한다. 삭제는 연결된 데이터가 있으면 퇴사 처리된다. */
 export function UsersPage() {
   const [filter, setFilter] = useState<UserListFilter>('active')
   const [target, setTarget] = useState<User | null>(null)
   const [roleTarget, setRoleTarget] = useState<User | null>(null)
+  const [editTarget, setEditTarget] = useState<User | null>(null)
+  const [resetTarget, setResetTarget] = useState<User | null>(null)
   const [result, setResult] = useState<string | null>(null)
   const users = useUsers(filter)
+  const config = useAuthConfig()
+  const local = config.data?.authMode === 'local'
   const { me } = usePermissions()
   const remove = useRemoveUser()
   const changeRole = useChangeUserRole()
@@ -47,6 +54,16 @@ export function UsersPage() {
     )
   }
 
+  function startEdit(user: User) {
+    setResult(null)
+    setEditTarget(user)
+  }
+
+  function startReset(user: User) {
+    setResult(null)
+    setResetTarget(user)
+  }
+
   function startRoleChange(user: User) {
     changeRole.reset()
     setRoleTarget(user)
@@ -55,13 +72,13 @@ export function UsersPage() {
   return (
     <section className="admin-page" aria-labelledby="users-title">
       <h2 id="users-title">사용자 관리</h2>
-      <ErrorBanner error={users.error ?? remove.error ?? changeRole.error} />
+      <ErrorBanner error={users.error ?? config.error ?? remove.error ?? changeRole.error} />
       {result && (
         <Notice kind="success" onClose={() => setResult(null)}>
           {result}
         </Notice>
       )}
-      <AddUserForm />
+      {config.isSuccess && <AddUserForm key={local ? 'local' : 'ad'} local={local} />}
       <div className="admin-form-row">
         <SelectField label="상태" name="status" value={filter} onChange={(v) => setFilter(v as UserListFilter)}>
           <option value="active">재직</option>
@@ -69,8 +86,37 @@ export function UsersPage() {
           <option value="all">전체</option>
         </SelectField>
       </div>
-      {users.isPending && <p className="hint">불러오는 중…</p>}
-      {users.isSuccess && <UsersTable users={users.data} filter={filter} meId={me?.id} onChangeRole={startRoleChange} onDelete={setTarget} />}
+      {(users.isPending || config.isPending) && <p className="hint">불러오는 중…</p>}
+      {users.isSuccess && config.isSuccess && (
+        <UsersTable
+          users={users.data}
+          filter={filter}
+          meId={me?.id}
+          local={local}
+          onEdit={startEdit}
+          onResetPassword={startReset}
+          onChangeRole={startRoleChange}
+          onDelete={setTarget}
+        />
+      )}
+      {editTarget && (
+        <EditUserDialog
+          user={editTarget}
+          local={local}
+          onDone={() => setEditTarget(null)}
+          onCancel={() => setEditTarget(null)}
+        />
+      )}
+      {resetTarget && (
+        <ResetPasswordDialog
+          user={resetTarget}
+          onDone={(user) => {
+            setResetTarget(null)
+            setResult(`${user.loginId} 사용자의 비밀번호가 재설정되었습니다. 그 사용자의 로그인은 모두 종료됩니다.`)
+          }}
+          onCancel={() => setResetTarget(null)}
+        />
+      )}
       {roleTarget && (
         <ChangeRoleDialog user={roleTarget} busy={changeRole.isPending} onConfirm={(role) => confirmRole(roleTarget, role)} onCancel={() => setRoleTarget(null)} />
       )}

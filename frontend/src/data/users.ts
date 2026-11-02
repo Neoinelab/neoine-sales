@@ -2,6 +2,7 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { gateway } from '../gateway'
 import type { ApiError } from '../shared/api/problem'
 import type {
+  ProfileChange,
   Role,
   User,
   UserCreateInput,
@@ -27,12 +28,13 @@ export function useUserOptions(query: UserOptionsQuery = {}): Query<UserRef[]> {
   })
 }
 
-/** gateway.users.create. 성공: keys.users 무효화. */
+/** gateway.users.create. 성공: keys.users 무효화. gcTime 0(비밀번호가 든 variables를 캐시에 남기지 않는다. 호출 쪽이 reset()도 부른다). */
 export function useCreateUser(): Mutation<UserCreateInput, User> {
   const invalidate = useInvalidate()
   return useMutation<User, ApiError, UserCreateInput>({
     mutationFn: (input) => gateway.users.create(input),
     onSuccess: () => invalidate(keys.users),
+    gcTime: 0,
   })
 }
 
@@ -51,5 +53,22 @@ export function useRemoveUser(): Mutation<number, UserRemoveResult> {
   return useMutation<UserRemoveResult, ApiError, number>({
     mutationFn: (id) => gateway.users.remove(id),
     onSuccess: () => invalidate(keys.users, keys.deals, keys.forecast),
+  })
+}
+
+/** gateway.users.update(id, change). 성공: keys.users 무효화(이름이 바뀌면 UserRef 표시가 바뀌므로 keys.deals·keys.forecast도). */
+export function useUpdateUser(): Mutation<{ id: number; change: ProfileChange }, User> {
+  const invalidate = useInvalidate()
+  return useMutation<User, ApiError, { id: number; change: ProfileChange }>({
+    mutationFn: ({ id, change }) => gateway.users.update(id, change),
+    onSuccess: () => invalidate(keys.users, keys.deals, keys.forecast),
+  })
+}
+
+/** gateway.users.resetPassword. gcTime 0(비밀번호가 든 variables를 캐시에 남기지 않는다). 캐시는 바뀌지 않는다. */
+export function useResetUserPassword(): Mutation<{ id: number; password: string }> {
+  return useMutation<void, ApiError, { id: number; password: string }>({
+    mutationFn: ({ id, password }) => gateway.users.resetPassword(id, password),
+    gcTime: 0,
   })
 }

@@ -22,6 +22,7 @@ export interface UserRecord {
   role: Role
   status: UserStatus
   email: string | null
+  phone: string | null
   createdAt: string
   createdById: number | null
   lastLoginAt: string | null
@@ -169,6 +170,8 @@ export interface SeedData {
   /** 파트너 Activity 미팅 기록(없으면 비어 있는 것과 같다). 샘플 시드(`test/fixtures`)만 채운다. */
   partnerMeetings?: PartnerMeetingRecord[]
   setup: SetupState
+  /** local 모드 비밀번호(사용자 id별). 없는 사용자는 `SEED_PASSWORD`다. 화면·게이트웨이 응답에는 나가지 않는다. */
+  passwords?: Record<number, string>
   /** 접두사별 마지막 순번. `takeId`가 올린다. */
   counters: Record<string, number>
 }

@@ -42,7 +42,7 @@ export function StorageStep({ onBack }: { onBack: () => void }) {
       <TextField label="저장 경로" name="storage_path" value={path} onChange={setPath} />
       <div className="actions">
         <button type="button" onClick={onBack}>
-          AD 서버 다시 등록
+          인증 방식 다시 선택
         </button>
         <button type="button" disabled={busy} onClick={runTest}>
           쓰기 테스트

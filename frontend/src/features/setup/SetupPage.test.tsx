@@ -4,6 +4,7 @@ import { gateway } from '../../gateway'
 import { ApiError } from '../../shared/api/problem'
 import { mockControl } from '../../test/fake/default'
 import { fillDirectoryForm, selectSecurity } from '../../test/directoryForm'
+import { openUserMenu } from '../../test/localAccounts'
 import { renderAt } from '../../test/mockApp'
 import { DEFAULT_DEALS_URL_PATTERN } from '../../test/dealsUrl'
 
@@ -25,6 +26,8 @@ async function openSetup() {
     mockControl.restartSetup()
   })
   const view = await renderAt('/setup', { role: null })
+  await screen.findByRole('heading', { name: '인증 방식' })
+  await view.user.click(screen.getByRole('button', { name: 'AD 연동' }))
   await screen.findByRole('heading', { name: 'AD 서버 등록' })
   return view
 }
@@ -69,11 +72,11 @@ describe('최초 설정 1단계: AD 서버 (T-SETUP-01)', () => {
     await openSetup()
 
     expect(steps().getAllByRole('listitem').map((li) => li.textContent)).toEqual([
-      '1. AD 서버 등록',
+      '1. 인증 방식',
       '2. 파일 저장 위치',
       '3. 관리자 등록',
     ])
-    expect(steps().getByText('1. AD 서버 등록').closest('li')).toHaveAttribute('aria-current', 'step')
+    expect(steps().getByText('1. 인증 방식').closest('li')).toHaveAttribute('aria-current', 'step')
     expect(screen.queryByLabelText('저장 경로')).not.toBeInTheDocument()
     expect(screen.queryByLabelText('AD 아이디')).not.toBeInTheDocument()
   })
@@ -102,7 +105,7 @@ describe('최초 설정 1단계: AD 서버 (T-SETUP-01)', () => {
       userFilter: '(&(objectClass=user)(sAMAccountName={login_id}))',
       connectTimeoutSeconds: 5,
     })
-    expect(steps().getByText('1. AD 서버 등록').closest('li')).toHaveTextContent('완료')
+    expect(steps().getByText('1. 인증 방식').closest('li')).toHaveTextContent('완료')
     expect(steps().getByText('2. 파일 저장 위치').closest('li')).toHaveAttribute('aria-current', 'step')
   })
 
@@ -194,12 +197,14 @@ describe('최초 설정 2단계: 파일 저장 위치 (T-SETUP-02)', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('절대 경로를 입력하세요.')
   })
 
-  it('goes back to step 1 and registers the AD server again', async () => {
+  it('goes back to the auth mode choice and registers the AD server again', async () => {
     const { user } = await openSetup()
     await saveStepOne(user)
 
-    await user.click(screen.getByRole('button', { name: 'AD 서버 다시 등록' }))
+    await user.click(screen.getByRole('button', { name: '인증 방식 다시 선택' }))
 
+    expect(await screen.findByRole('heading', { name: '인증 방식' })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'AD 연동' }))
     expect(await screen.findByRole('heading', { name: 'AD 서버 등록' })).toBeInTheDocument()
     fillDirectoryForm({ host: 'dc2.corp.test' })
     await user.click(screen.getByRole('button', { name: 'AD 서버 등록' }))
@@ -240,6 +245,7 @@ describe('최초 설정 3단계: 관리자 등록 (T-SETUP-03)', () => {
 
     await waitFor(() => expect(location()).toMatch(DEFAULT_DEALS_URL_PATTERN))
     expect(await screen.findByRole('link', { name: 'Admin' })).toBeInTheDocument()
+    await openUserMenu(user)
     expect(screen.getByText('boss (admin)')).toBeInTheDocument()
   })
 
@@ -251,6 +257,7 @@ describe('최초 설정 3단계: 관리자 등록 (T-SETUP-03)', () => {
     await registerAdmin(user, 'kim', 'secret')
 
     await waitFor(() => expect(location()).toMatch(DEFAULT_DEALS_URL_PATTERN))
+    await openUserMenu(user)
     expect(await screen.findByText('김영업 (admin)')).toBeInTheDocument()
   })
 

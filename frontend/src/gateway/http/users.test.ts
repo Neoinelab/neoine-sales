@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { json, problem, stubFetch } from './testHelpers'
+import { json, noContent, problem, stubFetch } from './testHelpers'
 import { createUsersHttp } from './users'
 
 afterEach(() => vi.unstubAllGlobals())
@@ -16,6 +16,7 @@ const row = (over: Record<string, unknown> = {}) => ({
   login_id: 'park',
   display_name: '박영업',
   email: 'park@corp.test',
+  phone: null,
   role: 'sales',
   status: 'active',
   created_at: '2026-10-01T09:00:00+09:00',
@@ -41,6 +42,7 @@ describe('users over HTTP', () => {
         role: 'sales',
         status: 'active',
         email: 'park@corp.test',
+        phone: null,
         createdAt: '2026-10-01T09:00:00+09:00',
         createdBy: { id: 1, name: '최관리', role: 'admin', status: 'active' },
         lastLoginAt: null,
@@ -185,6 +187,59 @@ describe('users over HTTP', () => {
     expect(user.name).toBe('박영업')
   })
 
+  it('maps the phone of a user', async () => {
+    stubFetch(json({ items: [row({ phone: '02-123-4567' })], offset: 0, limit: 200 }))
+
+    const [user] = await createUsersHttp().list('all')
+
+    expect(user?.phone).toBe('02-123-4567')
+  })
+
+  it('create sends the password, email and phone of a local user', async () => {
+    const { calls } = stubFetch(json(row({ phone: '010-1234-5678' }), 201))
+
+    const user = await createUsersHttp().create({
+      loginId: 'park',
+      name: '박영업',
+      role: 'sales',
+      password: 'Passw0rd-ok',
+      email: 'park@corp.test',
+      phone: '010-1234-5678',
+    })
+
+    expect(calls[0]).toMatchObject({
+      method: 'POST',
+      path: '/api/v1/users',
+      body: {
+        login_id: 'park',
+        role: 'sales',
+        display_name: '박영업',
+        password: 'Passw0rd-ok',
+        email: 'park@corp.test',
+        phone: '010-1234-5678',
+      },
+    })
+    expect(user.phone).toBe('010-1234-5678')
+  })
+
+  it('create leaves out the password, an empty email and an empty phone', async () => {
+    const { calls } = stubFetch(json(row(), 201))
+
+    await createUsersHttp().create({ loginId: 'park', name: '박영업', role: 'sales', email: null, phone: null })
+
+    expect(calls[0]?.body).toEqual({ login_id: 'park', role: 'sales', display_name: '박영업' })
+  })
+
+  it('create shows the server message for a weak password', async () => {
+    stubFetch(problem(422, 'invalid-value', '비밀번호는 8자 이상이어야 합니다.'))
+
+    await expect(createUsersHttp().create({ loginId: 'park', name: '박', role: 'sales', password: 'short' })).rejects.toMatchObject({
+      status: 422,
+      kind: 'validation',
+      message: '비밀번호는 8자 이상이어야 합니다.',
+    })
+  })
+
   it('create shows the server message for a duplicate login id', async () => {
     stubFetch(problem(409, 'already-exists', '이미 사용 중인 아이디입니다.'))
 
@@ -229,5 +284,60 @@ describe('users over HTTP', () => {
     stubFetch(problem(status, serverKind, detail))
 
     await expect(createUsersHttp().changeRole(2, 'user')).rejects.toMatchObject({ status, kind, message: detail })
+  })
+
+  it('update sends PATCH /users/{id} with only the given fields and maps the user', async () => {
+    const { calls } = stubFetch(json(row({ display_name: '박새이름', phone: '02-123-4567' })))
+
+    const changed = await createUsersHttp().update(2, { name: '박새이름', phone: '02-123-4567' })
+
+    expect(calls).toHaveLength(1)
+    expect(calls[0]).toMatchObject({
+      method: 'PATCH',
+      path: '/api/v1/users/2',
+      body: { display_name: '박새이름', phone: '02-123-4567' },
+    })
+    expect(Object.keys(calls[0]?.body as object).sort()).toEqual(['display_name', 'phone'])
+    expect(changed).toMatchObject({ id: 2, name: '박새이름', phone: '02-123-4567' })
+  })
+
+  it('update sends null to clear a field and nothing for an omitted one', async () => {
+    const { calls } = stubFetch(json(row({ email: null })))
+
+    await createUsersHttp().update(2, { email: null })
+
+    expect(calls[0]?.body).toEqual({ email: null })
+  })
+
+  it.each([
+    [409, 'invalid-state', 'AD 연동 사용자의 이름·이메일은 AD에서 관리합니다', 'conflict'],
+    [409, 'invalid-state', '이미 퇴사 처리된 사용자입니다', 'conflict'],
+    [422, 'invalid-value', '이메일 형식이 올바르지 않습니다.', 'validation'],
+    [403, 'forbidden', '이 작업을 할 권한이 없습니다.', 'forbidden'],
+    [404, 'not-found', '사용자를 찾을 수 없습니다.', 'not-found'],
+  ])('update shows the %s answer %s with the server message', async (status, serverKind, detail, kind) => {
+    stubFetch(problem(status, serverKind, detail))
+
+    await expect(createUsersHttp().update(2, { name: 'x' })).rejects.toMatchObject({ status, kind, message: detail })
+  })
+
+  it('resetPassword sends PUT /users/{id}/password and resolves on 204', async () => {
+    const { calls } = stubFetch(noContent())
+
+    await expect(createUsersHttp().resetPassword(2, 'Fresh-passw0rd')).resolves.toBeUndefined()
+
+    expect(calls).toHaveLength(1)
+    expect(calls[0]).toMatchObject({ method: 'PUT', path: '/api/v1/users/2/password', body: { password: 'Fresh-passw0rd' } })
+  })
+
+  it.each([
+    [409, 'invalid-state', '앱에서 계정을 직접 관리할 때만 쓸 수 있습니다.', 'conflict'],
+    [422, 'invalid-value', '비밀번호는 8자 이상이어야 합니다.', 'validation'],
+    [404, 'not-found', '사용자를 찾을 수 없습니다.', 'not-found'],
+    [403, 'forbidden', '이 작업을 할 권한이 없습니다.', 'forbidden'],
+  ])('resetPassword shows the %s answer %s with the server message', async (status, serverKind, detail, kind) => {
+    stubFetch(problem(status, serverKind, detail))
+
+    await expect(createUsersHttp().resetPassword(2, 'x')).rejects.toMatchObject({ status, kind, message: detail })
   })
 })

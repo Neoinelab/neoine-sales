@@ -1,3 +1,4 @@
+import type { AuthMode } from '../../shared/model/types'
 import type { ReportLayout, ReportQueryInput, SavedReport } from '../../shared/model/reportTypes'
 import type { LayoutSaveGate, ReportQueryHandler, SavedReportRequest } from './store'
 
@@ -8,8 +9,10 @@ import type { LayoutSaveGate, ReportQueryHandler, SavedReportRequest } from './s
 export interface MockControl {
   /** 시드로 복원(로그인 유지). 쿼리 캐시 무효화는 호출자가 `queryClient.invalidateQueries()`로 한다. */
   resetData(): void
-  /** SetupState를 모두 false로 하고 로그아웃(세션 제거). */
+  /** SetupState를 모두 false(인증 방식은 미선택)로 하고 로그아웃(세션 제거). */
   restartSetup(): void
+  /** 인증 방식만 바꾼다(최초 설정 단계 플래그는 그대로). 시드 복원(`resetData`)이 AD로 되돌린다. local 로그인은 `SEED_PASSWORD`를 확인한다. */
+  setAuthMode(mode: AuthMode): void
   setStorageFailure(on: boolean): void
   isStorageFailure(): boolean
   /** 가짜 지연 on/off. 테스트 모드에서는 항상 0ms. */

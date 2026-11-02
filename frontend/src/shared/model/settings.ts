@@ -1,6 +1,6 @@
 /** 설정·최초 설정 모델(A-0 계약). `types.ts`가 재export한다. */
 
-import type { Me, UserRef } from './types'
+import type { AuthMode, Me, UserRef } from './types'
 
 /** 보안 연결 방식: 없음(평문)·SSL(LDAPS)·StartTLS. */
 export type DirectorySecurity = 'none' | 'ssl' | 'starttls'
@@ -54,6 +54,8 @@ export interface StorageSettings {
 }
 
 export interface SetupState {
+  /** 고른 인증 방식(아직 안 골랐으면 null). local이면 AD 단계가 없으므로 directoryDone이 true다. */
+  authMode?: AuthMode | null
   directoryDone: boolean
   storageDone: boolean
   adminDone: boolean

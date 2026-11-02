@@ -4,6 +4,7 @@ import { gateway } from '../../gateway'
 import type { DirectoryWarning } from '../../shared/model/types'
 import { DEFAULT_DEALS_URL_PATTERN } from '../../test/dealsUrl'
 import { USER_ID } from '../../test/fake/seed/ids'
+import { logOutFromMenu } from '../../test/localAccounts'
 import { renderAt } from '../../test/mockApp'
 
 /**
@@ -126,7 +127,7 @@ describe('로그인 뒤 admin AD 경고 팝업 (AC15)', () => {
     const { user } = await openLogin()
     await signIn(user)
     await user.click(within(await dialog()).getByRole('button', { name: '닫기' }))
-    await user.click(await screen.findByRole('button', { name: '로그아웃' }))
+    await logOutFromMenu(user)
     await screen.findByRole('button', { name: '로그인' })
     loginReturns(UNREADABLE_WARNING)
 
@@ -140,7 +141,7 @@ describe('로그인 뒤 admin AD 경고 팝업 (AC15)', () => {
     const { user } = await openLogin()
     await signIn(user)
     await user.click(within(await dialog()).getByRole('button', { name: '닫기' }))
-    await user.click(await screen.findByRole('button', { name: '로그아웃' }))
+    await logOutFromMenu(user)
     await screen.findByRole('button', { name: '로그인' })
     loginReturns(null)
 

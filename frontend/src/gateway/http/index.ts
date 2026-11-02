@@ -16,6 +16,7 @@ import { createDealsHttp } from './deals'
 import { createForecastHttp } from './forecast'
 import { createHistoryHttp } from './history'
 import { createLabelsHttp } from './labels'
+import { createMeHttp } from './me'
 import { createPartnerMeetingsHttp } from './partnerMeetings'
 import { createReportsHttp } from './reports'
 import { createSettingsHttp } from './settings'
@@ -29,6 +30,7 @@ export function createHttpGateway(): Gateway {
     auth: createAuthHttp(),
     setup: createSetupHttp(),
     users: createUsersHttp(),
+    me: createMeHttp(),
     settings: createSettingsHttp(),
     alerts: createAlertsHttp(),
     codes: createCodesHttp(),

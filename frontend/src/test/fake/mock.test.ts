@@ -176,9 +176,9 @@ describe('인증', () => {
 describe('최초 설정(setup)', () => {
   it('시드는 모두 완료 상태이고 restartSetup은 모두 false로 만들고 로그아웃한다', async () => {
     const mock = await mockAs('root')
-    expect(await mock.gateway.setup.status()).toEqual({ directoryDone: true, storageDone: true, adminDone: true })
+    expect(await mock.gateway.setup.status()).toEqual({ directoryDone: true, storageDone: true, adminDone: true, authMode: 'ad' })
     mock.control.restartSetup()
-    expect(await mock.gateway.setup.status()).toEqual({ directoryDone: false, storageDone: false, adminDone: false })
+    expect(await mock.gateway.setup.status()).toEqual({ directoryDone: false, storageDone: false, adminDone: false, authMode: null })
     await expectApiError(mock.gateway.auth.me(), 401)
   })
 
@@ -200,7 +200,7 @@ describe('최초 설정(setup)', () => {
     const me = await setup.registerAdmin('root', 'pw')
     expect(me.role).toBe('admin')
     expect(await auth.me()).toEqual(me)
-    expect(await setup.status()).toEqual({ directoryDone: true, storageDone: true, adminDone: true })
+    expect(await setup.status()).toEqual({ authMode: 'ad', directoryDone: true, storageDone: true, adminDone: true })
     await expectApiError(setup.registerAdmin('root', 'pw'), 409)
     expect((await settings.getStorage())?.path).toBe('/data/neoine/files')
   })

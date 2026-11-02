@@ -14,7 +14,10 @@ async function openSetup() {
     reset()
     mockControl.restartSetup()
   })
-  return renderAt('/setup', { role: null })
+  const view = await renderAt('/setup', { role: null })
+  await screen.findByRole('heading', { name: '인증 방식' })
+  await view.user.click(screen.getByRole('button', { name: 'AD 연동' }))
+  return view
 }
 
 describe('최초 설정 3단계 흐름 (AC-19, AC-20, R-24)', () => {
@@ -35,7 +38,7 @@ describe('최초 설정 3단계 흐름 (AC-19, AC-20, R-24)', () => {
 
     expect(await screen.findByRole('heading', { name: '파일 저장 위치' })).toBeVisible()
     const steps = within(screen.getByRole('list', { name: '설정 단계' }))
-    expect(steps.getByText('1. AD 서버 등록').closest('li')).toHaveAttribute('data-done', 'true')
+    expect(steps.getByText('1. 인증 방식').closest('li')).toHaveAttribute('data-done', 'true')
     expect(steps.getByText('2. 파일 저장 위치').closest('li')).toHaveAttribute('aria-current', 'step')
     expect(steps.getByText('3. 관리자 등록').closest('li')).not.toHaveAttribute('data-done', 'true')
   })

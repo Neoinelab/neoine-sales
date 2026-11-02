@@ -5,8 +5,8 @@ import { DirectoryFields } from '../../shared/directory/DirectoryFields'
 import { directoryErrorMessage } from '../../shared/directory/messages'
 import { ErrorBanner } from '../../shared/ui/ErrorBanner'
 
-/** 1단계: AD 서버 등록. 실패해도 입력 값은 유지한다. */
-export function DirectoryStep({ onSaved }: { onSaved: () => void }) {
+/** 1단계(AD 연동): AD 서버 등록. 실패해도 입력 값은 유지한다. */
+export function DirectoryStep({ onSaved, onBack }: { onSaved: () => void; onBack: () => void }) {
   const [values, setValues] = useState<DirectoryFormValues>(DEFAULT_DIRECTORY_FORM)
   const save = useSaveSetupDirectory()
   const [invalid, setInvalid] = useState<string | null>(null)
@@ -26,6 +26,9 @@ export function DirectoryStep({ onSaved }: { onSaved: () => void }) {
       <ErrorBanner error={invalid ?? save.error} format={(e) => (typeof e === 'string' ? e : directoryErrorMessage(e))} />
       <DirectoryFields values={values} onChange={setValues} />
       <div className="actions">
+        <button type="button" onClick={onBack}>
+          인증 방식 다시 선택
+        </button>
         <button type="submit" className="primary" disabled={save.isPending}>
           AD 서버 등록
         </button>

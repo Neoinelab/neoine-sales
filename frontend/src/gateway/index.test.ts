@@ -28,6 +28,17 @@ describe('app gateway module (P8 T2)', () => {
     expect(fetchSpy).toHaveBeenCalledTimes(1)
   })
 
+  it('app gateway exposes the my-account calls over HTTP (내 정보)', async () => {
+    const fetchSpy = vi.fn().mockRejectedValue(new TypeError('Failed to fetch'))
+    vi.stubGlobal('fetch', fetchSpy)
+    const { gateway } = await loadAppGateway()
+
+    await expect(gateway.me.profile()).rejects.toMatchObject({ status: 0 })
+    await expect(gateway.setup.chooseAuthMode('local')).rejects.toMatchObject({ status: 0 })
+
+    expect(fetchSpy).toHaveBeenCalledTimes(2)
+  })
+
   it('app clock is the server clock that falls back to the browser clock before the first sync', async () => {
     const { clock } = await loadAppGateway()
 

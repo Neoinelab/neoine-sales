@@ -99,9 +99,9 @@ describe('auth over HTTP', () => {
   })
 
   it.each([true, false])('config exposes dev_login=%s as quickLogin', async (devLogin) => {
-    const { calls } = stubFetch(json({ dev_login: devLogin, directory_login: true, needs_admin_setup: false, needs_directory_setup: false, needs_storage_setup: false }))
+    const { calls } = stubFetch(json({ dev_login: devLogin, directory_login: true, needs_admin_setup: false, needs_directory_setup: false, needs_storage_setup: false, auth_mode: 'ad' }))
 
-    await expect(createAuthHttp().config()).resolves.toEqual({ quickLogin: devLogin, needsSetup: false })
+    await expect(createAuthHttp().config()).resolves.toEqual({ quickLogin: devLogin, needsSetup: false, authMode: 'ad' })
 
     expect(calls[0]).toMatchObject({ method: 'GET', path: '/api/v1/auth/config' })
   })
@@ -121,10 +121,29 @@ describe('auth over HTTP', () => {
           needs_admin_setup: admin,
           needs_directory_setup: directory,
           needs_storage_setup: storage,
+          auth_mode: 'ad',
         }),
       )
 
-      await expect(createAuthHttp().config()).resolves.toEqual({ quickLogin: false, needsSetup: true })
+      await expect(createAuthHttp().config()).resolves.toEqual({ quickLogin: false, needsSetup: true, authMode: 'ad' })
     },
   )
+
+  it.each([['local' as const], [null]])('config exposes auth_mode=%s as authMode', async (mode) => {
+    stubFetch(json({ dev_login: false, directory_login: false, needs_admin_setup: false, needs_directory_setup: false, needs_storage_setup: true, auth_mode: mode }))
+
+    await expect(createAuthHttp().config()).resolves.toEqual({ quickLogin: false, needsSetup: true, authMode: mode })
+  })
+
+  it('config treats a response without auth_mode as no choice yet', async () => {
+    stubFetch(json({ dev_login: false, directory_login: true, needs_admin_setup: false, needs_directory_setup: false, needs_storage_setup: false }))
+
+    await expect(createAuthHttp().config()).resolves.toMatchObject({ authMode: null })
+  })
+
+  it('login keeps the local login response the same shape (no directory warning)', async () => {
+    stubFetch(json({ ...PRINCIPAL, directory_warning: null }))
+
+    await expect(createAuthHttp().login('kim', 'Passw0rd-ok')).resolves.toEqual({ me: ME, directoryWarning: null })
+  })
 })

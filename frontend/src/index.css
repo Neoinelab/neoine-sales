@@ -88,9 +88,12 @@ a { color: var(--accent-text); }
 .topbar nav a.active { color: var(--accent-text); background: var(--accent-soft); }
 .topbar nav a.active::after { content: ''; position: absolute; left: 12px; right: 12px; bottom: calc((100% - var(--topbar-h)) / 2); height: 2px; border-radius: 2px; background: var(--accent); }
 .topbar-user { display: flex; align-items: center; gap: 12px; }
-.user-label { white-space: nowrap; color: var(--text); font-size: 0.875rem; font-weight: 500; }
-button.logout { padding: 4px 10px; font-size: 0.8rem; background: var(--danger); border-color: var(--danger); color: #fff; }
-button.logout:hover:not(:disabled) { background: var(--danger-hover); border-color: var(--danger-hover); }
+.user-menu { position: relative; }
+button.user-menu-trigger { padding: 6px; line-height: 0; border-radius: 999px; }
+.user-menu-panel { position: absolute; right: 0; top: calc(100% + 6px); z-index: 50; min-width: 200px; display: flex; flex-direction: column; padding: 6px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow-pop); }
+.user-menu-name { margin: 0; padding: 6px 10px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; font-weight: 500; color: var(--fg); }
+.user-menu-panel [role='menuitem'] { display: block; width: 100%; padding: 6px 10px; border: 0; border-radius: var(--radius); background: transparent; color: var(--text); text-align: left; text-decoration: none; font: inherit; cursor: pointer; }
+.user-menu-panel [role='menuitem']:hover, .user-menu-panel [role='menuitem']:focus-visible { background: var(--hover); }
 .topbar-toggle { display: none; padding: 6px; line-height: 0; }
 .spacer { flex: 1; }
 .content { padding: 24px 5%; display: grid; gap: 16px; } /* 좌우 여백은 화면 너비의 5%씩(최대 너비 제한 없음) */
@@ -148,7 +151,7 @@ td.wrap { white-space: pre-wrap; max-width: 360px; }
   .topbar nav { flex-direction: column; align-items: stretch; }
   .topbar nav a.active::after { display: none; }
   .topbar .spacer { display: none; }
-  .topbar-user { justify-content: space-between; padding-top: 8px; border-top: 1px solid var(--line); }
+  .topbar-user { justify-content: flex-end; padding-top: 8px; border-top: 1px solid var(--line); }
 }
 @media (max-width: 720px) {
   .admin-body { grid-template-columns: 1fr; }

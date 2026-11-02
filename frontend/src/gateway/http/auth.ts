@@ -33,6 +33,7 @@ export function createAuthHttp(): AuthGateway {
       const config = await unwrap(api.GET('/api/v1/auth/config'))
       return {
         quickLogin: config.dev_login,
+        authMode: config.auth_mode ?? null,
         needsSetup: config.needs_directory_setup || config.needs_storage_setup || config.needs_admin_setup,
       }
     },

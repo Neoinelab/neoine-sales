@@ -10,8 +10,8 @@ const DIRECTORY: DirectorySettingsInput = DIRECTORY_INPUT
 const ADMIN_EXISTS = '이미 관리자가 등록되어 최초 설정을 진행할 수 없습니다'
 
 /** 최초 설정 진행 상태를 직접 정한 mock(관리자가 이미 있는 DB에 저장 위치만 없는 경우 등). */
-function mockWithSetup(setup: SeedData['setup']) {
-  return newMock({ seed: (clock) => ({ ...buildSampleSeed(clock), setup }) })
+function mockWithSetup(setup: Omit<SeedData['setup'], 'authMode'>) {
+  return newMock({ seed: (clock) => ({ ...buildSampleSeed(clock), setup: { ...setup, authMode: 'ad' as const } }) })
 }
 
 describe('setup.testStorage / settings.testStorage (쓰기 테스트)', () => {
@@ -23,7 +23,7 @@ describe('setup.testStorage / settings.testStorage (쓰기 테스트)', () => {
     await expect(setup.testStorage('/data/neoine/files')).resolves.toBeUndefined()
     await expectApiError(setup.testStorage('relative/path'), 422, '절대 경로를 입력하세요.')
     await expectApiError(setup.testStorage('/readonly/files'), 422, '해당 위치에 쓸 수 없습니다.')
-    expect(await setup.status()).toEqual({ directoryDone: false, storageDone: false, adminDone: false })
+    expect(await setup.status()).toEqual({ directoryDone: false, storageDone: false, adminDone: false, authMode: null })
   })
 
   it('does not require the AD server step to be done first', async () => {
@@ -60,12 +60,21 @@ describe('최초 설정 저장 위치 단계 (AC-02, AC-03, AC-20, R-24)', () =>
     await expectApiError(mock.gateway.setup.saveStorage('/data/x'), 409, ADMIN_EXISTS)
   })
 
-  it('asks for the AD server first with the server message, before the path rules', async () => {
+  it('asks for the auth mode first with the server message, before the path rules', async () => {
     const mock = newMock()
     mock.control.restartSetup()
+    await expectApiError(mock.gateway.setup.saveStorage('/data/x'), 409, '먼저 인증 방식을 고르세요.')
+    await expectApiError(mock.gateway.setup.saveStorage('relative'), 409, '먼저 인증 방식을 고르세요.')
+    expect(await mock.gateway.setup.status()).toEqual({ directoryDone: false, storageDone: false, adminDone: false, authMode: null })
+  })
+
+  it('asks for the AD server first once the AD mode is chosen, before the path rules', async () => {
+    const mock = newMock()
+    mock.control.restartSetup()
+    await mock.gateway.setup.chooseAuthMode('ad')
     await expectApiError(mock.gateway.setup.saveStorage('/data/x'), 409, '먼저 AD 서버를 등록하세요')
     await expectApiError(mock.gateway.setup.saveStorage('relative'), 409, '먼저 AD 서버를 등록하세요')
-    expect(await mock.gateway.setup.status()).toEqual({ directoryDone: false, storageDone: false, adminDone: false })
+    expect(await mock.gateway.setup.status()).toEqual({ directoryDone: false, storageDone: false, adminDone: false, authMode: 'ad' })
   })
 
   it('saves the location after the AD server step and lets it be saved again until the admin exists', async () => {
@@ -75,7 +84,7 @@ describe('최초 설정 저장 위치 단계 (AC-02, AC-03, AC-20, R-24)', () =>
     await setup.saveDirectory(DIRECTORY)
     await setup.saveStorage('/data/first')
     await setup.saveStorage('/data/second')
-    expect(await setup.status()).toEqual({ directoryDone: true, storageDone: true, adminDone: false })
+    expect(await setup.status()).toEqual({ directoryDone: true, storageDone: true, adminDone: false, authMode: 'ad' })
     await setup.registerAdmin('root', 'pw')
     const { settings } = mock.gateway
     expect((await settings.getStorage())?.path).toBe('/data/second')

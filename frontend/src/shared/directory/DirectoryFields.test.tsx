@@ -32,6 +32,8 @@ async function openSetup(): Promise<Rendered> {
     mockControl.restartSetup()
   })
   const view = await renderAt('/setup', { role: null })
+  await screen.findByRole('heading', { name: '인증 방식' })
+  await view.user.click(screen.getByRole('button', { name: 'AD 연동' }))
   await screen.findByRole('heading', { name: 'AD 서버 등록' })
   return view
 }

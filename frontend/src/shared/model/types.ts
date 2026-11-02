@@ -49,6 +49,9 @@ export interface UserRef {
 }
 
 /** 로그인한 사용자. */
+/** 로그인 방식: AD(LDAP) 연동 또는 앱에서 직접 계정 관리. */
+export type AuthMode = 'ad' | 'local'
+
 export interface Me {
   id: number
   loginId: string
@@ -59,12 +62,25 @@ export interface Me {
 export interface User extends UserRef {
   loginId: string
   email: string | null
+  phone: string | null
   createdAt: string
   /** 등록자(시드 최초 사용자는 null). */
   createdBy: UserRef | null
   lastLoginAt: string | null
   resignedAt: string | null
   resignReason: string | null
+}
+
+/** 내 정보 화면용. `editable`은 서버가 로그인 방식으로 정한 수정 가능 항목이다(화면이 다시 계산하지 않는다). */
+export interface MyProfile {
+  id: number
+  loginId: string
+  role: Role
+  name: string
+  email: string | null
+  phone: string | null
+  authMode: AuthMode
+  editable: { name: boolean; email: boolean; phone: boolean; password: boolean }
 }
 
 // ───────────────────────── 코드 / Label ─────────────────────────

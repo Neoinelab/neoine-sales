@@ -2,6 +2,7 @@ import type { SettingsGateway } from '../../../gateway/types'
 import type { DirectorySettings, DirectorySettingsInput, StorageSettings } from '../../../shared/model/types'
 import { conflict, directoryFailed, notFound, storageUnavailable, validation } from '../errors'
 import type { DirectoryRecord } from '../store'
+import { modeOf } from './accountRules'
 import { clone, read, requireAdmin, write, type MockContext } from './context'
 import { userRef } from './views'
 
@@ -101,6 +102,11 @@ function storageView(ctx: MockContext, record: { path: string; updatedAt: string
   return { path: record.path, updatedAt: record.updatedAt, updatedBy: record.updatedById === null ? null : userRef(ctx.store.data, record.updatedById) }
 }
 
+/** 서버처럼 앱에서 계정을 직접 관리하는(local) 시스템에서는 AD 설정을 저장·테스트할 수 없다(409). */
+function requireDirectoryMode(ctx: MockContext): void {
+  if (modeOf(ctx) === 'local') throw conflict('AD 연동 모드에서만 쓸 수 있습니다.')
+}
+
 export function createSettingsGateway(ctx: MockContext): SettingsGateway {
   return {
     getDirectory: () =>
@@ -112,6 +118,7 @@ export function createSettingsGateway(ctx: MockContext): SettingsGateway {
     saveDirectory: (input, auth) =>
       write(ctx, () => {
         const admin = requireAdmin(ctx)
+        requireDirectoryMode(ctx)
         const previous = ctx.store.data.directory
         checkDirectoryInput(input)
         if (auth.expectedRevision === null && previous !== null) throw conflict('AD 설정이 이미 있습니다. 화면을 새로 고친 뒤 다시 시도하세요.')
@@ -125,6 +132,7 @@ export function createSettingsGateway(ctx: MockContext): SettingsGateway {
     testDirectory: (input) =>
       write(ctx, () => {
         requireAdmin(ctx)
+        requireDirectoryMode(ctx)
         checkDirectoryInput(input)
         checkBindPassword(input, ctx.store.data.directory)
         checkDirectoryReachable(input)

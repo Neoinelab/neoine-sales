@@ -14,6 +14,9 @@ const ROWS: readonly (readonly [string, string, Role, number, number | null])[] 
   ['old', '강퇴사', 'sales', 170, 20],
 ]
 
+/** local 모드에서 모든 시드 사용자의 비밀번호(테스트 전용 값). AD 모드의 Fake는 비밀번호를 확인하지 않는다. */
+export const SEED_PASSWORD = 'Seed-passw0rd'
+
 export function seedUsers(env: SeedEnv): UserRecord[] {
   return ROWS.map(([loginId, name, role, createdAgo, loginAgo]) => {
     const resigned = loginId === 'old'
@@ -24,6 +27,7 @@ export function seedUsers(env: SeedEnv): UserRecord[] {
       role,
       status: resigned ? 'resigned' : 'active',
       email: `${loginId}@neoine.test`,
+      phone: null,
       createdAt: env.at(createdAgo, 9),
       createdById: loginId === 'root' ? null : USER_ID.root,
       lastLoginAt: loginAgo === null ? null : env.at(loginAgo, 9),

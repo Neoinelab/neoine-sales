@@ -5,6 +5,7 @@ import { ContactsPage } from './features/admin/contacts/ContactsPage'
 import { DealManagementPage } from './features/admin/deal-management/DealManagementPage'
 import { IntegrationsPage } from './features/admin/integrations/IntegrationsPage'
 import { UsersPage } from './features/admin/users/UsersPage'
+import { MyProfilePage } from './features/account/MyProfilePage'
 import { LoginPage } from './features/auth/LoginPage'
 import { RequireAdmin } from './features/auth/RequireAdmin'
 import { RequireAuth } from './features/auth/RequireAuth'
@@ -54,6 +55,7 @@ export function App() {
         <Route path="/deals/:dealCode" element={<DealDetailPage />} />
         <Route path="/partner-activities" element={<Lazy><PartnerActivityPage /></Lazy>} />
         <Route path="/forecast" element={<ForecastPage />} />
+        <Route path="/me" element={<MyProfilePage />} />
         <Route path="/reports" element={<ReportsPage />} />
         <Route path="/reports/new" element={<Lazy><ReportDesignerPage /></Lazy>} />
         <Route path="/reports/:id" element={<Lazy><ReportViewPage /></Lazy>} />

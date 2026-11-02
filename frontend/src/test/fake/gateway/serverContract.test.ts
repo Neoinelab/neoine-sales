@@ -24,7 +24,7 @@ describe('auth.config', () => {
   it('mock은 빠른 로그인을 켠다', async () => {
     const { gateway } = await mockAs(null)
 
-    expect(await gateway.auth.config()).toEqual({ quickLogin: true, needsSetup: false })
+    expect(await gateway.auth.config()).toEqual({ quickLogin: true, needsSetup: false, authMode: 'ad' })
   })
 
   it('mock은 최초 설정이 끝나지 않았으면 needsSetup을 켠다', async () => {
@@ -32,7 +32,7 @@ describe('auth.config', () => {
     control.restartSetup()
     // restartSetup은 로그아웃도 하므로 config는 로그인 전에도 읽힌다
 
-    expect(await gateway.auth.config()).toEqual({ quickLogin: true, needsSetup: true })
+    expect(await gateway.auth.config()).toEqual({ quickLogin: true, needsSetup: true, authMode: null })
   })
 })
 

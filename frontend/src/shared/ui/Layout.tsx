@@ -3,6 +3,7 @@ import { NavLink, Outlet, useNavigate } from 'react-router'
 import { useLogout, usePermissions } from '../../data/auth'
 import { visibleMenu } from '../model/permissions'
 import { useDealListPath } from './useDealListPath'
+import { UserMenu } from './UserMenu'
 
 const MENU_LABELS: Record<string, string> = {
   '/dashboard': 'Dashboard',
@@ -13,7 +14,7 @@ const MENU_LABELS: Record<string, string> = {
   '/admin': 'Admin',
 }
 
-/** 상단 메뉴(사용자 4개 + admin에게만 Admin), 사용자 표시, 로그아웃. */
+/** 상단 메뉴(사용자 4개 + admin에게만 Admin)와 사용자 아이콘 메뉴(이름·내 정보·로그아웃). */
 export function Layout() {
   const { me, role } = usePermissions()
   const logout = useLogout()
@@ -50,17 +51,12 @@ export function Layout() {
           <span className="spacer" />
           <div className="topbar-user">
             {me && (
-              <span className="user-label">
-                {me.name} ({me.role})
-              </span>
+              <UserMenu
+                me={me}
+                onPicked={() => setOpen(false)}
+                onLogout={() => logout.mutate(undefined, { onSuccess: () => void navigate('/login') })}
+              />
             )}
-            <button
-              type="button"
-              className="logout"
-              onClick={() => logout.mutate(undefined, { onSuccess: () => void navigate('/login') })}
-            >
-              로그아웃
-            </button>
           </div>
         </div>
       </header>

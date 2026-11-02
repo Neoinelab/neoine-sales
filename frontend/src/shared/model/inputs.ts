@@ -225,6 +225,24 @@ export interface UserCreateInput {
   loginId: string
   name: string
   role: Role
+  /** local 모드에서만 보낸다(AD 모드에서 주면 서버가 422). 빈 값은 보내지 않는다. */
+  password?: string
+  email?: string | null
+  phone?: string | null
+}
+
+/** 고칠 프로필 항목. 주지 않은 키는 그대로, null은 비움(이름은 비울 수 없다). */
+export interface ProfileChange {
+  name?: string
+  email?: string | null
+  phone?: string | null
+}
+
+/** 최초 관리자 등록 때 함께 받는 프로필(local 모드). 빈 이메일·전화는 null. */
+export interface NewAccountProfile {
+  name: string
+  email: string | null
+  phone: string | null
 }
 
 export type UserListFilter = UserStatus | 'all'

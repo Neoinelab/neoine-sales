@@ -195,6 +195,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/setup/auth-mode": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Setup Auth Mode */
+        put: operations["setup_auth_mode_api_v1_auth_setup_auth_mode_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/setup/directory": {
         parameters: {
             query?: never;
@@ -684,6 +701,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/me/password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Change My Password */
+        put: operations["change_my_password_api_v1_me_password_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get My Profile */
+        get: operations["get_my_profile_api_v1_me_profile_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update My Profile */
+        patch: operations["update_my_profile_api_v1_me_profile_patch"];
+        trace?: never;
+    };
     "/api/v1/partner-meetings": {
         parameters: {
             query?: never;
@@ -995,6 +1047,24 @@ export interface paths {
         delete: operations["delete_user_api_v1_users__user_id__delete"];
         options?: never;
         head?: never;
+        /** Update User Profile */
+        patch: operations["update_user_profile_api_v1_users__user_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/users/{user_id}/password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Reset User Password */
+        put: operations["reset_user_password_api_v1_users__user_id__password_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
         patch?: never;
         trace?: never;
     };
@@ -1209,6 +1279,7 @@ export interface components {
         };
         /** AuthConfigResponse */
         AuthConfigResponse: {
+            auth_mode: components["schemas"]["AuthMode"] | null;
             /** Dev Login */
             dev_login: boolean;
             /** Directory Login */
@@ -1219,6 +1290,15 @@ export interface components {
             needs_directory_setup: boolean;
             /** Needs Storage Setup */
             needs_storage_setup: boolean;
+        };
+        /**
+         * AuthMode
+         * @enum {string}
+         */
+        AuthMode: "ad" | "local";
+        /** AuthModeRequest */
+        AuthModeRequest: {
+            mode: components["schemas"]["AuthMode"];
         };
         /**
          * BantCategory
@@ -2119,6 +2199,20 @@ export interface components {
          */
         DirectoryWarningStage: "not_configured" | "connect" | "tls" | "service_bind" | "base_dn" | "search" | "credential_unreadable" | "unknown";
         /**
+         * EditableFlags
+         * @description 항목별 수정 가능 여부(전화는 두 모드 모두 true).
+         */
+        EditableFlags: {
+            /** Display Name */
+            display_name: boolean;
+            /** Email */
+            email: boolean;
+            /** Password */
+            password: boolean;
+            /** Phone */
+            phone: boolean;
+        };
+        /**
          * Entity
          * @enum {string}
          */
@@ -2260,6 +2354,44 @@ export interface components {
             month: number;
             /** Year */
             year: number;
+        };
+        /** MyPasswordRequest */
+        MyPasswordRequest: {
+            /**
+             * Current Password
+             * Format: password
+             */
+            current_password: string;
+            /**
+             * New Password
+             * Format: password
+             */
+            new_password: string;
+        };
+        /** MyProfileRequest */
+        MyProfileRequest: {
+            /** Display Name */
+            display_name?: string | null;
+            /** Email */
+            email?: string | null;
+            /** Phone */
+            phone?: string | null;
+        };
+        /** MyProfileResponse */
+        MyProfileResponse: {
+            auth_mode: components["schemas"]["AuthMode"];
+            /** Display Name */
+            display_name: string | null;
+            editable: components["schemas"]["EditableFlags"];
+            /** Email */
+            email: string | null;
+            /** Id */
+            id: number;
+            /** Login Id */
+            login_id: string;
+            /** Phone */
+            phone: string | null;
+            role: components["schemas"]["Role"];
         };
         /** NamedRefResponse */
         NamedRefResponse: {
@@ -3008,8 +3140,15 @@ export interface components {
              */
             today: string;
         };
-        /** SetupAdminRequest */
+        /**
+         * SetupAdminRequest
+         * @description 최초 admin 등록. 이름·이메일·전화는 local 모드에서만 받는다(AD는 422).
+         */
         SetupAdminRequest: {
+            /** Display Name */
+            display_name?: string | null;
+            /** Email */
+            email?: string | null;
             /** Login Id */
             login_id: string;
             /**
@@ -3017,6 +3156,8 @@ export interface components {
              * Format: password
              */
             password: string;
+            /** Phone */
+            phone?: string | null;
         };
         /** SnapshotItemResponse */
         SnapshotItemResponse: {
@@ -3151,6 +3292,29 @@ export interface components {
             items: components["schemas"]["UserRef"][];
         };
         /**
+         * UserPasswordRequest
+         * @description admin의 비밀번호 재설정 본문.
+         */
+        UserPasswordRequest: {
+            /**
+             * Password
+             * Format: password
+             */
+            password: string;
+        };
+        /**
+         * UserProfileRequest
+         * @description admin의 사용자 정보 수정 본문(아이디·역할·비밀번호는 받지 않는다).
+         */
+        UserProfileRequest: {
+            /** Display Name */
+            display_name?: string | null;
+            /** Email */
+            email?: string | null;
+            /** Phone */
+            phone?: string | null;
+        };
+        /**
          * UserRef
          * @description OpenAPI 스키마 이름이 `UserRef`다(프런트가 이 이름으로 생성 타입을 쓴다).
          */
@@ -3167,13 +3331,19 @@ export interface components {
         };
         /**
          * UserRequest
-         * @description 등록 본문. 비밀번호는 받지 않는다(AD가 인증). 아이디 형식 검증은 도메인(LoginId)이 한다.
+         * @description 등록 본문. 비밀번호는 local 모드에서만 받는다(AD는 422). 값 검증은 도메인이 한다.
          */
         UserRequest: {
             /** Display Name */
             display_name?: string | null;
+            /** Email */
+            email?: string | null;
             /** Login Id */
             login_id: string;
+            /** Password */
+            password?: string | null;
+            /** Phone */
+            phone?: string | null;
             role: components["schemas"]["Role"];
         };
         /** UserResponse */
@@ -3197,6 +3367,8 @@ export interface components {
             last_login_at: string | null;
             /** Login Id */
             login_id: string;
+            /** Phone */
+            phone: string | null;
             role: components["schemas"]["Role"];
             /**
              * Status
@@ -3969,6 +4141,46 @@ export interface operations {
             };
             /** @description problem+json */
             503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    setup_auth_mode_api_v1_auth_setup_auth_mode_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AuthModeRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description problem+json */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -6256,6 +6468,144 @@ export interface operations {
             };
         };
     };
+    change_my_password_api_v1_me_password_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MyPasswordRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description problem+json */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    get_my_profile_api_v1_me_profile_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MyProfileResponse"];
+                };
+            };
+            /** @description problem+json */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    update_my_profile_api_v1_me_profile_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MyProfileRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MyProfileResponse"];
+                };
+            };
+            /** @description problem+json */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     list_partner_meetings_api_v1_partner_meetings_get: {
         parameters: {
             query?: {
@@ -7603,6 +7953,146 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["DeleteUserResponse"];
                 };
+            };
+            /** @description problem+json */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    update_user_profile_api_v1_users__user_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UserProfileRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserResponse"];
+                };
+            };
+            /** @description problem+json */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    reset_user_password_api_v1_users__user_id__password_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UserPasswordRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description problem+json */
             401: {

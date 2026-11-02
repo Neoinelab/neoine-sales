@@ -1,0 +1,6 @@
+.account-page { display: grid; gap: 16px; max-width: 640px; }
+.account-card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius-lg); box-shadow: var(--shadow-md); padding: 20px; display: grid; gap: 12px; min-width: 0; }
+.account-card h3 { font-size: 1.05rem; }
+.account-card .field input { width: 100%; }
+.account-card .field input[aria-invalid='true'] { border-color: var(--danger); }
+.account-card .actions { justify-content: flex-end; }

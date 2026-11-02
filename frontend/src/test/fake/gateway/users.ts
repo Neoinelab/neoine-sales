@@ -4,6 +4,16 @@ import { compareIso } from '../../../shared/model/dates'
 import type { Role, UserRef } from '../../../shared/model/types'
 import { conflict, forbidden, notFound, validation } from '../errors'
 import { takeId, type UserRecord } from '../store'
+import {
+  checkLoginIdAllowed,
+  checkPassword,
+  cleanEmail,
+  cleanPhone,
+  modeOf,
+  profilePatch,
+  requireLocal,
+  setPasswordOf,
+} from './accountRules'
 import { read, requireAdmin, requireUser, write, type MockContext } from './context'
 import { userRef, userView } from './views'
 
@@ -54,6 +64,17 @@ export function createUsersGateway(ctx: MockContext): UsersGateway {
         if (hasWhitespace(loginId)) throw validation('아이디에는 공백을 입력할 수 없습니다.')
         if (name === '') throw validation('이름을 입력하세요.')
         if (!ROLES.includes(input.role)) throw validation('역할을 선택하세요.')
+        const email = cleanEmail(input.email)
+        const phone = cleanPhone(input.phone)
+        const local = modeOf(ctx) === 'local'
+        const password = input.password ?? ''
+        if (local) {
+          checkLoginIdAllowed(loginId)
+          if (password === '') throw validation('비밀번호를 입력하세요.')
+          checkPassword(password, loginId)
+        } else if (password !== '') {
+          throw validation('비밀번호는 앱에서 계정을 직접 관리할 때만 받습니다.')
+        }
         const { data } = ctx.store
         if (data.users.some((u) => u.loginId === loginId && u.status === 'active')) throw conflict('이미 사용 중인 아이디입니다.')
         const record: UserRecord = {
@@ -62,7 +83,8 @@ export function createUsersGateway(ctx: MockContext): UsersGateway {
           name,
           role: input.role,
           status: 'active',
-          email: null,
+          email,
+          phone,
           createdAt: ctx.clock.now(),
           createdById: admin.id,
           lastLoginAt: null,
@@ -70,7 +92,31 @@ export function createUsersGateway(ctx: MockContext): UsersGateway {
           resignReason: null,
         }
         data.users.push(record)
+        if (local) setPasswordOf(data, record.id, password)
         return userView(data, record)
+      }),
+    update: (id, change) =>
+      write(ctx, () => {
+        requireAdmin(ctx)
+        const { data } = ctx.store
+        const target = data.users.find((u) => u.id === id)
+        if (!target) throw notFound('사용자를 찾을 수 없습니다.')
+        if (target.status === 'resigned') throw conflict('이미 퇴사 처리된 사용자입니다.')
+        Object.assign(target, profilePatch(modeOf(ctx), change))
+        return userView(data, target)
+      }),
+    resetPassword: (id, password) =>
+      write(ctx, () => {
+        const admin = requireAdmin(ctx)
+        requireLocal(ctx)
+        const { data } = ctx.store
+        const target = data.users.find((u) => u.id === id)
+        if (!target) throw notFound('사용자를 찾을 수 없습니다.')
+        if (target.status === 'resigned') throw conflict('이미 퇴사 처리된 사용자입니다.')
+        if (target.id === admin.id) throw conflict('자기 자신의 비밀번호는 내 정보에서 바꾸세요.')
+        if (DEV_LOGIN_IDS.includes(target.loginId)) throw conflict('개발 로그인 전용 사용자의 비밀번호는 바꿀 수 없습니다.')
+        checkPassword(password, target.loginId)
+        setPasswordOf(data, target.id, password)
       }),
     changeRole: (id, role) =>
       write(ctx, () => {

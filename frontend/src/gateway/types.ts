@@ -42,6 +42,7 @@ import type {
   ActionTypeWithUsage,
   ActionUpdateInput,
   AlertSettings,
+  AuthMode,
   ApplyChangeRequest,
   Attachment,
   BantCategory,
@@ -78,6 +79,9 @@ import type {
   HistoryEntry,
   HistoryQuery,
   Me,
+  MyProfile,
+  NewAccountProfile,
+  ProfileChange,
   Page,
   UpdatedPeriods,
   DealYears,
@@ -129,20 +133,30 @@ export interface AuthGateway {
 
 export interface AuthConfig {
   quickLogin: boolean
+  /** 고른 인증 방식(최초 설정 전이면 null). 서버 응답에 없으면 null. */
+  authMode?: AuthMode | null
   /** 최초 설정(AD 서버 또는 첫 관리자)이 아직 끝나지 않았다. 서버 `needs_directory_setup || needs_admin_setup`. */
   needsSetup: boolean
 }
 
 export interface SetupGateway {
   status(): Promise<SetupState>
-  /** 1단계. 항상 가능(재저장 허용). directoryDone=true. `bindPassword`가 비면 422. */
+  /**
+   * 1단계. 인증 방식을 정한다(관리자가 생기기 전까지 다시 고를 수 있다, 이후 409). local이면 AD 단계가 없다(directoryDone=true).
+   * AD 연동 버튼은 서버를 부르지 않고 AD 서버 등록이 방식을 AD로 기록한다.
+   */
+  chooseAuthMode(mode: AuthMode): Promise<void>
+  /** AD 단계. 항상 가능(재저장 허용, 방식은 AD가 된다). directoryDone=true. `bindPassword`가 비면 422. */
   saveDirectory(input: DirectorySettingsInput): Promise<void>
   /** 2단계. directoryDone이 false면 409. 검증은 settings.storage.save와 같다. */
   saveStorage(path: string): Promise<void>
   /** 2단계 쓰기 테스트. 로그인·1단계 불필요, 저장 없이 검증만(저장소 장애 시뮬레이션 시 503). */
   testStorage(path: string): Promise<void>
-  /** 3단계. storageDone이 false면 409, 이미 adminDone이면 409. 성공하면 그 관리자로 로그인된 상태가 된다. */
-  registerAdmin(loginId: string, password: string): Promise<Me>
+  /**
+   * 3단계. storageDone이 false면 409, 이미 adminDone이면 409. 성공하면 그 관리자로 로그인된 상태가 된다.
+   * `profile`은 local 모드에서만 준다(이름 필수, 빈 이메일·전화는 null). 서버가 비밀번호 정책을 검사한다.
+   */
+  registerAdmin(loginId: string, password: string, profile?: NewAccountProfile): Promise<Me>
 }
 
 export interface DealsGateway {
@@ -367,6 +381,22 @@ export interface UsersGateway {
   remove(id: number): Promise<UserRemoveResult>
   /** admin만. 본인·마지막 admin·퇴사자·개발 전용 사용자는 409. 같은 역할이면 그대로 돌려준다. */
   changeRole(id: number, role: Role): Promise<User>
+  /**
+   * admin만. 준 키만 바꾼다(null은 비움). AD 모드에서는 전화만 고칠 수 있다(이름·이메일은 409). 퇴사자 409, 없으면 404.
+   * 아이디·역할은 이 호출로 바꾸지 않는다.
+   */
+  update(id: number, change: ProfileChange): Promise<User>
+  /** admin만, local 모드만(AD 409). 그 사용자의 로그인 세션이 모두 끝난다. 본인·퇴사자·개발 전용 사용자 409, 정책 위반 422. */
+  resetPassword(id: number, password: string): Promise<void>
+}
+
+export interface MeGateway {
+  /** 로그인한 모든 역할. */
+  profile(): Promise<MyProfile>
+  /** 준 키만 바꾼다(null은 비움). AD 모드에서 이름·이메일을 주면 409. */
+  updateProfile(change: ProfileChange): Promise<MyProfile>
+  /** local 모드만(AD 409). 현재 비밀번호가 틀리면 422(로그아웃되지 않는다), 시도 제한 429. 성공하면 다른 기기의 로그인이 끝난다. */
+  changePassword(current: string, next: string): Promise<void>
 }
 
 export interface SettingsGateway {
@@ -436,6 +466,7 @@ export interface Gateway {
   reports: ReportsGateway
   partnerMeetings: PartnerMeetingsGateway
   users: UsersGateway
+  me: MeGateway
   settings: SettingsGateway
   alerts: AlertsGateway
   time: TimeGateway

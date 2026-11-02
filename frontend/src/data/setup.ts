@@ -1,13 +1,22 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { gateway } from '../gateway'
 import type { ApiError } from '../shared/api/problem'
-import type { DirectorySettingsInput, Me, SetupState } from '../shared/model/types'
+import type { AuthMode, DirectorySettingsInput, Me, NewAccountProfile, SetupState } from '../shared/model/types'
 import { keys } from './queryKeys'
 import { NO_RETRY, useInvalidate, type Mutation, type Query } from './result'
 
 /** gateway.setup.status. 키 keys.setup. */
 export function useSetupStatus(): Query<SetupState> {
   return useQuery<SetupState, ApiError>({ queryKey: keys.setup, queryFn: () => gateway.setup.status(), ...NO_RETRY })
+}
+
+/** gateway.setup.chooseAuthMode. 성공: keys.setup·keys.authConfig 갱신(끝나면 단계가 바뀐 상태). */
+export function useChooseAuthMode(): Mutation<AuthMode> {
+  const invalidate = useInvalidate()
+  return useMutation<void, ApiError, AuthMode>({
+    mutationFn: (mode) => gateway.setup.chooseAuthMode(mode),
+    onSuccess: () => invalidate(keys.setup, keys.authConfig),
+  })
 }
 
 /** gateway.setup.saveDirectory. 성공: keys.setup 무효화. */
@@ -33,11 +42,18 @@ export function useTestSetupStorage(): Mutation<string> {
   return useMutation<void, ApiError, string>({ mutationFn: (path) => gateway.setup.testStorage(path) })
 }
 
+export interface RegisterAdminVariables {
+  loginId: string
+  password: string
+  /** local 모드에서만(AD 모드는 생략). */
+  profile?: NewAccountProfile
+}
+
 /** gateway.setup.registerAdmin. gcTime 0(비밀번호). 성공: keys.me, keys.setup 갱신(로그인된 상태). */
-export function useRegisterAdmin(): Mutation<{ loginId: string; password: string }, Me> {
+export function useRegisterAdmin(): Mutation<RegisterAdminVariables, Me> {
   const queryClient = useQueryClient()
-  return useMutation<Me, ApiError, { loginId: string; password: string }>({
-    mutationFn: ({ loginId, password }) => gateway.setup.registerAdmin(loginId, password),
+  return useMutation<Me, ApiError, RegisterAdminVariables>({
+    mutationFn: ({ loginId, password, profile }) => gateway.setup.registerAdmin(loginId, password, profile),
     gcTime: 0,
     onSuccess: async (me) => {
       queryClient.setQueryData(keys.me, me)

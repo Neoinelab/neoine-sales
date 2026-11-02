@@ -1,7 +1,7 @@
 export type StepNo = 1 | 2 | 3
 
 const STEPS: readonly { no: StepNo; label: string }[] = [
-  { no: 1, label: '1. AD 서버 등록' },
+  { no: 1, label: '1. 인증 방식' },
   { no: 2, label: '2. 파일 저장 위치' },
   { no: 3, label: '3. 관리자 등록' },
 ]

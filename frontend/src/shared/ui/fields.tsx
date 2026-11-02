@@ -15,9 +15,13 @@ export function TextField(
     /** 브라우저 자동 채움 힌트(`username`, `current-password`, `off` …). 생략하면 브라우저가 정한다. */
     autoComplete?: string
     maxLength?: number
+    /** 서버가 이 칸을 위반으로 지목했을 때(aria-invalid). 문구는 따로 오류 알림으로 보인다. */
+    invalid?: boolean
+    readOnly?: boolean
+    disabled?: boolean
   },
 ) {
-  const { label, name, value, onChange, type = 'text', required, autoComplete, maxLength } = props
+  const { label, name, value, onChange, type = 'text', required, autoComplete, maxLength, invalid, readOnly, disabled } = props
   if (type === 'date') {
     return (
       <div className="field">
@@ -36,6 +40,9 @@ export function TextField(
         required={required}
         autoComplete={autoComplete}
         maxLength={maxLength}
+        aria-invalid={invalid ? true : undefined}
+        readOnly={readOnly}
+        disabled={disabled}
         onChange={(e: ChangeEvent<HTMLInputElement>) => onChange(e.target.value)}
       />
     </label>

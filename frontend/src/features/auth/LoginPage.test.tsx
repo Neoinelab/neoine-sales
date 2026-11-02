@@ -1,5 +1,6 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
+import { openUserMenu } from '../../test/localAccounts'
 import { renderAt } from '../../test/mockApp'
 import { DEFAULT_DEALS_URL_PATTERN } from '../../test/dealsUrl'
 
@@ -63,6 +64,7 @@ describe('로그인 화면 (계획 6.1, T-SHELL-08)', () => {
     await fill(user, 'kim', 'whatever')
     await user.click(screen.getByRole('button', { name: '로그인' }))
     await waitFor(() => expect(location()).toMatch(DEFAULT_DEALS_URL_PATTERN))
+    await openUserMenu(user)
     expect(await screen.findByText('김영업 (sales)')).toBeVisible()
   })
 
@@ -74,6 +76,7 @@ describe('로그인 화면 (계획 6.1, T-SHELL-08)', () => {
     const { user, location } = await openLogin()
     await user.click(screen.getByRole('button', { name: button }))
     await waitFor(() => expect(location()).toMatch(DEFAULT_DEALS_URL_PATTERN))
+    await openUserMenu(user)
     expect(await screen.findByText(shown)).toBeVisible()
   })
 

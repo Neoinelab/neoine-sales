@@ -66,3 +66,21 @@ export function errorMessage(error: unknown): string {
   if (error instanceof ApiError) return error.message
   return '네트워크 오류가 발생했습니다. 잠시 후 다시 시도하세요.'
 }
+
+/**
+ * 서버 422(invalid-value 등)가 `errors[].location`에 싣는 위반 칸 이름(위치의 첫 조각, 예: password·new_password).
+ * 화면은 문구를 이 목록으로 다시 만들지 않고, 해당 입력 칸을 오류 상태로 표시하는 데만 쓴다.
+ */
+export function errorFields(error: unknown): string[] {
+  if (!(error instanceof ApiError)) return []
+  const raw: unknown = error.problem?.errors
+  if (!Array.isArray(raw)) return []
+  const fields: string[] = []
+  for (const item of raw as unknown[]) {
+    if (typeof item !== 'object' || item === null || !('location' in item)) continue
+    const location: unknown = item.location
+    const first: unknown = Array.isArray(location) ? (location as unknown[])[0] : undefined
+    if (typeof first === 'string') fields.push(first)
+  }
+  return fields
+}
