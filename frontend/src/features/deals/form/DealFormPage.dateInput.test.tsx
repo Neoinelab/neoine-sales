@@ -12,7 +12,7 @@ async function fillRequired(name: string) {
   await screen.findByLabelText('Deal Name')
   await view.user.type(screen.getByLabelText('Deal Name'), name)
   await pickPerson(view.user, '고객', '한빛은행', /정민수/)
-  await view.user.type(screen.getByLabelText('금액(단위:천원)'), '100000')
+  await view.user.type(screen.getByLabelText('금액(단위:원)'), '100000000')
   await view.user.type(screen.getByLabelText('Solution'), 'ITDR')
   await view.user.type(screen.getByLabelText('Users count'), '10')
   return view

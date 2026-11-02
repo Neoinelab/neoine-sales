@@ -231,8 +231,8 @@ describe('필터와 정렬 (T-LIST-05~09)', () => {
     const { user } = await renderAt(ALL_DEALS)
     await screen.findByRole('row', { name: /한빛은행 ITDR 도입/ })
     expect(screen.getByRole('columnheader', { name: '최종 업데이트' })).toHaveAttribute('aria-sort', 'descending')
-    await user.click(screen.getByRole('button', { name: '금액(단위:천원)' }))
-    await waitFor(() => expect(screen.getByRole('columnheader', { name: '금액(단위:천원)' })).toHaveAttribute('aria-sort', 'descending'))
+    await user.click(screen.getByRole('button', { name: '금액(단위:원)' }))
+    await waitFor(() => expect(screen.getByRole('columnheader', { name: '금액(단위:원)' })).toHaveAttribute('aria-sort', 'descending'))
     expect(dataRows()[0]).toHaveTextContent('한빛은행 ITDR 도입')
   })
 

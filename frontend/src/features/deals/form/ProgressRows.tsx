@@ -54,7 +54,7 @@ export function ProgressRows({ state, set, errors, onApplied }: ProgressRowsProp
         value={state.revenueAmount}
         onChange={(v) => set('revenueAmount', v)}
         error={errors.revenueAmount}
-        hint="천원 단위 정수(예: 1억 원 = 100,000)"
+        hint="원 단위 정수(예: 1억 원 = 100,000,000)"
         required
       />
       <FormField

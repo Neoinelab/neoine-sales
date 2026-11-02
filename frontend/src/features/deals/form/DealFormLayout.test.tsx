@@ -43,7 +43,7 @@ describe('Deal 정보 타일의 항목 (AC-11, AC-12, AC-14, AC-15)', () => {
       within(info).getByLabelText('Owner'),
       within(info).getByLabelText('Status'),
       within(info).getByLabelText('Forecast'),
-      within(info).getByLabelText('금액(단위:천원)'),
+      within(info).getByLabelText('금액(단위:원)'),
       within(info).getByLabelText('Expected Close'),
       within(info).getByLabelText('Vendor'),
       within(info).getByLabelText('Solution'),
@@ -116,7 +116,7 @@ describe('Deal 정보 타일의 항목 (AC-11, AC-12, AC-14, AC-15)', () => {
     const { user, location } = await openNew()
     await user.type(screen.getByLabelText('Deal Name'), '견적 저장 테스트')
     await pickPerson(user, '고객', '한빛은행', /정민수/)
-    await user.type(screen.getByLabelText('금액(단위:천원)'), '100000')
+    await user.type(screen.getByLabelText('금액(단위:원)'), '100000000')
     await user.type(screen.getByLabelText('Solution'), 'ITDR')
     await user.type(screen.getByLabelText('Users count'), '10')
     fireEvent.change(screen.getByLabelText('Expected Close'), { target: { value: '2027-06-01' } })
@@ -140,7 +140,7 @@ describe('라벨-입력 한 행 (AC-13)', () => {
     await openNew()
     const cases: Array<[string, string, string]> = [
       ['Deal Name', '.kv-row, .field', 'Deal Name'],
-      ['금액(단위:천원)', '.kv-row, .field', '금액(단위:천원)'],
+      ['금액(단위:원)', '.kv-row, .field', '금액(단위:원)'],
       ['Owner', '.kv-row', 'Owner'],
       ['Status', '.kv-row', 'Status'],
       ['Budget', '.kv-row', 'Budget'],

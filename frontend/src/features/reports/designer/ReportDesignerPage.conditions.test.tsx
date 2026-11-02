@@ -232,25 +232,62 @@ describe('조건 값 입력 (AC7)', () => {
     expect(screen.getByText('날짜를 고르세요')).toBeVisible()
   })
 
-  it('asks for the amount in thousand won', async () => {
+  it('asks for the amount in won', async () => {
     const { user } = await openDesigner()
     await addCondition(user, '금액')
 
-    expect(screen.getAllByText(/\(천원\)/).length).toBeGreaterThan(0)
+    expect(screen.getAllByText(/\(원\)/).length).toBeGreaterThan(0)
 
     await user.selectOptions(screen.getByRole('combobox', { name: '조건 1 연산자' }), 'between')
 
     expect(screen.getByRole('textbox', { name: '조건 1 시작' })).toBeVisible()
     expect(screen.getByRole('textbox', { name: '조건 1 끝' })).toBeVisible()
-    expect(screen.getAllByText(/\(천원\)/).length).toBeGreaterThan(0)
+    expect(screen.getAllByText(/\(원\)/).length).toBeGreaterThan(0)
   })
 
-  it('does not ask for thousand won on Users count or days (AC-9)', async () => {
+  it('takes only digits and commas in the amount value and adds commas while typing (AC-8)', async () => {
+    const { user } = await openDesigner()
+    await addCondition(user, '금액')
+    const value = screen.getByRole('textbox', { name: '조건 1 값' })
+
+    await user.type(value, 'abc')
+    expect(value).toHaveValue('')
+
+    await user.type(value, '1000000')
+    expect(value).toHaveValue('1,000,000')
+  })
+
+  it('sends the typed won as the condition value without converting (AC-8)', async () => {
+    const { user } = await openDesigner()
+    await addColumn(user, 'Deal code')
+    await addCondition(user, '금액')
+    await user.type(screen.getByRole('textbox', { name: '조건 1 값' }), '1000000')
+
+    await runQuery(user)
+
+    expect(lastQuery().conditions).toEqual([{ field: 'deal.amount', operator: 'eq', value: 1_000_000 }])
+  })
+
+  it('sends both ends of an amount range as typed won (AC-8)', async () => {
+    const { user } = await openDesigner()
+    await addColumn(user, 'Deal code')
+    await addCondition(user, '금액')
+    await user.selectOptions(screen.getByRole('combobox', { name: '조건 1 연산자' }), 'between')
+    await user.type(screen.getByRole('textbox', { name: '조건 1 시작' }), '1000000')
+    await user.type(screen.getByRole('textbox', { name: '조건 1 끝' }), '5000000')
+    expect(screen.getByRole('textbox', { name: '조건 1 끝' })).toHaveValue('5,000,000')
+
+    await runQuery(user)
+
+    expect(lastQuery().conditions).toEqual([{ field: 'deal.amount', operator: 'between', value: [1_000_000, 5_000_000] }])
+  })
+
+  it('does not ask for won on Users count or days (AC-9)', async () => {
     const { user } = await openDesigner()
     await addCondition(user, 'Users count')
     await addCondition(user, 'Status 체류 일수')
 
-    expect(screen.queryByText(/\(천원\)/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/\(원\)/)).not.toBeInTheDocument()
   })
 
   it('does not keep an old value when the field changes to another kind', async () => {

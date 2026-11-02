@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { gateway } from '../../gateway'
 import { resetMock } from '../../test/fake/default'
 import { ApiError } from '../../shared/api/problem'
-import { formatThousandWon } from '../../shared/model/money'
+import { formatWon } from '../../shared/model/money'
 import type { DealRow } from '../../shared/model/types'
 import { seedVendorId } from '../../test/fixtures/vendors'
 import { dealInput } from '../../test/fake/testing'
@@ -22,7 +22,7 @@ afterEach(() => {
 const COLUMNS = ['commit', 'most_likely', 'best', 'pipeline'] as const
 
 function cellText(count: number, amount: number): string {
-  return count === 0 ? '—' : `${count}건 · ${formatThousandWon(amount)}`
+  return count === 0 ? '—' : `${count}건 · ${formatWon(amount)}`
 }
 
 /** 화면 표의 행(rowheader 이름)에서 셀 6개(Commit/Most Likely/Best/Pipeline/Total/Won) 텍스트를 읽는다. */
@@ -101,18 +101,18 @@ describe('Forecast 요약 표', () => {
       if (!hit) throw new Error(`시드 Deal을 찾지 못했습니다: ${keyword}`)
       return hit
     }
-    const dec = await find('누리통신 NGFW') // 이영업 Pipeline 650,000
-    const jan = await find('푸른물류 SSO') // 이영업 Pipeline 180,000
+    const dec = await find('누리통신 NGFW') // 이영업 Pipeline 650,000,000
+    const jan = await find('푸른물류 SSO') // 이영업 Pipeline 180,000,000
     await gateway.deals.update(dec.code, { revenueDate: '2026-12-31' })
     await gateway.deals.update(jan.code, { revenueDate: '2027-01-01' })
     await client.invalidateQueries()
 
     await waitFor(() => expect(readRow('이영업')[3]).toBe(cellText(1, dec.revenueAmount)))
-    expect(readRow('이영업')[3]).toBe('1건 · 650,000')
+    expect(readRow('이영업')[3]).toBe('1건 · 650,000,000')
 
     await user.selectOptions(screen.getByLabelText('연도'), '2027')
     await user.selectOptions(screen.getByLabelText('Quarter'), '1')
-    await waitFor(() => expect(readRow('이영업')[3]).toBe('1건 · 180,000'))
+    await waitFor(() => expect(readRow('이영업')[3]).toBe('1건 · 180,000,000'))
   })
 
   it('필터(연도·Quarter·Vendor)를 적용해도 합계가 원장 합과 같다', async () => {
@@ -132,21 +132,21 @@ describe('Forecast 요약 표', () => {
     const card = screen.getByRole('region', { name: '2026 Q4 요약' })
     expect(within(card).getByText(/Open 합계/)).toBeInTheDocument()
     expect(card).toHaveTextContent(`${open.count}건`)
-    expect(card).toHaveTextContent(formatThousandWon(open.amount))
+    expect(card).toHaveTextContent(formatWon(open.amount))
     expect(within(card).getByText(/Won/)).toBeInTheDocument()
     expect(card).toHaveTextContent(`${won.count}건`)
-    expect(card).toHaveTextContent(formatThousandWon(won.amount))
+    expect(card).toHaveTextContent(formatWon(won.amount))
   })
 
-  it('shows the thousand-won unit in card titles, the table caption and the owner summary', async () => {
+  it('shows the won unit in card titles, the table caption and the owner summary', async () => {
     const { user } = await renderAt('/forecast?year=2026&quarter=4')
     await screen.findByRole('rowheader', { name: '합계' })
     const card = screen.getByRole('region', { name: '2026 Q4 요약' })
-    expect(within(card).getByRole('heading', { name: 'Open 합계(단위:천원)' })).toBeVisible()
-    expect(within(card).getByRole('heading', { name: 'Won (별도, 단위:천원)' })).toBeVisible()
-    expect(screen.getByText('셀 값: 건수 · 금액(단위:천원)')).toBeVisible()
+    expect(within(card).getByRole('heading', { name: 'Open 합계(단위:원)' })).toBeVisible()
+    expect(within(card).getByRole('heading', { name: 'Won (별도, 단위:원)' })).toBeVisible()
+    expect(screen.getByText('셀 값: 건수 · 금액(단위:원)')).toBeVisible()
     const cells = readRow('합계')
-    for (const cell of cells) expect(cell).not.toMatch(/천원|\d[MB]\b|원$/)
+    for (const cell of cells) expect(cell).not.toMatch(/원|\d[MB]\b/)
 
     await user.click(await screen.findByRole('button', { name: '김영업' }))
     const section = await screen.findByRole('region', { name: '선택한 담당자: 김영업' })
@@ -154,7 +154,7 @@ describe('Forecast 요약 표', () => {
     const notLost = all.filter((d) => d.forecastKey !== 'lost')
     await waitFor(() => expect(within(section).getAllByRole('link')).toHaveLength(notLost.length))
     const open = sumOf(notLost, (d) => OPEN.has(d.forecastKey))
-    expect(section).toHaveTextContent(`Open ${open.count}건 · 금액(단위:천원) ${formatThousandWon(open.amount)}`)
+    expect(section).toHaveTextContent(`Open ${open.count}건 · 금액(단위:원) ${formatWon(open.amount)}`)
   })
 
   it('퇴사 담당자도 행에 "(퇴사)"로 나온다', async () => {
@@ -182,7 +182,7 @@ describe('담당자 선택: 같은 화면 아래 Deal 목록', () => {
     const heads = within(section)
       .getAllByRole('columnheader')
       .map((h) => h.textContent)
-    expect(heads).toEqual(['Deal', 'Status', 'Forecast', '금액(단위:천원)', 'Expected Close', 'Next Action'])
+    expect(heads).toEqual(['Deal', 'Status', 'Forecast', '금액(단위:원)', 'Expected Close', 'Next Action'])
 
     const deals = (await ledger({ year: 2026, ownerId: USER_ID.kim })).filter((d) => d.forecastKey !== 'lost')
     await waitFor(() => expect(within(section).getAllByRole('link').length).toBeGreaterThanOrEqual(deals.length))
@@ -203,7 +203,7 @@ describe('담당자 선택: 같은 화면 아래 Deal 목록', () => {
     const open = sumOf(deals, (d) => OPEN.has(d.forecastKey))
     expect(readRow('김영업')[4]).toBe(cellText(open.count, open.amount))
     expect(section).toHaveTextContent(`Open ${open.count}건`)
-    expect(section).toHaveTextContent(formatThousandWon(open.amount))
+    expect(section).toHaveTextContent(formatWon(open.amount))
   })
 
   it('Lost Deal은 목록에 없고 Lost 안내 문구도 없다', async () => {

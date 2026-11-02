@@ -9,7 +9,7 @@ type AmountInputProps = Omit<InputHTMLAttributes<HTMLInputElement>, 'value' | 'o
   onChange: (text: string) => void
 }
 
-/** 천원 단위 금액 입력: 숫자와 콤마만 남기고 입력 중 콤마를 넣으며 커서를 유지한다. */
+/** 원 단위 금액 입력: 숫자와 콤마만 남기고 입력 중 콤마를 넣으며 커서를 유지한다. */
 export function AmountInput({ value, onChange, ...rest }: AmountInputProps) {
   const ref = useRef<HTMLInputElement>(null)
   const caretRef = useRef<number | null>(null)

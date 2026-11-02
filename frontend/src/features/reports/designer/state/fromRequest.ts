@@ -1,3 +1,4 @@
+import { formatWon } from '../../../../shared/model/money'
 import { fromChartInput } from '../../chart/chartDraft'
 import { DEFAULT_LAYOUT } from '../../result/layout'
 import type { ReportCatalog, ReportChartInput, ReportConditionInput, ReportConditionValue, ReportField, ReportLayout, ReportLimits, ReportQueryInput } from '../../../../shared/model/reportTypes'
@@ -5,15 +6,13 @@ import { fieldByKey, isMoneyField } from './columnRules'
 import { emptyDraft, type ConditionDraft } from './conditionDraft'
 import type { DesignerColumn, DesignerCondition, DesignerState } from './designerState'
 
-const MONEY_UNIT = 1000
-
 const isStringList = (value: unknown): value is string[] => Array.isArray(value) && value.every((v) => typeof v === 'string')
 const isPair = <T>(value: unknown, test: (v: unknown) => v is T): value is [T, T] => Array.isArray(value) && value.length === 2 && test(value[0]) && test(value[1])
 const isNumber = (v: unknown): v is number => typeof v === 'number'
 const isString = (v: unknown): v is string => typeof v === 'string'
 
-/** 서버가 저장한 금액(원) → 입력 칸의 천원 문자열. */
-const thousands = (won: number, field: ReportField | undefined): string => String(field && isMoneyField(field) ? won / MONEY_UNIT : won)
+/** 서버가 저장한 숫자 → 입력 칸 문자열. 금액은 원 콤마 숫자. */
+const numberText = (value: number, field: ReportField | undefined): string => (field && isMoneyField(field) ? formatWon(value) : String(value))
 
 /**
  * 조건 값을 입력 초안으로 되돌린다(`toRequest`의 역). 모양이 맞지 않는 값은 빈 초안으로 둔다.
@@ -26,9 +25,9 @@ function draftOf(condition: ReportConditionInput, field: ReportField | undefined
     case 'text':
       return isString(value) ? { shape: 'text', text: value } : blank
     case 'number':
-      return isNumber(value) ? { shape: 'number', text: thousands(value, field) } : blank
+      return isNumber(value) ? { shape: 'number', text: numberText(value, field) } : blank
     case 'range':
-      return isPair(value, isNumber) ? { shape: 'range', low: thousands(value[0], field), high: thousands(value[1], field) } : blank
+      return isPair(value, isNumber) ? { shape: 'range', low: numberText(value[0], field), high: numberText(value[1], field) } : blank
     case 'date':
       return isString(value) ? { shape: 'date', day: value } : blank
     case 'date_range':

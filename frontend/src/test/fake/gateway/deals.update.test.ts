@@ -55,7 +55,7 @@ describe('deals.update', () => {
     expect(cats.filter((c) => c === 'other').length).toBe(7) // 이름, Vendor, Solution, Users count, 견적, POC, 구매절차
     const owner = (await gateway.history.list(code, { category: 'owner' }))[0]
     expect(owner).toMatchObject({ before: '김영업', after: '박영업', by: { id: USER_ID.kim }, at: TEST_NOW })
-    expect((await gateway.history.list(code, { category: 'amount' }))[0]).toMatchObject({ target: '금액(단위:천원)', before: '420,000', after: '777,000' })
+    expect((await gateway.history.list(code, { category: 'amount' }))[0]).toMatchObject({ target: '금액(단위:원)', before: '420,000,000', after: '777,000,000' })
   })
 
   it('rejects clearing Users count and keeps the value', async () => {

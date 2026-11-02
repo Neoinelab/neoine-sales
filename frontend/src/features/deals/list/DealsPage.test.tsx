@@ -4,7 +4,7 @@ import { gateway } from '../../../gateway'
 import { renderAt } from '../../../test/mockApp'
 import { ALL_DEALS, dataRows, rowOf } from './testHelpers'
 
-const HEADERS = ['Deal', '담당자', '고객사', '파트너사', 'Vendor', 'Status', 'Forecast', '금액(단위:천원)', 'Expected Close', 'Next Action', 'Due', 'Next Action 상태', '최종 업데이트']
+const HEADERS = ['Deal', '담당자', '고객사', '파트너사', 'Vendor', 'Status', 'Forecast', '금액(단위:원)', 'Expected Close', 'Next Action', 'Due', 'Next Action 상태', '최종 업데이트']
 
 describe('목록 표 (T-LIST-01~04)', () => {
   it('shows the PRD columns with the split Next Action columns', async () => {
@@ -55,7 +55,7 @@ describe('목록 표 (T-LIST-01~04)', () => {
     expect(within(row).getByText('에이원시스템')).toBeVisible()
     expect(within(row).queryByText('코어테크')).not.toBeInTheDocument()
     expect(within(row).getByText('이영업')).toBeVisible()
-    expect(within(row).getByText('330,000')).not.toHaveAttribute('title')
+    expect(within(row).getByText('330,000,000')).not.toHaveAttribute('title')
   })
 
   it('shows a dash for a deal without a partner and the resigned owner label', async () => {

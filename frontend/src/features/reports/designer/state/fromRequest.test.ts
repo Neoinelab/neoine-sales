@@ -71,7 +71,7 @@ describe('fromReportRequest', () => {
     expect(requestOf(input)).toEqual(input)
   })
 
-  it('turns money back into thousand won text and ids into strings', () => {
+  it('turns money back into won text with commas and ids into strings', () => {
     const state = load({
       columns: [CODE],
       conditions: [
@@ -84,8 +84,8 @@ describe('fromReportRequest', () => {
     })
 
     expect(state.conditions.map((c) => c.draft)).toEqual([
-      { shape: 'number', text: '1500' },
-      { shape: 'range', low: '1000', high: '2000' },
+      { shape: 'number', text: '1,500,000' },
+      { shape: 'range', low: '1,000,000', high: '2,000,000' },
       { shape: 'list', values: ['6', '1'] },
     ])
   })
@@ -230,7 +230,7 @@ describe('fromReportRequest with fields the catalog no longer has', () => {
 })
 
 describe('fromReportRequest money conditions (AC-9)', () => {
-  it('divides only the amount by 1,000 for the input text', () => {
+  it('writes only the amount with commas and keeps other numbers plain', () => {
     const state = load(
       withConditions([
         { field: 'deal.amount', operator: 'gte', value: 1_500_000 },
@@ -239,7 +239,7 @@ describe('fromReportRequest money conditions (AC-9)', () => {
     )
 
     expect(state.conditions.map((c) => c.draft)).toEqual([
-      { shape: 'number', text: '1500' },
+      { shape: 'number', text: '1,500,000' },
       { shape: 'number', text: '5' },
     ])
   })

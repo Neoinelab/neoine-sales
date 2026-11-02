@@ -28,7 +28,7 @@ async function loadedVendor() {
 async function fillRequired(user: Awaited<ReturnType<typeof openNew>>['user'], name: string) {
   await user.type(screen.getByLabelText('Deal Name'), name)
   await pickPerson(user, '고객', '한빛은행', /정민수/)
-  await user.type(screen.getByLabelText('금액(단위:천원)'), '100000')
+  await user.type(screen.getByLabelText('금액(단위:원)'), '100000000')
   await user.type(screen.getByLabelText('Users count'), '10')
   fireEvent.change(screen.getByLabelText('Expected Close'), { target: { value: '2027-05-01' } })
 }

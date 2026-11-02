@@ -23,10 +23,10 @@ function design(keys: string[], groups: number[]): DesignerState {
   return state
 }
 
-const HEADERS: Record<number, string> = { 1: 'Vendor', 2: 'Status', 3: '금액 합계 (천원)', 4: 'Users count 합계' }
+const HEADERS: Record<number, string> = { 1: 'Vendor', 2: 'Status', 3: '금액 합계 (원)', 4: 'Users count 합계' }
 const headerOf = (uid: number): string => HEADERS[uid] ?? ''
 /** ONE_GROUP 설계의 uid 기준 머리글(Vendor 1, 금액 2, Users count 3, Status 체류 4). */
-const ONE_GROUP_HEADERS: Record<number, string> = { 1: 'Vendor', 2: '금액 합계 (천원)', 3: 'Users count 합계', 4: 'Status 체류 합계' }
+const ONE_GROUP_HEADERS: Record<number, string> = { 1: 'Vendor', 2: '금액 합계 (원)', 3: 'Users count 합계', 4: 'Status 체류 합계' }
 const oneGroupHeaderOf = (uid: number): string => ONE_GROUP_HEADERS[uid] ?? ''
 
 /** Vendor(그룹, uid 1), 금액(2), Users(3), Status 체류(4)로 이루어진 1그룹 설계. */
@@ -67,7 +67,7 @@ describe('defaultChart (AC12)', () => {
       legend: 'top',
       dataLabels: false,
       categoryAxisTitle: 'Vendor',
-      valueAxisTitle: '금액 합계 (천원)',
+      valueAxisTitle: '금액 합계 (원)',
       valueMin: '',
       valueMax: '',
       secondaryAxis: false,
@@ -77,7 +77,7 @@ describe('defaultChart (AC12)', () => {
   it('starts a stacked bar chart for two group columns with the second one as series', () => {
     const created = defaultChart(TWO_GROUPS().columns, headerOf)
 
-    expect(created).toMatchObject({ kind: 'stacked_bar', categoryUid: 1, seriesUid: 2, valueUids: [3], categoryAxisTitle: 'Vendor', valueAxisTitle: '금액 합계 (천원)' })
+    expect(created).toMatchObject({ kind: 'stacked_bar', categoryUid: 1, seriesUid: 2, valueUids: [3], categoryAxisTitle: 'Vendor', valueAxisTitle: '금액 합계 (원)' })
   })
 
   it('cannot start a chart without group columns or with three or more', () => {

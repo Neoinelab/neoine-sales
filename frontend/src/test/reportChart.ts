@@ -25,7 +25,7 @@ import '../features/reports/chart/ChartTab'
 export const VENDOR_COL = resultColumn({ index: 0, field: 'deal.vendor', label: 'Vendor', type: 'code', valueType: 'text', format: null, group: true })
 export const STATUS_COL = resultColumn({ index: 1, field: 'deal.status', label: 'Status', type: 'code', valueType: 'text', format: null, group: true })
 export const amountCol = (index: number): ReportResultColumn =>
-  resultColumn({ index, field: 'deal.amount', label: '금액', type: 'number', valueType: 'integer', format: null, unit: 'krw_thousand', aggregate: 'sum' })
+  resultColumn({ index, field: 'deal.amount', label: '금액', type: 'number', valueType: 'integer', format: null, unit: 'krw', aggregate: 'sum' })
 export const usersCol = (index: number): ReportResultColumn =>
   resultColumn({ index, field: 'deal.users', label: 'Users count', type: 'number', valueType: 'integer', format: null, unit: null, aggregate: 'sum' })
 

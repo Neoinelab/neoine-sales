@@ -25,9 +25,9 @@ export function fieldByKey(catalog: ReportCatalog, key: string): ReportField | u
   return catalog.fields.find((f) => f.key === key)
 }
 
-/** 금액 필드: 조건 값을 천원 단위로 입력받는다. */
+/** 금액 필드: 조건 값을 원 단위 금액 칸으로 입력받는다. */
 export function isMoneyField(field: ReportField): boolean {
-  return field.type === 'number' && field.unit === 'krw_thousand'
+  return field.type === 'number' && field.unit === 'krw'
 }
 
 /** 그룹핑 리포트에서 비그룹 컬럼에 처음 채우는 집계: 기본 집계, 없으면 건수, 건수가 없으면 첫 선택지. */

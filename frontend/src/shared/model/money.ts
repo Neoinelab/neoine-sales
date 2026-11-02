@@ -1,43 +1,53 @@
-/** 금액 표기·검증 순수 함수. 저장·API는 원 단위, 화면은 천원 단위(값에 단위 글자 없음, 단위는 항목 이름에). */
+/** 금액 표기·검증 순수 함수. 저장·API·화면 모두 원 단위(값에 단위 글자 없음, 단위는 항목 이름에). */
 
 /** 금액 항목 이름(열 머리글·dt·폼 라벨·접근성 이름·History 대상). 서버 history.py의 AMOUNT_TARGET과 같다. */
-export const AMOUNT_LABEL = '금액(단위:천원)'
+export const AMOUNT_LABEL = '금액(단위:원)'
 /** 매출 확정 팝업의 금액 라벨. */
-export const REVENUE_AMOUNT_LABEL = '매출금액(단위:천원, 실제 값)'
-/** 입력 가능한 최대 천원 값 = floor((2^53−1) / 1000). */
-export const THOUSAND_WON_MAX = 9_007_199_254_740
-export const AMOUNT_INPUT_MESSAGE = '매출금액은 천원 단위로 1 이상의 정수를 입력하세요.'
-export const AMOUNT_TOO_LARGE_MESSAGE = '매출금액은 천원 단위로 9,007,199,254,740 이하로 입력하세요.'
+export const REVENUE_AMOUNT_LABEL = '매출금액(단위:원, 실제 값)'
+/** 입력 가능한 최대 원 값 = 2^53−1(서버 RevenueAmount 상한). */
+export const WON_MAX = Number.MAX_SAFE_INTEGER
+export const AMOUNT_INPUT_MESSAGE = '매출금액은 1원 이상의 정수를 입력하세요.'
+export const AMOUNT_TOO_LARGE_MESSAGE = '매출금액은 9,007,199,254,740,991원 이하로 입력하세요.'
 
 /** 매출금액 유효성(원 기준): 1 이상의 안전 정수. */
 export function isValidAmount(value: unknown): value is number {
   return typeof value === 'number' && Number.isSafeInteger(value) && value >= 1
 }
 
-/** 원 → 천원(half-up). 부동소수 오차를 피하려고 나머지로 계산한다. */
-export function toThousandWon(won: number): number {
-  const rest = won % 1000
-  const base = (won - rest) / 1000
-  return rest >= 500 ? base + 1 : base
+/** 원 콤마 숫자(단위 글자 없음, 반올림 없음). 표시와 편집 시작값에 모두 쓴다. */
+export function formatWon(won: number): string {
+  return won.toLocaleString('en-US')
 }
 
-/** 원 → 천원 콤마 숫자(단위 글자 없음). 표시와 편집 시작값에 모두 쓴다. */
-export function formatThousandWon(won: number): string {
-  return toThousandWon(won).toLocaleString('en-US')
+function shortened(value: number, unit: number, suffix: string): string {
+  return `${(value / unit).toLocaleString('en-US', { maximumFractionDigits: 1 })}${suffix}`
 }
 
-function thousandsOf(text: string): number | null {
+/** 차트 금액 축 눈금: 1억 이상 `억`, 1만 이상 `만`, 그 미만은 콤마 숫자. 단위는 반올림한 값으로 정한다. */
+export function formatWonAxis(value: number): string {
+  if (value === 0) return '0'
+  const abs = Math.abs(value)
+  if (abs >= 1e8) return shortened(value, 1e8, '억')
+  if (abs >= 1e4) {
+    // 만 단위를 소수 1자리로 반올림했을 때 10,000만이 되면 1억으로 올린다.
+    if (Math.round((abs / 1e4) * 10) / 10 >= 1e4) return shortened(value, 1e8, '억')
+    return shortened(value, 1e4, '만')
+  }
+  return formatWon(value)
+}
+
+function wholeOf(text: string): number | null {
   const cleaned = text.trim().replaceAll(',', '')
   if (!/^\d+$/.test(cleaned)) return null
   const value = Number(cleaned)
   return Number.isSafeInteger(value) ? value : null
 }
 
-/** 천원 입력 문자열 → 원 금액. 빈 값·0·소수·음수·문자·최대 초과면 null. */
+/** 원 입력 문자열 → 원 금액. 빈 값·0·소수·음수·문자·최대 초과면 null. */
 export function parseAmountInput(text: string): number | null {
-  const thousands = thousandsOf(text)
-  if (thousands === null || thousands < 1 || thousands > THOUSAND_WON_MAX) return null
-  return thousands * 1000
+  const won = wholeOf(text)
+  if (won === null || won < 1 || won > WON_MAX) return null
+  return won
 }
 
 /** 검증 문구: 유효하면 null. */
@@ -45,15 +55,10 @@ export function amountInputError(text: string): string | null {
   if (parseAmountInput(text) !== null) return null
   const cleaned = text.trim().replaceAll(',', '')
   if (/^\d+$/.test(cleaned) && cleaned.replace(/^0+/, '').length > 0) {
-    const thousands = Number(cleaned)
-    if (!Number.isSafeInteger(thousands) || thousands > THOUSAND_WON_MAX) return AMOUNT_TOO_LARGE_MESSAGE
+    const won = Number(cleaned)
+    if (!Number.isSafeInteger(won) || won > WON_MAX) return AMOUNT_TOO_LARGE_MESSAGE
   }
   return AMOUNT_INPUT_MESSAGE
-}
-
-/** 입력값(원)이 원래 값(원)과 화면 표기상 같은가. 같으면 호출처는 원래 원 값을 유지한다. */
-export function isSameShownAmount(inputWon: number, originalWon: number): boolean {
-  return toThousandWon(inputWon) === toThousandWon(originalWon)
 }
 
 /** 입력 중 자동 콤마: 숫자 외 문자는 버리고 앞자리 0을 지우며, 커서는 왼쪽 숫자 개수를 유지한다. */

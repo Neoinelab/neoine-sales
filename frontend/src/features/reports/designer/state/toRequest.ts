@@ -7,7 +7,7 @@ import type {
   ReportField,
   ReportQueryInput,
 } from '../../../../shared/model/reportTypes'
-import { fieldByKey, isMoneyField } from './columnRules'
+import { fieldByKey } from './columnRules'
 import type { ConditionDraft } from './conditionDraft'
 import type { DesignerColumn, DesignerCondition, DesignerState } from './designerState'
 
@@ -22,7 +22,6 @@ export type RequestBuild =
   | { request: ReportQueryInput; columnUids: number[]; conditionUids: number[] }
   | { inputIssues: InputIssue[] }
 
-const MONEY_UNIT = 1000
 const WHOLE = /^-?\d+$/
 
 function columnInput(column: DesignerColumn, field: ReportField | undefined): ReportColumnInput {
@@ -46,10 +45,10 @@ function columnIssues(column: DesignerColumn, max: number): InputIssue[] {
 }
 
 /** 쉼표를 뺀 정수 문자열을 읽는다. 정수가 아니거나 safe integer를 넘으면 null(-0은 0). */
-function parseWhole(text: string, unit: number): number | null {
+function parseWhole(text: string): number | null {
   const cleaned = text.trim().replaceAll(',', '')
   if (!WHOLE.test(cleaned)) return null
-  const value = Number(cleaned) * unit
+  const value = Number(cleaned)
   if (!Number.isSafeInteger(value)) return null
   return value === 0 ? 0 : value
 }
@@ -62,9 +61,9 @@ interface Reading {
 const ok = (value?: ReportConditionValue): Reading => (value === undefined ? { issues: [] } : { value, issues: [] })
 const bad = (part: InputIssue['part'], message: string): Reading => ({ issues: [{ part, message }] })
 
-function readNumbers(draft: { low: string; high: string }, unit: number, message: string): Reading {
-  const low = parseWhole(draft.low, unit)
-  const high = parseWhole(draft.high, unit)
+function readNumbers(draft: { low: string; high: string }, message: string): Reading {
+  const low = parseWhole(draft.low)
+  const high = parseWhole(draft.high)
   const issues: Reading['issues'] = []
   if (low === null) issues.push({ part: 'low', message })
   if (high === null) issues.push({ part: 'high', message })
@@ -74,8 +73,7 @@ function readNumbers(draft: { low: string; high: string }, unit: number, message
 }
 
 function readDraft(draft: ConditionDraft, field: ReportField, catalog: ReportCatalog): Reading {
-  const unit = isMoneyField(field) ? MONEY_UNIT : 1
-  const wholeMessage = unit === MONEY_UNIT ? '천원 단위 정수로 입력하세요' : '정수로 입력하세요'
+  const wholeMessage = '정수로 입력하세요'
   switch (draft.shape) {
     case 'none':
       return ok()
@@ -88,11 +86,11 @@ function readDraft(draft: ConditionDraft, field: ReportField, catalog: ReportCat
       return ok(field.valueKind === 'id' ? draft.values.map(Number) : draft.values)
     }
     case 'number': {
-      const value = parseWhole(draft.text, unit)
+      const value = parseWhole(draft.text)
       return value === null ? bad('value', wholeMessage) : ok(value)
     }
     case 'range':
-      return readNumbers(draft, unit, wholeMessage)
+      return readNumbers(draft, wholeMessage)
     case 'date':
       if (draft.day === '') return bad('day', '날짜를 고르세요')
       return dateValueError(draft.day) === null ? ok(draft.day) : bad('day', dateValueError(draft.day) ?? '')
@@ -108,7 +106,7 @@ function readDraft(draft: ConditionDraft, field: ReportField, catalog: ReportCat
       const needsDays = catalog.relativePeriods.find((p) => p.key === draft.period)?.needsDays ?? false
       if (!needsDays) return ok({ period: draft.period })
       const max = catalog.limits.lastNDaysMax
-      const days = parseWhole(draft.days, 1)
+      const days = parseWhole(draft.days)
       if (days === null || days < 1 || days > max) return bad('days', `1~${max} 사이 정수를 입력하세요`)
       return ok({ period: draft.period, days })
     }

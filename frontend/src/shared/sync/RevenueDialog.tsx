@@ -1,6 +1,6 @@
 import { useId, useState } from 'react'
 import { dateValueError } from '../model/dateText'
-import { amountInputError, formatThousandWon, parseAmountInput, REVENUE_AMOUNT_LABEL } from '../model/money'
+import { amountInputError, formatWon, parseAmountInput, REVENUE_AMOUNT_LABEL } from '../model/money'
 import { AmountInput } from '../ui/AmountInput'
 import { DateInput } from '../ui/DateInput'
 import { Modal } from '../ui/Modal'
@@ -21,12 +21,11 @@ interface RevenueDialogProps {
 
 /** "매출 확정" 팝업: 실제 매출금액·매출일이 모두 유효할 때만 `확정`이 활성. 취소는 변경 없음. */
 export function RevenueDialog({ notice, defaultAmount, defaultDate, error, onConfirm, onCancel }: RevenueDialogProps) {
-  const initialAmount = defaultAmount === undefined ? '' : formatThousandWon(defaultAmount)
+  const initialAmount = defaultAmount === undefined ? '' : formatWon(defaultAmount)
   const [amount, setAmount] = useState(initialAmount)
   const [date, setDate] = useState(defaultDate ?? '')
   const [touched, setTouched] = useState({ amount: false, date: false })
-  // 보이는 값을 건드리지 않았으면 원래 원 값을 그대로 쓴다.
-  const parsed = defaultAmount !== undefined && amount === initialAmount ? defaultAmount : parseAmountInput(amount)
+  const parsed = parseAmountInput(amount)
   const dateId = useId()
   const valid = parsed !== null && date !== '' && dateValueError(date) === null
 

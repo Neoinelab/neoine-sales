@@ -19,7 +19,7 @@ const INFO_LABELS = [
   'Owner',
   'Status',
   'Forecast',
-  '금액(단위:천원)',
+  '금액(단위:원)',
   'Expected Close',
   'Next Action',
   '최종 업데이트',

@@ -138,14 +138,14 @@ describe('다른 이름으로 저장은 지난 결과를 새 설계의 결과로
 describe('다른 이름으로 저장의 입력 문제 (리뷰 Minor)', () => {
   it('tells the user about an input problem of the design instead of ending silently', async () => {
     const { user, location } = await openEditor(MINE_PUBLIC.id)
-    const amount = screen.getByDisplayValue(/^1,?500$/)
+    const amount = screen.getByDisplayValue('1,500,000')
     await user.clear(amount)
     await user.type(amount, 'abc')
     await user.click(screen.getByRole('button', { name: '다른 이름으로 저장' }))
 
     await user.click((await dialogOf()).getByRole('button', { name: '저장' }))
 
-    expect((await screen.findAllByText(/천원 단위 정수로 입력하세요/)).length).toBeGreaterThan(0)
+    expect((await screen.findAllByText(/정수로 입력하세요/)).length).toBeGreaterThan(0)
     expect(location()).toBe(`/reports/${MINE_PUBLIC.id}/edit`)
     expect(mockControl.savedReportRequests()).toEqual([])
   })

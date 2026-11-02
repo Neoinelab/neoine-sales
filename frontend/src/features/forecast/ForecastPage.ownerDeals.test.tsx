@@ -1,7 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { gateway } from '../../gateway'
-import { formatThousandWon } from '../../shared/model/money'
+import { formatWon } from '../../shared/model/money'
 import type { ForecastSummary } from '../../shared/model/types'
 import { resetMock } from '../../test/fake/default'
 import { USER_ID } from '../../test/fake/seed/ids'
@@ -142,7 +142,7 @@ describe('목록 위 Open 요약은 요약 표 행의 값이다 (P6 AC-11)', () 
 
     const section = await screen.findByRole('region', { name: '선택한 담당자: 김영업' })
 
-    await waitFor(() => expect(section).toHaveTextContent(`Open 77건 · 금액(단위:천원) ${formatThousandWon(7_777_000)}`))
+    await waitFor(() => expect(section).toHaveTextContent(`Open 77건 · 금액(단위:원) ${formatWon(7_777_000)}`))
   })
 
   it('does not list the Lost deals and says nothing about them any more', async () => {

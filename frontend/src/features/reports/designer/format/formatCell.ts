@@ -1,6 +1,5 @@
 import { formatRelativeTime, formatStamp } from '../../../../shared/format'
 import { daysBetween, datePart } from '../../../../shared/model/dates'
-import { formatThousandWon } from '../../../../shared/model/money'
 import type { ReportCell, ReportResultColumn } from '../../../../shared/model/reportTypes'
 
 /** 표시 전용 포맷 맥락. `now`·`today`는 앱 시계(`useToday`)다. */
@@ -16,8 +15,8 @@ const separated = (value: number): string => value.toLocaleString('en-US', { max
 
 const isCount = (column: ReportResultColumn): boolean => column.aggregate === 'count' || column.aggregate === 'count_distinct'
 
-/** 천원 단위로 보이는 열: 단위가 천원인 필드(금액)이고 건수 집계가 아닌 열. 머리글·표·차트가 이 판정 하나를 쓴다. */
-export const isThousandWonColumn = (column: ReportResultColumn): boolean => column.unit === 'krw_thousand' && !isCount(column)
+/** 원 단위 금액으로 보이는 열: 단위가 원인 필드(금액)이고 건수 집계가 아닌 열. 머리글·표·차트가 이 판정 하나를 쓴다. */
+export const isWonColumn = (column: ReportResultColumn): boolean => column.unit === 'krw' && !isCount(column)
 
 /** 'YYYY-MM-DD'의 요일(달력 계산만 한다. 브라우저 시간대를 쓰지 않는다). */
 function weekdayOf(date: string): string {
@@ -35,7 +34,6 @@ function relativeDay(date: string, today: string): string {
 function formatNumber(value: number, column: ReportResultColumn): string {
   if (isCount(column)) return separated(value)
   if (column.format === 'year') return String(value)
-  if (isThousandWonColumn(column)) return formatThousandWon(Math.round(value))
   return separated(value)
 }
 
@@ -85,9 +83,9 @@ export function cellTitle(value: ReportCell, column: ReportResultColumn, ctx: Fo
   return column.valueType === 'text' && (column.type === 'text' || column.type === 'code' || column.type === 'user') ? value : undefined
 }
 
-/** 머리글. 천원 단위 열은 단위를 덧붙인다. */
+/** 머리글. 금액 열은 단위를 덧붙인다. */
 export function columnHeader(column: ReportResultColumn): string {
-  return isThousandWonColumn(column) ? `${column.label} (천원)` : column.label
+  return isWonColumn(column) ? `${column.label} (원)` : column.label
 }
 
 export const isNumericColumn = (column: ReportResultColumn): boolean => column.valueType === 'integer' || column.valueType === 'decimal'

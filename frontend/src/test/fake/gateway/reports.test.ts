@@ -108,7 +108,7 @@ describe('reports Fake', () => {
       ],
     })
 
-    expect(result.columns[1]).toMatchObject({ aggregate: 'sum', valueType: 'integer', format: null, unit: 'krw_thousand' })
+    expect(result.columns[1]).toMatchObject({ aggregate: 'sum', valueType: 'integer', format: null, unit: 'krw' })
     expect(result.columns[0]?.unit).toBeNull()
     expect(result.totals).toEqual([null, 6000])
   })

@@ -20,7 +20,7 @@ const CODES: CodeSet = {
 const codeSetState = vi.hoisted(() => ({ data: undefined as unknown }))
 vi.mock('../../data/codes', () => ({ useCodeSet: () => ({ data: codeSetState.data }) }))
 vi.mock('../model/money', () => ({
-  formatThousandWon: (n: number) => `fmt:${n}`,
+  formatWon: (n: number) => `fmt:${n}`,
 }))
 
 beforeEach(() => {

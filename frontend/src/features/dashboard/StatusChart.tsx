@@ -1,9 +1,9 @@
 import type { ChartData, ChartOptions } from 'chart.js'
 import { Bar } from 'react-chartjs-2'
 import { useNavigate } from 'react-router'
-import { AMOUNT_LABEL, formatThousandWon } from '../../shared/model/money'
+import { AMOUNT_LABEL, formatWon } from '../../shared/model/money'
 import type { DashboardStatusItem } from '../../shared/model/types'
-import { chartTheme, pointerOnBar, SERIES_COLORS, thousandTick } from './chartSetup'
+import { chartTheme, pointerOnBar, SERIES_COLORS, wonTick } from './chartSetup'
 import { useDrillEnabled } from './DrillLink'
 import type { ForecastSets } from '../../shared/model/forecastKeys'
 import { statusPath, type DashboardScope } from './drillDown'
@@ -37,16 +37,16 @@ export function StatusChart({ items, scope, sets }: Props) {
     onHover: pointerOnBar,
     plugins: {
       legend: { display: false },
-      tooltip: { callbacks: { label: (context) => `${AMOUNT_LABEL}: ${formatThousandWon(context.parsed.y ?? 0)}` } },
+      tooltip: { callbacks: { label: (context) => `${AMOUNT_LABEL}: ${formatWon(context.parsed.y ?? 0)}` } },
     },
     scales: {
       x: { ticks: { color: theme.text }, grid: { display: false } },
-      y: { beginAtZero: true, ticks: { color: theme.text, callback: thousandTick }, grid: { color: theme.grid }, title: { display: true, text: AMOUNT_LABEL, color: theme.text } },
+      y: { beginAtZero: true, ticks: { color: theme.text, callback: wonTick }, grid: { color: theme.grid }, title: { display: true, text: AMOUNT_LABEL, color: theme.text } },
     },
   }
   return (
     <div className="db-chart">
-      <Bar data={data} options={options} role="img" aria-label="Status별 Deal 금액(단위:천원) 막대 차트. 같은 값이 아래 표에 있습니다." />
+      <Bar data={data} options={options} role="img" aria-label="Status별 Deal 금액(단위:원) 막대 차트. 같은 값이 아래 표에 있습니다." />
     </div>
   )
 }

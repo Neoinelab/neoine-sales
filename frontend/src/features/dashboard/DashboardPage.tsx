@@ -73,7 +73,7 @@ export function DashboardPage() {
           )}
           {data && (
             <>
-              <p className="hint">기간은 Expected Close 기준이며 금액 단위는 천원입니다. 기준일 {data.today}</p>
+              <p className="hint">기간은 Expected Close 기준이며 금액 단위는 원입니다. 기준일 {data.today}</p>
               {isEmpty(data, filters.tab, scope) && <p className="db-empty">조건에 맞는 Deal이 없습니다.</p>}
             </>
           )}

@@ -1,6 +1,6 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { formatThousandWon } from '../../shared/model/money'
+import { formatWon } from '../../shared/model/money'
 import { resetMock } from '../../test/fake/default'
 import { USER_ID } from '../../test/fake/seed/ids'
 import { dashboardSummaryFixture, emptyDashboardSummary } from '../../test/fixtures/dashboardSummary'
@@ -16,7 +16,7 @@ afterEach(() => {
   resetMock({ now: null })
 })
 
-const won = (n: number) => formatThousandWon(n)
+const won = (n: number) => formatWon(n)
 const hrefsOf = (row: HTMLElement) => within(row).getAllByRole('link').map((a) => a.getAttribute('href'))
 
 async function openForecastTab(url = '/dashboard?tab=forecast&forecast.year=2026', summary = dashboardSummaryFixture()) {
@@ -29,7 +29,7 @@ async function openForecastTab(url = '/dashboard?tab=forecast&forecast.year=2026
 describe('Forecast 탭의 Forecast 타일', () => {
   it('shows the same tiles as the Status tab', async () => {
     await openForecastTab()
-    const top = within(screen.getByRole('region', { name: 'Forecast 구분별 금액(단위:천원)' }))
+    const top = within(screen.getByRole('region', { name: 'Forecast 구분별 금액(단위:원)' }))
 
     const tile = top.getByRole('link', { name: /Pipeline/ })
 
@@ -171,7 +171,7 @@ describe('고른 분기만 보이는 Quarter Closing Forecast (AC-16·18, Select
     })
     await openForecastTab('/dashboard?tab=forecast&forecast.year=2026&forecast.quarter=1%2C3', summary)
 
-    const top = within(screen.getByRole('region', { name: 'Forecast 구분별 금액(단위:천원)' }))
+    const top = within(screen.getByRole('region', { name: 'Forecast 구분별 금액(단위:원)' }))
 
     expect(top.getByRole('link', { name: /Pipeline/ })).toHaveTextContent(`${pipeline.count}건`)
     expect(top.getByRole('link', { name: /Pipeline/ })).toHaveTextContent(won(pipeline.amount))

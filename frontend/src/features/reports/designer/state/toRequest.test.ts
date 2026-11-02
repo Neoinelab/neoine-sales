@@ -39,7 +39,7 @@ describe('toReportRequest column rules (AC11)', () => {
       { type: 'updateColumn', uid: uidAt(state, 2), patch: { label: '금액 합계', sort: 'desc' } },
     )
     state = withCondition(state, 'deal.vendor', 'in', { shape: 'list', values: ['6', '1'] })
-    state = withCondition(state, 'deal.amount', 'gte', { shape: 'number', text: '1,500' })
+    state = withCondition(state, 'deal.amount', 'gte', { shape: 'number', text: '1,500,000' })
 
     const { request, columnUids, conditionUids } = build(state)
 
@@ -143,15 +143,19 @@ describe('toReportRequest prefix option (AC14, AC15)', () => {
 })
 
 describe('toReportRequest condition values (AC11)', () => {
-  it('converts thousand won to won for amount conditions', () => {
-    expect(conditionValue('deal.amount', 'eq', { shape: 'number', text: '1,500' })).toEqual({ field: 'deal.amount', operator: 'eq', value: 1_500_000 })
-    expect(conditionValue('deal.amount', 'between', { shape: 'range', low: '1,000', high: '2,000' })).toEqual({
+  it('sends amount conditions as typed won without multiplying', () => {
+    expect(conditionValue('deal.amount', 'eq', { shape: 'number', text: '1,000,000' })).toEqual({ field: 'deal.amount', operator: 'eq', value: 1_000_000 })
+    expect(conditionValue('deal.amount', 'between', { shape: 'range', low: '1,000,000', high: '5,000,000' })).toEqual({
       field: 'deal.amount',
       operator: 'between',
-      value: [1_000_000, 2_000_000],
+      value: [1_000_000, 5_000_000],
     })
     expect(conditionValue('deal.amount', 'lt', { shape: 'number', text: '0' })).toMatchObject({ value: 0 })
-    expect(conditionValue('deal.amount', 'gt', { shape: 'number', text: '-5' })).toMatchObject({ value: -5000 })
+    expect(conditionValue('deal.amount', 'gt', { shape: 'number', text: '-5' })).toMatchObject({ value: -5 })
+  })
+
+  it('accepts an amount up to the safe integer limit', () => {
+    expect(conditionValue('deal.amount', 'eq', { shape: 'number', text: '9,007,199,254,740,991' })).toMatchObject({ value: Number.MAX_SAFE_INTEGER })
   })
 
   it('does not multiply other numbers', () => {
@@ -202,8 +206,8 @@ describe('toReportRequest unreadable inputs (AC11)', () => {
     ['number has a decimal point', 'deal.users', 'eq', { shape: 'number', text: '1.5' }, 'value', /정수/],
     ['number is a word', 'deal.users', 'eq', { shape: 'number', text: 'abc' }, 'value', /정수/],
     ['number is empty', 'deal.users', 'eq', { shape: 'number', text: '' }, 'value', /정수/],
-    ['amount has a decimal point', 'deal.amount', 'eq', { shape: 'number', text: '1.5' }, 'value', '천원 단위 정수로 입력하세요'],
-    ['amount is too large', 'deal.amount', 'eq', { shape: 'number', text: '9,007,199,254,741' }, 'value', '천원 단위 정수로 입력하세요'],
+    ['amount has a decimal point', 'deal.amount', 'eq', { shape: 'number', text: '1.5' }, 'value', '정수로 입력하세요'],
+    ['amount is too large', 'deal.amount', 'eq', { shape: 'number', text: '9,007,199,254,740,992' }, 'value', '정수로 입력하세요'],
     ['range low is a word', 'deal.users', 'between', { shape: 'range', low: 'x', high: '5' }, 'low', /정수/],
     ['range high is empty', 'deal.users', 'between', { shape: 'range', low: '1', high: '' }, 'high', /정수/],
     ['date is empty', 'deal.expected_close', 'after', { shape: 'date', day: '' }, 'day', '날짜를 고르세요'],
@@ -263,9 +267,9 @@ describe('toReportRequest column sort (AC2, AC7)', () => {
 })
 
 describe('toReportRequest money conditions (AC-9)', () => {
-  it('multiplies only the amount input (thousand won) by 1,000 and keeps Users count and days as typed', () => {
+  it('sends the amount, Users count and days all as typed', () => {
     let state = withColumns('deal.code')
-    state = withCondition(state, 'deal.amount', 'gte', { shape: 'number', text: '1,500' })
+    state = withCondition(state, 'deal.amount', 'gte', { shape: 'number', text: '1,500,000' })
     state = withCondition(state, 'deal.users', 'gte', { shape: 'number', text: '5' })
     state = withCondition(state, 'deal.status_days', 'lte', { shape: 'number', text: '30' })
 

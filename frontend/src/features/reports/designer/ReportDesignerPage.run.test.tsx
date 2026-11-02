@@ -81,9 +81,9 @@ describe('조회 요청 (AC11)', () => {
       },
     ])
     expect(tableTexts()).toEqual([
-      ['Vendor 1', '1'],
-      ['Vendor 2', '2'],
-      ['Vendor 3', '3'],
+      ['Vendor 1', '1,000'],
+      ['Vendor 2', '2,000'],
+      ['Vendor 3', '3,000'],
     ])
   })
 
@@ -198,7 +198,7 @@ describe('조회 요청 (AC11)', () => {
     expect(screen.getByRole('textbox', { name: '조건 1 값' })).not.toHaveAttribute('aria-invalid', 'true')
   })
 
-  it('names the thousand won unit and the empty list in the input messages', async () => {
+  it('names the integer rule and the empty list in the input messages', async () => {
     const { user } = await openDesigner()
     await addColumn(user, 'Deal code')
     await addCondition(user, '금액')
@@ -207,7 +207,7 @@ describe('조회 요청 (AC11)', () => {
 
     await runQuery(user)
 
-    expect(screen.getByText('천원 단위 정수로 입력하세요')).toBeVisible()
+    expect(screen.getByText('정수로 입력하세요')).toBeVisible()
     expect(screen.getByText('하나 이상 선택하세요')).toBeVisible()
     expect(mockControl.reportQueries()).toHaveLength(0)
   })
@@ -238,14 +238,14 @@ describe('결과 표 (AC12)', () => {
     expect(screen.getByText(/총 3행 · 조회 0\.21초/)).toBeVisible()
   })
 
-  it('formats amounts in thousand won with a unit in the header and aligns numbers to the right', async () => {
+  it('formats amounts in whole won with a unit in the header and aligns numbers to the right', async () => {
     await openAndRun(groupedAmountResult([['Silverfort', 1_234_500], ['Okta', 999_999], ['Zscaler', null]], null), 'Vendor')
 
-    expect(within(resultTable()).getByRole('columnheader', { name: /^금액 합계\s?\(천원\)$/ })).toBeVisible()
+    expect(within(resultTable()).getByRole('columnheader', { name: /^금액 합계\s?\(원\)$/ })).toBeVisible()
     expect(within(resultTable()).getByRole('columnheader', { name: 'Vendor' })).toBeVisible()
     expect(tableTexts()).toEqual([
-      ['Silverfort', '1,235'],
-      ['Okta', '1,000'],
+      ['Silverfort', '1,234,500'],
+      ['Okta', '999,999'],
       ['Zscaler', '—'],
     ])
     const [firstRow] = within(resultTable()).getAllByRole('row').slice(1)
@@ -271,7 +271,7 @@ describe('결과 표 (AC12)', () => {
     expect(tableTexts()).toEqual([['2026-04-01 00:30', '3일 전']])
   })
 
-  it('toggles the totals row only for grouped results and shows amounts in thousand won (AC-6)', async () => {
+  it('toggles the totals row only for grouped results and shows amounts in won (AC-7)', async () => {
     const result = groupedAmountResult(
       [
         ['A', 1_000_000],
@@ -282,8 +282,8 @@ describe('결과 표 (AC12)', () => {
     const { user } = await openAndRun(result, 'Vendor')
 
     expect(tableTexts()).toEqual([
-      ['A', '1,000'],
-      ['B', '3,000'],
+      ['A', '1,000,000'],
+      ['B', '3,000,000'],
     ])
     const toggle = screen.getByRole('checkbox', { name: '합계 행' })
     expect(toggle).not.toBeChecked()
@@ -291,9 +291,9 @@ describe('결과 표 (AC12)', () => {
     await user.click(toggle)
 
     expect(tableTexts()).toEqual([
-      ['A', '1,000'],
-      ['B', '3,000'],
-      ['합계', '4,000'],
+      ['A', '1,000,000'],
+      ['B', '3,000,000'],
+      ['합계', '4,000,000'],
     ])
     expect(within(resultTable()).getAllByRole('row').at(-1)?.closest('tfoot')).not.toBeNull()
 
@@ -302,23 +302,23 @@ describe('결과 표 (AC12)', () => {
     expect(tableTexts()).toHaveLength(2)
   })
 
-  it('shows the thousand won unit in the header of an amount column only', async () => {
+  it('shows the won unit in the header of an amount column only', async () => {
     await openAndRun(groupedAmountResult([['A', 1_000_000]], [null, 1_000_000]), 'Vendor')
 
     const headers = within(resultTable()).getAllByRole('columnheader').map((h) => h.textContent)
 
     expect(headers[0]).toContain('Vendor')
-    expect(headers[1]).toMatch(/금액 합계\s?\(천원\)/)
+    expect(headers[1]).toMatch(/금액 합계\s?\(원\)/)
   })
 
-  it('rounds an amount total to thousand won and keeps no share or decimal formats', async () => {
+  it('shows an amount total in whole won and keeps no share or decimal formats', async () => {
     const result = groupedAmountResult([['A', 123_456_789]], [null, 123_456_789])
     const { user } = await openAndRun(result, 'Vendor')
     await user.click(screen.getByRole('checkbox', { name: '합계 행' }))
 
     expect(tableTexts()).toEqual([
-      ['A', '123,457'],
-      ['합계', '123,457'],
+      ['A', '123,456,789'],
+      ['합계', '123,456,789'],
     ])
   })
 

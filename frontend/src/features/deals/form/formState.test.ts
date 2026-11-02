@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { AMOUNT_INPUT_MESSAGE } from '../../../shared/model/money'
+import { AMOUNT_INPUT_MESSAGE, AMOUNT_TOO_LARGE_MESSAGE } from '../../../shared/model/money'
 import type { BantLabel, Contact, DealDetail, UserRef } from '../../../shared/model/types'
 import {
   EMPTY_DRAFT,
@@ -194,6 +194,11 @@ describe('validateForm (T-FORM-01)', () => {
     expect(validateForm(filled({ revenueAmount: text }), undefined).revenueAmount).toBe(AMOUNT_INPUT_MESSAGE)
   })
 
+  it('AC-2 rejects 2^53 and accepts 2^53-1', () => {
+    expect(validateForm(filled({ revenueAmount: '9,007,199,254,740,992' }), undefined).revenueAmount).toBe(AMOUNT_TOO_LARGE_MESSAGE)
+    expect(validateForm(filled({ revenueAmount: '9,007,199,254,740,991' }), undefined).revenueAmount).toBeUndefined()
+  })
+
   it('requires Users count and accepts zero or a positive integer', () => {
     expect(validateForm(filled({ users: '' }), undefined).users).toBe('Users count를 입력하세요.')
     expect(validateForm(filled({ users: '-1' }), undefined).users).toBe('Users count는 0 이상의 정수로 입력하세요.')
@@ -248,7 +253,7 @@ describe('toDealInput', () => {
     expect(input).toMatchObject({ vendorId: 3, solution: 'SSO' })
     expect(input).not.toHaveProperty('solutionId')
     expect(input.users).toBe(20)
-    expect(input.revenueAmount).toBe(1_500_000_000)
+    expect(input.revenueAmount).toBe(1_500_000)
     expect(input.customer).toEqual({ contactId: 1, company: '한빛은행', name: '정민수', title: '과장', email: null, phone: null })
     expect(input.partner).toBeNull()
     expect(input.quote).toEqual({ submitted: 'YES', submittedDate: '2026-10-01' })
@@ -325,7 +330,7 @@ describe('formFromDeal / toDealPatch (T-FORM-06)', () => {
       users: '100',
       statusKey: 'introduction',
       forecastKey: 'best',
-      revenueAmount: '300,000',
+      revenueAmount: '300,000,000',
       revenueDate: '2027-03-01',
       quoteSubmitted: 'YES',
       procurement: '검토',
@@ -363,27 +368,35 @@ describe('formFromDeal / toDealPatch (T-FORM-06)', () => {
     expect(toDealPatch(state, original, LABELS).solution).toBe('SSO')
   })
 
-  it('AC-8 patch keeps the original won amount when the shown thousands are unchanged', () => {
+  it('AC-4 form shows the stored won amount with commas and keeps it unchanged in the patch', () => {
     const original = detail({ revenueAmount: 1_234_567 })
     const state = formFromDeal(original, LABELS)
 
-    expect(state.revenueAmount).toBe('1,235')
+    expect(state.revenueAmount).toBe('1,234,567')
     expect(toDealPatch(state, original, LABELS).revenueAmount).toBe(1_234_567)
   })
 
-  it('AC-8 patch keeps the original won amount at the safe integer limit when untouched', () => {
+  it('AC-2 form keeps the safe integer limit exactly', () => {
     const original = detail({ revenueAmount: Number.MAX_SAFE_INTEGER })
     const state = formFromDeal(original, LABELS)
 
-    expect(state.revenueAmount).toBe('9,007,199,254,741')
+    expect(state.revenueAmount).toBe('9,007,199,254,740,991')
     expect(toDealPatch(state, original, LABELS).revenueAmount).toBe(Number.MAX_SAFE_INTEGER)
   })
 
-  it('AC-6 patch sends the edited thousands multiplied to won', () => {
+  it('AC-1 patch sends the edited won amount as typed', () => {
     const original = detail({ revenueAmount: 1_234_567 })
     const state = { ...formFromDeal(original, LABELS), revenueAmount: '2,000' }
 
-    expect(toDealPatch(state, original, LABELS).revenueAmount).toBe(2_000_000)
+    expect(toDealPatch(state, original, LABELS).revenueAmount).toBe(2_000)
+  })
+
+  it('AC-4 patch keeps a 300 won amount that was not touched', () => {
+    const original = detail({ revenueAmount: 300 })
+    const state = formFromDeal(original, LABELS)
+
+    expect(state.revenueAmount).toBe('300')
+    expect(toDealPatch(state, original, LABELS).revenueAmount).toBe(300)
   })
 
   it('AC-31 patch round-trips the current labels as their ids', () => {

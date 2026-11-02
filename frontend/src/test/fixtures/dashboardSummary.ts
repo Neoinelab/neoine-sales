@@ -2,7 +2,7 @@ import type { DashboardSummary } from '../../shared/model/types'
 
 /**
  * 화면 테스트용 Dashboard 요약. 숫자는 한눈에 보이도록 정했고 항목 사이 관계(합계 = 항목 합, Open 합 = Open 셀 합,
- * 분기 합 = 연 합)를 모두 지킨다. 금액은 원 단위(화면은 천원).
+ * 분기 합 = 연 합)를 모두 지킨다. 금액은 원 단위(화면도 원).
  *
  * Forecast(Lost 제외): pipeline 18/320M, best 6/150M, most_likely 4/90M, commit 3/70M, won 2/40M, open 31/630M
  * Status(Lost 제외, = Open 31/630M + Won 2/40M): prospecting 14/250M … contract_completed 2/40M, 합계 33/670M

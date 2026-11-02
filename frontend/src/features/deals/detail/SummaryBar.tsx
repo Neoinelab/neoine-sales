@@ -3,7 +3,7 @@ import { useCodeSet } from '../../../data/codes'
 import { useSyncedChange } from '../../../shared/sync/useSyncedChange'
 import { useToday } from '../../../data/today'
 import { formatDateTime, formatRelativeTime } from '../../../shared/format'
-import { AMOUNT_LABEL, amountInputError, formatThousandWon, isSameShownAmount, parseAmountInput } from '../../../shared/model/money'
+import { AMOUNT_LABEL, amountInputError, formatWon, parseAmountInput } from '../../../shared/model/money'
 import { NEXT_ACTION_STATUS_LABEL } from '../../../shared/model/nextActionStatus'
 import type { DealChange, DealDetail } from '../../../shared/model/types'
 import { AmountText } from '../../../shared/ui/AmountText'
@@ -50,7 +50,7 @@ export function SummaryBar({ deal, canWrite, onNotice }: SummaryBarProps) {
     const invalid = amountInputError(text)
     const amount = parseAmountInput(text)
     if (invalid !== null || amount === null) throw new Error(invalid ?? undefined)
-    if (isSameShownAmount(amount, deal.revenueAmount)) return
+    if (amount === deal.revenueAmount) return
     await changeValue({ field: 'revenueAmount', value: amount }, '금액이 변경되었습니다.')
   }
 
@@ -106,7 +106,7 @@ export function SummaryBar({ deal, canWrite, onNotice }: SummaryBarProps) {
                 canEdit={canWrite}
                 kind="amount"
                 display={<AmountText amount={deal.revenueAmount} />}
-                initial={formatThousandWon(deal.revenueAmount)}
+                initial={formatWon(deal.revenueAmount)}
                 onSave={saveAmount}
               />
             </dd>

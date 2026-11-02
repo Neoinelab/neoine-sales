@@ -2,7 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { gateway } from '../../gateway'
 import { ApiError } from '../../shared/api/problem'
-import { formatThousandWon } from '../../shared/model/money'
+import { formatWon } from '../../shared/model/money'
 import { resetMock } from '../../test/fake/default'
 import { dealInput } from '../../test/fake/testing'
 import { SNAPSHOT_NOT_FOUND } from '../../test/fake/gateway/forecastSnapshots'
@@ -27,7 +27,7 @@ afterEach(() => {
   resetMock({ now: null })
 })
 
-const cellText = (count: number, amount: number): string => (count === 0 ? '—' : `${count}건 · ${formatThousandWon(amount)}`)
+const cellText = (count: number, amount: number): string => (count === 0 ? '—' : `${count}건 · ${formatWon(amount)}`)
 
 // 생성 시각은 서버 문자열의 오프셋 벽시계 그대로 보인다(SNAPSHOT_TAKEN_AT = 2026-10-01T00:05:00+09:00). 브라우저 시간대로 바꾸지 않는다.
 const SNAPSHOT_BASIS = `기준: ${SNAPSHOT_PERIOD} 월말(생성 2026-10-01 00:05)`
@@ -128,7 +128,7 @@ describe('스냅숏 요약 표', () => {
       cellText(4, 280_000_000),
       cellText(1, 700_000_000),
     ])
-    expect(screen.queryByText(new RegExp(formatThousandWon(999_000_000)))).not.toBeInTheDocument()
+    expect(screen.queryByText(new RegExp(formatWon(999_000_000)))).not.toBeInTheDocument()
   })
 
   it('keeps the stored values after a deal is added, while the live table changes', async () => {

@@ -16,8 +16,8 @@ export type ReportFormat =
   | 'month'
   | 'weekday'
   | 'relative'
-/** 숫자 값의 표시 단위. 값은 원 단위 그대로 오고 화면이 이 단위로 나눠 보인다. */
-export type ReportNumberUnit = 'krw_thousand'
+/** 숫자 값의 단위(krw = 원). 값은 이 단위 그대로 오고 화면도 그대로 보인다. */
+export type ReportNumberUnit = 'krw'
 export type ReportOperator =
   | 'contains'
   | 'equals'

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type FocusEvent, type KeyboardEvent } from
 import { useCodeSet } from '../../../data/codes'
 import { useApplyDealChange } from '../../../data/deals'
 import { isDateValue } from '../../../shared/model/dateText'
-import { amountInputError, isSameShownAmount, parseAmountInput } from '../../../shared/model/money'
+import { amountInputError, parseAmountInput } from '../../../shared/model/money'
 import type { ApplyChangeRequest, DealChange, DealRow } from '../../../shared/model/types'
 import { AmountInput } from '../../../shared/ui/AmountInput'
 import { DateInput } from '../../../shared/ui/DateInput'
@@ -65,7 +65,7 @@ export function InlineEditor({ row, field, onDone }: InlineEditorProps) {
       const invalid = amountInputError(value)
       const amount = parseAmountInput(value)
       if (invalid !== null || amount === null) return setError(invalid)
-      return isSameShownAmount(amount, row.revenueAmount) ? onDone() : send(value, { field, value: amount }, undefined)
+      return amount === row.revenueAmount ? onDone() : send(value, { field, value: amount }, undefined)
     }
     if (value === '') return setError(DATE_MESSAGE)
     return value === row.revenueDate ? onDone() : send(value, { field, value }, undefined)

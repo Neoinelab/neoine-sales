@@ -17,7 +17,7 @@ const COLORS = ['#94a3b8', '#60a5fa', '#34d399', '#fbbf24', '#f472b6']
 const VENDOR = resultColumn({ index: 0, field: 'deal.vendor', label: 'Vendor', type: 'code', valueType: 'text', format: null, group: true })
 const STATUS = resultColumn({ index: 1, field: 'deal.status', label: 'Status', type: 'code', valueType: 'text', format: null, group: true })
 const amount = (index: number, aggregate: 'sum' | 'avg' | 'count' = 'sum') =>
-  resultColumn({ index, field: 'deal.amount', label: '금액 합계', type: 'number', valueType: 'integer', format: null, unit: 'krw_thousand', aggregate })
+  resultColumn({ index, field: 'deal.amount', label: '금액 합계', type: 'number', valueType: 'integer', format: null, unit: 'krw', aggregate })
 const users = (index: number) =>
   resultColumn({ index, field: 'deal.users', label: 'Users count', type: 'number', valueType: 'integer', format: null, unit: null, aggregate: 'sum' })
 
@@ -145,9 +145,9 @@ describe('buildChart: kind to Chart.js type and options (AC14)', () => {
 
     expect(b.type).toBe('scatter')
     expect(dataOf(b)).toEqual([
-      { x: 3000, y: 30 },
-      { x: 1500, y: 10 },
-      { x: 500, y: 5 },
+      { x: 3_000_000, y: 30 },
+      { x: 1_500_000, y: 10 },
+      { x: 500_000, y: 5 },
     ])
     expect(b.data.labels).toEqual(['Silverfort', 'Okta', '(없음)'])
   })
@@ -185,7 +185,7 @@ describe('buildChart: categories, series and values', () => {
 
     expect(b.data.labels).toEqual(['Silverfort', 'Okta', '(없음)'])
     expect(b.data.datasets).toHaveLength(1)
-    expect(dataOf(b)).toEqual([3000, 1500, 500])
+    expect(dataOf(b)).toEqual([3_000_000, 1_500_000, 500_000])
   })
 
   it('makes one dataset per value column named by the column header', () => {
@@ -200,15 +200,15 @@ describe('buildChart: categories, series and values', () => {
 
     expect(b.data.labels).toEqual(['Silverfort', 'Okta'])
     expect(b.data.datasets.map((d) => d.label)).toEqual(['Won', 'Open'])
-    expect(dataOf(b, 0)).toEqual([3000, 0])
-    expect(dataOf(b, 1)).toEqual([1000, 2000])
+    expect(dataOf(b, 0)).toEqual([3_000_000, 0])
+    expect(dataOf(b, 1)).toEqual([1_000_000, 2_000_000])
   })
 
   it('leaves missing cells as null for line and area so the line breaks', () => {
     for (const kind of ['line', 'area'] as const) {
       const b = build(chart({ kind, series: 1, values: [2] }), TWO)
 
-      expect(dataOf(b, 0)).toEqual([3000, null])
+      expect(dataOf(b, 0)).toEqual([3_000_000, null])
     }
   })
 
@@ -217,8 +217,8 @@ describe('buildChart: categories, series and values', () => {
 
     expect(b.data.labels).toEqual(['Won', 'Open'])
     expect(b.data.datasets.map((d) => d.label)).toEqual(['Silverfort', 'Okta'])
-    expect(dataOf(b, 0)).toEqual([3000, 1000])
-    expect(dataOf(b, 1)).toEqual([0, 2000])
+    expect(dataOf(b, 0)).toEqual([3_000_000, 1_000_000])
+    expect(dataOf(b, 1)).toEqual([0, 2_000_000])
   })
 
   it('names an empty category value (none)', () => {
@@ -258,7 +258,7 @@ describe('buildChart: 100 percent stacks', () => {
     const label = formatter(75, { dataIndex: 0, datasetIndex: 0, dataset })
 
     expect(tip).toContain('75')
-    expect(tip).toContain('3,000')
+    expect(tip).toContain('3,000,000')
     expect(label).toMatch(/^75(\.0)?%$/)
   })
 })
@@ -288,15 +288,15 @@ describe('buildChart: title, legend, labels, axes and range', () => {
 
     expect(get(on.options, 'plugins', 'datalabels', 'display')).toBe(true)
     expect(get(off.options, 'plugins', 'datalabels', 'display')).toBe(false)
-    expect(formatter(3000, { dataIndex: 0, datasetIndex: 0, dataset: on.data.datasets[0] })).toBe('3,000')
+    expect(formatter(3_000_000, { dataIndex: 0, datasetIndex: 0, dataset: on.data.datasets[0] })).toBe('3,000,000')
   })
 
   it('titles the category axis on x and the value axis on y for vertical charts, none when empty', () => {
-    const titled = build(chart({ categoryAxisTitle: 'Vendor', valueAxisTitle: '금액 (천원)' }), ONE)
+    const titled = build(chart({ categoryAxisTitle: 'Vendor', valueAxisTitle: '금액 (원)' }), ONE)
     const blank = build(chart(), ONE)
 
     expect(get(titled.options, 'scales', 'x', 'title')).toMatchObject({ display: true, text: 'Vendor' })
-    expect(get(titled.options, 'scales', 'y', 'title')).toMatchObject({ display: true, text: '금액 (천원)' })
+    expect(get(titled.options, 'scales', 'y', 'title')).toMatchObject({ display: true, text: '금액 (원)' })
     expect(get(blank.options, 'scales', 'x', 'title', 'display')).toBeFalsy()
     expect(get(blank.options, 'scales', 'y', 'title', 'display')).toBeFalsy()
   })
@@ -336,11 +336,12 @@ describe('buildChart: title, legend, labels, axes and range', () => {
 })
 
 describe('buildChart: units (AC15)', () => {
-  it('divides amount-unit values by 1,000 (AC-6)', () => {
-    expect(dataOf(build(chart(), ONE))).toEqual([3000, 1500, 500])
+  it('keeps amount-unit values in won without dividing (AC-7)', () => {
+    expect(dataOf(build(chart(), ONE))).toEqual([3_000_000, 1_500_000, 500_000])
+    expect(dataOf(build(chart({ kind: 'scatter', values: [1, 2] }), ONE))[0]).toEqual({ x: 3_000_000, y: 30 })
   })
 
-  it('does not divide an amount column that is only counted', () => {
+  it('does not change an amount column that is only counted', () => {
     const counted = resultOf({ columns: [VENDOR, amount(1, 'count')], rows: [['Silverfort', 7], ['Okta', 3]] })
 
     expect(dataOf(build(chart(), counted))).toEqual([7, 3])
@@ -350,14 +351,22 @@ describe('buildChart: units (AC15)', () => {
     expect(dataOf(build(chart({ values: [2] }), ONE))).toEqual([30, 10, 5])
   })
 
-  it('writes the amount tooltip in rounded thousand won', () => {
+  it('writes the amount tooltip in whole won with commas', () => {
     const odd = resultOf({ columns: [VENDOR, amount(1)], rows: [['Silverfort', 123_456_789]] })
     const b = build(chart(), odd)
     const tooltip = get(b.options, 'plugins', 'tooltip', 'callbacks', 'label') as (c: unknown) => string
 
-    const tip = tooltip({ dataset: b.data.datasets[0], datasetIndex: 0, dataIndex: 0, raw: 123_456.789, parsed: { x: 0, y: 123_456.789 }, label: 'Silverfort' })
+    const tip = tooltip({ dataset: b.data.datasets[0], datasetIndex: 0, dataIndex: 0, raw: 123_456_789, parsed: { x: 0, y: 123_456_789 }, label: 'Silverfort' })
 
-    expect(tip).toContain('123,457')
+    expect(tip).toContain('123,456,789')
+  })
+
+  it('writes the amount data label in whole won with commas', () => {
+    const odd = resultOf({ columns: [VENDOR, amount(1)], rows: [['Silverfort', 123_456_789]] })
+    const b = build(chart({ dataLabels: true }), odd)
+    const formatter = get(b.options, 'plugins', 'datalabels', 'formatter') as (v: unknown, c: unknown) => string
+
+    expect(formatter(123_456_789, { dataIndex: 0, datasetIndex: 0, dataset: b.data.datasets[0] })).toBe('123,456,789')
   })
 
   it('writes the Users count tooltip as a rounded whole number (AC-7)', () => {
@@ -378,7 +387,7 @@ describe('buildChart: units (AC15)', () => {
     const b = build(chart(), ONE)
     const tooltip = get(b.options, 'plugins', 'tooltip', 'callbacks', 'label') as (c: unknown) => string
 
-    const tip = tooltip({ dataset: b.data.datasets[0], datasetIndex: 0, dataIndex: 0, raw: 3000, parsed: { x: 0, y: 3000 }, label: 'Silverfort' })
+    const tip = tooltip({ dataset: b.data.datasets[0], datasetIndex: 0, dataIndex: 0, raw: 3_000_000, parsed: { x: 0, y: 3_000_000 }, label: 'Silverfort' })
 
     expect(tip).toContain(formatCell(3_000_000, amount(1), CTX))
   })
@@ -439,7 +448,7 @@ describe('buildChart: prefix length cuts axis and legend only (AC18, AC20)', () 
     const b = build(chart({ category: 0, values: [2] }), resultOf({ columns: [cut(VENDOR, 3), STATUS, amount(2)], rows: NAMES.rows }))
 
     expect(b.data.labels).toEqual(['Alp…', 'Alp…'])
-    expect(dataOf(b)).toEqual([3000, 2000])
+    expect(dataOf(b)).toEqual([3_000_000, 2_000_000])
   })
 
   it('cuts the legend names of a series column', () => {
@@ -464,7 +473,7 @@ describe('buildChart: prefix length cuts axis and legend only (AC18, AC20)', () 
   it('shows the whole series name before the value in the tooltip', () => {
     const b = build(chart({ kind: 'stacked_bar', series: 1, values: [2] }), NAMES)
 
-    const label = tip(b, 'label')({ dataset: b.data.datasets[1], datasetIndex: 1, dataIndex: 1, raw: 1000, parsed: { x: 0, y: 1000 }, label: 'Alp…' })
+    const label = tip(b, 'label')({ dataset: b.data.datasets[1], datasetIndex: 1, dataIndex: 1, raw: 1_000_000, parsed: { x: 0, y: 1_000_000 }, label: 'Alp…' })
 
     expect(label).toBe(`Open: ${formatCell(1_000_000, amount(2), CTX)}`)
   })
@@ -472,7 +481,7 @@ describe('buildChart: prefix length cuts axis and legend only (AC18, AC20)', () 
   it('shows the whole category name before the value in a pie tooltip', () => {
     const b = build(chart({ kind: 'pie', values: [2] }), resultOf({ columns: [cut(VENDOR, 2), STATUS, amount(2)], rows: [['Alpha-1', 'Won', 3_000_000], ['Beta-1', 'Open', 1_000_000]] }))
 
-    const label = tip(b, 'label')({ dataset: b.data.datasets[0], datasetIndex: 0, dataIndex: 0, raw: 3000, parsed: 3000, label: 'Al…' })
+    const label = tip(b, 'label')({ dataset: b.data.datasets[0], datasetIndex: 0, dataIndex: 0, raw: 3_000_000, parsed: 3_000_000, label: 'Al…' })
 
     expect(String(label).startsWith('Alpha-1: ')).toBe(true)
   })
@@ -483,33 +492,104 @@ describe('buildChart: prefix length cuts axis and legend only (AC18, AC20)', () 
     expect(b.data.labels).toEqual(['Wo…', 'Op…'])
     expect(b.data.datasets.map((d) => d.label)).toEqual(['Alp…', 'Alp…'])
     expect(text(tip(b, 'title')([{ datasetIndex: 0, dataIndex: 1, label: 'Op…' }]))).toBe('Open')
-    expect(String(tip(b, 'label')({ dataset: b.data.datasets[1], datasetIndex: 1, dataIndex: 0, raw: 2000, parsed: { x: 0, y: 2000 }, label: 'Wo…' }))).toMatch(/^Alpha-2: /)
+    expect(String(tip(b, 'label')({ dataset: b.data.datasets[1], datasetIndex: 1, dataIndex: 0, raw: 2_000_000, parsed: { x: 0, y: 2_000_000 }, label: 'Wo…' }))).toMatch(/^Alpha-2: /)
   })
 
   it('keeps the whole value in the data label and the tooltip when a value column has a prefix length', () => {
     const b = build(chart({ values: [1], dataLabels: true }), resultOf({ columns: [VENDOR, cut(amount(1), 2)], rows: [['Silverfort', 3_000_000]] }))
     const formatter = get(b.options, 'plugins', 'datalabels', 'formatter') as (v: unknown, c: unknown) => string
 
-    const shown = formatter(3000, { dataIndex: 0, datasetIndex: 0, dataset: b.data.datasets[0] })
-    const label = tip(b, 'label')({ dataset: b.data.datasets[0], datasetIndex: 0, dataIndex: 0, raw: 3000, parsed: { x: 0, y: 3000 }, label: 'Silverfort' })
+    const shown = formatter(3_000_000, { dataIndex: 0, datasetIndex: 0, dataset: b.data.datasets[0] })
+    const label = tip(b, 'label')({ dataset: b.data.datasets[0], datasetIndex: 0, dataIndex: 0, raw: 3_000_000, parsed: { x: 0, y: 3_000_000 }, label: 'Silverfort' })
 
-    expect(shown).toBe('3,000')
-    expect(String(label).endsWith('3,000')).toBe(true)
+    expect(shown).toBe('3,000,000')
+    expect(String(label).endsWith('3,000,000')).toBe(true)
   })
 
   it('keeps the whole data label of a cut category', () => {
     const b = build(chart({ category: 0, values: [2], dataLabels: true }), resultOf({ columns: [cut(VENDOR, 3), STATUS, amount(2)], rows: NAMES.rows }))
     const formatter = get(b.options, 'plugins', 'datalabels', 'formatter') as (v: unknown, c: unknown) => string
 
-    expect(formatter(3000, { dataIndex: 0, datasetIndex: 0, dataset: b.data.datasets[0] })).toBe('3,000')
+    expect(formatter(3_000_000, { dataIndex: 0, datasetIndex: 0, dataset: b.data.datasets[0] })).toBe('3,000,000')
   })
 
   it('names a scatter point by its whole category in the tooltip', () => {
     const b = build(chart({ kind: 'scatter', values: [1, 2] }), resultOf({ columns: [cut(VENDOR, 2), amount(1), users(2)], rows: [['Alpha-1', 3_000_000, 30]] }))
 
-    const label = tip(b, 'label')({ dataset: b.data.datasets[0], datasetIndex: 0, dataIndex: 0, raw: { x: 3000, y: 30 }, parsed: { x: 3000, y: 30 }, label: 'Alpha-1' })
+    const label = tip(b, 'label')({ dataset: b.data.datasets[0], datasetIndex: 0, dataIndex: 0, raw: { x: 3_000_000, y: 30 }, parsed: { x: 3_000_000, y: 30 }, label: 'Alpha-1' })
 
     expect(String(label).startsWith('Alpha-1: (')).toBe(true)
     expect(b.data.labels).toEqual(['Alpha-1'])
+  })
+})
+
+describe('buildChart: value axis ticks shortened for won (AC-7)', () => {
+  const tickOf = (b: Built, axis: string): ((v: number) => string) | undefined =>
+    get(b.options, 'scales', axis, 'ticks', 'callback') as ((v: number) => string) | undefined
+  const MIXED = resultOf({ columns: [VENDOR, amount(1), users(2)], rows: [['Silverfort', 1_870_000_000, 30]] })
+
+  it('shortens the ticks of a vertical bar chart whose only value is an amount', () => {
+    const b = build(chart(), ONE)
+
+    expect(tickOf(b, 'y')?.(1_870_000_000)).toBe('18.7억')
+    expect(tickOf(b, 'y')?.(50_000_000)).toBe('5,000만')
+    expect(tickOf(b, 'y')?.(9_000)).toBe('9,000')
+  })
+
+  it('puts the shortened ticks on x for a horizontal bar chart', () => {
+    const b = build(chart({ kind: 'horizontal_bar' }), ONE)
+
+    expect(tickOf(b, 'x')?.(100_000_000)).toBe('1억')
+    expect(tickOf(b, 'y')).toBeUndefined()
+  })
+
+  it.each(['stacked_bar', 'line', 'area'] as const)('shortens the ticks of %s', (kind) => {
+    expect(tickOf(build(chart({ kind }), ONE), 'y')?.(1_870_000_000)).toBe('18.7억')
+  })
+
+  it('leaves the ticks alone when an amount shares the axis with another value', () => {
+    expect(tickOf(build(chart({ values: [1, 2] }), MIXED), 'y')).toBeUndefined()
+  })
+
+  it('leaves the ticks alone for a value column without a unit', () => {
+    expect(tickOf(build(chart({ values: [2] }), ONE), 'y')).toBeUndefined()
+  })
+
+  it('leaves the ticks alone for an amount that is only counted', () => {
+    const counted = resultOf({ columns: [VENDOR, amount(1, 'count')], rows: [['Silverfort', 7]] })
+
+    expect(tickOf(build(chart(), counted), 'y')).toBeUndefined()
+  })
+
+  it('keeps percent ticks on a 100 percent stack', () => {
+    const b = build(chart({ kind: 'stacked_100_bar', series: 1, values: [2] }), TWO)
+
+    expect(tickOf(b, 'y')?.(50)).toBe('50%')
+  })
+
+  it('shortens only the secondary axis when a combo has one amount line', () => {
+    const lineAmount = resultOf({ columns: [VENDOR, users(1), amount(2)], rows: [['Silverfort', 30, 1_870_000_000]] })
+    const b = build(chart({ kind: 'combo', values: [1, 2], secondaryAxis: true }), lineAmount)
+
+    expect(tickOf(b, 'y')).toBeUndefined()
+    expect(tickOf(b, 'y1')?.(1_870_000_000)).toBe('18.7억')
+  })
+
+  it('shortens the primary axis when a combo bar is an amount and the lines are not', () => {
+    const b = build(chart({ kind: 'combo', values: [1, 2], secondaryAxis: true }), ONE)
+
+    expect(tickOf(b, 'y')?.(1_870_000_000)).toBe('18.7억')
+    expect(tickOf(b, 'y1')).toBeUndefined()
+  })
+
+  it('judges the x and y axes of a scatter chart separately', () => {
+    const b = build(chart({ kind: 'scatter', values: [1, 2] }), ONE)
+
+    expect(tickOf(b, 'x')?.(1_870_000_000)).toBe('18.7억')
+    expect(tickOf(b, 'y')).toBeUndefined()
+  })
+
+  it('has no axes for a pie chart', () => {
+    expect(build(chart({ kind: 'pie' }), ONE).options.scales).toBeUndefined()
   })
 })

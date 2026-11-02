@@ -1,3 +1,4 @@
+import { AmountInput } from '../../../shared/ui/AmountInput'
 import { DateInput } from '../../../shared/ui/DateInput'
 import type { ReportCatalog, ReportField } from '../../../shared/model/reportTypes'
 import { ChoiceValueInput } from './ChoiceValueInput'
@@ -20,9 +21,10 @@ function dateProps(messages: readonly Message[], parts: readonly string[]): { in
   return { invalid: attrs['aria-invalid'], 'aria-describedby': attrs['aria-describedby'] }
 }
 
-/** 조건 값 입력. 연산자 모양(draft.shape)에 맞는 칸을 보인다. 금액은 천원 단위로 입력받는다. */
+/** 조건 값 입력. 연산자 모양(draft.shape)에 맞는 칸을 보인다. 금액 칸은 원 단위 자동 콤마 입력이다. */
 export function ConditionValueInput({ n, draft, field, catalog, messages, onChange }: ConditionValueInputProps) {
-  const unit = isMoneyField(field) ? <span className="field-hint">(천원)</span> : null
+  const money = isMoneyField(field)
+  const unit = money ? <span className="field-hint">(원)</span> : null
   const name = `조건 ${n}`
   switch (draft.shape) {
     case 'none':
@@ -34,16 +36,28 @@ export function ConditionValueInput({ n, draft, field, catalog, messages, onChan
     case 'number':
       return (
         <>
-          <input type="text" inputMode="numeric" aria-label={`${name} 값`} value={draft.text} onChange={(e) => onChange({ shape: 'number', text: e.target.value })} {...describe(messages, ['value'])} />
+          {money ? (
+            <AmountInput aria-label={`${name} 값`} value={draft.text} onChange={(text) => onChange({ shape: 'number', text })} {...describe(messages, ['value'])} />
+          ) : (
+            <input type="text" inputMode="numeric" aria-label={`${name} 값`} value={draft.text} onChange={(e) => onChange({ shape: 'number', text: e.target.value })} {...describe(messages, ['value'])} />
+          )}
           {unit}
         </>
       )
     case 'range':
       return (
         <>
-          <input type="text" inputMode="numeric" aria-label={`${name} 시작`} value={draft.low} onChange={(e) => onChange({ ...draft, low: e.target.value })} {...describe(messages, ['low', 'value'])} />
+          {money ? (
+            <AmountInput aria-label={`${name} 시작`} value={draft.low} onChange={(low) => onChange({ ...draft, low })} {...describe(messages, ['low', 'value'])} />
+          ) : (
+            <input type="text" inputMode="numeric" aria-label={`${name} 시작`} value={draft.low} onChange={(e) => onChange({ ...draft, low: e.target.value })} {...describe(messages, ['low', 'value'])} />
+          )}
           <span aria-hidden="true">~</span>
-          <input type="text" inputMode="numeric" aria-label={`${name} 끝`} value={draft.high} onChange={(e) => onChange({ ...draft, high: e.target.value })} {...describe(messages, ['high'])} />
+          {money ? (
+            <AmountInput aria-label={`${name} 끝`} value={draft.high} onChange={(high) => onChange({ ...draft, high })} {...describe(messages, ['high'])} />
+          ) : (
+            <input type="text" inputMode="numeric" aria-label={`${name} 끝`} value={draft.high} onChange={(e) => onChange({ ...draft, high: e.target.value })} {...describe(messages, ['high'])} />
+          )}
           {unit}
         </>
       )

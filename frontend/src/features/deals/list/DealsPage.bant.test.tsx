@@ -11,7 +11,7 @@ describe('목록 헤더 정렬', () => {
     await renderAt(ALL_DEALS)
     await rowOf(/한빛은행 ITDR 도입/)
 
-    for (const name of ['Deal', 'Status', '금액(단위:천원)', 'Expected Close', '최종 업데이트']) {
+    for (const name of ['Deal', 'Status', '금액(단위:원)', 'Expected Close', '최종 업데이트']) {
       expect(within(screen.getByRole('columnheader', { name })).getByRole('button')).toBeVisible()
     }
   })

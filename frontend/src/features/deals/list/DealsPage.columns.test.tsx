@@ -19,7 +19,7 @@ const HEADERS = [
   'Vendor',
   'Status',
   'Forecast',
-  '금액(단위:천원)',
+  '금액(단위:원)',
   'Expected Close',
   'Next Action',
   'Due',

@@ -1,9 +1,9 @@
 import type { ChartData, ChartOptions } from 'chart.js'
 import { Bar } from 'react-chartjs-2'
 import { useNavigate } from 'react-router'
-import { AMOUNT_LABEL, formatThousandWon } from '../../shared/model/money'
+import { AMOUNT_LABEL, formatWon } from '../../shared/model/money'
 import type { DashboardQuarter, ForecastColumn } from '../../shared/model/types'
-import { chartTheme, pointerOnBar, SERIES_COLORS, thousandTick } from './chartSetup'
+import { chartTheme, pointerOnBar, SERIES_COLORS, wonTick } from './chartSetup'
 import { useDrillEnabled } from './DrillLink'
 import { quarterCellPath, type DashboardScope } from './drillDown'
 
@@ -45,16 +45,16 @@ export function QuarterChart({ columns, quarters, scope }: Props) {
     onHover: pointerOnBar,
     plugins: {
       legend: { position: 'bottom', labels: { color: theme.text } },
-      tooltip: { callbacks: { label: (context) => `${context.dataset.label ?? ''}: ${formatThousandWon(context.parsed.y ?? 0)}` } },
+      tooltip: { callbacks: { label: (context) => `${context.dataset.label ?? ''}: ${formatWon(context.parsed.y ?? 0)}` } },
     },
     scales: {
       x: { stacked: true, ticks: { color: theme.text }, grid: { display: false } },
-      y: { stacked: true, beginAtZero: true, ticks: { color: theme.text, callback: thousandTick }, grid: { color: theme.grid }, title: { display: true, text: AMOUNT_LABEL, color: theme.text } },
+      y: { stacked: true, beginAtZero: true, ticks: { color: theme.text, callback: wonTick }, grid: { color: theme.grid }, title: { display: true, text: AMOUNT_LABEL, color: theme.text } },
     },
   }
   return (
     <div className="db-chart">
-      <Bar data={data} options={options} role="img" aria-label="분기별 Forecast 구분 금액(단위:천원) 누적 막대 차트. 같은 값이 아래 표에 있습니다." />
+      <Bar data={data} options={options} role="img" aria-label="분기별 Forecast 구분 금액(단위:원) 누적 막대 차트. 같은 값이 아래 표에 있습니다." />
     </div>
   )
 }

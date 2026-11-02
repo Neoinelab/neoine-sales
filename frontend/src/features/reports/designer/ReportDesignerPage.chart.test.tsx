@@ -159,7 +159,7 @@ describe('차트 만들기와 종류 (AC12, AC13)', () => {
     expect(lastChart().type).toBe('bar')
     expect(chartLabels()).toEqual(['Silverfort', 'Okta', '(없음)'])
     expect(chartDatasets()).toHaveLength(1)
-    expect(chartDatasets()[0]?.data).toEqual([3000, 1500, 500])
+    expect(chartDatasets()[0]?.data).toEqual([3_000_000, 1_500_000, 500_000])
     expectPressed('세로 막대')
     expect(screen.getByRole('button', { name: '차트 삭제' })).toBeVisible()
     expect(screen.queryByRole('button', { name: '차트 만들기' })).not.toBeInTheDocument()
@@ -425,7 +425,7 @@ describe('숫자 단위 (AC15)', () => {
 
     await createChart(user)
 
-    expect(chartDatasets()[0]?.data).toEqual([3000, 1500, 500])
+    expect(chartDatasets()[0]?.data).toEqual([3_000_000, 1_500_000, 500_000])
   })
 })
 

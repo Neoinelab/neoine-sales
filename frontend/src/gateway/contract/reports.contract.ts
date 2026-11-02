@@ -44,7 +44,7 @@ export function reportsContract(make: MakeGateway): void {
         } else {
           expect(field.formats, field.key).toContain(field.defaultFormat)
         }
-        expect(field.unit, field.key).toBe(field.key === 'deal.amount' ? 'krw_thousand' : null)
+        expect(field.unit, field.key).toBe(field.key === 'deal.amount' ? 'krw' : null)
         if (field.defaultAggregate !== null && field.aggregates.length > 0) {
           expect(field.aggregates, field.key).toContain(field.defaultAggregate)
         }
@@ -113,7 +113,7 @@ export function reportsContract(make: MakeGateway): void {
       for (const row of result.rows) expect(row).toHaveLength(2)
       expect(result.columns.map((c) => c.group)).toEqual([true, false])
       expect(result.columns[1]?.aggregate).toBe('sum')
-      expect(result.columns.map((c) => [c.format, c.unit])).toEqual([[null, null], [null, 'krw_thousand']])
+      expect(result.columns.map((c) => [c.format, c.unit])).toEqual([[null, null], [null, 'krw']])
     })
 
     it('uses Action rows when an Action column is chosen', async () => {

@@ -31,6 +31,7 @@ describe('Dashboard 배치', () => {
     const hint = await screen.findByText(/기간은 Expected Close 기준/)
     expect(follows(tablist, hint)).toBe(true)
     expect(within(screen.getByRole('tabpanel')).getByText(/기간은 Expected Close 기준/)).toBeVisible()
+    expect(hint).toHaveTextContent(/^기간은 Expected Close 기준이며 금액 단위는 원입니다\. 기준일 \d{4}-\d{2}-\d{2}$/)
   })
 
   it.each(['Status', 'Forecast'])('shows a decorative icon left of the %s tab label', async (name) => {

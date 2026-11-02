@@ -5,7 +5,7 @@ import { renderAt } from '../../../test/mockApp'
 import { ALL_DEALS, dataRows, rowOf } from './testHelpers'
 
 /** 정렬 버튼이 있는 10개 머리글(Next Action·Due·Next Action 상태 제외). */
-const SORTABLE = ['Deal', '담당자', '고객사', '파트너사', 'Vendor', 'Status', 'Forecast', '금액(단위:천원)', 'Expected Close', '최종 업데이트']
+const SORTABLE = ['Deal', '담당자', '고객사', '파트너사', 'Vendor', 'Status', 'Forecast', '금액(단위:원)', 'Expected Close', '최종 업데이트']
 const NOT_SORTABLE = ['Next Action', 'Due', 'Next Action 상태']
 
 /** 새로 정렬할 수 있게 된 5개 열: 머리글, URL sort 값. */
@@ -72,9 +72,9 @@ describe('목록 머리글 정렬 토글 (AC-2)', () => {
     const { user, location } = await renderAt('/deals?year=all&sort=owner&order=desc')
     await rowOf(/한빛은행 ITDR 도입/)
 
-    await user.click(screen.getByRole('button', { name: '금액(단위:천원)' }))
+    await user.click(screen.getByRole('button', { name: '금액(단위:원)' }))
 
-    await waitFor(() => expect(screen.getByRole('columnheader', { name: '금액(단위:천원)' })).toHaveAttribute('aria-sort', 'descending'))
+    await waitFor(() => expect(screen.getByRole('columnheader', { name: '금액(단위:원)' })).toHaveAttribute('aria-sort', 'descending'))
     expect(screen.getByRole('columnheader', { name: '담당자' })).not.toHaveAttribute('aria-sort')
     expect(location()).toBe('/deals?year=all&sort=revenueAmount&order=desc')
   })

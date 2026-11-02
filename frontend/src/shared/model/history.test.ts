@@ -38,12 +38,20 @@ describe('diffDeal', () => {
     const by = (c: string) => drafts.filter((d) => d.category === c)
     expect(by('status')).toEqual([{ category: 'status', target: 'Status', before: '가격협상', after: '계약완료' }])
     expect(by('forecast')[0]).toMatchObject({ before: 'Commit', after: 'Won' })
-    expect(by('amount')[0]).toMatchObject({ target: '금액(단위:천원)', before: '1', after: '2' })
+    expect(by('amount')[0]).toMatchObject({ target: '금액(단위:원)', before: '1,000', after: '2,000' })
     expect(by('expectedClose')[0]).toMatchObject({ before: '2026-12-01', after: '2026-10-20' })
     expect(by('owner')[0]).toMatchObject({ before: '김영업', after: '박영업' })
     expect(by('other')[0]).toMatchObject({ target: 'Deal Name', before: 'A', after: 'B' })
     expect(by('bant')[0]).toMatchObject({ before: '선택 안 함', after: 'L:1' })
     expect(drafts).toHaveLength(7)
+  })
+
+  it('금액은 반올림 없이 원 콤마 숫자로 기록한다', () => {
+    const drafts = diffDeal(deal({ revenueAmount: 150_000_000 }), deal({ revenueAmount: 1_870_000_000 }), lookup)
+    expect(drafts).toEqual([{ category: 'amount', target: '금액(단위:원)', before: '150,000,000', after: '1,870,000,000' }])
+    expect(diffDeal(deal({ revenueAmount: 1_000 }), deal({ revenueAmount: 1_400 }), lookup)).toEqual([
+      { category: 'amount', target: '금액(단위:원)', before: '1,000', after: '1,400' },
+    ])
   })
 
   it('활성 파트너 교체는 partner 1건, 제거는 없음으로 표기한다', () => {

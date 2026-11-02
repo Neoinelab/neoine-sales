@@ -19,7 +19,7 @@ interface TileProps {
   tone?: 'ok' | 'total'
 }
 
-/** 건수와 금액(천원) 타일. 타일 전체가 Deal 목록으로 가는 링크다. */
+/** 건수와 금액(원) 타일. 타일 전체가 Deal 목록으로 가는 링크다. */
 export function AmountTile({ to, title, cell, tone }: TileProps) {
   return (
     <DrillLink to={to} className={tone ? `db-tile db-tile-${tone}` : 'db-tile'}>
@@ -49,7 +49,7 @@ export function ForecastTiles({ summary, scope }: Props) {
   const zero = { count: 0, amount: 0 }
   const sets = forecastSetsOf(columns)
   return (
-    <section className="db-tiles" aria-label="Forecast 구분별 금액(단위:천원)">
+    <section className="db-tiles" aria-label="Forecast 구분별 금액(단위:원)">
       {columns
         .filter((c) => c.outcome === 'open')
         .map((c) => (

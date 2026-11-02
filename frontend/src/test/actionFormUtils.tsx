@@ -46,8 +46,8 @@ export function forecastSelect(form: HTMLElement) {
 /** 매출 확정 대화상자를 채우고 확정한다. */
 export async function confirmRevenue(user: User) {
   const dialog = await screen.findByRole('dialog', { name: '매출 확정' })
-  await user.clear(within(dialog).getByLabelText('매출금액(단위:천원, 실제 값)'))
-  await user.type(within(dialog).getByLabelText('매출금액(단위:천원, 실제 값)'), '1850000')
+  await user.clear(within(dialog).getByLabelText('매출금액(단위:원, 실제 값)'))
+  await user.type(within(dialog).getByLabelText('매출금액(단위:원, 실제 값)'), '1850000000')
   await user.clear(within(dialog).getByLabelText('매출일(실제 값)'))
   await user.type(within(dialog).getByLabelText('매출일(실제 값)'), '2026-11-20')
   await user.click(within(dialog).getByRole('button', { name: '확정' }))

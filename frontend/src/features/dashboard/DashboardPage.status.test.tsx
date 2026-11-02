@@ -1,6 +1,6 @@
 import { screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { formatThousandWon } from '../../shared/model/money'
+import { formatWon } from '../../shared/model/money'
 import { resetMock } from '../../test/fake/default'
 import { USER_ID } from '../../test/fake/seed/ids'
 import { dashboardSummaryFixture } from '../../test/fixtures/dashboardSummary'
@@ -16,7 +16,7 @@ afterEach(() => {
   resetMock({ now: null })
 })
 
-const won = (n: number) => formatThousandWon(n)
+const won = (n: number) => formatWon(n)
 
 describe('Forecast 타일 (AC-12)', () => {
   it.each([
@@ -200,10 +200,10 @@ describe('Status 표 (AC-13)', () => {
     expect(headers[0]).toBe('Status')
     expect(headers[1]).toBe('건수')
     expect(headers[2]).toContain('금액')
-    expect(headers[2]).toContain('천원')
+    expect(headers[2]).toBe('금액(단위:원)')
   })
 
-  it.each(ITEMS)('shows %s with %i deals and the amount in thousand won', async (name, count, amount, key) => {
+  it.each(ITEMS)('shows %s with %i deals and the amount in won', async (name, count, amount, key) => {
     mockSummary(dashboardSummaryFixture())
     await renderAt('/dashboard?year=2026')
     await screen.findByRole('table')

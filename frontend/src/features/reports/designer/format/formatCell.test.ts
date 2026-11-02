@@ -1,29 +1,30 @@
 import { describe, expect, it } from 'vitest'
 import { resultColumn } from '../../../../test/reportDesigner'
-import { cellTitle, columnHeader, formatCell, formatShownCell, isThousandWonColumn, truncateLabel } from './formatCell'
+import { cellTitle, columnHeader, formatCell, formatShownCell, isWonColumn, truncateLabel } from './formatCell'
 
 const CTX = { now: '2026-10-27T09:00:00+09:00', today: '2026-10-27' }
 
-/** 금액 열: 서버가 unit 'krw_thousand'를 준다(format은 항상 null). */
+/** 금액 열: 서버가 unit 'krw'를 준다(format은 항상 null). */
 const amount = (over: object = {}) =>
-  resultColumn({ field: 'deal.amount', type: 'number', valueType: 'integer', format: null, unit: 'krw_thousand', aggregate: 'sum', ...over })
+  resultColumn({ field: 'deal.amount', type: 'number', valueType: 'integer', format: null, unit: 'krw', aggregate: 'sum', ...over })
 
 /** 금액이 아닌 숫자 열(Users count 등): unit 없음. */
 const plain = (over: object = {}) =>
   resultColumn({ field: 'deal.users', type: 'number', valueType: 'integer', format: null, unit: null, aggregate: 'sum', ...over })
 
-describe('formatCell amount in thousand won (AC-6)', () => {
+describe('formatCell amount in won (AC-7)', () => {
   it.each([
-    ['sum', 123_456_789, 'integer', '123,457'],
-    ['sum', 1_234_499, 'integer', '1,234'],
-    ['sum', 1_234_500, 'integer', '1,235'],
-    ['avg', 1499.5, 'decimal', '2'],
-    ['avg', 1234.4, 'decimal', '1'],
-    ['min', 500, 'integer', '1'],
-    ['max', 499, 'integer', '0'],
+    ['sum', 123_456_789, 'integer', '123,456,789'],
+    ['sum', 1_234_499, 'integer', '1,234,499'],
+    ['sum', 1_234_500, 'integer', '1,234,500'],
+    ['avg', 1_234_567.6, 'decimal', '1,234,568'],
+    ['avg', 1499.5, 'decimal', '1,500'],
+    ['avg', 1234.4, 'decimal', '1,234'],
+    ['min', 500, 'integer', '500'],
+    ['max', 499, 'integer', '499'],
     ['sum', 0, 'integer', '0'],
-    ['sum', 3_456_000_000, 'integer', '3,456,000'],
-  ] as const)('rounds %s %s won to thousand won: %s', (aggregate, value, valueType, expected) => {
+    ['sum', 3_456_000_000, 'integer', '3,456,000,000'],
+  ] as const)('shows %s %s won as whole won with separators: %s', (aggregate, value, valueType, expected) => {
     expect(formatCell(value, amount({ aggregate, valueType }), CTX)).toBe(expected)
   })
 
@@ -31,8 +32,8 @@ describe('formatCell amount in thousand won (AC-6)', () => {
     expect(formatCell(1_234_567, amount({ aggregate: 'count' }), CTX)).toBe('1,234,567')
   })
 
-  it('shows the amount column of a plain row (no aggregate) in thousand won too', () => {
-    expect(formatCell(5_000_000, amount({ aggregate: null }), CTX)).toBe('5,000')
+  it('shows the amount column of a plain row (no aggregate) in won too', () => {
+    expect(formatCell(5_000_000, amount({ aggregate: null }), CTX)).toBe('5,000,000')
   })
 })
 
@@ -54,7 +55,7 @@ describe('formatCell other numbers (AC-7)', () => {
     expect(formatCell(2026, year, CTX)).toBe('2026')
   })
 
-  it('does not divide an amount-unit year bucket either', () => {
+  it('does not separate an amount-unit year bucket either', () => {
     expect(formatCell(2026, amount({ format: 'year', aggregate: null }), CTX)).toBe('2026')
   })
 
@@ -73,13 +74,13 @@ describe('formatCell other numbers (AC-7)', () => {
   })
 })
 
-describe('isThousandWonColumn (AC-6)', () => {
+describe('isWonColumn (AC-7)', () => {
   it('is true only for an amount-unit column that is not a count', () => {
-    expect(isThousandWonColumn(amount())).toBe(true)
-    expect(isThousandWonColumn(amount({ aggregate: null }))).toBe(true)
-    expect(isThousandWonColumn(amount({ aggregate: 'count' }))).toBe(false)
-    expect(isThousandWonColumn(amount({ aggregate: 'count_distinct' }))).toBe(false)
-    expect(isThousandWonColumn(plain())).toBe(false)
+    expect(isWonColumn(amount())).toBe(true)
+    expect(isWonColumn(amount({ aggregate: null }))).toBe(true)
+    expect(isWonColumn(amount({ aggregate: 'count' }))).toBe(false)
+    expect(isWonColumn(amount({ aggregate: 'count_distinct' }))).toBe(false)
+    expect(isWonColumn(plain())).toBe(false)
   })
 })
 
@@ -187,14 +188,15 @@ describe('formatCell dates and times (AC12, AC17)', () => {
   })
 })
 
-describe('columnHeader (AC-6)', () => {
-  it('adds the thousand won unit to the header of an amount column', () => {
-    expect(columnHeader(amount({ label: '금액 합계' }))).toMatch(/^금액 합계\s?\(천원\)$/)
-    expect(columnHeader(amount({ label: '금액 평균', aggregate: 'avg' }))).toMatch(/^금액 평균\s?\(천원\)$/)
+describe('columnHeader (AC-7)', () => {
+  it('adds the won unit to the header of an amount column', () => {
+    expect(columnHeader(amount({ label: '금액 합계' }))).toMatch(/^금액 합계\s?\(원\)$/)
+    expect(columnHeader(amount({ label: '금액 평균', aggregate: 'avg' }))).toMatch(/^금액 평균\s?\(원\)$/)
   })
 
   it('has no unit when the amount column is only counted', () => {
     expect(columnHeader(amount({ label: '건수', aggregate: 'count' }))).toBe('건수')
+    expect(columnHeader(amount({ label: '고유 건수', aggregate: 'count_distinct' }))).toBe('고유 건수')
   })
 
   it('keeps the label of every other column', () => {

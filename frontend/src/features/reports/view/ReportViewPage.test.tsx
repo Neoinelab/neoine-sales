@@ -45,7 +45,7 @@ describe('보기 화면 (AC16, S16)', () => {
     expect(meta).not.toHaveTextContent('수정:')
     const table = await resultReady()
     expect(within(table).getByRole('columnheader', { name: 'Vendor' })).toBeVisible()
-    expect(within(table).getByRole('columnheader', { name: /^금액 합계\s?\(천원\)$/ })).toBeVisible()
+    expect(within(table).getByRole('columnheader', { name: /^금액 합계\s?\(원\)$/ })).toBeVisible()
     expect(screen.getByText('생성 SQL 보기(읽기 전용)')).toBeVisible()
     expect(screen.getByText('SELECT … /* fake */')).toBeInTheDocument()
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument()

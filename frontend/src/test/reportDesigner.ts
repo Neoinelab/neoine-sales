@@ -91,7 +91,7 @@ export function groupedAmountResult(rows: ReportCell[][], totals: ReportCell[] |
   return resultOf({
     columns: [
       resultColumn({ index: 0, field: 'deal.vendor', label: 'Vendor', type: 'code', format: null, group: true }),
-      resultColumn({ index: 1, field: 'deal.amount', label: '금액 합계', type: 'number', valueType: 'integer', format: null, unit: 'krw_thousand', aggregate: 'sum' }),
+      resultColumn({ index: 1, field: 'deal.amount', label: '금액 합계', type: 'number', valueType: 'integer', format: null, unit: 'krw', aggregate: 'sum' }),
     ],
     rows,
     totals,

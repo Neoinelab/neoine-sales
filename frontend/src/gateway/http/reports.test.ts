@@ -38,7 +38,7 @@ function serverCatalog() {
         type: 'number',
         formats: [],
         default_format: null,
-        unit: 'krw_thousand',
+        unit: 'krw',
         operators: ['eq', 'between'],
         aggregates: ['sum', 'avg'],
         default_aggregate: 'sum',
@@ -77,7 +77,7 @@ function serverCatalog() {
 
 const SERVER_COLUMNS = [
   { index: 0, field: 'deal.vendor', label: 'Vendor', entity: 'deal', type: 'code', value_type: 'text', format: null, unit: null, prefix_length: null, group: true, aggregate: null },
-  { index: 1, field: 'deal.amount', label: '금액 합계', entity: 'deal', type: 'number', value_type: 'integer', format: null, unit: 'krw_thousand', prefix_length: null, group: false, aggregate: 'sum' },
+  { index: 1, field: 'deal.amount', label: '금액 합계', entity: 'deal', type: 'number', value_type: 'integer', format: null, unit: 'krw', prefix_length: null, group: false, aggregate: 'sum' },
 ]
 
 function serverResult(over: Record<string, unknown> = {}) {
@@ -157,7 +157,7 @@ describe('reports.fields over HTTP', () => {
       type: 'number',
       formats: [],
       defaultFormat: null,
-      unit: 'krw_thousand',
+      unit: 'krw',
       operators: ['eq', 'between'],
       aggregates: ['sum', 'avg'],
       defaultAggregate: 'sum',
@@ -264,7 +264,7 @@ describe('reports.query over HTTP', () => {
       type: 'number',
       valueType: 'integer',
       format: null,
-      unit: 'krw_thousand',
+      unit: 'krw',
       prefixLength: null,
       group: false,
       aggregate: 'sum',
@@ -276,7 +276,7 @@ describe('reports.query over HTTP', () => {
 
     const result = await createReportsHttp().query(REQUEST)
 
-    expect(result.columns.map((c) => c.unit)).toEqual([null, 'krw_thousand'])
+    expect(result.columns.map((c) => c.unit)).toEqual([null, 'krw'])
   })
 
   it('keeps a null format and the prefix length of a result column', async () => {

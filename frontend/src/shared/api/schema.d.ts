@@ -2436,10 +2436,10 @@ export interface components {
         };
         /**
          * NumberUnit
-         * @description 숫자 값의 표시 단위. 값은 원 단위 그대로 주고 화면이 이 단위로 나눠 보인다.
+         * @description 숫자 값의 단위(krw = 원). 값은 이 단위 그대로 주고 화면도 그대로 보인다.
          * @enum {string}
          */
-        NumberUnit: "krw_thousand";
+        NumberUnit: "krw";
         /**
          * OnExists
          * @description 같은 이름의 파일이 이미 있을 때의 선택.

@@ -4,63 +4,61 @@ import {
   AMOUNT_LABEL,
   AMOUNT_TOO_LARGE_MESSAGE,
   REVENUE_AMOUNT_LABEL,
-  THOUSAND_WON_MAX,
+  WON_MAX,
   amountInputError,
   formatAmountInput,
-  formatThousandWon,
-  isSameShownAmount,
+  formatWon,
+  formatWonAxis,
   isValidAmount,
   parseAmountInput,
-  toThousandWon,
 } from './money'
+import * as money from './money'
 
 // 백엔드 tests/unit/domain/test_krw_format.py와 같은 기준표
 const SHOWN: [number, string][] = [
-  [1_870_000_000, '1,870,000'],
-  [150_000_000, '150,000'],
-  [1_000, '1'],
-  [1_234_567, '1,235'],
-  [1_234_499, '1,234'],
-  [1_500, '2'],
-  [2_500, '3'],
-  [499, '0'],
-  [500, '1'],
+  [1_870_000_000, '1,870,000,000'],
+  [150_000_000, '150,000,000'],
+  [1_234_567, '1,234,567'],
+  [1_234_499, '1,234,499'],
+  [1_500, '1,500'],
+  [300, '300'],
+  [1, '1'],
   [0, '0'],
-  [9_007_199_254_740_991, '9,007,199,254,741'],
+  [9_007_199_254_740_991, '9,007,199,254,740,991'],
 ]
 
-describe('formatThousandWon', () => {
-  it.each(SHOWN)('formatThousandWon rounds half-up with commas and no unit: %i', (won, shown) => {
-    expect(formatThousandWon(won)).toBe(shown)
+describe('formatWon', () => {
+  it.each(SHOWN)('formatWon adds commas without rounding: %i', (won, shown) => {
+    expect(formatWon(won)).toBe(shown)
   })
 })
 
-describe('toThousandWon', () => {
-  it('toThousandWon is exact at the safe integer limit', () => {
-    expect(toThousandWon(Number.MAX_SAFE_INTEGER)).toBe(9_007_199_254_741)
-    expect(toThousandWon(2_500)).toBe(3)
-    expect(toThousandWon(1_499)).toBe(1)
-    expect(toThousandWon(0)).toBe(0)
+describe('thousand-won helpers', () => {
+  it('thousand-won helpers are removed', () => {
+    const exported = money as Record<string, unknown>
+    for (const name of ['toThousandWon', 'formatThousandWon', 'THOUSAND_WON_MAX', 'isSameShownAmount']) {
+      expect(exported[name]).toBeUndefined()
+    }
   })
 })
 
 describe('amount labels', () => {
-  it('amount labels carry the thousand-won unit', () => {
-    expect(AMOUNT_LABEL).toBe('금액(단위:천원)')
-    expect(REVENUE_AMOUNT_LABEL).toBe('매출금액(단위:천원, 실제 값)')
-    expect(THOUSAND_WON_MAX).toBe(9_007_199_254_740)
+  it('amount labels carry the won unit', () => {
+    expect(AMOUNT_LABEL).toBe('금액(단위:원)')
+    expect(REVENUE_AMOUNT_LABEL).toBe('매출금액(단위:원, 실제 값)')
+    expect(WON_MAX).toBe(Number.MAX_SAFE_INTEGER)
   })
 })
 
 describe('parseAmountInput', () => {
-  it('parseAmountInput converts thousands to won', () => {
-    expect(parseAmountInput('1,870,000')).toBe(1_870_000_000)
-    expect(parseAmountInput(' 500 ')).toBe(500_000)
-    expect(parseAmountInput('9,007,199,254,740')).toBe(9_007_199_254_740_000)
+  it('parseAmountInput reads won as typed', () => {
+    expect(parseAmountInput('1,870,000,000')).toBe(1_870_000_000)
+    expect(parseAmountInput(' 500 ')).toBe(500)
+    expect(parseAmountInput('9,007,199,254,740,991')).toBe(Number.MAX_SAFE_INTEGER)
   })
 
   it('parseAmountInput rejects invalid input', () => {
-    for (const text of ['', ' ', '0', '1.5', '-3', 'abc', '1 000', '1e3', '9007199254741']) {
+    for (const text of ['', ' ', '0', '1.5', '-3', 'abc', '1 000', '1e3', '9007199254740992']) {
       expect(parseAmountInput(text)).toBeNull()
     }
   })
@@ -70,23 +68,52 @@ describe('amountInputError', () => {
   it('amountInputError tells which rule failed', () => {
     expect(amountInputError('')).toBe(AMOUNT_INPUT_MESSAGE)
     expect(amountInputError('0')).toBe(AMOUNT_INPUT_MESSAGE)
-    expect(amountInputError('9,007,199,254,741')).toBe(AMOUNT_TOO_LARGE_MESSAGE)
+    expect(amountInputError('9,007,199,254,740,992')).toBe(AMOUNT_TOO_LARGE_MESSAGE)
     expect(amountInputError('1')).toBeNull()
-    expect(amountInputError('9,007,199,254,740')).toBeNull()
+    expect(amountInputError('9,007,199,254,740,991')).toBeNull()
   })
 
-  it('amount messages state the thousand-won rule', () => {
-    expect(AMOUNT_INPUT_MESSAGE).toBe('매출금액은 천원 단위로 1 이상의 정수를 입력하세요.')
+  it('amount messages state the won rule', () => {
+    expect(AMOUNT_INPUT_MESSAGE).toBe('매출금액은 1원 이상의 정수를 입력하세요.')
     expect(AMOUNT_TOO_LARGE_MESSAGE).toBe(
-      '매출금액은 천원 단위로 9,007,199,254,740 이하로 입력하세요.',
+      '매출금액은 9,007,199,254,740,991원 이하로 입력하세요.',
     )
   })
 })
 
-describe('isSameShownAmount', () => {
-  it('isSameShownAmount compares the shown thousands', () => {
-    expect(isSameShownAmount(1_235_000, 1_234_567)).toBe(true)
-    expect(isSameShownAmount(1_234_000, 1_234_567)).toBe(false)
+describe('formatWonAxis boundaries', () => {
+  it.each([
+    [99_999_999, '1억'],
+    [99_999_500, '1억'],
+    [99_995_000, '9,999.5만'],
+    [9_999_999, '1,000만'],
+    [10_000, '1만'],
+    [9_999, '9,999'],
+    [-99_999_999, '-1억'],
+    [-99_999_500, '-1억'],
+    [-9_999_999, '-1,000만'],
+    [-9_999, '-9,999'],
+  ])('rounds first and then picks the unit: %i', (value, shown) => {
+    expect(formatWonAxis(value)).toBe(shown)
+  })
+
+  it('shows negative zero as 0', () => {
+    expect(formatWonAxis(-0)).toBe('0')
+  })
+})
+
+describe('formatWonAxis', () => {
+  it.each([
+    [1_870_000_000, '18.7억'],
+    [100_000_000, '1억'],
+    [123_400_000_000, '1,234억'],
+    [50_000_000, '5,000만'],
+    [15_000, '1.5만'],
+    [9_000, '9,000'],
+    [0, '0'],
+    [-50_000_000, '-5,000만'],
+  ])('formatWonAxis shortens ticks to eok and man: %i', (value, shown) => {
+    expect(formatWonAxis(value)).toBe(shown)
   })
 })
 

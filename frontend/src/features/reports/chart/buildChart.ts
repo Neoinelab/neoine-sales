@@ -1,7 +1,8 @@
 import type { ChartData, ChartOptions, ChartType } from 'chart.js'
-import type { ReportChartInput, ReportResult } from '../../../shared/model/reportTypes'
+import type { ReportChartInput, ReportResult, ReportResultColumn } from '../../../shared/model/reportTypes'
 import { SERIES_COLORS, chartTheme } from '../../../shared/ui/chartTheme'
-import { columnHeader, formatCell, type FormatContext } from '../designer/format/formatCell'
+import { formatWonAxis } from '../../../shared/model/money'
+import { columnHeader, formatCell, isWonColumn, type FormatContext } from '../designer/format/formatCell'
 import { CHART_POINTS_MAX, kindLabel, kindRule } from './chartKinds'
 import { cellOf, nameOf, pivot, resolveColumns, type ChartColumns, type Pivot, type PivotCell } from './pivot'
 
@@ -112,25 +113,36 @@ function rangeOf(input: ReportChartInput, percent: boolean): Record<string, numb
   }
 }
 
-function scalesOf(input: ReportChartInput, percent: boolean): ChartOptions['scales'] | undefined {
+/** 값 축에 올라간 값 열이 모두 금액이면 눈금을 억·만으로 줄인다(열이 없으면 줄이지 않는다). */
+function moneyTicks(values: readonly ReportResultColumn[]): { callback?: (v: string | number) => string } {
+  return values.length > 0 && values.every(isWonColumn) ? { callback: (v) => formatWonAxis(Number(v)) } : {}
+}
+
+function scalesOf(input: ReportChartInput, percent: boolean, values: readonly ReportResultColumn[]): ChartOptions['scales'] | undefined {
   const theme = chartTheme()
-  const axis = (title: string, extra: Record<string, unknown> = {}) => ({
+  const axis = (title: string, extra: Record<string, unknown> = {}, shown: readonly ReportResultColumn[] = []) => ({
     title: { display: title !== '', text: title, color: theme.text },
-    ticks: { color: theme.text },
+    ticks: { color: theme.text, ...moneyTicks(shown) },
     grid: { color: theme.grid },
     ...extra,
   })
   const kind = input.kind
   if (kind === 'pie' || kind === 'doughnut') return undefined
-  if (kind === 'scatter') return { x: axis(input.categoryAxisTitle, { type: 'linear' }), y: axis(input.valueAxisTitle, rangeOf(input, false)) }
+  if (kind === 'scatter') {
+    return {
+      x: axis(input.categoryAxisTitle, { type: 'linear' }, values.slice(0, 1)),
+      y: axis(input.valueAxisTitle, rangeOf(input, false), values.slice(1, 2)),
+    }
+  }
   const stacked = kind === 'stacked_bar' || kind === 'stacked_100_bar'
   const horizontal = kind === 'horizontal_bar'
   const valueExtra = { ...rangeOf(input, percent), ...(stacked ? { stacked: true } : {}), ...(percent ? { ticks: { color: theme.text, callback: (v: string | number) => `${v}%` } } : {}) }
   const category = axis(input.categoryAxisTitle, stacked ? { stacked: true } : {})
-  const value = axis(input.valueAxisTitle, valueExtra)
+  const combo2 = kind === 'combo' && input.secondaryAxis
+  const value = axis(input.valueAxisTitle, valueExtra, percent ? [] : combo2 ? values.slice(0, 1) : values)
   const scales: NonNullable<ChartOptions['scales']> = horizontal ? { y: category, x: value } : { x: category, y: value }
-  if (kind === 'combo' && input.secondaryAxis) {
-    scales.y1 = { type: 'linear', position: 'right', grid: { drawOnChartArea: false, color: theme.grid }, ticks: { color: theme.text } }
+  if (combo2) {
+    scales.y1 = { type: 'linear', position: 'right', grid: { drawOnChartArea: false, color: theme.grid }, ticks: { color: theme.text, ...moneyTicks(values.slice(1)) } }
   }
   return scales
 }
@@ -175,7 +187,7 @@ function optionsOf(parts: Parts, scatterInfos: { x: PivotCell; y: PivotCell }[] 
   const { input, percent } = parts
   const theme = chartTheme()
   const text = texts(parts, scatterInfos)
-  const scales = scalesOf(input, percent)
+  const scales = scalesOf(input, percent, parts.columns.values)
   return {
     responsive: true,
     maintainAspectRatio: false,
