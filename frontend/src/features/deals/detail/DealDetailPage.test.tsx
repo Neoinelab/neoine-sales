@@ -77,10 +77,12 @@ describe('Deal 상세 정보 카드 (T-DETAIL-02)', () => {
     expect(within(card).getByText(/코어테크/)).not.toBeVisible()
   })
 
-  it('says there is no partner when the deal has none', async () => {
+  it('shows em dashes instead of a "no partner" text when the deal has none', async () => {
     await renderAt(await detailPath(5))
     await heading('누리통신 NGFW 갱신')
-    expect(within(screen.getByRole('region', { name: '파트너' })).getByText('파트너 없음')).toBeVisible()
+    const card = screen.getByRole('region', { name: '파트너' })
+    expect(within(card).queryByText('파트너 없음')).not.toBeInTheDocument()
+    expect(within(card).getAllByText('—')).toHaveLength(5)
   })
 
   it('shows the four BANT labels, the quote, the POC and the procurement', async () => {
@@ -155,7 +157,8 @@ describe('Deal 상세 정보 카드 (T-DETAIL-02)', () => {
     const card = screen.getByRole('region', { name: '파트너' })
     await user.click(within(card).getByRole('button', { name: '파트너 제거' }))
     await user.click(within(await screen.findByRole('dialog', { name: '파트너 제거' })).getByRole('button', { name: '제거' }))
-    await waitFor(() => expect(within(card).getByText('파트너 없음')).toBeVisible())
+    await waitFor(() => expect(within(card).getAllByText('—')).toHaveLength(5))
+    expect(within(card).queryByText('파트너 없음')).not.toBeInTheDocument()
   })
 })
 

@@ -200,6 +200,50 @@ describe('담당자 · 직급 · 이메일 · 전화 단일 필드 편집', () =
   })
 })
 
+const PARTNER_EMPTY_LABELS = ['파트너 회사 입력', '파트너 담당자 입력', '파트너 직급 입력', '파트너 이메일 입력', '파트너 전화 입력']
+
+describe('파트너 없음 상태 (BANT처럼 — 표시, 클릭해 바로 입력)', () => {
+  it('shows the same five rows as an existing partner, each value an em dash button, and no "파트너 없음" text', async () => {
+    await openDeal(5, '누리통신 NGFW 갱신')
+    const card = partnerCard()
+    expect(within(card).queryByText('파트너 없음')).not.toBeInTheDocument()
+    expect(within(card).queryByRole('button', { name: '파트너 추가' })).not.toBeInTheDocument()
+    for (const label of ['회사', '담당자', '직급', '이메일', '전화']) expect(within(card).getByText(label)).toBeVisible()
+    for (const label of PARTNER_EMPTY_LABELS) {
+      const button = within(card).getByRole('button', { name: label })
+      expect(button).toHaveTextContent(/^—$/)
+      expect(button).toHaveClass('dd-click')
+    }
+  })
+
+  it.each(PARTNER_EMPTY_LABELS)('opens the add-partner session starting at the company when "%s" is clicked', async (label) => {
+    const { user } = await openDeal(5, '누리통신 NGFW 갱신')
+    await user.click(within(partnerCard()).getByRole('button', { name: label }))
+    expect(within(partnerCard()).getByRole('combobox', { name: '파트너 회사명' })).toHaveFocus()
+  })
+
+  it('adds a partner from any empty value and shows the added message', async () => {
+    const { user } = await openDeal(5, '누리통신 NGFW 갱신')
+    await user.click(within(partnerCard()).getByRole('button', { name: '파트너 이메일 입력' }))
+    await user.type(within(partnerCard()).getByRole('combobox', { name: '파트너 회사명' }), '새파트너')
+    await user.type(within(partnerCard()).getByRole('combobox', { name: '파트너 담당자명' }), '박파트')
+    await user.tab()
+    await user.keyboard('{Enter}')
+    await waitFor(() => expect(valueOf(partnerCard(), '파트너 회사명 수정')).toBe('새파트너'))
+    expect(await screen.findByText('파트너가 추가되었습니다.')).toBeVisible()
+    expect(valueOf(partnerCard(), '파트너 담당자명 수정')).toBe('박파트')
+  })
+
+  it('shows only em dashes without any button for a read-only user', async () => {
+    await renderAt(await detailPath(5), { role: 'user' })
+    await screen.findByRole('heading', { level: 1, name: '누리통신 NGFW 갱신' })
+    const card = partnerCard()
+    expect(within(card).getAllByText('—')).toHaveLength(5)
+    expect(within(card).queryByRole('button')).not.toBeInTheDocument()
+    expect(within(card).queryByText('파트너 없음')).not.toBeInTheDocument()
+  })
+})
+
 describe('파트너 인라인 편집', () => {
   it('replaces the partner by clicking the company and picking another existing company and person', async () => {
     const { user } = await openDeal(1, '한빛은행 ITDR 도입')
@@ -219,16 +263,18 @@ describe('파트너 인라인 편집', () => {
     await user.click(within(partnerCard()).getByRole('button', { name: '파트너 제거' }))
     const dialog = await screen.findByRole('dialog', { name: '파트너 제거' })
     await user.click(within(dialog).getByRole('button', { name: '취소' }))
-    expect(within(partnerCard()).queryByText('파트너 없음')).not.toBeInTheDocument()
+    expect(within(partnerCard()).getByRole('button', { name: '파트너 회사명 수정' })).toBeVisible()
     await user.click(within(partnerCard()).getByRole('button', { name: '파트너 제거' }))
     await user.click(within(await screen.findByRole('dialog', { name: '파트너 제거' })).getByRole('button', { name: '제거' }))
-    await waitFor(() => expect(within(partnerCard()).getByText('파트너 없음')).toBeVisible())
+    await waitFor(() => expect(within(partnerCard()).getByRole('button', { name: '파트너 회사 입력' })).toHaveTextContent('—'))
+    for (const label of PARTNER_EMPTY_LABELS) expect(within(partnerCard()).getByRole('button', { name: label })).toHaveTextContent('—')
+    expect(within(partnerCard()).queryByText('파트너 없음')).not.toBeInTheDocument()
     expect(within(partnerCard()).queryByRole('button', { name: '파트너 제거' })).not.toBeInTheDocument()
   })
 
   it('adds a partner to a deal that has none by clicking the empty value', async () => {
     const { user } = await openDeal(5, '누리통신 NGFW 갱신')
-    await user.click(within(partnerCard()).getByRole('button', { name: '파트너 추가' }))
+    await user.click(within(partnerCard()).getByRole('button', { name: '파트너 회사 입력' }))
     const company = within(partnerCard()).getByRole('combobox', { name: '파트너 회사명' })
     await user.type(company, '새파트너')
     expect(within(partnerCard()).getByText('신규 파트너입니다. 담당자 정보를 입력하세요.')).toBeVisible()
