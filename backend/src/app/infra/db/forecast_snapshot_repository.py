@@ -48,6 +48,10 @@ class SqlForecastSnapshotRepository:
         """
         await self._session.execute(select(func.pg_advisory_xact_lock(_lock_key(period))))
 
+    async def exists(self, period: YearMonth) -> bool:
+        """그 기준 월의 헤더가 있으면 True(셀은 읽지 않는다)."""
+        return await self._header_id(period) is not None
+
     async def replace(self, snapshot: ForecastSnapshot) -> None:
         period = snapshot.period
         header_id = await self._header_id(period)

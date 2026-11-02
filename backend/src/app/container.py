@@ -34,6 +34,7 @@ from app.container_vendor import VendorUseCases
 from app.infra.auth.ldap import LdapDirectoryAuthenticator
 from app.infra.crypto.fernet_cipher import FernetSecretCipher
 from app.infra.crypto.scrypt_hasher import ScryptPasswordHasher
+from app.infra.db.advisory_job_lock import PgAdvisoryJobLock
 from app.infra.db.unit_of_work import sql_unit_of_work_factory
 from app.infra.deal_code_source import RandomDealCodeSuffixSource
 from app.infra.system_clock import SystemClock
@@ -109,6 +110,8 @@ class Container(
         )
         sessions = async_sessionmaker(self._engine, expire_on_commit=False)
         self._uow = sql_unit_of_work_factory(sessions)
+        self._job_lock = PgAdvisoryJobLock(self._engine)
+        self._snapshot_interval = settings.forecast_snapshot_check_interval_seconds
         self._clock: Clock = clock or SystemClock()
         self._suffix_source = RandomDealCodeSuffixSource()
         self.directory: DirectoryAuthenticator = directory or LdapDirectoryAuthenticator()

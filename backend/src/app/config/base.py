@@ -51,6 +51,10 @@ class Settings(BaseSettings):
     log_format: LogFormat = "json"
     workers: int = Field(default=2, ge=1)
 
+    # 앱 내 스케줄러(Forecast 월말 스냅숏 확인): 워커마다 돌고 advisory lock으로 한 곳만 작업한다
+    scheduler_enabled: bool = True
+    forecast_snapshot_check_interval_seconds: int = Field(default=600, ge=30, le=3600)
+
     # 웹/보안 (cors_allowed_origins는 환경변수에서 JSON 배열 문자열로 전달)
     cors_allowed_origins: list[str] = Field(default_factory=list)
     cookie_secure: bool = True

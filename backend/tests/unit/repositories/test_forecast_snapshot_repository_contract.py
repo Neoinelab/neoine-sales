@@ -271,3 +271,20 @@ async def test_lock_then_replace_works_in_one_transaction(snapshot_case: Snapsho
     assert found is not None
     assert len(found.cells) == 1
     assert [info.period for info in await snapshot_case.snapshots.list_periods()] == [SEPT]
+
+
+async def test_exists_is_false_for_a_missing_period(snapshot_case: SnapshotCase) -> None:
+    assert await snapshot_case.snapshots.exists(SEPT) is False
+
+
+async def test_exists_is_true_after_replace(snapshot_case: SnapshotCase) -> None:
+    await snapshot_case.snapshots.replace(make_snapshot(SEPT))
+
+    assert await snapshot_case.snapshots.exists(SEPT) is True
+
+
+async def test_exists_is_false_for_another_month(snapshot_case: SnapshotCase) -> None:
+    await snapshot_case.snapshots.replace(make_snapshot(SEPT))
+
+    assert await snapshot_case.snapshots.exists(YearMonth(2026, 8)) is False
+    assert await snapshot_case.snapshots.exists(YearMonth(2025, 9)) is False

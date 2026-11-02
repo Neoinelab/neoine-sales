@@ -36,6 +36,9 @@ class FakeForecastSnapshotRepository:
             cells=list(snapshot.cells),
         )
 
+    async def exists(self, period: YearMonth) -> bool:
+        return (period.year, period.month) in self._items
+
     async def get(self, period: YearMonth) -> ForecastSnapshot | None:
         return self._items.get((period.year, period.month))
 

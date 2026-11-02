@@ -30,7 +30,7 @@ def test_snapshot_repositories_satisfy_the_port() -> None:
 
     assert fake is not None
     assert sql is not None
-    for name in ("lock_period", "replace", "get", "list_periods"):
+    for name in ("lock_period", "replace", "exists", "get", "list_periods"):
         assert inspect.iscoroutinefunction(getattr(SqlForecastSnapshotRepository, name)), name
         assert inspect.iscoroutinefunction(getattr(FakeForecastSnapshotRepository, name)), name
         assert hasattr(ForecastSnapshotRepository, name), name
@@ -62,3 +62,5 @@ def test_the_web_port_exposes_the_snapshot_read_use_cases() -> None:
 def test_the_container_and_the_fake_assemble_the_snapshot_job_use_case() -> None:
     assert hasattr(FakeUseCases, "take_forecast_snapshot")
     assert hasattr(Container, "take_forecast_snapshot")
+    assert hasattr(Container, "ensure_monthly_forecast_snapshot")
+    assert hasattr(Container, "forecast_snapshot_scheduler")

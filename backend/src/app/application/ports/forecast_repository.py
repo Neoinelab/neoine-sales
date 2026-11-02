@@ -75,6 +75,10 @@ class ForecastSnapshotRepository(Protocol):
         """같은 기준 월이 있으면 시각과 셀을 통째로 바꾸고, 없으면 만든다."""
         ...
 
+    async def exists(self, period: YearMonth) -> bool:
+        """기준 월 스냅숏이 있는지(셀은 읽지 않는다)."""
+        ...
+
     async def get(self, period: YearMonth) -> ForecastSnapshot | None: ...
 
     async def list_periods(self) -> Sequence[SnapshotInfo]:

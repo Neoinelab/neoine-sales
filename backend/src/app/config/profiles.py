@@ -24,6 +24,7 @@ class LocalSettings(Settings):
     db_pool_size: int = 5
     db_echo: bool = True
     workers: int = 1
+    scheduler_enabled: bool = False  # 로컬 개발·테스트에서는 꺼 둔다(필요하면 .env로 켬)
 
 
 class DevSettings(Settings):

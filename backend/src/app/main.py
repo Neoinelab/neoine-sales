@@ -1,6 +1,7 @@
 """FastAPI 앱 팩토리. `uvicorn app.main:app`으로 실행한다(첫 접근 때 설정을 읽어 앱을 만든다)."""
 
-from contextlib import asynccontextmanager
+import asyncio
+from contextlib import asynccontextmanager, suppress
 from functools import lru_cache
 from typing import TYPE_CHECKING
 
@@ -54,9 +55,20 @@ def create_app(
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-        yield
-        if owned is not None:
-            await owned.dispose()
+        scheduler: asyncio.Task[None] | None = None
+        if owned is not None and settings.scheduler_enabled:
+            scheduler = asyncio.create_task(owned.forecast_snapshot_scheduler().run_forever())
+        try:
+            yield
+        finally:
+            try:
+                if scheduler is not None:
+                    scheduler.cancel()
+                    with suppress(asyncio.CancelledError):
+                        await scheduler
+            finally:
+                if owned is not None:
+                    await owned.dispose()
 
     app = FastAPI(
         title="neoine-sales API",
