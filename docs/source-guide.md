@@ -59,7 +59,7 @@ infra ──┘
 | `pyproject.toml` | 의존성, ruff·mypy·pytest·import-linter 설정의 **정본** |
 | `uv.lock`, `.python-version` | 잠긴 의존성, Python 버전(3.14) |
 | `.env.example` | 필요한 환경변수 이름 예시(실제 `.env`는 Git 제외, 읽지도 쓰지도 않음) |
-| `alembic.ini`, `alembic/` | DB 마이그레이션. `versions/`에 리비전 26개, head는 `e5a2d8c7b310`(AD 서비스 계정 방식·대체 로그인 해시 테이블, expand/contract 예외, 2026-10-29). P0 이후는 단계별 단일 스키마 마이그레이션(코드·BANT Label → 연락처 → Deal 모델 v2 → Action 스냅숏 → 첨부 → 경고 기준 → Vendor·Solution → Action 유형 → Next Action 상태 → Deal users 필수 → bigint id(전체 초기화) → Forecast 스냅숏 → Solution 관리 목록 폐지·Deal Solution 필수 텍스트 → 저장 리포트) |
+| `alembic.ini`, `alembic/` | DB 마이그레이션. `versions/`에 리비전 27개, head는 `af477447ba9f`(인증 방식 `auth_settings`·`users.phone`, 순수 expand, 2026-11-02). P0 이후는 단계별 단일 스키마 마이그레이션(코드·BANT Label → 연락처 → Deal 모델 v2 → Action 스냅숏 → 첨부 → 경고 기준 → Vendor·Solution → Action 유형 → Next Action 상태 → Deal users 필수 → bigint id(전체 초기화) → Forecast 스냅숏 → Solution 관리 목록 폐지·Deal Solution 필수 텍스트 → 저장 리포트) |
 | `openapi.json` | API 계약 파일. 코드와 다르면 테스트가 실패(드리프트 검사), 프런트 타입의 원본 |
 | `scripts/run_gates.py` | 품질 게이트 6종 실행(기본은 단위 테스트만, `--full`이면 functional 포함). 결과: `artifacts/30-review/gate.md` |
 | `scripts/check_file_length.py` | 파일 300줄 제한 검사 |
@@ -106,7 +106,7 @@ infra ──┘
 | `dashboard/` | Dashboard 집계 조립 규칙: `status_pipeline.py`(Status 코드 순서대로 건수·금액, 없는 Status는 0), `quarter_closing.py`(Q1~Q4 × Forecast 열, Lost 제외, 분기 Open 합계·합계). Forecast 셀 계산은 `forecast/summary.py`의 `tally_row`를 함께 씀. 분기 판정은 `deal/period.py`의 `quarter_of` |
 | `report/` | Reports 정의와 규칙(순수 파이썬). 어휘·한도 상수 `vocabulary.py`, 필드 항목 `fields.py`(`FieldSpec`), 허용 필드 화이트리스트 `catalog.py`(`FIELD_CATALOG`·`find_field`) = `catalog_deal.py`(Deal 28개) + `catalog_action.py`(Deal Actions 12개), 원시 정의 `raw.py` → 검증 `parse*.py`·`condition_values.py` → `definition.py`(`ReportDefinition`: 행 단위 JOIN/EXISTS 판정, Deal당 한 번 집계 판정) → `resolve.py`(상대 기간을 서버 업무 날짜로 풂), 저장 JSON `stored.py`·`stored_chart.py`, 차트 `chart.py`(`KIND_RULES` 정본)·`parse_chart.py`, 위반 모음 `errors.py`, 표시 이름 `labels.py` |
 | `saved_report/` | 저장 리포트 엔티티 `entities.py`(`Report`: 정의·차트·공개 범위·`revision`·마지막 수정자), 권한 `policy.py`(보기·수정·삭제·공개 범위 변경, 목록 범위), 이름(100자)·설명(1,000자)·공개 범위 `values.py`, 오류 `errors.py` |
-| `auth/` | `principal.py`(Role·Permission·Principal), `credentials.py`(LoginId·Password, 비밀번호는 로그에 마스킹), `session.py`, `login_failure.py`(시도 제한 카운터) |
+| `auth/` | `principal.py`(Role·Permission·Principal), `credentials.py`(LoginId·Password, 비밀번호는 로그에 마스킹), `session.py`, `login_failure.py`(시도 제한 카운터), `mode.py`(인증 방식 `AuthMode` ad·local, `effective_mode`), `password_policy.py`(앱 계정 비밀번호 8~256자·아이디와 같으면 거부) |
 | `user/` | 사용자 엔티티(연결이 있으면 퇴사 처리·없으면 물리 삭제, `UserRef` 표시 라벨과 역할, 마지막 로그인 시각), `policy.py`(자기 자신·마지막 admin 삭제 금지) |
 | `directory/` | AD 설정 값 객체(`settings.py`: `SecurityMode` none·ssl·starttls, `DirectoryConnection`, `DirectorySettings`, `DirectorySettingsDraft`, `StoredDirectorySettings`), 호스트 규칙(`host.py`), 필터·길이 규칙(`rules.py`, `{login_id}` 자리표시자) |
 | `common/secret.py`, `auth/password_hash.py` | 암호화된 비밀(`SealedSecret`)과 대체 로그인 해시(`PasswordHash`) 값 객체. repr에 값이 나오지 않음 |
@@ -124,7 +124,8 @@ infra ──┘
 - `attachment/`: 업로드·목록·다운로드·삭제, 저장 실패 시 정리(`storage_cleanup.py`)
 - `storage/`, `alert/`, `directory/`: 저장 위치·경고 기준·AD 설정의 조회·확인·변경
 - `dashboard/`: `criteria.py`(`DashboardCriteria`: Dashboard 숫자마다의 조건을 `DealQuery`로 정의하는 단일 출처, Drill-down URL과 1:1), `get_summary.py`(`GetDashboardSummary`: Forecast·Status·분기·주의 타일을 한 UoW에서 집계), `views.py`(응답 뷰)
-- `auth/`: `directory_login.py`(AD 로그인, `LoginOutcome`), `fallback_login.py`(AD가 답할 수 없을 때만 저장 해시로 로그인, `warning_stage.py`·`messages.py`의 admin 경고 단계·문구), `authenticate.py`(요청마다 활성 사용자·역할 확인), `throttle.py`(로그인 시도 제한), `setup_directory.py`·`setup_storage.py`·`setup_first_admin.py`(최초 설정 3단계), `auth_status.py`, `dev_login.py`, `logout.py`, `issue_session.py`, `tokens.py`
+- `auth/`: `password_login.py`(인증 방식에 따라 AD·앱 계정 로그인으로 분기), `local_login.py`(앱 계정 로그인, 없는 아이디도 같은 비용·문구), `setup_auth_mode.py`(최초 설정 1단계 인증 방식 선택), `setup_admin.py`·`setup_first_local_admin.py`(방식별 최초 admin 등록), `directory_login.py`(AD 로그인, `LoginOutcome`), `fallback_login.py`(AD가 답할 수 없을 때만 저장 해시로 로그인, `warning_stage.py`·`messages.py`의 admin 경고 단계·문구), `authenticate.py`(요청마다 활성 사용자·역할 확인), `throttle.py`(로그인 시도 제한), `setup_directory.py`·`setup_storage.py`·`setup_first_admin.py`(최초 설정 3단계), `auth_status.py`, `dev_login.py`, `logout.py`, `issue_session.py`, `tokens.py`
+- `account/`(2026-11-02): `get_my_profile.py`·`update_my_profile.py`·`change_my_password.py`(내 정보 `/me`, 비밀번호 변경 시 다른 세션 종료). `user/`의 `update_user_profile.py`·`reset_user_password.py`(admin의 사용자 정보 수정·비밀번호 재설정), 프런트는 `features/account/`(`/me`)와 `shared/ui/UserMenu.tsx`(우측 상단 사용자 메뉴).
 - `report/`: `list_fields.py`(필드 카탈로그), `run_report.py`(임시 조회), 저장 리포트 `create_report`·`update_report`(`revision` 낙관적 잠금)·`copy_report`·`delete_report`·`get_report`·`list_reports`·`run_saved_report`, 공통 `execution.py`(`report_context`: 업무 날짜·오프셋·경고 기준, `prepare_content`: 저장할 때마다 정의·차트를 다시 검증하고 표시 SQL 생성), 응답 뷰 `views.py`·`saved_views.py`, 입력 `saved_inputs.py`
 - `time/`: `get_server_time.py`(`GetServerTime`·`ServerTimeView`: `Clock`을 한 번 읽어 서버 OS 로컬 오프셋 `now`와 업무 날짜 `today`를 돌려줌, DB 미사용, `GET /api/v1/time`)
 - `user/`: 사용자 등록·삭제·목록(페이징), 사용자 선택 후보(`list_user_options.py`), 참조 해석
@@ -226,7 +227,7 @@ features/*  화면 ──▶ data/*  TanStack Query 훅 ──▶ gateway  (http
 | `src/features/deals/detail/` | Deal 상세: 요약 바(Status 체류 "N일째"), 정보·연락처·BANT 카드와 인라인 수정, Actions·History 탭, 첨부 패널, 삭제 |
 | `src/features/deals/form/` | Deal 등록·수정 폼 |
 | `src/features/admin/` | Admin 레이아웃과 탭: `users/`, `deal-management/`(Status·Forecast 코드, BANT Label, Action 유형, Vendor, 경고 기준), `contacts/`, `integrations/`(AD 서버, 저장 위치) |
-| `src/features/auth/`, `features/setup/` | 로그인(local·dev는 역할별 빠른 로그인 3개), `RequireAuth`(로그인 확인 뒤 서버 시각 첫 동기 전에는 “불러오는 중…”)·`RequireWrite`·`RequireAdmin`, 최초 설정 마법사(AD → 저장 위치 → admin) |
+| `src/features/auth/`, `features/setup/` | 로그인(local·dev는 역할별 빠른 로그인 3개), `RequireAuth`(로그인 확인 뒤 서버 시각 첫 동기 전에는 “불러오는 중…”)·`RequireWrite`·`RequireAdmin`, 최초 설정 마법사(인증 방식 → AD(AD 연동일 때) → 저장 위치 → admin) |
 | `src/features/dashboard/` | Dashboard 화면: `DashboardPage.tsx`(Status·Forecast 탭, 탭별 조건, 두 탭 모두 Q1~Q4 다중 토글, `App.tsx`가 `React.lazy`로 별도 청크 로드), `DashboardFilters.tsx`, `dashboardParams.ts`(URL ↔ 탭별 필터 `status.*`·`forecast.*`, 2026-10-28), `drillDown.ts`(Deal 목록 이동 주소의 단일 출처), `Tiles.tsx`, `StatusTab.tsx`·`StatusChart.tsx`, `ForecastTab.tsx`·`QuarterChart.tsx`, `chartSetup.ts`(Chart.js 필요한 요소만 등록), `dashboard.css`. 게이트웨이는 `gateway/http/dashboard.ts`, 계약 `gateway/contract/dashboard.contract.ts`, Fake `test/fake/gateway/dashboard.ts` |
 | `src/features/forecast/` | Forecast 화면(실패는 501 포함 오류 배너. 예전 "준비 중" 분기와 `features/placeholder/`는 삭제) |
 | `src/features/partner-activity/` | 파트너 Activity(2026-10-28, `/partner-activities`): 목록 `PartnerActivityPage.tsx`·`MeetingTable.tsx`·검색 `MeetingFilterBar.tsx`(URL `useMeetingSearchParams.ts`), 입력 팝업 `MeetingEntryDialog.tsx`·`MeetingEntryRow.tsx`(순수 로직 `entryRows.ts`), 수정·삭제 `MeetingEditDialog.tsx`·`MeetingDeleteDialog.tsx`. 훅 `data/partnerMeetings.ts`(`useInfiniteQuery`), 무한 스크롤 `shared/ui/useInfiniteScroll.ts`, 게이트웨이 `gateway/http/partnerMeetings.ts`, Fake `test/fake/gateway/partnerMeetings.ts` |
