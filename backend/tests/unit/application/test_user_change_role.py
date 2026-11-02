@@ -3,8 +3,8 @@
 from typing import TYPE_CHECKING
 
 import pytest
-from app.application.user.change_user_role import ChangeUserRole
 
+from app.application.user.change_user_role import ChangeUserRole
 from app.domain.auth.principal import Role
 from app.domain.common.errors import InvalidStateError
 from app.domain.user.errors import UserNotFoundError

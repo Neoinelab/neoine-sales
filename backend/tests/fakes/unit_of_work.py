@@ -11,6 +11,7 @@ from typing import Any, Self
 from tests.fakes.action_types import FakeActionTypeRepository
 from tests.fakes.alert_settings_repository import FakeAlertSettingsRepository
 from tests.fakes.attachments import FakeAttachmentRepository
+from tests.fakes.auth_settings_repository import FakeAuthSettingsRepository
 from tests.fakes.catalog import FakeBantLabelRepository, FakeCodeRepository
 from tests.fakes.contacts import FakeContactRepository
 from tests.fakes.dashboard import FakeDashboardTallyRepository
@@ -53,6 +54,7 @@ class FakeUnitOfWork:
             lambda user_id: self.password_hashes._items.pop(user_id, None) and None
         )
         self.directory_settings = FakeDirectorySettingsRepository()
+        self.auth_settings = FakeAuthSettingsRepository()  # 인증 방식(ad|local) 단일 행
         self.storage_settings = FakeStorageSettingsRepository()
         self.alert_settings = FakeAlertSettingsRepository()
         self.attachments = FakeAttachmentRepository()
@@ -162,6 +164,7 @@ class FakeUnitOfWork:
             self.login_failures,
             self.password_hashes,
             self.directory_settings,
+            self.auth_settings,
             self.storage_settings,
             self.alert_settings,
             self.attachments,

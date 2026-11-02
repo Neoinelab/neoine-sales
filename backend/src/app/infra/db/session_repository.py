@@ -80,3 +80,13 @@ class SqlSessionRepository:
             .execution_options(synchronize_session=False)
         )
         return len((await self._session.execute(statement)).all())
+
+    async def delete_others_for_user(self, user_id: UserId, keep_token_hash: str) -> int:
+        """그 사용자의 세션 중 keep_token_hash 외 모두(폐기된 행 포함)를 지운다."""
+        statement = (
+            delete(AuthSessionRow)
+            .where(AuthSessionRow.user_id == user_id, AuthSessionRow.token_hash != keep_token_hash)
+            .returning(AuthSessionRow.id)
+            .execution_options(synchronize_session=False)
+        )
+        return len((await self._session.execute(statement)).all())

@@ -8,12 +8,12 @@
 from typing import TYPE_CHECKING, Any, cast
 
 import pytest
+
 from app.application.forecast.ensure_monthly_snapshot import (
     FORECAST_SNAPSHOT_JOB,
     EnsureMonthlyForecastSnapshot,
     SnapshotCheckOutcome,
 )
-
 from app.application.forecast.take_snapshot import SnapshotResult
 from app.domain.forecast.snapshot import YearMonth
 from tests.fakes.job_lock import FakeJobLock

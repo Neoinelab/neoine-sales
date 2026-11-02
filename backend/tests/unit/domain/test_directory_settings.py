@@ -7,10 +7,10 @@
 import dataclasses
 
 import pytest
-from app.domain.common.secret import SealedSecret
 
 from app.domain.auth.credentials import Password
 from app.domain.common.errors import InvalidValueError
+from app.domain.common.secret import SealedSecret
 from app.domain.directory.settings import (
     DEFAULT_PORTS,
     DISPLAY_NAME_ATTRIBUTE,

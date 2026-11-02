@@ -1,6 +1,8 @@
 """MeetingInputError(AC17): 위반을 위치와 함께 모은다. 문구는 첫 위반이다."""
 
 import pytest
+
+from app.domain.common.errors import InvalidValueError
 from app.domain.partner_meeting.errors import (
     COMPANY_NOT_FOUND,
     DEAL_NOT_FOUND,
@@ -10,8 +12,6 @@ from app.domain.partner_meeting.errors import (
     MeetingIssue,
     PartnerMeetingNotFoundError,
 )
-
-from app.domain.common.errors import InvalidValueError
 from tests.support.expect import raises_with
 
 

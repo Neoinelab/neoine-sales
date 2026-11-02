@@ -3,8 +3,8 @@
 import dataclasses
 
 import pytest
-from app.domain.auth.password_hash import PASSWORD_HASH_MAX, PasswordHash
 
+from app.domain.auth.password_hash import PASSWORD_HASH_MAX, PasswordHash
 from app.domain.common.errors import InvalidValueError
 
 ENCODED = "scrypt$ln=14,r=8,p=1$c2FsdHNhbHRzYWx0c2FsdA$aGFzaGhhc2hoYXNoaGFzaGhhc2hoYXNoaGFzaGhhc2g"

@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING
 from httpx import ASGITransport, AsyncClient
 
 from app.application.auth.messages import DIRECTORY_FIRST, SETUP_CLOSED
+from app.domain.auth.mode import AuthMode
 from app.domain.auth.principal import Role
 from app.main import create_app
 from tests.factories_auth import make_principal
@@ -74,6 +75,7 @@ async def test_setup_storage_saves_and_returns_the_settings_without_a_saver() ->
 
 async def test_setup_storage_before_the_directory_step_is_409() -> None:
     use_cases = FakeUseCases()
+    await use_cases.seed_auth_mode(AuthMode.AD)  # AD 방식을 골랐는데 AD 단계를 건너뜀
     async with _client(use_cases) as http:
         response = await http.put(SETUP_STORAGE, json={"path": "/data/files"})
 

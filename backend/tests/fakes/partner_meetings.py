@@ -33,10 +33,9 @@ if TYPE_CHECKING:
         PartnerMeetingQuery,
         PartnerMeetingRecord,
     )
+    from app.domain.deal.code import DealCode
     from app.domain.partner_meeting.entities import PartnerMeeting
     from app.domain.partner_meeting.values import PartnerMeetingId
-
-    from app.domain.deal.code import DealCode
 
 
 def _errors() -> ModuleType:

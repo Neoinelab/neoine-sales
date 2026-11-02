@@ -4,12 +4,12 @@ from typing import TYPE_CHECKING
 
 import pytest
 import pytest_asyncio
-from app.domain.auth.password_hash import PasswordHash
-from app.domain.common.secret import SealedSecret
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
 from app.domain.auth.credentials import LoginId
+from app.domain.auth.password_hash import PasswordHash
+from app.domain.common.secret import SealedSecret
 from app.infra.db.unit_of_work import sql_unit_of_work_factory
 from tests.factories import NOW, later
 from tests.factories_auth import BASE_DN, make_counter, make_user
@@ -170,3 +170,22 @@ async def test_resignation_and_session_deletion_commit_together(
     async with uow_factory() as check:
         assert not (await check.users.get(uid("kim"))).is_active
         assert await check.sessions.get_by_token_hash("tok") is None
+
+
+async def test_auth_settings_follow_the_same_commit_and_rollback_rules(
+    uow_factory: UnitOfWorkFactory,
+) -> None:
+    from app.domain.auth.mode import AuthMode  # noqa: PLC0415
+
+    async with uow_factory() as uow:
+        await uow.auth_settings.save(AuthMode.LOCAL, now=NOW)
+    async with uow_factory() as uow:
+        assert await uow.auth_settings.get() is None  # commit하지 않으면 사라진다
+
+    async with uow_factory() as uow:
+        await uow.auth_settings.save(AuthMode.LOCAL, now=NOW)
+        await uow.commit()
+    async with uow_factory() as uow:
+        stored = await uow.auth_settings.get()
+    assert stored is not None
+    assert stored.mode is AuthMode.LOCAL

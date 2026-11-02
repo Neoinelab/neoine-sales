@@ -1,5 +1,6 @@
 """Composition Root: Port와 구현체를 연결하고 유스케이스를 만들어 준다(UseCaseProvider 구현)."""
 
+from datetime import timedelta
 from typing import TYPE_CHECKING
 
 from sqlalchemy import text
@@ -26,6 +27,7 @@ from app.container_dashboard import DashboardUseCases
 from app.container_deal_action import DealActionUseCases
 from app.container_deal_reads import DealReadUseCases
 from app.container_forecast import ForecastUseCases
+from app.container_local_accounts import LocalAccountUseCases
 from app.container_partner_meeting import PartnerMeetingUseCases
 from app.container_reports import ReportUseCases
 from app.container_storage import StorageAssembly
@@ -83,6 +85,7 @@ if TYPE_CHECKING:
 
 
 class Container(
+    LocalAccountUseCases,
     VendorUseCases,
     ActionTypeUseCases,
     ForecastUseCases,
@@ -127,6 +130,8 @@ class Container(
         )
         self._catalog = CatalogAssembly(self._uow, self._clock)
         self._storage = StorageAssembly(self._uow, self._clock)
+        self._auth_deps = self._auth.deps
+        self._session_ttl = timedelta(hours=settings.session_ttl_hours)
         self._admin = AdminAssembly(
             self._uow,
             self._clock,

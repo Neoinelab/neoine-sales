@@ -3,9 +3,9 @@
 import dataclasses
 
 import pytest
-from app.domain.common.secret import SealedSecret
 
 from app.domain.common.errors import DomainError, InvalidStateError, InvalidValueError
+from app.domain.common.secret import SealedSecret
 from app.domain.directory.errors import DirectorySettingsConflictError
 from app.domain.directory.settings import StoredDirectorySettings
 from tests.factories import NOW

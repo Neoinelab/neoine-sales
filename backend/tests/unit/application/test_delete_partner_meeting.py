@@ -3,12 +3,12 @@
 from typing import TYPE_CHECKING
 
 import pytest
+
 from app.domain.partner_meeting.errors import (
     PartnerMeetingDeleteForbiddenError,
     PartnerMeetingNotFoundError,
 )
 from app.domain.partner_meeting.values import PartnerMeetingId
-
 from tests.support.expect import raises_with
 from tests.support.ids import new_id
 from tests.unit.application.partner_meeting_env import (

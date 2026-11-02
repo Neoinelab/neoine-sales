@@ -11,10 +11,10 @@ from types import NoneType, UnionType
 from typing import Annotated, Union, get_args, get_origin
 
 import pytest
-from app.web.schemas.server_datetime import ServerDateTime
 from pydantic import BaseModel
 
 import app.web.schemas as schemas_package
+from app.web.schemas.server_datetime import ServerDateTime
 
 SERVER_METADATA = get_args(ServerDateTime)[1:]
 

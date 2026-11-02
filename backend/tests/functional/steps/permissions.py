@@ -104,6 +104,8 @@ ADMIN_ONLY: Final = (
     ("POST", "/api/v1/users"),
     ("DELETE", "/api/v1/users/{user_id}"),
     ("PUT", "/api/v1/users/{user_id}/role"),  # 역할 변경은 admin만
+    ("PATCH", "/api/v1/users/{user_id}"),  # 다른 사용자의 이름·이메일·전화 수정은 admin만
+    ("PUT", "/api/v1/users/{user_id}/password"),  # local 모드 비밀번호 재설정은 admin만
     ("GET", "/api/v1/settings/directory"),
     ("PUT", "/api/v1/settings/directory"),
     ("POST", "/api/v1/settings/directory/test"),
@@ -122,12 +124,18 @@ PUBLIC: Final = (
     ("POST", "/api/v1/auth/login"),
     ("POST", "/api/v1/auth/dev-login"),
     ("POST", "/api/v1/auth/logout"),
+    ("PUT", "/api/v1/auth/setup/auth-mode"),  # 최초 설정 1단계: 인증 방식 선택(admin 전까지)
     ("PUT", "/api/v1/auth/setup/directory"),
     ("PUT", "/api/v1/auth/setup/storage"),  # P2b 최초 설정 2단계
     ("POST", "/api/v1/auth/setup/storage/test"),
     ("POST", "/api/v1/auth/setup"),
 )
-LOGGED_IN_ANY: Final = (("GET", "/api/v1/auth/me"),)
+LOGGED_IN_ANY: Final = (
+    ("GET", "/api/v1/auth/me"),
+    ("GET", "/api/v1/me/profile"),  # 내 정보: 로그인한 모든 역할(user 포함)이 자기 정보를 본다
+    ("PATCH", "/api/v1/me/profile"),  # 아이디를 뺀 자기 정보 수정: 모든 역할
+    ("PUT", "/api/v1/me/password"),  # local 모드 비밀번호 변경: 모든 역할(ad는 409)
+)
 
 EXPECTED: Final[dict[Route, frozenset[Role] | None]] = {
     **dict.fromkeys(PUBLIC),

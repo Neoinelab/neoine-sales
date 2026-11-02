@@ -1,9 +1,9 @@
 """파트너 회사 해석과 Deal 연결 판정(AC17, P2): 대소문자 무시, 판정 순서."""
 
 import pytest
+
 from app.domain.partner_meeting.errors import DEAL_NOT_FOUND, DEAL_NOT_LINKED
 from app.domain.partner_meeting.links import LinkedDeals, deal_link_problem, resolve_company
-
 from tests.factories import make_deal_code
 
 LINKED = LinkedDeals(

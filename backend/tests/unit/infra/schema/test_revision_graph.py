@@ -18,6 +18,7 @@ from tests.support.revisions import (
     action_types_revision,
     alert_settings_revision,
     attachments_revision,
+    auth_mode_revision,
     bigint_ids_revision,
     contacts_revision,
     deal_model_revision,
@@ -52,11 +53,21 @@ def test_the_solution_text_revision_follows_the_forecast_snapshots() -> None:
     assert revision.down_revision == forecast_snapshots_revision() == FORECAST_SNAPSHOTS_REVISION
 
 
-def test_directory_service_account_revision_follows_partner_meetings_as_single_head() -> None:
+def test_the_auth_mode_revision_follows_the_directory_service_account_as_single_head() -> None:
+    script = ScriptDirectory.from_config(_alembic_config())
+
+    head = script.get_revision(auth_mode_revision())
+    assert script.get_heads() == [auth_mode_revision()]
+    assert auth_mode_revision() != directory_service_account_revision()
+    assert head is not None
+    assert head.down_revision == directory_service_account_revision()
+    assert head.path.endswith(f"_{head.revision}_auth_mode_and_user_phone.py")
+
+
+def test_directory_service_account_revision_follows_partner_meetings() -> None:
     script = ScriptDirectory.from_config(_alembic_config())
 
     head = script.get_revision(directory_service_account_revision())
-    assert script.get_heads() == [directory_service_account_revision()]
     assert directory_service_account_revision() != PARTNER_MEETINGS_REVISION
     assert head is not None
     assert head.down_revision == PARTNER_MEETINGS_REVISION

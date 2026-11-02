@@ -16,6 +16,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
+from app.domain.auth.mode import AuthMode
 from app.domain.auth.principal import Role
 from app.domain.directory.settings import SecurityMode
 from app.domain.user.value_objects import UserDeleteReason
@@ -23,6 +24,7 @@ from app.infra.db.base import Base
 from app.infra.db.models import AuditColumns
 
 _ROLE_CODES = ", ".join(f"'{role.value}'" for role in Role)
+_AUTH_MODE_CODES = ", ".join(f"'{mode.value}'" for mode in AuthMode)
 _SECURITY_CODES = ", ".join(f"'{mode.value}'" for mode in SecurityMode)
 _DELETE_REASON_CODES = ", ".join(f"'{reason.value}'" for reason in UserDeleteReason)
 
@@ -34,6 +36,7 @@ class UserRow(AuditColumns, Base):
     role: Mapped[str] = mapped_column(String(20))
     display_name: Mapped[str | None] = mapped_column(String(200), default=None)
     email: Mapped[str | None] = mapped_column(String(254), default=None)
+    phone: Mapped[str | None] = mapped_column(String(40), default=None)
     created_by_user_id: Mapped[int] = mapped_column(
         BigInteger, ForeignKey("users.id", ondelete="RESTRICT")
     )
@@ -112,3 +115,18 @@ class UserPasswordHashRow(Base):
     )
     password_hash: Mapped[str] = mapped_column(String(512))
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class AuthSettingsRow(Base):
+    """인증 방식(ad|local). id=1 단일 행이며 users를 참조하지 않는다."""
+
+    __tablename__ = "auth_settings"
+
+    id: Mapped[int] = mapped_column(SmallInteger, primary_key=True, autoincrement=False)
+    mode: Mapped[str] = mapped_column(String(16))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+    __table_args__ = (
+        CheckConstraint("id = 1", name="single_row"),
+        CheckConstraint(f"mode in ({_AUTH_MODE_CODES})", name="mode_valid"),
+    )

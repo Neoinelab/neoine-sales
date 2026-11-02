@@ -1,9 +1,9 @@
 """MeetingContent(AC17, P7): 앞뒤 공백(줄바꿈 포함) 제거 후 비면 거절, NUL 거절, 길이 제한 없음."""
 
 import pytest
-from app.domain.partner_meeting.values import MeetingContent
 
 from app.domain.common.errors import InvalidValueError
+from app.domain.partner_meeting.values import MeetingContent
 from tests.support.expect import raises_with
 
 CONTENT_REQUIRED = "미팅 내용을 입력하세요."

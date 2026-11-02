@@ -11,7 +11,13 @@ from app.application.ports.directory import DirectoryUnavailableError
 from app.application.ports.report_query_runner import ReportQueryTimeoutError
 from app.application.storage.errors import StorageUnavailableError
 from app.domain.attachment.errors import AttachmentNameTakenError
-from app.domain.auth.errors import AccessDeniedError, AuthenticationError, TooManyAttemptsError
+from app.domain.auth.errors import (
+    AccessDeniedError,
+    AuthenticationError,
+    TooManyAttemptsError,
+    WeakPasswordError,
+    WrongCurrentPasswordError,
+)
 from app.domain.common.errors import (
     AlreadyExistsError,
     DomainError,
@@ -23,6 +29,7 @@ from app.domain.common.errors import (
 from app.domain.partner_meeting.errors import MeetingInputError
 from app.domain.report.errors import ReportDefinitionError
 from app.domain.report.vocabulary import STATEMENT_TIMEOUT_SECONDS
+from app.web.schemas.password_field import InvalidFieldError
 from app.web.security import CsrfRejectedError
 
 PROBLEM_JSON = "application/problem+json"
@@ -120,6 +127,25 @@ async def _invalid_meeting(request: Request, exc: Exception) -> JSONResponse:
     return problem(request, 422, "invalid-value", str(exc), {"errors": errors})
 
 
+def _field_problem(request: Request, location: tuple[str, ...], message: str) -> JSONResponse:
+    errors = [{"location": list(location), "message": message}]
+    return problem(request, 422, "invalid-value", message, {"errors": errors})
+
+
+async def _invalid_field(request: Request, exc: Exception) -> JSONResponse:
+    assert isinstance(exc, InvalidFieldError)  # noqa: S101 - 핸들러 등록 대상 보장
+    return _field_problem(request, exc.location, exc.message)
+
+
+async def _weak_password(request: Request, exc: Exception) -> JSONResponse:
+    """새 비밀번호 정책 위반. 위치는 password(/me/password는 라우터가 바꾼다)."""
+    return _field_problem(request, ("password",), str(exc))
+
+
+async def _wrong_current_password(request: Request, exc: Exception) -> JSONResponse:
+    return _field_problem(request, ("current_password",), str(exc))
+
+
 async def _directory_verification(request: Request, exc: Exception) -> JSONResponse:
     assert isinstance(exc, DirectoryVerificationError)  # noqa: S101 - 핸들러 등록 대상 보장
     return problem(
@@ -164,6 +190,9 @@ def register_error_handlers(app: FastAPI) -> None:
     app.add_exception_handler(ReportQueryTimeoutError, _report_timeout)
     app.add_exception_handler(ReportDefinitionError, _invalid_report)
     app.add_exception_handler(MeetingInputError, _invalid_meeting)
+    app.add_exception_handler(InvalidFieldError, _invalid_field)
+    app.add_exception_handler(WeakPasswordError, _weak_password)
+    app.add_exception_handler(WrongCurrentPasswordError, _wrong_current_password)
     app.add_exception_handler(DomainError, _domain_error)
     app.add_exception_handler(RequestValidationError, _validation_error)
     app.add_exception_handler(StarletteHTTPException, _http_error)

@@ -1,4 +1,4 @@
-"""사용자 관리(admin 전용): 목록·등록·삭제(퇴사 처리). 비밀번호는 다루지 않는다."""
+"""사용자 관리(admin 전용): 목록·등록·정보 수정·비밀번호 재설정·삭제(퇴사 처리)."""
 
 from typing import Annotated, Literal
 
@@ -13,6 +13,8 @@ from app.web.schemas.ids import PathId
 from app.web.schemas.user import (
     DeleteUserResponse,
     UserPage,
+    UserPasswordRequest,
+    UserProfileRequest,
     UserRequest,
     UserResponse,
     UserRoleRequest,
@@ -54,6 +56,9 @@ async def register_user(
         role=body.role,
         actor=actor,
         display_name=body.display_name,
+        email=body.email,
+        phone=body.phone,
+        password=body.to_password(),
     )
     response.headers["Location"] = f"{router.prefix}/{user.id}"
     (item,) = await _responses(provider, [user])
@@ -82,3 +87,24 @@ async def change_user_role(
     )
     (item,) = await _responses(provider, [user])
     return item
+
+
+@router.patch("/{user_id}", response_model=UserResponse, responses=WRITE_ERRORS)
+async def update_user_profile(
+    user_id: PathId, body: UserProfileRequest, provider: Provider, actor: CurrentUser
+) -> UserResponse:
+    user = await provider.update_user_profile().execute(
+        user_id=UserId(user_id), changes=body.to_changes(), actor=actor
+    )
+    (item,) = await _responses(provider, [user])
+    return item
+
+
+@router.put("/{user_id}/password", status_code=204, responses=WRITE_ERRORS)
+async def reset_user_password(
+    user_id: PathId, body: UserPasswordRequest, provider: Provider, actor: CurrentUser
+) -> Response:
+    await provider.reset_user_password().execute(
+        user_id=UserId(user_id), password=body.to_password(), actor=actor
+    )
+    return Response(status_code=204)

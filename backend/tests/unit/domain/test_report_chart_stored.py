@@ -8,9 +8,9 @@ import json
 from typing import Any
 
 import pytest
-from app.domain.report.stored_chart import BROKEN_CHART, chart_from_json, chart_to_json
 
 from app.domain.report.errors import ReportDefinitionError, ReportIssue
+from app.domain.report.stored_chart import BROKEN_CHART, chart_from_json, chart_to_json
 from tests.support.chart_defs import chart_body, raw_chart
 
 FULL = raw_chart(

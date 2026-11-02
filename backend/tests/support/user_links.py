@@ -118,7 +118,6 @@ async def _create_link(uow: UnitOfWork, user: User, kind: str) -> None:
     elif kind == "directory_settings":
         # 이미 설정이 있는 환경(e2e admin 앱)에서는 현재 revision으로 갱신한다.
         from app.domain.common.secret import SealedSecret  # noqa: PLC0415
-
         from tests.factories_directory import make_directory_connection  # noqa: PLC0415
 
         stored = await uow.directory_settings.get()

@@ -8,7 +8,18 @@
 - ResolveUserRefs(uow_factory)                              ...user.resolve_user_refs
   execute(user_ids: Collection[UserId]) -> Mapping[UserId, UserRef]  (퇴사자 포함)
 - DeleteUser.execute(*, user_id, actor, reason=UserDeleteReason.RESIGNED) -> DeleteOutcome
-- RegisterUser(uow_factory, clock)                          ...user.register_user
+- RegisterUser(uow_factory, clock, hasher)                  ...user.register_user
+  execute(*, login_id, role, actor, display_name=None, email=None, phone=None,
+  password: Password | None = None) -> User
+  (모드 LOCAL: password·display_name 필수, AD: password 금지)
+- ResetUserPassword(uow_factory, clock, hasher)             ...user.reset_user_password
+  execute(*, user_id, password: Password, actor) -> None
+- UpdateUserProfile(uow_factory, clock)                     ...user.update_user_profile
+  execute(*, user_id, changes: ProfileChanges, actor) -> User
+- GetMyProfile(uow_factory)                                 app.application.account.get_my_profile
+  execute(actor) -> MyProfile(.user, .mode, .can_edit_name_email, .can_change_password)
+- UpdateMyProfile(uow_factory, clock)                       ...account.update_my_profile
+  execute(*, actor, changes: ProfileChanges) -> MyProfile
 - DeleteUser(uow_factory, clock)                            ...user.delete_user
 - GetDirectorySettings(uow_factory, cipher)                 app.application.directory.get_settings
   execute() -> DirectorySettingsView(.stored, .credential_readable)
@@ -37,12 +48,16 @@ from tests.factories_auth import ADMIN_LOGIN, ADMIN_PASSWORD
 from tests.support.user_ids import uid
 
 if TYPE_CHECKING:
+    from app.application.account.get_my_profile import GetMyProfile
+    from app.application.account.update_my_profile import UpdateMyProfile
     from app.application.directory.get_settings import GetDirectorySettings
     from app.application.directory.test_settings import TestDirectorySettings
     from app.application.directory.update_settings import UpdateDirectorySettings
     from app.application.directory.verify_settings import VerifyDirectorySettings
     from app.application.ports.clock import Clock
     from app.application.ports.unit_of_work import UnitOfWorkFactory
+    from app.application.user.reset_user_password import ResetUserPassword
+    from app.application.user.update_user_profile import UpdateUserProfile
     from tests.fakes.auth_stack import AuthStack
 
 __all__ = [
@@ -75,10 +90,42 @@ class AdminStack:
         self._clock = clock
         self._allow_dev_sessions = allow_dev_sessions
         self.list_users = ListUsers(uow_factory)
-        self.register_user = RegisterUser(uow_factory, clock)
         self.delete_user = DeleteUser(uow_factory, clock)
         self.list_user_options = ListUserOptions(uow_factory)
         self.resolve_user_refs = ResolveUserRefs(uow_factory)
+
+    # 앱 자체 계정 관리 개편으로 생성자가 바뀐 유스케이스와 새 유스케이스는 처음 쓸 때 만든다
+    @cached_property
+    def register_user(self) -> RegisterUser:
+        return RegisterUser(self._uow_factory, self._clock, self._auth.hasher)
+
+    @cached_property
+    def reset_password(self) -> ResetUserPassword:
+        from app.application.user.reset_user_password import (  # noqa: PLC0415
+            ResetUserPassword,
+        )
+
+        return ResetUserPassword(self._uow_factory, self._clock, self._auth.hasher)
+
+    @cached_property
+    def update_profile(self) -> UpdateUserProfile:
+        from app.application.user.update_user_profile import (  # noqa: PLC0415
+            UpdateUserProfile,
+        )
+
+        return UpdateUserProfile(self._uow_factory, self._clock)
+
+    @cached_property
+    def get_my_profile(self) -> GetMyProfile:
+        from app.application.account.get_my_profile import GetMyProfile  # noqa: PLC0415
+
+        return GetMyProfile(self._uow_factory)
+
+    @cached_property
+    def update_my_profile(self) -> UpdateMyProfile:
+        from app.application.account.update_my_profile import UpdateMyProfile  # noqa: PLC0415
+
+        return UpdateMyProfile(self._uow_factory, self._clock)
 
     @cached_property
     def get_settings(self) -> GetDirectorySettings:

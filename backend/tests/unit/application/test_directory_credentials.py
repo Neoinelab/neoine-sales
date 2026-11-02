@@ -3,8 +3,8 @@
 import logging
 
 import pytest
-from app.application.directory.credentials import resolve_draft, try_unseal, unseal_settings
 
+from app.application.directory.credentials import resolve_draft, try_unseal, unseal_settings
 from app.application.directory.errors import DirectoryCredentialUnreadableError
 from app.application.ports.directory import DirectoryUnavailableError
 from app.domain.auth.credentials import Password

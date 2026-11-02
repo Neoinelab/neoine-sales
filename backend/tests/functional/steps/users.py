@@ -43,6 +43,7 @@ USER_KEYS: Final = {
     "role",
     "display_name",
     "email",
+    "phone",
     "created_at",
     "created_by",
     "last_login_at",

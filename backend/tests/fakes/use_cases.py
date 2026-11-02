@@ -18,6 +18,9 @@ from tests.fakes.partner_meeting_use_cases import PartnerMeetingUseCases
 from tests.fakes.unit_of_work import FakeUnitOfWork, SteppingClock
 
 if TYPE_CHECKING:
+    from app.application.account.change_my_password import ChangeMyPassword
+    from app.application.account.get_my_profile import GetMyProfile
+    from app.application.account.update_my_profile import UpdateMyProfile
     from app.application.alert.get_alert_settings import GetAlertSettings
     from app.application.alert.update_alert_settings import UpdateAlertSettings
     from app.application.auth.auth_status import GetAuthStatus
@@ -25,6 +28,9 @@ if TYPE_CHECKING:
     from app.application.auth.dev_login import DevLogin
     from app.application.auth.directory_login import DirectoryLogin
     from app.application.auth.logout import Logout
+    from app.application.auth.password_login import PasswordLogin
+    from app.application.auth.setup_admin import SetupAdmin
+    from app.application.auth.setup_auth_mode import ChooseSetupAuthMode
     from app.application.auth.setup_directory import RegisterSetupDirectory
     from app.application.auth.setup_first_admin import SetupFirstAdmin
     from app.application.auth.setup_storage import RegisterSetupStorage, TestSetupStorage
@@ -62,7 +68,10 @@ if TYPE_CHECKING:
     from app.application.user.list_user_options import ListUserOptions
     from app.application.user.list_users import ListUsers
     from app.application.user.register_user import RegisterUser
+    from app.application.user.reset_user_password import ResetUserPassword
     from app.application.user.resolve_user_refs import ResolveUserRefs
+    from app.application.user.update_user_profile import UpdateUserProfile
+    from app.domain.auth.mode import AuthMode
     from app.domain.auth.principal import Principal
     from app.domain.directory.settings import DirectorySettings
     from app.domain.user.entities import User
@@ -301,6 +310,64 @@ class FakeUseCases(
 
     def directory_login(self) -> DirectoryLogin:
         return self._auth.login
+
+    # ---- 앱 자체 계정 관리(local 모드) 제공자 메서드. 사용 시점에 만든다 ----
+    def choose_setup_auth_mode(self) -> ChooseSetupAuthMode:
+        return self._auth.choose_mode
+
+    def setup_admin(self) -> SetupAdmin:
+        return self._auth.setup
+
+    def password_login(self) -> PasswordLogin:
+        return self._auth.password_login
+
+    def reset_user_password(self) -> ResetUserPassword:
+        return self._admin.reset_password
+
+    def update_user_profile(self) -> UpdateUserProfile:
+        return self._admin.update_profile
+
+    def get_my_profile(self) -> GetMyProfile:
+        return self._admin.get_my_profile
+
+    def update_my_profile(self) -> UpdateMyProfile:
+        return self._admin.update_my_profile
+
+    def change_my_password(self) -> ChangeMyPassword:
+        return self._auth.change_my_password
+
+    async def seed_auth_mode(self, mode: AuthMode) -> None:
+        """인증 방식을 저장소에 직접 넣는다(1단계를 마친 상태). 유스케이스를 거치지 않는다."""
+        async with self._factory() as uow:
+            await uow.auth_settings.save(mode, now=self.clock.now())
+            await uow.commit()
+
+    async def seed_local_user(  # noqa: PLR0913 - 시나리오 준비용 옵션
+        self,
+        login_id: str,
+        password: str,
+        role: Role = Role.SALES,
+        *,
+        display_name: str | None = None,
+        email: str | None = None,
+        phone: str | None = None,
+    ) -> User:
+        """local 모드 사용자: 재직 행 + 그 비밀번호의 해시(FakePasswordHasher 형식)."""
+        from tests.fakes.password_hasher import fake_hash_of  # noqa: PLC0415
+
+        user = make_user(
+            login_id,
+            role,
+            now=self.clock.now(),
+            display_name=display_name,
+            email=email,
+            phone=phone,
+        )
+        async with self._factory() as uow:
+            await uow.users.add(user)
+            await uow.password_hashes.save(user.id, fake_hash_of(password), self.clock.now())
+            await uow.commit()
+        return user
 
     def dev_login(self) -> DevLogin:
         return self._auth.dev_login

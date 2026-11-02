@@ -29,15 +29,15 @@ from tests.unit.repositories.deal_case import DealCase
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
 
+    from sqlalchemy.engine import URL
+
     from app.application.ports.partner_meeting_repository import (
         PartnerMeetingRecord,
         PartnerMeetingRepository,
     )
-    from app.domain.partner_meeting.entities import PartnerMeeting
-    from sqlalchemy.engine import URL
-
     from app.domain.contact.entities import Contact
     from app.domain.deal.code import DealCode
+    from app.domain.partner_meeting.entities import PartnerMeeting
     from app.domain.user.value_objects import UserId
 
 PARAMS = [
@@ -188,16 +188,15 @@ def _fake_case() -> MeetingCase:
 
 
 def _sql_case(session: Any) -> MeetingCase:  # noqa: ANN401
-    from app.infra.db.partner_meeting_repository import (  # noqa: PLC0415
-        SqlPartnerMeetingRepository,
-    )
-
     from app.infra.db.bant_label_repository import SqlBantLabelRepository  # noqa: PLC0415
     from app.infra.db.code_repository import SqlCodeRepository  # noqa: PLC0415
     from app.infra.db.contact_repository import SqlContactRepository  # noqa: PLC0415
     from app.infra.db.deal_action_repository import SqlDealActionRepository  # noqa: PLC0415
     from app.infra.db.deal_history_repository import SqlDealHistoryRepository  # noqa: PLC0415
     from app.infra.db.deal_repository import SqlDealRepository  # noqa: PLC0415
+    from app.infra.db.partner_meeting_repository import (  # noqa: PLC0415
+        SqlPartnerMeetingRepository,
+    )
     from app.infra.db.user_repository import SqlUserRepository  # noqa: PLC0415
     from app.infra.db.vendor_repository import SqlVendorRepository  # noqa: PLC0415
 

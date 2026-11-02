@@ -8,10 +8,10 @@ from typing import TYPE_CHECKING
 
 import pytest
 import pytest_asyncio
-from app.domain.auth.password_hash import PasswordHash
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
+from app.domain.auth.password_hash import PasswordHash
 from app.domain.user.errors import UserNotFoundError
 from app.infra.db.unit_of_work import sql_unit_of_work_factory
 from tests.factories import NOW, later

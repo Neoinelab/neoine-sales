@@ -8,6 +8,10 @@ DIRECTORY_NOT_CONFIGURED = "AD 서버가 아직 등록되지 않았습니다"
 SETUP_CLOSED = "이미 관리자가 등록되어 최초 설정을 진행할 수 없습니다"
 DIRECTORY_FIRST = "먼저 AD 서버를 등록하세요"
 STORAGE_FIRST = "파일 저장 위치를 먼저 설정하세요."
+AUTH_MODE_FIRST = "먼저 인증 방식을 고르세요."
+LOCAL_MODE_ONLY = "앱에서 계정을 직접 관리할 때만 쓸 수 있습니다."
+DIRECTORY_MODE_ONLY = "AD 연동 모드에서만 쓸 수 있습니다."
+WRONG_CURRENT = "현재 비밀번호가 올바르지 않습니다."
 
 _PREFIX = "이전에 로그인한 비밀번호로 로그인했습니다."
 

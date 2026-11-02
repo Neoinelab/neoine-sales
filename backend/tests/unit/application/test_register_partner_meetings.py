@@ -4,6 +4,8 @@ from datetime import date
 from typing import TYPE_CHECKING
 
 import pytest
+
+from app.domain.common.errors import InvalidValueError
 from app.domain.partner_meeting.errors import (
     COMPANY_NOT_FOUND,
     DEAL_NOT_FOUND,
@@ -11,8 +13,6 @@ from app.domain.partner_meeting.errors import (
     NO_ITEMS,
     MeetingInputError,
 )
-
-from app.domain.common.errors import InvalidValueError
 from tests.support.expect import raises_with
 from tests.unit.application.partner_meeting_env import HANBIT, KIM, item
 

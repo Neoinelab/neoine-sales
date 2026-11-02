@@ -4,7 +4,6 @@ from typing import TYPE_CHECKING
 
 from app.application.forecast.list_snapshots import ListForecastSnapshots
 from app.domain.forecast.snapshot import YearMonth
-
 from tests.unit.application.forecast_snapshot_env import local, store_snapshot
 
 if TYPE_CHECKING:

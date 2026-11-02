@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from app.application.auth.mode import ensure_directory_mode
 from app.application.directory.credentials import resolve_draft
 from app.application.directory.errors import DirectoryVerificationError
 
@@ -47,6 +48,7 @@ class TestDirectorySettings:
         client_ip: str,
     ) -> TestResult:
         async with self._uow_factory() as uow:
+            await ensure_directory_mode(uow)  # local 모드에서는 AD를 건드리지 않는다
             stored = await uow.directory_settings.get()
         settings = resolve_draft(draft, stored, self._cipher)
         try:

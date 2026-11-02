@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING
 from app.application.auth.messages import SETUP_CLOSED
 from app.application.directory.errors import DirectoryVerificationError
 from app.application.ports.directory import DirectoryUnavailableError, VerificationStage
+from app.domain.auth.mode import AuthMode
 from app.domain.common.errors import InvalidStateError
 
 if TYPE_CHECKING:
@@ -40,14 +41,16 @@ class RegisterSetupDirectory:
             await uow.users.lock_roster()
             await self._ensure_open(uow)
             current = await uow.directory_settings.get()
+            now = self._clock.now()
             stored = await uow.directory_settings.save(
                 settings.connection,
                 sealed,
                 base_dn,
                 expected_revision=None if current is None else current.revision,
                 updated_by=None,
-                now=self._clock.now(),
+                now=now,
             )
+            await uow.auth_settings.save(AuthMode.AD, now=now)  # 이 단계를 마치면 AD 방식이 된다
             await uow.commit()
         return stored
 

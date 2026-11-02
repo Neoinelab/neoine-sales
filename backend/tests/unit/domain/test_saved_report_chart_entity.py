@@ -1,9 +1,9 @@
 """Report 엔티티와 차트 (Reports 4단계 AC1·5·6·7·8): 만들기·덮어쓰기·복제와 목록용 종류."""
 
 import pytest
-from app.domain.report.chart import ChartKind
 
 from app.domain.auth.principal import Role
+from app.domain.report.chart import ChartKind
 from app.domain.saved_report.entities import Report
 from app.domain.saved_report.values import ReportId, ReportVisibility
 from tests.factories import NOW, later

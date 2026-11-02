@@ -13,9 +13,8 @@
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from app.domain.saved_report.layout import ReportLayout
-
     from app.domain.report.raw import RawLayout
+    from app.domain.saved_report.layout import ReportLayout
 
 
 def raw_layout(

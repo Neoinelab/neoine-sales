@@ -1,10 +1,13 @@
 from typing import TYPE_CHECKING, Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, SecretStr
 
+from app.domain.auth.credentials import PASSWORD_MAX
 from app.domain.auth.principal import Role
 from app.domain.user.value_objects import UserDeleteReason
 from app.web.schemas.common import Page, RequestModel
+from app.web.schemas.password_field import to_new_password
+from app.web.schemas.profile_changes import ProfileChangesRequest
 from app.web.schemas.server_datetime import ServerDateTime
 from app.web.schemas.user_ref import UserRef, ref_of
 
@@ -12,17 +15,39 @@ if TYPE_CHECKING:
     from collections.abc import Mapping
 
     from app.application.user.delete_user import DeleteOutcome
+    from app.domain.auth.credentials import Password
     from app.domain.user.entities import User
     from app.domain.user.value_objects import UserId
     from app.domain.user.value_objects import UserRef as DomainUserRef
 
 
 class UserRequest(RequestModel):
-    """등록 본문. 비밀번호는 받지 않는다(AD가 인증). 아이디 형식 검증은 도메인(LoginId)이 한다."""
+    """등록 본문. 비밀번호는 local 모드에서만 받는다(AD는 422). 값 검증은 도메인이 한다."""
 
     login_id: str
     role: Role
     display_name: str | None = None
+    email: str | None = None
+    phone: str | None = None
+    password: SecretStr | None = Field(default=None, max_length=PASSWORD_MAX)
+
+    def to_password(self) -> Password | None:
+        if self.password is None:
+            return None
+        return to_new_password(self.password, "password")
+
+
+class UserProfileRequest(ProfileChangesRequest):
+    """admin의 사용자 정보 수정 본문(아이디·역할·비밀번호는 받지 않는다)."""
+
+
+class UserPasswordRequest(RequestModel):
+    """admin의 비밀번호 재설정 본문."""
+
+    password: SecretStr = Field(max_length=PASSWORD_MAX)
+
+    def to_password(self) -> Password:
+        return to_new_password(self.password, "password")
 
 
 class UserRoleRequest(RequestModel):
@@ -37,6 +62,7 @@ class UserResponse(BaseModel):
     role: Role
     display_name: str | None
     email: str | None
+    phone: str | None
     created_at: ServerDateTime
     created_by: UserRef
     last_login_at: ServerDateTime | None
@@ -52,6 +78,7 @@ class UserResponse(BaseModel):
             role=user.role,
             display_name=user.display_name,
             email=user.email,
+            phone=user.phone,
             created_at=user.created_at,
             created_by=ref_of(refs, user.created_by_user_id),
             last_login_at=user.last_login_at,

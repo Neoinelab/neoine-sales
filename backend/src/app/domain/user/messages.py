@@ -1,3 +1,5 @@
 ALREADY_RESIGNED = "이미 퇴사 처리된 사용자입니다"
 SELF_ROLE_CHANGE = "자기 자신의 역할은 바꿀 수 없습니다."
 LAST_ADMIN_ROLE_CHANGE = "마지막 관리자의 역할은 바꿀 수 없습니다."
+AD_PROFILE_READONLY = "AD 연동 사용자의 이름·이메일은 AD에서 관리합니다."
+NAME_REQUIRED = "이름은 비울 수 없습니다."

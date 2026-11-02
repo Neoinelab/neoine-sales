@@ -74,7 +74,7 @@ async def test_upgrade_deletes_existing_directory_row_and_creates_hash_table(
     await given_rows(blank_database, _old_settings_and_a_user)
     assert await run_sql(blank_database, "select count(*) from directory_settings") == [(1,)]
     # When
-    await when_operator_upgrades(blank_database)
+    await when_operator_upgrades(blank_database, target=directory_service_account_revision())
     # Then
     await then_schema_is_at(blank_database, directory_service_account_revision())
     assert await run_sql(blank_database, "select count(*) from directory_settings") == [(0,)]
@@ -92,7 +92,7 @@ async def test_upgrade_keeps_users_and_other_tables_untouched(blank_database: UR
     await given_rows(blank_database, _old_settings_and_a_user)
     before = {name: await table_structure(blank_database, name) for name in OTHER_TABLES}
     # When
-    await when_operator_upgrades(blank_database)
+    await when_operator_upgrades(blank_database, target=directory_service_account_revision())
     # Then
     assert {name: await table_structure(blank_database, name) for name in OTHER_TABLES} == before
     assert await run_sql(blank_database, "select count(*) from users") == [(1,)]
@@ -105,21 +105,21 @@ async def test_upgrade_without_a_directory_row_still_creates_the_new_structure(
     # Given
     await given_schema_at(blank_database, PARTNER_MEETINGS_REVISION)
     # When
-    await when_operator_upgrades(blank_database)
+    await when_operator_upgrades(blank_database, target=directory_service_account_revision())
     # Then
     await then_schema_is_at(blank_database, directory_service_account_revision())
     assert set(await column_names(blank_database, "directory_settings")) >= NEW_COLUMNS
     assert "user_password_hashes" in await table_names(blank_database)
 
 
-async def test_upgrade_to_head_ends_at_the_directory_service_account_revision(
+async def test_upgrade_from_empty_to_this_revision_ends_at_the_directory_service_account_revision(
     blank_database: URL,
 ) -> None:
-    """Scenario: 빈 DB를 head로 올리면 이 리비전에 이른다(head는 이 리비전이다)."""
+    """Scenario: 빈 DB를 이 리비전까지 올리면 이 리비전에 이른다(head는 그 뒤 리비전이다)."""
     # Given
     # (마이그레이션이 하나도 적용되지 않은 빈 DB)
     # When
-    await when_operator_upgrades(blank_database)
+    await when_operator_upgrades(blank_database, target=directory_service_account_revision())
     # Then
     await then_schema_is_at(blank_database, directory_service_account_revision())
 
@@ -153,7 +153,7 @@ async def test_downgrade_then_upgrade_again_reaches_the_same_structure(
     }
     await when_operator_downgrades(blank_database, target=PARTNER_MEETINGS_REVISION)
     # When
-    await when_operator_upgrades(blank_database)
+    await when_operator_upgrades(blank_database, target=directory_service_account_revision())
     # Then
     again = {
         name: await table_structure(blank_database, name)

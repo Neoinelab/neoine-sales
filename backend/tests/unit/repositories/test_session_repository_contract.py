@@ -139,3 +139,49 @@ async def test_deleted_sessions_cannot_be_updated_or_revived(
     with pytest.raises(NotFoundError):
         await repository.update(session)
     assert await repository.get_by_token_hash("kim-1") is None
+
+
+async def test_delete_others_for_user_keeps_given_token(repository: SessionRepository) -> None:
+    await repository.add(make_session(principal=principal_of("kim")), "kim-keep")
+    await repository.add(make_session(principal=principal_of("kim")), "kim-2")
+    already = make_session(principal=principal_of("kim"))
+    already.revoke(later(5))
+    await repository.add(already, "kim-old")
+    await repository.add(make_session(principal=principal_of("lee")), "lee-1")
+
+    deleted = await repository.delete_others_for_user(uid("kim"), "kim-keep")
+
+    assert deleted == 2  # 폐기된 행도 지운다
+    assert await repository.get_by_token_hash("kim-keep") is not None
+    assert await repository.get_by_token_hash("kim-2") is None
+    assert await repository.get_by_token_hash("kim-old") is None
+    assert await repository.get_by_token_hash("lee-1") is not None  # 다른 사용자는 그대로
+
+
+async def test_delete_others_for_user_with_only_the_kept_session_returns_zero(
+    repository: SessionRepository,
+) -> None:
+    await repository.add(make_session(principal=principal_of("kim")), "kim-keep")
+
+    assert await repository.delete_others_for_user(uid("kim"), "kim-keep") == 0
+    assert await repository.get_by_token_hash("kim-keep") is not None
+
+
+async def test_delete_others_for_user_does_not_keep_another_users_token_hash(
+    repository: SessionRepository,
+) -> None:
+    """keep_token_hash가 다른 사용자의 세션이어도 요청한 사용자의 세션은 모두 지워진다."""
+    await repository.add(make_session(principal=principal_of("kim")), "kim-1")
+    await repository.add(make_session(principal=principal_of("lee")), "lee-1")
+
+    deleted = await repository.delete_others_for_user(uid("kim"), "lee-1")
+
+    assert deleted == 1
+    assert await repository.get_by_token_hash("kim-1") is None
+    assert await repository.get_by_token_hash("lee-1") is not None
+
+
+async def test_delete_others_for_user_without_sessions_returns_zero(
+    repository: SessionRepository,
+) -> None:
+    assert await repository.delete_others_for_user(uid("lee"), "none") == 0

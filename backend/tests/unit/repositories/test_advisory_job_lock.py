@@ -9,10 +9,10 @@ from typing import TYPE_CHECKING
 
 import pytest
 import pytest_asyncio
-from app.application.ports.job_lock import JobLock
-from app.infra.db.advisory_job_lock import PgAdvisoryJobLock, lock_key
 from sqlalchemy.ext.asyncio import create_async_engine
 
+from app.application.ports.job_lock import JobLock
+from app.infra.db.advisory_job_lock import PgAdvisoryJobLock, lock_key
 from tests.fakes.job_lock import FakeJobLock
 
 if TYPE_CHECKING:

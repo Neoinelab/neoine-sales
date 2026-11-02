@@ -5,6 +5,7 @@ from app.application.auth.directory_login import LoginOutcome
 from app.application.auth.warning_stage import DirectoryWarningStage
 from app.domain.auth.credentials import PASSWORD_MAX, Password
 from app.domain.auth.errors import AuthenticationError
+from app.domain.auth.mode import AuthMode
 from app.domain.auth.principal import Principal, Role
 from app.domain.common.errors import InvalidValueError
 from app.web.schemas.common import RequestModel
@@ -58,6 +59,7 @@ class AuthConfigResponse(BaseModel):
     needs_directory_setup: bool
     needs_storage_setup: bool
     needs_admin_setup: bool
+    auth_mode: AuthMode | None
 
     @classmethod
     def from_status(cls, status: AuthStatus, *, dev_login: bool) -> AuthConfigResponse:
@@ -67,6 +69,7 @@ class AuthConfigResponse(BaseModel):
             needs_directory_setup=status.needs_directory_setup,
             needs_storage_setup=status.needs_storage_setup,
             needs_admin_setup=status.needs_admin_setup,
+            auth_mode=status.auth_mode,
         )
 
 
@@ -79,6 +82,13 @@ class CredentialsRequest(RequestModel):
 
     login_id: str = Field(max_length=LOGIN_ID_REQUEST_MAX)
     password: SecretStr = Field(max_length=PASSWORD_MAX)
+
+    def password_or_none(self) -> Password | None:
+        """빈 값·NUL이면 None(호출자가 모드에 따라 401 또는 422로 처리한다)."""
+        try:
+            return Password(self.password.get_secret_value())
+        except InvalidValueError:
+            return None
 
     def to_password(self) -> Password:
         """빈 값·NUL은 다른 로그인 실패와 같은 401로 처리한다(AD로 보내지 않는다)."""
@@ -93,4 +103,12 @@ class LoginRequest(CredentialsRequest):
 
 
 class SetupAdminRequest(CredentialsRequest):
-    pass
+    """최초 admin 등록. 이름·이메일·전화는 local 모드에서만 받는다(AD는 422)."""
+
+    display_name: str | None = None
+    email: str | None = None
+    phone: str | None = None
+
+
+class AuthModeRequest(RequestModel):
+    mode: AuthMode

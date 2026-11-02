@@ -7,7 +7,6 @@
 from typing import TYPE_CHECKING, Any
 
 import pytest
-from app.domain.report.chart import ChartKind
 
 from app.application.report.copy_report import CopyReport
 from app.application.report.create_report import CreateReport
@@ -15,6 +14,7 @@ from app.application.report.get_report import GetReport
 from app.application.report.list_reports import ListReports
 from app.application.report.run_saved_report import RunSavedReport
 from app.application.report.update_report import UpdateReport
+from app.domain.report.chart import ChartKind
 from app.domain.report.errors import ReportDefinitionError
 from tests.factories import later
 from tests.factories_report import make_report

@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Self
 from app.infra.db.action_type_repository import SqlActionTypeRepository
 from app.infra.db.alert_settings_repository import SqlAlertSettingsRepository
 from app.infra.db.attachment_repository import SqlAttachmentRepository
+from app.infra.db.auth_settings_repository import SqlAuthSettingsRepository
 from app.infra.db.bant_label_repository import SqlBantLabelRepository
 from app.infra.db.code_repository import SqlCodeRepository
 from app.infra.db.contact_repository import SqlContactRepository
@@ -44,6 +45,7 @@ class SqlUnitOfWork:
     login_failures: SqlLoginFailureRepository
     password_hashes: SqlUserPasswordHashRepository
     directory_settings: SqlDirectorySettingsRepository
+    auth_settings: SqlAuthSettingsRepository
     storage_settings: SqlStorageSettingsRepository
     codes: SqlCodeRepository
     bant_labels: SqlBantLabelRepository
@@ -73,6 +75,7 @@ class SqlUnitOfWork:
         self.login_failures = SqlLoginFailureRepository(self._session)
         self.password_hashes = SqlUserPasswordHashRepository(self._session)
         self.directory_settings = SqlDirectorySettingsRepository(self._session)
+        self.auth_settings = SqlAuthSettingsRepository(self._session)
         self.storage_settings = SqlStorageSettingsRepository(self._session)
         self.codes = SqlCodeRepository(self._session)
         self.bant_labels = SqlBantLabelRepository(self._session)

@@ -3,11 +3,11 @@
 import base64
 
 import pytest
+from pydantic import SecretStr
+
 from app.application.ports.secret_cipher import SecretDecryptionError
 from app.domain.common.secret import SealedSecret
 from app.infra.crypto.fernet_cipher import FernetSecretCipher
-from pydantic import SecretStr
-
 from tests.support.crypto_keys import OTHER_FERNET_KEY, TEST_FERNET_KEY
 
 PLAINTEXT = "Svc-Dummy-pw-1!"

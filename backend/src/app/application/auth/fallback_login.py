@@ -8,19 +8,18 @@ import logging
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from app.application.auth.active_user import find_active_user
 from app.application.auth.log_ids import short_hash
 from app.application.auth.warning_stage import DirectoryWarningStage
 from app.application.directory.errors import DirectoryCredentialUnreadableError
 from app.application.ports.directory import VerificationStage
-from app.domain.user.errors import AmbiguousLoginIdError, UserNotFoundError
+from app.domain.user.errors import UserNotFoundError
 
 if TYPE_CHECKING:
     from app.application.auth.deps import AuthDeps
     from app.application.ports.directory import DirectoryError
-    from app.application.ports.user_repository import UserRepository
     from app.domain.auth.credentials import LoginId, Password
     from app.domain.auth.principal import Principal
-    from app.domain.user.entities import User
 
 __all__ = ["DirectoryWarning", "DirectoryWarningStage", "FallbackLogin", "warning_stage_of"]
 
@@ -66,14 +65,14 @@ class FallbackLogin:
     ) -> Principal:
         # scrypt 검증 동안 DB 트랜잭션을 잡지 않도록 읽기 → 검증 → 다시 확인·기록 순서로 나눈다
         async with self._deps.uow_factory() as uow:
-            user = await self._active_user(uow.users, account)
+            user = await find_active_user(uow.users, account, purpose="대체 로그인")
             stored = None if user is None else await uow.password_hashes.get(user.id)
         # 사용자·해시가 없어도 verify(None)으로 같은 비용을 쓴다
         matched = await self._deps.hasher.verify(password, stored)
         if user is None or not matched:
             raise original
         async with self._deps.uow_factory() as uow:
-            current = await self._active_user(uow.users, account)
+            current = await find_active_user(uow.users, account, purpose="대체 로그인")
             if (
                 current is None
                 or current.id != user.id
@@ -91,15 +90,3 @@ class FallbackLogin:
             "AD 대체 로그인 stage=%s login_id_hash=%s", stage.value, short_hash(account.value)
         )
         return user.to_principal()
-
-    @staticmethod
-    async def _active_user(users: UserRepository, account: LoginId) -> User | None:
-        try:
-            return await users.get_active_by_login_id(account)
-        except AmbiguousLoginIdError as error:
-            logger.warning(
-                "재직 로그인 아이디 중복으로 대체 로그인 거부 count=%d login_id_hash=%s",
-                error.count,
-                short_hash(account.value),
-            )
-            return None

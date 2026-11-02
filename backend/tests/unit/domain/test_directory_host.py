@@ -6,9 +6,9 @@
 import importlib.util
 
 import pytest
-from app.domain.directory.host import normalize_host
 
 from app.domain.common.errors import InvalidValueError
+from app.domain.directory.host import normalize_host
 
 
 @pytest.mark.parametrize(

@@ -8,10 +8,10 @@
 from typing import TYPE_CHECKING
 
 import pytest
-from app.domain.saved_report.layout import DEFAULT_LAYOUT
 
 from app.domain.auth.principal import Role
 from app.domain.saved_report.errors import ReportNotFoundError
+from app.domain.saved_report.layout import DEFAULT_LAYOUT
 from app.domain.saved_report.values import ReportId
 from tests.factories import later
 from tests.factories_report import make_content, make_report

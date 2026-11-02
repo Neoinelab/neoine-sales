@@ -13,6 +13,7 @@ if TYPE_CHECKING:
     from datetime import datetime
 
     from app.application.ports.unit_of_work import UnitOfWorkFactory
+    from app.domain.auth.mode import AuthMode
     from app.domain.directory.settings import DirectorySettings, StoredDirectorySettings
     from app.domain.storage.settings import StoredStorageSettings
     from app.domain.user.entities import User
@@ -75,6 +76,41 @@ async def seed_password_hash(uow_factory: UnitOfWorkFactory, user: User, passwor
     async with uow_factory() as uow:
         await uow.password_hashes.save(user.id, fake_hash_of(password), NOW)
         await uow.commit()
+
+
+async def seed_auth_mode(uow_factory: UnitOfWorkFactory, mode: AuthMode) -> None:
+    """인증 방식(최초 설정 1단계의 선택)을 저장소에 직접 넣는다."""
+    async with uow_factory() as uow:
+        await uow.auth_settings.save(mode, now=NOW)
+        await uow.commit()
+
+
+async def seed_local_user(  # noqa: PLR0913 - 시나리오 준비용 옵션
+    uow_factory: UnitOfWorkFactory,
+    login_id: str = "kim",
+    password: str = "pw-kim-1234",  # noqa: S107 - 가짜 값
+    role: Role = Role.SALES,
+    *,
+    resigned: bool = False,
+    with_hash: bool = True,
+    **profile: object,
+) -> User:
+    """local 모드 사용자: 재직 행과 그 비밀번호의 해시(FakePasswordHasher 형식).
+
+    profile은 display_name·email·phone이다. with_hash=False면 해시 없는 사용자(로그인 불가).
+    """
+    from tests.fakes.password_hasher import fake_hash_of  # noqa: PLC0415
+
+    user = make_user(login_id, role, now=NOW, **profile)
+    async with uow_factory() as uow:
+        await uow.users.add(user)
+        if with_hash:
+            await uow.password_hashes.save(user.id, fake_hash_of(password), NOW)
+        if resigned:
+            user.resign(NOW)
+            await uow.users.update(user)
+        await uow.commit()
+    return user
 
 
 async def seed_storage(

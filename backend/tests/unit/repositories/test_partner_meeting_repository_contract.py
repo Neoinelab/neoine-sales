@@ -7,11 +7,11 @@ from datetime import date, timedelta
 from typing import TYPE_CHECKING
 
 import pytest
-from app.domain.partner_meeting.errors import PartnerMeetingNotFoundError
-from app.domain.partner_meeting.values import MeetingContent, PartnerMeetingId
 
 from app.domain.common.errors import AlreadyExistsError, InvalidReferenceError
 from app.domain.deal.errors import DealNotFoundError
+from app.domain.partner_meeting.errors import PartnerMeetingNotFoundError
+from app.domain.partner_meeting.values import MeetingContent, PartnerMeetingId
 from tests.factories import NOW, later, make_deal_code
 from tests.factories_partner_meeting import make_meeting, make_subject
 from tests.support.ids import new_id

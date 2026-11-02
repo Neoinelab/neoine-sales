@@ -4,7 +4,6 @@ from datetime import UTC, date, datetime, timedelta
 from typing import TYPE_CHECKING
 
 from app.application.time.get_server_time import GetServerTime
-
 from tests.fakes.unit_of_work import FixedClock, SteppingClock
 
 if TYPE_CHECKING:

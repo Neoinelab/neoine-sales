@@ -9,7 +9,6 @@ if TYPE_CHECKING:
     from datetime import datetime
 
     from app.domain.common.secret import SealedSecret
-
     from app.domain.directory.settings import DirectoryConnection
     from app.domain.user.value_objects import UserId
 

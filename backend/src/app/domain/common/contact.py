@@ -7,6 +7,7 @@ from app.domain.common.errors import InvalidValueError
 from app.domain.common.validation import assign
 
 EMAIL_MAX_LENGTH = 254
+PHONE_MAX_LENGTH = 40
 PHONE_MIN_DIGITS = 7
 PHONE_MAX_DIGITS = 15  # E.164 최대 자릿수
 _EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s.]+(\.[^@\s.]+)+$")
@@ -32,6 +33,11 @@ class PhoneNumber:
         text = self.value.strip()
         digits = sum(ch.isdigit() for ch in text)
         valid_length = PHONE_MIN_DIGITS <= digits <= PHONE_MAX_DIGITS
-        if not text or not _PHONE_PATTERN.match(text) or not valid_length:
+        if (
+            not text
+            or len(text) > PHONE_MAX_LENGTH
+            or not valid_length
+            or not _PHONE_PATTERN.match(text)
+        ):
             raise InvalidValueError("전화번호 형식이 올바르지 않습니다.")
         assign(self, value=text)

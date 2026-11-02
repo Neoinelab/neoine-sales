@@ -8,9 +8,8 @@ import는 Deal 구현이 없는 동안 그 테스트의 수집까지 막는다(t
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from app.application.deal.deal_years import GetDealYears
-
     from app.application.deal.apply_change import ApplyDealChange
+    from app.application.deal.deal_years import GetDealYears
     from app.application.deal.delete_deal import DeleteDeal
     from app.application.deal.deletion_impact import GetDealDeletionImpact
     from app.application.deal.get_deal import GetDeal

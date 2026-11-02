@@ -1,4 +1,4 @@
-"""AD 아이디·비밀번호 로그인. 성공하면 HttpOnly 세션 쿠키를 준다."""
+"""아이디·비밀번호 로그인(AD 또는 앱 자체 계정). 성공하면 HttpOnly 세션 쿠키를 준다."""
 
 from fastapi import APIRouter, Depends, Request, Response
 
@@ -19,7 +19,7 @@ router = APIRouter(prefix=AUTH_PATH, tags=["auth"])
 async def login(
     body: LoginRequest, request: Request, response: Response, provider: Provider, options: Options
 ) -> LoginResponse:
-    outcome = await provider.directory_login().execute(
+    outcome = await provider.password_login().execute(
         login_id=body.login_id, password=body.to_password(), client_ip=client_ip(request)
     )
     set_session_cookie(response, outcome.session.token, options)

@@ -8,9 +8,9 @@ from datetime import date
 from typing import TYPE_CHECKING
 
 import pytest
-from app.application.ports.partner_meeting_repository import PartnerMeetingSort
 
 from app.application.ports.deal_repository import SortOrder
+from app.application.ports.partner_meeting_repository import PartnerMeetingSort
 from tests.factories_partner_meeting import make_meeting
 from tests.support.user_ids import uid
 

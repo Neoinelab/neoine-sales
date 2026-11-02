@@ -13,6 +13,25 @@
 - DevLogin(uow_factory, clock, issue_session): dev-admin|dev-sales|dev-user 행을 users에 두고 발급
   (allow_dev_sessions는 Authenticate의 allow_dev_users와 VerifyDirectorySettings에 연결된다)
 
+앱 자체 계정 관리(local 모드) 개편 계약(구현자가 따른다).
+AD 경로 클래스는 그대로 두고 새 클래스를 더한다:
+- ChooseSetupAuthMode(uow_factory, clock)      app.application.auth.setup_auth_mode
+  execute(mode: AuthMode) -> AuthSettings
+- LocalLogin(deps)                              ...auth.local_login
+  execute(account: LoginId, password: Password) -> Principal
+- PasswordLogin(deps, issue_session)            ...auth.password_login
+  execute(*, login_id, password, client_ip) -> LoginOutcome
+  (모드 LOCAL이면 LocalLogin, 그 외 DirectoryLogin)
+- SetupFirstLocalAdmin(deps, issue_session)     ...auth.setup_first_local_admin
+  execute(*, login_id, password, display_name=None, email=None, phone=None) -> IssuedSession
+- SetupAdmin(deps, issue_session)               ...auth.setup_admin
+  (모드 LOCAL이면 위, 그 외 SetupFirstAdmin)
+  execute(*, login_id, password, client_ip, display_name=None, email=None, phone=None)
+  -> IssuedSession
+- ChangeMyPassword(deps)                        app.application.account.change_my_password
+  execute(*, actor, current, new, session_token, client_ip) -> None
+- 모드 헬퍼 current_mode(uow) -> AuthMode | None  ...auth.mode  (effective_mode 위에서 계산)
+
 새 Port 3개가 필요한 조각(cipher·hasher·deps·login·setup_admin·register_directory)은
 처음 쓸 때 만든다.
 그러면 세션 발급·인증·로그아웃·사용자 관리만 쓰는 테스트가 AD 개편 구현에 묶이지 않는다.
@@ -32,10 +51,16 @@ from tests.factories_auth import make_policy
 from tests.fakes.directory import FakeDirectoryAuthenticator
 
 if TYPE_CHECKING:
+    from app.application.account.change_my_password import ChangeMyPassword
     from app.application.auth.deps import AuthDeps
     from app.application.auth.directory_login import DirectoryLogin
+    from app.application.auth.local_login import LocalLogin
+    from app.application.auth.password_login import PasswordLogin
+    from app.application.auth.setup_admin import SetupAdmin
+    from app.application.auth.setup_auth_mode import ChooseSetupAuthMode
     from app.application.auth.setup_directory import RegisterSetupDirectory
     from app.application.auth.setup_first_admin import SetupFirstAdmin
+    from app.application.auth.setup_first_local_admin import SetupFirstLocalAdmin
     from app.application.ports.clock import Clock
     from app.application.ports.unit_of_work import UnitOfWorkFactory
     from tests.fakes.password_hasher import FakePasswordHasher
@@ -116,6 +141,46 @@ class AuthStack:
         from app.application.auth.directory_login import DirectoryLogin  # noqa: PLC0415
 
         return DirectoryLogin(self.deps, self.issue)
+
+    # ---- 앱 자체 계정 관리(local 모드): 처음 쓸 때 만든다(구현 전에도 기존 테스트가 수집된다) ----
+
+    @cached_property
+    def choose_mode(self) -> ChooseSetupAuthMode:
+        from app.application.auth.setup_auth_mode import ChooseSetupAuthMode  # noqa: PLC0415
+
+        return ChooseSetupAuthMode(self._uow_factory, self._clock)
+
+    @cached_property
+    def local_login(self) -> LocalLogin:
+        from app.application.auth.local_login import LocalLogin  # noqa: PLC0415
+
+        return LocalLogin(self.deps)
+
+    @cached_property
+    def password_login(self) -> PasswordLogin:
+        from app.application.auth.password_login import PasswordLogin  # noqa: PLC0415
+
+        return PasswordLogin(self.deps, self.issue)
+
+    @cached_property
+    def setup_local_admin(self) -> SetupFirstLocalAdmin:
+        from app.application.auth.setup_first_local_admin import (  # noqa: PLC0415
+            SetupFirstLocalAdmin,
+        )
+
+        return SetupFirstLocalAdmin(self.deps, self.issue)
+
+    @cached_property
+    def setup(self) -> SetupAdmin:
+        from app.application.auth.setup_admin import SetupAdmin  # noqa: PLC0415
+
+        return SetupAdmin(self.deps, self.issue)
+
+    @cached_property
+    def change_my_password(self) -> ChangeMyPassword:
+        from app.application.account.change_my_password import ChangeMyPassword  # noqa: PLC0415
+
+        return ChangeMyPassword(self.deps)
 
 
 def build_auth_stack(

@@ -3,6 +3,8 @@
 from typing import Any
 
 import pytest
+
+from app.domain.report.errors import ReportDefinitionError
 from app.domain.saved_report.layout import (
     DEFAULT_LAYOUT,
     ResultTile,
@@ -12,8 +14,6 @@ from app.domain.saved_report.layout import (
     layout_to_json,
     parse_layout,
 )
-
-from app.domain.report.errors import ReportDefinitionError
 from tests.support.layout_defs import layout_json, make_layout, raw_layout
 
 

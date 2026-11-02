@@ -13,7 +13,6 @@ if TYPE_CHECKING:
     from datetime import datetime
 
     from app.domain.auth.password_hash import PasswordHash
-
     from app.domain.user.value_objects import UserId
 
 

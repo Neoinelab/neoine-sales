@@ -5,12 +5,12 @@
 
 import inspect
 
-from app.application.ports.forecast_repository import ForecastTallyRepository
-from app.infra.db.forecast_repository import SqlForecastTallyRepository
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 
+from app.application.ports.forecast_repository import ForecastTallyRepository
 from app.application.ports.unit_of_work import UnitOfWork
 from app.container import Container
+from app.infra.db.forecast_repository import SqlForecastTallyRepository
 from app.infra.db.unit_of_work import SqlUnitOfWork
 from app.web.use_case_provider import UseCaseProvider
 from tests.fakes.forecast import FakeForecastTallyRepository

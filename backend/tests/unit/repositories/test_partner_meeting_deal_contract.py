@@ -3,9 +3,9 @@
 from typing import TYPE_CHECKING
 
 import pytest
-from app.domain.partner_meeting.errors import PartnerMeetingNotFoundError
 
 from app.application.ports.deal_repository import DealDeletionImpact
+from app.domain.partner_meeting.errors import PartnerMeetingNotFoundError
 
 if TYPE_CHECKING:
     from tests.unit.repositories.partner_meeting_case import MeetingCase

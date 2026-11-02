@@ -3,9 +3,9 @@
 from datetime import UTC, date, datetime
 
 import pytest
-from app.domain.partner_meeting.values import check_meeting_date
 
 from app.domain.common.errors import InvalidValueError
+from app.domain.partner_meeting.values import check_meeting_date
 from tests.support.expect import raises_with
 
 OUT_OF_BOUNDS = "미팅 날짜은(는) 1900-01-01부터 2999-12-31 사이여야 합니다"

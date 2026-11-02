@@ -4,7 +4,6 @@ from datetime import date
 from typing import TYPE_CHECKING
 
 from app.application.ports.partner_meeting_repository import PartnerMeetingQuery
-
 from tests.unit.application.partner_meeting_env import HANBIT, KIM, PARK
 
 if TYPE_CHECKING:

@@ -14,7 +14,6 @@ if TYPE_CHECKING:
     from app.application.partner_meeting.list_partner_meetings import ListPartnerMeetings
     from app.application.partner_meeting.register_partner_meetings import RegisterPartnerMeetings
     from app.application.partner_meeting.update_partner_meeting import UpdatePartnerMeeting
-
     from app.application.ports.clock import Clock
     from app.application.ports.unit_of_work import UnitOfWorkFactory
 

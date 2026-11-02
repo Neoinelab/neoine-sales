@@ -9,10 +9,11 @@ from typing import TYPE_CHECKING
 import pytest
 
 from app.application.auth.messages import DIRECTORY_FIRST, SETUP_CLOSED
+from app.domain.auth.mode import AuthMode
 from app.domain.auth.principal import Role
 from app.domain.common.errors import InvalidStateError, InvalidValueError
 from tests.factories import NOW
-from tests.support.auth_seed import seed_directory, seed_storage, seed_user
+from tests.support.auth_seed import seed_auth_mode, seed_directory, seed_storage, seed_user
 
 if TYPE_CHECKING:
     from app.application.ports.unit_of_work import UnitOfWorkFactory
@@ -133,6 +134,7 @@ async def test_setup_storage_rejects_a_malformed_path_without_probing_the_disk(
 async def test_setup_storage_before_the_directory_step_is_rejected(
     storage: StorageStack, uow_factory: UnitOfWorkFactory, file_storage: FakeFileStorage
 ) -> None:
+    await seed_auth_mode(uow_factory, AuthMode.AD)  # AD 방식을 골랐는데 AD 단계를 건너뜀
     with pytest.raises(InvalidStateError) as caught:
         await storage.register_setup.execute("/data/files")
 
@@ -142,8 +144,9 @@ async def test_setup_storage_before_the_directory_step_is_rejected(
 
 
 async def test_setup_storage_reports_the_directory_step_before_a_malformed_path(
-    storage: StorageStack,
+    storage: StorageStack, uow_factory: UnitOfWorkFactory
 ) -> None:
+    await seed_auth_mode(uow_factory, AuthMode.AD)
     with pytest.raises(InvalidStateError) as caught:
         await storage.register_setup.execute("relative")
 

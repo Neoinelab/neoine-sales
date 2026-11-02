@@ -7,10 +7,10 @@
 from datetime import date
 
 import pytest
-from app.domain.forecast.snapshot import YearMonth, default_snapshot_month, ensure_snapshot_allowed
 
 from app.domain.common.errors import InvalidValueError
 from app.domain.forecast.errors import SnapshotMonthNotAllowedError
+from app.domain.forecast.snapshot import YearMonth, default_snapshot_month, ensure_snapshot_allowed
 
 
 def test_parse_reads_a_year_and_a_two_digit_month() -> None:

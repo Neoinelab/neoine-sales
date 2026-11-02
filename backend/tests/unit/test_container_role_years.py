@@ -4,9 +4,9 @@ from typing import TYPE_CHECKING
 
 import pytest
 import pytest_asyncio
+
 from app.application.deal.deal_years import GetDealYears
 from app.application.user.change_user_role import ChangeUserRole
-
 from app.container import Container
 from app.web.use_case_provider import UseCaseProvider
 from tests.fakes.use_cases import FakeUseCases

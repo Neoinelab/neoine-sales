@@ -7,6 +7,7 @@ import asyncio
 import logging
 
 import pytest
+
 from app.infra.scheduling.periodic import PeriodicTask
 
 INTERVAL = 600.0

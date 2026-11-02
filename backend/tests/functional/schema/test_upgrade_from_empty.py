@@ -45,6 +45,8 @@ EXPECTED_TABLES = {
     "forecast_snapshot_cells",
     "forecast_snapshot_columns",
     "partner_meetings",  # 파트너 Activity 미팅 기록
+    "user_password_hashes",  # 대체 로그인용·local 모드 정본 비밀번호 해시
+    "auth_settings",  # 인증 방식(ad|local)
 }
 # contacts로 통합된 customers·partners, 이력 테이블로 바뀐 deal_stage_changes는 head에 없다
 RETIRED_TABLES = {"customers", "partners", "deal_stage_changes", "solutions"}

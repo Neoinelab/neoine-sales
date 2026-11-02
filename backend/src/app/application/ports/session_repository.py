@@ -24,3 +24,7 @@ class SessionRepository(Protocol):
         폐기만 하면 users 행을 FK가 막아 물리 삭제할 수 없으므로 행을 지운다.
         """
         ...
+
+    async def delete_others_for_user(self, user_id: UserId, keep_token_hash: str) -> int:
+        """그 사용자의 세션 중 keep_token_hash가 아닌 행을 모두(폐기 포함) 지운다."""
+        ...

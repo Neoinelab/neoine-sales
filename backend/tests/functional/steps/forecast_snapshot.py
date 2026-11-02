@@ -17,9 +17,9 @@ from tests.functional.conftest import make_settings
 from tests.functional.steps.forecast import cells_of, open_total_of
 
 if TYPE_CHECKING:
-    from app.application.forecast.ensure_monthly_snapshot import SnapshotCheckResult
     from httpx import Response
 
+    from app.application.forecast.ensure_monthly_snapshot import SnapshotCheckResult
     from tests.functional.conftest import Api
 
 SNAPSHOTS: Final = "/api/v1/forecast/snapshots"

@@ -46,3 +46,14 @@ class FakeSessionRepository:
         for token_hash in doomed:
             del self._items[token_hash]
         return len(doomed)
+
+    async def delete_others_for_user(self, user_id: UserId, keep_token_hash: str) -> int:
+        """그 사용자의 세션 중 keep_token_hash가 아닌 행(폐기 포함)을 지우고 개수를 돌려준다."""
+        doomed = [
+            h
+            for h, s in self._items.items()
+            if s.principal.user_id == user_id and h != keep_token_hash
+        ]
+        for token_hash in doomed:
+            del self._items[token_hash]
+        return len(doomed)

@@ -5,12 +5,12 @@
 
 import inspect
 
-from app.application.ports.partner_meeting_repository import PartnerMeetingRepository
-from app.infra.db.partner_meeting_repository import SqlPartnerMeetingRepository
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 
+from app.application.ports.partner_meeting_repository import PartnerMeetingRepository
 from app.application.ports.unit_of_work import UnitOfWork
 from app.container import Container
+from app.infra.db.partner_meeting_repository import SqlPartnerMeetingRepository
 from app.infra.db.unit_of_work import SqlUnitOfWork
 from app.web.use_case_provider import UseCaseProvider
 from tests.fakes.partner_meetings import FakePartnerMeetingRepository

@@ -7,8 +7,8 @@ from typing import TYPE_CHECKING
 
 import pytest
 import pytest_asyncio
-from app.domain.common.secret import SealedSecret
 
+from app.domain.common.secret import SealedSecret
 from app.domain.directory.errors import DirectorySettingsConflictError
 from app.domain.directory.settings import SecurityMode
 from app.infra.db.directory_settings_repository import SqlDirectorySettingsRepository

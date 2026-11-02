@@ -3,15 +3,15 @@
 from datetime import date, datetime
 
 import pytest
+
+from app.domain.auth.errors import AccessDeniedError
+from app.domain.auth.principal import Role
 from app.domain.partner_meeting.entities import PartnerMeeting
 from app.domain.partner_meeting.errors import (
     PartnerMeetingDeleteForbiddenError,
     PartnerMeetingEditForbiddenError,
 )
 from app.domain.partner_meeting.values import MeetingContent, PartnerMeetingId
-
-from app.domain.auth.errors import AccessDeniedError
-from app.domain.auth.principal import Role
 from tests.factories import NOW, later, make_deal_code
 from tests.factories_partner_meeting import make_meeting, make_subject
 from tests.support.expect import raises_with

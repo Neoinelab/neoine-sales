@@ -4,6 +4,7 @@ from datetime import date
 from typing import TYPE_CHECKING
 
 import pytest
+
 from app.domain.partner_meeting.errors import (
     COMPANY_NOT_FOUND,
     DEAL_NOT_LINKED,
@@ -12,7 +13,6 @@ from app.domain.partner_meeting.errors import (
     PartnerMeetingNotFoundError,
 )
 from app.domain.partner_meeting.values import PartnerMeetingId
-
 from tests.support.expect import raises_with
 from tests.support.ids import new_id
 from tests.unit.application.partner_meeting_env import (

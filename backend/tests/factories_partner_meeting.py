@@ -19,10 +19,9 @@ from tests.support.user_ids import ACTOR_ID
 if TYPE_CHECKING:
     from datetime import datetime
 
+    from app.domain.deal.code import DealCode
     from app.domain.partner_meeting.entities import PartnerMeeting
     from app.domain.partner_meeting.values import MeetingSubject
-
-    from app.domain.deal.code import DealCode
     from app.domain.user.value_objects import UserId
 
 DEFAULT_COMPANY = "한빛파트너스"

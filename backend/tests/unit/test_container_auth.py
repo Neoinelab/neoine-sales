@@ -73,7 +73,6 @@ async def test_container_builds_the_cipher_from_the_configured_key_and_the_scryp
 ) -> None:
     from app.infra.crypto.fernet_cipher import FernetSecretCipher  # noqa: PLC0415
     from app.infra.crypto.scrypt_hasher import ScryptPasswordHasher  # noqa: PLC0415
-
     from tests.support.crypto_keys import OTHER_FERNET_KEY, TEST_FERNET_KEY  # noqa: PLC0415
 
     assert isinstance(container.cipher, FernetSecretCipher)

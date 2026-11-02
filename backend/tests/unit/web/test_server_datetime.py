@@ -6,10 +6,11 @@
 from datetime import UTC, datetime, timedelta, timezone
 from typing import TYPE_CHECKING, Any
 
-from app.web.schemas.server_datetime import ServerDateTime
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 from pydantic import BaseModel
+
+from app.web.schemas.server_datetime import ServerDateTime
 
 if TYPE_CHECKING:
     from collections.abc import Callable

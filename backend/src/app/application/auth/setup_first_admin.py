@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING
 from app.application.auth.credential_check import parse_login_id, verify_credentials
 from app.application.auth.dev_login import ensure_not_reserved_login_id
 from app.application.auth.messages import DIRECTORY_FIRST, SETUP_CLOSED, STORAGE_FIRST
+from app.application.auth.mode import ensure_directory_mode
 from app.application.directory.credentials import unseal_settings
 from app.application.directory.errors import DirectoryCredentialUnreadableError
 from app.application.ids import new_user_id
@@ -61,6 +62,7 @@ class SetupFirstAdmin:
         now = self._deps.clock.now()
         async with self._deps.uow_factory() as uow:
             await uow.users.lock_roster()
+            await ensure_directory_mode(uow)  # AD 인증 도중 local로 바뀐 경우 거절
             if await uow.users.count_active_admins() > 0:
                 raise InvalidStateError(SETUP_CLOSED)
             try:

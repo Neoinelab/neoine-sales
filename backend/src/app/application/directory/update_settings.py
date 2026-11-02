@@ -1,5 +1,6 @@
 from typing import TYPE_CHECKING
 
+from app.application.auth.mode import ensure_directory_mode
 from app.application.directory.credentials import resolve_draft
 from app.domain.common.errors import NotFoundError
 from app.domain.directory.errors import DirectorySettingsConflictError
@@ -41,6 +42,8 @@ class UpdateDirectorySettings:
         password: Password | None,
         client_ip: str,
     ) -> StoredDirectorySettings:
+        async with self._uow_factory() as uow:
+            await ensure_directory_mode(uow)  # local 모드에서는 AD를 건드리지 않는다
         current = await self._current(expected_revision)
         settings = resolve_draft(draft, current, self._cipher)
         base_dn = await self._verify.execute(

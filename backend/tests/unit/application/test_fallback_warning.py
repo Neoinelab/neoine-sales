@@ -1,12 +1,12 @@
 """대체 로그인 경고 단계와 안내 문구(AC14·AC15): warning_stage_of, FALLBACK_MESSAGES."""
 
 import pytest
+
 from app.application.auth.fallback_login import (
     DirectoryWarning,
     DirectoryWarningStage,
     warning_stage_of,
 )
-
 from app.application.auth.messages import FALLBACK_MESSAGES
 from app.application.directory.errors import DirectoryCredentialUnreadableError
 from app.application.ports.directory import (

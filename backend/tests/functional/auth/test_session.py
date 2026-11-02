@@ -119,8 +119,8 @@ async def test_health_and_auth_config_are_public(api: Api, path: str) -> None:
     then_status_is(response, 200)
 
 
-async def test_auth_config_has_exactly_the_five_flags(api: Api) -> None:
-    """Scenario: 인증 설정 응답은 다섯 개의 플래그(최초 설정 3단계 포함)만 담고 OIDC 항목이 없다."""
+async def test_auth_config_has_exactly_the_six_fields(api: Api) -> None:
+    """Scenario: 인증 설정 응답은 플래그 다섯 개와 인증 방식(auth_mode)만 담고 OIDC 항목이 없다."""
     # Given
     # (로그인하지 않은 상태)
     # When
@@ -132,6 +132,7 @@ async def test_auth_config_has_exactly_the_five_flags(api: Api) -> None:
         "needs_directory_setup",
         "needs_storage_setup",
         "needs_admin_setup",
+        "auth_mode",
     }
 
 

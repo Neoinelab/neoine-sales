@@ -5,6 +5,7 @@ if TYPE_CHECKING:
     from app.application.ports.action_type_repository import ActionTypeRepository
     from app.application.ports.alert_settings_repository import AlertSettingsRepository
     from app.application.ports.attachment_repository import AttachmentRepository
+    from app.application.ports.auth_settings_repository import AuthSettingsRepository
     from app.application.ports.bant_label_repository import BantLabelRepository
     from app.application.ports.code_repository import CodeRepository
     from app.application.ports.contact_repository import ContactRepository
@@ -62,6 +63,9 @@ class UnitOfWork(Protocol):
 
     @property
     def password_hashes(self) -> UserPasswordHashRepository: ...
+
+    @property
+    def auth_settings(self) -> AuthSettingsRepository: ...
 
     @property
     def login_failures(self) -> LoginFailureRepository: ...

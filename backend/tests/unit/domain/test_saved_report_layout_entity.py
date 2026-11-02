@@ -7,7 +7,6 @@ change_layout은 그 모듈의 `can_edit_report`로 판정한다).
 """
 
 import pytest
-from app.domain.saved_report.layout import DEFAULT_LAYOUT
 
 from app.domain.auth.principal import Role
 from app.domain.saved_report import entities
@@ -17,6 +16,7 @@ from app.domain.saved_report.errors import (
     ReportEditForbiddenError,
     ReportNotFoundError,
 )
+from app.domain.saved_report.layout import DEFAULT_LAYOUT
 from app.domain.saved_report.values import ReportId, ReportVisibility
 from tests.factories import NOW, later
 from tests.factories_report import make_broken_report, make_content, make_report

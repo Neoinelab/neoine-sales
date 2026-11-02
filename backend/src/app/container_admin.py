@@ -34,13 +34,14 @@ class AdminAssembly:
         self._uow_factory = uow_factory
         self._clock = clock
         self._cipher = cipher
+        self._hasher = auth_deps.hasher
         self._verify = VerifyDirectorySettings(auth_deps, allow_dev_sessions=allow_dev_sessions)
 
     def list_users(self) -> ListUsers:
         return ListUsers(self._uow_factory)
 
     def register_user(self) -> RegisterUser:
-        return RegisterUser(self._uow_factory, self._clock)
+        return RegisterUser(self._uow_factory, self._clock, self._hasher)
 
     def delete_user(self) -> DeleteUser:
         return DeleteUser(self._uow_factory, self._clock)

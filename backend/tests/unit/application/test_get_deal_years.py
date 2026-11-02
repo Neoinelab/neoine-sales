@@ -4,7 +4,6 @@ from datetime import date
 from typing import TYPE_CHECKING
 
 from app.application.deal.deal_years import DealYearsView, GetDealYears
-
 from tests.factories_deal import SALES, make_patch
 
 if TYPE_CHECKING:

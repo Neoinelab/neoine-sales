@@ -7,7 +7,6 @@ from typing import TYPE_CHECKING, Any
 
 from tests.functional.steps.platform import (
     operation_of,
-    property_names_of,
     response_schema_names,
     schema_name_of,
     spec_of,
@@ -37,11 +36,38 @@ USER_REF_FIELDS = (
 # ------------------------------------------------------------------ 인증 API
 
 
+def _reachable_properties(
+    spec: dict[str, Any], schema: str, seen: set[str] | None = None
+) -> dict[str, dict[str, Any]]:
+    """스키마와 그것이 참조하는 모든 스키마의 속성(이름 -> 정의). 순환 참조는 한 번만 본다."""
+    seen = seen if seen is not None else set()
+    if schema in seen:
+        return {}
+    seen.add(schema)
+    found: dict[str, dict[str, Any]] = {}
+    properties = spec["components"]["schemas"][schema].get("properties", {})
+    for name, prop in properties.items():
+        found[f"{schema}.{name}"] = prop
+        refs = [prop.get("$ref"), prop.get("items", {}).get("$ref")]
+        refs += [option.get("$ref") for option in prop.get("anyOf", [])]
+        for ref in filter(None, refs):
+            found |= _reachable_properties(spec, ref.rsplit("/", 1)[-1], seen)
+    return found
+
+
 def then_no_response_schema_has_a_password_field(response: Response) -> None:
-    """어떤 응답 스키마(중첩 포함)에도 비밀번호 필드가 없다."""
+    """어떤 응답 스키마(중첩 포함)에도 비밀번호 값 필드가 없다.
+
+    내 정보의 `editable.password`처럼 '바꿀 수 있는가'를 알리는 boolean 플래그는 값이 아니므로
+    허용한다(그 밖의 타입은 이름에 password가 있으면 모두 실패).
+    """
     spec = spec_of(response)
     for name in response_schema_names(spec):
-        leaked = {p for p in property_names_of(spec, name) if "password" in p.lower()}
+        leaked = {
+            qualified
+            for qualified, prop in _reachable_properties(spec, name).items()
+            if "password" in qualified.rsplit(".", 1)[-1].lower() and prop.get("type") != "boolean"
+        }
         assert not leaked, f"{name} 응답에 비밀번호 필드가 있다: {leaked}"
 
 
@@ -52,6 +78,26 @@ def then_login_and_setup_passwords_are_masked_secrets(response: Response) -> Non
         password = schemas[name]["properties"]["password"]
         assert password.get("format") == "password"
         assert password.get("writeOnly") is True
+
+
+def then_new_password_requests_are_masked_secrets(response: Response) -> None:
+    """재설정·내 비밀번호 변경·사용자 등록 요청의 비밀번호도 마스킹되는 쓰기 전용 값이다."""
+    spec = spec_of(response)
+    schemas = spec["components"]["schemas"]
+    targets = (
+        ("PUT", "/api/v1/users/{user_id}/password", ("password",)),
+        ("PUT", "/api/v1/me/password", ("current_password", "new_password")),
+    )
+    for method, path, fields in targets:
+        name = schema_name_of(operation_of(spec, method, path), request=True)
+        for field in fields:
+            prop = schemas[name]["properties"][field]
+            assert prop.get("format") == "password", (path, field)
+            assert prop.get("writeOnly") is True, (path, field)
+    register = schemas["UserRequest"]["properties"]["password"]
+    options = register.get("anyOf", [register])
+    secret = next(option for option in options if option.get("type") == "string")
+    assert (secret.get("format"), secret.get("writeOnly")) == ("password", True)
 
 
 # ------------------------------------------------------------------ 계약 파일 일치

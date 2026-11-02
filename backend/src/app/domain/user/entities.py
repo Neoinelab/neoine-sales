@@ -5,14 +5,21 @@ from app.domain.auth.principal import NAME_MAX, Principal, Role
 from app.domain.common.contact import EMAIL_MAX_LENGTH
 from app.domain.common.entity import AuditedEntity
 from app.domain.common.errors import InvalidStateError
-from app.domain.common.validation import optional_text, require_aware
+from app.domain.common.validation import require_aware
 from app.domain.user.messages import ALREADY_RESIGNED
+from app.domain.user.profile import (
+    UNSET,
+    normalize_email,
+    normalize_name,
+    normalize_phone,
+)
 from app.domain.user.value_objects import UserDeleteReason, UserId, UserRef
 
 if TYPE_CHECKING:
     from datetime import datetime
 
     from app.domain.auth.credentials import LoginId
+    from app.domain.user.profile import ProfileChanges
 
 
 @dataclass(eq=False, kw_only=True)
@@ -30,6 +37,7 @@ class User(AuditedEntity[UserId]):
     created_by_user_id: UserId
     display_name: str | None = None
     email: str | None = None
+    phone: str | None = None
     last_login_at: datetime | None = None
     deleted_at: datetime | None = None
     delete_reason: UserDeleteReason | None = None
@@ -42,7 +50,7 @@ class User(AuditedEntity[UserId]):
             require_aware(self.deleted_at, "deleted_at")
 
     @classmethod
-    def register(  # noqa: PLR0913 - 위치 2개 + 키워드 전용 4개가 모두 의미 있는 입력
+    def register(  # noqa: PLR0913 - 위치 2개 + 키워드 전용 6개가 모두 의미 있는 입력
         cls,
         login_id: LoginId,
         role: Role,
@@ -51,25 +59,44 @@ class User(AuditedEntity[UserId]):
         created_by_user_id: UserId,
         now: datetime,
         display_name: str | None = None,
+        email: str | None = None,
+        phone: str | None = None,
     ) -> Self:
-        """사람이 입력한 표시 이름은 NUL·길이 초과를 거절한다(자르지 않는다). 빈 값은 None."""
+        """입력한 이름·이메일·전화는 형식 위반·길이 초과를 거절한다(자르지 않음). 빈 값은 None."""
         return cls(
             id=entity_id,
             login_id=login_id,
             role=role,
             created_by_user_id=created_by_user_id,
-            display_name=optional_text(display_name, "표시 이름", max_length=NAME_MAX),
+            display_name=normalize_name(display_name, required=False),
+            email=normalize_email(email),
+            phone=normalize_phone(phone),
             created_at=now,
             updated_at=now,
         )
 
     @classmethod
-    def register_self(
-        cls, login_id: LoginId, role: Role, *, entity_id: UserId, now: datetime
+    def register_self(  # noqa: PLR0913 - 위치 2개 + 키워드 전용 5개가 모두 의미 있는 입력
+        cls,
+        login_id: LoginId,
+        role: Role,
+        *,
+        entity_id: UserId,
+        now: datetime,
+        display_name: str | None = None,
+        email: str | None = None,
+        phone: str | None = None,
     ) -> Self:
         """스스로 등록한 행(최초 admin, 개발 로그인): 등록자가 자기 자신이다."""
         return cls.register(
-            login_id, role, entity_id=entity_id, created_by_user_id=entity_id, now=now
+            login_id,
+            role,
+            entity_id=entity_id,
+            created_by_user_id=entity_id,
+            now=now,
+            display_name=display_name,
+            email=email,
+            phone=phone,
         )
 
     @property
@@ -104,13 +131,40 @@ class User(AuditedEntity[UserId]):
         mail = _directory_text(email, EMAIL_MAX_LENGTH, truncate=False)
         self.email = mail if mail is not None and "@" in mail else None
 
-    def record_fallback_login(self, now: datetime) -> None:
-        """대체 로그인 성공 시각만 남긴다. 디렉터리 값이 없으므로 표시 이름·메일은 그대로 둔다."""
+    def change_profile(self, changes: ProfileChanges, now: datetime, *, require_name: bool) -> bool:
+        """보낸 값만 바꾼다(UNSET은 그대로, None·빈 값은 비움). 바뀐 게 없으면 False.
+
+        퇴사한 행은 거절한다. require_name이면 이름을 비울 수 없다. 모든 값을 검증한 뒤에 적용한다.
+        """
+        require_aware(now, "now")
+        if not self.is_active:
+            raise InvalidStateError(ALREADY_RESIGNED)
+        new_name = self.display_name
+        new_email = self.email
+        new_phone = self.phone
+        if changes.display_name is not UNSET:
+            new_name = normalize_name(changes.display_name, required=require_name)
+        if changes.email is not UNSET:
+            new_email = normalize_email(changes.email)
+        if changes.phone is not UNSET:
+            new_phone = normalize_phone(changes.phone)
+        if (new_name, new_email, new_phone) == (self.display_name, self.email, self.phone):
+            return False
+        self._touch(now)
+        self.display_name, self.email, self.phone = new_name, new_email, new_phone
+        return True
+
+    def record_password_login(self, now: datetime) -> None:
+        """저장된 비밀번호 해시로 로그인한 시각만 남긴다. 표시 이름·메일·전화는 그대로 둔다."""
         require_aware(now, "now")
         if not self.is_active:
             raise InvalidStateError(ALREADY_RESIGNED)
         self._touch(now)
         self.last_login_at = now
+
+    def record_fallback_login(self, now: datetime) -> None:
+        """AD 대체 로그인 성공 시각만 남긴다(디렉터리 값이 없으므로 프로필은 그대로)."""
+        self.record_password_login(now)
 
     def to_ref(self) -> UserRef:
         return UserRef(

@@ -7,10 +7,6 @@ AD 설정 개편(2026-10-29)으로 Port 3개(SecretCipher, PasswordHasher, UserP
 import inspect
 from typing import TYPE_CHECKING
 
-from app.application.ports.user_password_hash_repository import UserPasswordHashRepository
-from app.infra.crypto.fernet_cipher import FernetSecretCipher
-from app.infra.crypto.scrypt_hasher import ScryptPasswordHasher
-from app.infra.db.user_password_hash_repository import SqlUserPasswordHashRepository
 from cryptography.fernet import Fernet
 from pydantic import SecretStr
 
@@ -18,12 +14,16 @@ from app.application.ports.directory_settings_repository import DirectorySetting
 from app.application.ports.login_failure_repository import LoginFailureRepository
 from app.application.ports.session_repository import SessionRepository
 from app.application.ports.unit_of_work import UnitOfWork
+from app.application.ports.user_password_hash_repository import UserPasswordHashRepository
 from app.application.ports.user_repository import UserRepository
 from app.infra.auth.ldap import LdapDirectoryAuthenticator
+from app.infra.crypto.fernet_cipher import FernetSecretCipher
+from app.infra.crypto.scrypt_hasher import ScryptPasswordHasher
 from app.infra.db.directory_settings_repository import SqlDirectorySettingsRepository
 from app.infra.db.login_failure_repository import SqlLoginFailureRepository
 from app.infra.db.session_repository import SqlSessionRepository
 from app.infra.db.unit_of_work import SqlUnitOfWork
+from app.infra.db.user_password_hash_repository import SqlUserPasswordHashRepository
 from app.infra.db.user_repository import SqlUserRepository
 from tests.fakes.directory import FakeDirectoryAuthenticator
 from tests.fakes.directory_settings_repository import FakeDirectorySettingsRepository
@@ -35,10 +35,9 @@ from tests.fakes.user_password_hashes import FakeUserPasswordHashRepository
 from tests.fakes.user_repository import FakeLoginFailureRepository, FakeUserRepository
 
 if TYPE_CHECKING:
+    from app.application.ports.directory import DirectoryAuthenticator
     from app.application.ports.password_hasher import PasswordHasher
     from app.application.ports.secret_cipher import SecretCipher
-
-    from app.application.ports.directory import DirectoryAuthenticator
 
 USER_METHODS = (
     "add",
@@ -134,3 +133,30 @@ def test_unit_of_work_port_and_implementations_expose_the_new_repositories() -> 
         assert hasattr(UnitOfWork, name)
         assert hasattr(fake, name)
         assert name in SqlUnitOfWork.__annotations__
+
+
+def test_auth_settings_repositories_satisfy_the_port() -> None:
+    from app.application.ports.auth_settings_repository import (  # noqa: PLC0415
+        AuthSettingsRepository,
+    )
+    from app.infra.db.auth_settings_repository import SqlAuthSettingsRepository  # noqa: PLC0415
+    from tests.fakes.auth_settings_repository import FakeAuthSettingsRepository  # noqa: PLC0415
+
+    fake: AuthSettingsRepository = FakeAuthSettingsRepository()
+    for name in ("get", "save"):
+        assert callable(getattr(SqlAuthSettingsRepository, name))
+        assert callable(getattr(fake, name))
+        assert hasattr(AuthSettingsRepository, name)
+        assert inspect.iscoroutinefunction(getattr(SqlAuthSettingsRepository, name))
+
+
+def test_session_repository_port_and_implementations_have_delete_others_for_user() -> None:
+    assert hasattr(SessionRepository, "delete_others_for_user")
+    assert inspect.iscoroutinefunction(SqlSessionRepository.delete_others_for_user)
+    assert inspect.iscoroutinefunction(FakeSessionRepository.delete_others_for_user)
+
+
+def test_unit_of_work_port_and_implementations_expose_auth_settings() -> None:
+    assert hasattr(UnitOfWork, "auth_settings")
+    assert hasattr(FakeUnitOfWork(), "auth_settings")
+    assert "auth_settings" in SqlUnitOfWork.__annotations__
