@@ -1,7 +1,9 @@
 // neoine-sales CI 파이프라인 (Multibranch). 설계 근거: docs/dev-guide.html 15장.
-// 모든 브랜치/PR은 검증(Verify, Contract & Security)만 하고, main에서만 릴리스 번들을 만든다.
-// main에서는 이어서 사람 승인 -> product 순차 배포를 한다(dev 자동 배포는 2026-10-20 제거: dev DB는 로컬 start-backend.sh --profile dev로 사용).
-// 호스트 이름·자격 증명 ID·승인 그룹은 예시 값이다. 실제 서버에 맞게 바꾼다(docs/dev-guide.html 16장).
+// 모든 브랜치/PR은 검증(Verify, Contract & Security)만 하고, main에서만 api·web 이미지를 만들어 레지스트리에 push한다.
+// main에서는 이어서 사람 승인 -> product 서버 1대 배포(docker compose)를 한다(dev 자동 배포는 2026-10-20 제거: dev DB는 로컬 start-backend.sh --profile dev로 사용).
+// REGISTRY(레지스트리 주소)와 PRODUCT_HOST(product 서버)는 Jenkins 전역 환경변수로 받는다(저장소에 값을 쓰지 않는다).
+// 자격 증명 ID·승인 그룹은 예시 값이다. 실제 환경에 맞게 바꾼다(docs/dev-guide.html 16장).
+// agent 요구: linux-build(docker, trivy, PostgreSQL 18, openssl), deploy(ssh).
 pipeline {
     agent none
 
@@ -45,8 +47,12 @@ pipeline {
                 stage('Infra scripts') {
                     agent { label 'linux-build' }
                     steps {
-                        sh 'bash -n infra/server/deploy.sh infra/server/bootstrap.sh infra/build_release.sh scripts/setup.sh infra/server/lib/env_secrets.sh'
-                        sh 'bash infra/server/tests/test_deploy.sh'
+                        sh 'bash -n infra/docker/deploy.sh infra/docker/build_images.sh scripts/setup.sh infra/server/lib/env_secrets.sh'
+                        sh 'bash -n infra/docker/tests/test_deploy.sh infra/docker/tests/test_build_images.sh infra/docker/tests/test_compose.sh infra/docker/tests/test_images.sh'
+                        sh 'bash infra/docker/tests/test_deploy.sh'
+                        sh 'bash infra/docker/tests/test_build_images.sh'
+                        // docker를 쓸 수 없으면 건너뛰지 않고 실패한다
+                        sh 'REQUIRE_DOCKER=1 bash infra/docker/tests/test_compose.sh'
                         sh 'bash infra/server/tests/test_env_secrets.sh'
                         sh 'bash scripts/tests/test_setup.sh'
                     }
@@ -102,9 +108,24 @@ pipeline {
             agent { label 'linux-build' }
             steps {
                 unstash 'frontend-dist'
-                sh 'infra/build_release.sh "$RELEASE_TAG"'
-                archiveArtifacts artifacts: 'build/*.tar.gz', fingerprint: true
-                stash name: 'release', includes: 'build/*.tar.gz'
+                sh '[ -n "$REGISTRY" ] || { echo "REGISTRY(Jenkins 전역 환경변수)가 설정되지 않았습니다"; exit 1; }'
+                sh 'infra/docker/build_images.sh "$RELEASE_TAG"'
+                sh 'REQUIRE_DOCKER=1 bash infra/docker/tests/test_images.sh "$RELEASE_TAG"'
+                sh 'trivy image --severity CRITICAL,HIGH --exit-code 1 "$REGISTRY/neoine-sales/api:$RELEASE_TAG"'
+                sh 'trivy image --severity CRITICAL,HIGH --exit-code 1 "$REGISTRY/neoine-sales/web:$RELEASE_TAG"'
+                withCredentials([usernamePassword(credentialsId: 'registry-push',
+                                                  usernameVariable: 'REG_USER',
+                                                  passwordVariable: 'REG_PASS')]) {
+                    // 작은따옴표 셸: 비밀이 Groovy 문자열에 보간되지 않는다. 비밀번호는 stdin으로만 넘긴다
+                    sh '''
+                        trap 'docker logout "$REGISTRY" >/dev/null 2>&1' EXIT
+                        printf '%s' "$REG_PASS" | docker login "$REGISTRY" -u "$REG_USER" --password-stdin
+                        docker push "$REGISTRY/neoine-sales/api:$RELEASE_TAG"
+                        docker push "$REGISTRY/neoine-sales/web:$RELEASE_TAG"
+                    '''
+                }
+                archiveArtifacts artifacts: 'build/deploy-*.tar.gz', fingerprint: true
+                stash name: 'deploy-kit', includes: 'build/deploy-*.tar.gz'
             }
         }
 
@@ -120,20 +141,19 @@ pipeline {
             }
             agent { label 'deploy' }
             steps {
-                unstash 'release'
+                unstash 'deploy-kit'
+                sh '[ -n "$PRODUCT_HOST" ] || { echo "PRODUCT_HOST(Jenkins 전역 환경변수)가 설정되지 않았습니다"; exit 1; }'
                 lock(resource: 'neoine-product') {
                     withCredentials([sshUserPrivateKey(credentialsId: 'deploy-ssh-product',
                                                        keyFileVariable: 'SSH_KEY',
                                                        usernameVariable: 'SSH_USER')]) {
-                        // 서버를 한 대씩 순차 배포(롤링). 한 대라도 실패하면 중단
+                        // 서버 1대. 서버가 레지스트리에서 읽기 전용 계정으로 이미지를 pull하고, deploy.sh가 덤프 -> migrate -> 전환 -> 헬스체크(실패 시 롤백)를 한다
                         sh '''
-                            for host in prd1.internal.example.com prd2.internal.example.com; do
-                                scp -i "$SSH_KEY" -o StrictHostKeyChecking=yes \
-                                    "build/neoine-sales-$RELEASE_TAG.tar.gz" infra/server/deploy.sh \
-                                    "$SSH_USER@$host:/opt/neoine-sales/incoming/"
-                                ssh -i "$SSH_KEY" -o StrictHostKeyChecking=yes "$SSH_USER@$host" \
-                                    "bash /opt/neoine-sales/incoming/deploy.sh product $RELEASE_TAG"
-                            done
+                            scp -i "$SSH_KEY" -o StrictHostKeyChecking=yes \
+                                "build/deploy-$RELEASE_TAG.tar.gz" infra/docker/deploy.sh \
+                                "$SSH_USER@$PRODUCT_HOST:/opt/neoine-sales/incoming/"
+                            ssh -i "$SSH_KEY" -o StrictHostKeyChecking=yes "$SSH_USER@$PRODUCT_HOST" \
+                                "bash /opt/neoine-sales/incoming/deploy.sh product $RELEASE_TAG"
                         '''
                     }
                 }

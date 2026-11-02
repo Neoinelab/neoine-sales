@@ -1,0 +1,135 @@
+# product 서버 1대의 docker compose 구성(db, api, web, migrate). 설계: docs/dev-guide.html 16장.
+# compose 변수는 비밀이 없는 deploy.env(+ 배포 디렉터리의 image.env)로만 치환한다. 비밀은 서버 .env 한 곳에 두고
+# api·migrate에는 /app/.env로 읽기 전용 mount, db에는 같은 파일의 POSTGRES_* 를 env_file로 넘긴다.
+# 호출은 infra/docker/deploy.sh 가 한다(-p neoine-sales, --project-directory 는 배포 디렉터리).
+name: neoine-sales
+
+# api와 migrate가 공유하는 설정(같은 이미지, 같은 사용자, 같은 mount)
+x-app: &app
+  image: ${REGISTRY:?}/neoine-sales/api:${IMAGE_TAG:?}
+  user: "${APP_UID:?}:${APP_GID:?}"
+  read_only: true
+  tmpfs:
+    - /tmp:size=512m
+  cap_drop:
+    - ALL
+  security_opt:
+    - no-new-privileges:true
+  volumes:
+    - ${APP_HOME:?}/.env:/app/.env:ro
+    - /var/lib/neoine-sales:/var/lib/neoine-sales
+    - /etc/localtime:/etc/localtime:ro
+
+services:
+  db:
+    # 태그 18.6-trixie 의 index digest(2026-11-02 Docker Hub 레지스트리 조회). 올릴 때는 태그와 digest를 함께 바꾼다
+    image: docker.io/library/postgres:18.6-trixie@sha256:3a4264520e121176619f54ff867d12774bc81e95e7b84db58d63bccdb6144b81
+    env_file:
+      - ${APP_HOME:?}/.env
+    volumes:
+      # 18 이미지의 PGDATA 는 /var/lib/postgresql/18/docker 이므로 그 상위를 mount 한다
+      - ${DB_DATA_DIR:?}:/var/lib/postgresql
+      - /etc/localtime:/etc/localtime:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    shm_size: 256m
+    restart: unless-stopped
+    stop_grace_period: 60s
+    logging:
+      driver: journald
+      options:
+        tag: neoine-sales-db
+    networks: [dbnet]
+
+  api:
+    <<: *app
+    command:
+      - uvicorn
+      - app.main:app
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8000"
+      - --workers
+      - "${API_WORKERS:?}"
+      - --proxy-headers
+      - --forwarded-allow-ips
+      - 172.29.40.0/24
+    environment:
+      APP_WORKERS: ${API_WORKERS:?}
+    networks: [frontnet, dbnet]
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/readyz', timeout=4)"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    ulimits:
+      nofile: 65536
+    restart: unless-stopped
+    stop_grace_period: 30s
+    logging:
+      driver: journald
+      options:
+        tag: neoine-sales-api
+
+  web:
+    image: ${REGISTRY:?}/neoine-sales/web:${IMAGE_TAG:?}
+    networks: [frontnet]
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      APP_PROFILE: ${APP_PROFILE:-product}
+      SERVER_NAME: ${SERVER_NAME:?}
+    volumes:
+      - ${CERT_DIR:?}:/etc/nginx/certs:ro
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/nginx-health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+    logging:
+      driver: journald
+      options:
+        tag: neoine-sales-web
+
+  # 배포 때만 실행한다(deploy.sh 가 --profile migrate run --rm migrate). api 는 이 서비스에 의존하지 않는다.
+  migrate:
+    <<: *app
+    profiles: [migrate]
+    command: ["alembic", "-c", "/app/alembic.ini", "upgrade", "head"]
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+    networks: [dbnet]
+    logging:
+      driver: journald
+      options:
+        tag: neoine-sales-migrate
+
+# web<->api 와 api<->db 를 나눈다(web 은 db 에 닿지 않음). api 는 frontnet 의 nginx 에서 온 프록시 헤더만 신뢰한다:
+# --forwarded-allow-ips 의 대역은 frontnet 서브넷과 같아야 한다(compose 변수 치환 없이 리터럴로 적는다).
+networks:
+  frontnet:
+    ipam:
+      config:
+        - subnet: 172.29.40.0/24
+  dbnet:
+    internal: true
+    ipam:
+      config:
+        - subnet: 172.29.41.0/24

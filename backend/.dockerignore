@@ -1,0 +1,9 @@
+# 허용 목록: 이미지에 필요한 파일만 컨텍스트에 보낸다(.env*, tests, 캐시, .venv 등은 모두 제외)
+*
+!pyproject.toml
+!uv.lock
+!src/
+!alembic/
+!alembic.ini
+**/__pycache__
+**/*.pyc

@@ -2,7 +2,8 @@
 # scripts/setup.sh 동작 테스트. 실제 네트워크·sudo·systemd 없이 임시 디렉터리와 가짜 명령으로 검증한다.
 #   실행: bash scripts/tests/test_setup.sh          (macOS 기본 /bin/bash 3.2에서도, bash 5에서도 통과해야 한다)
 #   함수 단위는 setup.sh를 source해 부르고, 흐름은 임시 저장소 사본의 scripts/setup.sh를 실행한다.
-#   계획: artifacts/10-analysis/setup-script-plan.md (끝의 "사용자 결정(2026-10-29)"이 본문보다 우선)
+#   계획: artifacts/10-analysis/docker-compose-plan.md (D11, AC13, 끝의 "사용자 결정 추가"가 본문보다 우선)
+#         개발 PC 모드는 setup-script-plan.md. dev --server 모드는 폐지됐다.
 set -uo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -28,7 +29,7 @@ has_text() { # has_text <설명> <텍스트> <부분 문자열>
 lacks_text() {
   case "$2" in *"$3"*) fail "$1 ('$3' 있음)" ;; *) ok "$1" ;; esac
 }
-perm_of() { ls -l "$1" | cut -c1-10; }
+perm_of() { ls -ld "$1" | cut -c1-10; }
 real_sha() { if command -v sha256sum >/dev/null 2>&1; then sha256sum "$1" | cut -d' ' -f1; else shasum -a 256 "$1" | cut -d' ' -f1; fi; }
 log_has()  { grep -Eq -- "$1" "$LOG"; }
 log_none() { ! grep -Eq -- "$1" "$LOG"; }
@@ -71,22 +72,25 @@ new_case() {
   mkdir -p "$BIN" "$HOME_DIR" "$APPHOME/incoming" "$FIXTURE" "$TMP/run-systemd" \
            "$REPO/scripts" "$REPO/backend" "$REPO/frontend/dist" "$REPO/infra/server/lib"
   : > "$LOG"
-  unset FAKE_UNAME_S FAKE_UNAME_M FAKE_UID FAKE_MUSL FAKE_NODE_VERSION FAKE_GIT_DIRTY FAKE_NOT_GIT FAKE_DEPLOY_RC SETUP_SUDO FAKE_GIT_CLT_STUB FAKE_XCODE_RC FAKE_COREPACK_FAIL COREPACK_INTEGRITY_KEYS
+  unset FAKE_UNAME_S FAKE_UNAME_M FAKE_UID FAKE_MUSL FAKE_NODE_VERSION FAKE_GIT_DIRTY FAKE_NOT_GIT SETUP_SUDO FAKE_GIT_CLT_STUB FAKE_XCODE_RC FAKE_COREPACK_FAIL COREPACK_INTEGRITY_KEYS FAKE_NO_DOCKER FAKE_NO_COMPOSE FAKE_NO_NEOINE
   # 임시 저장소 사본: 실제 저장소의 .env*를 건드리지 않게 setup.sh를 복사해 실행한다
   [ -f "$REAL_SETUP" ] && cp "$REAL_SETUP" "$REPO/scripts/setup.sh"
   [ -f "$REAL_LIB" ] && cp "$REAL_LIB" "$REPO/infra/server/lib/env_secrets.sh"
   cp "$ROOT/backend/.env.example" "$REPO/backend/.env.example"
-  printf '#!/usr/bin/env bash\necho "bootstrap.sh $*" >> "$CALLS_LOG"\n' > "$REPO/infra/server/bootstrap.sh"
-  echo '#!/usr/bin/env bash' > "$REPO/infra/server/deploy.sh"
-  cat > "$REPO/infra/build_release.sh" <<'STUB'
-#!/usr/bin/env bash
-echo "build_release.sh $*" >> "$CALLS_LOG"
-mkdir -p "$(dirname "$0")/../build"
-: > "$(dirname "$0")/../build/neoine-sales-$1.tar.gz"
-STUB
 
   mkstub uname 'case "${1:-}" in -s) echo "${FAKE_UNAME_S:-Linux}" ;; -m) echo "${FAKE_UNAME_M:-x86_64}" ;; *) echo "${FAKE_UNAME_S:-Linux}" ;; esac'
-  mkstub id 'if [ "${1:-}" = "-u" ]; then echo "${FAKE_UID:-1000}"; else echo "uid=${FAKE_UID:-1000}(tester)"; fi'
+  mkstub id 'case "$*" in
+  "-u neoine") [ -n "${FAKE_NO_NEOINE:-}" ] && [ ! -f "$TMP_STATE/neoine.created" ] && exit 1; echo 4242; exit 0 ;;
+  "-g neoine") [ -n "${FAKE_NO_NEOINE:-}" ] && [ ! -f "$TMP_STATE/neoine.created" ] && exit 1; echo 4343; exit 0 ;;
+  neoine) [ -n "${FAKE_NO_NEOINE:-}" ] && [ ! -f "$TMP_STATE/neoine.created" ] && exit 1; echo "uid=4242(neoine)"; exit 0 ;;
+esac
+if [ "${1:-}" = "-u" ]; then echo "${FAKE_UID:-1000}"; else echo "uid=${FAKE_UID:-1000}(tester)"; fi'
+  mkstub getent 'if [ "$1 $2" = "passwd neoine" ] && [ -n "${FAKE_NO_NEOINE:-}" ] && [ ! -f "$TMP_STATE/neoine.created" ]; then exit 2; fi
+echo "$2:x:4242:4343::"; exit 0'
+  mkstub docker 'echo "docker $*" >> "$CALLS_LOG"
+if [ -n "${FAKE_NO_DOCKER:-}" ]; then exit 127; fi
+if [ "${1:-}" = compose ] && [ -n "${FAKE_NO_COMPOSE:-}" ]; then echo "docker: unknown command: docker compose" >&2; exit 1; fi
+exit 0'
   mkstub ldd 'if [ -n "${FAKE_MUSL:-}" ]; then echo "musl libc (x86_64)" >&2; exit 1; else echo "ldd (GNU libc) 2.39"; fi'
   mkstub git 'if [ -n "${FAKE_GIT_CLT_STUB:-}" ]; then echo "xcode-select: note: no developer tools were found" >&2; exit 1; fi
 if [ -n "${FAKE_NOT_GIT:-}" ]; then echo "fatal: not a git repository" >&2; exit 128; fi
@@ -97,14 +101,30 @@ case "$1" in
   ls-files) [ -n "${FAKE_GIT_DIRTY:-}" ] && echo "new.txt" ;;
 esac
 exit 0'
-  # 가짜 sudo: 기록하고, grep 명령(.env 점검)만 실제로 실행한다. deploy.sh 호출은 FAKE_DEPLOY_RC로 종료 코드를 준다
+  # 가짜 sudo: 기록한 뒤 -u/-H/-n 옵션을 떼고, 파일 명령은 소유자 옵션(-o/-g)을 뺀 채 실제로 실행한다.
+  # useradd/adduser/groupadd/usermod/chown/systemctl은 기록만 한다(useradd는 neoine 생성 표시를 남긴다).
   mkstub sudo 'echo "sudo $*" >> "$CALLS_LOG"
-i=0
-for a in "$@"; do
-  i=$((i + 1))
-  if [ "$a" = grep ]; then shift $((i - 1)); exec "$@"; fi
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -u) shift 2 ;;
+    -H|-n|-E) shift ;;
+    *) break ;;
+  esac
 done
-case "$*" in *"-u neoine"*deploy.sh*) exit "${FAKE_DEPLOY_RC:-0}" ;; esac
+cmd="${1:-}"
+[ $# -gt 0 ] && shift
+case "$cmd" in
+  useradd|adduser) mkdir -p "$TMP_STATE"; : > "$TMP_STATE/neoine.created"; exit 0 ;;
+  groupadd|usermod|chown|chgrp|systemctl|loginctl) exit 0 ;;
+  install)
+    args=()
+    while [ $# -gt 0 ]; do
+      case "$1" in -o|-g) shift 2 ;; *) args+=("$1"); shift ;; esac
+    done
+    exec install "${args[@]}" ;;
+  mkdir|chmod|cp|mv|tee|touch|grep|cat|rm|sed|test|ln|sh|bash|printf|head|tail|awk|cut|wc|ls|stat)
+    exec "$cmd" "$@" ;;
+esac
 exit 0'
   mkstub uv 'echo "uv $* @$(basename "$PWD")" >> "$CALLS_LOG"
 if [ "${1:-}" = run ] && [ "${2:-}" = alembic ]; then echo "alembic-env APP_PROFILE=${APP_PROFILE:-} APP_ENV_FILE=${APP_ENV_FILE:-}" >> "$CALLS_LOG"; fi
@@ -140,8 +160,10 @@ esac
 [ -f "$src" ] || exit 22
 if [ -n "$out" ]; then cp "$src" "$out"; else cat "$src"; fi'
 
-  export HOME="$HOME_DIR" PATH="$BIN:$ORIG_PATH" CALLS_LOG="$LOG" FIXTURE \
-         SETUP_APP_HOME="$APPHOME" SETUP_SYSTEMD_RUN_DIR="$TMP/run-systemd"
+  TMP_STATE="$TMP/state"; mkdir -p "$TMP_STATE"
+  export HOME="$HOME_DIR" PATH="$BIN:$ORIG_PATH" CALLS_LOG="$LOG" FIXTURE TMP_STATE \
+         SETUP_APP_HOME="$APPHOME" SETUP_SYSTEMD_RUN_DIR="$TMP/run-systemd" \
+         SETUP_FILES_DIR="$TMP/data/files" SETUP_DB_DATA_DIR="$TMP/data/postgres"
 }
 
 # 가짜 Node 배포본: node_fixture <good|bad>  (linux-x64 v24.1.0)
@@ -180,25 +202,21 @@ EXAMPLE_KEY="$(secret_of "$ROOT/backend/.env.example" APP_SETTINGS_ENCRYPTION_KE
 echo "bash: $TEST_BASH ($("$TEST_BASH" --version | head -1))"
 [ -f "$REAL_SETUP" ] || fail "scripts/setup.sh가 없음(구현 전: red)"
 
-echo "T1 인자와 모드(AC1)"
+echo "T1 인자(AC1)"
 new_case
-capture in_setup 'parse_args "$@"; echo "$PROFILE|$(resolve_mode)"'
-eq "인자 없음: local|pc" "local|pc" "$OUT"
-capture in_setup 'parse_args "$@"; echo "$PROFILE|$(resolve_mode)"' --profile dev
-eq "--profile dev: dev|pc" "dev|pc" "$OUT"
-capture in_setup 'parse_args "$@"; echo "$PROFILE|$(resolve_mode)"' --profile dev --server
-eq "--profile dev --server: dev|server" "dev|server" "$OUT"
-capture in_setup 'parse_args "$@"; echo "$PROFILE|$(resolve_mode)"' --profile product
-eq "--profile product: product|server" "product|server" "$OUT"
-capture in_setup 'parse_args "$@"; echo "$SKIP_MIGRATE|$TAG"' --profile dev --server --tag v1.2
-eq "--tag 값을 TAG에 담는다" "false|v1.2" "$OUT"
+capture in_setup 'parse_args "$@"; echo "$PROFILE"'
+eq "인자 없음: local" "local" "$OUT"
+capture in_setup 'parse_args "$@"; echo "$PROFILE"' --profile dev
+eq "--profile dev: dev" "dev" "$OUT"
+capture in_setup 'parse_args "$@"; echo "$PROFILE"' --profile product
+eq "--profile product: product" "product" "$OUT"
 capture in_setup 'parse_args "$@"; echo "$SKIP_MIGRATE"' --skip-migrate
 eq "--skip-migrate: SKIP_MIGRATE=true" "true" "$OUT"
 
-echo "T2 잘못된 인자는 종료 2이고 아무것도 호출하지 않음(AC2)"
-for args in "--bogus" "--profile staging" "--profile" "--profile local --server" "--profile dev --server --skip-migrate" \
-            "--profile product --skip-migrate" "--tag x" "--profile dev --server --tag ../x" "--profile dev --server --tag a;b" \
-            "--profile dev --server --tag -x"; do
+echo "T2 잘못된 인자는 종료 2이고 아무것도 호출하지 않음(AC2, AC13: --server 거부)"
+for args in "--bogus" "--profile staging" "--profile" "--profile local --server" "--server" "--profile dev --server" \
+            "--profile product --server" "--profile dev --server --skip-migrate" "--tag x" "--profile product --tag x" \
+            "--profile dev --server --tag v1"; do
   new_case
   set -f
   # shellcheck disable=SC2086
@@ -219,7 +237,9 @@ new_case
 capture run_setup --help
 eq "종료 0" "0" "$RC"
 has_text "사용법에 --profile" "$OUT" "--profile"
-has_text "사용법에 --server" "$OUT" "--server"
+lacks_text "사용법에 --server 없음" "$OUT" "--server"
+lacks_text "사용법에 --tag 없음" "$OUT" "--tag"
+has_text "사용법에 product" "$OUT" "product"
 capture run_setup -h
 eq "-h도 종료 0" "0" "$RC"
 
@@ -245,8 +265,8 @@ capture run_setup --profile local
 eq "pc 모드 종료 2" "2" "$RC"
 has_text "지원하지 않는 배포판 안내" "$OUT$ERR" "지원하지 않는 배포판"
 new_case; export FAKE_MUSL=1
-capture run_setup --profile dev --server
-eq "서버 모드 종료 2" "2" "$RC"
+capture run_setup --profile product
+eq "product 모드 종료 2" "2" "$RC"
 check "sudo 호출 없음" log_none '^sudo'
 new_case
 capture in_setup 'if is_musl; then echo musl; else echo glibc; fi'
@@ -450,121 +470,183 @@ eq "--skip-migrate 종료 0" "0" "$RC"
 check "마이그레이션 기록 없음" log_none 'alembic'
 check "의존성 설치는 수행" log_has '^uv sync --locked @backend$'
 
-echo "T26 서버 모드 지원 여부(AC15)"
-new_case; export FAKE_UNAME_S=Darwin FAKE_UNAME_M=arm64
-capture run_setup --profile dev --server
-eq "macOS: 종료 2" "2" "$RC"; check "sudo 기록 없음" log_none '^sudo'
-has_text "대안(--profile local|dev) 안내" "$OUT$ERR" "--profile"
-new_case; rmdir "$TMP/run-systemd"
-capture in_setup 'check_server_supported || echo "rc=$?"'
-has_text "run 디렉터리 없음: 반환 2" "$OUT" "rc=2"
-new_case
-capture in_setup 'check_server_supported && echo "rc=0"'
-has_text "정상 환경: 반환 0" "$OUT" "rc=0"
-new_case
-PATH="$(min_path uname ldd sudo)" capture in_setup 'check_server_supported || echo "rc=$?"'
-has_text "systemctl 없음: 반환 2" "$OUT" "rc=2"
-new_case
-PATH="$(min_path uname ldd systemctl)" capture in_setup 'check_server_supported || echo "rc=$?"'
-has_text "sudo 없음: 반환 2" "$OUT" "rc=2"
+set_kv() { # set_kv <파일> <이름> <값>  (줄을 바꾸거나 덧붙임, 값은 인자로만 쓰는 테스트 전용 더미)
+  awk -v n="$2" -v v="$3" 'BEGIN{p=n"="} index($0,p)==1{print p v; d=1; next} {print} END{if(!d)print p v}' "$1" > "$1.tmp" && mv "$1.tmp" "$1"
+}
+APP_ENV() { echo "$APPHOME/.env"; }
+DEPLOY_ENV() { echo "$APPHOME/deploy.env"; }
+PRODUCT_NO_CALLS='docker compose (up|pull|run|exec|down|--profile|-p)|deploy\.sh|alembic|pnpm|corepack|npm |^uv |^docker login'
 
-echo "T27·T28 서버 .env 점검(AC17)"
-new_case; F="$TMP/server.env"; export SETUP_SUDO=env
-base_env() { printf 'APP_PROFILE=%s\nAPP_DATABASE_URL=postgresql://u:SECRETMARK@h/db\nAPP_JWT_SECRET=JWTMARK\nAPP_SETTINGS_ENCRYPTION_KEY=KEYMARK\n' "$1"; }
-base_env dev > "$F"; echo APP_DEV_LOGIN_ENABLED=false >> "$F"
-capture in_setup 'check_server_env "$1" dev' "$F"
-eq "dev 완전: 0" "0" "$RC"; eq "stdout 비어 있음" "" "$OUT"
-lacks_text "dev 로그인 안내 없음" "$ERR" "APP_DEV_LOGIN_ENABLED"
-base_env dev > "$F"
-capture in_setup 'check_server_env "$1" dev' "$F"
-eq "APP_DEV_LOGIN_ENABLED=false 없어도 0" "0" "$RC"
-has_text "공유 서버 안내(stderr)" "$ERR" "APP_DEV_LOGIN_ENABLED"
-printf 'APP_PROFILE=dev\nAPP_DATABASE_URL=postgresql://u:CHANGE_ME@h/db\nAPP_JWT_SECRET=a\nAPP_SETTINGS_ENCRYPTION_KEY=b\n' > "$F"
-capture in_setup 'check_server_env "$1" dev' "$F"
-eq "CHANGE_ME: 3" "3" "$RC"; has_text "APP_DATABASE_URL 이름" "$OUT" "APP_DATABASE_URL"
-printf 'APP_PROFILE=dev\nAPP_DATABASE_URL=\nAPP_JWT_SECRET=a\nAPP_SETTINGS_ENCRYPTION_KEY=b\n' > "$F"
-capture in_setup 'check_server_env "$1" dev' "$F"
-eq "빈 DB URL: 3" "3" "$RC"; has_text "APP_DATABASE_URL 이름" "$OUT" "APP_DATABASE_URL"
-printf 'APP_PROFILE=dev\nAPP_DATABASE_URL=postgresql://u:SECRETMARK@h/db\n' > "$F"
-capture in_setup 'check_server_env "$1" dev' "$F"
-eq "비밀 없음: 3" "3" "$RC"
-has_text "JWT 이름" "$OUT" "APP_JWT_SECRET"; has_text "키 이름" "$OUT" "APP_SETTINGS_ENCRYPTION_KEY"
-lacks_text "출력에 값 없음(stdout)" "$OUT" "SECRETMARK"; lacks_text "출력에 값 없음(stderr)" "$ERR" "SECRETMARK"
-base_env product > "$F"
-capture in_setup 'check_server_env "$1" product' "$F"
-eq "product인데 SENTRY 없음: 3" "3" "$RC"; has_text "APP_SENTRY_DSN 이름" "$OUT" "APP_SENTRY_DSN"
-echo 'APP_SENTRY_DSN=https://x@sentry.example/1' >> "$F"
-capture in_setup 'check_server_env "$1" product' "$F"
-eq "product 완전: 0" "0" "$RC"
-base_env product > "$F"
-capture in_setup 'check_server_env "$1" dev' "$F"
-eq "APP_PROFILE 불일치: 3" "3" "$RC"; has_text "APP_PROFILE 이름" "$OUT" "APP_PROFILE"
+echo "P1 product 첫 실행: 계정·디렉터리·.env·deploy.env를 만들고 사람이 채울 값을 알려 종료 3(AC13)"
+new_case
+capture run_setup --profile product
+eq "사람이 채울 값이 남아 종료 3" "3" "$RC"
+check "순서: docker compose 점검 -> docker 그룹 -> 디렉터리" \
+  log_ordered '^docker compose version' 'usermod -aG docker neoine' '(mkdir|install).*deploys'
+for d in incoming deploys certs backups; do check "디렉터리 $APPHOME/$d" test -d "$APPHOME/$d"; done
+check "첨부 디렉터리" test -d "$TMP/data/files"
+check "DB 데이터 디렉터리" test -d "$TMP/data/postgres"
+eq "backups 권한 0700" "drwx------" "$(perm_of "$APPHOME/backups")"
+E="$(APP_ENV)"; D="$(DEPLOY_ENV)"
+check ".env 생성" test -f "$E"
+eq ".env 권한 600" "-rw-------" "$(perm_of "$E")"
+eq "APP_PROFILE=product" "1" "$(grep -c '^APP_PROFILE=product$' "$E")"
+eq "POSTGRES_USER=neoine" "1" "$(grep -c '^POSTGRES_USER=neoine$' "$E")"
+eq "POSTGRES_DB=neoinesales" "1" "$(grep -c '^POSTGRES_DB=neoinesales$' "$E")"
+PW="$(secret_of "$E" POSTGRES_PASSWORD)"
+check "POSTGRES_PASSWORD는 영숫자 32자" bash -c "printf %s '$PW' | grep -Eq '^[A-Za-z0-9]{32}\$'"
+eq "APP_DATABASE_URL이 같은 비밀번호·db 호스트로 조립됨" \
+  "postgresql+asyncpg://neoine:${PW}@db:5432/neoinesales" "$(secret_of "$E" APP_DATABASE_URL)"
+J="$(secret_of "$E" APP_JWT_SECRET)"; K="$(secret_of "$E" APP_SETTINGS_ENCRYPTION_KEY)"
+check "JWT 비밀 43자" bash -c "printf %s '$J' | grep -Eq '^[A-Za-z0-9_-]{43}\$'"
+check "암호화 키 44자(끝 =)" bash -c "printf %s '$K' | grep -Eq '^[A-Za-z0-9_-]{43}=\$'"
+check "JWT가 예시 값과 다름" test "$J" != "$EXAMPLE_JWT"
+check "deploy.env 생성" test -f "$D"
+eq "deploy.env 권한 640" "-rw-r-----" "$(perm_of "$D")"
+eq "APP_UID=neoine UID" "APP_UID=4242" "$(grep '^APP_UID=' "$D")"
+eq "APP_GID=neoine GID" "APP_GID=4343" "$(grep '^APP_GID=' "$D")"
+eq "API_WORKERS=4" "API_WORKERS=4" "$(grep '^API_WORKERS=' "$D")"
+eq "APP_PROFILE=product(deploy.env)" "APP_PROFILE=product" "$(grep '^APP_PROFILE=' "$D")"
+eq "APP_HOME" "APP_HOME=$APPHOME" "$(grep '^APP_HOME=' "$D")"
+eq "CERT_DIR" "CERT_DIR=$APPHOME/certs" "$(grep '^CERT_DIR=' "$D")"
+eq "DB_DATA_DIR" "DB_DATA_DIR=$TMP/data/postgres" "$(grep '^DB_DATA_DIR=' "$D")"
+eq "SERVER_NAME은 CHANGE_ME" "SERVER_NAME=CHANGE_ME" "$(grep '^SERVER_NAME=' "$D")"
+eq "REGISTRY는 CHANGE_ME" "REGISTRY=CHANGE_ME" "$(grep '^REGISTRY=' "$D")"
+check "deploy.env에 비밀 변수가 없음" bash -c "! grep -Eq 'PASSWORD|JWT|ENCRYPTION|DATABASE_URL|SENTRY' '$D'"
+for name in SERVER_NAME REGISTRY APP_SENTRY_DSN fullchain.pem privkey.pem; do
+  has_text "사람이 넣을 값 이름 안내: $name" "$OUT$ERR" "$name"
+done
+has_text "레지스트리 로그인 명령 안내" "$OUT$ERR" "docker login"
+has_text "neoine 계정으로 로그인하라는 안내" "$OUT$ERR" "neoine"
+lacks_text "stdout에 DB 비밀번호 없음" "$OUT" "$PW"
+lacks_text "stderr에 DB 비밀번호 없음" "$ERR" "$PW"
+lacks_text "stdout에 JWT 없음" "$OUT" "$J"
+lacks_text "stderr에 JWT 없음" "$ERR" "$J"
+lacks_text "stdout에 암호화 키 없음" "$OUT" "$K"
+lacks_text "stderr에 암호화 키 없음" "$ERR" "$K"
+lacks_text "출력에 DB URL 없음" "$OUT$ERR" "@db:5432"
+check "배포·컨테이너 기동·마이그레이션·빌드 호출 없음" log_none "$PRODUCT_NO_CALLS"
 
-echo "T29 default_tag(dev)(AC18)"
+echo "P2 product 다시 실행: 값이 바뀌지 않음(멱등)(AC13)"
 new_case
-capture in_setup 'default_tag'
-check "깨끗함: 12자 해시" bash -c "printf %s '$OUT' | grep -Eq '^[0-9a-f]{12}\$'"
-new_case; export FAKE_GIT_DIRTY=1
-capture in_setup 'default_tag'
-check "dirty: <hash>-dirty-<14자리>" bash -c "printf %s '$OUT' | grep -Eq '^abcdef123456-dirty-[0-9]{14}\$'"
-check "deploy.sh 태그 규칙 통과" bash -c "printf %s '$OUT' | grep -Eq '^[A-Za-z0-9][A-Za-z0-9._-]*\$'"
-new_case; export FAKE_NOT_GIT=1
-capture in_setup 'default_tag'
-check "git 아님: local-<14자리>" bash -c "printf %s '$OUT' | grep -Eq '^local-[0-9]{14}\$'"
+capture run_setup --profile product
+E="$(APP_ENV)"; D="$(DEPLOY_ENV)"
+B1="$(cksum < "$E")"; B2="$(cksum < "$D")"
+capture run_setup --profile product
+eq "두 번째도 종료 3" "3" "$RC"
+eq ".env 불변(비밀 재생성 없음)" "$B1" "$(cksum < "$E")"
+eq "deploy.env 불변" "$B2" "$(cksum < "$D")"
+eq "POSTGRES_PASSWORD 줄은 하나뿐" "1" "$(grep -c '^POSTGRES_PASSWORD=' "$E")"
+eq "APP_DATABASE_URL 줄은 하나뿐" "1" "$(grep -c '^APP_DATABASE_URL=' "$E")"
 
-echo "T31 dev --server 흐름(AC16, nginx 제외)"
+echo "P3 사람이 값을 채우면 종료 0이고 Jenkins 배포 안내(AC13)"
 new_case
-printf 'APP_PROFILE=dev\nAPP_DATABASE_URL=postgresql://u:SECRETMARK@h/db\nAPP_JWT_SECRET=a\nAPP_SETTINGS_ENCRYPTION_KEY=b\nAPP_DEV_LOGIN_ENABLED=false\n' > "$APPHOME/.env"
-capture run_setup --profile dev --server
-eq "종료 0" "0" "$RC"
-check "순서: bootstrap -> .env 점검 -> pnpm install -> pnpm build -> build_release -> incoming 복사 -> deploy" \
-  log_ordered 'sudo .*bash .*infra/server/bootstrap\.sh dev$' 'sudo .*grep .*\.env' \
-  '^corepack pnpm install --frozen-lockfile @frontend$' '^corepack pnpm build @frontend$' \
-  '^build_release\.sh abcdef123456$' 'sudo .*neoine.*incoming' 'sudo -u neoine -H bash .*/incoming/deploy\.sh dev abcdef123456$'
-check "incoming 복사: 소유자 neoine·권한 640" bash -c "grep -E 'sudo' '$LOG' | grep incoming | grep -v 'deploy.sh dev' | grep neoine | grep -q 640"
-check "nginx를 설치·enable하지 않음" log_none 'nginx'
-check "호출 사용자의 uv 실행 없음" log_none '^uv '
-check "마이그레이션은 deploy.sh에 맡김(직접 실행 없음)" log_none 'alembic'
-lacks_text "출력에 DB 값 없음" "$OUT$ERR" "SECRETMARK"
-new_case
-printf 'APP_PROFILE=dev\nAPP_DATABASE_URL=postgresql://u:p@h/db\nAPP_JWT_SECRET=a\nAPP_SETTINGS_ENCRYPTION_KEY=b\n' > "$APPHOME/.env"
-capture run_setup --profile dev --server --tag v1.2.3
-eq "--tag 사용 종료 0" "0" "$RC"
-check "build_release와 deploy에 같은 태그" log_ordered '^build_release\.sh v1\.2\.3$' 'deploy\.sh dev v1\.2\.3$'
-new_case; export FAKE_DEPLOY_RC=7
-printf 'APP_PROFILE=dev\nAPP_DATABASE_URL=postgresql://u:p@h/db\nAPP_JWT_SECRET=a\nAPP_SETTINGS_ENCRYPTION_KEY=b\n' > "$APPHOME/.env"
-capture run_setup --profile dev --server
-eq "deploy.sh 종료 코드를 그대로 반환" "7" "$RC"
-
-echo "T32 dev --server .env 점검 실패(AC16·AC17)"
-new_case
-printf 'APP_PROFILE=dev\nAPP_DATABASE_URL=postgresql://u:SECRETMARK@h/db\n' > "$APPHOME/.env"
-capture run_setup --profile dev --server
-eq "종료 3" "3" "$RC"
-check "bootstrap은 점검 전에 실행됨" log_has 'bootstrap\.sh dev'
-check "pnpm build 없음" log_none 'pnpm build'
-check "build_release 없음" log_none 'build_release'
-check "deploy 없음" log_none 'deploy\.sh'
-has_text "빠진 변수 이름 안내" "$OUT$ERR" "APP_JWT_SECRET"
-lacks_text "값 비출력" "$OUT$ERR" "SECRETMARK"
-
-echo "T36 product는 준비까지만(사용자 결정 Q1)"
-new_case
-printf 'APP_PROFILE=product\nAPP_DATABASE_URL=postgresql://u:p@h/db\nAPP_JWT_SECRET=a\nAPP_SETTINGS_ENCRYPTION_KEY=b\nAPP_SENTRY_DSN=https://x@s.example/1\n' > "$APPHOME/.env"
+capture run_setup --profile product
+E="$(APP_ENV)"; D="$(DEPLOY_ENV)"
+set_kv "$D" SERVER_NAME sales.example.com
+set_kv "$D" REGISTRY registry.example.com
+set_kv "$E" APP_SENTRY_DSN "https://key@sentry.example.com/1"
+: > "$APPHOME/certs/fullchain.pem"; : > "$APPHOME/certs/privkey.pem"
+: > "$LOG"
 capture run_setup --profile product
 eq "종료 0" "0" "$RC"
-check "bootstrap product 실행 후 .env 점검" log_ordered 'bootstrap\.sh product$' 'sudo .*grep .*\.env'
-check "빌드·번들 없음" log_none 'pnpm|build_release'
-check "deploy.sh 호출 없음" log_none 'deploy\.sh'
-check "incoming 복사 없음" log_none 'incoming'
-check "마이그레이션 없음" log_none 'alembic'
-check "nginx 설치·enable 없음" log_none 'nginx'
-has_text "배포는 Jenkins 안내" "$OUT$ERR" "Jenkins"
+has_text "배포는 Jenkins Deploy: Product 안내" "$OUT$ERR" "Jenkins"
+has_text "레지스트리 로그인 안내가 계속 나옴" "$OUT$ERR" "docker login"
+lacks_text "Sentry DSN 값 비출력" "$OUT$ERR" "sentry.example.com"
+check "배포·컨테이너 기동·마이그레이션·빌드 호출 없음" log_none "$PRODUCT_NO_CALLS"
+
+echo "P3b 하나라도 비어 있으면 종료 3이고 그 이름만 알림(AC13)"
 new_case
-printf 'APP_PROFILE=product\nAPP_DATABASE_URL=postgresql://u:p@h/db\nAPP_JWT_SECRET=a\nAPP_SETTINGS_ENCRYPTION_KEY=b\n' > "$APPHOME/.env"
-capture run_setup --profile product --server
-eq "SENTRY 없음: 종료 3" "3" "$RC"
-check "deploy 없음" log_none 'deploy\.sh'
+capture run_setup --profile product
+E="$(APP_ENV)"; D="$(DEPLOY_ENV)"
+set_kv "$D" SERVER_NAME sales.example.com
+set_kv "$D" REGISTRY registry.example.com
+: > "$APPHOME/certs/fullchain.pem"; : > "$APPHOME/certs/privkey.pem"
+capture run_setup --profile product
+eq "APP_SENTRY_DSN만 없음: 종료 3" "3" "$RC"
+has_text "APP_SENTRY_DSN 이름" "$OUT$ERR" "APP_SENTRY_DSN"
+set_kv "$E" APP_SENTRY_DSN "https://key@sentry.example.com/1"
+rm "$APPHOME/certs/privkey.pem"
+capture run_setup --profile product
+eq "privkey.pem만 없음: 종료 3" "3" "$RC"
+has_text "privkey.pem 이름" "$OUT$ERR" "privkey.pem"
+
+echo "P4 docker 또는 docker compose가 없으면 종료 2이고 아무것도 만들지 않음(AC13)"
+new_case; export FAKE_NO_DOCKER=1
+capture run_setup --profile product
+eq "docker 실패: 종료 2" "2" "$RC"
+check "usermod·디렉터리 생성 없음" log_none 'usermod|mkdir|install'
+check ".env 없음" test ! -e "$(APP_ENV)"
+check "deploy.env 없음" test ! -e "$(DEPLOY_ENV)"
+new_case; export FAKE_NO_COMPOSE=1
+capture run_setup --profile product
+eq "docker compose 없음: 종료 2" "2" "$RC"
+check "usermod 없음" log_none 'usermod'
+check ".env 없음" test ! -e "$(APP_ENV)"
+new_case
+PATH="$(min_path uname ldd sudo id getent systemctl)" capture run_setup --profile product
+eq "docker 명령 자체가 없음: 종료 2" "2" "$RC"
+check ".env 없음" test ! -e "$(APP_ENV)"
+has_text "docker를 직접 설치하라는 안내" "$OUT$ERR" "docker"
+check "docker를 설치하려 하지 않음" log_none 'apt-get|dnf|yum|zypper|pacman|brew'
+
+echo "P5 neoine 계정이 없을 때만 만들고 docker 그룹에 넣음(AC13)"
+new_case; export FAKE_NO_NEOINE=1
+capture run_setup --profile product
+check "계정을 만듦" log_has '(useradd|adduser).*neoine'
+check "계정 생성 뒤 docker 그룹 추가" log_ordered '(useradd|adduser).*neoine' 'usermod -aG docker neoine'
+eq "deploy.env의 UID는 만든 계정의 UID" "APP_UID=4242" "$(grep '^APP_UID=' "$(DEPLOY_ENV)")"
+new_case
+capture run_setup --profile product
+check "계정이 있으면 만들지 않음" log_none '(useradd|adduser)'
+check "그래도 docker 그룹은 보장" log_has 'usermod -aG docker neoine'
+
+echo "P6 APP_DATABASE_URL만 있고 POSTGRES_PASSWORD가 없으면 새 비밀번호를 만들지 않고 종료 3(AC13)"
+new_case
+mkdir -p "$APPHOME"
+printf 'APP_PROFILE=product\nAPP_DATABASE_URL=postgresql+asyncpg://neoine:OLDPASS@db:5432/neoinesales\n' > "$APPHOME/.env"; chmod 600 "$APPHOME/.env"
+capture run_setup --profile product
+eq "종료 3" "3" "$RC"
+check "POSTGRES_PASSWORD 줄을 만들지 않음" bash -c "! grep -q '^POSTGRES_PASSWORD=' '$APPHOME/.env'"
+eq "APP_DATABASE_URL 그대로" "postgresql+asyncpg://neoine:OLDPASS@db:5432/neoinesales" "$(secret_of "$APPHOME/.env" APP_DATABASE_URL)"
+has_text "POSTGRES_PASSWORD 이름만 안내" "$OUT$ERR" "POSTGRES_PASSWORD"
+lacks_text "기존 비밀번호 비출력" "$OUT$ERR" "OLDPASS"
+
+echo "P7 POSTGRES_*는 있고 APP_DATABASE_URL이 없으면 같은 값으로 조립(AC13)"
+new_case
+printf 'APP_PROFILE=product\nPOSTGRES_USER=neoine\nPOSTGRES_DB=neoinesales\nPOSTGRES_PASSWORD=KeepThisPass123\n' > "$APPHOME/.env"; chmod 600 "$APPHOME/.env"
+capture run_setup --profile product
+eq "URL 조립" "postgresql+asyncpg://neoine:KeepThisPass123@db:5432/neoinesales" "$(secret_of "$APPHOME/.env" APP_DATABASE_URL)"
+eq "비밀번호 그대로" "KeepThisPass123" "$(secret_of "$APPHOME/.env" POSTGRES_PASSWORD)"
+lacks_text "비밀번호 비출력" "$OUT$ERR" "KeepThisPass123"
+
+echo "P8 기존 .env 값 보존(AC13)"
+new_case
+printf 'APP_PROFILE=product\nAPP_JWT_SECRET=customJwtSecretValueCustomJwtSecretValue1\nAPP_SETTINGS_ENCRYPTION_KEY=customKeyValueCustomKeyValueCustomKeyVa=\nPOSTGRES_USER=neoine\nPOSTGRES_DB=neoinesales\nPOSTGRES_PASSWORD=KeepThisPass123\nAPP_DATABASE_URL=postgresql+asyncpg://neoine:KeepThisPass123@db:5432/neoinesales\n' > "$APPHOME/.env"; chmod 600 "$APPHOME/.env"
+BEFORE="$(cksum < "$APPHOME/.env")"
+capture run_setup --profile product
+eq "모든 키가 있으면 .env 불변" "$BEFORE" "$(cksum < "$APPHOME/.env")"
+
+echo "P9 기존 deploy.env는 APP_UID·APP_GID 줄만 보장(AC13)"
+new_case
+printf 'SERVER_NAME=keep.example.com\nREGISTRY=keep-registry.example.com\nAPP_PROFILE=product\n' > "$APPHOME/deploy.env"; chmod 640 "$APPHOME/deploy.env"
+capture run_setup --profile product
+eq "SERVER_NAME 보존" "SERVER_NAME=keep.example.com" "$(grep '^SERVER_NAME=' "$APPHOME/deploy.env")"
+eq "REGISTRY 보존" "REGISTRY=keep-registry.example.com" "$(grep '^REGISTRY=' "$APPHOME/deploy.env")"
+eq "APP_UID 추가" "APP_UID=4242" "$(grep '^APP_UID=' "$APPHOME/deploy.env")"
+eq "APP_GID 추가" "APP_GID=4343" "$(grep '^APP_GID=' "$APPHOME/deploy.env")"
+new_case
+printf 'SERVER_NAME=keep.example.com\nAPP_UID=7777\nAPP_GID=7778\n' > "$APPHOME/deploy.env"; chmod 640 "$APPHOME/deploy.env"
+capture run_setup --profile product
+eq "이미 있는 APP_UID는 그대로" "1" "$(grep -c '^APP_UID=' "$APPHOME/deploy.env")"
+eq "APP_UID 값 유지" "APP_UID=7777" "$(grep '^APP_UID=' "$APPHOME/deploy.env")"
+
+echo "P10 리눅스가 아니면 종료 2(AC13)"
+new_case; export FAKE_UNAME_S=Darwin FAKE_UNAME_M=arm64
+capture run_setup --profile product
+eq "macOS: 종료 2" "2" "$RC"
+check "sudo 기록 없음" log_none '^sudo'
+check ".env 없음" test ! -e "$(APP_ENV)"
 
 echo "R1 macOS: git이 CLT 스텁일 때만 중단(AC5, 리뷰 Minor)"
 new_case; export FAKE_XCODE_RC=2
@@ -592,16 +674,6 @@ new_case
 capture in_setup 'corepack_ready; echo "KEYS=${COREPACK_INTEGRITY_KEYS:-unset}"'
 has_text "정상: 켜지 않음" "$OUT" "KEYS=unset"
 
-echo "R3 서버 .env 점검: 빠진 변수 목록이 안내 문구보다 먼저(리뷰 Minor)"
-new_case
-printf 'APP_PROFILE=dev\nAPP_DATABASE_URL=postgresql://u:p@h/db\nAPP_SETTINGS_ENCRYPTION_KEY=b\n' > "$APPHOME/.env"
-ALL="$(run_setup --profile dev --server 2>&1)"; RC=$?
-eq "종료 3" "3" "$RC"
-printf '%s\n' "$ALL" > "$TMP/all.out"
-NAME_LINE="$(grep -n -m1 'APP_JWT_SECRET' "$TMP/all.out" | cut -d: -f1)"
-HELP_LINE="$(grep -n -m1 'sudo -u neoine -H' "$TMP/all.out" | cut -d: -f1)"
-check "변수 이름 줄($NAME_LINE)이 편집 안내 줄($HELP_LINE)보다 앞" test -n "$NAME_LINE" -a -n "$HELP_LINE" -a "${NAME_LINE:-999}" -lt "${HELP_LINE:-0}"
-
 echo "T33 bash 3.2 호환 정적 검사(AC8)"
 for f in "$REAL_SETUP" "$REAL_LIB"; do
   name="$(basename "$f")"
@@ -619,10 +691,24 @@ HITS="$(git -C "$ROOT" grep -l -e "$OLD" -- ':!artifacts' ':!CLAUDE.md' 2>/dev/n
 eq "저장소에 구 이름 참조 없음" "" "$HITS"
 check "구 파일이 없음" test ! -e "$ROOT/scripts/$OLD.sh"
 
-echo "T35 Jenkins 등록(AC24)"
-for pat in 'scripts/setup\.sh' 'infra/server/lib/env_secrets\.sh' 'scripts/tests/test_setup\.sh' 'infra/server/tests/test_env_secrets\.sh'; do
+echo "T35 Jenkins 등록(AC14)"
+for pat in 'scripts/setup\.sh' 'infra/server/lib/env_secrets\.sh' 'scripts/tests/test_setup\.sh' 'infra/server/tests/test_env_secrets\.sh' \
+           'infra/docker/tests/test_deploy\.sh' 'infra/docker/tests/test_build_images\.sh' 'infra/docker/tests/test_compose\.sh'; do
   check "Jenkinsfile에 $pat" grep -Eq "$pat" "$ROOT/Jenkinsfile"
 done
+check "Jenkinsfile이 test_compose를 REQUIRE_DOCKER=1로 실행" grep -Eq 'REQUIRE_DOCKER=1.*test_compose\.sh' "$ROOT/Jenkinsfile"
+
+echo "T37 폐지된 서버 모드·옛 자산 참조 없음(AC13·AC15)"
+check "setup.sh에 --server 옵션 처리가 없음" bash -c "! grep -v '^[[:space:]]*#' '$REAL_SETUP' | grep -Eq -- '--server\)'"
+check "setup.sh가 bootstrap.sh를 부르지 않음" bash -c "! grep -v '^[[:space:]]*#' '$REAL_SETUP' | grep -q 'bootstrap\.sh'"
+check "infra/server/bootstrap.sh 삭제됨" test ! -e "$ROOT/infra/server/bootstrap.sh"
+check "infra/server/deploy.sh 삭제됨" test ! -e "$ROOT/infra/server/deploy.sh"
+check "infra/build_release.sh 삭제됨" test ! -e "$ROOT/infra/build_release.sh"
+check "infra/server/systemd 삭제됨" test ! -e "$ROOT/infra/server/systemd"
+check "infra/server/nginx 삭제됨" test ! -e "$ROOT/infra/server/nginx"
+check "infra/server/sudoers 삭제됨" test ! -e "$ROOT/infra/server/sudoers"
+check "옛 infra/server/tests/test_deploy.sh 삭제됨" test ! -e "$ROOT/infra/server/tests/test_deploy.sh"
+check "backend/src/app/jobs 삭제됨" test ! -e "$ROOT/backend/src/app/jobs"
 
 echo "R4 임시 디렉터리 정리(리뷰 Nit)"
 EXIT_TRAP="$(trap -p EXIT)"

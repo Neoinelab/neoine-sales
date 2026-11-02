@@ -1,12 +1,11 @@
 #!/usr/bin/env bash
-# infra/server/lib/env_secrets.sh(비밀 생성·.env 줄 편집 공용 함수) 테스트와 bootstrap.sh 정적 확인.
+# infra/server/lib/env_secrets.sh(비밀 생성·.env 줄 편집 공용 함수) 테스트.
 #   실행: bash infra/server/tests/test_env_secrets.sh   (/bin/bash 3.2와 bash 5 모두)
-#   계획: artifacts/10-analysis/setup-script-plan.md (AC10·AC11·AC21·AC22, 사용자 결정 2026-10-29)
+#   계획: artifacts/10-analysis/setup-script-plan.md (AC10·AC11·AC22), docker-compose-plan.md (D6·D11: DB 비밀번호·APP_DATABASE_URL)
 set -uo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 LIB="$HERE/../lib/env_secrets.sh"
-BOOTSTRAP="$HERE/../bootstrap.sh"
 TEST_BASH="${BASH:-/bin/bash}"
 FAILURES=0
 CASES=0
@@ -19,7 +18,7 @@ fail() { printf '  FAIL %s\n' "$1"; FAILURES=$((FAILURES + 1)); }
 skip() { printf '  skip %s\n' "$1"; SKIPS=$((SKIPS + 1)); }
 check() { local what="$1"; shift; if "$@"; then ok "$what"; else fail "$what"; fi; }
 eq() { if [ "$2" = "$3" ]; then ok "$1"; else fail "$1 (기대 '$2', 실제 '$3')"; fi; }
-perm_of() { ls -l "$1" | cut -c1-10; }
+perm_of() { ls -ld "$1" | cut -c1-10; }
 
 # lib을 source한 새 bash에서 스니펫 실행: run_lib '<스니펫>' [인자...]
 run_lib() {
@@ -117,15 +116,49 @@ PATH="$TMP/bin:$PATH" ENV_NEW_VALUE="SECRETVALUE9" run_lib 'env_replace_value "$
 eq "값이 바뀜" "NAME=SECRETVALUE9" "$(cat "$F")"
 check "awk 인자(argv)에 값이 없음" bash -c "! grep -q SECRETVALUE9 '$TMP/awk.args'"
 
-echo "S5 bootstrap.sh 정적 확인(AC21, 사용자 결정 Q2·Q3)"
-check "공용 함수 파일을 source" grep -Eq 'source +"?\$HERE/lib/env_secrets\.sh|\. +"?\$HERE/lib/env_secrets\.sh' "$BOOTSTRAP"
-check "APP_JWT_SECRET을 env_ensure_line으로 생성" grep -Eq 'env_ensure_line .*APP_JWT_SECRET +gen_jwt_secret' "$BOOTSTRAP"
-check "암호화 키를 env_ensure_line으로 생성" grep -Eq 'env_ensure_line .*APP_SETTINGS_ENCRYPTION_KEY +gen_fernet_key' "$BOOTSTRAP"
-check "인라인 난수 생성 코드가 남지 않음" bash -c "! grep -Eq 'head -c 32 /dev/urandom' '$BOOTSTRAP'"
-check "nginx가 없어도 종료 2로 중단하지 않음" bash -c "! grep -E 'command -v nginx' '$BOOTSTRAP' | grep -Eq '\|\| *\{.*exit'"
-check "nginx 확인이 조건문(있을 때만)" grep -Eq '(if|\[|&&).*command -v nginx|command -v nginx.*(&&|then)' "$BOOTSTRAP"
-check "nginx -t는 조건 안에서만 실행(무조건 실행 줄 없음)" bash -c "! grep -E '^nginx -t' '$BOOTSTRAP'"
-check "nginx 없음 안내(건너뜀)" grep -Eq 'nginx.*(건너|생략|skip)|(건너|생략|skip).*nginx' "$BOOTSTRAP"
+echo "S5 gen_db_password(docker-compose 계획 D6·D11: 영숫자 32자)"
+new_case
+: > "$TMP/pw.all"; bad=0
+for i in $(seq 1 20); do
+  run_lib 'gen_db_password' > "$TMP/pw.one" 2>/dev/null
+  size="$(wc -c < "$TMP/pw.one" | tr -d ' ')"
+  [ "$size" = 32 ] || bad=$((bad + 1))
+  grep -Eq '^[A-Za-z0-9]{32}$' "$TMP/pw.one" || bad=$((bad + 1))
+  cat "$TMP/pw.one" >> "$TMP/pw.all"; echo >> "$TMP/pw.all"
+done
+eq "20회 모두 정확히 32바이트(개행 없음)·영숫자만" "0" "$bad"
+eq "20회 모두 서로 다름" "20" "$(sort -u "$TMP/pw.all" | grep -c .)"
+
+echo "S5b env_ensure_database_url(D11: POSTGRES_*로 APP_DATABASE_URL 조립, 값 출력·argv 노출 없음)"
+URL_EXPECTED='APP_DATABASE_URL=postgresql+asyncpg://dbuser:Pw0rdMARK9@db:5432/dbname'
+new_case; F="$TMP/u1.env"; printf 'APP_PROFILE=product\nPOSTGRES_USER=dbuser\nPOSTGRES_PASSWORD=Pw0rdMARK9\nPOSTGRES_DB=dbname\n' > "$F"
+out="$(run_lib 'env_ensure_database_url "$1"; echo "rc=$?"' "$F" 2>&1)"
+eq "URL 줄이 없으면 반환 0이고 출력에 값 없음" "rc=0" "$out"
+eq "조립된 URL(asyncpg, 호스트 db, 포트 5432)" "$URL_EXPECTED" "$(grep '^APP_DATABASE_URL=' "$F")"
+eq "다른 줄 보존" "4" "$(grep -c -E '^(APP_PROFILE|POSTGRES_USER|POSTGRES_PASSWORD|POSTGRES_DB)=' "$F")"
+eq "URL 줄은 하나뿐" "1" "$(grep -c '^APP_DATABASE_URL=' "$F")"
+new_case; F="$TMP/u2.env"; printf 'POSTGRES_USER=dbuser\nPOSTGRES_PASSWORD=Pw0rdMARK9\nPOSTGRES_DB=dbname\nAPP_DATABASE_URL=postgresql+asyncpg://other:old@db:5432/x\n' > "$F"; before="$(cksum < "$F")"
+out="$(run_lib 'env_ensure_database_url "$1"; echo "rc=$?"' "$F" 2>&1)"
+eq "이미 있으면 반환 1" "rc=1" "$out"
+eq "이미 있으면 파일 불변" "$before" "$(cksum < "$F")"
+new_case; F="$TMP/u3.env"; printf 'POSTGRES_USER=dbuser\nPOSTGRES_DB=dbname\n' > "$F"; before="$(cksum < "$F")"
+run_lib 'env_ensure_database_url "$1"' "$F" >/dev/null 2>&1; rc=$?
+eq "POSTGRES_PASSWORD가 없으면 반환 2(사전 조건 부족)" "2" "$rc"
+eq "비밀번호가 없으면 파일 불변" "$before" "$(cksum < "$F")"
+new_case; F="$TMP/u4.env"; printf 'POSTGRES_USER=dbuser\nPOSTGRES_PASSWORD=Pw0rdMARK9\nPOSTGRES_DB=dbname' > "$F"
+run_lib 'env_ensure_database_url "$1"' "$F" >/dev/null 2>&1
+eq "마지막 줄 개행 없음: 합쳐지지 않음" "POSTGRES_DB=dbname" "$(sed -n 3p "$F")"
+eq "URL이 다음 줄" "$URL_EXPECTED" "$(sed -n 4p "$F")"
+new_case; F="$TMP/u5.env"; printf 'POSTGRES_USER=dbuser\nPOSTGRES_PASSWORD=Pw0rdMARK9\nPOSTGRES_DB=dbname\n' > "$F"; chmod 600 "$F"; mkdir "$TMP/bin"
+: > "$TMP/tool.args"
+for tool in awk sed cut grep tr head tail cat; do
+  real="$(command -v "$tool")"
+  printf '#!/bin/sh\necho "$*" >> "%s/tool.args"\nexec "%s" "$@"\n' "$TMP" "$real" > "$TMP/bin/$tool"; chmod +x "$TMP/bin/$tool"
+done
+PATH="$TMP/bin:$PATH" run_lib 'env_ensure_database_url "$1"' "$F" >/dev/null 2>&1
+eq "URL이 조립됨(래퍼 PATH)" "$URL_EXPECTED" "$(grep '^APP_DATABASE_URL=' "$F")"
+check "외부 명령 인자(argv)에 비밀번호가 없음" bash -c "! grep -q Pw0rdMARK9 '$TMP/tool.args'"
+eq "권한 600 유지" "-rw-------" "$(perm_of "$F")"
 
 echo "S6 lib 정적 확인"
 if [ -f "$LIB" ]; then

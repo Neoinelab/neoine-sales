@@ -1,0 +1,5 @@
+# 허용 목록: web 이미지에 필요한 것만 컨텍스트에 보낸다
+*
+!frontend/dist
+!infra/docker/web/config
+!infra/docker/web/templates
