@@ -301,7 +301,7 @@ async def test_saved_report_with_legacy_number_formats_opens_without_format(api:
     then_status_is(response, 200)
     body = response.json()
     assert [c["format"] for c in body["columns"]] == [None, None, None, None]
-    assert [c["unit"] for c in body["columns"]] == [None, "krw_thousand", None, None]
+    assert [c["unit"] for c in body["columns"]] == [None, "krw", None, None]
     assert body["rows"][0][:2] == ["SAP", 300]  # 구성비가 아니라 그룹의 금액 합계(원)
 
 

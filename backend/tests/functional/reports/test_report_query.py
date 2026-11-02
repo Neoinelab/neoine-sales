@@ -77,8 +77,8 @@ async def test_read_only_user_can_read_the_field_list(api: Api) -> None:
     then_fields_are_listed(response, count=40)
 
 
-async def test_catalog_number_fields_have_no_format_and_amount_is_thousand_won(api: Api) -> None:
-    """Scenario: 숫자 필드는 포맷이 없고 금액만 천원 단위(unit)와 이름 '금액'을 갖는다."""
+async def test_catalog_number_fields_have_no_format_and_amount_is_krw(api: Api) -> None:
+    """Scenario: 숫자 필드는 포맷이 없고 금액만 원 단위(unit)와 이름 '금액'을 갖는다."""
     # Given
     await given_logged_in_as(api, role="user")
     # When
@@ -90,7 +90,7 @@ async def test_catalog_number_fields_have_no_format_and_amount_is_thousand_won(a
     for key in ("deal.amount", "deal.users", "deal.status_days", "action.count"):
         assert (fields[key]["formats"], fields[key]["default_format"]) == ([], None), key
     assert {k: f["unit"] for k, f in fields.items() if f["unit"] is not None} == {
-        "deal.amount": "krw_thousand"
+        "deal.amount": "krw"
     }
     assert fields["deal.amount"]["label"] == "금액"
     assert [f["key"] for f in body["formats"]] == [
@@ -116,7 +116,7 @@ async def test_query_with_legacy_number_format_is_rejected(api: Api) -> None:
 
 
 async def test_query_result_columns_carry_the_unit_and_keep_won_values(api: Api) -> None:
-    """Scenario: 결과의 금액 열은 unit이 천원이고 값은 원 단위 그대로이며 format은 null이다."""
+    """Scenario: 결과의 금액 열은 unit이 krw이고 값은 원 단위 그대로이며 format은 null이다."""
     # Given
     await given_today_is(api, TODAY)
     sap = await given_vendor(api, "SAP")
@@ -139,7 +139,7 @@ async def test_query_result_columns_carry_the_unit_and_keep_won_values(api: Api)
     columns = response.json()["columns"]
     assert [(c["format"], c["unit"]) for c in columns] == [
         (None, None),
-        (None, "krw_thousand"),
+        (None, "krw"),
         (None, None),
     ]
     assert response.json()["rows"][0][1] == 123_456_789

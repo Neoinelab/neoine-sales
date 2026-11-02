@@ -74,7 +74,7 @@ def test_unit_schema_is_a_nullable_number_unit_on_fields_and_result_columns(
     spec = _spec() if source == "app" else json.loads(COMMITTED.read_text(encoding="utf-8"))
     schemas = spec["components"]["schemas"]
 
-    assert schemas["NumberUnit"]["enum"] == ["krw_thousand"]
+    assert schemas["NumberUnit"]["enum"] == ["krw"]
     assert _nullable_unit_ref(schemas["ReportFieldResponse"]["properties"]["unit"])
     assert _nullable_unit_ref(schemas["ReportResultColumn"]["properties"]["unit"])
     assert "unit" in schemas["ReportFieldResponse"]["required"]

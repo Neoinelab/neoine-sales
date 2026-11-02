@@ -59,16 +59,16 @@ def test_closing_a_deal_records_status_then_forecast_without_a_co_change_note() 
     ]
 
 
-def test_amount_is_written_in_thousand_won_under_unit_target() -> None:
+def test_amount_is_written_in_won_under_unit_target() -> None:
     rows = diff_after(edit_of("revenue_amount", 1_870_000_000))
 
-    assert rows == [("amount", "금액(단위:천원)", "1", "1,870,000")]
+    assert rows == [("amount", "금액(단위:원)", "1,000", "1,870,000,000")]
 
 
-def test_amount_change_below_display_unit_records_nothing() -> None:
+def test_small_amount_change_is_recorded_without_rounding() -> None:
     rows = diff_after(edit_of("revenue_amount", 1_400))
 
-    assert rows == []
+    assert rows == [("amount", "금액(단위:원)", "1,000", "1,400")]
 
 
 def test_expected_close_is_written_as_an_iso_date() -> None:
@@ -274,7 +274,7 @@ def test_several_changes_are_listed_in_the_fixed_field_order() -> None:
     assert [(category, target) for category, target, _, _ in rows] == [
         ("status", "Status"),
         ("forecast", "Forecast"),
-        ("amount", "금액(단위:천원)"),
+        ("amount", "금액(단위:원)"),
         ("expectedClose", "Expected Close"),
         ("owner", "Owner"),
         ("partner", "파트너"),

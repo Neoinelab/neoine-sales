@@ -105,7 +105,7 @@ async def test_amount_field_has_the_documented_shape() -> None:
         "type": "number",
         "formats": [],
         "default_format": None,
-        "unit": "krw_thousand",
+        "unit": "krw",
         "operators": ["eq", "ne", "gt", "gte", "lt", "lte", "between"],
         "aggregates": ["sum", "avg", "min", "max"],
         "default_aggregate": "sum",
@@ -268,7 +268,7 @@ async def test_query_route_describes_each_column() -> None:
             "type": "number",
             "value_type": "integer",
             "format": None,
-            "unit": "krw_thousand",
+            "unit": "krw",
             "prefix_length": None,
             "group": False,
             "aggregate": "sum",
@@ -557,7 +557,5 @@ async def test_catalog_only_amount_has_a_unit() -> None:
         fields = (await http.get(FIELDS)).json()["fields"]
 
     assert all("unit" in f for f in fields)
-    assert {f["key"]: f["unit"] for f in fields if f["unit"] is not None} == {
-        "deal.amount": "krw_thousand"
-    }
+    assert {f["key"]: f["unit"] for f in fields if f["unit"] is not None} == {"deal.amount": "krw"}
     assert len(fields) == 40

@@ -57,7 +57,7 @@ DEAL_FIELDS: tuple[FieldSpec, ...] = (
         "경고",
         CodeSource.static(("overdue", "기한초과"), ("stale", "미업데이트")),
     ),
-    number_field("deal.amount", "금액", unit=NumberUnit.KRW_THOUSAND),
+    number_field("deal.amount", "금액", unit=NumberUnit.KRW),
     number_field("deal.users", "Users count"),
     number_field("deal.status_days", "Status 체류 일수", default_aggregate=Aggregate.AVG),
     date_field("deal.expected_close", "Expected Close"),

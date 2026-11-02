@@ -43,7 +43,7 @@ def test_catalog_fields_carry_the_unit_and_only_amount_has_one() -> None:
     fields = ListReportFields().execute().fields
 
     amount = next(f for f in fields if f.key == "deal.amount")
-    assert amount.unit == NumberUnit.KRW_THOUSAND
+    assert amount.unit == NumberUnit.KRW
     assert amount.label == "금액"
     assert [f.key for f in fields if f.unit is not None] == ["deal.amount"]
 

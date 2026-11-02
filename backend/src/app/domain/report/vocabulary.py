@@ -57,9 +57,9 @@ _QUERY_FORMATS = frozenset({Format.YMD, Format.YEAR, Format.QUARTER, Format.MONT
 
 
 class NumberUnit(StrEnum):
-    """숫자 값의 표시 단위. 값은 원 단위 그대로 주고 화면이 이 단위로 나눠 보인다."""
+    """숫자 값의 단위(krw = 원). 값은 이 단위 그대로 주고 화면도 그대로 보인다."""
 
-    KRW_THOUSAND = "krw_thousand"
+    KRW = "krw"
 
 
 class Operator(StrEnum):

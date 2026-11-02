@@ -142,11 +142,11 @@ def test_each_field_allows_only_its_type_formats_operators_and_aggregates(
     assert set(spec.aggregates) <= expected
 
 
-def test_amount_is_thousand_won_and_sums_by_default() -> None:
+def test_amount_is_won_and_sums_by_default() -> None:
     amount = find_field("deal.amount")
 
     assert amount is not None
-    assert amount.unit == NumberUnit.KRW_THOUSAND
+    assert amount.unit == NumberUnit.KRW
     assert amount.default_aggregate == Aggregate.SUM
     assert amount.label == "금액"
     assert amount.deal_number is True
@@ -180,8 +180,8 @@ def test_format_has_only_date_formats() -> None:
     ]
 
 
-def test_number_unit_has_only_krw_thousand() -> None:
-    assert [u.value for u in NumberUnit] == ["krw_thousand"]
+def test_number_unit_has_only_krw() -> None:
+    assert [u.value for u in NumberUnit] == ["krw"]
 
 
 def test_status_days_defaults_to_average_and_is_a_deal_number() -> None:

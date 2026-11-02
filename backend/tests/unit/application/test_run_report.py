@@ -206,19 +206,19 @@ async def test_run_report_describes_columns_from_the_definition(run: RunReport) 
         False,
     )
     assert (first.unit, second.unit) == (None, None)
-    assert third.unit == NumberUnit.KRW_THOUSAND
+    assert third.unit == NumberUnit.KRW
     assert fourth.unit is None
 
 
 @pytest.mark.parametrize("aggregate", ["sum", "avg", "min", "max"])
-async def test_run_report_amount_column_has_krw_thousand_unit_for_every_aggregate(
+async def test_run_report_amount_column_has_krw_unit_for_every_aggregate(
     run: RunReport, aggregate: str
 ) -> None:
     view = await run.execute(
         raw([col("deal.vendor", group=True), col("deal.amount", aggregate=aggregate)])
     )
 
-    assert [c.unit for c in view.columns] == [None, NumberUnit.KRW_THOUSAND]
+    assert [c.unit for c in view.columns] == [None, NumberUnit.KRW]
     assert view.columns[1].format is None
 
 
