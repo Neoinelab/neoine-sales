@@ -78,7 +78,7 @@ export function canBeOwner(user: Pick<UserRef, 'role' | 'status'>): boolean {
 
 /** 상단 메뉴 항목(경로). 사용자 메뉴 5개 고정, admin에게만 Admin 추가. */
 export function visibleMenu(role: Role | null | undefined): readonly string[] {
-  const base = ['/dashboard', '/deals', '/partner-activities', '/forecast', '/reports']
+  const base = ['/deals', '/partner-activities', '/dashboard', '/forecast', '/reports']
   return role === 'admin' ? [...base, '/admin'] : base
 }
 

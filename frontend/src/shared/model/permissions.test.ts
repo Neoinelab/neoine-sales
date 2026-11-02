@@ -111,9 +111,9 @@ describe('report permissions follow the decision table', () => {
 
 describe('파트너 Activity 권한', () => {
   it('메뉴는 Deals 다음에 /partner-activities가 오고 모든 역할에 보인다', () => {
-    expect(visibleMenu('sales')).toEqual(['/dashboard', '/deals', '/partner-activities', '/forecast', '/reports'])
-    expect(visibleMenu('user')).toEqual(['/dashboard', '/deals', '/partner-activities', '/forecast', '/reports'])
-    expect(visibleMenu('admin')).toEqual(['/dashboard', '/deals', '/partner-activities', '/forecast', '/reports', '/admin'])
+    expect(visibleMenu('sales')).toEqual(['/deals', '/partner-activities', '/dashboard', '/forecast', '/reports'])
+    expect(visibleMenu('user')).toEqual(['/deals', '/partner-activities', '/dashboard', '/forecast', '/reports'])
+    expect(visibleMenu('admin')).toEqual(['/deals', '/partner-activities', '/dashboard', '/forecast', '/reports', '/admin'])
   })
 
   it.each([
