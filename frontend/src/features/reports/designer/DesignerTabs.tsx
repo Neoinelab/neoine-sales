@@ -1,3 +1,4 @@
+import '../../../shared/ui/ui.css'
 import { useId, type KeyboardEvent, type ReactNode } from 'react'
 
 export type DesignerTab = 'design' | 'result'
@@ -30,23 +31,25 @@ export function DesignerTabs({ tab, onTab, issueCounts, panels }: DesignerTabsPr
   }
   return (
     <>
-      <div role="tablist" aria-label="리포트 디자이너" className="report-tabs">
-        {TABS.map(({ key, label }) => (
-          <button
-            key={key}
-            type="button"
-            role="tab"
-            id={`${baseId}-tab-${key}`}
-            aria-selected={tab === key}
-            aria-controls={`${baseId}-panel-${key}`}
-            tabIndex={tab === key ? 0 : -1}
-            className={tab === key ? 'is-active' : undefined}
-            onClick={() => onTab(key)}
-            onKeyDown={onKeyDown}
-          >
-            {issueCounts[key] > 0 ? `${label} (고칠 곳 ${issueCounts[key]})` : label}
-          </button>
-        ))}
+      <div className="tabs-prominent">
+        <div role="tablist" aria-label="리포트 디자이너" className="tabs-list">
+          {TABS.map(({ key, label }) => (
+            <button
+              key={key}
+              type="button"
+              role="tab"
+              id={`${baseId}-tab-${key}`}
+              aria-selected={tab === key}
+              aria-controls={`${baseId}-panel-${key}`}
+              tabIndex={tab === key ? 0 : -1}
+              className="tab"
+              onClick={() => onTab(key)}
+              onKeyDown={onKeyDown}
+            >
+              <span>{issueCounts[key] > 0 ? `${label} (고칠 곳 ${issueCounts[key]})` : label}</span>
+            </button>
+          ))}
+        </div>
       </div>
       {TABS.map(({ key }) => (
         <div key={key} role="tabpanel" id={`${baseId}-panel-${key}`} aria-labelledby={`${baseId}-tab-${key}`} hidden={tab !== key}>

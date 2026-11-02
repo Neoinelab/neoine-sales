@@ -198,10 +198,10 @@ describe('끌어서 놓기 (AC12)', () => {
     expect(arrangement()).toBe(arranged)
   })
 
-  it('decides by the nearest edge of the tile: a drop near the right edge of the upper half is a right drop', async () => {
+  it('decides left/right only in the outer 20% band of the tile: a drop in the outer 20% on the right is a right drop even in the upper half', async () => {
     await ready()
 
-    dragTile('표', '차트', { x: 290, y: 60 }) // 가로 200·세로 100 타일에서 오른쪽 가장자리 10px, 위 가장자리 10px(정규화 0.05와 0.1)
+    dragTile('표', '차트', { x: 290, y: 60 }) // 가로 200·세로 100 타일에서 가로 바깥 20% 안(정규화 0.95)이면 세로 위치와 무관하게 오른쪽
 
     expect(tileOrder()).toEqual(['차트', '표'])
     expect(arrangement()).toBe('side')

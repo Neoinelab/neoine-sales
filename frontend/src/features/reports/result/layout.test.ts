@@ -15,7 +15,7 @@ describe('기본 배치', () => {
   })
 })
 
-describe('dropEdge (D6)', () => {
+describe('dropEdge (D6): 가로 바깥 20%만 left/right, 가운데 60%는 세로 절반으로 top/bottom', () => {
   it.each([
     ['left', 0.1, 0.5],
     ['right', 0.9, 0.5],
@@ -25,29 +25,62 @@ describe('dropEdge (D6)', () => {
     expect(dropEdge(RECT, at(fx, fy))).toBe(edge)
   })
 
-  it('picks the edge with the smallest normalized distance, not the smallest pixel distance', () => {
-    // 가로 200, 세로 100: 왼쪽까지 정규화 0.2(40px), 위까지 정규화 0.3(30px) → 픽셀로는 위가 가깝지만 정규화로는 왼쪽
-    expect(dropEdge(RECT, { x: RECT.left + 40, y: RECT.top + 30 })).toBe('left')
+  it('picks left or right in the outer 20% whatever the vertical position', () => {
+    for (const fy of [0, 0.1, 0.5, 0.9, 1]) {
+      expect(dropEdge(RECT, at(0.1, fy))).toBe('left')
+      expect(dropEdge(RECT, at(0.9, fy))).toBe('right')
+    }
   })
 
-  it('prefers left when every edge is equally far (the exact center)', () => {
-    expect(dropEdge(RECT, at(0.5, 0.5))).toBe('left')
+  it('splits the middle 60% at the vertical half: top above, bottom from the half', () => {
+    expect(dropEdge(RECT, at(0.5, 0.49))).toBe('top')
+    expect(dropEdge(RECT, at(0.5, 0.5))).toBe('bottom')
+    expect(dropEdge(RECT, at(0.5, 0.51))).toBe('bottom')
+    expect(dropEdge(RECT, at(0.3, 0.2))).toBe('top')
+    expect(dropEdge(RECT, at(0.7, 0.8))).toBe('bottom')
   })
 
-  it('breaks diagonal ties in the order left, right, top, bottom', () => {
-    expect(dropEdge(RECT, at(0.25, 0.25))).toBe('left') // 왼쪽 = 위
-    expect(dropEdge(RECT, at(0.25, 0.75))).toBe('left') // 왼쪽 = 아래
-    expect(dropEdge(RECT, at(0.75, 0.25))).toBe('right') // 오른쪽 = 위
-    expect(dropEdge(RECT, at(0.75, 0.75))).toBe('right') // 오른쪽 = 아래
+  it('treats exactly 20% and 80% as the middle zone and just outside as left/right', () => {
+    expect(dropEdge(RECT, at(0.2, 0.2))).toBe('top')
+    expect(dropEdge(RECT, at(0.2, 0.8))).toBe('bottom')
+    expect(dropEdge(RECT, at(0.8, 0.2))).toBe('top')
+    expect(dropEdge(RECT, at(0.8, 0.8))).toBe('bottom')
+    expect(dropEdge(RECT, at(0.19, 0.5))).toBe('left')
+    expect(dropEdge(RECT, at(0.81, 0.5))).toBe('right')
   })
 
-  it('clamps a point outside the rectangle to its border before measuring', () => {
+  it('on a wide 1200x300 tile, x=25% and y=70..80% is bottom (it used to be left at 70%)', () => {
+    const wide = { left: 0, top: 0, width: 1200, height: 300 }
+    expect(dropEdge(wide, { x: 300, y: 240 })).toBe('bottom')
+    expect(dropEdge(wide, { x: 300, y: 210 })).toBe('bottom') // y = 70%
+    expect(dropEdge(wide, { x: 300, y: 60 })).toBe('top')
+    expect(dropEdge(wide, { x: 120, y: 240 })).toBe('left') // x = 10%
+    expect(dropEdge(wide, { x: 1140, y: 150 })).toBe('right') // x = 95%
+    expect(dropEdge(wide, { x: 600, y: 30 })).toBe('top')
+  })
+
+  it('uses the same ratios on a narrow 300x900 tile', () => {
+    const tall = { left: 0, top: 0, width: 300, height: 900 }
+    expect(dropEdge(tall, { x: 30, y: 450 })).toBe('left') // x = 10%
+    expect(dropEdge(tall, { x: 285, y: 450 })).toBe('right') // x = 95%
+    expect(dropEdge(tall, { x: 75, y: 720 })).toBe('bottom') // x = 25%, y = 80%
+    expect(dropEdge(tall, { x: 75, y: 630 })).toBe('bottom') // y = 70%
+    expect(dropEdge(tall, { x: 150, y: 100 })).toBe('top')
+  })
+
+  it('clamps a point outside the rectangle to its border before judging', () => {
     expect(dropEdge(RECT, { x: 0, y: 100 })).toBe('left')
     expect(dropEdge(RECT, { x: 1000, y: 100 })).toBe('right')
+    expect(dropEdge(RECT, { x: 1000, y: -500 })).toBe('right')
+    expect(dropEdge(RECT, { x: 0, y: 1000 })).toBe('left')
     expect(dropEdge(RECT, { x: 200, y: -500 })).toBe('top')
     expect(dropEdge(RECT, { x: 200, y: 1000 })).toBe('bottom')
-    expect(dropEdge(RECT, { x: 1000, y: -500 })).toBe('right') // 오른쪽 = 위 = 0 → 동률은 오른쪽
-    expect(dropEdge(RECT, { x: 0, y: 1000 })).toBe('left') // 왼쪽 = 아래 = 0 → 동률은 왼쪽
+  })
+
+  it('works for zero-size rectangles without throwing', () => {
+    expect(dropEdge({ left: 10, top: 10, width: 0, height: 0 }, { x: 50, y: 50 })).toBe('left')
+    expect(dropEdge({ left: 10, top: 10, width: 100, height: 0 }, { x: 60, y: 50 })).toBe('top')
+    expect(dropEdge({ left: 10, top: 10, width: 0, height: 100 }, { x: 10, y: 90 })).toBe('left')
   })
 })
 

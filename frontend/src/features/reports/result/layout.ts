@@ -16,21 +16,15 @@ interface Rect {
 const clamp01 = (value: number): number => Math.min(1, Math.max(0, value))
 
 /**
- * 놓은 위치가 타일의 어느 가장자리에 가장 가까운지(정규화 거리, 가로·세로 크기가 달라도 같은 비율로 잰다).
- * 동률이면 left > right > top > bottom. 사각형 밖 좌표는 가장자리로 자른 뒤 잰다.
+ * 놓은 위치로 가장자리를 판정한다. 가로 바깥 20%(경계 제외)만 left/right, 가운데 60%는 세로 절반으로
+ * 위(top)·아래(bottom)를 나눈다(경계 0.2·0.8과 세로 정확히 절반은 상하). 사각형 밖 좌표는 가장자리로 자른 뒤 잰다.
  */
 export function dropEdge(rect: Rect, point: { x: number; y: number }): DropEdge {
   const l = clamp01(rect.width > 0 ? (point.x - rect.left) / rect.width : 0)
   const t = clamp01(rect.height > 0 ? (point.y - rect.top) / rect.height : 0)
-  const distances: [DropEdge, number][] = [
-    ['left', l],
-    ['right', 1 - l],
-    ['top', t],
-    ['bottom', 1 - t],
-  ]
-  let best = distances[0] ?? (['left', 0] as [DropEdge, number])
-  for (const candidate of distances) if (candidate[1] < best[1]) best = candidate
-  return best[0]
+  if (l < 0.2) return 'left'
+  if (l > 0.8) return 'right'
+  return t < 0.5 ? 'top' : 'bottom'
 }
 
 /** `dragged`를 `target`의 `edge` 쪽에 놓은 배치. 보기 방식은 바꾸지 않는다. 자기 자신 위에는 놓을 수 없어 같은 객체를 돌려준다. */
