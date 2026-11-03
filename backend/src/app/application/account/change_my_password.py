@@ -1,6 +1,5 @@
 from typing import TYPE_CHECKING
 
-from app.application.auth.dev_login import DEV_LOGIN_IDS
 from app.application.auth.messages import LOCAL_MODE_ONLY, LOGIN_REQUIRED, WRONG_CURRENT
 from app.application.auth.mode import current_mode
 from app.application.auth.tokens import hash_token
@@ -16,8 +15,6 @@ if TYPE_CHECKING:
     from app.domain.auth.credentials import Password
     from app.domain.auth.password_hash import PasswordHash
     from app.domain.auth.principal import Principal
-
-DEV_CHANGE_FORBIDDEN = "개발 로그인 전용 사용자의 비밀번호는 바꿀 수 없습니다."
 
 
 class ChangeMyPassword:
@@ -54,8 +51,6 @@ class ChangeMyPassword:
         async with self._deps.uow_factory() as uow:
             if await current_mode(uow) is not AuthMode.LOCAL:
                 raise InvalidStateError(LOCAL_MODE_ONLY)
-        if actor.subject in DEV_LOGIN_IDS:
-            raise InvalidStateError(DEV_CHANGE_FORBIDDEN)
 
     async def _stored_hash(self, actor: Principal) -> PasswordHash | None:
         async with self._deps.uow_factory() as uow:

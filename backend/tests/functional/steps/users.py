@@ -30,7 +30,6 @@ if TYPE_CHECKING:
 
 OPTIONS: Final = "/api/v1/user-options"
 CONFIG: Final = "/api/v1/auth/config"
-DEV_LOGIN: Final = "/api/v1/auth/dev-login"
 SESSION_COOKIE: Final = "neoine_session"
 CSRF_HEADER: Final = "X-Requested-With"
 # 업무 API 접근 여부를 보는 경로(고객 API는 P0에서 바뀐다: 여기만 고치면 된다)
@@ -112,12 +111,6 @@ async def given_user_signed_in_once(
 async def given_user_deleted(api: Api, user_id: object) -> None:
     """admin이 사용자를 삭제했다(200)."""
     response = await api.delete(f"{USERS}/{user_id}")
-    assert response.status_code == 200, f"Given 실패 {response.status_code}: {response.text}"
-
-
-async def given_dev_login(api: Api, role: RoleName) -> None:
-    """개발용 로그인(dev-login)으로 해당 역할의 개발 사용자로 로그인했다."""
-    response = await api.post(DEV_LOGIN, json={"role": role})
     assert response.status_code == 200, f"Given 실패 {response.status_code}: {response.text}"
 
 

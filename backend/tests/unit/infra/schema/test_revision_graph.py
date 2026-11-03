@@ -27,6 +27,7 @@ from tests.support.revisions import (
     forecast_snapshots_revision,
     next_action_status_revision,
     partner_meetings_drop_deal_revision,
+    retire_dev_users_revision,
     solution_free_text_revision,
     vendor_solution_revision,
 )
@@ -54,15 +55,24 @@ def test_the_solution_text_revision_follows_the_forecast_snapshots() -> None:
     assert revision.down_revision == forecast_snapshots_revision() == FORECAST_SNAPSHOTS_REVISION
 
 
-def test_the_drop_deal_revision_follows_auth_mode_and_is_head() -> None:
+def test_the_drop_deal_revision_follows_auth_mode() -> None:
     script = ScriptDirectory.from_config(_alembic_config())
 
     head = script.get_revision(partner_meetings_drop_deal_revision())
-    assert script.get_heads() == [partner_meetings_drop_deal_revision()]
     assert partner_meetings_drop_deal_revision() != auth_mode_revision()
     assert head is not None
     assert head.down_revision == auth_mode_revision()
     assert head.path.endswith(f"20261103_{head.revision}_partner_meetings_drop_deal.py")
+
+
+def test_the_retire_dev_users_revision_follows_drop_deal_and_is_head() -> None:
+    script = ScriptDirectory.from_config(_alembic_config())
+
+    head = script.get_revision(retire_dev_users_revision())
+    assert script.get_heads() == [retire_dev_users_revision()]
+    assert head is not None
+    assert head.down_revision == partner_meetings_drop_deal_revision()
+    assert head.path.endswith(f"20261103_{head.revision}_retire_dev_users.py")
 
 
 def test_the_auth_mode_revision_follows_the_directory_service_account_in_the_head_history() -> None:

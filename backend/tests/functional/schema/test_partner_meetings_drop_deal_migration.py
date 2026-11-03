@@ -138,14 +138,14 @@ async def test_upgrade_keeps_the_remaining_columns_checks_and_indexes(blank_data
     assert "partner_meetings" in await table_names(blank_database)
 
 
-async def test_upgrade_from_empty_to_head_ends_at_the_drop_deal_revision(
+async def test_upgrade_from_empty_to_the_drop_deal_revision(
     blank_database: URL,
 ) -> None:
-    """Scenario: 빈 DB를 head로 올리면 이 리비전에 이르고 partner_meetings에 deal_id가 없다."""
+    """Scenario: 빈 DB를 이 리비전까지 올리면 partner_meetings에 deal_id가 없다."""
     # Given
     # (마이그레이션이 하나도 적용되지 않은 빈 DB)
     # When
-    await when_operator_upgrades(blank_database)
+    await when_operator_upgrades(blank_database, target=partner_meetings_drop_deal_revision())
     # Then
     await then_schema_is_at(blank_database, partner_meetings_drop_deal_revision())
     assert "deal_id" not in await column_names(blank_database, "partner_meetings")
@@ -154,7 +154,7 @@ async def test_upgrade_from_empty_to_head_ends_at_the_drop_deal_revision(
 async def test_downgrade_is_always_refused(blank_database: URL) -> None:
     """Scenario: 내리기는 거부되고 스키마는 이 리비전 그대로다(복구는 백업 복원뿐)."""
     # Given
-    await when_operator_upgrades(blank_database)
+    await when_operator_upgrades(blank_database, target=partner_meetings_drop_deal_revision())
     # When
     outcome = await when_operator_attempts_downgrade(blank_database, target=auth_mode_revision())
     # Then

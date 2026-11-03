@@ -90,7 +90,6 @@ def create_app(
     app.state.auth_options = AuthOptions(
         cookie_secure=settings.cookie_secure,
         session_ttl_seconds=settings.session_ttl_hours * 3600,
-        dev_login_enabled=settings.dev_login_enabled,
     )
     register_error_handlers(app)
     app.include_router(health.router)

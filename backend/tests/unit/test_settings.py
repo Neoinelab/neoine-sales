@@ -146,27 +146,18 @@ def test_invalid_redis_url_is_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
         get_settings()
 
 
-def test_local_enables_dev_login_by_default() -> None:
-    assert get_settings().dev_login_enabled is True
+@pytest.mark.parametrize("profile", ["local", "dev", "product"])
+@pytest.mark.parametrize("flag", ["true", "false"])
+def test_dev_login_variable_is_ignored_in_every_profile(
+    monkeypatch: pytest.MonkeyPatch, profile: str, flag: str
+) -> None:
+    _set(monkeypatch, {**PRODUCT_ENV, "APP_PROFILE": profile, "APP_DEV_LOGIN_ENABLED": flag})
 
+    settings = get_settings()
 
-def test_dev_login_is_allowed_in_dev(monkeypatch: pytest.MonkeyPatch) -> None:
-    _set(monkeypatch, {"APP_PROFILE": "dev", "APP_DEV_LOGIN_ENABLED": "true"})
-
-    assert get_settings().dev_login_enabled is True
-
-
-def test_dev_enables_dev_login_by_default(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("APP_PROFILE", "dev")
-
-    assert get_settings().dev_login_enabled is True
-
-
-def test_dev_login_is_forbidden_in_product(monkeypatch: pytest.MonkeyPatch) -> None:
-    _set(monkeypatch, {**PRODUCT_ENV, "APP_DEV_LOGIN_ENABLED": "true"})
-
-    with pytest.raises(ValidationError, match="dev_login"):
-        get_settings()
+    assert settings.profile.value == profile
+    assert not hasattr(settings, "dev_login_enabled")
+    assert "dev_login_enabled" not in type(settings).model_fields
 
 
 # 예전 OIDC 배포 환경의 잔여 변수. 값이 JSON이 아니어도 무시해야 한다(CFG-2).
@@ -216,17 +207,12 @@ def test_product_starts_without_any_login_variables(monkeypatch: pytest.MonkeyPa
     settings = get_settings()
 
     assert settings.profile is Profile.PRODUCT
-    assert settings.dev_login_enabled is False
 
 
-def test_local_without_dev_login_starts_without_any_login_variables(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setenv("APP_DEV_LOGIN_ENABLED", "false")
-
+def test_local_starts_without_any_login_variables() -> None:
     settings = get_settings()
 
-    assert settings.dev_login_enabled is False
+    assert isinstance(settings, LocalSettings)
 
 
 def test_session_ttl_default_and_secrets_stay_hidden() -> None:

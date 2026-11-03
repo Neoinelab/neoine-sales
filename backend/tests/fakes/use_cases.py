@@ -25,7 +25,6 @@ if TYPE_CHECKING:
     from app.application.alert.update_alert_settings import UpdateAlertSettings
     from app.application.auth.auth_status import GetAuthStatus
     from app.application.auth.authenticate import Authenticate
-    from app.application.auth.dev_login import DevLogin
     from app.application.auth.directory_login import DirectoryLogin
     from app.application.auth.logout import Logout
     from app.application.auth.password_login import PasswordLogin
@@ -84,13 +83,12 @@ if TYPE_CHECKING:
 class FakeUseCases(
     CatalogUseCases, ContactUseCases, DealUseCases, AttachmentUseCases, PartnerMeetingUseCases
 ):
-    def __init__(self, *, allow_dev_sessions: bool = True) -> None:
+    def __init__(self) -> None:
         self.uow = FakeUnitOfWork()
         self.clock = SteppingClock(NOW)
         self.suffix_source = FakeDealCodeSuffixSource()
         self.ready_error: Exception | None = None
         self.file_storage = FakeFileStorage()
-        self._allow_dev_sessions = allow_dev_sessions
 
     # 인증 조립은 처음 쓸 때 만든다: 인증과 무관한 테스트가 인증 구현(새 Port·Fake 포함)에
     # 묶이지 않는다
@@ -98,17 +96,13 @@ class FakeUseCases(
     def _auth(self) -> AuthStack:
         from tests.fakes.auth_stack import build_auth_stack  # noqa: PLC0415
 
-        return build_auth_stack(
-            self._factory, self.clock, allow_dev_sessions=self._allow_dev_sessions
-        )
+        return build_auth_stack(self._factory, self.clock)
 
     @cached_property
     def _admin(self) -> AdminStack:
         from tests.fakes.admin_stack import build_admin_stack  # noqa: PLC0415
 
-        return build_admin_stack(
-            self._auth, self._factory, self.clock, allow_dev_sessions=self._allow_dev_sessions
-        )
+        return build_admin_stack(self._auth, self._factory, self.clock)
 
     @property
     def directory(self) -> FakeDirectoryAuthenticator:
@@ -368,9 +362,6 @@ class FakeUseCases(
             await uow.password_hashes.save(user.id, fake_hash_of(password), self.clock.now())
             await uow.commit()
         return user
-
-    def dev_login(self) -> DevLogin:
-        return self._auth.dev_login
 
     def authenticate(self) -> Authenticate:
         return self._auth.authenticate

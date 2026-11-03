@@ -320,10 +320,6 @@
               }
             ]
           },
-          "dev_login": {
-            "title": "Dev Login",
-            "type": "boolean"
-          },
           "directory_login": {
             "title": "Directory Login",
             "type": "boolean"
@@ -342,7 +338,6 @@
           }
         },
         "required": [
-          "dev_login",
           "directory_login",
           "needs_directory_setup",
           "needs_storage_setup",
@@ -2589,19 +2584,6 @@
           "attachment_count"
         ],
         "title": "DeletionImpactResponse",
-        "type": "object"
-      },
-      "DevLoginRequest": {
-        "additionalProperties": false,
-        "properties": {
-          "role": {
-            "$ref": "#/components/schemas/Role"
-          }
-        },
-        "required": [
-          "role"
-        ],
-        "title": "DevLoginRequest",
         "type": "object"
       },
       "DirectorySettingsRequest": {
@@ -6821,47 +6803,6 @@
           }
         },
         "summary": "Auth Config",
-        "tags": [
-          "auth"
-        ]
-      }
-    },
-    "/api/v1/auth/dev-login": {
-      "post": {
-        "operationId": "dev_login_api_v1_auth_dev_login_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/DevLoginRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PrincipalResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Dev Login",
         "tags": [
           "auth"
         ]

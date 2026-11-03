@@ -90,17 +90,6 @@ async def test_a_resigned_user_is_a_409() -> None:
     assert problem(response, 409, "invalid-state")["detail"] == "이미 퇴사 처리된 사용자입니다"
 
 
-@pytest.mark.parametrize("login_id", ["dev-admin", "dev-sales", "dev-user"])
-async def test_dev_login_users_are_a_409(login_id: str) -> None:
-    use_cases = FakeUseCases()
-    dev = await use_cases.seed_user(login_id, Role.SALES)
-    async with client_for(use_cases) as http:
-        response = await http.put(_url(dev.id), json={"role": "user"})
-
-    detail = problem(response, 409, "invalid-state")["detail"]
-    assert detail == "개발 로그인 전용 사용자의 역할은 바꿀 수 없습니다."
-
-
 async def test_an_unknown_user_is_a_404() -> None:
     async with client_for(FakeUseCases()) as http:
         response = await http.put(_url(MISSING_ID), json={"role": "user"})

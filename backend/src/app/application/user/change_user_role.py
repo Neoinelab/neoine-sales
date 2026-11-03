@@ -1,7 +1,5 @@
 from typing import TYPE_CHECKING
 
-from app.application.auth.dev_login import DEV_LOGIN_IDS
-from app.domain.common.errors import InvalidStateError
 from app.domain.user.policy import ensure_role_changeable
 
 if TYPE_CHECKING:
@@ -10,8 +8,6 @@ if TYPE_CHECKING:
     from app.domain.auth.principal import Principal, Role
     from app.domain.user.entities import User
     from app.domain.user.value_objects import UserId
-
-DEV_USER_ROLE_CHANGE = "개발 로그인 전용 사용자의 역할은 바꿀 수 없습니다."
 
 
 class ChangeUserRole:
@@ -34,8 +30,6 @@ class ChangeUserRole:
                 actor_user_id=actor.user_id,
                 active_admin_count=await uow.users.count_active_admins(),
             )
-            if target.login_id.value in DEV_LOGIN_IDS:
-                raise InvalidStateError(DEV_USER_ROLE_CHANGE)
             if target.change_role(role, self._clock.now()):
                 await uow.users.update(target)
                 await uow.commit()

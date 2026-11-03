@@ -54,7 +54,6 @@ class LoginResponse(PrincipalResponse):
 
 
 class AuthConfigResponse(BaseModel):
-    dev_login: bool
     directory_login: bool
     needs_directory_setup: bool
     needs_storage_setup: bool
@@ -62,19 +61,14 @@ class AuthConfigResponse(BaseModel):
     auth_mode: AuthMode | None
 
     @classmethod
-    def from_status(cls, status: AuthStatus, *, dev_login: bool) -> AuthConfigResponse:
+    def from_status(cls, status: AuthStatus) -> AuthConfigResponse:
         return cls(
-            dev_login=dev_login,
             directory_login=status.directory_configured,
             needs_directory_setup=status.needs_directory_setup,
             needs_storage_setup=status.needs_storage_setup,
             needs_admin_setup=status.needs_admin_setup,
             auth_mode=status.auth_mode,
         )
-
-
-class DevLoginRequest(RequestModel):
-    role: Role
 
 
 class CredentialsRequest(RequestModel):

@@ -1,4 +1,4 @@
-"""세션·쿠키·개발용 로그인 step: 토큰으로 요청하기, 내 정보, 로그아웃, 쿠키 속성 확인."""
+"""세션·쿠키 step: 토큰으로 요청하기, 내 정보, 로그아웃, 쿠키 속성 확인."""
 
 from typing import TYPE_CHECKING
 
@@ -10,7 +10,6 @@ if TYPE_CHECKING:
     from tests.functional.conftest import Api
 
 SESSION_COOKIE = "neoine_session"
-DEV_LOGIN = "/api/v1/auth/dev-login"
 
 
 def session_header(token: str) -> dict[str, str]:
@@ -52,10 +51,6 @@ async def when_get_me(api: Api) -> Response:
 async def when_get_with_session(api: Api, url: str, *, token: str) -> Response:
     """쿠키 저장소가 아니라 주어진 세션 토큰으로 GET 한다."""
     return await api.get(url, headers=session_header(token))
-
-
-async def when_dev_login(api: Api, *, role: str) -> Response:
-    return await api.post(DEV_LOGIN, json={"role": role})
 
 
 def then_session_cookie_is_http_only_lax(response: Response) -> str:

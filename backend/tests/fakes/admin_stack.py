@@ -23,7 +23,7 @@
 - DeleteUser(uow_factory, clock)                            ...user.delete_user
 - GetDirectorySettings(uow_factory, cipher)                 app.application.directory.get_settings
   execute() -> DirectorySettingsView(.stored, .credential_readable)
-- VerifyDirectorySettings(deps, *, allow_dev_sessions)      ...directory.verify_settings
+- VerifyDirectorySettings(deps)                             ...directory.verify_settings
   execute(*, actor, settings: DirectorySettings, password, client_ip) -> str (찾은 base_dn)
 - TestDirectorySettings(uow_factory, cipher, verify)        ...directory.test_settings
   execute(*, actor, draft: DirectorySettingsDraft, password, client_ip) -> TestResult(base_dn 포함)
@@ -64,14 +64,14 @@ __all__ = [
     "ADMIN_ACTOR",
     "ADMIN_LOGIN",
     "ADMIN_PASSWORD",
-    "DEV_ACTOR",
+    "OTHER_ADMIN_ACTOR",
     "AdminStack",
     "build_admin_stack",
 ]
 
 ADMIN_ACTOR = Principal(uid(ADMIN_LOGIN), ADMIN_LOGIN, "root@corp.test", "루트 관리자", Role.ADMIN)
-# dev-login admin. 이제 users 행이 있는 일반 사용자지만 AD 검증은 우회한다(예약 아이디)
-DEV_ACTOR = Principal(uid("dev-admin"), "dev-admin", None, "dev admin", Role.ADMIN)
+# 행위자가 둘 필요한 시나리오용 두 번째 관리자(AD 검증 예외 없음: 설정 저장·테스트는 비밀번호 필요)
+OTHER_ADMIN_ACTOR = Principal(uid("other-admin"), "other-admin", None, "other admin", Role.ADMIN)
 
 
 class AdminStack:
@@ -82,13 +82,10 @@ class AdminStack:
         auth: AuthStack,
         uow_factory: UnitOfWorkFactory,
         clock: Clock,
-        *,
-        allow_dev_sessions: bool,
     ) -> None:
         self._auth = auth
         self._uow_factory = uow_factory
         self._clock = clock
-        self._allow_dev_sessions = allow_dev_sessions
         self.list_users = ListUsers(uow_factory)
         self.delete_user = DeleteUser(uow_factory, clock)
         self.list_user_options = ListUserOptions(uow_factory)
@@ -139,7 +136,7 @@ class AdminStack:
             VerifyDirectorySettings,
         )
 
-        return VerifyDirectorySettings(self._auth.deps, allow_dev_sessions=self._allow_dev_sessions)
+        return VerifyDirectorySettings(self._auth.deps)
 
     @cached_property
     def test_settings(self) -> TestDirectorySettings:
@@ -164,7 +161,5 @@ def build_admin_stack(
     auth: AuthStack,
     uow_factory: UnitOfWorkFactory,
     clock: Clock,
-    *,
-    allow_dev_sessions: bool = True,
 ) -> AdminStack:
-    return AdminStack(auth, uow_factory, clock, allow_dev_sessions=allow_dev_sessions)
+    return AdminStack(auth, uow_factory, clock)

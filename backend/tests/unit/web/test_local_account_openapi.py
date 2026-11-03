@@ -75,11 +75,10 @@ def test_the_no_content_responses_have_no_body(spec: dict[str, Any]) -> None:
         assert "content" not in spec["paths"][path][method]["responses"]["204"]
 
 
-def test_auth_config_has_the_sixth_flag_auth_mode(spec: dict[str, Any]) -> None:
+def test_auth_config_has_exactly_the_setup_keys_without_dev_login(spec: dict[str, Any]) -> None:
     schema = _schema(spec, "AuthConfigResponse")
 
     assert set(schema["properties"]) == {
-        "dev_login",
         "directory_login",
         "needs_directory_setup",
         "needs_storage_setup",
@@ -89,6 +88,12 @@ def test_auth_config_has_the_sixth_flag_auth_mode(spec: dict[str, Any]) -> None:
     assert "auth_mode" in schema["required"]
     options = schema["properties"]["auth_mode"]["anyOf"]
     assert {"type": "null"} in options
+
+
+def test_the_dev_login_path_and_schema_are_gone(spec: dict[str, Any]) -> None:
+    assert "/api/v1/auth/dev-login" not in spec["paths"]
+    assert "DevLoginRequest" not in spec["components"]["schemas"]
+    assert "dev_login" not in _schema(spec, "AuthConfigResponse")["properties"]
 
 
 def test_auth_mode_request_takes_only_the_mode(spec: dict[str, Any]) -> None:

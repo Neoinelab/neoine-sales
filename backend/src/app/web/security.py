@@ -18,7 +18,6 @@ SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
 class AuthOptions:
     cookie_secure: bool
     session_ttl_seconds: int
-    dev_login_enabled: bool
 
 
 def set_session_cookie(response: Response, token: str, options: AuthOptions) -> None:

@@ -355,16 +355,6 @@ async def test_reset_password_of_a_resigned_user_is_409() -> None:
     problem(response, 409, "invalid-state")
 
 
-async def test_reset_password_of_a_dev_user_is_409() -> None:
-    use_cases = FakeUseCases()
-    await _local(use_cases)
-    dev = await use_cases.seed_local_user("dev-sales", PASSWORD)
-    async with signed_in_as(use_cases, "root", Role.ADMIN) as admin:
-        response = await admin.put(_pw_url(dev.id), json={"password": "Fresh-passw0rd"})
-
-    problem(response, 409, "invalid-state")
-
-
 @pytest.mark.parametrize("password", ["short7!", "1234567", "kim"])
 async def test_reset_password_weak_is_422_on_the_password_field(password: str) -> None:
     use_cases = FakeUseCases()

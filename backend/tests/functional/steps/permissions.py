@@ -121,7 +121,6 @@ PUBLIC: Final = (
     ("GET", "/readyz"),
     ("GET", "/api/v1/auth/config"),
     ("POST", "/api/v1/auth/login"),
-    ("POST", "/api/v1/auth/dev-login"),
     ("POST", "/api/v1/auth/logout"),
     ("PUT", "/api/v1/auth/setup/auth-mode"),  # 최초 설정 1단계: 인증 방식 선택(admin 전까지)
     ("PUT", "/api/v1/auth/setup/directory"),

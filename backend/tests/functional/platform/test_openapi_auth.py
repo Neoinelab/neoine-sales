@@ -40,8 +40,8 @@ async def test_auth_routes_have_the_new_methods_and_no_oidc_routes(api: Api) -> 
     assert "/api/v1/auth/callback" not in paths
 
 
-async def test_auth_config_schema_has_exactly_the_six_flags(api: Api) -> None:
-    """Scenario: 로그인 화면 설정 응답은 정확히 여섯 개의 필드(auth_mode 포함)를 가진다."""
+async def test_auth_config_schema_has_exactly_the_five_fields(api: Api) -> None:
+    """Scenario: 설정 응답은 정확히 다섯 개 필드(auth_mode 포함, dev_login 없음)를 가진다."""
     # Given
     # (로그인하지 않은 상태)
     # When
@@ -49,7 +49,6 @@ async def test_auth_config_schema_has_exactly_the_six_flags(api: Api) -> None:
     # Then
     schema = spec_of(response)["components"]["schemas"]["AuthConfigResponse"]
     assert set(schema["properties"]) == {
-        "dev_login",
         "directory_login",
         "needs_directory_setup",
         "needs_storage_setup",

@@ -140,20 +140,6 @@ async def test_setup_first_admin_assigns_the_next_user_and_session_ids(
     assert [s.id for s in uow.sessions._items.values()] == [1]
 
 
-async def test_dev_login_assigns_the_next_user_id_to_each_new_dev_row(
-    auth: AuthStack, uow: FakeUnitOfWork
-) -> None:
-    await auth.dev_login.execute(Role.ADMIN)
-    await auth.dev_login.execute(Role.SALES)
-    await auth.dev_login.execute(Role.ADMIN)  # 이미 있는 개발 행은 재사용한다(번호를 쓰지 않는다)
-
-    admin = await uow.users.get_active_by_login_id(LoginId("dev-admin"))
-    sales = await uow.users.get_active_by_login_id(LoginId("dev-sales"))
-    assert admin is not None
-    assert sales is not None
-    assert (admin.id, sales.id) == (1, 2)
-
-
 async def test_recording_an_action_assigns_the_next_deal_action_id(action_env: ActionEnv) -> None:
     first = await action_env.act()
     second = await action_env.act()

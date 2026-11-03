@@ -13,7 +13,7 @@ from app.domain.common.errors import InvalidStateError
 from app.domain.user.errors import UserInUseError
 from app.domain.user.value_objects import UserDeleteReason
 from tests.factories import NOW
-from tests.fakes.admin_stack import DEV_ACTOR
+from tests.fakes.admin_stack import OTHER_ADMIN_ACTOR
 from tests.support.admin_seed import session_is_active
 from tests.support.auth_seed import seed_user
 from tests.support.user_links import LINK_KINDS, link_user
@@ -126,7 +126,7 @@ async def test_last_admin_protection_also_applies_to_the_resign_branch(
     await link_user(uow_factory, boss, "deal_owner")
 
     with pytest.raises(InvalidStateError, match="마지막 관리자"):
-        await admin.delete_user.execute(user_id=boss.id, actor=DEV_ACTOR)
+        await admin.delete_user.execute(user_id=boss.id, actor=OTHER_ADMIN_ACTOR)
 
     async with uow_factory() as uow:
         assert (await uow.users.get(boss.id)).is_active
@@ -152,7 +152,7 @@ async def test_a_resigned_admin_is_not_counted_as_an_active_admin(
     await admin.delete_user.execute(user_id=boss.id, actor=root.to_principal())
 
     with pytest.raises(InvalidStateError, match="마지막 관리자"):
-        await admin.delete_user.execute(user_id=root.id, actor=DEV_ACTOR)
+        await admin.delete_user.execute(user_id=root.id, actor=OTHER_ADMIN_ACTOR)
 
 
 async def test_physical_delete_blocked_by_a_late_reference_falls_back_to_resign(

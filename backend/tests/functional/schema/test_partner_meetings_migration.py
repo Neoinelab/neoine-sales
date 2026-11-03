@@ -72,11 +72,11 @@ async def test_upgrade_seeds_no_meeting_rows(blank_database: URL) -> None:
 async def test_upgrade_to_head_passes_the_partner_meetings_revision(
     blank_database: URL,
 ) -> None:
-    """Scenario: 빈 DB를 head로 올리면 partner_meetings가 있고 head는 Deal 제거 리비전이다."""
+    """Scenario: 빈 DB를 Deal 제거 리비전까지 올리면 partner_meetings가 있다."""
     # Given
     # (마이그레이션이 하나도 적용되지 않은 빈 DB)
     # When
-    await when_operator_upgrades(blank_database)
+    await when_operator_upgrades(blank_database, target=partner_meetings_drop_deal_revision())
     # Then
     await then_schema_is_at(blank_database, partner_meetings_drop_deal_revision())
     assert "partner_meetings" in await table_names(blank_database)

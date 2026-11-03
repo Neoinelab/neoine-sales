@@ -1,6 +1,5 @@
 from typing import TYPE_CHECKING
 
-from app.application.auth.dev_login import DEV_LOGIN_IDS
 from app.application.auth.messages import LOCAL_MODE_ONLY
 from app.application.auth.mode import current_mode
 from app.domain.auth.mode import AuthMode
@@ -18,7 +17,6 @@ if TYPE_CHECKING:
     from app.domain.user.value_objects import UserId
 
 SELF_RESET_FORBIDDEN = "자기 자신의 비밀번호는 내 정보에서 바꾸세요."
-DEV_RESET_FORBIDDEN = "개발 로그인 전용 사용자의 비밀번호는 바꿀 수 없습니다."
 
 
 def _ensure_resettable(target: User, actor: Principal) -> None:
@@ -26,8 +24,6 @@ def _ensure_resettable(target: User, actor: Principal) -> None:
         raise InvalidStateError(ALREADY_RESIGNED)
     if target.id == actor.user_id:
         raise InvalidStateError(SELF_RESET_FORBIDDEN)
-    if target.login_id.value in DEV_LOGIN_IDS:
-        raise InvalidStateError(DEV_RESET_FORBIDDEN)
 
 
 class ResetUserPassword:

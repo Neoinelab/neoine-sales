@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 from app.application.directory.errors import DirectoryVerificationError
+from app.application.directory.verify_settings import PASSWORD_REQUIRED
 from app.application.ports.directory import (
     DirectoryMisconfiguredError,
     DirectoryUnavailableError,
@@ -24,7 +25,7 @@ from app.domain.directory.errors import DirectorySettingsConflictError
 from app.domain.directory.settings import DirectorySettingsDraft
 from tests.factories_auth import BASE_DN, BIND_PASSWORD, WRONG_PASSWORD, make_principal
 from tests.factories_directory import make_directory_connection
-from tests.fakes.admin_stack import ADMIN_ACTOR, ADMIN_PASSWORD, DEV_ACTOR, build_admin_stack
+from tests.fakes.admin_stack import ADMIN_ACTOR, ADMIN_PASSWORD
 from tests.fakes.auth_stack import MAX_PER_ACCOUNT
 from tests.support.admin_seed import session_is_active
 from tests.support.auth_seed import account_key, seed_directory, seed_user
@@ -35,7 +36,6 @@ if TYPE_CHECKING:
     from tests.fakes.admin_stack import AdminStack
     from tests.fakes.auth_stack import AuthStack
     from tests.fakes.directory import FakeDirectoryAuthenticator
-    from tests.fakes.unit_of_work import FixedClock
 
 IP = "10.0.0.1"
 NEW_CONNECTION = make_directory_connection(host="dc2.corp.test")
@@ -233,59 +233,23 @@ async def test_update_requires_a_password_from_a_directory_admin(
     assert await _stored(uow_factory) == before
 
 
-async def test_a_dev_admin_update_only_discovers_the_base_dn_and_records_the_dev_users_id(
-    admin: AdminStack, directory: FakeDirectoryAuthenticator, uow_factory: UnitOfWorkFactory
-) -> None:
-    await seed_directory(uow_factory)
-
-    stored = await _update(admin, actor=DEV_ACTOR, password=None)
-
-    assert len(directory.discover_calls) == 1
-    assert directory.authenticate_calls == []
-    assert (stored.revision, stored.updated_by, stored.base_dn) == (2, DEV_ACTOR.user_id, BASE_DN)
-
-
-@pytest.mark.parametrize("subject", ["dev-admin2", "dev-adminx", "xdev-admin", "dev-sales2"])
-async def test_the_discover_only_path_is_limited_to_the_reserved_dev_login_ids(
+@pytest.mark.parametrize(
+    "subject", ["dev-admin", "dev-sales", "dev-user", "dev-admin2", "xdev-admin", "root"]
+)
+async def test_a_missing_password_is_rejected_before_any_discovery(
     admin: AdminStack,
     directory: FakeDirectoryAuthenticator,
     uow_factory: UnitOfWorkFactory,
     subject: str,
 ) -> None:
-    await seed_directory(uow_factory)
-    lookalike = make_principal(subject, Role.ADMIN)
-
-    with pytest.raises(InvalidValueError):  # 예약 아이디가 아니면 비밀번호 없이는 통과하지 못한다
-        await _update(admin, actor=lookalike, password=None)
-
-    assert directory.authenticate_calls == []
-
-
-async def test_a_dev_admin_update_with_a_failing_discovery_saves_nothing(
-    admin: AdminStack, directory: FakeDirectoryAuthenticator, uow_factory: UnitOfWorkFactory
-) -> None:
     before = await seed_directory(uow_factory)
-    directory.discover_fails_with = DirectoryUnavailableError(stage=VerificationStage.CONNECT)
+    actor = make_principal(subject, Role.ADMIN)
 
-    with pytest.raises(DirectoryVerificationError) as caught:
-        await _update(admin, actor=DEV_ACTOR, password=None)
+    with pytest.raises(InvalidValueError) as caught:  # 예약 아이디도 예외가 아니다
+        await _update(admin, actor=actor, password=None)
 
-    assert caught.value.stage == VerificationStage.CONNECT
-    assert await _stored(uow_factory) == before
-
-
-async def test_a_dev_subject_is_not_special_when_dev_sessions_are_not_allowed(
-    auth: AuthStack,
-    uow_factory: UnitOfWorkFactory,
-    clock: FixedClock,
-    directory: FakeDirectoryAuthenticator,
-) -> None:
-    strict = build_admin_stack(auth, uow_factory, clock, allow_dev_sessions=False)
-    before = await seed_directory(uow_factory)
-
-    with pytest.raises(InvalidValueError):  # 비밀번호 없이는 admin 검색·바인드로 갈 수 없다
-        await _update(strict, actor=DEV_ACTOR, password=None)
-
+    assert str(caught.value) == PASSWORD_REQUIRED
+    assert directory.discover_calls == []
     assert directory.authenticate_calls == []
     assert await _stored(uow_factory) == before
 
@@ -403,13 +367,3 @@ async def test_update_with_null_revision_without_bind_password_is_rejected(
     assert "bind_password" in str(caught.value)
     assert directory.discover_calls == []
     assert await _stored(uow_factory) is None
-
-
-async def test_dev_admin_update_with_null_revision_only_discovers_the_base_dn(
-    admin: AdminStack, directory: FakeDirectoryAuthenticator
-) -> None:
-    stored = await _update(admin, expected_revision=None, actor=DEV_ACTOR, password=None)
-
-    assert (stored.revision, stored.updated_by) == (1, DEV_ACTOR.user_id)
-    assert directory.authenticate_calls == []
-    assert len(directory.discover_calls) == 1

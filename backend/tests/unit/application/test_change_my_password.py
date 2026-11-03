@@ -18,7 +18,6 @@ from app.domain.auth.errors import (
     WrongCurrentPasswordError,
 )
 from app.domain.auth.mode import AuthMode
-from app.domain.auth.principal import Role
 from app.domain.common.errors import InvalidStateError, InvalidValueError
 from tests.fakes.auth_stack import MAX_PER_ACCOUNT
 from tests.fakes.password_hasher import fake_hash_of
@@ -186,24 +185,6 @@ async def test_change_my_password_in_ad_mode_is_invalid_state(
 
     assert str(caught.value) == LOCAL_MODE_ONLY
     assert await session_is_active(uow_factory, me.other_a.token)
-
-
-@pytest.mark.parametrize("login_id", ["dev-admin", "dev-sales", "dev-user"])
-async def test_change_my_password_dev_user_is_invalid_state(
-    auth: AuthStack, uow_factory: UnitOfWorkFactory, login_id: str
-) -> None:
-    await seed_auth_mode(uow_factory, AuthMode.LOCAL)
-    dev = await seed_local_user(uow_factory, login_id, OLD, Role.ADMIN)
-    issued = await auth.issue.execute(dev.to_principal())
-
-    with pytest.raises(InvalidStateError):
-        await auth.change_my_password.execute(
-            actor=dev.to_principal(),
-            current=Password(OLD),
-            new=Password(NEW),
-            session_token=issued.token,
-            client_ip=IP,
-        )
 
 
 async def test_change_my_password_for_a_user_without_a_hash_is_wrong_current(

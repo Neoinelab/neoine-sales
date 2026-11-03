@@ -28,14 +28,12 @@ class AdminAssembly:
         clock: Clock,
         auth_deps: AuthDeps,
         cipher: SecretCipher,
-        *,
-        allow_dev_sessions: bool,
     ) -> None:
         self._uow_factory = uow_factory
         self._clock = clock
         self._cipher = cipher
         self._hasher = auth_deps.hasher
-        self._verify = VerifyDirectorySettings(auth_deps, allow_dev_sessions=allow_dev_sessions)
+        self._verify = VerifyDirectorySettings(auth_deps)
 
     def list_users(self) -> ListUsers:
         return ListUsers(self._uow_factory)

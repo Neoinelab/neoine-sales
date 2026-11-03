@@ -1,7 +1,6 @@
 from typing import TYPE_CHECKING
 
 from app.application.auth.credential_check import parse_login_id
-from app.application.auth.dev_login import DEV_LOGIN_IDS
 from app.application.directory.errors import DirectoryVerificationError
 from app.application.ports.directory import (
     DirectoryUnavailableError,
@@ -23,14 +22,13 @@ class VerifyDirectorySettings:
     """후보 AD 설정이 실제로 동작하는지 확인하고 찾은 Base DN을 돌려준다.
 
     서비스 계정으로 Base DN을 찾은 뒤, 요청한 admin이 새 설정으로 검색·바인드되는지 본다.
-    실패하면 DirectoryVerificationError(stage). 허용된 경우 dev-login 사용자(예약 아이디 dev-*)는
-    AD 계정이 없으므로 Base DN 탐색까지만 한다. 비밀번호는 로그·예외에 담지 않는다.
+    실패하면 DirectoryVerificationError(stage). 비밀번호가 없으면 탐색 전에 거부한다.
+    비밀번호는 로그·예외에 담지 않는다.
     admin 인증이 끝나면 선점한 시도를 되돌리되, 비밀번호가 틀린 경우는 실패 1회로 남긴다.
     """
 
-    def __init__(self, deps: AuthDeps, *, allow_dev_sessions: bool) -> None:
+    def __init__(self, deps: AuthDeps) -> None:
         self._deps = deps
-        self._allow_dev_sessions = allow_dev_sessions
 
     async def execute(
         self,
@@ -40,12 +38,10 @@ class VerifyDirectorySettings:
         password: Password | None,
         client_ip: str,
     ) -> str:
-        discover_only = self._allow_dev_sessions and actor.subject in DEV_LOGIN_IDS
-        if not discover_only and password is None:
+        if password is None:
             raise InvalidValueError(PASSWORD_REQUIRED)
         base_dn = await self._discover(settings)
-        if not discover_only and password is not None:
-            await self._authenticate(actor, settings, base_dn, password, client_ip)
+        await self._authenticate(actor, settings, base_dn, password, client_ip)
         return base_dn
 
     async def _discover(self, settings: DirectorySettings) -> str:

@@ -3,8 +3,13 @@ from typing import TYPE_CHECKING
 from app.application.auth.credential_check import parse_login_id
 from app.application.auth.directory_login import DirectoryLogin, LoginOutcome
 from app.application.auth.local_login import LocalLogin
+from app.application.auth.messages import LOGIN_FAILED
 from app.application.auth.mode import current_mode
+from app.domain.auth.credentials import LoginId
+from app.domain.auth.errors import AuthenticationError
 from app.domain.auth.mode import AuthMode
+from app.domain.common.errors import InvalidValueError
+from app.domain.user.retired_login_ids import is_retired_dev_login_id
 
 if TYPE_CHECKING:
     from app.application.auth.deps import AuthDeps
@@ -25,6 +30,7 @@ class PasswordLogin:
         self._local = LocalLogin(deps)
 
     async def execute(self, *, login_id: str, password: Password, client_ip: str) -> LoginOutcome:
+        await self._reject_retired(login_id, client_ip)
         async with self._deps.uow_factory() as uow:
             mode = await current_mode(uow)
         if mode is not AuthMode.LOCAL:
@@ -37,3 +43,13 @@ class PasswordLogin:
         await self._deps.throttle.succeeded(account, client_ip)
         session = await self._issue_session.execute(principal)
         return LoginOutcome(session, None)
+
+    async def _reject_retired(self, login_id: str, client_ip: str) -> None:
+        """폐지된 개발 로그인 아이디는 AD·해시를 거치지 않고 일반 실패 1회로 거부한다."""
+        try:
+            account = LoginId(login_id)
+        except InvalidValueError:
+            return  # 형식 오류는 기존 흐름이 같은 문구로 거부한다
+        if is_retired_dev_login_id(account):
+            await self._deps.throttle.ensure_allowed(account, client_ip)
+            raise AuthenticationError(LOGIN_FAILED)

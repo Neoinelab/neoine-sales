@@ -293,3 +293,22 @@ def partner_meetings_drop_deal_revision() -> str:
     children = [r.revision for r in script.walk_revisions() if r.down_revision == parent]
     assert len(children) == 1, f"앱 자체 계정 다음 리비전이 정확히 하나여야 한다: {children}"
     return children[0]
+
+
+def retire_dev_users_revision() -> str:
+    """개발 로그인 사용자 삭제 리비전 id: 파트너 미팅 Deal 제거 다음이고 head다.
+
+    `login_id LIKE 'dev-%'` 사용자와 그 사용자를 참조하는 모든 데이터를 지우는
+    데이터 마이그레이션이다.
+    downgrade는 항상 거부한다. id는 구현이 정하므로 그래프에서 찾는다. 없거나 둘 이상이면
+    AssertionError(구현 전에는 이것이 red다).
+    """
+    from alembic.script import ScriptDirectory  # noqa: PLC0415
+
+    from tests.support.database import _alembic_config  # noqa: PLC0415
+
+    script = ScriptDirectory.from_config(_alembic_config())
+    parent = partner_meetings_drop_deal_revision()
+    children = [r.revision for r in script.walk_revisions() if r.down_revision == parent]
+    assert len(children) == 1, f"Deal 제거 다음 리비전이 정확히 하나여야 한다: {children}"
+    return children[0]

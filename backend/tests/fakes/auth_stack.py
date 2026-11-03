@@ -10,8 +10,6 @@
 - SetupFirstAdmin(deps, issue_session)  execute(...) -> IssuedSession (변경 없음)
 - RegisterSetupDirectory(uow_factory, clock, directory, cipher)
 - GetAuthStatus(uow_factory), Authenticate(uow_factory, clock)
-- DevLogin(uow_factory, clock, issue_session): dev-admin|dev-sales|dev-user 행을 users에 두고 발급
-  (allow_dev_sessions는 Authenticate의 allow_dev_users와 VerifyDirectorySettings에 연결된다)
 
 앱 자체 계정 관리(local 모드) 개편 계약(구현자가 따른다).
 AD 경로 클래스는 그대로 두고 새 클래스를 더한다:
@@ -43,7 +41,6 @@ from typing import TYPE_CHECKING
 
 from app.application.auth.auth_status import GetAuthStatus
 from app.application.auth.authenticate import Authenticate
-from app.application.auth.dev_login import DevLogin
 from app.application.auth.issue_session import IssueSession
 from app.application.auth.logout import Logout
 from app.application.auth.throttle import LoginThrottle
@@ -75,7 +72,7 @@ LOCK = timedelta(minutes=15)
 
 
 class AuthStack:
-    """인증 유스케이스 묶음. directory·throttle·issue·status·authenticate·logout·dev_login은 바로,
+    """인증 유스케이스 묶음. directory·throttle·issue·status·authenticate·logout은 바로,
     cipher·hasher·deps·register_directory·setup_admin·login은 처음 쓸 때 만든다."""
 
     def __init__(
@@ -83,8 +80,6 @@ class AuthStack:
         uow_factory: UnitOfWorkFactory,
         clock: Clock,
         directory: FakeDirectoryAuthenticator,
-        *,
-        allow_dev_sessions: bool,
     ) -> None:
         self._uow_factory = uow_factory
         self._clock = clock
@@ -100,9 +95,8 @@ class AuthStack:
         )
         self.issue = IssueSession(uow_factory, clock, SESSION_TTL)
         self.status = GetAuthStatus(uow_factory)
-        self.authenticate = Authenticate(uow_factory, clock, allow_dev_users=allow_dev_sessions)
+        self.authenticate = Authenticate(uow_factory, clock)
         self.logout = Logout(uow_factory, clock)
-        self.dev_login = DevLogin(uow_factory, clock, self.issue)
 
     @cached_property
     def cipher(self) -> FakeSecretCipher:
@@ -187,12 +181,5 @@ def build_auth_stack(
     uow_factory: UnitOfWorkFactory,
     clock: Clock,
     directory: FakeDirectoryAuthenticator | None = None,
-    *,
-    allow_dev_sessions: bool = True,
 ) -> AuthStack:
-    return AuthStack(
-        uow_factory,
-        clock,
-        directory or FakeDirectoryAuthenticator(),
-        allow_dev_sessions=allow_dev_sessions,
-    )
+    return AuthStack(uow_factory, clock, directory or FakeDirectoryAuthenticator())

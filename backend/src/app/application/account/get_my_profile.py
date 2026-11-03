@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from app.application.auth.dev_login import DEV_LOGIN_IDS
 from app.application.auth.mode import current_mode
 from app.domain.auth.mode import AuthMode
 
@@ -28,7 +27,7 @@ def build_my_profile(user: User, mode: AuthMode | None) -> MyProfile:
         user=user,
         mode=effective,
         can_edit_name_email=local,
-        can_change_password=local and user.login_id.value not in DEV_LOGIN_IDS,
+        can_change_password=local,
     )
 
 

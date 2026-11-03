@@ -1,6 +1,5 @@
 from typing import TYPE_CHECKING
 
-from app.application.auth.dev_login import ensure_not_reserved_login_id
 from app.application.auth.messages import SETUP_CLOSED, STORAGE_FIRST
 from app.application.auth.mode import ensure_local_mode
 from app.application.ids import new_user_id
@@ -11,6 +10,7 @@ from app.domain.common.errors import AlreadyExistsError, InvalidStateError
 from app.domain.user.entities import User
 from app.domain.user.errors import AmbiguousLoginIdError
 from app.domain.user.profile import normalize_email, normalize_name, normalize_phone
+from app.domain.user.retired_login_ids import ensure_not_reserved_login_id
 
 if TYPE_CHECKING:
     from app.application.auth.deps import AuthDeps

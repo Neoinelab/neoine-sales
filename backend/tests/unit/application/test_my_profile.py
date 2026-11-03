@@ -66,18 +66,6 @@ async def test_my_profile_without_a_mode_row_in_a_legacy_system_is_ad(
     assert (profile.can_edit_name_email, profile.can_change_password) == (False, False)
 
 
-@pytest.mark.parametrize("login_id", ["dev-admin", "dev-sales", "dev-user"])
-async def test_my_profile_for_dev_user_disallows_password(
-    admin: AdminStack, uow_factory: UnitOfWorkFactory, login_id: str
-) -> None:
-    await seed_auth_mode(uow_factory, AuthMode.LOCAL)
-    dev = await seed_local_user(uow_factory, login_id, "unused-pass-1", with_hash=False)
-
-    profile = await admin.get_my_profile.execute(dev.to_principal())
-
-    assert (profile.can_edit_name_email, profile.can_change_password) == (True, False)
-
-
 async def test_my_profile_shows_phone_and_email_or_none(
     admin: AdminStack, uow_factory: UnitOfWorkFactory
 ) -> None:

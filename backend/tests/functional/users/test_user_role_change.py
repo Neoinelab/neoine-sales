@@ -18,7 +18,6 @@ from tests.functional.steps.deals import (
 )
 from tests.functional.steps.requests import when_get
 from tests.functional.steps.user_roles import (
-    DEV_ONLY,
     RESIGNED,
     SELF_CHANGE,
     then_conflict_says,
@@ -33,10 +32,8 @@ from tests.functional.steps.users import (
     BUSINESS_PAYLOAD,
     BUSINESS_READ,
     BUSINESS_WRITE,
-    given_dev_login,
     given_signed_in_session,
     id_of,
-    log_in,
     when_list_options,
     when_request_as,
 )
@@ -118,20 +115,6 @@ async def test_resigned_user_role_cannot_be_changed(api: Api) -> None:
     # Then
     then_conflict_says(response, RESIGNED)
     await then_listed_role_is(api, "gone", "sales")
-
-
-async def test_dev_login_users_role_cannot_be_changed(api: Api) -> None:
-    """Scenario: 개발 로그인 전용 사용자(dev-sales)의 역할은 409이다."""
-    # Given
-    await given_logged_in_as(api, role="admin")
-    await given_dev_login(api, "sales")
-    await log_in(api, ADMIN_LOGIN)
-    dev_id = await id_of(api, "dev-sales")
-    # When
-    response = await when_change_role(api, dev_id, "user")
-    # Then
-    then_conflict_says(response, DEV_ONLY)
-    await then_listed_role_is(api, "dev-sales", "sales")
 
 
 async def test_same_role_returns_the_user_unchanged(api: Api) -> None:

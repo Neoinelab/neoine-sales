@@ -21,7 +21,6 @@ from tests.functional.steps.auth import (
     LOGIN,
     ME,
     directory_payload,
-    given_directory_configured,
     password_of,
 )
 from tests.support.functional_clock import active_clock
@@ -34,7 +33,6 @@ if TYPE_CHECKING:
 
 SETTINGS = "/api/v1/settings/directory"
 SETTINGS_TEST = "/api/v1/settings/directory/test"
-DEV_LOGIN = "/api/v1/auth/dev-login"
 SESSION_COOKIE = "neoine_session"
 CSRF_HEADER_NAME = "X-Requested-With"
 NEW_DN = "dc=new,dc=test"  # AD가 새로 알려 주는 Base DN(`given_directory_reports_base_dn`)
@@ -174,13 +172,6 @@ async def given_wrong_password_attempts(api: Api, *, endpoint: str) -> None:
 async def given_settings_row_removed(api: Api) -> None:
     """저장된 AD 설정 행이 없다(공개 API로는 만들 수 없는 상태라 DB에서 직접 지운다)."""
     await _execute(api, "delete from directory_settings")
-
-
-async def given_dev_login_admin(api: Api) -> None:
-    """AD 설정 1단계만 끝난 상태에서 개발용 로그인(admin)으로 들어와 있다."""
-    await given_directory_configured(api)
-    response = await api.post(DEV_LOGIN, json={"role": "admin"})
-    assert response.status_code == 200, response.text
 
 
 async def given_session_token(api: Api, *, login_id: str) -> str:

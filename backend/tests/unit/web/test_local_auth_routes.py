@@ -28,7 +28,6 @@ from tests.unit.web.local_account_http import (
 )
 
 FLAGS = {
-    "dev_login",
     "directory_login",
     "needs_directory_setup",
     "needs_storage_setup",
@@ -44,7 +43,7 @@ def _setup_body(**overrides: Any) -> dict[str, Any]:  # noqa: ANN401
 # ---- GET /auth/config ----
 
 
-async def test_config_of_a_fresh_system_has_six_flags_and_no_mode() -> None:
+async def test_auth_config_has_exactly_the_setup_keys_and_no_mode() -> None:
     async with anonymous(FakeUseCases()) as http:
         body = (await http.get(CONFIG)).json()
 

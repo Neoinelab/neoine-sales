@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+from app.application.directory.verify_settings import PASSWORD_REQUIRED
 from app.application.ports.directory import (
     DirectoryMisconfiguredError,
     DirectoryUnavailableError,
@@ -16,11 +17,12 @@ from app.application.ports.directory import (
 )
 from app.domain.auth.credentials import Password
 from app.domain.auth.errors import TooManyAttemptsError
+from app.domain.auth.principal import Role
 from app.domain.common.errors import InvalidValueError, NotFoundError
 from app.domain.directory.settings import DirectorySettingsDraft
-from tests.factories_auth import BASE_DN, BIND_PASSWORD, WRONG_PASSWORD
+from tests.factories_auth import BASE_DN, BIND_PASSWORD, WRONG_PASSWORD, make_principal
 from tests.factories_directory import make_directory_connection
-from tests.fakes.admin_stack import ADMIN_ACTOR, ADMIN_PASSWORD, DEV_ACTOR
+from tests.fakes.admin_stack import ADMIN_ACTOR, ADMIN_PASSWORD
 from tests.fakes.auth_stack import MAX_PER_ACCOUNT
 from tests.support.auth_seed import account_key, seed_directory
 
@@ -218,40 +220,18 @@ async def test_test_settings_without_an_admin_password_is_invalid_and_skips_the_
     assert directory.authenticate_calls == []
 
 
-async def test_a_dev_admin_test_only_discovers_the_base_dn(
-    admin: AdminStack, directory: FakeDirectoryAuthenticator
+@pytest.mark.parametrize("subject", ["dev-admin", "dev-sales", "dev-user"])
+async def test_a_test_without_the_admin_password_is_rejected_even_for_a_retired_dev_id(
+    admin: AdminStack, directory: FakeDirectoryAuthenticator, subject: str
 ) -> None:
-    result = await admin.test_settings.execute(
-        actor=DEV_ACTOR, draft=_draft(), password=None, client_ip=IP
-    )
+    actor = make_principal(subject, Role.ADMIN)
 
-    assert len(directory.discover_calls) == 1
+    with pytest.raises(InvalidValueError) as caught:
+        await admin.test_settings.execute(actor=actor, draft=_draft(), password=None, client_ip=IP)
+
+    assert str(caught.value) == PASSWORD_REQUIRED
+    assert directory.discover_calls == []
     assert directory.authenticate_calls == []
-    assert result.success is True
-    assert result.base_dn == BASE_DN
-
-
-async def test_a_dev_admin_test_reports_discovery_failure_with_its_stage(
-    admin: AdminStack, directory: FakeDirectoryAuthenticator
-) -> None:
-    directory.discover_fails_with = DirectoryUnavailableError(stage=VerificationStage.TLS)
-
-    result = await admin.test_settings.execute(
-        actor=DEV_ACTOR, draft=_draft(), password=None, client_ip=IP
-    )
-
-    assert (result.success, result.stage, result.base_dn) == (False, VerificationStage.TLS, None)
-
-
-async def test_a_dev_admin_ignores_a_supplied_password_and_still_only_discovers(
-    admin: AdminStack, directory: FakeDirectoryAuthenticator
-) -> None:
-    await admin.test_settings.execute(
-        actor=DEV_ACTOR, draft=_draft(), password=Password("whatever"), client_ip=IP
-    )
-
-    assert directory.authenticate_calls == []
-    assert len(directory.discover_calls) == 1
 
 
 async def test_bind_failures_count_toward_the_admins_attempt_limit(

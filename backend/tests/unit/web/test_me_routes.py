@@ -94,16 +94,6 @@ async def test_ad_user_profile_flags_allow_only_the_phone() -> None:
     }
 
 
-async def test_dev_user_profile_cannot_change_the_password() -> None:
-    use_cases = FakeUseCases()
-    await use_cases.seed_auth_mode(AuthMode.LOCAL)
-    async with signed_in_as(use_cases, "dev-sales") as http:
-        body = (await http.get(MY_PROFILE)).json()
-
-    assert body["editable"]["password"] is False
-    assert body["editable"]["display_name"] is True
-
-
 async def test_profile_without_login_is_401() -> None:
     async with anonymous(FakeUseCases()) as http:
         response = await http.get(MY_PROFILE)
@@ -338,15 +328,6 @@ async def test_ad_user_cannot_change_the_password() -> None:
     await use_cases.seed_auth_mode(AuthMode.AD)
     await use_cases.seed_user("kim", Role.SALES)
     async with signed_in_as(use_cases, "kim") as http:
-        response = await http.put(MY_PASSWORD, json=_body())
-
-    problem(response, 409, "invalid-state")
-
-
-async def test_dev_user_cannot_change_the_password() -> None:
-    use_cases = FakeUseCases()
-    await use_cases.seed_auth_mode(AuthMode.LOCAL)
-    async with signed_in_as(use_cases, "dev-sales") as http:
         response = await http.put(MY_PASSWORD, json=_body())
 
     problem(response, 409, "invalid-state")

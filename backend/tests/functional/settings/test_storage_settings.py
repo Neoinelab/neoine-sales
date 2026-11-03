@@ -5,12 +5,12 @@ from typing import TYPE_CHECKING
 import pytest
 
 from app.web.permissions import ADMIN_DENIED
+from tests.functional.steps.attachments import given_storage_location_removed
 from tests.functional.steps.auth import ADMIN_NAME, given_logged_in_as, storage_path_of
 from tests.functional.steps.common import then_problem_is, then_status_is
 from tests.functional.steps.platform import then_problem_kind_is
 from tests.functional.steps.settings import (
     current_user_id,
-    given_dev_login_admin,
     then_updated_at_is_just_now,
     then_updated_by_is_user_ref,
 )
@@ -150,7 +150,8 @@ async def test_the_write_test_reports_an_unwritable_location(api: Api) -> None:
 async def test_reading_before_any_location_is_saved_is_404(api: Api) -> None:
     """Scenario: 저장된 위치가 없으면(옛 DB에 admin만 있는 경우) 조회는 404이다."""
     # Given
-    await given_dev_login_admin(api)
+    await given_logged_in_as(api, role="admin")
+    await given_storage_location_removed(api)
     # When
     response = await when_read_storage_settings(api)
     # Then
@@ -160,7 +161,8 @@ async def test_reading_before_any_location_is_saved_is_404(api: Api) -> None:
 async def test_admin_registers_the_first_location_when_none_exists(api: Api) -> None:
     """Scenario: 저장된 위치가 없는 DB에서도 admin이 위치를 처음 등록할 수 있다."""
     # Given
-    await given_dev_login_admin(api)
+    await given_logged_in_as(api, role="admin")
+    await given_storage_location_removed(api)
     # When
     response = await when_update_storage_settings(api)
     # Then

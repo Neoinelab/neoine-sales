@@ -4,9 +4,9 @@ import base64
 import binascii
 import re
 from enum import StrEnum
-from typing import Literal, Self
+from typing import Literal
 
-from pydantic import Field, PostgresDsn, RedisDsn, SecretStr, field_validator, model_validator
+from pydantic import Field, PostgresDsn, RedisDsn, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 FERNET_KEY_BYTES = 32
@@ -63,9 +63,6 @@ class Settings(BaseSettings):
     # AD 바인드 비밀번호 암호화 키(Fernet: URL-safe base64 32바이트). jwt_secret과 별개
     settings_encryption_key: SecretStr
 
-    # 로그인: AD(LDAP) 서버는 화면에서 등록하므로 환경변수가 없다
-    dev_login_enabled: bool = False  # IdP 없이 로그인하는 개발용 기능. product에서는 켤 수 없다
-
     # 로그인 시도 제한(계정별·IP별 실패 횟수, 집계 창, 잠금 시간)
     login_max_failures_per_account: int = Field(default=5, ge=1)
     login_max_failures_per_ip: int = Field(default=30, ge=1)
@@ -90,9 +87,3 @@ class Settings(BaseSettings):
         if decoded is None or len(decoded) != FERNET_KEY_BYTES:
             raise ValueError("Fernet 키 형식(URL-safe base64로 인코딩한 32바이트)이어야 합니다")
         return value
-
-    @model_validator(mode="after")
-    def _check_login_configuration(self) -> Self:
-        if self.dev_login_enabled and self.profile is Profile.PRODUCT:
-            raise ValueError("dev_login_enabled는 product 프로파일에서 켤 수 없습니다")
-        return self

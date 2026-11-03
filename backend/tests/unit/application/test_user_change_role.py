@@ -9,7 +9,7 @@ from app.domain.auth.principal import Role
 from app.domain.common.errors import InvalidStateError
 from app.domain.user.errors import UserNotFoundError
 from app.domain.user.value_objects import UserId
-from tests.fakes.admin_stack import DEV_ACTOR
+from tests.fakes.admin_stack import OTHER_ADMIN_ACTOR
 from tests.support.admin_seed import session_is_active
 from tests.support.auth_seed import seed_user
 from tests.support.expect import raises_with
@@ -112,7 +112,7 @@ async def test_change_user_role_refuses_demoting_the_last_admin(
     await seed_user(uow_factory, "kim", Role.SALES)
 
     with raises_with(InvalidStateError, LAST_ADMIN):
-        await change_role.execute(user_id=boss.id, role=Role.SALES, actor=DEV_ACTOR)
+        await change_role.execute(user_id=boss.id, role=Role.SALES, actor=OTHER_ADMIN_ACTOR)
 
     assert await _role_of(uow_factory, boss.id) is Role.ADMIN
 
@@ -135,7 +135,7 @@ async def test_change_user_role_counts_only_active_admins(
     await seed_user(uow_factory, "old-admin", Role.ADMIN, resigned=True)
 
     with raises_with(InvalidStateError, LAST_ADMIN):
-        await change_role.execute(user_id=boss.id, role=Role.USER, actor=DEV_ACTOR)
+        await change_role.execute(user_id=boss.id, role=Role.USER, actor=OTHER_ADMIN_ACTOR)
 
 
 async def test_change_user_role_refuses_resigned_user(
@@ -148,24 +148,6 @@ async def test_change_user_role_refuses_resigned_user(
         await change_role.execute(user_id=gone.id, role=Role.USER, actor=root.to_principal())
 
     assert await _role_of(uow_factory, gone.id) is Role.SALES
-
-
-@pytest.mark.parametrize(
-    ("login_id", "role"),
-    [("dev-admin", Role.ADMIN), ("dev-sales", Role.SALES), ("dev-user", Role.USER)],
-)
-async def test_change_user_role_refuses_dev_login_users(
-    change_role: ChangeUserRole, uow_factory: UnitOfWorkFactory, login_id: str, role: Role
-) -> None:
-    root = await seed_user(uow_factory, "root", Role.ADMIN)
-    await seed_user(uow_factory, "boss", Role.ADMIN)
-    target = await seed_user(uow_factory, login_id, role)
-    new_role = Role.USER if role is not Role.USER else Role.SALES
-
-    with raises_with(InvalidStateError, DEV_ONLY):
-        await change_role.execute(user_id=target.id, role=new_role, actor=root.to_principal())
-
-    assert await _role_of(uow_factory, target.id) is role
 
 
 async def test_change_user_role_with_same_role_does_not_write(

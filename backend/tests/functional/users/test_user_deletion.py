@@ -6,7 +6,6 @@ import pytest
 
 from tests.functional.steps.auth import (
     ME,
-    USERS,
     given_logged_in_as,
     given_user_registered,
 )
@@ -20,7 +19,6 @@ from tests.functional.steps.requests import when_get
 from tests.functional.steps.rereads import then_session_is_rejected
 from tests.functional.steps.users import (
     BUSINESS_READ,
-    given_dev_login,
     given_signed_in_session,
     given_user_deleted,
     given_user_signed_in_once,
@@ -30,7 +28,6 @@ from tests.functional.steps.users import (
     when_delete_user,
     when_list_users,
     when_login,
-    when_register_user,
     when_request_as,
 )
 from tests.functional.steps.users_db import (
@@ -218,44 +215,6 @@ async def test_deleting_a_user_does_not_reopen_first_admin_setup(api: Api) -> No
     config = await when_get(api, "/api/v1/auth/config")
     # Then
     then_first_setup_stays_closed(config)
-
-
-async def test_a_dev_login_admin_can_register_users(api: Api) -> None:
-    """Scenario: 개발 로그인 admin이 등록하면 등록자는 개발 사용자 행으로 표시된다."""
-    # Given
-    await given_user_registered(api, login_id="kim", role="sales")
-    await given_dev_login(api, "admin")
-    # When
-    response = await when_register_user(api, login_id="new", role="user")
-    # Then
-    then_status_is(response, 201)
-    creator = response.json()["created_by"]
-    assert creator["name"] == "개발 사용자(admin)"
-    assert "login_id" not in creator
-    assert creator["id"] == (await api.get(ME)).json()["user_id"]
-
-
-async def test_a_dev_login_admin_can_delete_users(api: Api) -> None:
-    """Scenario: 개발 로그인 admin은 사용자를 삭제할 수 있다."""
-    # Given
-    kim_id = await given_user_registered(api, login_id="kim", role="sales")
-    await given_dev_login(api, "admin")
-    # When
-    response = await when_delete_user(api, kim_id)
-    # Then
-    then_status_is(response, 200)
-
-
-async def test_a_dev_login_admin_is_listed_as_a_regular_user(api: Api) -> None:
-    """Scenario: 개발 로그인 admin은 일반 사용자 행으로 목록에 dev-admin으로 나온다."""
-    # Given
-    await given_user_registered(api, login_id="kim", role="sales")
-    await given_dev_login(api, "admin")
-    # When
-    response = await when_get(api, USERS)
-    # Then
-    then_status_is(response, 200)
-    assert "dev-admin" in [i["login_id"] for i in response.json()["items"]]
 
 
 async def test_deleting_a_user_who_signed_in_removes_the_stored_password_hash(api: Api) -> None:

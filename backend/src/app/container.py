@@ -49,7 +49,6 @@ if TYPE_CHECKING:
     from app.application.attachment.upload_attachment import UploadAttachment
     from app.application.auth.auth_status import GetAuthStatus
     from app.application.auth.authenticate import Authenticate
-    from app.application.auth.dev_login import DevLogin
     from app.application.auth.directory_login import DirectoryLogin
     from app.application.auth.logout import Logout
     from app.application.auth.setup_directory import RegisterSetupDirectory
@@ -137,7 +136,6 @@ class Container(
             self._clock,
             self._auth.deps,
             self.cipher,
-            allow_dev_sessions=self._auth.allow_dev_sessions,
         )
 
     async def check_ready(self) -> None:
@@ -179,9 +177,6 @@ class Container(
 
     def directory_login(self) -> DirectoryLogin:
         return self._auth.directory_login()
-
-    def dev_login(self) -> DevLogin:
-        return self._auth.dev_login()
 
     def authenticate(self) -> Authenticate:
         return self._auth.authenticate()

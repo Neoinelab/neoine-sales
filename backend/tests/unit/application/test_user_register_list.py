@@ -7,7 +7,7 @@ import pytest
 from app.domain.auth.principal import Role
 from app.domain.common.errors import AlreadyExistsError, InvalidValueError
 from tests.factories import NOW, later
-from tests.fakes.admin_stack import ADMIN_ACTOR, DEV_ACTOR
+from tests.fakes.admin_stack import ADMIN_ACTOR, OTHER_ADMIN_ACTOR
 from tests.support.admin_seed import active_logins
 from tests.support.auth_seed import seed_user
 
@@ -38,9 +38,11 @@ async def test_register_user_stores_the_chosen_role(
 
 
 async def test_register_user_records_the_acting_users_id_as_creator(admin: AdminStack) -> None:
-    user = await admin.register_user.execute(login_id="kim", role=Role.SALES, actor=DEV_ACTOR)
+    user = await admin.register_user.execute(
+        login_id="kim", role=Role.SALES, actor=OTHER_ADMIN_ACTOR
+    )
 
-    assert user.created_by_user_id == DEV_ACTOR.user_id
+    assert user.created_by_user_id == OTHER_ADMIN_ACTOR.user_id
 
 
 @pytest.mark.parametrize("reserved", ["dev-admin", "dev-sales", "dev-user", "DEV-ADMIN"])

@@ -6,7 +6,6 @@ from typing import TYPE_CHECKING
 from app.application.auth.auth_status import GetAuthStatus
 from app.application.auth.authenticate import Authenticate
 from app.application.auth.deps import AuthDeps
-from app.application.auth.dev_login import DevLogin
 from app.application.auth.directory_login import DirectoryLogin
 from app.application.auth.issue_session import IssueSession
 from app.application.auth.logout import Logout
@@ -54,15 +53,10 @@ class AuthAssembly:
         self._issue_session = IssueSession(
             uow_factory, clock, timedelta(hours=settings.session_ttl_hours)
         )
-        self._allow_dev_sessions = settings.dev_login_enabled
 
     @property
     def deps(self) -> AuthDeps:
         return self._deps
-
-    @property
-    def allow_dev_sessions(self) -> bool:
-        return self._allow_dev_sessions
 
     def auth_status(self) -> GetAuthStatus:
         return GetAuthStatus(self._uow_factory)
@@ -76,13 +70,8 @@ class AuthAssembly:
     def directory_login(self) -> DirectoryLogin:
         return DirectoryLogin(self._deps, self._issue_session)
 
-    def dev_login(self) -> DevLogin:
-        return DevLogin(self._uow_factory, self._clock, self._issue_session)
-
     def authenticate(self) -> Authenticate:
-        return Authenticate(
-            self._uow_factory, self._clock, allow_dev_users=self._allow_dev_sessions
-        )
+        return Authenticate(self._uow_factory, self._clock)
 
     def logout(self) -> Logout:
         return Logout(self._uow_factory, self._clock)

@@ -10,7 +10,7 @@ from app.domain.auth.mode import AuthMode
 from app.domain.common.errors import InvalidStateError, NotFoundError
 from app.domain.directory.settings import DirectorySettingsDraft
 from tests.factories_directory import make_directory_connection
-from tests.fakes.admin_stack import ADMIN_ACTOR, ADMIN_PASSWORD, DEV_ACTOR
+from tests.fakes.admin_stack import ADMIN_ACTOR, ADMIN_PASSWORD, OTHER_ADMIN_ACTOR
 from tests.support.auth_seed import seed_auth_mode, seed_directory
 
 if TYPE_CHECKING:
@@ -42,7 +42,7 @@ async def test_update_directory_settings_in_local_mode_is_invalid_state(
 ) -> None:
     with pytest.raises(InvalidStateError) as caught:
         await admin.update_settings.execute(
-            actor=DEV_ACTOR,
+            actor=OTHER_ADMIN_ACTOR,
             draft=_draft(),
             expected_revision=None,
             password=None,

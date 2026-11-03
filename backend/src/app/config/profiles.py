@@ -20,7 +20,6 @@ class LocalSettings(Settings):
     log_level: LogLevel = "DEBUG"
     log_format: LogFormat = "console"
     cookie_secure: bool = False  # 로컬은 http
-    dev_login_enabled: bool = True  # 로컬에서는 IdP 없이 개발용 로그인을 쓴다
     db_pool_size: int = 5
     db_echo: bool = True
     workers: int = 1
@@ -31,7 +30,6 @@ class DevSettings(Settings):
     profile: Profile = Profile.DEV
     enable_docs: bool = True
     log_level: LogLevel = "DEBUG"
-    dev_login_enabled: bool = True  # 사용자 결정 2026-10-20: dev도 개발용 로그인을 유지한다
     sentry_traces_sample_rate: float = 1.0
 
 

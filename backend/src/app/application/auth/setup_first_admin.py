@@ -1,7 +1,6 @@
 from typing import TYPE_CHECKING
 
 from app.application.auth.credential_check import parse_login_id, verify_credentials
-from app.application.auth.dev_login import ensure_not_reserved_login_id
 from app.application.auth.messages import DIRECTORY_FIRST, SETUP_CLOSED, STORAGE_FIRST
 from app.application.auth.mode import ensure_directory_mode
 from app.application.directory.credentials import unseal_settings
@@ -11,6 +10,7 @@ from app.domain.auth.principal import Role
 from app.domain.common.errors import AlreadyExistsError, InvalidStateError
 from app.domain.user.entities import User
 from app.domain.user.errors import AmbiguousLoginIdError
+from app.domain.user.retired_login_ids import ensure_not_reserved_login_id
 
 if TYPE_CHECKING:
     from app.application.auth.deps import AuthDeps

@@ -152,16 +152,6 @@ async def test_reset_password_of_resigned_user_is_invalid_state(
         await admin.reset_password.execute(user_id=gone.id, password=Password(NEW), actor=boss)
 
 
-@pytest.mark.parametrize("login_id", ["dev-admin", "dev-sales", "dev-user"])
-async def test_reset_password_of_dev_user_is_invalid_state(
-    admin: AdminStack, boss: Principal, uow_factory: UnitOfWorkFactory, login_id: str
-) -> None:
-    dev = await seed_local_user(uow_factory, login_id, OLD, with_hash=False)
-
-    with pytest.raises(InvalidStateError):
-        await admin.reset_password.execute(user_id=dev.id, password=Password(NEW), actor=boss)
-
-
 @pytest.mark.parametrize("password", ["short7!", "kim", "1234567"])
 async def test_reset_password_weak_password_is_invalid_value_and_changes_nothing(
     admin: AdminStack,

@@ -1,4 +1,4 @@
-"""Feature: AD 설정 저장에는 시도 제한·CSRF·개발 로그인 규칙이 적용되고 저장은 안전하게 반영된다."""
+"""Feature: AD 설정 저장에는 시도 제한·CSRF·비밀번호 확인이 적용되고 안전하게 반영된다."""
 
 from typing import TYPE_CHECKING
 
@@ -23,9 +23,6 @@ from tests.functional.steps.settings import (
     NEW_DN,
     SETTINGS,
     current_user_id,
-    directory_error,
-    given_dev_login_admin,
-    given_directory_discovery_fails_with,
     given_directory_reports_base_dn,
     given_no_directory_calls_yet,
     given_session_token,
@@ -72,10 +69,10 @@ async def test_update_requires_the_csrf_header(api: Api) -> None:
     await then_stored_settings_are(api, revision=1, base_dn="dc=corp,dc=test")
 
 
-async def test_a_dev_login_admin_saves_after_discovering_the_base_dn_only(api: Api) -> None:
-    """Scenario: 개발 로그인 admin은 admin 비밀번호 없이 저장하고 AD에는 Base DN 탐색까지만 한다."""
+async def test_saving_without_the_admin_password_is_422(api: Api) -> None:
+    """Scenario: 현재 admin 비밀번호 없이(null) 저장하면 422이고 AD를 부르지 않는다."""
     # Given
-    await given_dev_login_admin(api)
+    await given_logged_in_as(api, role="admin")
     given_directory_reports_base_dn(api, NEW_DN)
     given_no_directory_calls_yet(api)
     # When
@@ -83,25 +80,9 @@ async def test_a_dev_login_admin_saves_after_discovering_the_base_dn_only(api: A
         api, update_payload(password=None, connect_timeout_seconds=9)
     )
     # Then
-    then_status_is(response, 200)
-    body = response.json()
-    assert (body["revision"], body["base_dn"]) == (2, NEW_DN)
-    then_updated_by_is_user_ref(body, user_id=await current_user_id(api), name="개발 사용자(admin)")
-    assert "login_id" not in body["updated_by"]
-    assert len(api.directory.discover_calls) == 1
-    assert api.directory.authenticate_calls == []
-
-
-async def test_a_dev_login_admin_update_fails_422_when_the_discovery_fails(api: Api) -> None:
-    """Scenario: 개발 로그인 admin의 Base DN 탐색이 실패하면 422이고 실패한 단계를 알려 준다."""
-    # Given
-    await given_dev_login_admin(api)
-    given_directory_discovery_fails_with(api, directory_error("unavailable", "connect"))
-    # When
-    response = await when_update_settings(api, update_payload(password=None))
-    # Then
-    then_status_is(response, 422)
-    assert response.json()["stage"] == "connect"
+    then_problem_kind_is(response, status=422, kinds=("invalid-value",))
+    then_directory_not_called(api)
+    await then_stored_settings_are(api, revision=1, base_dn="dc=corp,dc=test")
 
 
 async def test_changing_settings_keeps_every_existing_session(api: Api) -> None:

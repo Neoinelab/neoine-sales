@@ -21,7 +21,6 @@ from tests.functional.steps.settings import (
     STORED_DN,
     WRONG_PASSWORD,
     directory_error,
-    given_dev_login_admin,
     given_directory_discovery_fails_with,
     given_directory_fails_with,
     given_directory_reports_base_dn,
@@ -211,22 +210,6 @@ async def test_test_endpoint_attempts_are_limited_per_admin_account(api: Api) ->
     response = await when_test_connection(api, probe_payload())
     # Then
     then_problem_kind_is(response, status=429, kinds=("too-many-attempts",))
-    assert api.directory.authenticate_calls == []
-
-
-async def test_a_dev_login_admin_test_only_discovers_the_base_dn(api: Api) -> None:
-    """Scenario: 개발 로그인 admin의 연결 테스트는 비밀번호 없이 Base DN 탐색까지만 한다."""
-    # Given
-    await given_dev_login_admin(api)
-    given_directory_reports_base_dn(api, NEW_DN)
-    given_no_directory_calls_yet(api)
-    # When
-    response = await when_test_connection(api, probe_payload(password=None))
-    # Then
-    then_status_is(response, 200)
-    assert response.json()["success"] is True
-    assert response.json()["base_dn"] == NEW_DN
-    assert len(api.directory.discover_calls) == 1
     assert api.directory.authenticate_calls == []
 
 

@@ -11,7 +11,7 @@ from app.domain.auth.principal import Role
 from app.domain.common.errors import InvalidStateError
 from app.domain.user.errors import UserNotFoundError
 from app.domain.user.value_objects import UserId
-from tests.fakes.admin_stack import ADMIN_ACTOR, DEV_ACTOR
+from tests.fakes.admin_stack import ADMIN_ACTOR, OTHER_ADMIN_ACTOR
 from tests.support.admin_seed import active_logins, session_is_active
 from tests.support.auth_seed import seed_user
 from tests.support.ids import new_id
@@ -98,7 +98,7 @@ async def test_delete_user_refuses_the_last_active_admin(
     token = (await auth.issue.execute(boss.to_principal())).token
 
     with pytest.raises(InvalidStateError, match="마지막 관리자"):
-        await admin.delete_user.execute(user_id=boss.id, actor=DEV_ACTOR)
+        await admin.delete_user.execute(user_id=boss.id, actor=OTHER_ADMIN_ACTOR)
 
     assert await active_logins(uow_factory) == ["boss", "kim"]
     assert await session_is_active(uow_factory, token)
@@ -109,10 +109,10 @@ async def test_admin_count_drops_after_an_admin_is_deleted(
 ) -> None:
     old = await seed_user(uow_factory, "old-admin", Role.ADMIN)
     boss = await seed_user(uow_factory, "boss", Role.ADMIN)
-    await admin.delete_user.execute(user_id=old.id, actor=DEV_ACTOR)
+    await admin.delete_user.execute(user_id=old.id, actor=OTHER_ADMIN_ACTOR)
 
     with pytest.raises(InvalidStateError, match="마지막 관리자"):
-        await admin.delete_user.execute(user_id=boss.id, actor=DEV_ACTOR)
+        await admin.delete_user.execute(user_id=boss.id, actor=OTHER_ADMIN_ACTOR)
 
 
 async def test_delete_user_allows_removing_an_admin_while_another_remains(
@@ -132,7 +132,7 @@ async def test_an_actor_without_a_users_row_can_delete_a_sales_user(
     await seed_user(uow_factory, "boss", Role.ADMIN)
     target = await seed_user(uow_factory, "kim", Role.SALES)
 
-    outcome = await admin.delete_user.execute(user_id=target.id, actor=DEV_ACTOR)
+    outcome = await admin.delete_user.execute(user_id=target.id, actor=OTHER_ADMIN_ACTOR)
 
     assert outcome is DeleteOutcome.DELETED
     assert await active_logins(uow_factory) == ["boss"]
@@ -160,4 +160,4 @@ async def test_a_user_deleted_before_the_call_is_not_found(
     gone = await seed_user(uow_factory, "gone", Role.SALES, deleted=True)
 
     with pytest.raises(UserNotFoundError):
-        await admin.delete_user.execute(user_id=gone.id, actor=DEV_ACTOR)
+        await admin.delete_user.execute(user_id=gone.id, actor=OTHER_ADMIN_ACTOR)
