@@ -267,7 +267,7 @@ uv run uvicorn app.main:app --reload --port 8000 --app-dir src   # 터미널 1
 cd frontend && corepack pnpm install && corepack pnpm dev        # 터미널 2 (http://localhost:5173)
 ```
 
-처음 접속하면 최초 설정 3단계(AD 서버 → 저장 위치 → admin)를 거칩니다. 개발용 빠른 로그인은 없으므로 로컬에서는 최초 설정에서 "앱에서 직접 관리"로 admin을 만들어 씁니다(2026-11-03). 프런트 개발 서버도 항상 실제 백엔드를 호출하므로(목업 모드 없음) 백엔드를 함께 띄웁니다. corepack 서명 오류가 나면 `COREPACK_INTEGRITY_KEYS=0`을 앞에 붙입니다.
+처음 접속하면 최초 설정(인증 방식 선택 → AD 서버(AD 연동일 때) → 저장 위치 → admin)을 거칩니다. 개발용 빠른 로그인은 없으므로 로컬에서는 최초 설정에서 "앱에서 직접 관리"로 admin을 만들어 씁니다(2026-11-03). 프런트 개발 서버도 항상 실제 백엔드를 호출하므로(목업 모드 없음) 백엔드를 함께 띄웁니다. corepack 서명 오류가 나면 `COREPACK_INTEGRITY_KEYS=0`을 앞에 붙입니다.
 
 ### 5.2 검증(게이트)
 
@@ -335,7 +335,7 @@ Multibranch 파이프라인입니다. 모든 브랜치·PR은 검증만 하고, 
 
 - 서버 준비는 `scripts/setup.sh --profile product`(리눅스, Docker Engine + Compose v2 필요)로 합니다: neoine 계정·docker 그룹, 디렉터리, 서버 `.env`(`APP_JWT_SECRET`·`APP_SETTINGS_ENCRYPTION_KEY`·DB 비밀번호·`APP_DATABASE_URL`을 없을 때만 생성, 값 출력 없음)·`deploy.env`, 사람이 채울 값 점검(종료 코드 3). 배포는 하지 않습니다.
 - 사람이 할 일: Jenkins 전역 `REGISTRY`·`PRODUCT_HOST`와 자격 증명 `registry-push` 등록, 서버에서 neoine 계정으로 레지스트리 읽기 전용 계정 `docker login`, TLS 인증서(`certs/fullchain.pem`·`privkey.pem`) 배치.
-- **배포 직후 즉시 최초 설정 3단계(AD 서버 → 저장 위치 → admin)를 마칩니다.** 설정되지 않은 상태로 방치하면 먼저 접속한 사람이 admin이 되거나 악의적인 LDAP 서버가 등록될 수 있습니다(위험 수용, 완화책 없음).
+- **배포 직후 즉시 최초 설정(인증 방식 선택 → AD 서버(AD 연동일 때) → 저장 위치 → admin)을 마칩니다.** 설정되지 않은 상태로 방치하면 먼저 접속한 사람이 admin이 되거나 악의적인 LDAP 서버가 등록될 수 있습니다(위험 수용, 완화책 없음).
 - 앱 서버에서 AD로 나가는 방화벽(LDAPS 636 또는 389 평문·StartTLS)을 미리 엽니다. 바인드 계정은 읽기 전용 서비스 계정을 권장합니다. 서버 인증서는 검증하지 않습니다(사용자 결정).
 - `APP_SETTINGS_ENCRYPTION_KEY`는 DB 덤프와 분리해 보관합니다. 키를 잃으면 AD 바인드 비밀번호를 다시 입력합니다.
 - AD 설정을 바꾸기 전에 현재 값을 따로 기록합니다(변경 이력 없음).
