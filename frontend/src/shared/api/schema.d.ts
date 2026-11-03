@@ -110,23 +110,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/auth/dev-login": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Dev Login */
-        post: operations["dev_login_api_v1_auth_dev_login_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/auth/login": {
         parameters: {
             query?: never;
@@ -1263,8 +1246,6 @@ export interface components {
         /** AuthConfigResponse */
         AuthConfigResponse: {
             auth_mode: components["schemas"]["AuthMode"] | null;
-            /** Dev Login */
-            dev_login: boolean;
             /** Directory Login */
             directory_login: boolean;
             /** Needs Admin Setup */
@@ -2026,10 +2007,6 @@ export interface components {
             attachment_count: number;
             /** History Count */
             history_count: number;
-        };
-        /** DevLoginRequest */
-        DevLoginRequest: {
-            role: components["schemas"]["Role"];
         };
         /**
          * DirectorySettingsRequest
@@ -3885,39 +3862,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AuthConfigResponse"];
-                };
-            };
-        };
-    };
-    dev_login_api_v1_auth_dev_login_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["DevLoginRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PrincipalResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

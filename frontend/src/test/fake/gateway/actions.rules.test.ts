@@ -45,11 +45,12 @@ describe('Action 수정 권한 (AC-10, Q8)', () => {
   })
 
   it('refuses another sales with 403 and the Q8 message, changing nothing', async () => {
-    const { gateway } = await mockAs('kim')
+    const mock = await mockAs('kim')
+    const { gateway } = mock
     const code = dealCode(1)
     const target = await firstAction(gateway, code)
     const historyBefore = await gateway.history.list(code, {})
-    await gateway.auth.quickLogin(USER_ID.park)
+    await mock.signInAs(USER_ID.park)
 
     await expectApiError(gateway.actions.update(target.id, content({ progress: '남의 것 수정' })), 403, FORBIDDEN_EDIT)
 
@@ -99,11 +100,12 @@ describe('Action 수정 권한 (AC-10, Q8)', () => {
 
 describe('Action 삭제 권한 (AC-12, Q8)', () => {
   it('refuses another sales with 403 and the Q8 message, keeping the action and the history', async () => {
-    const { gateway } = await mockAs('kim')
+    const mock = await mockAs('kim')
+    const { gateway } = mock
     const code = dealCode(1)
     const before = await gateway.actions.list(code, {})
     const historyBefore = await gateway.history.list(code, {})
-    await gateway.auth.quickLogin(USER_ID.park)
+    await mock.signInAs(USER_ID.park)
 
     await expectApiError(gateway.actions.remove(before[0]?.id ?? NO_SUCH_ID), 403, FORBIDDEN_DELETE)
 
@@ -129,7 +131,8 @@ describe('Action 삭제 권한 (AC-12, Q8)', () => {
   })
 
   it('lets the owner sales delete their own action', async () => {
-    const { gateway } = await mockAs('kim')
+    const mock = await mockAs('kim')
+    const { gateway } = mock
     const code = dealCode(1)
     const target = await firstAction(gateway, code)
 
@@ -299,7 +302,8 @@ describe('Action 이력 문구 (AC-03·11·12, Q5, R-12)', () => {
 
 describe('내용이 바뀌지 않은 수정 (AC-11, Q4)', () => {
   it('writes no history and changes nothing when the content is the same', async () => {
-    const { gateway } = await mockAs('kim')
+    const mock = await mockAs('kim')
+    const { gateway } = mock
     const code = dealCode(1)
     const target = await firstAction(gateway, code)
     const historyBefore = await gateway.history.list(code, {})
@@ -314,7 +318,8 @@ describe('내용이 바뀌지 않은 수정 (AC-11, Q4)', () => {
   })
 
   it('treats a change of only the surrounding whitespace as no change', async () => {
-    const { gateway } = await mockAs('kim')
+    const mock = await mockAs('kim')
+    const { gateway } = mock
     const code = dealCode(1)
     const target = await firstAction(gateway, code)
     const historyBefore = await gateway.history.list(code, {})
@@ -328,7 +333,8 @@ describe('내용이 바뀌지 않은 수정 (AC-11, Q4)', () => {
   })
 
   it('still logs one entry when only the memo changes', async () => {
-    const { gateway } = await mockAs('kim')
+    const mock = await mockAs('kim')
+    const { gateway } = mock
     const code = dealCode(1)
     const target = await firstAction(gateway, code)
     const base = (await gateway.history.list(code, {})).length

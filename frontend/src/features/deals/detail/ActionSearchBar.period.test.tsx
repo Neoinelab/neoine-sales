@@ -17,7 +17,7 @@ const NEXT_DAY_AT = '2026-10-23T09:00:00+09:00'
 beforeEach(async () => {
   resetMock({ now: TODAY_AT })
   mockControl.resetData()
-  await gateway.auth.quickLogin(USER_ID.kim)
+  await defaultMock.signInAs(USER_ID.kim)
 })
 afterEach(() => {
   vi.restoreAllMocks()

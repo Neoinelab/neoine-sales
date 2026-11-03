@@ -1,3 +1,4 @@
+import { defaultMock } from '../../test/fake/default'
 import { screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { gateway } from '../../gateway'
@@ -27,7 +28,7 @@ const UNREADABLE_WARNING: DirectoryWarning = {
 /** 로그인 응답이 주어진 경고를 싣는다. 세션은 시드 admin의 실제 mock 로그인으로 만든다. */
 function loginReturns(warning: DirectoryWarning | null, userId: number = USER_ID.root) {
   return vi.spyOn(gateway.auth, 'login').mockImplementation(async () => {
-    const me = await gateway.auth.quickLogin(userId)
+    const me = await defaultMock.signInAs(userId)
     return { me, directoryWarning: warning }
   })
 }

@@ -10,7 +10,7 @@ const NOW = '2026-10-15T09:00:00+09:00'
 /** 테스트 도우미(`newMock`)를 거치지 않은 "앱 기본" 게이트웨이(시드 옵션 없음). */
 async function appDefault() {
   const mock = createMockGateway({ now: NOW, latency: false })
-  await mock.gateway.auth.quickLogin(USER_ID.root)
+  await mock.signInAs(USER_ID.root)
   return mock
 }
 

@@ -1,30 +1,15 @@
 /** P0 R3: 서버 계약과 맞춘 mock 동작(AC-28 계약 변경분). */
 
 import { describe, expect, it } from 'vitest'
-import { LOCKED_KEYS, QUICK_LOGIN_USERS } from '../../../shared/model/constants'
+import { LOCKED_KEYS } from '../../../shared/model/constants'
 import { expectApiError, mockAs } from '../testing'
-import { USER_ID } from '../seed/ids'
 import { BIND_PASSWORD } from '../../directoryFixtures'
 
-describe('빠른 로그인 사용자', () => {
-  it('역할 이름만 라벨로 쓰고 가상 인물 이름을 담지 않는다', () => {
-    expect(QUICK_LOGIN_USERS.map((u) => u.label)).toEqual(['관리자', '영업', '조회자'])
-  })
-
-  it('역할을 함께 가진다(서버 dev-login은 역할로 로그인한다)', () => {
-    expect(QUICK_LOGIN_USERS.map((u) => [u.userId, u.role])).toEqual([
-      [USER_ID.root, 'admin'],
-      [USER_ID.kim, 'sales'],
-      [USER_ID.han, 'user'],
-    ])
-  })
-})
-
 describe('auth.config', () => {
-  it('mock은 빠른 로그인을 켠다', async () => {
+  it('mock은 설정이 끝난 시스템의 인증 방식만 알려 준다(빠른 로그인 항목 없음)', async () => {
     const { gateway } = await mockAs(null)
 
-    expect(await gateway.auth.config()).toEqual({ quickLogin: true, needsSetup: false, authMode: 'ad' })
+    expect(await gateway.auth.config()).toEqual({ needsSetup: false, authMode: 'ad' })
   })
 
   it('mock은 최초 설정이 끝나지 않았으면 needsSetup을 켠다', async () => {
@@ -32,7 +17,7 @@ describe('auth.config', () => {
     control.restartSetup()
     // restartSetup은 로그아웃도 하므로 config는 로그인 전에도 읽힌다
 
-    expect(await gateway.auth.config()).toEqual({ quickLogin: true, needsSetup: true, authMode: null })
+    expect(await gateway.auth.config()).toEqual({ needsSetup: true, authMode: null })
   })
 })
 

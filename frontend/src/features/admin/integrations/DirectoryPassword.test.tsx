@@ -50,7 +50,14 @@ describe('외부연동 AD 설정의 관리자 비밀번호 확인 (AC-27)', () =
     expect(save).not.toHaveBeenCalled()
   })
 
-  it('sends null when the password is left empty (dev-login admin)', async () => {
+  it('shows the current admin password hint without any dev-login wording', async () => {
+    await openIntegrations()
+
+    expect(directory().getByText('현재 관리자(본인) 비밀번호를 입력하세요.')).toBeVisible()
+    expect(directory().queryByText(/개발용 로그인/)).not.toBeInTheDocument()
+  })
+
+  it('sends null when the password is left empty', async () => {
     const test = vi.spyOn(gateway.settings, 'testDirectory')
     const { user } = await openIntegrations()
 

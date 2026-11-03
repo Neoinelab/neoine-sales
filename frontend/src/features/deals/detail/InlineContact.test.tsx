@@ -1,3 +1,4 @@
+import { defaultMock } from '../../../test/fake/default'
 import { cleanup, screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { gateway } from '../../../gateway'
@@ -21,9 +22,9 @@ function valueOf(card: HTMLElement, label: string): string {
 describe('고객사 인라인 편집 (회사명 pulldown + 자동완성)', () => {
   it('opens the company list on click and filters it by partial, case-insensitive text', async () => {
     const { user } = await openDeal(1, '한빛은행 ITDR 도입')
-    await gateway.auth.quickLogin(USER_ID.root) // 연락처 직접 등록은 admin만 가능하다.
+    await defaultMock.signInAs(USER_ID.root) // 연락처 직접 등록은 admin만 가능하다.
     await gateway.contacts.create('customer', { company: 'Acme', name: 'Kim', title: '', email: null, phone: null })
-    await gateway.auth.quickLogin(USER_ID.kim)
+    await defaultMock.signInAs(USER_ID.kim)
     await user.click(within(customerCard()).getByRole('button', { name: '고객 회사명 수정' }))
     const company = within(customerCard()).getByRole('combobox', { name: '고객 회사명' })
     expect(company).toHaveFocus()

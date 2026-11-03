@@ -1,3 +1,4 @@
+import { defaultMock } from '../../test/fake/default'
 import { screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { gateway } from '../../gateway'
@@ -29,11 +30,11 @@ async function open() {
 
 /** 다른 사람(admin)이 연락처 회사명을 바꿔 그 회사가 파트너 회사 목록에서 사라진다. 끝나면 김영업으로 돌아온다. */
 async function renameCompanyBehindTheScenes(from: string, to: string): Promise<void> {
-  await gateway.auth.quickLogin(USER_ID.root)
+  await defaultMock.signInAs(USER_ID.root)
   for (const row of await gateway.contacts.byCompany('partner', from)) {
     await gateway.contacts.update(row.id, { company: to, name: row.name, title: row.title, email: row.email, phone: row.phone })
   }
-  await gateway.auth.quickLogin(USER_ID.kim)
+  await defaultMock.signInAs(USER_ID.kim)
 }
 
 const total = async () => (await gateway.partnerMeetings.list({ sort: 'meetingDate', order: 'desc' }, 0, 1)).total
@@ -208,7 +209,7 @@ describe('서버가 거절할 때 (AC9)', () => {
   it('shows a 403 from the server in the dialog without losing the input', async () => {
     const { user, dialog } = await open()
     await fillRow(user, dialog, 1, { company: '코어테크', date: '20270315', content: '권한 없음' })
-    await gateway.auth.quickLogin(USER_ID.han) // 읽기 전용 계정: 서버가 쓰기를 거절한다
+    await defaultMock.signInAs(USER_ID.han) // 읽기 전용 계정: 서버가 쓰기를 거절한다
 
     await user.click(within(dialog).getByRole('button', { name: '저장' }))
 

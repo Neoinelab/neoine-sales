@@ -1,3 +1,4 @@
+import { defaultMock } from '../../../test/fake/default'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -16,7 +17,7 @@ afterEach(() => resetMock({ now: null }))
 /** 시드 Deal 3(현재 Next Action의 Due가 지남)을 불러와 서버 risk만 바꿔 표를 그린다. */
 async function renderTable(risk: Risk, clockNow = NOW) {
   const code = await dealCodeOf(3)
-  await gateway.auth.quickLogin(USER_ID.root)
+  await defaultMock.signInAs(USER_ID.root)
   const deal: DealDetail = { ...(await gateway.deals.get(code)), risk }
   const actions: DealAction[] = await gateway.actions.list(code, {})
   resetMock({ now: clockNow })

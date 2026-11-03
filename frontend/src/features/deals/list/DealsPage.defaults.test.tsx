@@ -111,7 +111,9 @@ describe('여러 진입점 (AC-04)', () => {
     const { user, location } = await renderAt('/login', { role: null })
     await screen.findByRole('button', { name: '로그인' })
 
-    await user.click(screen.getByRole('button', { name: '영업' }))
+    await user.type(screen.getByLabelText('아이디'), 'kim')
+    await user.type(screen.getByLabelText('비밀번호'), 'whatever')
+    await user.click(screen.getByRole('button', { name: '로그인' }))
 
     await waitFor(() => expect(location()).toBe('/deals?year=2026'))
   })

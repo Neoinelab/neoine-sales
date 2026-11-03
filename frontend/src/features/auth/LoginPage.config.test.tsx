@@ -1,46 +1,42 @@
 import { screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { gateway } from '../../gateway'
+import { mockControl } from '../../test/fake/default'
 import { renderAt } from '../../test/mockApp'
 
 afterEach(() => {
   vi.restoreAllMocks()
 })
 
-describe('로그인 화면의 서버 설정 반영 (AC-27)', () => {
-  it('draws the quick login buttons when the server allows dev login', async () => {
-    vi.spyOn(gateway.auth, 'config').mockResolvedValue({ quickLogin: true, needsSetup: false })
-    await renderAt('/login', { role: null })
-
-    expect(await screen.findByRole('region', { name: '빠른 로그인' })).toBeVisible()
-    expect(screen.getByRole('button', { name: '관리자' })).toBeVisible()
+/** renderAt이 데이터를 초기화하므로, 초기화 뒤에 최초 설정이 안 된 상태로 되돌린다. */
+function needSetup() {
+  const reset = mockControl.resetData.bind(mockControl)
+  vi.spyOn(mockControl, 'resetData').mockImplementation(() => {
+    reset()
+    mockControl.restartSetup()
   })
+}
 
-  it('draws no quick login when the server switches dev login off', async () => {
-    vi.spyOn(gateway.auth, 'config').mockResolvedValue({ quickLogin: false, needsSetup: false })
+describe('로그인 화면의 서버 설정 반영 (AC-27)', () => {
+  it('shows no quick login area, only the id and password form', async () => {
     await renderAt('/login', { role: null })
 
     await screen.findByRole('button', { name: '로그인' })
     expect(screen.queryByRole('region', { name: '빠른 로그인' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: '관리자' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '영업' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '조회자' })).not.toBeInTheDocument()
     expect(screen.getByLabelText('아이디')).toBeVisible()
     expect(screen.queryByRole('link', { name: /최초 설정/ })).not.toBeInTheDocument()
   })
 
-  it('sends the visitor to the first-time setup when the server still needs it', async () => {
-    vi.spyOn(gateway.auth, 'config').mockResolvedValue({ quickLogin: false, needsSetup: true })
+  it('always sends the visitor to the first-time setup when the server needs it', async () => {
+    needSetup()
     const { location } = await renderAt('/login', { role: null })
 
     await waitFor(() => expect(location()).toBe('/setup'))
-  })
-
-  it('keeps the login form and offers a setup link when dev login is on', async () => {
-    vi.spyOn(gateway.auth, 'config').mockResolvedValue({ quickLogin: true, needsSetup: true })
-    const { location } = await renderAt('/login', { role: null })
-
-    expect(await screen.findByRole('link', { name: /최초 설정/ })).toHaveAttribute('href', '/setup')
-    expect(location()).toBe('/login')
-    expect(screen.getByRole('region', { name: '빠른 로그인' })).toBeVisible()
+    expect(screen.queryByLabelText('아이디')).not.toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: '빠른 로그인' })).not.toBeInTheDocument()
   })
 
   it('asks the browser for the right autofill on the login fields', async () => {

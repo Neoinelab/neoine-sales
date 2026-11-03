@@ -15,7 +15,7 @@
  *   `not-implemented`(501, HTTP 어댑터에 아직 없는 기능) `directory-unavailable`(503, AD 장애) `not-ready`(503) `http-error`
  *   `domain-error`(400). HTTP 어댑터는 서버 kind 중 변환표에 없는 것을 그대로 통과시키므로 화면은 알 수 없는 kind도
  *   `error.message`로 보여 줄 수 있어야 한다. 화면은 `error.kind`로 분기한다.
- * - 모든 메서드는 **로그인 사용자(session)** 가 필요하다(auth.login/quickLogin, setup.* 제외). 없으면 401.
+ * - 모든 메서드는 **로그인 사용자(session)** 가 필요하다(auth.login, setup.* 제외). 없으면 401.
  *
  * ── 공통 불변식 ───────────────────────────────────────────
  * 1. 쓰기는 sales/admin만(user는 403). `shared/model/permissions.ts`의 함수와 같은 규칙으로 판단한다.
@@ -123,15 +123,12 @@ export interface AuthGateway {
    * 성공 시 lastLoginAt 갱신(서버가 세션 쿠키를 설정한다). 결과의 `directoryWarning`은 AD 대신 저장된 비밀번호로 들어온 admin에게만 있다.
    */
   login(loginId: string, password: string): Promise<LoginResult>
-  /** 빠른 로그인(`QUICK_LOGIN_USERS`). 퇴사자·없는 id는 login과 같은 오류. */
-  quickLogin(userId: number): Promise<Me>
   logout(): Promise<void>
-  /** 로그인 화면용 서버 설정(로그인 전에도 읽는다). `quickLogin`이 true일 때만 빠른 로그인 버튼을 그린다. */
+  /** 로그인 화면용 서버 설정(로그인 전에도 읽는다). */
   config(): Promise<AuthConfig>
 }
 
 export interface AuthConfig {
-  quickLogin: boolean
   /** 고른 인증 방식(최초 설정 전이면 null). 서버 응답에 없으면 null. */
   authMode?: AuthMode | null
   /** 최초 설정(AD 서버 또는 첫 관리자)이 아직 끝나지 않았다. 서버 `needs_directory_setup || needs_admin_setup`. */
@@ -402,13 +399,13 @@ export interface SettingsGateway {
   /**
    * revision +1, updatedBy/updatedAt 갱신. 검증 422(호스트·바인드 계정 필수, 포트·시간 범위). 접속 정보가 바뀌었는데
    * `bindPassword`가 null이면 422, null이면 저장된 비밀번호를 유지한다.
-   * `auth.password`는 현재 관리자 비밀번호(새 설정으로 인증을 확인한다, 개발용 로그인은 null), `expectedRevision`은
+   * `auth.password`는 현재 관리자 비밀번호(새 설정으로 인증을 확인한다), `expectedRevision`은
    * 화면이 읽은 설정 버전(낙관적 잠금, 어긋나면 409). Fake는 값을 받기만 한다.
    */
   saveDirectory(input: DirectorySettingsInput, auth: DirectorySaveAuth): Promise<DirectorySettings>
   /**
    * 호스트에 'fail'이 들어가면 422(kind `directory-verification-failed`, stage 'connect', detail "연결 단계에서 실패했습니다").
-   * 성공하면 서버가 AD에서 찾은 Base DN을 돌려준다. `password`는 현재 관리자 비밀번호(개발용 로그인은 null).
+   * 성공하면 서버가 AD에서 찾은 Base DN을 돌려준다. `password`는 현재 관리자 비밀번호.
    */
   testDirectory(input: DirectorySettingsInput, password: string | null): Promise<DirectoryTestResult>
   getStorage(): Promise<StorageSettings | null>

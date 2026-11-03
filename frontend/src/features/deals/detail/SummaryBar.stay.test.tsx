@@ -17,7 +17,7 @@ describe('상세 Status 체류 표시 (AC-13, Q3)', () => {
 
   it('shows "N일째" next to Status with the entry time in the tooltip', async () => {
     const code = await dealCodeOf(2)
-    await gateway.auth.quickLogin(USER_ID.root)
+    await defaultMock.signInAs(USER_ID.root)
     const deal = await gateway.deals.get(code)
     expect(deal.statusDays).toBeGreaterThan(0)
 

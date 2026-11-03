@@ -12,7 +12,7 @@ export function useMe(): Query<Me> {
   return useQuery<Me, ApiError>({ queryKey: keys.me, queryFn: () => gateway.auth.me(), staleTime: 60_000, ...NO_RETRY })
 }
 
-/** gateway.auth.config. 키 keys.authConfig. 로그인 화면이 빠른 로그인을 그릴지 정한다(로그인 전에도 읽는다). */
+/** gateway.auth.config. 키 keys.authConfig. 로그인 화면이 최초 설정 필요 여부를 정한다(로그인 전에도 읽는다). */
 export function useAuthConfig(): Query<AuthConfig> {
   return useQuery<AuthConfig, ApiError>({ queryKey: keys.authConfig, queryFn: () => gateway.auth.config(), ...NO_RETRY })
 }
@@ -44,16 +44,6 @@ export function useDirectoryWarning(): { warning: DirectoryWarning | null; dismi
     gcTime: Infinity,
   })
   return { warning: data ?? null, dismiss: () => queryClient.setQueryData(keys.directoryWarning, null) }
-}
-
-/** gateway.auth.quickLogin(userId). 성공 처리는 useLogin과 같다. */
-export function useQuickLogin(): Mutation<number, Me> {
-  const queryClient = useQueryClient()
-  return useMutation<Me, ApiError, number>({
-    mutationFn: (userId) => gateway.auth.quickLogin(userId),
-    gcTime: 0,
-    onSuccess: (me) => queryClient.setQueryData(keys.me, me),
-  })
 }
 
 /** gateway.auth.logout. 성공: 쿼리 캐시 전체 clear. 이동(`/login`)은 호출 화면이 한다. */

@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { resetMock } from '../test/fake/default'
 import { dealCode, fakeFile, TEST_NOW } from '../test/fake/testing'
 import { ApiError } from '../shared/api/problem'
-import { usePermissions, useLogin, useLogout, useMe, useQuickLogin } from './auth'
+import { usePermissions, useLogin, useLogout, useMe } from './auth'
 import { useAttachments, useUploadAttachment } from './attachments'
 import { useCodeSet, useRenameCode, useCodes } from './codes'
 import { useApplyDealChange, useDeal, useDeals, useRemoveDeal, useUpdateDeal } from './deals'
@@ -41,13 +41,13 @@ describe('인증 훅', () => {
     expect(perm.result.current).toMatchObject({ canWrite: false, isAdmin: false, me: null })
   })
 
-  it('useQuickLogin 성공 후 useMe와 usePermissions가 갱신된다', async () => {
+  it('useLogin 성공 후 useMe와 usePermissions가 갱신된다', async () => {
     resetMock({ now: TEST_NOW, userId: null })
     const { wrapper } = setup()
-    const { result } = renderHook(() => ({ me: useMe(), login: useQuickLogin(), perm: usePermissions() }), { wrapper })
+    const { result } = renderHook(() => ({ me: useMe(), login: useLogin(), perm: usePermissions() }), { wrapper })
     await waitFor(() => expect(result.current.me.isError).toBe(true))
     await act(async () => {
-      await result.current.login.mutateAsync(USER_ID.root)
+      await result.current.login.mutateAsync({ loginId: 'root', password: 'any-password' })
     })
     await waitFor(() => expect(result.current.me.data?.name).toBe('최관리'))
     expect(result.current.perm).toMatchObject({ role: 'admin', canWrite: true, isAdmin: true })

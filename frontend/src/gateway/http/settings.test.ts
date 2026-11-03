@@ -87,7 +87,7 @@ describe('directory settings over HTTP', () => {
     expect(saved.revision).toBe(4)
   })
 
-  it('saveDirectory sends a null admin password for a dev-login admin', async () => {
+  it('saveDirectory sends a null admin password when it was left empty', async () => {
     const { calls } = stubFetch(json(STORED))
 
     await createSettingsHttp().saveDirectory(INPUT, { password: null, expectedRevision: 3 })

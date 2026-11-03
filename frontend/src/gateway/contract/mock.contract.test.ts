@@ -38,7 +38,7 @@ beforeEach(() => {
  */
 const makeMock: MakeGateway = async (role) => {
   const { gateway } = current
-  await gateway.auth.quickLogin(ROLE_USER_ID[role])
+  await current.signInAs(ROLE_USER_ID[role])
   const create: typeof gateway.actions.create = (dealCode, input) => {
     current.clock.advance(1000)
     return gateway.actions.create(dealCode, input)

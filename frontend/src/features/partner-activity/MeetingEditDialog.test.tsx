@@ -1,3 +1,4 @@
+import { defaultMock } from '../../test/fake/default'
 import { screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { gateway } from '../../gateway'
@@ -75,11 +76,11 @@ describe('행 수정 (AC10)', () => {
 
   it('saves a content-only change even after the contact company was renamed meanwhile', async () => {
     const { user, dialog } = await openEdit()
-    await gateway.auth.quickLogin(USER_ID.root)
+    await defaultMock.signInAs(USER_ID.root)
     for (const row of await gateway.contacts.byCompany('partner', '코어테크')) {
       await gateway.contacts.update(row.id, { company: '새이름테크', name: row.name, title: row.title, email: row.email, phone: row.phone })
     }
-    await gateway.auth.quickLogin(USER_ID.kim)
+    await defaultMock.signInAs(USER_ID.kim)
 
     await user.clear(fieldsOf(dialog, 1).content)
     await user.type(fieldsOf(dialog, 1).content, '회사명이 바뀐 뒤 수정')

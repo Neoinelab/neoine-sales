@@ -324,9 +324,9 @@ describe('종료 상태 간 직접 전환 (사용자 결정 2026-10-20)', () => 
     const park = await openActions('sales', USER_ID.park)
     const { gateway } = defaultMock
     const [first] = await gateway.actions.list(await dealCodeOf(1), {})
-    await gateway.auth.quickLogin(USER_ID.kim)
+    await defaultMock.signInAs(USER_ID.kim)
     await gateway.actions.changeNextActionStatus(first!.id, { status: 'done', memo: '' })
-    await gateway.auth.quickLogin(USER_ID.park)
+    await defaultMock.signInAs(USER_ID.park)
     park.goTo('/deals')
     await screen.findByRole('heading', { name: /Deals/ })
     park.goTo(path)

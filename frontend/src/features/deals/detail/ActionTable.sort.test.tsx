@@ -1,3 +1,4 @@
+import { defaultMock } from '../../../test/fake/default'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -17,7 +18,7 @@ beforeEach(() => resetMock({ now: '2030-06-15T09:00:00+09:00' }))
 
 async function renderTable(sort: ActionSortState, onSort: (key: string) => void = () => undefined) {
   const code = await dealCodeOf(1)
-  await gateway.auth.quickLogin(USER_ID.root)
+  await defaultMock.signInAs(USER_ID.root)
   const deal = await gateway.deals.get(code)
   const actions = await gateway.actions.list(code, {})
   render(

@@ -63,12 +63,6 @@ export function createAuthGateway(ctx: MockContext): AuthGateway {
         if (matches.length > 0) throw forbidden(RESIGNED)
         throw unauthorized(LOGIN_FAILED)
       }),
-    quickLogin: (userId) =>
-      write(ctx, () => {
-        const user = users().find((u) => u.id === userId)
-        if (!user) throw unauthorized(LOGIN_FAILED)
-        return signIn(ctx, user)
-      }),
     logout: () =>
       write(ctx, () => {
         setSession(ctx, null)
@@ -77,7 +71,7 @@ export function createAuthGateway(ctx: MockContext): AuthGateway {
     config: () =>
       read(ctx, () => {
         const { directoryDone, storageDone, adminDone, authMode } = setupState(ctx)
-        return { quickLogin: true, authMode, needsSetup: !(directoryDone && storageDone && adminDone) }
+        return { authMode, needsSetup: !(directoryDone && storageDone && adminDone) }
       }),
   }
 }

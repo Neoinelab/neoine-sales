@@ -108,12 +108,12 @@ describe('actions.create with closePreviousNextActionId', () => {
     const previous = await kim.gateway.actions.create(code, input())
     const count = (await kim.gateway.actions.list(code, {})).length
 
-    await kim.gateway.auth.quickLogin(3) // park (sales)
+    await kim.signInAs(3) // park (sales)
     await expectApiError(kim.gateway.actions.create(code, input({ closePreviousNextActionId: previous.id })), 403, STATUS_FORBIDDEN)
     expect(await kim.gateway.actions.list(code, {})).toHaveLength(count)
     expect(await find(kim.gateway, code, previous.id)).toMatchObject({ nextActionStatus: 'open' })
 
-    await kim.gateway.auth.quickLogin(1) // root (admin)
+    await kim.signInAs(1) // root (admin)
     await kim.gateway.actions.create(code, input({ closePreviousNextActionId: previous.id }))
     expect(await find(kim.gateway, code, previous.id)).toMatchObject({ nextActionStatus: 'done' })
   })

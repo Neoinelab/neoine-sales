@@ -17,7 +17,7 @@ export function useDirectorySettings(): Query<DirectorySettings | null> {
 
 export interface SaveDirectoryVariables {
   input: DirectorySettingsInput
-  /** 현재 관리자 비밀번호(개발용 로그인은 null). */
+  /** 현재 관리자 비밀번호. */
   password: string | null
   /** 화면이 읽은 설정 버전(낙관적 잠금). 설정이 없을 때 새로 등록하면 null. */
   expectedRevision: number | null

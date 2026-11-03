@@ -71,16 +71,6 @@ export const BLOCKED_EXTENSIONS: readonly string[] = [
 ]
 
 /**
- * 빠른 로그인 버튼과 개발용 사용자 id의 약속. 사용자 id는 Fake 시드의 사용자 id(정수)와 같다(root 1, kim 2, han 6).
- * `role`은 실제 서버의 dev 로그인(역할로 로그인)이 쓴다. 서버는 역할당 개발용 계정 하나로 로그인시킨다.
- */
-export const QUICK_LOGIN_USERS: readonly { userId: number; label: string; role: 'admin' | 'sales' | 'user' }[] = [
-  { userId: 1, label: '관리자', role: 'admin' },
-  { userId: 2, label: '영업', role: 'sales' },
-  { userId: 6, label: '조회자', role: 'user' },
-]
-
-/**
  * 삭제할 수 없는 시스템 연결 코드 key(서버와 같은 5개). 이름·순서는 바꿀 수 있다.
  * 서버가 정본이고 화면은 응답의 `locked`를 쓴다. 이 상수는 Fake 시드와 계약 테스트가 서버와 맞추는 데 쓴다.
  */

@@ -43,12 +43,12 @@ describe('partner meetings Fake: rules', () => {
     const [created] = await kim.gateway.partnerMeetings.create([item('코어테크', '김영업 기록')])
     const id = created?.id ?? 0
 
-    await kim.gateway.auth.quickLogin(USER_ID.park)
+    await kim.signInAs(USER_ID.park)
     await expectApiError(kim.gateway.partnerMeetings.update(id, item('코어테크', '가로채기')), 403, '본인 미팅 기록 또는 admin만 수정할 수 있습니다.')
     await expectApiError(kim.gateway.partnerMeetings.remove(id), 403, '본인 미팅 기록 또는 admin만 삭제할 수 있습니다.')
-    await kim.gateway.auth.quickLogin(USER_ID.han)
+    await kim.signInAs(USER_ID.han)
     await expectApiError(kim.gateway.partnerMeetings.update(id, item('코어테크', '읽기 전용')), 403)
-    await kim.gateway.auth.quickLogin(USER_ID.root)
+    await kim.signInAs(USER_ID.root)
     await expect(kim.gateway.partnerMeetings.update(id, item('코어테크', '관리자 수정'))).resolves.toMatchObject({ content: '관리자 수정' })
     await expect(kim.gateway.partnerMeetings.remove(id)).resolves.toBeUndefined()
   })
@@ -56,7 +56,7 @@ describe('partner meetings Fake: rules', () => {
   it('answers 404 before 403 and 403 before 422', async () => {
     const kim = await mockAs('kim')
     const [created] = await kim.gateway.partnerMeetings.create([item('코어테크', '기록')])
-    await kim.gateway.auth.quickLogin(USER_ID.park)
+    await kim.signInAs(USER_ID.park)
 
     await expectApiError(kim.gateway.partnerMeetings.update(Number.MAX_SAFE_INTEGER, item('코어테크', ' ')), 404, '미팅 기록을 찾을 수 없습니다.')
     await expectApiError(kim.gateway.partnerMeetings.update(created?.id ?? 0, item('코어테크', ' ')), 403)
@@ -80,7 +80,7 @@ describe('partner meetings Fake: rules', () => {
   it('registers a meeting for a partner company without any deal', async () => {
     const kim = await mockAs('root')
     await kim.gateway.contacts.create('partner', { company: 'Deal없는파트너', name: '가나다', title: '', email: null, phone: null })
-    await kim.gateway.auth.quickLogin(USER_ID.kim)
+    await kim.signInAs(USER_ID.kim)
 
     const [created] = await kim.gateway.partnerMeetings.create([item('deal없는파트너', '첫 만남')])
 

@@ -1,3 +1,4 @@
+import { defaultMock } from '../../../test/fake/default'
 import { screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { gateway } from '../../../gateway'
@@ -15,7 +16,7 @@ afterEach(() => resetMock({ now: null }))
 describe('상세와 mock 시계 (useToday)', () => {
   it('shows the last update as a relative time with the date in the tooltip', async () => {
     const code = await dealCodeOf(4)
-    await gateway.auth.quickLogin(USER_ID.root)
+    await defaultMock.signInAs(USER_ID.root)
     const deal = await gateway.deals.get(code)
     await renderAt(`/deals/${code}`)
     const bar = await screen.findByRole('region', { name: 'Deal 정보' })

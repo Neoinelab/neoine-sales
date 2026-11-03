@@ -59,7 +59,7 @@ export async function renderAt(url: string, options: RenderAtOptions = {}) {
   if (options.savedReports) mockControl.seedSavedReports(options.savedReports)
   const role = options.role === undefined ? 'sales' : options.role
   const userId = options.userId ?? (role ? ROLE_USER_ID[role] : null)
-  if (userId) await gateway.auth.quickLogin(userId)
+  if (userId) await defaultMock.signInAs(userId)
   else await gateway.auth.logout()
 
   const navigateRef: { current: NavigateFunction | null } = { current: null }

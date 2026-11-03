@@ -20,7 +20,7 @@ export function newMock(options: MockOptions = {}): MockInstance {
 /** 새 mock을 만들고 시드 사용자(`USER_ID[key]`)로 로그인한다. */
 export async function mockAs(key: LoginKey | null, options: MockOptions = {}): Promise<MockInstance> {
   const mock = newMock(options)
-  if (key !== null) await mock.gateway.auth.quickLogin(USER_ID[key])
+  if (key !== null) await mock.signInAs(USER_ID[key])
   return mock
 }
 

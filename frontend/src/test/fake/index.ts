@@ -2,7 +2,7 @@
  * mock 게이트웨이 조립. 사용법
  *
  *   const mock = createMockGateway({ now: '2026-10-15T09:00:00+09:00', latency: false })
- *   await mock.gateway.auth.quickLogin(USER_ID.kim)
+ *   await mock.signInAs(USER_ID.kim)
  *   mock.control.resetData()      // 시드 복원(로그인 유지)
  *   mock.clock.advance(60_000)    // 고정 시계를 1분 앞으로
  *
@@ -13,7 +13,9 @@ import type { Gateway } from '../../gateway/types'
 import { createClock, type MockClock } from './clock'
 import { createMockControl } from './control'
 import type { MockControl } from './types'
-import { readStoredSession, setSession, type MockContext } from './gateway/context'
+import { readStoredSession, setSession, write, type MockContext } from './gateway/context'
+import { forbidden, unauthorized } from './errors'
+import type { Me } from '../../shared/model/types'
 import { createGatewayFor } from './gateway'
 import { createLatency } from './latency'
 import { emptyBusinessSeed, type SeedFactory } from './seed'
@@ -42,6 +44,11 @@ export interface MockInstance {
   clock: MockClock
   /** 로그인 상태를 직접 지정한다(null=로그아웃). 존재하지 않거나 퇴사한 id는 로그아웃으로 처리한다. */
   setSession(userId: number | null): void
+  /**
+   * 테스트용 로그인: 그 사용자로 세션을 만들고 `lastLoginAt`을 현재 시각으로 갱신한다.
+   * 없는 id는 401, 퇴사자는 403(서버 로그인과 같은 오류). 운영 코드의 로그인 API가 아니다.
+   */
+  signInAs(userId: number): Promise<Me>
   /** 시드를 교체하고 즉시 그 시드로 되돌린다(`control.resetData()`도 이후 이 시드를 쓴다). 테스트 전용. */
   setSeed(factory: SeedFactory): void
 }
@@ -77,6 +84,15 @@ export function createMockGateway(options: MockOptions = {}): MockInstance {
     control: createMockControl(ctx, reseed),
     clock,
     setSession: signIn,
+    signInAs: (userId) =>
+      write(ctx, () => {
+        const user = ctx.store.data.users.find((u) => u.id === userId)
+        if (!user) throw unauthorized('아이디 또는 비밀번호가 올바르지 않습니다.')
+        if (user.status === 'resigned') throw forbidden('퇴사한 사용자는 로그인할 수 없습니다.')
+        user.lastLoginAt = clock.now()
+        setSession(ctx, user.id)
+        return { id: user.id, loginId: user.loginId, name: user.name, role: user.role }
+      }),
     setSeed(factory) {
       seed = factory
       reseed()

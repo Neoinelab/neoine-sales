@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from '@testing-library/react'
+import { screen, waitFor } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { openUserMenu } from '../../test/localAccounts'
 import { renderAt } from '../../test/mockApp'
@@ -16,12 +16,12 @@ async function fill(user: Awaited<ReturnType<typeof renderAt>>['user'], loginId:
 }
 
 describe('로그인 화면 (계획 6.1, T-SHELL-08)', () => {
-  it('shows the id and password form, the three role quick logins without any-password guidance', async () => {
+  it('shows the id and password form, no quick login and no any-password guidance', async () => {
     await openLogin()
     expect(screen.getByLabelText('아이디')).toBeVisible()
     expect(screen.getByLabelText('비밀번호')).toBeVisible()
-    const quick = within(screen.getByRole('region', { name: '빠른 로그인' }))
-    expect(quick.getAllByRole('button').map((b) => b.textContent)).toEqual(['관리자', '영업', '조회자'])
+    expect(screen.queryByRole('region', { name: '빠른 로그인' })).not.toBeInTheDocument()
+    expect(screen.getAllByRole('button').map((b) => b.textContent)).toEqual(['로그인'])
     for (const person of ['최관리', '김영업', '박영업', '한조회']) {
       expect(screen.queryByText(new RegExp(person))).not.toBeInTheDocument()
     }
@@ -66,18 +66,6 @@ describe('로그인 화면 (계획 6.1, T-SHELL-08)', () => {
     await waitFor(() => expect(location()).toMatch(DEFAULT_DEALS_URL_PATTERN))
     await openUserMenu(user)
     expect(await screen.findByText('김영업 (sales)')).toBeVisible()
-  })
-
-  it.each([
-    ['관리자', '최관리 (admin)'],
-    ['영업', '김영업 (sales)'],
-    ['조회자', '한조회 (user)'],
-  ])('signs in with the quick login %s by its role', async (button, shown) => {
-    const { user, location } = await openLogin()
-    await user.click(screen.getByRole('button', { name: button }))
-    await waitFor(() => expect(location()).toMatch(DEFAULT_DEALS_URL_PATTERN))
-    await openUserMenu(user)
-    expect(await screen.findByText(shown)).toBeVisible()
   })
 
   it('goes to the main page when already signed in', async () => {

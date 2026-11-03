@@ -36,7 +36,7 @@ function DirectoryForm({ saved }: { saved: DirectorySettings | null }) {
       return
     }
     const input = inputFromForm(values)
-    // 비어 있으면 null(개발용 로그인 관리자는 비밀번호가 없다). 요청이 끝나면 비밀번호 칸들을 비운다.
+    // 비어 있으면 null. 요청이 끝나면 비밀번호 칸들을 비운다.
     const confirm = password === '' ? null : password
     const onSettled = () => setPassword('')
     const onError = (error: unknown) => {
@@ -105,7 +105,7 @@ function DirectoryForm({ saved }: { saved: DirectorySettings | null }) {
           value={password}
           onChange={setPassword}
         />
-        <p className="hint">AD로 로그인한 관리자는 비밀번호를 입력하세요. 개발용 로그인 관리자는 비워 둡니다.</p>
+        <p className="hint">현재 관리자(본인) 비밀번호를 입력하세요.</p>
       </div>
       <div className="wide actions">
         <button type="button" disabled={busy} onClick={() => run('test')}>

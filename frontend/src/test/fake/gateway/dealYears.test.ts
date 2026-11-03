@@ -6,7 +6,7 @@ import { USER_ID } from '../seed/ids'
 describe('deals.years', () => {
   it('returns null without deals', async () => {
     const mock = createMockGateway({ now: TEST_NOW, latency: false }) // 앱 기본 시드: 업무 데이터 없음
-    await mock.gateway.auth.quickLogin(USER_ID.root)
+    await mock.signInAs(USER_ID.root)
 
     await expect(mock.gateway.deals.years()).resolves.toEqual({ earliestYear: null })
   })

@@ -29,9 +29,9 @@ const click = (user: Awaited<ReturnType<typeof openActions>>['user'], table: HTM
 async function parkActs(no: number, progress: string) {
   const code = await dealCodeOf(no)
   defaultMock.clock.advance(60_000)
-  await gateway.auth.quickLogin(USER_ID.park)
+  await defaultMock.signInAs(USER_ID.park)
   await gateway.actions.create(code, { type: { name: '미팅' }, progress, nextAction: '', dueDate: '', memo: '' })
-  await gateway.auth.quickLogin(USER_ID.kim)
+  await defaultMock.signInAs(USER_ID.kim)
 }
 
 describe('Actions 탭 정렬 상태 (AC3·AC4)', () => {
@@ -72,7 +72,7 @@ describe('Actions 탭 정렬 상태 (AC3·AC4)', () => {
   it('shows the order the server returns for the chosen sort, without sorting again on the screen', async () => {
     const { user, table } = await openActions()
     const code = await dealCodeOf(1)
-    await gateway.auth.quickLogin(USER_ID.kim)
+    await defaultMock.signInAs(USER_ID.kim)
 
     await click(user, table, '담당자')
 
@@ -159,9 +159,9 @@ describe('Actions 탭 빈 목록 문구 (AC12)', () => {
     await click(user, table, '담당자')
     await waitFor(() => expect(sortedHeader(table)).toEqual([['담당자', 'ascending']]))
     const code = await dealCodeOf(1)
-    await gateway.auth.quickLogin(USER_ID.root)
+    await defaultMock.signInAs(USER_ID.root)
     for (const action of await gateway.actions.list(code, {})) await gateway.actions.remove(action.id)
-    await gateway.auth.quickLogin(USER_ID.kim)
+    await defaultMock.signInAs(USER_ID.kim)
 
     await click(user, table, '담당자')
 

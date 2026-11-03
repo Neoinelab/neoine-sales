@@ -8,7 +8,6 @@ afterEach(() => vi.unstubAllGlobals())
 
 const config = (needsDirectory: boolean, needsStorage: boolean, needsAdmin: boolean, authMode: 'ad' | 'local' | null = 'ad') =>
   json({
-    dev_login: false,
     directory_login: true,
     needs_admin_setup: needsAdmin,
     needs_directory_setup: needsDirectory,
@@ -53,7 +52,7 @@ describe('setup over HTTP', () => {
   )
 
   it('status treats a response without auth_mode as no choice yet', async () => {
-    stubFetch(json({ dev_login: false, directory_login: false, needs_admin_setup: false, needs_directory_setup: true, needs_storage_setup: true }))
+    stubFetch(json({ directory_login: false, needs_admin_setup: false, needs_directory_setup: true, needs_storage_setup: true }))
 
     await expect(createSetupHttp().status()).resolves.toMatchObject({ authMode: null })
   })

@@ -22,9 +22,10 @@ describe('users.changeRole', () => {
   })
 
   it('applies the new role to the target on the next request without a new login', async () => {
-    const { gateway } = await mockAs('root')
+    const mock = await mockAs('root')
+    const { gateway } = mock
     await gateway.users.changeRole(USER_ID.kim, 'admin')
-    await gateway.auth.quickLogin(USER_ID.kim)
+    await mock.signInAs(USER_ID.kim)
 
     expect((await gateway.auth.me()).role).toBe('admin')
     await expect(gateway.users.list('all')).resolves.toBeInstanceOf(Array)

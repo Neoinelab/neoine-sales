@@ -126,14 +126,14 @@ describe('actions.list 헤더 정렬 (서버 정렬 표와 같은 순서)', () =
     const mock = await mockAs('root')
     const code = dealCode(2)
     for (const [login, type, progress, due] of rows) {
-      await mock.gateway.auth.quickLogin(USER_ID[login])
+      await mock.signInAs(USER_ID[login])
       mock.clock.advance(60_000)
       await mock.gateway.actions.create(
         code,
         input({ type: { name: type }, progress, nextAction: due === null ? '' : `${progress} 계획`, dueDate: due ?? '' }),
       )
     }
-    await mock.gateway.auth.quickLogin(USER_ID.root)
+    await mock.signInAs(USER_ID.root)
     const names = async (query: Parameters<typeof mock.gateway.actions.list>[1]) =>
       (await mock.gateway.actions.list(code, query)).filter((a) => rows.some((r) => r[2] === a.progress)).map((a) => a.progress)
     return { names }

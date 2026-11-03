@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createAuthHttp } from './auth'
 import { json, noContent, problem, stubFetch } from './testHelpers'
-import { NO_SUCH_ID, USER_ID } from '../../test/fake/seed/ids'
 
 afterEach(() => vi.unstubAllGlobals())
 
@@ -63,33 +62,6 @@ describe('auth over HTTP', () => {
     })
   })
 
-  it.each([
-    [USER_ID.root, 'admin'],
-    [USER_ID.kim, 'sales'],
-    [USER_ID.han, 'user'],
-  ])('quickLogin(%s) posts dev-login with the role %s', async (userId, role) => {
-    const { calls } = stubFetch(json({ ...PRINCIPAL, role }))
-
-    const me = await createAuthHttp().quickLogin(userId)
-
-    expect(calls[0]).toMatchObject({ method: 'POST', path: '/api/v1/auth/dev-login', body: { role } })
-    expect(me.role).toBe(role)
-  })
-
-  it('quickLogin refuses an unknown quick-login id without calling the server', async () => {
-    const { calls } = stubFetch()
-
-    await expect(createAuthHttp().quickLogin(NO_SUCH_ID)).rejects.toMatchObject({ status: 401, kind: 'unauthorized' })
-
-    expect(calls).toHaveLength(0)
-  })
-
-  it('quickLogin shows the server error when dev login is switched off', async () => {
-    stubFetch(problem(404, 'not-found', 'Not Found'))
-
-    await expect(createAuthHttp().quickLogin(USER_ID.root)).rejects.toMatchObject({ status: 404 })
-  })
-
   it('logout posts to /auth/logout and accepts 204', async () => {
     const { calls } = stubFetch(noContent())
 
@@ -98,10 +70,10 @@ describe('auth over HTTP', () => {
     expect(calls[0]).toMatchObject({ method: 'POST', path: '/api/v1/auth/logout' })
   })
 
-  it.each([true, false])('config exposes dev_login=%s as quickLogin', async (devLogin) => {
-    const { calls } = stubFetch(json({ dev_login: devLogin, directory_login: true, needs_admin_setup: false, needs_directory_setup: false, needs_storage_setup: false, auth_mode: 'ad' }))
+  it('config exposes only the setup state and auth mode, no quick login', async () => {
+    const { calls } = stubFetch(json({ directory_login: true, needs_admin_setup: false, needs_directory_setup: false, needs_storage_setup: false, auth_mode: 'ad' }))
 
-    await expect(createAuthHttp().config()).resolves.toEqual({ quickLogin: devLogin, needsSetup: false, authMode: 'ad' })
+    await expect(createAuthHttp().config()).resolves.toEqual({ needsSetup: false, authMode: 'ad' })
 
     expect(calls[0]).toMatchObject({ method: 'GET', path: '/api/v1/auth/config' })
   })
@@ -116,7 +88,6 @@ describe('auth over HTTP', () => {
     async (directory, storage, admin) => {
       stubFetch(
         json({
-          dev_login: false,
           directory_login: true,
           needs_admin_setup: admin,
           needs_directory_setup: directory,
@@ -125,18 +96,18 @@ describe('auth over HTTP', () => {
         }),
       )
 
-      await expect(createAuthHttp().config()).resolves.toEqual({ quickLogin: false, needsSetup: true, authMode: 'ad' })
+      await expect(createAuthHttp().config()).resolves.toEqual({ needsSetup: true, authMode: 'ad' })
     },
   )
 
   it.each([['local' as const], [null]])('config exposes auth_mode=%s as authMode', async (mode) => {
-    stubFetch(json({ dev_login: false, directory_login: false, needs_admin_setup: false, needs_directory_setup: false, needs_storage_setup: true, auth_mode: mode }))
+    stubFetch(json({ directory_login: false, needs_admin_setup: false, needs_directory_setup: false, needs_storage_setup: true, auth_mode: mode }))
 
-    await expect(createAuthHttp().config()).resolves.toEqual({ quickLogin: false, needsSetup: true, authMode: mode })
+    await expect(createAuthHttp().config()).resolves.toEqual({ needsSetup: true, authMode: mode })
   })
 
   it('config treats a response without auth_mode as no choice yet', async () => {
-    stubFetch(json({ dev_login: false, directory_login: true, needs_admin_setup: false, needs_directory_setup: false, needs_storage_setup: false }))
+    stubFetch(json({ directory_login: true, needs_admin_setup: false, needs_directory_setup: false, needs_storage_setup: false }))
 
     await expect(createAuthHttp().config()).resolves.toMatchObject({ authMode: null })
   })

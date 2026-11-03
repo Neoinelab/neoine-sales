@@ -1,6 +1,6 @@
 import { BIND_PASSWORD } from '../directoryFixtures'
 import { describe, expect, it } from 'vitest'
-import { DEAL_CODE_PATTERN, QUICK_LOGIN_USERS } from '../../shared/model/constants'
+import { DEAL_CODE_PATTERN } from '../../shared/model/constants'
 import { isSyncConsistent } from '../../shared/model/sync'
 import { dealCode, expectApiError, mockAs, newMock, TEST_NOW } from './testing'
 import { NO_SUCH_ID, USER_ID } from './seed/ids'
@@ -11,13 +11,13 @@ async function allDeals(mock: Awaited<ReturnType<typeof mockAs>>) {
 }
 
 describe('시드 데이터(계획 4.3)', () => {
-  it('사용자 7명: 퇴사자 1명(강퇴사), 빠른 로그인 id가 모두 존재한다', async () => {
+  it('사용자 7명: 퇴사자 1명(강퇴사), 역할별 시드 사용자가 모두 존재한다', async () => {
     const mock = await mockAs('root')
     const users = await mock.gateway.users.list('all')
     expect(users).toHaveLength(7)
     expect(users.filter((u) => u.status === 'resigned').map((u) => u.name)).toEqual(['강퇴사'])
     const ids = users.map((u) => u.id)
-    for (const q of QUICK_LOGIN_USERS) expect(ids).toContain(q.userId)
+    for (const id of [USER_ID.root, USER_ID.kim, USER_ID.han]) expect(ids).toContain(id)
     expect(users.find((u) => u.id === USER_ID.root)?.role).toBe('admin')
     expect(users.find((u) => u.id === USER_ID.han)?.role).toBe('user')
   })
@@ -126,13 +126,14 @@ describe('인증', () => {
   })
 
   it('로그인 오류 문구', async () => {
-    const { auth } = (await mockAs(null)).gateway
+    const mock = await mockAs(null)
+    const { auth } = mock.gateway
     await expectApiError(auth.login('', 'pw'), 422, '아이디와 비밀번호를 입력하세요.')
     await expectApiError(auth.login('kim', ''), 422, '아이디와 비밀번호를 입력하세요.')
     await expectApiError(auth.login('nobody', 'pw'), 401, '아이디 또는 비밀번호가 올바르지 않습니다.')
     await expectApiError(auth.login('old', 'pw'), 403, '퇴사한 사용자는 로그인할 수 없습니다.')
-    await expectApiError(auth.quickLogin(USER_ID.old), 403, '퇴사한 사용자는 로그인할 수 없습니다.')
-    await expectApiError(auth.quickLogin(NO_SUCH_ID), 401)
+    await expectApiError(mock.signInAs(USER_ID.old), 403, '퇴사한 사용자는 로그인할 수 없습니다.')
+    await expectApiError(mock.signInAs(NO_SUCH_ID), 401)
   })
 
   it('아무 비밀번호나 통과하고 me가 사용자를 돌려주며 로그아웃하면 401이다', async () => {
