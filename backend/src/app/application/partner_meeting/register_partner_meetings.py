@@ -2,7 +2,6 @@ from typing import TYPE_CHECKING
 
 from app.application.ids import new_partner_meeting_id
 from app.application.partner_meeting.checker import MeetingChecker
-from app.application.ports.partner_meeting_repository import PartnerMeetingRecord
 from app.domain.common.errors import InvalidValueError
 from app.domain.partner_meeting.entities import PartnerMeeting
 from app.domain.partner_meeting.errors import NO_ITEMS
@@ -23,25 +22,23 @@ class RegisterPartnerMeetings:
         self._uow_factory = uow_factory
         self._clock = clock
 
-    async def execute(
-        self, items: Sequence[MeetingInput], actor: Actor
-    ) -> list[PartnerMeetingRecord]:
+    async def execute(self, items: Sequence[MeetingInput], actor: Actor) -> list[PartnerMeeting]:
         if not items:
             raise InvalidValueError(NO_ITEMS)
         now = self._clock.now()
         async with self._uow_factory() as uow:
             checked = await MeetingChecker(uow).check_all(items)
-            records: list[PartnerMeetingRecord] = []
+            meetings: list[PartnerMeeting] = []
             for row in checked:
                 meeting = PartnerMeeting.record(
                     entity_id=await new_partner_meeting_id(uow.ids),
-                    subject=row.subject,
+                    partner_company=row.partner_company,
                     meeting_date=row.meeting_date,
                     content=row.content,
                     author_user_id=actor.user_id,
                     now=now,
                 )
                 await uow.partner_meetings.add(meeting)
-                records.append(PartnerMeetingRecord(meeting, row.deal_name))
+                meetings.append(meeting)
             await uow.commit()
-        return records
+        return meetings

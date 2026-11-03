@@ -17,13 +17,12 @@ from tests.fakes.partner_meetings import FakePartnerMeetingRepository
 from tests.fakes.unit_of_work import FakeUnitOfWork
 from tests.fakes.use_cases import FakeUseCases
 
-PORT_METHODS = ("add", "get", "update", "delete", "search", "count", "deal_choices")
+PORT_METHODS = ("add", "get", "update", "delete", "search", "count")
 MEETING_USE_CASES = (
     "register_partner_meetings",
     "update_partner_meeting",
     "delete_partner_meeting",
     "list_partner_meetings",
-    "list_partner_deal_choices",
 )
 
 
@@ -38,6 +37,13 @@ def test_meeting_repositories_satisfy_the_port() -> None:
         assert inspect.iscoroutinefunction(getattr(SqlPartnerMeetingRepository, name)), name
         assert inspect.iscoroutinefunction(getattr(FakePartnerMeetingRepository, name)), name
         assert hasattr(PartnerMeetingRepository, name), name
+
+
+def test_the_port_has_no_deal_choices_method() -> None:
+    assert not hasattr(PartnerMeetingRepository, "deal_choices")
+    assert not hasattr(FakePartnerMeetingRepository, "deal_choices")
+    assert not hasattr(SqlPartnerMeetingRepository, "deal_choices")
+    assert not hasattr(UseCaseProvider, "list_partner_deal_choices")
 
 
 def test_unit_of_work_port_and_implementations_expose_partner_meetings() -> None:

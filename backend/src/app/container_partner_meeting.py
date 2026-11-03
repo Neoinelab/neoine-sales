@@ -3,7 +3,6 @@
 from typing import TYPE_CHECKING
 
 from app.application.partner_meeting.delete_partner_meeting import DeletePartnerMeeting
-from app.application.partner_meeting.list_partner_deal_choices import ListPartnerDealChoices
 from app.application.partner_meeting.list_partner_meetings import ListPartnerMeetings
 from app.application.partner_meeting.register_partner_meetings import RegisterPartnerMeetings
 from app.application.partner_meeting.update_partner_meeting import UpdatePartnerMeeting
@@ -28,6 +27,3 @@ class PartnerMeetingUseCases:
 
     def list_partner_meetings(self) -> ListPartnerMeetings:
         return ListPartnerMeetings(self._uow)
-
-    def list_partner_deal_choices(self) -> ListPartnerDealChoices:
-        return ListPartnerDealChoices(self._uow)

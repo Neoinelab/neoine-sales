@@ -13,11 +13,10 @@ UNUSED_DATABASE_URL = "postgresql+asyncpg://user:pw@localhost:5432/none"  # 접�
 BASE = "/api/v1/partner-meetings"
 ID_ROUTE = f"{BASE}/{{meeting_id}}"
 OPTIONS = f"{BASE}/deal-options"
-ITEM_FIELDS = {"partner_company", "deal_code", "meeting_date", "content"}
+ITEM_FIELDS = {"partner_company", "meeting_date", "content"}
 RESPONSE_FIELDS = {
     "id",
     "partner_company",
-    "deal",
     "meeting_date",
     "content",
     "author",
@@ -53,11 +52,10 @@ def test_paths_and_methods(schema: dict[str, Any]) -> None:
 
     assert set(paths[BASE]) == {"get", "post"}
     assert set(paths[ID_ROUTE]) == {"put", "delete"}
-    assert set(paths[OPTIONS]) == {"get"}
 
 
 def test_every_operation_is_tagged_partner_meetings(schema: dict[str, Any]) -> None:
-    for path in (BASE, ID_ROUTE, OPTIONS):
+    for path in (BASE, ID_ROUTE):
         for operation in schema["paths"][path].values():
             assert operation["tags"] == ["partner-meetings"], path
 
@@ -69,7 +67,6 @@ def test_every_operation_is_tagged_partner_meetings(schema: dict[str, Any]) -> N
         ("post", BASE, "201"),
         ("put", ID_ROUTE, "200"),
         ("delete", ID_ROUTE, "204"),
-        ("get", OPTIONS, "200"),
     ],
 )
 def test_success_status_codes_and_401(
@@ -88,7 +85,6 @@ def test_success_status_codes_and_401(
         ("post", BASE, {"403", "422"}),
         ("put", ID_ROUTE, {"403", "404", "422"}),
         ("delete", ID_ROUTE, {"403", "404", "422"}),
-        ("get", OPTIONS, {"422"}),
     ],
 )
 def test_error_status_codes_are_documented(
@@ -99,7 +95,6 @@ def test_error_status_codes_are_documented(
 
 def test_reads_document_no_403(schema: dict[str, Any]) -> None:
     assert "403" not in schema["paths"][BASE]["get"]["responses"]  # 모든 역할이 읽는다
-    assert "403" not in schema["paths"][OPTIONS]["get"]["responses"]
 
 
 def test_meeting_id_path_parameter_is_a_bounded_integer(schema: dict[str, Any]) -> None:
@@ -116,7 +111,6 @@ def test_list_query_parameters(schema: dict[str, Any]) -> None:
 
     assert set(params) == {
         "partner",
-        "deal",
         "content",
         "date_from",
         "date_to",
@@ -143,7 +137,7 @@ def _enum(schema: dict[str, Any], node: dict[str, Any]) -> set[str]:
 def test_the_sort_and_order_parameters_list_their_values(schema: dict[str, Any]) -> None:
     params = {p["name"]: p["schema"] for p in schema["paths"][BASE]["get"]["parameters"]}
 
-    assert _enum(schema, params["sort"]) == {"meeting_date", "partner", "deal", "content", "author"}
+    assert _enum(schema, params["sort"]) == {"meeting_date", "partner", "content", "author"}
     assert _enum(schema, params["order"]) == {"asc", "desc"}
 
 
@@ -155,7 +149,6 @@ def test_text_filters_document_their_max_lengths(schema: dict[str, Any]) -> None
         return int(next(o["maxLength"] for o in options if "maxLength" in o))
 
     assert max_length(params["partner"]) == 200
-    assert max_length(params["deal"]) == 200
     assert max_length(params["content"]) == 100
 
 
@@ -183,7 +176,6 @@ def test_item_field_lengths_are_documented(schema: dict[str, Any]) -> None:
     properties = _body(schema, "put", ID_ROUTE)["properties"]
 
     assert properties["partner_company"]["maxLength"] == 200
-    assert properties["deal_code"]["maxLength"] == 50
     assert properties["meeting_date"]["format"] == "date"
 
 
@@ -213,22 +205,33 @@ def test_user_columns_use_the_shared_user_ref_schema(schema: dict[str, Any]) -> 
     assert item["properties"]["author"]["$ref"].endswith("/UserRef")
 
 
-def test_deal_options_response_lists_code_name_and_customer_company(
-    schema: dict[str, Any],
-) -> None:
-    body = _response(schema, "get", OPTIONS, "200")
-    option = _resolve(schema, body["properties"]["items"]["items"])
-    company = {p["name"]: p for p in schema["paths"][OPTIONS]["get"]["parameters"]}["company"]
-
-    assert set(option["properties"]) == {"code", "name", "customer_company"}
-    assert company["required"] is True
+def test_deal_options_path_is_not_in_openapi(schema: dict[str, Any]) -> None:
+    assert OPTIONS not in schema["paths"]
+    assert not any("deal-options" in path for path in schema["paths"])
 
 
-def test_the_deletion_impact_response_has_the_partner_meeting_count(
-    schema: dict[str, Any],
-) -> None:
+def test_meeting_item_request_has_exactly_three_properties(schema: dict[str, Any]) -> None:
+    body = _body(schema, "put", ID_ROUTE)
+
+    assert set(body["properties"]) == {"partner_company", "meeting_date", "content"}
+    assert set(body["required"]) == {"partner_company", "meeting_date", "content"}
+
+
+def test_sort_enum_has_no_deal(schema: dict[str, Any]) -> None:
+    params = {p["name"]: p["schema"] for p in schema["paths"][BASE]["get"]["parameters"]}
+
+    assert "deal" not in _enum(schema, params["sort"])
+    assert "deal" not in set(params)
+
+
+def test_deal_schemas_of_the_meeting_api_are_gone(schema: dict[str, Any]) -> None:
+    names = set(schema["components"]["schemas"])
+
+    assert not {n for n in names if n.startswith(("MeetingDeal", "DealOption"))}
+
+
+def test_the_deletion_impact_response_has_three_counts(schema: dict[str, Any]) -> None:
     impact = _response(schema, "get", "/api/v1/deals/{code}/deletion-impact", "200")
 
-    assert "partner_meeting_count" in impact["properties"]
-    assert "partner_meeting_count" in impact["required"]
-    assert impact["properties"]["partner_meeting_count"]["type"] == "integer"
+    assert set(impact["properties"]) == {"history_count", "action_count", "attachment_count"}
+    assert set(impact["required"]) == {"history_count", "action_count", "attachment_count"}

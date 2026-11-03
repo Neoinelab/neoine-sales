@@ -77,9 +77,8 @@ class FakeUnitOfWork:
             history=self.deal_history,
             attachments=self.attachments,
             users=self.users,
-            meetings=self.partner_meetings,
         )
-        self.partner_meetings.wire(deals=self.deals, contacts=self.contacts, users=self.users)
+        self.partner_meetings.wire(users=self.users)
         self.attachments.wire(deals=self.deals)  # 소속 Deal이 없으면 DealNotFoundError
         # 소속 Deal이 없으면 DealNotFoundError, 스냅숏 코드가 없으면 InvalidReferenceError
         self.deal_actions.wire(

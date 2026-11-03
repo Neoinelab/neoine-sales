@@ -1,6 +1,7 @@
 """GetDealDeletionImpact(AC-26): 삭제 영향 건수. 필터용 facets는 폐지되었다(Vendor AC-17)."""
 
 import importlib
+from dataclasses import fields
 from typing import TYPE_CHECKING
 
 import pytest
@@ -34,9 +35,7 @@ async def test_the_impact_counts_the_history_and_actions_that_would_be_deleted(
     impact = await env.impact.execute(view.item.deal.id.value)
 
     # 이력 = 등록 1 + 수정 1 + Action 등록마다 category=action 1건 x 3 (AC-03)
-    assert impact == DealDeletionImpact(
-        history_count=1 + 1 + 3, action_count=3, attachment_count=0, partner_meeting_count=0
-    )
+    assert impact == DealDeletionImpact(history_count=1 + 1 + 3, action_count=3, attachment_count=0)
 
 
 async def test_a_new_deal_has_only_its_registration_entry(env: DealEnv) -> None:
@@ -44,9 +43,7 @@ async def test_a_new_deal_has_only_its_registration_entry(env: DealEnv) -> None:
 
     impact = await env.impact.execute(view.item.deal.id.value)
 
-    assert impact == DealDeletionImpact(
-        history_count=1, action_count=0, attachment_count=0, partner_meeting_count=0
-    )
+    assert impact == DealDeletionImpact(history_count=1, action_count=0, attachment_count=0)
 
 
 async def test_the_impact_of_another_deal_is_not_counted(env: DealEnv) -> None:
@@ -67,21 +64,10 @@ async def test_the_impact_of_an_unknown_or_malformed_code_is_not_found(
         await env.impact.execute(code)
 
 
-async def test_the_impact_counts_the_partner_meetings_of_that_deal(env: DealEnv) -> None:
-    from tests.factories_partner_meeting import make_meeting  # noqa: PLC0415
-    from tests.support.user_ids import ACTOR_ID  # noqa: PLC0415
+async def test_the_impact_counts_history_actions_and_attachments_only(env: DealEnv) -> None:
+    view = await env.new_deal()
 
-    first = await env.new_deal()
-    other = await env.new_deal()
-    async with env.uow_factory() as uow:
-        for _ in range(3):
-            await uow.partner_meetings.add(
-                make_meeting(deal_code=first.item.deal.id, author=ACTOR_ID)
-            )
-        await uow.partner_meetings.add(make_meeting(deal_code=other.item.deal.id, author=ACTOR_ID))
-        await uow.commit()
+    impact = await env.impact.execute(view.item.deal.id.value)
 
-    impact = await env.impact.execute(first.item.deal.id.value)
-
-    assert impact.partner_meeting_count == 3
-    assert (await env.impact.execute(other.item.deal.id.value)).partner_meeting_count == 1
+    assert {f.name for f in fields(impact)} == {"history_count", "action_count", "attachment_count"}
+    assert not hasattr(impact, "partner_meeting_count")

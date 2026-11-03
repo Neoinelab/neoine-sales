@@ -1,4 +1,4 @@
-"""PartnerMeetingQuery(AC3, P5): 검색 조건의 정규화와 검증. 모든 구현이 같은 규칙을 쓴다."""
+"""PartnerMeetingQuery(AC4): 검색 조건의 정규화와 검증. 모든 구현이 같은 규칙을 쓴다."""
 
 from datetime import UTC, date, datetime
 from typing import Any
@@ -28,15 +28,14 @@ def test_defaults_are_the_first_page_of_ten_by_meeting_date_descending() -> None
 
     assert (query.sort, query.order) == (PartnerMeetingSort.MEETING_DATE, SortOrder.DESC)
     assert (query.offset, query.limit) == (0, DEFAULT_MEETING_LIMIT) == (0, 10)
-    assert (query.partner, query.deal, query.content) == (None, None, None)
+    assert (query.partner, query.content) == (None, None)
     assert (query.date_from, query.date_to, query.author_user_id) == (None, None, None)
 
 
-def test_the_five_sort_columns_are_fixed() -> None:
+def test_the_four_sort_columns_are_fixed() -> None:
     assert {s.value for s in PartnerMeetingSort} == {
         "meeting_date",
         "partner",
-        "deal",
         "content",
         "author",
     }
@@ -72,13 +71,13 @@ def test_a_datetime_in_the_range_is_rejected() -> None:
         PartnerMeetingQuery(date_from=datetime(2026, 10, 1, tzinfo=UTC))
 
 
-@pytest.mark.parametrize("field", ["partner", "deal", "content"])
+@pytest.mark.parametrize("field", ["partner", "content"])
 @pytest.mark.parametrize("blank", ["", "   ", "\t\n"])
 def test_blank_text_filters_become_none(field: str, blank: str) -> None:
     assert getattr(PartnerMeetingQuery(**_kw({field: blank})), field) is None
 
 
-@pytest.mark.parametrize("field", ["partner", "deal", "content"])
+@pytest.mark.parametrize("field", ["partner", "content"])
 def test_text_filters_are_trimmed(field: str) -> None:
     assert getattr(PartnerMeetingQuery(**_kw({field: "  한빛  "})), field) == "한빛"
 
@@ -89,14 +88,18 @@ def test_the_content_filter_is_limited_to_100_characters() -> None:
         PartnerMeetingQuery(content="a" * (CONTENT_KEYWORD_MAX + 1))
 
 
-@pytest.mark.parametrize("field", ["partner", "deal"])
-def test_the_partner_and_deal_filters_are_limited_to_200_characters(field: str) -> None:
-    assert len(getattr(PartnerMeetingQuery(**_kw({field: "a" * TEXT_FILTER_MAX})), field)) == 200
+def test_the_partner_filter_is_limited_to_200_characters() -> None:
+    assert len(PartnerMeetingQuery(partner="a" * TEXT_FILTER_MAX).partner or "") == 200
     with pytest.raises(InvalidValueError, match="200"):
-        PartnerMeetingQuery(**_kw({field: "a" * (TEXT_FILTER_MAX + 1)}))
+        PartnerMeetingQuery(partner="a" * (TEXT_FILTER_MAX + 1))
 
 
-@pytest.mark.parametrize("field", ["partner", "deal", "content"])
+def test_query_has_no_deal_condition() -> None:
+    with pytest.raises(TypeError):
+        PartnerMeetingQuery(**_kw({"deal": "ERP"}))
+
+
+@pytest.mark.parametrize("field", ["partner", "content"])
 def test_nul_in_a_text_filter_is_rejected(field: str) -> None:
     with pytest.raises(InvalidValueError, match="NUL"):
         PartnerMeetingQuery(**_kw({field: "a\x00b"}))

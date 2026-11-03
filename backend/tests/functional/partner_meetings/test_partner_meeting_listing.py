@@ -1,6 +1,7 @@
 """Feature: 로그인한 모든 사용자는 파트너 미팅 기록을 최신 미팅 날짜순으로 10건씩 이어서 본다.
 
-기본 정렬은 미팅 날짜 내림차순(같은 날짜는 나중 등록 먼저)이고, 열 5개(파트너·Deal·미팅 날짜·
+미팅은 Deal과 무관하다. 기본 정렬은 미팅 날짜 내림차순(같은 날짜는 나중 등록 먼저)이고,
+열 4개(파트너·미팅 날짜·
 미팅 내용·작성자)로 정렬을 바꿀 수 있다. 텍스트 열 정렬의 동률은 방향과 무관하게
 미팅 날짜 내림차순 ->
 나중 등록 먼저다. 페이지는 offset/limit이고 응답에 전체 건수가 있다.
@@ -18,10 +19,11 @@ from tests.functional.steps.partner_meetings import (
     given_many_meetings,
     given_meeting,
     given_meeting_by,
-    given_partner_deal,
+    given_partner,
     then_contents_are,
     then_meeting_has_the_documented_fields,
     then_page_is,
+    when_get_deal_options,
     when_list_meetings,
 )
 from tests.functional.steps.users import given_signed_in_session
@@ -38,8 +40,8 @@ async def test_the_default_list_shows_the_ten_newest_meetings(api: Api) -> None:
     """Scenario: 12건 중 미팅 날짜가 가장 늦은 10건이 먼저 보이고 전체 건수가 12다."""
     # Given
     await given_logged_in_as(api)
-    deal = await given_partner_deal(api)
-    await given_many_meetings(api, deal["code"], 12)
+    await given_partner(api)
+    await given_many_meetings(api, 12)
     # When
     response = await when_list_meetings(api)
     # Then
@@ -52,8 +54,8 @@ async def test_the_next_page_continues_without_overlap(api: Api) -> None:
     """Scenario: offset=10으로 다음 10건을 받으면 나머지 2건이 이어지고 끝을 넘으면 비어 있다."""
     # Given
     await given_logged_in_as(api)
-    deal = await given_partner_deal(api)
-    await given_many_meetings(api, deal["code"], 12)
+    await given_partner(api)
+    await given_many_meetings(api, 12)
     first = await when_list_meetings(api)
     # When
     second = await when_list_meetings(api, offset=10)
@@ -70,10 +72,10 @@ async def test_meetings_on_the_same_day_show_the_later_registered_first(api: Api
     """Scenario: 같은 미팅 날짜는 나중에 등록한 기록이 먼저 나온다."""
     # Given
     await given_logged_in_as(api)
-    deal = await given_partner_deal(api)
+    await given_partner(api)
     for content in ("먼저 등록", "나중 등록"):
-        await given_meeting(api, deal["code"], content=content, meeting_date="2027-03-05")
-    await given_meeting(api, deal["code"], content="더 늦은 날짜", meeting_date="2027-03-06")
+        await given_meeting(api, content=content, meeting_date="2027-03-05")
+    await given_meeting(api, content="더 늦은 날짜", meeting_date="2027-03-06")
     # When
     response = await when_list_meetings(api)
     # Then
@@ -81,40 +83,25 @@ async def test_meetings_on_the_same_day_show_the_later_registered_first(api: Api
 
 
 async def test_a_listed_meeting_has_the_documented_fields(api: Api) -> None:
-    """Scenario: 목록 항목은 파트너 회사·Deal 이름과 code·작성자·서버 오프셋 시각을 담는다."""
+    """Scenario: 목록 항목은 파트너 회사·작성자·서버 오프셋 시각을 담고 deal 키는 없다."""
     # Given
     await given_logged_in_as(api)
-    deal = await given_partner_deal(api, name="ERP 구축")
+    await given_partner(api)
     kim = await given_signed_in_session(api, login_id="kim", role="sales")
-    saved = await given_meeting_by(api, kim, deal["code"], content="계약 논의\n다음 주")
+    saved = await given_meeting_by(api, kim, content="계약 논의\n다음 주")
     # When
     response = await when_list_meetings(api)
     # Then
     (listed,) = response.json()["items"]
     then_meeting_has_the_documented_fields(listed)
+    assert "deal" not in listed
     assert listed["id"] == saved["id"]
     assert listed["partner_company"] == HANBIT
-    assert listed["deal"] == {"code": deal["code"], "name": "ERP 구축"}
     assert listed["meeting_date"] == "2027-03-01"
     assert listed["content"] == "계약 논의\n다음 주"
     assert listed["author"]["label"] == "사용자 kim"
     assert listed["author"]["resigned"] is False
     assert not listed["created_at"].endswith("Z")
-
-
-async def test_the_deal_name_follows_a_rename(api: Api) -> None:
-    """Scenario: 목록의 Deal 이름은 저장 당시가 아니라 지금 이름이다."""
-    # Given
-    from tests.functional.steps.deals import when_update_deal  # noqa: PLC0415
-
-    await given_logged_in_as(api)
-    deal = await given_partner_deal(api, name="이전 이름")
-    await given_meeting(api, deal["code"])
-    await when_update_deal(api, deal["code"], name="새 이름")
-    # When
-    response = await when_list_meetings(api)
-    # Then
-    assert response.json()["items"][0]["deal"]["name"] == "새 이름"
 
 
 @pytest.mark.parametrize(
@@ -124,8 +111,6 @@ async def test_the_deal_name_follows_a_rename(api: Api) -> None:
         ("meeting_date", "desc", ["banana", "apple", "Cherry"]),
         ("partner", "asc", ["Cherry", "banana", "apple"]),
         ("partner", "desc", ["banana", "apple", "Cherry"]),
-        ("deal", "asc", ["Cherry", "apple", "banana"]),
-        ("deal", "desc", ["banana", "apple", "Cherry"]),
         ("content", "asc", ["apple", "banana", "Cherry"]),
         ("content", "desc", ["Cherry", "banana", "apple"]),
         ("author", "asc", ["banana", "apple", "Cherry"]),
@@ -135,22 +120,21 @@ async def test_the_deal_name_follows_a_rename(api: Api) -> None:
 async def test_each_column_sorts_both_ways(
     api: Api, sort: str, order: str, expected: list[str]
 ) -> None:
-    """Scenario: 열 5개로 오름·내림차순 정렬하고, 동률은 미팅 날짜 내림차순을 따른다."""
+    """Scenario: 열 4개로 오름·내림차순 정렬하고, 동률은 미팅 날짜 내림차순을 따른다."""
     # Given
     await given_logged_in_as(api)
-    zeta = await given_partner_deal(api, name="Zeta", company="에이컴퍼니", contact="가나다")
-    alpha = await given_partner_deal(api, name="Alpha", company="비컴퍼니", contact="라마바")
-    mid = await given_partner_deal(api, name="Mid", company="에이컴퍼니", contact="가나다")
+    await given_partner(api, company="에이컴퍼니", contact="가나다")
+    await given_partner(api, company="비컴퍼니", contact="라마바")
     kim = await given_signed_in_session(api, login_id="kim", role="sales")
     park = await given_signed_in_session(api, login_id="park", role="sales")
     await given_meeting_by(
-        api, kim, zeta["code"], company="에이컴퍼니", content="banana", meeting_date="2027-03-03"
+        api, kim, company="에이컴퍼니", content="banana", meeting_date="2027-03-03"
     )
     await given_meeting_by(
-        api, park, alpha["code"], company="비컴퍼니", content="Cherry", meeting_date="2027-03-01"
+        api, park, company="비컴퍼니", content="Cherry", meeting_date="2027-03-01"
     )
     await given_meeting_by(
-        api, kim, mid["code"], company="에이컴퍼니", content="apple", meeting_date="2027-03-02"
+        api, kim, company="에이컴퍼니", content="apple", meeting_date="2027-03-02"
     )
     # When
     response = await when_list_meetings(api, sort=sort, order=order)
@@ -162,8 +146,8 @@ async def test_changing_the_sort_restarts_from_the_first_page_of_that_order(api:
     """Scenario: 정렬을 바꿔 offset=0부터 받으면 그 정렬의 처음 10건이다."""
     # Given
     await given_logged_in_as(api)
-    deal = await given_partner_deal(api)
-    await given_many_meetings(api, deal["code"], 12)
+    await given_partner(api)
+    await given_many_meetings(api, 12)
     # When
     response = await when_list_meetings(api, sort="meeting_date", order="asc")
     # Then
@@ -201,8 +185,8 @@ async def test_every_logged_in_role_can_read_the_list(api: Api, role: str) -> No
     """Scenario: 어느 역할이든 로그인하면 목록을 본다."""
     # Given
     await given_logged_in_as(api)
-    deal = await given_partner_deal(api)
-    await given_many_meetings(api, deal["code"], 2)
+    await given_partner(api)
+    await given_many_meetings(api, 2)
     await given_logged_in_as(api, role=role)  # type: ignore[arg-type]
     # When
     response = await when_list_meetings(api)
@@ -220,3 +204,25 @@ async def test_anonymous_requests_are_401(api: Api) -> None:
     response = await when_list_meetings(api)
     # Then
     then_problem_is(response, status=401, type_suffix="unauthenticated")
+
+
+@pytest.mark.parametrize("params", [{"deal": "erp"}, {"sort": "deal"}])
+async def test_the_deal_parameter_and_sort_are_rejected(api: Api, params: dict[str, str]) -> None:
+    """Scenario: 목록에 deal 조건이나 sort=deal을 주면 request-validation 오류다."""
+    # Given
+    await given_logged_in_as(api)
+    # When
+    response = await when_list_meetings(api, **params)
+    # Then
+    then_problem_is(response, status=422, type_suffix="request-validation")
+
+
+async def test_deal_options_endpoint_no_longer_exists(api: Api) -> None:
+    """Scenario: 폐지된 Deal 선택지 경로는 성공하지 않는다(PUT·DELETE만 있는 경로라 405)."""
+    # Given
+    await given_logged_in_as(api)
+    await given_partner(api)
+    # When
+    response = await when_get_deal_options(api, HANBIT)
+    # Then
+    assert response.status_code == 405, response.text

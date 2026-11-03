@@ -4,8 +4,6 @@ from app.domain.auth.errors import AccessDeniedError
 from app.domain.common.errors import InvalidValueError, NotFoundError
 
 COMPANY_NOT_FOUND = "등록된 파트너 회사가 아닙니다. 목록에서 다시 선택하세요."
-DEAL_NOT_FOUND = "Deal을 찾을 수 없습니다. 목록에서 다시 선택하세요."
-DEAL_NOT_LINKED = "선택한 파트너와 연결된 Deal이 아닙니다."
 NO_ITEMS = "입력한 미팅이 없습니다."
 
 
@@ -26,7 +24,7 @@ class PartnerMeetingDeleteForbiddenError(AccessDeniedError):
 
 @dataclass(frozen=True, slots=True)
 class MeetingIssue:
-    """입력의 위반 한 건. location은 요청 안의 위치(예: ("items", 1, "deal_code"))다."""
+    """입력의 위반 한 건. location은 요청 안의 위치(예: ("items", 1, "partner_company"))다."""
 
     location: tuple[str | int, ...]
     message: str

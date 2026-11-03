@@ -1,12 +1,11 @@
-"""MeetingInputError(AC17): 위반을 위치와 함께 모은다. 문구는 첫 위반이다."""
+"""MeetingInputError(AC2): 위반을 위치와 함께 모은다. 문구는 첫 위반이다."""
 
 import pytest
 
 from app.domain.common.errors import InvalidValueError
+from app.domain.partner_meeting import errors
 from app.domain.partner_meeting.errors import (
     COMPANY_NOT_FOUND,
-    DEAL_NOT_FOUND,
-    DEAL_NOT_LINKED,
     NO_ITEMS,
     MeetingInputError,
     MeetingIssue,
@@ -17,7 +16,7 @@ from tests.support.expect import raises_with
 
 def test_the_message_is_the_first_issue_message() -> None:
     first = MeetingIssue(("items", 0, "partner_company"), COMPANY_NOT_FOUND)
-    second = MeetingIssue(("items", 1, "deal_code"), DEAL_NOT_LINKED)
+    second = MeetingIssue(("items", 1, "meeting_date"), "미팅 날짜를 입력하세요.")
 
     error = MeetingInputError((first, second))
 
@@ -44,9 +43,12 @@ def test_issue_locations_can_mix_names_and_indexes() -> None:
 
 def test_the_user_facing_constants_are_fixed() -> None:
     assert COMPANY_NOT_FOUND == "등록된 파트너 회사가 아닙니다. 목록에서 다시 선택하세요."
-    assert DEAL_NOT_FOUND == "Deal을 찾을 수 없습니다. 목록에서 다시 선택하세요."
-    assert DEAL_NOT_LINKED == "선택한 파트너와 연결된 Deal이 아닙니다."
     assert NO_ITEMS == "입력한 미팅이 없습니다."
+
+
+def test_the_deal_messages_are_gone() -> None:
+    assert not hasattr(errors, "DEAL_NOT_FOUND")
+    assert not hasattr(errors, "DEAL_NOT_LINKED")
 
 
 def test_not_found_has_the_documented_message() -> None:

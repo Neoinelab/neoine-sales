@@ -1,8 +1,8 @@
 """파트너 Activity 유스케이스 단위 테스트의 공용 환경: Fake UoW 위의 유스케이스 묶음과 준비 도우미.
 
 이 모듈은 구현을 모듈 수준에서 가져온다. 그래서 `conftest.py`의 `meeting_env` fixture가 사용
-시점에 가져온다(구현이 없어도 다른 테스트의 수집이 막히지 않는다). Deal·연락처는 Fake 저장소에
-직접 둔다(RegisterDeal의 다른 규칙과 섞이지 않게). 준비용 commit은 커밋 횟수 단언에 섞이지
+시점에 가져온다(구현이 없어도 다른 테스트의 수집이 막히지 않는다). 파트너 미팅은 Deal과
+무관하므로 파트너 연락처만 Fake 저장소에 직접 둔다. 준비용 commit은 커밋 횟수 단언에 섞이지
 않도록 0으로 되돌린다.
 """
 
@@ -13,24 +13,21 @@ from typing import TYPE_CHECKING, Any
 from app.application.deal.inputs import Actor
 from app.application.partner_meeting.delete_partner_meeting import DeletePartnerMeeting
 from app.application.partner_meeting.inputs import MeetingInput
-from app.application.partner_meeting.list_partner_deal_choices import ListPartnerDealChoices
 from app.application.partner_meeting.list_partner_meetings import ListPartnerMeetings
 from app.application.partner_meeting.register_partner_meetings import RegisterPartnerMeetings
 from app.application.partner_meeting.update_partner_meeting import UpdatePartnerMeeting
 from app.application.ports.partner_meeting_repository import PartnerMeetingQuery
 from app.domain.auth.principal import Role
-from tests.factories import make_deal, make_deal_code
-from tests.factories_contact import make_customer, make_partner
+from tests.factories_contact import make_partner
 from tests.support.user_ids import uid
 from tests.support.user_seed import ensure_users
 
 if TYPE_CHECKING:
     import builtins
 
-    from app.application.ports.partner_meeting_repository import PartnerMeetingRecord
     from app.application.ports.unit_of_work import UnitOfWorkFactory
     from app.domain.contact.entities import Contact
-    from app.domain.deal.code import DealCode
+    from app.domain.partner_meeting.entities import PartnerMeeting
     from app.domain.partner_meeting.values import PartnerMeetingId
     from tests.fakes.unit_of_work import FakeUnitOfWork, FixedClock
 
@@ -46,16 +43,12 @@ DAY = date(2026, 10, 1)
 
 
 def item(
-    deal_code: DealCode | str,
     *,
     company: str = HANBIT,
     meeting_date: date = DAY,
     content: str = "킥오프 미팅",
 ) -> MeetingInput:
-    code = deal_code if isinstance(deal_code, str) else deal_code.value
-    return MeetingInput(
-        partner_company=company, deal_code=code, meeting_date=meeting_date, content=content
-    )
+    return MeetingInput(partner_company=company, meeting_date=meeting_date, content=content)
 
 
 @dataclass
@@ -67,8 +60,6 @@ class MeetingEnv:
     update: UpdatePartnerMeeting
     delete: DeletePartnerMeeting
     list: ListPartnerMeetings
-    choices: ListPartnerDealChoices
-    _deals: int = 0
     _contacts: int = 0
 
     async def partner(self, company: str = HANBIT, name: str | None = None) -> Contact:
@@ -81,66 +72,25 @@ class MeetingEnv:
         await self.uow.contacts.add(contact)
         return contact
 
-    async def deal(  # noqa: PLR0913 - Deal 준비에 필요한 독립적인 선택지
-        self,
-        *,
-        name: str = "ERP 구축",
-        partner: Contact | None = None,
-        company: str | None = HANBIT,
-        forecast_key: str = "pipeline",
-        status_key: str = "prospecting",
-        customer_company: str = "네오인",
-    ) -> DealCode:
-        """Deal 한 건. partner를 주면 그 연락처가 활성 파트너이고, 생략하면 company의 새 담당자가
-        파트너다(company=None이면 파트너 없는 Deal)."""
-        self._deals += 1
-        code = make_deal_code(f"D{self._deals:03d}")
-        customer = make_customer(
-            company=customer_company, name=f"고객{self._deals}", email=f"c{self._deals}@c.test"
-        )
-        await self.uow.contacts.add(customer)
-        linked = partner
-        if linked is None and company is not None:
-            linked = await self.partner(company)
-        await self.uow.deals.add(
-            make_deal(
-                code=code,
-                name=name,
-                customer_id=customer.id,
-                partner_id=None if linked is None else linked.id,
-                forecast_key=forecast_key,
-                status_key=status_key,
-            )
-        )
-        return code
-
-    async def unlink_partner(self, code: DealCode) -> None:
-        """Deal의 활성 파트너를 해제한다(링크는 해제 시각과 함께 남는다)."""
-        deal = await self.uow.deals.get(code)
-        deal.replace_partner(None, self.clock.now())
-        await self.uow.deals.update(deal)
-
-    async def relink_partner(self, code: DealCode, contact: Contact) -> None:
-        deal = await self.uow.deals.get(code)
-        deal.replace_partner(contact.id, self.clock.now())
-        await self.uow.deals.update(deal)
+    async def drop_partner(self, contact: Contact) -> None:
+        """파트너 연락처를 지운다(그 회사가 파트너 회사 목록에서 사라진다)."""
+        await self.uow.contacts.delete(contact.id)
 
     async def register_one(
         self,
         actor: Actor,
-        code: DealCode,
         **fields: Any,  # noqa: ANN401 - 입력 필드(회사·날짜·내용)를 그대로 넘긴다
-    ) -> PartnerMeetingRecord:
+    ) -> PartnerMeeting:
         """미팅 한 건을 등록한다(시계가 60초 흐른 뒤라 등록 시각이 서로 다르다)."""
         self.clock.advance(60)
-        (record,) = await self.register.execute([item(code, **fields)], actor)
-        return record
+        (meeting,) = await self.register.execute([item(**fields)], actor)
+        return meeting
 
-    async def stored(self, meeting_id: PartnerMeetingId) -> PartnerMeetingRecord:
+    async def stored(self, meeting_id: PartnerMeetingId) -> PartnerMeeting:
         async with self.uow_factory() as active:
             return await active.partner_meetings.get(meeting_id)
 
-    async def everything(self, **criteria: Any) -> builtins.list[PartnerMeetingRecord]:  # noqa: ANN401
+    async def everything(self, **criteria: Any) -> builtins.list[PartnerMeeting]:  # noqa: ANN401
         """저장된 미팅 전부(기본 정렬, 한 페이지에 200건까지)."""
         async with self.uow_factory() as active:
             return list(
@@ -163,5 +113,4 @@ async def build_meeting_env(
         update=UpdatePartnerMeeting(uow_factory, clock),
         delete=DeletePartnerMeeting(uow_factory),
         list=ListPartnerMeetings(uow_factory),
-        choices=ListPartnerDealChoices(uow_factory),
     )

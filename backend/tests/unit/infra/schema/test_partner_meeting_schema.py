@@ -1,4 +1,4 @@
-"""head 스키마의 partner_meetings(파트너 Activity, 마이그레이션 순수 expand).
+"""head 스키마의 partner_meetings(파트너 Activity). Deal과 연결되지 않는다(AC8).
 
 제약은 원시 INSERT로 직접 어겨 보고 제약·인덱스 이름으로 거절되는지 확인한다(도메인 검증을 거치지
 않는다). 임시 DB의 head에서 돌며 세션은 테스트마다 롤백된다.
@@ -39,11 +39,8 @@ INDEXES = (
 )
 
 
-async def _deal(session: AsyncSession, author_login: str = "meeting-author") -> tuple[str, int]:
-    author = await insert_user(session, author_login)
-    customer = await insert_contact(session)
-    code = await insert_deal(session, customer, owner_user_id=author)
-    return code, author
+async def _author(session: AsyncSession, login: str = "meeting-author") -> int:
+    return await insert_user(session, login)
 
 
 async def test_partner_meetings_columns_types_and_nullability(session: AsyncSession) -> None:
@@ -54,7 +51,6 @@ async def test_partner_meetings_columns_types_and_nullability(session: AsyncSess
 
     assert columns == {
         "id": ("bigint", None, "NO"),
-        "deal_id": ("bigint", None, "NO"),
         "partner_company": ("character varying", 200, "NO"),
         "meeting_date": ("date", None, "NO"),
         "content": ("text", None, "NO"),
@@ -64,13 +60,10 @@ async def test_partner_meetings_columns_types_and_nullability(session: AsyncSess
     }
 
 
-async def test_foreign_keys_cascade_from_the_deal_and_restrict_the_author(
-    session: AsyncSession,
-) -> None:
+async def test_only_the_author_foreign_key_remains(session: AsyncSession) -> None:
     rows = (await session.execute(text(FOREIGN_KEYS))).all()
 
     assert {(r.conname, r.confrelid, r.confdeltype.strip(), r.attname) for r in rows} == {
-        ("fk_partner_meetings_deal_id_deals", "deals", "c", "deal_id"),
         ("fk_partner_meetings_created_by_user_id_users", "users", "r", "created_by_user_id"),
     }
 
@@ -81,7 +74,6 @@ async def test_the_planned_indexes_exist_and_none_is_unique(session: AsyncSessio
     assert set(definitions) == {
         "pk_partner_meetings",
         "ix_partner_meetings_meeting_date_id",
-        "ix_partner_meetings_deal_id",
         "ix_partner_meetings_created_by_user_id",
     }  # 쓰이지 않는 partner_company lower 인덱스는 없다
     assert "(meeting_date, id)" in definitions["ix_partner_meetings_meeting_date_id"]
@@ -97,10 +89,10 @@ async def test_the_schema_has_no_integrity_violations(session: AsyncSession) -> 
 
 
 async def test_a_valid_row_is_accepted_and_duplicates_are_allowed(session: AsyncSession) -> None:
-    code, author = await _deal(session)
+    author = await _author(session)
 
-    await insert_meeting(session, code, author)
-    await insert_meeting(session, code, author)  # 같은 Deal·날짜·내용 중복 허용
+    await insert_meeting(session, author)
+    await insert_meeting(session, author)  # 같은 날짜·내용 중복 허용
 
     count = (await session.execute(text("select count(*) from partner_meetings"))).scalar_one()
     assert count == 2
@@ -108,75 +100,85 @@ async def test_a_valid_row_is_accepted_and_duplicates_are_allowed(session: Async
 
 @pytest.mark.parametrize("day", ["1900-01-01", "2026-10-01", "2999-12-31"])
 async def test_future_and_far_dates_are_accepted(session: AsyncSession, day: str) -> None:
-    code, author = await _deal(session)
+    author = await _author(session)
 
-    await insert_meeting(session, code, author, meeting_date=day)
+    await insert_meeting(session, author, meeting_date=day)
 
 
 async def test_content_may_be_very_long_and_multiline(session: AsyncSession) -> None:
-    code, author = await _deal(session)
+    author = await _author(session)
 
-    await insert_meeting(session, code, author, content="줄\n" * 200_000 + "끝")
+    await insert_meeting(session, author, content="줄\n" * 200_000 + "끝")
 
 
 @pytest.mark.parametrize("content", ["", "   ", "\n\t \n"])
 async def test_blank_content_is_rejected_by_the_check(session: AsyncSession, content: str) -> None:
-    code, author = await _deal(session)
+    author = await _author(session)
 
     with pytest.raises(IntegrityError, match="ck_partner_meetings_content_not_blank"):
-        await insert_meeting(session, code, author, content=content)
+        await insert_meeting(session, author, content=content)
 
 
 @pytest.mark.parametrize("company", ["", "한빛 파트너스", " 한빛", "한빛\t"])
 async def test_empty_or_spaced_company_is_rejected_by_the_check(
     session: AsyncSession, company: str
 ) -> None:
-    code, author = await _deal(session)
+    author = await _author(session)
 
     with pytest.raises(IntegrityError, match="ck_partner_meetings_company_valid"):
-        await insert_meeting(session, code, author, partner_company=company)
+        await insert_meeting(session, author, partner_company=company)
 
 
 async def test_company_longer_than_200_characters_is_rejected(session: AsyncSession) -> None:
-    code, author = await _deal(session)
+    author = await _author(session)
 
     with pytest.raises(DBAPIError, match="too long"):
-        await insert_meeting(session, code, author, partner_company="가" * 201)
-
-
-async def test_a_missing_deal_is_rejected_by_the_foreign_key(session: AsyncSession) -> None:
-    _code, author = await _deal(session)
-
-    with pytest.raises(IntegrityError, match="fk_partner_meetings_deal_id_deals"):
-        await insert_meeting(session, "20260101-ZZZZ", author, deal_id=MISSING_ID)
+        await insert_meeting(session, author, partner_company="가" * 201)
 
 
 async def test_a_missing_author_is_rejected_by_the_foreign_key(session: AsyncSession) -> None:
-    code, _author = await _deal(session)
-
     with pytest.raises(IntegrityError, match="fk_partner_meetings_created_by_user_id_users"):
-        await insert_meeting(session, code, MISSING_ID)
+        await insert_meeting(session, MISSING_ID)
 
 
-async def test_deleting_the_deal_removes_its_meetings_only(session: AsyncSession) -> None:
-    code, author = await _deal(session)
-    other_customer = await insert_contact(session, name="다른담당")
-    other = await insert_deal(session, other_customer, owner_user_id=author, code="20261016-A002")
-    await insert_meeting(session, code, author, content="삭제될 기록")
-    await insert_meeting(session, other, author, content="남을 기록")
+async def test_deleting_a_deal_does_not_touch_meetings(session: AsyncSession) -> None:
+    author = await _author(session)
+    customer = await insert_contact(session)
+    code = await insert_deal(session, customer, owner_user_id=author)
+    await insert_meeting(session, author, content="Deal과 무관한 기록")
 
     await session.execute(text("delete from deals where deal_code = :code"), {"code": code})
 
     contents = (await session.execute(text("select content from partner_meetings"))).scalars().all()
-    assert contents == ["남을 기록"]
+    assert contents == ["Deal과 무관한 기록"]
+
+
+async def test_the_deal_link_column_constraint_and_index_are_gone(session: AsyncSession) -> None:
+    columns = (await session.execute(text(COLUMNS))).all()
+    constraints = (
+        (
+            await session.execute(
+                text(
+                    "select conname from pg_constraint"
+                    " where conrelid = 'partner_meetings'::regclass"
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    indexes = (await session.execute(text(INDEXES))).all()
+
+    assert "deal_id" not in {c.column_name for c in columns}
+    assert "fk_partner_meetings_deal_id_deals" not in constraints
+    assert "ix_partner_meetings_deal_id" not in {i.indexname for i in indexes}
 
 
 async def test_a_user_who_wrote_a_meeting_cannot_be_physically_deleted(
     session: AsyncSession,
 ) -> None:
-    code, _author = await _deal(session)
     writer = await insert_user(session, "meeting-writer")
-    await insert_meeting(session, code, writer)
+    await insert_meeting(session, writer)
 
     with pytest.raises(IntegrityError, match="fk_partner_meetings_created_by_user_id_users"):
         await session.execute(text("delete from users where id = :id"), {"id": writer})

@@ -15,6 +15,6 @@ class DeletePartnerMeeting:
     async def execute(self, meeting_id: PartnerMeetingId, actor: Actor) -> None:
         async with self._uow_factory() as uow:
             current = await uow.partner_meetings.get(meeting_id)
-            current.meeting.ensure_deletable_by(actor.user_id, actor.role)
+            current.ensure_deletable_by(actor.user_id, actor.role)
             await uow.partner_meetings.delete(meeting_id)
             await uow.commit()

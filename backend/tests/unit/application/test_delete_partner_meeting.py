@@ -1,4 +1,4 @@
-"""DeletePartnerMeeting(AC14·16): 작성자 본인과 admin만 물리 삭제, 판정 순서 404 -> 403."""
+"""DeletePartnerMeeting(AC12): 작성자 본인과 admin만 물리 삭제, 판정 순서 404 -> 403."""
 
 from typing import TYPE_CHECKING
 
@@ -14,6 +14,7 @@ from tests.support.ids import new_id
 from tests.unit.application.partner_meeting_env import (
     BOSS,
     DELETE_FORBIDDEN,
+    HANBIT,
     KIM,
     NOT_FOUND,
     PARK,
@@ -25,51 +26,51 @@ if TYPE_CHECKING:
 
 
 async def test_the_author_sales_deletes_the_record_physically(meeting_env: MeetingEnv) -> None:
-    code = await meeting_env.deal()
-    created = await meeting_env.register_one(KIM, code)
+    await meeting_env.partner(HANBIT)
+    created = await meeting_env.register_one(KIM)
 
-    await meeting_env.delete.execute(created.meeting.id, KIM)
+    await meeting_env.delete.execute(created.id, KIM)
 
     with pytest.raises(PartnerMeetingNotFoundError):
-        await meeting_env.stored(created.meeting.id)
+        await meeting_env.stored(created.id)
     assert await meeting_env.everything() == []
 
 
 async def test_admin_deletes_another_users_record(meeting_env: MeetingEnv) -> None:
-    code = await meeting_env.deal()
-    created = await meeting_env.register_one(KIM, code)
+    await meeting_env.partner(HANBIT)
+    created = await meeting_env.register_one(KIM)
 
-    await meeting_env.delete.execute(created.meeting.id, BOSS)
+    await meeting_env.delete.execute(created.id, BOSS)
 
     assert await meeting_env.everything() == []
 
 
 async def test_deleting_one_record_keeps_the_others(meeting_env: MeetingEnv) -> None:
-    code = await meeting_env.deal()
-    keep = await meeting_env.register_one(KIM, code, content="남는 기록")
-    drop = await meeting_env.register_one(KIM, code, content="지울 기록")
+    await meeting_env.partner(HANBIT)
+    keep = await meeting_env.register_one(KIM, content="남는 기록")
+    drop = await meeting_env.register_one(KIM, content="지울 기록")
 
-    await meeting_env.delete.execute(drop.meeting.id, KIM)
+    await meeting_env.delete.execute(drop.id, KIM)
 
-    assert [r.meeting.id for r in await meeting_env.everything()] == [keep.meeting.id]
+    assert [m.id for m in await meeting_env.everything()] == [keep.id]
 
 
 async def test_another_sales_is_forbidden_and_the_record_stays(meeting_env: MeetingEnv) -> None:
-    code = await meeting_env.deal()
-    created = await meeting_env.register_one(KIM, code)
+    await meeting_env.partner(HANBIT)
+    created = await meeting_env.register_one(KIM)
 
     with raises_with(PartnerMeetingDeleteForbiddenError, DELETE_FORBIDDEN):
-        await meeting_env.delete.execute(created.meeting.id, PARK)
+        await meeting_env.delete.execute(created.id, PARK)
 
     assert len(await meeting_env.everything()) == 1
 
 
 async def test_a_read_only_user_is_forbidden(meeting_env: MeetingEnv) -> None:
-    code = await meeting_env.deal()
-    created = await meeting_env.register_one(KIM, code)
+    await meeting_env.partner(HANBIT)
+    created = await meeting_env.register_one(KIM)
 
     with pytest.raises(PartnerMeetingDeleteForbiddenError):
-        await meeting_env.delete.execute(created.meeting.id, VIEWER)
+        await meeting_env.delete.execute(created.id, VIEWER)
 
     assert len(await meeting_env.everything()) == 1
 

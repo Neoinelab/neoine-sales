@@ -1,4 +1,4 @@
-"""PartnerMeeting 엔티티(AC14·15): 기록, 변경 감지, 연결 검사 필요 여부, 수정·삭제 권한."""
+"""PartnerMeeting 엔티티(AC2·AC6·AC12): 기록, 변경 감지, 회사 확인 필요 여부, 수정·삭제 권한."""
 
 from datetime import date, datetime
 
@@ -12,8 +12,8 @@ from app.domain.partner_meeting.errors import (
     PartnerMeetingEditForbiddenError,
 )
 from app.domain.partner_meeting.values import MeetingContent, PartnerMeetingId
-from tests.factories import NOW, later, make_deal_code
-from tests.factories_partner_meeting import make_meeting, make_subject
+from tests.factories import NOW, later
+from tests.factories_partner_meeting import make_meeting
 from tests.support.expect import raises_with
 from tests.support.ids import new_id
 from tests.support.user_ids import ACTOR_ID, uid
@@ -28,17 +28,13 @@ BOSS = uid("boss")
 def _revise(
     meeting: PartnerMeeting,
     *,
-    deal_suffix: str | None = None,
+    company: str | None = None,
     meeting_date: date | None = None,
     content: str | None = None,
     now: datetime | None = None,
 ) -> bool:
-    subject = make_subject(
-        meeting.subject.partner_company,
-        make_deal_code(deal_suffix) if deal_suffix else meeting.subject.deal_code,
-    )
     return meeting.revise(
-        subject=subject,
+        partner_company=company or meeting.partner_company,
         meeting_date=meeting_date or meeting.meeting_date,
         content=MeetingContent(content or meeting.content.value),
         now=now or later(60),
@@ -46,12 +42,12 @@ def _revise(
 
 
 class TestRecord:
-    def test_record_keeps_the_values_and_stamps_both_times(self) -> None:
+    def test_record_keeps_the_given_company_date_and_content(self) -> None:
         entity_id = PartnerMeetingId(new_id())
 
         meeting = PartnerMeeting.record(
             entity_id=entity_id,
-            subject=make_subject("한빛파트너스", make_deal_code("A7K2")),
+            partner_company="한빛파트너스",
             meeting_date=date(2026, 10, 1),
             content=MeetingContent("킥오프"),
             author_user_id=ACTOR_ID,
@@ -59,8 +55,7 @@ class TestRecord:
         )
 
         assert meeting.id == entity_id
-        assert meeting.subject.partner_company == "한빛파트너스"
-        assert meeting.subject.deal_code == make_deal_code("A7K2")
+        assert meeting.partner_company == "한빛파트너스"
         assert meeting.meeting_date == date(2026, 10, 1)
         assert meeting.content.value == "킥오프"
         assert meeting.author_user_id == ACTOR_ID
@@ -72,7 +67,7 @@ class TestRecord:
 
 
 class TestRevise:
-    def test_revise_with_the_same_values_returns_false_and_keeps_updated_at(self) -> None:
+    def test_revise_with_same_values_returns_false_and_keeps_updated_at(self) -> None:
         meeting = make_meeting(now=NOW)
 
         changed = _revise(meeting, now=later(60))
@@ -95,11 +90,11 @@ class TestRevise:
         assert _revise(meeting, meeting_date=date(2026, 10, 2)) is True
         assert meeting.meeting_date == date(2026, 10, 2)
 
-    def test_revise_with_a_new_deal_returns_true_and_moves_the_subject(self) -> None:
-        meeting = make_meeting(deal_code=make_deal_code("A001"))
+    def test_revise_with_a_new_company_updates_it(self) -> None:
+        meeting = make_meeting(company="한빛파트너스")
 
-        assert _revise(meeting, deal_suffix="B002") is True
-        assert meeting.subject.deal_code == make_deal_code("B002")
+        assert _revise(meeting, company="다른파트너") is True
+        assert meeting.partner_company == "다른파트너"
 
     def test_revise_never_changes_author_or_created_at(self) -> None:
         meeting = make_meeting(author=KIM, now=NOW)
@@ -110,26 +105,21 @@ class TestRevise:
         assert meeting.created_at == NOW
 
 
-class TestNeedsLinkCheck:
-    def test_same_company_and_deal_do_not_need_a_link_check(self) -> None:
-        meeting = make_meeting(company="한빛파트너스", deal_code=make_deal_code("A001"))
+class TestNeedsCompanyCheck:
+    def test_needs_company_check_ignores_case(self) -> None:
+        meeting = make_meeting(company="Hanbit Partners")
 
-        assert not meeting.needs_link_check(make_subject("한빛파트너스", make_deal_code("A001")))
+        assert not meeting.needs_company_check("HANBIT partners")
 
-    def test_a_company_that_differs_only_in_case_does_not_need_a_link_check(self) -> None:
-        meeting = make_meeting(company="Hanbit Partners", deal_code=make_deal_code("A001"))
+    def test_the_same_spelling_does_not_need_a_company_check(self) -> None:
+        meeting = make_meeting(company="한빛파트너스")
 
-        assert not meeting.needs_link_check(make_subject("HANBIT partners", make_deal_code("A001")))
+        assert not meeting.needs_company_check("한빛파트너스")
 
-    def test_a_different_company_needs_a_link_check(self) -> None:
-        meeting = make_meeting(company="한빛파트너스", deal_code=make_deal_code("A001"))
+    def test_needs_company_check_is_true_for_another_company(self) -> None:
+        meeting = make_meeting(company="한빛파트너스")
 
-        assert meeting.needs_link_check(make_subject("다른파트너", make_deal_code("A001")))
-
-    def test_a_different_deal_needs_a_link_check(self) -> None:
-        meeting = make_meeting(company="한빛파트너스", deal_code=make_deal_code("A001"))
-
-        assert meeting.needs_link_check(make_subject("한빛파트너스", make_deal_code("A002")))
+        assert meeting.needs_company_check("다른파트너")
 
 
 class TestPermissions:

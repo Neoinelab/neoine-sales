@@ -3,14 +3,13 @@
 유스케이스 모듈은 사용 시점에 가져온다. FakeUseCases는 미팅과 무관한 테스트도 쓰므로, 모듈 수준
 import는 구현이 없는 동안 그 테스트의 수집까지 막는다. 메서드 이름은 web의 `UseCaseProvider`
 계약이다: register_partner_meetings, update_partner_meeting, delete_partner_meeting,
-list_partner_meetings, list_partner_deal_choices.
+list_partner_meetings.
 """
 
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from app.application.partner_meeting.delete_partner_meeting import DeletePartnerMeeting
-    from app.application.partner_meeting.list_partner_deal_choices import ListPartnerDealChoices
     from app.application.partner_meeting.list_partner_meetings import ListPartnerMeetings
     from app.application.partner_meeting.register_partner_meetings import RegisterPartnerMeetings
     from app.application.partner_meeting.update_partner_meeting import UpdatePartnerMeeting
@@ -53,10 +52,3 @@ class PartnerMeetingUseCases:
         )
 
         return ListPartnerMeetings(self._meeting_uow_factory())
-
-    def list_partner_deal_choices(self) -> ListPartnerDealChoices:
-        from app.application.partner_meeting.list_partner_deal_choices import (  # noqa: PLC0415
-            ListPartnerDealChoices,
-        )
-
-        return ListPartnerDealChoices(self._meeting_uow_factory())

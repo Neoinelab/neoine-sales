@@ -67,7 +67,6 @@ from app.application.forecast.get_snapshot_summary import GetForecastSnapshotSum
 from app.application.forecast.get_summary import GetForecastSummary
 from app.application.forecast.list_snapshots import ListForecastSnapshots
 from app.application.partner_meeting.delete_partner_meeting import DeletePartnerMeeting
-from app.application.partner_meeting.list_partner_deal_choices import ListPartnerDealChoices
 from app.application.partner_meeting.list_partner_meetings import ListPartnerMeetings
 from app.application.partner_meeting.register_partner_meetings import RegisterPartnerMeetings
 from app.application.partner_meeting.update_partner_meeting import UpdatePartnerMeeting
@@ -208,7 +207,6 @@ class UseCaseProvider(Protocol):
     def update_partner_meeting(self) -> UpdatePartnerMeeting: ...
     def delete_partner_meeting(self) -> DeletePartnerMeeting: ...
     def list_partner_meetings(self) -> ListPartnerMeetings: ...
-    def list_partner_deal_choices(self) -> ListPartnerDealChoices: ...
 
     async def check_ready(self) -> None:
         """의존 자원(DB 등)이 요청을 받을 수 있는지 확인한다. 안 되면 예외를 던진다."""

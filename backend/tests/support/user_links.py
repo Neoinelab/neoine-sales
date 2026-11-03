@@ -203,24 +203,7 @@ async def _create_report_link(uow: UnitOfWork, user: User, kind: str) -> None:
 
 
 async def _create_meeting_link(uow: UnitOfWork, user: User) -> None:
-    """user가 작성한 파트너 미팅 기록(파트너가 연결된 Deal은 보조 사용자가 담당한다)."""
-    from tests.factories_contact import (  # noqa: PLC0415 - 연락처 구현 지연 import
-        make_customer,
-        make_partner,
-    )
+    """user가 작성한 파트너 미팅 기록(미팅은 Deal과 연결되지 않는다)."""
     from tests.factories_partner_meeting import make_meeting  # noqa: PLC0415
 
-    helper = await _helper_user(uow)
-    customer, partner = make_customer(), make_partner()
-    await uow.contacts.add(customer)
-    await uow.contacts.add(partner)
-    deal = make_deal(
-        code=f"20261016-{uuid4().hex[:4].upper()}",
-        customer_id=customer.id,
-        partner_id=partner.id,
-        owner_user_id=helper.id,
-    )
-    await uow.deals.add(deal)
-    await uow.partner_meetings.add(
-        make_meeting(deal_code=deal.id, company=partner.details.company, author=user.id)
-    )
+    await uow.partner_meetings.add(make_meeting(author=user.id))

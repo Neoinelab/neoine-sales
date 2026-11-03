@@ -1,32 +1,39 @@
-"""Deal 삭제 영향 응답의 partner_meeting_count(AC18): 필수 필드이고 그 Deal의 미팅 건수다."""
+"""Deal 삭제 영향 응답(AC7): 세 건수뿐이다. 파트너 미팅 건수는 없다."""
 
 from app.domain.auth.principal import Role
+from tests.factories import make_deal, make_deal_code
+from tests.factories_contact import make_customer
 from tests.fakes.use_cases import FakeUseCases
-from tests.unit.web.partner_meeting_http import clients, item, seed_deals
+from tests.unit.web.partner_meeting_http import URL, clients, item, post_one, seed_partners
 
-IMPACT_KEYS = {"history_count", "action_count", "attachment_count", "partner_meeting_count"}
+IMPACT_KEYS = {"history_count", "action_count", "attachment_count"}
 
 
-async def test_the_deletion_impact_counts_the_partner_meetings_of_that_deal() -> None:
+async def _deal(use_cases: FakeUseCases) -> str:
+    code = make_deal_code("W001")
+    customer = make_customer()
+    await use_cases.uow.contacts.add(customer)
+    await use_cases.uow.deals.add(make_deal(code=code, customer_id=customer.id))
+    return code.value
+
+
+async def test_deletion_impact_response_has_three_counts() -> None:
     use_cases = FakeUseCases()
-    erp, mes = await seed_deals(use_cases, "ERP", "MES")
+    code = await _deal(use_cases)
     async with clients(use_cases, {"kim": Role.SALES}) as c:
-        await c["kim"].post(
-            "/api/v1/partner-meetings", json={"items": [item(erp), item(erp), item(mes)]}
-        )
-        first = await c["kim"].get(f"/api/v1/deals/{erp}/deletion-impact")
-        second = await c["kim"].get(f"/api/v1/deals/{mes}/deletion-impact")
+        response = await c["kim"].get(f"/api/v1/deals/{code}/deletion-impact")
 
-    assert first.status_code == 200, first.text
-    assert set(first.json()) == IMPACT_KEYS
-    assert first.json()["partner_meeting_count"] == 2
-    assert second.json()["partner_meeting_count"] == 1
+    assert response.status_code == 200, response.text
+    assert set(response.json()) == IMPACT_KEYS
 
 
-async def test_a_deal_without_meetings_has_a_zero_count() -> None:
+async def test_recorded_meetings_do_not_appear_in_the_deletion_impact() -> None:
     use_cases = FakeUseCases()
-    (erp,) = await seed_deals(use_cases, "ERP")
+    code = await _deal(use_cases)
+    await seed_partners(use_cases)
     async with clients(use_cases, {"kim": Role.SALES}) as c:
-        response = await c["kim"].get(f"/api/v1/deals/{erp}/deletion-impact")
+        await post_one(c["kim"])
+        await c["kim"].post(URL, json={"items": [item(), item()]})
+        response = await c["kim"].get(f"/api/v1/deals/{code}/deletion-impact")
 
-    assert response.json()["partner_meeting_count"] == 0
+    assert set(response.json()) == IMPACT_KEYS

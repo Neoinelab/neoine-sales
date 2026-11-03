@@ -1,10 +1,10 @@
 """Feature: 파트너 미팅 기록을 항목별 조건(AND)으로 검색한다.
 
-조건은 파트너·Deal(이름 또는 code)·미팅 날짜 시작/끝·미팅 내용·작성자다. 텍스트는 대소문자 무시 부분
+조건은 파트너·미팅 날짜 시작/끝·미팅 내용·작성자다(Deal 조건은 없다). 텍스트는 대소문자 무시 부분
 일치이고 `%`·`_`·`\\`는 글자 그대로다. 미팅 날짜는 양끝을 포함한다. 시작이 끝보다 늦으면 422다.
 """
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import pytest
 
@@ -14,7 +14,7 @@ from tests.functional.steps.partner_meetings import (
     DATE_RANGE_REVERSED,
     given_meeting,
     given_meeting_by,
-    given_partner_deal,
+    given_partner,
     then_contents_are,
     then_page_is,
     when_list_meetings,
@@ -27,34 +27,32 @@ if TYPE_CHECKING:
 pytestmark = pytest.mark.integration
 
 
-async def _given_three_meetings(
-    api: Api,
-) -> tuple[dict[str, Any], dict[str, Any], Session, Session]:
-    """ERP(에이컴퍼니)·MES(비컴퍼니) Deal에 kim·park의 미팅 세 건. admin 로그인 상태로 끝난다."""
+async def _given_three_meetings(api: Api) -> tuple[Session, Session]:
+    """에이컴퍼니·비컴퍼니에 kim·park의 미팅 세 건. admin 로그인 상태로 끝난다."""
     await given_logged_in_as(api)
-    erp = await given_partner_deal(api, name="ERP 구축", company="에이컴퍼니", contact="가나다")
-    mes = await given_partner_deal(api, name="MES 도입", company="비컴퍼니", contact="라마바")
+    await given_partner(api, company="에이컴퍼니", contact="가나다")
+    await given_partner(api, company="비컴퍼니", contact="라마바")
     kim = await given_signed_in_session(api, login_id="kim", role="sales")
     park = await given_signed_in_session(api, login_id="park", role="sales")
     await given_meeting_by(
-        api, kim, erp["code"], company="에이컴퍼니", content="견적 전달", meeting_date="2027-03-01"
+        api, kim, company="에이컴퍼니", content="견적 전달", meeting_date="2027-03-01"
     )
     await given_meeting_by(
-        api, park, erp["code"], company="에이컴퍼니", content="계약 논의", meeting_date="2027-03-10"
+        api, park, company="에이컴퍼니", content="계약 논의", meeting_date="2027-03-10"
     )
     await given_meeting_by(
-        api, kim, mes["code"], company="비컴퍼니", content="견적 재협상", meeting_date="2027-03-20"
+        api, kim, company="비컴퍼니", content="견적 재협상", meeting_date="2027-03-20"
     )
-    return erp, mes, kim, park
+    return kim, park
 
 
 async def test_the_content_filter_is_a_case_insensitive_substring(api: Api) -> None:
     """Scenario: 미팅 내용 일부로 찾는다."""
     # Given
     await given_logged_in_as(api)
-    deal = await given_partner_deal(api)
-    await given_meeting(api, deal["code"], content="Quote 전달", meeting_date="2027-03-01")
-    await given_meeting(api, deal["code"], content="계약 논의", meeting_date="2027-03-02")
+    await given_partner(api)
+    await given_meeting(api, content="Quote 전달", meeting_date="2027-03-01")
+    await given_meeting(api, content="계약 논의", meeting_date="2027-03-02")
     # When
     response = await when_list_meetings(api, content="QUOTE")
     # Then
@@ -72,17 +70,14 @@ async def test_the_partner_filter_matches_the_company_text(api: Api) -> None:
     then_contents_are(response, ["계약 논의", "견적 전달"])
 
 
-async def test_the_deal_filter_matches_the_name_or_the_code(api: Api) -> None:
-    """Scenario: Deal 이름 일부 또는 Deal code로 찾는다(대소문자 무시)."""
+async def test_searching_by_deal_is_rejected(api: Api) -> None:
+    """Scenario: Deal 조건으로 검색하면 request-validation 오류다."""
     # Given
-    erp, mes, _kim, _park = await _given_three_meetings(api)
+    await _given_three_meetings(api)
     # When
-    by_name = await when_list_meetings(api, deal="mes")
-    by_code = await when_list_meetings(api, deal=str(erp["code"]).lower())
+    response = await when_list_meetings(api, deal="ERP")
     # Then
-    then_contents_are(by_name, ["견적 재협상"])
-    then_contents_are(by_code, ["계약 논의", "견적 전달"])
-    assert mes["code"] != erp["code"]
+    then_problem_is(response, status=422, type_suffix="request-validation")
 
 
 async def test_the_author_filter_shows_only_that_users_records(api: Api) -> None:
@@ -129,10 +124,10 @@ async def test_like_special_characters_are_searched_literally(api: Api, special:
     """Scenario: %, _, \\는 와일드카드가 아니라 글자 그대로 찾는다."""
     # Given
     await given_logged_in_as(api)
-    deal = await given_partner_deal(api)
-    await given_meeting(api, deal["code"], content=f"할인 10{special}", meeting_date="2027-03-01")
-    await given_meeting(api, deal["code"], content="할인 100", meeting_date="2027-03-02")
-    await given_meeting(api, deal["code"], content="할인 10X", meeting_date="2027-03-03")
+    await given_partner(api)
+    await given_meeting(api, content=f"할인 10{special}", meeting_date="2027-03-01")
+    await given_meeting(api, content="할인 100", meeting_date="2027-03-02")
+    await given_meeting(api, content="할인 10X", meeting_date="2027-03-03")
     # When
     response = await when_list_meetings(api, content=f"10{special}")
     # Then
@@ -144,7 +139,7 @@ async def test_blank_text_filters_are_ignored(api: Api) -> None:
     # Given
     await _given_three_meetings(api)
     # When
-    response = await when_list_meetings(api, content="   ", partner=" ", deal="")
+    response = await when_list_meetings(api, content="   ", partner=" ")
     # Then
     then_page_is(response, total=3, offset=0, limit=10)
 

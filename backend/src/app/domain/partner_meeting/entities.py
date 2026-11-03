@@ -13,7 +13,7 @@ if TYPE_CHECKING:
     from datetime import date, datetime
 
     from app.domain.auth.principal import Role
-    from app.domain.partner_meeting.values import MeetingContent, MeetingSubject
+    from app.domain.partner_meeting.values import MeetingContent
     from app.domain.user.value_objects import UserId
 
 
@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 class PartnerMeeting(AuditedEntity[PartnerMeetingId]):
     """파트너 회사와 가진 미팅 한 건. 작성자와 등록 시각은 바뀌지 않는다."""
 
-    subject: MeetingSubject
+    partner_company: str
     meeting_date: date
     content: MeetingContent
     author_user_id: UserId
@@ -31,7 +31,7 @@ class PartnerMeeting(AuditedEntity[PartnerMeetingId]):
         cls,
         *,
         entity_id: PartnerMeetingId,
-        subject: MeetingSubject,
+        partner_company: str,
         meeting_date: date,
         content: MeetingContent,
         author_user_id: UserId,
@@ -39,7 +39,7 @@ class PartnerMeeting(AuditedEntity[PartnerMeetingId]):
     ) -> Self:
         return cls(
             id=entity_id,
-            subject=subject,
+            partner_company=partner_company,
             meeting_date=meeting_date,
             content=content,
             author_user_id=author_user_id,
@@ -50,27 +50,27 @@ class PartnerMeeting(AuditedEntity[PartnerMeetingId]):
     def revise(
         self,
         *,
-        subject: MeetingSubject,
+        partner_company: str,
         meeting_date: date,
         content: MeetingContent,
         now: datetime,
     ) -> bool:
         """값을 바꾼다. 모두 같으면 아무것도 바꾸지 않고 False."""
         if (
-            subject == self.subject
+            partner_company == self.partner_company
             and meeting_date == self.meeting_date
             and content == self.content
         ):
             return False
-        self.subject = subject
+        self.partner_company = partner_company
         self.meeting_date = meeting_date
         self.content = content
         self._touch(now)
         return True
 
-    def needs_link_check(self, subject: MeetingSubject) -> bool:
-        """회사나 Deal이 바뀌었을 때만 Deal 연결을 다시 확인한다."""
-        return not self.subject.same_as(subject)
+    def needs_company_check(self, raw_company: str) -> bool:
+        """회사가 (대소문자 무시로) 바뀌었을 때만 회사 목록을 다시 확인한다."""
+        return raw_company.lower() != self.partner_company.lower()
 
     def ensure_editable_by(self, user_id: UserId, role: Role) -> None:
         if not can_edit_meeting(user_id, role, self.author_user_id):

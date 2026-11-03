@@ -1,4 +1,4 @@
-"""파트너 미팅 라우터(AC1·3·12·14~17): FakeUseCases 위의 HTTP 계약.
+"""파트너 미팅 라우터(AC1·AC3·AC4·AC6·AC12): FakeUseCases 위의 HTTP 계약.
 
 DB 없이 라우터·스키마·오류 매핑·응답 모양을 확인한다. 실제 DB를 지나는 시나리오는 functional
 (partner_meetings/)이 맡는다.
@@ -19,12 +19,12 @@ from tests.unit.web.partner_meeting_http import (
     item,
     post_one,
     problem,
-    seed_deals,
+    seed_partners,
 )
 
 SALES = {"kim": Role.SALES}
 DATE_RANGE_REVERSED = "미팅 날짜 범위의 시작은 끝보다 늦을 수 없습니다."
-NOT_LINKED = "선택한 파트너와 연결된 Deal이 아닙니다."
+NOT_REGISTERED = "등록된 파트너 회사가 아닙니다. 목록에서 다시 선택하세요."
 
 
 # ---- 만들기 (AC12) ----
@@ -32,14 +32,14 @@ NOT_LINKED = "선택한 파트너와 연결된 Deal이 아닙니다."
 
 async def test_create_returns_201_with_items_in_input_order_and_no_location() -> None:
     use_cases = FakeUseCases()
-    (erp, mes) = await seed_deals(use_cases, "ERP", "MES")
+    await seed_partners(use_cases)
     async with clients(use_cases, SALES) as c:
         response = await c["kim"].post(
             URL,
             json={
                 "items": [
-                    item(erp, content="첫째", meeting_date="2026-10-03"),
-                    item(mes, content="둘째", meeting_date="2026-10-02"),
+                    item(content="첫째", meeting_date="2026-10-03"),
+                    item(content="둘째", meeting_date="2026-10-02"),
                 ]
             },
         )
@@ -49,17 +49,14 @@ async def test_create_returns_201_with_items_in_input_order_and_no_location() ->
     body = response.json()
     assert set(body) == {"items"}
     assert [i["content"] for i in body["items"]] == ["첫째", "둘째"]
-    assert [i["deal"] for i in body["items"]] == [
-        {"code": erp, "name": "ERP"},
-        {"code": mes, "name": "MES"},
-    ]
+    assert all("deal" not in i for i in body["items"])
 
 
 async def test_created_item_has_the_documented_fields() -> None:
     use_cases = FakeUseCases()
-    (erp,) = await seed_deals(use_cases, "ERP")
+    await seed_partners(use_cases)
     async with clients(use_cases, SALES) as c:
-        created = await post_one(c["kim"], erp, content=" 계약 논의\n다음 주 ")
+        created = await post_one(c["kim"], content=" 계약 논의\n다음 주 ")
 
     assert set(created) == DETAIL_KEYS
     assert created["partner_company"] == HANBIT
@@ -71,9 +68,9 @@ async def test_created_item_has_the_documented_fields() -> None:
 
 async def test_created_times_use_the_server_offset_not_z() -> None:
     use_cases = FakeUseCases()
-    (erp,) = await seed_deals(use_cases, "ERP")
+    await seed_partners(use_cases)
     async with clients(use_cases, SALES) as c:
-        created = await post_one(c["kim"], erp)
+        created = await post_one(c["kim"])
 
     for field in ("created_at", "updated_at"):
         assert not created[field].endswith("Z"), field
@@ -81,19 +78,19 @@ async def test_created_times_use_the_server_offset_not_z() -> None:
 
 async def test_a_future_meeting_date_is_accepted() -> None:
     use_cases = FakeUseCases()
-    (erp,) = await seed_deals(use_cases, "ERP")
+    await seed_partners(use_cases)
     async with clients(use_cases, SALES) as c:
-        created = await post_one(c["kim"], erp, meeting_date="2999-12-31")
+        created = await post_one(c["kim"], meeting_date="2999-12-31")
 
     assert created["meeting_date"] == "2999-12-31"
 
 
 async def test_fifty_items_are_accepted_and_fifty_one_are_not() -> None:
     use_cases = FakeUseCases()
-    (erp,) = await seed_deals(use_cases, "ERP")
+    await seed_partners(use_cases)
     async with clients(use_cases, SALES) as c:
-        ok = await c["kim"].post(URL, json={"items": [item(erp) for _ in range(50)]})
-        too_many = await c["kim"].post(URL, json={"items": [item(erp) for _ in range(51)]})
+        ok = await c["kim"].post(URL, json={"items": [item() for _ in range(50)]})
+        too_many = await c["kim"].post(URL, json={"items": [item() for _ in range(51)]})
         listed = await c["kim"].get(URL, params={"limit": 200})
 
     assert ok.status_code == 201, ok.text
@@ -118,11 +115,11 @@ async def test_a_malformed_body_is_a_request_validation_error(body: Any) -> None
 
 async def test_a_missing_item_field_reports_the_index_in_the_location() -> None:
     use_cases = FakeUseCases()
-    (erp,) = await seed_deals(use_cases, "ERP")
-    broken = item(erp)
+    await seed_partners(use_cases)
+    broken = item()
     del broken["content"]
     async with clients(use_cases, SALES) as c:
-        response = await c["kim"].post(URL, json={"items": [item(erp), broken]})
+        response = await c["kim"].post(URL, json={"items": [item(), broken]})
 
     body = problem(response, 422, "request-validation")
     assert ["body", "items", 1, "content"] in [e["loc"] for e in body["errors"]]
@@ -132,7 +129,6 @@ async def test_a_missing_item_field_reports_the_index_in_the_location() -> None:
     "overrides",
     [
         {"partner_company": "가" * 201},
-        {"deal_code": "x" * 51},
         {"meeting_date": "2026/10/01"},
         {"meeting_date": "not-a-date"},
         {"meeting_date": None},
@@ -143,20 +139,19 @@ async def test_a_missing_item_field_reports_the_index_in_the_location() -> None:
 )
 async def test_invalid_item_fields_are_request_validation_errors(overrides: dict[str, Any]) -> None:
     use_cases = FakeUseCases()
-    (erp,) = await seed_deals(use_cases, "ERP")
+    await seed_partners(use_cases)
     async with clients(use_cases, SALES) as c:
-        response = await c["kim"].post(URL, json={"items": [item(erp, **overrides)]})
+        response = await c["kim"].post(URL, json={"items": [item(**overrides)]})
 
     problem(response, 422, "request-validation")
 
 
 async def test_domain_violations_map_to_invalid_value_with_error_locations() -> None:
     use_cases = FakeUseCases()
-    (erp,) = await seed_deals(use_cases, "ERP")
-    (foreign,) = await seed_deals(use_cases, "타사", company="다른파트너")
+    await seed_partners(use_cases)
     async with clients(use_cases, SALES) as c:
         response = await c["kim"].post(
-            URL, json={"items": [item(erp), item(foreign), item(erp, content="  ")]}
+            URL, json={"items": [item(), item(partner_company="없는회사"), item(content="  ")]}
         )
         listed = await c["kim"].get(URL)
 
@@ -164,9 +159,9 @@ async def test_domain_violations_map_to_invalid_value_with_error_locations() -> 
     assert body["title"] == "Invalid Value"
     assert body["status"] == 422
     assert body["instance"] == URL
-    assert body["detail"] == NOT_LINKED
+    assert body["detail"] == NOT_REGISTERED
     assert body["errors"] == [
-        {"location": ["items", 1, "deal_code"], "message": NOT_LINKED},
+        {"location": ["items", 1, "partner_company"], "message": NOT_REGISTERED},
         {"location": ["items", 2, "content"], "message": "미팅 내용을 입력하세요."},
     ]
     assert listed.json()["total"] == 0  # 아무것도 저장되지 않았다
@@ -175,18 +170,17 @@ async def test_domain_violations_map_to_invalid_value_with_error_locations() -> 
 # ---- 목록 (AC1·3) ----
 
 
-async def _twelve(use_cases: FakeUseCases, http: Any) -> str:  # noqa: ANN401
-    (erp,) = await seed_deals(use_cases, "ERP")
+async def _twelve(use_cases: FakeUseCases, http: Any) -> None:  # noqa: ANN401
+    await seed_partners(use_cases)
     await http.post(
         URL,
         json={
             "items": [
-                item(erp, meeting_date=f"2026-10-{day:02d}", content=f"기록 {day}")
+                item(meeting_date=f"2026-10-{day:02d}", content=f"기록 {day}")
                 for day in range(1, 13)
             ]
         },
     )
-    return erp
 
 
 async def test_list_defaults_to_ten_items_newest_meeting_date_first() -> None:
@@ -229,28 +223,42 @@ async def test_list_limit_allows_up_to_200() -> None:
 
 async def test_list_params_map_to_the_query() -> None:
     use_cases = FakeUseCases()
-    (erp, mes) = await seed_deals(use_cases, "ERP", "MES")
+    await seed_partners(use_cases, HANBIT, "AcmeCorp")
     async with clients(use_cases, {"kim": Role.SALES, "park": Role.SALES}) as c:
-        await post_one(c["kim"], erp, content="견적 ERP", meeting_date="2026-10-01")
-        await post_one(c["park"], mes, content="계약 MES", meeting_date="2026-10-05")
+        await post_one(c["kim"], content="견적 한빛", meeting_date="2026-10-01")
+        await post_one(
+            c["park"], content="계약 Acme", meeting_date="2026-10-05", partner_company="AcmeCorp"
+        )
         park_id = (await c["park"].get(URL)).json()["items"][0]["author"]["id"]
         by_content = await c["kim"].get(URL, params={"content": "견적"})
-        by_deal = await c["kim"].get(URL, params={"deal": "mes"})
-        by_partner = await c["kim"].get(URL, params={"partner": "한빛"})
+        by_partner = await c["kim"].get(URL, params={"partner": "acme"})
         by_range = await c["kim"].get(
             URL, params={"date_from": "2026-10-02", "date_to": "2026-10-31"}
         )
         by_author = await c["kim"].get(URL, params={"author_user_id": park_id})
         ascending = await c["kim"].get(URL, params={"sort": "meeting_date", "order": "asc"})
-        by_deal_sort = await c["kim"].get(URL, params={"sort": "deal", "order": "desc"})
+        by_partner_sort = await c["kim"].get(URL, params={"sort": "partner", "order": "asc"})
 
-    assert [i["content"] for i in by_content.json()["items"]] == ["견적 ERP"]
-    assert [i["content"] for i in by_deal.json()["items"]] == ["계약 MES"]
-    assert by_partner.json()["total"] == 2
-    assert [i["content"] for i in by_range.json()["items"]] == ["계약 MES"]
-    assert [i["content"] for i in by_author.json()["items"]] == ["계약 MES"]
-    assert [i["content"] for i in ascending.json()["items"]] == ["견적 ERP", "계약 MES"]
-    assert [i["content"] for i in by_deal_sort.json()["items"]] == ["계약 MES", "견적 ERP"]
+    assert [i["content"] for i in by_content.json()["items"]] == ["견적 한빛"]
+    assert [i["content"] for i in by_partner.json()["items"]] == ["계약 Acme"]
+    assert [i["content"] for i in by_range.json()["items"]] == ["계약 Acme"]
+    assert [i["content"] for i in by_author.json()["items"]] == ["계약 Acme"]
+    assert [i["content"] for i in ascending.json()["items"]] == ["견적 한빛", "계약 Acme"]
+    assert [i["content"] for i in by_partner_sort.json()["items"]] == ["계약 Acme", "견적 한빛"]
+
+
+async def test_list_with_deal_parameter_is_422() -> None:
+    async with clients(FakeUseCases(), SALES) as c:
+        response = await c["kim"].get(URL, params={"deal": "erp"})
+
+    problem(response, 422, "request-validation")
+
+
+async def test_list_with_sort_deal_is_422() -> None:
+    async with clients(FakeUseCases(), SALES) as c:
+        response = await c["kim"].get(URL, params={"sort": "deal"})
+
+    problem(response, 422, "request-validation")
 
 
 @pytest.mark.parametrize(
@@ -266,7 +274,6 @@ async def test_list_params_map_to_the_query() -> None:
         {"date_to": "x"},
         {"content": "가" * 101},
         {"partner": "가" * 201},
-        {"deal": "가" * 201},
         {"author_user_id": "abc"},
         {"author_user_id": 0},
         {"author_user_id": MAX_ID + 1},
@@ -299,7 +306,7 @@ async def test_blank_text_filters_are_ignored() -> None:
     use_cases = FakeUseCases()
     async with clients(use_cases, SALES) as c:
         await _twelve(use_cases, c["kim"])
-        response = await c["kim"].get(URL, params={"content": "   ", "partner": "", "deal": " "})
+        response = await c["kim"].get(URL, params={"content": "   ", "partner": ""})
 
     assert response.json()["total"] == 12
 
@@ -309,12 +316,12 @@ async def test_blank_text_filters_are_ignored() -> None:
 
 async def test_update_returns_the_changed_record() -> None:
     use_cases = FakeUseCases()
-    (erp,) = await seed_deals(use_cases, "ERP")
+    await seed_partners(use_cases)
     async with clients(use_cases, SALES) as c:
-        created = await post_one(c["kim"], erp)
+        created = await post_one(c["kim"])
         response = await c["kim"].put(
             f"{URL}/{created['id']}",
-            json=item(erp, content="수정한 내용", meeting_date="2026-11-30"),
+            json=item(content="수정한 내용", meeting_date="2026-11-30"),
         )
 
     assert response.status_code == 200, response.text
@@ -330,10 +337,10 @@ async def test_update_returns_the_changed_record() -> None:
 
 async def test_update_domain_violation_has_a_field_only_location() -> None:
     use_cases = FakeUseCases()
-    (erp,) = await seed_deals(use_cases, "ERP")
+    await seed_partners(use_cases)
     async with clients(use_cases, SALES) as c:
-        created = await post_one(c["kim"], erp)
-        response = await c["kim"].put(f"{URL}/{created['id']}", json=item(erp, content=" "))
+        created = await post_one(c["kim"])
+        response = await c["kim"].put(f"{URL}/{created['id']}", json=item(content=" "))
 
     body = problem(response, 422, "invalid-value")
     assert body["instance"] == f"{URL}/{created['id']}"
@@ -342,19 +349,19 @@ async def test_update_domain_violation_has_a_field_only_location() -> None:
 
 async def test_update_of_a_missing_record_is_404_with_the_message() -> None:
     use_cases = FakeUseCases()
-    (erp,) = await seed_deals(use_cases, "ERP")
+    await seed_partners(use_cases)
     async with clients(use_cases, SALES) as c:
-        response = await c["kim"].put(f"{URL}/{MISSING_ID}", json=item(erp))
+        response = await c["kim"].put(f"{URL}/{MISSING_ID}", json=item())
 
     assert problem(response, 404, "not-found")["detail"] == "미팅 기록을 찾을 수 없습니다."
 
 
 async def test_update_by_another_sales_is_403_with_the_message_and_changes_nothing() -> None:
     use_cases = FakeUseCases()
-    (erp,) = await seed_deals(use_cases, "ERP")
+    await seed_partners(use_cases)
     async with clients(use_cases, {"kim": Role.SALES, "park": Role.SALES}) as c:
-        created = await post_one(c["kim"], erp)
-        response = await c["park"].put(f"{URL}/{created['id']}", json=item(erp, content="가로채기"))
+        created = await post_one(c["kim"])
+        response = await c["park"].put(f"{URL}/{created['id']}", json=item(content="가로채기"))
         after = await c["kim"].get(URL)
 
     assert (
@@ -366,12 +373,10 @@ async def test_update_by_another_sales_is_403_with_the_message_and_changes_nothi
 
 async def test_admin_may_update_anyones_record() -> None:
     use_cases = FakeUseCases()
-    (erp,) = await seed_deals(use_cases, "ERP")
+    await seed_partners(use_cases)
     async with clients(use_cases, {"kim": Role.SALES, "root": Role.ADMIN}) as c:
-        created = await post_one(c["kim"], erp)
-        response = await c["root"].put(
-            f"{URL}/{created['id']}", json=item(erp, content="관리자 수정")
-        )
+        created = await post_one(c["kim"])
+        response = await c["root"].put(f"{URL}/{created['id']}", json=item(content="관리자 수정"))
 
     assert response.status_code == 200, response.text
     assert response.json()["content"] == "관리자 수정"
@@ -382,10 +387,10 @@ async def test_update_with_a_malformed_body_is_a_request_validation_error(
     overrides: dict[str, Any],
 ) -> None:
     use_cases = FakeUseCases()
-    (erp,) = await seed_deals(use_cases, "ERP")
+    await seed_partners(use_cases)
     async with clients(use_cases, SALES) as c:
-        created = await post_one(c["kim"], erp)
-        response = await c["kim"].put(f"{URL}/{created['id']}", json=item(erp, **overrides))
+        created = await post_one(c["kim"])
+        response = await c["kim"].put(f"{URL}/{created['id']}", json=item(**overrides))
 
     problem(response, 422, "request-validation")
 
@@ -395,9 +400,9 @@ async def test_update_with_a_malformed_body_is_a_request_validation_error(
 
 async def test_delete_returns_204_and_the_record_disappears() -> None:
     use_cases = FakeUseCases()
-    (erp,) = await seed_deals(use_cases, "ERP")
+    await seed_partners(use_cases)
     async with clients(use_cases, SALES) as c:
-        created = await post_one(c["kim"], erp)
+        created = await post_one(c["kim"])
         response = await c["kim"].delete(f"{URL}/{created['id']}")
         listed = await c["kim"].get(URL)
 
@@ -415,9 +420,9 @@ async def test_delete_of_a_missing_record_is_404() -> None:
 
 async def test_delete_by_another_sales_is_403_with_the_message() -> None:
     use_cases = FakeUseCases()
-    (erp,) = await seed_deals(use_cases, "ERP")
+    await seed_partners(use_cases)
     async with clients(use_cases, {"kim": Role.SALES, "park": Role.SALES}) as c:
-        created = await post_one(c["kim"], erp)
+        created = await post_one(c["kim"])
         response = await c["park"].delete(f"{URL}/{created['id']}")
         after = await c["kim"].get(URL)
 
@@ -435,55 +440,80 @@ async def test_delete_by_another_sales_is_403_with_the_message() -> None:
 @pytest.mark.parametrize("method", ["PUT", "DELETE"])
 async def test_a_bad_path_id_is_a_request_validation_error(method: str, value: str) -> None:
     use_cases = FakeUseCases()
-    (erp,) = await seed_deals(use_cases, "ERP")
+    await seed_partners(use_cases)
     async with clients(use_cases, SALES) as c:
         response = await c["kim"].request(
-            method, f"{URL}/{value}", json=item(erp) if method == "PUT" else None
+            method, f"{URL}/{value}", json=item() if method == "PUT" else None
         )
 
     problem(response, 422, "request-validation")
 
 
-# ---- Deal 선택지 (AC8) ----
+# ---- Deal 연결 제거 (AC1·AC3·AC5·AC6) ----
 
 
-async def test_deal_options_lists_the_company_deals_with_customer_company() -> None:
+async def test_register_item_with_deal_code_is_request_validation_422() -> None:
     use_cases = FakeUseCases()
-    await seed_deals(use_cases, "B 프로젝트", "A 프로젝트")
-    await seed_deals(use_cases, "타사", company="다른파트너")
+    await seed_partners(use_cases)
     async with clients(use_cases, SALES) as c:
-        response = await c["kim"].get(f"{URL}/deal-options", params={"company": HANBIT})
-
-    assert response.status_code == 200, response.text
-    body = response.json()
-    assert set(body) == {"items"}
-    assert [i["name"] for i in body["items"]] == ["A 프로젝트", "B 프로젝트"]
-    assert set(body["items"][0]) == {"code", "name", "customer_company"}
-    assert body["items"][0]["customer_company"] == "네오인"
-
-
-async def test_deal_options_of_an_unknown_company_is_an_empty_list() -> None:
-    use_cases = FakeUseCases()
-    await seed_deals(use_cases, "ERP")
-    async with clients(use_cases, SALES) as c:
-        response = await c["kim"].get(f"{URL}/deal-options", params={"company": "없는회사"})
-
-    assert response.status_code == 200
-    assert response.json() == {"items": []}
-
-
-async def test_deal_options_company_is_matched_case_insensitively() -> None:
-    use_cases = FakeUseCases()
-    await seed_deals(use_cases, "ERP", company="HanbitPartners")
-    async with clients(use_cases, SALES) as c:
-        response = await c["kim"].get(f"{URL}/deal-options", params={"company": "hanbitpartners"})
-
-    assert len(response.json()["items"]) == 1
-
-
-@pytest.mark.parametrize("params", [{}, {"company": "가" * 201}, {"company": "x", "extra": "1"}])
-async def test_deal_options_requires_a_bounded_company(params: dict[str, Any]) -> None:
-    async with clients(FakeUseCases(), SALES) as c:
-        response = await c["kim"].get(f"{URL}/deal-options", params=params)
+        response = await c["kim"].post(
+            URL, json={"items": [item(), {**item(), "deal_code": "20261016-A001"}]}
+        )
+        listed = await c["kim"].get(URL)
 
     problem(response, 422, "request-validation")
+    assert listed.json()["total"] == 0  # 아무것도 저장되지 않았다
+
+
+async def test_update_body_with_deal_code_is_request_validation_422() -> None:
+    use_cases = FakeUseCases()
+    await seed_partners(use_cases)
+    async with clients(use_cases, SALES) as c:
+        created = await post_one(c["kim"])
+        response = await c["kim"].put(
+            f"{URL}/{created['id']}", json={**item(), "deal_code": "20261016-A001"}
+        )
+
+    problem(response, 422, "request-validation")
+
+
+async def test_meeting_response_has_no_deal_key() -> None:
+    use_cases = FakeUseCases()
+    await seed_partners(use_cases)
+    async with clients(use_cases, SALES) as c:
+        created = await post_one(c["kim"])
+        listed = await c["kim"].get(URL)
+        updated = await c["kim"].put(f"{URL}/{created['id']}", json=item(content="수정"))
+
+    assert "deal" not in created
+    assert all("deal" not in i for i in listed.json()["items"])
+    assert "deal" not in updated.json()
+
+
+async def test_a_partner_company_without_any_deal_can_be_recorded() -> None:
+    use_cases = FakeUseCases()
+    await seed_partners(use_cases, "Deal없는파트너")  # Deal은 하나도 없다
+    async with clients(use_cases, SALES) as c:
+        created = await post_one(c["kim"], partner_company="deal없는파트너")
+
+    assert created["partner_company"] == "Deal없는파트너"
+
+
+async def test_update_changing_to_an_unknown_company_has_the_company_location() -> None:
+    use_cases = FakeUseCases()
+    await seed_partners(use_cases)
+    async with clients(use_cases, SALES) as c:
+        created = await post_one(c["kim"])
+        response = await c["kim"].put(
+            f"{URL}/{created['id']}", json=item(partner_company="없는회사")
+        )
+
+    body = problem(response, 422, "invalid-value")
+    assert body["errors"] == [{"location": ["partner_company"], "message": NOT_REGISTERED}]
+
+
+async def test_deal_options_path_no_longer_serves_get() -> None:
+    async with clients(FakeUseCases(), SALES) as c:
+        response = await c["kim"].get(f"{URL}/deal-options", params={"company": HANBIT})
+
+    assert response.status_code == 405  # `/{meeting_id}`에는 PUT·DELETE만 있다

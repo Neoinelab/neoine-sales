@@ -2173,45 +2173,6 @@
         "title": "DealDetailResponse",
         "type": "object"
       },
-      "DealOptionResponse": {
-        "properties": {
-          "code": {
-            "title": "Code",
-            "type": "string"
-          },
-          "customer_company": {
-            "title": "Customer Company",
-            "type": "string"
-          },
-          "name": {
-            "title": "Name",
-            "type": "string"
-          }
-        },
-        "required": [
-          "code",
-          "name",
-          "customer_company"
-        ],
-        "title": "DealOptionResponse",
-        "type": "object"
-      },
-      "DealOptionsResponse": {
-        "properties": {
-          "items": {
-            "items": {
-              "$ref": "#/components/schemas/DealOptionResponse"
-            },
-            "title": "Items",
-            "type": "array"
-          }
-        },
-        "required": [
-          "items"
-        ],
-        "title": "DealOptionsResponse",
-        "type": "object"
-      },
       "DealPatchRequest": {
         "additionalProperties": false,
         "description": "수정 본문. 보낸 필드만 반영한다(model_fields_set). partner: null은 활성 파트너 제거다.",
@@ -2620,17 +2581,12 @@
           "history_count": {
             "title": "History Count",
             "type": "integer"
-          },
-          "partner_meeting_count": {
-            "title": "Partner Meeting Count",
-            "type": "integer"
           }
         },
         "required": [
           "history_count",
           "action_count",
-          "attachment_count",
-          "partner_meeting_count"
+          "attachment_count"
         ],
         "title": "DeletionImpactResponse",
         "type": "object"
@@ -3320,34 +3276,11 @@
         "title": "MeetingBatchResponse",
         "type": "object"
       },
-      "MeetingDealResponse": {
-        "properties": {
-          "code": {
-            "title": "Code",
-            "type": "string"
-          },
-          "name": {
-            "title": "Name",
-            "type": "string"
-          }
-        },
-        "required": [
-          "code",
-          "name"
-        ],
-        "title": "MeetingDealResponse",
-        "type": "object"
-      },
       "MeetingItemRequest": {
         "additionalProperties": false,
         "properties": {
           "content": {
             "title": "Content",
-            "type": "string"
-          },
-          "deal_code": {
-            "maxLength": 50,
-            "title": "Deal Code",
             "type": "string"
           },
           "meeting_date": {
@@ -3363,7 +3296,6 @@
         },
         "required": [
           "partner_company",
-          "deal_code",
           "meeting_date",
           "content"
         ],
@@ -3785,9 +3717,6 @@
             "title": "Created At",
             "type": "string"
           },
-          "deal": {
-            "$ref": "#/components/schemas/MeetingDealResponse"
-          },
           "id": {
             "title": "Id",
             "type": "integer"
@@ -3810,7 +3739,6 @@
         "required": [
           "id",
           "partner_company",
-          "deal",
           "meeting_date",
           "content",
           "author",
@@ -3824,7 +3752,6 @@
         "enum": [
           "meeting_date",
           "partner",
-          "deal",
           "content",
           "author"
         ],
@@ -10842,23 +10769,6 @@
           },
           {
             "in": "query",
-            "name": "deal",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "maxLength": 200,
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Deal"
-            }
-          },
-          {
-            "in": "query",
             "name": "content",
             "required": false,
             "schema": {
@@ -11060,59 +10970,6 @@
           }
         },
         "summary": "Register Partner Meetings",
-        "tags": [
-          "partner-meetings"
-        ]
-      }
-    },
-    "/api/v1/partner-meetings/deal-options": {
-      "get": {
-        "operationId": "list_partner_deal_options_api_v1_partner_meetings_deal_options_get",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "company",
-            "required": true,
-            "schema": {
-              "maxLength": 200,
-              "title": "Company",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DealOptionsResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "problem+json"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "problem+json"
-          }
-        },
-        "summary": "List Partner Deal Options",
         "tags": [
           "partner-meetings"
         ]

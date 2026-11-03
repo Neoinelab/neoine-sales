@@ -1,7 +1,8 @@
 """Feature: 운영자는 앱 자체 계정 관리 리비전을 올리고 내려 auth_settings와 users.phone을 둔다.
 
-When: 운영자 명령(alembic upgrade/downgrade). 이 리비전은 AD 설정 개편 리비전 다음이고 head다.
-순수 expand라 기존 행은 그대로이고 `users.phone`은 NULL이다. 재직 admin이나 AD 설정 행이 이미 있는
+When: 운영자 명령(alembic upgrade/downgrade). 이 리비전은 AD 설정 개편 리비전 다음이고
+(뒤에 파트너 미팅 Deal 제거 리비전이 이어진다). 순수 expand라 기존 행은 그대로이고
+`users.phone`은 NULL이다. 재직 admin이나 AD 설정 행이 이미 있는
 시스템은 `auth_settings`에 `ad` 한 행을 심어(AC-14) 올린 뒤에도 지금과 같이 동작하고, 둘 다 없으면
 행이 없다(방식 미선택). 내리면 phone 값과 auth_settings가 사라진다(개발 단계라 허용).
 """
@@ -57,7 +58,7 @@ async def test_upgrade_with_an_active_admin_seeds_the_ad_mode(blank_database: UR
     await given_schema_at(blank_database, directory_service_account_revision())
     await given_rows(blank_database, _admin)
     # When
-    await when_operator_upgrades(blank_database)
+    await when_operator_upgrades(blank_database, target=auth_mode_revision())
     # Then
     await then_schema_is_at(blank_database, auth_mode_revision())
     assert await run_sql(blank_database, "select id, mode from auth_settings") == [(1, "ad")]
@@ -115,14 +116,14 @@ async def test_upgrade_adds_a_null_phone_and_keeps_users_and_other_tables(
     assert {name: await table_structure(blank_database, name) for name in OTHER_TABLES} == before
 
 
-async def test_upgrade_from_empty_to_head_ends_at_the_auth_mode_revision(
+async def test_upgrade_from_empty_to_the_auth_mode_revision_creates_auth_settings(
     blank_database: URL,
 ) -> None:
-    """Scenario: 빈 DB를 head로 올리면 이 리비전에 이르고 auth_settings가 있다."""
+    """Scenario: 빈 DB를 이 리비전까지 올리면 auth_settings가 있다."""
     # Given
     # (마이그레이션이 하나도 적용되지 않은 빈 DB)
     # When
-    await when_operator_upgrades(blank_database)
+    await when_operator_upgrades(blank_database, target=auth_mode_revision())
     # Then
     await then_schema_is_at(blank_database, auth_mode_revision())
     assert "auth_settings" in await table_names(blank_database)

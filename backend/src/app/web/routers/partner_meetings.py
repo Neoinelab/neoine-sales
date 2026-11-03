@@ -1,4 +1,4 @@
-"""파트너 Activity(미팅 기록): 목록·일괄 등록·수정·삭제·Deal 선택지.
+"""파트너 Activity(미팅 기록): 목록·일괄 등록·수정·삭제.
 
 읽기는 모든 역할, 쓰기는 WRITE 권한이다. 수정·삭제의 본인·admin 판정은 도메인이 한다.
 """
@@ -14,9 +14,6 @@ from app.web.permissions import BusinessRouter
 from app.web.routers.responses import PROBLEM, READ_ERRORS
 from app.web.schemas.ids import PathId
 from app.web.schemas.partner_meeting import (
-    DealOptionResponse,
-    DealOptionsParams,
-    DealOptionsResponse,
     MeetingBatchRequest,
     MeetingBatchResponse,
     MeetingItemRequest,
@@ -44,7 +41,7 @@ async def list_partner_meetings(
     params: Annotated[PartnerMeetingSearchParams, Query()], provider: Provider
 ) -> PartnerMeetingPage:
     page = await provider.list_partner_meetings().execute(params.to_query())
-    refs = await resolve_refs(provider, [r.meeting.author_user_id for r in page.items])
+    refs = await resolve_refs(provider, [m.author_user_id for m in page.items])
     return PartnerMeetingPage(
         items=meeting_responses(page.items, refs),
         total=page.total,
@@ -53,32 +50,24 @@ async def list_partner_meetings(
     )
 
 
-@router.get("/deal-options", response_model=DealOptionsResponse, responses=LIST_ERRORS)
-async def list_partner_deal_options(
-    params: Annotated[DealOptionsParams, Query()], provider: Provider
-) -> DealOptionsResponse:
-    choices = await provider.list_partner_deal_choices().execute(params.company)
-    return DealOptionsResponse(items=[DealOptionResponse.from_choice(c) for c in choices])
-
-
 @router.post("", status_code=CREATED, response_model=MeetingBatchResponse, responses=LIST_ERRORS)
 async def register_partner_meetings(
     body: MeetingBatchRequest, user: CurrentUser, provider: Provider
 ) -> MeetingBatchResponse:
-    records = await provider.register_partner_meetings().execute(body.to_inputs(), _actor(user))
-    refs = await resolve_refs(provider, [r.meeting.author_user_id for r in records])
-    return MeetingBatchResponse(items=meeting_responses(records, refs))
+    meetings = await provider.register_partner_meetings().execute(body.to_inputs(), _actor(user))
+    refs = await resolve_refs(provider, [m.author_user_id for m in meetings])
+    return MeetingBatchResponse(items=meeting_responses(meetings, refs))
 
 
 @router.put("/{meeting_id}", response_model=PartnerMeetingResponse, responses=CHANGE_ERRORS)
 async def update_partner_meeting(
     meeting_id: PathId, body: MeetingItemRequest, user: CurrentUser, provider: Provider
 ) -> PartnerMeetingResponse:
-    record = await provider.update_partner_meeting().execute(
+    meeting = await provider.update_partner_meeting().execute(
         PartnerMeetingId(meeting_id), body.to_input(), _actor(user)
     )
-    refs = await resolve_refs(provider, [record.meeting.author_user_id])
-    return PartnerMeetingResponse.from_record(record, refs)
+    refs = await resolve_refs(provider, [meeting.author_user_id])
+    return PartnerMeetingResponse.from_record(meeting, refs)
 
 
 @router.delete(

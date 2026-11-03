@@ -1,30 +1,20 @@
-"""PartnerMeetingRepository Port의 SQLAlchemy 구현. Deal·작성자 존재는 DB 제약이 보장한다."""
+"""PartnerMeetingRepository Port의 SQLAlchemy 구현. 작성자 존재는 DB 제약이 보장한다."""
 
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import ColumnElement, and_, func, or_, select
+from sqlalchemy import ColumnElement, func, select
 from sqlalchemy.orm import aliased
 
 from app.application.ports.deal_repository import SortOrder
-from app.application.ports.partner_meeting_repository import (
-    PartnerDealChoice,
-    PartnerMeetingRecord,
-    PartnerMeetingSort,
-)
+from app.application.ports.partner_meeting_repository import PartnerMeetingSort
 from app.domain.common.errors import AlreadyExistsError, InvalidReferenceError
-from app.domain.contact.values import ContactKind
-from app.domain.deal.code import DealCode
-from app.domain.deal.errors import DealNotFoundError
 from app.domain.partner_meeting.entities import PartnerMeeting
 from app.domain.partner_meeting.errors import PartnerMeetingNotFoundError
-from app.domain.partner_meeting.values import MeetingContent, MeetingSubject, PartnerMeetingId
+from app.domain.partner_meeting.values import MeetingContent, PartnerMeetingId
 from app.domain.user.value_objects import UserId
 from app.infra.db.base_repository import ConstraintErrors, SqlRepository
-from app.infra.db.deal_keys import deal_id_of
 from app.infra.db.like import LIKE_ESCAPE, like_pattern
 from app.infra.db.models_auth import UserRow
-from app.infra.db.models_contact import ContactRow
-from app.infra.db.models_deal import DealPartnerRow, DealRow
 from app.infra.db.models_meeting import PartnerMeetingRow
 
 if TYPE_CHECKING:
@@ -33,13 +23,12 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import InstrumentedAttribute
 
     from app.application.ports.partner_meeting_repository import PartnerMeetingQuery
-    from app.domain.common.errors import DomainError
 
 
-def _to_entity(row: PartnerMeetingRow, deal_code: str) -> PartnerMeeting:
+def _to_entity(row: PartnerMeetingRow) -> PartnerMeeting:
     return PartnerMeeting(
         id=PartnerMeetingId(row.id),
-        subject=MeetingSubject(row.partner_company, DealCode(deal_code)),
+        partner_company=row.partner_company,
         meeting_date=row.meeting_date,
         content=MeetingContent(row.content),
         author_user_id=UserId(row.created_by_user_id),
@@ -48,20 +37,15 @@ def _to_entity(row: PartnerMeetingRow, deal_code: str) -> PartnerMeeting:
     )
 
 
-def _apply_content(row: PartnerMeetingRow, meeting: PartnerMeeting, deal_id: int) -> None:
-    row.deal_id = deal_id
-    row.partner_company = meeting.subject.partner_company
+def _apply_content(row: PartnerMeetingRow, meeting: PartnerMeeting) -> None:
+    row.partner_company = meeting.partner_company
     row.meeting_date = meeting.meeting_date
     row.content = meeting.content.value
     row.updated_at = meeting.updated_at
 
 
 def _write_errors(meeting: PartnerMeeting) -> ConstraintErrors:
-    def deal_missing() -> DomainError:
-        return DealNotFoundError(meeting.subject.deal_code.value)
-
     return {
-        "fk_partner_meetings_deal_id_deals": deal_missing,
         "fk_partner_meetings_created_by_user_id_users": lambda: InvalidReferenceError(
             "사용자", meeting.author_user_id
         ),
@@ -79,41 +63,31 @@ class SqlPartnerMeetingRepository(SqlRepository[PartnerMeetingRow]):
     row_type = PartnerMeetingRow
 
     async def add(self, meeting: PartnerMeeting) -> None:
-        code = meeting.subject.deal_code.value
-        deal_id = await deal_id_of(self._session, code)
-        if deal_id is None:
-            raise DealNotFoundError(code)
         row = PartnerMeetingRow(id=meeting.id, created_at=meeting.created_at)
         row.created_by_user_id = meeting.author_user_id
-        _apply_content(row, meeting, deal_id)
+        _apply_content(row, meeting)
         await self._insert(row, _write_errors(meeting))
 
     async def get(
         self, meeting_id: PartnerMeetingId, *, for_update: bool = False
-    ) -> PartnerMeetingRecord:
+    ) -> PartnerMeeting:
         statement = (
-            select(PartnerMeetingRow, DealRow.deal_code, DealRow.name)
-            .join(DealRow, DealRow.id == PartnerMeetingRow.deal_id)
+            select(PartnerMeetingRow)
             .where(PartnerMeetingRow.id == meeting_id)
             .execution_options(populate_existing=True)
         )
         if for_update:
             statement = statement.with_for_update(of=PartnerMeetingRow)
-        found = (await self._session.execute(statement)).one_or_none()
-        if found is None:
+        row = (await self._session.execute(statement)).scalar_one_or_none()
+        if row is None:
             raise PartnerMeetingNotFoundError(meeting_id)
-        row, code, deal_name = found
-        return PartnerMeetingRecord(_to_entity(row, code), deal_name)
+        return _to_entity(row)
 
     async def update(self, meeting: PartnerMeeting) -> None:
         row = await self._find(meeting.id)
         if row is None:
             raise PartnerMeetingNotFoundError(meeting.id)
-        code = meeting.subject.deal_code.value
-        deal_id = await deal_id_of(self._session, code)
-        if deal_id is None:
-            raise DealNotFoundError(code)
-        _apply_content(row, meeting, deal_id)
+        _apply_content(row, meeting)
         await self._save(
             _write_errors(meeting), not_found=lambda: PartnerMeetingNotFoundError(meeting.id)
         )
@@ -129,10 +103,6 @@ class SqlPartnerMeetingRepository(SqlRepository[PartnerMeetingRow]):
         conditions: list[ColumnElement[bool]] = []
         if query.partner is not None:
             conditions.append(_contains(PartnerMeetingRow.partner_company, query.partner))
-        if query.deal is not None:
-            conditions.append(
-                or_(_contains(DealRow.name, query.deal), _contains(DealRow.deal_code, query.deal))
-            )
         if query.content is not None:
             conditions.append(_contains(PartnerMeetingRow.content, query.content))
         if query.date_from is not None:
@@ -143,12 +113,11 @@ class SqlPartnerMeetingRepository(SqlRepository[PartnerMeetingRow]):
             conditions.append(PartnerMeetingRow.created_by_user_id == query.author_user_id)
         return conditions
 
-    async def search(self, query: PartnerMeetingQuery) -> Sequence[PartnerMeetingRecord]:
+    async def search(self, query: PartnerMeetingQuery) -> Sequence[PartnerMeeting]:
         author = aliased(UserRow)
         author_name = func.coalesce(func.nullif(author.display_name, ""), author.login_id)
         text_keys = {
             PartnerMeetingSort.PARTNER: PartnerMeetingRow.partner_company,
-            PartnerMeetingSort.DEAL: DealRow.name,
             PartnerMeetingSort.CONTENT: PartnerMeetingRow.content,
             PartnerMeetingSort.AUTHOR: author_name,
         }
@@ -164,10 +133,8 @@ class SqlPartnerMeetingRepository(SqlRepository[PartnerMeetingRow]):
         else:
             key = func.lower(text_keys[query.sort]).collate("C")
             ordering = [direction(key), date_column.desc(), id_column.desc()]
-        statement = (
-            select(PartnerMeetingRow, DealRow.deal_code, DealRow.name)
-            .join(DealRow, DealRow.id == PartnerMeetingRow.deal_id)
-            .join(author, author.id == PartnerMeetingRow.created_by_user_id)
+        statement = select(PartnerMeetingRow).join(
+            author, author.id == PartnerMeetingRow.created_by_user_id
         )
         statement = (
             statement.where(*self._conditions(query))
@@ -176,31 +143,9 @@ class SqlPartnerMeetingRepository(SqlRepository[PartnerMeetingRow]):
             .limit(query.limit)
             .execution_options(populate_existing=True)
         )
-        rows = (await self._session.execute(statement)).all()
-        return [PartnerMeetingRecord(_to_entity(row, code), name) for row, code, name in rows]
+        rows = (await self._session.execute(statement)).scalars().all()
+        return [_to_entity(row) for row in rows]
 
     async def count(self, query: PartnerMeetingQuery) -> int:
-        statement = select(func.count(PartnerMeetingRow.id)).join(
-            DealRow, DealRow.id == PartnerMeetingRow.deal_id
-        )
+        statement = select(func.count(PartnerMeetingRow.id))
         return int(await self._session.scalar(statement.where(*self._conditions(query))) or 0)
-
-    async def deal_choices(self, company: str) -> Sequence[PartnerDealChoice]:
-        partner = aliased(ContactRow)
-        customer = aliased(ContactRow)
-        statement = (
-            select(DealRow.deal_code, DealRow.name, customer.company)
-            .join(DealPartnerRow, and_(DealPartnerRow.deal_id == DealRow.id))
-            .join(partner, partner.id == DealPartnerRow.contact_id)
-            .join(customer, customer.id == DealRow.customer_id)
-            .where(
-                DealPartnerRow.unlinked_at.is_(None),
-                partner.kind == ContactKind.PARTNER.value,
-                func.lower(partner.company) == company.lower(),
-            )
-            .order_by(func.lower(DealRow.name).collate("C"), DealRow.deal_code)
-        )
-        return [
-            PartnerDealChoice(DealCode(code), name, customer_company)
-            for code, name, customer_company in (await self._session.execute(statement)).all()
-        ]

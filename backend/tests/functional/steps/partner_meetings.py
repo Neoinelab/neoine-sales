@@ -1,14 +1,15 @@
-"""파트너 Activity feature의 step: 미팅 기록의 일괄 입력·목록·검색·수정·삭제와 Deal 선택지.
+"""파트너 Activity feature의 step: 미팅 기록의 일괄 입력·목록·검색·수정·삭제.
 
-Given은 공개 API로 사전 상태를 만든다. 파트너 연락처는 Deal 등록의 `partner`로 함께 만들고(admin이
-로그인한 상태에서 호출, 끝나도 admin 상태), 미팅은 지금 로그인한 사용자 또는 주어진 세션의 사용자가
-남긴다. When은 HTTP API 하나, Then은 응답과 다시 조회한 결과만 본다.
+미팅은 Deal과 무관하다. Given은 공개 API로 사전 상태를 만든다. 파트너 회사는 파트너 연락처 등록
+(`/contacts`)으로 만들고(admin이 로그인한 상태에서 호출), 미팅은 지금 로그인한 사용자 또는 주어진
+세션의 사용자가 남긴다. When은 HTTP API 하나, Then은 응답과 다시 조회한 결과만 본다.
 공통 Then은 `steps/common.py`다.
 """
 
 from typing import TYPE_CHECKING, Any, Final
 
 from tests.functional.steps.common import then_status_is
+from tests.functional.steps.contacts import given_contact
 from tests.functional.steps.deals import DEALS, given_sales_owner, partner_draft
 from tests.functional.steps.forecast import given_forecast_deal
 from tests.functional.steps.users import Session, when_request_as
@@ -21,13 +22,11 @@ if TYPE_CHECKING:
     from tests.functional.conftest import Api
 
 MEETINGS: Final = "/api/v1/partner-meetings"
-DEAL_OPTIONS: Final = f"{MEETINGS}/deal-options"
+DEAL_OPTIONS: Final = f"{MEETINGS}/deal-options"  # 폐지된 경로(없어졌는지 확인용)
 HANBIT: Final = "한빛파트너스"
 GAP_SECONDS: Final = 60
 
 COMPANY_NOT_FOUND: Final = "등록된 파트너 회사가 아닙니다. 목록에서 다시 선택하세요."
-DEAL_NOT_FOUND: Final = "Deal을 찾을 수 없습니다. 목록에서 다시 선택하세요."
-DEAL_NOT_LINKED: Final = "선택한 파트너와 연결된 Deal이 아닙니다."
 CONTENT_REQUIRED: Final = "미팅 내용을 입력하세요."
 NO_ITEMS: Final = "입력한 미팅이 없습니다."
 EDIT_FORBIDDEN: Final = "본인 미팅 기록 또는 admin만 수정할 수 있습니다."
@@ -39,7 +38,6 @@ OUT_OF_BOUNDS: Final = "미팅 날짜은(는) 1900-01-01부터 2999-12-31 사이
 MEETING_KEYS: Final = {
     "id",
     "partner_company",
-    "deal",
     "meeting_date",
     "content",
     "author",
@@ -48,11 +46,10 @@ MEETING_KEYS: Final = {
 }
 
 
-def meeting_item(code: str, *, company: str = HANBIT, **overrides: Any) -> dict[str, Any]:  # noqa: ANN401
+def meeting_item(*, company: str = HANBIT, **overrides: Any) -> dict[str, Any]:  # noqa: ANN401
     """요청 항목 하나(MeetingItemRequest). 기본은 한빛파트너스와 2027-03-01의 킥오프 미팅이다."""
     return {
         "partner_company": company,
-        "deal_code": code,
         "meeting_date": "2027-03-01",
         "content": "킥오프 미팅",
         **overrides,
@@ -62,33 +59,39 @@ def meeting_item(code: str, *, company: str = HANBIT, **overrides: Any) -> dict[
 # --- Given ---
 
 
-async def given_partner_deal(
-    api: Api,
-    *,
-    company: str = HANBIT,
-    name: str = "ERP 구축",
-    contact: str = "이영희",
-    forecast: str = "pipeline",
-    **overrides: Any,  # noqa: ANN401 - Deal 등록 필드를 그대로 넘긴다
+async def given_partner(
+    api: Api, *, company: str = HANBIT, contact: str = "이영희"
 ) -> dict[str, Any]:
-    """company의 담당자 contact가 활성 파트너인 Deal(영업 담당자가 Owner, admin 로그인 상태)."""
+    """company의 담당자 contact가 파트너 연락처로 등록되어 있다(admin 로그인 상태). Deal은 없다."""
+    return await given_contact(
+        api,
+        "partner",
+        company=company,
+        name=contact,
+        email=f"c{sum(map(ord, contact))}@partner.test",
+    )
+
+
+async def given_partner_deal(
+    api: Api, *, company: str = HANBIT, name: str = "ERP 구축", contact: str = "가나다"
+) -> dict[str, Any]:
+    """파트너(company)가 연결된 Deal. 미팅과는 무관하며 Deal 삭제와의 독립을 확인할 때만 쓴다."""
     owner = await given_sales_owner(api)
     return await given_forecast_deal(
         api,
         owner=owner,
-        forecast=forecast,
+        forecast="pipeline",
         name=name,
         partner=partner_draft(
             company=company, name=contact, email=f"c{sum(map(ord, contact))}@partner.test"
         ),
-        **overrides,
     )
 
 
-async def given_meeting(api: Api, code: str, **overrides: Any) -> dict[str, Any]:  # noqa: ANN401
+async def given_meeting(api: Api, **overrides: Any) -> dict[str, Any]:  # noqa: ANN401
     """지금 로그인한 사용자가 미팅을 남겨 두었다(시계가 전진한다). 응답 항목을 돌려준다."""
     api.clock.advance(GAP_SECONDS)
-    response = await api.post(MEETINGS, json={"items": [meeting_item(code, **overrides)]})
+    response = await api.post(MEETINGS, json={"items": [meeting_item(**overrides)]})
     assert response.status_code == 201, f"Given 실패 {response.status_code}: {response.text}"
     return dict(response.json()["items"][0])
 
@@ -96,22 +99,21 @@ async def given_meeting(api: Api, code: str, **overrides: Any) -> dict[str, Any]
 async def given_meeting_by(
     api: Api,
     session: Session,
-    code: str,
     **overrides: Any,  # noqa: ANN401
 ) -> dict[str, Any]:
     """주어진 세션의 사용자가 미팅을 남겨 두었다(시계가 전진한다)."""
     api.clock.advance(GAP_SECONDS)
     response = await when_request_as(
-        api, session, "POST", MEETINGS, json={"items": [meeting_item(code, **overrides)]}
+        api, session, "POST", MEETINGS, json={"items": [meeting_item(**overrides)]}
     )
     assert response.status_code == 201, f"Given 실패 {response.status_code}: {response.text}"
     return dict(response.json()["items"][0])
 
 
-async def given_many_meetings(api: Api, code: str, count: int) -> list[dict[str, Any]]:
+async def given_many_meetings(api: Api, count: int) -> list[dict[str, Any]]:
     """지금 로그인한 사용자가 미팅 count건을 한 번에 남겨 두었다(내용 "기록 NN", 3월 1일부터)."""
     items = [
-        meeting_item(code, content=f"기록 {number:02d}", meeting_date=f"2027-03-{number + 1:02d}")
+        meeting_item(content=f"기록 {number:02d}", meeting_date=f"2027-03-{number + 1:02d}")
         for number in range(count)
     ]
     response = await api.post(MEETINGS, json={"items": items})
@@ -164,6 +166,7 @@ async def when_delete_meeting_as(api: Api, session: Session, meeting_id: object)
 
 
 async def when_get_deal_options(api: Api, company: str) -> Response:
+    """폐지된 `GET /partner-meetings/deal-options`를 부른다(더는 성공하지 않는다)."""
     return await api.get(DEAL_OPTIONS, params={"company": company})
 
 

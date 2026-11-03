@@ -85,27 +85,24 @@ class TestDelete:
         assert list(env.uow.deals._items) == [second.item.deal.id]
         assert len(env.uow.deal_history._items) == 1  # 남은 Deal의 등록 이력
 
-    async def test_partner_meetings_of_the_deal_go_with_it_and_other_deals_keep_theirs(
-        self, env: DealEnv
-    ) -> None:
+    async def test_deleting_a_deal_keeps_partner_meetings(self, env: DealEnv) -> None:
         from tests.factories_partner_meeting import make_meeting  # noqa: PLC0415
         from tests.support.user_ids import ACTOR_ID  # noqa: PLC0415
 
         doomed = await env.new_deal()
-        kept = await env.new_deal()
+        await env.new_deal()
         async with env.uow_factory() as uow:
-            await uow.partner_meetings.add(
-                make_meeting(deal_code=doomed.item.deal.id, author=ACTOR_ID)
-            )
-            survivor = make_meeting(deal_code=kept.item.deal.id, author=ACTOR_ID)
-            await uow.partner_meetings.add(survivor)
+            first = make_meeting(author=ACTOR_ID)
+            second = make_meeting(author=ACTOR_ID, content="두 번째")
+            await uow.partner_meetings.add(first)
+            await uow.partner_meetings.add(second)
             await uow.commit()
 
         await env.delete.execute(doomed.item.deal.id.value, doomed.item.deal.id.value, SALES)
 
         async with env.uow_factory() as uow:
-            assert (await uow.partner_meetings.get(survivor.id)).meeting.id == survivor.id
-            assert uow.partner_meetings.count_of_deal(doomed.item.deal.id) == 0  # type: ignore[attr-defined]
+            assert (await uow.partner_meetings.get(first.id)).id == first.id
+            assert (await uow.partner_meetings.get(second.id)).id == second.id
 
     async def test_the_deletion_is_committed(self, env: DealEnv) -> None:
         view = await env.new_deal()
