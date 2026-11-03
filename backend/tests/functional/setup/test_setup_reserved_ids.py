@@ -1,4 +1,4 @@
-"""Feature: 예약된 개발용 아이디(dev-*)는 최초 admin이 될 수 없고 설정은 열린 채 유지된다."""
+"""Feature: 예약된 개발용 세 아이디는 최초 admin이 될 수 없고 설정은 열린 채 유지된다."""
 
 from typing import TYPE_CHECKING
 

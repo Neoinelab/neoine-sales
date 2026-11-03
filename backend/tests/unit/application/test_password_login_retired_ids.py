@@ -29,7 +29,8 @@ if TYPE_CHECKING:
 
 IP = "10.0.0.1"
 PW = "pw-dev-1234"  # 가짜 값
-RETIRED = ["dev-admin", "dev-sales", "dev-user", "dev-qa"]
+RETIRED = ["dev-admin", "dev-sales", "dev-user", "DEV-Admin"]
+OTHER_DEV = ["dev-qa", "dev-admin2", "dev-ops"]
 
 
 @pytest.mark.parametrize("login_id", RETIRED)
@@ -51,7 +52,7 @@ async def test_retired_dev_login_id_is_rejected_without_calling_the_directory(
     assert directory.authenticate_calls == []
     assert directory.discover_calls == []
     assert uow.sessions._items == {}
-    assert uow.login_failures._items[account_key(login_id)].failures == 1
+    assert uow.login_failures._items[account_key(login_id.lower())].failures == 1
 
 
 @pytest.mark.parametrize("login_id", RETIRED)
@@ -70,17 +71,37 @@ async def test_retired_dev_login_id_is_rejected_in_local_mode(
     assert str(caught.value) == LOGIN_FAILED
     assert auth.hasher.verify_calls == []
     assert uow.sessions._items == {}
-    assert uow.login_failures._items[account_key(login_id)].failures == 1
+    assert uow.login_failures._items[account_key(login_id.lower())].failures == 1
 
 
-async def test_an_id_without_the_dev_prefix_can_still_sign_in_in_local_mode(
-    auth: AuthStack, uow_factory: UnitOfWorkFactory
+@pytest.mark.parametrize("login_id", ["devops", *OTHER_DEV])
+async def test_other_ids_can_still_sign_in_in_local_mode(
+    auth: AuthStack, uow_factory: UnitOfWorkFactory, login_id: str
 ) -> None:
     await seed_auth_mode(uow_factory, AuthMode.LOCAL)
-    await seed_local_user(uow_factory, "devops", PW, Role.ADMIN)
+    await seed_local_user(uow_factory, login_id, PW, Role.ADMIN)
 
     outcome = await auth.password_login.execute(
-        login_id="devops", password=Password(PW), client_ip=IP
+        login_id=login_id, password=Password(PW), client_ip=IP
     )
 
-    assert outcome.session.principal.subject == "devops"
+    assert outcome.session.principal.subject == login_id
+
+
+@pytest.mark.parametrize("login_id", OTHER_DEV)
+async def test_other_dev_prefixed_id_follows_the_normal_directory_flow(
+    auth: AuthStack,
+    uow_factory: UnitOfWorkFactory,
+    directory: FakeDirectoryAuthenticator,
+    login_id: str,
+) -> None:
+    await seed_directory(uow_factory)
+    await seed_user(uow_factory, login_id, Role.SALES)
+    directory.add_account(login_id, PW)
+
+    outcome = await auth.password_login.execute(
+        login_id=login_id, password=Password(PW), client_ip=IP
+    )
+
+    assert outcome.session.principal.subject == login_id
+    assert len(directory.authenticate_calls) == 1

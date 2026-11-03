@@ -1,4 +1,4 @@
-"""Feature: 개발용 로그인은 없다. 예약된 dev-* 아이디로는 로그인할 수 없다."""
+"""Feature: 개발용 로그인은 없다. 예약된 개발용 세 아이디로는 로그인할 수 없다."""
 
 from typing import TYPE_CHECKING
 
@@ -10,6 +10,7 @@ from tests.functional.steps.auth import (
     given_ad_account,
     given_admin_exists,
     given_logged_out,
+    given_user_registered,
     password_of,
 )
 from tests.functional.steps.common import then_status_is
@@ -69,9 +70,9 @@ async def test_auth_config_no_longer_reports_dev_login(api: Api) -> None:
     assert set(response.json()) == CONFIG_KEYS
 
 
-@pytest.mark.parametrize("login_id", ["dev-admin", "dev-sales", "dev-user", "dev-qa"])
-async def test_a_dev_prefixed_login_id_cannot_sign_in(api: Api, login_id: str) -> None:
-    """Scenario: AD에 같은 이름의 계정이 있어도 dev-* 로그인은 401이고 AD를 부르지 않는다."""
+@pytest.mark.parametrize("login_id", ["dev-admin", "dev-sales", "dev-user", "DEV-Admin"])
+async def test_a_retired_dev_login_id_cannot_sign_in(api: Api, login_id: str) -> None:
+    """Scenario: 예약 세 아이디는 AD에 계정이 있어도 401이고 AD를 부르지 않는다."""
     # Given
     await given_admin_exists(api)
     await given_logged_out(api)
@@ -85,3 +86,21 @@ async def test_a_dev_prefixed_login_id_cannot_sign_in(api: Api, login_id: str) -
     assert SESSION_COOKIE not in response.cookies
     assert api.directory.authenticate_calls == []
     assert api.directory.discover_calls == []
+
+
+@pytest.mark.parametrize("login_id", ["dev-qa", "dev-admin2", "dev-ops"])
+async def test_another_dev_prefixed_id_signs_in_through_the_normal_flow(
+    api: Api, login_id: str
+) -> None:
+    """Scenario: 예약 세 아이디가 아닌 dev- 아이디는 등록된 일반 사용자로 로그인된다."""
+    # Given
+    await given_admin_exists(api)
+    await given_user_registered(api, login_id=login_id, role="sales")
+    await given_logged_out(api)
+    given_ad_account(api, login_id=login_id)
+    # When
+    response = await when_log_in(api, login_id=login_id, password=password_of(login_id))
+    # Then
+    then_status_is(response, 200)
+    assert SESSION_COOKIE in response.cookies
+    assert len(api.directory.authenticate_calls) == 1

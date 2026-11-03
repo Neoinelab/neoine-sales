@@ -1,4 +1,4 @@
-"""설정 조회·세션 확인·로그아웃·로그인(AD)은 auth_login, 최초 설정은 auth_setup."""
+"""인증 설정 조회·로그아웃·세션 확인. 로그인은 auth_login, 최초 설정은 auth_setup."""
 
 from fastapi import APIRouter, Depends, Request, Response, status
 

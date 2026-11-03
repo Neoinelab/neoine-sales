@@ -102,7 +102,7 @@ async def test_register_user_again_after_a_physical_deletion_is_201(api: Api) ->
     await then_logins_listed(api, ["root", "kim"])
 
 
-@pytest.mark.parametrize("reserved", ["dev-admin", "dev-sales", "dev-user"])
+@pytest.mark.parametrize("reserved", ["dev-admin", "dev-sales", "dev-user", "DEV-Admin"])
 async def test_register_user_with_a_reserved_dev_login_id_is_422(api: Api, reserved: str) -> None:
     """Scenario: 개발 로그인 예약 아이디는 등록할 수 없다."""
     # Given
@@ -112,6 +112,20 @@ async def test_register_user_with_a_reserved_dev_login_id_is_422(api: Api, reser
     # Then
     then_problem_is(response, status=422, type_suffix="invalid-value")
     await then_logins_listed(api, ["root"])
+
+
+@pytest.mark.parametrize("login_id", ["dev-qa", "dev-admin2", "dev-ops"])
+async def test_register_user_with_another_dev_prefixed_login_id_is_201(
+    api: Api, login_id: str
+) -> None:
+    """Scenario: 예약 세 아이디가 아닌 dev- 아이디는 일반 아이디로 등록된다."""
+    # Given
+    await given_logged_in_as(api, role="admin")
+    # When
+    response = await when_register_user(api, login_id=login_id, role="user")
+    # Then
+    then_status_is(response, 201)
+    await then_logins_listed(api, ["root", login_id])
 
 
 @pytest.mark.parametrize("login_id", ["", "   ", "-lead", ".lead", "a b", "한글", "a,b", "a=b"])
