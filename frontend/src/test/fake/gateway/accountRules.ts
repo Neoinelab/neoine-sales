@@ -43,9 +43,15 @@ export function cleanPhone(text: string | null | undefined): string | null {
   return phone
 }
 
-/** 서버 `DEV_LOGIN_IDS`와 같은 예약어(`dev-*`)는 계정 아이디로 쓸 수 없다. */
+/** 서버 `app/domain/user/retired_login_ids.py`와 같은 예약 아이디(대소문자 무시). 다른 `dev-` 아이디는 일반 아이디다. */
+const RETIRED_LOGIN_IDS: readonly string[] = ['dev-admin', 'dev-sales', 'dev-user']
+
+export function isRetiredLoginId(loginId: string): boolean {
+  return RETIRED_LOGIN_IDS.includes(loginId.trim().toLowerCase())
+}
+
 export function checkLoginIdAllowed(loginId: string): void {
-  if (loginId.toLowerCase().startsWith('dev-')) throw validation('개발 로그인 전용 아이디(dev-*)는 사용할 수 없습니다.')
+  if (isRetiredLoginId(loginId)) throw validation(`개발 로그인 전용 아이디는 등록할 수 없습니다: ${loginId.trim().toLowerCase()}`)
 }
 
 export function checkPassword(password: string, loginId: string): void {

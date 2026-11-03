@@ -4,6 +4,7 @@ import { conflict, forbidden, unauthorized, validation } from '../errors'
 import { takeId, type UserRecord } from '../store'
 import {
   checkLoginIdAllowed,
+  isRetiredLoginId,
   checkPassword,
   cleanEmail,
   cleanName,
@@ -51,6 +52,7 @@ export function createAuthGateway(ctx: MockContext): AuthGateway {
     login: (loginId, password): Promise<LoginResult> =>
       write(ctx, () => {
         if (loginId.trim() === '' || password === '') throw validation('아이디와 비밀번호를 입력하세요.')
+        if (isRetiredLoginId(loginId)) throw unauthorized(LOGIN_FAILED) // 서버처럼 AD·해시를 보기 전에 거부
         const matches = users().filter((u) => u.loginId === loginId.trim())
         if (modeOf(ctx) === 'local') {
           // 서버처럼 없는 아이디·퇴사자·틀린 비밀번호가 모두 같은 문구다.
@@ -123,8 +125,8 @@ export function createSetupGateway(ctx: MockContext): SetupGateway {
         const fields = local
           ? { name: cleanName(profile?.name ?? ''), email: cleanEmail(profile?.email), phone: cleanPhone(profile?.phone) }
           : { name: id, email: null, phone: null }
+        checkLoginIdAllowed(id)
         if (local) {
-          checkLoginIdAllowed(id)
           checkPassword(password, id)
         }
         let user = users().find((u) => u.loginId === id && u.status === 'active')

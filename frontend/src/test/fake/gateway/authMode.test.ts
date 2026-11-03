@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { DIRECTORY_INPUT } from '../../directoryFixtures'
+import { emptyBusinessSeed } from '../seed'
 import { SEED_PASSWORD } from '../seed/users'
 import { expectApiError, mockAs, newMock } from '../testing'
 
@@ -156,6 +157,15 @@ describe('setup.registerAdmin in local mode (AC-4)', () => {
     expect((await gateway.setup.status()).adminDone).toBe(false)
   })
 
+  it.each(['dev-admin', 'dev-sales', 'dev-user'])('rejects the reserved id %s with 422 in AD mode too', async (loginId) => {
+    const { gateway } = freshMock()
+    await gateway.setup.saveDirectory(DIRECTORY_INPUT)
+    await gateway.setup.saveStorage('/data/files')
+
+    await expectApiError(gateway.setup.registerAdmin(loginId, PW, undefined), 422, /개발 로그인 전용 아이디/)
+    expect((await gateway.setup.status()).adminDone).toBe(false)
+  })
+
   it.each(['dev-admin', 'dev-sales', 'dev-user'])('rejects the reserved id %s with 422', async (loginId) => {
     const { gateway } = await localReady()
 
@@ -215,6 +225,42 @@ describe('auth.login in local mode (AC-5)', () => {
     const { gateway } = await mockAs(null)
 
     await expect(gateway.auth.login('kim', 'anything')).resolves.toMatchObject({ me: { loginId: 'kim' } })
+  })
+})
+
+/** 저장소에 예약 아이디 행이 남아 있어도(옛 데이터) 로그인은 서버처럼 401이다. */
+async function mockWithUsers(...loginIds: string[]) {
+  const mock = await mockAs(null)
+  mock.setSeed((clock) => {
+    const data = emptyBusinessSeed(clock)
+    const template = data.users[0]!
+    loginIds.forEach((loginId, i) => {
+      data.users.push({ ...template, id: 9000 + i, loginId, role: 'sales', status: 'active' })
+    })
+    return data
+  })
+  return mock
+}
+
+describe('auth.login with the reserved dev ids', () => {
+  it.each([
+    ['ad', 'dev-admin'],
+    ['ad', 'dev-sales'],
+    ['ad', 'dev-user'],
+    ['local', 'dev-admin'],
+    ['local', 'dev-user'],
+  ] as const)('rejects %s mode %s with 401 and the common message', async (mode, loginId) => {
+    const { gateway, control } = await mockWithUsers(loginId)
+    control.setAuthMode(mode)
+
+    await expectApiError(gateway.auth.login(loginId, SEED_PASSWORD), 401, LOGIN_FAILED)
+  })
+
+  it.each(['ad', 'local'] as const)('lets another dev- id sign in in %s mode', async (mode) => {
+    const { gateway, control } = await mockWithUsers('dev-ops')
+    control.setAuthMode(mode)
+
+    await expect(gateway.auth.login('dev-ops', SEED_PASSWORD)).resolves.toMatchObject({ me: { loginId: 'dev-ops' } })
   })
 })
 

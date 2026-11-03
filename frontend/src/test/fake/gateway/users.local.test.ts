@@ -71,14 +71,39 @@ describe('users.create in local mode (AC-6)', () => {
     await expectApiError(gateway.users.create({ ...NEW_USER, loginId: 'kim' }), 409, '이미 사용 중인 아이디입니다.')
   })
 
-  it('rejects the reserved dev ids with 422', async () => {
+  it.each(['dev-admin', 'dev-sales', 'dev-user', 'DEV-Admin'])('rejects the reserved id %s with 422', async (loginId) => {
     const { gateway } = await localAdmin()
 
-    await expectApiError(gateway.users.create({ ...NEW_USER, loginId: 'dev-admin' }), 422, /개발 로그인 전용 아이디/)
+    await expectApiError(gateway.users.create({ ...NEW_USER, loginId }), 422, /개발 로그인 전용 아이디/)
+  })
+
+  it.each(['dev-ops', 'dev-qa', 'dev-admin2'])('registers the other dev- id %s as an ordinary user', async (loginId) => {
+    const { gateway } = await localAdmin()
+
+    await expect(gateway.users.create({ ...NEW_USER, loginId })).resolves.toMatchObject({ loginId, status: 'active' })
+  })
+
+  it('resets the password of a dev- user that is not reserved (no 409)', async () => {
+    const { gateway } = await localAdmin()
+    const user = await gateway.users.create({ ...NEW_USER, loginId: 'dev-ops' })
+
+    await expect(gateway.users.resetPassword(user.id, NEW_PW)).resolves.toBeUndefined()
   })
 })
 
 describe('users.create in AD mode (AC-6)', () => {
+  it.each(['dev-admin', 'dev-sales', 'dev-user'])('rejects the reserved id %s with 422 in AD mode too', async (loginId) => {
+    const { gateway } = await mockAs('root')
+
+    await expectApiError(gateway.users.create({ loginId, name: '개발', role: 'sales' }), 422, /개발 로그인 전용 아이디/)
+  })
+
+  it('registers dev-ops in AD mode', async () => {
+    const { gateway } = await mockAs('root')
+
+    await expect(gateway.users.create({ loginId: 'dev-ops', name: '운영', role: 'sales' })).resolves.toMatchObject({ loginId: 'dev-ops' })
+  })
+
   it('rejects a password with 422', async () => {
     const { gateway } = await mockAs('root')
 

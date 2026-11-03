@@ -6,7 +6,6 @@ import { NO_SUCH_ID, USER_ID } from '../seed/ids'
 /** 서버 `PUT /users/{id}/role`과 같은 문구·판정 순서(401 → 403 → 422 → 404 → 409). */
 const SELF = '자기 자신의 역할은 바꿀 수 없습니다.'
 const RESIGNED = '이미 퇴사 처리된 사용자입니다.'
-const DEV_ONLY = '개발 로그인 전용 사용자의 역할은 바꿀 수 없습니다.'
 
 const roleOf = async (gw: Awaited<ReturnType<typeof mockAs>>['gateway'], id: number) =>
   (await gw.users.list('all')).find((u) => u.id === id)?.role
@@ -77,12 +76,12 @@ describe('users.changeRole', () => {
     await expectApiError(gateway.users.changeRole(USER_ID.old, 'user'), 409, RESIGNED)
   })
 
-  it.each(['dev-admin', 'dev-sales', 'dev-user'])('rejects the dev login user %s with 409', async (loginId) => {
+  it.each(['dev-ops', 'dev-qa'])('changes the role of the ordinary user %s (not a reserved id)', async (loginId) => {
     const { gateway } = await mockAs('root')
-    const dev = await gateway.users.create({ loginId, name: '개발 사용자', role: 'sales' })
+    const user = await gateway.users.create({ loginId, name: '일반 사용자', role: 'sales' })
 
-    await expectApiError(gateway.users.changeRole(dev.id, 'user'), 409, DEV_ONLY)
-    expect(await roleOf(gateway, dev.id)).toBe('sales')
+    await expect(gateway.users.changeRole(user.id, 'user')).resolves.toMatchObject({ role: 'user' })
+    expect(await roleOf(gateway, user.id)).toBe('user')
   })
 
   it('returns 404 for an unknown user', async () => {
