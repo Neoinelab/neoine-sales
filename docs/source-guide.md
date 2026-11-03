@@ -94,7 +94,7 @@ infra ──┘
 | `common/` | 공통 엔티티 기반, 오류, 검증(`required_text` 등, NUL 문자 거부), 업무 날짜·업무 시각(`business_date.py`: `business_date`, `business_time`(같은 순간을 OS 로컬 오프셋으로), OS 로컬 시간대), 금액·원화 표기, 한국어 조사 |
 | `deal/` | Deal 엔티티와 값 객체(금액, 견적, POC, BANT 선택), Deal code(`YYYYMMDD-XXXX`), Status·Forecast 동기화(`sync*.py`, `contract_completed` ⇔ `won`), 변경 이력 diff(`history.py`), 연/분기 기간(`period.py`: 분기 집합 정규화 `normalize_quarters`, 빈 집합·넷 다는 조건 없음), Owner 자격·삭제 권한(`policy.py`), 경고(`risk.py`: 기한 초과·미업데이트, Won/Lost 제외)와 Status 체류 일수 |
 | `deal_action/` | Action(진행사항·Next Action·Due Date·Memo, Status/Forecast 스냅숏) 엔티티, 이력, 수정·삭제 권한(admin 전부, sales 본인만) |
-| `partner_meeting/` | 파트너 미팅 기록(2026-10-28): 미팅 내용·대상(회사명 텍스트+Deal) 값 객체, 엔티티(`record`·`revise`), 수정·삭제 권한(`can_edit_meeting`: admin 전부, sales 본인만), Deal 연결 판정(`links.py`), 행별 위반 `MeetingInputError` |
+| `partner_meeting/` | 파트너 미팅 기록(2026-10-28): 미팅 내용 값 객체, 엔티티(`record`·`revise`, 회사명 텍스트 `partner_company`, Deal 연결 없음 2026-11-03), 수정·삭제 권한(`can_edit_meeting`: admin 전부, sales 본인만), 파트너 회사 판정(`company.py`), 행별 위반 `MeetingInputError` |
 | `contact/` | 연락처(고객·파트너) 엔티티·값 객체, 같은 사람 판정(`identity.py`), 입력 초안 병합(`draft.py`) |
 | `code/` | Status·Forecast 코드 카탈로그(이름 정규화·중복·key 생성·순서 규칙) |
 | `vendor/` | Vendor(Aggregate Root) 엔티티, 이름 규칙(앞뒤 공백 제거, 100자 이내, 대소문자 무시 전역 중복 금지), 사용 중 삭제 거부. ~~소속 Solution(1:N) 엔티티~~는 2026-10-22 변경으로 삭제 — Solution은 Deal의 필수 텍스트(`deal/values.py`의 `check_solution`, 200자 이내, Vendor와 독립) |
@@ -177,7 +177,7 @@ infra ──┘
 | 인증 | `/auth/login`, `/auth/logout`, `/auth/me`, `/auth/config`, `/auth/dev-login`, `/auth/setup/*` |
 | Forecast·Dashboard | `/forecast/summary`, `/forecast/snapshots`, `/forecast/snapshots/{period}/summary`, `/dashboard/summary`(조회 전용, 로그인 사용자 모두) |
 | Reports | `/reports/fields`, `/reports/query`(임시 조회, 저장 안 함), `/reports`(목록·만들기), `/reports/{id}`(보기·수정·삭제), `/reports/{id}/copy`, `/reports/{id}/run`(로그인 사용자 모두, 보기·수정·삭제 권한은 `domain/saved_report/policy.py`) |
-| 파트너 Activity | `/partner-meetings`(목록·일괄 등록), `/partner-meetings/{id}`(수정·삭제), `/partner-meetings/deal-options`(회사별 Deal 선택지). 읽기는 로그인 사용자 모두, 쓰기는 sales·admin(2026-10-28) |
+| 파트너 Activity | `/partner-meetings`(목록·일괄 등록), `/partner-meetings/{id}`(수정·삭제). 읽기는 로그인 사용자 모두, 쓰기는 sales·admin(2026-10-28) |
 | 기타 | `/user-options`(사용자 선택 후보) |
 
 전체 목록은 `openapi.json` 또는 local의 `/docs`를 봅니다.
