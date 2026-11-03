@@ -58,12 +58,12 @@ describe('BANT 입력의 모양 (AC-30)', () => {
     expect(bant.querySelector('select')).toBeNull()
   })
 
-  it('starts empty on registration with the placeholder that says empty means not selected', async () => {
+  it('starts empty on registration with no placeholder text', async () => {
     await openNew()
 
     for (const category of CATEGORIES) {
       expect(bantOf(category)).toHaveDisplayValue('')
-      expect(bantOf(category)).toHaveAttribute('placeholder', '비워 두면 선택 안 함')
+      expect(bantOf(category)).not.toHaveAttribute('placeholder')
     }
   })
 

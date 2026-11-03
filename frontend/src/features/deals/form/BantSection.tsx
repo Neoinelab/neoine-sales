@@ -35,7 +35,6 @@ export function BantSection({ state, set, errors }: SectionProps) {
                   value={state.bant[category]}
                   onChange={(text) => set('bant', { ...state.bant, [category]: text })}
                   options={options}
-                  placeholder="비워 두면 선택 안 함"
                   disabled={failed}
                   error={errors.bant?.[category]}
                   hint={unknown ? BANT_UNKNOWN_HINT : undefined}
