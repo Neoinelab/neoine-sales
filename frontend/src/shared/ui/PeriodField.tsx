@@ -1,9 +1,9 @@
 import { useId } from 'react'
-import { PAST_PERIOD_LABELS, UPCOMING_PERIOD_LABELS, type DuePeriodChoice } from '../../../shared/model/periodChoice'
-import { DateInput } from '../../../shared/ui/DateInput'
-import type { UpcomingPeriodKey, UpdatedPeriodKey, UpdatedPeriods } from '../../../shared/model/types'
+import { PAST_PERIOD_LABELS, UPCOMING_PERIOD_LABELS, type DuePeriodChoice } from '../model/periodChoice'
+import { DateInput } from './DateInput'
+import type { UpcomingPeriodKey, UpdatedPeriodKey, UpdatedPeriods } from '../model/types'
 
-interface ActionPeriodFieldProps {
+interface PeriodFieldProps {
   /** 선택 상자 라벨이자 직접 지정 날짜 라벨의 접두어(예: '수행일' -> '수행일 시작'). */
   label: string
   value: DuePeriodChoice
@@ -25,7 +25,7 @@ const PAST_KEYS = Object.keys(PAST_PERIOD_LABELS) as UpdatedPeriodKey[]
 const UPCOMING_KEYS = Object.keys(UPCOMING_PERIOD_LABELS) as UpcomingPeriodKey[]
 
 /** 기간 조건 한 칸: 전체 / 프리셋 / 직접 지정(선택하면 시작·끝 날짜 입력이 나타난다). */
-export function ActionPeriodField({ label, value, onChange, presets, withUpcoming = false, from, to, onFromChange, onToChange, fromError, toError }: ActionPeriodFieldProps) {
+export function PeriodField({ label, value, onChange, presets, withUpcoming = false, from, to, onFromChange, onToChange, fromError, toError }: PeriodFieldProps) {
   const fromId = useId()
   const toId = useId()
   return (

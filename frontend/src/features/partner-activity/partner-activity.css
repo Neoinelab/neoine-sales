@@ -2,9 +2,6 @@
 .partner-activity-page { display: grid; gap: 12px; min-width: 0; }
 .meeting-filters { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px 12px; align-items: end; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); padding: 14px 16px; }
 .meeting-filters .field input, .meeting-filters .field select { width: 100%; min-width: 0; }
-.meeting-date-range { grid-column: span 2; }
-.meeting-date-pair { display: flex; align-items: flex-start; gap: 6px; }
-.meeting-date-pair .date-input { flex: 1; min-width: 0; }
 .meeting-table { min-width: 720px; }
 .meeting-table th { white-space: nowrap; }
 .meeting-table td.meeting-date { white-space: nowrap; }

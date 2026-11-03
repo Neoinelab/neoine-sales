@@ -1,4 +1,5 @@
 import { screen, waitFor, within } from '@testing-library/react'
+import type { UserEvent } from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { gateway } from '../../gateway'
 import { renderAt } from '../../test/mockApp'
@@ -9,6 +10,8 @@ beforeEach(pinClock)
 afterEach(unpinClock)
 
 const bar = () => within(screen.getByRole('search', { name: '미팅 기록 검색' }))
+/** 미팅 날짜 선택 상자에서 '직접 지정'을 골라 시작·끝 칸을 연다(Deals '최종 업데이트'와 같은 방식). */
+const openCustomDates = (user: UserEvent) => user.selectOptions(bar().getByRole('combobox', { name: '미팅 날짜' }), '직접 지정')
 
 describe('항목별 검색 (AC11)', () => {
   it('has the four conditions without a deal and the search and reset buttons', async () => {
@@ -17,8 +20,9 @@ describe('항목별 검색 (AC11)', () => {
 
     expect(bar().getByRole('textbox', { name: '파트너' })).toBeVisible()
     expect(bar().queryByRole('textbox', { name: 'Deal' })).not.toBeInTheDocument()
-    expect(bar().getByRole('textbox', { name: '미팅 날짜 시작' })).toBeVisible()
-    expect(bar().getByRole('textbox', { name: '미팅 날짜 끝' })).toBeVisible()
+    expect(bar().getByRole('combobox', { name: '미팅 날짜' })).toHaveDisplayValue('전체')
+    expect(bar().queryByRole('textbox', { name: '미팅 날짜 시작' })).not.toBeInTheDocument()
+    expect(bar().queryByRole('textbox', { name: '미팅 날짜 끝' })).not.toBeInTheDocument()
     expect(bar().getByRole('textbox', { name: '미팅 내용' })).toBeVisible()
     expect(bar().getByRole('combobox', { name: '작성자' })).toBeVisible()
     expect(bar().getByRole('button', { name: '검색' })).toBeVisible()
@@ -49,6 +53,7 @@ describe('항목별 검색 (AC11)', () => {
     const { user, location } = await renderAt(PAGE)
     await waitForRows(10)
 
+    await openCustomDates(user)
     await user.type(bar().getByRole('textbox', { name: '미팅 날짜 시작' }), '20270305')
     await user.type(bar().getByRole('textbox', { name: '미팅 날짜 끝' }), '20270308')
     await user.click(bar().getByRole('button', { name: '검색' }))
@@ -106,6 +111,7 @@ describe('항목별 검색 (AC11)', () => {
     const { user, location } = await renderAt(PAGE)
     await waitForRows(10)
 
+    await openCustomDates(user)
     await user.type(bar().getByRole('textbox', { name: '미팅 날짜 시작' }), '202703')
     await user.click(bar().getByRole('button', { name: '검색' }))
 
@@ -119,6 +125,7 @@ describe('항목별 검색 (AC11)', () => {
     const { user } = await renderAt(PAGE)
     await waitForRows(10)
 
+    await openCustomDates(user)
     await user.type(bar().getByRole('textbox', { name: '미팅 날짜 시작' }), '20270310')
     await user.type(bar().getByRole('textbox', { name: '미팅 날짜 끝' }), '20270301')
     await user.click(bar().getByRole('button', { name: '검색' }))
@@ -142,6 +149,7 @@ describe('항목별 검색 (AC11)', () => {
 
     await waitFor(() => expect(shownContents()).toEqual(['ITDR 가격 협상']))
     expect(bar().getByRole('textbox', { name: '파트너' })).toHaveValue('코어')
+    expect(bar().getByRole('combobox', { name: '미팅 날짜' })).toHaveDisplayValue('직접 지정')
     expect(bar().getByRole('textbox', { name: '미팅 날짜 시작' })).toHaveValue('2027.03.10')
     expect(bar().getByRole('combobox', { name: '작성자' })).toHaveValue(String(USER_ID.kim))
   })
@@ -172,6 +180,7 @@ describe('검색 칸 (리뷰 후속)', () => {
     const { user, location } = await renderAt(PAGE)
     await waitForRows(10)
     await user.type(bar().getByRole('textbox', { name: '파트너' }), 'abc')
+    await openCustomDates(user)
     await user.type(bar().getByRole('textbox', { name: '미팅 날짜 시작' }), '202703')
 
     await user.click(within(screen.getByRole('columnheader', { name: '작성자' })).getByRole('button'))

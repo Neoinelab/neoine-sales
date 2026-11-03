@@ -6,7 +6,7 @@ import { ErrorBanner } from '../../../shared/ui/ErrorBanner'
 import { NEXT_ACTION_STATUS_FILTER_OPTIONS, isNextActionStatusFilter } from '../../../shared/model/nextActionStatus'
 import type { ActionQuery, NextActionStatusFilter, UpdatedPeriods } from '../../../shared/model/types'
 import { UserSelect } from '../../../shared/ui/UserSelect'
-import { ActionPeriodField } from './ActionPeriodField'
+import { PeriodField } from '../../../shared/ui/PeriodField'
 import './detail.css'
 import { dateValueError } from '../../../shared/model/dateText'
 import { parseId } from '../../../shared/model/ids'
@@ -117,7 +117,7 @@ export function ActionSearchBar({ onSearch }: ActionSearchBarProps) {
         <span>키워드</span>
         <input maxLength={100} value={draft.keyword} onChange={(e) => set('keyword', e.target.value)} placeholder="진행사항·Next Action·Memo" />
       </label>
-      <ActionPeriodField
+      <PeriodField
         label="수행일"
         value={draft.actedPeriod}
         onChange={(v) => set('actedPeriod', v as PastPeriodChoice)}
@@ -129,7 +129,7 @@ export function ActionSearchBar({ onSearch }: ActionSearchBarProps) {
         fromError={shownError(draft.actedPeriod, draft.actedFrom)}
         toError={shownError(draft.actedPeriod, draft.actedTo)}
       />
-      <ActionPeriodField
+      <PeriodField
         label="기한"
         value={draft.duePeriod}
         onChange={(v) => set('duePeriod', v)}
