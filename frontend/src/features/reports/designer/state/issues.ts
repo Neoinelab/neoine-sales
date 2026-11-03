@@ -43,8 +43,9 @@ function targetOf(location: ReportIssue['location'], run: RunUids): IssueTarget 
     case 'row_limit':
       return { kind: 'rowLimit' }
     case 'chart': {
-      const part = location[1]
-      return { kind: 'chart', part: typeof part === 'string' ? part : null }
+      // 중첩 옵션은 이름을 '.'로 잇고 항목 번호는 버린다(['chart','histogram','bin_count'] → 'histogram.bin_count').
+      const names = location.slice(1).filter((name): name is string => typeof name === 'string')
+      return { kind: 'chart', part: names.length > 0 ? names.join('.') : null }
     }
     default:
       return GENERAL

@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest'
 import { gateway } from '../../../gateway'
 import { lastChart } from '../../../test/chartMock'
 import { mockControl } from '../../../test/fake/default'
-import { createChart, expectPressed, kindButton, openChartTab, optionAt, panelField } from '../../../test/reportChart'
+import { chooseKind, createChart, expectPressed, openChartTab, optionAt, panelField } from '../../../test/reportChart'
 import { NO_RESULT_NOTE, showTab } from '../../../test/reportLayout'
 import { addCountedColumn, chipButton, chipItems, chipTexts, openEditor, settingsOf, saveButton, saveDialog, setupReportClock, UNSAVED_MARK, waitForHiddenResult } from '../../../test/reportScreen'
 import { MINE_PUBLIC, SAVED_SAMPLES, VENDOR_CHART, WITH_CHART, savedReport } from '../../../test/savedReports'
@@ -38,7 +38,7 @@ describe('저장된 차트 열기 (AC18)', () => {
 
     await openChartTab(user)
 
-    expectPressed('세로 막대')
+    expectPressed('묶은 세로 막대')
     expect(panelField('범주')).toHaveDisplayValue('Vendor')
     expect(panelField('차트 제목')).toHaveValue('Vendor별 금액')
     expect(panelField('범례')).toHaveDisplayValue('위')
@@ -62,7 +62,7 @@ describe('저장된 차트 열기 (AC18)', () => {
     const { user, goTo } = await openEditor(MINE_PUBLIC.id)
     await openChartTab(user)
     await createChart(user)
-    await user.click(kindButton('꺾은선'))
+    await chooseKind(user, '꺾은선')
     await user.type(panelField('차트 제목'), '저장할 제목')
     await user.selectOptions(panelField('범례'), '오른쪽')
     await user.click(panelField('데이터 레이블'))
@@ -167,13 +167,13 @@ describe('되돌리기 (AC16)', () => {
     const { user } = await openWithChart()
     await openChartTab(user)
     await user.type(panelField('차트 제목'), ' 바뀜')
-    await user.click(kindButton('꺾은선'))
+    await chooseKind(user, '꺾은선')
 
     await revert(user)
 
     await openChartTab(user)
     expect(panelField('차트 제목')).toHaveValue('Vendor별 금액')
-    expectPressed('세로 막대')
+    expectPressed('묶은 세로 막대')
     expect(unsavedMark()).not.toBeInTheDocument()
   })
 
@@ -213,7 +213,7 @@ describe('되돌리기 분기 (리뷰 Minor, 분기 고정용: 현재 구현에�
     const { user } = await openWithChart()
     await openChartTab(user)
     await user.type(panelField('차트 제목'), ' 바뀜')
-    await user.click(kindButton('꺾은선'))
+    await chooseKind(user, '꺾은선')
     expect(screen.getByText(UNSAVED_MARK)).toBeVisible()
 
     await revert(user)
@@ -223,7 +223,7 @@ describe('되돌리기 분기 (리뷰 Minor, 분기 고정용: 현재 구현에�
     expect(screen.queryByText(/설계가 바뀌었습니다/)).not.toBeInTheDocument()
     await openChartTab(user)
     expect(panelField('차트 제목')).toHaveValue('Vendor별 금액')
-    expectPressed('세로 막대')
+    expectPressed('묶은 세로 막대')
     expect(unsavedMark()).not.toBeInTheDocument()
   })
 

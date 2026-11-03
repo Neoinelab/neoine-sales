@@ -44,6 +44,9 @@ const CHART: ReportChartInput = {
   valueMin: 0,
   valueMax: 12.5,
   secondaryAxis: false,
+  histogram: null,
+  showTotal: false,
+  comboSeries: null,
 }
 
 /** 서버의 기본 배치와 시험용 배치(작성/결과 탭 분리). */

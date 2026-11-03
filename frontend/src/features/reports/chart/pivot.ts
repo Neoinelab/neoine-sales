@@ -2,7 +2,7 @@ import type { ReportCell, ReportChartInput, ReportResult, ReportResultColumn } f
 import { columnHeader, formatCell, formatShownCell, isNumericColumn, type FormatContext } from '../designer/format/formatCell'
 import { kindRule } from './chartKinds'
 
-const NONE_LABEL = '(없음)'
+export const NONE_LABEL = '(없음)'
 
 /** 차트 칸 하나: 결과 셀 원본, 그 열, 차트에 쓰는 값(원 그대로). 값이 없으면 null. */
 export interface PivotCell {
@@ -67,6 +67,13 @@ export function resolveColumns(input: ReportChartInput, result: ReportResult): C
   const [min, max] = series ? [1, 1] : [rule.valuesMin, rule.valuesMax]
   if (values.length < min || values.length > max) return null
   return { category, series, values }
+}
+
+/** 히스토그램의 값 열(범주·계열 없음, 값 열 하나). 결과와 맞지 않으면 null. */
+export function resolveHistogram(input: ReportChartInput, result: ReportResult): ReportResultColumn | null {
+  if (input.category !== null || input.series !== null || input.values.length !== 1) return null
+  const found = result.columns.find((c) => c.index === input.values[0])
+  return found && !found.group && isNumericColumn(found) ? found : null
 }
 
 /** 값을 가진 첫 등장 순서로 번호를 매기는 작은 도구(null도 하나의 값). */

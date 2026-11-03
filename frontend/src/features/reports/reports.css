@@ -126,6 +126,15 @@
 .report-kinds { display: flex; flex-wrap: wrap; gap: 4px; }
 .report-kinds button { padding: 3px 10px; }
 .report-kinds button[aria-pressed='true'] { background: var(--accent-soft); border-color: var(--accent); }
+.report-kind-picker { display: grid; gap: 8px; }
+.report-families { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 8px; }
+.report-families .report-check { font-size: 0.85rem; }
+.report-families .report-check:has(input:disabled) { color: var(--muted); }
+.report-kinds button:disabled { opacity: 0.5; cursor: not-allowed; }
+.report-combo-rows { display: grid; gap: 6px; }
+.report-combo-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 6px; align-items: center; }
+.report-combo-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.85rem; }
+.report-combo-row select { font: inherit; padding: 3px 6px; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--input-bg); color: var(--fg); min-width: 0; }
 .report-chart-group { display: grid; gap: 8px; margin: 0; padding: 8px 12px 12px; border: 1px solid var(--line); border-radius: var(--radius); }
 .report-chart-group legend { font-size: 0.8rem; color: var(--muted); padding: 0 4px; }
 .report-chart-group .field input[type='text'], .report-chart-group .field select { width: 100%; font: inherit; padding: 5px 8px; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--input-bg); color: var(--fg); min-width: 0; }

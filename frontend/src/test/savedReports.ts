@@ -113,6 +113,9 @@ export const VENDOR_CHART: ReportChartInput = {
   valueMin: null,
   valueMax: null,
   secondaryAxis: false,
+  histogram: null,
+  showTotal: false,
+  comboSeries: null,
 }
 
 /** 차트가 저장된 리포트(누적 막대 목록 표시용은 kind를 바꿔 쓴다). */

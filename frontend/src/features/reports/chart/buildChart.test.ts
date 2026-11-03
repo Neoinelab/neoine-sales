@@ -56,9 +56,18 @@ function chart(over: Partial<ReportChartInput> = {}): ReportChartInput {
     valueMin: null,
     valueMax: null,
     secondaryAxis: false,
+    histogram: null,
+    showTotal: false,
+    comboSeries: null,
     ...over,
   }
 }
+
+/** 콤보 계열 설정: 첫째 막대, 나머지 꺾은선(`secondary`이면 꺾은선을 보조 축에). 서버가 채워 주는 옛 규칙과 같다. */
+const comboOf = (count: number, secondary = false) => [
+  { type: 'column' as const, secondary: false },
+  ...Array.from({ length: count - 1 }, () => ({ type: 'line' as const, secondary })),
+]
 
 /** 읽기 전용 경로 접근(any 없이 중첩 옵션을 읽는다). */
 function get(root: unknown, ...path: (string | number)[]): unknown {
@@ -153,7 +162,7 @@ describe('buildChart: kind to Chart.js type and options (AC14)', () => {
   })
 
   it('draws combo as bars for the first value and lines for the others', () => {
-    const b = build(chart({ kind: 'combo', values: [1, 2] }), ONE)
+    const b = build(chart({ kind: 'combo', values: [1, 2], comboSeries: comboOf(2) }), ONE)
 
     expect(b.type).toBe('bar')
     expect(b.data.datasets[0]?.type).toBe('bar')
@@ -163,7 +172,7 @@ describe('buildChart: kind to Chart.js type and options (AC14)', () => {
   })
 
   it('puts the lines of a combo on a right hand secondary axis', () => {
-    const b = build(chart({ kind: 'combo', values: [1, 2], secondaryAxis: true }), ONE)
+    const b = build(chart({ kind: 'combo', values: [1, 2], secondaryAxis: true, comboSeries: comboOf(2, true) }), ONE)
 
     expect(b.data.datasets[0]?.yAxisID).not.toBe('y1')
     expect(b.data.datasets[1]?.yAxisID).toBe('y1')
@@ -329,7 +338,7 @@ describe('buildChart: title, legend, labels, axes and range', () => {
   })
 
   it('ranges the primary axis of a combo chart', () => {
-    const b = build(chart({ kind: 'combo', values: [1, 2], valueMax: 4000 }), ONE)
+    const b = build(chart({ kind: 'combo', values: [1, 2], valueMax: 4000, comboSeries: comboOf(2) }), ONE)
 
     expect(get(b.options, 'scales', 'y', 'max')).toBe(4000)
   })
@@ -569,14 +578,14 @@ describe('buildChart: value axis ticks shortened for won (AC-7)', () => {
 
   it('shortens only the secondary axis when a combo has one amount line', () => {
     const lineAmount = resultOf({ columns: [VENDOR, users(1), amount(2)], rows: [['Silverfort', 30, 1_870_000_000]] })
-    const b = build(chart({ kind: 'combo', values: [1, 2], secondaryAxis: true }), lineAmount)
+    const b = build(chart({ kind: 'combo', values: [1, 2], secondaryAxis: true, comboSeries: comboOf(2, true) }), lineAmount)
 
     expect(tickOf(b, 'y')).toBeUndefined()
     expect(tickOf(b, 'y1')?.(1_870_000_000)).toBe('18.7억')
   })
 
   it('shortens the primary axis when a combo bar is an amount and the lines are not', () => {
-    const b = build(chart({ kind: 'combo', values: [1, 2], secondaryAxis: true }), ONE)
+    const b = build(chart({ kind: 'combo', values: [1, 2], secondaryAxis: true, comboSeries: comboOf(2, true) }), ONE)
 
     expect(tickOf(b, 'y')?.(1_870_000_000)).toBe('18.7억')
     expect(tickOf(b, 'y1')).toBeUndefined()

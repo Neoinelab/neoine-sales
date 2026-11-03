@@ -24,7 +24,7 @@ describe('보기 화면의 차트 타일 (AC10, AC19, 작성/결과 탭 분리 A
     expect(lastChart().type).toBe('bar')
     expect(lastChart().options).toMatchObject({ plugins: { title: { display: true, text: VENDOR_CHART.title } } })
     for (const label of ['범주', '차트 제목', '범례']) expect(screen.queryByLabelText(label)).not.toBeInTheDocument()
-    for (const name of ['차트 만들기', '차트 삭제', '세로 막대', '차트 설정']) expect(screen.queryByRole('button', { name })).not.toBeInTheDocument()
+    for (const name of ['차트 만들기', '차트 삭제', '묶은 세로 막대', '차트 설정']) expect(screen.queryByRole('button', { name })).not.toBeInTheDocument()
   })
 
   it('has no result tabs any more', async () => {

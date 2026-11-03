@@ -2,8 +2,11 @@ import { useId } from 'react'
 import type { ReportChartLegend } from '../../../shared/model/reportTypes'
 import type { DesignerAction, DesignerColumn } from '../designer/state/designerState'
 import type { Message } from '../designer/state/issueView'
-import { CHART_KINDS, kindRule } from './chartKinds'
-import type { ChartDraft, ChartDraftIssue } from './chartDraft'
+import { kindRule } from './chartKinds'
+import { comboSettings, type ChartDraft, type ChartDraftIssue } from './chartDraft'
+import { ComboSeriesEditor } from './ComboSeriesEditor'
+import { HistogramOptions } from './HistogramOptions'
+import { KindPicker } from './KindPicker'
 
 const LEGENDS: { value: ReportChartLegend; label: string }[] = [
   { value: 'top', label: '위' },
@@ -50,29 +53,14 @@ function Notes({ list }: { list: { id: string; text: string }[] }) {
   )
 }
 
-function KindButtons({ draft, groups, dispatch }: { draft: ChartDraft; groups: number; dispatch: PanelProps['dispatch'] }) {
-  return (
-    <div className="report-kinds" role="group" aria-label="차트 종류">
-      {CHART_KINDS.map((kind) => {
-        const blocked = groups > kind.maxGroups
-        return (
-          <button
-            key={kind.key}
-            type="button"
-            aria-pressed={draft.kind === kind.key}
-            disabled={blocked}
-            title={blocked ? '그룹핑 컬럼이 1개일 때만 쓸 수 있습니다' : undefined}
-            onClick={() => dispatch({ type: 'setChartKind', kind: kind.key })}
-          >
-            {kind.label}
-          </button>
-        )
-      })}
-    </div>
-  )
-}
+/** 칸 옆에 직접 보이는 위치(나머지 서버 위반은 패널 위쪽에 모아 보인다). */
+const FIELD_PARTS = ['category', 'series', 'values', 'value_min', 'value_max', 'combo_series']
+const ownPart = (part: string | null): boolean => part !== null && (FIELD_PARTS.includes(part) || part.startsWith('histogram.'))
 
-/** 시안 9장의 설정 패널: 종류 · 데이터 · 제목과 범례 · 축. 쓰지 않는 칸은 이유와 함께 비활성이다. */
+/** 축이 없는 종류(원·도넛·방사형·트리맵·선버스트). */
+const NO_AXES: readonly string[] = ['pie', 'doughnut', 'radar', 'radar_markers', 'radar_filled', 'treemap', 'sunburst']
+
+/** 시안 9장의 설정 패널: 종류 · 데이터 · 종류별 옵션 · 제목과 범례 · 축. 쓰지 않는 칸은 이유와 함께 비활성이다. */
 export function ChartSettingsPanel({ draft, columns, headerOf, issues, serverIssues, dispatch }: PanelProps) {
   const ids = useId()
   const { notes, aria } = useNotes(issues, serverIssues)
@@ -80,12 +68,25 @@ export function ChartSettingsPanel({ draft, columns, headerOf, issues, serverIss
   const groups = columns.filter((c) => c.group)
   const values = columns.filter((c) => !c.group)
   const change = (patch: Partial<ChartDraft>) => dispatch({ type: 'changeChart', patch })
-  const horizontal = draft.kind === 'horizontal_bar'
+  const horizontal = draft.kind.includes('horizontal') || draft.kind === 'funnel'
   const valueMax = draft.seriesUid === null ? rule.valuesMax : 1
-  const noAxes = draft.kind === 'pie' || draft.kind === 'doughnut'
+  const noAxes = NO_AXES.includes(draft.kind)
+  const noValueAxis = noAxes || draft.kind === 'funnel'
   const noRange = rule.allowsValueRange ? undefined : '이 종류는 축 범위를 쓸 수 없습니다'
   const noAxisReason = noAxes ? '이 종류는 축이 없습니다' : undefined
-  const rangeAxis = horizontal ? '가로축' : '세로축'
+  const noValueAxisReason = noAxes ? noAxisReason : noValueAxis ? '깔때기는 값 축을 보이지 않습니다' : undefined
+  const combo = rule.options.includes('combo_series')
+  const noCategory = !rule.usesCategory
+  const textOf = (part: string): string | undefined => notes(part).map((n) => n.text).join(' ') || undefined
+  const histogramIssues = {
+    bin_mode: textOf('histogram.bin_mode'),
+    bin_count: textOf('histogram.bin_count'),
+    bin_width: textOf('histogram.bin_width'),
+    overflow: textOf('histogram.overflow'),
+    underflow: textOf('histogram.underflow'),
+  }
+  const comboSeries = comboSettings(draft)
+  const rangeAxis = draft.kind.startsWith('radar') ? '반지름 축' : horizontal ? '가로축' : '세로축'
 
   const pickCategory = (uid: number) =>
     uid === draft.seriesUid ? change({ categoryUid: uid, seriesUid: draft.categoryUid }) : change({ categoryUid: uid })
@@ -105,20 +106,28 @@ export function ChartSettingsPanel({ draft, columns, headerOf, issues, serverIss
 
   return (
     <div className="report-chart-panel">
-      <KindButtons draft={draft} groups={groups.length} dispatch={dispatch} />
-      <Notes list={serverIssues.filter((m) => m.part === null || !['category', 'series', 'values', 'value_min', 'value_max'].includes(m.part)).map((m) => ({ id: m.id, text: m.text }))} />
+      <KindPicker kind={draft.kind} groupCount={groups.length} onChange={(kind) => dispatch({ type: 'setChartKind', kind })} />
+      <Notes list={serverIssues.filter((m) => !ownPart(m.part)).map((m) => ({ id: m.id, text: m.text }))} />
       <fieldset className="report-chart-group">
         <legend>데이터</legend>
         <div className="field">
           <label htmlFor={`${ids}-category`}>범주</label>
-          <select id={`${ids}-category`} value={draft.categoryUid ?? ''} {...aria('category')} onChange={(e) => pickCategory(Number(e.target.value))}>
-            {draft.categoryUid === null && <option value="">선택</option>}
+          <select
+            id={`${ids}-category`}
+            value={draft.categoryUid ?? ''}
+            disabled={noCategory}
+            title={noCategory ? '이 차트는 범주 열을 쓰지 않습니다' : undefined}
+            {...aria('category')}
+            onChange={(e) => pickCategory(Number(e.target.value))}
+          >
+            {draft.categoryUid === null && <option value="">{noCategory ? '(없음)' : '선택'}</option>}
             {groups.map((c) => (
               <option key={c.uid} value={c.uid}>
                 {headerOf(c.uid)}
               </option>
             ))}
           </select>
+          {noCategory && <p className="field-hint">이 차트는 범주 열을 쓰지 않습니다</p>}
           <Notes list={notes('category')} />
         </div>
         <div className="field">
@@ -163,6 +172,32 @@ export function ChartSettingsPanel({ draft, columns, headerOf, issues, serverIss
           행/열 전환
         </label>
       </fieldset>
+      {rule.options.includes('histogram') && (
+        <fieldset className="report-chart-group">
+          <legend>구간</legend>
+          <HistogramOptions value={draft.histogram} issues={histogramIssues} onChange={(next) => change({ histogram: next })} />
+        </fieldset>
+      )}
+      {rule.options.includes('show_total') && (
+        <fieldset className="report-chart-group">
+          <legend>폭포</legend>
+          <label className="report-check">
+            <input type="checkbox" checked={draft.showTotal} onChange={(e) => change({ showTotal: e.target.checked })} />
+            마지막에 합계 막대
+          </label>
+        </fieldset>
+      )}
+      {combo && (
+        <fieldset className="report-chart-group">
+          <legend>계열</legend>
+          <ComboSeriesEditor
+            columns={draft.valueUids.map((uid) => ({ uid, header: headerOf(uid) }))}
+            value={Object.fromEntries(draft.valueUids.map((uid, i) => [uid, comboSeries[i]!]))}
+            issue={textOf('combo_series')}
+            onChange={(next) => change({ comboTypes: next, secondaryAxis: Object.values(next).some((s) => s.secondary) })}
+          />
+        </fieldset>
+      )}
       <fieldset className="report-chart-group">
         <legend>제목과 범례</legend>
         <div className="field">
@@ -180,7 +215,13 @@ export function ChartSettingsPanel({ draft, columns, headerOf, issues, serverIss
           </select>
         </div>
         <label className="report-check">
-          <input type="checkbox" checked={draft.dataLabels} onChange={(e) => change({ dataLabels: e.target.checked })} />
+          <input
+            type="checkbox"
+            checked={draft.dataLabels}
+            disabled={draft.kind === 'treemap'}
+            title={draft.kind === 'treemap' ? '트리맵은 이름과 값을 항상 보입니다' : undefined}
+            onChange={(e) => change({ dataLabels: e.target.checked })}
+          />
           데이터 레이블
         </label>
       </fieldset>
@@ -192,7 +233,7 @@ export function ChartSettingsPanel({ draft, columns, headerOf, issues, serverIss
         </div>
         <div className="field">
           <label htmlFor={`${ids}-val-axis`}>{horizontal ? '가로축 제목(값)' : '세로축 제목'}</label>
-          <input id={`${ids}-val-axis`} type="text" value={draft.valueAxisTitle} disabled={noAxes} title={noAxisReason} onChange={(e) => change({ valueAxisTitle: e.target.value })} />
+          <input id={`${ids}-val-axis`} type="text" value={draft.valueAxisTitle} disabled={noValueAxis} title={noValueAxisReason} onChange={(e) => change({ valueAxisTitle: e.target.value })} />
         </div>
         <div className="field">
           <label htmlFor={`${ids}-min`}>{rangeAxis} 최소</label>
@@ -205,15 +246,12 @@ export function ChartSettingsPanel({ draft, columns, headerOf, issues, serverIss
           <Notes list={notes('value_max')} />
         </div>
         {rule.percentAxis && <p className="field-hint">100% 누적은 0~100 사이로 입력하세요</p>}
-        <label className="report-check">
-          <input
-            type="checkbox"
-            checked={draft.secondaryAxis}
-            disabled={!rule.allowsSecondary}
-            title={rule.allowsSecondary ? undefined : '보조 축은 콤보 차트에서만 쓸 수 있습니다'}
-            onChange={(e) => change({ secondaryAxis: e.target.checked })} />
-          보조 축
-        </label>
+        {!combo && (
+          <label className="report-check">
+            <input type="checkbox" checked={false} disabled title="보조 축은 콤보 차트에서만 쓸 수 있습니다" />
+            보조 축
+          </label>
+        )}
       </fieldset>
     </div>
   )

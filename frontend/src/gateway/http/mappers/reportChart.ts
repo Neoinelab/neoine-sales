@@ -1,9 +1,53 @@
 import type { Schemas } from '../../../shared/api/client'
-import type { ReportChartInput, ReportChartKind, ReportChartLegend } from '../../../shared/model/reportTypes'
+import type {
+  ReportBinMode,
+  ReportChartInput,
+  ReportChartKind,
+  ReportChartLegend,
+  ReportComboSeries,
+  ReportComboSeriesType,
+  ReportHistogramBins,
+} from '../../../shared/model/reportTypes'
 import { malformedResponse } from '../request'
 
-const KINDS: readonly string[] = ['bar', 'horizontal_bar', 'stacked_bar', 'stacked_100_bar', 'line', 'area', 'pie', 'doughnut', 'scatter', 'combo']
+const KINDS: readonly string[] = [
+  'bar',
+  'stacked_bar',
+  'stacked_100_bar',
+  'horizontal_bar',
+  'stacked_horizontal_bar',
+  'stacked_100_horizontal_bar',
+  'line',
+  'line_markers',
+  'stacked_line',
+  'stacked_line_markers',
+  'stacked_100_line',
+  'stacked_100_line_markers',
+  'pie',
+  'doughnut',
+  'area',
+  'stacked_area',
+  'stacked_100_area',
+  'scatter',
+  'scatter_smooth_markers',
+  'scatter_smooth',
+  'scatter_line_markers',
+  'scatter_line',
+  'bubble',
+  'radar',
+  'radar_markers',
+  'radar_filled',
+  'treemap',
+  'sunburst',
+  'histogram',
+  'pareto',
+  'waterfall',
+  'funnel',
+  'combo',
+]
 const LEGENDS: readonly string[] = ['top', 'right', 'bottom', 'none']
+const BIN_MODES: readonly string[] = ['auto', 'count', 'width']
+const COMBO_TYPES: readonly string[] = ['column', 'stacked_column', 'line', 'line_markers', 'area', 'stacked_area']
 
 /** 모르는 종류는 화면이 그릴 수 없으므로 계약 위반(malformed-response)이다. */
 export function toChartKind(value: string): ReportChartKind {
@@ -14,6 +58,20 @@ export function toChartKind(value: string): ReportChartKind {
 function toLegend(value: string): ReportChartLegend {
   if (LEGENDS.includes(value)) return value as ReportChartLegend
   throw malformedResponse()
+}
+
+function toHistogram(body: Schemas['HistogramResponse'] | null): ReportHistogramBins | null {
+  if (body === null) return null
+  if (!BIN_MODES.includes(body.bin_mode)) throw malformedResponse()
+  return { binMode: body.bin_mode as ReportBinMode, binCount: body.bin_count, binWidth: body.bin_width, overflow: body.overflow, underflow: body.underflow }
+}
+
+function toComboSeries(body: Schemas['ComboSeriesResponse'][] | null): ReportComboSeries[] | null {
+  if (body === null) return null
+  return body.map((item) => {
+    if (!COMBO_TYPES.includes(item.type)) throw malformedResponse()
+    return { type: item.type as ReportComboSeriesType, secondary: item.secondary }
+  })
 }
 
 export function toChart(body: Schemas['ReportChartResponse']): ReportChartInput {
@@ -31,11 +89,15 @@ export function toChart(body: Schemas['ReportChartResponse']): ReportChartInput 
     valueMin: body.value_min,
     valueMax: body.value_max,
     secondaryAxis: body.secondary_axis,
+    histogram: toHistogram(body.histogram),
+    showTotal: body.show_total,
+    comboSeries: toComboSeries(body.combo_series),
   }
 }
 
-/** 요청 본문(snake_case, 13개 키 모두). 서버가 값 검증을 하므로 불완전한 값도 그대로 보낸다. */
+/** 요청 본문(snake_case, 16개 키 모두). 서버가 값 검증을 하므로 불완전한 값도 그대로 보낸다. */
 export function toChartBody(input: ReportChartInput): Schemas['ReportChartRequest'] {
+  const { histogram } = input
   return {
     kind: input.kind,
     category: input.category,
@@ -50,5 +112,10 @@ export function toChartBody(input: ReportChartInput): Schemas['ReportChartReques
     value_min: input.valueMin,
     value_max: input.valueMax,
     secondary_axis: input.secondaryAxis,
+    histogram: histogram
+      ? { bin_mode: histogram.binMode, bin_count: histogram.binCount, bin_width: histogram.binWidth, overflow: histogram.overflow, underflow: histogram.underflow }
+      : null,
+    show_total: input.showTotal,
+    combo_series: input.comboSeries,
   }
 }

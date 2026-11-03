@@ -1325,6 +1325,11 @@ export interface components {
             /** Timeline */
             timeline: number | null;
         };
+        /**
+         * BinMode
+         * @enum {string}
+         */
+        BinMode: "auto" | "count" | "width";
         /** Body_upload_attachment_api_v1_deals__code__attachments_post */
         Body_upload_attachment_api_v1_deals__code__attachments_post: {
             /**
@@ -1357,7 +1362,7 @@ export interface components {
          * ChartKind
          * @enum {string}
          */
-        ChartKind: "bar" | "horizontal_bar" | "stacked_bar" | "stacked_100_bar" | "line" | "area" | "pie" | "doughnut" | "scatter" | "combo";
+        ChartKind: "bar" | "stacked_bar" | "stacked_100_bar" | "horizontal_bar" | "stacked_horizontal_bar" | "stacked_100_horizontal_bar" | "line" | "line_markers" | "stacked_line" | "stacked_line_markers" | "stacked_100_line" | "stacked_100_line_markers" | "pie" | "doughnut" | "area" | "stacked_area" | "stacked_100_area" | "scatter" | "scatter_smooth_markers" | "scatter_smooth" | "scatter_line_markers" | "scatter_line" | "bubble" | "radar" | "radar_markers" | "radar_filled" | "treemap" | "sunburst" | "histogram" | "pareto" | "waterfall" | "funnel" | "combo";
         /** CoChangedResponse */
         CoChangedResponse: {
             /** Field */
@@ -1457,6 +1462,20 @@ export interface components {
             order: number;
             outcome: components["schemas"]["ForecastOutcome"];
         };
+        /**
+         * ComboSeriesResponse
+         * @description 콤보 계열 하나의 종류와 보조 축 여부.
+         */
+        ComboSeriesResponse: {
+            /** Secondary */
+            secondary: boolean;
+            type: components["schemas"]["ComboSeriesType"];
+        };
+        /**
+         * ComboSeriesType
+         * @enum {string}
+         */
+        ComboSeriesType: "column" | "stacked_column" | "line" | "line_markers" | "area" | "stacked_area";
         /**
          * ContactCreateRequest
          * @description 값 검증(공백·빈 값·형식)은 도메인이 한다. pydantic strip·min_length를 두지 않는다.
@@ -2206,6 +2225,21 @@ export interface components {
             detail?: components["schemas"]["ValidationError"][];
         };
         /**
+         * HistogramResponse
+         * @description 히스토그램 구간 설정(정규화된 값).
+         */
+        HistogramResponse: {
+            /** Bin Count */
+            bin_count: number | null;
+            bin_mode: components["schemas"]["BinMode"];
+            /** Bin Width */
+            bin_width: number | null;
+            /** Overflow */
+            overflow: number | null;
+            /** Underflow */
+            underflow: number | null;
+        };
+        /**
          * HistoryCategory
          * @description History 구분. 값은 프런트 `HistoryCategory` 타입 그대로다.
          * @enum {string}
@@ -2617,11 +2651,15 @@ export interface components {
              * @default
              */
             category_axis_title: unknown;
+            /** Combo Series */
+            combo_series?: unknown;
             /**
              * Data Labels
              * @default false
              */
             data_labels: unknown;
+            /** Histogram */
+            histogram?: unknown;
             /** Kind */
             kind: unknown;
             /**
@@ -2636,6 +2674,11 @@ export interface components {
             secondary_axis: unknown;
             /** Series */
             series?: unknown;
+            /**
+             * Show Total
+             * @default false
+             */
+            show_total: unknown;
             /**
              * Swap
              * @default false
@@ -2664,17 +2707,22 @@ export interface components {
          */
         ReportChartResponse: {
             /** Category */
-            category: number;
+            category: number | null;
             /** Category Axis Title */
             category_axis_title: string;
+            /** Combo Series */
+            combo_series: components["schemas"]["ComboSeriesResponse"][] | null;
             /** Data Labels */
             data_labels: boolean;
+            histogram: components["schemas"]["HistogramResponse"] | null;
             kind: components["schemas"]["ChartKind"];
             legend: components["schemas"]["LegendPosition"];
             /** Secondary Axis */
             secondary_axis: boolean;
             /** Series */
             series: number | null;
+            /** Show Total */
+            show_total: boolean;
             /** Swap */
             swap: boolean;
             /** Title */

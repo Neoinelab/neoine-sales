@@ -90,4 +90,19 @@ describe('chart locations (Reports 4단계 AC17, P13)', () => {
       { kind: 'chart', part: 'value_min' },
     ])
   })
+
+  it('joins the nested option names with a dot and drops the item numbers (Excel 확장 AC3)', () => {
+    const anchored = issueAnchors(
+      [issue(['chart', 'histogram', 'bin_count']), issue(['chart', 'histogram']), issue(['chart', 'combo_series', 1]), issue(['chart', 'combo_series']), issue(['chart', 'show_total'])],
+      RUN,
+    )
+
+    expect(anchored.map((a) => a.target)).toEqual([
+      { kind: 'chart', part: 'histogram.bin_count' },
+      { kind: 'chart', part: 'histogram' },
+      { kind: 'chart', part: 'combo_series' },
+      { kind: 'chart', part: 'combo_series' },
+      { kind: 'chart', part: 'show_total' },
+    ])
+  })
 })

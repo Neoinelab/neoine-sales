@@ -2,6 +2,7 @@ import {
   ArcElement,
   BarController,
   BarElement,
+  BubbleController,
   CategoryScale,
   Chart as ChartJS,
   DoughnutController,
@@ -12,15 +13,20 @@ import {
   LineElement,
   PieController,
   PointElement,
+  RadarController,
+  RadialLinearScale,
   ScatterController,
   Title,
   Tooltip,
 } from 'chart.js'
+import { TreemapController, TreemapElement } from 'chartjs-chart-treemap'
 
 // `chart.js/auto` 대신 리포트 차트에 필요한 요소만 등록한다(번들 크기). 데이터 레이블 플러그인은 전역 등록하지 않고 차트 인스턴스에만 넘긴다.
+// 컨트롤러는 인스턴스 단위로 넘길 수 없어 전역 등록이지만 이 파일은 리포트 차트 청크에서만 불러오고, 컨트롤러는 해당 `type`을 쓸 때만 동작한다(Dashboard 차트에는 영향이 없다).
 ChartJS.register(
   CategoryScale,
   LinearScale,
+  RadialLinearScale,
   BarController,
   BarElement,
   LineController,
@@ -30,6 +36,10 @@ ChartJS.register(
   DoughnutController,
   ArcElement,
   ScatterController,
+  BubbleController,
+  RadarController,
+  TreemapController,
+  TreemapElement,
   Filler,
   Title,
   Tooltip,

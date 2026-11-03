@@ -8,7 +8,9 @@ import {
   amountCol,
   chartDatasets,
   chartLabels,
+  chooseKind,
   createChart,
+  familyRadio,
   expectPressed,
   kindButton,
   openChartTab,
@@ -42,7 +44,6 @@ setupReportClock()
 
 const NEEDS_GROUPING = '그룹핑한 결과로 차트를 만들 수 있습니다'
 const TOO_MANY_GROUPS = '차트는 그룹핑 컬럼이 1~2개일 때 만들 수 있습니다'
-const ALL_KINDS = ['세로 막대', '가로 막대', '누적 막대', '100% 누적', '꺾은선', '영역', '원', '도넛', '분산형', '콤보']
 
 describe('결과 탭의 차트 타일 (작성/결과 탭 분리 AC9, AC10, AC16)', () => {
   it('has no chart tab: the chart is a tile next to the table tile on the result tab', async () => {
@@ -67,19 +68,19 @@ describe('결과 탭의 차트 타일 (작성/결과 탭 분리 AC9, AC10, AC16)
     await createChart(user)
 
     expect(chartToggle()).toHaveAttribute('aria-expanded', 'true')
-    expect(kindButton('세로 막대')).toBeVisible()
+    expect(kindButton('묶은 세로 막대')).toBeVisible()
 
     await user.click(chartToggle() as HTMLElement)
 
     expect(chartToggle()).toHaveAttribute('aria-expanded', 'false')
-    expect(screen.queryByRole('button', { name: '세로 막대' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '묶은 세로 막대' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: '차트 삭제' })).not.toBeInTheDocument()
     expect(screen.getByRole('img')).toBeVisible() // 그림은 설정 패널과 무관하게 남는다
 
     await user.click(chartToggle() as HTMLElement)
 
     expect(chartToggle()).toHaveAttribute('aria-expanded', 'true')
-    expect(kindButton('세로 막대')).toBeVisible()
+    expect(kindButton('묶은 세로 막대')).toBeVisible()
   })
 
   it('keeps the chart, the open settings and the result tab after running again', async () => {
@@ -160,7 +161,7 @@ describe('차트 만들기와 종류 (AC12, AC13)', () => {
     expect(chartLabels()).toEqual(['Silverfort', 'Okta', '(없음)'])
     expect(chartDatasets()).toHaveLength(1)
     expect(chartDatasets()[0]?.data).toEqual([3_000_000, 1_500_000, 500_000])
-    expectPressed('세로 막대')
+    expectPressed('묶은 세로 막대')
     expect(screen.getByRole('button', { name: '차트 삭제' })).toBeVisible()
     expect(screen.queryByRole('button', { name: '차트 만들기' })).not.toBeInTheDocument()
   })
@@ -186,7 +187,7 @@ describe('차트 만들기와 종류 (AC12, AC13)', () => {
 
     await createChart(user)
 
-    expectPressed('누적 막대')
+    expectPressed('누적 세로 막대')
     expect(panelField('범주')).toHaveDisplayValue('Vendor')
     expect(panelField('계열')).toHaveDisplayValue('Status')
     expect(chartLabels()).toEqual(['Silverfort', 'Okta'])
@@ -203,36 +204,66 @@ describe('차트 만들기와 종류 (AC12, AC13)', () => {
 
     expect(screen.queryByRole('img')).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: '차트 만들기' })).toBeEnabled()
-    expect(screen.queryByRole('button', { name: '세로 막대' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '묶은 세로 막대' })).not.toBeInTheDocument()
   })
 
-  it('has the ten kind buttons and marks only the chosen one pressed', async () => {
+  it('offers the 13 families and the sub kinds of the chosen family only, marking the chosen one pressed', async () => {
     const { user } = await openGroupedDesigner(1)
     await openChartTab(user)
     await createChart(user)
 
-    for (const name of ALL_KINDS) expect(kindButton(name)).toHaveAttribute('aria-pressed', name === '세로 막대' ? 'true' : 'false')
+    expect(within(screen.getByRole('radiogroup', { name: '차트 분류' })).getAllByRole('radio')).toHaveLength(13)
+    expect(familyRadio('세로 막대형')).toBeChecked()
+    const subKinds = within(screen.getByRole('group', { name: '하위 종류' })).getAllByRole('button')
+    expect(subKinds.map((b) => b.textContent)).toEqual(['묶은 세로 막대', '누적 세로 막대', '100% 누적 세로 막대'])
+    expect(kindButton('묶은 세로 막대')).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.queryByRole('button', { name: '도넛형' })).not.toBeInTheDocument()
 
-    await user.click(kindButton('도넛'))
+    await chooseKind(user, '도넛형')
 
-    expect(kindButton('도넛')).toHaveAttribute('aria-pressed', 'true')
-    expect(kindButton('세로 막대')).toHaveAttribute('aria-pressed', 'false')
+    expect(familyRadio('원형')).toBeChecked()
+    expect(kindButton('도넛형')).toHaveAttribute('aria-pressed', 'true')
+    expect(kindButton('원형')).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.queryByRole('button', { name: '묶은 세로 막대' })).not.toBeInTheDocument()
+  })
+
+  it('switches to the first usable sub kind when another family is chosen', async () => {
+    const { user } = await openGroupedDesigner(1)
+    await openChartTab(user)
+    await createChart(user)
+
+    await user.click(familyRadio('꺾은선형'))
+
+    expect(kindButton('꺾은선')).toHaveAttribute('aria-pressed', 'true')
+    expect(lastChart().type).toBe('line')
+  })
+
+  it('draws a line without markers and a line with markers when the sub kind is chosen', async () => {
+    const { user } = await openGroupedDesigner(1)
+    await openChartTab(user)
+    await createChart(user)
+
+    await chooseKind(user, '꺾은선')
+    expect(chartDatasets().every((d) => (d as Record<string, unknown>).pointRadius === 0)).toBe(true)
+
+    await chooseKind(user, '표식이 있는 꺾은선')
+    expect(chartDatasets().every((d) => Number((d as Record<string, unknown>).pointRadius) > 0)).toBe(true)
   })
 
   it.each([
-    ['가로 막대', 'bar'],
-    ['누적 막대', 'bar'],
-    ['100% 누적', 'bar'],
+    ['묶은 가로 막대', 'bar'],
+    ['누적 세로 막대', 'bar'],
+    ['100% 누적 세로 막대', 'bar'],
     ['꺾은선', 'line'],
     ['영역', 'line'],
-    ['원', 'pie'],
-    ['도넛', 'doughnut'],
+    ['원형', 'pie'],
+    ['도넛형', 'doughnut'],
   ])('redraws the preview as %s right after the click', async (name, type) => {
     const { user } = await openGroupedDesigner(1)
     await openChartTab(user)
     await createChart(user)
 
-    await user.click(kindButton(name))
+    await chooseKind(user, name)
 
     expect(lastChart().type).toBe(type)
   })
@@ -242,7 +273,7 @@ describe('차트 만들기와 종류 (AC12, AC13)', () => {
     await openChartTab(user)
     await createChart(user)
 
-    await user.click(kindButton('가로 막대'))
+    await chooseKind(user, '묶은 가로 막대')
 
     expect(optionAt('indexAxis')).toBe('y')
     expect(panelField('세로축 제목(범주)')).toHaveValue('Vendor')
@@ -256,7 +287,7 @@ describe('차트 만들기와 종류 (AC12, AC13)', () => {
     await user.click(within(valueGroup()).getByRole('checkbox', { name: USERS_HEADER }))
     expect(chartDatasets()).toHaveLength(2)
 
-    await user.click(kindButton('원'))
+    await chooseKind(user, '원형')
 
     expect(chartDatasets()).toHaveLength(1)
     expect(panelField('계열')).toBeDisabled()
@@ -264,13 +295,28 @@ describe('차트 만들기와 종류 (AC12, AC13)', () => {
     expect(within(valueGroup()).getByRole('checkbox', { name: USERS_HEADER })).not.toBeChecked()
   })
 
-  it('disables the kinds that need exactly one group column when there are two', async () => {
+  it('disables the families that need at most one group column when there are two, with the reason', async () => {
     const { user } = await openGroupedDesigner(2)
     await openChartTab(user)
     await createChart(user)
 
-    for (const name of ['원', '도넛', '분산형', '콤보']) expect(kindButton(name)).toBeDisabled()
-    for (const name of ['세로 막대', '가로 막대', '누적 막대', '100% 누적', '꺾은선', '영역']) expect(kindButton(name)).toBeEnabled()
+    for (const name of ['원형', '분산형(X, Y) 또는 거품형', '폭포', '깔때기', '콤보']) {
+      expect(familyRadio(name)).toBeDisabled()
+      expect(familyRadio(name)).toHaveAttribute('title', '그룹핑 컬럼이 1개 이하일 때 쓸 수 있습니다')
+    }
+    for (const name of ['세로 막대형', '가로 막대형', '꺾은선형', '영역형', '방사형', '트리맵', '선버스트', '히스토그램']) expect(familyRadio(name)).toBeEnabled()
+  })
+
+  it('disables the sub kinds that need fewer groups with the reason as the title', async () => {
+    const { user } = await openGroupedDesigner(2)
+    await openChartTab(user)
+    await createChart(user)
+
+    await user.click(familyRadio('히스토그램'))
+
+    expect(kindButton('히스토그램')).toBeEnabled()
+    expect(kindButton('파레토')).toBeDisabled()
+    expect(kindButton('파레토')).toHaveAttribute('title', '그룹핑 컬럼이 1개 이하일 때 쓸 수 있습니다')
   })
 })
 
@@ -389,12 +435,12 @@ describe('설정이 차트 옵션에 바로 반영됨 (AC14)', () => {
     expect('max' in (optionAt('scales', 'y') as object)).toBe(false)
   })
 
-  it('puts the line datasets of a combo chart on the secondary axis', async () => {
+  it('puts a line series of a combo chart on the secondary axis from the series table', async () => {
     const { user } = await ready()
-    await user.click(kindButton('콤보'))
+    await chooseKind(user, '콤보')
     await user.click(within(valueGroup()).getByRole('checkbox', { name: USERS_HEADER }))
 
-    await user.click(panelField('보조 축'))
+    await user.click(screen.getByRole('checkbox', { name: `${USERS_HEADER} 보조 축` }))
 
     expect(lastChart().type).toBe('bar')
     expect(chartDatasets()).toHaveLength(2)
@@ -405,7 +451,7 @@ describe('설정이 차트 옵션에 바로 반영됨 (AC14)', () => {
   it('disables the settings a kind does not use with a reason', async () => {
     const { user } = await ready()
 
-    await user.click(kindButton('세로 막대'))
+    await user.click(kindButton('묶은 세로 막대'))
 
     expect(panelField('보조 축')).toBeDisabled()
     expect(panelField('보조 축')).toHaveAttribute('title', expect.stringMatching(/콤보/))

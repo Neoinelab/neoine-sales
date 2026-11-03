@@ -25,6 +25,12 @@ export interface RecordedChart {
 export const DATALABELS_MOCK_ID = 'datalabels-mock'
 export const DATALABELS_MOCK = { id: DATALABELS_MOCK_ID } as const
 
+/**
+ * `chartjs-chart-treemap`의 대체(`setup.ts`가 `vi.mock`). 트리맵 컨트롤러·요소는 `chartRegistry`가 등록만 하고,
+ * jsdom에서는 그릴 수 없으므로 식별 객체로 바꾼다. 트리맵 차트의 `type`·`data`·`options`는 `Chart` mock이 기록한다.
+ */
+export const TREEMAP_MOCK = { id: 'treemap-mock' } as const
+
 interface BarProps extends CanvasHTMLAttributes<HTMLCanvasElement> {
   data: BarData
   options?: BarOptions

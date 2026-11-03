@@ -24,6 +24,12 @@ vi.mock('chartjs-plugin-datalabels', async () => {
   return { default: mock.DATALABELS_MOCK }
 })
 
+// 트리맵 플러그인(Excel 확장, chartjs-chart-treemap 4.2.2): 등록만 하는 컨트롤러·요소를 식별 객체로 바꾼다(jsdom에서는 그리지 않는다).
+vi.mock('chartjs-chart-treemap', async () => {
+  const mock = await import('./chartMock')
+  return { TreemapController: mock.TREEMAP_MOCK, TreemapElement: mock.TREEMAP_MOCK }
+})
+
 // 앱 기본 시드는 업무 데이터가 없다. 테스트는 매번 샘플 픽스처 시드로 시작한다(빈 상태 테스트는 renderAt의 seed: 'empty').
 beforeEach(() => {
   defaultMock.setSeed(buildSampleSeed)

@@ -4,7 +4,9 @@
  * 화면 계약(접근 가능한 이름, 테스트가 정한 것):
  * - 디자이너는 "작성"·"결과" 탭이고 차트는 결과 탭의 "차트 타일"(role=region)에 있다(결과 표 타일과 나란히). 배치 계약은 `reportLayout.ts`.
  * - 차트 타일: 빈 상태에 버튼 "차트 만들기", 차트가 있으면 머리에 버튼 "차트 설정"(aria-expanded)이 있어 설정 패널을 열고 닫는다
- *   (기본은 닫힘, "차트 만들기"로 만들면 열림). 패널 안에 버튼 "차트 삭제", 종류 버튼 10개(aria-pressed, 이름은 화면 이름). 그림은 role=img.
+ *   (기본은 닫힘, "차트 만들기"로 만들면 열림). 패널 안에 버튼 "차트 삭제". 그림은 role=img.
+ * - 종류 선택은 2단(Excel 확장): radiogroup "차트 분류"의 radio 13개(이름은 분류 이름)와 group "하위 종류"의 버튼(aria-pressed, 이름은 종류 화면 이름).
+ *   하위 종류 버튼은 고른 분류의 것만 있다. 다른 분류의 종류는 `chooseKind`로 고른다.
  * - 설정 칸(getByLabelText): "범주"(select), "계열"(select), "값"(그룹 안에 값 열마다 checkbox), "행/열 전환", "차트 제목",
  *   "범례"(select: 위·오른쪽·아래·숨김), "데이터 레이블", "가로축 제목", "세로축 제목", "세로축 최소", "세로축 최대", "보조 축".
  * - 안내 문구는 계획 AC11·AC17·AC19·AC20의 글자 그대로.
@@ -13,6 +15,7 @@
 import { screen, within } from '@testing-library/react'
 import type { UserEvent } from '@testing-library/user-event'
 import { expect } from 'vitest'
+import { CHART_FAMILIES, CHART_KINDS } from '../features/reports/chart/chartKinds'
 import { columnHeader } from '../features/reports/designer/format/formatCell'
 import type { ReportResult, ReportResultColumn } from '../shared/model/reportTypes'
 import { lastChart } from './chartMock'
@@ -94,7 +97,20 @@ export async function createChart(user: UserEvent): Promise<void> {
   await screen.findByRole('img')
 }
 
+/** 하위 종류 버튼(지금 고른 분류의 것만 있다). */
 export const kindButton = (name: string): HTMLElement => screen.getByRole('button', { name })
+/** 분류 radio(이름은 Excel 분류 이름, 예: '세로 막대형'). */
+export const familyRadio = (name: string): HTMLElement => screen.getByRole('radio', { name })
+
+/** 종류의 분류를 먼저 고르고(이미 그 분류면 그대로) 하위 종류 버튼을 누른다. */
+export async function chooseKind(user: UserEvent, label: string): Promise<void> {
+  const rule = CHART_KINDS.find((k) => k.label === label)
+  const family = CHART_FAMILIES.find((f) => f.key === rule?.family)
+  if (!rule || !family) throw new Error(`알 수 없는 차트 종류: ${label}`)
+  const radio = screen.getByRole('radio', { name: family.label })
+  if (!(radio as HTMLInputElement).checked) await user.click(radio)
+  await user.click(screen.getByRole('button', { name: label }))
+}
 export const panelField = (label: string): HTMLElement => screen.getByLabelText(label)
 
 /** 마지막으로 그려진 차트의 옵션 중 경로의 값. */

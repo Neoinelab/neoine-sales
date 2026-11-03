@@ -10,12 +10,7 @@ interface ChartTabProps {
 
 function Body({ source, result }: { source: ChartSource; result: ReportResult | null }) {
   if (source.mode === 'edit') {
-    return (
-      <>
-        {source.problem && source.draft === null && <p className="hint">{source.problem}</p>}
-        <ChartEditor source={source} result={result} />
-      </>
-    )
+    return <ChartEditor source={source} result={result} />
   }
   if (!source.chart) {
     return <p className="hint">{source.problem ?? '이 리포트에는 저장된 차트가 없습니다. 편집 화면에서 만들 수 있습니다.'}</p>

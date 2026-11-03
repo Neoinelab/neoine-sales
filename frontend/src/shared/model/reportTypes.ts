@@ -167,20 +167,29 @@ export type ReportRunFailure =
 export type ReportVisibility = 'public' | 'private'
 
 /** 저장된 리포트 목록 한 줄. 결과 데이터는 저장하지 않는다. */
-export type ReportChartKind =
-  | 'bar'
-  | 'horizontal_bar'
-  | 'stacked_bar'
-  | 'stacked_100_bar'
-  | 'line'
-  | 'area'
-  | 'pie'
-  | 'doughnut'
-  | 'scatter'
-  | 'combo'
+/** 차트 종류 33종. 서버 계약(`ChartKind`)에서 가져온다. */
+export type ReportChartKind = Schemas['ChartKind']
 export type ReportChartLegend = 'top' | 'right' | 'bottom' | 'none'
 
-/** 저장·요청용 차트 설정. 컬럼은 정의 columns의 index로 가리킨다. */
+export type ReportBinMode = Schemas['BinMode']
+export type ReportComboSeriesType = Schemas['ComboSeriesType']
+
+/** 히스토그램 구간 설정. 숫자 칸이 잘못 입력되면 글자 그대로 보내 서버가 위치와 함께 거절한다. */
+export interface ReportHistogramBins {
+  binMode: ReportBinMode
+  binCount: number | string | null
+  binWidth: number | string | null
+  overflow: number | string | null
+  underflow: number | string | null
+}
+
+/** 콤보 계열 하나의 종류와 보조 축 여부(값 열 순서대로). */
+export interface ReportComboSeries {
+  type: ReportComboSeriesType
+  secondary: boolean
+}
+
+/** 저장·요청용 차트 설정. 컬럼은 정의 columns의 index로 가리킨다. 히스토그램만 범주가 없다(null). */
 export interface ReportChartInput {
   kind: ReportChartKind
   category: number | null
@@ -196,6 +205,12 @@ export interface ReportChartInput {
   valueMin: number | string | null
   valueMax: number | string | null
   secondaryAxis: boolean
+  /** 히스토그램 전용(다른 종류는 null). */
+  histogram: ReportHistogramBins | null
+  /** 폭포 전용: 끝에 합계 막대. */
+  showTotal: boolean
+  /** 콤보 전용(다른 종류는 null): 값 열 순서대로. */
+  comboSeries: ReportComboSeries[] | null
 }
 
 export interface SavedReportSummary {

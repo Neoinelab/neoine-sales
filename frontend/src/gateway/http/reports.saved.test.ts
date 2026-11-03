@@ -70,6 +70,9 @@ const SERVER_CHART = {
   value_min: 0,
   value_max: 12.5,
   secondary_axis: false,
+  histogram: null,
+  show_total: false,
+  combo_series: null,
 }
 
 const CAMEL_CHART = {
@@ -86,6 +89,9 @@ const CAMEL_CHART = {
   valueMin: 0,
   valueMax: 12.5,
   secondaryAxis: false,
+  histogram: null,
+  showTotal: false,
+  comboSeries: null,
 }
 
 const SERVER_LAYOUT = { view: 'chart', order: ['chart', 'table'], arrange: 'side_by_side' }
@@ -338,7 +344,9 @@ describe('saved reports over HTTP: chart (Reports 4단계 G1, G2)', () => {
   })
 
   it.each([
-    ['an unknown kind', { kind: 'radar' }],
+    ['an unknown kind', { kind: 'hexagon' }],
+    ['an unknown histogram bin mode', { kind: 'histogram', category: null, histogram: { bin_mode: 'log', bin_count: null, bin_width: null, overflow: null, underflow: null } }],
+    ['an unknown combo series type', { kind: 'combo', combo_series: [{ type: 'bar', secondary: false }] }],
     ['an unknown legend position', { legend: 'left' }],
   ])('treats %s in a response as a malformed response', async (_name, over) => {
     stubFetch(json(serverDetail({ chart: { ...SERVER_CHART, ...over } })))
@@ -349,11 +357,88 @@ describe('saved reports over HTTP: chart (Reports 4단계 G1, G2)', () => {
   })
 
   it('treats an unknown chart kind in a list item as a malformed response', async () => {
-    stubFetch(json([serverSummary({ chart_kind: 'radar' })]))
+    stubFetch(json([serverSummary({ chart_kind: 'hexagon' })]))
 
     const error = await createReportsHttp().list().catch((e: unknown) => e)
 
     expect(error).toMatchObject({ kind: 'malformed-response' })
+  })
+
+  it.each([
+    'stacked_horizontal_bar',
+    'stacked_100_horizontal_bar',
+    'line_markers',
+    'stacked_line',
+    'stacked_line_markers',
+    'stacked_100_line',
+    'stacked_100_line_markers',
+    'stacked_area',
+    'stacked_100_area',
+    'scatter_smooth_markers',
+    'scatter_smooth',
+    'scatter_line_markers',
+    'scatter_line',
+    'bubble',
+    'radar',
+    'radar_markers',
+    'radar_filled',
+    'treemap',
+    'sunburst',
+    'histogram',
+    'pareto',
+    'waterfall',
+    'funnel',
+  ])('maps the new kind %s of a detail and of a list item', async (kind) => {
+    stubFetch(json(serverDetail({ chart: { ...SERVER_CHART, kind, category: kind === 'histogram' ? null : 0 } })), json([serverSummary({ chart_kind: kind })]))
+    const http = createReportsHttp()
+
+    const detail = await http.get(12)
+    const list = await http.list()
+
+    expect(detail.chart?.kind).toBe(kind)
+    expect(list[0]?.chartKind).toBe(kind)
+  })
+
+  it('keeps a null category of the histogram', async () => {
+    stubFetch(json(serverDetail({ chart: { ...SERVER_CHART, kind: 'histogram', category: null, series: null, histogram: { bin_mode: 'count', bin_count: 8, bin_width: null, overflow: 100, underflow: null } } })))
+
+    const { chart } = await createReportsHttp().get(12)
+
+    expect(chart).toMatchObject({ kind: 'histogram', category: null, histogram: { binMode: 'count', binCount: 8, binWidth: null, overflow: 100, underflow: null } })
+  })
+
+  it('maps the total option and the combo series settings', async () => {
+    stubFetch(
+      json(serverDetail({ chart: { ...SERVER_CHART, kind: 'waterfall', series: null, show_total: true } })),
+      json(serverDetail({ chart: { ...SERVER_CHART, kind: 'combo', series: null, values: [2, 3], secondary_axis: true, combo_series: [{ type: 'stacked_area', secondary: false }, { type: 'line_markers', secondary: true }] } })),
+    )
+    const http = createReportsHttp()
+
+    const waterfall = await http.get(12)
+    const combo = await http.get(12)
+
+    expect(waterfall.chart?.showTotal).toBe(true)
+    expect(combo.chart?.comboSeries).toEqual([
+      { type: 'stacked_area', secondary: false },
+      { type: 'line_markers', secondary: true },
+    ])
+  })
+
+  it('sends the histogram, the total option and the combo series in snake case with all sixteen keys', async () => {
+    const histogram = { binMode: 'width', binCount: null, binWidth: 2.5, overflow: 100, underflow: null }
+    const combo = [{ type: 'column', secondary: false }, { type: 'line', secondary: true }]
+    const { calls } = stubFetch(json(serverDetail({ chart: SERVER_CHART }), 201), json(serverDetail({ chart: SERVER_CHART }), 201), json(serverDetail({ chart: SERVER_CHART }), 201))
+    const http = createReportsHttp()
+
+    await http.create({ ...INPUT, chart: { ...CAMEL_CHART, kind: 'histogram', category: null, series: null, histogram } as unknown as SavedReportInput['chart'] })
+    await http.create({ ...INPUT, chart: { ...CAMEL_CHART, kind: 'waterfall', series: null, showTotal: true } as unknown as SavedReportInput['chart'] })
+    await http.create({ ...INPUT, chart: { ...CAMEL_CHART, kind: 'combo', series: null, secondaryAxis: true, comboSeries: combo } as unknown as SavedReportInput['chart'] })
+
+    const sent = calls.map((c) => (c.body as { chart: Record<string, unknown> }).chart)
+    expect(Object.keys(sent[0] ?? {})).toHaveLength(16)
+    expect(sent[0]).toMatchObject({ category: null, histogram: { bin_mode: 'width', bin_count: null, bin_width: 2.5, overflow: 100, underflow: null }, show_total: false, combo_series: null })
+    expect(sent[1]).toMatchObject({ show_total: true, histogram: null })
+    expect(sent[2]).toMatchObject({ combo_series: combo, secondary_axis: true })
   })
 
   it('sends the chart in snake case in create and update bodies', async () => {

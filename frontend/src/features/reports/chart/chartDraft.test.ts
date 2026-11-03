@@ -49,6 +49,9 @@ function draft(over: Partial<ChartDraft> = {}): ChartDraft {
     valueMin: '',
     valueMax: '',
     secondaryAxis: false,
+    histogram: { mode: 'auto', count: '', width: '', overflow: '', underflow: '' },
+    showTotal: false,
+    comboTypes: {},
     ...over,
   }
 }
@@ -71,6 +74,9 @@ describe('defaultChart (AC12)', () => {
       valueMin: '',
       valueMax: '',
       secondaryAxis: false,
+      histogram: { mode: 'auto', count: '', width: '', overflow: '', underflow: '' },
+      showTotal: false,
+      comboTypes: {},
     })
   })
 
@@ -104,10 +110,10 @@ describe('normalizeForKind (AC13)', () => {
     expect(next).toMatchObject({ kind, seriesUid: null, valueUids: [2], swap: false, secondaryAxis: false, valueMin: '', valueMax: '', title: '제목', categoryUid: 1 })
   })
 
-  it('keeps two values and the range for scatter but drops swap and the secondary axis', () => {
+  it('keeps up to ten values and the range for scatter but drops swap and the secondary axis', () => {
     const next = normalizeForKind(rich(), 'scatter', ONE_GROUP().columns)
 
-    expect(next).toMatchObject({ kind: 'scatter', valueUids: [2, 3], swap: false, secondaryAxis: false, valueMin: '1', valueMax: '9' })
+    expect(next).toMatchObject({ kind: 'scatter', valueUids: [2, 3, 4], swap: false, secondaryAxis: false, valueMin: '1', valueMax: '9' })
   })
 
   it('keeps every value and the secondary axis for combo but drops swap', () => {
@@ -213,6 +219,9 @@ describe('chart input and draft (AC18)', () => {
     valueMin: 0,
     valueMax: 12.5,
     secondaryAxis: false,
+    histogram: null,
+    showTotal: false,
+    comboSeries: null,
   }
 
   it('round trips a chart input through the draft', () => {
@@ -282,7 +291,7 @@ describe('chartDraftIssues (AC17)', () => {
 
   it('asks for values and checks the value count of the kind', () => {
     expect(messages(draft({ valueUids: [] }), ONE_GROUP())).toContain('값 열을 고르세요')
-    expect(messages(draft({ kind: 'scatter', valueUids: [2] }), ONE_GROUP())).toContain('이 차트는 값 열을 2개 골라야 합니다')
+    expect(messages(draft({ kind: 'scatter', valueUids: [2] }), ONE_GROUP())).toContain('이 차트는 값 열을 2~10개 골라야 합니다')
   })
 
   it('checks the range text and its order', () => {

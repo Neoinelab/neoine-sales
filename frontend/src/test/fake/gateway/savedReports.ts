@@ -88,11 +88,12 @@ function normalizeMeta(meta: SavedReportMeta): SavedReportMeta {
 
 /**
  * 차트 검증(서버 `parse_chart`의 일부만 흉내 낸다. 전체 규칙은 backend 단위 테스트가 정본):
- * 정의에 그룹 컬럼이 없으면 `["chart"]`, 범주가 그룹 컬럼의 index가 아니면 `["chart","category"]`. 문자열은 앞뒤 공백을 지운다.
+ * 히스토그램은 그룹핑 없이도 저장된다(범주 없음). 그 밖의 종류는 정의에 그룹 컬럼이 없으면 `["chart"]`, 범주가 그룹 컬럼의 index가 아니면 `["chart","category"]`. 문자열은 앞뒤 공백을 지운다.
  */
 function normalizeChart(chart: ReportChartInput | null | undefined, definition: ReportQueryInput): ReportChartInput | null {
   if (chart === null || chart === undefined) return null
   const groups = definition.columns.map((c, i) => (c.group ? i : -1)).filter((i) => i >= 0)
+  if (chart.kind === 'histogram') return { ...clone(chart), title: chart.title.trim(), categoryAxisTitle: chart.categoryAxisTitle.trim(), valueAxisTitle: chart.valueAxisTitle.trim() }
   if (groups.length === 0) throw invalidReport([{ location: ['chart'], code: 'chart-needs-grouping', message: '그룹핑한 결과로 차트를 만들 수 있습니다' }])
   if (typeof chart.category !== 'number' || !groups.includes(chart.category)) {
     throw invalidReport([{ location: ['chart', 'category'], code: 'chart-category-invalid', message: '범주 열은 그룹핑한 컬럼이어야 합니다' }])

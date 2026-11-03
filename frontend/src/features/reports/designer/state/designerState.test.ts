@@ -252,6 +252,9 @@ describe('chart in the designer state (Reports 4단계 AC16, AC17, P12)', () => 
     valueMin: '',
     valueMax: '',
     secondaryAxis: false,
+    histogram: { mode: 'auto', count: '', width: '', overflow: '', underflow: '' },
+    showTotal: false,
+    comboTypes: {},
   }
 
   /** Vendor(그룹, uid 1) + 금액(합계, uid 2) + Users(합계, uid 3) 설계. 차트는 load로 직접 넣는다. */
