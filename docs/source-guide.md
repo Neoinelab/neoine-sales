@@ -12,7 +12,7 @@
 | 백엔드 | Python 3.14, FastAPI, SQLAlchemy 2(async) + asyncpg, Alembic, ldap3, cryptography(Fernet), pydantic-settings, structlog |
 | 프런트엔드 | React 19, TypeScript, Vite, React Router, TanStack Query v5, openapi-fetch, Chart.js 4.5.1 + react-chartjs-2 5.3.1(Dashboard·Reports 차트), chartjs-plugin-datalabels 2.2.0(Reports 차트 데이터 레이블, 인스턴스 plugins로만 사용), Vitest |
 | DB | PostgreSQL (DB명 `neoinesales`) |
-| 인증 | AD(LDAP) 아이디·비밀번호 → 서버 세션(HttpOnly 쿠키). local·dev는 개발용 빠른 로그인(기본 켜짐, product는 불가) |
+| 인증 | AD(LDAP) 아이디·비밀번호 → 서버 세션(HttpOnly 쿠키). 또는 앱 자체 계정(최초 설정에서 인증 방식 선택). 개발용 빠른 로그인은 2026-11-03 제거 |
 | 권한 | 역할 3종: `admin`(전부 + Admin 메뉴), `sales`(업무 쓰기), `user`(조회만) |
 | 파일 | 첨부 파일은 서버 로컬 디스크. 저장 위치는 최초 설정·Admin에서 등록(DB 저장), 서버는 `/var/lib/neoine-sales`를 준비 |
 | 패키지 | 백엔드 uv, 프런트엔드 pnpm(corepack) |
@@ -73,10 +73,10 @@ infra ──┘
 | --- | --- |
 | `main.py` | FastAPI 앱 팩토리 `create_app()`. 라우터 등록, CORS, 오류 처리기. `uvicorn app.main:app` |
 | `config/base.py` | `Settings`: `APP_` 접두어 환경변수 필드(DB URL, 쿠키, 세션 TTL, 로그인 시도 제한 등) |
-| `config/profiles.py` | 프로파일별 기본값과 안전 검증. `LocalSettings`/`DevSettings`/`ProductSettings`. product는 debug·docs 끄기, `cookie_secure`, JWT 비밀 32자 이상, Sentry DSN 필수. `dev_login`은 local·dev 기본 켜짐, product에서만 거부 |
+| `config/profiles.py` | 프로파일별 기본값과 안전 검증. `LocalSettings`/`DevSettings`/`ProductSettings`. product는 debug·docs 끄기, `cookie_secure`, JWT 비밀 32자 이상, Sentry DSN 필수. |
 | `config/__init__.py` | `get_settings()`: `APP_PROFILE`로 프로파일을 골라 설정을 읽는 유일한 진입점 |
 | `container.py` | Composition Root. DB 엔진·세션 팩토리·시계를 소유하고 Deal·Action·연락처·경고 기준 유스케이스를 조립 |
-| `container_auth.py` | 인증 유스케이스(로그인, 최초 설정, 로그아웃, 개발 로그인) 조립 |
+| `container_auth.py` | 인증 유스케이스(로그인, 최초 설정, 로그아웃) 조립 |
 | `container_admin.py` | admin 기능(사용자 관리, AD 설정) 조립 |
 | `container_catalog.py` | 코드(Status·Forecast), BANT Label, Action 유형, Vendor 유스케이스 조립 |
 | `container_action_type.py` | `Container`가 상속하는 Action 유형 유스케이스 위임 mixin(`container.py` 길이 분리) |
@@ -124,7 +124,7 @@ infra ──┘
 - `attachment/`: 업로드·목록·다운로드·삭제, 저장 실패 시 정리(`storage_cleanup.py`)
 - `storage/`, `alert/`, `directory/`: 저장 위치·경고 기준·AD 설정의 조회·확인·변경
 - `dashboard/`: `criteria.py`(`DashboardCriteria`: Dashboard 숫자마다의 조건을 `DealQuery`로 정의하는 단일 출처, Drill-down URL과 1:1), `get_summary.py`(`GetDashboardSummary`: Forecast·Status·분기·주의 타일을 한 UoW에서 집계), `views.py`(응답 뷰)
-- `auth/`: `password_login.py`(인증 방식에 따라 AD·앱 계정 로그인으로 분기), `local_login.py`(앱 계정 로그인, 없는 아이디도 같은 비용·문구), `setup_auth_mode.py`(최초 설정 1단계 인증 방식 선택), `setup_admin.py`·`setup_first_local_admin.py`(방식별 최초 admin 등록), `directory_login.py`(AD 로그인, `LoginOutcome`), `fallback_login.py`(AD가 답할 수 없을 때만 저장 해시로 로그인, `warning_stage.py`·`messages.py`의 admin 경고 단계·문구), `authenticate.py`(요청마다 활성 사용자·역할 확인), `throttle.py`(로그인 시도 제한), `setup_directory.py`·`setup_storage.py`·`setup_first_admin.py`(최초 설정 3단계), `auth_status.py`, `dev_login.py`, `logout.py`, `issue_session.py`, `tokens.py`
+- `auth/`: `password_login.py`(인증 방식에 따라 AD·앱 계정 로그인으로 분기), `local_login.py`(앱 계정 로그인, 없는 아이디도 같은 비용·문구), `setup_auth_mode.py`(최초 설정 1단계 인증 방식 선택), `setup_admin.py`·`setup_first_local_admin.py`(방식별 최초 admin 등록), `directory_login.py`(AD 로그인, `LoginOutcome`), `fallback_login.py`(AD가 답할 수 없을 때만 저장 해시로 로그인, `warning_stage.py`·`messages.py`의 admin 경고 단계·문구), `authenticate.py`(요청마다 활성 사용자·역할 확인), `throttle.py`(로그인 시도 제한), `setup_directory.py`·`setup_storage.py`·`setup_first_admin.py`(최초 설정 3단계), `auth_status.py`, `logout.py`, `issue_session.py`, `tokens.py`
 - `account/`(2026-11-02): `get_my_profile.py`·`update_my_profile.py`·`change_my_password.py`(내 정보 `/me`, 비밀번호 변경 시 다른 세션 종료). `user/`의 `update_user_profile.py`·`reset_user_password.py`(admin의 사용자 정보 수정·비밀번호 재설정), 프런트는 `features/account/`(`/me`)와 `shared/ui/UserMenu.tsx`(우측 상단 사용자 메뉴).
 - `report/`: `list_fields.py`(필드 카탈로그), `run_report.py`(임시 조회), 저장 리포트 `create_report`·`update_report`(`revision` 낙관적 잠금)·`copy_report`·`delete_report`·`get_report`·`list_reports`·`run_saved_report`, 공통 `execution.py`(`report_context`: 업무 날짜·오프셋·경고 기준, `prepare_content`: 저장할 때마다 정의·차트를 다시 검증하고 표시 SQL 생성), 응답 뷰 `views.py`·`saved_views.py`, 입력 `saved_inputs.py`
 - `time/`: `get_server_time.py`(`GetServerTime`·`ServerTimeView`: `Clock`을 한 번 읽어 서버 OS 로컬 오프셋 `now`와 업무 날짜 `today`를 돌려줌, DB 미사용, `GET /api/v1/time`)
@@ -174,7 +174,7 @@ infra ──┘
 | 카탈로그 | `/codes`, `/codes/order`, `/codes/usage`, `/bant-labels`, `/action-types`, `/vendors`(Solution 경로 `/vendors/{id}/solutions…` 3개는 2026-10-22 폐지. 조회는 로그인 사용자. 쓰기는 admin, 단 `/bant-labels`·`/action-types` 추가는 sales도 가능) |
 | 연락처 | `/contacts`, `/contacts/companies`, `/contacts/by-company` |
 | 설정(admin) | `/users`, `/settings/directory`, `/settings/storage`, `/alert-settings`(조회는 로그인 사용자 모두) |
-| 인증 | `/auth/login`, `/auth/logout`, `/auth/me`, `/auth/config`, `/auth/dev-login`, `/auth/setup/*` |
+| 인증 | `/auth/login`, `/auth/logout`, `/auth/me`, `/auth/config`, `/auth/setup/*` |
 | Forecast·Dashboard | `/forecast/summary`, `/forecast/snapshots`, `/forecast/snapshots/{period}/summary`, `/dashboard/summary`(조회 전용, 로그인 사용자 모두) |
 | Reports | `/reports/fields`, `/reports/query`(임시 조회, 저장 안 함), `/reports`(목록·만들기), `/reports/{id}`(보기·수정·삭제), `/reports/{id}/copy`, `/reports/{id}/run`(로그인 사용자 모두, 보기·수정·삭제 권한은 `domain/saved_report/policy.py`) |
 | 파트너 Activity | `/partner-meetings`(목록·일괄 등록), `/partner-meetings/{id}`(수정·삭제). 읽기는 로그인 사용자 모두, 쓰기는 sales·admin(2026-10-28) |
@@ -227,7 +227,7 @@ features/*  화면 ──▶ data/*  TanStack Query 훅 ──▶ gateway  (http
 | `src/features/deals/detail/` | Deal 상세: 요약 바(Status 체류 "N일째"), 정보·연락처·BANT 카드와 인라인 수정, Actions·History 탭, 첨부 패널, 삭제 |
 | `src/features/deals/form/` | Deal 등록·수정 폼 |
 | `src/features/admin/` | Admin 레이아웃과 탭: `users/`, `deal-management/`(Status·Forecast 코드, BANT Label, Action 유형, Vendor, 경고 기준), `contacts/`, `integrations/`(AD 서버, 저장 위치) |
-| `src/features/auth/`, `features/setup/` | 로그인(local·dev는 역할별 빠른 로그인 3개), `RequireAuth`(로그인 확인 뒤 서버 시각 첫 동기 전에는 “불러오는 중…”)·`RequireWrite`·`RequireAdmin`, 최초 설정 마법사(인증 방식 → AD(AD 연동일 때) → 저장 위치 → admin) |
+| `src/features/auth/`, `features/setup/` | 로그인(최초 설정 전이면 `/setup`으로 이동), `RequireAuth`(로그인 확인 뒤 서버 시각 첫 동기 전에는 “불러오는 중…”)·`RequireWrite`·`RequireAdmin`, 최초 설정 마법사(인증 방식 → AD(AD 연동일 때) → 저장 위치 → admin) |
 | `src/features/dashboard/` | Dashboard 화면: `DashboardPage.tsx`(Status·Forecast 탭, 탭별 조건, 두 탭 모두 Q1~Q4 다중 토글, `App.tsx`가 `React.lazy`로 별도 청크 로드), `DashboardFilters.tsx`, `dashboardParams.ts`(URL ↔ 탭별 필터 `status.*`·`forecast.*`, 2026-10-28), `drillDown.ts`(Deal 목록 이동 주소의 단일 출처), `Tiles.tsx`, `StatusTab.tsx`·`StatusChart.tsx`, `ForecastTab.tsx`·`QuarterChart.tsx`, `chartSetup.ts`(Chart.js 필요한 요소만 등록), `dashboard.css`. 게이트웨이는 `gateway/http/dashboard.ts`, 계약 `gateway/contract/dashboard.contract.ts`, Fake `test/fake/gateway/dashboard.ts` |
 | `src/features/forecast/` | Forecast 화면(실패는 501 포함 오류 배너. 예전 "준비 중" 분기와 `features/placeholder/`는 삭제) |
 | `src/features/partner-activity/` | 파트너 Activity(2026-10-28, `/partner-activities`): 목록 `PartnerActivityPage.tsx`·`MeetingTable.tsx`·검색 `MeetingFilterBar.tsx`(URL `useMeetingSearchParams.ts`), 입력 팝업 `MeetingEntryDialog.tsx`·`MeetingEntryRow.tsx`(순수 로직 `entryRows.ts`), 수정·삭제 `MeetingEditDialog.tsx`·`MeetingDeleteDialog.tsx`. 훅 `data/partnerMeetings.ts`(`useInfiniteQuery`), 무한 스크롤 `shared/ui/useInfiniteScroll.ts`, 게이트웨이 `gateway/http/partnerMeetings.ts`, Fake `test/fake/gateway/partnerMeetings.ts` |
@@ -267,7 +267,7 @@ uv run uvicorn app.main:app --reload --port 8000 --app-dir src   # 터미널 1
 cd frontend && corepack pnpm install && corepack pnpm dev        # 터미널 2 (http://localhost:5173)
 ```
 
-처음 접속하면 최초 설정 3단계(AD 서버 → 저장 위치 → admin)를 거칩니다. local·dev 프로파일은 로그인 화면의 빠른 로그인(관리자/영업/조회자)을 쓸 수 있습니다. 프런트 개발 서버도 항상 실제 백엔드를 호출하므로(목업 모드 없음) 백엔드를 함께 띄웁니다. corepack 서명 오류가 나면 `COREPACK_INTEGRITY_KEYS=0`을 앞에 붙입니다.
+처음 접속하면 최초 설정 3단계(AD 서버 → 저장 위치 → admin)를 거칩니다. 개발용 빠른 로그인은 없으므로 로컬에서는 최초 설정에서 "앱에서 직접 관리"로 admin을 만들어 씁니다(2026-11-03). 프런트 개발 서버도 항상 실제 백엔드를 호출하므로(목업 모드 없음) 백엔드를 함께 띄웁니다. corepack 서명 오류가 나면 `COREPACK_INTEGRITY_KEYS=0`을 앞에 붙입니다.
 
 ### 5.2 검증(게이트)
 
@@ -325,7 +325,7 @@ Multibranch 파이프라인입니다. 모든 브랜치·PR은 검증만 하고, 
 | --- | --- | --- | --- |
 | 실행 | 개발 서버 2개 | 로컬 `start-backend.sh --profile dev` | docker compose(서버 1대: db·api·web) |
 | 설정 위치 | `backend/.env` | 로컬 `backend/.env.dev`(`APP_ENV_FILE`) | 서버 `/opt/neoine-sales/.env`(+ `deploy.env`) |
-| 로그인 | AD + 개발용 로그인(기본 켜짐) | AD + 개발용 로그인(기본 켜짐) | AD만(개발용 로그인 켤 수 없음) |
+| 로그인 | 최초 설정에서 고른 방식(AD 또는 앱 계정) | 최초 설정에서 고른 방식 | 최초 설정에서 고른 방식 |
 | API 문서(`/docs`) | 열림 | 열림 | 닫힘 |
 | 마이그레이션 | 시작 스크립트가 자동 | 시작 스크립트가 자동 | 승인 후 배포 시(`deploy.sh`의 migrate) |
 | 월말 스냅숏 스케줄러 | 꺼짐(기본) | 켜짐 | 켜짐 |
