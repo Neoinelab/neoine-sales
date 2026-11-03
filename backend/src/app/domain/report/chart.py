@@ -1,28 +1,21 @@
-"""차트 설정 값 객체: 종류·범례, 종류별 규칙표, 검증을 통과한 설정."""
+"""차트 설정 값 객체: 범례, 전용 옵션, 검증을 통과한 설정. 종류·규칙표는 `chart_kinds`."""
 
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Final
+from typing import TYPE_CHECKING, Final
 
 from app.domain.report.raw import RawChart
 
-CHART_VALUES_MAX: Final = 10  # 기존 SERIES_COLORS 10색과 같음
+if TYPE_CHECKING:
+    from app.domain.report.chart_kinds import ChartKind
+
 CHART_TEXT_MAX: Final = 100  # LABEL_MAX와 같음
 PERCENT_MAX: Final = 100
 SAFE_INTEGER_MAX: Final = 2**53 - 1
-
-
-class ChartKind(StrEnum):
-    BAR = "bar"
-    HORIZONTAL_BAR = "horizontal_bar"
-    STACKED_BAR = "stacked_bar"
-    STACKED_100_BAR = "stacked_100_bar"
-    LINE = "line"
-    AREA = "area"
-    PIE = "pie"
-    DOUGHNUT = "doughnut"
-    SCATTER = "scatter"
-    COMBO = "combo"
+HISTOGRAM_BINS_MAX: Final = 100
+HISTOGRAM_BIN_KEYS: Final = frozenset(
+    {"bin_mode", "bin_count", "bin_width", "overflow", "underflow"}
+)
 
 
 class LegendPosition(StrEnum):
@@ -32,39 +25,66 @@ class LegendPosition(StrEnum):
     NONE = "none"
 
 
+class BinMode(StrEnum):
+    AUTO = "auto"
+    COUNT = "count"
+    WIDTH = "width"
+
+
+class ComboSeriesType(StrEnum):
+    COLUMN = "column"
+    STACKED_COLUMN = "stacked_column"
+    LINE = "line"
+    LINE_MARKERS = "line_markers"
+    AREA = "area"
+    STACKED_AREA = "stacked_area"
+
+
 @dataclass(frozen=True, slots=True)
-class KindRule:
-    """종류 하나가 허용하는 설정. 프런트 `chartKinds.ts`도 같은 표를 쓴다."""
+class HistogramBins:
+    """히스토그램 구간 설정(검증을 마친 값)."""
 
-    max_groups: int  # 쓸 수 있는 그룹핑 컬럼 수의 최대
-    allows_series: bool
-    values_min: int
-    values_max: int
-    allows_swap: bool
-    allows_value_range: bool
-    allows_secondary: bool
-    percent_axis: bool = False  # value_min/max는 0~100
+    mode: BinMode
+    count: int | None
+    width: int | float | None
+    overflow: int | float | None
+    underflow: int | float | None
 
-    def value_count_range(self, *, has_series: bool) -> tuple[int, int]:
-        """계열이 있으면 값은 정확히 1개다."""
-        return (1, 1) if has_series else (self.values_min, self.values_max)
+    def to_json(self) -> dict[str, object]:
+        return {
+            "bin_mode": self.mode.value,
+            "bin_count": self.count,
+            "bin_width": self.width,
+            "overflow": self.overflow,
+            "underflow": self.underflow,
+        }
 
 
-_BAR_LIKE = KindRule(2, True, 1, CHART_VALUES_MAX, True, True, False)
-_ROUND = KindRule(1, False, 1, 1, False, False, False)
+@dataclass(frozen=True, slots=True)
+class ComboSeries:
+    """콤보 계열 하나의 종류와 보조 축 여부."""
 
-KIND_RULES: Final[dict[ChartKind, KindRule]] = {
-    ChartKind.BAR: _BAR_LIKE,
-    ChartKind.HORIZONTAL_BAR: _BAR_LIKE,
-    ChartKind.STACKED_BAR: _BAR_LIKE,
-    ChartKind.STACKED_100_BAR: KindRule(2, True, 1, CHART_VALUES_MAX, True, True, False, True),
-    ChartKind.LINE: _BAR_LIKE,
-    ChartKind.AREA: _BAR_LIKE,
-    ChartKind.PIE: _ROUND,
-    ChartKind.DOUGHNUT: _ROUND,
-    ChartKind.SCATTER: KindRule(1, False, 2, 2, False, True, False),
-    ChartKind.COMBO: KindRule(1, False, 2, CHART_VALUES_MAX, False, True, True),
-}
+    type: ComboSeriesType
+    secondary: bool
+
+    def to_json(self) -> dict[str, object]:
+        return {"type": self.type.value, "secondary": self.secondary}
+
+
+def auto_bins_json() -> dict[str, object]:
+    """구간 설정이 없는 히스토그램의 기본값(자동)."""
+    return HistogramBins(BinMode.AUTO, None, None, None, None).to_json()
+
+
+def legacy_combo_series(count: int, *, secondary: bool) -> tuple[ComboSeries, ...]:
+    """계열별 설정이 없던 옛 콤보: 첫 값 열은 막대, 나머지는 꺾은선(보조 축은 꺾은선만)."""
+    first = ComboSeries(ComboSeriesType.COLUMN, secondary=False)
+    line = ComboSeries(ComboSeriesType.LINE, secondary=secondary)
+    return (first, *([line] * max(count - 1, 0)))[:count]
+
+
+def legacy_combo_series_json(count: int, *, secondary: bool) -> list[dict[str, object]]:
+    return [s.to_json() for s in legacy_combo_series(count, secondary=secondary)]
 
 
 @dataclass(frozen=True, slots=True)
@@ -72,7 +92,7 @@ class ChartSettings:
     """검증·정규화를 마친 차트 설정. 컬럼은 정의 `columns`의 index로 가리킨다."""
 
     kind: ChartKind
-    category: int
+    category: int | None  # 히스토그램만 None
     series: int | None
     values: tuple[int, ...]
     swap: bool
@@ -84,6 +104,9 @@ class ChartSettings:
     value_min: int | float | None
     value_max: int | float | None
     secondary_axis: bool
+    histogram: HistogramBins | None = None
+    show_total: bool = False
+    combo_series: tuple[ComboSeries, ...] | None = None
 
     def to_raw(self) -> RawChart:
         """저장할 정규화된 원시 차트(JSON에 그대로 쓸 수 있는 값)."""
@@ -101,4 +124,7 @@ class ChartSettings:
             value_min=self.value_min,
             value_max=self.value_max,
             secondary_axis=self.secondary_axis,
+            histogram=self.histogram.to_json() if self.histogram else None,
+            show_total=self.show_total,
+            combo_series=[s.to_json() for s in self.combo_series] if self.combo_series else None,
         )

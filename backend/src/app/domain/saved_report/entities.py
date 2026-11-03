@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Self
 
 from app.domain.common.entity import AuditedEntity
-from app.domain.report.chart import ChartKind
+from app.domain.report.chart_kinds import ChartKind
 from app.domain.report.errors import ReportDefinitionError
 from app.domain.report.stored import BROKEN_DEFINITION, definition_entities
 from app.domain.saved_report.errors import (

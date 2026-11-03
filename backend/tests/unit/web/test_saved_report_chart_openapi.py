@@ -15,6 +15,7 @@ UNUSED_DATABASE_URL = "postgresql+asyncpg://user:pw@localhost:5432/none"  # 접�
 BASE = "/api/v1/reports"
 ID_ROUTE = f"{BASE}/{{report_id}}"
 KINDS = {
+    # 기존 10종
     "bar",
     "horizontal_bar",
     "stacked_bar",
@@ -25,6 +26,30 @@ KINDS = {
     "doughnut",
     "scatter",
     "combo",
+    # Excel 확장 23종
+    "stacked_horizontal_bar",
+    "stacked_100_horizontal_bar",
+    "line_markers",
+    "stacked_line",
+    "stacked_line_markers",
+    "stacked_100_line",
+    "stacked_100_line_markers",
+    "stacked_area",
+    "stacked_100_area",
+    "scatter_smooth_markers",
+    "scatter_smooth",
+    "scatter_line_markers",
+    "scatter_line",
+    "bubble",
+    "radar",
+    "radar_markers",
+    "radar_filled",
+    "treemap",
+    "sunburst",
+    "histogram",
+    "pareto",
+    "waterfall",
+    "funnel",
 }
 CHART_KEYS = {
     "kind",
@@ -40,7 +65,11 @@ CHART_KEYS = {
     "value_min",
     "value_max",
     "secondary_axis",
+    "histogram",
+    "show_total",
+    "combo_series",
 }
+BIN_KEYS = {"bin_mode", "bin_count", "bin_width", "overflow", "underflow"}
 
 
 @pytest.fixture(scope="module")
@@ -93,11 +122,13 @@ def test_chart_is_an_optional_nullable_request_field(schema: dict[str, Any], met
 
 
 @pytest.mark.parametrize("method", ["post", "put"])
-def test_request_chart_has_the_thirteen_keys_and_forbids_unknown_ones(
+def test_request_chart_has_the_sixteen_keys_and_forbids_unknown_ones(
     schema: dict[str, Any], method: str
 ) -> None:
     chart = _non_null(schema, _request(schema, method)["properties"]["chart"])
 
+    assert len(KINDS) == 33
+    assert len(CHART_KEYS) == 16
     assert set(chart["properties"]) == CHART_KEYS
     assert set(chart["required"]) == {"kind", "category", "values"}
     assert chart.get("additionalProperties") is False
@@ -160,3 +191,69 @@ def test_run_and_query_contracts_are_unchanged_by_the_chart(schema: dict[str, An
     assert run == query
     assert "chart" not in query_request["properties"]
     assert "chart" not in run["properties"]
+
+
+def _detail_chart(schema: dict[str, Any]) -> dict[str, Any]:
+    properties = _response(schema, "get", ID_ROUTE, "200")["properties"]
+    return _non_null(schema, properties["chart"])
+
+
+def test_response_category_is_nullable(schema: dict[str, Any]) -> None:
+    chart = _detail_chart(schema)
+
+    assert _is_nullable(chart["properties"]["category"])
+    assert _non_null(schema, chart["properties"]["category"])["type"] == "integer"
+
+
+def test_request_category_is_nullable_for_the_histogram(schema: dict[str, Any]) -> None:
+    chart = _non_null(schema, _request(schema, "post")["properties"]["chart"])
+
+    assert "category" in chart["required"]
+    assert chart["properties"]["category"].get("type") in {None, "integer"}
+    assert "histogram" not in chart["required"]
+    assert "show_total" not in chart["required"]
+    assert "combo_series" not in chart["required"]
+
+
+def test_histogram_response_schema_has_five_bin_keys(schema: dict[str, Any]) -> None:
+    chart = _detail_chart(schema)
+    histogram = chart["properties"]["histogram"]
+
+    assert _is_nullable(histogram)
+    bins = _non_null(schema, histogram)
+    assert set(bins["properties"]) == BIN_KEYS
+    assert set(bins["required"]) == BIN_KEYS
+    assert set(_non_null(schema, bins["properties"]["bin_mode"])["enum"]) == {
+        "auto",
+        "count",
+        "width",
+    }
+    for key in ("bin_count", "bin_width", "overflow", "underflow"):
+        assert _is_nullable(bins["properties"][key])
+
+
+def test_combo_series_response_schema_has_type_and_secondary(schema: dict[str, Any]) -> None:
+    chart = _detail_chart(schema)
+    combo = chart["properties"]["combo_series"]
+
+    assert _is_nullable(combo)
+    array = next(n for n in combo["anyOf"] if n.get("type") == "array")
+    item = _resolve(schema, array["items"])
+    assert set(item["properties"]) == {"type", "secondary"}
+    assert set(item["required"]) == {"type", "secondary"}
+    assert set(_non_null(schema, item["properties"]["type"])["enum"]) == {
+        "column",
+        "stacked_column",
+        "line",
+        "line_markers",
+        "area",
+        "stacked_area",
+    }
+    assert item["properties"]["secondary"]["type"] == "boolean"
+
+
+def test_show_total_response_is_a_required_boolean(schema: dict[str, Any]) -> None:
+    chart = _detail_chart(schema)
+
+    assert chart["properties"]["show_total"]["type"] == "boolean"
+    assert "show_total" in chart["required"]

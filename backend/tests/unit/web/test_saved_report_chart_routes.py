@@ -11,7 +11,7 @@ import pytest
 from app.domain.auth.principal import Role
 from tests.factories_report import make_report
 from tests.fakes.use_cases import FakeUseCases
-from tests.support.chart_defs import chart_body, chart_definition
+from tests.support.chart_defs import bins, chart_body, chart_definition, combo_item
 from tests.unit.web.saved_report_http import (
     URL,
     clients,
@@ -400,3 +400,197 @@ async def test_permission_is_decided_before_the_chart_is_read() -> None:
 
     problem(get, 404, "not-found")
     problem(copy, 404, "not-found")
+
+
+# ---- Excel 확장: 새 종류·옵션 (AC2·3·4·10·14) ----
+
+# 0 = Vendor(그룹), 1 = amount(집계), 2 = users(집계), 3 = code 건수(집계): 거품형은 값 열 3개
+THREE_VALUES: dict[str, Any] = {
+    "columns": [
+        {"field": "deal.vendor", "group": True},
+        {"field": "deal.amount"},
+        {"field": "deal.users"},
+        {"field": "deal.code", "aggregate": "count"},
+    ]
+}
+NEW_KIND_BODIES: list[tuple[str, dict[str, Any], dict[str, Any]]] = [
+    (
+        "stacked_horizontal_bar",
+        GROUPED,
+        chart_body("stacked_horizontal_bar", 0, series=1, values=[2]),
+    ),
+    ("bubble", THREE_VALUES, chart_body("bubble", 0, values=[1, 2, 3])),
+    ("treemap", GROUPED, chart_body("treemap", 0, series=1, values=[2])),
+    ("waterfall", ONE_GROUP, chart_body("waterfall", 0, values=[1], show_total=True)),
+    (
+        "combo",
+        ONE_GROUP,
+        chart_body(
+            "combo",
+            0,
+            values=[1, 2],
+            secondary_axis=True,
+            combo_series=[combo_item("stacked_area"), combo_item("line_markers", secondary=True)],
+        ),
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    ("kind", "definition", "chart"), NEW_KIND_BODIES, ids=[k for k, _, _ in NEW_KIND_BODIES]
+)
+async def test_new_chart_kinds_are_saved_and_read_back_unchanged(
+    kind: str, definition: dict[str, Any], chart: dict[str, Any]
+) -> None:
+    async with clients(FakeUseCases(), {"alice": Role.SALES}) as c:
+        response = await c["alice"].post(URL, json=create_body(definition=definition, chart=chart))
+        reread = await c["alice"].get(f"{URL}/{response.json()['id']}")
+        listed = await c["alice"].get(URL)
+
+    assert response.status_code == 201, response.text
+    assert response.json()["chart"] == chart
+    assert response.json()["chart_kind"] == kind
+    assert reread.json()["chart"] == chart
+    assert [item["chart_kind"] for item in listed.json()] == [kind]
+
+
+async def test_ungrouped_histogram_is_saved_with_a_null_category() -> None:
+    chart = chart_body("histogram", None, values=[1])
+    async with clients(FakeUseCases(), {"alice": Role.SALES}) as c:
+        response = await c["alice"].post(URL, json=create_body(definition=UNGROUPED, chart=chart))
+        reread = await c["alice"].get(f"{URL}/{response.json()['id']}")
+
+    assert response.status_code == 201, response.text
+    saved = response.json()["chart"]
+    assert saved["category"] is None
+    assert saved["histogram"] == bins()  # 생략하면 auto로 정규화
+    assert reread.json()["chart"] == saved
+    assert response.json()["chart_kind"] == "histogram"
+
+
+async def test_omitted_new_option_keys_get_their_defaults() -> None:
+    minimal = {"kind": "waterfall", "category": 0, "values": [1]}
+    async with clients(FakeUseCases(), {"alice": Role.SALES}) as c:
+        response = await c["alice"].post(URL, json=create_body(definition=ONE_GROUP, chart=minimal))
+
+    assert response.status_code == 201, response.text
+    saved = response.json()["chart"]
+    assert (saved["histogram"], saved["show_total"], saved["combo_series"]) == (None, False, None)
+
+
+async def test_a_legacy_combo_request_returns_the_filled_series_settings() -> None:
+    chart = chart_body("combo", 0, values=[1, 2], secondary_axis=True)
+    async with clients(FakeUseCases(), {"alice": Role.SALES}) as c:
+        response = await c["alice"].post(URL, json=create_body(definition=ONE_GROUP, chart=chart))
+
+    assert response.status_code == 201, response.text
+    assert response.json()["chart"]["combo_series"] == [
+        combo_item("column"),
+        combo_item("line", secondary=True),
+    ]
+
+
+async def test_invalid_histogram_option_returns_422_with_location() -> None:
+    chart = chart_body("histogram", None, values=[1], histogram=bins(bin_mode="count", bin_count=0))
+    async with clients(FakeUseCases(), {"alice": Role.SALES}) as c:
+        response = await c["alice"].post(URL, json=create_body(definition=UNGROUPED, chart=chart))
+        listed = await c["alice"].get(URL)
+
+    body = problem(response, 422, "invalid-report")
+    assert _locations(body) == [(["chart", "histogram", "bin_count"], "chart-histogram-invalid")]
+    assert listed.json() == []
+
+
+async def test_invalid_combo_series_returns_422_with_location() -> None:
+    chart = chart_body(
+        "combo",
+        0,
+        values=[1, 2],
+        combo_series=[combo_item("column"), combo_item("bar")],
+    )
+    async with clients(FakeUseCases(), {"alice": Role.SALES}) as c:
+        response = await c["alice"].post(URL, json=create_body(definition=ONE_GROUP, chart=chart))
+
+    body = problem(response, 422, "invalid-report")
+    assert _locations(body) == [(["chart", "combo_series", 1], "chart-combo-invalid")]
+
+
+async def test_all_secondary_combo_returns_422() -> None:
+    chart = chart_body(
+        "combo",
+        0,
+        values=[1, 2],
+        secondary_axis=True,
+        combo_series=[combo_item("column", secondary=True), combo_item("line", secondary=True)],
+    )
+    async with clients(FakeUseCases(), {"alice": Role.SALES}) as c:
+        response = await c["alice"].post(URL, json=create_body(definition=ONE_GROUP, chart=chart))
+
+    body = problem(response, 422, "invalid-report")
+    assert _locations(body) == [(["chart", "combo_series"], "chart-combo-secondary-all")]
+
+
+async def test_option_on_the_wrong_kind_returns_422() -> None:
+    chart = chart_body("bar", 0, values=[1], show_total=True)
+    async with clients(FakeUseCases(), {"alice": Role.SALES}) as c:
+        response = await c["alice"].post(URL, json=create_body(definition=ONE_GROUP, chart=chart))
+
+    body = problem(response, 422, "invalid-report")
+    assert _locations(body) == [(["chart", "show_total"], "chart-option-invalid")]
+
+
+async def test_unknown_chart_key_still_returns_request_validation() -> None:
+    chart = {**chart_body("bar", 0, values=[1]), "bin_count": 5}
+    async with clients(FakeUseCases(), {"alice": Role.SALES}) as c:
+        response = await c["alice"].post(URL, json=create_body(definition=ONE_GROUP, chart=chart))
+
+    problem(response, 422, "request-validation")
+
+
+async def test_stored_legacy_combo_chart_reads_with_the_filled_series_settings() -> None:
+    async with clients(FakeUseCases(), {"alice": Role.SALES}) as c:
+        made = await create(
+            c["alice"], definition=ONE_GROUP, chart=chart_body("combo", 0, values=[1, 2])
+        )
+        detail = await c["alice"].get(f"{URL}/{made['id']}")
+
+    assert detail.json()["chart"]["combo_series"] == [combo_item("column"), combo_item("line")]
+
+
+UNKNOWN_ENUM_CHARTS: list[dict[str, Any]] = [
+    {**chart_body("histogram", None, values=[1]), "histogram": bins(bin_mode="foo")},
+    {
+        **chart_body("combo", 0, values=[1, 2]),
+        "combo_series": [combo_item("pie"), combo_item("line")],
+    },
+]
+
+
+@pytest.mark.parametrize("stored", UNKNOWN_ENUM_CHARTS, ids=["bin-mode", "combo-type"])
+async def test_get_opens_a_report_whose_stored_chart_has_an_unknown_enum_value(
+    stored: dict[str, Any],
+) -> None:
+    from app.domain.report.errors import ReportDefinitionError  # noqa: PLC0415
+    from app.domain.report.stored_chart import chart_from_json  # noqa: PLC0415
+
+    # 저장소가 JSON을 읽는 방식 그대로: 읽기 실패면 (차트 없음, 읽기 불가)
+    try:
+        chart, unreadable = chart_from_json(stored), False
+    except ReportDefinitionError:
+        chart, unreadable = None, True
+    use_cases = FakeUseCases()
+    async with clients(use_cases, {"alice": Role.SALES}) as c:
+        report = make_report(
+            owner=await use_cases.user_id_of("alice"),
+            definition=chart_definition(1, 2),
+            chart=chart,
+            chart_unreadable=unreadable,
+        )
+        async with use_cases.uow as uow:
+            await uow.saved_reports.add(report)
+            await uow.commit()
+        response = await c["alice"].get(f"{URL}/{int(report.id)}")
+
+    assert response.status_code == 200, response.text
+    assert response.json()["chart"] is None
+    assert response.json()["chart_problem"] == PROBLEM

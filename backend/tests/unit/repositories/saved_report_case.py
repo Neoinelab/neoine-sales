@@ -86,6 +86,26 @@ class SavedReportCase:
             {"d": raw_json, "id": report.id},
         )
 
+    async def set_chart_json(self, report: Report, raw_json: str) -> None:
+        """저장된 chart 값을 직접 바꾼다(저장소를 거치지 않는다). 옛 형식 행을 만드는 데 쓴다.
+
+        sql은 chart 컬럼을 원시 UPDATE하고, fake는 같은 JSON을 읽은 것처럼(`chart_from_json`)
+        엔티티에 반영한다.
+        """
+        if self._session is None:
+            import json  # noqa: PLC0415
+
+            from app.domain.report.stored_chart import chart_from_json  # noqa: PLC0415
+
+            self.reports._items[report.id].chart = chart_from_json(json.loads(raw_json))
+            return
+        from sqlalchemy import text  # noqa: PLC0415
+
+        await self._session.execute(
+            text("update reports set chart = cast(:d as jsonb) where id = :id"),
+            {"d": raw_json, "id": report.id},
+        )
+
     async def set_layout_json(self, report: Report, raw_json: str | None) -> None:
         """저장된 layout 값을 직접 바꾼다(저장소를 거치지 않는다). None이면 NULL.
 

@@ -31,6 +31,9 @@ STACKED_BAR: Final[dict[str, Any]] = {
     "value_min": None,
     "value_max": None,
     "secondary_axis": False,
+    "histogram": None,
+    "show_total": False,
+    "combo_series": None,
 }
 COMBO: Final[dict[str, Any]] = {
     **STACKED_BAR,
@@ -38,7 +41,71 @@ COMBO: Final[dict[str, Any]] = {
     "series": None,
     "values": [2, 3],
     "secondary_axis": True,
+    "combo_series": [
+        {"type": "column", "secondary": False},
+        {"type": "line", "secondary": True},
+    ],
 }
+LEGACY_KEYS: Final = [
+    "kind",
+    "category",
+    "series",
+    "values",
+    "swap",
+    "title",
+    "legend",
+    "data_labels",
+    "category_axis_title",
+    "value_axis_title",
+    "value_min",
+    "value_max",
+    "secondary_axis",
+]
+# 한 그룹(Vendor)과 집계 3개(index 1 금액 합계, 2 사용자 수 합계, 3 건수)
+ONE_GROUP_BODY: Final[dict[str, Any]] = {
+    "columns": [
+        {"field": "deal.vendor", "group": True},
+        {"field": "deal.amount", "aggregate": "sum", "label": "금액 합계"},
+        {"field": "deal.users", "aggregate": "sum", "label": "사용자 수"},
+        {"field": "deal.code", "aggregate": "count", "label": "건수"},
+    ],
+    "conditions": [],
+    "combine": "and",
+    "row_limit": 1000,
+}
+UNGROUPED_BODY: Final[dict[str, Any]] = {
+    "columns": [{"field": "deal.code"}, {"field": "deal.amount", "label": "금액"}],
+    "conditions": [],
+    "combine": "and",
+    "row_limit": 1000,
+}
+AUTO_BINS: Final[dict[str, Any]] = {
+    "bin_mode": "auto",
+    "bin_count": None,
+    "bin_width": None,
+    "overflow": None,
+    "underflow": None,
+}
+
+
+def new_chart(kind: str, **changes: object) -> dict[str, Any]:
+    """기본값을 채운 16개 키 차트."""
+    return {**STACKED_BAR, "kind": kind, "series": None, "values": [1], **changes}
+
+
+def legacy_combo_json(*, secondary_axis: bool) -> str:
+    """새 키 3개가 없는 옛 형식 콤보 차트 JSON(값 열 3개)."""
+    import json  # noqa: PLC0415
+
+    legacy = {k: v for k, v in COMBO.items() if k in LEGACY_KEYS}
+    return json.dumps({**legacy, "values": [1, 2, 3], "secondary_axis": secondary_axis})
+
+
+def chart_report_body_for(
+    name: str, definition: dict[str, Any], chart: object = None
+) -> dict[str, Any]:
+    """임의 정의와 차트를 담은 저장 본문."""
+    return report_body(name, definition=definition, chart=chart)
 
 
 def chart_report_body(
@@ -56,3 +123,8 @@ async def given_stored_chart_is_unreadable(api: Api, report_id: object, raw_json
         chart=raw_json,
         id=int(str(report_id)),
     )
+
+
+async def given_stored_chart_json_is(api: Api, report_id: object, raw_json: str) -> None:
+    """DB에서 그 리포트의 chart 열을 주어진 JSON(옛 형식 등)으로 바꿨다."""
+    await given_stored_chart_is_unreadable(api, report_id, raw_json)

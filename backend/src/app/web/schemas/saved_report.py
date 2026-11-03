@@ -6,7 +6,8 @@ from typing import TYPE_CHECKING, Annotated, Any
 from pydantic import BaseModel, Field, StrictInt, StrictStr
 
 from app.application.report.saved_inputs import ReportContentInput, ReportMetaInput
-from app.domain.report.chart import ChartKind, LegendPosition
+from app.domain.report.chart import BinMode, ComboSeriesType, LegendPosition
+from app.domain.report.chart_kinds import ChartKind
 from app.domain.report.raw import RawChart, RawLayout
 from app.domain.report.stored import definition_to_json
 from app.domain.report.vocabulary import Entity
@@ -57,6 +58,9 @@ class ReportChartRequest(RequestModel):
     value_min: Any = None
     value_max: Any = None
     secondary_axis: Any = False
+    histogram: Any = None
+    show_total: Any = False
+    combo_series: Any = None
 
     def to_raw(self) -> RawChart:
         return RawChart(**self.model_dump())
@@ -81,11 +85,28 @@ class ReportLayoutResponse(BaseModel):
     arrange: TileArrange
 
 
+class HistogramResponse(BaseModel):
+    """히스토그램 구간 설정(정규화된 값)."""
+
+    bin_mode: BinMode
+    bin_count: int | None
+    bin_width: int | float | None
+    overflow: int | float | None
+    underflow: int | float | None
+
+
+class ComboSeriesResponse(BaseModel):
+    """콤보 계열 하나의 종류와 보조 축 여부."""
+
+    type: ComboSeriesType
+    secondary: bool
+
+
 class ReportChartResponse(BaseModel):
     """저장된(정규화된) 차트. 키가 모두 있다."""
 
     kind: ChartKind
-    category: int
+    category: int | None
     series: int | None
     values: list[int]
     swap: bool
@@ -97,6 +118,9 @@ class ReportChartResponse(BaseModel):
     value_min: int | float | None
     value_max: int | float | None
     secondary_axis: bool
+    histogram: HistogramResponse | None
+    show_total: bool
+    combo_series: list[ComboSeriesResponse] | None
 
 
 class ReportCreateRequest(ReportMetaRequest):

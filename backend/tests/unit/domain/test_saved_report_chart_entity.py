@@ -3,7 +3,7 @@
 import pytest
 
 from app.domain.auth.principal import Role
-from app.domain.report.chart import ChartKind
+from app.domain.report.chart_kinds import ChartKind
 from app.domain.saved_report.entities import Report
 from app.domain.saved_report.values import ReportId, ReportVisibility
 from tests.factories import NOW, later
@@ -142,3 +142,19 @@ def test_chart_kind_is_none_without_a_chart() -> None:
 
 def test_chart_kind_is_none_when_the_stored_chart_is_unreadable() -> None:
     assert make_report(owner=OWNER, chart_unreadable=True).chart_kind() is None
+
+
+@pytest.mark.parametrize(
+    ("kind", "category", "values"),
+    [
+        ("treemap", 0, [1]),
+        ("histogram", None, [1]),
+        ("bubble", 0, [1, 2, 3]),
+        ("waterfall", 0, [1]),
+    ],
+)
+def test_chart_kind_returns_new_kinds(kind: str, category: int | None, values: list[int]) -> None:
+    report = make_report(owner=OWNER, chart=raw_chart(kind, category, values))
+
+    assert report.chart_kind() == ChartKind(kind)
+    assert report.chart_kind() == kind

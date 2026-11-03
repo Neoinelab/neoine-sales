@@ -14,11 +14,18 @@ import pytest
 
 from tests.functional.steps.common import then_body_includes, then_problem_is, then_status_is
 from tests.functional.steps.saved_report_charts import (
+    AUTO_BINS,
     CHART_PROBLEM,
     COMBO,
+    ONE_GROUP_BODY,
     STACKED_BAR,
+    UNGROUPED_BODY,
     chart_report_body,
+    chart_report_body_for,
     given_stored_chart_is_unreadable,
+    given_stored_chart_json_is,
+    legacy_combo_json,
+    new_chart,
 )
 from tests.functional.steps.saved_reports import (
     given_logged_in,
@@ -212,3 +219,92 @@ async def test_unreadable_stored_chart_opens_without_chart(api: Api) -> None:
     # Then
     then_status_is(repaired, 200)
     then_body_includes(repaired, chart=COMBO, chart_problem=None, revision=2)
+
+
+NEW_KIND_CASES = {
+    "stacked_horizontal_bar": new_chart("stacked_horizontal_bar", series=1, values=[2]),
+    "treemap": new_chart("treemap", series=1, values=[2]),
+    "bubble": new_chart("bubble", values=[1, 2, 3]),
+    "waterfall": new_chart("waterfall", values=[1], show_total=True),
+    "combo": new_chart(
+        "combo",
+        values=[1, 2],
+        secondary_axis=True,
+        combo_series=[
+            {"type": "stacked_area", "secondary": False},
+            {"type": "line_markers", "secondary": True},
+        ],
+    ),
+}
+
+
+@pytest.mark.parametrize("kind", list(NEW_KIND_CASES))
+async def test_saving_and_reading_each_new_chart_kind(api: Api, kind: str) -> None:
+    """Scenario: 새 종류 차트는 저장하면 같은 설정으로 상세에, 같은 종류로 목록에 나온다."""
+    # Given
+    await given_users(api, alice="sales")
+    await given_logged_in(api, "alice")
+    chart = NEW_KIND_CASES[kind]
+    definition = chart_report_body()["definition"] if chart["series"] == 1 else ONE_GROUP_BODY
+    # When
+    saved = await when_save_report(api, chart_report_body_for(f"새 종류 {kind}", definition, chart))
+    # Then
+    then_status_is(saved, 201)
+    detail = await when_get_report(api, saved.json()["id"])
+    then_status_is(detail, 200)
+    assert detail.json()["chart"] == chart
+    listed = await when_list_reports(api)
+    (item,) = [i for i in listed.json() if i["id"] == saved.json()["id"]]
+    assert item["chart_kind"] == kind
+
+
+async def test_saving_an_ungrouped_histogram_report(api: Api) -> None:
+    """Scenario: 그룹핑 없는 금액 컬럼으로 히스토그램을 저장하면 category는 null, 구간은 auto다."""
+    # Given
+    await given_users(api, alice="sales")
+    await given_logged_in(api, "alice")
+    chart = new_chart("histogram", category=None, values=[1])
+    # When
+    saved = await when_save_report(api, chart_report_body_for("금액 분포", UNGROUPED_BODY, chart))
+    # Then
+    then_status_is(saved, 201)
+    assert saved.json()["chart"]["category"] is None
+    assert saved.json()["chart"]["histogram"] == AUTO_BINS
+    assert saved.json()["chart_kind"] == "histogram"
+
+
+async def test_invalid_histogram_bins_are_rejected(api: Api) -> None:
+    """Scenario: 구간 수가 범위를 벗어나면 422 invalid-report(chart.histogram.bin_count)다."""
+    # Given
+    await given_users(api, alice="sales")
+    await given_logged_in(api, "alice")
+    bins = {**AUTO_BINS, "bin_mode": "count", "bin_count": 101}
+    chart = new_chart("histogram", category=None, values=[1], histogram=bins)
+    # When
+    response = await when_save_report(
+        api, chart_report_body_for("잘못된 구간", UNGROUPED_BODY, chart)
+    )
+    # Then
+    then_problem_is(response, status=422, type_suffix="invalid-report")
+    assert ["chart", "histogram", "bin_count"] in [e["location"] for e in response.json()["errors"]]
+    then_listed_ids_are(await when_list_reports(api), [])
+
+
+@pytest.mark.parametrize("secondary", [False, True])
+async def test_reading_a_legacy_combo_chart(api: Api, secondary: bool) -> None:
+    """Scenario: 계열별 설정이 없는 옛 콤보 행은 첫 값 열 막대, 나머지 꺾은선으로 읽힌다."""
+    # Given
+    await given_users(api, alice="sales")
+    await given_logged_in(api, "alice")
+    saved = await given_saved_report(api, "옛 콤보", definition=ONE_GROUP_BODY, chart=None)
+    await given_stored_chart_json_is(api, saved["id"], legacy_combo_json(secondary_axis=secondary))
+    # When
+    detail = await when_get_report(api, saved["id"])
+    # Then
+    then_status_is(detail, 200)
+    assert detail.json()["chart_problem"] is None
+    assert detail.json()["chart"]["combo_series"] == [
+        {"type": "column", "secondary": False},
+        {"type": "line", "secondary": secondary},
+        {"type": "line", "secondary": secondary},
+    ]

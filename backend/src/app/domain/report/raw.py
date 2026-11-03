@@ -46,6 +46,9 @@ class RawChart:
     value_min: object = None
     value_max: object = None
     secondary_axis: object = False
+    histogram: object = None  # 히스토그램 전용 구간 설정
+    show_total: object = False  # 폭포 전용
+    combo_series: object = None  # 콤보 전용 계열별 설정
 
 
 @dataclass(frozen=True, slots=True)

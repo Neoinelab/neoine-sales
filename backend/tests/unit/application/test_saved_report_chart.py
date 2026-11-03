@@ -14,12 +14,12 @@ from app.application.report.get_report import GetReport
 from app.application.report.list_reports import ListReports
 from app.application.report.run_saved_report import RunSavedReport
 from app.application.report.update_report import UpdateReport
-from app.domain.report.chart import ChartKind
+from app.domain.report.chart_kinds import ChartKind
 from app.domain.report.errors import ReportDefinitionError
 from tests.factories import later
 from tests.factories_report import make_report
 from tests.fakes.report_runner import RENDERED_SQL
-from tests.support.chart_defs import chart_definition, raw_chart
+from tests.support.chart_defs import AUTO_BINS, bins, chart_definition, combo_item, raw_chart
 from tests.support.report_defs import col, raw
 from tests.unit.application.saved_report_env import (
     ALICE,
@@ -36,6 +36,7 @@ if TYPE_CHECKING:
     from tests.fakes.unit_of_work import FakeUnitOfWork, FixedClock
 
 DEFINITION = chart_definition(2, 3)  # 0·1 = 그룹, 2..4 = 집계 값
+ONE_GROUP = chart_definition(1, 3)  # 0 = 그룹, 1..3 = 집계 값(콤보·폭포는 그룹 1개 이하)
 UNGROUPED = raw([col("deal.code"), col("deal.amount")])
 STACKED = raw_chart("stacked_bar", 0, [2], series=1)
 
@@ -350,3 +351,87 @@ async def test_list_shows_the_chart_kind_of_each_report(
 
     kinds = {i.report.name: i.report.chart_kind() for i in listed}
     assert kinds == {"차트 있음": ChartKind.STACKED_BAR, "차트 없음": None}
+
+
+# ---- Excel 확장: 그룹핑 없는 히스토그램과 옵션 (AC10·14) ----
+
+UNGROUPED_NUMBER = raw([col("deal.code"), col("deal.amount")])  # 1 = 숫자 필드
+
+
+async def test_create_report_with_ungrouped_histogram_saves_chart(
+    create: CreateReport, uow: FakeUnitOfWork
+) -> None:
+    chart = raw_chart("histogram", None, [1])
+
+    report = await create.execute(
+        content_input(definition=UNGROUPED_NUMBER, chart=chart), viewer(ALICE)
+    )
+
+    expected = raw_chart("histogram", None, [1], histogram=AUTO_BINS)
+    assert report.chart == expected
+    (saved,) = await stored(uow)
+    assert saved.chart == expected
+    assert saved.chart is not None
+    assert saved.chart.category is None
+    assert saved.chart_kind() == ChartKind.HISTOGRAM
+
+
+async def test_ungrouped_bar_chart_is_still_rejected(
+    create: CreateReport, uow: FakeUnitOfWork
+) -> None:
+    with pytest.raises(ReportDefinitionError) as caught:
+        await create.execute(
+            content_input(definition=UNGROUPED_NUMBER, chart=raw_chart("bar", 0, [1])),
+            viewer(ALICE),
+        )
+
+    assert _issues(caught) == [(("chart",), "chart-needs-grouping")]
+    assert await stored(uow) == []
+
+
+async def test_invalid_histogram_option_is_not_saved(
+    create: CreateReport, uow: FakeUnitOfWork
+) -> None:
+    chart = raw_chart("histogram", None, [1], histogram=bins(bin_mode="count", bin_count=0))
+
+    with pytest.raises(ReportDefinitionError) as caught:
+        await create.execute(content_input(definition=UNGROUPED_NUMBER, chart=chart), viewer(ALICE))
+
+    assert _issues(caught) == [(("chart", "histogram", "bin_count"), "chart-histogram-invalid")]
+    assert await stored(uow) == []
+
+
+async def test_create_normalizes_a_legacy_combo_to_series_settings(
+    create: CreateReport, uow: FakeUnitOfWork
+) -> None:
+    chart = raw_chart("combo", 0, [1, 2, 3], secondary_axis=True)
+
+    report = await create.execute(content_input(definition=ONE_GROUP, chart=chart), viewer(ALICE))
+
+    expected_series = [
+        combo_item("column"),
+        combo_item("line", secondary=True),
+        combo_item("line", secondary=True),
+    ]
+    assert report.chart is not None
+    assert report.chart.combo_series == expected_series
+    (saved,) = await stored(uow)
+    assert saved.chart is not None
+    assert saved.chart.combo_series == expected_series
+
+
+async def test_update_replaces_a_bar_chart_with_a_waterfall_with_total(
+    update: UpdateReport, uow: FakeUnitOfWork
+) -> None:
+    report = make_report("원본", owner=ALICE, definition=ONE_GROUP, chart=raw_chart("bar", 0, [1]))
+    await seed(uow, report)
+    waterfall = raw_chart("waterfall", 0, [1], show_total=True)
+
+    changed = await update.execute(
+        report.id, content_input("원본", definition=ONE_GROUP, chart=waterfall), 1, viewer(ALICE)
+    )
+
+    assert changed.chart == waterfall
+    assert changed.revision == 2
+    (saved,) = await stored(uow)
+    assert saved.chart_kind() == ChartKind.WATERFALL

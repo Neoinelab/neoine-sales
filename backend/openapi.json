@@ -570,6 +570,15 @@
         "title": "BantResponse",
         "type": "object"
       },
+      "BinMode": {
+        "enum": [
+          "auto",
+          "count",
+          "width"
+        ],
+        "title": "BinMode",
+        "type": "string"
+      },
       "Body_upload_attachment_api_v1_deals__code__attachments_post": {
         "properties": {
           "description": {
@@ -654,14 +663,37 @@
       "ChartKind": {
         "enum": [
           "bar",
-          "horizontal_bar",
           "stacked_bar",
           "stacked_100_bar",
+          "horizontal_bar",
+          "stacked_horizontal_bar",
+          "stacked_100_horizontal_bar",
           "line",
-          "area",
+          "line_markers",
+          "stacked_line",
+          "stacked_line_markers",
+          "stacked_100_line",
+          "stacked_100_line_markers",
           "pie",
           "doughnut",
+          "area",
+          "stacked_area",
+          "stacked_100_area",
           "scatter",
+          "scatter_smooth_markers",
+          "scatter_smooth",
+          "scatter_line_markers",
+          "scatter_line",
+          "bubble",
+          "radar",
+          "radar_markers",
+          "radar_filled",
+          "treemap",
+          "sunburst",
+          "histogram",
+          "pareto",
+          "waterfall",
+          "funnel",
           "combo"
         ],
         "title": "ChartKind",
@@ -951,6 +983,36 @@
         ],
         "title": "ColumnResponse",
         "type": "object"
+      },
+      "ComboSeriesResponse": {
+        "description": "콤보 계열 하나의 종류와 보조 축 여부.",
+        "properties": {
+          "secondary": {
+            "title": "Secondary",
+            "type": "boolean"
+          },
+          "type": {
+            "$ref": "#/components/schemas/ComboSeriesType"
+          }
+        },
+        "required": [
+          "type",
+          "secondary"
+        ],
+        "title": "ComboSeriesResponse",
+        "type": "object"
+      },
+      "ComboSeriesType": {
+        "enum": [
+          "column",
+          "stacked_column",
+          "line",
+          "line_markers",
+          "area",
+          "stacked_area"
+        ],
+        "title": "ComboSeriesType",
+        "type": "string"
       },
       "ContactCreateRequest": {
         "additionalProperties": false,
@@ -3074,6 +3136,76 @@
         "title": "HTTPValidationError",
         "type": "object"
       },
+      "HistogramResponse": {
+        "description": "히스토그램 구간 설정(정규화된 값).",
+        "properties": {
+          "bin_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bin Count"
+          },
+          "bin_mode": {
+            "$ref": "#/components/schemas/BinMode"
+          },
+          "bin_width": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bin Width"
+          },
+          "overflow": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Overflow"
+          },
+          "underflow": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Underflow"
+          }
+        },
+        "required": [
+          "bin_mode",
+          "bin_count",
+          "bin_width",
+          "overflow",
+          "underflow"
+        ],
+        "title": "HistogramResponse",
+        "type": "object"
+      },
       "HistoryCategory": {
         "description": "History 구분. 값은 프런트 `HistoryCategory` 타입 그대로다.",
         "enum": [
@@ -4179,9 +4311,15 @@
             "default": "",
             "title": "Category Axis Title"
           },
+          "combo_series": {
+            "title": "Combo Series"
+          },
           "data_labels": {
             "default": false,
             "title": "Data Labels"
+          },
+          "histogram": {
+            "title": "Histogram"
           },
           "kind": {
             "title": "Kind"
@@ -4196,6 +4334,10 @@
           },
           "series": {
             "title": "Series"
+          },
+          "show_total": {
+            "default": false,
+            "title": "Show Total"
           },
           "swap": {
             "default": false,
@@ -4231,16 +4373,47 @@
         "description": "저장된(정규화된) 차트. 키가 모두 있다.",
         "properties": {
           "category": {
-            "title": "Category",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
           },
           "category_axis_title": {
             "title": "Category Axis Title",
             "type": "string"
           },
+          "combo_series": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ComboSeriesResponse"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Combo Series"
+          },
           "data_labels": {
             "title": "Data Labels",
             "type": "boolean"
+          },
+          "histogram": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HistogramResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "kind": {
             "$ref": "#/components/schemas/ChartKind"
@@ -4262,6 +4435,10 @@
               }
             ],
             "title": "Series"
+          },
+          "show_total": {
+            "title": "Show Total",
+            "type": "boolean"
           },
           "swap": {
             "title": "Swap",
@@ -4324,7 +4501,10 @@
           "value_axis_title",
           "value_min",
           "value_max",
-          "secondary_axis"
+          "secondary_axis",
+          "histogram",
+          "show_total",
+          "combo_series"
         ],
         "title": "ReportChartResponse",
         "type": "object"

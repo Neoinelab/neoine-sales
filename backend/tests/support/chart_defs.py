@@ -59,7 +59,7 @@ def raw_chart(
 
 
 def chart_body(kind: str = "bar", category: object = 0, **overrides: Any) -> dict[str, Any]:  # noqa: ANN401
-    """API 요청·응답 JSON 모양의 차트(snake_case, 13개 키 전부)."""
+    """API 요청·응답 JSON 모양의 차트(snake_case, 16개 키 전부)."""
     return {
         "kind": kind,
         "category": category,
@@ -74,6 +74,9 @@ def chart_body(kind: str = "bar", category: object = 0, **overrides: Any) -> dic
         "value_min": None,
         "value_max": None,
         "secondary_axis": False,
+        "histogram": None,
+        "show_total": False,
+        "combo_series": None,
         **overrides,
     }
 
@@ -92,3 +95,22 @@ def chart_issues(
         return [(tuple(i.location), i.code) for i in error.issues]
     msg = "차트가 올바른데 위반을 기대했다"
     raise AssertionError(msg)
+
+
+AUTO_BINS: dict[str, Any] = {
+    "bin_mode": "auto",
+    "bin_count": None,
+    "bin_width": None,
+    "overflow": None,
+    "underflow": None,
+}
+
+
+def bins(**overrides: Any) -> dict[str, Any]:  # noqa: ANN401
+    """히스토그램 구간 설정 JSON(5개 키 전부). 기본은 auto."""
+    return {**AUTO_BINS, **overrides}
+
+
+def combo_item(kind: str = "column", *, secondary: bool = False) -> dict[str, Any]:
+    """콤보 계열 설정 한 줄."""
+    return {"type": kind, "secondary": secondary}

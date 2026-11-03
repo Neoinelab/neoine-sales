@@ -1,5 +1,7 @@
 """차트 설정 검증 `parse_chart` (Reports 4단계 AC1·2·13): 정의 기준으로 판정하고 위반을 모은다.
 
+기존 10종의 규칙을 고정한다(Excel 확장의 새 23종은 `test_report_chart_parse_kinds.py`).
+
 위치는 `/query`와 같은 규약의 `("chart", ...)`이고, 컬럼은 정의 `columns`의 index로 가리킨다.
 종류별 규칙표(계획 4.3)는 종류마다 한 줄씩 이 파일의 경계 테스트가 고정한다.
 """
@@ -8,7 +10,8 @@ from typing import TYPE_CHECKING, Any
 
 import pytest
 
-from app.domain.report.chart import ChartKind, ChartSettings, LegendPosition
+from app.domain.report.chart import ChartSettings, LegendPosition
+from app.domain.report.chart_kinds import ChartKind
 from app.domain.report.errors import ReportDefinitionError
 from app.domain.report.parse import parse_report_definition
 from app.domain.report.parse_chart import parse_chart
@@ -19,7 +22,19 @@ if TYPE_CHECKING:
 
 ONE = chart_definition(1, 11)  # 0 = 그룹, 1..11 = 집계 값
 TWO = chart_definition(2, 11)  # 0·1 = 그룹, 2..12 = 집계 값
-ALL_KINDS = [k.value for k in ChartKind]
+LEGACY_KINDS = [
+    "bar",
+    "horizontal_bar",
+    "stacked_bar",
+    "stacked_100_bar",
+    "line",
+    "area",
+    "pie",
+    "doughnut",
+    "scatter",
+    "combo",
+]
+ALL_KINDS = LEGACY_KINDS  # 새 23종은 test_report_chart_parse_kinds.py
 ONE_GROUP_ONLY = ["pie", "doughnut", "scatter", "combo"]
 BAR_LIKE = ["bar", "horizontal_bar", "stacked_bar", "stacked_100_bar", "line", "area"]
 TEXT_KEYS = ["title", "category_axis_title", "value_axis_title"]
@@ -67,21 +82,20 @@ def test_each_chart_kind_is_accepted_with_a_valid_setting(kind: str) -> None:
 def test_minimal_chart_gets_the_documented_defaults() -> None:
     settings = _parse(ONE, raw_chart("bar", 0, [1]))
 
-    assert settings == ChartSettings(
-        kind=ChartKind.BAR,
-        category=0,
-        series=None,
-        values=(1,),
-        swap=False,
-        title="",
-        legend=LegendPosition.TOP,
-        data_labels=False,
-        category_axis_title="",
-        value_axis_title="",
-        value_min=None,
-        value_max=None,
-        secondary_axis=False,
+    assert (settings.kind, settings.category, settings.series, settings.values) == (
+        ChartKind.BAR,
+        0,
+        None,
+        (1,),
     )
+    assert (settings.swap, settings.title, settings.legend, settings.data_labels) == (
+        False,
+        "",
+        LegendPosition.TOP,
+        False,
+    )
+    assert (settings.category_axis_title, settings.value_axis_title) == ("", "")
+    assert (settings.value_min, settings.value_max, settings.secondary_axis) == (None, None, False)
 
 
 def test_every_option_is_kept_when_given() -> None:
@@ -100,31 +114,38 @@ def test_every_option_is_kept_when_given() -> None:
         value_max=1000.5,
     )
 
-    assert _parse(TWO, chart) == ChartSettings(
-        kind=ChartKind.STACKED_BAR,
-        category=1,
-        series=0,
-        values=(2,),
-        swap=True,
-        title="Vendor별",
-        legend=LegendPosition.RIGHT,
-        data_labels=True,
-        category_axis_title="분기",
-        value_axis_title="금액",
-        value_min=0,
-        value_max=1000.5,
-        secondary_axis=False,
+    settings = _parse(TWO, chart)
+
+    assert (settings.kind, settings.category, settings.series, settings.values) == (
+        ChartKind.STACKED_BAR,
+        1,
+        0,
+        (2,),
     )
+    assert (settings.swap, settings.title, settings.legend, settings.data_labels) == (
+        True,
+        "Vendor별",
+        LegendPosition.RIGHT,
+        True,
+    )
+    assert (settings.category_axis_title, settings.value_axis_title) == ("분기", "금액")
+    assert (settings.value_min, settings.value_max, settings.secondary_axis) == (0, 1000.5, False)
 
 
 # ---- 정의 기준 (규칙 1·2) ----
 
 
-@pytest.mark.parametrize("kind", [*ALL_KINDS, "nope"])
+@pytest.mark.parametrize("kind", ALL_KINDS)
 def test_definition_without_grouping_cannot_have_a_chart(kind: str) -> None:
     found = chart_issues(chart_definition(0), raw_chart(kind, 99, "garbage"))
 
     assert found == [(("chart",), "chart-needs-grouping")]
+
+
+def test_ungrouped_definition_with_unknown_kind_reports_only_the_kind() -> None:
+    found = chart_issues(chart_definition(0), raw_chart("nope", 99, "garbage"))
+
+    assert found == [(("chart", "kind"), "chart-kind-invalid")]
 
 
 def test_three_group_columns_cannot_have_a_chart() -> None:
@@ -139,7 +160,9 @@ def test_grouping_messages_are_in_korean() -> None:
     with pytest.raises(ReportDefinitionError) as many:
         _parse(chart_definition(3, 2), raw_chart())
 
-    assert none.value.issues[0].message == "그룹핑한 결과로 차트를 만들 수 있습니다"
+    assert (
+        none.value.issues[0].message == "그룹핑한 결과로 차트를 만들 수 있습니다(히스토그램 제외)"
+    )
     assert many.value.issues[0].message == "차트는 그룹핑 컬럼이 1~2개일 때 만들 수 있습니다"
 
 
@@ -272,7 +295,6 @@ def test_value_count_follows_the_kind_rule() -> None:
     assert count_issue(ONE, "pie", [1, 2])
     assert count_issue(ONE, "doughnut", [1, 2])
     assert count_issue(ONE, "scatter", [1])
-    assert count_issue(ONE, "scatter", [1, 2, 3])
     assert count_issue(ONE, "combo", [1])
     assert count_issue(ONE, "combo", list(range(1, 12)))
     assert count_issue(ONE, "bar", list(range(1, 12)))
@@ -284,6 +306,7 @@ def test_value_count_boundaries_are_accepted() -> None:
     assert len(_parse(ONE, raw_chart("combo", 0, list(range(1, 11)))).values) == 10
     assert len(_parse(ONE, raw_chart("bar", 0, list(range(1, 11)))).values) == 10
     assert len(_parse(ONE, raw_chart("scatter", 0, [3, 1])).values) == 2
+    assert len(_parse(ONE, raw_chart("scatter", 0, [3, 1, 2])).values) == 3  # 다중 Y 계열
 
 
 def test_eleven_values_are_a_single_count_violation() -> None:

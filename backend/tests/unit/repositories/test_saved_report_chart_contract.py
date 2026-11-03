@@ -1,19 +1,20 @@
 """ReportRepository 차트 계약 (Reports 4단계 AC1·5·7·18): Fake와 SQL 구현 공통 테스트.
 
-차트는 `reports.chart`(JSONB, NULL 가능)에 정규화된 13개 키로 저장된다. 읽을 수 없는 차트는
+차트는 `reports.chart`(JSONB, NULL 가능)에 정규화된 16개 키로 저장된다. 읽을 수 없는 차트는
 리포트를 막지 않고 "차트 없음 + 읽을 수 없음"으로 읽힌다(목록·상세·수정·삭제는 계속 된다).
 """
 
-from typing import TYPE_CHECKING
+import json
+from typing import TYPE_CHECKING, Any
 
 import pytest
 
 from app.domain.auth.principal import Role
-from app.domain.report.chart import ChartKind
+from app.domain.report.chart_kinds import ChartKind
 from app.domain.saved_report.values import ReportListScope
 from tests.factories import later
 from tests.factories_report import make_content, make_report
-from tests.support.chart_defs import chart_definition, raw_chart
+from tests.support.chart_defs import bins, chart_body, chart_definition, combo_item, raw_chart
 from tests.support.user_ids import uid
 
 if TYPE_CHECKING:
@@ -36,14 +37,22 @@ FULL = raw_chart(
     value_max=1000,
     secondary_axis=False,
 )
-BROKEN_CHART_JSON = ["[1]", '{"kind": "x"}', '{"kind": "bar", "category": "0", "values": [1]}']
+BROKEN_CHART_JSON = [
+    "[1]",
+    '{"kind": "x"}',
+    '{"kind": "bar", "category": "0", "values": [1]}',
+    '{"kind": "combo", "category": 0, "values": [1, 2],'
+    ' "combo_series": [{"type": "pie", "secondary": false}, {"type": "line", "secondary": false}]}',
+    '{"kind": "histogram", "category": null, "values": [1], "histogram": {"bin_mode": "foo",'
+    ' "bin_count": null, "bin_width": null, "overflow": null, "underflow": null}}',
+]
 
 
 def _scope() -> ReportListScope:
     return ReportListScope(viewer_id=ALICE, see_all=True)
 
 
-async def test_chart_round_trips_with_all_thirteen_keys(saved_report_case: SavedReportCase) -> None:
+async def test_chart_round_trips_with_all_sixteen_keys(saved_report_case: SavedReportCase) -> None:
     report = make_report("차트 왕복", owner=ALICE, definition=DEFINITION, chart=FULL)
     await saved_report_case.add(report)
 
@@ -237,3 +246,83 @@ async def test_delete_removes_a_report_with_an_unreadable_chart(
 
     with pytest.raises(ReportNotFoundError):
         await saved_report_case.reports.get(report.id)
+
+
+# ---- Excel 확장: 새 키 3개와 옛 형식 읽기 (AC2·4) ----
+
+
+def _new_key_chart(name: str) -> Any:  # noqa: ANN401 - RawChart
+    return {
+        "histogram": raw_chart(
+            "histogram", None, [2], histogram=bins(bin_mode="count", bin_count=7)
+        ),
+        "waterfall": raw_chart("waterfall", 0, [2], show_total=True),
+        "combo": raw_chart(
+            "combo",
+            0,
+            [2, 3],
+            secondary_axis=True,
+            combo_series=[combo_item("stacked_area"), combo_item("line_markers", secondary=True)],
+        ),
+        "treemap": raw_chart("treemap", 0, [2], series=1),
+    }[name]
+
+
+@pytest.mark.parametrize("name", ["histogram", "waterfall", "combo", "treemap"])
+async def test_new_chart_keys_round_trip_through_storage(
+    saved_report_case: SavedReportCase, name: str
+) -> None:
+    chart = _new_key_chart(name)
+    report = await saved_report_case.add(
+        make_report("새 키 왕복", owner=ALICE, definition=DEFINITION, chart=chart)
+    )
+
+    stored = await saved_report_case.reports.get(report.id)
+
+    assert stored.chart == chart
+    assert stored.chart_unreadable is False
+    assert stored.chart_kind() == ChartKind(name)
+
+
+async def test_legacy_combo_row_is_read_with_the_legacy_series_rule(
+    saved_report_case: SavedReportCase,
+) -> None:
+    report = await saved_report_case.add(make_report("옛 콤보", owner=ALICE, chart=FULL))
+    legacy = {
+        k: v
+        for k, v in chart_body("combo", 0, values=[2, 3, 4], secondary_axis=True).items()
+        if k not in {"histogram", "show_total", "combo_series"}
+    }
+    await saved_report_case.set_chart_json(report, json.dumps(legacy))
+
+    stored = await saved_report_case.reports.get(report.id)
+
+    assert stored.chart_unreadable is False
+    assert stored.chart_kind() == ChartKind.COMBO
+    assert stored.chart is not None
+    assert stored.chart.combo_series == [
+        combo_item("column"),
+        combo_item("line", secondary=True),
+        combo_item("line", secondary=True),
+    ]
+
+
+async def test_legacy_thirteen_key_bar_row_reads_with_default_new_keys(
+    saved_report_case: SavedReportCase,
+) -> None:
+    report = await saved_report_case.add(make_report("옛 막대", owner=ALICE, chart=FULL))
+    legacy = {
+        k: v
+        for k, v in chart_body("bar", 0, values=[2]).items()
+        if k not in {"histogram", "show_total", "combo_series"}
+    }
+    await saved_report_case.set_chart_json(report, json.dumps(legacy))
+
+    stored = await saved_report_case.reports.get(report.id)
+
+    assert stored.chart == raw_chart("bar", 0, [2])
+    assert (stored.chart.histogram, stored.chart.show_total, stored.chart.combo_series) == (
+        None,
+        False,
+        None,
+    )
