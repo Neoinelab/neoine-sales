@@ -22,7 +22,7 @@ describe('저장 뒤 목록 재요청은 한 번 (리뷰 후속)', () => {
     const { user } = await renderAt(PAGE)
     await waitForRows(10)
     const dialog = await openEntryDialog(user)
-    await fillRow(user, dialog, 1, { company: '코어테크', deal: /미래전자 ITDR/, date: '20270315', content: '한 번만 요청' })
+    await fillRow(user, dialog, 1, { company: '코어테크', date: '20270315', content: '한 번만 요청' })
     const spy = vi.spyOn(gateway.partnerMeetings, 'list')
 
     await user.click(within(dialog).getByRole('button', { name: '저장' }))

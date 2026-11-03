@@ -1,7 +1,7 @@
 /**
  * 파트너 Activity(미팅 기록) 계약. mock과 실제 서버가 같은 규칙을 지킨다.
  * 호출마다 고유한 내용 접두사를 써서 다른 기록과 섞이지 않게 하고, 만든 것은 스스로 치운다.
- * 파트너 회사·Deal은 이미 있는 것을 `dealOptions`로 찾아 쓴다(연결된 Deal이 하나 이상 있는 첫 회사).
+ * 미팅은 Deal과 무관하다. 파트너 회사는 이미 등록된 파트너 연락처의 회사를 쓴다(첫 회사).
  */
 
 import { describe, expect, it } from 'vitest'
@@ -9,23 +9,18 @@ import type { Gateway } from '../types'
 import { expectRejects, NO_SUCH_ID, unique, type MakeGateway } from './support'
 
 const DEFAULT_QUERY = { sort: 'meetingDate', order: 'desc' } as const
-const NOT_LINKED = '선택한 파트너와 연결된 Deal이 아닙니다.'
 const CONTENT_REQUIRED = '미팅 내용을 입력하세요.'
 const COMPANY_NOT_FOUND = '등록된 파트너 회사가 아닙니다. 목록에서 다시 선택하세요.'
 const NOT_FOUND = '미팅 기록을 찾을 수 없습니다.'
 
-async function target(gateway: Gateway): Promise<{ company: string; dealCode: string }> {
-  for (const company of await gateway.contacts.companies('partner')) {
-    const options = await gateway.partnerMeetings.dealOptions(company)
-    const first = options[0]
-    if (first) return { company, dealCode: first.code }
-  }
-  throw new Error('연결된 Deal이 있는 파트너 회사가 없다')
+async function target(gateway: Gateway): Promise<{ company: string }> {
+  const [company] = await gateway.contacts.companies('partner')
+  if (!company) throw new Error('등록된 파트너 회사가 없다')
+  return { company }
 }
 
-const input = (t: { company: string; dealCode: string }, content: string, meetingDate = '2026-10-01') => ({
+const input = (t: { company: string }, content: string, meetingDate = '2026-10-01') => ({
   partnerCompany: t.company,
-  dealCode: t.dealCode,
   meetingDate,
   content,
 })
@@ -50,18 +45,16 @@ export function partnerMeetingsContract(make: MakeGateway): void {
       for (const m of created) await gateway.partnerMeetings.remove(m.id)
     })
 
-    it('returns the documented fields with the representative company, current deal name and author', async () => {
+    it('returns the documented fields with the representative company and author, and no deal', async () => {
       const gateway = await make('sales')
       const me = await gateway.auth.me()
       const t = await target(gateway)
       const [created] = await gateway.partnerMeetings.create([input(t, `${unique('pm')} 내용\n둘째 줄`)])
 
       expect(created).toMatchObject({ partnerCompany: t.company, meetingDate: '2026-10-01' })
-      expect(created?.deal.code).toBe(t.dealCode)
-      expect(created?.deal.name).toBeTruthy()
       expect(created?.author).toMatchObject({ id: me.id, status: 'active' })
       expect(created?.content).toContain('\n')
-      expect(Object.keys(created ?? {}).sort()).toEqual(['author', 'content', 'createdAt', 'deal', 'id', 'meetingDate', 'partnerCompany', 'updatedAt'])
+      expect(Object.keys(created ?? {}).sort()).toEqual(['author', 'content', 'createdAt', 'id', 'meetingDate', 'partnerCompany', 'updatedAt'])
       if (created) await gateway.partnerMeetings.remove(created.id)
     })
 
@@ -102,27 +95,16 @@ export function partnerMeetingsContract(make: MakeGateway): void {
       expect((await gateway.partnerMeetings.list({ ...DEFAULT_QUERY, content: tag }, 0, 10)).total).toBe(0)
     })
 
-    it('rejects a deal of another company with the not-linked message at the deal location (AC17)', async () => {
-      const gateway = await make('sales')
-      const optionsOf = new Map<string, string[]>()
-      for (const company of await gateway.contacts.companies('partner')) {
-        optionsOf.set(company, (await gateway.partnerMeetings.dealOptions(company)).map((o) => o.code))
-      }
-      let pair: { company: string; foreignDeal: string } | null = null
-      for (const [company, codes] of optionsOf) {
-        for (const [other, otherCodes] of optionsOf) {
-          const foreign = otherCodes.find((code) => other !== company && !codes.includes(code))
-          if (foreign && codes.length > 0) pair = { company, foreignDeal: foreign }
-        }
-      }
-      if (!pair) throw new Error('서로 다른 Deal을 가진 파트너 회사 둘이 필요하다')
+    it('registers a meeting for a partner company that has no deal', async () => {
+      const admin = await make('admin')
+      const company = unique('NoDealPartner')
+      await admin.contacts.create('partner', { company, name: '가나다', title: '', email: null, phone: null })
+      const sales = await make('sales')
 
-      const error = await expectRejects(
-        gateway.partnerMeetings.create([{ partnerCompany: pair.company, dealCode: pair.foreignDeal, meetingDate: '2026-10-01', content: unique('pm') }]),
-        422,
-      )
+      const [created] = await sales.partnerMeetings.create([{ partnerCompany: company, meetingDate: '2026-10-01', content: unique('pm') }])
 
-      expect(error.problem?.itemErrors).toEqual([{ location: ['items', 0, 'deal_code'], message: NOT_LINKED }])
+      expect(created?.partnerCompany).toBe(company)
+      if (created) await sales.partnerMeetings.remove(created.id)
     })
 
     it('rejects an empty list and more than 50 items', async () => {
@@ -133,7 +115,7 @@ export function partnerMeetingsContract(make: MakeGateway): void {
       await expectRejects(gateway.partnerMeetings.create(Array.from({ length: 51 }, () => input(t, unique('pm')))), 422)
     })
 
-    it('filters by content, partner, deal, date range (inclusive) and author with AND, and reports the total (AC3)', async () => {
+    it('filters by content, partner, date range (inclusive) and author with AND, and reports the total (AC3)', async () => {
       const gateway = await make('sales')
       const me = await gateway.auth.me()
       const t = await target(gateway)
@@ -147,7 +129,7 @@ export function partnerMeetingsContract(make: MakeGateway): void {
       const range = await gateway.partnerMeetings.list({ ...DEFAULT_QUERY, content: tag, dateFrom: '2026-09-02', dateTo: '2026-09-03' }, 0, 10)
       const paged = await gateway.partnerMeetings.list({ ...DEFAULT_QUERY, content: tag }, 1, 1)
       const anded = await gateway.partnerMeetings.list(
-        { ...DEFAULT_QUERY, content: tag, partner: t.company.slice(0, 2), deal: t.dealCode.toLowerCase(), authorId: me.id },
+        { ...DEFAULT_QUERY, content: tag, partner: t.company.slice(0, 2), authorId: me.id },
         0,
         10,
       )
@@ -202,12 +184,11 @@ export function partnerMeetingsContract(make: MakeGateway): void {
       await expectRejects(partnerMeetings.list({ ...DEFAULT_QUERY, dateFrom: '2026-10-02', dateTo: '2026-10-01' }, 0, 10), 422, '미팅 날짜 범위의 시작은 끝보다 늦을 수 없습니다.')
     })
 
-    it('lets every role read and refuses an anonymous caller (AC5)', async () => {
+    it('lets every role read and refuses an anonymous caller (AC12)', async () => {
       for (const role of ['admin', 'sales', 'user'] as const) {
         const { partnerMeetings } = await make(role)
         const page = await partnerMeetings.list(DEFAULT_QUERY, 0, 10)
         expect(page.limit).toBe(10)
-        expect(Array.isArray(await partnerMeetings.dealOptions('없는회사이름'))).toBe(true)
       }
       const gateway = await make('user')
       await gateway.auth.logout()
@@ -267,15 +248,17 @@ export function partnerMeetingsContract(make: MakeGateway): void {
       await expectRejects(gateway.partnerMeetings.remove(NO_SUCH_ID), 404, NOT_FOUND)
     })
 
-    it('rechecks the deal link only when the company or deal changes (AC15)', async () => {
+    it('rechecks the company only when it changes (AC6)', async () => {
       const gateway = await make('sales')
       const t = await target(gateway)
       const [created] = await gateway.partnerMeetings.create([input(t, unique('pm'))])
       if (!created) throw new Error('생성 실패')
 
-      const error = await expectRejects(gateway.partnerMeetings.update(created.id, { ...input(t, unique('pm')), dealCode: '20000101-ZZZZ' }), 422)
+      const same = await gateway.partnerMeetings.update(created.id, { ...input(t, unique('pm')), partnerCompany: t.company.toUpperCase() })
+      const error = await expectRejects(gateway.partnerMeetings.update(created.id, { ...input(t, unique('pm')), partnerCompany: '없는회사이름' }), 422)
 
-      expect(error.problem?.itemErrors?.[0]?.location).toEqual(['deal_code'])
+      expect(same.partnerCompany).toBe(t.company)
+      expect(error.problem?.itemErrors?.[0]?.location).toEqual(['partner_company'])
       await gateway.partnerMeetings.remove(created.id)
     })
 
@@ -291,37 +274,19 @@ export function partnerMeetingsContract(make: MakeGateway): void {
       await gateway.partnerMeetings.remove(created.id)
     })
 
-    it('lists the deals of a company ordered by lower-case name then code, with the customer company (AC8)', async () => {
-      const gateway = await make('sales')
-      const t = await target(gateway)
-
-      const options = await gateway.partnerMeetings.dealOptions(t.company.toUpperCase())
-
-      expect(options.length).toBeGreaterThan(0)
-      expect(Object.keys(options[0] ?? {}).sort()).toEqual(['code', 'customerCompany', 'name'])
-      const keys = options.map((o) => `${o.name.toLowerCase()}\u0000${o.code}`)
-      expect(keys).toEqual([...keys].sort())
-    })
-
-    it('returns an empty deal list for an unknown company', async () => {
-      const { partnerMeetings } = await make('sales')
-
-      expect(await partnerMeetings.dealOptions('없는회사이름')).toEqual([])
-    })
-
-    it('counts the meetings of a deal in the deletion impact and removes them with the deal (AC18)', async () => {
+    it('does not count partner meetings in a deal deletion impact (AC7)', async () => {
       const admin = await make('admin')
       const t = await target(admin)
       const tag = unique('pm')
-      const before = (await admin.deals.impact(t.dealCode)).partnerMeetingCount
-      await admin.partnerMeetings.create([input(t, `${tag} a`), input(t, `${tag} b`)])
+      const [created] = await admin.partnerMeetings.create([input(t, `${tag} a`)])
+      const [deal] = (await admin.deals.list({ limit: 1 })).items
+      if (!created || !deal) throw new Error('준비 실패')
 
-      const impact = await admin.deals.impact(t.dealCode)
+      const impact = await admin.deals.impact(deal.code)
 
-      expect(impact.partnerMeetingCount).toBe(before + 2)
-      const mine = await admin.partnerMeetings.list({ ...DEFAULT_QUERY, content: tag }, 0, 10)
-      for (const m of mine.items) await admin.partnerMeetings.remove(m.id)
-      expect((await admin.deals.impact(t.dealCode)).partnerMeetingCount).toBe(before)
+      expect(Object.keys(impact).sort()).toEqual(['actionCount', 'attachmentCount', 'historyCount'])
+      expect((await admin.partnerMeetings.list({ ...DEFAULT_QUERY, content: tag }, 0, 10)).total).toBe(1)
+      await admin.partnerMeetings.remove(created.id)
     })
   })
 }

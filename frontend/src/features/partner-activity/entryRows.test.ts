@@ -4,14 +4,12 @@ import { MAX_ROWS, applyServerErrors, emptyRow, firstMissingField, isBlank, isCo
 
 const TODAY = '2027-03-15'
 
-/** 모두 채워진 행. 고르기 전의 글자(partnerText·dealText)와 고른 값(partnerCompany·dealCode)을 따로 둔다. */
+/** 모두 채워진 행. 고르기 전의 글자(partnerText)와 고른 값(partnerCompany)을 따로 둔다. Deal 칸은 없다. */
 function row(over: Partial<EntryRow> = {}): EntryRow {
   return {
     key: 'k',
     partnerText: '코어테크',
     partnerCompany: '코어테크',
-    dealText: '대한제조 MFA 확대 [20270301-D002]',
-    dealCode: '20270301-D002',
     meetingDate: '2027-03-10',
     content: '견적 전달',
     ...over,
@@ -23,8 +21,9 @@ describe('emptyRow', () => {
     const a = emptyRow(TODAY)
     const b = emptyRow(TODAY)
 
-    expect(a).toMatchObject({ partnerText: '', partnerCompany: '', dealText: '', dealCode: '', meetingDate: TODAY, content: '' })
+    expect(a).toMatchObject({ partnerText: '', partnerCompany: '', meetingDate: TODAY, content: '' })
     expect(a.key).not.toBe(b.key)
+    expect(Object.keys(a).sort()).toEqual(['content', 'key', 'meetingDate', 'partnerCompany', 'partnerText'])
   })
 
   it('caps the rows at 50', () => {
@@ -40,8 +39,6 @@ describe('isBlank', () => {
   it.each([
     ['a typed partner', { partnerText: '코' }],
     ['a chosen partner', { partnerCompany: '코어테크' }],
-    ['a typed deal', { dealText: 'ERP' }],
-    ['a chosen deal', { dealCode: '20270301-D002' }],
     ['a content', { content: '내용' }],
   ])('is not blank with %s', (_name, over) => {
     expect(isBlank({ ...emptyRow(TODAY), ...over })).toBe(false)
@@ -53,14 +50,13 @@ describe('isBlank', () => {
 })
 
 describe('isComplete and firstMissingField', () => {
-  it('a row with partner, deal, a valid date and content is complete', () => {
+  it('a row with a partner, a valid date and content is complete without any deal', () => {
     expect(isComplete(row())).toBe(true)
     expect(firstMissingField(row())).toBeNull()
   })
 
   it.each([
     ['partnerCompany', { partnerCompany: '' }],
-    ['dealCode', { dealCode: '' }],
     ['meetingDate', { meetingDate: '' }],
     ['meetingDate', { meetingDate: '2027.03' }],
     ['meetingDate', { meetingDate: '2027.13.45' }],
@@ -70,15 +66,13 @@ describe('isComplete and firstMissingField', () => {
     expect(firstMissingField(row(over))).toBe(field)
   })
 
-  it('reports the first missing field in the order partner, deal, date, content', () => {
-    expect(firstMissingField(row({ partnerCompany: '', dealCode: '', content: '' }))).toBe('partnerCompany')
-    expect(firstMissingField(row({ dealCode: '', content: '' }))).toBe('dealCode')
+  it('reports the first missing field in the order partner, date, content', () => {
+    expect(firstMissingField(row({ partnerCompany: '', content: '' }))).toBe('partnerCompany')
     expect(firstMissingField(row({ meetingDate: '2027.03', content: '' }))).toBe('meetingDate')
   })
 
-  it('does not accept a typed-only partner or deal (nothing chosen from the list)', () => {
+  it('does not accept a typed-only partner (nothing chosen from the list)', () => {
     expect(firstMissingField(row({ partnerCompany: '', partnerText: '코어' }))).toBe('partnerCompany')
-    expect(firstMissingField(row({ dealCode: '', dealText: 'ERP' }))).toBe('dealCode')
   })
 })
 
@@ -88,16 +82,21 @@ describe('validateRows', () => {
   })
 
   it('reports every problem of a partly filled row with the planned messages', () => {
-    const errors = validateRows([row({ partnerCompany: '', partnerText: '코', dealCode: '', dealText: '', meetingDate: '', content: '' })])
+    const errors = validateRows([row({ partnerCompany: '', partnerText: '코', meetingDate: '', content: '' })])
 
     expect(errors).toEqual({
       0: {
         partnerCompany: '파트너를 선택하세요.',
-        dealCode: 'Deal을 선택하세요.',
         meetingDate: '미팅 날짜를 입력하세요.',
         content: '미팅 내용을 입력하세요.',
       },
     })
+  })
+
+  it('never asks for a deal', () => {
+    const errors = validateRows([row({ partnerCompany: '', meetingDate: '', content: '' })])
+
+    expect(JSON.stringify(errors)).not.toContain('Deal')
   })
 
   it('uses the date message of the date rules for a wrong date', () => {
@@ -119,12 +118,12 @@ describe('validateRows', () => {
 })
 
 describe('rowsToInputs', () => {
-  it('sends only the non-blank rows in order and remembers which row each input came from', () => {
+  it('rowsToInputs sends only the three fields of the non-blank rows in order and remembers which row each input came from', () => {
     const result = rowsToInputs([emptyRow(TODAY), row({ content: '첫째' }), emptyRow(TODAY), row({ content: '둘째', meetingDate: '2027-03-11' })])
 
-    expect(result.inputs).toEqual([
-      { partnerCompany: '코어테크', dealCode: '20270301-D002', meetingDate: '2027-03-10', content: '첫째' },
-      { partnerCompany: '코어테크', dealCode: '20270301-D002', meetingDate: '2027-03-11', content: '둘째' },
+    expect(result.inputs).toStrictEqual([
+      { partnerCompany: '코어테크', meetingDate: '2027-03-10', content: '첫째' },
+      { partnerCompany: '코어테크', meetingDate: '2027-03-11', content: '둘째' },
     ])
     expect(result.rowIndexOf).toEqual([1, 3])
   })
@@ -141,7 +140,6 @@ describe('applyServerErrors', () => {
   it('maps the located violations of the sent items back to the screen rows and fields', () => {
     const errors = applyServerErrors(
       [
-        { location: ['items', 0, 'deal_code'], message: '선택한 파트너와 연결된 Deal이 아닙니다.' },
         { location: ['items', 1, 'content'], message: '미팅 내용을 입력하세요.' },
         { location: ['items', 1, 'meeting_date'], message: '범위 문구' },
         { location: ['items', 0, 'partner_company'], message: '등록된 파트너 회사가 아닙니다. 목록에서 다시 선택하세요.' },
@@ -150,7 +148,7 @@ describe('applyServerErrors', () => {
     )
 
     expect(errors).toEqual({
-      1: { dealCode: '선택한 파트너와 연결된 Deal이 아닙니다.', partnerCompany: '등록된 파트너 회사가 아닙니다. 목록에서 다시 선택하세요.' },
+      1: { partnerCompany: '등록된 파트너 회사가 아닙니다. 목록에서 다시 선택하세요.' },
       3: { content: '미팅 내용을 입력하세요.', meetingDate: '범위 문구' },
     })
   })
@@ -167,5 +165,11 @@ describe('applyServerErrors', () => {
     )
 
     expect(errors).toEqual({ 1: { content: '첫째' } })
+  })
+
+  it('ignores a server location at deal_code', () => {
+    const errors = applyServerErrors([{ location: ['items', 0, 'deal_code'], message: '옛 문구' }], rowIndexOf)
+
+    expect(errors).toEqual({})
   })
 })

@@ -4,19 +4,18 @@ import { isDateValue } from '../../shared/model/dateText'
 import { parseId } from '../../shared/model/ids'
 import type { PartnerMeetingQuery, PartnerMeetingSort, SortOrder } from '../../shared/model/types'
 
-const SORTS: readonly PartnerMeetingSort[] = ['meetingDate', 'partner', 'deal', 'content', 'author']
+const SORTS: readonly PartnerMeetingSort[] = ['meetingDate', 'partner', 'content', 'author']
 
 /** 화면에 쓰는 검색 조건(날짜는 올바른 값만 담는다). */
 export interface MeetingConditions {
   partner: string
-  deal: string
   content: string
   from: string
   to: string
   author: string
 }
 
-export const NO_CONDITIONS: MeetingConditions = { partner: '', deal: '', content: '', from: '', to: '', author: '' }
+export const NO_CONDITIONS: MeetingConditions = { partner: '', content: '', from: '', to: '', author: '' }
 
 function sortOf(value: string | null): PartnerMeetingSort {
   return SORTS.find((s) => s === value) ?? 'meetingDate'
@@ -30,7 +29,6 @@ export function useMeetingSearchParams() {
     const to = params.get('to') ?? ''
     return {
       partner: params.get('partner') ?? '',
-      deal: params.get('deal') ?? '',
       content: params.get('content') ?? '',
       from: isDateValue(from) ? from : '',
       to: isDateValue(to) ? to : '',
@@ -38,13 +36,14 @@ export function useMeetingSearchParams() {
     }
   }, [params])
   const sort = sortOf(params.get('sort'))
-  const order: SortOrder = params.get('order') === 'asc' ? 'asc' : 'desc'
+  // 알 수 없는 정렬(예전 `sort=deal`)은 방향도 함께 버리고 기본 정렬(미팅 날짜 내림차순)로 연다.
+  const knownSort = SORTS.some((s) => s === params.get('sort'))
+  const order: SortOrder = (knownSort || params.get('sort') === null) && params.get('order') === 'asc' ? 'asc' : 'desc'
 
   const query = useMemo<PartnerMeetingQuery>(() => {
     const authorId = parseId(conditions.author)
     return {
       ...(conditions.partner.trim() && { partner: conditions.partner.trim() }),
-      ...(conditions.deal.trim() && { deal: conditions.deal.trim() }),
       ...(conditions.content.trim() && { content: conditions.content.trim() }),
       ...(conditions.from && { dateFrom: conditions.from }),
       ...(conditions.to && { dateTo: conditions.to }),
@@ -58,9 +57,8 @@ export function useMeetingSearchParams() {
   const write = useCallback(
     (next: MeetingConditions, nextSort: PartnerMeetingSort, nextOrder: SortOrder) => {
       const out = new URLSearchParams()
-      const text = { partner: next.partner.trim(), deal: next.deal.trim(), content: next.content.trim() }
+      const text = { partner: next.partner.trim(), content: next.content.trim() }
       if (text.partner) out.set('partner', text.partner)
-      if (text.deal) out.set('deal', text.deal)
       if (next.from) out.set('from', next.from)
       if (next.to) out.set('to', next.to)
       if (text.content) out.set('content', text.content)

@@ -139,7 +139,6 @@ export function dealsWriteApi(ctx: MockContext) {
         data.history = data.history.filter((h) => h.dealCode !== code)
         data.actions = data.actions.filter((a) => a.dealCode !== code)
         data.attachments = data.attachments.filter((a) => a.dealCode !== code)
-        data.partnerMeetings = (data.partnerMeetings ?? []).filter((m) => m.dealCode !== code)
       }),
   }
 }

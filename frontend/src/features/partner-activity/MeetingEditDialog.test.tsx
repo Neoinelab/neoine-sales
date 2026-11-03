@@ -1,14 +1,14 @@
 import { screen, waitFor, within } from '@testing-library/react'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { gateway } from '../../gateway'
-import { dealCodeOf } from '../../test/detailTestUtils'
+import { USER_ID } from '../../test/fake/seed/ids'
 import { renderAt } from '../../test/mockApp'
 import { PAGE, cellsOf, choosePartner, entryRow, fieldsOf, pinClock, rowWithContent, shownContents, unpinClock, waitForRows } from '../../test/partnerMeetings'
 
 beforeEach(pinClock)
 afterEach(unpinClock)
 
-const OWN = 'ITDR 가격 협상' // kim 작성, 코어테크 / 미래전자 ITDR / 2027-03-13
+const OWN = 'ITDR 가격 협상' // kim 작성, 코어테크 / 2027-03-13
 
 async function openEdit(content = OWN, role: 'sales' | 'admin' = 'sales') {
   const view = await renderAt(PAGE, { role })
@@ -18,14 +18,15 @@ async function openEdit(content = OWN, role: 'sales' | 'admin' = 'sales') {
   return { ...view, dialog }
 }
 
-describe('행 수정 (AC14, AC15)', () => {
+describe('행 수정 (AC10)', () => {
   it('opens one row filled with the stored values and no way to add rows', async () => {
     const { dialog } = await openEdit()
 
     expect(within(dialog).getAllByRole('group')).toHaveLength(1)
-    const { partner, deal, date, content } = fieldsOf(dialog, 1)
+    const { partner, date, content } = fieldsOf(dialog, 1)
     expect(partner).toHaveValue('코어테크')
-    expect(deal.value).toMatch(/^미래전자 ITDR/)
+    expect(within(dialog).queryByRole('combobox', { name: 'Deal' })).not.toBeInTheDocument()
+    expect(within(dialog).getAllByRole('combobox')).toHaveLength(1)
     expect(date).toHaveValue('2027.03.13')
     expect(content).toHaveValue(OWN)
     expect(within(dialog).queryByRole('button', { name: '행 추가' })).not.toBeInTheDocument()
@@ -58,7 +59,7 @@ describe('행 수정 (AC14, AC15)', () => {
     await waitFor(() => expect(screen.queryByRole('dialog', { name: '미팅 수정' })).not.toBeInTheDocument())
     await waitFor(() => expect(shownContents()).toContain('고친 내용'))
     expect(shownContents()).not.toContain(OWN)
-    expect(cellsOf(rowWithContent('고친 내용'))[2]).toHaveTextContent('2027-03-15')
+    expect(cellsOf(rowWithContent('고친 내용'))[1]).toHaveTextContent('2027-03-15')
     expect(shownContents()[0]).toBe('고친 내용') // 가장 늦은 날짜가 되어 맨 위로 옮겨 간다
   })
 
@@ -72,16 +73,32 @@ describe('행 수정 (AC14, AC15)', () => {
     await waitFor(() => expect(shownContents()).toContain('관리자가 고침'))
   })
 
-  it('saves a content-only change even after the deal lost this partner meanwhile', async () => {
-    const code = await dealCodeOf(15)
+  it('saves a content-only change even after the contact company was renamed meanwhile', async () => {
     const { user, dialog } = await openEdit()
-    await gateway.deals.update(code, { partner: null })
+    await gateway.auth.quickLogin(USER_ID.root)
+    for (const row of await gateway.contacts.byCompany('partner', '코어테크')) {
+      await gateway.contacts.update(row.id, { company: '새이름테크', name: row.name, title: row.title, email: row.email, phone: row.phone })
+    }
+    await gateway.auth.quickLogin(USER_ID.kim)
 
     await user.clear(fieldsOf(dialog, 1).content)
-    await user.type(fieldsOf(dialog, 1).content, '링크가 풀린 뒤 수정')
+    await user.type(fieldsOf(dialog, 1).content, '회사명이 바뀐 뒤 수정')
     await user.click(within(dialog).getByRole('button', { name: '저장' }))
 
-    await waitFor(() => expect(shownContents()).toContain('링크가 풀린 뒤 수정'))
+    await waitFor(() => expect(shownContents()).toContain('회사명이 바뀐 뒤 수정'))
+  })
+
+  it('sends only the three fields on save', async () => {
+    const { user, dialog } = await openEdit()
+    const update = vi.spyOn(gateway.partnerMeetings, 'update')
+
+    await user.clear(fieldsOf(dialog, 1).content)
+    await user.type(fieldsOf(dialog, 1).content, '필드 확인')
+    await user.click(within(dialog).getByRole('button', { name: '저장' }))
+
+    await waitFor(() => expect(update).toHaveBeenCalled())
+    expect(update.mock.calls[0]?.[1]).toStrictEqual({ partnerCompany: '코어테크', meetingDate: '2027-03-13', content: '필드 확인' })
+    update.mockRestore()
   })
 
   it('shows the message and does not send a blank content', async () => {
@@ -116,15 +133,15 @@ describe('행 수정 (AC14, AC15)', () => {
     await waitFor(() => expect(fieldsOf(dialog, 1).date).toHaveFocus())
   })
 
-  it('clears the deal when another partner is chosen and then asks for a deal', async () => {
+  it('keeps the date and content when another partner is chosen', async () => {
     const { user, dialog } = await openEdit()
 
     await user.clear(fieldsOf(dialog, 1).partner)
     await choosePartner(user, dialog, 1, '넷브릿지')
 
-    expect(fieldsOf(dialog, 1).deal).toHaveValue('')
-    await user.click(within(dialog).getByRole('button', { name: '저장' }))
-    expect(await entryRow(dialog, 1).findByText('Deal을 선택하세요.')).toBeVisible()
+    expect(fieldsOf(dialog, 1).partner).toHaveValue('넷브릿지')
+    expect(fieldsOf(dialog, 1).date).toHaveValue('2027.03.13')
+    expect(fieldsOf(dialog, 1).content).toHaveValue(OWN)
   })
 
   it('shows the server message when the record was deleted while editing', async () => {

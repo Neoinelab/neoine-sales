@@ -15,7 +15,7 @@
 .meetings-end { text-align: center; margin: 0; }
 
 .meeting-entry-rows { display: grid; gap: 10px; }
-.meeting-entry-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) minmax(0, 1fr); gap: 8px 10px; align-items: start; padding: 10px; border: 1px solid var(--line); border-radius: var(--radius); }
+.meeting-entry-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px 10px; align-items: start; padding: 10px; border: 1px solid var(--line); border-radius: var(--radius); }
 .meeting-entry-row .field input, .meeting-entry-row .field textarea { width: 100%; min-width: 0; }
 .meeting-entry-content { grid-column: 1 / 3; }
-.meeting-entry-remove { grid-column: 3; justify-self: end; align-self: end; }
+.meeting-entry-remove { grid-column: 2; justify-self: end; align-self: end; }

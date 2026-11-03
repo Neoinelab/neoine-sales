@@ -8,7 +8,7 @@ import { applyServerErrors, emptyRow, rowErrors, type EntryErrors, type EntryFie
 import { MeetingEntryRow } from './MeetingEntryRow'
 import './partner-activity.css'
 
-const FIELD_ORDER: readonly EntryField[] = ['partnerCompany', 'dealCode', 'meetingDate', 'content']
+const FIELD_ORDER: readonly EntryField[] = ['partnerCompany', 'meetingDate', 'content']
 
 interface MeetingEditDialogProps {
   meeting: PartnerMeeting
@@ -20,8 +20,6 @@ function rowOf(meeting: PartnerMeeting): EntryRow {
     ...emptyRow(meeting.meetingDate),
     partnerText: meeting.partnerCompany,
     partnerCompany: meeting.partnerCompany,
-    dealText: `${meeting.deal.name} [${meeting.deal.code}]`,
-    dealCode: meeting.deal.code,
     meetingDate: meeting.meetingDate,
     content: meeting.content,
   }
@@ -60,7 +58,7 @@ export function MeetingEditDialog({ meeting, onClose }: MeetingEditDialogProps) 
       return
     }
     try {
-      await update.mutateAsync({ id: meeting.id, input: { partnerCompany: row.partnerCompany, dealCode: row.dealCode, meetingDate: row.meetingDate, content: row.content } })
+      await update.mutateAsync({ id: meeting.id, input: { partnerCompany: row.partnerCompany, meetingDate: row.meetingDate, content: row.content } })
       onClose()
     } catch (caught) {
       const located = applyServerErrors(itemErrorsOf(caught).map((e) => ({ ...e, location: ['items', 0, ...e.location] })), [0])[0]

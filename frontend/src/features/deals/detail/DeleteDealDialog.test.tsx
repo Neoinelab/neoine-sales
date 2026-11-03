@@ -13,10 +13,11 @@ async function openDialog(no: number, title: string, role: 'sales' | 'admin' = '
 }
 
 describe('Deal 삭제 팝업 (T-DELETE-01~06)', () => {
-  it('states what is deleted together, with the counts, and asks for the deal code', async () => {
+  it('states what is deleted together, with the counts and without partner meetings, and asks for the deal code', async () => {
     const code = await dealCodeOf(1)
     const { dialog } = await openDialog(1, '한빛은행 ITDR 도입')
-    await waitFor(() => expect(dialog).toHaveTextContent(/Deal History \d+건, Action 4건, 파트너 미팅 1건, 첨부 파일 3개/))
+    await waitFor(() => expect(dialog).toHaveTextContent(/Deal History \d+건, Action 4건, 첨부 파일 3개/))
+    expect(dialog).not.toHaveTextContent('파트너 미팅')
     expect(dialog).toHaveTextContent('복구할 수 없습니다')
     expect(dialog).toHaveTextContent(`Deal code ${code}`)
   })
@@ -53,17 +54,22 @@ describe('Deal 삭제 팝업 (T-DELETE-01~06)', () => {
     await expect(gateway.actions.list(code, {})).rejects.toMatchObject({ status: 404 })
   })
 
-  it('deletes the partner meetings of the deal with it and keeps the others', async () => {
+  it('keeps the partner meetings when the deal is deleted', async () => {
     const code = await dealCodeOf(1)
     const { user, dialog } = await openDialog(1, '한빛은행 ITDR 도입')
     const before = await gateway.partnerMeetings.list({ sort: 'meetingDate', order: 'desc' }, 0, 50)
-    expect(before.items.filter((m) => m.deal.code === code)).toHaveLength(1)
     await user.type(within(dialog).getByLabelText('Deal code 확인'), code)
     await user.click(within(dialog).getByRole('button', { name: '삭제' }))
     await waitFor(() => expect(gateway.deals.get(code)).rejects.toMatchObject({ status: 404 }))
     const after = await gateway.partnerMeetings.list({ sort: 'meetingDate', order: 'desc' }, 0, 50)
-    expect(after.total).toBe(before.total - 1)
-    expect(after.items.some((m) => m.deal.code === code)).toBe(false)
+    expect(after.total).toBe(before.total)
+    expect(after.items.map((m) => m.id)).toEqual(before.items.map((m) => m.id))
+  })
+
+  it('shows the same text without partner meetings while the counts are loading', async () => {
+    const { dialog } = await openDialog(11, '청명대학교 SSO/MFA')
+
+    expect(dialog).not.toHaveTextContent('파트너 미팅')
   })
 
   it('leaves the detail screen right after deleting so no stale deal is shown', async () => {

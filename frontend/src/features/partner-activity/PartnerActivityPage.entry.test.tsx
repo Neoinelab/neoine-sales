@@ -4,8 +4,8 @@ import { renderAt } from '../../test/mockApp'
 import {
   PAGE,
   TODAY_TEXT,
-  chooseDeal,
   choosePartner,
+  entryGroup,
   fieldsOf,
   openEntryDialog,
   pinClock,
@@ -16,7 +16,7 @@ import {
 beforeEach(pinClock)
 afterEach(unpinClock)
 
-describe('미팅 내용 입력 팝업 열기 (AC6, AC7)', () => {
+describe('미팅 내용 입력 팝업 열기 (AC9)', () => {
   it('opens a dialog with one empty row, focus on the partner, and today as the default date', async () => {
     const { user } = await renderAt(PAGE)
     await waitForRows(10)
@@ -24,10 +24,9 @@ describe('미팅 내용 입력 팝업 열기 (AC6, AC7)', () => {
     const dialog = await openEntryDialog(user)
 
     expect(within(dialog).getAllByRole('group')).toHaveLength(1)
-    const { partner, deal, date, content, remove } = fieldsOf(dialog, 1)
+    const { partner, date, content, remove } = fieldsOf(dialog, 1)
     await waitFor(() => expect(partner).toHaveFocus())
     expect(partner).toHaveValue('')
-    expect(deal).toHaveValue('')
     expect(date).toHaveValue(TODAY_TEXT)
     expect(content).toHaveValue('')
     expect(remove).toBeDisabled()
@@ -51,7 +50,7 @@ describe('미팅 내용 입력 팝업 열기 (AC6, AC7)', () => {
   })
 })
 
-describe('행 추가·삭제 (AC10)', () => {
+describe('행 추가·삭제 (AC12)', () => {
   it('adds a row with today as its date and renumbers the rows when one is removed', async () => {
     const { user } = await renderAt(PAGE)
     await waitForRows(10)
@@ -83,7 +82,7 @@ describe('행 추가·삭제 (AC10)', () => {
   }, 60_000)
 })
 
-describe('파트너와 Deal 선택 (AC8)', () => {
+describe('파트너 선택 (AC9)', () => {
   it('lists the registered partner companies', async () => {
     const { user } = await renderAt(PAGE)
     await waitForRows(10)
@@ -107,66 +106,27 @@ describe('파트너와 Deal 선택 (AC8)', () => {
     expect(within(await within(dialog).findByRole('listbox', { name: '파트너' })).getAllByRole('option')).toHaveLength(1)
   })
 
-  it('keeps the Deal field disabled until a partner is chosen', async () => {
+  it('has no Deal field and the row order is partner, date, content', async () => {
     const { user } = await renderAt(PAGE)
     await waitForRows(10)
     const dialog = await openEntryDialog(user)
 
-    expect(fieldsOf(dialog, 1).deal).toBeDisabled()
-    await choosePartner(user, dialog, 1, '코어테크')
-
-    expect(fieldsOf(dialog, 1).deal).toBeEnabled()
+    expect(within(dialog).queryByRole('combobox', { name: 'Deal' })).not.toBeInTheDocument()
+    const names = within(entryGroup(dialog, 1))
+      .getAllByRole('combobox')
+      .concat(within(entryGroup(dialog, 1)).getAllByRole('textbox'))
+      .map((el) => el.getAttribute('aria-label') ?? el.getAttribute('name') ?? '')
+    expect(names).not.toContain('Deal')
   })
 
-  it('offers only the deals the chosen company is an active partner of, with the customer company', async () => {
-    const { user } = await renderAt(PAGE)
-    await waitForRows(10)
-    const dialog = await openEntryDialog(user)
-
-    await choosePartner(user, dialog, 1, '코어테크')
-
-    const list = await within(dialog).findByRole('listbox', { name: 'Deal' })
-    const options = within(list).getAllByRole('option')
-    expect(options).toHaveLength(4)
-    for (const name of ['대한제조 MFA 확대', '세종에너지 취약점 진단', '미래전자 ITDR', '바른제약 ITDR']) {
-      expect(within(list).getByRole('option', { name: new RegExp(name) })).toBeVisible()
-    }
-    expect(within(list).getByRole('option', { name: /대한제조 MFA 확대.*\[\d{8}-D002\]/ })).toHaveTextContent('대한제조')
-    expect(within(list).queryByRole('option', { name: /누리통신 MFA/ })).not.toBeInTheDocument() // 이전 파트너였던 Deal
-  })
-
-  it('includes a won deal among the choices', async () => {
-    const { user } = await renderAt(PAGE)
-    await waitForRows(10)
-    const dialog = await openEntryDialog(user)
-
-    await choosePartner(user, dialog, 1, '디지털웨이')
-
-    expect(await within(dialog).findByRole('option', { name: /청명대학교 SSO\/MFA/ })).toBeVisible()
-  })
-
-  it('puts the chosen deal text in the field', async () => {
+  it('moves the focus to the date field once a partner is chosen', async () => {
     const { user } = await renderAt(PAGE)
     await waitForRows(10)
     const dialog = await openEntryDialog(user)
 
     await choosePartner(user, dialog, 1, '코어테크')
-    await chooseDeal(user, dialog, /미래전자 ITDR/)
 
-    expect(fieldsOf(dialog, 1).deal.value).toMatch(/^미래전자 ITDR \[\d{8}-D015\]$/)
-  })
-
-  it('clears the chosen deal when the partner changes to a company that has no such deal', async () => {
-    const { user } = await renderAt(PAGE)
-    await waitForRows(10)
-    const dialog = await openEntryDialog(user)
-    await choosePartner(user, dialog, 1, '코어테크')
-    await chooseDeal(user, dialog, /미래전자 ITDR/)
-
-    await user.clear(fieldsOf(dialog, 1).partner)
-    await choosePartner(user, dialog, 1, '넷브릿지')
-
-    expect(fieldsOf(dialog, 1).deal).toHaveValue('')
+    await waitFor(() => expect(fieldsOf(dialog, 1).date).toHaveFocus())
   })
 
   it('works per row: choosing a partner in the second row leaves the first row untouched', async () => {
@@ -179,7 +139,6 @@ describe('파트너와 Deal 선택 (AC8)', () => {
 
     expect(fieldsOf(dialog, 2).partner).toHaveValue('시큐어원')
     expect(fieldsOf(dialog, 1).partner).toHaveValue('')
-    expect(fieldsOf(dialog, 1).deal).toBeDisabled()
-    expect(fieldsOf(dialog, 2).deal).toBeEnabled()
+    expect(fieldsOf(dialog, 1).content).toHaveValue('')
   })
 })

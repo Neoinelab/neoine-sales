@@ -754,23 +754,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/partner-meetings/deal-options": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List Partner Deal Options */
-        get: operations["list_partner_deal_options_api_v1_partner_meetings_deal_options_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/partner-meetings/{meeting_id}": {
         parameters: {
             query?: never;
@@ -1919,20 +1902,6 @@ export interface components {
             users: number;
             vendor: components["schemas"]["NamedRefResponse"] | null;
         };
-        /** DealOptionResponse */
-        DealOptionResponse: {
-            /** Code */
-            code: string;
-            /** Customer Company */
-            customer_company: string;
-            /** Name */
-            name: string;
-        };
-        /** DealOptionsResponse */
-        DealOptionsResponse: {
-            /** Items */
-            items: components["schemas"]["DealOptionResponse"][];
-        };
         /**
          * DealPatchRequest
          * @description 수정 본문. 보낸 필드만 반영한다(model_fields_set). partner: null은 활성 파트너 제거다.
@@ -2057,8 +2026,6 @@ export interface components {
             attachment_count: number;
             /** History Count */
             history_count: number;
-            /** Partner Meeting Count */
-            partner_meeting_count: number;
         };
         /** DevLoginRequest */
         DevLoginRequest: {
@@ -2325,19 +2292,10 @@ export interface components {
             /** Items */
             items: components["schemas"]["PartnerMeetingResponse"][];
         };
-        /** MeetingDealResponse */
-        MeetingDealResponse: {
-            /** Code */
-            code: string;
-            /** Name */
-            name: string;
-        };
         /** MeetingItemRequest */
         MeetingItemRequest: {
             /** Content */
             content: string;
-            /** Deal Code */
-            deal_code: string;
             /**
              * Meeting Date
              * Format: date
@@ -2510,7 +2468,6 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
-            deal: components["schemas"]["MeetingDealResponse"];
             /** Id */
             id: number;
             /**
@@ -2530,7 +2487,7 @@ export interface components {
          * PartnerMeetingSort
          * @enum {string}
          */
-        PartnerMeetingSort: "meeting_date" | "partner" | "deal" | "content" | "author";
+        PartnerMeetingSort: "meeting_date" | "partner" | "content" | "author";
         /** PeriodResponse */
         PeriodResponse: {
             /**
@@ -6610,7 +6567,6 @@ export interface operations {
         parameters: {
             query?: {
                 partner?: string | null;
-                deal?: string | null;
                 content?: string | null;
                 date_from?: string | null;
                 date_to?: string | null;
@@ -6688,46 +6644,6 @@ export interface operations {
             };
             /** @description problem+json */
             403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description problem+json */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-        };
-    };
-    list_partner_deal_options_api_v1_partner_meetings_deal_options_get: {
-        parameters: {
-            query: {
-                company: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DealOptionsResponse"];
-                };
-            };
-            /** @description problem+json */
-            401: {
                 headers: {
                     [name: string]: unknown;
                 };

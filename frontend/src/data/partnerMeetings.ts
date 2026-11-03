@@ -1,9 +1,9 @@
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { gateway } from '../gateway'
 import { ApiError } from '../shared/api/problem'
-import type { Page, PartnerDealOption, PartnerMeeting, PartnerMeetingInput, PartnerMeetingQuery } from '../shared/model/types'
+import type { Page, PartnerMeeting, PartnerMeetingInput, PartnerMeetingQuery } from '../shared/model/types'
 import { keys } from './queryKeys'
-import { NO_RETRY, type Mutation, type Query } from './result'
+import { NO_RETRY, type Mutation } from './result'
 
 export const MEETING_PAGE_SIZE = 10
 
@@ -43,24 +43,12 @@ export function usePartnerMeetings(query: PartnerMeetingQuery) {
   return { ...result, items, total: pages.at(-1)?.total ?? 0, pageCount: pages.length }
 }
 
-/** gateway.partnerMeetings.dealOptions(company). company가 비면 비활성. 키 keys.partnerDealOptions. */
-export function usePartnerDealOptions(company: string): Query<PartnerDealOption[]> {
-  return useQuery<PartnerDealOption[], ApiError>({
-    queryKey: keys.partnerDealOptions(company),
-    queryFn: () => gateway.partnerMeetings.dealOptions(company),
-    enabled: company !== '',
-    ...NO_RETRY,
-  })
-}
-
 /** 변경 뒤 목록은 처음(첫 쪽)부터 다시 읽는다: 불러 둔 쪽을 모두 다시 받지 않도록 목록 쿼리를 초기화한다. */
 function useRefreshMeetings(): () => Promise<void> {
   const queryClient = useQueryClient()
   return async () => {
     // 초기화가 활성 목록의 첫 쪽을 한 번 다시 읽는다. 무효화를 더하면 같은 요청이 두 번 나가므로 하지 않는다.
     await queryClient.resetQueries({ queryKey: keys.partnerMeetingLists })
-    // 비활성 Deal 선택지는 다음에 열 때 다시 읽게 표시만 한다.
-    await queryClient.invalidateQueries({ queryKey: ['partnerMeetings', 'deal-options'], refetchType: 'none' })
   }
 }
 

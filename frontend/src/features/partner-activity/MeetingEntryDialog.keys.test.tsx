@@ -4,7 +4,6 @@ import { renderAt } from '../../test/mockApp'
 import {
   PAGE,
   TODAY_TEXT,
-  chooseDeal,
   choosePartner,
   fieldsOf,
   fillRow,
@@ -24,29 +23,25 @@ async function open(role: 'sales' | 'admin' = 'sales') {
   return { ...view, dialog }
 }
 
-describe('칸 이동 (AC8, AC9)', () => {
-  it('moves the focus to the deal field and opens its list when a partner is chosen', async () => {
+describe('칸 이동 (AC9)', () => {
+  it('moves the focus to the date field when a partner is chosen from the list', async () => {
     const { user, dialog } = await open()
 
     await choosePartner(user, dialog, 1, '코어테크')
-
-    await waitFor(() => expect(fieldsOf(dialog, 1).deal).toHaveFocus())
-    expect(await within(dialog).findByRole('listbox', { name: 'Deal' })).toBeVisible()
-  })
-
-  it('moves the focus to the date field when a deal is chosen', async () => {
-    const { user, dialog } = await open()
-    await choosePartner(user, dialog, 1, '코어테크')
-
-    await chooseDeal(user, dialog, /미래전자 ITDR/)
 
     await waitFor(() => expect(fieldsOf(dialog, 1).date).toHaveFocus())
+  })
+
+  it('has no deal field in a row', async () => {
+    const { dialog } = await open()
+
+    expect(within(dialog).queryByRole('combobox', { name: 'Deal' })).not.toBeInTheDocument()
+    expect(within(dialog).getAllByRole('combobox')).toHaveLength(1) // 파트너뿐
   })
 
   it('moves the focus to the content when 20270310 and Enter are typed in the date field', async () => {
     const { user, dialog } = await open()
     await choosePartner(user, dialog, 1, '코어테크')
-    await chooseDeal(user, dialog, /미래전자 ITDR/)
     const { date, content } = fieldsOf(dialog, 1)
 
     await user.clear(date)
@@ -59,7 +54,6 @@ describe('칸 이동 (AC8, AC9)', () => {
   it('moves the focus to the content when a date is picked in the calendar', async () => {
     const { user, dialog } = await open()
     await choosePartner(user, dialog, 1, '코어테크')
-    await chooseDeal(user, dialog, /미래전자 ITDR/)
     const { date, content, native } = fieldsOf(dialog, 1)
 
     fireEvent.change(native, { target: { value: '2027-03-12' } })
@@ -71,7 +65,6 @@ describe('칸 이동 (AC8, AC9)', () => {
   it('stays on the date field and shows its message when Enter is pressed on an unfinished date', async () => {
     const { user, dialog } = await open()
     await choosePartner(user, dialog, 1, '코어테크')
-    await chooseDeal(user, dialog, /미래전자 ITDR/)
     const { date, content } = fieldsOf(dialog, 1)
 
     await user.clear(date)
@@ -85,9 +78,8 @@ describe('칸 이동 (AC8, AC9)', () => {
   it('moves the focus on from a closed combobox with Enter', async () => {
     const { user, dialog } = await open()
     await choosePartner(user, dialog, 1, '코어테크')
-    const { deal, date } = fieldsOf(dialog, 1)
-    await waitFor(() => expect(deal).toHaveFocus())
-
+    const { partner, date } = fieldsOf(dialog, 1)
+    await user.click(partner) // 포커스를 파트너 칸으로 되돌린다
     await user.keyboard('{Escape}') // 목록만 닫는다(팝업은 닫히지 않는다)
     await user.keyboard('{Enter}')
 
@@ -102,13 +94,13 @@ describe('칸 이동 (AC8, AC9)', () => {
     await user.keyboard('{ArrowDown}{Enter}')
 
     expect(fieldsOf(dialog, 1).partner.value).not.toBe('')
-    await waitFor(() => expect(fieldsOf(dialog, 1).deal).toHaveFocus())
+    await waitFor(() => expect(fieldsOf(dialog, 1).date).toHaveFocus())
   })
 })
 
 describe('내용 칸의 Enter (AC9)', () => {
   async function readyRow(user: Awaited<ReturnType<typeof open>>['user'], dialog: HTMLElement, n = 1) {
-    await fillRow(user, dialog, n, { company: '코어테크', deal: /미래전자 ITDR/, date: '20270310', content: '견적 전달' })
+    await fillRow(user, dialog, n, { company: '코어테크', date: '20270310', content: '견적 전달' })
   }
 
   it('adds a new row with today as its date and puts the focus on its partner when Enter is pressed in the last full row', async () => {
@@ -148,7 +140,6 @@ describe('내용 칸의 Enter (AC9)', () => {
   it('goes to the wrong date when the date is the first thing missing', async () => {
     const { user, dialog } = await open()
     await choosePartner(user, dialog, 1, '코어테크')
-    await chooseDeal(user, dialog, /미래전자 ITDR/)
     const { date, content } = fieldsOf(dialog, 1)
     await user.clear(date)
     await user.type(date, '202703')
@@ -190,7 +181,7 @@ describe('내용 칸의 Enter (AC9)', () => {
   it('does not add a 51st row with Enter and explains the limit', async () => {
     const { user, dialog } = await open()
     for (let i = 1; i < 50; i += 1) await user.click(within(dialog).getByRole('button', { name: '행 추가' }))
-    await fillRow(user, dialog, 50, { company: '코어테크', deal: /미래전자 ITDR/, date: '20270310', content: '마지막' })
+    await fillRow(user, dialog, 50, { company: '코어테크', date: '20270310', content: '마지막' })
 
     await user.keyboard('{Enter}')
 

@@ -20,7 +20,7 @@ import {
 import { MeetingEntryRow } from './MeetingEntryRow'
 import './partner-activity.css'
 
-const FIELD_ORDER: readonly EntryField[] = ['partnerCompany', 'dealCode', 'meetingDate', 'content']
+const FIELD_ORDER: readonly EntryField[] = ['partnerCompany', 'meetingDate', 'content']
 const LIMIT_MESSAGE = `한 번에 ${MAX_ROWS}건까지 입력할 수 있습니다.`
 const NOTHING_MESSAGE = '입력한 미팅이 없습니다.'
 

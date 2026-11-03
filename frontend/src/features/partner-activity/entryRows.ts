@@ -5,7 +5,7 @@ import type { PartnerMeetingInput } from '../../shared/model/types'
 
 export const MAX_ROWS = 50
 
-export type EntryField = 'partnerCompany' | 'dealCode' | 'meetingDate' | 'content'
+export type EntryField = 'partnerCompany' | 'meetingDate' | 'content'
 export type EntryErrors = Partial<Record<EntryField, string>>
 export type RowErrors = Record<number, EntryErrors>
 
@@ -15,9 +15,6 @@ export interface EntryRow {
   partnerText: string
   /** 목록에서 고른 회사(직접 친 글자만으로는 채워지지 않는다). */
   partnerCompany: string
-  dealText: string
-  /** 목록에서 고른 Deal code. */
-  dealCode: string
   /** 'YYYY-MM-DD' 또는 입력 중 글자. */
   meetingDate: string
   content: string
@@ -27,17 +24,16 @@ let sequence = 0
 
 export function emptyRow(today: string): EntryRow {
   sequence += 1
-  return { key: `row-${sequence}`, partnerText: '', partnerCompany: '', dealText: '', dealCode: '', meetingDate: today, content: '' }
+  return { key: `row-${sequence}`, partnerText: '', partnerCompany: '', meetingDate: today, content: '' }
 }
 
 /** 날짜는 보지 않는다(기본값이 들어 있다). 내용은 공백만이면 빈 것이다. */
 export function isBlank(row: EntryRow): boolean {
-  return row.partnerText === '' && row.partnerCompany === '' && row.dealText === '' && row.dealCode === '' && row.content.trim() === ''
+  return row.partnerText === '' && row.partnerCompany === '' && row.content.trim() === ''
 }
 
 export function firstMissingField(row: EntryRow): EntryField | null {
   if (row.partnerCompany === '') return 'partnerCompany'
-  if (row.dealCode === '') return 'dealCode'
   if (!isDateValue(row.meetingDate)) return 'meetingDate'
   if (row.content.trim() === '') return 'content'
   return null
@@ -51,7 +47,6 @@ export function isComplete(row: EntryRow): boolean {
 export function rowErrors(row: EntryRow): EntryErrors {
   const errors: EntryErrors = {}
   if (row.partnerCompany === '') errors.partnerCompany = '파트너를 선택하세요.'
-  if (row.dealCode === '') errors.dealCode = 'Deal을 선택하세요.'
   if (row.meetingDate === '') errors.meetingDate = '미팅 날짜를 입력하세요.'
   else {
     const dateError = dateValueError(row.meetingDate)
@@ -78,7 +73,7 @@ export function rowsToInputs(rows: readonly EntryRow[]): { inputs: PartnerMeetin
   const rowIndexOf: number[] = []
   rows.forEach((row, index) => {
     if (isBlank(row)) return
-    inputs.push({ partnerCompany: row.partnerCompany, dealCode: row.dealCode, meetingDate: row.meetingDate, content: row.content })
+    inputs.push({ partnerCompany: row.partnerCompany, meetingDate: row.meetingDate, content: row.content })
     rowIndexOf.push(index)
   })
   return { inputs, rowIndexOf }
@@ -86,7 +81,6 @@ export function rowsToInputs(rows: readonly EntryRow[]): { inputs: PartnerMeetin
 
 const WIRE_FIELDS: Readonly<Record<string, EntryField>> = {
   partner_company: 'partnerCompany',
-  deal_code: 'dealCode',
   meeting_date: 'meetingDate',
   content: 'content',
 }

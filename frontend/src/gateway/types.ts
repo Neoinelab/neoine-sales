@@ -60,7 +60,6 @@ import type {
   DashboardSummary,
   DealAction,
   DealDeletionImpact,
-  PartnerDealOption,
   PartnerMeeting,
   PartnerMeetingInput,
   PartnerMeetingQuery,
@@ -324,8 +323,6 @@ export interface PartnerMeetingsGateway {
   create(items: PartnerMeetingInput[]): Promise<PartnerMeeting[]>
   update(id: number, input: PartnerMeetingInput): Promise<PartnerMeeting>
   remove(id: number): Promise<void>
-  /** 회사와 연결된 Deal 선택지. */
-  dealOptions(company: string): Promise<PartnerDealOption[]>
 }
 
 export interface ReportsGateway {

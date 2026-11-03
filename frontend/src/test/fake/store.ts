@@ -103,11 +103,10 @@ export interface VendorRecord {
   updatedAt: string
 }
 
-/** 파트너 Activity 미팅 기록. 회사는 저장 당시 대표 표기 텍스트이고, Deal 이름은 읽을 때 조인한다. */
+/** 파트너 Activity 미팅 기록. 회사는 저장 당시 대표 표기 텍스트이고 Deal과 연결되지 않는다. */
 export interface PartnerMeetingRecord {
   id: number
   partnerCompany: string
-  dealCode: string
   meetingDate: string
   content: string
   authorId: number

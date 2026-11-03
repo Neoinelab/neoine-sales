@@ -3,7 +3,6 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { gateway } from '../../gateway'
 import { installIntersectionObserver, type IntersectionObserverStub } from '../../test/intersectionObserver'
 import { renderAt } from '../../test/mockApp'
-import { dealCodeOf } from '../../test/detailTestUtils'
 import {
   COLUMNS,
   PAGE,
@@ -22,8 +21,8 @@ import { USER_ID } from '../../test/fake/seed/ids'
 beforeEach(pinClock)
 afterEach(unpinClock)
 
-describe('목록 (AC1)', () => {
-  it('shows the heading and the five columns in order, ending with a management column for people who can write', async () => {
+describe('목록 (AC11)', () => {
+  it('shows the heading and the four columns in order, ending with a management column for people who can write', async () => {
     await renderAt(PAGE)
 
     expect(await screen.findByRole('heading', { level: 1, name: '파트너 Activity' })).toBeVisible()
@@ -44,6 +43,17 @@ describe('목록 (AC1)', () => {
     expect(headers).toEqual([...COLUMNS])
   })
 
+  it('has no deal column', async () => {
+    await renderAt(PAGE)
+    await waitForRows(10)
+
+    const headers = within(meetingTable())
+      .getAllByRole('columnheader')
+      .map((h) => h.textContent?.trim())
+    expect(headers).not.toContain('Deal')
+    expect(headers).toEqual(['파트너', '미팅 날짜', '미팅 내용', '작성자', '관리'])
+  })
+
   it('lists the ten newest meetings first by meeting date (newest on top)', async () => {
     await renderAt(PAGE)
 
@@ -51,16 +61,16 @@ describe('목록 (AC1)', () => {
     expect(shownContents()).toEqual(SEED_CONTENTS.slice(0, 10))
   })
 
-  it('shows partner company, deal name as a link to the deal, date as yyyy-mm-dd and the author name', async () => {
-    const code = await dealCodeOf(15)
+  it('shows partner company, date as yyyy-mm-dd and the author name, with no deal link', async () => {
     await renderAt(PAGE)
     await waitForRows(10)
 
-    const cells = cellsOf(rowWithContent('ITDR 가격 협상'))
+    const row = rowWithContent('ITDR 가격 협상')
+    const cells = cellsOf(row)
     expect(cells[0]).toHaveTextContent('코어테크')
-    expect(within(cells[1] as HTMLElement).getByRole('link', { name: '미래전자 ITDR' })).toHaveAttribute('href', `/deals/${code}`)
-    expect(cells[2]).toHaveTextContent('2027-03-13')
-    expect(cells[4]).toHaveTextContent('김영업')
+    expect(cells[1]).toHaveTextContent('2027-03-13')
+    expect(cells[3]).toHaveTextContent('김영업')
+    expect(within(row).queryByRole('link')).not.toBeInTheDocument()
   })
 
   it('keeps line breaks of the content', async () => {
@@ -77,7 +87,7 @@ describe('목록 (AC1)', () => {
 
     await act(() => view.client.invalidateQueries())
 
-    await waitFor(() => expect(cellsOf(rowWithContent('ITDR 가격 협상'))[4]).toHaveTextContent('김영업(퇴사)'))
+    await waitFor(() => expect(cellsOf(rowWithContent('ITDR 가격 협상'))[3]).toHaveTextContent('김영업(퇴사)'))
   })
 
   it('shows the empty message and no more-button when there are no meetings', async () => {
@@ -96,7 +106,7 @@ describe('목록 (AC1)', () => {
   })
 })
 
-describe('무한 스크롤 (AC2)', () => {
+describe('무한 스크롤 (AC12)', () => {
   let io: IntersectionObserverStub | null = null
   afterEach(() => {
     io?.restore()
@@ -151,11 +161,10 @@ describe('무한 스크롤 (AC2)', () => {
   })
 
   it('shows each meeting once even when another user adds one between the pages', async () => {
-    const code = await dealCodeOf(2)
     const { user } = await renderAt(PAGE)
     await waitForRows(10)
 
-    await gateway.partnerMeetings.create([{ partnerCompany: '코어테크', dealCode: code, meetingDate: '2027-03-15', content: '그 사이 새로 등록' }])
+    await gateway.partnerMeetings.create([{ partnerCompany: '코어테크', meetingDate: '2027-03-15', content: '그 사이 새로 등록' }])
     await user.click(screen.getByRole('button', { name: '더 보기' }))
 
     await waitFor(() => expect(meetingRows().length).toBeGreaterThan(10))
@@ -166,7 +175,7 @@ describe('무한 스크롤 (AC2)', () => {
   })
 })
 
-describe('역할별 버튼 (AC6, AC14)', () => {
+describe('역할별 버튼 (AC12)', () => {
   it('shows edit and delete only on the rows the viewer may change', async () => {
     await renderAt(PAGE) // kim(sales)
     await waitForRows(10)

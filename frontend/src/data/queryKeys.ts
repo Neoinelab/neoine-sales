@@ -63,7 +63,6 @@ export const keys = {
   partnerMeetings: ['partnerMeetings'] as const,
   partnerMeetingLists: ['partnerMeetings', 'list'] as const,
   partnerMeetingList: (q: PartnerMeetingQuery) => ['partnerMeetings', 'list', q] as const,
-  partnerDealOptions: (company: string) => ['partnerMeetings', 'deal-options', company] as const,
   users: ['users'] as const,
   userList: (f: UserListFilter) => ['users', 'list', f] as const,
   userOptions: (q: UserOptionsQuery) => ['users', 'options', q] as const,

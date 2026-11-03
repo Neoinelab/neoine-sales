@@ -1,5 +1,6 @@
 import { screen, waitFor, within } from '@testing-library/react'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { gateway } from '../../gateway'
 import { renderAt } from '../../test/mockApp'
 import { PAGE, SEED_CONTENTS, meetingRows, paramsOf, pinClock, shownContents, unpinClock, waitForRows } from '../../test/partnerMeetings'
 import { USER_ID } from '../../test/fake/seed/ids'
@@ -9,13 +10,13 @@ afterEach(unpinClock)
 
 const bar = () => within(screen.getByRole('search', { name: '미팅 기록 검색' }))
 
-describe('항목별 검색 (AC3)', () => {
-  it('has the five conditions and the search and reset buttons', async () => {
+describe('항목별 검색 (AC11)', () => {
+  it('has the four conditions without a deal and the search and reset buttons', async () => {
     await renderAt(PAGE)
     await waitForRows(10)
 
     expect(bar().getByRole('textbox', { name: '파트너' })).toBeVisible()
-    expect(bar().getByRole('textbox', { name: 'Deal' })).toBeVisible()
+    expect(bar().queryByRole('textbox', { name: 'Deal' })).not.toBeInTheDocument()
     expect(bar().getByRole('textbox', { name: '미팅 날짜 시작' })).toBeVisible()
     expect(bar().getByRole('textbox', { name: '미팅 날짜 끝' })).toBeVisible()
     expect(bar().getByRole('textbox', { name: '미팅 내용' })).toBeVisible()
@@ -42,16 +43,6 @@ describe('항목별 검색 (AC3)', () => {
     await user.type(bar().getByRole('textbox', { name: '미팅 내용' }), '협의{Enter}')
 
     await waitFor(() => expect(shownContents()).toEqual(['ZTNA 계약 조건 협의', '킥오프 일정 협의']))
-  })
-
-  it('searches the deal by name or code and ignores case', async () => {
-    const { user, location } = await renderAt(PAGE)
-    await waitForRows(10)
-
-    await user.type(bar().getByRole('textbox', { name: 'Deal' }), 'itdr{Enter}')
-
-    await waitFor(() => expect(shownContents()).toEqual(['ITDR 가격 협상', 'ITDR 기술 설명']))
-    expect(paramsOf(location()).get('deal')).toBe('itdr')
   })
 
   it('searches a date range through the date inputs, both ends included', async () => {
@@ -174,7 +165,6 @@ describe('검색 칸 (리뷰 후속)', () => {
     await waitForRows(10)
 
     expect(bar().getByRole('textbox', { name: '파트너' })).toHaveAttribute('maxlength', '200')
-    expect(bar().getByRole('textbox', { name: 'Deal' })).toHaveAttribute('maxlength', '200')
     expect(bar().getByRole('textbox', { name: '미팅 내용' })).toHaveAttribute('maxlength', '100')
   })
 
@@ -184,9 +174,9 @@ describe('검색 칸 (리뷰 후속)', () => {
     await user.type(bar().getByRole('textbox', { name: '파트너' }), 'abc')
     await user.type(bar().getByRole('textbox', { name: '미팅 날짜 시작' }), '202703')
 
-    await user.click(within(screen.getByRole('columnheader', { name: 'Deal' })).getByRole('button'))
+    await user.click(within(screen.getByRole('columnheader', { name: '작성자' })).getByRole('button'))
 
-    await waitFor(() => expect(screen.getByRole('columnheader', { name: 'Deal' })).toHaveAttribute('aria-sort', 'ascending'))
+    await waitFor(() => expect(screen.getByRole('columnheader', { name: '작성자' })).toHaveAttribute('aria-sort', 'ascending'))
     expect(bar().getByRole('textbox', { name: '파트너' })).toHaveValue('abc')
     expect(bar().getByRole('textbox', { name: '미팅 날짜 시작' })).toHaveValue('2027.03')
     expect(paramsOf(location()).get('partner')).toBeNull() // 검색하지 않았으므로 URL에도 없다
@@ -203,14 +193,14 @@ describe('검색 칸 (리뷰 후속)', () => {
   })
 })
 
-describe('열 머리글 정렬 (AC4)', () => {
+describe('열 머리글 정렬 (AC11)', () => {
   const header = (name: string) => screen.getByRole('columnheader', { name })
 
-  it('makes the five columns sortable and starts on the meeting date, descending', async () => {
+  it('makes the four columns sortable and starts on the meeting date, descending', async () => {
     await renderAt(PAGE)
     await waitForRows(10)
 
-    for (const name of ['파트너', 'Deal', '미팅 날짜', '미팅 내용', '작성자']) {
+    for (const name of ['파트너', '미팅 날짜', '미팅 내용', '작성자']) {
       expect(within(header(name)).getByRole('button')).toBeVisible()
     }
     expect(header('미팅 날짜')).toHaveAttribute('aria-sort', 'descending')
@@ -247,7 +237,6 @@ describe('열 머리글 정렬 (AC4)', () => {
   })
 
   it.each([
-    ['Deal', 'deal'],
     ['미팅 내용', 'content'],
     ['작성자', 'author'],
   ])('sorts by %s and writes sort=%s to the URL', async (label, value) => {
@@ -288,5 +277,32 @@ describe('열 머리글 정렬 (AC4)', () => {
     await waitFor(() => expect(meetingRows()).toHaveLength(2))
     expect(paramsOf(location()).get('sort')).toBe('partner')
     expect(header('파트너')).toHaveAttribute('aria-sort', 'ascending')
+  })
+})
+
+describe('옛 주소의 Deal 조건 (AC11)', () => {
+  it('ignores ?deal= and opens ?sort=deal with the default sort, sending no deal to the server', async () => {
+    const list = vi.spyOn(gateway.partnerMeetings, 'list')
+
+    await renderAt(`${PAGE}?deal=itdr&sort=deal&order=asc`)
+
+    await waitForRows(10)
+    expect(shownContents()).toEqual(SEED_CONTENTS.slice(0, 10)) // 조건 없이 기본 정렬(미팅 날짜 내림차순)
+    expect(screen.getByRole('columnheader', { name: '미팅 날짜' })).toHaveAttribute('aria-sort', 'descending')
+    for (const call of list.mock.calls) {
+      expect(Object.keys(call[0])).not.toContain('deal')
+      expect(call[0].sort).not.toBe('deal')
+    }
+    list.mockRestore()
+  })
+
+  it('does not write deal to the URL when a search is made', async () => {
+    const { user, location } = await renderAt(`${PAGE}?deal=itdr`)
+    await waitForRows(10)
+
+    await user.type(bar().getByRole('textbox', { name: '파트너' }), '코어{Enter}')
+
+    await waitFor(() => expect(paramsOf(location()).get('partner')).toBe('코어'))
+    expect(paramsOf(location()).has('deal')).toBe(false)
   })
 })

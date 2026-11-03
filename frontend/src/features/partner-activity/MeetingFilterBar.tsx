@@ -47,7 +47,6 @@ export function MeetingFilterBar({ applied, onSearch, onReset }: MeetingFilterBa
   return (
     <form className="meeting-filters" role="search" aria-label="미팅 기록 검색" onSubmit={submit}>
       <TextField label="파트너" name="partner" maxLength={200} value={draft.partner} onChange={(partner) => set({ partner })} />
-      <TextField label="Deal" name="deal" maxLength={200} value={draft.deal} onChange={(deal) => set({ deal })} />
       <div className="field meeting-date-range">
         <span>미팅 날짜</span>
         <div className="meeting-date-pair">

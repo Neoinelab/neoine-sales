@@ -1,7 +1,7 @@
 import { api } from '../../shared/api/client'
 import { ApiError } from '../../shared/api/problem'
 import type { PartnerMeetingsGateway } from '../types'
-import { toDealOption, toMeetingBody, toPartnerMeeting, toWireSort } from './mappers/partnerMeeting'
+import { toMeetingBody, toPartnerMeeting, toWireSort } from './mappers/partnerMeeting'
 import { malformedResponse, networkError, toApiError } from './request'
 
 interface Located {
@@ -61,7 +61,6 @@ export function createPartnerMeetingsHttp(): PartnerMeetingsGateway {
       // 값이 있는 조건만 보낸다(서버 기본값을 쓴다).
       const params = {
         ...(query.partner ? { partner: query.partner } : {}),
-        ...(query.deal ? { deal: query.deal } : {}),
         ...(query.content ? { content: query.content } : {}),
         ...(query.dateFrom ? { date_from: query.dateFrom } : {}),
         ...(query.dateTo ? { date_to: query.dateTo } : {}),
@@ -85,7 +84,5 @@ export function createPartnerMeetingsHttp(): PartnerMeetingsGateway {
     remove: async (id) => {
       await send(api.DELETE('/api/v1/partner-meetings/{meeting_id}', { params: { path: { meeting_id: id } } }))
     },
-    dealOptions: async (company) =>
-      (await sendData(api.GET('/api/v1/partner-meetings/deal-options', { params: { query: { company } } }))).items.map(toDealOption),
   }
 }

@@ -9,7 +9,7 @@ afterEach(unpinClock)
 
 const OWN = 'ITDR 가격 협상' // kim이 쓴 가장 최근 기록(목록의 둘째 줄)
 
-describe('행 삭제 (AC14, AC16)', () => {
+describe('행 삭제 (AC12)', () => {
   it('asks for confirmation naming the action', async () => {
     const { user } = await renderAt(PAGE)
     await waitForRows(10)
