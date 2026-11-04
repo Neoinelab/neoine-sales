@@ -1,50 +1,17 @@
 import type { Schemas } from '../../../shared/api/client'
-import type {
-  ReportBinMode,
-  ReportChartInput,
-  ReportChartKind,
-  ReportChartLegend,
-  ReportComboSeries,
-  ReportComboSeriesType,
-  ReportHistogramBins,
+import {
+  CHART_KIND_KEYS,
+  type ReportBinMode,
+  type ReportChartInput,
+  type ReportChartKind,
+  type ReportChartLegend,
+  type ReportComboSeries,
+  type ReportComboSeriesType,
+  type ReportHistogramBins,
 } from '../../../shared/model/reportTypes'
 import { malformedResponse } from '../request'
 
-const KINDS: readonly string[] = [
-  'bar',
-  'stacked_bar',
-  'stacked_100_bar',
-  'horizontal_bar',
-  'stacked_horizontal_bar',
-  'stacked_100_horizontal_bar',
-  'line',
-  'line_markers',
-  'stacked_line',
-  'stacked_line_markers',
-  'stacked_100_line',
-  'stacked_100_line_markers',
-  'pie',
-  'doughnut',
-  'area',
-  'stacked_area',
-  'stacked_100_area',
-  'scatter',
-  'scatter_smooth_markers',
-  'scatter_smooth',
-  'scatter_line_markers',
-  'scatter_line',
-  'bubble',
-  'radar',
-  'radar_markers',
-  'radar_filled',
-  'treemap',
-  'sunburst',
-  'histogram',
-  'pareto',
-  'waterfall',
-  'funnel',
-  'combo',
-]
+const KINDS: readonly string[] = CHART_KIND_KEYS
 const LEGENDS: readonly string[] = ['top', 'right', 'bottom', 'none']
 const BIN_MODES: readonly string[] = ['auto', 'count', 'width']
 const COMBO_TYPES: readonly string[] = ['column', 'stacked_column', 'line', 'line_markers', 'area', 'stacked_area']

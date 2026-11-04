@@ -2,7 +2,7 @@ import { useId } from 'react'
 import type { ReportChartLegend } from '../../../shared/model/reportTypes'
 import type { DesignerAction, DesignerColumn } from '../designer/state/designerState'
 import type { Message } from '../designer/state/issueView'
-import { kindRule } from './chartKinds'
+import { kindRule, type ChartFamilyKey } from './chartKinds'
 import { comboSettings, type ChartDraft, type ChartDraftIssue } from './chartDraft'
 import { ComboSeriesEditor } from './ComboSeriesEditor'
 import { HistogramOptions } from './HistogramOptions'
@@ -24,6 +24,8 @@ interface PanelProps {
   /** 저장 때 서버가 알려 준 위반. 화면 안내와 같은 문구는 한 번만 보인다. */
   serverIssues: readonly Message[]
   dispatch: (action: DesignerAction) => void
+  /** 숫자 필드인지(히스토그램은 그룹핑이 없을 때 숫자 컬럼만 값 후보로 둔다). 생략하면 거르지 않는다. */
+  isNumberField?: (field: string) => boolean
 }
 
 /** 칸 하나의 안내 문구 목록과 입력에 붙일 접근성 속성. */
@@ -57,20 +59,21 @@ function Notes({ list }: { list: { id: string; text: string }[] }) {
 const FIELD_PARTS = ['category', 'series', 'values', 'value_min', 'value_max', 'combo_series']
 const ownPart = (part: string | null): boolean => part !== null && (FIELD_PARTS.includes(part) || part.startsWith('histogram.'))
 
-/** 축이 없는 종류(원·도넛·방사형·트리맵·선버스트). */
-const NO_AXES: readonly string[] = ['pie', 'doughnut', 'radar', 'radar_markers', 'radar_filled', 'treemap', 'sunburst']
+/** 축이 없는 분류(원·도넛, 방사형, 트리맵, 선버스트). */
+const NO_AXIS_FAMILIES: readonly ChartFamilyKey[] = ['pie', 'radar', 'treemap', 'sunburst']
 
 /** 시안 9장의 설정 패널: 종류 · 데이터 · 종류별 옵션 · 제목과 범례 · 축. 쓰지 않는 칸은 이유와 함께 비활성이다. */
-export function ChartSettingsPanel({ draft, columns, headerOf, issues, serverIssues, dispatch }: PanelProps) {
+export function ChartSettingsPanel({ draft, columns, headerOf, issues, serverIssues, dispatch, isNumberField }: PanelProps) {
   const ids = useId()
   const { notes, aria } = useNotes(issues, serverIssues)
   const rule = kindRule(draft.kind)
   const groups = columns.filter((c) => c.group)
-  const values = columns.filter((c) => !c.group)
+  const numbersOnly = draft.kind === 'histogram' && groups.length === 0 && isNumberField !== undefined
+  const values = columns.filter((c) => !c.group && (!numbersOnly || isNumberField?.(c.field)))
   const change = (patch: Partial<ChartDraft>) => dispatch({ type: 'changeChart', patch })
   const horizontal = draft.kind.includes('horizontal') || draft.kind === 'funnel'
   const valueMax = draft.seriesUid === null ? rule.valuesMax : 1
-  const noAxes = NO_AXES.includes(draft.kind)
+  const noAxes = NO_AXIS_FAMILIES.includes(rule.family)
   const noValueAxis = noAxes || draft.kind === 'funnel'
   const noRange = rule.allowsValueRange ? undefined : '이 종류는 축 범위를 쓸 수 없습니다'
   const noAxisReason = noAxes ? '이 종류는 축이 없습니다' : undefined
@@ -107,7 +110,7 @@ export function ChartSettingsPanel({ draft, columns, headerOf, issues, serverIss
   return (
     <div className="report-chart-panel">
       <KindPicker kind={draft.kind} groupCount={groups.length} onChange={(kind) => dispatch({ type: 'setChartKind', kind })} />
-      <Notes list={serverIssues.filter((m) => !ownPart(m.part)).map((m) => ({ id: m.id, text: m.text }))} />
+      <Notes list={serverIssues.filter((m) => !ownPart(m.part) && !issues.some((i) => i.message === m.text)).map((m) => ({ id: m.id, text: m.text }))} />
       <fieldset className="report-chart-group">
         <legend>데이터</legend>
         <div className="field">

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { isCartesianKind } from './build/cartesian'
 import { CHART_FAMILIES, CHART_KINDS, CHART_POINTS_MAX, CHART_VALUES_MAX, kindLabel, kindRule } from './chartKinds'
 
 /**
@@ -112,5 +113,20 @@ describe('chart kind rules (Excel 확장 AC1, AC2)', () => {
   it('limits values to ten (the number of series colors) and points to one thousand', () => {
     expect(CHART_VALUES_MAX).toBe(10)
     expect(CHART_POINTS_MAX).toBe(1000)
+  })
+})
+
+/** 서버 `ChartKind`와 같은 33개 키(명시 목록). */
+const EXPECTED_KEYS = ['bar', 'stacked_bar', 'stacked_100_bar', 'horizontal_bar', 'stacked_horizontal_bar', 'stacked_100_horizontal_bar', 'line', 'line_markers', 'stacked_line', 'stacked_line_markers', 'stacked_100_line', 'stacked_100_line_markers', 'pie', 'doughnut', 'area', 'stacked_area', 'stacked_100_area', 'scatter', 'scatter_smooth_markers', 'scatter_smooth', 'scatter_line_markers', 'scatter_line', 'bubble', 'radar', 'radar_markers', 'radar_filled', 'treemap', 'sunburst', 'histogram', 'pareto', 'waterfall', 'funnel', 'combo']
+
+/** 리뷰 후속 AC8 보호: 막대·꺾은선·영역 빌더 판정은 규칙표 분류(column·bar·line·area)와 일치한다. */
+describe('isCartesianKind', () => {
+  it('has exactly the 33 expected keys in the rule table', () => {
+    expect(CHART_KINDS.map((k) => k.key).sort()).toEqual([...EXPECTED_KEYS].sort())
+  })
+
+  it.each(EXPECTED_KEYS)('judges %s by the explicit axis families (column, bar, line, area)', (kind) => {
+    const family = CHART_KINDS.find((k) => k.key === kind)?.family
+    expect(isCartesianKind(kind as Parameters<typeof isCartesianKind>[0])).toBe(['column', 'bar', 'line', 'area'].includes(family ?? ''))
   })
 })

@@ -1,5 +1,6 @@
 import type { ReportBinMode, ReportChartInput, ReportChartKind, ReportChartLegend, ReportComboSeries, ReportHistogramBins } from '../../../shared/model/reportTypes'
 import type { DesignerColumn } from '../designer/state/designerState'
+import { BIN_COUNT_MAX } from './compute/histogramBins'
 import { kindRule } from './chartKinds'
 
 /**
@@ -221,9 +222,6 @@ function countMessage(min: number, max: number): string {
   return min === max ? `이 차트는 값 열을 ${min}개 골라야 합니다` : `이 차트는 값 열을 ${min}~${max}개 골라야 합니다`
 }
 
-/** 서버 규칙 중 화면에서 판정할 수 있는 것의 안내(문구는 서버와 같다). 저장을 막지는 않는다(서버가 정본). */
-const BIN_COUNT_MAX = 100
-
 function histogramIssues(h: HistogramDraft): ChartDraftIssue[] {
   const issues: ChartDraftIssue[] = []
   if (h.mode === 'count') {
@@ -249,10 +247,11 @@ function histogramIssues(h: HistogramDraft): ChartDraftIssue[] {
 }
 
 /** 서버 규칙 중 화면에서 판정할 수 있는 것의 안내(문구는 서버와 같다). 저장을 막지는 않는다(서버가 정본). */
-export function chartDraftIssues(draft: ChartDraft, columns: readonly DesignerColumn[]): ChartDraftIssue[] {
+export function chartDraftIssues(draft: ChartDraft, columns: readonly DesignerColumn[], isNumberField?: (field: string) => boolean): ChartDraftIssue[] {
   const rule = kindRule(draft.kind)
   const groupUids = groupsOf(columns).map((c) => c.uid)
   const issues: ChartDraftIssue[] = []
+  if (groupUids.length > rule.maxGroups) issues.push({ part: 'category', message: `이 차트는 그룹핑 컬럼이 ${rule.maxGroups}개 이하일 때 만들 수 있습니다` })
   if (rule.usesCategory && (draft.categoryUid === null || !groupUids.includes(draft.categoryUid))) issues.push({ part: 'category', message: '범주 열을 고르세요' })
   if (rule.allowsSeries && groupUids.length === 2 && draft.seriesUid === null) {
     issues.push({ part: 'series', message: '그룹핑 컬럼이 2개면 나머지 하나를 계열로 고르세요' })
@@ -266,7 +265,13 @@ export function chartDraftIssues(draft: ChartDraft, columns: readonly DesignerCo
   if (typeof low === 'string') issues.push({ part: 'value_min', message: '숫자를 입력하세요' })
   if (typeof high === 'string') issues.push({ part: 'value_max', message: '숫자를 입력하세요' })
   if (typeof low === 'number' && typeof high === 'number' && low >= high) issues.push({ part: 'value_max', message: '최대는 최소보다 커야 합니다' })
-  if (rule.options.includes('histogram')) issues.push(...histogramIssues(draft.histogram))
+  if (rule.options.includes('histogram')) {
+    issues.push(...histogramIssues(draft.histogram))
+    if (isNumberField && groupUids.length === 0) {
+      const chosen = valuesOf(columns).find((c) => draft.valueUids.includes(c.uid) && !isNumberField(c.field))
+      if (chosen) issues.push({ part: 'values', message: '값 열은 숫자 컬럼이어야 합니다' })
+    }
+  }
   if (rule.options.includes('combo_series') && count > 0 && comboSettings(draft).every((s) => s.secondary)) {
     issues.push({ part: 'combo_series', message: '모든 계열을 보조 축에 둘 수 없습니다' })
   }

@@ -25,10 +25,12 @@ interface TileContext {
 /** 트리맵: 그룹핑 1~2개, 값 1개. 범주 = 상위 수준(큰 사각형), 계열 = 하위 수준(그 안의 사각형). */
 export function buildTreemap({ input, result, columns, fmt }: BuildInput): BuildOutcome {
   const grid = pivot(input, result, columns, fmt)
+  const columnsHasSeries = columns.series !== null
   const limit = tooMany(grid.labels.length * grid.sets.length)
   if (limit) return limit
-  const { tree, groups, skipped } = treemapTree(grid)
+  const { tree, groups, skipped } = treemapTree(grid, columnsHasSeries)
   const unit = columns.values[0]
+  const oneLevel = groups.length === 1
   const groupNames = [...new Set(tree.map((row) => row.upper))]
   const tint = (tile: Tile): string => {
     const group = parentOf(tile)
@@ -51,7 +53,8 @@ export function buildTreemap({ input, result, columns, fmt }: BuildInput): Build
       display: true,
       color: '#111827',
       formatter: (c: TileContext) => {
-        const sub = c.raw.l === 0 ? undefined : (c.raw._data?.children?.[0]?.lower ?? c.raw.g)
+        // 한 단계(계열 없음)면 사각형이 상위의 잎이라 상위 이름을 쓴다.
+        const sub = c.raw.l === 0 && !oneLevel ? undefined : oneLevel ? parentOf(c.raw) : (c.raw._data?.children?.[0]?.lower ?? c.raw.g)
         return typeof sub === 'string' ? [sub, text(c.raw.v)] : ''
       },
     },

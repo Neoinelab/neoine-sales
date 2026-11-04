@@ -1,6 +1,6 @@
 import { lazy, Suspense } from 'react'
 import type { ReportResult } from '../../../shared/model/reportTypes'
-import type { ChartSource } from '../chart/chartSource'
+import { hasChartBody, type ChartSource } from '../chart/chartSource'
 import { ChartEmpty } from '../chart/ChartEmpty'
 import { TileFrame } from './TileFrame'
 
@@ -27,12 +27,13 @@ export function ChartTile({ source, result, deferred = false, onToggleSettings }
   return (
     <TileFrame tile="chart" head={head}>
       {/* 차트가 아직 없으면 Chart.js 없이 만들기 안내만 보인다(차트 청크는 차트가 생긴 뒤에 받는다). */}
-      {!deferred && source.mode === 'edit' && source.draft === null && <ChartEmpty source={source} result={result} />}
-      {!deferred && !(source.mode === 'edit' && source.draft === null) && (
+      {!deferred && (hasChartBody(source) ? (
         <Suspense fallback={<p className="hint">차트를 불러오는 중…</p>}>
           <ChartTab source={source} result={result} />
         </Suspense>
-      )}
+      ) : (
+        <ChartEmpty source={source} result={result} />
+      ))}
     </TileFrame>
   )
 }

@@ -119,6 +119,10 @@ export function describe(label: string, columns: ChartColumns, headers: (c: Repo
   return `${label} 차트: ${headers(columns.category)} 기준 ${values}`
 }
 
+/** 표식이 없는 선·영역·방사형도 점 가까이에서 툴팁이 뜨게 한다(기본 상호작용은 점 위 1px 안에서만 적중). 분산형은 x가 같은 점이 없어 가장 가까운 점을 쓴다. */
+export const NEAR_POINT = { interaction: { mode: 'index', intersect: false } } as const satisfies ChartOptions
+export const NEAREST_POINT = { interaction: { mode: 'nearest', intersect: false } } as const satisfies ChartOptions
+
 export const baseOptions = (extra: ChartOptions = {}): ChartOptions => ({ responsive: true, maintainAspectRatio: false, ...extra })
 
 /** 숫자 칸의 값(없으면 null). */

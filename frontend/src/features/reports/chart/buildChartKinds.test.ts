@@ -533,3 +533,157 @@ describe('buildChart: 콤보 계열별 설정', () => {
     expect(b.data.datasets.map((d) => d.yAxisID === 'y1')).toEqual([false, true, true])
   })
 })
+
+/**
+ * 리뷰 후속 AC1: 표식이 없는 종류(pointRadius 0)는 Chart.js 기본 상호작용(nearest + intersect)으로는 점 위 1px 안에서만 툴팁이 뜬다.
+ * 계약: 빌더 결과의 `options.interaction`이 `intersect: false`이거나(꺾은선·영역·방사형은 `mode: 'index'`, 분산형은 `mode: 'nearest'`),
+ * 표식 없는 모든 데이터셋의 `pointHitRadius`가 8 이상이다.
+ */
+describe('buildChart: 표식 없는 종류의 툴팁 적중 범위 (리뷰 후속 AC1)', () => {
+  const ROUND_TRIP = [
+    ['line', chart({ kind: 'line' }), ONE, 'index'],
+    ['stacked_line', chart({ kind: 'stacked_line', series: 1, values: [2] }), TWO, 'index'],
+    ['stacked_100_line', chart({ kind: 'stacked_100_line', series: 1, values: [2] }), TWO, 'index'],
+    ['area', chart({ kind: 'area' }), ONE, 'index'],
+    ['stacked_area', chart({ kind: 'stacked_area', series: 1, values: [2] }), TWO, 'index'],
+    ['stacked_100_area', chart({ kind: 'stacked_100_area', series: 1, values: [2] }), TWO, 'index'],
+    ['radar', chart({ kind: 'radar' }), ONE, 'index'],
+    ['radar_filled', chart({ kind: 'radar_filled' }), ONE, 'index'],
+    ['scatter_line', chart({ kind: 'scatter_line', values: [1, 2] }), ONE, 'nearest'],
+    ['scatter_smooth', chart({ kind: 'scatter_smooth', values: [1, 2] }), ONE, 'nearest'],
+    [
+      'combo (line and area series)',
+      chart({
+        kind: 'combo',
+        values: [1, 2, 3],
+        comboSeries: [
+          { type: 'column', secondary: false },
+          { type: 'line', secondary: false },
+          { type: 'stacked_area', secondary: false },
+        ],
+      }),
+      ONE,
+      'index',
+    ],
+  ] as const
+
+  it.each(ROUND_TRIP)('lets the tooltip show near a point without markers for %s', (_name, input, result, mode) => {
+    const b = build(input, result)
+    const interaction = get(b.options, 'interaction') as { mode?: string; intersect?: boolean } | undefined
+    const bare = b.data.datasets.filter((d) => d.pointRadius === 0)
+    const hitByRadius = bare.length > 0 && bare.every((d) => typeof d.pointHitRadius === 'number' && d.pointHitRadius >= 8)
+
+    if (interaction) {
+      expect(interaction.intersect).toBe(false)
+      expect(interaction.mode).toBe(mode)
+    } else {
+      expect(hitByRadius).toBe(true)
+    }
+  })
+})
+
+/** 리뷰 후속 AC2: 그룹핑 컬럼이 종류의 최대 수를 넘는 결과는 pivot이 행을 덮어쓰기 전에 그리지 않는다. */
+describe('buildChart: 그룹핑 컬럼이 종류의 최대 수를 넘을 때 (리뷰 후속 AC2)', () => {
+  const THREE: ReportResult = resultOf({
+    columns: [VENDOR, STATUS, resultColumn({ index: 2, field: 'deal.forecast', label: 'Forecast', type: 'code', valueType: 'text', format: null, group: true }), amount(3)],
+    rows: [
+      ['Silverfort', 'Won', 'A', 3_000_000],
+      ['Silverfort', 'Won', 'B', 1_000_000],
+    ],
+  })
+
+  it('does not draw a one-group kind (pie) from a result with two group columns', () => {
+    expect(problemOf(chart({ kind: 'pie', values: [2] }), TWO)).toBe(CHART_MISMATCH)
+  })
+
+  it('does not draw a one-group kind (funnel) with a series', () => {
+    expect(problemOf(chart({ kind: 'funnel', series: 1, values: [2] }), TWO)).toBe(CHART_MISMATCH)
+  })
+
+  it('does not draw a two-group kind (bar) from a result with three group columns', () => {
+    expect(problemOf(chart({ kind: 'bar', series: 1, values: [3] }), THREE)).toBe(CHART_MISMATCH)
+  })
+
+  it('still draws a one-group kind from a result with one group column', () => {
+    expect(problemOf(chart({ kind: 'pie' }), ONE)).toBeNull()
+  })
+})
+
+/** 리뷰 후속 AC3: 계열이 없으면(그룹 1개) 트리맵·선버스트에 값 열 머리글 이름의 자식 노드가 생기지 않는다. */
+describe('buildChart: 계열 없는 트리맵·선버스트 (리뷰 후속 AC3)', () => {
+  it('groups a treemap without a series by the parent only', () => {
+    const b = build(chart({ kind: 'treemap' }), ONE)
+    const dataset = b.data.datasets[0] as { groups: string[]; tree: Record<string, unknown>[] }
+
+    expect(dataset.groups).toEqual(['upper'])
+    expect(dataset.tree.map((row) => row.upper)).toEqual(['Silverfort', 'Okta', '(없음)'])
+    expect(dataset.tree.flatMap((row) => Object.values(row))).not.toContain('금액 합계')
+  })
+
+  it('keeps two levels for a treemap with a series', () => {
+    const b = build(chart({ kind: 'treemap', series: 1, values: [2] }), TWO)
+    const dataset = b.data.datasets[0] as { groups: string[] }
+
+    expect(dataset.groups).toHaveLength(2)
+  })
+
+  it('draws a sunburst without a series as one ring of the parents', () => {
+    const b = build(chart({ kind: 'sunburst' }), ONE)
+
+    expect(b.data.datasets).toHaveLength(1)
+    expect(dataOf(b, 0)).toEqual([3_000_000, 1_500_000, 500_000])
+    expect(b.data.labels).toEqual(['Silverfort', 'Okta', '(없음)'])
+  })
+
+  it('keeps two rings for a sunburst with a series', () => {
+    expect(build(chart({ kind: 'sunburst', series: 1, values: [2] }), TWO).data.datasets).toHaveLength(2)
+  })
+})
+
+/** 리뷰 후속 AC4: 선버스트 바깥 고리 색은 앞 N자로 잘린 표시 이름이 아니라 상위 조각의 순번으로 정한다. */
+describe('buildChart: 표시 이름이 같은 상위 범주의 선버스트 색 (리뷰 후속 AC4)', () => {
+  const CUT_VENDOR = resultColumn({ index: 0, field: 'deal.vendor', label: 'Vendor', type: 'code', valueType: 'text', format: null, group: true, prefixLength: 5 })
+  const CUT: ReportResult = resultOf({
+    columns: [CUT_VENDOR, STATUS, amount(2)],
+    rows: [
+      ['Alpha-1', 'Won', 3],
+      ['Alpha-1', 'Open', 2],
+      ['Alpha-2', 'Won', 5],
+      ['Alpha-2', 'Open', 4],
+    ],
+  })
+
+  it('colors the children of each parent by that parent even when both parents show the same name', () => {
+    const b = build(chart({ kind: 'sunburst', series: 1, values: [2] }), CUT)
+    const inner = b.data.datasets[0]?.backgroundColor as string[]
+    const outer = b.data.datasets[1]?.backgroundColor as string[]
+
+    expect(new Set(b.data.labels).size).toBe(1)
+    expect(outer).toHaveLength(4)
+    expect(outer[0]?.startsWith(inner[0] ?? '?')).toBe(true)
+    expect(outer[1]?.startsWith(inner[0] ?? '?')).toBe(true)
+    expect(outer[2]?.startsWith(inner[1] ?? '?')).toBe(true)
+    expect(outer[3]?.startsWith(inner[1] ?? '?')).toBe(true)
+  })
+})
+
+/** 리뷰 후속 AC6: 구간 1,000개 한도는 일반 구간 수로만 판정한다(오버플로·언더플로 구간은 세지 않는다). */
+describe('buildChart: 히스토그램 구간 한도 (리뷰 후속 AC6)', () => {
+  const sample = (max: number): ReportResult =>
+    resultOf({ columns: UNGROUPED.columns, rows: Array.from({ length: max + 1 }, (_, i) => [`D-${i}`, i]) })
+  const width = (over: number | null, under: number | null) => ({ binMode: 'width' as const, binCount: null, binWidth: 1, overflow: over, underflow: under })
+
+  it('draws 999 regular bins plus an overflow and an underflow bin', () => {
+    const histogram = width(5000, -5)
+
+    const b = build(chart({ kind: 'histogram', category: null, values: [1], histogram }), sample(999))
+
+    expect(b.data.labels).toHaveLength(1001)
+  })
+
+  it('refuses 1,001 regular bins with the width guidance', () => {
+    const message = problemOf(chart({ kind: 'histogram', category: null, values: [1], histogram: width(null, null) }), sample(1001))
+
+    expect(message).toContain('구간 너비를 늘리세요')
+  })
+})

@@ -2,9 +2,9 @@ import type { ChartOptions } from 'chart.js'
 import type { ReportChartKind } from '../../../../shared/model/reportTypes'
 import { chartTheme } from '../../../../shared/ui/chartTheme'
 import { columnHeader } from '../../designer/format/formatCell'
-import { kindLabel } from '../chartKinds'
+import { kindLabel, kindRule, type ChartFamilyKey } from '../chartKinds'
 import { pivot } from '../pivot'
-import { axis, baseOptions, chartData, color, describe, gridCallbacks, pluginsOf, rangeOf, sharesOf, tooMany, withAlpha, type BuildInput, type BuildOutcome, type Datasets } from './common'
+import { axis, baseOptions, chartData, NEAR_POINT, color, describe, gridCallbacks, pluginsOf, rangeOf, sharesOf, tooMany, withAlpha, type BuildInput, type BuildOutcome, type Datasets } from './common'
 
 /** 막대·꺾은선·영역 종류의 모양: 가로/세로, 누적, 100% 누적, 표식. 이름 규칙으로 정한다(`stacked_100_horizontal_bar` 등). */
 interface Shape {
@@ -15,25 +15,9 @@ interface Shape {
   markers: boolean
 }
 
-const BAR_LINE_AREA: readonly ReportChartKind[] = [
-  'bar',
-  'stacked_bar',
-  'stacked_100_bar',
-  'horizontal_bar',
-  'stacked_horizontal_bar',
-  'stacked_100_horizontal_bar',
-  'line',
-  'line_markers',
-  'stacked_line',
-  'stacked_line_markers',
-  'stacked_100_line',
-  'stacked_100_line_markers',
-  'area',
-  'stacked_area',
-  'stacked_100_area',
-]
+const CARTESIAN_FAMILIES: readonly ChartFamilyKey[] = ['column', 'bar', 'line', 'area']
 
-export const isCartesianKind = (kind: ReportChartKind): boolean => BAR_LINE_AREA.includes(kind)
+export const isCartesianKind = (kind: ReportChartKind): boolean => CARTESIAN_FAMILIES.includes(kindRule(kind).family)
 
 function shapeOf(kind: ReportChartKind): Shape {
   return {
@@ -77,6 +61,7 @@ export function buildCartesian({ input, result, columns, fmt }: BuildInput): Bui
   )
   const cb = gridCallbacks(grid, fmt, shares)
   const options: ChartOptions = baseOptions({
+    ...(shape.style === 'bar' ? {} : NEAR_POINT),
     ...(shape.horizontal ? { indexAxis: 'y' as const } : {}),
     scales: shape.horizontal ? { y: category, x: value } : { x: category, y: value },
     plugins: pluginsOf(input, cb),

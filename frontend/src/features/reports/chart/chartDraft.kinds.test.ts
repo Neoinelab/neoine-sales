@@ -316,3 +316,43 @@ describe('chartDraftIssues: new kinds', () => {
     expect(messages(draft({ kind: 'scatter_line', valueUids: [2] }), ONE_GROUP())).toContain('이 차트는 값 열을 2~10개 골라야 합니다')
   })
 })
+
+/** 리뷰 후속 AC2: 그룹핑 컬럼 수가 종류의 최대를 넘으면 서버 `chart-kind-groups`와 같은 뜻의 안내를 낸다. */
+describe('chartDraftIssues: 그룹핑 컬럼 수 (리뷰 후속 AC2)', () => {
+  const messages = (d: ChartDraft, state: DesignerState): string[] => chartDraftIssues(d, state.columns).map((i) => i.message)
+  const TWO_GROUPS = (): DesignerState => design(['deal.vendor', 'deal.status', 'deal.amount'], [0, 1])
+  const THREE_GROUPS = (): DesignerState => design(['deal.vendor', 'deal.status', 'deal.forecast', 'deal.amount'], [0, 1, 2])
+
+  it('tells a one-group kind (pie) cannot take two group columns', () => {
+    const pie = draft({ kind: 'pie', categoryUid: 1, valueUids: [3] })
+
+    expect(messages(pie, TWO_GROUPS())).toContain('이 차트는 그룹핑 컬럼이 1개 이하일 때 만들 수 있습니다')
+  })
+
+  it('tells a two-group kind (bar) cannot take three group columns', () => {
+    const bar = draft({ kind: 'bar', categoryUid: 1, seriesUid: 2, valueUids: [4] })
+
+    expect(messages(bar, THREE_GROUPS())).toContain('이 차트는 그룹핑 컬럼이 2개 이하일 때 만들 수 있습니다')
+  })
+
+  it('stays quiet when the group count fits the kind', () => {
+    const pie = draft({ kind: 'pie', categoryUid: 1, valueUids: [2] })
+
+    expect(messages(pie, ONE_GROUP()).filter((m) => m.includes('그룹핑 컬럼이'))).toEqual([])
+  })
+})
+
+/** 리뷰 후속 AC5: 그룹핑 없는 히스토그램의 값은 숫자 컬럼만. `chartDraftIssues(draft, columns, isNumberField?)`의 셋째 인자가 숫자 필드 판정이다. */
+describe('chartDraftIssues: 히스토그램 값 열 (리뷰 후속 AC5)', () => {
+  it('tells the value column must be a number when a text column is left selected', () => {
+    const hist = draft({ kind: 'histogram', categoryUid: null, valueUids: [1] })
+
+    expect(chartDraftIssues(hist, UNGROUPED().columns, isNumber).map((i) => i.message)).toContain('값 열은 숫자 컬럼이어야 합니다')
+  })
+
+  it('stays quiet for a number column', () => {
+    const hist = draft({ kind: 'histogram', categoryUid: null, valueUids: [2] })
+
+    expect(chartDraftIssues(hist, UNGROUPED().columns, isNumber).map((i) => i.message)).not.toContain('값 열은 숫자 컬럼이어야 합니다')
+  })
+})

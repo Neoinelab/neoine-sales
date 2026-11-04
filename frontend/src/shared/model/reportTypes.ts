@@ -169,6 +169,48 @@ export type ReportVisibility = 'public' | 'private'
 /** 저장된 리포트 목록 한 줄. 결과 데이터는 저장하지 않는다. */
 /** 차트 종류 33종. 서버 계약(`ChartKind`)에서 가져온다. */
 export type ReportChartKind = Schemas['ChartKind']
+
+/** 차트 종류 키 33개(화면 순서). 서버 `ChartKind`와 어긋나면(빠지거나 모르는 키) 컴파일되지 않는다. */
+export const CHART_KIND_KEYS = [
+  'bar',
+  'stacked_bar',
+  'stacked_100_bar',
+  'horizontal_bar',
+  'stacked_horizontal_bar',
+  'stacked_100_horizontal_bar',
+  'line',
+  'line_markers',
+  'stacked_line',
+  'stacked_line_markers',
+  'stacked_100_line',
+  'stacked_100_line_markers',
+  'pie',
+  'doughnut',
+  'area',
+  'stacked_area',
+  'stacked_100_area',
+  'scatter',
+  'scatter_smooth_markers',
+  'scatter_smooth',
+  'scatter_line_markers',
+  'scatter_line',
+  'bubble',
+  'radar',
+  'radar_markers',
+  'radar_filled',
+  'treemap',
+  'sunburst',
+  'histogram',
+  'pareto',
+  'waterfall',
+  'funnel',
+  'combo',
+] as const satisfies readonly ReportChartKind[]
+
+type MissingKinds = Exclude<ReportChartKind, (typeof CHART_KIND_KEYS)[number]>
+const kindKeysComplete: MissingKinds extends never ? true : never = true
+void kindKeysComplete
+
 export type ReportChartLegend = 'top' | 'right' | 'bottom' | 'none'
 
 export type ReportBinMode = Schemas['BinMode']

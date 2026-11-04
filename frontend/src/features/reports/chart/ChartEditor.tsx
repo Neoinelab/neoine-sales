@@ -4,7 +4,7 @@ import { ChartPreview } from './ChartPreview'
 import { ChartSettingsPanel } from './ChartSettingsPanel'
 import { chartDraftIssues, chartInputFor, type ChartDraft } from './chartDraft'
 import { chartHeaderOf } from './chartHeaders'
-import { ChartEmpty } from './ChartEmpty'
+import { fieldByKey } from '../designer/state/columnRules'
 import type { ChartEditSource } from './chartSource'
 
 function referencedUids(draft: ChartDraft): number[] {
@@ -20,12 +20,12 @@ function Preview({ draft, source, result, incomplete }: { draft: ChartDraft; sou
   return <ChartPreview input={input} result={result} />
 }
 
-/** 디자이너의 차트 타일 본문: 차트가 없으면 만들기, 있으면 미리보기(+ 열려 있으면 설정 패널과 삭제). */
-export function ChartEditor({ source, result }: { source: ChartEditSource; result: ReportResult | null }) {
-  const { draft, columns, settingsOpen, dispatch } = source
-  if (!draft) return <ChartEmpty source={source} result={result} />
+/** 디자이너 차트 타일 본문(초안이 있을 때만 쓴다. 차트가 없는 빈 상태는 ChartTile이 ChartEmpty로 보인다): 미리보기와, 열려 있으면 설정 패널·삭제. */
+export function ChartEditor({ source, draft, result }: { source: ChartEditSource; draft: ChartDraft; result: ReportResult | null }) {
+  const { columns, catalog, settingsOpen, dispatch } = source
+  const isNumberField = (field: string): boolean => fieldByKey(catalog, field)?.type === 'number'
   const headerOf = chartHeaderOf(source, result)
-  const issues = chartDraftIssues(draft, columns)
+  const issues = chartDraftIssues(draft, columns, isNumberField)
   return (
     <div className={settingsOpen ? 'report-chart-wrap' : 'report-chart-wrap is-closed'}>
       <div className="report-chart-view">
@@ -33,7 +33,7 @@ export function ChartEditor({ source, result }: { source: ChartEditSource; resul
       </div>
       {settingsOpen && (
         <div className="report-chart-side">
-          <ChartSettingsPanel draft={draft} columns={columns} headerOf={headerOf} issues={issues} serverIssues={source.issues} dispatch={dispatch} />
+          <ChartSettingsPanel draft={draft} columns={columns} headerOf={headerOf} issues={issues} serverIssues={source.issues} dispatch={dispatch} isNumberField={isNumberField} />
           <button type="button" className="danger" onClick={() => dispatch({ type: 'removeChart' })}>
             차트 삭제
           </button>

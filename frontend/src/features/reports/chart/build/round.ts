@@ -39,18 +39,23 @@ export function buildSunburst({ input, result, columns, fmt }: BuildInput): Buil
   if (limit) return limit
   const rings = sunburstRings(grid)
   const unit = columns.values[0]
-  const parentIndex = new Map(rings.inner.map((p, i) => [p.label, i]))
-  const seen = new Map<string, number>()
-  const outerColors = rings.outer.map((o) => {
-    const parent = parentIndex.get(o.parent) ?? 0
-    const nth = seen.get(o.parent) ?? 0
-    seen.set(o.parent, nth + 1)
+  // 바깥 고리 색은 상위 조각의 순번으로 정한다(앞 N자로 잘린 표시 이름이 같은 상위끼리 섞이지 않게).
+  const seen = new Map<number, number>()
+  const outerColors = rings.outer.map((_, k) => {
+    const parent = rings.outerParent[k] ?? 0
+    const nth = seen.get(parent) ?? 0
+    seen.set(parent, nth + 1)
     return withAlpha(color(parent), Math.max(0x66, 0xe6 - nth * 0x22))
   })
-  const datasets = [
-    { label: '상위', data: rings.inner.map((p) => p.value), backgroundColor: rings.inner.map((_, i) => color(i)), weight: 1, ...INNER },
-    { label: '하위', data: rings.outer.map((o) => o.value), backgroundColor: outerColors, weight: 1, ...OUTER },
-  ]
+  const innerRing = { label: '상위', data: rings.inner.map((p) => p.value), backgroundColor: rings.inner.map((_, i) => color(i)), weight: 1 }
+  // 계열이 없으면 고리는 상위 하나뿐이다(값 열 머리글 이름의 하위 조각을 만들지 않는다).
+  const datasets =
+    columns.series === null
+      ? [innerRing]
+      : [
+          { ...innerRing, ...INNER },
+          { label: '하위', data: rings.outer.map((o) => o.value), backgroundColor: outerColors, weight: 1, ...OUTER },
+        ]
   const text = (datasetIndex: number, dataIndex: number): string => {
     const value = datasetIndex === 0 ? rings.inner[dataIndex]?.value : rings.outer[dataIndex]?.value
     return unit && value !== undefined ? showValue(value, unit, fmt) : '—'

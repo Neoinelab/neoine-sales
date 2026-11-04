@@ -3,7 +3,7 @@ import { chartTheme } from '../../../../shared/ui/chartTheme'
 import { columnHeader } from '../../designer/format/formatCell'
 import { kindLabel } from '../chartKinds'
 import { pivot } from '../pivot'
-import { baseOptions, chartData, color, describe, gridCallbacks, moneyTicks, pluginsOf, problem, rangeOf, tooMany, withAlpha, type BuildInput, type BuildOutcome } from './common'
+import { baseOptions, chartData, color, NEAR_POINT, describe, gridCallbacks, moneyTicks, pluginsOf, problem, rangeOf, tooMany, withAlpha, type BuildInput, type BuildOutcome } from './common'
 
 export const RADAR_MIN_CATEGORIES = 3
 export const RADAR_TOO_FEW = '방사형은 범주가 3개 이상일 때 그립니다'
@@ -28,6 +28,7 @@ export function buildRadar({ input, result, columns, fmt }: BuildInput): BuildOu
   }))
   const theme = chartTheme()
   const options: ChartOptions = baseOptions({
+    ...NEAR_POINT,
     scales: {
       r: {
         ...rangeOf(input, false),

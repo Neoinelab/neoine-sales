@@ -1,16 +1,16 @@
 import type { ReportResult } from '../../../shared/model/reportTypes'
 import { ChartEditor } from './ChartEditor'
 import { ChartPreview } from './ChartPreview'
-import type { ChartSource } from './chartSource'
+import type { ChartBodySource } from './chartSource'
 
 interface ChartTabProps {
-  source: ChartSource
+  source: ChartBodySource
   result: ReportResult | null
 }
 
-function Body({ source, result }: { source: ChartSource; result: ReportResult | null }) {
+function Body({ source, result }: { source: ChartBodySource; result: ReportResult | null }) {
   if (source.mode === 'edit') {
-    return <ChartEditor source={source} result={result} />
+    return <ChartEditor source={source} draft={source.draft} result={result} />
   }
   if (!source.chart) {
     return <p className="hint">{source.problem ?? '이 리포트에는 저장된 차트가 없습니다. 편집 화면에서 만들 수 있습니다.'}</p>

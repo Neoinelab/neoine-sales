@@ -5,6 +5,8 @@ export interface SunburstRings {
   inner: { label: string; value: number }[]
   /** 바깥 고리: (상위, 하위) 쌍을 상위 순서대로. 안쪽 조각 각도 안에 맞는다(두 고리의 합이 같다). */
   outer: { parent: string; label: string; value: number }[]
+  /** `outer`와 같은 순서로, 각 바깥 조각의 상위가 `inner`에서 몇 번째인지(표시 이름이 같은 상위도 구분한다). */
+  outerParent: number[]
   /** 0 이하이거나 빈 칸이라 그리지 않은 수. */
   skipped: number
 }
@@ -13,6 +15,7 @@ export interface SunburstRings {
 export function sunburstRings(grid: Pivot): SunburstRings {
   const inner: SunburstRings['inner'] = []
   const outer: SunburstRings['outer'] = []
+  const outerParent: number[] = []
   let skipped = 0
   grid.labels.forEach((parent, i) => {
     let sum = 0
@@ -24,8 +27,9 @@ export function sunburstRings(grid: Pivot): SunburstRings {
       }
       sum += value
       outer.push({ parent, label: set.label, value })
+      outerParent.push(inner.length)
     }
     if (sum > 0) inner.push({ label: parent, value: sum })
   })
-  return { inner, outer, skipped }
+  return { inner, outer, outerParent, skipped }
 }

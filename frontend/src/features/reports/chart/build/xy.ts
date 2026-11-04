@@ -4,7 +4,7 @@ import { columnHeader } from '../../designer/format/formatCell'
 import { kindLabel } from '../chartKinds'
 import { bubbleRadius } from '../compute/bubbleRadius'
 import { cellOf, nameOf, type PivotCell } from '../pivot'
-import { CHART_TOO_MANY, axis, baseOptions, chartData, color, describe, numberAt, pluginsOf, problem, rangeOf, show, type BuildInput, type BuildOutcome, type Datasets } from './common'
+import { CHART_TOO_MANY, axis, baseOptions, chartData, color, describe, NEAREST_POINT, numberAt, pluginsOf, problem, rangeOf, show, type BuildInput, type BuildOutcome, type Datasets } from './common'
 
 interface Style {
   line: boolean
@@ -74,6 +74,7 @@ export function buildScatter(build: BuildInput): BuildOutcome {
     dataLabel: (_value: unknown, c: { datasetIndex: number; dataIndex: number }): string => show(where(c)?.infos[c.dataIndex]?.y ?? null, fmt),
   }
   const options: ChartOptions = baseOptions({
+    ...NEAREST_POINT,
     scales: {
       x: axis(input.categoryAxisTitle, { type: 'linear' }, columns.values.slice(0, 1)),
       y: axis(input.valueAxisTitle, rangeOf(input, false), columns.values.slice(1)),

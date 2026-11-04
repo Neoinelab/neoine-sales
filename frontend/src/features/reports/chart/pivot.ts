@@ -52,6 +52,7 @@ export function resolveColumns(input: ReportChartInput, result: ReportResult): C
   const column = (index: number | null): ReportResultColumn | undefined => (index === null ? undefined : result.columns.find((c) => c.index === index))
   const category = column(input.category)
   if (!category?.group) return null
+  if (result.columns.filter((c) => c.group).length > rule.maxGroups) return null
   let series: ReportResultColumn | null = null
   if (input.series !== null) {
     const found = column(input.series)

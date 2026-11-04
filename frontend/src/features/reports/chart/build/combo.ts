@@ -3,7 +3,7 @@ import type { ReportChartInput, ReportComboSeries, ReportComboSeriesType } from 
 import { columnHeader } from '../../designer/format/formatCell'
 import { kindLabel } from '../chartKinds'
 import { pivot } from '../pivot'
-import { axis, baseOptions, chartData, color, describe, gridCallbacks, pluginsOf, rangeOf, secondaryAxis, tooMany, withAlpha, type BuildInput, type BuildOutcome, type Datasets } from './common'
+import { axis, baseOptions, chartData, color, describe, gridCallbacks, NEAR_POINT, pluginsOf, rangeOf, secondaryAxis, tooMany, withAlpha, type BuildInput, type BuildOutcome, type Datasets } from './common'
 
 export interface ComboPreset {
   key: 'column_line' | 'column_line_secondary' | 'area_column'
@@ -82,6 +82,6 @@ export function buildCombo({ input, result, columns, fmt }: BuildInput): BuildOu
   if (settings.some((s) => s.secondary)) {
     scales.y1 = secondaryAxis(stackedOn(true) ? { stacked: true } : {}, secondary) as never
   }
-  const options: ChartOptions = baseOptions({ scales, plugins: pluginsOf(input, gridCallbacks(grid, fmt, null)) })
+  const options: ChartOptions = baseOptions({ ...(settings.every((s) => isBar(s.type)) ? {} : NEAR_POINT), scales, plugins: pluginsOf(input, gridCallbacks(grid, fmt, null)) })
   return { type: 'bar', data: chartData(grid.labels, datasets), options, description: describe(kindLabel(input.kind), columns, columnHeader), notes: [] }
 }

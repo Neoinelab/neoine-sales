@@ -28,3 +28,9 @@ export interface ChartEditSource {
 }
 
 export type ChartSource = ChartViewSource | ChartEditSource
+
+/** 차트 본문(`ChartTab`)이 받는 원천: 편집이면 초안이 이미 있다(초안이 없는 빈 상태는 차트 타일이 `ChartEmpty`로 보인다). */
+export type ChartBodySource = ChartViewSource | (ChartEditSource & { draft: ChartDraft })
+
+/** 차트 본문을 보일 수 있는 원천인지(보기 화면이거나 초안이 있는 편집). 아니면 초안이 없는 빈 상태다. */
+export const hasChartBody = (source: ChartSource): source is ChartBodySource => source.mode === 'view' || source.draft !== null

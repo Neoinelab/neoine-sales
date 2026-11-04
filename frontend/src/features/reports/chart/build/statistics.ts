@@ -42,7 +42,7 @@ export function buildHistogram(input: ReportChartInput, result: ReportResult, va
     edgeText,
   )
   // 1,000개를 넘는 구간은 구간 너비 방식에서만 나온다(자동·구간 수 방식은 최대 100개).
-  if (bins.length > 1000) return problem('구간이 너무 많아 차트를 그리지 않습니다(최대 1,000개). 구간 너비를 늘리세요')
+  if (bins.filter((b) => b.kind === 'range').length > 1000) return problem('구간이 너무 많아 차트를 그리지 않습니다(최대 1,000개). 구간 너비를 늘리세요')
   const theme = chartTheme()
   const dataset = { label: '빈도', data: bins.map((b) => b.count), backgroundColor: color(1), borderColor: theme.grid, borderWidth: 1, categoryPercentage: 1, barPercentage: 1 }
   const cb = {

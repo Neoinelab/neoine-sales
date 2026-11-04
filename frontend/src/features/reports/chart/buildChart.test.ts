@@ -467,7 +467,7 @@ describe('buildChart: prefix length cuts axis and legend only (AC18, AC20)', () 
   })
 
   it('cuts the category legend of a pie chart', () => {
-    const b = build(chart({ kind: 'pie', values: [2] }), resultOf({ columns: [cut(VENDOR, 2), STATUS, amount(2)], rows: [['Alpha-1', 'Won', 3_000_000], ['Beta-1', 'Open', 1_000_000]] }))
+    const b = build(chart({ kind: 'pie', values: [1] }), resultOf({ columns: [cut(VENDOR, 2), amount(1)], rows: [['Alpha-1', 3_000_000], ['Beta-1', 1_000_000]] }))
 
     expect(b.data.labels).toEqual(['Al…', 'Be…'])
   })
@@ -488,7 +488,7 @@ describe('buildChart: prefix length cuts axis and legend only (AC18, AC20)', () 
   })
 
   it('shows the whole category name before the value in a pie tooltip', () => {
-    const b = build(chart({ kind: 'pie', values: [2] }), resultOf({ columns: [cut(VENDOR, 2), STATUS, amount(2)], rows: [['Alpha-1', 'Won', 3_000_000], ['Beta-1', 'Open', 1_000_000]] }))
+    const b = build(chart({ kind: 'pie', values: [1] }), resultOf({ columns: [cut(VENDOR, 2), amount(1)], rows: [['Alpha-1', 3_000_000], ['Beta-1', 1_000_000]] }))
 
     const label = tip(b, 'label')({ dataset: b.data.datasets[0], datasetIndex: 0, dataIndex: 0, raw: 3_000_000, parsed: 3_000_000, label: 'Al…' })
 

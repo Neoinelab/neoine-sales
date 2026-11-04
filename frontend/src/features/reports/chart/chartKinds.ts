@@ -1,4 +1,4 @@
-import type { ReportChartKind } from '../../../shared/model/reportTypes'
+import { CHART_KIND_KEYS, type ReportChartKind } from '../../../shared/model/reportTypes'
 
 /** 값 열은 최대 10개(색 10개와 같다). */
 export const CHART_VALUES_MAX = 10
@@ -70,7 +70,7 @@ const single = { allowsValueRange: false } as const
 
 const rule = (spec: Spec): ChartKindRule => ({ ...base, ...spec })
 
-export const CHART_KINDS: readonly ChartKindRule[] = [
+const RULES: readonly ChartKindRule[] = [
   rule({ key: 'bar', label: '묶은 세로 막대', family: 'column', ...multi }),
   rule({ key: 'stacked_bar', label: '누적 세로 막대', family: 'column', ...multi }),
   rule({ key: 'stacked_100_bar', label: '100% 누적 세로 막대', family: 'column', ...multi, percentAxis: true }),
@@ -105,6 +105,13 @@ export const CHART_KINDS: readonly ChartKindRule[] = [
   rule({ key: 'funnel', label: '깔때기', family: 'funnel', ...single }),
   rule({ key: 'combo', label: '콤보', family: 'combo', valuesMin: 2, valuesMax: CHART_VALUES_MAX, allowsSecondary: true, options: ['combo_series'] }),
 ]
+
+/** 규칙표: 종류 키 목록(`CHART_KIND_KEYS`) 순서. 규칙이 없는 키가 있으면 불러올 때 바로 오류다. */
+export const CHART_KINDS: readonly ChartKindRule[] = CHART_KIND_KEYS.map((key) => {
+  const found = RULES.find((r) => r.key === key)
+  if (!found) throw new Error(`차트 종류 규칙이 없습니다: ${key}`)
+  return found
+})
 
 export function kindRule(kind: ReportChartKind): ChartKindRule {
   return CHART_KINDS.find((k) => k.key === kind) ?? CHART_KINDS[0]!
