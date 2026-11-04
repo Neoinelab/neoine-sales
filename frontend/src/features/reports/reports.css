@@ -18,6 +18,14 @@
 .report-heading h1 { margin-top: 2px; }
 .report-crumb { font-size: 0.85rem; color: var(--muted); }
 .report-list { display: grid; gap: 12px; }
+/* 공통 .panel의 폭 제한(560px)을 풀어 다른 메뉴 목록처럼 본문 폭을 다 쓴다 */
+.panel.report-list { max-width: none; min-width: 0; }
+/* 공통 표의 overflow: hidden이 마지막 행의 '...' 메뉴를 잘라내므로 풀고, 둥근 모서리는 모서리 칸에 준다 */
+.report-list table { overflow: visible; }
+.report-list thead th:first-child { border-top-left-radius: var(--radius-lg); }
+.report-list thead th:last-child { border-top-right-radius: var(--radius-lg); }
+.report-list tbody tr:last-child > td:first-child { border-bottom-left-radius: var(--radius-lg); }
+.report-list tbody tr:last-child > td:last-child { border-bottom-right-radius: var(--radius-lg); }
 
 .report-designer { display: grid; grid-template-columns: 250px 1fr; gap: 16px; align-items: start; }
 .report-work { display: grid; gap: 16px; min-width: 0; }
