@@ -50,6 +50,9 @@ const SHAPES: readonly (readonly [string, ReportQueryInput])[] = [
   ['a date range', withConditions([{ field: 'deal.expected_close', operator: 'between', value: ['2026-01-01', '2026-03-31'] }])],
   ['a single date', withConditions([{ field: 'deal.expected_close', operator: 'before', value: '2026-12-31' }])],
   ['a relative period without days', withConditions([{ field: 'deal.expected_close', operator: 'relative', value: { period: 'this_year' } }])],
+  ['a relative period of the last 1 month', withConditions([{ field: 'deal.expected_close', operator: 'relative', value: { period: 'last_1_month' } }])],
+  ['a relative period of the last 3 months', withConditions([{ field: 'deal.created_at', operator: 'relative', value: { period: 'last_3_months' } }])],
+  ['a relative period of the last 6 months', withConditions([{ field: 'deal.expected_close', operator: 'relative', value: { period: 'last_6_months' } }])],
   ['a relative period with days', withConditions([{ field: 'deal.created_at', operator: 'relative', value: { period: 'last_n_days', days: 30 } }])],
   ['an OR combine with the largest row limit', { columns: [CODE], conditions: [], combine: 'or', rowLimit: 10000 }],
   [
@@ -109,6 +112,17 @@ describe('fromReportRequest', () => {
       { shape: 'relative', period: 'last_n_days', days: '30' },
       { shape: 'relative', period: 'this_quarter', days: '' },
     ])
+  })
+
+  it('restores month based relative period drafts without days', () => {
+    const state = load({
+      columns: [CODE],
+      conditions: [{ field: 'deal.expected_close', operator: 'relative', value: { period: 'last_3_months' } }],
+      combine: 'and',
+      rowLimit: 100,
+    })
+
+    expect(state.conditions.map((c) => c.draft)).toEqual([{ shape: 'relative', period: 'last_3_months', days: '' }])
   })
 
   it('restores the sort of each column and leaves selection empty', () => {

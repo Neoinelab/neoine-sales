@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 
 from app.domain.common.business_date import start_of_business_day
 from app.domain.deal.period import month_range, quarter_of, quarter_range
+from app.domain.deal.updated_period import months_before
 from app.domain.report.condition_values import (
     ConditionValue,
     DateRange,
@@ -62,8 +63,21 @@ class ResolvedReport:
     context: ReportContext
 
 
+_MONTH_SPANS: dict[RelativePeriod, int] = {
+    RelativePeriod.LAST_1_MONTH: 1,
+    RelativePeriod.LAST_3_MONTHS: 3,
+    RelativePeriod.LAST_6_MONTHS: 6,
+}
+
+
 def _relative_bounds(value: RelativeValue, today: date) -> DateBounds:
     match value.period:
+        case (
+            RelativePeriod.LAST_1_MONTH
+            | RelativePeriod.LAST_3_MONTHS
+            | RelativePeriod.LAST_6_MONTHS
+        ):
+            return DateBounds(months_before(today, _MONTH_SPANS[value.period]), today)
         case RelativePeriod.THIS_YEAR:
             return DateBounds(*quarter_range(today.year, None))
         case RelativePeriod.THIS_QUARTER:

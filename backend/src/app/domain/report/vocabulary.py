@@ -102,6 +102,9 @@ class SortDirection(StrEnum):
 
 
 class RelativePeriod(StrEnum):
+    LAST_1_MONTH = "last_1_month"
+    LAST_3_MONTHS = "last_3_months"
+    LAST_6_MONTHS = "last_6_months"
     THIS_YEAR = "this_year"
     THIS_QUARTER = "this_quarter"
     THIS_MONTH = "this_month"

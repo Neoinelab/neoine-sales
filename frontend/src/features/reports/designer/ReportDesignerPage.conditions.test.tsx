@@ -168,7 +168,7 @@ describe('조건 값 입력 (AC7)', () => {
 
     await user.selectOptions(screen.getByRole('combobox', { name: '조건 1 연산자' }), 'relative')
     const period = screen.getByRole('combobox', { name: '조건 1 기간' })
-    expect(optionTexts(period)).toEqual(['올해', '이번 분기', '이번 달', '최근 N일', '오늘 이전'])
+    expect(optionTexts(period)).toEqual(['최근 1개월', '최근 3개월', '최근 6개월', '올해', '이번 분기', '이번 달', '최근 N일', '오늘 이전'])
     expect(screen.queryByLabelText('조건 1 일수')).not.toBeInTheDocument()
 
     await user.selectOptions(period, 'last_n_days')
@@ -176,6 +176,20 @@ describe('조건 값 입력 (AC7)', () => {
 
     await user.selectOptions(period, 'this_month')
     expect(screen.queryByLabelText('조건 1 일수')).not.toBeInTheDocument()
+  })
+
+  it('sends the last 3 months period without days and hides the days input (AC7)', async () => {
+    const { user } = await openDesigner()
+    await addColumn(user, 'Deal 이름')
+    await addCondition(user, 'Expected Close')
+    await user.selectOptions(screen.getByRole('combobox', { name: '조건 1 연산자' }), 'relative')
+
+    await user.selectOptions(screen.getByRole('combobox', { name: '조건 1 기간' }), 'last_3_months')
+
+    expect(screen.getByRole('combobox', { name: '조건 1 기간' })).toHaveDisplayValue('최근 3개월')
+    expect(screen.queryByLabelText('조건 1 일수')).not.toBeInTheDocument()
+    await runQuery(user)
+    expect(lastQuery().conditions?.[0]).toEqual({ field: 'deal.expected_close', operator: 'relative', value: { period: 'last_3_months' } })
   })
 
   it('types the date range as yyyymmdd and sends ISO dates (AC-D1)', async () => {

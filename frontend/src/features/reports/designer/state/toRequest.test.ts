@@ -188,6 +188,14 @@ describe('toReportRequest condition values (AC11)', () => {
     })
   })
 
+  it.each(['last_1_month', 'last_3_months', 'last_6_months'] as const)('sends %s without days even if a days draft remains (AC7)', (period) => {
+    expect(conditionValue('deal.expected_close', 'relative', { shape: 'relative', period, days: '30' })).toMatchObject({
+      value: { period },
+    })
+    const value = (conditionValue('deal.expected_close', 'relative', { shape: 'relative', period, days: '30' }) as { value: object }).value
+    expect(value).toEqual({ period })
+  })
+
   it('sends relative periods with days only for last n days', () => {
     expect(conditionValue('deal.expected_close', 'relative', { shape: 'relative', period: 'this_year', days: '30' })).toMatchObject({
       value: { period: 'this_year' },

@@ -53,6 +53,42 @@ def test_relative_periods_resolve_from_today(
     assert (bounds.first, bounds.last) == (first, last)
 
 
+@pytest.mark.parametrize(
+    ("period", "today", "first", "last"),
+    [
+        ("last_1_month", date(2026, 11, 4), date(2026, 10, 4), date(2026, 11, 4)),
+        ("last_3_months", date(2026, 11, 4), date(2026, 8, 4), date(2026, 11, 4)),
+        ("last_6_months", date(2026, 11, 4), date(2026, 5, 4), date(2026, 11, 4)),
+        ("last_3_months", date(2026, 5, 31), date(2026, 2, 28), date(2026, 5, 31)),
+        ("last_1_month", date(2026, 3, 31), date(2026, 2, 28), date(2026, 3, 31)),
+        ("last_6_months", date(2026, 8, 31), date(2026, 2, 28), date(2026, 8, 31)),
+    ],
+)
+def test_month_based_relative_periods_resolve_to_same_day_months_before_today(
+    period: str, today: date, first: date, last: date
+) -> None:
+    bounds = _bounds("deal.expected_close", "relative", {"period": period}, today=today)
+
+    assert (bounds.first, bounds.last) == (first, last)
+
+
+@pytest.mark.parametrize(
+    ("period", "start_day"),
+    [
+        ("last_1_month", date(2026, 10, 4)),
+        ("last_3_months", date(2026, 8, 4)),
+        ("last_6_months", date(2026, 5, 4)),
+    ],
+)
+def test_datetime_month_based_period_is_half_open_through_the_end_of_today(
+    period: str, start_day: date
+) -> None:
+    bounds = _bounds("deal.created_at", "relative", {"period": period}, today=date(2026, 11, 4))
+
+    assert bounds.start == start_of_business_day(start_day)
+    assert bounds.end == start_of_business_day(date(2026, 11, 5))
+
+
 def test_relative_period_on_leap_day_and_quarter_end() -> None:
     leap = _bounds(
         "deal.expected_close", "relative", {"period": "this_month"}, today=date(2028, 2, 29)

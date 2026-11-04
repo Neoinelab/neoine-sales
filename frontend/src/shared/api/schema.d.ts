@@ -2616,7 +2616,7 @@ export interface components {
          * RelativePeriod
          * @enum {string}
          */
-        RelativePeriod: "this_year" | "this_quarter" | "this_month" | "last_n_days" | "before_today";
+        RelativePeriod: "last_1_month" | "last_3_months" | "last_6_months" | "this_year" | "this_quarter" | "this_month" | "last_n_days" | "before_today";
         /** ReportAggregateResponse */
         ReportAggregateResponse: {
             key: components["schemas"]["Aggregate"];

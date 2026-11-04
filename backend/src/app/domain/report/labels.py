@@ -66,6 +66,9 @@ AGGREGATE_LABELS: dict[Aggregate, str] = {
 }
 
 PERIOD_LABELS: dict[RelativePeriod, str] = {
+    RelativePeriod.LAST_1_MONTH: "최근 1개월",
+    RelativePeriod.LAST_3_MONTHS: "최근 3개월",
+    RelativePeriod.LAST_6_MONTHS: "최근 6개월",
     RelativePeriod.THIS_YEAR: "올해",
     RelativePeriod.THIS_QUARTER: "이번 분기",
     RelativePeriod.THIS_MONTH: "이번 달",

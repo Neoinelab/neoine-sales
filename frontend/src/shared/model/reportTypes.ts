@@ -38,7 +38,7 @@ export type ReportOperator =
   | 'relative'
 export type ReportAggregate = 'sum' | 'avg' | 'min' | 'max' | 'count' | 'count_distinct'
 export type ReportOperatorShape = 'text' | 'list' | 'number' | 'range' | 'date' | 'relative' | 'none'
-export type ReportRelativePeriod = 'this_year' | 'this_quarter' | 'this_month' | 'last_n_days' | 'before_today'
+export type ReportRelativePeriod = 'last_1_month' | 'last_3_months' | 'last_6_months' | 'this_year' | 'this_quarter' | 'this_month' | 'last_n_days' | 'before_today'
 export type ReportValueKind = 'key' | 'id'
 export type ReportOptionsSource = 'users' | 'vendors' | 'status_codes' | 'forecast_codes' | 'bant_labels' | 'action_types'
 export type ReportValueType = 'text' | 'integer' | 'decimal' | 'date' | 'datetime'

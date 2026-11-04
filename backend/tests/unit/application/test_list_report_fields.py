@@ -68,3 +68,18 @@ def test_catalog_formats_are_seven_date_formats_and_query_affecting_ones_are_dat
     }
     assert not {"as_is", "prefix", "name", "key"} & {f.key.value for f in view.formats}
     assert view.limits.prefix_max == 200
+
+
+def test_relative_periods_are_listed_in_the_selection_order_with_labels() -> None:
+    periods = ListReportFields().execute().relative_periods
+
+    assert [(p.key.value, p.label, p.needs_days) for p in periods] == [
+        ("last_1_month", "최근 1개월", False),
+        ("last_3_months", "최근 3개월", False),
+        ("last_6_months", "최근 6개월", False),
+        ("this_year", "올해", False),
+        ("this_quarter", "이번 분기", False),
+        ("this_month", "이번 달", False),
+        ("last_n_days", "최근 N일", True),
+        ("before_today", "오늘 이전", False),
+    ]

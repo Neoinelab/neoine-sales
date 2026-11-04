@@ -105,6 +105,20 @@ def test_round_tripped_definition_parses_to_the_same_definition() -> None:
     assert parse_report_definition(_through_json(original)) == parse(columns, conditions)
 
 
+@pytest.mark.parametrize("period", ["last_1_month", "last_3_months", "last_6_months"])
+def test_month_based_relative_period_survives_json_round_trip_and_parsing(period: str) -> None:
+    from app.domain.report.parse import parse_report_definition  # noqa: PLC0415
+
+    columns = [col("deal.code")]
+    conditions = [cond("deal.expected_close", "relative", {"period": period})]
+    original = raw(columns, conditions)
+
+    restored = _through_json(original)
+
+    assert restored == original
+    assert parse_report_definition(restored) == parse(columns, conditions)
+
+
 @pytest.mark.parametrize(
     "broken",
     [

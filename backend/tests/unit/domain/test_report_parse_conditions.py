@@ -88,6 +88,9 @@ INVALID = [
     ("deal.expected_close", "relative", {"period": "last_n_days"}),
     ("deal.expected_close", "relative", {"period": "this_year", "days": 5}),
     ("deal.expected_close", "relative", {"period": "nope"}),
+    ("deal.expected_close", "relative", {"period": "last_3_months", "days": 5}),
+    ("deal.expected_close", "relative", {"period": "last_1_month", "days": 1}),
+    ("deal.expected_close", "relative", {"period": "last_6_months", "days": 0}),
     ("deal.expected_close", "relative", "this_year"),
 ]
 
@@ -115,6 +118,17 @@ def test_condition_value_shapes_are_checked_per_operator(
 )
 def test_value_boundaries_are_accepted(field: str, operator: str, value: object) -> None:
     assert parse([CODE], [cond(field, operator, value)]).conditions
+
+
+@pytest.mark.parametrize("period", ["last_1_month", "last_3_months", "last_6_months"])
+def test_month_based_relative_periods_are_accepted_without_days(period: str) -> None:
+    value = (
+        parse([CODE], [cond("deal.expected_close", "relative", {"period": period})])
+        .conditions[0]
+        .value
+    )
+
+    assert value == RelativeValue(period=RelativePeriod(period), days=None)
 
 
 def test_text_value_is_trimmed() -> None:
