@@ -78,7 +78,7 @@ export function useCreateDeal(): Mutation<DealInput, DealDetail> {
   const invalidate = useInvalidate()
   return useMutation<DealDetail, ApiError, DealInput>({
     mutationFn: (input) => gateway.deals.create(input),
-    onSuccess: () => invalidate(keys.deals, keys.contacts, keys.labels, keys.forecast, keys.historyAll),
+    onSuccess: () => invalidate(keys.deals, keys.contacts, keys.labels, keys.forecast, keys.historyAll, keys.licenseContracts),
   })
 }
 
@@ -87,7 +87,11 @@ export function useUpdateDeal(): Mutation<{ code: string; patch: DealPatch }, De
   const invalidate = useInvalidate()
   return useMutation<DealDetail, ApiError, { code: string; patch: DealPatch }>({
     mutationFn: ({ code, patch }) => gateway.deals.update(code, patch),
-    onSuccess: (_deal, { code }) => invalidate(keys.deals, keys.contacts, keys.labels, keys.history(code), keys.forecast),
+    onSuccess: (_deal, { code }) => invalidate(keys.deals, keys.contacts, keys.labels, keys.history(code), keys.forecast, keys.licenseContracts),
+    // 발급 계약이 생긴 Deal의 Won 이탈 등 서버 409 뒤에는 Deal을 다시 받아 최신 상태(계약 유무)를 보이게 한다.
+    onError: (error) => {
+      if (error.status === 409) void invalidate(keys.deals)
+    },
   })
 }
 
@@ -99,7 +103,10 @@ export function useApplyDealChange(): Mutation<{ code: string; request: ApplyCha
   const invalidate = useInvalidate()
   return useMutation<ApplyChangeResult, ApiError, { code: string; request: ApplyChangeRequest }>({
     mutationFn: ({ code, request }) => gateway.deals.applyChange(code, request),
-    onSuccess: (_result, { code }) => invalidate(keys.deals, keys.history(code), keys.forecast),
+    onSuccess: (_result, { code }) => invalidate(keys.deals, keys.history(code), keys.forecast, keys.licenseContracts),
+    onError: (error) => {
+      if (error.status === 409) void invalidate(keys.deals)
+    },
   })
 }
 
@@ -116,7 +123,7 @@ export function useRemoveDeal(): Mutation<{ code: string; confirmCode: string }>
       for (const queryKey of [keys.deal(code), keys.dealImpact(code), keys.actions(code), keys.history(code), keys.attachments(code)]) {
         queryClient.removeQueries({ queryKey })
       }
-      return invalidate(keys.deals, keys.forecast)
+      return invalidate(keys.deals, keys.forecast, keys.licenseContracts)
     },
   })
 }

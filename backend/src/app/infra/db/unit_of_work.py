@@ -19,6 +19,10 @@ from app.infra.db.forecast_repository import (
     SqlForecastTallyRepository,
 )
 from app.infra.db.id_allocator import SqlIdAllocator
+from app.infra.db.license_contract_attachment_repository import (
+    SqlLicenseContractAttachmentRepository,
+)
+from app.infra.db.license_contract_repository import SqlLicenseContractRepository
 from app.infra.db.login_failure_repository import SqlLoginFailureRepository
 from app.infra.db.partner_meeting_repository import SqlPartnerMeetingRepository
 from app.infra.db.report_repository import SqlReportRepository
@@ -59,6 +63,8 @@ class SqlUnitOfWork:
     reports: SqlReportQueryRunner
     saved_reports: SqlReportRepository
     partner_meetings: SqlPartnerMeetingRepository
+    license_contracts: SqlLicenseContractRepository
+    license_contract_attachments: SqlLicenseContractAttachmentRepository
     ids: SqlIdAllocator
 
     def __init__(self, session_factory: async_sessionmaker[AsyncSession]) -> None:
@@ -89,6 +95,8 @@ class SqlUnitOfWork:
         self.reports = SqlReportQueryRunner(self._session)
         self.saved_reports = SqlReportRepository(self._session)
         self.partner_meetings = SqlPartnerMeetingRepository(self._session)
+        self.license_contracts = SqlLicenseContractRepository(self._session)
+        self.license_contract_attachments = SqlLicenseContractAttachmentRepository(self._session)
         self.ids = SqlIdAllocator(self._session)
         return self
 

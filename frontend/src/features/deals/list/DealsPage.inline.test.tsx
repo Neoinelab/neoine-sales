@@ -250,8 +250,8 @@ describe('Status⇄Forecast 동기화 (T-SYNC-UI-01~06, 목록)', () => {
   })
 
   it('makes the user pick the new Status when a Won deal is reopened', async () => {
-    const { user } = await renderAt('/deals?q=청명대학교 SSO')
-    const row = await rowOf(/청명대학교 SSO\/MFA/)
+    const { user } = await renderAt('/deals?q=바른제약 PAM')
+    const row = await rowOf(/바른제약 PAM/)
     await user.click(within(row).getByRole('button', { name: /Forecast 편집/ }))
     await user.selectOptions(within(row).getByLabelText('Forecast 값'), 'Commit')
     const dialog = await screen.findByRole('dialog', { name: '함께 바꿀 값 선택' })
@@ -259,18 +259,20 @@ describe('Status⇄Forecast 동기화 (T-SYNC-UI-01~06, 목록)', () => {
     expect(within(dialog).queryByRole('radio', { name: '계약완료' })).not.toBeInTheDocument()
     await user.click(within(dialog).getByRole('radio', { name: '기술평가' }))
     await user.click(within(dialog).getByRole('button', { name: '확인' }))
+    await user.click(within(await screen.findByRole('dialog', { name: '라이선스 계약 처리' })).getByRole('button', { name: '유지' }))
     expect(await within(row).findByRole('button', { name: /Status 편집/ })).toHaveTextContent('기술평가')
     expect(within(row).getByRole('button', { name: /Forecast 편집/ })).toHaveTextContent('Commit')
   })
 
   it('makes the user pick the Forecast when 계약완료 is moved back', async () => {
-    const { user } = await renderAt('/deals?q=청명대학교 SSO')
-    const row = await rowOf(/청명대학교 SSO\/MFA/)
+    const { user } = await renderAt('/deals?q=바른제약 PAM')
+    const row = await rowOf(/바른제약 PAM/)
     await user.click(within(row).getByRole('button', { name: /Status 편집/ }))
     await user.selectOptions(within(row).getByLabelText('Status 값'), '가격협상')
     const dialog = await screen.findByRole('dialog', { name: '함께 바꿀 값 선택' })
     await user.click(within(dialog).getByRole('radio', { name: 'Best' }))
     await user.click(within(dialog).getByRole('button', { name: '확인' }))
+    await user.click(within(await screen.findByRole('dialog', { name: '라이선스 계약 처리' })).getByRole('button', { name: '유지' }))
     expect(await within(row).findByRole('button', { name: /Forecast 편집/ })).toHaveTextContent('Best')
     expect(within(row).getByRole('button', { name: /Status 편집/ })).toHaveTextContent('가격협상')
   })

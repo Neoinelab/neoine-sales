@@ -18,6 +18,7 @@ if TYPE_CHECKING:
     from tests.unit.application.action_env import ActionEnv
     from tests.unit.application.attachment_env import AttachmentEnv
     from tests.unit.application.deal_env import DealEnv
+    from tests.unit.application.license_contract_env import ContractEnv
     from tests.unit.application.partner_meeting_env import MeetingEnv
 
 
@@ -106,6 +107,17 @@ async def attachment_env(env: DealEnv) -> AttachmentEnv:
 
     await prepare_users(env)
     return build_attachment_env(env, await env.new_deal())
+
+
+@pytest.fixture
+async def contract_env(env: DealEnv) -> ContractEnv:
+    """라이선스 계약 유스케이스 환경: Deal 환경 위에 계약·첨부 유스케이스, 요청자(kim·park sales,
+    boss admin, viewer user, 퇴사한 gone-sales)와 저장 위치. 준비용 commit은 0으로 되돌린다."""
+    from tests.unit.application.license_contract_env import (  # noqa: PLC0415 - 구현 지연 import
+        build_contract_env,
+    )
+
+    return await build_contract_env(env)
 
 
 @pytest.fixture

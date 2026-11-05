@@ -11,6 +11,7 @@ CHUNK_SIZE = 1024 * 1024
 DIR_MODE = 0o750
 FILE_MODE = 0o640
 _KEY_PATTERN = re.compile(r"[0-9a-f]{32}")
+_PART_PATTERN = re.compile(r"[A-Za-z0-9-]{1,64}")
 _PROBE_PREFIX = ".neoine-write-test-"
 
 
@@ -20,23 +21,47 @@ def validate_key(key: str) -> None:
         raise ValueError("invalid storage key")
 
 
-def deal_dir(root: str, deal_code: str) -> Path:
-    return Path(root) / deal_code
+def validate_folder(parts: tuple[str, ...]) -> None:
+    """폴더 조각은 영숫자와 '-'만(1~64자). '.'으로 시작하거나 구분자가 있으면 거절한다."""
+    if not parts:
+        raise ValueError("invalid storage folder")
+    for part in parts:
+        if _PART_PATTERN.fullmatch(part) is None:
+            raise ValueError("invalid storage folder")
 
 
-def file_path(root: str, deal_code: str, key: str) -> Path:
+def folder_dir(root: str, parts: tuple[str, ...]) -> Path:
+    validate_folder(parts)
+    return Path(root).joinpath(*parts)
+
+
+def file_path(root: str, parts: tuple[str, ...], key: str) -> Path:
     validate_key(key)
-    return deal_dir(root, deal_code) / key
+    return folder_dir(root, parts) / key
 
 
-def make_deal_dir(directory: Path) -> None:
-    if directory.is_symlink():  # 링크를 따라 저장 위치 밖에 쓰지 않는다
-        raise NotADirectoryError(str(directory))
-    directory.mkdir(parents=True, exist_ok=True, mode=DIR_MODE)
-    if not directory.is_dir():
-        raise NotADirectoryError(str(directory))
-    with contextlib.suppress(OSError):  # 새로 만들지 않은 디렉터리의 소유가 달라도 쓰기는 계속된다
-        directory.chmod(DIR_MODE)
+def reject_linked_folders(root: str, parts: tuple[str, ...]) -> None:
+    """root 아래 폴더 조각 중 심볼릭 링크가 있으면 NotADirectoryError."""
+    current = Path(root)
+    for part in parts:
+        current = current / part
+        if current.is_symlink():
+            raise NotADirectoryError(str(current))
+
+
+def make_folders(root: str, parts: tuple[str, ...]) -> None:
+    """root 아래 폴더를 조각마다 만든다(링크는 따라가지 않는다). 새 디렉터리 모드는 0o750."""
+    Path(root).mkdir(parents=True, exist_ok=True, mode=DIR_MODE)
+    current = Path(root)
+    for part in parts:
+        current = current / part
+        if current.is_symlink():  # 링크를 따라 저장 위치 밖에 쓰지 않는다
+            raise NotADirectoryError(str(current))
+        current.mkdir(exist_ok=True, mode=DIR_MODE)
+        if not current.is_dir():
+            raise NotADirectoryError(str(current))
+        with contextlib.suppress(OSError):  # 새로 만들지 않은 디렉터리의 소유가 달라도 계속한다
+            current.chmod(DIR_MODE)
 
 
 def create_exclusive(path: Path) -> int:
@@ -87,6 +112,16 @@ def stat_regular_file(path: Path) -> int | None:
 def delete_file(path: Path) -> None:
     with contextlib.suppress(FileNotFoundError, NotADirectoryError):
         path.unlink()
+
+
+def delete_folder(root: str, parts: tuple[str, ...]) -> None:
+    """폴더를 통째로 지운다. 중간 조각이 링크면 그대로 두고, 마지막이 링크면 링크만 지운다."""
+    current = Path(root)
+    for part in parts[:-1]:
+        current = current / part
+        if current.is_symlink():
+            return
+    delete_directory(current / parts[-1])
 
 
 def delete_directory(directory: Path) -> None:

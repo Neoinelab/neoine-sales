@@ -27,7 +27,7 @@ async def test_the_impact_counts_the_history_and_actions_that_would_be_deleted(
 ) -> None:
     view = await env.new_deal()
     await env.update.execute(view.item.deal.id.value, make_patch(name="변경"), SALES)
-    register = RegisterDealAction(env.uow_factory, env.clock)
+    register = RegisterDealAction(env.uow_factory, env.clock, env.storage)
     for _ in range(3):
         env.clock.advance(60)
         await register.execute(view.item.deal.id.value, make_register_input(), SALES)
@@ -35,7 +35,9 @@ async def test_the_impact_counts_the_history_and_actions_that_would_be_deleted(
     impact = await env.impact.execute(view.item.deal.id.value)
 
     # 이력 = 등록 1 + 수정 1 + Action 등록마다 category=action 1건 x 3 (AC-03)
-    assert impact == DealDeletionImpact(history_count=1 + 1 + 3, action_count=3, attachment_count=0)
+    assert impact == DealDeletionImpact(
+        history_count=1 + 1 + 3, action_count=3, attachment_count=0, license_contract_count=0
+    )
 
 
 async def test_a_new_deal_has_only_its_registration_entry(env: DealEnv) -> None:
@@ -43,7 +45,9 @@ async def test_a_new_deal_has_only_its_registration_entry(env: DealEnv) -> None:
 
     impact = await env.impact.execute(view.item.deal.id.value)
 
-    assert impact == DealDeletionImpact(history_count=1, action_count=0, attachment_count=0)
+    assert impact == DealDeletionImpact(
+        history_count=1, action_count=0, attachment_count=0, license_contract_count=0
+    )
 
 
 async def test_the_impact_of_another_deal_is_not_counted(env: DealEnv) -> None:
@@ -64,10 +68,17 @@ async def test_the_impact_of_an_unknown_or_malformed_code_is_not_found(
         await env.impact.execute(code)
 
 
-async def test_the_impact_counts_history_actions_and_attachments_only(env: DealEnv) -> None:
+async def test_the_impact_counts_history_actions_attachments_and_contracts_only(
+    env: DealEnv,
+) -> None:
     view = await env.new_deal()
 
     impact = await env.impact.execute(view.item.deal.id.value)
 
-    assert {f.name for f in fields(impact)} == {"history_count", "action_count", "attachment_count"}
+    assert {f.name for f in fields(impact)} == {
+        "history_count",
+        "action_count",
+        "attachment_count",
+        "license_contract_count",
+    }
     assert not hasattr(impact, "partner_meeting_count")

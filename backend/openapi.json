@@ -606,6 +606,33 @@
         "title": "Body_upload_attachment_api_v1_deals__code__attachments_post",
         "type": "object"
       },
+      "Body_upload_contract_attachment_api_v1_license_contracts__contract_id__attachments_post": {
+        "properties": {
+          "description": {
+            "default": "",
+            "title": "Description",
+            "type": "string"
+          },
+          "file": {
+            "anyOf": [
+              {
+                "contentMediaType": "application/octet-stream",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "File"
+          },
+          "on_exists": {
+            "$ref": "#/components/schemas/OnExists",
+            "default": "ask"
+          }
+        },
+        "title": "Body_upload_contract_attachment_api_v1_license_contracts__contract_id__attachments_post",
+        "type": "object"
+      },
       "CatalogChoiceRequest": {
         "additionalProperties": false,
         "properties": {
@@ -1354,6 +1381,115 @@
         "title": "ContactUpdateRequest",
         "type": "object"
       },
+      "ContractAttachmentList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ContractAttachmentResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "ContractAttachmentList",
+        "type": "object"
+      },
+      "ContractAttachmentResponse": {
+        "properties": {
+          "contract_id": {
+            "title": "Contract Id",
+            "type": "integer"
+          },
+          "deal_code": {
+            "title": "Deal Code",
+            "type": "string"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "file_name": {
+            "title": "File Name",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "mime": {
+            "title": "Mime",
+            "type": "string"
+          },
+          "size": {
+            "title": "Size",
+            "type": "integer"
+          },
+          "uploaded_at": {
+            "format": "date-time",
+            "title": "Uploaded At",
+            "type": "string"
+          },
+          "uploaded_by": {
+            "$ref": "#/components/schemas/UserRef"
+          }
+        },
+        "required": [
+          "id",
+          "contract_id",
+          "deal_code",
+          "file_name",
+          "description",
+          "size",
+          "mime",
+          "uploaded_by",
+          "uploaded_at"
+        ],
+        "title": "ContractAttachmentResponse",
+        "type": "object"
+      },
+      "ContractAttachmentUploadResponse": {
+        "description": "건너뛰었으면(`skipped`) attachment가 null이다.",
+        "properties": {
+          "attachment": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ContractAttachmentResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "outcome": {
+            "enum": [
+              "uploaded",
+              "replaced",
+              "skipped"
+            ],
+            "title": "Outcome",
+            "type": "string"
+          }
+        },
+        "required": [
+          "outcome",
+          "attachment"
+        ],
+        "title": "ContractAttachmentUploadResponse",
+        "type": "object"
+      },
+      "ContractStatus": {
+        "enum": [
+          "not_issued",
+          "issued_new",
+          "issued_renewal",
+          "ended"
+        ],
+        "title": "ContractStatus",
+        "type": "string"
+      },
       "CountedPage_ContactRowResponse_": {
         "properties": {
           "items": {
@@ -1414,6 +1550,37 @@
           "total"
         ],
         "title": "CountedPage[DealRowResponse]",
+        "type": "object"
+      },
+      "CountedPage_LicenseContractResponse_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/LicenseContractResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "limit": {
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "title": "Offset",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "offset",
+          "limit",
+          "total"
+        ],
+        "title": "CountedPage[LicenseContractResponse]",
         "type": "object"
       },
       "CountedPage_PartnerMeetingResponse_": {
@@ -1630,6 +1797,12 @@
             ],
             "description": "저장하며 종료(수행)로 바꿀 이전 Next Action의 Action id. 그 Deal의 'Next Action이 있는 가장 최근 Action'과 다르면 409(invalid-state), 담당자 본인·admin이 아니면 403. 이미 종료된 행이면 상태를 바꾸지 않는다. 생략하거나 null이면 이전 행을 바꾸지 않는다.",
             "title": "Close Previous Next Action Id"
+          },
+          "delete_license_contracts": {
+            "default": false,
+            "description": "status_changes가 Won을 벗어나게 할 때 그 Deal의 라이선스 계약도 삭제한다(아니면 무시).",
+            "title": "Delete License Contracts",
+            "type": "boolean"
           },
           "due_date": {
             "anyOf": [
@@ -1906,6 +2079,12 @@
             ],
             "title": "Change"
           },
+          "delete_license_contracts": {
+            "default": false,
+            "description": "Won을 벗어나는 변경일 때 그 Deal의 라이선스 계약도 삭제한다(아니면 무시).",
+            "title": "Delete License Contracts",
+            "type": "boolean"
+          },
           "resolution": {
             "anyOf": [
               {
@@ -2086,11 +2265,19 @@
             "title": "Forecast Key",
             "type": "string"
           },
+          "has_issued_license_contract": {
+            "title": "Has Issued License Contract",
+            "type": "boolean"
+          },
           "last_updated_at": {
             "description": "모든 Action 중 가장 최근 수행 시각. Action이 없으면 Deal 등록 시각. Deal 수정은 반영하지 않는다.",
             "format": "date-time",
             "title": "Last Updated At",
             "type": "string"
+          },
+          "license_contract_count": {
+            "title": "License Contract Count",
+            "type": "integer"
           },
           "name": {
             "title": "Name",
@@ -2223,6 +2410,8 @@
           "risk",
           "status_changed_at",
           "status_days",
+          "license_contract_count",
+          "has_issued_license_contract",
           "created_at",
           "updated_at",
           "partner_history"
@@ -2253,6 +2442,11 @@
                 "type": "null"
               }
             ]
+          },
+          "delete_license_contracts": {
+            "default": false,
+            "title": "Delete License Contracts",
+            "type": "boolean"
           },
           "forecast_key": {
             "anyOf": [
@@ -2434,11 +2628,19 @@
             "title": "Forecast Key",
             "type": "string"
           },
+          "has_issued_license_contract": {
+            "title": "Has Issued License Contract",
+            "type": "boolean"
+          },
           "last_updated_at": {
             "description": "모든 Action 중 가장 최근 수행 시각. Action이 없으면 Deal 등록 시각. Deal 수정은 반영하지 않는다.",
             "format": "date-time",
             "title": "Last Updated At",
             "type": "string"
+          },
+          "license_contract_count": {
+            "title": "License Contract Count",
+            "type": "integer"
           },
           "name": {
             "title": "Name",
@@ -2564,6 +2766,8 @@
           "risk",
           "status_changed_at",
           "status_days",
+          "license_contract_count",
+          "has_issued_license_contract",
           "created_at",
           "updated_at"
         ],
@@ -2638,12 +2842,17 @@
           "history_count": {
             "title": "History Count",
             "type": "integer"
+          },
+          "license_contract_count": {
+            "title": "License Contract Count",
+            "type": "integer"
           }
         },
         "required": [
           "history_count",
           "action_count",
-          "attachment_count"
+          "attachment_count",
+          "license_contract_count"
         ],
         "title": "DeletionImpactResponse",
         "type": "object"
@@ -3272,6 +3481,17 @@
         "title": "HistoryEntryResponse",
         "type": "object"
       },
+      "InspectionCycle": {
+        "enum": [
+          "monthly",
+          "quarterly",
+          "semiannual",
+          "yearly",
+          "none"
+        ],
+        "title": "InspectionCycle",
+        "type": "string"
+      },
       "LegendPosition": {
         "enum": [
           "top",
@@ -3281,6 +3501,278 @@
         ],
         "title": "LegendPosition",
         "type": "string"
+      },
+      "LicenseContractFieldsRequest": {
+        "additionalProperties": false,
+        "description": "계약 자체 칸. 생략하면 빈 기술담당·점검주기 없음·빈 Note다.",
+        "properties": {
+          "inspection_cycle": {
+            "$ref": "#/components/schemas/InspectionCycle",
+            "default": "none"
+          },
+          "note": {
+            "default": "",
+            "description": "2000자 이내",
+            "title": "Note",
+            "type": "string"
+          },
+          "tech_owner": {
+            "default": "",
+            "maxLength": 100,
+            "title": "Tech Owner",
+            "type": "string"
+          }
+        },
+        "title": "LicenseContractFieldsRequest",
+        "type": "object"
+      },
+      "LicenseContractResponse": {
+        "properties": {
+          "attachment_count": {
+            "title": "Attachment Count",
+            "type": "integer"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by": {
+            "$ref": "#/components/schemas/UserRef"
+          },
+          "customer": {
+            "title": "Customer",
+            "type": "string"
+          },
+          "deal_code": {
+            "title": "Deal Code",
+            "type": "string"
+          },
+          "deal_is_won": {
+            "title": "Deal Is Won",
+            "type": "boolean"
+          },
+          "deal_name": {
+            "title": "Deal Name",
+            "type": "string"
+          },
+          "ended_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ended At"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "inspection_cycle": {
+            "$ref": "#/components/schemas/InspectionCycle"
+          },
+          "license_end": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "License End"
+          },
+          "license_start": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "License Start"
+          },
+          "note": {
+            "title": "Note",
+            "type": "string"
+          },
+          "partner": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Partner"
+          },
+          "product": {
+            "title": "Product",
+            "type": "string"
+          },
+          "renewed_from_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Renewed From Id"
+          },
+          "sales_owner": {
+            "$ref": "#/components/schemas/UserRef"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ContractStatus"
+          },
+          "tech_owner": {
+            "title": "Tech Owner",
+            "type": "string"
+          },
+          "term": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LicenseTermResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "updated_by": {
+            "$ref": "#/components/schemas/UserRef"
+          },
+          "vendor": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/NamedRefResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "deal_code",
+          "deal_name",
+          "customer",
+          "vendor",
+          "product",
+          "partner",
+          "sales_owner",
+          "status",
+          "license_start",
+          "license_end",
+          "term",
+          "tech_owner",
+          "inspection_cycle",
+          "note",
+          "renewed_from_id",
+          "ended_at",
+          "attachment_count",
+          "deal_is_won",
+          "created_by",
+          "updated_by",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "LicenseContractResponse",
+        "type": "object"
+      },
+      "LicenseContractSort": {
+        "enum": [
+          "deal_code",
+          "customer",
+          "vendor",
+          "product",
+          "partner",
+          "license_start",
+          "license_end",
+          "status",
+          "sales_owner",
+          "tech_owner",
+          "inspection",
+          "note"
+        ],
+        "title": "LicenseContractSort",
+        "type": "string"
+      },
+      "LicenseIssueRequest": {
+        "additionalProperties": false,
+        "description": "발급·갱신 요청. 종료일은 서버가 시작일과 기간으로 계산한다.",
+        "properties": {
+          "inspection_cycle": {
+            "$ref": "#/components/schemas/InspectionCycle",
+            "default": "none"
+          },
+          "note": {
+            "default": "",
+            "description": "2000자 이내",
+            "title": "Note",
+            "type": "string"
+          },
+          "start_date": {
+            "format": "date",
+            "title": "Start Date",
+            "type": "string"
+          },
+          "tech_owner": {
+            "default": "",
+            "maxLength": 100,
+            "title": "Tech Owner",
+            "type": "string"
+          },
+          "term_amount": {
+            "maximum": 99.0,
+            "minimum": 1.0,
+            "title": "Term Amount",
+            "type": "integer"
+          },
+          "term_unit": {
+            "$ref": "#/components/schemas/TermUnit"
+          }
+        },
+        "required": [
+          "start_date",
+          "term_amount",
+          "term_unit"
+        ],
+        "title": "LicenseIssueRequest",
+        "type": "object"
+      },
+      "LicenseTermResponse": {
+        "properties": {
+          "amount": {
+            "title": "Amount",
+            "type": "integer"
+          },
+          "unit": {
+            "$ref": "#/components/schemas/TermUnit"
+          }
+        },
+        "required": [
+          "amount",
+          "unit"
+        ],
+        "title": "LicenseTermResponse",
+        "type": "object"
       },
       "LoginRequest": {
         "additionalProperties": false,
@@ -5868,6 +6360,14 @@
         ],
         "title": "TallyResponse",
         "type": "object"
+      },
+      "TermUnit": {
+        "enum": [
+          "month",
+          "year"
+        ],
+        "title": "TermUnit",
+        "type": "string"
       },
       "TileArrange": {
         "enum": [
@@ -10713,6 +11213,1044 @@
         "summary": "Get Forecast Summary",
         "tags": [
           "forecast"
+        ]
+      }
+    },
+    "/api/v1/license-contract-attachments/{attachment_id}": {
+      "delete": {
+        "operationId": "delete_contract_attachment_api_v1_license_contract_attachments__attachment_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "attachment_id",
+            "required": true,
+            "schema": {
+              "maximum": 9007199254740991,
+              "minimum": 1,
+              "title": "Attachment Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          }
+        },
+        "summary": "Delete Contract Attachment",
+        "tags": [
+          "license-contract-attachments"
+        ]
+      }
+    },
+    "/api/v1/license-contract-attachments/{attachment_id}/download": {
+      "get": {
+        "operationId": "download_contract_attachment_api_v1_license_contract_attachments__attachment_id__download_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "attachment_id",
+            "required": true,
+            "schema": {
+              "maximum": 9007199254740991,
+              "minimum": 1,
+              "title": "Attachment Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "파일 내용(항상 octet-stream, attachment)"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          }
+        },
+        "summary": "Download Contract Attachment",
+        "tags": [
+          "license-contract-attachments"
+        ]
+      }
+    },
+    "/api/v1/license-contracts": {
+      "get": {
+        "operationId": "list_license_contracts_api_v1_license_contracts_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "customer",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Customer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "product",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Product"
+            }
+          },
+          {
+            "in": "query",
+            "name": "vendor_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 9007199254740991,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Vendor Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "owner_user_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 9007199254740991,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Owner User Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/ContractStatus"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "start_from",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Start From"
+            }
+          },
+          {
+            "in": "query",
+            "name": "start_to",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Start To"
+            }
+          },
+          {
+            "in": "query",
+            "name": "end_from",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "End From"
+            }
+          },
+          {
+            "in": "query",
+            "name": "end_to",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "End To"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/LicenseContractSort",
+              "default": "license_end"
+            }
+          },
+          {
+            "in": "query",
+            "name": "order",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/SortOrder",
+              "default": "asc"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CountedPage_LicenseContractResponse_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          }
+        },
+        "summary": "List License Contracts",
+        "tags": [
+          "license-contracts"
+        ]
+      }
+    },
+    "/api/v1/license-contracts/{contract_id}": {
+      "delete": {
+        "operationId": "delete_license_contract_api_v1_license_contracts__contract_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "contract_id",
+            "required": true,
+            "schema": {
+              "maximum": 9007199254740991,
+              "minimum": 1,
+              "title": "Contract Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          }
+        },
+        "summary": "Delete License Contract",
+        "tags": [
+          "license-contracts"
+        ]
+      },
+      "get": {
+        "operationId": "get_license_contract_api_v1_license_contracts__contract_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "contract_id",
+            "required": true,
+            "schema": {
+              "maximum": 9007199254740991,
+              "minimum": 1,
+              "title": "Contract Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LicenseContractResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          }
+        },
+        "summary": "Get License Contract",
+        "tags": [
+          "license-contracts"
+        ]
+      },
+      "put": {
+        "operationId": "update_license_contract_api_v1_license_contracts__contract_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "contract_id",
+            "required": true,
+            "schema": {
+              "maximum": 9007199254740991,
+              "minimum": 1,
+              "title": "Contract Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LicenseContractFieldsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LicenseContractResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          }
+        },
+        "summary": "Update License Contract",
+        "tags": [
+          "license-contracts"
+        ]
+      }
+    },
+    "/api/v1/license-contracts/{contract_id}/attachments": {
+      "get": {
+        "operationId": "list_contract_attachments_api_v1_license_contracts__contract_id__attachments_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "contract_id",
+            "required": true,
+            "schema": {
+              "maximum": 9007199254740991,
+              "minimum": 1,
+              "title": "Contract Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContractAttachmentList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          }
+        },
+        "summary": "List Contract Attachments",
+        "tags": [
+          "license-contracts"
+        ]
+      },
+      "post": {
+        "operationId": "upload_contract_attachment_api_v1_license_contracts__contract_id__attachments_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "contract_id",
+            "required": true,
+            "schema": {
+              "maximum": 9007199254740991,
+              "minimum": 1,
+              "title": "Contract Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_contract_attachment_api_v1_license_contracts__contract_id__attachments_post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContractAttachmentUploadResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContractAttachmentUploadResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          }
+        },
+        "summary": "Upload Contract Attachment",
+        "tags": [
+          "license-contracts"
+        ]
+      }
+    },
+    "/api/v1/license-contracts/{contract_id}/end": {
+      "post": {
+        "operationId": "end_license_contract_api_v1_license_contracts__contract_id__end_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "contract_id",
+            "required": true,
+            "schema": {
+              "maximum": 9007199254740991,
+              "minimum": 1,
+              "title": "Contract Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LicenseContractResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          }
+        },
+        "summary": "End License Contract",
+        "tags": [
+          "license-contracts"
+        ]
+      }
+    },
+    "/api/v1/license-contracts/{contract_id}/issue": {
+      "post": {
+        "operationId": "issue_license_api_v1_license_contracts__contract_id__issue_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "contract_id",
+            "required": true,
+            "schema": {
+              "maximum": 9007199254740991,
+              "minimum": 1,
+              "title": "Contract Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LicenseIssueRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LicenseContractResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          }
+        },
+        "summary": "Issue License",
+        "tags": [
+          "license-contracts"
+        ]
+      }
+    },
+    "/api/v1/license-contracts/{contract_id}/renewal": {
+      "post": {
+        "operationId": "renew_license_api_v1_license_contracts__contract_id__renewal_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "contract_id",
+            "required": true,
+            "schema": {
+              "maximum": 9007199254740991,
+              "minimum": 1,
+              "title": "Contract Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LicenseIssueRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LicenseContractResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          }
+        },
+        "summary": "Renew License",
+        "tags": [
+          "license-contracts"
         ]
       }
     },

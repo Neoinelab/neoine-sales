@@ -180,6 +180,8 @@ class DealListItem:
     deal: Deal
     next_action: NextActionSummary | None
     last_updated_at: datetime
+    license_contract_count: int  # 이 Deal의 라이선스 계약 수(Won 이탈 확인용)
+    has_issued_license_contract: bool  # 발급 상태 계약이 있음(Won 이탈 차단 표시용)
 
 
 @dataclass(frozen=True, slots=True)
@@ -195,6 +197,7 @@ class DealDeletionImpact:
     history_count: int
     action_count: int
     attachment_count: int
+    license_contract_count: int
 
 
 class DealRepository(Protocol):

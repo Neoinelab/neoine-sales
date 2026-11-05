@@ -6,6 +6,7 @@ import type {
   NextActionStatusInput,
   StatusChangeRequest,
 } from '../../../shared/model/types'
+import { asRequestBody, type WithOptionalDeleteFlag } from './deleteFlag'
 import { toNextActionStatus } from './nextActionStatus'
 import { toUserRef } from './user'
 
@@ -57,10 +58,11 @@ function toStatusChange(change: StatusChangeRequest): Schemas['ActionStatusChang
 
 /** 수행일시·담당자는 서버가 정하므로 보내지 않는다. */
 export function toActionCreateBody(input: ActionInput): Schemas['DealActionCreateRequest'] {
-  const body: Schemas['DealActionCreateRequest'] = toActionUpdateBody(input)
+  const body: WithOptionalDeleteFlag<Schemas['DealActionCreateRequest']> = toActionUpdateBody(input)
   if (input.statusChanges && input.statusChanges.length > 0) body.status_changes = input.statusChanges.map(toStatusChange)
   if (input.closePreviousNextActionId !== undefined) body.close_previous_next_action_id = input.closePreviousNextActionId
-  return body
+  if (input.deleteLicenseContracts !== undefined) body.delete_license_contracts = input.deleteLicenseContracts
+  return asRequestBody(body)
 }
 
 export function toNextActionStatusBody(input: NextActionStatusInput): Schemas['NextActionStatusRequest'] {

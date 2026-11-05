@@ -97,11 +97,11 @@ describe('partner meetings Fake: rules', () => {
     await expectApiError(kim.gateway.partnerMeetings.update(created?.id ?? 0, item('없는회사', '이전')), 422, '등록된 파트너 회사가 아닙니다. 목록에서 다시 선택하세요.')
   })
 
-  it('keeps the meetings when their deal is deleted and counts only three things in the impact', async () => {
+  it('keeps the meetings when their deal is deleted and counts no partner meetings in the impact', async () => {
     const root = await mockAs('root')
     const code = dealCode(1)
     const impact = await root.gateway.deals.impact(code)
-    expect(Object.keys(impact).sort()).toEqual(['actionCount', 'attachmentCount', 'historyCount'])
+    expect(Object.keys(impact).sort()).toEqual(['actionCount', 'attachmentCount', 'historyCount', 'licenseContractCount'])
 
     await root.gateway.deals.remove(code, code)
 

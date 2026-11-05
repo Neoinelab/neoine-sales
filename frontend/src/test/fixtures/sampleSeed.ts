@@ -9,6 +9,7 @@ import { seedActivity } from './activity'
 import { seedAttachments } from './attachments'
 import { seedContacts } from './contacts'
 import { seedForecastSnapshots } from './forecastSnapshot'
+import { seedLicenseContracts } from './licenseContracts'
 import { DEAL_SPECS } from './dealSpecs'
 import { dealCodeOf, seedDeals } from './deals'
 import { seedPartnerMeetings } from './partnerMeetings'
@@ -26,6 +27,7 @@ export function buildSampleSeed(clock: MockClock): SeedData {
   const at = env.at(120, 9)
   const vendors = SEED_VENDORS.map((v) => ({ id: v.id, name: v.name, createdAt: at, updatedAt: at }))
   counters.vd = SEED_VENDORS.length
+  const contracts = seedLicenseContracts(env, deals, counters)
   return {
     ...base,
     vendors,
@@ -34,6 +36,8 @@ export function buildSampleSeed(clock: MockClock): SeedData {
     actions: activity.actions,
     history: [...activity.history, ...files.history],
     attachments: files.attachments,
+    licenseContracts: contracts.contracts,
+    contractAttachments: contracts.attachments,
     forecastSnapshots: seedForecastSnapshots(),
     partnerMeetings: seedPartnerMeetings(env, counters),
   }

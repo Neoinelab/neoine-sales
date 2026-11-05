@@ -10,7 +10,7 @@ Expected Close 연/분기는 DealQuery.revenue_window()의 양끝 포함 범위�
 
 from typing import TYPE_CHECKING
 
-from sqlalchemy import ColumnElement, and_, exists, extract, or_, select
+from sqlalchemy import ColumnElement, and_, exists, extract, func, or_, select
 
 from app.infra.db.deal_derived import (
     LAST_UPDATED,
@@ -24,6 +24,7 @@ from app.infra.db.like import LIKE_ESCAPE, like_pattern
 from app.infra.db.models_catalog import CodeRow
 from app.infra.db.models_contact import ContactRow
 from app.infra.db.models_deal import DealPartnerRow, DealRow
+from app.infra.db.models_license_contract import ISSUED_STATUSES, LicenseContractRow
 
 if TYPE_CHECKING:
     from datetime import date, datetime
@@ -34,9 +35,9 @@ if TYPE_CHECKING:
     from app.application.ports.deal_outcome_filter import ForecastOutcomeFilter
     from app.application.ports.deal_repository import DealQuery
 
-# 목록 질의의 한 행: (Deal 행, last_updated_at, 기준 행의 next_action·due_date·상태)
+# 목록 질의의 한 행: (Deal 행, last_updated_at, 기준 행의 next_action·due_date·상태, 계약 수)
 # 기준 행 outer join이라 Next Action이 없는 Deal은 세 값이 모두 NULL이다.
-type ItemSelect = Select[tuple[DealRow, datetime, str | None, date | None, str | None]]
+type ItemSelect = Select[tuple[DealRow, datetime, str | None, date | None, str | None, int]]
 
 
 def _keyword_condition(keyword: str) -> ColumnElement[bool]:
@@ -142,6 +143,29 @@ def conditions(query: DealQuery) -> list[ColumnElement[bool]]:
     return found
 
 
+def _contract_count() -> ColumnElement[int]:
+    """이 Deal의 라이선스 계약 수(종료 포함). 상관 스칼라 서브쿼리라 조인 구조를 바꾸지 않는다."""
+    return (
+        select(func.count(LicenseContractRow.id))
+        .where(LicenseContractRow.deal_id == DealRow.id)
+        .correlate(DealRow)
+        .scalar_subquery()
+    )
+
+
+def _has_issued_contract() -> ColumnElement[bool]:
+    """이 Deal에 발급 상태(신규·갱신) 라이선스 계약이 있는지."""
+    return (
+        select(LicenseContractRow.id)
+        .where(
+            LicenseContractRow.deal_id == DealRow.id,
+            LicenseContractRow.status.in_(ISSUED_STATUSES),
+        )
+        .correlate(DealRow)
+        .exists()
+    )
+
+
 def item_select() -> ItemSelect:
     """Deal 행과 파생값(last_updated_at, 기준 행의 next_action·due_date·상태)."""
     return (
@@ -151,6 +175,8 @@ def item_select() -> ItemSelect:
             LATEST_NEXT.c.next_action,
             LATEST_NEXT.c.due_date,
             LATEST_NEXT.c.next_action_status.label("basis_status"),
+            _contract_count().label("license_contract_count"),
+            _has_issued_contract().label("has_issued_license_contract"),
         )
         .outerjoin_from(DealRow, LATEST_ACTED, LATEST_ACTED.c.deal_id == DealRow.id)
         .outerjoin_from(DealRow, LATEST_NEXT, LATEST_NEXT.c.deal_id == DealRow.id)

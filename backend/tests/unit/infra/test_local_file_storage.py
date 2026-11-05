@@ -19,7 +19,7 @@ from app.application.ports.file_storage import (
 from app.domain.deal.code import DealCode
 from app.domain.storage.path import StoragePath
 from app.infra.storage.local_file_storage import LocalFileStorage
-from tests.fakes.file_storage import BytesSource
+from tests.fakes.file_storage import BytesSource, deal_folder_of, deal_location
 
 DEAL = DealCode("20261016-A001")
 
@@ -58,7 +58,7 @@ def root(tmp_path: Path) -> StoragePath:
 
 
 def _location(key: str | None = None) -> StoredFileLocation:
-    return StoredFileLocation(deal_code=DEAL, key=key or uuid4().hex)
+    return deal_location(DEAL, key or uuid4().hex)
 
 
 async def test_save_writes_the_bytes_to_root_deal_code_key(root: StoragePath) -> None:
@@ -144,7 +144,7 @@ async def test_open_of_a_directory_instead_of_a_file_raises_missing(root: Storag
         await LocalFileStorage().open(root, _location(key))
 
 
-async def test_delete_deal_files_does_not_follow_a_symlink_out_of_the_root(
+async def test_delete_folder_does_not_follow_a_symlink_out_of_the_root(
     root: StoragePath, tmp_path: Path
 ) -> None:
     outside = tmp_path / "outside"
@@ -156,6 +156,6 @@ async def test_delete_deal_files_does_not_follow_a_symlink_out_of_the_root(
     with contextlib.suppress(
         StorageNotWritableError
     ):  # 링크를 못 지워도 좋다. 바깥만 안 지우면 된다
-        await LocalFileStorage().delete_deal_files(root, DEAL)
+        await LocalFileStorage().delete_folder(root, deal_folder_of(DEAL))
 
     assert _read(outside / "precious.txt") == b"keep"

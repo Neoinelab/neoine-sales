@@ -7,10 +7,11 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from app.application.ports.file_storage import StorageNotReadableError, StoredFileLocation
+from app.application.ports.file_storage import StorageNotReadableError
 from app.application.storage.errors import DOWNLOAD_UNAVAILABLE, StorageUnavailableError
 from app.domain.attachment.errors import AttachmentContentMissingError, AttachmentNotFoundError
 from app.domain.attachment.values import AttachmentId
+from tests.fakes.file_storage import deal_location
 from tests.support.expect import raises_with
 from tests.support.ids import new_id
 from tests.unit.application.attachment_env import CONTENT_MISSING, KIM, NOT_FOUND
@@ -56,7 +57,7 @@ async def test_a_row_without_its_disk_file_reports_the_content_as_missing(
     uploaded = await attachment_env.uploaded(KIM, "a.pdf")
     await attachment_env.storage.delete(
         attachment_env.root,
-        StoredFileLocation(deal_code=uploaded.deal_code, key=uploaded.storage_key),
+        deal_location(uploaded.deal_code, uploaded.storage_key),
     )
 
     with raises_with(AttachmentContentMissingError, CONTENT_MISSING):

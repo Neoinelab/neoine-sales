@@ -77,7 +77,7 @@ describe('deals.applyChange', () => {
 
   it('T-SYNC Won에서 다른 Forecast로: Status 선택이 필수이고 계약완료는 고를 수 없다', async () => {
     const { gateway } = await mockAs('kim')
-    const code = dealCode(11)
+    const code = dealCode(12)
     const change = { field: 'forecastKey', value: 'commit' } as const
     await expectApiError(gateway.deals.applyChange(code, { change }), 422, CHOICE_MSG)
     await expectApiError(gateway.deals.applyChange(code, { change, resolution: { statusKey: 'contract_completed' } }), 422, CHOICE_MSG)
@@ -86,7 +86,7 @@ describe('deals.applyChange', () => {
     expect(result.deal).toMatchObject({ statusKey: 'price_negotiation', forecastKey: 'commit' })
     expect(result.notice).toBe("Status가 '가격협상'으로 함께 변경되었습니다.")
     // 되돌려도 매출금액·매출일은 그대로
-    expect(result.deal.revenueAmount).toBe(150_000_000)
+    expect(result.deal.revenueAmount).toBe(520_000_000)
   })
 
   it('T-SYNC Lost에서 되돌리면 Status를 묻되 현재 값을 그대로 둘 수 있다', async () => {
@@ -101,7 +101,7 @@ describe('deals.applyChange', () => {
 
   it('T-SYNC 계약완료에서 이전 단계로: Forecast 선택이 필수이고 Won은 거부한다', async () => {
     const { gateway } = await mockAs('kim')
-    const code = dealCode(11)
+    const code = dealCode(12)
     const change = { field: 'statusKey', value: 'technical_evaluation' } as const
     await expectApiError(gateway.deals.applyChange(code, { change }), 422, CHOICE_MSG)
     await expectApiError(gateway.deals.applyChange(code, { change, resolution: { forecastKey: 'won' } }), 422, CHOICE_MSG)

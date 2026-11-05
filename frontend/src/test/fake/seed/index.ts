@@ -49,6 +49,8 @@ export const emptyBusinessSeed: SeedFactory = (clock) => {
     actions: [],
     history: [],
     attachments: [],
+    licenseContracts: [],
+    contractAttachments: [],
     directory,
     storage,
     alerts: { staleDays: DEFAULT_STALE_DAYS, updatedAt: null, updatedById: null },

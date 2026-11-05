@@ -49,8 +49,8 @@ export function TextField(
   )
 }
 
-export function TextArea(props: BaseProps & { value: string; onChange: (value: string) => void }) {
-  const { label, name, value, onChange, required } = props
+export function TextArea(props: BaseProps & { value: string; onChange: (value: string) => void; disabled?: boolean }) {
+  const { label, name, value, onChange, required, disabled } = props
   return (
     <label className="field">
       <span>{label}</span>
@@ -58,6 +58,7 @@ export function TextArea(props: BaseProps & { value: string; onChange: (value: s
         name={name}
         value={value}
         required={required}
+        disabled={disabled}
         rows={3}
         onChange={(e: ChangeEvent<HTMLTextAreaElement>) => onChange(e.target.value)}
       />

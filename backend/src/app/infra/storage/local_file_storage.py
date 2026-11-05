@@ -1,4 +1,10 @@
-"""FileStorage Port의 로컬 디스크 구현. `<root>/<deal_code>/<key>` 배치, I/O는 스레드에서 한다."""
+"""FileStorage Port의 로컬 디스크 구현. I/O는 스레드에서 한다.
+
+배치는 Deal 첨부 `<root>/<deal_code>/<key>`, 라이선스 계약 첨부
+`<root>/license-contracts/<id>/<key>`이며 폴더 조각은 application이 정한다.
+폴더 경로의 어느 조각이든 심볼릭 링크면 따라가지 않는다(의도된 보안 강화): 다운로드는 404,
+삭제는 대상을 보존하고 조용히 통과, 저장은 거절한다.
+"""
 
 import asyncio
 import logging
@@ -18,8 +24,11 @@ from app.infra.storage import _io
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
 
-    from app.application.ports.file_storage import StoredFileLocation, UploadSource
-    from app.domain.deal.code import DealCode
+    from app.application.ports.file_storage import (
+        StorageFolder,
+        StoredFileLocation,
+        UploadSource,
+    )
     from app.domain.storage.path import StoragePath
 
 logger = logging.getLogger(__name__)
@@ -48,10 +57,11 @@ class LocalFileStorage:
         *,
         max_bytes: int,
     ) -> int:
-        path = _io.file_path(root.value, location.deal_code.value, location.key)
+        parts = location.folder.parts
+        path = _io.file_path(root.value, parts, location.key)
         descriptor: int | None = None
         try:
-            await asyncio.to_thread(_io.make_deal_dir, path.parent)
+            await asyncio.to_thread(_io.make_folders, root.value, parts)
             descriptor = await asyncio.to_thread(_io.create_exclusive, path)
         except OSError as error:  # 같은 키가 이미 있는 FileExistsError 포함
             _log_failure("save", error)
@@ -81,8 +91,10 @@ class LocalFileStorage:
 
     async def open(self, root: StoragePath, location: StoredFileLocation) -> OpenedFile:
         """존재·읽기 가능 여부만 확인하고 닫는다. 실제 열기는 첫 청크를 읽을 때 한다."""
-        path = _io.file_path(root.value, location.deal_code.value, location.key)
+        parts = location.folder.parts
+        path = _io.file_path(root.value, parts, location.key)
         try:
+            await asyncio.to_thread(_io.reject_linked_folders, root.value, parts)
             size = await asyncio.to_thread(_io.stat_regular_file, path)
             if size is None:
                 raise StoredFileMissingError
@@ -110,16 +122,21 @@ class LocalFileStorage:
             _io.close_quietly(descriptor)
 
     async def delete(self, root: StoragePath, location: StoredFileLocation) -> None:
-        path = _io.file_path(root.value, location.deal_code.value, location.key)
+        parts = location.folder.parts
+        path = _io.file_path(root.value, parts, location.key)
         try:
+            await asyncio.to_thread(_io.reject_linked_folders, root.value, parts)
             await asyncio.to_thread(_io.delete_file, path)
+        except NotADirectoryError:  # 링크·파일이 길을 막으면 지울 것이 없다
+            return
         except OSError as error:
             _log_failure("delete", error)
             raise StorageNotWritableError from error
 
-    async def delete_deal_files(self, root: StoragePath, deal_code: DealCode) -> None:
+    async def delete_folder(self, root: StoragePath, folder: StorageFolder) -> None:
+        _io.validate_folder(folder.parts)
         try:
-            await asyncio.to_thread(_io.delete_directory, _io.deal_dir(root.value, deal_code.value))
+            await asyncio.to_thread(_io.delete_folder, root.value, folder.parts)
         except OSError as error:
-            _log_failure("delete_deal_files", error)
+            _log_failure("delete_folder", error)
             raise StorageNotWritableError from error

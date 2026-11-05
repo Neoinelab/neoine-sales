@@ -102,6 +102,8 @@ class DealRowResponse(BaseModel):
     risk: Literal["overdue", "stale", "overdue_stale"] | None
     status_changed_at: ServerDateTime
     status_days: int
+    license_contract_count: int
+    has_issued_license_contract: bool
     created_at: ServerDateTime
     updated_at: ServerDateTime
 
@@ -174,6 +176,8 @@ def _row_fields(view: DealView) -> dict[str, object]:
         "risk": None if view.risk is None else view.risk.value,
         "status_changed_at": deal.status_changed_at,
         "status_days": view.status_days,
+        "license_contract_count": view.item.license_contract_count,
+        "has_issued_license_contract": view.item.has_issued_license_contract,
         "created_at": deal.created_at,
         "updated_at": deal.updated_at,
     }
@@ -224,3 +228,4 @@ class DeletionImpactResponse(BaseModel):
     history_count: int
     action_count: int
     attachment_count: int
+    license_contract_count: int

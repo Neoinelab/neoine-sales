@@ -29,6 +29,11 @@ export interface DealSpec {
   procurement?: string
   quote?: 'YES' | 'NO'
   poc?: 'YES' | 'ING' | 'NO'
+  /**
+   * code의 날짜 부분('YYYYMMDD')을 기준일과 무관하게 고정한다(없으면 등록일에서 계산).
+   * 계약관리 화면 테스트는 시계를 바꿔 다시 시드한 뒤에도 같은 Deal code로 계약을 찾으므로 계약이 있는 Won Deal에만 쓴다.
+   */
+  codeDate?: string
   /** [Budget, Authority, Need, Timeline] Label 이름(없으면 null). */
   bant?: readonly [string | null, string | null, string | null, string | null]
 }
@@ -46,8 +51,8 @@ export const DEAL_SPECS: readonly DealSpec[] = [
   { no: 8, name: '세종에너지 취약점 진단', customer: 'c:세종에너지/고민재', partner: 'p:코어테크/민지훈', owner: 'jung', vendor: 'Tenable', solution: 'VM', status: 'technical_evaluation', forecast: 'most_likely', amountM: 230, close: 33, lastAgo: 7, due: 5, count: 3, users: 600 },
   { no: 9, name: '도담건설 EDR', customer: 'c:도담건설/안서진', partner: 'p:넷브릿지/하준서', owner: 'jung', vendor: 'SentinelOne', solution: 'EDR', status: 'introduction', forecast: 'pipeline', amountM: 95, close: 85, lastAgo: 8, due: 10, count: 2, users: 150 },
   { no: 10, name: '우주항공연구원 ZTNA', customer: 'c:우주항공연구원/노현우', partner: 'p:시큐어원/조예린', owner: 'park', vendor: 'Zscaler', solution: 'ZTNA', status: 'price_negotiation', forecast: 'commit', amountM: 1200, close: 8, lastAgo: 1, due: 1, count: 4, users: 1200, procurement: '수의계약', quote: 'YES', poc: 'YES', bant: ['단독 예산 확보', 'CEO 보고 완료', 'CISO 지시', '금년 구매'] },
-  { no: 11, name: '청명대학교 SSO/MFA', customer: 'c:청명대학교/황지수', partner: 'p:디지털웨이/마서연', owner: 'kim', vendor: 'Okta', solution: 'SSO', status: 'contract_completed', forecast: 'won', amountM: 150, close: -10, lastAgo: 10, due: -5, count: 3, users: 3000 },
-  { no: 12, name: '바른제약 PAM', customer: 'c:바른제약/송다인', partner: null, owner: 'lee', vendor: 'CyberArk', solution: 'PAM', status: 'contract_completed', forecast: 'won', amountM: 520, close: -35, lastAgo: 35, due: -30, count: 2, users: 250 },
+  { no: 11, name: '청명대학교 SSO/MFA', codeDate: '20260901', customer: 'c:청명대학교/황지수', partner: 'p:디지털웨이/마서연', owner: 'kim', vendor: 'Okta', solution: 'SSO', status: 'contract_completed', forecast: 'won', amountM: 150, close: -10, lastAgo: 10, due: -5, count: 3, users: 3000 },
+  { no: 12, name: '바른제약 PAM', codeDate: '20260901', customer: 'c:바른제약/송다인', partner: null, owner: 'lee', vendor: 'CyberArk', solution: 'PAM', status: 'contract_completed', forecast: 'won', amountM: 520, close: -35, lastAgo: 35, due: -30, count: 2, users: 250 },
   { no: 13, name: '한빛은행 EDR 확장', customer: 'c:한빛은행/임태호', partner: 'p:넷브릿지/하준서', owner: 'kim', vendor: 'CrowdStrike', solution: 'EDR', status: 'technical_evaluation', forecast: 'best', amountM: 880, close: 60, lastAgo: 9, due: 7, count: 3, users: 1000, bant: ['풀 예산 확보', '담당자 검토', '보안 강화 요건', '내년구매'] },
   { no: 14, name: '대한제조 NGFW', customer: 'c:대한제조/서준영', partner: null, owner: 'park', vendor: 'Palo Alto', solution: 'NGFW', status: 'prospecting', forecast: 'pipeline', amountM: 400, close: 150, lastAgo: 16, due: 12, count: 2, users: 500 },
   { no: 15, name: '미래전자 ITDR', customer: 'c:미래전자/권나연', partner: 'p:코어테크/민지훈', owner: 'jung', vendor: 'Silverfort', solution: 'ITDR', status: 'introduction', forecast: 'pipeline', amountM: 275, close: 100, lastAgo: 6, due: 8, count: 3, users: 350 },
@@ -59,7 +64,7 @@ export const DEAL_SPECS: readonly DealSpec[] = [
   { no: 21, name: '청명대학교 EDR', customer: 'c:청명대학교/황지수', partner: 'p:넷브릿지/하준서', owner: 'lee', vendor: 'SentinelOne', solution: 'EDR', status: 'technical_evaluation', forecast: 'commit', amountM: 470, close: 25, lastAgo: 3, due: 4, count: 3, users: 5000, quote: 'YES' },
   { no: 22, name: '바른제약 ITDR', customer: 'c:바른제약/송다인', partner: 'p:코어테크/민지훈', owner: 'park', vendor: 'Silverfort', solution: 'ITDR', status: 'poc_preparation', forecast: 'pipeline', amountM: 260, close: 110, lastAgo: 6, due: 10, count: 3, users: 320, poc: 'ING' },
   { no: 23, name: '한빛은행 PAM', customer: 'c:한빛은행/오지현', partner: 'p:시큐어원/조예린', owner: 'old', vendor: 'CyberArk', solution: 'PAM', status: 'introduction', forecast: 'pipeline', amountM: 450, close: 90, lastAgo: 22, due: 5, count: 3, users: 380 },
-  { no: 24, name: '도담건설 MFA', customer: 'c:도담건설/안서진', partner: 'p:에이원시스템/표성호', owner: 'kim', vendor: 'Silverfort', solution: 'MFA', status: 'contract_completed', forecast: 'won', amountM: 88, close: -60, lastAgo: 60, due: -50, count: 2, users: 180 },
+  { no: 24, name: '도담건설 MFA', codeDate: '20260901', customer: 'c:도담건설/안서진', partner: 'p:에이원시스템/표성호', owner: 'kim', vendor: 'Silverfort', solution: 'MFA', status: 'contract_completed', forecast: 'won', amountM: 88, close: -60, lastAgo: 60, due: -50, count: 2, users: 180 },
 ]
 
 /** Action 간 간격(일). 가장 오래된 Action은 마지막 Action보다 SPACING*(count-1)일 전이다. */

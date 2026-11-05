@@ -15,7 +15,7 @@ from app.application.ports.file_storage import (
 )
 from app.domain.common.errors import InvalidValueError
 from app.domain.deal.code import DealCode
-from tests.fakes.file_storage import BytesSource
+from tests.fakes.file_storage import BytesSource, deal_location
 
 if TYPE_CHECKING:
     from app.application.ports.file_storage import OpenedFile
@@ -28,7 +28,7 @@ MIB = 1024 * 1024
 
 
 def _location(deal: DealCode = DEAL, key: str | None = None) -> StoredFileLocation:
-    return StoredFileLocation(deal_code=deal, key=key or uuid4().hex)
+    return deal_location(deal, key or uuid4().hex)
 
 
 async def _read_all(opened: OpenedFile) -> bytes:
@@ -239,7 +239,7 @@ async def test_save_rejects_a_key_that_is_not_a_plain_file_name(
     with pytest.raises(ValueError):  # noqa: PT011 - 키 형식 위반은 ValueError 계열이면 된다
         await file_case.storage.save(
             file_case.root,
-            StoredFileLocation(deal_code=DEAL, key=key),
+            deal_location(DEAL, key),
             BytesSource(b"x"),
             max_bytes=10,
         )
@@ -252,7 +252,7 @@ async def test_open_rejects_a_key_that_is_not_a_plain_file_name(
     file_case: FileStorageCase, key: str
 ) -> None:
     with pytest.raises(ValueError):  # noqa: PT011
-        await file_case.storage.open(file_case.root, StoredFileLocation(deal_code=DEAL, key=key))
+        await file_case.storage.open(file_case.root, deal_location(DEAL, key))
 
 
 @pytest.mark.parametrize("key", BAD_KEYS)
@@ -260,4 +260,4 @@ async def test_delete_rejects_a_key_that_is_not_a_plain_file_name(
     file_case: FileStorageCase, key: str
 ) -> None:
     with pytest.raises(ValueError):  # noqa: PT011
-        await file_case.storage.delete(file_case.root, StoredFileLocation(deal_code=DEAL, key=key))
+        await file_case.storage.delete(file_case.root, deal_location(DEAL, key))

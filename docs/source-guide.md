@@ -59,7 +59,7 @@ infra ──┘
 | `pyproject.toml` | 의존성, ruff·mypy·pytest·import-linter 설정의 **정본** |
 | `uv.lock`, `.python-version` | 잠긴 의존성, Python 버전(3.14) |
 | `.env.example` | 필요한 환경변수 이름 예시(실제 `.env`는 Git 제외, 읽지도 쓰지도 않음) |
-| `alembic.ini`, `alembic/` | DB 마이그레이션. `versions/`에 리비전 27개, head는 `af477447ba9f`(인증 방식 `auth_settings`·`users.phone`, 순수 expand, 2026-11-02). P0 이후는 단계별 단일 스키마 마이그레이션(코드·BANT Label → 연락처 → Deal 모델 v2 → Action 스냅숏 → 첨부 → 경고 기준 → Vendor·Solution → Action 유형 → Next Action 상태 → Deal users 필수 → bigint id(전체 초기화) → Forecast 스냅숏 → Solution 관리 목록 폐지·Deal Solution 필수 텍스트 → 저장 리포트) |
+| `alembic.ini`, `alembic/` | DB 마이그레이션. `versions/`에 리비전 30개, head는 `00c3126aa926`(라이선스 계약 `license_contracts`·`license_contract_attachments` 신설과 기존 Won Deal마다 미발급 계약 1건 삽입, 스키마는 순수 expand, 2026-11-05). P0 이후는 단계별 단일 스키마 마이그레이션(코드·BANT Label → 연락처 → Deal 모델 v2 → Action 스냅숏 → 첨부 → 경고 기준 → Vendor·Solution → Action 유형 → Next Action 상태 → Deal users 필수 → bigint id(전체 초기화) → Forecast 스냅숏 → Solution 관리 목록 폐지·Deal Solution 필수 텍스트 → 저장 리포트) |
 | `openapi.json` | API 계약 파일. 코드와 다르면 테스트가 실패(드리프트 검사), 프런트 타입의 원본 |
 | `scripts/run_gates.py` | 품질 게이트 6종 실행(기본은 단위 테스트만, `--full`이면 functional 포함). 결과: `artifacts/30-review/gate.md` |
 | `scripts/check_file_length.py` | 파일 300줄 제한 검사 |
@@ -85,6 +85,7 @@ infra ──┘
 | `container_dashboard.py` | `Container`가 상속하는 Dashboard 유스케이스(`GetDashboardSummary`) 조립 mixin(`DashboardUseCases`) |
 | `container_reports.py` | `Container`가 상속하는 Reports 유스케이스 조립 mixin(`ReportUseCases`: 필드 카탈로그, 임시 조회, 저장 리포트 목록·보기·만들기·수정·복제·삭제·실행) |
 | `container_forecast.py` | Forecast 유스케이스 조립과 월말 스냅숏 스케줄러(`ensure_monthly_forecast_snapshot()`, `forecast_snapshot_scheduler()` → `PeriodicTask`). `main.py`의 lifespan이 `APP_SCHEDULER_ENABLED`일 때만 시작하고 종료 때 취소(2026-11-02, CLI `app/jobs/` 폐지) |
+| `container_license_contract.py` | `Container`가 상속하는 라이선스 계약·계약 첨부 유스케이스 12개 조립 mixin(2026-11-05) |
 | `container_time.py` | `Container`가 상속하는 서버 시각 유스케이스(`GetServerTime`, 기존 `Clock` 주입) 조립 mixin(`TimeUseCases`) |
 
 ### 2.4 `domain/` — 비즈니스 규칙
@@ -94,6 +95,7 @@ infra ──┘
 | `common/` | 공통 엔티티 기반, 오류, 검증(`required_text` 등, NUL 문자 거부), 업무 날짜·업무 시각(`business_date.py`: `business_date`, `business_time`(같은 순간을 OS 로컬 오프셋으로), OS 로컬 시간대), 금액·원화 표기, 한국어 조사 |
 | `deal/` | Deal 엔티티와 값 객체(금액, 견적, POC, BANT 선택), Deal code(`YYYYMMDD-XXXX`), Status·Forecast 동기화(`sync*.py`, `contract_completed` ⇔ `won`), 변경 이력 diff(`history.py`), 연/분기 기간(`period.py`: 분기 집합 정규화 `normalize_quarters`, 빈 집합·넷 다는 조건 없음), Owner 자격·삭제 권한(`policy.py`), 경고(`risk.py`: 기한 초과·미업데이트, Won/Lost 제외)와 Status 체류 일수 |
 | `deal_action/` | Action(진행사항·Next Action·Due Date·Memo, Status/Forecast 스냅숏) 엔티티, 이력, 수정·삭제 권한(admin 전부, sales 본인만) |
+| `license_contract/` | 라이선스 계약(2026-11-05): 값 객체 `values.py`(상태 4값·점검주기·`LicenseTerm`·`ContractFields`), 종료일 계산 `term.py`(`license_end`: 시작일 + 기간 − 1일, 말일 보정, 프런트 `shared/model/licensePeriod.ts`와 같은 알고리즘), 엔티티 `entities.py`(`LicenseContract`: `create_for_won`·`revise`·`issue`·`renew`·`end`·`ensure_deletable_by`(admin만)), Won 전이 판정 `won.py`(`won_transition`), 계약 첨부 `attachment.py`, 오류 `errors.py` |
 | `partner_meeting/` | 파트너 미팅 기록(2026-10-28): 미팅 내용 값 객체, 엔티티(`record`·`revise`, 회사명 텍스트 `partner_company`, Deal 연결 없음 2026-11-03), 수정·삭제 권한(`can_edit_meeting`: admin 전부, sales 본인만), 파트너 회사 판정(`company.py`), 행별 위반 `MeetingInputError` |
 | `contact/` | 연락처(고객·파트너) 엔티티·값 객체, 같은 사람 판정(`identity.py`), 입력 초안 병합(`draft.py`) |
 | `code/` | Status·Forecast 코드 카탈로그(이름 정규화·중복·key 생성·순서 규칙) |
@@ -113,7 +115,7 @@ infra ──┘
 
 ### 2.5 `application/` — 유스케이스와 Port
 
-- `ports/`: 외부와 통신하는 인터페이스. 저장소(`*_repository.py`: Deal·Deal 이력·Action·연락처·코드·BANT Label·Action 유형·Vendor·첨부·사용자·세션·로그인 실패·AD 설정·저장 위치 설정·경고 기준), `dashboard_repository.py`(`DashboardTallyRepository`: Status별·분기별 집계, `uow.dashboard`), `deal_outcome_filter.py`(`ForecastOutcomeFilter`: Deal 목록 `forecast_outcome` 필터 값), `report_query_runner.py`(`ReportQueryRunner`: 정의 → 행·표시 SQL, `ReportQueryTimeoutError`, `uow.reports`), `report_repository.py`(`ReportRepository`: 저장 리포트, `uow.saved_reports`), `unit_of_work.py`(트랜잭션 경계), `file_storage.py`(파일 저장), `deal_code_source.py`(Deal code 발급), `directory.py`(AD 인증기), `clock.py`, `pagination.py`
+- `ports/`: 외부와 통신하는 인터페이스. 저장소(`*_repository.py`: Deal·Deal 이력·Action·연락처·코드·BANT Label·Action 유형·Vendor·첨부·사용자·세션·로그인 실패·AD 설정·저장 위치 설정·경고 기준), `dashboard_repository.py`(`DashboardTallyRepository`: Status별·분기별 집계, `uow.dashboard`), `deal_outcome_filter.py`(`ForecastOutcomeFilter`: Deal 목록 `forecast_outcome` 필터 값), `report_query_runner.py`(`ReportQueryRunner`: 정의 → 행·표시 SQL, `ReportQueryTimeoutError`, `uow.reports`), `report_repository.py`(`ReportRepository`: 저장 리포트, `uow.saved_reports`), `license_contract_repository.py`·`license_contract_attachment_repository.py`(라이선스 계약·계약 첨부, `uow.license_contracts`·`uow.license_contract_attachments`, 검색 조건 `LicenseContractQuery`와 Deal 조인 값 `DealSide`), `unit_of_work.py`(트랜잭션 경계), `file_storage.py`(파일 저장), `deal_code_source.py`(Deal code 발급), `directory.py`(AD 인증기), `clock.py`, `pagination.py`
 - `deal/`: 등록·조회·목록·수정·삭제와 삭제 영향(`deletion-impact`), 단일 변경 적용(`apply_change.py`·`sync_change.py`: Status·Forecast 동기화 확인), 변경 이력 기록·조회, 화면용 뷰(`views.py`: 서버가 `risk`·`status_days` 계산)
 - `deal_action/`: Deal별 Action 등록·조회·수정·삭제(수행일시·담당자는 서버가 채움)
 - `contact/`: 연락처 등록·수정·삭제·검색, 회사 목록·회사별 연락처, 사용처 확인
@@ -122,6 +124,7 @@ infra ──┘
 - `action_type/`: Action 유형 목록(사용 수 포함)·등록·이름 변경·삭제(사용 중이면 거부)
 - `code/`, `bant/`: 코드 등록·이름 변경·순서 변경·삭제(사용 중이면 거부)와 사용 현황, BANT Label 관리
 - `attachment/`: 업로드·목록·다운로드·삭제, 저장 실패 시 정리(`storage_cleanup.py`)
+- `license_contract/`(2026-11-05): 목록·조회·수정·발급(`issue_license.py`)·갱신(`renew_license.py`, 이전 행 종료 + 새 행)·종료·삭제(admin), Won 후속 처리 `won_follow_up.py`(`follow_won_change`: Won 진입 시 계약이 없으면 미발급 1건, 이탈 + `delete_license_contracts`면 계약 삭제와 커밋 뒤 파일 정리 `remove_pending_folders`. `RegisterDeal`·`UpdateDeal`·`ApplyDealChange`·`RegisterDealAction`이 호출). `license_contract_attachment/`: 계약 첨부 목록·업로드(ask/skip/replace)·다운로드·삭제
 - `storage/`, `alert/`, `directory/`: 저장 위치·경고 기준·AD 설정의 조회·확인·변경
 - `dashboard/`: `criteria.py`(`DashboardCriteria`: Dashboard 숫자마다의 조건을 `DealQuery`로 정의하는 단일 출처, Drill-down URL과 1:1), `get_summary.py`(`GetDashboardSummary`: Forecast·Status·분기·주의 타일을 한 UoW에서 집계), `views.py`(응답 뷰)
 - `auth/`: `password_login.py`(인증 방식에 따라 AD·앱 계정 로그인으로 분기), `local_login.py`(앱 계정 로그인, 없는 아이디도 같은 비용·문구), `setup_auth_mode.py`(최초 설정 1단계 인증 방식 선택), `setup_admin.py`·`setup_first_local_admin.py`(방식별 최초 admin 등록), `directory_login.py`(AD 로그인, `LoginOutcome`), `fallback_login.py`(AD가 답할 수 없을 때만 저장 해시로 로그인, `warning_stage.py`·`messages.py`의 admin 경고 단계·문구), `authenticate.py`(요청마다 활성 사용자·역할 확인), `throttle.py`(로그인 시도 제한), `setup_directory.py`·`setup_storage.py`·`setup_first_admin.py`(최초 설정 3단계), `auth_status.py`, `logout.py`, `issue_session.py`, `tokens.py`
@@ -142,11 +145,12 @@ infra ──┘
 | `db/deal_risk.py` | 경고(기한초과·미업데이트, 종결 Deal 제외) 판정식의 단일 출처. Deal 목록 필터(`deal_search`)와 Reports(`report_risk`)가 함께 씀 |
 | `db/advisory_job_lock.py` | `JobLock` 구현(`PgAdvisoryJobLock`, `pg_try_advisory_lock`, 키는 `lock_key(job)`). 해제 실패 시 연결을 버려 잠금이 풀에 남지 않게 함 |
 | `scheduling/periodic.py` | `PeriodicTask`: 기동 직후 1회, 이후 주기마다 실행. 한 번의 예외는 기록만 하고 다음 주기 계속, 취소 시 종료 |
+| `db/license_contract_repository.py`, `db/license_contract_query.py`, `db/license_contract_mapping.py`, `db/license_contract_attachment_repository.py`, `db/models_license_contract.py` | 라이선스 계약 저장소(2026-11-05). 목록은 Deal·고객·Vendor·파트너·Owner 조인 select와 조건·정렬(`license_contract_query.py`), 행 ↔ 엔티티와 제약 위반 → 도메인 오류(부분 유니크 `uq_license_contracts_deal_id_issued` → `LicenseAlreadyIssuedError`, `license_contract_mapping.py`). Deal 목록·상세의 `license_contract_count`는 `deal_search.py`, 삭제 영향 건수는 `deal_aggregates.py`. 조립은 `container_license_contract.py` |
 | `db/report_repository.py`, `db/models_report.py` | `ReportRepository` 구현(`SqlReportRepository`)과 `reports` 테이블 모델(정의·차트 JSONB, `generated_sql`은 표시용, 이름 대소문자 무시 유니크, owner·updated_by는 users FK RESTRICT). 읽을 수 없는 저장 정의는 깨진 리포트(목록·삭제만 가능), 깨진 차트는 차트 없이 읽음 |
 | `db/unit_of_work.py` | 트랜잭션 단위 구현 |
 | `db/like.py` | 키워드 검색용 LIKE 이스케이프 |
 | `deal_code_source.py` | Deal code 발급 Port 구현 |
-| `storage/local_file_storage.py` | FileStorage Port의 로컬 디스크 구현(`<root>/<deal_code>/<key>`, I/O는 스레드에서) |
+| `storage/local_file_storage.py` | FileStorage Port의 로컬 디스크 구현(폴더 조각 검증·심볼릭 링크 거부, Deal 첨부 `<root>/<deal_code>/<key>`, 계약 첨부 `<root>/license-contracts/<계약 id>/<key>`, 폴더 이름은 `application/storage/folders.py`, I/O는 스레드에서) |
 | `auth/ldap.py`, `auth/ldap_connection.py`, `auth/ldap_errors.py` | ldap3 기반 AD 인증. 서비스 계정 바인드 → RootDSE `defaultNamingContext`로 Base DN 찾기 → 사용자 검색 → 찾은 DN으로 사용자 바인드(search-then-bind). 보안 연결 none·ssl·starttls, 서버 인증서 미검증 |
 | `crypto/fernet_cipher.py`, `crypto/scrypt_hasher.py` | `SecretCipher`(AD 바인드 비밀번호 암호화, `APP_SETTINGS_ENCRYPTION_KEY`)와 `PasswordHasher`(대체 로그인 scrypt 해시, `ln=17,r=8,p=1`, 스레드 계산) 구현 |
 | `db/user_password_hash_repository.py` | `UserPasswordHashRepository` 구현(`user_password_hashes`, users FK CASCADE, `uow.password_hashes`) |
@@ -156,7 +160,7 @@ infra ──┘
 
 | 파일/폴더 | 의미 |
 | --- | --- |
-| `routers/` | 엔드포인트. `deals.py`, `deal_actions.py`, `attachments.py`·`attachment_items.py`, `contacts.py`, `codes.py`, `bant_labels.py`, `action_types.py`, `vendors.py`, `alert_settings.py`, `forecast.py`, `dashboard.py`, `reports.py`(`/reports/fields`·`/reports/query`, 모든 로그인 역할), `saved_reports.py`(저장 리포트, `reports.py` 뒤에 등록), `time.py`(`GET /api/v1/time`, 로그인 사용자), `users.py`, `user_options.py`, `settings_directory.py`, `settings_storage.py`, `auth*.py`(로그인·로그아웃·상태·최초 설정), `health.py`(`/healthz`, `/readyz`) |
+| `routers/` | 엔드포인트. `deals.py`, `deal_actions.py`, `attachments.py`·`attachment_items.py`, `contacts.py`, `codes.py`, `bant_labels.py`, `action_types.py`, `vendors.py`, `alert_settings.py`, `forecast.py`, `dashboard.py`, `reports.py`(`/reports/fields`·`/reports/query`, 모든 로그인 역할), `saved_reports.py`(저장 리포트, `reports.py` 뒤에 등록), `license_contracts.py`·`license_contract_attachments.py`(계약관리, 2026-11-05), `time.py`(`GET /api/v1/time`, 로그인 사용자), `users.py`, `user_options.py`, `settings_directory.py`, `settings_storage.py`, `auth*.py`(로그인·로그아웃·상태·최초 설정), `health.py`(`/healthz`, `/readyz`) |
 | `schemas/` | 요청·응답 Pydantic 모델. 응답 시각 필드는 `server_datetime.py`의 `ServerDateTime`(서버 OS 로컬 오프셋으로 직렬화, 같은 순간·openapi 스키마 동일)을 쓰고 맨 `datetime`은 쓰지 않음(단위 테스트가 검사). `time.py`는 `ServerTimeResponse{now, today}` |
 | `permissions.py` | `BusinessRouter`(sales 이상만 쓰기)와 `admin_router`(admin 전용)로 권한을 라우터 등록 시점에 적용 |
 | `security.py` | 쿠키 세션 확인(`require_login`), CSRF 헤더(`X-Requested-With`) 검사 |
@@ -177,6 +181,7 @@ infra ──┘
 | 인증 | `/auth/login`, `/auth/logout`, `/auth/me`, `/auth/config`, `/auth/setup/*` |
 | Forecast·Dashboard | `/forecast/summary`, `/forecast/snapshots`, `/forecast/snapshots/{period}/summary`, `/dashboard/summary`(조회 전용, 로그인 사용자 모두) |
 | Reports | `/reports/fields`, `/reports/query`(임시 조회, 저장 안 함), `/reports`(목록·만들기), `/reports/{id}`(보기·수정·삭제), `/reports/{id}/copy`, `/reports/{id}/run`(로그인 사용자 모두, 보기·수정·삭제 권한은 `domain/saved_report/policy.py`) |
+| 계약관리 | `/license-contracts`(목록), `/license-contracts/{id}`(조회·수정·삭제(admin)), `/license-contracts/{id}/issue`·`/renewal`·`/end`, `/license-contracts/{id}/attachments`, `/license-contract-attachments/{id}`(삭제)·`/download`. 읽기는 로그인 사용자 모두, 쓰기는 sales·admin(2026-11-05). Deal 변경 요청 3개의 선택 필드 `delete_license_contracts`, Deal 응답·`deletion-impact`의 `license_contract_count` |
 | 파트너 Activity | `/partner-meetings`(목록·일괄 등록), `/partner-meetings/{id}`(수정·삭제). 읽기는 로그인 사용자 모두, 쓰기는 sales·admin(2026-10-28) |
 | 기타 | `/user-options`(사용자 선택 후보) |
 
@@ -230,6 +235,7 @@ features/*  화면 ──▶ data/*  TanStack Query 훅 ──▶ gateway  (http
 | `src/features/auth/`, `features/setup/` | 로그인(최초 설정 전이면 `/setup`으로 이동), `RequireAuth`(로그인 확인 뒤 서버 시각 첫 동기 전에는 “불러오는 중…”)·`RequireWrite`·`RequireAdmin`, 최초 설정 마법사(인증 방식 → AD(AD 연동일 때) → 저장 위치 → admin) |
 | `src/features/dashboard/` | Dashboard 화면: `DashboardPage.tsx`(Status·Forecast 탭, 탭별 조건, 두 탭 모두 Q1~Q4 다중 토글, `App.tsx`가 `React.lazy`로 별도 청크 로드), `DashboardFilters.tsx`, `dashboardParams.ts`(URL ↔ 탭별 필터 `status.*`·`forecast.*`, 2026-10-28), `drillDown.ts`(Deal 목록 이동 주소의 단일 출처), `Tiles.tsx`, `StatusTab.tsx`·`StatusChart.tsx`, `ForecastTab.tsx`·`QuarterChart.tsx`, `chartSetup.ts`(Chart.js 필요한 요소만 등록), `dashboard.css`. 게이트웨이는 `gateway/http/dashboard.ts`, 계약 `gateway/contract/dashboard.contract.ts`, Fake `test/fake/gateway/dashboard.ts` |
 | `src/features/forecast/` | Forecast 화면(실패는 501 포함 오류 배너. 예전 "준비 중" 분기와 `features/placeholder/`는 삭제) |
+| `src/features/contracts/` | 계약관리(2026-11-05, `/contracts`, 메뉴는 Deals 오른쪽): 목록 `ContractsPage.tsx`(50건씩 무한 스크롤)·`ContractTable.tsx`(12열 서버 정렬, 만료 색 `contractExpiry.ts`)·검색 `ContractFilterBar.tsx`(조건 → 서버 쿼리 `contractFilter.ts`), 수정 대화상자 `ContractEditDialog.tsx`(Deal 값 읽기 전용, 발급·갱신 입력 `LicenseFields.tsx`·`licenseDraft.ts`, 계약 종료·admin 삭제)·첨부 `ContractAttachments.tsx`, 라벨 `contractLabels.ts`. 훅 `data/licenseContracts.ts`, 게이트웨이 `gateway/http/licenseContracts.ts`(매퍼 `mappers/licenseContract.ts`), 계약 `gateway/contract/licenseContracts.contract.ts`, Fake `test/fake/gateway/licenseContracts.ts`·`contractWon.ts`. Won 이탈 확인은 `features/deals/LicenseContractsOnWonExitDialog.tsx`·`useWonExitConfirm.tsx`(판정 `shared/model/sync.ts`의 `leavesWon`) |
 | `src/features/partner-activity/` | 파트너 Activity(2026-10-28, `/partner-activities`): 목록 `PartnerActivityPage.tsx`·`MeetingTable.tsx`·검색 `MeetingFilterBar.tsx`(URL `useMeetingSearchParams.ts`), 입력 팝업 `MeetingEntryDialog.tsx`·`MeetingEntryRow.tsx`(순수 로직 `entryRows.ts`), 수정·삭제 `MeetingEditDialog.tsx`·`MeetingDeleteDialog.tsx`. 훅 `data/partnerMeetings.ts`(`useInfiniteQuery`), 무한 스크롤 `shared/ui/useInfiniteScroll.ts`, 게이트웨이 `gateway/http/partnerMeetings.ts`, Fake `test/fake/gateway/partnerMeetings.ts` |
 | `src/features/reports/` | Reports(2026-10-27). `ReportsPage.tsx`(저장 리포트 목록, `?q=&mine=1`)와 `list/`(`filterReports.ts`, ⋯ 메뉴 `ReportRowMenu.tsx`), 저장 대화상자 `SaveReportDialog.tsx`, `ReportNotFound.tsx`. `designer/`: `ReportDesignerPage.tsx`(`/reports/new`)·`ReportEditPage.tsx`(`/reports/:id/edit`)가 함께 쓰는 본체 `Designer.tsx`, 작성 탭 `DesignPanel.tsx`(필드 목록·컬럼 칩·컬럼 설정·조건·범위 표시·실행 바)와 결과 표·생성 SQL 보기 컴포넌트, 조회 `useDesignerRun.ts`, 저장 흐름 `useSaveFlow.ts`, 떠날 때 확인 `useLeaveGuard.ts`, 설계 상태 `state/`(리듀서 `designerState.ts`, 요청 변환 `toRequest.ts`·`fromRequest.ts`, 범위 예측 `scope.ts`, 위반 표시 `issues.ts`·`issueView.ts`, 저장 안 됨 판정 `designKey.ts`, 컬럼 규칙 `columnRules.ts`), 표시 포맷 `format/formatCell.ts`. `result/`(2026-10-28): 디자이너·보기 화면이 함께 쓰는 결과 탭 `ResultPanel.tsx`(보기 방식·SQL), 타일 배치 `ResultTiles.tsx`·`TableTile.tsx`·`ChartTile.tsx`(차트 lazy 진입), 배치 순수 모듈 `layout.ts`. `view/ReportViewPage.tsx`(`/reports/:id`, 열 때 실행, 배치 자동 저장 `useLayoutAutosave.ts`·전이 `layoutAutosaveQueue.ts`·상태 줄 `LayoutSaveStatus.tsx`). `chart/`: 규칙표 `chartKinds.ts`(backend `KIND_RULES` 복제, 분류 `CHART_FAMILIES` 13개·한국어 이름), 초안 `chartDraft.ts`, 변환 `buildChart.ts`(종류 → 빌더 분기만)·`pivot.ts`, 분류별 빌더 `build/`(`common`·`cartesian`(막대·꺾은선·영역)·`round`(원형·도넛·선버스트)·`xy`(분산형·거품형)·`radar`·`hierarchy`(트리맵)·`statistics`(히스토그램·파레토)·`waterfall`·`funnel`·`combo`(콤보 프리셋 `COMBO_PRESETS`)), 계산 순수 함수 `compute/`(`histogramBins`·`paretoSeries`·`waterfallSteps`·`funnelBars`·`bubbleRadius`·`sunburstRings`·`treemapTree`), 요소 등록 `chartRegistry.ts`(트리맵 플러그인 포함), 설정 패널 `ChartSettingsPanel.tsx`와 분리 컴포넌트 `KindPicker.tsx`(분류 → 하위 종류 2단 선택)·`HistogramOptions.tsx`·`ComboSeriesEditor.tsx`, 미리보기 `ChartPreview.tsx`(`notes` 안내), 차트가 없을 때 안내 `ChartEmpty.tsx`(Chart.js 미사용, lazy 청크 밖), lazy 진입점 `ChartTab.tsx`. 화면은 모두 `App.tsx`의 `React.lazy` 청크(목록 제외). 게이트웨이 `gateway/http/reports.ts`(매퍼 `mappers/report.ts`·`reportChart.ts`), 계약 `gateway/contract/reports.contract.ts`·`savedReports.contract.ts`, Fake `test/fake/gateway/reports.ts`·`savedReports.ts`, Fake 필드 카탈로그 `test/fake/seed/reportCatalog.ts`(서버 카탈로그를 바꾸면 함께 고침) |
 | `src/test/` | 테스트 설정(`setup.ts`가 `vi.mock('../gateway')`로 Fake 주입, `vi.mock('react-chartjs-2')`로 `chartMock.tsx` 주입 — jsdom에 canvas가 없음), 테스트 전용 Fake 게이트웨이와 시드(`fake/`), 픽스처(`fixtures/`), 앱 렌더 도우미. 각 `*.test.ts(x)`는 대상 옆에 위치 |

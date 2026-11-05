@@ -27,6 +27,8 @@ from app.web.routers import (
     deals,
     forecast,
     health,
+    license_contract_attachments,
+    license_contracts,
     me,
     partner_meetings,
     reports,
@@ -45,6 +47,40 @@ if TYPE_CHECKING:
     from app.web.use_case_provider import UseCaseProvider
 from app.web.routers.responses import PROBLEM
 from app.web.security import AuthOptions, require_csrf_header, require_login
+
+
+def _include_business_routers(app: FastAPI) -> None:
+    """로그인(401)과 CSRF 헤더 검사를 거는 라우터를 등록한다."""
+    guard = [Depends(require_login), Depends(require_csrf_header)]
+    modules = (
+        contacts,
+        deals,
+        deal_actions,
+        attachments,
+        attachment_items,
+        codes,
+        bant_labels,
+        action_types,
+        vendors,
+        partner_meetings,
+        license_contracts,
+        license_contract_attachments,
+        forecast,
+        dashboard,
+        time,
+        me,
+        user_options,
+        reports,
+        saved_reports,
+        users,
+        settings_directory,
+        settings_storage,
+        alert_settings,
+    )
+    routers = [module.router for module in modules]
+    routers.append(license_contract_attachments.items_router)
+    for router in routers:
+        app.include_router(router, dependencies=guard, responses={401: PROBLEM})
 
 
 def create_app(
@@ -95,34 +131,7 @@ def create_app(
     app.include_router(health.router)
     for module in (auth, auth_login, auth_setup):
         app.include_router(module.router)
-    guard = [Depends(require_login), Depends(require_csrf_header)]
-    business = (
-        contacts,
-        deals,
-        deal_actions,
-        attachments,
-        attachment_items,
-        codes,
-        bant_labels,
-        action_types,
-        vendors,
-        partner_meetings,
-        forecast,
-        dashboard,
-        time,
-    )
-    for module in (
-        *business,
-        me,
-        user_options,
-        reports,
-        saved_reports,
-        users,
-        settings_directory,
-        settings_storage,
-        alert_settings,
-    ):
-        app.include_router(module.router, dependencies=guard, responses={401: PROBLEM})
+    _include_business_routers(app)
     return app
 
 

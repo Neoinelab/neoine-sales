@@ -14,7 +14,13 @@ from tests.support.user_ids import OWNER_ID
 def _view(vendor: NamedRef | None, solution: str = "S/4HANA") -> DealView:
     deal = make_deal(NOW, vendor_id=vendor.id if vendor else None, solution=solution)
     return DealView(
-        item=DealListItem(deal=deal, next_action=None, last_updated_at=deal.updated_at),
+        item=DealListItem(
+            deal=deal,
+            next_action=None,
+            last_updated_at=deal.updated_at,
+            license_contract_count=0,
+            has_issued_license_contract=False,
+        ),
         owner=UserRef(id=OWNER_ID, name="김영업", resigned=False, role=Role.SALES),
         customer=make_customer(),
         partner_contacts={},

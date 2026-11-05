@@ -51,6 +51,7 @@ import type {
   CodeKind,
   CodeSet,
   CodeWithUsage,
+  ContractAttachment,
   Contact,
   ContactInput,
   ContactKind,
@@ -70,6 +71,10 @@ import type {
   DealRow,
   DirectorySettings,
   DirectorySettingsInput,
+  LicenseContract,
+  LicenseContractFields,
+  LicenseContractQuery,
+  LicenseIssueInput,
   LoginResult,
   DownloadedFile,
   ForecastQuery,
@@ -260,6 +265,42 @@ export interface AttachmentsGateway {
   remove(attachmentId: number): Promise<void>
   download(attachmentId: number): Promise<DownloadedFile>
 }
+
+/**
+ * 라이선스 계약(계약관리). 계약은 Deal이 Won이 될 때 서버가 자동으로 만든다(수동 생성 없음).
+ * 조회는 모든 로그인 역할, 쓰기(수정·발급·갱신·종료·첨부)는 sales/admin(user는 403), 삭제는 admin만(그 밖은 403 "계약 삭제는 관리자만 할 수 있습니다.").
+ * 한 Deal에 발급 상태(발급(신규)·발급(갱신)) 계약은 하나뿐이다(둘째 발급·갱신은 409 "이 Deal에는 이미 발급 상태인 라이선스 계약이 있습니다.").
+ */
+export interface LicenseContractsGateway {
+  /** 서버가 검색·정렬·쪽 나누기를 한다. 기본 정렬은 호출자가 정하며(종료일 오름차순), 값 없는 칸은 방향과 무관하게 맨 뒤다. 시작/종료 범위가 뒤집히면 422. */
+  list(query: LicenseContractQuery, offset: number, limit: number): Promise<Page<LicenseContract>>
+  /** 없으면 404. */
+  get(id: number): Promise<LicenseContract>
+  /** 모든 상태에서 가능(종료 포함). 기술담당 100자·Note 2000자 초과는 422. */
+  update(id: number, fields: LicenseContractFields): Promise<LicenseContract>
+  /** 미발급만(아니면 409 "미발급 계약만 발급할 수 있습니다."). 종료일은 서버가 `시작일 + 기간 - 1일`로 계산한다. */
+  issue(id: number, input: LicenseIssueInput): Promise<LicenseContract>
+  /** 발급 상태만(아니면 409 "발급 상태 계약만 갱신할 수 있습니다."). 새 계약(발급(갱신))을 돌려주고 이전 계약은 종료된다. */
+  renew(id: number, input: LicenseIssueInput): Promise<LicenseContract>
+  /** 이미 종료면 409 "이미 종료된 계약입니다.". */
+  end(id: number): Promise<LicenseContract>
+  /** admin만. 상태와 무관하게 삭제하며 첨부도 함께 지운다. */
+  remove(id: number): Promise<void>
+  attachments: ContractAttachmentsGateway
+}
+
+/** 계약 첨부. 규칙은 Deal 첨부(`AttachmentsGateway`)와 같다(검증 422, 같은 이름 ask 409 `file-exists`, 저장소 장애 503, 삭제·교체는 admin 또는 본인). */
+export interface ContractAttachmentsGateway {
+  list(contractId: number): Promise<ContractAttachment[]>
+  upload(contractId: number, input: UploadInput): Promise<ContractUploadResult>
+  remove(attachmentId: number): Promise<void>
+  download(attachmentId: number): Promise<DownloadedFile>
+}
+
+export type ContractUploadResult =
+  | { outcome: 'uploaded'; attachment: ContractAttachment }
+  | { outcome: 'replaced'; attachment: ContractAttachment }
+  | { outcome: 'skipped' }
 
 export interface CodesGateway {
   /** 전체 코드(읽기: 모든 역할). order 오름차순. */
@@ -459,6 +500,7 @@ export interface Gateway {
   dashboard: DashboardGateway
   reports: ReportsGateway
   partnerMeetings: PartnerMeetingsGateway
+  licenseContracts: LicenseContractsGateway
   users: UsersGateway
   me: MeGateway
   settings: SettingsGateway

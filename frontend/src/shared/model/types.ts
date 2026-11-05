@@ -15,6 +15,7 @@ import type { SortOrder } from './inputs'
 
 export type { BantCategory } from './constants'
 export type * from './inputs'
+export type * from './licenseContractTypes'
 export type * from './settings'
 
 // ───────────────────────── 사용자 ─────────────────────────
@@ -258,6 +259,10 @@ export interface DealRow extends Omit<Deal, 'vendorId'> {
   /** 활성 파트너 연락처(없으면 null). */
   activePartner: Contact | null
   nextAction: NextActionSummary | null
+  /** 이 Deal의 라이선스 계약 건수. Won을 벗어날 때 계약 삭제 여부를 물을지 판단한다. */
+  licenseContractCount: number
+  /** 발급 상태(신규·갱신) 계약이 있는 Deal은 Won을 벗어날 수 없다. */
+  hasIssuedLicenseContract: boolean
   /** 모든 Action 중 가장 최근 수행시각. Action이 없으면 Deal 등록 시각(Deal 수정은 반영하지 않는다). */
   lastUpdatedAt: string
   /** 현재 Status 체류 일수(달력 날짜 차, 당일 0). */
@@ -275,6 +280,7 @@ export interface DealDeletionImpact {
   historyCount: number
   actionCount: number
   attachmentCount: number
+  licenseContractCount: number
 }
 
 // ───────────────────────── Action / History / 첨부 ─────────────────────────

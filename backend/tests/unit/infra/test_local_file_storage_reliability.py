@@ -23,7 +23,7 @@ from app.domain.deal.code import DealCode
 from app.domain.storage.path import StoragePath
 from app.infra.storage import _io
 from app.infra.storage.local_file_storage import LocalFileStorage
-from tests.fakes.file_storage import BytesSource
+from tests.fakes.file_storage import BytesSource, deal_location
 from tests.fakes.sources import ClientGone, FailingSource
 
 DEAL = DealCode("20261016-A001")
@@ -40,7 +40,7 @@ def root(tmp_path: Path) -> StoragePath:
 
 
 def _location() -> StoredFileLocation:
-    return StoredFileLocation(deal_code=DEAL, key=uuid4().hex)
+    return deal_location(DEAL, uuid4().hex)
 
 
 def _deal_dir(root: StoragePath) -> Path:

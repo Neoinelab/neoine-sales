@@ -7,6 +7,7 @@ import { forbidden, validation } from '../errors'
 import { requireUser, requireWrite, viewerOf, write, clone, type MockContext } from './context'
 import { commitBant } from './bantChoice'
 import { commitContact, planContact, type ContactPlan } from './contactPlan'
+import { assertWonExitAllowed, followWonChange, removeContractsOfDeal } from './contractWon'
 import { commitDealChange, planDealChange } from './dealChange'
 import { providedKeys, validateCustomerDraft, validateDealFields, validatePartnerDraft } from './dealValidation'
 import { logDealDiff, logHistory } from './historyLog'
@@ -64,6 +65,7 @@ function createDeal(ctx: MockContext, raw: DealInput) {
   }
   ctx.store.data.deals.push(deal)
   logHistory(ctx, deal.code, user.id, 'created', 'Deal 등록', '', 'Deal 등록')
+  followWonChange(ctx, deal.code, null, deal, false, user.id)
   return dealDetail(ctx, deal)
 }
 
@@ -96,6 +98,7 @@ function updateDeal(ctx: MockContext, code: string, patch: DealPatch) {
     partnerPlan = planContact(ctx, 'partner', patch.partner)
   }
 
+  assertWonExitAllowed(ctx.store.data, code, deal, after)
   const before = clone(deal)
   const now = ctx.clock.now()
   if (bantDraft) after.bant = commitBant(ctx, bantDraft, user.id)
@@ -113,6 +116,7 @@ function updateDeal(ctx: MockContext, code: string, patch: DealPatch) {
   Object.assign(deal, after)
   if (deal.statusKey !== before.statusKey) deal.statusChangedAt = now
   if (logDealDiff(ctx, before, deal, user.id) > 0) deal.updatedAt = now
+  followWonChange(ctx, deal.code, before, deal, patch.deleteLicenseContracts, user.id)
   return dealDetail(ctx, deal)
 }
 
@@ -125,7 +129,10 @@ export function dealsWriteApi(ctx: MockContext) {
         const user = requireWrite(ctx)
         const deal = findDeal(ctx.store.data, code)
         const outcome = planDealChange(ctx, deal, request)
+        const before = { statusKey: deal.statusKey, forecastKey: deal.forecastKey }
+        assertWonExitAllowed(ctx.store.data, code, before, { ...before, ...outcome.patch })
         commitDealChange(ctx, deal, outcome, user.id)
+        followWonChange(ctx, code, before, deal, request.deleteLicenseContracts, user.id)
         return { deal: dealDetail(ctx, deal), coChanged: outcome.coChanged, notice: outcome.notice }
       }),
     remove: (code: string, confirmCode: string) =>
@@ -139,6 +146,7 @@ export function dealsWriteApi(ctx: MockContext) {
         data.history = data.history.filter((h) => h.dealCode !== code)
         data.actions = data.actions.filter((a) => a.dealCode !== code)
         data.attachments = data.attachments.filter((a) => a.dealCode !== code)
+        removeContractsOfDeal(data, code)
       }),
   }
 }

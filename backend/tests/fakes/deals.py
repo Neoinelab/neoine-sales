@@ -56,6 +56,7 @@ class FakeDealRepository(DealCountsMixin, InMemoryStore["Deal"]):
         self._actions: Any = None
         self._history: Any = None
         self._attachments: Any = None
+        self._license_contracts: Any = None
         # 코드·Label 사용 수를 유스케이스 테스트가 직접 주입하는 값(R3에서 실제 집계 테스트로 대체).
         # None이면 저장된 Deal에서 센다.
         self.forecast_counts: dict[str, int] | None = None
@@ -74,11 +75,13 @@ class FakeDealRepository(DealCountsMixin, InMemoryStore["Deal"]):
         history: Any = None,  # noqa: ANN401
         attachments: Any = None,  # noqa: ANN401
         users: Any = None,  # noqa: ANN401
+        license_contracts: Any = None,  # noqa: ANN401
     ) -> None:
         """FK 모사와 파생값에 쓸 저장소를 연결한다(FakeUnitOfWork가 호출한다)."""
         self._contacts, self._codes, self._labels = contacts, codes, labels
         self._vendors, self._users = vendors, users
         self._actions, self._history, self._attachments = actions, history, attachments
+        self._license_contracts = license_contracts
 
     # --- 참조 확인(FK 모사) ---
 
@@ -140,7 +143,12 @@ class FakeDealRepository(DealCountsMixin, InMemoryStore["Deal"]):
     async def delete(self, code: DealCode) -> None:
         self._fetch(code)
         del self._items[code]
-        for store in (self._actions, self._history, self._attachments):  # CASCADE
+        for store in (
+            self._actions,
+            self._history,
+            self._attachments,
+            self._license_contracts,
+        ):  # CASCADE
             if store is not None:
                 store.remove_of_deal(code)
 
@@ -187,8 +195,15 @@ class FakeDealRepository(DealCountsMixin, InMemoryStore["Deal"]):
                 due_date=basis.content.due_date,
                 status=basis.next_action_state.status,
             )
+        contracts = self._license_contracts._items.values() if self._license_contracts else ()
         return DealListItem(
-            deal=copy.deepcopy(deal), next_action=summary, last_updated_at=last_updated
+            deal=copy.deepcopy(deal),
+            next_action=summary,
+            last_updated_at=last_updated,
+            license_contract_count=sum(1 for c in contracts if c.deal_code == deal.id),
+            has_issued_license_contract=any(
+                c.deal_code == deal.id and c.status.is_issued for c in contracts
+            ),
         )
 
     async def get_item(self, code: DealCode) -> DealListItem:
@@ -273,10 +288,12 @@ class FakeDealRepository(DealCountsMixin, InMemoryStore["Deal"]):
         actions = self._actions._items.values() if self._actions is not None else ()
         history = self._history._items.values() if self._history is not None else ()
         attachments = self._attachments._items.values() if self._attachments is not None else ()
+        contracts = self._license_contracts._items.values() if self._license_contracts else ()
         return DealDeletionImpact(
             history_count=sum(1 for h in history if h.deal_code == code),
             action_count=sum(1 for a in actions if a.deal_code == code),
             attachment_count=sum(1 for a in attachments if a.deal_code == code),
+            license_contract_count=sum(1 for c in contracts if c.deal_code == code),
         )
 
     async def references_of_contact(self, contact_id: ContactId) -> Sequence[ContactReference]:

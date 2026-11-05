@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from app.application.attachment.storage_cleanup import remove_file_quietly
+from app.application.attachment.storage_cleanup import location_of, remove_file_quietly
 from app.application.deal.history_writer import write_history
 from app.domain.attachment.history import deleted_draft
 
@@ -40,6 +40,4 @@ class DeleteAttachment:
             await uow.deals.touch([attachment.deal_code], now)
             await uow.commit()
         if settings is not None:
-            await remove_file_quietly(
-                self._storage, settings.path, attachment.deal_code, attachment.storage_key
-            )
+            await remove_file_quietly(self._storage, settings.path, location_of(attachment))

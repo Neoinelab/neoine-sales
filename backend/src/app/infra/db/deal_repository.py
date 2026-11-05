@@ -139,6 +139,8 @@ class SqlDealRepository(SavepointWriter):
                     )
                 ),
                 last_updated_at=row.last_updated_at,
+                license_contract_count=int(row.license_contract_count),
+                has_issued_license_contract=bool(row.has_issued_license_contract),
             )
             for row, deal in zip(rows, deals, strict=True)
         ]

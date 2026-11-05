@@ -7,6 +7,7 @@ from app.application.deal.form import ALL_FIELDS, FormValues
 from app.application.deal.history_writer import write_history
 from app.application.deal.validation import validate_form
 from app.application.deal.views import build_views
+from app.application.license_contract.won_follow_up import follow_won_change
 from app.domain.deal.entities import Deal
 from app.domain.deal.history import created_draft
 
@@ -19,7 +20,10 @@ if TYPE_CHECKING:
 
 
 class RegisterDeal:
-    """Deal을 등록한다: 입력 검증, 연락처 선택·생성, code 발급, 저장, 등록 이력 한 건."""
+    """Deal을 등록한다: 입력 검증, 연락처 선택·생성, code 발급, 저장, 등록 이력 한 건.
+
+    처음부터 Won으로 등록하면 같은 트랜잭션에서 미발급 라이선스 계약 한 건이 생긴다.
+    """
 
     def __init__(
         self, uow_factory: UnitOfWorkFactory, clock: Clock, suffix_source: DealCodeSuffixSource
@@ -51,6 +55,15 @@ class RegisterDeal:
                 ),
             )
             await write_history(uow, deal.id, actor.user_id, [created_draft()], now)
+            await follow_won_change(
+                uow,
+                deal.id,
+                None,
+                deal.sync,
+                delete_contracts=False,
+                actor=actor,
+                now=now,
+            )
             view = (await build_views(uow, [await uow.deals.get_item(deal.id)], now=now))[0]
             await uow.commit()
         return view

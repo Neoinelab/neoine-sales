@@ -37,6 +37,12 @@ USER_FK_NAMES = {
     ("reports", "owner_user_id"): "fk_reports_owner_user_id_users",
     ("reports", "updated_by_user_id"): "fk_reports_updated_by_user_id_users",
     ("partner_meetings", "created_by_user_id"): "fk_partner_meetings_created_by_user_id_users",
+    ("license_contracts", "created_by_user_id"): "fk_license_contracts_created_by_user_id_users",
+    ("license_contracts", "updated_by_user_id"): "fk_license_contracts_updated_by_user_id_users",
+    (
+        "license_contract_attachments",
+        "uploaded_by_user_id",
+    ): "fk_license_contract_attachments_uploaded_by_user_id_users",
 }
 # 대체 로그인용 비밀번호 해시는 사용자 삭제 때 함께 지워지므로(연결 아님) 유일하게 CASCADE다.
 CASCADE_USER_FK_NAMES = {
@@ -186,10 +192,13 @@ async def test_only_owned_data_cascades(session: AsyncSession) -> None:
         "deal_attachments.deal_id",  # P2b: 첨부 메타데이터도 Deal 소속이다
         "forecast_snapshot_columns.snapshot_id",  # P6 R2 Q6: 저장 당시 코드 목록은 스냅숏 소속
         "forecast_snapshot_cells.snapshot_id",  # 셀은 (snapshot_id, forecast_key)로 열 소속
+        "license_contracts.deal_id",  # 계약은 Deal 소속이다
+        "license_contract_attachments.contract_id",  # 계약 첨부는 계약 소속이다
         "user_password_hashes.user_id",  # 대체 로그인 해시는 사용자 소속(CASCADE_USER_FK_NAMES)
     }
     parents = {
         "user_password_hashes": "users",
+        "license_contract_attachments": "license_contracts",
         "forecast_snapshot_columns": "forecast_snapshots",
         "forecast_snapshot_cells": "forecast_snapshot_columns",
     }

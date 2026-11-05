@@ -53,6 +53,7 @@ code{background:var(--soft);padding:1px 5px;border-radius:3px;font-size:12.5px}
 <a class="sub" href="#s5-7">5.7 Deal History</a>
 <a class="sub" href="#s5-8">5.8 첨부 파일</a>
 <a class="sub" href="#s5-9">5.9 파트너 미팅 기록</a>
+<a class="sub" href="#s5-10">5.10 라이선스 계약</a>
 <a href="#s6">6. 코드값·판단 기준</a>
 <a class="sub" href="#s6-7">6.7 Status⇄Forecast</a>
 <a href="#s7">7. 기능 요구사항</a>
@@ -63,6 +64,7 @@ code{background:var(--soft);padding:1px 5px;border-radius:3px;font-size:12.5px}
 <a class="sub" href="#s7-5">7.5 공통·관리</a>
 <a class="sub" href="#s7-6">7.6 BANT Label</a>
 <a class="sub" href="#s7-7">7.7 파일 업로드</a>
+<a class="sub" href="#s7-8">7.8 계약관리</a>
 <a href="#s8">8. 자동 규칙</a>
 <a href="#s9">9. 비기능 요구사항</a>
 <a href="#s10">10. 검수 기준</a>
@@ -74,7 +76,7 @@ code{background:var(--soft);padding:1px 5px;border-radius:3px;font-size:12.5px}
 <main>
 
 <h1>NEOINE 영업관리 프로그램 PRD</h1>
-<p class="meta">제품 요구사항 문서 · 기준 문서: NEOINE_영업관리_프로그램_명세서_v4.pptx(표지 표기 v5.0, 20장) · 코드 기준: 2026-10-14 현재 main 작업 트리 · 문서 갱신: 2026-10-27 · 상태 표기: <span class="b ok">구현</span> <span class="b part">부분</span> <span class="b todo">예정</span> <span class="b chg">확인 필요</span></p>
+<p class="meta">제품 요구사항 문서 · 기준 문서: NEOINE_영업관리_프로그램_명세서_v4.pptx(표지 표기 v5.0, 20장) · 코드 기준: 2026-10-14 현재 main 작업 트리 · 문서 갱신: 2026-11-05 · 상태 표기: <span class="b ok">구현</span> <span class="b part">부분</span> <span class="b todo">예정</span> <span class="b chg">확인 필요</span></p>
 
 <h2 id="s1">1. 개요</h2>
 <h3>1.1 목적</h3>
@@ -115,8 +117,8 @@ code{background:var(--soft);padding:1px 5px;border-radius:3px;font-size:12.5px}
 <table>
 <tr><th>역할</th><th>설명</th><th>권한</th><th>상태</th></tr>
 <tr><td><code>admin</code></td><td>관리자</td><td>모든 기능, 사용자 관리, AD 설정, 경고 기준 설정 (모든 역할은 우측 상단 사용자 메뉴의 내 정보에서 자기 정보 수정)</td><td><span class="b ok">구현</span> 경고 기준 설정은 P3(2026-10-17)</td></tr>
-<tr><td><code>sales</code></td><td>영업담당자</td><td>Deal·연락처·활동 등록/수정/삭제, 파트너 미팅 입력(수정·삭제는 본인 기록만), Forecast 판단 입력</td><td><span class="b ok">구현</span></td></tr>
-<tr><td><code>user</code></td><td>조회 사용자</td><td>조회 전용(파트너 미팅 기록 보기 포함)</td><td><span class="b ok">구현</span></td></tr>
+<tr><td><code>sales</code></td><td>영업담당자</td><td>Deal·연락처·활동 등록/수정/삭제, 파트너 미팅 입력(수정·삭제는 본인 기록만), 라이선스 계약 수정·발급·갱신·종료(삭제는 admin만), Forecast 판단 입력</td><td><span class="b ok">구현</span></td></tr>
+<tr><td><code>user</code></td><td>조회 사용자</td><td>조회 전용(파트너 미팅 기록·라이선스 계약 보기 포함)</td><td><span class="b ok">구현</span></td></tr>
 </table>
 <ul>
 <li>로그인은 AD(LDAP)로 한다. AD 서버 정보(호스트·포트·보안 연결 없음/SSL/StartTLS·바인드 계정·비밀번호·사용자 필터·연결 제한 시간)는 화면에서 등록해 DB에 저장하고, 바인드 비밀번호는 암호화한다. Base DN은 AD에서 자동으로 찾고 서버 인증서는 검증하지 않는다. <span class="b ok">구현</span> 2026-10-29 서비스 계정 방식</li>
@@ -132,6 +134,7 @@ code{background:var(--soft);padding:1px 5px;border-radius:3px;font-size:12.5px}
 <tr><th>메뉴</th><th>하위 화면</th></tr>
 <tr><td>Dashboard</td><td>Status 탭(Overview) · Forecast 탭(Forecast / Closing) · <s>(Deal Drill-down 팝업)</s> 클릭 시 Deal 목록 이동(2026-10-23 결정)</td></tr>
 <tr><td>Deals</td><td>Deal 목록 · Deal 등록 · Deal 상세 · Next Action</td></tr>
+<tr><td>계약관리</td><td>라이선스 계약 목록 · 계약 수정 대화상자(2026-11-05 추가 메뉴, Deals 오른쪽, <code>/contracts</code>, 7.8절)</td></tr>
 <tr><td>파트너 Activity</td><td>파트너 미팅 기록 목록 · 미팅 내용 입력 팝업(2026-10-28 추가 메뉴, Deals 다음, <code>/partner-activities</code>)</td></tr>
 <tr><td>Forecast</td><td>Forecast 요약 (별도의 “담당자 상세” 메뉴는 없다)</td></tr>
 <tr><td>Reports</td><td><s>영업 분석 · Vendor / Solution · Status 분석 · Forecast 추이</s> 리포트 목록 · 리포트 디자이너 · 리포트 보기 · 리포트 편집(2026-10-26 결정: 고정 하위 화면 대신 사용자가 같은 분석을 리포트로 설계·저장, 7.4절)</td></tr>
@@ -154,6 +157,7 @@ code{background:var(--soft);padding:1px 5px;border-radius:3px;font-size:12.5px}
 <tr><td><code>/deals/new</code>, <code>/deals/:dealCode/edit</code></td><td>Deal 등록·수정</td><td>sales·admin</td></tr>
 <tr><td><code>/deals/:dealCode</code></td><td>Deal 상세. 탭 3개: Deal 상세(기본, BANT·견적·POC·첨부 파일) / Actions(<code>?tab=actions</code>) / Deal History(<code>?tab=history</code>)</td><td>로그인 사용자</td></tr>
 <tr><td><code>/forecast</code></td><td>Forecast 요약(연도·Quarter·월·담당자·Vendor 필터, Deal 원장 실시간 집계)과 담당자 선택 시 같은 화면의 Deal 목록(P6 R1, 2026-10-21)</td><td>로그인 사용자</td></tr>
+<tr><td><code>/contracts</code></td><td>계약관리(2026-11-05, 메뉴는 Deals 오른쪽): 라이선스 계약 목록(12열, 서버 검색·정렬, 기본 종료일 오름차순, 50건씩 무한 스크롤, 만료 2개월 미만 진한 노랑·1개월 미만 빨강)과 계약 수정 대화상자(Deal 값 5칸 읽기 전용, 기술담당·점검주기·Note 수정, 라이선스 발급·갱신, 계약 종료, admin 삭제, 첨부). 7.8절</td><td>조회 모든 역할, 쓰기 sales·admin, 삭제 admin</td></tr>
 <tr><td><code>/partner-activities</code></td><td>파트너 Activity(2026-10-28, 메뉴는 Deals 다음): 파트너 회사별 미팅 기록 목록(Deal과 무관, 2026-11-03. 파트너·미팅 날짜·미팅 내용·작성자, 항목별 검색, 열 정렬, 기본 미팅 날짜 최신순, 10건씩 무한 스크롤, 미팅 날짜 검색은 Deals 최종 업데이트와 같은 기간 선택 2026-11-03)과 “미팅 내용 입력” 팝업(여러 건 일괄 입력, 파트너 회사 → 날짜(기본 오늘) → 내용, 선택·Enter로 다음 칸, 줄 마지막 Enter로 새 줄, Shift+Enter 줄바꿈), 행 수정·삭제(작성자·admin). Deal을 삭제해도 남음</td><td>조회 모든 역할, 입력 sales·admin</td></tr>
 <tr><td><code>/reports</code></td><td>저장 리포트 목록(P7, 2026-10-27): 검색·“내 리포트만”(URL <code>q</code>·<code>mine=1</code>), 데이터 태그(Deal·Deal Actions), 차트 종류, 비공개 표시, ⋯ 메뉴(보기·편집·복제·삭제), “+ 새 리포트”</td><td>로그인 사용자(모든 역할)</td></tr>
 <tr><td><code>/reports/new</code></td><td>리포트 디자이너: 필드 목록·컬럼 칩·컬럼 설정(포맷·그룹핑·집계)·조건(전부 AND 또는 전부 OR)·데이터 범위 표시·작성/결과 탭(2026-10-28, 결과 탭은 표·차트 타일 배치와 보기 방식, 결과 표 합계 행)·생성 SQL 보기(읽기 전용)·저장 대화상자. 저장 전 떠날 때 확인(앱 안 링크·새로고침·탭 닫기)</td><td>로그인 사용자(모든 역할)</td></tr>
@@ -277,6 +281,8 @@ code{background:var(--soft);padding:1px 5px;border-radius:3px;font-size:12.5px}
 
 <h3 id="s5-9">5.9 파트너 미팅 기록 (<code>partner_meetings</code>, 2026-10-28)</h3>
 <p>파트너 Activity 메뉴의 미팅 기록. 열: <code>id</code>, <code>partner_company</code>(입력 시점 파트너 회사명 텍스트, 연락처 FK 없음 — 나중에 회사명을 바꿔도 기록은 그대로), <code>meeting_date</code>(1900-01-01~2999-12-31, 미래 허용), <code>content</code>(공백만은 금지, 길이 제한 없음), <code>created_by_user_id</code>(users FK RESTRICT — 작성자는 삭제 대신 퇴사 처리), <code>created_at</code>·<code>updated_at</code>. 등록과 다른 회사로 바꾸는 수정 때 파트너 연락처 회사 목록에 있는지 확인한다. 마이그레이션 <code>c4e8a1d7f203</code>(순수 expand). 2026-11-03 Deal 연결 제거: 미팅은 Deal 없이 여러 주제로 진행되므로 <code>deal_id</code>를 없앴다(마이그레이션 <code>d9a4e6b2f581</code>, 기존 행 유지). <span class="b ok">구현</span></p>
+<h3 id="s5-10">5.10 라이선스 계약 (<code>license_contracts</code>, 2026-11-05)</h3>
+<p>계약관리 메뉴의 라이선스 계약. Deal과 <b>1:N</b>(갱신할 때마다 행이 늘어남)이고, 한 Deal에 <b>발급 상태(발급(신규)·발급(갱신)) 계약은 최대 1건</b>이다(부분 유니크 인덱스 <code>uq_license_contracts_deal_id_issued</code>로 DB에서도 보장). 열: <code>id</code>(BIGINT identity), <code>deal_id</code>(deals FK CASCADE — Deal 삭제 시 함께 삭제), <code>status</code>(<code>not_issued</code> 미발급 · <code>issued_new</code> 발급(신규) · <code>issued_renewal</code> 발급(갱신) · <code>ended</code> 종료), <code>license_start</code>·<code>license_end</code>·<code>term_amount</code>(1~99)·<code>term_unit</code>(개월·년)(미발급은 모두 없음, 발급은 모두 있음, 종료일 = 시작일 + 기간 − 1일·말일 보정, 서버 계산), <code>tech_owner</code>(기술담당 자유 텍스트 100자 — 기술 인력은 시스템 계정이 없음), <code>inspection_cycle</code>(점검주기: 월·분기·반기·연 1회·없음), <code>note</code>(2000자), <code>renewed_from_id</code>(갱신 원본), <code>ended_at</code>, 등록·수정자(users FK RESTRICT — 삭제 대신 퇴사 처리)와 시각. <b>고객사명·Vendor·제품명(Solution)·파트너사·담당영업(Owner)은 저장하지 않고 Deal에서 읽는다</b>(Deal을 고치면 계약 화면에도 반영). 계약 첨부는 <code>license_contract_attachments</code>(계약 FK CASCADE, Deal 첨부와 같은 규칙·같은 Deal code 디렉터리). 마이그레이션 <code>00c3126aa926</code>(스키마는 순수 expand, 기존 Won Deal마다 미발급 계약 1건 삽입 — 등록자는 Deal Owner, product 적용은 사람 승인). <span class="b ok">구현</span></p>
 <h2 id="s6">6. 코드값·판단 기준</h2>
 <h3>6.1 Status — “현재 어디까지 진행되었는가?”</h3>
 <table>
@@ -445,6 +451,25 @@ code{background:var(--soft);padding:1px 5px;border-radius:3px;font-size:12.5px}
 <tr><td>FL-07</td><td>같은 Deal에 이미 있는 이름의 파일을 올리면 교체할지 건너뛸지 묻는다. 파일은 Deal id별 디렉터리에 저장하고, Deal 삭제 시 해당 디렉터리를 삭제한다.</td><td><span class="b ok">구현</span> P2b</td></tr>
 </table>
 
+<h3 id="s7-8">7.8 계약관리 (라이선스 계약, 2026-11-05)</h3>
+<p>수주(Won)한 Deal의 라이선스 계약을 관리한다. 메뉴는 Deals 오른쪽의 “계약관리”(<code>/contracts</code>)이고 데이터 모델은 5.10절이다. 조회는 모든 역할, 수정·발급·갱신·종료·첨부 업로드는 sales·admin, 계약 삭제는 admin만 한다. 계약 변경은 Deal History와 Deal 최종 업데이트에 남기지 않는다.</p>
+<table>
+<tr><th>ID</th><th>요구사항</th><th>상태</th></tr>
+<tr><td>LC-01</td><td>계약 목록: Deal 코드 / 고객사명 / Vendor / 제품명 / 파트너사 / 라이선스 시작일 / 라이선스 종료일 / 상태 / 담당영업 / 기술담당 / 점검주기 / Note. 12열 모두 서버 정렬(기본 종료일 오름차순, 값 없는 칸은 맨 뒤), “전체 N건”, 50건씩 무한 스크롤.</td><td><span class="b ok">구현</span></td></tr>
+<tr><td>LC-02</td><td>검색: 고객사명·제품명 부분 일치(Deal 값), Vendor(관리 목록)·담당영업(퇴사자 포함) 선택, 상태, 라이선스 시작일·종료일 기간(최근 2주·1·2·3·6개월·직접 지정, 종료일은 <b>향후 1·2개월</b> 추가). 날짜 조건이 있으면 날짜 없는 계약은 제외.</td><td><span class="b ok">구현</span></td></tr>
+<tr><td>LC-03</td><td>색 규칙: 발급 상태 계약의 종료일이 오늘+2개월 미만이면 시작일·종료일 칸 진한 노랑, 오늘+1개월 미만(지난 날 포함)이면 빨강. 상태 칸은 발급 초록, 종료 회색.</td><td><span class="b ok">구현</span></td></tr>
+<tr><td>LC-04</td><td>계약 수정 대화상자: 고객사명·Vendor·제품명·파트너사·담당영업은 Deal 값으로 <b>읽기 전용</b>, 기술담당(자유 텍스트)·점검주기·Note만 수정한다.</td><td><span class="b ok">구현</span></td></tr>
+<tr><td>LC-05</td><td>라이선스 발급: 미발급 계약에서 버튼을 누르면 시작일 칸으로 포커스, 기본 오늘부터 1년. 종료일 = 시작일 + 기간 − 1일(그 달에 같은 날이 없으면 말일). 저장하면 발급(신규).</td><td><span class="b ok">구현</span></td></tr>
+<tr><td>LC-06</td><td>라이선스 갱신: 발급 상태 계약에서 기본 이전 종료일 다음 날부터 같은 기간. 저장하면 같은 Deal에 발급(갱신) 새 행이 생기고 이전 행은 종료(한 트랜잭션, 첨부는 이전 계약에 남음). 같은 Deal에 이미 다른 발급 계약이 있으면 발급·갱신은 409.</td><td><span class="b ok">구현</span></td></tr>
+<tr><td>LC-07</td><td>계약 종료: 미발급·발급 계약을 “계약 종료” 버튼(확인)으로 종료한다. 종료일 경과에 따른 자동 종료는 없다. 종료 계약은 발급·갱신할 수 없지만 계약 칸 수정·첨부는 가능하다.</td><td><span class="b ok">구현</span></td></tr>
+<tr><td>LC-08</td><td>계약 삭제: 일반 삭제 기능은 없고 admin만 상태와 무관하게 삭제한다(첨부 파일 포함).</td><td><span class="b ok">구현</span></td></tr>
+<tr><td>LC-09</td><td>계약 첨부: Deal 첨부와 같은 규칙(100MB, 설명 100자, 차단 확장자, 같은 이름 교체/건너뛰기, 교체·삭제 권한 FL-03과 같음).</td><td><span class="b ok">구현</span></td></tr>
+<tr><td>LC-10</td><td>Won 진입 자동 생성: Deal이 Won이 되면(등록·폼 수정·목록 Inline Update·상세 요약 바·Action 등록의 상태 변경 모두) 그 Deal에 계약이 하나도 없을 때만 같은 트랜잭션에서 미발급 계약 1건을 만든다. 수동 “계약 추가”는 없다. 기존 Won Deal은 마이그레이션으로 1건씩 생성.</td><td><span class="b ok">구현</span></td></tr>
+<tr><td>LC-11</td><td>Won 이탈: Won인 Deal을 다른 상태로 바꿀 때 계약이 있으면 “라이선스 계약 처리” 대화상자(삭제 / 유지 / 취소)로 묻는다. API는 Deal 변경 요청의 선택 필드 <code>delete_license_contracts</code>(기본 false=유지, 하위 호환). 삭제는 Status를 바꿀 수 있는 sales·admin 누구나 고를 수 있다(일반 삭제 admin 전용과 비대칭, 수용).</td><td><span class="b ok">구현</span></td></tr>
+<tr><td>LC-12</td><td>Deal 삭제 시 계약·계약 첨부도 함께 삭제하고 삭제 확인 창에 “라이선스 계약 N건”을 보인다.</td><td><span class="b ok">구현</span></td></tr>
+<tr><td>LC-13</td><td>만료 알림, Deal 상세 안 계약 목록, Reports·Dashboard 연계, 계약 변경의 History 기록, 동시 수정 잠금.</td><td><span class="b todo">미구현</span> 범위 밖(2026-11-05 결정)</td></tr>
+</table>
+
 <h2 id="s8">8. 자동 규칙</h2>
 <table>
 <tr><th>ID</th><th>규칙</th><th>상태</th></tr>
@@ -458,7 +483,7 @@ code{background:var(--soft);padding:1px 5px;border-radius:3px;font-size:12.5px}
 <tr><td>R09</td><td>Forecast가 Won(또는 Status가 계약완료)이 되면 매출금액과 <code>revenue_date</code>를 실제 값으로 입력받아 갱신하고, Lost는 <code>revenue_date</code>를 그대로 둔다(6.6절)</td><td><span class="b ok">구현</span> P1</td></tr>
 <tr><td>R10</td><td>종결된 Deal(Forecast Won/Lost)의 Forecast를 바꾸거나 Status를 계약완료에서 이전 단계로 바꾸면, 동기화할 반대쪽 값을 사용자에게 묻고 선택한 값으로 함께 변경한다(6.7절)</td><td><span class="b ok">구현</span> P1</td></tr>
 </table>
-<p>R07은 삭제된 규칙이라 결번이다.</p>
+<p>R07은 삭제된 규칙이라 결번이다. Won 진입·이탈 시 라이선스 계약 처리(자동 생성·삭제 선택)는 7.8절 LC-10·LC-11이다.</p>
 <p>영업 Alert(기한초과, 미업데이트, Expected Close Slip, 장기 Status 체류)는 Dashboard “주의 필요 Deal”에 표시한다. <small>※ 2026-10-17 결정: 장기 Status 체류의 기준값(임계값)은 P3에서 두지 않는다. 경고 기준은 미업데이트 일수 하나이며, 장기 체류 기준은 소비처(Dashboard, P4)를 만들 때 추가한다.</small></p>
 
 <h2 id="s9">9. 비기능 요구사항</h2>

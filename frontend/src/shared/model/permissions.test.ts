@@ -23,8 +23,8 @@ describe('permissions', () => {
   it('쓰기와 메뉴', () => {
     expect(canWrite('user')).toBe(false)
     expect(canWrite('sales')).toBe(true)
-    expect(visibleMenu('admin')).toHaveLength(6)
-    expect(visibleMenu('sales')).toHaveLength(5)
+    expect(visibleMenu('admin')).toHaveLength(7)
+    expect(visibleMenu('sales')).toHaveLength(6)
   })
 
   it('Deal 삭제: admin 전체, sales 본인, user 불가', () => {
@@ -110,10 +110,10 @@ describe('report permissions follow the decision table', () => {
 })
 
 describe('파트너 Activity 권한', () => {
-  it('메뉴는 Deals 다음에 /partner-activities가 오고 모든 역할에 보인다', () => {
-    expect(visibleMenu('sales')).toEqual(['/deals', '/partner-activities', '/dashboard', '/forecast', '/reports'])
-    expect(visibleMenu('user')).toEqual(['/deals', '/partner-activities', '/dashboard', '/forecast', '/reports'])
-    expect(visibleMenu('admin')).toEqual(['/deals', '/partner-activities', '/dashboard', '/forecast', '/reports', '/admin'])
+  it('메뉴는 Deals 다음에 /contracts, 그다음 /partner-activities가 오며 모든 역할에 보인다', () => {
+    expect(visibleMenu('sales')).toEqual(['/deals', '/contracts', '/partner-activities', '/dashboard', '/forecast', '/reports'])
+    expect(visibleMenu('user')).toEqual(['/deals', '/contracts', '/partner-activities', '/dashboard', '/forecast', '/reports'])
+    expect(visibleMenu('admin')).toEqual(['/deals', '/contracts', '/partner-activities', '/dashboard', '/forecast', '/reports', '/admin'])
   })
 
   it.each([

@@ -6,6 +6,7 @@ from app.application.deal.form import FormValues
 from app.application.deal.history_writer import build_name_lookup, write_history
 from app.application.deal.validation import validate_form
 from app.application.deal.views import build_views
+from app.application.license_contract.won_follow_up import follow_won_change, remove_pending_folders
 from app.domain.deal.code import DealCode
 from app.domain.deal.errors import DealNotFoundError
 from app.domain.deal.history import diff_deal
@@ -14,18 +15,21 @@ if TYPE_CHECKING:
     from app.application.deal.dto import DealView
     from app.application.deal.inputs import Actor, DealPatchInput
     from app.application.ports.clock import Clock
+    from app.application.ports.file_storage import FileStorage
     from app.application.ports.unit_of_work import UnitOfWorkFactory
 
 
 class UpdateDeal:
     """Deal 폼 저장. 보낸 필드만 검증·반영하고, 바뀐 필드마다 History 한 건을 남긴다.
 
-    바뀐 것이 없으면 이력도 수정 시각 변경도 없다.
+    바뀐 것이 없으면 이력도 수정 시각 변경도 없다. Won 진입·이탈에 따른 라이선스 계약 처리는 같은
+    트랜잭션에서 하고, 삭제한 계약의 첨부 파일은 커밋 뒤에 지운다.
     """
 
-    def __init__(self, uow_factory: UnitOfWorkFactory, clock: Clock) -> None:
+    def __init__(self, uow_factory: UnitOfWorkFactory, clock: Clock, storage: FileStorage) -> None:
         self._uow_factory = uow_factory
         self._clock = clock
+        self._storage = storage
 
     async def execute(self, code: str, patch: DealPatchInput, actor: Actor) -> DealView:
         deal_code = DealCode.parse_or_none(code)
@@ -35,6 +39,7 @@ class UpdateDeal:
         async with self._uow_factory() as uow:
             deal = await uow.deals.get(deal_code, for_update=True)
             before = deal.snapshot()
+            before_sync = deal.sync
             values = FormValues.of_patch(deal, patch)
             form = await validate_form(uow, values, patch.provided)
             contacts = await resolve_contacts(
@@ -58,6 +63,16 @@ class UpdateDeal:
                 deal.touch(now)
                 await uow.deals.update(deal)
                 await write_history(uow, deal.id, actor.user_id, drafts, now)
+            removal = await follow_won_change(
+                uow,
+                deal_code,
+                before_sync,
+                deal.sync,
+                delete_contracts=patch.delete_license_contracts,
+                actor=actor,
+                now=now,
+            )
             view = (await build_views(uow, [await uow.deals.get_item(deal.id)], now=now))[0]
             await uow.commit()
+        await remove_pending_folders(self._storage, removal)
         return view

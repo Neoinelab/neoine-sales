@@ -15,7 +15,13 @@ from tests.support.user_ids import OWNER_ID
 def _view(users: int) -> DealView:
     deal = make_deal(NOW, users=users)
     return DealView(
-        item=DealListItem(deal=deal, next_action=None, last_updated_at=deal.updated_at),
+        item=DealListItem(
+            deal=deal,
+            next_action=None,
+            last_updated_at=deal.updated_at,
+            license_contract_count=0,
+            has_issued_license_contract=False,
+        ),
         owner=UserRef(id=OWNER_ID, name="김영업", resigned=False, role=Role.SALES),
         customer=make_customer(),
         partner_contacts={},

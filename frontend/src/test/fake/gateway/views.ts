@@ -17,6 +17,7 @@ import type {
 } from '../../../shared/model/types'
 import { notFound } from '../errors'
 import type { ActionRecord, AttachmentRecord, HistoryRecord, SeedData, UserRecord } from '../store'
+import { hasIssuedContract } from './contractWon'
 import { clone, type MockContext } from './context'
 
 const UNKNOWN_USER: UserRef = { id: 0, name: '알 수 없음', role: 'user', status: 'resigned' }
@@ -124,6 +125,8 @@ export function dealRow(ctx: MockContext, deal: Deal): DealRow {
     owner: userRef(data, deal.ownerId),
     customer: clone(contactOf(data, deal.customerContactId)),
     activePartner: active ? clone(contactOf(data, active.contactId)) : null,
+    hasIssuedLicenseContract: hasIssuedContract(data, deal.code),
+    licenseContractCount: data.licenseContracts.filter((c) => c.dealCode === deal.code).length,
     nextAction,
     lastUpdatedAt,
     statusDays: statusDays(deal.statusChangedAt, now),

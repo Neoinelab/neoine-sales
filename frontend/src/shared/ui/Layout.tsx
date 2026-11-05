@@ -6,6 +6,7 @@ import { useDealListPath } from './useDealListPath'
 import { UserMenu } from './UserMenu'
 
 const MENU_LABELS: Record<string, string> = {
+  '/contracts': '계약관리',
   '/dashboard': 'Dashboard',
   '/deals': 'Deals',
   '/partner-activities': '파트너 Activity',
@@ -14,7 +15,7 @@ const MENU_LABELS: Record<string, string> = {
   '/admin': 'Admin',
 }
 
-/** 상단 메뉴(사용자 4개 + admin에게만 Admin)와 사용자 아이콘 메뉴(이름·내 정보·로그아웃). */
+/** 상단 메뉴(사용자 6개 + admin에게만 Admin)와 사용자 아이콘 메뉴(이름·내 정보·로그아웃). */
 export function Layout() {
   const { me, role } = usePermissions()
   const logout = useLogout()

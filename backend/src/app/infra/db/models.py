@@ -132,6 +132,7 @@ from app.infra.db import (  # noqa: E402,F401
     models_contact,
     models_deal,
     models_forecast,
+    models_license_contract,
     models_meeting,
     models_report,
 )

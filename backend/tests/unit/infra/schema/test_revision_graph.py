@@ -25,6 +25,7 @@ from tests.support.revisions import (
     deals_users_required_revision,
     directory_service_account_revision,
     forecast_snapshots_revision,
+    license_contracts_revision,
     next_action_status_revision,
     partner_meetings_drop_deal_revision,
     retire_dev_users_revision,
@@ -65,11 +66,22 @@ def test_the_drop_deal_revision_follows_auth_mode() -> None:
     assert head.path.endswith(f"20261103_{head.revision}_partner_meetings_drop_deal.py")
 
 
-def test_the_retire_dev_users_revision_follows_drop_deal_and_is_head() -> None:
+def test_the_license_contracts_revision_follows_retire_dev_users_and_is_head() -> None:
+    script = ScriptDirectory.from_config(_alembic_config())
+
+    head = script.get_revision(license_contracts_revision())
+    assert script.get_heads() == [license_contracts_revision()]
+    assert head is not None
+    assert head.down_revision == retire_dev_users_revision()
+    assert head.path.endswith(f"_{head.revision}_license_contracts.py")
+
+
+def test_the_retire_dev_users_revision_follows_drop_deal_in_the_head_history() -> None:
     script = ScriptDirectory.from_config(_alembic_config())
 
     head = script.get_revision(retire_dev_users_revision())
-    assert script.get_heads() == [retire_dev_users_revision()]
+    history = {r.revision for r in script.iterate_revisions(script.get_heads()[0], "base")}
+    assert retire_dev_users_revision() in history
     assert head is not None
     assert head.down_revision == partner_meetings_drop_deal_revision()
     assert head.path.endswith(f"20261103_{head.revision}_retire_dev_users.py")

@@ -7,6 +7,7 @@ import type { ApplyChangeRequest, DealChange, DealRow } from '../../../shared/mo
 import { AmountInput } from '../../../shared/ui/AmountInput'
 import { DateInput } from '../../../shared/ui/DateInput'
 import { useSyncedChange } from '../../../shared/sync/useSyncedChange'
+import { useWonExitConfirm } from '../useWonExitConfirm'
 import { initialDraft, INLINE_LABEL, savedMessage, type InlineField } from './inline'
 
 interface InlineEditorProps {
@@ -28,20 +29,29 @@ export function InlineEditor({ row, field, onDone }: InlineEditorProps) {
   const codes = useCodeSet().data
   const apply = useApplyDealChange()
   const { request, dialogs } = useSyncedChange(row)
+  // 안내(차단) 대화상자는 편집 칸이 살아 있어야 보이므로 닫은 뒤에 편집을 끝낸다.
+  const wonExit = useWonExitConfirm(onDone)
   const [draft, setDraft] = useState(() => initialDraft(row, field))
   const [error, setError] = useState<string | null>(null)
   const label = INLINE_LABEL[field]
   const root = useRef<HTMLDivElement>(null)
   // 저장 중·취소 후에는 팝업으로 포커스가 옮겨 가며 생기는 blur를 무시한다.
   const settled = useRef(false)
+  // 안내(차단) 대화상자가 떠 있는 동안은 blur로 편집이 닫히지 않게 settled를 유지한다(닫으면 onDone).
+  const holdSettled = useRef(false)
 
   // 편집을 시작하면 입력란으로 포커스를 옮겨 키보드로 바로 고칠 수 있게 한다.
   useEffect(() => {
     root.current?.querySelector<HTMLElement>('select, input')?.focus()
   }, [])
 
-  async function send(value: string, change: DealChange, resolution: ApplyChangeRequest['resolution']) {
-    const result = await apply.mutateAsync({ code: row.code, request: resolution ? { change, resolution } : { change } })
+  async function send(value: string, change: DealChange, resolution: ApplyChangeRequest['resolution'], deleteLicenseContracts?: boolean) {
+    const request: ApplyChangeRequest = {
+      change,
+      ...(resolution ? { resolution } : {}),
+      ...(deleteLicenseContracts === undefined ? {} : { deleteLicenseContracts }),
+    }
+    const result = await apply.mutateAsync({ code: row.code, request })
     onDone(savedMessage(row, field, value, codes, result))
   }
 
@@ -56,7 +66,20 @@ export function InlineEditor({ row, field, onDone }: InlineEditorProps) {
     }
     if (applied.patch.statusKey !== undefined) resolution.statusKey = applied.patch.statusKey
     if (applied.patch.forecastKey !== undefined) resolution.forecastKey = applied.patch.forecastKey
-    await send(value, { field: codeField, value }, resolution)
+    // Won을 벗어나면 라이선스 계약 처리를 묻는다(동기화 선택 뒤, 요청 전). 취소하면 변경하지 않는다.
+    const exit = await wonExit.ask(
+      row,
+      { statusKey: applied.patch.statusKey ?? row.statusKey, forecastKey: applied.patch.forecastKey ?? row.forecastKey },
+      row,
+    )
+    if (!exit.proceed) {
+      if (exit.blocked) {
+        holdSettled.current = true
+        return
+      }
+      return onDone()
+    }
+    await send(value, { field: codeField, value }, resolution, exit.deleteLicenseContracts)
   }
 
   async function saveValue(value: string) {
@@ -81,7 +104,7 @@ export function InlineEditor({ row, field, onDone }: InlineEditorProps) {
       setError(failure instanceof Error ? failure.message : '저장하지 못했습니다.')
     } finally {
       // 검증·저장 실패로 편집이 계속되면 다시 시도할 수 있게 푼다(편집이 끝났으면 언마운트됨).
-      settled.current = false
+      if (!holdSettled.current) settled.current = false
     }
   }
 
@@ -155,6 +178,7 @@ export function InlineEditor({ row, field, onDone }: InlineEditorProps) {
         </p>
       )}
       {dialogs}
+      {wonExit.dialog}
     </div>
   )
 }

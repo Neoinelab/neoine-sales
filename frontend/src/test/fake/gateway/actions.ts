@@ -11,6 +11,7 @@ import { conflict, forbidden, notFound, validation } from '../errors'
 import { takeId, type ActionRecord, type SeedData, type UserRecord } from '../store'
 import { read, requireUser, requireWrite, viewerOf, write, type MockContext } from './context'
 import { assertSequenceShape, planSequence } from './actionChanges'
+import { assertWonExitAllowed, followWonChange } from './contractWon'
 import { commitDealChange } from './dealChange'
 import { commitActionType, planActionType } from './actionTypes'
 import { logHistory } from './historyLog'
@@ -39,9 +40,10 @@ function normalize(input: ActionUpdateInput, typeId: number): Content {
   const progress = blankToNull(input.progress)
   const nextAction = blankToNull(input.nextAction)
   if (progress === null && nextAction === null) throw validation(ACTION_OR_NEXT_REQUIRED)
-  if (nextAction !== null && !DATE.test(input.dueDate)) throw validation('Due Date를 입력하세요.')
-  if (nextAction === null && input.dueDate !== '') throw validation(DUE_WITHOUT_NEXT)
-  return { typeId, progress, nextAction, dueDate: nextAction === null ? null : input.dueDate, memo: input.memo.trim() }
+  const due = input.dueDate ?? ''
+  if (nextAction !== null && !DATE.test(due)) throw validation('Due Date를 입력하세요.')
+  if (nextAction === null && due !== '') throw validation(DUE_WITHOUT_NEXT)
+  return { typeId, progress, nextAction, dueDate: nextAction === null ? null : due, memo: input.memo.trim() }
 }
 
 /** History 문구의 유형 자리에는 그 시점의 유형 이름이 들어간다(이미 남은 문구는 이름이 바뀌어도 그대로). 빈 부분은 생략한다. */
@@ -171,8 +173,12 @@ export function createActionsGateway(ctx: MockContext): ActionsGateway {
         // 서버 순서: 입력 422 → 이전 Next Action 409 → 상태 변경 권한 403 → Status 동기화 판정. 모두 통과한 뒤에만 바꾼다.
         const closing = input.closePreviousNextActionId === undefined ? null : planClosePrevious(ctx, dealCode, input.closePreviousNextActionId, user)
         const outcomes = planSequence(ctx, deal, input.statusChanges ?? [])
+        const wonAfter = outcomes.reduce((state, o) => ({ ...state, ...o.patch }), { statusKey: deal.statusKey, forecastKey: deal.forecastKey })
+        assertWonExitAllowed(data, dealCode, deal, wonAfter)
         const chosen = commitActionType(ctx, typePlan, user.id)
+        const wonBefore = { statusKey: deal.statusKey, forecastKey: deal.forecastKey }
         for (const outcome of outcomes) commitDealChange(ctx, deal, outcome, user.id)
+        followWonChange(ctx, dealCode, wonBefore, deal, input.deleteLicenseContracts, user.id)
         const now = ctx.clock.now()
         if (closing !== null) {
           const planned = `${closing.nextAction} (Due ${closing.dueDate}) · ${STATUS_LABEL.open}`

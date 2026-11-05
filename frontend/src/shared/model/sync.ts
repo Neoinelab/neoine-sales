@@ -293,3 +293,8 @@ export function certainlyOverrides(first: SyncChange, state: SyncState, plan: Sy
   if (plan.kind === 'askForecast' && first.field === 'forecastKey') return !plan.options.includes(current)
   return false
 }
+
+/** Won(Forecast won)이던 Deal이 Won이 아니게 되는가. 서버 `won_transition`의 left와 같다. 라이선스 계약 삭제 여부를 물을 때 쓴다. */
+export function leavesWon(before: SyncState, after: SyncState): boolean {
+  return before.forecastKey === FORECAST_WON && after.forecastKey !== FORECAST_WON
+}

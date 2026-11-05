@@ -13,6 +13,7 @@ import type { DealAction, DealDetail } from '../../../shared/model/types'
 import { DateInput } from '../../../shared/ui/DateInput'
 import { ErrorBanner } from '../../../shared/ui/ErrorBanner'
 import { Modal } from '../../../shared/ui/Modal'
+import { useWonExitConfirm } from '../useWonExitConfirm'
 import { PreviousUpdate } from './PreviousUpdate'
 import { ActionTypeInput } from './ActionTypeInput'
 import { ActionSyncFields } from './ActionSyncFields'
@@ -54,6 +55,7 @@ export function ActionForm({ deal, editing, previous, onDone, onCancel }: Action
   const create = useCreateAction()
   const update = useUpdateAction()
   const sync = useActionSync(deal)
+  const wonExit = useWonExitConfirm()
   const formId = useId()
   const types = useActionTypes().data
   const [type, setType] = useState(editing?.type ?? '')
@@ -134,11 +136,15 @@ export function ActionForm({ deal, editing, previous, onDone, onCancel }: Action
         return
       }
       const statusChanges = toStatusChanges(sync.entries)
+      // 상태 변경이 Won을 벗어나면 라이선스 계약 처리를 묻는다(동기화 선택 뒤, 등록 요청 전). 취소하면 폼을 그대로 둔다.
+      const exit = await wonExit.ask(sync.base, sync.state, deal)
+      if (!exit.proceed) return
       const closing = filledFromId !== null && filled && previousClosable && closePrevious
       const input = {
         ...fields,
         ...(statusChanges.length > 0 ? { statusChanges } : {}),
         ...(closing ? { closePreviousNextActionId: filledFromId } : {}),
+        ...(exit.deleteLicenseContracts === undefined ? {} : { deleteLicenseContracts: exit.deleteLicenseContracts }),
       }
       await create.mutateAsync({ dealCode: deal.code, input })
       const summary = codes ? changeSummary(sync.base, sync.entries, codes) : null
@@ -208,6 +214,7 @@ export function ActionForm({ deal, editing, previous, onDone, onCancel }: Action
         </form>
       </div>
       {sync.dialogs}
+      {wonExit.dialog}
     </Modal>
   )
 }

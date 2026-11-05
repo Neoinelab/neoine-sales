@@ -7,6 +7,7 @@ import type {
   DealListQuery,
   ForecastQuery,
   HistoryQuery,
+  LicenseContractQuery,
   PartnerMeetingQuery,
   UserListFilter,
   UserOptionsQuery,
@@ -60,6 +61,10 @@ export const keys = {
   savedReportRun: (id: number) => ['reports', 'run', id] as const,
   // 저장 직후 편집 화면으로 넘기는 조회 결과(다시 조회하지 않게). 편집 화면이 읽고 지운다.
   savedReportHandoff: (id: number) => ['reports', 'handoff', id] as const,
+  licenseContracts: ['licenseContracts'] as const,
+  licenseContractLists: ['licenseContracts', 'list'] as const,
+  licenseContractList: (q: LicenseContractQuery) => ['licenseContracts', 'list', q] as const,
+  licenseContractAttachments: (contractId: number) => ['licenseContracts', 'attachments', contractId] as const,
   partnerMeetings: ['partnerMeetings'] as const,
   partnerMeetingLists: ['partnerMeetings', 'list'] as const,
   partnerMeetingList: (q: PartnerMeetingQuery) => ['partnerMeetings', 'list', q] as const,

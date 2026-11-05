@@ -15,6 +15,8 @@ describe('toDealRow', () => {
         bant: { budget: 1, authority: null, need: 3, timeline: null },
         next_action: { text: '견적 재송부', due_date: '2026-10-20', status: 'open' },
         procurement: '입찰',
+        license_contract_count: 3,
+        has_issued_license_contract: true,
       }),
     )
 
@@ -47,6 +49,8 @@ describe('toDealRow', () => {
       quote: { submitted: 'YES', submittedDate: '2026-10-05' },
       poc: { state: 'ING', completedDate: null },
       procurement: '입찰',
+      licenseContractCount: 3,
+      hasIssuedLicenseContract: true,
       bant: { budget: 1, authority: null, need: 3, timeline: null },
       nextAction: { text: '견적 재송부', dueDate: '2026-10-20', status: 'open' },
       lastUpdatedAt: '2026-10-15T09:00:00+09:00',
@@ -151,6 +155,12 @@ describe('toDealDetail', () => {
         unlinkedAt: '2026-10-10T09:00:00+09:00',
       },
     ])
+  })
+
+  it('maps hasIssuedLicenseContract from has_issued_license_contract on rows and details', () => {
+    expect(toDealRow(serverDealRow({ has_issued_license_contract: true })).hasIssuedLicenseContract).toBe(true)
+    expect(toDealRow(serverDealRow({ has_issued_license_contract: false })).hasIssuedLicenseContract).toBe(false)
+    expect(toDealDetail(serverDealDetail({ has_issued_license_contract: true })).hasIssuedLicenseContract).toBe(true)
   })
 
   it('carries the row fields too', () => {

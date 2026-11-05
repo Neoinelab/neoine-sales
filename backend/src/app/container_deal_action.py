@@ -11,15 +11,17 @@ from app.application.deal_action.update_deal_action import UpdateDealAction
 
 if TYPE_CHECKING:
     from app.application.ports.clock import Clock
+    from app.application.ports.file_storage import FileStorage
     from app.application.ports.unit_of_work import UnitOfWorkFactory
 
 
 class DealActionUseCases:
     _uow: UnitOfWorkFactory
     _clock: Clock
+    _file_storage: FileStorage
 
     def register_deal_action(self) -> RegisterDealAction:
-        return RegisterDealAction(self._uow, self._clock)
+        return RegisterDealAction(self._uow, self._clock, self._file_storage)
 
     def get_deal_action(self) -> GetDealAction:
         return GetDealAction(self._uow)

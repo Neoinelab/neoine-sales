@@ -52,6 +52,10 @@ BUSINESS_READS: Final = (
     ("GET", "/api/v1/reports/fields"),  # Reports 1단계: 필드 카탈로그는 모든 역할
     ("POST", "/api/v1/reports/query"),  # POST지만 조회 전용(저장 없음)이라 user도 쓸 수 있다
     ("GET", "/api/v1/partner-meetings"),  # 파트너 Activity 목록: 모든 역할
+    ("GET", "/api/v1/license-contracts"),  # 계약관리 목록·단건·첨부 목록·다운로드: 모든 역할
+    ("GET", "/api/v1/license-contracts/{contract_id}"),
+    ("GET", "/api/v1/license-contracts/{contract_id}/attachments"),
+    ("GET", "/api/v1/license-contract-attachments/{attachment_id}/download"),
 )
 BUSINESS_WRITES: Final = (
     ("POST", "/api/v1/bant-labels"),  # 자기 Label을 만든다(user는 조회 전용)
@@ -72,6 +76,15 @@ BUSINESS_WRITES: Final = (
     ("POST", "/api/v1/partner-meetings"),  # 파트너 Activity 입력·수정·삭제는 sales·admin
     ("PUT", "/api/v1/partner-meetings/{meeting_id}"),  # 본인 판정은 그 다음
     ("DELETE", "/api/v1/partner-meetings/{meeting_id}"),
+    ("PUT", "/api/v1/license-contracts/{contract_id}"),  # 계약 칸 수정·발급·갱신·종료는 sales·admin
+    ("POST", "/api/v1/license-contracts/{contract_id}/issue"),
+    ("POST", "/api/v1/license-contracts/{contract_id}/renewal"),
+    ("POST", "/api/v1/license-contracts/{contract_id}/end"),
+    # 삭제는 admin만이지만 판정은 도메인이 한다(없음 404 -> 권한 403). 없는 id로는 sales도
+    # 403이 아니라 404라서 이 표에서는 sales·admin 쓰기로 두고 sales 403은 전용 시나리오가 본다.
+    ("DELETE", "/api/v1/license-contracts/{contract_id}"),
+    ("POST", "/api/v1/license-contracts/{contract_id}/attachments"),  # 첨부 업로드·삭제
+    ("DELETE", "/api/v1/license-contract-attachments/{attachment_id}"),
 )
 # Reports 3단계: 저장 리포트. 만들기·수정·삭제를 로그인한 모든 역할이 한다(user 포함).
 # 수정·삭제 가능 여부는 리포트마다 다르며(만든 사람·공개 범위·admin) 도메인 정책이 판정한다.

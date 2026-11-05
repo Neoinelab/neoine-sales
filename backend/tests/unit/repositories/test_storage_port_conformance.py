@@ -20,7 +20,7 @@ from tests.fakes.storage_settings_repository import FakeStorageSettingsRepositor
 from tests.fakes.unit_of_work import FakeUnitOfWork
 from tests.fakes.use_cases import FakeUseCases
 
-FILE_STORAGE_METHODS = ("check_writable", "save", "open", "delete", "delete_deal_files")
+FILE_STORAGE_METHODS = ("check_writable", "save", "open", "delete", "delete_folder")
 STORAGE_USE_CASES = (
     "register_setup_storage",
     "test_setup_storage",
@@ -50,8 +50,16 @@ def test_file_storage_implementations_expose_every_port_method_as_a_coroutine() 
 
 
 def test_the_file_storage_port_carries_a_location_and_an_opened_file_value() -> None:
-    assert {"deal_code", "key"} <= set(StoredFileLocation.__dataclass_fields__)
+    assert {"folder", "key"} == set(StoredFileLocation.__dataclass_fields__)
+    from app.application.ports.file_storage import StorageFolder  # noqa: PLC0415
+
+    assert {"parts"} == set(StorageFolder.__dataclass_fields__)
     assert {"size", "chunks"} <= set(OpenedFile.__dataclass_fields__)
+
+
+def test_the_file_storage_port_has_no_delete_deal_files_any_more() -> None:
+    for implementation in (FileStorage, FakeFileStorage, LocalFileStorage):
+        assert not hasattr(implementation, "delete_deal_files"), implementation
 
 
 def test_storage_settings_repositories_satisfy_the_port() -> None:

@@ -3,6 +3,9 @@
 import type { ReportQueryInput, ReportResult, SavedReport } from '../../shared/model/reportTypes'
 import type {
   BantCategory,
+  ContractStatus,
+  InspectionCycle,
+  LicenseTerm,
   Code,
   Contact,
   Deal,
@@ -114,6 +117,51 @@ export interface PartnerMeetingRecord {
   updatedAt: string
 }
 
+/**
+ * 라이선스 계약. Deal에서 오는 5칸은 저장하지 않고 조회 때 Deal에서 읽는다. 다만 시드의 과거 계약은 시드 Deal 24건 밖의 Deal에 속하므로
+ * 그런 계약만 `dealSide`로 그 Deal의 값을 직접 들고 있다(Deal이 있는 계약은 항상 Deal 값을 읽는다).
+ */
+export interface LicenseContractRecord {
+  id: number
+  dealCode: string
+  status: ContractStatus
+  licenseStart: string | null
+  licenseEnd: string | null
+  term: LicenseTerm | null
+  techOwner: string
+  inspection: InspectionCycle
+  note: string
+  renewedFromId: number | null
+  endedAt: string | null
+  createdById: number
+  updatedById: number
+  createdAt: string
+  updatedAt: string
+  dealSide?: ContractDealSide
+}
+
+/** Deal이 없는 시드 계약이 들고 있는 Deal 값. */
+export interface ContractDealSide {
+  dealName: string
+  customer: string
+  vendorId: number | null
+  product: string
+  partner: string | null
+  ownerId: number
+}
+
+export interface ContractAttachmentRecord {
+  id: number
+  contractId: number
+  fileName: string
+  size: number
+  mime: string
+  description: string
+  uploadedById: number
+  uploadedAt: string
+  content: Blob | string
+}
+
 export type DirectoryRecord = Omit<DirectorySettings, 'updatedBy'> & { updatedById: number | null }
 
 export interface StorageRecord {
@@ -161,6 +209,9 @@ export interface SeedData {
   actions: ActionRecord[]
   history: HistoryRecord[]
   attachments: AttachmentRecord[]
+  /** 라이선스 계약(없으면 비어 있는 것과 같다). 샘플 시드(`test/fixtures`)가 채우고, Won 진입 때 Fake가 만든다. */
+  licenseContracts: LicenseContractRecord[]
+  contractAttachments: ContractAttachmentRecord[]
   directory: DirectoryRecord | null
   storage: StorageRecord | null
   alerts: AlertRecord

@@ -8,6 +8,7 @@ from app.application.deal.history_writer import write_history
 from app.application.ids import new_attachment_id
 from app.application.ports.file_storage import StorageNotWritableError, StoredFileLocation
 from app.application.storage.errors import UPLOAD_UNAVAILABLE, StorageUnavailableError
+from app.application.storage.folders import deal_folder
 from app.domain.attachment.entities import Attachment
 from app.domain.attachment.errors import AttachmentNameTakenError
 from app.domain.attachment.history import replaced_draft, uploaded_draft
@@ -33,6 +34,11 @@ if TYPE_CHECKING:
 
 DEFAULT_MIME = "application/octet-stream"
 MIME_MAX = 255
+
+
+def new_storage_key() -> str:
+    """디스크 파일 이름(영숫자 32자). 계약 첨부도 같은 규칙을 쓰려고 여기서 만든다."""
+    return uuid4().hex
 
 
 def _mime_of(raw: str | None) -> str:
@@ -75,8 +81,9 @@ class UploadAttachment:
             if await self._decide(uow, deal_code, candidate, data, actor) is None:
                 return UploadOutcome(UploadOutcomeKind.SKIPPED, None)
         root = settings.path
-        key = uuid4().hex
-        size = await self._save(root, StoredFileLocation(deal_code=deal_code, key=key), data)
+        key = new_storage_key()
+        folder = deal_folder(deal_code)
+        size = await self._save(root, StoredFileLocation(folder, key), data)
         mark = _CommitMark()
         try:
             outcome, old_key = await self._record(
@@ -84,12 +91,12 @@ class UploadAttachment:
             )
         except BaseException:
             if not mark.done:  # 커밋된 행이 새 파일을 가리키므로 커밋 뒤 오류에는 지우지 않는다
-                await remove_file_quietly(self._storage, root, deal_code, key)
+                await remove_file_quietly(self._storage, root, StoredFileLocation(folder, key))
             raise
         if outcome.kind is UploadOutcomeKind.SKIPPED:
-            await remove_file_quietly(self._storage, root, deal_code, key)
+            await remove_file_quietly(self._storage, root, StoredFileLocation(folder, key))
         elif old_key is not None:
-            await remove_file_quietly(self._storage, root, deal_code, old_key)
+            await remove_file_quietly(self._storage, root, StoredFileLocation(folder, old_key))
         return outcome
 
     async def _decide(

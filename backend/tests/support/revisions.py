@@ -312,3 +312,21 @@ def retire_dev_users_revision() -> str:
     children = [r.revision for r in script.walk_revisions() if r.down_revision == parent]
     assert len(children) == 1, f"Deal 제거 다음 리비전이 정확히 하나여야 한다: {children}"
     return children[0]
+
+
+def license_contracts_revision() -> str:
+    """라이선스 계약 리비전(`license_contracts`) id: 개발 로그인 사용자 삭제 다음이고 head다.
+
+    `license_contracts`·`license_contract_attachments` 두 테이블을 만들고(순수 expand) 이미 Won인
+    Deal마다 미발급 계약 1건을 넣는다. downgrade는 두 테이블을 지운다. id는 구현이 정하므로
+    그래프에서 찾는다. 없거나 둘 이상이면 AssertionError(구현 전에는 이것이 red다).
+    """
+    from alembic.script import ScriptDirectory  # noqa: PLC0415
+
+    from tests.support.database import _alembic_config  # noqa: PLC0415
+
+    script = ScriptDirectory.from_config(_alembic_config())
+    parent = retire_dev_users_revision()
+    children = [r.revision for r in script.walk_revisions() if r.down_revision == parent]
+    assert len(children) == 1, f"개발 로그인 삭제 다음 리비전이 정확히 하나여야 한다: {children}"
+    return children[0]

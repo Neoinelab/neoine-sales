@@ -18,6 +18,8 @@ if TYPE_CHECKING:
 USER_REF_PATTERN: Final = re.compile(
     r"(^|_)(user_id|subject|created_by|updated_by|changed_by|registered_by|owner|actor)(_|$)"
 )
+# 예외: 이름에 owner가 있어도 사용자 참조가 아닌 자유 텍스트(계약 기술담당, 계정 없음).
+FREE_TEXT_COLUMNS: Final = frozenset({("license_contracts", "tech_owner")})
 RESTRICT: Final = "r"
 CASCADE: Final = "c"
 USERS_TABLE: Final = "users"
@@ -34,6 +36,14 @@ FORECAST_OWNED_CASCADES: Final = (
 # 예외: 대체 로그인용 비밀번호 해시는 사용자에 딸린 데이터라 사용자를 물리 삭제하면 함께 지워진다
 # (ON DELETE CASCADE). 사용자 삭제를 막는 '연결'로 세지 않는다.
 USER_OWNED_CASCADES: Final = (("user_password_hashes", "user_id", "users"),)
+
+# 예외: 계약 첨부 행은 계약에 딸린 데이터라 계약을 지우면 함께 지워지고(CASCADE), 갱신 원본 링크는
+# 원본 계약을 지워도 새 계약을 남기려고 NULL로 되돌린다(SET NULL).
+CONTRACT_OWNED_CASCADES: Final = (
+    ("license_contract_attachments", "contract_id", "license_contracts"),
+)
+CONTRACT_SET_NULL: Final = (("license_contracts", "renewed_from_id", "license_contracts"),)
+SET_NULL: Final = "n"
 
 FOREIGN_KEYS_SQL = text(
     "select c.conname as name, c.conrelid::regclass::text as tbl, a.attname as col,"
@@ -105,12 +115,15 @@ def _delete_rule_violated(fk: ForeignKey) -> bool:
     forecast_snapshot_columns(복합 FK), user_password_hashes.user_id→users만 허용한다."""
     if fk.on_delete == RESTRICT:
         return False
+    key = (fk.table, fk.column, fk.ref_table)
+    if fk.on_delete == SET_NULL:
+        return key not in CONTRACT_SET_NULL
     if fk.on_delete != CASCADE:
         return True
     if fk.ref_table == DEAL_OWNED_PARENT:
         return False
-    allowed = {*FORECAST_OWNED_CASCADES, *USER_OWNED_CASCADES}
-    return (fk.table, fk.column, fk.ref_table) not in allowed
+    allowed = {*FORECAST_OWNED_CASCADES, *USER_OWNED_CASCADES, *CONTRACT_OWNED_CASCADES}
+    return key not in allowed
 
 
 async def check_schema(
@@ -131,7 +144,7 @@ async def check_schema(
         if not any((fk.table, column) in leading for column in fk.columns or (fk.column,)):
             found.append(Violation("fk_column_without_leading_index", fk.table, fk.column))
     for col in columns:
-        if USER_REF_PATTERN.search(col.col):
+        if USER_REF_PATTERN.search(col.col) and (col.tbl, col.col) not in FREE_TEXT_COLUMNS:
             target = fk_by_column.get((col.tbl, col.col))
             if col.udt != "int8" or target is None or target.ref_table != USERS_TABLE:
                 found.append(Violation("user_reference_not_a_bigint_fk_to_users", col.tbl, col.col))

@@ -131,7 +131,7 @@ def build_action_env(env: DealEnv, deal: DealView) -> ActionEnv:
     return ActionEnv(
         env=env,
         deal=deal,
-        register=RegisterDealAction(env.uow_factory, env.clock),
+        register=RegisterDealAction(env.uow_factory, env.clock, env.storage),
         update=UpdateDealAction(env.uow_factory, env.clock),
         delete=DeleteDealAction(env.uow_factory, env.clock),
         list=ListDealActions(env.uow_factory),

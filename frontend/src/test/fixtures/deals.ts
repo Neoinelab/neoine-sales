@@ -8,8 +8,9 @@ import { USER_ID } from '../fake/seed/ids'
 import { seedVendorId } from './vendors'
 
 /** 시드 Deal의 code: 등록일(YYYYMMDD) + '-D' + 3자리 번호(1~24). */
-export function dealCodeOf(spec: Pick<DealSpec, 'no' | 'lastAgo' | 'count'>, env: Pick<SeedEnv, 'date'>): string {
-  return `${env.date(-createdAgo(spec)).replaceAll('-', '')}-D${String(spec.no).padStart(3, '0')}`
+export function dealCodeOf(spec: Pick<DealSpec, 'no' | 'lastAgo' | 'count' | 'codeDate'>, env: Pick<SeedEnv, 'date'>): string {
+  const date = spec.codeDate ?? env.date(-createdAgo(spec)).replaceAll('-', '')
+  return `${date}-D${String(spec.no).padStart(3, '0')}`
 }
 
 function bantOf(spec: DealSpec, labels: readonly LabelRecord[]): BantSelection {

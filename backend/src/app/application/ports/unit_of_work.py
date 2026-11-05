@@ -19,6 +19,10 @@ if TYPE_CHECKING:
         ForecastTallyRepository,
     )
     from app.application.ports.id_allocator import IdAllocator
+    from app.application.ports.license_contract_attachment_repository import (
+        LicenseContractAttachmentRepository,
+    )
+    from app.application.ports.license_contract_repository import LicenseContractRepository
     from app.application.ports.login_failure_repository import LoginFailureRepository
     from app.application.ports.partner_meeting_repository import PartnerMeetingRepository
     from app.application.ports.report_query_runner import ReportQueryRunner
@@ -108,6 +112,12 @@ class UnitOfWork(Protocol):
 
     @property
     def partner_meetings(self) -> PartnerMeetingRepository: ...
+
+    @property
+    def license_contracts(self) -> LicenseContractRepository: ...
+
+    @property
+    def license_contract_attachments(self) -> LicenseContractAttachmentRepository: ...
 
     async def __aenter__(self) -> Self: ...
 

@@ -26,22 +26,22 @@ describe('목업 표시 없음 (S1)', () => {
 })
 
 describe('메뉴 (T-SHELL-04~05)', () => {
-  it.each(['sales', 'user'] as const)('shows exactly four user menus to %s and no Admin', async (role) => {
+  it.each(['sales', 'user'] as const)('shows exactly the user menus to %s and no Admin', async (role) => {
     await renderAt('/deals', { role })
     await screen.findByRole('navigation', { name: '주 메뉴' })
     const labels = mainMenu()
       .getAllByRole('link')
       .map((a) => a.textContent)
-    expect(labels).toEqual(['Deals', '파트너 Activity', 'Dashboard', 'Forecast', 'Reports'])
+    expect(labels).toEqual(['Deals', '계약관리', '파트너 Activity', 'Dashboard', 'Forecast', 'Reports'])
   })
 
-  it('adds Admin to the four menus for admin only', async () => {
+  it('adds Admin to the user menus for admin only', async () => {
     await renderAt('/deals', { role: 'admin' })
     await screen.findByRole('navigation', { name: '주 메뉴' })
     const labels = mainMenu()
       .getAllByRole('link')
       .map((a) => a.textContent)
-    expect(labels).toEqual(['Deals', '파트너 Activity', 'Dashboard', 'Forecast', 'Reports', 'Admin'])
+    expect(labels).toEqual(['Deals', '계약관리', '파트너 Activity', 'Dashboard', 'Forecast', 'Reports', 'Admin'])
   })
 
   it('shows the signed-in name and role in the user menu', async () => {

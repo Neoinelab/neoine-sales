@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 from app.application.attachment.inputs import UploadOutcomeKind
-from app.application.ports.file_storage import StoredFileLocation
+from tests.fakes.file_storage import deal_location
 from tests.unit.application.attachment_env import KIM, ROOT_PATH, TARGET
 
 if TYPE_CHECKING:
@@ -152,7 +152,7 @@ async def test_the_same_name_in_another_deal_is_a_separate_file(
     assert second.kind is UploadOutcomeKind.UPLOADED
     assert second.attachment.id != first.id
     assert attachment_env.content_of(first) == b"first"
-    location = StoredFileLocation(deal_code=other.item.deal.id, key=second.attachment.storage_key)
+    location = deal_location(other.item.deal.id, second.attachment.storage_key)
     assert attachment_env.storage.contents_of(attachment_env.root, location) == b"second"
 
 

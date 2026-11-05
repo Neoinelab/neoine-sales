@@ -3,7 +3,7 @@
 from datetime import date
 from typing import TYPE_CHECKING, Annotated, Literal
 
-from pydantic import BaseModel, Field, StrictInt
+from pydantic import BaseModel, Field, StrictBool, StrictInt
 
 from app.application.deal.inputs import DealChangeInput
 from app.domain.deal.sync import SyncResolution
@@ -44,13 +44,22 @@ class ResolutionRequest(RequestModel):
 class DealChangeRequest(RequestModel):
     change: ChangeBody
     resolution: ResolutionRequest | None = None
+    delete_license_contracts: Annotated[
+        StrictBool,
+        Field(
+            description="Won을 벗어나는 변경일 때 그 Deal의 라이선스 계약도 삭제한다(아니면 무시)."
+        ),
+    ] = False
 
     def to_input(self) -> DealChangeInput:
         resolution = (
             SyncResolution(**self.resolution.model_dump()) if self.resolution is not None else None
         )
         return DealChangeInput(
-            field=self.change.field, value=self.change.value, resolution=resolution
+            field=self.change.field,
+            value=self.change.value,
+            resolution=resolution,
+            delete_license_contracts=self.delete_license_contracts,
         )
 
 

@@ -20,6 +20,8 @@ from tests.fakes.directory_settings_repository import FakeDirectorySettingsRepos
 from tests.fakes.forecast import FakeForecastTallyRepository
 from tests.fakes.forecast_snapshots import FakeForecastSnapshotRepository
 from tests.fakes.id_allocator import FakeIdAllocator
+from tests.fakes.license_contract_attachments import FakeLicenseContractAttachmentRepository
+from tests.fakes.license_contracts import FakeLicenseContractRepository
 from tests.fakes.partner_meetings import FakePartnerMeetingRepository
 from tests.fakes.report_repository import FakeReportRepository
 from tests.fakes.report_runner import FakeReportQueryRunner
@@ -68,7 +70,10 @@ class FakeUnitOfWork:
         self.reports = FakeReportQueryRunner()  # Reports 조회(기록·고정 응답만 하는 Fake)
         self.saved_reports = FakeReportRepository()  # 저장 리포트(Reports 3단계)
         self.partner_meetings = FakePartnerMeetingRepository()  # 파트너 Activity 미팅 기록
+        self.license_contracts = FakeLicenseContractRepository()  # 라이선스 계약(Deal 1:N)
+        self.license_contract_attachments = FakeLicenseContractAttachmentRepository()
         self.deals.wire(
+            license_contracts=self.license_contracts,
             contacts=self.contacts,
             codes=self.codes,
             labels=self.bant_labels,
@@ -79,6 +84,14 @@ class FakeUnitOfWork:
             users=self.users,
         )
         self.partner_meetings.wire(users=self.users)
+        self.license_contracts.wire(
+            deals=self.deals,
+            contacts=self.contacts,
+            vendors=self.vendors,
+            users=self.users,
+            attachments=self.license_contract_attachments,
+        )
+        self.license_contract_attachments.wire(contracts=self.license_contracts, users=self.users)
         self.attachments.wire(deals=self.deals)  # 소속 Deal이 없으면 DealNotFoundError
         # 소속 Deal이 없으면 DealNotFoundError, 스냅숏 코드가 없으면 InvalidReferenceError
         self.deal_actions.wire(
@@ -147,6 +160,17 @@ class FakeUnitOfWork:
         self.users.add_referrer(  # partner_meetings.created_by_user_id (파트너 Activity 작성자)
             lambda uid: any(m.author_user_id == uid for m in meetings._items.values())
         )
+        contracts = self.license_contracts
+        self.users.add_referrer(  # license_contracts.created_by_user_id (계약 등록자)
+            lambda uid: any(c.created_by == uid for c in contracts._items.values())
+        )
+        self.users.add_referrer(  # license_contracts.updated_by_user_id (계약 수정자)
+            lambda uid: any(c.updated_by == uid for c in contracts._items.values())
+        )
+        contract_files = self.license_contract_attachments
+        self.users.add_referrer(  # license_contract_attachments.uploaded_by_user_id
+            lambda uid: any(a.uploaded_by == uid for a in contract_files._items.values())
+        )
         types = self.action_types
         self.users.add_referrer(  # action_types.created_by_user_id (AC-36: 만든 사람은 연결 있음)
             lambda uid: any(t.created_by_user_id == uid for t in types._items.values())
@@ -174,6 +198,8 @@ class FakeUnitOfWork:
             self.forecast_snapshots,
             self.saved_reports,
             self.partner_meetings,
+            self.license_contracts,
+            self.license_contract_attachments,
         )
 
     def _take(self) -> tuple[Any, ...]:

@@ -37,6 +37,8 @@ from tests.unit.repositories.forecast_case import PARAMS as FORECAST_PARAMS
 from tests.unit.repositories.forecast_case import ForecastCase, open_forecast_case
 from tests.unit.repositories.forecast_snapshot_case import PARAMS as SNAPSHOT_PARAMS
 from tests.unit.repositories.forecast_snapshot_case import SnapshotCase, open_snapshot_case
+from tests.unit.repositories.license_contract_case import PARAMS as CONTRACT_PARAMS
+from tests.unit.repositories.license_contract_case import ContractCase, open_contract_case
 from tests.unit.repositories.partner_meeting_case import PARAMS as MEETING_PARAMS
 from tests.unit.repositories.partner_meeting_case import MeetingCase, open_meeting_case
 from tests.unit.repositories.report_case import PARAMS as REPORT_PARAMS
@@ -163,4 +165,12 @@ async def meeting_case(request: pytest.FixtureRequest) -> AsyncIterator[MeetingC
     """PartnerMeetingRepository 계약 테스트용 case (fake / sql)."""
     url = request.getfixturevalue("test_database_url") if request.param == "sql" else None
     async with open_meeting_case(request.param, url) as provided:
+        yield provided
+
+
+@pytest_asyncio.fixture(params=CONTRACT_PARAMS)
+async def contract_case(request: pytest.FixtureRequest) -> AsyncIterator[ContractCase]:
+    """LicenseContractRepository·LicenseContractAttachmentRepository 계약 테스트용 case."""
+    url = request.getfixturevalue("test_database_url") if request.param == "sql" else None
+    async with open_contract_case(request.param, url) as provided:
         yield provided

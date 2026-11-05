@@ -1,0 +1,40 @@
+/* 계약관리 스타일. 전역 토큰만 사용해 다크 모드를 따른다. */
+.contracts-page { display: grid; gap: 12px; min-width: 0; }
+.contract-filters { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px 12px; align-items: end; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); padding: 14px 16px; }
+.contract-filters .field input, .contract-filters .field select { width: 100%; min-width: 0; }
+.contracts-count { margin: 0; }
+.contract-table { min-width: 1280px; }
+.contract-table th { white-space: nowrap; }
+.contract-table td.contract-code, .contract-table td.contract-date { white-space: nowrap; }
+.contract-table td.contract-note { white-space: pre-wrap; overflow-wrap: anywhere; min-width: 200px; }
+.contract-status[data-status='not_issued'] { background: var(--ui-warn-bg); color: var(--ui-warn-fg); }
+.contract-status[data-status='issued_new'], .contract-status[data-status='issued_renewal'] { background: var(--ui-ok-bg); color: var(--ui-ok-fg); }
+.contract-status[data-status='ended'] { background: var(--ui-neutral-bg); color: var(--ui-neutral-fg); }
+.contracts-empty { padding: 24px; text-align: center; color: var(--muted); background: var(--panel); border: 1px dashed var(--line); border-radius: 8px; margin: 0; }
+.contract-row { cursor: pointer; }
+.contract-row:hover { background: var(--ui-info-bg); }
+.contract-row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.contract-status-cell { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; }
+.contract-license-button { padding: 2px 8px; }
+/* 만료 임박(발급 계약만): 1개월 미만 붉은색, 2개월 미만 진한 노란색. 글자색을 함께 정해 다크 모드에서도 읽힌다. */
+.contract-table td.expiry-danger { background: #fecaca; color: #7f1d1d; font-weight: 600; }
+.contract-table td.expiry-warning { background: #facc15; color: #422006; font-weight: 600; }
+.contract-table td.status-issued { background: var(--ui-ok-bg); color: var(--ui-ok-fg); }
+.contract-table td.status-ended { background: var(--ui-neutral-bg); color: var(--ui-neutral-fg); }
+.contract-edit-grid, .contract-license-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px 12px; }
+.contract-files { display: grid; gap: 8px; margin-top: 12px; }
+@media (prefers-color-scheme: dark) {
+  .contract-table td.expiry-danger { background: #7f1d1d; color: #fee2e2; }
+  .contract-table td.expiry-warning { background: #a16207; color: #fef9c3; }
+}
+/* 계약 수정 대화상자 위쪽: 상태(배지 + 발급·갱신 버튼)와 라이선스 기간 */
+.contract-edit-license { display: flex; flex-wrap: wrap; gap: 8px 24px; align-items: center; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius); }
+.contract-license-fields { display: grid; gap: 6px; margin-top: 10px; }
+.contract-edit-status { display: inline-flex; align-items: center; gap: 8px; }
+.contract-edit-label { font-weight: 600; color: var(--muted); }
+/* Deal에서 오는 읽기 전용 값(고객사명·Vendor·제품명·파트너사·담당영업) */
+.contract-deal-values { display: grid; gap: 6px; margin: 10px 0; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); }
+.contract-deal-heading { margin: 0; font-size: 0.9rem; color: var(--muted); }
+.contract-deal-value { display: grid; gap: 2px; min-width: 0; overflow-wrap: anywhere; }
+.contract-delete-button { margin-right: auto; }
+.contracts-more { display: flex; justify-content: center; }

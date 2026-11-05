@@ -19,13 +19,12 @@ from app.application.attachment.inputs import UploadAttachmentInput
 from app.application.attachment.list_attachments import ListAttachments
 from app.application.attachment.upload_attachment import UploadAttachment
 from app.application.deal.inputs import Actor
-from app.application.ports.file_storage import StoredFileLocation
 from app.domain.attachment.values import OnExists
 from app.domain.auth.principal import Role
 from app.domain.storage.path import StoragePath
 from tests.factories_attachment import make_attachment
 from tests.factories_auth import make_resigned_user, make_user
-from tests.fakes.file_storage import BytesSource
+from tests.fakes.file_storage import BytesSource, deal_location
 from tests.fakes.storage_settings_repository import FakeStorageSettingsRepository
 from tests.support.auth_seed import seed_storage
 from tests.support.user_ids import uid
@@ -129,7 +128,7 @@ class AttachmentEnv:
         )
         await self.storage.save(
             self.root,
-            StoredFileLocation(deal_code=attachment.deal_code, key=attachment.storage_key),
+            deal_location(attachment.deal_code, attachment.storage_key),
             BytesSource(data),
             max_bytes=len(data),
         )
@@ -146,7 +145,7 @@ class AttachmentEnv:
 
     def content_of(self, attachment: Attachment) -> bytes | None:
         """디스크에 있는 그 첨부의 내용(없으면 None)."""
-        location = StoredFileLocation(deal_code=attachment.deal_code, key=attachment.storage_key)
+        location = deal_location(attachment.deal_code, attachment.storage_key)
         return self.storage.contents_of(self.root, location)
 
     async def entries(self) -> builtins.list[DealHistoryEntry]:

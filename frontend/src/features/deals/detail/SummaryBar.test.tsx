@@ -55,7 +55,7 @@ describe('상세 현재값 바 인라인 변경 (T-SYNC-UI 상세)', () => {
   })
 
   it('asks which status to use when a won deal leaves Won, with no default and 계약완료 excluded', async () => {
-    const { user, bar } = await openBar(11, '청명대학교 SSO/MFA')
+    const { user, bar } = await openBar(12, '바른제약 PAM')
     await pick(user, bar, 'Forecast', 'Commit')
     const dialog = await screen.findByRole('dialog', { name: '함께 바꿀 값 선택' })
     const confirm = within(dialog).getByRole('button', { name: '확인' })
@@ -63,17 +63,19 @@ describe('상세 현재값 바 인라인 변경 (T-SYNC-UI 상세)', () => {
     expect(within(dialog).queryByRole('radio', { name: '계약완료' })).not.toBeInTheDocument()
     await user.click(within(dialog).getByRole('radio', { name: '기술평가' }))
     await user.click(confirm)
+    await user.click(within(await screen.findByRole('dialog', { name: '라이선스 계약 처리' })).getByRole('button', { name: '유지' }))
     await waitFor(() => expect(shown(bar, 'Forecast')).toHaveTextContent('Commit'))
     expect(shown(bar, 'Status')).toHaveTextContent('기술평가')
   })
 
   it('asks which forecast to use when a contract-completed deal goes back to an earlier status', async () => {
-    const { user, bar } = await openBar(11, '청명대학교 SSO/MFA')
+    const { user, bar } = await openBar(12, '바른제약 PAM')
     await pick(user, bar, 'Status', '기술평가')
     const dialog = await screen.findByRole('dialog', { name: '함께 바꿀 값 선택' })
     expect(within(dialog).getByRole('button', { name: '확인' })).toBeDisabled()
     await user.click(within(dialog).getByRole('radio', { name: 'Best' }))
     await user.click(within(dialog).getByRole('button', { name: '확인' }))
+    await user.click(within(await screen.findByRole('dialog', { name: '라이선스 계약 처리' })).getByRole('button', { name: '유지' }))
     await waitFor(() => expect(shown(bar, 'Status')).toHaveTextContent('기술평가'))
     expect(shown(bar, 'Forecast')).toHaveTextContent('Best')
   })

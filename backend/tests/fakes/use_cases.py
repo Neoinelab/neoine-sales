@@ -14,6 +14,7 @@ from tests.fakes.contact_use_cases import ContactUseCases
 from tests.fakes.deal_code_source import FakeDealCodeSuffixSource
 from tests.fakes.deal_use_cases import DealUseCases
 from tests.fakes.file_storage import FakeFileStorage
+from tests.fakes.license_contract_use_cases import LicenseContractUseCases
 from tests.fakes.partner_meeting_use_cases import PartnerMeetingUseCases
 from tests.fakes.unit_of_work import FakeUnitOfWork, SteppingClock
 
@@ -81,7 +82,12 @@ if TYPE_CHECKING:
 
 
 class FakeUseCases(
-    CatalogUseCases, ContactUseCases, DealUseCases, AttachmentUseCases, PartnerMeetingUseCases
+    CatalogUseCases,
+    ContactUseCases,
+    DealUseCases,
+    AttachmentUseCases,
+    PartnerMeetingUseCases,
+    LicenseContractUseCases,
 ):
     def __init__(self) -> None:
         self.uow = FakeUnitOfWork()
@@ -120,6 +126,9 @@ class FakeUseCases(
     def _attachment_uow_factory(self) -> UnitOfWorkFactory:
         return self._factory
 
+    def _license_uow_factory(self) -> UnitOfWorkFactory:
+        return self._factory
+
     def _meeting_uow_factory(self) -> UnitOfWorkFactory:
         return self._factory
 
@@ -129,7 +138,7 @@ class FakeUseCases(
             RegisterDealAction,
         )
 
-        return RegisterDealAction(self._factory, self.clock)
+        return RegisterDealAction(self._factory, self.clock, self.file_storage)
 
     def get_deal_action(self) -> GetDealAction:
         from app.application.deal_action.get_deal_action import GetDealAction  # noqa: PLC0415

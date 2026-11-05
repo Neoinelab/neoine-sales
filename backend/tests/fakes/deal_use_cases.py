@@ -57,7 +57,7 @@ class DealUseCases:
     def update_deal(self) -> UpdateDeal:
         from app.application.deal.update_deal import UpdateDeal  # noqa: PLC0415
 
-        return UpdateDeal(self._deal_uow_factory(), self.clock)
+        return UpdateDeal(self._deal_uow_factory(), self.clock, self.file_storage)
 
     def delete_deal(self) -> DeleteDeal:
         from app.application.deal.delete_deal import DeleteDeal  # noqa: PLC0415
@@ -67,7 +67,7 @@ class DealUseCases:
     def apply_deal_change(self) -> ApplyDealChange:
         from app.application.deal.apply_change import ApplyDealChange  # noqa: PLC0415
 
-        return ApplyDealChange(self._deal_uow_factory(), self.clock)
+        return ApplyDealChange(self._deal_uow_factory(), self.clock, self.file_storage)
 
     def get_deal_deletion_impact(self) -> GetDealDeletionImpact:
         from app.application.deal.deletion_impact import GetDealDeletionImpact  # noqa: PLC0415

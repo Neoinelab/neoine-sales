@@ -4,7 +4,6 @@ from typing import TYPE_CHECKING, Protocol
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
 
-    from app.domain.deal.code import DealCode
     from app.domain.storage.path import StoragePath
 
 
@@ -16,7 +15,7 @@ class StorageNotWritableError(Exception):
 
 
 class StoredFileMissingError(Exception):
-    """열려는 파일이 디스크에 없다(파일·Deal 디렉터리 없음, Deal 자리가 일반 파일)."""
+    """열려는 파일이 디스크에 없다(파일·폴더 없음, 폴더 자리가 일반 파일)."""
 
 
 class StorageNotReadableError(Exception):
@@ -32,8 +31,18 @@ class UploadSource(Protocol):
 
 
 @dataclass(frozen=True, slots=True)
+class StorageFolder:
+    """root 아래 상대 폴더. 각 조각은 영숫자와 '-'만(1~64자, '.'으로 시작 금지).
+
+    구현은 조각을 검증해 어긋나면 ValueError로 거절하고, 어느 단계든 심볼릭 링크를 따라가지 않는다.
+    """
+
+    parts: tuple[str, ...]
+
+
+@dataclass(frozen=True, slots=True)
 class StoredFileLocation:
-    deal_code: DealCode
+    folder: StorageFolder
     key: str  # 영숫자만. 경로 구분자·`..`·NUL·빈 값은 구현이 ValueError로 거절한다
 
 
@@ -59,7 +68,8 @@ class FileStorage(Protocol):
         *,
         max_bytes: int,
     ) -> int:
-        """`<root>/<deal_code>/<key>`에 새로 쓰고 쓴 바이트 수를 돌려준다.
+        """`<root>/<folder 조각…>/<key>`에 새로 쓰고(없는 상위 폴더는 만든다)
+        쓴 바이트 수를 돌려준다.
 
         같은 키가 있거나 쓰기에 실패하면 StorageNotWritableError, max_bytes를 넘으면
         InvalidValueError(FILE_TOO_LARGE). 실패하면 쓰던 파일을 남기지 않는다.
@@ -69,14 +79,23 @@ class FileStorage(Protocol):
     async def open(self, root: StoragePath, location: StoredFileLocation) -> OpenedFile:
         """없으면 StoredFileMissingError, 있지만 읽을 수 없으면 StorageNotReadableError.
 
+        폴더 조각이 심볼릭 링크면 없는 파일로 취급한다(링크를 따라가지 않는 의도된 동작).
+
         돌려준 `chunks`를 한 번도 읽지 않고 버려도 열린 파일이 남지 않아야 한다.
         """
         ...
 
     async def delete(self, root: StoragePath, location: StoredFileLocation) -> None:
-        """없으면 조용히 통과. 실패는 StorageNotWritableError."""
+        """없으면 조용히 통과. 폴더 조각이 심볼릭 링크면 링크 너머 대상은 지우지 않고 통과한다.
+
+        실패는 StorageNotWritableError.
+        """
         ...
 
-    async def delete_deal_files(self, root: StoragePath, deal_code: DealCode) -> None:
-        """`<root>/<deal_code>`를 통째로 지운다. 없으면 통과. 실패는 StorageNotWritableError."""
+    async def delete_folder(self, root: StoragePath, folder: StorageFolder) -> None:
+        """`<root>/<folder 조각…>`를 통째로 지운다. 없으면 통과.
+
+        경로의 중간 조각이 심볼릭 링크면 아무것도 지우지 않고 통과하고, 마지막 조각이 링크면
+        링크만 지운다. 실패는 StorageNotWritableError.
+        """
         ...

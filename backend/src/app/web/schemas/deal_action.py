@@ -1,7 +1,7 @@
 from datetime import date
 from typing import TYPE_CHECKING, Annotated, Self
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, StrictBool, model_validator
 
 from app.application.deal_action.inputs import (
     ActionContentInput,
@@ -118,6 +118,15 @@ class DealActionCreateRequest(ActionContentRequest):
             )
         ),
     ] = None
+    delete_license_contracts: Annotated[
+        StrictBool,
+        Field(
+            description=(
+                "status_changes가 Won을 벗어나게 할 때 그 Deal의 라이선스 계약도 삭제한다"
+                "(아니면 무시)."
+            )
+        ),
+    ] = False
 
     @model_validator(mode="after")
     def _check_status_changes(self) -> Self:
@@ -138,6 +147,7 @@ class DealActionCreateRequest(ActionContentRequest):
             content=self.to_content(),
             status_changes=changes,
             close_previous_next_action_id=None if previous is None else DealActionId(previous),
+            delete_license_contracts=self.delete_license_contracts,
         )
 
 

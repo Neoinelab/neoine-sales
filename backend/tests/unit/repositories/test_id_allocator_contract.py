@@ -41,6 +41,8 @@ KIND_VALUES = {
     "attachment",
     "report",
     "partner_meeting",
+    "license_contract",
+    "contract_attachment",
 }
 
 

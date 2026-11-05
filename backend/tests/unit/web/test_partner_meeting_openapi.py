@@ -230,8 +230,9 @@ def test_deal_schemas_of_the_meeting_api_are_gone(schema: dict[str, Any]) -> Non
     assert not {n for n in names if n.startswith(("MeetingDeal", "DealOption"))}
 
 
-def test_the_deletion_impact_response_has_three_counts(schema: dict[str, Any]) -> None:
+def test_the_deletion_impact_response_has_four_counts(schema: dict[str, Any]) -> None:
     impact = _response(schema, "get", "/api/v1/deals/{code}/deletion-impact", "200")
 
-    assert set(impact["properties"]) == {"history_count", "action_count", "attachment_count"}
-    assert set(impact["required"]) == {"history_count", "action_count", "attachment_count"}
+    counts = {"history_count", "action_count", "attachment_count", "license_contract_count"}
+    assert set(impact["properties"]) == counts
+    assert set(impact["required"]) == counts

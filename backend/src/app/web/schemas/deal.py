@@ -3,7 +3,7 @@
 from datetime import date
 from typing import Annotated, Any, Self
 
-from pydantic import Field, StrictInt, field_validator, model_validator
+from pydantic import Field, StrictBool, StrictInt, field_validator, model_validator
 
 from app.application.choice import CatalogChoice
 from app.application.deal.inputs import ContactDraftInput, DealCreateInput, DealPatchInput
@@ -40,6 +40,7 @@ __all__ = [
 STATUS_KEY_MAX = 50
 FORECAST_KEYS_MAX = 100
 PATCH_SECTIONS = frozenset({"quote", "poc", "bant", "customer", "partner"})
+NOT_DEAL_FIELDS = frozenset({"delete_license_contracts"})  # provided(폼 필드)에 들지 않는다
 
 
 class ContactDraftRequest(RequestModel):
@@ -139,6 +140,7 @@ class DealPatchRequest(RequestModel):
     poc: PocRequest | None = None
     bant: BantRequest | None = None
     procurement: str | None = None
+    delete_license_contracts: StrictBool = False
 
     @model_validator(mode="after")
     def _sections_are_not_null(self) -> Self:
@@ -149,7 +151,7 @@ class DealPatchRequest(RequestModel):
 
     def to_input(self) -> DealPatchInput:
         sent = self.model_fields_set
-        provided = set(sent - PATCH_SECTIONS)
+        provided = set(sent - PATCH_SECTIONS - NOT_DEAL_FIELDS)
         values: dict[str, Any] = {name: getattr(self, name) for name in provided}
         for section in ("customer", "partner"):
             if section in sent:
@@ -159,7 +161,11 @@ class DealPatchRequest(RequestModel):
         for name, part in self._parts().items():
             provided.add(name)
             values[name] = part
-        return DealPatchInput(provided=frozenset(provided), **values)
+        return DealPatchInput(
+            provided=frozenset(provided),
+            delete_license_contracts=self.delete_license_contracts,
+            **values,
+        )
 
     def _parts(self) -> dict[str, Any]:
         """quote·poc·bant를 유스케이스 입력 필드로 펼친다(보낸 객체의 하위 필드는 모두 보낸 값)."""

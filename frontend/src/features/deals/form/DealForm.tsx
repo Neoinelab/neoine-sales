@@ -8,6 +8,7 @@ import type { DealDetail } from '../../../shared/model/types'
 import { ErrorBanner } from '../../../shared/ui/ErrorBanner'
 import { useDealListPath } from '../../../shared/ui/useDealListPath'
 import { SyncNotice } from '../../../shared/sync/SyncNotice'
+import { useWonExitConfirm, type WonExitDecision } from '../useWonExitConfirm'
 import { BantSection } from './BantSection'
 import { CustomerSection } from './CustomerSection'
 import { DealInfoSection } from './DealInfoSection'
@@ -39,6 +40,7 @@ export function DealForm({ original, defaultOwnerId }: DealFormProps) {
   const create = useCreateDeal()
   const update = useUpdateDeal()
   const labelsQuery = useLabels()
+  const wonExit = useWonExitConfirm()
   const labels = labelsQuery.data ?? []
   const form = useRef<HTMLFormElement>(null)
   const [state, setState] = useState<DealFormState>(() => (original ? formFromDeal(original, labels) : emptyForm(defaultOwnerId)))
@@ -88,12 +90,20 @@ export function DealForm({ original, defaultOwnerId }: DealFormProps) {
     setErrors(found)
     setSaveError(null)
     if (hasErrors(found)) return focusFirstInvalid()
+    // Won을 벗어나는 저장이면 라이선스 계약 처리를 묻는다(저장 직전). 취소하면 폼을 그대로 둔다.
+    const exit: WonExitDecision = original
+      ? await wonExit.ask(original, { statusKey: state.statusKey, forecastKey: state.forecastKey }, original)
+      : { proceed: true }
+    if (!exit.proceed) return
     setSaving(true)
     try {
       if (original) {
         const { bant, ...patch } = toDealPatch(state, original, labels)
         // Label 목록을 못 읽었으면 입력을 비활성화했으므로 BANT는 보내지 않아 기존 선택을 그대로 둔다.
-        const body = labelsQuery.error ? patch : { ...patch, bant }
+        const body = {
+          ...(labelsQuery.error ? patch : { ...patch, bant }),
+          ...(exit.deleteLicenseContracts === undefined ? {} : { deleteLicenseContracts: exit.deleteLicenseContracts }),
+        }
         const saved = await update.mutateAsync({ code: original.code, patch: body })
         navigate(`/deals/${saved.code}`, { state: { notice: '저장되었습니다.' } })
       } else {
@@ -114,6 +124,7 @@ export function DealForm({ original, defaultOwnerId }: DealFormProps) {
       <CustomerSection {...section} />
       <PartnerSection {...section} />
       <BantSection {...section} />
+      {wonExit.dialog}
       <div className="form-actions">
         <ErrorBanner error={saveError} />
         <button type="submit" className="primary" disabled={saving}>

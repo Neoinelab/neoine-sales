@@ -684,6 +684,145 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/license-contract-attachments/{attachment_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Contract Attachment */
+        delete: operations["delete_contract_attachment_api_v1_license_contract_attachments__attachment_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/license-contract-attachments/{attachment_id}/download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Download Contract Attachment */
+        get: operations["download_contract_attachment_api_v1_license_contract_attachments__attachment_id__download_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/license-contracts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List License Contracts */
+        get: operations["list_license_contracts_api_v1_license_contracts_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/license-contracts/{contract_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get License Contract */
+        get: operations["get_license_contract_api_v1_license_contracts__contract_id__get"];
+        /** Update License Contract */
+        put: operations["update_license_contract_api_v1_license_contracts__contract_id__put"];
+        post?: never;
+        /** Delete License Contract */
+        delete: operations["delete_license_contract_api_v1_license_contracts__contract_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/license-contracts/{contract_id}/attachments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Contract Attachments */
+        get: operations["list_contract_attachments_api_v1_license_contracts__contract_id__attachments_get"];
+        put?: never;
+        /** Upload Contract Attachment */
+        post: operations["upload_contract_attachment_api_v1_license_contracts__contract_id__attachments_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/license-contracts/{contract_id}/end": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** End License Contract */
+        post: operations["end_license_contract_api_v1_license_contracts__contract_id__end_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/license-contracts/{contract_id}/issue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Issue License */
+        post: operations["issue_license_api_v1_license_contracts__contract_id__issue_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/license-contracts/{contract_id}/renewal": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Renew License */
+        post: operations["renew_license_api_v1_license_contracts__contract_id__renewal_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/me/password": {
         parameters: {
             query?: never;
@@ -1342,6 +1481,18 @@ export interface components {
             /** @default ask */
             on_exists: components["schemas"]["OnExists"];
         };
+        /** Body_upload_contract_attachment_api_v1_license_contracts__contract_id__attachments_post */
+        Body_upload_contract_attachment_api_v1_license_contracts__contract_id__attachments_post: {
+            /**
+             * Description
+             * @default
+             */
+            description: string;
+            /** File */
+            file?: string | null;
+            /** @default ask */
+            on_exists: components["schemas"]["OnExists"];
+        };
         /** CatalogChoiceRequest */
         CatalogChoiceRequest: {
             /** Id */
@@ -1587,6 +1738,51 @@ export interface components {
             /** Title */
             title?: string | null;
         };
+        /** ContractAttachmentList */
+        ContractAttachmentList: {
+            /** Items */
+            items: components["schemas"]["ContractAttachmentResponse"][];
+        };
+        /** ContractAttachmentResponse */
+        ContractAttachmentResponse: {
+            /** Contract Id */
+            contract_id: number;
+            /** Deal Code */
+            deal_code: string;
+            /** Description */
+            description: string;
+            /** File Name */
+            file_name: string;
+            /** Id */
+            id: number;
+            /** Mime */
+            mime: string;
+            /** Size */
+            size: number;
+            /**
+             * Uploaded At
+             * Format: date-time
+             */
+            uploaded_at: string;
+            uploaded_by: components["schemas"]["UserRef"];
+        };
+        /**
+         * ContractAttachmentUploadResponse
+         * @description 건너뛰었으면(`skipped`) attachment가 null이다.
+         */
+        ContractAttachmentUploadResponse: {
+            attachment: components["schemas"]["ContractAttachmentResponse"] | null;
+            /**
+             * Outcome
+             * @enum {string}
+             */
+            outcome: "uploaded" | "replaced" | "skipped";
+        };
+        /**
+         * ContractStatus
+         * @enum {string}
+         */
+        ContractStatus: "not_issued" | "issued_new" | "issued_renewal" | "ended";
         /** CountedPage[ContactRowResponse] */
         CountedPage_ContactRowResponse_: {
             /** Items */
@@ -1602,6 +1798,17 @@ export interface components {
         CountedPage_DealRowResponse_: {
             /** Items */
             items: components["schemas"]["DealRowResponse"][];
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+            /** Total */
+            total: number;
+        };
+        /** CountedPage[LicenseContractResponse] */
+        CountedPage_LicenseContractResponse_: {
+            /** Items */
+            items: components["schemas"]["LicenseContractResponse"][];
             /** Limit */
             limit: number;
             /** Offset */
@@ -1701,6 +1908,12 @@ export interface components {
              * @description 저장하며 종료(수행)로 바꿀 이전 Next Action의 Action id. 그 Deal의 'Next Action이 있는 가장 최근 Action'과 다르면 409(invalid-state), 담당자 본인·admin이 아니면 403. 이미 종료된 행이면 상태를 바꾸지 않는다. 생략하거나 null이면 이전 행을 바꾸지 않는다.
              */
             close_previous_next_action_id?: number | null;
+            /**
+             * Delete License Contracts
+             * @description status_changes가 Won을 벗어나게 할 때 그 Deal의 라이선스 계약도 삭제한다(아니면 무시).
+             * @default false
+             */
+            delete_license_contracts: boolean;
             /** Due Date */
             due_date?: string | null;
             /**
@@ -1798,6 +2011,12 @@ export interface components {
         DealChangeRequest: {
             /** Change */
             change: components["schemas"]["CodeChange"] | components["schemas"]["AmountChange"] | components["schemas"]["DateChange"];
+            /**
+             * Delete License Contracts
+             * @description Won을 벗어나는 변경일 때 그 Deal의 라이선스 계약도 삭제한다(아니면 무시).
+             * @default false
+             */
+            delete_license_contracts: boolean;
             resolution?: components["schemas"]["ResolutionRequest"] | null;
         };
         /** DealChangeResponse */
@@ -1853,12 +2072,16 @@ export interface components {
             customer: components["schemas"]["ContactResponse"];
             /** Forecast Key */
             forecast_key: string;
+            /** Has Issued License Contract */
+            has_issued_license_contract: boolean;
             /**
              * Last Updated At
              * Format: date-time
              * @description 모든 Action 중 가장 최근 수행 시각. Action이 없으면 Deal 등록 시각. Deal 수정은 반영하지 않는다.
              */
             last_updated_at: string;
+            /** License Contract Count */
+            license_contract_count: number;
             /** Name */
             name: string;
             next_action: components["schemas"]["NextActionResponse"] | null;
@@ -1909,6 +2132,11 @@ export interface components {
         DealPatchRequest: {
             bant?: components["schemas"]["BantRequest"] | null;
             customer?: components["schemas"]["ContactDraftRequest"] | null;
+            /**
+             * Delete License Contracts
+             * @default false
+             */
+            delete_license_contracts: boolean;
             /** Forecast Key */
             forecast_key?: string | null;
             /** Name */
@@ -1947,12 +2175,16 @@ export interface components {
             customer: components["schemas"]["ContactResponse"];
             /** Forecast Key */
             forecast_key: string;
+            /** Has Issued License Contract */
+            has_issued_license_contract: boolean;
             /**
              * Last Updated At
              * Format: date-time
              * @description 모든 Action 중 가장 최근 수행 시각. Action이 없으면 Deal 등록 시각. Deal 수정은 반영하지 않는다.
              */
             last_updated_at: string;
+            /** License Contract Count */
+            license_contract_count: number;
             /** Name */
             name: string;
             next_action: components["schemas"]["NextActionResponse"] | null;
@@ -2026,6 +2258,8 @@ export interface components {
             attachment_count: number;
             /** History Count */
             history_count: number;
+            /** License Contract Count */
+            license_contract_count: number;
         };
         /**
          * DirectorySettingsRequest
@@ -2266,10 +2500,120 @@ export interface components {
             target: string;
         };
         /**
+         * InspectionCycle
+         * @enum {string}
+         */
+        InspectionCycle: "monthly" | "quarterly" | "semiannual" | "yearly" | "none";
+        /**
          * LegendPosition
          * @enum {string}
          */
         LegendPosition: "top" | "right" | "bottom" | "none";
+        /**
+         * LicenseContractFieldsRequest
+         * @description 계약 자체 칸. 생략하면 빈 기술담당·점검주기 없음·빈 Note다.
+         */
+        LicenseContractFieldsRequest: {
+            /** @default none */
+            inspection_cycle: components["schemas"]["InspectionCycle"];
+            /**
+             * Note
+             * @description 2000자 이내
+             * @default
+             */
+            note: string;
+            /**
+             * Tech Owner
+             * @default
+             */
+            tech_owner: string;
+        };
+        /** LicenseContractResponse */
+        LicenseContractResponse: {
+            /** Attachment Count */
+            attachment_count: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            created_by: components["schemas"]["UserRef"];
+            /** Customer */
+            customer: string;
+            /** Deal Code */
+            deal_code: string;
+            /** Deal Is Won */
+            deal_is_won: boolean;
+            /** Deal Name */
+            deal_name: string;
+            /** Ended At */
+            ended_at: string | null;
+            /** Id */
+            id: number;
+            inspection_cycle: components["schemas"]["InspectionCycle"];
+            /** License End */
+            license_end: string | null;
+            /** License Start */
+            license_start: string | null;
+            /** Note */
+            note: string;
+            /** Partner */
+            partner: string | null;
+            /** Product */
+            product: string;
+            /** Renewed From Id */
+            renewed_from_id: number | null;
+            sales_owner: components["schemas"]["UserRef"];
+            status: components["schemas"]["ContractStatus"];
+            /** Tech Owner */
+            tech_owner: string;
+            term: components["schemas"]["LicenseTermResponse"] | null;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            updated_by: components["schemas"]["UserRef"];
+            vendor: components["schemas"]["NamedRefResponse"] | null;
+        };
+        /**
+         * LicenseContractSort
+         * @enum {string}
+         */
+        LicenseContractSort: "deal_code" | "customer" | "vendor" | "product" | "partner" | "license_start" | "license_end" | "status" | "sales_owner" | "tech_owner" | "inspection" | "note";
+        /**
+         * LicenseIssueRequest
+         * @description 발급·갱신 요청. 종료일은 서버가 시작일과 기간으로 계산한다.
+         */
+        LicenseIssueRequest: {
+            /** @default none */
+            inspection_cycle: components["schemas"]["InspectionCycle"];
+            /**
+             * Note
+             * @description 2000자 이내
+             * @default
+             */
+            note: string;
+            /**
+             * Start Date
+             * Format: date
+             */
+            start_date: string;
+            /**
+             * Tech Owner
+             * @default
+             */
+            tech_owner: string;
+            /** Term Amount */
+            term_amount: number;
+            term_unit: components["schemas"]["TermUnit"];
+        };
+        /** LicenseTermResponse */
+        LicenseTermResponse: {
+            /** Amount */
+            amount: number;
+            unit: components["schemas"]["TermUnit"];
+        };
         /** LoginRequest */
         LoginRequest: {
             /** Login Id */
@@ -3202,6 +3546,11 @@ export interface components {
             /** Count */
             count: number;
         };
+        /**
+         * TermUnit
+         * @enum {string}
+         */
+        TermUnit: "month" | "year";
         /**
          * TileArrange
          * @enum {string}
@@ -6399,6 +6748,686 @@ export interface operations {
             };
             /** @description problem+json */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    delete_contract_attachment_api_v1_license_contract_attachments__attachment_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                attachment_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description problem+json */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    download_contract_attachment_api_v1_license_contract_attachments__attachment_id__download_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                attachment_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 파일 내용(항상 octet-stream, attachment) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/octet-stream": string;
+                };
+            };
+            /** @description problem+json */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description problem+json */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    list_license_contracts_api_v1_license_contracts_get: {
+        parameters: {
+            query?: {
+                customer?: string | null;
+                product?: string | null;
+                vendor_id?: number | null;
+                owner_user_id?: number | null;
+                status?: components["schemas"]["ContractStatus"] | null;
+                start_from?: string | null;
+                start_to?: string | null;
+                end_from?: string | null;
+                end_to?: string | null;
+                sort?: components["schemas"]["LicenseContractSort"];
+                order?: components["schemas"]["SortOrder"];
+                offset?: number;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CountedPage_LicenseContractResponse_"];
+                };
+            };
+            /** @description problem+json */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    get_license_contract_api_v1_license_contracts__contract_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                contract_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LicenseContractResponse"];
+                };
+            };
+            /** @description problem+json */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    update_license_contract_api_v1_license_contracts__contract_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                contract_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LicenseContractFieldsRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LicenseContractResponse"];
+                };
+            };
+            /** @description problem+json */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    delete_license_contract_api_v1_license_contracts__contract_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                contract_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description problem+json */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    list_contract_attachments_api_v1_license_contracts__contract_id__attachments_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                contract_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContractAttachmentList"];
+                };
+            };
+            /** @description problem+json */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    upload_contract_attachment_api_v1_license_contracts__contract_id__attachments_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                contract_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_upload_contract_attachment_api_v1_license_contracts__contract_id__attachments_post"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContractAttachmentUploadResponse"];
+                };
+            };
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContractAttachmentUploadResponse"];
+                };
+            };
+            /** @description problem+json */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    end_license_contract_api_v1_license_contracts__contract_id__end_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                contract_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LicenseContractResponse"];
+                };
+            };
+            /** @description problem+json */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    issue_license_api_v1_license_contracts__contract_id__issue_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                contract_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LicenseIssueRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LicenseContractResponse"];
+                };
+            };
+            /** @description problem+json */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    renew_license_api_v1_license_contracts__contract_id__renewal_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                contract_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LicenseIssueRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LicenseContractResponse"];
+                };
+            };
+            /** @description problem+json */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

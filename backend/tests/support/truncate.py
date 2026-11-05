@@ -40,6 +40,8 @@ FORECAST_TABLES: Final = (
 # 인증 방식(ad|local) 단일 행. users를 참조하지 않아 CASCADE로 비워지지 않으므로 따로 비운다.
 # 과거 리비전 DB에는 없을 수 있어 있는 것만 비운다. 남으면 다음 시나리오가 local 모드로 시작한다.
 AUTH_TABLES: Final = ("auth_settings",)
+# 라이선스 계약. users·deals CASCADE로도 비워지지만 과거 리비전 DB에는 없어 있는 것만 비운다.
+CONTRACT_TABLES: Final = ("license_contract_attachments", "license_contracts")
 # 마이그레이션이 기본 행을 심는 users 참조 테이블(기본 행은 created_by_user_id가 없어 되살린다).
 SEEDED_TABLES: Final = ("bant_labels", "action_types")
 
@@ -68,6 +70,7 @@ async def truncate_business_tables(connection: AsyncConnection) -> None:
         *FORECAST_TABLES,
         *CONTACT_TABLES,
         *AUTH_TABLES,
+        *CONTRACT_TABLES,
     )
     names = [*ALWAYS, *(name for name in optional if name in present)]
     kept = [table for table in SEEDED_TABLES if table in present]

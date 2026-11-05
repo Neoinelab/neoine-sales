@@ -11,7 +11,7 @@ import pytest
 
 from app.application.ports.file_storage import StoredFileLocation, StoredFileMissingError
 from app.domain.deal.code import DealCode
-from tests.fakes.file_storage import BytesSource
+from tests.fakes.file_storage import BytesSource, deal_location
 from tests.fakes.sources import ClientGone, FailingSource
 
 if TYPE_CHECKING:
@@ -21,7 +21,7 @@ DEAL = DealCode("20261016-A001")
 
 
 def _location() -> StoredFileLocation:
-    return StoredFileLocation(deal_code=DEAL, key=uuid4().hex)
+    return deal_location(DEAL, uuid4().hex)
 
 
 async def test_a_source_that_fails_midway_surfaces_its_error_and_stores_nothing(

@@ -56,6 +56,7 @@ class DealChangeInput:
     field: Literal["status_key", "forecast_key", "revenue_amount", "revenue_date"]
     value: str | int | date
     resolution: SyncResolution | None = None
+    delete_license_contracts: bool = False  # Won을 벗어날 때만 쓰인다(아니면 무시)
 
 
 @dataclass(frozen=True, slots=True)
@@ -104,3 +105,4 @@ class DealPatchInput:
     poc_completed_date: date | None = None
     procurement: str | None = None
     bant: Mapping[BantCategory, CatalogChoice | None] | None = None
+    delete_license_contracts: bool = False  # provided에 들지 않는다. Won을 벗어날 때만 쓰인다

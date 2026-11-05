@@ -284,7 +284,7 @@ export function partnerMeetingsContract(make: MakeGateway): void {
 
       const impact = await admin.deals.impact(deal.code)
 
-      expect(Object.keys(impact).sort()).toEqual(['actionCount', 'attachmentCount', 'historyCount'])
+      expect(Object.keys(impact).sort()).toEqual(['actionCount', 'attachmentCount', 'historyCount', 'licenseContractCount'])
       expect((await admin.partnerMeetings.list({ ...DEFAULT_QUERY, content: tag }, 0, 10)).total).toBe(1)
       await admin.partnerMeetings.remove(created.id)
     })

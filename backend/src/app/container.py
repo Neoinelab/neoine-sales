@@ -27,6 +27,7 @@ from app.container_dashboard import DashboardUseCases
 from app.container_deal_action import DealActionUseCases
 from app.container_deal_reads import DealReadUseCases
 from app.container_forecast import ForecastUseCases
+from app.container_license_contract import LicenseContractUseCases
 from app.container_local_accounts import LocalAccountUseCases
 from app.container_partner_meeting import PartnerMeetingUseCases
 from app.container_reports import ReportUseCases
@@ -94,6 +95,7 @@ class Container(
     DealActionUseCases,
     ReportUseCases,
     PartnerMeetingUseCases,
+    LicenseContractUseCases,
 ):
     def __init__(
         self,
@@ -129,6 +131,7 @@ class Container(
         )
         self._catalog = CatalogAssembly(self._uow, self._clock)
         self._storage = StorageAssembly(self._uow, self._clock)
+        self._file_storage = self._storage.file_storage
         self._auth_deps = self._auth.deps
         self._session_ttl = timedelta(hours=settings.session_ttl_hours)
         self._admin = AdminAssembly(
@@ -233,13 +236,13 @@ class Container(
         return RegisterDeal(self._uow, self._clock, self._suffix_source)
 
     def apply_deal_change(self) -> ApplyDealChange:
-        return ApplyDealChange(self._uow, self._clock)
+        return ApplyDealChange(self._uow, self._clock, self._file_storage)
 
     def update_deal(self) -> UpdateDeal:
-        return UpdateDeal(self._uow, self._clock)
+        return UpdateDeal(self._uow, self._clock, self._file_storage)
 
     def delete_deal(self) -> DeleteDeal:
-        return DeleteDeal(self._uow, self._clock, self._storage.file_storage)
+        return DeleteDeal(self._uow, self._clock, self._file_storage)
 
     def list_attachments(self) -> ListAttachments:
         return self._storage.list_attachments()

@@ -83,7 +83,7 @@ describe('Status와 Forecast를 둘 다 바꿔 등록 (AC-14·15·18·20)', () =
 
   it('allows_the_second_change_to_change_a_field_that_was_changed_along_with_the_first', async () => {
     const create = vi.spyOn(gateway.actions, 'create')
-    const { user, form, table } = await openRegisterForm(11, '청명대학교 SSO/MFA')
+    const { user, form, table } = await openRegisterForm(12, '바른제약 PAM')
 
     await user.selectOptions(statusSelect(form), '기술평가')
     await chooseInDialog(user, 'Commit')
@@ -95,6 +95,7 @@ describe('Status와 Forecast를 둘 다 바꿔 등록 (AC-14·15·18·20)', () =
     expect(within(form).queryByRole('alert')).not.toBeInTheDocument()
     expect(within(form).getAllByText(/저장하면 반영됩니다/)).toHaveLength(1)
     await fillContentAndRegister(user, form)
+    await user.click(within(await screen.findByRole('dialog', { name: '라이선스 계약 처리' })).getByRole('button', { name: '유지' }))
     await waitFor(() => expect(table).toHaveTextContent('두 필드 변경 확인'))
     expect(create.mock.calls[0]?.[1].statusChanges?.map((c) => c.change)).toEqual([
       { field: 'statusKey', value: 'technical_evaluation' },

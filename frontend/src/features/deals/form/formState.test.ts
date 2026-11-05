@@ -85,6 +85,8 @@ function detail(over: Partial<DealDetail> = {}): DealDetail {
     owner,
     customer: { ...contact(1, '한빛은행', '정민수'), kind: 'customer', title: '과장', email: 'a@b.co', phone: '02-1' },
     activePartner: contact(9, '에이원시스템', '표성호'),
+    licenseContractCount: 0,
+    hasIssuedLicenseContract: false,
     nextAction: null,
     lastUpdatedAt: '2026-10-01T00:00:00+09:00',
     risk: null,

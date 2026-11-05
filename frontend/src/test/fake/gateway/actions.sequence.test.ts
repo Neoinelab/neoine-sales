@@ -49,7 +49,7 @@ describe('actions.create with statusChanges (two changes)', () => {
 
   it('judges the second change after the first (reopen a won deal, then move the status)', async () => {
     const { gateway } = await mockAs('kim')
-    const code = dealCode(11)
+    const code = dealCode(12)
 
     const created = await gateway.actions.create(
       code,

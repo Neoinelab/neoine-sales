@@ -49,7 +49,7 @@ class DealEnv:
     def apply(self) -> ApplyDealChange:
         from app.application.deal.apply_change import ApplyDealChange  # noqa: PLC0415
 
-        return ApplyDealChange(self.uow_factory, self.clock)
+        return ApplyDealChange(self.uow_factory, self.clock, self.storage)
 
     @property
     def impact(self) -> GetDealDeletionImpact:
@@ -105,7 +105,7 @@ def build_env(
         suffix_source=suffix_source,
         storage=storage,
         register=RegisterDeal(uow_factory, shared, suffix_source),
-        update=UpdateDeal(uow_factory, shared),
+        update=UpdateDeal(uow_factory, shared, storage),
         delete=DeleteDeal(uow_factory, shared, storage),
         get=GetDeal(uow_factory, shared),
         list=ListDeals(uow_factory, shared),

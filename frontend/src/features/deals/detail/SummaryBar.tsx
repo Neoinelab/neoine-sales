@@ -9,6 +9,7 @@ import type { DealChange, DealDetail } from '../../../shared/model/types'
 import { AmountText } from '../../../shared/ui/AmountText'
 import { ForecastBadge, StatusBadge } from '../../../shared/ui/Badges'
 import { RiskBadge } from '../../../shared/ui/RiskBadge'
+import { useWonExitConfirm } from '../useWonExitConfirm'
 import { toResolution } from './detailHelpers'
 import { DealFacts } from './DealFacts'
 import { DealIdentityRows } from './DealIdentityRows'
@@ -27,14 +28,26 @@ export function SummaryBar({ deal, canWrite, onNotice }: SummaryBarProps) {
   const { now } = useToday()
   const applyChange = useApplyDealChange()
   const { request, dialogs } = useSyncedChange(deal)
+  const wonExit = useWonExitConfirm()
 
   async function changeCode(field: 'statusKey' | 'forecastKey', value: string) {
     if (value === (field === 'statusKey' ? deal.statusKey : deal.forecastKey)) return
     const applied = await request({ field, value })
     if (applied === null) return
+    // Won을 벗어나면 라이선스 계약 처리를 묻는다(동기화 선택 뒤, 요청 전).
+    const exit = await wonExit.ask(
+      deal,
+      { statusKey: applied.patch.statusKey ?? deal.statusKey, forecastKey: applied.patch.forecastKey ?? deal.forecastKey },
+      deal,
+    )
+    if (!exit.proceed) return
     const result = await applyChange.mutateAsync({
       code: deal.code,
-      request: { change: { field, value }, resolution: toResolution(applied) },
+      request: {
+        change: { field, value },
+        resolution: toResolution(applied),
+        ...(exit.deleteLicenseContracts === undefined ? {} : { deleteLicenseContracts: exit.deleteLicenseContracts }),
+      },
     })
     const list = field === 'statusKey' ? codes?.statuses : codes?.forecasts
     const name = list?.find((c) => c.key === value)?.name ?? value
@@ -161,6 +174,7 @@ export function SummaryBar({ deal, canWrite, onNotice }: SummaryBarProps) {
         )}
       </section>
       {dialogs}
+      {wonExit.dialog}
     </>
   )
 }

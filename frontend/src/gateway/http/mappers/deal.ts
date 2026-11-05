@@ -11,6 +11,7 @@ import type {
   PartnerLinkView,
 } from '../../../shared/model/types'
 import { toContact } from './contact'
+import { asRequestBody, type WithOptionalDeleteFlag } from './deleteFlag'
 import { toNextActionStatus } from './nextActionStatus'
 import { toUserRef } from './user'
 
@@ -44,6 +45,8 @@ export function toDealRow(row: Schemas['DealRowResponse']): DealRow {
     poc: { state: row.poc.state, completedDate: row.poc.completed_date },
     procurement: row.procurement,
     bant: { ...row.bant },
+    licenseContractCount: row.license_contract_count,
+    hasIssuedLicenseContract: row.has_issued_license_contract,
     nextAction: row.next_action === null ? null : { text: row.next_action.text, dueDate: row.next_action.due_date, status: toNextActionStatus(row.next_action.status) },
     lastUpdatedAt: row.last_updated_at,
     statusChangedAt: row.status_changed_at,
@@ -118,7 +121,7 @@ export function toCreateBody(input: DealInput): Schemas['DealCreateRequest'] {
 
 /** 보낸 필드만 담는다(`partner: null`도 보낸 값이다). */
 export function toPatchBody(patch: DealPatch): Schemas['DealPatchRequest'] {
-  const body: Schemas['DealPatchRequest'] = {}
+  const body: WithOptionalDeleteFlag<Schemas['DealPatchRequest']> = {}
   if (patch.name !== undefined) body.name = patch.name
   if (patch.ownerId !== undefined) body.owner_user_id = patch.ownerId
   if (patch.vendorId !== undefined) body.vendor_id = patch.vendorId
@@ -134,12 +137,14 @@ export function toPatchBody(patch: DealPatch): Schemas['DealPatchRequest'] {
   if (patch.poc !== undefined) body.poc = pocBody(patch.poc)
   if (patch.procurement !== undefined) body.procurement = patch.procurement
   if (patch.bant !== undefined) body.bant = bantBody(patch.bant)
-  return body
+  if (patch.deleteLicenseContracts !== undefined) body.delete_license_contracts = patch.deleteLicenseContracts
+  return asRequestBody(body)
 }
 
 export function toChangeBody(request: ApplyChangeRequest): Schemas['DealChangeRequest'] {
   const { change, resolution } = request
-  const body: Schemas['DealChangeRequest'] = { change: toChangeField(change) }
+  const body: WithOptionalDeleteFlag<Schemas['DealChangeRequest']> = { change: toChangeField(change) }
+  if (request.deleteLicenseContracts !== undefined) body.delete_license_contracts = request.deleteLicenseContracts
   if (resolution) {
     body.resolution = {
       revenue_amount: resolution.revenueAmount,
@@ -148,7 +153,7 @@ export function toChangeBody(request: ApplyChangeRequest): Schemas['DealChangeRe
       forecast_key: resolution.forecastKey,
     }
   }
-  return body
+  return asRequestBody(body)
 }
 
 function toChangeField(change: ApplyChangeRequest['change']): Schemas['DealChangeRequest']['change'] {

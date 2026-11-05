@@ -348,13 +348,13 @@ describe('deals.get / impact over HTTP', () => {
     await expect(createDealsHttp().get(CODE)).rejects.toMatchObject({ status: 404, kind: 'not-found', message: 'Deal을 찾을 수 없습니다.' })
   })
 
-  it('impact reads GET /deals/{code}/deletion-impact in camelCase with three counts', async () => {
-    const { calls } = stubFetch(json({ history_count: 5, action_count: 3, attachment_count: 2 }))
+  it('impact reads GET /deals/{code}/deletion-impact in camelCase with four counts', async () => {
+    const { calls } = stubFetch(json({ history_count: 5, action_count: 3, attachment_count: 2, license_contract_count: 4 }))
 
     const impact = await createDealsHttp().impact(CODE)
 
     expect(calls[0]).toMatchObject({ method: 'GET', path: `/api/v1/deals/${CODE}/deletion-impact` })
-    expect(impact).toStrictEqual({ historyCount: 5, actionCount: 3, attachmentCount: 2 })
+    expect(impact).toStrictEqual({ historyCount: 5, actionCount: 3, attachmentCount: 2, licenseContractCount: 4 })
   })
 
   it('impact shows the 404 of an unknown deal', async () => {

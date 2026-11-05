@@ -13,6 +13,7 @@ import { dealsWriteApi } from './dealsWrite'
 import { createForecastGateway } from './forecast'
 import { createHistoryGateway } from './history'
 import { createLabelsGateway } from './labels'
+import { createLicenseContractsGateway } from './licenseContracts'
 import { createMeGateway } from './me'
 import { createPartnerMeetingsGateway } from './partnerMeetings'
 import { createReportsGateway } from './reports'
@@ -44,5 +45,6 @@ export function createGatewayFor(ctx: MockContext): Gateway {
     alerts: createAlertsGateway(ctx),
     time: createTimeGateway(ctx),
     partnerMeetings: createPartnerMeetingsGateway(ctx),
+    licenseContracts: createLicenseContractsGateway(ctx),
   }
 }

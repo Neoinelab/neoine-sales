@@ -143,12 +143,11 @@ async def test_update_storage_settings_does_not_move_existing_files(
     admin_actor: Principal,
     file_storage: FakeFileStorage,
 ) -> None:
-    from app.application.ports.file_storage import StoredFileLocation  # noqa: PLC0415
     from app.domain.deal.code import DealCode  # noqa: PLC0415
-    from tests.fakes.file_storage import BytesSource  # noqa: PLC0415
+    from tests.fakes.file_storage import BytesSource, deal_location  # noqa: PLC0415
 
     old = await seed_storage(uow_factory, "/data/old")
-    location = StoredFileLocation(deal_code=DealCode("20261016-A001"), key="a" * 32)
+    location = deal_location(DealCode("20261016-A001"), "a" * 32)
     await file_storage.save(old.path, location, BytesSource(b"payload"), max_bytes=100)
 
     await storage.update_settings.execute(actor=admin_actor, raw_path="/data/new")
