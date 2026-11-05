@@ -21,7 +21,7 @@
 .contract-table td.expiry-warning { background: #facc15; color: #422006; font-weight: 600; }
 .contract-table td.status-issued { background: var(--ui-ok-bg); color: var(--ui-ok-fg); }
 .contract-table td.status-ended { background: var(--ui-neutral-bg); color: var(--ui-neutral-fg); }
-.contract-edit-grid, .contract-license-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px 12px; }
+.contract-edit-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px 12px; }
 .contract-files { display: grid; gap: 8px; margin-top: 12px; }
 @media (prefers-color-scheme: dark) {
   .contract-table td.expiry-danger { background: #7f1d1d; color: #fee2e2; }
@@ -33,8 +33,13 @@
 .contract-edit-status { display: inline-flex; align-items: center; gap: 8px; }
 .contract-edit-label { font-weight: 600; color: var(--muted); }
 /* Deal에서 오는 읽기 전용 값(고객사명·Vendor·제품명·파트너사·담당영업) */
+.contract-deal-values .contract-edit-grid { grid-template-columns: 1fr; gap: 4px; }
 .contract-deal-values { display: grid; gap: 6px; margin: 10px 0; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); }
 .contract-deal-heading { margin: 0; font-size: 0.9rem; color: var(--muted); }
-.contract-deal-value { display: grid; gap: 2px; min-width: 0; overflow-wrap: anywhere; }
+.contract-deal-value { display: grid; grid-template-columns: 6.5rem minmax(0, 1fr); gap: 8px; align-items: baseline; min-width: 0; overflow-wrap: anywhere; }
 .contract-delete-button { margin-right: auto; }
 .contracts-more { display: flex; justify-content: center; }
+/* 라이선스 시작일·기간·단위는 한 줄(좁으면 줄바꿈), 종료일은 아래 줄 */
+.contract-license-grid { display: flex; flex-wrap: wrap; gap: 10px 12px; align-items: flex-end; }
+.contract-license-grid .field input[type='number'] { width: 90px; }
+.contract-license-end { display: flex; gap: 8px; align-items: baseline; }

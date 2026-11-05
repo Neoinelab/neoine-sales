@@ -20,6 +20,7 @@ if TYPE_CHECKING:
     from tests.unit.repositories.license_contract_case import ContractCase
 
 # 열마다 (값이 있는 계약의 오름차순 순서, 값 없는 계약). 동률은 id 오름차순(A<B<C<D<E).
+#   deal_name  A Gamma  B alpha  C delta  D Beta  E echo (대소문자 무시)
 #   customer   A bravo  B Alpha  C charlie  D Delta  E echo
 #   vendor     A SAP    B Oracle C -        D Microsoft E adobe
 #   product    A S4     B ''     C ERP      D crm    E Zeta
@@ -33,6 +34,7 @@ if TYPE_CHECKING:
 #   note       A n-b B '' C alpha note D Zulu E alpha note
 ASC = {
     "deal_code": ("ABCDE", ""),
+    "deal_name": ("BDCEA", ""),
     "customer": ("BACDE", ""),
     "vendor": ("EDBA", "C"),
     "product": ("DCAE", "B"),
@@ -48,6 +50,7 @@ ASC = {
 # 내림차순: 값이 있는 쪽을 뒤집되 동률은 id 오름차순을 유지한다.
 DESC = {
     "deal_code": ("EDCBA", ""),
+    "deal_name": ("AECDB", ""),
     "customer": ("EDCAB", ""),
     "vendor": ("ABDE", "C"),
     "product": ("EACD", "B"),
@@ -108,6 +111,7 @@ async def _seed(contract_case: ContractCase) -> dict[str, int]:
             "note": "alpha note",
         },
     }
+    deal_names = {"A": "Gamma", "B": "alpha", "C": "delta", "D": "Beta", "E": "echo"}
     ids: dict[str, int] = {}
     for key, customer, vendor, solution, partner, owner, display in rows:
         deal = await contract_case.deal(
@@ -117,6 +121,7 @@ async def _seed(contract_case: ContractCase) -> dict[str, int]:
             partner=partner,
             owner=owner,
             owner_display=display,
+            name=deal_names[key],
         )
         made = await contract_case.contract(deal, **contracts[key])
         ids[key] = made.id
@@ -167,3 +172,7 @@ async def test_paging_keeps_the_sorted_order_across_pages(contract_case: Contrac
 
     paged = [r.contract.id for r in (*first, *second)]
     assert paged == _expected(ASC["customer"], ids)
+
+
+def test_deal_name_is_an_accepted_sort_column() -> None:
+    assert LicenseContractSort("deal_name").value == "deal_name"

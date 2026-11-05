@@ -3,7 +3,7 @@
 제약 검증용이라 도메인 검사를 거치지 않는다. 대리 키 테이블의 id는 `tests.support.ids.new_id()`가
 주는 10억대 번호를 명시해서 넣고(시퀀스와 겹치지 않는다), Deal 소속 행(파트너 링크·BANT·이력·활동·
 첨부)은 `deal_code`로 Deal을 찾아 `deal_id`를 채운다. 없는 Deal을 일부러 가리키려면 `deal_id=`를
-덮어쓴다. UUID 시절(`e8c2b4f6a1d9` 이하) 스키마용 도우미는 `tests.support.uuid_era`에 있다.
+덮어쓴다.
 """
 
 from datetime import UTC, datetime

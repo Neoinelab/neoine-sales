@@ -7,7 +7,7 @@ import type { ContractSort } from './contractFilter'
 import { INSPECTION_LABELS, STATUS_LABELS, isIssuedStatus } from './contractLabels'
 
 const COLUMNS: readonly { label: string; sort: ContractSort }[] = [
-  { label: 'Deal 코드', sort: 'dealCode' },
+  { label: 'Deal명', sort: 'dealName' },
   { label: '고객사명', sort: 'customer' },
   { label: 'Vendor', sort: 'vendor' },
   { label: '제품명', sort: 'product' },
@@ -65,7 +65,7 @@ export function ContractTable({ rows, sort, order, onSort, today, onEdit }: Cont
                   }
                 }}
               >
-                <td className="contract-code">{row.dealCode}</td>
+                <td className="contract-code">{row.dealName}</td>
                 <td>{row.customer}</td>
                 <td>{dash(row.vendor?.name ?? null)}</td>
                 <td>{row.product}</td>

@@ -9,8 +9,7 @@ from typing import TYPE_CHECKING
 import pytest
 import pytest_asyncio
 
-from tests.support.database import apply_migrations, resolve_admin_url, temporary_database
-from tests.support.revisions import LEGACY_HEAD
+from tests.support.database import resolve_admin_url, temporary_database
 from tests.support.skips import skip_or_fail
 
 if TYPE_CHECKING:
@@ -32,10 +31,3 @@ async def blank_database(admin_url: URL) -> AsyncIterator[URL]:
     """마이그레이션이 하나도 적용되지 않은 빈 임시 DB."""
     async with temporary_database(admin_url) as url:
         yield url
-
-
-@pytest_asyncio.fixture
-async def legacy_db(blank_database: URL) -> URL:
-    """LEGACY_HEAD(사용자 FK 이전)까지만 적용된 빈 임시 DB."""
-    await apply_migrations(blank_database, target=LEGACY_HEAD)
-    return blank_database

@@ -37,9 +37,9 @@ async function openContractOfDeal12(leaveWon: boolean, role: 'admin' | 'sales' =
   const bar = within(screen.getByRole('search', { name: '계약 검색' }))
   await view.user.type(bar.getByRole('textbox', { name: '고객사명' }), '바른제약')
   await view.user.click(bar.getByRole('button', { name: '검색' }))
-  const cell = await within(screen.getByRole('table', { name: '계약 목록' })).findByText(code, undefined, LOAD)
+  const cell = await within(screen.getByRole('table', { name: '계약 목록' })).findByText('바른제약 PAM', undefined, LOAD)
   await view.user.click(cell.closest('tr')!.querySelectorAll('td')[1]!)
-  return { ...view, dlg: await screen.findByRole('dialog', { name: '계약 수정' }) }
+  return { ...view, dlg: await screen.findByRole('dialog', { name: /^계약 수정 - / }) }
 }
 
 describe('Won이 아닌 Deal의 계약 대화상자 (AC31)', () => {

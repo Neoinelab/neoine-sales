@@ -30,9 +30,10 @@ def test_query_defaults_sort_by_license_end_ascending_with_fifty_per_page() -> N
     assert query.status is None
 
 
-def test_query_sort_keys_are_the_twelve_columns() -> None:
+def test_query_sort_keys_are_the_thirteen_columns() -> None:
     assert {s.value for s in LicenseContractSort} == {
         "deal_code",
+        "deal_name",
         "customer",
         "vendor",
         "product",

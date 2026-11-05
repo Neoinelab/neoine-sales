@@ -94,7 +94,7 @@ export function ContractEditDialog({ contract, today, onDone, onClose }: Contrac
 
   return (
     <Modal
-      title="계약 수정"
+      title={`계약 수정 - ${contract.dealName}`}
       wide
       onClose={onClose}
       footer={
@@ -115,7 +115,6 @@ export function ContractEditDialog({ contract, today, onDone, onClose }: Contrac
         </>
       }
     >
-      <p className="hint">Deal {contract.dealCode}</p>
       <div role="group" aria-labelledby={dealId} className="contract-deal-values">
         <h3 id={dealId} className="contract-deal-heading">
           Deal 정보
@@ -197,7 +196,7 @@ export function ContractEditDialog({ contract, today, onDone, onClose }: Contrac
       {confirming === 'end' && (
         <ConfirmDialog
           title="계약 종료 확인"
-          message={`Deal ${contract.dealCode}의 계약을 종료합니다. 종료한 계약은 다시 발급·갱신할 수 없습니다.`}
+          message={`Deal ${contract.dealName}의 계약을 종료합니다. 종료한 계약은 다시 발급·갱신할 수 없습니다.`}
           confirmLabel="종료"
           busy={end.isPending}
           onConfirm={() => void run(() => end.mutateAsync(contract.id), '계약을 종료했습니다.')}
@@ -207,7 +206,7 @@ export function ContractEditDialog({ contract, today, onDone, onClose }: Contrac
       {confirming === 'remove' && (
         <ConfirmDialog
           title="계약 삭제"
-          message={`Deal ${contract.dealCode}의 계약과 첨부 파일을 삭제합니다. 삭제한 계약은 복구할 수 없습니다.`}
+          message={`Deal ${contract.dealName}의 계약과 첨부 파일을 삭제합니다. 삭제한 계약은 복구할 수 없습니다.`}
           confirmLabel="삭제"
           danger
           busy={remove.isPending}

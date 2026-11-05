@@ -202,6 +202,7 @@ def test_the_sort_status_and_order_parameters_list_their_values(schema: dict[str
 
     assert _enum(schema, params["sort"]) == {
         "deal_code",
+        "deal_name",
         "customer",
         "vendor",
         "product",

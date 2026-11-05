@@ -23,7 +23,7 @@ const table = () => screen.getByRole('table', { name: '계약 목록' })
 const rows = () => within(table()).getAllByRole('row').slice(1)
 const first = (status: LicenseContract['status']) => {
   const shown = contracts.slice(0, 50)
-  const found = shown.find((c) => c.status === status && shown.filter((x) => x.dealCode === c.dealCode).length === 1)
+  const found = shown.find((c) => c.status === status && shown.filter((x) => x.dealName === c.dealName).length === 1)
   if (!found) throw new Error(`첫 쪽에 ${status} 계약이 없다`)
   return found
 }
@@ -32,8 +32,8 @@ const rowOf = (code: string) => rows().find((r) => within(r).getAllByRole('cell'
 async function openEdit(c: LicenseContract, role: 'admin' | 'sales' | 'user' = 'sales') {
   const view = await renderAt('/contracts', { role })
   await screen.findByRole('table', { name: '계약 목록' }, LOAD)
-  await view.user.click(within(rowOf(c.dealCode)!).getAllByRole('cell')[1]!)
-  return { ...view, dlg: await screen.findByRole('dialog', { name: '계약 수정' }) }
+  await view.user.click(within(rowOf(c.dealName)!).getAllByRole('cell')[1]!)
+  return { ...view, dlg: await screen.findByRole('dialog', { name: `계약 수정 - ${c.dealName}` }) }
 }
 const statusGroup = (dlg: HTMLElement) => within(dlg).getByRole('group', { name: '상태' })
 
@@ -67,7 +67,7 @@ describe('계약 종료 (AC14)', () => {
 
     await waitFor(() => expect(screen.queryByRole('dialog', { name: '계약 종료 확인' })).not.toBeInTheDocument())
     expect(end).not.toHaveBeenCalled()
-    expect(screen.getByRole('dialog', { name: '계약 수정' })).toBeVisible()
+    expect(screen.getByRole('dialog', { name: `계약 수정 - ${c.dealName}` })).toBeVisible()
   })
 
   it('ends the contract through the gateway after confirmation and shows 종료 with the notice', async () => {
@@ -80,7 +80,7 @@ describe('계약 종료 (AC14)', () => {
 
     expect(await screen.findByText('계약을 종료했습니다.')).toBeVisible()
     expect(end).toHaveBeenCalledWith(c.id)
-    await waitFor(() => expect(within(rowOf(c.dealCode)!).getAllByRole('cell')[7]?.textContent).toBe('종료'))
+    await waitFor(() => expect(within(rowOf(c.dealName)!).getAllByRole('cell')[7]?.textContent).toBe('종료'))
   })
 
   it('shows the server message when ending fails (409)', async () => {
@@ -103,12 +103,12 @@ describe('계약 삭제 (AC15)', () => {
 
     await user.click(within(dlg).getByRole('button', { name: '삭제' }))
     const confirm = await screen.findByRole('dialog', { name: '계약 삭제' })
-    expect(confirm).toHaveTextContent(c.dealCode)
+    expect(confirm).toHaveTextContent(c.dealName)
     await user.click(within(confirm).getByRole('button', { name: '삭제' }))
 
     expect(await screen.findByText('계약을 삭제했습니다.')).toBeVisible()
     expect(remove).toHaveBeenCalledWith(c.id)
-    await waitFor(() => expect(rowOf(c.dealCode)).toBeUndefined())
+    await waitFor(() => expect(rowOf(c.dealName)).toBeUndefined())
   })
 
   it('keeps the contract when the delete confirmation is cancelled', async () => {
@@ -120,7 +120,7 @@ describe('계약 삭제 (AC15)', () => {
     await user.click(within(await screen.findByRole('dialog', { name: '계약 삭제' })).getByRole('button', { name: '취소' }))
 
     expect(remove).not.toHaveBeenCalled()
-    expect(rowOf(c.dealCode)).toBeDefined()
+    expect(rowOf(c.dealName)).toBeDefined()
   })
 
   it.each(['sales', 'user'] as const)('does not show 삭제 to a %s', async (role) => {

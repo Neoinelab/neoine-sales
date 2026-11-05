@@ -223,6 +223,17 @@ export function licenseContractsContract(make: MakeGateway): void {
       await make('admin').then((g) => g.deals.remove(deal.code, deal.code))
     })
 
+    it('sorts by the deal name ignoring case, ascending and descending', async () => {
+      const gateway = await make('sales')
+
+      const asc = (await gateway.licenseContracts.list({ sort: 'dealName', order: 'asc' }, 0, 200)).items.map((c) => c.dealName.toLowerCase())
+      const desc = (await gateway.licenseContracts.list({ sort: 'dealName', order: 'desc' }, 0, 200)).items.map((c) => c.dealName.toLowerCase())
+
+      expect(asc.length).toBeGreaterThan(0)
+      expect(asc).toEqual([...asc].sort())
+      expect(desc).toEqual([...desc].sort().reverse())
+    })
+
     it('uploads, lists, downloads and deletes a contract attachment with the deal rules (AC20)', async () => {
       const gateway = await make('sales')
       const { deal, contract } = await wonDeal(gateway, unique('lc'))

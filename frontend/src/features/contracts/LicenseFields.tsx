@@ -46,7 +46,10 @@ export function LicenseFields({ start, amount, unit, end, disabled, startError, 
           {amountError}
         </p>
       )}
-      <p className="hint">종료일 {end === null ? '-' : end}</p>
+      <div className="contract-license-end">
+        <span className="contract-edit-label">종료일</span>
+        <span>{end === null ? '-' : end}</span>
+      </div>
     </div>
   )
 }

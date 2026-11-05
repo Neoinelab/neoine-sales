@@ -42,7 +42,7 @@ export interface LicenseContract {
 }
 
 export type LicenseContractSort =
-  | 'dealCode'
+  | 'dealName'
   | 'customer'
   | 'vendor'
   | 'product'

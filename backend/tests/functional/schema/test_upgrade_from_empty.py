@@ -1,88 +1,142 @@
-"""Feature: 운영자는 빈 DB를 head까지 올리고, 과거 리비전 체인은 base로 내렸다 다시 올린다.
+"""Feature: 운영자는 빈 DB를 최초 리비전(00c3126aa926) 하나로 현재 스키마와 기본 시드까지 올린다.
 
 When: 운영자 명령(alembic upgrade/downgrade). 운영자에게 공개된 인터페이스는 HTTP가 아니라
-이 명령이다. BIGINT id 리비전은 되돌릴 수 없으므로(`test_bigint_ids_migration.py`가 거부를
-검증한다) base로 내리는 시나리오는 그 아래 마지막 리비전(`deals_users_required_revision()`)에서
-시작한다. 올리는 쪽은 head까지 올려 새 스키마를 확인한다.
+이 명령이다. 과거 리비전 체인은 2026-11-05에 최초 리비전 하나로 통합되었고, 최초 리비전은
+되돌릴 수 없다(DB를 새로 만든다).
 """
 
 from typing import TYPE_CHECKING
 
 import pytest
+from alembic.util.exc import CommandError
 
 from tests.functional.steps.schema import (
-    given_schema_at,
     table_names,
-    when_operator_downgrades,
+    table_structure,
+    then_command_aborted,
+    then_schema_is_at,
+    when_operator_attempts_downgrade,
     when_operator_upgrades,
 )
-from tests.support.revisions import deals_users_required_revision
+from tests.support.raw_sql import run_sql
 
 if TYPE_CHECKING:
     from sqlalchemy.engine import URL
 
 pytestmark = pytest.mark.integration
 
-EXPECTED_TABLES = {
-    "contacts",
-    "codes",  # 코드(Status·Forecast)
-    "bant_labels",  # BANT Label
-    "alert_settings",  # 경고 기준
-    "deals",
-    "deal_actions",
-    "auth_sessions",
-    "deal_partners",
-    "deal_bant_labels",
-    "deal_history",
+BASELINE = "00c3126aa926"
+SEEDED = {"codes": 13, "bant_labels": 23, "action_types": 8}
+APP_TABLES = {
     "users",
     "login_failures",
     "directory_settings",
-    "storage_settings",  # P2b
-    "deal_attachments",  # P2b
-    "vendors",  # Vendor 관리
-    "action_types",  # Action 유형 카탈로그
-    "forecast_snapshots",  # Forecast 월말 스냅숏(P6 R2)
-    "forecast_snapshot_cells",
+    "user_password_hashes",
+    "auth_settings",
+    "auth_sessions",
+    "contacts",
+    "codes",
+    "bant_labels",
+    "action_types",
+    "vendors",
+    "deals",
+    "deal_partners",
+    "deal_bant_labels",
+    "deal_history",
+    "deal_actions",
+    "deal_attachments",
+    "storage_settings",
+    "alert_settings",
+    "forecast_snapshots",
     "forecast_snapshot_columns",
-    "partner_meetings",  # 파트너 Activity 미팅 기록
-    "user_password_hashes",  # 대체 로그인용·local 모드 정본 비밀번호 해시
-    "auth_settings",  # 인증 방식(ad|local)
+    "forecast_snapshot_cells",
+    "reports",
+    "partner_meetings",
+    "license_contracts",
+    "license_contract_attachments",
 }
-# contacts로 통합된 customers·partners, 이력 테이블로 바뀐 deal_stage_changes는 head에 없다
-RETIRED_TABLES = {"customers", "partners", "deal_stage_changes", "solutions"}
+EN_DASH = chr(0x2013)
 
 
-async def test_operator_upgrade_to_head_creates_the_expected_tables(blank_database: URL) -> None:
-    """Scenario: 빈 DB에 head까지 올리면 업무·인증 테이블이 모두 생긴다."""
+async def _row_count(url: URL, table: str) -> int:
+    rows = await run_sql(url, f"select count(*) from {table}")  # noqa: S608 - 상수 이름
+    return int(rows[0][0])
+
+
+async def test_operator_upgrade_to_head_creates_exactly_the_current_tables(
+    blank_database: URL,
+) -> None:
+    """Scenario: 빈 DB에 head까지 올리면 현재 테이블 26개와 alembic_version만 생긴다."""
     # Given
     # (마이그레이션이 하나도 적용되지 않은 빈 DB)
     # When
     await when_operator_upgrades(blank_database)
     # Then
-    tables = await table_names(blank_database)
-    assert tables >= EXPECTED_TABLES
-    assert not RETIRED_TABLES & tables
+    assert len(APP_TABLES) == 26
+    assert await table_names(blank_database) == {*APP_TABLES, "alembic_version"}
+    await then_schema_is_at(blank_database, BASELINE)
 
 
-async def test_operator_downgrade_to_base_removes_the_tables(blank_database: URL) -> None:
-    """Scenario: BIGINT id 리비전 아래의 마지막 리비전에서 base로 내리면 모든 테이블이 사라진다."""
+async def test_a_new_database_holds_only_the_default_catalog(blank_database: URL) -> None:
+    """Scenario: 새 DB에는 기본 코드·BANT Label·Action 유형만 있고 나머지 테이블은 비어 있다."""
     # Given
-    await given_schema_at(blank_database, deals_users_required_revision())
-    assert EXPECTED_TABLES & await table_names(blank_database)
-    # When
-    await when_operator_downgrades(blank_database, target="base")
-    # Then
-    assert not (EXPECTED_TABLES & await table_names(blank_database))
-
-
-async def test_operator_upgrade_after_a_full_downgrade_restores_the_tables(
-    blank_database: URL,
-) -> None:
-    """Scenario: base까지 내린 DB를 다시 head로 올리면 테이블이 돌아온다."""
-    # Given
-    await given_schema_at(blank_database, deals_users_required_revision())
-    await when_operator_downgrades(blank_database, target="base")
+    # (마이그레이션이 하나도 적용되지 않은 빈 DB)
     # When
     await when_operator_upgrades(blank_database)
     # Then
-    assert await table_names(blank_database) >= EXPECTED_TABLES
+    for table in sorted(APP_TABLES):
+        expected = SEEDED.get(table, 0)
+        assert await _row_count(blank_database, table) == expected, table
+    hints = await run_sql(
+        blank_database,
+        "select probability_hint from codes where kind = 'forecast' and key = 'best'",
+    )
+    assert hints == [(f"51{EN_DASH}75",)]
+
+
+async def test_operator_downgrade_of_the_baseline_is_refused_and_changes_nothing(
+    blank_database: URL,
+) -> None:
+    """Scenario: 최초 리비전을 base로 내리려 하면 거부되고 스키마가 그대로 남는다."""
+    # Given
+    await when_operator_upgrades(blank_database)
+    tables_before = await table_names(blank_database)
+    # When
+    outcome = await when_operator_attempts_downgrade(blank_database, target="base")
+    # Then
+    then_command_aborted(outcome, "최초 리비전", "DB를 새로 만드세요")
+    await then_schema_is_at(blank_database, BASELINE)
+    assert await table_names(blank_database) == tables_before
+
+
+async def test_upgrading_a_database_already_at_head_changes_nothing(blank_database: URL) -> None:
+    """Scenario: 이미 head인 DB에 upgrade head를 다시 실행해도 아무것도 바뀌지 않는다."""
+    # Given
+    await when_operator_upgrades(blank_database)
+    structure_before = {t: await table_structure(blank_database, t) for t in sorted(APP_TABLES)}
+    counts_before = {t: await _row_count(blank_database, t) for t in sorted(APP_TABLES)}
+    # When
+    await when_operator_upgrades(blank_database)
+    # Then
+    await then_schema_is_at(blank_database, BASELINE)
+    structure_after = {t: await table_structure(blank_database, t) for t in sorted(APP_TABLES)}
+    counts_after = {t: await _row_count(blank_database, t) for t in sorted(APP_TABLES)}
+    assert structure_after == structure_before
+    assert counts_after == counts_before
+
+
+async def test_a_database_left_at_a_retired_revision_cannot_be_upgraded(
+    blank_database: URL,
+) -> None:
+    """Scenario: 통합 전 리비전 id가 남은 DB는 upgrade가 실패하고 스키마는 바뀌지 않는다."""
+    # Given
+    await run_sql(
+        blank_database, "create table alembic_version (version_num varchar(32) primary key)"
+    )
+    await run_sql(blank_database, "insert into alembic_version values ('f2b7c9e4a615')")
+    # When
+    with pytest.raises(CommandError):
+        await when_operator_upgrades(blank_database)
+    # Then
+    assert await table_names(blank_database) == {"alembic_version"}
+    await then_schema_is_at(blank_database, "f2b7c9e4a615")

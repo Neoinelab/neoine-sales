@@ -11,7 +11,7 @@ import { pinClock, unpinClock } from '../../test/partnerMeetings'
  * 목록은 서버가 정렬·필터·쪽 나누기를 하고(50건씩) 화면의 `전체 N건`은 서버 total이다. 시계는 2027-03-15 고정.
  */
 const PAGE = '/contracts'
-const COLUMNS = ['Deal 코드', '고객사명', 'Vendor', '제품명', '파트너사', '라이선스 시작일', '라이선스 종료일', '상태', '담당영업', '기술담당', '점검주기', 'Note']
+const COLUMNS = ['Deal명', '고객사명', 'Vendor', '제품명', '파트너사', '라이선스 시작일', '라이선스 종료일', '상태', '담당영업', '기술담당', '점검주기', 'Note']
 const LOAD = { timeout: 8000 }
 const PAGE_SIZE = 50
 
@@ -30,7 +30,7 @@ const table = () => screen.getByRole('table', { name: '계약 목록' })
 const rows = () => within(table()).getAllByRole('row').slice(1)
 const codes = () => rows().map((row) => within(row).getAllByRole('cell')[0]?.textContent ?? '')
 const sorted = (list: string[]) => [...list].sort()
-const codesOf = (list: readonly LicenseContract[]) => list.map((c) => c.dealCode)
+const codesOf = (list: readonly LicenseContract[]) => list.map((c) => c.dealName)
 const lastQuery = (spy: ReturnType<typeof vi.spyOn>) => (spy.mock.calls.at(-1) as unknown[])[0] as Record<string, unknown>
 
 async function open() {
@@ -56,6 +56,7 @@ describe('목록 (AC2, AC19)', () => {
     expect(screen.getByText(`전체 ${contracts.length}건`)).toBeVisible()
     expect(within(table()).getAllByRole('columnheader').map((h) => h.textContent)).toEqual(COLUMNS)
     expect(within(table()).queryByRole('columnheader', { name: '구분' })).not.toBeInTheDocument()
+    expect(within(table()).queryByRole('columnheader', { name: 'Deal 코드' })).not.toBeInTheDocument()
   })
 
   it('shows the values of the first server row in its cells and the four status labels', async () => {
@@ -64,7 +65,7 @@ describe('목록 (AC2, AC19)', () => {
 
     const cells = within(rows()[0]!).getAllByRole('cell')
 
-    expect(cells[0]).toHaveTextContent(first.dealCode)
+    expect(cells[0]).toHaveTextContent(first.dealName)
     expect(cells[1]).toHaveTextContent(first.customer)
     expect(cells[3]).toHaveTextContent(first.product)
     expect(cells[7]?.textContent).toBe(STATUS_TEXT[first.status])
@@ -282,7 +283,7 @@ describe('정렬 (AC6, AC18)', () => {
     ['기술담당', 'techOwner'],
     ['점검주기', 'inspection'],
     ['Note', 'note'],
-    ['Deal 코드', 'dealCode'],
+    ['Deal명', 'dealName'],
   ] as const)('sorts by %s on the server when its header is clicked', async (label, sort) => {
     const { user } = await open()
     const list = vi.spyOn(gateway.licenseContracts, 'list')

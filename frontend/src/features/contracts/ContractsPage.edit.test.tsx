@@ -25,14 +25,14 @@ afterEach(() => {
 const table = () => screen.getByRole('table', { name: '계약 목록' })
 const rows = () => within(table()).getAllByRole('row').slice(1)
 /** 같은 Deal에 갱신 이력이 있으면 코드가 겹치므로 상태까지 같이 본다. */
-const rowOf = (c: LicenseContract) => rows().find((r) => within(r).getAllByRole('cell')[0]?.textContent === c.dealCode)!
+const rowOf = (c: LicenseContract) => rows().find((r) => within(r).getAllByRole('cell')[0]?.textContent === c.dealName)!
 const cellsOf = (c: LicenseContract) => within(rowOf(c)).getAllByRole('cell')
 const dialog = (name: string) => screen.findByRole('dialog', { name })
 
 /** 한 쪽(50건)에 보이고 Deal 코드가 유일한 계약 하나를 고른다. */
 function pick(match: (c: LicenseContract) => boolean = () => true): LicenseContract {
   const shown = contracts.slice(0, 50)
-  const found = shown.find((c) => match(c) && shown.filter((x) => x.dealCode === c.dealCode).length === 1)
+  const found = shown.find((c) => match(c) && shown.filter((x) => x.dealName === c.dealName).length === 1)
   if (!found) throw new Error('조건에 맞는 계약이 첫 쪽에 없다')
   return found
 }
@@ -49,7 +49,7 @@ async function openEdit(c: LicenseContract, role: 'admin' | 'sales' | 'user' = '
   await screen.findByRole('table', { name: '계약 목록' }, LOAD)
   await waitFor(() => expect(rows().length).toBeGreaterThan(0), LOAD)
   await view.user.click(cellsOf(c)[1]!)
-  return { ...view, dlg: await dialog('계약 수정') }
+  return { ...view, dlg: await dialog(`계약 수정 - ${c.dealName}`) }
 }
 
 function file(name: string, size = 10, type = 'application/pdf'): File {
@@ -73,13 +73,15 @@ describe('행 클릭 -> 계약 수정 (B1, AC11)', () => {
     ] as const) {
       expect(within(dealValues).getByText(label)).toBeVisible()
       expect(within(dealValues).getByText(value)).toBeVisible()
+      // 속성 이름과 값은 한 항목(같은 줄) 안에 함께 있다
+      expect(within(dealValues).getByText(label).parentElement).toHaveTextContent(value)
       expect(within(dlg).queryByRole('textbox', { name: label })).not.toBeInTheDocument()
       expect(within(dlg).queryByRole('combobox', { name: label })).not.toBeInTheDocument()
     }
     expect(within(dlg).getByLabelText('기술담당')).toHaveValue(c.techOwner)
     expect(within(dlg).getByLabelText('Note')).toHaveValue(c.note)
     expect(within(dlg).getByRole('combobox', { name: '점검주기' })).toHaveDisplayValue(INSPECTION_LABELS[c.inspection])
-    expect(within(dlg).getByText(`Deal ${c.dealCode}`)).toBeVisible()
+    expect(within(dlg).queryByText(`Deal ${c.dealCode}`)).not.toBeInTheDocument()
     expect(within(dlg).getByRole('button', { name: '저장' })).toBeVisible()
     expect(within(dlg).getByRole('button', { name: '취소' })).toBeVisible()
   })
@@ -92,7 +94,7 @@ describe('행 클릭 -> 계약 수정 (B1, AC11)', () => {
     expect(rowOf(c)).toHaveFocus()
     await userEvent.keyboard('{Enter}')
 
-    expect(await dialog('계약 수정')).toBeVisible()
+    expect(await dialog(`계약 수정 - ${c.dealName}`)).toBeVisible()
   })
 
   it('opens the edit dialog when the status cell of a not-issued row is clicked (no button in the table)', async () => {
@@ -101,7 +103,7 @@ describe('행 클릭 -> 계약 수정 (B1, AC11)', () => {
 
     await user.click(cellsOf(c)[7]!)
 
-    expect(await dialog('계약 수정')).toBeVisible()
+    expect(await dialog(`계약 수정 - ${c.dealName}`)).toBeVisible()
     expect(within(rowOf(c)).queryAllByRole('button')).toHaveLength(0)
   })
 })
@@ -121,7 +123,7 @@ describe('계약 수정 저장 (B2, AC11)', () => {
 
     expect(await screen.findByText('계약을 수정했습니다.')).toBeVisible()
     expect(update).toHaveBeenCalledWith(c.id, { techOwner: '새기술담당', inspection: 'monthly', note: '수정된 메모' })
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: '계약 수정' })).not.toBeInTheDocument())
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: /^계약 수정/ })).not.toBeInTheDocument())
     await waitFor(() => expect(cellsOf(c)[9]).toHaveTextContent('새기술담당'))
     expect(cellsOf(c)[10]).toHaveTextContent(INSPECTION_LABELS.monthly)
     expect(cellsOf(c)[11]).toHaveTextContent('수정된 메모')
@@ -148,7 +150,7 @@ describe('계약 수정 저장 (B2, AC11)', () => {
     await user.click(within(dlg).getByRole('button', { name: '저장' }))
 
     expect(await within(dlg).findByRole('alert')).toBeVisible()
-    expect(screen.getByRole('dialog', { name: '계약 수정' })).toBeVisible()
+    expect(screen.getByRole('dialog', { name: /^계약 수정/ })).toBeVisible()
     expect(screen.queryByText('계약을 수정했습니다.')).not.toBeInTheDocument()
   })
 
@@ -208,7 +210,7 @@ describe('첨부 파일 (B6, AC20)', () => {
     await user.click(within(dlg).getByRole('button', { name: '취소' }))
     await waitFor(() => expect(cellsOf(c)[0]).toBeVisible())
     await user.click(cellsOf(c)[1]!)
-    expect(await within(await dialog('계약 수정')).findByRole('button', { name: '제안서.pdf' })).toBeVisible()
+    expect(await within(await dialog(`계약 수정 - ${c.dealName}`)).findByRole('button', { name: '제안서.pdf' })).toBeVisible()
   })
 
   it('rejects an executable file with the Deal message', async () => {
@@ -350,11 +352,11 @@ describe('만료 임박 색과 상태 색 (B8)', () => {
   it('colors the start and end date cells by the remaining period of issued contracts only', async () => {
     await open()
 
-    for (const c of contracts.slice(0, 50).filter((x, _i, all) => all.filter((y) => y.dealCode === x.dealCode).length === 1)) {
+    for (const c of contracts.slice(0, 50).filter((x, _i, all) => all.filter((y) => y.dealName === x.dealName).length === 1)) {
       const cells = cellsOf(c)
       for (const index of [5, 6]) {
-        expect(cells[index]!.classList.contains('expiry-danger'), `${c.dealCode} danger`).toBe(level(c) === 'danger')
-        expect(cells[index]!.classList.contains('expiry-warning'), `${c.dealCode} warning`).toBe(level(c) === 'warning')
+        expect(cells[index]!.classList.contains('expiry-danger'), `${c.dealName} danger`).toBe(level(c) === 'danger')
+        expect(cells[index]!.classList.contains('expiry-warning'), `${c.dealName} warning`).toBe(level(c) === 'warning')
       }
     }
   })
@@ -362,10 +364,10 @@ describe('만료 임박 색과 상태 색 (B8)', () => {
   it('marks the status cell with status-issued or status-ended and nothing for not-issued', async () => {
     await open()
 
-    for (const c of contracts.slice(0, 50).filter((x, _i, all) => all.filter((y) => y.dealCode === x.dealCode).length === 1)) {
+    for (const c of contracts.slice(0, 50).filter((x, _i, all) => all.filter((y) => y.dealName === x.dealName).length === 1)) {
       const cell = cellsOf(c)[7]!
-      expect(cell.classList.contains('status-issued'), `${c.dealCode} issued`).toBe(isIssued(c))
-      expect(cell.classList.contains('status-ended'), `${c.dealCode} ended`).toBe(c.status === 'ended')
+      expect(cell.classList.contains('status-issued'), `${c.dealName} issued`).toBe(isIssued(c))
+      expect(cell.classList.contains('status-ended'), `${c.dealName} ended`).toBe(c.status === 'ended')
     }
   })
 
@@ -377,7 +379,7 @@ describe('만료 임박 색과 상태 색 (B8)', () => {
 
     await screen.findByText('라이센스를 갱신했습니다.')
     await waitFor(() => {
-      const renewed = rows().filter((r) => within(r).getAllByRole('cell')[0]?.textContent === c.dealCode)
+      const renewed = rows().filter((r) => within(r).getAllByRole('cell')[0]?.textContent === c.dealName)
       const issued = renewed.find((r) => within(r).getAllByRole('cell')[7]?.textContent === '발급(갱신)')
       expect(issued).toBeDefined()
       expect(within(issued!).getAllByRole('cell')[6]!.classList.contains('expiry-danger')).toBe(false)

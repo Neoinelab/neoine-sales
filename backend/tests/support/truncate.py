@@ -1,6 +1,6 @@
 """업무 테이블을 비우는 도우미(테스트 사이 격리용).
 
-스키마 마이그레이션 테스트 중에는 `contacts`가 없을 수 있어, 지금 DB에 있는 테이블만 이름에 넣는다.
+선택 테이블은 지금 DB에 있는 것만 이름에 넣는다(방어적 필터, 모든 테이블은 최초 리비전이 만든다).
 이름은 모두 이 모듈의 상수다.
 `users`를 CASCADE로 비우면 users를 참조하는 테이블(deals, 활동, Label 등)까지 비워지지만,
 연락처 테이블은 Deal이 참조하는 쪽이라 따로 비워야 한다.
@@ -22,15 +22,14 @@ ALWAYS: Final = (
     "deals",
 )
 CONTACT_TABLES: Final = ("contacts",)
-# P1 새 Deal 모델의 소속 테이블. 과거 리비전 DB에는 없을 수 있어 있는 것만 비운다.
+# P1 새 Deal 모델의 소속 테이블. 있는 것만 비운다.
 DEAL_TABLES: Final = ("deal_history", "deal_partners", "deal_bant_labels")
-# P2b 파일 테이블. 과거 리비전 DB에는 없을 수 있어 있는 것만 비운다(users CASCADE로도 비워진다).
+# P2b 파일 테이블. 있는 것만 비운다(users CASCADE로도 비워진다).
 FILE_TABLES: Final = ("deal_attachments", "storage_settings")
-# P3 경고 기준. 과거 리비전 DB에는 없을 수 있어 있는 것만 비운다(users CASCADE로도 비워진다).
+# P3 경고 기준. 있는 것만 비운다(users CASCADE로도 비워진다).
 ALERT_TABLES: Final = ("alert_settings",)
-# Vendor 관리. 과거 리비전 DB에는 없을 수 있어 있는 것만 비운다(deals가 참조).
-# `solutions`는 Solution 텍스트 리비전이 지웠지만 그 아래 리비전 DB(과거 스키마 테스트)엔 있다.
-VENDOR_TABLES: Final = ("solutions", "vendors")
+# Vendor 관리(deals가 참조).
+VENDOR_TABLES: Final = ("vendors",)
 # Forecast 월말 스냅숏(P6 R2). 셀은 users CASCADE로 비워지지만 열·헤더는 아니므로 함께 비운다.
 FORECAST_TABLES: Final = (
     "forecast_snapshot_cells",
@@ -38,9 +37,9 @@ FORECAST_TABLES: Final = (
     "forecast_snapshots",
 )
 # 인증 방식(ad|local) 단일 행. users를 참조하지 않아 CASCADE로 비워지지 않으므로 따로 비운다.
-# 과거 리비전 DB에는 없을 수 있어 있는 것만 비운다. 남으면 다음 시나리오가 local 모드로 시작한다.
+# 있는 것만 비운다. 남으면 다음 시나리오가 local 모드로 시작한다.
 AUTH_TABLES: Final = ("auth_settings",)
-# 라이선스 계약. users·deals CASCADE로도 비워지지만 과거 리비전 DB에는 없어 있는 것만 비운다.
+# 라이선스 계약. users·deals CASCADE로도 비워지지만 있는 것만 비운다.
 CONTRACT_TABLES: Final = ("license_contract_attachments", "license_contracts")
 # 마이그레이션이 기본 행을 심는 users 참조 테이블(기본 행은 created_by_user_id가 없어 되살린다).
 SEEDED_TABLES: Final = ("bant_labels", "action_types")

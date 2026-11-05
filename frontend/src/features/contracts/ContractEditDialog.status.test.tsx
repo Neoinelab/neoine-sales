@@ -24,10 +24,17 @@ afterEach(() => {
 
 const table = () => screen.getByRole('table', { name: '계약 목록' })
 const rows = () => within(table()).getAllByRole('row').slice(1)
+/** 종료일은 '종료일' 이름과 자동 계산 값이 한 항목으로 보인다. */
+function expectEnd(dlg: HTMLElement, date: string) {
+  const label = within(dlg).getByText('종료일')
+  expect(label).toBeVisible()
+  expect(label.parentElement).toHaveTextContent(date)
+}
+
 /** 첫 쪽에 보이고 Deal 코드가 유일한 계약. */
 const first = (status: LicenseContract['status']) => {
   const shown = contracts.slice(0, 50)
-  const found = shown.find((c) => c.status === status && shown.filter((x) => x.dealCode === c.dealCode).length === 1)
+  const found = shown.find((c) => c.status === status && shown.filter((x) => x.dealName === c.dealName).length === 1)
   if (!found) throw new Error(`첫 쪽에 ${status} 계약이 없다`)
   return found
 }
@@ -36,8 +43,8 @@ const rowOf = (code: string) => rows().find((r) => within(r).getAllByRole('cell'
 async function openEdit(c: LicenseContract, role: 'admin' | 'sales' | 'user' = 'sales') {
   const view = await renderAt('/contracts', { role })
   await screen.findByRole('table', { name: '계약 목록' }, LOAD)
-  await view.user.click(within(rowOf(c.dealCode)).getAllByRole('cell')[1]!)
-  return { ...view, dlg: await screen.findByRole('dialog', { name: '계약 수정' }) }
+  await view.user.click(within(rowOf(c.dealName)).getAllByRole('cell')[1]!)
+  return { ...view, dlg: await screen.findByRole('dialog', { name: /^계약 수정 - / }) }
 }
 const statusGroup = (dlg: HTMLElement) => within(dlg).getByRole('group', { name: '상태' })
 const startInput = (dlg: HTMLElement) => within(dlg).getByLabelText('라이선스 시작일')
@@ -84,7 +91,7 @@ describe('상태 묶음과 라이선스 칸 (C3)', () => {
     expect(startInput(dlg)).toHaveValue(dotted(c.licenseStart!))
     expect(amountInput(dlg)).toHaveValue(c.term!.amount)
     expect(unitSelect(dlg)).toHaveDisplayValue(c.term!.unit === 'year' ? '년' : '개월')
-    expect(within(dlg).getByText(new RegExp(`종료일\\s*${c.licenseEnd}`))).toBeVisible()
+    expectEnd(dlg, c.licenseEnd!)
   })
 
   it('shows empty disabled fields with the 1 year default for a not-issued contract', async () => {
@@ -119,7 +126,7 @@ describe('라이센스 발급 (C4, C6, AC12)', () => {
     expect(startInput(dlg)).toHaveValue(TODAY_TEXT)
     expect(amountInput(dlg)).toHaveValue(1)
     expect(unitSelect(dlg)).toHaveDisplayValue('년')
-    expect(within(dlg).getByText(/종료일\s*2028-03-14/)).toBeVisible()
+    expectEnd(dlg, '2028-03-14')
     expect(within(statusGroup(dlg)).queryByRole('button', { name: '라이센스 발급' })).not.toBeInTheDocument()
     expect(within(dlg).getByText('저장하면 발급(신규)됩니다')).toBeVisible()
   })
@@ -130,15 +137,15 @@ describe('라이센스 발급 (C4, C6, AC12)', () => {
 
     await user.clear(startInput(dlg))
     await user.type(startInput(dlg), '20270101')
-    expect(within(dlg).getByText(/종료일\s*2027-12-31/)).toBeVisible()
+    expectEnd(dlg, '2027-12-31')
     await user.clear(within(dlg).getByLabelText('Note'))
     await user.type(within(dlg).getByLabelText('Note'), '발급과 함께 수정')
     await user.click(within(dlg).getByRole('button', { name: '저장' }))
 
     expect(await screen.findByText('라이센스를 발급했습니다.')).toBeVisible()
     expect(issue).toHaveBeenCalledWith(target().id, { techOwner: target().techOwner, inspection: target().inspection, note: '발급과 함께 수정', start: '2027-01-01', term: { amount: 1, unit: 'year' } })
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: '계약 수정' })).not.toBeInTheDocument())
-    const cells = within(rowOf(target().dealCode)).getAllByRole('cell')
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: /^계약 수정 - / })).not.toBeInTheDocument())
+    const cells = within(rowOf(target().dealName)).getAllByRole('cell')
     expect(cells[5]).toHaveTextContent('2027-01-01')
     expect(cells[6]).toHaveTextContent('2027-12-31')
     expect(cells[7]?.textContent).toBe('발급(신규)')
@@ -153,11 +160,11 @@ describe('라이센스 발급 (C4, C6, AC12)', () => {
     await user.selectOptions(unitSelect(dlg), '개월')
     await user.clear(amountInput(dlg))
     await user.type(amountInput(dlg), '6')
-    expect(within(dlg).getByText(/종료일\s*2026-06-30/)).toBeVisible()
+    expectEnd(dlg, '2026-06-30')
     await user.click(within(dlg).getByRole('button', { name: '저장' }))
 
     await screen.findByText('라이센스를 발급했습니다.')
-    expect(within(rowOf(target().dealCode)).getAllByRole('cell')[6]).toHaveTextContent('2026-06-30')
+    expect(within(rowOf(target().dealName)).getAllByRole('cell')[6]).toHaveTextContent('2026-06-30')
   })
 
   it('does not send the request and shows a message when the start date is cleared (C6)', async () => {
@@ -169,8 +176,8 @@ describe('라이센스 발급 (C4, C6, AC12)', () => {
 
     expect(await within(dlg).findByText(/필수|입력하세요/)).toBeVisible()
     expect(issue).not.toHaveBeenCalled()
-    expect(screen.getByRole('dialog', { name: '계약 수정' })).toBeVisible()
-    expect(within(rowOf(target().dealCode)).getAllByRole('cell')[7]?.textContent).toBe('미발급')
+    expect(screen.getByRole('dialog', { name: /^계약 수정 - / })).toBeVisible()
+    expect(within(rowOf(target().dealName)).getAllByRole('cell')[7]?.textContent).toBe('미발급')
   })
 
   it('does not send the request when the period is empty (C6)', async () => {
@@ -193,7 +200,7 @@ describe('라이센스 발급 (C4, C6, AC12)', () => {
     await user.click(within(dlg).getByRole('button', { name: '저장' }))
 
     expect(await within(dlg).findByRole('alert')).toHaveTextContent('이 Deal에는 이미 발급 상태인 라이선스 계약이 있습니다.')
-    expect(screen.getByRole('dialog', { name: '계약 수정' })).toBeVisible()
+    expect(screen.getByRole('dialog', { name: /^계약 수정 - / })).toBeVisible()
     expect(screen.queryByText('라이센스를 발급했습니다.')).not.toBeInTheDocument()
   })
 
@@ -205,9 +212,9 @@ describe('라이센스 발급 (C4, C6, AC12)', () => {
 
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
     expect(issue).not.toHaveBeenCalled()
-    expect(within(rowOf(target().dealCode)).getAllByRole('cell')[7]?.textContent).toBe('미발급')
-    await user.click(within(rowOf(target().dealCode)).getAllByRole('cell')[1]!)
-    const again = await screen.findByRole('dialog', { name: '계약 수정' })
+    expect(within(rowOf(target().dealName)).getAllByRole('cell')[7]?.textContent).toBe('미발급')
+    await user.click(within(rowOf(target().dealName)).getAllByRole('cell')[1]!)
+    const again = await screen.findByRole('dialog', { name: /^계약 수정 - / })
     expect(within(statusGroup(again)).getByRole('button', { name: '라이센스 발급' })).toBeVisible()
     expect(startInput(again)).toBeDisabled()
   })
@@ -241,7 +248,7 @@ describe('라이센스 갱신 (C5, AC13)', () => {
     expect(await screen.findByText('라이센스를 갱신했습니다.')).toBeVisible()
     expect(renew).toHaveBeenCalledWith(c.id, expect.objectContaining({ start: nextDay(c.licenseEnd!), term: c.term }))
     await waitFor(() => {
-      const mine = rows().filter((r) => within(r).getAllByRole('cell')[0]?.textContent === c.dealCode)
+      const mine = rows().filter((r) => within(r).getAllByRole('cell')[0]?.textContent === c.dealName)
       const texts = mine.map((r) => within(r).getAllByRole('cell')[7]?.textContent)
       expect(texts).toContain('발급(갱신)')
       expect(texts).toContain('종료')
@@ -272,7 +279,7 @@ describe('라이센스 갱신 (C5, AC13)', () => {
     expect(await screen.findByText('계약을 수정했습니다.')).toBeVisible()
     expect(issue).not.toHaveBeenCalled()
     expect(renew).not.toHaveBeenCalled()
-    const cells = within(rowOf(c.dealCode)).getAllByRole('cell')
+    const cells = within(rowOf(c.dealName)).getAllByRole('cell')
     expect(cells[5]).toHaveTextContent(c.licenseStart!)
     expect(cells[6]).toHaveTextContent(c.licenseEnd!)
   })

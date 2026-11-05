@@ -90,6 +90,7 @@ async def test_add_with_an_unknown_snapshot_code_raises_invalid_reference(
     await action_case.ensure_deal(make_deal_code())
     action = make_deal_action(snapshot=snapshot)
     await action_case.ensure_actor(action)
+    await attach_catalog_type(action_case.action_types, action)
 
     with pytest.raises(InvalidReferenceError) as caught:
         await action_case.repository.add(action)

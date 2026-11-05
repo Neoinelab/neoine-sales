@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.pool import NullPool
 
 from tests.support.database import apply_migrations
-from tests.support.user_fk_migration import run_sql
+from tests.support.raw_sql import run_sql
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable, Sequence

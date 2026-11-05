@@ -59,7 +59,7 @@ infra ──┘
 | `pyproject.toml` | 의존성, ruff·mypy·pytest·import-linter 설정의 **정본** |
 | `uv.lock`, `.python-version` | 잠긴 의존성, Python 버전(3.14) |
 | `.env.example` | 필요한 환경변수 이름 예시(실제 `.env`는 Git 제외, 읽지도 쓰지도 않음) |
-| `alembic.ini`, `alembic/` | DB 마이그레이션. `versions/`에 리비전 30개, head는 `00c3126aa926`(라이선스 계약 `license_contracts`·`license_contract_attachments` 신설과 기존 Won Deal마다 미발급 계약 1건 삽입, 스키마는 순수 expand, 2026-11-05). P0 이후는 단계별 단일 스키마 마이그레이션(코드·BANT Label → 연락처 → Deal 모델 v2 → Action 스냅숏 → 첨부 → 경고 기준 → Vendor·Solution → Action 유형 → Next Action 상태 → Deal users 필수 → bigint id(전체 초기화) → Forecast 스냅숏 → Solution 관리 목록 폐지·Deal Solution 필수 텍스트 → 저장 리포트) |
+| `alembic.ini`, `alembic/` | DB 마이그레이션. 2026-11-05에 이력을 통합해 `versions/`에는 최초 버전 `20261105_00c3126aa926_baseline.py` 1개(현재 스키마 전체와 기본 시드, downgrade 거부)만 있습니다. 아래는 통합 전 이력입니다. P0 이후는 단계별 단일 스키마 마이그레이션(코드·BANT Label → 연락처 → Deal 모델 v2 → Action 스냅숏 → 첨부 → 경고 기준 → Vendor·Solution → Action 유형 → Next Action 상태 → Deal users 필수 → bigint id(전체 초기화) → Forecast 스냅숏 → Solution 관리 목록 폐지·Deal Solution 필수 텍스트 → 저장 리포트) |
 | `openapi.json` | API 계약 파일. 코드와 다르면 테스트가 실패(드리프트 검사), 프런트 타입의 원본 |
 | `scripts/run_gates.py` | 품질 게이트 6종 실행(기본은 단위 테스트만, `--full`이면 functional 포함). 결과: `artifacts/30-review/gate.md` |
 | `scripts/check_file_length.py` | 파일 300줄 제한 검사 |

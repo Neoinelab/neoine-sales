@@ -188,6 +188,7 @@ export function createLicenseContractsGateway(ctx: MockContext): LicenseContract
         const renewal: LicenseContractRecord = {
           id: takeId(data.counters, 'lc'),
           dealCode: previous.dealCode,
+          ...(previous.dealSide ? { dealSide: previous.dealSide } : {}),
           status: 'issued_renewal',
           licenseStart: null,
           licenseEnd: null,

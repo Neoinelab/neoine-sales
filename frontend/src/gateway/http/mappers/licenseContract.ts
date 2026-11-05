@@ -52,7 +52,7 @@ export function toContractAttachment(row: Schemas['ContractAttachmentResponse'])
 }
 
 const WIRE_SORT: Record<LicenseContractSort, Schemas['LicenseContractSort']> = {
-  dealCode: 'deal_code',
+  dealName: 'deal_name',
   customer: 'customer',
   vendor: 'vendor',
   product: 'product',

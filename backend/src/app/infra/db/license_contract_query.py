@@ -120,6 +120,7 @@ def _sort_expression(sort: LicenseContractSort) -> SQLColumnExpression[Any]:
     owner = func.coalesce(func.nullif(_OWNER.display_name, ""), _OWNER.login_id)
     keys: dict[LicenseContractSort, SQLColumnExpression[Any]] = {
         LicenseContractSort.DEAL_CODE: _text(DealRow.deal_code),
+        LicenseContractSort.DEAL_NAME: _text(DealRow.name, blank_is_none=True),
         LicenseContractSort.CUSTOMER: _text(_CUSTOMER.company),
         LicenseContractSort.VENDOR: _text(VendorRow.name),
         LicenseContractSort.PRODUCT: _text(DealRow.solution, blank_is_none=True),
