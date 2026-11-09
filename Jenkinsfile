@@ -36,6 +36,7 @@ pipeline {
                             sh 'uv run mypy src scripts tests'
                             sh 'uv run lint-imports'
                             sh 'uv run python scripts/check_file_length.py'
+                            sh 'uv run python scripts/check_feature_trace.py'
                             sh 'uv run pytest --junitxml=reports/junit.xml --cov-report=xml:reports/coverage.xml'
                         }
                     }

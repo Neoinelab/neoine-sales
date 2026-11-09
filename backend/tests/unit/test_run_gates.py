@@ -86,4 +86,12 @@ def test_select_gates_only_keeps_requested_gates_and_full_flag() -> None:
 def test_gate_commands_cover_ci_quality_steps() -> None:
     names = [g.name for g in gates.GATES]
 
-    assert names == ["ruff-check", "ruff-format", "mypy", "import-linter", "file-length", "pytest"]
+    assert names == [
+        "ruff-check",
+        "ruff-format",
+        "mypy",
+        "import-linter",
+        "file-length",
+        "feature-trace",
+        "pytest",
+    ]

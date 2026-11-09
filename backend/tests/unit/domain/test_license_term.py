@@ -3,10 +3,10 @@
 from datetime import date
 
 import pytest
-from app.domain.license_contract.term import license_end
-from app.domain.license_contract.values import LicenseTerm, TermUnit
 
 from app.domain.common.errors import InvalidValueError
+from app.domain.license_contract.term import license_end
+from app.domain.license_contract.values import LicenseTerm, TermUnit
 
 
 @pytest.mark.parametrize(
@@ -26,6 +26,12 @@ from app.domain.common.errors import InvalidValueError
 def test_license_end_matches_frontend_cases(
     start: date, amount: int, unit: TermUnit, expected: date
 ) -> None:
+    """종료일은 시작일+기간-1일이고 프런트 계산과 같다.
+
+    테스트 코드: LC-040
+    """
+    # when: 시작일과 기간으로 종료일을 계산한다
+    # then: 기대 종료일과 같다
     assert license_end(start, amount, unit) == expected
 
 
@@ -45,23 +51,48 @@ def test_license_end_matches_frontend_cases(
 def test_license_end_handles_month_end_and_leap_boundaries(
     start: date, amount: int, unit: TermUnit, expected: date
 ) -> None:
+    """윤일·말일·99년 같은 경계에서도 종료일이 맞다.
+
+    테스트 코드: LC-040
+    """
+    # when: 경계 시작일로 종료일을 계산한다
+    # then: 기대 종료일과 같다
     assert license_end(start, amount, unit) == expected
 
 
 @pytest.mark.parametrize("amount", [1, 99])
 def test_license_term_accepts_the_boundary_amounts(amount: int) -> None:
+    """기간 수량 1과 99는 허용된다.
+
+    테스트 코드: LC-044
+    """
+    # when: 경계 수량으로 LicenseTerm을 만든다
     term = LicenseTerm(amount=amount, unit=TermUnit.MONTH)
 
+    # then: 수량과 단위가 그대로다
     assert (term.amount, term.unit) == (amount, TermUnit.MONTH)
 
 
 @pytest.mark.parametrize("amount", [0, 100, -1])
 def test_license_term_out_of_range_rejected(amount: int) -> None:
+    """기간 수량이 1~99 밖이면 거절된다.
+
+    테스트 코드: LC-044
+    """
+    # when: 0·100·-1로 만든다
     with pytest.raises(InvalidValueError):
         LicenseTerm(amount=amount, unit=TermUnit.YEAR)
+    # then: InvalidValueError
 
 
 def test_term_end_for_uses_the_same_calculation() -> None:
+    """LicenseTerm.end_for는 같은 계산을 쓴다.
+
+    테스트 코드: LC-040
+    """
+    # given: 1년 기간
     term = LicenseTerm(amount=1, unit=TermUnit.YEAR)
 
+    # when: 2026-01-01의 종료일을 구한다
+    # then: 2026-12-31이다
     assert term.end_for(date(2026, 1, 1)) == date(2026, 12, 31)

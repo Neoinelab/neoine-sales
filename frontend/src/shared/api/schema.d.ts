@@ -2580,7 +2580,7 @@ export interface components {
          * LicenseContractSort
          * @enum {string}
          */
-        LicenseContractSort: "deal_code" | "deal_name" | "customer" | "vendor" | "product" | "partner" | "license_start" | "license_end" | "status" | "sales_owner" | "tech_owner" | "inspection" | "note";
+        LicenseContractSort: "deal_name" | "customer" | "vendor" | "product" | "partner" | "license_start" | "license_end" | "status" | "sales_owner" | "tech_owner" | "inspection" | "note";
         /**
          * LicenseIssueRequest
          * @description 발급·갱신 요청. 종료일은 서버가 시작일과 기간으로 계산한다.

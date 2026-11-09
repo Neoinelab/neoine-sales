@@ -19,7 +19,7 @@
 | `backend/tests/conftest.py` | 세션당 한 번 임시 DB를 만들고 마이그레이션을 적용하는 `test_database_url` fixture |
 | `backend/tests/unit/infra/conftest.py` (구 `tests/integration/conftest.py`) | 테스트마다 롤백되는 `session` fixture(infra 어댑터 클래스 단위 테스트용) |
 | `backend/tests/unit/repositories/conftest.py` (구 `tests/contracts/conftest.py`) | 같은 계약 단위 테스트를 Fake와 SQL 구현 양쪽에 적용하는 `case` fixture |
-| `backend/tests/functional/conftest.py` | feature end-to-end용 ASGI 클라이언트(`api`)와 임시 DB 연결 |
+| ~~`backend/tests/functional/conftest.py`~~ | functional 폐지(2026-11-09). 전환 작업이 끝나면 삭제 |
 
 > 테스트 재배치(2026-10-15) 중에는 구 경로(`tests/contracts`, `tests/integration`, `tests/e2e`)가 남아 있을 수 있다. 새 테스트는 구 경로에 만들지 않는다.
 
@@ -45,8 +45,8 @@ uv run pytest -rs                      # 건너뛴 테스트와 그 이유를 �
 ```
 
 - 필요한 것: PostgreSQL 실행, 접속 role에 `CREATEDB` 권한(`ALTER ROLE <role> CREATEDB;`).
-- 실제 DB가 필요한 테스트는 `pytestmark = pytest.mark.integration`을 붙인다. infra 어댑터 클래스 하나는 `tests/unit/infra/`(`session` fixture로 Repository 생성), feature 전체는 `tests/functional/`(BDD, `references/bdd.md`).
-- 마이그레이션이 필요한 변경(테이블·제약)은 마이그레이션 파일을 먼저 만들고, 제약 동작은 해당 Repository 단위 테스트(`tests/unit/infra/`)에, 업그레이드·다운그레이드 왕복은 functional `tests/functional/schema/test_migrations.py` 시나리오로 추가한다.
+- 실제 DB가 필요한 테스트는 `pytestmark = pytest.mark.integration`을 붙인다. infra 어댑터 클래스 하나는 `tests/unit/infra/`(`session` fixture로 Repository 생성), 마이그레이션은 `tests/unit/infra/schema/`. feature의 BDD 케이스는 실제 DB 없이 Fake로 구현한다(`references/bdd.md`).
+- 마이그레이션이 필요한 변경(테이블·제약)은 마이그레이션 파일을 먼저 만들고, 제약 동작은 해당 Repository 단위 테스트(`tests/unit/infra/`)에, 마이그레이션 적용 결과(빈 DB → head, 시드, 리비전 그래프)는 `tests/unit/infra/schema/`의 `integration` 단위 테스트로 추가한다.
 
 ## 4. 건너뛰기와 실패의 기준
 

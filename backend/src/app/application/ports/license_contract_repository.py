@@ -24,7 +24,6 @@ END_RANGE_REVERSED = "라이선스 종료일 범위의 시작은 끝보다 늦�
 
 
 class LicenseContractSort(StrEnum):
-    DEAL_CODE = "deal_code"
     DEAL_NAME = "deal_name"
     CUSTOMER = "customer"
     VENDOR = "vendor"

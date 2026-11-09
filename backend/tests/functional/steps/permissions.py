@@ -80,9 +80,6 @@ BUSINESS_WRITES: Final = (
     ("POST", "/api/v1/license-contracts/{contract_id}/issue"),
     ("POST", "/api/v1/license-contracts/{contract_id}/renewal"),
     ("POST", "/api/v1/license-contracts/{contract_id}/end"),
-    # 삭제는 admin만이지만 판정은 도메인이 한다(없음 404 -> 권한 403). 없는 id로는 sales도
-    # 403이 아니라 404라서 이 표에서는 sales·admin 쓰기로 두고 sales 403은 전용 시나리오가 본다.
-    ("DELETE", "/api/v1/license-contracts/{contract_id}"),
     ("POST", "/api/v1/license-contracts/{contract_id}/attachments"),  # 첨부 업로드·삭제
     ("DELETE", "/api/v1/license-contract-attachments/{attachment_id}"),
 )
@@ -128,6 +125,8 @@ ADMIN_ONLY: Final = (
     ("POST", "/api/v1/vendors"),  # Vendor 관리는 생성도 admin만(D11)
     ("PATCH", "/api/v1/vendors/{vendor_id}"),
     ("DELETE", "/api/v1/vendors/{vendor_id}"),
+    # 계약 삭제는 admin만. 없는 id여도 admin이 아니면 403이 먼저다(2026-11-09, LC-083)
+    ("DELETE", "/api/v1/license-contracts/{contract_id}"),
 )
 PUBLIC: Final = (
     ("GET", "/healthz"),

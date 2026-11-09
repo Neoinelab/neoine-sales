@@ -64,17 +64,23 @@ USE_CASES = (
 
 
 def test_contract_repositories_satisfy_the_ports() -> None:
+    """Fake와 SQL 저장소가 모두 계약 Port를 만족한다."""
+    # given: Fake·SQL 저장소 인스턴스
     engine = create_async_engine("postgresql+asyncpg://user:pw@localhost/none")  # 접속하지 않는다
     session = AsyncSession(engine)
     fake: LicenseContractRepository = FakeLicenseContractRepository()
     sql: LicenseContractRepository = SqlLicenseContractRepository(session)
     fake_files: LicenseContractAttachmentRepository = FakeLicenseContractAttachmentRepository()
+    # when: Port 타입으로 받는다
     sql_files: LicenseContractAttachmentRepository = SqlLicenseContractAttachmentRepository(session)
 
+    # then: 모두 만들어진다
     assert None not in (fake, sql, fake_files, sql_files)
 
 
 def test_every_repository_method_is_a_coroutine_on_both_implementations() -> None:
+    """Port의 모든 메서드가 두 구현에서 코루틴 함수다."""
+    # given: Port와 두 구현
     pairs = (
         (LicenseContractRepository, FakeLicenseContractRepository, SqlLicenseContractRepository),
         (
@@ -84,37 +90,51 @@ def test_every_repository_method_is_a_coroutine_on_both_implementations() -> Non
         ),
     )
     names = (CONTRACT_METHODS, ATTACHMENT_METHODS)
+    # when: 메서드를 하나씩 확인한다
     for (port, fake, sql), methods in zip(pairs, names, strict=True):
         for name in methods:
             assert hasattr(port, name), name
             assert inspect.iscoroutinefunction(getattr(fake, name)), name
             assert inspect.iscoroutinefunction(getattr(sql, name)), name
+    # then: 모두 코루틴 함수다
 
 
 def test_unit_of_work_port_and_implementations_expose_the_repositories() -> None:
+    """UoW Port와 구현이 두 저장소를 드러낸다."""
+    # given: Fake UoW
     fake = FakeUnitOfWork()
 
+    # when: 저장소 속성을 확인한다
     for name in ("license_contracts", "license_contract_attachments"):
         assert hasattr(UnitOfWork, name), name
         assert name in SqlUnitOfWork.__annotations__ or hasattr(SqlUnitOfWork, name), name
+    # then: Port와 Fake 구현에 모두 있다
     assert isinstance(fake.license_contracts, FakeLicenseContractRepository)
     assert isinstance(fake.license_contract_attachments, FakeLicenseContractAttachmentRepository)
 
 
 def test_the_id_allocator_has_kinds_for_both_tables() -> None:
+    """id 할당기에 두 테이블의 종류가 있다."""
+    # when: IdKind를 모은다
     kinds = {kind.name for kind in IdKind}
 
+    # then: LICENSE_CONTRACT와 CONTRACT_ATTACHMENT가 있다
     assert {"LICENSE_CONTRACT", "CONTRACT_ATTACHMENT"} <= kinds
 
 
 def test_the_web_port_exposes_the_license_contract_use_cases() -> None:
+    """web Port가 계약 유스케이스 메서드를 드러낸다."""
+    # when: UseCaseProvider를 확인한다
     for name in USE_CASES:
         assert hasattr(UseCaseProvider, name), name
         assert hasattr(FakeUseCases, name), name
         assert hasattr(Container, name), name
+    # then: 모든 유스케이스 메서드가 있다
 
 
 def test_the_key_listing_methods_are_gone_from_the_attachment_port_and_implementations() -> None:
+    """첨부 Port와 구현에서 키 목록 메서드가 없어졌다."""
+    # when: Port와 구현의 메서드를 확인한다
     for implementation in (
         LicenseContractAttachmentRepository,
         FakeLicenseContractAttachmentRepository,
@@ -122,15 +142,28 @@ def test_the_key_listing_methods_are_gone_from_the_attachment_port_and_implement
     ):
         for name in REMOVED_ATTACHMENT_METHODS:
             assert not hasattr(implementation, name), (implementation, name)
+    # then: 키 목록 메서드가 없다
 
 
 def test_the_deal_side_value_carries_is_won() -> None:
+    """DealSide 값에 Won 여부 필드가 있다.
+
+    테스트 코드: LC-028
+    """
     from app.application.ports.license_contract_repository import DealSide  # noqa: PLC0415
 
+    # when: 필드를 살핀다
+    # then: is_won이 있다
     assert "is_won" in DealSide.__dataclass_fields__
 
 
 def test_the_deal_list_item_carries_has_issued_license_contract() -> None:
+    """DealListItem에 발급 여부 필드가 있다.
+
+    테스트 코드: LC-030
+    """
     from app.application.ports.deal_repository import DealListItem  # noqa: PLC0415
 
+    # when: 필드를 살핀다
+    # then: has_issued_license_contract가 있다
     assert "has_issued_license_contract" in DealListItem.__dataclass_fields__

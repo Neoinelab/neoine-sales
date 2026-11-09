@@ -1328,60 +1328,59 @@ pnpm openapi-typescript ../backend/openapi.json -o src/shared/api/schema.d.ts</c
 
 <!-- ============================================================ -->
 <h2 id="test">13. 테스트 전략</h2>
-<p>backend 테스트는 <strong>단위 테스트</strong>와 <strong>functional test</strong> 두 종류로만 나눕니다(2026-10-15 결정). 프런트엔드는 이 구분을 적용하지 않고 Vitest 컴포넌트 테스트를 유지합니다.</p>
+<p><strong>2026-11-09 결정</strong>: 테스트는 <strong>단위 테스트뿐</strong>입니다(backend pytest, frontend Vitest). feature의 동작은 <code>docs/features/&lt;feature&gt;.md</code>의 <strong>BDD 테스트 케이스</strong>(테스트 코드 번호 <code>XX-001</code>)로 정의하고, 이 케이스를 의존 코드·외부 통신을 <strong>Fake</strong>로 바꾼 단위 테스트로 구현합니다. functional test(HTTP → 실제 DB end-to-end, <code>tests/functional/</code>)는 <strong>폐지</strong>되었고, 기존 것은 같은 의미의 단위 테스트로 옮긴 뒤 삭제합니다(전환 완료 전까지는 Jenkins가 남은 것을 계속 실행).</p>
+<h3>13.0 흐름: feature 문서 → 확인 → 테스트</h3>
+<ol>
+  <li><code>feature-planner</code>가 feature 문서(명세 SDD, business use case <code>XX-UC</code>, 규칙 <code>XX-R</code>, BDD 케이스 <code>XX-001</code>)를 작성·갱신합니다. 형식·번호 규칙은 <code>docs/features/README.md</code>.</li>
+  <li>사용자가 문서를 확인(컨펌)하면 상태를 "확정"으로 바꾸고, 그 뒤에만 다음 단계로 갑니다.</li>
+  <li><code>test-engineer</code>가 BDD 케이스마다 Fake 단위 테스트를 만들고(red 확인) 문서의 "테스트 위치" 칸을 채웁니다. BDD가 덮지 않는 함수·클래스 중 필요한 것은 스스로 단위 테스트를 추가합니다.</li>
+  <li>게이트 <code>feature-trace</code>(<code>backend/scripts/check_feature_trace.py</code>)가 확정 문서의 케이스 번호 ↔ 테스트 <code>테스트 코드:</code> 주석, 층(backend/frontend/both), "테스트 위치" 파일 존재, 문서에 없거나 폐기된 번호 참조를 기계적으로 대조합니다(초안은 건너뜀). <code>code-reviewer</code>는 그 위에서 케이스와 테스트의 의미가 맞는지와 주석 형식을 봅니다.</li>
+</ol>
 <table>
-<tr><th>종류</th><th>대상</th><th>방식</th><th>위치</th><th>비중</th></tr>
-<tr><td>단위 테스트</td><td><strong>하나의 함수 또는 하나의 클래스</strong> (엔티티·값 객체, 유스케이스, Fake, Repository 등)</td><td>pytest, Arrange–Act–Assert. 기본은 DB·네트워크 없이 Fake Port 사용. 예외: infra 어댑터 클래스 하나(SQL Repository 등)는 실제 임시 DB로 검증하고 <code>integration</code> 마커를 붙인다</td><td><code>backend/tests/unit/</code></td><td>대부분</td></tr>
-<tr><td>functional test</td><td><strong>하나의 feature의 end-to-end</strong> (HTTP API → 유스케이스 → 실제 Repository → 실제 PostgreSQL, 외부 통신 포함)</td><td>pytest, <strong>BDD 형식(Feature / Scenario / Given–When–Then)</strong>. 새 의존성 없이 step 함수로 작성(13.1절). <code>integration</code> 마커</td><td><code>backend/tests/functional/</code></td><td>feature마다 정상·실패·권한 시나리오</td></tr>
-<tr><td>프론트(적용 제외)</td><td>컴포넌트, 훅</td><td>Vitest + Testing Library</td><td><code>frontend/src/**</code></td><td>-</td></tr>
+<tr><th>종류</th><th>대상</th><th>방식</th><th>위치</th></tr>
+<tr><td>BDD 케이스 단위 테스트(backend)</td><td>feature 문서의 케이스 하나 = 유스케이스(또는 web 규칙) 호출 하나</td><td>모든 Port를 <code>tests/fakes/</code>의 Fake로 주입(UoW·Repository·FileStorage·Clock·IdAllocator·AD 등). DB·네트워크 없음</td><td>주로 <code>backend/tests/unit/application/</code>, web 규칙은 <code>tests/unit/web/</code></td></tr>
+<tr><td>BDD 케이스 단위 테스트(frontend)</td><td>케이스 하나 = 사용자 조작 하나</td><td>Vitest + Testing Library, Fake 게이트웨이(<code>src/test/fake/**</code>)</td><td><code>frontend/src/features/**/*.test.tsx</code></td></tr>
+<tr><td>그 밖의 단위 테스트</td><td>함수·클래스 하나(값 객체, 계산, 매퍼, 어댑터)</td><td>Fake 사용. infra 어댑터(SQL Repository·마이그레이션)만 실제 임시 DB, <code>integration</code> 마커</td><td><code>tests/unit/{domain,application,repositories,infra,web}</code>, 프런트 각 폴더</td></tr>
 </table>
 <ul>
-  <li>DIP 덕분에 단위 테스트는 <strong>InMemory Fake Repository/UoW</strong>로 빠르게 작성(Mock 남용 지양, 행위보다 결과 검증).</li>
-  <li>Fake가 실제 구현과 같은 동작을 하는지는 <strong>Repository 계약 단위 테스트</strong>(같은 테스트를 Fake와 SQL 구현에 실행, LSP 검증)로 확인하며 <code>tests/unit/repositories/</code>에 둡니다.</li>
-  <li>DB 목킹 대신 <strong>실제 PostgreSQL의 테스트 전용 임시 DB</strong> 사용 → 운영과 동일한 SQL 동작 검증(15.6절). 마이그레이션 왕복 같은 검증도 feature 시나리오로 functional test에 둡니다. 테스트는 feature에 정의된 기능이 제대로 동작하는지만 검증하며, <strong>경쟁(race)·동시성 테스트는 사용자가 특정 상황을 명시적으로 제시했을 때만</strong> 만듭니다(2026-10-16 결정).</li>
-  <li>외부 통신: functional test는 실제 어댑터까지 통과시키는 것이 원칙. 테스트 환경에서 띄울 수 없는 외부 시스템(예: 회사 AD)은 네트워크 경계 바깥을 테스트용 서버로 대체하고, 그것도 불가능하면 Port 대체를 허용하되 테스트 docstring에 사유를 적습니다.</li>
-  <li>커버리지 기준: 전체 80% 이상, domain/application은 90% 이상 목표. 수치보다 <em>의미 있는 시나리오</em>가 우선.</li>
-  <li><strong>테스트 id(2026-10-21)</strong>: 단위 테스트는 <code>tests/support/ids.py</code>의 <code>new_id()</code>(10억대부터 발급)·<code>MISSING_ID</code>·<code>MAX_ID</code>를 써서 시드·IDENTITY 값과 겹치지 않게 합니다. Fake UoW는 <code>FakeIdAllocator</code>를 <code>ids</code>로 가집니다. (2026-11-05 이력 통합으로 아래의 과거 리비전 테스트·<code>uuid_era/</code>는 삭제되었고, 지금은 <code>tests/unit/infra/schema/test_revision_graph.py</code>·<code>test_head_matches_orm.py</code>와 functional <code>schema/test_upgrade_from_empty.py</code>가 최초 버전을 검증합니다.) 과거 리비전을 검증하는 마이그레이션 테스트는 <code>head</code>가 아니라 <strong>자기 리비전을 target으로 고정</strong>하고 그 시점 스키마용 행 도우미(<code>tests/support/uuid_era/</code>)를 써서, 뒤에 리비전이 추가돼도 깨지지 않게 합니다.</li>
-  <li>이름 규칙(영문 ASCII): 단위 <code>test_&lt;상황&gt;_&lt;기대결과&gt;</code>, functional <code>test_&lt;시나리오&gt;</code>.</li>
-  <li><strong>실행 시점(2026-10-16 결정)</strong>: 개발 중(로컬, Agent 작업, <code>scripts/run_gates.py</code> 기본값)에는 <strong>단위 테스트(<code>tests/unit</code>)만</strong> 실행합니다. functional test를 포함한 전체 테스트는 <strong>Jenkins 빌드</strong>의 Verify 단계(<code>uv run pytest</code>)가 실행하며, <code>main</code>에서는 이 빌드가 통과해야 product 배포(승인 후)로 이어집니다. 새로 쓴 functional test는 개발 중에 <code>pytest --collect-only</code>로 수집 오류만 확인합니다. 로컬에서 전체가 필요하면 <code>run_gates.py --full</code>.</li>
+  <li>DIP 덕분에 단위 테스트는 <strong>InMemory Fake Repository/UoW</strong>로 빠르게 작성합니다(Mock 남용 지양, 호출 횟수가 아니라 결과 검증).</li>
+  <li>Fake가 실제 구현과 같게 동작하는지는 <strong>Repository 계약 단위 테스트</strong>(같은 테스트를 Fake와 SQL 구현에 실행, LSP 검증, <code>tests/unit/repositories/</code>)가 보장합니다. 그래서 BDD 케이스를 Fake로 돌려도 실제 DB 동작과 어긋나지 않습니다.</li>
+  <li>DB 목킹 대신 어댑터 테스트는 <strong>실제 PostgreSQL의 테스트 전용 임시 DB</strong>를 씁니다(15.6절). 마이그레이션 확인은 <code>tests/unit/infra/schema/</code>(<code>test_revision_graph.py</code>·<code>test_head_matches_orm.py</code> 등). 앞으로 추가하는 리비전의 테스트는 <code>head</code>가 아니라 자기 리비전을 target으로 고정합니다.</li>
+  <li>테스트는 feature에 정의된 기능이 제대로 동작하는지만 검증하며, <strong>경쟁(race)·동시성 테스트는 사용자가 특정 상황을 명시적으로 제시했을 때만</strong> 만듭니다(2026-10-16 결정).</li>
+  <li>커버리지 기준: 전체 80% 이상, domain/application은 90% 이상 목표. 수치보다 <em>의미 있는 케이스</em>가 우선.</li>
+  <li><strong>테스트 id(2026-10-21)</strong>: <code>tests/support/ids.py</code>의 <code>new_id()</code>(10억대부터 발급)·<code>MISSING_ID</code>·<code>MAX_ID</code>를 써서 시드·IDENTITY 값과 겹치지 않게 합니다. Fake UoW는 <code>FakeIdAllocator</code>를 <code>ids</code>로 가집니다.</li>
+  <li><strong>실행 시점</strong>: 개발 중(로컬, Agent 작업, <code>scripts/run_gates.py</code> 기본값)에는 <code>tests/unit</code>만 실행합니다. 전체(<code>uv run pytest</code>)는 <strong>Jenkins 빌드</strong> Verify 단계가 실행하며, <code>main</code>에서는 이 빌드가 통과해야 product 배포(승인 후)로 이어집니다. 로컬 전체는 사용자가 요청할 때만 <code>run_gates.py --full</code>.</li>
 </ul>
-<pre><code># tests/unit/application/test_place_order.py  (단위: 클래스 하나)
-async def test_confirmed_order_is_persisted():
-    uow = FakeUnitOfWork()
-    use_case = PlaceOrder(uow, FakeNotifier())
-
-    order_id = await use_case.execute(make_command())
-
-    assert uow.committed
-    assert (await uow.orders.get(order_id)).status is OrderStatus.CONFIRMED</code></pre>
-
-<h3>13.1 functional test의 BDD 형식</h3>
+<h3>13.1 테스트 주석 형식 (backend·frontend 공통)</h3>
 <ul>
-  <li>파일 하나 = Feature 하나: <code>tests/functional/&lt;영역&gt;/test_&lt;feature&gt;.py</code>, 모듈 docstring 첫 줄은 <code>Feature: …</code>(한국어 서술 가능).</li>
-  <li>테스트 함수 하나 = Scenario 하나: docstring 첫 줄은 <code>Scenario: …</code>. 본문은 <code># Given</code> → <code># When</code> → <code># Then</code> 순서이며 <strong>When은 하나</strong>(한 시나리오는 한 가지 행동).</li>
-  <li>각 단계는 재사용 가능한 step 함수로 쓴다: <code>given_*</code>(사전 상태 준비, API 또는 DB로), <code>when_*</code>(검증 대상 행동, 반드시 HTTP API 호출), <code>then_*</code>(관찰 가능한 결과 단언: 응답·이후 API 조회·DB 상태). step 함수는 <code>tests/functional/steps/&lt;영역&gt;.py</code>에 둔다.</li>
-  <li>Then은 내부 구현이 아니라 <strong>사용자가 관찰할 수 있는 결과</strong>를 검증한다(상태 코드, 응답 본문, 다른 API로 다시 조회한 결과).</li>
-  <li>모든 functional test는 <code>pytestmark = pytest.mark.integration</code>을 붙이고 실제 임시 DB를 쓴다. 건너뛴 테스트 수 0을 확인한다.</li>
+  <li>함수 이름은 영문 ASCII <code>test_&lt;상황&gt;_&lt;기대결과&gt;</code>(Ruff N802·PLC2401). 한 테스트 = 한 동작(When 하나), Then은 관찰 가능한 결과(반환값, 도메인 오류 type·문구, Fake를 다시 조회한 상태, 화면에 보이는 내용).</li>
+  <li><strong>한글 설명</strong>: 모든 테스트에 어떤 테스트인지 한 문장(pytest docstring 첫 줄, Vitest <code>it</code> 제목 또는 바로 위 주석).</li>
+  <li><strong>테스트 코드 번호</strong>: feature 문서의 BDD 케이스를 구현한 테스트는 <code>테스트 코드: LC-012</code>(여러 개면 쉼표).</li>
+  <li><strong>given / when / then</strong>: 본문 단계 앞에 <code># given: …</code>(없으면 생략), <code># when: …</code>, <code># then: …</code> 한국어 주석(Vitest는 <code>//</code>).</li>
 </ul>
-<pre><code># tests/functional/admin/test_status_codes.py
-"""Feature: admin은 Status 코드의 이름과 순서를 관리한다."""
-import pytest
+<pre><code># tests/unit/application/license_contract/test_issue_license.py
+async def test_issue_rejects_contract_of_non_won_deal(env: LicenseContractEnv) -&gt; None:
+    """Won이 아닌 Deal의 미발급 계약은 발급할 수 없다.
 
-from tests.functional.steps.auth import given_logged_in_as
-from tests.functional.steps.codes import then_code_name_is, then_status_is, when_rename_code
-
-pytestmark = pytest.mark.integration
-
-
-async def test_admin_renames_locked_status_code(api):
-    """Scenario: admin이 잠긴 Status 코드의 이름을 바꾸면 규칙은 유지되고 이름만 바뀐다."""
-    # Given
-    await given_logged_in_as(api, role="admin")
-    # When
-    response = await when_rename_code(api, kind="status", key="contract_completed", name="수주")
-    # Then
-    then_status_is(response, 200)
-    await then_code_name_is(api, kind="status", key="contract_completed", name="수주")</code></pre>
+    테스트 코드: LC-012
+    """
+    # given: Won에서 벗어난 Deal과 그 Deal의 미발급 계약
+    contract = await env.given_contract(status="not_issued", deal_is_won=False)
+    # when: 계약을 발급한다
+    with raises_with(LicenseRequiresWonError, DEAL_NOT_WON):
+        await env.issue_license(contract.id, start="2026-11-01", term=(1, "year"))
+    # then: 계약은 미발급 그대로다
+    assert (await env.get(contract.id)).status == "not_issued"</code></pre>
+<pre><code>// frontend/src/features/contracts/ContractEditDialog.test.tsx
+// 테스트 코드: LC-031
+it('Won이 아닌 Deal의 계약은 발급 버튼이 비활성이고 안내가 보인다', async () =&gt; {
+  // given: Won에서 벗어난 Deal의 미발급 계약 대화상자
+  const { dlg } = await openContractOfDeal12(true)
+  // when: (열기만 한다)
+  // then: 발급 버튼 비활성, 안내 문구 표시
+  expect(within(dlg).getByRole('button', { name: ISSUE })).toBeDisabled()
+})</code></pre>
+<p>상세 예와 체크리스트는 <code>.claude/skills/tdd-python-testing/references/bdd.md</code>.</p>
 
 <!-- ============================================================ -->
 <h2 id="build">14. 빌드와 패키징</h2>
@@ -1767,7 +1766,7 @@ Jenkins Package ──push──▶ 사내 레지스트리 ${REGISTRY} ◀──
 <tr><td>5</td><td>마이그레이션 실패</td></tr>
 </table>
 <p><strong>수동 롤백</strong>: 사람이 서버에서 <code>bash /opt/neoine-sales/incoming/deploy.sh product &lt;이전 태그&gt; --no-migrate</code>를 실행하면 덤프·마이그레이션 없이 이전 이미지로 되돌립니다. 전제: 레지스트리에 그 태그 이미지가 남아 있고, 서버에 그 태그의 배포 디렉터리(<code>/opt/neoine-sales/deploys/&lt;태그&gt;</code>) 또는 배포 키트(<code>incoming/deploy-&lt;태그&gt;.tar.gz</code>)가 남아 있어야 합니다. <code>deploy.sh</code>는 배포에 성공할 때마다 배포 디렉터리를 최근 5개(<code>KEEP_DEPLOYS</code>) + 현재 + 직전만 남기고, 키트는 14일이 지나면 지우므로 그보다 오래된 태그로는 수동 롤백할 수 없습니다(Jenkins로 그 태그를 다시 배포).</p>
-<p><strong>스키마 되돌리기(<code>alembic downgrade -1</code>)</strong>: (최초 버전 <code>00c3126aa926</code>은 downgrade를 거부합니다. 이후 추가하는 리비전에 적용되는 절차입니다.) 코드만 롤백하면 구 앱이 새 스키마를 읽지 못하는 리비전(예: <code>e5a2d8c7b310</code>, 각 리비전 docstring과 CLAUDE.md 변경 이력에 표시)은 수동 롤백과 함께 스키마도 되돌립니다. 순서: ① 배포 전 덤프가 있는지 확인 ② <strong>새 태그</strong>(되돌릴 리비전을 가진 쪽) 배포 디렉터리의 migrate 서비스로 실행 — <code>D=/opt/neoine-sales/deploys/&lt;새 태그&gt;; docker compose -p neoine-sales --project-directory "$D" -f "$D/compose.yaml" --env-file /opt/neoine-sales/deploy.env --env-file "$D/image.env" --profile migrate run --rm migrate alembic -c /app/alembic.ini downgrade -1</code> ③ 이어서 위 수동 롤백으로 이전 태그를 <code>--no-migrate</code>로 배포. downgrade는 데이터를 잃을 수 있으므로(각 리비전 docstring) 복원(16.6절)과 비교해 사람이 판단하며, product 대상 명령은 사람이 직접 실행합니다.</p>
+<p><strong>스키마 되돌리기(<code>alembic downgrade -1</code>)</strong>: (최초 버전 <code>00c3126aa926</code>은 downgrade를 거부합니다. 이후 추가하는 리비전에 적용되는 절차입니다.) 코드만 롤백하면 구 앱이 새 스키마를 읽지 못하는 리비전(각 리비전 docstring과 CLAUDE.md 변경 이력에 표시. 데이터 삭제 금지 규칙상 새 리비전은 원칙적으로 하위 호환이어야 함)은 수동 롤백과 함께 스키마도 되돌립니다. 순서: ① 배포 전 덤프가 있는지 확인 ② <strong>새 태그</strong>(되돌릴 리비전을 가진 쪽) 배포 디렉터리의 migrate 서비스로 실행 — <code>D=/opt/neoine-sales/deploys/&lt;새 태그&gt;; docker compose -p neoine-sales --project-directory "$D" -f "$D/compose.yaml" --env-file /opt/neoine-sales/deploy.env --env-file "$D/image.env" --profile migrate run --rm migrate alembic -c /app/alembic.ini downgrade -1</code> ③ 이어서 위 수동 롤백으로 이전 태그를 <code>--no-migrate</code>로 배포. downgrade는 데이터를 잃을 수 있으므로(각 리비전 docstring) 복원(16.6절)과 비교해 사람이 판단하며, product 대상 명령은 사람이 직접 실행합니다.</p>
 
 <h3>16.6 백업·복원</h3>
 <ul>

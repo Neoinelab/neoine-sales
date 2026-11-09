@@ -12,7 +12,7 @@
  *     createdBy: UserRef, updatedBy: UserRef, createdAt, updatedAt }
  *   LicenseContractQuery { customer?, product?, vendorId?, ownerId?, status?, startFrom?, startTo?, endFrom?, endTo?,
  *     sort: LicenseContractSort, order: SortOrder }
- *   LicenseContractSort = 'dealCode' | 'customer' | 'vendor' | 'product' | 'partner' | 'licenseStart' | 'licenseEnd'
+ *   LicenseContractSort = 'dealName' | 'customer' | 'vendor' | 'product' | 'partner' | 'licenseStart' | 'licenseEnd'
  *     | 'status' | 'salesOwner' | 'techOwner' | 'inspection' | 'note'
  */
 import { gateway } from '../gateway'

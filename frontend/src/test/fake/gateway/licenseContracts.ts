@@ -218,10 +218,11 @@ export function createLicenseContractsGateway(ctx: MockContext): LicenseContract
       }),
     remove: (id) =>
       write(ctx, () => {
-        const user = requireUser(ctx)
+        // 서버 판정 순서(LC-R15·R28): user는 읽기 전용 403, 그다음 admin이 아니면 계약 존재와 무관하게 403, 없는 계약 404는 admin만.
+        const user = requireWrite(ctx)
+        if (!isAdmin(user.role)) throw forbidden(DELETE_ADMIN_ONLY)
         const { data } = ctx.store
         const record = find(ctx, id)
-        if (!isAdmin(user.role)) throw forbidden(DELETE_ADMIN_ONLY)
         data.licenseContracts.splice(data.licenseContracts.indexOf(record), 1)
         data.contractAttachments = data.contractAttachments.filter((a) => a.contractId !== id)
         // 갱신 원본이 지워지면 이 행을 가리키던 renewedFromId는 비운다(서버 ON DELETE SET NULL).

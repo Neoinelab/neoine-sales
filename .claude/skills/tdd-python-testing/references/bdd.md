@@ -1,85 +1,90 @@
-# functional test의 BDD 형식
+# BDD 테스트 케이스를 단위 테스트로 구현하기 (2026-11-09)
 
-functional test는 **하나의 feature를 end-to-end로** 검증한다. HTTP API(httpx ASGI 전송) → 유스케이스 → 실제 Repository → 실제 PostgreSQL 임시 DB를 모두 통과한다. 새 의존성(pytest-bdd 등) 없이 pytest만으로 BDD 형식을 지킨다. 정본은 `docs/dev-guide.html` 13.1절.
+feature 문서(`docs/features/<feature>.md`)의 **BDD 테스트 케이스**는 Fake를 쓰는 **단위 테스트**로 구현합니다. functional test(HTTP → 실제 DB end-to-end)는 폐지되었습니다. 실제 DB·어댑터 동작은 Repository 계약 테스트와 infra 단위 테스트(`integration` 마커)가 따로 보장합니다.
 
 ## 목차
 
-1. 파일·함수 구조
-2. step 함수 규칙
-3. 예시
-4. 외부 통신
-5. 체크리스트
+1. 어디에 무엇으로 구현하나
+2. 주석 형식 (backend·frontend 공통)
+3. 예시 (pytest)
+4. 예시 (Vitest)
+5. BDD 밖의 단위 테스트
+6. 체크리스트
 
-## 1. 파일·함수 구조
+## 1. 어디에 무엇으로 구현하나
 
-| 요소 | 규칙 |
-| --- | --- |
-| Feature | 파일 하나 = feature 하나. `tests/functional/<영역>/test_<feature>.py`. 모듈 docstring 첫 줄 `Feature: <사용자 관점 기능 설명>` |
-| Scenario | 테스트 함수 하나 = 시나리오 하나. 이름 `test_<시나리오>`(영문 ASCII), docstring 첫 줄 `Scenario: <한 문장>` |
-| 단계 | 본문은 `# Given` → `# When` → `# Then` 주석으로 구분. **When은 정확히 하나**(한 시나리오 = 한 행동). `And`가 필요하면 같은 단계 안에서 step 함수를 더 호출 |
-| 마커 | 모듈에 `pytestmark = pytest.mark.integration`(실제 DB 필요). 건너뛴 수 0을 확인 |
-| 픽스처 | `api`(로그인 상태를 바꿀 수 있는 ASGI 클라이언트 래퍼)와 임시 DB 픽스처는 `tests/functional/conftest.py`에 둔다 |
+| 문서의 층 | 구현 위치 | 대역 |
+| --- | --- | --- |
+| backend | 주로 `tests/unit/application/`(유스케이스 하나를 When으로 호출). 권한·검증이 web 계층 규칙이면 `tests/unit/web/` | 모든 Port를 `tests/fakes/`의 Fake로 주입(Fake UoW·Repository·FileStorage·Clock·IdAllocator 등). DB·네트워크 없음 |
+| frontend | `frontend/src/features/**/*.test.tsx` | Fake 게이트웨이(`src/test/fake/**`) |
 
-## 2. step 함수 규칙
+- When은 정확히 하나: backend는 유스케이스 `execute`(또는 web 테스트의 HTTP 호출 하나), frontend는 사용자 조작 하나.
+- Then은 관찰 가능한 결과만: 반환값·발생한 도메인 오류(type·문구)·Fake 저장소를 다시 조회한 상태·화면에 보이는 내용. 내부 호출 순서나 Mock 호출 횟수는 검증하지 않습니다.
+  - **frontend 예외(2026-11-09 사용자 결정)**: "취소하면 요청을 보내지 않는다"처럼 서버 요청 여부·횟수 자체가 사용자 결과인 경우에 한해 Fake 게이트웨이 spy의 호출 여부·횟수(`not.toHaveBeenCalled`, `toHaveBeenCalledTimes`)를 단언할 수 있습니다. 이때도 화면·Fake 데이터의 결과 상태를 같은 테스트에서 함께 검증합니다. backend는 예외 없음.
+- Fake가 실제 구현과 같게 동작하는지는 `tests/unit/repositories/`의 계약 테스트(같은 테스트를 Fake와 SQL에 실행)가 보장합니다. 새 Port에는 Fake와 계약 테스트를 함께 만듭니다.
+- 케이스 하나 = 테스트 함수 하나. 같은 케이스의 입력 변형은 `parametrize`로 묶을 수 있습니다(번호는 같게).
 
-- 위치: `tests/functional/steps/<영역>.py`(예: `auth.py`, `codes.py`, `contacts.py`, `deals.py`). 여러 feature가 재사용한다.
-- `given_*`: 사전 상태를 만든다. 가능하면 **공개 API로** 만들고(사용자가 실제로 하는 방법), API가 없는 상태만 DB에 직접 넣는다.
-- `when_*`: 검증 대상 행동. **반드시 HTTP API를 호출**하고 응답을 반환한다. 유스케이스나 Repository를 직접 부르지 않는다.
-- `then_*`: **관찰 가능한 결과**만 단언한다 — 상태 코드·응답 본문(Problem `type` 포함)·다른 API로 다시 조회한 결과·필요하면 DB 상태. 내부 호출 순서나 private 함수는 검증하지 않는다.
-- step 이름은 영어 동사구, 인자는 키워드로 의미가 드러나게(`given_deal_exists(api, owner="kim", forecast="won")`).
-- 한 step 함수는 한 가지 일만 한다. 시나리오 본문에 조건문·반복문을 두지 않는다(필요하면 `pytest.mark.parametrize`로 시나리오를 나눈다).
+## 2. 주석 형식 (backend·frontend 공통)
 
-## 3. 예시
+모든 테스트 함수(새로 쓰거나 고치는 것 + 기존 테스트 전환 대상)는 다음을 갖습니다.
 
-```python
-# tests/functional/admin/test_status_codes.py
-"""Feature: admin은 Status 코드의 이름과 순서를 관리하고, 시스템 코드는 지울 수 없다."""
+1. **한글 설명**: 어떤 테스트인지 한 문장. pytest는 docstring 첫 줄, Vitest는 `it` 바로 위 주석 또는 `it` 제목.
+2. **테스트 코드 번호**: feature 문서의 BDD 케이스를 구현한 테스트만. `테스트 코드: LC-001` (여러 개면 쉼표로).
+3. **given / when / then 주석**: 본문 단계 앞에 `# given: …`, `# when: …`, `# then: …` (Vitest는 `//`). 설명은 한국어. Given이 없으면 생략합니다.
 
-import pytest
+함수 이름은 계속 영문 ASCII입니다(`test_<상황>_<기대결과>`, Ruff N802·PLC2401).
 
-from tests.functional.steps.auth import given_logged_in_as
-from tests.functional.steps.codes import (
-    then_code_exists,
-    then_problem_is,
-    when_delete_code,
-)
-
-pytestmark = pytest.mark.integration
-
-
-async def test_admin_cannot_delete_locked_status_code(api):
-    """Scenario: 참조가 없어도 잠긴 Status 코드(계약완료)는 삭제할 수 없다."""
-    # Given
-    await given_logged_in_as(api, role="admin")
-    # When
-    response = await when_delete_code(api, kind="status", key="contract_completed")
-    # Then
-    then_problem_is(response, status=409, type_suffix="code-locked")
-    await then_code_exists(api, kind="status", key="contract_completed")
-```
+## 3. 예시 (pytest)
 
 ```python
-# tests/functional/steps/codes.py
-async def when_delete_code(api, *, kind: str, key: str):
-    return await api.delete(f"/api/v1/codes/{kind}/{key}")
+async def test_issue_rejects_contract_of_non_won_deal(env: LicenseContractEnv) -> None:
+    """Won이 아닌 Deal의 미발급 계약은 발급할 수 없다.
 
-
-def then_problem_is(response, *, status: int, type_suffix: str) -> None:
-    assert response.status_code == status
-    assert response.json()["type"].endswith(type_suffix)
+    테스트 코드: LC-012
+    """
+    # given: Won에서 벗어난 Deal과 그 Deal의 미발급 계약
+    contract = await env.given_contract(status="not_issued", deal_is_won=False)
+    # when: 계약을 발급한다
+    with raises_with(LicenseRequiresWonError, DEAL_NOT_WON):
+        await env.issue_license(contract.id, start="2026-11-01", term=(1, "year"))
+    # then: 계약은 미발급 그대로다
+    assert (await env.get(contract.id)).status == "not_issued"
 ```
 
-## 4. 외부 통신
+BDD 케이스가 아닌 단위 테스트(번호 없음):
 
-- 원칙: 실제 어댑터(예: LDAP 클라이언트, 파일 저장소)를 그대로 통과시킨다.
-- 테스트 환경에서 띄울 수 없는 외부 시스템(회사 AD)은 네트워크 경계 바깥을 테스트용 서버로 대체한다. 그것도 불가능하면 Port 구현만 테스트 대역으로 바꾸고, 시나리오 docstring에 "외부 대체: <사유>"를 적는다.
-- 파일 저장은 `tmp_path` 아래 실제 디렉터리를 쓴다.
+```python
+def test_license_end_clamps_to_last_day_of_month() -> None:
+    """시작일+기간의 같은 날이 없으면 그 달 말일을 종료일로 한다."""
+    # when: 1월 31일부터 1개월
+    end = license_end(date(2026, 1, 31), Term(1, TermUnit.MONTH))
+    # then: 2월 28일
+    assert end == date(2026, 2, 28)
+```
 
-## 5. 체크리스트
+## 4. 예시 (Vitest)
 
-- [ ] Feature/Scenario docstring이 있고 사용자 관점 문장이다
-- [ ] Given/When/Then 주석과 step 함수로 구분되어 있고 When이 하나다
-- [ ] When이 HTTP API를 호출한다
-- [ ] Then이 관찰 가능한 결과만 검증한다
-- [ ] 정상·실패(검증 422/충돌 409/없음 404)·권한(403) 시나리오가 feature마다 있다
-- [ ] `integration` 마커, 건너뜀 0
+```tsx
+// 테스트 코드: LC-031
+it('발급된 계약이 있는 Deal은 Won에서 벗어나려 하면 안내 창만 뜬다', async () => {
+  // given: 발급 계약이 있는 Won Deal 상세
+  const view = await openDealDetail(11)
+  // when: Forecast를 Commit으로 바꾼다
+  await view.changeForecast('Commit')
+  // then: '라이선스 계약 처리' 안내 창이 뜨고 요청은 보내지 않는다
+  expect(await screen.findByRole('dialog', { name: '라이선스 계약 처리' })).toBeVisible()
+})
+```
+
+## 5. BDD 밖의 단위 테스트
+
+BDD 케이스가 다루지 않는 함수·클래스라도 규칙·경계값·오류 처리가 있으면 `test-engineer`가 판단해 단위 테스트를 추가합니다(값 객체 검증, 날짜 계산, 매퍼, Fake·Repository 계약, 어댑터). 주석 형식(2절)은 같고 테스트 코드 번호만 없습니다.
+
+## 6. 체크리스트
+
+- [ ] feature 문서의 모든 BDD 케이스(폐기 제외)에 같은 번호 주석을 가진 테스트가 있다
+- [ ] 문서의 "테스트 위치" 칸이 채워져 있다 (`uv run python scripts/check_feature_trace.py`가 번호·층·위치를 대조)
+- [ ] 모든 테스트에 한글 설명과 given(있으면)/when/then 주석이 있다
+- [ ] When이 하나이고 Then이 관찰 가능한 결과다
+- [ ] 외부 의존은 모두 Fake이며 Mock 호출 횟수 검증이 없다(frontend는 요청 여부가 결과인 경우만 허용, 결과 상태도 함께 검증)
+- [ ] 정상·검증 실패·충돌·없음·권한 케이스가 feature마다 있다

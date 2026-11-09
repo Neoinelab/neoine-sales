@@ -5,7 +5,8 @@
 .contracts-count { margin: 0; }
 .contract-table { min-width: 1280px; }
 .contract-table th { white-space: nowrap; }
-.contract-table td.contract-code, .contract-table td.contract-date { white-space: nowrap; }
+.contract-table td.contract-date { white-space: nowrap; }
+.contract-table td.contract-deal-name { min-width: 160px; max-width: 280px; overflow-wrap: anywhere; }
 .contract-table td.contract-note { white-space: pre-wrap; overflow-wrap: anywhere; min-width: 200px; }
 .contract-status[data-status='not_issued'] { background: var(--ui-warn-bg); color: var(--ui-warn-fg); }
 .contract-status[data-status='issued_new'], .contract-status[data-status='issued_renewal'] { background: var(--ui-ok-bg); color: var(--ui-ok-fg); }

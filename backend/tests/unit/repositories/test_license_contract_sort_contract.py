@@ -33,7 +33,6 @@ if TYPE_CHECKING:
 #   inspection A yearly B none C monthly D quarterly E semiannual
 #   note       A n-b B '' C alpha note D Zulu E alpha note
 ASC = {
-    "deal_code": ("ABCDE", ""),
     "deal_name": ("BDCEA", ""),
     "customer": ("BACDE", ""),
     "vendor": ("EDBA", "C"),
@@ -49,7 +48,6 @@ ASC = {
 }
 # 내림차순: 값이 있는 쪽을 뒤집되 동률은 id 오름차순을 유지한다.
 DESC = {
-    "deal_code": ("EDCBA", ""),
     "deal_name": ("AECDB", ""),
     "customer": ("EDCAB", ""),
     "vendor": ("ABDE", "C"),
@@ -133,46 +131,80 @@ def _expected(spec: tuple[str, str], ids: dict[str, int]) -> list[int]:
     return [ids[k] for k in present] + [ids[k] for k in absent]
 
 
-@pytest.mark.parametrize("sort", list(LicenseContractSort))
+@pytest.mark.parametrize("sort", [LicenseContractSort(key) for key in ASC])
 async def test_search_sort_each_column_asc_empty_last_tie_by_id(
     contract_case: ContractCase, sort: LicenseContractSort
 ) -> None:
+    """12개 열 각각 오름차순이고 값 없는 계약은 맨 뒤, 동률은 id 순이다.
+
+    테스트 코드: LC-021
+    """
+    # given: 열마다 값이 다른 계약 A~E
     ids = await _seed(contract_case)
 
+    # when: 열을 오름차순으로 정렬해 검색한다
     found = await contract_case.row_ids(sort=sort, order=SortOrder.ASC)
 
+    # then: 기대한 순서와 같다
     assert found == _expected(ASC[sort.value], ids)
 
 
-@pytest.mark.parametrize("sort", list(LicenseContractSort))
+@pytest.mark.parametrize("sort", [LicenseContractSort(key) for key in ASC])
 async def test_search_sort_each_column_desc_empty_last_tie_by_id(
     contract_case: ContractCase, sort: LicenseContractSort
 ) -> None:
+    """12개 열 각각 내림차순이어도 값 없는 계약은 맨 뒤, 동률은 id 오름차순이다.
+
+    테스트 코드: LC-021
+    """
+    # given: 열마다 값이 다른 계약 A~E
     ids = await _seed(contract_case)
 
+    # when: 열을 내림차순으로 정렬해 검색한다
     found = await contract_case.row_ids(sort=sort, order=SortOrder.DESC)
 
+    # then: 기대한 순서와 같다
     assert found == _expected(DESC[sort.value], ids)
 
 
 async def test_the_default_sort_is_license_end_ascending(contract_case: ContractCase) -> None:
+    """정렬을 주지 않으면 종료일 오름차순이다.
+
+    테스트 코드: LC-016
+    """
+    # given: 열마다 값이 다른 계약 A~E
     ids = await _seed(contract_case)
 
+    # when: 정렬 없이 검색한다
     rows = await contract_case.repository.search(LicenseContractQuery(limit=200))
 
+    # then: 종료일 오름차순이고 종료일 없는 계약이 맨 뒤다
     assert [r.contract.id for r in rows] == _expected(ASC["license_end"], ids)
 
 
 async def test_paging_keeps_the_sorted_order_across_pages(contract_case: ContractCase) -> None:
+    """쪽을 나눠 읽어도 정렬 순서가 이어진다.
+
+    테스트 코드: LC-016, LC-021
+    """
+    # given: 열마다 값이 다른 계약 A~E
     ids = await _seed(contract_case)
     query: dict[str, Any] = {"sort": LicenseContractSort.CUSTOMER, "order": SortOrder.ASC}
 
+    # when: 고객사명 오름차순으로 두 쪽을 읽는다
     first = await contract_case.repository.search(LicenseContractQuery(limit=2, **query))
     second = await contract_case.repository.search(LicenseContractQuery(offset=2, limit=3, **query))
 
+    # then: 이어 붙인 순서가 한 번에 읽은 순서와 같다
     paged = [r.contract.id for r in (*first, *second)]
     assert paged == _expected(ASC["customer"], ids)
 
 
 def test_deal_name_is_an_accepted_sort_column() -> None:
+    """deal_name은 허용된 정렬 키다.
+
+    테스트 코드: LC-084
+    """
+    # when: LicenseContractSort('deal_name')을 만든다
+    # then: 값이 deal_name이다
     assert LicenseContractSort("deal_name").value == "deal_name"

@@ -21,13 +21,14 @@ model: sonnet
 ## 출력
 
 - 코드 변경 + `backend/openapi.json` 갱신 + `artifacts/20-agent-outputs/web.md`: 변경 엔드포인트, 상태 코드·오류 type 표, **API 호환성 영향**(삭제·이름 변경·필수화 등 깨지는 변경은 "사람 승인 필요"), 프런트엔드가 해야 할 일(`pnpm gen:api` 후 변경점)
+- **분량(2026-11-09)**: 보고서는 다음 단계가 읽을 사실만 20줄 이내로 쓴다. git diff·테스트 출력·계획을 다시 옮겨 적지 않고(경로·번호로 가리킨다), 통과한 항목은 한 줄로 묶는다. 메인 세션에 돌려주는 완료 보고는 10줄 이내(결과, 실패·위험, 다음 단계가 알아야 할 계약, 질문).
 - 저장에 실패하면 한 번 재시도하고, 그래도 안 되면 저장하지 못했다고 명시해 보고한다(본문 요약으로 대체하지 않는다).
 
 ## 작업 방식
 
 1. `layer-architecture-rules` 스킬을 읽고, 인증·보안이 걸리면 `docs/dev-guide.html` 10.5절(보호 범위, CSRF, 쿠키)을 확인한다.
 2. 비슷한 기존 라우터·스키마를 읽고 **같은 패턴**(리소스 복수형, `/api/v1`, 생성은 201 + `Location`, 삭제는 204, 목록은 `{items, offset, limit}`, 요청 모델 `extra="forbid"`, 금액은 문자열)을 따른다.
-3. 실패하는 라우터·스키마 단위 테스트(`tests/unit/web`)를 확인한 뒤 구현한다: `cd backend && uv run pytest tests/unit/web -p no:cacheprovider --no-cov -rs`. **건너뛴 테스트가 0인지** 확인한다. 개발 중에는 단위 테스트만 실행하고, 해당 feature의 BDD functional test(`tests/functional/<영역>`)는 Jenkins 빌드가 실행한다(사용자가 요청할 때만 로컬 실행). `openapi.json` 드리프트는 단위 테스트가 아니므로 `export_openapi.py`를 반드시 실행해 갱신한다.
+3. 실패하는 라우터·스키마 단위 테스트(`tests/unit/web`)를 확인한 뒤 구현한다: `cd backend && uv run pytest tests/unit/web -p no:cacheprovider --no-cov -rs`. **건너뛴 테스트가 0인지** 확인한다. 개발 중에는 단위 테스트만 실행한다(functional test는 2026-11-09 폐지, feature의 BDD 케이스는 Fake 단위 테스트). `openapi.json` 드리프트는 단위 테스트가 아니므로 `export_openapi.py`를 반드시 실행해 갱신한다.
 4. 보호가 필요한 라우터는 `main.py`의 `guard`(로그인 + CSRF 헤더)에 포함시키고, 공개 엔드포인트를 늘릴 때는 이유를 `web.md`에 적는다. 모든 `/api/v1` 비인증 라우터 작업에는 401/422 응답 문서가 있어야 한다(`test_openapi_contract`).
 5. API가 바뀌면 `cd backend && uv run python scripts/export_openapi.py`로 `openapi.json`을 갱신한다(드리프트 테스트가 검사한다).
 6. 변경 후 `uv run ruff check . && uv run ruff format --check . && uv run mypy src scripts tests && uv run lint-imports`를 실행한다. 파일이 300줄에 가까워지면 리소스·책임별로 분리한다.

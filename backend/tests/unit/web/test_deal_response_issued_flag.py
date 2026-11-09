@@ -33,8 +33,15 @@ def _view(*, issued: bool) -> DealView:
 
 @pytest.mark.parametrize("issued", [True, False])
 def test_row_and_detail_responses_carry_the_flag_as_is(issued: bool) -> None:
+    """Deal 목록 행·상세 응답은 발급 여부를 그대로 내보낸다.
+
+    테스트 코드: LC-030
+    """
+    # given: 발급 여부가 true 또는 false인 Deal 뷰
+    # when: 행 응답과 상세 응답을 만든다
     for response in (
         DealRowResponse.from_view(_view(issued=issued)),
         DealDetailResponse.from_view(_view(issued=issued)),
     ):
         assert response.model_dump(mode="json")["has_issued_license_contract"] is issued
+    # then: has_issued_license_contract가 입력과 같다

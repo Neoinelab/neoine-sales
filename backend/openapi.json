@@ -3698,7 +3698,6 @@
       },
       "LicenseContractSort": {
         "enum": [
-          "deal_code",
           "deal_name",
           "customer",
           "vendor",

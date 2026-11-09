@@ -113,7 +113,8 @@ class LicenseContract(AuditedEntity[LicenseContractId]):
             raise ContractTransitionError(ALREADY_ENDED)
         self._finish(by, now)
 
-    def ensure_deletable_by(self, role: Role) -> None:
+    @staticmethod
+    def ensure_deletable_by(role: Role) -> None:
         """삭제는 상태와 무관하게 admin만 할 수 있다."""
         if role is not Role.ADMIN:
             raise ContractDeleteForbiddenError

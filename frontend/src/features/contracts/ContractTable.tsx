@@ -65,7 +65,7 @@ export function ContractTable({ rows, sort, order, onSort, today, onEdit }: Cont
                   }
                 }}
               >
-                <td className="contract-code">{row.dealName}</td>
+                <td className="contract-deal-name" title={row.dealCode}>{row.dealName}</td>
                 <td>{row.customer}</td>
                 <td>{dash(row.vendor?.name ?? null)}</td>
                 <td>{row.product}</td>

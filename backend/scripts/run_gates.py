@@ -1,7 +1,8 @@
 """품질 게이트 실행기 (결정적 검증, 맥/Windows/Linux 공통).
 
 모든 게이트를 끝까지 실행한 뒤 항목별 통과/실패와 실패 담당자를 요약한다.
-정적 검사 명령은 Jenkins Backend 단계와 같다. pytest는 개발 중 기본값이 단위 테스트
+정적 검사 명령은 Jenkins Backend 단계와 같다. feature-trace는 확정된 docs/features의 BDD
+케이스 번호와 테스트 코드 주석을 대조한다(2026-11-09). pytest는 개발 중 기본값이 단위 테스트
 (tests/unit)뿐이고, functional을 포함한 전체 테스트는 Jenkins 빌드(dev·product 배포 전
 Verify 단계)가 실행한다. 로컬에서 전체가 필요하면 --full을 쓴다.
 
@@ -38,6 +39,7 @@ GATES: tuple[Gate, ...] = (
     Gate("mypy", ("uv", "run", "mypy", "src", "scripts", "tests")),
     Gate("import-linter", ("uv", "run", "lint-imports")),
     Gate("file-length", ("uv", "run", "python", "scripts/check_file_length.py")),
+    Gate("feature-trace", ("uv", "run", "python", "scripts/check_feature_trace.py")),
     Gate("pytest", ("uv", "run", "pytest", "-q", "tests/unit")),
 )
 FULL_PYTEST = Gate("pytest", ("uv", "run", "pytest", "-q"))

@@ -77,7 +77,8 @@ corepack pnpm dev
 | --- | --- |
 | 백엔드가 `Field required`로 기동하지 않음 | `backend/.env`에 `APP_DATABASE_URL`, `APP_JWT_SECRET`, `APP_SETTINGS_ENCRYPTION_KEY`가 있는지. 암호화 키는 `uv run python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`로 만들어 넣습니다(형식이 틀려도 기동 실패) |
 | `/readyz`가 503 | DB가 떠 있는지, `APP_DATABASE_URL`의 DB 이름·계정·비밀번호가 맞는지 |
-| 로그인 화면 대신 `/setup`이 열림 | 최초 설정이 안 된 DB입니다. 인증 방식을 고르고 설정을 마칩니다(마이그레이션 이력은 2026-11-05에 최초 버전 1개로 통합되었습니다. 그보다 오래된 리비전에 머문 local·dev DB는 `upgrade`가 실패하므로 DB를 새로 만들고 최초 설정을 합니다) |
+| 로그인 화면 대신 `/setup`이 열림 | 최초 설정이 안 된 DB입니다. 인증 방식을 고르고 설정을 마칩니다 |
+| `start-backend.sh`·`setup.sh`가 `Can't locate revision …`으로 멈춤 | 마이그레이션 이력이 2026-11-05에 최초 버전 1개(`00c3126aa926`)로 통합되어, 그보다 오래된 리비전에 머문 local·dev DB는 올릴 수 없습니다. 그 DB를 지우고(데이터 사라짐) 빈 DB를 다시 만든 뒤 `./scripts/start-backend.sh --profile local`(또는 `dev`)을 실행하면 최초 버전이 적용되고, 화면의 `/setup`에서 최초 설정을 합니다. 리비전은 `backend/`에서 `uv run alembic current`(dev는 `APP_PROFILE=dev APP_ENV_FILE=.env.dev` 앞에 붙임)로 확인합니다 |
 | 실제 AD로 로그인하고 싶음 | `/setup`에서 AD 서버(호스트·포트·보안 연결·바인드 계정·비밀번호·사용자 필터·연결 제한 시간, Base DN은 자동)와 admin을 등록합니다. 값은 AD 관리자에게 받습니다 |
 | AD 장애 중 로그인 / "AD 연결 경고" 팝업 | AD 설정이 없거나 AD에 접속할 수 없으면 이전에 로그인에 성공한 비밀번호로 들어갈 수 있고, admin에게는 원인 팝업이 뜹니다. 외부연동 설정에서 AD 설정을 확인하세요 |
 | 로그인이 계속 401 | AD 아이디가 앱에 등록되어 있는지(admin이 사용자 관리에서 추가), 아이디·비밀번호가 맞는지. 실패 사유는 보안상 구분해서 알려 주지 않습니다 |

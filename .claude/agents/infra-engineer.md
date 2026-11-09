@@ -21,13 +21,14 @@ model: sonnet
 ## 출력
 
 - 코드 변경 + `artifacts/20-agent-outputs/infra.md`: 변경 파일, 마이그레이션 요약과 하위 호환 여부(expand/contract), container 변경, 필요한 설정·서버 `.env` 키 이름(값은 적지 않는다), 남은 위험
+- **분량(2026-11-09)**: 보고서는 다음 단계가 읽을 사실만 20줄 이내로 쓴다. git diff·테스트 출력·계획을 다시 옮겨 적지 않고(경로·번호로 가리킨다), 통과한 항목은 한 줄로 묶는다. 메인 세션에 돌려주는 완료 보고는 10줄 이내(결과, 실패·위험, 다음 단계가 알아야 할 계약, 질문).
 - 저장에 실패하면 한 번 재시도하고, 그래도 안 되면 저장하지 못했다고 명시해 보고한다(본문 요약으로 대체하지 않는다).
 
 ## 작업 방식
 
 1. `layer-architecture-rules`(특히 `references/ports.md`)와 설정이 걸리면 `config-and-secrets` 스킬을 읽는다.
 2. 비슷한 기존 구현(`SqlRepository` 베이스, `base_repository.py`의 SAVEPOINT flush와 제약명 → 도메인 오류 매핑, `SqlUnitOfWork`)을 읽고 **같은 패턴**을 따른다. 제약 이름은 `naming_convention`(`pk_`, `uq_`, `fk_`, `ck_`)을 쓴다.
-3. 실패하는 단위 테스트(Repository 계약 `tests/unit/repositories`, 어댑터 `tests/unit/infra`)를 확인한 뒤 구현한다: `cd backend && uv run pytest tests/unit/repositories tests/unit/infra -p no:cacheprovider --no-cov -rs`. **건너뛴 테스트가 0인지** 확인한다. 개발 중에는 단위 테스트만 실행하고, 마이그레이션 왕복 등 BDD functional test(`tests/functional`)는 Jenkins 빌드가 실행한다(사용자가 요청할 때만 로컬 실행).
+3. 실패하는 단위 테스트(Repository 계약 `tests/unit/repositories`, 어댑터 `tests/unit/infra`)를 확인한 뒤 구현한다: `cd backend && uv run pytest tests/unit/repositories tests/unit/infra -p no:cacheprovider --no-cov -rs`. **건너뛴 테스트가 0인지** 확인한다. 개발 중에는 단위 테스트만 실행한다. 마이그레이션 확인은 `tests/unit/infra/schema/`의 `integration` 마커 단위 테스트다(functional test는 2026-11-09 폐지).
 4. 스키마가 바뀌면 `uv run alembic revision --autogenerate -m "<설명>"`으로 생성하고 **생성된 파일을 읽어 검토**한 뒤 `uv run alembic upgrade head`로 **로컬 DB에만** 적용한다.
    - 마이그레이션은 product에 앱과 함께 배포되고 롤백은 코드만 되돌리므로 항상 하위 호환(expand/contract)으로 쓴다. 컬럼·테이블 삭제, 이름 변경, NOT NULL 추가(기본값 없음)는 expand 단계로 나누거나 "사람 승인 필요"로 표시한다.
    - **기존 데이터 삭제 금지(2026-11-05)**: `upgrade`에서 기존 행·값을 지우거나 버리지 않는다(`DELETE`·`TRUNCATE`, 데이터가 있는 테이블·컬럼 drop, 값 손실 변환 금지). 필요해 보이면 구현하지 말고 근거와 함께 보고한다.

@@ -233,7 +233,6 @@ class FakeLicenseContractRepository(InMemoryStore["LicenseContract"]):
 
     def _sort_key(self, sort: str) -> Callable[[LicenseContractRow], Any]:
         keys: dict[str, Callable[[LicenseContractRow], Any]] = {
-            "deal_code": lambda r: r.deal.deal_code.value.lower(),
             "deal_name": lambda r: r.deal.deal_name.lower() or None,
             "customer": lambda r: r.deal.customer.lower(),
             "vendor": lambda r: None if r.deal.vendor is None else r.deal.vendor.name.lower(),

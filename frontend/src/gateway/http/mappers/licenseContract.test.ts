@@ -33,12 +33,21 @@ function serverContract(over: Partial<Schemas['LicenseContractResponse']> = {}):
 }
 
 describe('toLicenseContract', () => {
+  // 응답의 deal_is_won을 dealIsWon으로 옮긴다(true·false 모두).
+  // 테스트 코드: LC-028
   it('maps deal_is_won to dealIsWon for both values', () => {
+    // given: 서버 응답 JSON
+    // when: toLicenseContract로 변환한다
+    // then: dealIsWon이 입력과 같다
     expect(toLicenseContract(serverContract({ deal_is_won: true })).dealIsWon).toBe(true)
     expect(toLicenseContract(serverContract({ deal_is_won: false })).dealIsWon).toBe(false)
   })
 
+  // 나머지 필드도 화면 모델로 그대로 옮긴다.
   it('keeps the other fields mapped', () => {
+    // given: 서버 응답 JSON
+    // when: toLicenseContract로 변환한다
+    // then: 필드가 화면 모델 이름으로 옮겨진다
     expect(toLicenseContract(serverContract())).toMatchObject({ id: 7, dealCode: '20261016-A001', status: 'not_issued', attachmentCount: 0, inspection: 'none' })
   })
 })

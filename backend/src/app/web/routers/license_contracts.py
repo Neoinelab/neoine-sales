@@ -1,6 +1,7 @@
 """라이선스 계약: 목록·조회·계약 칸 수정·발급·갱신·종료·삭제.
 
-읽기는 모든 역할, 쓰기는 WRITE 권한이고 삭제의 admin 판정은 도메인이 한다(없음 404 -> 403).
+읽기는 모든 역할, 쓰기는 WRITE 권한이고 삭제의 admin 판정은 도메인이 한다
+(admin이 아니면 계약 존재와 무관하게 403 먼저, admin만 없음 404).
 계약은 Deal이 Won이 될 때 자동으로만 생기므로 생성 API는 없다. 정적 경로를 `/{contract_id}`보다
 먼저 두어 충돌을 막는다.
 """
@@ -116,7 +117,7 @@ async def end_license_contract(
     "/{contract_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     response_class=Response,
-    responses=READ_ERRORS,
+    responses={**READ_ERRORS, 403: PROBLEM},
 )
 async def delete_license_contract(
     contract_id: PathId, user: CurrentUser, provider: Provider
