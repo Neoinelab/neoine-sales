@@ -106,8 +106,9 @@ def test_nul_characters_are_rejected() -> None:
 def test_the_status_values_and_issued_flag() -> None:
     """상태는 네 값이고 발급 여부는 두 발급 상태만 true다."""
     # when: ContractStatus를 살핀다
+    actual = {s.value for s in ContractStatus}
     # then: 값 4개, is_issued는 발급(신규·갱신)만 true
-    assert {s.value for s in ContractStatus} == {
+    assert actual == {
         "not_issued",
         "issued_new",
         "issued_renewal",
@@ -121,8 +122,9 @@ def test_the_status_values_and_issued_flag() -> None:
 def test_the_inspection_cycle_values() -> None:
     """점검주기는 다섯 값이다."""
     # when: InspectionCycle을 살핀다
+    actual = {c.value for c in InspectionCycle}
     # then: monthly·quarterly·semiannual·yearly·none이다
-    assert {c.value for c in InspectionCycle} == {
+    assert actual == {
         "monthly",
         "quarterly",
         "semiannual",

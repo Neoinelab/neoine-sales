@@ -1,6 +1,6 @@
 /**
  * Reports 디자이너 화면 테스트 공용 도구(운영 코드에서 쓰지 않는다).
- * 화면 계약(접근 가능한 이름)은 계획 4.10과 `artifacts/20-agent-outputs/02-tests.md`의 표를 따른다.
+ * 화면 계약(접근 가능한 이름)은 `docs/features/report-query.md`·`saved-reports.md`의 케이스를 따른다.
  */
 
 // App은 디자이너를 React.lazy로 불러오므로 청크 로딩이 findBy 기본 대기(1초)를 넘기지 않게 미리 읽어 둔다.

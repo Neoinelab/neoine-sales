@@ -26,98 +26,137 @@ async function overwrite(user: Awaited<ReturnType<typeof openEditor>>['user']): 
   await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
 }
 
-describe('편집 화면에서 떠날 때 확인 (AC18, S19)', () => {
-  it('asks with the unsaved changes message on the edit page and stays on cancel', async () => {
+describe('편집 화면에서 떠날 때 확인', () => {
+  // 테스트 코드: RS-081
+  it('편집 화면에서 저장 안 됨이면 떠날 때 확인하고 머물기를 누르면 남는다', async () => {
+    // given: 컬럼을 넣어 저장 안 됨인 편집 화면
     const { user, location } = await openEditor(MINE_PUBLIC.id)
     await addCountedColumn(user, 'Deal code')
 
+    // when: 상단 메뉴 링크를 누른다
     await user.click(menuLink('Deals'))
 
+    // then: 확인 창과 안내 문구가 뜬다
     const dialog = await screen.findByRole('dialog', { name: LEAVE_TITLE })
     expect(dialog).toHaveTextContent(LEAVE_MESSAGE)
+    // when: 머물기를 누른다
     await user.click(within(dialog).getByRole('button', { name: '머물기' }))
 
+    // then: 창이 닫히고 주소와 저장 안 됨이 그대로다
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(location()).toBe('/reports/11/edit')
     expect(screen.getByText(UNSAVED_MARK)).toBeVisible()
   })
 
-  it('leaves the edit page after the leave button', async () => {
+  // 테스트 코드: RS-081
+  it('떠나기를 누르면 이동한다', async () => {
+    // given: 저장 안 됨이고 확인 창이 뜬 편집 화면
     const { user, location } = await openEditor(MINE_PUBLIC.id)
     await addCountedColumn(user, 'Deal code')
+    // when: 링크를 누르고
     await user.click(menuLink('Deals'))
 
+    // when: 떠나기를 누른다
     await user.click(within(await screen.findByRole('dialog', { name: LEAVE_TITLE })).getByRole('button', { name: '떠나기' }))
 
+    // then: Deals로 이동한다
     await waitFor(() => expect(location()).toMatch(/^\/deals/))
   })
 
-  it('asks on the new page with the same message', async () => {
+  // 테스트 코드: RS-081
+  it('새 리포트 화면도 같은 문구로 확인한다', async () => {
+    // given: 컬럼을 넣은 새 리포트 화면
     const { user } = await openDesigner()
     await addCountedColumn(user, 'Deal code')
 
+    // when: 상단 메뉴 링크를 누른다
     await user.click(menuLink('Reports'))
 
+    // then: 같은 확인 창이 뜬다
     expect(await screen.findByRole('dialog', { name: LEAVE_TITLE })).toHaveTextContent(LEAVE_MESSAGE)
   })
 
-  it('leaves without asking when nothing changed', async () => {
+  // 테스트 코드: RS-081
+  it('변경이 없으면 묻지 않고 이동한다', async () => {
+    // given: 변경이 없는 편집 화면
     const { user, location } = await openEditor(MINE_PUBLIC.id)
 
+    // when: 링크를 누른다
     await user.click(menuLink('Deals'))
 
+    // then: 묻지 않고 이동한다
     await waitFor(() => expect(location()).toMatch(/^\/deals/))
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 
-  it('leaves without asking after the change was undone', async () => {
+  // 테스트 코드: RS-081
+  it('변경을 원래대로 돌린 뒤에는 묻지 않고 이동한다', async () => {
+    // given: 컬럼을 넣었다 뺀 편집 화면
     const { user, location } = await openEditor(MINE_PUBLIC.id)
     await addCountedColumn(user, 'Deal code')
     await user.click(screen.getByRole('button', { name: 'Deal code 빼기' }))
 
+    // when: 링크를 누른다
     await user.click(menuLink('Deals'))
 
+    // then: 묻지 않고 이동한다
     await waitFor(() => expect(location()).toMatch(/^\/deals/))
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 
-  it('blocks the unload only while the edit page has unsaved changes', async () => {
+  // 테스트 코드: RS-081
+  it('새로고침·탭 닫기는 저장 안 됨일 때만 막는다', async () => {
+    // given: 변경 없는 편집 화면
     const { user } = await openEditor(MINE_PUBLIC.id)
     expect(unloadIsBlocked()).toBe(false)
 
+    // when: 컬럼을 넣는다
     await addCountedColumn(user, 'Deal code')
+    // then: beforeunload가 막힌다
     expect(unloadIsBlocked()).toBe(true)
 
+    // when: 컬럼을 다시 뺀다
     await user.click(screen.getByRole('button', { name: 'Deal code 빼기' }))
+    // then: beforeunload가 막지 않는다
     expect(unloadIsBlocked()).toBe(false)
   })
 
-  it('does not ask right after an overwrite', async () => {
+  // 테스트 코드: RS-081
+  it('덮어쓴 직후에는 묻지 않는다', async () => {
+    // given: 컬럼을 넣어 덮어쓴 편집 화면
     const { user, location } = await openEditor(MINE_PUBLIC.id)
     await addCountedColumn(user, 'Deal code')
     await overwrite(user)
     expect(unloadIsBlocked()).toBe(false)
 
+    // when: 링크를 누른다
     await user.click(menuLink('Deals'))
 
+    // then: 묻지 않고 이동한다
     await waitFor(() => expect(location()).toMatch(/^\/deals/))
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 
-  it('does not ask right after a revert', async () => {
+  // 테스트 코드: RS-081
+  it('되돌린 직후에는 묻지 않는다', async () => {
+    // given: 변경을 되돌리기로 되돌린 편집 화면
     const { user, location } = await openEditor(MINE_PUBLIC.id)
     await addCountedColumn(user, 'Deal code')
     await user.click(screen.getByRole('button', { name: '되돌리기' }))
     await user.click(within(await screen.findByRole('dialog', { name: '저장된 설계로 되돌릴까요?' })).getByRole('button', { name: '되돌리기' }))
     expect(unloadIsBlocked()).toBe(false)
 
+    // when: 링크를 누른다
     await user.click(menuLink('Deals'))
 
+    // then: 묻지 않고 이동한다
     await waitFor(() => expect(location()).toMatch(/^\/deals/))
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 
-  it('does not ask right after the first save of a new report', async () => {
+  // 테스트 코드: RS-081
+  it('새 리포트를 처음 저장한 직후에는 묻지 않는다', async () => {
+    // given: 새 리포트를 저장해 편집 화면으로 넘어온 상태
     const { user, location } = await openDesigner({ savedReports: SAVED_SAMPLES })
     await addCountedColumn(user, 'Deal code')
     await runQuery(user)
@@ -130,8 +169,10 @@ describe('편집 화면에서 떠날 때 확인 (AC18, S19)', () => {
     await screen.findByRole('heading', { level: 1, name: '떠나기 시험' })
     expect(unloadIsBlocked()).toBe(false)
 
+    // when: 링크를 누른다
     await user.click(menuLink('Deals'))
 
+    // then: 묻지 않고 이동한다
     await waitFor(() => expect(location()).toMatch(/^\/deals/))
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })

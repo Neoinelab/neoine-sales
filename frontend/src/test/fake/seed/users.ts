@@ -32,7 +32,7 @@ export function seedUsers(env: SeedEnv): UserRecord[] {
       createdById: loginId === 'root' ? null : USER_ID.root,
       lastLoginAt: loginAgo === null ? null : env.at(loginAgo, 9),
       resignedAt: resigned ? env.at(15, 18) : null,
-      resignReason: resigned ? '개인 사정으로 퇴사' : null,
+      resignReason: resigned ? '퇴사' : null,
     }
   })
 }

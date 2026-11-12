@@ -2,9 +2,10 @@ import type { UsersGateway } from '../../../gateway/types'
 import { hasWhitespace } from '../../../shared/model/contactRules'
 import { compareIso } from '../../../shared/model/dates'
 import type { Role, UserRef } from '../../../shared/model/types'
-import { conflict, forbidden, notFound, validation } from '../errors'
+import { conflict, notFound, validation } from '../errors'
 import { takeId, type UserRecord } from '../store'
 import {
+  AD_MANAGED,
   checkLoginIdAllowed,
   checkPassword,
   cleanEmail,
@@ -74,7 +75,7 @@ export function createUsersGateway(ctx: MockContext): UsersGateway {
           throw validation('비밀번호는 앱에서 계정을 직접 관리할 때만 받습니다.')
         }
         const { data } = ctx.store
-        if (data.users.some((u) => u.loginId === loginId && u.status === 'active')) throw conflict('이미 사용 중인 아이디입니다.')
+        if (data.users.some((u) => u.loginId === loginId && u.status === 'active')) throw conflict(`이미 존재하는 사용자입니다: ${loginId}`)
         const record: UserRecord = {
           id: takeId(data.counters, 'u'),
           loginId,
@@ -96,10 +97,12 @@ export function createUsersGateway(ctx: MockContext): UsersGateway {
     update: (id, change) =>
       write(ctx, () => {
         requireAdmin(ctx)
+        // 서버 순서(US-R14): AD 모드의 이름·이메일 409 → 404 → 퇴사 409 → 값 검증 422
+        if (modeOf(ctx) === 'ad' && (change.name !== undefined || change.email !== undefined)) throw conflict(AD_MANAGED)
         const { data } = ctx.store
         const target = data.users.find((u) => u.id === id)
-        if (!target) throw notFound('사용자를 찾을 수 없습니다.')
-        if (target.status === 'resigned') throw conflict('이미 퇴사 처리된 사용자입니다.')
+        if (!target) throw notFound(`사용자을(를) 찾을 수 없습니다: ${id}`)
+        if (target.status === 'resigned') throw conflict('이미 퇴사 처리된 사용자입니다')
         Object.assign(target, profilePatch(modeOf(ctx), change))
         return userView(data, target)
       }),
@@ -109,8 +112,8 @@ export function createUsersGateway(ctx: MockContext): UsersGateway {
         requireLocal(ctx)
         const { data } = ctx.store
         const target = data.users.find((u) => u.id === id)
-        if (!target) throw notFound('사용자를 찾을 수 없습니다.')
-        if (target.status === 'resigned') throw conflict('이미 퇴사 처리된 사용자입니다.')
+        if (!target) throw notFound(`사용자을(를) 찾을 수 없습니다: ${id}`)
+        if (target.status === 'resigned') throw conflict('이미 퇴사 처리된 사용자입니다')
         if (target.id === admin.id) throw conflict('자기 자신의 비밀번호는 내 정보에서 바꾸세요.')
         checkPassword(password, target.loginId)
         setPasswordOf(data, target.id, password)
@@ -121,8 +124,8 @@ export function createUsersGateway(ctx: MockContext): UsersGateway {
         if (!ROLES.includes(role)) throw validation('역할을 선택하세요.')
         const { data } = ctx.store
         const target = data.users.find((u) => u.id === id)
-        if (!target) throw notFound('사용자를 찾을 수 없습니다.')
-        if (target.status === 'resigned') throw conflict('이미 퇴사 처리된 사용자입니다.')
+        if (!target) throw notFound(`사용자을(를) 찾을 수 없습니다: ${id}`)
+        if (target.status === 'resigned') throw conflict('이미 퇴사 처리된 사용자입니다')
         if (target.id === admin.id) throw conflict('자기 자신의 역할은 바꿀 수 없습니다.')
         const activeAdmins = data.users.filter((u) => u.status === 'active' && u.role === 'admin').length
         if (target.role === 'admin' && role !== 'admin' && activeAdmins <= 1) throw conflict('마지막 관리자의 역할은 바꿀 수 없습니다.')
@@ -132,15 +135,18 @@ export function createUsersGateway(ctx: MockContext): UsersGateway {
     remove: (id) =>
       write(ctx, () => {
         const admin = requireAdmin(ctx)
-        if (id === admin.id) throw forbidden('본인 계정은 삭제할 수 없습니다.')
         const { data } = ctx.store
         const target = data.users.find((u) => u.id === id)
-        if (!target) throw notFound('사용자를 찾을 수 없습니다.')
-        if (target.status === 'resigned') throw conflict('이미 퇴사 처리된 사용자입니다.')
+        if (!target) throw notFound(`사용자을(를) 찾을 수 없습니다: ${id}`)
+        // 서버 ensure_deletable 순서: 이미 퇴사 → 자기 자신 → 마지막 재직 admin
+        if (target.status === 'resigned') throw conflict('이미 퇴사 처리된 사용자입니다')
+        if (target.id === admin.id) throw conflict('자기 자신은 삭제할 수 없습니다')
+        const activeAdmins = data.users.filter((u) => u.status === 'active' && u.role === 'admin').length
+        if (target.role === 'admin' && activeAdmins <= 1) throw conflict('마지막 관리자는 삭제할 수 없습니다')
         if (hasLinks(ctx, id)) {
           target.status = 'resigned'
           target.resignedAt = ctx.clock.now()
-          target.resignReason = '관리자 삭제 요청으로 퇴사 처리'
+          target.resignReason = '퇴사'
           return { outcome: 'resigned' as const }
         }
         data.users.splice(data.users.indexOf(target), 1)

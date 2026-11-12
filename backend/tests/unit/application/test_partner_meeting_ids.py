@@ -10,20 +10,28 @@ if TYPE_CHECKING:
 
 
 def test_the_partner_meeting_kind_has_the_planned_value() -> None:
+    """id 종류 PARTNER_MEETING의 값은 정해진 이름이다."""
+    # when·then: 상수 값을 읽으면 partner_meeting다
     assert IdKind.PARTNER_MEETING.value == "partner_meeting"
 
 
 async def test_new_partner_meeting_id_counts_up_from_one(uow: FakeUnitOfWork) -> None:
+    """새 미팅 id는 1부터 센다."""
+    # when: 두 번 받는다
     first = await new_partner_meeting_id(uow.ids)
     second = await new_partner_meeting_id(uow.ids)
-
+    # then: 1, 2다
     assert (first, second) == (1, 2)
 
 
 async def test_partner_meeting_ids_do_not_share_numbers_with_other_kinds(
     uow: FakeUnitOfWork,
 ) -> None:
+    """미팅 id 번호는 다른 종류와 나누지 않는다."""
+    # given: 리포트 id를 두 번 받았다
     await uow.ids.next_id(IdKind.REPORT)
     await uow.ids.next_id(IdKind.REPORT)
-
-    assert await new_partner_meeting_id(uow.ids) == 1
+    # when: 미팅 id를 받는다
+    meeting_id = await new_partner_meeting_id(uow.ids)
+    # then: 1부터 시작한다
+    assert meeting_id == 1

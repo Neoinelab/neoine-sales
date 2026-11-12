@@ -8,7 +8,7 @@ import type {
   ForecastCell,
   ForecastColumn,
 } from '../../../shared/model/types'
-import { validation } from '../errors'
+import { requestValidation } from '../errors'
 import { read, requireUser, type MockContext } from './context'
 import { codeSetOf } from './dealChange'
 import { normalizedQuarters, quarterOfMonth } from './quarters'
@@ -45,10 +45,11 @@ function quarterRange(year: number, quarter: Quarter): { from: string; to: strin
  * - 주의: 담당자·Vendor만(기간 무시). 이번 달·분기 Expected Close는 Open Deal만, 기준은 Fake 시계의 업무 날짜
  */
 function summarize(ctx: MockContext, query: DashboardQuery): DashboardSummary {
-  if (!Number.isInteger(query.year) || query.year < YEAR_MIN || query.year > YEAR_MAX) {
-    throw validation(`연도는 ${YEAR_MIN}~${YEAR_MAX} 중에서 입력하세요.`)
+  if (!Number.isInteger(query.year) || query.year < YEAR_MIN || query.year > YEAR_MAX) throw requestValidation()
+  if (query.quarters && (query.quarters.length > 4 || query.quarters.some((q) => !Number.isInteger(q) || q < 1 || q > 4))) {
+    throw requestValidation() // 서버처럼 범위 밖 분기·5개 이상은 Fake 고유 문구 없이 공통 422 request-validation
   }
-  const chosen = normalizedQuarters(query.quarters) // 서버처럼 없음·넷 다는 조건 없음, 범위 밖은 422
+  const chosen = normalizedQuarters(query.quarters) // 서버처럼 없음·넷 다는 조건 없음
   const { data } = ctx.store
   const codes = codeSetOf(ctx)
   const outcomeOf = new Map(codes.forecasts.map((c) => [c.key, c.outcome]))

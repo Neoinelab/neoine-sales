@@ -80,7 +80,10 @@ async def _rejected(session: AsyncSession, insert: Any) -> str:  # noqa: ANN401
 
 
 async def test_valid_code_and_label_rows_are_accepted(session: AsyncSession) -> None:
+    """올바른 코드 행과 Label 행은 저장된다."""
+    # when: 올바른 코드 행을 넣는다 (전제: 실제 PostgreSQL)
     await _insert_code(session, _code())
+    # when: 올바른 Label 행을 넣는다 (오류 없이 저장되면 통과)
     await _insert_label(session, _label())
 
 
@@ -102,30 +105,44 @@ INVALID_CODES = [
 async def test_code_row_violating_a_check_is_rejected(
     session: AsyncSession, constraint: str, overrides: dict[str, Any]
 ) -> None:
+    """CHECK를 어기는 코드 행은 거부한다."""
+    # when: 제약을 어기는 코드 행을 넣는다
     message = await _rejected(session, _insert_code(session, _code(**overrides)))
 
+    # then: 오류 문구에 해당 제약 이름이 있다
     assert constraint in message
 
 
 async def test_code_key_is_unique_per_kind(session: AsyncSession) -> None:
+    """코드 키는 구분 안에서 유일하다."""
+    # given: 같은 구분·키의 코드 행
     await _insert_code(session, _code(name="ZZ One"))
 
+    # when: 이름만 다른 같은 키 행을 넣는다
     message = await _rejected(session, _insert_code(session, _code(name="ZZ Two")))
 
+    # then: kind+key 유니크 제약 위반이다
     assert "uq_codes_kind_key" in message
 
 
 async def test_code_name_is_unique_per_kind_ignoring_case(session: AsyncSession) -> None:
+    """코드 이름은 구분 안에서 대소문자 무시로 유일하다."""
+    # given: 이름이 있는 코드 행
     await _insert_code(session, _code(key="zz_one", name="ZZ Name"))
 
+    # when: 대소문자만 다른 이름의 행을 넣는다
     message = await _rejected(session, _insert_code(session, _code(key="zz_two", name="zz name")))
 
+    # then: 소문자 이름 유니크 제약 위반이다
     assert "uq_codes_kind_name_lower" in message
 
 
 async def test_same_code_key_and_name_are_allowed_in_the_other_kind(session: AsyncSession) -> None:
+    """같은 키·이름도 다른 구분에서는 허용한다."""
+    # given: forecast 구분의 코드 행
     await _insert_code(session, _code(kind="forecast"))
 
+    # when: 같은 키·이름을 status 구분에 넣는다 (오류 없이 저장되면 통과)
     await _insert_code(session, _code(kind="status", probability_hint=None))
 
 
@@ -140,35 +157,50 @@ INVALID_LABELS = [
 async def test_label_row_violating_a_check_is_rejected(
     session: AsyncSession, constraint: str, overrides: dict[str, Any]
 ) -> None:
+    """CHECK를 어기는 Label 행은 거부한다."""
+    # when: 제약을 어기는 Label 행을 넣는다
     message = await _rejected(session, _insert_label(session, _label(**overrides)))
 
+    # then: 오류 문구에 해당 제약 이름이 있다
     assert constraint in message
 
 
 async def test_label_name_is_unique_per_category_ignoring_case(session: AsyncSession) -> None:
+    """Label 이름은 구분 안에서 대소문자 무시로 유일하다."""
+    # given: 이름이 있는 Label 행
     await _insert_label(session, _label(name="ZZ Name"))
 
+    # when: 대소문자만 다른 이름의 행을 넣는다
     message = await _rejected(session, _insert_label(session, _label(name="zz name")))
 
+    # then: 구분+소문자 이름 유니크 제약 위반이다
     assert "uq_bant_labels_category_name_lower" in message
 
 
 async def test_same_label_name_is_allowed_in_another_category(session: AsyncSession) -> None:
+    """같은 Label 이름도 다른 구분에서는 허용한다."""
+    # given: need 구분의 Label 행
     await _insert_label(session, _label(category="need"))
 
+    # when: 같은 이름을 budget 구분에 넣는다 (오류 없이 저장되면 통과)
     await _insert_label(session, _label(category="budget"))
 
 
 async def test_label_creator_must_be_an_existing_user(session: AsyncSession) -> None:
+    """Label 생성자는 존재하는 사용자여야 한다."""
+    # when·then: 없는 사용자를 생성자로 넣으면 거부된다
     await _rejected(session, _insert_label(session, _label(created_by_user_id=new_id())))
 
 
 async def test_user_who_created_a_label_cannot_be_deleted_directly(session: AsyncSession) -> None:
-    """RESTRICT: 삭제 대신 퇴사 처리하게 하는 근거다(AC-15)."""
+    """Label을 만든 사용자는 직접 삭제할 수 없다(RESTRICT라 퇴사 처리해야 한다)."""
+    # given: 사용자
     creator = make_user("zz-label-creator")
     await SqlUserRepository(session).add(creator)
+    # given: 그 사용자가 만든 Label
     await _insert_label(session, _label(created_by_user_id=creator.id))
 
+    # when·then: 사용자를 삭제하면 무결성 오류다
     with pytest.raises(IntegrityError):
         async with session.begin_nested():
             await session.execute(text("delete from users where id = :id"), {"id": creator.id})

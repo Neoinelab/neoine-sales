@@ -235,7 +235,7 @@ class FakeUseCases(
 
         return RunReport(self._factory, self.clock)
 
-    # 저장 리포트 유스케이스(Reports 3단계)도 사용 시점에 가져온다(구현 전에도 수집된다)
+    # 저장 리포트 유스케이스도 사용 시점에 가져온다(구현 전에도 수집된다)
     def list_reports(self) -> ListReports:
         from app.application.report.list_reports import ListReports  # noqa: PLC0415
 

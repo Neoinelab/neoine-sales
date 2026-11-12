@@ -1,6 +1,7 @@
 /** Next Action 상태 규칙(서버 `NextActionStatus`와 같은 라벨·필터 확장). 테스트용 Fake 전용. */
 
 import type { NextActionStatus, NextActionStatusFilter } from '../../../shared/model/types'
+import { validation } from '../errors'
 
 export const STATUS_LABEL: Record<NextActionStatus, string> = {
   open: 'Open',
@@ -18,3 +19,16 @@ export const STATUS_FORBIDDEN = '본인 Action 또는 admin만 Next Action 상�
 export const ACTION_OR_NEXT_REQUIRED = '진행사항 또는 Next Action을 입력하세요.'
 export const DUE_WITHOUT_NEXT = 'Next Action 없이 Due Date를 입력할 수 없습니다.'
 export const PREVIOUS_NEXT_ACTION_CHANGED = '이전 Next Action이 바뀌었습니다. 창을 닫고 다시 열어 주세요.'
+export const STATUS_MEMO_NUL = '메모에는 NUL 문자를 쓸 수 없습니다'
+export const OPEN_WITH_MEMO = 'Open으로 되돌릴 때는 메모를 남길 수 없습니다.'
+
+/**
+ * 상태 변경 메모 검사(서버 NA-R7의 5단계 앞부분): NUL 거절 -> Open으로 되돌리며 메모 거절.
+ * 통과하면 앞뒤 공백을 지운 메모(공백뿐이면 빈 문자열)를 돌려준다. 서버와 같은 문구의 422 `invalid-value`다.
+ */
+export function checkStatusMemo(status: NextActionStatus, memo: string): string {
+  if (memo.includes('\0')) throw validation(STATUS_MEMO_NUL)
+  const note = memo.trim()
+  if (status === 'open' && note !== '') throw validation(OPEN_WITH_MEMO)
+  return note
+}

@@ -30,7 +30,10 @@ feature 문서(`docs/features/<feature>.md`)의 **BDD 테스트 케이스**는 F
 
 1. **한글 설명**: 어떤 테스트인지 한 문장. pytest는 docstring 첫 줄, Vitest는 `it` 바로 위 주석 또는 `it` 제목.
 2. **테스트 코드 번호**: feature 문서의 BDD 케이스를 구현한 테스트만. `테스트 코드: LC-001` (여러 개면 쉼표로).
-3. **given / when / then 주석**: 본문 단계 앞에 `# given: …`, `# when: …`, `# then: …` (Vitest는 `//`). 설명은 한국어. Given이 없으면 생략합니다.
+3. **given / when / then 주석**: 본문 단계 앞에 `# given: …`, `# when: …`, `# then: …` (Vitest는 `//`). 설명은 한국어. 본문 맨 앞에 세 줄을 몰아 쓰지 않고 각 단계 코드 바로 앞에 둡니다(2026-11-10 사용자 결정).
+   - Given 코드가 없으면 given 주석은 생략하되, fixture 등으로 주어지는 전제가 있으면 when 줄 끝에 `(전제: …)`로 남깁니다.
+   - 한 테스트에서 동작과 확인이 번갈아 나오면 동작마다 `when:`, 확인마다 `then:`을 다시 답니다(사용자 동작을 `then:` 아래에 두지 않음).
+   - when과 then이 한 문장에 겹치면 결과를 변수로 받고 단언을 다음 줄로 나눕니다. 나눌 수 없는 한 문장(`pytest.raises`·`with` 블록, `rejects`, `toThrow`)만 `when·then: …` 한 줄로 씁니다(표기는 가운뎃점 `when·then`으로 통일).
 
 함수 이름은 계속 영문 ASCII입니다(`test_<상황>_<기대결과>`, Ruff N802·PLC2401).
 

@@ -1,4 +1,4 @@
-"""코드·BANT Label 삭제의 사용 중 계약(R3, AC-14·15): Deal이 쓰는 항목은 지워지지 않는다.
+"""코드·BANT Label 삭제의 사용 중 계약: Deal이 쓰는 항목은 지워지지 않는다.
 
 Fake와 SQL(PostgreSQL)에 같은 기대값. `CodeRepository.delete`·`BantLabelRepository.delete`는
 Deal이 연결한 항목이면 행을 남기고 CodeInUseError·LabelInUseError(실제 연결 수 포함)를 낸다.
@@ -37,47 +37,64 @@ class TestCodes:
     async def test_a_code_used_by_deals_is_not_deleted_and_reports_the_count(
         self, deal_case: DealCase, kind: CodeKind, key: str, deal_fields: dict[str, Any]
     ) -> None:
+        """Deal이 쓰는 코드는 삭제되지 않고 사용 건수를 알린다."""
+        # given: Deal 두 건이 쓰는 코드
         code = await _code(deal_case, kind, key)
         await deal_case.add(make_deal(later(1), code="20261016-A001", **deal_fields))
         await deal_case.add(make_deal(later(2), code="20261016-A002", **deal_fields))
 
+        # when·then: 코드를 삭제하면 사용 중 오류다
         with pytest.raises(CodeInUseError) as raised:
             await deal_case.codes.delete(code.id)
 
+        # then: 문구에 2건이 들어 있고 코드는 남아 있다
         assert str(raised.value) == "사용 중인 코드는 삭제할 수 없습니다. (Deal 2건)"
         assert (await deal_case.codes.get(code.id)).key.value == key
 
     async def test_the_transaction_stays_usable_after_the_refusal(
         self, deal_case: DealCase
     ) -> None:
+        """삭제가 거부된 뒤에도 같은 트랜잭션을 계속 쓸 수 있다."""
+        # given: Deal이 쓰는 코드
         code = await _code(deal_case, CodeKind.FORECAST, "best")
         await deal_case.add(make_deal(later(1), code="20261016-A001", forecast_key="best"))
 
+        # when·then: 코드를 삭제하면 사용 중 오류다
         with pytest.raises(CodeInUseError):
             await deal_case.codes.delete(code.id)
 
+        # when: 거부된 뒤 Deal을 하나 더 추가한다
         await deal_case.add(make_deal(later(2), code="20261016-A002"))
+        # then: Deal이 두 건이다
         assert await deal_case.deals.count(DealQuery()) == 2
 
     async def test_an_unused_code_is_deleted(self, deal_case: DealCase) -> None:
+        """쓰이지 않는 코드는 삭제된다."""
+        # given: 다른 코드를 쓰는 Deal만 있고 쓰이지 않는 코드
         code = await _code(deal_case, CodeKind.FORECAST, "best")
         await deal_case.add(make_deal(later(1), code="20261016-A001", forecast_key="commit"))
 
+        # when: 그 코드를 삭제한다
         await deal_case.codes.delete(code.id)
 
+        # then: 코드 목록에서 사라진다
         keys = [c.key.value for c in await deal_case.codes.list(CodeKind.FORECAST)]
         assert "best" not in keys
 
     async def test_the_code_becomes_deletable_once_the_last_deal_is_gone(
         self, deal_case: DealCase
     ) -> None:
+        """마지막 Deal이 사라지면 코드를 삭제할 수 있다."""
+        # given: Deal 하나가 쓰다가 삭제된 코드
         code = await _code(deal_case, CodeKind.FORECAST, "best")
         deal = make_deal(later(1), code="20261016-A001", forecast_key="best")
         await deal_case.add(deal)
         await deal_case.deals.delete(deal.id)
 
+        # when: 그 코드를 삭제한다
         await deal_case.codes.delete(code.id)
 
+        # then: 코드 목록에서 사라진다
         keys = [c.key.value for c in await deal_case.codes.list(CodeKind.FORECAST)]
         assert "best" not in keys
 
@@ -86,6 +103,8 @@ class TestLabels:
     async def test_a_label_selected_by_deals_is_not_deleted_and_reports_the_count(
         self, deal_case: DealCase
     ) -> None:
+        """Deal이 선택한 Label은 삭제되지 않고 사용 건수를 알린다."""
+        # given: Deal 세 건이 선택한 Label
         label = await deal_case.new_label(BantCategory.BUDGET, "예산 가")
         for number in (1, 2, 3):
             await deal_case.add(
@@ -96,23 +115,29 @@ class TestLabels:
                 )
             )
 
+        # when·then: Label을 삭제하면 사용 중 오류다
         with pytest.raises(LabelInUseError) as raised:
             await deal_case.labels.delete(label.id)
 
+        # then: 문구에 3건이 들어 있고 Label은 남아 있다
         assert str(raised.value) == "사용 중인 Label은 삭제할 수 없습니다. (Deal 3건)"
         assert (await deal_case.labels.get(label.id)).name == "예산 가"
 
     async def test_an_unused_label_is_deleted_even_if_another_label_of_the_category_is_used(
         self, deal_case: DealCase
     ) -> None:
+        """같은 구분의 다른 Label이 쓰여도 쓰이지 않는 Label은 삭제된다."""
+        # given: 쓰이는 Label과 쓰이지 않는 Label
         used = await deal_case.new_label(BantCategory.BUDGET, "예산 가")
         idle = await deal_case.new_label(BantCategory.BUDGET, "예산 나")
         await deal_case.add(
             make_deal(later(1), code="20261016-A001", bant=make_bant(budget=used.id))
         )
 
+        # when: 쓰이지 않는 Label을 삭제한다
         await deal_case.labels.delete(idle.id)
 
+        # then: 그 Label만 사라지고 쓰이는 Label은 남는다
         names = [x.name for x in await deal_case.labels.list(BantCategory.BUDGET)]
         assert "예산 나" not in names
         assert "예산 가" in names
@@ -120,12 +145,16 @@ class TestLabels:
     async def test_the_label_becomes_deletable_once_no_deal_selects_it(
         self, deal_case: DealCase
     ) -> None:
+        """어떤 Deal도 선택하지 않으면 Label을 삭제할 수 있다."""
+        # given: Deal이 선택했다가 선택을 바꾼 Label
         label = await deal_case.new_label(BantCategory.NEED, "필요 가")
         deal = make_deal(later(1), code="20261016-A001", bant=make_bant(need=label.id))
         await deal_case.add(deal)
         await deal_case.revise(deal.id, bant=make_bant())
 
+        # when: 그 Label을 삭제한다
         await deal_case.labels.delete(label.id)
 
+        # then: Label 목록에서 사라진다
         names = [x.name for x in await deal_case.labels.list(BantCategory.NEED)]
         assert "필요 가" not in names

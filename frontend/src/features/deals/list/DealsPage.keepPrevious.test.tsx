@@ -7,7 +7,10 @@ import { ALL_DEALS, dataRows } from './testHelpers'
 afterEach(() => vi.restoreAllMocks())
 
 describe('목록 조건 전환 (keepPreviousData)', () => {
+  // 다음 조건을 읽는 동안 이전 표를 유지한다
+  // 테스트 코드: DL-063
   it('keeps the previous table on screen while the next condition loads', async () => {
+    // given: 느린 응답으로 바뀐 목록
     const { user, location } = await renderAt(ALL_DEALS)
     await screen.findByRole('row', { name: /한빛은행 ITDR 도입/ })
     const before = dataRows().length
@@ -22,8 +25,10 @@ describe('목록 조건 전환 (keepPreviousData)', () => {
       return original(query)
     })
 
+    // when: 조건을 바꾼다
     await user.type(screen.getByLabelText('키워드'), '한빛은행')
     await user.click(screen.getByRole('button', { name: '검색' }))
+    // then: 새 응답 전에도 이전 표가 그대로 보인다
     expect(location()).toContain('q=')
 
     // 응답이 오기 전에도 이전 표가 그대로 있고, 로딩 문구로 바뀌지 않는다.

@@ -1,4 +1,4 @@
-"""등록·수정 폼 검증: 프런트 목업 `validateDealFields`와 같은 순서·문구(AC-05).
+"""등록·수정 폼 검증: 프런트 목업 `validateDealFields`와 같은 순서·문구.
 
 순서: Deal Name -> Vendor -> Solution -> Owner -> 매출금액 -> Expected Close -> Users count ->
 Status -> Forecast -> 동기화 -> BANT Label -> 구매절차 -> 고객 -> 파트너 -> 연락처 형식.

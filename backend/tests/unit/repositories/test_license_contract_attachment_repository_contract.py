@@ -1,4 +1,4 @@
-"""LicenseContractAttachmentRepository 계약(AC20·AC21·AC22): Fake와 SQL 구현에 같은 테스트.
+"""LicenseContractAttachmentRepository 계약: Fake와 SQL 구현에 같은 테스트.
 
 Deal 첨부 저장소와 같은 규칙에 소속이 계약이다. 같은 이름은 계약 안에서만 겹침을 막는다.
 """
@@ -195,8 +195,9 @@ async def test_list_by_contract_lists_only_that_contract(contract_case: Contract
     await contract_case.attach(second, "other.pdf")
 
     # when: 한 계약의 목록을 읽는다
+    actual = [a.id for a in await contract_case.files.list_by_contract(first.id)]
     # then: 그 계약의 첨부만 온다
-    assert [a.id for a in await contract_case.files.list_by_contract(first.id)] == [mine.id]
+    assert actual == [mine.id]
 
 
 async def test_update_saves_only_the_content_fields(contract_case: ContractCase) -> None:

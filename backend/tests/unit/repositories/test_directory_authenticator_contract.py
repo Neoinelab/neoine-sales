@@ -51,32 +51,44 @@ def harness(request: pytest.FixtureRequest) -> Harness:
 
 
 async def test_valid_credentials_return_the_directory_user(harness: Harness) -> None:
+    """올바른 자격 증명이면 DirectoryUser를 돌려준다."""
+    # when: 올바른 자격 증명으로 인증한다 (전제: harness에 kim 계정이 있다)
     user = await harness.authenticator.authenticate(
         make_directory_settings(), BASE_DN, LoginId("kim"), Password(PASSWORD)
     )
 
+    # then: 계정의 아이디·표시 이름·이메일이다
     assert user == DirectoryUser(login_id="kim", display_name="김영업", email="kim@corp.test")
 
 
 async def test_wrong_password_is_rejected_at_bind(harness: Harness) -> None:
+    """비밀번호가 틀리면 바인드 단계의 자격 증명 오류다."""
+    # when: 틀린 비밀번호로 인증한다 (전제: harness에 kim 계정이 있다)
     with pytest.raises(InvalidCredentialsError) as caught:
         await harness.authenticator.authenticate(
             make_directory_settings(), BASE_DN, LoginId("kim"), Password("Wrong-password-1")
         )
 
+    # then: BIND 단계의 오류다
     assert caught.value.stage is VerificationStage.BIND
 
 
 async def test_unknown_account_is_rejected_at_search(harness: Harness) -> None:
+    """없는 계정은 검색 단계의 자격 증명 오류다."""
+    # when: 없는 아이디로 인증한다 (전제: harness에 kim 계정만 있다)
     with pytest.raises(InvalidCredentialsError) as caught:
         await harness.authenticator.authenticate(
             make_directory_settings(), BASE_DN, LoginId("nobody"), Password(PASSWORD)
         )
 
+    # then: SEARCH 단계의 오류다
     assert caught.value.stage is VerificationStage.SEARCH
 
 
 async def test_discover_base_dn_returns_the_naming_context(harness: Harness) -> None:
+    """Base DN 탐색은 디렉터리의 naming context 문자열을 돌려준다."""
+    # when: Base DN을 탐색한다 (전제: harness가 디렉터리를 흉내 낸다)
     found = await harness.authenticator.discover_base_dn(make_directory_settings())
 
+    # then: 흉내 낸 디렉터리의 naming context(BASE_DN)와 같다
     assert found == BASE_DN

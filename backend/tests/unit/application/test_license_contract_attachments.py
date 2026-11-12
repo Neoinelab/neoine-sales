@@ -1,4 +1,4 @@
-"""계약 첨부 유스케이스(AC20·AC21): Deal 첨부와 같은 규칙, 이력·Deal 수정 시각은 건드리지 않는다."""
+"""계약 첨부 유스케이스: Deal 첨부와 같은 규칙, 이력·Deal 수정 시각은 건드리지 않는다."""
 
 from typing import TYPE_CHECKING
 

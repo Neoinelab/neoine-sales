@@ -34,40 +34,67 @@ SAVED_REPORT_USE_CASES = (
 
 
 def test_report_repositories_satisfy_the_port() -> None:
-    engine = create_async_engine("postgresql+asyncpg://user:pw@localhost/none")  # 접속하지 않는다
+    """Fake와 SQL 저장 리포트 저장소가 Port의 모든 메서드를 비동기로 구현한다."""
+    # given: 접속하지 않는 엔진 위의 SQL 저장소와 Fake 저장소(Port 타입 대입이 mypy 안전망이다)
+    engine = create_async_engine("postgresql+asyncpg://user:pw@localhost/none")
     fake: ReportRepository = FakeReportRepository()
     sql: ReportRepository = SqlReportRepository(AsyncSession(engine))
-
+    # when: Port 메서드가 두 구현에서 코루틴 함수인지 살핀다
+    not_async = [
+        (owner.__name__, name)
+        for name in PORT_METHODS
+        for owner in (SqlReportRepository, FakeReportRepository)
+        if not inspect.iscoroutinefunction(getattr(owner, name))
+    ]
+    missing = [name for name in PORT_METHODS if not hasattr(ReportRepository, name)]
+    # then: 두 구현이 만들어지고 모든 메서드가 코루틴 함수이며 Port에도 있다
     assert fake is not None
     assert sql is not None
-    for name in PORT_METHODS:
-        assert inspect.iscoroutinefunction(getattr(SqlReportRepository, name)), name
-        assert inspect.iscoroutinefunction(getattr(FakeReportRepository, name)), name
-        assert hasattr(ReportRepository, name), name
+    assert not_async == []
+    assert missing == []
 
 
 def test_query_runners_expose_a_synchronous_render_sql() -> None:
+    """조회 실행기의 render_sql은 DB를 부르지 않는 동기 함수다."""
+    # given: 접속하지 않는 엔진 위의 SQL 실행기와 Fake 실행기
     engine = create_async_engine("postgresql+asyncpg://user:pw@localhost/none")
     fake: ReportQueryRunner = FakeReportQueryRunner()
     sql: ReportQueryRunner = SqlReportQueryRunner(AsyncSession(engine))
-
+    # when: 두 구현의 render_sql이 동기 함수인지 살핀다
+    async_methods = [
+        method
+        for method in (SqlReportQueryRunner.render_sql, FakeReportQueryRunner.render_sql)
+        if inspect.iscoroutinefunction(method)
+    ]
+    # then: 두 구현이 만들어지고 동기 함수이며 Port에도 있다
     assert fake is not None
     assert sql is not None
-    for method in (SqlReportQueryRunner.render_sql, FakeReportQueryRunner.render_sql):
-        assert not inspect.iscoroutinefunction(method)  # DB를 부르지 않으므로 동기 함수다
+    assert async_methods == []
     assert hasattr(ReportQueryRunner, "render_sql")
 
 
 def test_unit_of_work_port_and_implementations_expose_saved_reports() -> None:
+    """UoW Port와 두 구현이 `saved_reports` 저장소를 노출한다."""
+    # given: Fake UoW
     fake = FakeUnitOfWork()
-
-    assert hasattr(UnitOfWork, "saved_reports")  # `reports`는 조회 실행기가 이미 쓴다
-    assert isinstance(fake.saved_reports, FakeReportRepository)
-    assert "saved_reports" in SqlUnitOfWork.__annotations__
+    # when: Port와 두 구현의 saved_reports를 살핀다
+    port_has = hasattr(UnitOfWork, "saved_reports")
+    fake_repository = fake.saved_reports
+    sql_has = "saved_reports" in SqlUnitOfWork.__annotations__
+    # then: Port에 saved_reports가 있고 Fake는 Fake 저장소, SQL UoW는 같은 이름의 속성을 가진다
+    assert port_has
+    assert isinstance(fake_repository, FakeReportRepository)
+    assert sql_has
 
 
 def test_the_web_port_exposes_the_saved_report_use_cases() -> None:
-    for name in SAVED_REPORT_USE_CASES:
-        assert hasattr(UseCaseProvider, name), name
-        assert hasattr(FakeUseCases, name), name
-        assert hasattr(Container, name), name
+    """웹 Port(UseCaseProvider)와 Fake·실제 컨테이너가 저장 리포트 유스케이스를 모두 노출한다."""
+    # when: 유스케이스 이름이 세 곳에 있는지 살핀다
+    missing = [
+        (owner.__name__, name)
+        for name in SAVED_REPORT_USE_CASES
+        for owner in (UseCaseProvider, FakeUseCases, Container)
+        if not hasattr(owner, name)
+    ]
+    # then: Provider, FakeUseCases, Container 모두에 있다
+    assert missing == []

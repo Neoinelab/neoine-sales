@@ -78,8 +78,9 @@ def test_fields_request_accepts_a_tech_owner_of_100_chars() -> None:
     테스트 코드: LC-034
     """
     # when: 100자로 만든다
+    count = len(LicenseContractFieldsRequest(tech_owner="가" * 100).tech_owner)
     # then: 길이 100이 그대로다
-    assert len(LicenseContractFieldsRequest(tech_owner="가" * 100).tech_owner) == 100
+    assert count == 100
 
 
 def test_issue_request_maps_to_the_use_case_input() -> None:
@@ -240,8 +241,9 @@ def test_deal_action_request_delete_flag_defaults_to_false() -> None:
     테스트 코드: LC-007
     """
     # when: 삭제 값 없이 변환한다
+    delete_license_contracts = DealActionCreateRequest(**ACTION).to_input().delete_license_contracts
     # then: false다
-    assert DealActionCreateRequest(**ACTION).to_input().delete_license_contracts is False
+    assert delete_license_contracts is False
 
 
 @pytest.mark.parametrize("value", ["true", 1, "yes", None])

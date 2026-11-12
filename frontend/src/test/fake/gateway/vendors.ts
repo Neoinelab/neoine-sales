@@ -9,7 +9,7 @@ import { read, requireAdmin, requireUser, write, type MockContext } from './cont
 const VENDOR_MAX = 100
 const DUPLICATE_VENDOR = '이미 있는 Vendor 이름입니다.'
 
-/** 소문자 이름의 코드 포인트 순, 같으면 id 순(서버와 같은 정렬). */
+/** 소문자 이름의 UTF-16 단위 순(BMP 밖 문자만 서버의 코드 포인트 순과 다를 수 있음), 같으면 id 순. */
 function byName<T extends { id: number; name: string }>(a: T, b: T): number {
   const x = a.name.toLowerCase()
   const y = b.name.toLowerCase()
@@ -18,7 +18,7 @@ function byName<T extends { id: number; name: string }>(a: T, b: T): number {
 }
 
 function checkName(raw: string): string {
-  if (raw.includes('\u0000')) throw validation('Vendor 이름에 사용할 수 없는 문자가 있습니다.')
+  if (raw.includes('\u0000')) throw validation('Vendor 이름에는 NUL 문자를 쓸 수 없습니다')
   const name = raw.trim()
   if (name === '') throw validation('Vendor 이름을 입력하세요.')
   if (Array.from(name).length > VENDOR_MAX) throw validation(`Vendor 이름은 ${VENDOR_MAX}자 이내로 입력하세요.`)
@@ -35,7 +35,7 @@ function vendorView(ctx: MockContext, record: VendorRecord): Vendor {
 
 function findVendor(ctx: MockContext, id: number): VendorRecord {
   const found = ctx.store.data.vendors.find((v) => v.id === id)
-  if (!found) throw notFound('Vendor를 찾을 수 없습니다.')
+  if (!found) throw notFound(`Vendor을(를) 찾을 수 없습니다: ${id}`)
   return found
 }
 
@@ -64,8 +64,8 @@ export function createVendorsGateway(ctx: MockContext): VendorsGateway {
     rename: (id, rawName) =>
       write(ctx, () => {
         requireAdmin(ctx)
+        const name = checkName(rawName) // 서버처럼 이름 오류가 없는 id 404보다 먼저다
         const record = findVendor(ctx, id)
-        const name = checkName(rawName)
         ensureUniqueVendor(ctx, name, id)
         record.name = name
         record.updatedAt = ctx.clock.now()

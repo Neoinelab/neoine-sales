@@ -3,7 +3,7 @@
 마이그레이션 시드와 같은 값이다.
 
 실제 DB는 마이그레이션이 시드를 넣으므로 Fake 저장소에도 같은 값을 넣어 출발 상태를 맞춘다.
-functional test(tests/functional/admin/test_catalog_seed.py)가 같은 표로 마이그레이션 시드를
+마이그레이션 시드 값은 SC-006(tests/unit/infra/schema/test_baseline_upgrade.py)이 같은 표로
 검증한다. 확률 힌트의 구분 기호는 목업 시드와 같은 EN DASH(U+2013)다.
 """
 

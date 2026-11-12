@@ -8,7 +8,7 @@ from httpx import ASGITransport, AsyncClient
 from app.domain.auth.principal import Role
 from app.main import create_app
 from tests.factories_auth import make_principal
-from tests.functional.conftest import CSRF_HEADER, make_settings
+from tests.support.app_settings import CSRF_HEADER, make_settings
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator

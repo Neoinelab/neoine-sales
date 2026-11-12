@@ -3,7 +3,7 @@ import { join, relative } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 /**
- * AC-D7(E8): 날짜 입력은 shared/ui/DateInput.tsx만 native date 칸을 쓴다.
+ * 날짜 입력은 shared/ui/DateInput.tsx만 native date 칸을 쓴다.
  * 우회 패턴(동적 type, 객체 리터럴, spread)도 잡는다. 판정 함수 `violations`는 아래 가짜 소스로 따로 검증한다.
  */
 const SRC = join(__dirname, '..')
@@ -46,59 +46,118 @@ function sources(dir: string): string[] {
 }
 
 describe('violations()', () => {
-  it('flags a literal date input in every spelling', () => {
+  // 테스트 코드: UI-022
+  it('type="date"를 어떤 철자로 써도 걸린다', () => {
     for (const attr of ['type="date"', "type='date'", "type={'date'}", 'type={"date"}', 'type={`date`}']) {
-      expect(violations('x/A.tsx', `const a = <input ${attr} value={v} onChange={(e) => set(e.target.value)} />`)).toContain('literal type date')
+      // given: 철자만 다른 리터럴 date 입력 소스
+      const source = `const a = <input ${attr} value={v} onChange={(e) => set(e.target.value)} />`
+      // when: 판정한다
+      const found = violations('x/A.tsx', source)
+      // then: literal type date로 걸린다
+      expect(found).toContain('literal type date')
     }
   })
 
-  it('flags a date literal that comes after an arrow function attribute', () => {
-    expect(violations('x/A.tsx', `<input onChange={(e) => set(e.target.value)} type="date" />`)).toContain('literal type date')
+  // 테스트 코드: UI-022
+  it('화살표 함수 속성 뒤에 오는 date 리터럴도 걸린다', () => {
+    // given: 화살표 함수 속성 뒤에 type="date"가 있는 소스
+    const source = `<input onChange={(e) => set(e.target.value)} type="date" />`
+    // when: 판정한다
+    const found = violations('x/A.tsx', source)
+    // then: literal type date로 걸린다
+    expect(found).toContain('literal type date')
   })
 
-  it('flags a dynamic type outside the reviewed files', () => {
-    expect(violations('x/A.tsx', `<input type={kind} value={v} />`)).toContain('dynamic type')
-    expect(violations('x/A.tsx', `<input\n  type={cond ? 'date' : 'text'}\n/>`)).toContain('dynamic type')
+  // 테스트 코드: UI-022
+  it('검토 목록 밖 파일의 동적 type은 걸린다', () => {
+    // given: 검토 목록 밖 파일의 동적 type 소스 둘
+    const variable = `<input type={kind} value={v} />`
+    const ternary = `<input\n  type={cond ? 'date' : 'text'}\n/>`
+    // when: 판정한다
+    const first = violations('x/A.tsx', variable)
+    const second = violations('x/A.tsx', ternary)
+    // then: dynamic type으로 걸린다
+    expect(first).toContain('dynamic type')
+    expect(second).toContain('dynamic type')
   })
 
-  it('flags an object literal with type date', () => {
-    expect(violations('x/A.tsx', `const props = { type: 'date', value }`)).toContain('object literal type date')
-    expect(violations('x/a.ts', `const props = { type: "date" }`)).toContain('object literal type date')
+  // 테스트 코드: UI-022
+  it('객체 리터럴의 type date는 걸린다', () => {
+    // given: type이 date인 객체 리터럴 소스 둘
+    const single = `const props = { type: 'date', value }`
+    const double = `const props = { type: "date" }`
+    // when: 판정한다
+    const first = violations('x/A.tsx', single)
+    const second = violations('x/a.ts', double)
+    // then: object literal type date로 걸린다
+    expect(first).toContain('object literal type date')
+    expect(second).toContain('object literal type date')
   })
 
-  it('flags a spread input without an explicit non-date type', () => {
-    expect(violations('x/A.tsx', `<input {...props} value={v} />`)).toContain('spread without explicit type')
+  // 테스트 코드: UI-022
+  it('type을 밝히지 않고 spread한 input은 걸린다', () => {
+    // given: type 없이 spread한 input 소스
+    const source = `<input {...props} value={v} />`
+    // when: 판정한다
+    const found = violations('x/A.tsx', source)
+    // then: spread without explicit type으로 걸린다
+    expect(found).toContain('spread without explicit type')
   })
 
-  it('accepts a spread input with an explicit text type, text inputs and DateInput itself', () => {
-    expect(violations('x/A.tsx', `<input {...rest} type="text" value={v} />`)).toEqual([])
-    expect(violations('x/A.tsx', `<input type="checkbox" checked />`)).toEqual([])
-    expect(violations('x/A.tsx', `<DateInput value={v} onChange={set} />`)).toEqual([])
-    expect(violations(ALLOWED, `<input type="date" />`)).toEqual([])
+  // 테스트 코드: UI-022
+  it('명시한 text type의 spread, 체크박스, DateInput, DateInput.tsx 자신은 통과한다', () => {
+    // when: 허용 예를 판정한다
+    const spreadText = violations('x/A.tsx', `<input {...rest} type="text" value={v} />`)
+    const checkbox = violations('x/A.tsx', `<input type="checkbox" checked />`)
+    const dateInput = violations('x/A.tsx', `<DateInput value={v} onChange={set} />`)
+    const self = violations(ALLOWED, `<input type="date" />`)
+    // then: 위반이 없다
+    expect(spreadText).toEqual([])
+    expect(checkbox).toEqual([])
+    expect(dateInput).toEqual([])
+    expect(self).toEqual([])
   })
 
-  it('does not accept the reviewed dynamic-type files without DateInput when they mention date', () => {
-    expect(violations(DYNAMIC_TYPE_FILES[3] as string, `type: 'text' | 'date'\n<input type={type} />`)).toContain('dynamic type without DateInput')
-    expect(violations(DYNAMIC_TYPE_FILES[3] as string, `type: 'text' | 'date'\n<DateInput />\n<input type={type} />`)).toEqual([])
+  // 테스트 코드: UI-022
+  it('검토 목록 파일이 date를 언급하면 DateInput이 있어야 통과한다', () => {
+    // given: date를 언급하는 검토 목록 파일 소스(DateInput 없음 / 있음)
+    const without = `type: 'text' | 'date'\n<input type={type} />`
+    const withDateInput = `type: 'text' | 'date'\n<DateInput />\n<input type={type} />`
+    // when: 판정한다
+    const missing = violations(DYNAMIC_TYPE_FILES[3] as string, without)
+    const present = violations(DYNAMIC_TYPE_FILES[3] as string, withDateInput)
+    // then: 없으면 걸리고 있으면 통과한다
+    expect(missing).toContain('dynamic type without DateInput')
+    expect(present).toEqual([])
   })
 })
 
 describe('native date input guard', () => {
-  it('scans the real source files', () => {
+  // 테스트 코드: UI-022
+  it('실제 소스 100개 넘는 파일을 검사 대상으로 삼는다', () => {
+    // when: 검사 대상 소스를 모은다
     const files = sources(SRC).map((f) => relative(SRC, f))
+    // then: 100개가 넘고 FormField.tsx와 DateInput.tsx가 들어 있다
     expect(files.length).toBeGreaterThan(100)
     expect(files).toContain(join('features', 'deals', 'form', 'FormField.tsx'))
     expect(files).toContain(ALLOWED)
   })
 
-  it('finds no native date input, dynamic type, object literal or bare spread in the sources', () => {
+  // 테스트 코드: UI-022
+  it('실제 소스에는 native 날짜 칸·동적 type·객체 리터럴·type 없는 spread가 없다', () => {
+    // when: 실제 소스를 모두 판정한다
     const offenders = sources(SRC)
       .map((file) => ({ file: relative(SRC, file), found: violations(relative(SRC, file), readFileSync(file, 'utf8')) }))
       .filter((r) => r.found.length > 0)
+    // then: 위반 파일이 없다
     expect(offenders).toEqual([])
   })
 
-  it('keeps the native date input inside DateInput.tsx', () => {
-    expect(DATE_LITERAL.test(readFileSync(join(SRC, ALLOWED), 'utf8').match(INPUT_TAG)?.join(' ') ?? '')).toBe(true)
+  // 테스트 코드: UI-022
+  it('native 날짜 칸은 DateInput.tsx 안에 있다', () => {
+    // when: DateInput.tsx의 input 태그를 본다
+    const tags = readFileSync(join(SRC, ALLOWED), 'utf8').match(INPUT_TAG)?.join(' ') ?? ''
+    // then: 리터럴 date 입력이 있다
+    expect(DATE_LITERAL.test(tags)).toBe(true)
   })
 })

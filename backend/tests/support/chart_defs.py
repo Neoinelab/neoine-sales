@@ -1,10 +1,10 @@
-"""Reports 4단계(차트) 테스트용 정의·차트 조립 도우미.
+"""Reports 차트 테스트용 정의·차트 조립 도우미.
 
 도메인 모듈은 사용 시점에 가져온다(구현 전에도 이 모듈을 쓰는 다른 테스트의 수집이 막히지 않게).
 
-계약(구현 담당이 맞춘다)
+계약
 - `RawChart`(`app.domain.report.raw`)는 frozen dataclass이고 키워드로 만든다. `kind`·`category`·
-  `values`만 필수이고 나머지 기본값은 계획 4.3과 같다. 값은 JSON에서 온 그대로(`object`)이며
+  `values`만 필수이고 나머지 기본값은 명세 2.2와 같다. 값은 JSON에서 온 그대로(`object`)이며
   `values`는 **list**다. `chart_from_json`과 `ChartSettings.to_raw()`도 list를 돌려준다.
 - 컬럼 index는 정의 `columns` 배열의 위치다.
 """

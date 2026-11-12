@@ -1,4 +1,4 @@
-"""ForecastSnapshotRepository 계약 테스트 공용 case (Fake와 SQL, P6 R2).
+"""ForecastSnapshotRepository 계약 테스트 공용 case (Fake와 SQL).
 
 스냅숏 셀은 담당자(users)를 FK로 참조하므로 case는 사용자 저장소를 함께 가지고 `ensure_owner`로
 참조 대상을 미리 만든다. Fake는 `FakeUnitOfWork`의 저장소, SQL은 한 세션 위의 Sql 저장소다

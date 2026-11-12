@@ -194,8 +194,7 @@ async def test_delete_missing_contract_by_non_admin_is_forbidden_not_not_found(
 
     테스트 코드: LC-083, LC-029
     """
-    # given: 존재하지 않는 계약 id, 요청자는 sales 또는 user
-    # when: 그 id의 계약을 삭제한다
+    # when: 그 id의 계약을 삭제한다 (전제: 존재하지 않는 계약 id, 요청자는 sales 또는 user)
     with raises_with(ContractDeleteForbiddenError, DELETE_FORBIDDEN):
         await contract_env.delete.execute(MISSING_ID, actor)  # type: ignore[arg-type]
     # then: ContractDeleteForbiddenError(관리자만 문구)
@@ -206,8 +205,7 @@ async def test_delete_missing_contract_by_admin_is_not_found(contract_env: Contr
 
     테스트 코드: LC-083, LC-029
     """
-    # given: 존재하지 않는 계약 id
-    # when: BOSS(admin)가 삭제한다
+    # when: BOSS(admin)가 삭제한다 (전제: 존재하지 않는 계약 id)
     with raises_with(LicenseContractNotFoundError, MISSING_CONTRACT):
         await contract_env.delete.execute(MISSING_ID, BOSS)  # type: ignore[arg-type]
     # then: LicenseContractNotFoundError 문구

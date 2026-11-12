@@ -65,10 +65,10 @@ class FakeUnitOfWork:
         self.action_types = FakeActionTypeRepository()
         self.vendors = FakeVendorRepository()
         self.forecast = FakeForecastTallyRepository(self.deals)  # 읽기 전용 집계(Deal 저장소 위)
-        self.forecast_snapshots = FakeForecastSnapshotRepository()  # 월말 스냅숏(P6 R2)
+        self.forecast_snapshots = FakeForecastSnapshotRepository()  # 월말 스냅숏
         self.dashboard = FakeDashboardTallyRepository(self.deals)  # Dashboard 집계(읽기 전용)
         self.reports = FakeReportQueryRunner()  # Reports 조회(기록·고정 응답만 하는 Fake)
-        self.saved_reports = FakeReportRepository()  # 저장 리포트(Reports 3단계)
+        self.saved_reports = FakeReportRepository()  # 저장 리포트
         self.partner_meetings = FakePartnerMeetingRepository()  # 파트너 Activity 미팅 기록
         self.license_contracts = FakeLicenseContractRepository()  # 라이선스 계약(Deal 1:N)
         self.license_contract_attachments = FakeLicenseContractAttachmentRepository()
@@ -128,29 +128,29 @@ class FakeUnitOfWork:
             lambda uid: any(s.updated_by == uid for s in settings._items.values())
         )
         storage = self.storage_settings
-        self.users.add_referrer(  # storage_settings.updated_by_user_id (AC-16: 저장한 admin)
+        self.users.add_referrer(  # storage_settings.updated_by_user_id (저장한 admin)
             lambda uid: any(s.updated_by == uid for s in storage._items.values())
         )
         alerts = self.alert_settings
-        self.users.add_referrer(  # alert_settings.updated_by_user_id (P3 AC-11)
+        self.users.add_referrer(  # alert_settings.updated_by_user_id
             lambda uid: any(s.updated_by == uid for s in alerts._items.values())
         )
         attachments = self.attachments
-        self.users.add_referrer(  # deal_attachments.uploaded_by_user_id (AC-16: 첨부를 올린 사용자)
+        self.users.add_referrer(  # deal_attachments.uploaded_by_user_id (첨부를 올린 사용자)
             lambda uid: any(a.uploaded_by == uid for a in attachments._items.values())
         )
         labels = self.bant_labels
-        self.users.add_referrer(  # bant_labels.created_by_user_id (AC-15: 만든 사람은 연결 있음)
+        self.users.add_referrer(  # bant_labels.created_by_user_id (만든 사람은 연결 있음)
             lambda uid: any(label.created_by_user_id == uid for label in labels._items.values())
         )
         snapshots = self.forecast_snapshots
-        self.users.add_referrer(  # forecast_snapshot_cells.owner_user_id (P6 R2 AC-19)
+        self.users.add_referrer(  # forecast_snapshot_cells.owner_user_id
             lambda uid: any(
                 cell.owner_id == uid for s in snapshots._items.values() for cell in s.cells
             )
         )
         saved = self.saved_reports
-        self.users.add_referrer(  # reports.owner_user_id (Reports 3단계 AC11: 만든 사람)
+        self.users.add_referrer(  # reports.owner_user_id (만든 사람)
             lambda uid: any(r.owner_user_id == uid for r in saved._items.values())
         )
         self.users.add_referrer(  # reports.updated_by_user_id (최종 수정자도 연결 있음)
@@ -172,7 +172,7 @@ class FakeUnitOfWork:
             lambda uid: any(a.uploaded_by == uid for a in contract_files._items.values())
         )
         types = self.action_types
-        self.users.add_referrer(  # action_types.created_by_user_id (AC-36: 만든 사람은 연결 있음)
+        self.users.add_referrer(  # action_types.created_by_user_id (만든 사람은 연결 있음)
             lambda uid: any(t.created_by_user_id == uid for t in types._items.values())
         )
 

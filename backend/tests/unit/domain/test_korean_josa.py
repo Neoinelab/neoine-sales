@@ -24,7 +24,11 @@ from app.domain.common.korean import with_ga, with_ro, with_wa
     ],
 )
 def test_with_ro_follows_the_final_sound_rule(text: str, expected: str) -> None:
-    assert with_ro(text) == expected
+    """끝소리에 따라 '로'/'으로'를 붙인다."""
+    # when: 로 조사를 붙인다
+    result = with_ro(text)
+    # then: 받침 규칙대로 붙는다
+    assert result == expected
 
 
 @pytest.mark.parametrize(
@@ -37,7 +41,11 @@ def test_with_ro_follows_the_final_sound_rule(text: str, expected: str) -> None:
     ],
 )
 def test_with_ga_picks_ga_or_i(text: str, expected: str) -> None:
-    assert with_ga(text) == expected
+    """끝소리에 따라 '가'/'이'를 붙인다."""
+    # when: 가 조사를 붙인다
+    result = with_ga(text)
+    # then: 받침 규칙대로 붙는다
+    assert result == expected
 
 
 @pytest.mark.parametrize(
@@ -51,8 +59,16 @@ def test_with_ga_picks_ga_or_i(text: str, expected: str) -> None:
     ],
 )
 def test_with_wa_picks_wa_or_gwa(text: str, expected: str) -> None:
-    assert with_wa(text) == expected
+    """끝소리에 따라 '와'/'과'를 붙인다."""
+    # when: 와 조사를 붙인다
+    result = with_wa(text)
+    # then: 받침 규칙대로 붙는다
+    assert result == expected
 
 
 def test_josa_of_an_empty_text_is_the_no_final_sound_form() -> None:
-    assert (with_ro(""), with_ga(""), with_wa("")) == ("로", "가", "와")
+    """빈 문자열은 받침 없음 형태의 조사를 붙인다."""
+    # when: 빈 문자열에 조사를 붙인다
+    result = (with_ro(""), with_ga(""), with_wa(""))
+    # then: 받침 없음 형태다
+    assert result == ("로", "가", "와")

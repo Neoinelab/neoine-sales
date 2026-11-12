@@ -1,4 +1,4 @@
-"""DealRepository.delete 계약(R2, AC-27): 물리 삭제, 소속 데이터는 CASCADE, 참조 대상은 남는다."""
+"""DealRepository.delete 계약(R2): 물리 삭제, 소속 데이터는 CASCADE, 참조 대상은 남는다."""
 
 from typing import TYPE_CHECKING
 
@@ -19,11 +19,18 @@ CREATED = HistoryDraft(HistoryCategory("created"), "Deal 등록", "", "Deal 등�
 
 
 async def test_deleting_removes_the_deal_and_frees_the_code(deal_case: DealCase) -> None:
+    """삭제하면 Deal이 사라지고 같은 code를 다시 쓸 수 있다.
+
+    테스트 코드: DD-050
+    """
+    # given: 저장된 Deal
     deal = make_deal(code=CODE)
     await deal_case.add(deal)
 
+    # when: 삭제한다
     await deal_case.deals.delete(deal.id)
 
+    # then: 조회는 없음이고 존재하지 않으며 같은 code로 다시 저장된다
     with pytest.raises(DealNotFoundError):
         await deal_case.deals.get(deal.id)
     assert await deal_case.deals.exists(deal.id) is False
@@ -31,6 +38,11 @@ async def test_deleting_removes_the_deal_and_frees_the_code(deal_case: DealCase)
 
 
 async def test_history_actions_links_and_labels_go_with_the_deal(deal_case: DealCase) -> None:
+    """삭제하면 이력·Action·링크·Label 선택이 함께 지워진다.
+
+    테스트 코드: DD-057
+    """
+    # given: 파트너·BANT Label·Action·이력이 있는 Deal
     partner = await deal_case.new_contact(ContactKind.PARTNER)
     customer = await deal_case.new_contact()
     budget = await deal_case.new_label(BantCategory.BUDGET, "예산 가")
@@ -44,13 +56,20 @@ async def test_history_actions_links_and_labels_go_with_the_deal(deal_case: Deal
     await deal_case.add_action(deal)
     await deal_case.history.add_many([DealHistoryEntry(None, deal.id, NOW, OWNER_ID, CREATED)])
 
+    # when: 삭제한다
     await deal_case.deals.delete(deal.id)
 
+    # then: 이력과 Action이 없다
     assert list(await deal_case.history.list(deal.id)) == []
     assert await deal_case.actions_of(deal.id) == []
 
 
 async def test_contacts_labels_and_users_stay(deal_case: DealCase) -> None:
+    """삭제해도 연락처·Label·사용자는 남는다.
+
+    테스트 코드: DD-057
+    """
+    # given: 고객·파트너·Label·사용자가 연결된 Deal
     partner = await deal_case.new_contact(ContactKind.PARTNER)
     customer = await deal_case.new_contact()
     budget = await deal_case.new_label(BantCategory.BUDGET, "예산 가")
@@ -62,8 +81,10 @@ async def test_contacts_labels_and_users_stay(deal_case: DealCase) -> None:
     )
     await deal_case.add(deal)
 
+    # when: 삭제한다
     await deal_case.deals.delete(deal.id)
 
+    # then: 연락처·Label·사용자가 그대로 읽힌다
     assert (await deal_case.contacts.get(partner.id)).id == partner.id
     assert (await deal_case.contacts.get(customer.id)).id == customer.id
     assert (await deal_case.labels.get(budget.id)).id == budget.id
@@ -71,6 +92,11 @@ async def test_contacts_labels_and_users_stay(deal_case: DealCase) -> None:
 
 
 async def test_other_deals_and_their_data_are_untouched(deal_case: DealCase) -> None:
+    """삭제해도 다른 Deal과 그 Action·이력은 그대로다.
+
+    테스트 코드: DD-058
+    """
+    # given: Action·이력이 있는 Deal 두 건
     keep, gone = make_deal(code="20261016-A001"), make_deal(code="20261016-A002")
     await deal_case.add(keep)
     await deal_case.add(gone)
@@ -80,8 +106,10 @@ async def test_other_deals_and_their_data_are_untouched(deal_case: DealCase) -> 
         [DealHistoryEntry(None, d.id, NOW, OWNER_ID, CREATED) for d in (keep, gone)]
     )
 
+    # when: 하나를 삭제한다
     await deal_case.deals.delete(gone.id)
 
+    # then: 남긴 Deal의 Action·이력·본체는 그대로이고 지운 Deal의 Action은 없다
     assert [a.deal_code for a in await deal_case.actions_of(keep.id)] == [keep.id]
     assert await deal_case.actions_of(gone.id) == []
     assert [e.deal_code for e in await deal_case.history.list(keep.id)] == [keep.id]
@@ -89,33 +117,46 @@ async def test_other_deals_and_their_data_are_untouched(deal_case: DealCase) -> 
 
 
 async def test_the_deleted_deal_is_no_longer_counted(deal_case: DealCase) -> None:
+    """삭제한 Deal은 Status별 건수에 더 이상 세지 않는다."""
+    # given: 저장된 Deal
     deal = make_deal(code=CODE)
     await deal_case.add(deal)
 
+    # when: 삭제한다
     await deal_case.deals.delete(deal.id)
 
+    # then: Status별 건수가 모두 0이다
     counts = await deal_case.deals.count_by_status()
     assert {key: count for key, count in counts.items() if count} == {}
 
 
 async def test_deleting_a_missing_deal_is_not_found(deal_case: DealCase) -> None:
+    """없는 Deal을 삭제하면 찾을 수 없음 오류다."""
+    # when·then: 없는 Deal을 삭제한다 → Deal 없음 오류다
     with pytest.raises(DealNotFoundError):
         await deal_case.deals.delete(make_deal_code("ZZZZ"))
 
 
 async def test_deleting_twice_is_not_found_the_second_time(deal_case: DealCase) -> None:
+    """두 번째 삭제는 찾을 수 없음 오류다."""
+    # given: 이미 삭제한 Deal
     deal = make_deal(code=CODE)
     await deal_case.add(deal)
+    # when: 다시 삭제한다
     await deal_case.deals.delete(deal.id)
 
+    # then: Deal 없음 오류다
     with pytest.raises(DealNotFoundError):
         await deal_case.deals.delete(deal.id)
 
 
 async def test_updating_a_deleted_deal_is_not_found(deal_case: DealCase) -> None:
+    """삭제한 Deal을 수정하면 찾을 수 없음 오류다."""
+    # given: 삭제한 Deal
     deal = make_deal(code=CODE)
     await deal_case.add(deal)
     await deal_case.deals.delete(deal.id)
 
+    # when·then: 수정한다 → Deal 없음 오류다
     with pytest.raises(DealNotFoundError):
         await deal_case.deals.update(deal)

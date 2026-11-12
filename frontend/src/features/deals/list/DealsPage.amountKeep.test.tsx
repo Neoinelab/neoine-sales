@@ -24,22 +24,35 @@ async function expectUntouched(code: string, history: number) {
   expect(screen.queryByText(/금액.*변경되었습니다/)).not.toBeInTheDocument()
 }
 
-describe('목록 인라인 금액: 원 단위 시작값 (AC-4)', () => {
+describe('목록 인라인 금액: 원 단위 시작값', () => {
+  // 원 단위 정확한 값으로 시작하고 바꾸지 않은 Enter는 저장하지 않는다
+  // 테스트 코드: DL-094
   it('starts with the exact won value and keeps amount and history when Enter is pressed without a change', async () => {
+    // given: 금액 편집기
     const { user, row, code, history } = await openOddRow()
+    // when: 금액 편집을 연다
     await user.click(within(row).getByRole('button', { name: /금액\(단위:원\) 편집/ }))
+    // then: 정확한 원 값으로 시작한다
     expect(within(row).getByLabelText('금액(단위:원) 값')).toHaveValue('1,234,567')
+
+    // when: 바꾸지 않고 Enter를 누른다
     await user.keyboard('{Enter}')
+    // then: 금액과 이력이 그대로다
     await waitFor(() => expect(within(row).queryByLabelText('금액(단위:원) 값')).not.toBeInTheDocument())
     await expectUntouched(code, history)
   })
 
+  // 1,000원 미만 차이도 다른 값으로 저장한다
+  // 테스트 코드: DL-094
   it('saves the typed won value as is when it differs by less than a thousand', async () => {
+    // given: 금액 편집기
     const { user, row, code } = await openOddRow()
     await user.click(within(row).getByRole('button', { name: /금액\(단위:원\) 편집/ }))
     const input = within(row).getByLabelText('금액(단위:원) 값')
+    // when: 1,000원 미만 차이로 바꿔 저장한다
     await user.clear(input)
     await user.type(input, '1234000{Enter}')
+    // then: 입력한 원 값이 그대로 저장된다
     await waitFor(() => expect(within(row).getByRole('button', { name: /금액\(단위:원\) 편집/ })).toHaveTextContent('1,234,000'))
     expect((await gateway.deals.get(code)).revenueAmount).toBe(1_234_000)
     expect(await screen.findByText(/금액\(단위:원\)이 '1,234,000'\(으\)로 변경되었습니다\./)).toBeVisible()

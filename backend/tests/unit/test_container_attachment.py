@@ -1,4 +1,4 @@
-"""조립(Container)의 첨부 계약(P2b R2): 첨부 유스케이스 5종이 조립된다."""
+"""조립(Container)의 첨부 계약: 첨부 유스케이스 5종이 조립된다."""
 
 from typing import TYPE_CHECKING
 
@@ -11,7 +11,7 @@ from app.application.attachment.list_attachments import ListAttachments
 from app.application.attachment.upload_attachment import UploadAttachment
 from app.application.deal.delete_deal import DeleteDeal
 from app.container import Container
-from tests.functional.conftest import make_settings
+from tests.support.app_settings import make_settings
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
@@ -27,6 +27,8 @@ async def container() -> AsyncIterator[Container]:
 
 
 async def test_container_builds_the_attachment_use_cases(container: Container) -> None:
+    """조립기가 첨부 유스케이스 5종을 만든다."""
+    # when·then: 다섯 유스케이스가 각 클래스의 인스턴스다
     assert isinstance(container.list_attachments(), ListAttachments)
     assert isinstance(container.get_attachment(), GetAttachment)
     assert isinstance(container.upload_attachment(), UploadAttachment)
@@ -37,4 +39,6 @@ async def test_container_builds_the_attachment_use_cases(container: Container) -
 async def test_container_still_builds_delete_deal_with_the_file_storage(
     container: Container,
 ) -> None:
+    """조립기가 파일 저장소를 쓰는 Deal 삭제 유스케이스도 만든다."""
+    # when·then: DeleteDeal 인스턴스다
     assert isinstance(container.delete_deal(), DeleteDeal)

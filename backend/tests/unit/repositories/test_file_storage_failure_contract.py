@@ -27,8 +27,14 @@ def _location() -> StoredFileLocation:
 async def test_a_source_that_fails_midway_surfaces_its_error_and_stores_nothing(
     file_case: FileStorageCase,
 ) -> None:
+    """읽다가 실패한 원본은 그 오류를 그대로 내고 아무것도 저장하지 않는다.
+
+    테스트 코드: AT-025
+    """
+    # given: 새 저장 위치
     location = _location()
 
+    # when: 중간에 실패하는 원본을 저장한다
     with pytest.raises(ClientGone):
         await file_case.storage.save(
             file_case.root,
@@ -37,21 +43,26 @@ async def test_a_source_that_fails_midway_surfaces_its_error_and_stores_nothing(
             max_bytes=1_000_000,
         )
 
+    # then: 원본의 오류가 나고 부분 파일이 없으며 열 수도 없다
     assert location.key not in file_case.entries(f"{file_case.root.value}/{DEAL.value}")
     with pytest.raises(StoredFileMissingError):
         await file_case.storage.open(file_case.root, location)
 
 
 async def test_the_key_of_a_failed_save_can_be_used_again(file_case: FileStorageCase) -> None:
+    """실패한 저장의 키는 다시 쓸 수 있다."""
+    # given: 저장이 중간에 실패한 키
     location = _location()
     with pytest.raises(ClientGone):
         await file_case.storage.save(
             file_case.root, location, FailingSource(ClientGone()), max_bytes=1_000_000
         )
 
+    # when: 같은 키로 다시 저장한다
     saved = await file_case.storage.save(
         file_case.root, location, BytesSource(b"second try"), max_bytes=1_000
     )
 
+    # then: 저장되어 열린 내용과 크기가 맞다
     opened = await file_case.storage.open(file_case.root, location)
     assert saved == opened.size == len(b"second try")

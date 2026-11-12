@@ -4,6 +4,7 @@ import { DEAL_CODE_PATTERN } from '../../shared/model/constants'
 import { isSyncConsistent } from '../../shared/model/sync'
 import { dealCode, expectApiError, mockAs, newMock, TEST_NOW } from './testing'
 import { NO_SUCH_ID, USER_ID } from './seed/ids'
+import { SEED_PASSWORD } from './seed/users'
 
 async function allDeals(mock: Awaited<ReturnType<typeof mockAs>>) {
   const page = await mock.gateway.deals.list({ limit: 100 })
@@ -128,17 +129,19 @@ describe('인증', () => {
   it('로그인 오류 문구', async () => {
     const mock = await mockAs(null)
     const { auth } = mock.gateway
-    await expectApiError(auth.login('', 'pw'), 422, '아이디와 비밀번호를 입력하세요.')
-    await expectApiError(auth.login('kim', ''), 422, '아이디와 비밀번호를 입력하세요.')
-    await expectApiError(auth.login('nobody', 'pw'), 401, '아이디 또는 비밀번호가 올바르지 않습니다.')
-    await expectApiError(auth.login('old', 'pw'), 403, '퇴사한 사용자는 로그인할 수 없습니다.')
-    await expectApiError(mock.signInAs(USER_ID.old), 403, '퇴사한 사용자는 로그인할 수 없습니다.')
+    // 서버처럼 빈 칸·없는 아이디·퇴사자·틀린 비밀번호는 모두 같은 401 문구(마침표 없음)다.
+    await expectApiError(auth.login('', 'pw'), 401, '아이디 또는 비밀번호가 올바르지 않습니다')
+    await expectApiError(auth.login('kim', ''), 401, '아이디 또는 비밀번호가 올바르지 않습니다')
+    await expectApiError(auth.login('nobody', SEED_PASSWORD), 401, '아이디 또는 비밀번호가 올바르지 않습니다')
+    await expectApiError(auth.login('old', SEED_PASSWORD), 401, '아이디 또는 비밀번호가 올바르지 않습니다')
+    await expectApiError(auth.login('kim', 'wrong-password'), 401, '아이디 또는 비밀번호가 올바르지 않습니다')
+    await expectApiError(mock.signInAs(USER_ID.old), 401, '아이디 또는 비밀번호가 올바르지 않습니다')
     await expectApiError(mock.signInAs(NO_SUCH_ID), 401)
   })
 
-  it('아무 비밀번호나 통과하고 me가 사용자를 돌려주며 로그아웃하면 401이다', async () => {
+  it('올바른 비밀번호로 로그인하면 me가 사용자를 돌려주고 로그아웃하면 401이다', async () => {
     const { gateway } = await mockAs(null)
-    const result = await gateway.auth.login('kim', 'anything')
+    const result = await gateway.auth.login('kim', SEED_PASSWORD)
     expect(result.me).toEqual({ id: USER_ID.kim, loginId: 'kim', name: '김영업', role: 'sales' })
     expect(result.directoryWarning).toBeNull()
     expect(await gateway.auth.me()).toEqual(result.me)
@@ -150,9 +153,9 @@ describe('인증', () => {
     const mock = newMock()
     mock.control.restartSetup() // AD 설정 1단계가 끝나지 않은 상태
 
-    const admin = await mock.gateway.auth.login('root', 'anything')
+    const admin = await mock.gateway.auth.login('root', SEED_PASSWORD)
     await mock.gateway.auth.logout()
-    const sales = await mock.gateway.auth.login('kim', 'anything')
+    const sales = await mock.gateway.auth.login('kim', SEED_PASSWORD)
 
     expect(admin.directoryWarning).toMatchObject({ stage: 'not_configured' })
     expect(admin.directoryWarning?.message).toBeTruthy()
@@ -162,7 +165,7 @@ describe('인증', () => {
   it('AD 설정이 있으면 admin 로그인에도 경고가 없다', async () => {
     const { gateway } = await mockAs(null)
 
-    const admin = await gateway.auth.login('root', 'anything')
+    const admin = await gateway.auth.login('root', SEED_PASSWORD)
 
     expect(admin.directoryWarning).toBeNull()
   })
@@ -197,8 +200,8 @@ describe('최초 설정(setup)', () => {
     await expectApiError(setup.saveStorage('relative/path'), 422, '절대 경로를 입력하세요.')
     await expectApiError(setup.saveStorage('/readonly/files'), 422, '해당 위치에 쓸 수 없습니다.')
     await setup.saveStorage('/data/neoine/files')
-    await expectApiError(setup.registerAdmin('', 'pw'), 422)
-    const me = await setup.registerAdmin('root', 'pw')
+    await expectApiError(setup.registerAdmin('', 'pw'), 401)
+    const me = await setup.registerAdmin('newadmin', 'pw')
     expect(me.role).toBe('admin')
     expect(await auth.me()).toEqual(me)
     expect(await setup.status()).toEqual({ authMode: 'ad', directoryDone: true, storageDone: true, adminDone: true })

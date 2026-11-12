@@ -1,4 +1,4 @@
-"""Action 수정·삭제 권한 규칙(Q8, R-17): admin은 모두, sales는 본인 Action만, user는 불가."""
+"""Action 수정·삭제 권한 규칙: admin은 모두, sales는 본인 Action만, user는 불가."""
 
 from typing import TYPE_CHECKING
 
@@ -29,4 +29,9 @@ PARK = uid("park")
 def test_can_edit_action_allows_owner_sales_and_admin_only(
     role: Role, user_id: UserId, action_actor_id: UserId, allowed: bool
 ) -> None:
+    """수정·삭제 권한은 admin 전부, sales 본인 Action, user 불가다.
+
+    테스트 코드: AC-055, AC-056, AC-058, AC-061, AC-062
+    """
+    # when·then: 역할·요청자·Action 담당자 조합마다 허용 여부가 기대와 같다
     assert can_edit_action(user_id, role, action_actor_id) is allowed

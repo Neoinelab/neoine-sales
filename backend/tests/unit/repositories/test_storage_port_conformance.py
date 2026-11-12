@@ -31,14 +31,19 @@ STORAGE_USE_CASES = (
 
 
 def test_file_storage_implementations_satisfy_the_port() -> None:
+    """Fake와 로컬 FileStorage가 Port를 만족한다."""
+    # when: FileStorage = : 두 구현을 Port 타입에 대입한다
     fake: FileStorage = FakeFileStorage()
     local: FileStorage = LocalFileStorage()
 
+    # then: 두 구현이 만들어진다
     assert fake is not None
     assert local is not None
 
 
 def test_file_storage_implementations_expose_every_port_method_as_a_coroutine() -> None:
+    """두 구현이 Port의 모든 메서드를 코루틴 함수로 제공한다."""
+    # when·then: 모든 메서드가 두 구현에서 코루틴이고 Port에도 있다
     for implementation in (FakeFileStorage, LocalFileStorage):
         for name in FILE_STORAGE_METHODS:
             assert inspect.iscoroutinefunction(getattr(implementation, name)), (
@@ -50,6 +55,8 @@ def test_file_storage_implementations_expose_every_port_method_as_a_coroutine() 
 
 
 def test_the_file_storage_port_carries_a_location_and_an_opened_file_value() -> None:
+    """Port가 위치 값과 열린 파일 값을 정의한다."""
+    # when·then: 위치는 folder·key, 폴더는 parts, 열린 파일은 size·chunks 필드를 가진다
     assert {"folder", "key"} == set(StoredFileLocation.__dataclass_fields__)
     from app.application.ports.file_storage import StorageFolder  # noqa: PLC0415
 
@@ -58,15 +65,20 @@ def test_the_file_storage_port_carries_a_location_and_an_opened_file_value() -> 
 
 
 def test_the_file_storage_port_has_no_delete_deal_files_any_more() -> None:
+    """Port와 구현에 delete_deal_files가 더는 없다."""
+    # when·then: 세 곳 모두 delete_deal_files가 없다
     for implementation in (FileStorage, FakeFileStorage, LocalFileStorage):
         assert not hasattr(implementation, "delete_deal_files"), implementation
 
 
 def test_storage_settings_repositories_satisfy_the_port() -> None:
+    """저장 위치 설정 저장소의 Fake와 SQL이 Port를 만족한다."""
+    # when: 접속하지 않는 엔진으로 두 구현을 Port 타입에 대입한다
     engine = create_async_engine("postgresql+asyncpg://user:pw@localhost/none")  # 접속하지 않는다
     fake: StorageSettingsRepository = FakeStorageSettingsRepository()
     sql: StorageSettingsRepository = SqlStorageSettingsRepository(AsyncSession(engine))
 
+    # then: 두 구현이 만들어지고 get·save가 코루틴이다
     assert fake is not None
     assert sql is not None
     for name in ("get", "save"):
@@ -76,14 +88,19 @@ def test_storage_settings_repositories_satisfy_the_port() -> None:
 
 
 def test_unit_of_work_port_and_implementations_expose_storage_settings() -> None:
+    """UoW Port와 구현이 storage_settings를 노출한다."""
+    # when: Fake UoW를 만든다
     fake = FakeUnitOfWork()
 
+    # then: Port·Fake·SQL 모두 storage_settings를 가진다
     assert hasattr(UnitOfWork, "storage_settings")
     assert isinstance(fake.storage_settings, FakeStorageSettingsRepository)
     assert "storage_settings" in SqlUnitOfWork.__annotations__
 
 
 def test_the_web_port_exposes_the_storage_use_cases() -> None:
+    """web Port·Fake·Container가 저장 위치 유스케이스를 노출한다."""
+    # when·then: 모든 유스케이스 이름이 세 곳에 있다
     for name in STORAGE_USE_CASES:
         assert hasattr(UseCaseProvider, name), name
         assert hasattr(FakeUseCases, name), name

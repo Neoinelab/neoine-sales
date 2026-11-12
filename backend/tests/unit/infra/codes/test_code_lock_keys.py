@@ -1,4 +1,4 @@
-"""코드 종류 잠금 키를 명시 매핑으로 고정한다(R1 리뷰 Minor).
+"""코드 종류 잠금 키를 명시 매핑으로 고정한다.
 
 `lock_kind`의 advisory lock 키는 `CodeKind` 선언 순서(index)가 아니라 명시 매핑
 `{status: 7_302_001, forecast: 7_302_002}`여야 한다. enum에 멤버를 끼우거나 순서를 바꿔도 운영 중인
@@ -14,7 +14,9 @@ EXPECTED_KEYS = {CodeKind.STATUS: STATUS_KEY, CodeKind.FORECAST: FORECAST_KEY}
 
 
 def test_the_lock_key_constants_are_an_explicit_mapping_not_the_declaration_order() -> None:
+    """코드 종류 잠금 키는 선언 순서가 아니라 명시 매핑이다."""
     from app.infra.db.code_repository import KIND_LOCK_KEYS  # noqa: PLC0415
 
+    # when·then: KIND_LOCK_KEYS가 명시한 키 값과 같고 모든 종류가 키를 가진다
     assert dict(KIND_LOCK_KEYS) == EXPECTED_KEYS
     assert set(KIND_LOCK_KEYS) == set(CodeKind)  # 모든 종류가 키를 가진다

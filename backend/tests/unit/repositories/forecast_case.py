@@ -1,4 +1,4 @@
-"""ForecastTallyRepository 계약 테스트 공용 case (Fake와 SQL, P6 R1).
+"""ForecastTallyRepository 계약 테스트 공용 case (Fake와 SQL).
 
 집계는 Deal 저장소의 Deal 위에서 하므로 case는 `DealCase`(Deal·사용자·연락처 준비 도우미)와 집계
 저장소를 함께 가진다. Fake는 같은 Deal 저장소를 읽는 `FakeForecastTallyRepository`, SQL은 같은

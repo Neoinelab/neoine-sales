@@ -7,7 +7,7 @@ import pytest
 from app.domain.common.ids import MAX_ID
 from app.main import create_app
 from tests.fakes.use_cases import FakeUseCases
-from tests.functional.conftest import make_settings
+from tests.support.app_settings import make_settings
 
 UNUSED_DATABASE_URL = "postgresql+asyncpg://user:pw@localhost:5432/none"  # 접속하지 않는다
 BASE = "/api/v1/license-contracts"
@@ -79,8 +79,7 @@ def _enum(schema: dict[str, Any], node: dict[str, Any]) -> set[str]:
 
 def test_paths_and_methods(schema: dict[str, Any]) -> None:
     """계약 API는 문서화된 경로와 메서드를 가진다."""
-    # given: 앱의 OpenAPI 스키마
-    # when: 경로별 메서드를 모은다
+    # when: 경로별 메서드를 모은다 (전제: 앱의 OpenAPI 스키마)
     paths = schema["paths"]
 
     # then: 목록·상세·발급·갱신·종료·첨부·다운로드 메서드가 명세와 같다
@@ -96,16 +95,15 @@ def test_paths_and_methods(schema: dict[str, Any]) -> None:
 
 def test_there_is_no_manual_create_route(schema: dict[str, Any]) -> None:
     """계약을 직접 만드는 POST 경로는 없다."""
-    # given: 앱의 OpenAPI 스키마
-    # when: 목록 경로의 메서드를 본다
+    # when: 목록 경로의 메서드를 본다 (전제: 앱의 OpenAPI 스키마)
+    actual = schema["paths"][BASE]
     # then: post가 없다
-    assert "post" not in schema["paths"][BASE]  # 계약은 Won이 될 때 자동으로만 생긴다
+    assert "post" not in actual  # 계약은 Won이 될 때 자동으로만 생긴다
 
 
 def test_every_operation_is_tagged(schema: dict[str, Any]) -> None:
     """모든 동작에 태그가 붙어 있다."""
-    # given: 앱의 OpenAPI 스키마
-    # when: 각 경로의 동작 태그를 본다
+    # when: 각 경로의 동작 태그를 본다 (전제: 앱의 OpenAPI 스키마)
     for path in (BASE, ID_ROUTE, ISSUE, RENEWAL, END, FILES):
         for operation in schema["paths"][path].values():
             assert operation["tags"] == ["license-contracts"], path
@@ -135,8 +133,7 @@ def test_success_status_codes_and_401(
     schema: dict[str, Any], method: str, path: str, success: str
 ) -> None:
     """각 동작은 성공 코드와 401을 문서화한다."""
-    # given: 앱의 OpenAPI 스키마
-    # when: 동작의 응답 코드를 본다
+    # when: 동작의 응답 코드를 본다 (전제: 앱의 OpenAPI 스키마)
     responses = schema["paths"][path][method]["responses"]
 
     # then: 성공 코드와 401이 있다
@@ -151,10 +148,10 @@ def test_the_attachment_upload_also_documents_the_200_for_replaced_and_skipped(
 
     테스트 코드: LC-065, LC-066
     """
-    # given: 앱의 OpenAPI 스키마
-    # when: 업로드 응답 코드를 본다
+    # when: 업로드 응답 코드를 본다 (전제: 앱의 OpenAPI 스키마)
+    actual = schema["paths"][FILES]["post"]["responses"]
     # then: 200이 있다
-    assert "200" in schema["paths"][FILES]["post"]["responses"]
+    assert "200" in actual
 
 
 @pytest.mark.parametrize(
@@ -180,10 +177,10 @@ def test_error_status_codes_are_documented_and_mutations_document_403(
 
     테스트 코드: LC-083
     """
-    # given: 앱의 OpenAPI 스키마
-    # when: 동작의 응답 코드를 본다
+    # when: 동작의 응답 코드를 본다 (전제: 앱의 OpenAPI 스키마)
+    actual = set(schema["paths"][path][method]["responses"])
     # then: 기대한 오류 코드가 모두 있다
-    assert codes <= set(schema["paths"][path][method]["responses"])
+    assert codes <= actual
 
 
 @pytest.mark.parametrize(
@@ -195,16 +192,15 @@ def test_reads_document_no_403(schema: dict[str, Any], method: str, path: str) -
 
     테스트 코드: LC-082
     """
-    # given: 앱의 OpenAPI 스키마
-    # when: 읽기 동작의 응답 코드를 본다
+    # when: 읽기 동작의 응답 코드를 본다 (전제: 앱의 OpenAPI 스키마)
+    actual = schema["paths"][path][method]["responses"]
     # then: 403이 없다
-    assert "403" not in schema["paths"][path][method]["responses"]  # 모든 역할이 읽는다
+    assert "403" not in actual  # 모든 역할이 읽는다
 
 
 def test_the_contract_id_path_parameter_is_a_bounded_integer(schema: dict[str, Any]) -> None:
     """계약 id 경로 파라미터는 1~2^53-1 정수다."""
-    # given: 앱의 OpenAPI 스키마
-    # when: id 경로 파라미터를 본다
+    # when: id 경로 파라미터를 본다 (전제: 앱의 OpenAPI 스키마)
     for method in ("get", "put", "delete"):
         (param,) = [
             p for p in schema["paths"][ID_ROUTE][method]["parameters"] if p["name"] == "contract_id"
@@ -219,8 +215,7 @@ def test_list_query_parameters(schema: dict[str, Any]) -> None:
 
     테스트 코드: LC-019
     """
-    # given: 앱의 OpenAPI 스키마
-    # when: 목록 파라미터를 모은다
+    # when: 목록 파라미터를 모은다 (전제: 앱의 OpenAPI 스키마)
     params = {p["name"]: p for p in schema["paths"][BASE]["get"]["parameters"]}
 
     # then: 이름 13개, limit 기본 50·최대 200, offset 최소 0, 필수 없음
@@ -250,8 +245,7 @@ def test_the_sort_status_and_order_parameters_list_their_values(schema: dict[str
 
     테스트 코드: LC-021, LC-084
     """
-    # given: 앱의 OpenAPI 스키마
-    # when: sort·status·order 파라미터의 값을 모은다
+    # when: sort·status·order 파라미터의 값을 모은다 (전제: 앱의 OpenAPI 스키마)
     params = {p["name"]: p["schema"] for p in schema["paths"][BASE]["get"]["parameters"]}
 
     # then: sort 12개, status 4개, order asc·desc
@@ -285,8 +279,7 @@ def test_the_fields_body_has_the_three_contract_columns_and_forbids_extras(
 
     테스트 코드: LC-033
     """
-    # given: 앱의 OpenAPI 스키마
-    # when: PUT 요청 본문 스키마를 본다
+    # when: PUT 요청 본문 스키마를 본다 (전제: 앱의 OpenAPI 스키마)
     body = _body(schema, "put", ID_ROUTE)
 
     # then: 세 칸, additionalProperties false, 기술담당 최대 100
@@ -308,8 +301,7 @@ def test_the_issue_and_renewal_bodies_add_the_period(schema: dict[str, Any], pat
 
     테스트 코드: LC-044
     """
-    # given: 앱의 OpenAPI 스키마
-    # when: 요청 본문 스키마를 본다
+    # when: 요청 본문 스키마를 본다 (전제: 앱의 OpenAPI 스키마)
     body = _body(schema, "post", path)
 
     # then: 필드와 필수, 수량 1~99, 단위 month·year
@@ -329,8 +321,7 @@ def test_the_contract_response_has_the_documented_fields(schema: dict[str, Any])
 
     테스트 코드: LC-028
     """
-    # given: 앱의 OpenAPI 스키마
-    # when: 상세·수정·발급·갱신·종료의 응답 스키마를 본다
+    # when: 상세·수정·발급·갱신·종료의 응답 스키마를 본다 (전제: 앱의 OpenAPI 스키마)
     for method, path, code in (
         ("get", ID_ROUTE, "200"),
         ("put", ID_ROUTE, "200"),
@@ -348,8 +339,8 @@ def test_the_list_response_is_a_counted_page_of_contracts(schema: dict[str, Any]
     테스트 코드: LC-016
     """
     # given: 앱의 OpenAPI 스키마
-    # when: 목록 응답 스키마를 본다
     page = _response(schema, "get", BASE, "200")
+    # when: 목록 응답 스키마를 본다
     item = _resolve(schema, page["properties"]["items"]["items"])
 
     # then: items·total·offset·limit과 항목 필드가 명세와 같다
@@ -359,8 +350,7 @@ def test_the_list_response_is_a_counted_page_of_contracts(schema: dict[str, Any]
 
 def test_ids_and_user_columns_use_the_shared_schemas(schema: dict[str, Any]) -> None:
     """id는 정수이고 사용자 칸은 공용 UserRef 스키마를 쓴다."""
-    # given: 앱의 OpenAPI 스키마
-    # when: 상세 응답 스키마를 본다
+    # when: 상세 응답 스키마를 본다 (전제: 앱의 OpenAPI 스키마)
     item = _response(schema, "get", ID_ROUTE, "200")["properties"]
 
     # then: id 정수, sales_owner·created_by·updated_by는 UserRef
@@ -376,9 +366,9 @@ def test_the_deal_requests_document_the_optional_delete_flag(schema: dict[str, A
     테스트 코드: LC-007
     """
     # given: 앱의 OpenAPI 스키마
-    # when: 수정·변경·Action 요청 본문을 본다
     patch = _body(schema, "patch", "/api/v1/deals/{code}")
     change = _body(schema, "post", "/api/v1/deals/{code}/changes")
+    # when: 수정·변경·Action 요청 본문을 본다
     action = _body(schema, "post", "/api/v1/deals/{code}/actions")
 
     # then: boolean, 기본 false, 필수 아님
@@ -391,8 +381,7 @@ def test_the_deal_requests_document_the_optional_delete_flag(schema: dict[str, A
 
 def test_the_deal_create_request_has_no_delete_flag(schema: dict[str, Any]) -> None:
     """Deal 등록 요청에는 삭제 값이 없다."""
-    # given: 앱의 OpenAPI 스키마
-    # when: 등록 요청 본문을 본다
+    # when: 등록 요청 본문을 본다 (전제: 앱의 OpenAPI 스키마)
     create = _body(schema, "post", "/api/v1/deals")
 
     # then: delete_license_contracts가 없다
@@ -405,8 +394,8 @@ def test_deal_responses_document_the_contract_count(schema: dict[str, Any]) -> N
     테스트 코드: LC-079
     """
     # given: 앱의 OpenAPI 스키마
-    # when: 응답 스키마를 본다
     detail = _response(schema, "get", "/api/v1/deals/{code}", "200")
+    # when: 응답 스키마를 본다
     impact = _response(schema, "get", "/api/v1/deals/{code}/deletion-impact", "200")
 
     # then: license_contract_count가 정수이고 필수다
@@ -422,8 +411,8 @@ def test_deal_and_contract_responses_have_issued_and_won_flags(schema: dict[str,
     테스트 코드: LC-030
     """
     # given: 앱의 OpenAPI 스키마
-    # when: 응답 스키마를 본다
     detail = _response(schema, "get", "/api/v1/deals/{code}", "200")
+    # when: 응답 스키마를 본다
     contract = _response(schema, "get", ID_ROUTE, "200")
 
     # then: has_issued_license_contract·deal_is_won이 boolean이고 필수다
@@ -439,8 +428,8 @@ def test_deal_list_rows_document_the_issued_flag(schema: dict[str, Any]) -> None
     테스트 코드: LC-030
     """
     # given: 앱의 OpenAPI 스키마
-    # when: 목록 응답의 행 스키마를 본다
     page = _response(schema, "get", "/api/v1/deals", "200")
+    # when: 목록 응답의 행 스키마를 본다
     row = _resolve(schema, page["properties"]["items"]["items"])
 
     # then: has_issued_license_contract가 boolean이고 필수다
@@ -461,7 +450,7 @@ def test_deal_change_routes_document_409(schema: dict[str, Any], method: str, pa
 
     테스트 코드: LC-008
     """
-    # given: 앱의 OpenAPI 스키마
-    # when: 세 경로의 응답 코드를 본다
+    # when: 세 경로의 응답 코드를 본다 (전제: 앱의 OpenAPI 스키마)
+    actual = schema["paths"][path][method]["responses"]
     # then: 409가 있다
-    assert "409" in schema["paths"][path][method]["responses"]  # 발급 계약이 있는 Won 이탈 거부
+    assert "409" in actual  # 발급 계약이 있는 Won 이탈 거부

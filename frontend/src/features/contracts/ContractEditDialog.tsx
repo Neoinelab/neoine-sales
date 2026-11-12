@@ -88,8 +88,8 @@ export function ContractEditDialog({ contract, today, onDone, onClose }: Contrac
     const amount = parseAmount(license.amount)
     if (draftEnd(license) === null || amount === null) return
     const input = { ...fields, start: license.start, term: { amount, unit: license.unit } }
-    if (license.mode === 'issue') void run(() => issue.mutateAsync({ id: contract.id, input }), '라이센스를 발급했습니다.')
-    else void run(() => renew.mutateAsync({ id: contract.id, input }), '라이센스를 갱신했습니다.')
+    if (license.mode === 'issue') void run(() => issue.mutateAsync({ id: contract.id, input }), '라이선스를 발급했습니다.')
+    else void run(() => renew.mutateAsync({ id: contract.id, input }), '라이선스를 갱신했습니다.')
   }
 
   return (
@@ -147,7 +147,7 @@ export function ContractEditDialog({ contract, today, onDone, onClose }: Contrac
                   disabled={!contract.dealIsWon}
                   onClick={() => setLicense(startLicenseDraft(contract, issued ? 'renew' : 'issue', today))}
                 >
-                  {issued ? '라이센스 갱신' : '라이센스 발급'}
+                  {issued ? '라이선스 갱신' : '라이선스 발급'}
                 </button>
               ))}
             {canWrite && contract.status !== 'ended' && !license && !contract.dealIsWon && (

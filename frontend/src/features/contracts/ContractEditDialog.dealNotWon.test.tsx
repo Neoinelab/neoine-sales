@@ -8,7 +8,7 @@ import { renderAt } from '../../test/mockApp'
 import { pinClock, unpinClock } from '../../test/partnerMeetings'
 
 /**
- * Won이 아닌 Deal의 계약(AC31): 계약 응답의 dealIsWon이 false면 '라이센스 발급' 버튼이 비활성화되고 힌트가 보인다.
+ * Won이 아닌 Deal의 계약: 계약 응답의 dealIsWon이 false면 '라이선스 발급' 버튼이 비활성화되고 힌트가 보인다.
  * 계약 종료·삭제(admin)·저장은 그대로다. 시드 12번 Deal('바른제약 PAM')은 Won이고 미발급 계약 1건뿐이다.
  */
 const LOAD = { timeout: 8000 }
@@ -42,12 +42,11 @@ async function openContractOfDeal12(leaveWon: boolean, role: 'admin' | 'sales' =
   return { ...view, dlg: await screen.findByRole('dialog', { name: /^계약 수정 - / }) }
 }
 
-describe('Won이 아닌 Deal의 계약 대화상자 (AC31)', () => {
+describe('Won이 아닌 Deal의 계약 대화상자', () => {
   // Deal이 Won이면 발급 버튼이 활성이고 힌트가 없다.
   // 테스트 코드: LC-048
   it('keeps the issue button enabled and shows no hint while the deal is Won', async () => {
-    // given: dealIsWon이 true인 미발급 계약 대화상자
-    // when: 대화상자를 연다
+    // when: 대화상자를 연다 (전제: dealIsWon이 true인 미발급 계약 대화상자)
     const { dlg } = await openContractOfDeal12(false)
 
     // then: 발급 버튼이 활성이고 힌트가 없다
@@ -58,8 +57,7 @@ describe('Won이 아닌 Deal의 계약 대화상자 (AC31)', () => {
   // Deal이 Won이 아니면 발급 버튼이 비활성이고 힌트를 보인다.
   // 테스트 코드: LC-048
   it('disables the issue button and shows the hint when the deal left Won', async () => {
-    // given: dealIsWon이 false인 미발급 계약 대화상자
-    // when: 대화상자를 연다
+    // when: 대화상자를 연다 (전제: dealIsWon이 false인 미발급 계약 대화상자)
     const { dlg } = await openContractOfDeal12(true)
 
     // then: 발급 버튼이 비활성이고 Won인 Deal의 계약만 발급하거나 갱신할 수 있습니다 힌트가 보인다
@@ -72,13 +70,13 @@ describe('Won이 아닌 Deal의 계약 대화상자 (AC31)', () => {
   it('does not call the server when the disabled issue button is clicked', async () => {
     // given: dealIsWon이 false인 대화상자
     const issue = vi.spyOn(gateway.licenseContracts, 'issue')
-    // when: 비활성 라이센스 발급 버튼을 누른다
     const { user, dlg } = await openContractOfDeal12(true)
 
-    // then: 발급 요청이 가지 않는다
-    expect(within(dlg).getByRole('button', { name: ISSUE })).toBeDisabled()
+    // when: 비활성 라이선스 발급 버튼을 누른다
     await user.click(within(dlg).getByRole('button', { name: ISSUE }))
 
+    // then: 버튼은 비활성이고 발급 요청이 가지 않는다
+    expect(within(dlg).getByRole('button', { name: ISSUE })).toBeDisabled()
     expect(issue).not.toHaveBeenCalled()
     expect(within(dlg).queryByRole('alert')).not.toBeInTheDocument()
   })
@@ -86,7 +84,6 @@ describe('Won이 아닌 Deal의 계약 대화상자 (AC31)', () => {
   // Won이 아니어도 계약 종료와 저장은 동작한다.
   // 테스트 코드: LC-048
   it('still lets the user end the contract and save the fields', async () => {
-    // given: dealIsWon이 false인 대화상자
     // when: 계약 종료와 저장 버튼을 본다
     const { dlg } = await openContractOfDeal12(true)
 
@@ -98,8 +95,7 @@ describe('Won이 아닌 Deal의 계약 대화상자 (AC31)', () => {
   // Won이 아니어도 admin에게는 삭제가 보인다.
   // 테스트 코드: LC-048
   it('still shows 삭제 to an admin', async () => {
-    // given: admin으로 연 dealIsWon false 대화상자
-    // when: 대화상자를 연다
+    // when: 대화상자를 연다 (전제: admin으로 연 dealIsWon false 대화상자)
     const { dlg } = await openContractOfDeal12(true, 'admin')
 
     // then: 삭제 버튼이 보인다

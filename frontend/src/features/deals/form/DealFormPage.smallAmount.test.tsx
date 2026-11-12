@@ -17,21 +17,35 @@ async function openSmallAmountEdit() {
 }
 
 describe('300원 금액 Deal 수정 (원 단위 표기)', () => {
+  // 300원 같은 작은 금액은 그대로 보이고 이름만 바꿔도 유지된다.
+  // 테스트 코드: DE-109
   it('shows 300 won as 300 and keeps it when only the name changes', async () => {
+    // given: 금액이 300원인 Deal의 수정 화면이다.
     const { user, code, location } = await openSmallAmountEdit()
     const name = screen.getByLabelText('Deal Name')
+
+    // when: 이름만 바꿔 저장한다.
     await user.clear(name)
     await user.type(name, '대한제조 NGFW 개명')
     await save(user)
+
+    // then: 금액 칸이 300이고 저장 뒤에도 300원이다.
     await waitFor(() => expect(location()).toBe(`/deals/${code}`))
     expect((await gateway.deals.get(code)).revenueAmount).toBe(300)
     expect((await gateway.deals.get(code)).name).toBe('대한제조 NGFW 개명')
   })
 
+  // 비운 금액은 거절한다.
+  // 테스트 코드: DE-109
   it('still rejects an emptied amount', async () => {
+    // given: 금액이 300원인 Deal의 수정 화면이다.
     const { user, location } = await openSmallAmountEdit()
+
+    // when: 금액을 비우고 저장한다.
     await user.clear(screen.getByLabelText('금액(단위:원)'))
     await save(user)
+
+    // then: 금액 입력 문구가 나오고 저장되지 않는다.
     expect(await screen.findByText(AMOUNT_INPUT_MESSAGE)).toBeVisible()
     expect(location()).toMatch(/\/edit$/)
   })

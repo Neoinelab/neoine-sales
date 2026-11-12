@@ -1,9 +1,9 @@
-"""Action 유스케이스 단위 테스트의 공용 환경(P2): Deal 하나와 Action 유스케이스 묶음, 이력 읽기.
+"""Action 유스케이스 단위 테스트의 공용 환경: Deal 하나와 Action 유스케이스 묶음, 이력 읽기.
 
 이 모듈은 Action 유스케이스를 모듈 수준에서 가져온다. 그래서 `conftest.py`의 `action_env`
 fixture가 사용 시점에 가져온다(구현이 없어도 다른 테스트의 수집이 막히지 않는다).
 
-요청자(Actor)는 role이 있는 값이다: 수정·삭제 권한이 담당자 본인(sales)과 admin으로 갈린다(Q8).
+요청자(Actor)는 role이 있는 값이다: 수정·삭제 권한이 담당자 본인(sales)과 admin으로 갈린다.
 """
 
 from dataclasses import dataclass
@@ -69,7 +69,7 @@ class ActionEnv:
     ) -> DealAction:
         """Action을 등록한다(기본은 시계가 60초 흐른 뒤라 수행 시각이 서로 다르다).
 
-        close_previous를 주면 저장하면서 그 이전 Next Action을 종료(수행)로 바꾼다(R4).
+        close_previous를 주면 저장하면서 그 이전 Next Action을 종료(수행)로 바꾼다.
         """
         self.env.clock.advance(advance)
         data = make_register_input(

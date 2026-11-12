@@ -21,7 +21,10 @@ const asChoices = (bant: Record<(typeof CATEGORIES)[number], number | null>) =>
 const bantEntries = (code: string) => gateway.history.list(code, { category: 'bant' })
 
 describe('Label 목록이 실패했다가 회복된 뒤의 저장', () => {
+  // Label 목록이 실패했다 회복돼도 다른 필드만 고친 저장은 BANT 선택을 지킨다.
+  // 테스트 코드: DE-099
   it('keeps the four selections and writes no BANT history when only another field is edited', async () => {
+    // given: Label 목록이 한 번 실패했다가 회복된다.
     const code = await codeOf(NAME)
     const before = (await gateway.deals.get(code)).bant
     const historyBefore = (await bantEntries(code)).length
@@ -36,9 +39,11 @@ describe('Label 목록이 실패했다가 회복된 뒤의 저장', () => {
     await waitFor(() => expect(client.getQueryState(keys.labels)?.status).toBe('success'))
     await waitFor(() => expect(client.isFetching({ queryKey: keys.labels })).toBe(0))
 
+    // when: 다른 필드만 고쳐 저장한다.
     await user.type(nameInput, ' 수정')
     await save(user)
 
+    // then: 네 구분 선택이 그대로이고 BANT 이력이 없다.
     await waitFor(() => expect(location()).toMatch(DETAIL_URL))
     const saved = await gateway.deals.get(code)
     expect(saved.name).toBe(`${NAME} 수정`)
@@ -48,7 +53,10 @@ describe('Label 목록이 실패했다가 회복된 뒤의 저장', () => {
 })
 
 describe('건드리지 않은 BANT는 처음 {id}로 전송된다', () => {
+  // 폼을 연 뒤 Label 이름이 바뀌어도 건드리지 않은 칸은 원래 id를 보내고 새 Label을 만들지 않는다.
+  // 테스트 코드: DE-099
   it('sends the original ids and creates no label when an admin renamed the labels after the form was opened', async () => {
+    // given: 폼을 연 뒤 admin이 Label 이름을 바꿨다.
     const update = vi.spyOn(gateway.deals, 'update')
     const { user, location, code, client } = await openEdit(NAME, 'admin') // Label 이름 변경은 admin만
     const before = (await gateway.deals.get(code)).bant
@@ -61,9 +69,11 @@ describe('건드리지 않은 BANT는 처음 {id}로 전송된다', () => {
     await client.invalidateQueries({ queryKey: keys.labels })
     await waitFor(() => expect(client.isFetching({ queryKey: keys.labels })).toBe(0))
 
+    // when: 다른 필드만 고쳐 저장한다.
     await user.type(screen.getByLabelText('Deal Name'), ' 수정')
     await save(user)
 
+    // then: 원래 id로 저장되고 새 Label이 생기지 않는다.
     await waitFor(() => expect(location()).toMatch(DETAIL_URL))
     const sent = update.mock.calls[0]?.[1].bant
     expect(sent).toEqual(asChoices(before))

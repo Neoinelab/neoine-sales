@@ -1,4 +1,4 @@
-"""미팅 기록 수정·삭제 권한(AC14): admin은 모두, sales는 본인 기록만, user는 불가."""
+"""미팅 기록 수정·삭제 권한: admin은 모두, sales는 본인 기록만, user는 불가."""
 
 from typing import TYPE_CHECKING
 
@@ -29,4 +29,8 @@ PARK = uid("park")
 def test_can_edit_meeting_allows_the_author_sales_and_admin_only(
     role: Role, user_id: UserId, author_id: UserId, allowed: bool
 ) -> None:
-    assert can_edit_meeting(user_id, role, author_id) is allowed
+    """admin은 모두, sales는 본인 기록만, user는 수정할 수 없다."""
+    # when: 역할·요청자·작성자로 수정 가능 여부를 판정한다
+    result = can_edit_meeting(user_id, role, author_id)
+    # then: 표의 기대와 같다
+    assert result is allowed

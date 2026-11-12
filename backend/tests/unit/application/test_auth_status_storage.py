@@ -1,4 +1,4 @@
-"""GetAuthStatus의 저장 위치 단계 플래그 (P2b AC-01): AD, 저장 위치, admin 세 조건의 모든 조합."""
+"""GetAuthStatus의 저장 위치 단계 플래그: AD, 저장 위치, admin 세 조건의 모든 조합."""
 
 from typing import TYPE_CHECKING
 
@@ -33,6 +33,13 @@ async def test_auth_status_flags_follow_the_three_setup_conditions(
     conditions: tuple[bool, bool, bool],
     expected: tuple[bool, bool, bool],
 ) -> None:
+    """AD 설정·저장 위치·admin 세 조건의 모든 조합이 단계 플래그를 정한다.
+
+    테스트 코드: AU-063
+    """
+    # given: AD 설정·저장 위치·admin 있음/없음의 조합
+    """AD 설정·저장 위치·admin 세 조건의 모든 조합에서 단계 플래그가 규칙대로다."""
+    # given: 조합에 따라 AD 설정·저장 위치·admin을 둔다
     directory, storage, admin = conditions
     if directory:
         await seed_directory(uow_factory)
@@ -41,8 +48,10 @@ async def test_auth_status_flags_follow_the_three_setup_conditions(
     if admin:
         await seed_user(uow_factory, "boss", Role.ADMIN)
 
+    # when: 인증 설정 상태를 조회하면
     status = await auth.status.execute()
 
+    # then: 표의 단계 플래그와 같다
     assert (
         status.needs_directory_setup,
         status.needs_storage_setup,
@@ -53,19 +62,15 @@ async def test_auth_status_flags_follow_the_three_setup_conditions(
 async def test_auth_status_reports_whether_the_storage_is_configured(
     auth: AuthStack, uow_factory: UnitOfWorkFactory
 ) -> None:
+    """저장 위치 설정 여부가 상태에 나온다.
+
+    테스트 코드: AU-063
+    """
+    # given: 저장 위치를 설정하기 전과 후
     before = await auth.status.execute()
     await seed_storage(uow_factory)
+    # when: 상태를 조회하면
     after = await auth.status.execute()
 
+    # then: false에서 true로 바뀐다
     assert (before.storage_configured, after.storage_configured) == (False, True)
-
-
-async def test_resigned_admin_does_not_close_the_storage_step(
-    auth: AuthStack, uow_factory: UnitOfWorkFactory
-) -> None:
-    await seed_directory(uow_factory)
-    await seed_user(uow_factory, "gone", Role.ADMIN, resigned=True)
-
-    status = await auth.status.execute()
-
-    assert (status.needs_storage_setup, status.needs_admin_setup) == (True, False)

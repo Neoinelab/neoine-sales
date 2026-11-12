@@ -3,7 +3,10 @@ import { monthsAfter, monthsBefore, updatedPeriods } from './updatedPeriods'
 
 describe('Fake 최종 업데이트 프리셋(서버 규칙과 같은 예)', () => {
   it('같은 날짜의 n개월 전과 2주 전을 오늘 포함으로 돌려준다', () => {
-    expect(updatedPeriods('2026-10-21')).toEqual({
+    // when: 2026-10-21 기준 프리셋을 구한다
+    const actual = updatedPeriods('2026-10-21')
+    // then: 2주·1·2·3·6개월 전 프리셋과 향후 1·2개월 프리셋이 오늘 포함 기간으로 나온다
+    expect(actual).toEqual({
       today: '2026-10-21',
       periods: [
         { key: '2w', from: '2026-10-07', to: '2026-10-21' },
@@ -28,17 +31,26 @@ describe('Fake 최종 업데이트 프리셋(서버 규칙과 같은 예)', () =
     ['2026-01-15', 3, '2025-10-15'],
     ['2026-02-10', 6, '2025-08-10'],
   ] as const)('%s의 %i개월 전은 %s', (day, months, expected) => {
-    expect(monthsBefore(day, months)).toBe(expected)
+    // when: n개월 전 날짜를 구한다
+    const actual = monthsBefore(day, months)
+    // then: 말일이 없는 달은 말일로 보정한 날짜가 나온다
+    expect(actual).toBe(expected)
   })
 
   it('2주 전은 달과 해를 넘는다', () => {
-    expect(updatedPeriods('2026-01-05').periods[0]).toEqual({ key: '2w', from: '2025-12-22', to: '2026-01-05' })
+    // when: 1월 5일 기준 프리셋을 구한다
+    const actual = updatedPeriods('2026-01-05').periods[0]
+    // then: 2025-12-22부터 2026-01-05까지로 해를 넘는다
+    expect(actual).toEqual({ key: '2w', from: '2025-12-22', to: '2026-01-05' })
   })
 })
 
 describe('Fake 향후 프리셋(오늘부터 n개월 뒤, 말일 보정)', () => {
-  it('resolves upcoming with month-end fallback', () => {
-    expect(updatedPeriods('2026-01-31').upcoming).toEqual([
+  it('향후 프리셋은 말일로 보정해 구한다', () => {
+    // when: 1월 31일 기준 향후 기간을 구한다
+    const actual = updatedPeriods('2026-01-31').upcoming
+    // then: 1개월 뒤는 2월 28일, 2개월 뒤는 3월 31일로 보정된다
+    expect(actual).toEqual([
       { key: '1m', from: '2026-01-31', to: '2026-02-28' },
       { key: '2m', from: '2026-01-31', to: '2026-03-31' },
     ])
@@ -53,6 +65,9 @@ describe('Fake 향후 프리셋(오늘부터 n개월 뒤, 말일 보정)', () =>
     ['2026-11-15', 2, '2027-01-15'],
     ['2024-02-29', 12, '2025-02-28'],
   ] as const)('%s의 %i개월 뒤는 %s', (day, months, expected) => {
-    expect(monthsAfter(day, months)).toBe(expected)
+    // when: n개월 뒤 날짜를 구한다
+    const actual = monthsAfter(day, months)
+    // then: 달의 말일을 넘으면 말일로 보정한 날짜가 나온다
+    expect(actual).toBe(expected)
   })
 })

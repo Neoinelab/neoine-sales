@@ -1,4 +1,4 @@
-"""ReportQueryRunner(SQL) 계약: Vendor x 분기 리포트가 Deals 목록 원장과 같다 (AC3).
+"""ReportQueryRunner(SQL) 계약: Vendor x 분기 리포트가 Deals 목록 원장과 같다.
 
 기대값은 Deal 저장소의 `search`(목록과 같은 조건 판정)로 구한 건수·금액이다.
 """
@@ -56,11 +56,18 @@ async def _ledger(case: ReportCase, **criteria: object) -> tuple[int, int]:
 
 
 async def test_vendor_by_quarter_cells_equal_the_deal_list_ledger(report_case: ReportCase) -> None:
+    """Vendorx분기 금액 합계·건수는 Deals 목록 원장과 같다.
+
+    테스트 코드: RQ-046
+    """
+    # given: Vendor·분기·Forecast가 섞인 Deal과 Lost·다른 해 Deal 시드
     sap, ibm, _ = await _seed(report_case)
     names = {sap: "SAP", ibm: "IBM"}
 
+    # when: Vendorx분기 그룹과 금액 합계·건수로 조회한다
     rows = await report_case.rows(COLUMNS, CONDITIONS)
 
+    # then: 칸마다 목록 원장의 건수·금액과 같다
     cells = {(row[0], row[1]): (row[3], row[2]) for row in rows}
     for vendor_id in (sap, ibm):
         for quarter in range(1, 5):
@@ -73,10 +80,17 @@ async def test_vendor_by_quarter_cells_equal_the_deal_list_ledger(report_case: R
 async def test_deals_without_a_vendor_equal_the_quarter_ledger_minus_the_vendors(
     report_case: ReportCase,
 ) -> None:
+    """Vendor 없음 칸은 분기 원장에서 Vendor 칸들을 뺀 값과 같다.
+
+    테스트 코드: RQ-046
+    """
+    # given: Vendor·분기가 섞인 Deal 시드
     sap, ibm, _ = await _seed(report_case)
 
+    # when: Vendorx분기로 조회한다
     rows = await report_case.rows(COLUMNS, CONDITIONS)
 
+    # then: Vendor 없음 칸이 분기 원장 - Vendor 칸 합이다
     cells = {(row[0], row[1]): (row[3], row[2]) for row in rows}
     for quarter in range(1, 5):
         whole = await _ledger(report_case, quarters=frozenset({quarter}))
@@ -94,18 +108,32 @@ async def test_deals_without_a_vendor_equal_the_quarter_ledger_minus_the_vendors
 async def test_the_report_has_one_row_per_vendor_and_quarter_with_deals(
     report_case: ReportCase,
 ) -> None:
+    """Deal이 있는 Vendorx분기마다 한 행이다.
+
+    테스트 코드: RQ-046
+    """
+    # given: Vendor·분기가 섞인 Deal 시드
     await _seed(report_case)
 
+    # when: Vendorx분기로 조회한다
     rows = await report_case.rows(COLUMNS, CONDITIONS)
 
+    # then: 12행이다(연도 밖·Lost만 있는 칸은 없다)
     assert len(rows) == 12  # Vendor 2개 + 없음 x 분기 4개. 연도 밖·Lost만 있는 칸은 없다.
 
 
 async def test_lost_and_other_year_deals_are_left_out_of_the_cells(report_case: ReportCase) -> None:
+    """Lost와 다른 해 Deal은 칸에서 빠진다.
+
+    테스트 코드: RQ-046
+    """
+    # given: Lost·다른 해 Deal이 있는 시드
     await _seed(report_case)
 
+    # when: Vendorx분기로 조회한다
     rows = await report_case.rows(COLUMNS, CONDITIONS)
 
+    # then: 건수 합과 금액 합이 목록 원장과 같다
     total_amount = sum(row[2] for row in rows)
     ledger = await _ledger(report_case)
     assert (sum(row[3] for row in rows), total_amount) == ledger
@@ -114,10 +142,17 @@ async def test_lost_and_other_year_deals_are_left_out_of_the_cells(report_case: 
 async def test_grouped_totals_equal_the_ledger_of_the_same_conditions(
     report_case: ReportCase,
 ) -> None:
+    """합계 행은 같은 조건의 원장과 같고 total_count는 그룹 수다.
+
+    테스트 코드: RQ-046
+    """
+    # given: Vendor·분기가 섞인 Deal 시드
     await _seed(report_case)
 
+    # when: Vendorx분기로 조회한다
     result = await report_case.run(COLUMNS, CONDITIONS)
 
+    # then: 합계 행의 금액은 원장 금액, 그룹 칸은 None, 총 그룹은 12다
     _count, amount = await _ledger(report_case)
     assert result.totals is not None
     assert result.totals[0] is None  # 그룹 컬럼

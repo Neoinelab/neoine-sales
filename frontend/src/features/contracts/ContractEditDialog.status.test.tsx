@@ -52,18 +52,17 @@ const amountInput = (dlg: HTMLElement) => within(dlg).getByLabelText('기간')
 const unitSelect = (dlg: HTMLElement) => within(dlg).getByLabelText('기간 단위')
 
 describe('상태 묶음과 라이선스 칸 (C3)', () => {
-  // 상태 묶음에 상태 배지와 그 상태의 라이센스 버튼이 보인다.
+  // 상태 묶음에 상태 배지와 그 상태의 라이선스 버튼이 보인다.
   // 테스트 코드: LC-046, LC-053
   it.each([
-    ['not_issued', '라이센스 발급'],
-    ['issued_new', '라이센스 갱신'],
-    ['issued_renewal', '라이센스 갱신'],
+    ['not_issued', '라이선스 발급'],
+    ['issued_new', '라이선스 갱신'],
+    ['issued_renewal', '라이선스 갱신'],
   ] as const)('shows the %s badge and its license button inside the 상태 group', async (status, button) => {
-    // given: 각 상태의 계약 대화상자
-    // when: 대화상자를 연다
+    // when: 대화상자를 연다 (전제: 각 상태의 계약 대화상자)
     const { dlg } = await openEdit(first(status))
 
-    // then: 미발급은 라이센스 발급, 발급 상태는 라이센스 갱신 버튼이 보인다
+    // then: 미발급은 라이선스 발급, 발급 상태는 라이선스 갱신 버튼이 보인다
     expect(within(statusGroup(dlg)).getByText(STATUS_LABELS[status])).toBeVisible()
     expect(within(statusGroup(dlg)).getByRole('button', { name: button })).toBeVisible()
   })
@@ -87,8 +86,7 @@ describe('상태 묶음과 라이선스 칸 (C3)', () => {
 
   // 대화상자에는 구분 필드가 없다.
   it('has no 구분 field in the dialog', async () => {
-    // given: 계약 대화상자
-    // when: 대화상자를 연다
+    // when: 대화상자를 연다 (전제: 계약 대화상자)
     const { dlg } = await openEdit(first('issued_new'))
 
     // then: 구분 칸이 없다
@@ -115,8 +113,7 @@ describe('상태 묶음과 라이선스 칸 (C3)', () => {
   // 미발급 계약은 시작일이 빈 비활성 칸과 기간 1년 기본값을 보인다.
   // 테스트 코드: LC-046
   it('shows empty disabled fields with the 1 year default for a not-issued contract', async () => {
-    // given: 미발급 계약
-    // when: 대화상자를 연다
+    // when: 대화상자를 연다 (전제: 미발급 계약)
     const { dlg } = await openEdit(first('not_issued'))
 
     // then: 라이선스 칸은 비활성이고 시작일 빈 칸·기간 1년이 보인다
@@ -129,20 +126,19 @@ describe('상태 묶음과 라이선스 칸 (C3)', () => {
   })
 })
 
-describe('라이센스 발급 (C4, C6, AC12)', () => {
+describe('라이선스 발급 (C4, C6, AC12)', () => {
   const target = () => first('not_issued')
 
   async function startIssue() {
     const view = await openEdit(target())
-    await view.user.click(within(statusGroup(view.dlg)).getByRole('button', { name: '라이센스 발급' }))
+    await view.user.click(within(statusGroup(view.dlg)).getByRole('button', { name: '라이선스 발급' }))
     return view
   }
 
-  // 라이센스 발급 버튼은 칸을 활성화하고 시작일에 포커스하며 안내를 보인다.
+  // 라이선스 발급 버튼은 칸을 활성화하고 시작일에 포커스하며 안내를 보인다.
   // 테스트 코드: LC-046
   it('opens no extra dialog, enables the fields, focuses the start date and shows the guide', async () => {
-    // given: Won Deal의 미발급 계약 대화상자
-    // when: 라이센스 발급을 누른다
+    // when: 라이선스 발급을 누른다 (전제: Won Deal의 미발급 계약 대화상자)
     const { dlg } = await startIssue()
 
     // then: 추가 대화상자 없이 칸이 활성화되고 시작일 포커스, 저장하면 발급(신규)됩니다 안내가 보인다
@@ -155,14 +151,14 @@ describe('라이센스 발급 (C4, C6, AC12)', () => {
     expect(amountInput(dlg)).toHaveValue(1)
     expect(unitSelect(dlg)).toHaveDisplayValue('년')
     expectEnd(dlg, '2028-03-14')
-    expect(within(statusGroup(dlg)).queryByRole('button', { name: '라이센스 발급' })).not.toBeInTheDocument()
+    expect(within(statusGroup(dlg)).queryByRole('button', { name: '라이선스 발급' })).not.toBeInTheDocument()
     expect(within(dlg).getByText('저장하면 발급(신규)됩니다')).toBeVisible()
   })
 
   // 기간을 고쳐 저장하면 발급 요청이 가고 서버가 계산한 종료일·상태가 표에 보인다.
   // 테스트 코드: LC-046
   it('sends the issue request with the contract fields and the period and shows the server-computed row', async () => {
-    // given: 라이센스 발급을 누른 대화상자
+    // given: 라이선스 발급을 누른 대화상자
     const issue = vi.spyOn(gateway.licenseContracts, 'issue')
     const { user, dlg } = await startIssue()
 
@@ -174,8 +170,8 @@ describe('라이센스 발급 (C4, C6, AC12)', () => {
     // when: 기간을 6개월로 바꾸고 저장한다
     await user.click(within(dlg).getByRole('button', { name: '저장' }))
 
-    // then: 발급 요청에 칸·시작일·기간이 담기고 라이센스를 발급했습니다 알림과 발급(신규) 행이 보인다
-    expect(await screen.findByText('라이센스를 발급했습니다.')).toBeVisible()
+    // then: 발급 요청에 칸·시작일·기간이 담기고 라이선스를 발급했습니다 알림과 발급(신규) 행이 보인다
+    expect(await screen.findByText('라이선스를 발급했습니다.')).toBeVisible()
     expect(issue).toHaveBeenCalledWith(target().id, { techOwner: target().techOwner, inspection: target().inspection, note: '발급과 함께 수정', start: '2027-01-01', term: { amount: 1, unit: 'year' } })
     await waitFor(() => expect(screen.queryByRole('dialog', { name: /^계약 수정 - / })).not.toBeInTheDocument())
     const cells = within(rowOf(target().dealName)).getAllByRole('cell')
@@ -188,7 +184,7 @@ describe('라이센스 발급 (C4, C6, AC12)', () => {
   // 대화상자의 종료일 미리보기는 2026-01-01 + 6개월 = 2026-06-30이다.
   // 테스트 코드: LC-040
   it('computes 2026-06-30 for 2026-01-01 + 6 months', async () => {
-    // given: 라이센스 발급을 누른 대화상자
+    // given: 라이선스 발급을 누른 대화상자
     const { user, dlg } = await startIssue()
 
     await user.clear(startInput(dlg))
@@ -200,7 +196,7 @@ describe('라이센스 발급 (C4, C6, AC12)', () => {
     await user.click(within(dlg).getByRole('button', { name: '저장' }))
 
     // when: 시작일 2026-01-01, 기간 6개월을 넣는다
-    await screen.findByText('라이센스를 발급했습니다.')
+    await screen.findByText('라이선스를 발급했습니다.')
     // then: 종료일 미리보기가 2026-06-30이다
     expect(within(rowOf(target().dealName)).getAllByRole('cell')[6]).toHaveTextContent('2026-06-30')
   })
@@ -254,31 +250,32 @@ describe('라이센스 발급 (C4, C6, AC12)', () => {
     // then: alert에 서버 문구가 보이고 대화상자는 열려 있다
     expect(await within(dlg).findByRole('alert')).toHaveTextContent('이 Deal에는 이미 발급 상태인 라이선스 계약이 있습니다.')
     expect(screen.getByRole('dialog', { name: /^계약 수정 - / })).toBeVisible()
-    expect(screen.queryByText('라이센스를 발급했습니다.')).not.toBeInTheDocument()
+    expect(screen.queryByText('라이선스를 발급했습니다.')).not.toBeInTheDocument()
   })
 
   // 취소하면 발급 입력을 버리고 다시 열면 칸이 비활성이고 버튼이 다시 보인다.
   // 테스트 코드: LC-046
   it('discards the issue on 취소 and restores the button on reopening', async () => {
-    // given: 라이센스 발급을 누른 대화상자
+    // given: 라이선스 발급을 누른 대화상자
     const issue = vi.spyOn(gateway.licenseContracts, 'issue')
     const { user, dlg } = await startIssue()
 
+    // when: 취소를 눌러 닫는다
     await user.click(within(dlg).getByRole('button', { name: '취소' }))
-
-    // when: 취소로 닫고 다시 연다
+    // then: 대화상자가 닫히고 발급 요청 없이 미발급 그대로다
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
-    // then: 칸은 비활성이고 발급 버튼이 다시 보인다
     expect(issue).not.toHaveBeenCalled()
     expect(within(rowOf(target().dealName)).getAllByRole('cell')[7]?.textContent).toBe('미발급')
+    // when: 같은 계약을 다시 연다
     await user.click(within(rowOf(target().dealName)).getAllByRole('cell')[1]!)
+    // then: 칸은 비활성이고 발급 버튼이 다시 보인다
     const again = await screen.findByRole('dialog', { name: /^계약 수정 - / })
-    expect(within(statusGroup(again)).getByRole('button', { name: '라이센스 발급' })).toBeVisible()
+    expect(within(statusGroup(again)).getByRole('button', { name: '라이선스 발급' })).toBeVisible()
     expect(startInput(again)).toBeDisabled()
   })
 })
 
-describe('라이센스 갱신 (C5, AC13)', () => {
+describe('라이선스 갱신 (C5, AC13)', () => {
   // 갱신 버튼은 시작일 기본값을 종료일 다음 날로 채우고 포커스한다.
   // 테스트 코드: LC-053
   it.each(['issued_new', 'issued_renewal'] as const)('defaults the start to the day after the end of an %s contract and focuses it', async (status) => {
@@ -286,8 +283,8 @@ describe('라이센스 갱신 (C5, AC13)', () => {
     const c = first(status)
     const { user, dlg } = await openEdit(c)
 
-    // when: 라이센스 갱신을 누른다
-    await user.click(within(statusGroup(dlg)).getByRole('button', { name: '라이센스 갱신' }))
+    // when: 라이선스 갱신을 누른다
+    await user.click(within(statusGroup(dlg)).getByRole('button', { name: '라이선스 갱신' }))
 
     // then: 시작일 기본값이 종료일 다음 날이고 포커스되며 기간은 현재 기간이다
     expect(screen.getAllByRole('dialog')).toHaveLength(1)
@@ -296,7 +293,7 @@ describe('라이센스 갱신 (C5, AC13)', () => {
     expect(startInput(dlg)).toHaveValue(dotted(nextDay(c.licenseEnd!)))
     expect(amountInput(dlg)).toHaveValue(c.term!.amount)
     expect(unitSelect(dlg)).toHaveDisplayValue(c.term!.unit === 'year' ? '년' : '개월')
-    expect(within(statusGroup(dlg)).queryByRole('button', { name: '라이센스 갱신' })).not.toBeInTheDocument()
+    expect(within(statusGroup(dlg)).queryByRole('button', { name: '라이선스 갱신' })).not.toBeInTheDocument()
     expect(within(dlg).getByText('저장하면 발급(갱신)됩니다')).toBeVisible()
   })
 
@@ -307,13 +304,13 @@ describe('라이센스 갱신 (C5, AC13)', () => {
     const c = first(status)
     const renew = vi.spyOn(gateway.licenseContracts, 'renew')
     const { user, dlg } = await openEdit(c)
-    await user.click(within(statusGroup(dlg)).getByRole('button', { name: '라이센스 갱신' }))
+    await user.click(within(statusGroup(dlg)).getByRole('button', { name: '라이선스 갱신' }))
 
-    // when: 라이센스 갱신을 누르고 저장한다
+    // when: 라이선스 갱신을 누르고 저장한다
     await user.click(within(dlg).getByRole('button', { name: '저장' }))
 
-    // then: 갱신 요청이 가고 라이센스를 갱신했습니다 알림, 새 발급(갱신) 행과 종료 행이 보인다
-    expect(await screen.findByText('라이센스를 갱신했습니다.')).toBeVisible()
+    // then: 갱신 요청이 가고 라이선스를 갱신했습니다 알림, 새 발급(갱신) 행과 종료 행이 보인다
+    expect(await screen.findByText('라이선스를 갱신했습니다.')).toBeVisible()
     expect(renew).toHaveBeenCalledWith(c.id, expect.objectContaining({ start: nextDay(c.licenseEnd!), term: c.term }))
     await waitFor(() => {
       const mine = rows().filter((r) => within(r).getAllByRole('cell')[0]?.textContent === c.dealName)
@@ -330,7 +327,7 @@ describe('라이센스 갱신 (C5, AC13)', () => {
     const c = first('issued_new')
     const renew = vi.spyOn(gateway.licenseContracts, 'renew')
     const { user, dlg } = await openEdit(c)
-    await user.click(within(statusGroup(dlg)).getByRole('button', { name: '라이센스 갱신' }))
+    await user.click(within(statusGroup(dlg)).getByRole('button', { name: '라이선스 갱신' }))
 
     await user.clear(startInput(dlg))
     // when: 시작일을 지우고 저장한다
@@ -341,7 +338,7 @@ describe('라이센스 갱신 (C5, AC13)', () => {
     expect(renew).not.toHaveBeenCalled()
   })
 
-  // 라이센스 버튼을 누르지 않으면 계약 칸 수정 요청과 일반 알림으로 저장된다.
+  // 라이선스 버튼을 누르지 않으면 계약 칸 수정 요청과 일반 알림으로 저장된다.
   // 테스트 코드: LC-036
   it('saves with the update request and the plain notice when no license button was pressed', async () => {
     // given: 버튼을 누르지 않은 대화상자

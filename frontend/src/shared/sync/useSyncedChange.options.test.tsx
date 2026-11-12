@@ -36,43 +36,54 @@ function Harness({ onResult, onError, guard, from }: HarnessProps) {
 }
 
 describe('useSyncedChange request options', () => {
-  it('judges from the given state instead of the hook subject', async () => {
+  it('훅의 대상 값이 아니라 넘겨 준 상태를 기준으로 판정한다', async () => {
+    // given: Won 상태를 기준으로 하는 요청 버튼 (전제: 훅 대상은 이미 commit)
     render(<Harness onResult={() => {}} onError={() => {}} from={WON} />)
 
+    // when: 요청 버튼을 누른다
     await userEvent.click(screen.getByRole('button', { name: '요청' }))
 
-    // Won -> Commit asks which status to keep; against the subject (already Commit) it would be a silent no-op.
+    // then: Won -> Commit은 유지할 Status를 묻는 창을 연다(대상 기준이면 이미 Commit이라 아무 일도 없었을 것이다)
     expect(await screen.findByRole('dialog', { name: '함께 바꿀 값 선택' })).toBeVisible()
   })
 
-  it('keeps the old behaviour without options (same value is an independent no-op)', async () => {
+  it('옵션이 없으면 예전 동작을 유지한다(같은 값은 아무 일도 없는 독립 변경이다)', async () => {
+    // given: 옵션 없는 요청 버튼
     const onResult = vi.fn()
     render(<Harness onResult={onResult} onError={() => {}} />)
 
+    // when: 요청 버튼을 누른다
     await userEvent.click(screen.getByRole('button', { name: '요청' }))
 
+    // then: 변경 없는 결과가 전달되고 창은 열리지 않는다
     await waitFor(() => expect(onResult).toHaveBeenCalled())
     expect(onResult.mock.calls[0]?.[0].patch).toEqual({})
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 
-  it('rejects with the guard message and opens no dialog', async () => {
+  it('가드가 문구를 돌려주면 그 문구로 거절하고 창을 열지 않는다', async () => {
+    // given: 막힌 변경 문구를 돌려주는 가드와 Won 기준 요청 버튼
     const onError = vi.fn()
     const guard = vi.fn(() => '막힌 변경입니다.')
     render(<Harness onResult={() => {}} onError={onError} from={WON} guard={guard} />)
 
+    // when: 요청 버튼을 누른다
     await userEvent.click(screen.getByRole('button', { name: '요청' }))
 
+    // then: 가드 문구로 거절되고 창이 없으며 가드는 Status 선택 계획과 기준 상태를 받았다
     await waitFor(() => expect(onError).toHaveBeenCalledWith('막힌 변경입니다.'))
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(guard).toHaveBeenCalledWith(expect.objectContaining({ kind: 'askStatus' }), WON)
   })
 
-  it('opens the dialog when the guard returns null', async () => {
+  it('가드가 null을 돌려주면 창을 연다', async () => {
+    // given: null을 돌려주는 가드와 Won 기준 요청 버튼
     render(<Harness onResult={() => {}} onError={() => {}} from={WON} guard={() => null} />)
 
+    // when: 요청 버튼을 누른다
     await userEvent.click(screen.getByRole('button', { name: '요청' }))
 
+    // then: 값 선택 창이 열린다
     expect(await screen.findByRole('dialog', { name: '함께 바꿀 값 선택' })).toBeVisible()
   })
 })

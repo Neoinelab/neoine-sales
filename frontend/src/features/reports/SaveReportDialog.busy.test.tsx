@@ -43,34 +43,48 @@ async function openEditedDialog(user: UserEvent, buttonName: '저장' | '다른 
   return saveDialog()
 }
 
-describe('저장 요청이 진행 중일 때 대화상자 닫기 (4단계 재리뷰 Minor)', () => {
-  it('keeps the dialog open and cancel disabled while an overwrite is pending, then closes after the response', async () => {
+describe('저장 요청이 진행 중일 때 대화상자 닫기', () => {
+  // 테스트 코드: RS-068
+  it('덮어쓰기 요청 중에는 창이 열린 채 취소가 꺼지고 응답 뒤 닫힌다', async () => {
+    // given: 편집 화면에서 설계를 바꿔 조회하고 저장 창을 연다, 덮어쓰기 응답을 붙잡는다
     const { user } = await openEditor(MINE_PUBLIC.id)
     const dialog = await openEditedDialog(user, '저장')
     const held = holdWrite('update')
 
+    // when: 저장을 누른다
     await user.click(within(dialog).getByRole('button', { name: '저장' }))
 
+    // then: 저장·취소가 꺼지고 Esc로 닫히지 않는다
     await expectLockedWhileBusy(user, dialog)
+    // when: 응답을 푼다
     held.release()
+    // then: 창이 닫히고 리포트가 revision 2가 된다
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
     expect(await gateway.reports.get(MINE_PUBLIC.id)).toMatchObject({ revision: 2 })
   })
 
-  it('keeps the dialog open and cancel disabled while save as is pending, then moves to the new report', async () => {
+  // 테스트 코드: RS-068
+  it('다른 이름으로 저장 요청 중에는 잠기고 응답 뒤 새 리포트로 간다', async () => {
+    // given: 다른 이름으로 저장 창을 연다, 만들기 응답을 붙잡는다
     const { user, location } = await openEditor(MINE_PUBLIC.id)
     const dialog = await openEditedDialog(user, '다른 이름으로 저장')
     const held = holdWrite('create')
 
+    // when: 저장을 누른다
     await user.click(within(dialog).getByRole('button', { name: '저장' }))
 
+    // then: 저장·취소가 꺼지고 Esc로 닫히지 않는다
     await expectLockedWhileBusy(user, dialog)
+    // when: 응답을 푼다
     held.release()
+    // then: 새 리포트 편집 화면으로 가고 창이 닫힌다
     await waitFor(() => expect(location()).toBe('/reports/16/edit'))
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
   })
 
-  it('keeps the dialog open and cancel disabled while a copy is pending, then opens the copy', async () => {
+  // 테스트 코드: RS-068
+  it('복제 요청 중에는 잠기고 응답 뒤 복제본이 열린다', async () => {
+    // given: 목록에서 복제 창을 연다, 복제 응답을 붙잡는다
     const { user, location } = await openList()
     const row = screen.getByText(MINE_PUBLIC.name).closest('tr') ?? screen.getByText(MINE_PUBLIC.name).closest('li')
     await user.click(within(row as HTMLElement).getByRole('button', { name: `${MINE_PUBLIC.name} 메뉴` }))
@@ -79,20 +93,29 @@ describe('저장 요청이 진행 중일 때 대화상자 닫기 (4단계 재리
     const dialog = await saveDialog()
     const held = holdWrite('copy')
 
+    // when: 저장을 누른다
     await user.click(within(dialog).getByRole('button', { name: '저장' }))
 
+    // then: 저장·취소가 꺼지고 Esc로 닫히지 않는다
     await expectLockedWhileBusy(user, dialog)
+    // when: 응답을 푼다
     held.release()
+    // then: 복제본 편집 화면으로 간다
     await waitFor(() => expect(location()).toBe('/reports/16/edit'))
   })
 
-  it('lets the user cancel with the button and Esc when no request is pending', async () => {
+  // 테스트 코드: RS-068
+  it('요청이 없을 때는 버튼과 Esc로 취소할 수 있다', async () => {
+    // when: 저장 창을 연다
     const { user } = await openEditor(MINE_PUBLIC.id)
     const dialog = await openEditedDialog(user, '저장')
 
+    // then: 취소가 켜져 있다
     expect(cancelButton(dialog)).toBeEnabled()
+    // when: Esc를 누른다
     await user.keyboard('{Escape}')
 
+    // then: 창이 닫힌다
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
   })
 })

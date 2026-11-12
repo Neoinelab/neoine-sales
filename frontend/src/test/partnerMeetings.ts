@@ -1,4 +1,4 @@
-/** 파트너 Activity 화면 테스트 공용 도구(운영 코드에서 쓰지 않는다). DOM 계약은 `artifacts/20-agent-outputs/02-tests-part2-frontend.md`. */
+/** 파트너 Activity 화면 테스트 공용 도구(운영 코드에서 쓰지 않는다). */
 import { screen, waitFor, within } from '@testing-library/react'
 import type { UserEvent } from '@testing-library/user-event'
 import { defaultMock } from './fake/default'

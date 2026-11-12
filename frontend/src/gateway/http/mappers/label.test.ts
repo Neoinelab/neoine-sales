@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest'
 import { toLabel } from './label'
 
 describe('toLabel', () => {
+  // Label 응답은 만든 사람을 사용자 참조로 바꾸고 수정 시각은 버린다.
+  // 테스트 코드: CL-092
   it('maps the creator and drops updated_at', () => {
+    // when: 화면 값으로 바꾼다 (전제: 만든 사람이 있는 Label 응답)
     const label = toLabel({
       id: 1,
       category: 'timeline',
@@ -14,6 +17,7 @@ describe('toLabel', () => {
       usage_count: 4,
     })
 
+    // then: 만든 사람·사용 수·만든 시각만 담긴다
     expect(label).toEqual({
       id: 1,
       category: 'timeline',

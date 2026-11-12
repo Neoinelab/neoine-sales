@@ -1,4 +1,4 @@
-"""연락처 일괄 조회 결과에 id가 빠졌을 때(R3 리뷰 Minor 2): KeyError 대신 정해진 도메인 오류.
+"""연락처 일괄 조회 결과에 id가 빠졌을 때: KeyError 대신 정해진 도메인 오류.
 
 Port `get_many`는 없는 id를 결과에서 뺀다. 그 빈 자리를 Deal 행을 조용히 빼지 않고
 `ContactNotFoundError`(404 계열)로 알린다. Fake 저장소가 FK 모사로 삭제를 막으므로, 읽기 결과에서
@@ -35,9 +35,11 @@ def _drop_from_get_many(env: DealEnv, monkeypatch: pytest.MonkeyPatch, gone: Con
 async def test_list_with_a_missing_customer_raises_contact_not_found(
     env: DealEnv, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    """고객 연락처가 조회 결과에서 빠지면 목록 조회는 ContactNotFoundError를 낸다."""
+    # given: 고객 연락처가 일괄 조회에서 빠지는 Deal
     view = await env.new_deal(customer=make_draft(company="한빛은행", name="정민수"))
     _drop_from_get_many(env, monkeypatch, view.item.deal.customer_id)
-
+    # when·then: 목록을 조회하면 연락처 없음 오류다
     with pytest.raises(ContactNotFoundError):
         await env.list.execute(DealQuery())
 
@@ -45,14 +47,17 @@ async def test_list_with_a_missing_customer_raises_contact_not_found(
 async def test_list_with_a_missing_partner_raises_contact_not_found(
     env: DealEnv, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    """파트너 연락처가 조회 결과에서 빠지면 목록 조회는 ContactNotFoundError를 낸다."""
+    # given: 파트너 연락처가 일괄 조회에서 빠지는 Deal
     view = await env.new_deal(
         customer=make_draft(company="한빛은행", name="정민수"),
         partner=make_draft(company="코어테크", name="민지훈"),
     )
     partner_id = view.item.deal.active_partner_id()
-    assert partner_id is not None
+    if partner_id is None:
+        pytest.fail("파트너 연락처가 있는 Deal이어야 한다")
     _drop_from_get_many(env, monkeypatch, partner_id)
-
+    # when·then: 목록을 조회하면 연락처 없음 오류다
     with pytest.raises(ContactNotFoundError):
         await env.list.execute(DealQuery())
 
@@ -60,9 +65,11 @@ async def test_list_with_a_missing_partner_raises_contact_not_found(
 async def test_the_error_is_a_not_found_so_that_it_maps_to_404(
     env: DealEnv, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    """연락처 없음 오류는 NotFoundError 계열이라 404로 매핑된다."""
+    # given: 고객 연락처가 일괄 조회에서 빠지는 Deal
     view = await env.new_deal(customer=make_draft(company="한빛은행", name="정민수"))
     _drop_from_get_many(env, monkeypatch, view.item.deal.customer_id)
-
+    # when·then: 목록을 조회하면 NotFoundError 계열 오류다
     with pytest.raises(NotFoundError):
         await env.list.execute(DealQuery())
 
@@ -70,9 +77,11 @@ async def test_the_error_is_a_not_found_so_that_it_maps_to_404(
 async def test_the_detail_with_a_missing_customer_raises_contact_not_found(
     env: DealEnv, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    """고객 연락처가 빠지면 상세 조회도 ContactNotFoundError를 낸다."""
+    # given: 고객 연락처가 일괄 조회에서 빠지는 Deal
     view = await env.new_deal(customer=make_draft(company="한빛은행", name="정민수"))
     _drop_from_get_many(env, monkeypatch, view.item.deal.customer_id)
-
+    # when·then: 상세를 조회하면 연락처 없음 오류다
     with pytest.raises(ContactNotFoundError):
         await env.get.execute(view.item.deal.id.value)
 
@@ -80,9 +89,11 @@ async def test_the_detail_with_a_missing_customer_raises_contact_not_found(
 async def test_a_gap_in_one_row_does_not_silently_drop_it_from_the_page(
     env: DealEnv, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    """한 행의 연락처가 빠져도 그 행을 조용히 빼지 않고 오류를 낸다."""
+    # given: 정상 Deal 하나와 연락처가 빠지는 Deal 하나
     broken = await env.new_deal(customer=make_draft(company="깨진사", name="깨진이", email=None))
     await env.new_deal(customer=make_draft(company="정상사", name="정상이", email=None))
     _drop_from_get_many(env, monkeypatch, broken.item.deal.customer_id)
-
+    # when·then: 목록을 조회하면 연락처 없음 오류다
     with pytest.raises(ContactNotFoundError):
         await env.list.execute(DealQuery())

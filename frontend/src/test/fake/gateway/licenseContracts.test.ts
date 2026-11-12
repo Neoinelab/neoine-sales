@@ -101,8 +101,7 @@ describe('license contracts Fake: seed', () => {
   // 목록이 둘째 쪽을 필요로 하도록 계약이 50건보다 많다.
   // 테스트 코드: LC-023
   it('has more than fifty contracts so that the list needs a second page', async () => {
-    // given: Fake 게이트웨이의 시드 데이터
-    // when: 계약 전체 건수를 센다
+    // when: 계약 전체 건수를 센다 (전제: Fake 게이트웨이의 시드 데이터)
     const { gateway } = await mockAs('root')
 
     // then: 50건보다 많다
@@ -229,8 +228,7 @@ describe('license contracts Fake: issued contract rules (F)', () => {
   // 시드 계약은 모두 Won Deal에 속해 dealIsWon이 true다.
   // 테스트 코드: LC-028
   it('sets dealIsWon true on every seed contract (all of them belong to Won deals)', async () => {
-    // given: Fake 게이트웨이의 시드 데이터
-    // when: 계약 목록을 읽는다
+    // when: 계약 목록을 읽는다 (전제: Fake 게이트웨이의 시드 데이터)
     const { gateway } = await mockAs('root')
 
     // then: 모든 계약의 dealIsWon이 true다

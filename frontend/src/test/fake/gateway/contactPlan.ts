@@ -1,6 +1,6 @@
 /** Deal 화면의 연락처 선택(ContactDraft) 처리: 먼저 검증·계획(planContact), 문제가 없을 때만 반영(commitContact). */
 
-import { findSamePerson, validateContactInput } from '../../../shared/model/contactRules'
+import { findSamePerson, validateContactInput, WHITESPACE_MESSAGE } from '../../../shared/model/contactRules'
 import type { Contact, ContactDraft, ContactInput, ContactKind } from '../../../shared/model/types'
 import { conflict, notFound, validation } from '../errors'
 import { takeId } from '../store'
@@ -14,22 +14,43 @@ export type ContactPlan =
   | { type: 'existing'; contact: Contact; next: ContactInput; changed: boolean }
   | { type: 'new'; kind: ContactKind; next: ContactInput }
 
-/** 입력 정규화: title은 앞뒤 공백 제거, 빈 email/phone은 null. company/name은 그대로(공백이 있으면 검증에서 거절). */
+/** 입력 정규화: title은 앞뒤 공백 제거, email은 소문자, 빈 email/phone은 null. company/name은 그대로(공백이 있으면 검증에서 거절). */
 export function normalizeContact(input: ContactInput): ContactInput {
   return {
     company: input.company,
     name: input.name,
     title: input.title.trim(),
-    email: input.email === null || input.email === '' ? null : input.email,
+    email: input.email === null || input.email === '' ? null : input.email.toLowerCase(),
     phone: input.phone === null || input.phone === '' ? null : input.phone,
   }
 }
 
-/** 규칙 위반이면 첫 오류 문구로 422. */
+const LIMITS = { company: 200, name: 100, title: 100 } as const
+const NUL = '\u0000'
+const LABELS = { company: '회사명', name: '담당자명', title: '직급', email: '이메일', phone: '전화번호' } as const
+
+const nulMessage = (field: keyof typeof LABELS) => `${LABELS[field]}에는 NUL 문자를 쓸 수 없습니다`
+const tooLong = (field: keyof typeof LIMITS) => `${LABELS[field]}은(는) ${LIMITS[field]}자를 넘을 수 없습니다`
+
+/**
+ * 규칙 위반이면 서버와 같은 순서의 첫 오류 문구로 422(CT-R6):
+ * 공백(회사명·담당자명·이메일·전화) → 이메일(NUL·형식) → 전화(NUL·형식) → 회사명(NUL·빈 값·길이) → 담당자명 → 직급(NUL·길이).
+ */
 export function assertContactValid(input: ContactInput): void {
   const errors = validateContactInput(input)
-  const first = errors.company ?? errors.name ?? errors.email ?? errors.phone
-  if (first) throw validation(first)
+  const whitespace = [errors.company, errors.name, errors.email, errors.phone].find((m) => m === WHITESPACE_MESSAGE)
+  if (whitespace) throw validation(whitespace)
+  if (input.email?.includes(NUL)) throw validation(nulMessage('email'))
+  if (errors.email) throw validation(errors.email)
+  if (input.phone?.includes(NUL)) throw validation(nulMessage('phone'))
+  if (errors.phone) throw validation(errors.phone)
+  for (const field of ['company', 'name'] as const) {
+    if (input[field].includes(NUL)) throw validation(nulMessage(field))
+    if (errors[field]) throw validation(errors[field] as string)
+    if (Array.from(input[field]).length > LIMITS[field]) throw validation(tooLong(field))
+  }
+  if (input.title.includes(NUL)) throw validation(nulMessage('title'))
+  if (Array.from(input.title).length > LIMITS.title) throw validation(tooLong('title'))
 }
 
 function sameFields(a: ContactInput, b: ContactInput): boolean {
@@ -80,8 +101,14 @@ export function commitContact(ctx: MockContext, plan: ContactPlan, byId: number)
   const after = infoText(plan.contact)
   for (const deal of dealsOfContact(data, plan.contact.id)) {
     deal.updatedAt = now
-    const label = deal.customerContactId === plan.contact.id ? '고객' : '파트너'
-    logHistory(ctx, deal.code, byId, 'contact', `${label} 연락처 정보 (${plan.contact.company} ${plan.contact.name})`, before, after)
+    // (Deal, 역할)마다 한 건: 같은 연락처를 고객과 파트너로 함께 쓰면 두 건, 비활성 파트너 링크도 센다(CT-R10).
+    const roles = [
+      ...(deal.customerContactId === plan.contact.id ? ['고객'] : []),
+      ...(deal.partnerLinks.some((l) => l.contactId === plan.contact.id) ? ['파트너'] : []),
+    ]
+    for (const label of roles) {
+      logHistory(ctx, deal.code, byId, 'contact', `${label} 연락처 정보 (${plan.contact.company} ${plan.contact.name})`, before, after)
+    }
   }
   return plan.contact.id
 }

@@ -5,7 +5,7 @@ import { isValidAmount } from '../../../shared/model/money'
 import { finalizePlan, planChange, type CoChange } from '../../../shared/model/sync'
 import type { CodeSet, Deal } from '../../../shared/model/types'
 import { clone, type MockContext } from './context'
-import { validation } from '../errors'
+import { requestValidation, validation } from '../errors'
 import { logDealDiff } from './historyLog'
 
 type ChangedFields = Partial<Pick<Deal, 'statusKey' | 'forecastKey' | 'revenueAmount' | 'revenueDate'>>
@@ -35,11 +35,14 @@ export function assertCodeExists(ctx: MockContext, request: ApplyChangeRequest):
 export function planDealChange(ctx: MockContext, deal: Deal, request: ApplyChangeRequest): ChangeOutcome {
   const { change, resolution } = request
   if (change.field === 'revenueAmount') {
+    // 서버: 정수가 아닌 값(1.5 등)은 요청 형식 오류(422 request-validation), 범위 밖 정수만 값 오류다.
+    if (!Number.isInteger(change.value)) throw requestValidation()
     if (!isValidAmount(change.value)) throw validation('매출금액은 1원 이상의 정수로 입력하세요.')
     return { patch: { revenueAmount: change.value }, coChanged: [], notice: null }
   }
   if (change.field === 'revenueDate') {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(change.value)) throw validation('Expected Close를 입력하세요.')
+    // 서버: 날짜 형식이 아닌 값('' 포함)은 요청 형식 오류(422 request-validation)다.
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(change.value)) throw requestValidation()
     return { patch: { revenueDate: change.value }, coChanged: [], notice: null }
   }
 

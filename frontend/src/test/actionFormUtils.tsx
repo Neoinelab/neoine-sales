@@ -24,7 +24,7 @@ export async function openRegisterForm(no: number, title: string) {
   return { ...view, dialog, form, table }
 }
 
-/** 동기화 팝업이 모두 닫히고 Action 추가 팝업 하나만 남았는지 본다(겹친 팝업 중 맨 위만 닫혀야 한다, AC-14). */
+/** 동기화 팝업이 모두 닫히고 Action 추가 팝업 하나만 남았는지 본다(겹친 팝업 중 맨 위만 닫혀야 한다). */
 export function expectOnlyActionPopup() {
   const dialogs = screen.getAllByRole('dialog')
   expect(dialogs).toHaveLength(1)

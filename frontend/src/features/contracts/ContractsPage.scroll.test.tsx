@@ -6,7 +6,7 @@ import { allContracts } from '../../test/licenseContracts'
 import { renderAt } from '../../test/mockApp'
 import { pinClock, unpinClock } from '../../test/partnerMeetings'
 
-/** 계약관리 50건씩 무한 스크롤(AC19, D8): 서버 total 기준이며 겹친 행은 id로 한 번만 보인다. */
+/** 계약관리 50건씩 무한 스크롤(D8): 서버 total 기준이며 겹친 행은 id로 한 번만 보인다. */
 const LOAD = { timeout: 8000 }
 const PAGE_SIZE = 50
 
@@ -29,13 +29,13 @@ const waitForRows = async (count: number) => {
   await waitFor(() => expect(rows()).toHaveLength(count), LOAD)
 }
 
-describe('무한 스크롤 (AC19)', () => {
+describe('무한 스크롤', () => {
   // 시드 계약이 한 쪽(50건)보다 많은지 확인한다.
   it('needs more than one page of seed contracts', () => {
-    // given: Fake 게이트웨이의 시드 계약
-    // when: 건수를 센다
+    // when: 시드 계약 건수를 센다 (전제: Fake 게이트웨이의 시드 계약)
+    const count = total
     // then: 50건보다 많다
-    expect(total).toBeGreaterThan(PAGE_SIZE)
+    expect(count).toBeGreaterThan(PAGE_SIZE)
   })
 
   // 50건씩 읽고 끝이 보이면 다음 50건을 잇는다.

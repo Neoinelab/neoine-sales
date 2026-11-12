@@ -1,4 +1,4 @@
-"""APP_SETTINGS_ENCRYPTION_KEY: AD 바인드 비밀번호 암호화 키 설정 검증 (AC9).
+"""APP_SETTINGS_ENCRYPTION_KEY: AD 바인드 비밀번호 암호화 키 설정 검증 (PL-R25·R26, PL-044·045·048).
 
 모든 프로파일에서 필수이고 Fernet 키 형식(URL-safe base64로 풀면 32바이트)이어야 한다. product는
 `.env.example`에 적힌 예시 키를 거부한다. 오류 메시지에 키 값이 나오지 않는다. 키는 jwt_secret과
@@ -65,8 +65,13 @@ def _set(monkeypatch: pytest.MonkeyPatch, env: dict[str, str]) -> None:
 def test_missing_encryption_key_fails_in_every_profile(
     monkeypatch: pytest.MonkeyPatch, profile: str
 ) -> None:
-    _set(monkeypatch, PROFILE_ENVS[profile])
+    """암호화 키가 없으면 모든 프로파일에서 기동이 실패한다.
 
+    테스트 코드: PL-044
+    """
+    # given: 암호화 키 없이 그 프로파일 환경을 만든다
+    _set(monkeypatch, PROFILE_ENVS[profile])
+    # when·then: 설정을 읽는다 → settings_encryption_key 검증 오류로 실패한다
     with pytest.raises(ValidationError, match="settings_encryption_key"):
         get_settings()
 
@@ -74,8 +79,13 @@ def test_missing_encryption_key_fails_in_every_profile(
 def test_the_jwt_secret_is_not_reused_as_the_encryption_key(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("APP_JWT_SECRET", TEST_FERNET_KEY)  # jwt_secret만 있으면 부족하다
+    """jwt_secret을 암호화 키로 대신 쓰지 않는다.
 
+    테스트 코드: PL-045
+    """
+    # given: 유효한 키 형식 값을 jwt_secret에만 넣었다
+    monkeypatch.setenv("APP_JWT_SECRET", TEST_FERNET_KEY)
+    # when·then: 설정을 읽는다 → 암호화 키가 없다는 검증 오류로 실패한다
     with pytest.raises(ValidationError, match="settings_encryption_key"):
         get_settings()
 
@@ -87,10 +97,15 @@ def test_the_jwt_secret_is_not_reused_as_the_encryption_key(
 def test_a_valid_key_is_accepted_and_kept_secret(
     monkeypatch: pytest.MonkeyPatch, profile: str, settings_type: type
 ) -> None:
+    """유효한 암호화 키는 통과하고 설정 표현에 나오지 않는다.
+
+    테스트 코드: PL-049
+    """
+    # given: 유효한 암호화 키
     _set(monkeypatch, {**PROFILE_ENVS[profile], "APP_SETTINGS_ENCRYPTION_KEY": TEST_FERNET_KEY})
-
+    # when: 설정을 읽는다
     settings = get_settings()
-
+    # then: 통과하고 repr·str에 키가 없다
     assert isinstance(settings, settings_type)
     assert settings.settings_encryption_key.get_secret_value() == TEST_FERNET_KEY
     assert TEST_FERNET_KEY not in repr(settings)
@@ -118,24 +133,36 @@ MALFORMED = {
 def test_malformed_encryption_key_fails_without_echoing_the_value(
     monkeypatch: pytest.MonkeyPatch, profile: str, name: str
 ) -> None:
+    """형식이 틀린 암호화 키는 값을 보이지 않고 실패한다.
+
+    테스트 코드: PL-045
+    """
+    # given: 32바이트가 아니거나 URL-safe base64가 아닌 키
     value = MALFORMED[name]
     _set(monkeypatch, {**PROFILE_ENVS[profile], "APP_SETTINGS_ENCRYPTION_KEY": value})
-
+    # when: 설정을 읽는다
     with pytest.raises(ValidationError, match="settings_encryption_key") as caught:
         get_settings()
+    # then: 검증 오류로 실패하고 오류 문구에 키 값이 없다
 
     if len(value) >= 8:  # 값 자체가 메시지에 들어 있지 않다(짧은 값은 우연히 겹칠 수 있다)
         assert value not in str(caught.value)
 
 
 def test_product_rejects_example_encryption_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    """product는 예시 암호화 키를 거부한다.
+
+    테스트 코드: PL-048
+    """
+    # given: .env.example의 예시 키를 쓴 product 환경
     _set(
         monkeypatch,
         {**PRODUCT_ENV, "APP_SETTINGS_ENCRYPTION_KEY": EXAMPLE_SETTINGS_ENCRYPTION_KEY},
     )
-
+    # when: 설정을 읽는다
     with pytest.raises(ValidationError, match="settings_encryption_key") as caught:
         get_settings()
+    # then: 검증 오류로 실패하고 오류에 키 값이 없다
 
     assert EXAMPLE_SETTINGS_ENCRYPTION_KEY not in str(caught.value)
 
@@ -144,28 +171,39 @@ def test_product_rejects_example_encryption_key(monkeypatch: pytest.MonkeyPatch)
 def test_local_and_dev_accept_the_example_key(
     monkeypatch: pytest.MonkeyPatch, profile: str
 ) -> None:
+    """local·dev는 예시 암호화 키를 쓸 수 있다.
+
+    테스트 코드: PL-048
+    """
+    # given: 예시 키를 쓴 local·dev 환경
     _set(
         monkeypatch,
         {**PROFILE_ENVS[profile], "APP_SETTINGS_ENCRYPTION_KEY": EXAMPLE_SETTINGS_ENCRYPTION_KEY},
     )
-
-    assert get_settings().settings_encryption_key.get_secret_value() == (
-        EXAMPLE_SETTINGS_ENCRYPTION_KEY
-    )
+    # when: 설정을 읽는다
+    settings = get_settings()
+    # then: 통과한다
+    assert settings.settings_encryption_key.get_secret_value() == (EXAMPLE_SETTINGS_ENCRYPTION_KEY)
 
 
 def test_the_example_key_is_a_well_formed_fernet_key() -> None:
+    """예시 키는 형식이 맞는 Fernet 키(32바이트)다."""
+    # when: 예시 키를 푼다
     decoded = base64.urlsafe_b64decode(EXAMPLE_SETTINGS_ENCRYPTION_KEY.encode())
-
+    # then: 32바이트다
     assert len(decoded) == FERNET_KEY_BYTES
 
 
 def test_example_key_constant_matches_env_example() -> None:
-    """product 거부 예시 키와 `.env.example`에 적힌 키가 같다(복사한 채 배포하는 사고 방지)."""
+    """product 거부 예시 키와 `.env.example`에 적힌 키가 같다(복사한 채 배포하는 사고 방지).
+
+    테스트 코드: PL-048
+    """
+    # given: backend/.env.example의 내용
     text = (BACKEND / ".env.example").read_text(encoding="utf-8")
-
+    # when: 암호화 키 줄을 찾는다
     match = re.search(r"^APP_SETTINGS_ENCRYPTION_KEY=(\S+)\s*$", text, flags=re.MULTILINE)
-
+    # then: 코드의 예시 키 상수와 같다
     assert match is not None, ".env.example에 APP_SETTINGS_ENCRYPTION_KEY가 있어야 한다"
     assert match.group(1) == EXAMPLE_SETTINGS_ENCRYPTION_KEY
 
@@ -181,15 +219,21 @@ def _same_bytes_other_text(key: str) -> str:
 
 
 def test_product_compares_the_example_key_by_decoded_bytes(monkeypatch: pytest.MonkeyPatch) -> None:
+    """문자열은 다르지만 풀면 같은 바이트인 예시 키 변형도 product에서 거부한다.
+
+    테스트 코드: PL-048
+    """
+    # given: 예시 키와 같은 바이트로 풀리는 다른 표기
     variant = _same_bytes_other_text(EXAMPLE_SETTINGS_ENCRYPTION_KEY)
     assert variant != EXAMPLE_SETTINGS_ENCRYPTION_KEY
     assert base64.urlsafe_b64decode(variant) == base64.urlsafe_b64decode(
         EXAMPLE_SETTINGS_ENCRYPTION_KEY
     )
     _set(monkeypatch, {**PRODUCT_ENV, "APP_SETTINGS_ENCRYPTION_KEY": variant})
-
+    # when: product 설정을 읽는다
     with pytest.raises(ValidationError, match="settings_encryption_key") as caught:
         get_settings()
+    # then: 검증 오류로 실패하고 두 표기 모두 오류에 없다
 
     assert variant not in str(caught.value)
     assert EXAMPLE_SETTINGS_ENCRYPTION_KEY not in str(caught.value)
@@ -198,8 +242,13 @@ def test_product_compares_the_example_key_by_decoded_bytes(monkeypatch: pytest.M
 def test_example_key_with_a_stray_character_is_a_format_error(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """알파벳 밖 문자가 끼어든 예시 키는 형식 오류다.
+
+    테스트 코드: PL-045
+    """
+    # given: 예시 키 중간에 "."을 끼운 값
     broken = EXAMPLE_SETTINGS_ENCRYPTION_KEY[:10] + "." + EXAMPLE_SETTINGS_ENCRYPTION_KEY[10:]
     _set(monkeypatch, {**PRODUCT_ENV, "APP_SETTINGS_ENCRYPTION_KEY": broken})
-
+    # when·then: product 설정을 읽는다 → Fernet 키 형식 오류로 실패한다
     with pytest.raises(ValidationError, match="Fernet 키 형식"):
         get_settings()

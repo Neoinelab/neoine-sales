@@ -2,7 +2,7 @@
 
 받은 `ResolvedReport`를 기록하고 미리 정한 `ReportRows`(또는 예외)를 돌려준다. SQL 구현의 동작은
 `tests/unit/repositories/test_report_query_*_contract.py`가 실제 DB로 검증한다(Fake와 SQL이 같은
-결과를 내는 공통 계약은 없다. 계획 4.7 "Fake 방침").
+결과를 내는 공통 계약은 없다).
 
 domain/application 모듈은 호출 시점에 가져온다(구현 전에도 FakeUnitOfWork를 쓰는 다른 테스트의
 수집이 막히지 않게).

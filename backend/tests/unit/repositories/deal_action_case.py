@@ -1,4 +1,4 @@
-"""DealActionRepository 계약 테스트 공용 case(Fake와 SQL 구현 양쪽, P2 모델).
+"""DealActionRepository 계약 테스트 공용 case(Fake와 SQL 구현 양쪽).
 
 Action은 Deal(code) 아래에 있으므로 case가 필요한 Deal·담당자 행을 먼저 만든다. 저장소 준비는
 `deal_case.py`와 같다(카탈로그 시드 포함: 스냅숏 key는 codes에 있어야 한다).

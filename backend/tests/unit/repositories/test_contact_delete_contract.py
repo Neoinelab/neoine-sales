@@ -1,4 +1,4 @@
-"""ContactRepository.delete와 DealRepository.count_by_contacts 계약(AC-22).
+"""ContactRepository.delete와 DealRepository.count_by_contacts 계약.
 
 참조하는 Deal이 있으면 ContactInUseError, 없으면 물리 삭제. Fake(`restrict_delete_by`로 FK
 RESTRICT 모사)와 SQL 구현(실제 PostgreSQL FK `fk_deals_customer_id_contacts`,
@@ -23,67 +23,91 @@ if TYPE_CHECKING:
 
 
 async def test_delete_of_a_contact_without_deals_removes_the_row(contacts: ContactCase) -> None:
+    """Deal이 없는 연락처를 삭제하면 행이 사라진다."""
+    # given: Deal이 없는 연락처
     contact = make_customer()
     await contacts.contacts.add(contact)
 
+    # when: 삭제한다 (전제: Fake·SQL 공통)
     await contacts.contacts.delete(contact.id)
 
+    # then: 조회하면 없음 오류가 난다
     with pytest.raises(ContactNotFoundError):
         await contacts.contacts.get(contact.id)
 
 
 async def test_delete_removes_only_the_requested_contact(contacts: ContactCase) -> None:
+    """삭제는 요청한 연락처만 지운다."""
+    # given: 연락처 두 개
     kept, removed = make_customer(company="kept"), make_partner(company="removed")
     await contacts.add_all(kept, removed)
 
+    # when: 하나를 삭제한다 (전제: Fake·SQL 공통)
     await contacts.contacts.delete(removed.id)
 
+    # then: 다른 연락처는 남아 있다
     assert (await contacts.contacts.get(kept.id)).id == kept.id
 
 
 async def test_delete_of_a_missing_contact_raises_not_found(contacts: ContactCase) -> None:
+    """없는 연락처를 삭제하면 없음 오류다."""
+    # when·then: 없는 id를 삭제하면 ContactNotFoundError가 난다 (전제: Fake·SQL 공통)
     with pytest.raises(ContactNotFoundError):
         await contacts.contacts.delete(ContactId(new_id()))
 
 
 async def test_deleting_twice_raises_not_found_the_second_time(contacts: ContactCase) -> None:
+    """두 번 삭제하면 두 번째는 없음 오류다."""
+    # given: 이미 삭제한 연락처
     contact = make_customer()
     await contacts.contacts.add(contact)
     await contacts.contacts.delete(contact.id)
 
+    # when·then: 다시 삭제하면 ContactNotFoundError가 난다 (전제: Fake·SQL 공통)
     with pytest.raises(ContactNotFoundError):
         await contacts.contacts.delete(contact.id)
 
 
 async def test_update_of_a_deleted_contact_raises_not_found(contacts: ContactCase) -> None:
+    """삭제한 연락처를 수정하면 없음 오류다."""
+    # given: 이미 삭제한 연락처
     contact = make_customer()
     await contacts.contacts.add(contact)
     await contacts.contacts.delete(contact.id)
 
+    # when·then: 수정하면 ContactNotFoundError가 난다 (전제: Fake·SQL 공통)
     with pytest.raises(ContactNotFoundError):
         await contacts.contacts.update(contact)
 
 
 async def test_a_deleted_contact_id_can_be_added_again(contacts: ContactCase) -> None:
+    """삭제한 연락처의 id로 다시 추가할 수 있다."""
+    # given: 이미 삭제한 연락처
     contact = make_customer()
+    # when: 같은 연락처를 다시 추가한다 (전제: Fake·SQL 공통)
     await contacts.contacts.add(contact)
     await contacts.contacts.delete(contact.id)
 
     await contacts.contacts.add(contact)
 
+    # then: 조회할 수 있다
     assert (await contacts.contacts.get(contact.id)).id == contact.id
 
 
 async def test_delete_of_a_contact_used_as_the_customer_raises_in_use_and_keeps_the_row(
     contacts: ContactCase,
 ) -> None:
+    """고객으로 쓰이는 연락처를 삭제하면 사용 중 오류이고 행은 남는다."""
+    # given: Deal의 고객으로 쓰이는 연락처
     customer = make_customer()
     await contacts.contacts.add(customer)
     await contacts.add_deal(customer)
 
+    # when·then: 삭제하면 ContactInUseError가 난다 (전제: Fake·SQL 공통)
     with pytest.raises(ContactInUseError) as error:
         await contacts.contacts.delete(customer.id)
 
+    # then: InvalidStateError 종류이고 연락처는 그대로 있다
     assert isinstance(error.value, InvalidStateError)
     assert (await contacts.contacts.get(customer.id)).id == customer.id
 
@@ -91,37 +115,50 @@ async def test_delete_of_a_contact_used_as_the_customer_raises_in_use_and_keeps_
 async def test_delete_of_a_contact_used_as_the_partner_raises_in_use(
     contacts: ContactCase,
 ) -> None:
+    """파트너로 쓰이는 연락처를 삭제하면 사용 중 오류이고 행은 남는다."""
+    # given: Deal의 파트너로 쓰이는 연락처
     customer, partner = make_customer(), make_partner()
     await contacts.add_all(customer, partner)
     await contacts.add_deal(customer, partner)
 
+    # when·then: 삭제하면 ContactInUseError가 난다 (전제: Fake·SQL 공통)
     with pytest.raises(ContactInUseError):
         await contacts.contacts.delete(partner.id)
 
+    # then: 연락처는 그대로 있다
     assert (await contacts.contacts.get(partner.id)).id == partner.id
 
 
 async def test_repository_stays_usable_after_an_in_use_conflict(contacts: ContactCase) -> None:
+    """사용 중 오류 뒤에도 저장소를 계속 쓸 수 있다."""
+    # given: 사용 중인 연락처와 쓰이지 않는 연락처
     busy, free = make_customer(company="busy"), make_customer(company="free")
     await contacts.add_all(busy, free)
     await contacts.add_deal(busy)
+    # when·then: 사용 중인 연락처 삭제는 ContactInUseError다 (전제: Fake·SQL 공통)
     with pytest.raises(ContactInUseError):
         await contacts.contacts.delete(busy.id)
 
+    # when: 쓰이지 않는 연락처를 삭제한다
     await contacts.contacts.delete(free.id)
 
+    # then: 그 연락처는 조회되지 않는다
     with pytest.raises(ContactNotFoundError):
         await contacts.contacts.get(free.id)
 
 
 async def test_delete_succeeds_once_the_referencing_deal_is_deleted(contacts: ContactCase) -> None:
+    """참조하던 Deal을 지우면 연락처를 삭제할 수 있다."""
+    # given: Deal을 삭제해 참조가 없어진 연락처
     customer = make_customer()
     await contacts.contacts.add(customer)
     deal = await contacts.add_deal(customer)
     await contacts.deals.delete(deal.id)
 
+    # when: 연락처를 삭제한다 (전제: Fake·SQL 공통)
     await contacts.contacts.delete(customer.id)
 
+    # then: 조회되지 않는다
     with pytest.raises(ContactNotFoundError):
         await contacts.contacts.get(customer.id)
 
@@ -132,19 +169,25 @@ async def test_delete_succeeds_once_the_referencing_deal_is_deleted(contacts: Co
 async def test_count_by_contacts_counts_customer_and_partner_references(
     contacts: ContactCase,
 ) -> None:
+    """연락처별 Deal 수는 고객·파트너 참조를 모두 센다."""
+    # given: Deal 두 건이 고객·파트너로 참조하는 연락처들과 참조 없는 연락처
     customer, partner, idle = make_customer(), make_partner(), make_customer(company="idle")
     await contacts.add_all(customer, partner, idle)
     await contacts.add_deal(customer, partner, code="20261016-D001")
     await contacts.add_deal(customer, code="20261016-D002")
 
+    # when: 연락처별 Deal 수를 센다 (전제: Fake·SQL 공통)
     counts = await contacts.deals.count_by_contacts([customer.id, partner.id, idle.id])
 
+    # then: 참조 수대로 2·1·0이다
     assert counts == {customer.id: 2, partner.id: 1, idle.id: 0}
 
 
 async def test_count_by_contacts_counts_a_deal_using_one_contact_twice_once(
     contacts: ContactCase,
 ) -> None:
+    """한 Deal이 같은 연락처를 고객과 파트너로 쓰면 1건으로 센다."""
+    # given: 고객과 파트너로 같은 연락처를 쓰는 Deal
     contact = make_customer()
     await contacts.contacts.add(contact)
     deal = make_deal(code="20261016-BOTH", customer_id=contact.id, partner_id=contact.id)
@@ -152,24 +195,36 @@ async def test_count_by_contacts_counts_a_deal_using_one_contact_twice_once(
     await ensure_users(contacts.users, deal.details.owner_user_id)
     await contacts.deals.add(deal)
 
+    # when: 연락처별 Deal 수를 센다 (전제: Fake·SQL 공통)
     counts = await contacts.deals.count_by_contacts([contact.id])
 
+    # then: 1건이다
     assert counts == {contact.id: 1}
 
 
 async def test_count_by_contacts_returns_zero_for_unknown_ids_and_an_empty_map_for_none(
     contacts: ContactCase,
 ) -> None:
+    """모르는 id는 0건, 빈 목록은 빈 맵을 돌려준다."""
+    # given: 어느 Deal도 참조하지 않는 id
     unknown = ContactId(new_id())
 
-    assert await contacts.deals.count_by_contacts([unknown]) == {unknown: 0}
+    # when: 없는 id와 빈 목록으로 연락처별 Deal 수를 센다 (전제: Fake·SQL 공통)
+    result = await contacts.deals.count_by_contacts([unknown])
+    # then: 없는 id는 0건이고 빈 목록은 빈 맵이다
+    assert result == {unknown: 0}
     assert await contacts.deals.count_by_contacts([]) == {}
 
 
 async def test_count_by_contacts_forgets_deleted_deals(contacts: ContactCase) -> None:
+    """삭제한 Deal은 연락처별 Deal 수에서 빠진다."""
+    # given: Deal을 삭제한 연락처
     customer = make_customer()
     await contacts.contacts.add(customer)
     deal = await contacts.add_deal(customer)
     await contacts.deals.delete(deal.id)
 
-    assert await contacts.deals.count_by_contacts([customer.id]) == {customer.id: 0}
+    # when: 연락처별 Deal 수를 센다
+    result = await contacts.deals.count_by_contacts([customer.id])
+    # then: 0건이다 (전제: Fake·SQL 공통)
+    assert result == {customer.id: 0}

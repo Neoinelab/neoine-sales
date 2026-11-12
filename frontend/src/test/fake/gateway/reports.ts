@@ -134,7 +134,7 @@ export function violations(catalog: ReportCatalog, input: ReportQueryInput): Rep
     issues.push({
       location: ['row_limit'],
       code: 'row-limit-invalid',
-      message: `최대 행 수는 ${catalog.limits.rowLimits.join(', ')} 중 하나여야 합니다`,
+      message: `행 수 제한은 ${catalog.limits.rowLimits.join(', ')} 중 하나여야 합니다`,
     })
   }
   return issues
@@ -191,6 +191,26 @@ function cellOf(column: ReportResultColumn, r: number): ReportCell {
   }
 }
 
+/** 합계 행: 서버(RQ-R32)처럼 그룹핑하고 집계 컬럼이 하나 이상일 때만 준다. 집계 칸은 합성 행의 값으로 계산한다. */
+function totalsOf(columns: ReportResultColumn[], rows: ReportCell[][]): ReportCell[] | null {
+  if (!columns.some((c) => c.group) || columns.every((c) => c.group)) return null
+  return columns.map((column, i) => {
+    if (column.group) return null
+    const values = rows.map((row) => row[i] as number)
+    const sum = values.reduce((total, value) => total + value, 0)
+    switch (column.aggregate) {
+      case 'avg':
+        return Math.round((sum / values.length) * 100) / 100
+      case 'min':
+        return Math.min(...values)
+      case 'max':
+        return Math.max(...values)
+      default:
+        return sum
+    }
+  })
+}
+
 function synthesize(ctx: MockContext, catalog: ReportCatalog, input: ReportQueryInput): ReportResult {
   const grouped = input.columns.some((c) => c.group)
   const columns: ReportResultColumn[] = input.columns.map((column, index) => {
@@ -211,12 +231,7 @@ function synthesize(ctx: MockContext, catalog: ReportCatalog, input: ReportQuery
     }
   })
   const rows = Array.from({ length: SYNTHETIC_ROWS }, (_, r) => columns.map((column) => cellOf(column, r)))
-  const totals: ReportCell[] | null = grouped
-    ? columns.map((column, i) => {
-        if (column.group || (column.aggregate !== 'sum' && column.aggregate !== 'count' && column.aggregate !== 'count_distinct')) return null
-        return rows.reduce((sum, row) => sum + (row[i] as number), 0)
-      })
-    : null
+  const totals = totalsOf(columns, rows)
   return {
     ...scopeOf(catalog, input, columns),
     columns,

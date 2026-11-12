@@ -28,7 +28,7 @@ export interface RenderAtOptions {
   userId?: number
   /** 'sample'(기본)은 테스트 픽스처 시드, 'empty'는 앱 기본(업무 데이터 없음) 시드, 'legacy-solution'은 모든 Deal의 Solution이 빈 레거시 시드. */
   seed?: 'sample' | 'empty' | 'legacy-solution'
-  /** 저장 리포트를 이 목록으로 채우고 시작한다(Reports 3단계). 기본은 비어 있다. */
+  /** 저장 리포트를 이 목록으로 채우고 시작한다. 기본은 비어 있다. */
   savedReports?: SavedReport[]
 }
 

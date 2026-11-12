@@ -96,14 +96,14 @@ describe('행 클릭 -> 계약 수정 (B1, AC11)', () => {
   it('opens the dialog from the keyboard with Enter on the focused row', async () => {
     // given: sales로 연 계약 목록
     const c = pick()
-    // when: 행에 포커스하고 Enter를 누른다
     await open()
 
+    // when: 행에 포커스하고 Enter를 누른다
     rowOf(c).focus()
-    // then: 계약 수정 대화상자가 열린다
     expect(rowOf(c)).toHaveFocus()
     await userEvent.keyboard('{Enter}')
 
+    // then: 계약 수정 대화상자가 열린다
     expect(await dialog(`계약 수정 - ${c.dealName}`)).toBeVisible()
   })
 
@@ -256,9 +256,11 @@ describe('첨부 파일 (B6, AC20)', () => {
     expect(await within(dlg).findByRole('button', { name: '제안서.pdf' })).toBeVisible()
     expect(send.mock.calls[0]?.[0]).toBe(c.id)
     expect(send.mock.calls[0]?.[1]).toMatchObject({ description: '제안서 초안', onExists: 'ask' })
+    // when: 취소로 닫고 같은 계약을 다시 연다
     await user.click(within(dlg).getByRole('button', { name: '취소' }))
     await waitFor(() => expect(cellsOf(c)[0]).toBeVisible())
     await user.click(cellsOf(c)[1]!)
+    // then: 업로드한 파일이 목록에 보인다
     expect(await within(await dialog(`계약 수정 - ${c.dealName}`)).findByRole('button', { name: '제안서.pdf' })).toBeVisible()
   })
 
@@ -282,16 +284,18 @@ describe('첨부 파일 (B6, AC20)', () => {
     // given: 계약 대화상자의 업로드 폼
     const { user, dlg } = await openEdit(clean())
 
-    // when: 파일 없이, 설명 101자로 각각 업로드한다
+    // when: 파일 없이 업로드한다
     await user.click(within(dlg).getByRole('button', { name: '업로드' }))
     // then: 요청이 가지 않고 문구가 alert로 보인다
     expect(await within(dlg).findByRole('alert')).toHaveTextContent('업로드할 파일을 선택하세요.')
 
+    // when: 파일을 고르고 설명 101자로 업로드한다
     await user.upload(within(dlg).getByLabelText('파일'), file('메모.pdf'))
     await user.click(within(dlg).getByLabelText('설명'))
     await user.paste('가'.repeat(101))
     expect(within(dlg).getByText('101/100')).toBeVisible()
     await user.click(within(dlg).getByRole('button', { name: '업로드' }))
+    // then: 설명 길이 문구가 alert로 보인다
     expect(await within(dlg).findByRole('alert')).toHaveTextContent('설명은 100자 이내로 입력하세요.')
   })
 
@@ -304,13 +308,15 @@ describe('첨부 파일 (B6, AC20)', () => {
     const send = vi.spyOn(gateway.licenseContracts.attachments, 'upload')
     const { dlg } = await openEdit(c)
 
-    // when: a.pdf를 올려 409를 받고 교체를 누른다
+    // when: a.pdf를 올려 409를 받는다
     await upload(dlg, file(name, 5000), '교체본')
 
+    // then: 같은 이름의 파일 대화상자가 뜬다
     const confirm = await screen.findByRole('dialog', { name: '같은 이름의 파일' })
-    // then: 같은 이름의 파일 대화상자가 떴고 replace 요청 뒤 교체되었습니다 알림이 보인다
     expect(confirm).toHaveTextContent(`같은 이름의 파일이 이미 있습니다: ${name}`)
+    // when: 교체를 누른다
     await userEvent.click(within(confirm).getByRole('button', { name: '교체' }))
+    // then: replace 요청 뒤 교체본이 목록에 하나만 보인다
     await waitFor(() => expect(screen.queryByRole('dialog', { name: '같은 이름의 파일' })).not.toBeInTheDocument())
     await waitFor(() => expect(within(dlg).getByRole('row', { name: new RegExp(name) })).toHaveTextContent('교체본'))
     expect(send.mock.calls.map((call) => call[1].onExists)).toEqual(['ask', 'replace'])
@@ -327,10 +333,10 @@ describe('첨부 파일 (B6, AC20)', () => {
     const send = vi.spyOn(gateway.licenseContracts.attachments, 'upload')
     const { dlg } = await openEdit(c)
 
+    // when: a.pdf를 올려 409를 받고 건너뛰기를 누른다
     await upload(dlg, file(name, 5000), '건너뛸 설명')
     await userEvent.click(within(await screen.findByRole('dialog', { name: '같은 이름의 파일' })).getByRole('button', { name: '건너뛰기' }))
 
-    // when: a.pdf를 올려 409를 받고 건너뛰기를 누른다
     await waitFor(() => expect(screen.queryByRole('dialog', { name: '같은 이름의 파일' })).not.toBeInTheDocument())
     // then: skip 요청이 가고 목록은 그대로다
     expect(send.mock.calls.at(-1)?.[1].onExists).toBe('skip')
@@ -363,17 +369,18 @@ describe('첨부 파일 (B6, AC20)', () => {
     const name = (await filesOf(c))[0]!.fileName
     const { user, dlg } = await openEdit(c, 'admin')
 
-    // when: 삭제를 눌러 확인 창에서 취소하고, 다시 삭제를 눌러 삭제한다
+    // when: 삭제를 눌러 확인 창에서 취소한다
     await user.click(await within(dlg).findByRole('button', { name: `${name} 삭제` }))
     const cancelDialog = await screen.findByRole('dialog', { name: '첨부 파일 삭제' })
-    // then: 취소하면 요청이 없고 확인하면 삭제되었습니다 알림과 함께 목록에서 사라진다
     expect(cancelDialog).toHaveTextContent(name)
     await user.click(within(cancelDialog).getByRole('button', { name: '취소' }))
+    // then: 파일이 그대로 남는다
     expect(within(dlg).getByRole('button', { name })).toBeVisible()
 
+    // when: 다시 삭제를 눌러 확인한다
     await user.click(within(dlg).getByRole('button', { name: `${name} 삭제` }))
     await user.click(within(await screen.findByRole('dialog', { name: '첨부 파일 삭제' })).getByRole('button', { name: '삭제' }))
-
+    // then: 목록에서 사라진다
     await waitFor(() => expect(within(dlg).queryByRole('button', { name })).not.toBeInTheDocument())
     expect((await filesOf(c)).map((a) => a.fileName)).not.toContain(name)
   })
@@ -399,10 +406,10 @@ describe('종료일 향후 기간 검색 (B7)', () => {
   // 다가오는 기간 프리셋은 종료일에만 있고 시작일에는 없다.
   it('offers upcoming presets on the end date only, not on the start date', async () => {
     // given: 계약 목록 화면
-    // when: 시작일·종료일 기간 선택 상자를 본다
     await open()
     const bar = within(screen.getByRole('search', { name: '계약 검색' }))
 
+    // when: 시작일·종료일 기간 선택 상자를 본다
     const start = within(bar.getByRole('combobox', { name: '라이선스 시작일' })).getAllByRole('option').map((o) => o.textContent)
     // then: 종료일에만 다가오는 기간 프리셋이 있다
     expect(start).not.toContain('향후 1개월')
@@ -445,8 +452,7 @@ describe('만료 임박 색과 상태 색 (B8)', () => {
   // 발급 계약의 날짜 칸은 남은 기간에 따라 위험·주의 색이 붙는다.
   // 테스트 코드: LC-027
   it('colors the start and end date cells by the remaining period of issued contracts only', async () => {
-    // given: 서버 시계 2027-03-15와 종료일이 다른 발급 계약들
-    // when: 목록을 연다
+    // when: 목록을 연다 (전제: 서버 시계 2027-03-15와 종료일이 다른 발급 계약들)
     await open()
 
     // then: 시작일·종료일 칸에 위험·주의·색 없음이 붙고 종료·미발급은 색이 없다
@@ -462,8 +468,7 @@ describe('만료 임박 색과 상태 색 (B8)', () => {
   // 상태 칸은 발급이면 status-issued, 종료면 status-ended, 미발급이면 없다.
   // 테스트 코드: LC-027
   it('marks the status cell with status-issued or status-ended and nothing for not-issued', async () => {
-    // given: 상태가 다른 계약들
-    // when: 목록을 연다
+    // when: 목록을 연다 (전제: 상태가 다른 계약들)
     await open()
 
     // then: 상태 칸 클래스가 상태에 맞다
@@ -480,11 +485,11 @@ describe('만료 임박 색과 상태 색 (B8)', () => {
     // given: 위험 색이 붙은 발급 계약
     const c = pick((x) => level(x) === 'danger')
     const { user, dlg } = await openEdit(c)
-    await user.click(within(within(dlg).getByRole('group', { name: '상태' })).getByRole('button', { name: '라이센스 갱신' }))
+    await user.click(within(within(dlg).getByRole('group', { name: '상태' })).getByRole('button', { name: '라이선스 갱신' }))
     await user.click(within(dlg).getByRole('button', { name: '저장' }))
 
     // when: 대화상자에서 갱신한다
-    await screen.findByText('라이센스를 갱신했습니다.')
+    await screen.findByText('라이선스를 갱신했습니다.')
     // then: 새 행에는 만료 색이 없다
     await waitFor(() => {
       const renewed = rows().filter((r) => within(r).getAllByRole('cell')[0]?.textContent === c.dealName)

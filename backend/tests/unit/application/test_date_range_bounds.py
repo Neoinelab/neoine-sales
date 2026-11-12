@@ -14,6 +14,7 @@ from app.application.ports.deal_action_repository import DealActionQuery
 from app.application.ports.deal_repository import DealQuery
 from app.domain.common.errors import InvalidValueError
 from tests.factories import make_deal_code
+from tests.support.expect import raises_with
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -35,8 +36,11 @@ def _action_query(**criteria: Any) -> DealActionQuery:  # noqa: ANN401
 def test_deal_query_updated_date_outside_1900_2999_is_rejected(
     field: str, day: date, local_tz: Callable[[str], None]
 ) -> None:
+    """1900~2999년 밖의 Deal 최종 업데이트 날짜 조건은 InvalidValueError로 거절된다."""
+    # given: 서버 시간대 Asia/Seoul
     local_tz("Asia/Seoul")
 
+    # when·then: 범위 밖 날짜를 updated_from 또는 updated_to로 주면 InvalidValueError다
     with pytest.raises(InvalidValueError):
         _deal_query(**{field: day})
 
@@ -46,9 +50,14 @@ def test_deal_query_updated_date_outside_1900_2999_is_rejected(
 def test_action_query_acted_date_outside_1900_2999_is_rejected(
     field: str, day: date, local_tz: Callable[[str], None]
 ) -> None:
-    local_tz("Asia/Seoul")
+    """1900~2999년 밖의 수행일은 InvalidValueError이고 문구가 허용 범위를 알려 준다.
 
-    with pytest.raises(InvalidValueError):
+    테스트 코드: NA-032
+    """
+    # given: 서버 시간대 Asia/Seoul
+    local_tz("Asia/Seoul")
+    # when·then: 범위 밖 날짜를 acted_from 또는 acted_to로 주면 422 문구다
+    with raises_with(InvalidValueError, f"{field}은(는) 1900-01-01부터 2999-12-31 사이여야 합니다"):
         _action_query(**{field: day})
 
 
@@ -56,10 +65,14 @@ def test_action_query_acted_date_outside_1900_2999_is_rejected(
 def test_deal_query_updated_window_works_at_both_range_edges(
     day: date, local_tz: Callable[[str], None]
 ) -> None:
+    """허용 범위의 양 끝 날짜(1900-01-01, 2999-12-31)는 Deal 조회 구간으로 바뀐다."""
+    # given: 서버 시간대 Asia/Seoul
     local_tz("Asia/Seoul")
 
+    # when: 양 끝 날짜로 최종 업데이트 구간을 구한다
     start, end = _deal_query(updated_from=day, updated_to=day).updated_window()
 
+    # then: 시작이 끝보다 앞선 구간이다
     assert start is not None
     assert end is not None
     assert start < end
@@ -69,22 +82,35 @@ def test_deal_query_updated_window_works_at_both_range_edges(
 def test_action_query_acted_window_works_at_both_range_edges(
     day: date, local_tz: Callable[[str], None]
 ) -> None:
+    """허용 범위의 양 끝 날짜(1900-01-01, 2999-12-31)는 조회 구간으로 바뀐다.
+
+    테스트 코드: NA-032
+    """
+    # given: 서버 시간대 Asia/Seoul
     local_tz("Asia/Seoul")
-
+    # when: 양 끝 날짜로 수행 구간을 구한다
     start, end = _action_query(acted_from=day, acted_to=day).acted_window()
-
+    # then: 시작이 끝보다 앞선 구간이다
     assert start is not None
     assert end is not None
     assert start < end
 
 
 def test_deal_query_accepts_the_whole_allowed_span_in_one_range() -> None:
+    """허용 범위 전체를 한 범위로 Deal 조회 조건에 줄 수 있다."""
+    # when: 1900-01-01부터 2999-12-31까지 범위로 조건을 만든다
     query = _deal_query(updated_from=date(1900, 1, 1), updated_to=date(2999, 12, 31))
 
+    # then: 구간이 계산된다
     assert query.updated_window() != (None, None)
 
 
 def test_action_query_accepts_the_whole_allowed_span_in_one_range() -> None:
-    query = _action_query(acted_from=date(1900, 1, 1), acted_to=date(2999, 12, 31))
+    """허용 범위 전체를 한 범위로 줄 수 있다.
 
+    테스트 코드: NA-032
+    """
+    # when: 1900-01-01부터 2999-12-31까지 범위로 조건을 만든다
+    query = _action_query(acted_from=date(1900, 1, 1), acted_to=date(2999, 12, 31))
+    # then: 구간이 계산된다
     assert query.acted_window() != (None, None)

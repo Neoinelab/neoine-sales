@@ -19,7 +19,7 @@
 | `backend/tests/conftest.py` | 세션당 한 번 임시 DB를 만들고 마이그레이션을 적용하는 `test_database_url` fixture |
 | `backend/tests/unit/infra/conftest.py` (구 `tests/integration/conftest.py`) | 테스트마다 롤백되는 `session` fixture(infra 어댑터 클래스 단위 테스트용) |
 | `backend/tests/unit/repositories/conftest.py` (구 `tests/contracts/conftest.py`) | 같은 계약 단위 테스트를 Fake와 SQL 구현 양쪽에 적용하는 `case` fixture |
-| ~~`backend/tests/functional/conftest.py`~~ | functional 폐지(2026-11-09). 전환 작업이 끝나면 삭제 |
+| ~~`backend/tests/functional/conftest.py`~~ | functional 폐지(2026-11-09), 2026-11-12 삭제 완료 |
 
 > 테스트 재배치(2026-10-15) 중에는 구 경로(`tests/contracts`, `tests/integration`, `tests/e2e`)가 남아 있을 수 있다. 새 테스트는 구 경로에 만들지 않는다.
 

@@ -34,8 +34,9 @@ async def test_flag_is_false_without_contracts_and_with_only_a_waiting_contract(
     waiting = await contract_env.won_deal(KIM)  # 자동 생성된 미발급 계약 하나
 
     # when: 각 Deal을 조회한다
+    result = await read(contract_env, bare)  # type: ignore[operator]
     # then: 둘 다 false다
-    assert await read(contract_env, bare) is False  # type: ignore[operator]
+    assert result is False
     assert await read(contract_env, waiting) is False  # type: ignore[operator]
 
 
@@ -122,6 +123,7 @@ async def test_flag_belongs_to_each_deal_separately(contract_env: ContractEnv) -
     without = await contract_env.won_deal(KIM)
 
     # when: 각 Deal을 조회한다
+    result = await _flag_of_detail(contract_env, with_issued)
     # then: 각각 true, false다
-    assert await _flag_of_detail(contract_env, with_issued) is True
+    assert result is True
     assert await _flag_of_detail(contract_env, without) is False

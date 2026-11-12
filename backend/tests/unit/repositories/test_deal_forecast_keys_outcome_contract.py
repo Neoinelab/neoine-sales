@@ -66,36 +66,64 @@ async def _seed(case: DealCase) -> None:
 
 
 async def test_the_open_key_set_counts_the_same_as_the_open_outcome(deal_case: DealCase) -> None:
+    """Open 코드 key 전부로 조회한 건수는 Open outcome 조회와 같다.
+
+    BDD 밖: 저장소 계약(Fake·SQL 공통). 규칙 DSH-R11(DSH-023)의 SQL 쪽 확인이다.
+    """
+    # given: 추가 Open 코드 Verbal과 Pipeline·Commit·Verbal 둘·Won·Lost Deal
     await _seed(deal_case)
     open_keys = await _keys(deal_case, {ForecastOutcome.OPEN})
 
-    assert "verbal" in open_keys
+    # when: key 집합과 outcome으로 각각 센다
     by_keys = await _count(deal_case, forecast_keys=open_keys)
-    assert by_keys == await _count(deal_case, forecast_outcome=ForecastOutcomeFilter.OPEN)
+    by_outcome = await _count(deal_case, forecast_outcome=ForecastOutcomeFilter.OPEN)
+
+    # then: 추가 코드가 key 집합에 있고 두 조회가 같은 4건이다
+    assert "verbal" in open_keys
+    assert by_keys == by_outcome
     assert by_keys == 4
 
 
 async def test_the_not_lost_key_set_counts_the_same_as_the_not_lost_outcome(
     deal_case: DealCase,
 ) -> None:
+    """Lost가 아닌 코드 key 전부로 조회한 건수는 Lost 제외 outcome 조회와 같다.
+
+    BDD 밖: 저장소 계약(Fake·SQL 공통). 규칙 DSH-R11(DSH-023)의 SQL 쪽 확인이다.
+    """
+    # given: 추가 Open 코드 Verbal과 Pipeline·Commit·Verbal 둘·Won·Lost Deal
     await _seed(deal_case)
     keys = await _keys(deal_case, {ForecastOutcome.OPEN, ForecastOutcome.WON})
 
+    # when: key 집합과 outcome으로 각각 센다
     by_keys = await _count(deal_case, forecast_keys=keys)
-    assert by_keys == await _count(deal_case, forecast_outcome=ForecastOutcomeFilter.NOT_LOST)
+    by_outcome = await _count(deal_case, forecast_outcome=ForecastOutcomeFilter.NOT_LOST)
+
+    # then: 두 조회가 같은 5건이다
+    assert by_keys == by_outcome
     assert by_keys == 5
 
 
 async def test_the_equality_holds_with_year_and_quarter_conditions(deal_case: DealCase) -> None:
+    """연도·분기 조건을 더해도 key 집합 조회와 outcome 조회가 같다.
+
+    BDD 밖: 저장소 계약(Fake·SQL 공통). 규칙 DSH-R11(DSH-023)의 SQL 쪽 확인이다.
+    """
+    # given: 추가 Open 코드 Verbal과 여러 Forecast의 Deal
     await _seed(deal_case)
     open_keys = await _keys(deal_case, {ForecastOutcome.OPEN})
     not_lost = await _keys(deal_case, {ForecastOutcome.OPEN, ForecastOutcome.WON})
 
+    # when: 2026 Q2 범위에서 key 집합과 outcome으로 각각 센다
     scope = {"year": 2026, "quarters": frozenset({2})}
-    assert await _count(deal_case, forecast_keys=open_keys, **scope) == await _count(
-        deal_case, forecast_outcome=ForecastOutcomeFilter.OPEN, **scope
-    )
-    assert await _count(deal_case, forecast_keys=not_lost, **scope) == await _count(
+    open_by_keys = await _count(deal_case, forecast_keys=open_keys, **scope)
+    open_by_outcome = await _count(deal_case, forecast_outcome=ForecastOutcomeFilter.OPEN, **scope)
+    not_lost_by_keys = await _count(deal_case, forecast_keys=not_lost, **scope)
+    not_lost_by_outcome = await _count(
         deal_case, forecast_outcome=ForecastOutcomeFilter.NOT_LOST, **scope
     )
-    assert await _count(deal_case, forecast_keys=open_keys, **scope) == 2
+
+    # then: 두 조회가 같은 건수다
+    assert open_by_keys == open_by_outcome
+    assert not_lost_by_keys == not_lost_by_outcome
+    assert open_by_keys == 2

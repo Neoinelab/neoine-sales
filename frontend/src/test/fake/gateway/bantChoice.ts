@@ -18,7 +18,7 @@ export interface BantDraft {
 const INVALID_LABEL = 'BANT Label이 올바르지 않습니다.'
 
 function normalizeName(raw: string): string {
-  if (raw.includes('\0')) throw validation('Label 이름에 사용할 수 없는 문자가 있습니다.')
+  if (raw.includes('\0')) throw validation('Label 이름에는 NUL 문자를 쓸 수 없습니다')
   const name = raw.trim()
   if (name === '') throw validation('Label 이름을 입력하세요.')
   if (Array.from(name).length > BANT_LABEL_MAX_LENGTH) throw validation(`Label 이름은 ${BANT_LABEL_MAX_LENGTH}자 이내로 입력하세요.`)

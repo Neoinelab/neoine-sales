@@ -170,8 +170,7 @@ async def test_delete_folder_of_a_missing_nested_path_passes_silently(root: Stor
 
     테스트 코드: LC-062
     """
-    # given: 아직 만들어지지 않은 저장 위치
-    # when: 없는 계약 폴더를 삭제한다
+    # when: 없는 계약 폴더를 삭제한다 (전제: 아직 만들어지지 않은 저장 위치)
     await LocalFileStorage().delete_folder(root, _contract_folder())  # root도 아직 없다
 
     # then: 오류가 없고 저장 위치도 만들어지지 않는다

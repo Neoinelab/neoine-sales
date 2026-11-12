@@ -153,8 +153,9 @@ def test_the_deal_side_value_carries_is_won() -> None:
     from app.application.ports.license_contract_repository import DealSide  # noqa: PLC0415
 
     # when: 필드를 살핀다
+    actual = DealSide.__dataclass_fields__
     # then: is_won이 있다
-    assert "is_won" in DealSide.__dataclass_fields__
+    assert "is_won" in actual
 
 
 def test_the_deal_list_item_carries_has_issued_license_contract() -> None:
@@ -165,5 +166,6 @@ def test_the_deal_list_item_carries_has_issued_license_contract() -> None:
     from app.application.ports.deal_repository import DealListItem  # noqa: PLC0415
 
     # when: 필드를 살핀다
+    actual = DealListItem.__dataclass_fields__
     # then: has_issued_license_contract가 있다
-    assert "has_issued_license_contract" in DealListItem.__dataclass_fields__
+    assert "has_issued_license_contract" in actual

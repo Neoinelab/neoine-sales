@@ -31,8 +31,9 @@ def test_license_end_matches_frontend_cases(
     테스트 코드: LC-040
     """
     # when: 시작일과 기간으로 종료일을 계산한다
+    actual = license_end(start, amount, unit)
     # then: 기대 종료일과 같다
-    assert license_end(start, amount, unit) == expected
+    assert actual == expected
 
 
 @pytest.mark.parametrize(
@@ -56,8 +57,9 @@ def test_license_end_handles_month_end_and_leap_boundaries(
     테스트 코드: LC-040
     """
     # when: 경계 시작일로 종료일을 계산한다
+    actual = license_end(start, amount, unit)
     # then: 기대 종료일과 같다
-    assert license_end(start, amount, unit) == expected
+    assert actual == expected
 
 
 @pytest.mark.parametrize("amount", [1, 99])
@@ -94,5 +96,6 @@ def test_term_end_for_uses_the_same_calculation() -> None:
     term = LicenseTerm(amount=1, unit=TermUnit.YEAR)
 
     # when: 2026-01-01의 종료일을 구한다
+    actual = term.end_for(date(2026, 1, 1))
     # then: 2026-12-31이다
-    assert term.end_for(date(2026, 1, 1)) == date(2026, 12, 31)
+    assert actual == date(2026, 12, 31)

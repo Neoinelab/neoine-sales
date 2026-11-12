@@ -18,6 +18,7 @@ from app.application.partner_meeting.register_partner_meetings import RegisterPa
 from app.application.partner_meeting.update_partner_meeting import UpdatePartnerMeeting
 from app.application.ports.partner_meeting_repository import PartnerMeetingQuery
 from app.domain.auth.principal import Role
+from app.domain.contact.values import ContactDetails
 from tests.factories_contact import make_partner
 from tests.support.user_ids import uid
 from tests.support.user_seed import ensure_users
@@ -75,6 +76,21 @@ class MeetingEnv:
     async def drop_partner(self, contact: Contact) -> None:
         """파트너 연락처를 지운다(그 회사가 파트너 회사 목록에서 사라진다)."""
         await self.uow.contacts.delete(contact.id)
+
+    async def rename_partner_company(self, contact: Contact, company: str) -> None:
+        """연락처의 회사명을 바꾼다(그 회사의 다른 정보는 그대로)."""
+        details = contact.details
+        contact.update(
+            ContactDetails(
+                company=company,
+                name=details.name,
+                title=details.title,
+                email=details.email,
+                phone=details.phone,
+            ),
+            self.clock.now(),
+        )
+        await self.uow.contacts.update(contact)
 
     async def register_one(
         self,

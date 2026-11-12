@@ -12,6 +12,7 @@ import { userRef } from './views'
 const NAME_MAX = 50
 export const TYPE_REQUIRED_MESSAGE = '유형을 입력하세요.'
 export const TYPE_TOO_LONG_MESSAGE = `유형은 ${NAME_MAX}자 이내로 입력하세요.`
+export const TYPE_NUL_MESSAGE = '유형에는 NUL 문자를 쓸 수 없습니다'
 export const TYPE_DUPLICATE_MESSAGE = '이미 있는 유형 이름입니다.'
 export const UNKNOWN_TYPE_MESSAGE = '선택한 유형이 없습니다. 목록에서 다시 선택하세요.'
 
@@ -21,7 +22,7 @@ export function usageOf(ctx: MockContext, typeId: number): number {
 
 /** 앞뒤 공백 제거 후 빈 값·51자·NUL 거부(Action 요청의 `{name}`도 같은 규칙). */
 export function normalizeTypeName(raw: string): string {
-  if (raw.includes('\0')) throw validation('유형에 사용할 수 없는 문자가 있습니다.')
+  if (raw.includes('\0')) throw validation(TYPE_NUL_MESSAGE)
   const name = raw.trim()
   if (name === '') throw validation(TYPE_REQUIRED_MESSAGE)
   if (Array.from(name).length > NAME_MAX) throw validation(TYPE_TOO_LONG_MESSAGE)
@@ -33,7 +34,7 @@ export function findTypeByName(ctx: MockContext, name: string): ActionTypeRecord
   return ctx.store.data.actionTypes.find((t) => t.name.toLowerCase() === lower)
 }
 
-/** 기본 유형(시드 순서) 먼저, 직접 만든 유형은 소문자 이름의 코드 포인트 순·id 순. */
+/** 기본 유형(시드 순서) 먼저, 직접 만든 유형은 소문자 이름의 UTF-16 단위 순(BMP 밖 문자만 서버의 코드 포인트 순과 다를 수 있음)·id 순. */
 function ordered(ctx: MockContext): ActionTypeRecord[] {
   const all = ctx.store.data.actionTypes
   const lowerOf = (t: ActionTypeRecord) => t.name.toLowerCase()
@@ -53,7 +54,7 @@ function view(ctx: MockContext, record: ActionTypeRecord): ActionTypeWithUsage {
 
 function find(ctx: MockContext, id: number): ActionTypeRecord {
   const found = ctx.store.data.actionTypes.find((t) => t.id === id)
-  if (!found) throw notFound('Action 유형을 찾을 수 없습니다.')
+  if (!found) throw notFound(`Action 유형을(를) 찾을 수 없습니다: ${id}`)
   return found
 }
 

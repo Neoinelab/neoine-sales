@@ -1,4 +1,4 @@
-"""ContractAttachment 엔티티(AC20): 업로드로 만들기, 교체, 삭제·교체 권한은 Deal 첨부와 같다."""
+"""ContractAttachment 엔티티: 업로드로 만들기, 교체, 삭제·교체 권한은 Deal 첨부와 같다."""
 
 import pytest
 

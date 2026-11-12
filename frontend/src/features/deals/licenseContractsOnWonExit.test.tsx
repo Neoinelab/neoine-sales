@@ -53,12 +53,16 @@ describe('seed', () => {
   // Fake 시드의 Deal에 이 테스트가 기대하는 계약만 있는지 확인한다.
   it('has exactly the contracts the tests expect on the seed deals', async () => {
     // given: Fake 게이트웨이의 시드 Deal 12번, 11번, 24번
-    // when: Deal을 조회한다
-    // then: 12번은 계약 1건·발급 없음, 11번과 24번은 발급 계약이 있다
-    expect(await contractCountOf(12)).toBe(1)
+    const count12 = await contractCountOf(12)
     const code12 = await dealCodeOf(12)
     await defaultMock.signInAs(USER_ID.root)
-    expect((await gateway.deals.get(code12)).hasIssuedLicenseContract).toBe(false)
+
+    // when: Deal을 조회한다
+    const deal12 = await gateway.deals.get(code12)
+
+    // then: 12번은 계약 1건·발급 없음, 11번과 24번은 발급 계약이 있다
+    expect(count12).toBe(1)
+    expect(deal12.hasIssuedLicenseContract).toBe(false)
     for (const no of [11, 24]) {
       const code = await dealCodeOf(no)
       await defaultMock.signInAs(USER_ID.root)
@@ -90,14 +94,16 @@ describe('상세 요약 바 (AC9)', () => {
     const apply = vi.spyOn(gateway.deals, 'applyChange')
     const { user, bar } = await openBar()
 
+    // when: Forecast를 Commit으로 바꾸고 동기화 값을 확인한다
     await leave(user, bar)
+    // then: 계약 N건 삭제 문구의 대화상자가 뜨고 요청은 아직 없다
     const dialog = await exitDialog()
     expectDialogText(dialog, count)
     expect(apply).not.toHaveBeenCalled()
-    // when: Forecast를 Commit으로 바꾸고 동기화 선택 뒤 라이선스 계약 처리 대화상자에서 삭제를 누른다
+    // when: 라이선스 계약 처리 대화상자에서 삭제를 누른다
     await user.click(within(dialog).getByRole('button', { name: '삭제' }))
 
-    // then: 계약 N건 삭제 문구가 보였고 요청에 deleteLicenseContracts: true가 담기며 계약이 사라진다
+    // then: 요청에 deleteLicenseContracts: true가 담기며 계약이 사라진다
     await waitFor(() => expect(apply).toHaveBeenCalledTimes(1))
     expect(apply.mock.calls[0]?.[1]).toMatchObject({ deleteLicenseContracts: true, change: { field: 'forecastKey', value: 'commit' } })
     await waitFor(() => expect(within(bar).getByRole('button', { name: 'Forecast 수정' })).toHaveTextContent('Commit'))
@@ -113,8 +119,8 @@ describe('상세 요약 바 (AC9)', () => {
     const apply = vi.spyOn(gateway.deals, 'applyChange')
     const { user, bar } = await openBar()
 
-    await leave(user, bar)
     // when: Forecast를 Commit으로 바꾸고 대화상자에서 유지를 누른다
+    await leave(user, bar)
     await user.click(within(await exitDialog()).getByRole('button', { name: '유지' }))
 
     // then: 요청에 deleteLicenseContracts: false가 담기고 계약은 남는다
@@ -131,11 +137,10 @@ describe('상세 요약 바 (AC9)', () => {
     const apply = vi.spyOn(gateway.deals, 'applyChange')
     const { user, bar } = await openBar()
 
-    await leave(user, bar)
     // when: Forecast를 Commit으로 바꾸고 대화상자에서 취소를 누른다
+    await leave(user, bar)
     await user.click(within(await exitDialog()).getByRole('button', { name: '취소' }))
 
-    await waitFor(noExitDialog)
     // then: 요청이 가지 않고 Forecast는 Won 그대로다
     expect(apply).not.toHaveBeenCalled()
     expect(within(bar).getByRole('button', { name: 'Forecast 수정' })).toHaveTextContent('Won')
@@ -177,10 +182,12 @@ describe('목록 인라인 편집 (AC9)', () => {
     const { user } = await renderAt(SEARCH)
     const row = await rowOf(/바른제약 PAM/)
 
+    // when: Forecast를 Commit으로 바꾼다
     await leave(user, row)
+    // then: 계약 N건 삭제 문구의 대화상자가 뜬다
     const dialog = await exitDialog()
     expectDialogText(dialog, count)
-    // when: Forecast를 Commit으로 바꾸고 대화상자에서 삭제를 누른다
+    // when: 대화상자에서 삭제를 누른다
     await user.click(within(dialog).getByRole('button', { name: '삭제' }))
 
     // then: 요청에 deleteLicenseContracts: true가 담기고 행이 Commit으로 바뀐다
@@ -197,15 +204,17 @@ describe('목록 인라인 편집 (AC9)', () => {
     const { user } = await renderAt(SEARCH)
     const row = await rowOf(/바른제약 PAM/)
 
+    // when: Forecast를 바꾸고 대화상자에서 취소를 누른다
     await leave(user, row)
-    // when: 취소를 누르고, 다시 바꿔 유지를 누른다
     await user.click(within(await exitDialog()).getByRole('button', { name: '취소' }))
     await waitFor(noExitDialog)
-    // then: 취소에는 요청이 없고 유지에는 deleteLicenseContracts: false 요청이 간다
+    // then: 요청이 없다
     expect(apply).not.toHaveBeenCalled()
 
+    // when: 다시 바꿔 유지를 누른다
     await leave(user, row)
     await user.click(within(await exitDialog()).getByRole('button', { name: '유지' }))
+    // then: deleteLicenseContracts: false 요청이 간다
     await waitFor(() => expect(apply).toHaveBeenCalledTimes(1))
     expect(apply.mock.calls[0]?.[1]).toMatchObject({ deleteLicenseContracts: false })
   })
@@ -245,16 +254,20 @@ describe('Deal 폼 수정 (AC9)', () => {
     const update = vi.spyOn(gateway.deals, 'update')
     const { user } = await openEdit(TITLE)
 
+    // when: Forecast를 Commit으로 바꾼다
     await leave(user)
+    // then: 저장 전에는 묻지 않는다
     expect(screen.queryByRole('dialog', { name: DIALOG })).not.toBeInTheDocument()
+    // when: 저장한다
     await save(user)
+    // then: 계약 N건 삭제 문구의 대화상자가 뜨고 요청은 아직 없다
     const dialog = await exitDialog()
     expectDialogText(dialog, count)
     expect(update).not.toHaveBeenCalled()
-    // when: Forecast를 Commit으로 바꾸고 저장한 뒤 대화상자에서 삭제를 누른다
+    // when: 대화상자에서 삭제를 누른다
     await user.click(within(dialog).getByRole('button', { name: '삭제' }))
 
-    // then: 저장 전에는 묻지 않고, 요청에 deleteLicenseContracts: true가 담긴다
+    // then: 요청에 deleteLicenseContracts: true가 담긴다
     await waitFor(() => expect(update).toHaveBeenCalledTimes(1))
     expect(update.mock.calls[0]?.[1]).toMatchObject({ deleteLicenseContracts: true, forecastKey: 'commit' })
   })
@@ -267,16 +280,18 @@ describe('Deal 폼 수정 (AC9)', () => {
     const { user } = await openEdit(TITLE)
     await leave(user)
 
+    // when: 저장하고 대화상자에서 취소를 누른다
     await save(user)
-    // when: 저장 후 취소를 누르고, 다시 저장해 유지를 누른다
     await user.click(within(await exitDialog()).getByRole('button', { name: '취소' }))
     await waitFor(noExitDialog)
-    // then: 취소에는 요청이 없고 폼 값이 남으며 유지에는 deleteLicenseContracts: false 요청이 간다
+    // then: 요청이 없고 폼 값이 남는다
     expect(update).not.toHaveBeenCalled()
     expect(screen.getByLabelText('Forecast')).toHaveDisplayValue('Commit')
 
+    // when: 다시 저장해 유지를 누른다
     await save(user)
     await user.click(within(await exitDialog()).getByRole('button', { name: '유지' }))
+    // then: deleteLicenseContracts: false 요청이 간다
     await waitFor(() => expect(update).toHaveBeenCalledTimes(1))
     expect(update.mock.calls[0]?.[1]).toMatchObject({ deleteLicenseContracts: false })
   })
@@ -289,13 +304,13 @@ describe('Deal 폼 수정 (AC9)', () => {
     const { user } = await openEdit(TITLE)
     await waitFor(() => expect(screen.getByLabelText('Forecast')).toHaveDisplayValue('Won'))
 
+    // when: Deal 이름만 고치고 저장한다
     await user.clear(screen.getByLabelText('Deal Name'))
     await user.type(screen.getByLabelText('Deal Name'), `${TITLE} 수정`)
-    // when: Deal 이름만 고치고 저장한다
     await save(user)
 
-    await waitFor(() => expect(update).toHaveBeenCalledTimes(1))
     // then: 대화상자 없이 요청이 가고 deleteLicenseContracts는 담기지 않는다
+    await waitFor(() => expect(update).toHaveBeenCalledTimes(1))
     noExitDialog()
     expect(update.mock.calls[0]?.[1]).not.toHaveProperty('deleteLicenseContracts', true)
   })
@@ -317,11 +332,13 @@ describe('Action 등록 (AC9)', () => {
     const count = await contractCountOf(12)
     const create = vi.spyOn(gateway.actions, 'create')
 
+    // when: Forecast를 Commit으로 바꿔 등록한다
     const { user } = await leaveAndRegister(12)
+    // then: 계약 N건 삭제 문구의 대화상자가 뜨고 요청은 아직 없다
     const dialog = await exitDialog()
     expectDialogText(dialog, count)
     expect(create).not.toHaveBeenCalled()
-    // when: Forecast를 Commit으로 바꿔 등록하고 대화상자에서 삭제를 누른다
+    // when: 대화상자에서 삭제를 누른다
     await user.click(within(dialog).getByRole('button', { name: '삭제' }))
 
     // then: 요청에 deleteLicenseContracts: true가 담긴다
@@ -334,17 +351,18 @@ describe('Action 등록 (AC9)', () => {
   it('sends false for 유지 and keeps the form open without a request for 취소', async () => {
     // given: 계약 1건(발급 아님)이 있는 Won Deal의 Action 등록 폼
     const create = vi.spyOn(gateway.actions, 'create')
+    // when: Forecast를 바꿔 등록하고 대화상자에서 취소를 누른다
     const { user } = await leaveAndRegister(12)
-
-    // when: 취소를 누르고, 다시 등록해 유지를 누른다
     await user.click(within(await exitDialog()).getByRole('button', { name: '취소' }))
     await waitFor(noExitDialog)
-    // then: 취소에는 요청이 없고 폼이 열려 있으며 유지에는 deleteLicenseContracts: false 요청이 간다
+    // then: 요청이 없고 폼이 열려 있다
     expect(create).not.toHaveBeenCalled()
     expect(screen.getByRole('form', { name: 'Action 추가' })).toBeVisible()
 
+    // when: 다시 등록해 유지를 누른다
     await user.click(within(screen.getByRole('form', { name: 'Action 추가' })).getByRole('button', { name: '등록' }))
     await user.click(within(await exitDialog()).getByRole('button', { name: '유지' }))
+    // then: deleteLicenseContracts: false 요청이 간다
     await waitFor(() => expect(create).toHaveBeenCalledTimes(1))
     expect(create.mock.calls[0]?.[1]).toMatchObject({ deleteLicenseContracts: false })
   })
@@ -359,8 +377,8 @@ describe('Action 등록 (AC9)', () => {
     // when: 상태를 바꾸지 않고 Action을 등록한다
     await fillContentAndRegister(view.user, view.form)
 
-    await waitFor(() => expect(create).toHaveBeenCalledTimes(1))
     // then: 대화상자 없이 요청이 가고 deleteLicenseContracts는 담기지 않는다
+    await waitFor(() => expect(create).toHaveBeenCalledTimes(1))
     noExitDialog()
     expect(create.mock.calls[0]?.[1]).not.toHaveProperty('deleteLicenseContracts', true)
   })

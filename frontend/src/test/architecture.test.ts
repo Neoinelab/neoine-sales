@@ -28,65 +28,111 @@ const appSources = import.meta.glob(['../**/*.{ts,tsx}', '!../test/**', '!../**/
 const TEST_IMPORT = /(?:from\s+|import\s*\(\s*|import\s+)['"][^'"]*(?:\/test\/|\/mock\/testing|\.\/testing)[^'"]*['"]/
 
 describe('T-ARCH-02 앱 코드의 테스트 픽스처 경계', () => {
+  // 앱 소스 파일을 실제로 읽는다(검사 대상이 비어 있지 않다).
   it('scans real app source files', () => {
-    expect(Object.keys(appSources).length).toBeGreaterThan(100)
-    expect(Object.keys(appSources).some((p) => p.includes('/mock/'))).toBe(false)
+    // when: 앱 소스 경로를 센다 (전제: 앱 소스 glob)
+    const paths = Object.keys(appSources)
+
+    // then: 100개 넘게 읽히고 mock 폴더 파일은 없다
+    expect(paths.length).toBeGreaterThan(100)
+    expect(paths.some((p) => p.includes('/mock/'))).toBe(false)
   })
 
+  // src/mock 디렉터리가 없다.
   it('has no src/mock directory', () => {
+    // when: src/mock 파일을 찾는다
     const mockFiles = Object.keys(import.meta.glob('../mock/**/*'))
+
+    // then: 파일이 없다
     expect(mockFiles).toEqual([])
   })
 
+  // 앱 소스에 게이트웨이 모드 전환·목 제어가 없다.
   it('app sources have no gateway mode switch or mock control', () => {
+    // given: 앱 소스
     const MOCK_WORDS = /VITE_GATEWAY|gatewayMode|mockControl|MockBanner|MockPanel/
+
+    // when: 금지 단어를 찾는다
     const offenders = Object.entries(appSources)
       .filter(([, text]) => MOCK_WORDS.test(text))
       .map(([path]) => path)
+
+    // then: 발견된 파일이 없다
     expect(offenders).toEqual([])
   })
 
+  // 앱 소스는 테스트 픽스처·도우미를 import하지 않는다.
   it('has no import of test fixtures or test helpers in app sources', () => {
+    // when: 테스트 import 패턴을 찾는다 (전제: 앱 소스)
     const offenders = Object.entries(appSources)
       .filter(([, text]) => TEST_IMPORT.test(text))
       .map(([path]) => path)
+
+    // then: 발견된 파일이 없다
     expect(offenders).toEqual([])
   })
 
+  // 테스트 import 검사 패턴이 금지 형태를 찾아내고 허용 형태는 통과시킨다.
   it('detects the forbidden import forms (self check of the pattern)', () => {
-    expect(TEST_IMPORT.test("import { buildSampleSeed } from '../test/fixtures/sampleSeed'")).toBe(true)
-    expect(TEST_IMPORT.test("import { newMock } from './testing'")).toBe(true)
-    expect(TEST_IMPORT.test("import { defaultMock } from '../test/fake/default'")).toBe(true)
-    expect(TEST_IMPORT.test("import { emptyBusinessSeed } from './seed'")).toBe(false)
+    // when: 금지 예시와 허용 예시를 검사한다
+    const forbidden = [
+      "import { buildSampleSeed } from '../test/fixtures/sampleSeed'",
+      "import { newMock } from './testing'",
+      "import { defaultMock } from '../test/fake/default'",
+    ].map((code) => TEST_IMPORT.test(code))
+    const allowed = TEST_IMPORT.test("import { emptyBusinessSeed } from './seed'")
+
+    // then: 금지 예시는 true, 허용 예시는 false
+    expect(forbidden).toEqual([true, true, true])
+    expect(allowed).toBe(false)
   })
 })
 
 describe('T-ARCH-01 features 경계', () => {
+  // features 소스 파일을 실제로 읽는다.
   it('scans real feature source files', () => {
-    expect(featureSources().length).toBeGreaterThan(50)
+    // when: features 소스를 읽는다
+    const files = featureSources()
+
+    // then: 50개 넘게 읽힌다
+    expect(files.length).toBeGreaterThan(50)
   })
 
+  // features는 shared/api·mock/·gateway/http를 import하지 않는다.
   it('has no import of shared/api or mock/ in features sources', () => {
+    // when: 금지 import 패턴을 찾는다 (전제: features 소스)
     const offenders = featureSources()
       .filter(([, text]) => FORBIDDEN.test(text))
       .map(([path]) => path)
+
+    // then: 발견된 파일이 없다
     expect(offenders).toEqual([])
   })
 
+  // features import 검사 패턴이 금지 형태를 찾아내고 허용 형태는 통과시킨다.
   it('detects the forbidden import forms (self check of the pattern)', () => {
-    expect(FORBIDDEN.test("import { ApiError } from '../../shared/api/problem'")).toBe(true)
-    expect(FORBIDDEN.test("import { x } from '../../mock/default'")).toBe(true)
-    expect(FORBIDDEN.test("const m = await import('../../mock')")).toBe(true)
-    expect(FORBIDDEN.test("import { createHttpGateway } from '../../gateway/http'")).toBe(true)
-    expect(FORBIDDEN.test("import { unwrap } from '../../gateway/http/request'")).toBe(true)
-    expect(FORBIDDEN.test("import { gatewayMode } from '../../gateway/mode'")).toBe(false)
-    expect(FORBIDDEN.test("import { useDeals } from '../../data/deals'")).toBe(false)
-    expect(FORBIDDEN.test("import type { Deal } from '../../shared/model/types'")).toBe(false)
+    // when: 금지 예시와 허용 예시를 검사한다
+    const forbidden = [
+      "import { ApiError } from '../../shared/api/problem'",
+      "import { x } from '../../mock/default'",
+      "const m = await import('../../mock')",
+      "import { createHttpGateway } from '../../gateway/http'",
+      "import { unwrap } from '../../gateway/http/request'",
+    ].map((code) => FORBIDDEN.test(code))
+    const allowed = [
+      "import { gatewayMode } from '../../gateway/mode'",
+      "import { useDeals } from '../../data/deals'",
+      "import type { Deal } from '../../shared/model/types'",
+    ].map((code) => FORBIDDEN.test(code))
+
+    // then: 금지 예시는 true, 허용 예시는 false
+    expect(forbidden).toEqual([true, true, true, true, true])
+    expect(allowed).toEqual([false, false, false])
   })
 })
 
 /**
- * T-ARCH-03 (시간 기준 서버 통일 AC7): 앱 코드는 `gateway/clock.ts` 밖에서 브라우저 시계·시간대를 읽지 않는다.
+ * T-ARCH-03: 앱 코드는 `gateway/clock.ts` 밖에서 브라우저 시계·시간대를 읽지 않는다.
  * 지금·오늘은 `useToday`(서버 동기 시계), 시각 표시는 서버 문자열의 오프셋 벽시계(`formatDateTime`·`formatStamp`)만 쓴다.
  * 대상은 T-ARCH-02와 같은 앱 코드이고, 계약 스위트(`gateway/contract/**`, 앱 번들에 들어가지 않는 테스트 코드)도 테스트로 보고 제외한다.
  * 주석은 검사하지 않는다(규칙을 설명하는 글에 금지 패턴이 나올 수 있다).
@@ -137,22 +183,43 @@ function timeOffenders(files: [string, string][]): string[] {
 }
 
 describe('T-ARCH-03 앱 코드의 브라우저 시계·시간대 경계', () => {
+  // 시각 검사가 실제 앱 소스와 clock.ts를 읽는다.
+  // 테스트 코드: TM-038
   it('scans real app source files and knows the clock file', () => {
-    expect(Object.keys(timeSources).length).toBeGreaterThan(100)
-    expect(Object.keys(timeSources)).toContain(CLOCK_FILE)
-    expect(Object.keys(timeSources).some((p) => p.includes('/test/'))).toBe(false)
+    // when: 앱 소스 경로를 센다 (전제: 테스트·계약 스위트를 뺀 앱 소스)
+    const paths = Object.keys(timeSources)
+
+    // then: 100개 넘게 읽히고 gateway/clock.ts를 포함하며 테스트 폴더 파일은 없다
+    expect(paths.length).toBeGreaterThan(100)
+    expect(paths).toContain(CLOCK_FILE)
+    expect(paths.some((p) => p.includes('/test/'))).toBe(false)
   })
 
+  // 앱 소스는 gateway/clock.ts 밖에서 브라우저 시계·시간대를 읽지 않는다.
+  // 테스트 코드: TM-038
   it('app sources do not read the browser clock or time zone outside gateway/clock.ts', () => {
+    // given: clock.ts를 뺀 앱 소스
     const files = Object.entries(timeSources).filter(([path]) => path !== CLOCK_FILE)
 
-    expect(timeOffenders(files)).toEqual([])
+    // when: 금지 패턴을 찾는다
+    const actual = timeOffenders(files)
+
+    // then: 위반이 없다
+    expect(actual).toEqual([])
   })
 
+  // gateway/clock.ts는 Date.now를 읽는 유일한 파일이다.
+  // 테스트 코드: TM-038
   it('keeps the only browser clock read inside gateway/clock.ts', () => {
-    expect(stripComments(timeSources[CLOCK_FILE] ?? '')).toMatch(/\bDate\.now\b/)
+    // when: clock.ts에서 주석을 지운 코드를 읽는다
+    const code = stripComments(timeSources[CLOCK_FILE] ?? '')
+
+    // then: clock.ts 코드에 Date.now가 있다
+    expect(code).toMatch(/\bDate\.now\b/)
   })
 
+  // 검사기는 금지 예시 문장마다 위반을 찾아낸다.
+  // 테스트 코드: TM-038
   it.each([
     'const t = Date.now()',
     'const d = new Date()',
@@ -188,9 +255,15 @@ describe('T-ARCH-03 앱 코드의 브라우저 시계·시간대 경계', () => 
     'new Date(iso).toString()',
     'createdAt.toString()',
   ])('detects the forbidden form %s (self check of the pattern)', (code) => {
-    expect(timeOffenders([['x.ts', code]])).not.toEqual([])
+    // when: 금지 예시를 검사한다
+    const actual = timeOffenders([['x.ts', code]])
+
+    // then: 위반 목록이 비어 있지 않다
+    expect(actual).not.toEqual([])
   })
 
+  // 검사기는 허용 형태(UTC getter, 오프셋 있는 파싱 등)를 위반으로 보지 않는다.
+  // 테스트 코드: TM-038
   it.each([
     'const d = new Date(iso)',
     'Date.UTC(2026, 9, 23)',
@@ -213,18 +286,29 @@ describe('T-ARCH-03 앱 코드의 브라우저 시계·시간대 경계', () => 
     'id.toString()',
     'value.toLocaleString()',
   ])('allows %s (self check of the pattern)', (code) => {
-    expect(timeOffenders([['x.ts', code]])).toEqual([])
+    // when: 허용 예시를 검사한다
+    const actual = timeOffenders([['x.ts', code]])
+
+    // then: 위반 목록이 비어 있다
+    expect(actual).toEqual([])
   })
 
+  // 주석 안의 금지 단어는 무시한다.
+  // 테스트 코드: TM-038
   it('ignores forbidden words in comments', () => {
+    // given: 주석에만 금지 패턴이 있는 코드
     const code = ['// new Date() 대신 useToday', '/* Date.now() 금지 */', 'const url = "http://x/y"', 'const ok = 1 // d.getHours()'].join('\n')
 
-    expect(timeOffenders([['x.ts', code]])).toEqual([])
+    // when: 검사한다
+    const actual = timeOffenders([['x.ts', code]])
+
+    // then: 위반이 없다
+    expect(actual).toEqual([])
   })
 })
 
 /**
- * T-ARCH-04 (Reports 4단계 AC21, 작성/결과 탭 분리 AC17): 차트 코드(Chart.js)는 차트 타일이 처음 보일 때 받는 lazy 청크에만 있다.
+ * T-ARCH-04: 차트 코드(Chart.js)는 차트 타일이 처음 보일 때 받는 lazy 청크에만 있다.
  * 디자이너·보기 화면·결과 패널·타일은 차트 모듈을 정적으로 import하지 않고(타입 import만 허용) 차트 타일이 `chart/ChartTab`을 동적 import한다.
  */
 const reportSources = import.meta.glob('../features/reports/**/*.{ts,tsx}', { query: '?raw', import: 'default', eager: true }) as Record<string, string>
@@ -246,34 +330,58 @@ function staticChartImports(text: string): string[] {
 }
 
 describe('T-ARCH-04 리포트 차트 코드의 lazy 경계', () => {
+  // 차트 탭 모듈이 lazy 진입점으로 존재한다.
   it('has the chart tab module as the lazy entry', () => {
-    expect(Object.keys(reportSources)).toContain('../features/reports/chart/ChartTab.tsx')
+    // when: reports 소스 경로를 읽는다
+    const paths = Object.keys(reportSources)
+
+    // then: ChartTab.tsx가 reports 소스에 있다
+    expect(paths).toContain('../features/reports/chart/ChartTab.tsx')
   })
 
+  // 즉시 로드되는 리포트 파일은 차트 모듈을 정적 import하지 않는다.
   it.each(EAGER_FILES)('%s imports no chart module statically', (file) => {
+    // when: 정적 import를 찾는다 (전제: 즉시 로드 파일)
     const text = reportSources[file]
 
+    // then: 차트 모듈 import가 없다
     expect(text).toBeDefined()
     expect(staticChartImports(text ?? '')).toEqual([])
   })
 
+  // 차트 타일은 ChartTab을 동적 import한다.
   it('loads the chart tab module through a dynamic import in the chart tile', () => {
-    expect(reportSources['../features/reports/result/ChartTile.tsx']).toMatch(/import\(\s*['"][^'"]*chart\/ChartTab['"]\s*\)/)
+    // when: ChartTile 소스를 읽는다
+    const text = reportSources['../features/reports/result/ChartTile.tsx']
+
+    // then: ChartTile에 동적 import가 있다
+    expect(text).toMatch(/import\(\s*['"][^'"]*chart\/ChartTab['"]\s*\)/)
   })
 
+  // Chart.js는 chart 폴더 안에서만 import한다.
   it('imports Chart.js only inside the chart folder', () => {
+    // when: 차트 모듈 정적 import를 찾는다 (전제: chart 폴더 밖 리포트 소스)
     const offenders = Object.entries(reportSources)
       .filter(([path]) => !/\.test\.tsx?$/.test(path) && !path.includes('/reports/chart/'))
       .filter(([, text]) => staticChartImports(text).length > 0)
       .map(([path]) => path)
 
+    // then: 발견된 파일이 없다
     expect(offenders).toEqual([])
   })
 
+  // 차트 import 검사 패턴이 정적 import만 찾아낸다.
   it('detects a static chart import and ignores type imports and dynamic imports (self check of the pattern)', () => {
-    expect(staticChartImports("import { Chart } from 'react-chartjs-2'")).toEqual(['react-chartjs-2'])
-    expect(staticChartImports("import ChartTab from '../chart/ChartTab'")).toEqual(['../chart/ChartTab'])
-    expect(staticChartImports("import type { ChartData } from 'chart.js'")).toEqual([])
-    expect(staticChartImports("const Tab = lazy(() => import('../chart/ChartTab'))")).toEqual([])
+    // when: 정적 import, type import, 동적 import를 각각 검사한다
+    const named = staticChartImports("import { Chart } from 'react-chartjs-2'")
+    const defaultImport = staticChartImports("import ChartTab from '../chart/ChartTab'")
+    const typeOnly = staticChartImports("import type { ChartData } from 'chart.js'")
+    const dynamic = staticChartImports("const Tab = lazy(() => import('../chart/ChartTab'))")
+
+    // then: 정적 import는 찾고 type·동적 import는 무시한다
+    expect(named).toEqual(['react-chartjs-2'])
+    expect(defaultImport).toEqual(['../chart/ChartTab'])
+    expect(typeOnly).toEqual([])
+    expect(dynamic).toEqual([])
   })
 })

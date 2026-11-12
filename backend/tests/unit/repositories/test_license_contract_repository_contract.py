@@ -374,8 +374,9 @@ async def test_count_of_deal_counts_only_that_deal(contract_case: ContractCase) 
     await contract_case.contract(other)
 
     # when: Deal별 건수를 센다
+    result = await contract_case.repository.count_of_deal(deal.id)
     # then: 2, 1, 없는 Deal은 0이다
-    assert await contract_case.repository.count_of_deal(deal.id) == 2
+    assert result == 2
     assert await contract_case.repository.count_of_deal(other.id) == 1
     assert await contract_case.repository.count_of_deal(make_deal_code("NONE")) == 0
 
@@ -433,8 +434,9 @@ async def test_ids_of_deal_without_contracts_is_empty(contract_case: ContractCas
     deal = await contract_case.deal()
 
     # when: 계약 id를 읽는다
+    actual = list(await contract_case.repository.ids_of_deal(deal.id))
     # then: 빈 목록이다
-    assert list(await contract_case.repository.ids_of_deal(deal.id)) == []
+    assert actual == []
     assert list(await contract_case.repository.ids_of_deal(make_deal_code("NONE"))) == []
 
 
@@ -457,8 +459,9 @@ async def test_delete_of_deal_without_contracts_returns_zero(contract_case: Cont
     deal = await contract_case.deal()
 
     # when: 일괄 삭제한다
+    result = await contract_case.repository.delete_of_deal(deal.id)
     # then: 0이다
-    assert await contract_case.repository.delete_of_deal(deal.id) == 0
+    assert result == 0
 
 
 async def test_issued_of_deal_returns_the_issued_contract_or_none(
@@ -471,7 +474,6 @@ async def test_issued_of_deal_returns_the_issued_contract_or_none(
     # given: 계약이 없다가 종료·미발급·발급(갱신)이 차례로 생기는 Deal
     deal = await contract_case.deal()
     # when: 발급 계약을 조회한다
-    # then: 발급 계약이 생기기 전엔 None, 생긴 뒤엔 그 계약
     assert await contract_case.repository.issued_of_deal(deal.id) is None
     await contract_case.contract(deal, status="ended")
     await contract_case.contract(deal)
@@ -480,6 +482,7 @@ async def test_issued_of_deal_returns_the_issued_contract_or_none(
 
     found = await contract_case.repository.issued_of_deal(deal.id)
 
+    # then: 발급 계약이 생기기 전엔 None, 생긴 뒤엔 그 계약
     assert found is not None
     assert found.id == issued.id
 

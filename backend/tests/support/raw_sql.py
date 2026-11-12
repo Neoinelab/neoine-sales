@@ -1,4 +1,4 @@
-"""원시 SQL 실행 도우미: functional 스키마 시나리오가 임시 DB를 직접 조회·준비할 때 쓴다."""
+"""원시 SQL 실행 도우미: 스키마 단위 테스트가 임시 DB를 직접 조회·준비할 때 쓴다."""
 
 from typing import TYPE_CHECKING, Any
 

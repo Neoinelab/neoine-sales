@@ -60,19 +60,40 @@ OLD_STRING_COLUMNS = {
 
 
 async def test_head_schema_has_no_integrity_violations(session: AsyncSession) -> None:
-    assert await check_schema(session) == []
+    """head 스키마 점검(RESTRICT·DEFERRABLE·선행 인덱스·사용자 참조·deleted_at) 위반이 0건이다.
+
+    테스트 코드: SC-024
+    """
+    # when: 스키마 점검 함수 check_schema를 실행한다 (전제: head를 적용한 임시 DB)
+    violations = await check_schema(session)
+
+    # then: 위반 목록이 비어 있다
+    assert violations == []
 
 
 async def test_every_foreign_key_to_users_is_exactly_the_expected_set(
     session: AsyncSession,
 ) -> None:
-    """has_links가 수집하는 FK 집합(= 기대 집합)과 실제 카탈로그가 같다."""
-    assert await user_foreign_keys(session) == set(EXPECTED_USER_FKS)
+    """users를 가리키는 FK 집합이 사용자 연결 목록(EXPECTED_USER_FKS)과 같다.
+
+    테스트 코드: SC-026
+    """
+    # when: users를 가리키는 FK의 (테이블, 컬럼) 집합을 읽는다 (전제: head를 적용한 임시 DB)
+    found = await user_foreign_keys(session)
+
+    # then: 사용자 연결 목록과 같다
+    assert found == set(EXPECTED_USER_FKS)
 
 
 async def test_orm_metadata_lists_the_same_user_foreign_keys_as_the_database(
     session: AsyncSession,
 ) -> None:
+    """ORM 메타데이터의 users FK 집합이 DB와 같다.
+
+    테스트 코드: SC-027
+    """
+    # when: Base.metadata에서 users를 가리키는 FK의 (테이블, 컬럼) 집합을 모은다
+    #   (전제: head를 적용한 임시 DB)
     from_metadata = {
         (table.name, fk.parent.name)
         for table in Base.metadata.tables.values()
@@ -80,10 +101,16 @@ async def test_orm_metadata_lists_the_same_user_foreign_keys_as_the_database(
         if fk.column.table.name == "users"
     }
 
+    # then: DB에서 읽은 집합과 같다
     assert from_metadata == await user_foreign_keys(session)
 
 
 async def test_user_foreign_keys_use_the_planned_names_and_restrict(session: AsyncSession) -> None:
+    """users FK는 정해진 이름·RESTRICT·DEFERRABLE 아님이고 해시 테이블만 CASCADE다.
+
+    테스트 코드: SC-028
+    """
+    # given: head를 적용한 임시 DB
     rows = (
         await session.execute(
             text(
@@ -95,8 +122,10 @@ async def test_user_foreign_keys_use_the_planned_names_and_restrict(session: Asy
         )
     ).all()
 
+    # when: users를 가리키는 FK의 이름·ON DELETE·DEFERRABLE을 읽는다
     found = {(r[0], r[1]): (r[2], r[3].strip(), r[4]) for r in rows}
 
+    # then: RESTRICT 18개와 CASCADE 1개(해시)가 정해진 이름 그대로이고 그 밖의 FK는 없다
     expected = {key: (name, "r", False) for key, name in USER_FK_NAMES.items()}
     expected |= {key: (name, "c", False) for key, name in CASCADE_USER_FK_NAMES.items()}
     assert found == expected
@@ -105,6 +134,11 @@ async def test_user_foreign_keys_use_the_planned_names_and_restrict(session: Asy
 async def test_user_reference_columns_are_bigint_and_the_old_string_columns_are_gone(
     session: AsyncSession,
 ) -> None:
+    """사용자 참조 컬럼은 bigint이고 예전 문자열·등록자 컬럼이 없으며 NOT NULL 여부가 정해진 대로다.
+
+    테스트 코드: SC-029
+    """
+    # given: head를 적용한 임시 DB
     rows = (
         await session.execute(
             text(
@@ -113,8 +147,10 @@ async def test_user_reference_columns_are_bigint_and_the_old_string_columns_are_
             )
         )
     ).all()
+    # when: public 스키마 컬럼의 형식과 NULL 허용 여부를 읽는다
     by_column = {(r[0], r[1]): (r[2], r[3]) for r in rows}
 
+    # then: 예전 문자열 컬럼이 없고, 사용자 FK 컬럼은 int8이며, NOT NULL 여부가 정해진 대로다
     assert not (OLD_STRING_COLUMNS & set(by_column))
     for key in USER_FK_NAMES:
         assert by_column[key][0] == "int8", key
@@ -139,6 +175,11 @@ async def test_user_reference_columns_are_bigint_and_the_old_string_columns_are_
 async def test_deleted_at_exists_only_on_users_with_its_two_check_constraints(
     session: AsyncSession,
 ) -> None:
+    """deleted_at 컬럼은 users에만 있다(관련 CHECK 두 개 포함).
+
+    테스트 코드: SC-030
+    """
+    # given: head를 적용한 임시 DB
     tables = {
         r[0]
         for r in (
@@ -150,6 +191,7 @@ async def test_deleted_at_exists_only_on_users_with_its_two_check_constraints(
             )
         ).all()
     }
+    # when: deleted_at 컬럼을 가진 테이블과 users의 제약을 읽는다
     checks = {
         r[0]
         for r in (
@@ -159,6 +201,7 @@ async def test_deleted_at_exists_only_on_users_with_its_two_check_constraints(
         ).all()
     }
 
+    # then: deleted_at 테이블은 users뿐이고 퇴사 관련 CHECK가 있다
     assert tables == {"users"}
     assert {"ck_users_delete_reason_valid", "ck_users_deleted_pair"} <= checks
     reason = (
@@ -173,17 +216,28 @@ async def test_deleted_at_exists_only_on_users_with_its_two_check_constraints(
 
 
 async def test_every_foreign_key_column_leads_an_index(session: AsyncSession) -> None:
+    """모든 FK 컬럼이 그 컬럼으로 시작하는 인덱스를 가진다.
+
+    테스트 코드: SC-025
+    """
+    # when: check_schema 결과에서 선행 인덱스 규칙 위반만 고른다 (전제: head를 적용한 임시 DB)
     violations = [v for v in await check_schema(session) if v.rule.endswith("leading_index")]
 
+    # then: 위반이 없다
     assert violations == []
 
 
 async def test_only_owned_data_cascades(session: AsyncSession) -> None:
-    """CASCADE 예외: Deal 소속 데이터·스냅숏의 열과 셀은 부모와 함께 지워진다."""
+    """CASCADE FK는 소속 데이터 10개뿐이고 부모 테이블이 정해진 대로다.
+
+    테스트 코드: SC-023
+    """
+    # when: ON DELETE CASCADE인 FK를 모두 읽는다 (전제: head를 적용한 임시 DB)
     cascades = {
         fk.table + "." + fk.column for fk in await foreign_keys(session) if fk.on_delete == "c"
     }
 
+    # then: (테이블.컬럼) 집합이 소속 데이터 10개와 같다
     assert cascades == {
         "deal_partners.deal_id",
         "deal_bant_labels.deal_id",
@@ -196,6 +250,7 @@ async def test_only_owned_data_cascades(session: AsyncSession) -> None:
         "license_contract_attachments.contract_id",  # 계약 첨부는 계약 소속이다
         "user_password_hashes.user_id",  # 대체 로그인 해시는 사용자 소속(CASCADE_USER_FK_NAMES)
     }
+    # then: 부모는 정해진 테이블이고 나머지는 deals다
     parents = {
         "user_password_hashes": "users",
         "license_contract_attachments": "license_contracts",

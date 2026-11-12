@@ -24,7 +24,14 @@ from app.domain.directory.host import normalize_host
     ],
 )
 def test_host_names_and_ip_literals_are_accepted_and_lowercased(text: str, expected: str) -> None:
-    assert normalize_host(text) == expected
+    """호스트 이름·IPv4·IPv6는 받아서 소문자로 맞춘다.
+
+    테스트 코드: IN-017
+    """
+    # when: 이름·IPv4·IPv6 호스트를 정규화한다
+    actual = normalize_host(text)
+    # then: 받아지고 소문자 표준 표기가 된다
+    assert actual == expected
 
 
 @pytest.mark.parametrize(
@@ -51,6 +58,12 @@ def test_host_names_and_ip_literals_are_accepted_and_lowercased(text: str, expec
     ],
 )
 def test_urls_ports_paths_and_malformed_hosts_are_rejected_with_the_field_name(text: str) -> None:
+    """URL·포트·경로가 붙었거나 형식이 틀린 호스트는 host 필드 이름이 든 문구로 거절된다.
+
+    테스트 코드: IN-017
+    """
+    # when·then: scheme·포트·경로·대괄호·잘못된 이름·빈 값을 정규화한다
+    #   → host로 시작하는 문구의 InvalidValueError다
     with pytest.raises(InvalidValueError) as caught:
         normalize_host(text)
 
@@ -58,10 +71,20 @@ def test_urls_ports_paths_and_malformed_hosts_are_rejected_with_the_field_name(t
 
 
 def test_the_longest_valid_hostname_is_accepted() -> None:
+    """253자 이내의 가장 긴 호스트 이름은 받는다.
+
+    테스트 코드: IN-017
+    """
+    # when: 247자 호스트를 정규화한다
     host = ".".join(["a" * 61, "b" * 61, "c" * 61, "d" * 61])  # 247자
 
+    # then: 그대로 받아진다
     assert normalize_host(host) == host
 
 
 def test_the_old_url_value_object_module_is_gone() -> None:
-    assert importlib.util.find_spec("app.domain.directory.url") is None
+    """예전 URL 값 객체 모듈은 없다(서버 URL 입력 폐지)."""
+    # when: 예전 모듈을 찾는다
+    actual = importlib.util.find_spec("app.domain.directory.url")
+    # then: 없다
+    assert actual is None

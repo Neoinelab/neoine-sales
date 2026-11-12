@@ -1,4 +1,4 @@
-"""DealRepository.search/count의 `forecast_outcome` 필터 계약 (Dashboard AC-9): Fake·SQL 공통.
+"""DealRepository.search/count의 `forecast_outcome` 필터 계약 (Dashboard): Fake·SQL 공통.
 
 outcome은 Forecast 코드의 outcome이다. open은 추가된 Open 코드를 포함하고,
 not_lost는 open + won이며,
@@ -59,13 +59,22 @@ async def _seed(case: DealCase) -> None:
 async def test_outcome_filter_selects_deals_by_forecast_code_outcome(
     deal_case: DealCase, outcome: ForecastOutcomeFilter, expected: list[int]
 ) -> None:
+    """outcome 필터는 Forecast 코드의 outcome으로 Deal을 고른다."""
+    # given: Open 2건, Won 1건, Lost 1건
     await _seed(deal_case)
 
-    assert await _codes(deal_case, forecast_outcome=outcome) == [_code(n) for n in expected]
-    assert await _count(deal_case, forecast_outcome=outcome) == len(expected)
+    # when: outcome으로 검색하고 센다
+    found = await _codes(deal_case, forecast_outcome=outcome)
+    total = await _count(deal_case, forecast_outcome=outcome)
+
+    # then: 해당 outcome의 Deal만 검색되고 건수가 같다
+    assert found == [_code(n) for n in expected]
+    assert total == len(expected)
 
 
 async def test_outcome_filter_includes_deals_of_an_added_open_code(deal_case: DealCase) -> None:
+    """추가된 Open 코드의 Deal도 open·not_lost에 포함된다."""
+    # given: Open 코드 verbal을 추가하고 그 코드의 Deal을 더한다
     await deal_case.codes.add(
         Code.create(
             entity_id=CodeId(new_id()),
@@ -80,57 +89,75 @@ async def test_outcome_filter_includes_deals_of_an_added_open_code(deal_case: De
     await _seed(deal_case)
     await deal_case.add(make_deal(later(9), code=_code(9), forecast_key="verbal"))
 
-    assert await _codes(deal_case, forecast_outcome=ForecastOutcomeFilter.OPEN) == [
-        _code(1),
-        _code(2),
-        _code(9),
-    ]
-    assert await _codes(deal_case, forecast_outcome=ForecastOutcomeFilter.NOT_LOST) == [
-        _code(n) for n in (1, 2, 3, 9)
-    ]
+    # when: open과 not_lost로 각각 검색한다
+    open_codes = await _codes(deal_case, forecast_outcome=ForecastOutcomeFilter.OPEN)
+    not_lost_codes = await _codes(deal_case, forecast_outcome=ForecastOutcomeFilter.NOT_LOST)
+
+    # then: 추가된 코드의 Deal이 두 결과에 모두 있다
+    assert open_codes == [_code(1), _code(2), _code(9)]
+    assert not_lost_codes == [_code(n) for n in (1, 2, 3, 9)]
 
 
 async def test_outcome_filter_is_anded_with_forecast_keys(deal_case: DealCase) -> None:
+    """outcome 필터와 forecast_keys는 AND로 결합한다."""
+    # given: Open 2건, Won 1건, Lost 1건
     await _seed(deal_case)
 
-    assert await _codes(
+    # when: commit + open, lost + not_lost로 각각 검색한다
+    commit_open = await _codes(
         deal_case, forecast_keys=frozenset({"commit"}), forecast_outcome=ForecastOutcomeFilter.OPEN
-    ) == [_code(2)]
-    assert (
-        await _codes(
-            deal_case,
-            forecast_keys=frozenset({"lost"}),
-            forecast_outcome=ForecastOutcomeFilter.NOT_LOST,
-        )
-        == []
     )
+    lost_not_lost = await _codes(
+        deal_case,
+        forecast_keys=frozenset({"lost"}),
+        forecast_outcome=ForecastOutcomeFilter.NOT_LOST,
+    )
+
+    # then: 교집합만 나오고 모순된 조합은 비어 있다
+    assert commit_open == [_code(2)]
+    assert lost_not_lost == []
 
 
 async def test_forecast_keys_and_outcome_are_combined(deal_case: DealCase) -> None:
+    """여러 forecast_keys 중 outcome에 맞는 것만 남는다."""
+    # given: Open 2건, Won 1건, Lost 1건
     await _seed(deal_case)
 
+    # when: lost·pipeline 키와 open outcome으로 검색한다
     found = await _codes(
         deal_case,
         forecast_keys=frozenset({"lost", "pipeline"}),
         forecast_outcome=ForecastOutcomeFilter.OPEN,
     )
 
+    # then: pipeline Deal만 남는다
     assert found == [_code(1)]
 
 
 async def test_outcome_filter_is_anded_with_other_conditions(deal_case: DealCase) -> None:
+    """outcome 필터는 다른 검색 조건과 AND로 결합한다."""
+    # given: 기본 Deal 4건과 키워드로 찾을 Open Deal 1건
     await _seed(deal_case)
     await deal_case.add(
         make_deal(later(8), code=_code(8), forecast_key="pipeline", revenue_amount=1)
     )
 
+    # when: open outcome과 키워드로 검색한다
     found = await _codes(deal_case, forecast_outcome=ForecastOutcomeFilter.OPEN, keyword=_code(8))
 
+    # then: 키워드에 맞는 Deal만 나온다
     assert found == [_code(8)]
 
 
 async def test_without_the_outcome_filter_every_deal_is_returned(deal_case: DealCase) -> None:
+    """outcome 필터가 없으면 모든 Deal이 나온다(하위 호환)."""
+    # given: Open 2건, Won 1건, Lost 1건
     await _seed(deal_case)
 
-    assert await _codes(deal_case) == [_code(n) for n in (1, 2, 3, 4)]
-    assert await _count(deal_case) == 4
+    # when: 필터 없이 검색하고 센다
+    found = await _codes(deal_case)
+    total = await _count(deal_case)
+
+    # then: 4건 모두다
+    assert found == [_code(n) for n in (1, 2, 3, 4)]
+    assert total == 4

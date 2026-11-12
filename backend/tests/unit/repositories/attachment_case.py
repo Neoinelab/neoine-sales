@@ -1,4 +1,4 @@
-"""AttachmentRepository 계약 테스트 공용 case(Fake와 SQL 구현 양쪽, P2b R2).
+"""AttachmentRepository 계약 테스트 공용 case(Fake와 SQL 구현 양쪽).
 
 첨부는 Deal(code) 아래에 있고 업로더(users)를 FK로 참조하므로, case가 필요한 Deal·업로더 행을 먼저
 만든다. 저장소 준비는 `deal_case.py`와 같다(Fake는 `FakeUnitOfWork`가 연결한 저장소, SQL은

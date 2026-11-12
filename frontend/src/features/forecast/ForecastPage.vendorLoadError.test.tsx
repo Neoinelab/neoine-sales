@@ -16,17 +16,25 @@ const failure = () =>
   new ApiError(500, { type: 'https://sales.neoine.test/problems/internal', title: 'x', status: 500, detail: 'Vendor 목록을 불러오지 못했습니다.' })
 
 describe('Forecast 필터: Vendor 목록 조회 실패', () => {
-  it('shows an error banner near the filters', async () => {
+  // 테스트 코드: FC-066
+  it('Vendor 목록을 읽지 못하면 필터 근처에 오류 배너를 보인다', async () => {
+    // given: 실패하는 Vendor 목록 조회
     vi.spyOn(gateway.vendors, 'list').mockRejectedValue(failure())
+    // when: Vendor id가 담긴 URL로 화면을 연다
     await renderAt(`/forecast?year=2026&vendor=${seedVendorId('Okta')}`)
 
+    // then: 서버 문구가 배너로 보인다
     expect(await screen.findByRole('alert')).toHaveTextContent('Vendor 목록을 불러오지 못했습니다.')
   })
 
-  it('shows the url vendor as selected instead of all while the summary query keeps using it', async () => {
+  // 테스트 코드: FC-066
+  it('Vendor 목록 실패 시 "선택한 Vendor"를 선택된 상태로 보이고 URL id로 조회한다', async () => {
+    // given: 실패하는 Vendor 목록 조회와 요약 조회 스파이
     vi.spyOn(gateway.vendors, 'list').mockRejectedValue(failure())
     const summary = vi.spyOn(gateway.forecast, 'summary')
+    // when: Vendor id가 담긴 URL로 화면을 연다
     await renderAt(`/forecast?year=2026&vendor=${seedVendorId('Okta')}`)
+    // then: 마지막 요약 조회에 URL의 vendorId가 담기고 Vendor 칸이 "선택한 Vendor"다
     await screen.findByRole('alert')
 
     await waitFor(() => expect(summary.mock.calls.at(-1)?.[0]).toMatchObject({ vendorId: seedVendorId('Okta') }))

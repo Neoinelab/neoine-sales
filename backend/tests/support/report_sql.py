@@ -4,7 +4,7 @@
 - `app.infra.db.report_select.build_select(report: ResolvedReport) -> sqlalchemy.Select`:
   데이터 문장(바인딩 파라미터만 쓴다, 행 수 제한·`count(*) OVER ()` 포함)
 - `app.infra.db.report_select.build_totals_select(report) -> Select | None`:
-  그룹핑이 있을 때만 같은 조건·같은 Q5 규칙의 그룹 없는 합계 문장, 그 밖은 None
+  그룹핑이 있을 때만 같은 조건·같은 Deal당 한 번 규칙의 그룹 없는 합계 문장, 그 밖은 None
 - `app.infra.db.report_render.display_sql(statement) -> str`: 표시 전용 SQL 문자열
 """
 

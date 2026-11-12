@@ -304,10 +304,10 @@ async def test_registration_response_reports_the_contract_count_and_issued_flag(
     테스트 코드: LC-001, LC-002
     """
     # given: KIM(sales)
-    # when: Won Deal과 Won이 아닌 Deal을 각각 등록한다
     won = await contract_env.env.register.execute(
         make_create_input(status_key="contract_completed", forecast_key="won"), KIM
     )
+    # when: Won Deal과 Won이 아닌 Deal을 각각 등록한다
     open_view = await contract_env.env.register.execute(make_create_input(), KIM)
     # then: Won Deal 응답은 계약 1건·발급 여부 false, 아닌 Deal 응답은 계약 0건이다
     assert (won.item.license_contract_count, won.item.has_issued_license_contract) == (1, False)

@@ -39,8 +39,9 @@ def test_query_sort_keys_are_the_twelve_table_columns() -> None:
     테스트 코드: LC-021, LC-084
     """
     # when: LicenseContractSort의 값을 모은다
+    actual = {s.value for s in LicenseContractSort}
     # then: deal_name~note 12개뿐이다
-    assert {s.value for s in LicenseContractSort} == {
+    assert actual == {
         "deal_name",
         "customer",
         "vendor",
@@ -83,8 +84,9 @@ def test_query_text_filter_over_200_chars_is_rejected(field: str) -> None:
 def test_query_text_filter_of_200_chars_is_accepted() -> None:
     """고객사명 조건 200자는 허용된다."""
     # when: 200자 조건으로 만든다
+    customer = LicenseContractQuery(customer="가" * 200).customer
     # then: 그대로 저장된다
-    assert LicenseContractQuery(customer="가" * 200).customer == "가" * 200
+    assert customer == "가" * 200
 
 
 def test_query_reversed_start_range_rejected() -> None:
@@ -92,8 +94,7 @@ def test_query_reversed_start_range_rejected() -> None:
 
     테스트 코드: LC-020
     """
-    # given: 시작 2026-02-01, 끝 2026-01-31
-    # when: 조건을 만든다
+    # when: 조건을 만든다 (전제: 시작 2026-02-01, 끝 2026-01-31)
     with raises_with(InvalidValueError, "라이선스 시작일 범위의 시작은 끝보다 늦을 수 없습니다."):
         LicenseContractQuery(start_from=date(2026, 2, 1), start_to=date(2026, 1, 31))
     # then: 시작일 범위 문구의 InvalidValueError
@@ -104,8 +105,7 @@ def test_query_reversed_end_range_rejected() -> None:
 
     테스트 코드: LC-020
     """
-    # given: 시작 2026-02-01, 끝 2026-01-31
-    # when: 조건을 만든다
+    # when: 조건을 만든다 (전제: 시작 2026-02-01, 끝 2026-01-31)
     with raises_with(InvalidValueError, "라이선스 종료일 범위의 시작은 끝보다 늦을 수 없습니다."):
         LicenseContractQuery(end_from=date(2026, 2, 1), end_to=date(2026, 1, 31))
     # then: 종료일 범위 문구의 InvalidValueError
@@ -120,8 +120,9 @@ def test_query_same_day_range_and_one_sided_ranges_are_accepted() -> None:
     day = date(2026, 1, 31)
 
     # when: 같은 날 범위, 시작만, 끝만으로 조건을 만든다
+    start_to = LicenseContractQuery(start_from=day, start_to=day).start_to
     # then: 세 조건 모두 만들어지고 비운 쪽은 None이다
-    assert LicenseContractQuery(start_from=day, start_to=day).start_to == day
+    assert start_to == day
     assert LicenseContractQuery(end_from=day).end_to is None
     assert LicenseContractQuery(end_to=day).end_from is None
 
@@ -138,8 +139,9 @@ def test_query_page_bounds_are_checked(offset: int, limit: int) -> None:
 def test_query_page_upper_bound_is_accepted() -> None:
     """limit 200은 허용된다."""
     # when: limit 200으로 만든다
+    limit = LicenseContractQuery(limit=200).limit
     # then: 그대로 저장된다
-    assert LicenseContractQuery(limit=200).limit == 200
+    assert limit == 200
 
 
 async def test_list_returns_the_page_with_the_total(contract_env: ContractEnv) -> None:
@@ -228,8 +230,9 @@ async def test_get_counts_the_attachments(contract_env: ContractEnv) -> None:
     await contract_env.seed_file(contract, name="b.pdf")
 
     # when: 계약을 조회한다
+    attachment_count = (await contract_env.get.execute(contract.id)).attachment_count
     # then: attachment_count가 2다
-    assert (await contract_env.get.execute(contract.id)).attachment_count == 2
+    assert attachment_count == 2
 
 
 async def test_get_missing_contract_raises_not_found(contract_env: ContractEnv) -> None:
@@ -255,8 +258,9 @@ async def test_get_reports_whether_the_deal_is_won(contract_env: ContractEnv) ->
     open_contract = await contract_env.seed_contract(open_code)
 
     # when: 각각 조회한다
+    is_won = (await contract_env.get.execute(won_contract.id)).deal.is_won
     # then: Won Deal은 true, 아닌 Deal은 false다
-    assert (await contract_env.get.execute(won_contract.id)).deal.is_won is True
+    assert is_won is True
     assert (await contract_env.get.execute(open_contract.id)).deal.is_won is False
 
 

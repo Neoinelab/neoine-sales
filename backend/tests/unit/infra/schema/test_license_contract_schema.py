@@ -57,8 +57,8 @@ async def _deal(session: AsyncSession, login: str = "lc-owner") -> tuple[str, in
 async def test_license_contracts_columns_types_and_nullability(session: AsyncSession) -> None:
     """license_contracts 컬럼의 타입과 NULL 허용 여부가 명세와 같다."""
     # given: head 스키마의 임시 DB 세션과 Deal·사용자
-    # when: information_schema에서 컬럼을 읽는다
     rows = (await session.execute(text(COLUMNS), {"table": "license_contracts"})).all()
+    # when: information_schema에서 컬럼을 읽는다
     columns = {
         r.column_name: (r.data_type, r.character_maximum_length, r.is_nullable) for r in rows
     }
@@ -90,8 +90,8 @@ async def test_the_primary_key_is_a_bigint_identity_by_default(
 ) -> None:
     """PK id는 BY DEFAULT identity BIGINT이고 최댓값이 2^53-1이다."""
     # given: head 스키마의 임시 DB 세션과 Deal·사용자
-    # when: id 컬럼 정보를 읽는다
     rows = (await session.execute(text(COLUMNS), {"table": table})).all()
+    # when: id 컬럼 정보를 읽는다
     row = next(r for r in rows if r.column_name == "id")
 
     # then: bigint, identity BY DEFAULT, 최대값 MAX_ID
@@ -104,8 +104,8 @@ async def test_the_primary_key_is_a_bigint_identity_by_default(
 async def test_contract_attachment_columns_types_and_nullability(session: AsyncSession) -> None:
     """license_contract_attachments 컬럼의 타입과 NULL 허용 여부가 명세와 같다."""
     # given: head 스키마의 임시 DB 세션과 Deal·사용자
-    # when: information_schema에서 컬럼을 읽는다
     rows = (await session.execute(text(COLUMNS), {"table": "license_contract_attachments"})).all()
+    # when: information_schema에서 컬럼을 읽는다
     columns = {
         r.column_name: (r.data_type, r.character_maximum_length, r.is_nullable) for r in rows
     }
@@ -128,8 +128,7 @@ async def test_contract_attachment_columns_types_and_nullability(session: AsyncS
 
 async def test_contract_foreign_keys_and_delete_rules(session: AsyncSession) -> None:
     """계약의 외래 키와 삭제 규칙이 명세와 같다."""
-    # given: head 스키마의 임시 DB 세션과 Deal·사용자
-    # when: 외래 키 정의를 읽는다
+    # when: 외래 키 정의를 읽는다 (전제: head 스키마의 임시 DB 세션과 Deal·사용자)
     rows = (await session.execute(text(FOREIGN_KEYS), {"table": "license_contracts"})).all()
 
     # then: Deal CASCADE, 사용자 RESTRICT, 원본 SET NULL
@@ -148,8 +147,7 @@ async def test_contract_foreign_keys_and_delete_rules(session: AsyncSession) -> 
 
 async def test_contract_attachment_foreign_keys_and_delete_rules(session: AsyncSession) -> None:
     """첨부의 외래 키와 삭제 규칙이 명세와 같다."""
-    # given: head 스키마의 임시 DB 세션과 Deal·사용자
-    # when: 외래 키 정의를 읽는다
+    # when: 외래 키 정의를 읽는다 (전제: head 스키마의 임시 DB 세션과 Deal·사용자)
     rows = (
         await session.execute(text(FOREIGN_KEYS), {"table": "license_contract_attachments"})
     ).all()
@@ -178,8 +176,7 @@ async def test_the_contract_indexes_exist_and_only_the_issued_one_is_unique(
 
     테스트 코드: LC-042
     """
-    # given: head 스키마의 임시 DB 세션과 Deal·사용자
-    # when: 인덱스 정의를 읽는다
+    # when: 인덱스 정의를 읽는다 (전제: head 스키마의 임시 DB 세션과 Deal·사용자)
     definitions = {
         r.indexname: r.indexdef
         for r in (await session.execute(text(INDEXES), {"table": "license_contracts"})).all()
@@ -209,8 +206,7 @@ async def test_the_contract_attachment_indexes_exist(session: AsyncSession) -> N
 
     테스트 코드: LC-064
     """
-    # given: head 스키마의 임시 DB 세션과 Deal·사용자
-    # when: 인덱스 정의를 읽는다
+    # when: 인덱스 정의를 읽는다 (전제: head 스키마의 임시 DB 세션과 Deal·사용자)
     definitions = {
         r.indexname: r.indexdef
         for r in (
@@ -243,8 +239,9 @@ async def test_the_schema_has_no_integrity_violations(session: AsyncSession) -> 
 
     assert exists is not None  # 점검 대상 테이블이 있어야 의미가 있다
     # when: 스키마 무결성을 점검한다
+    result = await check_schema(session)
     # then: 위반 목록이 비어 있다
-    assert await check_schema(session) == []
+    assert result == []
 
 
 async def test_a_valid_not_issued_row_and_a_valid_issued_row_are_accepted(

@@ -1,4 +1,4 @@
-"""UserRepository.has_links / delete / lock_assignable 계약(AC3·6): Fake와 SQL 구현에 같은 기대값.
+"""UserRepository.has_links / delete / lock_assignable 계약: Fake와 SQL 구현에 같은 기대값.
 
 users를 FK로 참조하는 모든 종류(tests.support.user_links.LINK_KINDS)를 각각 단독으로 만들어
 연결 판정이 true가 되는지 확인한다. 세션과 자기 자신이 등록자인 자기참조는 연결이 아니다.
@@ -66,36 +66,53 @@ async def _has_links(uow_factory: UnitOfWorkFactory, user: User) -> bool:
 async def test_each_kind_of_reference_alone_makes_the_user_linked(
     uow_factory: UnitOfWorkFactory, kind: str
 ) -> None:
+    """users를 참조하는 종류 하나만 있어도 사용자는 연결된 것으로 판정된다."""
+    # given: 연결이 없는 사용자
     target = make_user("kim")
     await _add(uow_factory, target)
-    assert not await _has_links(uow_factory, target)
+    before = await _has_links(uow_factory, target)
 
+    # when: 해당 종류의 참조를 하나 만든다
     await link_user(uow_factory, target, kind)
+    after = await _has_links(uow_factory, target)
 
-    assert await _has_links(uow_factory, target)
+    # then: 만들기 전에는 연결이 없고 만든 뒤에는 연결된 것으로 판정된다
+    assert not before
+    assert after
 
 
 @pytest.mark.parametrize("kind", LINK_KINDS)
 async def test_a_reference_to_someone_else_does_not_link_this_user(
     uow_factory: UnitOfWorkFactory, kind: str
 ) -> None:
+    """다른 사용자를 향한 참조는 이 사용자를 연결된 것으로 만들지 않는다."""
+    # given: 사용자 둘
     target, other = make_user("kim"), make_user("lee")
     await _add(uow_factory, target)
     await _add(uow_factory, other)
 
+    # when: 다른 사용자에게 참조를 만든다
     await link_user(uow_factory, other, kind)
 
+    # then: 이 사용자는 연결되지 않았다
     assert not await _has_links(uow_factory, target)
 
 
 async def test_a_self_registered_user_is_not_linked(uow_factory: UnitOfWorkFactory) -> None:
+    """자기 자신이 등록자인 사용자는 연결된 것이 아니다."""
+    # given: 등록자가 자기 자신인 사용자
     user = make_user("kim")  # created_by_user_id == id
     await _add(uow_factory, user)
 
-    assert not await _has_links(uow_factory, user)
+    # when: 연결 여부를 조회한다
+    result = await _has_links(uow_factory, user)
+    # then: 연결되지 않은 것으로 판정된다
+    assert not result
 
 
 async def test_a_session_row_is_not_a_link(uow_factory: UnitOfWorkFactory) -> None:
+    """세션 행은 연결이 아니다."""
+    # given: 세션이 있는 사용자
     user = make_user("kim")
     await _add(uow_factory, user)
     session = AuthSession(
@@ -108,12 +125,17 @@ async def test_a_session_row_is_not_a_link(uow_factory: UnitOfWorkFactory) -> No
         await uow.sessions.add(session, "tok")
         await uow.commit()
 
-    assert not await _has_links(uow_factory, user)
+    # when: 연결 여부를 조회한다
+    result = await _has_links(uow_factory, user)
+    # then: 세션 행은 연결로 치지 않는다
+    assert not result
 
 
 async def test_a_resigned_user_with_references_stays_linked(
     uow_factory: UnitOfWorkFactory,
 ) -> None:
+    """참조가 있는 사용자는 퇴사 처리를 해도 연결된 상태다."""
+    # given: 참조가 있는 사용자를 퇴사 처리했다
     user = make_user("kim")
     await _add(uow_factory, user)
     await link_user(uow_factory, user, "deal_owner")
@@ -123,21 +145,28 @@ async def test_a_resigned_user_with_references_stays_linked(
         await uow.users.update(stored)
         await uow.commit()
 
-    assert await _has_links(uow_factory, user)
+    # when: 연결 여부를 조회한다
+    result = await _has_links(uow_factory, user)
+    # then: 연결된 것으로 판정된다
+    assert result
 
 
 @pytest.mark.parametrize("kind", LINK_KINDS)
 async def test_physical_delete_of_a_linked_user_raises_user_in_use_and_keeps_the_row(
     uow_factory: UnitOfWorkFactory, kind: str
 ) -> None:
+    """연결된 사용자의 물리 삭제는 UserInUseError이고 행은 남는다."""
+    # given: 해당 종류의 참조가 있는 사용자
     target = make_user("kim")
     await _add(uow_factory, target)
     await link_user(uow_factory, target, kind)
 
+    # when·then: 물리 삭제하면 UserInUseError가 난다
     async with uow_factory() as uow:
         with pytest.raises(UserInUseError):
             await uow.users.delete(target.id)
 
+    # then: 사용자 행은 남아 있다
     async with uow_factory() as uow:
         assert (await uow.users.get(target.id)).id == target.id
 
@@ -145,13 +174,17 @@ async def test_physical_delete_of_a_linked_user_raises_user_in_use_and_keeps_the
 async def test_physical_delete_of_an_unlinked_user_succeeds(
     uow_factory: UnitOfWorkFactory,
 ) -> None:
+    """연결이 없는 사용자는 물리 삭제된다."""
+    # given: 연결이 없는 사용자
     target = make_user("kim")
     await _add(uow_factory, target)
 
+    # when: 물리 삭제한다
     async with uow_factory() as uow:
         await uow.users.delete(target.id)
         await uow.commit()
 
+    # then: 사용자가 없다
     assert not await _exists(uow_factory, target.id)
 
 
@@ -163,10 +196,13 @@ async def _exists(uow_factory: UnitOfWorkFactory, user_id: UserId) -> bool:
 async def test_lock_assignable_is_true_only_for_an_active_user(
     uow_factory: UnitOfWorkFactory,
 ) -> None:
+    """lock_assignable은 재직 사용자에게만 true다."""
+    # given: 재직 사용자와 퇴사 사용자
     active, gone = make_user("kim"), make_resigned_user("gone")
     await _add(uow_factory, active)
     await _add(uow_factory, gone)
 
+    # when·then: 재직자는 true, 퇴사자와 없는 id는 false다
     async with uow_factory() as uow:
         assert await uow.users.lock_assignable(active.id) is True
         assert await uow.users.lock_assignable(gone.id) is False

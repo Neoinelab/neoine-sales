@@ -1,4 +1,4 @@
-"""Forecast 스냅숏 유스케이스 단위 테스트의 공용 준비 도우미(P6 R2).
+"""Forecast 스냅숏 유스케이스 단위 테스트의 공용 준비 도우미.
 
 Deal 환경(`DealEnv`) 위에서 Deal·담당자를 만들고, 스냅숏 저장소에 셀을 직접 넣는다. 시각은 서버 OS
 로컬 시간대의 달력 날짜로 해석되므로 로컬 시각으로 만든다(`local`).
@@ -110,3 +110,21 @@ def cell_keys(cells: Any) -> set[tuple[int, int, int, str, int, int]]:  # noqa: 
         (c.revenue_year, c.revenue_month, c.owner_id, c.forecast_key, c.tally.count, c.tally.amount)
         for c in cells
     }
+
+
+async def given_kim_and_lee_deals(env: DealEnv) -> tuple[UserId, UserId]:
+    """KIM·LEE의 여러 달 Deal(Lost, 2026 Q4, 2025년 8월 포함)을 만들고 두 사람의 id를 돌려준다."""
+    kim = await new_owner(env, "kim")
+    lee = await new_owner(env, "lee")
+    for forecast, amount, day in (
+        ("pipeline", 100, date(2026, 8, 15)),
+        ("pipeline", 40, date(2026, 8, 31)),
+        ("commit", 7, date(2026, 9, 30)),
+        ("won", 500, date(2026, 8, 20)),
+        ("lost", 999, date(2026, 8, 1)),
+        ("pipeline", 5000, date(2026, 11, 1)),
+    ):
+        await new_deal(env, forecast, amount, day, owner_user_id=kim)
+    await new_deal(env, "best", 30, date(2026, 9, 2), owner_user_id=lee)
+    await new_deal(env, "pipeline", 1, date(2025, 8, 10), owner_user_id=kim)
+    return kim, lee

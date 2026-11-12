@@ -4,7 +4,7 @@ import { withColumns } from '../../../test/reportDesigner'
 import { ChartSettingsPanel } from './ChartSettingsPanel'
 import type { ChartDraft } from './chartDraft'
 
-/** 재리뷰 후속 AC11: 화면 안내와 같은 문구의 서버 `("chart","kind")` 문제는 한 번만 보인다. */
+/** 화면 안내와 같은 문구의 서버 `("chart","kind")` 문제는 한 번만 보인다. */
 const MESSAGE = '이 차트는 그룹핑 컬럼이 1개 이하일 때 만들 수 있습니다'
 const headerOf = (uid: number): string => `H${uid}`
 const draft: ChartDraft = {
@@ -34,16 +34,22 @@ function renderPanel(serverTexts: string[]) {
   )
 }
 
-describe('ChartSettingsPanel: 같은 문구 안내 (재리뷰 후속 AC11)', () => {
-  it('shows the group count notice once when the server reports the same sentence', () => {
+describe('ChartSettingsPanel: 같은 문구 안내', () => {
+  // 테스트 코드: RC-069
+  it('서버가 화면 안내와 같은 문구를 알려도 한 번만 보인다', () => {
+    // when: 같은 문구의 서버 위반을 넘겨 패널을 그린다
     renderPanel([MESSAGE])
 
+    // then: 그 문구가 한 번만 보인다
     expect(screen.getAllByText(MESSAGE)).toHaveLength(1)
   })
 
-  it('still shows a different server sentence of the kind part', () => {
+  // 테스트 코드: RC-069
+  it('다른 서버 문구는 함께 보인다', () => {
+    // when: 다른 문구의 서버 위반을 넘겨 패널을 그린다
     renderPanel(['다른 서버 문제'])
 
+    // then: 서버 문구가 보이고 화면 안내는 한 번만 보인다
     expect(screen.getByText('다른 서버 문제')).toBeInTheDocument()
     expect(screen.getAllByText(MESSAGE)).toHaveLength(1)
   })

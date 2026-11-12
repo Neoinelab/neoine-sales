@@ -177,23 +177,30 @@ export interface AlertRecord {
   updatedById: number | null
 }
 
-/** Forecast 월말 스냅숏의 셀 하나(P6 R2). 코드 이름·outcome·order는 스냅숏을 만든 시점의 값이다. */
+/** Forecast 월말 스냅숏의 셀 하나. 코드 이름·outcome·order는 셀이 아니라 스냅숏의 열에 있다. */
 export interface ForecastSnapshotCellRecord {
   revenueYear: number
   revenueMonth: number
   ownerId: number
   forecastKey: string
-  forecastName: string
-  forecastOutcome: ForecastOutcome
-  forecastOrder: number
   count: number
   amount: number
+}
+
+/** Forecast 월말 스냅숏의 열 하나: 스냅숏을 만든 시점의 Forecast 코드(Deal이 없던 코드도 저장된다). */
+export interface ForecastSnapshotColumnRecord {
+  key: string
+  name: string
+  outcome: ForecastOutcome
+  order: number
 }
 
 /** Forecast 월말 스냅숏(기준 월 `YYYY-MM`당 하나). 생성 이후 Deal·코드가 바뀌어도 변하지 않는다. */
 export interface ForecastSnapshotRecord {
   period: string
   takenAt: string
+  /** 저장 당시의 Forecast 코드 목록(Lost 포함). 요약의 열은 여기서 만든다. */
+  columns: ForecastSnapshotColumnRecord[]
   cells: ForecastSnapshotCellRecord[]
 }
 

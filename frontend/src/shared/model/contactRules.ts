@@ -104,31 +104,3 @@ export function findSamePerson(
   }
   return [...pool].sort(byId)[0] ?? null
 }
-
-/**
- * 해당 구분의 회사명 distinct 목록. 대소문자만 다른 표기는 하나로 보고, 먼저 등록된 표기(createdAt, id 순)를
- * 대표로 쓴다. 결과는 가나다/알파벳 순(localeCompare 'ko').
- */
-export function distinctCompanies(contacts: readonly Contact[], kind: ContactKind): string[] {
-  const ordered = contacts
-    .filter((c) => c.kind === kind)
-    .sort((a, b) => a.createdAt.localeCompare(b.createdAt) || byId(a, b))
-  const seen = new Map<string, string>()
-  for (const c of ordered) {
-    const key = normalizeName(c.company)
-    if (!seen.has(key)) seen.set(key, c.company)
-  }
-  return [...seen.values()].sort((a, b) => a.localeCompare(b, 'ko'))
-}
-
-/** 회사명(대소문자 무시)으로 거른 담당자 목록, 이름 순. */
-export function contactsOfCompany(
-  contacts: readonly Contact[],
-  kind: ContactKind,
-  company: string,
-): Contact[] {
-  const key = normalizeName(company)
-  return contacts
-    .filter((c) => c.kind === kind && normalizeName(c.company) === key)
-    .sort((a, b) => a.name.localeCompare(b.name, 'ko') || byId(a, b))
-}

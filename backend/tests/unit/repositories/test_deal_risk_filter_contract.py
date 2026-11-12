@@ -1,4 +1,4 @@
-"""DealRepository.search/count의 기한초과·미업데이트 조건 계약(AC-10, T-17~T-19): Fake와 SQL 동일.
+"""DealRepository.search/count의 기한초과·미업데이트 조건 계약(T-17~T-19): Fake와 SQL 동일.
 
 기대 집합은 저장소 코드를 베끼지 않고 도메인 `compute_risk`로 계산한다. 업무 날짜 경계(로컬
 00:00, 23:59:59)와 기준 행(Next Action이 있는 가장 최근 Action)을 데이터로 고정한다. 기준 행의
@@ -177,12 +177,16 @@ async def _found(case: DealCase, **criteria: object) -> tuple[list[str], int]:
 async def test_each_filter_returns_exactly_the_rows_compute_risk_flags(
     deal_case: DealCase,
 ) -> None:
+    """기한초과·미업데이트 필터가 compute_risk가 표시한 Deal과 정확히 같은지 확인한다."""
+    # given: 경계 사례를 포함한 Deal들을 저장한다
     await _seed(deal_case)
 
+    # when: 기한초과, 미업데이트, 둘 다 조건으로 각각 검색한다
     overdue, overdue_total = await _found(deal_case, overdue=True)
     stale, stale_total = await _found(deal_case, stale=True)
     either, either_total = await _found(deal_case, overdue=True, stale=True)
 
+    # then: 각 결과가 도메인 판정 기대 집합과 같고 건수가 결과 행 수와 같다
     assert overdue == _expected(OVERDUE_SET)
     assert stale == _expected(STALE_SET)
     assert either == _expected(OVERDUE_SET | STALE_SET)
@@ -190,39 +194,54 @@ async def test_each_filter_returns_exactly_the_rows_compute_risk_flags(
 
 
 def test_the_expected_sets_are_not_trivial() -> None:
-    """기대 집합이 비어 있거나 전체면 위 계약이 아무것도 가려내지 못한다."""
+    """기대 집합이 비어 있지도 전체이지도 않아 계약이 의미 있는지 확인한다."""
+    # given: 전체 Deal 수가 있다
     total = len(SPECS)
 
+    # when·then: 각 기대 집합이 1건 이상이면서 전체보다 작다
     for accepted in (OVERDUE_SET, STALE_SET, OVERDUE_SET | STALE_SET):
         assert 0 < len(_expected(accepted)) < total
 
 
 async def test_a_stale_deal_just_inside_and_outside_the_day_boundary(deal_case: DealCase) -> None:
+    """미업데이트의 업무 날짜 경계가 정확한지 확인한다."""
+    # given: 14일 전 23:59:59와 13일 전 00:00:00 Action의 Deal을 포함해 저장한다
     await _seed(deal_case)
 
+    # when: 미업데이트 조건으로 검색한다
     stale, _ = await _found(deal_case, stale=True)
 
+    # then: 14일 전 Deal은 포함되고 13일 전 Deal은 빠진다
     assert "20261016-A004" in stale  # today-14 23:59:59
     assert "20261016-A005" not in stale  # today-13 00:00:00
 
 
 async def test_without_a_risk_filter_a_basis_changes_nothing(deal_case: DealCase) -> None:
+    """위험 필터 없이 기준만 주면 결과가 바뀌지 않는지 확인한다."""
+    # given: Deal들을 저장한다
     await _seed(deal_case)
 
+    # when: 필터 없이 기준만 주고 검색한다
     rows, total = await _found(deal_case)
 
+    # then: 모든 Deal이 나오고 건수가 전체와 같다
     assert rows == sorted(spec.code for spec in SPECS)
     assert total == len(SPECS)
 
 
 async def test_risk_filters_combine_with_other_conditions_using_and(deal_case: DealCase) -> None:
+    """위험 필터가 다른 조건과 AND로 결합되는지 확인한다."""
+    # given: Deal들을 저장한다
     await _seed(deal_case)
+    # given: 한 담당자의 미업데이트 Deal 기대 목록이 있다
     alice = uid("rf_alice")
     mine = sorted(code for code in _expected(STALE_SET) if int(code[-3:]) <= ALICE_LAST)
 
+    # when: 미업데이트와 담당자 조건에 limit 1로 검색하고 건수를 센다
     query = DealQuery(risk_basis=BASIS, stale=True, owner_user_id=alice, limit=1)
     page = await deal_case.deals.search(query)
 
+    # then: 한 페이지에 기대 목록 중 1건이 나오고 전체 건수는 기대 목록 수다
     assert len(mine) > 1
     assert len(page) == 1
     assert page[0].deal.id.value in mine
@@ -233,9 +252,13 @@ async def test_risk_filters_combine_with_other_conditions_using_and(deal_case: D
 async def test_a_risk_filter_without_a_basis_is_a_programming_error(
     deal_case: DealCase, flag: str
 ) -> None:
+    """기준 없이 위험 필터를 쓰면 ValueError인지 확인한다."""
+    # given: 기준 없이 위험 필터만 지정한 조건이 있다
     query = DealQuery(**{flag: True})  # type: ignore[arg-type]
 
+    # when·then: 검색하면 ValueError가 난다
     with pytest.raises(ValueError):  # noqa: PT011 - 프로그래밍 오류
         await deal_case.deals.search(query)
+    # when·then: 건수를 세도 ValueError가 난다
     with pytest.raises(ValueError):  # noqa: PT011
         await deal_case.deals.count(query)

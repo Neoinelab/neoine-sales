@@ -1,7 +1,4 @@
-"""Reports 필드 카탈로그 (AC1): 설계 표의 필드, 형식별 허용 목록, 기본값.
-
-계획 4.3 표를 정본으로 한다(Deal 28 + Action 12 = 40개). key 목록이 표와 정확히 같은지를 본다.
-"""
+"""Reports 필드 카탈로그: 설계 표의 40개 필드, 형식별 허용 목록, 기본값, 어휘."""
 
 from typing import TYPE_CHECKING
 
@@ -114,37 +111,72 @@ COUNT_AGGREGATES = {Aggregate.COUNT, Aggregate.COUNT_DISTINCT}
 
 
 def test_catalog_has_the_40_fields_of_the_design() -> None:
-    assert [f.key for f in FIELD_CATALOG] == DEAL_KEYS + ACTION_KEYS
+    """카탈로그는 설계 표의 40개 필드를 정해진 key 순서로 가진다.
+
+    테스트 코드: RQ-002
+    """
+    # when: 카탈로그의 key 목록을 읽는다
+    keys = [f.key for f in FIELD_CATALOG]
+    # then: Deal 28개 뒤에 Action 12개 순서다
+    assert keys == DEAL_KEYS + ACTION_KEYS
 
 
 def test_catalog_has_28_deal_fields_and_12_action_fields() -> None:
+    """카탈로그는 Deal 필드 28개와 Action 필드 12개를 가진다.
+
+    테스트 코드: RQ-002
+    """
+    # when: 필드마다 소속 엔터티를 모은다
     entities = [f.entity for f in FIELD_CATALOG]
 
+    # then: Deal이 28개, Action이 12개다
     assert entities.count(Entity.DEAL) == 28
     assert entities.count(Entity.ACTION) == 12
 
 
 def test_each_field_key_belongs_to_its_entity_prefix() -> None:
-    assert all(f.key.split(".")[0] == f.entity.value for f in FIELD_CATALOG)
+    """필드 key의 접두어는 그 필드의 엔터티와 같다.
+
+    테스트 코드: RQ-002
+    """
+    # when: 엔터티 값과 접두어가 다른 필드를 모은다
+    mismatched = [f.key for f in FIELD_CATALOG if f.key.split(".")[0] != f.entity.value]
+    # then: 그런 필드가 없다
+    assert mismatched == []
 
 
 @pytest.mark.parametrize("spec", FIELD_CATALOG, ids=lambda f: f.key)
 def test_each_field_allows_only_its_type_formats_operators_and_aggregates(
     spec: FieldSpec,
 ) -> None:
-    assert set(spec.formats) <= ALLOWED_FORMATS[spec.type]
+    """필드마다 포맷·연산자·집계가 그 형식의 허용표 안에 있고 기본 포맷이 맞다.
+
+    테스트 코드: RQ-003
+    """
+    # when: 필드의 포맷·연산자·집계를 읽는다 (전제: 카탈로그의 필드 하나)
+    formats = set(spec.formats)
+    operators = set(spec.operators)
+    aggregates = set(spec.aggregates)
+    expected = NUMERIC_AGGREGATES if spec.type == FieldType.NUMBER else COUNT_AGGREGATES
+    # then: 허용표 안에 있고 포맷이 있으면 기본 포맷이 그 안에, 없으면 None이다
+    assert formats <= ALLOWED_FORMATS[spec.type]
     if spec.formats:
         assert spec.default_format in spec.formats
     else:
         assert spec.default_format is None
-    assert set(spec.operators) <= ALLOWED_OPERATORS[spec.type]
-    expected = NUMERIC_AGGREGATES if spec.type == FieldType.NUMBER else COUNT_AGGREGATES
-    assert set(spec.aggregates) <= expected
+    assert operators <= ALLOWED_OPERATORS[spec.type]
+    assert aggregates <= expected
 
 
 def test_amount_is_won_and_sums_by_default() -> None:
+    """금액 필드는 원 단위이고 기본 집계가 합계이며 이름이 금액이고 Deal 숫자다.
+
+    테스트 코드: RQ-004
+    """
+    # when: 금액 필드를 찾는다
     amount = find_field("deal.amount")
 
+    # then: 단위 krw, 기본 집계 합계, 이름 금액, Deal 숫자다
     assert amount is not None
     assert amount.unit == NumberUnit.KRW
     assert amount.default_aggregate == Aggregate.SUM
@@ -154,8 +186,14 @@ def test_amount_is_won_and_sums_by_default() -> None:
 
 @pytest.mark.parametrize("key", ["deal.amount", "deal.users", "deal.status_days", "action.count"])
 def test_number_fields_have_no_formats(key: str) -> None:
+    """숫자 필드는 포맷 목록이 비고 기본 포맷이 없다.
+
+    테스트 코드: RQ-004
+    """
+    # when: 숫자 필드를 찾는다
     spec = find_field(key)
 
+    # then: 포맷이 없다
     assert spec is not None
     assert spec.type == FieldType.NUMBER
     assert spec.formats == ()
@@ -163,13 +201,26 @@ def test_number_fields_have_no_formats(key: str) -> None:
 
 
 def test_only_amount_has_a_unit() -> None:
+    """단위가 있는 필드는 금액 하나뿐이다.
+
+    테스트 코드: RQ-004
+    """
+    # when: 단위가 있는 필드를 모은다
     with_unit = [f.key for f in FIELD_CATALOG if f.unit is not None]
 
+    # then: deal.amount 하나뿐이다
     assert with_unit == ["deal.amount"]
 
 
 def test_format_has_only_date_formats() -> None:
-    assert [f.value for f in Format] == [
+    """포맷 어휘는 날짜·시각 포맷 7개뿐이다.
+
+    테스트 코드: RQ-007
+    """
+    # when: 포맷 어휘를 읽는다
+    values = [f.value for f in Format]
+    # then: 7개이고 예전 포맷이 없다
+    assert values == [
         "ymd",
         "ymd_hm",
         "year",
@@ -181,33 +232,71 @@ def test_format_has_only_date_formats() -> None:
 
 
 def test_number_unit_has_only_krw() -> None:
-    assert [u.value for u in NumberUnit] == ["krw"]
+    """숫자 단위 어휘는 원(krw) 하나뿐이다.
+
+    테스트 코드: RQ-004
+    """
+    # when: 단위 어휘를 읽는다
+    values = [u.value for u in NumberUnit]
+    # then: krw 하나다
+    assert values == ["krw"]
 
 
 def test_status_days_defaults_to_average_and_is_a_deal_number() -> None:
+    """Status 체류 일수는 기본 집계가 평균이고 Deal 숫자다.
+
+    테스트 코드: RQ-003
+    """
+    # when: 체류 일수 필드를 찾는다
     days = find_field("deal.status_days")
 
+    # then: 기본 집계 평균, Deal 숫자다
     assert days is not None
     assert days.default_aggregate == Aggregate.AVG
     assert days.deal_number is True
 
 
 def test_users_is_a_deal_number_but_expected_close_is_not() -> None:
-    assert find_field("deal.users").deal_number is True  # type: ignore[union-attr]
-    assert find_field("deal.expected_close").deal_number is False  # type: ignore[union-attr]
+    """Users count는 Deal 숫자이고 Expected Close는 아니다.
+
+    테스트 코드: RQ-003
+    """
+    # when: 두 필드의 Deal 숫자 여부를 읽는다
+    users_is_deal_number = find_field("deal.users").deal_number  # type: ignore[union-attr]
+    close_is_deal_number = find_field("deal.expected_close").deal_number  # type: ignore[union-attr]
+    # then: users는 Deal 숫자이고 expected_close는 아니다
+    assert users_is_deal_number is True
+    assert close_is_deal_number is False
 
 
 def test_find_field_is_exact_and_case_sensitive() -> None:
-    assert find_field("deal.code") is not None
-    assert find_field("Deal.Code") is None
-    assert find_field("deal.code ") is None
-    assert find_field("deal.password") is None
-    assert find_field("") is None
+    """필드 key 찾기는 대소문자·공백까지 정확히 같을 때만 찾는다.
+
+    테스트 코드: RQ-011
+    """
+    # when: 정확한 key, 대소문자·뒤 공백이 다른 key, 없는 key, 빈 문자열로 찾는다
+    exact = find_field("deal.code")
+    wrong_case = find_field("Deal.Code")
+    trailing_space = find_field("deal.code ")
+    unknown = find_field("deal.password")
+    empty = find_field("")
+    # then: 정확한 key만 찾고 나머지는 못 찾는다
+    assert exact is not None
+    assert wrong_case is None
+    assert trailing_space is None
+    assert unknown is None
+    assert empty is None
 
 
 def test_action_count_is_virtual_requires_grouping_and_is_not_filterable() -> None:
+    """Action 건수는 그룹핑 전용이고 조건과 그룹 컬럼에 쓸 수 없다.
+
+    테스트 코드: RQ-005
+    """
+    # when: Action 건수 필드를 찾는다
     count = find_field("action.count")
 
+    # then: 그룹핑 필요, 조건 불가, 그룹 불가다
     assert count is not None
     assert count.requires_grouping is True
     assert count.filterable is False
@@ -215,14 +304,27 @@ def test_action_count_is_virtual_requires_grouping_and_is_not_filterable() -> No
 
 
 def test_only_action_count_requires_grouping() -> None:
-    assert [f.key for f in FIELD_CATALOG if f.requires_grouping] == ["action.count"]
+    """그룹핑이 필요한 필드는 Action 건수 하나뿐이다.
+
+    테스트 코드: RQ-005
+    """
+    # when: 그룹핑이 필요한 필드의 key를 모은다
+    keys = [f.key for f in FIELD_CATALOG if f.requires_grouping]
+    # then: action.count 하나다
+    assert keys == ["action.count"]
 
 
 def test_static_code_fields_carry_their_options_and_db_fields_carry_a_source() -> None:
+    """정적 코드 필드는 선택지를, 출처 필드는 선택지 출처를 가진다.
+
+    테스트 코드: RQ-006
+    """
+    # when: Forecast 구분·Vendor·BANT Budget 필드를 찾는다
     outcome = find_field("deal.forecast_outcome")
     vendor = find_field("deal.vendor")
     budget = find_field("deal.bant_budget")
 
+    # then: 정적 선택지 open·won·lost, Vendor는 출처 vendors, BANT는 분류 budget이다
     assert outcome is not None
     assert [o.value for o in outcome.options or ()] == ["open", "won", "lost"]
     assert vendor is not None
@@ -233,13 +335,19 @@ def test_static_code_fields_carry_their_options_and_db_fields_carry_a_source() -
 
 
 def test_risk_options_are_overdue_and_stale() -> None:
+    """경고 필드의 선택지는 overdue와 stale 둘뿐이다.
+
+    테스트 코드: RQ-006
+    """
+    # when: 경고 필드를 찾는다
     risk = find_field("deal.risk")
 
+    # then: 선택지는 overdue, stale이다
     assert risk is not None
     assert [o.value for o in risk.options or ()] == ["overdue", "stale"]
 
 
-# ---- 포맷 정리 (2026-10-28) ----
+# ---- 포맷 어휘 ----
 
 LEGACY_FORMAT_NAMES = ["as_is", "prefix", "name", "key"]
 DATE_BUCKETS = {Format.YMD, Format.YEAR, Format.QUARTER, Format.MONTH}
@@ -247,23 +355,42 @@ DATE_BUCKETS = {Format.YMD, Format.YEAR, Format.QUARTER, Format.MONTH}
 
 @pytest.mark.parametrize("field_type", [FieldType.TEXT, FieldType.CODE, FieldType.USER])
 def test_text_code_user_types_have_no_formats(field_type: FieldType) -> None:
+    """텍스트·코드·사용자 형식은 포맷이 없고 기본 포맷도 없다.
+
+    테스트 코드: RQ-003
+    """
+    # when: 형식별 포맷 어휘를 읽는다
     from app.domain.report.vocabulary import TYPE_DEFAULT_FORMAT, TYPE_FORMATS  # noqa: PLC0415
 
+    # then: 포맷이 비어 있고 기본값이 없다
     assert tuple(TYPE_FORMATS[field_type]) == ()
     assert TYPE_DEFAULT_FORMAT[field_type] is None
 
 
 @pytest.mark.parametrize("name", LEGACY_FORMAT_NAMES)
 def test_format_vocabulary_has_no_legacy_values(name: str) -> None:
+    """포맷 어휘에 예전 포맷이 없고 라벨과 일치한다.
+
+    테스트 코드: RQ-007
+    """
+    # when: 포맷 어휘와 라벨을 읽는다
     from app.domain.report.labels import FORMAT_LABELS  # noqa: PLC0415
 
+    # then: 예전 이름이 없고 라벨 집합이 같으며 7개다
     assert name not in {f.value for f in Format}
     assert set(FORMAT_LABELS) == set(Format)
     assert len(Format) == 7
 
 
 def test_affects_query_is_date_buckets_only() -> None:
-    assert {f for f in Format if f.affects_query} == DATE_BUCKETS
+    """SQL 묶음 단위를 바꾸는 포맷은 날짜 묶음 4개뿐이다.
+
+    테스트 코드: RQ-007
+    """
+    # when: 쿼리에 영향을 주는 포맷을 모은다
+    affecting = {f for f in Format if f.affects_query}
+    # then: ymd·year·quarter·month뿐이다
+    assert affecting == DATE_BUCKETS
 
 
 @pytest.mark.parametrize(
@@ -272,5 +399,13 @@ def test_affects_query_is_date_buckets_only() -> None:
     ids=lambda f: f.key,
 )
 def test_formatless_fields_have_empty_formats_and_null_default(spec: FieldSpec) -> None:
-    assert tuple(spec.formats) == ()
-    assert spec.default_format is None
+    """포맷 없는 형식의 필드는 포맷 목록이 비고 기본 포맷이 null이다.
+
+    테스트 코드: RQ-003
+    """
+    # when: 필드의 포맷 목록과 기본 포맷을 읽는다 (전제: 필드 하나)
+    formats = tuple(spec.formats)
+    default_format = spec.default_format
+    # then: 포맷 목록이 비고 기본값이 null이다
+    assert formats == ()
+    assert default_format is None

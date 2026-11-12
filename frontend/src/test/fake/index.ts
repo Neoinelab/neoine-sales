@@ -14,7 +14,7 @@ import { createClock, type MockClock } from './clock'
 import { createMockControl } from './control'
 import type { MockControl } from './types'
 import { readStoredSession, setSession, write, type MockContext } from './gateway/context'
-import { forbidden, unauthorized } from './errors'
+import { unauthorized } from './errors'
 import type { Me } from '../../shared/model/types'
 import { createGatewayFor } from './gateway'
 import { createLatency } from './latency'
@@ -88,7 +88,7 @@ export function createMockGateway(options: MockOptions = {}): MockInstance {
       write(ctx, () => {
         const user = ctx.store.data.users.find((u) => u.id === userId)
         if (!user) throw unauthorized('아이디 또는 비밀번호가 올바르지 않습니다.')
-        if (user.status === 'resigned') throw forbidden('퇴사한 사용자는 로그인할 수 없습니다.')
+        if (user.status === 'resigned') throw unauthorized('아이디 또는 비밀번호가 올바르지 않습니다')
         user.lastLoginAt = clock.now()
         setSession(ctx, user.id)
         return { id: user.id, loginId: user.loginId, name: user.name, role: user.role }

@@ -1,4 +1,4 @@
-"""ForecastTallyRepository Port의 InMemory 구현(Fake, P6 R1).
+"""ForecastTallyRepository Port의 InMemory 구현(Fake).
 
 Deal 저장소(`FakeDealRepository`)의 Deal을 (담당자, Forecast key)로 묶어 건수와 `revenue_amount`
 합을 낸다. 기간은 Expected Close(revenue_date)가 연 / 연+분기 / 연+월(양끝 포함)에 속하는지로
@@ -64,7 +64,7 @@ class FakeForecastTallyRepository:
         ]
 
     async def tally_by_month(self) -> Sequence[MonthlyBucket]:
-        """모든 Deal을 (revenue 연, revenue 월, 담당자, Forecast key)로 묶는다(R2 스냅숏용)."""
+        """모든 Deal을 (revenue 연, revenue 월, 담당자, Forecast key)로 묶는다(스냅숏용)."""
         from app.application.ports.forecast_repository import MonthlyBucket  # noqa: PLC0415
         from app.domain.forecast.summary import Tally  # noqa: PLC0415
 

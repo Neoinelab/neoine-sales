@@ -45,10 +45,14 @@ async def _seed_many(repository: UserRepository, role: Role = Role.SALES) -> Non
 async def test_search_refs_without_limit_returns_every_user_in_creation_order(
     repository: UserRepository,
 ) -> None:
+    """limit 없이 조회하면 모든 사용자를 생성 순서로 돌려준다."""
+    # given: 사용자 205명
     await _seed_many(repository)
 
+    # when: limit 없이 사용자 참조를 검색한다 (전제: Fake·SQL 사용자 저장소 공통)
     refs = await repository.search_refs(keyword=None, include_resigned=False)
 
+    # then: 205명 모두 생성 순서로 나온다
     assert len(refs) == TOTAL
     assert [r.name for r in refs] == [f"user{n:03d}" for n in range(1, TOTAL + 1)]
 
@@ -56,15 +60,19 @@ async def test_search_refs_without_limit_returns_every_user_in_creation_order(
 async def test_search_refs_without_limit_still_applies_role_keyword_and_resigned_filters(
     repository: UserRepository,
 ) -> None:
+    """limit이 없어도 역할·키워드·퇴사 조건은 적용한다."""
+    # given: sales 사용자 205명, user 역할 1명, 퇴사한 sales 1명
     await _seed_many(repository, Role.SALES)
     await repository.add(make_user("viewer", Role.USER, now=later(500)))
     await repository.add(make_resigned_user("user999", Role.SALES, now=later(501)))
 
+    # when: 재직자만, 퇴사자 포함으로 각각 검색한다 (전제: Fake·SQL 사용자 저장소 공통)
     active = await repository.search_refs(keyword="user", include_resigned=False, role=Role.SALES)
     with_resigned = await repository.search_refs(
         keyword="user", include_resigned=True, role=Role.SALES
     )
 
+    # then: 조건에 맞는 사용자만 나오고 퇴사자는 포함 때만 나온다
     assert len(active) == TOTAL
     assert len(with_resigned) == TOTAL + 1
     assert with_resigned[-1].name == "user999"

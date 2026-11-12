@@ -17,15 +17,19 @@ describe('licenseEnd (B4)', () => {
     ['2028-01-30', 1, 'month', '2028-02-29'],
   ] as const)('%s + %i %s ends on %s', (start, amount, unit, expected) => {
     // when: 시작일과 기간으로 종료일을 계산한다
+    const actual = licenseEnd(start, amount, unit)
+
     // then: 기대 종료일과 같다
-    expect(licenseEnd(start, amount, unit)).toBe(expected)
+    expect(actual).toBe(expected)
   })
 
   // 짧은 달이면 그 달 말일로 보정한다.
   // 테스트 코드: LC-040
   it('corrects to the last day of a short month (2026-01-31 + 1개월 = 2026-02-28)', () => {
     // when: 2026-01-31 + 1개월을 계산한다
+    const actual = licenseEnd('2026-01-31', 1, 'month')
+
     // then: 2026-02-28이다
-    expect(licenseEnd('2026-01-31', 1, 'month')).toBe('2026-02-28')
+    expect(actual).toBe('2026-02-28')
   })
 })

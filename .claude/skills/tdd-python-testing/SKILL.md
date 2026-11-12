@@ -32,7 +32,7 @@ description: backend 기능을 구현하기 전에 pytest 테스트를 먼저 �
 | **BDD 케이스 단위 테스트** | feature 문서의 business use case 케이스(테스트 코드 번호 있음) | 유스케이스 하나를 When으로 호출, 모든 Port는 **Fake**(`tests/fakes/`), DB·네트워크 없음, given/when/then 주석 | 주로 `tests/unit/application/`, web 규칙이면 `tests/unit/web/` |
 | **그 밖의 단위 테스트** | 함수·클래스 하나(값 객체·엔티티·도메인 서비스·매퍼·Fake·어댑터) | Arrange–Act–Assert(주석은 given/when/then). 예외: infra 어댑터(SQL Repository·마이그레이션)는 실제 임시 DB로 검증하고 `pytestmark = pytest.mark.integration` | `tests/unit/{domain,application,repositories,infra,web}` |
 
-- **functional test(`tests/functional/`, HTTP → 실제 DB end-to-end)는 폐지**되었다(2026-11-09 사용자 결정). 새로 만들지 않고, 기존 것은 BDD 케이스 단위 테스트로 옮긴 뒤 삭제한다. `contracts`·`integration`·`e2e` 층도 만들지 않는다.
+- **functional test(`tests/functional/`, HTTP → 실제 DB end-to-end)는 폐지**되었다(2026-11-09 사용자 결정). 새로 만들지 않는다(기존 것은 단위 테스트로 옮긴 뒤 2026-11-12에 모두 삭제). `contracts`·`integration`·`e2e` 층도 만들지 않는다.
 - **테스트 범위(2026-10-16 사용자 결정)**: feature에 정의된 기능이 제대로 동작하는지(정상·실패·권한·경계값)만 검증한다. **경쟁(race)·동시성 테스트는 만들지 않는다.** 사용자가 특정 경쟁 상황을 명시적으로 제시했을 때만 그 상황에 한해 만든다.
 - 유스케이스 테스트는 Fake로, 실제 DB 동작은 Repository 계약 테스트(`tests/unit/repositories/`, 같은 테스트를 Fake와 SQL에 실행)로 보장한다. DB를 Mock으로 흉내 내지 않는다(`references/db-fixtures.md`).
 - Mock보다 Fake를 우선한다(호출 횟수가 아니라 **결과**를 검증). Fake 예는 `references/fakes.md`.

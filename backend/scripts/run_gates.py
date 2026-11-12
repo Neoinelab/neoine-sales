@@ -3,12 +3,13 @@
 모든 게이트를 끝까지 실행한 뒤 항목별 통과/실패와 실패 담당자를 요약한다.
 정적 검사 명령은 Jenkins Backend 단계와 같다. feature-trace는 확정된 docs/features의 BDD
 케이스 번호와 테스트 코드 주석을 대조한다(2026-11-09). pytest는 개발 중 기본값이 단위 테스트
-(tests/unit)뿐이고, functional을 포함한 전체 테스트는 Jenkins 빌드(dev·product 배포 전
-Verify 단계)가 실행한다. 로컬에서 전체가 필요하면 --full을 쓴다.
+(tests/unit)뿐이고, 전체 테스트(tests/ 전체)는 Jenkins 빌드(product 배포 전
+Verify 단계)가 실행한다(functional test는 2026-11-12 삭제 완료).
+로컬에서 전체가 필요하면 --full을 쓴다.
 
 사용법:
     uv run python scripts/run_gates.py                  # 전체 게이트(pytest는 단위 테스트만)
-    uv run python scripts/run_gates.py --full           # pytest 전체(functional 포함, CI와 같음)
+    uv run python scripts/run_gates.py --full           # pytest 전체(tests/ 전체, CI와 같음)
     uv run python scripts/run_gates.py --only mypy      # 일부만 (여러 번 지정 가능)
     uv run python scripts/run_gates.py --report ../artifacts/30-review/gate.md
     uv run python scripts/run_gates.py --json           # 기계 판독용 출력
@@ -138,7 +139,7 @@ def main() -> int:
     parser.add_argument(
         "--only", action="append", choices=[g.name for g in GATES], help="실행할 게이트"
     )
-    parser.add_argument("--full", action="store_true", help="pytest를 전체(functional 포함)로 실행")
+    parser.add_argument("--full", action="store_true", help="pytest를 전체(tests/ 전체)로 실행")
     parser.add_argument("--json", action="store_true", help="JSON으로 출력")
     parser.add_argument("--report", type=Path, help="마크다운 리포트 저장 경로")
     args = parser.parse_args()

@@ -1,4 +1,4 @@
-"""조립(Container)의 저장 위치 계약(P2b R1): 최초 설정 2단계와 외부연동 유스케이스가 조립된다."""
+"""조립(Container)의 저장 위치 계약: 최초 설정 2단계와 외부연동 유스케이스가 조립된다."""
 
 from typing import TYPE_CHECKING
 
@@ -10,7 +10,7 @@ from app.application.storage.get_settings import GetStorageSettings
 from app.application.storage.test_settings import TestStorageSettings as ProbeStorageSettings
 from app.application.storage.update_settings import UpdateStorageSettings
 from app.container import Container
-from tests.functional.conftest import make_settings
+from tests.support.app_settings import make_settings
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
@@ -26,11 +26,22 @@ async def container() -> AsyncIterator[Container]:
 
 
 async def test_container_builds_the_first_setup_storage_use_cases(container: Container) -> None:
-    assert isinstance(container.register_setup_storage(), RegisterSetupStorage)
-    assert isinstance(container.test_setup_storage(), ProbeSetupStorage)
+    """조립된 컨테이너가 최초 설정의 저장 위치 등록·시험 유스케이스를 만든다."""
+    # when: 두 유스케이스를 꺼낸다
+    result_1 = container.register_setup_storage()
+    result_2 = container.test_setup_storage()
+    # then: 각 클래스의 인스턴스다 (전제: DB에 접속하지 않는 컨테이너)
+    assert isinstance(result_1, RegisterSetupStorage)
+    assert isinstance(result_2, ProbeSetupStorage)
 
 
 async def test_container_builds_the_storage_settings_use_cases(container: Container) -> None:
-    assert isinstance(container.get_storage_settings(), GetStorageSettings)
-    assert isinstance(container.update_storage_settings(), UpdateStorageSettings)
-    assert isinstance(container.test_storage_settings(), ProbeStorageSettings)
+    """조립된 컨테이너가 저장 위치 설정 조회·변경·시험 유스케이스를 만든다."""
+    # when: 세 유스케이스를 꺼낸다
+    result_1 = container.get_storage_settings()
+    result_2 = container.update_storage_settings()
+    result_3 = container.test_storage_settings()
+    # then: 각 클래스의 인스턴스다 (전제: DB에 접속하지 않는 컨테이너)
+    assert isinstance(result_1, GetStorageSettings)
+    assert isinstance(result_2, UpdateStorageSettings)
+    assert isinstance(result_3, ProbeStorageSettings)

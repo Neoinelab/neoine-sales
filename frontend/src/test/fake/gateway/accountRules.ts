@@ -7,9 +7,12 @@ import type { SeedData } from '../store'
 import { SEED_PASSWORD } from '../seed/users'
 import type { MockContext } from './context'
 
-export const AD_MANAGED = 'AD 연동 사용자의 이름·이메일은 AD에서 관리합니다'
+export const AD_MANAGED = 'AD 연동 사용자의 이름·이메일은 AD에서 관리합니다.'
 export const LOCAL_ONLY = '앱에서 계정을 직접 관리할 때만 쓸 수 있습니다.'
 export const NAME_REQUIRED = '이름을 입력하세요.'
+/** 서버 프로필 수정(`User.change_profile`)의 이름 비움 문구. */
+export const NAME_EMPTY = '이름은(는) 비어 있을 수 없습니다'
+export const BODY_INVALID = '요청 형식이 올바르지 않습니다'
 export const WRONG_CURRENT = '현재 비밀번호가 올바르지 않습니다.'
 const PASSWORD_MIN = 8
 const PASSWORD_MAX = 256
@@ -23,9 +26,9 @@ export function requireLocal(ctx: MockContext): void {
   if (modeOf(ctx) !== 'local') throw conflict(LOCAL_ONLY)
 }
 
-export function cleanName(text: string): string {
+export function cleanName(text: string, emptyMessage = NAME_REQUIRED): string {
   const name = text.trim()
-  if (name === '') throw validation(NAME_REQUIRED)
+  if (name === '') throw validation(emptyMessage)
   return name
 }
 
@@ -55,9 +58,10 @@ export function checkLoginIdAllowed(loginId: string): void {
 }
 
 export function checkPassword(password: string, loginId: string): void {
-  if (password.length < PASSWORD_MIN) throw validation(`비밀번호는 ${PASSWORD_MIN}자 이상이어야 합니다.`)
-  if (password.length > PASSWORD_MAX) throw validation(`비밀번호는 ${PASSWORD_MAX}자 이하여야 합니다.`)
-  if (password.trim().toLowerCase() === loginId.toLowerCase()) throw validation('비밀번호는 아이디와 같을 수 없습니다.')
+  // 서버는 257자 이상을 요청 형식 오류(422 request-validation)로 먼저 거절한다.
+  if (password.length > PASSWORD_MAX) throw validation(BODY_INVALID)
+  if (password.length < PASSWORD_MIN) throw validation(`비밀번호는 ${PASSWORD_MIN}자 이상이어야 합니다`)
+  if (password.trim().toLowerCase() === loginId.toLowerCase()) throw validation('비밀번호는 아이디와 같을 수 없습니다')
 }
 
 export function passwordOf(data: SeedData, userId: number): string {
@@ -81,7 +85,7 @@ export interface ProfilePatch {
 export function profilePatch(mode: AuthMode, change: ProfileChange): ProfilePatch {
   if (mode === 'ad' && (change.name !== undefined || change.email !== undefined)) throw conflict(AD_MANAGED)
   const patch: ProfilePatch = {}
-  if (change.name !== undefined) patch.name = cleanName(change.name)
+  if (change.name !== undefined) patch.name = cleanName(change.name, NAME_EMPTY)
   if (change.email !== undefined) patch.email = cleanEmail(change.email)
   if (change.phone !== undefined) patch.phone = cleanPhone(change.phone)
   return patch

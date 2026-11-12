@@ -58,30 +58,43 @@ async def uow_factory(request: pytest.FixtureRequest) -> AsyncIterator[UnitOfWor
 async def test_committed_changes_are_visible_to_later_units(
     uow_factory: UnitOfWorkFactory,
 ) -> None:
+    """commit한 변경은 이후 작업 단위에서 보인다."""
+    # given: 고객 연락처 (커밋 후 조회)
     customer = make_customer()
+    # when: 추가하고 commit한다
     async with uow_factory() as uow:
         await uow.contacts.add(customer)
         await uow.commit()
 
+    # when: 새 작업 단위에서 조회한다
     async with uow_factory() as later_uow:
+        # then: 추가한 연락처가 보인다
         assert await later_uow.contacts.get(customer.id) == customer
 
 
 async def test_changes_are_visible_inside_the_unit_before_commit(
     uow_factory: UnitOfWorkFactory,
 ) -> None:
+    """commit 전에도 같은 작업 단위 안에서는 변경이 보인다."""
+    # given: 고객 연락처 (커밋 전 조회)
     customer = make_customer()
+    # when: 추가만 하고 같은 단위에서 조회한다
     async with uow_factory() as uow:
         await uow.contacts.add(customer)
 
+        # then: 추가한 연락처가 보인다
         assert await uow.contacts.get(customer.id) == customer
 
 
 async def test_changes_without_commit_are_discarded(uow_factory: UnitOfWorkFactory) -> None:
+    """commit하지 않은 변경은 버려진다."""
+    # given: 고객 연락처 (커밋 없이 종료)
     customer = make_customer()
+    # when: 추가만 하고 단위를 끝낸다
     async with uow_factory() as uow:
         await uow.contacts.add(customer)
 
+    # when·then: 새 작업 단위에서 조회하면 연락처 없음 오류다
     async with uow_factory() as later_uow:
         with pytest.raises(ContactNotFoundError):
             await later_uow.contacts.get(customer.id)
@@ -94,32 +107,44 @@ async def _add_then_fail(uow_factory: UnitOfWorkFactory, customer: Contact) -> N
 
 
 async def test_an_exception_discards_changes_even_after_add(uow_factory: UnitOfWorkFactory) -> None:
+    """추가한 뒤 예외가 나면 변경이 버려진다."""
+    # given: 고객 연락처 (추가 뒤 예외)
     customer = make_customer()
+    # when·then: 추가 뒤 예외가 나면 그 예외가 전파된다
     with pytest.raises(RuntimeError, match="boom"):
         await _add_then_fail(uow_factory, customer)
 
+    # then: 새 작업 단위에서 조회하면 연락처 없음 오류다
     async with uow_factory() as later_uow:
         with pytest.raises(ContactNotFoundError):
             await later_uow.contacts.get(customer.id)
 
 
 async def test_explicit_rollback_discards_changes(uow_factory: UnitOfWorkFactory) -> None:
+    """명시적 rollback은 변경을 버린다."""
+    # given: 고객 연락처 (명시적 롤백)
     customer = make_customer()
+    # when: 추가한 뒤 rollback한다
     async with uow_factory() as uow:
         await uow.contacts.add(customer)
         await uow.rollback()
 
+        # then: 같은 단위에서 조회하면 연락처 없음 오류다
         with pytest.raises(ContactNotFoundError):
             await uow.contacts.get(customer.id)
 
 
 async def test_changes_made_after_commit_are_discarded(uow_factory: UnitOfWorkFactory) -> None:
+    """commit 이후의 변경은 버려진다."""
+    # given: 연락처 두 개
     kept, dropped = make_customer(company="유지"), make_customer(company="폐기")
+    # when: 하나는 commit하고 다른 하나는 commit 없이 추가한다
     async with uow_factory() as uow:
         await uow.contacts.add(kept)
         await uow.commit()
         await uow.contacts.add(dropped)
 
+    # then: 새 작업 단위에는 commit한 것만 있다
     async with uow_factory() as later_uow:
         assert await later_uow.contacts.get(kept.id) == kept
         with pytest.raises(ContactNotFoundError):
@@ -167,20 +192,28 @@ async def _rename_with_history(
 async def test_a_deal_change_and_its_history_are_committed_together(
     uow_factory: UnitOfWorkFactory,
 ) -> None:
+    """Deal 변경과 이력은 함께 commit된다."""
+    # given: 저장된 Deal
     code = await _seed_deal(uow_factory)
 
+    # when: 이름을 바꾸고 이력을 남긴 뒤 commit한다
     await _rename_with_history(uow_factory, code, commit=True)
 
+    # then: 새 이름과 이력 1건이 보인다
     assert await _name_and_history_count(uow_factory, code) == ("바뀐 이름", 1)
 
 
 async def test_a_deal_change_and_its_history_are_discarded_together_without_commit(
     uow_factory: UnitOfWorkFactory,
 ) -> None:
+    """commit하지 않으면 Deal 변경과 이력이 함께 버려진다."""
+    # given: 저장된 Deal
     code = await _seed_deal(uow_factory)
 
+    # when: 이름을 바꾸고 이력을 남기되 commit하지 않는다
     await _rename_with_history(uow_factory, code, commit=False)
 
+    # then: 이름은 그대로이고 이력은 0건이다
     assert await _name_and_history_count(uow_factory, code) == ("ERP 구축", 0)
 
 
@@ -203,10 +236,14 @@ async def _add_type_and_action(
 async def test_a_new_action_type_and_its_action_are_committed_together(
     uow_factory: UnitOfWorkFactory,
 ) -> None:
+    """새 Action 유형과 그 Action은 함께 commit된다."""
+    # given: 저장된 Deal
     code = await _seed_deal(uow_factory)
 
+    # when: 새 유형과 Action을 만들고 commit한다
     type_id, action_id = await _add_type_and_action(uow_factory, code, commit=True)
 
+    # then: 유형과 Action이 모두 조회된다
     async with uow_factory() as later_uow:
         assert (await later_uow.action_types.get(type_id)).name == "ZZ 단위 유형"
         stored = await later_uow.deal_actions.get(action_id)
@@ -216,10 +253,14 @@ async def test_a_new_action_type_and_its_action_are_committed_together(
 async def test_a_new_action_type_and_its_action_are_both_discarded_without_commit(
     uow_factory: UnitOfWorkFactory,
 ) -> None:
+    """commit하지 않으면 새 Action 유형과 Action이 함께 버려진다."""
+    # given: 저장된 Deal
     code = await _seed_deal(uow_factory)
 
+    # when: 새 유형과 Action을 만들되 commit하지 않는다
     type_id, action_id = await _add_type_and_action(uow_factory, code, commit=False)
 
+    # then: 유형과 Action 모두 조회하면 없음 오류다
     async with uow_factory() as later_uow:
         with pytest.raises(ActionTypeNotFoundError):
             await later_uow.action_types.get(type_id)

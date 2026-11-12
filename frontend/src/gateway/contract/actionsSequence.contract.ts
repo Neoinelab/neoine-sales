@@ -42,10 +42,14 @@ const action = (over: Partial<ActionInput> = {}): ActionInput => ({
 
 export function actionsSequenceContract(make: MakeGateway): void {
   describe('actions 계약: Status·Forecast 두 변경', () => {
+    // 두 변경을 순서대로 적용하고 Action과 Deal에 변경 뒤 값을 저장한다.
+    // 테스트 코드: AC-090
     it('applies both changes in order and stores the post-change values on the action and the deal', async () => {
+      // given: sales와 새 Deal
       const sales = await make('sales')
       const deal = await newDeal(sales)
 
+      // when: Status 제품소개, Forecast Best로 바꾸며 등록한다
       const created = await sales.actions.create(
         deal.code,
         action({
@@ -56,18 +60,24 @@ export function actionsSequenceContract(make: MakeGateway): void {
         }),
       )
 
+      // then: Action과 Deal이 제품소개·Best이다
       expect(created).toMatchObject({ statusKey: 'introduction', forecastKey: 'best' })
       expect(await sales.deals.get(deal.code)).toMatchObject({ statusKey: 'introduction', forecastKey: 'best' })
+      // then: 이력은 Action, Forecast, Status 순서다
       const history = await sales.history.list(deal.code, {})
       expect(history.slice(0, 3).map((h) => h.category)).toEqual(['action', 'forecast', 'status'])
       await sales.deals.remove(deal.code, deal.code)
     })
 
+    // 첫 변경을 뒤집는 두 번째 변경은 422이고 아무것도 저장되지 않는다.
+    // 테스트 코드: AC-090
     it('rejects a second change that overrides the first and stores nothing', async () => {
+      // given: sales와 새 Deal·이력 건수
       const sales = await make('sales')
       const deal = await newDeal(sales)
       const baseline = (await sales.history.list(deal.code, {})).length
 
+      // when·then: Status 제품소개 뒤 Forecast Won은 충돌 422다
       await expectRejects(
         sales.actions.create(
           deal.code,
@@ -85,16 +95,21 @@ export function actionsSequenceContract(make: MakeGateway): void {
         SYNC_CONFLICT_MESSAGE,
       )
 
+      // then: Action·Deal·이력이 그대로다
       expect(await sales.actions.list(deal.code, {})).toEqual([])
       expect(await sales.deals.get(deal.code)).toMatchObject({ statusKey: 'prospecting', forecastKey: 'pipeline' })
       expect(await sales.history.list(deal.code, {})).toHaveLength(baseline)
       await sales.deals.remove(deal.code, deal.code)
     })
 
+    // 매출 판정 전에 모든 코드의 존재를 확인하고 아무것도 저장하지 않는다.
+    // 테스트 코드: AC-090
     it('checks that every code exists before judging revenue and stores nothing', async () => {
+      // given: sales와 새 Deal
       const sales = await make('sales')
       const deal = await newDeal(sales)
 
+      // when·then: 매출 없는 계약완료 뒤 없는 Forecast 코드는 코드 없음 422다
       await expectRejects(
         sales.actions.create(
           deal.code,
@@ -109,6 +124,7 @@ export function actionsSequenceContract(make: MakeGateway): void {
         '존재하지 않는 코드입니다.',
       )
 
+      // then: Action·Deal이 그대로다
       expect(await sales.actions.list(deal.code, {})).toEqual([])
       expect(await sales.deals.get(deal.code)).toMatchObject({ statusKey: 'prospecting', forecastKey: 'pipeline' })
       await sales.deals.remove(deal.code, deal.code)

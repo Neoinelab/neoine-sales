@@ -37,8 +37,7 @@ def test_row_and_detail_responses_carry_the_flag_as_is(issued: bool) -> None:
 
     테스트 코드: LC-030
     """
-    # given: 발급 여부가 true 또는 false인 Deal 뷰
-    # when: 행 응답과 상세 응답을 만든다
+    # when: 행 응답과 상세 응답을 만든다 (전제: 발급 여부가 true 또는 false인 Deal 뷰)
     for response in (
         DealRowResponse.from_view(_view(issued=issued)),
         DealDetailResponse.from_view(_view(issued=issued)),

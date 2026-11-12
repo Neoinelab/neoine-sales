@@ -1,6 +1,6 @@
 """Reports 조회 계약 테스트 공용 case (SQL 전용).
 
-`FakeReportQueryRunner`는 SQL 엔진을 흉내 내지 않으므로(계획 4.7 "Fake 방침") Fake↔SQL 공통
+`FakeReportQueryRunner`는 SQL 엔진을 흉내 내지 않으므로 Fake↔SQL 공통
 계약은 없고, SQL 구현만 실제 PostgreSQL 임시 DB로 검증한다. case는 `DealCase`(Deal·사용자·Vendor·
 코드·Action 준비 도우미와 Deal 저장소 원장)와 `SqlReportQueryRunner`를 가진다.
 

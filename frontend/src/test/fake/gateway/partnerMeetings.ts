@@ -4,28 +4,30 @@
  * - 회사는 저장 시점의 대표 표기 텍스트(등록된 파트너 연락처 회사명, 대소문자 무시로 해석)
  * - 미팅은 Deal과 무관하다(Deal 입력·연결·선택지 없음, Deal을 지워도 미팅은 남는다)
  * - 일괄 입력은 원자적이고 위반을 모두 모아 `problem.itemErrors`(위치 + 문구)로 던진다(422)
- * - 판정 순서: 401 -> 403(역할) -> 404 -> 403(작성자) -> 422
+ * - 판정 순서: 401 -> 403(역할) -> 422 요청 형식 -> 404 -> 403(작성자) -> 422 입력 위반
+ * - 요청 형식 오류(PA-R42): 등록 목록 0개·51개 이상, 실제 날짜가 아닌 미팅 날짜, 201자 이상 회사명은 행 위반이 아니라
+ *   요청 전체의 422 "요청 형식이 올바르지 않습니다"(서버 request-validation)이고 `itemErrors`가 없다
  */
 
 import { ApiError } from '../../../shared/api/problem'
 import type { PartnerMeetingsGateway } from '../../../gateway/types'
-import { isDateValue } from '../../../shared/model/dateText'
 import type { PartnerMeeting, PartnerMeetingInput, PartnerMeetingQuery, Role } from '../../../shared/model/types'
-import { forbidden, notFound, validation } from '../errors'
+import { forbidden, notFound, requestValidation, validation } from '../errors'
 import { takeId, type PartnerMeetingRecord, type SeedData } from '../store'
 import { read, requireUser, requireWrite, write, type MockContext } from './context'
 import { userRef } from './views'
 
 export const COMPANY_NOT_FOUND = '등록된 파트너 회사가 아닙니다. 목록에서 다시 선택하세요.'
 export const CONTENT_REQUIRED = '미팅 내용을 입력하세요.'
-export const NO_ITEMS = '입력한 미팅이 없습니다.'
-export const TOO_MANY_ITEMS = '한 번에 50건까지 입력할 수 있습니다.'
 export const EDIT_FORBIDDEN = '본인 미팅 기록 또는 admin만 수정할 수 있습니다.'
 export const DELETE_FORBIDDEN = '본인 미팅 기록 또는 admin만 삭제할 수 있습니다.'
 export const MEETING_NOT_FOUND = '미팅 기록을 찾을 수 없습니다.'
 export const DATE_RANGE_REVERSED = '미팅 날짜 범위의 시작은 끝보다 늦을 수 없습니다.'
 export const DATE_OUT_OF_BOUNDS = '미팅 날짜은(는) 1900-01-01부터 2999-12-31 사이여야 합니다'
 const MAX_ITEMS = 50
+const PARTNER_MAX = 200
+const CONTENT_KEYWORD_MAX = 100
+const NUL_CONTENT = '미팅 내용에는 NUL 문자를 쓸 수 없습니다'
 const MIN_DATE = '1900-01-01'
 const MAX_DATE = '2999-12-31'
 const PROBLEM_BASE = 'https://sales.neoine.test/problems/'
@@ -61,9 +63,20 @@ function resolveCompany(data: SeedData, raw: string): string | null {
   return partnerCompanies(data).find((c) => lower(c) === lower(raw)) ?? null
 }
 
-function dateIssue(day: string): string | null {
-  if (day < MIN_DATE || day > MAX_DATE) return DATE_OUT_OF_BOUNDS
-  return isDateValue(day) ? null : '날짜 형식이 올바르지 않습니다.'
+/** 서버의 date 형식 판정: 실제 달력에 있는 `YYYY-MM-DD`만 받는다(범위 판정과 별개). */
+function isRealDate(value: string): boolean {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value)
+  if (!m) return false
+  const [year, month, day] = [Number(m[1]), Number(m[2]), Number(m[3])]
+  const parsed = new Date(Date.UTC(year, month - 1, day))
+  return parsed.getUTCFullYear() === year && parsed.getUTCMonth() === month - 1 && parsed.getUTCDate() === day
+}
+
+const outOfBounds = (day: string): boolean => day < MIN_DATE || day > MAX_DATE
+
+/** 요청 형식 검사(서버 pydantic): 실제 날짜가 아닌 값과 201자 이상 회사명은 행 위반이 아니라 요청 전체의 오류다. */
+function requireRequestFormat(input: PartnerMeetingInput): void {
+  if (!isRealDate(input.meetingDate) || input.partnerCompany.length > PARTNER_MAX) throw requestValidation()
 }
 
 interface Checked {
@@ -77,10 +90,10 @@ function checkRow(data: SeedData, input: PartnerMeetingInput, at: (field: Field)
   const issues: Issue[] = []
   const company = resolveCompany(data, input.partnerCompany)
   if (recheckCompany && company === null) issues.push({ location: at('partner_company'), message: COMPANY_NOT_FOUND })
-  const dateMessage = dateIssue(input.meetingDate)
-  if (dateMessage) issues.push({ location: at('meeting_date'), message: dateMessage })
+  if (outOfBounds(input.meetingDate)) issues.push({ location: at('meeting_date'), message: DATE_OUT_OF_BOUNDS })
   const content = input.content.trim()
   if (content === '') issues.push({ location: at('content'), message: CONTENT_REQUIRED })
+  else if (input.content.includes('\u0000')) issues.push({ location: at('content'), message: NUL_CONTENT })
   if (issues.length > 0) return { checked: null, issues }
   return { checked: { company: company ?? input.partnerCompany, meetingDate: input.meetingDate, content }, issues }
 }
@@ -141,13 +154,27 @@ function sorted(data: SeedData, found: PartnerMeetingRecord[], query: PartnerMee
   })
 }
 
+/** 목록 조건 검사(서버): 길이·날짜 형식은 요청 형식 오류, 텍스트 NUL -> 범위 밖 날짜 -> 역전 순으로 입력 위반이다(서버 PartnerMeetingQuery와 같은 순서). */
+function checkListQuery(query: PartnerMeetingQuery): void {
+  if ((query.partner?.length ?? 0) > PARTNER_MAX || (query.content?.length ?? 0) > CONTENT_KEYWORD_MAX) throw requestValidation()
+  for (const day of [query.dateFrom, query.dateTo]) {
+    if (day && !isRealDate(day)) throw requestValidation()
+  }
+  if (query.partner?.includes('\u0000')) throw validation('파트너에는 NUL 문자를 쓸 수 없습니다')
+  if (query.content?.includes('\u0000')) throw validation('미팅 내용에는 NUL 문자를 쓸 수 없습니다')
+  for (const day of [query.dateFrom, query.dateTo]) {
+    if (day && outOfBounds(day)) throw validation(DATE_OUT_OF_BOUNDS)
+  }
+  if (query.dateFrom && query.dateTo && query.dateFrom > query.dateTo) throw validation(DATE_RANGE_REVERSED)
+}
+
 export function createPartnerMeetingsGateway(ctx: MockContext): PartnerMeetingsGateway {
   return {
     list: (query, offset, limit) =>
       read(ctx, () => {
         requireUser(ctx)
         const data = ctx.store.data
-        if (query.dateFrom && query.dateTo && query.dateFrom > query.dateTo) throw validation(DATE_RANGE_REVERSED)
+        checkListQuery(query)
         const found = sorted(data, records(data).filter((r) => matches(r, query)), query)
         return { items: found.slice(offset, offset + limit).map((r) => view(data, r)), total: found.length, offset, limit }
       }),
@@ -155,8 +182,8 @@ export function createPartnerMeetingsGateway(ctx: MockContext): PartnerMeetingsG
       write(ctx, () => {
         const user = requireWrite(ctx)
         const data = ctx.store.data
-        if (items.length === 0) throw validation(NO_ITEMS)
-        if (items.length > MAX_ITEMS) throw validation(TOO_MANY_ITEMS)
+        if (items.length === 0 || items.length > MAX_ITEMS) throw requestValidation()
+        items.forEach(requireRequestFormat)
         const issues: Issue[] = []
         const checked: Checked[] = []
         items.forEach((input, index) => {
@@ -182,6 +209,7 @@ export function createPartnerMeetingsGateway(ctx: MockContext): PartnerMeetingsG
       write(ctx, () => {
         const user = requireWrite(ctx)
         const data = ctx.store.data
+        requireRequestFormat(input)
         const record = records(data).find((r) => r.id === id)
         if (!record) throw notFound(MEETING_NOT_FOUND)
         if (!canEdit(user.role, user.id, record.authorId)) throw forbidden(EDIT_FORBIDDEN)

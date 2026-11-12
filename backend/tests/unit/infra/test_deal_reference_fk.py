@@ -39,9 +39,12 @@ async def _ready(session: AsyncSession) -> Contact:
 
 
 async def test_add_with_a_missing_customer_raises_invalid_reference(session: AsyncSession) -> None:
+    """없는 고객으로 Deal을 추가하면 참조 대상이 없어 InvalidReferenceError가 된다."""
+    # given: 담당자 사용자와 없는 고객을 가리키는 Deal
     await ensure_users(SqlUserRepository(session), OWNER_ID)
     deal = make_deal(customer_id=new_contact_id())
 
+    # when·then: 없는 고객으로 추가하면 InvalidReferenceError다
     with pytest.raises(InvalidReferenceError):
         await SqlDealRepository(session).add(deal)
 
@@ -49,9 +52,12 @@ async def test_add_with_a_missing_customer_raises_invalid_reference(session: Asy
 async def test_add_with_a_missing_partner_contact_raises_invalid_reference(
     session: AsyncSession,
 ) -> None:
+    """없는 파트너 연락처로 Deal을 추가하면 참조 대상이 없어 InvalidReferenceError가 된다."""
+    # given: 저장된 고객과 없는 파트너를 가리키는 Deal
     customer = await _ready(session)
     deal = make_deal(customer_id=customer.id, partner_id=new_contact_id())
 
+    # when·then: 없는 파트너 연락처로 추가하면 InvalidReferenceError다
     with pytest.raises(InvalidReferenceError):
         await SqlDealRepository(session).add(deal)
 
@@ -59,13 +65,17 @@ async def test_add_with_a_missing_partner_contact_raises_invalid_reference(
 async def test_add_with_a_missing_owner_user_raises_invalid_reference_for_users(
     session: AsyncSession,
 ) -> None:
+    """없는 담당자로 Deal을 추가하면 대상이 '사용자'인 InvalidReferenceError가 된다."""
+    # given: 저장된 고객과 없는 담당자를 가리키는 Deal
     customer = make_customer()
     await SqlContactRepository(session).add(customer)
     deal = make_deal(customer_id=customer.id, owner_user_id=UserId(new_id()))
 
+    # when·then: 없는 담당자로 추가하면 대상이 '사용자'인 InvalidReferenceError다
     with pytest.raises(InvalidReferenceError) as caught:
         await SqlDealRepository(session).add(deal)
 
+    # then: 오류 대상이 사용자다
     assert caught.value.entity == "사용자"
 
 
@@ -76,17 +86,23 @@ async def test_add_with_a_missing_owner_user_raises_invalid_reference_for_users(
 async def test_add_with_an_unknown_code_raises_invalid_reference(
     session: AsyncSession, status_key: str, forecast_key: str
 ) -> None:
+    """없는 Status 또는 Forecast 코드로 Deal을 추가하면 InvalidReferenceError가 된다."""
+    # given: 저장된 고객과 없는 코드를 쓰는 Deal
     customer = await _ready(session)
     deal = make_deal(customer_id=customer.id, status_key=status_key, forecast_key=forecast_key)
 
+    # when·then: 없는 Status·Forecast 코드로 추가하면 InvalidReferenceError다
     with pytest.raises(InvalidReferenceError):
         await SqlDealRepository(session).add(deal)
 
 
 async def test_add_with_an_unknown_label_raises_invalid_reference(session: AsyncSession) -> None:
+    """없는 BANT Label로 Deal을 추가하면 참조 대상이 없어 InvalidReferenceError가 된다."""
+    # given: 저장된 고객과 없는 Budget Label을 쓰는 Deal
     customer = await _ready(session)
     deal = make_deal(customer_id=customer.id, bant=make_bant(budget=new_id()))
 
+    # when·then: 없는 BANT Label로 추가하면 InvalidReferenceError다
     with pytest.raises(InvalidReferenceError):
         await SqlDealRepository(session).add(deal)
 
@@ -94,11 +110,14 @@ async def test_add_with_an_unknown_label_raises_invalid_reference(session: Async
 async def test_add_with_a_label_of_another_category_raises_invalid_reference(
     session: AsyncSession,
 ) -> None:
+    """다른 구분의 Label로 Deal을 추가하면 InvalidReferenceError가 된다."""
+    # given: 저장된 고객, Need 구분 Label을 Budget에 쓰는 Deal
     customer = await _ready(session)
     need = make_label(BantCategory.NEED, name="필요 라벨")
     await SqlBantLabelRepository(session).add(need)
     deal = make_deal(customer_id=customer.id, bant=make_bant(budget=need.id))
 
+    # when·then: 다른 구분의 Label로 추가하면 InvalidReferenceError다
     with pytest.raises(InvalidReferenceError):
         await SqlDealRepository(session).add(deal)
 
@@ -106,6 +125,8 @@ async def test_add_with_a_label_of_another_category_raises_invalid_reference(
 async def test_update_to_a_missing_owner_user_raises_invalid_reference(
     session: AsyncSession,
 ) -> None:
+    """저장된 Deal의 담당자를 없는 사용자로 바꾸면 대상이 '사용자'인 오류가 된다."""
+    # given: 저장된 Deal을 없는 담당자로 수정한 상태
     customer = await _ready(session)
     deals = SqlDealRepository(session)
     deal = make_deal(customer_id=customer.id)
@@ -117,19 +138,24 @@ async def test_update_to_a_missing_owner_user_raises_invalid_reference(
         bant=deal.bant,
     )
 
+    # when·then: 갱신하면 InvalidReferenceError다
     with pytest.raises(InvalidReferenceError) as caught:
         await deals.update(deal)
 
+    # then: 오류 대상이 사용자다
     assert caught.value.entity == "사용자"
 
 
 async def test_update_to_a_missing_customer_raises_invalid_reference(session: AsyncSession) -> None:
+    """저장된 Deal의 고객을 없는 고객으로 바꾸면 InvalidReferenceError가 된다."""
+    # given: 저장된 Deal을 없는 고객으로 수정한 상태
     customer = await _ready(session)
     deals = SqlDealRepository(session)
     deal = make_deal(customer_id=customer.id)
     await deals.add(deal)
     deal.revise(details=deal.details, sync=deal.sync, customer_id=new_contact_id(), bant=deal.bant)
 
+    # when·then: 갱신하면 InvalidReferenceError다
     with pytest.raises(InvalidReferenceError):
         await deals.update(deal)
 
@@ -137,12 +163,15 @@ async def test_update_to_a_missing_customer_raises_invalid_reference(session: As
 async def test_update_to_a_missing_partner_contact_raises_invalid_reference(
     session: AsyncSession,
 ) -> None:
+    """저장된 Deal의 파트너를 없는 연락처로 바꾸면 참조 대상이 없어 InvalidReferenceError가 된다."""
+    # given: 저장된 Deal의 파트너를 없는 연락처로 교체한 상태
     customer = await _ready(session)
     deals = SqlDealRepository(session)
     deal = make_deal(customer_id=customer.id)
     await deals.add(deal)
     deal.replace_partner(new_contact_id(), deal.created_at)
 
+    # when·then: 갱신하면 InvalidReferenceError다
     with pytest.raises(InvalidReferenceError):
         await deals.update(deal)
 
@@ -150,6 +179,8 @@ async def test_update_to_a_missing_partner_contact_raises_invalid_reference(
 async def test_update_to_an_unknown_status_key_raises_invalid_reference(
     session: AsyncSession,
 ) -> None:
+    """저장된 Deal의 Status를 없는 코드로 바꾸면 참조 대상이 없어 InvalidReferenceError가 된다."""
+    # given: 저장된 Deal을 없는 Status 코드로 수정한 상태
     customer = await _ready(session)
     deals = SqlDealRepository(session)
     deal = make_deal(customer_id=customer.id)
@@ -161,5 +192,6 @@ async def test_update_to_an_unknown_status_key_raises_invalid_reference(
         bant=deal.bant,
     )
 
+    # when·then: 갱신하면 InvalidReferenceError다
     with pytest.raises(InvalidReferenceError):
         await deals.update(deal)

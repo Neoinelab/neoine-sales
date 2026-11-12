@@ -1,8 +1,9 @@
-"""ListDeals의 확장 필터·정렬(AC-22a~22d, R3): forecast, 연/분기(연도 없는 분기는 올해),
-최종 업데이트 기간, sort/order.
+"""ListDeals 확장 필터·정렬 중 BDD 케이스(DL)가 덮지 않는 세부 동작.
 
-저장소 계약(tests/unit/repositories)이 조건별 세부를 검증하므로 여기서는 유스케이스가 조건을
-그대로 전달하고 total·페이지를 함께 돌려주는지를 본다.
+Forecast·연/분기·정렬 케이스는 `test_deal_list_search_cases.py`·
+`test_deal_list_period_sort_cases.py`가 정본이다. 여기에는 그 케이스에 없는 단언
+(연도 없는 분기의 양끝, 명시 연도 우선, 기간+연/분기 조합,
+정렬+페이지 total, 시간대별 새해 경계)만 남겼다.
 """
 
 from datetime import UTC, date, datetime
@@ -23,116 +24,50 @@ def _codes(page: DealPage) -> list[str]:
     return [view.item.deal.id.value for view in page.items]
 
 
-async def test_forecast_matches_the_forecast_key(env: DealEnv) -> None:
-    await env.new_deal(forecast_key="pipeline")
-    hit = await env.new_deal(forecast_key="commit")
-
-    page = await env.list.execute(DealQuery(forecast_keys=frozenset({"commit"})))
-
-    assert _codes(page) == [hit.item.deal.id.value]
-
-
-async def test_several_forecast_keys_match_any_of_them(env: DealEnv) -> None:
-    first = await env.new_deal(forecast_key="pipeline")
-    second = await env.new_deal(forecast_key="commit")
-    await env.new_deal(forecast_key="best")
-
-    page = await env.list.execute(DealQuery(forecast_keys=frozenset({"pipeline", "commit"})))
-
-    assert sorted(_codes(page)) == sorted([first.item.deal.id.value, second.item.deal.id.value])
-    assert page.total == 2
-
-
-async def test_an_unknown_forecast_key_is_zero_results_not_an_error(env: DealEnv) -> None:
-    await env.new_deal()
-
-    page = await env.list.execute(DealQuery(forecast_keys=frozenset({"no_such_forecast"})))
-
-    assert (page.items, page.total) == ([], 0)
-
-
-async def test_year_and_quarter_follow_the_expected_close_with_boundaries(env: DealEnv) -> None:
-    days = {
-        "q1_end": date(2026, 3, 31),
-        "q2_start": date(2026, 4, 1),
-        "q2_end": date(2026, 6, 30),
-        "q3_start": date(2026, 7, 1),
-        "next_year": date(2027, 1, 1),
-    }
-    views = {name: await env.new_deal(revenue_date=day) for name, day in days.items()}
-
-    page = await env.list.execute(DealQuery(year=2026, quarters=frozenset({2})))
-
-    assert set(_codes(page)) == {views[n].item.deal.id.value for n in ("q2_start", "q2_end")}
-    assert page.total == 2
-
-
 async def _clock_at(env: DealEnv, moment: datetime) -> None:
     env.clock.advance((moment - env.clock.now()).total_seconds())
 
 
-async def test_quarter_only_filters_this_years_quarter_by_business_date(env: DealEnv) -> None:
-    await _clock_at(env, datetime(2026, 7, 15, 12, 0, tzinfo=UTC))
-    this_year = await env.new_deal(revenue_date=date(2026, 5, 20))
-    await env.new_deal(revenue_date=date(2025, 5, 20))
-    await env.new_deal(revenue_date=date(2027, 5, 20))
-    await env.new_deal(revenue_date=date(2026, 8, 20))
-
-    page = await env.list.execute(DealQuery(quarters=frozenset({2})))
-
-    assert _codes(page) == [this_year.item.deal.id.value]
-    assert page.total == 1
-
-
-async def test_quarter_only_follows_the_year_of_the_clock(env: DealEnv) -> None:
-    await _clock_at(env, datetime(2027, 7, 15, 12, 0, tzinfo=UTC))
-    await env.new_deal(revenue_date=date(2026, 5, 20))
-    next_year = await env.new_deal(revenue_date=date(2027, 5, 20))
-
-    page = await env.list.execute(DealQuery(quarters=frozenset({2})))
-
-    assert _codes(page) == [next_year.item.deal.id.value]
-
-
 async def test_quarter_boundaries_without_a_year_include_both_ends(env: DealEnv) -> None:
+    """연도 없이 분기만 주면 올해 그 분기의 첫날과 마지막 날을 포함한다."""
+    # given: 올해 Q4 첫날·마지막 날 Deal과 Q3 마지막 날 Deal
     await _clock_at(env, datetime(2026, 7, 15, 12, 0, tzinfo=UTC))
     q4_start = await env.new_deal(revenue_date=date(2026, 10, 1))
     q4_end = await env.new_deal(revenue_date=date(2026, 12, 31))
     await env.new_deal(revenue_date=date(2026, 9, 30))
 
+    # when: 연도 없이 Q4만 조회한다
     page = await env.list.execute(DealQuery(quarters=frozenset({4})))
 
+    # then: Q4 경계 두 날의 Deal만 나온다
     assert set(_codes(page)) == {q4_start.item.deal.id.value, q4_end.item.deal.id.value}
 
 
 async def test_an_explicit_year_wins_over_the_clock_year(env: DealEnv) -> None:
+    """연도를 명시하면 시계의 올해보다 그 연도가 우선한다."""
+    # given: 시계는 2026년이고 2026·2025년 Q2 Deal이 있다
     await _clock_at(env, datetime(2026, 7, 15, 12, 0, tzinfo=UTC))
     await env.new_deal(revenue_date=date(2026, 5, 20))
     past = await env.new_deal(revenue_date=date(2025, 5, 20))
 
+    # when: 2025년 Q2로 조회한다
     page = await env.list.execute(DealQuery(year=2025, quarters=frozenset({2})))
 
+    # then: 2025년 Deal만 나온다
     assert _codes(page) == [past.item.deal.id.value]
 
 
-async def test_a_year_alone_includes_the_whole_year(env: DealEnv) -> None:
-    inside = await env.new_deal(revenue_date=date(2026, 12, 31))
-    await env.new_deal(revenue_date=date(2027, 1, 1))
-    await env.new_deal(revenue_date=date(2025, 12, 31))
-
-    page = await env.list.execute(DealQuery(year=2026))
-
-    assert _codes(page) == [inside.item.deal.id.value]
-
-
 async def test_updated_period_is_combined_with_year_and_quarter(env: DealEnv) -> None:
+    """최종 업데이트 기간은 연/분기(Expected Close 기준)와 AND로 결합한다."""
+    # given: 6월 초에 갱신된 Q2 Deal 둘, 다른 분기 Deal, 40일 뒤 갱신된 Q2 Deal
     env.clock.advance((datetime(2026, 6, 10, 12).astimezone() - env.clock.now()).total_seconds())
     hit = await env.new_deal(revenue_date=date(2026, 5, 20))
-    also_hit = await env.new_deal(revenue_date=date(2026, 4, 10))  # 분기 안 + 기간 안
+    also_hit = await env.new_deal(revenue_date=date(2026, 4, 10))
     other_quarter = await env.new_deal(revenue_date=date(2026, 8, 20))
     env.clock.advance(40 * 24 * 3600)
     old_update_excluded = await env.new_deal(revenue_date=date(2026, 5, 21))
 
+    # when: 2026 Q2와 6월 갱신 기간으로 조회한다
     page = await env.list.execute(
         DealQuery(
             year=2026,
@@ -142,37 +77,33 @@ async def test_updated_period_is_combined_with_year_and_quarter(env: DealEnv) ->
         )
     )
 
+    # then: 분기와 기간을 모두 만족하는 두 Deal만 나온다
     codes = set(_codes(page))
     assert {hit.item.deal.id.value, also_hit.item.deal.id.value} <= codes
-    assert other_quarter.item.deal.id.value not in codes  # 연/분기는 Expected Close 기준
-    assert old_update_excluded.item.deal.id.value not in codes  # 최종 업데이트가 기간 밖
+    assert other_quarter.item.deal.id.value not in codes
+    assert old_update_excluded.item.deal.id.value not in codes
     assert page.total == 2
 
 
 async def test_sorting_and_ordering_reach_the_repository_and_total_ignores_the_page(
     env: DealEnv,
 ) -> None:
+    """정렬 기준·방향이 저장소에 전달되고 total은 페이지와 무관하다."""
+    # given: 금액이 다른 Deal 셋
     cheap = await env.new_deal(revenue_amount=100)
     middle = await env.new_deal(revenue_amount=200)
     rich = await env.new_deal(revenue_amount=300)
 
+    # when: 금액 오름차순 전체와, 내림차순 둘째 한 건을 조회한다
     ascending = await env.list.execute(DealQuery(sort=DealSort.REVENUE_AMOUNT, order=SortOrder.ASC))
     descending_page = await env.list.execute(
         DealQuery(sort=DealSort.REVENUE_AMOUNT, order=SortOrder.DESC, offset=1, limit=1)
     )
 
+    # then: 오름차순 순서이고 내림차순 둘째는 middle이며 total은 3이다
     assert _codes(ascending) == [v.item.deal.id.value for v in (cheap, middle, rich)]
     assert _codes(descending_page) == [middle.item.deal.id.value]
     assert descending_page.total == 3
-
-
-async def test_sorting_by_status_follows_the_current_status_order(env: DealEnv) -> None:
-    late = await env.new_deal(status_key="price_negotiation")
-    early = await env.new_deal(status_key="prospecting")
-
-    page = await env.list.execute(DealQuery(sort=DealSort.STATUS, order=SortOrder.ASC))
-
-    assert _codes(page) == [early.item.deal.id.value, late.item.deal.id.value]
 
 
 @pytest.mark.parametrize(
@@ -191,11 +122,15 @@ async def test_quarter_only_uses_the_business_date_year_across_new_year(
     moment: datetime,
     expected_year: int,
 ) -> None:
+    """연도 없는 분기는 서버 시간대의 업무 날짜 연도를 쓴다(UTC와 해가 다른 새해 경계)."""
+    # given: 서버 시간대와 새해 경계 시각, 두 해의 Q1 Deal
     local_tz(tz)
     await _clock_at(env, moment)
     in_business_year = await env.new_deal(revenue_date=date(expected_year, 2, 10))
     await env.new_deal(revenue_date=date(2026 if expected_year == 2027 else 2027, 2, 10))
 
+    # when: 연도 없이 Q1만 조회한다
     page = await env.list.execute(DealQuery(quarters=frozenset({1})))
 
+    # then: 업무 날짜 연도의 Q1 Deal만 나온다
     assert _codes(page) == [in_business_year.item.deal.id.value]

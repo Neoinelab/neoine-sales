@@ -20,7 +20,7 @@ from app.application.user.reset_user_password import ResetUserPassword
 from app.application.user.update_user_profile import UpdateUserProfile
 from app.container import Container
 from tests.fakes.directory import FakeDirectoryAuthenticator
-from tests.functional.conftest import make_settings
+from tests.support.app_settings import make_settings
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
@@ -36,18 +36,30 @@ async def container() -> AsyncIterator[Container]:
 
 
 async def test_container_builds_the_auth_mode_use_cases(container: Container) -> None:
-    assert isinstance(container.choose_setup_auth_mode(), ChooseSetupAuthMode)
+    """Container가 인증 방식 유스케이스를 만들어 주는지 확인한다."""
+    # when: 인증 방식 선택 유스케이스를 조립한다
+    result = container.choose_setup_auth_mode()
+    # then: ChooseSetupAuthMode 종류다
+    assert isinstance(result, ChooseSetupAuthMode)
     assert isinstance(container.setup_admin(), SetupAdmin)
     assert isinstance(container.password_login(), PasswordLogin)
 
 
 async def test_container_builds_the_user_management_use_cases(container: Container) -> None:
-    assert isinstance(container.register_user(), RegisterUser)
+    """Container가 사용자 관리 유스케이스를 만들어 주는지 확인한다."""
+    # when: 사용자 등록·비밀번호 재설정·정보 수정 유스케이스를 만든다
+    result = container.register_user()
+    # then: 각각 해당 클래스다
+    assert isinstance(result, RegisterUser)
     assert isinstance(container.reset_user_password(), ResetUserPassword)
     assert isinstance(container.update_user_profile(), UpdateUserProfile)
 
 
 async def test_container_builds_the_my_account_use_cases(container: Container) -> None:
-    assert isinstance(container.get_my_profile(), GetMyProfile)
+    """Container가 내 계정 유스케이스를 만들어 주는지 확인한다."""
+    # when: 내 정보 조회·수정·비밀번호 변경 유스케이스를 만든다
+    result = container.get_my_profile()
+    # then: 각각 해당 클래스다
+    assert isinstance(result, GetMyProfile)
     assert isinstance(container.update_my_profile(), UpdateMyProfile)
     assert isinstance(container.change_my_password(), ChangeMyPassword)

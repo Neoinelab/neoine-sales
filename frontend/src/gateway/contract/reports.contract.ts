@@ -1,5 +1,5 @@
 /**
- * Reports 계약(Reports 2단계 G6~G9). mock과 실제 서버가 같은 모양으로 답해야 한다.
+ * Reports 계약. mock과 실제 서버가 같은 모양으로 답해야 한다.
  * 시드에 기대지 않고 카탈로그의 불변식, 모든 역할의 접근, 결과 모양(행 너비·합계), 정의 위반의 code·location만 본다.
  */
 
@@ -19,21 +19,28 @@ const query = (over: Partial<ReportQueryInput> = {}): ReportQueryInput => ({
 
 export function reportsContract(make: MakeGateway): void {
   describe('reports 계약', () => {
-    it.each(['admin', 'sales', 'user'] as const)('lets %s read the fields and run a query', async (role) => {
+    // 테스트 코드: RQ-107
+    it.each(['admin', 'sales', 'user'] as const)('%s 역할이 필드 목록을 읽고 조회를 실행한다', async (role) => {
+      // given: 그 역할로 로그인한 게이트웨이
       const { reports } = await make(role)
 
+      // when: 필드 목록을 읽고 조회를 실행한다
       const catalog = await reports.fields()
       const result = await reports.query(query())
 
+      // then: 필드가 있고 결과 열이 하나다
       expect(catalog.fields.length).toBeGreaterThan(0)
       expect(result.columns).toHaveLength(1)
     })
 
-    it('has 40 fields with defaults inside their own choices', async () => {
+    it('필드 40개를 가지며 기본값은 자기 선택지 안에 있다', async () => {
+      // given: user 게이트웨이
       const { reports } = await make('user')
 
+      // when: 필드 목록을 읽는다
       const catalog = await reports.fields()
 
+      // then: Deal 28·Action 12이고 형식별 포맷·단위·기본 집계가 자기 선택지 안에 있다
       expect(catalog.fields).toHaveLength(40)
       expect(catalog.fields.filter((f) => f.entity === 'deal')).toHaveLength(28)
       expect(catalog.fields.filter((f) => f.entity === 'action')).toHaveLength(12)
@@ -51,29 +58,38 @@ export function reportsContract(make: MakeGateway): void {
       }
     })
 
-    it('lists the seven date formats and only the date buckets change the grouping', async () => {
+    it('날짜 포맷 7개를 나열하고 묶음 포맷만 쿼리를 바꾼다', async () => {
+      // given: user 게이트웨이
       const { reports } = await make('user')
 
+      // when: 필드 목록을 읽는다
       const catalog = await reports.fields()
 
+      // then: 포맷 7개이고 예전 포맷은 없으며 쿼리를 바꾸는 것은 ymd·year·quarter·month다
       expect(catalog.formats.map((f) => f.key)).toEqual(['ymd', 'ymd_hm', 'year', 'quarter', 'month', 'weekday', 'relative'])
       for (const legacy of ['as_is', 'prefix', 'name', 'key', 'thousands', 'krw_thousand', 'krw_million', 'decimal1', 'percent_share']) expect(catalog.formats.map((f) => f.key)).not.toContain(legacy)
       expect(catalog.formats.filter((f) => f.affectsQuery).map((f) => f.key)).toEqual(['ymd', 'year', 'quarter', 'month'])
     })
 
-    it('answers a column of a field without formats with a null format and keeps the prefix length', async () => {
+    it('포맷 없는 필드의 열은 포맷 null로 답하고 앞 N자를 유지한다', async () => {
+      // given: user 게이트웨이
       const { reports } = await make('user')
 
+      // when: 앞 N자 4인 Deal 이름 컬럼을 조회한다
       const result = await reports.query(query({ columns: [{ field: 'deal.name', prefixLength: 4, group: false }] }))
 
+      // then: 포맷 null, 앞 N자 4다
       expect(result.columns[0]).toMatchObject({ field: 'deal.name', format: null, prefixLength: 4 })
     })
 
-    it('exposes the limits, the labels and the shape of every operator', async () => {
+    it('한도와 라벨, 모든 연산자의 모양을 알린다', async () => {
+      // given: user 게이트웨이
       const { reports } = await make('user')
 
+      // when: 필드 목록을 읽는다
       const catalog = await reports.fields()
 
+      // then: 한도·엔터티 이름·연산자 모양·상대 기간이 맞고 필드의 모든 연산자가 어휘에 있다
       expect(catalog.limits).toMatchObject({ columnsMin: 1, columnsMax: 30, conditionsMax: 20, rowLimits: [100, 1000, 10000], defaultRowLimit: 1000 })
       expect(catalog.entities.map((e) => e.label)).toEqual(['Deal', 'Deal Actions'])
       expect(catalog.operators.find((o) => o.key === 'between')?.shape).toBe('range')
@@ -83,13 +99,17 @@ export function reportsContract(make: MakeGateway): void {
       }
     })
 
-    it('answers rows as wide as the columns and no totals without grouping', async () => {
+    // 테스트 코드: RQ-106
+    it('그룹핑이 없으면 열 수만큼 넓은 행을 주고 합계 행은 없다', async () => {
+      // given: sales 게이트웨이
       const { reports } = await make('sales')
 
+      // when: 컬럼 셋을 그룹핑 없이 조회한다
       const result = await reports.query(
         query({ columns: [DEAL_CODE_COLUMN, { field: 'deal.name', group: false }, { field: 'deal.amount', group: false }] }),
       )
 
+      // then: 열 index 0~2, 행 너비 3, 합계 행 null, Deal 행 범위, 행 수 100이다
       expect(result.columns.map((c) => c.index)).toEqual([0, 1, 2])
       for (const row of result.rows) expect(row).toHaveLength(3)
       expect(result.totals).toBeNull()
@@ -97,9 +117,12 @@ export function reportsContract(make: MakeGateway): void {
       expect(result.rowLimit).toBe(100)
     })
 
-    it('answers totals as wide as the columns when grouped', async () => {
+    // 테스트 코드: RQ-106
+    it('그룹핑하면 열 수만큼 넓은 합계 행을 준다', async () => {
+      // given: sales 게이트웨이
       const { reports } = await make('sales')
 
+      // when: Vendor 그룹과 금액 합계를 조회한다
       const result = await reports.query(
         query({
           columns: [
@@ -109,6 +132,7 @@ export function reportsContract(make: MakeGateway): void {
         }),
       )
 
+      // then: 합계 행·행 너비 2, 그룹 표시, 집계, 포맷·단위가 맞다
       expect(result.totals).toHaveLength(2)
       for (const row of result.rows) expect(row).toHaveLength(2)
       expect(result.columns.map((c) => c.group)).toEqual([true, false])
@@ -116,92 +140,127 @@ export function reportsContract(make: MakeGateway): void {
       expect(result.columns.map((c) => [c.format, c.unit])).toEqual([[null, null], [null, 'krw']])
     })
 
-    it('uses Action rows when an Action column is chosen', async () => {
+    // 테스트 코드: RQ-106
+    it('Action 컬럼을 고르면 Action 행 범위다', async () => {
+      // given: sales 게이트웨이
       const { reports } = await make('sales')
 
+      // when: Action 컬럼을 조회한다
       const result = await reports.query(query({ columns: [DEAL_CODE_COLUMN, { field: 'action.action', group: false }] }))
 
+      // then: Action 행 범위에 JOIN이다
       expect(result).toMatchObject({ rowScope: 'action', actionFilter: 'join' })
     })
 
-    it('filters Deals by Action existence when only a condition uses an Action field', async () => {
+    // 테스트 코드: RQ-106
+    it('Action 필드가 조건에만 있으면 Action 존재로 Deal을 거른다', async () => {
+      // given: sales 게이트웨이
       const { reports } = await make('sales')
 
+      // when: Action 조건만 있는 정의를 조회한다
       const result = await reports.query(
         query({ conditions: [{ field: 'action.action', operator: 'contains', value: '미팅' }] }),
       )
 
+      // then: Deal 행 범위에 EXISTS다
       expect(result).toMatchObject({ rowScope: 'deal', actionFilter: 'exists' })
     })
 
-    it('rejects an unknown field with its location', async () => {
+    // 테스트 코드: RQ-106
+    it('모르는 필드는 위치와 함께 거절한다', async () => {
+      // given: user 게이트웨이
       const { reports } = await make('user')
 
+      // when: 모르는 필드를 조회한다
       const error = await expectRejects(reports.query(query({ columns: [DEAL_CODE_COLUMN, { field: 'deal.nope', group: false }] })), 422)
 
+      // then: 422 invalid-report에 컬럼 1 field의 unknown-field 하나다
       expect(error.kind).toBe('invalid-report')
       expect(error.problem?.reportErrors).toEqual([expect.objectContaining({ location: ['columns', 1, 'field'], code: 'unknown-field' })])
     })
 
-    it('rejects a text column without an aggregate once something is grouped', async () => {
+    // 테스트 코드: RQ-106
+    it('그룹핑이 있으면 집계 없는 텍스트 컬럼을 거절한다', async () => {
+      // given: user 게이트웨이
       const { reports } = await make('user')
 
+      // when: Vendor 그룹과 집계 없는 Deal code를 조회한다
       const error = await expectRejects(
         reports.query(query({ columns: [{ field: 'deal.vendor', group: true }, DEAL_CODE_COLUMN] })),
         422,
       )
 
+      // then: 컬럼 1 aggregate의 aggregate-required다
       expect(error.problem?.reportErrors).toEqual([expect.objectContaining({ location: ['columns', 1, 'aggregate'], code: 'aggregate-required' })])
     })
 
-    it('rejects an aggregate when nothing is grouped', async () => {
+    // 테스트 코드: RQ-106
+    it('그룹핑이 없는데 집계를 주면 거절한다', async () => {
+      // given: user 게이트웨이
       const { reports } = await make('user')
 
+      // when: 그룹 없이 금액 합계를 조회한다
       const error = await expectRejects(
         reports.query(query({ columns: [{ field: 'deal.amount', group: false, aggregate: 'sum' }] })),
         422,
       )
 
+      // then: 컬럼 0 aggregate의 aggregate-not-allowed다
       expect(error.problem?.reportErrors).toEqual([expect.objectContaining({ location: ['columns', 0, 'aggregate'], code: 'aggregate-not-allowed' })])
     })
 
-    it('rejects the Action count column unless something is grouped', async () => {
+    // 테스트 코드: RQ-106
+    it('그룹핑이 없으면 Action 건수 컬럼을 거절한다', async () => {
+      // given: user 게이트웨이
       const { reports } = await make('user')
 
+      // when: 그룹 없이 Action 건수를 조회한다
       const error = await expectRejects(
         reports.query(query({ columns: [{ field: 'action.count', group: false }] })),
         422,
       )
 
+      // then: 컬럼 0의 grouping-required다
       expect(error.problem?.reportErrors).toEqual([expect.objectContaining({ location: ['columns', 0], code: 'grouping-required' })])
     })
 
-    it('rejects zero columns and a row limit outside the choices', async () => {
+    // 테스트 코드: RQ-106
+    it('컬럼 0개와 선택지 밖 행 수 제한을 거절한다', async () => {
+      // given: user 게이트웨이
       const { reports } = await make('user')
 
+      // when: 컬럼 없는 정의와 행 수 7인 정의를 조회한다
       const noColumns = await expectRejects(reports.query(query({ columns: [] })), 422)
       const badLimit = await expectRejects(reports.query(query({ rowLimit: 7 })), 422)
 
+      // then: columns-count와 row-limit-invalid다
       expect(noColumns.problem?.reportErrors).toEqual([expect.objectContaining({ location: ['columns'], code: 'columns-count' })])
       expect(badLimit.problem?.reportErrors).toEqual([expect.objectContaining({ location: ['row_limit'], code: 'row-limit-invalid' })])
     })
 
-    it('collects every violation instead of stopping at the first', async () => {
+    // 테스트 코드: RQ-106
+    it('처음 위반에서 멈추지 않고 모든 위반을 모은다', async () => {
+      // given: user 게이트웨이
       const { reports } = await make('user')
 
+      // when: 모르는 필드 둘을 조회한다
       const error = await expectRejects(
         reports.query(query({ columns: [{ field: 'deal.nope', group: false }, { field: 'deal.nada', group: false }] })),
         422,
       )
 
+      // then: 위반 둘이고 메시지는 첫 위반 문구다
       expect(error.problem?.reportErrors).toHaveLength(2)
       expect(error.message).toBe(error.problem?.reportErrors?.[0]?.message)
     })
 
-    it('refuses an anonymous visitor', async () => {
+    // 테스트 코드: RQ-107
+    it('로그인하지 않은 방문자는 거절한다', async () => {
+      // given: 로그아웃한 게이트웨이
       const gateway = await make('user')
       await gateway.auth.logout()
 
+      // when·then: 카탈로그와 조회 모두 401로 거절된다
       await expectRejects(gateway.reports.fields(), 401)
       await expectRejects(gateway.reports.query(query()), 401)
     })

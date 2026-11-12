@@ -88,8 +88,9 @@ def test_is_won_matches_forecast_won(state: tuple[str, str], expected: bool) -> 
     from app.domain.license_contract.won import is_won  # noqa: PLC0415
 
     # when: 상태가 Won인지 판정한다
+    actual = is_won(make_sync(*state))
     # then: Forecast won일 때만 true다
-    assert is_won(make_sync(*state)) is expected
+    assert actual is expected
 
 
 def test_both_errors_are_invalid_state_errors() -> None:
@@ -99,7 +100,6 @@ def test_both_errors_are_invalid_state_errors() -> None:
         WonExitBlockedError,
     )
 
-    # when: 오류 클래스의 상속을 살핀다
-    # then: 둘 다 InvalidStateError의 하위 클래스다
+    # when·then: 오류 클래스의 상속을 살핀다 → 둘 다 InvalidStateError의 하위 클래스다
     assert issubclass(WonExitBlockedError, InvalidStateError)
     assert issubclass(LicenseRequiresWonError, InvalidStateError)

@@ -39,10 +39,16 @@ def files(tool: str, path: str) -> tuple[str, str] | None:
 class TestAlembicPolicy:
     @pytest.mark.parametrize("profile", [None, "local", "dev"])
     def test_upgrade_is_allowed_automatically_outside_product(self, profile: str | None) -> None:
-        assert bash("cd backend && uv run alembic upgrade head", profile) is None
+        """product가 아닌 프로파일에서는 alembic upgrade가 허용된다."""
+        # when: alembic upgrade head 명령을 판정한다
+        result = bash("cd backend && uv run alembic upgrade head", profile)
+        # then: 결정이 없다(허용)
+        assert result is None
 
     @pytest.mark.parametrize("profile", [None, "local", "dev"])
     def test_other_read_and_create_commands_are_allowed(self, profile: str | None) -> None:
+        """그 밖의 alembic 조회·생성 명령은 product 밖에서 허용된다."""
+        # when·then: revision·current·history 명령은 결정이 없다(허용)
         for command in (
             "alembic revision --autogenerate -m x",
             "alembic current",
@@ -51,73 +57,110 @@ class TestAlembicPolicy:
             assert bash(command, profile) is None
 
     def test_upgrade_targeting_product_via_active_profile_is_denied(self) -> None:
+        """활성 프로파일이 product이면 alembic upgrade를 거부한다."""
+        # when: product 프로파일에서 upgrade를 판정한다
         decision = bash("uv run alembic upgrade head", "product")
 
+        # then: 활성 프로파일 product의 alembic upgrade가 거부된다
         assert decision is not None
         assert decision[0] == "deny"
 
     def test_upgrade_targeting_product_via_inline_variable_is_denied(self) -> None:
+        """명령 앞 APP_PROFILE=product 변수로 product를 가리키면 upgrade를 거부한다."""
+        # when: 따옴표 유무가 다른 APP_PROFILE=product upgrade 명령을 판정한다
         for command in (
             "APP_PROFILE=product uv run alembic upgrade head",
             "APP_PROFILE='product' alembic upgrade head",
             'APP_PROFILE="product" alembic upgrade head',
         ):
             decision = bash(command)
+            # then: 모두 거부 결정이다
             assert decision is not None
             assert decision[0] == "deny"
 
     def test_inline_non_product_profile_is_not_confused_with_product(self) -> None:
-        assert bash("APP_PROFILE=dev alembic upgrade head") is None
-        assert bash("APP_PROFILE=product_like_name alembic upgrade head") is None
+        """product가 아닌 인라인 프로파일(이름이 비슷한 것 포함)은 product로 오인하지 않는다."""
+        # when: APP_PROFILE=dev·product_like_name 명령을 판정한다
+        result_1 = bash("APP_PROFILE=dev alembic upgrade head")
+        result_2 = bash("APP_PROFILE=product_like_name alembic upgrade head")
+        # then: 둘 다 결정이 없다(허용)
+        assert result_1 is None
+        assert result_2 is None
 
     @pytest.mark.parametrize("command", ["alembic downgrade -1", "alembic stamp head"])
     @pytest.mark.parametrize("profile", [None, "local", "dev"])
     def test_downgrade_and_stamp_are_allowed_outside_product(
         self, command: str, profile: str | None
     ) -> None:
-        assert bash(command, profile) is None
+        """product 밖에서는 downgrade·stamp가 허용된다."""
+        # when: downgrade·stamp 명령을 판정한다
+        result = bash(command, profile)
+        # then: local·dev에서는 결정이 없다(허용)
+        assert result is None
 
     def test_downgrade_targeting_product_is_denied(self) -> None:
+        """product 프로파일에서는 downgrade를 거부한다."""
+        # when: product 프로파일에서 downgrade를 판정한다
         decision = bash("alembic downgrade -1", "product")
 
+        # then: product 대상 downgrade가 거부된다
         assert decision is not None
         assert decision[0] == "deny"
 
 
 class TestOtherGuards:
     def test_env_files_cannot_be_read_into_the_conversation(self) -> None:
+        """`.env*` 파일은 Read로 읽을 수 없다."""
+        # when: 여러 경로의 .env 계열 파일 읽기를 판정한다
         for path in ("/p/backend/.env", "/p/backend/.env.product", "C:\\p\\backend\\.env.local"):
             decision = files("Read", path)
+            # then: 모두 거부 결정이다
             assert decision is not None
             assert decision[0] == "deny"
 
     @pytest.mark.parametrize("tool", ["Edit", "Write"])
     def test_env_files_can_be_edited_without_confirmation(self, tool: str) -> None:
+        """`.env*` 파일은 확인 없이 Edit·Write로 수정할 수 있다."""
+        # when·then: Edit·Write 판정은 결정이 없다(허용)
         for path in ("/p/backend/.env", "/p/backend/.env.dev"):
             assert files(tool, path) is None
 
     def test_env_example_is_readable_and_writable(self) -> None:
-        assert files("Read", "/p/backend/.env.example") is None
-        assert files("Edit", "/p/backend/.env.example") is None
+        """.env.example은 읽고 쓸 수 있다."""
+        # when: .env.example을 Read·Edit로 판정한다
+        result_1 = files("Read", "/p/backend/.env.example")
+        result_2 = files("Edit", "/p/backend/.env.example")
+        # then: 둘 다 결정이 없다(허용)
+        assert result_1 is None
+        assert result_2 is None
 
     def test_uv_lock_cannot_be_edited_but_can_be_read(self) -> None:
+        """uv.lock은 읽을 수 있지만 편집은 거부한다."""
+        # when: uv.lock 편집을 판정한다
         decision = files("Edit", "/p/backend/uv.lock")
 
+        # then: uv.lock 편집이 거부된다
         assert decision is not None
         assert decision[0] == "deny"
+        # then: 읽기는 허용된다
         assert files("Read", "/p/backend/uv.lock") is None
 
     def test_pip_install_and_venv_are_denied(self) -> None:
+        """패키지 설치(pip)와 venv 생성 명령은 거부한다."""
+        # when: pip·venv 명령을 판정한다
         for command in (
             "pip install requests",
             "python -m venv .venv",
             "echo hi && pip3 install x",
         ):
             decision = bash(command)
+            # then: 모두 거부 결정이다
             assert decision is not None
             assert decision[0] == "deny"
 
     def test_commands_that_print_env_files_are_denied(self) -> None:
+        """`.env*` 내용을 출력하는 명령은 거부한다."""
+        # when: .env 내용을 출력하는 명령을 판정한다
         for command in (
             "cat backend/.env",
             "head -5 .env.dev",
@@ -126,10 +169,13 @@ class TestOtherGuards:
             "less .env",
         ):
             decision = bash(command)
+            # then: 모두 거부 결정이다
             assert decision is not None, command
             assert decision[0] == "deny"
 
     def test_commands_that_change_env_files_without_printing_pass(self) -> None:
+        """`.env*`를 출력하지 않고 바꾸는 명령은 통과한다."""
+        # when·then: 출력 없는 수정·검사 명령은 결정이 없다(허용)
         for command in (
             "cd backend && sed -e 's/a/b/' .env > .env.dev",
             "sed -i '' 's/^APP_PROFILE=.*/APP_PROFILE=dev/' backend/.env.dev",
@@ -141,6 +187,8 @@ class TestOtherGuards:
             assert bash(command) is None, command
 
     def test_searching_text_for_the_word_env_is_not_treated_as_printing(self) -> None:
+        """env라는 낱말을 검색하는 명령은 출력으로 보지 않는다."""
+        # when·then: 문서에서 .env를 찾는 명령은 결정이 없다(허용)
         for command in (
             'grep -rn "\\.env" CLAUDE.md docs',
             "grep -n '.env 파일' docs/dev-guide.html",
@@ -149,12 +197,22 @@ class TestOtherGuards:
             assert bash(command) is None, command
 
     def test_env_example_and_environ_in_commands_are_not_flagged(self) -> None:
-        assert bash("cp backend/.env.example /tmp/x.txt") is None
-        assert bash('python -c "import os; print(os.environ)"') is None
+        """명령 속 .env.example과 environ은 문제 삼지 않는다."""
+        # when: .env.example 복사와 환경 출력 명령을 판정한다
+        result_1 = bash("cp backend/.env.example /tmp/x.txt")
+        result_2 = bash('python -c "import os; print(os.environ)"')
+        # then: 둘 다 결정이 없다(허용)
+        assert result_1 is None
+        assert result_2 is None
 
     def test_ordinary_commands_pass(self) -> None:
-        assert bash("uv run pytest -q") is None
-        assert bash("git status") is None
+        """평범한 명령은 통과한다."""
+        # when: 테스트 실행과 git status를 판정한다
+        result_1 = bash("uv run pytest -q")
+        result_2 = bash("git status")
+        # then: 둘 다 결정이 없다(허용)
+        assert result_1 is None
+        assert result_2 is None
 
 
 class TestSetupScriptPolicy:
@@ -185,15 +243,21 @@ class TestSetupScriptPolicy:
         ],
     )
     def test_product_mode_is_denied(self, command: str) -> None:
+        """setup.sh의 product 모드 실행은 어떤 형태든 거부한다."""
+        # when: product 모드 setup.sh 명령을 판정한다
         decision = bash(command)
 
+        # then: product 모드 실행이 거부된다
         assert decision is not None
         assert decision[0] == "deny"
 
     @pytest.mark.parametrize("profile", [None, "local", "dev", "product"])
     def test_product_mode_is_denied_regardless_of_active_profile(self, profile: str | None) -> None:
+        """활성 프로파일과 무관하게 setup.sh의 product 모드는 거부한다."""
+        # when: 각 활성 프로파일에서 product 모드 명령을 판정한다
         decision = bash("./scripts/setup.sh --profile product", profile)
 
+        # then: 활성 프로파일과 무관하게 product 모드 실행이 거부된다
         assert decision is not None
         assert decision[0] == "deny"
 
@@ -216,7 +280,11 @@ class TestSetupScriptPolicy:
     def test_local_and_dev_pc_modes_and_removed_server_option_are_not_denied(
         self, command: str
     ) -> None:
-        assert bash(command) is None
+        """local·dev 모드와 폐지된 --server 옵션 명령은 거부하지 않는다."""
+        # when: local·dev setup.sh 명령을 판정한다
+        result = bash(command)
+        # then: 거부하지 않는다(결정이 없다)
+        assert result is None
 
     @pytest.mark.parametrize(
         "command",
@@ -231,7 +299,11 @@ class TestSetupScriptPolicy:
         ],
     )
     def test_commands_that_only_mention_setup_script_are_allowed(self, command: str) -> None:
-        assert bash(command) is None
+        """setup.sh를 언급만 하는 명령은 허용한다."""
+        # when: setup.sh를 언급만 하는 명령을 판정한다
+        result = bash(command)
+        # then: 거부하지 않는다(결정이 없다)
+        assert result is None
 
 
 class TestDeployScriptPolicy:
@@ -247,4 +319,8 @@ class TestDeployScriptPolicy:
         ],
     )
     def test_docker_deploy_scripts_are_not_denied(self, command: str) -> None:
-        assert bash(command) is None
+        """docker 배포 스크립트 실행은 막지 않는다."""
+        # when: 해당 명령을 판정한다
+        result = bash(command)
+        # then: 결정이 없다(허용)
+        assert result is None

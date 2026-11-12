@@ -6,7 +6,7 @@ import { allContracts } from '../../test/licenseContracts'
 import { renderAt } from '../../test/mockApp'
 import { pinClock, unpinClock } from '../../test/partnerMeetings'
 
-/** 계약 종료(AC14)와 admin 삭제(AC15). 자동 종료는 없다. 시계는 2027-03-15 고정. */
+/** 계약 종료와 admin 삭제. 자동 종료는 없다. 시계는 2027-03-15 고정. */
 const LOAD = { timeout: 8000 }
 
 let contracts: LicenseContract[] = []
@@ -37,12 +37,11 @@ async function openEdit(c: LicenseContract, role: 'admin' | 'sales' | 'user' = '
 }
 const statusGroup = (dlg: HTMLElement) => within(dlg).getByRole('group', { name: '상태' })
 
-describe('계약 종료 (AC14)', () => {
+describe('계약 종료', () => {
   // 종료가 아닌 계약의 상태 묶음에 계약 종료 버튼이 있다.
   // 테스트 코드: LC-057
   it.each(['not_issued', 'issued_new', 'issued_renewal'] as const)('has a 계약 종료 button in the status group of an %s contract', async (status) => {
-    // given: sales로 연 미발급·발급(신규)·발급(갱신) 계약 대화상자
-    // when: 대화상자를 연다
+    // when: 대화상자를 연다 (전제: sales로 연 미발급·발급(신규)·발급(갱신) 계약 대화상자)
     const { dlg } = await openEdit(first(status))
 
     // then: 상태 묶음에 계약 종료 버튼이 보인다
@@ -52,8 +51,7 @@ describe('계약 종료 (AC14)', () => {
   // 종료 계약에는 계약 종료 버튼이 없다.
   // 테스트 코드: LC-057
   it('has no 계약 종료 button for an ended contract', async () => {
-    // given: 종료 계약 대화상자
-    // when: 대화상자를 연다
+    // when: 대화상자를 연다 (전제: 종료 계약 대화상자)
     const { dlg } = await openEdit(first('ended'))
 
     // then: 계약 종료 버튼이 없다
@@ -63,8 +61,7 @@ describe('계약 종료 (AC14)', () => {
   // user에게는 계약 종료 버튼이 없다.
   // 테스트 코드: LC-038
   it('has no 계약 종료 button for a read-only user', async () => {
-    // given: user로 연 계약 대화상자
-    // when: 대화상자를 연다
+    // when: 대화상자를 연다 (전제: user로 연 계약 대화상자)
     const { dlg } = await openEdit(first('issued_new'), 'user')
 
     // then: 계약 종료 버튼이 없다
@@ -79,13 +76,13 @@ describe('계약 종료 (AC14)', () => {
     const end = vi.spyOn(gateway.licenseContracts, 'end')
     const { user, dlg } = await openEdit(c)
 
+    // when: 계약 종료를 누르고 확인 창에서 취소한다
     await user.click(within(statusGroup(dlg)).getByRole('button', { name: '계약 종료' }))
     const confirm = await screen.findByRole('dialog', { name: '계약 종료 확인' })
     await user.click(within(confirm).getByRole('button', { name: '취소' }))
 
-    // when: 계약 종료를 누르고 확인 창에서 취소한다
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: '계약 종료 확인' })).not.toBeInTheDocument())
     // then: 종료 요청이 없고 대화상자는 그대로다
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: '계약 종료 확인' })).not.toBeInTheDocument())
     expect(end).not.toHaveBeenCalled()
     expect(screen.getByRole('dialog', { name: `계약 수정 - ${c.dealName}` })).toBeVisible()
   })
@@ -98,8 +95,8 @@ describe('계약 종료 (AC14)', () => {
     const end = vi.spyOn(gateway.licenseContracts, 'end')
     const { user, dlg } = await openEdit(c)
 
-    await user.click(within(statusGroup(dlg)).getByRole('button', { name: '계약 종료' }))
     // when: 계약 종료를 누르고 확인 창에서 종료를 누른다
+    await user.click(within(statusGroup(dlg)).getByRole('button', { name: '계약 종료' }))
     await user.click(within(await screen.findByRole('dialog', { name: '계약 종료 확인' })).getByRole('button', { name: '종료' }))
 
     // then: 종료 요청, 계약을 종료했습니다 알림, 표의 종료가 보인다
@@ -116,8 +113,8 @@ describe('계약 종료 (AC14)', () => {
     vi.spyOn(gateway.licenseContracts, 'end').mockRejectedValue(Object.assign(new Error('이미 종료된 계약입니다.'), { status: 409 }))
     const { user, dlg } = await openEdit(c)
 
+    // when: 계약 종료를 누르고 확인한다
     await user.click(within(statusGroup(dlg)).getByRole('button', { name: '계약 종료' }))
-    // when: 계약 종료를 확인한다
     await user.click(within(await screen.findByRole('dialog', { name: '계약 종료 확인' })).getByRole('button', { name: '종료' }))
 
     // then: 서버 문구가 보인다
@@ -125,7 +122,7 @@ describe('계약 종료 (AC14)', () => {
   })
 })
 
-describe('계약 삭제 (AC15)', () => {
+describe('계약 삭제', () => {
   // admin은 어떤 상태든 삭제 버튼을 보고 확인 뒤 삭제한다.
   // 테스트 코드: LC-061
   it.each(['not_issued', 'issued_new', 'ended'] as const)('shows 삭제 to an admin for an %s contract and deletes it after confirmation', async (status) => {
@@ -134,13 +131,16 @@ describe('계약 삭제 (AC15)', () => {
     const remove = vi.spyOn(gateway.licenseContracts, 'remove')
     const { user, dlg } = await openEdit(c, 'admin')
 
-    // when: 삭제를 누르고 확인 창에서 삭제를 누른다
+    // when: 삭제를 누른다
     await user.click(within(dlg).getByRole('button', { name: '삭제' }))
     const confirm = await screen.findByRole('dialog', { name: '계약 삭제' })
-    // then: 삭제 요청, 계약을 삭제했습니다 알림, 표에서 행이 사라진다
+    // then: 확인 창에 Deal 이름이 보인다
     expect(confirm).toHaveTextContent(c.dealName)
+
+    // when: 확인 창에서 삭제를 누른다
     await user.click(within(confirm).getByRole('button', { name: '삭제' }))
 
+    // then: 삭제 요청, 계약을 삭제했습니다 알림, 표에서 행이 사라진다
     expect(await screen.findByText('계약을 삭제했습니다.')).toBeVisible()
     expect(remove).toHaveBeenCalledWith(c.id)
     await waitFor(() => expect(rowOf(c.dealName)).toBeUndefined())
@@ -166,8 +166,7 @@ describe('계약 삭제 (AC15)', () => {
   // sales와 user에게는 삭제 버튼이 없다.
   // 테스트 코드: LC-061
   it.each(['sales', 'user'] as const)('does not show 삭제 to a %s', async (role) => {
-    // given: sales 또는 user로 연 계약 대화상자
-    // when: 대화상자를 연다
+    // when: 대화상자를 연다 (전제: sales 또는 user로 연 계약 대화상자)
     const { dlg } = await openEdit(first('issued_new'), role)
 
     // then: 삭제 버튼이 없다

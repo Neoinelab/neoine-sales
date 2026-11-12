@@ -7,7 +7,7 @@ import type {
   ActionUpdateInput,
   NextActionStatus,
 } from '../../../shared/model/types'
-import { conflict, forbidden, notFound, validation } from '../errors'
+import { conflict, forbidden, notFound, requestValidation, validation } from '../errors'
 import { takeId, type ActionRecord, type SeedData, type UserRecord } from '../store'
 import { read, requireUser, requireWrite, viewerOf, write, type MockContext } from './context'
 import { assertSequenceShape, planSequence } from './actionChanges'
@@ -22,26 +22,54 @@ import {
   PREVIOUS_NEXT_ACTION_CHANGED,
   STATUS_FORBIDDEN,
   STATUS_LABEL,
+  checkStatusMemo,
   statusesOf,
 } from './nextActionStatus'
 import { actionView, findDeal, userRef } from './views'
 
-const DATE = /^\d{4}-\d{2}-\d{2}$/
+const DATE = /^(\d{4})-(\d{2})-(\d{2})$/
+const NUL = '\u0000'
+const ACTED_MIN = '1900-01-01'
+const ACTED_MAX = '2999-12-31'
+
+/** 달력에 있는 `YYYY-MM-DD`인가(서버 pydantic `date`와 같다: 2027-13-01·2027-02-31은 아니다). */
+function isCalendarDate(text: string): boolean {
+  const match = DATE.exec(text)
+  if (match === null) return false
+  const [year, month, day] = [Number(match[1]), Number(match[2]), Number(match[3])]
+  if (year < 1 || month < 1 || month > 12 || day < 1) return false
+  const leap = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0
+  const days = [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month - 1] ?? 0
+  return day <= days
+}
+
+/** 서버 요청 검증(422 request-validation): Due Date를 보냈다면 달력 날짜여야 한다. Deal·Action 조회보다 먼저다. */
+function assertDueShape(dueDate: string | null | undefined): void {
+  if (dueDate !== null && dueDate !== undefined && dueDate !== '' && !isCalendarDate(dueDate)) throw requestValidation()
+}
+
+/** 서버 `reject_nul`: 진행사항·Next Action·Memo에 NUL이 있으면 422 invalid-value(공백으로 감싸도 거절). */
+function assertNoNul(input: ActionUpdateInput): void {
+  for (const [text, label] of [[input.progress, '진행사항'], [input.nextAction, 'Next Action'], [input.memo, 'Memo']] as const) {
+    if (text.includes(NUL)) throw validation(`${label}에는 NUL 문자를 쓸 수 없습니다`)
+  }
+}
 
 type Content = Pick<ActionRecord, 'typeId' | 'progress' | 'nextAction' | 'dueDate' | 'memo'>
 
 const blankToNull = (text: string): string | null => (text.trim() === '' ? null : text.trim())
 
 /**
- * 서버 규칙: 진행사항·Next Action 중 하나 이상(둘 다 비면 422), Next Action이 있으면 Due Date 필수,
- * 없으면 Due Date 금지(위에서부터 첫 오류). 비운 값은 null로 저장한다.
+ * 서버 규칙(위에서부터 첫 오류): NUL 거부, 진행사항·Next Action 중 하나 이상(둘 다 비면 422), Next Action이 있으면
+ * Due Date 필수, 없으면 Due Date 금지. 비운 값은 null로 저장한다.
  */
 function normalize(input: ActionUpdateInput, typeId: number): Content {
+  assertNoNul(input)
   const progress = blankToNull(input.progress)
   const nextAction = blankToNull(input.nextAction)
   if (progress === null && nextAction === null) throw validation(ACTION_OR_NEXT_REQUIRED)
   const due = input.dueDate ?? ''
-  if (nextAction !== null && !DATE.test(due)) throw validation('Due Date를 입력하세요.')
+  if (nextAction !== null && due === '') throw validation('Due Date를 입력하세요.')
   if (nextAction === null && due !== '') throw validation(DUE_WITHOUT_NEXT)
   return { typeId, progress, nextAction, dueDate: nextAction === null ? null : due, memo: input.memo.trim() }
 }
@@ -68,11 +96,25 @@ function serverDate(iso: string, serverOffset: number): string {
 
 const KEYWORD_MAX = 100
 
-function validateRanges(q: ActionQuery): void {
-  // 서버 스키마(max_length=100, 코드 포인트)와 같다. 문구도 서버의 request-validation 문구.
+/** 서버 스키마(max_length=100, 코드 포인트)와 같다. 문구도 서버의 request-validation 문구. FastAPI가 핸들러 전에 검사한다. */
+function validateKeywordLength(q: ActionQuery): void {
   if (q.keyword !== undefined && Array.from(q.keyword).length > KEYWORD_MAX) throw validation('요청 형식이 올바르지 않습니다')
+}
+
+/** 서버 `parse_deal_code`: 형식이 틀린 code는 없는 Deal과 같은 404이고 조건 값 검사보다 먼저다. */
+const DEAL_CODE_FORMAT = /^[0-9]{8}-[A-Z0-9]{4}$/
+
+/**
+ * 서버 순서(`DealActionQuery.__post_init__`): 수행일 1900~2999(시작 → 끝) → 수행일 범위 역전 → Due Date 범위 역전 → 검색어 NUL.
+ * Due Date 범위는 1900~2999를 검사하지 않는다.
+ */
+function validateRanges(q: ActionQuery): void {
+  for (const [name, value] of [['acted_from', q.actedFrom], ['acted_to', q.actedTo]] as const) {
+    if (value && (value < ACTED_MIN || value > ACTED_MAX)) throw validation(`${name}은(는) ${ACTED_MIN}부터 ${ACTED_MAX} 사이여야 합니다`)
+  }
   if (q.actedFrom && q.actedTo && q.actedFrom > q.actedTo) throw validation('수행일 범위의 시작은 끝보다 늦을 수 없습니다.')
   if (q.dueFrom && q.dueTo && q.dueFrom > q.dueTo) throw validation('Due Date 범위의 시작은 끝보다 늦을 수 없습니다.')
+  if (q.keyword?.includes(NUL)) throw validation('검색어에는 NUL 문자를 쓸 수 없습니다')
 }
 
 /** 서버 기준 행: 그 Deal에서 Next Action이 있는 가장 최근 Action(수행일시 내림차순, 같으면 id 내림차순). */
@@ -156,6 +198,8 @@ export function createActionsGateway(ctx: MockContext): ActionsGateway {
     list: (dealCode, query) =>
       read(ctx, () => {
         requireUser(ctx)
+        validateKeywordLength(query)
+        if (!DEAL_CODE_FORMAT.test(dealCode)) throw notFound('Deal을 찾을 수 없습니다.')
         validateRanges(query)
         findDeal(ctx.store.data, dealCode)
         const rows = ctx.store.data.actions.filter((a) => a.dealCode === dealCode && matches(a, query, offsetMinutes(ctx.clock.now())))
@@ -166,6 +210,7 @@ export function createActionsGateway(ctx: MockContext): ActionsGateway {
         const user = requireWrite(ctx)
         const { data } = ctx.store
         assertSequenceShape(input.statusChanges ?? []) // 서버 요청 검증(422)은 Deal 조회보다 먼저
+        assertDueShape(input.dueDate)
         const deal = findDeal(data, dealCode)
         // 서버 순서: Deal(404) → 유형 → 진행사항 → Next Action → Due Date. 새 유형은 모든 검증이 끝난 뒤에만 만든다.
         const typePlan = planActionType(ctx, input.type)
@@ -205,6 +250,7 @@ export function createActionsGateway(ctx: MockContext): ActionsGateway {
     update: (actionId, input: ActionUpdateInput) =>
       write(ctx, () => {
         const user = requireWrite(ctx)
+        assertDueShape(input.dueDate) // 요청 형식 422는 Action 조회(404)·권한(403)보다 먼저다
         const record = findAction(ctx, actionId)
         if (!canEditAction(viewerOf(user), record.actorId)) throw forbidden('본인 Action 또는 admin만 수정할 수 있습니다.')
         const typePlan = planActionType(ctx, input.type)
@@ -223,8 +269,7 @@ export function createActionsGateway(ctx: MockContext): ActionsGateway {
         const user = requireWrite(ctx)
         const record = findAction(ctx, actionId)
         if (!canEditAction(viewerOf(user), record.actorId)) throw forbidden(STATUS_FORBIDDEN)
-        const note = input.memo.trim()
-        if (input.status === 'open' && note !== '') throw validation('Open으로 되돌릴 때는 메모를 남길 수 없습니다.')
+        const note = checkStatusMemo(input.status, input.memo)
         if (record.nextAction === null || record.nextActionStatus === null) throw conflict(NO_NEXT_ACTION)
         const before: NextActionStatus = record.nextActionStatus
         if (before === input.status) throw conflict(`이미 ${STATUS_LABEL[before]} 상태입니다.`)

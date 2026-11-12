@@ -149,8 +149,7 @@ async def test_delete_of_a_missing_contract_is_403_before_404_unless_admin() -> 
 
     테스트 코드: LC-083, LC-029
     """
-    # given: 존재하지 않는 계약 id와 sales·user·admin
-    # when: 각자 그 id의 계약을 삭제한다
+    # when: 각자 그 id의 계약을 삭제한다 (전제: 존재하지 않는 계약 id와 sales·user·admin)
     async with clients(
         FakeUseCases(), {"kim": Role.SALES, "viewer": Role.USER, "boss": Role.ADMIN}
     ) as c:

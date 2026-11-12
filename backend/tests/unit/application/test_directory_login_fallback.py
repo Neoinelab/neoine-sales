@@ -102,12 +102,19 @@ async def test_fallback_login_succeeds_for_each_unavailable_stage(  # noqa: PLR0
     people: dict[str, User],
     stage: DirectoryWarningStage,
 ) -> None:
+    """AD가 답하지 못하는 각 단계에서 해시가 있는 사용자는 대체 로그인된다.
+
+    테스트 코드: AU-022, AU-026
+    """
+    # given: AD가 단계별로 답하지 못하고 한 시간이 지났다(kim·boss·viewer에게 해시가 있다)
     await Down(stage).arrange(auth, uow_factory)
     clock.advance(3600)
     saved = dict(uow.password_hashes._items)
 
+    # when: kim이 저장된 비밀번호로 로그인한다
     outcome = await _login(auth)
 
+    # then: 로그인 시각만 갱신되고 이름·이메일·해시는 그대로이며 실패 횟수는 지워진다
     assert outcome.session.principal.subject == "kim"
     assert outcome.session.principal.role is Role.SALES
     assert (await auth.authenticate.execute(outcome.session.token)).subject == "kim"
@@ -123,13 +130,20 @@ async def test_fallback_login_succeeds_for_each_unavailable_stage(  # noqa: PLR0
 async def test_fallback_login_clears_failures_counted_before(
     auth: AuthStack, uow_factory: UnitOfWorkFactory, uow: FakeUnitOfWork, people: dict[str, User]
 ) -> None:
+    """대체 로그인에 성공하면 앞서 쌓인 아이디 실패 횟수가 지워진다.
+
+    테스트 코드: AU-034
+    """
+    # given: AD 연결 불가 상태에서 틀린 비밀번호로 한 번 실패했다
     await Down(DirectoryWarningStage.CONNECT).arrange(auth, uow_factory)
     with pytest.raises(DirectoryUnavailableError):
         await _login(auth, "kim", "wrong-pw")
     assert uow.login_failures._items[account_key("kim")].failures == 1
 
+    # when: 올바른 비밀번호로 로그인한다
     await _login(auth)
 
+    # then: kim의 실패 카운터가 없다
     assert account_key("kim") not in uow.login_failures._items
 
 
@@ -139,11 +153,18 @@ async def test_fallback_login_logs_a_warning_with_stage_and_hashed_login_id_only
     people: dict[str, User],
     caplog: pytest.LogCaptureFixture,
 ) -> None:
+    """대체 로그인은 단계와 짧은 아이디 해시만 담은 경고 로그를 남긴다.
+
+    테스트 코드: AU-026
+    """
+    # given: AD 연결 불가 상태
     await Down(DirectoryWarningStage.CONNECT).arrange(auth, uow_factory)
     caplog.set_level(logging.DEBUG)
 
+    # when: kim이 대체 로그인한다
     await _login(auth)
 
+    # then: 경고 로그 한 줄에 단계와 아이디 해시가 있고 아이디·비밀번호·해시 원문은 없다
     warnings = [r for r in caplog.records if r.levelno == logging.WARNING]
     texts = [r.getMessage() for r in warnings if "AD 대체 로그인" in r.getMessage()]
     assert len(texts) == 1
@@ -161,10 +182,17 @@ async def test_admin_fallback_login_returns_directory_warning(
     people: dict[str, User],
     stage: DirectoryWarningStage,
 ) -> None:
+    """admin의 대체 로그인 응답에는 실패 단계와 그 단계의 안내 문구가 있다.
+
+    테스트 코드: AU-023, AU-024
+    """
+    # given: AD가 단계별로 답하지 못한다(설정 없음 포함, admin boss에게 해시가 있다)
     await Down(stage).arrange(auth, uow_factory)
 
+    # when: boss가 대체 로그인한다
     outcome = await _login(auth, "boss")
 
+    # then: 응답에 단계와 그 단계의 문구가 있다
     assert outcome.directory_warning is not None
     assert outcome.directory_warning.stage is stage
     assert outcome.directory_warning.message == FALLBACK_MESSAGES[stage]
@@ -180,10 +208,17 @@ async def test_non_admin_fallback_login_has_no_warning(
     stage: DirectoryWarningStage,
     login_id: str,
 ) -> None:
+    """admin이 아닌 사용자의 대체 로그인에는 경고가 없다.
+
+    테스트 코드: AU-022, AU-025
+    """
+    # given: AD가 단계별로 답하지 못한다(kim·viewer에게 해시가 있다)
     await Down(stage).arrange(auth, uow_factory)
 
+    # when: 대체 로그인한다
     outcome = await _login(auth, login_id)
 
+    # then: 경고가 없다
     assert outcome.directory_warning is None
 
 
@@ -193,12 +228,19 @@ async def test_fallback_login_of_an_unreadable_credential_logs_the_key_hint_with
     people: dict[str, User],
     caplog: pytest.LogCaptureFixture,
 ) -> None:
+    """바인드 비밀번호를 풀 수 없으면 값 없이 키 점검 안내만 로그에 남기고 AD를 부르지 않는다.
+
+    테스트 코드: AU-065
+    """
+    # given: 저장된 바인드 비밀번호를 복호화할 수 없다
     stored = await seed_directory(uow_factory)
     auth.cipher.fail_unseal = True
     caplog.set_level(logging.DEBUG)
 
+    # when: boss가 로그인한다
     await _login(auth, "boss")
 
+    # then: 안내 문구만 있고 비밀번호·암호문은 없으며 AD를 부르지 않았다
     assert "AD 바인드 비밀번호를 복호화하지 못했습니다(암호화 키 변경 여부 확인)" in caplog.text
     assert BIND_PASSWORD not in caplog.text
     assert stored.sealed_bind_password.token not in caplog.text
@@ -208,11 +250,18 @@ async def test_fallback_login_of_an_unreadable_credential_logs_the_key_hint_with
 async def test_a_wrong_password_never_falls_back_when_the_directory_is_down(
     auth: AuthStack, uow_factory: UnitOfWorkFactory, uow: FakeUnitOfWork, people: dict[str, User]
 ) -> None:
+    """AD 장애 중 틀린 비밀번호는 원래 AD 불가 오류이고 실패 1회로 센다.
+
+    테스트 코드: AU-028
+    """
+    # given: AD 연결 불가
     await Down(DirectoryWarningStage.CONNECT).arrange(auth, uow_factory)
 
+    # when: 틀린 비밀번호로 로그인한다
     with pytest.raises(DirectoryUnavailableError):
         await _login(auth, "kim", "not-the-password")
 
+    # then: 세션이 없고 실패가 1회 센다
     assert uow.sessions._items == {}
     assert uow.login_failures._items[account_key("kim")].failures == 1
 
@@ -220,9 +269,15 @@ async def test_a_wrong_password_never_falls_back_when_the_directory_is_down(
 async def test_fallback_without_a_configuration_fails_with_the_not_configured_message(
     auth: AuthStack, uow: FakeUnitOfWork
 ) -> None:
+    """AD 설정도 해시도 없으면 AD 미등록 문구의 409 오류이고 실패 1회다.
+
+    테스트 코드: AU-031
+    """
+    # when: 로그인한다 (전제: AD 설정이 없고 사용자도 해시도 없다)
     with pytest.raises(InvalidStateError) as caught:
         await _login(auth)  # 사용자도 해시도 없다
 
+    # then: AD 미등록 문구이고 실패가 1회 센다
     assert str(caught.value) == DIRECTORY_NOT_CONFIGURED
     assert uow.login_failures._items[account_key("kim")].failures == 1
 
@@ -230,12 +285,19 @@ async def test_fallback_without_a_configuration_fails_with_the_not_configured_me
 async def test_fallback_failure_with_an_unreadable_credential_is_the_unreadable_error(
     auth: AuthStack, uow_factory: UnitOfWorkFactory
 ) -> None:
+    """바인드 비밀번호를 풀 수 없고 해시도 없으면 복호화 불가 오류(503)다.
+
+    테스트 코드: AU-032
+    """
+    # given: 바인드 비밀번호를 풀 수 없고 해시 없는 kim
     await seed_directory(uow_factory, unreadable=True)
     await seed_user(uow_factory, "kim", Role.SALES)  # 해시가 없다
 
+    # when: kim이 로그인한다
     with pytest.raises(DirectoryCredentialUnreadableError) as caught:
         await _login(auth)
 
+    # then: AD 불가 오류이고 비밀번호가 오류 문구에 없다
     assert isinstance(caught.value, DirectoryUnavailableError)
     assert BIND_PASSWORD not in f"{caught.value!s}{caught.value!r}"
 
@@ -248,6 +310,11 @@ async def test_fallback_failure_returns_original_error_and_counts_failure(
     people: dict[str, User],
     case: str,
 ) -> None:
+    """대체 로그인 실패는 원래 AD 불가 오류를 그대로 돌려주고 실패 1회로 센다.
+
+    테스트 코드: AU-028, AU-029, AU-030
+    """
+    # given: AD 연결 불가, 사례: 미등록·퇴사·해시 없음·비밀번호 불일치·재직 행 중복
     await Down(DirectoryWarningStage.CONNECT).arrange(auth, uow_factory)
     login_id, password = "kim", "pw-kim"
     if case == "unregistered":
@@ -264,9 +331,11 @@ async def test_fallback_failure_returns_original_error_and_counts_failure(
     else:
         await seed_user(uow_factory, "kim", Role.USER)  # 재직 행이 둘이 된다
 
+    # when: 사례의 계정으로 로그인한다
     with pytest.raises(DirectoryUnavailableError) as caught:
         await _login(auth, login_id, password)
 
+    # then: 원인을 바꾸거나 숨기지 않은 같은 오류이고 세션이 없으며 실패가 1회 센다
     assert caught.value is _FAULTS[DirectoryWarningStage.CONNECT]  # 원인을 바꾸거나 숨기지 않는다
     assert uow.sessions._items == {}
     assert uow.login_failures._items[account_key(login_id)].failures == 1
@@ -276,37 +345,52 @@ async def test_fallback_failure_returns_original_error_and_counts_failure(
 async def test_fallback_without_hash_still_runs_verify(
     auth: AuthStack, uow_factory: UnitOfWorkFactory, people: dict[str, User], case: str
 ) -> None:
-    """해시가 없어도 같은 비용의 더미 계산을 해 응답 시간으로 해시 유무가 드러나지 않는다."""
+    """해시가 없어도 같은 비용의 더미 검증을 한다.
+
+    테스트 코드: AU-029
+    """
+    # given: AD 연결 불가, 사례: 미등록 아이디·해시 없는 사용자
     await Down(DirectoryWarningStage.CONNECT).arrange(auth, uow_factory)
     login_id = "newbie"
     if case == "no-hash":
         await seed_user(uow_factory, "nohash", Role.SALES)
         login_id = "nohash"
 
+    # when: 로그인한다
     with pytest.raises(DirectoryUnavailableError):
         await _login(auth, login_id, "pw-anything")
 
+    # then: 해시 없이 더미 검증을 한 번 했다
     assert auth.hasher.verify_calls == [None]
 
 
 async def test_fallback_login_is_blocked_while_locked(
     auth: AuthStack, uow_factory: UnitOfWorkFactory, people: dict[str, User]
 ) -> None:
+    """대체 실패가 한도에 이르면 올바른 비밀번호도 429이고 검증하지 않는다.
+
+    테스트 코드: AU-051
+    """
+    # given: AD 연결 불가, 틀린 비밀번호로 한도만큼 실패했다
     await Down(DirectoryWarningStage.CONNECT).arrange(auth, uow_factory)
     for _ in range(MAX_PER_ACCOUNT):
         with pytest.raises(DirectoryUnavailableError):
             await _login(auth, "kim", "wrong-pw")
     verified = len(auth.hasher.verify_calls)
 
+    # when: 올바른 비밀번호로 로그인한다
     with pytest.raises(TooManyAttemptsError):
         await _login(auth)  # 올바른 비밀번호도 잠금 중에는 거부
 
+    # then: 해시 검증을 더 하지 않았다
     assert len(auth.hasher.verify_calls) == verified
 
 
 async def test_fallback_login_of_a_user_deleted_during_the_login_fails_like_any_other(
     auth: AuthStack, uow_factory: UnitOfWorkFactory, uow: FakeUnitOfWork, people: dict[str, User]
 ) -> None:
+    """처리 도중 사용자가 삭제되면 다른 대체 실패와 같은 원래 오류다."""
+    # given: AD 연결 불가, 읽은 직후 다른 요청이 사용자를 삭제한다
     await Down(DirectoryWarningStage.CONNECT).arrange(auth, uow_factory)
     original_get = uow.users.get_active_by_login_id
 
@@ -318,9 +402,11 @@ async def test_fallback_login_of_a_user_deleted_during_the_login_fails_like_any_
 
     uow.users.get_active_by_login_id = get_then_delete  # type: ignore[method-assign]
 
+    # when: kim이 로그인한다
     with pytest.raises(DirectoryUnavailableError):
         await _login(auth)
 
+    # then: 세션이 없고 실패가 1회 센다
     assert uow.sessions._items == {}
     assert uow.login_failures._items[account_key("kim")].failures == 1
 
@@ -328,12 +414,18 @@ async def test_fallback_login_of_a_user_deleted_during_the_login_fails_like_any_
 async def test_fallback_never_runs_when_the_directory_answers(
     auth: AuthStack, uow_factory: UnitOfWorkFactory, people: dict[str, User]
 ) -> None:
-    """AD가 정상 응답하면(성공) 대체 경로의 verify를 거치지 않는다."""
+    """AD가 정상 응답하면 대체 경로의 해시 검증을 거치지 않는다.
+
+    테스트 코드: AU-027
+    """
+    # given: AD 설정이 있고 AD가 정상 응답한다
     await seed_directory(uow_factory)
     auth.directory.add_account("kim", "pw-kim")
 
+    # when: kim이 로그인한다
     outcome = await _login(auth)
 
+    # then: 경고가 없고 해시 검증을 하지 않았다
     assert outcome.directory_warning is None
     assert auth.hasher.verify_calls == []
 
@@ -341,16 +433,19 @@ async def test_fallback_never_runs_when_the_directory_answers(
 async def test_verify_runs_without_an_open_unit_of_work(
     auth: AuthStack, uow_factory: UnitOfWorkFactory, uow: FakeUnitOfWork, people: dict[str, User]
 ) -> None:
-    """scrypt 검증(오래 걸림) 동안 DB 트랜잭션을 잡지 않는다: 읽기, 닫기, verify, 다시 열기."""
+    """해시 검증 동안 DB 트랜잭션을 열어 두지 않는다."""
+    # given: AD 연결 불가, 해시 검증 시점에 열린 UoW 수를 센다
     await Down(DirectoryWarningStage.CONNECT).arrange(auth, uow_factory)
     auth.hasher.open_units_probe = lambda: uow.open_units
 
+    # when: 성공·실패·미등록 로그인을 차례로 한다
     await _login(auth)
     with pytest.raises(DirectoryUnavailableError):
         await _login(auth, "kim", "wrong-pw")
     with pytest.raises(DirectoryUnavailableError):
         await _login(auth, "ghost", "pw-ghost")  # 사용자가 없을 때도 같다
 
+    # then: 검증할 때마다 열린 UoW가 없다
     assert auth.hasher.open_units_at_verify == [0, 0, 0]
 
 
@@ -368,12 +463,16 @@ async def test_a_user_resigned_during_verify_gets_the_original_error(
     clock: FixedClock,
     people: dict[str, User],
 ) -> None:
+    """검증 중 퇴사 처리된 사용자는 원래 AD 불가 오류를 받는다."""
+    # given: AD 연결 불가, 해시 검증 중에 kim이 퇴사 처리된다
     await Down(DirectoryWarningStage.CONNECT).arrange(auth, uow_factory)
     auth.hasher.during_verify = lambda: _resign_kim(uow, clock)
 
+    # when: kim이 로그인한다
     with pytest.raises(DirectoryUnavailableError) as caught:
         await _login(auth)
 
+    # then: 원래 오류이고 세션이 없으며 실패가 1회 센다
     assert caught.value is _FAULTS[DirectoryWarningStage.CONNECT]
     assert uow.sessions._items == {}
     assert uow.login_failures._items[account_key("kim")].failures == 1
@@ -385,6 +484,8 @@ async def test_a_hash_changed_during_verify_gets_the_original_error(
     uow: FakeUnitOfWork,
     people: dict[str, User],
 ) -> None:
+    """검증 중 해시가 바뀌면 원래 AD 불가 오류를 받는다."""
+    # given: AD 연결 불가, 해시 검증 중에 kim의 해시가 교체된다
     await Down(DirectoryWarningStage.CONNECT).arrange(auth, uow_factory)
 
     async def change_hash() -> None:
@@ -392,9 +493,11 @@ async def test_a_hash_changed_during_verify_gets_the_original_error(
 
     auth.hasher.during_verify = change_hash
 
+    # when: kim이 로그인한다
     with pytest.raises(DirectoryUnavailableError):
         await _login(auth)
 
+    # then: 세션이 없고 실패가 1회 센다
     assert uow.sessions._items == {}
     assert uow.login_failures._items[account_key("kim")].failures == 1
 
@@ -406,7 +509,8 @@ async def test_a_user_replaced_during_verify_gets_the_original_error(
     clock: FixedClock,
     people: dict[str, User],
 ) -> None:
-    """검증 중 퇴사 후 같은 아이디로 다시 등록돼도(새 행) 예전 행의 해시로 들어오지 못한다."""
+    """검증 중 퇴사 후 재등록되어도 예전 행의 해시로 들어오지 못한다."""
+    # given: AD 연결 불가, 해시 검증 중에 kim이 퇴사하고 같은 아이디로 재등록된다
     await Down(DirectoryWarningStage.CONNECT).arrange(auth, uow_factory)
 
     async def resign_and_reregister() -> None:
@@ -415,7 +519,9 @@ async def test_a_user_replaced_during_verify_gets_the_original_error(
 
     auth.hasher.during_verify = resign_and_reregister
 
+    # when: kim이 로그인한다
     with pytest.raises(DirectoryUnavailableError):
         await _login(auth)
 
+    # then: 세션이 없다
     assert uow.sessions._items == {}

@@ -1,4 +1,4 @@
-"""ForecastSnapshotRepository Port의 InMemory 구현(Fake, P6 R2).
+"""ForecastSnapshotRepository Port의 InMemory 구현(Fake).
 
 기준 월(연, 월)당 스냅숏 하나를 보관한다. `replace`는 같은 기준 월이 있으면 통째로
 바꾼다(헤더 시각, 저장 당시의 코드 목록(열), 셀 모두). 열은 order 오름차순으로 돌려준다

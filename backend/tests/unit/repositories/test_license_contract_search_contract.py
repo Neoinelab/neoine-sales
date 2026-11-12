@@ -38,8 +38,9 @@ async def test_search_without_conditions_returns_every_contract(
         await contract_case.contract(await contract_case.deal(customer=customer))
 
     # when: 조건 없이 검색한다
+    actual = sorted(await _ids_by_customer(contract_case))
     # then: 두 계약이 모두 오고 total은 2다
-    assert sorted(await _ids_by_customer(contract_case)) == ["가고객", "나고객"]
+    assert actual == ["가고객", "나고객"]
     assert await contract_case.total() == 2
 
 
@@ -55,8 +56,9 @@ async def test_search_customer_is_a_case_insensitive_partial_match_on_the_deal_c
         await contract_case.contract(await contract_case.deal(customer=customer))
 
     # when: customer 조건으로 검색한다
+    result = await _ids_by_customer(contract_case, customer="next")
     # then: 부분 일치하는 계약만 오고 total도 같다
-    assert await _ids_by_customer(contract_case, customer="next") == ["NextCorp"]
+    assert result == ["NextCorp"]
     assert await _ids_by_customer(contract_case, customer="XTCO") == ["NextCorp"]
     assert await _ids_by_customer(contract_case, customer="오인") == ["네오인"]
     assert await contract_case.total(customer="next") == 1
@@ -75,8 +77,9 @@ async def test_search_product_is_a_case_insensitive_partial_match_on_the_deal_so
         await contract_case.contract(deal)
 
     # when: product 조건으로 검색한다
+    result = await _ids_by_customer(contract_case, product="hana")
     # then: 부분 일치하는 계약만 오고 total도 같다
-    assert await _ids_by_customer(contract_case, product="hana") == ["S/4HANA"]
+    assert result == ["S/4HANA"]
     assert await _ids_by_customer(contract_case, product="EBS") == ["OracleEBS"]
     assert await contract_case.total(product="hana") == 1
 
@@ -97,8 +100,9 @@ async def test_search_wildcard_characters_are_literal(
         await contract_case.contract(await contract_case.deal(customer=customer))
 
     # when: 특수 문자로 검색한다
+    result = await _ids_by_customer(contract_case, customer=needle)
     # then: 글자가 그대로 든 계약만 온다
-    assert await _ids_by_customer(contract_case, customer=needle) == expected
+    assert result == expected
 
 
 async def test_search_vendor_matches_the_deal_vendor_id(contract_case: ContractCase) -> None:
@@ -114,8 +118,9 @@ async def test_search_vendor_matches_the_deal_vendor_id(contract_case: ContractC
         await contract_case.contract(deal)
 
     # when: vendor_id로 검색한다
+    result = await _ids_by_customer(contract_case, vendor_id=sap.details.vendor_id)
     # then: 해당 Vendor의 계약만 오고 total도 같다
-    assert await _ids_by_customer(contract_case, vendor_id=sap.details.vendor_id) == ["SAP사용"]
+    assert result == ["SAP사용"]
     assert await contract_case.total(vendor_id=oracle.details.vendor_id) == 1
 
 
@@ -134,8 +139,9 @@ async def test_search_owner_matches_the_deal_owner_including_resigned_users(
     await contract_case.resign(uid("lcs-park"))
 
     # when: owner_user_id로 검색한다
+    result = await _ids_by_customer(contract_case, owner_user_id=uid("lcs-kim"))
     # then: 해당 Owner의 계약만 온다
-    assert await _ids_by_customer(contract_case, owner_user_id=uid("lcs-kim")) == ["김담당"]
+    assert result == ["김담당"]
     assert await _ids_by_customer(contract_case, owner_user_id=uid("lcs-park")) == ["박담당"]
 
 
@@ -154,8 +160,9 @@ async def test_search_filters_by_status(
         made[each] = await contract_case.contract(deal, status=each.value)
 
     # when: 상태별로 검색한다
+    result = await contract_case.row_ids(status=status)
     # then: 해당 상태의 계약만 오고 total은 1이다
-    assert await contract_case.row_ids(status=status) == [made[status].id]
+    assert result == [made[status].id]
     assert await contract_case.total(status=status) == 1
 
 
@@ -210,8 +217,9 @@ async def test_search_end_range_is_inclusive_and_excludes_contracts_without_date
     await contract_case.contract(await contract_case.deal())
 
     # when: 종료일 범위로 검색한다
+    result = await contract_case.row_ids(end_to=date(2026, 6, 30))
     # then: 경계 날짜 계약은 들어가고 날짜 없는 계약은 빠진다
-    assert await contract_case.row_ids(end_to=date(2026, 6, 30)) == [short.id]
+    assert result == [short.id]
     assert await contract_case.row_ids(end_from=date(2026, 6, 30), end_to=date(2026, 12, 31)) == (
         sorted([short.id, long.id])
     )

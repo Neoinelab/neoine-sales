@@ -4,6 +4,7 @@ hash는 호출마다 솔트 번호가 달라 같은 비밀번호도 결과가 �
 호출을 기록하고(더미 계산을 했다는 증거) False를 돌려준다.
 """
 
+import hashlib
 from typing import TYPE_CHECKING
 
 from app.domain.auth.password_hash import PasswordHash
@@ -14,9 +15,14 @@ if TYPE_CHECKING:
     from app.domain.auth.credentials import Password
 
 
+def _digest(password: str) -> str:
+    """평문이 아닌 고정 길이(64자) 변환. 256자 비밀번호도 해시 열 한도(512자)에 들어간다."""
+    return hashlib.sha256(password.encode()).hexdigest()
+
+
 def fake_hash_of(password: str, salt: int = 0) -> PasswordHash:
     """이 Fake가 만들 수 있는 해시(시나리오 준비용)."""
-    return PasswordHash(f"fake${salt}${password[::-1].encode().hex()}")
+    return PasswordHash(f"fake${salt}${_digest(password)}")
 
 
 class FakePasswordHasher:
@@ -44,8 +50,4 @@ class FakePasswordHasher:
         if stored is None:
             return False
         parts = stored.encoded.split("$")
-        return (
-            len(parts) == 3
-            and parts[0] == "fake"
-            and parts[2] == (password.reveal()[::-1].encode().hex())
-        )
+        return len(parts) == 3 and parts[0] == "fake" and parts[2] == _digest(password.reveal())

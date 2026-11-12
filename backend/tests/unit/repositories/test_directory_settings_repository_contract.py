@@ -1,4 +1,4 @@
-"""DirectorySettingsRepository 계약: 단일 행·revision 낙관적 잠금, 암호문·Base DN 왕복(AC3·AC5).
+"""DirectorySettingsRepository 계약: 단일 행·revision 낙관적 잠금, 암호문·Base DN 왕복.
 
 저장소는 암호화된 토큰 문자열만 다룬다(암호화는 application이 SecretCipher Port로 한다).
 """
@@ -72,12 +72,19 @@ async def _save(
 
 
 async def test_empty_store_returns_none(repository: DirectorySettingsRepository) -> None:
-    assert await repository.get() is None
+    """저장된 설정이 없으면 조회 결과는 None이다."""
+    # when: 빈 저장소에서 읽는다
+    result = await repository.get()
+    # then: None이다
+    assert result is None
 
 
 async def test_first_save_creates_revision_one(repository: DirectorySettingsRepository) -> None:
+    """첫 저장은 revision 1의 설정을 만든다."""
+    # when: expected_revision 없이 처음 저장한다
     saved = await _save(repository, expected_revision=None)
 
+    # then: revision 1, 저장 시각, 저장자 없음이고 조회 결과가 같다
     assert (saved.revision, saved.updated_at, saved.updated_by) == (1, NOW, None)
     assert await repository.get() == saved
 
@@ -85,11 +92,15 @@ async def test_first_save_creates_revision_one(repository: DirectorySettingsRepo
 async def test_first_save_when_row_exists_conflicts(
     repository: DirectorySettingsRepository,
 ) -> None:
+    """이미 행이 있는데 expected_revision 없이 저장하면 충돌하고 기존 행이 유지된다."""
+    # given: 첫 저장이 끝난 저장소
     await _save(repository, expected_revision=None)
 
+    # when·then: expected_revision 없이 다시 저장하면 DirectorySettingsConflictError다
     with pytest.raises(DirectorySettingsConflictError):
         await _save(repository, expected_revision=None, base_dn="dc=other", now=later(5))
 
+    # then: 저장된 행은 revision 1과 처음 Base DN 그대로다
     stored = await repository.get()
     assert stored is not None
     assert (stored.revision, stored.base_dn) == (1, BASE_DN)
@@ -98,8 +109,11 @@ async def test_first_save_when_row_exists_conflicts(
 async def test_update_with_matching_revision_increments(
     repository: DirectorySettingsRepository,
 ) -> None:
+    """revision이 맞는 갱신은 revision을 올리고 새 값을 저장한다."""
+    # given: 첫 저장이 끝난 저장소
     await _save(repository, expected_revision=None)
 
+    # when: revision 1을 기준으로 새 Base DN·암호문·저장자로 저장한다
     updated = await _save(
         repository,
         expected_revision=1,
@@ -109,6 +123,7 @@ async def test_update_with_matching_revision_increments(
         now=later(60),
     )
 
+    # then: revision 2와 저장자·시각이 갱신되고 새 값이 조회된다
     assert (updated.revision, updated.updated_by, updated.updated_at) == (
         2,
         uid("admin1"),
@@ -123,16 +138,20 @@ async def test_update_with_matching_revision_increments(
 async def test_update_with_stale_revision_conflicts_and_keeps_row(
     repository: DirectorySettingsRepository,
 ) -> None:
+    """낡은 revision으로 저장하면 충돌하고 행은 그대로다."""
+    # given: 두 번 저장되어 revision이 2인 저장소
     await _save(repository, expected_revision=None)
     await _save(
         repository, expected_revision=1, base_dn="dc=second", updated_by=uid("a"), now=later(1)
     )
 
+    # when·then: revision 1로 저장하면 DirectorySettingsConflictError다
     with pytest.raises(DirectorySettingsConflictError):
         await _save(
             repository, expected_revision=1, base_dn="dc=stale", updated_by=uid("b"), now=later(2)
         )
 
+    # then: 행은 revision 2와 두 번째 값 그대로다
     stored = await repository.get()
     assert stored is not None
     assert (stored.revision, stored.base_dn, stored.updated_by) == (2, "dc=second", uid("a"))
@@ -141,23 +160,32 @@ async def test_update_with_stale_revision_conflicts_and_keeps_row(
 async def test_update_without_existing_row_conflicts(
     repository: DirectorySettingsRepository,
 ) -> None:
+    """행이 없는데 revision을 주고 저장하면 충돌한다."""
+    # when·then: 빈 저장소에 expected_revision 1로 저장하면 DirectorySettingsConflictError다
     with pytest.raises(DirectorySettingsConflictError):
         await _save(repository, expected_revision=1, updated_by=uid("a"))
 
+    # then: 저장소는 계속 비어 있다
     assert await repository.get() is None
 
 
 async def test_revision_keeps_counting_up(repository: DirectorySettingsRepository) -> None:
+    """저장할 때마다 revision이 하나씩 올라간다."""
+    # given: 첫 저장이 끝난 저장소
     await _save(repository, expected_revision=None)
+    # when: revision 1·2·3을 기준으로 차례로 갱신한다
     for expected in (1, 2, 3):
         saved = await _save(
             repository, expected_revision=expected, updated_by=uid("a"), now=later(expected)
         )
 
+    # then: 마지막 revision이 4다
     assert saved.revision == 4
 
 
 async def test_round_trip_keeps_all_fields(repository: DirectorySettingsRepository) -> None:
+    """연결 설정의 모든 필드와 긴 암호문이 저장 후 그대로 조회된다."""
+    # given: 호스트·포트·보안 연결·계정·필터·긴 암호문·Base DN을 바꿔 저장했다
     long_token = SealedSecret("gAAAAA" + "x" * 400)
     await _save(
         repository,
@@ -172,8 +200,10 @@ async def test_round_trip_keeps_all_fields(repository: DirectorySettingsReposito
         base_dn="ou=staff,dc=corp,dc=test",
     )
 
+    # when: 설정을 읽는다
     stored = await repository.get()
 
+    # then: 연결 값, 암호문 전체, Base DN이 저장한 값과 같다
     assert stored is not None
     assert stored.connection == make_directory_connection(
         host="dc2.corp.test",
@@ -194,10 +224,14 @@ async def test_round_trip_keeps_all_fields(repository: DirectorySettingsReposito
 async def test_every_security_mode_round_trips(
     repository: DirectorySettingsRepository, security: SecurityMode, port: int
 ) -> None:
+    """모든 보안 연결 방식과 기본 포트가 저장 후 그대로 조회된다."""
+    # given: 해당 보안 연결·포트로 저장했다
     await _save(repository, expected_revision=None, security=security, port=port)
 
+    # when: 설정을 읽는다
     stored = await repository.get()
 
+    # then: 보안 연결과 포트가 같다
     assert stored is not None
     assert (stored.connection.security, stored.connection.port) == (security, port)
 
@@ -206,10 +240,14 @@ async def test_every_security_mode_round_trips(
 async def test_ip_literal_and_short_hosts_round_trip(
     repository: DirectorySettingsRepository, host: str
 ) -> None:
+    """IP 주소와 짧은 호스트 이름이 저장 후 그대로 조회된다."""
+    # given: 해당 호스트로 저장했다
     await _save(repository, expected_revision=None, host=host)
 
+    # when: 설정을 읽는다
     stored = await repository.get()
 
+    # then: 호스트가 같다
     assert stored is not None
     assert stored.connection.host == host
 
@@ -217,9 +255,13 @@ async def test_ip_literal_and_short_hosts_round_trip(
 async def test_first_save_keeps_a_missing_saver_as_none(
     repository: DirectorySettingsRepository,
 ) -> None:
+    """저장자를 주지 않은 첫 저장은 저장자가 None으로 남는다."""
+    # given: 저장자 없이 첫 저장했다
     await _save(repository, expected_revision=None)
 
+    # when: 설정을 읽는다
     stored = await repository.get()
 
+    # then: updated_by가 None이다
     assert stored is not None
     assert stored.updated_by is None

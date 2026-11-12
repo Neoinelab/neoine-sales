@@ -26,10 +26,13 @@ async def test_deal_list_item_has_license_contract_count(contract_case: Contract
     await contract_case.contract(other)
 
     # when: Deal을 조회한다
-    # then: Deal마다 계약 건수가 다르다
-    assert (await contract_case.deals.get_item(with_two.id)).license_contract_count == 2
-    assert (await contract_case.deals.get_item(without.id)).license_contract_count == 0
+    item_with_two = await contract_case.deals.get_item(with_two.id)
+    item_without = await contract_case.deals.get_item(without.id)
     listed = await contract_case.deals.search(DealQuery(limit=200))
+
+    # then: Deal마다 계약 건수가 다르다
+    assert item_with_two.license_contract_count == 2
+    assert item_without.license_contract_count == 0
     assert {item.deal.id: item.license_contract_count for item in listed} == {
         with_two.id: 2,
         without.id: 0,
@@ -71,8 +74,11 @@ async def test_deletion_impact_without_contracts_is_zero(contract_case: Contract
     deal = await contract_case.deal()
 
     # when: 삭제 영향을 읽는다
+    license_contract_count = (
+        await contract_case.deals.deletion_impact(deal.id)
+    ).license_contract_count
     # then: 계약 건수 0
-    assert (await contract_case.deals.deletion_impact(deal.id)).license_contract_count == 0
+    assert license_contract_count == 0
 
 
 async def test_deal_list_item_has_issued_license_contract_flag(contract_case: ContractCase) -> None:
@@ -145,6 +151,9 @@ async def test_the_flag_belongs_to_each_deal_separately(contract_case: ContractC
     await contract_case.contract(other)
 
     # when: 각 Deal을 조회한다
+    has_issued_license_contract = (
+        await contract_case.deals.get_item(with_issued.id)
+    ).has_issued_license_contract
     # then: 각각 true, false다
-    assert (await contract_case.deals.get_item(with_issued.id)).has_issued_license_contract is True
+    assert has_issued_license_contract is True
     assert (await contract_case.deals.get_item(other.id)).has_issued_license_contract is False

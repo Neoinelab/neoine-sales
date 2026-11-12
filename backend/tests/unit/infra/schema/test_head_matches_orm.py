@@ -20,16 +20,23 @@ pytestmark = pytest.mark.integration
 async def test_migrated_head_has_no_difference_from_the_orm_metadata(
     test_database_url: URL,
 ) -> None:
+    """head 스키마와 ORM 메타데이터의 차이가 0건이다.
+
+    테스트 코드: SC-012
+    """
+    # given: head를 적용한 임시 DB
     engine = create_async_engine(test_database_url, poolclass=NullPool)
 
     def diff(connection: Connection) -> list[Any]:
         context = MigrationContext.configure(connection, opts={"compare_type": True})
         return list(compare_metadata(context, Base.metadata))
 
+    # when: compare_metadata(compare_type=True)로 Base.metadata와 비교한다
     try:
         async with engine.connect() as connection:
             differences = await connection.run_sync(diff)
     finally:
         await engine.dispose()
 
+    # then: 차이 목록이 비어 있다
     assert differences == []

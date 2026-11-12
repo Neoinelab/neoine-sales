@@ -30,6 +30,11 @@ KIM = uid("stale-kim")
 async def test_cell_with_a_key_missing_from_columns_raises_rerun_runtime_error(
     test_database_url: URL,
 ) -> None:
+    """열에 없는 key의 셀이 들어가면 다시 실행 안내의 RuntimeError다
+
+    테스트 코드: FC-022
+    """
+    # given: commit 열이 없는데 commit 셀이 있는 스냅숏
     async with open_snapshot_case("sql", test_database_url) as case:
         await case.ensure_owner(KIM)
         stale = make_snapshot(
@@ -38,6 +43,7 @@ async def test_cell_with_a_key_missing_from_columns_raises_rerun_runtime_error(
             columns=[make_column("pipeline")],  # commit 열이 없다
         )
 
+        # when·then: 저장하면 "다시 실행" 안내의 RuntimeError다
         with pytest.raises(RuntimeError, match="다시 실행"):
             await case.snapshots.replace(stale)
 
@@ -45,6 +51,11 @@ async def test_cell_with_a_key_missing_from_columns_raises_rerun_runtime_error(
 async def test_failed_replace_leaves_the_previous_snapshot_after_rollback(
     test_database_url: URL,
 ) -> None:
+    """저장이 실패해 롤백하면 이전 스냅숏이 그대로 남는다
+
+    테스트 코드: FC-022
+    """
+    # given: 이전 스냅숏이 저장돼 있고 세이브포인트를 연다
     async with open_snapshot_case("sql", test_database_url) as case:
         await case.ensure_owner(KIM)
         previous = make_snapshot(SEPT, make_cell(KIM, key="pipeline", amount=7))
@@ -56,10 +67,13 @@ async def test_failed_replace_leaves_the_previous_snapshot_after_rollback(
             columns=[make_column("pipeline")],
         )
 
+        # when: 열과 맞지 않는 셀로 다시 저장한다
         with pytest.raises(RuntimeError):
             await case.snapshots.replace(stale)
+        # when: 롤백한다
         await savepoint.rollback()
 
+        # then: 이전 스냅숏의 셀·열이 그대로다
         found = await case.snapshots.get(SEPT)
         assert found is not None
         assert [(c.forecast_key, c.tally.amount) for c in found.cells] == [("pipeline", 7)]

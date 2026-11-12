@@ -52,10 +52,13 @@ async def _action(session: AsyncSession, **overrides: Any) -> DealAction:  # noq
 
 
 async def test_add_for_missing_deal_raises_deal_not_found(test_database_url: URL) -> None:
+    """없는 Deal에 Action을 저장하면 Deal 없음 오류가 난다."""
     async with rolled_back_session(test_database_url) as session:
+        # given: Deal은 없고 수행자만 있는 DB
         repository = SqlDealActionRepository(session)
         await ensure_users(SqlUserRepository(session), ACTOR_ID)
 
+        # when·then: 없는 Deal 코드의 Action을 저장하면 Deal 없음 오류가 난다
         with pytest.raises(DealNotFoundError):
             await repository.add(await _action(session, deal_code=make_deal_code("ZZZZ")))
 
@@ -63,10 +66,13 @@ async def test_add_for_missing_deal_raises_deal_not_found(test_database_url: URL
 async def test_add_after_the_deal_is_physically_deleted_raises_deal_not_found(
     test_database_url: URL,
 ) -> None:
+    """Deal을 물리 삭제한 뒤 Action을 저장하면 Deal 없음 오류가 난다."""
     async with rolled_back_session(test_database_url) as session:
+        # given: 물리 삭제한 Deal
         deal = await _deal(session)
         await SqlDealRepository(session).delete(deal.id)
 
+        # when·then: 삭제된 Deal의 Action을 저장하면 Deal 없음 오류가 난다
         with pytest.raises(DealNotFoundError):
             await SqlDealActionRepository(session).add(await _action(session, deal_code=deal.id))
 
@@ -74,14 +80,18 @@ async def test_add_after_the_deal_is_physically_deleted_raises_deal_not_found(
 async def test_add_with_a_missing_actor_user_raises_invalid_reference(
     test_database_url: URL,
 ) -> None:
+    """없는 수행자로 Action을 저장하면 잘못된 참조 오류가 난다."""
     async with rolled_back_session(test_database_url) as session:
+        # given: Deal은 있고 존재하지 않는 수행자 id
         deal = await _deal(session)
 
+        # when: 그 수행자로 Action을 저장한다
         with pytest.raises(InvalidReferenceError) as caught:
             await SqlDealActionRepository(session).add(
                 await _action(session, deal_code=deal.id, actor_user_id=UserId(new_id()))
             )
 
+        # then: 오류가 "사용자"를 가리킨다
         assert caught.value.entity == "사용자"
 
 
@@ -95,42 +105,55 @@ async def test_add_with_a_missing_actor_user_raises_invalid_reference(
 async def test_add_with_an_unknown_snapshot_code_names_which_code_is_missing(
     test_database_url: URL, snapshot: object, entity: str, key: str
 ) -> None:
+    """없는 Status·Forecast 코드 스냅숏은 어느 코드가 없는지 오류에 담긴다."""
     async with rolled_back_session(test_database_url) as session:
+        # given: Deal은 있고 스냅숏 코드 하나가 없는 Action
         deal = await _deal(session)
 
+        # when: 저장한다
         with pytest.raises(InvalidReferenceError) as caught:
             await SqlDealActionRepository(session).add(
                 await _action(session, deal_code=deal.id, snapshot=snapshot)
             )
 
+        # then: 오류가 해당 코드 종류와 key를 가리킨다
         assert (caught.value.entity, caught.value.identifier) == (entity, key)
 
 
 async def test_the_session_stays_usable_after_a_reference_error(test_database_url: URL) -> None:
+    """참조 오류가 난 뒤에도 같은 세션으로 계속 저장할 수 있다."""
     async with rolled_back_session(test_database_url) as session:
+        # given: Deal이 있는 세션
         deal = await _deal(session)
         repository = SqlDealActionRepository(session)
+        # when: 없는 Forecast 코드의 Action 저장이 참조 오류로 거절된다
         with pytest.raises(InvalidReferenceError):
             await repository.add(
                 await _action(session, deal_code=deal.id, snapshot=make_sync(forecast_key="nope"))
             )
 
+        # when: 같은 세션에서 올바른 Action을 저장한다
         action = await _action(session, deal_code=deal.id)
         await repository.add(action)
 
+        # then: 그 Action을 읽을 수 있다
         assert (await repository.get(action.id)).id == action.id
 
 
 async def test_add_with_an_unknown_action_type_names_the_type(test_database_url: URL) -> None:
+    """없는 유형으로 저장하면 오류가 그 유형을 가리킨다."""
     async with rolled_back_session(test_database_url) as session:
+        # given: Deal은 있고 존재하지 않는 유형 참조
         deal = await _deal(session)
         missing = make_type_ref("ZZ 없는 유형")
 
+        # when: 그 유형의 Action을 저장한다
         with pytest.raises(InvalidReferenceError) as caught:
             await SqlDealActionRepository(session).add(
                 make_deal_action(deal_code=deal.id, action_type=missing)
             )
 
+        # then: 오류가 "Action 유형"과 유형 id를 가리킨다
         assert (caught.value.entity, caught.value.identifier) == ("Action 유형", missing.id)
 
 
@@ -139,12 +162,15 @@ async def test_deleting_a_type_used_by_an_action_is_refused_by_the_database(
 ) -> None:
     """FK RESTRICT: 유형 삭제가 도메인 오류(ActionTypeInUseError)로 바뀐다(500 아님)."""
     async with rolled_back_session(test_database_url) as session:
+        # given: Action이 쓰는 유형
         deal = await _deal(session)
         action = await _action(session, deal_code=deal.id)
         await SqlDealActionRepository(session).add(action)
         types = SqlActionTypeRepository(session)
 
+        # when: 그 유형을 삭제한다
         with pytest.raises(ActionTypeInUseError) as caught:
             await types.delete(action.content.action_type.id)
 
+        # then: 사용 중 오류가 사용 건수 1을 담는다
         assert caught.value.usage == 1

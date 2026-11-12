@@ -36,36 +36,71 @@ def _baseline() -> Script:
 
 
 def test_the_history_has_one_revision_that_is_both_base_and_head() -> None:
+    """리비전 그래프의 base와 head가 모두 기준선 하나다.
+
+    테스트 코드: SC-001
+    """
+    # given: backend/alembic의 리비전 그래프
     script = ScriptDirectory.from_config(_alembic_config())
 
-    assert script.get_heads() == [BASELINE]
-    assert script.get_bases() == [BASELINE]
+    # when: head와 base 목록을 읽는다
+    heads, bases = script.get_heads(), script.get_bases()
+
+    # then: 둘 다 기준선 하나이고 리비전은 1개뿐이다
+    assert heads == [BASELINE]
+    assert bases == [BASELINE]
     assert len(list(script.walk_revisions())) == 1
 
 
 def test_the_baseline_has_no_parent_branch_or_dependency() -> None:
+    """기준선에는 부모·브랜치 라벨·의존 리비전이 없다.
+
+    테스트 코드: SC-002
+    """
+    # when: 기준선 리비전 정보를 읽는다
     revision = _baseline()
 
+    # then: 부모 None, 브랜치 라벨 없음, 의존 None
     assert revision.down_revision is None
     assert not revision.branch_labels
     assert revision.dependencies is None
 
 
 def test_the_baseline_file_is_named_after_its_purpose() -> None:
-    assert _baseline().path.endswith("20261105_00c3126aa926_baseline.py")
+    """기준선 파일 이름이 20261105_00c3126aa926_baseline.py다.
+
+    테스트 코드: SC-003
+    """
+    # when: 기준선 리비전의 파일 경로를 읽는다
+    path = _baseline().path
+
+    # then: 경로가 정해진 파일 이름으로 끝난다
+    assert path.endswith("20261105_00c3126aa926_baseline.py")
 
 
 def test_the_baseline_downgrade_refuses_before_touching_the_database() -> None:
+    """기준선 downgrade 함수는 DB를 건드리기 전에 안내 문구와 함께 거부한다.
+
+    테스트 코드: SC-009
+    """
+    # given: DB 연결 없이 불러온 기준선 모듈
     module = _baseline().module
 
+    # when: downgrade()를 호출한다
     with pytest.raises(RuntimeError) as raised:
         module.downgrade()
 
+    # then: 안내 문구가 들어 있다
     assert "최초 리비전" in str(raised.value)
     assert "DB를 새로 만드세요" in str(raised.value)
 
 
 def test_the_baseline_upgrade_never_removes_rows_or_columns() -> None:
+    """기준선 upgrade 본문에는 행·컬럼을 지우거나 바꾸는 문장이 없다.
+
+    테스트 코드: SC-011
+    """
+    # given: downgrade를 뺀 함수들의 본문(docstring 제외, 소문자)
     module = _baseline().module
     tree = ast.parse(inspect.getsource(module))
     body: list[str] = []
@@ -76,6 +111,7 @@ def test_the_baseline_upgrade_never_removes_rows_or_columns() -> None:
             body.append(ast.unparse(node).lower())
     source = "\n".join(body)
 
+    # when·then: 금지 토큰을 찾으면 하나도 없다
     assert "def upgrade" in source
     for token in FORBIDDEN_IN_UPGRADE:
         assert re.search(token, source) is None, f"upgrade가 {token!r}를 사용한다"

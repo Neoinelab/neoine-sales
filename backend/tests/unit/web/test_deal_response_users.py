@@ -33,8 +33,11 @@ def _view(users: int) -> DealView:
 
 @pytest.mark.parametrize("users", [0, 7])
 def test_response_carries_users_as_is(users: int) -> None:
+    """Deal 응답이 users 값(0 포함)을 그대로 내보내는지 확인한다."""
+    # when: 목록 행과 상세 응답을 만든다
     for response in (
         DealRowResponse.from_view(_view(users)),
         DealDetailResponse.from_view(_view(users)),
     ):
+        # then: 두 응답의 users가 입력 값 그대로다
         assert response.model_dump(mode="json")["users"] == users

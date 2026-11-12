@@ -1,8 +1,8 @@
-"""contacts 테이블과 deals FK의 head 스키마 점검(AC-16): 열·제약 이름·인덱스·FK 동작.
+"""contacts 테이블과 deals FK의 head 스키마 점검: 열·제약 이름·인덱스·FK 동작.
 
 고객·파트너 두 테이블이 contacts 하나로 통합됐다. 공백 문자 금지 CHECK는 DB 로케일에 따라 전각
 공백을 못 거를 수 있어(로케일 의존) 여기서는 ASCII 공백·탭·줄바꿈만 확인하고, 전각 공백은 응용
-검증(tests/unit/domain/test_contact_values.py, functional contacts)이 맡는다.
+검증(tests/unit/domain/test_contact_values.py, CT 단위 테스트)이 맡는다.
 """
 
 from typing import TYPE_CHECKING
@@ -36,6 +36,8 @@ async def _names(session: AsyncSession, sql: str) -> set[str]:
 
 
 async def test_contacts_table_has_the_planned_columns(session: AsyncSession) -> None:
+    """contacts 테이블의 열 이름·타입·길이·널 허용이 계획과 같은지 확인한다."""
+    # when: information_schema에서 contacts 열 정보를 조회한다 (전제: head 스키마 DB 세션)
     rows = (
         await session.execute(
             text(
@@ -46,22 +48,29 @@ async def test_contacts_table_has_the_planned_columns(session: AsyncSession) -> 
         )
     ).all()
 
+    # then: 열 구성이 계획과 같다
     assert {r[0]: (r[1], r[2], r[3]) for r in rows} == COLUMNS
 
 
 async def test_customers_and_partners_tables_are_gone(session: AsyncSession) -> None:
+    """customers·partners 테이블이 없고 contacts만 있는지 확인한다."""
+    # when: public 스키마의 테이블 이름을 조회한다 (전제: head 스키마 DB 세션)
     tables = await _names(session, "select tablename from pg_tables where schemaname = 'public'")
 
+    # then: contacts는 있고 customers·partners는 없다
     assert "contacts" in tables
     assert not {"customers", "partners"} & tables
 
 
 async def test_contacts_has_the_planned_constraints_and_indexes(session: AsyncSession) -> None:
+    """contacts의 CHECK 제약과 인덱스가 계획대로 있는지 확인한다."""
+    # when: contacts의 제약과 인덱스 이름을 조회한다 (전제: head 스키마 DB 세션)
     constraints = await _names(
         session, "select conname from pg_constraint where conrelid = 'contacts'::regclass"
     )
     indexes = await _names(session, "select indexname from pg_indexes where tablename = 'contacts'")
 
+    # then: 종류·공백 CHECK와 세 인덱스가 모두 있다
     assert {"ck_contacts_kind_valid", "ck_contacts_no_space"} <= constraints
     assert {
         "ix_contacts_kind_company_lower",
@@ -73,6 +82,8 @@ async def test_contacts_has_the_planned_constraints_and_indexes(session: AsyncSe
 async def test_the_lookup_indexes_are_case_insensitive_expression_indexes(
     session: AsyncSession,
 ) -> None:
+    """조회용 인덱스가 lower() 표현식 인덱스인지 확인한다."""
+    # when: 두 인덱스의 정의를 조회한다 (전제: head 스키마 DB 세션)
     rows = (
         await session.execute(
             text(
@@ -82,20 +93,26 @@ async def test_the_lookup_indexes_are_case_insensitive_expression_indexes(
         )
     ).all()
 
+    # then: 회사 인덱스는 lower()를 쓰고 identity 인덱스는 lower()를 두 번 쓴다
     definitions = {str(r[0]): str(r[1]).lower() for r in rows}
     assert "lower(" in definitions["ix_contacts_kind_company_lower"]
     assert definitions["ix_contacts_identity"].count("lower(") == 2
 
 
 async def test_unknown_kind_is_rejected_by_the_database(session: AsyncSession) -> None:
+    """정해지지 않은 kind는 DB가 거절하는지 확인한다."""
+    # when·then: 알 수 없는 kind로 넣으면 kind CHECK 위반이 난다 (전제: head 스키마 DB 세션)
     with pytest.raises(IntegrityError, match="ck_contacts_kind_valid"):
         await insert_contact(session, kind="supplier")
 
 
 @pytest.mark.parametrize("kind", ["customer", "partner"])
 async def test_both_kinds_are_accepted(session: AsyncSession, kind: str) -> None:
+    """customer와 partner 두 kind를 모두 저장할 수 있는지 확인한다."""
+    # when: 해당 kind로 연락처를 넣는다 (전제: head 스키마 DB 세션)
     contact_id = await insert_contact(session, kind=kind)
 
+    # then: 저장된 kind가 넣은 값과 같다
     stored = await session.execute(
         text("select kind from contacts where id = :id"), {"id": contact_id}
     )
@@ -108,13 +125,18 @@ async def test_both_kinds_are_accepted(session: AsyncSession, kind: str) -> None
 async def test_whitespace_in_company_name_email_or_phone_is_rejected_by_the_database(
     session: AsyncSession, field: str, value: str
 ) -> None:
+    """회사·이름·이메일·전화에 공백이 있으면 DB가 거절하는지 확인한다."""
+    # when·then: 공백이 든 값으로 연락처를 넣으면 공백 CHECK 위반이 난다 (전제: head 스키마 DB 세션)
     with pytest.raises(IntegrityError, match="ck_contacts_no_space"):
         await insert_contact(session, **{field: value})
 
 
 async def test_title_may_contain_spaces(session: AsyncSession) -> None:
+    """직함에는 공백을 넣을 수 있는지 확인한다."""
+    # when: 공백이 든 직함으로 연락처를 넣는다 (전제: head 스키마 DB 세션)
     contact_id = await insert_contact(session, title="수석 과장")
 
+    # then: 저장된 직함이 그대로다
     stored = await session.execute(
         text("select title from contacts where id = :id"), {"id": contact_id}
     )
@@ -126,6 +148,8 @@ async def test_title_may_contain_spaces(session: AsyncSession) -> None:
 async def test_company_and_name_are_required_by_the_database(
     session: AsyncSession, field: str
 ) -> None:
+    """회사와 이름은 DB가 필수로 요구하는지 확인한다."""
+    # when·then: 필수 열을 NULL로 넣으면 NOT NULL 위반이 난다 (전제: head 스키마 DB 세션)
     with pytest.raises(IntegrityError, match=field):
         await insert_contact(session, **{field: None})
 
@@ -133,6 +157,8 @@ async def test_company_and_name_are_required_by_the_database(
 async def test_deal_references_to_contacts_are_restrict_foreign_keys(
     session: AsyncSession,
 ) -> None:
+    """Deal에서 contacts로의 FK가 RESTRICT이고 지연되지 않는지 확인한다."""
+    # when: deals·deal_partners의 contacts FK를 조회한다 (전제: head 스키마 DB 세션)
     rows = (
         await session.execute(
             text(
@@ -144,6 +170,7 @@ async def test_deal_references_to_contacts_are_restrict_foreign_keys(
         )
     ).all()
 
+    # then: 두 FK 모두 RESTRICT이고 deferrable이 아니다
     assert {(str(r[0]), str(r[1])): (str(r[2]).strip(), bool(r[3])) for r in rows} == {
         ("deals", "fk_deals_customer_id_contacts"): ("r", False),
         ("deal_partners", "fk_deal_partners_contact_id_contacts"): ("r", False),
@@ -151,7 +178,10 @@ async def test_deal_references_to_contacts_are_restrict_foreign_keys(
 
 
 async def test_no_foreign_key_still_points_at_the_dropped_tables(session: AsyncSession) -> None:
+    """삭제된 테이블을 가리키는 FK가 남지 않았는지 확인한다."""
+    # when: FK 제약 이름을 모두 조회한다 (전제: head 스키마 DB 세션)
     names = await _names(session, "select conname from pg_constraint where contype = 'f'")
 
+    # then: customers·partners를 가리키는 FK 이름이 없다
     assert "fk_deals_customer_id_customers" not in names
     assert "fk_deals_partner_id_partners" not in names

@@ -36,6 +36,8 @@ async def repository(request: pytest.FixtureRequest) -> AsyncIterator[UserReposi
 
 
 async def test_list_users_defaults_to_active_in_creation_order(repository: UserRepository) -> None:
+    """기본 사용자 목록이 재직자만 생성 순으로 주는지 확인한다."""
+    # given: 재직자 셋, 삭제된 사용자, 퇴사자가 섞여 있다
     third = make_user("c", now=later(30))
     first = make_user("a", now=later(10))
     deleted = make_user("d", now=later(20))
@@ -45,32 +47,42 @@ async def test_list_users_defaults_to_active_in_creation_order(repository: UserR
         await repository.add(user)
     await repository.delete(deleted.id)
 
+    # when: 기본 조건으로 사용자 목록을 조회한다
     listed = await repository.list_users()
 
+    # then: 재직자만 생성 시각 순이다
     assert [u.login_id.value for u in listed] == ["a", "b", "c"]
 
 
 async def test_list_users_by_status(repository: UserRepository) -> None:
+    """상태 조건별 사용자 목록이 맞는지 확인한다."""
+    # given: 재직자 둘과 퇴사자 둘이 섞여 저장되어 있다
     await repository.add(make_user("a", now=later(1)))
     await repository.add(make_resigned_user("r1", now=later(2)))
     await repository.add(make_user("b", now=later(3)))
     await repository.add(make_resigned_user("r2", now=later(4)))
 
+    # when: 재직·퇴사·전체 상태로 각각 조회한다
     active = await repository.list_users(status=UserStatusFilter.ACTIVE)
     resigned = await repository.list_users(status=UserStatusFilter.RESIGNED)
     everyone = await repository.list_users(status=UserStatusFilter.ALL)
 
+    # then: 상태별로 해당 사용자만 생성 순으로 나온다
     assert [u.login_id.value for u in active] == ["a", "b"]
     assert [u.login_id.value for u in resigned] == ["r1", "r2"]
     assert [u.login_id.value for u in everyone] == ["a", "r1", "b", "r2"]
 
 
 async def test_list_users_applies_offset_and_limit(repository: UserRepository) -> None:
+    """offset과 limit이 목록에 적용되는지 확인한다."""
+    # given: 사용자 다섯 명이 저장되어 있다
     for n in range(5):
         await repository.add(make_user(f"user{n}", now=later(n)))
 
+    # when: offset 1, limit 2로 조회한다
     page = await repository.list_users(offset=1, limit=2)
 
+    # then: 둘째와 셋째 사용자만 나온다
     assert [u.login_id.value for u in page] == ["user1", "user2"]
 
 
@@ -79,6 +91,8 @@ async def test_list_users_applies_offset_and_limit(repository: UserRepository) -
 async def test_list_users_rejects_invalid_page(
     repository: UserRepository, status: UserStatusFilter, offset: int, limit: int
 ) -> None:
+    """잘못된 offset·limit은 InvalidValueError인지 확인한다."""
+    # when·then: 범위 밖 offset 또는 limit으로 조회하면 InvalidValueError가 난다
     with pytest.raises(InvalidValueError):
         await repository.list_users(status=status, offset=offset, limit=limit)
 
@@ -86,6 +100,8 @@ async def test_list_users_rejects_invalid_page(
 async def test_get_refs_resolves_active_and_resigned_users_in_one_call(
     repository: UserRepository,
 ) -> None:
+    """재직자와 퇴사자 참조를 한 번에 풀어 주는지 확인한다."""
+    # given: 재직 사용자와 퇴사 사용자가 저장되어 있다
     active = make_user("hong")
     active.record_login(later(1), display_name="홍길동", email=None)
     leaver = make_user("leaver")
@@ -94,8 +110,10 @@ async def test_get_refs_resolves_active_and_resigned_users_in_one_call(
     await repository.add(active)
     await repository.add(leaver)
 
+    # when: 두 id로 참조를 조회한다
     refs = await repository.get_refs([active.id, leaver.id])
 
+    # then: 재직자는 이름, 퇴사자는 이름(퇴사) 라벨과 퇴사 여부가 맞다
     assert refs[active.id].label == "홍길동"
     assert refs[active.id].name == "홍길동"
     assert refs[active.id].resigned is False
@@ -106,21 +124,32 @@ async def test_get_refs_resolves_active_and_resigned_users_in_one_call(
 async def test_get_refs_falls_back_to_login_id_and_skips_unknown_ids(
     repository: UserRepository,
 ) -> None:
+    """표시 이름이 없으면 아이디를 쓰고 모르는 id는 건너뛰는지 확인한다."""
+    # given: 표시 이름 없는 사용자와 모르는 id가 있다
     user = make_user("newbie")
     await repository.add(user)
     unknown = UserId(new_id())
 
+    # when: 중복·모르는 id를 섞어 참조를 조회한다
     refs = await repository.get_refs([user.id, unknown, user.id])
 
+    # then: 아는 id만 한 번씩 나오고 이름은 로그인 아이디다
     assert set(refs) == {user.id}
     assert refs[user.id].name == "newbie"
 
 
 async def test_get_refs_of_nothing_is_empty(repository: UserRepository) -> None:
-    assert dict(await repository.get_refs([])) == {}
+    """빈 id로 참조를 조회하면 빈 결과인지 확인한다."""
+    # when: 빈 id 목록으로 참조를 조회한다
+    refs = await repository.get_refs([])
+
+    # then: 결과가 비어 있다
+    assert dict(refs) == {}
 
 
 async def test_search_refs_filters_by_keyword_and_resigned_flag(repository: UserRepository) -> None:
+    """키워드와 퇴사자 포함 여부로 사용자 검색이 걸러지는지 확인한다."""
+    # given: 홍길동, 김영업, 퇴사한 홍이탈이 저장되어 있다
     hong = make_user("hong.gd", now=later(1))
     hong.record_login(later(1), display_name="홍길동", email="hong@corp.test")
     kim = make_user("kim", now=later(2))
@@ -131,10 +160,12 @@ async def test_search_refs_filters_by_keyword_and_resigned_flag(repository: User
     for user in (hong, kim, leaver):
         await repository.add(user)
 
+    # when: 키워드·퇴사자 포함 조합으로 각각 검색한다
     active_hong = await repository.search_refs(keyword="홍", include_resigned=False, limit=10)
     all_hong = await repository.search_refs(keyword="홍", include_resigned=True, limit=10)
     everyone_active = await repository.search_refs(keyword=None, include_resigned=False, limit=10)
 
+    # then: 재직 홍길동만, 퇴사 포함은 홍길동·홍이탈, 키워드 없으면 재직 전원이다
     assert [r.id for r in active_hong] == [hong.id]
     assert [r.id for r in all_hong] == [hong.id, leaver.id]
     assert [r.id for r in everyone_active] == [hong.id, kim.id]
@@ -143,15 +174,19 @@ async def test_search_refs_filters_by_keyword_and_resigned_flag(repository: User
 async def test_search_refs_matches_the_display_name_not_the_login_id(
     repository: UserRepository,
 ) -> None:
+    """검색이 표시 이름을 대상으로 하고 로그인 아이디는 보지 않는지 확인한다."""
+    # given: 표시 이름과 로그인 아이디가 다른 사용자가 저장되어 있다
     hong = make_user("hong.gd", now=later(1))
     hong.record_login(later(1), display_name="홍길동", email=None)
     await repository.add(hong)
 
+    # when: 로그인 아이디로 검색한다
     by_login_id = await repository.search_refs(keyword="HONG", include_resigned=True, limit=10)
     by_full_login_id = await repository.search_refs(
         keyword="hong.gd", include_resigned=True, limit=10
     )
 
+    # then: 결과가 없다
     assert by_login_id == []
     assert by_full_login_id == []
 
@@ -159,27 +194,39 @@ async def test_search_refs_matches_the_display_name_not_the_login_id(
 async def test_search_refs_matches_the_login_id_only_as_the_fallback_name(
     repository: UserRepository,
 ) -> None:
+    """표시 이름이 없을 때만 로그인 아이디로 검색되는지 확인한다."""
+    # given: 표시 이름이 없는 사용자가 저장되어 있다
     newbie = make_user("newbie", now=later(1))  # 표시 이름 없음: name == login_id
     await repository.add(newbie)
 
+    # when: 아이디 일부로 검색한다
     refs = await repository.search_refs(keyword="NEWB", include_resigned=False, limit=10)
 
+    # then: 그 사용자가 아이디 이름으로 나온다
     assert [(r.id, r.name) for r in refs] == [(newbie.id, "newbie")]
 
 
 async def test_search_refs_respects_the_limit_in_creation_order(repository: UserRepository) -> None:
+    """검색 결과가 생성 순으로 limit만큼 잘리는지 확인한다."""
+    # given: 사용자 다섯 명이 저장되어 있다
     for n in range(5):
         await repository.add(make_user(f"user{n}", now=later(n)))
 
+    # when: limit 3으로 검색한다
     refs = await repository.search_refs(keyword=None, include_resigned=False, limit=3)
 
+    # then: 앞의 세 명이 생성 순으로 나온다
     assert [r.name for r in refs] == ["user0", "user1", "user2"]
 
 
 async def test_search_refs_treats_like_wildcards_literally(repository: UserRepository) -> None:
+    """LIKE 와일드카드를 글자 그대로 취급하는지 확인한다."""
+    # given: a_b와 axb 사용자가 저장되어 있다
     await repository.add(make_user("a_b", now=later(1)))
     await repository.add(make_user("axb", now=later(2)))
 
+    # when: a_b로 검색한다
     refs = await repository.search_refs(keyword="a_b", include_resigned=False, limit=10)
 
+    # then: a_b만 나온다
     assert [r.name for r in refs] == ["a_b"]

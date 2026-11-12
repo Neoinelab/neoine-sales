@@ -206,5 +206,6 @@ def test_deal_name_is_an_accepted_sort_column() -> None:
     테스트 코드: LC-084
     """
     # when: LicenseContractSort('deal_name')을 만든다
+    value = LicenseContractSort("deal_name").value
     # then: 값이 deal_name이다
-    assert LicenseContractSort("deal_name").value == "deal_name"
+    assert value == "deal_name"

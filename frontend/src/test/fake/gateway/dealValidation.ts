@@ -29,6 +29,9 @@ type Scalars = Pick<
 /** 선택 필드를 쓰지 않으면 `provided('bant')`가 false인 입력(등록은 항상 true). */
 export type ProvidedKeys = (key: keyof Scalars | 'bant') => boolean
 
+/** 서버와 같은 NUL 문자 거절 문구(PL-R16): 텍스트는 공백으로 감싸도 NUL이 있으면 거절한다. */
+const nulMessage = (column: string): string => `${column}에는 NUL 문자를 쓸 수 없습니다`
+
 /** Vendor 선택 검증(서버와 같은 순서: Deal Name 다음, Solution 앞). Solution은 Vendor와 무관한 텍스트다. */
 function validateVendorChoice(ctx: MockContext, effective: Scalars, check: boolean): void {
   if (!check) return
@@ -40,7 +43,7 @@ function validateVendorChoice(ctx: MockContext, effective: Scalars, check: boole
 /** Solution 텍스트 검증(필수: 앞뒤 공백을 지운 뒤 1~200자, NUL 거부). */
 function validateSolution(effective: Scalars, check: boolean): void {
   if (!check) return
-  if (effective.solution.includes('\u0000')) throw validation('Solution에 사용할 수 없는 문자가 있습니다.')
+  if (effective.solution.includes('\u0000')) throw validation(nulMessage('Solution'))
   if (effective.solution.trim() === '') throw validation(SOLUTION_REQUIRED_MESSAGE)
   if (Array.from(effective.solution.trim()).length > SOLUTION_MAX) throw validation(SOLUTION_TOO_LONG_MESSAGE)
 }
@@ -57,6 +60,7 @@ export function validateDealFields(
   bant: BantChoices | undefined,
 ): BantDraft | null {
   const { data } = ctx.store
+  if (provided('name') && effective.name.includes('\u0000')) throw validation(nulMessage('Deal Name'))
   if (provided('name') && effective.name.trim() === '') throw validation('Deal Name을 입력하세요.')
   if (provided('name') && Array.from(effective.name.trim()).length > NAME_MAX) throw validation('Deal Name은 200자 이내로 입력하세요.')
   validateVendorChoice(ctx, effective, provided('vendorId'))
@@ -89,6 +93,7 @@ export function validateDealFields(
     throw validation(SYNC_MISMATCH_MESSAGE)
   }
   const draft = provided('bant') ? checkBant(ctx, bant ?? {}) : null
+  if (provided('procurement') && effective.procurement.includes('\u0000')) throw validation(nulMessage('구매절차'))
   if (provided('procurement') && Array.from(effective.procurement.trim()).length > PROCUREMENT_MAX) {
     throw validation('구매절차는 500자 이내로 입력하세요.')
   }

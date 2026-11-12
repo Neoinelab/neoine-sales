@@ -36,8 +36,14 @@ def _isolated_env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Iterator[N
 
 
 def test_login_throttle_defaults_match_the_plan() -> None:
+    """시도 제한 기본값은 아이디 5·IP 30·창 15분·잠금 15분이다.
+
+    테스트 코드: AU-052
+    """
+    # when: 설정을 읽으면 (전제: 시도 제한 환경변수를 설정하지 않았다)
     settings = get_settings()
 
+    # then: 기본값이 5·30·15·15다
     assert isinstance(settings, LocalSettings)
     assert settings.login_max_failures_per_account == 5
     assert settings.login_max_failures_per_ip == 30
@@ -49,10 +55,13 @@ def test_login_throttle_defaults_match_the_plan() -> None:
 def test_login_throttle_values_can_be_overridden(
     monkeypatch: pytest.MonkeyPatch, variable: str
 ) -> None:
+    """시도 제한 값을 환경변수로 바꿀 수 있다."""
+    # when: 시도 제한 변수에 7을 넣고 설정을 읽으면
     monkeypatch.setenv(variable, "7")
 
     settings = get_settings()
 
+    # then: 7이 쓰인다
     assert getattr(settings, FIELDS[variable][0]) == 7
 
 
@@ -61,8 +70,14 @@ def test_login_throttle_values_can_be_overridden(
 def test_login_throttle_values_reject_out_of_range_input(
     monkeypatch: pytest.MonkeyPatch, variable: str, value: str
 ) -> None:
+    """시도 제한 값이 1 미만이거나 숫자가 아니면 거부된다.
+
+    테스트 코드: AU-052
+    """
+    # when: 각 시도 제한 변수에 0·-1·abc·1.5를 넣고 설정을 읽으면
     monkeypatch.setenv(variable, value)
 
+    # then: 검증 오류다
     with pytest.raises(ValidationError):
         get_settings()
 
@@ -71,12 +86,21 @@ def test_login_throttle_values_reject_out_of_range_input(
 def test_login_throttle_values_accept_the_minimum(
     monkeypatch: pytest.MonkeyPatch, variable: str
 ) -> None:
+    """시도 제한 값은 1까지 허용된다.
+
+    테스트 코드: AU-052
+    """
+    # when: 각 시도 제한 변수에 1을 넣고 설정을 읽으면
     monkeypatch.setenv(variable, "1")
 
+    # then: 그 값이 그대로 쓰인다
     assert getattr(get_settings(), FIELDS[variable][0]) == 1
 
 
 def test_no_ldap_connection_variables_exist_on_settings() -> None:
+    """Settings에는 LDAP 접속 변수가 없다."""
+    # when: Settings 필드 이름을 모은다
     names = set(get_settings().model_dump())
 
+    # then: ldap으로 시작하는 이름이 없다
     assert not {n for n in names if n.startswith("ldap")}

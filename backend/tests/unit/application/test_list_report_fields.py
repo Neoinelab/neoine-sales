@@ -1,4 +1,4 @@
-"""ListReportFields (AC1): 필드 카탈로그와 한도를 DB·시계 없이 돌려준다."""
+"""ListReportFields: 필드 카탈로그와 한도를 DB·시계 없이 돌려준다."""
 
 from app.application.report.list_fields import ListReportFields
 from app.domain.report.catalog import FIELD_CATALOG
@@ -6,14 +6,27 @@ from app.domain.report.vocabulary import FieldType, NumberUnit
 
 
 def test_list_report_fields_returns_the_whole_catalog() -> None:
+    """필드 목록 유스케이스는 카탈로그 전체를 순서대로 돌려준다.
+
+    테스트 코드: RQ-002
+    """
+    # when: 필드 목록을 조회한다
     view = ListReportFields().execute()
 
+    # then: 필드 key 순서가 카탈로그와 같다
     assert [f.key for f in view.fields] == [f.key for f in FIELD_CATALOG]
 
 
 def test_list_report_fields_returns_the_limits_of_the_design() -> None:
+    """필드 목록 유스케이스는 설계의 한도 값을 돌려준다.
+
+    테스트 코드: RQ-007
+    """
+    # when: 필드 목록의 한도를 조회한다
     limits = ListReportFields().execute().limits
 
+    # then: 컬럼 1~30, 조건 20, 행 수 100·1000·10000(기본 1000), 제한 10초,
+    # then: 텍스트 200·목록 100·최근 N일 3650·표시 이름 100·앞 N자 200이다
     assert limits.columns_min == 1
     assert limits.columns_max == 30
     assert limits.conditions_max == 20
@@ -28,7 +41,13 @@ def test_list_report_fields_returns_the_limits_of_the_design() -> None:
 
 
 def test_catalog_fields_without_formats_have_null_default() -> None:
+    """텍스트·코드·사용자·숫자 필드는 포맷 목록이 비고 기본 포맷이 null이다.
+
+    테스트 코드: RQ-003
+    """
+    # when: 필드 목록을 조회한다
     fields = ListReportFields().execute().fields
+    # then: 해당 형식의 모든 필드가 포맷 없음·기본값 null이다
     formatless = [
         f
         for f in fields
@@ -40,8 +59,14 @@ def test_catalog_fields_without_formats_have_null_default() -> None:
 
 
 def test_catalog_fields_carry_the_unit_and_only_amount_has_one() -> None:
+    """금액만 원 단위를 가지고 이름이 금액이다.
+
+    테스트 코드: RQ-004
+    """
+    # when: 필드 목록을 조회한다
     fields = ListReportFields().execute().fields
 
+    # then: 금액은 krw, 이름 금액이고 단위가 있는 필드는 금액 하나다
     amount = next(f for f in fields if f.key == "deal.amount")
     assert amount.unit == NumberUnit.KRW
     assert amount.label == "금액"
@@ -49,8 +74,14 @@ def test_catalog_fields_carry_the_unit_and_only_amount_has_one() -> None:
 
 
 def test_catalog_formats_are_seven_date_formats_and_query_affecting_ones_are_date_buckets() -> None:
+    """포맷 어휘는 날짜·시각 포맷 7개이고 SQL에 영향을 주는 것은 날짜 묶음 4개뿐이다.
+
+    테스트 코드: RQ-007
+    """
+    # when: 필드 목록을 조회한다
     view = ListReportFields().execute()
 
+    # then: 포맷 7개 순서, 묶음 포맷 4개, 예전 포맷 없음, 앞 N자 한도 200이다
     assert [f.key.value for f in view.formats] == [
         "ymd",
         "ymd_hm",
@@ -71,8 +102,14 @@ def test_catalog_formats_are_seven_date_formats_and_query_affecting_ones_are_dat
 
 
 def test_relative_periods_are_listed_in_the_selection_order_with_labels() -> None:
+    """상대 기간은 선택 순서와 이름, 일수 필요 여부와 함께 나열된다.
+
+    테스트 코드: RQ-007
+    """
+    # when: 필드 목록을 조회한다
     periods = ListReportFields().execute().relative_periods
 
+    # then: 8개가 순서대로이고 일수가 필요한 것은 최근 N일뿐이다
     assert [(p.key.value, p.label, p.needs_days) for p in periods] == [
         ("last_1_month", "최근 1개월", False),
         ("last_3_months", "최근 3개월", False),

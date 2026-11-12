@@ -7,15 +7,17 @@ import pytest
 from app.application.auth.tokens import hash_token
 from app.application.ports.deal_repository import DealQuery
 from app.application.user.delete_user import DeleteOutcome
+from app.domain.auth.credentials import Password
 from app.domain.auth.errors import AuthenticationError
+from app.domain.auth.mode import AuthMode
 from app.domain.auth.principal import Role
 from app.domain.common.errors import InvalidStateError
 from app.domain.user.errors import UserInUseError
-from app.domain.user.value_objects import UserDeleteReason
+from app.domain.user.value_objects import UserDeleteReason, UserStatusFilter
 from tests.factories import NOW
 from tests.fakes.admin_stack import OTHER_ADMIN_ACTOR
 from tests.support.admin_seed import session_is_active
-from tests.support.auth_seed import seed_user
+from tests.support.auth_seed import seed_auth_mode, seed_local_user, seed_user
 from tests.support.user_links import LINK_KINDS, link_user
 
 if TYPE_CHECKING:
@@ -29,12 +31,19 @@ if TYPE_CHECKING:
 async def test_delete_user_with_any_reference_resigns_instead_of_deleting(
     admin: AdminStack, uow_factory: UnitOfWorkFactory, kind: str
 ) -> None:
+    """연결이 하나라도 있으면 삭제는 퇴사 처리가 된다
+
+    테스트 코드: US-058
+    """
+    # given: 연결 종류 하나가 있는 kim
     root = await seed_user(uow_factory, "root", Role.ADMIN)
     target = await seed_user(uow_factory, "kim", Role.SALES)
     await link_user(uow_factory, target, kind)
 
+    # when: kim을 삭제한다
     outcome = await admin.delete_user.execute(user_id=target.id, actor=root.to_principal())
 
+    # then: 결과가 resigned이고 행은 퇴사 시각·사유와 함께 남는다
     assert outcome is DeleteOutcome.RESIGNED
     async with uow_factory() as uow:
         kept = await uow.users.get(target.id)
@@ -47,13 +56,20 @@ async def test_delete_user_with_any_reference_resigns_instead_of_deleting(
 async def test_resigning_still_deletes_the_users_session_rows(
     admin: AdminStack, auth: AuthStack, uow_factory: UnitOfWorkFactory, kind: str
 ) -> None:
+    """퇴사 처리도 대상의 세션 행을 지운다
+
+    테스트 코드: US-058
+    """
+    # given: 연결과 세션이 있는 kim
     root = await seed_user(uow_factory, "root", Role.ADMIN)
     target = await seed_user(uow_factory, "kim", Role.SALES)
     await link_user(uow_factory, target, kind)
     token = (await auth.issue.execute(target.to_principal())).token
 
+    # when: kim을 삭제한다
     await admin.delete_user.execute(user_id=target.id, actor=root.to_principal())
 
+    # then: 세션이 끝나고 세션 행이 없다
     assert not await session_is_active(uow_factory, token)
     async with uow_factory() as uow:
         assert await uow.sessions.get_by_token_hash(hash_token(token)) is None
@@ -62,24 +78,37 @@ async def test_resigning_still_deletes_the_users_session_rows(
 async def test_a_user_who_only_registered_himself_is_not_linked(
     admin: AdminStack, uow_factory: UnitOfWorkFactory
 ) -> None:
-    """자기참조(자기 자신이 등록자)는 연결이 아니다."""
+    """자기 자신만 등록자로 가리키는 사용자는 연결이 없어 물리 삭제된다
+
+    테스트 코드: US-059
+    """
+    # given: 자기 자신이 등록자인 kim
     root = await seed_user(uow_factory, "root", Role.ADMIN)
     target = await seed_user(uow_factory, "kim", Role.SALES)
 
+    # when: kim을 삭제한다
     outcome = await admin.delete_user.execute(user_id=target.id, actor=root.to_principal())
 
+    # then: 결과가 deleted다
     assert outcome is DeleteOutcome.DELETED
 
 
 async def test_resigned_user_keeps_the_references_that_pointed_to_him(
     admin: AdminStack, uow_factory: UnitOfWorkFactory
 ) -> None:
+    """퇴사 처리해도 그를 가리키던 참조는 남고 퇴사로 표시된다
+
+    테스트 코드: US-058
+    """
+    # given: 소유 Deal이 있는 kim
     root = await seed_user(uow_factory, "root", Role.ADMIN)
     target = await seed_user(uow_factory, "kim", Role.SALES)
     await link_user(uow_factory, target, "deal_owner")
 
+    # when: kim을 삭제한다
     await admin.delete_user.execute(user_id=target.id, actor=root.to_principal())
 
+    # then: Deal의 Owner 참조가 퇴사 표시를 가진다
     async with uow_factory() as uow:
         (item,) = await uow.deals.search(DealQuery())
         deal = item.deal
@@ -91,11 +120,18 @@ async def test_resigned_user_keeps_the_references_that_pointed_to_him(
 async def test_resigned_user_cannot_be_deleted_again(
     admin: AdminStack, auth: AuthStack, uow_factory: UnitOfWorkFactory
 ) -> None:
+    """이미 퇴사한 사용자를 다시 삭제하면 상태 오류다
+
+    테스트 코드: US-063
+    """
+    # given: 퇴사 처리된 kim
     root = await seed_user(uow_factory, "root", Role.ADMIN)
     target = await seed_user(uow_factory, "kim", Role.SALES)
     await link_user(uow_factory, target, "deal_owner")
+    # when: kim을 다시 삭제한다
     await admin.delete_user.execute(user_id=target.id, actor=root.to_principal())
 
+    # then: 이미 퇴사 오류이고 첫 퇴사 시각이 그대로다
     with pytest.raises(InvalidStateError, match="이미 퇴사"):
         await admin.delete_user.execute(user_id=target.id, actor=root.to_principal())
 
@@ -106,7 +142,11 @@ async def test_resigned_user_cannot_be_deleted_again(
 async def test_resigned_user_cannot_log_in_even_with_a_surviving_session(
     auth: AuthStack, uow: FakeUnitOfWork, uow_factory: UnitOfWorkFactory
 ) -> None:
-    """세션 행이 남아 있어도 Authenticate가 퇴사 여부를 매 요청 확인한다(AC4)."""
+    """세션 행이 남아도 퇴사자는 인증에 실패한다
+
+    테스트 코드: US-061
+    """
+    # given: 세션이 남은 채 퇴사된 kim
     target = await seed_user(uow_factory, "kim", Role.SALES)
     token = (await auth.issue.execute(target.to_principal())).token
     async with uow_factory() as active:
@@ -115,19 +155,28 @@ async def test_resigned_user_cannot_log_in_even_with_a_surviving_session(
         await active.users.update(user)
         await active.commit()
 
+    # when: 그 토큰으로 인증한다
     with pytest.raises(AuthenticationError):
         await auth.authenticate.execute(token)
+    # then: 인증 오류다
 
 
 async def test_last_admin_protection_also_applies_to_the_resign_branch(
     admin: AdminStack, uow_factory: UnitOfWorkFactory
 ) -> None:
+    """마지막 admin 보호는 퇴사 분기에도 적용된다
+
+    테스트 코드: US-066
+    """
+    # given: 연결이 있는 마지막 admin boss
     boss = await seed_user(uow_factory, "boss", Role.ADMIN)
     await link_user(uow_factory, boss, "deal_owner")
 
+    # when: 다른 요청자가 boss를 삭제한다
     with pytest.raises(InvalidStateError, match="마지막 관리자"):
         await admin.delete_user.execute(user_id=boss.id, actor=OTHER_ADMIN_ACTOR)
 
+    # then: 마지막 관리자 오류이고 boss는 재직이다
     async with uow_factory() as uow:
         assert (await uow.users.get(boss.id)).is_active
 
@@ -135,24 +184,38 @@ async def test_last_admin_protection_also_applies_to_the_resign_branch(
 async def test_self_protection_also_applies_to_the_resign_branch(
     admin: AdminStack, uow_factory: UnitOfWorkFactory
 ) -> None:
+    """자기 삭제 금지는 연결이 있어도 적용된다
+
+    테스트 코드: US-065
+    """
+    # given: 연결이 있는 admin root
     me = await seed_user(uow_factory, "root", Role.ADMIN)
     await seed_user(uow_factory, "boss", Role.ADMIN)
     await link_user(uow_factory, me, "deal_owner")
 
+    # when: root가 자기 자신을 삭제한다
     with pytest.raises(InvalidStateError, match="자기 자신"):
         await admin.delete_user.execute(user_id=me.id, actor=me.to_principal())
+    # then: 자기 자신 오류다
 
 
 async def test_a_resigned_admin_is_not_counted_as_an_active_admin(
     admin: AdminStack, uow_factory: UnitOfWorkFactory
 ) -> None:
+    """퇴사한 admin은 재직 admin 수에 세지 않는다
+
+    테스트 코드: US-066
+    """
+    # given: 퇴사 처리한 admin boss
     root = await seed_user(uow_factory, "root", Role.ADMIN)
     boss = await seed_user(uow_factory, "boss", Role.ADMIN)
     await link_user(uow_factory, boss, "deal_owner")
     await admin.delete_user.execute(user_id=boss.id, actor=root.to_principal())
 
+    # when: 남은 admin root를 삭제한다
     with pytest.raises(InvalidStateError, match="마지막 관리자"):
         await admin.delete_user.execute(user_id=root.id, actor=OTHER_ADMIN_ACTOR)
+    # then: 마지막 관리자 오류다
 
 
 async def test_physical_delete_blocked_by_a_late_reference_falls_back_to_resign(
@@ -161,14 +224,17 @@ async def test_physical_delete_blocked_by_a_late_reference_falls_back_to_resign(
     uow_factory: UnitOfWorkFactory,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """has_links가 놓친 연결을 FK(UserInUseError)가 잡아도 500이 아니라 퇴사 처리가 된다(T19)."""
+    """연결 확인 뒤 물리 삭제가 막히면 퇴사 처리로 바뀐다"""
+    # given: 연결을 놓치는 has_links와 연결이 있는 kim
     root = await seed_user(uow_factory, "root", Role.ADMIN)
     target = await seed_user(uow_factory, "kim", Role.SALES)
     await link_user(uow_factory, target, "deal_owner")
 
+    # when: kim을 삭제한다
     with pytest.raises(UserInUseError):  # 전제: 이 Fake는 연결이 있으면 물리 삭제를 거부한다
         await uow.users.delete(target.id)
 
+    # then: 결과가 resigned이고 kim은 퇴사 상태다
     async def no_links_seen(_: object) -> bool:
         return False
 
@@ -178,3 +244,52 @@ async def test_physical_delete_blocked_by_a_late_reference_falls_back_to_resign(
     assert outcome is DeleteOutcome.RESIGNED
     async with uow_factory() as active:
         assert not (await active.users.get(target.id)).is_active
+
+
+async def test_resigned_user_leaves_the_default_list_and_shows_in_the_resigned_list(
+    admin: AdminStack, uow_factory: UnitOfWorkFactory
+) -> None:
+    """퇴사 처리된 사용자는 기본 목록에서 빠지고 퇴사 목록에 퇴사 정보와 함께 보인다.
+
+    테스트 코드: US-060
+    """
+    # given: 연결이 있는 kim
+    root = await seed_user(uow_factory, "root", Role.ADMIN)
+    target = await seed_user(uow_factory, "kim", Role.SALES)
+    await link_user(uow_factory, target, "deal_owner")
+
+    # when: kim을 삭제해 퇴사 처리한다
+    outcome = await admin.delete_user.execute(user_id=target.id, actor=root.to_principal())
+
+    # then: 기본 목록에는 없고 퇴사 목록에 퇴사 시각·사유와 함께 있다
+    assert outcome is DeleteOutcome.RESIGNED
+    assert [u.login_id.value for u in await admin.list_users.execute()] == ["root"]
+    resigned = await admin.list_users.execute(status=UserStatusFilter.RESIGNED)
+    assert [(u.login_id.value, u.deleted_at, u.delete_reason) for u in resigned] == [
+        ("kim", NOW, UserDeleteReason.RESIGNED)
+    ]
+
+
+@pytest.mark.parametrize("linked", [False, True])
+async def test_deleted_or_resigned_local_user_cannot_sign_in_again(
+    admin: AdminStack, auth: AuthStack, uow_factory: UnitOfWorkFactory, linked: bool
+) -> None:
+    """삭제·퇴사된 local 사용자는 같은 비밀번호로 다시 로그인할 수 없다.
+
+    테스트 코드: US-061
+    """
+    # given: 비밀번호 해시가 있는 local 사용자 kim(연결이 있으면 퇴사, 없으면 삭제된다)
+    await seed_auth_mode(uow_factory, AuthMode.LOCAL)
+    root = await seed_user(uow_factory, "root", Role.ADMIN)
+    target = await seed_local_user(uow_factory, "kim", "kim-password-1")
+    if linked:
+        await link_user(uow_factory, target, "deal_owner")
+
+    # when: kim을 삭제한다
+    await admin.delete_user.execute(user_id=target.id, actor=root.to_principal())
+
+    # then: 같은 비밀번호로 로그인하면 인증 오류다
+    with pytest.raises(AuthenticationError):
+        await auth.password_login.execute(
+            login_id="kim", password=Password("kim-password-1"), client_ip="10.0.0.1"
+        )

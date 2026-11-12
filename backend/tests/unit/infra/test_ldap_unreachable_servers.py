@@ -1,4 +1,4 @@
-"""도달 불가 서버에 대한 LDAP 호출은 제한 시간 안에 CONNECT 단계 오류로 끝난다(리뷰 Blocker).
+"""도달 불가 서버에 대한 LDAP 호출은 제한 시간 안에 CONNECT 단계 오류로 끝난다.
 
 서버는 호스트 하나·포트 하나다(여러 서버 순회는 없다). 무한 대기가 재발해도 러너가 멈추지 않도록
 어댑터 호출은 별도 프로세스에서 하고 상한 뒤 종료한다. 구현 방식에는 묶이지 않고 동작만 검증한다.
@@ -122,8 +122,11 @@ def _run(port: int, method: str, security: str) -> dict[str, object]:
 def test_an_unreachable_server_fails_fast_with_a_connect_stage_error(
     method: str, security: str
 ) -> None:
+    """닿지 않는 서버 호출은 제한 시간 안에 CONNECT 단계 오류로 끝난다."""
+    # when: 닫힌 포트에 대해 어댑터를 호출한다
     outcome = _run(_closed_port(), method, security)
 
+    # then: 연결 단계의 사용 불가 오류이고 제한 시간 안에 끝났다
     assert outcome["error"] == "DirectoryUnavailableError"
     assert outcome["stage"] == "connect"
     assert float(str(outcome["elapsed"])) < EXPECTED_WITHIN_SECONDS
@@ -133,8 +136,11 @@ def test_an_unreachable_server_fails_fast_with_a_connect_stage_error(
 def test_a_server_that_hangs_up_on_connect_fails_fast_instead_of_waiting(
     listener: _Listener, method: str
 ) -> None:
+    """연결하자마자 끊는 서버도 기다리지 않고 빠르게 실패한다."""
+    # when: 연결을 받자마자 닫는 서버에 어댑터를 호출한다
     outcome = _run(listener.port, method, "ssl")
 
+    # then: 서버에 닿았고, 연결·TLS 단계의 사용 불가 오류이며 제한 시간 안에 끝났다
     assert listener.accepted >= 1
     assert outcome["error"] == "DirectoryUnavailableError"  # TLS 핸드셰이크가 끝나지 못한다
     assert outcome["stage"] in {"connect", "tls"}

@@ -1,7 +1,7 @@
-"""API 계약의 id 표기(AC-20): `"format": "uuid"`가 없고 id 필드·파라미터는 정수다.
+"""API 계약의 id 표기(PL-R22, PL-039): `"format": "uuid"`가 없고 id 필드·파라미터는 정수다.
 
 앱이 만든 계약(`app.openapi()`)과 커밋된 `backend/openapi.json` 둘 다 확인한다. 둘이 같은지는
-functional/platform의 드리프트 시나리오가 본다.
+test_openapi_contract.py(PL-034)가 본다.
 """
 
 import json
@@ -12,7 +12,7 @@ import pytest
 
 from app.main import create_app
 from tests.fakes.use_cases import FakeUseCases
-from tests.functional.conftest import make_settings
+from tests.support.app_settings import make_settings
 from tests.support.ids import MAX_ID
 
 UNUSED_DATABASE_URL = "postgresql+asyncpg://user:pw@localhost:5432/none"  # 접속하지 않는다
@@ -56,23 +56,42 @@ def _types(schema: dict[str, Any]) -> set[str]:
 
 
 def test_the_contract_has_no_uuid_format(contract: dict[str, Any]) -> None:
-    assert '"format": "uuid"' not in json.dumps(contract, ensure_ascii=False)
+    """계약에 uuid 형식 표기가 없다.
+
+    테스트 코드: PL-039
+    """
+    # when: 계약 전체에서 uuid 형식을 찾는다 (전제: 앱 계약과 커밋된 계약 각각)
+    actual = json.dumps(contract, ensure_ascii=False)
+    # then: 없다
+    assert '"format": "uuid"' not in actual
 
 
 def test_every_id_property_is_an_integer(contract: dict[str, Any]) -> None:
+    """id 이름의 속성은 정수(또는 정수 배열, null 허용)다.
+
+    테스트 코드: PL-039
+    """
+    # given: 앱 계약과 커밋된 계약 각각
     wrong = {}
+    # when: id 이름의 속성 타입을 모은다
     for name, schema in contract["components"]["schemas"].items():
         for prop, definition in schema.get("properties", {}).items():
             if prop in ID_NAMES and "$ref" not in definition:
                 types = _types(definition) - {"null"}
                 if types not in ({"integer"}, {"array", "integer"}):
                     wrong[f"{name}.{prop}"] = sorted(types)
-
+    # then: 정수가 아닌 속성이 없다
     assert wrong == {}
 
 
 def test_every_id_path_and_query_parameter_is_an_integer(contract: dict[str, Any]) -> None:
+    """id 이름의 경로·쿼리 파라미터는 정수다.
+
+    테스트 코드: PL-039
+    """
+    # given: 앱 계약과 커밋된 계약 각각
     wrong = {}
+    # when: id 이름의 파라미터 타입을 모은다
     for path, operations in contract["paths"].items():
         for method, operation in operations.items():
             for parameter in operation.get("parameters", []):
@@ -80,12 +99,18 @@ def test_every_id_path_and_query_parameter_is_an_integer(contract: dict[str, Any
                     types = _types(parameter["schema"]) - {"null"}
                     if types != {"integer"}:
                         wrong[f"{method.upper()} {path} {parameter['name']}"] = sorted(types)
-
+    # then: 정수가 아닌 파라미터가 없다
     assert wrong == {}
 
 
 def test_id_path_parameters_document_the_allowed_range(contract: dict[str, Any]) -> None:
+    """경로 id는 모두 minimum 1·maximum 2^53-1을 문서화한다.
+
+    테스트 코드: PL-039
+    """
+    # given: 앱 계약과 커밋된 계약 각각
     ranges = {}
+    # when: 경로 id 파라미터의 minimum·maximum을 모은다
     for path, operations in contract["paths"].items():
         for method, operation in operations.items():
             for parameter in operation.get("parameters", []):
@@ -95,6 +120,6 @@ def test_id_path_parameters_document_the_allowed_range(contract: dict[str, Any])
                         schema.get("minimum"),
                         schema.get("maximum"),
                     )
-
+    # then: 모두 (1, 9007199254740991)이다
     assert ranges
     assert set(ranges.values()) == {(1, MAX_ID)}

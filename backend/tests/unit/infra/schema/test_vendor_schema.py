@@ -1,4 +1,4 @@
-"""head 스키마의 vendors, deals의 Vendor 참조와 Solution 텍스트 컬럼(AC-17).
+"""head 스키마의 vendors, deals의 Vendor 참조와 Solution 텍스트 컬럼.
 
 제약은 원시 SQL로 직접 어겨 보고 제약 이름으로 거절되는지 확인한다(도메인 검증을 거치지 않는다).
 임시 DB의 head에서 돌며 세션은 테스트마다 롤백된다.
@@ -46,9 +46,12 @@ async def _deal(session: AsyncSession) -> str:
 
 
 async def test_vendors_table_has_the_expected_shape(session: AsyncSession) -> None:
+    """vendors 테이블은 기대한 컬럼·타입·기본 키를 가진다."""
+    # when: 컬럼과 제약을 조회한다
     columns = await _columns(session, "vendors")
     constraints = await _constraints(session, "vendors")
 
+    # then: 컬럼 집합, name 타입, id 타입, 기본 키가 기대와 같다
     assert set(columns) == {"id", "name", "created_at", "updated_at"}
     assert columns["name"] == ("character varying", 100, "NO")
     assert columns["id"][0] == "bigint"
@@ -56,33 +59,47 @@ async def test_vendors_table_has_the_expected_shape(session: AsyncSession) -> No
 
 
 async def test_vendor_name_is_unique_ignoring_case(session: AsyncSession) -> None:
+    """Vendor 이름은 대소문자를 무시하고 유일하다."""
+    # given: SAP Vendor가 있다
     await insert_vendor(session, "SAP")
 
+    # when·then: sap를 넣으면 유니크 인덱스 위반이다
     with pytest.raises(IntegrityError, match="uq_vendors_name_lower"):
         await insert_vendor(session, "sap")
 
 
 async def test_the_vendor_name_index_is_a_unique_lower_name_index(session: AsyncSession) -> None:
+    """Vendor 이름 인덱스는 lower(name) 유니크 인덱스다."""
+    # when: vendors의 인덱스 정의를 조회한다
     rows = (await session.execute(text(INDEX_DEFS), {"t": "vendors"})).all()
     definitions = {r[0]: r[1] for r in rows}
 
+    # then: 유니크이고 lower를 쓴다
     assert "UNIQUE" in definitions["uq_vendors_name_lower"]
     assert "lower" in definitions["uq_vendors_name_lower"]
 
 
 async def test_solutions_table_does_not_exist(session: AsyncSession) -> None:
+    """solutions 테이블은 없다."""
+    # when: solutions 테이블 존재를 조회한다
     exists = (await session.execute(text("select to_regclass('public.solutions')"))).scalar_one()
 
+    # then: 없다
     assert exists is None
 
 
 async def test_deals_solution_is_not_null_varchar_200(session: AsyncSession) -> None:
+    """deals.solution은 NOT NULL varchar(200)이다."""
+    # when: deals 컬럼을 조회한다
     columns = await _columns(session, "deals")
 
+    # then: solution이 NOT NULL varchar(200)이다
     assert columns["solution"] == ("character varying", 200, "NO")
 
 
 async def test_deals_solution_has_no_database_default(session: AsyncSession) -> None:
+    """deals.solution에는 DB 기본값이 없다."""
+    # when: solution 컬럼의 기본값을 조회한다
     default = (
         await session.execute(
             text(
@@ -92,14 +109,18 @@ async def test_deals_solution_has_no_database_default(session: AsyncSession) -> 
         )
     ).scalar_one()
 
+    # then: 기본값이 없다
     assert default is None
 
 
 async def test_deals_has_no_solution_id_or_its_constraints(session: AsyncSession) -> None:
+    """deals에는 solution_id와 그 제약·인덱스가 없다."""
+    # when: deals의 컬럼·제약·인덱스를 조회한다
     columns = await _columns(session, "deals")
     constraints = await _constraints(session, "deals")
     indexes = {r[0] for r in (await session.execute(text(INDEX_DEFS), {"t": "deals"})).all()}
 
+    # then: 예전 컬럼·제약·인덱스가 없다
     assert "solution_id" not in columns
     assert "vendor" not in columns
     assert "fk_deals_solution" not in constraints
@@ -108,29 +129,42 @@ async def test_deals_has_no_solution_id_or_its_constraints(session: AsyncSession
 
 
 async def test_deals_vendor_id_is_a_nullable_bigint(session: AsyncSession) -> None:
+    """deals.vendor_id는 NULL을 허용하는 bigint다."""
+    # when: deals 컬럼을 조회한다
     columns = await _columns(session, "deals")
 
+    # then: vendor_id가 nullable bigint다
     assert columns["vendor_id"][0] == "bigint"
     assert columns["vendor_id"][2] == "YES"
 
 
 async def test_deals_reference_vendors_with_restrict(session: AsyncSession) -> None:
+    """deals는 vendors를 RESTRICT로 참조한다."""
+    # when: deals 제약을 조회한다
     constraints = await _constraints(session, "deals")
 
+    # then: vendors를 RESTRICT로 참조하는 외래 키다
     assert constraints["fk_deals_vendor_id_vendors"][1:] == ("vendors", "r", 1)
 
 
 async def test_deals_have_a_vendor_index_and_no_solution_index(session: AsyncSession) -> None:
+    """deals에는 vendor_id 인덱스가 있다."""
+    # when: deals 인덱스를 조회한다
     rows = (await session.execute(text(INDEX_DEFS), {"t": "deals"})).all()
 
+    # then: vendor_id 인덱스가 있다
     assert "ix_deals_vendor_id" in {r[0] for r in rows}
 
 
 async def test_a_deal_may_have_a_solution_text_without_a_vendor(session: AsyncSession) -> None:
+    """Deal은 Vendor 없이 Solution 텍스트만 가질 수 있다."""
+    # given: Deal 하나
     code = await _deal(session)
 
+    # when: Vendor 없이 Solution 텍스트를 연결한다
     await link_deal(session, code, None, "ITDR")
 
+    # then: Solution 텍스트가 저장된다
     stored = (
         await session.execute(
             text("select solution from deals where deal_code = :code"), {"code": code}
@@ -140,21 +174,30 @@ async def test_a_deal_may_have_a_solution_text_without_a_vendor(session: AsyncSe
 
 
 async def test_a_deal_may_have_a_vendor_without_a_solution_text(session: AsyncSession) -> None:
+    """Deal은 Solution 텍스트 없이 Vendor만 가질 수 있다."""
+    # given: Deal 하나
     code = await _deal(session)
 
+    # when·then: 빈 Solution으로 Vendor를 연결해도 오류가 없다
     await link_deal(session, code, await insert_vendor(session, "SAP"), "")
 
 
 async def test_a_deal_solution_longer_than_200_is_rejected(session: AsyncSession) -> None:
+    """200자를 넘는 Solution은 거부한다."""
+    # given: Deal 하나
     code = await _deal(session)
 
+    # when·then: 201자 Solution을 연결하면 길이 초과 오류가 난다
     with pytest.raises(DBAPIError, match="too long"):
         await link_deal(session, code, None, "a" * 201)
 
 
 async def test_a_deal_solution_cannot_be_null(session: AsyncSession) -> None:
+    """Solution을 NULL로 바꿀 수 없다."""
+    # given: Deal 하나
     code = await _deal(session)
 
+    # when·then: solution을 NULL로 갱신하면 NOT NULL 위반이다
     with pytest.raises(IntegrityError, match="solution"):
         await session.execute(
             text("update deals set solution = null where deal_code = :code"), {"code": code}
@@ -162,18 +205,24 @@ async def test_a_deal_solution_cannot_be_null(session: AsyncSession) -> None:
 
 
 async def test_a_vendor_used_by_a_deal_cannot_be_deleted(session: AsyncSession) -> None:
+    """Deal이 쓰는 Vendor는 삭제할 수 없다."""
+    # given: Vendor를 쓰는 Deal
     code = await _deal(session)
     sap = await insert_vendor(session, "SAP")
     await link_deal(session, code, sap)
 
+    # when·then: Vendor를 지우면 외래 키 위반이다
     with pytest.raises(IntegrityError, match="fk_deals_vendor_id_vendors"):
         await session.execute(text("delete from vendors where id = :id"), {"id": sap})
 
 
 async def test_deleting_the_deal_releases_the_vendor(session: AsyncSession) -> None:
+    """Deal을 지우면 Vendor를 삭제할 수 있다."""
+    # given: Vendor를 쓰던 Deal을 삭제했다
     code = await _deal(session)
     sap = await insert_vendor(session, "SAP")
     await link_deal(session, code, sap)
     await session.execute(text("delete from deals where deal_code = :code"), {"code": code})
 
+    # when·then: Vendor를 지워도 오류가 없다
     await session.execute(text("delete from vendors where id = :id"), {"id": sap})

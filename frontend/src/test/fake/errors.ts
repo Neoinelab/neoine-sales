@@ -12,13 +12,20 @@ function problem(status: number, kind: string, title: string, detail: string, st
 export const unauthorized = (detail = '로그인이 필요합니다.'): ApiError =>
   problem(401, 'unauthorized', 'Unauthorized', detail)
 
-export const forbidden = (detail = '이 작업을 수행할 권한이 없습니다. 관리자에게 문의하세요.'): ApiError =>
-  problem(403, 'forbidden', 'Forbidden', detail)
+/** 서버와 같은 공통 403 문구(PL-R6 업무 쓰기 가드, PL-R7 관리자 가드). 기본 문구는 없고 호출마다 서버 문구를 넘긴다. */
+export const WRITE_DENIED_MESSAGE = '이 작업을 할 권한이 없습니다(읽기 전용 계정)'
+export const ADMIN_DENIED_MESSAGE = '관리자 권한이 필요합니다'
+export const forbidden = (detail: string): ApiError => problem(403, 'forbidden', 'Forbidden', detail)
 
 export const notFound = (detail: string): ApiError => problem(404, 'not-found', 'Not Found', detail)
 
 export const validation = (detail: string): ApiError =>
   problem(422, 'validation', 'Unprocessable Entity', detail)
+
+/** 서버와 같은 공통 문구: 요청 형식 오류(422 request-validation, PL-R12). 실제 게이트웨이처럼 kind는 `validation`으로 정규화해 던진다. */
+export const REQUEST_VALIDATION_MESSAGE = '요청 형식이 올바르지 않습니다'
+export const requestValidation = (): ApiError =>
+  problem(422, 'validation', 'Unprocessable Entity', REQUEST_VALIDATION_MESSAGE)
 
 export const conflict = (detail: string): ApiError => problem(409, 'conflict', 'Conflict', detail)
 

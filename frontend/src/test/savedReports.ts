@@ -73,6 +73,14 @@ export function savedReport(over: Partial<SavedReport> & { id: number }): SavedR
   }
 }
 
+/**
+ * 저장 정의를 읽을 수 없는 리포트(서버 엔티티의 `definition = None`, RS-R17·RS-R47 ②).
+ * 목록에는 남고 데이터(entities)는 비며, 상세·실행·복제·배치 저장은 422 stored-invalid, 새 정의로 덮어쓰면 복구된다.
+ */
+export function brokenStoredReport(over: Partial<SavedReport> & { id: number }): SavedReport {
+  return savedReport({ ...over, definition: null as unknown as ReportQueryInput, entities: [] })
+}
+
 export const MINE_PUBLIC = savedReport({
   id: 11,
   name: 'Vendor별 파이프라인',
@@ -123,13 +131,13 @@ export const WITH_CHART = savedReport({ id: 21, name: '차트 있는 리포트',
 
 /** 저장 대화상자 입력의 기본 모양. */
 export function reportInput(
-  over: Partial<{ name: string; description: string; visibility: 'public' | 'private'; chart: ReportChartInput | null; layout: ReportLayout }> = {},
+  over: Partial<{ name: string; description: string; visibility: 'public' | 'private'; chart: ReportChartInput | null; layout: ReportLayout; definition: ReportQueryInput }> = {},
 ) {
   return {
     name: '새 리포트 이름',
     description: '',
     visibility: 'public' as const,
-    definition: VENDOR_DEFINITION,
+    definition: VENDOR_DEFINITION as ReportQueryInput,
     chart: null as ReportChartInput | null,
     layout: DEFAULT_LAYOUT_FIXTURE,
     ...over,

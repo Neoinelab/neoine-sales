@@ -1,9 +1,9 @@
 /** Deal 쓰기: 등록·수정·단일 필드 변경·삭제. 검증과 연락처 계획을 모두 끝낸 뒤에만 저장소를 바꾼다. */
 
 import { compactDate } from '../../../shared/model/dates'
-import { canDeleteDeal } from '../../../shared/model/permissions'
+import { canDeleteDeal, canWrite } from '../../../shared/model/permissions'
 import type { Deal, DealInput, DealPatch } from '../../../shared/model/types'
-import { forbidden, validation } from '../errors'
+import { WRITE_DENIED_MESSAGE, conflict, forbidden, validation } from '../errors'
 import { requireUser, requireWrite, viewerOf, write, clone, type MockContext } from './context'
 import { commitBant } from './bantChoice'
 import { commitContact, planContact, type ContactPlan } from './contactPlan'
@@ -15,16 +15,21 @@ import { dealDetail, findDeal } from './views'
 
 const CODE_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
 
-/** `YYYYMMDD-XXXX`. 기존 code와 겹치면 다시 뽑는다. */
+/** 서버와 같은 시도 횟수와 문구(DE-R2): 겹치면 다시 뽑고 10번째까지 시도한 뒤 409다. */
+export const DEAL_CODE_ATTEMPTS = 10
+export const DEAL_CODE_ISSUE_FAILED_MESSAGE = 'Deal code를 발급하지 못했습니다. 다시 시도하세요.'
+
+/** `YYYYMMDD-XXXX`. 기존 code와 겹치면 다시 뽑고, 10번 모두 겹치면 409(conflict)다. */
 export function newDealCode(ctx: MockContext): string {
   const prefix = compactDate(ctx.clock.today())
   const used = new Set(ctx.store.data.deals.map((d) => d.code))
-  for (;;) {
+  for (let attempt = 0; attempt < DEAL_CODE_ATTEMPTS; attempt += 1) {
     let suffix = ''
     for (let i = 0; i < 4; i += 1) suffix += CODE_CHARS[Math.floor(ctx.random() * CODE_CHARS.length)] ?? 'A'
     const code = `${prefix}-${suffix}`
     if (!used.has(code)) return code
   }
+  throw conflict(DEAL_CODE_ISSUE_FAILED_MESSAGE)
 }
 
 function createDeal(ctx: MockContext, raw: DealInput) {
@@ -138,6 +143,8 @@ export function dealsWriteApi(ctx: MockContext) {
     remove: (code: string, confirmCode: string) =>
       write(ctx, () => {
         const user = requireUser(ctx)
+        // 서버: 역할 가드가 먼저라 user는 Deal 존재와 무관하게 읽기 전용 문구의 403이다.
+        if (!canWrite(user.role)) throw forbidden(WRITE_DENIED_MESSAGE)
         const { data } = ctx.store
         const deal = findDeal(data, code)
         if (!canDeleteDeal(viewerOf(user), deal.ownerId)) throw forbidden('본인 Deal 또는 admin만 삭제할 수 있습니다.')

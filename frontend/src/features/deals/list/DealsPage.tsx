@@ -53,7 +53,7 @@ export function DealsPage() {
   function change(patch: Record<string, string | undefined>) {
     setParams((prev) => {
       const next = updateParams(hasListCondition(prev) ? prev : defaultListParams(today, prev), patch)
-      // 사용자가 마지막 조건을 직접 지우면 기본값이 되살아나지 않고 연도 '전체'로 남긴다(AC-09).
+      // 사용자가 마지막 조건을 직접 지우면 기본값이 되살아나지 않고 연도 '전체'로 남긴다.
       return hasListCondition(next) ? next : updateParams(next, { year: 'all', page: next.get('page') ?? undefined })
     })
   }

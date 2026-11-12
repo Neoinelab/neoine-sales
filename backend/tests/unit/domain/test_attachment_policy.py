@@ -1,4 +1,4 @@
-"""첨부 삭제·교체 권한(P2b AC-11·14): admin 모두, sales는 본인 + 퇴사한 sales의 파일, user 불가."""
+"""첨부 삭제·교체 권한: admin 모두, sales는 본인 + 퇴사한 sales의 파일, user 불가."""
 
 import pytest
 
@@ -40,12 +40,30 @@ def test_can_delete_attachment_matrix(
     uploader_resigned: bool,
     expected: bool,
 ) -> None:
+    """삭제 권한 표: admin은 모두, sales는 본인·퇴사 sales 파일, user는 불가.
+
+    테스트 코드: AT-037
+    """
+    # given: 역할과 퇴사 여부가 정해진 업로더
     uploader = _uploader(ME if uploader_is_me else OTHER, uploader_role, resigned=uploader_resigned)
 
-    assert can_delete_attachment(ME, role, uploader) is expected
+    # when: 요청자의 삭제 가능 여부를 판단한다
+    allowed = can_delete_attachment(ME, role, uploader)
+
+    # then: 기대 값과 같다
+    assert allowed is expected
 
 
 def test_a_user_id_that_matches_nobody_gets_the_same_answer() -> None:
+    """업로더와 무관한 sales는 다른 재직 sales 파일을 지울 수 없다.
+
+    테스트 코드: AT-037
+    """
+    # given: 재직 sales 업로더
     uploader = _uploader(UserId(new_id()), Role.SALES)
 
-    assert can_delete_attachment(UserId(new_id()), Role.SALES, uploader) is False
+    # when: 업로더와 무관한 sales의 삭제 가능 여부를 판단한다
+    allowed = can_delete_attachment(UserId(new_id()), Role.SALES, uploader)
+
+    # then: 삭제할 수 없다
+    assert allowed is False

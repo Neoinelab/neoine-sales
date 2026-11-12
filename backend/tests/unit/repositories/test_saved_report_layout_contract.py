@@ -1,4 +1,4 @@
-"""ReportRepository 결과 배치 계약 (AC18, 25, 26): Fake와 SQL 구현 공통 테스트.
+"""ReportRepository 결과 배치 계약: Fake와 SQL 구현 공통 테스트.
 
 배치는 `reports.layout`(JSONB, NULL 가능)에 `{view, order, arrange}`로 저장된다. NULL이거나 읽을
 수 없는 값은 기본 배치로 읽힌다. `update_layout`은 배치와 수정 정보(수정자·revision·수정 시각)만
@@ -31,10 +31,15 @@ BAR = raw_chart("bar", 0, [1])
 
 
 async def test_add_and_get_round_trips_layout(saved_report_case: SavedReportCase) -> None:
+    """배치를 정해 저장한 리포트는 같은 배치로 다시 읽힌다.
+
+    테스트 코드: RS-038
+    """
+    # given: 배치 CHART_SIDE로 저장한 리포트
     report = await saved_report_case.add(make_report("배치 왕복", owner=ALICE, layout=SIDE))
-
+    # when: 다시 읽는다
     stored = await saved_report_case.reports.get(report.id)
-
+    # then: 배치가 CHART_SIDE이고 저장한 리포트와 같다
     assert stored.layout == SIDE
     assert stored == report
 
@@ -42,17 +47,29 @@ async def test_add_and_get_round_trips_layout(saved_report_case: SavedReportCase
 async def test_add_without_layout_round_trips_the_default(
     saved_report_case: SavedReportCase,
 ) -> None:
-    report = await saved_report_case.add(make_report("기본 배치", owner=ALICE))
+    """배치 없이 저장한 리포트는 기본 배치로 읽힌다.
 
-    assert (await saved_report_case.reports.get(report.id)).layout == DEFAULT_LAYOUT
+    테스트 코드: RS-038
+    """
+    # given: 배치 없이 저장한 리포트
+    report = await saved_report_case.add(make_report("기본 배치", owner=ALICE))
+    # when: 다시 읽는다
+    stored = await saved_report_case.reports.get(report.id)
+    # then: 기본 배치다
+    assert stored.layout == DEFAULT_LAYOUT
 
 
 async def test_get_null_layout_column_returns_default(saved_report_case: SavedReportCase) -> None:
+    """저장된 배치가 NULL이면 기본 배치로 열린다.
+
+    테스트 코드: RS-039
+    """
+    # given: 배치 열이 NULL이 된 리포트
     report = await saved_report_case.add(make_report("널 배치", owner=ALICE, layout=SIDE))
     await saved_report_case.set_layout_json(report, None)
-
+    # when: 읽는다
     stored = await saved_report_case.reports.get(report.id)
-
+    # then: 기본 배치이고 다른 필드는 그대로다
     assert stored.layout == DEFAULT_LAYOUT
     assert (stored.name, stored.revision) == ("널 배치", 1)
 
@@ -69,13 +86,25 @@ async def test_get_null_layout_column_returns_default(saved_report_case: SavedRe
 async def test_get_unreadable_layout_value_returns_default(
     saved_report_case: SavedReportCase, raw_json: str
 ) -> None:
+    """저장된 배치가 깨졌으면(값 오류·키 누락·빈 객체) 오류 없이 기본 배치로 열린다.
+
+    테스트 코드: RS-039
+    """
+    # given: 읽을 수 없는 배치 JSON이 저장된 리포트
     report = await saved_report_case.add(make_report("깨진 배치", owner=ALICE, layout=SIDE))
     await saved_report_case.set_layout_json(report, raw_json)
-
-    assert (await saved_report_case.reports.get(report.id)).layout == DEFAULT_LAYOUT
+    # when: 읽는다
+    stored = await saved_report_case.reports.get(report.id)
+    # then: 기본 배치다
+    assert stored.layout == DEFAULT_LAYOUT
 
 
 async def test_update_replaces_the_layout(saved_report_case: SavedReportCase) -> None:
+    """배치를 보내 덮어쓴 엔티티를 저장하면 배치가 바뀐다.
+
+    테스트 코드: RS-040
+    """
+    # given: 배치 CHART_SIDE인 리포트를 TABLE_ONLY로 덮어쓴 엔티티
     report = await saved_report_case.add(make_report("교체", owner=ALICE, layout=SIDE))
     stored = await saved_report_case.reports.get(report.id)
     stored.overwrite(
@@ -85,16 +114,21 @@ async def test_update_replaces_the_layout(saved_report_case: SavedReportCase) ->
         expected_revision=1,
         now=later(1),
     )
-
+    # when: 저장하고 다시 읽는다
     await saved_report_case.reports.update(stored)
-
     again = await saved_report_case.reports.get(report.id)
+    # then: 배치가 TABLE_ONLY이고 revision 2다
     assert (again.layout, again.revision) == (TABLE, 2)
 
 
 async def test_update_without_a_new_layout_keeps_the_stored_one(
     saved_report_case: SavedReportCase,
 ) -> None:
+    """배치 없이 덮어쓴 엔티티를 저장하면 저장된 배치가 남는다.
+
+    테스트 코드: RS-040
+    """
+    # given: 배치 CHART_SIDE인 리포트를 배치 없이 덮어쓴 엔티티
     report = await saved_report_case.add(make_report("유지", owner=ALICE, layout=SIDE))
     stored = await saved_report_case.reports.get(report.id)
     stored.overwrite(
@@ -104,15 +138,20 @@ async def test_update_without_a_new_layout_keeps_the_stored_one(
         expected_revision=1,
         now=later(1),
     )
-
+    # when: 저장하고 다시 읽는다
     await saved_report_case.reports.update(stored)
-
+    # then: 배치는 CHART_SIDE 그대로다
     assert (await saved_report_case.reports.get(report.id)).layout == SIDE
 
 
 async def test_update_after_a_null_layout_column_writes_the_default_object(
     saved_report_case: SavedReportCase,
 ) -> None:
+    """NULL이던 배치의 리포트를 덮어쓰면 기본 배치 객체가 저장된다.
+
+    테스트 코드: RS-039
+    """
+    # given: 배치 열이 NULL이 된 리포트를 배치 없이 덮어쓴 엔티티
     report = await saved_report_case.add(make_report("널 뒤 저장", owner=ALICE, layout=SIDE))
     await saved_report_case.set_layout_json(report, None)
     stored = await saved_report_case.reports.get(report.id)
@@ -123,24 +162,26 @@ async def test_update_after_a_null_layout_column_writes_the_default_object(
         expected_revision=1,
         now=later(1),
     )
-
+    # when: 저장하고 다시 읽는다
     await saved_report_case.reports.update(stored)
-
+    # then: 기본 배치다
     assert (await saved_report_case.reports.get(report.id)).layout == DEFAULT_LAYOUT
 
 
 async def test_list_carries_the_layout_of_each_report(saved_report_case: SavedReportCase) -> None:
+    """저장소의 목록 읽기는 리포트마다 배치를 담는다(응답에서 빼는 것은 web 스키마의 몫)."""
     from app.domain.saved_report.values import ReportListScope  # noqa: PLC0415
 
+    # given: 배치가 다른 리포트 둘
     first = await saved_report_case.add(
         make_report("목록 하나", owner=ALICE, layout=SIDE, updated_at=later(20))
     )
     second = await saved_report_case.add(make_report("목록 둘", owner=ALICE, updated_at=later(10)))
-
+    # when: admin 범위로 목록을 읽는다
     listed = await saved_report_case.mine(
         ReportListScope(viewer_id=ALICE, see_all=True), {first.id, second.id}
     )
-
+    # then: 각 리포트의 배치가 함께 온다
     assert [(r.name, r.layout) for r in listed] == [
         ("목록 하나", SIDE),
         ("목록 둘", DEFAULT_LAYOUT),
@@ -150,16 +191,21 @@ async def test_list_carries_the_layout_of_each_report(saved_report_case: SavedRe
 async def test_update_layout_writes_the_layout_and_audit_fields(
     saved_report_case: SavedReportCase,
 ) -> None:
+    """배치 저장은 배치와 수정자·revision·수정 시각만 쓰고 정의·차트·이름은 그대로 둔다.
+
+    테스트 코드: RS-041
+    """
+    # given: 차트가 있는 ALICE의 리포트와 BOB이 배치를 바꾼 엔티티
     report = await saved_report_case.add(
         make_report("배치만", owner=ALICE, definition=chart_definition(1, 3), chart=BAR)
     )
     await saved_report_case.prepare(BOB)
     stored = await saved_report_case.reports.get(report.id)
     stored.change_layout(SIDE, editor=BOB, role=Role.SALES, expected_revision=1, now=later(7))
-
+    # when: 배치를 저장하고 다시 읽는다
     await saved_report_case.reports.update_layout(stored)
-
     again = await saved_report_case.reports.get(report.id)
+    # then: 배치·revision·최종 수정자·수정 시각만 바뀐다
     assert again.layout == SIDE
     assert (again.revision, again.updated_by_user_id, again.updated_at) == (2, BOB, later(7))
     assert again.owner_user_id == ALICE
@@ -174,6 +220,11 @@ async def test_update_layout_writes_the_layout_and_audit_fields(
 async def test_update_layout_writes_only_layout_and_audit(
     saved_report_case: SavedReportCase,
 ) -> None:
+    """정의·차트 JSON이 깨진 리포트의 배치 저장은 그 JSON을 다시 쓰지 않는다.
+
+    테스트 코드: RS-041
+    """
+    # given: 정의와 차트 JSON이 모두 깨진 리포트
     report = await saved_report_case.add(make_report("깨진 채 배치", owner=ALICE, chart=BAR))
     await saved_report_case.corrupt_definition(report, '{"columns": "x"}')
     await saved_report_case.corrupt_chart(report, "[1]")
@@ -181,26 +232,28 @@ async def test_update_layout_writes_only_layout_and_audit(
     assert broken.definition is None
     assert broken.chart_unreadable is True
     broken.change_layout(SIDE, editor=ALICE, role=Role.SALES, expected_revision=1, now=later(3))
-
+    # when: 배치를 저장하고 다시 읽는다
     await saved_report_case.reports.update_layout(broken)
-
     again = await saved_report_case.reports.get(report.id)
+    # then: 배치·revision·수정 시각만 바뀌고 깨진 정의·차트는 그대로다
     assert again.layout == SIDE
     assert (again.revision, again.updated_at) == (2, later(3))
-    assert again.definition is None  # 깨진 정의 JSON을 다시 쓰지 않았다
-    assert (again.chart, again.chart_unreadable) == (None, True)  # 깨진 차트 JSON도 그대로
+    assert again.definition is None
+    assert (again.chart, again.chart_unreadable) == (None, True)
 
 
 async def test_update_layout_does_not_touch_other_reports(
     saved_report_case: SavedReportCase,
 ) -> None:
+    """배치 저장은 다른 리포트를 건드리지 않는다."""
+    # given: 같은 사람의 리포트 둘과 하나의 배치를 바꾼 엔티티
     mine = await saved_report_case.add(make_report("내 것", owner=ALICE, layout=SIDE))
     other = await saved_report_case.add(make_report("남의 것", owner=ALICE))
     stored = await saved_report_case.reports.get(mine.id)
     stored.change_layout(TABLE, editor=ALICE, role=Role.SALES, expected_revision=1, now=later(1))
-
+    # when: 배치를 저장한다
     await saved_report_case.reports.update_layout(stored)
-
+    # then: 다른 리포트는 기본 배치·revision 1 그대로다
     untouched = await saved_report_case.reports.get(other.id)
     assert (untouched.layout, untouched.revision) == (DEFAULT_LAYOUT, 1)
 
@@ -208,8 +261,10 @@ async def test_update_layout_does_not_touch_other_reports(
 async def test_update_layout_missing_report_raises_not_found(
     saved_report_case: SavedReportCase,
 ) -> None:
+    """없는 리포트의 배치 저장은 찾을 수 없음 오류다."""
+    # given: 저장하지 않은 리포트
     ghost = make_report("없음", owner=ALICE, report_id=ReportId(MISSING_ID), layout=SIDE)
     await saved_report_case.prepare(ALICE)
-
+    # when·then: 배치를 저장하면 찾을 수 없음 오류다
     with pytest.raises(ReportNotFoundError):
         await saved_report_case.reports.update_layout(ghost)

@@ -52,11 +52,12 @@ describe('목록 (AC2, AC19)', () => {
   // 테스트 코드: LC-022
   it('shows the first fifty contracts with the server total and the 12 headers in order', async () => {
     // given: 서버에 계약이 50건보다 많다
-    // when: /contracts를 연다
-    // then: 계약 목록 표에 50행, 전체 N건, 머리글 12개가 보인다
     expect(contracts.length).toBeGreaterThan(PAGE_SIZE)
+
+    // when: /contracts를 연다
     await open()
 
+    // then: 계약 목록 표에 50행, 전체 N건, 머리글 12개가 보인다
     expect(rows()).toHaveLength(PAGE_SIZE)
     expect(screen.getByText(`전체 ${contracts.length}건`)).toBeVisible()
     expect(within(table()).getAllByRole('columnheader').map((h) => h.textContent)).toEqual(COLUMNS)
@@ -68,10 +69,10 @@ describe('목록 (AC2, AC19)', () => {
   // 테스트 코드: LC-022
   it('shows the values of the first server row in its cells and the four status labels', async () => {
     // given: 서버에 계약이 있다
-    // when: /contracts를 연다
     await open()
     const first = (await gateway.licenseContracts.list({ sort: 'licenseEnd', order: 'asc' }, 0, 1)).items[0]!
 
+    // when: /contracts를 연다
     const cells = within(rows()[0]!).getAllByRole('cell')
 
     // then: 첫 행 칸이 서버 값이고 상태는 미발급·발급(신규)·발급(갱신)·종료로 보인다
@@ -80,14 +81,13 @@ describe('목록 (AC2, AC19)', () => {
     expect(cells[3]).toHaveTextContent(first.product)
     expect(cells[7]?.textContent).toBe(STATUS_TEXT[first.status])
     expect(cells[8]).toHaveTextContent(first.salesOwner.name)
-    expect(within(table()).queryAllByRole('button', { name: /라이센스 (발급|갱신)/ })).toHaveLength(0)
+    expect(within(table()).queryAllByRole('button', { name: /라이선스 (발급|갱신)/ })).toHaveLength(0)
   })
 
   // 시안 안내 문구가 더 이상 보이지 않는다.
   // 테스트 코드: LC-022
   it('has no mock-data notice any more', async () => {
-    // given: 서버에 계약이 있다
-    // when: /contracts를 연다
+    // when: /contracts를 연다 (전제: 서버에 계약이 있다)
     await open()
 
     // then: 시안 안내 문구가 없다
@@ -99,10 +99,11 @@ describe('목록 (AC2, AC19)', () => {
   // 검색 조건 칸 전부와 검색·초기화 버튼이 있다.
   it('has all search conditions and the two buttons', async () => {
     // given: 계약 목록 화면
-    // when: /contracts를 연다
     await open()
 
     for (const name of ['고객사명', '제품명']) expect(bar().getByRole('textbox', { name })).toBeVisible()
+
+    // when: /contracts를 연다
     for (const name of ['Vendor', '담당영업', '상태', '라이선스 시작일', '라이선스 종료일']) {
       expect(bar().getByRole('combobox', { name })).toBeVisible()
     }
@@ -114,8 +115,7 @@ describe('목록 (AC2, AC19)', () => {
   // 모든 역할이 계약관리 화면을 열 수 있다.
   // 테스트 코드: LC-022
   it('allows every role to open the page', async () => {
-    // given: admin·sales·user 각 역할
-    // when: /contracts를 연다
+    // when: /contracts를 연다 (전제: admin·sales·user 각 역할)
     await renderAt(PAGE, { role: 'user' })
 
     // then: 목록 표가 보인다
@@ -133,17 +133,19 @@ describe('고객사명·제품명 검색 (AC3, AC17)', () => {
     const { user } = await open()
     const list = vi.spyOn(gateway.licenseContracts, 'list')
 
+    // when: 고객사명 칸에 앞뒤 공백이 붙은 값을 넣고 검색한다
     await user.type(bar().getByRole('textbox', { name: '고객사명' }), customer)
     await user.click(bar().getByRole('button', { name: '검색' }))
 
-    // when: 고객사명 칸에 앞뒤 공백이 붙은 값을 넣고 검색한 뒤 초기화한다
+    // then: 공백이 지워진 조건이 서버로 가고 해당 건수가 보인다
     await waitFor(() => expect(sorted(codes())).toEqual(sorted(codesOf(expected))))
-    // then: 공백이 지워진 조건이 서버로 가고 초기화하면 조건 없는 목록이 보인다
     expect(lastQuery(list)).toMatchObject({ customer })
     expect(screen.getByText(`전체 ${expected.length}건`)).toBeVisible()
 
+    // when: 초기화를 누른다
     await user.click(bar().getByRole('button', { name: '초기화' }))
 
+    // then: 조건 없는 목록이 보인다
     await waitFor(() => expect(rows()).toHaveLength(PAGE_SIZE))
     expect(bar().getByRole('textbox', { name: '고객사명' })).toHaveValue('')
   })
@@ -192,12 +194,12 @@ describe('상태 검색 (C2)', () => {
     const { user } = await open()
     const list = vi.spyOn(gateway.licenseContracts, 'list')
 
+    // when: 상태를 고르고 검색한다
     await user.selectOptions(bar().getByRole('combobox', { name: '상태' }), STATUS_TEXT[status])
     await user.click(bar().getByRole('button', { name: '검색' }))
 
-    // when: 상태를 고르고 검색한다
-    await waitFor(() => expect(sorted(codes())).toEqual(sorted(codesOf(expected))))
     // then: 그 상태의 행만 보인다
+    await waitFor(() => expect(sorted(codes())).toEqual(sorted(codesOf(expected))))
     expect(lastQuery(list)).toMatchObject({ status })
     for (const row of rows()) expect(within(row).getAllByRole('cell')[7]).toHaveTextContent(STATUS_TEXT[status])
   })
@@ -205,9 +207,9 @@ describe('상태 검색 (C2)', () => {
   // 상태 선택지는 전체 뒤에 네 상태가 온다.
   it('offers the four statuses after 전체', async () => {
     // given: 계약 목록 화면
-    // when: 상태 선택 상자를 본다
     await open()
 
+    // when: 상태 선택 상자를 본다
     const labels = within(bar().getByRole('combobox', { name: '상태' })).getAllByRole('option').map((o) => o.textContent)
     // then: 전체 + 4개 상태가 있다
     expect(labels).toEqual(['전체', '미발급', '발급(신규)', '발급(갱신)', '종료'])
@@ -225,14 +227,14 @@ describe('Vendor·담당영업 검색', () => {
     const { user } = await open()
     const list = vi.spyOn(gateway.licenseContracts, 'list')
     const select = bar().getByRole('combobox', { name: 'Vendor' })
-    // when: Vendor를 고르고 검색한다
     await waitFor(() => expect(within(select).getAllByRole('option').length).toBeGreaterThan(1))
-
-    // then: vendorId 조건으로 서버가 거른 결과가 보인다
     expect(within(select).getAllByRole('option').map((o) => o.textContent)).toEqual(expect.arrayContaining(['전체', ...vendors.map((v) => v.name)]))
+
+    // when: Vendor를 고르고 검색한다
     await user.selectOptions(select, vendor.name)
     await user.click(bar().getByRole('button', { name: '검색' }))
 
+    // then: vendorId 조건으로 서버가 거른 결과가 보인다
     await waitFor(() => expect(sorted(codes())).toEqual(sorted(codesOf(expected))))
     expect(lastQuery(list)).toMatchObject({ vendorId: vendor.id })
   })
@@ -248,12 +250,12 @@ describe('Vendor·담당영업 검색', () => {
     const select = bar().getByRole('combobox', { name: '담당영업' })
     await waitFor(() => expect(within(select).getAllByRole('option').length).toBeGreaterThan(1))
 
+    // when: 담당영업을 고르고 검색한다
     await user.selectOptions(select, owner.name)
     await user.click(bar().getByRole('button', { name: '검색' }))
 
-    // when: 담당영업을 고르고 검색한다
-    await waitFor(() => expect(sorted(codes())).toEqual(sorted(codesOf(expected))))
     // then: ownerId 조건으로 서버가 거른 결과가 보인다
+    await waitFor(() => expect(sorted(codes())).toEqual(sorted(codesOf(expected))))
     expect(lastQuery(list)).toMatchObject({ ownerId: owner.id })
   })
 })
@@ -324,9 +326,9 @@ describe('라이선스 종료일 검색 (AC5, AC17)', () => {
   // 종료일 기간 선택지는 Deals 최종 업데이트 프리셋에 다가오는 기간 2개가 더해진다.
   it('offers the Deals last-updated presets plus the two upcoming presets (B7)', async () => {
     // given: 계약 목록 화면
-    // when: 종료일 기간 선택 상자를 본다
     await open()
 
+    // when: 종료일 기간 선택 상자를 본다
     const labels = within(bar().getByRole('combobox', { name: '라이선스 종료일' })).getAllByRole('option').map((o) => o.textContent)
     // then: 프리셋과 다가오는 기간 2개가 있다
     expect(labels).toEqual(['전체', '최근 2주', '최근 1개월', '최근 2개월', '최근 3개월', '최근 6개월', '향후 1개월', '향후 2개월', '직접 지정'])
@@ -341,15 +343,14 @@ describe('정렬 (AC6, AC18)', () => {
   it('asks the server for end date ascending by default and flips the direction on click', async () => {
     // given: 처음 요청은 종료일 오름차순인 목록
     const list = vi.spyOn(gateway.licenseContracts, 'list')
-    // when: 라이선스 종료일 머리글을 누르고 이어 고객사명 머리글을 누른다
     const { user } = await open()
-
-    // then: 종료일 desc, 고객사명 asc 요청이 서버로 간다
     expect(header('라이선스 종료일')).toHaveAttribute('aria-sort', 'ascending')
     expect(list.mock.calls[0]?.[0]).toMatchObject({ sort: 'licenseEnd', order: 'asc' })
 
+    // when: 라이선스 종료일 머리글을 다시 누른다
     await user.click(within(header('라이선스 종료일')).getByRole('button', { name: '라이선스 종료일' }))
 
+    // then: 종료일 내림차순으로 서버에 요청한다
     await waitFor(() => expect(header('라이선스 종료일')).toHaveAttribute('aria-sort', 'descending'))
     expect(lastQuery(list)).toMatchObject({ sort: 'licenseEnd', order: 'desc' })
   })
@@ -390,16 +391,18 @@ describe('빈 결과 (AC7)', () => {
     // given: 아무것도 일치하지 않는 조건
     const { user } = await open()
 
+    // when: 고객사명에 없는 값을 넣고 검색한다
     await user.type(bar().getByRole('textbox', { name: '고객사명' }), '존재하지않는고객사zzz')
-    // when: 검색한 뒤 초기화한다
     await user.click(bar().getByRole('button', { name: '검색' }))
 
-    // then: 조건에 맞는 계약이 없습니다와 전체 0건이 보이고 초기화 뒤 사라진다
+    // then: 조건에 맞는 계약이 없습니다와 전체 0건이 보인다
     expect(await screen.findByText('조건에 맞는 계약이 없습니다.')).toBeVisible()
     expect(screen.getByText('전체 0건')).toBeVisible()
 
+    // when: 초기화를 누른다
     await user.click(bar().getByRole('button', { name: '초기화' }))
 
+    // then: 안내가 사라지고 목록이 돌아온다
     await waitFor(() => expect(screen.queryByText('조건에 맞는 계약이 없습니다.')).not.toBeInTheDocument())
     expect(rows()).toHaveLength(PAGE_SIZE)
   })

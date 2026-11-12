@@ -1,14 +1,21 @@
 import type { SettingsGateway } from '../../../gateway/types'
 import type { DirectorySettings, DirectorySettingsInput, StorageSettings } from '../../../shared/model/types'
-import { conflict, directoryFailed, notFound, storageUnavailable, validation } from '../errors'
+import { conflict, directoryFailed, notFound, validation } from '../errors'
 import type { DirectoryRecord } from '../store'
-import { modeOf } from './accountRules'
+import { modeOf, passwordOf } from './accountRules'
 import { clone, read, requireAdmin, write, type MockContext } from './context'
 import { userRef } from './views'
 
 export const FAKE_BASE_DN = 'dc=corp,dc=test'
-const BIND_PASSWORD_REQUIRED = '바인드 비밀번호를 입력하세요.'
-const BIND_PASSWORD_RETYPE = '서버나 바인드 계정을 바꾸면 비밀번호를 다시 입력해야 합니다.'
+/** 서버 문구(IN-R8·IN-R9·IN-R10·IN-R14, 2.8). 화면이 보내기 전에 막는 문구("바인드 비밀번호를 입력하세요")와는 별개다. */
+const BIND_PASSWORD_REQUIRED = 'bind_password: 바인드 비밀번호를 입력하세요'
+const BIND_PASSWORD_EMPTY = 'bind_password: 비밀번호는 비어 있을 수 없습니다'
+const BIND_PASSWORD_RETYPE = 'bind_password: 서버나 바인드 계정을 바꾸면 비밀번호를 다시 입력해야 합니다'
+const BIND_PASSWORD_UNREADABLE = 'bind_password: 저장된 비밀번호를 읽을 수 없습니다. 다시 입력하세요'
+const ADMIN_PASSWORD_REQUIRED = 'AD 설정을 확인하려면 현재 관리자의 비밀번호가 필요합니다'
+const REVISION_CONFLICT = '설정이 다른 곳에서 바뀌었습니다. 새로고침 후 다시 시도하세요'
+const DIRECTORY_MISSING = 'AD 설정을(를) 찾을 수 없습니다: directory'
+const ADMIN_BIND_FAILED = 'AD 인증에 실패했습니다. 관리자 비밀번호를 확인하세요'
 
 /** 호스트·바인드 계정 필수, 포트 1~65535, 사용자 필터 필수, 연결 제한 시간 1~30초(서버 검증과 같은 범위). */
 export function checkDirectoryInput(input: DirectorySettingsInput): void {
@@ -26,7 +33,7 @@ export function checkDirectoryInput(input: DirectorySettingsInput): void {
  */
 export function checkBindPassword(input: DirectorySettingsInput, previous: DirectoryRecord | null): void {
   if (input.bindPassword !== null) {
-    if (input.bindPassword === '') throw validation(BIND_PASSWORD_REQUIRED)
+    if (input.bindPassword === '') throw validation(BIND_PASSWORD_EMPTY)
     return
   }
   if (previous === null) throw validation(BIND_PASSWORD_REQUIRED)
@@ -36,7 +43,15 @@ export function checkBindPassword(input: DirectorySettingsInput, previous: Direc
     input.security !== previous.security ||
     input.bindAccount !== previous.bindAccount
   if (changed) throw validation(BIND_PASSWORD_RETYPE)
-  if (previous.bindCredentialStatus === 'unreadable') throw validation(BIND_PASSWORD_REQUIRED)
+  if (previous.bindCredentialStatus === 'unreadable') throw validation(BIND_PASSWORD_UNREADABLE)
+}
+
+/**
+ * 현재 admin 비밀번호 확인(IN-R10·IN-R11): 없으면 422, 틀리면 bind 단계 실패.
+ * 연결 단계 실패('fail' 호스트)가 먼저이고, 실제 AD 대신 admin의 로그인 비밀번호와 비교한다.
+ */
+function checkAdminPassword(ctx: MockContext, adminId: number, password: string): void {
+  if (password !== passwordOf(ctx.store.data, adminId)) throw directoryFailed(ADMIN_BIND_FAILED, 'bind')
 }
 
 /** 연결 단계 실패 시뮬레이션: 호스트에 'fail'이 들어가면 연결 단계에서 실패한다. */
@@ -64,11 +79,6 @@ export function validateStoragePath(path: string): string {
 }
 
 /** 쓰기 테스트: 저장하지 않고 경로 검증 + 저장소 장애 시뮬레이션만 적용한다. */
-export function checkStorageWritable(ctx: MockContext, path: string): void {
-  validateStoragePath(path)
-  if (ctx.store.storageFailure) throw storageUnavailable('파일 저장 위치를 사용할 수 없습니다. 관리자에게 문의하세요.')
-}
-
 export function saveDirectoryRecord(
   ctx: MockContext,
   input: DirectorySettingsInput,
@@ -118,24 +128,29 @@ export function createSettingsGateway(ctx: MockContext): SettingsGateway {
     saveDirectory: (input, auth) =>
       write(ctx, () => {
         const admin = requireAdmin(ctx)
-        requireDirectoryMode(ctx)
         const previous = ctx.store.data.directory
         checkDirectoryInput(input)
-        if (auth.expectedRevision === null && previous !== null) throw conflict('AD 설정이 이미 있습니다. 화면을 새로 고친 뒤 다시 시도하세요.')
-        if (auth.expectedRevision !== null && previous === null) throw notFound('AD 설정이 없습니다.')
+        requireDirectoryMode(ctx)
+        if (auth.expectedRevision === null && previous !== null) throw conflict(REVISION_CONFLICT)
+        if (auth.expectedRevision !== null && previous === null) throw notFound(DIRECTORY_MISSING)
+        if (auth.expectedRevision !== null && previous !== null && previous.revision !== auth.expectedRevision) throw conflict(REVISION_CONFLICT)
         checkBindPassword(input, previous)
+        if (auth.password === null) throw validation(ADMIN_PASSWORD_REQUIRED)
         checkDirectoryReachable(input)
+        checkAdminPassword(ctx, admin.id, auth.password)
         const record = saveDirectoryRecord(ctx, input, admin.id)
         ctx.store.data.setup.directoryDone = true
         return directoryView(ctx, record)
       }),
-    testDirectory: (input) =>
+    testDirectory: (input, password) =>
       write(ctx, () => {
-        requireAdmin(ctx)
-        requireDirectoryMode(ctx)
+        const admin = requireAdmin(ctx)
         checkDirectoryInput(input)
+        requireDirectoryMode(ctx)
         checkBindPassword(input, ctx.store.data.directory)
+        if (password === null) throw validation(ADMIN_PASSWORD_REQUIRED)
         checkDirectoryReachable(input)
+        checkAdminPassword(ctx, admin.id, password)
         return { baseDn: FAKE_BASE_DN }
       }),
     getStorage: () =>
@@ -151,10 +166,11 @@ export function createSettingsGateway(ctx: MockContext): SettingsGateway {
         ctx.store.data.storage = record
         return storageView(ctx, record)
       }),
+    // 서버의 관리자 쓰기 테스트는 저장소 장애(503)를 내지 않고 경로 규칙·쓰기 확인(422)만 한다.
     testStorage: (path) =>
       write(ctx, () => {
         requireAdmin(ctx)
-        checkStorageWritable(ctx, path)
+        validateStoragePath(path)
       }),
   }
 }

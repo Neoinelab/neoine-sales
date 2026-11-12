@@ -106,7 +106,6 @@ async def test_contract_row_deal_is_won_reflects_the_current_forecast(
     lost_contract = await contract_case.contract(lost)
 
     # when: 행을 읽고 Forecast를 바꾼 뒤 다시 읽는다
-    # then: Won만 true이고 바뀐 Forecast가 반영된다
     assert (await contract_case.repository.get_row(won_contract.id)).deal.is_won is True
     assert (await contract_case.repository.get_row(open_contract.id)).deal.is_won is False
     assert (await contract_case.repository.get_row(lost_contract.id)).deal.is_won is False
@@ -117,5 +116,6 @@ async def test_contract_row_deal_is_won_reflects_the_current_forecast(
     await contract_case.deal_case.revise(open_deal.id, sync=make_sync("contract_completed", "won"))
     await contract_case.deal_case.revise(won.id, sync=make_sync("poc_completed", "commit"))
 
+    # then: Won만 true이고 바뀐 Forecast가 반영된다
     assert (await contract_case.repository.get_row(open_contract.id)).deal.is_won is True
     assert (await contract_case.repository.get_row(won_contract.id)).deal.is_won is False

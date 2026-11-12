@@ -1,7 +1,7 @@
 /** Deal 조회: 목록(필터·정렬·페이지), 상세, 삭제 영향. */
 
 import { DEAL_PAGE_SIZE } from '../../../shared/model/constants'
-import { compareIso, datePart } from '../../../shared/model/dates'
+import { compareIso, datePart, formatWithOffset, offsetMinutes } from '../../../shared/model/dates'
 import type { DealListQuery, DealRow, DealSortKey, ForecastOutcome, Page } from '../../../shared/model/types'
 import { QUARTER_MONTH_EXCLUSIVE, validation } from '../errors'
 import { read, requireUser, type MockContext } from './context'
@@ -20,6 +20,7 @@ function matches(
   viewerId: number,
   thisYear: number,
   outcomeOf: ReadonlyMap<string, ForecastOutcome>,
+  businessOffset: number,
 ): boolean {
   if (query.keyword) {
     const needle = query.keyword.trim().toLowerCase()
@@ -46,8 +47,8 @@ function matches(
   if (quarters !== undefined && !quarters.includes(quarterOfMonth(Number(row.revenueDate.slice(5, 7))))) return false
   // 월은 분기와 함께 쓸 수 없다(listDeals가 먼저 거절한다). 그 달의 Deal만 남긴다.
   if (query.month !== undefined && Number(row.revenueDate.slice(5, 7)) !== query.month) return false
-  // 최종 업데이트(Action 기준 lastUpdatedAt)의 달력 날짜가 양끝 포함 범위 안이어야 한다.
-  const updatedDay = datePart(row.lastUpdatedAt)
+  // 최종 업데이트(Action 기준 lastUpdatedAt)를 업무 시간대의 달력 날짜로 바꿔 양끝 포함 범위 안인지 본다(서버: [from 00:00, to+1일 00:00)).
+  const updatedDay = datePart(formatWithOffset(Date.parse(row.lastUpdatedAt), businessOffset))
   if (query.updatedFrom && updatedDay < query.updatedFrom) return false
   if (query.updatedTo && updatedDay > query.updatedTo) return false
   if (query.mine && row.ownerId !== viewerId) return false
@@ -62,7 +63,7 @@ function matches(
   return true
 }
 
-/** 서버 정렬 규칙: 텍스트는 소문자 기준(코드 포인트 순). */
+/** 서버 정렬 규칙(DL-R13): 텍스트는 소문자로 바꾼 코드 포인트 순(서버 `lower` + `COLLATE "C"`). */
 function compareText(a: string, b: string): number {
   const x = a.toLowerCase()
   const y = b.toLowerCase()
@@ -76,15 +77,45 @@ function isAbsent(row: DealRow, sort: DealSortKey): boolean {
   return false
 }
 
+const REQUEST_FORMAT = '요청 형식이 올바르지 않습니다'
+const DATE_MIN = '1900-01-01'
+const DATE_MAX = '2999-12-31'
+
+/** 서버 `GET /deals`의 형식·범위 검증(422 request-validation / invalid-value)을 따른다. */
+function validateQuery(query: DealListQuery): void {
+  if (query.keyword !== undefined) {
+    if (Array.from(query.keyword).length > 100) throw validation(REQUEST_FORMAT)
+    if (query.keyword.includes('\u0000')) throw validation('검색어에는 NUL 문자를 쓸 수 없습니다')
+  }
+  if (query.solution !== undefined) {
+    if (Array.from(query.solution.trim()).length > 200) throw validation(REQUEST_FORMAT)
+    if (query.solution.includes('\u0000')) throw validation('Solution에는 NUL 문자를 쓸 수 없습니다')
+  }
+  if ((query.statusKey?.length ?? 0) > 50) throw validation(REQUEST_FORMAT)
+  const forecastKeys = query.forecastKeys ?? []
+  if (forecastKeys.length > 100 || forecastKeys.some((key) => key.length > 50)) throw validation(REQUEST_FORMAT)
+  if (query.year !== undefined && (query.year < 1900 || query.year > 9999)) throw validation(REQUEST_FORMAT)
+  if (query.month !== undefined && (query.month < 1 || query.month > 12)) throw validation(REQUEST_FORMAT)
+  if ((query.quarters?.length ?? 0) > 4 || query.quarters?.some((q) => q < 1 || q > 4)) throw validation(REQUEST_FORMAT)
+  if ((query.offset ?? 0) < 0 || (query.limit !== undefined && query.limit < 1)) throw validation(REQUEST_FORMAT)
+  // 서버 한도: 한 번에 최대 200건(그 이상은 422 request-validation).
+  if ((query.limit ?? 0) > MAX_PAGE_SIZE) throw validation(REQUEST_FORMAT)
+  for (const [name, value] of [['updated_from', query.updatedFrom], ['updated_to', query.updatedTo]] as const) {
+    if (value !== undefined && (value < DATE_MIN || value > DATE_MAX)) {
+      throw validation(`${name}은(는) ${DATE_MIN}부터 ${DATE_MAX} 사이여야 합니다`)
+    }
+  }
+}
+
 export function listDeals(ctx: MockContext, query: DealListQuery): Page<DealRow> {
   const viewer = requireUser(ctx)
+  validateQuery(query)
   if (query.updatedFrom && query.updatedTo && query.updatedFrom > query.updatedTo) {
     throw validation('최종 업데이트 기간의 시작은 끝보다 늦을 수 없습니다')
   }
   if (normalizedQuarters(query.quarters) !== undefined && query.month !== undefined) throw validation(QUARTER_MONTH_EXCLUSIVE)
-  // 서버 한도: 한 번에 최대 200건(그 이상은 422).
-  if ((query.limit ?? 0) > MAX_PAGE_SIZE) throw validation(`limit은 ${MAX_PAGE_SIZE} 이하여야 합니다.`)
   const thisYear = Number(ctx.clock.today().slice(0, 4))
+  const businessOffset = offsetMinutes(ctx.clock.now())
   const codes = codeSetOf(ctx)
   const statusOrder = codes.statuses.map((c) => c.key)
   const forecastOrder = codes.forecasts.map((c) => c.key)
@@ -94,7 +125,7 @@ export function listDeals(ctx: MockContext, query: DealListQuery): Page<DealRow>
   const compare = (a: DealRow, b: DealRow): number => {
     switch (sort) {
       case 'name':
-        return a.name.localeCompare(b.name, 'ko')
+        return compareText(a.name, b.name)
       case 'revenueAmount':
         return a.revenueAmount - b.revenueAmount
       case 'revenueDate':
@@ -117,7 +148,7 @@ export function listDeals(ctx: MockContext, query: DealListQuery): Page<DealRow>
   }
   const rows = ctx.store.data.deals
     .map((deal) => dealRow(ctx, deal))
-    .filter((row) => matches(row, query, viewer.id, thisYear, outcomeOf))
+    .filter((row) => matches(row, query, viewer.id, thisYear, outcomeOf, businessOffset))
     .sort((a, b) => {
       const absentA = isAbsent(a, sort)
       const absentB = isAbsent(b, sort)

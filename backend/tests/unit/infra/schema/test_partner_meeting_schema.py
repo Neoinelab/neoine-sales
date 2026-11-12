@@ -1,4 +1,4 @@
-"""head 스키마의 partner_meetings(파트너 Activity). Deal과 연결되지 않는다(AC8).
+"""head 스키마의 partner_meetings(파트너 Activity). Deal과 연결되지 않는다.
 
 제약은 원시 INSERT로 직접 어겨 보고 제약·인덱스 이름으로 거절되는지 확인한다(도메인 검증을 거치지
 않는다). 임시 DB의 head에서 돌며 세션은 테스트마다 롤백된다.
@@ -44,11 +44,16 @@ async def _author(session: AsyncSession, login: str = "meeting-author") -> int:
 
 
 async def test_partner_meetings_columns_types_and_nullability(session: AsyncSession) -> None:
+    """partner_meetings의 컬럼·타입·NULL 허용이 명세와 같다.
+
+    테스트 코드: PA-047
+    """
+    # when: 컬럼 정보를 조회한다
     rows = (await session.execute(text(COLUMNS))).all()
     columns = {
         r.column_name: (r.data_type, r.character_maximum_length, r.is_nullable) for r in rows
     }
-
+    # then: 일곱 컬럼이 명세와 같다
     assert columns == {
         "id": ("bigint", None, "NO"),
         "partner_company": ("character varying", 200, "NO"),
@@ -61,16 +66,26 @@ async def test_partner_meetings_columns_types_and_nullability(session: AsyncSess
 
 
 async def test_only_the_author_foreign_key_remains(session: AsyncSession) -> None:
-    rows = (await session.execute(text(FOREIGN_KEYS))).all()
+    """외래 키는 작성자(users) 하나뿐이다.
 
+    테스트 코드: PA-047
+    """
+    # when: 외래 키를 조회한다
+    rows = (await session.execute(text(FOREIGN_KEYS))).all()
+    # then: 작성자 FK(RESTRICT)뿐이다
     assert {(r.conname, r.confrelid, r.confdeltype.strip(), r.attname) for r in rows} == {
         ("fk_partner_meetings_created_by_user_id_users", "users", "r", "created_by_user_id"),
     }
 
 
 async def test_the_planned_indexes_exist_and_none_is_unique(session: AsyncSession) -> None:
-    definitions = {r.indexname: r.indexdef for r in (await session.execute(text(INDEXES))).all()}
+    """계획한 인덱스만 있고 UNIQUE는 PK뿐이다.
 
+    테스트 코드: PA-047
+    """
+    # when: 인덱스를 조회한다
+    definitions = {r.indexname: r.indexdef for r in (await session.execute(text(INDEXES))).all()}
+    # then: 세 인덱스뿐이고 UNIQUE는 PK뿐이다
     assert set(definitions) == {
         "pk_partner_meetings",
         "ix_partner_meetings_meeting_date_id",
@@ -82,39 +97,66 @@ async def test_the_planned_indexes_exist_and_none_is_unique(session: AsyncSessio
 
 
 async def test_the_schema_has_no_integrity_violations(session: AsyncSession) -> None:
-    exists = (await session.execute(text("select to_regclass('public.partner_meetings')"))).scalar()
+    """스키마 무결성 점검(BIGINT IDENTITY 등)에 위반이 없다.
 
-    assert exists is not None  # 점검 대상 테이블이 있어야 의미가 있다
-    assert await check_schema(session) == []
+    테스트 코드: PA-047
+    """
+    # given: 점검 대상 테이블이 있다
+    exists = (await session.execute(text("select to_regclass('public.partner_meetings')"))).scalar()
+    assert exists is not None
+    # when: 스키마를 점검한다
+    violations = await check_schema(session)
+    # then: 위반이 없다
+    assert violations == []
 
 
 async def test_a_valid_row_is_accepted_and_duplicates_are_allowed(session: AsyncSession) -> None:
+    """유효한 행과 같은 날짜·내용의 중복 행을 받는다.
+
+    테스트 코드: PA-047
+    """
+    # given: 작성자
     author = await _author(session)
-
+    # when: 같은 값으로 두 번 넣는다
     await insert_meeting(session, author)
-    await insert_meeting(session, author)  # 같은 날짜·내용 중복 허용
-
+    await insert_meeting(session, author)
+    # then: 두 행이 있다
     count = (await session.execute(text("select count(*) from partner_meetings"))).scalar_one()
     assert count == 2
 
 
 @pytest.mark.parametrize("day", ["1900-01-01", "2026-10-01", "2999-12-31"])
 async def test_future_and_far_dates_are_accepted(session: AsyncSession, day: str) -> None:
-    author = await _author(session)
+    """먼 과거·미래 날짜도 받는다.
 
+    테스트 코드: PA-047
+    """
+    # given: 작성자
+    author = await _author(session)
+    # when·then: 경계 날짜로 넣어도 제약에 걸리지 않는다
     await insert_meeting(session, author, meeting_date=day)
 
 
 async def test_content_may_be_very_long_and_multiline(session: AsyncSession) -> None:
-    author = await _author(session)
+    """내용은 길이 제한 없이 여러 줄이어도 받는다.
 
+    테스트 코드: PA-047
+    """
+    # given: 작성자
+    author = await _author(session)
+    # when·then: 20만 줄 내용을 넣어도 제약에 걸리지 않는다
     await insert_meeting(session, author, content="줄\n" * 200_000 + "끝")
 
 
 @pytest.mark.parametrize("content", ["", "   ", "\n\t \n"])
 async def test_blank_content_is_rejected_by_the_check(session: AsyncSession, content: str) -> None:
-    author = await _author(session)
+    """공백뿐인 내용은 CHECK로 거절된다.
 
+    테스트 코드: PA-047
+    """
+    # given: 작성자
+    author = await _author(session)
+    # when·then: 공백뿐인 내용을 넣으면 content_not_blank 제약으로 거절된다
     with pytest.raises(IntegrityError, match="ck_partner_meetings_content_not_blank"):
         await insert_meeting(session, author, content=content)
 
@@ -123,37 +165,62 @@ async def test_blank_content_is_rejected_by_the_check(session: AsyncSession, con
 async def test_empty_or_spaced_company_is_rejected_by_the_check(
     session: AsyncSession, company: str
 ) -> None:
-    author = await _author(session)
+    """빈 회사명이나 앞뒤·가운데 공백이 든 회사명은 CHECK로 거절된다.
 
+    테스트 코드: PA-047
+    """
+    # given: 작성자
+    author = await _author(session)
+    # when·then: 그런 회사명을 넣으면 company_valid 제약으로 거절된다
     with pytest.raises(IntegrityError, match="ck_partner_meetings_company_valid"):
         await insert_meeting(session, author, partner_company=company)
 
 
 async def test_company_longer_than_200_characters_is_rejected(session: AsyncSession) -> None:
-    author = await _author(session)
+    """201자 회사명은 길이 제한으로 거절된다.
 
+    테스트 코드: PA-047
+    """
+    # given: 작성자
+    author = await _author(session)
+    # when·then: 201자 회사명을 넣으면 값이 너무 길다는 오류다
     with pytest.raises(DBAPIError, match="too long"):
         await insert_meeting(session, author, partner_company="가" * 201)
 
 
 async def test_a_missing_author_is_rejected_by_the_foreign_key(session: AsyncSession) -> None:
+    """없는 작성자는 외래 키로 거절된다.
+
+    테스트 코드: PA-047
+    """
+    # when·then: 없는 사용자 id로 넣으면 FK 제약으로 거절된다
     with pytest.raises(IntegrityError, match="fk_partner_meetings_created_by_user_id_users"):
         await insert_meeting(session, MISSING_ID)
 
 
 async def test_deleting_a_deal_does_not_touch_meetings(session: AsyncSession) -> None:
+    """Deal을 지워도 미팅 기록은 그대로 남는다.
+
+    테스트 코드: PA-044
+    """
+    # given: Deal 하나와 미팅 기록
     author = await _author(session)
     customer = await insert_contact(session)
     code = await insert_deal(session, customer, owner_user_id=author)
     await insert_meeting(session, author, content="Deal과 무관한 기록")
-
+    # when: Deal을 삭제한다
     await session.execute(text("delete from deals where deal_code = :code"), {"code": code})
-
+    # then: 미팅 기록이 그대로다
     contents = (await session.execute(text("select content from partner_meetings"))).scalars().all()
     assert contents == ["Deal과 무관한 기록"]
 
 
 async def test_the_deal_link_column_constraint_and_index_are_gone(session: AsyncSession) -> None:
+    """Deal 컬럼·FK·인덱스가 없다.
+
+    테스트 코드: PA-047
+    """
+    # when: 컬럼·제약·인덱스를 조회한다
     columns = (await session.execute(text(COLUMNS))).all()
     constraints = (
         (
@@ -168,7 +235,7 @@ async def test_the_deal_link_column_constraint_and_index_are_gone(session: Async
         .all()
     )
     indexes = (await session.execute(text(INDEXES))).all()
-
+    # then: Deal 연결의 흔적이 없다
     assert "deal_id" not in {c.column_name for c in columns}
     assert "fk_partner_meetings_deal_id_deals" not in constraints
     assert "ix_partner_meetings_deal_id" not in {i.indexname for i in indexes}
@@ -177,8 +244,13 @@ async def test_the_deal_link_column_constraint_and_index_are_gone(session: Async
 async def test_a_user_who_wrote_a_meeting_cannot_be_physically_deleted(
     session: AsyncSession,
 ) -> None:
+    """미팅을 쓴 사용자는 물리 삭제할 수 없다(퇴사 처리로 간다).
+
+    테스트 코드: PA-047
+    """
+    # given: 미팅을 쓴 사용자
     writer = await insert_user(session, "meeting-writer")
     await insert_meeting(session, writer)
-
+    # when·then: 사용자 행을 지우면 FK 제약으로 거절된다
     with pytest.raises(IntegrityError, match="fk_partner_meetings_created_by_user_id_users"):
         await session.execute(text("delete from users where id = :id"), {"id": writer})

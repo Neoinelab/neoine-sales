@@ -67,33 +67,47 @@ async function sentForm(request: Request): Promise<FormData> {
 }
 
 describe('attachments.list over HTTP', () => {
-  it('reads the deal attachments and maps each item', async () => {
+  // 테스트 코드: AT-053
+  it('Deal 첨부 목록을 읽어 각 항목을 바꾼다', async () => {
+    // given: 첨부 한 건을 담은 목록 응답
     const { calls } = stubRequests(json({ items: [ATTACHMENT] }))
 
+    // when: 목록을 읽는다
     const list = await createAttachmentsHttp().list(CODE)
 
+    // then: GET 요청이 목록 경로로 가고 항목이 camelCase 첨부로 바뀐다
     expect(calls[0]?.method).toBe('GET')
     expect(pathOf(calls[0] as Request)).toBe(`/api/v1/deals/${CODE}/attachments`)
     expect(list).toEqual([MAPPED])
   })
 
-  it('keeps the order the server sent (newest first)', async () => {
+  // 테스트 코드: AT-053
+  it('서버가 보낸 순서(최신 순)를 유지한다', async () => {
+    // given: id 20, 10 순서의 목록 응답
     stubRequests(json({ items: [{ ...ATTACHMENT, id: 20 }, { ...ATTACHMENT, id: 10 }] }))
 
+    // when: 목록을 읽는다
     const list = await createAttachmentsHttp().list(CODE)
 
+    // then: 서버 순서 그대로다
     expect(list.map((a) => a.id)).toEqual([20, 10])
   })
 
-  it('returns an empty list when the deal has no files', async () => {
+  // 테스트 코드: AT-053
+  it('첨부가 없으면 빈 목록을 돌려준다', async () => {
+    // given: 빈 items 응답
     stubRequests(json({ items: [] }))
 
+    // when·then: 목록을 읽으면 빈 배열이다
     await expect(createAttachmentsHttp().list(CODE)).resolves.toEqual([])
   })
 
-  it('shows the server message when the deal does not exist', async () => {
+  // 테스트 코드: AT-053
+  it('없는 Deal이면 서버 문구를 보인다', async () => {
+    // given: 404 "Deal을 찾을 수 없습니다." 응답
     stubRequests(problem(404, 'not-found', 'Deal을 찾을 수 없습니다.'))
 
+    // when·then: 목록을 읽으면 404 not-found와 서버 문구의 오류다
     await expect(createAttachmentsHttp().list(CODE)).rejects.toMatchObject({
       status: 404,
       kind: 'not-found',
@@ -101,7 +115,9 @@ describe('attachments.list over HTTP', () => {
     })
   })
 
-  it('reports an unreachable server as a network error', async () => {
+  // 테스트 코드: AT-053
+  it('서버에 닿지 않으면 네트워크 오류로 알린다', async () => {
+    // given: fetch가 연결 실패(TypeError)를 내는 환경
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => {
@@ -109,21 +125,27 @@ describe('attachments.list over HTTP', () => {
       }),
     )
 
+    // when·then: 목록을 읽으면 status 0의 오류다
     await expect(createAttachmentsHttp().list(CODE)).rejects.toMatchObject({ status: 0 })
   })
 })
 
 describe('attachments.upload over HTTP', () => {
-  it('posts multipart form data with the file bytes, its name, description and on_exists', async () => {
+  // 테스트 코드: AT-053
+  it('파일 바이트·이름·설명·on_exists를 multipart로 보낸다', async () => {
+    // given: 201 응답을 준비하고 PDF 파일을 고른다
     const { calls } = stubRequests(json({ outcome: 'uploaded', attachment: ATTACHMENT }, 201))
 
+    // when: 업로드한다
     await createAttachmentsHttp().upload(CODE, { file: pdf(), description: '2차 견적', onExists: 'ask' })
 
+    // then: POST 요청이 multipart이고 CSRF 헤더가 있다
     const request = calls[0] as Request
     expect(request.method).toBe('POST')
     expect(pathOf(request)).toBe(`/api/v1/deals/${CODE}/attachments`)
     expect(request.headers.get('content-type')).toMatch(/^multipart\/form-data; boundary=/)
     expect(request.headers.get('x-requested-with')).toBe('neoine-web')
+    // then: 파일의 바이트·원래 이름과 설명·on_exists가 폼에 실린다
     const form = await sentForm(request)
     const sent = form.get('file') as File
     expect(sent.name).toBe('견적서.pdf')
@@ -132,78 +154,112 @@ describe('attachments.upload over HTTP', () => {
     expect(form.get('on_exists')).toBe('ask')
   })
 
-  it('sends the description untouched so the server decides on trimming', async () => {
+  // 테스트 코드: AT-053
+  it('설명은 가공 없이 보내 공백 제거는 서버가 정한다', async () => {
+    // given: 201 응답을 준비한다
     const { calls } = stubRequests(json({ outcome: 'uploaded', attachment: ATTACHMENT }, 201))
 
+    // when: 앞뒤 공백이 든 설명으로 업로드한다
     await createAttachmentsHttp().upload(CODE, { file: pdf(), description: '  앞뒤 공백  ', onExists: 'ask' })
 
+    // then: 보낸 설명이 공백 그대로다
     expect((await sentForm(calls[0] as Request)).get('description')).toBe('  앞뒤 공백  ')
   })
 
-  it('sends an empty description as an empty field, not as a missing one', async () => {
+  // 테스트 코드: AT-053
+  it('빈 설명은 빠뜨리지 않고 빈 필드로 보낸다', async () => {
+    // given: 201 응답을 준비한다
     const { calls } = stubRequests(json({ outcome: 'uploaded', attachment: ATTACHMENT }, 201))
 
+    // when: 설명 없이 업로드한다
     await createAttachmentsHttp().upload(CODE, { file: pdf(), description: '', onExists: 'ask' })
 
+    // then: description 필드가 있고 값이 ''이다
     const form = await sentForm(calls[0] as Request)
     expect(form.has('description')).toBe(true)
     expect(form.get('description')).toBe('')
   })
 
-  it('sends a zero byte file as a file part', async () => {
+  // 테스트 코드: AT-053
+  it('0바이트 파일도 파일 파트로 보낸다', async () => {
+    // given: 0바이트 첨부를 돌려주는 201 응답
     const { calls } = stubRequests(json({ outcome: 'uploaded', attachment: { ...ATTACHMENT, size: 0 } }, 201))
 
+    // when: 0바이트 파일을 업로드한다
     await createAttachmentsHttp().upload(CODE, { file: pdf('빈 파일.txt', [], 'text/plain'), description: '', onExists: 'ask' })
 
+    // then: 파일 파트의 이름이 원래 이름이고 크기가 0이다
     const sent = (await sentForm(calls[0] as Request)).get('file') as File
     expect(sent.name).toBe('빈 파일.txt')
     expect(sent.size).toBe(0)
   })
 
-  it.each(['ask', 'replace', 'skip'] as const)('sends on_exists=%s', async (onExists) => {
+  // 테스트 코드: AT-053
+  it.each(['ask', 'replace', 'skip'] as const)('on_exists=%s를 보낸다', async (onExists) => {
+    // given: 201 응답을 준비한다
     const { calls } = stubRequests(json({ outcome: 'uploaded', attachment: ATTACHMENT }, 201))
 
+    // when: on_exists를 지정해 업로드한다
     await createAttachmentsHttp().upload(CODE, { file: pdf(), description: '', onExists })
 
+    // then: 폼의 on_exists가 지정한 값이다
     expect((await sentForm(calls[0] as Request)).get('on_exists')).toBe(onExists)
   })
 
-  it('maps 201 to outcome uploaded with the mapped attachment', async () => {
+  // 테스트 코드: AT-053
+  it('201은 uploaded와 바뀐 첨부로 옮긴다', async () => {
+    // given: Location이 있는 201 uploaded 응답
     stubRequests(json({ outcome: 'uploaded', attachment: ATTACHMENT }, 201, { Location: '/api/v1/attachments/7' }))
 
+    // when: 업로드한다
     const result = await createAttachmentsHttp().upload(CODE, { file: pdf(), description: '', onExists: 'ask' })
 
+    // then: 결과가 uploaded와 camelCase 첨부다
     expect(result).toEqual({ outcome: 'uploaded', attachment: MAPPED })
   })
 
-  it('maps 200 replaced to outcome replaced with the mapped attachment', async () => {
+  // 테스트 코드: AT-053
+  it('200 replaced는 replaced와 바뀐 첨부로 옮긴다', async () => {
+    // given: 200 replaced 응답
     stubRequests(json({ outcome: 'replaced', attachment: ATTACHMENT }))
 
+    // when: replace로 업로드한다
     const result = await createAttachmentsHttp().upload(CODE, { file: pdf(), description: '', onExists: 'replace' })
 
+    // then: 결과가 replaced와 camelCase 첨부다
     expect(result).toEqual({ outcome: 'replaced', attachment: MAPPED })
   })
 
-  it('maps 200 skipped to outcome skipped without any attachment', async () => {
+  // 테스트 코드: AT-053
+  it('200 skipped는 첨부 없는 skipped로 옮긴다', async () => {
+    // given: 200 skipped 응답
     stubRequests(json({ outcome: 'skipped', attachment: null }))
 
+    // when: skip으로 업로드한다
     const result = await createAttachmentsHttp().upload(CODE, { file: pdf(), description: '', onExists: 'skip' })
 
+    // then: 결과가 첨부 없는 skipped다
     expect(result).toEqual({ outcome: 'skipped' })
   })
 
-  it.each(['uploaded', 'replaced'])('treats outcome %s without an attachment as a malformed response', async (outcome) => {
+  // 테스트 코드: AT-053
+  it.each(['uploaded', 'replaced'])('첨부 없는 %s 응답은 잘못된 응답으로 본다', async (outcome) => {
+    // given: 첨부가 null인 uploaded 또는 replaced 응답
     stubRequests(json({ outcome, attachment: null }, outcome === 'uploaded' ? 201 : 200))
 
+    // when·then: 업로드하면 502 malformed-response 오류다
     await expect(createAttachmentsHttp().upload(CODE, { file: pdf(), description: '', onExists: 'ask' })).rejects.toMatchObject({
       status: 502,
       kind: 'malformed-response',
     })
   })
 
-  it('keeps the file-exists kind and the server message for the replace or skip choice', async () => {
+  // 테스트 코드: AT-053
+  it('file-exists 종류와 서버 문구를 유지한다', async () => {
+    // given: 409 file-exists 응답
     stubRequests(problem(409, 'file-exists', '같은 이름의 파일이 이미 있습니다: 견적서.pdf'))
 
+    // when·then: 업로드하면 409 file-exists와 서버 문구의 오류다
     await expect(createAttachmentsHttp().upload(CODE, { file: pdf(), description: '', onExists: 'ask' })).rejects.toMatchObject({
       status: 409,
       kind: 'file-exists',
@@ -211,11 +267,14 @@ describe('attachments.upload over HTTP', () => {
     })
   })
 
-  it('keeps the storage-unavailable kind and message on 503', async () => {
+  // 테스트 코드: AT-053
+  it('503이면 storage-unavailable 종류와 문구를 유지한다', async () => {
+    // given: 503 storage-unavailable 응답
     stubRequests(
       problem(503, 'storage-unavailable', '파일 저장 위치를 사용할 수 없어 업로드할 수 없습니다. 관리자에게 문의하세요.'),
     )
 
+    // when·then: 업로드하면 503 storage-unavailable과 서버 문구의 오류다
     await expect(createAttachmentsHttp().upload(CODE, { file: pdf(), description: '', onExists: 'ask' })).rejects.toMatchObject({
       status: 503,
       kind: 'storage-unavailable',
@@ -223,6 +282,7 @@ describe('attachments.upload over HTTP', () => {
     })
   })
 
+  // 테스트 코드: AT-053
   it.each([
     [403, 'forbidden', 'forbidden', '본인이 올린 파일만 교체할 수 있습니다.'],
     [403, 'forbidden', 'forbidden', '이 작업을 할 권한이 없습니다(읽기 전용 계정)'],
@@ -233,9 +293,11 @@ describe('attachments.upload over HTTP', () => {
     [422, 'invalid-value', 'validation', '실행·설치 파일(.exe)은 업로드할 수 없습니다.'],
     [422, 'invalid-value', 'validation', '사용할 수 없는 파일 이름입니다.'],
     [422, 'request-validation', 'validation', '요청 형식이 올바르지 않습니다'],
-  ])('shows the server message for %s %s (kind %s): %s', async (status, serverKind, kind, detail) => {
+  ])('업로드 오류 %s %s는 서버 문구를 그대로 보인다(종류 %s): %s', async (status, serverKind, kind, detail) => {
+    // given: 서버가 보낸 문제 응답
     stubRequests(problem(status, serverKind, detail))
 
+    // when·then: 업로드하면 상태·종류·서버 문구가 그대로 담긴 오류다
     await expect(createAttachmentsHttp().upload(CODE, { file: pdf(), description: '', onExists: 'ask' })).rejects.toMatchObject({
       status,
       kind,
@@ -245,22 +307,29 @@ describe('attachments.upload over HTTP', () => {
 })
 
 describe('attachments.remove over HTTP', () => {
-  it('deletes the attachment by id and resolves with nothing on 204', async () => {
+  // 테스트 코드: AT-053
+  it('id로 삭제하고 204면 값 없이 끝난다', async () => {
+    // given: 204 응답
     const { calls } = stubRequests(noContent())
 
+    // when·then: 삭제하면 값 없이 끝난다
     await expect(createAttachmentsHttp().remove(7)).resolves.toBeUndefined()
 
+    // then: DELETE 요청이 첨부 경로로 갔다
     expect(calls[0]?.method).toBe('DELETE')
     expect(pathOf(calls[0] as Request)).toBe('/api/v1/attachments/7')
   })
 
+  // 테스트 코드: AT-053
   it.each([
     [403, 'forbidden', '본인이 올린 파일만 삭제할 수 있습니다.'],
     [403, 'forbidden', '이 작업을 할 권한이 없습니다(읽기 전용 계정)'],
     [404, 'not-found', '첨부 파일을 찾을 수 없습니다.'],
-  ])('shows the server message for %s %s: %s', async (status, kind, detail) => {
+  ])('삭제 오류 %s %s는 서버 문구를 그대로 보인다: %s', async (status, kind, detail) => {
+    // given: 서버가 보낸 문제 응답
     stubRequests(problem(status, kind, detail))
 
+    // when·then: 삭제하면 상태·종류·서버 문구가 담긴 오류다
     await expect(createAttachmentsHttp().remove(7)).rejects.toMatchObject({ status, kind, message: detail })
   })
 })
@@ -275,11 +344,15 @@ describe('attachments.download over HTTP', () => {
     })
   }
 
-  it('gets the bytes as a blob and names the file from the UTF-8 Content-Disposition', async () => {
+  // 테스트 코드: AT-053
+  it('blob으로 받고 UTF-8 Content-Disposition에서 이름을 얻는다', async () => {
+    // given: 바이너리 본문과 UTF-8 Content-Disposition 응답
     const { calls } = stubRequests(binary({ 'Content-Disposition': header }))
 
+    // when: 내려받는다
     const file = await createAttachmentsHttp().download(7)
 
+    // then: GET 요청이 다운로드 경로로 가고 이름이 한글이며 blob 바이트가 그대로다
     expect(calls[0]?.method).toBe('GET')
     expect(pathOf(calls[0] as Request)).toBe('/api/v1/attachments/7/download')
     expect(file.fileName).toBe('견적서.pdf')
@@ -287,33 +360,46 @@ describe('attachments.download over HTTP', () => {
     expect(Array.from(new Uint8Array(await file.blob.arrayBuffer()))).toEqual([0, 1, 2, 255, 128])
   })
 
-  it('uses the plain filename when there is no filename*', async () => {
+  // 테스트 코드: AT-053
+  it('filename*가 없으면 일반 filename을 쓴다', async () => {
+    // given: filename만 있는 응답
     stubRequests(binary({ 'Content-Disposition': 'attachment; filename="report.pdf"' }))
 
+    // when·then: 내려받으면 그 이름이다
     await expect(createAttachmentsHttp().download(7)).resolves.toMatchObject({ fileName: 'report.pdf' })
   })
 
-  it('names the file download when the server sent no Content-Disposition', async () => {
+  // 테스트 코드: AT-053
+  it('Content-Disposition이 없으면 "download"로 이름 짓는다', async () => {
+    // given: Content-Disposition 없는 응답
     stubRequests(binary({}))
 
+    // when·then: 내려받으면 이름이 "download"다
     await expect(createAttachmentsHttp().download(7)).resolves.toMatchObject({ fileName: 'download' })
   })
 
-  it('downloads a zero byte file as an empty blob', async () => {
+  // 테스트 코드: AT-053
+  it('0바이트 파일은 빈 blob으로 받는다', async () => {
+    // given: 빈 본문 응답
     stubRequests(new Response(new Uint8Array([]), { status: 200, headers: { 'Content-Disposition': header } }))
 
+    // when: 내려받는다
     const file = await createAttachmentsHttp().download(7)
 
+    // then: blob 크기가 0이다
     expect(file.blob.size).toBe(0)
   })
 
+  // 테스트 코드: AT-053
   it.each([
     [404, 'not-found', '첨부 파일을 찾을 수 없습니다.'],
     [404, 'not-found', '첨부 파일 내용을 찾을 수 없습니다. 관리자에게 문의하세요.'],
     [503, 'storage-unavailable', '파일 저장 위치를 사용할 수 없습니다. 관리자에게 문의하세요.'],
-  ])('shows the problem message for %s %s even though success is binary: %s', async (status, kind, detail) => {
+  ])('성공이 바이너리여도 오류 %s %s는 문제 문구를 보인다: %s', async (status, kind, detail) => {
+    // given: 서버가 보낸 문제 응답
     stubRequests(problem(status, kind, detail))
 
+    // when·then: 내려받으면 상태·종류·서버 문구가 담긴 오류다
     await expect(createAttachmentsHttp().download(7)).rejects.toMatchObject({ status, kind, message: detail })
   })
 })

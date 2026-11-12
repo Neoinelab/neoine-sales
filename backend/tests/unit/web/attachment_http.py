@@ -1,7 +1,7 @@
 """첨부 라우터 단위 테스트의 공용 도우미: FakeUseCases 위의 앱, 로그인한 클라이언트, multipart 본문.
 
-DB 없이 라우터·스키마·오류 매핑·권한을 빠르게 확인한다. 실제 DB·디렉터리까지 통과하는 시나리오는
-functional(attachments/*)이 맡는다.
+DB 없이 라우터·스키마·오류 매핑·권한을 빠르게 확인한다. 실제 디렉터리 쓰기는 `tests/unit/infra/`의
+파일 저장소 단위 테스트가 본다.
 """
 
 from contextlib import asynccontextmanager
@@ -14,7 +14,7 @@ from app.main import create_app
 from tests.factories import make_deal
 from tests.factories_auth import make_principal
 from tests.fakes.use_cases import FakeUseCases
-from tests.functional.conftest import CSRF_HEADER, make_settings
+from tests.support.app_settings import CSRF_HEADER, make_settings
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator

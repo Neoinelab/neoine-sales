@@ -37,8 +37,8 @@ LINK_KINDS: Final = (
     "attachment_uploader",  # deal_attachments.uploaded_by_user_id (P2b: 첨부를 올린 사용자)
     "alert_settings",  # alert_settings.updated_by_user_id (P3: 경고 기준을 저장한 admin)
     "forecast_snapshot",  # forecast_snapshot_cells.owner_user_id (P6 R2: 스냅숏에만 남은 담당자)
-    "report_owner",  # reports.owner_user_id (Reports 3단계: 리포트를 만든 사람)
-    "report_editor",  # reports.updated_by_user_id (Reports 3단계: 리포트를 마지막으로 수정한 사람)
+    "report_owner",  # reports.owner_user_id (리포트를 만든 사람)
+    "report_editor",  # reports.updated_by_user_id (리포트를 마지막으로 수정한 사람)
     "meeting_author",  # partner_meetings.created_by_user_id (파트너 Activity: 미팅을 기록한 사람)
     "contract_creator",  # license_contracts.created_by_user_id (계약 등록자)
     "contract_editor",  # license_contracts.updated_by_user_id (계약 마지막 수정자)
@@ -147,7 +147,7 @@ async def _create_file_or_setting_link(uow: UnitOfWork, user: User, kind: str) -
     if kind == "storage_settings":
         from app.domain.storage.path import StoragePath  # noqa: PLC0415
 
-        # 이미 저장 위치가 있는 환경(functional 최초 설정을 마친 앱)에서는 저장자만 바뀐다(upsert).
+        # 이미 저장 위치가 있는 환경(최초 설정을 마친 DB)에서는 저장자만 바뀐다(upsert).
         await uow.storage_settings.save(
             StoragePath.parse("/data/neoine-sales/files"), updated_by=user.id, now=NOW
         )

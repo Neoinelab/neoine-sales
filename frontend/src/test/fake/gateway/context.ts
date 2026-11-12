@@ -2,7 +2,7 @@
 
 import { canManageMasterData, canWrite, type Viewer } from '../../../shared/model/permissions'
 import type { MockClock } from '../clock'
-import { forbidden, unauthorized } from '../errors'
+import { ADMIN_DENIED_MESSAGE, WRITE_DENIED_MESSAGE, forbidden, unauthorized } from '../errors'
 import type { Latency } from '../latency'
 import type { MockStore, UserRecord } from '../store'
 
@@ -46,14 +46,14 @@ export function requireUser(ctx: MockContext): UserRecord {
 /** sales/admin만(user는 403). */
 export function requireWrite(ctx: MockContext): UserRecord {
   const user = requireUser(ctx)
-  if (!canWrite(user.role)) throw forbidden()
+  if (!canWrite(user.role)) throw forbidden(WRITE_DENIED_MESSAGE)
   return user
 }
 
 /** admin만. */
 export function requireAdmin(ctx: MockContext): UserRecord {
   const user = requireUser(ctx)
-  if (!canManageMasterData(user.role)) throw forbidden()
+  if (!canManageMasterData(user.role)) throw forbidden(ADMIN_DENIED_MESSAGE)
   return user
 }
 

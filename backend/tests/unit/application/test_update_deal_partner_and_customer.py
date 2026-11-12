@@ -1,4 +1,4 @@
-"""UpdateDeal(AC-11·13·16): 파트너 교체·제거, 고객 교체, BANT 변경, 검증 실패 시 원자성."""
+"""UpdateDeal: 파트너 교체·제거, 고객 교체, BANT 변경, 검증 실패 시 원자성."""
 
 from typing import TYPE_CHECKING
 
@@ -23,6 +23,11 @@ class TestPartnerLinks:
     async def test_a_new_partner_replaces_the_active_one_and_keeps_the_old_link(
         self, env: DealEnv
     ) -> None:
+        """다른 파트너로 바꾸면 이전 링크가 해제 시각과 함께 남고 활성은 1건이다.
+
+        테스트 코드: DE-063
+        """
+        # given: 활성 파트너가 있는 Deal.
         view = await env.new_deal(partner=make_draft(company="코어테크", name="민지훈"))
         old_partner = view.item.deal.active_partner_id()
         env.clock.advance(60)
@@ -34,7 +39,9 @@ class TestPartnerLinks:
         )
 
         deal = updated.item.deal
+        # when: 다른 파트너를 보낸다.
         links = {link.contact_id: link for link in deal.partner_links}
+        # then: 링크 2건 중 이전 링크에 unlinked_at이 있고 활성은 1건이며 파트너 이력이 남는다.
         assert old_partner is not None
         assert len(links) == 2
         assert links[old_partner].unlinked_at == env.clock.now()
@@ -45,86 +52,135 @@ class TestPartnerLinks:
         ]
 
     async def test_partner_none_deactivates_only_the_active_link(self, env: DealEnv) -> None:
+        """partner를 null로 보내면 활성 링크만 해제된다.
+
+        테스트 코드: DE-064
+        """
+        # given: 활성 파트너가 있는 Deal.
         view = await env.new_deal(partner=make_draft(company="코어테크", name="민지훈"))
 
+        # when: partner를 null로 보낸다.
         updated = await env.update.execute(view.item.deal.id.value, make_patch(partner=None), SALES)
 
+        # then: 활성 파트너가 없고 링크는 비활성으로 남으며 이력이 '없음'이다.
         assert updated.item.deal.active_partner_id() is None
         assert len(updated.item.deal.partner_links) == 1
         assert updated.item.deal.partner_links[0].active is False
         assert await env.changes(updated) == [("partner", "파트너", "코어테크 민지훈", "없음")]
 
     async def test_the_same_partner_changes_nothing(self, env: DealEnv) -> None:
+        """같은 파트너를 다시 보내면 변화가 없다.
+
+        테스트 코드: DE-065
+        """
+        # given: 활성 파트너가 있는 Deal.
         view = await env.new_deal(partner=make_draft(company="코어테크", name="민지훈"))
         active = view.item.deal.active_partner_id()
         assert active is not None
 
+        # when: 같은 파트너를 값 그대로 보낸다.
         updated = await env.update.execute(
             view.item.deal.id.value,
             make_patch(partner=draft_of(view.partner_contacts[active])),
             SALES,
         )
 
+        # then: 링크 1건, 이력 없음, updated_at 그대로다.
         assert len(updated.item.deal.partner_links) == 1
         assert await env.changes(updated) == []
         assert updated.item.deal.updated_at == view.item.deal.updated_at
 
     async def test_a_partner_that_is_not_sent_stays(self, env: DealEnv) -> None:
+        """partner를 보내지 않으면 그대로다.
+
+        테스트 코드: DE-065
+        """
+        # given: 활성 파트너가 있는 Deal.
         view = await env.new_deal(partner=make_draft(company="코어테크", name="민지훈"))
 
+        # when: 이름만 보낸다.
         updated = await env.update.execute(view.item.deal.id.value, make_patch(name="B"), SALES)
 
+        # then: 활성 파트너가 그대로다.
         assert updated.item.deal.active_partner_id() == view.item.deal.active_partner_id()
 
     async def test_adding_a_first_partner_is_logged_from_none(self, env: DealEnv) -> None:
+        """파트너가 없던 Deal에 처음 추가하면 활성 링크가 생기고 이력이 남는다.
+
+        테스트 코드: DE-066
+        """
+        # given: 파트너 없는 Deal.
         view = await env.new_deal()
 
+        # when: 파트너를 보낸다.
         updated = await env.update.execute(
             view.item.deal.id.value,
             make_patch(partner=make_draft(company="코어테크", name="민지훈")),
             SALES,
         )
 
+        # then: 파트너 이력이 '없음' -> 새 파트너로 남는다.
         assert await env.changes(updated) == [("partner", "파트너", "없음", "코어테크 민지훈")]
 
 
 class TestCustomerAndBant:
     async def test_a_different_customer_is_logged_as_a_contact_change(self, env: DealEnv) -> None:
+        """고객을 다른 사람으로 바꾸면 고객 변경 이력이 남는다.
+
+        테스트 코드: DE-067
+        """
+        # given: 고객이 있는 Deal.
         view = await env.new_deal(customer=make_draft(company="네오인", name="김철수"))
 
+        # when: 다른 회사·이름의 고객을 보낸다.
         updated = await env.update.execute(
             view.item.deal.id.value,
             make_patch(customer=make_draft(company="대한상사", name="오세훈")),
             SALES,
         )
 
+        # then: 고객이 바뀌고 contact 이력이 남는다.
         assert updated.customer.details.company == "대한상사"
         assert await env.changes(updated) == [
             ("contact", "고객 연락처", "네오인 김철수", "대한상사 오세훈")
         ]
 
     async def test_a_bant_change_is_logged_per_category(self, env: DealEnv) -> None:
+        """BANT 변경은 구분별로 이력이 남는다.
+
+        테스트 코드: DE-058
+        """
+        # given: BANT 없는 Deal.
         budget = await label_by_name(env.uow, BantCategory.BUDGET, "풀 예산 확보")
         timeline = await label_by_name(env.uow, BantCategory.TIMELINE, "금년 구매")
         view = await env.new_deal()
 
+        # when: Budget·Timeline Label을 보낸다.
         updated = await env.update.execute(
             view.item.deal.id.value,
             make_patch(bant=_bant(budget=budget.id, timeline=timeline.id)),
             SALES,
         )
 
+        # then: 구분마다 이력이 1건씩 남는다.
         assert await env.changes(updated) == [
             ("bant", "BANT Label: Budget", "선택 안 함", "풀 예산 확보"),
             ("bant", "BANT Label: Timeline", "선택 안 함", "금년 구매"),
         ]
 
     async def test_clearing_a_bant_label_is_logged_as_not_selected(self, env: DealEnv) -> None:
+        """bant를 비워 보내면 선택 안 함이 되고 이력이 남는다.
+
+        테스트 코드: DE-058
+        """
+        # given: Budget을 고른 Deal.
         budget = await label_by_name(env.uow, BantCategory.BUDGET, "풀 예산 확보")
         view = await env.new_deal(bant={BantCategory.BUDGET: budget.id})
 
+        # when: 모든 구분이 빈 bant를 보낸다.
         updated = await env.update.execute(view.item.deal.id.value, make_patch(bant=_bant()), SALES)
 
+        # then: Budget이 선택 안 함이고 이력이 남는다.
         assert updated.item.deal.bant.get(BantCategory.BUDGET) is None
         assert await env.changes(updated) == [
             ("bant", "BANT Label: Budget", "풀 예산 확보", "선택 안 함")
@@ -133,9 +189,15 @@ class TestCustomerAndBant:
     async def test_a_label_of_another_category_is_rejected_and_nothing_changes(
         self, env: DealEnv
     ) -> None:
+        """다른 구분 Label id를 보내면 거절되고 아무것도 바뀌지 않는다.
+
+        테스트 코드: DE-061
+        """
+        # given: Deal과 Need Label.
         need = await label_by_name(env.uow, BantCategory.NEED, "모름")
         view = await env.new_deal()
 
+        # when·then: Budget에 Need id를 보낸다 → BANT 오류이고 이력이 없다.
         with raises_with(InvalidBantLabelError, "BANT Label이 올바르지 않습니다."):
             await env.update.execute(
                 view.item.deal.id.value, make_patch(bant=_bant(budget=need.id)), SALES
@@ -159,6 +221,11 @@ class TestAtomicity:
     async def test_a_sent_invalid_field_is_rejected_and_nothing_changes(
         self, env: DealEnv, patch: dict[str, object], message: str
     ) -> None:
+        """보낸 필드가 틀리면 거절되고 Deal·새 연락처·이력이 그대로다.
+
+        테스트 코드: DE-040
+        """
+        # given: Deal이 있다.
         view = await env.new_deal()
         contacts_before = len(env.uow.contacts._items)
 
@@ -169,14 +236,22 @@ class TestAtomicity:
                 SALES,
             )
 
+        # when: 틀린 필드와 새 고객을 함께 보낸다.
         stored = await env.uow.deals.get(view.item.deal.id)
+        # then: 해당 문구의 오류이고 Deal 값·연락처 수·이력이 그대로다.
         assert stored.details == view.item.deal.details
         assert len(env.uow.contacts._items) == contacts_before  # 새 고객 연락처도 없다
         assert await env.changes(view) == []
 
     async def test_name_error_wins_over_cleared_users(self, env: DealEnv) -> None:
+        """이름 오류가 Users count 오류보다 먼저 나온다.
+
+        테스트 코드: DE-040
+        """
+        # given: Deal이 있다.
         view = await env.new_deal()
 
+        # when·then: 빈 이름과 null users를 보낸다 → 'Deal Name을 입력하세요.' 오류다.
         with raises_with(InvalidValueError, "Deal Name을 입력하세요."):
             await env.update.execute(
                 view.item.deal.id.value, make_patch(name="", users=None), SALES
@@ -185,8 +260,15 @@ class TestAtomicity:
     async def test_the_first_invalid_field_in_the_agreed_order_is_reported(
         self, env: DealEnv
     ) -> None:
+        """여러 필드가 틀리면 정해진 순서의 첫 문구가 나온다.
+
+        테스트 코드: DE-040
+        """
+        # given: Deal이 있다.
         view = await env.new_deal()
 
+        # when·then: 빈 이름·금액 0·users -1·없는 Status를 함께 보낸다
+        #   → 'Deal Name을 입력하세요.' 오류다.
         with raises_with(InvalidValueError, "Deal Name을 입력하세요."):
             await env.update.execute(
                 view.item.deal.id.value,

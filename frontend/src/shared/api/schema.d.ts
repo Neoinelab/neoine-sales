@@ -2321,7 +2321,7 @@ export interface components {
         /**
          * DirectorySettingsTestRequest
          * @description 연결 테스트 본문: 접속 정보 + 바인드 비밀번호(생략·null이면 저장된 값 유지) +
-         *     현재 로그인한 admin의 비밀번호(dev 로그인 admin은 생략).
+         *     현재 로그인한 admin의 비밀번호(스키마상 선택이지만 없으면 유스케이스가 422로 거절).
          */
         DirectorySettingsTestRequest: {
             /** Bind Account */

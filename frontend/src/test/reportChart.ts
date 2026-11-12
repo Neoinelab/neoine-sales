@@ -1,15 +1,15 @@
 /**
- * Reports 4단계(차트) 화면 테스트 공용 도구(운영 코드에서 쓰지 않는다).
+ * Reports 차트 화면 테스트 공용 도구(운영 코드에서 쓰지 않는다).
  *
  * 화면 계약(접근 가능한 이름, 테스트가 정한 것):
  * - 디자이너는 "작성"·"결과" 탭이고 차트는 결과 탭의 "차트 타일"(role=region)에 있다(결과 표 타일과 나란히). 배치 계약은 `reportLayout.ts`.
  * - 차트 타일: 빈 상태에 버튼 "차트 만들기", 차트가 있으면 머리에 버튼 "차트 설정"(aria-expanded)이 있어 설정 패널을 열고 닫는다
  *   (기본은 닫힘, "차트 만들기"로 만들면 열림). 패널 안에 버튼 "차트 삭제". 그림은 role=img.
- * - 종류 선택은 2단(Excel 확장): radiogroup "차트 분류"의 radio 13개(이름은 분류 이름)와 group "하위 종류"의 버튼(aria-pressed, 이름은 종류 화면 이름).
+ * - 종류 선택은 2단: radiogroup "차트 분류"의 radio 13개(이름은 분류 이름)와 group "하위 종류"의 버튼(aria-pressed, 이름은 종류 화면 이름).
  *   하위 종류 버튼은 고른 분류의 것만 있다. 다른 분류의 종류는 `chooseKind`로 고른다.
  * - 설정 칸(getByLabelText): "범주"(select), "계열"(select), "값"(그룹 안에 값 열마다 checkbox), "행/열 전환", "차트 제목",
  *   "범례"(select: 위·오른쪽·아래·숨김), "데이터 레이블", "가로축 제목", "세로축 제목", "세로축 최소", "세로축 최대", "보조 축".
- * - 안내 문구는 계획 AC11·AC17·AC19·AC20의 글자 그대로.
+ * - 안내 문구는 `docs/features/report-charts.md`의 글자 그대로.
  */
 
 import { screen, within } from '@testing-library/react'

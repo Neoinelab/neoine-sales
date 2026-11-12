@@ -1,4 +1,4 @@
-"""GET /api/v1/deals의 API 계약 문서(AC-3·8·10·12): 앱이 만든 계약과 커밋된 openapi.json 모두."""
+"""GET /api/v1/deals의 API 계약 문서: 앱이 만든 계약과 커밋된 openapi.json 모두."""
 
 import json
 from pathlib import Path
@@ -8,7 +8,7 @@ import pytest
 
 from app.main import create_app
 from tests.fakes.use_cases import FakeUseCases
-from tests.functional.conftest import make_settings
+from tests.support.app_settings import make_settings
 
 UNUSED_DATABASE_URL = "postgresql+asyncpg://user:pw@localhost:5432/none"  # 접속하지 않는다
 COMMITTED = Path(__file__).resolve().parents[3] / "openapi.json"
@@ -53,15 +53,22 @@ def _enum_values(schema: dict[str, Any], contract: dict[str, Any]) -> set[str]:
 
 
 def test_the_bant_query_parameters_are_gone(parameters: dict[str, dict[str, Any]]) -> None:
-    assert [name for name in parameters if name.startswith("bant_")] == []
+    """Deal 목록 API에 bant_ 쿼리 파라미터가 더 이상 없다."""
+    # when: 계약의 파라미터 이름을 모은다
+    result = [name for name in parameters if name.startswith("bant_")]
+    # then: bant_로 시작하는 이름이 없다 (전제: 앱 계약·커밋된 계약 모두)
+    assert result == []
 
 
 @pytest.mark.parametrize("name", ["overdue", "stale"])
 def test_overdue_and_stale_are_optional_booleans_defaulting_to_false(
     parameters: dict[str, dict[str, Any]], name: str
 ) -> None:
+    """overdue·stale은 기본값이 false인 선택 불리언 쿼리 파라미터다."""
+    # when: 파라미터 정의를 꺼낸다
     parameter = parameters[name]
 
+    # then: 쿼리 파라미터이고 필수가 아니며 boolean 타입에 기본값이 false다
     assert parameter["in"] == "query"
     assert parameter.get("required", False) is False
     assert parameter["schema"]["type"] == "boolean"
@@ -71,16 +78,23 @@ def test_overdue_and_stale_are_optional_booleans_defaulting_to_false(
 def test_sort_documents_the_ten_sortable_values(
     parameters: dict[str, dict[str, Any]], contract: dict[str, Any]
 ) -> None:
-    assert _enum_values(parameters["sort"]["schema"], contract) == SORTS
+    """sort 파라미터는 정렬 가능한 열 열 가지를 문서화한다."""
+    # when: sort 파라미터의 enum 값을 읽는다
+    result = _enum_values(parameters["sort"]["schema"], contract)
+    # then: 정렬 가능한 열 10개와 같다 (전제: 앱 계약·커밋된 계약 모두)
+    assert result == SORTS
 
 
 def test_forecast_key_is_an_array_parameter(parameters: dict[str, dict[str, Any]]) -> None:
+    """forecast_key는 길이·개수 제한이 있는 반복 배열 쿼리 파라미터다."""
+    # when: forecast_key 정의에서 배열 스키마를 고른다
     parameter = parameters["forecast_key"]
     options = parameter["schema"].get("anyOf", [parameter["schema"]])
     arrays = [o for o in options if o.get("type") == "array"]
     assert arrays, f"forecast_key must accept an array: {parameter['schema']}"
     array = arrays[0]
 
+    # then: 쿼리 파라미터이고 필수가 아니며 문자열 50자·최대 100개 배열이고 반복(explode) 방식이다
     assert parameter["in"] == "query"
     assert parameter.get("required", False) is False
     assert array["items"]["type"] == "string"

@@ -31,45 +31,68 @@ async function renameAndRefetch(view: Awaited<ReturnType<typeof openEditForm>>) 
 }
 
 describe('유형 이름이 바뀐 뒤 목록이 재조회될 때의 수정 폼', () => {
+  // 건드리지 않은 유형 칸은 바뀐 현재 이름으로 다시 채워진다.
+  // 테스트 코드: AC-087
   it('refills an untouched type with the current name', async () => {
+    // given: admin이 수정 팝업을 열었다
     const view = await openEditForm()
 
+    // when: 유형 이름이 바뀌고 목록이 다시 읽힌다
     await renameAndRefetch(view)
 
+    // then: 유형 칸이 새 이름이다
     await waitFor(() => expect(within(view.form).getByLabelText('유형')).toHaveDisplayValue('가격 협상'))
   })
 
+  // 다시 읽은 뒤에도 건드리지 않은 유형에는 새 유형 안내가 없다.
+  // 테스트 코드: AC-087
   it('shows no new-type hint for an untouched type once the list is re-fetched', async () => {
+    // given: admin이 수정 팝업을 열었다
     const view = await openEditForm()
 
+    // when: 유형 이름이 바뀌고 목록이 다시 읽힌다
     await renameAndRefetch(view)
 
+    // then: 새 유형 안내가 없다
     expect(screen.queryByText(HINT)).not.toBeInTheDocument()
   })
 
+  // 다시 채운 뒤에도 원래 id로 저장하고 유형을 만들지 않는다.
+  // 테스트 코드: AC-087
   it('still sends the original id and creates no type after the refill', async () => {
+    // given: admin이 수정 팝업을 열고 유형 수를 센다(요청 감시)
     const update = vi.spyOn(gateway.actions, 'update')
     const view = await openEditForm()
     const typesBefore = await gateway.actionTypes.list()
+    // when: 유형 이름이 바뀌어 칸이 새 이름으로 채워진다
     await renameAndRefetch(view)
     await waitFor(() => expect(within(view.form).getByLabelText('유형')).toHaveDisplayValue('가격 협상'))
 
+    // when: 진행사항을 덧붙여 저장한다
     await view.user.type(within(view.form).getByLabelText('진행사항'), ' 추가')
     await view.user.click(within(view.form).getByRole('button', { name: '저장' }))
 
+    // then: 팝업이 닫힌다
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Action 수정' })).not.toBeInTheDocument())
+    // then: 요청의 유형은 원래 id 객체다
     expect(update.mock.calls[0]?.[1].type).toEqual({ id: seedActionTypeId('협상') })
+    // then: 유형 수가 그대로다
     expect(await gateway.actionTypes.list()).toHaveLength(typesBefore.length)
   })
 
+  // 사용자가 이미 고친 유형 글자는 덮어쓰지 않는다.
+  // 테스트 코드: AC-087
   it('keeps text the user already edited instead of overwriting it', async () => {
+    // given: admin이 수정 팝업에서 유형 칸을 직접 고쳤다
     const view = await openEditForm()
     const input = within(view.form).getByLabelText('유형')
     await view.user.clear(input)
     await view.user.type(input, '현장 방문')
 
+    // when: 유형 이름이 바뀌고 목록이 다시 읽힌다
     await renameAndRefetch(view)
 
+    // then: 유형 칸은 사용자가 쓴 글자 그대로다
     expect(within(view.form).getByLabelText('유형')).toHaveDisplayValue('현장 방문')
   })
 })

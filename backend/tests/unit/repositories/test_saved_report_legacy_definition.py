@@ -1,6 +1,4 @@
-"""저장 정의의 예전 포맷(as_is·prefix·name·key)을 SQL 저장소가 읽을 때 새 형식으로 바꾼다.
-
-2026-10-28 포맷 정리, 컬럼별 정렬(최상위 sort -> 컬럼 sort).
+"""저장 정의의 예전 형식(포맷·최상위 정렬)을 SQL 저장소가 읽을 때 새 형식으로 바꾼다.
 
 Fake는 JSON을 거치지 않으므로 실제 PostgreSQL(SQL 구현)에서만 검증한다.
 """
@@ -67,10 +65,17 @@ async def _legacy_report(case: SavedReportCase) -> int:
 
 
 async def test_legacy_definition_row_is_read_in_new_shape(case: SavedReportCase) -> None:
+    """예전 포맷 정의 행을 SQL 저장소가 읽으면 새 형식(포맷 없음, 앞 N자)이다.
+
+    테스트 코드: RQ-109, RQ-110
+    """
+    # given: 예전 포맷(as_is·name·key·prefix·숫자 포맷)이 든 정의 JSON 행 (전제: 실제 DB)
     report_id = await _legacy_report(case)
 
+    # when: 저장소에서 리포트를 읽는다
     stored = await case.reports.get(report_id)
 
+    # then: 포맷은 모두 None이고 앞 N자는 [None, None, None, 7, None, None]이다
     assert stored.definition is not None
     columns = stored.definition.columns
     assert [c.format for c in columns] == [None] * 6
@@ -78,8 +83,14 @@ async def test_legacy_definition_row_is_read_in_new_shape(case: SavedReportCase)
 
 
 async def test_updating_a_legacy_report_stores_the_new_shape(case: SavedReportCase) -> None:
+    """예전 형식 리포트를 수정해 저장하면 새 형식으로 저장된다.
+
+    테스트 코드: RQ-109
+    """
+    # given: 예전 포맷 정의 행
     report_id = await _legacy_report(case)
     stored = await case.reports.get(report_id)
+    # when: 읽은 정의로 덮어써 저장한다
     stored.overwrite(
         make_content("예전 포맷", definition=stored.definition),
         editor=ALICE,
@@ -90,6 +101,7 @@ async def test_updating_a_legacy_report_stores_the_new_shape(case: SavedReportCa
 
     await case.reports.update(stored)
 
+    # then: 저장된 JSON의 포맷은 모두 null이고 앞 N자 7이 남는다
     row = await case._session.execute(
         text("select definition from reports where id = :id"), {"id": report_id}
     )
@@ -105,17 +117,30 @@ async def _legacy_sort_report(case: SavedReportCase) -> int:
 
 
 async def test_legacy_top_level_sort_row_is_read_as_column_sort(case: SavedReportCase) -> None:
+    """예전 최상위 정렬 행은 컬럼 정렬로 읽힌다.
+
+    테스트 코드: RQ-111
+    """
+    # given: 최상위 정렬이 있는 정의 JSON 행 (전제: 실제 DB)
     report_id = await _legacy_sort_report(case)
 
+    # when: 저장소에서 리포트를 읽는다
     stored = await case.reports.get(report_id)
 
+    # then: 컬럼 sort가 [None, "desc", None]이다
     assert stored.definition is not None
     assert [c.sort for c in stored.definition.columns] == [None, "desc", None]
 
 
 async def test_updating_a_legacy_sort_report_stores_column_sort(case: SavedReportCase) -> None:
+    """예전 정렬 리포트를 수정해 저장하면 컬럼 정렬로만 저장된다.
+
+    테스트 코드: RQ-111
+    """
+    # given: 최상위 정렬이 있는 정의 행
     report_id = await _legacy_sort_report(case)
     stored = await case.reports.get(report_id)
+    # when: 읽은 정의로 덮어써 저장한다
     stored.overwrite(
         make_content("예전 정렬", definition=stored.definition),
         editor=ALICE,
@@ -126,6 +151,7 @@ async def test_updating_a_legacy_sort_report_stores_column_sort(case: SavedRepor
 
     await case.reports.update(stored)
 
+    # then: 저장된 JSON에 최상위 sort가 없고 컬럼 sort가 [None, "desc", None]이다
     row = await case._session.execute(
         text("select definition from reports where id = :id"), {"id": report_id}
     )

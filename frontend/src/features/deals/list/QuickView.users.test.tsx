@@ -4,20 +4,25 @@ import { gateway } from '../../../gateway'
 import { renderAt } from '../../../test/mockApp'
 import { rowOf } from './testHelpers'
 
-describe('빠른 보기의 Users count (AC-19)', () => {
+describe('빠른 보기의 Users count', () => {
+  // Users count 0은 '—'가 아니라 0으로 보인다
+  // 테스트 코드: DL-091
   it('shows a Users count value of zero as 0 instead of a dash', async () => {
+    // given: Users가 0인 Deal
     const { user, client } = await renderAt('/deals?q=한빛은행 ITDR')
     const row = await rowOf(/한빛은행 ITDR 도입/)
     const code = (within(row).getByRole('link', { name: /한빛은행 ITDR 도입/ }).getAttribute('href') ?? '').replace('/deals/', '')
     await gateway.deals.update(code, { users: 0 })
     await client.invalidateQueries()
-
     await waitFor(async () => {
       const fresh = await rowOf(/한빛은행 ITDR 도입/)
       expect(within(fresh).getByRole('button', { name: /빠른 보기/ })).toBeVisible()
     })
+
+    // when: 빠른 보기를 연다
     await user.click(within(await rowOf(/한빛은행 ITDR 도입/)).getByRole('button', { name: /빠른 보기/ }))
 
+    // then: Users count에 0이 보인다
     const view = await screen.findByRole('region', { name: /빠른 보기/ })
     const users = within(view).getByText('Users count').closest('div') as HTMLElement
     expect(within(users).getByText('0')).toBeVisible()

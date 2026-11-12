@@ -35,12 +35,14 @@ def test_won_transition_entered_left_none(
     before_state = None if before is None else make_sync(*before)
 
     # when: Won 전환을 판정한다
+    actual = won_transition(before_state, make_sync(*after))
     # then: 진입·이탈·없음 중 기대한 값이다
-    assert won_transition(before_state, make_sync(*after)) is expected
+    assert actual is expected
 
 
 def test_the_transition_values_are_the_documented_words() -> None:
     """전환 값은 entered·left·none 세 단어다."""
     # when: WonTransition 값을 모은다
+    actual = {t.value for t in WonTransition}
     # then: 세 단어뿐이다
-    assert {t.value for t in WonTransition} == {"entered", "left", "none"}
+    assert actual == {"entered", "left", "none"}

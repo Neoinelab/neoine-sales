@@ -4,7 +4,7 @@ import type { ReportChartInput, ReportComboSeries, ReportComboSeriesType } from 
 import { buildChart } from '../buildChart'
 
 /**
- * 리뷰 후속(Major 2, 계획 "설계 6"): 콤보에서 누적 계열이 하나라도 있으면 축이 `stacked: true`가 된다.
+ * 콤보에서 누적 계열이 하나라도 있으면 축이 `stacked: true`가 된다.
  * Chart.js는 묶음 키를 `meta.stack || type`으로 정하므로, 누적이 아닌 꺾은선·영역에 `stack`이 없으면 같은 키를 공유해 서로 쌓인다.
  * 계약: 누적이 아닌 모든 계열(column·line·line_markers·area)은 계열마다 고유한 `stack` id를 갖고,
  * 같은 종류의 누적 계열(stacked_column끼리, stacked_area끼리)은 공통 `stack` id를 쓴다.
@@ -49,25 +49,31 @@ function stacksOf(types: ReportComboSeriesType[]): (string | undefined)[] {
 const plain = ['column', 'line', 'line_markers', 'area'] as const
 const isPlain = (t: ReportComboSeriesType): boolean => (plain as readonly string[]).includes(t)
 
-describe('buildChart: 콤보의 누적 묶음 (리뷰 후속 Major 2)', () => {
+describe('buildChart: 콤보의 누적 묶음', () => {
+  // 테스트 코드: RC-104
   it.each<ReportComboSeriesType[]>([
     ['stacked_column', 'line', 'line'],
     ['stacked_area', 'area', 'line'],
     ['stacked_area', 'line', 'column'],
     ['stacked_column', 'line_markers', 'area', 'line'],
-  ])('gives every unstacked series its own stack id in %j', (...types) => {
+  ])('누적하지 않는 계열은 저마다 고유한 묶음 id를 쓴다 (%j)', (...types) => {
+    // when: 계열 종류 조합으로 콤보를 만든다
     const stacks = stacksOf(types)
     const own = stacks.filter((_, i) => isPlain(types[i] as ReportComboSeriesType))
 
+    // then: 누적 안 하는 계열의 묶음 id가 모두 있고 서로 다르며 누적 계열 묶음과도 겹치지 않는다
     expect(own.every((id) => typeof id === 'string' && id !== '')).toBe(true)
     expect(new Set(own).size).toBe(own.length) // 서로 다르다
     const stackedIds = stacks.filter((_, i) => !isPlain(types[i] as ReportComboSeriesType))
     expect(own.filter((id) => stackedIds.includes(id))).toEqual([]) // 누적 계열의 묶음과도 겹치지 않는다
   })
 
-  it('shares one stack id among the stacked columns and one among the stacked areas', () => {
+  // 테스트 코드: RC-104
+  it('같은 종류의 누적 계열은 한 묶음 id를 공유한다', () => {
+    // when: 누적 막대와 누적 영역을 섞은 콤보를 만든다
     const stacks = stacksOf(['stacked_column', 'stacked_area', 'stacked_column', 'stacked_area'])
 
+    // then: 누적 막대끼리, 누적 영역끼리 같은 묶음 id다
     expect(stacks[0]).toBeTruthy()
     expect(stacks[2]).toBe(stacks[0])
     expect(stacks[1]).toBeTruthy()

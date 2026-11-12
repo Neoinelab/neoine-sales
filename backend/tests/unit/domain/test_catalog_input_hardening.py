@@ -36,29 +36,45 @@ def _create(kind: CodeKind, hint: str | None) -> Code:
 
 @pytest.mark.parametrize("raw", NUL_NAMES, ids=NUL_IDS)
 def test_code_name_with_a_nul_is_invalid(raw: str) -> None:
+    """코드 이름에 NUL이 있으면 InvalidValueError인지 확인한다."""
+    # when·then: NUL이 든 이름을 정규화하면 NUL 오류가 난다
     with pytest.raises(InvalidValueError, match="NUL"):
         normalize_code_name(raw)
 
 
 @pytest.mark.parametrize("raw", NUL_NAMES, ids=NUL_IDS)
 def test_label_name_with_a_nul_is_invalid(raw: str) -> None:
+    """Label 이름에 NUL이 있으면 InvalidValueError인지 확인한다."""
+    # when·then: NUL이 든 이름을 정규화하면 NUL 오류가 난다
     with pytest.raises(InvalidValueError, match="NUL"):
         normalize_label_name(raw)
 
 
 @pytest.mark.parametrize("raw", ["1\x002", "\x00", "10-20\x00"], ids=["inside", "only", "trailing"])
 def test_probability_hint_with_a_nul_is_invalid(raw: str) -> None:
+    """확률 힌트에 NUL이 있으면 InvalidValueError인지 확인한다."""
+    # when·then: NUL이 든 힌트로 코드를 만들면 NUL 오류가 난다
     with pytest.raises(InvalidValueError, match="NUL"):
         _create(CodeKind.FORECAST, raw)
 
 
 def test_code_name_without_a_nul_keeps_working_after_the_check() -> None:
-    assert normalize_code_name("  Final Review  ") == "Final Review"
+    """NUL이 없는 코드 이름은 앞뒤 공백만 정리되는지 확인한다."""
+    # when: 공백이 붙은 이름을 정규화한다
+    result = normalize_code_name("  Final Review  ")
+    # then: 공백이 제거된다
+    assert result == "Final Review"
 
 
 def test_label_name_without_a_nul_keeps_working_after_the_check() -> None:
-    assert normalize_label_name("  예산 확정  ") == "예산 확정"
-    assert len(normalize_label_name("가" * LABEL_NAME_MAX)) == LABEL_NAME_MAX
+    """NUL이 없는 Label 이름은 정상 정규화되는지 확인한다."""
+    # when: 공백이 붙은 이름과 최대 길이 이름을 정규화한다
+    trimmed = normalize_label_name("  예산 확정  ")
+    longest = normalize_label_name("가" * LABEL_NAME_MAX)
+
+    # then: 공백이 제거되고 최대 길이 이름은 그대로 유지된다
+    assert trimmed == "예산 확정"
+    assert len(longest) == LABEL_NAME_MAX
 
 
 # --- 확률 힌트 정규화 (Minor) ---
@@ -81,27 +97,43 @@ def test_label_name_without_a_nul_keeps_working_after_the_check() -> None:
 def test_forecast_hint_is_trimmed_and_blank_becomes_none(
     raw: str | None, stored: str | None
 ) -> None:
-    assert _create(CodeKind.FORECAST, raw).probability_hint == stored
+    """Forecast 확률 힌트는 앞뒤 공백이 제거되고 빈 값은 None이 되는지 확인한다."""
+    # when: 힌트를 넣어 코드를 만든다
+    result = _create(CodeKind.FORECAST, raw).probability_hint
+    # then: 저장된 힌트가 정규화된 값이다
+    assert result == stored
 
 
 @pytest.mark.parametrize("raw", ["", "   "], ids=["empty", "blank"])
 def test_status_with_a_blank_hint_is_allowed_and_has_no_hint(raw: str) -> None:
+    """Status 코드에 빈 힌트를 주면 허용되고 힌트가 없는지 확인한다."""
+    # when: 빈 힌트로 Status 코드를 만든다
     code = _create(CodeKind.STATUS, raw)
 
+    # then: 힌트가 None이다
     assert code.probability_hint is None
 
 
 def test_status_with_a_real_hint_is_still_invalid() -> None:
+    """Status 코드에 실제 힌트를 주면 오류인지 확인한다."""
+    # when·then: 값이 있는 힌트로 Status 코드를 만들면 InvalidValueError가 난다
     with pytest.raises(InvalidValueError):
         _create(CodeKind.STATUS, "10-20")
 
 
 def test_hint_length_limit_applies_after_trimming() -> None:
+    """길이 제한이 공백 제거 뒤 값에 적용되는지 확인한다."""
+    # given: 최대 길이 힌트가 있다
     longest = "9" * PROBABILITY_HINT_MAX
 
-    assert _create(CodeKind.FORECAST, f"  {longest}  ").probability_hint == longest
+    # when: 앞뒤 공백을 붙인 최대 길이 힌트로 코드를 만든다
+    result = _create(CodeKind.FORECAST, f"  {longest}  ").probability_hint
+    # then: 힌트가 공백 없이 최대 길이로 저장된다
+    assert result == longest
 
 
 def test_hint_over_the_limit_after_trimming_is_invalid() -> None:
+    """공백 제거 뒤에도 최대 길이를 넘는 힌트는 오류인지 확인한다."""
+    # when·then: 최대 길이를 넘는 힌트로 만들면 InvalidValueError가 난다
     with pytest.raises(InvalidValueError):
         _create(CodeKind.FORECAST, "9" * (PROBABILITY_HINT_MAX + 1))

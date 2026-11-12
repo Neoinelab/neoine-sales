@@ -7,7 +7,7 @@
  * - problem 필드: `type = 'https://sales.neoine.test/problems/<kind>'`, `title`, `status`, `detail`.
  *   `detail`에 사용자에게 보일 한국어 문구 **그대로**를 넣는다(ErrorBanner는 `error.message`=detail을 표시).
  *   `errors` 배열은 쓰지 않는다(쓰면 message에 '필드: 문구'가 덧붙는다).
- * - 상태 코드: 401 미로그인/잘못된 로그인, 403 권한 없음(또는 퇴사자 로그인), 404 없음, 409 충돌·참조 중·순서 위반,
+ * - 상태 코드: 401 미로그인/잘못된 로그인(퇴사자 포함), 403 권한 없음, 404 없음, 409 충돌·참조 중·순서 위반,
  *   422 검증 실패, 503 저장소 장애.
  * - 알려진 kind: `unauthorized` `forbidden` `not-found` `validation` `conflict` `file-exists`(409, 같은 이름 파일)
  *   `storage-unavailable`(503) `directory-verification-failed`(422, `stage` 포함) `csrf`(403, 요청 헤더 누락)
@@ -123,8 +123,8 @@ export interface AuthGateway {
   /** 현재 세션 사용자. 로그인 전이면 401. */
   me(): Promise<Me>
   /**
-   * 빈 아이디/비밀번호 422 "아이디와 비밀번호를 입력하세요.", 없는 아이디 401
-   * "아이디 또는 비밀번호가 올바르지 않습니다.", 퇴사자 403 "퇴사한 사용자는 로그인할 수 없습니다."
+   * 빈 아이디/비밀번호·없는 아이디·퇴사자·틀린 비밀번호는 모두 401
+   * "아이디 또는 비밀번호가 올바르지 않습니다"(마침표 없음, AU-R 문서 login-session.md).
    * 성공 시 lastLoginAt 갱신(서버가 세션 쿠키를 설정한다). 결과의 `directoryWarning`은 AD 대신 저장된 비밀번호로 들어온 admin에게만 있다.
    */
   login(loginId: string, password: string): Promise<LoginResult>
@@ -196,9 +196,9 @@ export interface DealsGateway {
 }
 
 export interface ContactsGateway {
-  /** 구분별 distinct 회사명(대소문자 무시, `distinctCompanies`). */
+  /** 구분별 distinct 회사명(대소문자 무시, `lower(회사명)` 코드 포인트 순, CT-R14). */
   companies(kind: ContactKind): Promise<string[]>
-  /** 회사명(대소문자 무시)의 담당자 목록(`contactsOfCompany`) + 연결 Deal 수. */
+  /** 회사명(대소문자 무시)의 담당자 목록(`lower(담당자명)`·id 순, CT-R15) + 연결 Deal 수. */
   byCompany(kind: ContactKind, company: string): Promise<ContactRow[]>
   /** admin만(sales·user 403). 관리 화면 전용이며 Deal 화면의 선택은 `companies`·`byCompany`를 쓴다. */
   list(query: ContactListQuery): Promise<Page<ContactRow>>
@@ -222,7 +222,7 @@ export interface ActionsGateway {
   create(dealCode: string, input: ActionInput): Promise<DealAction>
   /**
    * 이전 Action도 수정 가능하나 **담당자 본인(sales)과 admin만** 가능하다.
-   * 다른 sales·user는 403 "본인 Action 또는 admin만 수정할 수 있습니다."(user는 기본 403 문구).
+   * 다른 sales·user는 403 "본인 Action 또는 admin만 수정할 수 있습니다."(user는 읽기 전용 403 "이 작업을 할 권한이 없습니다(읽기 전용 계정)", PL-R6).
    * 등록 시점 Status/Forecast·수행일시·담당자는 유지. 내용이 바뀌었을 때만 History 기록.
    */
   update(actionId: number, input: ActionUpdateInput): Promise<DealAction>
@@ -268,7 +268,7 @@ export interface AttachmentsGateway {
 
 /**
  * 라이선스 계약(계약관리). 계약은 Deal이 Won이 될 때 서버가 자동으로 만든다(수동 생성 없음).
- * 조회는 모든 로그인 역할, 쓰기(수정·발급·갱신·종료·첨부)는 sales/admin(user는 403), 삭제는 admin만(그 밖은 403 "계약 삭제는 관리자만 할 수 있습니다.").
+ * 조회는 모든 로그인 역할, 쓰기(수정·발급·갱신·종료·첨부)는 sales/admin(user는 403), 삭제는 admin만(sales는 403 "계약 삭제는 관리자만 할 수 있습니다.", user는 읽기 전용 403 PL-R6, LC-R15).
  * 한 Deal에 발급 상태(발급(신규)·발급(갱신)) 계약은 하나뿐이다(둘째 발급·갱신은 409 "이 Deal에는 이미 발급 상태인 라이선스 계약이 있습니다.").
  */
 export interface LicenseContractsGateway {
@@ -407,10 +407,10 @@ export interface UsersGateway {
   list(filter: UserListFilter): Promise<User[]>
   /** 모든 로그인 사용자. 선택 목록용(이름순). 퇴사자는 includeResigned일 때만. */
   options(query: UserOptionsQuery): Promise<UserRef[]>
-  /** admin만. 같은 loginId 재직자가 있으면 409 "이미 사용 중인 아이디입니다." (퇴사자와는 겹쳐도 됨). 검증 422. */
+  /** admin만. 같은 loginId 재직자가 있으면 409 "이미 존재하는 사용자입니다: <loginId>" (퇴사자와는 겹쳐도 됨). 검증 422. */
   create(input: UserCreateInput): Promise<User>
   /**
-   * admin만. 본인은 403 "본인 계정은 삭제할 수 없습니다.". 연결(Deal 담당·Action·History·첨부 등)이 있으면
+   * admin만. 본인은 409 invalid-state "자기 자신은 삭제할 수 없습니다"(US-R16). 연결(Deal 담당·Action·History·첨부 등)이 있으면
    * 퇴사 처리(status 'resigned', resignedAt), 없으면 물리 삭제.
    */
   remove(id: number): Promise<UserRemoveResult>

@@ -46,18 +46,30 @@ async function nextActionOf(name: string) {
 }
 
 describe('목록 열 정리: 헤더 (AC1·AC2)', () => {
+  // 머리글 13열이 순서대로 있고 BANT 열이 없다
+  // 테스트 코드: DL-058
   it('shows the 13 headers in order without BANT', async () => {
+    // given: 시드 목록
     await renderAt(ALL_DEALS)
+
+    // when: 목록을 연다
     await rowOf(/한빛은행 ITDR 도입/)
 
+    // then: 13개 머리글이 문서 순서이며 BANT 머리글이 없다
     expect(screen.getAllByRole('columnheader').map((h) => h.textContent?.trim())).toEqual(HEADERS)
     expect(screen.queryByRole('columnheader', { name: 'BANT' })).not.toBeInTheDocument()
   })
 
+  // Next Action 세 열은 정렬 버튼이 아니다
+  // 테스트 코드: DL-089
   it('new Next Action columns are not sortable', async () => {
+    // given: 목록 머리글
     await renderAt(ALL_DEALS)
+
+    // when: 머리글을 확인한다
     await rowOf(/한빛은행 ITDR 도입/)
 
+    // then: Next Action·Due·Next Action 상태 머리글에 정렬 버튼이 없다
     for (const name of ['Next Action', 'Due', 'Next Action 상태']) {
       const header = screen.getByRole('columnheader', { name })
       expect(within(header).queryByRole('button')).not.toBeInTheDocument()
@@ -65,47 +77,74 @@ describe('목록 열 정리: 헤더 (AC1·AC2)', () => {
     }
   })
 
+  // 빠른 보기 행은 13열 너비로 펼쳐진다
+  // 테스트 코드: DL-091
   it('quick view row spans all 13 columns', async () => {
+    // given: 빠른 보기가 닫힌 행
     const { user } = await renderAt('/deals?q=한빛은행 ITDR')
     const row = await rowOf(/한빛은행 ITDR 도입/)
-    await user.click(within(row).getByRole('button', { name: /빠른 보기/ }))
 
+    // when: 빠른 보기를 연다
+    await user.click(within(row).getByRole('button', { name: /빠른 보기/ }))
     const view = screen.getByRole('region', { name: /빠른 보기/ })
+
+    // then: 펼친 칸의 colSpan이 13이다
     expect(view.closest('td')).toHaveAttribute('colspan', '13')
   })
 })
 
 describe('목록 열 정리: BANT 없음 (AC1)', () => {
+  // 행에는 BANT 칸도 Label 이름도 없다
+  // 테스트 코드: DL-058
   it('shows no BANT cell or label name in the row', async () => {
+    // given: 시드 목록
     await renderAt('/deals?q=한빛은행 ITDR')
+
+    // when: 행을 확인한다
     const row = await rowOf(/한빛은행 ITDR 도입/)
 
+    // then: BANT 칸과 Label 이름이 보이지 않는다
     expect(within(row).getAllByRole('cell')).toHaveLength(13)
     expect(within(row).queryByLabelText(/^(Budget|Authority|Need|Timeline): /)).not.toBeInTheDocument()
     expect(row).not.toHaveTextContent('단독 예산 확보')
     expect(row).not.toHaveTextContent('CISO 보고 완료')
   })
 
+  // 목록은 BANT Label 목록을 읽지 않는다
+  // 테스트 코드: DL-092
   it('does not read the BANT labels for the list', async () => {
+    // given: Label 조회를 관찰한다
     const spy = vi.spyOn(gateway.labels, 'list')
     await renderAt('/deals?q=한빛은행 ITDR')
+
+    // when: 빠른 보기를 열지 않고 목록을 연다
     await rowOf(/한빛은행 ITDR 도입/)
 
+    // then: Label 조회 요청이 없다
     expect(spy).not.toHaveBeenCalled()
   })
 
+  // Label 조회가 실패해도 목록에는 실패 안내가 없다
+  // 테스트 코드: DL-092
   it('shows no label failure notice even when reading labels would fail', async () => {
+    // given: Label 조회가 실패하도록 한 Fake
     vi.spyOn(gateway.labels, 'list').mockRejectedValue(new Error('Label 조회 실패'))
     await renderAt('/deals?q=한빛은행 ITDR')
+
+    // when: 목록을 연다
     await rowOf(/한빛은행 ITDR 도입/)
 
+    // then: 실패 안내가 보이지 않는다
     expect(screen.queryByText('불러오지 못함')).not.toBeInTheDocument()
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 })
 
 describe('목록 열 정리: Next Action 세 칸 (AC3)', () => {
+  // Next Action 링크·Due·상태 라벨은 서로 다른 칸에 있다
+  // 테스트 코드: DL-059
   it('puts the link, the plain date and the status label in separate cells', async () => {
+    // given: Next Action이 있는 Deal
     const code = await dealCodeOf(1)
     const basis = (await nextActionOf('한빛은행 ITDR 도입')).nextAction
     if (!basis) throw new Error('시드 Deal 1의 Next Action이 필요합니다.')
@@ -114,8 +153,11 @@ describe('목록 열 정리: Next Action 세 칸 (AC3)', () => {
 
     const action = cellOf(row, 'Next Action')
     const due = cellOf(row, 'Due')
+
+    // when: 목록을 연다
     const status = cellOf(row, 'Next Action 상태')
 
+    // then: 링크·날짜·상태 라벨이 각자 칸에 있다
     expect(within(action).getByRole('link', { name: basis.text })).toHaveAttribute('href', `/deals/${code}?tab=actions`)
     expect(action).toHaveTextContent(/^계약서 초안 검토$/)
     expect(due).toHaveTextContent(new RegExp(`^${basis.dueDate}$`))
@@ -124,14 +166,21 @@ describe('목록 열 정리: Next Action 세 칸 (AC3)', () => {
     expect(within(status).queryByRole('link')).not.toBeInTheDocument()
   })
 
+  // 기한초과 행은 Due 칸만 강조하고 Next Action 칸과 정상 행 Due 칸은 강조하지 않는다.
+  // 테스트 코드: RK-055
+  // 기한초과 Due만 강조한다
+  // 테스트 코드: DL-059
   it('marks an overdue Next Action date and not a normal one', async () => {
+    // given: 기한초과 Deal(미래전자 EDR 교체)과 정상 Deal이 있다
     const overdueDeal = await nextActionOf('미래전자 EDR 교체')
     expect(overdueDeal.risk === 'overdue' || overdueDeal.risk === 'overdue_stale').toBe(true)
     if (!overdueDeal.nextAction) throw new Error('기한초과 시드 Deal에 Next Action이 필요합니다.')
+    // when: Deals 목록을 연다
     await renderAt(ALL_DEALS)
     const overdueRow = await rowOf(/미래전자 EDR 교체/)
     const normalRow = await rowOf(/한빛은행 ITDR 도입/)
 
+    // then: 기한초과 행의 Due 칸에만 기한초과 표시가 있다
     const overdueDue = cellOf(overdueRow, 'Due')
     expect(overdueDue).toHaveTextContent(overdueDeal.nextAction.dueDate)
     expect(isOverdueMarked(overdueDue)).toBe(true)
@@ -139,18 +188,24 @@ describe('목록 열 정리: Next Action 세 칸 (AC3)', () => {
     expect(isOverdueMarked(cellOf(overdueRow, 'Next Action'))).toBe(false)
   })
 
+  // 종료 상태 라벨은 상태 칸에만 보인다
+  // 테스트 코드: DL-059
   it.each([
     ['done', '종료(수행)'],
     ['notDone', '종료(미수행)'],
   ] as const)('shows the %s status label in the status cell only', async (status, label) => {
+    // given: 기준 행을 종료(수행/미수행)로 바꾼 Deal
     const code = await dealCodeOf(1)
     const { client } = await renderAt('/deals?q=한빛은행 ITDR')
     await rowOf(/한빛은행 ITDR 도입/)
     const basis = (await gateway.actions.list(code, {})).find((a) => a.nextAction === '계약서 초안 검토')
     if (!basis) throw new Error('기준 Action이 없습니다.')
     await gateway.actions.changeNextActionStatus(basis.id, { status, memo: '' })
+
+    // when: 목록을 다시 읽는다
     await client.invalidateQueries()
 
+    // then: 그 라벨이 Next Action 상태 칸에만 보인다
     await waitFor(() => expect(cellOf(screen.getByRole('row', { name: /한빛은행 ITDR 도입/ }), 'Next Action 상태')).toHaveTextContent(new RegExp(`^${label.replace(/[()]/g, '\\$&')}$`)))
     const row = screen.getByRole('row', { name: /한빛은행 ITDR 도입/ })
     expect(cellOf(row, 'Due')).not.toHaveTextContent(label)
@@ -159,12 +214,18 @@ describe('목록 열 정리: Next Action 세 칸 (AC3)', () => {
 })
 
 describe('목록 열 정리: Next Action 없음 (AC4)', () => {
+  // Next Action이 없으면 세 칸 모두 '—'다
+  // 테스트 코드: DL-059
   it('shows a dash in all three cells', async () => {
+    // given: Next Action이 없는 Deal
     const { client } = await renderAt('/deals?q=액션 없는 Deal')
     await gateway.deals.create(dealInput(USER_ID.kim, { name: '액션 없는 Deal' }))
     await client.invalidateQueries()
+
+    // when: 목록을 연다
     const row = await rowOf(/액션 없는 Deal/)
 
+    // then: Next Action·Due·상태 칸이 모두 '—'다
     for (const header of ['Next Action', 'Due', 'Next Action 상태']) {
       expect(cellOf(row, header)).toHaveTextContent(/^—$/)
     }

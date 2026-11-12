@@ -5,7 +5,7 @@ import {
   STALE_DAYS_RANGE_MESSAGE,
 } from '../../../shared/model/constants'
 import type { AlertSettings } from '../../../shared/model/types'
-import { validation } from '../errors'
+import { requestValidation, validation } from '../errors'
 import { read, requireAdmin, requireUser, write, type MockContext } from './context'
 import { userRef } from './views'
 
@@ -18,11 +18,10 @@ function alertView(ctx: MockContext): AlertSettings {
   }
 }
 
-/** 1~365 정수만 허용한다. 서버는 비정수를 일반 요청 검증(422)으로 거절하고, mock은 같은 범위 메시지로 단순화한다. */
+/** 서버와 같다: 정수가 아니면 요청 형식 오류(422 request-validation), 1~365 밖 정수는 범위 문구(422 invalid-value). */
 function checkStaleDays(value: number): void {
-  if (!Number.isInteger(value) || value < STALE_DAYS_MIN || value > STALE_DAYS_MAX) {
-    throw validation(STALE_DAYS_RANGE_MESSAGE)
-  }
+  if (!Number.isInteger(value)) throw requestValidation()
+  if (value < STALE_DAYS_MIN || value > STALE_DAYS_MAX) throw validation(STALE_DAYS_RANGE_MESSAGE)
 }
 
 export function createAlertsGateway(ctx: MockContext): AlertsGateway {

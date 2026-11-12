@@ -24,29 +24,47 @@ const failure = () =>
 const lastQuery = (spy: ReturnType<typeof vi.spyOn>) => spy.mock.calls.at(-1)?.[0] as Record<string, unknown>
 
 describe('목록 필터: Vendor 목록 조회 실패', () => {
+  // Vendor 목록 조회 실패는 필터 근처 오류 배너로 보인다
+  // 테스트 코드: DL-067
   it('shows an error banner near the filters', async () => {
+    // given: Vendor 조회가 실패하는 Fake
     vi.spyOn(gateway.vendors, 'list').mockRejectedValue(failure())
+
+    // when: Vendor가 든 주소를 연다
     await renderAt(`/deals?vendor=${seedVendorId('Silverfort')}`)
 
+    // then: 필터 근처에 오류 배너가 보인다
     expect(await screen.findByRole('alert')).toHaveTextContent('Vendor 목록을 불러오지 못했습니다.')
   })
 
+  // 읽지 못하는 동안 URL Vendor를 선택된 '선택한 Vendor'로 보이고 조회에 쓴다
+  // 테스트 코드: DL-067
   it('shows the url vendor as selected instead of all while the query keeps using it', async () => {
+    // given: Vendor 조회가 실패하는 Fake
     vi.spyOn(gateway.vendors, 'list').mockRejectedValue(failure())
     const list = vi.spyOn(gateway.deals, 'list')
     await renderAt(`/deals?vendor=${seedVendorId('Silverfort')}`)
+
+    // when: Vendor가 든 주소를 연다
     await screen.findByRole('alert')
 
+    // then: 선택한 Vendor가 선택돼 있고 조회 조건에 Vendor id가 있다
     await waitFor(() => expect(lastQuery(list).vendorId).toBe(seedVendorId('Silverfort')))
     expect(screen.getByLabelText('Vendor')).toHaveDisplayValue('선택한 Vendor')
   })
 
+  // Solution 텍스트는 그대로 쓰고 입력란에 보인다
+  // 테스트 코드: DL-067
   it('keeps using the solution text and shows it in the input', async () => {
+    // given: Vendor 조회가 실패하는 Fake
     vi.spyOn(gateway.vendors, 'list').mockRejectedValue(failure())
     const list = vi.spyOn(gateway.deals, 'list')
     await renderAt('/deals?solution=ITDR')
+
+    // when: Solution이 든 주소를 연다
     await screen.findByRole('alert')
 
+    // then: 입력란에 Solution이 있고 조회에 쓰인다
     await waitFor(() => expect(lastQuery(list).solution).toBe('ITDR'))
     expect(screen.getByLabelText('Solution')).toHaveValue('ITDR')
   })

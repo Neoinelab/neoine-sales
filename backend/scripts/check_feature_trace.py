@@ -5,6 +5,11 @@
 있는지, 테스트가 문서에 없는 번호나 폐기된 번호를 가리키지 않는지, "테스트 위치" 칸의
 파일이 실제로 있는지 확인한다. 초안 문서는 건너뛴다(사용자 확인 전).
 
+역방향 위치 검사(2026-11-11): 확정 문서의 폐기되지 않은 케이스마다 그 번호를 단 테스트
+파일이 "테스트 위치" 칸에 모두 있어야 한다(칸에 "외 N건"이 있으면 빠진 파일 N개까지 허용).
+functional test는 2026-11-12 삭제되어 예외가 없다. frontend 수집에는
+`src/**/*.test.ts(x)`와 `src/gateway/contract/*.contract.ts`가 들어간다.
+
 사용법: uv run python scripts/check_feature_trace.py [--repo-root PATH]
 """
 
@@ -21,6 +26,7 @@ HEADING_PATTERN = re.compile(rf"^###\s+({CODE})\b")
 COMMENT_PATTERN = re.compile(rf"테스트 코드:\s*((?:{CODE})(?:\s*,\s*{CODE})*)")
 CODE_PATTERN = re.compile(CODE)
 LOCATION_PATTERN = re.compile(r"`([^`]+?\.(?:py|tsx?))(?:::| >|`)")
+EXTRA_PATTERN = re.compile(r"외\s*(\d+)\s*건")
 LAYERS = ("backend", "frontend", "both")
 
 
@@ -30,6 +36,7 @@ class Case:
     layer: str
     retired: bool
     locations: list[str] = field(default_factory=list)
+    extra: int = 0
 
 
 @dataclass
@@ -55,11 +62,14 @@ def parse_doc(path: Path) -> FeatureDoc:
             continue
         cells = [c.strip() for c in row.group(2).split("|")]
         layer = next((c for c in cells if c in LAYERS), "")
+        location_cell = cells[-2] if len(cells) >= 2 else ""  # noqa: PLR2004
+        extra = EXTRA_PATTERN.search(location_cell)
         cases[row.group(1)] = Case(
             code=row.group(1),
             layer=layer,
-            retired="폐기" in row.group(2),
-            locations=LOCATION_PATTERN.findall(cells[-2] if len(cells) >= 2 else ""),  # noqa: PLR2004
+            retired=bool(cells) and cells[0].lstrip("(~").startswith("폐기"),
+            locations=LOCATION_PATTERN.findall(location_cell),
+            extra=int(extra.group(1)) if extra else 0,
         )
     return FeatureDoc(path, confirmed, cases, headings)
 
@@ -81,15 +91,22 @@ def backend_tests(root: Path) -> list[Path]:
 
 def frontend_tests(root: Path) -> list[Path]:
     src = root / "frontend" / "src"
-    return sorted(p for p in src.rglob("*.test.ts*") if "node_modules" not in p.parts)
+    tests = {p for p in src.rglob("*.test.ts*") if "node_modules" not in p.parts}
+    tests.update((src / "gateway" / "contract").glob("*.contract.ts"))
+    return sorted(tests)
+
+
+def location_paths(root: Path, location: str) -> list[Path]:
+    """위치 칸 경로가 가리킬 수 있는 파일 후보(backend tests/unit·tests 기준, frontend src 기준)."""
+    if location.endswith(".py"):
+        tests = root / "backend" / "tests"
+        return [tests / "unit" / location, tests / location]
+    return [root / "frontend" / "src" / location]
 
 
 def location_exists(root: Path, location: str) -> bool:
     """`application/x.py`·`unit/…`(backend tests/unit 기준) 또는 frontend src 기준 경로."""
-    if location.endswith(".py"):
-        tests = root / "backend" / "tests"
-        return (tests / "unit" / location).exists() or (tests / location).exists()
-    return (root / "frontend" / "src" / location).exists()
+    return any(p.exists() for p in location_paths(root, location))
 
 
 def check(root: Path) -> list[str]:
@@ -108,6 +125,7 @@ def check(root: Path) -> list[str]:
         if not doc.confirmed:
             continue
         problems += _check_doc(root, doc, backend, frontend)
+        problems += _check_reverse(root, doc, backend, frontend)
     for code in sorted(set(backend) | set(frontend)):
         files = sorted(
             str(p.relative_to(root)) for p in backend.get(code, set()) | frontend.get(code, set())
@@ -148,6 +166,31 @@ def _check_doc(
             for loc in case.locations
             if not location_exists(root, loc)
         ]
+    return problems
+
+
+def _check_reverse(
+    root: Path, doc: FeatureDoc, backend: dict[str, set[Path]], frontend: dict[str, set[Path]]
+) -> list[str]:
+    """번호를 단 테스트 파일이 그 케이스의 위치 칸에 모두 있는지 본다.
+
+    위치 칸이 비었거나 없는 파일을 가리키면 정방향 검사가 이미 지적하므로 건너뛴다.
+    """
+    problems: list[str] = []
+    for case in (c for c in doc.cases.values() if not c.retired):
+        if not case.locations or not all(location_exists(root, loc) for loc in case.locations):
+            continue
+        listed = {p.resolve() for loc in case.locations for p in location_paths(root, loc)}
+        missing = sorted(
+            str(p.relative_to(root))
+            for p in backend.get(case.code, set()) | frontend.get(case.code, set())
+            if p.resolve() not in listed
+        )
+        if len(missing) > case.extra:
+            problems.append(
+                f"{doc.path.name} {case.code}: 번호를 단 테스트 파일이 테스트 위치 칸에 없다"
+                f" ({', '.join(missing)})"
+            )
     return problems
 
 

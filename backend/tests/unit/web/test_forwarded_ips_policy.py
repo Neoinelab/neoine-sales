@@ -57,12 +57,25 @@ async def _seen_ip(xff: str) -> str:
 
 
 def test_trusted_range_is_not_a_wildcard() -> None:
-    assert _allow_ips() != "*"
+    """compose의 신뢰 프록시 대역은 와일드카드(*)가 아니다."""
+    # when: --forwarded-allow-ips 값을 읽는다 (전제: compose.yaml의 api command)
+    allow = _allow_ips()
+    # then: "*"가 아니다
+    assert allow != "*"
 
 
 async def test_forged_leading_address_is_not_used_as_the_client_ip() -> None:
-    assert await _seen_ip(f"{FORGED}, {REAL_CLIENT}") == REAL_CLIENT
+    """클라이언트가 앞에 붙인 위조 X-Forwarded-For 값은 클라이언트 IP로 쓰지 않는다."""
+    # when: 앱이 보는 클라이언트 IP를 구한다
+    #   (전제: 신뢰 대역 안의 프록시가 연결하고, 위조 값 뒤에 실제 주소가 붙은 헤더)
+    seen = await _seen_ip(f"{FORGED}, {REAL_CLIENT}")
+    # then: 실제 주소다
+    assert seen == REAL_CLIENT
 
 
 async def test_single_address_from_the_proxy_is_used() -> None:
-    assert await _seen_ip(REAL_CLIENT) == REAL_CLIENT
+    """프록시가 알려 준 단일 주소는 클라이언트 IP로 쓴다."""
+    # when: 앱이 보는 클라이언트 IP를 구한다 (전제: 신뢰 프록시가 실제 주소 하나만 실어 보낸다)
+    seen = await _seen_ip(REAL_CLIENT)
+    # then: 그 주소다
+    assert seen == REAL_CLIENT

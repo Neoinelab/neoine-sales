@@ -1,4 +1,4 @@
-"""저장 리포트의 차트 유스케이스 (Reports 4단계 AC1·2·4·5·6·7): 저장·검증·덮어쓰기·복제·깨진 차트.
+"""저장 리포트의 차트 유스케이스: 저장·검증·덮어쓰기·복제·깨진 차트(RC-R18~RC-R21).
 
 차트는 함께 보낸 정의를 기준으로 검증하고, 위반이면 아무것도 저장하지 않는다(조용히 버리거나
 고치지 않는다). 깨진 저장 차트는 목록·상세·실행을 막지 않는다.
@@ -61,16 +61,19 @@ def _issues(caught: pytest.ExceptionInfo[ReportDefinitionError]) -> list[tuple[A
     return [(tuple(i.location), i.code) for i in caught.value.issues]
 
 
-# ---- 만들기 (AC1·2) ----
-
-
 async def test_create_stores_the_normalized_chart(
     create: CreateReport, uow: FakeUnitOfWork
 ) -> None:
+    """차트와 함께 저장하면 정규화된 차트가 응답과 저장소에 남는다.
+
+    테스트 코드: RC-033
+    """
+    # given: 공백이 붙은 제목·축 제목을 가진 누적 막대 차트
     chart = raw_chart(
         "stacked_bar", 0, [2], series=1, title="  Vendor별  ", value_axis_title=" 금액"
     )
 
+    # when: 차트와 함께 리포트를 저장한다
     report = await create.execute(content_input(definition=DEFINITION, chart=chart), viewer(ALICE))
 
     expected = raw_chart(
@@ -83,6 +86,7 @@ async def test_create_stores_the_normalized_chart(
         legend="top",
         category_axis_title="",
     )
+    # then: 응답과 저장소의 차트가 정규화된 값이고 종류는 누적 막대다
     assert report.chart == expected
     assert report.chart_unreadable is False
     (saved,) = await stored(uow)
@@ -91,19 +95,32 @@ async def test_create_stores_the_normalized_chart(
 
 
 async def test_create_without_a_chart_has_none(create: CreateReport, uow: FakeUnitOfWork) -> None:
+    """차트 없이 저장하면 차트와 종류가 모두 없다.
+
+    테스트 코드: RC-033
+    """
+    # when: 차트 없는 리포트를 저장한다
     report = await create.execute(content_input(definition=DEFINITION), viewer(ALICE))
 
+    # then: 응답과 저장소에 차트·종류가 없다
     assert report.chart is None
     (saved,) = await stored(uow)
     assert (saved.chart, saved.chart_kind()) == (None, None)
 
 
 async def test_invalid_chart_is_not_saved(create: CreateReport, uow: FakeUnitOfWork) -> None:
+    """위반 차트는 위반 위치와 함께 거절되고 아무것도 저장하지 않는다.
+
+    테스트 코드: RC-034
+    """
+    # given: 범주가 값 컬럼인 차트
     chart = raw_chart("bar", 2, [2])  # 범주가 값 컬럼
 
+    # when·then: 저장하면 ReportDefinitionError가 난다
     with pytest.raises(ReportDefinitionError) as caught:
         await create.execute(content_input(definition=DEFINITION, chart=chart), viewer(ALICE))
 
+    # then: 범주와 계열 위반이 나오고 저장소는 비어 있으며 커밋이 없다
     assert _issues(caught) == [
         (("chart", "category"), "chart-category-invalid"),
         (("chart", "series"), "chart-series-required"),
@@ -115,11 +132,18 @@ async def test_invalid_chart_is_not_saved(create: CreateReport, uow: FakeUnitOfW
 async def test_chart_issues_are_collected_at_once(
     create: CreateReport, uow: FakeUnitOfWork
 ) -> None:
+    """차트 위반은 모두 모아서 알리고 저장하지 않는다.
+
+    테스트 코드: RC-030, RC-034
+    """
+    # given: 범주·값·범례가 함께 틀린 차트
     chart = raw_chart("bar", 9, [0], series=1, legend="left")
 
+    # when·then: 저장하면 ReportDefinitionError가 난다
     with pytest.raises(ReportDefinitionError) as caught:
         await create.execute(content_input(definition=DEFINITION, chart=chart), viewer(ALICE))
 
+    # then: 세 위반 코드가 모두 나오고 저장소는 비어 있다
     assert {code for _, code in _issues(caught)} == {
         "chart-category-invalid",
         "chart-value-invalid",
@@ -131,9 +155,15 @@ async def test_chart_issues_are_collected_at_once(
 async def test_chart_for_an_ungrouped_definition_is_rejected(
     create: CreateReport, uow: FakeUnitOfWork
 ) -> None:
+    """그룹핑 없는 정의에 차트를 보내면 chart-needs-grouping으로 거절한다.
+
+    테스트 코드: RC-003, RC-034
+    """
+    # when·then: 그룹핑 없는 정의와 막대 차트로 저장하면 ReportDefinitionError가 난다
     with pytest.raises(ReportDefinitionError) as caught:
         await create.execute(content_input(definition=UNGROUPED, chart=raw_chart()), viewer(ALICE))
 
+    # then: `["chart"]` chart-needs-grouping 하나뿐이고 저장소는 비어 있다
     assert _issues(caught) == [(("chart",), "chart-needs-grouping")]
     assert await stored(uow) == []
 
@@ -141,13 +171,20 @@ async def test_chart_for_an_ungrouped_definition_is_rejected(
 async def test_definition_issues_win_over_chart_issues(
     create: CreateReport, uow: FakeUnitOfWork
 ) -> None:
+    """정의 위반이 있으면 정의 위반만 알리고 차트는 검사하지 않는다.
+
+    테스트 코드: RC-031
+    """
+    # given: 모르는 종류와 엉터리 값을 가진 차트
     chart = raw_chart("nope", 99, "garbage")
 
+    # when·then: 잘못된 정의와 함께 저장하면 ReportDefinitionError가 난다
     with pytest.raises(ReportDefinitionError) as caught:
         await create.execute(
             content_input(definition=INVALID_DEFINITION, chart=chart), viewer(ALICE)
         )
 
+    # then: 위반은 정의 위치뿐이고 차트 위반이 없으며 저장소는 비어 있다
     locations = [location for location, _ in _issues(caught)]
     assert locations == [("columns", 0, "field")]
     assert all(location[0] != "chart" for location in locations)
@@ -155,24 +192,33 @@ async def test_definition_issues_win_over_chart_issues(
 
 
 async def test_name_issue_comes_before_the_chart_check(create: CreateReport) -> None:
+    """이름 위반이 먼저 판정되어 차트 위반은 알리지 않는다.
+
+    테스트 코드: RC-031
+    """
+    # when·then: 빈 이름과 잘못된 차트로 저장하면 이름 오류(ValueError)가 난다
     with pytest.raises(ValueError, match="이름") as caught:
         await create.execute(
             content_input("", definition=DEFINITION, chart=raw_chart("nope", 99, "x")),
             viewer(ALICE),
         )
 
+    # then: 차트 위반(ReportDefinitionError)이 아니다
     assert not isinstance(caught.value, ReportDefinitionError)
-
-
-# ---- 덮어쓰기 (AC4·5) ----
 
 
 async def test_update_replaces_or_clears_the_chart_and_bumps_revision(
     update: UpdateReport, uow: FakeUnitOfWork
 ) -> None:
+    """덮어쓰기는 차트를 바꾸거나 지우고 차트만 바뀌어도 revision을 올린다.
+
+    테스트 코드: RC-035
+    """
+    # given: 막대 차트가 있는 리포트를 저장소에 둔다
     report = make_report("원본", owner=ALICE, definition=DEFINITION, chart=raw_chart("bar", 0, [2]))
     await seed(uow, report)
 
+    # when: 누적 막대로 덮어쓴 뒤 차트 없이 다시 덮어쓴다
     changed = await update.execute(
         report.id, content_input("원본", definition=DEFINITION, chart=STACKED), 1, viewer(ALICE)
     )
@@ -180,6 +226,8 @@ async def test_update_replaces_or_clears_the_chart_and_bumps_revision(
         report.id, content_input("원본", definition=DEFINITION, chart=None), 2, viewer(ALICE)
     )
 
+    # then: 첫 덮어쓰기는 revision 2·수정자·시각이 갱신되고 SQL은 그대로이며, 두 번째는 차트가 없고
+    #   revision 3이다
     assert changed.chart == raw_chart("stacked_bar", 0, [2], series=1)
     assert changed.revision == 2  # 차트만 바꿔도 revision이 오른다
     assert changed.updated_by_user_id == ALICE
@@ -194,10 +242,16 @@ async def test_update_replaces_or_clears_the_chart_and_bumps_revision(
 async def test_update_with_chart_invalid_for_the_new_definition_is_rejected(
     update: UpdateReport, uow: FakeUnitOfWork
 ) -> None:
+    """바뀐 정의에 맞지 않는 이전 차트로 덮어쓰면 거절되고 저장 내용은 그대로다.
+
+    테스트 코드: RC-036
+    """
+    # given: 누적 막대 차트가 있는 리포트
     old_chart = raw_chart("stacked_bar", 0, [2], series=1)
     report = make_report("원본", owner=ALICE, definition=DEFINITION, chart=old_chart)
     await seed(uow, report)
 
+    # when·then: 그룹핑을 끈 정의와 이전 차트로 덮어쓰면 ReportDefinitionError가 난다
     with pytest.raises(ReportDefinitionError) as caught:  # 그룹핑을 끈 정의 + 이전 차트
         await update.execute(
             report.id,
@@ -206,6 +260,7 @@ async def test_update_with_chart_invalid_for_the_new_definition_is_rejected(
             viewer(ALICE),
         )
 
+    # then: chart-needs-grouping이 나오고 정의·차트·revision이 그대로이며 커밋이 없다
     assert _issues(caught) == [(("chart",), "chart-needs-grouping")]
     (saved,) = await stored(uow)
     assert (saved.definition, saved.chart, saved.revision) == (DEFINITION, old_chart, 1)
@@ -215,10 +270,16 @@ async def test_update_with_chart_invalid_for_the_new_definition_is_rejected(
 async def test_update_with_a_value_column_removed_rejects_the_chart_index(
     update: UpdateReport, uow: FakeUnitOfWork
 ) -> None:
+    """값 컬럼이 줄어든 정의로 덮어쓸 때 없는 index를 가리키는 차트는 거절한다.
+
+    테스트 코드: RC-036
+    """
+    # given: 값 컬럼 index 4를 쓰는 차트가 있는 리포트
     report = make_report("원본", owner=ALICE, definition=DEFINITION, chart=raw_chart("bar", 0, [4]))
     await seed(uow, report)
     narrower = chart_definition(2, 1)  # 값 컬럼이 index 2 하나뿐
 
+    # when·then: 값 컬럼이 하나뿐인 정의로 덮어쓰면 ReportDefinitionError가 난다
     with pytest.raises(ReportDefinitionError) as caught:
         await update.execute(
             report.id,
@@ -227,28 +288,42 @@ async def test_update_with_a_value_column_removed_rejects_the_chart_index(
             viewer(ALICE),
         )
 
+    # then: `["chart","values",0]` chart-value-invalid 하나뿐이다
     assert _issues(caught) == [(("chart", "values", 0), "chart-value-invalid")]
 
 
 async def test_update_without_a_chart_removes_the_stored_one(
     update: UpdateReport, uow: FakeUnitOfWork
 ) -> None:
+    """차트 없이 덮어쓰면 저장된 차트가 지워진다.
+
+    테스트 코드: RC-035
+    """
+    # given: 누적 막대 차트가 있는 리포트
     report = make_report("원본", owner=ALICE, definition=DEFINITION, chart=STACKED)
     await seed(uow, report)
 
+    # when: 차트 없는 내용으로 덮어쓴다
     result = await update.execute(
         report.id, content_input("원본", definition=DEFINITION), 1, viewer(ALICE)
     )
 
+    # then: 응답의 차트가 None이다
     assert result.chart is None
 
 
 async def test_update_repairs_an_unreadable_chart(
     update: UpdateReport, uow: FakeUnitOfWork
 ) -> None:
+    """저장 차트를 읽을 수 없던 리포트를 새 차트로 덮어쓰면 복구된다.
+
+    테스트 코드: RC-041
+    """
+    # given: 저장 차트를 읽을 수 없는 리포트
     report = make_report("깨진 차트", owner=ALICE, definition=DEFINITION, chart_unreadable=True)
     await seed(uow, report)
 
+    # when: 새 차트로 덮어쓴다
     result = await update.execute(
         report.id,
         content_input("깨진 차트", definition=DEFINITION, chart=STACKED),
@@ -256,21 +331,26 @@ async def test_update_repairs_an_unreadable_chart(
         viewer(ALICE),
     )
 
+    # then: 차트가 있고 읽을 수 없음 표시가 꺼지며 저장소에도 반영된다
     assert (result.chart is not None, result.chart_unreadable) == (True, False)
     (saved,) = await stored(uow)
     assert (saved.chart_unreadable, saved.chart_kind()) == (False, ChartKind.STACKED_BAR)
 
 
-# ---- 복제 (AC6) ----
-
-
 async def test_copy_carries_the_chart_of_the_source(copy: CopyReport, uow: FakeUnitOfWork) -> None:
+    """복제는 원본 차트를 다시 검증해 복사본에 담고 원본은 그대로다.
+
+    테스트 코드: RC-038
+    """
+    # given: 차트가 있는 원본 리포트
     chart = raw_chart("stacked_bar", 0, [2], series=1, title="제목", legend="bottom")
     source = make_report("원본", owner=ALICE, definition=DEFINITION, chart=chart)
     await seed(uow, source)
 
+    # when: 복제한다
     result = await copy.execute(source.id, meta_input("복사본"), viewer(ALICE))
 
+    # then: 복사본과 저장된 복사본, 원본이 모두 같은 차트를 가진다
     assert result.chart == chart
     assert result.chart_unreadable is False
     saved = next(r for r in await stored(uow) if r.id == result.id)
@@ -282,22 +362,36 @@ async def test_copy_carries_the_chart_of_the_source(copy: CopyReport, uow: FakeU
 async def test_copy_of_a_report_without_a_chart_has_none(
     copy: CopyReport, uow: FakeUnitOfWork
 ) -> None:
+    """차트 없는 리포트를 복제하면 복사본에도 차트가 없다.
+
+    테스트 코드: RC-038
+    """
+    # given: 차트 없는 원본 리포트
     source = make_report("원본", owner=ALICE, definition=DEFINITION)
     await seed(uow, source)
 
+    # when: 복제한다
     result = await copy.execute(source.id, meta_input("복사본"), viewer(ALICE))
 
+    # then: 복사본 차트가 None이다
     assert result.chart is None
 
 
 async def test_copy_drops_an_unreadable_chart_and_succeeds(
     copy: CopyReport, uow: FakeUnitOfWork
 ) -> None:
+    """저장 차트를 읽을 수 없는 리포트도 차트 없이 복제된다.
+
+    테스트 코드: RC-038, RC-040
+    """
+    # given: 저장 차트를 읽을 수 없는 원본 리포트
     source = make_report("원본", owner=ALICE, definition=DEFINITION, chart_unreadable=True)
     await seed(uow, source)
 
+    # when: 복제한다
     result = await copy.execute(source.id, meta_input("복사본"), viewer(ALICE))
 
+    # then: 복사본은 차트도 읽을 수 없음 표시도 없고 리포트가 2개가 된다
     assert (result.chart, result.chart_unreadable) == (None, False)
     assert len(await stored(uow)) == 2
 
@@ -305,34 +399,46 @@ async def test_copy_drops_an_unreadable_chart_and_succeeds(
 async def test_copy_with_chart_invalid_for_current_rules_is_rejected(
     copy: CopyReport, uow: FakeUnitOfWork
 ) -> None:
+    """지금 규칙에 맞지 않는 원본 차트는 복제를 거절하고 복사본을 만들지 않는다.
+
+    테스트 코드: RC-038
+    """
+    # given: 범주가 값 컬럼인 낡은 차트를 가진 원본 리포트
     broken_chart = raw_chart(
         "bar", 2, [2], series=1
     )  # 범주가 값 컬럼(저장소에 직접 넣은 낡은 차트)
     source = make_report("원본", owner=ALICE, definition=DEFINITION, chart=broken_chart)
     await seed(uow, source)
 
+    # when·then: 복제하면 ReportDefinitionError가 난다
     with pytest.raises(ReportDefinitionError) as caught:
         await copy.execute(source.id, meta_input("복사본"), viewer(ALICE))
 
+    # then: chart-category-invalid가 나오고 리포트는 원본 하나뿐이다
     assert _issues(caught) == [(("chart", "category"), "chart-category-invalid")]
     assert len(await stored(uow)) == 1
-
-
-# ---- 깨진 저장 차트 (AC7) ----
 
 
 async def test_get_list_and_run_do_not_fail_on_an_unreadable_chart(
     uow_factory: UnitOfWorkFactory, uow: FakeUnitOfWork, clock: FixedClock
 ) -> None:
+    """저장 차트를 읽을 수 없어도 상세·목록·실행이 실패하지 않는다.
+
+    테스트 코드: RC-040
+    """
+    # given: 차트를 읽을 수 없는 리포트와 정상 리포트
     broken = make_report("깨진 차트", owner=ALICE, definition=DEFINITION, chart_unreadable=True)
     healthy = make_report("정상", owner=ALICE, definition=DEFINITION)
     await seed(uow, broken, healthy)
 
+    # when: 상세 조회, 목록 조회, 두 리포트의 실행을 한다
     got = await GetReport(uow_factory).execute(broken.id, viewer(ALICE))
     listed = await ListReports(uow_factory).execute(viewer(ALICE))
     run_broken = await RunSavedReport(uow_factory, clock).execute(broken.id, viewer(ALICE))
     run_healthy = await RunSavedReport(uow_factory, clock).execute(healthy.id, viewer(ALICE))
 
+    # then: 상세는 차트 없음·읽을 수 없음 표시이고 목록 종류는 None이며 실행 결과는 정상 리포트와
+    #   같다
     assert (got.chart, got.chart_unreadable) == (None, True)
     by_name = {i.report.name: i.report for i in listed}
     assert by_name["깨진 차트"].chart_kind() is None
@@ -343,17 +449,22 @@ async def test_get_list_and_run_do_not_fail_on_an_unreadable_chart(
 async def test_list_shows_the_chart_kind_of_each_report(
     uow_factory: UnitOfWorkFactory, uow: FakeUnitOfWork
 ) -> None:
+    """목록은 리포트마다 차트 종류를 보여준다.
+
+    테스트 코드: RC-037
+    """
+    # given: 차트가 있는 리포트와 없는 리포트
     with_chart = make_report("차트 있음", owner=ALICE, definition=DEFINITION, chart=STACKED)
     without = make_report("차트 없음", owner=ALICE, definition=DEFINITION)
     await seed(uow, with_chart, without)
 
+    # when: 목록을 조회한다
     listed = await ListReports(uow_factory).execute(viewer(ALICE))
 
+    # then: 차트 있음은 누적 막대, 없음은 None이다
     kinds = {i.report.name: i.report.chart_kind() for i in listed}
     assert kinds == {"차트 있음": ChartKind.STACKED_BAR, "차트 없음": None}
 
-
-# ---- Excel 확장: 그룹핑 없는 히스토그램과 옵션 (AC10·14) ----
 
 UNGROUPED_NUMBER = raw([col("deal.code"), col("deal.amount")])  # 1 = 숫자 필드
 
@@ -361,13 +472,20 @@ UNGROUPED_NUMBER = raw([col("deal.code"), col("deal.amount")])  # 1 = 숫자 필
 async def test_create_report_with_ungrouped_histogram_saves_chart(
     create: CreateReport, uow: FakeUnitOfWork
 ) -> None:
+    """그룹핑 없는 리포트의 히스토그램은 범주 null·자동 구간으로 저장된다.
+
+    테스트 코드: RC-048
+    """
+    # given: 그룹핑 없는 정의의 히스토그램 차트
     chart = raw_chart("histogram", None, [1])
 
+    # when: 저장한다
     report = await create.execute(
         content_input(definition=UNGROUPED_NUMBER, chart=chart), viewer(ALICE)
     )
 
     expected = raw_chart("histogram", None, [1], histogram=AUTO_BINS)
+    # then: 응답과 저장소의 차트가 자동 구간 히스토그램이고 범주는 null이다
     assert report.chart == expected
     (saved,) = await stored(uow)
     assert saved.chart == expected
@@ -379,12 +497,18 @@ async def test_create_report_with_ungrouped_histogram_saves_chart(
 async def test_ungrouped_bar_chart_is_still_rejected(
     create: CreateReport, uow: FakeUnitOfWork
 ) -> None:
+    """그룹핑 없는 리포트의 막대 차트는 여전히 거절한다.
+
+    테스트 코드: RC-003
+    """
+    # when·then: 그룹핑 없는 정의에 막대 차트를 저장하면 ReportDefinitionError가 난다
     with pytest.raises(ReportDefinitionError) as caught:
         await create.execute(
             content_input(definition=UNGROUPED_NUMBER, chart=raw_chart("bar", 0, [1])),
             viewer(ALICE),
         )
 
+    # then: chart-needs-grouping 하나뿐이고 저장소는 비어 있다
     assert _issues(caught) == [(("chart",), "chart-needs-grouping")]
     assert await stored(uow) == []
 
@@ -392,11 +516,18 @@ async def test_ungrouped_bar_chart_is_still_rejected(
 async def test_invalid_histogram_option_is_not_saved(
     create: CreateReport, uow: FakeUnitOfWork
 ) -> None:
+    """잘못된 구간 수의 히스토그램은 위치와 함께 거절되고 저장되지 않는다.
+
+    테스트 코드: RC-021, RC-034
+    """
+    # given: 구간 수 0인 히스토그램 차트
     chart = raw_chart("histogram", None, [1], histogram=bins(bin_mode="count", bin_count=0))
 
+    # when·then: 저장하면 ReportDefinitionError가 난다
     with pytest.raises(ReportDefinitionError) as caught:
         await create.execute(content_input(definition=UNGROUPED_NUMBER, chart=chart), viewer(ALICE))
 
+    # then: `histogram.bin_count` chart-histogram-invalid가 나오고 저장소는 비어 있다
     assert _issues(caught) == [(("chart", "histogram", "bin_count"), "chart-histogram-invalid")]
     assert await stored(uow) == []
 
@@ -404,8 +535,14 @@ async def test_invalid_histogram_option_is_not_saved(
 async def test_create_normalizes_a_legacy_combo_to_series_settings(
     create: CreateReport, uow: FakeUnitOfWork
 ) -> None:
+    """계열 설정이 없는 콤보는 저장할 때 계열 설정으로 정규화된다.
+
+    테스트 코드: RC-026, RC-033
+    """
+    # given: 계열 설정 없이 보조 축을 켠 콤보 차트
     chart = raw_chart("combo", 0, [1, 2, 3], secondary_axis=True)
 
+    # when: 저장한다
     report = await create.execute(content_input(definition=ONE_GROUP, chart=chart), viewer(ALICE))
 
     expected_series = [
@@ -413,6 +550,7 @@ async def test_create_normalizes_a_legacy_combo_to_series_settings(
         combo_item("line", secondary=True),
         combo_item("line", secondary=True),
     ]
+    # then: 응답과 저장소의 계열 설정이 막대 + 보조 축 꺾은선들이다
     assert report.chart is not None
     assert report.chart.combo_series == expected_series
     (saved,) = await stored(uow)
@@ -423,15 +561,41 @@ async def test_create_normalizes_a_legacy_combo_to_series_settings(
 async def test_update_replaces_a_bar_chart_with_a_waterfall_with_total(
     update: UpdateReport, uow: FakeUnitOfWork
 ) -> None:
+    """막대 차트를 합계 막대가 있는 폭포로 바꿔 덮어쓰면 새 종류로 저장된다.
+
+    테스트 코드: RC-035, RC-047
+    """
+    # given: 막대 차트가 있는 리포트와 합계 막대를 켠 폭포 차트
     report = make_report("원본", owner=ALICE, definition=ONE_GROUP, chart=raw_chart("bar", 0, [1]))
     await seed(uow, report)
     waterfall = raw_chart("waterfall", 0, [1], show_total=True)
 
+    # when: 폭포 차트로 덮어쓴다
     changed = await update.execute(
         report.id, content_input("원본", definition=ONE_GROUP, chart=waterfall), 1, viewer(ALICE)
     )
 
+    # then: 차트가 폭포이고 revision 2이며 저장소 종류도 폭포다
     assert changed.chart == waterfall
     assert changed.revision == 2
     (saved,) = await stored(uow)
     assert saved.chart_kind() == ChartKind.WATERFALL
+
+
+async def test_get_opens_a_stored_chart_that_no_longer_fits_the_definition(
+    uow_factory: UnitOfWorkFactory, uow: FakeUnitOfWork
+) -> None:
+    """저장 차트를 열 때는 정의와 맞는지 보지 않고 저장된 그대로 돌려준다.
+
+    테스트 코드: RC-042
+    """
+    # given: 그룹핑 없는 정의인데 누적 막대 차트가 저장된 리포트
+    report = make_report("맞지 않는 차트", owner=ALICE, definition=UNGROUPED, chart=STACKED)
+    await seed(uow, report)
+
+    # when: 상세를 조회한다
+    got = await GetReport(uow_factory).execute(report.id, viewer(ALICE))
+
+    # then: 오류 없이 저장된 차트가 그대로 나오고 읽을 수 없음 표시는 없다
+    assert got.chart == STACKED
+    assert got.chart_unreadable is False

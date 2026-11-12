@@ -10,42 +10,76 @@ const PERIODS: UpdatedPeriods['periods'] = [
   { key: '6m', from: '2026-04-21', to: '2026-10-21' },
 ]
 
-describe('selectedUpdatedPeriod (AC-18, AC-19)', () => {
-  it('is all when no dates are in the URL', () => {
-    expect(selectedUpdatedPeriod(undefined, undefined, PERIODS)).toBe('')
-    expect(selectedUpdatedPeriod(undefined, undefined, undefined)).toBe('')
+describe('selectedUpdatedPeriod', () => {
+  it('URL에 날짜가 없으면 전체(빈 값)를 선택한다', () => {
+    // when: 날짜 없이 선택된 기간을 구한다 (기간 목록 있음·없음)
+    const result1 = selectedUpdatedPeriod(undefined, undefined, PERIODS)
+    const result2 = selectedUpdatedPeriod(undefined, undefined, undefined)
+
+    // then: 둘 다 빈 문자열이다
+    expect(result1).toBe('')
+    expect(result2).toBe('')
   })
 
-  it.each(PERIODS)('selects the $key preset whose dates match exactly', ({ key, from, to }) => {
-    expect(selectedUpdatedPeriod(from, to, PERIODS)).toBe(key)
+  it.each(PERIODS)('날짜가 정확히 맞는 $key 프리셋을 선택한다', ({ key, from, to }) => {
+    // when: 프리셋의 시작·끝 날짜로 선택된 기간을 구한다
+    const result = selectedUpdatedPeriod(from, to, PERIODS)
+
+    // then: 그 프리셋의 키다
+    expect(result).toBe(key)
   })
 
-  it('falls back to custom when only one side is set', () => {
-    expect(selectedUpdatedPeriod('2026-10-07', undefined, PERIODS)).toBe('custom')
-    expect(selectedUpdatedPeriod(undefined, '2026-10-21', PERIODS)).toBe('custom')
+  it('한쪽 날짜만 있으면 직접 지정으로 본다', () => {
+    // when: 시작만, 끝만 있는 경우의 선택된 기간을 구한다
+    const result1 = selectedUpdatedPeriod('2026-10-07', undefined, PERIODS)
+    const result2 = selectedUpdatedPeriod(undefined, '2026-10-21', PERIODS)
+
+    // then: 둘 다 custom이다
+    expect(result1).toBe('custom')
+    expect(result2).toBe('custom')
   })
 
-  it('falls back to custom when a date differs by one day or the range is from another day', () => {
-    expect(selectedUpdatedPeriod('2026-10-08', '2026-10-21', PERIODS)).toBe('custom')
-    expect(selectedUpdatedPeriod('2026-10-07', '2026-10-20', PERIODS)).toBe('custom')
-    expect(selectedUpdatedPeriod('2026-10-06', '2026-10-20', PERIODS)).toBe('custom')
+  it('날짜가 하루라도 다르면 직접 지정으로 본다', () => {
+    // when: 프리셋과 하루씩 어긋난 날짜로 선택된 기간을 구한다
+    const result1 = selectedUpdatedPeriod('2026-10-08', '2026-10-21', PERIODS)
+    const result2 = selectedUpdatedPeriod('2026-10-07', '2026-10-20', PERIODS)
+    const result3 = selectedUpdatedPeriod('2026-10-06', '2026-10-20', PERIODS)
+
+    // then: 모두 custom이다
+    expect(result1).toBe('custom')
+    expect(result2).toBe('custom')
+    expect(result3).toBe('custom')
   })
 
-  it('is custom while the presets are unknown (loading or failed) and a date is present', () => {
-    expect(selectedUpdatedPeriod('2026-10-07', '2026-10-21', undefined)).toBe('custom')
-    expect(selectedUpdatedPeriod('2026-10-07', undefined, undefined)).toBe('custom')
-    expect(selectedUpdatedPeriod(undefined, '2026-10-21', undefined)).toBe('custom')
+  it('프리셋을 모르는 동안(불러오는 중·실패) 날짜가 있으면 직접 지정으로 본다', () => {
+    // when: 기간 목록 없이 날짜가 있는 경우의 선택된 기간을 구한다
+    const result1 = selectedUpdatedPeriod('2026-10-07', '2026-10-21', undefined)
+    const result2 = selectedUpdatedPeriod('2026-10-07', undefined, undefined)
+    const result3 = selectedUpdatedPeriod(undefined, '2026-10-21', undefined)
+
+    // then: 모두 custom이다
+    expect(result1).toBe('custom')
+    expect(result2).toBe('custom')
+    expect(result3).toBe('custom')
   })
 })
 
 describe('isUpcomingKey', () => {
-  it('accepts only the upcoming keys', async () => {
+  it('다가오는 기간의 키만 받아들인다', async () => {
     const { isUpcomingKey } = await import('./updatedPeriod')
 
-    expect(isUpcomingKey('1m')).toBe(true)
-    expect(isUpcomingKey('2m')).toBe(true)
-    expect(isUpcomingKey('2w')).toBe(false)
-    expect(isUpcomingKey('3m')).toBe(false)
-    expect(isUpcomingKey('')).toBe(false)
+    // when: 키마다 다가오는 기간 키인지 판정한다
+    const result1 = isUpcomingKey('1m')
+    const result2 = isUpcomingKey('2m')
+    const result3 = isUpcomingKey('2w')
+    const result4 = isUpcomingKey('3m')
+    const result5 = isUpcomingKey('')
+
+    // then: 1m·2m만 true이고 2w·3m·빈 값은 false다
+    expect(result1).toBe(true)
+    expect(result2).toBe(true)
+    expect(result3).toBe(false)
+    expect(result4).toBe(false)
+    expect(result5).toBe(false)
   })
 })
