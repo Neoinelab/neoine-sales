@@ -60,9 +60,9 @@ export interface ContactListQuery {
 export interface DealInput {
   name: string
   ownerId: number
-  /** Vendor id. 선택 안 함은 null. */
-  vendorId: number | null
-  /** Solution 자유 텍스트. 필수(서버가 공백·200자 초과를 거절한다). */
+  /** Vendor id. 필수. */
+  vendorId: number
+  /** Solution 자유 텍스트. 선택(빈 값은 ""). 200자 초과는 서버가 거절한다. */
   solution: string
   users: number
   statusKey: string

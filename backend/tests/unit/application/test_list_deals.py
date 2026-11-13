@@ -97,11 +97,12 @@ async def test_each_row_has_the_owner_customer_and_active_partner(env: DealEnv) 
 class TestFilters:
     async def test_list_views_have_vendor_ref_and_solution_text(self, env: DealEnv) -> None:
         """목록 행은 Vendor 참조(id·이름)와 Solution 텍스트를 담는다."""
-        # given: Vendor가 있는 Deal 둘과 Vendor 없는 Deal
+        # given: SAP Deal 둘과 Oracle Deal(Solution은 선택이라 빈 값도 있다)
         sap = await env.new_vendor("SAP")
+        oracle = await env.new_vendor("Oracle")
         await env.new_deal(vendor_id=sap.id, solution="S/4HANA")
         await env.new_deal(vendor_id=sap.id, solution="BW")
-        await env.new_deal(solution="MFA")
+        await env.new_deal(vendor_id=oracle.id, solution="MFA")
 
         # when: 조회한다
         views = (await env.list.execute(DealQuery())).items
@@ -111,7 +112,7 @@ class TestFilters:
         assert shown == {
             (NamedRef(sap.id, "SAP"), "S/4HANA"),
             (NamedRef(sap.id, "SAP"), "BW"),
-            (None, "MFA"),
+            (NamedRef(oracle.id, "Oracle"), "MFA"),
         }
         assert all(not hasattr(v, "solution") for v in views)
 

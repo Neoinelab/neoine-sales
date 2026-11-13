@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react'
+import { cleanup, screen, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { renderAt } from '../../../test/mockApp'
 import { openEdit } from './testHelpers'
@@ -24,11 +24,10 @@ async function openNew() {
   return view
 }
 
-/** 고객 회사명·담당자명은 필수 표시, 고객 나머지 칸과 파트너 다섯 칸은 필수 표시 없음. Deal Name·Solution은 기준(필수 표시 있음). */
+/** 고객 회사명·담당자명은 필수 표시, 고객 나머지 칸과 파트너 다섯 칸은 필수 표시 없음. Deal Name은 기준(필수 표시 있음). */
 function expectCustomerMarks() {
   const info = tile('Deal 정보')
   expect(drawsMark(fieldOf(info, 'Deal Name'))).toBe(true)
-  expect(drawsMark(fieldOf(info, 'Solution'))).toBe(true)
 
   const customer = tile('고객')
   expect(drawsMark(fieldOf(customer, '고객 회사명'))).toBe(true)
@@ -48,7 +47,7 @@ describe('Deal 폼 필수 표시', () => {
     // when: 등록 폼을 연다
     await openNew()
 
-    // then: 고객 회사명·담당자명이 Deal Name·Solution과 같은 필수 표시이고 접근 이름은 그대로이며, 직급·이메일·전화와 파트너 칸에는 없다
+    // then: 고객 회사명·담당자명이 Deal Name과 같은 필수 표시이고 접근 이름은 그대로이며, 직급·이메일·전화와 파트너 칸에는 없다
     expectCustomerMarks()
   })
 
@@ -74,5 +73,28 @@ describe('Deal 폼 필수 표시', () => {
     expect(drawsMark(fieldOf(info, 'Owner'))).toBe(true)
     expect(fieldOf(info, 'Status')).not.toHaveClass('required')
     expect(fieldOf(info, 'Forecast')).not.toHaveClass('required')
+  })
+
+  // Vendor 칸은 필수 표시이고 Solution 칸에는 없다(등록 폼과 수정 폼 모두)
+  // 테스트 코드: DE-118
+  it('marks Vendor as required and Solution as optional on the registration and edit forms', async () => {
+    // when: 등록 폼을 연다
+    await openNew()
+    const newInfo = tile('Deal 정보')
+
+    // then: Vendor는 Deal Name과 같은 필수 표시(접근 이름은 그대로 Vendor)이고 Solution에는 없다
+    expect(drawsMark(fieldOf(newInfo, 'Vendor'))).toBe(true)
+    expect(fieldOf(newInfo, 'Solution')).not.toHaveClass('required')
+    expect(drawsMark(fieldOf(newInfo, 'Solution'))).toBe(false)
+    cleanup()
+
+    // when: Vendor가 있는 Deal의 수정 폼을 연다
+    await openEdit('누리통신 MFA')
+    const editInfo = tile('Deal 정보')
+
+    // then: 수정 폼도 같다
+    await within(editInfo).findByDisplayValue('Silverfort')
+    expect(drawsMark(fieldOf(editInfo, 'Vendor'))).toBe(true)
+    expect(fieldOf(editInfo, 'Solution')).not.toHaveClass('required')
   })
 })

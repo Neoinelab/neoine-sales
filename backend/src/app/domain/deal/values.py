@@ -5,19 +5,18 @@
 """
 
 from dataclasses import dataclass
+from datetime import date  # noqa: TC003  (타입 힌트를 런타임에 해석하는 곳이 있다)
 from enum import StrEnum
 from typing import TYPE_CHECKING, TypeGuard
 
 from app.domain.bant.values import BantCategory
 from app.domain.common.errors import InvalidValueError
 from app.domain.common.validation import assign, reject_nul
+from app.domain.user.value_objects import UserId  # noqa: TC001
+from app.domain.vendor.values import VendorId  # noqa: TC001
 
 if TYPE_CHECKING:
-    from datetime import date
-
     from app.domain.bant.values import BantLabelId
-    from app.domain.user.value_objects import UserId
-    from app.domain.vendor.values import VendorId
 
 NAME_MAX = 200
 PROCUREMENT_MAX = 500
@@ -28,7 +27,6 @@ USERS_MAX = 2_147_483_647  # PostgreSQL integer 최대
 AMOUNT_MESSAGE = "매출금액은 1원 이상의 정수로 입력하세요."
 USERS_MESSAGE = "Users count는 0 이상의 정수로 입력하세요."
 USERS_REQUIRED_MESSAGE = "Users count를 입력하세요."
-SOLUTION_REQUIRED_MESSAGE = "Solution을 입력하세요."
 
 
 def _is_int(value: object) -> TypeGuard[int]:
@@ -113,20 +111,14 @@ def check_procurement(raw: str) -> str:
     return _optional_limited(raw, "구매절차", PROCUREMENT_MAX, "는")
 
 
-def _stored_solution(raw: str) -> str:
-    """값 객체용 검사: NUL·길이만 본다. 빈 값은 기존(레거시) 행 때문에 허용한다."""
+def check_solution(raw: str | None) -> str:
+    """Solution은 선택이다. 앞뒤 공백을 지우고 비면 ''이며 NUL·길이만 본다."""
+    if raw is None:
+        return ""
     reject_nul(raw, "Solution")
     text = raw.strip()
     if len(text) > SOLUTION_MAX:
         raise InvalidValueError(f"Solution은 {SOLUTION_MAX}자 이내로 입력하세요.")
-    return text
-
-
-def check_solution(raw: str) -> str:
-    """입력 검증(등록·수정에서 보낸 값). 앞뒤 공백을 지우고 비면 거절, 대소문자는 그대로 둔다."""
-    text = _stored_solution(raw)
-    if not text:
-        raise InvalidValueError(SOLUTION_REQUIRED_MESSAGE)
     return text
 
 
@@ -152,7 +144,7 @@ class DealDetails:
 
     name: str
     owner_user_id: UserId
-    vendor_id: VendorId | None
+    vendor_id: VendorId
     solution: str
     users: int
     revenue_amount: RevenueAmount
@@ -165,7 +157,7 @@ class DealDetails:
         assign(
             self,
             name=check_name(self.name),
-            solution=_stored_solution(self.solution),
+            solution=check_solution(self.solution),
             users=check_users(self.users),
             procurement=check_procurement(self.procurement),
         )
@@ -176,7 +168,7 @@ class DealDetails:
         *,
         name: str,
         owner_user_id: UserId,
-        vendor_id: VendorId | None,
+        vendor_id: VendorId,
         solution: str,
         users: int,
         revenue_amount: RevenueAmount,

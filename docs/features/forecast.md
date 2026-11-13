@@ -1,4 +1,4 @@
-# Forecast: 실시간·월말 스냅숏   (feature 코드: FC, 상태: 확정(2026-11-11 사용자 확인))
+# Forecast: 실시간·월말 스냅숏   (feature 코드: FC, 상태: 확정(2026-11-13 사용자 확인))
 
 > 이 문서는 **이미 구현된 동작**을 정본 명세로 옮긴 것입니다(2026-11-11). 근거는 작업 트리의 코드(`backend/src/app/web/routers/forecast.py`, `app/web/schemas/forecast.py`, `app/application/forecast/{get_summary,get_snapshot_summary,list_snapshots,take_snapshot,ensure_monthly_snapshot,views}.py`, `app/application/ports/{forecast_repository,job_lock}.py`, `app/domain/forecast/{period,summary,snapshot,errors}.py`, `app/infra/db/{forecast_repository,forecast_snapshot_repository,advisory_job_lock,models_forecast}.py`, `app/infra/scheduling/periodic.py`, `app/container_forecast.py`, `app/main.py`의 lifespan, `app/config/{base,profiles}.py`의 스케줄러 설정, `frontend/src/features/forecast/*`, `data/forecast.ts`, `gateway/http/forecast.ts`, `test/fake/gateway/{forecast,forecastSnapshots}.ts`)이며 문구·type·상태 코드는 코드에서 그대로 옮겼습니다. 코드와 Fake·테스트·안내서가 어긋나던 점은 2026-11-11 사용자 결정으로 정리했습니다: Fake 게이트웨이는 서버 동작에 맞추고(FC-R36), 스냅숏 기준 월 직접 지정은 현행대로 문서화하며(FC-R12), Forecast 연도 선택지에는 '전체'가 없습니다(FC-R26, DL-R24). 안내서(`docs/user-guide.html`) 수정은 별도 문서 작업입니다. 결정 목록은 계획(`artifacts/10-analysis/fc-plan.md`)에 있습니다.
 
@@ -59,7 +59,7 @@
 실시간 요약 (`GET /forecast/summary`)
 - **FC-R1** 로그인한 모든 역할이 읽는다(업무 조회, PL-R2). 읽기만 하고 아무것도 저장하지 않는다. 미인증은 401 `unauthenticated`(PL-R5). 다른 담당자의 숫자도 모든 역할에게 같다.
 - **FC-R2** 쿼리 키는 `year`(필수), `quarter`, `month`, `owner_user_id`, `vendor_id` 다섯 개뿐이다. `year`는 정수 1900~9999, `quarter`는 정수 1~4 **한 값**(Deal 목록과 달리 여러 분기를 받지 않음), `month`는 정수 1~12, `owner_user_id`·`vendor_id`는 쿼리 id(PL-R15)다. 판정 순서: 401 → 422 `request-validation`(`year` 누락·정수 아님·범위 밖, `quarter`·`month` 범위 밖, id 형식, 모르는 키 — 예: `vendor=SAP`) → 422 `invalid-value` "Quarter와 월은 함께 선택할 수 없습니다."(quarter와 month를 함께 줌) → 결과.
-- **FC-R3** 조건은 Deal 목록과 같은 해석(DL-R15)이다: 기간은 Expected Close가 그 해 1월 1일~12월 31일 / 그 분기 첫날~마지막 날 / 그 달 1일~말일(윤년 2월 29일 포함)에 들면 맞는다(DL-R9, 양끝 포함, 12-31은 그 해 Q4·12월, 01-01은 다음 해 Q1·1월). 연도를 채우는 규칙은 없다(`year` 필수). `owner_user_id`는 Owner가 같은 Deal(퇴사자 포함, DL-R5), `vendor_id`는 그 Vendor의 Deal이고 없는 id는 오류 없이 0건이다(DL-R6). Vendor 조건이 없으면 Vendor가 없는 Deal도 센다.
+- **FC-R3** 조건은 Deal 목록과 같은 해석(DL-R15)이다: 기간은 Expected Close가 그 해 1월 1일~12월 31일 / 그 분기 첫날~마지막 날 / 그 달 1일~말일(윤년 2월 29일 포함)에 들면 맞는다(DL-R9, 양끝 포함, 12-31은 그 해 Q4·12월, 01-01은 다음 해 Q1·1월). 연도를 채우는 규칙은 없다(`year` 필수). `owner_user_id`는 Owner가 같은 Deal(퇴사자 포함, DL-R5), `vendor_id`는 그 Vendor의 Deal이고 없는 id는 오류 없이 0건이다(DL-R6). Vendor 조건이 없으면 모든 Vendor의 Deal을 센다.
 - **FC-R4** 열(`columns`)은 Forecast 코드 중 outcome이 `lost`가 아닌 것을 코드 order 오름차순으로 나열한 것이다. 항목은 정확히 `{key, name, outcome, order}`이고 이름·순서는 **지금** 코드 값이다(CD-R13 이름 변경, CD-R14 순서 변경이 바로 반영). admin이 추가한 코드(CD-R10, outcome `open`)도 열이 된다. 이름을 바꿔도 key와 그 key의 셀은 그대로다(CD-R9). 조건에 Deal이 없어도 열은 모두 나온다.
 - **FC-R5** 셀은 (담당자, Forecast key)별 Deal 건수와 `revenue_amount` 합(원, 정수)이다. 2^31을 넘는 금액도 정확히 더한다. 각 행의 `cells`는 `columns`와 같은 순서·같은 key의 목록이고 Deal이 없는 칸은 `{count: 0, amount: 0}`이다. Lost Deal은 어떤 셀·합계에도 들어가지 않는다.
 - **FC-R6** `open_total`은 그 행에서 outcome이 `open`인 열의 셀 합이다(Won·Lost 제외). 합계 행(`total`)은 담당자 행들의 셀 합이고 `owner`는 null이다.
@@ -324,9 +324,9 @@ FC-R24~FC-R36.
 - Then 합계 `open_total` 금액은 차례로 1, 2, 2, 1, 12, 4, 16, 3이고 2028년 2월에는 2-29 Deal이 들어간다
 
 ### FC-008 owner_user_id·vendor_id는 그 담당자·Vendor의 Deal만 센다
-- Given Vendor SAP, KIM: SAP Deal 1원·Vendor 없는 Deal 2원, LEE: SAP Deal 4원(모두 2026년)
+- Given Vendor SAP·Oracle, KIM: SAP Deal 1원·Oracle Deal 2원, LEE: SAP Deal 4원(모두 2026년)
 - When `year=2026&owner_user_id=<KIM>&vendor_id=<SAP>`, `year=2026&vendor_id=<없는 id>`, `year=2026`으로 읽는다
-- Then 첫 요청은 행이 KIM 하나이고 합계 pipeline (1, 1), 둘째는 행 없음·합계 0, 셋째(Vendor 조건 없음)는 Vendor 없는 Deal도 세어 합계 금액 7이다
+- Then 첫 요청은 행이 KIM 하나이고 합계 pipeline (1, 1), 둘째는 행 없음·합계 0, 셋째(Vendor 조건 없음)는 Oracle Deal도 세어 합계 금액 7이다
 
 ### FC-009 Deal이 없는 기간도 모든 열과 0인 합계를 돌려준다
 - Given 2031년 Expected Close인 Deal이 없다
@@ -711,3 +711,4 @@ FC-R24~FC-R36.
 | --- | --- | --- |
 | 2026-11-11 | 최초 작성(구현된 동작을 정본으로 옮김, 초안). functional `tests/functional/forecast/` 6개 파일의 시나리오를 케이스로 흡수 | FC-001~FC-084 |
 | 2026-11-11 | 사용자 결정 반영(추천대로): F1 Fake를 서버 동작에 맞춤(FC-R36 신설: 스냅숏 0건 열·행 정렬·404 문구·스냅숏 Vendor 422), F2 기준 월 직접 지정 현행 유지(FC-R12)·Forecast 연도에 '전체' 없음(FC-R26, DL-R24 문구 정리), F4 스냅숏 셀 사용자 삭제 결과 케이스는 FC 소유(FC-R15, US-R17)와 다른 문서 참조를 번호로(DSH-R1~R12·R6·R8·R19·R22·R23, DL-R1, DE-R4, CD-R1·R5, US-R12, RK-R3~R5) | 변경: FC-075(0건 열 포함 기대 결과), FC-081(404 문구) |
+| 2026-11-13 | 확정(2026-11-13 사용자 확인): Deal Vendor 필수(DE-R7, SC-R22)로 Vendor 없는 Deal이 없어져 FC-R3 끝 문장과 FC-008 Given을 바꿈. 동작 변경 없음 | 변경 FC-008 |

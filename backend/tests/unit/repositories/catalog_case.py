@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING, Any
 import pytest
 
 from tests.fakes.catalog import FakeBantLabelRepository, FakeCodeRepository
-from tests.support.database import rolled_back_session
+from tests.support.default_vendor import rolled_back_session_with_vendor
 from tests.support.user_seed import ensure_users
 
 if TYPE_CHECKING:
@@ -60,7 +60,7 @@ async def open_catalog(
     from app.infra.db.code_repository import SqlCodeRepository  # noqa: PLC0415
     from app.infra.db.user_repository import SqlUserRepository  # noqa: PLC0415
 
-    async with rolled_back_session(test_database_url) as session:  # type: ignore[arg-type]
+    async with rolled_back_session_with_vendor(test_database_url) as session:  # type: ignore[arg-type]
         yield CatalogCase(
             SqlCodeRepository(session), SqlBantLabelRepository(session), SqlUserRepository(session)
         )

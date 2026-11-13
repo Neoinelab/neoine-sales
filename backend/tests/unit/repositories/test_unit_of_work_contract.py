@@ -20,6 +20,7 @@ from tests.factories import later, make_deal, make_deal_action, make_deal_detail
 from tests.factories_action_type import make_action_type
 from tests.factories_contact import make_customer
 from tests.fakes.unit_of_work import FakeUnitOfWork
+from tests.support.default_vendor import ensure_default_vendor
 from tests.support.truncate import truncate_business_tables
 from tests.support.user_ids import OWNER_ID
 from tests.support.user_seed import ensure_users
@@ -164,6 +165,7 @@ async def _seed_deal(uow_factory: UnitOfWorkFactory) -> DealCode:
     deal = make_deal(code="20261016-A001", customer_id=customer.id)
     async with uow_factory() as uow:
         await ensure_users(uow.users, OWNER_ID)  # FK: 담당자·이력 변경자
+        await ensure_default_vendor(uow.vendors)
         await uow.contacts.add(customer)
         await uow.deals.add(deal)
         await uow.commit()

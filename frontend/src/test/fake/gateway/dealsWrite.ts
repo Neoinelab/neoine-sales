@@ -5,7 +5,7 @@ import { businessToday } from '../businessDate'
 import { FORECAST_WON } from '../../../shared/model/constants'
 import { canWrite } from '../../../shared/model/permissions'
 import type { Deal, DealInput, DealPatch } from '../../../shared/model/types'
-import { WRITE_DENIED_MESSAGE, conflict, forbidden, validation } from '../errors'
+import { WRITE_DENIED_MESSAGE, conflict, forbidden, requestValidation, validation } from '../errors'
 import { requireUser, requireWrite, viewerOf, write, clone, type MockContext } from './context'
 import { commitBant } from './bantChoice'
 import { commitContact, planContact, type ContactPlan } from './contactPlan'
@@ -39,8 +39,9 @@ export function newDealCode(ctx: MockContext): string {
 
 function createDeal(ctx: MockContext, raw: DealInput) {
   const user = requireWrite(ctx)
-  // 서버 요청 모델의 기본값: 보내지 않은 Vendor는 선택 없음(null), Solution은 빈 문자열이다.
-  const input: DealInput = { ...raw, vendorId: raw.vendorId ?? null, solution: raw.solution ?? '' }
+  // 서버 요청 모델: Vendor 누락·null은 요청 형식 오류(422)이고, Solution은 생략·null이면 빈 문자열이다.
+  if ((raw.vendorId as number | null | undefined) == null) throw requestValidation()
+  const input: DealInput = { ...raw, solution: raw.solution ?? '' }
   const bantDraft = validateDealFields(ctx, input, () => true, input.bant)
   validateCustomerDraft(input.customer)
   if (input.partner) validatePartnerDraft(input.partner)

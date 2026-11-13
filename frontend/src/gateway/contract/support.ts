@@ -40,3 +40,10 @@ export async function expectRejects(promise: Promise<unknown>, status: number, m
   if (message !== undefined) expect(error.message).toBe(message)
   return error
 }
+
+/** 등록된 Vendor 중 하나의 id. Deal은 Vendor가 필수라 등록 입력의 `vendorId`에 쓴다(목록은 모든 역할이 읽을 수 있다). */
+export async function anyVendorId(gateway: Gateway): Promise<number> {
+  const first = (await gateway.vendors.list())[0]
+  if (!first) throw new Error('등록된 Vendor가 없습니다. Deal 등록 계약은 Vendor가 하나 이상 있어야 합니다.')
+  return first.id
+}

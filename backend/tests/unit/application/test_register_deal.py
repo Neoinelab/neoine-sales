@@ -1,5 +1,6 @@
 """RegisterDeal: code 발급, 등록 값 저장, 등록 이력, 파트너 링크, BANT 선택."""
 
+import dataclasses
 import re
 from datetime import UTC, date, datetime
 from typing import TYPE_CHECKING
@@ -7,11 +8,10 @@ from typing import TYPE_CHECKING
 import pytest
 
 from app.application.deal.dto import NamedRef
-from app.application.deal.inputs import Actor
+from app.application.deal.inputs import Actor, DealCreateInput
 from app.application.deal.register_deal import RegisterDeal
 from app.domain.auth.principal import Role
 from app.domain.bant.values import BantCategory
-from app.domain.common.errors import InvalidValueError
 from app.domain.contact.values import ContactKind
 from app.domain.deal.errors import DealCodeIssueError, InvalidBantLabelError
 from app.domain.deal.values import PocState, QuoteSubmitted
@@ -172,31 +172,45 @@ class TestRegisteredSolutionText:
         assert view.item.deal.details.solution == "MFA"
         assert stored.details.solution == "MFA"
 
-    async def test_register_with_a_blank_solution_is_rejected_and_stores_nothing(
-        self, env: DealEnv
+    @pytest.mark.parametrize("sent", ["", "   ", None, "omitted"])
+    async def test_register_without_a_solution_stores_an_empty_one(
+        self, env: DealEnv, sent: str | None
     ) -> None:
-        """공백뿐인 Solution 등록은 거절되고 저장되지 않는다.
+        """Solution을 생략·null·빈 값·공백으로 등록하면 빈 Solution으로 저장된다.
 
-        테스트 코드: DE-017
+        테스트 코드: DE-115
         """
-        # when·then: Solution '   '로 등록한다 → 'Solution을 입력하세요.' 오류이고 Deal이 없다.
-        with raises_with(InvalidValueError, "Solution을 입력하세요."):
-            await env.new_deal(solution="   ")
+        # given: Solution이 생략되었거나 null·''·'   '인 등록 입력.
+        fields = {
+            f.name: getattr(make_create_input(), f.name)
+            for f in dataclasses.fields(DealCreateInput)
+        }
+        fields.pop("solution")
+        if sent != "omitted":
+            fields["solution"] = sent
 
-        assert list(env.uow.deals._items) == []
+        # when: 등록한다.
+        view = await env.register.execute(DealCreateInput(**fields), SALES)
 
-    def test_create_input_requires_solution(self) -> None:
-        """등록 입력은 Solution이 필수이고 solution_id 필드가 없다."""
+        # then: 오류 없이 등록되고 저장된 Solution이 ''다.
+        stored = await env.uow.deals.get(view.item.deal.id)
+        assert view.item.deal.details.solution == ""
+        assert stored.details.solution == ""
+
+    def test_create_input_requires_vendor_and_has_an_optional_solution(self) -> None:
+        """등록 입력은 vendor_id가 필수이고 solution은 기본이 빈 값이며 solution_id 필드가 없다.
+
+        테스트 코드: DE-115
+        """
         from dataclasses import MISSING  # noqa: PLC0415
 
-        from app.application.deal.inputs import DealCreateInput  # noqa: PLC0415
-
         # when: DealCreateInput의 필드 정의를 본다.
-        field = DealCreateInput.__dataclass_fields__["solution"]
+        fields = DealCreateInput.__dataclass_fields__
 
-        # then: solution에 기본값이 없고 solution_id 필드가 없다.
-        assert field.default is MISSING
-        assert field.default_factory is MISSING
+        # then: vendor_id에는 기본값이 없고, solution의 기본값은 빈 문자열이며 solution_id가 없다.
+        assert fields["vendor_id"].default is MISSING
+        assert fields["vendor_id"].default_factory is MISSING
+        assert fields["solution"].default == ""
         assert "solution_id" not in DealCreateInput.__dataclass_fields__
 
     async def test_register_keeps_the_letter_case_of_the_solution(self, env: DealEnv) -> None:

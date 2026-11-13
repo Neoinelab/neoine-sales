@@ -24,7 +24,7 @@ import type {
 
 export const OWNER_RESIGNED_MESSAGE = '퇴사한 사용자는 Owner로 지정할 수 없습니다. 다른 담당자를 선택하세요.'
 export const PARTNER_INCOMPLETE_MESSAGE = '파트너를 입력하면 회사명과 담당자명이 모두 필요합니다.'
-export const SOLUTION_REQUIRED_MESSAGE = 'Solution을 입력하세요.'
+export const VENDOR_REQUIRED_MESSAGE = 'Vendor를 선택하세요.'
 export const USERS_REQUIRED_MESSAGE = 'Users count를 입력하세요.'
 export const USERS_MESSAGE = 'Users count는 0 이상의 정수로 입력하세요.'
 
@@ -34,9 +34,9 @@ export const EMPTY_DRAFT: ContactDraft = { contactId: null, company: '', name: '
 export interface DealFormState {
   name: string
   ownerId: string
-  /** Owner·Vendor id는 select 값(10진 문자열)으로 들고, 저장할 때 `parseId`로 정수로 바꾼다. 빈 문자열은 선택 안 함. */
+  /** Owner·Vendor id는 select 값(10진 문자열)으로 들고, 저장할 때 `parseId`로 정수로 바꾼다. 빈 문자열은 미선택. */
   vendorId: string
-  /** Solution 자유 텍스트(필수). */
+  /** Solution 자유 텍스트(선택, 빈 값 허용). */
   solution: string
   users: string
   statusKey: string
@@ -57,6 +57,7 @@ export interface DealFormState {
 export interface FormErrors {
   name?: string
   ownerId?: string
+  vendorId?: string
   solution?: string
   users?: string
   revenueAmount?: string
@@ -179,7 +180,7 @@ export function validateForm(state: DealFormState, originalOwner: UserRef | unde
   if (state.name.trim() === '') errors.name = 'Deal Name을 입력하세요.'
   if (parseId(state.ownerId) === undefined) errors.ownerId = 'Owner를 선택하세요.'
   else if (originalOwner?.status === 'resigned' && String(originalOwner.id) === state.ownerId) errors.ownerId = OWNER_RESIGNED_MESSAGE
-  if (state.solution.trim() === '') errors.solution = SOLUTION_REQUIRED_MESSAGE
+  if (parseId(state.vendorId) === undefined) errors.vendorId = VENDOR_REQUIRED_MESSAGE
   const users = state.users.trim()
   if (users === '') errors.users = USERS_REQUIRED_MESSAGE
   else if (!/^\d+$/.test(users)) errors.users = USERS_MESSAGE
@@ -219,10 +220,12 @@ export function toDealInput(state: DealFormState, labels: readonly BantLabel[]):
   const users = state.users.trim()
   const ownerId = parseId(state.ownerId)
   if (ownerId === undefined) throw new Error('Owner를 선택하세요.')
+  const vendorId = parseId(state.vendorId)
+  if (vendorId === undefined) throw new Error(VENDOR_REQUIRED_MESSAGE)
   return {
     name: state.name.trim(),
     ownerId,
-    vendorId: parseId(state.vendorId) ?? null,
+    vendorId,
     solution: state.solution.trim(),
     users: Number(users),
     statusKey: state.statusKey,

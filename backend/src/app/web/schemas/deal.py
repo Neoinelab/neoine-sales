@@ -86,8 +86,8 @@ class BantRequest(RequestModel):
 class DealCreateRequest(RequestModel):
     name: str
     owner_user_id: BodyId
-    vendor_id: BodyId | None = None
-    solution: str
+    vendor_id: BodyId
+    solution: str | None = None
     users: StrictInt
     status_key: str
     forecast_key: str
@@ -105,7 +105,7 @@ class DealCreateRequest(RequestModel):
             name=self.name,
             owner_user_id=UserId(self.owner_user_id),
             vendor_id=self.vendor_id,
-            solution=self.solution,
+            solution=self.solution if self.solution is not None else "",
             users=self.users,
             status_key=self.status_key,
             forecast_key=self.forecast_key,

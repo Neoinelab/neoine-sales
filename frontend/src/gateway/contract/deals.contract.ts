@@ -8,7 +8,7 @@ import { DEAL_CODE_PATTERN } from '../../shared/model/constants'
 import type { DealDetail, DealInput } from '../../shared/model/types'
 import type { Gateway } from '../types'
 import { action } from './actions.contract'
-import { expectRejects, unique, type MakeGateway, NO_SUCH_ID } from './support'
+import { expectRejects, unique, type MakeGateway, NO_SUCH_ID, anyVendorId } from './support'
 
 const SYNC_MISMATCH = 'Status와 Forecast의 동기화가 맞지 않습니다.'
 const REVENUE_NEEDED = 'Won·계약완료로 바꾸려면 매출금액과 매출일이 필요합니다.'
@@ -20,7 +20,7 @@ async function validInput(gateway: Gateway, over: Partial<DealInput> = {}): Prom
   return {
     name: unique('deal'),
     ownerId: me.id,
-    vendorId: null,
+    vendorId: await anyVendorId(gateway),
     solution: 'ITDR',
     users: 10,
     statusKey: 'prospecting',
@@ -241,15 +241,16 @@ export function dealsContract(make: MakeGateway): void {
       await sales.deals.remove(created.code, created.code)
     })
 
-    it('Vendor를 고르지 않으면 null이고 Solution은 입력한 그대로다', async () => {
+    it('Vendor 없이 등록하면 422 요청 형식 오류이고 Deal이 만들어지지 않는다', async () => {
       const sales = await make('sales')
-      // when: Vendor 없이 Solution을 넣어 등록한다
-      const created = await sales.deals.create(await validInput(sales, { solution: 'ITDR' }))
+      // given: Vendor가 빠진 등록 입력과 현재 Deal 수
+      const before = (await sales.deals.list({ limit: 1 })).total
+      const base = await validInput(sales)
 
-      // then: vendor는 null이고 solution은 입력값이다 (끝에 정리한다)
-      expect(created.vendor).toBeNull()
-      expect(created.solution).toBe('ITDR')
-      await sales.deals.remove(created.code, created.code)
+      // when·then: vendorId를 null로 보내 등록한다 → 422다
+      await expectRejects(sales.deals.create({ ...base, vendorId: null as unknown as number }), 422)
+      // then: Deal 수가 그대로다
+      expect((await sales.deals.list({ limit: 1 })).total).toBe(before)
     })
 
     it('Vendor는 {id, name}으로, Solution은 공백을 지운 텍스트로 등록되고 둘로 거를 수 있다', async () => {
@@ -273,52 +274,59 @@ export function dealsContract(make: MakeGateway): void {
       await cleanup.vendors.remove(vendor.id)
     })
 
-    it('Vendor 없이 Solution을 받고 Vendor를 바꿔도 Solution은 유지한다', async () => {
-      // given: Vendor 하나와 Vendor 없는 Deal
+    it('Vendor를 바꿔도 Solution은 유지하고 Vendor를 null로 비우기는 거절한다', async () => {
+      // given: Vendor 하나와 Solution이 ITDR인 Deal
       const admin = await make('admin')
       const vendor = await admin.vendors.create(unique('vendor'))
       const sales = await make('sales')
       const created = await sales.deals.create(await validInput(sales, { solution: 'ITDR' }))
 
-      // when: Vendor를 넣었다가 비운다
-      const withVendor = await sales.deals.update(created.code, { vendorId: vendor.id })
-      const cleared = await sales.deals.update(created.code, { vendorId: null })
+      // when: Vendor를 바꾸고, Vendor를 비우려 한다
+      const changed = await sales.deals.update(created.code, { vendorId: vendor.id })
+      await expectRejects(sales.deals.update(created.code, { vendorId: null as unknown as number }), 422, 'Vendor를 선택하세요.')
+      const after = await sales.deals.get(created.code)
 
-      // then: 처음엔 vendor가 null이고 두 번 모두 Solution이 그대로다 (끝에 정리한다)
-      expect(created.vendor).toBeNull()
-      expect(withVendor.solution).toBe('ITDR')
-      expect(cleared.solution).toBe('ITDR')
+      // then: Solution은 그대로이고 Vendor는 바뀐 Vendor 그대로다 (끝에 정리한다)
+      expect(changed.solution).toBe('ITDR')
+      expect(after.vendor).toEqual({ id: vendor.id, name: vendor.name })
+      expect(after.solution).toBe('ITDR')
       await sales.deals.remove(created.code, created.code)
       await (await make('admin')).vendors.remove(vendor.id)
     })
 
-    it('수정으로 Solution을 바꾸고 비우기는 거절하며 이력에 남긴다', async () => {
+    it('수정으로 Solution을 바꾸거나 비울 수 있고 이력에 남긴다', async () => {
       // given: Solution이 MFA인 Deal
       const sales = await make('sales')
       const created = await sales.deals.create(await validInput(sales, { solution: 'MFA' }))
 
-      // when: Solution을 바꾸고, 비우기를 시도하고, 이름만 바꾼다
+      // when: Solution을 바꾸고, 공백으로 비우고, 이름만 바꾼다
       const replaced = await sales.deals.update(created.code, { solution: '  ITDR ' })
-      await expectRejects(sales.deals.update(created.code, { solution: '   ' }), 422, 'Solution을 입력하세요.')
-      await expectRejects(sales.deals.update(created.code, { solution: '' }), 422, 'Solution을 입력하세요.')
+      const cleared = await sales.deals.update(created.code, { solution: '   ' })
       const kept = await sales.deals.update(created.code, { name: unique('renamed') })
 
-      // then: Solution이 바뀌고 이름 수정에도 유지되며 Solution 이력은 MFA에서 ITDR 한 건이다 (끝에 정리한다)
+      // then: Solution이 바뀌고 비워지며 이름 수정에도 빈 값이 유지되고 이력은 MFA→ITDR, ITDR→- 두 건이다 (끝에 정리한다)
       expect(replaced.solution).toBe('ITDR')
-      expect(kept.solution).toBe('ITDR')
+      expect(cleared.solution).toBe('')
+      expect(kept.solution).toBe('')
       const entries = (await sales.history.list(created.code, {})).filter((h) => h.target === 'Solution')
-      expect(entries.map((h) => [h.before, h.after])).toEqual([['MFA', 'ITDR']])
+      expect(entries.map((h) => [h.before, h.after]).reverse()).toEqual([['MFA', 'ITDR'], ['ITDR', '-']])
       await sales.deals.remove(created.code, created.code)
     })
 
-    it('등록에는 Solution이 필수다', async () => {
+    it('등록의 Solution은 선택이라 빈 값과 공백은 빈 값으로 저장한다', async () => {
       const sales = await make('sales')
       // given: 유효한 등록 입력
       const base = await validInput(sales)
 
-      // when·then: 빈 값과 공백만 있는 Solution은 Solution 문구와 함께 422다
-      await expectRejects(sales.deals.create({ ...base, solution: '' }), 422, 'Solution을 입력하세요.')
-      await expectRejects(sales.deals.create({ ...base, solution: '   ' }), 422, 'Solution을 입력하세요.')
+      // when: 빈 값과 공백만 있는 Solution으로 등록한다
+      const empty = await sales.deals.create({ ...base, solution: '' })
+      const blank = await sales.deals.create({ ...(await validInput(sales)), solution: '   ' })
+
+      // then: 둘 다 등록되고 solution은 빈 문자열이다 (끝에 정리한다)
+      expect(empty.solution).toBe('')
+      expect(blank.solution).toBe('')
+      await sales.deals.remove(empty.code, empty.code)
+      await sales.deals.remove(blank.code, blank.code)
     })
 
     it('Solution 텍스트의 대소문자 무시 부분 일치로 목록을 거른다', async () => {
@@ -527,7 +535,10 @@ export function dealsContract(make: MakeGateway): void {
     it('담당자·고객·파트너·Vendor·Forecast로 양방향 정렬하고 같으면 코드 오름차순이다', async () => {
       // given: 고객·파트너·Forecast가 다른 Deal 셋과 Vendor 둘
       const admin = await make('admin')
-      const vendors = [await admin.vendors.create(unique('vb')), await admin.vendors.create(unique('va'))]
+      const vendors: [Awaited<ReturnType<typeof admin.vendors.create>>, Awaited<ReturnType<typeof admin.vendors.create>>] = [
+        await admin.vendors.create(unique('vb')),
+        await admin.vendors.create(unique('va')),
+      ]
       const sales = await make('sales')
       const tag = unique('tag')
       const rows: [string, string, string][] = [
@@ -537,7 +548,7 @@ export function dealsContract(make: MakeGateway): void {
       ]
       const made = []
       for (const [index, [company, forecastKey, partnerCompany]] of rows.entries()) {
-        const base = await validInput(sales, { name: `${tag}${unique('d')}`, forecastKey, vendorId: vendors[index % 2]?.id ?? null })
+        const base = await validInput(sales, { name: `${tag}${unique('d')}`, forecastKey, vendorId: vendors[index % 2 === 0 ? 0 : 1].id })
         made.push(
           await sales.deals.create({
             ...base,

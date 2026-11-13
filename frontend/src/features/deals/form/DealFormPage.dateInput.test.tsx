@@ -2,6 +2,7 @@ import { fireEvent, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { gateway } from '../../../gateway'
 import { renderAt } from '../../../test/mockApp'
+import { pickVendor } from '../../../test/vendorPick'
 import { DETAIL_URL, pickPerson, save } from './testHelpers'
 
 afterEach(() => vi.restoreAllMocks())
@@ -11,6 +12,7 @@ async function fillRequired(name: string) {
   await screen.findByRole('heading', { name: 'Deal 등록' })
   await screen.findByLabelText('Deal Name')
   await view.user.type(screen.getByLabelText('Deal Name'), name)
+  await pickVendor(view.user)
   await pickPerson(view.user, '고객', '한빛은행', /정민수/)
   await view.user.type(screen.getByLabelText('금액(단위:원)'), '100000000')
   await view.user.type(screen.getByLabelText('Solution'), 'ITDR')

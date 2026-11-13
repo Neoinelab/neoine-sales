@@ -72,18 +72,26 @@ def test_vendor_response_has_usage_and_no_solutions(schema: dict[str, Any]) -> N
 
 
 def test_deal_requests_take_vendor_id_and_a_solution_text(schema: dict[str, Any]) -> None:
-    """Deal 요청은 vendor_id와 Solution 텍스트를 받는다."""
+    """Deal 요청은 vendor_id와 Solution 텍스트를 받고, 등록에서 vendor_id만 필수다.
+
+    테스트 코드: DE-010
+    """
     # given: OpenAPI 스키마
     schemas = schema["components"]["schemas"]
 
     # when: Deal 등록·수정 요청 스키마를 살펴본다
     for name in ("DealCreateRequest", "DealPatchRequest"):
-        # then: vendor_id·solution이 있고 예전 필드는 없으며 등록에서 solution이 필수다
+        # then: vendor_id·solution이 있고 예전 필드는 없다
         props = schemas[name]["properties"]
         assert {"vendor_id", "solution"} <= set(props), name
         assert not {"vendor", "solution_id"} & set(props), name
-    assert schemas["DealCreateRequest"]["properties"]["solution"]["type"] == "string"
-    assert "solution" in schemas["DealCreateRequest"]["required"]  # 등록 시 필수(Q1 변경)
+    create = schemas["DealCreateRequest"]
+    # 등록: vendor_id는 필수 정수(null 불가), solution은 선택이고 null·생략을 받는다
+    assert create["properties"]["vendor_id"]["type"] == "integer"
+    assert "vendor_id" in create["required"]
+    assert "solution" not in create["required"]
+    kinds = {part.get("type") for part in create["properties"]["solution"]["anyOf"]}
+    assert kinds == {"string", "null"}
 
 
 def test_deal_responses_expose_a_vendor_ref_and_a_solution_string(

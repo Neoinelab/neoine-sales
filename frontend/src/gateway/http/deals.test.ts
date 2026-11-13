@@ -663,18 +663,18 @@ describe('deals.update over HTTP', () => {
     expect(calls[0]?.body).toEqual({ solution: 'MFA' })
   })
 
-  // Vendor를 비우면 vendor_id null을 보내고 주지 않은 Vendor 필드는 생략한다.
+  // 빈 Solution은 빈 문자열로 보내고 주지 않은 Vendor 필드는 생략한다.
   // 테스트 코드: DE-112
-  it('sends a null vendor_id to clear the vendor and omits vendor fields that are not given', async () => {
+  it('sends an empty solution as an empty string and omits vendor fields that are not given', async () => {
     // given: 서버가 200 상세를 돌려준다.
     const { calls } = stubFetch(json(serverDealDetail()), json(serverDealDetail()))
 
-    await createDealsHttp().update(CODE, { vendorId: null })
-    // when: vendorId null로 update를 호출한다.
+    // when: 빈 solution과 name만 담아 update를 각각 호출한다.
+    await createDealsHttp().update(CODE, { solution: '' })
     await createDealsHttp().update(CODE, { name: 'x' })
 
-    // then: vendor_id null만 있고 다른 Vendor 필드는 없다.
-    expect(calls[0]?.body).toEqual({ vendor_id: null })
+    // then: 첫 본문은 solution ''만, 둘째는 name만 있고 vendor_id는 없다.
+    expect(calls[0]?.body).toEqual({ solution: '' })
     expect(calls[1]?.body).toEqual({ name: 'x' })
   })
 

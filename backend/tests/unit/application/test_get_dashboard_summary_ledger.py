@@ -69,13 +69,13 @@ async def _given_ten_deals(env: DealEnv) -> Seed:
     oracle = (await env.new_vendor("Oracle")).id
     rows = (
         (kim, None, "pipeline", 10, date(2026, 1, 1), sap),
-        (kim, "introduction", "best", 20, date(2026, 3, 31), None),
+        (kim, "introduction", "best", 20, date(2026, 3, 31), oracle),
         (kim, "poc_completed", "commit", 30, date(2026, 4, 1), sap),
         (lee, None, "most_likely", 40, date(2026, 10, 5), sap),
         (lee, "price_negotiation", "lost", 50, date(2026, 10, 10), sap),
         (lee, None, "won", 60, date(2026, 12, 31), oracle),
         (kim, None, "pipeline", 70, date(2026, 11, 15), sap),
-        (kim, "technical_evaluation", "commit", 80, date(2026, 11, 30), None),
+        (kim, "technical_evaluation", "commit", 80, date(2026, 11, 30), oracle),
         (lee, None, "pipeline", 90, date(2025, 12, 31), sap),
         (lee, None, "pipeline", 100, date(2027, 1, 1), sap),
     )

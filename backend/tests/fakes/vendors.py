@@ -62,6 +62,32 @@ class FakeVendorRepository(InMemoryStore["Vendor"]):
     async def list(self, *, for_update: bool = False) -> Sequence[Vendor]:
         return [copy.deepcopy(v) for v in _by_name(list(self._items.values()))]
 
+    def materialize_default(self) -> None:
+        """기본 Deal 팩토리의 Vendor(`DEFAULT_VENDOR_ID`)를 처음 쓸 때 저장소에 둔다.
+
+        SQL case는 같은 일을 `ensure_default_vendor`로 명시한다. Fake는 Deal이 이 Vendor를 쓰는
+        순간(등록·저장·조회) 암묵적으로 만들어, 기본 Deal을 만드는 수많은 테스트가 Vendor 준비를
+        반복하지 않게 한다. 기본 Vendor를 쓰지 않는 테스트의 Vendor 목록에는 나타나지 않는다.
+        """
+        from tests.factories_vendor import make_vendor  # noqa: PLC0415
+        from tests.support.default_vendor import (  # noqa: PLC0415
+            DEFAULT_VENDOR_ID,
+            DEFAULT_VENDOR_NAME,
+            default_vendor_id,
+        )
+
+        if DEFAULT_VENDOR_ID not in self._items:
+            self._items[default_vendor_id()] = make_vendor(
+                DEFAULT_VENDOR_NAME, vendor_id=default_vendor_id()
+            )
+
+    def _fetch(self, entity_id: object) -> Vendor:
+        from tests.support.default_vendor import DEFAULT_VENDOR_ID  # noqa: PLC0415
+
+        if entity_id == DEFAULT_VENDOR_ID:
+            self.materialize_default()
+        return super()._fetch(entity_id)
+
     async def get(self, vendor_id: VendorId, *, for_update: bool = False) -> Vendor:
         return copy.deepcopy(self._fetch(vendor_id))
 

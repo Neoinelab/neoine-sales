@@ -121,7 +121,7 @@ class TestSentFieldsOnly:
         # given: Deal과 다른 sales·Oracle Vendor.
         park = await seed_user(env.uow_factory, "park", Role.SALES)
         oracle = await env.new_vendor("Oracle")
-        view = await env.new_deal()
+        view = await env.new_deal()  # 기본 Vendor를 고른 Deal
 
         # when: 여러 필드를 한 번에 고친다.
         updated = await env.update.execute(
@@ -145,7 +145,7 @@ class TestSentFieldsOnly:
             ("expectedClose", "Expected Close", "2026-06-30", "2026-12-31"),
             ("owner", "Owner", "owner", "park"),
             ("other", "Deal Name", "ERP 구축", "확장 프로젝트"),
-            ("other", "Vendor", "선택 안 함", "Oracle"),
+            ("other", "Vendor", "기본 Vendor", "Oracle"),
             ("other", "Users count", "10", "20"),
         ]
 

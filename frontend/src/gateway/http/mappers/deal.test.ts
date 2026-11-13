@@ -218,7 +218,7 @@ describe('toDealDetail', () => {
 const BASE_INPUT: DealInput = {
   name: '한빛은행 ITDR',
   ownerId: USER_ID.kim,
-  vendorId: null,
+  vendorId: 6,
   solution: 'ITDR',
   users: 10,
   statusKey: 'prospecting',
@@ -297,6 +297,17 @@ describe('solution request bodies', () => {
     // then: solution이 있고 solution_id는 없다.
     expect(body.solution).toBe('ITDR')
     expect(body).not.toHaveProperty('solution_id')
+  })
+
+  // 등록 본문은 Vendor id를 숫자로, 빈 Solution을 빈 문자열로 보낸다.
+  // 테스트 코드: DE-111
+  it('create sends the vendor id as a number and an empty solution as an empty string', () => {
+    // when: 빈 Solution의 등록 입력을 본문으로 변환한다
+    const body = toCreateBody({ ...BASE_INPUT, vendorId: 6, solution: '' })
+
+    // then: vendor_id는 6, solution은 ''다
+    expect(body.vendor_id).toBe(6)
+    expect(body.solution).toBe('')
   })
 
   // patch는 Solution을 보낼 때만 싣고 solution_id는 보내지 않는다.

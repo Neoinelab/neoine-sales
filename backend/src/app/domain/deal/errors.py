@@ -8,6 +8,7 @@ from app.domain.common.errors import (
     NotFoundError,
 )
 
+VENDOR_REQUIRED_MESSAGE = "Vendor를 선택하세요."
 SYNC_MISMATCH_MESSAGE = "Status와 Forecast의 동기화가 맞지 않습니다."
 STATUS_REQUIRED_MESSAGE = "Status를 선택하세요."
 FORECAST_REQUIRED_MESSAGE = "Forecast를 선택하세요."

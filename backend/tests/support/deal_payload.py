@@ -2,6 +2,7 @@
 
 from typing import Any
 
+from tests.support.default_vendor import DEFAULT_VENDOR_ID
 from tests.support.user_ids import OWNER_ID
 
 
@@ -10,8 +11,8 @@ def deal_payload(**overrides: object) -> dict[str, Any]:
     values: dict[str, Any] = {
         "name": "ERP 구축",
         "owner_user_id": OWNER_ID,  # deal_users fixture(또는 SQL stack)가 이 사용자를 둔다
-        "vendor_id": None,  # 등록된 Vendor의 id(없으면 선택 안 함)
-        "solution": "S/4HANA",  # 자유 텍스트(필수, 앞뒤 공백 제거 후 1~200자)
+        "vendor_id": DEFAULT_VENDOR_ID,  # 필수: 등록된 Vendor의 id
+        "solution": "S/4HANA",  # 선택 자유 텍스트(앞뒤 공백 제거 후 0~200자)
         "users": 10,
         "status_key": "prospecting",
         "forecast_key": "pipeline",

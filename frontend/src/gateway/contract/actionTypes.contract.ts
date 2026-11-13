@@ -6,7 +6,7 @@
 import { describe, expect, it } from 'vitest'
 import type { ActionInput, DealInput } from '../../shared/model/types'
 import type { Gateway } from '../types'
-import { expectRejects, unique, type MakeGateway, NO_SUCH_ID } from './support'
+import { expectRejects, unique, type MakeGateway, NO_SUCH_ID, anyVendorId } from './support'
 
 const DEFAULTS = ['통화', '미팅', '이메일', '데모', '제안', '협상', '계약', '기타']
 const DUPLICATE = '이미 있는 유형 이름입니다.'
@@ -19,7 +19,7 @@ async function newDeal(gateway: Gateway) {
   const input: DealInput = {
     name: unique('deal'),
     ownerId: me.id,
-    vendorId: null,
+    vendorId: await anyVendorId(gateway),
     solution: 'ITDR',
     users: 10,
     statusKey: 'prospecting',

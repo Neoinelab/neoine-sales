@@ -114,7 +114,7 @@ async def test_post_by_a_read_only_user_or_anonymous_visitor_is_rejected(who: st
         {"owner_user_id": "x"},
         {"users": "10"},
         {"users": None},
-        {"solution": None},
+        {"vendor_id": None},
         {"solution": 1},
         {"quote": {"submitted": "MAYBE"}},
         {"extra": 1},
@@ -127,7 +127,7 @@ async def test_post_by_a_read_only_user_or_anonymous_visitor_is_rejected(who: st
         "owner-text",
         "users-text",
         "users-null",
-        "solution-null",
+        "vendor-null",
         "solution-number",
         "quote-enum",
         "unknown-key",
@@ -153,24 +153,65 @@ async def test_post_with_a_malformed_body_is_a_request_validation_error_and_stor
     assert use_cases.uow.deals._items == {}
 
 
-async def test_post_without_users_or_solution_keys_is_a_request_validation_error() -> None:
-    """users·solution 키가 없는 등록 본문은 422 request-validation이다.
+async def test_post_without_users_or_vendor_id_keys_is_a_request_validation_error() -> None:
+    """users·vendor_id 키가 없는 등록 본문은 422 request-validation이다.
 
     테스트 코드: DE-010
     """
-    # given: Owner가 있고 users 또는 solution 키를 뺀 본문
+    # given: Owner가 있고 users 또는 vendor_id 키를 뺀 본문
     use_cases = await _use_cases_with_owner()
     async with clients(use_cases, {"kim": Role.SALES}) as c:
         without_users = {k: v for k, v in deal_payload().items() if k != "users"}
-        without_solution = {k: v for k, v in deal_payload().items() if k != "solution"}
+        without_vendor = {k: v for k, v in deal_payload().items() if k != "vendor_id"}
         # when: 각각 등록한다
         first = await c["kim"].post(URL, json=without_users)
-        second = await c["kim"].post(URL, json=without_solution)
+        second = await c["kim"].post(URL, json=without_vendor)
 
     # then: 둘 다 422 request-validation이고 Deal이 없다
     problem(first, 422, "request-validation")
     problem(second, 422, "request-validation")
     assert use_cases.uow.deals._items == {}
+
+
+@pytest.mark.parametrize("sent", ["omitted", None, "", "   "])
+async def test_post_without_a_solution_creates_the_deal_with_an_empty_solution(
+    sent: str | None,
+) -> None:
+    """Solution을 생략·null·빈 값·공백으로 등록하면 201이고 응답·저장 Solution이 빈 값이다.
+
+    테스트 코드: DE-115
+    """
+    # given: Owner가 있고 Solution이 생략되었거나 null·''·'   '인 본문
+    use_cases = await _use_cases_with_owner()
+    body = {k: v for k, v in deal_payload().items() if k != "solution"}
+    if sent != "omitted":
+        body["solution"] = sent
+    async with clients(use_cases, {"kim": Role.SALES}) as c:
+        # when: 등록한다
+        response = await c["kim"].post(URL, json=body)
+
+    # then: 201이고 응답과 저장된 Solution이 ''다
+    assert response.status_code == 201, response.text
+    assert response.json()["solution"] == ""
+    (stored,) = use_cases.uow.deals._items.values()
+    assert stored.details.solution == ""
+
+
+async def test_patch_with_a_null_vendor_is_an_invalid_value_error_and_keeps_the_vendor() -> None:
+    """수정에서 vendor_id null은 422 invalid-value "Vendor를 선택하세요."이고 Vendor가 그대로다.
+
+    테스트 코드: DE-116
+    """
+    # given: Vendor(기본)를 고른 Deal이 있다
+    use_cases = await _use_cases_with_deal()
+    before = next(iter(use_cases.uow.deals._items.values())).details.vendor_id
+    async with clients(use_cases, {"kim": Role.SALES}) as c:
+        # when: vendor_id를 null로 수정한다
+        response = await c["kim"].patch(f"{URL}/{CODE}", json={"vendor_id": None})
+
+    # then: 422 invalid-value, 문구 "Vendor를 선택하세요."이고 Vendor가 그대로다
+    assert problem(response, 422, "invalid-value")["detail"] == "Vendor를 선택하세요."
+    assert next(iter(use_cases.uow.deals._items.values())).details.vendor_id == before
 
 
 @pytest.mark.parametrize("who", ["viewer", "anon"])

@@ -334,10 +334,11 @@ async def test_tally_totals_equal_the_deal_list_ledger_with_a_vendor_condition(
 
     테스트 코드: FC-011
     """
-    # given: SAP·Oracle·Vendor 없는 Deal을 KIM·LEE가 11월과 12월에 가진 상태
+    # given: SAP·Oracle·IBM Deal을 KIM·LEE가 11월과 12월에 가진 상태
     sap = await forecast_case.deals.new_vendor("SAP")
     oracle = await forecast_case.deals.new_vendor("Oracle")
-    vendors = [sap.id, oracle.id, None, sap.id]
+    ibm = await forecast_case.deals.new_vendor("IBM")
+    vendors = [sap.id, oracle.id, ibm.id, sap.id]
     for number, vendor_id in enumerate(vendors):
         await forecast_case.add_deal(
             owner=KIM if number % 2 == 0 else LEE,

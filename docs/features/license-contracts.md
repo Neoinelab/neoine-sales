@@ -507,7 +507,7 @@ LC-R30~LC-R37. 화면은 게이트웨이(`gateway.licenseContracts`)로만 서�
 ### LC-028 계약 상세는 조회 시점의 Deal 값·첨부 수·Won 여부를 담는다
 - Given 고객·Vendor·Solution·파트너·Owner가 있는 Won Deal의 계약과 첨부 2개
 - When 계약을 조회하고, Deal의 고객·Vendor·Solution·Owner를 바꾸고 파트너 연결을 끊은 뒤 다시 조회하고, Deal을 Won 밖으로 바꾼 뒤 다시 조회한다
-- Then 첫 응답은 그 Deal 값과 `attachment_count` 2, `deal_is_won` true다. 둘째 응답은 바뀐 Deal 값(파트너 null, Vendor를 지웠으면 null)이고, 셋째 응답의 `deal_is_won`은 false다. 목록 행도 같은 값이다
+- Then 첫 응답은 그 Deal 값과 `attachment_count` 2, `deal_is_won` true다. 둘째 응답은 바뀐 Deal 값(파트너 null, Vendor는 바꾼 Vendor)이고, 셋째 응답의 `deal_is_won`은 false다. 목록 행도 같은 값이다
 
 ### LC-029 없는 계약·첨부 id로 요청하면 404다(계약 삭제는 admin만)
 - Given sales와 admin
@@ -813,3 +813,4 @@ LC-R30~LC-R37. 화면은 게이트웨이(`gateway.licenseContracts`)로만 서�
 | 2026-11-10 | 보충(사용자 결정 E4, Deal 첨부 AT 문서 정리): LC-R21에 첨부 설명 NUL 거절(길이 판정보다 먼저, 422 `invalid-value` "설명에는 NUL 문자를 쓸 수 없습니다")을 적고 2.8 첨부 검증 행에 표시. 코드 변경 없음(Deal 첨부와 같은 설명 검사), 상태 줄 그대로 | 신규: LC-085(테스트 위치는 test-engineer가 채움) |
 | 2026-11-12 | DD-R41(완료된 Deal은 admin만 삭제)에 맞춰 LC-R27에 주석, 계약이 있는(= Won) Deal을 지우는 LC-080·LC-081의 행위자를 admin으로 명시. 계약 동작 변경 없음 | 변경: LC-080, LC-081(행위자만) |
 | 2026-11-13 | 확정(2026-11-13 사용자 확인): 계약 종료일을 date `ended_on`으로(2.2, LC-R5·R12·R13, 2.6), LC-R38 신설(데이터 변환). 응답 필드 변경(호환 깨짐, 사용자 승인), 화면 표시는 없음 | 신규 LC-086, LC-087. 변경 LC-054, 갱신 케이스, 이미 종료 케이스 |
+| 2026-11-13 | 확정(2026-11-13 사용자 확인): Deal Vendor를 비울 수 없게 되어(DE-R7) LC-028 Then 표현만 바꿈. 계약 응답 `vendor` nullable은 그대로 | 변경 LC-028 |

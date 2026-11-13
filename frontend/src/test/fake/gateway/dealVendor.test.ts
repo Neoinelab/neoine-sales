@@ -1,4 +1,4 @@
-/** Deal 등록·수정이 Vendor는 id로, Solution은 필수 자유 텍스트로 받고 서버 검증 문구·History를 따른다. */
+/** Deal 등록·수정이 Vendor는 id(필수)로, Solution은 선택 자유 텍스트로 받고 서버 검증 문구·History를 따른다. */
 
 import { describe, expect, it } from 'vitest'
 import { seedVendorId } from '../../fixtures/vendors'
@@ -6,7 +6,7 @@ import { dealCode, dealInput, expectApiError, mockAs } from '../testing'
 import { NO_SUCH_ID, USER_ID } from '../seed/ids'
 
 const UNKNOWN_VENDOR = '선택한 Vendor가 없습니다. 목록에서 다시 선택하세요.'
-const REQUIRED = 'Solution을 입력하세요.'
+const VENDOR_REQUIRED = 'Vendor를 선택하세요.'
 const TOO_LONG = 'Solution은 200자 이내로 입력하세요.'
 
 describe('deals.create vendor and solution', () => {
@@ -21,24 +21,30 @@ describe('deals.create vendor and solution', () => {
     expect(created.solution).toBe('ITDR')
   })
 
-  // Vendor 없이 Solution만으로 등록할 수 있다.
-  it('accepts a solution without a vendor', async () => {
-    // given: sales 사용자(kim)
+  // Vendor 없이 등록하면 요청 형식 오류(422)이고 Deal이 만들어지지 않는다.
+  it('rejects a deal without a vendor as a request-format error', async () => {
+    // given: sales 사용자(kim)과 현재 Deal 수
     const { gateway } = await mockAs('kim')
-    // when: Vendor 없이 Solution만 넣어 등록한다
-    const created = await gateway.deals.create(dealInput(USER_ID.kim, { vendorId: null, solution: 'ITDR' }))
-    // then: vendor는 null이고 solution은 입력 그대로다
-    expect(created.vendor).toBeNull()
-    expect(created.solution).toBe('ITDR')
+    const before = (await gateway.deals.list({ limit: 100 })).total
+    // when·then: vendorId가 없거나 null인 요청으로 등록한다 → 422다
+    await expectApiError(gateway.deals.create(dealInput(USER_ID.kim, { vendorId: null as unknown as number })), 422)
+    const withoutVendor: Partial<ReturnType<typeof dealInput>> = dealInput(USER_ID.kim)
+    delete withoutVendor.vendorId
+    await expectApiError(gateway.deals.create(withoutVendor as ReturnType<typeof dealInput>), 422)
+    // then: Deal 수가 그대로다
+    expect((await gateway.deals.list({ limit: 100 })).total).toBe(before)
   })
 
-  // 빈 Solution은 등록할 수 없다.
-  it('requires a non-blank solution', async () => {
+  // Solution은 선택이라 빈 값·공백은 빈 문자열로 저장한다.
+  it('stores a blank solution as an empty string', async () => {
     // given: sales 사용자(kim)
     const { gateway } = await mockAs('kim')
-    // when·then: 빈 Solution과 공백만 있는 Solution으로 등록한다 → 422와 'Solution을 입력하세요.'다
-    await expectApiError(gateway.deals.create(dealInput(USER_ID.kim, { solution: '' })), 422, REQUIRED)
-    await expectApiError(gateway.deals.create(dealInput(USER_ID.kim, { solution: '   ' })), 422, REQUIRED)
+    // when: 빈 Solution과 공백만 있는 Solution으로 등록한다
+    const empty = await gateway.deals.create(dealInput(USER_ID.kim, { solution: '' }))
+    const blank = await gateway.deals.create(dealInput(USER_ID.kim, { solution: '   ' }))
+    // then: 둘 다 등록되고 solution은 빈 문자열이다
+    expect(empty.solution).toBe('')
+    expect(blank.solution).toBe('')
   })
 
   // Solution은 200자까지 허용하고 201자와 NUL은 거절한다.
@@ -84,18 +90,20 @@ describe('deals.update vendor and solution', () => {
     ])
   })
 
-  // Solution을 비우려 하면 거절하고 값을 유지한다.
-  it('refuses to clear the solution and keeps it', async () => {
-    // given: Solution이 MFA인 Deal
+  // Solution을 비우면 빈 값이 되고 이력에 남는다.
+  it('clears the solution and records it in the history', async () => {
+    // given: Solution이 MFA인 Deal과 현재 이력 건수
     const { gateway } = await mockAs('kim')
     const code = dealCode(2)
+    const base = (await gateway.history.list(code, {})).length
 
-    // when: 빈 값과 공백만 있는 값으로 수정한다
-    await expectApiError(gateway.deals.update(code, { solution: '   ' }), 422, REQUIRED)
-    await expectApiError(gateway.deals.update(code, { solution: '' }), 422, REQUIRED)
+    // when: 공백만 있는 값으로 수정한다
+    const updated = await gateway.deals.update(code, { solution: '   ' })
 
-    // then: 422와 필수 문구이고 Solution은 MFA 그대로다
-    expect((await gateway.deals.get(code)).solution).toBe('MFA')
+    // then: Solution이 ''이고 이력에 MFA에서 -로 한 건 남는다
+    expect(updated.solution).toBe('')
+    const all = await gateway.history.list(code, {})
+    expect(all.slice(0, all.length - base).map((h) => [h.target, h.before, h.after])).toEqual([['Solution', 'MFA', '-']])
   })
 
   // Solution을 보내지 않으면 값이 유지된다.
@@ -128,16 +136,16 @@ describe('deals.update vendor and solution', () => {
     ])
   })
 
-  // Vendor를 비워도 Solution은 유지된다.
-  it('clears the vendor and keeps the solution', async () => {
+  // Vendor를 null로 보내면 거절하고 Vendor·Solution을 유지한다.
+  it('refuses to clear the vendor and keeps the vendor and the solution', async () => {
     // given: Silverfort / MFA인 Deal
     const { gateway } = await mockAs('kim')
     const code = dealCode(2)
-    // when: vendorId를 null로 수정한다
-    const updated = await gateway.deals.update(code, { vendorId: null })
-    // then: vendor는 null이고 solution은 MFA 그대로다
-    expect(updated.vendor).toBeNull()
-    expect(updated.solution).toBe('MFA')
+    // when·then: vendorId를 null로 수정한다 → 422와 'Vendor를 선택하세요.'다
+    await expectApiError(gateway.deals.update(code, { vendorId: null as unknown as number }), 422, VENDOR_REQUIRED)
+    // then: Vendor는 Silverfort, Solution은 MFA 그대로다
+    const stored = await gateway.deals.get(code)
+    expect([stored.vendor?.name, stored.solution]).toEqual(['Silverfort', 'MFA'])
   })
 
   // 같은 Vendor와 공백만 다른 같은 Solution을 다시 보내면 이력이 남지 않는다.

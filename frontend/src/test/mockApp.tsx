@@ -19,15 +19,27 @@ export type TestRole = 'admin' | 'sales' | 'user' | null
 /** 역할별 시드 사용자 id(시드 약속: `u-<loginId>`). */
 const ROLE_USER_ID = { admin: USER_ID.root, sales: USER_ID.kim, user: USER_ID.han } as const
 
-const SEEDS = { sample: buildSampleSeed, empty: emptyBusinessSeed, 'legacy-solution': buildLegacySolutionSeed }
+/** 업무 데이터는 없고 Vendor 한 개(Silverfort)만 등록된 시드. Vendor가 필수라 빈 시스템에서 첫 Deal을 등록하려면 Vendor가 먼저 있어야 한다. */
+function emptyWithVendorSeed(clock: Parameters<typeof emptyBusinessSeed>[0]) {
+  const base = emptyBusinessSeed(clock)
+  const at = clock.now()
+  return { ...base, vendors: [{ id: 1, name: 'Silverfort', createdAt: at, updatedAt: at }], counters: { ...base.counters, vd: 1 } }
+}
+
+const SEEDS = {
+  sample: buildSampleSeed,
+  empty: emptyBusinessSeed,
+  'empty-with-vendor': emptyWithVendorSeed,
+  'legacy-solution': buildLegacySolutionSeed,
+}
 
 export interface RenderAtOptions {
   /** 기본 'sales'(김영업). null이면 로그인하지 않는다. */
   role?: TestRole
   /** role 대신 시드 사용자 id를 직접 지정한다(예: USER_ID.park). */
   userId?: number
-  /** 'sample'(기본)은 테스트 픽스처 시드, 'empty'는 앱 기본(업무 데이터 없음) 시드, 'legacy-solution'은 모든 Deal의 Solution이 빈 레거시 시드. */
-  seed?: 'sample' | 'empty' | 'legacy-solution'
+  /** 'sample'(기본)은 테스트 픽스처 시드, 'empty'는 앱 기본(업무 데이터 없음) 시드, 'empty-with-vendor'는 거기에 Vendor 한 개만 더한 시드, 'legacy-solution'은 모든 Deal의 Solution이 빈 시드. */
+  seed?: 'sample' | 'empty' | 'empty-with-vendor' | 'legacy-solution'
   /** 저장 리포트를 이 목록으로 채우고 시작한다. 기본은 비어 있다. */
   savedReports?: SavedReport[]
 }

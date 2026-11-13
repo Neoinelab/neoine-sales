@@ -65,18 +65,18 @@ async def test_list_vendors_does_not_count_deals_that_only_share_the_solution_te
 
     테스트 코드: CL-046
     """
-    # given: SAP·Oracle Vendor와 Solution 텍스트가 'SAP'인 Deal 2건(Oracle 선택·Vendor 없음)
+    # given: SAP·Oracle Vendor와 Solution 텍스트가 'SAP'인 Oracle Deal 2건
     sap, oracle = make_vendor("SAP"), make_vendor("Oracle")
     await uow.vendors.add(sap)
     await uow.vendors.add(oracle)
     await seed_deal(uow, code="20261016-A001", vendor_id=oracle.id, solution="SAP")
-    await seed_deal(uow, code="20261016-A002", vendor_id=None, solution="SAP")
+    await seed_deal(uow, code="20261016-A002", vendor_id=oracle.id, solution="SAP")
 
     # when: Vendor 목록을 읽는다
     result = await ListVendors(uow_factory).execute()
 
-    # then: SAP는 0, Oracle은 1이다
-    assert {u.vendor.name: u.usage_count for u in result} == {"SAP": 0, "Oracle": 1}
+    # then: SAP는 0, Oracle은 2다
+    assert {u.vendor.name: u.usage_count for u in result} == {"SAP": 0, "Oracle": 2}
 
 
 async def test_list_vendors_of_an_empty_system_is_empty(uow_factory: UnitOfWorkFactory) -> None:

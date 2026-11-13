@@ -19,6 +19,7 @@ def _create(**overrides: object) -> dict[str, object]:
     values: dict[str, object] = {
         "name": "ERP 구축",
         "owner_user_id": OWNER_ID,
+        "vendor_id": 7,
         "solution": "ITDR",
         "users": 10,
         "status_key": "prospecting",
@@ -35,8 +36,8 @@ def test_a_minimal_create_body_gets_the_documented_defaults() -> None:
     # when: 필수 키만으로 DealCreateRequest를 만든다.
     request = DealCreateRequest(**_create())
 
-    # then: vendor_id None, procurement '', partner None, 고객 contact_id None이다.
-    assert (request.vendor_id, request.solution, request.procurement) == (None, "ITDR", "")
+    # then: vendor_id 7, procurement '', partner None, 고객 contact_id None이다.
+    assert (request.vendor_id, request.solution, request.procurement) == (7, "ITDR", "")
     assert request.users == 10
     assert request.partner is None
     assert request.customer.contact_id is None
@@ -320,18 +321,45 @@ def test_the_largest_allowed_reference_id_is_accepted() -> None:
     assert data.vendor_id == top
 
 
-def test_create_accepts_vendor_id_as_null() -> None:
-    """vendor_id가 null이면 Vendor 없이 등록하는 입력이 된다.
+def test_create_request_without_vendor_id_is_a_validation_error() -> None:
+    """vendor_id 키가 없는 등록 본문은 형식 오류다.
+
+    테스트 코드: DE-010
+    """
+    # when: vendor_id 키를 뺀다.
+    body = _create()
+    del body["vendor_id"]
+
+    with pytest.raises(ValidationError) as caught:
+        DealCreateRequest(**body)
+
+    # then: vendor_id의 missing 오류 하나다.
+    assert [(e["type"], e["loc"]) for e in caught.value.errors()] == [("missing", ("vendor_id",))]
+
+
+def test_create_request_with_null_vendor_id_is_a_validation_error() -> None:
+    """vendor_id가 null인 등록 본문은 형식 오류다(Vendor는 필수).
+
+    테스트 코드: DE-010
+    """
+    # when: vendor_id를 null로 만든다.
+    with pytest.raises(ValidationError) as caught:
+        DealCreateRequest(**_create(vendor_id=None))
+
+    # then: vendor_id 위치의 오류다.
+    assert [e["loc"] for e in caught.value.errors()] == [("vendor_id",)]
+
+
+def test_create_request_keeps_the_vendor_id_in_the_input() -> None:
+    """고른 Vendor id는 등록 입력에 그대로 담긴다.
 
     테스트 코드: DE-014
     """
-    # when: vendor_id null로 변환한다.
-    request = DealCreateRequest(**_create(vendor_id=None))
+    # when: vendor_id 7과 Solution 'ITDR'로 변환한다.
+    data = DealCreateRequest(**_create()).to_input()
 
-    data = request.to_input()
-
-    # then: vendor_id가 None이다.
-    assert (data.vendor_id, data.solution) == (None, "ITDR")
+    # then: 입력에 vendor_id 7과 Solution이 담긴다.
+    assert (data.vendor_id, data.solution) == (7, "ITDR")
 
 
 def test_create_request_accepts_solution_text() -> None:
@@ -343,39 +371,36 @@ def test_create_request_accepts_solution_text() -> None:
     assert data.solution == "ITDR"
 
 
-def test_create_request_without_solution_is_a_validation_error() -> None:
-    """solution 키가 없으면 형식 오류다.
+def test_create_request_without_solution_gets_an_empty_solution() -> None:
+    """solution 키가 없으면 오류 없이 빈 Solution 입력이 된다.
 
-    테스트 코드: DE-010
+    테스트 코드: DE-115
     """
-    # when: solution 키를 뺀다.
+    # when: solution 키를 빼고 변환한다.
     body = _create()
     del body["solution"]
+    data = DealCreateRequest(**body).to_input()
 
-    with pytest.raises(ValidationError) as caught:
-        DealCreateRequest(**body)
-
-    # then: solution의 missing 오류 하나다.
-    assert [(e["type"], e["loc"]) for e in caught.value.errors()] == [("missing", ("solution",))]
+    # then: 입력 solution이 ''다.
+    assert data.solution == ""
 
 
-def test_create_request_with_null_solution_is_a_validation_error() -> None:
-    """solution이 null이면 형식 오류다.
+def test_create_request_with_null_solution_gets_an_empty_solution() -> None:
+    """solution이 null이면 오류 없이 빈 Solution 입력이 된다.
 
-    테스트 코드: DE-010
+    테스트 코드: DE-115
     """
-    # when: solution을 null로 만든다.
-    with pytest.raises(ValidationError) as caught:
-        DealCreateRequest(**_create(solution=None))
+    # when: solution을 null로 만들어 변환한다.
+    data = DealCreateRequest(**_create(solution=None)).to_input()
 
-    # then: solution 위치의 오류다.
-    assert [e["loc"] for e in caught.value.errors()] == [("solution",)]
+    # then: 입력 solution이 ''다.
+    assert data.solution == ""
 
 
 def test_create_request_keeps_a_blank_solution_for_the_domain_to_judge() -> None:
-    """공백뿐인 Solution은 스키마가 거르지 않고 도메인 문구로 판정한다.
+    """공백뿐인 Solution은 스키마가 바꾸지 않고 도메인이 빈 값으로 정리한다.
 
-    테스트 코드: DE-017
+    테스트 코드: DE-115
     """
     # when: solution '   '로 변환한다
     solution = DealCreateRequest(**_create(solution="   ")).to_input().solution
@@ -453,6 +478,18 @@ class TestPatchRequest:
 
         # then: provided가 {vendor_id}뿐이다.
         assert data.provided == frozenset({"vendor_id"})
+
+    def test_patch_null_vendor_is_provided_and_left_for_the_domain_to_judge(self) -> None:
+        """수정에서 vendor_id null은 보낸 필드다(거절은 유스케이스가 "Vendor를 선택하세요."로 한다).
+
+        테스트 코드: DE-116
+        """
+        # when: vendor_id=None으로 변환한다.
+        data = DealPatchRequest(vendor_id=None).to_input()
+
+        # then: provided에 vendor_id가 있고 값은 None이다.
+        assert data.provided == frozenset({"vendor_id"})
+        assert data.vendor_id is None
 
     def test_patch_without_vendor_or_solution_does_not_provide_them(self) -> None:
         """이름만 보내면 vendor_id·solution은 보낸 필드가 아니다.
@@ -590,3 +627,18 @@ class TestPatchRequest:
         # when·then: revenue_amount '많이'로 만든다 → ValidationError다.
         with pytest.raises(ValidationError):
             DealPatchRequest(revenue_amount="많이")
+
+
+def test_create_schema_documents_vendor_as_required_and_solution_as_optional() -> None:
+    """등록 요청 OpenAPI 스키마는 vendor_id를 필수·null 불가로, solution을 선택으로 문서화한다.
+
+    테스트 코드: DE-010
+    """
+    # when: 등록 요청의 JSON 스키마를 만든다.
+    schema = DealCreateRequest.model_json_schema()
+
+    # then: vendor_id는 필수이고 null이 허용되지 않으며 solution은 필수가 아니다.
+    assert "vendor_id" in schema["required"]
+    assert "solution" not in schema["required"]
+    vendor = schema["properties"]["vendor_id"]
+    assert "null" not in str(vendor.get("anyOf", vendor.get("type")))

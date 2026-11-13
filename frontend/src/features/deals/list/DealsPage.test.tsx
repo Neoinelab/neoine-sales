@@ -1,10 +1,12 @@
 import { cleanup, screen, waitFor, within } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { gateway } from '../../../gateway'
 import { renderAt } from '../../../test/mockApp'
 import { ALL_DEALS, dataRows, rowOf } from './testHelpers'
 
 const HEADERS = ['Deal', '담당자', '고객사', '파트너사', 'Vendor', 'Status', 'Forecast', '금액(단위:원)', 'Expected Close', 'Next Action', 'Due', 'Next Action 상태', '최종 업데이트']
+
+afterEach(() => vi.restoreAllMocks())
 
 describe('목록 표 (T-LIST-01~04)', () => {
   // 표는 PRD 열과 분리된 Next Action 열을 보인다
@@ -42,14 +44,15 @@ describe('목록 표 (T-LIST-01~04)', () => {
   // Vendor가 없는 Deal의 Vendor 칸은 '—'다
   // 테스트 코드: DL-058
   it('shows a dash in the Vendor cell of a deal without a vendor', async () => {
-    // given: Vendor가 없는 Deal
-    const { client } = await renderAt('/deals?q=누리통신 MFA')
-    const row = await rowOf(/누리통신 MFA/)
-    const code = (within(row).getByRole('link', { name: '누리통신 MFA' }).getAttribute('href') ?? '').replace('/deals/', '')
-    await gateway.deals.update(code, { vendorId: null })
+    // given: 서버 응답에서 Vendor가 null인 Deal 행(Vendor는 필수라 Fake로는 만들 수 없어 응답을 바꿔 받는다)
+    const list = gateway.deals.list.bind(gateway.deals)
+    vi.spyOn(gateway.deals, 'list').mockImplementation(async (query) => {
+      const result = await list(query)
+      return { ...result, items: result.items.map((item) => ({ ...item, vendor: null })) }
+    })
 
     // when: 목록을 연다
-    await client.invalidateQueries()
+    await renderAt('/deals?q=누리통신 MFA')
 
     // then: Vendor 칸에 '—'가 보인다
     await waitFor(() => expect(within(screen.getByRole('row', { name: /누리통신 MFA/ })).getAllByRole('cell')[HEADERS.indexOf('Vendor')]).toHaveTextContent(/^—$/))

@@ -7,14 +7,14 @@ import { describe, expect, it } from 'vitest'
 import { SYNC_CONFLICT_MESSAGE } from '../../shared/model/sync'
 import type { ActionInput, DealInput } from '../../shared/model/types'
 import type { Gateway } from '../types'
-import { expectRejects, unique, type MakeGateway } from './support'
+import { expectRejects, unique, type MakeGateway, anyVendorId } from './support'
 
 async function newDeal(gateway: Gateway) {
   const me = await gateway.auth.me()
   const input: DealInput = {
     name: unique('deal'),
     ownerId: me.id,
-    vendorId: null,
+    vendorId: await anyVendorId(gateway),
     solution: 'ITDR',
     users: 10,
     statusKey: 'prospecting',

@@ -2221,8 +2221,15 @@
             "title": "Revenue Date"
           },
           "solution": {
-            "title": "Solution",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Solution"
           },
           "status_key": {
             "title": "Status Key",
@@ -2233,23 +2240,16 @@
             "type": "integer"
           },
           "vendor_id": {
-            "anyOf": [
-              {
-                "maximum": 9007199254740991.0,
-                "minimum": 1.0,
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Vendor Id"
+            "maximum": 9007199254740991.0,
+            "minimum": 1.0,
+            "title": "Vendor Id",
+            "type": "integer"
           }
         },
         "required": [
           "name",
           "owner_user_id",
-          "solution",
+          "vendor_id",
           "users",
           "status_key",
           "forecast_key",

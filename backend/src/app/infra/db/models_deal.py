@@ -50,8 +50,8 @@ class DealRow(Base):
     owner_user_id: Mapped[int] = mapped_column(
         BigInteger, ForeignKey("users.id", ondelete="RESTRICT")
     )
-    vendor_id: Mapped[int | None] = mapped_column(
-        BigInteger, ForeignKey("vendors.id", ondelete="RESTRICT"), default=None
+    vendor_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("vendors.id", ondelete="RESTRICT")
     )
     solution: Mapped[str] = mapped_column(String(200))
     users: Mapped[int] = mapped_column(Integer)

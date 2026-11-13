@@ -7,6 +7,7 @@ Deal 모델(P1 R2)의 모듈은 이 모듈을 쓰는 모든 테스트가 가져�
 from datetime import UTC, date, datetime, timedelta
 from typing import TYPE_CHECKING, Any, cast
 
+from tests.support.default_vendor import default_vendor_id
 from tests.support.ids import new_id
 from tests.support.user_ids import ACTOR_ID, OWNER_ID
 
@@ -65,8 +66,8 @@ def make_deal_details(**overrides: Any) -> DealDetails:  # noqa: ANN401
     values: dict[str, Any] = {
         "name": "ERP 구축",
         "owner_user_id": OWNER_ID,
-        "vendor_id": None,  # 등록된 Vendor의 id(없으면 선택 안 함)
-        "solution": "S/4HANA",  # 자유 텍스트(필수, 앞뒤 공백 제거 후 1~200자)
+        "vendor_id": default_vendor_id(),  # 필수. 저장소에 넣기 전 ensure_default_vendor
+        "solution": "S/4HANA",  # 선택 자유 텍스트(앞뒤 공백 제거 후 0~200자)
         "users": 10,
         "revenue_amount": 150_000_000,
         "revenue_date": date(2026, 6, 30),

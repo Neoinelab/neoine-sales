@@ -2,6 +2,7 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { kvPairs } from '../../../test/kvPairs'
 import { renderAt } from '../../../test/mockApp'
+import { pickVendor } from '../../../test/vendorPick'
 import { DETAIL_URL, openEdit, pickPerson, save } from './testHelpers'
 
 async function openNew() {
@@ -145,6 +146,7 @@ describe('Deal 정보 타일의 항목', () => {
     // given: 필수 값을 입력했다.
     const { user, location } = await openNew()
     await user.type(screen.getByLabelText('Deal Name'), '견적 저장 테스트')
+    await pickVendor(user)
     await pickPerson(user, '고객', '한빛은행', /정민수/)
     await user.type(screen.getByLabelText('금액(단위:원)'), '100000000')
     await user.type(screen.getByLabelText('Solution'), 'ITDR')
@@ -198,7 +200,7 @@ describe('라벨-입력 한 행', () => {
     for (const [label, message] of [
       ['Deal Name', 'Deal Name을 입력하세요.'],
       ['Expected Close', 'Expected Close를 입력하세요.'],
-      ['Solution', 'Solution을 입력하세요.'],
+      ['Vendor', 'Vendor를 선택하세요.'],
     ] as const) {
       const row = screen.getByLabelText(label).closest('.kv-row, .field') as HTMLElement
       expect(within(row).getByRole('alert')).toHaveTextContent(message)

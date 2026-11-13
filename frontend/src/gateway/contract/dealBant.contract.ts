@@ -6,7 +6,7 @@
 import { describe, expect, it } from 'vitest'
 import type { DealInput } from '../../shared/model/types'
 import type { Gateway } from '../types'
-import { expectRejects, unique, type MakeGateway, NO_SUCH_ID } from './support'
+import { expectRejects, unique, type MakeGateway, NO_SUCH_ID, anyVendorId } from './support'
 
 const NONE = { budget: null, authority: null, need: null, timeline: null } as const
 
@@ -15,7 +15,7 @@ async function dealInput(gateway: Gateway, over: Partial<DealInput> = {}): Promi
   return {
     name: unique('deal'),
     ownerId: me.id,
-    vendorId: null,
+    vendorId: await anyVendorId(gateway),
     solution: 'ITDR',
     users: 10,
     statusKey: 'prospecting',

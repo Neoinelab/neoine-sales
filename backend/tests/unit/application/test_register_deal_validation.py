@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, Any
 
 import pytest
 
+from app.application.deal.dto import NamedRef
 from app.domain.auth.principal import Role
 from app.domain.bant.values import BantCategory
 from app.domain.common.errors import InvalidValueError
@@ -40,7 +41,7 @@ CUSTOMER_COMPANY = "고객 회사명을 입력하세요."
 CUSTOMER_NAME = "고객 담당자명을 입력하세요."
 PARTNER_INCOMPLETE = "파트너를 입력하면 회사명과 담당자명이 모두 필요합니다."
 EMAIL = "이메일 형식이 올바르지 않습니다."
-SOLUTION_MISSING = "Solution을 입력하세요."
+VENDOR_REQUIRED = "Vendor를 선택하세요."
 SOLUTION_LONG = "Solution은 200자 이내로 입력하세요."
 UNKNOWN_VENDOR = "선택한 Vendor가 없습니다. 목록에서 다시 선택하세요."
 
@@ -66,8 +67,8 @@ def _steps(ctx: Ctx) -> list[tuple[str, dict[str, Any], str]]:
     """(이름, 위반 입력, 기대 문구) - 순서대로."""
     return [
         ("name-missing", {"name": "  "}, NAME_MISSING),
+        ("vendor-missing", {"vendor_id": None}, VENDOR_REQUIRED),
         ("unknown-vendor", {"vendor_id": new_id()}, UNKNOWN_VENDOR),
-        ("solution-blank", {"solution": "   "}, SOLUTION_MISSING),
         ("solution-long", {"solution": "a" * 201}, SOLUTION_LONG),
         ("owner-resigned", {"owner_user_id": ctx.resigned_owner}, OWNER_RESIGNED),
         ("amount-zero", {"revenue_amount": 0}, AMOUNT),
@@ -107,8 +108,8 @@ def _cumulative(ctx: Ctx, index: int) -> dict[str, Any]:
 
 STEP_NAMES = [
     "name-missing",
+    "vendor-missing",
     "unknown-vendor",
-    "solution-blank",
     "solution-long",
     "owner-resigned",
     "amount-zero",
@@ -238,7 +239,7 @@ async def test_boundaries_and_unknown_codes_are_rejected_with_their_own_message(
         {"users": 2_147_483_647},
         {"name": "가" * 200},
         {"procurement": "가" * 500},
-        {"vendor_id": None, "solution": "x"},
+        {"solution": ""},
         {"solution": "a" * 200},
         {"solution": "  ITDR  "},
         {"revenue_date": date(2026, 12, 31)},
@@ -336,14 +337,18 @@ async def test_the_old_vendor_text_input_is_gone() -> None:
 
 
 @pytest.mark.parametrize("blank", ["", "  ", "\t"])
-async def test_blank_solution_is_rejected(env: DealEnv, ctx: Ctx, blank: str) -> None:
-    """비었거나 공백뿐인 Solution 등록은 거절한다.
+async def test_blank_solution_is_stored_as_empty(env: DealEnv, ctx: Ctx, blank: str) -> None:
+    """비었거나 공백뿐인 Solution 등록은 오류 없이 빈 Solution으로 저장된다.
 
-    테스트 코드: DE-017
+    테스트 코드: DE-115
     """
-    # when·then: 빈 문자열·공백·탭 Solution으로 등록한다 → 'Solution을 입력하세요.' 오류다.
-    with raises_with(InvalidValueError, SOLUTION_MISSING):
-        await env.register.execute(make_create_input(solution=blank), SALES)
+    # when: 빈 문자열·공백·탭 Solution으로 등록한다.
+    view = await env.register.execute(make_create_input(solution=blank), SALES)
+
+    # then: 등록되고 저장된 Solution이 ''다.
+    stored = await env.uow.deals.get(view.item.deal.id)
+    assert view.item.deal.details.solution == ""
+    assert stored.details.solution == ""
 
 
 async def test_vendor_with_a_solution_is_accepted(env: DealEnv, ctx: Ctx) -> None:
@@ -359,18 +364,32 @@ async def test_vendor_with_a_solution_is_accepted(env: DealEnv, ctx: Ctx) -> Non
         ctx.sap,
         "S/4HANA",
     )
+    assert view.vendor == NamedRef(ctx.sap, "SAP")
 
 
-async def test_solution_without_vendor_is_accepted(env: DealEnv, ctx: Ctx) -> None:
-    """Vendor 없이도 Solution만으로 등록할 수 있다.
+async def test_vendor_without_a_solution_is_accepted(env: DealEnv, ctx: Ctx) -> None:
+    """Vendor만 있고 Solution이 빈 값이어도 등록할 수 있다.
 
     테스트 코드: DE-014
     """
-    # when: vendor_id None, Solution 'ITDR'로 등록한다.
-    view = await env.register.execute(make_create_input(vendor_id=None, solution="ITDR"), SALES)
+    # when: Vendor SAP, Solution ''로 등록한다.
+    view = await env.register.execute(make_create_input(vendor_id=ctx.sap, solution=""), SALES)
 
-    # then: Vendor는 없고 Solution이 저장된다.
-    assert (view.item.deal.details.vendor_id, view.item.deal.details.solution) == (None, "ITDR")
+    # then: Vendor는 SAP이고 Solution은 ''다.
+    assert (view.item.deal.details.vendor_id, view.item.deal.details.solution) == (ctx.sap, "")
+
+
+async def test_missing_vendor_is_rejected_and_stores_nothing(env: DealEnv, ctx: Ctx) -> None:
+    """Vendor 없이 등록하면 "Vendor를 선택하세요."로 거절되고 저장되지 않는다.
+
+    테스트 코드: DE-009
+    """
+    # when·then: vendor_id None으로 등록한다 → 'Vendor를 선택하세요.' 오류다.
+    with raises_with(InvalidValueError, VENDOR_REQUIRED):
+        await env.register.execute(make_create_input(vendor_id=None, solution="ITDR"), SALES)
+
+    # then: Deal이 없다.
+    assert env.uow.deals._items == {}
 
 
 async def test_unknown_vendor_is_reported_before_long_solution(env: DealEnv, ctx: Ctx) -> None:

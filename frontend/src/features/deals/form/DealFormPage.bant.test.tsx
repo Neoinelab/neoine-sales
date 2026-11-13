@@ -5,6 +5,7 @@ import { keys } from '../../../data/queryKeys'
 import { gateway } from '../../../gateway'
 import { ApiError } from '../../../shared/api/problem'
 import { renderAt } from '../../../test/mockApp'
+import { pickVendor } from '../../../test/vendorPick'
 import { codeOf, DETAIL_URL, openEdit, save } from './testHelpers'
 
 /**
@@ -26,6 +27,7 @@ async function openNew() {
 /** 저장에 필요한 나머지 필수 입력을 채운다. */
 async function fillRequired(user: UserEvent, name = 'BANT 테스트 Deal') {
   await user.type(screen.getByLabelText('Deal Name'), name)
+  await pickVendor(user)
   await user.type(screen.getByLabelText('고객 회사명'), '신규고객사')
   await user.type(screen.getByLabelText('고객 담당자명'), '홍길동')
   await user.type(screen.getByLabelText('금액(단위:원)'), '50000000')

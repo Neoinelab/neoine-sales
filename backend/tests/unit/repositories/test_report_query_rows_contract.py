@@ -68,11 +68,12 @@ async def test_total_count_counts_groups_not_deals(report_case: ReportCase) -> N
 
     테스트 코드: RQ-054
     """
-    # given: SAP Deal 4건과 Vendor 없는 Deal 1건
+    # given: SAP Deal 4건과 IBM Deal 1건
     sap = await report_case.deals.new_vendor("SAP")
+    ibm = await report_case.deals.new_vendor("IBM")
     for _ in range(4):
         await report_case.add_deal(vendor_id=sap.id)
-    await report_case.add_deal()
+    await report_case.add_deal(vendor_id=ibm.id)
 
     # when: Vendor 그룹으로 조회한다
     result = await report_case.run([col("deal.vendor", group=True), COUNT])
@@ -227,24 +228,24 @@ async def test_status_groups_follow_the_code_order_not_the_alphabet(
 
 
 async def test_nulls_come_last_in_both_directions(report_case: ReportCase) -> None:
-    """NULL 그룹은 오름차순·내림차순 모두 맨 뒤다.
+    """NULL 값은 오름차순·내림차순 모두 맨 뒤다.
 
     테스트 코드: RQ-051
     """
-    # given: Vendor SAP·IBM과 Vendor 없는 Deal
-    sap = await report_case.deals.new_vendor("SAP")
-    ibm = await report_case.deals.new_vendor("IBM")
-    await report_case.add_deal(vendor_id=sap.id)
-    await report_case.add_deal(vendor_id=ibm.id)
+    # given: 파트너사 Acme·Zeta와 파트너 없는 Deal
+    acme = await report_case.deals.new_contact(ContactKind.PARTNER, company="Acme")
+    zeta = await report_case.deals.new_contact(ContactKind.PARTNER, company="Zeta")
+    await report_case.add_deal(partner_id=acme.id)
+    await report_case.add_deal(partner_id=zeta.id)
     await report_case.add_deal()
 
-    # when: Vendor 그룹을 오름차순·내림차순으로 조회한다
-    ascending = await report_case.rows([col("deal.vendor", group=True, sort="asc"), COUNT])
-    descending = await report_case.rows([col("deal.vendor", group=True, sort="desc"), COUNT])
+    # when: 파트너사를 오름차순·내림차순으로 조회한다
+    ascending = await report_case.rows([col("deal.partner_company", sort="asc")])
+    descending = await report_case.rows([col("deal.partner_company", sort="desc")])
 
-    # then: 둘 다 Vendor 없음이 마지막이다
-    assert [row[0] for row in ascending] == ["IBM", "SAP", None]
-    assert [row[0] for row in descending] == ["SAP", "IBM", None]
+    # then: 둘 다 파트너 없음이 마지막이다
+    assert [row[0] for row in ascending] == ["Acme", "Zeta", None]
+    assert [row[0] for row in descending] == ["Zeta", "Acme", None]
 
 
 async def test_grouped_rows_can_be_sorted_by_an_aggregate_column(report_case: ReportCase) -> None:
@@ -606,28 +607,30 @@ async def test_prefix_length_keeps_full_value_grouping(report_case: ReportCase) 
 # ---- 컬럼별 정렬: 컬럼 순서가 우선순위 ----
 
 
-async def _name_vendor_deals(report_case: ReportCase) -> None:
-    ibm = await report_case.deals.new_vendor("IBM")
-    sap = await report_case.deals.new_vendor("SAP")
-    await report_case.add_deal(name="a", vendor_id=ibm.id)
-    await report_case.add_deal(name="a", vendor_id=sap.id)
-    await report_case.add_deal(name="b", vendor_id=ibm.id)
+async def _name_partner_deals(report_case: ReportCase) -> None:
+    acme = await report_case.deals.new_contact(ContactKind.PARTNER, company="Acme")
+    zeta = await report_case.deals.new_contact(ContactKind.PARTNER, company="Zeta")
+    await report_case.add_deal(name="a", partner_id=acme.id)
+    await report_case.add_deal(name="a", partner_id=zeta.id)
+    await report_case.add_deal(name="b", partner_id=acme.id)
     await report_case.add_deal(name="a")
 
 
-async def test_rows_are_sorted_by_name_then_vendor_desc(report_case: ReportCase) -> None:
-    """이름 오름차순 뒤 Vendor 내림차순으로 정렬한다.
+async def test_rows_are_sorted_by_name_then_partner_desc(report_case: ReportCase) -> None:
+    """이름 오름차순 뒤 파트너사 내림차순으로 정렬한다.
 
     테스트 코드: RQ-051
     """
-    # given: 이름과 Vendor가 섞인 Deal 4건
-    await _name_vendor_deals(report_case)
+    # given: 이름과 파트너사가 섞인 Deal 4건(a-Acme, a-Zeta, b-Acme, a-파트너 없음)
+    await _name_partner_deals(report_case)
 
-    # when: 이름 오름차순·Vendor 내림차순으로 조회한다
-    rows = await report_case.rows([col("deal.name", sort="asc"), col("deal.vendor", sort="desc")])
+    # when: 이름 오름차순·파트너사 내림차순으로 조회한다
+    rows = await report_case.rows(
+        [col("deal.name", sort="asc"), col("deal.partner_company", sort="desc")]
+    )
 
-    # then: 이름 안에서 Vendor가 내림차순이고 NULL이 뒤다
-    assert rows == [("a", "SAP"), ("a", "IBM"), ("a", None), ("b", "IBM")]
+    # then: 이름 안에서 파트너사가 내림차순이고 NULL이 뒤다
+    assert rows == [("a", "Zeta"), ("a", "Acme"), ("a", None), ("b", "Acme")]
 
 
 async def test_column_order_decides_sort_priority(report_case: ReportCase) -> None:
@@ -635,14 +638,16 @@ async def test_column_order_decides_sort_priority(report_case: ReportCase) -> No
 
     테스트 코드: RQ-051
     """
-    # given: 이름과 Vendor가 섞인 Deal 4건
-    await _name_vendor_deals(report_case)
+    # given: 이름과 파트너사가 섞인 Deal 4건(a-Acme, a-Zeta, b-Acme, a-파트너 없음)
+    await _name_partner_deals(report_case)
 
-    # when: Vendor 내림차순을 먼저, 이름 오름차순을 나중에 조회한다
-    rows = await report_case.rows([col("deal.vendor", sort="desc"), col("deal.name", sort="asc")])
+    # when: 파트너사 내림차순을 먼저, 이름 오름차순을 나중에 조회한다
+    rows = await report_case.rows(
+        [col("deal.partner_company", sort="desc"), col("deal.name", sort="asc")]
+    )
 
-    # then: Vendor 우선 순서로 나온다
-    assert rows == [("SAP", "a"), ("IBM", "a"), ("IBM", "b"), (None, "a")]
+    # then: 파트너사 우선 순서로 나온다
+    assert rows == [("Zeta", "a"), ("Acme", "a"), ("Acme", "b"), (None, "a")]
 
 
 async def test_unsorted_column_does_not_affect_the_order(report_case: ReportCase) -> None:
@@ -650,11 +655,11 @@ async def test_unsorted_column_does_not_affect_the_order(report_case: ReportCase
 
     테스트 코드: RQ-051
     """
-    # given: 이름과 Vendor가 섞인 Deal 4건
-    await _name_vendor_deals(report_case)
+    # given: 이름과 파트너사가 섞인 Deal 4건(a-Acme, a-Zeta, b-Acme, a-파트너 없음)
+    await _name_partner_deals(report_case)
 
-    # when: Vendor는 정렬 없이 이름만 내림차순으로 조회한다
-    rows = await report_case.rows([col("deal.vendor"), col("deal.name", sort="desc")])
+    # when: 파트너사는 정렬 없이 이름만 내림차순으로 조회한다
+    rows = await report_case.rows([col("deal.partner_company"), col("deal.name", sort="desc")])
 
     # then: 이름 내림차순이다
     assert [row[1] for row in rows] == ["b", "a", "a", "a"]

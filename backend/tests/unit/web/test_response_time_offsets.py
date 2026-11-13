@@ -38,6 +38,7 @@ async def _client() -> AsyncIterator[tuple[AsyncClient, str]]:
     await ensure_users(use_cases.uow.users, OWNER_ID)
     deal = make_deal(MOMENT, code="20261231-A001")
     await use_cases.uow.contacts.add(make_contact(ContactKind.CUSTOMER, entity_id=deal.customer_id))
+    use_cases.uow.vendors.materialize_default()  # 기본 Deal의 Vendor
     use_cases.uow.deals._items[deal.id] = deal
     app = create_app(settings=make_settings(UNUSED_DATABASE_URL), use_cases=use_cases)
     cookie = await use_cases.login_as(make_principal("root", Role.SALES))

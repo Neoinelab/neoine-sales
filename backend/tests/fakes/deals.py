@@ -26,6 +26,7 @@ from tests.fakes.deal_search import (
 )
 from tests.fakes.deal_sort import SortLookups, sort_key
 from tests.fakes.in_memory import InMemoryStore
+from tests.support.default_vendor import DEFAULT_VENDOR_ID
 
 if TYPE_CHECKING:
     from collections.abc import Collection, Mapping, Sequence
@@ -109,6 +110,8 @@ class FakeDealRepository(DealCountsMixin, InMemoryStore["Deal"]):
 
     def _check_vendor(self, deal: Deal) -> None:
         vendor_id = deal.details.vendor_id
+        if vendor_id == DEFAULT_VENDOR_ID:
+            self._vendors.materialize_default()  # 기본 Deal 팩토리의 Vendor(암묵적으로 둔다)
         if vendor_id is not None and vendor_id not in self._vendors._items:
             raise InvalidReferenceError("Vendor", vendor_id)
 

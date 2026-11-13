@@ -1,4 +1,4 @@
-# 선택 목록: BANT Label·Action 유형·Vendor   (feature 코드: CL, 상태: 확정(2026-11-10 사용자 확인))
+# 선택 목록: BANT Label·Action 유형·Vendor   (feature 코드: CL, 상태: 확정(2026-11-13 사용자 확인))
 
 > 이 문서는 **이미 구현된 동작**을 정본 명세로 옮긴 것입니다(2026-11-10). 근거는 작업 트리의 코드(`backend/src/app/domain/{bant,action_type,vendor}/*.py`, `app/application/choice.py`, `app/application/{bant,action_type,vendor}/*.py`, `app/application/deal/bant_choice.py`, `app/application/deal_action/type_choice.py`, `app/web/routers/{bant_labels,action_types,vendors}.py`, `app/web/schemas/{bant_label,action_type,vendor,choice}.py`, `app/infra/db/{bant_label_repository,action_type_repository,vendor_repository,models_catalog,deal_aggregates}.py`, `frontend/src/features/admin/deal-management/{LabelManager,LabelCategoryCard,ActionTypeManager,VendorManager,InlineNameEdit}.tsx`, `data/{labels,actionTypes,vendors}.ts`, `gateway/http/{labels,actionTypes,vendors}.ts`, `gateway/http/mappers/{label,actionType,vendor}.ts`, `shared/model/catalogChoice.ts`)이며 문구·type·상태 코드는 코드에서 그대로 옮겼습니다. 코드와 Fake·테스트가 어긋나는 점은 계획(`artifacts/10-analysis/cl-plan.md`)의 확인 필요 질문으로 분리했습니다.
 
@@ -533,9 +533,9 @@ CL-R16, CL-R18~CL-R24.
 - Then 처음은 `[]`이고, 뒤에는 200 "Oracle", "Sap Korea", "zeta" 순이며 각 항목 키는 정확히 `id`·`name`·`usage_count`·`created_at`·`updated_at`(`solutions` 없음), id는 JSON 정수다
 
 ### CL-046 Vendor 사용 수는 그 Vendor를 고른 Deal 수이고 Solution 텍스트만 같은 Deal은 세지 않는다
-- Given Vendor "SAP"를 고른 Deal 2건, Vendor 없이 Solution "SAP"만 쓴 Deal 1건, "Oracle"을 고른 Deal 1건
+- Given Vendor "SAP"를 고른 Deal 2건, Vendor "Oracle"을 고르고 Solution "SAP"을 쓴 Deal 1건, "Oracle"을 고른 다른 Deal 1건
 - When 목록을 읽는다
-- Then "SAP" 2, "Oracle" 1이다
+- Then "SAP" 2, "Oracle" 2다
 
 ### CL-047 admin이 Vendor를 만들면 201·Location·사용 0이고 나중 Vendor의 id가 더 크다
 - Given ROOT로 로그인
@@ -757,3 +757,4 @@ CL-R16, CL-R18~CL-R24.
 | 날짜 | 변경 | 영향 테스트 코드 |
 | --- | --- | --- |
 | 2026-11-10 | 초안: 구현된 동작을 문서화(CL-R1~R24, CL-UC1~UC6, CL-001~CL-093) | CL-001~CL-093 |
+| 2026-11-13 | 확정(2026-11-13 사용자 확인): Deal Vendor 필수(DE-R7)로 CL-046 Given을 바꿈. 사용 수 규칙·Vendor 삭제 거부(사용 중 409)는 그대로 | 변경 CL-046 |

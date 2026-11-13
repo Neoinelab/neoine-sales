@@ -20,7 +20,7 @@ from app.infra.db.user_repository import SqlUserRepository
 from tests.factories import make_deal, make_deal_action, make_deal_code, make_sync
 from tests.factories_action_type import attach_catalog_type, make_type_ref
 from tests.factories_contact import make_customer
-from tests.support.database import rolled_back_session
+from tests.support.default_vendor import rolled_back_session_with_vendor
 from tests.support.ids import new_id
 from tests.support.user_ids import ACTOR_ID, OWNER_ID
 from tests.support.user_seed import ensure_users
@@ -53,7 +53,7 @@ async def _action(session: AsyncSession, **overrides: Any) -> DealAction:  # noq
 
 async def test_add_for_missing_deal_raises_deal_not_found(test_database_url: URL) -> None:
     """없는 Deal에 Action을 저장하면 Deal 없음 오류가 난다."""
-    async with rolled_back_session(test_database_url) as session:
+    async with rolled_back_session_with_vendor(test_database_url) as session:
         # given: Deal은 없고 수행자만 있는 DB
         repository = SqlDealActionRepository(session)
         await ensure_users(SqlUserRepository(session), ACTOR_ID)
@@ -67,7 +67,7 @@ async def test_add_after_the_deal_is_physically_deleted_raises_deal_not_found(
     test_database_url: URL,
 ) -> None:
     """Deal을 물리 삭제한 뒤 Action을 저장하면 Deal 없음 오류가 난다."""
-    async with rolled_back_session(test_database_url) as session:
+    async with rolled_back_session_with_vendor(test_database_url) as session:
         # given: 물리 삭제한 Deal
         deal = await _deal(session)
         await SqlDealRepository(session).delete(deal.id)
@@ -81,7 +81,7 @@ async def test_add_with_a_missing_actor_user_raises_invalid_reference(
     test_database_url: URL,
 ) -> None:
     """없는 수행자로 Action을 저장하면 잘못된 참조 오류가 난다."""
-    async with rolled_back_session(test_database_url) as session:
+    async with rolled_back_session_with_vendor(test_database_url) as session:
         # given: Deal은 있고 존재하지 않는 수행자 id
         deal = await _deal(session)
 
@@ -106,7 +106,7 @@ async def test_add_with_an_unknown_snapshot_code_names_which_code_is_missing(
     test_database_url: URL, snapshot: object, entity: str, key: str
 ) -> None:
     """없는 Status·Forecast 코드 스냅숏은 어느 코드가 없는지 오류에 담긴다."""
-    async with rolled_back_session(test_database_url) as session:
+    async with rolled_back_session_with_vendor(test_database_url) as session:
         # given: Deal은 있고 스냅숏 코드 하나가 없는 Action
         deal = await _deal(session)
 
@@ -122,7 +122,7 @@ async def test_add_with_an_unknown_snapshot_code_names_which_code_is_missing(
 
 async def test_the_session_stays_usable_after_a_reference_error(test_database_url: URL) -> None:
     """참조 오류가 난 뒤에도 같은 세션으로 계속 저장할 수 있다."""
-    async with rolled_back_session(test_database_url) as session:
+    async with rolled_back_session_with_vendor(test_database_url) as session:
         # given: Deal이 있는 세션
         deal = await _deal(session)
         repository = SqlDealActionRepository(session)
@@ -142,7 +142,7 @@ async def test_the_session_stays_usable_after_a_reference_error(test_database_ur
 
 async def test_add_with_an_unknown_action_type_names_the_type(test_database_url: URL) -> None:
     """없는 유형으로 저장하면 오류가 그 유형을 가리킨다."""
-    async with rolled_back_session(test_database_url) as session:
+    async with rolled_back_session_with_vendor(test_database_url) as session:
         # given: Deal은 있고 존재하지 않는 유형 참조
         deal = await _deal(session)
         missing = make_type_ref("ZZ 없는 유형")
@@ -161,7 +161,7 @@ async def test_deleting_a_type_used_by_an_action_is_refused_by_the_database(
     test_database_url: URL,
 ) -> None:
     """FK RESTRICT: 유형 삭제가 도메인 오류(ActionTypeInUseError)로 바뀐다(500 아님)."""
-    async with rolled_back_session(test_database_url) as session:
+    async with rolled_back_session_with_vendor(test_database_url) as session:
         # given: Action이 쓰는 유형
         deal = await _deal(session)
         action = await _action(session, deal_code=deal.id)

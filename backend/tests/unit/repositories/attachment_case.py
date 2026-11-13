@@ -13,7 +13,7 @@ import pytest
 from tests.factories import make_deal, make_deal_code
 from tests.fakes.catalog_seed import seed_catalog
 from tests.fakes.unit_of_work import FakeUnitOfWork
-from tests.support.database import rolled_back_session
+from tests.support.default_vendor import rolled_back_session_with_vendor
 from tests.support.user_seed import ensure_users
 from tests.unit.repositories.deal_case import DealCase, _sql_case
 
@@ -76,5 +76,5 @@ async def open_attachment_case(
         return
     from app.infra.db.attachment_repository import SqlAttachmentRepository  # noqa: PLC0415
 
-    async with rolled_back_session(test_database_url) as session:  # type: ignore[arg-type]
+    async with rolled_back_session_with_vendor(test_database_url) as session:  # type: ignore[arg-type]
         yield AttachmentCase(_sql_case(session), SqlAttachmentRepository(session))

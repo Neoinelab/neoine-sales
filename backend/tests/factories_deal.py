@@ -12,6 +12,7 @@ from app.application.deal.inputs import Actor, ContactDraftInput, DealCreateInpu
 from app.domain.auth.principal import Role
 from tests.factories import NOW, make_deal
 from tests.factories_contact import make_customer
+from tests.support.default_vendor import default_vendor_id
 from tests.support.user_ids import OWNER_ID
 
 if TYPE_CHECKING:
@@ -80,8 +81,8 @@ def make_create_input(**overrides: Any) -> DealCreateInput:  # noqa: ANN401
     values: dict[str, Any] = {
         "name": "ERP 구축",
         "owner_user_id": OWNER_ID,
-        "vendor_id": None,  # 등록된 Vendor의 id(없으면 선택 안 함)
-        "solution": "S/4HANA",  # 자유 텍스트(필수, 앞뒤 공백 제거 후 1~200자)
+        "vendor_id": default_vendor_id(),  # 필수: 등록된 Vendor의 id
+        "solution": "S/4HANA",  # 선택 자유 텍스트(앞뒤 공백 제거 후 0~200자)
         "users": 10,
         "status_key": "prospecting",
         "forecast_key": "pipeline",

@@ -20,9 +20,9 @@ async function openDeal1() {
 }
 
 describe('Vendor·Solution 인라인 편집', () => {
-  // Vendor 선택에는 '선택 안 함'과 등록 Vendor가 모두 있고 현재 값이 골라져 있다.
+  // Vendor 선택에는 등록 Vendor만 있고('선택 안 함' 없음) 현재 값이 골라져 있다.
   // 테스트 코드: DD-080
-  it('offers none plus every registered vendor in the Vendor select and the current one is selected', async () => {
+  it('offers every registered vendor without a none option and the current one is selected', async () => {
     // given: Vendor가 Silverfort인 Deal
     const { user } = await openDeal1()
 
@@ -32,9 +32,9 @@ describe('Vendor·Solution 인라인 편집', () => {
     const select = screen.getByRole('combobox', { name: 'Vendor' })
     await within(select).findByRole('option', { name: 'Okta' })
 
-    // then: 옵션이 선택 안 함 + 등록 Vendor 목록이고 Silverfort가 선택돼 있다
+    // then: 옵션이 등록 Vendor 목록뿐이고 Silverfort가 선택돼 있다
     expect(optionNames(select)).toEqual([
-      '선택 안 함', 'CrowdStrike', 'CyberArk', 'Okta', 'Palo Alto', 'SentinelOne', 'Silverfort', 'Splunk', 'Tenable', 'Veeam', 'Zscaler',
+      'CrowdStrike', 'CyberArk', 'Okta', 'Palo Alto', 'SentinelOne', 'Silverfort', 'Splunk', 'Tenable', 'Veeam', 'Zscaler',
     ])
     expect(select).toHaveDisplayValue('Silverfort')
   })
@@ -77,25 +77,24 @@ describe('Vendor·Solution 인라인 편집', () => {
     expect(update).not.toHaveBeenCalled()
   })
 
-  // Vendor가 없는 Deal도 Solution을 고칠 수 있다.
+  // Solution을 비우면 문구 없이 solution ''만 보내 저장하고 값은 '—'로 보인다.
   // 테스트 코드: DD-080
-  it('allows the solution edit when the deal has no vendor', async () => {
-    // given: Vendor를 비운 Deal
-    const { user, code, client } = await openDeal1()
-    await gateway.deals.update(code, { vendorId: null })
-
-    await client.invalidateQueries()
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Vendor 수정' })).toHaveTextContent('—'))
-
-    // when: Solution을 MFA로 고친다
+  it('saves an emptied Solution as an empty string and shows a dash', async () => {
+    // given: Solution이 ITDR인 Deal
+    const { user, code } = await openDeal1()
+    const update = vi.spyOn(gateway.deals, 'update')
     await user.click(screen.getByRole('button', { name: 'Solution 수정' }))
     const input = screen.getByLabelText('Solution')
-    await user.clear(input)
-    await user.type(input, 'MFA{Enter}')
 
-    // then: 알림이 보이고 Solution이 MFA로 저장된다
+    // when: Solution을 지우고 Enter를 누른다
+    await user.clear(input)
+    await user.type(input, '{Enter}')
+
+    // then: 알림이 보이고 solution ''만 담은 요청이 가며 값이 '—'로 보인다
     expect(await screen.findByText('Solution이 변경되었습니다.')).toBeVisible()
-    expect((await gateway.deals.get(code)).solution).toBe('MFA')
+    expect(update).toHaveBeenCalledWith(code, { solution: '' })
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Solution 수정' })).toHaveTextContent('—'))
+    expect((await gateway.deals.get(code)).solution).toBe('')
   })
 
   // Vendor를 바꾸면 vendor만 보내고 Solution은 유지된다.
@@ -142,26 +141,24 @@ describe('Vendor·Solution 인라인 편집', () => {
     expect(update).not.toHaveBeenCalled()
   })
 
-  // Vendor가 없으면 '—'로 보이고 Solution 글자는 그대로다.
+  // Solution이 빈 Deal은 Solution이 '—'로 보이고 Vendor는 그대로 보인다.
   // 테스트 코드: DD-080
-  it('shows a deal without a vendor as a dash for the vendor and keeps the solution text', async () => {
-    // given: Vendor를 비운 Deal
-    const { code, client } = await openDeal1()
-    await gateway.deals.update(code, { vendorId: null })
+  it('shows a deal with an empty Solution as a dash and keeps the Vendor name', async () => {
+    // given: Solution이 빈 Deal
+    const path = await detailPath(1)
+    await renderAt(path, { seed: 'legacy-solution' })
+    await screen.findByRole('heading', { level: 1, name: '한빛은행 ITDR 도입' })
 
     // when: Deal 상세를 본다
-    await client.invalidateQueries()
-
-    // then: Vendor는 '—', Solution은 ITDR이다
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Vendor 수정' })).toHaveTextContent('—'))
-    expect(screen.getByRole('button', { name: 'Solution 수정' })).toHaveTextContent('ITDR')
-    expect(kvValue(infoTile(), 'Solution')).toHaveTextContent('ITDR')
+    // then: Solution은 '—', Vendor는 Silverfort다
+    expect(screen.getByRole('button', { name: 'Solution 수정' })).toHaveTextContent('—')
+    expect(screen.getByRole('button', { name: 'Vendor 수정' })).toHaveTextContent('Silverfort')
   })
 
-  // Solution이 빈 레거시 Deal도 Vendor를 인라인으로 바꿀 수 있다.
+  // Solution이 빈 Deal도 Vendor를 인라인으로 바꿀 수 있다.
   // 테스트 코드: DD-080
-  it('changes the vendor inline on a legacy deal whose solution is empty', async () => {
-    // given: Solution이 빈 레거시 Deal
+  it('changes the vendor inline on a deal whose solution is empty', async () => {
+    // given: Solution이 빈 Deal
     const path = await detailPath(1)
     const { user } = await renderAt(path, { seed: 'legacy-solution' })
     await screen.findByRole('heading', { level: 1, name: '한빛은행 ITDR 도입' })

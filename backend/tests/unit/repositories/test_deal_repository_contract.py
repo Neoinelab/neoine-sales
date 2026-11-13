@@ -23,6 +23,7 @@ from app.domain.deal.values import (
     RevenueAmount,
 )
 from tests.factories import NOW, make_bant, make_deal, make_deal_code, new_contact_id
+from tests.support.default_vendor import DEFAULT_VENDOR_ID
 from tests.support.legacy_solution import blank_solution
 from tests.support.user_ids import uid
 
@@ -125,7 +126,7 @@ class TestAddAndGet:
         assert loaded.details.revenue_amount.value == AMOUNT_MAX
         assert (loaded.details.users, loaded.details.vendor_id, loaded.details.solution) == (
             USERS_MAX,
-            None,
+            DEFAULT_VENDOR_ID,
             "S/4HANA",
         )
 
@@ -141,16 +142,17 @@ class TestAddAndGet:
         # then: Solution이 그대로다
         assert loaded.details.solution == "ITDR 2.0 / 한글 Solution"
 
-    async def test_solution_text_is_saved_without_a_vendor(self, deal_case: DealCase) -> None:
-        """Vendor 없이도 Solution 텍스트를 저장한다."""
-        # given: Vendor 없이 Solution만 있는 Deal
-        deal = make_deal(code=CODE, vendor_id=None, solution="ITDR")
+    async def test_an_empty_solution_is_saved_with_the_vendor(self, deal_case: DealCase) -> None:
+        """Vendor가 있고 Solution이 빈 Deal도 저장하고 그대로 읽는다."""
+        # given: Vendor SAP를 고르고 Solution이 빈 Deal
+        sap = await deal_case.new_vendor("SAP")
+        deal = make_deal(code=CODE, vendor_id=sap.id, solution="")
         await deal_case.add(deal)
 
-        # when: 저장한 Deal을 조회한다 (전제: Fake·SQL 공통) (Vendor 없는 Solution)
+        # when: 저장한 Deal을 조회한다 (전제: Fake·SQL 공통)
         loaded = await deal_case.deals.get(deal.id)
-        # then: Vendor는 None이고 Solution이 남아 있다
-        assert (loaded.details.vendor_id, loaded.details.solution) == (None, "ITDR")
+        # then: Vendor는 SAP이고 Solution은 빈 문자열이다
+        assert (loaded.details.vendor_id, loaded.details.solution) == (sap.id, "")
 
     async def test_solution_text_of_200_characters_round_trips(self, deal_case: DealCase) -> None:
         """200자 Solution이 그대로 읽힌다."""

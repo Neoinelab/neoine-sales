@@ -78,8 +78,10 @@ async def _helper_user(uow: UnitOfWork) -> User:
 
 async def _deal(uow: UnitOfWork, *, owner: UserId) -> Deal:
     from tests.factories_contact import make_customer  # noqa: PLC0415 - 연락처 구현 지연 import
+    from tests.support.default_vendor import ensure_default_vendor  # noqa: PLC0415
 
     customer = make_customer()
+    await ensure_default_vendor(uow.vendors)
     await uow.contacts.add(customer)
     deal = make_deal(
         code=f"20261016-{uuid4().hex[:4].upper()}",

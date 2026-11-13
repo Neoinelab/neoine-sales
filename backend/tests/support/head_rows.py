@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import text
 
+from tests.support.default_vendor import DEFAULT_VENDOR_ID, DEFAULT_VENDOR_NAME
 from tests.support.ids import new_id
 
 if TYPE_CHECKING:
@@ -26,12 +27,18 @@ INSERT_CONTACT = (
 )
 # deals.id는 DB 기본값(IDENTITY)이 매긴다: 도메인이 모르는 대리 키다.
 INSERT_DEAL = (
-    "insert into deals (deal_code, name, owner_user_id, users, status_kind, status_key,"
+    "insert into deals (deal_code, name, owner_user_id, vendor_id, users, status_kind, status_key,"
     " forecast_kind, forecast_key, revenue_amount, revenue_date, customer_id, quote_submitted,"
     " quote_submitted_date, poc_state, poc_completed_date, procurement, created_at, updated_at,"
-    " status_changed_on) values (:code, 'n', :owner_user_id, :users, 'status', :status_key,"
+    " status_changed_on) values (:code, 'n', :owner_user_id, :vendor_id, :users, 'status',"
+    " :status_key,"
     " 'forecast', :forecast_key, :amount, current_date, :customer_id, :quote_submitted, null,"
     " :poc_state, null, '', now(), now(), current_date)"
+)
+# Deal은 Vendor가 필수(NOT NULL + FK)라 기본 Deal의 Vendor 행을 (없으면) 만든다.
+INSERT_DEFAULT_VENDOR = (
+    "insert into vendors (id, name, created_at, updated_at) values (:id, :name, now(), now())"
+    " on conflict do nothing"
 )
 HAS_SOLUTION_TEXT = (
     "select count(*) from information_schema.columns"
@@ -99,13 +106,18 @@ async def insert_deal(
 ) -> str:
     """담당자 행이 없으면 새로 만든다. 새 Deal의 code를 돌려준다(Deal id는 DB가 매긴다).
 
-    overrides: code, amount, users, status_key, forecast_key, quote_submitted, poc_state, solution.
+    overrides: code, amount, users, status_key, forecast_key, quote_submitted, poc_state, solution,
+    vendor_id(기본 Vendor).
 
     `deals.solution`(Solution 자유 텍스트) 컬럼이 있는 스키마(그 리비전 이후)에서는 `solution`
     값(기본 "")을 함께 넣는다. 이전 리비전 스키마에서는 넣지 않는다(마이그레이션 테스트 공용).
     """
     owner = owner_user_id or await insert_user(session, f"o{new_id()}")
+    await session.execute(
+        text(INSERT_DEFAULT_VENDOR), {"id": DEFAULT_VENDOR_ID, "name": DEFAULT_VENDOR_NAME}
+    )
     values: dict[str, object] = {
+        "vendor_id": DEFAULT_VENDOR_ID,
         "code": "20261016-A001",
         "customer_id": customer_id,
         "amount": 100,

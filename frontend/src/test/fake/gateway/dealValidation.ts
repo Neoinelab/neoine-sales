@@ -12,7 +12,8 @@ import { UNKNOWN_VENDOR_MESSAGE } from './vendors'
 export const SYNC_MISMATCH_MESSAGE = 'Status와 Forecast의 동기화가 맞지 않습니다.'
 export const PARTNER_INCOMPLETE_MESSAGE = '파트너를 입력하면 회사명과 담당자명이 모두 필요합니다.'
 
-export const SOLUTION_REQUIRED_MESSAGE = 'Solution을 입력하세요.'
+/** 서버 문구: 수정에서 Vendor를 null로 보낸 경우(등록의 누락·null은 요청 형식 오류다). */
+export const VENDOR_REQUIRED_MESSAGE = 'Vendor를 선택하세요.'
 export const SOLUTION_TOO_LONG_MESSAGE = 'Solution은 200자 이내로 입력하세요.'
 
 /** 서버 값 규칙(Deal Name 200자, Solution 200자, 구매절차 500자, Users count는 DB 정수 상한). */
@@ -32,19 +33,19 @@ export type ProvidedKeys = (key: keyof Scalars | 'bant') => boolean
 /** 서버와 같은 NUL 문자 거절 문구(PL-R16): 텍스트는 공백으로 감싸도 NUL이 있으면 거절한다. */
 const nulMessage = (column: string): string => `${column}에는 NUL 문자를 쓸 수 없습니다`
 
-/** Vendor 선택 검증(서버와 같은 순서: Deal Name 다음, Solution 앞). Solution은 Vendor와 무관한 텍스트다. */
+/** Vendor 선택 검증(서버와 같은 순서: Deal Name 다음, Solution 앞). Vendor는 필수라 null은 거절한다. Solution은 Vendor와 무관한 텍스트다. */
 function validateVendorChoice(ctx: MockContext, effective: Scalars, check: boolean): void {
   if (!check) return
-  if (effective.vendorId !== null && !ctx.store.data.vendors.some((v) => v.id === effective.vendorId)) {
+  if (effective.vendorId === null || effective.vendorId === undefined) throw validation(VENDOR_REQUIRED_MESSAGE)
+  if (!ctx.store.data.vendors.some((v) => v.id === effective.vendorId)) {
     throw validation(UNKNOWN_VENDOR_MESSAGE)
   }
 }
 
-/** Solution 텍스트 검증(필수: 앞뒤 공백을 지운 뒤 1~200자, NUL 거부). */
+/** Solution 텍스트 검증(선택: 앞뒤 공백을 지운 뒤 0~200자, NUL 거부). 빈 값은 오류가 아니다. */
 function validateSolution(effective: Scalars, check: boolean): void {
   if (!check) return
   if (effective.solution.includes('\u0000')) throw validation(nulMessage('Solution'))
-  if (effective.solution.trim() === '') throw validation(SOLUTION_REQUIRED_MESSAGE)
   if (Array.from(effective.solution.trim()).length > SOLUTION_MAX) throw validation(SOLUTION_TOO_LONG_MESSAGE)
 }
 

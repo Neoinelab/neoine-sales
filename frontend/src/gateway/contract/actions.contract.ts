@@ -8,7 +8,7 @@ import { describe, expect, it } from 'vitest'
 import type { ActionInput, DealInput } from '../../shared/model/types'
 import { addDays, datePart } from '../../shared/model/dates'
 import type { Gateway } from '../types'
-import { expectRejects, unique, type MakeGateway, NO_SUCH_ID } from './support'
+import { expectRejects, unique, type MakeGateway, NO_SUCH_ID, anyVendorId } from './support'
 
 const REVENUE_NEEDED = 'Won·계약완료로 바꾸려면 매출금액과 매출일이 필요합니다.'
 const ACTED_REVERSED = '수행일 범위의 시작은 끝보다 늦을 수 없습니다.'
@@ -19,7 +19,7 @@ export async function newDeal(gateway: Gateway) {
   const input: DealInput = {
     name: unique('deal'),
     ownerId: me.id,
-    vendorId: null,
+    vendorId: await anyVendorId(gateway),
     solution: 'ITDR',
     users: 10,
     statusKey: 'prospecting',

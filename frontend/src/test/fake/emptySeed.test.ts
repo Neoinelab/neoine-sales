@@ -80,7 +80,8 @@ describe('앱 기본 시드에는 샘플 업무 데이터가 없다', () => {
   it('Deal을 만든 뒤 데이터를 초기화하면 빈 업무 데이터로 돌아간다', async () => {
     // given: Deal 하나를 만든 게이트웨이
     const { gateway, control } = await appDefault()
-    await gateway.deals.create(dealInput(USER_ID.kim, { vendorId: null }))
+    const vendor = await gateway.vendors.create('SAP') // Vendor는 필수라 먼저 등록한다(admin)
+    await gateway.deals.create(dealInput(USER_ID.kim, { vendorId: vendor.id }))
 
     // when: 초기화 전에 Deal 목록을 읽는다
     const before = await gateway.deals.list({ limit: 100 })

@@ -489,9 +489,10 @@ def _draft(company: str, name: str) -> object:
 
 
 async def _sort_fixture(env: DealEnv) -> dict[str, DealView]:
-    """등록 순서 a → b → c(하루 간격, 최종 업데이트일도 같은 순서). b는 파트너, c는 Vendor 없음."""
+    """등록 순서 a → b → c(하루 간격, 최종 업데이트일도 같은 순서). b는 파트너 없음."""
     sap = await env.new_vendor("SAP")
     oracle = await env.new_vendor("Oracle")
+    tango = await env.new_vendor("Tango")
     lee = await _owner(env, "lee", "Lee")
     abe = await _owner(env, "abe", None)
     kim = await _owner(env, "kimsales", "kim")
@@ -510,7 +511,7 @@ async def _sort_fixture(env: DealEnv) -> dict[str, DealView]:
     c = await env.new_deal(
         name="Charlie", revenue_amount=100, revenue_date=date(2026, 6, 1),
         status_key="price_negotiation", forecast_key="best", owner_user_id=abe,
-        customer=_draft("Alpha", "alpha"), partner=_draft("Lima", "lima"),
+        customer=_draft("Alpha", "alpha"), partner=_draft("Lima", "lima"), vendor_id=tango.id,
     )  # fmt: skip
     return {"a": a, "b": b, "c": c}
 
@@ -526,7 +527,7 @@ SORT_EXPECTATIONS = [
     (DealSort.OWNER, "cab", "bac"),
     (DealSort.CUSTOMER, "cba", "abc"),
     (DealSort.PARTNER, "cab", "acb"),  # 파트너 없는 b는 양방향 모두 맨 뒤
-    (DealSort.VENDOR, "abc", "bac"),  # Vendor 없는 c는 양방향 모두 맨 뒤
+    (DealSort.VENDOR, "abc", "cba"),  # Vendor 이름 순(Oracle < SAP < Tango)
 ]
 
 
@@ -591,25 +592,27 @@ async def test_equal_sort_values_fall_back_to_code_ascending_in_both_directions(
 async def test_deals_without_partner_or_vendor_are_always_last(
     env: DealEnv, order: SortOrder
 ) -> None:
-    """파트너·Vendor 정렬에서 값이 없는 Deal은 방향과 무관하게 맨 뒤다.
+    """파트너 정렬에서 값이 없는 Deal은 방향과 무관하게 맨 뒤이고 Vendor 정렬은 Vendor 이름 순이다.
 
     테스트 코드: DL-042
     """
-    # given: 파트너·Vendor가 있는 Deal 둘과 둘 다 없는 Deal
+    # given: 파트너가 있는 Deal 둘(Vendor SAP·Oracle)과 파트너 없는 Deal(Vendor는 필수라 있다)
     sap = await env.new_vendor("SAP")
     oracle = await env.new_vendor("Oracle")
     with_a = await env.new_deal(partner=_draft("Alpha", "alpha"), vendor_id=sap.id, name="with a")
     with_b = await env.new_deal(
         partner=_draft("Bravo", "bravo"), vendor_id=oracle.id, name="with b"
     )
-    without = await env.new_deal(name="without")
+    without = await env.new_deal(name="without", vendor_id=oracle.id)
     # when: 파트너와 Vendor로 각각 정렬한다
     by_partner = await env.list.execute(DealQuery(sort=DealSort.PARTNER, order=order))
     by_vendor = await env.list.execute(DealQuery(sort=DealSort.VENDOR, order=order))
-    # then: 값이 없는 Deal이 마지막이다
+    # then: 파트너 없는 Deal이 마지막이고, Vendor 정렬은 Oracle 둘 → SAP 또는 그 반대 순서다
     assert _codes(by_partner)[-1] == _code(without)
-    assert _codes(by_vendor)[-1] == _code(without)
     assert {_code(with_a), _code(with_b)} == set(_codes(by_partner)[:2])
+    oracle_codes = {_code(with_b), _code(without)}
+    first_two = set(_codes(by_vendor)[:2] if order is SortOrder.ASC else _codes(by_vendor)[1:])
+    assert first_two == oracle_codes
 
 
 async def test_status_and_forecast_sorts_follow_the_current_code_order(env: DealEnv) -> None:

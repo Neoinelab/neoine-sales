@@ -65,27 +65,30 @@ async def test_search_row_reflects_current_deal_values(contract_case: ContractCa
     assert (await contract_case.row_ids(owner_user_id=uid("lcv-old"))) == []
 
 
-async def test_removing_the_partner_and_vendor_shows_them_as_empty(
+async def test_removing_the_partner_empties_it_and_changing_the_vendor_shows_the_new_name(
     contract_case: ContractCase,
 ) -> None:
-    """파트너 연결과 Vendor를 지우면 계약 행에서 비어 보인다.
+    """파트너 연결을 끊으면 계약 행의 파트너가 비고 Vendor를 바꾸면 새 Vendor 이름이 보인다.
 
     테스트 코드: LC-028
     """
     # given: Vendor와 파트너가 있는 Deal의 계약
     deal = await contract_case.deal(vendor="SAP", partner="파트너")
     contract = await contract_case.contract(deal)
-    # when: 파트너 연결을 끊고 Vendor를 지운다
+    # when: 파트너 연결을 끊고 Vendor를 Oracle로 바꾼다
+    oracle = await contract_case.deal_case.new_vendor("Oracle")
     await contract_case.deal_case.replace_partner(deal.id, None, NOW)
     await contract_case.deal_case.revise(
-        deal.id, details=make_deal_details(owner_user_id=deal.details.owner_user_id, vendor_id=None)
+        deal.id,
+        details=make_deal_details(owner_user_id=deal.details.owner_user_id, vendor_id=oracle.id),
     )
 
-    # then: 행의 파트너와 Vendor가 None이다
+    # then: 행의 파트너는 None이고 Vendor는 Oracle이다
     row = await contract_case.repository.get_row(contract.id)
 
     assert row.deal.partner is None
-    assert row.deal.vendor is None
+    assert row.deal.vendor is not None
+    assert row.deal.vendor.name == "Oracle"
 
 
 async def test_contract_row_deal_is_won_reflects_the_current_forecast(

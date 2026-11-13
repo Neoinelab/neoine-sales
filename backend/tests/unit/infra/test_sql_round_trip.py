@@ -4,6 +4,7 @@ from datetime import UTC, date, datetime, timedelta, timezone
 from typing import TYPE_CHECKING
 
 import pytest
+import pytest_asyncio
 
 from app.domain.common.contact import Email, PhoneNumber
 from app.domain.contact.values import ContactKind
@@ -11,8 +12,10 @@ from app.domain.deal.values import AMOUNT_MAX
 from app.infra.db.contact_repository import SqlContactRepository
 from app.infra.db.deal_repository import SqlDealRepository
 from app.infra.db.user_repository import SqlUserRepository
+from app.infra.db.vendor_repository import SqlVendorRepository
 from tests.factories import make_deal
 from tests.factories_contact import make_customer, make_partner
+from tests.support.default_vendor import ensure_default_vendor
 from tests.support.user_ids import OWNER_ID
 from tests.support.user_seed import ensure_users
 
@@ -20,6 +23,12 @@ if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
 
 pytestmark = pytest.mark.integration
+
+
+@pytest_asyncio.fixture(autouse=True)
+async def _default_vendor(session: AsyncSession) -> None:
+    """기본 Deal의 Vendor(필수 FK)를 미리 둔다."""
+    await ensure_default_vendor(SqlVendorRepository(session))
 
 
 async def test_contact_optional_fields_round_trip_as_none(session: AsyncSession) -> None:

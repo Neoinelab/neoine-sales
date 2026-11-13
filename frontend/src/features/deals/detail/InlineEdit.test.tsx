@@ -225,9 +225,9 @@ describe('Owner · Vendor · Solution · Users count · 견적 · POC · 구매�
     expect(screen.getByLabelText('Solution')).toHaveValue('ITDR')
   })
 
-  // 빈 Solution은 요청 없이 문구로 막고 원래 값을 유지한다.
+  // 빈 Solution은 문구 없이 저장하고 '—'로 보이며, Esc는 값을 되돌리지 않는다.
   // 테스트 코드: DD-080
-  it('does not save an empty Solution and keeps the shown value', async () => {
+  it('saves an empty Solution without a message and shows a dash', async () => {
     // given: Solution이 ITDR인 Deal
     const update = vi.spyOn(gateway.deals, 'update')
     const { user } = await openDeal(1, '한빛은행 ITDR 도입')
@@ -238,13 +238,11 @@ describe('Owner · Vendor · Solution · Users count · 견적 · POC · 구매�
     await user.clear(solution)
     await user.type(solution, '   {Enter}')
 
-    // then: 'Solution을 입력하세요.'가 보이고 수정 요청이 없으며 Esc 뒤 원래 값이 남는다
-    expect(await screen.findByRole('alert')).toHaveTextContent('Solution을 입력하세요.')
-    expect(update).not.toHaveBeenCalled()
-    // when: Esc를 누른다
-    await user.keyboard('{Escape}')
-    // then: 원래 값이 남는다
-    expect(screen.getByRole('button', { name: 'Solution 수정' })).toHaveTextContent('ITDR')
+    // then: 'Solution을 입력하세요.'가 없고 solution ''만 보내며 값이 '—'로 보인다
+    expect(await screen.findByText('Solution이 변경되었습니다.')).toBeVisible()
+    expect(screen.queryByText('Solution을 입력하세요.')).not.toBeInTheDocument()
+    expect(update).toHaveBeenCalledWith(expect.any(String), { solution: '' })
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Solution 수정' })).toHaveTextContent('—'))
   })
 
   // Users count는 0 이상 정수만 저장한다.

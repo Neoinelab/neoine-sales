@@ -162,7 +162,7 @@
 - **RQ-R30** 정렬: 정렬을 고른 컬럼들을 컬럼 순서대로 적용하고(같은 식은 한 번), NULL은 방향과 무관하게 맨 뒤다. 정렬 값은 code(Status·Forecast)는 코드 순서, 정적 선택지는 선언 순서, 그 밖은 표시 값(그룹핑하지 않은 날짜 컬럼은 원래 날짜)이다. 그룹핑 리포트는 집계 컬럼으로도 정렬하고, 지정 정렬 뒤에 남은 그룹 컬럼의 정렬 값 → 그룹 key 오름차순(NULL 뒤)으로 가른다. 그룹핑하지 않은 행의 동률은 Deal code 오름차순, Action 행이면 이어서 수행일·Action id 오름차순이다. 정렬을 하나도 고르지 않은 그룹핑 없는 결과는 Deal code 순이다. 정렬은 행 수 제한 전에 적용한다.
 - **RQ-R31** 행 수 제한: 결과 `rows`는 최대 `row_limit`행(그룹)이다. `total_count` = 제한 전 전체 행(그룹) 수, `truncated` = `total_count > rows 수`. 맞는 행이 없으면 `rows: []`·`total_count: 0`·`truncated: false`.
 - **RQ-R32** 합계 행(`totals`): 그룹핑하고 비그룹(집계) 컬럼이 하나 이상일 때만, 같은 조건의 **전체 범위**를 그룹 없이 한 번 더 집계한 한 행이다(컬럼 순서, 그룹 컬럼 자리는 null). 행 수 제한과 무관하고, 고유 건수·평균은 전체 기준이며, Action 행 범위면 Deal 필드를 전체에서 Deal당 한 번 센다. 그룹핑이 없거나 모든 컬럼이 그룹 컬럼이면 `totals: null`이다.
-- **RQ-R33** 원장 일치: Vendor(그룹) × Expected Close 분기(그룹) × 금액 합계 × Deal code 건수, 조건 Forecast 구분 not_in [lost]·Expected Close 올해인 리포트의 각 칸은 같은 연도·분기·Vendor의 Deals 목록(DL-R1·DL-R6·DL-R9, Lost 제외) 건수·금액과 같다. Vendor 없는 칸 = 그 분기 전체 − Vendor 칸 합. 합계 행은 같은 조건 Deals 목록 전체 건수·금액과 같다.
+- **RQ-R33** 원장 일치: Vendor(그룹) × Expected Close 분기(그룹) × 금액 합계 × Deal code 건수, 조건 Forecast 구분 not_in [lost]·Expected Close 올해인 리포트의 각 칸은 같은 연도·분기·Vendor의 Deals 목록(DL-R1·DL-R6·DL-R9, Lost 제외) 건수·금액과 같다. 합계 행은 같은 조건 Deals 목록 전체 건수·금액과 같다.
 - **RQ-R34** SQL 안전: 식별자(테이블·열)는 카탈로그 필드의 SQL 레지스트리에서만 오고, 사용자 값(검색어·목록·숫자·날짜)과 행 수 제한은 모두 바인딩 파라미터다. LIKE 특수 문자는 이스케이프한다. 필요한 JOIN만 붙인다(이름이 필요한 컬럼의 JOIN, Action 행일 때만 `deal_actions` JOIN, 조건에만 있으면 EXISTS 하위 쿼리). 카탈로그의 모든 필드는 그룹핑 없는 컬럼으로, 그룹핑할 수 있는 필드는 그룹 컬럼으로, 모든 (필드, 연산자)는 조건으로 SQL이 된다. 응답 `sql`은 표시 SQL(PostgreSQL 문법, 입력 값이 리터럴로 보임)이고 실행에 쓰지 않는다. 같은 정의에서 Port `render_sql`(DB 미사용)과 `run`의 `sql`은 같은 문자열이다. 그룹핑 리포트의 `sql`은 데이터 문장이다(합계 문장 제외).
 - **RQ-R35** 읽기 전용·시간 제한: 조회 문장은 SAVEPOINT 안에서 `SET TRANSACTION READ ONLY`와 `SET LOCAL statement_timeout = 10000`(ms, `STATEMENT_TIMEOUT_SECONDS` 10 × 1000 — 숫자를 다른 곳에 하드코딩하지 않음)로 실행하고 끝나면 항상 되돌린다(블록 안 쓰기는 거절, 블록 밖 설정·쓰기는 영향 없음, 오류 뒤에도 되돌림). 제한을 넘으면(SQLSTATE 57014) 503 `report-timeout` "조회가 10초 안에 끝나지 않았습니다. 조건을 좁히거나 컬럼을 줄이세요"(DB 문구는 싣지 않음)이고 그 뒤에도 세션은 쓸 수 있다. 다른 DB 오류는 시간 초과로 바꾸지 않는다. 그룹핑 리포트는 데이터·합계 두 문장이라 최대 약 20초가 걸릴 수 있다(사용자 수용 2026-10-27).
 - **RQ-R36** 조회 응답은 정확히 `{row_scope, action_filter, deal_numbers_once, columns, rows, totals, total_count, truncated, row_limit, sql, elapsed_ms, today}`다. `columns[i]` = `{index, field, label, entity, type, value_type, format, unit, prefix_length, group, aggregate}`: `label`은 적용된 표시 이름, `format`은 적용된 포맷(날짜 기본 포함, 포맷 없는 필드는 null), `unit`은 필드 단위(금액이면 집계가 건수여도 `"krw"` — 화면은 건수·고유 건수면 머리글에 "(원)"을 붙이지 않는다(RQ-R51), 현행 유지 2026-11-11 결정), `prefix_length`는 요청 값, `aggregate`는 적용된 집계(기본 포함) 또는 null. `rows[r]`의 값 순서는 컬럼 순서다. 금액은 원 단위 그대로다. `row_limit`은 적용 값, `elapsed_ms`는 실행 시간(ms), `today`는 조회 시점 업무 날짜(TM-R4)다. 조회 유스케이스는 서버 시계 하나(TM-R1)로 업무 날짜·업무 오프셋·경고 기준(`RiskBasis(오늘, stale_days)`)을 정해 정의와 함께 Port에 넘긴다.
@@ -540,9 +540,9 @@ RQ-R38~RQ-R56.
 - Then 3건이 모두 Deal code 순으로 나온다
 
 ### RQ-032 텍스트·코드·숫자·날짜 연산자는 정해진 뜻으로 거른다
-- Given 이름 "Alpha Deal"·"alphabet"·"Beta", 그중 Vendor 없는 Deal 하나, 금액 100·200·300, Expected Close 2026-10-01·2026-10-15·2026-10-31인 Deal들
-- When `deal.name contains "ALPHA"`, `starts_with "alpha"`, `equals "beta"`, `deal.vendor is_empty`, `deal.vendor not_in [SAP]`, `deal.amount between [100, 200]`, `gt 200`, `deal.expected_close before "2026-10-15"`, `after "2026-10-15"`, `between ["2026-10-01", "2026-10-15"]`, 그리고 두 조건 AND·OR로 각각 조회한다
-- Then contains는 앞의 둘, starts_with도 앞의 둘, equals는 "Beta", is_empty와 not_in은 Vendor 없는 Deal을 포함하고, between은 100·200, gt는 300, before는 10-01만, after는 10-31만, 날짜 between은 10-01·10-15이며, OR은 어느 하나, AND는 모두 맞는 Deal이다
+- Given 이름 "Alpha Deal"·"alphabet"·"Beta", 그중 Vendor IBM이고 Solution이 빈 Deal 하나(나머지는 Vendor SAP), 금액 100·200·300, Expected Close 2026-10-01·2026-10-15·2026-10-31인 Deal들
+- When `deal.name contains "ALPHA"`, `starts_with "alpha"`, `equals "beta"`, `deal.solution is_empty`, `deal.vendor not_in [SAP]`, `deal.amount between [100, 200]`, `gt 200`, `deal.expected_close before "2026-10-15"`, `after "2026-10-15"`, `between ["2026-10-01", "2026-10-15"]`, 그리고 두 조건 AND·OR로 각각 조회한다
+- Then contains는 앞의 둘, starts_with도 앞의 둘, equals는 "Beta", is_empty와 not_in은 그 IBM·빈 Solution Deal만이고, between은 100·200, gt는 300, before는 10-01만, after는 10-31만, 날짜 between은 10-01·10-15이며, OR은 어느 하나, AND는 모두 맞는 Deal이다
 
 ### RQ-033 SQL처럼 보이는 값과 %·_·\는 글자 그대로 찾고 데이터는 그대로다
 - Given Deal "Safe", "50%_off\x"
@@ -609,9 +609,9 @@ RQ-R38~RQ-R56.
 - Then sum은 정수 4, avg는 1.33, 날짜는 "YYYY-MM-DD" 문자열, 시각은 "+09:00" 오프셋 ISO 문자열이다
 
 ### RQ-046 Vendor×분기 금액 합계·건수는 Deals 목록 원장과 같다
-- Given 오늘 2026-10-27, KIM의 Deal(Vendor, Expected Close, Forecast, 금액): (SAP, 2026-02-10, pipeline, 100), (SAP, 2026-03-31, commit, 110), (SAP, 2026-02-11, lost, 5000), (SAP, 2026-05-10, commit, 200), (SAP, 2025-12-31, pipeline, 777), (IBM, 2026-02-12, pipeline, 300), (IBM, 2026-08-10, best, 400), (IBM, 2027-01-01, pipeline, 888), (없음, 2026-02-13, pipeline, 50), (없음, 2026-11-10, most_likely, 60), (없음, 2026-08-11, lost, 9000)
+- Given 오늘 2026-10-27, KIM의 Deal(Vendor, Expected Close, Forecast, 금액): (SAP, 2026-02-10, pipeline, 100), (SAP, 2026-03-31, commit, 110), (SAP, 2026-02-11, lost, 5000), (SAP, 2026-05-10, commit, 200), (SAP, 2025-12-31, pipeline, 777), (IBM, 2026-02-12, pipeline, 300), (IBM, 2026-08-10, best, 400), (IBM, 2027-01-01, pipeline, 888), (Oracle, 2026-02-13, pipeline, 50), (Oracle, 2026-11-10, most_likely, 60), (Oracle, 2026-08-11, lost, 9000)
 - When KIM이 컬럼 `[deal.vendor(group), deal.expected_close(quarter, group, asc), deal.amount(sum), deal.code(count)]`, 조건 `deal.forecast_outcome not_in [lost]` AND `deal.expected_close relative this_year`로 조회한다
-- Then 각 (Vendor, "2026 Qn") 칸의 (건수, 금액)은 같은 분기·Vendor의 Deals 목록(Lost 제외) 값과 같고, Vendor 없는 칸은 그 분기 전체 − Vendor 칸 합이며, 빈 칸은 행이 없고 Lost·다른 해 Deal은 어떤 칸에도 없으며, 합계 행은 같은 조건 목록 전체와 같다
+- Then 각 (Vendor, "2026 Qn") 칸의 (건수, 금액)은 같은 분기·Vendor의 Deals 목록(Lost 제외) 값과 같고, Oracle 칸도 같으며, 빈 칸은 행이 없고 Lost·다른 해 Deal은 어떤 칸에도 없으며, 합계 행은 같은 조건 목록 전체와 같다
 
 ### RQ-047 Action 행 그룹핑에서 Deal 금액 합계는 Deal당 한 번이고 Action 건수는 Action 수다
 - Given Vendor SAP, 금액 100,000,000인 Deal 하나에 Action 3건
@@ -634,9 +634,9 @@ RQ-R38~RQ-R56.
 - Then 고유 건수는 2다
 
 ### RQ-051 컬럼 정렬은 컬럼 순서가 우선순위이고 NULL은 맨 뒤, 같으면 Deal code 순이다
-- Given (이름, Vendor): (Alpha, IBM), (Alpha, SAP), (Beta, IBM), (Alpha, 없음) 순서로 등록
-- When 컬럼 `[deal.name(asc), deal.vendor(desc)]`로, 그리고 순서를 바꾼 `[deal.vendor(desc), deal.name(asc)]`로 조회한다
-- Then 첫째는 [Alpha, SAP], [Alpha, IBM], [Alpha, null], [Beta, IBM]이고, 둘째는 Vendor 내림차순이 먼저(SAP → IBM → null)다. 정렬 없는 컬럼은 순서에 영향이 없고 정렬 값이 같은 행은 Deal code 순이다
+- Given (이름, 파트너사): (Alpha, "Acme"), (Alpha, "Zeta"), (Beta, "Acme"), (Alpha, 없음) 순서로 등록(모두 Vendor SAP)
+- When 컬럼 `[deal.name(asc), deal.partner_company(desc)]`로, 그리고 순서를 바꾼 `[deal.partner_company(desc), deal.name(asc)]`로 조회한다
+- Then 첫째는 [Alpha, Zeta], [Alpha, Acme], [Alpha, null], [Beta, Acme]이고, 둘째는 파트너사 내림차순이 먼저(Zeta → Acme → null)다. 정렬 없는 컬럼은 순서에 영향이 없고 정렬 값이 같은 행은 Deal code 순이다
 
 ### RQ-052 Status 그룹은 코드 순서이고 그룹핑 리포트는 집계 컬럼으로도 정렬한다
 - Given 여러 Status의 Deal(이름의 가나다 순과 코드 순서가 다름), Vendor별 금액이 다른 Deal
@@ -931,3 +931,4 @@ RQ-R38~RQ-R56.
 | 2026-11-11 | UI 문서 작성에 따라 공통 입력 참조를 UI 규칙 번호로 교체(머리말, 1장, RQ-R46, RQ-R47, 케이스 본문). 동작·케이스 변경 없음, 상태 줄 그대로 | 없음 |
 | 2026-11-13 | AC 수행일 지정(확정)에 맞춰 카탈로그 35·36·38 비고 보강. SQL·동작·케이스 변경 없음, 상태 줄 그대로 | 없음 |
 | 2026-11-13 | 확정(2026-11-13 사용자 확인): 최종 업데이트·Status 진입일·수행일·종료일을 date 형식으로 변경(카탈로그 27·28·38·39, RQ-R30, RQ-R58 신설). field key는 유지하고, 저장 리포트의 ymd_hm은 ymd로 자동 변환. 카탈로그·결과 열 형식 변경(호환 깨짐, 사용자 승인) | 신규 RQ-113~RQ-115. 변경 RQ-040, RQ-053 |
+| 2026-11-13 | 확정(2026-11-13 사용자 확인): Deal Vendor 필수(DE-R7, SC-R22)로 Vendor 없는 Deal 예시를 바꿈(RQ-R33 문장 삭제, is_empty는 빈 Solution, NULL 정렬은 파트너사). `deal.vendor` 필드·연산자·SQL은 그대로 | 변경 RQ-032, RQ-046, RQ-051 |

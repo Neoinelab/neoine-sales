@@ -54,6 +54,7 @@ async def _client() -> AsyncIterator[tuple[AsyncClient, dict[str, str]]]:
         await use_cases.uow.contacts.add(
             make_contact(ContactKind.CUSTOMER, entity_id=deal.customer_id)
         )
+        use_cases.uow.vendors.materialize_default()  # 기본 Deal의 Vendor
         use_cases.uow.deals._items[deal.id] = deal
         codes[name] = deal.id.value
     app = create_app(settings=make_settings(UNUSED_DATABASE_URL), use_cases=use_cases)

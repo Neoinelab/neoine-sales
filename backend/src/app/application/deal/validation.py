@@ -16,6 +16,7 @@ from app.domain.common.errors import InvalidValueError
 from app.domain.deal.errors import (
     FORECAST_REQUIRED_MESSAGE,
     STATUS_REQUIRED_MESSAGE,
+    VENDOR_REQUIRED_MESSAGE,
     UnknownCodeError,
     UnknownVendorError,
 )
@@ -59,7 +60,7 @@ async def validate_form(
     """첫 위반에서 InvalidValueError 계열로 거절한다. 저장소 확인은 `provided` 필드만 한다."""
     name = check_name(values.name)
     vendor_id = await _vendor_choice(uow, values.vendor_id, check="vendor_id" in provided)
-    solution = check_solution(values.solution) if "solution" in provided else values.solution
+    solution = check_solution(values.solution)
     owner_id = await _owner(uow, values.owner_user_id, "owner_user_id" in provided)
     amount = check_amount(values.revenue_amount)
     if values.revenue_date is None:
@@ -84,10 +85,10 @@ async def validate_form(
     return CheckedForm(details=details, sync=sync, bant=bant, drafts=drafts)
 
 
-async def _vendor_choice(uow: UnitOfWork, vendor: int | None, *, check: bool) -> VendorId | None:
-    """Vendor는 등록 목록에서 고른다(보낸 경우에만 확인). Solution은 Vendor와 무관하다."""
+async def _vendor_choice(uow: UnitOfWork, vendor: int | None, *, check: bool) -> VendorId:
+    """Vendor는 필수이며 등록 목록에서 고른다(보낸 경우에만 확인). Solution은 Vendor와 무관하다."""
     if vendor is None:
-        return None
+        raise InvalidValueError(VENDOR_REQUIRED_MESSAGE)
     vendor_id = VendorId(vendor)
     if check:
         try:

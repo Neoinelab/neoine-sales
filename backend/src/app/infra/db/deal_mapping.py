@@ -73,7 +73,7 @@ def _details(row: DealRow) -> DealDetails:
     return DealDetails.from_storage(
         name=row.name,
         owner_user_id=UserId(row.owner_user_id),
-        vendor_id=VendorId(row.vendor_id) if row.vendor_id is not None else None,
+        vendor_id=VendorId(row.vendor_id),
         solution=row.solution,
         users=row.users,
         revenue_amount=RevenueAmount(int(row.revenue_amount)),

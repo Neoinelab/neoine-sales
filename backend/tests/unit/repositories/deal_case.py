@@ -22,7 +22,7 @@ from tests.factories_contact import make_contact
 from tests.factories_vendor import store_vendor
 from tests.fakes.catalog_seed import seed_action_types, seed_catalog
 from tests.fakes.unit_of_work import FakeUnitOfWork
-from tests.support.database import rolled_back_session
+from tests.support.default_vendor import rolled_back_session_with_vendor
 from tests.support.user_ids import OWNER_ID
 from tests.support.user_seed import ensure_users
 
@@ -221,5 +221,5 @@ async def open_deal_case(
     if implementation == "fake":
         yield _fake_case()
         return
-    async with rolled_back_session(test_database_url) as session:  # type: ignore[arg-type]
+    async with rolled_back_session_with_vendor(test_database_url) as session:  # type: ignore[arg-type]
         yield _sql_case(session)

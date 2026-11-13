@@ -109,6 +109,12 @@ class TestDealName:
             make_deal_details(name="a\x00b")
 
 
+def _vendor_required_message() -> str:
+    import importlib  # noqa: PLC0415
+
+    return str(importlib.import_module("app.domain.deal.errors").VENDOR_REQUIRED_MESSAGE)
+
+
 class TestVendorChoice:
     """Deal은 등록된 Vendor의 id만 갖는다. Vendor 이름 규칙은 vendor 도메인이다."""
 
@@ -122,12 +128,21 @@ class TestVendorChoice:
         # then: vendor_id가 그대로다
         assert result == vendor_id
 
-    def test_no_vendor_is_allowed(self) -> None:
-        """Vendor 없이도 Deal 상세를 만들 수 있다."""
-        # when: Vendor 없이 만든다
-        result = make_deal_details().vendor_id
-        # then: vendor_id가 None이다
-        assert result is None
+    def test_vendor_id_is_a_required_non_null_field(self) -> None:
+        """Deal 상세의 vendor_id는 null을 허용하지 않는 필수 필드다.
+
+        테스트 코드: DE-116
+        """
+        import typing  # noqa: PLC0415
+
+        from app.domain.deal.values import DealDetails  # noqa: PLC0415
+
+        # when: DealDetails의 vendor_id 타입 힌트를 읽는다
+        hint = typing.get_type_hints(DealDetails)["vendor_id"]
+
+        # then: VendorId 그대로이고(None 불허) 안내 문구 상수가 정해져 있다
+        assert hint is VendorId
+        assert _vendor_required_message() == "Vendor를 선택하세요."
 
     def test_the_old_text_vendor_field_is_gone(self) -> None:
         """예전 텍스트 vendor 필드는 더 이상 받지 않는다."""
@@ -143,7 +158,7 @@ class TestVendorChoice:
 
 
 class TestSolutionText:
-    """Solution은 Vendor와 무관한 필수 자유 텍스트다(Q1 변경)."""
+    """Solution은 Vendor와 무관한 선택 자유 텍스트다(2026-11-13 변경, 빈 값 '')."""
 
     def test_solution_is_trimmed(self) -> None:
         """Solution은 앞뒤 공백을 자른다."""
@@ -152,17 +167,17 @@ class TestSolutionText:
         # then: 잘린 값이다
         assert result == "ITDR"
 
-    def test_constructor_allows_the_legacy_empty_solution(self) -> None:
-        """값 객체 생성자는 예전의 빈 Solution을 허용한다."""
-        # 리뷰 후속 결정: 빈 값 거절은 입력 검증(check_solution)이 맡고, 값 객체는 NUL·길이만 본다.
+    def test_constructor_allows_the_empty_solution(self) -> None:
+        """값 객체 생성자는 빈 Solution을 허용한다."""
+        # Solution은 선택이라 빈 값 ''이 정상 값이다. 값 객체는 NUL·길이만 본다.
         # when: 빈 Solution으로 만든다
         result = make_deal_details(solution="").solution
         # then: 빈 문자열로 보관된다
         assert result == ""
 
-    def test_replace_on_a_legacy_empty_solution_details_succeeds(self) -> None:
-        """빈 Solution인 예전 상세도 다른 필드를 replace할 수 있다."""
-        # given: 빈 Solution의 예전 상세
+    def test_replace_on_an_empty_solution_details_succeeds(self) -> None:
+        """빈 Solution인 상세도 다른 필드를 replace할 수 있다."""
+        # given: 빈 Solution의 상세
         legacy = make_deal_details(solution="")
 
         # when: 금액·매출일을 replace로 바꾼다
@@ -212,17 +227,31 @@ class TestSolutionText:
         # when·then: 도메인 SOLUTION_MAX가 200이다
         assert values.SOLUTION_MAX == SOLUTION_MAX
 
-    def test_check_solution_rejects_blank_and_returns_the_trimmed_text(self) -> None:
-        """check_solution은 잘린 텍스트를 돌려주고 공백만이면 거절한다."""
+    def test_check_solution_returns_the_trimmed_text_and_empty_for_blank(self) -> None:
+        """check_solution은 잘린 텍스트를 돌려주고 빈 값·공백뿐이면 오류 없이 빈 문자열을 돌려준다.
+
+        테스트 코드: DE-115
+        """
         from app.domain.deal.values import check_solution  # noqa: PLC0415
 
-        # when: 앞뒤 공백 낀 값을 검사한다
-        result = check_solution("  ITDR ")
-        # then: 잘린 텍스트로 돌려준다
-        assert result == "ITDR"
-        # when·then: 공백만이면 입력 안내 InvalidValueError다
-        with raises_with(InvalidValueError, "Solution을 입력하세요."):
-            check_solution("   ")
+        # when: 앞뒤 공백 낀 값, 빈 값, 공백만, 탭을 검사한다
+        trimmed = check_solution("  ITDR ")
+        blanks = [check_solution(raw) for raw in ("", "   ", "\t")]
+
+        # then: 잘린 텍스트와 빈 문자열이다(입력 안내 오류 없음)
+        assert trimmed == "ITDR"
+        assert blanks == ["", "", ""]
+
+    def test_check_solution_still_rejects_201_characters(self) -> None:
+        """check_solution은 200자 초과를 여전히 거절한다.
+
+        테스트 코드: DE-017
+        """
+        from app.domain.deal.values import check_solution  # noqa: PLC0415
+
+        # when·then: 201자 Solution이면 길이 안내 InvalidValueError다
+        with raises_with(InvalidValueError, "Solution은 200자 이내로 입력하세요."):
+            check_solution("a" * (SOLUTION_MAX + 1))
 
     def test_solution_with_nul_is_rejected(self) -> None:
         """Solution에 NUL 문자가 있으면 거절된다."""
@@ -230,13 +259,16 @@ class TestSolutionText:
         with pytest.raises(InvalidValueError):
             make_deal_details(solution="a\x00b")
 
-    def test_solution_without_vendor_is_allowed(self) -> None:
-        """Solution은 Vendor 없이도 입력할 수 있다."""
-        # when: Vendor 없이 Solution만 넣어 만든다
-        details = make_deal_details(vendor_id=None, solution="ITDR")
+    def test_empty_solution_with_a_vendor_is_kept(self) -> None:
+        """Vendor만 있고 Solution이 빈 값인 상세를 만들 수 있다."""
+        # given: Vendor id
+        vendor_id = VendorId(new_id())
 
-        # then: vendor_id는 None이고 Solution이 보관된다
-        assert (details.vendor_id, details.solution) == (None, "ITDR")
+        # when: Solution 없이 Vendor만 넣어 만든다
+        details = make_deal_details(vendor_id=vendor_id, solution="")
+
+        # then: Vendor는 보관되고 Solution은 ''다
+        assert (details.vendor_id, details.solution) == (vendor_id, "")
 
     def test_solution_with_vendor_is_kept(self) -> None:
         """Vendor와 Solution을 함께 주면 둘 다 보관한다."""

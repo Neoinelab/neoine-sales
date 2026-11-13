@@ -199,20 +199,21 @@ async def test_get_row_carries_the_deal_values_and_attachment_count(
     assert row.deal.owner_user_id == uid("lcr-owner")
 
 
-async def test_get_row_without_vendor_and_partner_has_none(contract_case: ContractCase) -> None:
-    """Vendor·파트너가 없는 Deal의 행은 둘 다 None이다.
+async def test_get_row_without_a_partner_has_none(contract_case: ContractCase) -> None:
+    """파트너가 없는 Deal의 행은 파트너가 None이고 Vendor는 Deal의 Vendor다.
 
     테스트 코드: LC-028
     """
-    # given: Vendor·파트너가 없는 Deal의 계약
-    deal = await contract_case.deal(vendor=None, partner=None)
+    # given: Vendor SAP이고 파트너가 없는 Deal의 계약
+    deal = await contract_case.deal(vendor="SAP", partner=None)
     contract = await contract_case.contract(deal)
 
     # when: 행을 읽는다
     row = await contract_case.repository.get_row(contract.id)
 
-    # then: vendor·partner가 None, 첨부 수 0
-    assert row.deal.vendor is None
+    # then: vendor는 SAP, partner는 None, 첨부 수 0
+    assert row.deal.vendor is not None
+    assert row.deal.vendor.name == "SAP"
     assert row.deal.partner is None
     assert row.attachment_count == 0
 

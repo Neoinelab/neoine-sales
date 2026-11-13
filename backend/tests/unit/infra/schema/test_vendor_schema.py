@@ -128,14 +128,14 @@ async def test_deals_has_no_solution_id_or_its_constraints(session: AsyncSession
     assert "ix_deals_solution_id" not in indexes
 
 
-async def test_deals_vendor_id_is_a_nullable_bigint(session: AsyncSession) -> None:
-    """deals.vendor_id는 NULL을 허용하는 bigint다."""
+async def test_deals_vendor_id_is_a_not_null_bigint(session: AsyncSession) -> None:
+    """deals.vendor_id는 NULL을 허용하지 않는 bigint다(Vendor 필수)."""
     # when: deals 컬럼을 조회한다
     columns = await _columns(session, "deals")
 
-    # then: vendor_id가 nullable bigint다
+    # then: vendor_id가 NOT NULL bigint다
     assert columns["vendor_id"][0] == "bigint"
-    assert columns["vendor_id"][2] == "YES"
+    assert columns["vendor_id"][2] == "NO"
 
 
 async def test_deals_reference_vendors_with_restrict(session: AsyncSession) -> None:
@@ -156,13 +156,23 @@ async def test_deals_have_a_vendor_index_and_no_solution_index(session: AsyncSes
     assert "ix_deals_vendor_id" in {r[0] for r in rows}
 
 
-async def test_a_deal_may_have_a_solution_text_without_a_vendor(session: AsyncSession) -> None:
-    """Deal은 Vendor 없이 Solution 텍스트만 가질 수 있다."""
+async def test_a_deal_vendor_cannot_be_null(session: AsyncSession) -> None:
+    """Deal의 Vendor를 NULL로 바꿀 수 없다(Vendor 필수)."""
     # given: Deal 하나
     code = await _deal(session)
 
-    # when: Vendor 없이 Solution 텍스트를 연결한다
-    await link_deal(session, code, None, "ITDR")
+    # when·then: vendor_id를 NULL로 갱신하면 NOT NULL 위반이다
+    with pytest.raises(DBAPIError, match="not-null"):
+        await link_deal(session, code, None, "ITDR")
+
+
+async def test_a_deal_may_have_a_solution_text_with_a_vendor(session: AsyncSession) -> None:
+    """Deal은 Vendor와 함께 Solution 텍스트를 가질 수 있다."""
+    # given: Deal 하나
+    code = await _deal(session)
+
+    # when: Vendor와 Solution 텍스트를 연결한다
+    await link_deal(session, code, await insert_vendor(session, "SAP"), "ITDR")
 
     # then: Solution 텍스트가 저장된다
     stored = (
@@ -189,7 +199,7 @@ async def test_a_deal_solution_longer_than_200_is_rejected(session: AsyncSession
 
     # when·then: 201자 Solution을 연결하면 길이 초과 오류가 난다
     with pytest.raises(DBAPIError, match="too long"):
-        await link_deal(session, code, None, "a" * 201)
+        await link_deal(session, code, await insert_vendor(session, "SAP"), "a" * 201)
 
 
 async def test_a_deal_solution_cannot_be_null(session: AsyncSession) -> None:

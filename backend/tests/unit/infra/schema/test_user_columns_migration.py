@@ -26,7 +26,7 @@ pytestmark = pytest.mark.integration
 KST = timezone(timedelta(hours=9))
 
 DATE_REVISION = "b4d7e2a9c613"
-HEAD = "c8e3f1a7d295"
+HEAD = "c8e3f1a7d295"  # 이 파일이 검증하는 리비전(전체 head보다 한 단계 앞)
 FK = "fk_users_created_by_user_id_users"
 INDEX = "ix_users_created_by_user_id"
 CHECKS = {"ck_users_delete_reason_valid", "ck_users_deleted_pair"}
@@ -107,7 +107,7 @@ async def test_upgrade_keeps_the_user_rows_and_drops_only_the_creator_and_reason
     assert len(rows_before) == 3
 
     # when: head까지 올린다
-    await when_operator_upgrades(blank_database)
+    await when_operator_upgrades(blank_database, target=HEAD)
 
     # then: 버전은 head이고 사용자 (id, 아이디, 역할, 퇴사 여부)와 퇴사 시각이 그대로다(행 수 3)
     await then_schema_is_at(blank_database, HEAD)
@@ -132,7 +132,7 @@ async def test_downgrade_fills_the_creator_with_itself_and_the_reason_from_delet
     """
     # given: head까지 올린 DB(재직 2명, 퇴사 1명)
     await _seed_before(blank_database)
-    await when_operator_upgrades(blank_database)
+    await when_operator_upgrades(blank_database, target=HEAD)
     at_head = await run_sql(blank_database, SNAPSHOT)
 
     # when: 한 단계 되돌린다
@@ -164,7 +164,7 @@ async def test_downgrade_fills_the_creator_with_itself_and_the_reason_from_delet
     assert await _names(blank_database, CONSTRAINTS) >= CHECKS
 
     # when: 다시 head까지 올린다
-    await when_operator_upgrades(blank_database)
+    await when_operator_upgrades(blank_database, target=HEAD)
 
     # then: 첫 upgrade 결과와 같다
     await then_schema_is_at(blank_database, HEAD)

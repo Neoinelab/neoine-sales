@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { listMemoryKey } from '../../shared/model/dealListMemory'
 import { USER_ID } from '../../test/fake/seed/ids'
 import { renderAt } from '../../test/mockApp'
+import { pickVendor } from '../../test/vendorPick'
 import { ALL_DEALS } from './list/testHelpers'
 import { dealCodeOf, detailPath } from '../../test/detailTestUtils'
 import { DETAIL_URL, openEdit, pickPerson, save } from './form/testHelpers'
@@ -74,6 +75,7 @@ describe('저장 후 상세 알림', () => {
     await screen.findByRole('heading', { name: 'Deal 등록' })
     // when: 필수 값을 입력하고 저장한다.
     await user.type(screen.getByLabelText('Deal Name'), '알림 확인 테스트')
+    await pickVendor(user)
     await pickPerson(user, '고객', '한빛은행', /정민수/)
     await user.type(screen.getByLabelText('금액(단위:원)'), '100000000')
     await user.type(screen.getByLabelText('Solution'), 'ITDR')

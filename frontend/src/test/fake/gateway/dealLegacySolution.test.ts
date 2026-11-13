@@ -1,11 +1,9 @@
-/** Solution이 빈 레거시 Deal: 서버처럼 Solution을 보낸 때만 검사한다. */
+/** Solution이 빈 Deal: Solution은 선택이라 비어 있어도 수정·변경 적용이 된다(서버와 같음). */
 
 import { describe, expect, it } from 'vitest'
 import { seedVendorId } from '../../fixtures/vendors'
 import { buildLegacySolutionSeed } from '../../fixtures/legacySolution'
-import { dealCode, expectApiError, mockAs } from '../testing'
-
-const REQUIRED = 'Solution을 입력하세요.'
+import { dealCode, mockAs } from '../testing'
 
 describe('deals.update on a legacy deal with an empty solution', () => {
   it('Vendor만 고치는 수정은 받아들이고 빈 Solution을 그대로 둔다', async () => {
@@ -33,12 +31,15 @@ describe('deals.update on a legacy deal with an empty solution', () => {
     expect([updated.users, updated.revenueAmount, updated.solution]).toEqual([12, 777_000_000, ''])
   })
 
-  it.each(['', '   '])('보낸 Solution이 공백이면 여전히 거절한다 (%j)', async (sent) => {
-    // given: Solution이 빈 레거시 Deal
-    const { gateway } = await mockAs('kim', { seed: buildLegacySolutionSeed })
+  it.each(['', '   '])('보낸 Solution이 공백이어도 거절하지 않고 빈 값으로 둔다 (%j)', async (sent) => {
+    // given: Solution이 빈 Deal
+    const { gateway } = await mockAs('kim')
 
-    // when·then: 공백 Solution을 보내 수정하면 필수 안내 문구로 422가 된다
-    await expectApiError(gateway.deals.update(dealCode(2), { solution: sent }), 422, REQUIRED)
+    // when: 공백 Solution을 보내 수정한다
+    const updated = await gateway.deals.update(dealCode(2), { solution: sent })
+
+    // then: 오류 없이 Solution은 빈 채로 남는다
+    expect(updated.solution).toBe('')
   })
 
   it('applyChange로 매출 금액 하나를 바꾸는 것은 받아들인다', async () => {

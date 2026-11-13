@@ -43,10 +43,12 @@ async def _seed(case: ReportCase) -> Ids:
     )  # fmt: skip
     await case.add_deal(
         name=ALPHA_TWO, amount=200, day=date(2026, 4, 1), vendor_id=ibm.id, owner=LEE,
-        status="introduction", forecast="commit", procurement="RFP",
+        status="introduction", forecast="commit", procurement="RFP", solution="",
     )  # fmt: skip
-    await case.add_deal(name=BETA, amount=300, day=date(2026, 5, 1), owner=KIM)
-    await case.add_deal(name=GAMMA, amount=400, day=date(2026, 6, 1), owner=LEE, forecast="lost")
+    await case.add_deal(name=BETA, amount=300, day=date(2026, 5, 1), vendor_id=sap.id, owner=KIM)
+    await case.add_deal(
+        name=GAMMA, amount=400, day=date(2026, 6, 1), vendor_id=sap.id, owner=LEE, forecast="lost"
+    )
     return Ids(sap.id, ibm.id, label.id)
 
 
@@ -62,10 +64,11 @@ def _cases(ids: Ids) -> list[tuple[str, str, str, object, list[str]]]:
         ("text-not-empty", "deal.procurement", "is_not_empty", None, [ALPHA_TWO]),
         ("null-counts-as-empty", "deal.partner_company", "is_empty", None, [ALPHA, ALPHA_TWO, BETA, GAMMA]),  # noqa: E501
         ("null-is-not-not-empty", "deal.partner_company", "is_not_empty", None, []),
-        ("vendor-in", "deal.vendor", "in", [ids.sap], [ALPHA]),
-        ("vendor-in-two", "deal.vendor", "in", [ids.sap, ids.ibm], [ALPHA, ALPHA_TWO]),
-        ("vendor-not-in-includes-none", "deal.vendor", "not_in", [ids.sap], [ALPHA_TWO, BETA, GAMMA]),  # noqa: E501
-        ("vendor-is-empty", "deal.vendor", "is_empty", None, [BETA, GAMMA]),
+        ("vendor-in", "deal.vendor", "in", [ids.sap], [ALPHA, BETA, GAMMA]),
+        ("vendor-in-two", "deal.vendor", "in", [ids.sap, ids.ibm], [ALPHA, ALPHA_TWO, BETA, GAMMA]),
+        ("vendor-not-in", "deal.vendor", "not_in", [ids.sap], [ALPHA_TWO]),
+        ("solution-is-empty", "deal.solution", "is_empty", None, [ALPHA_TWO]),
+        ("solution-is-not-empty", "deal.solution", "is_not_empty", None, [ALPHA, BETA, GAMMA]),
         ("owner-in", "deal.owner", "in", [KIM], [ALPHA, BETA]),
         ("owner-not-in", "deal.owner", "not_in", [KIM], [ALPHA_TWO, GAMMA]),
         ("status-in", "deal.status", "in", ["introduction"], [ALPHA_TWO]),
@@ -98,7 +101,7 @@ async def test_text_code_number_date_operators(report_case: ReportCase, index: i
 
     테스트 코드: RQ-032
     """
-    # given: 이름·금액·날짜·Vendor·담당자가 다른 Deal 4건
+    # given: 이름·금액·날짜·Vendor·담당자가 다른 Deal 4건(IBM·빈 Solution Deal 하나, 나머지는 SAP)
     ids = await _seed(report_case)
     _, field, operator, value, expected = _cases(ids)[index]
 

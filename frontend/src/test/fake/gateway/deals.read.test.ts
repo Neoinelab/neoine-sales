@@ -396,13 +396,12 @@ describe('deals.list', () => {
     }
   })
 
-  it('파트너나 Vendor가 없는 Deal은 오름차순·내림차순 모두 맨 뒤다', async () => {
-    // given: 파트너 없는 Deal과 Vendor 없는 Deal
+  it('파트너가 없는 Deal은 오름차순·내림차순 모두 맨 뒤이고 Vendor 정렬은 이름 순이다', async () => {
+    // given: 파트너 없는 Deal이 있는 목록(Vendor는 필수라 모든 Deal에 있다)
     const { gateway } = await mockAs('kim')
     const rows = (await gateway.deals.list({ limit: 100 })).items
     expect(rows.some((d) => d.activePartner === null)).toBe(true)
-    const noVendor = await gateway.deals.create(dealInput(USER_ID.kim, { name: '벤더 없는 Deal', vendorId: null }))
-    expect(noVendor.vendor).toBeNull()
+    expect(rows.every((d) => d.vendor !== null)).toBe(true)
 
     for (const order of ['asc', 'desc'] as const) {
       // when: 파트너로 정렬한다
@@ -413,11 +412,10 @@ describe('deals.list', () => {
       expect(byPartner.slice(0, firstAbsent).every((d) => d.activePartner !== null)).toBe(true)
       // when: Vendor로 정렬한다
       const byVendor = (await gateway.deals.list({ sort: 'vendor', order, limit: 100 })).items
-      // then: Vendor 없는 Deal은 두 방향 모두 맨 뒤다
-      const firstNoVendor = byVendor.findIndex((d) => d.vendor === null)
-      expect(firstNoVendor).toBeGreaterThanOrEqual(0)
-      expect(byVendor.slice(firstNoVendor).every((d) => d.vendor === null)).toBe(true)
-      expect(byVendor.slice(0, firstNoVendor).every((d) => d.vendor !== null)).toBe(true)
+      // then: Vendor 이름(대소문자 무시) 순이다
+      const names = byVendor.map((d) => (d.vendor?.name ?? '').toLowerCase())
+      const expected = [...names].sort()
+      expect(names).toEqual(order === 'asc' ? expected : expected.reverse())
     }
   })
 

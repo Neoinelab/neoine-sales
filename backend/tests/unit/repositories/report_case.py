@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING, Any
 import pytest
 
 from tests.factories import make_deal
-from tests.support.database import rolled_back_session
+from tests.support.default_vendor import DEFAULT_VENDOR_ID, rolled_back_session_with_vendor
 from tests.support.report_defs import context, resolved
 from tests.support.user_ids import OWNER_ID
 from tests.unit.repositories.deal_case import DealCase, _sql_case
@@ -58,7 +58,7 @@ class ReportCase:
         day: date = date(2026, 6, 30),
         forecast: str = "pipeline",
         status: str | None = None,
-        vendor_id: int | None = None,
+        vendor_id: int = DEFAULT_VENDOR_ID,
         owner: UserId = OWNER_ID,
         created: datetime | None = None,
         **details: Any,  # noqa: ANN401 - make_deal의 상세 필드
@@ -112,5 +112,5 @@ async def open_report_case(
     assert implementation == "sql"
     from app.infra.db.report_runner import SqlReportQueryRunner  # noqa: PLC0415
 
-    async with rolled_back_session(test_database_url) as session:  # type: ignore[arg-type]
+    async with rolled_back_session_with_vendor(test_database_url) as session:  # type: ignore[arg-type]
         yield ReportCase(_sql_case(session), SqlReportQueryRunner(session), session)

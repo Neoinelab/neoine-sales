@@ -15,7 +15,7 @@ import pytest
 
 from tests.factories import later, make_deal
 from tests.fakes.forecast import FakeForecastTallyRepository
-from tests.support.database import rolled_back_session
+from tests.support.default_vendor import DEFAULT_VENDOR_ID, rolled_back_session_with_vendor
 from tests.support.user_ids import OWNER_ID
 from tests.unit.repositories.deal_case import DealCase, _fake_case, _sql_case
 
@@ -45,7 +45,7 @@ class ForecastCase:
         amount: int = 100,
         day: date = date(2026, 11, 15),
         owner: UserId = OWNER_ID,
-        vendor_id: int | None = None,
+        vendor_id: int = DEFAULT_VENDOR_ID,
     ) -> str:
         """집계 대상 Deal 하나를 저장하고 code를 돌려준다."""
         number = next(self._numbers)
@@ -74,5 +74,5 @@ async def open_forecast_case(
         return
     from app.infra.db.forecast_repository import SqlForecastTallyRepository  # noqa: PLC0415
 
-    async with rolled_back_session(test_database_url) as session:  # type: ignore[arg-type]
+    async with rolled_back_session_with_vendor(test_database_url) as session:  # type: ignore[arg-type]
         yield ForecastCase(_sql_case(session), SqlForecastTallyRepository(session))

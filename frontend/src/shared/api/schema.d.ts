@@ -2060,13 +2060,13 @@ export interface components {
             /** Revenue Date */
             revenue_date: string | null;
             /** Solution */
-            solution: string;
+            solution?: string | null;
             /** Status Key */
             status_key: string;
             /** Users */
             users: number;
             /** Vendor Id */
-            vendor_id?: number | null;
+            vendor_id: number;
         };
         /** DealDetailResponse */
         DealDetailResponse: {

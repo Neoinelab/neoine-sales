@@ -15,7 +15,7 @@ from tests.factories import make_deal
 from tests.fakes.contacts import FakeContactRepository
 from tests.fakes.repositories import FakeDealRepository
 from tests.fakes.user_repository import FakeUserRepository
-from tests.support.database import rolled_back_session
+from tests.support.default_vendor import rolled_back_session_with_vendor
 from tests.support.user_seed import ensure_users
 
 if TYPE_CHECKING:
@@ -74,7 +74,7 @@ async def open_contacts(
     from app.infra.db.deal_repository import SqlDealRepository  # noqa: PLC0415
     from app.infra.db.user_repository import SqlUserRepository  # noqa: PLC0415
 
-    async with rolled_back_session(test_database_url) as session:  # type: ignore[arg-type]
+    async with rolled_back_session_with_vendor(test_database_url) as session:  # type: ignore[arg-type]
         yield ContactCase(
             SqlContactRepository(session), SqlDealRepository(session), SqlUserRepository(session)
         )

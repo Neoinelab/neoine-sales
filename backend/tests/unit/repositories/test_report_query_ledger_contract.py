@@ -26,10 +26,11 @@ CONDITIONS = [
 ]
 
 
-async def _seed(case: ReportCase) -> list[int | None]:
+async def _seed(case: ReportCase) -> list[int]:
     sap = await case.deals.new_vendor("SAP")
     ibm = await case.deals.new_vendor("IBM")
-    vendors: list[int | None] = [sap.id, ibm.id, None]
+    oracle = await case.deals.new_vendor("Oracle")
+    vendors: list[int] = [sap.id, ibm.id, oracle.id]
     amount = 1000
     for index, vendor_id in enumerate(vendors):
         for quarter, day in enumerate(QUARTER_DAYS):
@@ -38,7 +39,7 @@ async def _seed(case: ReportCase) -> list[int | None]:
             await case.add_deal(vendor_id=vendor_id, day=day, amount=amount, forecast=forecast)
     await case.add_deal(vendor_id=sap.id, day=date(2026, 5, 11), amount=5000, forecast="won")
     await case.add_deal(vendor_id=sap.id, day=date(2026, 2, 11), amount=70000, forecast="lost")
-    await case.add_deal(vendor_id=None, day=date(2026, 8, 11), amount=80000, forecast="lost")
+    await case.add_deal(vendor_id=oracle.id, day=date(2026, 8, 11), amount=80000, forecast="lost")
     await case.add_deal(vendor_id=sap.id, day=date(2025, 12, 31), amount=900000)
     await case.add_deal(vendor_id=ibm.id, day=date(2027, 1, 1), amount=900001)
     return vendors
@@ -61,15 +62,15 @@ async def test_vendor_by_quarter_cells_equal_the_deal_list_ledger(report_case: R
     테스트 코드: RQ-046
     """
     # given: Vendor·분기·Forecast가 섞인 Deal과 Lost·다른 해 Deal 시드
-    sap, ibm, _ = await _seed(report_case)
-    names = {sap: "SAP", ibm: "IBM"}
+    sap, ibm, oracle = await _seed(report_case)
+    names = {sap: "SAP", ibm: "IBM", oracle: "Oracle"}
 
     # when: Vendorx분기 그룹과 금액 합계·건수로 조회한다
     rows = await report_case.rows(COLUMNS, CONDITIONS)
 
     # then: 칸마다 목록 원장의 건수·금액과 같다
     cells = {(row[0], row[1]): (row[3], row[2]) for row in rows}
-    for vendor_id in (sap, ibm):
+    for vendor_id in (sap, ibm, oracle):
         for quarter in range(1, 5):
             expected = await _ledger(
                 report_case, quarters=frozenset({quarter}), vendor_id=vendor_id
@@ -77,32 +78,22 @@ async def test_vendor_by_quarter_cells_equal_the_deal_list_ledger(report_case: R
             assert cells[(names[vendor_id], f"2026 Q{quarter}")] == expected, (vendor_id, quarter)
 
 
-async def test_deals_without_a_vendor_equal_the_quarter_ledger_minus_the_vendors(
-    report_case: ReportCase,
-) -> None:
-    """Vendor 없음 칸은 분기 원장에서 Vendor 칸들을 뺀 값과 같다.
+async def test_vendor_cells_add_up_to_the_quarter_ledger(report_case: ReportCase) -> None:
+    """모든 Deal이 Vendor를 가지므로 분기별 Vendor 칸의 합은 그 분기의 목록 원장과 같다.
 
     테스트 코드: RQ-046
     """
     # given: Vendor·분기가 섞인 Deal 시드
-    sap, ibm, _ = await _seed(report_case)
+    await _seed(report_case)
 
     # when: Vendorx분기로 조회한다
     rows = await report_case.rows(COLUMNS, CONDITIONS)
 
-    # then: Vendor 없음 칸이 분기 원장 - Vendor 칸 합이다
-    cells = {(row[0], row[1]): (row[3], row[2]) for row in rows}
+    # then: 분기마다 Vendor 칸들의 (건수, 금액) 합이 분기 원장과 같다
     for quarter in range(1, 5):
         whole = await _ledger(report_case, quarters=frozenset({quarter}))
-        with_vendor = [
-            await _ledger(report_case, quarters=frozenset({quarter}), vendor_id=v)
-            for v in (sap, ibm)
-        ]
-        expected = (
-            whole[0] - sum(c for c, _ in with_vendor),
-            whole[1] - sum(a for _, a in with_vendor),
-        )
-        assert cells[(None, f"2026 Q{quarter}")] == expected, quarter
+        cells = [(row[3], row[2]) for row in rows if row[1] == f"2026 Q{quarter}"]
+        assert (sum(c for c, _ in cells), sum(a for _, a in cells)) == whole, quarter
 
 
 async def test_the_report_has_one_row_per_vendor_and_quarter_with_deals(
@@ -119,7 +110,7 @@ async def test_the_report_has_one_row_per_vendor_and_quarter_with_deals(
     rows = await report_case.rows(COLUMNS, CONDITIONS)
 
     # then: 12행이다(연도 밖·Lost만 있는 칸은 없다)
-    assert len(rows) == 12  # Vendor 2개 + 없음 x 분기 4개. 연도 밖·Lost만 있는 칸은 없다.
+    assert len(rows) == 12  # Vendor 3개 x 분기 4개. 연도 밖·Lost만 있는 칸은 없다.
 
 
 async def test_lost_and_other_year_deals_are_left_out_of_the_cells(report_case: ReportCase) -> None:

@@ -15,6 +15,7 @@ from app.domain.common.errors import InvalidReferenceError
 from app.domain.vendor.errors import VendorInUseError
 from app.domain.vendor.values import VendorId
 from tests.factories import later, make_deal
+from tests.support.default_vendor import DEFAULT_VENDOR_ID
 from tests.support.ids import new_id
 
 if TYPE_CHECKING:
@@ -125,11 +126,12 @@ async def test_an_unused_vendor_can_be_deleted_after_its_deals_moved_away(
     deal_case: DealCase,
 ) -> None:
     """Deal이 Vendor를 떠나면 그 Vendor를 삭제할 수 있는지 확인한다."""
-    # given: Vendor를 쓰던 Deal이 Vendor 없음으로 수정되었다
+    # given: Vendor를 쓰던 Deal이 다른 Vendor로 수정되었다
     sap = await deal_case.new_vendor("ZZ SAP")
+    oracle = await deal_case.new_vendor("ZZ Oracle")
     deal = make_deal(later(1), code=_code(1), vendor_id=sap.id)
     await deal_case.add(deal)
-    await deal_case.revise(deal.id, details=_with(deal, vendor_id=None))
+    await deal_case.revise(deal.id, details=_with(deal, vendor_id=oracle.id))
 
     # when: Vendor를 삭제한다
     await deal_case.vendors.delete(sap.id)
@@ -152,7 +154,7 @@ async def test_deleting_a_deal_releases_its_vendor(deal_case: DealCase) -> None:
 
 async def test_count_by_vendor(deal_case: DealCase) -> None:
     """Vendor별 Deal 사용 수를 세는지 확인한다."""
-    # given: 두 Vendor와 Vendor를 쓰는 Deal 네 개, 안 쓰는 Deal 하나가 있다
+    # given: 두 Vendor와 그 Vendor를 쓰는 Deal 네 개, 기본 Vendor를 쓰는 Deal 하나가 있다
     sap = await deal_case.new_vendor("ZZ SAP")
     oracle = await deal_case.new_vendor("ZZ Oracle")
     await deal_case.add(make_deal(later(1), code=_code(1), vendor_id=sap.id, solution="ITDR"))
@@ -164,8 +166,12 @@ async def test_count_by_vendor(deal_case: DealCase) -> None:
     # when: Vendor별 사용 수를 센다
     by_vendor = await deal_case.deals.count_by_vendor()
 
-    # then: 0이 아닌 수가 SAP 3, Oracle 1이다
-    assert {k: v for k, v in by_vendor.items() if v} == {sap.id: 3, oracle.id: 1}
+    # then: 0이 아닌 수가 SAP 3, Oracle 1, 기본 Vendor 1이다
+    assert {k: v for k, v in by_vendor.items() if v} == {
+        sap.id: 3,
+        oracle.id: 1,
+        DEFAULT_VENDOR_ID: 1,
+    }
 
 
 async def test_counts_of_an_empty_repository_are_empty(deal_case: DealCase) -> None:

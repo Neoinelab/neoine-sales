@@ -2,6 +2,7 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { defaultDealsUrlPattern } from './dealsUrl'
 import { renderAt } from './mockApp'
+import { pickVendor } from './vendorPick'
 
 const EMPTY = { seed: 'empty' } as const
 const DETAIL_URL = /^\/deals\/\d{8}-[A-Z0-9]{4}$/
@@ -79,10 +80,11 @@ describe('업무 데이터가 없는 첫 실행 상태', () => {
   // 테스트 코드: UI-058
   it('빈 상태에서 첫 Deal을 직접 입력한 고객·파트너로 등록하고 Action과 첨부를 더하면 History에 이어진다', async () => {
     // given: 업무 데이터가 없는 Fake의 Deal 등록 화면
-    const { user, location } = await renderAt('/deals/new', EMPTY)
+    const { user, location } = await renderAt('/deals/new', { seed: 'empty-with-vendor' }) // Vendor는 필수라 등록된 Vendor가 하나 있다
     await screen.findByRole('heading', { name: 'Deal 등록' })
     // when: 고객·파트너·금액 등을 입력해 저장한다
     await user.type(screen.getByLabelText('Deal Name'), '첫 Deal')
+    await pickVendor(user)
     await user.type(screen.getByLabelText('고객 회사명'), '신규고객사')
     await user.type(screen.getByLabelText('고객 담당자명'), '홍길동')
     await user.type(screen.getByLabelText('파트너 회사명'), '신규파트너')

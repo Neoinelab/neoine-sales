@@ -20,7 +20,7 @@ from tests.factories_auth import make_user
 from tests.factories_license_contract import make_contract, make_contract_attachment
 from tests.fakes.catalog_seed import seed_catalog
 from tests.fakes.unit_of_work import FakeUnitOfWork
-from tests.support.database import rolled_back_session
+from tests.support.default_vendor import DEFAULT_VENDOR_ID, rolled_back_session_with_vendor
 from tests.support.user_ids import OWNER_ID, uid
 from tests.support.user_seed import ensure_users
 from tests.unit.repositories.deal_case import DealCase, _sql_case
@@ -100,7 +100,7 @@ class ContractCase:
                 ContactKind.PARTNER, company=partner, name=f"파트너{n}", email=f"p{n}@lc.example"
             )
         )
-        vendor_row = None
+        vendor_row = None  # 생략하면 기본 Vendor(Vendor는 Deal의 필수 값)
         if vendor is not None:  # 같은 이름의 Vendor는 한 번만 만든다(이름은 고유)
             if vendor not in self._vendors:
                 self._vendors[vendor] = await self.deal_case.new_vendor(vendor)
@@ -110,7 +110,7 @@ class ContractCase:
             customer_id=customer_row.id,
             partner_id=None if partner_row is None else partner_row.id,
             owner_user_id=owner_id,
-            vendor_id=None if vendor_row is None else vendor_row.id,
+            vendor_id=DEFAULT_VENDOR_ID if vendor_row is None else vendor_row.id,
             solution=solution,
             name=name,
             status_key="contract_completed" if forecast_key == "won" else "prospecting",
@@ -198,5 +198,5 @@ async def open_contract_case(
     if implementation == "fake":
         yield _fake_case()
         return
-    async with rolled_back_session(test_database_url) as session:  # type: ignore[arg-type]
+    async with rolled_back_session_with_vendor(test_database_url) as session:  # type: ignore[arg-type]
         yield _sql_contract_case(session)

@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 # 열마다 (값이 있는 계약의 오름차순 순서, 값 없는 계약). 동률은 id 오름차순(A<B<C<D<E).
 #   deal_name  A Gamma  B alpha  C delta  D Beta  E echo (대소문자 무시)
 #   customer   A bravo  B Alpha  C charlie  D Delta  E echo
-#   vendor     A SAP    B Oracle C -        D Microsoft E adobe
+#   vendor     A SAP    B Oracle C Zebra    D Microsoft E adobe (Vendor는 필수라 모두 있다)
 #   product    A S4     B ''     C ERP      D crm    E Zeta
 #   partner    A hanbit B -      C Anchor   D beta   E -
 #   start      A 03-01  B 01-01  C -        D 2025-06-01  E 03-01
@@ -35,7 +35,7 @@ if TYPE_CHECKING:
 ASC = {
     "deal_name": ("BDCEA", ""),
     "customer": ("BACDE", ""),
-    "vendor": ("EDBA", "C"),
+    "vendor": ("EDBAC", ""),
     "product": ("DCAE", "B"),
     "partner": ("CDA", "BE"),
     "license_start": ("DBAE", "C"),
@@ -50,7 +50,7 @@ ASC = {
 DESC = {
     "deal_name": ("AECDB", ""),
     "customer": ("EDCAB", ""),
-    "vendor": ("ABDE", "C"),
+    "vendor": ("CABDE", ""),
     "product": ("EACD", "B"),
     "partner": ("ADC", "BE"),
     "license_start": ("AEBD", "C"),
@@ -67,7 +67,7 @@ async def _seed(contract_case: ContractCase) -> dict[str, int]:
     rows = [
         ("A", "bravo", "SAP", "S4", "hanbit", "kim", "Kim"),
         ("B", "Alpha", "Oracle", "", None, "park", "Park"),
-        ("C", "charlie", None, "ERP", "Anchor", "lee", None),
+        ("C", "charlie", "Zebra", "ERP", "Anchor", "lee", None),
         ("D", "Delta", "Microsoft", "crm", "beta", "choi", "Choi"),
         ("E", "echo", "adobe", "Zeta", None, "ann", "Ann"),
     ]

@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 import { useVendors } from '../../../data/vendors'
 import { formatDate } from '../../../shared/format'
 import type { DealDetail, PocState, QuoteSubmitted } from '../../../shared/model/types'
-import { SOLUTION_REQUIRED_MESSAGE, USERS_MESSAGE, USERS_REQUIRED_MESSAGE } from '../form/formState'
+import { USERS_MESSAGE, USERS_REQUIRED_MESSAGE, VENDOR_REQUIRED_MESSAGE } from '../form/formState'
 import { InlineEdit } from './InlineEdit'
 import { useDealPatch } from './useDealPatch'
 import { parseId } from '../../../shared/model/ids'
@@ -29,7 +29,7 @@ function dateDisplay(date: string | null, canWrite: boolean): ReactNode {
 export function DealFacts({ deal, canWrite, onNotice }: DealFactsProps) {
   const { save } = useDealPatch(deal.code, onNotice)
   const vendors = useVendors().data ?? []
-  const vendorOptions = [NONE, ...vendors.map((v) => ({ value: String(v.id), label: v.name }))]
+  const vendorOptions = vendors.map((v) => ({ value: String(v.id), label: v.name }))
   const { quote, poc } = deal
 
   async function saveProcurement(text: string) {
@@ -39,15 +39,15 @@ export function DealFacts({ deal, canWrite, onNotice }: DealFactsProps) {
 
   /** Vendor 변경은 Vendor만 보낸다(Solution은 Vendor와 무관하게 유지). */
   async function saveVendor(vendorText: string) {
-    const vendorId = parseId(vendorText) ?? null
-    if (vendorId === (deal.vendor?.id ?? null)) return
+    const vendorId = parseId(vendorText)
+    if (vendorId === undefined) throw new Error(VENDOR_REQUIRED_MESSAGE)
+    if (vendorId === deal.vendor?.id) return
     await save({ vendorId }, 'Vendor가 변경되었습니다.')
   }
 
-  /** Solution은 필수 텍스트다. 비우면 저장하지 않고 알리며, 바뀐 경우에만 보낸다. */
+  /** Solution은 선택 텍스트다. 비우면 ""로 저장하고, 바뀐 경우에만 보낸다. */
   async function saveSolution(text: string) {
     const solution = text.trim()
-    if (solution === '') throw new Error(SOLUTION_REQUIRED_MESSAGE)
     if (solution !== deal.solution) await save({ solution }, 'Solution이 변경되었습니다.')
   }
 

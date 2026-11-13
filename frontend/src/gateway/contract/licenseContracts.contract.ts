@@ -8,7 +8,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Gateway } from '../types'
 import type { DealInput } from '../../shared/model/types'
-import { expectRejects, NO_SUCH_ID, unique, type MakeGateway } from './support'
+import { expectRejects, NO_SUCH_ID, unique, type MakeGateway, anyVendorId } from './support'
 
 const FIELDS = { techOwner: '', inspection: 'none', note: '' } as const
 const DEFAULT_QUERY = { sort: 'licenseEnd', order: 'asc' } as const
@@ -29,7 +29,7 @@ async function validInput(gateway: Gateway, over: Partial<DealInput>): Promise<D
   return {
     name: unique('deal'),
     ownerId: owner,
-    vendorId: null,
+    vendorId: await anyVendorId(gateway),
     solution: 'ITDR',
     users: 10,
     statusKey: 'prospecting',

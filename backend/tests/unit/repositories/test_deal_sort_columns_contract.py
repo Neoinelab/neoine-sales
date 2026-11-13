@@ -1,7 +1,8 @@
 """DealRepository.search의 새 열 정렬 세부 계약: owner·customer·partner·vendor·forecast.
 
 Fake와 SQL에 같은 기대값. 담당자는 표시 이름(없으면 login_id)의 소문자 기준이고 퇴사자도 같다.
-파트너·Vendor가 없는 Deal은 방향과 무관하게 맨 뒤, 파트너는 해제되지 않은(활성) 것만 본다.
+파트너가 없는 Deal은 방향과 무관하게 맨 뒤, 파트너는 해제되지 않은(활성) 것만 본다.
+Vendor는 필수라 모든 Deal에 있고 이름 순(동률은 code 순)이다.
 Forecast는 코드의 현재 순서를 따른다. 동률은 항상 code 오름차순.
 """
 
@@ -36,7 +37,7 @@ async def _named_user(case: DealCase, login: str, display: str | None) -> UserId
     return user_id
 
 
-# ---- partner / vendor: 없는 Deal은 양방향 모두 맨 뒤 ----
+# ---- partner: 없는 Deal은 양방향 모두 맨 뒤 / vendor: 이름 순 ----
 
 
 async def _partners(case: DealCase) -> None:
@@ -50,12 +51,14 @@ async def _partners(case: DealCase) -> None:
 
 
 async def _vendors(case: DealCase) -> None:
+    """A1 'ZZ bravo', A2 'ZZ charlie', A3 'ZZ alpha', A4 'ZZ bravo'."""
     bravo = await case.new_vendor("ZZ bravo")
     alpha = await case.new_vendor("ZZ alpha")
+    charlie = await case.new_vendor("ZZ charlie")
     await case.add(make_deal(later(1), code=A1, vendor_id=bravo.id))
-    await case.add(make_deal(later(2), code=A2))
+    await case.add(make_deal(later(2), code=A2, vendor_id=charlie.id))
     await case.add(make_deal(later(3), code=A3, vendor_id=alpha.id))
-    await case.add(make_deal(later(4), code=A4))
+    await case.add(make_deal(later(4), code=A4, vendor_id=bravo.id))
 
 
 async def test_deals_without_a_partner_come_last_in_both_directions(
@@ -77,21 +80,21 @@ async def test_deals_without_a_partner_come_last_in_both_directions(
     assert desc == [A1, A3, A2, A4]
 
 
-async def test_deals_without_a_vendor_come_last_in_both_directions(deal_case: DealCase) -> None:
-    """Vendor 없는 Deal이 양방향 정렬 모두에서 맨 뒤인지 확인한다."""
-    # given: Vendor가 있는 Deal 둘과 없는 Deal 둘을 저장한다
+async def test_vendor_sort_orders_by_vendor_name_and_ties_by_code(deal_case: DealCase) -> None:
+    """Vendor 정렬이 양방향 모두 Vendor 이름 순이고 같은 Vendor는 code 순인지 확인한다."""
+    # given: Vendor가 alpha·bravo·bravo·charlie인 Deal 넷을 저장한다
     await _vendors(deal_case)
 
     # when: Vendor 오름차순으로 검색한다
     asc = await _codes(deal_case, DealSort.VENDOR, SortOrder.ASC)
 
-    # then: Vendor 이름 순 뒤에 없는 Deal이 코드 순으로 온다
-    assert asc == [A3, A1, A2, A4]
+    # then: alpha(A3), bravo(A1, A4), charlie(A2) 순이다
+    assert asc == [A3, A1, A4, A2]
     # when: Vendor 내림차순으로 검색한다
     desc = await _codes(deal_case, DealSort.VENDOR, SortOrder.DESC)
 
-    # then: Vendor 이름 역순 뒤에 없는 Deal이 코드 순으로 온다
-    assert desc == [A1, A3, A2, A4]
+    # then: charlie(A2), bravo(A1, A4), alpha(A3) 순이다(같은 Vendor는 code 오름차순)
+    assert desc == [A2, A1, A4, A3]
 
 
 async def test_partner_sort_ignores_unlinked_partners(deal_case: DealCase) -> None:

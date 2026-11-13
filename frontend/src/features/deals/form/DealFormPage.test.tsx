@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { gateway } from '../../../gateway'
 import { AMOUNT_INPUT_MESSAGE, AMOUNT_TOO_LARGE_MESSAGE } from '../../../shared/model/money'
 import { renderAt } from '../../../test/mockApp'
+import { pickVendor } from '../../../test/vendorPick'
 import { DETAIL_URL, openList, pickPerson, save } from './testHelpers'
 import { defaultDealsUrlPattern } from '../../../test/dealsUrl'
 
@@ -76,12 +77,14 @@ describe('필수 입력과 오류 문구 (T-FORM-01, T-FORM-05)', () => {
     expect(alerts).toEqual(
       expect.arrayContaining([
         'Deal Name을 입력하세요.',
+        'Vendor를 선택하세요.',
         '고객 회사명을 입력하세요.',
         '고객 담당자명을 입력하세요.',
         AMOUNT_INPUT_MESSAGE,
         'Expected Close를 입력하세요.',
       ]),
     )
+    expect(alerts).not.toContain('Solution을 입력하세요.')
     await waitFor(() => expect(screen.getByLabelText('Deal Name')).toHaveFocus())
     expect(create).not.toHaveBeenCalled() // 요청을 보내지 않는 것이 사용자 결과다
     expect(location()).toBe('/deals/new')
@@ -120,6 +123,7 @@ describe('필수 입력과 오류 문구 (T-FORM-01, T-FORM-05)', () => {
     const { user, location } = await renderAt('/deals/new')
     await screen.findByRole('heading', { name: 'Deal 등록' })
     await user.type(screen.getByLabelText('Deal Name'), '원 단위 저장')
+    await pickVendor(user)
     await pickPerson(user, '고객', '한빛은행', /정민수/)
     await user.type(screen.getByLabelText('Solution'), 'ITDR')
     await user.type(screen.getByLabelText('Users count'), '10')
@@ -182,6 +186,7 @@ describe('필수 입력과 오류 문구 (T-FORM-01, T-FORM-05)', () => {
     await screen.findByRole('heading', { name: 'Deal 등록' })
     // when: Users count만 비우고 나머지 필수 값을 입력해 저장한다.
     await user.type(screen.getByLabelText('Deal Name'), 'Users count 비움')
+    await pickVendor(user)
     await pickPerson(user, '고객', '한빛은행', /정민수/)
     await user.type(screen.getByLabelText('금액(단위:원)'), '100000000')
     fireEvent.change(screen.getByLabelText('Expected Close'), { target: { value: '2027-06-01' } })
@@ -199,6 +204,7 @@ describe('필수 입력과 오류 문구 (T-FORM-01, T-FORM-05)', () => {
     const { user, location } = await renderAt('/deals/new')
     await screen.findByRole('heading', { name: 'Deal 등록' })
     await user.type(screen.getByLabelText('Deal Name'), 'Users count 영')
+    await pickVendor(user)
     await pickPerson(user, '고객', '한빛은행', /정민수/)
     await user.type(screen.getByLabelText('금액(단위:원)'), '100000000')
     await user.type(screen.getByLabelText('Solution'), 'ITDR')
@@ -303,6 +309,7 @@ describe('Deal 등록 저장 (T-FORM-04)', () => {
     await screen.findByRole('heading', { name: 'Deal 등록' })
     // when: 고른 고객의 이메일을 고쳐 저장한다.
     await user.type(screen.getByLabelText('Deal Name'), '연락처 갱신 테스트')
+    await pickVendor(user)
     await pickPerson(user, '고객', '한빛은행', /정민수/)
     const email = screen.getByLabelText('고객 이메일')
     await user.clear(email)
@@ -330,6 +337,7 @@ describe('Deal 등록 저장 (T-FORM-04)', () => {
     await screen.findByRole('heading', { name: 'Deal 등록' })
     // when: 새 고객과 Budget Label을 골라 저장한다.
     await user.type(screen.getByLabelText('Deal Name'), '직접 입력 테스트')
+    await pickVendor(user)
     await user.type(screen.getByLabelText('고객 회사명'), '신규고객사')
     await user.type(screen.getByLabelText('고객 담당자명'), '홍길동')
     await user.click(screen.getByRole('combobox', { name: 'Budget' }))

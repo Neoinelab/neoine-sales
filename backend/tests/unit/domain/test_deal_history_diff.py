@@ -161,7 +161,7 @@ def test_adding_a_first_partner_is_written_from_none() -> None:
     테스트 코드: DD-043
     """
     # given: 파트너가 없는 Deal
-    deal = make_deal(code=CODE, customer_id=CUSTOMER)  # type: ignore[arg-type]
+    deal = make_deal(code=CODE, customer_id=CUSTOMER, vendor_id=VENDOR_SAP)  # type: ignore[arg-type]
 
     # when: 파트너를 추가해 비교한다
     rows = diff_after(lambda d: d.replace_partner(PARTNER_1, later(5)), deal)  # type: ignore[arg-type]
@@ -237,18 +237,18 @@ def test_plain_fields_are_other_entries_named_after_the_field(
 
 
 def test_vendor_change_is_recorded_with_names() -> None:
-    """Vendor 변경은 Vendor 이름으로 남고 없으면 '선택 안 함'이다.
+    """Vendor 변경은 이전·이후 Vendor 이름으로 남는다.
 
     테스트 코드: DD-045
     """
-    # given: Vendor가 없는 Deal
-    deal = base_deal(vendor_id=None)
+    # given: Vendor가 Oracle인 Deal
+    deal = base_deal(vendor_id=VENDOR_ORACLE)
 
     # when: Vendor를 SAP로 바꿔 비교한다
     rows = diff_after(edit_of("vendor_id", VENDOR_SAP), deal)
 
-    # then: 대상 Vendor, 선택 안 함에서 SAP다
-    assert rows == [("other", "Vendor", "선택 안 함", "SAP")]
+    # then: 대상 Vendor, Oracle에서 SAP다
+    assert rows == [("other", "Vendor", "Oracle", "SAP")]
 
 
 def test_solution_change_is_recorded_as_text() -> None:
@@ -266,21 +266,22 @@ def test_solution_change_is_recorded_as_text() -> None:
     assert rows == [("other", "Solution", "MFA", "ITDR")]
 
 
-def test_legacy_empty_solution_is_shown_as_dash_in_history() -> None:
-    """빈 Solution(레거시)에서 값으로 바뀔 때만 변경 전이 '-'로 나온다.
+def test_empty_solution_is_shown_as_dash_in_history() -> None:
+    """빈 Solution은 이력에 '-'로 나온다(값 → 빈 값, 빈 값 → 값 모두).
 
     테스트 코드: DD-045
     """
-    # given: Solution이 빈 레거시 Deal
-    deal = base_deal()
-    object.__setattr__(deal.details, "solution", "")  # 도메인 검증을 거치지 않은 레거시 행
-    before = deal.snapshot()
-    edit_of("solution", "ITDR")(deal)
+    # given: Solution이 ITDR인 Deal과 빈 Deal
+    filled = base_deal(solution="ITDR")
+    empty = base_deal(solution="")
 
-    # when: ITDR로 바꿔 스냅숏을 비교한다
-    actual = rows_of(before, deal.snapshot())
-    # then: 변경 전이 '-'다
-    assert actual == [("other", "Solution", "-", "ITDR")]
+    # when: ITDR를 비우는 변경과 빈 값에 ITDR를 넣는 변경을 비교한다
+    cleared = diff_after(edit_of("solution", ""), filled)
+    entered = diff_after(edit_of("solution", "ITDR"), empty)
+
+    # then: 빈 쪽이 '-'다
+    assert cleared == [("other", "Solution", "ITDR", "-")]
+    assert entered == [("other", "Solution", "-", "ITDR")]
 
 
 def test_solution_case_only_change_is_recorded() -> None:
@@ -338,22 +339,6 @@ def test_vendor_change_does_not_record_solution() -> None:
 
     # then: Vendor 이력 한 건뿐이다
     assert rows == [("other", "Vendor", "SAP", "Oracle")]
-
-
-def test_clearing_the_vendor_keeps_the_solution_untouched() -> None:
-    """Vendor를 비워도 Solution 이력은 남지 않는다.
-
-    테스트 코드: DD-045
-    """
-
-    def clear(deal: Deal) -> None:
-        revise_with(deal, details=dataclasses.replace(deal.details, vendor_id=None))
-
-    # when: Vendor를 비워 비교한다
-    rows = diff_after(clear)
-
-    # then: SAP에서 선택 안 함 한 건뿐이다
-    assert rows == [("other", "Vendor", "SAP", "선택 안 함")]
 
 
 def test_unchanged_vendor_records_nothing() -> None:

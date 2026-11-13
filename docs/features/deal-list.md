@@ -265,7 +265,7 @@ DL-R18~DL-R32.
 | DL-039 | 여러 조건은 모두 AND이고 total은 필터 뒤 전체 건수다 | DL-R3, DL-R1, DL-UC2 | backend | `application/test_deal_list_search_cases.py` |
 | DL-040 | 정렬 10개 기준마다 오름·내림차순 결과가 기대한 순서다 | DL-R13, DL-UC3 | backend | `application/test_deal_list_period_sort_cases.py` |
 | DL-041 | 정렬 값이 같으면 방향과 무관하게 code 오름차순이고 대소문자만 다른 이름은 같은 값이다 | DL-R13, DL-UC3 | backend | `application/test_deal_list_period_sort_cases.py` |
-| DL-042 | 파트너·Vendor 정렬에서 값이 없는 Deal은 방향과 무관하게 맨 뒤다 | DL-R13, DL-UC3 | backend | `application/test_deal_list_period_sort_cases.py` |
+| DL-042 | 파트너·Vendor 정렬에서 값이 없는 Deal은 방향과 무관하게 맨 뒤다(Vendor는 필수라 파트너로 확인) | DL-R13, DL-UC3 | backend | `application/test_deal_list_period_sort_cases.py` |
 | DL-043 | Status·Forecast 정렬은 코드의 현재 순서를 따른다 | DL-R13, DL-UC3 | backend | `application/test_deal_list_period_sort_cases.py` |
 | DL-044 | 담당자 정렬은 표시 이름(없으면 아이디) 대소문자 무시이고 퇴사자도 이름으로 정렬된다 | DL-R13, DL-UC3 | backend | `application/test_deal_list_period_sort_cases.py` |
 | DL-045 | 정렬한 목록의 다음 페이지는 앞 페이지에 이어지고 total은 같다 | DL-R13, DL-R2, DL-UC3 | backend | `application/test_deal_list_period_sort_cases.py` |
@@ -536,9 +536,9 @@ DL-R18~DL-R32.
 - Then 동률인 Deal은 언제나 code 오름차순이다
 
 ### DL-042 파트너·Vendor 정렬에서 값이 없는 Deal은 방향과 무관하게 맨 뒤다
-- Given 파트너·Vendor가 bravo·없음·alpha·없음인 Deal 1~4
+- Given 파트너 Alpha·Vendor SAP인 Deal, 파트너 Bravo·Vendor Oracle인 Deal, 파트너 없이 Vendor Oracle인 Deal(Vendor는 2026-11-13부터 필수라 Vendor 없는 Deal은 만들 수 없다, DE-R7)
 - When `sort=partner`·`vendor`를 `asc`·`desc`로 조회한다
-- Then 값이 있는 Deal(asc: alpha, bravo / desc: bravo, alpha) 뒤에 값 없는 Deal 2·4가 code 순으로 온다
+- Then 파트너 정렬은 값이 있는 Deal(asc: Alpha, Bravo / desc: Bravo, Alpha) 뒤에 파트너 없는 Deal이 오고, Vendor 정렬은 Vendor 이름 순(같은 이름이면 동률 규칙)이다
 
 ### DL-043 Status·Forecast 정렬은 코드의 현재 순서를 따른다
 - Given Status가 서로 다른 Deal 3건
@@ -616,9 +616,9 @@ DL-R18~DL-R32.
 - Then 모두 `/deals?year=all` 목록이 된다
 
 ### DL-058 표는 13열을 순서대로 보이고 칸 값 규칙을 따른다
-- Given 파트너·Vendor 없는 Deal, 퇴사 담당자의 Deal, 금액 120,000,000원 Deal
+- Given 파트너 없는 Deal, 퇴사 담당자의 Deal, 금액 120,000,000원 Deal
 - When 목록을 연다
-- Then 머리글이 Deal·담당자·고객사·파트너사·Vendor·Status·Forecast·금액(단위:원)·Expected Close·Next Action·Due·Next Action 상태·최종 업데이트 순이고, 파트너사·Vendor 칸은 "—", 담당자는 "이름(퇴사)", 금액은 "120,000,000", 최종 업데이트는 앱 시계의 오늘 기준 상대 일수(title은 YYYY-MM-DD)이며 BANT 열이 없다
+- Then 머리글이 Deal·담당자·고객사·파트너사·Vendor·Status·Forecast·금액(단위:원)·Expected Close·Next Action·Due·Next Action 상태·최종 업데이트 순이고, 파트너사 칸은 "—"(Vendor는 필수라 항상 이름 — 응답이 null이면 "—"), 담당자는 "이름(퇴사)", 금액은 "120,000,000", 최종 업데이트는 앱 시계의 오늘 기준 상대 일수(title은 YYYY-MM-DD)이며 BANT 열이 없다
 
 ### DL-059 Next Action 세 칸은 Actions 탭 링크·Due·상태 라벨이고 없으면 모두 '—'다
 - Given 기준 행이 "견적 재제출"(Due 2026-10-20, Open)인 Deal과 Action 없는 Deal
@@ -870,3 +870,4 @@ DL-R18~DL-R32.
 | 2026-11-12 | 사용자 요청 "Deal 목록에서 디폴트는 내딜만": DL-R19 기본 조건을 역할별로(sales `year=<올해>&mine=1`, admin·user `year=<올해>`), DL-R21 초기화·내 딜만 끄기, 2.1·2.4·DL-UC1 갱신. 조건 있는 주소·Drill-down·기억된 조건은 그대로. 서버(`mine`, DL-R5)·API 변경 없음, **운영 코드 변경 필요**(frontend) | 변경: DL-055·DL-056·DL-057·DL-070(Given을 admin으로 한정). 신규: DL-101~DL-105. 영향: 기본 역할 sales로 조건 없는 `/deals`를 여는 기존 화면 테스트 |
 | 2026-11-13 | 확정(2026-11-13 사용자 확인): 최종 업데이트를 날짜 `last_updated_on`으로, 응답에 `status_changed_on`. 변경 규칙: DL-R10 날짜 비교, DL-R13 정렬 대상·동률, DL-R14 응답 키, DL-R28 상대 일수. 정렬 값 이름 `last_updated_at`과 화면 키 `lastUpdatedAt`은 유지 | 신규 DL-106. 변경 DL-001, DL-030, DL-058 |
 | 2026-11-13 | 사용자 요청 "Deals 검색 조건 연도 기본은 전체, 기본 정렬은 최종 업데이트 최신순": DL-R19 기본 조건을 sales `year=all&mine=1`, admin·user `year=all`로, DL-R21 초기화, 2.1·2.4·상태 흐름·DL-UC1 갱신. 기본 정렬(DL-R13 `last_updated_at` `desc`)은 이미 구현되어 있어 규칙 변경 없이 명시만. 조건 있는 주소·Drill-down·기억된 조건은 그대로. 서버·API 변경 없음, **운영 코드 변경 필요**(frontend `defaultListParams`) | 변경: DL-055(기본 정렬 확인 추가)·DL-056·DL-057·DL-070·DL-101·DL-102·DL-103·DL-105. 영향: 기본 조건 주소 `year=2026`을 기대하는 기존 화면 테스트(quarterMulti·period·yearOptions·forecastMulti·vendorQuarter·memory 등)와 UI-056 |
+| 2026-11-13 | DE 변경(Vendor 필수, DE-R7·SC-R22)에 따라 Vendor 없는 Deal을 전제한 DL-042 Given·Then과 DL-058 Given·Then 표현을 고침. 규칙(DL-R13 NULL 맨 뒤, DL-R28 "—")·동작은 그대로 | 변경: DL-042, DL-058 |

@@ -8,6 +8,7 @@ Fake와 SQL에 공통인 참조 계약은 tests/unit/repositories/test_deal_repo
 from typing import TYPE_CHECKING
 
 import pytest
+import pytest_asyncio
 
 from app.domain.bant.values import BantCategory
 from app.domain.common.errors import InvalidReferenceError
@@ -16,9 +17,11 @@ from app.infra.db.bant_label_repository import SqlBantLabelRepository
 from app.infra.db.contact_repository import SqlContactRepository
 from app.infra.db.deal_repository import SqlDealRepository
 from app.infra.db.user_repository import SqlUserRepository
+from app.infra.db.vendor_repository import SqlVendorRepository
 from tests.factories import make_bant, make_deal, make_deal_details, make_sync, new_contact_id
 from tests.factories_catalog import make_label
 from tests.factories_contact import make_customer
+from tests.support.default_vendor import ensure_default_vendor
 from tests.support.ids import new_id
 from tests.support.user_ids import OWNER_ID
 from tests.support.user_seed import ensure_users
@@ -29,6 +32,12 @@ if TYPE_CHECKING:
     from app.domain.contact.entities import Contact
 
 pytestmark = pytest.mark.integration
+
+
+@pytest_asyncio.fixture(autouse=True)
+async def _default_vendor(session: AsyncSession) -> None:
+    """기본 Deal의 Vendor(필수 FK)를 미리 둔다."""
+    await ensure_default_vendor(SqlVendorRepository(session))
 
 
 async def _ready(session: AsyncSession) -> Contact:

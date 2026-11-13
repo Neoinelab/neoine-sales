@@ -18,6 +18,7 @@ if TYPE_CHECKING:
 _DEAL_BODY = {
     "name": "ERP 구축",
     "owner_user_id": OWNER_ID,
+    "vendor_id": 7,
     "solution": "ITDR",
     "users": 10,
     "status_key": "prospecting",

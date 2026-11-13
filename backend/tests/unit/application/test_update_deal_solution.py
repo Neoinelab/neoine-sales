@@ -1,4 +1,4 @@
-"""UpdateDeal의 Solution 텍스트(Q1 변경): 보낸 값만 바꾸고 비울 수 없다."""
+"""UpdateDeal의 Solution 텍스트(2026-11-13 변경): 보낸 값만 바꾸고 비울 수 있다(빈 값 '')."""
 
 from typing import TYPE_CHECKING
 
@@ -10,8 +10,6 @@ from tests.support.expect import raises_with
 
 if TYPE_CHECKING:
     from tests.unit.application.deal_env import DealEnv
-
-REQUIRED = "Solution을 입력하세요."
 
 
 async def test_patch_solution_replaces_text(env: DealEnv) -> None:
@@ -34,10 +32,10 @@ async def test_patch_solution_replaces_text(env: DealEnv) -> None:
 
 
 @pytest.mark.parametrize("sent", [None, "", "   "])
-async def test_patch_blank_or_null_solution_is_rejected_and_keeps_the_text(
+async def test_patch_blank_or_null_solution_clears_it_and_writes_history(
     env: DealEnv, sent: str | None
 ) -> None:
-    """Solution을 null·빈 값·공백으로 고치면 거절되고 그대로다.
+    """Solution을 null·빈 값·공백으로 고치면 빈 값이 되고 이력이 남는다.
 
     테스트 코드: DE-052
     """
@@ -45,12 +43,12 @@ async def test_patch_blank_or_null_solution_is_rejected_and_keeps_the_text(
     view = await env.new_deal(solution="ITDR")
 
     # when: null, '', '   '를 보낸다.
-    with raises_with(InvalidValueError, REQUIRED):
-        await env.update.execute(view.item.deal.id.value, make_patch(solution=sent), SALES)
+    updated = await env.update.execute(view.item.deal.id.value, make_patch(solution=sent), SALES)
 
-    # then: 'Solution을 입력하세요.' 오류이고 값이 그대로다.
+    # then: 오류 없이 저장된 값이 ''이고 Solution 이력이 ITDR -> '-'로 남는다.
     stored = await env.uow.deals.get(view.item.deal.id)
-    assert stored.details.solution == "ITDR"
+    assert stored.details.solution == ""
+    assert await env.changes(updated) == [("other", "Solution", "ITDR", "-")]
 
 
 async def test_patch_too_long_solution_is_rejected(env: DealEnv) -> None:
@@ -64,6 +62,10 @@ async def test_patch_too_long_solution_is_rejected(env: DealEnv) -> None:
     # when·then: 201자 Solution을 보낸다 → 'Solution은 200자 이내로 입력하세요.' 오류다.
     with raises_with(InvalidValueError, "Solution은 200자 이내로 입력하세요."):
         await env.update.execute(view.item.deal.id.value, make_patch(solution="a" * 201), SALES)
+
+    # then: 값이 그대로다.
+    stored = await env.uow.deals.get(view.item.deal.id)
+    assert stored.details.solution == "ITDR"
 
 
 async def test_patch_without_solution_keeps_text(env: DealEnv) -> None:
@@ -100,37 +102,60 @@ async def test_patch_vendor_only_keeps_solution(env: DealEnv) -> None:
     assert (stored.details.vendor_id, stored.details.solution) == (oracle.id, "ITDR")
 
 
-async def test_patch_vendor_null_keeps_solution(env: DealEnv) -> None:
-    """Vendor를 비워도 Solution은 그대로다.
-
-    테스트 코드: DE-049
-    """
-    # given: SAP Vendor·Solution 'ITDR'인 Deal.
-    sap = await env.new_vendor("SAP")
-    view = await env.new_deal(vendor_id=sap.id, solution="ITDR")
-
-    # when: vendor_id를 null로 보낸다.
-    await env.update.execute(view.item.deal.id.value, make_patch(vendor_id=None), SALES)
-
-    # then: Vendor는 없고 Solution은 'ITDR'이다.
-    stored = await env.uow.deals.get(view.item.deal.id)
-    assert (stored.details.vendor_id, stored.details.solution) == (None, "ITDR")
-
-
-async def test_patch_solution_without_any_vendor_succeeds(env: DealEnv) -> None:
-    """Vendor가 없는 Deal에도 Solution을 입력할 수 있다.
+async def test_patch_without_solution_keeps_an_empty_solution(env: DealEnv) -> None:
+    """Solution이 빈 Deal도 Solution을 보내지 않은 수정은 성공하고 빈 값 그대로다.
 
     테스트 코드: DE-053
     """
-    # given: Vendor 없는 Deal.
-    view = await env.new_deal(solution="MFA")
+    # given: Solution이 ''인 Deal.
+    view = await env.new_deal(solution="")
 
-    # when: Solution을 'ITDR'로 고친다.
-    updated = await env.update.execute(view.item.deal.id.value, make_patch(solution="ITDR"), SALES)
+    # when: 이름과 Users count만 보내 수정한다.
+    await env.update.execute(view.item.deal.id.value, make_patch(name="다른 이름", users=3), SALES)
 
-    # then: 수정되고 Vendor는 계속 없다.
-    assert updated.vendor is None
-    assert updated.item.deal.details.solution == "ITDR"
+    # then: 수정되고 Solution은 ''다.
+    stored = await env.uow.deals.get(view.item.deal.id)
+    assert (stored.details.name, stored.details.users, stored.details.solution) == (
+        "다른 이름",
+        3,
+        "",
+    )
+
+
+async def test_patch_vendor_only_succeeds_on_an_empty_solution_deal(env: DealEnv) -> None:
+    """Solution이 빈 Deal에서 Vendor만 바꿔도 성공하고 Solution은 빈 값 그대로다.
+
+    테스트 코드: DE-053
+    """
+    # given: Solution이 ''인 Deal과 Oracle.
+    oracle = await env.new_vendor("Oracle")
+    view = await env.new_deal(solution="")
+
+    # when: Vendor만 보낸다.
+    await env.update.execute(view.item.deal.id.value, make_patch(vendor_id=oracle.id), SALES)
+
+    # then: Vendor가 바뀌고 Solution은 ''다.
+    stored = await env.uow.deals.get(view.item.deal.id)
+    assert (stored.details.vendor_id, stored.details.solution) == (oracle.id, "")
+
+
+async def test_patch_solution_fills_in_an_empty_solution_deal(env: DealEnv) -> None:
+    """Solution이 빈 Deal에 나중에 Solution을 입력할 수 있고 이력이 남는다.
+
+    테스트 코드: DE-053
+    """
+    # given: Solution이 ''인 Deal.
+    view = await env.new_deal(solution="")
+
+    # when: ' ITDR '를 보낸다.
+    updated = await env.update.execute(
+        view.item.deal.id.value, make_patch(solution=" ITDR "), SALES
+    )
+
+    # then: Solution이 'ITDR'로 저장되고 이력이 '-' -> ITDR로 남는다.
+    stored = await env.uow.deals.get(view.item.deal.id)
+    assert stored.details.solution == "ITDR"
+    assert await env.changes(updated) == [("other", "Solution", "-", "ITDR")]
 
 
 async def test_patch_solution_writes_history(env: DealEnv) -> None:
