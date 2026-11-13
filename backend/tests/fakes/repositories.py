@@ -168,10 +168,11 @@ class FakeDealActionRepository(InMemoryStore[DealAction]):
         return _sorted(found, str(query.sort), self._actor_name)
 
     async def update(self, action: DealAction) -> None:
-        """content·Next Action 상태·updated_at만 저장한다(스냅숏·수행 시각·담당자는 그대로)."""
+        """content·수행일·Next Action 상태·updated_at만 저장한다(스냅숏·담당자는 그대로)."""
         stored = self._fetch(action.id)
         self._ensure_type(action)
         stored.content = action.content
+        stored.acted_on = action.acted_on
         stored.next_action_state = action.next_action_state
         stored.updated_at = action.updated_at
         self._replace(stored)

@@ -1,7 +1,7 @@
 """UpdateDealAction: 담당자 본인과 admin만, 판정 순서 404 -> 403 -> 422."""
 
 from datetime import date
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import pytest
 
@@ -32,7 +32,7 @@ if TYPE_CHECKING:
     from tests.unit.application.action_env import ActionEnv
 
 AFTER = "수정: 제안 · 제안 발표 / Next Action: 견적 회신 (Due 2026-02-01) / Memo: 변경"
-CHANGE = {
+CHANGE: dict[str, Any] = {
     "action_type": "제안",
     "action": "제안 발표",
     "next_action": "견적 회신",

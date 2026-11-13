@@ -180,8 +180,11 @@ export interface ActionInput {
   actedOn?: string
 }
 
-/** Action 수정 입력. 등록 시점 Status/Forecast와 수행일시·담당자는 바꿀 수 없다. */
-export type ActionUpdateInput = Omit<ActionInput, 'statusChanges' | 'closePreviousNextActionId' | 'deleteLicenseContracts' | 'actedOn'>
+/** Action 수정 입력. 등록 시점 Status/Forecast와 담당자는 바꿀 수 없다. actedOn은 바꿀 때만 보낸다. */
+export type ActionUpdateInput = Omit<ActionInput, 'statusChanges' | 'closePreviousNextActionId' | 'deleteLicenseContracts' | 'actedOn'> & {
+  /** 수행일. 생략·null이면 그대로 둔다. */
+  actedOn?: string | null
+}
 
 /** Next Action 상태 변경. memo는 종료할 때만(Open으로 되돌릴 때는 빈 문자열). */
 export interface NextActionStatusInput {

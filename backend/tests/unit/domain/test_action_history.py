@@ -300,3 +300,54 @@ def test_status_draft_clips_a_long_note_to_the_history_limit() -> None:
     assert len(draft.after) == 1_000
     assert draft.after.startswith("종료(미수행) / Memo: ")
     assert draft.after.endswith("…")
+
+
+def test_updated_draft_appends_the_acted_on_to_both_ends_when_it_changed() -> None:
+    """수행일이 바뀐 수정 이력은 변경 전·후 양쪽 끝에 " / 수행일: <날짜>"가 붙는다.
+
+    테스트 코드: AC-118, AC-119
+    """
+    # given: 내용이 같은 수정 전후와 이전·새 수행일
+    content = make_action_content(memo="")
+
+    # when: 수행일 (이전, 새)을 넣어 수정 이력 초안을 만든다
+    draft = action_updated_draft(
+        content, content, acted_on=(date(2026, 11, 13), date(2026, 11, 10))
+    )
+
+    # then: 변경 전은 "<요약> / 수행일: 이전", 변경 후는 "수정: <요약> / 수행일: 새"다
+    assert draft.before == f"{SUMMARY} / 수행일: 2026-11-13"
+    assert draft.after == f"수정: {SUMMARY} / 수행일: 2026-11-10"
+
+
+def test_updated_draft_without_an_acted_on_change_keeps_the_old_wording() -> None:
+    """수행일 인자를 안 주면 수정 이력 문구는 예전과 같다.
+
+    테스트 코드: AC-120
+    """
+    # when: 수행일 없이 수정 이력 초안을 만든다
+    draft = action_updated_draft(make_action_content(memo=""), make_action_content(memo=""))
+
+    # then: 끝에 수행일 부분이 없다
+    assert draft.before == SUMMARY
+    assert draft.after == f"수정: {SUMMARY}"
+    assert "수행일" not in draft.before + draft.after
+
+
+def test_updated_draft_clips_the_acted_on_part_with_the_summary() -> None:
+    """아주 긴 요약에서는 덧붙인 수행일 부분도 이력 길이 제한으로 잘려 보이지 않을 수 있다.
+
+    테스트 코드: AC-118
+    """
+    # given: 요약이 1,000자를 넘는 내용
+    long_content = make_action_content(action="가" * 2_000)
+
+    # when: 수행일이 바뀐 수정 이력 초안을 만든다
+    draft = action_updated_draft(
+        long_content, long_content, acted_on=(date(2026, 11, 13), date(2026, 11, 10))
+    )
+
+    # then: 변경 전·후가 1,000자에서 "…"로 끝난다
+    assert len(draft.before) == len(draft.after) == 1_000
+    assert draft.before.endswith("…")
+    assert draft.after.endswith("…")

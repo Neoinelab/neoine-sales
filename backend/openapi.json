@@ -1786,7 +1786,7 @@
                 "type": "null"
               }
             ],
-            "description": "수행일(YYYY-MM-DD, 선택). 생략하거나 null이면 오늘(서버 업무 날짜)로 기록한다. 수정 요청에는 없다.",
+            "description": "수행일(YYYY-MM-DD, 선택). 생략하거나 null이면 오늘(서버 업무 날짜)로 기록한다.",
             "title": "Acted On"
           },
           "action": {
@@ -2029,6 +2029,19 @@
       "DealActionUpdateRequest": {
         "additionalProperties": false,
         "properties": {
+          "acted_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "수정할 수행일(YYYY-MM-DD, 선택). 생략하거나 null이면 기존 수행일을 유지한다.",
+            "title": "Acted On"
+          },
           "action": {
             "default": "",
             "title": "Action",

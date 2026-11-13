@@ -71,19 +71,26 @@ class DealAction(AuditedEntity[DealActionId]):
         if self.content.has_next_action != (self.next_action_state is not None):
             raise InvalidValueError("Next Action과 상태는 함께 있거나 함께 없어야 합니다.")
 
-    def revise(self, content: ActionContent, now: datetime) -> bool:
-        """내용을 바꾼다. 같은 내용이면 아무것도 바꾸지 않고 False.
+    def revise(
+        self, content: ActionContent, now: datetime, *, acted_on: date | None = None
+    ) -> bool:
+        """내용(과 수행일)을 바꾼다. 내용·수행일 모두 그대로면 아무것도 바꾸지 않고 False.
+
+        acted_on이 None이거나 현재 수행일과 같으면 수행일은 유지한다(범위 판정은 호출자 몫).
 
         Next Action을 비우면 상태를 없애고, 새로 채우면 Open이며, 이미 있던 것의 수정은
         (종료 상태여도) 상태를 그대로 둔다.
         """
-        if content == self.content:
+        date_changed = acted_on is not None and acted_on != self.acted_on
+        if content == self.content and not date_changed:
             return False
         if not content.has_next_action:
             self.next_action_state = None
         elif self.next_action_state is None:
             self.next_action_state = NextActionState.open()
         self.content = content
+        if acted_on is not None:
+            self.acted_on = acted_on
         self._touch(now)
         return True
 

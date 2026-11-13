@@ -11,7 +11,11 @@ from tests.support.ids import new_id
 from tests.support.user_ids import ACTOR_ID, OWNER_ID
 
 if TYPE_CHECKING:
-    from app.application.deal_action.inputs import ActionContentInput, DealActionInput
+    from app.application.deal_action.inputs import (
+        ActionContentInput,
+        DealActionInput,
+        DealActionUpdateInput,
+    )
     from app.domain.contact.values import ContactId
     from app.domain.deal.code import DealCode
     from app.domain.deal.entities import Deal
@@ -189,6 +193,19 @@ def make_deal_action_input(**overrides: Any) -> ActionContentInput:  # noqa: ANN
     chosen = fields.pop("action_type", "미팅")
     action_type = CatalogChoice(name=chosen) if isinstance(chosen, str) else chosen
     return ActionContentInput(action_type=action_type, **fields)
+
+
+def make_update_input(
+    *,
+    acted_on: date | None = None,
+    **content_overrides: Any,  # noqa: ANN401
+) -> DealActionUpdateInput:
+    """수정 입력(`DealActionUpdateInput`): 내용 + 선택적인 수행일(없으면 수행일 유지)."""
+    from app.application.deal_action.inputs import DealActionUpdateInput  # noqa: PLC0415
+
+    return DealActionUpdateInput(
+        content=make_deal_action_input(**content_overrides), acted_on=acted_on
+    )
 
 
 def make_register_input(

@@ -1899,7 +1899,7 @@ export interface components {
         DealActionCreateRequest: {
             /**
              * Acted On
-             * @description 수행일(YYYY-MM-DD, 선택). 생략하거나 null이면 오늘(서버 업무 날짜)로 기록한다. 수정 요청에는 없다.
+             * @description 수행일(YYYY-MM-DD, 선택). 생략하거나 null이면 오늘(서버 업무 날짜)로 기록한다.
              */
             acted_on?: string | null;
             /**
@@ -1993,6 +1993,11 @@ export interface components {
         DealActionSort: "acted_at_desc" | "acted_at_asc" | "due_date_asc" | "due_date_desc" | "actor_asc" | "actor_desc" | "action_type_asc" | "action_type_desc" | "next_action_status_asc" | "next_action_status_desc";
         /** DealActionUpdateRequest */
         DealActionUpdateRequest: {
+            /**
+             * Acted On
+             * @description 수정할 수행일(YYYY-MM-DD, 선택). 생략하거나 null이면 기존 수행일을 유지한다.
+             */
+            acted_on?: string | null;
             /**
              * Action
              * @default

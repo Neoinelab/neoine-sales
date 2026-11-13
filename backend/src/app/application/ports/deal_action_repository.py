@@ -117,7 +117,7 @@ class DealActionRepository(Protocol):
         ...
 
     async def update(self, action: DealAction) -> None:
-        """내용(content), Next Action 상태·종료 시각, updated_at만 저장한다.
+        """내용(content), 수행일(acted_on), Next Action 상태·종료 일자, updated_at만 저장한다.
 
         없으면 DealActionNotFoundError.
         """

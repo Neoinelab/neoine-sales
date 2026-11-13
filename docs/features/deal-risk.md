@@ -24,7 +24,7 @@
 - 범위 밖
   - 목록 필터 UI(체크박스·URL)와 필터의 다른 조건 결합·쿼리 형식 오류 → DL
   - 목록 정렬(기본 정렬이 `last_updated_at`이라는 사실은 DL이 이 문서의 RK-R2를 가리킨다), 최종 업데이트 기간 필터 → DL
-  - Next Action 상태 변경 API·Action 검색 → NA. Action 등록·수정·삭제 자체 → AC(`acted_on`은 등록 때 정한다)
+  - Next Action 상태 변경 API·Action 검색 → NA. Action 등록·수정·삭제 자체 → AC(`acted_on`은 등록·수정 때 정한다, AC-R39)
   - Status·Forecast 동기화 규칙과 변경 적용 → DD. Deal 등록·수정 검증 → DE
   - Dashboard 주의 필요 타일 → DSH, Reports의 `deal.risk`·`deal.status_days`·`deal.status_changed_at` 필드 → RQ. 둘 다 이 문서의 판정(RK-R3~R7·R10)을 쓴다
   - 업무 날짜·업무일 시작·응답 시각 표기 → TM(TM-R4·R5·R8), 상대 시각 표시 → TM-R15
@@ -71,7 +71,7 @@ Next Action 기준 행과 최종 업데이트
   - 지난 날짜로 등록한 Action도 같은 순서로 비교한다(등록 순서가 아님, AC-R38).
 - **RK-R2** `last_updated_on`(날짜)은 그 Deal의 모든 Action(진행사항만 Action 포함) `acted_on`의 최댓값이고, Action이 없으면 Deal 등록일(`created_at`의 업무 날짜, TM-R4)이다.
   - Deal 수정은 값을 바꾸지 않는다: 폼 저장·변경 적용·인라인 수정·연락처 변경 반영·첨부 업로드/삭제 모두 해당하며, 이것들은 `updated_at`만 바꾼다.
-  - `acted_on`은 Action 등록 때만 정해지므로(AC-R34) Action 수정과 Next Action 상태 변경도 값을 바꾸지 않는다. 지난 날짜 Action은 더 늦은 Action이 있으면 이 값을 바꾸지 않는다(AC-R38). 수행일은 Deal 등록일 이상이라(AC-R35) 이 값은 Deal 등록 시각보다 앞선 날짜가 되지 않는다.
+  - `acted_on`은 Action 등록·수정에서 정해지므로(AC-R34, AC-R45) Next Action 상태 변경과 수행일을 바꾸지 않는 Action 수정은 값을 바꾸지 않고, 수정으로 수행일을 바꾸면 다시 계산된다(AC-R46). 지난 날짜 Action은 더 늦은 Action이 있으면 이 값을 바꾸지 않는다(AC-R38). 수행일은 Deal 등록일 이상이라(AC-R35) 이 값은 Deal 등록 시각보다 앞선 날짜가 되지 않는다.
   - Action을 지우면 남은 Action 기준으로 다시 계산한다. 하나도 없으면 등록 시각이다.
   - 같은 Deal의 목록 행과 상세는 같은 `next_action`·`last_updated_on`을 준다.
 
@@ -252,7 +252,7 @@ RK-R15~R21.
 | RK-004 | 최종 업데이트일은 등록 순서와 무관하게 가장 늦은 Action 수행일이다(진행사항만 포함) | RK-R2, RK-UC1 | backend | `application/test_list_deals_derived.py::test_the_latest_action_provides_the_next_action_and_the_update_date`, `application/test_list_deals_derived.py::test_the_action_with_the_latest_acted_on_wins_regardless_of_registration_order`, `application/test_list_deals_derived.py::test_an_action_older_than_the_deal_update_still_sets_the_update_time`, `gateway/contract/actionsStatus.contract.ts` <br><br><br> |
 | RK-005 | Action이 없으면 최종 업데이트일은 등록일이고 Deal 수정은 반영하지 않는다 | RK-R2, RK-UC1 | backend | `application/test_list_deals_derived.py::test_a_deal_without_actions_has_no_next_action_and_its_registration_date`<br>`application/test_list_deals_derived.py::test_a_deal_edit_does_not_move_the_update_time` |
 | RK-006 | 유일한 Action을 지우면 최종 업데이트일이 등록일로 돌아간다 | RK-R2, RK-UC1 | backend | `application/test_deal_last_updated_actions.py::test_deleting_the_only_action_returns_last_updated_to_the_registration_date` |
-| RK-007 | Action 수정과 Next Action 상태 변경은 최종 업데이트를 바꾸지 않는다 | RK-R2, RK-UC1 | backend | `application/test_deal_last_updated_actions.py::test_editing_an_action_keeps_last_updated`<br>`application/test_deal_last_updated_actions.py::test_changing_the_next_action_status_keeps_last_updated` |
+| RK-007 | Action 내용 수정과 Next Action 상태 변경은 최종 업데이트를 바꾸지 않는다 | RK-R2, RK-UC1 | backend | `application/test_deal_last_updated_actions.py::test_editing_an_action_keeps_last_updated`<br>`application/test_deal_last_updated_actions.py::test_changing_the_next_action_status_keeps_last_updated` |
 | RK-008 | 같은 Deal의 목록 행과 상세는 같은 파생 값을 준다 | RK-R2, RK-R7, RK-UC1 | backend | `application/test_deal_views_risk.py::test_list_and_detail_agree_on_the_same_deal`<br>`application/test_list_deals_derived.py::test_the_detail_carries_the_same_derived_values` |
 | RK-009 | 기준 행의 Due Date가 오늘보다 앞이면 기한초과다 | RK-R4, RK-R6, RK-UC1 | backend | `application/test_deal_views_risk.py::test_action_due_before_today_makes_the_deal_overdue`<br>`domain/test_deal_risk.py::test_due_yesterday_is_overdue` |
 | RK-010 | Due Date가 오늘이거나 내일이면 기한초과가 아니다 | RK-R4, RK-UC1 | backend | `application/test_deal_views_risk.py::test_action_due_today_is_not_overdue`<br>`domain/test_deal_risk.py::test_due_today_is_not_overdue`<br>`domain/test_deal_risk.py::test_due_tomorrow_is_not_overdue` |
@@ -346,7 +346,7 @@ RK-R15~R21.
 - When 그 Action을 삭제한 뒤 목록을 조회한다
 - Then `last_updated_on`은 Deal 등록일이다
 
-### RK-007 Action 수정과 Next Action 상태 변경은 최종 업데이트를 바꾸지 않는다
+### RK-007 Action 내용 수정과 Next Action 상태 변경은 최종 업데이트를 바꾸지 않는다
 - Given 등록+1일에 수행한 Action이 있는 Deal이다
 - When 등록+3일에 그 Action의 내용을 수정하거나 Next Action 상태를 `done`으로 바꾼다
 - Then `last_updated_on`은 여전히 등록+1일이다
@@ -665,3 +665,4 @@ RK-R15~R21.
 | 2026-11-10 | 최초 작성: 구현된 경고·파생 값·경고 기준 동작을 정본 명세로 옮김. 규칙 RK-R1~R21, use case RK-UC1~UC5, BDD 케이스 RK-001~RK-066 | RK-001~RK-066(신규) |
 | 2026-11-13 | AC 수행일 지정(확정)에 맞춰 RK-R1·R2에 지난 날짜 Action 설명 추가. 정의·동작·케이스 변경 없음, 상태 줄 그대로 | 없음(관련 신규 AC-097·AC-098) |
 | 2026-11-13 | 확정(2026-11-13 사용자 확인): 업무 날짜를 date로 저장. 최종 업데이트는 `last_updated_on`, Status 진입일은 `status_changed_on`(용어, 2.2, RK-R1·R2·R5·R8·R9·R10·R16·R17·R21, 2.4, 2.6, UC3), RK-R22 신설(데이터 변환). 응답 필드 이름·타입 변경(호환 깨짐, 사용자 승인). 경고·체류 일수 결과는 같다 | 신규 RK-067~RK-069. 변경 RK-002, RK-004~RK-006, RK-026, RK-031~RK-040, RK-056, 본문에 last_updated_at·statusChangedAt이 있던 케이스 |
+| 2026-11-13 | AC 변경(Action 수정 때 수행일 변경, AC-R45·R46)에 맞춰 1장 범위·RK-R2 하위 항목 문구 갱신, RK-007 제목을 '내용 수정'으로. RK 규칙 정의·케이스 동작 불변 | 변경: RK-007(제목만) |

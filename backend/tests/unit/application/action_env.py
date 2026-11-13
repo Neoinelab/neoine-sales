@@ -16,7 +16,7 @@ from app.application.deal_action.list_deal_actions import ListDealActions
 from app.application.deal_action.register_deal_action import RegisterDealAction
 from app.application.deal_action.update_deal_action import UpdateDealAction
 from app.domain.auth.principal import Role
-from tests.factories import make_deal_action_input, make_register_input
+from tests.factories import make_register_input, make_update_input
 from tests.support.user_ids import uid
 
 if TYPE_CHECKING:
@@ -126,9 +126,18 @@ class ActionEnv:
         data = NextActionStatusInput(status=NextActionStatus(status), memo=memo)
         return await use_case.execute(action_id, data, actor)
 
-    async def update_as(self, action_id: DealActionId, actor: Actor, **content: Any) -> DealAction:  # noqa: ANN401
+    async def update_as(
+        self,
+        action_id: DealActionId,
+        actor: Actor,
+        *,
+        acted_on: date | None = None,
+        **content: Any,  # noqa: ANN401
+    ) -> DealAction:
+        """Action을 고친다(시계가 60초 흐른 뒤). acted_on을 주면 수행일도 고친다."""
         self.env.clock.advance(60)
-        return await self.update.execute(action_id, make_deal_action_input(**content), actor)
+        data = make_update_input(acted_on=acted_on, **content)
+        return await self.update.execute(action_id, data, actor)
 
 
 def build_action_env(env: DealEnv, deal: DealView) -> ActionEnv:

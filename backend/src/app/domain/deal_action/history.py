@@ -5,6 +5,8 @@ from typing import TYPE_CHECKING
 from app.domain.deal.history import HistoryCategory, HistoryDraft
 
 if TYPE_CHECKING:
+    from datetime import date
+
     from app.domain.deal_action.next_action_status import NextActionStatusChange
     from app.domain.deal_action.value_objects import ActionContent
 
@@ -35,8 +37,18 @@ def action_created_draft(content: ActionContent) -> HistoryDraft:
     return _draft("", f"등록: {action_summary(content)}")
 
 
-def action_updated_draft(before: ActionContent, after: ActionContent) -> HistoryDraft:
-    return _draft(action_summary(before), f"수정: {action_summary(after)}")
+def action_updated_draft(
+    before: ActionContent,
+    after: ActionContent,
+    *,
+    acted_on: tuple[date, date] | None = None,
+) -> HistoryDraft:
+    """수정 이력. acted_on=(이전, 새)이면 양쪽 요약 끝에 ' / 수행일: YYYY-MM-DD'를 붙인다."""
+    before_text, after_text = action_summary(before), action_summary(after)
+    if acted_on is not None:
+        before_text += f" / 수행일: {acted_on[0].isoformat()}"
+        after_text += f" / 수행일: {acted_on[1].isoformat()}"
+    return _draft(before_text, f"수정: {after_text}")
 
 
 def action_deleted_draft(content: ActionContent) -> HistoryDraft:

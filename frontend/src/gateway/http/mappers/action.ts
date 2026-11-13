@@ -38,6 +38,7 @@ export function toActionUpdateBody(input: ActionUpdateInput): Schemas['DealActio
     next_action: input.nextAction,
     due_date: input.dueDate === '' ? null : input.dueDate,
     memo: input.memo,
+    ...(input.actedOn ? { acted_on: input.actedOn } : {}),
   }
 }
 
@@ -62,7 +63,6 @@ export function toActionCreateBody(input: ActionInput): Schemas['DealActionCreat
   if (input.statusChanges && input.statusChanges.length > 0) body.status_changes = input.statusChanges.map(toStatusChange)
   if (input.closePreviousNextActionId !== undefined) body.close_previous_next_action_id = input.closePreviousNextActionId
   if (input.deleteLicenseContracts !== undefined) body.delete_license_contracts = input.deleteLicenseContracts
-  if (input.actedOn !== undefined && input.actedOn !== '') body.acted_on = input.actedOn
   return asRequestBody(body)
 }
 

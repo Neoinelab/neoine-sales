@@ -3,12 +3,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { gateway } from '../../../gateway'
 import { addDays, compactDate } from '../../../shared/model/dates'
 import { openRegisterForm } from '../../../test/actionFormUtils'
-import { detailPath } from '../../../test/detailTestUtils'
 import { resetMock } from '../../../test/fake/default'
-import { renderAt } from '../../../test/mockApp'
 
 /**
- * Action 추가 팝업의 수행일 칸(AC-R40·R41·R42). 서버 시계는 2026-11-13T14:30+09:00(오늘 2026-11-13)로 고정한다.
+ * Action 추가 팝업의 수행일 칸(AC-R40·R41·R42). 수정 팝업의 수행일 칸은 ActionForm.actedOnEdit.test.tsx. 서버 시계는 2026-11-13T14:30+09:00(오늘 2026-11-13)로 고정한다.
  * 시드 Deal 1(한빛은행 ITDR 도입)은 오늘보다 한참 전에 등록되었고 기준 행(id 4)은 김영업의 Open Next Action이며
  * 이틀 전(2026-11-11)에 수행되었다.
  */
@@ -79,22 +77,6 @@ describe('Action 추가 팝업의 수행일 칸', () => {
     // then: 수행일 칸은 "Status · Forecast · 유형" 그룹보다 앞(위)에 있다
     const group = within(view.form).getByRole('group', { name: 'Status · Forecast · 유형' })
     expect(field.compareDocumentPosition(group) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-  })
-
-  // 수정 팝업에는 수행일 칸이 없고 "수행일: YYYY-MM-DD" 안내가 있다.
-  // 테스트 코드: AC-105
-  it('has no performed-day field in the edit popup and shows the 수행일 date note', async () => {
-    // given: sales가 Actions 탭을 연다
-    const view = await renderAt(await detailPath(1, '?tab=actions'), { role: 'sales' })
-    await screen.findByRole('heading', { level: 1, name: TITLE })
-    const table = await screen.findByRole('table', { name: 'Action 목록' })
-    // when: 자기 행의 "수정"을 누른다
-    const row = within(table).getAllByRole('row')[1] as HTMLElement
-    await view.user.click(within(row).getByRole('button', { name: '수정' }))
-    const dialog = await screen.findByRole('dialog', { name: 'Action 수정' })
-    // then: 수행일 칸이 없고 "수행일: YYYY-MM-DD · 담당자: …" 안내가 있다
-    expect(within(dialog).queryByLabelText('수행일')).not.toBeInTheDocument()
-    expect(within(dialog).getByText(/수행일: \d{4}-\d{2}-\d{2} · 담당자: /)).toBeVisible()
   })
 })
 

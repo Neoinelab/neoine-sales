@@ -7,6 +7,7 @@ from pydantic import BaseModel, BeforeValidator, Field, StrictBool, model_valida
 from app.application.deal_action.inputs import (
     ActionContentInput,
     DealActionInput,
+    DealActionUpdateInput,
     NextActionStatusInput,
     StatusChangeInput,
 )
@@ -134,7 +135,6 @@ class DealActionCreateRequest(ActionContentRequest):
         Field(
             description=(
                 "수행일(YYYY-MM-DD, 선택). 생략하거나 null이면 오늘(서버 업무 날짜)로 기록한다."
-                " 수정 요청에는 없다."
             )
         ),
     ] = None
@@ -173,8 +173,18 @@ class DealActionCreateRequest(ActionContentRequest):
 
 
 class DealActionUpdateRequest(ActionContentRequest):
-    def to_input(self) -> ActionContentInput:
-        return self.to_content()
+    acted_on: Annotated[
+        date | None,
+        BeforeValidator(_plain_date),
+        Field(
+            description=(
+                "수정할 수행일(YYYY-MM-DD, 선택). 생략하거나 null이면 기존 수행일을 유지한다."
+            )
+        ),
+    ] = None
+
+    def to_input(self) -> DealActionUpdateInput:
+        return DealActionUpdateInput(content=self.to_content(), acted_on=self.acted_on)
 
 
 class NextActionStatusRequest(RequestModel):

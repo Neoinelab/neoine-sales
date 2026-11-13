@@ -635,16 +635,21 @@ describe('actions.create with a performed day (acted_on)', () => {
     expect(calls[1]?.body).toMatchObject({ acted_on: '2026-11-10' })
   })
 
-  // 수정 요청에는 수행일 칸이 어느 경우에도 없다.
+  // 수정도 수행일이 없으면 acted_on 키를 보내지 않고, 있으면 ISO 날짜 그대로 보낸다.
   // 테스트 코드: AC-109
-  it('never sends acted_on on update', async () => {
+  it('sends acted_on on update only when a day is given and keeps it as an ISO date', async () => {
     // given: 서버가 200과 Action을 준다
-    const { calls } = stubFetch(json(serverAction()))
+    const { calls } = stubFetch(json(serverAction()), json(serverAction()))
 
-    // when: 수행일이 실린 입력으로 수정을 부른다(화면 타입에는 없지만 방어 확인)
-    await createActionsHttp().update(ACTION_ID, { ...newAction, actedOn: '2026-11-10' } as typeof newAction)
-
-    // then: 수정 본문에 acted_on이 없다
+    // when: 수행일 없이 수정한다
+    await createActionsHttp().update(ACTION_ID, newAction)
+    // then: 첫 본문에는 acted_on 키가 없다
     expect(calls[0]?.body).not.toHaveProperty('acted_on')
+
+    // when: 수행일 2026-11-10으로 수정한다
+    const withDay = { ...newAction, actedOn: '2026-11-10' }
+    await createActionsHttp().update(ACTION_ID, withDay)
+    // then: 두 번째 본문에는 acted_on이 ISO 날짜 문자열로 담긴다
+    expect(calls[1]?.body).toMatchObject({ acted_on: '2026-11-10' })
   })
 })

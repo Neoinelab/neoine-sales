@@ -2,11 +2,12 @@ from typing import TYPE_CHECKING
 
 from app.application.deal.history_writer import write_history
 from app.application.deal_action.type_choice import choose_action_type
+from app.domain.deal_action.acted_on import ensure_acted_on_in_range
 from app.domain.deal_action.history import action_updated_draft
 
 if TYPE_CHECKING:
     from app.application.deal.inputs import Actor
-    from app.application.deal_action.inputs import ActionContentInput
+    from app.application.deal_action.inputs import DealActionUpdateInput
     from app.application.ports.clock import Clock
     from app.application.ports.unit_of_work import UnitOfWorkFactory
     from app.domain.deal_action.entities import DealAction
@@ -24,18 +25,25 @@ class UpdateDealAction:
         self._clock = clock
 
     async def execute(
-        self, action_id: DealActionId, content: ActionContentInput, actor: Actor
+        self, action_id: DealActionId, data: DealActionUpdateInput, actor: Actor
     ) -> DealAction:
         now = self._clock.now()
         async with self._uow_factory() as uow:
             action = await uow.deal_actions.get(action_id)
             action.ensure_editable_by(actor.user_id, actor.role)
-            before = action.content
-            action_type = await choose_action_type(uow, content.action_type, actor.user_id, now)
-            after = content.to_content(action_type)
-            if action.revise(after, now):
+            before, before_on = action.content, action.acted_on
+            action_type = await choose_action_type(
+                uow, data.content.action_type, actor.user_id, now
+            )
+            after = data.content.to_content(action_type)
+            new_on = data.acted_on
+            if new_on is not None and new_on != before_on:
+                deal = await uow.deals.get(action.deal_code)
+                ensure_acted_on_in_range(new_on, now=now, deal_registered_at=deal.created_at)
+            if action.revise(after, now, acted_on=new_on):
                 await uow.deal_actions.update(action)
-                draft = action_updated_draft(before, after)
+                moved = (before_on, action.acted_on) if action.acted_on != before_on else None
+                draft = action_updated_draft(before, after, acted_on=moved)
                 await write_history(uow, action.deal_code, actor.user_id, [draft], now)
                 await uow.commit()
         return action

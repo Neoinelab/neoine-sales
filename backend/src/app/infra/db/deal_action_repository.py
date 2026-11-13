@@ -199,12 +199,13 @@ class SqlDealActionRepository(SqlRepository[DealActionRow]):
         return [_to_entity(row, name, code) for row, name, code in rows]
 
     async def update(self, action: DealAction) -> None:
-        """내용·Next Action 상태·updated_at만 쓴다. 수행 일시·수행자·스냅숏은 바뀌지 않는다."""
+        """내용·수행일·Next Action 상태·updated_at을 쓴다. 수행자·스냅숏은 바뀌지 않는다."""
         row = await self._find(action.id)
         if row is None:
             raise DealActionNotFoundError(action.id)
         _apply_content(row, action.content)
         _apply_state(row, action.next_action_state)
+        row.acted_on = action.acted_on
         row.updated_at = action.updated_at
         await self._save({}, not_found=lambda: DealActionNotFoundError(action.id))
 

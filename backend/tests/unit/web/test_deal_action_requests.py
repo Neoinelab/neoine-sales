@@ -7,6 +7,7 @@ import pytest
 from pydantic import ValidationError
 
 from app.application.choice import CatalogChoice
+from app.application.deal_action import inputs as action_inputs
 from app.application.deal_action.inputs import (
     ActionContentInput,
     DealActionInput,
@@ -58,17 +59,20 @@ def test_create_request_maps_to_the_use_case_input_without_a_status_change() -> 
 
 
 def test_update_request_maps_to_the_content_input() -> None:
-    """수정 요청은 내용 입력으로 바뀐다."""
+    """수정 요청은 내용 입력으로 바뀌고 수행일은 지정 없음이다."""
     # when: Memo가 빈 수정 요청을 입력으로 바꾼다
     data = _update(memo="").to_input()
 
-    # then: 내용 칸만 담긴다
-    assert data == ActionContentInput(
-        action_type=CatalogChoice(name="미팅"),
-        action="킥오프 미팅",
-        next_action="요구사항 문서 전달",
-        due_date=date(2026, 3, 10),
-        memo="",
+    # then: 내용 칸이 담기고 수행일은 없다
+    assert data == action_inputs.DealActionUpdateInput(
+        content=ActionContentInput(
+            action_type=CatalogChoice(name="미팅"),
+            action="킥오프 미팅",
+            next_action="요구사항 문서 전달",
+            due_date=date(2026, 3, 10),
+            memo="",
+        ),
+        acted_on=None,
     )
 
 
@@ -119,7 +123,7 @@ def test_progress_only_body_is_accepted_and_next_action_defaults_to_empty(
 
     # when: 입력으로 바꾼다
     data = model(**body).to_input()
-    content = data.content if isinstance(data, DealActionInput) else data
+    content = data.content
 
     # then: 진행사항은 그대로이고 Next Action은 빈 값, Due는 없다
     assert content.action == "통화만"
@@ -140,7 +144,7 @@ def test_next_only_body_is_accepted_and_progress_defaults_to_empty(
 
     # when: 입력으로 바꾼다
     data = model(**body).to_input()
-    content = data.content if isinstance(data, DealActionInput) else data
+    content = data.content
 
     # then: 진행사항은 빈 값이고 Next Action·Due는 그대로다
     assert content.action == ""
@@ -157,8 +161,8 @@ def test_a_missing_or_null_due_date_reaches_the_domain_as_none() -> None:
     without = {key: value for key, value in BODY.items() if key != "due_date"}
 
     # when·then: 키가 없을 때와 null일 때 모두 Due 없음이다
-    assert DealActionUpdateRequest(**without).to_input().due_date is None
-    assert _update(due_date=None).to_input().due_date is None
+    assert DealActionUpdateRequest(**without).to_input().content.due_date is None
+    assert _update(due_date=None).to_input().content.due_date is None
 
 
 @pytest.mark.parametrize("value", ["2026-13-40", "내일", "20260310x", 123])
@@ -181,7 +185,7 @@ def test_memo_defaults_to_an_empty_string() -> None:
     without = {key: value for key, value in BODY.items() if key != "memo"}
 
     # when·then: 입력의 Memo는 빈 문자열이다
-    assert DealActionUpdateRequest(**without).to_input().memo == ""
+    assert DealActionUpdateRequest(**without).to_input().content.memo == ""
 
 
 def test_the_type_may_be_chosen_by_id() -> None:
@@ -193,16 +197,18 @@ def test_the_type_may_be_chosen_by_id() -> None:
     data = _update(action_type={"id": type_id}).to_input()
 
     # then: 선택은 id 하나다
-    assert data.action_type == CatalogChoice(id=type_id)
+    assert data.content.action_type == CatalogChoice(id=type_id)
 
 
 def test_the_type_name_is_passed_on_untouched_for_the_domain_to_judge() -> None:
     """유형 이름은 도메인이 판정하도록 그대로 넘긴다."""
     # when·then: 공백이 낀 이름과 빈 이름이 가공 없이 선택으로 넘어간다
-    assert _update(action_type={"name": "  웨비나  "}).to_input().action_type == CatalogChoice(
-        name="  웨비나  "
+    assert _update(
+        action_type={"name": "  웨비나  "}
+    ).to_input().content.action_type == CatalogChoice(name="  웨비나  ")
+    assert _update(action_type={"name": ""}).to_input().content.action_type == CatalogChoice(
+        name=""
     )
-    assert _update(action_type={"name": ""}).to_input().action_type == CatalogChoice(name="")
 
 
 @pytest.mark.parametrize(
@@ -249,7 +255,7 @@ def test_action_request_accepts_long_text_without_schema_limit() -> None:
     # when: 수정 요청도 긴 텍스트로 입력으로 바꾼다
     long_update = _update(action="가" * 5_000, memo="다" * 20_000).to_input()
     # then: 길이가 그대로다
-    assert (len(long_update.action), len(long_update.memo)) == (5_000, 20_000)
+    assert (len(long_update.content.action), len(long_update.content.memo)) == (5_000, 20_000)
 
 
 def test_blank_texts_are_left_to_the_domain_messages() -> None:
@@ -261,7 +267,7 @@ def test_blank_texts_are_left_to_the_domain_messages() -> None:
     data = _update(action="   ", next_action="").to_input()
 
     # then: 값이 가공 없이 넘어간다
-    assert (data.action, data.next_action) == ("   ", "")
+    assert (data.content.action, data.content.next_action) == ("   ", "")
 
 
 @pytest.mark.parametrize("field", ["status_key", "forecast_key"])

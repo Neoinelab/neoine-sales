@@ -150,9 +150,9 @@ async def test_update_persists_the_content_and_updated_at(action_case: Case) -> 
     assert stored.updated_at == later(10)
 
 
-async def test_update_writes_only_content_and_updated_at(action_case: Case) -> None:
-    """수정은 내용과 수정 시각만 쓰고 수행자·스냅숏·수행 시각은 바꾸지 않는다."""
-    # given: 저장된 Action에서 내용과 함께 수행자·스냅숏·수행 시각도 메모리에서 바꾼 상태
+async def test_update_does_not_write_the_actor_or_the_snapshot(action_case: Case) -> None:
+    """수정은 수행자·스냅숏·생성 시각을 쓰지 않는다(수행일은 따로 저장한다)."""
+    # given: 저장된 Action에서 내용과 함께 수행자·스냅숏도 메모리에서 바꾼 상태
     action = make_deal_action(
         later(5), actor_user_id=uid("kim"), snapshot=make_sync("introduction", "best")
     )
@@ -162,7 +162,6 @@ async def test_update_writes_only_content_and_updated_at(action_case: Case) -> N
     )
     action.actor_user_id = uid("park")  # 도메인이 막는 변경이지만 저장소도 쓰지 않아야 한다
     action.snapshot = make_sync("prospecting", "pipeline")
-    action.acted_on = date_after(9)
 
     # when: 수정을 저장한다
     await action_case.repository.update(action)
@@ -175,6 +174,31 @@ async def test_update_writes_only_content_and_updated_at(action_case: Case) -> N
     assert stored.snapshot == make_sync("introduction", "best")
     assert stored.acted_on == date_after(0)
     assert stored.created_at == later(5)
+
+
+async def test_update_persists_the_acted_on(action_case: Case) -> None:
+    """수정하면 수행일(date)도 저장되고 다른 날짜 값은 바뀌지 않는다.
+
+    테스트 코드: AC-127
+    """
+    # given: 저장된 Action에 수행일만 메모리에서 바꾼 상태
+    action = make_deal_action(later(5))
+    await action_case.add(action)
+    action.acted_on = date_after(-3)
+    action.updated_at = later(10)
+
+    # when: 수정을 저장한다
+    await action_case.repository.update(action)
+
+    # when: 다시 읽는다
+    stored = await action_case.repository.get(action.id)
+    # then: 새 수행일과 수정 시각이 읽히고 내용·생성 시각은 그대로다
+    assert stored.acted_on == date_after(-3)
+    assert stored.updated_at == later(10)
+    assert stored.content == action.content
+    assert stored.created_at == later(5)
+    # then: 검색 결과(수행일 순서의 읽기)에도 새 수행일이 보인다
+    assert [found.acted_on for found in await action_case.found()] == [date_after(-3)]
 
 
 async def test_update_unknown_action_raises_not_found(action_case: Case) -> None:

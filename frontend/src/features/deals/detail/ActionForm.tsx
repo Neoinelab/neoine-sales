@@ -75,7 +75,7 @@ export function ActionForm({ deal, editing, previous, onDone, onCancel }: Action
   // 채우기 버튼을 누르면 켜진 채 나타난다(닫을 수 있을 때만). 끄면 요청에 id를 보내지 않는다.
   const [filledFromId, setFilledFromId] = useState<number | null>(null)
   const [closePrevious, setClosePrevious] = useState(false)
-  const [actedOn, setActedOn] = useState(today)
+  const [actedOn, setActedOn] = useState(editing?.actedOn ?? today)
   const [memo, setMemo] = useState(editing?.memo ?? '')
   const [errors, setErrors] = useState<Errors>({})
   const [error, setError] = useState<unknown>(null)
@@ -111,7 +111,7 @@ export function ActionForm({ deal, editing, previous, onDone, onCancel }: Action
     if (actedOn > today) return '수행일은 오늘 이후로 지정할 수 없습니다.'
     const registered = deal.createdAt.slice(0, 10)
     if (actedOn < registered) return `수행일은 Deal 등록일(${registered}) 이전으로 지정할 수 없습니다.`
-    if (closing && previous && actedOn < previous.actedOn) {
+    if (!editing && closing && previous && actedOn < previous.actedOn) {
       return `이전 Next Action의 수행일(${previous.actedOn})보다 앞선 날짜로는 이전 Next Action을 종료할 수 없습니다.`
     }
     return undefined
@@ -119,7 +119,7 @@ export function ActionForm({ deal, editing, previous, onDone, onCancel }: Action
 
   function validate(): Errors {
     const found: Errors = {}
-    if (!editing) found.actedOn = actedOnError()
+    found.actedOn = actedOnError()
     const typeName = type.trim()
     if (typeName === '') found.type = '유형을 입력하세요.'
     else if ([...typeName].length > ACTION_TYPE_NAME_MAX_LENGTH) found.type = `유형은 ${ACTION_TYPE_NAME_MAX_LENGTH}자 이내로 입력하세요.`
@@ -153,7 +153,8 @@ export function ActionForm({ deal, editing, previous, onDone, onCancel }: Action
     const fields = { type: choice, progress: progress.trim(), nextAction: nextAction.trim(), dueDate, memo }
     try {
       if (editing) {
-        await update.mutateAsync({ dealCode: deal.code, actionId: editing.id, input: fields })
+        const changed = actedOn === editing.actedOn ? {} : { actedOn }
+        await update.mutateAsync({ dealCode: deal.code, actionId: editing.id, input: { ...fields, ...changed } })
         onDone('Action이 수정되었습니다.')
         return
       }
@@ -200,14 +201,12 @@ export function ActionForm({ deal, editing, previous, onDone, onCancel }: Action
         <form aria-label={title} className="dd-form" onSubmit={(e) => void submit(e)} noValidate>
           {editing && <p className="hint">수정한 내용은 Deal History에 기록됩니다. 등록 시점의 Status·Forecast는 바뀌지 않습니다.</p>}
           <p className="hint">
-            {editing ? `수행일: ${editing.actedOn} · ` : ''}담당자: {actor}
+            담당자: {actor}
           </p>
-          {!editing && (
-            <div className="field">
-              <label htmlFor={`${formId}-acted`}>수행일</label>
-              <DateInput id={`${formId}-acted`} aria-label="수행일" inputRef={actedOnRef} value={actedOn} onChange={setActedOn} error={errors.actedOn} />
-            </div>
-          )}
+          <div className="field">
+            <label htmlFor={`${formId}-acted`}>수행일</label>
+            <DateInput id={`${formId}-acted`} aria-label="수행일" inputRef={actedOnRef} value={actedOn} onChange={setActedOn} error={errors.actedOn} />
+          </div>
           {editing ? (
             typeInput
           ) : (

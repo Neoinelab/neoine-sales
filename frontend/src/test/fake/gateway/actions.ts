@@ -68,6 +68,9 @@ function assertNoNul(input: ActionUpdateInput): void {
   }
 }
 
+/** 수정 입력 + 수행일(AC-R45). 공용 `ActionUpdateInput`이 수행일을 갖기 전에도 타입이 맞도록 여기서 넓힌다. */
+type UpdateWithDay = ActionUpdateInput & { actedOn?: string | null }
+
 type Content = Pick<ActionRecord, 'typeId' | 'progress' | 'nextAction' | 'dueDate' | 'memo'>
 
 const blankToNull = (text: string): string | null => (text.trim() === '' ? null : text.trim())
@@ -269,21 +272,32 @@ export function createActionsGateway(ctx: MockContext): ActionsGateway {
         logHistory(ctx, dealCode, user.id, 'action', 'Action', '', `등록: ${summary(ctx, record)}`)
         return actionView(data, record)
       }),
-    update: (actionId, input: ActionUpdateInput) =>
+    update: (actionId, input: UpdateWithDay) =>
       write(ctx, () => {
         const user = requireWrite(ctx)
         assertDueShape(input.dueDate) // 요청 형식 422는 Action 조회(404)·권한(403)보다 먼저다
+        assertActedOnShape(input.actedOn)
         const record = findAction(ctx, actionId)
         if (!canEditAction(viewerOf(user), record.actorId)) throw forbidden('본인 Action 또는 admin만 수정할 수 있습니다.')
         const typePlan = planActionType(ctx, input.type)
         const next = normalize(input, typePlan.kind === 'existing' ? typePlan.record.id : 0)
-        if (same(record, next)) return actionView(ctx.store.data, record)
-        const before = summary(ctx, record)
-        Object.assign(record, { ...next, typeId: commitActionType(ctx, typePlan, user.id).id })
+        // 서버 AC-R45: 없거나 null이거나 지금 수행일과 같으면 수행일 유지(범위 판정 없음), 다르면 등록과 같은 범위·문구로 판정한다.
+        // 유형(새 유형 생성 포함)·내용 판정 다음이고, 거절되면 새 유형도 남지 않는다. 기준 행·종료일과의 선후는 보지 않는다(AC-R46).
+        const newDay = input.actedOn !== undefined && input.actedOn !== null && input.actedOn !== record.actedOn ? input.actedOn : null
+        if (newDay !== null) {
+          const requestedAt = ctx.clock.now()
+          const offset = offsetMinutes(requestedAt)
+          assertActedOnRange(newDay, serverDate(requestedAt, offset), serverDate(findDeal(ctx.store.data, record.dealCode).createdAt, offset))
+        }
+        if (newDay === null && same(record, next)) return actionView(ctx.store.data, record)
+        // 서버 AC-R11: 수행일이 바뀐 수정만 변경 전·후 끝에 " / 수행일: <날짜>"가 붙는다.
+        const before = summary(ctx, record) + (newDay === null ? '' : ` / 수행일: ${record.actedOn}`)
+        const after = (): string => `수정: ${summary(ctx, record)}` + (newDay === null ? '' : ` / 수행일: ${newDay}`)
+        Object.assign(record, { ...next, typeId: commitActionType(ctx, typePlan, user.id).id, ...(newDay === null ? {} : { actedOn: newDay }) })
         // 없던 Next Action을 채우면 Open, 비우면 상태 제거, 있던 것을 고치면 상태는 그대로(종료여도).
         if (record.nextAction === null) Object.assign(record, { nextActionStatus: null, nextActionClosedOn: null })
         else if (record.nextActionStatus === null) Object.assign(record, { nextActionStatus: 'open', nextActionClosedOn: null })
-        logHistory(ctx, record.dealCode, user.id, 'action', 'Action', before, `수정: ${summary(ctx, record)}`)
+        logHistory(ctx, record.dealCode, user.id, 'action', 'Action', before, after())
         return actionView(ctx.store.data, record)
       }),
     changeNextActionStatus: (actionId, input: { status: NextActionStatus; memo: string }) =>

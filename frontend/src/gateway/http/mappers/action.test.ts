@@ -335,17 +335,18 @@ describe('closePreviousNextActionId mapping', () => {
 
 
 describe('toActionCreateBody performed day', () => {
-  // acted_on은 값이 있을 때만 ISO 날짜로 담고, 수정 본문에는 없다.
+  // acted_on은 등록·수정 모두 값이 있을 때만 ISO 날짜로 담는다.
   // 테스트 코드: AC-109
-  it('adds acted_on only when a day is given and never to the update body', () => {
+  it('adds acted_on to the create and update bodies only when a day is given', () => {
     // when: 수행일 없이 / 있는 입력으로 등록 본문을 만든다
     const without = toActionCreateBody(input())
     const withDay = toActionCreateBody(input({ actedOn: '2026-11-10' }))
     // then: 없으면 키가 없고, 있으면 그 날짜다
     expect(without).not.toHaveProperty('acted_on')
     expect(withDay).toMatchObject({ acted_on: '2026-11-10' })
-    // then: 같은 입력의 수정 본문에는 acted_on이 없다
-    expect(toActionUpdateBody(input({ actedOn: '2026-11-10' }))).not.toHaveProperty('acted_on')
+    // then: 수정 본문도 수행일이 없으면 키가 없고 있으면 그 날짜다
+    expect(toActionUpdateBody(input())).not.toHaveProperty('acted_on')
+    expect(toActionUpdateBody(input({ actedOn: '2026-11-10' }))).toMatchObject({ acted_on: '2026-11-10' })
   })
 })
 

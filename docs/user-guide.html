@@ -279,7 +279,7 @@
   <li>지난 날짜로 넣은 Action은 Actions 목록에서 그 날짜 자리에 놓입니다. 그보다 늦은 수행일의 Action이 이미 있으면 Deal의 최종 업데이트는 바뀌지 않고, Next Action이 있는 더 늦은 Action이 있으면 Deal의 Next Action도 바뀌지 않습니다. 수행일이 같은 Action끼리는 나중에 등록한 것이 위(더 최근)입니다. 등록 시점 Status·Forecast는 수행일과 관계없이 저장할 때의 값입니다.</li>
   <li><b>담당자</b>는 저장한 사람으로 서버가 채웁니다. 다른 사람 이름으로 기록할 수 없습니다.</li>
   <li>기록할 때의 Status와 Forecast(등록 폼에서 바꿨다면 바꾼 뒤의 값)를 Action에 <b>스냅숏</b>으로 함께 저장합니다. 나중에 Deal이 바뀌어도 "그때 어떤 단계였는지"가 남습니다.</li>
-  <li>수정할 수 있는 것은 내용(유형·진행사항·Next Action·Due Date·Memo)뿐입니다. 수정 폼에는 Status·Forecast가 없습니다. 수행일, 담당자, 스냅숏은 바뀌지 않습니다.</li>
+  <li>수정할 수 있는 것은 내용(유형·진행사항·Next Action·Due Date·Memo)과 수행일입니다. 수행일은 등록할 때와 같이 오늘 이후나 Deal 등록일 이전으로 지정할 수 없습니다. 수정 폼에는 Status·Forecast가 없고, 담당자와 등록 시점 Status·Forecast는 바뀌지 않습니다.</li>
   <li>수정할 때 Next Action 상태는 이렇게 됩니다: 종료된 Next Action의 내용이나 Due Date를 고쳐도 <b>상태는 그대로</b>입니다. Next Action을 비우면 상태도 없어지고, 없던 Next Action을 새로 채우면 Open으로 시작합니다.</li>
 </ul>
 <h3 id="action-effect">7.3 Action이 Deal에 주는 영향</h3>

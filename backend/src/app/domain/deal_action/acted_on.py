@@ -9,18 +9,24 @@ if TYPE_CHECKING:
     from datetime import date, datetime
 
 
-def resolve_acted_on(acted_on: date | None, *, now: datetime, deal_registered_at: datetime) -> date:
-    """수행일. 없으면 오늘, 오늘 이후나 Deal 등록일 이전은 거절한다(업무 날짜 기준)."""
-    today = business_date(now)
-    if acted_on is None:
-        return today
-    if acted_on > today:
+def ensure_acted_on_in_range(
+    acted_on: date, *, now: datetime, deal_registered_at: datetime
+) -> None:
+    """수행일은 오늘 이후나 Deal 등록일 이전일 수 없다(업무 날짜 기준)."""
+    if acted_on > business_date(now):
         raise InvalidValueError("수행일은 오늘 이후로 지정할 수 없습니다.")
     registered_on = business_date(deal_registered_at)
     if acted_on < registered_on:
         raise InvalidValueError(
             f"수행일은 Deal 등록일({registered_on.isoformat()}) 이전으로 지정할 수 없습니다."
         )
+
+
+def resolve_acted_on(acted_on: date | None, *, now: datetime, deal_registered_at: datetime) -> date:
+    """수행일. 없으면 오늘, 오늘 이후나 Deal 등록일 이전은 거절한다(업무 날짜 기준)."""
+    if acted_on is None:
+        return business_date(now)
+    ensure_acted_on_in_range(acted_on, now=now, deal_registered_at=deal_registered_at)
     return acted_on
 
 
