@@ -360,7 +360,7 @@ EXPECTED_DEAL_CHILD_OBJECTS = {
     },
     "deal_bant_labels": {"fk_deal_bant_labels_deal_id_deals", "ix_deal_bant_labels_label_id"},
     "deal_history": {"fk_deal_history_deal_id_deals", "ix_deal_history_deal_id_changed_at"},
-    "deal_actions": {"fk_deal_actions_deal_id_deals", "ix_deal_actions_deal_id_acted_at"},
+    "deal_actions": {"fk_deal_actions_deal_id_deals", "ix_deal_actions_deal_id_acted_on"},
     "deal_attachments": {
         "fk_deal_attachments_deal_id_deals",
         "uq_deal_attachments_deal_id_file_name",

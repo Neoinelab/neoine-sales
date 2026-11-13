@@ -15,7 +15,7 @@ const input = (over: Partial<ActionInput> = {}): ActionInput => ({
 const PROGRESS_ONLY = { nextAction: '', dueDate: '' } as const
 
 describe('actions.changeNextActionStatus: 상태 전이와 메모', () => {
-  // Fake는 종료하면 메모를 Memo 뒤에 붙이고, 공백뿐인 메모는 Memo를 바꾸지 않으며, Open으로 되돌리면 종료 시각이 없어진다.
+  // Fake는 종료하면 메모를 Memo 뒤에 붙이고, 공백뿐인 메모는 Memo를 바꾸지 않으며, Open으로 되돌리면 종료일이 없어진다.
   // 테스트 코드: NA-068
   it('appends the closing memo, keeps the memo for a blank note and clears the closed time on reopen', async () => {
     // given: Memo "기존"인 Open Action 둘이 있다.
@@ -25,27 +25,27 @@ describe('actions.changeNextActionStatus: 상태 전이와 메모', () => {
     // when: 하나는 메모 "전달 완료"로 종료(수행)하고 다른 하나는 공백 메모로 종료(미수행)한다.
     const closed = await gateway.actions.changeNextActionStatus(withNote.id, { status: 'done', memo: ' 전달 완료 ' })
     const keptMemo = await gateway.actions.changeNextActionStatus(blank.id, { status: 'notDone', memo: '   ' })
-    // then: 앞의 Memo는 "기존\n전달 완료"이고 종료 시각이 서버 시각이며 뒤의 Memo는 그대로다.
-    expect(closed).toMatchObject({ nextActionStatus: 'done', memo: '기존\n전달 완료', nextActionClosedAt: clock.now() })
+    // then: 앞의 Memo는 "기존\n전달 완료"이고 종료일이 서버 업무 날짜(오늘)이며 뒤의 Memo는 그대로다.
+    expect(closed).toMatchObject({ nextActionStatus: 'done', memo: '기존\n전달 완료', nextActionClosedOn: clock.now().slice(0, 10) })
     expect(keptMemo).toMatchObject({ nextActionStatus: 'notDone', memo: '기존' })
     // when: 종료(수행)한 Action을 Open으로 되돌린다.
     const reopened = await gateway.actions.changeNextActionStatus(withNote.id, { status: 'open', memo: '' })
-    // then: 종료 시각이 없어지고 덧붙인 Memo는 남는다.
-    expect(reopened).toMatchObject({ nextActionStatus: 'open', nextActionClosedAt: null, memo: '기존\n전달 완료' })
+    // then: 종료일이 없어지고 덧붙인 Memo는 남는다.
+    expect(reopened).toMatchObject({ nextActionStatus: 'open', nextActionClosedOn: null, memo: '기존\n전달 완료' })
   })
 
-  // Fake는 종료(수행)에서 종료(미수행)으로 바로 바꾸고 종료 시각을 새로 정한다.
+  // Fake는 종료(수행)에서 종료(미수행)으로 바로 바꾸고 종료일을 그 날의 업무 날짜로 새로 정한다.
   // 테스트 코드: NA-068
-  it('switches between the closed statuses with a new closed time', async () => {
-    // given: 시각 T1에 종료(수행)된 Action이 있다.
+  it('switches between the closed statuses with a new closed date', async () => {
+    // given: 어느 날 종료(수행)된 Action이 있다.
     const { gateway, clock } = await mockAs('kim')
     const created = await gateway.actions.create(dealCode(2), input())
     const first = await gateway.actions.changeNextActionStatus(created.id, { status: 'done', memo: '' })
-    clock.advance(60_000)
-    // when: 시각 T2에 not_done, 메모 "취소됨"으로 바꾼다.
+    clock.advance(86_400_000)
+    // when: 다음 날 not_done, 메모 "취소됨"으로 바꾼다.
     const switched = await gateway.actions.changeNextActionStatus(created.id, { status: 'notDone', memo: '취소됨' })
-    // then: 종료 시각이 T1과 다르고 Memo 끝에 "취소됨"이 붙는다.
-    expect(switched.nextActionClosedAt).not.toBe(first.nextActionClosedAt)
+    // then: 종료일이 다음 날로 바뀌고 Memo 끝에 "취소됨"이 붙는다.
+    expect(switched.nextActionClosedOn).not.toBe(first.nextActionClosedOn)
     expect(switched).toMatchObject({ nextActionStatus: 'notDone', memo: '기존\n취소됨' })
   })
 

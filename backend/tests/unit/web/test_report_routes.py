@@ -625,6 +625,56 @@ async def test_query_with_legacy_format_returns_invalid_report(field: str, legac
     assert body["errors"][0]["message"] == "이 필드는 포맷을 고를 수 없습니다"
 
 
+CONVERTED_DATE_FIELDS = [
+    "deal.last_updated_at",
+    "deal.status_changed_at",
+    "action.acted_at",
+    "action.closed_at",
+]
+
+
+async def test_catalog_lists_the_converted_fields_as_dates_without_a_time_format() -> None:
+    """카탈로그에서 key가 그대로인 네 필드는 date 형식이고 기본 ymd이며 ymd_hm이 없다.
+
+    테스트 코드: RQ-113
+    """
+    async with _client(FakeUseCases(), role=Role.USER) as http:
+        # when: 필드 목록을 요청한다 (전제: 로그인한 user)
+        fields = {f["key"]: f for f in (await http.get(FIELDS)).json()["fields"]}
+
+    # then: 네 필드는 date 형식, 기본 포맷 ymd, 포맷 선택지에 ymd_hm이 없다
+    for key in CONVERTED_DATE_FIELDS:
+        assert fields[key]["type"] == "date", key
+        assert fields[key]["default_format"] == "ymd", key
+        assert "ymd_hm" not in fields[key]["formats"], key
+    # then: 시각(datetime) 형식은 등록일 하나뿐이고 ymd_hm을 가진다
+    assert [k for k, f in fields.items() if f["type"] == "datetime"] == ["deal.created_at"]
+    assert "ymd_hm" in fields["deal.created_at"]["formats"]
+
+
+@pytest.mark.parametrize("field", CONVERTED_DATE_FIELDS)
+async def test_query_with_ymd_hm_on_a_converted_field_returns_format_not_allowed(
+    field: str,
+) -> None:
+    """네 날짜 필드에 ymd_hm을 요청하면 422 invalid-report의 format-not-allowed다.
+
+    테스트 코드: RQ-114
+    """
+    # given: 네 필드(매개변수)에 ymd_hm을 준 요청
+    body_in = {"columns": [{"field": field, "format": "ymd_hm"}]}
+    async with _client(FakeUseCases(), role=Role.USER) as http:
+        # when: 조회한다 (전제: 로그인한 user)
+        response = await http.post(QUERY, json=body_in)
+
+    # then: invalid-report이고 위반은 columns[0].format의 format-not-allowed 하나다
+    assert response.status_code == 422
+    body = response.json()
+    assert str(body["type"]).endswith("invalid-report")
+    assert [(e["location"], e["code"]) for e in body["errors"]] == [
+        (["columns", 0, "format"], "format-not-allowed")
+    ]
+
+
 async def test_query_with_format_on_a_text_field_says_it_cannot_be_chosen() -> None:
     """텍스트 필드에 포맷을 주면 포맷을 고를 수 없다는 문구다.
 

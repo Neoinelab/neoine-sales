@@ -1,4 +1,4 @@
-# 서버 시간·업무 날짜   (feature 코드: TM, 상태: 확정(2026-11-09 사용자 확인))
+# 서버 시간·업무 날짜   (feature 코드: TM, 상태: 확정(2026-11-13 사용자 확인))
 
 > 이 문서는 **이미 구현된 동작**을 정본 명세로 옮긴 것입니다(2026-11-09). 근거는 작업 트리의 코드(`backend/src/app/domain/common/business_date.py`, `domain/deal/updated_period.py`의 `months_before`·`months_after`, `application/time/get_server_time.py`, `web/routers/time.py`, `web/schemas/{time,server_datetime}.py`, `infra/system_clock.py`, `frontend/src/gateway/{clock.ts,http/time.ts}`, `data/{time.ts,today.ts}`, `features/auth/RequireAuth.tsx`, `shared/format.ts`, `shared/model/dates.ts`)와 이전 계획 `artifacts/10-analysis/server-time-plan.md`(2026-10-23 사용자 결정 Q1 A)입니다. 계획과 코드가 다른 곳은 코드를 따랐습니다(예: 포커스 재동기는 마지막 동기 후 30분이 지났을 때만).
 
@@ -176,7 +176,7 @@ TM-R9~TM-R16. 화면 기능(기본 연도·분기, 상대 시각 표시, Forecas
 | TM-018 | 응답 시각 오프셋은 서버 프로세스 시간대를 따른다 | TM-R8, TM-R2, TM-UC3 | backend | `web/test_server_datetime.py::test_offset_follows_the_process_timezone` |
 | TM-019 | 비어 있는 시각은 null이고 openapi 스키마는 일반 date-time과 같다 | TM-R8, TM-UC3 | backend | `web/test_server_datetime.py::test_none_stays_null`<br>`web/test_server_datetime.py::test_openapi_schema_is_unchanged` |
 | TM-020 | 응답 스키마에 맨 datetime 필드가 남지 않는다 | TM-R8, TM-UC3 | backend | `web/test_schema_datetime_guard.py::test_no_bare_datetime_field_in_web_schemas`<br>`web/test_schema_datetime_guard.py::test_the_guard_detects_a_bare_datetime` |
-| TM-021 | Deal 상세·목록·Dashboard 응답의 시각은 서버 오프셋이고 순간은 서버 시계와 같다 | TM-R8, TM-UC3 | backend | `web/test_response_time_offsets.py::test_deal_detail_timestamps_carry_server_offset`<br>`web/test_response_time_offsets.py::test_deal_list_timestamps_carry_server_offset`<br>`web/test_response_time_offsets.py::test_dashboard_as_of_carries_server_offset`<br>`web/test_deal_response_risk.py` |
+| TM-021 | Deal 상세·목록·Dashboard 응답의 시각은 서버 오프셋이고 순간은 서버 시계와 같다 | TM-R8, TM-UC3 | backend | `web/test_response_time_offsets.py::test_deal_detail_timestamps_carry_server_offset`, `web/test_response_time_offsets.py::test_deal_list_timestamps_carry_server_offset`, `web/test_response_time_offsets.py::test_dashboard_as_of_carries_server_offset`, `web/test_deal_response_risk.py` <br><br><br> |
 | TM-022 | 앱 시계는 왕복 지연의 절반을 보정해 서버 시각에 맞춘다 | TM-R9, TM-UC4 | frontend | `gateway/clock.test.ts > syncs to the server time at the round-trip midpoint` |
 | TM-023 | 브라우저 날짜·시간대가 달라도 앱 시계는 서버 오프셋과 경과 시간만 따른다 | TM-R9, TM-UC4 | frontend | `gateway/clock.test.ts > follows the browser elapsed time, not the browser date`<br>`gateway/clock.test.ts > keeps the server offset even when the browser zone differs` |
 | TM-024 | 서버 now의 Z와 마이크로초를 읽는다 | TM-R9, TM-UC4 | frontend | `gateway/clock.test.ts > treats Z as a zero offset`<br>`gateway/clock.test.ts > accepts the microsecond fraction the server sends` |
@@ -297,7 +297,7 @@ TM-R9~TM-R16. 화면 기능(기본 연도·분기, 상대 시각 표시, Forecas
 ### TM-021 Deal 상세·목록·Dashboard 응답의 시각은 서버 오프셋이고 순간은 서버 시계와 같다
 - Given 서버 시간대가 Asia/Seoul이고 서버 시계가 `2026-12-31T15:00:00Z`로 고정되었으며 그 시각에 Deal 하나가 등록되었다
 - When Deal 상세, Deal 목록, Dashboard 요약(`year=2026`)을 조회한다
-- Then 상세의 `created_at`·`updated_at`·`status_changed_at`·`last_updated_at`, 목록 행의 `created_at`·`last_updated_at`, Dashboard의 `as_of`가 모두 `+09:00`으로 끝나고 순간은 서버 시계와 같다
+- Then 상세의 `created_at`·`updated_at`, 목록 행의 `created_at`, Dashboard의 `as_of`가 모두 `+09:00`으로 끝나고 순간은 서버 시계와 같다
 
 ### TM-022 앱 시계는 왕복 지연의 절반을 보정해 서버 시각에 맞춘다
 - Given 브라우저 시각이 1000ms에서 요청하고 3000ms에 응답을 받으며 서버 `now`가 `2026-12-31T23:59:00+09:00`이다
@@ -406,3 +406,4 @@ TM-R9~TM-R16. 화면 기능(기본 연도·분기, 상대 시각 표시, Forecas
 | --- | --- | --- |
 | 2026-11-09 | 최초 작성: 구현된 서버 시간·업무 날짜 동작을 정본 명세로 옮김. 규칙 TM-R1~R16, use case TM-UC1~UC5, BDD 케이스 TM-001~TM-042 | TM-001~TM-042(신규) |
 | 2026-11-11 | UI 문서 작성에 따라 날짜 입력 칸 참조를 UI 규칙 번호로 교체(UI-R1~R11). 동작·케이스 변경 없음, 상태 줄 그대로 | 없음 |
+| 2026-11-13 | 확정(2026-11-13 사용자 확인): `status_changed_at`·`last_updated_at`이 날짜(`*_on`)가 되어 TM-021의 응답 시각 목록에서 뺐다 | 변경 TM-021 |

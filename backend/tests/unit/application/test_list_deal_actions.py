@@ -41,7 +41,7 @@ async def test_list_actions_of_missing_deal_is_not_found(action_env: ActionEnv) 
 
 
 async def test_list_returns_every_action_of_the_deal_without_paging(action_env: ActionEnv) -> None:
-    """조건이 없으면 그 Deal의 Action 전부가 페이지 없이 수행일시 최신순으로 나온다.
+    """조건이 없으면 Action 전부가 페이지 없이 수행일 최신순(같은 날은 나중 등록 먼저)으로 나온다.
 
     테스트 코드: NA-019
     """
@@ -69,10 +69,10 @@ async def test_list_excludes_the_actions_of_other_deals(action_env: ActionEnv) -
     assert names == ["내 Deal"]
 
 
-async def test_default_sort_is_latest_acted_at_first_and_ascending_is_available(
+async def test_default_sort_is_latest_acted_on_first_and_ascending_is_available(
     action_env: ActionEnv,
 ) -> None:
-    """정렬을 주지 않으면 최신 수행이 먼저이고 acted_at_asc는 반대 순서다.
+    """정렬을 주지 않으면 최신 수행(수행일, 같은 날은 id)이 먼저이고 acted_at_asc는 반대 순서다.
 
     테스트 코드: NA-019, NA-038
     """
@@ -89,8 +89,8 @@ async def test_default_sort_is_latest_acted_at_first_and_ascending_is_available(
     assert asc == ["첫째", "둘째", "셋째"]
 
 
-async def test_sort_by_due_date_breaks_ties_by_latest_acted_at(action_env: ActionEnv) -> None:
-    """Due Date 정렬에서 Due가 같으면 최신 수행이 먼저다.
+async def test_sort_by_due_date_breaks_ties_by_latest_acted_on(action_env: ActionEnv) -> None:
+    """Due Date 정렬에서 Due가 같으면 최신 수행(수행일, 같은 날은 id 큰 것)이 먼저다.
 
     테스트 코드: NA-039
     """
@@ -254,7 +254,7 @@ async def test_due_range_is_inclusive_on_both_ends(action_env: ActionEnv) -> Non
 async def test_acted_date_range_covers_whole_local_days_on_both_ends(
     action_env: ActionEnv, local_tz: Callable[[str], None]
 ) -> None:
-    """수행일 조건은 업무 날짜 00:00부터 다음 날 00:00 전까지를 양끝 포함으로 본다.
+    """수행일 조건은 수행일을 양끝 포함으로 비교하고 요청 시각의 업무 날짜가 수행일이 된다.
 
     테스트 코드: NA-029
     """

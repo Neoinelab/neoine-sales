@@ -3,11 +3,9 @@
 from typing import TYPE_CHECKING
 
 from sqlalchemy import (
-    Date,
     Integer,
     and_,
     case,
-    cast,
     false,
     func,
     literal,
@@ -17,7 +15,6 @@ from sqlalchemy import (
 )
 
 from app.infra.db.deal_risk import not_closed_condition, overdue_condition, stale_condition
-from app.infra.db.report_buckets import local_time
 from app.infra.db.report_joins import DEALS
 
 if TYPE_CHECKING:
@@ -58,6 +55,6 @@ class RiskExprs:
 
 
 def status_days(context: ReportContext) -> Expr:
-    """현재 Status에 머문 업무 날짜 수(음수면 0). 시각은 업무 오프셋의 날짜로 바꿔 센다."""
-    changed_on = cast(local_time(DEALS.c.status_changed_at, context), Date)
+    """현재 Status에 머문 업무 날짜 수(음수면 0)."""
+    changed_on = DEALS.c.status_changed_on
     return func.greatest(type_coerce(literal(context.today) - changed_on, Integer), 0)

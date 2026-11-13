@@ -21,7 +21,7 @@ from tests.support.user_ids import uid
 
 if TYPE_CHECKING:
     import builtins
-    from datetime import datetime
+    from datetime import date, datetime
 
     from app.application.deal.dto import DealView
     from app.domain.deal.history import DealHistoryEntry
@@ -57,7 +57,7 @@ class ActionEnv:
     def code(self) -> str:
         return self.deal.item.deal.id.value
 
-    async def act(
+    async def act(  # noqa: PLR0913 - 등록 입력 칸이 모두 독립적인 선택 값
         self,
         actor: Actor = KIM,
         *,
@@ -65,6 +65,7 @@ class ActionEnv:
         status_changes: tuple[Any, ...] = (),
         advance: int = 60,
         close_previous: DealActionId | None = None,
+        acted_on: date | None = None,
         **content: Any,  # noqa: ANN401
     ) -> DealAction:
         """Action을 등록한다(기본은 시계가 60초 흐른 뒤라 수행 시각이 서로 다르다).
@@ -73,7 +74,10 @@ class ActionEnv:
         """
         self.env.clock.advance(advance)
         data = make_register_input(
-            status_changes, close_previous_next_action_id=close_previous, **content
+            status_changes,
+            close_previous_next_action_id=close_previous,
+            acted_on=acted_on,
+            **content,
         )
         return await self.register.execute(code or self.code, data, actor)
 

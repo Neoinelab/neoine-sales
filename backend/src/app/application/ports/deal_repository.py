@@ -1,10 +1,9 @@
 from dataclasses import dataclass, replace
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 from enum import StrEnum
 from typing import TYPE_CHECKING, Protocol
 
 from app.application.ports.pagination import check_page
-from app.domain.common.business_date import start_of_business_day
 from app.domain.common.errors import InvalidValueError
 from app.domain.common.validation import check_date_in_bounds, optional_text
 from app.domain.deal.period import (
@@ -58,7 +57,7 @@ class SortOrder(StrEnum):
 class DealQuery:
     """Deal 검색 조건. 조건은 AND로 결합하고 기간은 양끝을 포함한다.
 
-    최종 업데이트 기간(updated_*)은 서버 업무 날짜 기준이다(`updated_window`).
+    최종 업데이트 기간(updated_*)은 서버 업무 날짜 기준이다.
 
     정렬의 동률은 항상 Deal code 오름차순이다.
     """
@@ -147,14 +146,6 @@ class DealQuery:
         """
         return self.quarters
 
-    def updated_window(self) -> tuple[datetime | None, datetime | None]:
-        """last_updated_at의 반개구간 [시작, 끝). 끝 날짜의 다음 날 00:00(로컬)이 끝이다."""
-        start = start_of_business_day(self.updated_from) if self.updated_from else None
-        end = (
-            start_of_business_day(self.updated_to + timedelta(days=1)) if self.updated_to else None
-        )
-        return start, end
-
 
 @dataclass(frozen=True, slots=True)
 class NextActionSummary:
@@ -173,13 +164,13 @@ class NextActionSummary:
 class DealListItem:
     """목록·상세의 한 행: Deal과 Action에서 파생되는 값.
 
-    last_updated_at은 이 Deal의 모든 Action 중 가장 최근 수행 시각이고, Action이 없으면 Deal
-    등록 시각이다. Deal 수정 시각은 쓰지 않는다.
+    last_updated_on은 이 Deal의 모든 Action 중 가장 최근 수행일이고, Action이 없으면 Deal
+    등록일(업무 날짜)이다. Deal 수정 시각은 쓰지 않는다.
     """
 
     deal: Deal
     next_action: NextActionSummary | None
-    last_updated_at: datetime
+    last_updated_on: date
     license_contract_count: int  # 이 Deal의 라이선스 계약 수(Won 이탈 확인용)
     has_issued_license_contract: bool  # 발급 상태 계약이 있음(Won 이탈 차단 표시용)
 
@@ -218,7 +209,7 @@ class DealRepository(Protocol):
     async def exists(self, code: DealCode) -> bool: ...
 
     async def get_item(self, code: DealCode) -> DealListItem:
-        """상세용 파생값(next_action, last_updated_at) 포함. 없으면 DealNotFoundError."""
+        """상세용 파생값(next_action, last_updated_on) 포함. 없으면 DealNotFoundError."""
         ...
 
     async def search(self, query: DealQuery) -> Sequence[DealListItem]:

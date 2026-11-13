@@ -51,7 +51,7 @@ def to_entity(row: LicenseContractRow, deal_code: str) -> LicenseContract:
         renewed_from_id=None
         if row.renewed_from_id is None
         else LicenseContractId(row.renewed_from_id),
-        ended_at=row.ended_at,
+        ended_on=row.ended_on,
         created_by=UserId(row.created_by_user_id),
         updated_by=UserId(row.updated_by_user_id),
         created_at=row.created_at,
@@ -60,7 +60,7 @@ def to_entity(row: LicenseContractRow, deal_code: str) -> LicenseContract:
 
 
 def apply_changes(row: LicenseContractRow, contract: LicenseContract) -> None:
-    """update가 저장하는 칸(status·기간·fields·ended_at·updated_*)만 옮긴다."""
+    """update가 저장하는 칸(status·기간·fields·ended_on·updated_*)만 옮긴다."""
     term = contract.term
     row.status = contract.status.value
     row.license_start = contract.license_start
@@ -70,7 +70,7 @@ def apply_changes(row: LicenseContractRow, contract: LicenseContract) -> None:
     row.tech_owner = contract.fields.tech_owner
     row.inspection_cycle = contract.fields.inspection.value
     row.note = contract.fields.note
-    row.ended_at = contract.ended_at
+    row.ended_on = contract.ended_on
     row.updated_by_user_id = contract.updated_by
     row.updated_at = contract.updated_at
 

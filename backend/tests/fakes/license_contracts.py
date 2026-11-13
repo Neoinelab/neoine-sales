@@ -8,7 +8,7 @@ import는 계약과 무관한 테스트의 수집까지 막는다(partner_meetin
   InvalidReferenceError("사용자"), 한 Deal에 발급 상태(issued_new·issued_renewal)가 둘이 되면
   LicenseAlreadyIssuedError(DB 부분 유니크 인덱스 모사). 실패해도 이후 호출을 계속 쓸 수 있다
 - get/get_row: 없으면 LicenseContractNotFoundError. get_row는 Deal 값(DealSide)과 첨부 수를 함께
-- update: status·term·license_start·license_end·fields·ended_at·updated_by·updated_at만 저장한다
+- update: status·term·license_start·license_end·fields·ended_on·updated_by·updated_at만 저장한다
   (renewed_from_id·deal_code·created_*는 불변). 발급 유니크 위반은 LicenseAlreadyIssuedError
 - delete: 물리 삭제(첨부 행 CASCADE). 없으면 NotFound
 - ids_of_deal: 그 Deal의 계약 id를 오름차순으로(없으면 빈 목록)
@@ -134,7 +134,7 @@ class FakeLicenseContractRepository(InMemoryStore["LicenseContract"]):
             "license_start",
             "license_end",
             "fields",
-            "ended_at",
+            "ended_on",
             "updated_by",
             "updated_at",
         ):

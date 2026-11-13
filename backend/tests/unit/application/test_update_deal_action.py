@@ -62,10 +62,10 @@ async def test_update_action_by_owner_logs_before_and_after(action_env: ActionEn
     assert (await action_env.action_entries())[-1].changed_by == KIM.user_id
 
 
-async def test_update_does_not_touch_the_snapshot_actor_acted_at_or_the_deal(
+async def test_update_does_not_touch_the_snapshot_actor_acted_on_or_the_deal(
     action_env: ActionEnv,
 ) -> None:
-    """수정해도 수행 일시·담당자·스냅숏·Deal은 바뀌지 않는다.
+    """수정해도 수행일·담당자·스냅숏·Deal은 바뀌지 않는다.
 
     테스트 코드: AC-046, AC-035
     """
@@ -76,9 +76,9 @@ async def test_update_does_not_touch_the_snapshot_actor_acted_at_or_the_deal(
     # when: KIM이 내용을 고친다
     await action_env.update_as(action.id, KIM, **CHANGE)
 
-    # then: 담당자·수행 일시·스냅숏·등록 시각이 그대로다
+    # then: 담당자·수행일·스냅숏·등록 시각이 그대로다
     stored = await action_env.stored(action.id)
-    assert (stored.actor_user_id, stored.acted_at) == (KIM.user_id, action.acted_at)
+    assert (stored.actor_user_id, stored.acted_on) == (KIM.user_id, action.acted_on)
     assert stored.snapshot == action.snapshot
     assert stored.created_at == action.created_at
     # then: Deal 수정 시각이 그대로다

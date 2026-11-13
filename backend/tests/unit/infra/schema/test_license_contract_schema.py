@@ -5,7 +5,7 @@
 실패하는 INSERT는 테스트마다 하나뿐이다.
 """
 
-from datetime import UTC, date, datetime
+from datetime import date
 from typing import TYPE_CHECKING
 
 import pytest
@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 
 pytestmark = pytest.mark.integration
 
-ENDED_AT = datetime(2026, 6, 1, tzinfo=UTC)
+ENDED_ON = date(2026, 6, 1)
 COLUMNS = (
     "select column_name, data_type, character_maximum_length, is_nullable, column_default,"
     " is_identity, identity_generation, identity_maximum"
@@ -76,7 +76,7 @@ async def test_license_contracts_columns_types_and_nullability(session: AsyncSes
         "inspection_cycle": ("character varying", 20, "NO"),
         "note": ("text", None, "NO"),
         "renewed_from_id": ("bigint", None, "YES"),
-        "ended_at": ("timestamp with time zone", None, "YES"),
+        "ended_on": ("date", None, "YES"),
         "created_by_user_id": ("bigint", None, "NO"),
         "updated_by_user_id": ("bigint", None, "NO"),
         "created_at": ("timestamp with time zone", None, "NO"),
@@ -277,7 +277,7 @@ async def test_one_deal_may_have_many_non_issued_contracts(session: AsyncSession
         license_end=date(2026, 12, 31),
         term_amount=1,
         term_unit="year",
-        ended_at=ENDED_AT,
+        ended_on=ENDED_ON,
     )
 
     # then: 행이 4건이다
@@ -429,26 +429,32 @@ async def test_the_end_date_cannot_be_before_the_start_date(session: AsyncSessio
     # then: IntegrityError ck_license_contracts_end_after_start
 
 
-async def test_ended_at_is_set_exactly_when_the_status_is_ended(session: AsyncSession) -> None:
-    """종료 상태는 ended_at이 있어야 한다."""
+async def test_ended_on_is_set_exactly_when_the_status_is_ended(session: AsyncSession) -> None:
+    """종료 상태는 ended_on이 있어야 한다.
+
+    테스트 코드: LC-087
+    """
     # given: head 스키마의 임시 DB 세션과 Deal·사용자
     code, user = await _deal(session)
 
-    # when: ended_at 없는 종료 행을 INSERT한다
-    with pytest.raises(IntegrityError, match="ck_license_contracts_ended_has_time"):
-        await insert_issued_contract(session, code, user, status="ended")  # ended_at 없음
-    # then: IntegrityError ck_license_contracts_ended_has_time
+    # when: ended_on 없는 종료 행을 INSERT한다
+    with pytest.raises(IntegrityError, match="ck_license_contracts_ended_has_date"):
+        await insert_issued_contract(session, code, user, status="ended")  # ended_on 없음
+    # then: IntegrityError ck_license_contracts_ended_has_date
 
 
-async def test_ended_at_without_the_ended_status_is_rejected(session: AsyncSession) -> None:
-    """종료가 아닌 상태에 ended_at이 있으면 거절된다."""
+async def test_ended_on_without_the_ended_status_is_rejected(session: AsyncSession) -> None:
+    """종료가 아닌 상태에 ended_on이 있으면 거절된다.
+
+    테스트 코드: LC-087
+    """
     # given: head 스키마의 임시 DB 세션과 Deal·사용자
     code, user = await _deal(session)
 
-    # when: ended_at이 있는 비종료 행을 INSERT한다
-    with pytest.raises(IntegrityError, match="ck_license_contracts_ended_has_time"):
-        await insert_contract(session, code, user, ended_at=ENDED_AT)
-    # then: IntegrityError ck_license_contracts_ended_has_time
+    # when: ended_on이 있는 비종료 행을 INSERT한다
+    with pytest.raises(IntegrityError, match="ck_license_contracts_ended_has_date"):
+        await insert_contract(session, code, user, ended_on=ENDED_ON)
+    # then: IntegrityError ck_license_contracts_ended_has_date
 
 
 async def test_a_missing_deal_is_rejected_by_the_foreign_key(session: AsyncSession) -> None:
@@ -532,7 +538,7 @@ async def test_deleting_the_origin_contract_sets_the_renewal_link_to_null(
         license_end=date(2026, 12, 31),
         term_amount=1,
         term_unit="year",
-        ended_at=ENDED_AT,
+        ended_on=ENDED_ON,
     )
     renewal = await insert_issued_contract(session, code, user, status="issued_renewal")
     await session.execute(

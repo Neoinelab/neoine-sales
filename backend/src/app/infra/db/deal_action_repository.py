@@ -41,13 +41,13 @@ def _apply_content(row: DealActionRow, content: ActionContent) -> None:
 
 def _apply_state(row: DealActionRow, state: NextActionState | None) -> None:
     row.next_action_status = None if state is None else state.status.value
-    row.next_action_closed_at = None if state is None else state.closed_at
+    row.next_action_closed_on = None if state is None else state.closed_on
 
 
 def _state_of(row: DealActionRow) -> NextActionState | None:
     if row.next_action_status is None:
         return None
-    return NextActionState(NextActionStatus(row.next_action_status), row.next_action_closed_at)
+    return NextActionState(NextActionStatus(row.next_action_status), row.next_action_closed_on)
 
 
 def _reference_errors(action: DealAction) -> ConstraintErrors:
@@ -73,7 +73,7 @@ def _to_row(action: DealAction, deal_id: int) -> DealActionRow:
     row = DealActionRow(
         id=action.id,
         deal_id=deal_id,
-        acted_at=action.acted_at,
+        acted_on=action.acted_on,
         actor_user_id=action.actor_user_id,
         status_kind=CodeKind.STATUS.value,
         status_key=action.snapshot.status_key,
@@ -98,7 +98,7 @@ def _to_entity(row: DealActionRow, type_name: str, deal_code: str) -> DealAction
             due_date=row.due_date,
             memo=row.memo,
         ),
-        acted_at=row.acted_at,
+        acted_on=row.acted_on,
         actor_user_id=UserId(row.actor_user_id),
         snapshot=SyncState(status_key=row.status_key, forecast_key=row.forecast_key),
         next_action_state=_state_of(row),
@@ -122,11 +122,10 @@ def _filtered(query: DealActionQuery) -> Select[DealActionRow, str, str]:
         statement = statement.where(DealActionRow.action_type_id == query.action_type_id)
     if query.actor_user_id is not None:
         statement = statement.where(DealActionRow.actor_user_id == query.actor_user_id)
-    start, end = query.acted_window()
-    if start is not None:
-        statement = statement.where(DealActionRow.acted_at >= start)
-    if end is not None:
-        statement = statement.where(DealActionRow.acted_at < end)
+    if query.acted_from is not None:
+        statement = statement.where(DealActionRow.acted_on >= query.acted_from)
+    if query.acted_to is not None:
+        statement = statement.where(DealActionRow.acted_on <= query.acted_to)
     if query.due_from is not None:
         statement = statement.where(DealActionRow.due_date >= query.due_from)
     if query.due_to is not None:
@@ -182,7 +181,7 @@ class SqlDealActionRepository(SqlRepository[DealActionRow]):
         statement = (
             _with_type_name()
             .where(DealRow.deal_code == deal_code.value, DealActionRow.next_action.is_not(None))
-            .order_by(DealActionRow.acted_at.desc(), DealActionRow.id.desc())
+            .order_by(DealActionRow.acted_on.desc(), DealActionRow.id.desc())
             .limit(1)
             .execution_options(populate_existing=True)
         )

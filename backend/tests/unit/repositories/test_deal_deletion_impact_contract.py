@@ -10,7 +10,7 @@ import pytest
 from app.application.ports.deal_repository import DealDeletionImpact
 from app.domain.deal.errors import DealNotFoundError
 from app.domain.deal.history import DealHistoryEntry, HistoryCategory, HistoryDraft
-from tests.factories import later, make_deal
+from tests.factories import date_after, later, make_deal
 from tests.support.user_ids import OWNER_ID
 
 if TYPE_CHECKING:
@@ -51,8 +51,8 @@ async def test_history_and_actions_are_counted_per_kind(deal_case: DealCase) -> 
     deal = make_deal(code=CODE)
     await deal_case.add(deal)
     await deal_case.history.add_many([_entry(CODE, 1), _entry(CODE, 2), _entry(CODE, 3)])
-    await deal_case.add_action(deal, acted_at=later(10))
-    await deal_case.add_action(deal, acted_at=later(20))
+    await deal_case.add_action(deal, acted_on=date_after(1))
+    await deal_case.add_action(deal, acted_on=date_after(2))
 
     # when: 삭제 영향을 읽는다
     impact = await deal_case.deals.deletion_impact(deal.id)
@@ -73,7 +73,7 @@ async def test_other_deals_are_not_counted(deal_case: DealCase) -> None:
     await deal_case.add(first)
     await deal_case.add(second)
     await deal_case.history.add_many([_entry(CODE, 1), _entry(OTHER, 2), _entry(OTHER, 3)])
-    await deal_case.add_action(second, acted_at=later(10))
+    await deal_case.add_action(second, acted_on=date_after(1))
 
     # when: 첫 Deal의 삭제 영향을 읽는다
     impact = await deal_case.deals.deletion_impact(first.id)
@@ -93,7 +93,7 @@ async def test_the_counts_are_what_a_delete_would_remove(deal_case: DealCase) ->
     deal = make_deal(code=CODE)
     await deal_case.add(deal)
     await deal_case.history.add_many([_entry(CODE, 1), _entry(CODE, 2)])
-    await deal_case.add_action(deal, acted_at=later(10))
+    await deal_case.add_action(deal, acted_on=date_after(1))
     impact = await deal_case.deals.deletion_impact(deal.id)
 
     # when: Deal을 삭제한다

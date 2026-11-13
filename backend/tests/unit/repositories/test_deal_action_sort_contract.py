@@ -1,7 +1,7 @@
 """DealActionRepository 헤더 정렬 계약: Fake와 SQL 구현에 같은 테스트.
 
 담당자·유형은 대소문자 무시 코드 포인트 순, 상태는 Open -> done -> not_done, 빈 값은 방향과 관계없이
-맨 뒤, 동률은 수행일시 내림차순 -> id 오름차순(방향을 바꿔도 뒤집히지 않는다).
+맨 뒤, 동률은 수행일 내림차순 -> id 내림차순(방향을 바꿔도 뒤집히지 않는다, AC-R43).
 """
 
 from datetime import date, timedelta
@@ -17,10 +17,10 @@ if TYPE_CHECKING:
 
 
 async def _add_due(action_case: Case, rows: list[tuple[str, date | None, int]]) -> None:
-    for name, due, minutes in rows:
+    for name, due, days_later in rows:
         await action_case.add(
             make_deal_action(
-                acted_at=NOW + timedelta(minutes=minutes),
+                now=NOW + timedelta(days=days_later),
                 action=name,
                 next_action="" if due is None else f"{name} 계획",
                 due_date=due,
@@ -42,39 +42,42 @@ async def test_due_date_desc_puts_latest_first_and_missing_due_last(action_case:
     assert found == ["늦음", "빠름", "없음"]
 
 
-async def test_due_date_desc_breaks_ties_by_latest_acted_at_then_id(action_case: Case) -> None:
-    """Due 내림차순에서 기한이 같으면 수행 시각 최신순, 그다음 id 오름차순이다."""
-    # given: 기한이 같고 수행 시각이 다르거나 같은 Action 4건
+async def test_due_date_desc_breaks_ties_by_latest_acted_on_then_id(action_case: Case) -> None:
+    """Due 내림차순에서 기한이 같으면 수행일 최신순, 그다음 id 내림차순(나중 등록이 앞)이다.
+
+    테스트 코드: NA-069
+    """
+    # given: 기한이 같고 수행일이 다르거나 같은 Action 4건
     due = date(2026, 2, 10)
     await _add_due(
         action_case,
         [
             ("오래됨", due, 0),
             ("최신", due, 10),
-            ("같은 시각 먼저", due, 5),
-            ("같은 시각 나중", due, 5),
+            ("같은 날 먼저", due, 5),
+            ("같은 날 나중", due, 5),
         ],
     )
 
     # when: Due 내림차순으로 검색한다
     found = await action_case.search(sort=DealActionSort.DUE_DATE_DESC)
-    # then: 수행 시각 최신순이고, 같은 시각은 먼저 등록한 것이 앞이다
+    # then: 수행일 최신순이고, 같은 날은 나중에 등록한 것이 앞이다
     assert found == [
         "최신",
-        "같은 시각 먼저",
-        "같은 시각 나중",
+        "같은 날 나중",
+        "같은 날 먼저",
         "오래됨",
     ]
 
 
 async def _add_by_actor(action_case: Case, rows: list[tuple[str, str | None, str]]) -> None:
-    """(login_id, 표시 이름, 진행사항). 수행 시각은 등록 순서대로 1분씩 늦다."""
-    for minute, (login, display, name) in enumerate(rows):
+    """(login_id, 표시 이름, 진행사항). 수행일은 등록 순서대로 하루씩 늦다."""
+    for days_later, (login, display, name) in enumerate(rows):
         user_id = uid(login)
         await action_case.ensure_actor_named(user_id, display, login_id=login)
         await action_case.add(
             make_deal_action(
-                acted_at=NOW + timedelta(minutes=minute), action=name, actor_user_id=user_id
+                now=NOW + timedelta(days=days_later), action=name, actor_user_id=user_id
             )
         )
 
@@ -131,12 +134,12 @@ async def test_action_type_sort_uses_current_type_name_case_insensitively(
 ) -> None:
     """유형 정렬은 현재 유형 이름을 대소문자 무시로 비교한다."""
     # given: 유형이 통화·Beta·미팅·alpha인 Action 4건
-    for minute, (type_name, name) in enumerate(
+    for days_later, (type_name, name) in enumerate(
         [("통화", "통화함"), ("Beta", "베타"), ("미팅", "미팅함"), ("alpha", "알파")]
     ):
         await action_case.add(
             make_deal_action(
-                acted_at=NOW + timedelta(minutes=minute), action=name, action_type=type_name
+                now=NOW + timedelta(days=days_later), action=name, action_type=type_name
             )
         )
 
@@ -163,10 +166,10 @@ async def test_action_type_sort_uses_current_type_name_case_insensitively(
 async def test_action_type_sort_follows_renamed_type(action_case: Case) -> None:
     """유형 이름을 바꾸면 유형 정렬 순서도 바뀐다."""
     # given: 유형이 "가나"·"다라"인 Action 2건
-    for minute, (type_name, name) in enumerate([("가나", "A"), ("다라", "B")]):
+    for days_later, (type_name, name) in enumerate([("가나", "A"), ("다라", "B")]):
         await action_case.add(
             make_deal_action(
-                acted_at=NOW + timedelta(minutes=minute), action=name, action_type=type_name
+                now=NOW + timedelta(days=days_later), action=name, action_type=type_name
             )
         )
     # when: 이름을 바꾸기 전에 유형 오름차순으로 검색한다
@@ -188,9 +191,9 @@ async def test_action_type_sort_follows_renamed_type(action_case: Case) -> None:
 async def _seed_statuses(action_case: Case) -> None:
     """수행 순서: 미수행 종료, Next Action 없음, 수행 종료, Open."""
     rows = [("미수행", "not_done"), ("없음", None), ("수행", "done"), ("열림", "open")]
-    for minute, (name, state) in enumerate(rows):
+    for days_later, (name, state) in enumerate(rows):
         action = make_deal_action(
-            acted_at=NOW + timedelta(minutes=minute),
+            now=NOW + timedelta(days=days_later),
             action=name,
             next_action="" if state is None else f"{name} 계획",
         )
@@ -236,22 +239,25 @@ async def test_next_action_status_desc_reverses_but_keeps_missing_last(
     ]
 
 
-async def test_non_acted_sorts_break_ties_by_latest_acted_at_then_id(action_case: Case) -> None:
-    """수행 시각 외 정렬에서 값이 같으면 수행 시각 최신순, 그다음 id 오름차순이다."""
-    # given: 같은 수행자가 수행 시각이 다르거나 같게 남긴 Action 4건
+async def test_non_acted_sorts_break_ties_by_latest_acted_on_then_id(action_case: Case) -> None:
+    """수행일 외 정렬에서 값이 같으면 수행일 최신순, 그다음 id 내림차순(나중 등록이 앞)이다.
+
+    테스트 코드: NA-069
+    """
+    # given: 같은 수행자가 수행일이 다르거나 같게 남긴 Action 4건
     same_actor = uid("tie_actor")
     await action_case.ensure_actor_named(same_actor, "Tie", login_id="tie_actor")
-    for name, minute in [("오래됨", 0), ("최신", 10), ("중간 먼저", 5), ("중간 나중", 5)]:
+    for name, days_later in [("오래됨", 0), ("최신", 10), ("중간 먼저", 5), ("중간 나중", 5)]:
         await action_case.add(
             make_deal_action(
-                acted_at=NOW + timedelta(minutes=minute), action=name, actor_user_id=same_actor
+                now=NOW + timedelta(days=days_later), action=name, actor_user_id=same_actor
             )
         )
-    expected = ["최신", "중간 먼저", "중간 나중", "오래됨"]
+    expected = ["최신", "중간 나중", "중간 먼저", "오래됨"]
 
     # when: 수행자 오름차순으로 검색한다
     ascending = await action_case.search(sort=DealActionSort.ACTOR_ASC)
-    # then: 수행 시각 최신순이고 같은 시각은 먼저 등록한 것이 앞이다
+    # then: 수행일 최신순이고 같은 날은 나중에 등록한 것이 앞이다
     assert ascending == expected
     # when: 수행자 내림차순으로 검색한다
     descending = await action_case.search(sort=DealActionSort.ACTOR_DESC)

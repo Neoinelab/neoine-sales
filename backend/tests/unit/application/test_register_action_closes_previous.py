@@ -48,9 +48,11 @@ async def test_register_closes_the_basis_next_action_as_done(action_env: ActionE
     # when: 그 id를 닫도록 지정해 새 Action을 등록한다
     created = await action_env.act(KIM, close_previous=previous.id, next_action="다음 일정")
 
-    # then: 기준 행은 done이고 종료 시각이 새 Action의 수행 시각이며 Memo는 그대로다
+    # then: 기준 행은 done이고 종료일이 요청의 업무 날짜(새 Action 등록일)이며 Memo는 그대로다
     stored = await action_env.stored(previous.id)
-    assert stored.next_action_state == NextActionState.of(NextActionStatus.DONE, created.acted_at)
+    assert stored.next_action_state == NextActionState(
+        NextActionStatus.DONE, closed_on=created.created_at.astimezone().date()
+    )
     assert stored.content.memo == "기존 메모"  # 종료 메모는 없다
     # then: 새 Action이 저장되어 Action은 2건이다
     assert (await action_env.stored(created.id)).content.next_action == "다음 일정"
@@ -341,10 +343,10 @@ async def test_register_writes_status_history_then_created_history(
 
     # then: 이력 끝 두 줄은 종료 줄, 등록 줄 순서다
     assert await action_env.rows() == [*before, CLOSED_ROW, CREATED_ROW]
-    # then: 두 줄의 시각은 수행 시각이고 변경자는 요청자다
+    # then: 두 줄의 시각은 요청 시각이고 변경자는 요청자다
     entries = await action_env.action_entries()
     closing, registration = entries[-2], entries[-1]
-    assert closing.changed_at == registration.changed_at == created.acted_at
+    assert closing.changed_at == registration.changed_at == created.created_at
     assert closing.changed_by == registration.changed_by == KIM.user_id
 
 

@@ -8,7 +8,6 @@ from app.domain.report.fields import (
     FieldSpec,
     code_field,
     date_field,
-    datetime_field,
     number_field,
     text_field,
     user_field,
@@ -40,7 +39,7 @@ ACTION_FIELDS: tuple[FieldSpec, ...] = (
     code_field("action.status", "당시 Status", CodeSource.by_key(OptionsSource.STATUS_CODES)),
     code_field("action.forecast", "당시 Forecast", CodeSource.by_key(OptionsSource.FORECAST_CODES)),
     date_field("action.due_date", "Due Date"),
-    datetime_field("action.acted_at", "수행일시"),
-    datetime_field("action.closed_at", "종료 시각"),
+    date_field("action.acted_at", "수행일"),
+    date_field("action.closed_at", "종료일"),
     _ACTION_COUNT,
 )

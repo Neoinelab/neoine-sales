@@ -62,7 +62,7 @@ def test_action_query_acted_date_outside_1900_2999_is_rejected(
 
 
 @pytest.mark.parametrize("day", EDGES)
-def test_deal_query_updated_window_works_at_both_range_edges(
+def test_deal_query_updated_dates_work_at_both_range_edges(
     day: date, local_tz: Callable[[str], None]
 ) -> None:
     """허용 범위의 양 끝 날짜(1900-01-01, 2999-12-31)는 Deal 조회 구간으로 바뀐다."""
@@ -70,16 +70,14 @@ def test_deal_query_updated_window_works_at_both_range_edges(
     local_tz("Asia/Seoul")
 
     # when: 양 끝 날짜로 최종 업데이트 구간을 구한다
-    start, end = _deal_query(updated_from=day, updated_to=day).updated_window()
+    query = _deal_query(updated_from=day, updated_to=day)
 
-    # then: 시작이 끝보다 앞선 구간이다
-    assert start is not None
-    assert end is not None
-    assert start < end
+    # then: 거부되지 않고 그 날짜가 그대로 조건이 된다
+    assert (query.updated_from, query.updated_to) == (day, day)
 
 
 @pytest.mark.parametrize("day", EDGES)
-def test_action_query_acted_window_works_at_both_range_edges(
+def test_action_query_acted_dates_work_at_both_range_edges(
     day: date, local_tz: Callable[[str], None]
 ) -> None:
     """허용 범위의 양 끝 날짜(1900-01-01, 2999-12-31)는 조회 구간으로 바뀐다.
@@ -89,11 +87,9 @@ def test_action_query_acted_window_works_at_both_range_edges(
     # given: 서버 시간대 Asia/Seoul
     local_tz("Asia/Seoul")
     # when: 양 끝 날짜로 수행 구간을 구한다
-    start, end = _action_query(acted_from=day, acted_to=day).acted_window()
-    # then: 시작이 끝보다 앞선 구간이다
-    assert start is not None
-    assert end is not None
-    assert start < end
+    query = _action_query(acted_from=day, acted_to=day)
+    # then: 거부되지 않고 그 날짜가 그대로 조건이 된다
+    assert (query.acted_from, query.acted_to) == (day, day)
 
 
 def test_deal_query_accepts_the_whole_allowed_span_in_one_range() -> None:
@@ -101,8 +97,8 @@ def test_deal_query_accepts_the_whole_allowed_span_in_one_range() -> None:
     # when: 1900-01-01부터 2999-12-31까지 범위로 조건을 만든다
     query = _deal_query(updated_from=date(1900, 1, 1), updated_to=date(2999, 12, 31))
 
-    # then: 구간이 계산된다
-    assert query.updated_window() != (None, None)
+    # then: 거부되지 않고 조건이 된다
+    assert (query.updated_from, query.updated_to) == (date(1900, 1, 1), date(2999, 12, 31))
 
 
 def test_action_query_accepts_the_whole_allowed_span_in_one_range() -> None:
@@ -112,5 +108,5 @@ def test_action_query_accepts_the_whole_allowed_span_in_one_range() -> None:
     """
     # when: 1900-01-01부터 2999-12-31까지 범위로 조건을 만든다
     query = _action_query(acted_from=date(1900, 1, 1), acted_to=date(2999, 12, 31))
-    # then: 구간이 계산된다
-    assert query.acted_window() != (None, None)
+    # then: 거부되지 않고 조건이 된다
+    assert (query.acted_from, query.acted_to) == (date(1900, 1, 1), date(2999, 12, 31))

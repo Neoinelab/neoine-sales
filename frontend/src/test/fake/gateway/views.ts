@@ -1,6 +1,8 @@
 /** 저장소 레코드 → 화면용 객체 변환(사용자 풀기, 파생값 계산, 복사본 반환). */
 
 import { compareIso } from '../../../shared/model/dates'
+import { offsetMinutes } from '../../../shared/model/dates'
+import { businessDate } from '../businessDate'
 import { computeRisk, statusDays } from '../../../shared/model/risk'
 import type {
   Attachment,
@@ -84,7 +86,7 @@ export function latestAction(data: SeedData, dealCode: string): ActionRecord | u
   let best: ActionRecord | undefined
   for (const a of data.actions) {
     if (a.dealCode !== dealCode) continue
-    if (!best || compareIso(a.actedAt, best.actedAt) > 0 || (compareIso(a.actedAt, best.actedAt) === 0 && a.id > best.id)) best = a
+    if (!best || a.actedOn > best.actedOn || (a.actedOn === best.actedOn && a.id > best.id)) best = a
   }
   return best
 }
@@ -94,7 +96,7 @@ export function latestNextAction(data: SeedData, dealCode: string): ActionRecord
   let best: ActionRecord | undefined
   for (const a of data.actions) {
     if (a.dealCode !== dealCode || a.nextAction === null) continue
-    if (!best || compareIso(a.actedAt, best.actedAt) > 0 || (compareIso(a.actedAt, best.actedAt) === 0 && a.id > best.id)) best = a
+    if (!best || a.actedOn > best.actedOn || (a.actedOn === best.actedOn && a.id > best.id)) best = a
   }
   return best
 }
@@ -110,8 +112,8 @@ export function dealRow(ctx: MockContext, deal: Deal): DealRow {
   const latest = latestAction(data, deal.code)
   const active = deal.partnerLinks.find((l) => l.active)
   const now = ctx.clock.now()
-  // E4: 모든 Action의 최근 수행 시각, 없으면 등록 시각. Deal 수정(updatedAt)은 반영하지 않는다.
-  const lastUpdatedAt = latest ? latest.actedAt : deal.createdAt
+  // E4: 모든 Action의 최근 수행일, 없으면 업무 시간대 기준 Deal 등록일(RK-067). Deal 수정(updatedAt)은 반영하지 않는다.
+  const lastUpdatedOn = latest ? latest.actedOn : businessDate(deal.createdAt, offsetMinutes(now))
   const basis = latestNextAction(data, deal.code)
   const nextAction =
     basis && basis.nextAction !== null && basis.dueDate !== null && basis.nextActionStatus !== null
@@ -128,10 +130,10 @@ export function dealRow(ctx: MockContext, deal: Deal): DealRow {
     hasIssuedLicenseContract: hasIssuedContract(data, deal.code),
     licenseContractCount: data.licenseContracts.filter((c) => c.dealCode === deal.code).length,
     nextAction,
-    lastUpdatedAt,
-    statusDays: statusDays(deal.statusChangedAt, now),
+    lastUpdatedOn,
+    statusDays: statusDays(deal.statusChangedOn, now),
     risk: computeRisk(
-      { forecastKey: deal.forecastKey, dueDate: nextAction?.dueDate ?? null, lastUpdatedAt },
+      { forecastKey: deal.forecastKey, dueDate: nextAction?.dueDate ?? null, lastUpdatedOn },
       now,
       data.alerts.staleDays,
     ),

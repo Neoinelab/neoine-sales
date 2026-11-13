@@ -13,7 +13,7 @@ from app.infra.db.deal_derived import LATEST_NEXT, last_updated_scalar
 from app.infra.db.models_deal import DealRow
 
 if TYPE_CHECKING:
-    from datetime import date, datetime
+    from datetime import date
 
 
 def not_closed_condition() -> ColumnElement[bool]:
@@ -29,5 +29,5 @@ def overdue_condition(today: date) -> ColumnElement[bool]:
     )
 
 
-def stale_condition(stale_before: datetime) -> ColumnElement[bool]:
+def stale_condition(stale_before: date) -> ColumnElement[bool]:
     return last_updated_scalar() < stale_before

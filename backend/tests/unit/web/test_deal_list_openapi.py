@@ -101,3 +101,22 @@ def test_forecast_key_is_an_array_parameter(parameters: dict[str, dict[str, Any]
     assert array["items"]["maxLength"] == 50
     assert array["maxItems"] == 100
     assert parameter.get("explode", True) is True
+
+
+def test_the_period_parameters_and_the_sort_value_keep_their_names(
+    parameters: dict[str, dict[str, Any]], contract: dict[str, Any]
+) -> None:
+    """응답 필드가 날짜(last_updated_on)로 바뀌어도 최종 업데이트 검색·정렬 요청 이름은 그대로다.
+
+    테스트 코드: DL-030, DL-106
+    """
+    # when: 기간 파라미터와 sort 값을 읽는다 (전제: 앱 계약·커밋된 계약 모두)
+    sort_values = _enum_values(parameters["sort"]["schema"], contract)
+    # then: updated_from·updated_to와 정렬 값 last_updated_at이 그대로 있다
+    assert {"updated_from", "updated_to"} <= set(parameters)
+    assert "last_updated_at" in sort_values
+    assert "last_updated_on" not in sort_values
+    # then: 응답 스키마는 날짜 키를 쓰고 시각 키가 없다
+    row = contract["components"]["schemas"]["DealRowResponse"]["properties"]
+    assert {"last_updated_on", "status_changed_on"} <= set(row)
+    assert not {"last_updated_at", "status_changed_at"} & set(row)

@@ -183,7 +183,7 @@ describe('deals.applyChange', () => {
     const { gateway } = await mockAs('kim')
     const code = dealCode(4)
     // when: 금액 0, 1.5, 날짜 ''와 정상 값으로 바꾼다
-    const lastUpdatedBefore = (await gateway.deals.get(code)).lastUpdatedAt
+    const lastUpdatedBefore = (await gateway.deals.get(code)).lastUpdatedOn
     // then: 0은 값 오류, 1.5와 ''은 요청 형식 오류이며 정상 값은 저장되고 이력이 남는다
     await expectApiError(gateway.deals.applyChange(code, { change: { field: 'revenueAmount', value: 0 } }), 422, '매출금액은 1원 이상의 정수로 입력하세요.')
     // 서버와 같다: 정수가 아닌 금액·날짜 형식이 아닌 값은 요청 형식 오류(request-validation)다
@@ -197,14 +197,14 @@ describe('deals.applyChange', () => {
     expect(history[0]).toMatchObject({ category: 'expectedClose', after: '2026-12-30' })
     expect(history[1]).toMatchObject({ category: 'amount', target: '금액(단위:원)', before: '310,000,000', after: '350,000,000' })
     // E4: Inline 수정은 최종 업데이트를 바꾸지 않으므로 미업데이트가 풀리지 않는다
-    expect(b.deal.lastUpdatedAt).toBe(lastUpdatedBefore)
+    expect(b.deal.lastUpdatedOn).toBe(lastUpdatedBefore)
     expect(b.deal.risk).toBe('stale')
   })
 })
 
 describe('E4 최종 업데이트는 Action 기준', () => {
-  // Deal을 수정해도 최종 업데이트 시각과 미업데이트 경고는 바뀌지 않는다.
-  it('Deal 수정(PATCH)도 lastUpdatedAt과 미업데이트를 바꾸지 않는다', async () => {
+  // Deal을 수정해도 최종 업데이트일과 미업데이트 경고는 바뀌지 않는다.
+  it('Deal 수정(PATCH)도 lastUpdatedOn과 미업데이트를 바꾸지 않는다', async () => {
     // given: 미업데이트 경고가 있는 Deal(4번)
     const { gateway } = await mockAs('kim')
     const code = dealCode(4) // 미업데이트
@@ -214,13 +214,13 @@ describe('E4 최종 업데이트는 Action 기준', () => {
     // when: Deal 이름 외 필드(구매절차)를 수정한다
     const after = await gateway.deals.update(code, { procurement: '수정' })
 
-    // then: lastUpdatedAt이 그대로이고 risk는 여전히 stale이다
-    expect(after.lastUpdatedAt).toBe(before.lastUpdatedAt)
+    // then: lastUpdatedOn이 그대로이고 risk는 여전히 stale이다
+    expect(after.lastUpdatedOn).toBe(before.lastUpdatedOn)
     expect(after.risk).toBe('stale')
   })
 
-  // 진행사항만 있는 Action을 등록하면 그 수행 시각이 최종 업데이트 시각이 된다.
-  it('진행사항만 있는 Action의 수행 시각이 lastUpdatedAt이다', async () => {
+  // 진행사항만 있는 Action을 등록하면 그 수행일이 최종 업데이트일이 된다.
+  it('진행사항만 있는 Action의 수행일이 lastUpdatedOn이다', async () => {
     // given: Deal 2번
     const { gateway } = await mockAs('kim')
     const code = dealCode(2)
@@ -232,8 +232,8 @@ describe('E4 최종 업데이트는 Action 기준', () => {
       dueDate: '',
       memo: '',
     })
-    const result = (await gateway.deals.get(code)).lastUpdatedAt
-    // then: Deal의 lastUpdatedAt이 Action의 수행 시각이다
-    expect(result).toBe(created.actedAt)
+    const result = (await gateway.deals.get(code)).lastUpdatedOn
+    // then: Deal의 lastUpdatedOn이 Action의 수행일이다
+    expect(result).toBe(created.actedOn)
   })
 })

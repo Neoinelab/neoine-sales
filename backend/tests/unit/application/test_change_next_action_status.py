@@ -1,5 +1,6 @@
 """ChangeNextActionStatus: 작성자·admin만, 404 -> 403 -> 422/409 순서, History 한 건."""
 
+from datetime import date, datetime, timedelta, timezone
 from typing import TYPE_CHECKING
 
 import pytest
@@ -14,8 +15,11 @@ from tests.support.ids import new_id
 from tests.unit.application.action_env import BOSS, KIM, NOT_FOUND, PARK, VIEWER
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from tests.unit.application.action_env import ActionEnv
 
+KST = timezone(timedelta(hours=9))
 STATUS_FORBIDDEN = "본인 Action 또는 admin만 Next Action 상태를 바꿀 수 있습니다."
 NO_NEXT_ACTION = "Next Action이 없는 Action은 상태를 바꿀 수 없습니다."
 OPEN_WITH_MEMO = "Open으로 되돌릴 때는 메모를 남길 수 없습니다."
@@ -24,7 +28,7 @@ DUE = "(Due 2026-01-15)"
 
 
 async def test_actor_closes_and_history_written(action_env: ActionEnv) -> None:
-    """작성자가 메모와 함께 종료(수행)하면 상태·종료 시각·Memo가 바뀌고 History 1건이 남는다.
+    """작성자가 메모와 함께 종료(수행)하면 상태·종료일·Memo가 바뀌고 History 1건이 남는다.
 
     테스트 코드: NA-001
     """
@@ -34,11 +38,11 @@ async def test_actor_closes_and_history_written(action_env: ActionEnv) -> None:
     before_rows = await action_env.rows()
     # when: kim이 상태를 done, 메모 "전달 완료"로 바꾼다
     changed = await action_env.set_status(action.id, KIM, "done", "전달 완료")
-    # then: 상태 done, 종료 시각은 요청 시각, Memo는 "기존\n전달 완료"이고 응답도 같다
+    # then: 상태 done, 종료일은 요청 시각의 업무 날짜, Memo는 "기존\n전달 완료"이고 응답도 같다
     stored = await action_env.stored(action.id)
     assert changed.id == action.id
     assert stored.next_action_state == NextActionState(
-        status=NextActionStatus.DONE, closed_at=action_env.env.clock.now()
+        status=NextActionStatus.DONE, closed_on=action_env.env.clock.now().astimezone().date()
     )
     assert changed.next_action_state == stored.next_action_state
     assert stored.content.memo == "기존\n전달 완료"
@@ -84,10 +88,10 @@ async def test_closing_without_a_memo_keeps_the_memo(action_env: ActionEnv, memo
     action = await action_env.act(KIM, memo="요구사항 정리")
     # when: 작성자가 not_done으로 바꾸며 빈 메모 또는 공백뿐인 메모를 보낸다
     await action_env.set_status(action.id, KIM, "not_done", memo)
-    # then: 상태는 not_done, 종료 시각이 있고 Memo는 그대로이며 이력 변경 후 값에 Memo가 없다
+    # then: 상태는 not_done, 종료일이 있고 Memo는 그대로이며 이력 변경 후 값에 Memo가 없다
     stored = await action_env.stored(action.id)
     assert stored.next_action_state == NextActionState(
-        status=NextActionStatus.NOT_DONE, closed_at=action_env.env.clock.now()
+        status=NextActionStatus.NOT_DONE, closed_on=action_env.env.clock.now().astimezone().date()
     )
     assert stored.content.memo == "요구사항 정리"
     assert (await action_env.rows())[-1][3] == "종료(미수행)"
@@ -172,10 +176,10 @@ async def test_status_change_does_not_change_other_content_or_the_deal(
     deal_updated = (await action_env.env.uow.deals.get(action_env.deal.item.deal.id)).updated_at
     # when: kim이 done으로 바꾼다
     await action_env.set_status(action.id, KIM, "done")
-    # then: 내용·수행 일시·작성자·스냅숏은 등록 때와 같고 Deal 수정 시각은 그대로다
+    # then: 내용·수행일·작성자·스냅숏은 등록 때와 같고 Deal 수정 시각은 그대로다
     stored = await action_env.stored(action.id)
     assert stored.content == action.content
-    assert stored.acted_at == action.acted_at
+    assert stored.acted_on == action.acted_on
     assert stored.actor_user_id == action.actor_user_id
     assert stored.snapshot == action.snapshot
     deal = await action_env.env.uow.deals.get(action_env.deal.item.deal.id)
@@ -349,3 +353,36 @@ async def test_failed_change_writes_no_history(action_env: ActionEnv) -> None:
         await action_env.set_status(action.id, PARK, "done")
     # then: History 건수가 그대로다
     assert len(await action_env.action_entries()) == before
+
+
+async def test_closed_on_is_the_business_date_of_the_request_and_reopen_clears_it(
+    action_env: ActionEnv, local_tz: Callable[[str], None]
+) -> None:
+    """종료하면 종료일은 요청의 업무 날짜(수행일이 아님)이고 Open으로 되돌리면 비운다.
+
+    테스트 코드: NA-070
+    """
+    # given: 서울 시간대, 1월 1일에 수행한 Open Action이 있고 시계가 1월 3일 01:00(서울)로 흘렀다
+    local_tz("Asia/Seoul")
+    action = await action_env.act(KIM)
+    action_env.set_clock(datetime(2026, 1, 3, 1, 0, tzinfo=KST))
+
+    # when: 종료(수행)한다
+    done = await action_env.set_status(action.id, KIM, "done")
+    # then: 종료일은 요청의 업무 날짜 1월 3일(date)이고 수행일은 1월 1일 그대로다
+    assert done.next_action_state == NextActionState(
+        NextActionStatus.DONE, closed_on=date(2026, 1, 3)
+    )
+    assert (await action_env.stored(action.id)).acted_on == date(2026, 1, 1)
+
+    # when: 다음 날(1월 4일) 종료(미수행)로 바꾼 뒤 Open으로 되돌린다
+    action_env.set_clock(datetime(2026, 1, 4, 10, 0, tzinfo=KST))
+    not_done = await action_env.set_status(action.id, KIM, "not_done")
+    reopened = await action_env.set_status(action.id, KIM, "open")
+    # then: 미수행의 종료일은 1월 4일이고 Open이면 종료일이 없다
+    assert not_done.next_action_state == NextActionState(
+        NextActionStatus.NOT_DONE, closed_on=date(2026, 1, 4)
+    )
+    assert reopened.next_action_state == NextActionState.open()
+    assert reopened.next_action_state is not None
+    assert reopened.next_action_state.closed_on is None

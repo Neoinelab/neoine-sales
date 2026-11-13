@@ -154,7 +154,7 @@ const LOCAL_SETTERS = 'set(?:FullYear|Month|Date|Hours|Minutes|Seconds|Milliseco
 const DATE_OPTION_KEYS = 'dateStyle|timeStyle|timeZone|weekday|era|year|month|day|hour|minute|second'
 
 /** 이름만으로 Date 값으로 보는 수신자(변수 호출 포함). 숫자의 toLocaleString('en-US')는 허용해야 해서 이름으로 좁힌다. */
-const DATE_RECEIVER = '(?:\\b(?:d|dt|date|now|time|day)|[A-Za-z0-9_]*(?:Date|Time|At|Day|Stamp|Now))'
+const DATE_RECEIVER = '(?:\\b(?:d|dt|date|now|time|day)|[A-Za-z0-9_]*(?:Date|Time|At|On|Day|Stamp|Now))'
 /** 오프셋(Z, +09:00) 없이 끝나는 날짜·시각 문자열(템플릿 보간 포함)을 Date로 해석하는 호출. */
 const OFFSETLESS_PARSE = '\\b(?:new\\s+Date|Date\\.parse)\\s*\\(\\s*([\'"`])[^\'"`]*[T ]\\d{2}:\\d{2}[\\d:.]*\\1'
 const OFFSETLESS_PARSE_TAIL = '\\b(?:new\\s+Date|Date\\.parse)\\s*\\(\\s*([\'"`])[^\'"`]*(?:\\d|\\})T(?:\\$\\{[^}]*\\})?[\\d:.]*\\1'
@@ -244,7 +244,7 @@ describe('T-ARCH-03 앱 코드의 브라우저 시계·시간대 경계', () => 
     'new Intl.DateTimeFormat()',
     'deal.createdAt.toLocaleString()',
     "d.toLocaleString('ko-KR')",
-    "actedAt.toLocaleString('ko-KR', opts)",
+    "actedOn.toLocaleString('ko-KR', opts)",
     'new Date(`${day}T00:00:00`)',
     "new Date('2026-10-23T09:00:00')",
     "new Date('2026-10-23T09:00')",

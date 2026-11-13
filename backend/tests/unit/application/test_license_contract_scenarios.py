@@ -193,7 +193,7 @@ async def test_contract_is_not_ended_automatically_after_its_end_date(
     row = await contract_env.get.execute(contract.id)
     # then: 상태는 발급(신규) 그대로다
     assert row.contract.status is ContractStatus.ISSUED_NEW
-    assert row.contract.ended_at is None
+    assert row.contract.ended_on is None
 
 
 @pytest.mark.parametrize(

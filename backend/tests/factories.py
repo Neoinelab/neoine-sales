@@ -30,6 +30,11 @@ def later(seconds: int = 60) -> datetime:
     return NOW + timedelta(seconds=seconds)
 
 
+def date_after(offset: int = 0) -> date:
+    """NOW의 업무 날짜(서버 시간대)에서 offset일 뒤 날짜. 수행일(`acted_on`) 같은 날짜 값에 쓴다."""
+    return NOW.astimezone().date() + timedelta(days=offset)
+
+
 def new_contact_id() -> ContactId:
     """저장소에 없는 새 연락처 id(Deal 테스트가 연락처 구현 없이도 id만 필요할 때)."""
     return cast("ContactId", new_id())
@@ -154,21 +159,23 @@ def make_deal_action(
     entity_id: Any = None,  # noqa: ANN401 - 생략하면 새 10억대 id
     **content_overrides: Any,  # noqa: ANN401
 ) -> DealAction:
-    """저장하지 않은 Action(`DealAction.record`). 수행 시각 = now(`acted_at`을 주면 그 값).
+    """저장하지 않은 Action(`DealAction.record`). 수행일 = now의 업무 날짜(`acted_on`을 주면 그 값).
 
     content_overrides는 `make_action_content`와 같다. 스냅숏 기본은 prospecting/pipeline이다.
     """
+    from app.domain.common.business_date import business_date  # noqa: PLC0415
     from app.domain.deal_action.entities import DealAction  # noqa: PLC0415 - 지연 import
     from app.domain.deal_action.value_objects import DealActionId  # noqa: PLC0415
 
-    acted_at = content_overrides.pop("acted_at", now)
+    acted_on = content_overrides.pop("acted_on", None) or business_date(now)
     return DealAction.record(
         deal_code=deal_code or make_deal_code(),
         content=make_action_content(**content_overrides),
         actor_user_id=actor_user_id,
         snapshot=snapshot or make_sync(),
-        now=acted_at,
+        now=now,
         entity_id=DealActionId(new_id()) if entity_id is None else entity_id,
+        acted_on=acted_on,
     )
 
 
@@ -188,6 +195,7 @@ def make_register_input(
     status_changes: tuple[Any, ...] = (),
     *,
     close_previous_next_action_id: Any = None,  # noqa: ANN401 - DealActionId 또는 None
+    acted_on: date | None = None,
     **content_overrides: Any,  # noqa: ANN401
 ) -> DealActionInput:
     """등록 입력(`DealActionInput`): 내용 + 순서대로 적용할 `StatusChangeInput`들.
@@ -200,6 +208,8 @@ def make_register_input(
     extra: dict[str, Any] = {}
     if close_previous_next_action_id is not None:
         extra["close_previous_next_action_id"] = close_previous_next_action_id
+    if acted_on is not None:
+        extra["acted_on"] = acted_on
     return DealActionInput(
         content=make_deal_action_input(**content_overrides),
         status_changes=status_changes,

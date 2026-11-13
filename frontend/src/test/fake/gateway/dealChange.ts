@@ -1,5 +1,6 @@
 /** 단일 필드 변경(Status/Forecast/금액/Expected Close)의 계획·확정. deals.applyChange와 actions.create(statusChange)가 공유한다. */
 
+import { businessToday } from '../businessDate'
 import type { ApplyChangeRequest } from '../../../shared/model/types'
 import { isValidAmount } from '../../../shared/model/money'
 import { finalizePlan, planChange, type CoChange } from '../../../shared/model/sync'
@@ -64,7 +65,7 @@ export function planDealChange(ctx: MockContext, deal: Deal, request: ApplyChang
 export function commitDealChange(ctx: MockContext, deal: Deal, outcome: ChangeOutcome, byId: number): void {
   const before = clone(deal)
   Object.assign(deal, outcome.patch)
-  if (deal.statusKey !== before.statusKey) deal.statusChangedAt = ctx.clock.now()
+  if (deal.statusKey !== before.statusKey) deal.statusChangedOn = businessToday(ctx.clock.now())
   const logged = logDealDiff(ctx, before, deal, byId, outcome.coChanged)
   if (logged > 0) deal.updatedAt = ctx.clock.now()
 }

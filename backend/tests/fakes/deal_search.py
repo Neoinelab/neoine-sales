@@ -5,19 +5,19 @@
 - owner_user_id·vendor_id·status_key: 정확 일치
 - forecast_keys: 그중 하나와 일치(OR). None이면 조건 없음. forecast_outcome과 AND
 - solution: Solution 텍스트의 대소문자 무시 부분 일치(`%`, `_`는 글자 그대로)
-- 정렬: 기본 last_updated_at 내림차순, 모든 정렬의 동률은 code 오름차순
-- last_updated_at = 가장 최근 활동의 acted_at(없으면 created_at, Deal 수정은 반영하지 않음)
+- 정렬: 기본 last_updated_on 내림차순, 모든 정렬의 동률은 code 오름차순
+- last_updated_on = 가장 최근 활동의 acted_on(없으면 등록일, Deal 수정은 반영하지 않음)
 
 이 모듈은 Deal·연락처 도메인 객체를 속성으로만 읽는다(새 모델 구현이 없어도 가져올 수 있다).
 - 연/분기/월: Expected Close가 그 해(분기·월)에 속함(Q1=1~3월 … Q4=10~12월)
 - forecast_outcome: Forecast 코드의 outcome이 허용 집합에 듦(open/won/lost, not_lost=open+won).
   outcome은 코드 저장소에서 읽는다(구현의 `ForecastOutcomeFilter.outcomes()`를 베끼지 않는다)
-- updated_from/to: last_updated_at의 로컬 업무 날짜가 양끝 포함 범위 안(`updated_in_range`)
+- updated_from/to: last_updated_on이 양끝 포함 범위 안(`updated_in_range`)
 - overdue/stale: compute_risk 결과가 해당 집합에 드는 Deal(둘 다면 OR). basis가 없으면 ValueError
 """
 
 import calendar
-from datetime import date, datetime
+from datetime import date
 from typing import TYPE_CHECKING, Any
 
 from app.domain.deal.risk import Risk, compute_risk
@@ -123,12 +123,9 @@ def revenue_bounds(query: DealQuery) -> tuple[date | None, date | None]:
     return period_start, period_end
 
 
-def updated_in_range(last_updated_at: datetime, query: DealQuery) -> bool:
-    """last_updated_at의 로컬 업무 날짜가 updated_from/to(양끝 포함) 안인가.
-
-    DealQuery.updated_window와 독립적으로 날짜 비교로 계산한다.
-    """
-    day = last_updated_at.astimezone().date()
+def updated_in_range(last_updated_on: date, query: DealQuery) -> bool:
+    """last_updated_on이 updated_from/to(양끝 포함) 안인가. 날짜끼리 비교한다."""
+    day = last_updated_on
     updated_from, updated_to = _updated_bounds(query)
     if updated_from is not None and day < updated_from:
         return False
@@ -152,7 +149,7 @@ def check_risk_basis(query: DealQuery) -> RiskBasis:
 
 
 def risk_matches(
-    query: DealQuery, *, forecast_key: str, due_date: date | None, last_updated_at: datetime
+    query: DealQuery, *, forecast_key: str, due_date: date | None, last_updated_on: date
 ) -> bool:
     """overdue/stale 필터. 판정은 compute_risk로 독립 계산한다(SQL 경계 변환을 베끼지 않음)."""
     if not query.wants_risk():
@@ -161,7 +158,7 @@ def risk_matches(
     risk = compute_risk(
         forecast_key=forecast_key,
         due_date=due_date,
-        last_updated_at=last_updated_at,
+        last_updated_on=last_updated_on,
         today=basis.today,
         stale_days=basis.stale_days,
     )

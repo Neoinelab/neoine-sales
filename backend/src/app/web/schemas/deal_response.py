@@ -90,17 +90,17 @@ class DealRowResponse(BaseModel):
     procurement: str
     bant: BantResponse
     next_action: NextActionResponse | None
-    last_updated_at: Annotated[
-        ServerDateTime,
+    last_updated_on: Annotated[
+        date,
         Field(
             description=(
-                "모든 Action 중 가장 최근 수행 시각. Action이 없으면 Deal 등록 시각. "
+                "모든 Action 중 가장 최근 수행 날짜. Action이 없으면 Deal 등록 날짜. "
                 "Deal 수정은 반영하지 않는다."
             )
         ),
     ]
     risk: Literal["overdue", "stale", "overdue_stale"] | None
-    status_changed_at: ServerDateTime
+    status_changed_on: date
     status_days: int
     license_contract_count: int
     has_issued_license_contract: bool
@@ -172,9 +172,9 @@ def _row_fields(view: DealView) -> dict[str, object]:
             if next_action
             else None
         ),
-        "last_updated_at": view.item.last_updated_at,
+        "last_updated_on": view.item.last_updated_on,
         "risk": None if view.risk is None else view.risk.value,
-        "status_changed_at": deal.status_changed_at,
+        "status_changed_on": deal.status_changed_on,
         "status_days": view.status_days,
         "license_contract_count": view.item.license_contract_count,
         "has_issued_license_contract": view.item.has_issued_license_contract,

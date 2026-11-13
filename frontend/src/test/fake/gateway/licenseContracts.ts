@@ -1,4 +1,5 @@
 import type { ContractUploadResult, LicenseContractsGateway } from '../../../gateway/types'
+import { businessToday } from '../businessDate'
 import { STORAGE_UNAVAILABLE_MESSAGE, validateUpload } from '../../../shared/model/fileRules'
 import { FORECAST_WON } from '../../../shared/model/constants'
 import { licenseEnd } from '../../../shared/model/licensePeriod'
@@ -195,14 +196,14 @@ export function createLicenseContractsGateway(ctx: MockContext): LicenseContract
           term: null,
           ...fields,
           renewedFromId: previous.id,
-          endedAt: null,
+          endedOn: null,
           createdById: user.id,
           updatedById: user.id,
           createdAt: now,
           updatedAt: now,
         }
         applyIssue(renewal, input, 'issued_renewal')
-        Object.assign(previous, { status: 'ended', endedAt: now })
+        Object.assign(previous, { status: 'ended', endedOn: businessToday(now) })
         touch(previous, user.id)
         data.licenseContracts.push(renewal)
         return contractView(data, renewal)
@@ -212,7 +213,7 @@ export function createLicenseContractsGateway(ctx: MockContext): LicenseContract
         const user = requireWrite(ctx)
         const record = find(ctx, id)
         if (record.status === 'ended') throw conflict(ALREADY_ENDED)
-        Object.assign(record, { status: 'ended', endedAt: ctx.clock.now() })
+        Object.assign(record, { status: 'ended', endedOn: businessToday(ctx.clock.now()) })
         touch(record, user.id)
         return contractView(ctx.store.data, record)
       }),

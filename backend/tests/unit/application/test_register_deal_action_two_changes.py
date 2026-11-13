@@ -55,11 +55,11 @@ async def test_two_changes_are_saved_with_the_action_in_order(action_env: Action
     # when: Status 제품소개, Forecast Best 순서로 바꾸며 등록한다
     action = await action_env.act(status_changes=(_status("introduction"), _forecast("best")))
 
-    # then: Deal과 스냅숏이 제품소개·Best이고 수정 시각은 수행 시각이다
+    # then: Deal과 스냅숏이 제품소개·Best이고 수정 시각은 요청 시각이다
     deal = await _deal(action_env)
     assert (deal.sync.status_key, deal.sync.forecast_key) == ("introduction", "best")
     assert (await action_env.stored(action.id)).snapshot == SyncState("introduction", "best")
-    assert deal.updated_at == action.acted_at
+    assert deal.updated_at == action.created_at
     # then: 이력은 Status, Forecast, Action 등록 순서다
     assert await action_env.rows() == [
         ("status", "Status", "기회발굴", "제품소개"),
@@ -171,16 +171,16 @@ async def test_invalid_content_is_reported_before_any_change(action_env: ActionE
     assert await action_env.rows() == []
 
 
-async def test_status_changed_at_moves_when_either_change_moves_the_status(
+async def test_status_changed_on_moves_when_either_change_moves_the_status(
     action_env: ActionEnv,
 ) -> None:
-    """두 변경 중 하나라도 Status를 옮기면 Status 진입 시각이 수행 시각이다."""
+    """두 변경 중 하나라도 Status를 옮기면 Status 진입일이 요청의 업무 날짜다."""
     # when: Forecast 변경에 이어 Status 변경을 함께 등록한다
     action = await action_env.act(status_changes=(_forecast("best"), _status("introduction")))
 
-    # then: Status 진입 시각이 수행 시각이고 진입 Status가 바뀐다
+    # then: Status 진입일이 요청의 업무 날짜이고 진입 Status가 바뀐다
     deal = await _deal(action_env)
-    assert deal.status_changed_at == action.acted_at
+    assert deal.status_changed_on == action.created_at.astimezone().date()
     assert deal.status_entry.status_key == "introduction"
 
 

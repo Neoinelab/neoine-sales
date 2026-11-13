@@ -1,7 +1,8 @@
+import re
 from datetime import date
 from typing import TYPE_CHECKING, Annotated, Self
 
-from pydantic import BaseModel, Field, StrictBool, model_validator
+from pydantic import BaseModel, BeforeValidator, Field, StrictBool, model_validator
 
 from app.application.deal_action.inputs import (
     ActionContentInput,
@@ -27,7 +28,6 @@ from app.web.schemas.common import RequestModel, ResponseModel
 from app.web.schemas.deal_change import CodeChange, ResolutionRequest
 from app.web.schemas.deal_response import NamedRefResponse
 from app.web.schemas.ids import BodyId, QueryId
-from app.web.schemas.server_datetime import ServerDateTime
 from app.web.schemas.user_ref import UserRef, ref_of, resolve_refs
 
 if TYPE_CHECKING:
@@ -83,6 +83,16 @@ class ActionStatusChangeRequest(RequestModel):
         )
 
 
+_PLAIN_DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
+
+
+def _plain_date(value: object) -> object:
+    # lax date는 자정 시각이 붙은 문자열·숫자도 받으므로 YYYY-MM-DD 문자열만 통과시킨다.
+    if value is None or (isinstance(value, str) and _PLAIN_DATE.fullmatch(value)):
+        return value
+    raise ValueError("acted_on은 YYYY-MM-DD 형식의 날짜여야 합니다.")
+
+
 class DealActionCreateRequest(ActionContentRequest):
     """`status_change`(단건)와 `status_changes`(최대 2건, 필드 중복 불가)는 함께 쓸 수 없다."""
 
@@ -118,6 +128,16 @@ class DealActionCreateRequest(ActionContentRequest):
             )
         ),
     ] = None
+    acted_on: Annotated[
+        date | None,
+        BeforeValidator(_plain_date),
+        Field(
+            description=(
+                "수행일(YYYY-MM-DD, 선택). 생략하거나 null이면 오늘(서버 업무 날짜)로 기록한다."
+                " 수정 요청에는 없다."
+            )
+        ),
+    ] = None
     delete_license_contracts: Annotated[
         StrictBool,
         Field(
@@ -145,6 +165,7 @@ class DealActionCreateRequest(ActionContentRequest):
         previous = self.close_previous_next_action_id
         return DealActionInput(
             content=self.to_content(),
+            acted_on=self.acted_on,
             status_changes=changes,
             close_previous_next_action_id=None if previous is None else DealActionId(previous),
             delete_license_contracts=self.delete_license_contracts,
@@ -173,9 +194,9 @@ class DealActionResponse(ResponseModel):
     next_action: str | None
     due_date: date | None
     next_action_status: NextActionStatus | None
-    next_action_closed_at: ServerDateTime | None
+    next_action_closed_on: date | None
     memo: str
-    acted_at: ServerDateTime
+    acted_on: date
     actor: UserRef
     status_key: str
     forecast_key: str
@@ -198,9 +219,9 @@ class DealActionResponse(ResponseModel):
             next_action=content.next_action,
             due_date=content.due_date,
             next_action_status=state.status if state else None,
-            next_action_closed_at=state.closed_at if state else None,
+            next_action_closed_on=state.closed_on if state else None,
             memo=content.memo,
-            acted_at=action.acted_at,
+            acted_on=action.acted_on,
             actor=ref_of(refs, action.actor_user_id),
             status_key=action.snapshot.status_key,
             forecast_key=action.snapshot.forecast_key,

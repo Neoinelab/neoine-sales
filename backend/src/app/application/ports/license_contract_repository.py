@@ -127,7 +127,7 @@ class LicenseContractRepository(Protocol):
         ...
 
     async def update(self, contract: LicenseContract) -> None:
-        """status·기간·fields·ended_at·updated_*만 저장한다. 발급 상태가 둘이 되면
+        """status·기간·fields·ended_on·updated_*만 저장한다. 발급 상태가 둘이 되면
         LicenseAlreadyIssuedError, 없으면 LicenseContractNotFoundError."""
         ...
 

@@ -33,7 +33,7 @@ export interface LicenseContract {
   inspection: InspectionCycle
   note: string
   renewedFromId: number | null
-  endedAt: string | null
+  endedOn: string | null
   attachmentCount: number
   createdBy: UserRef
   updatedBy: UserRef

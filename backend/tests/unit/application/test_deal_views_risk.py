@@ -53,7 +53,7 @@ async def _act(env: DealEnv, view: DealView, *, due_date: date) -> None:
     await env.uow.deal_actions.add(
         make_deal_action(
             deal_code=view.item.deal.id,
-            acted_at=env.clock.now(),
+            now=env.clock.now(),
             actor_user_id=ACTOR_ID,
             due_date=due_date,
         )
@@ -259,7 +259,7 @@ async def test_today_and_entry_dates_use_the_local_calendar(env: DealEnv) -> Non
 # ---- status_days ----
 
 
-async def test_status_days_counts_from_status_changed_at(env: DealEnv) -> None:
+async def test_status_days_counts_from_status_changed_on(env: DealEnv) -> None:
     """체류 일수는 진입 업무 날짜부터 센 일수이고 등록 직후는 0이다.
 
     테스트 코드: RK-040
@@ -392,23 +392,23 @@ async def test_update_response_without_a_status_change_keeps_counting_the_days(
 
 
 async def test_editing_the_deal_does_not_clear_stale(env: DealEnv) -> None:
-    """Deal을 수정해도 미업데이트가 풀리지 않고 최종 업데이트는 등록 시각 그대로다.
+    """Deal을 수정해도 미업데이트가 풀리지 않고 최종 업데이트일은 등록일 그대로다.
 
     테스트 코드: RK-021
     """
     # given: Action 없이 15일이 지난 Deal이다
     view = await env.new_deal()
     code = view.item.deal.id.value
-    created = view.item.deal.created_at
+    created = view.item.deal.created_at.astimezone().date()
     _days_later(env, 15)
 
     # when: 금액을 수정한 뒤 상세를 조회한다
     await env.update.execute(code, make_patch(revenue_amount=1), SALES)
     detail = await env.get.execute(code)
 
-    # then: risk는 stale이고 last_updated_at은 등록 시각이다
+    # then: risk는 stale이고 last_updated_on은 등록일이다
     assert detail.risk is Risk.STALE
-    assert detail.item.last_updated_at == created
+    assert detail.item.last_updated_on == created
 
 
 async def test_changing_the_saved_threshold_applies_to_the_same_deals_at_once(

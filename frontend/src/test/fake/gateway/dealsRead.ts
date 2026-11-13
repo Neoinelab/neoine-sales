@@ -1,7 +1,6 @@
 /** Deal 조회: 목록(필터·정렬·페이지), 상세, 삭제 영향. */
 
 import { DEAL_PAGE_SIZE } from '../../../shared/model/constants'
-import { compareIso, datePart, formatWithOffset, offsetMinutes } from '../../../shared/model/dates'
 import type { DealListQuery, DealRow, DealSortKey, ForecastOutcome, Page } from '../../../shared/model/types'
 import { QUARTER_MONTH_EXCLUSIVE, validation } from '../errors'
 import { read, requireUser, type MockContext } from './context'
@@ -20,7 +19,6 @@ function matches(
   viewerId: number,
   thisYear: number,
   outcomeOf: ReadonlyMap<string, ForecastOutcome>,
-  businessOffset: number,
 ): boolean {
   if (query.keyword) {
     const needle = query.keyword.trim().toLowerCase()
@@ -47,8 +45,8 @@ function matches(
   if (quarters !== undefined && !quarters.includes(quarterOfMonth(Number(row.revenueDate.slice(5, 7))))) return false
   // 월은 분기와 함께 쓸 수 없다(listDeals가 먼저 거절한다). 그 달의 Deal만 남긴다.
   if (query.month !== undefined && Number(row.revenueDate.slice(5, 7)) !== query.month) return false
-  // 최종 업데이트(Action 기준 lastUpdatedAt)를 업무 시간대의 달력 날짜로 바꿔 양끝 포함 범위 안인지 본다(서버: [from 00:00, to+1일 00:00)).
-  const updatedDay = datePart(formatWithOffset(Date.parse(row.lastUpdatedAt), businessOffset))
+  // 최종 업데이트일(lastUpdatedOn, 날짜)이 양끝 포함 범위 안인지 본다.
+  const updatedDay = row.lastUpdatedOn
   if (query.updatedFrom && updatedDay < query.updatedFrom) return false
   if (query.updatedTo && updatedDay > query.updatedTo) return false
   if (query.mine && row.ownerId !== viewerId) return false
@@ -115,7 +113,6 @@ export function listDeals(ctx: MockContext, query: DealListQuery): Page<DealRow>
   }
   if (normalizedQuarters(query.quarters) !== undefined && query.month !== undefined) throw validation(QUARTER_MONTH_EXCLUSIVE)
   const thisYear = Number(ctx.clock.today().slice(0, 4))
-  const businessOffset = offsetMinutes(ctx.clock.now())
   const codes = codeSetOf(ctx)
   const statusOrder = codes.statuses.map((c) => c.key)
   const forecastOrder = codes.forecasts.map((c) => c.key)
@@ -143,12 +140,12 @@ export function listDeals(ctx: MockContext, query: DealListQuery): Page<DealRow>
       case 'vendor':
         return compareText(a.vendor?.name ?? '', b.vendor?.name ?? '')
       default:
-        return compareIso(a.lastUpdatedAt, b.lastUpdatedAt)
+        return a.lastUpdatedOn === b.lastUpdatedOn ? 0 : a.lastUpdatedOn < b.lastUpdatedOn ? -1 : 1
     }
   }
   const rows = ctx.store.data.deals
     .map((deal) => dealRow(ctx, deal))
-    .filter((row) => matches(row, query, viewer.id, thisYear, outcomeOf, businessOffset))
+    .filter((row) => matches(row, query, viewer.id, thisYear, outcomeOf))
     .sort((a, b) => {
       const absentA = isAbsent(a, sort)
       const absentB = isAbsent(b, sort)

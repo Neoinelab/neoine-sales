@@ -41,10 +41,10 @@ async def test_register_action_sets_now_requester_and_current_snapshot(
     # when: KIM이 Action을 등록한다
     action = await action_env.act(KIM, code=deal.item.deal.id.value, memo="요구사항 정리")
 
-    # then: 수행 일시·담당자·스냅숏·내용이 서버 값으로 저장된다
+    # then: 수행일(오늘 업무 날짜)·담당자·스냅숏·내용이 서버 값으로 저장된다
     stored = await action_env.stored(action.id)
-    assert stored.acted_at == action_env.env.clock.now()
-    assert stored.created_at == stored.updated_at == stored.acted_at
+    assert stored.acted_on == action_env.env.clock.now().astimezone().date()
+    assert stored.created_at == stored.updated_at == action_env.env.clock.now()
     assert stored.actor_user_id == KIM.user_id
     assert stored.snapshot == SyncState("introduction", "best")
     assert stored.deal_code == deal.item.deal.id
@@ -145,13 +145,13 @@ async def test_register_action_records_one_action_history_and_keeps_deal_updated
     # when: KIM이 Action을 등록한다
     action = await action_env.act(KIM)
 
-    # then: "등록: <요약>" 이력 1건이 요청자·수행 시각으로 남는다
+    # then: "등록: <요약>" 이력 1건이 요청자·요청 시각으로 남는다
     assert await action_env.rows() == [
         ("action", "Action", "", f"등록: {SUMMARY_WITH_MEMO}"),
     ]
     entry = (await action_env.action_entries())[0]
     assert entry.changed_by == KIM.user_id
-    assert entry.changed_at == action.acted_at
+    assert entry.changed_at == action.created_at
     # then: Deal 수정 시각은 그대로다
     deal = await action_env.env.uow.deals.get(action_env.deal.item.deal.id)
     assert deal.updated_at == before
@@ -209,7 +209,7 @@ async def test_the_registered_action_becomes_the_next_action_and_last_update_of_
     assert detail.item.next_action == NextActionSummary(
         text="계약서 검토", due_date=date(2026, 2, 5), status=NextActionStatus.OPEN
     )
-    assert detail.item.last_updated_at == action.acted_at
+    assert detail.item.last_updated_on == action.acted_on
 
 
 async def test_register_action_does_not_need_a_registered_requester_user_row(
@@ -306,7 +306,7 @@ async def test_a_progress_only_action_keeps_the_previous_next_action_of_the_deal
     assert detail.item.next_action == NextActionSummary(
         text="계약서 검토", due_date=date(2026, 2, 5), status=NextActionStatus.OPEN
     )
-    assert detail.item.last_updated_at == latest.acted_at
+    assert detail.item.last_updated_on == latest.acted_on
 
 
 async def test_a_sales_who_is_not_the_deal_owner_can_register_an_action(

@@ -45,7 +45,7 @@ export const action = (over: Partial<ActionInput> = {}): ActionInput => ({
   ...over,
 })
 
-/** 서버 업무 날짜. 응답의 `actedAt`은 서버 시간대 오프셋을 담으므로 그 달력 날짜가 서버 날짜다(브라우저 시간대와 무관). */
+/** 서버 업무 날짜에 일수를 더한다. 응답의 `actedOn`은 이미 시각 없는 서버 업무 날짜다(브라우저 시간대와 무관). */
 function localDay(iso: string, plusDays = 0): string {
   return addDays(datePart(iso), plusDays)
 }
@@ -75,7 +75,7 @@ export function actionsContract(make: MakeGateway): void {
         forecastKey: 'pipeline',
         actor: { id: me.id },
       })
-      expect(Number.isNaN(Date.parse(created.actedAt))).toBe(false)
+      expect(created.actedOn).toMatch(/^\d{4}-\d{2}-\d{2}$/) // 수행일은 시각 없는 날짜다
       // then: 목록에 그 Action 하나뿐이다
       expect(await sales.actions.list(deal.code, {})).toEqual([created])
       await sales.deals.remove(deal.code, deal.code)
@@ -296,7 +296,7 @@ export function actionsContract(make: MakeGateway): void {
       const edited = await sales.actions.update(created.id, action({ progress: '수정' }))
 
       // then: 스냅숏·수행일시·담당자가 그대로다
-      expect(edited).toMatchObject({ statusKey: 'prospecting', forecastKey: 'pipeline', actedAt: created.actedAt, actor: created.actor })
+      expect(edited).toMatchObject({ statusKey: 'prospecting', forecastKey: 'pipeline', actedOn: created.actedOn, actor: created.actor })
       expect((await sales.actions.list(deal.code, {}))[0]).toMatchObject({ statusKey: 'prospecting', forecastKey: 'pipeline' })
       await sales.deals.remove(deal.code, deal.code)
     })
@@ -407,16 +407,16 @@ export function actionsContract(make: MakeGateway): void {
       const sales = await make('sales')
       const deal = await newDeal(sales)
       const created = await sales.actions.create(deal.code, action())
-      const day = localDay(created.actedAt)
+      const day = localDay(created.actedOn)
       const ids = async (from: string, to: string) => (await sales.actions.list(deal.code, { actedFrom: from, actedTo: to })).map((a) => a.id)
 
       // when·then: 수행일을 끝으로 하는 범위, 시작으로 하는 범위는 Action이 나온다
       expect(await ids(day, day)).toEqual([created.id])
-      expect(await ids(localDay(created.actedAt, -3), day)).toEqual([created.id])
-      expect(await ids(day, localDay(created.actedAt, 3))).toEqual([created.id])
+      expect(await ids(localDay(created.actedOn, -3), day)).toEqual([created.id])
+      expect(await ids(day, localDay(created.actedOn, 3))).toEqual([created.id])
       // when·then: 수행일 앞뒤로 벗어난 범위는 비어 있다
-      expect(await ids(localDay(created.actedAt, 1), localDay(created.actedAt, 2))).toEqual([])
-      expect(await ids(localDay(created.actedAt, -2), localDay(created.actedAt, -1))).toEqual([])
+      expect(await ids(localDay(created.actedOn, 1), localDay(created.actedOn, 2))).toEqual([])
+      expect(await ids(localDay(created.actedOn, -2), localDay(created.actedOn, -1))).toEqual([])
       await sales.deals.remove(deal.code, deal.code)
     })
 
@@ -539,6 +539,36 @@ export function actionsContract(make: MakeGateway): void {
 
       // when·then: 없는 Deal의 목록을 읽으면 404다
       await expectRejects(sales.actions.list('20000101-ZZZZ', {}), 404)
+    })
+
+    // 수행일 범위: 오늘은 받고, 내일과 Deal 등록일 전날은 문구와 함께 거절한다(새 Deal은 오늘 등록되므로 오늘이 등록일이다).
+    // 테스트 코드: AC-110
+    it('accepts today as the performed day and refuses tomorrow and the day before the registration day', async () => {
+      // given: sales와 오늘 등록한 새 Deal
+      const sales = await make('sales')
+      const deal = await newDeal(sales)
+      const today = localDay(deal.createdAt)
+
+      // when: 수행일을 오늘로 지정해 등록한다
+      const created = await sales.actions.create(deal.code, action({ actedOn: today }))
+      // then: 수행일은 오늘 날짜다
+      expect(localDay(created.actedOn)).toBe(today)
+
+      // when·then: 내일을 지정하면 422 문구로 거절된다
+      await expectRejects(
+        sales.actions.create(deal.code, action({ actedOn: localDay(deal.createdAt, 1) })),
+        422,
+        '수행일은 오늘 이후로 지정할 수 없습니다.',
+      )
+      // when·then: 등록일 전날을 지정하면 등록일이 든 문구로 거절된다
+      await expectRejects(
+        sales.actions.create(deal.code, action({ actedOn: localDay(deal.createdAt, -1) })),
+        422,
+        `수행일은 Deal 등록일(${today}) 이전으로 지정할 수 없습니다.`,
+      )
+      // then: Action은 처음 등록한 하나뿐이다
+      expect(await sales.actions.list(deal.code, {})).toEqual([created])
+      await sales.deals.remove(deal.code, deal.code)
     })
   })
 }

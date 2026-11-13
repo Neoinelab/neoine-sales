@@ -1,6 +1,7 @@
 """DealAction 엔티티: 스냅숏·수행 정보는 불변, 내용만 고침, 담당자 확인, 상태."""
 
 from datetime import date
+from typing import TYPE_CHECKING
 
 import pytest
 
@@ -29,14 +30,23 @@ from tests.support.expect import raises_with
 from tests.support.ids import new_id
 from tests.support.user_ids import ACTOR_ID, uid
 
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+
+@pytest.fixture(autouse=True)
+def _seoul(local_tz: Callable[[str], None]) -> None:
+    local_tz("Asia/Seoul")  # NOW(UTC 09:00) = 서울 2026-01-01 18:00
+
+
 EDIT_FORBIDDEN = "본인 Action 또는 admin만 수정할 수 있습니다."
 DELETE_FORBIDDEN = "본인 Action 또는 admin만 삭제할 수 있습니다."
 STATUS_FORBIDDEN = "본인 Action 또는 admin만 Next Action 상태를 바꿀 수 있습니다."
 
 
 class TestRecord:
-    def test_record_keeps_snapshot_actor_and_acted_at(self) -> None:
-        """기록하면 스냅숏·담당자·수행 일시가 정해진다.
+    def test_record_keeps_snapshot_actor_and_acted_on(self) -> None:
+        """기록하면 스냅숏·담당자·수행일(요청 시각의 업무 날짜)이 정해진다.
 
         테스트 코드: AC-001
         """
@@ -57,8 +67,9 @@ class TestRecord:
         assert action.deal_code == make_deal_code("A7K2")
         assert action.actor_user_id == ACTOR_ID
         assert action.snapshot == snapshot
-        # then: 수행·생성·수정 시각이 모두 요청 시각이다
-        assert action.acted_at == action.created_at == action.updated_at == later(5)
+        # then: 수행일은 요청 시각의 업무 날짜(date)이고 생성·수정 시각은 요청 시각이다
+        assert action.acted_on == date(2026, 1, 1)
+        assert action.created_at == action.updated_at == later(5)
 
     def test_record_uses_the_given_id(self) -> None:
         """기록할 때 준 id를 그대로 쓴다.
@@ -126,8 +137,8 @@ class TestRevise:
         assert action.content == revised
         assert action.updated_at == later(30)
 
-    def test_revise_does_not_touch_snapshot_actor_or_acted_at(self) -> None:
-        """고쳐도 스냅숏·담당자·수행 일시·소속은 바뀌지 않는다.
+    def test_revise_does_not_touch_snapshot_actor_or_acted_on(self) -> None:
+        """고쳐도 스냅숏·담당자·수행일·소속은 바뀌지 않는다.
 
         테스트 코드: AC-046, AC-035
         """
@@ -143,7 +154,7 @@ class TestRevise:
         # then: 담당자·스냅숏·수행·생성 시각·소속이 그대로다
         assert action.actor_user_id == uid("kim")
         assert action.snapshot == snapshot
-        assert action.acted_at == later(5)
+        assert action.acted_on == date(2026, 1, 1)
         assert action.created_at == later(5)
         assert action.deal_code == code
 
@@ -317,7 +328,7 @@ class TestNextActionStateOnRecord:
         assert action.next_action_state == NextActionState.open()
         assert action.next_action_state is not None
         assert action.next_action_state.status is NextActionStatus.OPEN
-        assert action.next_action_state.closed_at is None
+        assert action.next_action_state.closed_on is None
 
     def test_record_progress_only_has_no_state(self) -> None:
         """진행사항만 기록하면 상태가 없다.
@@ -409,7 +420,7 @@ class TestReviseNextActionState:
         assert action.next_action_state == closed
         assert closed is not None
         assert closed.status is NextActionStatus.NOT_DONE
-        assert closed.closed_at == later(10)
+        assert closed.closed_on == date(2026, 1, 1)
 
     def test_revise_progress_only_keeps_a_closed_status(self) -> None:
         """종료한 Action의 진행사항만 고쳐도 종료 상태는 그대로다.

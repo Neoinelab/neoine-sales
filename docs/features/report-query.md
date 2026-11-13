@@ -1,4 +1,4 @@
-# Reports 조회 엔진·디자이너 작성   (feature 코드: RQ, 상태: 확정(2026-11-11 사용자 확인))
+# Reports 조회 엔진·디자이너 작성   (feature 코드: RQ, 상태: 확정(2026-11-13 사용자 확인))
 
 > 이 문서는 **이미 구현된 동작**을 정본 명세로 옮긴 것입니다(2026-11-11). 근거는 작업 트리의 코드(`backend/src/app/domain/report/{vocabulary,fields,catalog,catalog_deal,catalog_action,labels,raw,parse,parse_columns,parse_conditions,condition_values,definition,errors,resolve,stored}.py`, `app/application/report/{list_fields,run_report,execution,views}.py`, `app/application/ports/report_query_runner.py`, `app/infra/db/{report_runner,report_select,report_grouped,report_parts,report_conditions,report_buckets,report_fields,report_fields_deal,report_fields_action,report_risk,report_render,read_only}.py`, `app/web/routers/reports.py`, `app/web/schemas/{report_fields,report_query}.py`, `app/web/error_handlers.py`의 Reports 처리, `frontend/src/features/reports/designer/**`(편집 화면 전용 부분 제외), `features/reports/result/{ResultPanel,TableTile}.tsx`의 표·SQL 부분, `data/reports.ts`의 카탈로그·조회 훅, `gateway/http/reports.ts`·`mappers/report.ts`의 카탈로그·조회, `test/fake/gateway/reports.ts`, `test/fake/seed/reportCatalog.ts`)이며 문구·type·상태 코드는 코드에서 그대로 옮겼습니다. 코드와 Fake·안내서가 어긋나던 점은 2026-11-11 사용자 결정으로 정리했습니다: 조회 Fake 게이트웨이는 서버 동작에 맞추되 흉내 내는 위반의 범위는 넓히지 않고(RQ-R56), 금액 건수 집계 열의 `unit` `krw`는 현행대로 두며(RQ-R36), 저장 정의 JSON의 예전 형식 읽기 변환은 이 문서가 가집니다(RQ-R57). 안내서(`docs/user-guide.html` 15.7) 문구는 코드에 맞춥니다. 결정 목록은 계획(`artifacts/10-analysis/rq-plan.md`)에 있습니다. 저장 리포트(RS)·차트(RC)·공통 입력(UI)은 규칙 번호로 가리킵니다.
 
@@ -75,19 +75,19 @@
 | 24 | `deal.quote_submitted_date` | 견적 제출일 | date | |
 | 25 | `deal.poc_completed_date` | POC 완료일 | date | |
 | 26 | `deal.created_at` | 등록일 | datetime | |
-| 27 | `deal.last_updated_at` | 최종 업데이트 | datetime | RK-R2 |
-| 28 | `deal.status_changed_at` | Status 진입 시각 | datetime | |
+| 27 | `deal.last_updated_at` | 최종 업데이트 | date | RK-R2의 `last_updated_on`(key 유지, RQ-R58) |
+| 28 | `deal.status_changed_at` | Status 진입일 | date | `status_changed_on`(key 유지, RQ-R58) |
 | 29 | `action.action` | 진행사항 | text | |
 | 30 | `action.next_action` | Next Action | text | |
 | 31 | `action.memo` | Memo | text | |
 | 32 | `action.actor` | 수행자 | user | 값 id, 출처 `users` |
 | 33 | `action.type` | Action 유형 | code | 값 id, 출처 `action_types` |
 | 34 | `action.next_action_status` | Next Action 상태 | code | 정적: Next Action 상태 3개와 그 라벨(NA-R1) |
-| 35 | `action.status` | 당시 Status | code | 값 key, 출처 `status_codes` |
-| 36 | `action.forecast` | 당시 Forecast | code | 값 key, 출처 `forecast_codes` |
+| 35 | `action.status` | 당시 Status | code | 값 key, 출처 `status_codes`. Action 등록 요청 시점 값(수행일 당시 아님, AC-R37) |
+| 36 | `action.forecast` | 당시 Forecast | code | 값 key, 출처 `forecast_codes`. 등록 요청 시점 값(AC-R37) |
 | 37 | `action.due_date` | Due Date | date | |
-| 38 | `action.acted_at` | 수행일시 | datetime | |
-| 39 | `action.closed_at` | 종료 시각 | datetime | Next Action 종료 시각 |
+| 38 | `action.acted_at` | 수행일 | date | Action `acted_on`(key 유지, RQ-R58) |
+| 39 | `action.closed_at` | 종료일 | date | Next Action 종료일 `next_action_closed_on`(key 유지, RQ-R58) |
 | 40 | `action.count` | Action 건수 | number | 가상 필드: 그룹핑 전용, 조건 불가, 집계 건수 고정 |
 
 형식별 허용표(카탈로그 각 필드의 `formats`·`operators`·`aggregates`·기본값)
@@ -159,7 +159,7 @@
 - **RQ-R27** 결과 열의 `value_type`: 집계가 count·count_distinct면 `integer`, avg면 `decimal`, sum·min·max이거나 숫자 필드면 `integer`, 날짜·시각 필드는 포맷 year → `integer`, quarter·month → `text`, 날짜 필드이거나 포맷 ymd → `date`, 그 밖 → `datetime`, 나머지는 `text`. 값: integer는 정수, decimal은 소수 둘째 자리 반올림 실수, date는 `YYYY-MM-DD`, datetime은 서버 오프셋 ISO 시각(TM-R8), 빈 값은 null.
 - **RQ-R28** 그룹핑: 그룹 컬럼들의 조합으로 묶는다. 묶는 기준은 code·user 필드면 id·key(이름이 같아도 다른 값이면 다른 그룹), 날짜는 묶음 포맷 값, 그 밖은 원래 값이다. 행이 있는 그룹만 나온다. `total_count`는 그룹 수다.
 - **RQ-R29** 집계: sum·avg·min·max는 값, count는 값이 있는 행 수, count_distinct는 key 기준 고유 수다(이름이 아님). **Deal당 한 번**: 행 범위가 Action이고 그룹핑이면, Deal 필드의 sum·avg·count는 그룹마다 Deal 하나당 한 번만 센다(한 Deal이 두 그룹에 있으면 그룹마다 한 번). min·max·count_distinct는 원래 중복 영향이 없다. Action 필드의 count는 Action마다 센다. 응답 `deal_numbers_once`는 행 범위 action + 그룹핑 + Deal 숫자의 sum·avg 비그룹 컬럼이 있을 때만 true다. Deal 행 범위의 그룹핑은 Deal이 한 행이라 이 규칙이 필요 없다.
-- **RQ-R30** 정렬: 정렬을 고른 컬럼들을 컬럼 순서대로 적용하고(같은 식은 한 번), NULL은 방향과 무관하게 맨 뒤다. 정렬 값은 code(Status·Forecast)는 코드 순서, 정적 선택지는 선언 순서, 그 밖은 표시 값(그룹핑하지 않은 날짜 컬럼은 원래 날짜)이다. 그룹핑 리포트는 집계 컬럼으로도 정렬하고, 지정 정렬 뒤에 남은 그룹 컬럼의 정렬 값 → 그룹 key 오름차순(NULL 뒤)으로 가른다. 그룹핑하지 않은 행의 동률은 Deal code 오름차순, Action 행이면 이어서 수행일시·Action id 오름차순이다. 정렬을 하나도 고르지 않은 그룹핑 없는 결과는 Deal code 순이다. 정렬은 행 수 제한 전에 적용한다.
+- **RQ-R30** 정렬: 정렬을 고른 컬럼들을 컬럼 순서대로 적용하고(같은 식은 한 번), NULL은 방향과 무관하게 맨 뒤다. 정렬 값은 code(Status·Forecast)는 코드 순서, 정적 선택지는 선언 순서, 그 밖은 표시 값(그룹핑하지 않은 날짜 컬럼은 원래 날짜)이다. 그룹핑 리포트는 집계 컬럼으로도 정렬하고, 지정 정렬 뒤에 남은 그룹 컬럼의 정렬 값 → 그룹 key 오름차순(NULL 뒤)으로 가른다. 그룹핑하지 않은 행의 동률은 Deal code 오름차순, Action 행이면 이어서 수행일·Action id 오름차순이다. 정렬을 하나도 고르지 않은 그룹핑 없는 결과는 Deal code 순이다. 정렬은 행 수 제한 전에 적용한다.
 - **RQ-R31** 행 수 제한: 결과 `rows`는 최대 `row_limit`행(그룹)이다. `total_count` = 제한 전 전체 행(그룹) 수, `truncated` = `total_count > rows 수`. 맞는 행이 없으면 `rows: []`·`total_count: 0`·`truncated: false`.
 - **RQ-R32** 합계 행(`totals`): 그룹핑하고 비그룹(집계) 컬럼이 하나 이상일 때만, 같은 조건의 **전체 범위**를 그룹 없이 한 번 더 집계한 한 행이다(컬럼 순서, 그룹 컬럼 자리는 null). 행 수 제한과 무관하고, 고유 건수·평균은 전체 기준이며, Action 행 범위면 Deal 필드를 전체에서 Deal당 한 번 센다. 그룹핑이 없거나 모든 컬럼이 그룹 컬럼이면 `totals: null`이다.
 - **RQ-R33** 원장 일치: Vendor(그룹) × Expected Close 분기(그룹) × 금액 합계 × Deal code 건수, 조건 Forecast 구분 not_in [lost]·Expected Close 올해인 리포트의 각 칸은 같은 연도·분기·Vendor의 Deals 목록(DL-R1·DL-R6·DL-R9, Lost 제외) 건수·금액과 같다. Vendor 없는 칸 = 그 분기 전체 − Vendor 칸 합. 합계 행은 같은 조건 Deals 목록 전체 건수·금액과 같다.
@@ -190,6 +190,7 @@
 - **RQ-R56** 조회 Fake 게이트웨이(`test/fake/gateway/reports.ts`, 카탈로그 `test/fake/seed/reportCatalog.ts`): 카탈로그는 서버 카탈로그와 같은 내용의 사본(호출자가 바꿔도 원본 불변)을 주고, 미인증은 401이다. 서버와 다르던 곳은 **Fake를 서버 동작에 맞춘다(2026-11-11 결정)**. 조회는 테스트가 응답 처리기(`setReportQueryHandler`)를 정하면 그 결과·오류를 쓰고, 아니면 다음 위반만 서버와 같은 code·location·문구로 흉내 낸다: 컬럼 수, 컬럼·조건의 unknown-field, group-not-allowed, 그룹 컬럼 집계, grouping-required, 그룹핑 없는 집계, aggregate-required, 그룹핑 집계 허용 목록, conditions-count, row-limit-invalid("행 수 제한은 100, 1000, 10000 중 하나여야 합니다" — 서버 RQ-R19와 같은 문구). 위반이 있으면 `invalid-report`(detail = 첫 문구)이고, 없으면 합성 결과(3행, 값 형식별 결정적 값, 범위 판정은 서버 RQ-R20·RQ-R29와 같음, `today` = Fake 시계, `totalCount` 3, `truncated` false)를 준다. 조회 요청은 모두 기록하고 데이터 초기화 때 처리기·기록을 지운다. 포맷·표시 이름·앞 N자·정렬·연산자·값·결합 위반은 흉내 내지 않는다 — 이 범위는 넓히지 않고, 그런 위반이 필요한 화면 테스트는 처리기로 위반을 주입한다(2026-11-11 결정). 합계 행(`totals`)은 서버(RQ-R32)와 같이 그룹핑하고 비그룹(집계) 컬럼이 하나 이상일 때만 주고 그룹핑이 없거나 모든 컬럼이 그룹 컬럼이면 null이다. 합계 행의 그룹 칸은 null이고 집계 칸은 비우지 않는다: 합성 행에서 그 집계로 계산한 값(sum·count·count_distinct는 행 값의 합, avg는 행 값의 평균을 소수 둘째 자리에서 반올림, min·max는 행 값의 최소·최대)이다.
 
 저장 정의 JSON (2026-11-11 결정으로 RQ 소유)
+- **RQ-R58** 날짜로 바뀐 필드(2026-11-13): `deal.last_updated_at`·`deal.status_changed_at`·`action.acted_at`·`action.closed_at`은 형식이 date다. 포맷은 date 허용표(기본 ymd)를 따르고 `ymd_hm`은 쓸 수 없다(요청하면 RQ-R12의 422 `format-not-allowed`). 저장 리포트 정의에 이 네 필드의 `ymd_hm`이 있으면 읽을 때 `ymd`로 바꾼다(RQ-R57과 같은 자동 변환이고, 다시 저장하면 새 값이 들어간다). 조건 값과 상대 기간은 date 형식 규칙을 따른다. 이제 datetime 형식 필드는 `deal.created_at` 하나뿐이다.
 - **RQ-R57** 저장 리포트의 정의 JSON(`reports.definition`, RS-R1)은 `/reports/query` 요청과 같은 모양으로 쓴다: 컬럼마다 `field`·`label`·`format`·`prefix_length`·`group`·`aggregate`·`sort` 7키, 그리고 `conditions`(`field`·`operator`·`value`)·`combine`·`row_limit`이며 최상위 `sort`는 없다. 읽을 때(`definition_from_json` — 목록·상세·실행·복제·배치 저장이 모두 이것으로 읽는다) 예전 형식을 새 형식으로 바꾼다:
   - ① 예전 텍스트·코드 포맷 `as_is`·`prefix`·`name`·`key`와 예전 숫자 포맷 `thousands`·`krw_thousand`·`krw_million`·`decimal1`·`percent_share`는 포맷 없음(null)으로 읽고 `prefix_length`는 그대로 둔다(예전 `prefix` 포맷의 N은 앞 N자 옵션으로 남는다). 그래서 코드·사용자 열은 이름으로, 예전 구성비 열은 원래 집계 값(금액은 원)으로 실행된다. 지금 포맷(RQ-R6)은 그대로다.
   - ② 예전 최상위 `sort` `{column, direction}`(direction 생략은 `asc`)은 그 위치 컬럼의 `sort`로 옮긴다. 그 컬럼에 자기 `sort` 값이 있으면(빈 문자열 포함) 그것이 우선한다. 최상위 `sort: null`은 정렬 없음이다.
@@ -341,7 +342,7 @@ RQ-R38~RQ-R56.
 | RQ-050 | 고유 건수는 이름이 아니라 key로 센다 | RQ-R29, RQ-R28, RQ-UC3 | backend | `repositories/test_report_query_rows_contract.py` |
 | RQ-051 | 컬럼 정렬은 컬럼 순서가 우선순위이고 NULL은 맨 뒤, 같으면 Deal code 순이다 | RQ-R30, RQ-UC3 | backend | `infra/test_report_sql_grouping.py`, `infra/test_report_sql_sort.py`, `repositories/test_report_query_rows_contract.py` |
 | RQ-052 | Status 그룹은 코드 순서이고 그룹핑 리포트는 집계 컬럼으로도 정렬한다 | RQ-R30, RQ-R28, RQ-UC3 | backend | `infra/test_report_sql_grouping.py`, `infra/test_report_sql_sort.py`, `repositories/test_report_query_rows_contract.py` |
-| RQ-053 | Action 행의 동률은 수행일시·id 순이다 | RQ-R30, RQ-UC3 | backend | `infra/test_report_sql_grouping.py`, `infra/test_report_sql_sort.py`, `repositories/test_report_query_rows_contract.py` |
+| RQ-053 | Action 행의 동률은 수행일·id 순이다 | RQ-R30, RQ-UC3 | backend | `infra/test_report_sql_grouping.py`, `infra/test_report_sql_sort.py`, `repositories/test_report_query_rows_contract.py` |
 | RQ-054 | 행 수 제한은 정렬 뒤 적용되고 total_count는 제한 전 행·그룹 수다 | RQ-R31, RQ-UC3 | backend | `application/test_run_report.py`, `infra/test_report_sql_grouping.py`, `repositories/test_report_query_rows_contract.py` |
 | RQ-055 | 그룹핑 리포트의 합계 행은 같은 조건 전체를 그룹 없이 한 번 더 집계한다 | RQ-R32, RQ-UC3 | backend | `application/test_run_report.py`, `infra/test_report_sql_grouping.py`, `repositories/test_report_query_rows_contract.py`, `web/test_report_routes.py` |
 | RQ-056 | 합계 행의 고유 건수는 전체 고유 수이고 Action 행에서도 Deal당 한 번이다 | RQ-R32, RQ-UC3 | backend | `infra/test_report_sql_grouping.py`, `repositories/test_report_query_rows_contract.py` |
@@ -401,6 +402,9 @@ RQ-R38~RQ-R56.
 | RQ-110 | 예전 숫자 포맷은 포맷 없음으로 읽히고 값은 집계 그대로다 | RQ-R57, RQ-UC3 | backend | `application/test_report_legacy_definition.py`, `domain/test_report_stored.py`, `repositories/test_saved_report_legacy_definition.py`, `repositories/test_report_legacy_definition_run_contract.py` |
 | RQ-111 | 예전 최상위 정렬은 그 컬럼의 정렬로 읽혀 같은 순서로 실행된다 | RQ-R57, RQ-R30, RQ-UC3 | backend | `application/test_report_legacy_definition.py`, `domain/test_report_stored.py`, `repositories/test_saved_report_legacy_definition.py`, `repositories/test_report_legacy_definition_run_contract.py` |
 | RQ-112 | 읽을 수 없는 모양은 stored-invalid이고 값 위반은 읽을 때가 아니라 실행 때 알린다 | RQ-R57, RQ-UC4 | backend | `domain/test_report_stored.py` |
+| RQ-113 | 카탈로그에서 최종 업데이트·Status 진입일·수행일·종료일은 date 형식이고 기본 포맷 ymd이며 ymd_hm이 없다 | RQ-R58, RQ-R2 | backend | `application/test_list_report_fields.py`, `domain/test_report_catalog.py`, `domain/test_report_resolve.py`, `repositories/test_report_query_rows_contract.py`, `web/test_report_routes.py` |
+| RQ-114 | 네 날짜 필드에 ymd_hm을 요청하면 422 format-not-allowed다 | RQ-R58, RQ-R12 | backend | `domain/test_report_parse_columns.py`, `web/test_report_routes.py` |
+| RQ-115 | 저장 정의의 네 날짜 필드 ymd_hm은 읽을 때 ymd로 바뀐다 | RQ-R58, RQ-R57 | backend | `domain/test_report_stored.py` |
 
 ### RQ-001 로그인한 사용자는 필드 카탈로그를 받고 미인증은 401이다
 - Given VIEWER가 로그인함
@@ -578,7 +582,7 @@ RQ-R38~RQ-R56.
 ### RQ-040 경고·체류 일수·최종 업데이트 값은 Deals 목록 값과 같다
 - Given 경고 상태·Status 진입일·최근 Action이 다른 Deal들
 - When 컬럼 `[deal.code, deal.risk, deal.status_days, deal.last_updated_at]`으로 조회한다
-- Then 각 행의 경고 라벨("기한초과"·"미업데이트"·"기한초과·미업데이트"·null), 체류 일수, 최종 업데이트 시각이 같은 Deal의 Deals 목록 `risk`·`status_days`·`last_updated_at`과 같다
+- Then 각 행의 경고 라벨("기한초과"·"미업데이트"·"기한초과·미업데이트"·null), 체류 일수, 최종 업데이트일이 같은 Deal의 Deals 목록 `risk`·`status_days`·`last_updated_on`과 같다
 
 ### RQ-041 코드·사용자·연락처 필드는 이름으로 보이고 퇴사자는 (퇴사)가 붙는다
 - Given 퇴사한 "kim2"가 담당자이고 Status 진행 중·Vendor SAP·고객 연락처(회사 "ACME", 이름 "홍길동")·지난 파트너 연결 "OldP"와 활성 파트너 연결 "NewP"인 Deal, 수행자 KIM의 Action
@@ -639,10 +643,10 @@ RQ-R38~RQ-R56.
 - When `deal.status`(group, asc) × 건수, `deal.vendor`(group) × `deal.amount`(sum, desc), `[deal.amount(sum, desc), deal.vendor(group)]`로 조회한다
 - Then Status 행은 코드 순서, Vendor 행은 금액 합계 내림차순이고, 집계 정렬이 앞 컬럼이면 그 집계가 먼저다
 
-### RQ-053 Action 행의 동률은 수행일시·id 순이다
-- Given 한 Deal에 수행일시가 다른 Action 셋과 같은 수행일시 Action 둘
+### RQ-053 Action 행의 동률은 수행일·id 순이다
+- Given 한 Deal에 수행일이 다른 Action 셋과 같은 수행일 Action 둘
 - When 컬럼 `[deal.code, action.action]`(정렬 없음)으로 조회한다
-- Then Deal code → 수행일시 오름차순 → Action id 오름차순이다
+- Then Deal code → 수행일 오름차순 → Action id 오름차순이다
 
 ### RQ-054 행 수 제한은 정렬 뒤 적용되고 total_count는 제한 전 행·그룹 수다
 - Given Deal 101건(금액 1~101), 맞는 Deal이 없는 조건
@@ -905,6 +909,19 @@ RQ-R38~RQ-R56.
 - When 저장 JSON으로 `[]`, "text", null, `{}`, `columns` 문자열, 문자열 컬럼, `field` 없는 컬럼, `conditions` 문자열, 숫자 조건, 컬럼 `sort: 1`, 그리고 최상위 `sort`가 "x"·`{column: 5}`·`{column: 3}`(컬럼 3개)·`{column: -1}`·`{column: "0"}`·`{column: true}`·`{column: 0, direction: 1}`인 JSON을 각각 읽고, 최상위 `sort: {column: 1, direction: "up"}`인 JSON을 읽은 뒤 검증한다
 - Then 앞의 것은 모두 위반 하나 `["definition"]` `stored-invalid` "저장된 리포트 정의를 읽을 수 없습니다."(API 응답은 RS-R17)이고, "up"은 읽기는 되며 검증에서 `["columns", 1, "sort"]` `sort-invalid` 하나다
 
+### RQ-113 카탈로그에서 최종 업데이트·Status 진입일·수행일·종료일은 date 형식이고 기본 포맷 ymd이며 ymd_hm이 없다
+- When `GET /reports/fields`를 부른다
+- Then 27 `deal.last_updated_at`(최종 업데이트), 28 `deal.status_changed_at`(Status 진입일), 38 `action.acted_at`(수행일), 39 `action.closed_at`(종료일)은 type date이고, formats는 ymd·year·quarter·month·weekday·relative이며, 기본값은 ymd다. 26 `deal.created_at`은 datetime 그대로다. 필드 개수와 순서는 바뀌지 않는다
+
+### RQ-114 네 날짜 필드에 ymd_hm을 요청하면 422 format-not-allowed다
+- When 컬럼 `[{field: "action.acted_at", format: "ymd_hm"}]`로 조회하고, `deal.status_changed_at`·`action.closed_at`·`deal.last_updated_at`도 같은 포맷으로 조회한다
+- Then 모두 422 `invalid-report`이고, 위치는 `["columns", 0, "format"]`, code는 `format-not-allowed`다
+
+### RQ-115 저장 정의의 네 날짜 필드 ymd_hm은 읽을 때 ymd로 바뀐다
+- Given 저장 정의에 네 날짜 필드가 `format: "ymd_hm"`인 컬럼으로 들어 있다
+- When 그 리포트를 열고 실행한다
+- Then 정의의 네 포맷은 ymd이고, 결과 칸은 `YYYY-MM-DD`이며, 오류가 없다
+
 ## 5. 변경 이력
 
 | 날짜 | 변경 | 영향 테스트 코드 |
@@ -912,3 +929,5 @@ RQ-R38~RQ-R56.
 | 2026-11-11 | 초안 작성: 구현된 Reports 조회 엔진·디자이너 작성 동작 문서화(RQ-R1~RQ-R56, RQ-UC1~RQ-UC5) | RQ-001~RQ-107 신규 |
 | 2026-11-11 | 사용자 결정 반영: 조회 Fake를 서버에 맞춤(행 수 문구·합계 행, 흉내 범위는 그대로, RQ-R56), 금액 건수 집계 `unit` 현행 유지(RQ-R36), 저장 정의 JSON 읽기·예전 형식 변환을 RQ 소유로(RQ-R57 신설, functional `test_saved_report_open.py`의 예전 형식 3개 시나리오 → RQ-109·RQ-110·RQ-111), RS·RC·CL·CD·RK 상호 참조를 규칙 번호로 | RQ-106 변경, RQ-108~RQ-112 신규 |
 | 2026-11-11 | UI 문서 작성에 따라 공통 입력 참조를 UI 규칙 번호로 교체(머리말, 1장, RQ-R46, RQ-R47, 케이스 본문). 동작·케이스 변경 없음, 상태 줄 그대로 | 없음 |
+| 2026-11-13 | AC 수행일 지정(확정)에 맞춰 카탈로그 35·36·38 비고 보강. SQL·동작·케이스 변경 없음, 상태 줄 그대로 | 없음 |
+| 2026-11-13 | 확정(2026-11-13 사용자 확인): 최종 업데이트·Status 진입일·수행일·종료일을 date 형식으로 변경(카탈로그 27·28·38·39, RQ-R30, RQ-R58 신설). field key는 유지하고, 저장 리포트의 ymd_hm은 ymd로 자동 변환. 카탈로그·결과 열 형식 변경(호환 깨짐, 사용자 승인) | 신규 RQ-113~RQ-115. 변경 RQ-040, RQ-053 |

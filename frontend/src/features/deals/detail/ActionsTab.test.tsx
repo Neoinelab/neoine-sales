@@ -28,9 +28,9 @@ describe('Actions 탭 목록', () => {
     const { table } = await openActions(1, '한빛은행 ITDR 도입')
     // when: 표 머리글과 첫 행들을 읽는다
     const headers = within(table).getAllByRole('columnheader').map((h) => h.textContent)
-    // then: 열 순서가 수행일시부터 관리까지다
+    // then: 열 순서가 수행일부터 관리까지다
     expect(headers).toEqual([
-      '수행일시',
+      '수행일',
       '담당자',
       '등록 시점 Status·Forecast',
       '유형',

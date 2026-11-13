@@ -66,7 +66,7 @@ describe('toDealAction', () => {
     expect(mapped).toEqual({
       id: 41,
       dealCode: '20261016-AB12',
-      actedAt: '2026-10-15T09:00:00+09:00',
+      actedOn: '2026-10-15',
       actor: { id: USER_ID.kim, name: '김영업', role: 'sales', status: 'active' },
       type: '협상',
       typeId: 3,
@@ -74,7 +74,7 @@ describe('toDealAction', () => {
       nextAction: '계약서 초안 검토',
       dueDate: '2026-10-18',
       nextActionStatus: 'open',
-      nextActionClosedAt: null,
+      nextActionClosedOn: null,
       memo: '메모',
       statusKey: 'price_negotiation',
       forecastKey: 'commit',
@@ -110,7 +110,7 @@ describe('toDealAction', () => {
 describe('toActionCreateBody', () => {
   // 본문은 snake_case이고 수행일시·담당자 칸이 없다.
   // 테스트 코드: AC-089
-  it('uses snake_case keys and has no acted_at or actor field', () => {
+  it('uses snake_case keys and has no acted_on or actor field', () => {
     // when: 유형 이름이 있는 입력으로 등록 본문을 만든다
     const body = toActionCreateBody(input({ type: { name: '통화' }, memo: '메모' }))
 
@@ -254,11 +254,11 @@ describe('toDealAction nullable plan fields and Next Action status', () => {
   it('keeps null progress, Next Action, due date, status and closed time as null', () => {
     // when: 모두 null인 서버 Action을 화면 Action으로 바꾼다.
     const mapped = toDealAction(
-      serverAction({ action: null, next_action: null, due_date: null, next_action_status: null, next_action_closed_at: null }),
+      serverAction({ action: null, next_action: null, due_date: null, next_action_status: null, next_action_closed_on: null }),
     )
 
     // then: 다섯 필드가 null이다.
-    expect(mapped).toMatchObject({ progress: null, nextAction: null, dueDate: null, nextActionStatus: null, nextActionClosedAt: null })
+    expect(mapped).toMatchObject({ progress: null, nextAction: null, dueDate: null, nextActionStatus: null, nextActionClosedOn: null })
   })
 
   // 서버 상태 이름을 화면 상태 값으로 바꾼다(not_done -> notDone).
@@ -268,14 +268,14 @@ describe('toDealAction nullable plan fields and Next Action status', () => {
     ['not_done', 'notDone'],
   ] as const)('maps the server status %s to %s', (wire, status) => {
     // given: 상태와 종료 시각이 있는 서버 Action이다.
-    const closed = wire === 'open' ? null : '2026-10-16T10:00:00+09:00'
+    const closed = wire === 'open' ? null : '2026-10-16'
 
     // when: 화면 Action으로 바꾼다.
-    const mapped = toDealAction(serverAction({ next_action_status: wire, next_action_closed_at: closed }))
+    const mapped = toDealAction(serverAction({ next_action_status: wire, next_action_closed_on: closed }))
 
     // then: 화면 상태와 종료 시각이 기대와 같다.
     expect(mapped.nextActionStatus).toBe(status)
-    expect(mapped.nextActionClosedAt).toBe(closed)
+    expect(mapped.nextActionClosedOn).toBe(closed)
   })
 })
 
@@ -333,3 +333,49 @@ describe('closePreviousNextActionId mapping', () => {
   })
 })
 
+
+describe('toActionCreateBody performed day', () => {
+  // acted_on은 값이 있을 때만 ISO 날짜로 담고, 수정 본문에는 없다.
+  // 테스트 코드: AC-109
+  it('adds acted_on only when a day is given and never to the update body', () => {
+    // when: 수행일 없이 / 있는 입력으로 등록 본문을 만든다
+    const without = toActionCreateBody(input())
+    const withDay = toActionCreateBody(input({ actedOn: '2026-11-10' }))
+    // then: 없으면 키가 없고, 있으면 그 날짜다
+    expect(without).not.toHaveProperty('acted_on')
+    expect(withDay).toMatchObject({ acted_on: '2026-11-10' })
+    // then: 같은 입력의 수정 본문에는 acted_on이 없다
+    expect(toActionUpdateBody(input({ actedOn: '2026-11-10' }))).not.toHaveProperty('acted_on')
+  })
+})
+
+describe('날짜로 바뀐 수행일·종료일 매핑', () => {
+  // 서버의 acted_on 날짜를 화면 모델의 actedOn으로 그대로 옮기고 actedAt은 만들지 않는다.
+  // 테스트 코드: AC-117
+  it('maps acted_on to actedOn and has no actedAt', () => {
+    // given: 수행일이 2026-11-10인 서버 Action이다
+    const server = serverAction({ acted_on: '2026-11-10' })
+
+    // when: 화면 Action으로 바꾼다
+    const mapped = toDealAction(server)
+
+    // then: actedOn이 "2026-11-10" 날짜 그대로이고 actedAt 키는 없다
+    expect(mapped.actedOn).toBe('2026-11-10')
+    expect(mapped).not.toHaveProperty('actedAt')
+    expect(Object.keys(server)).not.toContain('acted_at')
+  })
+
+  // 서버의 next_action_closed_on 날짜를 화면 모델의 종료일(nextActionClosedOn)로 그대로 옮기고 시각 키는 만들지 않는다.
+  // 테스트 코드: NA-072
+  it('maps next_action_closed_on to a date and has no closed time key', () => {
+    // given: 종료일이 2026-11-12인 종료(수행) 서버 Action이다
+    const server = serverAction({ next_action_status: 'done', next_action_closed_on: '2026-11-12' })
+
+    // when: 화면 Action으로 바꾼다
+    const mapped = toDealAction(server)
+
+    // then: 종료일이 "2026-11-12"이고 nextActionClosedAt 키는 없다
+    expect(mapped.nextActionClosedOn).toBe('2026-11-12')
+    expect(mapped).not.toHaveProperty('nextActionClosedAt')
+  })
+})

@@ -36,7 +36,7 @@ export interface UserRecord {
 export interface ActionRecord {
   id: number
   dealCode: string
-  actedAt: string
+  actedOn: string
   actorId: number
   /** Action 유형(`ActionTypeRecord.id`). 이름은 읽을 때 조인한다. */
   typeId: number
@@ -46,8 +46,8 @@ export interface ActionRecord {
   dueDate: string | null
   /** Next Action이 있는 행에만 값이 있다(없으면 null). */
   nextActionStatus: NextActionStatus | null
-  /** 종료 상태일 때만 서버 시계의 종료 시각. */
-  nextActionClosedAt: string | null
+  /** 종료 상태일 때만 서버 시계의 종료일(업무 날짜, YYYY-MM-DD). */
+  nextActionClosedOn: string | null
   memo: string
   statusKey: string
   forecastKey: string
@@ -132,7 +132,7 @@ export interface LicenseContractRecord {
   inspection: InspectionCycle
   note: string
   renewedFromId: number | null
-  endedAt: string | null
+  endedOn: string | null
   createdById: number
   updatedById: number
   createdAt: string

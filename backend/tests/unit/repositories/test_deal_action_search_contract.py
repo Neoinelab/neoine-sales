@@ -24,7 +24,7 @@ async def _seed(action_case: Case) -> None:
     for action_type, action, next_action, memo, actor, day, due in rows:
         await action_case.add(
             make_deal_action(
-                acted_at=NOW + timedelta(days=day),
+                now=NOW + timedelta(days=day),
                 action_type=action_type,
                 action=action,
                 next_action=next_action,
@@ -39,16 +39,19 @@ async def _type_id(action_case: Case, name: str) -> object:
     return next(t.id for t in await action_case.action_types.list() if t.name == name)
 
 
-async def test_search_orders_by_latest_acted_at_first_by_default(action_case: Case) -> None:
-    """정렬을 지정하지 않으면 수행 시각이 최신인 것부터 나온다."""
-    # given: 수행 시각이 다른 Action 3건
+async def test_search_orders_by_latest_acted_on_first_by_default(action_case: Case) -> None:
+    """정렬을 지정하지 않으면 수행일이 최신인 것부터 나온다.
+
+    테스트 코드: AC-115
+    """
+    # given: 수행일이 다른 Action 3건
     await _seed(action_case)
 
     # when: 정렬 없이 검색한다
     by_default = await action_case.search()
-    # then: 수행 시각 최신순이다
+    # then: 수행일 최신순이다
     assert by_default == ["최종 미팅", "킥오프 미팅", "첫 통화"]
-    # when: 수행 시각 내림차순으로 검색한다
+    # when: 수행일 내림차순으로 검색한다
     descending = await action_case.search(sort=DealActionSort.ACTED_AT_DESC)
     # then: 기본 정렬과 같다
     assert descending == [
@@ -58,12 +61,12 @@ async def test_search_orders_by_latest_acted_at_first_by_default(action_case: Ca
     ]
 
 
-async def test_search_can_order_by_oldest_acted_at_first(action_case: Case) -> None:
-    """수행 시각 오름차순으로 검색하면 오래된 것부터 나온다."""
-    # given: 수행 시각이 다른 Action 3건
+async def test_search_can_order_by_oldest_acted_on_first(action_case: Case) -> None:
+    """수행일 오름차순으로 검색하면 오래된 것부터 나온다."""
+    # given: 수행일이 다른 Action 3건
     await _seed(action_case)
 
-    # when: 수행 시각 오름차순으로 검색한다
+    # when: 수행일 오름차순으로 검색한다
     found = await action_case.search(sort=DealActionSort.ACTED_AT_ASC)
     # then: 오래된 것부터 나온다
     assert found == [
@@ -73,13 +76,16 @@ async def test_search_can_order_by_oldest_acted_at_first(action_case: Case) -> N
     ]
 
 
-async def test_actions_with_the_same_acted_at_follow_registration_order(
+async def test_actions_with_the_same_acted_on_follow_the_id_in_the_sort_direction(
     action_case: Case,
 ) -> None:
-    """수행 일시가 같으면 생성 순서(id 오름차순)다. 먼저 등록한 것이 앞에 온다."""
-    # given: 수행 시각이 같은 Action 3건을 차례로 등록
-    for name in ("첫째", "둘째", "셋째"):
-        await action_case.add(make_deal_action(NOW, action=name))
+    """수행일이 같으면 id가 방향을 따른다: 오름차순은 먼저 등록한 것이, 내림차순은 나중 것이 앞이다.
+
+    테스트 코드: AC-115
+    """
+    # given: 수행일이 같은 Action 3건을 차례로 등록(시각이 거꾸로 흘러도 id가 순서다)
+    for number, name in enumerate(("첫째", "둘째", "셋째")):
+        await action_case.add(make_deal_action(NOW - timedelta(minutes=number), action=name))
 
     # when: 오름차순으로 검색한다
     ascending = await action_case.search(sort=DealActionSort.ACTED_AT_ASC)
@@ -87,19 +93,19 @@ async def test_actions_with_the_same_acted_at_follow_registration_order(
     assert ascending == ["첫째", "둘째", "셋째"]
     # when: 내림차순으로 검색한다
     descending = await action_case.search(sort=DealActionSort.ACTED_AT_DESC)
-    # then: 방향을 바꿔도 등록 순서대로 나온다
-    assert descending == ["첫째", "둘째", "셋째"]
+    # then: 반대로 나중에 등록한 것이 앞이다
+    assert descending == ["셋째", "둘째", "첫째"]
 
 
-async def test_search_by_due_date_breaks_ties_by_latest_acted_at(action_case: Case) -> None:
-    """기한 오름차순에서 기한이 같으면 수행 시각 최신순으로 나온다."""
+async def test_search_by_due_date_breaks_ties_by_latest_acted_on(action_case: Case) -> None:
+    """기한 오름차순에서 기한이 같으면 수행일 최신순으로 나온다."""
     # given: 기한이 같은 Action이 둘 있는 3건
     await _seed(action_case)
 
-    # 기한 02-01 -> 킥오프, 02-10 동률은 수행 시각 최신순: 최종 -> 첫 통화
+    # 기한 02-01 -> 킥오프, 02-10 동률은 수행일 최신순: 최종 -> 첫 통화
     # when: 기한 오름차순으로 검색한다
     found = await action_case.search(sort=DealActionSort.DUE_DATE_ASC)
-    # then: 기한이 빠른 것이 먼저고, 동률은 수행 시각 최신순이다
+    # then: 기한이 빠른 것이 먼저고, 동률은 수행일 최신순이다
     assert found == [
         "킥오프 미팅",
         "최종 미팅",
@@ -218,7 +224,7 @@ async def test_search_due_range_is_inclusive_on_both_ends(action_case: Case) -> 
 async def test_search_acted_date_covers_the_local_day_on_both_ends(
     action_case: Case, local_tz: Callable[[str], None]
 ) -> None:
-    """수행일 범위는 서버 로컬 날짜의 하루 전체를 양 끝까지 포함한다."""
+    """수행일 범위는 수행일(요청 시각의 업무 날짜)을 양 끝 포함으로 비교한다."""
     # given: 서버 시간대가 Asia/Seoul이고, 로컬 하루 경계 앞뒤 시각의 Action 4건
     local_tz("Asia/Seoul")
     moments = {  # 로컬(KST) 경계 직전·직후

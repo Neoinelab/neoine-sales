@@ -11,7 +11,7 @@ from app.application.ports.deal_action_repository import (
     NextActionStatusFilter,
 )
 from app.domain.deal_action.next_action_status import NextActionState, NextActionStatus
-from tests.factories import NOW, later, make_action_content, make_deal_action
+from tests.factories import NOW, date_after, later, make_action_content, make_deal_action
 
 if TYPE_CHECKING:
     from tests.unit.repositories.deal_action_case import Case
@@ -53,8 +53,8 @@ async def test_next_only_action_round_trips_as_open(action_case: Case) -> None:
     assert stored.next_action_state == NextActionState.open()
 
 
-async def test_update_persists_a_closed_status_and_closed_time(action_case: Case) -> None:
-    """종료 상태 변경을 저장하면 상태·종료 시각·덧붙인 Memo·수정 시각이 남는다."""
+async def test_update_persists_a_closed_status_and_closed_date(action_case: Case) -> None:
+    """종료 상태 변경을 저장하면 상태·종료일·덧붙인 Memo·수정 시각이 남는다."""
     # given: 저장된 Action
     action = make_deal_action(later(5), memo="기존")
     await action_case.add(action)
@@ -65,17 +65,17 @@ async def test_update_persists_a_closed_status_and_closed_time(action_case: Case
 
     # when: 읽는다
     stored = await action_case.repository.get(action.id)
-    # then: 상태와 종료 시각이 남고 Memo는 덧붙으며 수행 시각은 그대로다
+    # then: 상태와 종료일이 남고 Memo는 덧붙으며 수행일은 그대로다
     assert stored.next_action_state == NextActionState(
-        status=NextActionStatus.DONE, closed_at=later(50)
+        status=NextActionStatus.DONE, closed_on=date_after(0)
     )
     assert stored.content.memo == "기존\n끝남"
     assert stored.updated_at == later(50)
-    assert stored.acted_at == later(5)
+    assert stored.acted_on == date_after(0)
 
 
-async def test_update_reopening_clears_the_closed_time(action_case: Case) -> None:
-    """다시 Open으로 바꾸면 종료 시각이 지워진다."""
+async def test_update_reopening_clears_the_closed_date(action_case: Case) -> None:
+    """다시 Open으로 바꾸면 종료일이 지워진다."""
     # given: 미수행으로 종료한 Action
     action = make_deal_action(later(5))
     await action_case.add(action)
@@ -88,7 +88,7 @@ async def test_update_reopening_clears_the_closed_time(action_case: Case) -> Non
 
     # when: 읽는다
     stored = await action_case.repository.get(action.id)
-    # then: 상태가 Open이고 종료 시각이 없다
+    # then: 상태가 Open이고 종료일이 없다
     assert stored.next_action_state == NextActionState.open()
 
 
@@ -145,7 +145,7 @@ async def _seed_states(action_case: Case) -> None:
     rows = [("첫", None), ("둘", "done"), ("셋", "not_done"), ("넷", "none")]
     for day, (name, state) in enumerate(rows):
         action = make_deal_action(
-            acted_at=NOW + timedelta(days=day),
+            now=NOW + timedelta(days=day),
             action=name,
             next_action="" if state == "none" else f"{name} 계획",
         )
@@ -207,7 +207,7 @@ async def test_due_sort_puts_missing_due_last(action_case: Case) -> None:
     ):
         await action_case.add(
             make_deal_action(
-                acted_at=NOW + timedelta(days=day),
+                now=NOW + timedelta(days=day),
                 action=name,
                 next_action="" if due is None else f"{name} 계획",
                 due_date=due,
@@ -223,9 +223,9 @@ async def test_due_sort_puts_missing_due_last(action_case: Case) -> None:
 async def test_keyword_search_skips_missing_fields_without_error(action_case: Case) -> None:
     """키워드 검색은 비어 있는 필드가 있어도 오류 없이 찾는다."""
     # given: 진행사항이 없는 Action과 Next Action이 없는 Action
-    await action_case.add(make_deal_action(acted_at=NOW, action="", next_action="견적 전달"))
+    await action_case.add(make_deal_action(now=NOW, action="", next_action="견적 전달"))
     await action_case.add(
-        make_deal_action(acted_at=NOW + timedelta(days=1), action="견적 통화", next_action="")
+        make_deal_action(now=NOW + timedelta(days=1), action="견적 통화", next_action="")
     )
 
     # when: 두 Action에 모두 있는 키워드로 검색한다

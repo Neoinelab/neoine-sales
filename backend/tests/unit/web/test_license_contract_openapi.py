@@ -35,7 +35,7 @@ RESPONSE_FIELDS = {
     "inspection_cycle",
     "note",
     "renewed_from_id",
-    "ended_at",
+    "ended_on",
     "attachment_count",
     "deal_is_won",
     "created_by",

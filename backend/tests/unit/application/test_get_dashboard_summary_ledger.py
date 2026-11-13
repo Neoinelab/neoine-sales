@@ -95,7 +95,7 @@ async def _given_overdue_and_stale(env: DealEnv, seed: Seed) -> None:
         await env.uow.deal_actions.add(
             make_deal_action(
                 deal_code=item.deal.id,
-                acted_at=env.clock.now(),
+                now=env.clock.now(),
                 actor_user_id=ACTOR_ID,
                 due_date=date(2026, 10, 24),
             )

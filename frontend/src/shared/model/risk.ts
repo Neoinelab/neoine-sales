@@ -8,15 +8,15 @@ export interface RiskInput {
   forecastKey: string
   /** Next Action이 있는 가장 최근 Action(기준 행)의 Due Date. 없으면 null(기한초과 아님). */
   dueDate: string | null
-  /** DealRow.lastUpdatedAt(ISO): 모든 Action의 가장 최근 수행시각, Action이 없으면 등록 시각. */
-  lastUpdatedAt: string
+  /** DealRow.lastUpdatedOn(YYYY-MM-DD): 모든 Action의 가장 최근 수행일, Action이 없으면 등록일. */
+  lastUpdatedOn: string
 }
 
 /**
  * 규칙
  * - Forecast가 종결(`won`/`lost`)이면 항상 null.
  * - 기한초과: dueDate < 오늘(달력 날짜 비교). dueDate === 오늘은 기한초과 아님.
- * - 미업데이트: 오늘 - lastUpdatedAt의 달력 일수 >= staleDays(경고 기준, 기본 14). 기준-1일째는 정상, 기준일째부터 stale.
+ * - 미업데이트: 오늘 - lastUpdatedOn의 달력 일수 >= staleDays(경고 기준, 기본 14). 기준-1일째는 정상, 기준일째부터 stale.
  * - 둘 다면 'overdue_stale'.
  * `now`는 오프셋 포함 ISO 문자열이며 '오늘'은 그 문자열이 나타내는 현지 달력 날짜다(clock.ts의 now()).
  */
@@ -24,7 +24,7 @@ export function computeRisk(input: RiskInput, now: string, staleDays: number): R
   if (isClosedForecast(input.forecastKey)) return null
   const today = datePart(now)
   const overdue = input.dueDate !== null && input.dueDate < today
-  const stale = daysBetween(today, datePart(input.lastUpdatedAt)) >= staleDays
+  const stale = daysBetween(today, datePart(input.lastUpdatedOn)) >= staleDays
   if (overdue && stale) return 'overdue_stale'
   if (overdue) return 'overdue'
   return stale ? 'stale' : null
@@ -36,6 +36,6 @@ export function isClosedForecast(forecastKey: string): boolean {
 }
 
 /** Status 진입 후 경과 일수(달력 날짜 차, UTC 변환 없음). 당일 0, 미래(음수)는 0. */
-export function statusDays(statusChangedAt: string, now: string): number {
-  return Math.max(0, daysBetween(datePart(now), datePart(statusChangedAt)))
+export function statusDays(statusChangedOn: string, now: string): number {
+  return Math.max(0, daysBetween(datePart(now), datePart(statusChangedOn)))
 }

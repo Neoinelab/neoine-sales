@@ -138,7 +138,7 @@ class SqlDealRepository(SavepointWriter):
                         row.next_action, row.due_date, NextActionStatus(row.basis_status)
                     )
                 ),
-                last_updated_at=row.last_updated_at,
+                last_updated_on=row.last_updated_on,
                 license_contract_count=int(row.license_contract_count),
                 has_issued_license_contract=bool(row.has_issued_license_contract),
             )

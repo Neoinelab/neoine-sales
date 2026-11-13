@@ -160,7 +160,7 @@ describe('상태를 바꿀 수 없거나 바꿀 필요가 없을 때', () => {
     // given: 기준 행이 이미 종료로 읽히는 Deal 1
     const real = gateway.actions.list.bind(gateway.actions)
     vi.spyOn(gateway.actions, 'list').mockImplementation(async (code, query) =>
-      (await real(code, query)).map((a) => (a.id === KIM_BASIS_ID ? { ...a, nextActionStatus: 'done' as const, nextActionClosedAt: '2026-10-14T10:00:00+09:00' } : a)),
+      (await real(code, query)).map((a) => (a.id === KIM_BASIS_ID ? { ...a, nextActionStatus: 'done' as const, nextActionClosedOn: '2026-10-14' } : a)),
     )
     // given: 추가 팝업을 연다
     const { user, dialog } = await openDeal1()

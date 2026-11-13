@@ -21,7 +21,7 @@ function serverContract(over: Partial<Schemas['LicenseContractResponse']> = {}):
     inspection_cycle: 'none',
     note: '',
     renewed_from_id: null,
-    ended_at: null,
+    ended_on: null,
     attachment_count: 0,
     deal_is_won: true,
     created_by: serverUserRef(),

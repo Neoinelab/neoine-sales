@@ -185,7 +185,7 @@ async def test_renew_creates_a_new_row_and_ends_the_previous_one(
     ended = await contract_env.stored(previous.id)
     # then: 이전은 종료(기간 유지), 새 행은 갱신·원본 연결·기간·칸·등록자 PARK
     assert ended.status is ContractStatus.ENDED
-    assert ended.ended_at == contract_env.clock.now()
+    assert ended.ended_on == contract_env.clock.now().astimezone().date()
     assert (ended.license_start, ended.license_end) == (date(2026, 1, 1), date(2026, 12, 31))
     (renewal,) = [c for c in await contract_env.contracts_of(code) if c.id != previous.id]
     assert renewal.status is ContractStatus.ISSUED_RENEWAL

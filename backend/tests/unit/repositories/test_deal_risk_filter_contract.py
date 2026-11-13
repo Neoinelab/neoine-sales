@@ -40,12 +40,12 @@ def _at(offset_days: int, at: time = time(9, 0)) -> datetime:
 
 @dataclass(frozen=True)
 class Spec:
-    """한 Deal의 데이터와 기대 판정 입력(기준 행 Due, 최종 업데이트 시각)."""
+    """한 Deal의 데이터와 기대 판정 입력(기준 행 Due, 최종 업데이트 시각의 날짜)."""
 
     key: str
     forecast: str = "pipeline"
     created: datetime = field(default_factory=lambda: _at(-60))
-    # (acted_at, next_action 있음, due_date, 상태 변경) 목록
+    # (수행 시각 — 날짜만 쓰인다, next_action 있음, due_date, 상태 변경) 목록
     actions: tuple[tuple[datetime, str, date | None, str | None], ...] = ()
     expected_due: date | None = None  # 기준 행의 Due(테스트가 직접 적은 값)
     expected_updated: datetime | None = None  # 최종 업데이트(직접 적은 값)
@@ -147,7 +147,7 @@ async def _seed(case: DealCase) -> None:
         await case.add(deal)
         for acted_at, next_action, due, status in spec.actions:
             action = await case.add_action(
-                deal, acted_at=acted_at, next_action=next_action, due_date=due
+                deal, acted_on=acted_at.date(), next_action=next_action, due_date=due
             )
             if status:
                 await case.set_next_action_status(action, status, acted_at + timedelta(minutes=5))
@@ -160,7 +160,7 @@ def _expected(accepted: set[Risk]) -> list[str]:
         if compute_risk(
             forecast_key=spec.forecast,
             due_date=spec.expected_due,
-            last_updated_at=spec.expected_updated or spec.created,
+            last_updated_on=(spec.expected_updated or spec.created).date(),
             today=TODAY,
             stale_days=STALE_DAYS,
         )

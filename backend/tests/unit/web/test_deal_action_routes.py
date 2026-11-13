@@ -39,9 +39,9 @@ RESPONSE_KEYS: Final = {
     "next_action",
     "due_date",
     "next_action_status",
-    "next_action_closed_at",
+    "next_action_closed_on",
     "memo",
-    "acted_at",
+    "acted_on",
     "actor",
     "status_key",
     "forecast_key",
@@ -93,7 +93,7 @@ async def test_post_creates_the_action_with_location_and_the_server_decided_valu
     assert response.headers["Location"] == f"{SINGLE}/{body['id']}"
     # then: 담당자는 KIM(sales), 상태는 Open이고 유형은 {id, name}이다
     assert (body["actor"]["role"], body["next_action_status"]) == ("sales", "open")
-    assert body["next_action_closed_at"] is None
+    assert body["next_action_closed_on"] is None
     assert body["action_type"]["name"] == "미팅"
     # then: 같은 id로 다시 읽어도 같은 값이다
     assert again.json() == body

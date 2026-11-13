@@ -2,7 +2,6 @@ import { screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { gateway } from '../../../gateway'
 import { resetMock } from '../../../test/fake/default'
-import { formatRelativeTime } from '../../../shared/format'
 import { renderAt } from '../../../test/mockApp'
 import { ALL_DEALS, rowOf } from './testHelpers'
 
@@ -18,16 +17,25 @@ afterEach(() => {
 describe('목록과 mock 시계 (useToday)', () => {
   // 최종 업데이트는 앱 시계 기준 상대 시각으로 보인다
   // 테스트 코드: DL-058
-  it('shows the last update relative to the mock clock, not the real clock', async () => {
-    // given: 앱 시계를 고정한다
+  it.each([
+    ['2030-06-15', '오늘'],
+    ['2030-06-14', '어제'],
+    ['2030-06-12', '3일 전'],
+  ])('shows the last update %s as %s relative to the mock clock date', async (lastUpdatedOn, expected) => {
+    // given: 앱 시계(2030-06-15)를 고정하고 한 Deal의 최종 업데이트일을 정한다
+    const original = gateway.deals.list.bind(gateway.deals)
+    vi.spyOn(gateway.deals, 'list').mockImplementation(async (query) => {
+      const page = await original(query)
+      return { ...page, items: page.items.map((item) => ({ ...item, lastUpdatedOn })) }
+    })
+
+    // when: 목록을 연다
     await renderAt('/deals?q=새론병원 PAM')
     const row = await rowOf(/새론병원 PAM/)
-    const deals = await gateway.deals.list({ keyword: '새론병원 PAM' })
-    // when: 목록을 연다
-    const expected = formatRelativeTime(deals.items[0]!.lastUpdatedAt, NOW)
-    // then: 최종 업데이트 칸이 시계 기준 상대 표기다
-    expect(expected).toMatch(/일 전$/)
+
+    // then: 최종 업데이트 칸이 시계 날짜 기준 '오늘·어제·N일 전'이고 시:분 상대 표기가 없다
     expect(within(row).getByText(expected)).toBeVisible()
+    expect(within(row).queryByText(/방금 전|분 전|시간 전/)).not.toBeInTheDocument()
   })
 
   // 연도 선택지는 앱 시계의 올해부터 내년까지다
@@ -45,23 +53,22 @@ describe('목록과 mock 시계 (useToday)', () => {
     expect(within(year).queryByRole('option', { name: '2026' })).not.toBeInTheDocument()
   })
 
-  // 최종 업데이트 title은 서버 오프셋 시각이다
+  // 최종 업데이트 title은 날짜(YYYY-MM-DD)이고 시각이 없다
   // 테스트 코드: DL-058
-  it('shows the last update stamp in the server offset', async () => {
-    // given: 서버 오프셋 시각의 최종 업데이트
+  it('shows the last update title as the date only', async () => {
+    // given: 최종 업데이트일이 2030-06-12인 Deal
     const original = gateway.deals.list.bind(gateway.deals)
     vi.spyOn(gateway.deals, 'list').mockImplementation(async (query) => {
       const page = await original(query)
-      return { ...page, items: page.items.map((item) => ({ ...item, lastUpdatedAt: '2030-06-14T23:30:00-05:00' })) }
+      return { ...page, items: page.items.map((item) => ({ ...item, lastUpdatedOn: '2030-06-12' })) }
     })
 
     await renderAt('/deals?q=새론병원 PAM')
     const row = await rowOf(/새론병원 PAM/)
 
     // when: 마우스를 올릴 칸을 확인한다
-    const stamp = row.querySelector('time')
-    // then: title이 서버 오프셋 시각이다
-    expect(stamp).toHaveAttribute('title', '2030-06-14 23:30')
-    expect(stamp).toHaveAttribute('datetime', '2030-06-14T23:30:00-05:00')
+    const cell = within(row).getByText('3일 전')
+    // then: title이 날짜 YYYY-MM-DD뿐이다
+    expect(cell.closest('[title]')).toHaveAttribute('title', '2030-06-12')
   })
 })

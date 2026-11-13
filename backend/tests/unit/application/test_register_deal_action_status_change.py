@@ -65,7 +65,7 @@ async def test_register_action_with_status_change_saves_post_change_snapshot_and
     deal = await _deal(action_env)
     assert (deal.sync.status_key, deal.sync.forecast_key) == ("contract_completed", "won")
     assert (deal.details.revenue_amount.value, deal.details.revenue_date) == (900_000_000, DAY)
-    assert deal.updated_at == action.acted_at
+    assert deal.updated_at == action.created_at
     # then: 스냅숏은 변경 뒤 값이다
     assert (await action_env.stored(action.id)).snapshot == SyncState("contract_completed", "won")
     # then: 이력은 Deal 변경 줄들 다음에 Action 등록 줄이다
@@ -306,17 +306,17 @@ async def test_updating_an_action_does_not_change_its_snapshot_or_the_deal(
     assert (await _deal(action_env)).updated_at == deal_before.updated_at
 
 
-async def test_register_action_with_a_forecast_change_sets_the_deal_updated_at_to_the_acted_at(
+async def test_register_action_with_a_forecast_change_sets_the_deal_updated_at_to_the_request_time(
     action_env: ActionEnv,
 ) -> None:
-    """Forecast만 바꾸면 Deal 수정 시각이 수행 시각이 된다.
+    """Forecast만 바꾸면 Deal 수정 시각이 요청 시각이 된다.
 
     테스트 코드: AC-025
     """
     # when: Forecast를 Best로 바꾸며 등록한다
     action = await action_env.act(status_changes=(_forecast("best"),))
 
-    # then: Status는 그대로이고 Deal 수정 시각은 Action 수행 시각이다
+    # then: Status는 그대로이고 Deal 수정 시각은 요청 시각이다
     deal = await _deal(action_env)
     assert (deal.sync.status_key, deal.sync.forecast_key) == ("prospecting", "best")
-    assert deal.updated_at == action.acted_at
+    assert deal.updated_at == action.created_at

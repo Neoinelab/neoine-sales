@@ -204,16 +204,16 @@ describe('actions.create over HTTP', () => {
 
   // 수행일시와 담당자는 보내지 않는다.
   // 테스트 코드: AC-089
-  it('never sends acted_at or an actor (the server fills them)', async () => {
+  it('never sends acted_on or an actor (the server fills them)', async () => {
     // given: 서버가 201을 준다
     const { calls } = stubFetch(json(serverAction(), 201))
 
     // when: 내용을 등록한다
     await createActionsHttp().create(CODE, newAction)
 
-    // then: 본문에 acted_at·actor_user_id가 없다
+    // then: 본문에 acted_on·actor_user_id가 없다
     const body = calls[0]?.body as Record<string, unknown>
-    expect(body).not.toHaveProperty('acted_at')
+    expect(body).not.toHaveProperty('acted_on')
     expect(body).not.toHaveProperty('actor_user_id')
   })
 
@@ -568,7 +568,7 @@ describe('actions.changeNextActionStatus over HTTP', () => {
   it('puts the snake_case status and the memo to /deal-actions/{id}/next-action-status and maps the answer', async () => {
     // given: 서버가 종료(미수행) Action을 돌려준다.
     const { calls } = stubFetch(
-      json(serverAction({ next_action_status: 'not_done', next_action_closed_at: '2026-10-16T10:00:00+09:00', memo: '기존\n접음' })),
+      json(serverAction({ next_action_status: 'not_done', next_action_closed_on: '2026-10-16', memo: '기존\n접음' })),
     )
 
     // when: 상태 notDone, 메모 "접음"으로 바꾼다.
@@ -577,7 +577,7 @@ describe('actions.changeNextActionStatus over HTTP', () => {
     // then: PUT 본문이 {status: not_done, memo: 접음}이고 응답이 화면 Action으로 바뀐다.
     expect(calls[0]).toMatchObject({ method: 'PUT', path: `/api/v1/deal-actions/${ACTION_ID}/next-action-status` })
     expect(calls[0]?.body).toEqual({ status: 'not_done', memo: '접음' })
-    expect(changed).toMatchObject({ id: ACTION_ID, nextActionStatus: 'notDone', nextActionClosedAt: '2026-10-16T10:00:00+09:00', memo: '기존\n접음' })
+    expect(changed).toMatchObject({ id: ACTION_ID, nextActionStatus: 'notDone', nextActionClosedOn: '2026-10-16', memo: '기존\n접음' })
   })
 
   // open·done 상태도 서버 이름과 빈 메모로 보낸다.
@@ -614,5 +614,37 @@ describe('actions.changeNextActionStatus over HTTP', () => {
       kind,
       message: detail,
     })
+  })
+})
+
+describe('actions.create with a performed day (acted_on)', () => {
+  // 수행일이 없으면 본문에 acted_on 키가 없고, 있으면 ISO 날짜 그대로 보낸다.
+  // 테스트 코드: AC-109
+  it('sends acted_on only when a day is given and keeps it as an ISO date', async () => {
+    // given: 서버가 201과 Action을 준다
+    const { calls } = stubFetch(json(serverAction(), 201), json(serverAction(), 201))
+
+    // when: 수행일 없이 등록한다
+    await createActionsHttp().create(CODE, newAction)
+    // then: 첫 본문에는 acted_on 키가 없다
+    expect(calls[0]?.body).not.toHaveProperty('acted_on')
+
+    // when: 수행일 2026-11-10으로 등록한다
+    await createActionsHttp().create(CODE, { ...newAction, actedOn: '2026-11-10' })
+    // then: 두 번째 본문에는 acted_on이 ISO 날짜 문자열로 담긴다
+    expect(calls[1]?.body).toMatchObject({ acted_on: '2026-11-10' })
+  })
+
+  // 수정 요청에는 수행일 칸이 어느 경우에도 없다.
+  // 테스트 코드: AC-109
+  it('never sends acted_on on update', async () => {
+    // given: 서버가 200과 Action을 준다
+    const { calls } = stubFetch(json(serverAction()))
+
+    // when: 수행일이 실린 입력으로 수정을 부른다(화면 타입에는 없지만 방어 확인)
+    await createActionsHttp().update(ACTION_ID, { ...newAction, actedOn: '2026-11-10' } as typeof newAction)
+
+    // then: 수정 본문에 acted_on이 없다
+    expect(calls[0]?.body).not.toHaveProperty('acted_on')
   })
 })

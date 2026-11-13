@@ -176,10 +176,12 @@ export interface ActionInput {
   closePreviousNextActionId?: number
   /** 상태 변경이 Won을 벗어날 때만 의미가 있다(true=라이선스 계약도 삭제, 생략=유지). */
   deleteLicenseContracts?: boolean
+  /** 수행일(ISO 날짜). 없으면 서버가 요청 시각을 쓴다. 지난 날짜면 서버가 그 날 23:59:59로 기록한다. */
+  actedOn?: string
 }
 
 /** Action 수정 입력. 등록 시점 Status/Forecast와 수행일시·담당자는 바꿀 수 없다. */
-export type ActionUpdateInput = Omit<ActionInput, 'statusChanges' | 'closePreviousNextActionId' | 'deleteLicenseContracts'>
+export type ActionUpdateInput = Omit<ActionInput, 'statusChanges' | 'closePreviousNextActionId' | 'deleteLicenseContracts' | 'actedOn'>
 
 /** Next Action 상태 변경. memo는 종료할 때만(Open으로 되돌릴 때는 빈 문자열). */
 export interface NextActionStatusInput {

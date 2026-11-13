@@ -9,6 +9,7 @@ from app.domain.common.errors import AlreadyExistsError, InvalidReferenceError
 from app.domain.deal.errors import DealNotFoundError
 from app.domain.deal_action.errors import DealActionNotFoundError
 from tests.factories import (
+    date_after,
     later,
     make_action_content,
     make_deal_action,
@@ -48,7 +49,7 @@ async def test_add_then_get_round_trips_every_field(action_case: Case) -> None:
     assert stored.content.due_date == date(2026, 2, 3)
     assert stored.actor_user_id == uid("kim")
     assert stored.snapshot == make_sync("introduction", "best")
-    assert stored.acted_at == later(5)
+    assert stored.acted_on == date_after(0)
     assert (stored.created_at, stored.updated_at) == (later(5), later(5))
 
 
@@ -161,18 +162,18 @@ async def test_update_writes_only_content_and_updated_at(action_case: Case) -> N
     )
     action.actor_user_id = uid("park")  # 도메인이 막는 변경이지만 저장소도 쓰지 않아야 한다
     action.snapshot = make_sync("prospecting", "pipeline")
-    action.acted_at = later(99)
+    action.acted_on = date_after(9)
 
     # when: 수정을 저장한다
     await action_case.repository.update(action)
 
     # when: 다시 읽는다
     stored = await action_case.repository.get(action.id)
-    # then: 내용만 바뀌고 수행자·스냅숏·수행 시각·생성 시각은 그대로다
+    # then: 내용만 바뀌고 수행자·스냅숏·수행일·생성 시각은 그대로다
     assert stored.content.action == "변경"
     assert stored.actor_user_id == uid("kim")
     assert stored.snapshot == make_sync("introduction", "best")
-    assert stored.acted_at == later(5)
+    assert stored.acted_on == date_after(0)
     assert stored.created_at == later(5)
 
 

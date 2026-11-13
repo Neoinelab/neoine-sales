@@ -1776,6 +1776,19 @@
         "additionalProperties": false,
         "description": "`status_change`(단건)와 `status_changes`(최대 2건, 필드 중복 불가)는 함께 쓸 수 없다.",
         "properties": {
+          "acted_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "수행일(YYYY-MM-DD, 선택). 생략하거나 null이면 오늘(서버 업무 날짜)로 기록한다. 수정 요청에는 없다.",
+            "title": "Acted On"
+          },
           "action": {
             "default": "",
             "title": "Action",
@@ -1879,9 +1892,9 @@
       },
       "DealActionResponse": {
         "properties": {
-          "acted_at": {
-            "format": "date-time",
-            "title": "Acted At",
+          "acted_on": {
+            "format": "date",
+            "title": "Acted On",
             "type": "string"
           },
           "action": {
@@ -1945,17 +1958,17 @@
             ],
             "title": "Next Action"
           },
-          "next_action_closed_at": {
+          "next_action_closed_on": {
             "anyOf": [
               {
-                "format": "date-time",
+                "format": "date",
                 "type": "string"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Next Action Closed At"
+            "title": "Next Action Closed On"
           },
           "next_action_status": {
             "anyOf": [
@@ -1987,9 +2000,9 @@
           "next_action",
           "due_date",
           "next_action_status",
-          "next_action_closed_at",
+          "next_action_closed_on",
           "memo",
-          "acted_at",
+          "acted_on",
           "actor",
           "status_key",
           "forecast_key"
@@ -2269,10 +2282,10 @@
             "title": "Has Issued License Contract",
             "type": "boolean"
           },
-          "last_updated_at": {
-            "description": "모든 Action 중 가장 최근 수행 시각. Action이 없으면 Deal 등록 시각. Deal 수정은 반영하지 않는다.",
-            "format": "date-time",
-            "title": "Last Updated At",
+          "last_updated_on": {
+            "description": "모든 Action 중 가장 최근 수행 날짜. Action이 없으면 Deal 등록 날짜. Deal 수정은 반영하지 않는다.",
+            "format": "date",
+            "title": "Last Updated On",
             "type": "string"
           },
           "license_contract_count": {
@@ -2353,9 +2366,9 @@
             "title": "Solution",
             "type": "string"
           },
-          "status_changed_at": {
-            "format": "date-time",
-            "title": "Status Changed At",
+          "status_changed_on": {
+            "format": "date",
+            "title": "Status Changed On",
             "type": "string"
           },
           "status_days": {
@@ -2406,9 +2419,9 @@
           "procurement",
           "bant",
           "next_action",
-          "last_updated_at",
+          "last_updated_on",
           "risk",
-          "status_changed_at",
+          "status_changed_on",
           "status_days",
           "license_contract_count",
           "has_issued_license_contract",
@@ -2632,10 +2645,10 @@
             "title": "Has Issued License Contract",
             "type": "boolean"
           },
-          "last_updated_at": {
-            "description": "모든 Action 중 가장 최근 수행 시각. Action이 없으면 Deal 등록 시각. Deal 수정은 반영하지 않는다.",
-            "format": "date-time",
-            "title": "Last Updated At",
+          "last_updated_on": {
+            "description": "모든 Action 중 가장 최근 수행 날짜. Action이 없으면 Deal 등록 날짜. Deal 수정은 반영하지 않는다.",
+            "format": "date",
+            "title": "Last Updated On",
             "type": "string"
           },
           "license_contract_count": {
@@ -2709,9 +2722,9 @@
             "title": "Solution",
             "type": "string"
           },
-          "status_changed_at": {
-            "format": "date-time",
-            "title": "Status Changed At",
+          "status_changed_on": {
+            "format": "date",
+            "title": "Status Changed On",
             "type": "string"
           },
           "status_days": {
@@ -2762,9 +2775,9 @@
           "procurement",
           "bant",
           "next_action",
-          "last_updated_at",
+          "last_updated_on",
           "risk",
-          "status_changed_at",
+          "status_changed_on",
           "status_days",
           "license_contract_count",
           "has_issued_license_contract",
@@ -3556,17 +3569,17 @@
             "title": "Deal Name",
             "type": "string"
           },
-          "ended_at": {
+          "ended_on": {
             "anyOf": [
               {
-                "format": "date-time",
+                "format": "date",
                 "type": "string"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Ended At"
+            "title": "Ended On"
           },
           "id": {
             "title": "Id",
@@ -3685,7 +3698,7 @@
           "inspection_cycle",
           "note",
           "renewed_from_id",
-          "ended_at",
+          "ended_on",
           "attachment_count",
           "deal_is_won",
           "created_by",

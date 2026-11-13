@@ -7,7 +7,7 @@ from datetime import date, datetime
 from typing import TYPE_CHECKING
 
 from app.application.ports.deal_repository import DealQuery
-from tests.factories import later, make_deal
+from tests.factories import date_after, later, make_deal
 
 if TYPE_CHECKING:
     from tests.unit.repositories.deal_case import DealCase
@@ -20,7 +20,7 @@ async def test_search_items_carry_a_date_due_date(deal_case: DealCase) -> None:
     # given: 기한이 있는 Next Action을 가진 Deal
     deal = make_deal(later(5), code=CODE)
     await deal_case.add(deal)
-    await deal_case.add_action(deal, acted_at=later(100), due_date=date(2026, 2, 5))
+    await deal_case.add_action(deal, acted_on=date_after(1), due_date=date(2026, 2, 5))
 
     # when: 목록을 검색한다
     items = await deal_case.deals.search(DealQuery())
@@ -37,7 +37,7 @@ async def test_detail_item_carries_a_date_due_date(deal_case: DealCase) -> None:
     # given: 기한이 있는 Next Action을 가진 Deal
     deal = make_deal(later(5), code=CODE)
     await deal_case.add(deal)
-    await deal_case.add_action(deal, acted_at=later(100), due_date=date(2026, 3, 1))
+    await deal_case.add_action(deal, acted_on=date_after(1), due_date=date(2026, 3, 1))
 
     # when: 상세로 조회한다
     item = await deal_case.deals.get_item(deal.id)

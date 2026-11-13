@@ -2,7 +2,7 @@ import { useApplyDealChange } from '../../../data/deals'
 import { useCodeSet } from '../../../data/codes'
 import { useSyncedChange } from '../../../shared/sync/useSyncedChange'
 import { useToday } from '../../../data/today'
-import { formatDateTime, formatRelativeTime } from '../../../shared/format'
+import { formatRelativeDays } from '../../../shared/format'
 import { AMOUNT_LABEL, amountInputError, formatWon, parseAmountInput } from '../../../shared/model/money'
 import { NEXT_ACTION_STATUS_LABEL } from '../../../shared/model/nextActionStatus'
 import type { DealChange, DealDetail } from '../../../shared/model/types'
@@ -94,7 +94,7 @@ export function SummaryBar({ deal, canWrite, onNotice }: SummaryBarProps) {
                 initial={deal.statusKey}
                 onSave={(value) => changeCode('statusKey', value)}
               />
-              <span className="dd-muted" title={formatDateTime(deal.statusChangedAt)}>{`${deal.statusDays}일째`}</span>
+              <span className="dd-muted" title={deal.statusChangedOn}>{`${deal.statusDays}일째`}</span>
             </dd>
           </div>
           <div className="kv-row">
@@ -155,8 +155,8 @@ export function SummaryBar({ deal, canWrite, onNotice }: SummaryBarProps) {
           <div className="kv-row">
             <dt>최종 업데이트</dt>
             <dd>
-              <span className="kv-static" title={deal.lastUpdatedAt}>
-                {formatRelativeTime(deal.lastUpdatedAt, now)}
+              <span className="kv-static" title={deal.lastUpdatedOn}>
+                {formatRelativeDays(deal.lastUpdatedOn, now)}
               </span>
             </dd>
           </div>

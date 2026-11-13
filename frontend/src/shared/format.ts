@@ -1,4 +1,4 @@
-import { offsetMinutes } from './model/dates'
+import { datePart, daysBetween, offsetMinutes } from './model/dates'
 
 /** 시각 뒤에 오프셋(Z 또는 ±HH:MM)이 적힌 ISO 문자열만 시각으로 읽는다. 오프셋이 없으면 브라우저 시간대로 해석되므로 읽지 않는다. */
 const WITH_OFFSET = /T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:\d{2})$/
@@ -41,6 +41,15 @@ export function formatRelativeTime(iso: string, now: string): string {
   const days = Math.floor(hours / 24)
   if (days < 30) return `${days}일 전`
   return formatDate(iso)
+}
+
+/** 업무 날짜 기준 상대 표기: 같은 날·미래 '오늘', 1일 '어제', 2~29일 'N일 전', 30일 이상은 날짜 그대로. */
+export function formatRelativeDays(on: string, now: string): string {
+  const days = daysBetween(datePart(now), on.slice(0, 10))
+  if (days <= 0) return '오늘'
+  if (days === 1) return '어제'
+  if (days < 30) return `${days}일 전`
+  return formatDate(on)
 }
 
 /** 날짜(YYYY-MM-DD)의 다음 날(YYYY-MM-DD). 시간대와 무관하게 달력 계산만 한다. */

@@ -42,7 +42,7 @@ async def _act(env: DealEnv, view: DealView, *, due_date: date) -> None:
     await env.uow.deal_actions.add(
         make_deal_action(
             deal_code=view.item.deal.id,
-            acted_at=env.clock.now(),
+            now=env.clock.now(),
             actor_user_id=ACTOR_ID,
             due_date=due_date,
         )

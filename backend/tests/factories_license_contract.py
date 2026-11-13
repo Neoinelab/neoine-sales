@@ -5,7 +5,7 @@
 수집이 막히지 않게).
 
 계약(구현 담당이 맞춘다): `LicenseContract`는 키워드 전용 dataclass이고 필드는
-`id, deal_code, status, term, license_start, license_end, fields, renewed_from_id, ended_at,
+`id, deal_code, status, term, license_start, license_end, fields, renewed_from_id, ended_on,
 created_by, updated_by, created_at, updated_at`다. `ContractAttachment`도 키워드 전용이며
 `ContractAttachment.upload(contract_id=, deal_code=, candidate=, size=, mime=, storage_key=,
 uploaded_by=, now=, entity_id=)`로 만든다.
@@ -54,8 +54,9 @@ def make_contract(  # noqa: PLR0913 - 계약 필드가 모두 독립적인 선�
 ) -> LicenseContract:
     """저장하지 않은 계약. 발급·종료 상태는 start(기본 2026-01-01)와 기간을 채워 만든다.
 
-    status가 not_issued면 기간이 없다. ended는 ended_at = now이고 기간이 있다.
+    status가 not_issued면 기간이 없다. ended는 ended_on = now의 업무 날짜이고 기간이 있다.
     """
+    from app.domain.common.business_date import business_date  # noqa: PLC0415
     from app.domain.license_contract.entities import LicenseContract  # noqa: PLC0415
     from app.domain.license_contract.term import license_end  # noqa: PLC0415
     from app.domain.license_contract.values import (  # noqa: PLC0415
@@ -82,7 +83,7 @@ def make_contract(  # noqa: PLR0913 - 계약 필드가 모두 독립적인 선�
             tech_owner=tech_owner, inspection=InspectionCycle(inspection), note=note
         ),
         renewed_from_id=None if renewed_from is None else LicenseContractId(renewed_from),
-        ended_at=now if contract_status is ContractStatus.ENDED else None,
+        ended_on=business_date(now) if contract_status is ContractStatus.ENDED else None,
         created_by=by,
         updated_by=by,
         created_at=now,

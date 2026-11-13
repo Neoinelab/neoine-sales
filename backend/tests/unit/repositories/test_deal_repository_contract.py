@@ -219,10 +219,10 @@ class TestAddAndGet:
         # when: 목록 항목을 조회한다 (전제: Fake·SQL 공통)
         item = await deal_case.deals.get_item(deal.id)
 
-        # then: Next Action은 없고 최종 업데이트는 Deal 수정 시각이다
+        # then: Next Action은 없고 최종 업데이트일은 Deal 등록일이다
         assert item.deal == deal
         assert item.next_action is None
-        assert item.last_updated_at == deal.updated_at
+        assert item.last_updated_on == deal.created_at.astimezone().date()
 
     async def test_get_item_of_a_missing_deal_is_not_found(self, deal_case: DealCase) -> None:
         """없는 Deal의 목록 항목을 조회하면 없음 오류다."""

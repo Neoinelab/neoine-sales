@@ -164,10 +164,10 @@ class FakeDealRepository(DealCountsMixin, InMemoryStore["Deal"]):
         if self._actions is None:
             return None
         found = [a for a in self._actions._items.values() if a.deal_code == code]
-        return max(found, key=lambda a: (a.acted_at, a.id), default=None)
+        return max(found, key=lambda a: (a.acted_on, a.id), default=None)
 
     def _latest_next_action(self, code: DealCode) -> Any:  # noqa: ANN401
-        """Next Action이 있는 가장 최근 Action(acted_at·id 내림차순 첫 행). 없으면 None."""
+        """Next Action이 있는 가장 최근 Action(acted_on·id 내림차순 첫 행). 없으면 None."""
         if self._actions is None:
             return None
         found = [
@@ -175,7 +175,7 @@ class FakeDealRepository(DealCountsMixin, InMemoryStore["Deal"]):
             for a in self._actions._items.values()
             if a.deal_code == code and a.content.next_action is not None
         ]
-        return max(found, key=lambda a: (a.acted_at, a.id), default=None)
+        return max(found, key=lambda a: (a.acted_on, a.id), default=None)
 
     def _item(self, deal: Deal) -> DealListItem:
         from app.application.ports.deal_repository import (  # noqa: PLC0415 - 지연 import
@@ -184,9 +184,11 @@ class FakeDealRepository(DealCountsMixin, InMemoryStore["Deal"]):
         )
 
         latest = self._latest_action(deal.id)
-        # 최종 업데이트(E4): 모든 Action(진행사항만 포함)의 최근 수행 시각, 없으면 등록 시각.
-        # Deal 수정 시각(updated_at)은 쓰지 않는다.
-        last_updated = latest.acted_at if latest is not None else deal.created_at
+        # 최종 업데이트일(RK-R2): 모든 Action(진행사항만 포함)의 최근 수행일, 없으면 등록일
+        # (업무 시간대 날짜). Deal 수정 시각(updated_at)은 쓰지 않는다.
+        last_updated = (
+            latest.acted_on if latest is not None else deal.created_at.astimezone().date()
+        )
         basis = self._latest_next_action(deal.id)  # 표시·risk·상태 필터의 기준 행
         summary = None
         if basis is not None:
@@ -199,7 +201,7 @@ class FakeDealRepository(DealCountsMixin, InMemoryStore["Deal"]):
         return DealListItem(
             deal=copy.deepcopy(deal),
             next_action=summary,
-            last_updated_at=last_updated,
+            last_updated_on=last_updated,
             license_contract_count=sum(1 for c in contracts if c.deal_code == deal.id),
             has_issued_license_contract=any(
                 c.deal_code == deal.id and c.status.is_issued for c in contracts
@@ -241,7 +243,7 @@ class FakeDealRepository(DealCountsMixin, InMemoryStore["Deal"]):
         contacts = self._contact_map()
         found = [d for d in self._items.values() if matches(d, query, contacts, self._outcome_of)]
         if has_updated_period(query):
-            found = [d for d in found if updated_in_range(self._item(d).last_updated_at, query)]
+            found = [d for d in found if updated_in_range(self._item(d).last_updated_on, query)]
         if query.wants_risk():
             check_risk_basis(query)  # 대상이 없어도 기준 누락은 오류
             found = [d for d in found if self._risk_matches(d, query)]
@@ -262,7 +264,7 @@ class FakeDealRepository(DealCountsMixin, InMemoryStore["Deal"]):
             query,
             forecast_key=deal.sync.forecast_key,
             due_date=item.next_action.due_date if item.next_action else None,
-            last_updated_at=item.last_updated_at,
+            last_updated_on=item.last_updated_on,
         )
 
     async def search(self, query: DealQuery) -> Sequence[DealListItem]:
@@ -270,7 +272,7 @@ class FakeDealRepository(DealCountsMixin, InMemoryStore["Deal"]):
         items = [self._item(d) for d in self._found(query)]
         items.sort(key=lambda i: i.deal.id.value)  # 동률은 code 오름차순(안정 정렬)
         key = sort_key(str(query.sort), self._lookups())
-        keyed = [(key(i.deal, i.last_updated_at), i) for i in items]
+        keyed = [(key(i.deal, i.last_updated_on), i) for i in items]
         present = [pair for pair in keyed if pair[0] is not None]
         absent = [pair[1] for pair in keyed if pair[0] is None]  # 방향과 무관하게 맨 뒤(code 순)
         present.sort(key=lambda pair: pair[0], reverse=query.order == "desc")

@@ -1,4 +1,4 @@
-# DB 스키마·마이그레이션 기준선   (feature 코드: SC, 상태: 확정(2026-11-09 사용자 확인))
+# DB 스키마·마이그레이션 기준선   (feature 코드: SC, 상태: 확정(2026-11-13 사용자 확인))
 
 > 이 문서는 **이미 구현된 동작**을 정본 명세로 옮긴 것입니다(2026-11-09). 근거는 작업 트리의 코드와 테스트입니다: `backend/alembic/versions/20261105_00c3126aa926_baseline.py`, `backend/alembic/env.py`, `backend/alembic.ini`, `backend/src/app/infra/db/base.py`(`NAMING_CONVENTION`·`identity_key`), `backend/src/app/infra/db/id_allocator.py`, `backend/src/app/application/ports/id_allocator.py`(`IdKind`), `backend/tests/unit/infra/schema/{test_revision_graph,test_head_matches_orm,test_head_schema_integrity,test_bigint_ids_schema}.py`, `backend/tests/unit/infra/schema/test_baseline_upgrade.py`(옛 `functional/schema/test_upgrade_from_empty.py`를 옮김), `backend/tests/unit/repositories/test_id_allocator_contract.py`, `backend/tests/support/schema_integrity.py`. 문구는 코드에서 그대로 옮겼습니다. 마이그레이션 원칙(SC-R8~R10)은 `CLAUDE.md`의 규칙(2026-11-05 사용자 지시 등)을 옮긴 것입니다.
 
@@ -29,7 +29,7 @@
 | 용어 | 뜻 |
 | --- | --- |
 | 기준선(baseline) | 리비전 `00c3126aa926`. 2026-11-05에 과거 리비전 30개를 대체한 최초 리비전. 과거 체인은 커밋 `c4553c0`의 git 이력에만 있다 |
-| head | 리비전 그래프의 마지막 리비전. 지금은 기준선이 base이자 head |
+| head | 리비전 그래프의 마지막 리비전. 지금은 날짜 전환 리비전 `b4d7e2a9c613`(SC-R20) |
 | 빈 DB | 테이블이 하나도 없고 `alembic_version`도 없는 DB |
 | 퇴역 리비전 | 기준선 통합 전에 쓰던 리비전 id(예: `f2b7c9e4a615`). 현재 그래프에 없다 |
 | 앱 테이블 | `alembic_version`을 뺀 public 스키마 테이블 26개(2.2) |
@@ -69,16 +69,16 @@ PK 분류
 ### 2.3 비즈니스 규칙
 
 리비전 그래프와 기준선
-- **SC-R1** 리비전 그래프의 base는 기준선 `00c3126aa926` 하나이고 head도 하나다. 기준선은 `down_revision`이 None이고 `branch_labels`·`depends_on`이 없다. 기준선 파일 이름은 `20261105_00c3126aa926_baseline.py`이고, 새 리비전 파일 이름은 `alembic.ini`의 `file_template`(`YYYYMMDD_<rev>_<slug>.py`)을 따른다. 지금 그래프의 리비전은 기준선 1개뿐이다(확인 필요 Q5).
-- **SC-R2** 빈 DB에 `alembic upgrade head`를 실행하면 앱 테이블 26개(2.2)와 `alembic_version`만 생기고 `alembic_version.version_num`은 `00c3126aa926`이다. 마이그레이션은 한 트랜잭션으로 적용된다(`env.py`의 `context.begin_transaction()`).
+- **SC-R1** 리비전 그래프의 base는 기준선 `00c3126aa926` 하나이고 head도 하나다. 기준선은 `down_revision`이 None이고 `branch_labels`·`depends_on`이 없다. 기준선 파일 이름은 `20261105_00c3126aa926_baseline.py`이고, 새 리비전 파일 이름은 `alembic.ini`의 `file_template`(`YYYYMMDD_<rev>_<slug>.py`)을 따른다. 지금 그래프에는 리비전이 2개 있다: 기준선과, 그 뒤의 날짜 전환 리비전 `b4d7e2a9c613`(파일 `20261113_b4d7e2a9c613_business_dates.py`, SC-R20).
+- **SC-R2** 빈 DB에 `alembic upgrade head`를 실행하면 앱 테이블 26개(2.2)와 `alembic_version`만 생기고 `alembic_version.version_num`은 head인 `b4d7e2a9c613`이다. 마이그레이션은 한 트랜잭션으로 적용된다(`env.py`의 `context.begin_transaction()`).
 - **SC-R3** 기준선 upgrade 직후 `codes` 13행·`bant_labels` 23행·`action_types` 8행(2.2의 값)이 있고 나머지 앱 테이블 23개는 0행이다. 시드 값(키·이름·순서·outcome·확률 힌트·구분·기본 여부·만든 사람 NULL)은 Fake 시드와 같다.
-- **SC-R4** 기준선은 되돌릴 수 없다. 기준선의 `downgrade()`는 DB를 건드리기 전에 `RuntimeError` "최초 리비전(00c3126aa926)은 되돌릴 수 없습니다. 빈 DB가 필요하면 DB를 새로 만드세요."를 낸다. head인 DB에 `alembic downgrade base`를 실행하면 이 오류로 중단되고 `alembic_version`과 테이블은 그대로다. 빈 DB가 필요하면 DB를 새로 만든 뒤 `upgrade head`를 실행한다.
+- **SC-R4** 기준선은 되돌릴 수 없다. 기준선의 `downgrade()`는 DB를 건드리기 전에 `RuntimeError` "최초 리비전(00c3126aa926)은 되돌릴 수 없습니다. 빈 DB가 필요하면 DB를 새로 만드세요."를 낸다. head인 DB에 `alembic downgrade base`를 실행하면 날짜 전환 리비전을 되돌린 뒤 기준선에서 이 오류로 중단된다. 전체가 한 트랜잭션이라(SC-R2) `alembic_version`(head)과 테이블·컬럼은 그대로다. 빈 DB가 필요하면 DB를 새로 만든 뒤 `upgrade head`를 실행한다.
 - **SC-R5** 이미 head인 DB에 `upgrade head`를 다시 실행하면 아무것도 바뀌지 않는다: 모든 앱 테이블의 열(형식·NOT NULL·기본값)·제약(PK·UNIQUE·CHECK·FK 정의)·인덱스 정의와 행 수가 같고 `alembic_version`은 그대로다(시드가 두 번 들어가지 않음).
-- **SC-R6** `alembic_version`에 그래프에 없는 리비전 id(퇴역 리비전)가 남은 DB에 `upgrade head`를 실행하면 Alembic `CommandError`로 실패하고 스키마·`alembic_version`은 바뀌지 않는다. 이런 DB(통합 전 head보다 뒤처진 local·dev DB)는 새로 만든다. 통합 전 head(`00c3126aa926`)였던 DB는 같은 id라 그대로 쓴다.
+- **SC-R6** `alembic_version`에 그래프에 없는 리비전 id(퇴역 리비전)가 남은 DB에 `upgrade head`를 실행하면 Alembic `CommandError`로 실패하고 스키마·`alembic_version`은 바뀌지 않는다. 이런 DB(통합 전 head보다 뒤처진 local·dev DB)는 새로 만든다. 통합 전 head(`00c3126aa926`)였던 DB는 같은 id라 그대로 쓰고, `upgrade head`가 날짜 전환 리비전을 적용한다.
 - **SC-R7** head 스키마는 ORM 메타데이터(`app.infra.db.models`가 등록한 `Base.metadata`)와 같다: head를 적용한 DB와 메타데이터를 Alembic `compare_metadata`(`compare_type=True`)로 비교한 차이가 0건이다. 스키마를 바꾸는 개발자는 ORM 모델과 리비전을 함께 바꾼다.
 
 마이그레이션 작성·적용 원칙
-- **SC-R8** 기존 데이터 삭제 금지(2026-11-05 사용자 지시): 리비전의 `upgrade`는 기존 행·컬럼 값을 지우거나 버리지 않는다 — `DELETE`·`TRUNCATE`, 데이터가 있을 수 있는 테이블·컬럼 drop, 값을 버리는 타입 변경·덮어쓰기 금지. 없애야 하면 데이터를 새 위치로 옮기는 expand 리비전과 사람이 승인한 contract 리비전으로 나누고, 데이터 손실 가능성이 있으면 구현 전에 사용자에게 묻는다. 2026-10-15의 "보존 데이터 없음"·이후의 "expand/contract 원칙의 예외" 결정은 적용하지 않는다. 검증: 기준선의 upgrade 본문(docstring 제외)에는 `delete`·`truncate`·`update`(단어)·`drop_table`·`drop_column`·`op.execute`가 없다(자동 검사, SC-011). 새 리비전은 리뷰가 검사하고 위반은 Blocker다(자동 검사 없음, 확인 필요 Q4).
+- **SC-R8** 기존 데이터 삭제 금지(2026-11-05 사용자 지시): 리비전의 `upgrade`는 기존 행·컬럼 값을 지우거나 버리지 않는다 — `DELETE`·`TRUNCATE`, 데이터가 있을 수 있는 테이블·컬럼 drop, 값을 버리는 타입 변경·덮어쓰기 금지. 없애야 하면 데이터를 새 위치로 옮기는 expand 리비전과 사람이 승인한 contract 리비전으로 나누고, 데이터 손실 가능성이 있으면 구현 전에 사용자에게 묻는다. 2026-10-15의 "보존 데이터 없음"·이후의 "expand/contract 원칙의 예외" 결정은 적용하지 않는다. 검증: 기준선의 upgrade 본문(docstring 제외)에는 `delete`·`truncate`·`update`(단어)·`drop_table`·`drop_column`·`op.execute`가 없다(자동 검사, SC-011). 새 리비전은 리뷰가 검사하고 위반은 Blocker다(자동 검사 없음, 확인 필요 Q4). 날짜 전환 리비전 `b4d7e2a9c613`의 timestamptz 컬럼 drop은 2026-11-13 사용자가 승인한 contract다(SC-R20). 시각만 버리고 행과 날짜는 남는다.
 - **SC-R9** 하위 호환(expand/contract): product 배포가 실패하면 `deploy.sh`는 앱 코드(이전 이미지 태그)만 되돌리고 마이그레이션은 되돌리지 않으므로, 리비전은 **이전 앱 코드가 새 스키마에서 계속 동작하도록** 쓴다(새 테이블, NULL 허용·기본값 있는 컬럼 추가, 데이터 복사). 구 앱과 공존할 수 없는 변경은 contract 단계로 미루고 사람 승인을 받는다. 계획 단계(feature-planner)는 리비전마다 "필요 여부, 하위 호환 여부, 기존 데이터 보존 방법"을 적는다. 검증: 계획·리뷰(자동 검사 없음).
 - **SC-R10** 적용 경로: local·dev는 `./scripts/start-backend.sh --profile local|dev`가 시작 전에 그 프로파일 DB에 `alembic upgrade head`를 실행한다(`--skip-migrate`로 생략). local·dev의 `downgrade`·`stamp`는 확인 없이 실행할 수 있다. product는 사람이 승인한 Jenkins `Deploy: Product`에서만 `deploy.sh`가 `pg_dump` 백업 뒤 migrate 컨테이너로 적용하며, 하네스는 Claude의 product 대상 alembic 명령을 거부한다. 검증: 하네스·배포 도구 테스트(feature 밖).
 
@@ -86,7 +86,7 @@ PK 분류
 - **SC-R11** 대리 키 테이블 19개(2.2)의 PK는 `id BIGINT GENERATED BY DEFAULT AS IDENTITY`(시작 1, 증가 1, 최대 9,007,199,254,740,991 = 2^53−1 = `app.domain.common.ids.MAX_ID`), NOT NULL, PK 컬럼은 `id` 하나다. `BY DEFAULT`이므로 앱이 미리 받은 id로도, id를 생략한 DB 기본값으로도 넣을 수 있다. ORM은 `identity_key()`로 같은 정의를 쓴다. 앱 테이블 어디에도 `uuid` 형식 컬럼은 없다.
 - **SC-R12** 대리 키 예외는 2.2의 단일 행 설정 4개(`SMALLINT id` + `ck_<테이블>_single_row`, identity 아님 — 시퀀스를 두면 단일 행 보장이 약해짐)와 의미 있는 키 3개(`login_failures.key VARCHAR(64)`, `deal_bant_labels (deal_id, category)`, `user_password_hashes.user_id`)뿐이다.
 - **SC-R13** 모든 FK 컬럼의 형식은 참조하는 키 컬럼의 형식과 같고(복합 FK는 컬럼마다), 대리 키 `id`를 참조하는 FK 컬럼은 모두 `bigint`다.
-- **SC-R14** 업무 키가 따로 있는 `deals`는 내부 `id`가 PK이고 `deal_code`는 NOT NULL + UNIQUE(`uq_deals_deal_code`)다(같은 코드 두 번째 insert는 이 제약 위반). Deal 소속 테이블 5개(`deal_partners`, `deal_bant_labels`, `deal_history`, `deal_actions`, `deal_attachments`)는 `deal_id BIGINT NOT NULL`로 `deals.id`를 ON DELETE CASCADE로 가리키고 `deal_code` 컬럼이 없으며, 그 FK·인덱스·유니크 이름은 `deal_id` 기준이다(이름에 `deal_code`가 없음): `fk_deal_partners_deal_id_deals`·`uq_deal_partners_one_active`·`ix_deal_partners_deal_id_linked_at`, `fk_deal_bant_labels_deal_id_deals`·`ix_deal_bant_labels_label_id`, `fk_deal_history_deal_id_deals`·`ix_deal_history_deal_id_changed_at`, `fk_deal_actions_deal_id_deals`·`ix_deal_actions_deal_id_acted_at`, `fk_deal_attachments_deal_id_deals`·`uq_deal_attachments_deal_id_file_name`·`ix_deal_attachments_deal_id_uploaded_at`.
+- **SC-R14** 업무 키가 따로 있는 `deals`는 내부 `id`가 PK이고 `deal_code`는 NOT NULL + UNIQUE(`uq_deals_deal_code`)다(같은 코드 두 번째 insert는 이 제약 위반). Deal 소속 테이블 5개(`deal_partners`, `deal_bant_labels`, `deal_history`, `deal_actions`, `deal_attachments`)는 `deal_id BIGINT NOT NULL`로 `deals.id`를 ON DELETE CASCADE로 가리키고 `deal_code` 컬럼이 없으며, 그 FK·인덱스·유니크 이름은 `deal_id` 기준이다(이름에 `deal_code`가 없음): `fk_deal_partners_deal_id_deals`·`uq_deal_partners_one_active`·`ix_deal_partners_deal_id_linked_at`, `fk_deal_bant_labels_deal_id_deals`·`ix_deal_bant_labels_label_id`, `fk_deal_history_deal_id_deals`·`ix_deal_history_deal_id_changed_at`, `fk_deal_actions_deal_id_deals`·`ix_deal_actions_deal_id_acted_on`, `fk_deal_attachments_deal_id_deals`·`uq_deal_attachments_deal_id_file_name`·`ix_deal_attachments_deal_id_uploaded_at`.
 
 공통 스키마 규칙(FK·참조)
 - **SC-R15** FK의 ON DELETE는 RESTRICT가 기본이다. 예외는 소속 데이터 CASCADE 10개와 SET NULL 1개뿐이다. CASCADE: `deal_partners.deal_id`·`deal_bant_labels.deal_id`·`deal_history.deal_id`·`deal_actions.deal_id`·`deal_attachments.deal_id`·`license_contracts.deal_id`(→ `deals`), `forecast_snapshot_columns.snapshot_id`(→ `forecast_snapshots`), `forecast_snapshot_cells.snapshot_id`(→ `forecast_snapshot_columns`, 복합 FK), `license_contract_attachments.contract_id`(→ `license_contracts`), `user_password_hashes.user_id`(→ `users`). SET NULL: `license_contracts.renewed_from_id`(→ `license_contracts`). 어떤 FK도 DEFERRABLE이 아니다. Deal을 지우면 Deal 소속 테이블 5개의 그 Deal 행이 함께 지워진다.
@@ -97,14 +97,29 @@ PK 분류
 앱이 미리 받는 id
 - **SC-R19** application Port `IdAllocator.next_id(kind)`(`uow.ids`)는 `IdKind` 13종 — `user`·`session`·`contact`·`code`·`bant_label`·`action_type`·`vendor`·`deal_action`·`attachment`·`report`·`partner_meeting`·`license_contract`·`contract_attachment` — 각각의 테이블(`users`·`auth_sessions`·`contacts`·`codes`·`bant_labels`·`action_types`·`vendors`·`deal_actions`·`deal_attachments`·`reports`·`partner_meetings`·`license_contracts`·`license_contract_attachments`) `id` 시퀀스에서 다음 값을 준다. 값은 Python `int`이고 1 이상 2^53−1 이하이며 호출마다(같은 작업 단위 안에서도) 커진다. 종류끼리 번호를 나누지 않는다(다른 종류 호출이 끼어도 같은 종류는 1씩 이어짐). 롤백해도 받은 번호는 다시 나오지 않는다(번호가 비는 것은 허용). 받은 id로 넣은 행과 id를 생략한 행은 같은 시퀀스를 쓰므로 겹치지 않는다. 나머지 대리 키 테이블(`deals`, `deal_partners`, `deal_history`, 스냅숏 3개)은 DB 기본값으로만 매긴다. Fake(`tests/fakes/unit_of_work.FakeUnitOfWork`)도 같은 계약을 지킨다.
 
+날짜 전환 리비전
+- **SC-R20** 리비전 `b4d7e2a9c613`(부모 `00c3126aa926`, 파일 `20261113_b4d7e2a9c613_business_dates.py`)은 업무 날짜 컬럼 4개를 date로 바꾼다(2026-11-13 사용자 결정).
+  - 대상: `deal_actions.acted_at` → `acted_on`(NOT NULL), `deal_actions.next_action_closed_at` → `next_action_closed_on`(NULL), `deals.status_changed_at` → `status_changed_on`(NOT NULL), `license_contracts.ended_at` → `ended_on`(NULL).
+  - upgrade 순서(한 트랜잭션): 새 date 컬럼을 NULL 허용으로 추가 → 값 채우기 → 점검 → NOT NULL·CHECK·인덱스 → 옛 컬럼 drop.
+  - 채우기: 옛 값을 업무 시간대로 바꾼 날짜다. 업무 시간대는 마이그레이션을 실행하는 프로세스의 OS 로컬 시간대다(TM-R4). Python `astimezone().date()`로 계산하고 SQL `AT TIME ZONE`은 쓰지 않는다. DB 세션 시간대가 앱과 다를 수 있기 때문이다. 옛 값이 null이면 새 값도 null이다.
+  - 점검: 테이블 행 수가 채우기 전과 같아야 하고, 옛 값이 있던 행은 모두 새 값이 있어야 한다. 하나라도 어기면 `RuntimeError`로 중단한다. 트랜잭션이 롤백되므로 아무것도 지워지지 않는다.
+  - 제약·인덱스:
+    - `ck_deal_actions_next_action_closed_at` → `ck_deal_actions_next_action_closed_on`
+    - `ck_license_contracts_ended_has_time` → `ck_license_contracts_ended_has_date`(조건은 같음)
+    - `ix_deal_actions_acted_at`·`ix_deal_actions_deal_id_acted_at` → `ix_deal_actions_acted_on`·`ix_deal_actions_deal_id_acted_on`
+  - 버리는 정보: 시각뿐이고 행과 날짜는 남는다. SC-R8의 contract 예외로 사용자가 승인했다.
+  - downgrade: 옛 timestamptz 컬럼을 되살려 날짜의 업무 시간대 00:00으로 채운다. 원래 시각은 돌아오지 않는다. NOT NULL·CHECK·인덱스도 되돌리고 새 컬럼을 drop한다.
+  - 하위 호환(SC-R9 예외, 사용자 승인): 코드만 되돌리면 구 앱은 옛 컬럼이 없어 실패한다. 롤백할 때는 `downgrade -1`을 함께 실행하거나 배포 전에 받아 둔 `pg_dump`로 복원한다. product 적용은 사람 승인을 받고 배포 전 `pg_dump`를 마친 뒤에만 한다.
+
 ### 2.4 상태와 전이
 
 DB의 `alembic_version` 상태
 
 | 현재 \ 명령 | `upgrade head` | `downgrade base` |
 | --- | --- | --- |
-| 빈 DB(버전 없음) | → `00c3126aa926`, 테이블 26개 + 시드(SC-R2·R3) | (해당 없음) |
-| `00c3126aa926`(head) | 변화 없음(SC-R5) | 거부, 그대로(SC-R4) |
+| 빈 DB(버전 없음) | → `b4d7e2a9c613`, 테이블 26개 + 시드(SC-R2·R3) | (해당 없음) |
+| `00c3126aa926` | → `b4d7e2a9c613`, 날짜 컬럼 변환(SC-R20) | 거부, 그대로(SC-R4) |
+| `b4d7e2a9c613`(head) | 변화 없음(SC-R5) | 거부, 그대로(SC-R4). `downgrade -1`은 `00c3126aa926`으로 되돌림(시각은 00:00, SC-R20) |
 | 퇴역 리비전 id | `CommandError`, 그대로(SC-R6) | (해당 없음 — DB를 새로 만듦) |
 
 ### 2.5 권한
@@ -162,10 +177,10 @@ DB의 `alembic_version` 상태
 
 | 코드 | 케이스 | 규칙·UC | 층 | 테스트 위치 |
 | --- | --- | --- | --- | --- |
-| SC-001 | 리비전 그래프의 base와 head가 모두 기준선 하나다 | SC-R1 | backend | `infra/schema/test_revision_graph.py::test_the_history_has_one_revision_that_is_both_base_and_head` |
+| SC-001 | 리비전 그래프의 base는 기준선, head는 날짜 전환 리비전 하나다 | SC-R1 | backend | `infra/schema/test_revision_graph.py::test_the_history_has_the_baseline_as_base_and_the_date_revision_as_head` |
 | SC-002 | 기준선에는 부모·브랜치 라벨·의존 리비전이 없다 | SC-R1 | backend | `infra/schema/test_revision_graph.py::test_the_baseline_has_no_parent_branch_or_dependency` |
 | SC-003 | 기준선 파일 이름이 `20261105_00c3126aa926_baseline.py`다 | SC-R1 | backend | `infra/schema/test_revision_graph.py::test_the_baseline_file_is_named_after_its_purpose` |
-| SC-004 | 빈 DB에 upgrade head를 하면 앱 테이블 26개와 alembic_version만 생긴다 | SC-R2, SC-UC1 | backend | `infra/schema/test_baseline_upgrade.py::test_upgrade_head_on_a_blank_database_creates_the_26_tables` |
+| SC-004 | 빈 DB에 upgrade head를 하면 앱 테이블 26개와 alembic_version만 생긴다 | SC-R2, SC-UC1 | backend | `infra/schema/test_baseline_upgrade.py::test_upgrade_head_on_a_blank_database_creates_the_26_tables`, `infra/schema/test_business_dates_migration.py` |
 | SC-005 | 새 DB에는 codes 13·bant_labels 23·action_types 8행만 있고 나머지 테이블은 비어 있다 | SC-R3, SC-UC1 | backend | `infra/schema/test_baseline_upgrade.py::test_upgrade_head_on_a_blank_database_seeds_only_the_default_catalog` |
 | SC-006 | 새 DB의 시드 값이 Fake 시드와 같다 | SC-R3, SC-UC1 | backend | `infra/schema/test_baseline_upgrade.py::test_upgrade_head_seeds_the_same_values_as_the_fake_seed` |
 | SC-007 | head인 DB에 upgrade head를 다시 해도 구조와 행 수가 그대로다 | SC-R5, SC-UC1 | backend | `infra/schema/test_baseline_upgrade.py::test_upgrade_head_at_head_changes_nothing` |
@@ -200,11 +215,12 @@ DB의 `alembic_version` 상태
 | SC-036 | 종류끼리 번호를 나누지 않는다 | SC-R19, SC-UC4 | backend | `repositories/test_id_allocator_contract.py::test_kinds_are_numbered_independently` |
 | SC-037 | 롤백한 작업 단위에서 받은 id는 다시 나오지 않는다 | SC-R19, SC-UC4 | backend | `repositories/test_id_allocator_contract.py::test_a_rolled_back_allocation_is_not_reused` |
 | SC-038 | 받은 id로 넣은 행과 id를 생략한 행이 겹치지 않는다 | SC-R19, SC-R11, SC-UC4 | backend | `repositories/test_id_allocator_contract.py::test_an_allocated_id_and_a_database_default_insert_never_collide` |
+| SC-039 | 날짜 전환 리비전은 기준선을 부모로 하고 정해진 파일 이름이며 downgrade 함수가 있다 | SC-R1, SC-R20 | backend | `infra/schema/test_revision_graph.py` |
 
-### SC-001 리비전 그래프의 base와 head가 모두 기준선 하나다
+### SC-001 리비전 그래프의 base는 기준선, head는 날짜 전환 리비전 하나다
 - When `backend/alembic`의 리비전 그래프를 읽는다
-- Then head 목록은 `["00c3126aa926"]`이고 base 목록도 `["00c3126aa926"]`이다
-- And 지금은 리비전이 1개뿐이다(확인 필요 Q5)
+- Then head 목록은 `["b4d7e2a9c613"]`이고 base 목록은 `["00c3126aa926"]`이다
+- And 리비전은 2개이고 `b4d7e2a9c613`의 `down_revision`은 `00c3126aa926`이다
 
 ### SC-002 기준선에는 부모·브랜치 라벨·의존 리비전이 없다
 - When 기준선 리비전 정보를 읽는다
@@ -218,7 +234,7 @@ DB의 `alembic_version` 상태
 - Given 마이그레이션이 하나도 적용되지 않은 빈 임시 DB
 - When `upgrade head`를 실행한다
 - Then public 테이블은 2.2의 앱 테이블 26개와 `alembic_version`뿐이다
-- And `alembic_version.version_num`은 `00c3126aa926` 한 행이다
+- And `alembic_version.version_num`은 `b4d7e2a9c613` 한 행이다
 
 ### SC-005 새 DB에는 codes 13·bant_labels 23·action_types 8행만 있고 나머지 테이블은 비어 있다
 - Given 빈 임시 DB
@@ -236,7 +252,7 @@ DB의 `alembic_version` 상태
 ### SC-007 head인 DB에 upgrade head를 다시 해도 구조와 행 수가 그대로다
 - Given 빈 임시 DB에 `upgrade head`를 적용하고 모든 앱 테이블의 열·제약·인덱스 정의와 행 수를 기록했다
 - When `upgrade head`를 다시 실행한다
-- Then `alembic_version`은 `00c3126aa926`이다
+- Then `alembic_version`은 `b4d7e2a9c613`이다
 - And 모든 앱 테이블의 열·제약·인덱스 정의와 행 수가 기록과 같다
 
 ### SC-008 퇴역 리비전이 남은 DB의 upgrade는 실패하고 스키마가 그대로다
@@ -254,7 +270,7 @@ DB의 `alembic_version` 상태
 - Given 빈 임시 DB에 `upgrade head`를 적용하고 테이블 목록을 기록했다
 - When `downgrade base`를 실행한다
 - Then 명령은 `RuntimeError`로 중단되고 문구에 "최초 리비전"과 "DB를 새로 만드세요"가 들어 있다
-- And `alembic_version`은 `00c3126aa926`이고 테이블 목록이 기록과 같다
+- And `alembic_version`은 `b4d7e2a9c613`이고 테이블 목록과 날짜 컬럼이 기록과 같다
 
 ### SC-011 기준선 upgrade 본문에는 행·컬럼을 지우거나 바꾸는 문장이 없다
 - Given 기준선 리비전 모듈 소스에서 `downgrade`를 뺀 함수들의 본문(docstring 제외, 소문자)
@@ -408,8 +424,13 @@ DB의 `alembic_version` 상태
 - When id 없이 Vendor `B`를 넣는다
 - Then `A`의 id는 받은 id이고 `B`의 id는 그보다 크다(SQL 전용 케이스)
 
+### SC-039 날짜 전환 리비전은 기준선을 부모로 하고 정해진 파일 이름이며 downgrade 함수가 있다
+- When DB 없이 리비전 `b4d7e2a9c613`의 정보와 모듈을 읽는다
+- Then `down_revision`은 `00c3126aa926`이고, `branch_labels`는 비어 있으며, 파일 경로는 `20261113_b4d7e2a9c613_business_dates.py`로 끝난다. `downgrade` 함수가 있고 실행을 거부하지 않는다
+
 ## 5. 변경 이력
 
 | 날짜 | 변경 | 영향 테스트 코드 |
 | --- | --- | --- |
 | 2026-11-09 | 초안: 구현된 동작(2026-11-05 기준선 통합, 2026-10-21 bigint id, 2026-10-14 users FK 통일)과 CLAUDE.md 마이그레이션 원칙을 정본으로 옮김. 현재 테스트가 빠뜨린 범위(SC-006 시드 값 전체, SC-014 스냅숏 3테이블, SC-015 `user_password_hashes`, SC-016 `auth_settings`)를 규칙대로 포함 | SC-001~SC-038 |
+| 2026-11-13 | 확정(2026-11-13 사용자 확인): 날짜 전환 리비전 `b4d7e2a9c613` 추가와 SC-R20 신설(업무 날짜 컬럼 4개를 date로 전환, 시각 drop은 승인된 contract). head가 바뀌어 용어, SC-R1·R2·R4·R6·R8·R14, 2.4 갱신 | 신규 SC-039. 변경 SC-001, SC-004, SC-007, SC-010 |

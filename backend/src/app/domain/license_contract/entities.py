@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Self
 
 from app.domain.auth.principal import Role
+from app.domain.common.business_date import business_date
 from app.domain.common.entity import AuditedEntity
 from app.domain.license_contract.errors import (
     ALREADY_ENDED,
@@ -39,7 +40,7 @@ class LicenseContract(AuditedEntity[LicenseContractId]):
     license_end: date | None
     fields: ContractFields
     renewed_from_id: LicenseContractId | None
-    ended_at: datetime | None
+    ended_on: date | None
     created_by: UserId
     updated_by: UserId
 
@@ -57,7 +58,7 @@ class LicenseContract(AuditedEntity[LicenseContractId]):
             license_end=None,
             fields=ContractFields.empty(),
             renewed_from_id=None,
-            ended_at=None,
+            ended_on=None,
             created_by=by,
             updated_by=by,
             created_at=now,
@@ -101,7 +102,7 @@ class LicenseContract(AuditedEntity[LicenseContractId]):
             license_end=end,
             fields=fields,
             renewed_from_id=self.id,
-            ended_at=None,
+            ended_on=None,
             created_by=by,
             updated_by=by,
             created_at=now,
@@ -121,7 +122,7 @@ class LicenseContract(AuditedEntity[LicenseContractId]):
 
     def _finish(self, by: UserId, now: datetime) -> None:
         self.status = ContractStatus.ENDED
-        self.ended_at = now
+        self.ended_on = business_date(now)
         self._stamp(by, now)
 
     def _stamp(self, by: UserId, now: datetime) -> None:

@@ -409,3 +409,50 @@ def test_formatless_fields_have_empty_formats_and_null_default(spec: FieldSpec) 
     # then: 포맷 목록이 비고 기본값이 null이다
     assert formats == ()
     assert default_format is None
+
+
+DATE_CONVERTED_KEYS = [
+    "deal.last_updated_at",
+    "deal.status_changed_at",
+    "action.acted_at",
+    "action.closed_at",
+]
+
+
+@pytest.mark.parametrize("key", DATE_CONVERTED_KEYS)
+def test_converted_fields_are_dates_with_ymd_default_and_no_time_format(key: str) -> None:
+    """최종 업데이트·Status 진입일·수행일·종료일은 date 형식이고 기본 포맷 ymd이며 ymd_hm이 없다.
+
+    테스트 코드: RQ-113
+    """
+    # when: key(기존 그대로)로 필드를 찾는다
+    spec = find_field(key)
+
+    # then: date 형식, 포맷은 date 허용표, 기본 ymd, ymd_hm 없음
+    assert spec is not None
+    assert spec.type == FieldType.DATE
+    assert set(spec.formats) == ALLOWED_FORMATS[FieldType.DATE]
+    assert spec.default_format == Format.YMD
+    assert Format.YMD_HM not in spec.formats
+
+
+def test_converted_fields_have_date_labels() -> None:
+    """표시 이름이 시각을 뜻하지 않는다: 최종 업데이트, Status 진입일, 수행일, 종료일.
+
+    테스트 코드: RQ-113
+    """
+    # when: 네 필드의 표시 이름을 읽는다
+    labels = [find_field(key).label for key in DATE_CONVERTED_KEYS]  # type: ignore[union-attr]
+    # then: 날짜 이름이다
+    assert labels == ["최종 업데이트", "Status 진입일", "수행일", "종료일"]
+
+
+def test_created_at_is_the_only_datetime_field() -> None:
+    """시각(datetime) 형식 필드는 등록일(deal.created_at) 하나뿐이다.
+
+    테스트 코드: RQ-113
+    """
+    # when: datetime 형식 필드를 모은다
+    keys = [f.key for f in FIELD_CATALOG if f.type == FieldType.DATETIME]
+    # then: deal.created_at 하나다
+    assert keys == ["deal.created_at"]

@@ -1,6 +1,6 @@
 """ListDealActions: 정렬 10종의 동률·빈 값 규칙, Next Action 상태 필터, 퇴사한 작성자."""
 
-from datetime import date
+from datetime import date, timedelta
 from typing import TYPE_CHECKING
 
 from app.application.deal.inputs import Actor
@@ -123,25 +123,49 @@ async def test_status_filter_combines_with_other_conditions_and_reopened_is_open
     assert closed == ["미수행", "수행"]
 
 
-async def test_acted_at_ties_list_the_earlier_registered_action_first_in_both_directions(
+async def test_acted_on_ties_follow_the_id_in_the_sort_direction(
     action_env: ActionEnv,
 ) -> None:
-    """수행일시 정렬은 같은 시각이면 어느 방향이든 먼저 등록한 Action이 앞이다.
+    """수행일 정렬은 수행일이 같으면 id 방향을 따른다(내림차순은 나중 등록이 앞, 오름차순은 반대).
 
     테스트 코드: NA-038
     """
-    # given: 같은 수행 일시의 "먼저 등록"·"나중 등록"과 그 뒤의 "셋째"
+    # given: 같은 수행일의 "먼저 등록"·"나중 등록"과 다음 날의 "셋째"
     await action_env.act(KIM, action="먼저 등록")
     await action_env.act(KIM, action="나중 등록", advance=0)
-    await action_env.act(KIM, action="셋째")
+    await action_env.act(KIM, action="셋째", advance=86400)
     # when: acted_at_desc로 조회한다
     desc = await _names(action_env, sort=DealActionSort.ACTED_AT_DESC)
-    # then: 셋째, 먼저 등록, 나중 등록 순이다
-    assert desc == ["셋째", "먼저 등록", "나중 등록"]
+    # then: 셋째(다음 날), 나중 등록, 먼저 등록 순이다
+    assert desc == ["셋째", "나중 등록", "먼저 등록"]
     # when: acted_at_asc로 조회한다
     asc = await _names(action_env, sort=DealActionSort.ACTED_AT_ASC)
     # then: 먼저 등록, 나중 등록, 셋째 순이다
     assert asc == ["먼저 등록", "나중 등록", "셋째"]
+
+
+async def test_ties_of_another_sort_key_follow_acted_on_desc_then_id_desc(
+    action_env: ActionEnv,
+) -> None:
+    """수행일 외 정렬의 동률은 수행일 내림차순, 같은 수행일이면 id 내림차순이다.
+
+    테스트 코드: NA-069
+    """
+    # given: 같은 Due의 세 Action: 어제 수행일 "어제 먼저"·"어제 나중"(id 큰 쪽), 오늘 수행일 "오늘"
+    #        (오늘 것을 가장 작은 id로 등록한다 — 수행일이 id보다 우선임을 보인다)
+    action_env.set_clock(action_env.env.clock.now() + timedelta(days=2))
+    today = action_env.env.clock.now()
+    yesterday_date = (today - timedelta(days=1)).astimezone().date()
+    due = date(2026, 3, 1)
+    await action_env.act(KIM, action="오늘", due_date=due, advance=0)
+    await action_env.act(KIM, action="어제 먼저", due_date=due, advance=0, acted_on=yesterday_date)
+    await action_env.act(KIM, action="어제 나중", due_date=due, advance=0, acted_on=yesterday_date)
+    # when: due_date_asc와 due_date_desc로 조회한다
+    asc = await _names(action_env, sort=DealActionSort.DUE_DATE_ASC)
+    desc = await _names(action_env, sort=DealActionSort.DUE_DATE_DESC)
+    # then: 두 방향 모두 동률은 오늘 → 어제 나중 → 어제 먼저 순이다
+    assert asc == ["오늘", "어제 나중", "어제 먼저"]
+    assert desc == ["오늘", "어제 나중", "어제 먼저"]
 
 
 async def test_due_date_sort_puts_actions_without_due_last_in_both_directions(

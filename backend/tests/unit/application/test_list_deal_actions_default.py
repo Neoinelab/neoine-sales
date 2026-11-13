@@ -38,27 +38,27 @@ async def test_listing_returns_only_the_actions_of_that_deal_without_paging(
     assert sorted(str(a.content.action) for a in found) == ["가", "나", "다"]
 
 
-async def test_default_order_is_latest_acted_at_first_then_earlier_registered_first(
+async def test_default_order_is_latest_acted_on_first_then_later_registered_first(
     action_env: ActionEnv,
 ) -> None:
-    """기본 목록은 수행 일시 최신순이고 같은 시각이면 먼저 등록한 것이 앞이다.
+    """기본 목록은 수행일 최신순이고 같은 수행일이면 나중에 등록한 것이 앞이다.
 
     테스트 코드: AC-066
     """
-    # given: 서로 다른 시각의 Action 3건과 같은 시각에 남긴 두 건
+    # given: 서로 다른 날(하루씩 흐름)의 Action 3건과 마지막 날에 남긴 두 건
     await action_env.act(KIM, action="첫째")
-    await action_env.act(KIM, action="둘째")
-    await action_env.act(KIM, action="셋째")
-    await action_env.act(KIM, action="먼저 등록")
+    await action_env.act(KIM, action="둘째", advance=86400)
+    await action_env.act(KIM, action="셋째", advance=86400)
+    await action_env.act(KIM, action="먼저 등록", advance=86400)
     await action_env.act(KIM, action="나중 등록", advance=0)
 
     # when: 조건 없이 목록을 읽는다
     found = await action_env.list.execute(DealActionQuery(deal_code=action_env.deal.item.deal.id))
 
-    # then: 수행 일시 내림차순이고 같은 시각의 두 건은 먼저 등록한 것이 앞이다
+    # then: 수행일 내림차순이고 같은 수행일의 두 건은 나중에 등록한 것이 앞이다
     assert [str(a.content.action) for a in found] == [
-        "먼저 등록",
         "나중 등록",
+        "먼저 등록",
         "셋째",
         "둘째",
         "첫째",

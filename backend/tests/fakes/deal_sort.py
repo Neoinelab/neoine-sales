@@ -46,7 +46,7 @@ def _vendor(deal: Any, lookups: SortLookups) -> str | None:  # noqa: ANN401
 
 
 def sort_key(sort: str, lookups: SortLookups) -> Callable[[Any, Any], Any]:
-    """(deal, last_updated_at) -> 정렬 키(None이면 맨 뒤). 동률은 호출부가 code 순으로 한다."""
+    """(deal, last_updated_on) -> 정렬 키(None이면 맨 뒤). 동률은 호출부가 code 순으로 한다."""
     by_deal: dict[str, Callable[[Any], Any]] = {
         "name": lambda d: d.details.name.lower(),
         "revenue_amount": lambda d: d.details.revenue_amount.value,

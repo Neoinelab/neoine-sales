@@ -47,10 +47,8 @@ class DealActionRow(AuditColumns, Base):
     # Next Action이 있는 행에만 상태가 있다(없으면 NULL). 종료 상태일 때만 종료 시각이 있다.
     # 서버 기본값은 없다(앱이 항상 값을 정한다). 구 앱 호환용 'open' 기본값은 bigint_ids에서 뺐다.
     next_action_status: Mapped[str | None] = mapped_column(String(20), default=None)
-    next_action_closed_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), default=None
-    )
-    acted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    next_action_closed_on: Mapped[date | None] = mapped_column(Date, default=None)
+    acted_on: Mapped[date] = mapped_column(Date)
     actor_user_id: Mapped[int] = mapped_column(
         BigInteger, ForeignKey("users.id", ondelete="RESTRICT")
     )
@@ -78,8 +76,8 @@ class DealActionRow(AuditColumns, Base):
         ),
         CheckConstraint(
             "(COALESCE(next_action_status, '') IN ('done', 'not_done'))"
-            " = (next_action_closed_at IS NOT NULL)",
-            name="next_action_closed_at",
+            " = (next_action_closed_on IS NOT NULL)",
+            name="next_action_closed_on",
         ),
         ForeignKeyConstraint(
             ["status_kind", "status_key"],
@@ -97,8 +95,8 @@ class DealActionRow(AuditColumns, Base):
         Index("ix_deal_actions_status_key", "status_key"),
         Index("ix_deal_actions_forecast_key", "forecast_key"),
         Index("ix_deal_actions_actor_user_id", "actor_user_id"),
-        Index("ix_deal_actions_deal_id_acted_at", "deal_id", "acted_at"),
-        Index("ix_deal_actions_acted_at", "acted_at"),
+        Index("ix_deal_actions_deal_id_acted_on", "deal_id", "acted_on"),
+        Index("ix_deal_actions_acted_on", "acted_on"),
         Index("ix_deal_actions_due_date", "due_date"),
     )
 

@@ -312,7 +312,5 @@ def test_updated_dates_at_the_range_edges_reach_the_query(day: date) -> None:
     # when: 경계 날짜로 조회 조건을 만든다
     query = DealSearchParams(updated_from=day, updated_to=day).to_query(VIEWER)
 
-    window = query.updated_window()
-
     # then: 기간 조건이 설정된다
-    assert window != (None, None)
+    assert (query.updated_from, query.updated_to) == (day, day)

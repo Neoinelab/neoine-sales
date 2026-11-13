@@ -63,7 +63,7 @@ export function followWonChange(
       inspection: 'none',
       note: '',
       renewedFromId: null,
-      endedAt: null,
+      endedOn: null,
       createdById: byId,
       updatedById: byId,
       createdAt: now,

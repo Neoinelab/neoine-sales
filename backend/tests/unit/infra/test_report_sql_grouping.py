@@ -123,16 +123,17 @@ def test_nulls_last_and_tie_breakers_are_appended() -> None:
     assert "deal_code ASC" in sql
 
 
-def test_action_rows_are_tie_broken_by_acted_at_and_id() -> None:
-    """Action 행의 동률은 수행일시·id 순이다.
+def test_action_rows_are_tie_broken_by_acted_on_and_id() -> None:
+    """Action 행의 동률은 수행일·id 순이다.
 
     테스트 코드: RQ-053
     """
     # when: Action 컬럼이 있는 SQL을 만든다
     sql = sql_of(resolved([col("deal.code"), col("action.action")]))
 
-    # then: acted_at ASC와 Action id ASC가 있다
-    assert "acted_at ASC" in sql
+    # then: acted_on ASC와 Action id ASC가 있고 시각 컬럼 정렬은 없다
+    assert "acted_on ASC" in sql
+    assert "acted_at" not in sql
     assert "deal_actions.id ASC" in sql or "a.id ASC" in sql
 
 

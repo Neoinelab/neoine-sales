@@ -4,7 +4,7 @@ keyword·owner·vendor·solution·status·forecast(여러 값 OR)·연/분기·�
 Next Action 상태·기한초과/미업데이트 필터를 적용한다.
 Expected Close 연/분기는 DealQuery.revenue_window()의 양끝 포함 범위에 revenue_quarters()의
 분기 IN 조건을 AND로 더한다(Q1·Q3처럼 떨어진 분기를 정확히 거른다).
-최종 업데이트 기간은 updated_window()의 반개구간 [시작, 끝)이며 상관 스칼라 서브쿼리로 비교한다.
+최종 업데이트 기간은 날짜 [updated_from, updated_to] 양끝 포함이며 상관 스칼라 서브쿼리로 비교한다.
 기한초과·미업데이트는 compute_risk와 같은 판정이며 둘 다 켜면 OR, 종결(won·lost)은 제외한다.
 """
 
@@ -27,7 +27,7 @@ from app.infra.db.models_deal import DealPartnerRow, DealRow
 from app.infra.db.models_license_contract import ISSUED_STATUSES, LicenseContractRow
 
 if TYPE_CHECKING:
-    from datetime import date, datetime
+    from datetime import date
 
     from sqlalchemy import Select
 
@@ -35,9 +35,9 @@ if TYPE_CHECKING:
     from app.application.ports.deal_outcome_filter import ForecastOutcomeFilter
     from app.application.ports.deal_repository import DealQuery
 
-# 목록 질의의 한 행: (Deal 행, last_updated_at, 기준 행의 next_action·due_date·상태, 계약 수)
+# 목록 질의의 한 행: (Deal 행, last_updated_on, 기준 행의 next_action·due_date·상태, 계약 수)
 # 기준 행 outer join이라 Next Action이 없는 Deal은 세 값이 모두 NULL이다.
-type ItemSelect = Select[tuple[DealRow, datetime, str | None, date | None, str | None, int]]
+type ItemSelect = Select[tuple[DealRow, date, str | None, date | None, str | None, int]]
 
 
 def _keyword_condition(keyword: str) -> ColumnElement[bool]:
@@ -100,7 +100,7 @@ def _next_action_condition(statuses: NextActionStatusFilter) -> ColumnElement[bo
 
 
 def _window_conditions(query: DealQuery) -> list[ColumnElement[bool]]:
-    """Expected Close 범위(양끝 포함)·분기 IN과 최종 업데이트 기간([시작, 끝)) 조건."""
+    """Expected Close 범위(양끝 포함)·분기 IN과 최종 업데이트 기간(날짜, 양끝 포함) 조건."""
     found: list[ColumnElement[bool]] = []
     window_from, window_to = query.revenue_window()  # 연/분기 범위
     if window_from is not None:
@@ -110,11 +110,10 @@ def _window_conditions(query: DealQuery) -> list[ColumnElement[bool]]:
     quarters = query.revenue_quarters()  # 범위는 사이 분기를 포함하므로 분기로 다시 거른다
     if quarters is not None:
         found.append(extract("quarter", DealRow.revenue_date).in_(sorted(quarters)))
-    updated_start, updated_end = query.updated_window()
-    if updated_start is not None:
-        found.append(last_updated_scalar() >= updated_start)
-    if updated_end is not None:
-        found.append(last_updated_scalar() < updated_end)
+    if query.updated_from is not None:
+        found.append(last_updated_scalar() >= query.updated_from)
+    if query.updated_to is not None:
+        found.append(last_updated_scalar() <= query.updated_to)
     return found
 
 
@@ -167,11 +166,11 @@ def _has_issued_contract() -> ColumnElement[bool]:
 
 
 def item_select() -> ItemSelect:
-    """Deal 행과 파생값(last_updated_at, 기준 행의 next_action·due_date·상태)."""
+    """Deal 행과 파생값(last_updated_on, 기준 행의 next_action·due_date·상태)."""
     return (
         select(
             DealRow,
-            LAST_UPDATED.label("last_updated_at"),
+            LAST_UPDATED.label("last_updated_on"),
             LATEST_NEXT.c.next_action,
             LATEST_NEXT.c.due_date,
             LATEST_NEXT.c.next_action_status.label("basis_status"),

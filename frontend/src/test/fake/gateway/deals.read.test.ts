@@ -44,7 +44,7 @@ describe('deals.list', () => {
     expect(page1.items).toHaveLength(20)
     expect(page2.items).toHaveLength(4)
     expect(page2).toMatchObject({ total: 24, offset: 20, limit: 20 })
-    const times = [...page1.items, ...page2.items].map((d) => Date.parse(d.lastUpdatedAt))
+    const times = [...page1.items, ...page2.items].map((d) => Date.parse(d.lastUpdatedOn))
     expect(times).toEqual([...times].sort((a, b) => b - a))
   })
 
@@ -217,14 +217,14 @@ describe('deals.list', () => {
     expect(result).toBe(200)
   })
 
-  it('최종 업데이트 기간은 lastUpdatedAt의 날짜가 양끝 포함 범위 안인 Deal만 돌려준다', async () => {
+  it('최종 업데이트 기간은 lastUpdatedOn의 날짜가 양끝 포함 범위 안인 Deal만 돌려준다', async () => {
     // given: 최종 업데이트 날짜가 여러 날로 갈리는 시드 Deal
     const { gateway } = await mockAs('kim')
     const all = (await gateway.deals.list({ limit: 100 })).items
-    const days = [...new Set(all.map((d) => d.lastUpdatedAt.slice(0, 10)))].sort()
+    const days = [...new Set(all.map((d) => d.lastUpdatedOn.slice(0, 10)))].sort()
     expect(days.length).toBeGreaterThan(2) // 시드가 날짜를 가르는 기준이 되어야 한다
     const [first, middle, last] = [days[0]!, days[Math.floor(days.length / 2)]!, days[days.length - 1]!]
-    const dayOf = (d: { lastUpdatedAt: string }) => d.lastUpdatedAt.slice(0, 10)
+    const dayOf = (d: { lastUpdatedOn: string }) => d.lastUpdatedOn.slice(0, 10)
 
     // when: 기준 날짜 하나·시작만·끝만·전체 기간으로 검색한다
     const exact = await gateway.deals.list({ updatedFrom: middle, updatedTo: middle, limit: 100 })
@@ -253,12 +253,12 @@ describe('deals.list', () => {
     // given: 4분기 Deal 중 하나의 최종 업데이트 날짜
     const { gateway } = await mockAs('kim')
     const q4 = (await gateway.deals.list({ year: 2026, quarters: [4], limit: 100 })).items
-    const day = q4[0]!.lastUpdatedAt.slice(0, 10)
+    const day = q4[0]!.lastUpdatedOn.slice(0, 10)
     // when: 연도·분기와 같은 날짜 기간을 함께 준다
     const both = await gateway.deals.list({ year: 2026, quarters: [4], updatedFrom: day, updatedTo: day, limit: 100 })
     const result = codes(both.items)
     // then: 두 조건을 AND로 결합한 결과다
-    expect(result).toEqual(codes(q4.filter((d) => d.lastUpdatedAt.slice(0, 10) === day)))
+    expect(result).toEqual(codes(q4.filter((d) => d.lastUpdatedOn.slice(0, 10) === day)))
   })
 
   it('정렬: 금액 내림차순, 이름 오름차순, Status 순서', async () => {
@@ -452,7 +452,7 @@ describe('deals.list', () => {
     const d1 = rows.find((d) => d.code === dealCode(1))
     // when: Deal 목록을 읽는다
     const r1 = rows.find((d) => d.code === dealCode(5))?.activePartner
-    const r2 = rows.find((d) => d.code === dealCode(4))?.lastUpdatedAt.slice(0, 10)
+    const r2 = rows.find((d) => d.code === dealCode(4))?.lastUpdatedOn.slice(0, 10)
     const r3 = rows.find((d) => d.code === dealCode(23))?.owner.status
     // then: 고객·활성 파트너·Next Action·퇴사자 Owner가 채워진다
     expect(d1).toMatchObject({

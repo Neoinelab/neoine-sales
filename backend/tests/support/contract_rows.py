@@ -17,10 +17,10 @@ if TYPE_CHECKING:
 
 INSERT_CONTRACT = (
     "insert into license_contracts (id, deal_id, status, license_start, license_end,"
-    " term_amount, term_unit, tech_owner, inspection_cycle, note, renewed_from_id, ended_at,"
+    " term_amount, term_unit, tech_owner, inspection_cycle, note, renewed_from_id, ended_on,"
     " created_by_user_id, updated_by_user_id, created_at, updated_at) values (:id, :deal_id,"
     " :status, :license_start, :license_end, :term_amount, :term_unit, :tech_owner,"
-    " :inspection_cycle, :note, :renewed_from_id, :ended_at, :user_id, :user_id, now(), now())"
+    " :inspection_cycle, :note, :renewed_from_id, :ended_on, :user_id, :user_id, now(), now())"
 )
 INSERT_CONTRACT_ATTACHMENT = (
     "insert into license_contract_attachments (id, contract_id, file_name, description, mime,"
@@ -39,7 +39,7 @@ async def insert_contract(
     """미발급 계약 한 행(기본값은 모든 제약을 통과한다). 새 계약 id를 돌려준다.
 
     overrides: id, deal_id, status, license_start, license_end(date 또는 None), term_amount,
-    term_unit, tech_owner, inspection_cycle, note, renewed_from_id, ended_at.
+    term_unit, tech_owner, inspection_cycle, note, renewed_from_id, ended_on.
     """
     values: dict[str, Any] = {
         "id": new_id(),
@@ -53,7 +53,7 @@ async def insert_contract(
         "inspection_cycle": "none",
         "note": "",
         "renewed_from_id": None,
-        "ended_at": None,
+        "ended_on": None,
         "user_id": user_id,
     }
     values.update(overrides)

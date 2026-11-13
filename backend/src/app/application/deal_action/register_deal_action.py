@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from app.application.deal.history_writer import record_deal_diff, write_history
@@ -9,13 +10,14 @@ from app.domain.common.errors import InvalidStateError
 from app.domain.deal.code import DealCode
 from app.domain.deal.errors import DealNotFoundError
 from app.domain.deal.sync import SyncState, finalize_sequence
+from app.domain.deal_action.acted_on import ensure_not_before_basis, resolve_acted_on
 from app.domain.deal_action.entities import DealAction
 from app.domain.deal_action.errors import PREVIOUS_NEXT_ACTION_CHANGED
 from app.domain.deal_action.history import action_created_draft, next_action_status_draft
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
-    from datetime import datetime
+    from datetime import date, datetime
 
     from app.application.deal.inputs import Actor
     from app.application.deal_action.inputs import DealActionInput, StatusChangeInput
@@ -26,8 +28,18 @@ if TYPE_CHECKING:
     from app.domain.deal.history import HistoryDraft
 
 
+@dataclass(frozen=True)
+class _CloseRequest:
+    """이전 Next Action을 닫는 데 필요한 값 묶음."""
+
+    basis_id: int | None
+    actor: Actor
+    now: datetime
+    acted_on: date
+
+
 class RegisterDealAction:
-    """Deal에 Action을 기록한다. 수행 일시·수행자는 서버가 정하고 Status/Forecast를 스냅숏한다.
+    """Deal에 Action을 기록한다. 수행일·수행자는 서버가 정하고 Status/Forecast를 스냅숏한다.
 
     status_changes가 있으면 `ApplyDealChange`와 같은 규칙으로 순서대로 먼저 Deal을 바꾼다(같은
     트랜잭션, 모두 판정한 뒤에만 반영하며 하나라도 실패하면 아무것도 저장하지 않는다).
@@ -52,7 +64,9 @@ class RegisterDealAction:
                 uow, data.content.action_type, actor.user_id, now
             )
             content = data.content.to_content(action_type)
-            drafts = await self._close_previous(uow, deal_code, data, actor, now)
+            acted_on = resolve_acted_on(data.acted_on, now=now, deal_registered_at=deal.created_at)
+            close = _CloseRequest(data.close_previous_next_action_id, actor, now, acted_on)
+            drafts = await self._close_previous(uow, deal_code, close)
             before_sync = deal.sync
             if data.status_changes:
                 await self._change_deal(uow, deal, data.status_changes, actor, now)
@@ -71,6 +85,7 @@ class RegisterDealAction:
                 actor_user_id=actor.user_id,
                 snapshot=deal.sync,
                 now=now,
+                acted_on=acted_on,
                 entity_id=await new_deal_action_id(uow.ids),
             )
             await uow.deal_actions.add(action)
@@ -84,18 +99,17 @@ class RegisterDealAction:
         self,
         uow: UnitOfWork,
         deal_code: DealCode,
-        data: DealActionInput,
-        actor: Actor,
-        now: datetime,
+        close: _CloseRequest,
     ) -> list[HistoryDraft]:
         """기준 행이면 종료(수행)로 닫고 이력 초안을 돌려준다. 이미 종료면 건너뛴다(빈 목록)."""
-        if data.close_previous_next_action_id is None:
+        if close.basis_id is None:
             return []
         basis = await uow.deal_actions.latest_with_next_action(deal_code)
-        if basis is None or basis.id != data.close_previous_next_action_id:
+        if basis is None or basis.id != close.basis_id:
             raise InvalidStateError(PREVIOUS_NEXT_ACTION_CHANGED)
-        basis.ensure_status_changeable_by(actor.user_id, actor.role)
-        change = basis.close_as_done_for_next_update(now)
+        basis.ensure_status_changeable_by(close.actor.user_id, close.actor.role)
+        ensure_not_before_basis(close.acted_on, basis.acted_on)
+        change = basis.close_as_done_for_next_update(close.now)
         if change is None:
             return []
         await uow.deal_actions.update(basis)

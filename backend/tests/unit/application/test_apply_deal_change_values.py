@@ -136,7 +136,7 @@ async def test_a_change_does_not_move_the_deal_in_the_list(env: DealEnv) -> None
     page = await env.list.execute(DealQuery())
     assert [v.item.deal.id for v in page.items] == before  # 최종 업데이트는 Action 기준(E4)
     edited = next(v for v in page.items if v.item.deal.id == older.item.deal.id)
-    assert edited.item.last_updated_at == older.item.deal.created_at
+    assert edited.item.last_updated_on == older.item.deal.created_at.astimezone().date()
     assert edited.item.deal.details.revenue_amount.value == 10
 
 

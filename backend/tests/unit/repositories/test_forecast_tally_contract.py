@@ -14,7 +14,7 @@ import pytest
 from app.application.ports.forecast_repository import ForecastCriteria
 from app.domain.deal.code import DealCode
 from app.domain.forecast.period import ForecastPeriod
-from tests.factories import later
+from tests.factories import date_after, later
 from tests.support.user_ids import OWNER_ID, uid
 
 if TYPE_CHECKING:
@@ -290,7 +290,7 @@ async def test_forecast_summary_is_unchanged_by_the_risk_fields(
     stale_code = await forecast_case.add_deal(forecast="commit", amount=7)
     await forecast_case.add_deal(forecast="won", amount=11)
     deal = await forecast_case.deals.deals.get(DealCode(overdue_code))
-    await forecast_case.deals.add_action(deal, acted_at=later(5), due_date=date(2026, 1, 2))
+    await forecast_case.deals.add_action(deal, acted_on=date_after(0), due_date=date(2026, 1, 2))
 
     # when: 집계한다
     found = await _tally(forecast_case, _criteria())

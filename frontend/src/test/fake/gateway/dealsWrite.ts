@@ -1,6 +1,7 @@
 /** Deal 쓰기: 등록·수정·단일 필드 변경·삭제. 검증과 연락처 계획을 모두 끝낸 뒤에만 저장소를 바꾼다. */
 
 import { compactDate } from '../../../shared/model/dates'
+import { businessToday } from '../businessDate'
 import { FORECAST_WON } from '../../../shared/model/constants'
 import { canWrite } from '../../../shared/model/permissions'
 import type { Deal, DealInput, DealPatch } from '../../../shared/model/types'
@@ -14,10 +15,10 @@ import { providedKeys, validateCustomerDraft, validateDealFields, validatePartne
 import { logDealDiff, logHistory } from './historyLog'
 import { dealDetail, findDeal } from './views'
 
-const CODE_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
 const DELETE_OWNER_DENIED_MESSAGE = '본인 Deal 또는 admin만 삭제할 수 있습니다.'
 const DELETE_COMPLETED_DENIED_MESSAGE = '완료된 Deal은 관리자만 삭제할 수 있습니다.'
 
+const CODE_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
 
 /** 서버와 같은 시도 횟수와 문구(DE-R2): 겹치면 다시 뽑고 10번째까지 시도한 뒤 409다. */
 export const DEAL_CODE_ATTEMPTS = 10
@@ -68,7 +69,7 @@ function createDeal(ctx: MockContext, raw: DealInput) {
     poc: clone(input.poc),
     procurement: input.procurement.trim(),
     bant,
-    statusChangedAt: now,
+    statusChangedOn: businessToday(now),
     createdAt: now,
     updatedAt: now,
   }
@@ -123,7 +124,7 @@ function updateDeal(ctx: MockContext, code: string, patch: DealPatch) {
   // 연락처 갱신이 이 Deal의 updatedAt을 이미 올렸을 수 있으므로 저장소 값을 이어받는다.
   after.updatedAt = deal.updatedAt
   Object.assign(deal, after)
-  if (deal.statusKey !== before.statusKey) deal.statusChangedAt = now
+  if (deal.statusKey !== before.statusKey) deal.statusChangedOn = businessToday(now)
   if (logDealDiff(ctx, before, deal, user.id) > 0) deal.updatedAt = now
   followWonChange(ctx, deal.code, before, deal, patch.deleteLicenseContracts, user.id)
   return dealDetail(ctx, deal)

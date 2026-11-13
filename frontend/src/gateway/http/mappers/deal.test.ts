@@ -55,9 +55,9 @@ describe('toDealRow', () => {
       hasIssuedLicenseContract: true,
       bant: { budget: 1, authority: null, need: 3, timeline: null },
       nextAction: { text: '견적 재송부', dueDate: '2026-10-20', status: 'open' },
-      lastUpdatedAt: '2026-10-15T09:00:00+09:00',
+      lastUpdatedOn: '2026-10-15',
       risk: null,
-      statusChangedAt: '2026-10-10T09:00:00+09:00',
+      statusChangedOn: '2026-10-10',
       statusDays: 5,
       createdAt: '2026-10-01T09:00:00+09:00',
       updatedAt: '2026-10-02T09:00:00+09:00',
@@ -130,7 +130,7 @@ describe('toDealRow', () => {
     const row = toDealRow(
       serverDealRow({
         risk: null,
-        last_updated_at: '2020-01-01T00:00:00Z',
+        last_updated_on: '2020-01-01',
         next_action: { text: '전화', due_date: '2020-01-02', status: 'open' },
       }),
     )
@@ -142,11 +142,11 @@ describe('toDealRow', () => {
   // 진입 시각과 체류 일수를 서버 값 그대로 옮긴다.
   // 테스트 코드: RK-059
   it('maps the status entry time and the stay days from the server', () => {
-    // when: status_changed_at과 status_days가 있는 서버 행을 바꾼다
-    const row = toDealRow(serverDealRow({ status_changed_at: '2026-10-01T00:30:00+09:00', status_days: 14 }))
+    // when: status_changed_on과 status_days가 있는 서버 행을 바꾼다
+    const row = toDealRow(serverDealRow({ status_changed_on: '2026-10-01', status_days: 14 }))
 
-    // then: statusChangedAt·statusDays가 서버 값이다
-    expect(row).toMatchObject({ statusChangedAt: '2026-10-01T00:30:00+09:00', statusDays: 14 })
+    // then: statusChangedOn·statusDays가 서버 값이다
+    expect(row).toMatchObject({ statusChangedOn: '2026-10-01', statusDays: 14 })
   })
 
   // 활성 파트너가 없으면 null, Users 0은 숫자로 옮긴다.

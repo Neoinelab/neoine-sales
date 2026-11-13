@@ -67,11 +67,15 @@ async def test_deal_detail_timestamps_carry_server_offset(local_tz: Callable[[st
         # when: Deal 상세를 조회한다
         response = await http.get(f"/api/v1/deals/{code}")
 
-    # then: 시각 필드가 +09:00이고 순간은 서버 시계와 같다
+    # then: 시각 필드가 +09:00이고 순간은 서버 시계와 같으며, 날짜 필드는 시각이 없는 날짜다
     assert response.status_code == 200, response.text
     body = response.json()
-    for field in ("created_at", "updated_at", "status_changed_at", "last_updated_at"):
+    for field in ("created_at", "updated_at"):
         _assert_server_instant(body[field])
+    for field in ("status_changed_on", "last_updated_on"):
+        assert body[field] == "2027-01-01", (field, body[field])  # 서울 날짜(UTC 날짜는 12-31)
+    assert "status_changed_at" not in body
+    assert "last_updated_at" not in body
 
 
 async def test_deal_list_timestamps_carry_server_offset(local_tz: Callable[[str], None]) -> None:
@@ -85,12 +89,13 @@ async def test_deal_list_timestamps_carry_server_offset(local_tz: Callable[[str]
         # when: Deal 목록을 조회한다
         response = await http.get("/api/v1/deals")
 
-    # then: 행의 시각 필드가 +09:00이고 순간은 서버 시계와 같다
+    # then: 행의 시각 필드가 +09:00이고 순간은 서버 시계와 같으며 최종 업데이트일은 날짜다
     assert response.status_code == 200, response.text
     items = response.json()["items"]
     assert len(items) == 1
-    for field in ("created_at", "last_updated_at"):
-        _assert_server_instant(items[0][field])
+    _assert_server_instant(items[0]["created_at"])
+    assert items[0]["last_updated_on"] == "2027-01-01"
+    assert "last_updated_at" not in items[0]
 
 
 async def test_dashboard_as_of_carries_server_offset(local_tz: Callable[[str], None]) -> None:

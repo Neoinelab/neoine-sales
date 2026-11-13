@@ -71,6 +71,23 @@ def test_date_field_rejects_ymd_hm_but_datetime_field_accepts_it() -> None:
     assert time_format == Format.YMD_HM
 
 
+@pytest.mark.parametrize(
+    "key",
+    ["deal.last_updated_at", "deal.status_changed_at", "action.acted_at", "action.closed_at"],
+)
+def test_ymd_hm_on_the_four_date_converted_fields_is_format_not_allowed(key: str) -> None:
+    """날짜로 바뀐 네 필드에 ymd_hm을 요청하면 format-not-allowed 위반이다.
+
+    테스트 코드: RQ-114
+    """
+    # when: 네 필드에 ymd_hm을 주고 ymd는 허용되는지도 함께 검증한다
+    rejected = issues([col(key, format="ymd_hm")])
+    accepted = parse([col(key, format="ymd")]).columns[0].format
+    # then: ymd_hm은 columns[0].format 위치의 format-not-allowed이고 ymd는 받아들여진다
+    assert rejected == [(("columns", 0, "format"), "format-not-allowed")]
+    assert accepted == Format.YMD
+
+
 def test_omitted_format_is_none_for_non_date_and_default_for_date() -> None:
     """포맷을 생략하면 날짜 아닌 필드는 없음, 날짜는 ymd, 시각은 ymd_hm이다.
 

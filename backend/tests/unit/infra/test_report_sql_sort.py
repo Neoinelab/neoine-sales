@@ -75,18 +75,18 @@ def test_swapping_sorted_columns_swaps_order_by_priority() -> None:
     assert _before(order, "v.name DESC", "deals.name ASC")
 
 
-def test_action_rows_keep_acted_at_and_id_tie_breakers_after_sort_keys() -> None:
-    """Action 행은 정렬 키 뒤에 Deal code, 수행일시 동률 키가 붙는다.
+def test_action_rows_keep_acted_on_and_id_tie_breakers_after_sort_keys() -> None:
+    """Action 행은 정렬 키 뒤에 Deal code, 수행일 동률 키가 붙는다.
 
     테스트 코드: RQ-053
     """
     # when: 이름 내림차순과 Action 컬럼의 SQL을 만든다
     sql = sql_of(resolved([col("deal.name", sort="desc"), col("action.action")]))
 
-    # then: 이름, deal_code, acted_at 순서다
+    # then: 이름, deal_code, acted_on 순서다
     order = _order_by(sql)
     assert _before(order, "deals.name DESC", "deals.deal_code ASC")
-    assert _before(order, "deals.deal_code ASC", "acted_at ASC")
+    assert _before(order, "deals.deal_code ASC", "acted_on ASC")
 
 
 def test_grouped_order_by_uses_sort_keys_then_remaining_groups() -> None:

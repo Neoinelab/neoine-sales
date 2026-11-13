@@ -1,8 +1,8 @@
 import { useId, useRef, useState, type FormEvent } from 'react'
+import { useToday } from '../../../data/today'
 import { useCodeSet } from '../../../data/codes'
 import { useCreateAction, useUpdateAction } from '../../../data/actions'
 import { useMe } from '../../../data/auth'
-import { formatDateTime } from '../../../shared/format'
 import { useActionTypes } from '../../../data/actionTypes'
 import { toChoice } from '../../../shared/model/catalogChoice'
 import { ACTION_TYPE_NAME_MAX_LENGTH } from '../../../shared/model/constants'
@@ -33,6 +33,7 @@ interface ActionFormProps {
 }
 
 interface Errors {
+  actedOn?: string
   type?: string
   progress?: string
   dueDate?: string
@@ -54,6 +55,7 @@ export function ActionForm({ deal, editing, previous, onDone, onCancel }: Action
   const me = useMe().data
   const create = useCreateAction()
   const update = useUpdateAction()
+  const today = useToday().today
   const sync = useActionSync(deal)
   const wonExit = useWonExitConfirm()
   const formId = useId()
@@ -73,9 +75,11 @@ export function ActionForm({ deal, editing, previous, onDone, onCancel }: Action
   // 채우기 버튼을 누르면 켜진 채 나타난다(닫을 수 있을 때만). 끄면 요청에 id를 보내지 않는다.
   const [filledFromId, setFilledFromId] = useState<number | null>(null)
   const [closePrevious, setClosePrevious] = useState(false)
+  const [actedOn, setActedOn] = useState(today)
   const [memo, setMemo] = useState(editing?.memo ?? '')
   const [errors, setErrors] = useState<Errors>({})
   const [error, setError] = useState<unknown>(null)
+  const actedOnRef = useRef<HTMLInputElement>(null)
   const typeRef = useRef<HTMLInputElement>(null)
   const progressRef = useRef<HTMLTextAreaElement>(null)
   const dueRef = useRef<HTMLInputElement>(null)
@@ -97,8 +101,25 @@ export function ActionForm({ deal, editing, previous, onDone, onCancel }: Action
 
   const actor = editing ? userLabel(editing.actor) : (me?.name ?? '')
 
+  const closing = filledFromId !== null && filled && previousClosable && closePrevious
+
+  /** 수행일 화면 검증(AC-R41): 위에서부터 첫 위반만. */
+  function actedOnError(): string | undefined {
+    if (actedOn === '') return '수행일을 입력하세요.'
+    const invalid = dateValueError(actedOn)
+    if (invalid !== null) return invalid
+    if (actedOn > today) return '수행일은 오늘 이후로 지정할 수 없습니다.'
+    const registered = deal.createdAt.slice(0, 10)
+    if (actedOn < registered) return `수행일은 Deal 등록일(${registered}) 이전으로 지정할 수 없습니다.`
+    if (closing && previous && actedOn < previous.actedOn) {
+      return `이전 Next Action의 수행일(${previous.actedOn})보다 앞선 날짜로는 이전 Next Action을 종료할 수 없습니다.`
+    }
+    return undefined
+  }
+
   function validate(): Errors {
     const found: Errors = {}
+    if (!editing) found.actedOn = actedOnError()
     const typeName = type.trim()
     if (typeName === '') found.type = '유형을 입력하세요.'
     else if ([...typeName].length > ACTION_TYPE_NAME_MAX_LENGTH) found.type = `유형은 ${ACTION_TYPE_NAME_MAX_LENGTH}자 이내로 입력하세요.`
@@ -122,6 +143,7 @@ export function ActionForm({ deal, editing, previous, onDone, onCancel }: Action
     setError(null)
     const found = validate()
     setErrors(found)
+    if (found.actedOn) return actedOnRef.current?.focus()
     if (found.type) return typeRef.current?.focus()
     if (found.progress) return progressRef.current?.focus()
     if (found.dueDate) return dueRef.current?.focus()
@@ -139,12 +161,12 @@ export function ActionForm({ deal, editing, previous, onDone, onCancel }: Action
       // 상태 변경이 Won을 벗어나면 라이선스 계약 처리를 묻는다(동기화 선택 뒤, 등록 요청 전). 취소하면 폼을 그대로 둔다.
       const exit = await wonExit.ask(sync.base, sync.state, deal)
       if (!exit.proceed) return
-      const closing = filledFromId !== null && filled && previousClosable && closePrevious
       const input = {
         ...fields,
         ...(statusChanges.length > 0 ? { statusChanges } : {}),
         ...(closing ? { closePreviousNextActionId: filledFromId } : {}),
         ...(exit.deleteLicenseContracts === undefined ? {} : { deleteLicenseContracts: exit.deleteLicenseContracts }),
+        ...(actedOn === today ? {} : { actedOn }),
       }
       await create.mutateAsync({ dealCode: deal.code, input })
       const summary = codes ? changeSummary(sync.base, sync.entries, codes) : null
@@ -178,8 +200,14 @@ export function ActionForm({ deal, editing, previous, onDone, onCancel }: Action
         <form aria-label={title} className="dd-form" onSubmit={(e) => void submit(e)} noValidate>
           {editing && <p className="hint">수정한 내용은 Deal History에 기록됩니다. 등록 시점의 Status·Forecast는 바뀌지 않습니다.</p>}
           <p className="hint">
-            {editing ? `수행일시: ${formatDateTime(editing.actedAt)}` : '업데이트 일자: 등록 시각으로 자동 기록'} · 담당자: {actor}
+            {editing ? `수행일: ${editing.actedOn} · ` : ''}담당자: {actor}
           </p>
+          {!editing && (
+            <div className="field">
+              <label htmlFor={`${formId}-acted`}>수행일</label>
+              <DateInput id={`${formId}-acted`} aria-label="수행일" inputRef={actedOnRef} value={actedOn} onChange={setActedOn} error={errors.actedOn} />
+            </div>
+          )}
           {editing ? (
             typeInput
           ) : (

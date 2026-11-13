@@ -12,6 +12,7 @@ from zoneinfo import ZoneInfo
 import pytest
 
 from app.application.deal.deal_years import DealYearsView, GetDealYears
+from app.application.deal.register_deal import RegisterDeal
 from app.application.deal.updated_periods import ListUpdatedPeriods
 from app.application.ports.deal_action_repository import NextActionStatusFilter
 from app.application.ports.deal_repository import DealQuery, DealSort, SortOrder
@@ -24,7 +25,8 @@ from app.domain.deal.updated_period import UpcomingPeriodPreset, UpdatedPeriodPr
 from app.domain.deal_action.next_action_status import NextActionStatus
 from tests.factories import NOW, later, make_deal_action
 from tests.factories_auth import make_user
-from tests.factories_deal import SALES, make_draft, make_patch, seed_deal
+from tests.factories_deal import SALES, make_create_input, make_draft, make_patch, seed_deal
+from tests.fakes.deal_code_source import FakeDealCodeSuffixSource
 from tests.fakes.unit_of_work import FixedClock
 from tests.support.expect import raises_with
 from tests.support.user_ids import ACTOR_ID, OWNER_ID
@@ -239,7 +241,7 @@ async def test_updated_period_includes_both_end_dates_and_allows_one_side(env: D
 
 
 async def test_updated_period_boundary_is_the_server_local_midnight(env: DealEnv) -> None:
-    """최종 업데이트 기간 경계는 서버 로컬 자정이다.
+    """최종 업데이트 기간 경계는 서버 로컬 자정(업무 날짜가 바뀌는 순간)이다.
 
     테스트 코드: DL-030
     """
@@ -271,7 +273,7 @@ async def test_a_recent_action_puts_an_old_deal_in_the_period_but_an_edit_does_n
     _clock_to(env, datetime(2026, 3, 10, 12, tzinfo=SEOUL))
     await env.uow.deal_actions.add(
         make_deal_action(
-            deal_code=with_action.item.deal.id, acted_at=env.clock.now(), actor_user_id=ACTOR_ID
+            deal_code=with_action.item.deal.id, now=env.clock.now(), actor_user_id=ACTOR_ID
         )
     )
     await env.update.execute(_code(edited_only), make_patch(name="수정됨"), SALES)
@@ -317,7 +319,7 @@ async def _next_action(
     """Next Action이 있는 Action을 남기고 status가 주어지면 그 상태로 종료한다."""
     action = make_deal_action(
         deal_code=view.item.deal.id,
-        acted_at=later(at_sec),
+        now=later(at_sec),
         actor_user_id=ACTOR_ID,
         next_action="견적 전달",
         due_date=date(2026, 2, 5),
@@ -344,7 +346,7 @@ async def _status_fixture(env: DealEnv) -> dict[str, DealView]:
     await env.uow.deal_actions.add(
         make_deal_action(
             deal_code=deals["progress_only"].item.deal.id,
-            acted_at=later(120),
+            now=later(120),
             actor_user_id=ACTOR_ID,
             next_action="",
         )
@@ -420,7 +422,7 @@ async def _due(env: DealEnv, view: DealView, due: date) -> None:
     await env.uow.deal_actions.add(
         make_deal_action(
             deal_code=view.item.deal.id,
-            acted_at=env.clock.now(),
+            now=env.clock.now(),
             actor_user_id=ACTOR_ID,
             due_date=due,
         )
@@ -487,7 +489,7 @@ def _draft(company: str, name: str) -> object:
 
 
 async def _sort_fixture(env: DealEnv) -> dict[str, DealView]:
-    """등록 순서 a → b → c (최종 업데이트 오름차순도 a, b, c). b는 파트너, c는 Vendor가 없다."""
+    """등록 순서 a → b → c(하루 간격, 최종 업데이트일도 같은 순서). b는 파트너, c는 Vendor 없음."""
     sap = await env.new_vendor("SAP")
     oracle = await env.new_vendor("Oracle")
     lee = await _owner(env, "lee", "Lee")
@@ -498,11 +500,13 @@ async def _sort_fixture(env: DealEnv) -> dict[str, DealView]:
         status_key="introduction", forecast_key="commit", owner_user_id=kim,
         customer=_draft("Zeta", "zeta"), partner=_draft("Mike", "mike"), vendor_id=oracle.id,
     )  # fmt: skip
+    env.clock.advance(DAY)
     b = await env.new_deal(
         name="alpha", revenue_amount=300, revenue_date=date(2026, 4, 1),
         status_key="prospecting", forecast_key="pipeline", owner_user_id=lee,
         customer=_draft("yankee", "yankee"), vendor_id=sap.id,
     )  # fmt: skip
+    env.clock.advance(DAY)
     c = await env.new_deal(
         name="Charlie", revenue_amount=100, revenue_date=date(2026, 6, 1),
         status_key="price_negotiation", forecast_key="best", owner_user_id=abe,
@@ -542,6 +546,27 @@ async def test_each_sort_key_orders_ascending_and_descending(
     # then: 기대한 순서다
     assert _codes(asc) == [_code(deals[k]) for k in ascending]
     assert _codes(desc) == [_code(deals[k]) for k in descending]
+
+
+async def test_equal_last_updated_on_falls_back_to_code_ascending_in_both_directions(
+    env: DealEnv,
+) -> None:
+    """최종 업데이트일이 같은 Deal은 정렬 방향과 무관하게 Deal code 오름차순이다.
+
+    테스트 코드: DL-106
+    """
+    # given: 같은 날 D-2, D-1, D-3 순서로 등록한 Deal 셋(최종 업데이트일이 모두 같다)
+    suffixes = FakeDealCodeSuffixSource("0002", "0001", "0003")
+    register = RegisterDeal(env.uow_factory, env.clock, suffixes)
+    views = [await register.execute(make_create_input(), SALES) for _ in range(3)]
+    assert len({v.item.last_updated_on for v in views}) == 1
+    # when: sort=last_updated_at으로 내림차순과 오름차순을 각각 조회한다
+    desc = await env.list.execute(DealQuery(sort=DealSort.LAST_UPDATED_AT, order=SortOrder.DESC))
+    asc = await env.list.execute(DealQuery(sort=DealSort.LAST_UPDATED_AT, order=SortOrder.ASC))
+    # then: 두 결과 모두 code 오름차순이다
+    expected = sorted(_code(v) for v in views)
+    assert _codes(desc) == expected
+    assert _codes(asc) == expected
 
 
 async def test_equal_sort_values_fall_back_to_code_ascending_in_both_directions(

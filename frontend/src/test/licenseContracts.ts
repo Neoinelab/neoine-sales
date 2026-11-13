@@ -8,7 +8,7 @@
  *   LicenseContract { id, dealCode, dealName, customer, vendor: NamedRef | null, product, partner: string | null,
  *     salesOwner: UserRef, status: ContractStatus, licenseStart: string | null, licenseEnd: string | null,
  *     term: { amount: number; unit: 'month' | 'year' } | null, techOwner, inspection: InspectionCycle, note,
- *     renewedFromId: number | null, endedAt: string | null, attachmentCount: number,
+ *     renewedFromId: number | null, endedOn: string | null, attachmentCount: number,
  *     createdBy: UserRef, updatedBy: UserRef, createdAt, updatedAt }
  *   LicenseContractQuery { customer?, product?, vendorId?, ownerId?, status?, startFrom?, startTo?, endFrom?, endTo?,
  *     sort: LicenseContractSort, order: SortOrder }

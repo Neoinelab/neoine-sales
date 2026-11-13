@@ -1,7 +1,7 @@
 """DealActionQuery: Deal 필수, 날짜 범위(양끝 포함, 로컬 업무 날짜), 정렬 10종, 검색어."""
 
 from datetime import UTC, date, datetime
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import pytest
 
@@ -9,9 +9,6 @@ from app.application.ports.deal_action_repository import DealActionQuery, DealAc
 from app.domain.common.errors import InvalidValueError
 from tests.factories import make_deal_code
 from tests.support.expect import raises_with
-
-if TYPE_CHECKING:
-    from collections.abc import Callable
 
 CODE = make_deal_code()
 
@@ -63,57 +60,6 @@ def test_sort_values_are_the_ten_api_names_and_the_default_is_latest_first() -> 
         "next_action_status_desc",
     ]
     assert default is DealActionSort.ACTED_AT_DESC
-
-
-def test_acted_window_covers_whole_local_days(local_tz: Callable[[str], None]) -> None:
-    """수행일 하루 범위는 그 날 00:00부터 다음 날 00:00 전까지의 반개구간이다.
-
-    테스트 코드: NA-029
-    """
-    # given: 서버 시간대 Asia/Seoul
-    local_tz("Asia/Seoul")
-    # when: 같은 날을 시작과 끝으로 준 수행 구간을 구한다
-    window = _query(acted_from=date(2026, 10, 16), acted_to=date(2026, 10, 16)).acted_window()
-    # then: [10-16 00:00 로컬, 10-17 00:00 로컬)이다
-    assert window == (
-        datetime(2026, 10, 15, 15, 0, tzinfo=UTC),
-        datetime(2026, 10, 16, 15, 0, tzinfo=UTC),
-    )
-
-
-def test_acted_window_with_a_longer_range_ends_after_the_last_day(
-    local_tz: Callable[[str], None],
-) -> None:
-    """더 긴 범위의 끝은 마지막 날 다음 날 00:00이다.
-
-    테스트 코드: NA-029
-    """
-    # given: 서버 시간대 UTC
-    local_tz("UTC")
-    # when: 10월 한 달 구간을 구한다
-    window = _query(acted_from=date(2026, 10, 1), acted_to=date(2026, 10, 31)).acted_window()
-    # then: 10-01 00:00부터 11-01 00:00 전까지다
-    assert window == (
-        datetime(2026, 10, 1, 0, 0, tzinfo=UTC),
-        datetime(2026, 11, 1, 0, 0, tzinfo=UTC),
-    )
-
-
-def test_acted_window_leaves_an_open_side_open() -> None:
-    """한쪽만 주면 그쪽만 제한한다.
-
-    테스트 코드: NA-029
-    """
-    # when: 조건 없음, 시작만, 끝만 준 구간을 구한다
-    none_window = _query().acted_window()
-    start_only = _query(acted_from=date(2026, 10, 16)).acted_window()
-    end_only = _query(acted_to=date(2026, 10, 16)).acted_window()
-    # then: 없는 쪽은 열려 있다
-    assert none_window == (None, None)
-    assert start_only[0] is not None
-    assert start_only[1] is None
-    assert end_only[0] is None
-    assert end_only[1] is not None
 
 
 def test_action_query_rejects_reversed_ranges_with_messages() -> None:

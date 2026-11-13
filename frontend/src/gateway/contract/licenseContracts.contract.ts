@@ -65,7 +65,7 @@ export function licenseContractsContract(make: MakeGateway): void {
 
       // then: 미발급 기본값의 계약이고 Deal의 계약 건수가 1이다
       expect(contract).toMatchObject({ dealCode: deal.code, status: 'not_issued', licenseStart: null, licenseEnd: null, term: null })
-      expect(contract).toMatchObject({ techOwner: '', inspection: 'none', note: '', renewedFromId: null, endedAt: null, attachmentCount: 0 })
+      expect(contract).toMatchObject({ techOwner: '', inspection: 'none', note: '', renewedFromId: null, endedOn: null, attachmentCount: 0 })
       expect((await gateway.deals.get(deal.code)).licenseContractCount).toBe(1)
       await gateway.deals.remove(deal.code, deal.code)
     })
@@ -129,7 +129,7 @@ export function licenseContractsContract(make: MakeGateway): void {
       expect(contract.product).toBe(deal.solution)
       expect(contract.salesOwner.id).toBe(deal.owner.id)
       expect(Object.keys(contract).sort()).toEqual(
-        ['attachmentCount', 'createdAt', 'createdBy', 'customer', 'dealCode', 'dealIsWon', 'dealName', 'endedAt', 'id', 'inspection', 'licenseEnd', 'licenseStart', 'note', 'partner', 'product', 'renewedFromId', 'salesOwner', 'status', 'techOwner', 'term', 'updatedAt', 'updatedBy', 'vendor'].sort(),
+        ['attachmentCount', 'createdAt', 'createdBy', 'customer', 'dealCode', 'dealIsWon', 'dealName', 'endedOn', 'id', 'inspection', 'licenseEnd', 'licenseStart', 'note', 'partner', 'product', 'renewedFromId', 'salesOwner', 'status', 'techOwner', 'term', 'updatedAt', 'updatedBy', 'vendor'].sort(),
       )
       await make('admin').then((g) => g.deals.remove(deal.code, deal.code))
     })
@@ -174,7 +174,7 @@ export function licenseContractsContract(make: MakeGateway): void {
 
       // then: 종료 시각이 기록되고, 다시 종료·발급은 409이며, 수정은 계속 된다
       expect(ended.status).toBe('ended')
-      expect(ended.endedAt).not.toBeNull()
+      expect(ended.endedOn).toMatch(/^\d{4}-\d{2}-\d{2}$/) // 종료일은 시각 없는 날짜다
       await expectRejects(gateway.licenseContracts.end(contract.id), 409, ALREADY_ENDED)
       await expectRejects(gateway.licenseContracts.issue(contract.id, { ...FIELDS, start: '2027-01-01', term: { amount: 1, unit: 'year' } }), 409, NOT_ISSUED_ONLY)
       const edited = await gateway.licenseContracts.update(contract.id, { techOwner: '종료 후', inspection: 'yearly', note: '메모' })

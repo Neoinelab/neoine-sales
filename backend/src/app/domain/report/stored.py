@@ -77,7 +77,7 @@ def _column(item: Mapping[str, object], legacy_sort: str | None) -> RawColumn:
     return RawColumn(
         field=_text(item, "field"),
         label=_optional_text(item, "label"),
-        format=_current_format(_optional_text(item, "format")),
+        format=_current_format(_optional_text(item, "format"), _text(item, "field")),
         prefix_length=item.get("prefix_length"),
         group=group,
         aggregate=_optional_text(item, "aggregate"),
@@ -85,12 +85,19 @@ def _column(item: Mapping[str, object], legacy_sort: str | None) -> RawColumn:
     )
 
 
-def _current_format(raw: str | None) -> str | None:
-    """예전 포맷은 포맷 없음으로 읽는다.
+_DATE_ONLY_FIELDS = frozenset(
+    {"action.acted_at", "action.closed_at", "deal.last_updated_at", "deal.status_changed_at"}
+)
+
+
+def _current_format(raw: str | None, field: str) -> str | None:
+    """예전 포맷은 포맷 없음으로 읽는다. 날짜로 바뀐 네 필드의 ymd_hm은 ymd로 읽는다.
 
     텍스트(그대로·앞 N자·이름·코드)와 숫자(천 단위·천원·백만원·소수1·구성비)가 대상이다.
     앞 N자의 N은 그대로 둔다.
     """
+    if raw == "ymd_hm" and field in _DATE_ONLY_FIELDS:
+        return "ymd"
     return None if raw in _LEGACY_FORMATS else raw
 
 

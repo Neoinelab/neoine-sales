@@ -46,14 +46,20 @@ async def test_default_query_lists_the_first_twenty_newest_first(env: DealEnv) -
 
     테스트 코드: DL-001
     """
-    # given: 등록 시각이 다른 Deal 세 개(Action 없음)
+    # given: 하루씩 간격으로 등록한 Deal 세 개(Action 없음)
     first = await env.new_deal()
+    env.clock.advance(86400)
     second = await env.new_deal()
+    env.clock.advance(86400)
     third = await env.new_deal()
     # when: 조건 없이 조회한다
     page = await env.list.execute(DealQuery())
     # then: 최신 등록이 맨 앞이고 offset·limit은 기본값이다
     assert _codes(page) == [_code(third), _code(second), _code(first)]
+    # then: 각 행의 최종 업데이트일은 등록일(업무 날짜)이다
+    assert [v.item.last_updated_on for v in page.items] == [
+        v.item.deal.created_at.astimezone().date() for v in (third, second, first)
+    ]
     assert (page.offset, page.limit, page.total) == (0, 20, 3)
 
 
@@ -67,12 +73,10 @@ async def test_a_recent_action_moves_an_older_deal_to_the_top_of_the_default_ord
     # given: 먼저 등록된 Deal(older)과 나중에 등록된 Deal(newer)
     older = await env.new_deal()
     newer = await env.new_deal()
-    # given: older에 더 늦은 시각의 Action이 남는다
-    env.clock.advance(60)
+    # given: older에 더 늦은 날의 Action이 남는다
+    env.clock.advance(86400)
     await env.uow.deal_actions.add(
-        make_deal_action(
-            deal_code=older.item.deal.id, acted_at=env.clock.now(), actor_user_id=ACTOR_ID
-        )
+        make_deal_action(deal_code=older.item.deal.id, now=env.clock.now(), actor_user_id=ACTOR_ID)
     )
     # when: 기본 정렬로 조회한다
     page = await env.list.execute(DealQuery())

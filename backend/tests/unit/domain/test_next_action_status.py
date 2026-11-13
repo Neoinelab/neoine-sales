@@ -1,6 +1,7 @@
 """Next Action 상태: 종료 메모 덧붙임, 같은 상태·Next Action 없음 거절, 되돌리기."""
 
-from datetime import timedelta
+from datetime import date, timedelta
+from typing import TYPE_CHECKING
 
 import pytest
 
@@ -12,6 +13,18 @@ from app.domain.deal_action.next_action_status import (
 )
 from tests.factories import NOW, later, make_deal_action
 from tests.support.expect import raises_with
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+TODAY = date(2026, 1, 1)  # NOW(UTC 09:00)의 서울 업무 날짜
+NEXT_DAY = date(2026, 1, 2)
+
+
+@pytest.fixture(autouse=True)
+def _seoul(local_tz: Callable[[str], None]) -> None:
+    local_tz("Asia/Seoul")
+
 
 NO_NEXT_ACTION = "Next Action이 없는 Action은 상태를 바꿀 수 없습니다."
 
@@ -43,23 +56,17 @@ class TestStatusValues:
             ("not_done", "종료(미수행)"),
         ]
 
-    def test_state_closed_without_time_raises(self) -> None:
-        """종료 상태에 종료 시각이 없으면 InvalidValueError다."""
-        # when·then: 종료 시각 없이 종료 상태를 만든다
+    def test_state_closed_without_date_raises(self) -> None:
+        """종료 상태에 종료일이 없으면 InvalidValueError다."""
+        # when·then: 종료일 없이 종료 상태를 만든다
         with pytest.raises(InvalidValueError):
-            NextActionState(status=NextActionStatus.DONE, closed_at=None)
+            NextActionState(status=NextActionStatus.DONE, closed_on=None)
 
-    def test_state_open_with_time_raises(self) -> None:
-        """Open 상태에 종료 시각이 있으면 InvalidValueError다."""
-        # when·then: 종료 시각이 있는 Open 상태를 만든다
+    def test_state_open_with_date_raises(self) -> None:
+        """Open 상태에 종료일이 있으면 InvalidValueError다."""
+        # when·then: 종료일이 있는 Open 상태를 만든다
         with pytest.raises(InvalidValueError):
-            NextActionState(status=NextActionStatus.OPEN, closed_at=NOW)
-
-    def test_state_closed_with_naive_time_raises(self) -> None:
-        """종료 시각에 시간대가 없으면 InvalidValueError다."""
-        # when·then: 시간대 없는 종료 시각으로 종료 상태를 만든다
-        with pytest.raises(InvalidValueError):
-            NextActionState(status=NextActionStatus.DONE, closed_at=NOW.replace(tzinfo=None))
+            NextActionState(status=NextActionStatus.OPEN, closed_on=TODAY)
 
 
 class TestClose:
@@ -80,8 +87,8 @@ class TestClose:
             before=NextActionStatus.OPEN, after=NextActionStatus.DONE, note="견적 전달 완료"
         )
 
-    def test_close_stores_the_status_and_closed_time_and_touches_updated_at(self) -> None:
-        """종료하면 상태와 종료 시각(요청 시각)이 남고 Action 수정 시각이 바뀐다.
+    def test_close_stores_the_status_and_closed_date_and_touches_updated_at(self) -> None:
+        """종료하면 상태와 종료일(요청의 업무 날짜)이 남고 Action 수정 시각이 바뀐다.
 
         테스트 코드: NA-001
         """
@@ -89,9 +96,9 @@ class TestClose:
         action = make_deal_action()
         # when: 시각 T에 종료(미수행)한다
         action.change_next_action_status(NextActionStatus.NOT_DONE, "", later(10))
-        # then: 종료 시각과 수정 시각이 T다
+        # then: 종료일은 T의 업무 날짜이고 수정 시각이 T다
         assert action.next_action_state == NextActionState(
-            status=NextActionStatus.NOT_DONE, closed_at=later(10)
+            status=NextActionStatus.NOT_DONE, closed_on=TODAY
         )
         assert action.updated_at == later(10)
 
@@ -121,7 +128,7 @@ class TestClose:
         assert change.note == ""
 
     def test_close_does_not_touch_other_content(self) -> None:
-        """종료해도 진행사항·Next Action·Due·유형과 수행 일시는 바뀌지 않는다.
+        """종료해도 진행사항·Next Action·Due·유형과 수행일은 바뀌지 않는다.
 
         테스트 코드: NA-011
         """
@@ -130,24 +137,26 @@ class TestClose:
         before = action.content
         # when: 메모 없이 종료한다
         action.change_next_action_status(NextActionStatus.DONE, "", later(10))
-        # then: 내용과 수행 일시가 그대로다
+        # then: 내용과 수행일이 그대로다
         assert action.content == before
-        assert action.acted_at == NOW
+        assert action.acted_on == TODAY
 
-    def test_done_to_not_done_updates_closed_at(self) -> None:
-        """종료(수행)에서 종료(미수행)으로 바로 바꾸면 종료 시각이 새로 정해지고 메모가 덧붙는다.
+    def test_done_to_not_done_updates_closed_on(self) -> None:
+        """종료(수행)에서 종료(미수행)으로 바로 바꾸면 종료일이 새로 정해지고 메모가 덧붙는다.
 
         테스트 코드: NA-004
         """
-        # given: 시각 T1에 종료(수행)된 Action
+        # given: 1월 1일에 종료(수행)된 Action
         action = make_deal_action()
         action.change_next_action_status(NextActionStatus.DONE, "", later(10))
-        # when: 시각 T2에 not_done, 메모 "취소됨"으로 바꾼다
-        change = action.change_next_action_status(NextActionStatus.NOT_DONE, "취소됨", later(20))
-        # then: 이전 상태는 done, 종료 시각은 T2이고 Memo 끝에 "\n취소됨"이 붙는다
+        # when: 다음 날(1월 2일)에 not_done, 메모 "취소됨"으로 바꾼다
+        change = action.change_next_action_status(
+            NextActionStatus.NOT_DONE, "취소됨", later(86400 + 10)
+        )
+        # then: 이전 상태는 done, 종료일은 1월 2일이고 Memo 끝에 "\n취소됨"이 붙는다
         assert change.before is NextActionStatus.DONE
         assert action.next_action_state == NextActionState(
-            status=NextActionStatus.NOT_DONE, closed_at=later(20)
+            status=NextActionStatus.NOT_DONE, closed_on=NEXT_DAY
         )
         assert action.content.memo.endswith("\n취소됨")
 
@@ -166,8 +175,8 @@ class TestClose:
 
 
 class TestReopen:
-    def test_reopen_clears_closed_at_and_keeps_memo(self) -> None:
-        """Open으로 되돌리면 종료 시각이 없어지고 덧붙인 Memo는 남는다.
+    def test_reopen_clears_closed_on_and_keeps_memo(self) -> None:
+        """Open으로 되돌리면 종료일이 없어지고 덧붙인 Memo는 남는다.
 
         테스트 코드: NA-005
         """
@@ -176,7 +185,7 @@ class TestReopen:
         action.change_next_action_status(NextActionStatus.DONE, "종료 메모", later(10))
         # when: open으로 되돌린다
         change = action.change_next_action_status(NextActionStatus.OPEN, "", later(20))
-        # then: Open이고 종료 시각이 없으며 Memo가 그대로다
+        # then: Open이고 종료일이 없으며 Memo가 그대로다
         assert action.next_action_state == NextActionState.open()
         assert action.content.memo == "기존\n종료 메모"
         assert change == NextActionStatusChange(

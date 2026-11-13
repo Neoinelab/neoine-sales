@@ -26,10 +26,10 @@ async def test_seed_helpers_store_deals_actions_and_resolve_type_ids(deal_case: 
     found = await deal_case.deals.search(DealQuery(limit=10))
     actions = await deal_case.actions_of(deal.id)
 
-    # then: Deal 하나, Action 유형은 미팅 id, 수행일시가 준 값이다
+    # then: Deal 하나, Action 유형은 미팅 id, 수행일이 준 시각의 업무 날짜다
     assert [item.deal.id for item in found] == [deal.id]
     assert [a.content.action_type.id for a in actions] == [meeting]
-    assert actions[0].acted_at == kst(2026, 10, 5)
+    assert actions[0].acted_on == kst(2026, 10, 5).date()
 
 
 async def test_seed_helper_codes_are_unique_and_ordered(deal_case: DealCase) -> None:

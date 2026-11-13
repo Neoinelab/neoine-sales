@@ -28,7 +28,7 @@ export function toLicenseContract(row: Schemas['LicenseContractResponse']): Lice
     inspection: row.inspection_cycle,
     note: row.note,
     renewedFromId: row.renewed_from_id,
-    endedAt: row.ended_at,
+    endedOn: row.ended_on,
     attachmentCount: row.attachment_count,
     createdBy: toUserRef(row.created_by),
     updatedBy: toUserRef(row.updated_by),

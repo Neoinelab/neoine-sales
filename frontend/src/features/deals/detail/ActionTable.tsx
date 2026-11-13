@@ -1,4 +1,3 @@
-import { formatDateTime } from '../../../shared/format'
 import { canEditAction, type Viewer } from '../../../shared/model/permissions'
 import { userLabel } from '../../../shared/model/period'
 import type { ActionSortKey, DealAction, DealDetail, NextActionStatus } from '../../../shared/model/types'
@@ -46,7 +45,7 @@ export function ActionTable({ actions, deal, canEdit, me, sort, onSort, onEdit, 
       <table className="dd-table" aria-label="Action 목록">
         <thead>
           <tr>
-            {header('수행일시', 'actedAt')}
+            {header('수행일', 'actedAt')}
             {header('담당자', 'actor')}
             <SortableHeader label="등록 시점 Status·Forecast" active={false} order={sort.order} />
             {header('유형', 'type')}
@@ -61,7 +60,7 @@ export function ActionTable({ actions, deal, canEdit, me, sort, onSort, onEdit, 
         <tbody>
           {actions.map((a) => (
             <tr key={a.id}>
-              <td>{formatDateTime(a.actedAt)}</td>
+              <td>{a.actedOn}</td>
               <td>{userLabel(a.actor)}</td>
               <td>
                 <span className="dd-row">

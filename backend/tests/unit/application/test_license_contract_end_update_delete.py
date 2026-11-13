@@ -1,6 +1,6 @@
 """종료·계약 칸 수정·삭제(AC11·AC14·AC15)."""
 
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
 from typing import TYPE_CHECKING
 
 import pytest
@@ -16,8 +16,11 @@ from tests.support.ids import MISSING_ID
 from tests.unit.application.license_contract_env import BOSS, KIM, PARK, VIEWER
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from tests.unit.application.license_contract_env import ContractEnv
 
+KST = timezone(timedelta(hours=9))
 ALREADY_ENDED = "이미 종료된 계약입니다."
 NOT_ISSUED_ONLY = "미발급 계약만 발급할 수 있습니다."
 ISSUED_ONLY = "발급 상태 계약만 갱신할 수 있습니다."
@@ -28,7 +31,7 @@ NEW_FIELDS = ContractFields(tech_owner="이기술", inspection=InspectionCycle.Y
 
 @pytest.mark.parametrize("status", ["not_issued", "issued_new", "issued_renewal"])
 async def test_end_moves_the_contract_to_ended(contract_env: ContractEnv, status: str) -> None:
-    """미발급·발급 계약을 종료하면 종료 시각이 기록되고 수정자가 바뀐다.
+    """미발급·발급 계약을 종료하면 종료일(요청의 업무 날짜)이 기록되고 수정자가 바뀐다.
 
     테스트 코드: LC-054
     """
@@ -40,29 +43,62 @@ async def test_end_moves_the_contract_to_ended(contract_env: ContractEnv, status
     await contract_env.end.execute(contract.id, PARK)
 
     stored = await contract_env.stored(contract.id)
-    # then: 상태 ended, ended_at은 요청 시각, 수정자는 PARK
+    # then: 상태 ended, ended_on은 요청 시각의 업무 날짜, 수정자는 PARK
     assert stored.status is ContractStatus.ENDED
-    assert stored.ended_at == contract_env.clock.now()
+    assert stored.ended_on == contract_env.clock.now().astimezone().date()
     assert stored.updated_by == PARK.user_id
 
 
-async def test_end_twice_raises_and_keeps_the_first_end_time(contract_env: ContractEnv) -> None:
-    """이미 종료된 계약을 다시 종료하면 오류이고 첫 종료 시각이 유지된다.
+async def test_end_and_renew_set_ended_on_to_the_business_date_of_the_request(
+    contract_env: ContractEnv, local_tz: Callable[[str], None]
+) -> None:
+    """종료·갱신하면 ended_on은 요청의 업무 날짜(date)이고 시각 필드는 없다.
+
+    테스트 코드: LC-086
+    """
+    # given: 서울 시간대, 시계가 1월 3일 01:00(서울, UTC로는 1월 2일)이고 발급 계약 둘이 있다
+    local_tz("Asia/Seoul")
+    first_code = await contract_env.open_deal()
+    ended_contract = await contract_env.seed_contract(first_code, status="issued_new")
+    second_code = await contract_env.won_deal_without_contract(KIM)
+    renewed_contract = await contract_env.seed_contract(
+        second_code, status="issued_new", start=date(2026, 1, 1)
+    )
+    contract_env.clock.advance(
+        (datetime(2026, 1, 3, 1, 0, tzinfo=KST) - contract_env.clock.now()).total_seconds()
+    )
+
+    # when: 하나는 종료하고 다른 하나는 갱신한다
+    await contract_env.end.execute(ended_contract.id, PARK)
+    data = contract_env.issue_input(date(2027, 1, 1), 1, "year")
+    await contract_env.renew.execute(renewed_contract.id, data, PARK)
+
+    # then: 두 이전 계약의 종료일은 서울 날짜 1월 3일(date)이다
+    ended = await contract_env.stored(ended_contract.id)
+    previous = await contract_env.stored(renewed_contract.id)
+    assert ended.ended_on == date(2026, 1, 3)
+    assert previous.ended_on == date(2026, 1, 3)
+    assert type(ended.ended_on) is date
+    assert not hasattr(ended, "ended_at")
+
+
+async def test_end_twice_raises_and_keeps_the_first_end_date(contract_env: ContractEnv) -> None:
+    """이미 종료된 계약을 다시 종료하면 오류이고 첫 종료일이 유지된다.
 
     테스트 코드: LC-055
     """
-    # given: 종료 계약(첫 종료 시각 기억)과 10분 뒤
+    # given: 종료 계약(첫 종료일 기억)과 하루 뒤
     code = await contract_env.open_deal()
     contract = await contract_env.seed_contract(code, status="ended")
-    first = (await contract_env.stored(contract.id)).ended_at
-    contract_env.clock.advance(600)
+    first = (await contract_env.stored(contract.id)).ended_on
+    contract_env.clock.advance(86400)
 
     # when: 다시 종료한다
     with raises_with(ContractTransitionError, ALREADY_ENDED):
         await contract_env.end.execute(contract.id, KIM)
 
-    # then: ContractTransitionError 문구, ended_at은 첫 값 그대로
-    assert (await contract_env.stored(contract.id)).ended_at == first
+    # then: ContractTransitionError 문구, ended_on은 첫 값 그대로
+    assert (await contract_env.stored(contract.id)).ended_on == first
 
 
 async def test_ended_contract_cannot_be_issued_or_renewed(contract_env: ContractEnv) -> None:

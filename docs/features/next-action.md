@@ -1,4 +1,4 @@
-# Next Action 상태·Action 검색   (feature 코드: NA, 상태: 확정(2026-11-10 사용자 확인))
+# Next Action 상태·Action 검색   (feature 코드: NA, 상태: 확정(2026-11-13 사용자 확인))
 
 > 이 문서는 **이미 구현된 동작**을 정본 명세로 옮긴 것입니다(2026-11-10). 근거는 작업 트리의 코드입니다.
 > - backend: `domain/deal_action/{next_action_status.py,entities.py(change_next_action_status·ensure_status_changeable_by),errors.py,policy.py,history.py(next_action_status_draft)}`, `application/deal_action/{change_next_action_status.py,list_deal_actions.py,inputs.py}`, `application/ports/deal_action_repository.py`(`DealActionQuery`·`DealActionSort`·`NextActionStatusFilter`), `domain/common/validation.py`, `infra/db/{deal_action_repository.py(_filtered),deal_action_order.py,like.py}`, `web/routers/deal_actions.py`, `web/schemas/deal_action.py`(`NextActionStatusRequest`·`DealActionSearchParams`), `web/permissions.py`
@@ -34,7 +34,7 @@
 | --- | --- |
 | Next Action 상태 | Next Action이 있는 Action에만 있는 값. `open`(Open)·`done`(종료(수행))·`not_done`(종료(미수행)). 화면 값은 `open`·`done`·`notDone` |
 | 종료 상태 | `done`·`not_done` |
-| 종료 시각(`next_action_closed_at`) | 종료 상태로 바꾼 요청의 서버 시각. Open이거나 Next Action이 없으면 null |
+| 종료일(`next_action_closed_on`) | 종료 상태로 바꾼 요청의 업무 날짜(TM-R4). Open이거나 Next Action이 없으면 null. 이 문서의 "종료 시각"은 모두 이 종료일이다 |
 | 종료 메모 | 상태를 종료로 바꿀 때 함께 보내는 글. Action의 Memo 뒤에 덧붙는다 |
 | 진행사항만 Action | Next Action이 없는 Action. 상태가 없다(null) |
 | 상태 필터 | Action 검색의 `next_action_status`: `open`·`done`·`not_done`·`closed`(= `done` 또는 `not_done`) |
@@ -45,22 +45,22 @@
 
 - `deal_actions`의 이 feature 컬럼(테이블 전체는 AC 2.2 소유, 기준선 `00c3126aa926`, SC)
   - `next_action_status VARCHAR NULL`: `open`·`done`·`not_done`. Next Action이 없으면 NULL. 서버 기본값 없음.
-  - `next_action_closed_at TIMESTAMPTZ NULL`: 종료 상태일 때만 값이 있다.
+  - `next_action_closed_on DATE NULL`: 종료 상태일 때만 값이 있다(CHECK `ck_deal_actions_next_action_closed_on`).
   - 상태 변경은 `memo`(TEXT, 길이 제한 없음)와 `updated_at`도 바꾼다.
 - 도메인 객체
   - `NextActionStatus` StrEnum: `label`(Open·종료(수행)·종료(미수행)), `is_closed`, `sort_rank`(open 0·done 1·not_done 2).
-  - `NextActionState(status, closed_at)`: Open이면 `closed_at`이 없어야 하고, 종료면 시간대 있는 `closed_at`이 있어야 한다(어기면 `InvalidValueError`, 프로그래밍 오류).
+  - `NextActionState(status, closed_on)`: Open이면 `closed_on`이 없어야 하고, 종료면 `closed_on`(date)이 있어야 한다(어기면 `InvalidValueError`, 프로그래밍 오류).
   - `NextActionStatusChange(before, after, note)`: 이력용 결과(note는 trim한 종료 메모).
   - `DealAction.next_action_state`: Next Action이 있으면 반드시 있고 없으면 반드시 없다.
   - `DealActionQuery`(Port 쪽 값 객체): 검색 조건과 `acted_window()`(반개구간).
   - `NextActionStatusFilter` StrEnum: `open`·`done`·`not_done`·`closed`, `statuses()`로 상태 묶음을 준다.
   - `DealActionSort` StrEnum 10값(NA-R18).
-- 마이그레이션: 없음.
+- 마이그레이션: 날짜 전환 리비전 `b4d7e2a9c613`(SC-R20)이 `next_action_closed_at`을 `next_action_closed_on`으로 바꾼다(NA-R32).
 
 ### 2.3 비즈니스 규칙
 
 Next Action 상태 변경(backend)
-- **NA-R1** 상태는 Next Action이 있는 Action에만 있다. Action 응답의 `next_action_status`·`next_action_closed_at`은 진행사항만 Action이면 둘 다 null, Open이면 `"open"`·null, 종료면 상태 값과 종료 시각이다.
+- **NA-R1** 상태는 Next Action이 있는 Action에만 있다. Action 응답의 `next_action_status`·`next_action_closed_on`은 진행사항만 Action이면 둘 다 null, Open이면 `"open"`·null, 종료면 상태 값과 종료일이다.
 - **NA-R2** `PUT /deal-actions/{action_id}/next-action-status` 본문 `{"status": "open"|"done"|"not_done", "memo": "<문자열>"}`(memo는 선택, 기본 `""`). 지금 상태와 **다른** 상태로는 어느 쪽이든 바꿀 수 있다: Open→종료(수행)·종료(미수행), 종료(수행)⇄종료(미수행), 종료→Open. 성공하면 200과 바뀐 Action(응답 모양은 AC-R20)이다.
 - **NA-R3** 종료 메모
   - 앞뒤 공백을 지운 값을 쓴다. 비었거나 공백뿐이면 메모가 없는 것으로 보고 Memo를 바꾸지 않는다.
@@ -68,9 +68,10 @@ Next Action 상태 변경(backend)
   - Open으로 되돌릴 때 메모가 있으면 422 `invalid-value` "Open으로 되돌릴 때는 메모를 남길 수 없습니다."다. 공백뿐인 메모는 허용한다.
   - NUL 문자가 있으면 422 `invalid-value` "메모에는 NUL 문자를 쓸 수 없습니다"다(PL-R16).
   - 길이 제한은 없다.
-- **NA-R4** 종료 시각: 종료 상태로 바꾸면 그 요청의 서버 시각이다(종료(수행)⇄종료(미수행) 전환도 새 시각). Open으로 되돌리면 null이 되고, 덧붙였던 Memo는 그대로 남는다.
+- **NA-R4** 종료일: 종료 상태로 바꾸면 그 요청의 업무 날짜(오늘)다. 종료(수행)⇄종료(미수행) 전환도 그 요청의 오늘로 다시 정한다(같은 날이면 값이 같다). Open으로 되돌리면 null이 되고, 덧붙였던 Memo는 그대로 남는다. Action 등록 때 이전 Next Action 종료의 종료일도 수행일과 무관하게 오늘이다(AC-R36).
+- **NA-R32** 기존 데이터 변환(리비전 `b4d7e2a9c613`, SC-R20): `next_action_closed_on`은 저장된 `next_action_closed_at`을 업무 시간대(서버 OS 로컬)로 바꾼 날짜다. 값이 없던 행은 계속 null이다. 상태·종료일 CHECK(종료 상태일 때만 값)는 새 컬럼 기준으로 다시 만든다. 행 수는 그대로이고 시각만 버린다. downgrade는 종료일의 업무 시간대 00:00으로 되살린다.
 - **NA-R5** 상태 변경은 상태·종료 시각·(메모가 있으면) Memo와 Action `updated_at`만 바꾼다.
-  - 그대로인 것: 진행사항·Next Action·Due Date·유형·수행 일시·작성자·등록 시점 Status·Forecast, Deal `updated_at`.
+  - 그대로인 것: 진행사항·Next Action·Due Date·유형·수행일·작성자·등록 시점 Status·Forecast, Deal `updated_at`.
   - Deal의 최종 업데이트와 기한초과 판정은 바뀌지 않는다(RK-R2, RK-R4).
 - **NA-R6** 권한: 업무 쓰기 가드(PL-R6) 때문에 `user`는 403 읽기 전용 문구다. 가드를 지난 뒤 `admin`은 모든 Action, `sales`는 자기가 작성자인 Action만 바꿀 수 있다. 그 밖은 403 `forbidden` "본인 Action 또는 admin만 Next Action 상태를 바꿀 수 있습니다."다. 도메인 판정도 `user`는 작성자여도 거절한다.
 - **NA-R7** 판정 순서(앞에서 거절되면 뒤는 하지 않는다)
@@ -102,16 +103,16 @@ Action 검색(backend)
   - 비었거나 공백뿐이면 조건이 없는 것과 같다.
   - 보낸 원문이 100자(코드 포인트)를 넘으면 422 `request-validation`이다.
   - NUL 문자는 422 `invalid-value` "검색어에는 NUL 문자를 쓸 수 없습니다"다.
-- **NA-R15** 수행일 `acted_from`·`acted_to`(날짜)
-  - 업무 날짜 기준 양끝 포함이다: `start_of_business_day(from)` 이상, `start_of_business_day(to + 1일)` 미만(TM-R5). 예(Asia/Seoul): 2027-05-20~2027-05-20은 그 날 00:00부터 다음 날 00:00 전까지이고 다음 날 00:00은 빠진다.
+- **NA-R15** 수행일 `acted_from`·`acted_to`(날짜). 대상 값은 Action 수행일 `acted_on`(날짜)이다.
+  - 양끝을 포함해 날짜로 비교한다: `from ≤ acted_on ≤ to`. 예: 2027-05-20~2027-05-20은 수행일이 그 날인 Action이다.
   - 한쪽만 주면 그쪽만 제한한다.
   - 각 값은 1900-01-01~2999-12-31이어야 한다. 밖이면 422 `invalid-value` "acted_from은(는) 1900-01-01부터 2999-12-31 사이여야 합니다"(`acted_to`도 같은 형식)다.
   - 시작이 끝보다 늦으면 422 `invalid-value` "수행일 범위의 시작은 끝보다 늦을 수 없습니다."다. 같은 날은 허용한다.
 - **NA-R16** Due Date `due_from`·`due_to`(날짜): 양끝 포함이다. 둘 중 하나라도 주면 Due Date가 없는 Action은 빠진다. 시작이 끝보다 늦으면 422 `invalid-value` "Due Date 범위의 시작은 끝보다 늦을 수 없습니다."다. 같은 날은 허용한다. 1900~2999 범위 검사는 없다(현행 유지, 2026-11-10 결정).
 - **NA-R17** `next_action_status`: `open`·`done`·`not_done`은 그 상태, `closed`는 `done`·`not_done` 둘 다다. 상태 필터가 있으면 Next Action이 없는 Action은 빠진다. 상태 필터가 없으면 진행사항만 Action도 나온다. 그 밖의 값(`notDone`·`DONE`·`all`·`close`·빈 문자열)은 422 `request-validation`이다.
 - **NA-R18** `sort`(기본 `acted_at_desc`)는 아래 10값이고 대소문자를 구분한다. 그 밖은 422 `request-validation`이다.
-  - `acted_at_desc`·`acted_at_asc`: 수행 일시. 같은 시각이면 어느 방향이든 id 오름차순(먼저 등록한 것이 앞). 기본값 `acted_at_desc`의 순서는 조건 없는 목록의 기본 순서(AC-R18)와 같다.
-  - 나머지 정렬은 주 키 → 수행 일시 내림차순 → id 오름차순이다. 이 동률 규칙은 방향을 바꿔도 뒤집히지 않는다.
+  - `acted_at_desc`·`acted_at_asc`: 수행일(값 이름은 호환을 위해 그대로 둔다). 수행일이 같으면 `desc`는 id 내림차순(나중에 등록한 것이 앞), `asc`는 id 오름차순이다(AC-R43). 기본값 `acted_at_desc`의 순서는 조건 없는 목록의 기본 순서(AC-R18)와 같다.
+  - 나머지 정렬은 주 키 → 수행일 내림차순 → id 내림차순이다. 이 동률 규칙은 방향을 바꿔도 뒤집히지 않는다.
   - `due_date_asc`·`due_date_desc`: Due Date. Due Date가 없는 Action은 방향과 관계없이 맨 뒤다.
   - `actor_asc`·`actor_desc`: 작성자 표시 이름(비어 있으면 로그인 아이디)을 소문자로 바꿔 코드 포인트 순으로 비교한다. 퇴사자도 포함한다.
   - `action_type_asc`·`action_type_desc`: 지금 유형 이름을 소문자로 바꿔 코드 포인트 순으로 비교한다.
@@ -167,9 +168,9 @@ Action 검색(backend)
   - 범위가 거꾸로면 화면은 막지 않고 서버 문구(NA-R15·R16)를 탭 오류 배너로 보인다.
 - **NA-R27** "초기화"는 모든 칸을 처음 값으로 돌리고 조건 없이 다시 조회한다. 기다리던 프리셋 응답은 버린다. 정렬은 그대로다.
 - **NA-R28** 머리글 정렬
-  - 정렬할 수 있는 머리글은 수행일시·담당자·유형·Due Date·상태 5개(버튼)다. 나머지 열은 정렬하지 않는다.
-  - 처음은 수행일시 내림차순이다(`aria-sort`로 표시).
-  - 같은 머리글을 다시 누르면 방향이 바뀐다. 다른 머리글은 자연 방향(수행일시 내림차순, 나머지 오름차순)으로 시작한다.
+  - 정렬할 수 있는 머리글은 수행일·담당자·유형·Due Date·상태 5개(버튼)다. 나머지 열은 정렬하지 않는다.
+  - 처음은 수행일 내림차순이다(`aria-sort`로 표시).
+  - 같은 머리글을 다시 누르면 방향이 바뀐다. 다른 머리글은 자연 방향(수행일 내림차순, 나머지 오름차순)으로 시작한다.
   - 정렬은 서버 `sort`로 보내고 화면은 서버 순서를 그대로 보인다(다시 정렬하지 않음).
   - 정렬과 검색 조건은 따로 유지된다: 정렬을 바꿔도 적용된 조건이 남고, 다시 검색하거나 초기화해도 정렬이 남는다.
 - **NA-R29** 결과 표시
@@ -186,9 +187,9 @@ Action 검색(backend)
 
 | 지금 \ 요청 | `open` | `done` | `not_done` |
 | --- | --- | --- | --- |
-| Open | 409 이미 Open | 종료(수행), 종료 시각=지금, 메모 덧붙임 | 종료(미수행), 종료 시각=지금, 메모 덧붙임 |
-| 종료(수행) | Open, 종료 시각 null(메모 있으면 422) | 409 이미 종료(수행) | 종료(미수행), 종료 시각=지금, 메모 덧붙임 |
-| 종료(미수행) | Open, 종료 시각 null(메모 있으면 422) | 종료(수행), 종료 시각=지금, 메모 덧붙임 | 409 이미 종료(미수행) |
+| Open | 409 이미 Open | 종료(수행), 종료일=오늘, 메모 덧붙임 | 종료(미수행), 종료일=오늘, 메모 덧붙임 |
+| 종료(수행) | Open, 종료일 null(메모 있으면 422) | 409 이미 종료(수행) | 종료(미수행), 종료일=오늘, 메모 덧붙임 |
+| 종료(미수행) | Open, 종료일 null(메모 있으면 422) | 종료(수행), 종료일=오늘, 메모 덧붙임 | 409 이미 종료(미수행) |
 | 상태 없음(진행사항만) | 409 Next Action 없음 | 409 Next Action 없음 | 409 Next Action 없음 |
 
 다른 feature가 일으키는 전이(AC 2.4 소유):
@@ -213,7 +214,7 @@ Action 검색(backend)
 | GET `/deals/{code}/actions` | 쿼리 `DealActionSearchParams` | 200 `DealActionList` | 401, 404 `not-found`, 422 `request-validation`, 422 `invalid-value` |
 
 - `NextActionStatusRequest`: `{"status": "done", "memo": "견적 전달 완료"}`. `status: NextActionStatus`(필수), `memo: str = ""`, 모르는 필드 거절(`RequestModel`).
-- `DealActionList`: `{"items": [DealActionResponse, ...]}`. 이 feature 필드 `next_action_status: "open"|"done"|"not_done"|null`, `next_action_closed_at: date-time|null`(시각 표기 TM-R8). 나머지 필드는 AC-R20.
+- `DealActionList`: `{"items": [DealActionResponse, ...]}`. 이 feature 필드 `next_action_status: "open"|"done"|"not_done"|null`, `next_action_closed_on: date|null`(`YYYY-MM-DD`). 나머지 필드는 AC-R20.
 - `DealActionSearchParams`(모두 선택, 모르는 파라미터 거절)
 
 | 파라미터 | 값 | 규칙 |
@@ -288,7 +289,7 @@ NA-R21~R31.
 
 ### NA-UC5 Action 정렬
 - 행위자: 로그인한 사용자
-- 기본 흐름: 머리글(수행일시·담당자·유형·Due Date·상태)을 누르면 서버가 그 순서로 준다(NA-R18, R28)
+- 기본 흐름: 머리글(수행일·담당자·유형·Due Date·상태)을 누르면 서버가 그 순서로 준다(NA-R18, R28)
 - 결과: 조건은 유지되고, 빈 값(Due Date·상태 없음)은 방향과 관계없이 맨 뒤다
 
 ## 4. BDD 테스트 케이스
@@ -298,7 +299,7 @@ NA-R21~R31.
 | NA-001 | 작성자 sales가 메모와 함께 종료(수행)하면 상태·종료 시각이 남고 메모가 Memo 뒤에 줄바꿈으로 붙는다 | NA-R2, NA-R3, NA-R4, NA-UC1 | backend | `application/test_change_next_action_status.py`, `domain/test_next_action_status.py` |
 | NA-002 | 기존 Memo가 비어 있으면 trim한 종료 메모가 그대로 Memo가 된다 | NA-R3, NA-UC1 | backend | `domain/test_next_action_status.py` |
 | NA-003 | 메모를 생략하거나 비우거나 공백만 보내고 종료하면 Memo는 그대로다 | NA-R3, NA-UC1 | backend | `application/test_change_next_action_status.py`, `application/test_next_action_status_filter.py`, `domain/test_next_action_status.py` |
-| NA-004 | 종료(수행)에서 종료(미수행)으로 바로 바꾸면 종료 시각이 새로 정해진다 | NA-R2, NA-R4, NA-UC1 | backend | `domain/test_next_action_status.py` |
+| NA-004 | 종료(수행)에서 종료(미수행)으로 바로 바꾸면 종료일이 그 요청의 오늘로 다시 정해진다 | NA-R2, NA-R4, NA-UC1 | backend | `domain/test_next_action_status.py` |
 | NA-005 | Open으로 되돌리면 종료 시각이 없어지고 덧붙인 Memo는 남는다 | NA-R4, NA-UC2 | backend | `application/test_change_next_action_status.py`, `domain/test_next_action_status.py` |
 | NA-006 | Open으로 되돌리며 메모를 보내면 422이고 종료 상태가 그대로이며, 공백뿐인 메모는 허용된다 | NA-R3, NA-R9, NA-UC2 | backend | `application/test_change_next_action_status.py`, `domain/test_next_action_status.py` |
 | NA-007 | 지금과 같은 상태로 바꾸면 409 "이미 … 상태입니다."이고 Memo·History가 그대로다 | NA-R7, NA-R9, NA-UC3 | backend | `application/test_change_next_action_status.py`, `domain/test_next_action_status.py` |
@@ -313,7 +314,7 @@ NA-R21~R31.
 | NA-016 | 본문의 상태 값·형식이 틀리거나 모르는 필드가 있으면 422 request-validation이다 | NA-R7, NA-UC3 | backend | `web/test_next_action_status_request.py` |
 | NA-017 | 상태가 바뀔 때마다 History에 "Next Action" 1건이 정해진 문구로 남는다 | NA-R8, NA-UC1, NA-UC2 | backend | `application/test_change_next_action_status.py`, `domain/test_action_history.py` |
 | NA-018 | 긴 종료 메모는 History 값 길이 제한으로 잘린다 | NA-R8 | backend | `application/test_change_next_action_status.py`, `domain/test_action_history.py` |
-| NA-019 | 조건이 없으면 그 Deal의 Action 전부가 페이지 없이 수행일시 최신순으로 나온다 | NA-R10, NA-R11, NA-R18, NA-UC4 | backend | `application/test_deal_action_query.py`, `application/test_list_deal_actions.py`, `test/fake/gateway/actions.test.ts`, `web/test_deal_action_openapi.py`, `web/test_deal_action_search_params.py` |
+| NA-019 | 조건이 없으면 그 Deal의 Action 전부가 페이지 없이 수행일 최신순으로 나온다 | NA-R10, NA-R11, NA-R18, NA-UC4 | backend | `application/test_deal_action_query.py`, `application/test_list_deal_actions.py`, `test/fake/gateway/actions.test.ts`, `web/test_deal_action_openapi.py`, `web/test_deal_action_search_params.py` |
 | NA-020 | 다른 Deal의 Action은 목록에 나오지 않는다 | NA-R10, NA-UC4 | backend | `application/test_list_deal_actions.py` |
 | NA-021 | 없는 Deal이나 형식이 틀린 code의 Action 목록은 404다 | NA-R10, NA-UC4 | backend | `application/test_list_deal_actions.py`, `test/fake/gateway/actions.listOrder.test.ts`, `web/test_deal_action_search_params.py`, `test/fake/gateway/actions.rules.test.ts` |
 | NA-022 | 전역 Action 검색 경로는 없고 개별 Action 경로만 있다 | NA-R10 | backend | `application/test_deal_action_query.py`, `web/test_deal_action_openapi.py` |
@@ -323,7 +324,7 @@ NA-R21~R31.
 | NA-026 | 검색어는 진행사항·Next Action·Memo에서 대소문자 구분 없이 부분 일치한다 | NA-R14, NA-UC4 | backend | `application/test_list_deal_actions.py`, `gateway/contract/actions.contract.ts` |
 | NA-027 | 검색어의 %·_는 글자 그대로이고 앞뒤 공백은 무시하며 공백뿐이면 조건이 없다 | NA-R14, NA-UC4 | backend | `application/test_deal_action_query.py`, `application/test_list_deal_actions.py` |
 | NA-028 | 검색어 100자는 되고 101자는 422 request-validation, NUL은 422 invalid-value다 | NA-R14, NA-UC4 | backend | `application/test_deal_action_query.py`, `test/fake/gateway/actions.listOrder.test.ts`, `test/fake/gateway/actions.queryRules.test.ts`, `web/test_deal_action_search_params.py` |
-| NA-029 | 수행일 조건은 업무 날짜 00:00부터 다음 날 00:00 전까지를 양끝 포함으로 본다 | NA-R15, NA-UC4 | backend | `application/test_deal_action_query.py`, `application/test_list_deal_actions.py`, `web/test_deal_action_search_params.py`, `gateway/contract/actions.contract.ts`, `test/fake/gateway/actions.rules.test.ts` |
+| NA-029 | 수행일 조건은 수행일 날짜를 양끝 포함으로 비교한다 | NA-R15, NA-UC4 | backend | `application/test_deal_action_query.py`, `application/test_list_deal_actions.py`, `web/test_deal_action_search_params.py`, `gateway/contract/actions.contract.ts`, `test/fake/gateway/actions.rules.test.ts` |
 | NA-030 | Due Date 범위는 양끝을 포함하고 Due Date가 없는 Action은 빠진다 | NA-R16, NA-UC4 | backend | `application/test_list_deal_actions.py`, `web/test_deal_action_search_params.py`, `gateway/contract/actions.contract.ts`, `test/fake/gateway/actions.rules.test.ts` |
 | NA-031 | 시작이 끝보다 늦은 범위는 422이고 문구가 범위 종류를 알려 주며 같은 날은 허용된다 | NA-R15, NA-R16, NA-UC4 | backend | `application/test_deal_action_query.py`, `gateway/contract/actions.contract.ts`, `test/fake/gateway/actions.rules.test.ts` |
 | NA-032 | 1900~2999년 밖의 수행일은 422 invalid-value이고 양 끝 날짜는 조회된다 | NA-R15, NA-UC4 | backend | `application/test_date_range_bounds.py`, `test/fake/gateway/actions.queryRules.test.ts` |
@@ -332,7 +333,7 @@ NA-R21~R31.
 | NA-035 | 허용하지 않는 상태 필터 값은 422 request-validation이다 | NA-R17, NA-UC4 | backend | `application/test_next_action_status_filter.py`, `web/test_deal_action_openapi.py`, `web/test_deal_action_search_params.py` |
 | NA-036 | 모르는·폐지된 쿼리와 형식이 틀린 id·날짜는 422 request-validation이다 | NA-R19, NA-UC4 | backend | `application/test_deal_action_query.py`, `application/test_query_nul.py`, `web/test_deal_action_openapi.py`, `web/test_deal_action_search_params.py` |
 | NA-037 | 형식이 틀린 code는 범위 오류보다 먼저 404이고 없는 Deal은 범위 오류 다음이다 | NA-R20, NA-UC4 | backend | `web/test_deal_action_search_params.py` |
-| NA-038 | 수행일시 정렬은 양방향이고 같은 시각이면 먼저 등록한 Action이 앞이다 | NA-R18, NA-UC5 | backend | `application/test_list_deal_actions.py`, `application/test_list_deal_actions_order_and_status.py`, `test/fake/gateway/actions.test.ts` |
+| NA-038 | 수행일 정렬은 양방향이고 같은 날이면 내림차순은 나중 등록, 오름차순은 먼저 등록이 앞이다 | NA-R18, NA-UC5 | backend | `application/test_list_deal_actions.py`, `application/test_list_deal_actions_order_and_status.py`, `test/fake/gateway/actions.test.ts` |
 | NA-039 | Due Date 정렬은 Due Date가 없는 Action을 방향과 관계없이 맨 뒤에 두고 동률은 최신 수행이 먼저다 | NA-R18, NA-UC5 | backend | `application/test_list_deal_actions.py`, `application/test_list_deal_actions_order_and_status.py`, `test/fake/gateway/actions.test.ts`, `gateway/contract/actions.contract.ts` |
 | NA-040 | 담당자 정렬은 표시 이름(없으면 로그인 아이디)을 대소문자 구분 없이 비교한다 | NA-R18, NA-UC5 | backend | `application/test_list_deal_actions_order_and_status.py`, `test/fake/gateway/actions.test.ts` |
 | NA-041 | 유형 정렬은 지금 유형 이름을 대소문자 구분 없이 비교한다 | NA-R18, NA-UC5 | backend | `application/test_list_deal_actions_order_and_status.py`, `test/fake/gateway/actions.test.ts`, `gateway/contract/actions.contract.ts` |
@@ -363,11 +364,15 @@ NA-R21~R31.
 | NA-066 | HTTP 게이트웨이는 채운 조건·정렬·상태 변경 본문을 서버 이름으로 보낸다 | NA-R30 | frontend | `gateway/http/actions.test.ts` |
 | NA-067 | HTTP 게이트웨이는 범위 역전 422와 없는 Deal 404를 서버 문구 그대로 넘긴다 | NA-R31 | frontend | `gateway/http/actions.test.ts` |
 | NA-068 | Fake 게이트웨이는 서버와 같은 상태 변경·검색·정렬 규칙을 따른다 | NA-R30, NA-R3, NA-R14, NA-R15 | frontend | `test/fake/gateway/actions.listOrder.test.ts`, `test/fake/gateway/actions.queryRules.test.ts`, `test/fake/gateway/actions.test.ts`, `test/fake/gateway/nextActionStatus.rules.test.ts`, `gateway/contract/actionsStatus.contract.ts`, `test/fake/gateway/actions.rules.test.ts` |
+| NA-069 | 주 키가 같은 정렬의 동률은 수행일 내림차순 다음 id 내림차순이다 | NA-R18, NA-UC5 | backend | `application/test_list_deal_actions_order_and_status.py`, `repositories/test_deal_action_sort_contract.py` |
+| NA-070 | 종료하면 응답 next_action_closed_on은 요청의 업무 날짜이고 Open으로 되돌리면 null이다 | NA-R1, NA-R4 | backend | `application/test_change_next_action_status.py`, `web/test_deal_action_response_nullable.py` |
+| NA-071 | 마이그레이션은 종료 시각을 업무 날짜로 채우고 비어 있던 행은 null로 두며 CHECK를 새 컬럼으로 만든다 | NA-R32 | backend | `infra/schema/test_business_dates_migration.py` |
+| NA-072 | 게이트웨이·Fake: 종료일을 closedOn 날짜로 매핑하고 Fake는 Fake 시계의 오늘로 정한다 | NA-R4, NA-R30 | frontend | `gateway/http/mappers/action.test.ts`, `test/fake/gateway/actions.dates.test.ts` |
 
 ### NA-001 작성자 sales가 메모와 함께 종료(수행)한다
 - Given sales "kim"이 등록한 Action(Next Action "요구사항 문서 전달", Due 2027-01-15, Memo "기존", Open)이 있다
 - When kim이 상태를 `done`, 메모 "전달 완료"로 바꾼다
-- Then 상태는 `done`, 종료 시각은 요청 시각, Memo는 "기존\n전달 완료"이고 응답도 같다
+- Then 상태는 `done`, 종료일은 요청의 업무 날짜, Memo는 "기존\n전달 완료"이고 응답도 같다
 
 ### NA-002 빈 Memo에 종료 메모를 붙인다
 - Given Memo가 빈 Open Action이 있다
@@ -380,9 +385,9 @@ NA-R21~R31.
 - Then 상태는 `not_done`, 종료 시각이 있고 Memo는 "요구사항 정리" 그대로다
 
 ### NA-004 종료 상태 사이를 바로 전환한다
-- Given 시각 T1에 종료(수행)된 Action이 있다
-- When 작성자가 시각 T2에 `not_done`, 메모 "취소됨"으로 바꾼다
-- Then 상태는 `not_done`, 종료 시각은 T2(T1과 다름), Memo 끝에 "\n취소됨"이 붙는다
+- Given 2027-01-10에 종료(수행)된 Action이 있다
+- When 작성자가 2027-01-12에 `not_done`, 메모 "취소됨"으로 바꾼다
+- Then 상태는 `not_done`, 종료일은 2027-01-12, Memo 끝에 "\n취소됨"이 붙는다
 
 ### NA-005 Open으로 되돌린다
 - Given 메모 "끝"을 붙여 종료(수행)한 Action이 있다
@@ -415,9 +420,9 @@ NA-R21~R31.
 - Then 진행사항만 Action은 409가 아니라 422(Open+메모)이고, Open Action은 409(같은 상태)가 아니라 422(NUL)다
 
 ### NA-011 상태 외 값은 그대로다
-- Given 작성자 kim의 Open Action(진행사항·Next Action·Due·유형·수행 일시·스냅숏 Status/Forecast)과 그 Deal의 수정 시각 D가 있다
+- Given 작성자 kim의 Open Action(진행사항·Next Action·Due·유형·수행일·스냅숏 Status/Forecast)과 그 Deal의 수정 시각 D가 있다
 - When kim이 `done`으로 바꾼다
-- Then 진행사항·Next Action·Due Date·유형·수행 일시·작성자·스냅숏은 등록 때와 같고 Deal 수정 시각은 D다
+- Then 진행사항·Next Action·Due Date·유형·수행일·작성자·스냅숏은 등록 때와 같고 Deal 수정 시각은 D다
 
 ### NA-012 admin이 남의 Action을 종료한다
 - Given sales kim의 Open Action이 있다
@@ -455,7 +460,7 @@ NA-R21~R31.
 ### NA-019 조건 없는 목록
 - Given 한 Deal에 Action 25건이 차례로 있다
 - When 조건 없이 목록을 조회한다
-- Then 25건 전부가 수행일시 최신순으로 오고 응답 키는 `items` 하나다
+- Then 25건 전부가 수행일 최신순(같은 날은 나중에 등록한 것이 먼저)으로 오고 응답 키는 `items` 하나다
 
 ### NA-020 다른 Deal 제외
 - Given Deal A에 "내 활동", Deal B에 "남의 활동"이 있다
@@ -500,7 +505,7 @@ NA-R21~R31.
 - Then 100자는 정상 조회, 101자는 422 `request-validation`, NUL은 422 `invalid-value` "검색어에는 NUL 문자를 쓸 수 없습니다"다
 
 ### NA-029 수행일 하루 범위
-- Given 서버 시간대 Asia/Seoul이고 Action이 2027-05-19 23:59, 05-20 00:00, 05-20 23:59, 05-21 00:00(로컬)에 있다
+- Given 수행일이 2027-05-19, 05-20, 05-20, 05-21인 Action이 있다
 - When `acted_from=acted_to=2027-05-20`, `acted_from=2027-05-20`만, `acted_to=2027-05-20`만으로 조회한다
 - Then 각각 05-20의 두 건, 05-20 이후 세 건, 05-20까지 세 건이다
 
@@ -539,10 +544,10 @@ NA-R21~R31.
 - When 형식이 틀린 code `not-a-code`에 거꾸로 된 수행일 범위를, 형식은 맞지만 없는 code에 같은 범위를 보낸다
 - Then 첫째는 404, 둘째는 422 `invalid-value`(수행일 범위 문구)다
 
-### NA-038 수행일시 정렬
-- Given 같은 수행 일시에 "먼저 등록"·"나중 등록"이, 그 뒤에 "셋째"가 있다
+### NA-038 수행일 정렬
+- Given 같은 수행일에 "먼저 등록"·"나중 등록"이 있고, 그 다음 날에 "셋째"가 있다
 - When `acted_at_desc`, `acted_at_asc`로 조회한다
-- Then desc는 "셋째", "먼저 등록", "나중 등록"이고 asc는 "먼저 등록", "나중 등록", "셋째"다
+- Then desc는 "셋째", "나중 등록", "먼저 등록"이고 asc는 "먼저 등록", "나중 등록", "셋째"다
 
 ### NA-039 Due Date 정렬
 - Given Due 2026-03-01 "늦은 기한", Due 2026-02-01 "빠른 기한 먼저"·"빠른 기한 나중"(나중 수행), 진행사항만 "기한 없음"이 있다
@@ -659,7 +664,7 @@ NA-R21~R31.
 
 ### NA-063 화면: 정렬 머리글
 - When Actions 표를 열고 머리글을 누른다
-- Then 버튼 머리글은 수행일시·담당자·유형·Due Date·상태뿐이고 처음은 수행일시 내림차순이다. Due Date는 처음 누르면 오름차순, 다시 누르면 내림차순이며 다른 열 뒤 수행일시는 다시 내림차순으로 시작한다
+- Then 버튼 머리글은 수행일·담당자·유형·Due Date·상태뿐이고 처음은 수행일 내림차순이다. Due Date는 처음 누르면 오름차순, 다시 누르면 내림차순이며 다른 열 뒤 수행일은 다시 내림차순으로 시작한다
 
 ### NA-064 화면: 서버 순서 그대로
 - When 담당자 머리글을 오름차순·내림차순으로 누른다
@@ -683,6 +688,26 @@ NA-R21~R31.
 - When Fake로 종료·되돌림·전환·같은 상태·Next Action 없음·Open+메모·없는 Action·user·admin을, 그리고 상태 필터·Due/상태 정렬·검색어 길이·검색 오류 순서를, 또 종료 메모 NUL·검색어 NUL·1900~2999 밖 수행일을 실행한다
 - Then 결과(상태·종료 시각·Memo·History 건수, 409·422·404·403, 결과 순서, 422가 404보다 먼저)가 NA-R2~R9, R14~R18, R20과 같다. 종료 메모 NUL은 422 "메모에는 NUL 문자를 쓸 수 없습니다", 검색어 NUL은 422 "검색어에는 NUL 문자를 쓸 수 없습니다", 범위 밖 수행일은 422 "acted_from은(는) 1900-01-01부터 2999-12-31 사이여야 합니다"(`acted_to`도 같음)이고 Action·History가 그대로다(Fake를 서버 동작에 맞춤, 2026-11-10 결정)
 
+### NA-069 주 키가 같은 정렬의 동률은 수행일 내림차순 다음 id 내림차순이다
+- Given 유형이 "미팅"이고 수행일이 같은 Action 두 건("먼저 등록"·"나중 등록")과, 유형이 "미팅"이고 수행일이 하루 늦은 "다음 날" Action이 있다
+- When `action_type_asc`로 조회한다(Fake에도 같은 입력을 준다)
+- Then 순서는 "다음 날" → "나중 등록" → "먼저 등록"이다
+
+### NA-070 종료하면 응답 next_action_closed_on은 요청의 업무 날짜이고 Open으로 되돌리면 null이다
+- Given 업무 시간대는 Asia/Seoul, 서버 시계는 `2026-11-13T23:30:00+09:00`이고, kim의 Open Action이 있다
+- When kim이 상태를 `done`으로 바꾼 뒤 다시 `open`으로 바꾼다
+- Then 첫 응답의 `next_action_closed_on`은 "2026-11-13"이고 `next_action_closed_at` 키는 없다. 두 번째 응답에서는 null이다
+
+### NA-071 마이그레이션은 종료 시각을 업무 날짜로 채우고 비어 있던 행은 null로 두며 CHECK를 새 컬럼으로 만든다
+- Given 기준선 리비전 DB(Asia/Seoul)에 Action 세 건이 있다: `next_action_closed_at`이 `2026-11-12T15:30:00Z`인 종료(수행) Action, `next_action_closed_at`이 null인 Open Action, Next Action이 없는 Action
+- When `upgrade head`를 실행한 뒤 다시 `downgrade -1`을 실행한다
+- Then upgrade 뒤에는 행이 3건 그대로이고, `next_action_closed_on`은 2026-11-13, null, null이며, `ck_deal_actions_next_action_closed_on`이 있고 `next_action_closed_at` 컬럼은 없다. downgrade 뒤에는 첫 행의 `next_action_closed_at`이 `2026-11-13T00:00:00+09:00`이고 나머지 두 행은 null이다
+
+### NA-072 게이트웨이·Fake: 종료일을 closedOn 날짜로 매핑하고 Fake는 Fake 시계의 오늘로 정한다
+- Given Fake 시계의 오늘이 2026-11-13이다
+- When HTTP 게이트웨이가 `next_action_closed_on: "2026-11-12"` 응답을 받고, Fake로 Open Action을 종료(수행)한다
+- Then 화면 모델의 종료일은 "2026-11-12"이고 Fake 결과는 "2026-11-13"이며, 어느 쪽에도 시각 필드는 없다
+
 ## 5. 변경 이력
 
 | 날짜 | 변경 | 영향 테스트 코드 |
@@ -690,3 +715,5 @@ NA-R21~R31.
 | 2026-11-10 | 초안: 구현된 동작 문서화(NA-R1~R31, NA-UC1~UC5, NA-001~068) | NA-001~068 |
 | 2026-11-10 | 사용자 결정 반영(추천대로): E1 Fake를 서버 동작에 맞춤(NA-R30: 수행일 범위·검색어 NUL·종료 메모 NUL), E2 Due Date 범위 1900~2999 미검사 유지(NA-R16), E5 경계(조건·정렬·필터는 NA, 기본 순서·열 구성은 AC-R18·R21, 이전 Next Action 종료 이력 형식은 NA-R8 소유)와 AC 이름 참조를 AC 번호로 | 변경: NA-068(NUL·범위 기대 결과 추가) |
 | 2026-11-11 | UI 문서 작성에 따라 공통 컴포넌트 참조를 UI 규칙 번호로 교체(1장, NA-R26). 기간 선택 부품 `PeriodField`·`periodChoice`는 NA-R26 소유로 UI·PA가 가리킴. 동작·케이스 변경 없음, 상태 줄 그대로 | 없음 |
+| 2026-11-13 | AC 수행일 지정(확정)에 맞춰 NA-R4·NA-R15에 설명 추가. 동작·케이스 변경 없음, 상태 줄 그대로 | 없음(관련 신규 AC-099·AC-101) |
+| 2026-11-13 | 확정(2026-11-13 사용자 확인): 업무 날짜를 date로 저장. 종료일은 `next_action_closed_on`(용어, 2.2, NA-R1·R4, 2.4, 2.6), NA-R32 신설(데이터 변환), NA-R15 날짜 비교, NA-R18 같은 날 동률(desc는 id 내림차순, 나머지 정렬은 수행일 내림차순 → id 내림차순), 머리글 "수행일". 정렬 값 이름 `acted_at_*`은 유지. 응답 필드 변경(호환 깨짐, 사용자 승인) | 신규 NA-069~NA-072. 변경 NA-001, NA-004, NA-019, NA-029, NA-038, 상태 변경 '그대로' 케이스, 머리글 화면 케이스 |

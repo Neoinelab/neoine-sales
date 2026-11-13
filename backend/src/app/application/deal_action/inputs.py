@@ -59,4 +59,5 @@ class DealActionInput:
     content: ActionContentInput
     status_changes: tuple[StatusChangeInput, ...] = ()
     close_previous_next_action_id: DealActionId | None = None  # 저장하며 종료(수행)로 닫을 기준 행
+    acted_on: date | None = None  # 수행일(업무 날짜). 없으면 오늘
     delete_license_contracts: bool = False  # Won을 벗어날 때만 쓰인다(아니면 무시)

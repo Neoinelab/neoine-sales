@@ -93,7 +93,7 @@ class LicenseContractResponse(BaseModel):
     inspection_cycle: InspectionCycle
     note: str
     renewed_from_id: int | None
-    ended_at: ServerDateTime | None
+    ended_on: date | None
     attachment_count: int
     deal_is_won: bool
     created_by: UserRef
@@ -125,7 +125,7 @@ class LicenseContractResponse(BaseModel):
             inspection_cycle=contract.fields.inspection,
             note=contract.fields.note,
             renewed_from_id=contract.renewed_from_id,
-            ended_at=contract.ended_at,
+            ended_on=contract.ended_on,
             attachment_count=row.attachment_count,
             deal_is_won=deal.is_won,
             created_by=ref_of(refs, contract.created_by),

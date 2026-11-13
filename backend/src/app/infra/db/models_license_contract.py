@@ -48,7 +48,7 @@ class LicenseContractRow(AuditColumns, Base):
     renewed_from_id: Mapped[int | None] = mapped_column(
         BigInteger, ForeignKey("license_contracts.id", ondelete="SET NULL"), default=None
     )
-    ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
+    ended_on: Mapped[date | None] = mapped_column(Date, default=None)
     created_by_user_id: Mapped[int] = mapped_column(
         BigInteger, ForeignKey("users.id", ondelete="RESTRICT")
     )
@@ -79,7 +79,7 @@ class LicenseContractRow(AuditColumns, Base):
         CheckConstraint(
             "license_start is null or license_end >= license_start", name="end_after_start"
         ),
-        CheckConstraint("(status = 'ended') = (ended_at is not null)", name="ended_has_time"),
+        CheckConstraint("(status = 'ended') = (ended_on is not null)", name="ended_has_date"),
         Index(
             "uq_license_contracts_deal_id_issued",
             "deal_id",

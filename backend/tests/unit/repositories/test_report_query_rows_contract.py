@@ -1,6 +1,6 @@
 """ReportQueryRunner(SQL) 계약: 컬럼별 정렬, 행 수, 합계, 표시 이름, 키 기준 고유 건수."""
 
-from datetime import timedelta
+from datetime import date, timedelta
 from typing import TYPE_CHECKING
 
 import pytest
@@ -299,21 +299,49 @@ async def test_plain_rows_without_sort_are_ordered_by_deal_code(report_case: Rep
     assert rows == [("b",), ("a",), ("c",)]
 
 
-async def test_action_rows_are_ordered_by_acted_at_then_id(report_case: ReportCase) -> None:
-    """Action 행의 동률은 수행일시, id 순이다.
+async def test_action_rows_are_ordered_by_acted_on_then_id(report_case: ReportCase) -> None:
+    """Action 행의 동률은 수행일, id 순이다(같은 날의 시각은 순서에 쓰이지 않는다).
 
     테스트 코드: RQ-053
     """
-    # given: 늦은 Action을 먼저, 이른 Action을 나중에 등록한 Deal
+    # given: 늦은 날 Action을 먼저, 이른 날 둘을 나중에(그중 늦은 시각을 먼저) 등록한 Deal
     deal = await report_case.add_deal()
     await report_case.deals.add_action(deal, kst(2026, 10, 6), action="late")
-    await report_case.deals.add_action(deal, kst(2026, 10, 5), action="early")
+    await report_case.deals.add_action(deal, kst(2026, 10, 5, 15), action="early-first")
+    await report_case.deals.add_action(deal, kst(2026, 10, 5, 9), action="early-second")
 
     # when: Action 컬럼으로 조회한다
     rows = await report_case.rows([col("action.action")])
 
-    # then: 수행일시가 이른 것이 먼저다
-    assert rows == [("early",), ("late",)]
+    # then: 수행일이 이른 것이 먼저고 같은 날은 id(등록) 순이다
+    assert rows == [("early-first",), ("early-second",), ("late",)]
+
+
+async def test_converted_fields_return_dates_not_datetimes(report_case: ReportCase) -> None:
+    """최종 업데이트·Status 진입일·수행일·종료일은 시각 없는 date로 조회된다.
+
+    테스트 코드: RQ-113
+    """
+    # given: 수행하고 종료(수행)한 Next Action이 있는 Deal
+    deal = await report_case.add_deal(created=kst(2026, 10, 1, 9))
+    action = await report_case.deals.add_action(
+        deal, kst(2026, 10, 5, 15), next_action="계획", action="진행"
+    )
+    await report_case.deals.set_next_action_status(action, "done", kst(2026, 10, 7, 23))
+
+    # when: 네 필드를 조회한다
+    (row,) = await report_case.rows(
+        [
+            col("deal.last_updated_at"),
+            col("deal.status_changed_at"),
+            col("action.acted_at"),
+            col("action.closed_at"),
+        ]
+    )
+
+    # then: 모두 date이고 datetime이 아니며 값은 업무 날짜다(수행일 10-05, 종료일 10-07)
+    assert all(type(value) is date for value in row)
+    assert row == (date(2026, 10, 5), date(2026, 10, 1), date(2026, 10, 5), date(2026, 10, 7))
 
 
 # ---- 표시 이름과 키 기준 ----
@@ -433,7 +461,7 @@ async def test_result_values_use_plain_python_types(report_case: ReportCase) -> 
     테스트 코드: RQ-045
     """
     # given: 금액 10·10·11인 SAP Deal
-    from datetime import date, datetime  # noqa: PLC0415
+    from datetime import datetime  # noqa: PLC0415
 
     sap = await report_case.deals.new_vendor("SAP")
     for amount in (10, 10, 11):

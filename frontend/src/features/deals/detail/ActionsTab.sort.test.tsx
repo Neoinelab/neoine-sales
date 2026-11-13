@@ -35,14 +35,14 @@ async function parkActs(no: number, progress: string) {
 }
 
 describe('Actions 탭 정렬 상태', () => {
-  // 처음에는 수행일시 머리글이 내림차순(최신순)으로 표시된다.
+  // 처음에는 수행일 머리글이 내림차순(최신순)으로 표시된다.
   // 테스트 코드: NA-063
   it('starts newest first on the acted time header', async () => {
     // when: Actions 표를 연다.
     const { table } = await openActions()
 
-    // then: 수행일시가 descending으로 표시되고 최신 행이 맨 위다.
-    expect(sortedHeader(table)).toEqual([['수행일시', 'descending']])
+    // then: 수행일가 descending으로 표시되고 최신 행이 맨 위다.
+    expect(sortedHeader(table)).toEqual([['수행일', 'descending']])
     expect(rows(table)[0]).toHaveTextContent('최종 가격 협의')
   })
 
@@ -67,7 +67,7 @@ describe('Actions 탭 정렬 상태', () => {
     expect(cells(table, 3)).toEqual([...asc].sort().reverse())
   })
 
-  // Due Date는 오름차순으로 시작하고 다른 열 뒤 수행일시는 다시 내림차순으로 시작한다.
+  // Due Date는 오름차순으로 시작하고 다른 열 뒤 수행일는 다시 내림차순으로 시작한다.
   // 테스트 코드: NA-063
   it('starts Due Date ascending and the acted time descending again after another column', async () => {
     // given: Actions 표가 기본 정렬이다.
@@ -80,10 +80,10 @@ describe('Actions 탭 정렬 상태', () => {
     const dues = cells(table, 6).map((c) => /\d{4}-\d{2}-\d{2}/.exec(c)?.[0] ?? '')
     expect([...dues].sort()).toEqual(dues)
 
-    // when: 수행일시 머리글을 누른다.
-    await click(user, table, '수행일시')
-    // then: 수행일시 내림차순으로 시작한다.
-    await waitFor(() => expect(sortedHeader(table)).toEqual([['수행일시', 'descending']]))
+    // when: 수행일 머리글을 누른다.
+    await click(user, table, '수행일')
+    // then: 수행일 내림차순으로 시작한다.
+    await waitFor(() => expect(sortedHeader(table)).toEqual([['수행일', 'descending']]))
     expect(rows(table)[0]).toHaveTextContent('최종 가격 협의')
   })
 

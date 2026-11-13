@@ -1,6 +1,7 @@
 """LicenseContract 엔티티(AC5·AC11~AC15): 자동 생성, 발급·갱신·종료, 수정, 삭제 권한."""
 
-from datetime import date
+from datetime import UTC, date, datetime
+from typing import TYPE_CHECKING
 
 import pytest
 
@@ -24,6 +25,17 @@ from tests.support.expect import raises_with
 from tests.support.ids import new_id
 from tests.support.user_ids import uid
 
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+TODAY = date(2026, 1, 1)  # NOW(UTC 09:00)의 서울 업무 날짜
+
+
+@pytest.fixture(autouse=True)
+def _seoul(local_tz: Callable[[str], None]) -> None:
+    local_tz("Asia/Seoul")
+
+
 KIM = uid("lc-kim")
 PARK = uid("lc-park")
 YEAR = LicenseTerm(amount=1, unit=TermUnit.YEAR)
@@ -43,7 +55,7 @@ def test_create_for_won_is_not_issued_without_term() -> None:
         entity_id=LicenseContractId(new_id()), deal_code=code, by=KIM, now=NOW
     )
 
-    # then: 미발급, 기간·원본·종료 시각 없음, 빈 칸 기본값, 등록자·수정자는 요청자
+    # then: 미발급, 기간·원본·종료일 없음, 빈 칸 기본값, 등록자·수정자는 요청자
     assert contract.deal_code == code
     assert contract.status is ContractStatus.NOT_ISSUED
     assert (contract.term, contract.license_start, contract.license_end) == (None, None, None)
@@ -51,7 +63,7 @@ def test_create_for_won_is_not_issued_without_term() -> None:
         tech_owner="", inspection=InspectionCycle.NONE, note=""
     )
     assert contract.renewed_from_id is None
-    assert contract.ended_at is None
+    assert contract.ended_on is None
     assert (contract.created_by, contract.updated_by) == (KIM, KIM)
     assert contract.created_at == contract.updated_at == NOW
 
@@ -109,9 +121,9 @@ def test_renew_ends_previous_and_returns_renewal() -> None:
         new_id=new_id_, start=date(2027, 1, 1), term=YEAR, fields=FIELDS, by=PARK, now=later()
     )
 
-    # then: P는 종료·종료 시각, 새 계약은 갱신 상태·원본 P·기간·칸
+    # then: P는 종료·종료일, 새 계약은 갱신 상태·원본 P·기간·칸
     assert previous.status is ContractStatus.ENDED
-    assert previous.ended_at == later()
+    assert previous.ended_on == TODAY
     assert previous.updated_by == PARK
     assert renewal.id == new_id_
     assert renewal.status is ContractStatus.ISSUED_RENEWAL
@@ -119,7 +131,7 @@ def test_renew_ends_previous_and_returns_renewal() -> None:
     assert renewal.renewed_from_id == previous.id
     assert (renewal.license_start, renewal.license_end) == (date(2027, 1, 1), date(2027, 12, 31))
     assert renewal.fields == FIELDS
-    assert renewal.ended_at is None
+    assert renewal.ended_on is None
     assert (renewal.created_by, renewal.updated_by) == (PARK, PARK)
     assert renewal.created_at == renewal.updated_at == later()
 
@@ -172,8 +184,8 @@ def test_renew_not_issued_or_ended_raises(status: str) -> None:
 
 
 @pytest.mark.parametrize("status", ["not_issued", "issued_new", "issued_renewal"])
-def test_end_sets_ended_and_records_the_time(status: str) -> None:
-    """종료가 아닌 계약을 종료하면 종료 시각이 기록된다.
+def test_end_sets_ended_and_records_the_date(status: str) -> None:
+    """종료가 아닌 계약을 종료하면 종료일(요청의 업무 날짜)이 기록된다.
 
     테스트 코드: LC-054
     """
@@ -183,14 +195,14 @@ def test_end_sets_ended_and_records_the_time(status: str) -> None:
     # when: 종료한다
     contract.end(by=PARK, now=later())
 
-    # then: 상태 ended, ended_at·수정자·수정 시각 갱신
+    # then: 상태 ended, ended_on(날짜)·수정자·수정 시각 갱신
     assert contract.status is ContractStatus.ENDED
-    assert contract.ended_at == later()
+    assert contract.ended_on == TODAY
     assert (contract.updated_by, contract.updated_at) == (PARK, later())
 
 
 def test_end_twice_raises() -> None:
-    """이미 종료된 계약을 다시 종료하면 오류이고 첫 종료 시각이 남는다.
+    """이미 종료된 계약을 다시 종료하면 오류이고 첫 종료일이 남는다.
 
     테스트 코드: LC-055
     """
@@ -201,8 +213,8 @@ def test_end_twice_raises() -> None:
     with raises_with(ContractTransitionError, ALREADY_ENDED):
         contract.end(by=KIM, now=later(5))
 
-    # then: ContractTransitionError 문구, ended_at은 처음 값
-    assert contract.ended_at == NOW  # 첫 종료 시각이 그대로다
+    # then: ContractTransitionError 문구, ended_on은 처음 값
+    assert contract.ended_on == TODAY  # 첫 종료일이 그대로다
 
 
 def test_end_keeps_the_license_period() -> None:
@@ -270,3 +282,19 @@ def test_delete_allowed_only_for_admin_any_status(status: str) -> None:
     for role in (Role.SALES, Role.USER):
         with raises_with(ContractDeleteForbiddenError, "계약 삭제는 관리자만 할 수 있습니다."):
             contract.ensure_deletable_by(role)
+
+
+def test_end_date_is_the_business_date_not_the_utc_date() -> None:
+    """종료일은 서버 시간대의 날짜다(UTC 1월 1일 16:00 = 서울 1월 2일 01:00).
+
+    테스트 코드: LC-086
+    """
+    # given: 발급(신규) 계약
+    contract = make_contract(status="issued_new")
+
+    # when: UTC 날짜로는 1월 1일, 서울 날짜로는 1월 2일인 시각에 종료한다
+    contract.end(by=PARK, now=datetime(2026, 1, 1, 16, 0, tzinfo=UTC))
+
+    # then: 종료일은 서울 날짜 1월 2일(date)이다
+    assert contract.ended_on == date(2026, 1, 2)
+    assert type(contract.ended_on) is date

@@ -77,7 +77,7 @@ export function seedDeals(
       procurement: spec.procurement ?? '',
       bant: bantOf(spec, labels),
       createdAt,
-      statusChangedAt: createdAt,
+      statusChangedOn: createdAt.slice(0, 10),
       updatedAt: env.at(spec.lastAgo, actionHour(spec.no, 0)),
     }
   })

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatDate, formatDateTime, formatRelativeTime, formatStamp, nextDay } from './format'
+import { formatDate, formatDateTime, formatRelativeDays, formatRelativeTime, formatStamp, nextDay } from './format'
 
 describe('nextDay', () => {
   // 다음 날 계산은 월말·연말을 넘긴다.
@@ -46,6 +46,27 @@ describe('formatRelativeTime', () => {
   it('treats a future time as just now', () => {
     // when·then: 1시간 뒤 시각
     expect(formatRelativeTime('2026-10-15T13:00:00+09:00', now)).toBe('방금 전')
+  })
+})
+
+describe('formatRelativeDays', () => {
+  // 시계는 시각(ISO)이지만 비교는 달력 날짜만 쓴다: 같은 날 오늘, 하루 전 어제, 2~29일 N일 전.
+  const now = '2026-10-15T00:10:00+09:00'
+
+  // 오늘·어제·N일 전으로 보이고 시·분 단위 표기는 쓰지 않는다.
+  it('shows 오늘, 어제 and N일 전 by calendar days only', () => {
+    // when·then: 같은 날, 하루 전, 3일 전, 29일 전
+    expect(formatRelativeDays('2026-10-15', now)).toBe('오늘')
+    expect(formatRelativeDays('2026-10-14', now)).toBe('어제')
+    expect(formatRelativeDays('2026-10-12', now)).toBe('3일 전')
+    expect(formatRelativeDays('2026-09-16', now)).toBe('29일 전')
+  })
+
+  // 30일 이상은 날짜 그대로 보이고, 미래 날짜는 오늘이다.
+  it('falls back to the date from 30 days on and treats a future date as 오늘', () => {
+    // when·then: 30일 전, 미래 날짜
+    expect(formatRelativeDays('2026-09-15', now)).toBe('2026-09-15')
+    expect(formatRelativeDays('2026-10-20', now)).toBe('오늘')
   })
 })
 

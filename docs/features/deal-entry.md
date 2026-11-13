@@ -1,4 +1,4 @@
-# Deal 등록·수정   (feature 코드: DE, 상태: 확정(2026-11-10 사용자 확인))
+# Deal 등록·수정   (feature 코드: DE, 상태: 확정(2026-11-13 사용자 확인))
 
 > 이 문서는 **이미 구현된 동작**을 정본 명세로 옮긴 것입니다(2026-11-10). 근거는 작업 트리의 코드(`backend/src/app/application/deal/{register_deal,update_deal,validation,form,inputs,contact_draft,bant_choice,code_issuer}.py`, `app/domain/deal/{values,policy,code,errors,entities}.py`, `app/domain/contact/draft.py`, `app/web/routers/deals.py`의 `POST ""`·`PATCH /{code}`, `app/web/schemas/deal.py`, `app/infra/db/models_deal.py`, `frontend/src/features/deals/form/*.tsx·formState.ts`, `shared/ui/UserSelect.tsx`, `gateway/http/deals.ts`의 `create`·`update`, `gateway/http/mappers/deal.ts`의 요청 변환, `test/fake/gateway/{dealsWrite,dealValidation}.ts`)이며 문구·type·상태 코드는 코드에서 그대로 옮겼습니다. 코드와 Fake·테스트가 어긋나는 점은 계획(`artifacts/10-analysis/de-plan.md`)의 확인 필요 질문으로 분리했습니다.
 
@@ -13,7 +13,7 @@
 - 범위 밖(다른 feature)
   - Status·Forecast 동기화 불변식과 동기화 대화상자·단일 변경 `/deals/{code}/changes`, Deal History 항목 형식(분류·대상·이전·이후 문구, 정렬·조회), Deal 상세 응답의 필드 구성(`DealDetailResponse`), 삭제 → DD
   - Won 진입 때 미발급 계약 생성, Won 이탈 확인·`delete_license_contracts`, 발급 계약이 있으면 Won 이탈 금지 → LC(LC-R6~R9)
-  - `status_changed_at`(Status 진입 시각)·`status_days`·경고·최종 업데이트 → RK
+  - `status_changed_on`(Status 진입일)·`status_days`·경고·최종 업데이트 → RK
   - 목록 행·목록 필터(Vendor·Solution 등) → DL
   - `{id}`/`{name}` 선택 형식과 해석 규칙(CL-R12~R16), Label 이름 규칙(CL-R1), Vendor 이름 변경의 효과(CL-R9) → CL
   - 연락처 값 규칙(CT-R2~R6), 같은 사람 판정(CT-R7), 연락처 변경 이력(CT-R10), 연락처 선택기 `ContactPicker`(CT-R22) → CT
@@ -59,7 +59,7 @@
 | `quote_submitted`·`quote_submitted_date` | varchar(3) null CHECK `YES`/`NO`, date null | 견적 제출 여부·제출일(조합 검사 없음) |
 | `poc_state`·`poc_completed_date` | varchar(3) null CHECK `YES`/`ING`/`NO`, date null | POC 상태·완료일(조합 검사 없음) |
 | `procurement` | varchar(500), 기본 `''` | 구매절차 |
-| `status_changed_at` | timestamptz | RK 소유 |
+| `status_changed_on` | date | RK 소유 |
 | `created_at`·`updated_at` | timestamptz | 등록·수정 시각 |
 
 `deal_partners`: `deal_id`(FK CASCADE), `contact_id`(FK), `linked_at`, `unlinked_at`(null = 활성, CHECK `unlinked_at >= linked_at`). `deal_bant_labels`: PK (`deal_id`, `category`), `label_id`, 복합 FK (`label_id`, `category`) → `bant_labels`(구분이 맞는 Label만, CL 2.2).
@@ -133,7 +133,7 @@ BANT
 
 원자성·결과
 - **DE-R15** 등록·수정은 한 트랜잭션이다: 어떤 검증·판정·발급 실패든 Deal·연락처(새로 만들거나 고친 것)·새 BANT Label·이력·파트너 링크·계약이 하나도 저장되지 않고 커밋되지 않는다.
-- **DE-R16** 등록 결과: 201, `Location: /api/v1/deals/<code>`, 본문은 Deal 상세 응답(필드 구성 DD — 내부 id 필드가 없고 `owner_user_id`·연락처 id는 JSON 정수). `created_at` = `updated_at` = 서버 시각, 등록 이력 1건(분류 created, 변경자 = 요청자, 형식 DD), Status 진입 시각 = 등록 시각(RK). Won으로 등록하면 같은 트랜잭션에서 LC-R7. 저장된 Deal은 상세·목록에 바로 나온다.
+- **DE-R16** 등록 결과: 201, `Location: /api/v1/deals/<code>`, 본문은 Deal 상세 응답(필드 구성 DD — 내부 id 필드가 없고 `owner_user_id`·연락처 id는 JSON 정수). `created_at` = `updated_at` = 서버 시각, 등록 이력 1건(분류 created, 변경자 = 요청자, 형식 DD), Status 진입일 = 등록일(RK). Won으로 등록하면 같은 트랜잭션에서 LC-R7. 저장된 Deal은 상세·목록에 바로 나온다.
 - **DE-R17** 수정 본문의 의미: 보낸 필드만 반영한다. 보낸 null의 의미 — `vendor_id` = Vendor 비움, `partner` = 활성 파트너 해제, `procurement` = 빈 값, `name` = "Deal Name을 입력하세요.", `solution` = "Solution을 입력하세요.", `users` = "Users count를 입력하세요.", `revenue_amount` = 금액 문구, `revenue_date` = "Expected Close를 입력하세요.", `status_key`·`forecast_key` = "Status를 선택하세요."·"Forecast를 선택하세요.", `owner_user_id` = "Owner는 재직 중인 영업 담당자여야 합니다.", `customer` = "고객 회사명을 입력하세요.", `quote`·`poc`·`bant` = 422 `request-validation`. `quote`·`poc`를 보내면 하위 두 값을 모두 보낸 것으로 본다(`{}` = 둘 다 비움). 빈 본문 `{}`은 아무것도 바꾸지 않는 200이다.
 - **DE-R18** 수정 결과: 200과 Deal 상세 응답. 반영 전후를 비교해 바뀐 필드마다 이력이 남는다(분류·대상·문구·순서는 DD). 바뀐 것이 없고 이 Deal이 연락처 변경 이력(DE-R12)도 받지 않았으면 이력도 없고 `updated_at`도 그대로다. 그렇지 않으면 `updated_at` = 서버 시각이다. 계약완료/Won으로 닫힌 Deal도 잠기지 않고 수정된다. Won 진입·이탈의 계약 처리는 같은 트랜잭션에서 LC-R6~R9, 지운 계약 폴더는 커밋 뒤 정리(LC-R26).
 - **DE-R19** 수정 대상: 경로 `{code}`가 형식에 맞지 않거나 없는 Deal이면 404 `not-found` "Deal을 찾을 수 없습니다."(둘 다 같은 문구)다. 요청 형식 422가 이보다 먼저이고, 값 규칙 422는 이보다 나중이다.
@@ -141,7 +141,7 @@ BANT
 
 화면(frontend, `/deals/new`·`/deals/:dealCode/edit`, 가드 PL-R30)
 - **DE-R21** 화면 틀: 제목 h1 "Deal 등록"(등록)·"Deal 수정"(수정). 로그인 사용자 정보를 읽는 동안, 수정은 Deal과 BANT Label 목록 조회가 끝날(성공·실패) 때까지 "불러오는 중…"을 보인다(Label 목록이 다시 조회되어도 폼을 닫지 않음). 수정할 Deal을 읽지 못하면(없는 code 등) 오류 배너(서버 문구, PL-R37)와 링크 "목록으로"(기억한 Deals 목록 주소)를 보인다.
-- **DE-R22** 배치: 타일 순서 "Deal 정보" → "고객" → "파트너" → "BANT"(상세와 같은 순서). Deal 정보 칸 순서: Deal Name(넓은 칸, 필수) → (수정만) Deal code 읽기 전용 행 → Owner → Status → Forecast → 금액(단위:원)(필수, 안내 "원 단위 정수(예: 1억 원 = 100,000,000)") → Expected Close(필수, 날짜 입력, 안내 "Won이면 실제 매출일") → Vendor → Solution(필수) → Users count(필수, 안내 "견적 단위 사용자 수") → 견적(행 하나에 "견적 제출여부" 선택 "선택 안 함"/YES/NO + "견적 제출일" 날짜) → POC(행 하나에 "POC 여부" 선택 "선택 안 함"/YES/ING/NO + "POC 완료일" 날짜) → 구매절차(한 줄 입력) → "통화: KRW(고정)" 안내. 각 칸의 라벨·입력·오류 문구는 같은 행에 있다. Status·Forecast 선택지는 코드 목록 전체(기본 시드 Status 7·Forecast 6, CD)다.
+- **DE-R22** 배치: 타일 순서 "Deal 정보" → "고객" → "파트너" → "BANT"(상세와 같은 순서). Deal 정보 칸 순서: Deal Name(넓은 칸, 필수) → (수정만) Deal code 읽기 전용 행 → Owner → Status → Forecast → 금액(단위:원)(필수, 안내 "원 단위 정수(예: 1억 원 = 100,000,000)") → Expected Close(필수, 날짜 입력, 안내 "Won이면 실제 매출일") → Vendor → Solution(필수) → Users count(필수, 안내 "견적 단위 사용자 수") → 견적(행 하나에 "견적 제출여부" 선택 "선택 안 함"/YES/NO + "견적 제출일" 날짜) → POC(행 하나에 "POC 여부" 선택 "선택 안 함"/YES/ING/NO + "POC 완료일" 날짜) → 구매절차(한 줄 입력) → "통화: KRW(고정)" 안내. 각 칸의 라벨·입력·오류 문구는 같은 행에 있다. Status·Forecast 선택지는 코드 목록 전체(기본 시드 Status 7·Forecast 6, CD)다. 필수 칸은 라벨 뒤에 빨간 `*`(필수 표시, CSS로 그려 라벨 글자·접근 이름에는 들어가지 않음)를 붙인다: Deal Name·Owner(2026-11-12 추가)·금액·Expected Close·Solution·Users count, 고객 타일의 회사명·담당자명(2026-11-12 추가 — 서버·화면 모두 이미 필수, DE-R11·DE-R26). 고객 직급·이메일·전화, 파트너 타일 다섯 칸(입력을 시작해야 필수, DE-R26), Vendor·견적·POC·구매절차·BANT에는 붙이지 않는다.
 - **DE-R23** 초기값: 등록은 Owner = 로그인 사용자가 sales면 자기 id, 아니면(admin) 빈 값, Status = 기회발굴(`prospecting`), Forecast = Pipeline(`pipeline`), Vendor 선택 안 함, 나머지(Solution·Users count·금액·날짜·고객·파트너·BANT·견적·POC·구매절차) 빈 값. 수정은 Deal의 모든 값(금액은 콤마 표기, 고객·활성 파트너는 고른 연락처로, BANT는 현재 Label 이름, 레거시 빈 Solution은 빈 칸)을 채운다.
 - **DE-R24** Owner 선택: 후보는 "선택하세요" + 재직 sales 전체(`/user-options?role=sales`, US-R20)이고 표시는 `UserRef` 라벨(US-R12)이다. 수정 중인 Deal의 현재 Owner가 후보에 없으면(퇴사·역할 변경) 그 사람을 추가로 보이되 퇴사자는 고를 수 없게(비활성) 보인다.
 - **DE-R25** Vendor·Solution 칸: Vendor는 "선택 안 함" + 등록된 Vendor 전체 선택 상자이고 폼에서 Vendor를 만들거나 Solution 목록을 고를 수 없다. Solution은 Vendor 없이도 입력할 수 있는 필수 텍스트 칸이며 Vendor를 바꿔도 입력한 Solution은 그대로다. 수정 중 Vendor 목록을 아직 받지 못했거나 받지 못하면 Vendor는 현재 이름의 읽기 전용 행으로 보이고(선택 안 함 선택지를 보이지 않음), 실패면 오류 배너를 보이며, 저장 때 원래 Vendor id를 그대로 보낸다. Solution 칸은 그동안에도 입력할 수 있다.
@@ -887,3 +887,4 @@ DE-R21~DE-R31.
 | 2026-11-10 | 초안: 구현된 동작을 문서화(DE-R1~R31, DE-UC1~UC4, DE-001~DE-112) | DE-001~DE-112 |
 | 2026-11-11 | UI 문서 작성에 따라 공통 컴포넌트 참조를 UI 규칙 번호로 교체, DE-R26 금액 문구에 정본 번호(UI-R13·UI-R14)를 덧붙임(문구 변경 없음). 동작·케이스 변경 없음, 상태 줄 그대로 | 없음 |
 | 2026-11-12 | 사용자 요청 "고객사정보 필수라는 표시 빠져있음": DE-R22에 필수 표시 칸 목록을 적고 고객 회사명·담당자명을 추가(검증 규칙은 그대로, 화면 표시만). 콤보박스 필수 표시는 UI-R18 | 신규: DE-113(Q4=예면 DE-114) |
+| 2026-11-13 | 확정(2026-11-13 사용자 확인): Status 진입 컬럼을 date `status_changed_on`으로(범위 밖, 2.2, 등록 결과). 동작은 RK가 정한다 | 없음(관련 RK-032, RK-069) |

@@ -111,8 +111,8 @@ describe('Action 수정 권한', () => {
     // when: 진행사항을 고친다
     const updated = await gateway.actions.update(target.id, content({ progress: '관리자 수정' }))
 
-    // then: 담당자·수행일시는 그대로다
-    expect(updated).toMatchObject({ progress: '관리자 수정', actor: { id: USER_ID.kim }, actedAt: target.actedAt })
+    // then: 담당자·수행일은 그대로다
+    expect(updated).toMatchObject({ progress: '관리자 수정', actor: { id: USER_ID.kim }, actedOn: target.actedOn })
     // then: History 변경자는 admin이다
     expect((await gateway.history.list(code, {}))[0]).toMatchObject({ category: 'action', by: { id: USER_ID.root } })
   })
@@ -489,22 +489,22 @@ describe('Action 검색 날짜와 범위', () => {
   const SERVER_NOW = '2026-10-16T10:00:00+09:00'
   const nextDay = (day: string): string => addDays(day, 1)
 
-  // 수행일은 시각을 서버 시간대의 달력 날짜로 바꿔 비교하며 저장된 오프셋 문자열의 날짜 부분은 쓰지 않는다.
+  // 수행일은 등록 요청의 업무 날짜로 저장된 날짜이고, 검색은 그 저장된 날짜로 비교한다(이후 시계가 바뀌어도 그대로).
   // 테스트 코드: NA-068, NA-029
-  it('수행일 조건은 시각 문자열의 날짜가 아니라 서버 달력 날짜로 비교한다', async () => {
-    // given: -12:00 오프셋의 10-15 20:00(= 서버 +09:00 기준 10-16 17:00)에 등록된 Action
+  it('수행일 조건은 등록 때 저장된 업무 날짜로 비교한다', async () => {
+    // given: 서버 시계 10-15 20:00(-12:00)에 등록된 Action(수행일 2026-10-15)이 있고 시계가 이후 10-16로 갔다
     const mock = await mockAs('kim')
     const code = dealCode(2)
     mock.clock.setNow('2026-10-15T20:00:00-12:00')
     const created = await mock.gateway.actions.create(code, input())
     mock.clock.setNow(SERVER_NOW)
-    const day = '2026-10-16'
+    const saved = '2026-10-15'
 
-    // when: 서버 날짜 10-16과 문자열 날짜 10-15로 각각 검색한다
-    const found = await mock.gateway.actions.list(code, { actedFrom: day, actedTo: day })
-    const wrongDay = await mock.gateway.actions.list(code, { actedFrom: '2026-10-15', actedTo: '2026-10-15' })
+    // when: 저장된 수행일 10-15와 시계 날짜 10-16으로 각각 검색한다
+    const found = await mock.gateway.actions.list(code, { actedFrom: saved, actedTo: saved })
+    const wrongDay = await mock.gateway.actions.list(code, { actedFrom: '2026-10-16', actedTo: '2026-10-16' })
 
-    // then: 10-16 검색에만 나온다
+    // then: 10-15 검색에만 나온다
     expect(found.map((a) => a.id)).toContain(created.id)
     expect(wrongDay.map((a) => a.id)).not.toContain(created.id)
   })

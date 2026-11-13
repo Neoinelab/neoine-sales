@@ -89,7 +89,7 @@ export function seedLicenseContracts(env: SeedEnv, deals: readonly { code: strin
       inspection: plan.inspection,
       note: plan.note,
       renewedFromId: plan.renewedFromId ?? null,
-      endedAt: plan.status === 'ended' ? at(plan.end ?? -1, 9) : null,
+      endedOn: plan.status === 'ended' ? at(plan.end ?? -1, 9).slice(0, 10) : null,
       createdById: ownerId,
       updatedById: ownerId,
       createdAt: at((plan.end ?? 0) - 365, 9),

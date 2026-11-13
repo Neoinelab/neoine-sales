@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING
 from app.application.ports.deal_action_repository import NextActionStatusFilter
 from app.application.ports.deal_repository import DealQuery, NextActionSummary
 from app.domain.deal_action.next_action_status import NextActionStatus
-from tests.factories import later, make_deal
+from tests.factories import date_after, later, make_deal
 
 if TYPE_CHECKING:
     from app.domain.deal.entities import Deal
@@ -30,9 +30,9 @@ async def test_deal_list_next_action_skips_progress_only_rows(deal_case: DealCas
     deal = make_deal(later(5), code=CODE)
     await deal_case.add(deal)
     await deal_case.add_action(
-        deal, acted_at=later(100), next_action="계약서 검토", due_date=date(2026, 2, 5)
+        deal, acted_on=date_after(1), next_action="계약서 검토", due_date=date(2026, 2, 5)
     )
-    await deal_case.add_action(deal, acted_at=later(200), action="통화만", next_action="")
+    await deal_case.add_action(deal, acted_on=date_after(2), action="통화만", next_action="")
 
     # when: 목록과 상세로 조회한다
     (listed,) = await deal_case.deals.search(DealQuery())
@@ -53,7 +53,7 @@ async def test_deal_with_only_progress_only_actions_has_no_next_action(
     # given: 진행사항만 있는 Action 하나를 가진 Deal
     deal = make_deal(later(5), code=CODE)
     await deal_case.add(deal)
-    await deal_case.add_action(deal, acted_at=later(100), next_action="")
+    await deal_case.add_action(deal, acted_on=date_after(1), next_action="")
 
     # when: 상세로 조회한다
     item = await deal_case.deals.get_item(deal.id)
@@ -67,46 +67,46 @@ async def test_last_updated_counts_progress_only_rows(deal_case: DealCase) -> No
     # given: Next Action 있는 Action과, 더 최근의 진행사항만 있는 Action을 가진 Deal
     deal = make_deal(later(5), code=CODE)
     await deal_case.add(deal)
-    await deal_case.add_action(deal, acted_at=later(100), next_action="계약서 검토")
-    await deal_case.add_action(deal, acted_at=later(300), action="통화만", next_action="")
+    await deal_case.add_action(deal, acted_on=date_after(1), next_action="계약서 검토")
+    await deal_case.add_action(deal, acted_on=date_after(3), action="통화만", next_action="")
 
     # when: 목록과 상세로 조회한다
     (listed,) = await deal_case.deals.search(DealQuery())
     detail = await deal_case.deals.get_item(deal.id)
 
-    # then: 둘 다 가장 최근 Action의 수행 시각이다
-    assert listed.last_updated_at == later(300)
-    assert detail.last_updated_at == later(300)
+    # then: 둘 다 가장 최근 Action의 수행일이다
+    assert listed.last_updated_on == date_after(3)
+    assert detail.last_updated_on == date_after(3)
 
 
 async def test_last_updated_of_a_progress_only_deal_uses_that_action(
     deal_case: DealCase,
 ) -> None:
-    """진행사항만 있는 Deal의 최종 업데이트는 그 Action의 수행 시각이다."""
+    """진행사항만 있는 Deal의 최종 업데이트일은 그 Action의 수행일이다."""
     # given: 진행사항만 있는 Action 하나를 가진 Deal
     deal = make_deal(later(5), code=CODE)
     await deal_case.add(deal)
-    await deal_case.add_action(deal, acted_at=later(100), next_action="")
+    await deal_case.add_action(deal, acted_on=date_after(1), next_action="")
 
     # when: 상세로 조회한다
-    last_updated = (await deal_case.deals.get_item(deal.id)).last_updated_at
-    # then: 최종 업데이트가 그 Action의 수행 시각이다
-    assert last_updated == later(100)
+    last_updated = (await deal_case.deals.get_item(deal.id)).last_updated_on
+    # then: 최종 업데이트일이 그 Action의 수행일이다
+    assert last_updated == date_after(1)
 
 
-async def test_last_updated_falls_back_to_deal_created_at_without_actions(
+async def test_last_updated_falls_back_to_deal_registration_date_without_actions(
     deal_case: DealCase,
 ) -> None:
-    """Action이 없으면 최종 업데이트는 Deal 등록 시각이고 Deal 수정은 반영하지 않는다."""
+    """Action이 없으면 최종 업데이트일은 Deal 등록일이고 Deal 수정은 반영하지 않는다."""
     # given: Action 없이 등록 뒤 수정(touch)된 Deal
     deal = make_deal(later(5), code=CODE)
     await deal_case.add(deal)
     await deal_case.deals.touch([deal.id], later(50))  # Deal 수정은 반영하지 않는다
 
     # when: 상세로 조회한다
-    last_updated = (await deal_case.deals.get_item(deal.id)).last_updated_at
-    # then: 최종 업데이트가 Deal 등록 시각이다
-    assert last_updated == later(5)
+    last_updated = (await deal_case.deals.get_item(deal.id)).last_updated_on
+    # then: 최종 업데이트일이 Deal 등록일이다
+    assert last_updated == date_after(0)
 
 
 async def test_basis_row_status_is_listed(deal_case: DealCase) -> None:
@@ -114,7 +114,7 @@ async def test_basis_row_status_is_listed(deal_case: DealCase) -> None:
     # given: Next Action을 미수행으로 종료한 Action을 가진 Deal
     deal = make_deal(later(5), code=CODE)
     await deal_case.add(deal)
-    action = await deal_case.add_action(deal, acted_at=later(100), next_action="견적")
+    action = await deal_case.add_action(deal, acted_on=date_after(1), next_action="견적")
     await deal_case.set_next_action_status(action, "not_done", later(150))
 
     # when: 상세로 조회한다
@@ -132,11 +132,11 @@ async def _seed_three(case: DealCase) -> tuple[Deal, Deal, Deal]:
     c = make_deal(later(5), code="20261016-A003")
     for deal in (a, b, c):
         await case.add(deal)
-    done = await case.add_action(a, acted_at=later(100), next_action="A 계획")
+    done = await case.add_action(a, acted_on=date_after(1), next_action="A 계획")
     await case.set_next_action_status(done, "done", later(120))
-    await case.add_action(a, acted_at=later(200), action="A 진행", next_action="")
-    await case.add_action(b, acted_at=later(100), next_action="B 계획")
-    await case.add_action(c, acted_at=later(100), action="C 진행", next_action="")
+    await case.add_action(a, acted_on=date_after(2), action="A 진행", next_action="")
+    await case.add_action(b, acted_on=date_after(1), next_action="B 계획")
+    await case.add_action(c, acted_on=date_after(1), action="C 진행", next_action="")
     return a, b, c
 
 
@@ -163,7 +163,7 @@ async def test_deal_list_closed_filter_matches_done_and_not_done(deal_case: Deal
     """closed 필터는 기준 행이 종료된 Deal만 찾고 기준이 아닌 옛 행은 보지 않는다."""
     # given: 기준 행이 done인 Deal과, 기준이 아닌 옛 행만 종료된 Open Deal
     a, b, _ = await _seed_three(deal_case)
-    older = await deal_case.add_action(b, acted_at=later(50), next_action="B 예전 계획")
+    older = await deal_case.add_action(b, acted_on=date_after(0), next_action="B 예전 계획")
     await deal_case.set_next_action_status(older, "done", later(60))  # 기준 행이 아니다
 
     # when: closed로 검색한다
@@ -233,27 +233,27 @@ async def test_deal_count_uses_the_same_status_condition(deal_case: DealCase) ->
 async def test_deal_edit_does_not_change_the_last_update_of_a_deal_with_actions(
     deal_case: DealCase,
 ) -> None:
-    """Action이 있는 Deal은 Deal 수정으로 최종 업데이트가 바뀌지 않는다."""
+    """Action이 있는 Deal은 Deal 수정으로 최종 업데이트일이 바뀌지 않는다."""
     # given: Action이 있는 Deal을 나중에 수정(touch)
     deal = make_deal(later(5), code=CODE)
     await deal_case.add(deal)
-    await deal_case.add_action(deal, acted_at=later(100), next_action="")
+    await deal_case.add_action(deal, acted_on=date_after(1), next_action="")
     await deal_case.deals.touch([deal.id], later(900))
 
     # when: 상세로 조회한다
-    last_updated = (await deal_case.deals.get_item(deal.id)).last_updated_at
-    # then: 최종 업데이트가 마지막 Action의 수행 시각 그대로다
-    assert last_updated == later(100)
+    last_updated = (await deal_case.deals.get_item(deal.id)).last_updated_on
+    # then: 최종 업데이트일이 마지막 Action의 수행일 그대로다
+    assert last_updated == date_after(1)
 
 
-async def test_default_order_follows_action_time_not_deal_edits(deal_case: DealCase) -> None:
-    """기본 정렬은 Deal 수정이 아니라 Action 수행 시각을 따른다."""
+async def test_default_order_follows_action_date_not_deal_edits(deal_case: DealCase) -> None:
+    """기본 정렬은 Deal 수정이 아니라 Action 수행일을 따른다."""
     # given: Action 없이 나중에 수정된 Deal과, Action이 있는 Deal
     edited = make_deal(later(5), code="20261016-A001")
     acted = make_deal(later(5), code="20261016-A002")
     await deal_case.add(edited)
     await deal_case.add(acted)
-    await deal_case.add_action(acted, acted_at=later(100))
+    await deal_case.add_action(acted, acted_on=date_after(1))
     await deal_case.deals.touch([edited.id], later(900))
 
     # when: 기본 정렬로 검색한다

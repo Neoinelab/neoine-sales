@@ -33,7 +33,7 @@ CODE_FKS = (
 CONSTRAINT_NAMES = "select conname from pg_constraint where conrelid = 'deal_actions'::regclass"
 RAW_INSERT = (
     "insert into deal_actions (id, deal_id, action_type_id, action, memo, next_action,"
-    " due_date, acted_at, actor_user_id, next_action_status, {extra_columns} created_at,"
+    " due_date, acted_on, actor_user_id, next_action_status, {extra_columns} created_at,"
     " updated_at) values (:id, (select id from deals where deal_code = :deal_code),"
     " :action_type_id, :action, :memo, :next_action, :due_date, now(), :actor,"
     " :next_action_status, {extra_values} now(), now())"

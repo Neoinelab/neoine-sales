@@ -1,4 +1,4 @@
-# Deal 첨부 파일   (feature 코드: AT, 상태: 확정(2026-11-10 사용자 확인))
+# Deal 첨부 파일   (feature 코드: AT, 상태: 확정(2026-11-13 사용자 확인))
 
 > 이 문서는 **이미 구현된 동작**을 정본 명세로 옮긴 것입니다(2026-11-10). 근거는 작업 트리의 코드(`backend/src/app/domain/attachment/{values,entities,policy,errors,history}.py`, `app/application/attachment/{upload_attachment,delete_attachment,download_attachment,list_attachments,get_attachment,storage_cleanup,inputs}.py`, `app/application/ports/{attachment_repository,file_storage}.py`, `app/application/storage/{errors,folders}.py`, `app/infra/db/{models_attachment,attachment_repository,deal_aggregates}.py`, `app/infra/storage/local_file_storage.py`, `app/web/routers/{attachments,attachment_items}.py`, `app/web/schemas/attachment.py`, `app/web/content_disposition.py`, `frontend/src/features/deals/detail/{AttachmentsPanel,UploadForm,detailHelpers}.tsx|ts`, `shared/model/{fileRules,permissions}.ts`, `data/attachments.ts`, `gateway/http/{attachments,contentDisposition}.ts`, `test/fake/gateway/attachments.ts`)이며 문구·type·상태 코드는 코드에서 그대로 옮겼습니다. 코드와 화면·Fake·다른 문서가 어긋나던 점은 2026-11-10 사용자 결정으로 현행 동작대로 문서화했습니다(AT-R7 업로드 `Location`, AT-R16 화면이 쓰지 않는 단건 조회, AT-R26·R27 알림·대화상자 이름 표기, AT-R27 "건너뛰기"). 설명 NUL 규칙은 LC-R21에 보충했습니다(LC-085). 결정 목록은 계획(`artifacts/10-analysis/at-plan.md`)에 있습니다.
 
@@ -16,7 +16,7 @@
   - 저장 위치 설정·쓰기 테스트·경로 규칙 → IN(IN-R22~R27, IN-R36)
   - Deal 삭제 시 첨부 행 CASCADE와 `<저장 위치>/<deal_code>` 폴더 정리 → DD(DD-R25·R26), 삭제 확인 대화상자의 첨부 건수 표시 → DD(DD-R39). 삭제 영향 API 자체 → DD(DD-R22), 첨부 건수의 계산 → AT-R21
   - Deal History 목록·필터·자르기 → DD(DD-R17·R20·R38). 첨부 탭 위치·탭 틀 → DD(DD-R27)
-  - 최종 업데이트(`last_updated_at`)는 첨부와 무관 → RK(RK-R2)
+  - 최종 업데이트일(`last_updated_on`)은 첨부와 무관 → RK(RK-R2)
   - 업로더 사용자 삭제 시 퇴사 처리 → US(US-R17)
   - 공통 판정 순서·CSRF·401·Problem 형식·id 경로 파라미터·화면 오류 문구 → PL(PL-R4~R6, PL-R9~R13, PL-R22, PL-R36~R39), 시각 표기 → TM(TM-R8)
   - 경쟁·동시성(같은 이름 동시 업로드, 업로드 도중 Deal 삭제 등)은 코드가 Deal 행 잠금으로 직렬화하지만 테스트 케이스로 두지 않는다
@@ -69,7 +69,7 @@
 - **AT-R6** 저장: 새 저장 키로 `<저장 위치>/<deal_code>/<key>`에 새 파일을 만든다(없는 Deal 폴더는 만든다). `size`는 실제로 쓴 바이트 수다(선언 크기와 무관, 선언이 없어도 된다, 0바이트 허용). 쓰는 도중 104,857,600바이트를 넘으면 422 `invalid-value` "파일 크기가 100MB를 초과합니다. (최대 100MB)"이고 쓰던 파일은 남지 않는다(정확히 104,857,600바이트는 된다). `mime`은 요청 파일 파트의 Content-Type이고, 없거나 255자를 넘으면 `application/octet-stream`이다. `uploaded_at`·`created_at`·`updated_at`은 요청 시각(서버 시계), 업로더는 요청자다.
 - **AT-R7** 새 파일 성공은 201 `{outcome: "uploaded", attachment: AttachmentResponse}`이고 `Location: /api/v1/attachments/<id>`(단건 조회 주소. 계약 첨부는 다운로드 주소(LC-R21)로 다르며 현행 유지, 2026-11-10 결정)다.
 - **AT-R8** 저장 위치: 설정이 없으면 503 `storage-unavailable` "파일 저장 위치를 사용할 수 없어 업로드할 수 없습니다. 관리자에게 문의하세요."(검증 위반이 먼저, 같은 이름 판정보다 먼저). 설정은 있으나 폴더를 만들거나 쓸 수 없으면 같은 503이다(같은 이름 판정 뒤). 두 경우 모두 행·이력·파일이 남지 않는다. 원인(OS 오류)은 응답에 싣지 않고 로그로만 남긴다.
-- **AT-R9** 업로드(새 파일)·교체·삭제는 각각 Deal History 1건을 남긴다: 구분 `attachment`, 대상 "첨부 파일", 변경 전 "", 변경 후 "업로드 <이름>" / "교체 <이름>" / "삭제 <이름>"(NFC 이름), 변경자 = 요청자, 시각 = 요청 시각. 같은 트랜잭션에서 Deal `updated_at`이 요청 시각이 된다. 거절된 요청, `ask`의 409, `skip`은 이력도 Deal 시각 변경도 없다. 최종 업데이트(`last_updated_at`)는 바뀌지 않는다(RK-R2).
+- **AT-R9** 업로드(새 파일)·교체·삭제는 각각 Deal History 1건을 남긴다: 구분 `attachment`, 대상 "첨부 파일", 변경 전 "", 변경 후 "업로드 <이름>" / "교체 <이름>" / "삭제 <이름>"(NFC 이름), 변경자 = 요청자, 시각 = 요청 시각. 같은 트랜잭션에서 Deal `updated_at`이 요청 시각이 된다. 거절된 요청, `ask`의 409, `skip`은 이력도 Deal 시각 변경도 없다. 최종 업데이트일(`last_updated_on`)은 바뀌지 않는다(RK-R2).
 - **AT-R10** 업로드 판정 순서: 401(PL-R5) → CSRF 403(PL-R9) → `user` 403 "이 작업을 할 권한이 없습니다(읽기 전용 계정)"(PL-R6, 없는 Deal이어도) → 요청 형식 422 `request-validation`(AT-R5) → 없는 Deal·형식이 틀린 code 404 "Deal을 찾을 수 없습니다."(DD-R1, 파일 검증·저장 위치보다 먼저) → 검증 422(AT-R3·R4) → 저장 위치 없음 503(AT-R8) → 같은 이름(AT-R12, `replace`면 교체 권한 403 AT-R13) → 저장 실패 503·실제 크기 초과 422(AT-R6·R8).
 - **AT-R11** `user`는 업로드·삭제를 할 수 없고(403, PL-R6) 목록·단건·다운로드는 할 수 있다. 미인증은 모든 첨부 경로에서 401이다.
 
@@ -535,3 +535,4 @@ AT-R23~AT-R30. 탭 위치는 DD-R27, 삭제 대화상자의 첨부 건수는 DD-
 | --- | --- | --- |
 | 2026-11-10 | 초안 작성(구현된 동작 문서화, AT-R1~R31, AT-UC1~UC5) | AT-001~AT-054 신규 |
 | 2026-11-10 | 사용자 결정 반영(추천대로): E2 업로드 `Location`·단건 조회·이름 표기 현행 유지(AT-R7·R16·R26), E3 "건너뛰기"는 요청 없이 닫힘(AT-R27), E4 설명 NUL을 LC-R21에 보충(LC-085, AT-R4가 가리킴), E5 파일 이름·확장자·권한·다운로드 규칙은 LC 소유(AT-R17·R18이 LC-R24를 가리킴)와 TM-R8·IN-R22 번호 참조 | 없음(케이스 기대 결과 변경 없음) |
+| 2026-11-13 | 확정(2026-11-13 사용자 확인): 최종 업데이트 필드 이름이 `last_updated_on`(날짜)으로 바뀜(RK). 동작·케이스 변경 없음 | 없음 |

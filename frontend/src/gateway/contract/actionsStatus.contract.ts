@@ -23,7 +23,7 @@ export function actionsStatusContract(make: MakeGateway): void {
       const created = await sales.actions.create(deal.code, action(ONLY_PROGRESS))
 
       // then: Next Action 관련 필드가 모두 null이다
-      expect(created).toMatchObject({ progress: '고객사 방문', nextAction: null, dueDate: null, nextActionStatus: null, nextActionClosedAt: null })
+      expect(created).toMatchObject({ progress: '고객사 방문', nextAction: null, dueDate: null, nextActionStatus: null, nextActionClosedOn: null })
       await sales.deals.remove(deal.code, deal.code)
     })
 
@@ -38,7 +38,7 @@ export function actionsStatusContract(make: MakeGateway): void {
       const created = await sales.actions.create(deal.code, action(ONLY_NEXT))
 
       // then: 진행사항은 null이고 상태는 open이다
-      expect(created).toMatchObject({ progress: null, nextAction: '견적 재전달', dueDate: '2026-12-01', nextActionStatus: 'open', nextActionClosedAt: null })
+      expect(created).toMatchObject({ progress: null, nextAction: '견적 재전달', dueDate: '2026-12-01', nextActionStatus: 'open', nextActionClosedOn: null })
       await sales.deals.remove(deal.code, deal.code)
     })
 
@@ -55,7 +55,7 @@ export function actionsStatusContract(make: MakeGateway): void {
 
       // then: Memo가 "기존\n전달 완료"이고 종료 시각이 있으며 목록의 행과 같다.
       expect(closed).toMatchObject({ id: created.id, nextActionStatus: 'done', memo: '기존\n전달 완료' })
-      expect(Number.isNaN(Date.parse(closed.nextActionClosedAt ?? ''))).toBe(false)
+      expect(closed.nextActionClosedOn).toMatch(/^\d{4}-\d{2}-\d{2}$/) // 종료일은 시각 없는 날짜다
       expect(await sales.actions.list(deal.code, {})).toEqual([closed])
       await sales.deals.remove(deal.code, deal.code)
     })
@@ -92,7 +92,7 @@ export function actionsStatusContract(make: MakeGateway): void {
       const reopened = await sales.actions.changeNextActionStatus(created.id, { status: 'open', memo: '' })
 
       // then: 상태 open, 종료 시각 null, Memo "기존\n끝"이다.
-      expect(reopened).toMatchObject({ nextActionStatus: 'open', nextActionClosedAt: null, memo: '기존\n끝' })
+      expect(reopened).toMatchObject({ nextActionStatus: 'open', nextActionClosedOn: null, memo: '기존\n끝' })
       await sales.deals.remove(deal.code, deal.code)
     })
 
@@ -110,7 +110,7 @@ export function actionsStatusContract(make: MakeGateway): void {
 
       // then: 종료(미수행)이 되고 종료 시각이 있다.
       expect(changed).toMatchObject({ nextActionStatus: 'notDone', memo: '취소' })
-      expect(changed.nextActionClosedAt).not.toBeNull()
+      expect(changed.nextActionClosedOn).not.toBeNull()
       await sales.deals.remove(deal.code, deal.code)
     })
 
@@ -229,7 +229,7 @@ export function actionsStatusContract(make: MakeGateway): void {
       const added = await sales.actions.update(created.id, { ...base, nextAction: '새 계획', dueDate: '2026-12-05' })
 
       // then: 비운 결과는 상태·종료 시각이 null이고 채운 결과는 Open이다
-      expect(cleared).toMatchObject({ nextAction: null, dueDate: null, nextActionStatus: null, nextActionClosedAt: null })
+      expect(cleared).toMatchObject({ nextAction: null, dueDate: null, nextActionStatus: null, nextActionClosedOn: null })
       expect(added).toMatchObject({ nextAction: '새 계획', nextActionStatus: 'open' })
       await sales.deals.remove(deal.code, deal.code)
     })
@@ -247,7 +247,7 @@ export function actionsStatusContract(make: MakeGateway): void {
       const edited = await sales.actions.update(created.id, { type: { name: '미팅' }, progress: '고객사 방문', nextAction: '바뀐 계획', dueDate: '2026-12-09', memo: '' })
 
       // then: 내용은 바뀌고 상태·종료 시각은 그대로다
-      expect(edited).toMatchObject({ nextAction: '바뀐 계획', nextActionStatus: 'notDone', nextActionClosedAt: closed.nextActionClosedAt })
+      expect(edited).toMatchObject({ nextAction: '바뀐 계획', nextActionStatus: 'notDone', nextActionClosedOn: closed.nextActionClosedOn })
       await sales.deals.remove(deal.code, deal.code)
     })
 
@@ -357,8 +357,8 @@ export function actionsStatusContract(make: MakeGateway): void {
       // when: 진행사항만 있는 Action을 등록한다
       const created = await sales.actions.create(deal.code, action(ONLY_PROGRESS))
 
-      // then: Deal의 최종 업데이트가 Action의 수행 시각이다
-      expect((await sales.deals.get(deal.code)).lastUpdatedAt).toBe(created.actedAt)
+      // then: Deal의 최종 업데이트일이 Action의 수행일이다
+      expect((await sales.deals.get(deal.code)).lastUpdatedOn).toBe(created.actedOn)
       await sales.deals.remove(deal.code, deal.code)
     })
 

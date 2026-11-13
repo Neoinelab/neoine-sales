@@ -1,7 +1,7 @@
 """ReportQueryRunner(SQL) 계약: 계산 필드가 Deals 목록과 같은 값을 낸다.
 
 기대값은 Deal 저장소 `search`(목록)의 최종 업데이트·Next Action 기준 행과 도메인 함수
-(`compute_risk`, `status_days`)로 계산하고, 리포트의 경고·체류 일수·최종 업데이트와 비교한다.
+(`compute_risk`, `status_days`)로 계산하고, 리포트의 경고·체류 일수·최종 업데이트일과 비교한다.
 오늘 2026-10-27, 경고 기준 14일이다.
 """
 
@@ -57,7 +57,7 @@ async def _report_codes(case: ReportCase, operator: str, value: object) -> list[
 async def test_risk_status_days_and_last_updated_match_the_deal_list(
     report_case: ReportCase,
 ) -> None:
-    """경고·체류 일수·최종 업데이트 값은 Deals 목록과 같다.
+    """경고·체류 일수·최종 업데이트일 값은 Deals 목록과 같다.
 
     테스트 코드: RQ-040
     """
@@ -81,14 +81,14 @@ async def test_risk_status_days_and_last_updated_match_the_deal_list(
         risk = compute_risk(
             forecast_key=item.deal.sync.forecast_key,
             due_date=item.next_action.due_date if item.next_action else None,
-            last_updated_at=item.last_updated_at,
+            last_updated_on=item.last_updated_on,
             today=TODAY,
             stale_days=14,
         )
         expected[item.deal.id.value] = (
             _RISK_NAMES[risk.value] if risk else None,
-            status_days(item.deal.status_changed_at, TODAY),
-            item.last_updated_at,
+            status_days(item.deal.status_changed_on, TODAY),
+            item.last_updated_on,
         )
     assert {row[0]: tuple(row[1:]) for row in rows} == expected
     assert {e[0] for e in expected.values()} == {

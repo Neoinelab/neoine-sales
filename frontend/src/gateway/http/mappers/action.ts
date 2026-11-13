@@ -15,7 +15,7 @@ export function toDealAction(row: Schemas['DealActionResponse']): DealAction {
   return {
     id: row.id,
     dealCode: row.deal_code,
-    actedAt: row.acted_at,
+    actedOn: row.acted_on,
     actor: toUserRef(row.actor),
     type: row.action_type.name,
     typeId: row.action_type.id,
@@ -23,7 +23,7 @@ export function toDealAction(row: Schemas['DealActionResponse']): DealAction {
     nextAction: row.next_action,
     dueDate: row.due_date,
     nextActionStatus: row.next_action_status === null ? null : toNextActionStatus(row.next_action_status),
-    nextActionClosedAt: row.next_action_closed_at,
+    nextActionClosedOn: row.next_action_closed_on,
     memo: row.memo,
     statusKey: row.status_key,
     forecastKey: row.forecast_key,
@@ -62,6 +62,7 @@ export function toActionCreateBody(input: ActionInput): Schemas['DealActionCreat
   if (input.statusChanges && input.statusChanges.length > 0) body.status_changes = input.statusChanges.map(toStatusChange)
   if (input.closePreviousNextActionId !== undefined) body.close_previous_next_action_id = input.closePreviousNextActionId
   if (input.deleteLicenseContracts !== undefined) body.delete_license_contracts = input.deleteLicenseContracts
+  if (input.actedOn !== undefined && input.actedOn !== '') body.acted_on = input.actedOn
   return asRequestBody(body)
 }
 

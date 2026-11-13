@@ -74,7 +74,7 @@ export function contractView(data: SeedData, record: LicenseContractRecord): Lic
     inspection: record.inspection,
     note: record.note,
     renewedFromId: record.renewedFromId,
-    endedAt: record.endedAt,
+    endedOn: record.endedOn,
     attachmentCount: data.contractAttachments.filter((a) => a.contractId === record.id).length,
     createdBy: userRef(data, record.createdById),
     updatedBy: userRef(data, record.updatedById),

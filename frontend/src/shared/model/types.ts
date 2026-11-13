@@ -229,7 +229,7 @@ export interface Deal {
   procurement: string
   bant: BantSelection
   /** 현재 Status에 진입한 시각(등록 시 또는 Status key가 바뀐 시각). */
-  statusChangedAt: string
+  statusChangedOn: string
   createdAt: string
   updatedAt: string
 }
@@ -264,7 +264,7 @@ export interface DealRow extends Omit<Deal, 'vendorId'> {
   /** 발급 상태(신규·갱신) 계약이 있는 Deal은 Won을 벗어날 수 없다. */
   hasIssuedLicenseContract: boolean
   /** 모든 Action 중 가장 최근 수행시각. Action이 없으면 Deal 등록 시각(Deal 수정은 반영하지 않는다). */
-  lastUpdatedAt: string
+  lastUpdatedOn: string
   /** 현재 Status 체류 일수(달력 날짜 차, 당일 0). */
   statusDays: number
   risk: Risk
@@ -292,7 +292,7 @@ export interface DealDeletionImpact {
 export interface DealAction {
   id: number
   dealCode: string
-  actedAt: string
+  actedOn: string
   actor: UserRef
   /** 현재 유형 이름(이름이 바뀌면 다음 조회부터 새 이름). */
   type: string
@@ -303,7 +303,7 @@ export interface DealAction {
   dueDate: string | null
   /** Next Action이 있는 행만 상태가 있다. */
   nextActionStatus: NextActionStatus | null
-  nextActionClosedAt: string | null
+  nextActionClosedOn: string | null
   memo: string
   statusKey: string
   forecastKey: string

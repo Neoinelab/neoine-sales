@@ -2,6 +2,7 @@ from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, Self
 
 from app.domain.auth.principal import Role
+from app.domain.common.business_date import business_date
 from app.domain.common.entity import AuditedEntity
 from app.domain.deal.code import DealCode
 from app.domain.deal.errors import (
@@ -52,8 +53,8 @@ class Deal(AuditedEntity[DealCode]):
     status_entry: StatusEntry
 
     @property
-    def status_changed_at(self) -> datetime:
-        return self.status_entry.changed_at
+    def status_changed_on(self) -> date:
+        return self.status_entry.changed_on
 
     @classmethod
     def create(  # noqa: PLR0913 - 등록에 필요한 값이 모두 독립적인 필수 입력
@@ -76,7 +77,7 @@ class Deal(AuditedEntity[DealCode]):
             customer_id=customer_id,
             partner_links=links,
             bant=bant,
-            status_entry=StatusEntry(sync.status_key, now),
+            status_entry=StatusEntry(sync.status_key, business_date(now)),
             created_at=now,
             updated_at=now,
         )
@@ -135,15 +136,14 @@ class Deal(AuditedEntity[DealCode]):
         return True
 
     def touch(self, now: datetime) -> None:
-        """수정 시각을 갱신한다. Status가 진입 기록과 달라졌을 때만 진입 시각도 새로 잡는다."""
+        """수정 시각을 갱신한다. Status가 진입 기록과 달라졌을 때만 진입일도 새로 잡는다."""
         if self.sync.status_key != self.status_entry.status_key:
-            self.status_entry = StatusEntry(self.sync.status_key, now)
+            self.status_entry = StatusEntry(self.sync.status_key, business_date(now))
         self._touch(now)
 
     def ensure_deletable_by(self, actor_id: UserId, actor_role: Role) -> None:
         if not can_delete_deal(actor_id, actor_role, self.details.owner_user_id):
             raise DealDeleteForbiddenError
-
         if is_completed(self.sync) and actor_role is not Role.ADMIN:
             raise DealDeleteCompletedError
 

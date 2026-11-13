@@ -43,7 +43,7 @@ def action_fields(joins: Joins) -> dict[str, FieldSql]:
             order=lambda: action_forecast_code(joins).c.sort_order,
         ),
         "action.due_date": _plain("due_date"),
-        "action.acted_at": _plain("acted_at"),
-        "action.closed_at": _plain("next_action_closed_at"),
+        "action.acted_at": _plain("acted_on"),
+        "action.closed_at": _plain("next_action_closed_on"),
         "action.count": FieldSql(lambda: c.id),
     }

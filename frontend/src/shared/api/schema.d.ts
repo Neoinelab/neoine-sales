@@ -1898,6 +1898,11 @@ export interface components {
          */
         DealActionCreateRequest: {
             /**
+             * Acted On
+             * @description 수행일(YYYY-MM-DD, 선택). 생략하거나 null이면 오늘(서버 업무 날짜)로 기록한다. 수정 요청에는 없다.
+             */
+            acted_on?: string | null;
+            /**
              * Action
              * @default
              */
@@ -1945,10 +1950,10 @@ export interface components {
         /** DealActionResponse */
         DealActionResponse: {
             /**
-             * Acted At
-             * Format: date-time
+             * Acted On
+             * Format: date
              */
-            acted_at: string;
+            acted_on: string;
             /** Action */
             action: string | null;
             action_type: components["schemas"]["NamedRefResponse"];
@@ -1970,8 +1975,8 @@ export interface components {
             memo: string;
             /** Next Action */
             next_action: string | null;
-            /** Next Action Closed At */
-            next_action_closed_at: string | null;
+            /** Next Action Closed On */
+            next_action_closed_on: string | null;
             next_action_status: components["schemas"]["NextActionStatus"] | null;
             /** Status Key */
             status_key: string;
@@ -2075,11 +2080,11 @@ export interface components {
             /** Has Issued License Contract */
             has_issued_license_contract: boolean;
             /**
-             * Last Updated At
-             * Format: date-time
-             * @description 모든 Action 중 가장 최근 수행 시각. Action이 없으면 Deal 등록 시각. Deal 수정은 반영하지 않는다.
+             * Last Updated On
+             * Format: date
+             * @description 모든 Action 중 가장 최근 수행 날짜. Action이 없으면 Deal 등록 날짜. Deal 수정은 반영하지 않는다.
              */
-            last_updated_at: string;
+            last_updated_on: string;
             /** License Contract Count */
             license_contract_count: number;
             /** Name */
@@ -2108,10 +2113,10 @@ export interface components {
             /** Solution */
             solution: string;
             /**
-             * Status Changed At
-             * Format: date-time
+             * Status Changed On
+             * Format: date
              */
-            status_changed_at: string;
+            status_changed_on: string;
             /** Status Days */
             status_days: number;
             /** Status Key */
@@ -2178,11 +2183,11 @@ export interface components {
             /** Has Issued License Contract */
             has_issued_license_contract: boolean;
             /**
-             * Last Updated At
-             * Format: date-time
-             * @description 모든 Action 중 가장 최근 수행 시각. Action이 없으면 Deal 등록 시각. Deal 수정은 반영하지 않는다.
+             * Last Updated On
+             * Format: date
+             * @description 모든 Action 중 가장 최근 수행 날짜. Action이 없으면 Deal 등록 날짜. Deal 수정은 반영하지 않는다.
              */
-            last_updated_at: string;
+            last_updated_on: string;
             /** License Contract Count */
             license_contract_count: number;
             /** Name */
@@ -2209,10 +2214,10 @@ export interface components {
             /** Solution */
             solution: string;
             /**
-             * Status Changed At
-             * Format: date-time
+             * Status Changed On
+             * Format: date
              */
-            status_changed_at: string;
+            status_changed_on: string;
             /** Status Days */
             status_days: number;
             /** Status Key */
@@ -2546,8 +2551,8 @@ export interface components {
             deal_is_won: boolean;
             /** Deal Name */
             deal_name: string;
-            /** Ended At */
-            ended_at: string | null;
+            /** Ended On */
+            ended_on: string | null;
             /** Id */
             id: number;
             inspection_cycle: components["schemas"]["InspectionCycle"];

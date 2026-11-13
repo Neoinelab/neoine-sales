@@ -30,9 +30,9 @@ INSERT_DEAL = (
     "insert into deals (deal_code, name, owner_user_id, users, status_kind, status_key,"
     " forecast_kind, forecast_key, revenue_amount, revenue_date, customer_id, quote_submitted,"
     " quote_submitted_date, poc_state, poc_completed_date, procurement, created_at, updated_at,"
-    " status_changed_at) values (:code, 'n', :owner_user_id, :users, 'status', :status_key,"
+    " status_changed_on) values (:code, 'n', :owner_user_id, :users, 'status', :status_key,"
     " 'forecast', :forecast_key, :amount, current_date, :customer_id, :quote_submitted, null,"
-    " :poc_state, null, '', now(), now(), now())"
+    " :poc_state, null, '', now(), now(), current_date)"
 )
 HAS_SOLUTION_TEXT = (
     "select count(*) from information_schema.columns"
@@ -56,10 +56,11 @@ INSERT_HISTORY = (
 # 유형은 시드된 기본 유형을 이름으로 고른다(`type_name`, 기본 미팅).
 INSERT_ACTION = (
     "insert into deal_actions (id, deal_id, action_type_id, action, memo, next_action,"
-    " due_date, acted_at, actor_user_id, status_key, forecast_key, next_action_status,"
+    " due_date, acted_on, actor_user_id, status_key, forecast_key, next_action_status,"
     " created_at, updated_at)"
     " values (:id, :deal_id, (select id from action_types where name = :type_name), 'a', '',"
-    " 'n', current_date, now(), :actor_user_id, :status_key, :forecast_key, 'open', now(), now())"
+    " 'n', current_date, current_date, :actor_user_id, :status_key, :forecast_key, 'open',"
+    " now(), now())"
 )
 
 
@@ -125,7 +126,7 @@ async def insert_deal(
             "procurement, created_at", "procurement, solution, created_at"
         )
         statement = statement.replace(
-            "'', now(), now(), now())", "'', :solution, now(), now(), now())"
+            "'', now(), now(), current_date)", "'', :solution, now(), now(), current_date)"
         )
         values.setdefault("solution", "")
     else:

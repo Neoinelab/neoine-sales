@@ -20,7 +20,7 @@ from app.application.ports.deal_repository import (
 )
 from app.domain.code.values import CodeKind
 from app.domain.contact.values import ContactKind
-from tests.factories import NOW, later, make_deal
+from tests.factories import NOW, date_after, later, make_deal
 from tests.factories_auth import make_user
 from tests.support.user_ids import uid
 
@@ -43,7 +43,7 @@ async def _codes(
 
 
 async def _three(case: DealCase) -> None:
-    """정렬 키마다 오름차순 결과가 서로 다르게 만든 Deal 3건(갱신 시각은 A1 < A2 < A3).
+    """정렬 키마다 오름차순 결과가 서로 다르게 만든 Deal 3건(최종 업데이트일은 하루씩 A1 < A2 < A3).
 
     owner/customer/partner/vendor는 대소문자를 섞어 소문자 기준과 원문 바이트 기준이 달라지게 했다.
     """
@@ -67,7 +67,7 @@ async def _three(case: DealCase) -> None:
         vendor = await case.new_vendor(vendors[code])
         await case.add(
             make_deal(
-                later(number),
+                later(number * 86400),
                 code=code,
                 name=name,
                 revenue_amount=amount,
@@ -125,9 +125,9 @@ class TestEachSort:
         # then: 오름차순의 역순이다
         assert found == list(reversed(expected))
 
-    async def test_the_default_is_last_updated_at_descending(self, deal_case: DealCase) -> None:
-        """기본 정렬은 최종 업데이트 내림차순이다."""
-        # given: 갱신 시각이 다른 Deal 3건
+    async def test_the_default_is_last_updated_on_descending(self, deal_case: DealCase) -> None:
+        """기본 정렬은 최종 업데이트일 내림차순이다."""
+        # given: 최종 업데이트일이 다른 Deal 3건
         await _three(deal_case)
 
         # when: 정렬을 지정하지 않고 검색한다 (전제: Fake·SQL 공통)
@@ -138,6 +138,26 @@ class TestEachSort:
 
 
 class TestTies:
+    async def test_equal_last_updated_on_is_ordered_by_code_ascending_in_both_directions(
+        self, deal_case: DealCase
+    ) -> None:
+        """최종 업데이트일이 같은 Deal은 정렬 방향과 무관하게 Deal code 오름차순이다.
+
+        테스트 코드: DL-106
+        """
+        # given: 같은 날 시각만 다르게 A2, A1, A3 순서로 등록한 Deal 3건
+        await deal_case.add(make_deal(later(1), code=A2))
+        await deal_case.add(make_deal(later(2), code=A1))
+        await deal_case.add(make_deal(later(3), code=A3))
+
+        # when: 최종 업데이트 내림차순·오름차순으로 검색한다 (전제: Fake·SQL 공통)
+        desc = await _codes(deal_case, DealSort.LAST_UPDATED_AT, SortOrder.DESC)
+        asc = await _codes(deal_case, DealSort.LAST_UPDATED_AT, SortOrder.ASC)
+
+        # then: 두 방향 모두 code 오름차순이다
+        assert desc == [A1, A2, A3]
+        assert asc == [A1, A2, A3]
+
     @pytest.mark.parametrize("sort", list(DealSort))
     @pytest.mark.parametrize("order", list(SortOrder))
     async def test_equal_keys_are_ordered_by_code_ascending_in_both_directions(
@@ -230,7 +250,7 @@ class TestStatusOrderFollowsTheCodes:
         assert desc == [A1, A2]
 
 
-class TestLastUpdatedAtIncludesActions:
+class TestLastUpdatedOnIncludesActions:
     async def test_a_recent_action_moves_an_older_deal_to_the_top(
         self, deal_case: DealCase
     ) -> None:
@@ -239,7 +259,7 @@ class TestLastUpdatedAtIncludesActions:
         older = make_deal(later(1), code=A1)
         await deal_case.add(older)
         await deal_case.add(make_deal(later(2), code=A2))
-        await deal_case.add_action(older, acted_at=later(100))
+        await deal_case.add_action(older, acted_on=date_after(1))
 
         # when: 최종 업데이트 내림차순·오름차순으로 검색한다 (전제: Fake·SQL 공통)
         desc = await _codes(deal_case, DealSort.LAST_UPDATED_AT, SortOrder.DESC)
@@ -249,15 +269,15 @@ class TestLastUpdatedAtIncludesActions:
         assert desc == [A1, A2]
         assert asc == [A2, A1]
 
-    async def test_an_action_older_than_the_deal_update_changes_nothing(
+    async def test_an_action_dated_before_the_other_deal_registration_changes_nothing(
         self, deal_case: DealCase
     ) -> None:
-        """Deal 수정보다 오래된 Action은 순서를 바꾸지 않는다."""
-        # given: 다른 Deal보다 늦게 등록된 Deal이 있고 오래된 Deal의 Action은 더 이전인 상태
+        """다른 Deal의 등록일보다 이른 수행일의 Action은 순서를 바꾸지 않는다."""
+        # given: 이틀 뒤에 등록된 Deal이 있고 오래된 Deal의 Action은 그보다 이른 수행일인 상태
         older = make_deal(later(1), code=A1)
         await deal_case.add(older)
-        await deal_case.add(make_deal(later(50), code=A2))
-        await deal_case.add_action(older, acted_at=later(2))
+        await deal_case.add(make_deal(later(2 * 86400), code=A2))
+        await deal_case.add_action(older, acted_on=date_after(1))
 
         # when: 최종 업데이트 내림차순으로 검색한다 (전제: Fake·SQL 공통)
         found = await _codes(deal_case, DealSort.LAST_UPDATED_AT, SortOrder.DESC)

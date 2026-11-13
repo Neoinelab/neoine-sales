@@ -1,6 +1,6 @@
 import type { ActionsGateway } from '../../../gateway/types'
 import { canEditAction } from '../../../shared/model/permissions'
-import { compareIso, datePart, formatWithOffset, offsetMinutes } from '../../../shared/model/dates'
+import { datePart, formatWithOffset, offsetMinutes } from '../../../shared/model/dates'
 import type {
   ActionInput,
   ActionQuery,
@@ -46,6 +46,19 @@ function isCalendarDate(text: string): boolean {
 /** 서버 요청 검증(422 request-validation): Due Date를 보냈다면 달력 날짜여야 한다. Deal·Action 조회보다 먼저다. */
 function assertDueShape(dueDate: string | null | undefined): void {
   if (dueDate !== null && dueDate !== undefined && dueDate !== '' && !isCalendarDate(dueDate)) throw requestValidation()
+}
+
+/** 서버 요청 검증: 수행일을 보냈다면 달력 날짜여야 한다. */
+function assertActedOnShape(actedOn: string | null | undefined): void {
+  if (actedOn !== null && actedOn !== undefined && !isCalendarDate(actedOn)) throw requestValidation()
+}
+
+const FUTURE_ACTED_ON = '수행일은 오늘 이후로 지정할 수 없습니다.'
+
+/** 서버 AC-R35: 수행일은 오늘 이전이고 Deal 등록일(서버 업무 날짜) 이상이어야 한다. */
+function assertActedOnRange(actedOn: string, today: string, registered: string): void {
+  if (actedOn > today) throw validation(FUTURE_ACTED_ON)
+  if (actedOn < registered) throw validation(`수행일은 Deal 등록일(${registered}) 이전으로 지정할 수 없습니다.`)
 }
 
 /** 서버 `reject_nul`: 진행사항·Next Action·Memo에 NUL이 있으면 422 invalid-value(공백으로 감싸도 거절). */
@@ -117,17 +130,20 @@ function validateRanges(q: ActionQuery): void {
   if (q.keyword?.includes(NUL)) throw validation('검색어에는 NUL 문자를 쓸 수 없습니다')
 }
 
-/** 서버 기준 행: 그 Deal에서 Next Action이 있는 가장 최근 Action(수행일시 내림차순, 같으면 id 내림차순). */
+/** 서버 기준 행: 그 Deal에서 Next Action이 있는 가장 최근 Action(수행일 내림차순, 같으면 id 내림차순). */
 function basisOf(ctx: MockContext, dealCode: string): ActionRecord | null {
   const rows = ctx.store.data.actions.filter((a) => a.dealCode === dealCode && a.nextAction !== null)
-  return rows.reduce<ActionRecord | null>((best, a) => (best === null || compareIso(a.actedAt, best.actedAt) > 0 || (compareIso(a.actedAt, best.actedAt) === 0 && a.id > best.id) ? a : best), null)
+  return rows.reduce<ActionRecord | null>((best, a) => (best === null || a.actedOn > best.actedOn || (a.actedOn === best.actedOn && a.id > best.id) ? a : best), null)
 }
 
 /** 새 Action 저장과 함께 닫을 이전 Next Action을 확인한다(기준 행이 아니면 409, 권한 없으면 403). 이미 종료면 null(건너뜀). */
-function planClosePrevious(ctx: MockContext, dealCode: string, previousId: number, user: UserRecord): ActionRecord | null {
+function planClosePrevious(ctx: MockContext, dealCode: string, previousId: number, user: UserRecord, actedDay: string): ActionRecord | null {
   const basis = basisOf(ctx, dealCode)
   if (basis === null || basis.id !== previousId) throw conflict(PREVIOUS_NEXT_ACTION_CHANGED)
   if (!canEditAction(viewerOf(user), basis.actorId)) throw forbidden(STATUS_FORBIDDEN)
+  // 서버 AC-R36: 수행일이 기준 행 수행일(서버 업무 날짜)보다 앞서면 422. 이미 종료여도 판정한다.
+  const basisDay = basis.actedOn
+  if (actedDay < basisDay) throw validation(`이전 Next Action의 수행일(${basisDay})보다 앞선 날짜로는 이전 Next Action을 종료할 수 없습니다.`)
   return basis.nextActionStatus === 'open' ? basis : null
 }
 
@@ -137,16 +153,15 @@ function findAction(ctx: MockContext, id: number): ActionRecord {
   return found
 }
 
-function matches(a: ActionRecord, q: ActionQuery, serverOffset: number): boolean {
+function matches(a: ActionRecord, q: ActionQuery): boolean {
   if (q.typeId && a.typeId !== q.typeId) return false
   if (q.actorId && a.actorId !== q.actorId) return false
   if (q.keyword) {
     const needle = q.keyword.trim().toLowerCase()
     if (![a.progress, a.nextAction, a.memo].some((t) => t !== null && t.toLowerCase().includes(needle))) return false
   }
-  const acted = serverDate(a.actedAt, serverOffset)
-  if (q.actedFrom && acted < q.actedFrom) return false
-  if (q.actedTo && acted > q.actedTo) return false
+  if (q.actedFrom && a.actedOn < q.actedFrom) return false
+  if (q.actedTo && a.actedOn > q.actedTo) return false
   if (q.dueFrom && (a.dueDate === null || a.dueDate < q.dueFrom)) return false
   if (q.dueTo && (a.dueDate === null || a.dueDate > q.dueTo)) return false
   // 상태 필터가 있으면 Next Action이 없는 Action(상태 null)은 제외된다.
@@ -171,11 +186,11 @@ function byKey(key: (a: ActionRecord) => string | number | null, order: 'asc' | 
 }
 
 /**
- * 서버 정렬 표와 같은 순서. 수행일시 정렬의 동률은 id 오름차순, 그 밖의 정렬은 주 키 -> 수행일시 내림차순 -> id 오름차순이다.
- * 동률 규칙은 방향을 바꿔도 뒤집히지 않는다.
+ * 서버 정렬 표와 같은 순서. 수행일 내림차순은 (수행일, id) 내림차순, 오름차순은 (수행일, id) 오름차순, 그 밖의 정렬은
+ * 주 키 -> 수행일 내림차순 -> id 내림차순이다. 같은 수행일은 나중에 등록한(id 큰) Action이 앞이다(AC-R43).
  */
 function sorted(rows: ActionRecord[], data: SeedData, q: ActionQuery): ActionRecord[] {
-  const byActedDesc: Sorter = (a, b) => compareIso(b.actedAt, a.actedAt) || a.id - b.id
+  const byActedDesc: Sorter = (a, b) => (a.actedOn === b.actedOn ? 0 : a.actedOn < b.actedOn ? 1 : -1) || b.id - a.id
   const order = q.order ?? 'desc'
   const lower = (text: string) => text.toLowerCase()
   const typeName = (a: ActionRecord) => lower(data.actionTypes.find((t) => t.id === a.typeId)?.name ?? String(a.typeId))
@@ -187,7 +202,7 @@ function sorted(rows: ActionRecord[], data: SeedData, q: ActionQuery): ActionRec
     nextActionStatus: byKey((a) => (a.nextActionStatus === null ? null : STATUS_RANK[a.nextActionStatus]), order),
   }
   if (q.sort === undefined || q.sort === 'actedAt') {
-    return rows.sort(order === 'asc' ? (a, b) => compareIso(a.actedAt, b.actedAt) || a.id - b.id : byActedDesc)
+    return rows.sort(order === 'asc' ? (a, b) => (a.actedOn === b.actedOn ? 0 : a.actedOn < b.actedOn ? -1 : 1) || a.id - b.id : byActedDesc)
   }
   const main = primary[q.sort]
   return rows.sort((a, b) => (main ? main(a, b) : 0) || byActedDesc(a, b))
@@ -202,7 +217,7 @@ export function createActionsGateway(ctx: MockContext): ActionsGateway {
         if (!DEAL_CODE_FORMAT.test(dealCode)) throw notFound('Deal을 찾을 수 없습니다.')
         validateRanges(query)
         findDeal(ctx.store.data, dealCode)
-        const rows = ctx.store.data.actions.filter((a) => a.dealCode === dealCode && matches(a, query, offsetMinutes(ctx.clock.now())))
+        const rows = ctx.store.data.actions.filter((a) => a.dealCode === dealCode && matches(a, query))
         return sorted(rows, ctx.store.data, query).map((a) => actionView(ctx.store.data, a))
       }),
     create: (dealCode, input: ActionInput) =>
@@ -211,12 +226,19 @@ export function createActionsGateway(ctx: MockContext): ActionsGateway {
         const { data } = ctx.store
         assertSequenceShape(input.statusChanges ?? []) // 서버 요청 검증(422)은 Deal 조회보다 먼저
         assertDueShape(input.dueDate)
+        assertActedOnShape(input.actedOn)
         const deal = findDeal(data, dealCode)
         // 서버 순서: Deal(404) → 유형 → 진행사항 → Next Action → Due Date. 새 유형은 모든 검증이 끝난 뒤에만 만든다.
         const typePlan = planActionType(ctx, input.type)
         const content = normalize(input, 0)
+        // 서버 AC-R34·R35: 수행일 범위는 내용 검증 다음, 이전 Next Action 409 앞이다. 기준은 Fake 서버 시계의 업무 날짜.
+        const requestedAt = ctx.clock.now()
+        const offset = offsetMinutes(requestedAt)
+        const today = serverDate(requestedAt, offset)
+        const actedDay = input.actedOn ?? today
+        if (input.actedOn !== undefined && input.actedOn !== null) assertActedOnRange(input.actedOn, today, serverDate(deal.createdAt, offset))
         // 서버 순서: 입력 422 → 이전 Next Action 409 → 상태 변경 권한 403 → Status 동기화 판정. 모두 통과한 뒤에만 바꾼다.
-        const closing = input.closePreviousNextActionId === undefined ? null : planClosePrevious(ctx, dealCode, input.closePreviousNextActionId, user)
+        const closing = input.closePreviousNextActionId === undefined ? null : planClosePrevious(ctx, dealCode, input.closePreviousNextActionId, user, actedDay)
         const outcomes = planSequence(ctx, deal, input.statusChanges ?? [])
         const wonAfter = outcomes.reduce((state, o) => ({ ...state, ...o.patch }), { statusKey: deal.statusKey, forecastKey: deal.forecastKey })
         assertWonExitAllowed(data, dealCode, deal, wonAfter)
@@ -224,21 +246,21 @@ export function createActionsGateway(ctx: MockContext): ActionsGateway {
         const wonBefore = { statusKey: deal.statusKey, forecastKey: deal.forecastKey }
         for (const outcome of outcomes) commitDealChange(ctx, deal, outcome, user.id)
         followWonChange(ctx, dealCode, wonBefore, deal, input.deleteLicenseContracts, user.id)
-        const now = ctx.clock.now()
+        // 수행일은 날짜만 저장한다(지정 없으면 오늘). 종료일은 요청의 업무 날짜(오늘).
         if (closing !== null) {
           const planned = `${closing.nextAction} (Due ${closing.dueDate}) · ${STATUS_LABEL.open}`
-          Object.assign(closing, { nextActionStatus: 'done', nextActionClosedAt: now })
+          Object.assign(closing, { nextActionStatus: 'done', nextActionClosedOn: today })
           logHistory(ctx, dealCode, user.id, 'action', 'Next Action', planned, STATUS_LABEL.done)
         }
         const record: ActionRecord = {
           id: takeId(data.counters, 'act'),
           dealCode,
-          actedAt: now,
+          actedOn: actedDay,
           actorId: user.id,
           ...content,
           typeId: chosen.id,
           nextActionStatus: content.nextAction === null ? null : 'open',
-          nextActionClosedAt: null,
+          nextActionClosedOn: null,
           // 등록 시점(상태 변경이 있으면 적용 후) 값을 저장한다.
           statusKey: deal.statusKey,
           forecastKey: deal.forecastKey,
@@ -259,8 +281,8 @@ export function createActionsGateway(ctx: MockContext): ActionsGateway {
         const before = summary(ctx, record)
         Object.assign(record, { ...next, typeId: commitActionType(ctx, typePlan, user.id).id })
         // 없던 Next Action을 채우면 Open, 비우면 상태 제거, 있던 것을 고치면 상태는 그대로(종료여도).
-        if (record.nextAction === null) Object.assign(record, { nextActionStatus: null, nextActionClosedAt: null })
-        else if (record.nextActionStatus === null) Object.assign(record, { nextActionStatus: 'open', nextActionClosedAt: null })
+        if (record.nextAction === null) Object.assign(record, { nextActionStatus: null, nextActionClosedOn: null })
+        else if (record.nextActionStatus === null) Object.assign(record, { nextActionStatus: 'open', nextActionClosedOn: null })
         logHistory(ctx, record.dealCode, user.id, 'action', 'Action', before, `수정: ${summary(ctx, record)}`)
         return actionView(ctx.store.data, record)
       }),
@@ -275,7 +297,7 @@ export function createActionsGateway(ctx: MockContext): ActionsGateway {
         if (before === input.status) throw conflict(`이미 ${STATUS_LABEL[before]} 상태입니다.`)
         const planned = `${record.nextAction} (Due ${record.dueDate}) · ${STATUS_LABEL[before]}`
         record.nextActionStatus = input.status
-        record.nextActionClosedAt = input.status === 'open' ? null : ctx.clock.now()
+        record.nextActionClosedOn = input.status === 'open' ? null : serverDate(ctx.clock.now(), offsetMinutes(ctx.clock.now()))
         if (note !== '') record.memo = record.memo === '' ? note : `${record.memo}\n${note}`
         const after = note === '' ? STATUS_LABEL[input.status] : `${STATUS_LABEL[input.status]} / Memo: ${note}`
         logHistory(ctx, record.dealCode, user.id, 'action', 'Next Action', planned, after)

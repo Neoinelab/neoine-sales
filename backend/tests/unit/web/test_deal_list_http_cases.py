@@ -23,8 +23,8 @@ URL = "/api/v1/deals"
 ROW_KEYS = {
     "code", "name", "owner_user_id", "owner", "vendor", "solution", "users", "status_key",
     "forecast_key", "revenue_amount", "revenue_date", "customer", "active_partner",
-    "partner_links", "quote", "poc", "procurement", "bant", "next_action", "last_updated_at",
-    "risk", "status_changed_at", "status_days", "license_contract_count",
+    "partner_links", "quote", "poc", "procurement", "bant", "next_action", "last_updated_on",
+    "risk", "status_changed_on", "status_days", "license_contract_count",
     "has_issued_license_contract", "created_at", "updated_at",
 }  # fmt: skip
 

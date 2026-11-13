@@ -1,16 +1,14 @@
-"""DealQuery의 연/분기 조건: 검증과 `revenue_window()`, 최종 업데이트 `updated_window()`.
+"""DealQuery의 연/분기 조건: 검증과 `revenue_window()`.
 
 revenue_window는 (시작, 끝) 양끝 포함이고 None은 한쪽이 열려 있다는 뜻이다. 연/분기만 반영한다.
-updated_window는 last_updated_at의 반개구간 [시작, 끝)이다. 검증 오류는 만들 때 또는
-`revenue_window()`에서 올라온다.
+검증 오류는 만들 때 또는 `revenue_window()`에서 올라온다.
 """
 
-from datetime import date, timedelta
+from datetime import date
 
 import pytest
 
 from app.application.ports.deal_repository import DealQuery
-from app.domain.common.business_date import start_of_business_day
 from app.domain.common.errors import InvalidValueError
 from tests.support.expect import raises_with
 
@@ -71,68 +69,6 @@ def test_the_updated_period_alone_leaves_the_revenue_window_open() -> None:
     window = _window(updated_from=date(2026, 6, 1), updated_to=date(2026, 6, 30))
     # then: 양쪽이 열려 있다
     assert window == (None, None)
-
-
-def test_updated_window_is_half_open_by_business_day() -> None:
-    """최종 업데이트 구간은 업무일 기준 [시작일 0시, 종료일 다음 날 0시)다."""
-    # given: 시작일과 종료일을 가진 조회 조건
-    query = DealQuery(updated_from=date(2026, 6, 1), updated_to=date(2026, 6, 30))
-    # when: 최종 업데이트 구간을 구한다 (시작·종료 모두)
-    window = query.updated_window()
-    # then: 시작일 0시와 종료일 다음 날 0시다
-    assert window == (
-        start_of_business_day(date(2026, 6, 1)),
-        start_of_business_day(date(2026, 7, 1)),
-    )
-
-
-def test_updated_window_end_is_the_next_local_midnight_across_a_month_end() -> None:
-    """종료일이 연말이어도 끝은 다음 날 로컬 자정이다."""
-    # given: 종료일이 12월 31일인 조회 조건
-    query = DealQuery(updated_to=date(2026, 12, 31))
-    # when: 최종 업데이트 구간을 구한다 (연말 종료일)
-    window = query.updated_window()
-    # then: 끝은 다음 날 자정이다
-    assert window[1] == start_of_business_day(date(2026, 12, 31) + timedelta(days=1))
-
-
-def test_updated_window_with_only_a_start_is_open_at_the_end() -> None:
-    """시작일만 주면 구간의 끝은 열려 있다."""
-    # given: 시작일만 있는 조회 조건
-    query = DealQuery(updated_from=date(2026, 6, 1))
-    # when: 최종 업데이트 구간을 구한다 (시작일만)
-    window = query.updated_window()
-    # then: 끝이 열려 있다
-    assert window == (start_of_business_day(date(2026, 6, 1)), None)
-
-
-def test_updated_window_with_only_an_end_is_open_at_the_start() -> None:
-    """종료일만 주면 구간의 시작은 열려 있다."""
-    # given: 종료일만 있는 조회 조건
-    query = DealQuery(updated_to=date(2026, 6, 30))
-    # when: 최종 업데이트 구간을 구한다 (종료일만)
-    window = query.updated_window()
-    # then: 시작이 열려 있다
-    assert window == (None, start_of_business_day(date(2026, 7, 1)))
-
-
-def test_updated_window_without_a_period_is_fully_open() -> None:
-    """기간이 없으면 최종 업데이트 구간은 양쪽이 열려 있다."""
-    # when: 기간 없이 최종 업데이트 구간을 구한다
-    window = DealQuery().updated_window()
-    # then: 양쪽이 열려 있다
-    assert window == (None, None)
-
-
-def test_updated_window_of_a_single_day_spans_that_local_day() -> None:
-    """시작일과 종료일이 같으면 그 날 하루가 구간이다."""
-    # given: 같은 날을 시작일과 종료일로 둔 조회 조건
-    day = date(2026, 6, 15)
-    # when: 최종 업데이트 구간을 구한다 (하루짜리)
-    start, end = DealQuery(updated_from=day, updated_to=day).updated_window()
-    # then: 그 날 0시부터 다음 날 0시까지다
-    assert start == start_of_business_day(day)
-    assert end == start_of_business_day(day + timedelta(days=1))
 
 
 def test_a_quarter_without_a_year_is_no_longer_rejected_at_creation() -> None:

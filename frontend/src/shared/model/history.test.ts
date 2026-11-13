@@ -20,7 +20,7 @@ function deal(over: Partial<Deal> = {}): Deal {
     quote: { submitted: null, submittedDate: null }, poc: { state: null, completedDate: null }, procurement: '',
     bant: { budget: null, authority: null, need: null, timeline: null },
     createdAt: '2026-08-01T10:00:00+09:00', updatedAt: '2026-08-01T10:00:00+09:00',
-    statusChangedAt: '2026-08-01T10:00:00+09:00', ...over,
+    statusChangedOn: '2026-08-01', ...over,
   }
 }
 

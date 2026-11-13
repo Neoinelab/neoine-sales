@@ -33,7 +33,7 @@ def _plain_select(parts: ReportParts) -> Select[Any]:
             order.append(direction_order(expr, sort.direction))
     order.append(DEALS.c.deal_code.asc())
     if parts.is_action_scope():
-        order.extend([ACTIONS.c.acted_at.asc(), ACTIONS.c.id.asc()])
+        order.extend([ACTIONS.c.acted_on.asc(), ACTIONS.c.id.asc()])
     where = parts.where()
     statement = select(*values, func.count().over().label(TOTAL_COUNT_LABEL))
     if where is not None:

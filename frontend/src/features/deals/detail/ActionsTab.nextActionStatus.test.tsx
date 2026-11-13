@@ -165,12 +165,12 @@ describe('Next Action이 없는 행의 상태 칸', () => {
   // Next Action이 없는 진행사항만 행의 상태 칸은 "—"이고 버튼이 없다.
   // 테스트 코드: NA-044
   it('shows a dash and no button on the status cell of a progress-only action', async () => {
-    // given: 작성자가 연 Actions 탭에 진행사항만 Action이 새로 생겼다(수행일시 오름차순으로 읽어 마지막 행에 온다).
+    // given: 작성자가 연 Actions 탭에 진행사항만 Action이 새로 생겼다(수행일 오름차순으로 읽어 마지막 행에 온다).
     const code = await dealCodeOf(1)
     const { user, table } = await openActions()
     await gateway.actions.create(code, { type: { name: '미팅' }, progress: '전화로만 확인', nextAction: '', dueDate: '', memo: '' })
-    // when: 수행일시 머리글을 눌러 목록을 다시 읽는다.
-    await user.click(within(table).getByRole('button', { name: '수행일시' }))
+    // when: 수행일 머리글을 눌러 목록을 다시 읽는다.
+    await user.click(within(table).getByRole('button', { name: '수행일' }))
     // then: 진행사항만 행의 상태 칸은 "—"이고 상태 버튼이 없다.
     await waitFor(() => expect(bodyRows(table).at(-1)).toHaveTextContent('전화로만 확인'))
     const statusCell = within(bodyRows(table).at(-1)!).getAllByRole('cell')[7]!

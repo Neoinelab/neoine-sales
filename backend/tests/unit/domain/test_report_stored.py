@@ -549,3 +549,45 @@ def test_stored_json_without_combine_and_row_limit_reads_defaults() -> None:
     restored = definition_from_json(stored)
     # then: 결합은 and, 행 수 제한은 1000이다
     assert (restored.combine, restored.row_limit) == ("and", 1000)
+
+
+@pytest.mark.parametrize(
+    "key",
+    ["deal.last_updated_at", "deal.status_changed_at", "action.acted_at", "action.closed_at"],
+)
+def test_stored_ymd_hm_on_the_four_date_fields_becomes_ymd_when_read(key: str) -> None:
+    """저장 정의의 네 날짜 필드 ymd_hm은 읽을 때 ymd로 바뀌고 다른 포맷은 그대로다.
+
+    테스트 코드: RQ-115
+    """
+    # given: ymd_hm을 가진 네 필드 컬럼(매개변수)과 month 포맷 컬럼, 시각 필드의 ymd_hm
+    stored = _stored(
+        col(key, format="ymd_hm"),
+        col(key, format="month"),
+        col("deal.created_at", format="ymd_hm"),
+    )
+
+    # when: 저장 JSON을 읽는다
+    columns = definition_from_json(stored).columns
+
+    # then: 네 필드의 ymd_hm만 ymd가 되고 month와 등록일의 ymd_hm은 그대로다
+    assert [c.format for c in columns] == ["ymd", "month", "ymd_hm"]
+
+
+def test_upgraded_ymd_hm_definition_parses_and_writes_ymd() -> None:
+    """변환한 정의는 검증을 통과하고 다시 저장하면 ymd가 들어간다.
+
+    테스트 코드: RQ-115
+    """
+    # given: 네 필드에 ymd_hm이 저장된 정의
+    from app.domain.report.parse import parse_report_definition  # noqa: PLC0415
+
+    stored = _stored(col("action.acted_at", format="ymd_hm"))
+
+    # when: 읽고 검증한 뒤 다시 JSON으로 쓴다
+    raw_definition = definition_from_json(stored)
+    parse_report_definition(raw_definition)
+    written: Any = definition_to_json(raw_definition)
+
+    # then: 검증이 통과하고 쓴 포맷은 ymd다
+    assert written["columns"][0]["format"] == "ymd"

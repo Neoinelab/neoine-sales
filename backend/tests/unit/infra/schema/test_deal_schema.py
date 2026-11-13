@@ -40,7 +40,7 @@ COLUMNS = {
     "procurement",
     "created_at",
     "updated_at",
-    "status_changed_at",  # P3: 현재 Status에 들어온 시각
+    "status_changed_on",  # 현재 Status에 들어온 업무 날짜(date)
 }
 REMOVED_COLUMNS = {"code", "stage", "partner_id", "registered_by_user_id", "revenue_currency"}
 INDEXES = {

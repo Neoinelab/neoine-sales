@@ -33,7 +33,7 @@ def _seoul(local_tz: Callable[[str], None]) -> None:
 async def _act(env: DealEnv, view: DealView, **content: Any) -> DealAction:  # noqa: ANN401
     action = make_deal_action(
         deal_code=view.item.deal.id,
-        acted_at=env.clock.now(),
+        now=env.clock.now(),
         actor_user_id=ACTOR_ID,
         **content,
     )
@@ -118,9 +118,9 @@ async def test_progress_only_action_refreshes_stale(env: DealEnv) -> None:
     # when: Action 등록 13일 뒤 상세를 조회한다
     detail = await env.get.execute(code)
 
-    # then: risk는 없고 최종 업데이트는 그 Action 수행 시각이며, 하루 더 지나면 stale이다
+    # then: risk는 없고 최종 업데이트일은 그 Action 수행일이며, 하루 더 지나면 stale이다
     assert detail.risk is None
-    assert detail.item.last_updated_at == registered.acted_at
+    assert detail.item.last_updated_on == registered.acted_on
     env.clock.advance(1 * DAY)
     assert (await env.get.execute(code)).risk is Risk.STALE
 
@@ -168,12 +168,12 @@ async def test_a_later_progress_only_action_does_not_replace_the_next_action(
     assert detail.item.next_action == expected
 
 
-async def test_equal_acted_at_makes_the_larger_id_the_next_action_basis(env: DealEnv) -> None:
-    """수행 시각이 같으면 id가 큰 Action이 Next Action 기준 행이다.
+async def test_equal_acted_on_makes_the_larger_id_the_next_action_basis(env: DealEnv) -> None:
+    """수행일이 같으면 id가 큰 Action이 Next Action 기준 행이다(시각은 쓰지 않는다).
 
     테스트 코드: RK-002
     """
-    # given: 같은 수행 시각의 Next Action 두 건(id가 큰 "나중"을 먼저 저장한다)
+    # given: 같은 수행일의 Next Action 두 건(id가 큰 "나중"을 먼저 저장한다)
     view = await env.new_deal()
     await _act(env, view, next_action="나중", entity_id=DealActionId(2_000))
     await _act(env, view, next_action="먼저", entity_id=DealActionId(1_000))
@@ -203,8 +203,8 @@ async def test_a_progress_only_action_frees_the_deal_from_stale_until_the_limit_
     env.clock.advance(DAY)
     freed = await env.get.execute(code)
 
-    # then: 최종 업데이트는 그 Action 수행 시각이고 경고가 없다
-    assert freed.item.last_updated_at == registered.acted_at
+    # then: 최종 업데이트일은 그 Action 수행일이고 경고가 없다
+    assert freed.item.last_updated_on == registered.acted_on
     assert freed.risk is None
 
     # when: Action 수행 14일째에 다시 조회한다

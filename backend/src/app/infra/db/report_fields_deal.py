@@ -80,8 +80,8 @@ def deal_fields(joins: Joins, context: ReportContext, risk: RiskExprs) -> dict[s
         "deal.quote_submitted_date": _plain("quote_submitted_date"),
         "deal.poc_completed_date": _plain("poc_completed_date"),
         "deal.created_at": _plain("created_at"),
-        "deal.last_updated_at": FieldSql(last_updated_scalar),
-        "deal.status_changed_at": _plain("status_changed_at"),
+        "deal.last_updated_at": FieldSql(lambda: last_updated_scalar(context.utc_offset)),
+        "deal.status_changed_at": _plain("status_changed_on"),
     }
     for category in _BANT_CATEGORIES:
         fields[f"deal.bant_{category}"] = _bant(joins, category)

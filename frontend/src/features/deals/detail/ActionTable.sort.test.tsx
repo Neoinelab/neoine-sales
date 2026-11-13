@@ -10,7 +10,7 @@ import { dealCodeOf } from '../../../test/detailTestUtils'
 import type { ActionSortState } from './actionSort'
 import { ActionTable } from './ActionTable'
 
-const SORTABLE = ['수행일시', '담당자', '유형', 'Due Date', '상태']
+const SORTABLE = ['수행일', '담당자', '유형', 'Due Date', '상태']
 const PLAIN = ['등록 시점 Status·Forecast', '진행사항', 'Next Action', 'Memo', '관리']
 const DEFAULT: ActionSortState = { sort: 'actedAt', order: 'desc' }
 
@@ -41,7 +41,7 @@ async function renderTable(sort: ActionSortState, onSort: (key: string) => void 
 const header = (table: HTMLElement, name: string) => within(table).getByRole('columnheader', { name })
 
 describe('ActionTable 헤더 정렬', () => {
-  // 정렬할 수 있는 머리글은 수행일시·담당자·유형·Due Date·상태 5개(버튼)뿐이다.
+  // 정렬할 수 있는 머리글은 수행일·담당자·유형·Due Date·상태 5개(버튼)뿐이다.
   // 테스트 코드: NA-063
   it('makes only the five sortable headers buttons with their column name', async () => {
     // when: Actions 표를 렌더한다.
@@ -58,15 +58,15 @@ describe('ActionTable 헤더 정렬', () => {
     }
   })
 
-  // 처음 정렬은 수행일시 내림차순이며 aria-sort와 방향 표시가 그 열에만 있다.
+  // 처음 정렬은 수행일 내림차순이며 aria-sort와 방향 표시가 그 열에만 있다.
   // 테스트 코드: NA-063
   it('shows the acted time as sorted descending with the down arrow marker by default', async () => {
     // when: 기본 정렬 상태로 렌더한다.
     const table = await renderTable(DEFAULT)
 
-    // then: 수행일시만 descending이고 다른 머리글에는 정렬 표시가 없다.
-    expect(header(table, '수행일시')).toHaveAttribute('aria-sort', 'descending')
-    expect(within(header(table, '수행일시')).getByRole('button')).toHaveAttribute('data-dir', 'desc')
+    // then: 수행일만 descending이고 다른 머리글에는 정렬 표시가 없다.
+    expect(header(table, '수행일')).toHaveAttribute('aria-sort', 'descending')
+    expect(within(header(table, '수행일')).getByRole('button')).toHaveAttribute('data-dir', 'desc')
     for (const name of SORTABLE.slice(1)) {
       expect(header(table, name)).not.toHaveAttribute('aria-sort')
       expect(within(header(table, name)).getByRole('button')).not.toHaveAttribute('data-dir')
@@ -80,7 +80,7 @@ describe('ActionTable 헤더 정렬', () => {
     [{ sort: 'type', order: 'desc' }, '유형', 'descending', 'desc'],
     [{ sort: 'dueDate', order: 'asc' }, 'Due Date', 'ascending', 'asc'],
     [{ sort: 'nextActionStatus', order: 'desc' }, '상태', 'descending', 'desc'],
-    [{ sort: 'actedAt', order: 'asc' }, '수행일시', 'ascending', 'asc'],
+    [{ sort: 'actedAt', order: 'asc' }, '수행일', 'ascending', 'asc'],
   ] as const)('puts aria-sort and data-dir on %j only (%s)', async (sort, name, aria, dir) => {
     // when: 주어진 정렬 상태로 렌더한다.
     const table = await renderTable(sort)
@@ -99,7 +99,7 @@ describe('ActionTable 헤더 정렬', () => {
     const onSort = vi.fn()
     const table = await renderTable(DEFAULT, onSort)
     const keys: [string, string][] = [
-      ['수행일시', 'actedAt'],
+      ['수행일', 'actedAt'],
       ['담당자', 'actor'],
       ['유형', 'type'],
       ['Due Date', 'dueDate'],

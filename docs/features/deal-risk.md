@@ -1,4 +1,4 @@
-# 경고·파생 값·경고 기준   (feature 코드: RK, 상태: 확정(2026-11-10 사용자 확인))
+# 경고·파생 값·경고 기준   (feature 코드: RK, 상태: 확정(2026-11-13 사용자 확인))
 
 > 이 문서는 **이미 구현된 동작**을 정본 명세로 옮긴 것입니다(2026-11-10). 근거는 작업 트리의 코드입니다.
 > - backend: `domain/deal/{risk.py,status_entry.py,entities.py}`, `domain/alert/{thresholds.py,settings.py}`, `application/alert/*`, `application/deal/{views.py,list_deals.py,update_deal.py,history_writer.py}`, `infra/db/{deal_derived.py,deal_risk.py,deal_search.py,alert_settings_repository.py,models_alert.py}`, `web/routers/alert_settings.py`, `web/schemas/{alert_settings.py,deal_response.py}`
@@ -16,15 +16,15 @@
   - admin이 미업데이트 기준 일수를 정한다.
 - 사용자(역할): 경고·파생 값과 경고 기준 조회는 로그인한 모든 역할(`admin`·`sales`·`user`). 경고 기준 변경은 `admin`만.
 - 범위
-  - Deal 응답의 파생 필드 `next_action`·`last_updated_at`·`risk`·`status_changed_at`·`status_days`의 계산 규칙
+  - Deal 응답의 파생 필드 `next_action`·`last_updated_on`·`risk`·`status_changed_on`·`status_days`의 계산 규칙
   - 경고 판정식(기한초과·미업데이트·종결 제외)과 Deal 목록 `overdue`·`stale` 필터가 같은 판정으로 고른다는 규칙
-  - `deals.status_changed_at` 기록 규칙(어느 저장이 진입 시각을 옮기는가)
+  - `deals.status_changed_on` 기록 규칙(어느 저장이 진입일을 옮기는가)
   - `GET·PUT /api/v1/alert-settings`와 Admin > Deal 관리 > "경고 기준" 탭
   - 화면의 경고 배지·행 색·목록 범례, 상세 요약 바의 체류 일수·경고 배지, Action 표의 기한초과 배지
 - 범위 밖
   - 목록 필터 UI(체크박스·URL)와 필터의 다른 조건 결합·쿼리 형식 오류 → DL
   - 목록 정렬(기본 정렬이 `last_updated_at`이라는 사실은 DL이 이 문서의 RK-R2를 가리킨다), 최종 업데이트 기간 필터 → DL
-  - Next Action 상태 변경 API·Action 검색 → NA. Action 등록·수정·삭제 자체 → AC(`acted_at`은 등록 때 서버가 정한다)
+  - Next Action 상태 변경 API·Action 검색 → NA. Action 등록·수정·삭제 자체 → AC(`acted_on`은 등록 때 정한다)
   - Status·Forecast 동기화 규칙과 변경 적용 → DD. Deal 등록·수정 검증 → DE
   - Dashboard 주의 필요 타일 → DSH, Reports의 `deal.risk`·`deal.status_days`·`deal.status_changed_at` 필드 → RQ. 둘 다 이 문서의 판정(RK-R3~R7·R10)을 쓴다
   - 업무 날짜·업무일 시작·응답 시각 표기 → TM(TM-R4·R5·R8), 상대 시각 표시 → TM-R15
@@ -41,38 +41,39 @@
 | --- | --- |
 | Next Action 기준 행 | 한 Deal의 Action 가운데 Next Action이 있는 행 중 가장 최근 행. Deal의 `next_action` 표시, 기한초과 판정, Next Action 상태 필터(DL·NA)가 이 행을 쓴다 |
 | 진행사항만 Action | Next Action이 없는(`next_action` null) Action. 기준 행이 될 수 없다 |
-| 최종 업데이트(`last_updated_at`) | 그 Deal의 모든 Action 수행 시각(`acted_at`) 중 가장 늦은 시각. Action이 없으면 Deal 등록 시각 |
+| 최종 업데이트일(`last_updated_on`) | 그 Deal의 모든 Action 수행일(`acted_on`) 중 가장 늦은 날짜. Action이 없으면 Deal 등록일(`created_at`의 업무 날짜) |
 | 경고(Risk) | `overdue`(기한초과)·`stale`(미업데이트)·`overdue_stale`(둘 다)·없음(null) |
 | 종결 Forecast | Forecast key가 `won` 또는 `lost`. 이름이 아니라 key로 판정한다 |
 | 오늘 | 요청 시각의 업무 날짜(TM-R4) |
 | 경고 기준(`stale_days`) | 미업데이트 기준 일수. 1~365 정수, 저장 전 기본 14 |
-| Status 진입 시각(`status_changed_at`) | Deal이 현재 Status에 들어온 시각 |
-| 체류 일수(`status_days`) | 오늘 − 진입 시각의 업무 날짜(일), 음수면 0 |
+| Status 진입일(`status_changed_on`) | Deal이 현재 Status에 들어온 업무 날짜(TM-R4) |
+| 체류 일수(`status_days`) | 오늘 − 진입일(일), 음수면 0 |
 
 ### 2.2 데이터 모델
 
 - `alert_settings`(단일 행, 시드 없음): `id SMALLINT PK`(CHECK `id = 1`, 이름 `single_row`), `stale_days SMALLINT`(CHECK `BETWEEN 1 AND 365`, 이름 `stale_days_range`), `updated_at TIMESTAMPTZ`, `updated_by_user_id BIGINT` FK `users.id` ON DELETE RESTRICT, 인덱스 `ix_alert_settings_updated_by_user_id`. 행이 없으면 기본값 14다. 저장은 `id = 1` upsert다.
-- `deals.status_changed_at TIMESTAMPTZ NOT NULL`. 도메인은 `StatusEntry(status_key, changed_at)`로 들고 `Deal.status_changed_at`으로 노출한다.
-- 저장하지 않는 파생 값: `next_action`, `last_updated_at`, `risk`, `status_days`. 조회할 때마다 계산한다(SQL `infra/db/deal_derived.py`의 `LATEST_ACTED`·`LATEST_NEXT`, 도메인 `compute_risk`·`status_days`).
+- `deals.status_changed_on DATE NOT NULL`. 도메인은 `StatusEntry(status_key, changed_on: date)`로 들고 `Deal.status_changed_on`으로 노출한다.
+- 저장하지 않는 파생 값: `next_action`, `last_updated_on`, `risk`, `status_days`. 조회할 때마다 계산한다(SQL `infra/db/deal_derived.py`의 `LATEST_ACTED`·`LATEST_NEXT`, 도메인 `compute_risk`·`status_days`).
 - 도메인 객체
   - `AlertThresholds(stale_days)`: 1~365 정수만(bool 거절), `default()` = 14.
   - `StoredAlertSettings(thresholds, updated_at, updated_by)`.
   - `Risk` StrEnum `overdue`·`stale`·`overdue_stale`.
   - `RiskBasis(today, stale_days)`: 목록 필터·Dashboard·Reports용. `stale_days < 1`이면 `ValueError`(프로그래밍 오류).
-- 마이그레이션: 없음(기준선 `00c3126aa926`에 포함, SC).
+- 마이그레이션: 날짜 전환 리비전 `b4d7e2a9c613`(SC-R20)이 `deals.status_changed_at`을 `status_changed_on`으로 바꾼다(RK-R22).
 
 ### 2.3 비즈니스 규칙
 
 Next Action 기준 행과 최종 업데이트
-- **RK-R1** Next Action 기준 행은 그 Deal의 Action 중 `next_action`이 있는 행을 `acted_at` 내림차순, 같으면 `id` 내림차순으로 놓았을 때 첫 행이다.
+- **RK-R1** Next Action 기준 행은 그 Deal의 Action 중 `next_action`이 있는 행을 `acted_on` 내림차순, 같으면 `id` 내림차순(같은 날은 나중에 등록한 행, AC-R43)으로 놓았을 때 첫 행이다.
   - 진행사항만 Action은 더 최근이어도 기준 행을 바꾸지 않는다.
   - 기준 행의 Next Action 상태(`open`·`done`·`not_done`)는 기준 행 선택에 영향이 없다.
   - Deal 응답 `next_action`은 기준 행의 `{text, due_date, status}`이고, 기준 행이 없으면 `null`이다.
-- **RK-R2** `last_updated_at`은 그 Deal의 모든 Action(진행사항만 Action 포함) `acted_at`의 최댓값이고, Action이 없으면 Deal `created_at`이다.
+  - 지난 날짜로 등록한 Action도 같은 순서로 비교한다(등록 순서가 아님, AC-R38).
+- **RK-R2** `last_updated_on`(날짜)은 그 Deal의 모든 Action(진행사항만 Action 포함) `acted_on`의 최댓값이고, Action이 없으면 Deal 등록일(`created_at`의 업무 날짜, TM-R4)이다.
   - Deal 수정은 값을 바꾸지 않는다: 폼 저장·변경 적용·인라인 수정·연락처 변경 반영·첨부 업로드/삭제 모두 해당하며, 이것들은 `updated_at`만 바꾼다.
-  - `acted_at`은 Action 등록 때만 정해지므로 Action 수정과 Next Action 상태 변경도 값을 바꾸지 않는다.
+  - `acted_on`은 Action 등록 때만 정해지므로(AC-R34) Action 수정과 Next Action 상태 변경도 값을 바꾸지 않는다. 지난 날짜 Action은 더 늦은 Action이 있으면 이 값을 바꾸지 않는다(AC-R38). 수행일은 Deal 등록일 이상이라(AC-R35) 이 값은 Deal 등록 시각보다 앞선 날짜가 되지 않는다.
   - Action을 지우면 남은 Action 기준으로 다시 계산한다. 하나도 없으면 등록 시각이다.
-  - 같은 Deal의 목록 행과 상세는 같은 `next_action`·`last_updated_at`을 준다.
+  - 같은 Deal의 목록 행과 상세는 같은 `next_action`·`last_updated_on`을 준다.
 
 경고 판정
 - **RK-R3** Forecast key가 `won`·`lost`인 Deal은 `risk`가 항상 `null`이다. 기한·갱신과 무관하고 경고 기준과도 무관하다. 다른 Forecast key(`pipeline`·`upside`·`best`·`commit` 등 직접 만든 key 포함)는 판정한다.
@@ -80,7 +81,7 @@ Next Action 기준 행과 최종 업데이트
   - Due Date가 오늘이거나 미래면 아니다.
   - 기준 행이 없으면 아니다.
   - 기준 행의 Next Action을 종료(`done`·`not_done`)해도 Due가 지났으면 기한초과가 유지된다.
-- **RK-R5** 미업데이트(`stale`)는 `(오늘 − last_updated_at의 업무 날짜).days ≥ stale_days`일 때다.
+- **RK-R5** 미업데이트(`stale`)는 `(오늘 − last_updated_on).days ≥ stale_days`일 때다.
   - 날짜 단위로 세고 시각은 보지 않는다.
   - 예(기준 14): 마지막 갱신 후 13일째는 아니고 14일째부터 미업데이트다.
   - 예(기준 1): 어제 갱신이면 미업데이트, 오늘 갱신이면 아니다.
@@ -95,18 +96,18 @@ Next Action 기준 행과 최종 업데이트
   - `overdue`만 켜면 `risk ∈ {overdue, overdue_stale}`인 Deal, `stale`만 켜면 `risk ∈ {stale, overdue_stale}`인 Deal이다.
   - 둘 다 켜면 어느 하나라도 해당하는 Deal이다(OR).
   - 종결 Deal은 어느 필터에도 걸리지 않는다. `total`은 필터 결과 건수다.
-  - SQL의 미업데이트 조건은 `last_updated_at < start_of_business_day(오늘 − (stale_days − 1))`이며 RK-R5와 같다(TM-R5).
+  - SQL의 미업데이트 조건은 `last_updated_on < 오늘 − (stale_days − 1)`(날짜 비교)이며 RK-R5와 같다.
   - 다른 조건과의 AND, 쿼리 값 형식(422)은 DL이 맡는다.
 
-Status 진입 시각과 체류 일수
-- **RK-R9** `status_changed_at`의 기록
-  - 등록 때는 등록 시각이다.
-  - 그 뒤 Deal을 저장할 때 Status key가 저장된 진입 기록의 key와 다르면 진입 시각이 그 요청의 서버 시각으로 바뀌고, 같으면 그대로다. 해당 경로:
+Status 진입일과 체류 일수
+- **RK-R9** `status_changed_on`(진입일)의 기록
+  - 등록 때는 등록 요청의 업무 날짜다.
+  - 그 뒤 Deal을 저장할 때 Status key가 저장된 진입 기록의 key와 다르면 진입일이 그 요청의 업무 날짜로 바뀌고, 같으면 그대로다. 해당 경로:
     - 폼 수정(`PATCH /deals/{code}`). 종결 값으로 Status가 바뀌는 경우 포함.
     - 변경 적용(`POST /deals/{code}/changes`). Forecast Won 선택으로 Status가 계약완료로 함께 바뀌는 경우와 Won 이탈 때 고른 Status 포함(동기화 규칙 DD).
     - Action 등록의 `status_change`(AC).
-  - 진입 시각을 바꾸지 않는 것: Forecast만 변경, 다른 필드만 변경, 같은 Status를 다시 보냄, Status 변경 없는 Action 등록, 연락처 변경 반영에 따른 수정 시각 갱신.
-- **RK-R10** `status_days = max(0, (오늘 − status_changed_at의 업무 날짜).days)`다. 진입 당일은 0이다. 종결 Deal도 계산한다(경고와 달리 제외하지 않음).
+  - 진입일을 바꾸지 않는 것: Forecast만 변경, 다른 필드만 변경, 같은 Status를 다시 보냄, Status 변경 없는 Action 등록, 연락처 변경 반영에 따른 수정 시각 갱신.
+- **RK-R10** `status_days = max(0, (오늘 − status_changed_on).days)`다. 진입 당일은 0이다. 종결 Deal도 계산한다(경고와 달리 제외하지 않음).
 
 경고 기준
 - **RK-R11** 경고 기준은 시스템 전체 값 하나(`stale_days`)다. 1~365 정수이며 저장한 적이 없으면 14다.
@@ -132,12 +133,12 @@ Status 진입 시각과 체류 일수
     - "미업데이트" 배지 + "{N}일 이상 미업데이트"(N = 저장된 경고 기준). 기준을 읽는 중이거나 읽지 못하면 "기준일 이상 미업데이트".
   - 각 행은 이름 옆에 경고 배지를 두고 행 클래스를 붙인다.
   - 기한초과(`overdue`·`overdue_stale`)면 Due 칸에 `overdue` 클래스를 붙인다. Next Action 칸에는 붙이지 않는다.
-  - 최종 업데이트 칸은 상대 시각(TM-R15)이고 `title`은 `formatStamp`다.
+  - 최종 업데이트 칸은 앱 시계의 오늘을 기준으로 한 상대 일수("오늘"·"어제"·"N일 전", 30일 이상이면 날짜, TM-R15의 일 단위 표기)이고 `title`은 `YYYY-MM-DD`다.
   - 목록에는 체류 일수 열·문구가 없다.
 - **RK-R17** Deal 상세 요약 바
-  - Status 옆에 "{status_days}일째"를 보이고 `title`은 `formatDateTime(status_changed_at)`(오프셋 벽시계, TM-R14)이다.
+  - Status 옆에 "{status_days}일째"를 보이고 `title`은 진입일 `YYYY-MM-DD`(서버 값 그대로)다.
   - Next Action 줄은 기준 행의 텍스트·"Due {날짜}"·상태 라벨을 보인다. 없으면 "없음"이다. 줄 끝에 경고 배지를 둔다(Action이 없어도 미업데이트면 보임).
-  - 최종 업데이트는 상대 시각이고 `title`은 서버 문자열 원문이다.
+  - 최종 업데이트는 상대 일수(RK-R16과 같음)이고 `title`은 `YYYY-MM-DD`다.
 - **RK-R18** Actions 탭 표의 기한초과 배지
   - 서버 `risk`가 `overdue`·`overdue_stale`이고, 그 행의 Next Action 텍스트와 Due Date가 Deal `next_action`의 `text`·`due_date`와 같을 때만 그 행 Due 칸에 "기한초과" 배지를 단다.
   - 브라우저 시계로 판정하지 않는다. `risk`가 `null`이나 `stale`이면 Due가 지나 보여도 배지가 없다.
@@ -153,8 +154,9 @@ Status 진입 시각과 체류 일수
 - **RK-R21** 게이트웨이
   - HTTP `alerts.get`/`save`는 `GET`/`PUT /api/v1/alert-settings`를 부르고 `{staleDays, updatedAt, updatedBy}`로 바꾼다.
   - 422 문장은 메시지 그대로 넘기고, 403·401은 그 상태의 `ApiError`다.
-  - HTTP Deal 매퍼는 서버 `risk`·`statusChangedAt`·`statusDays`를 그대로 옮기고 다시 계산하지 않는다.
+  - HTTP Deal 매퍼는 서버 `risk`·`statusChangedOn`·`statusDays`를 그대로 옮기고 다시 계산하지 않는다.
   - Fake 게이트웨이는 `shared/model/risk.ts`의 `computeRisk`·`statusDays`로 서버와 같은 규칙을 흉내 낸다.
+- **RK-R22** 기존 데이터 변환(리비전 `b4d7e2a9c613`, SC-R20): `status_changed_on`은 저장된 `status_changed_at`을 업무 시간대(서버 OS 로컬)로 바꾼 날짜다(예: `2026-11-12T15:30:00Z`는 Asia/Seoul에서 2026-11-13). 채운 뒤 NOT NULL로 바꾼다. 행 수는 그대로이고 시각만 버린다. downgrade는 `status_changed_at`을 그 날짜의 업무 시간대 00:00으로 되살린다(NOT NULL). 체류 일수는 변환 전과 같다.
 
 ### 2.4 상태와 전이
 
@@ -165,7 +167,7 @@ Status 진입 시각과 체류 일수
 | 미업데이트 아님 | `null` | `overdue` |
 | 미업데이트 | `stale` | `overdue_stale` |
 
-종결(`won`·`lost`)은 항상 `null`이다. Status 진입 시각은 Status key가 바뀌는 저장에서만 앞으로 간다(RK-R9).
+종결(`won`·`lost`)은 항상 `null`이다. Status 진입일은 Status key가 바뀌는 저장에서만 앞으로 간다(RK-R9).
 
 ### 2.5 권한
 
@@ -188,11 +190,11 @@ Status 진입 시각과 체류 일수
 - 라우터: `APIRouter(prefix="/api/v1/alert-settings", tags=["settings"])`, PUT에 `require_admin`. 유스케이스: `GetAlertSettings(uow_factory)`, `UpdateAlertSettings(uow_factory, clock)`. Port: `AlertSettingsRepository.get() -> StoredAlertSettings | None`, `save(thresholds, *, updated_by, now) -> StoredAlertSettings`.
 - Deal 응답(`DealRowResponse`·`DealDetailResponse`, 경로는 DE·DD·DL 소유)의 이 feature 필드(모두 required):
   - `next_action: {text: string, due_date: date, status: "open"|"done"|"not_done"} | null`
-  - `last_updated_at: date-time`
+  - `last_updated_on: date`
   - `risk: "overdue"|"stale"|"overdue_stale"|null`
-  - `status_changed_at: date-time`
+  - `status_changed_on: date`
   - `status_days: integer`
-  - 시각 표기는 TM-R8을 따른다.
+  - 두 날짜 필드는 `YYYY-MM-DD`다.
 - 새 오류 type 없음.
 
 ### 2.7 화면 동작
@@ -223,10 +225,10 @@ RK-R15~R21.
 - 기본 흐름: 목록을 `overdue`·`stale`로 조회하면 응답 `risk`와 같은 판정으로 고른다(RK-R8)
 - 결과: 필터 결과와 행의 경고가 일치하고 `total`이 맞다
 
-### RK-UC3 Status 진입 시각 기록
+### RK-UC3 Status 진입일 기록
 - 행위자: sales·admin(저장하는 사람), 시스템
-- 기본 흐름: 등록·폼 수정·변경 적용·Action 등록에서 Status key가 바뀌면 그 요청 시각을 진입 시각으로 남긴다(RK-R9)
-- 대안: Status가 그대로면 진입 시각 유지
+- 기본 흐름: 등록·폼 수정·변경 적용·Action 등록에서 Status key가 바뀌면 그 요청의 업무 날짜를 진입일로 남긴다(RK-R9)
+- 대안: Status가 그대로면 진입일 유지
 - 결과: 체류 일수가 새 Status 기준으로 0부터 다시 센다
 
 ### RK-UC4 경고 기준 조회·변경
@@ -244,12 +246,12 @@ RK-R15~R21.
 
 | 코드 | 케이스 | 규칙·UC | 층 | 테스트 위치 |
 | --- | --- | --- | --- | --- |
-| RK-001 | Next Action 기준 행은 Next Action이 있는 가장 최근 Action이고 더 최근의 진행사항만 Action은 대신하지 않는다 | RK-R1, RK-UC1 | backend | `application/test_deal_views_next_action_basis.py::test_a_later_progress_only_action_does_not_replace_the_next_action`<br>`application/test_list_deals_derived.py::test_the_latest_action_provides_the_next_action_and_the_update_time`<br>`gateway/contract/actionsStatus.contract.ts` |
-| RK-002 | 수행 시각이 같으면 id가 큰 Action이 기준 행이다 | RK-R1, RK-UC1 | backend | `application/test_deal_views_next_action_basis.py::test_equal_acted_at_makes_the_larger_id_the_next_action_basis` |
-| RK-003 | Next Action이 한 번도 없으면 next_action은 null이다 | RK-R1, RK-UC1 | backend | `application/test_deal_views_next_action_basis.py::test_deal_with_only_progress_only_actions_is_never_overdue`<br>`application/test_list_deals_derived.py::test_a_deal_without_actions_has_no_next_action_and_its_registration_time` |
-| RK-004 | 최종 업데이트는 등록 순서와 무관하게 가장 늦은 Action 수행 시각이다(진행사항만 포함) | RK-R2, RK-UC1 | backend | `application/test_list_deals_derived.py::test_the_latest_action_provides_the_next_action_and_the_update_time`<br>`application/test_list_deals_derived.py::test_the_action_with_the_latest_acted_at_wins_regardless_of_registration_order`<br>`application/test_list_deals_derived.py::test_an_action_older_than_the_deal_update_still_sets_the_update_time`<br>`gateway/contract/actionsStatus.contract.ts` |
-| RK-005 | Action이 없으면 최종 업데이트는 등록 시각이고 Deal 수정은 반영하지 않는다 | RK-R2, RK-UC1 | backend | `application/test_list_deals_derived.py::test_a_deal_without_actions_has_no_next_action_and_its_registration_time`<br>`application/test_list_deals_derived.py::test_a_deal_edit_does_not_move_the_update_time` |
-| RK-006 | 유일한 Action을 지우면 최종 업데이트가 등록 시각으로 돌아간다 | RK-R2, RK-UC1 | backend | `application/test_deal_last_updated_actions.py::test_deleting_the_only_action_returns_last_updated_to_the_registration_time` |
+| RK-001 | Next Action 기준 행은 Next Action이 있는 가장 최근 Action이고 더 최근의 진행사항만 Action은 대신하지 않는다 | RK-R1, RK-UC1 | backend | `application/test_deal_views_next_action_basis.py::test_a_later_progress_only_action_does_not_replace_the_next_action`<br>`application/test_list_deals_derived.py::test_the_latest_action_provides_the_next_action_and_the_update_date`<br>`gateway/contract/actionsStatus.contract.ts` |
+| RK-002 | 수행일이 같으면 id가 큰 Action이 기준 행이다 | RK-R1, RK-UC1 | backend | `application/test_deal_views_next_action_basis.py::test_equal_acted_on_makes_the_larger_id_the_next_action_basis` |
+| RK-003 | Next Action이 한 번도 없으면 next_action은 null이다 | RK-R1, RK-UC1 | backend | `application/test_deal_views_next_action_basis.py::test_deal_with_only_progress_only_actions_is_never_overdue`<br>`application/test_list_deals_derived.py::test_a_deal_without_actions_has_no_next_action_and_its_registration_date` |
+| RK-004 | 최종 업데이트일은 등록 순서와 무관하게 가장 늦은 Action 수행일이다(진행사항만 포함) | RK-R2, RK-UC1 | backend | `application/test_list_deals_derived.py::test_the_latest_action_provides_the_next_action_and_the_update_date`, `application/test_list_deals_derived.py::test_the_action_with_the_latest_acted_on_wins_regardless_of_registration_order`, `application/test_list_deals_derived.py::test_an_action_older_than_the_deal_update_still_sets_the_update_time`, `gateway/contract/actionsStatus.contract.ts` <br><br><br> |
+| RK-005 | Action이 없으면 최종 업데이트일은 등록일이고 Deal 수정은 반영하지 않는다 | RK-R2, RK-UC1 | backend | `application/test_list_deals_derived.py::test_a_deal_without_actions_has_no_next_action_and_its_registration_date`<br>`application/test_list_deals_derived.py::test_a_deal_edit_does_not_move_the_update_time` |
+| RK-006 | 유일한 Action을 지우면 최종 업데이트일이 등록일로 돌아간다 | RK-R2, RK-UC1 | backend | `application/test_deal_last_updated_actions.py::test_deleting_the_only_action_returns_last_updated_to_the_registration_date` |
 | RK-007 | Action 수정과 Next Action 상태 변경은 최종 업데이트를 바꾸지 않는다 | RK-R2, RK-UC1 | backend | `application/test_deal_last_updated_actions.py::test_editing_an_action_keeps_last_updated`<br>`application/test_deal_last_updated_actions.py::test_changing_the_next_action_status_keeps_last_updated` |
 | RK-008 | 같은 Deal의 목록 행과 상세는 같은 파생 값을 준다 | RK-R2, RK-R7, RK-UC1 | backend | `application/test_deal_views_risk.py::test_list_and_detail_agree_on_the_same_deal`<br>`application/test_list_deals_derived.py::test_the_detail_carries_the_same_derived_values` |
 | RK-009 | 기준 행의 Due Date가 오늘보다 앞이면 기한초과다 | RK-R4, RK-R6, RK-UC1 | backend | `application/test_deal_views_risk.py::test_action_due_before_today_makes_the_deal_overdue`<br>`domain/test_deal_risk.py::test_due_yesterday_is_overdue` |
@@ -259,7 +261,7 @@ RK-R15~R21.
 | RK-013 | 기한 지난 Next Action을 종료해도 기한초과가 유지된다 | RK-R4, RK-UC1 | backend | `application/test_deal_views_next_action_basis.py::test_closed_next_action_keeps_overdue` |
 | RK-014 | 기준 14일에서 13일째는 정상이고 14일째부터 미업데이트다 | RK-R5, RK-UC1 | backend | `domain/test_deal_risk.py::test_stale_from_exactly_stale_days`<br>`domain/test_deal_risk.py::test_not_stale_one_day_before`<br>`domain/test_deal_risk.py::test_stale_far_beyond_the_boundary` |
 | RK-015 | 기준 1일이면 어제 갱신은 미업데이트, 오늘 갱신은 정상이다 | RK-R5, RK-UC1 | backend | `domain/test_deal_risk.py::test_stale_days_of_one_makes_yesterday_stale_and_today_fresh` |
-| RK-016 | 오늘과 갱신 날짜는 서버 시간대의 업무 날짜로 센다 | RK-R5, RK-R10, RK-UC1 | backend | `application/test_deal_views_risk.py::test_today_and_entry_dates_use_the_local_calendar`<br>`domain/test_deal_risk.py::test_today_uses_local_calendar_date`<br>`domain/test_deal_status_days.py::test_naive_entry_is_rejected`<br>`domain/test_deal_risk.py::test_updated_at_is_converted_to_the_local_zone_before_counting`<br>외 1건 |
+| RK-016 | 오늘과 갱신 날짜는 서버 시간대의 업무 날짜로 센다 | RK-R5, RK-R10, RK-UC1 | backend | `application/test_deal_views_risk.py::test_today_and_entry_dates_use_the_local_calendar`<br>`domain/test_deal_risk.py::test_stale_is_the_difference_of_dates_not_of_elapsed_hours`<br>`domain/test_resolve_acted_on.py::test_a_request_time_without_a_timezone_is_rejected`<br>`application/test_list_deals_derived.py::test_a_deal_without_actions_uses_the_business_date_of_registration_not_the_utc_date`<br>외 1건 |
 | RK-017 | 기한초과이면서 미업데이트면 overdue_stale, 하나만이면 그 값이다 | RK-R6, RK-UC1 | backend | `application/test_deal_views_risk.py::test_list_and_detail_agree_on_the_same_deal`<br>`domain/test_deal_risk.py::test_overdue_and_stale_is_overdue_stale`<br>`domain/test_deal_risk.py::test_overdue_only_is_not_marked_stale` |
 | RK-018 | Won·Lost Deal은 기한이 지나고 오래돼도 경고가 없다 | RK-R3, RK-UC1 | backend | `application/test_deal_views_risk.py::test_closed_deal_has_no_risk_in_list_and_detail`<br>`domain/test_deal_risk.py::test_won_and_lost_have_no_risk`<br>`domain/test_deal_risk.py::test_open_forecasts_keep_their_risk`<br>`domain/test_deal_risk.py::test_closed_forecast_is_decided_by_key` |
 | RK-019 | Next Action 상태는 미업데이트 판정에 영향이 없다 | RK-R5, RK-UC1 | backend | `application/test_deal_views_next_action_basis.py::test_stale_ignores_the_status_of_the_next_action` |
@@ -269,21 +271,21 @@ RK-R15~R21.
 | RK-023 | 경고 기준을 바꾸면 다음 조회부터 바로 반영된다 | RK-R7, RK-UC4 | backend | `application/test_deal_views_risk.py::test_changing_the_saved_threshold_applies_to_the_same_deals_at_once` |
 | RK-024 | 목록은 경고 기준을 요청당 한 번 읽어 모든 행에 쓴다 | RK-R7, RK-UC1 | backend | `application/test_deal_views_risk.py::test_list_reads_the_threshold_once_for_all_rows` |
 | RK-025 | 등록·수정·변경 적용 응답도 요청 시각 기준의 경고·체류 일수를 준다 | RK-R7, RK-R10, RK-UC1 | backend | `application/test_deal_views_risk.py::test_register_response_has_zero_days_and_no_risk`<br>`application/test_deal_views_risk.py::test_update_response_is_computed_at_the_request_time`<br>`application/test_deal_views_risk.py::test_apply_change_response_carries_risk_and_days`<br>`application/test_deal_views_risk.py::test_update_response_without_a_status_change_keeps_counting_the_days` |
-| RK-026 | Deal 응답은 risk·status_changed_at·status_days를 정해진 모양으로 준다 | RK-R6, RK-R10, RK-UC1 | backend | `web/test_deal_response_risk.py::test_row_and_detail_expose_risk_status_changed_at_and_status_days`<br>`web/test_deal_response_risk.py::test_each_risk_value_is_serialized_as_its_key`<br>`web/test_deal_response_risk.py::test_no_risk_is_serialized_as_null`<br>`web/test_deal_response_risk.py::test_status_changed_at_is_the_deal_entry_time_not_the_update_time`<br>외 1건 |
+| RK-026 | Deal 응답은 risk·status_changed_on·status_days를 정해진 모양으로 준다 | RK-R6, RK-R10, RK-UC1 | backend | `web/test_deal_response_risk.py::test_row_and_detail_expose_risk_status_changed_on_and_status_days`, `web/test_deal_response_risk.py::test_each_risk_value_is_serialized_as_its_key`, `web/test_deal_response_risk.py::test_no_risk_is_serialized_as_null`, `web/test_deal_response_risk.py::test_status_changed_on_is_the_deal_entry_date_not_the_update_time` <br><br><br><br>외 1건 |
 | RK-027 | overdue 필터는 기한초과 Deal만 고르고 종결 Deal은 빠진다 | RK-R8, RK-UC2 | backend | `application/test_deal_query_risk.py::test_either_flag_makes_the_query_want_risk`<br>`application/test_list_deals_risk_filter.py::test_the_overdue_filter_returns_only_overdue_rows_with_a_matching_total` |
 | RK-028 | stale 필터는 미업데이트 Deal만 고른다 | RK-R8, RK-UC2 | backend | `application/test_deal_query_risk.py::test_either_flag_makes_the_query_want_risk`<br>`application/test_list_deals_risk_filter.py::test_the_stale_filter_returns_only_stale_rows_with_a_matching_total` |
 | RK-029 | 두 필터를 함께 켜면 어느 하나라도 해당하는 Deal이다 | RK-R8, RK-UC2 | backend | `application/test_deal_query_risk.py::test_risk_filters_default_to_no_condition`<br>`application/test_list_deals_risk_filter.py::test_both_filters_together_return_a_deal_matching_either`<br>`application/test_list_deals_risk_filter.py::test_without_the_filters_every_deal_is_listed` |
 | RK-030 | 필터는 같은 요청의 업무 날짜와 저장된 경고 기준(없으면 14)을 쓴다 | RK-R8, RK-R7, RK-UC2 | backend | `application/test_deal_query_risk.py::test_with_risk_basis_fills_the_basis_only_when_a_risk_filter_is_set`<br>`application/test_list_deals_risk_filter.py::test_list_uses_the_business_today_and_the_saved_stale_days`<br>`application/test_list_deals_risk_filter.py::test_list_does_not_flag_a_deal_one_day_short_of_the_saved_stale_days`<br>`application/test_list_deals_risk_filter.py::test_list_uses_the_default_stale_days_when_nothing_is_saved` |
-| RK-031 | 미업데이트 필터의 시각 경계는 경고 판정과 일치한다 | RK-R8, RK-R5, RK-UC2 | backend | `domain/test_risk_basis.py::test_stale_before_matches_compute_risk_at_the_day_boundary`<br>`domain/test_risk_basis.py::test_stale_before_with_one_day_means_before_today`<br>`domain/test_risk_basis.py::test_stale_before_agrees_with_compute_risk_for_each_offset`<br>`domain/test_risk_basis.py::test_risk_basis_rejects_stale_days_below_one` |
-| RK-032 | 등록하면 진입 시각이 등록 시각이고 체류 0일·경고 없음이다 | RK-R9, RK-R10, RK-UC3 | backend | `application/test_status_changed_at_paths.py::test_register_deal_records_the_entry_at_registration_time`<br>`domain/test_deal_status_entry.py::test_create_records_entry_at_registration` |
-| RK-033 | 폼 수정으로 Status가 바뀌면 진입 시각이 그 요청 시각이 된다 | RK-R9, RK-UC3 | backend | `application/test_status_changed_at_paths.py::test_update_deal_status_change_moves_status_changed_at`<br>`domain/test_deal_status_entry.py::test_touch_after_status_change_records_now`<br>`domain/test_deal_status_entry.py::test_a_second_status_change_moves_the_entry_again` |
-| RK-034 | 폼 수정에서 Forecast만·다른 필드만·같은 Status 재전송은 진입 시각을 바꾸지 않는다 | RK-R9, RK-UC3 | backend | `application/test_status_changed_at_paths.py::test_update_deal_forecast_only_keeps_it`<br>`domain/test_deal_status_entry.py::test_touch_without_status_change_keeps_entry_when_only_forecast_changes`<br>`application/test_status_changed_at_paths.py::test_update_deal_other_fields_keep_it`<br>`application/test_status_changed_at_paths.py::test_update_deal_resending_the_same_status_keeps_it`<br>외 2건 |
-| RK-035 | 폼 수정에서 종결 값으로 Status가 바뀌면 진입 시각이 바뀐다 | RK-R9, RK-UC3 | backend | `application/test_status_changed_at_paths.py::test_update_deal_with_closing_values_moves_it` |
-| RK-036 | 변경 적용으로 Status를 바꾸면 진입 시각이 바뀌고 Forecast·금액·같은 Status는 그대로다 | RK-R9, RK-UC3 | backend | `application/test_status_changed_at_paths.py::test_apply_change_status_moves_it`<br>`domain/test_deal_status_entry.py::test_apply_sync_forecast_only_change_keeps_status_entry`<br>`application/test_status_changed_at_paths.py::test_apply_change_forecast_only_keeps_it`<br>`application/test_status_changed_at_paths.py::test_apply_change_amount_keeps_it`<br>외 1건 |
-| RK-037 | Forecast Won으로 계약완료가 함께 바뀌거나 Won에서 다른 Status로 나가면 진입 시각이 바뀐다 | RK-R9, RK-UC3 | backend | `application/test_status_changed_at_paths.py::test_apply_change_forecast_won_moves_it_with_contract_completed`<br>`domain/test_deal_status_entry.py::test_apply_sync_closing_moves_status_entry`<br>`application/test_status_changed_at_paths.py::test_apply_change_leaving_won_moves_it_to_the_chosen_status`<br>`domain/test_deal_status_entry.py::test_apply_sync_reopening_a_closed_deal_moves_status_entry` |
-| RK-038 | Action 등록은 Status를 바꿀 때만 진입 시각을 옮긴다 | RK-R9, RK-UC3 | backend | `application/test_status_changed_at_paths.py::test_register_action_with_status_change_moves_it`<br>`application/test_status_changed_at_paths.py::test_register_action_with_forecast_change_keeps_it`<br>`application/test_status_changed_at_paths.py::test_register_action_with_closing_moves_it`<br>`application/test_status_changed_at_paths.py::test_register_action_without_status_change_keeps_it` |
-| RK-039 | 연락처 변경 반영으로 수정 시각이 바뀌어도 진입 시각은 그대로다 | RK-R9, RK-UC3 | backend | `application/test_status_changed_at_paths.py::test_contact_update_touch_keeps_it` |
-| RK-040 | 체류 일수는 진입 업무 날짜부터 센 일수이고 당일·미래는 0이다 | RK-R10, RK-UC1 | backend | `application/test_deal_views_risk.py::test_status_days_counts_from_status_changed_at`<br>`domain/test_deal_status_days.py::test_entered_today_is_zero_days`<br>`domain/test_deal_status_days.py::test_entered_three_days_ago_is_three`<br>`domain/test_deal_status_days.py::test_entered_late_yesterday_is_one_day_even_a_few_minutes_ago`<br>외 2건 |
+| RK-031 | 미업데이트 필터의 날짜 경계는 경고 판정과 일치한다 | RK-R8, RK-R5, RK-UC2 | backend | `domain/test_risk_basis.py::test_stale_before_matches_compute_risk_at_the_day_boundary`<br>`domain/test_risk_basis.py::test_stale_before_with_one_day_means_before_today`<br>`domain/test_risk_basis.py::test_stale_before_agrees_with_compute_risk_for_each_offset`<br>`domain/test_risk_basis.py::test_risk_basis_rejects_stale_days_below_one` |
+| RK-032 | 등록하면 진입일이 등록일이고 체류 0일·경고 없음이다 | RK-R9, RK-R10, RK-UC3 | backend | `application/test_status_changed_on_paths.py::test_register_deal_records_the_entry_on_the_registration_date`, `domain/test_deal_status_entry.py::test_create_records_entry_at_registration` <br> |
+| RK-033 | 폼 수정으로 Status가 바뀌면 진입일이 그 요청의 업무 날짜가 된다 | RK-R9, RK-UC3 | backend | `application/test_status_changed_on_paths.py::test_update_deal_status_change_moves_status_changed_on`, `domain/test_deal_status_entry.py::test_touch_after_status_change_records_now`, `domain/test_deal_status_entry.py::test_a_second_status_change_moves_the_entry_again` <br><br> |
+| RK-034 | 폼 수정에서 Forecast만·다른 필드만·같은 Status 재전송은 진입일을 바꾸지 않는다 | RK-R9, RK-UC3 | backend | `application/test_status_changed_on_paths.py::test_update_deal_forecast_only_keeps_it`, `domain/test_deal_status_entry.py::test_touch_without_status_change_keeps_entry_when_only_forecast_changes`, `application/test_status_changed_on_paths.py::test_update_deal_other_fields_keep_it`, `application/test_status_changed_on_paths.py::test_update_deal_resending_the_same_status_keeps_it` <br><br><br><br>외 2건 |
+| RK-035 | 폼 수정에서 종결 값으로 Status가 바뀌면 진입일이 바뀐다 | RK-R9, RK-UC3 | backend | `application/test_status_changed_on_paths.py::test_update_deal_with_closing_values_moves_it` |
+| RK-036 | 변경 적용으로 Status를 바꾸면 진입일이 바뀌고 Forecast·금액·같은 Status는 그대로다 | RK-R9, RK-UC3 | backend | `application/test_status_changed_on_paths.py::test_apply_change_status_moves_it`, `domain/test_deal_status_entry.py::test_apply_sync_forecast_only_change_keeps_status_entry`, `application/test_status_changed_on_paths.py::test_apply_change_forecast_only_keeps_it`, `application/test_status_changed_on_paths.py::test_apply_change_amount_keeps_it` <br><br><br><br>외 1건 |
+| RK-037 | Forecast Won으로 계약완료가 함께 바뀌거나 Won에서 다른 Status로 나가면 진입일이 바뀐다 | RK-R9, RK-UC3 | backend | `application/test_status_changed_on_paths.py::test_apply_change_forecast_won_moves_it_with_contract_completed`, `domain/test_deal_status_entry.py::test_apply_sync_closing_moves_status_entry`, `application/test_status_changed_on_paths.py::test_apply_change_leaving_won_moves_it_to_the_chosen_status`, `domain/test_deal_status_entry.py::test_apply_sync_reopening_a_closed_deal_moves_status_entry` <br><br><br> |
+| RK-038 | Action 등록은 Status를 바꿀 때만 진입일을 옮긴다 | RK-R9, RK-UC3 | backend | `application/test_status_changed_on_paths.py::test_register_action_with_status_change_moves_it`, `application/test_status_changed_on_paths.py::test_register_action_with_forecast_change_keeps_it`, `application/test_status_changed_on_paths.py::test_register_action_with_closing_moves_it`, `application/test_status_changed_on_paths.py::test_register_action_without_status_change_keeps_it` <br><br><br> |
+| RK-039 | 연락처 변경 반영으로 수정 시각이 바뀌어도 진입일은 그대로다 | RK-R9, RK-UC3 | backend | `application/test_status_changed_on_paths.py::test_contact_update_touch_keeps_it` |
+| RK-040 | 체류 일수는 진입 업무 날짜부터 센 일수이고 당일·미래는 0이다 | RK-R10, RK-UC1 | backend | `application/test_deal_views_risk.py::test_status_days_counts_from_status_changed_on`, `domain/test_deal_status_days.py::test_entered_today_is_zero_days`, `domain/test_deal_status_days.py::test_entered_three_days_ago_is_three`, `domain/test_deal_status_days.py::test_entered_yesterday_is_one_day` <br><br><br><br>외 2건 |
 | RK-041 | Status가 바뀌면 체류 일수가 0부터 다시 시작하고 Forecast만 바뀌면 이어진다 | RK-R10, RK-R9, RK-UC3 | backend | `application/test_deal_views_risk.py::test_status_change_resets_the_days_but_forecast_only_change_does_not` |
 | RK-042 | 종결 Deal도 체류 일수를 보인다 | RK-R10, RK-UC1 | backend | `application/test_deal_views_risk.py::test_closed_deal_still_shows_status_days` |
 | RK-043 | 저장한 적이 없으면 모든 역할이 경고 기준 14일과 빈 저장 기록을 읽는다 | RK-R11, RK-R12, RK-UC4 | backend | `application/test_alert_settings.py::test_get_without_saved_row_returns_default`<br>`web/test_alert_settings_routes.py::test_get_is_open_to_every_role_and_defaults_to_fourteen_days` |
@@ -299,7 +301,7 @@ RK-R15~R21.
 | RK-053 | 화면: 경고 기준을 저장하면 목록 범례와 행 경고가 새 기준으로 바뀐다 | RK-R20, RK-R16, RK-UC4 | frontend | `data/alerts.test.tsx > refreshes the cached deal list risk after a successful save`<br>`features/deals/list/DealsPage.alerts.test.tsx > writes the saved threshold into the legend and recolors rows after the save`<br>`data/alerts.test.tsx > leaves the cached deal list untouched when the save is rejected` |
 | RK-054 | 화면: 목록에는 체류 일수가 없다 | RK-R16, RK-UC5 | frontend | `features/deals/list/DealsPage.alerts.test.tsx > has no stay-days column or text in the list (the stay is shown on the detail only)` |
 | RK-055 | 화면: 기한초과 행은 Due 칸만 강조한다 | RK-R16, RK-UC5 | frontend | `features/deals/list/DealsPage.columns.test.tsx > marks an overdue Next Action date and not a normal one` |
-| RK-056 | 화면: 상세 Status 옆에 "N일째"와 진입 시각 툴팁을 보인다 | RK-R17, RK-UC5 | frontend | `features/deals/detail/SummaryBar.stay.test.tsx > shows "N일째" next to Status with the entry time in the tooltip`<br>`features/deals/detail/SummaryBar.stay.test.tsx > shows the tooltip as the wall time of the serialized offset when the change time is UTC`<br>`features/deals/detail/SummaryBar.stay.test.tsx > restarts from 0일째 right after the status changes` |
+| RK-056 | 화면: 상세 Status 옆에 "N일째"와 진입일 툴팁을 보인다 | RK-R17, RK-UC5 | frontend | `features/deals/detail/SummaryBar.stay.test.tsx > shows "N일째" next to Status with the entry time in the tooltip`<br>`features/deals/detail/SummaryBar.stay.test.tsx > shows the tooltip as the wall time of the serialized offset when the change time is UTC`<br>`features/deals/detail/SummaryBar.stay.test.tsx > restarts from 0일째 right after the status changes` |
 | RK-057 | 화면: 상세 Next Action 줄에 경고 배지를 보이고 Action이 없어도 미업데이트를 보인다 | RK-R17, RK-UC5 | frontend | `features/deals/detail/SummaryBar.stay.test.tsx > shows the stale badge on a deal that has no action at all` |
 | RK-058 | 화면: Actions 표의 기한초과 배지는 서버 경고와 현재 기준 행에만 붙는다 | RK-R18, RK-UC5 | frontend | `features/deals/detail/ActionTable.risk.test.tsx > shows no row badge when the server risk is null even though the due date is past the clock`<br>`features/deals/detail/ActionTable.risk.test.tsx > shows no row badge when the server risk is only stale`<br>`features/deals/detail/ActionTable.risk.test.tsx > shows the badge on the current action row only when the server risk is overdue`<br>`features/deals/detail/ActionTable.risk.test.tsx > shows the badge when the server risk is overdue_stale`<br>외 1건<br>`features/deals/detail/ActionsTab.test.tsx > marks the overdue due date of the current next action` |
 | RK-059 | HTTP Deal 매퍼는 서버 경고·체류 일수를 다시 계산하지 않는다 | RK-R21, RK-R7, RK-UC5 | frontend | `gateway/http/mappers/deal.test.ts > uses the server risk %s as it is`<br>`gateway/http/mappers/deal.test.ts > does not recompute risk from the UTC-looking timestamps (an old deal with server risk null stays null)`<br>`gateway/http/mappers/deal.test.ts > maps the status entry time and the stay days from the server` |
@@ -310,14 +312,17 @@ RK-R15~R21.
 | RK-064 | 화면: sales에게는 경고 기준 탭이 없다 | RK-R19, RK-UC4 | frontend | `features/admin/deal-management/AlertSettingsForm.test.tsx > is hidden from sales: the tab and the form do not exist` |
 | RK-065 | HTTP 경고 기준 게이트웨이는 응답을 바꾸고 오류를 그대로 넘긴다 | RK-R21, RK-UC4 | frontend | `gateway/http/alerts.test.ts > get reads /alert-settings and maps the default (never saved) settings`<br>`gateway/http/alerts.test.ts > get maps the saved time and the saver to a UserRef`<br>`gateway/http/alerts.test.ts > save PUTs {stale_days} and returns the stored settings`<br>`gateway/http/alerts.test.ts > save passes the server 422 sentence through as the message (validation kind)`<br>외 1건 |
 | RK-066 | Fake 게이트웨이는 경고 기준·경고·체류 일수를 서버와 같은 규칙으로 낸다 | RK-R21, RK-R3~R5, RK-R9~R13 | frontend | `shared/model/risk.test.ts > T-RISK-01 Due가 오늘이면 기한초과가 아니다`<br>`test/fake/gateway/alerts.test.ts > answers the default 14 days, never saved, to every role`<br>`test/fake/gateway/statusEntry.test.ts > starts at registration with statusDays 0`<br>`shared/model/risk.test.ts > T-RISK-02 Due가 어제면 기한초과다`<br>외 28건 |
+| RK-067 | Action이 없으면 최종 업데이트일은 업무 시간대 기준 Deal 등록일이다(UTC 날짜가 아님) | RK-R2 | backend | `application/test_list_deals_derived.py`, `repositories/test_deal_derived_values_contract.py` |
+| RK-068 | Deal 응답은 last_updated_on·status_changed_on 날짜를 주고 last_updated_at·status_changed_at 키가 없다 | RK-R2, RK-R9, RK-R7 | backend | `web/test_deal_response_risk.py` |
+| RK-069 | 마이그레이션은 Status 진입 시각을 업무 날짜로 채워 NOT NULL로 바꾸고 downgrade는 00:00으로 되살린다 | RK-R22 | backend | `infra/schema/test_business_dates_migration.py`, `infra/schema/test_deal_status_changed_on_schema.py` |
 
 ### RK-001 Next Action 기준 행은 Next Action이 있는 가장 최근 Action이고 더 최근의 진행사항만 Action은 대신하지 않는다
 - Given Deal에 Next Action "계약서 검토"(Due 오늘+30일) Action이 있고, 그 뒤에 진행사항만 Action "전화 통화"가 등록되었다
 - When 목록과 상세를 조회한다
 - Then 두 응답의 `next_action`은 `{text: "계약서 검토", due_date: 오늘+30일, status: "open"}`이다
 
-### RK-002 수행 시각이 같으면 id가 큰 Action이 기준 행이다
-- Given 같은 `acted_at`에 Next Action이 있는 Action 두 건이 있고 나중 행(id가 큼)의 Next Action이 "나중"이다
+### RK-002 수행일이 같으면 id가 큰 Action이 기준 행이다
+- Given 같은 `acted_on`에 Next Action이 있는 Action 두 건이 있고 나중 행(id가 큼)의 Next Action이 "나중"이다
 - When 상세를 조회한다
 - Then `next_action.text`는 "나중"이다
 
@@ -326,30 +331,30 @@ RK-R15~R21.
 - When 상세를 조회한다
 - Then 두 Deal 모두 `next_action`이 `null`이고 `risk`가 기한초과가 아니다
 
-### RK-004 최종 업데이트는 등록 순서와 무관하게 가장 늦은 Action 수행 시각이다
-- Given Deal에 수행 시각이 등록+5일인 Action과 그 뒤에 등록한 수행 시각 등록+2일인 Action이 있다
+### RK-004 최종 업데이트일은 등록 순서와 무관하게 가장 늦은 Action 수행일이다
+- Given Deal에 수행일이 등록+5일인 Action과, 그 뒤에 등록한 수행일이 등록+2일인 Action이 있다
 - When 목록을 조회한다
-- Then `last_updated_at`은 등록+5일이고 `next_action`은 그 행의 값이다. 진행사항만 Action만 있어도 그 수행 시각이 최종 업데이트다
+- Then `last_updated_on`은 등록+5일이고 `next_action`은 그 행의 값이다. 진행사항만 있는 Action뿐이어도 그 수행일이 최종 업데이트일이다
 
-### RK-005 Action이 없으면 최종 업데이트는 등록 시각이고 Deal 수정은 반영하지 않는다
+### RK-005 Action이 없으면 최종 업데이트일은 등록일이고 Deal 수정은 반영하지 않는다
 - Given Action이 없는 Deal을 등록하고 60초 뒤(또는 15일 뒤) 이름·금액을 수정했다
 - When 상세를 조회한다
-- Then `last_updated_at`은 `created_at`과 같은 순간이다
+- Then `last_updated_on`은 `created_at`의 업무 날짜다
 
-### RK-006 유일한 Action을 지우면 최종 업데이트가 등록 시각으로 돌아간다
+### RK-006 유일한 Action을 지우면 최종 업데이트일이 등록일로 돌아간다
 - Given 등록 5일 뒤 Action 하나를 남긴 Deal이다
 - When 그 Action을 삭제한 뒤 목록을 조회한다
-- Then `last_updated_at`은 Deal 등록 시각이다
+- Then `last_updated_on`은 Deal 등록일이다
 
 ### RK-007 Action 수정과 Next Action 상태 변경은 최종 업데이트를 바꾸지 않는다
 - Given 등록+1일에 수행한 Action이 있는 Deal이다
 - When 등록+3일에 그 Action의 내용을 수정하거나 Next Action 상태를 `done`으로 바꾼다
-- Then `last_updated_at`은 여전히 등록+1일이다
+- Then `last_updated_on`은 여전히 등록+1일이다
 
 ### RK-008 같은 Deal의 목록 행과 상세는 같은 파생 값을 준다
 - Given Action이 있고 기한초과인 Deal이다
 - When 목록과 상세를 같은 시각에 조회한다
-- Then `next_action`·`last_updated_at`·`risk`·`status_days`가 같다
+- Then `next_action`·`last_updated_on`·`risk`·`status_days`가 같다
 
 ### RK-009 기준 행의 Due Date가 오늘보다 앞이면 기한초과다
 - Given 서버 시간대가 Asia/Seoul이고 Deal의 기준 행 Due가 어제다
@@ -409,12 +414,12 @@ RK-R15~R21.
 ### RK-020 진행사항만 Action을 등록하면 미업데이트가 풀리고 기준일이 다시 지나면 미업데이트다
 - Given 등록 13일 뒤 진행사항만 Action을 등록했다
 - When 하루 뒤(등록 14일째)에, 그리고 Action 등록 14일 뒤에 상세를 조회한다
-- Then 앞의 조회는 `last_updated_at`이 그 Action 수행 시각이고 `risk`가 `null`이며, 뒤의 조회는 `"stale"`이다
+- Then 앞의 조회는 `last_updated_on`이 그 Action 수행일이고 `risk`가 `null`이며, 뒤의 조회는 `"stale"`이다
 
 ### RK-021 Deal을 수정해도 미업데이트가 풀리지 않는다
 - Given Action 없이 15일이 지난 Deal이다
 - When 금액을 수정한 뒤 상세를 조회한다
-- Then `risk`는 `"stale"`이고 `last_updated_at`은 등록 시각이다
+- Then `risk`는 `"stale"`이고 `last_updated_on`은 등록일이다
 
 ### RK-022 경고는 저장된 경고 기준으로 계산하고 저장 전이면 14일이다
 - Given 경고 기준이 7일로 저장되어 있다(또는 저장 기록이 없다)
@@ -436,9 +441,9 @@ RK-R15~R21.
 - When 이름을 수정한다(또는 변경 적용을 한다)
 - Then 응답의 `risk`는 `"overdue"`, `status_days`는 3이다. 등록 응답은 `status_days` 0, `risk` `null`이다
 
-### RK-026 Deal 응답은 risk·status_changed_at·status_days를 정해진 모양으로 준다
+### RK-026 Deal 응답은 risk·status_changed_on·status_days를 정해진 모양으로 준다
 - When Deal 목록 행·상세 응답과 openapi를 만든다
-- Then `risk`는 `"overdue"`·`"stale"`·`"overdue_stale"`·`null` 중 하나, `status_changed_at`은 `updated_at`이 아닌 진입 시각(서버 오프셋), `status_days`는 정수이며 셋 다 required이다
+- Then `risk`는 `"overdue"`·`"stale"`·`"overdue_stale"`·`null` 중 하나, `status_changed_on`은 `updated_at`의 날짜가 아닌 진입일(`YYYY-MM-DD`), `status_days`는 정수이며 셋 다 required이다
 
 ### RK-027 overdue 필터는 기한초과 Deal만 고르고 종결 Deal은 빠진다
 - Given 기한초과만·미업데이트만·둘 다·정상·기한 지난 Lost Deal이 있다
@@ -460,55 +465,55 @@ RK-R15~R21.
 - When 마지막 갱신 후 7일 된 Deal과 6일 된 Deal이 있을 때 `stale=true`로 조회한다
 - Then 7일 된 Deal만 나온다. 저장 기록이 없으면 14일 기준으로 고른다
 
-### RK-031 미업데이트 필터의 시각 경계는 경고 판정과 일치한다
+### RK-031 미업데이트 필터의 날짜 경계는 경고 판정과 일치한다
 - Given 서버 시간대가 Asia/Seoul이고 오늘이 2026-10-16, 기준이 14일이다
-- When 필터의 기준 시각(`stale_before`)을 구한다
-- Then `2026-10-03T00:00+09:00`이며, 이보다 1마이크로초 앞의 갱신은 `compute_risk`도 미업데이트, 이 순간의 갱신은 정상이다. 기준 1일이면 오늘 00:00이고, 기준 0 이하는 `ValueError`다
+- When 필터의 기준 날짜(`stale_before`)를 구한다
+- Then 2026-10-03이다. 최종 업데이트일이 2026-10-02면 `compute_risk`도 미업데이트로 보고, 2026-10-03이면 정상으로 본다. 기준이 1일이면 오늘이고, 0 이하면 `ValueError`다
 
-### RK-032 등록하면 진입 시각이 등록 시각이고 체류 0일·경고 없음이다
+### RK-032 등록하면 진입일이 등록일이고 체류 0일·경고 없음이다
 - Given sales로 로그인했다
 - When Deal을 등록한다
-- Then 응답 `status_changed_at`은 서버 시각, `status_days`는 0, `risk`는 `null`이며 저장된 진입 시각도 같다
+- Then 응답 `status_changed_on`은 오늘, `status_days`는 0, `risk`는 `null`이며 저장된 진입일도 같다
 
-### RK-033 폼 수정으로 Status가 바뀌면 진입 시각이 그 요청 시각이 된다
+### RK-033 폼 수정으로 Status가 바뀌면 진입일이 그 요청의 업무 날짜가 된다
 - Given Status `prospecting`으로 등록하고 5일이 지났다
 - When `PATCH`로 `status_key: "introduction"`을 저장한다
-- Then `status_changed_at`은 그 요청의 서버 시각이고 `status_days`는 0이다. 다시 다른 Status로 바꾸면 또 그 시각으로 옮긴다
+- Then `status_changed_on`은 그 요청의 업무 날짜이고 `status_days`는 0이다. 다시 다른 Status로 바꾸면 진입일도 그 요청의 날짜로 다시 옮긴다
 
-### RK-034 폼 수정에서 Forecast만·다른 필드만·같은 Status 재전송은 진입 시각을 바꾸지 않는다
+### RK-034 폼 수정에서 Forecast만·다른 필드만·같은 Status 재전송은 진입일을 바꾸지 않는다
 - Given Status `prospecting`으로 등록하고 5일이 지났다
 - When `{forecast_key: "best"}`, `{name: "다른 이름"}`, `{status_key: "prospecting", name: …}` 중 하나를 저장한다
-- Then `status_changed_at`은 등록 시각 그대로다
+- Then `status_changed_on`은 등록일 그대로다
 
-### RK-035 폼 수정에서 종결 값으로 Status가 바뀌면 진입 시각이 바뀐다
+### RK-035 폼 수정에서 종결 값으로 Status가 바뀌면 진입일이 바뀐다
 - Given 진행 중인 Deal이다
 - When 폼에서 종결 값(Won·계약완료와 매출 정보)으로 저장한다
-- Then `status_changed_at`은 그 요청의 서버 시각이다
+- Then `status_changed_on`은 그 요청의 업무 날짜다
 
-### RK-036 변경 적용으로 Status를 바꾸면 진입 시각이 바뀌고 Forecast·금액·같은 Status는 그대로다
+### RK-036 변경 적용으로 Status를 바꾸면 진입일이 바뀌고 Forecast·금액·같은 Status는 그대로다
 - Given Status `prospecting`으로 등록하고 5일이 지났다
 - When `/changes`로 Status를 `introduction`으로 바꾸거나, Forecast만·금액만·같은 Status를 적용한다
-- Then Status를 바꾼 경우만 응답 `deal.status_changed_at`이 그 시각이고 `status_days`가 0이며, 나머지는 등록 시각·5일 그대로다
+- Then Status를 바꾼 경우만 응답 `deal.status_changed_on`이 그 날짜이고 `status_days`가 0이며, 나머지는 등록일·5일 그대로다
 
-### RK-037 Forecast Won으로 계약완료가 함께 바뀌거나 Won에서 다른 Status로 나가면 진입 시각이 바뀐다
+### RK-037 Forecast Won으로 계약완료가 함께 바뀌거나 Won에서 다른 Status로 나가면 진입일이 바뀐다
 - Given 진행 중인 Deal(또는 Won Deal)이다
 - When `/changes`로 Forecast `won`과 종결 값을 적용한다(또는 Won Deal에서 다른 Status를 골라 나간다)
-- Then `status_changed_at`은 그 요청의 서버 시각이다
+- Then `status_changed_on`은 그 요청의 업무 날짜다
 
-### RK-038 Action 등록은 Status를 바꿀 때만 진입 시각을 옮긴다
+### RK-038 Action 등록은 Status를 바꿀 때만 진입일을 옮긴다
 - Given Status `prospecting`으로 등록하고 5일이 지났다
 - When `status_change`로 Status를 `introduction`으로 바꾸는 Action, 종결하는 Action, Forecast만 바꾸는 Action, `status_change` 없는 Action 중 하나를 등록한다
-- Then 앞의 두 경우는 진입 시각이 Action 등록 시각이고 뒤의 두 경우는 그대로다
+- Then 앞의 두 경우는 진입일이 Action 등록 요청의 업무 날짜이고 뒤의 두 경우는 그대로다
 
-### RK-039 연락처 변경 반영으로 수정 시각이 바뀌어도 진입 시각은 그대로다
+### RK-039 연락처 변경 반영으로 수정 시각이 바뀌어도 진입일은 그대로다
 - Given Deal의 고객 연락처가 연결되어 있다
 - When 연락처 수정이 그 Deal의 수정 시각을 갱신한다
-- Then `status_changed_at`은 그대로다
+- Then `status_changed_on`은 그대로다
 
 ### RK-040 체류 일수는 진입 업무 날짜부터 센 일수이고 당일·미래는 0이다
 - Given 서버 시간대가 Asia/Seoul이다
-- When 진입 시각이 오늘, 3일 전, 어제 23:5x(몇 분 전), 미래인 경우의 체류 일수를 구한다
-- Then 각각 0, 3, 1, 0이고, 진입 시각은 서버 시간대 날짜로 바꿔 센다. 5일 전에 등록한 Deal은 목록·상세 모두 5이다
+- When 진입일이 오늘, 3일 전, 어제, 미래인 경우의 체류 일수를 구한다
+- Then 각각 0, 3, 1, 0이다. 5일 전에 등록한 Deal은 목록·상세 모두 5이다
 
 ### RK-041 Status가 바뀌면 체류 일수가 0부터 다시 시작하고 Forecast만 바뀌면 이어진다
 - Given 5일 전에 등록한 Deal이다
@@ -584,10 +589,10 @@ RK-R15~R21.
 - When Deals 목록을 연다
 - Then 기한초과 행의 Due 칸은 그 날짜와 `overdue` 표시가 있고 Next Action 칸은 표시가 없으며, 정상 행 Due 칸은 표시가 없다
 
-### RK-056 화면: 상세 Status 옆에 "N일째"와 진입 시각 툴팁을 보인다
-- Given Deal의 `statusDays`가 5이고 `statusChangedAt`이 `2026-10-11T06:00:00Z`다
+### RK-056 화면: 상세 Status 옆에 "N일째"와 진입일 툴팁을 보인다
+- Given Deal의 `statusDays`가 5이고 `statusChangedOn`이 `2026-10-11`이다
 - When 상세를 연다
-- Then Status 옆에 "5일째"가 보이고 툴팁은 문자열 오프셋의 벽시계(`formatDateTime`)다. Status를 바꾸면 "0일째"가 된다
+- Then Status 옆에 "5일째"가 보이고 툴팁은 "2026-10-11"이다. Status를 바꾸면 "0일째"가 된다
 
 ### RK-057 화면: 상세 Next Action 줄에 경고 배지를 보이고 Action이 없어도 미업데이트를 보인다
 - Given Action이 없고 `risk`가 `stale`인 Deal이다
@@ -600,9 +605,9 @@ RK-R15~R21.
 - Then `overdue`·`overdue_stale`일 때만 기준 행 Due 칸에 "기한초과" 배지가 하나 보인다. 브라우저 시계가 Due 이전이어도 서버가 `overdue`면 배지가 보인다
 
 ### RK-059 HTTP Deal 매퍼는 서버 경고·체류 일수를 다시 계산하지 않는다
-- Given 서버 응답의 시각은 오래된 것처럼 보이지만 `risk`가 `null`이고 `status_changed_at`·`status_days`가 있다
+- Given 서버 응답의 시각은 오래된 것처럼 보이지만 `risk`가 `null`이고 `status_changed_on`·`status_days`가 있다
 - When Deal 응답을 화면 모델로 바꾼다
-- Then `risk`는 `null`, `statusChangedAt`·`statusDays`는 서버 값 그대로다
+- Then `risk`는 `null`, `statusChangedOn`·`statusDays`는 서버 값 그대로다
 
 ### RK-060 화면: 경고 기준 탭은 주소로 열리고 현재 값(기본 14)과 저장 기록 없음을 보인다
 - Given admin으로 로그인했고 저장 기록이 없다
@@ -639,8 +644,24 @@ RK-R15~R21.
 - When 경고 기준을 읽고 저장하고(역할별), Deal 경고·체류 일수·진입 시각을 조회·변경한다
 - Then 기본 14·admin만 저장·범위 밖 422·경계 1/365가 서버와 같고, `computeRisk`·`statusDays`가 RK-R3~R5·R10과 같으며(Due 오늘 아님, 14일째 stale, 종결 null, 달력 날짜 기준), 진입 시각은 Status가 바뀔 때만 옮긴다(RK-R9)
 
+### RK-067 Action이 없으면 최종 업데이트일은 업무 시간대 기준 Deal 등록일이다
+- Given 업무 시간대는 Asia/Seoul이고, Deal `created_at`은 `2026-11-12T15:30:00Z`이며, Action은 없다
+- When 목록과 상세를 읽는다
+- Then 둘 다 `last_updated_on`이 2026-11-13이다
+
+### RK-068 Deal 응답은 last_updated_on·status_changed_on 날짜를 주고 last_updated_at·status_changed_at 키가 없다
+- When Deal 목록·상세·등록 응답과 OpenAPI 문서를 읽는다
+- Then `last_updated_on`·`status_changed_on`은 "YYYY-MM-DD"(required, format date)이고, `last_updated_at`·`status_changed_at` 키는 없다
+
+### RK-069 마이그레이션은 Status 진입 시각을 업무 날짜로 채워 NOT NULL로 바꾸고 downgrade는 00:00으로 되살린다
+- Given 기준선 리비전 DB(Asia/Seoul)에 `status_changed_at`이 `2026-11-12T15:30:00Z`, `2026-11-12T10:00:00+09:00`인 Deal 2건이 있다
+- When `upgrade head`를 실행한 뒤 다시 `downgrade -1`을 실행한다
+- Then upgrade 뒤에는 Deal이 2건 그대로이고, `status_changed_on`은 2026-11-13, 2026-11-12(NOT NULL)이며, `status_changed_at` 컬럼이 없다. downgrade 뒤에는 `status_changed_at`이 `2026-11-13T00:00:00+09:00`, `2026-11-12T00:00:00+09:00`(NOT NULL)이고 `status_changed_on` 컬럼이 없다
+
 ## 5. 변경 이력
 
 | 날짜 | 변경 | 영향 테스트 코드 |
 | --- | --- | --- |
 | 2026-11-10 | 최초 작성: 구현된 경고·파생 값·경고 기준 동작을 정본 명세로 옮김. 규칙 RK-R1~R21, use case RK-UC1~UC5, BDD 케이스 RK-001~RK-066 | RK-001~RK-066(신규) |
+| 2026-11-13 | AC 수행일 지정(확정)에 맞춰 RK-R1·R2에 지난 날짜 Action 설명 추가. 정의·동작·케이스 변경 없음, 상태 줄 그대로 | 없음(관련 신규 AC-097·AC-098) |
+| 2026-11-13 | 확정(2026-11-13 사용자 확인): 업무 날짜를 date로 저장. 최종 업데이트는 `last_updated_on`, Status 진입일은 `status_changed_on`(용어, 2.2, RK-R1·R2·R5·R8·R9·R10·R16·R17·R21, 2.4, 2.6, UC3), RK-R22 신설(데이터 변환). 응답 필드 이름·타입 변경(호환 깨짐, 사용자 승인). 경고·체류 일수 결과는 같다 | 신규 RK-067~RK-069. 변경 RK-002, RK-004~RK-006, RK-026, RK-031~RK-040, RK-056, 본문에 last_updated_at·statusChangedAt이 있던 케이스 |

@@ -322,7 +322,7 @@ describe('sorting', () => {
   it('정렬 기본값은 최근 업데이트 순이다', () => {
     // when: 정렬 파라미터 없이 현재 정렬을 읽는다
     const actual = currentSort(params(''))
-    // then: 기본 정렬은 lastUpdatedAt 내림차순이다
+    // then: 기본 정렬은 lastUpdatedOn 내림차순이다
     expect(actual).toEqual({ sort: 'lastUpdatedAt', order: 'desc' })
   })
 

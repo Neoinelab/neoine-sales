@@ -101,7 +101,7 @@ def test_response_exposes_the_snapshot_and_nullable_plan_fields(schema: dict[str
     props = response["properties"]
 
     # then: 스냅숏·수행 정보가 있고 서버 내부 필드는 없다
-    assert {"status_key", "forecast_key", "acted_at", "actor", "deal_code", "updated_at"} <= set(
+    assert {"status_key", "forecast_key", "acted_on", "actor", "deal_code", "updated_at"} <= set(
         props
     )
     # then: null 허용 다섯 필드는 null을 허용하고 required에 있다
@@ -110,7 +110,7 @@ def test_response_exposes_the_snapshot_and_nullable_plan_fields(schema: dict[str
         "next_action",
         "due_date",
         "next_action_status",
-        "next_action_closed_at",
+        "next_action_closed_on",
     ):
         assert _is_nullable(props[name]), name
     assert {
@@ -118,12 +118,31 @@ def test_response_exposes_the_snapshot_and_nullable_plan_fields(schema: dict[str
         "next_action",
         "due_date",
         "next_action_status",
-        "next_action_closed_at",
+        "next_action_closed_on",
         "memo",
         "status_key",
         "forecast_key",
     } <= set(response["required"])
     assert "actor_user_id" not in props
+
+
+def test_response_documents_the_date_fields_and_no_time_fields(schema: dict[str, Any]) -> None:
+    """응답에 날짜 acted_on·next_action_closed_on이 있고 acted_at·next_action_closed_at 키가 없다.
+
+    테스트 코드: AC-112
+    """
+    # when: 응답 스키마를 읽는다
+    response = schema["components"]["schemas"]["DealActionResponse"]
+    props = response["properties"]
+
+    # then: 두 날짜 필드는 date 형식이고 acted_on은 필수, 예전 시각 키는 없다
+    assert props["acted_on"]["format"] == "date"
+    assert "acted_on" in response["required"]
+    closed = props["next_action_closed_on"]
+    formats = {closed.get("format")} | {option.get("format") for option in closed.get("anyOf", [])}
+    assert "date" in formats
+    assert not {"acted_at", "next_action_closed_at"} & set(props)
+    assert not {"acted_at", "next_action_closed_at"} & set(response["required"])
 
 
 def test_search_documents_the_date_filters_and_the_sorts_without_paging(

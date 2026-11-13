@@ -71,6 +71,24 @@ export function reportsContract(make: MakeGateway): void {
       expect(catalog.formats.filter((f) => f.affectsQuery).map((f) => f.key)).toEqual(['ymd', 'year', 'quarter', 'month'])
     })
 
+    // 최종 업데이트·Status 진입일·수행일·종료일은 날짜 필드이고 시:분 포맷이 없다.
+    it('lists the last update, status entry, performed and closed fields as dates without the time format', async () => {
+      // given: user 게이트웨이
+      const { reports } = await make('user')
+
+      // when: 필드 목록을 읽는다
+      const catalog = await reports.fields()
+
+      // then: 네 필드는 date 형식이고 기본 포맷이 ymd이며 ymd_hm을 고를 수 없다(등록일은 그대로 datetime이다)
+      for (const key of ['deal.last_updated_at', 'deal.status_changed_at', 'action.acted_at', 'action.closed_at']) {
+        const field = catalog.fields.find((f) => f.key === key)
+        expect(field?.type, key).toBe('date')
+        expect(field?.defaultFormat, key).toBe('ymd')
+        expect(field?.formats, key).not.toContain('ymd_hm')
+      }
+      expect(catalog.fields.find((f) => f.key === 'deal.created_at')).toMatchObject({ type: 'datetime', defaultFormat: 'ymd_hm' })
+    })
+
     it('포맷 없는 필드의 열은 포맷 null로 답하고 앞 N자를 유지한다', async () => {
       // given: user 게이트웨이
       const { reports } = await make('user')

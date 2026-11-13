@@ -4,7 +4,8 @@ Deal 저장소는 `tests/fakes/deals.py`(여기서 다시 내보낸다), 이력 
 
 Action 저장소(P2 모델)는 실제 DB처럼 동작한다: 소속 Deal이 없으면 DealNotFoundError,
 스냅숏 key가 codes에 없으면 InvalidReferenceError(카탈로그가 시드된 경우만, FakeDealRepository와
-같다), Deal 삭제는 Action을 함께 지운다(CASCADE). 검색 날짜는 `query.acted_window()` 반개구간이다.
+같다), Deal 삭제는 Action을 함께 지운다(CASCADE). 수행일 검색은 `acted_from`~`acted_to`(양끝 포함)와
+`acted_on`의 날짜 비교다.
 유형은 id로 저장하고 읽을 때 현재 이름을 붙인다(`ActionTypeRef.name`). 유형이 없으면(유형 카탈로그가
 시드되지 않은 Fake는 확인하지 않는다) InvalidReferenceError("Action 유형")다.
 """
@@ -36,14 +37,13 @@ def _matches(action: DealAction, query: DealActionQuery) -> bool:
     content = action.content
     keyword = query.keyword.lower() if query.keyword else None
     searchable = [t for t in (content.action, content.next_action, content.memo) if t is not None]
-    start, end = query.acted_window()
     due = content.due_date
     return (
         action.deal_code == query.deal_code
         and (query.action_type_id is None or content.action_type.id == query.action_type_id)
         and (query.actor_user_id is None or action.actor_user_id == query.actor_user_id)
-        and (start is None or action.acted_at >= start)
-        and (end is None or action.acted_at < end)
+        and (query.acted_from is None or action.acted_on >= query.acted_from)
+        and (query.acted_to is None or action.acted_on <= query.acted_to)
         and (query.due_from is None or (due is not None and due >= query.due_from))
         and (query.due_to is None or (due is not None and due <= query.due_to))
         and _status_matches(action, query)
@@ -65,13 +65,13 @@ def _sorted(
     sort: str,
     actor_name: Callable[[DealAction], str],
 ) -> list[DealAction]:
-    """Port 정렬 규칙: 수행일시 정렬은 동률 id 오름차순, 그 밖은 수행일시 내림차순 -> id 오름차순.
+    """Port 정렬 규칙(AC-R43): 수행일 정렬은 (수행일, id) 방향 그대로, 그 밖은 수행일·id 내림차순.
 
     주 키가 없는 행(Due Date 없음, 상태 없음)은 방향과 관계없이 맨 뒤다.
     """
     if sort == "acted_at_asc":
-        return sorted(found, key=lambda a: (a.acted_at, a.id))
-    ordered = sorted(found, key=lambda a: (-a.acted_at.timestamp(), a.id))
+        return sorted(found, key=lambda a: (a.acted_on, a.id))
+    ordered = sorted(found, key=lambda a: (a.acted_on, a.id), reverse=True)
     column = sort.removesuffix("_asc").removesuffix("_desc")
     keys: dict[str, Callable[[DealAction], Any]] = {
         "due_date": lambda a: a.content.due_date,
@@ -177,7 +177,7 @@ class FakeDealActionRepository(InMemoryStore[DealAction]):
         self._replace(stored)
 
     async def latest_with_next_action(self, deal_code: DealCode) -> DealAction | None:
-        """그 Deal에서 Next Action이 있는 가장 최근 Action(수행일시·id 내림차순 첫 행). 없으면 None.
+        """그 Deal에서 Next Action이 있는 가장 최근 Action(수행일·id 내림차순 첫 행). 없으면 None.
 
         Deal 목록·상세의 Next Action 기준 행과 같은 정의다(`FakeDealRepository`와 같은 정렬).
         """
@@ -186,7 +186,7 @@ class FakeDealActionRepository(InMemoryStore[DealAction]):
             for a in self._items.values()
             if a.deal_code == deal_code and a.content.next_action is not None
         ]
-        latest = max(found, key=lambda a: (a.acted_at, a.id), default=None)
+        latest = max(found, key=lambda a: (a.acted_on, a.id), default=None)
         return None if latest is None else self._named(latest)
 
     async def delete(self, action_id: DealActionId) -> None:

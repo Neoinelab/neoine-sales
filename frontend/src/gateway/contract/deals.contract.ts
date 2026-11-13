@@ -474,7 +474,7 @@ export function dealsContract(make: MakeGateway): void {
       const sales = await make('sales')
       const tag = unique('tag')
       const created = await sales.deals.create(await validInput(sales, { name: `${tag}${unique('d')}` }))
-      const day = created.lastUpdatedAt.slice(0, 10)
+      const day = created.lastUpdatedOn.slice(0, 10)
       const next = new Date(Date.parse(`${day}T00:00:00Z`) + 86_400_000).toISOString().slice(0, 10)
       const prev = new Date(Date.parse(`${day}T00:00:00Z`) - 86_400_000).toISOString().slice(0, 10)
 
@@ -675,12 +675,12 @@ export function dealsContract(make: MakeGateway): void {
 
       const created = await sales.deals.create(await validInput(sales))
 
-      // then: statusDays 0, statusChangedAt 유효, risk null이며 목록 행도 같다 (끝에 정리한다)
+      // then: statusDays 0, statusChangedOn 유효, risk null이며 목록 행도 같다 (끝에 정리한다)
       expect(created.statusDays).toBe(0)
-      expect(Number.isNaN(Date.parse(created.statusChangedAt))).toBe(false)
+      expect(created.statusChangedOn).toMatch(/^\d{4}-\d{2}-\d{2}$/) // 진입일은 시각 없는 날짜다
       expect(created.risk).toBeNull()
       const row = (await sales.deals.list({ keyword: created.code })).items.find((d) => d.code === created.code)
-      expect(row).toMatchObject({ statusChangedAt: created.statusChangedAt, statusDays: 0, risk: null })
+      expect(row).toMatchObject({ statusChangedOn: created.statusChangedOn, statusDays: 0, risk: null })
       await sales.deals.remove(created.code, created.code)
     })
 
@@ -691,14 +691,14 @@ export function dealsContract(make: MakeGateway): void {
 
       // when: Forecast만 바꾼다
       const forecastOnly = await sales.deals.applyChange(created.code, { change: { field: 'forecastKey', value: 'best' } })
-      // then: statusChangedAt이 그대로다
-      expect(forecastOnly.deal.statusChangedAt).toBe(created.statusChangedAt)
+      // then: statusChangedOn이 그대로다
+      expect(forecastOnly.deal.statusChangedOn).toBe(created.statusChangedOn)
 
       // when: Status를 바꾼다
       const moved = await sales.deals.applyChange(created.code, { change: { field: 'statusKey', value: 'introduction' } })
       // then: Status가 바뀌고 변경 시각이 앞으로 가며 체류 일수는 0이다 (끝에 정리한다)
       expect(moved.deal.statusKey).toBe('introduction')
-      expect(Date.parse(moved.deal.statusChangedAt)).toBeGreaterThanOrEqual(Date.parse(created.statusChangedAt))
+      expect(moved.deal.statusChangedOn >= created.statusChangedOn).toBe(true)
       expect(moved.deal.statusDays).toBe(0)
       await sales.deals.remove(created.code, created.code)
     })

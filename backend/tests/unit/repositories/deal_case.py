@@ -28,7 +28,7 @@ from tests.support.user_seed import ensure_users
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Callable
-    from datetime import datetime
+    from datetime import date, datetime
 
     from sqlalchemy.engine import URL
 
@@ -108,14 +108,17 @@ class DealCase:
     async def add_action(
         self,
         deal: Deal,
-        acted_at: datetime = NOW,
+        at: datetime = NOW,
+        *,
+        acted_on: date | None = None,
         **overrides: Any,  # noqa: ANN401 - 팩토리 필드를 그대로 넘긴다
     ) -> DealAction:
         """Deal에 활동 한 건을 저장한다(활동자 행도 만든다).
 
+        `at`은 등록 시각이고, 수행일을 따로 주지 않으면 그 시각의 업무 날짜가 수행일이다.
         유형은 이 저장소의 같은 이름 유형으로 맞춘다(`attach_catalog_type`: DB 시드 id는 무작위).
         """
-        action = make_deal_action(deal_code=deal.id, acted_at=acted_at, **overrides)
+        action = make_deal_action(at, deal_code=deal.id, acted_on=acted_on, **overrides)
         await attach_catalog_type(self.action_types, action)
         await ensure_users(self.users, action.actor_user_id)
         await self.actions.add(action)

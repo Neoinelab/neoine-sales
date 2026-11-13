@@ -65,7 +65,7 @@ async def test_add_and_get_round_trip_keeps_every_field(contract_case: ContractC
         tech_owner="이기술", inspection=InspectionCycle.SEMIANNUAL, note="여러 줄\n메모"
     )
     assert stored.renewed_from_id is None
-    assert stored.ended_at is None
+    assert stored.ended_on is None
     assert (stored.created_by, stored.updated_by) == (KIM, KIM)
     assert (stored.created_at, stored.updated_at) == (NOW, NOW)
 
@@ -84,8 +84,8 @@ async def test_a_not_issued_contract_has_no_period_columns(contract_case: Contra
     assert (stored.term, stored.license_start, stored.license_end) == (None, None, None)
 
 
-async def test_an_ended_contract_keeps_its_end_time_and_period(contract_case: ContractCase) -> None:
-    """종료 계약은 종료 시각과 기간을 가진다."""
+async def test_an_ended_contract_keeps_its_end_date_and_period(contract_case: ContractCase) -> None:
+    """종료 계약은 종료일과 기간을 가진다."""
     # given: 시작일이 있는 종료 계약
     deal = await contract_case.deal()
     contract = await contract_case.contract(deal, status="ended", start=date(2026, 1, 1))
@@ -93,9 +93,9 @@ async def test_an_ended_contract_keeps_its_end_time_and_period(contract_case: Co
     # when: 읽는다
     stored = await contract_case.repository.get(contract.id)
 
-    # then: 상태 ended, ended_at, 종료일이 그대로다
+    # then: 상태 ended, ended_on(날짜), 종료일이 그대로다
     assert stored.status is ContractStatus.ENDED
-    assert stored.ended_at == NOW
+    assert stored.ended_on == NOW.astimezone().date()
     assert stored.license_end == date(2026, 12, 31)
 
 
@@ -255,8 +255,8 @@ async def test_update_saves_status_period_fields_and_audit_columns(
     assert (saved.created_by, saved.created_at) == (KIM, NOW)
 
 
-async def test_update_saves_the_end_time_of_an_ended_contract(contract_case: ContractCase) -> None:
-    """종료한 계약을 저장하면 종료 시각이 남는다."""
+async def test_update_saves_the_end_date_of_an_ended_contract(contract_case: ContractCase) -> None:
+    """종료한 계약을 저장하면 종료일이 남는다."""
     # given: 발급(신규) 계약
     deal = await contract_case.deal()
     contract = await contract_case.contract(deal, status="issued_new")
@@ -267,10 +267,10 @@ async def test_update_saves_the_end_time_of_an_ended_contract(contract_case: Con
     # when: 종료해 저장한다
     await contract_case.repository.update(stored)
 
-    # then: 상태 ended와 ended_at이 저장된다
+    # then: 상태 ended와 ended_on(요청의 업무 날짜)이 저장된다
     saved = await contract_case.repository.get(contract.id)
     assert saved.status is ContractStatus.ENDED
-    assert saved.ended_at == later()
+    assert saved.ended_on == later().astimezone().date()
 
 
 async def test_update_does_not_change_the_deal_or_the_renewal_link_or_the_creator(

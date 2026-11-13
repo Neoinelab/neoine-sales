@@ -91,7 +91,7 @@ async def test_each_row_has_the_owner_customer_and_active_partner(env: DealEnv) 
     assert active is not None
     assert view.partner_contacts[active].details.company == "코어테크"
     assert view.item.next_action is None
-    assert view.item.last_updated_at == view.item.deal.updated_at
+    assert view.item.last_updated_on == view.item.deal.created_at.astimezone().date()
 
 
 class TestFilters:

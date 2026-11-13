@@ -1,5 +1,7 @@
 """ListReportFields: 필드 카탈로그와 한도를 DB·시계 없이 돌려준다."""
 
+import pytest
+
 from app.application.report.list_fields import ListReportFields
 from app.domain.report.catalog import FIELD_CATALOG
 from app.domain.report.vocabulary import FieldType, NumberUnit
@@ -120,3 +122,23 @@ def test_relative_periods_are_listed_in_the_selection_order_with_labels() -> Non
         ("last_n_days", "최근 N일", True),
         ("before_today", "오늘 이전", False),
     ]
+
+
+@pytest.mark.parametrize(
+    "key",
+    ["deal.last_updated_at", "deal.status_changed_at", "action.acted_at", "action.closed_at"],
+)
+def test_catalog_lists_the_four_converted_fields_as_dates_without_a_time_format(key: str) -> None:
+    """카탈로그 조회에서 네 필드는 date 형식, 기본 포맷 ymd이고 ymd_hm이 선택지에 없다.
+
+    테스트 코드: RQ-113
+    """
+    # when: 필드 목록을 조회한다
+    fields = ListReportFields().execute().fields
+
+    # then: key는 그대로이고 형식은 date, 기본 포맷 ymd, 포맷 선택지에 ymd_hm이 없다
+    field = next(f for f in fields if f.key == key)
+    assert field.type.value == "date"
+    assert field.default_format is not None
+    assert field.default_format.value == "ymd"
+    assert "ymd_hm" not in {f.value for f in field.formats}

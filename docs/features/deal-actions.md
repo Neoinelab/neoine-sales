@@ -1,4 +1,4 @@
-# Action 등록·수정·삭제   (feature 코드: AC, 상태: 확정(2026-11-10 사용자 확인))
+# Action 등록·수정·삭제   (feature 코드: AC, 상태: 확정(2026-11-13 사용자 확인))
 
 > 이 문서는 **이미 구현된 동작**을 정본 명세로 옮긴 것입니다(2026-11-10). 근거는 작업 트리의 코드(`backend/src/app/domain/deal_action/{entities,value_objects,history,policy,errors}.py`, `app/domain/deal/sync_sequence.py`, `app/application/deal_action/{register_deal_action,update_deal_action,delete_deal_action,list_deal_actions,get_deal_action,type_choice,inputs}.py`, `app/application/deal/sync_change.py`, `app/web/routers/deal_actions.py`, `app/web/schemas/deal_action.py`, `app/infra/db/{models,deal_action_repository,deal_action_order}.py`, `frontend/src/features/deals/detail/{ActionsTab,ActionForm,ActionTable,ActionTypeInput,ActionSyncFields,PreviousUpdate,useActionSync,syncDraft}.tsx|ts`, `shared/model/{nextActionBasis,permissions}.ts`, `gateway/http/{actions,mappers/action}.ts`, `test/fake/gateway/actions.ts`)이며 문구·type·상태 코드는 코드에서 그대로 옮겼습니다. 코드와 화면·테스트·Fake가 어긋나던 점은 2026-11-10 사용자 결정으로 정리했습니다: 화면이 쓰지 않는 서버 동작과 화면 표시는 현행대로 문서화하고(AC-R6 단건 `status_change`, AC-R31 삭제 실패 표시), Fake 게이트웨이는 서버 동작에 맞춥니다(AC-R33). 결정 목록은 계획(`artifacts/10-analysis/ac-plan.md`)에 있습니다.
 
@@ -16,7 +16,7 @@
   - Actions 탭 틀(탭 이름·주소 `?tab=actions`·알림 위치) → DD(DD-R27). Deal 저장의 동기화 규칙(불변식·계획·답) → DD(DD-R5~R10), Deal 필드 이력 diff와 자르기 → DD(DD-R20·R21)
   - `{id}`/`{name}` 선택 요청 형식과 Action 유형 해석·이름 규칙·새 유형의 속성 → CL(CL-R1, CL-R12, CL-R13, CL-R15, CL-R16), 유형 이름 변경의 효과 → CL(CL-R9)
   - Next Action 상태 변경 API(`PUT /deal-actions/{id}/next-action-status`), 표의 상태 칸·종료 팝업, Action 목록 검색 조건(유형·담당자·키워드·수행일·Due·상태 필터)·검색 바·정렬 선택(`sort` 파라미터·머리글 정렬) → NA(상태 변경 NA-R1~R9, 조회 조건·필터 NA-R11~R17·R19·R20, 정렬 NA-R18, 상태 칸·종료 팝업 NA-R21~R24, 검색 바·머리글 정렬·빈 결과 문구 NA-R25~R29). "이전 Next Action 종료" 이력의 대상·문구 형식 → NA(NA-R8)
-  - Next Action 기준 행·최종 업데이트·기한초과 판정과 Action 표의 기한초과 배지 → RK(RK-R1, RK-R2, RK-R4, RK-R18), Status 진입 시각 → RK(RK-R9)
+  - Next Action 기준 행·최종 업데이트·기한초과 판정과 Action 표의 기한초과 배지 → RK(RK-R1, RK-R2, RK-R4, RK-R18), Status 진입일 → RK(RK-R9)
   - Won 진입·이탈 계약 처리와 `delete_license_contracts`, Action 등록 때의 계약 처리 확인 화면 → LC(LC-R6~R9, LC-R36)
   - Deal 삭제 때 Action이 함께 지워지는 것 → DD(DD-R25), 삭제 영향의 Action 건수 → DD(DD-R22)
   - 공통 권한 판정·CSRF·Problem 형식·id 경로 파라미터·NUL 거부·화면 오류 문구 → PL(PL-R6, PL-R9~R12, PL-R15, PL-R16, PL-R37)
@@ -29,11 +29,13 @@
 
 | 용어 | 뜻 |
 | --- | --- |
-| Action | Deal에서 일어난 활동 한 건. 유형, 진행사항, Next Action, Due Date, Memo, 수행 일시, 담당자(수행자), 등록 시점 Status·Forecast를 가진다 |
+| Action | Deal에서 일어난 활동 한 건. 유형, 진행사항, Next Action, Due Date, Memo, 수행일, 담당자(수행자), 등록 시점 Status·Forecast를 가진다 |
 | 진행사항 | 한 일. API 필드 `action`, 화면 `progress` |
 | Next Action / Due Date | 다음에 할 일과 그 기한. 둘은 함께 있거나 함께 없다 |
 | 진행사항만 Action / Next Action만 Action | Next Action이 없는 Action / 진행사항이 없는 Action |
-| 수행 일시(`acted_at`) | 등록 요청을 처리한 서버 시각. 바뀌지 않는다 |
+| 수행일(`acted_on`) | Action을 한 업무 날짜(TM-R4). 날짜만 저장하고 시각은 없다. 등록 때 정하고(AC-R34) 수정·상태 변경으로 바뀌지 않는다. 지정하지 않으면 오늘 |
+| 수행일 지정 | 등록 요청의 `acted_on`. 오늘 또는 지난 날짜이고 Deal 등록일 이상(AC-R35) |
+| 요청 시각 | 등록 요청을 처리한 서버 시각. 수행일과 무관하게 `created_at`·`updated_at`·이력·동반 변경·이전 Next Action 종료의 시각이다(AC-R37) |
 | 담당자(`actor`) | 등록한 사용자. 바뀌지 않는다. 수정·삭제 권한의 기준이다 |
 | 스냅숏 | Action에 남는 등록 시점(동반 변경이 있으면 변경 뒤)의 Status·Forecast key. 바뀌지 않는다 |
 | 동반 변경 | Action 등록 요청에 실린 Status·Forecast 변경(`status_change` 또는 `status_changes`) |
@@ -43,16 +45,16 @@
 
 ### 2.2 데이터 모델
 
-- `deal_actions`(PK `id` BIGINT identity): `deal_id`(deals FK **CASCADE**), `action_type_id`(action_types FK RESTRICT), `action` TEXT NULL, `next_action` TEXT NULL, `due_date` DATE NULL, `memo` TEXT NOT NULL(기본 ''), `next_action_status` VARCHAR(20) NULL(`open`·`done`·`not_done`), `next_action_closed_at` timestamptz NULL, `acted_at` timestamptz, `actor_user_id`(users FK RESTRICT), `status_key`·`forecast_key`(codes 복합 FK RESTRICT), `created_at`, `updated_at`.
-- CHECK: `action_or_next`(진행사항·Next Action 중 하나 이상), `next_action_fields`(Next Action·Due Date·상태가 함께 있거나 함께 없음), `next_action_status`(세 값), `next_action_closed_at`(종료 상태일 때만 종료 시각). 텍스트 길이 상한은 없다.
+- `deal_actions`(PK `id` BIGINT identity): `deal_id`(deals FK **CASCADE**), `action_type_id`(action_types FK RESTRICT), `action` TEXT NULL, `next_action` TEXT NULL, `due_date` DATE NULL, `memo` TEXT NOT NULL(기본 ''), `next_action_status` VARCHAR(20) NULL(`open`·`done`·`not_done`), `next_action_closed_on` DATE NULL(Next Action 종료일), `acted_on` DATE NOT NULL(수행일, 인덱스 `ix_deal_actions_acted_on`·`ix_deal_actions_deal_id_acted_on`), `actor_user_id`(users FK RESTRICT), `status_key`·`forecast_key`(codes 복합 FK RESTRICT), `created_at`, `updated_at`.
+- CHECK: `action_or_next`(진행사항·Next Action 중 하나 이상), `next_action_fields`(Next Action·Due Date·상태가 함께 있거나 함께 없음), `next_action_status`(세 값), `next_action_closed_on`(이름 `ck_deal_actions_next_action_closed_on`, 종료 상태일 때만 종료일). 텍스트 길이 상한은 없다. 이 문서에서 Next Action의 "종료 시각"은 종료일(업무 날짜, NA-R4)을 뜻한다.
 - 담당자 FK가 RESTRICT라 Action을 남긴 사용자는 물리 삭제 대신 퇴사 처리된다(US-R17). 유형 FK가 RESTRICT라 쓰이는 유형은 지울 수 없다(CL-R10).
-- 값 객체: `ActionContent(action_type, action, next_action, due_date, memo)`, `NextActionState(status, closed_at)`, `DealActionId`(int). `StatusChangeInput(field, value, resolution)`, `DealActionInput(content, status_changes, close_previous_next_action_id, delete_license_contracts)`.
+- 값 객체: `ActionContent(action_type, action, next_action, due_date, memo)`, `NextActionState(status, closed_on)`, `DealActionId`(int). `StatusChangeInput(field, value, resolution)`, `DealActionInput(content, status_changes, close_previous_next_action_id, delete_license_contracts, acted_on)`. 수행일 결정 함수 `resolve_acted_on(acted_on, *, now, deal_registered_at) -> date`(domain, AC-R34·R35). 마이그레이션은 날짜 전환 리비전 `b4d7e2a9c613`(SC-R20)이고, `acted_at`을 `acted_on`으로, `next_action_closed_at`을 `next_action_closed_on`으로 바꾼다(AC-R44, NA-R32).
 
 ### 2.3 비즈니스 규칙
 
 등록 API
 - **AC-R1** `POST /deals/{code}/actions`는 업무 쓰기다(sales·admin, user는 PL-R6 403). 성공은 201, 헤더 `Location: /api/v1/deal-actions/<id>`, 본문 `DealActionResponse`(AC-R20). Deal Owner가 아닌 sales도 어떤 Deal에든 등록할 수 있다(Owner 검사 없음).
-- **AC-R2** 요청 본문(모르는 키는 422 `request-validation`): `action_type`(필수, CL-R12 선택 객체), `action`·`next_action`·`memo`(문자열, 생략하면 ""), `due_date`(`YYYY-MM-DD` 또는 null, 생략하면 null — 달력 날짜가 아니면 422 `request-validation`), `status_change`(선택, 단건)·`status_changes`(선택, 최대 2건), `close_previous_next_action_id`(선택, JSON 정수 1~2^53−1 또는 null), `delete_license_contracts`(LC-R9). 서버가 정하는 `acted_at`·`actor_user_id`·`actor`·`deal_code`와 폐지된 `title`을 보내면 422 `request-validation`이다. 스키마에 텍스트 길이 상한(`maxLength`)이 없다.
+- **AC-R2** 요청 본문(모르는 키는 422 `request-validation`): `action_type`(필수, CL-R12 선택 객체), `action`·`next_action`·`memo`(문자열, 생략하면 ""), `due_date`(`YYYY-MM-DD` 또는 null, 생략하면 null — 달력 날짜가 아니면 422 `request-validation`), `status_change`(선택, 단건)·`status_changes`(선택, 최대 2건), `close_previous_next_action_id`(선택, JSON 정수 1~2^53−1 또는 null), `delete_license_contracts`(LC-R9), `acted_on`(선택, `YYYY-MM-DD` 또는 null, 생략·null이면 오늘 — 달력 날짜가 아니거나 시각이 붙은 값·숫자는 422 `request-validation`, AC-R34). 서버가 정하는 `acted_at`·`actor_user_id`·`actor`·`deal_code`와 폐지된 `title`을 보내면 422 `request-validation`이다(수행 시점은 `acted_on`으로만 고른다). 스키마에 텍스트 길이 상한(`maxLength`)이 없다.
 - **AC-R3** 내용 규칙(`ActionContent.parse`, 등록·수정 공통), 위에서부터 첫 위반만 알린다:
   1. 진행사항·Next Action·Memo에 NUL 문자가 있으면 422 `invalid-value` "<진행사항|Next Action|Memo>에는 NUL 문자를 쓸 수 없습니다"
   2. 앞뒤 공백을 지운 진행사항·Next Action이 모두 비면(Memo만 있어도) 422 `invalid-value` "진행사항 또는 Next Action을 입력하세요."
@@ -60,20 +62,20 @@
   4. Next Action이 없는데 Due Date가 있으면 422 `invalid-value` "Next Action 없이 Due Date를 입력할 수 없습니다."
   
   통과하면 세 텍스트의 앞뒤 공백을 지워 저장하고, 빈 진행사항·Next Action은 null, 빈 Memo는 ""로 저장한다. 길이 상한이 없어 자르지 않는다(예: 5,000·5,000·20,000자). 지난 Due Date도 받는다.
-- **AC-R4** 서버가 정하는 값: `acted_at` = `created_at` = `updated_at` = 요청 처리 서버 시각, 담당자 = 요청자, 스냅숏 = 동반 변경을 모두 적용한 뒤의 Deal Status·Forecast key(동반 변경이 없으면 현재 값). Next Action이 있으면 상태 `open`·종료 시각 null, 없으면 상태·종료 시각 모두 null.
+- **AC-R4** 서버가 정하는 값: `acted_on` = AC-R34로 정한 수행일(지정이 없으면 오늘), `created_at` = `updated_at` = 요청 시각, 담당자 = 요청자, 스냅숏 = 동반 변경을 모두 적용한 뒤의 Deal Status·Forecast key(동반 변경이 없으면 현재 값). Next Action이 있으면 상태 `open`·종료 시각 null, 없으면 상태·종료 시각 모두 null.
 - **AC-R5** 유형: `action_type`은 CL-R13으로 해석한다(없는 id 422 "선택한 유형이 없습니다. 목록에서 다시 선택하세요.", 이름 규칙 CL-R1, 없는 이름은 새 유형 CL-R15). 새 유형은 Action 저장과 같은 작업 단위에서 만들어지므로 등록이 어떤 이유로든 거절되면(입력·이전 Next Action·동반 변경·계약 판정) 새 유형도 남지 않는다. 같은 이름으로 다시 등록하면 만든 유형을 재사용한다.
 - **AC-R6** 동반 변경
   - 형식(위반은 422 `request-validation`): 항목은 `{change: {field, value}, resolution?}`, `field`는 `status_key`·`forecast_key`만(`revenue_amount`·`revenue_date`·`name` 등 거부), `value`는 문자열, `resolution`은 DD-R11과 같다. `status_changes`는 최대 2건이고 같은 `field`가 두 번 오면 거부한다. `status_change`와 `status_changes`를 함께 보내면(빈 배열이어도) 거부하고, 둘 다 null이면 변경 없음이다. 빈 배열도 변경 없음이다. 단건 `status_change`는 1건짜리 `status_changes`와 같다. 화면은 `status_changes`만 보내지만 단건 `status_change`는 하위 호환으로 유지한다(현행 유지, 2026-11-10 결정).
   - 판정: 먼저 모든 항목의 `value`가 코드 목록에 있는지 확인한다(없으면 422 `invalid-value` "존재하지 않는 코드입니다." — 두 번째 항목의 코드도 첫 항목의 매출 판정보다 먼저). 그다음 배열 순서대로 각 항목을 **직전 항목을 적용한 상태** 기준으로 DD-R6~R10(계획·답)에 따라 확정한다. 두 항목이 있을 때 두 번째 결과가 첫 항목이 바꾼 필드의 값을 다시 바꾸면 422 `invalid-value` "먼저 바꾼 값과 맞지 않는 변경입니다. 먼저 바꾼 값을 되돌린 뒤 다시 선택하세요."이다(예: Status를 제품소개로 바꾼 뒤 Forecast를 Won으로 = 종결이라 Status가 계약완료가 됨). 두 번째 항목이 첫 항목이 **함께 바꾼** 필드를 바꾸는 것은 된다(예: Won Deal의 Forecast를 Commit으로 되돌리며 Status를 PoC완료로 고른 뒤 Status를 제품소개로).
-  - 결과: 단계마다 Deal의 Status·Forecast(종결이면 금액·Expected Close)를 바꾸고 단계마다 DD-R20·R21 이력을 남긴다(함께 바뀐 쪽에 "함께 변경" 표기). 값이 실제로 바뀌면 Deal `updated_at` = 수행 시각, Status 진입 시각은 RK-R9. 같은 값으로 바꾸는 항목은 아무것도 바꾸지 않는다(Deal 이력·`updated_at` 그대로, Action만 남음). Won 진입·이탈은 처음과 끝만 견줘 LC-R6~R9로 처리한다.
+  - 결과: 단계마다 Deal의 Status·Forecast(종결이면 금액·Expected Close)를 바꾸고 단계마다 DD-R20·R21 이력을 남긴다(함께 바뀐 쪽에 "함께 변경" 표기). 값이 실제로 바뀌면 Deal `updated_at` = 요청 시각, Status 진입일은 RK-R9. 같은 값으로 바꾸는 항목은 아무것도 바꾸지 않는다(Deal 이력·`updated_at` 그대로, Action만 남음). Won 진입·이탈은 처음과 끝만 견줘 LC-R6~R9로 처리한다.
 - **AC-R7** 이전 Next Action 종료: `close_previous_next_action_id`가 null이거나 없으면 이전 Action을 건드리지 않는다. 값이 있으면
   1. 그 Deal의 기준 행(RK-R1, 진행사항만 Action은 건너뜀, 상태 무관)의 id와 같지 않으면(그 사이 더 최근 Next Action이 생김, 다른 Deal의 Action, 없는 id, 그 Deal에 Next Action이 하나도 없음) 409 `invalid-state` "이전 Next Action이 바뀌었습니다. 창을 닫고 다시 열어 주세요."
   2. 요청자가 기준 행을 바꿀 권한(AC-R18, 기준 행의 담당자 본인 sales 또는 admin)이 없으면 403 `forbidden` "본인 Action 또는 admin만 Next Action 상태를 바꿀 수 있습니다." — 기준 행이 이미 종료여도 이 판정을 한다
   3. 기준 행이 이미 종료(`done`·`not_done`)면 상태·종료 시각·Memo를 바꾸지 않고 이력도 남기지 않는다
-  4. Open이면 상태 `done`, 종료 시각 = 수행 시각, `updated_at` = 수행 시각으로 바꾸고 Memo는 그대로 둔다
+  4. Open이면 상태 `done`, 종료일 = 오늘(요청의 업무 날짜), `updated_at` = 요청 시각으로 바꾸고 Memo는 그대로 둔다
   
   새 Action에 Next Action이 없어도(진행사항만) 이전 행을 닫을 수 있다. 수정 요청에는 이 필드가 없다(보내면 422 `request-validation`).
-- **AC-R8** 등록 판정 순서: 401 → CSRF 403(PL-R9) → user 403(PL-R6) → 요청 형식 422 `request-validation`(AC-R2, AC-R6 형식, CL-R12) → 없는 Deal·형식이 틀린 code 404 `not-found` "Deal을 찾을 수 없습니다."(DD-R1) → 유형 422(AC-R5) → 내용 422(AC-R3) → 이전 Next Action 409 → 그 권한 403(AC-R7) → 코드 존재 422 → 단계별 동기화 422(DD-R7·R8) → 충돌 422(AC-R6) → 계약 409(LC-R8).
+- **AC-R8** 등록 판정 순서: 401 → CSRF 403(PL-R9) → user 403(PL-R6) → 요청 형식 422 `request-validation`(AC-R2, AC-R6 형식, CL-R12) → 없는 Deal·형식이 틀린 code 404 `not-found` "Deal을 찾을 수 없습니다."(DD-R1) → 유형 422(AC-R5) → 내용 422(AC-R3) → 수행일 422(AC-R35: 오늘 이후 → Deal 등록일 이전) → 이전 Next Action 409 → 그 권한 403(AC-R7) → 수행일·기준 행 422(AC-R36) → 코드 존재 422 → 단계별 동기화 422(DD-R7·R8) → 충돌 422(AC-R6) → 계약 409(LC-R8).
 - **AC-R9** 원자성: 등록 요청이 거절되면 Action·Deal 값·Deal History·새 유형·이전 Action 상태·계약 모두 그대로다. 성공하면 이 모두가 한 트랜잭션으로 저장된다.
 
 Deal History
@@ -88,11 +90,19 @@ Deal History
   | 삭제 | Action | <삭제 전 요약> | "삭제" |
 
   이전 Next Action 종료 줄의 대상·문구 형식은 NA-R8이 정하고(2026-11-10 결정), 이 규칙은 등록 경로에서 그 줄이 남는 조건(AC-R7 ④)과 저장 순서만 정한다. 한 등록에서 나온 항목은 같은 시각이고 저장 순서는 동반 변경의 Deal 필드 이력(단계 순서) → 이전 Next Action 종료 → Action 등록이다. 그래서 이력 목록(DD-R17, 같은 시각이면 나중에 저장한 것이 위)의 맨 위는 Action 등록 줄이다. 요약이 1,000자를 넘으면 이력만 999자 + "…"로 자르고 Action 원문은 자르지 않는다. 1,000자 뒤에서만 달라진 수정도 이력 1건을 남긴다.
-- **AC-R12** Deal에 미치는 효과: Action 등록·수정·삭제는 동반 변경이 없으면 Deal 값과 Deal `updated_at`을 바꾸지 않는다. Deal의 `next_action`·`last_updated_at`은 Action에서 다시 계산된다(RK-R1·R2) — 등록한 Action이 Next Action을 가지면 그 Action이 기준 행이 되고, 가장 최근 Action을 지우면 그 이전 Action이 기준 행이 되며, 하나뿐인 Action을 지우면 `next_action`은 null이다.
+- **AC-R12** Deal에 미치는 효과: Action 등록·수정·삭제는 동반 변경이 없으면 Deal 값과 Deal `updated_at`을 바꾸지 않는다. Deal의 `next_action`·`last_updated_on`은 Action에서 다시 계산된다(RK-R1·R2) — 등록한 Action이 Next Action을 가지면 그 Action이 기준 행이 되고, 가장 최근 Action을 지우면 그 이전 Action이 기준 행이 되며, 하나뿐인 Action을 지우면 `next_action`은 null이다.
+
+수행일 지정(2026-11-13 추가)
+- **AC-R34** 수행일 결정: 오늘 = 요청 시각의 업무 날짜(TM-R4). `acted_on`이 없거나 null이면 수행일은 오늘이고, 값이 있으면 그 날짜(AC-R35 범위 안)다. 시각은 저장하지 않는다. '지난 날짜는 23:59:59, 오늘은 요청 시각'이던 규칙은 2026-11-13에 폐지했다. 예(Asia/Seoul): 2026-11-13 14:30 요청에서 `acted_on`이 2026-11-10이면 수행일은 2026-11-10이고, 생략하면 2026-11-13이다.
+- **AC-R35** 수행일 범위(Deal을 찾은 뒤, 내용 검증 다음에 판정): `acted_on` > 오늘이면 422 `invalid-value` "수행일은 오늘 이후로 지정할 수 없습니다."(내일부터 거절). `acted_on` < Deal 등록일(Deal `created_at`의 업무 날짜)이면 422 `invalid-value` "수행일은 Deal 등록일(<YYYY-MM-DD>) 이전으로 지정할 수 없습니다."(등록일 당일은 허용). 둘 다 위반이 될 수 없으므로 위에서부터 하나만 알린다.
+- **AC-R36** 이전 Next Action 종료와 수행일: `close_previous_next_action_id`가 있고 AC-R7 ①(409)·②(403)를 통과한 뒤, 새 수행일(지정이 없으면 오늘)이 기준 행 수행일(`acted_on`)보다 앞이면 422 `invalid-value` "이전 Next Action의 수행일(<YYYY-MM-DD>)보다 앞선 날짜로는 이전 Next Action을 종료할 수 없습니다."다. 같은 날은 허용한다. 기준 행이 이미 종료여도 이 판정을 한다(AC-R7 ②와 같음). 종료할 때 종료일은 오늘이고 기준 행 `updated_at`·이력 시각은 요청 시각이다(수행일이 아님).
+- **AC-R37** 수행일과 무관하게 요청 시각으로 남는 것: 새 Action의 `created_at`·`updated_at`, 스냅숏(요청 처리 시점의 Deal Status·Forecast, 동반 변경이 있으면 변경 뒤 — 수행일 당시 값이 아님), 동반 변경의 Deal `updated_at`·Deal History 시각, Status 진입일(오늘, RK-R9), 이전 Next Action 종료일(오늘), 이 등록이 남기는 모든 이력 시각, 새 유형 생성 시각.
+- **AC-R38** 파생 값에 미치는 효과: 기준 행(RK-R1)·최종 업데이트일(RK-R2)·기본 목록 순서(AC-R18)·수행일 정렬(NA-R18)·수행일 검색(NA-R15)·Reports `action.acted_at`(date, RQ-R58)은 모두 `acted_on`을 쓴다. 지난 날짜 Action은 더 늦은 수행일의 Action이 있으면 최종 업데이트일을 바꾸지 않고, Next Action이 있는 더 늦은(같은 날이면 나중에 등록한) Action이 있으면 기준 행도 바꾸지 않으며, 목록에서는 그 날짜 자리에 놓인다. 같은 수행일 안에서는 id가 큰 Action, 곧 나중에 등록한 Action이 더 최근이다(AC-R43). 이 규칙은 RK-R1·R2의 정의를 바꾸지 않는다.
+- **AC-R39** 수행일은 등록 때만 정한다: 수정(AC-R13·R14)과 Next Action 상태 변경(NA-R5)은 `acted_on`을 바꾸지 않는다.
 
 수정 API
-- **AC-R13** `PUT /deal-actions/{action_id}`는 업무 쓰기다. 본문은 AC-R2의 내용 칸(`action_type`·`action`·`next_action`·`due_date`·`memo`)뿐이고 `status_change`·`status_changes`·`close_previous_next_action_id`·서버 필드를 보내면 422 `request-validation`이다. `action_id`는 PL-R15. 성공은 200 `DealActionResponse`.
-- **AC-R14** 수정 결과: 내용만 바꾼다. 수행 일시·담당자·스냅숏·`created_at`·소속 Deal은 그대로이고 내용이 바뀌면 `updated_at` = 서버 시각이다. 유형·세 텍스트·Due Date·Memo(정규화 뒤)가 모두 같으면(앞뒤 공백만 다름, 같은 유형 id, 대소문자만 다른 같은 유형 이름) 200이지만 저장·이력·`updated_at` 변경이 없고 새 유형도 생기지 않는다. Next Action 상태: Next Action을 비우면 상태·종료 시각이 null(종료였어도), 없던 Next Action을 채우면 `open`, 있던 Next Action의 텍스트·Due Date나 다른 칸만 고치면 상태·종료 시각 그대로(종료여도). 유형만 바꿔도 이력 1건이며 새 이름이면 새 유형이 생긴다(실패하면 남지 않음).
+- **AC-R13** `PUT /deal-actions/{action_id}`는 업무 쓰기다. 본문은 AC-R2의 내용 칸(`action_type`·`action`·`next_action`·`due_date`·`memo`)뿐이고 `status_change`·`status_changes`·`close_previous_next_action_id`·`acted_on`·서버 필드를 보내면 422 `request-validation`이다(수행일은 수정할 수 없음, AC-R39). `action_id`는 PL-R15. 성공은 200 `DealActionResponse`.
+- **AC-R14** 수정 결과: 내용만 바꾼다. 수행일·담당자·스냅숏·`created_at`·소속 Deal은 그대로이고 내용이 바뀌면 `updated_at` = 서버 시각이다. 유형·세 텍스트·Due Date·Memo(정규화 뒤)가 모두 같으면(앞뒤 공백만 다름, 같은 유형 id, 대소문자만 다른 같은 유형 이름) 200이지만 저장·이력·`updated_at` 변경이 없고 새 유형도 생기지 않는다. Next Action 상태: Next Action을 비우면 상태·종료 시각이 null(종료였어도), 없던 Next Action을 채우면 `open`, 있던 Next Action의 텍스트·Due Date나 다른 칸만 고치면 상태·종료 시각 그대로(종료여도). 유형만 바꿔도 이력 1건이며 새 이름이면 새 유형이 생긴다(실패하면 남지 않음).
 - **AC-R15** 수정 판정 순서: 401 → CSRF 403 → user 403(PL-R6, 없는 id여도 먼저) → 요청 형식 422 → 없는 Action 404 `not-found` "Action을 찾을 수 없습니다." → 담당자가 아님 403 `forbidden` "본인 Action 또는 admin만 수정할 수 있습니다."(본문이 잘못돼도 403) → 유형 422(AC-R5) → 내용 422(AC-R3). 거절되면 Action·이력·유형 목록이 그대로다.
 
 삭제 API
@@ -102,24 +112,29 @@ Deal History
 - **AC-R17** 등록은 sales·admin 누구나 모든 Deal에 한다. 수정·삭제·등록 때 이전 Next Action 종료는 `can_edit_action`: admin은 모든 Action, sales는 자기가 담당자인 Action만(Deal Owner와 무관), user는 자기 id여도 불가. admin이 남의 Action을 고치거나 지워도 담당자는 바뀌지 않고 이력 변경자는 admin이다.
 
 조회 API
-- **AC-R18** `GET /deals/{code}/actions`(검색 조건 없이 부를 때)는 로그인한 모든 역할이 부른다. 없는 Deal·형식이 틀린 code는 404 "Deal을 찾을 수 없습니다.". 응답은 `{items: DealActionResponse[]}`(키 `items`뿐)이고 페이지가 없어 그 Deal의 Action 전부를 돌려주며 다른 Deal의 Action은 섞이지 않는다. 기본 순서는 수행 일시 내림차순이고 같은 수행 일시면 id 오름차순(먼저 등록한 것이 앞)이다. 조건 없는 기본 순서와 표 열 구성(AC-R21)은 AC, 조회 조건·필터는 NA(NA-R11~R17, NA-R19, NA-R20), 정렬 선택은 NA-R18이 정한다(NA-R18의 기본값 `acted_at_desc`가 이 순서, 2026-11-10 결정). 전역 Action 검색 경로(`GET /deal-actions`)는 없다.
+- **AC-R18** `GET /deals/{code}/actions`(검색 조건 없이 부를 때)는 로그인한 모든 역할이 부른다. 없는 Deal·형식이 틀린 code는 404 "Deal을 찾을 수 없습니다.". 응답은 `{items: DealActionResponse[]}`(키 `items`뿐)이고 페이지가 없어 그 Deal의 Action 전부를 돌려주며 다른 Deal의 Action은 섞이지 않는다. 기본 순서는 수행일 내림차순이고, 수행일이 같으면 id 내림차순(나중에 등록한 것이 앞, AC-R43)이다. 조건 없는 기본 순서와 표 열 구성(AC-R21)은 AC, 조회 조건·필터는 NA(NA-R11~R17, NA-R19, NA-R20), 정렬 선택은 NA-R18이 정한다(NA-R18의 기본값 `acted_at_desc`가 이 순서, 2026-11-10 결정). 전역 Action 검색 경로(`GET /deal-actions`)는 없다.
 - **AC-R19** `GET /deal-actions/{action_id}`는 로그인한 모든 역할이 부른다. 없는 id는 상한값(2^53−1)이어도 404 "Action을 찾을 수 없습니다."(형식은 PL-R15).
-- **AC-R20** `DealActionResponse` 키는 정확히 `id`, `deal_code`, `action_type`(`{id, name}`, 이름은 읽는 시점의 현재 이름), `action`, `next_action`, `due_date`, `next_action_status`, `next_action_closed_at`, `memo`, `acted_at`, `actor`(UserRef, 퇴사자도 `resigned` true), `status_key`, `forecast_key`, `created_at`, `updated_at`이다. `action`·`next_action`·`due_date`·`next_action_status`·`next_action_closed_at`은 null일 수 있으나 키는 항상 있다. id는 JSON 정수, 시각 표기는 TM-R8.
+- **AC-R20** `DealActionResponse` 키는 정확히 `id`, `deal_code`, `action_type`(`{id, name}`, 이름은 읽는 시점의 현재 이름), `action`, `next_action`, `due_date`, `next_action_status`, `next_action_closed_on`(날짜 또는 null), `memo`, `acted_on`(날짜 `YYYY-MM-DD`, null 아님), `actor`(UserRef, 퇴사자도 `resigned` true), `status_key`, `forecast_key`, `created_at`, `updated_at`이다. `action`·`next_action`·`due_date`·`next_action_status`·`next_action_closed_on`은 null일 수 있으나 키는 항상 있다. id는 JSON 정수, 시각 표기는 TM-R8.
 
 화면(frontend, Actions 탭)
-- **AC-R21** 목록 표(이름 "Action 목록")의 열 순서: 수행일시(서버 시각 표기 TM-R8), 담당자(사용자 표기, 퇴사자 "<이름>(퇴사)"), 등록 시점 Status·Forecast(스냅숏 배지 — 현재 Deal 값과 다를 수 있음), 유형(현재 이름), 진행사항, Next Action, Due Date(기한초과 배지 RK-R18), 상태(NA), Memo, 관리(`canWrite`일 때만). 빈 값은 "—". 서버 순서를 그대로 보인다. 처음 읽는 동안 "불러오는 중…", 조건 없이 Action이 없으면 "등록된 Action이 없습니다."(조건 있을 때 문구는 NA), 목록 오류는 오류 배너(PL-R37).
+- **AC-R21** 목록 표(이름 "Action 목록")의 열 순서: 수행일(`YYYY-MM-DD`), 담당자(사용자 표기, 퇴사자 "<이름>(퇴사)"), 등록 시점 Status·Forecast(스냅숏 배지 — 현재 Deal 값과 다를 수 있음), 유형(현재 이름), 진행사항, Next Action, Due Date(기한초과 배지 RK-R18), 상태(NA), Memo, 관리(`canWrite`일 때만). 빈 값은 "—". 서버 순서를 그대로 보인다. 처음 읽는 동안 "불러오는 중…", 조건 없이 Action이 없으면 "등록된 Action이 없습니다."(조건 있을 때 문구는 NA), 목록 오류는 오류 배너(PL-R37).
 - **AC-R22** 버튼과 권한: `canWrite`(admin·sales, PL-R36)면 표 위에 "Action 추가" 버튼과 관리 열이 있고, user는 둘 다 없다. 관리 열의 "수정"·"삭제"는 `canEditAction`(AC-R17)일 때만 켜지고, 아니면 꺼진 채 title "본인 Action 또는 admin만 수정할 수 있습니다." / "본인 Action 또는 admin만 삭제할 수 있습니다."이며 눌러도 폼이 열리지 않는다. 다른 sales에게도 추가 버튼과 관리 열은 보인다.
-- **AC-R23** 추가 팝업(모달, 제목 "Action 추가", 넓은 폭): 맨 위 이전 Update 카드(AC-R26, 기준 행이 있을 때), 그 아래 폼. 안내 "업데이트 일자: 등록 시각으로 자동 기록 · 담당자: <내 이름>". 한 줄 그룹(이름 "Status · Forecast · 유형")에 Status 선택(현재 값), Forecast 선택(현재 값), 유형 입력(빈 값). 그 아래 진행사항(여러 줄), Next Action(한 줄), Due Date(`DateInput`, UI-R1~R11), Memo(여러 줄), 버튼 "등록"·"취소". 열리면 진행사항 칸에 포커스가 간다. 예전 "Next Action 업데이트" 문구는 없다.
-- **AC-R24** 화면 검증(요청 전, 위에서부터): 유형 — 공백뿐이면 "유형을 입력하세요.", 51자 이상(코드 포인트)이면 "유형은 50자 이내로 입력하세요."(50자 허용) → 진행사항·Next Action이 모두 비면 "진행사항 또는 Next Action을 입력하세요." → Next Action이 있는데 Due Date가 비면 "Due Date를 입력하세요.", Due Date가 틀리거나 덜 쳤으면 `DateInput` 문구(UI-R7), Next Action 없이 Due Date가 있으면 "Next Action 없이 Due Date를 입력할 수 없습니다.". 문구는 그 칸 아래에 보이고 첫 오류 칸(유형 → 진행사항 → Due Date)으로 포커스를 옮기며 요청을 보내지 않는다. Next Action을 모두 지우면 Due Date도 비운다. yyyymmdd로 친 Due Date는 ISO 날짜로 보낸다.
+- **AC-R23** 추가 팝업(모달, 제목 "Action 추가", 넓은 폭): 맨 위 이전 Update 카드(AC-R26, 기준 행이 있을 때), 그 아래 폼. 안내 "담당자: <내 이름>". 그 아래 수행일 칸(AC-R40). 한 줄 그룹(이름 "Status · Forecast · 유형")에 Status 선택(현재 값), Forecast 선택(현재 값), 유형 입력(빈 값). 그 아래 진행사항(여러 줄), Next Action(한 줄), Due Date(`DateInput`, UI-R1~R11), Memo(여러 줄), 버튼 "등록"·"취소". 열리면 진행사항 칸에 포커스가 간다. 예전 "Next Action 업데이트" 문구는 없다.
+- **AC-R24** 화면 검증(요청 전, 위에서부터): 수행일(AC-R41) → 유형 — 공백뿐이면 "유형을 입력하세요.", 51자 이상(코드 포인트)이면 "유형은 50자 이내로 입력하세요."(50자 허용) → 진행사항·Next Action이 모두 비면 "진행사항 또는 Next Action을 입력하세요." → Next Action이 있는데 Due Date가 비면 "Due Date를 입력하세요.", Due Date가 틀리거나 덜 쳤으면 `DateInput` 문구(UI-R7), Next Action 없이 Due Date가 있으면 "Next Action 없이 Due Date를 입력할 수 없습니다.". 문구는 그 칸 아래에 보이고 첫 오류 칸(수행일 → 유형 → 진행사항 → Due Date)으로 포커스를 옮기며 요청을 보내지 않는다. Next Action을 모두 지우면 Due Date도 비운다. yyyymmdd로 친 Due Date는 ISO 날짜로 보낸다.
 - **AC-R25** 유형 입력(콤보박스, UI-R18~R21): 누르면 서버 순서(CL-R3)의 유형 후보, 치면 부분 일치(대소문자 무시) 후보, 고르면 이름을 채운다. 목록을 읽었고 입력이 어떤 유형과도(대소문자 무시) 같지 않으면 안내 "목록에 없는 유형입니다. 저장하면 새 유형으로 추가됩니다."를 보인다(목록을 읽는 중·실패면 안내 없음, 실패는 오류 배너). 저장 때 CL-R16으로 `{id}` 또는 `{name}`을 보낸다. 새 이름으로 등록한 유형은 다음 팝업 후보에 나온다. 서버가 유형을 거절하면 그 문구를 팝업 안에 보이고 입력을 유지한다.
-- **AC-R26** 이전 Update 카드(이름 "이전 Update", 등록 팝업에만): 기준 행(화면 계산 `latestWithNextAction` — 수행 시각을 순간으로 비교, 같으면 id가 큰 행, 상태 무관, 서버 RK-R1과 같다)의 진행사항·Next Action·Due("—" 대체)를 읽기 전용으로 보인다. "이전 Next Action을 진행사항에 채우기"를 누르면 진행사항을 그 Next Action으로 채운다. 채운 뒤 기준 행이 Open이고 내가 바꿀 수 있으면(AC-R17) 체크박스 "저장 시 이전 Next Action을 종료(수행)로 바꿈"이 켜진 채 나타나고(다시 눌러도 사용자가 끈 체크는 유지), 바꿀 수 없으면 안내 "다른 담당자의 Next Action이라 상태는 바꾸지 않습니다.", 이미 종료면 둘 다 없다. 체크가 켜져 있을 때만 등록 요청에 `close_previous_next_action_id`(채운 행의 id)를 싣는다. 채운 뒤 카드가 다른 행으로 바뀌면 "이전 Update가 바뀌었습니다. 확인 후 다시 채우세요."를 보이고 체크를 끄며 id를 보내지 않는다(입력한 진행사항은 그대로).
+- **AC-R26** 이전 Update 카드(이름 "이전 Update", 등록 팝업에만): 기준 행(화면 계산 `latestWithNextAction` — 수행일로 비교, 같으면 id가 큰 행, 상태 무관, 서버 RK-R1과 같다)의 진행사항·Next Action·Due("—" 대체)를 읽기 전용으로 보인다. "이전 Next Action을 진행사항에 채우기"를 누르면 진행사항을 그 Next Action으로 채운다. 채운 뒤 기준 행이 Open이고 내가 바꿀 수 있으면(AC-R17) 체크박스 "저장 시 이전 Next Action을 종료(수행)로 바꿈"이 켜진 채 나타나고(다시 눌러도 사용자가 끈 체크는 유지), 바꿀 수 없으면 안내 "다른 담당자의 Next Action이라 상태는 바꾸지 않습니다.", 이미 종료면 둘 다 없다. 체크가 켜져 있을 때만 등록 요청에 `close_previous_next_action_id`(채운 행의 id)를 싣는다. 채운 뒤 카드가 다른 행으로 바뀌면 "이전 Update가 바뀌었습니다. 확인 후 다시 채우세요."를 보이고 체크를 끄며 id를 보내지 않는다(입력한 진행사항은 그대로).
 - **AC-R27** Status·Forecast 칸(등록 팝업에만): 다른 값을 고르면 DD-R36과 같은 대화상자(매출 확정·함께 바꿀 값 선택, 겹친 팝업)로 답을 받고, 바꾼 순서대로 최대 2건을 쌓는다(각 변경은 직전 상태 기준). 바뀐 칸 아래 "현재: <원래 이름>". 두 번째 변경이 첫 변경 값을 뒤집으면(대화상자 전이든 답 뒤든) 저장 전에 막고 "먼저 바꾼 값과 맞지 않는 변경입니다. 먼저 바꾼 값을 되돌린 뒤 다시 선택하세요."를 보인다(다음 성공 변경에서 지움). 대화상자를 취소하면 앞선 변경은 유지된다. 이미 바꾼 칸을 다시 바꾸거나 원래 값으로 되돌리면 그 칸과 그 뒤 변경을 버리고, 다른 칸 변경도 함께 버려졌으면 "<Status|Forecast> 변경도 취소되었습니다. 필요하면 다시 선택하세요."를 보인다. 변경이 있으면 "Status·Forecast 변경 취소" 버튼으로 모두 버린다(동기화 알림도 지움). 저장 때 쌓인 변경을 순서대로 `status_changes`로 보내고, 없으면 보내지 않는다. Won 이탈이면 요청 전에 LC-R36 확인을 거친다.
 - **AC-R28** 저장과 알림: 등록 성공이면 팝업을 닫고 알림 "Action이 등록되었습니다."에 (이전 Next Action을 닫았으면) " 이전 Next Action을 종료(수행)로 바꿨습니다." , (최종 Status·Forecast가 처음과 다르면) " Status가 '<이름>'(으)로, Forecast가 '<이름>'(으)로 변경되었습니다."(바뀐 쪽만, Status 먼저)를 이어 붙인다. 새 Action이 목록 맨 위에 보이고 요약 바의 Next Action(RK-R1, RK-R17)이 새로 읽힌다. 수정 성공은 "Action이 수정되었습니다.". 서버 거절(422·403·409 등)은 팝업 안 오류 배너(서버 문구)이고 팝업과 입력을 유지한다. 409(이전 Next Action 바뀜) 뒤 팝업을 닫고 다시 열면 카드가 새 기준 행을 보이고 그 행을 닫는 등록이 된다.
 - **AC-R29** 닫기·포커스: "취소"·Esc는 저장 없이 닫고 입력을 버린다. 닫으면 포커스는 추가 팝업이면 "Action 추가" 버튼, 수정 팝업이면 그 행의 "수정" 버튼으로 돌아간다. 저장 중에는 "취소"가 꺼지고 Esc를 무시하며, 끝나면(실패면 다시 켜짐) 정상 동작한다. 겹친 팝업(동기화·계약 확인)이 열려 있으면 Esc는 맨 위 팝업만 닫고 Tab 포커스는 맨 위 팝업 안에서만 돈다. 유형 후보 목록이 열려 있을 때 Esc는 후보만 닫는다.
-- **AC-R30** 수정 팝업(제목 "Action 수정"): 그 Action 값으로 채워 열고, 이전 Update 카드와 Status·Forecast 칸이 없다(유형 칸만). 안내 "수정한 내용은 Deal History에 기록됩니다. 등록 시점의 Status·Forecast는 바뀌지 않습니다."와 "수행일시: <서버 시각 표기> · 담당자: <사용자 표기>". 버튼 "저장"·"취소". 유형 칸을 건드리지 않았으면 원래 유형 id(`{id}`)를 보낸다 — 팝업을 연 뒤 admin이 유형 이름을 바꿔 목록이 다시 읽혀도 칸을 현재 이름으로 다시 채우고 새 유형 안내 없이 원래 id를 보낸다(사용자가 이미 고친 글자는 덮지 않음).
+- **AC-R30** 수정 팝업(제목 "Action 수정"): 그 Action 값으로 채워 열고, 이전 Update 카드와 Status·Forecast 칸이 없다(유형 칸만). 안내 "수정한 내용은 Deal History에 기록됩니다. 등록 시점의 Status·Forecast는 바뀌지 않습니다."와 "수행일: <YYYY-MM-DD> · 담당자: <사용자 표기>". 버튼 "저장"·"취소". 유형 칸을 건드리지 않았으면 원래 유형 id(`{id}`)를 보낸다 — 팝업을 연 뒤 admin이 유형 이름을 바꿔 목록이 다시 읽혀도 칸을 현재 이름으로 다시 채우고 새 유형 안내 없이 원래 id를 보낸다(사용자가 이미 고친 글자는 덮지 않음).
 - **AC-R31** 삭제 확인(제목 "Action 삭제"): 문구 "\"<진행사항, 없으면 Next Action>\" Action을 삭제합니다. 삭제는 Deal History에 기록됩니다.", 위험 버튼 "삭제". 확인하면 삭제하고 알림 "Action이 삭제되었습니다.", 목록과 요약 바 Next Action이 새로 읽힌다. "취소"는 아무것도 하지 않는다. 실패하면 대화상자를 닫고 탭 위 오류 배너(서버 문구)를 보인다(대화상자 안에 오류를 두지 않는 현행 동작 유지, 2026-11-10 결정).
-- **AC-R32** 게이트웨이(`gateway/http`): `actions.create` = `POST /deals/{code}/actions` 본문 snake_case(`action` ← 진행사항, `next_action`, `due_date`(빈 값은 null), `memo`, `action_type` 선택 객체 하나 — id와 name을 함께 보내지 않음), 텍스트를 다듬거나 자르지 않음, `acted_at`·담당자 없음, `status_changes`는 있을 때만(각 항목에 자기 resolution만), `close_previous_next_action_id`·`delete_license_contracts`는 값이 있을 때만. `actions.update` = `PUT /deal-actions/{id}` 내용 칸만. `actions.remove` = `DELETE /deal-actions/{id}`(204면 값 없이 끝). `actions.list`(조건 없음) = `GET /deals/{code}/actions` 쿼리 없이, `offset`·`limit` 없음, 응답 `items`를 매핑. 응답 매핑: `action` → 진행사항, `action_type` → 유형 이름·`typeId`, null 값은 null 그대로, 담당자는 역할·퇴사 표기 포함, 텍스트 가공 없음. 오류는 서버 문구 그대로(PL-R39).
-- **AC-R33** Fake 게이트웨이(`test/fake/gateway/actions.ts`)는 등록·수정·삭제에서 서버와 같은 규칙·판정 순서·이력을 따른다. 서버와 달랐던 두 곳은 **Fake를 서버 동작에 맞춘다(2026-11-10 결정)**: 진행사항·Next Action·Memo에 NUL 문자가 있으면 AC-R3 ①의 422 `invalid-value` "<진행사항|Next Action|Memo>에는 NUL 문자를 쓸 수 없습니다", 달력 날짜가 아닌 Due Date는 AC-R2의 422 `request-validation`이다("Due Date를 입력하세요."가 아님). 화면은 이런 값을 보내지 않는다.
+- **AC-R32** 게이트웨이(`gateway/http`): `actions.create` = `POST /deals/{code}/actions` 본문 snake_case(`action` ← 진행사항, `next_action`, `due_date`(빈 값은 null), `memo`, `action_type` 선택 객체 하나 — id와 name을 함께 보내지 않음), 텍스트를 다듬거나 자르지 않음, `acted_at`·담당자 없음, `status_changes`는 있을 때만(각 항목에 자기 resolution만), `close_previous_next_action_id`·`delete_license_contracts`·`acted_on`(ISO 날짜)은 값이 있을 때만. `actions.update` = `PUT /deal-actions/{id}` 내용 칸만. `actions.remove` = `DELETE /deal-actions/{id}`(204면 값 없이 끝). `actions.list`(조건 없음) = `GET /deals/{code}/actions` 쿼리 없이, `offset`·`limit` 없음, 응답 `items`를 매핑. 응답 매핑: `action` → 진행사항, `action_type` → 유형 이름·`typeId`, null 값은 null 그대로, 담당자는 역할·퇴사 표기 포함, 텍스트 가공 없음. 오류는 서버 문구 그대로(PL-R39).
+- **AC-R33** Fake 게이트웨이(`test/fake/gateway/actions.ts`)는 등록·수정·삭제에서 서버와 같은 규칙·판정 순서·이력을 따른다. 서버와 달랐던 두 곳은 **Fake를 서버 동작에 맞춘다(2026-11-10 결정)**: 진행사항·Next Action·Memo에 NUL 문자가 있으면 AC-R3 ①의 422 `invalid-value` "<진행사항|Next Action|Memo>에는 NUL 문자를 쓸 수 없습니다", 달력 날짜가 아닌 Due Date는 AC-R2의 422 `request-validation`이다("Due Date를 입력하세요."가 아님). 화면은 이런 값을 보내지 않는다. 수행일(AC-R34~R36)도 서버와 같은 결정·판정 순서·문구를 따른다(Fake 시계의 업무 날짜 기준).
+- **AC-R40** 수행일 칸(추가 팝업에만): 라벨 "수행일", 공통 `DateInput`(UI-R1~R11), 처음 값은 팝업을 연 때의 오늘(`useToday`, TM-R12). 안내 문단 바로 아래, "Status · Forecast · 유형" 줄 위에 둔다. 시각 입력 칸은 없다. 수정 팝업에는 이 칸이 없고 "수행일: <YYYY-MM-DD>" 안내를 보인다(AC-R30).
+- **AC-R41** 수행일 화면 검증(AC-R24의 첫 단계, 위에서부터 첫 위반만): 비면 "수행일을 입력하세요.", 덜 쳤거나 틀린 날짜는 `DateInput` 문구(UI-R7), 제출 때 오늘(`useToday`)보다 뒤면 "수행일은 오늘 이후로 지정할 수 없습니다.", Deal 등록일(Deal `createdAt` 앞 10자, 서버 오프셋 벽시계 날짜 TM-R14)보다 앞이면 "수행일은 Deal 등록일(<YYYY-MM-DD>) 이전으로 지정할 수 없습니다.", 이전 Next Action 종료를 실제로 보낼 상태(AC-R26 체크가 켜져 있고 유효)에서 기준 행 수행일보다 앞이면 "이전 Next Action의 수행일(<YYYY-MM-DD>)보다 앞선 날짜로는 이전 Next Action을 종료할 수 없습니다.". 문구는 칸 아래, 포커스는 수행일 칸, 요청하지 않는다. 체크를 끄면 마지막 문구 없이 저장할 수 있다. 서버 422(AC-R35·R36)는 AC-R28처럼 팝업 안 오류 배너다.
+- **AC-R42** 수행일 보내기: 제출 때 수행일이 오늘(`useToday`)과 같으면 `acted_on`을 보내지 않고(서버가 오늘로 정함), 다르면 ISO 날짜로 보낸다. 등록 성공 뒤 목록은 서버가 준 `acted_on`을 보이고 서버 순서를 그대로 따른다(AC-R21).
+- **AC-R43** 같은 수행일의 순서: 수행일이 같으면 id가 큰 Action(나중에 등록한 것)이 더 최근이다. 기준 행(RK-R1), 기본 목록(AC-R18), 수행일 내림차순 정렬(NA-R18)이 이 순서를 따른다. 오름차순 정렬은 id 오름차순이다. 화면 계산(`latestWithNextAction`)과 Fake도 같다.
+- **AC-R44** 기존 데이터 변환(리비전 `b4d7e2a9c613`, SC-R20): 기존 Action의 수행일은 저장된 수행 일시를 업무 시간대(서버 OS 로컬, TM-R4)로 바꾼 날짜다. 예(Asia/Seoul): `2026-11-10T23:59:59+09:00` → 2026-11-10, `2026-11-10T15:30:00Z` → 2026-11-11. 행 수는 그대로이고 시각만 버린다(2026-11-13 사용자 승인). downgrade는 `acted_at`을 수행일의 업무 시간대 00:00으로 되살리며, 원래 시각은 복원되지 않는다.
 
 ### 2.4 상태와 전이
 
@@ -131,7 +146,7 @@ Action의 Next Action 상태(이 문서가 정하는 전이만, 상태 변경 AP
 | null(진행사항만) | 수정: Next Action 채움 | `open` |
 | `open`·`done`·`not_done` | 수정: Next Action 비움 | null(종료 시각도 null) |
 | `open`·`done`·`not_done` | 수정: 그 밖의 내용 변경 | 그대로(종료 시각 그대로) |
-| `open`(기준 행) | 다음 Action 등록 + `close_previous_next_action_id` | `done`(종료 시각 = 수행 시각) |
+| `open`(기준 행) | 다음 Action 등록 + `close_previous_next_action_id` | `done`(종료일 = 오늘) |
 | `done`·`not_done`(기준 행) | 다음 Action 등록 + `close_previous_next_action_id` | 그대로 |
 | (모든 상태) | 삭제 | (없음) |
 
@@ -152,14 +167,14 @@ Action의 Next Action 상태(이 문서가 정하는 전이만, 상태 변경 AP
 
 | 메서드·경로 | 요청 | 성공 | 오류 |
 | --- | --- | --- | --- |
-| POST `/deals/{code}/actions` | `DealActionCreateRequest` `{action_type: CatalogChoiceRequest, action?: str, next_action?: str, due_date?: date\|null, memo?: str, status_change?: ActionStatusChangeRequest\|null, status_changes?: ActionStatusChangeRequest[]\|null (≤2), close_previous_next_action_id?: int\|null, delete_license_contracts?: bool}` | 201 `DealActionResponse`, `Location` | 401, 403 `forbidden`·`csrf`, 404 `not-found`, 409 `invalid-state`, 422 `invalid-value`·`request-validation` |
+| POST `/deals/{code}/actions` | `DealActionCreateRequest` `{action_type: CatalogChoiceRequest, action?: str, next_action?: str, due_date?: date\|null, memo?: str, status_change?: ActionStatusChangeRequest\|null, status_changes?: ActionStatusChangeRequest[]\|null (≤2), close_previous_next_action_id?: int\|null, delete_license_contracts?: bool, acted_on?: date\|null}` | 201 `DealActionResponse`, `Location` | 401, 403 `forbidden`·`csrf`, 404 `not-found`, 409 `invalid-state`, 422 `invalid-value`·`request-validation` |
 | GET `/deals/{code}/actions` | (검색 쿼리는 NA-R11~R19) | 200 `DealActionList` `{items: DealActionResponse[]}` | 401, 404, 422(NA-R19, NA-R20) |
 | GET `/deal-actions/{action_id}` | — | 200 `DealActionResponse` | 401, 404, 422 |
 | PUT `/deal-actions/{action_id}` | `DealActionUpdateRequest` `{action_type, action?, next_action?, due_date?, memo?}` | 200 `DealActionResponse` | 401, 403, 404, 422 |
 | DELETE `/deal-actions/{action_id}` | — | 204 | 401, 403, 404, 422 |
 
 - `ActionStatusChangeRequest` = `{change: CodeChange, resolution?: ResolutionRequest|null}`(DD 2.6). 모든 본문은 모르는 필드를 거부한다.
-- OpenAPI: 등록·수정 요청의 `action`·`next_action`·`memo`에 `maxLength`가 없고 `action`·`next_action`·`due_date`는 required가 아니며 `action_type`은 required(`CatalogChoiceRequest` 참조)다. 서버 필드(`acted_at`·`actor_user_id`·`actor`)가 없다. `status_change(s)`·`close_previous_next_action_id`는 등록 요청에만 있다. `ActionType` enum 스키마는 없다. 응답 `action_type`은 `{id, name}`, nullable 다섯 필드는 required + null 허용이다.
+- OpenAPI: 등록·수정 요청의 `action`·`next_action`·`memo`에 `maxLength`가 없고 `action`·`next_action`·`due_date`는 required가 아니며 `action_type`은 required(`CatalogChoiceRequest` 참조)다. 서버 필드(`acted_at`·`actor_user_id`·`actor`)가 없다. `status_change(s)`·`close_previous_next_action_id`·`acted_on`(format date, nullable, required 아님)은 등록 요청에만 있다. `ActionType` enum 스키마는 없다. 응답 `action_type`은 `{id, name}`, nullable 다섯 필드는 required + null 허용이다.
 
 ### 2.7 화면 동작
 
@@ -176,9 +191,13 @@ AC-R21~AC-R33.
 | 없는 유형 id / 유형 이름 규칙 | 422 `invalid-value` | 선택한 유형이 없습니다. 목록에서 다시 선택하세요. / CL 2.8 |
 | 동반 변경: 없는 코드·매출 없음·선택 없음 | 422 `invalid-value` | 존재하지 않는 코드입니다. / DD 2.8 |
 | 동반 변경: 두 번째가 첫 변경을 뒤집음 | 422 `invalid-value` | 먼저 바꾼 값과 맞지 않는 변경입니다. 먼저 바꾼 값을 되돌린 뒤 다시 선택하세요. |
-| 요청 형식 오류(서버 필드·모르는 키·유형 형식·동반 변경 형식·close id 형식·날짜 형식) | 422 `request-validation` | 요청 형식이 올바르지 않습니다 |
+| 요청 형식 오류(서버 필드·모르는 키·유형 형식·동반 변경 형식·close id 형식·날짜 형식·수행일 형식) | 422 `request-validation` | 요청 형식이 올바르지 않습니다 |
 | 없는 Deal·형식이 틀린 code | 404 `not-found` | Deal을 찾을 수 없습니다. |
 | 없는 Action | 404 `not-found` | Action을 찾을 수 없습니다. |
+| 수행일이 오늘 이후 | 422 `invalid-value` | 수행일은 오늘 이후로 지정할 수 없습니다. |
+| 수행일이 Deal 등록일 이전 | 422 `invalid-value` | 수행일은 Deal 등록일(<YYYY-MM-DD>) 이전으로 지정할 수 없습니다. |
+| 이전 Next Action보다 앞선 수행일로 종료 | 422 `invalid-value` | 이전 Next Action의 수행일(<YYYY-MM-DD>)보다 앞선 날짜로는 이전 Next Action을 종료할 수 없습니다. |
+| 수행일 빈 값(화면) | — | 수행일을 입력하세요. |
 | 이전 Next Action이 기준 행이 아님 | 409 `invalid-state` | 이전 Next Action이 바뀌었습니다. 창을 닫고 다시 열어 주세요. |
 | 남의 기준 행 종료 | 403 `forbidden` | 본인 Action 또는 admin만 Next Action 상태를 바꿀 수 있습니다. |
 | 남의 Action 수정 / 삭제 | 403 `forbidden` | 본인 Action 또는 admin만 수정할 수 있습니다. / 본인 Action 또는 admin만 삭제할 수 있습니다. |
@@ -203,7 +222,7 @@ AC-R21~AC-R33.
 - 기본 흐름: "수정" → 값이 채워진 팝업 → 고침 → "저장" → `PUT /deal-actions/{id}` → 200, "Action이 수정되었습니다."(AC-R13~R15, AC-R30)
 - 대안: 내용이 같으면 변경·이력 없음(AC-R14)
 - 예외: 남의 Action 403, 없는 Action 404, 입력 422, user 403
-- 결과: 내용만 바뀌고 수행 일시·담당자·스냅숏 그대로, 이력 1건
+- 결과: 내용만 바뀌고 수행일·담당자·스냅숏 그대로, 이력 1건
 
 ### AC-UC3 Action 삭제
 - 행위자: Action 담당자 sales, admin
@@ -218,13 +237,21 @@ AC-R21~AC-R33.
 - 예외: 없는 Deal 404, 없는 Action 404
 - 결과: 그 Deal의 Action 전부와 등록 시점 Status·Forecast
 
+### AC-UC5 지난 날짜로 Action 등록
+- 행위자: sales·admin
+- 사전 조건: Deal 상세 Actions 탭, 며칠 전에 한 일을 이제 기록한다
+- 기본 흐름: "Action 추가" → 수행일 칸(오늘)을 지난 날짜로 바꿈 → 내용 입력 → "등록" → `POST /deals/{code}/actions`(`acted_on`) → 201, 목록에서 그 날짜 자리에 보임(AC-R34, AC-R38, AC-R40~R43)
+- 대안: 오늘 그대로 두면 지금 시각으로 기록(AC-R34). 이전 Next Action을 함께 닫음(같은 날 이후만, AC-R36). Status·Forecast를 함께 바꿈(요청 시점 기준, AC-R37)
+- 예외: 빈·틀린·미래·등록일 이전 수행일(화면 AC-R41, 서버 422 AC-R35), 기준 행보다 앞선 수행일로 종료(422 AC-R36) — 아무것도 저장 안 됨(AC-R9)
+- 결과: Action 1건(`acted_on` = 그 날짜), 더 늦은 수행일의 Action이 없으면 Deal의 Next Action·최종 업데이트가 이 Action을 가리킴
+
 ## 4. BDD 테스트 케이스
 
 요청자 예시: ROOT(admin), KIM(sales), LEE(sales), VIEWER(user). 기본 Deal 예: Owner KIM, Status 기회발굴(prospecting)·Forecast Pipeline, 금액 150,000,000, Expected Close 2026-06-30. 종결 Deal 예: 계약완료·Won, 금액 777, Expected Close 2026-09-01. 매출 답 예: 900,000,000·2026-10-20. 기본 Action 입력: 유형 `{name: "미팅"}`(기본 유형), 진행사항 "킥오프 미팅", Next Action "요구사항 문서 전달", Due 2027-01-15, Memo "요구사항 정리" — 요약 "미팅 · 킥오프 미팅 / Next Action: 요구사항 문서 전달 (Due 2027-01-15) / Memo: 요구사항 정리". backend 케이스는 기본 코드·기본 유형을 넣은 Fake UoW로 유스케이스를 부르는 단위 테스트(application·domain)와 Fake 유스케이스로 라우터·스키마를 부르는 web 단위 테스트다. frontend 케이스는 Fake 게이트웨이(시드 Deal·Action·유형·사용자)를 쓰는 Vitest다.
 
 | 코드 | 케이스 | 규칙·UC | 층 | 테스트 위치 |
 | --- | --- | --- | --- | --- |
-| AC-001 | sales가 Action을 등록하면 201과 Location이고 수행 일시·담당자·스냅숏을 서버가 정한다 | AC-R1, AC-R4, AC-UC1 | backend | `application/test_register_deal_action.py`, `domain/test_action_content.py`, `domain/test_deal_action_entity.py`, `web/test_deal_action_routes.py` |
+| AC-001 | sales가 Action을 등록하면 201과 Location이고 수행일·담당자·스냅숏을 서버가 정한다 | AC-R1, AC-R4, AC-UC1 | backend | `application/test_register_deal_action.py`, `domain/test_action_content.py`, `domain/test_deal_action_entity.py`, `web/test_deal_action_routes.py` |
 | AC-002 | 등록 응답은 문서화된 15개 키를 가지고 유형은 {id, name}이다 | AC-R20, AC-UC1 | backend | `web/test_deal_action_response_nullable.py`, `web/test_deal_action_routes.py` |
 | AC-003 | 텍스트 앞뒤 공백을 지워 저장하고 지난 Due Date도 받는다 | AC-R3, AC-UC1 | backend | `application/test_register_deal_action.py`, `domain/test_action_content.py` |
 | AC-004 | 진행사항·Next Action·Memo는 길이 상한 없이 그대로 저장된다 | AC-R2, AC-R3, AC-UC1 | backend | `application/test_register_deal_action.py`, `domain/test_action_content.py`, `web/test_deal_action_requests.py` |
@@ -239,7 +266,7 @@ AC-R21~AC-R33.
 | AC-013 | 없는 Deal·형식이 틀린 code는 입력이 잘못돼도 404가 먼저다 | AC-R8, AC-UC1 | backend | `application/test_register_deal_action.py` |
 | AC-014 | user의 등록은 읽기 전용 403, 미인증은 401이다 | AC-R1, AC-R8, AC-UC1 | backend | `web/test_deal_action_routes.py` |
 | AC-015 | Deal Owner가 아닌 sales도 Action을 등록할 수 있다 | AC-R1, AC-R17, AC-UC1 | backend | `application/test_register_deal_action.py` |
-| AC-016 | 등록하면 Deal History에 "등록: <요약>" 1건이 수행 시각·요청자로 남고 Memo가 없으면 Memo 부분이 없다 | AC-R10, AC-R11, AC-UC1 | backend | `application/test_register_deal_action.py`, `domain/test_action_history.py` |
+| AC-016 | 등록하면 Deal History에 "등록: <요약>" 1건이 요청 시각·요청자로 남고 Memo가 없으면 Memo 부분이 없다 | AC-R10, AC-R11, AC-UC1 | backend | `application/test_register_deal_action.py`, `domain/test_action_history.py` |
 | AC-017 | 긴 요약은 이력에서만 1,000자로 잘리고 Action 원문은 그대로다 | AC-R11, AC-UC1 | backend | `application/test_register_deal_action.py`, `domain/test_action_history.py` |
 | AC-018 | 등록해도 Deal 수정 시각은 그대로이고 Deal의 Next Action·최종 업데이트가 새 Action을 가리킨다 | AC-R12, AC-UC1 | backend | `application/test_register_deal_action.py` |
 | AC-019 | 이름으로 새 유형을 고른 등록이 다른 이유로 거절되면 새 유형이 남지 않는다 | AC-R5, AC-R9, AC-UC1 | backend | `application/test_deal_action_type_choice.py` |
@@ -248,7 +275,7 @@ AC-R21~AC-R33.
 | AC-022 | 이력 요약의 유형 자리에는 고른(새로 만든) 유형 이름이 들어간다 | AC-R5, AC-R10, AC-UC1 | backend | `application/test_deal_action_type_choice.py`, `domain/test_action_history.py` |
 | AC-023 | 계약완료로 바꾸며 등록하면 Deal이 종결되고 스냅숏은 변경 뒤 값이며 이력은 Deal 변경 다음 Action 등록 순서다 | AC-R4, AC-R6, AC-R11, AC-UC1 | backend | `application/test_register_deal_action_status_change.py` |
 | AC-024 | 종결로 바꾸며 매출을 주지 않으면 422이고 Action·Deal·이력이 그대로다 | AC-R6, AC-R9, AC-UC1 | backend | `application/test_register_deal_action_status_change.py`, `domain/test_sync_sequence.py` |
-| AC-025 | Forecast만 바꾸면 Status는 그대로이고 Deal 수정 시각이 수행 시각이 된다 | AC-R6, AC-UC1 | backend | `application/test_register_deal_action_status_change.py` |
+| AC-025 | Forecast만 바꾸면 Status는 그대로이고 Deal 수정 시각이 요청 시각이 된다 | AC-R6, AC-UC1 | backend | `application/test_register_deal_action_status_change.py` |
 | AC-026 | Won Deal을 되돌리며 함께 바꿀 값을 고르지 않으면 422, 고르면 그 값이 스냅숏이 된다 | AC-R6, AC-UC1 | backend | `application/test_register_deal_action_status_change.py` |
 | AC-027 | 없는 코드로 바꾸려 하면 422 "존재하지 않는 코드입니다."이고 두 번째 항목 코드도 매출 판정보다 먼저 본다 | AC-R6, AC-R8, AC-UC1 | backend | `application/test_register_deal_action_status_change.py`, `application/test_register_deal_action_two_changes.py` |
 | AC-028 | 현재와 같은 값으로 바꾸면 Deal은 그대로이고 Action만 남는다 | AC-R6, AC-UC1 | backend | `application/test_register_deal_action_status_change.py`, `application/test_register_deal_action_two_changes.py`, `domain/test_sync_sequence.py` |
@@ -269,7 +296,7 @@ AC-R21~AC-R33.
 | AC-043 | 내용 오류나 동반 변경 실패면 이전 Next Action은 Open 그대로다 | AC-R7, AC-R9, AC-UC1 | backend | `application/test_register_action_closes_previous.py` |
 | AC-044 | 새 Action이 진행사항만이어도 이전 행을 닫을 수 있고 기준 행만 닫힌다 | AC-R7, AC-UC1 | backend | `application/test_register_action_closes_previous.py` |
 | AC-045 | 이전 Next Action id 형식이 틀리면 422 request-validation이다 | AC-R2, AC-R7, AC-UC1 | backend | `web/test_deal_action_close_previous_request.py` |
-| AC-046 | 담당자가 고치면 내용만 바뀌고 수행 일시·담당자·스냅숏은 그대로이며 이력 1건이 남는다 | AC-R13, AC-R14, AC-R11, AC-UC2 | backend | `application/test_update_deal_action.py`, `domain/test_action_history.py`, `domain/test_deal_action_entity.py` |
+| AC-046 | 담당자가 고치면 내용만 바뀌고 수행일·담당자·스냅숏은 그대로이며 이력 1건이 남는다 | AC-R13, AC-R14, AC-R11, AC-UC2 | backend | `application/test_update_deal_action.py`, `domain/test_action_history.py`, `domain/test_deal_action_entity.py` |
 | AC-047 | 내용이 같은 수정은 200이지만 이력·수정 시각이 그대로이고 새 유형도 없다 | AC-R14, AC-UC2 | backend | `application/test_update_action_type_choice.py`, `application/test_update_deal_action.py`, `domain/test_deal_action_entity.py` |
 | AC-048 | 수정 내용 규칙을 어기면 422이고 Action은 그대로다 | AC-R3, AC-R15, AC-UC2 | backend | `application/test_update_deal_action.py` |
 | AC-049 | 수정도 길이 상한이 없고 1,000자 뒤에서만 달라진 수정도 이력 1건이다 | AC-R11, AC-R14, AC-UC2 | backend | `application/test_update_deal_action.py`, `domain/test_action_history.py` |
@@ -277,7 +304,7 @@ AC-R21~AC-R33.
 | AC-051 | 진행사항만 Action에 Next Action을 채우면 Open이 된다 | AC-R14, AC-UC2 | backend | `application/test_update_deal_action.py`, `domain/test_deal_action_entity.py`, `gateway/contract/actionsStatus.contract.ts` |
 | AC-052 | 종료된 Next Action의 내용을 고쳐도 종료 상태와 종료 시각은 그대로다 | AC-R14, AC-UC2 | backend | `application/test_update_deal_action.py`, `domain/test_deal_action_entity.py`, `gateway/contract/actionsStatus.contract.ts` |
 | AC-053 | 유형만 바꿔도 이력 1건이 남고 새 이름이면 새 유형이 생기며 실패하면 남지 않는다 | AC-R5, AC-R14, AC-UC2 | backend | `application/test_update_action_type_choice.py`, `domain/test_action_history.py`, `domain/test_deal_action_entity.py` |
-| AC-054 | 수정 본문에 동반 변경·이전 Next Action id·서버 필드가 있으면 422 request-validation이다 | AC-R13, AC-UC2 | backend | `web/test_deal_action_close_previous_request.py`, `web/test_deal_action_requests.py`, `web/test_deal_action_status_changes.py` |
+| AC-054 | 수정 본문에 동반 변경·이전 Next Action id·서버 필드가 있으면 422 request-validation이다 | AC-R13, AC-UC2 | backend | `web/test_deal_action_close_previous_request.py`, `web/test_deal_action_requests.py`, `web/test_deal_action_status_changes.py`, `web/test_deal_action_acted_on_request.py` |
 | AC-055 | admin은 남의 Action을 고치고 담당자는 그대로이며 이력 변경자는 admin이다 | AC-R17, AC-UC2 | backend | `application/test_update_deal_action.py`, `domain/test_action_policy.py`, `domain/test_deal_action_entity.py` |
 | AC-056 | 다른 sales의 수정은 본문이 잘못돼도 403이고 Action·이력이 그대로다 | AC-R15, AC-R17, AC-UC2 | backend | `application/test_update_deal_action.py`, `domain/test_action_policy.py`, `domain/test_deal_action_entity.py` |
 | AC-057 | 없는 Action의 수정은 담당자·유형 확인보다 먼저 404다 | AC-R15, AC-UC2 | backend | `application/test_update_action_type_choice.py`, `application/test_update_deal_action.py` |
@@ -289,16 +316,16 @@ AC-R21~AC-R33.
 | AC-063 | 없는 Action·이미 지운 Action의 삭제는 404다 | AC-R16, AC-UC3 | backend | `application/test_delete_deal_action.py`, `domain/test_deal_action_entity.py` |
 | AC-064 | user의 삭제는 없는 id여도 읽기 전용 403, 미인증은 401이다 | AC-R16, AC-UC3 | backend | `application/test_delete_deal_action.py`, `domain/test_deal_action_entity.py`, `web/test_deal_action_routes.py` |
 | AC-065 | Deal의 Action 목록은 페이지 없이 그 Deal 것만 {items}로 돌려준다 | AC-R18, AC-UC4 | backend | `application/test_list_deal_actions_default.py` |
-| AC-066 | 기본 목록은 수행 일시 최신순이고 같은 시각이면 먼저 등록한 것이 앞이다 | AC-R18, AC-UC4 | backend | `application/test_list_deal_actions_default.py` |
+| AC-066 | 기본 목록은 수행일 최신순이고 같은 수행일이면 나중에 등록한 것이 앞이다 | AC-R18, AC-UC4 | backend | `application/test_list_deal_actions_default.py` |
 | AC-067 | 없는 Deal의 목록은 404다 | AC-R18, AC-UC4 | backend | `application/test_list_deal_actions_default.py` |
 | AC-068 | 어떤 역할이든 목록과 한 건을 읽고 유형은 현재 이름으로 나온다 | AC-R18, AC-R19, AC-R20, AC-UC4 | backend | `application/test_list_deal_actions_default.py`, `web/test_deal_action_routes.py` |
 | AC-069 | 없는 Action 한 건 조회는 상한 id여도 404다 | AC-R19, AC-UC4 | backend | `application/test_list_deal_actions_default.py`, `web/test_deal_action_routes.py` |
-| AC-070 | OpenAPI 계약: 길이 상한·서버 필드 없음, 선택 입력·nullable 응답, 등록에만 동반 변경·이전 id, 전역 검색 없음 | AC-R2, AC-R13, AC-R18, AC-R20 | backend | `web/test_deal_action_close_previous_request.py`, `web/test_deal_action_openapi.py` |
+| AC-070 | OpenAPI 계약: 길이 상한·서버 필드 없음, 선택 입력·nullable 응답, 등록에만 동반 변경·이전 id, 전역 검색 없음 | AC-R2, AC-R13, AC-R18, AC-R20 | backend | `web/test_deal_action_close_previous_request.py`, `web/test_deal_action_openapi.py`, `web/test_deal_action_acted_on_request.py` |
 | AC-071 | 화면: 목록은 최신순으로 정해진 열을 보이고 등록 시점 Status·Forecast는 현재 값과 다를 수 있다 | AC-R21, AC-UC4 | frontend | `features/deals/detail/ActionsTab.cases.test.tsx`, `features/deals/detail/ActionsTab.test.tsx` |
 | AC-072 | 화면: user는 추가 버튼·관리 열이 없다 | AC-R22, AC-UC4 | frontend | `features/deals/detail/ActionsTab.dialog.test.tsx`, `features/deals/detail/ActionsTab.test.tsx` |
 | AC-073 | 화면: sales는 본인 행만 수정·삭제가 켜지고 남의 행은 이유 title과 함께 꺼지며 admin은 모두 켜진다 | AC-R22, AC-R17 | frontend | `features/deals/detail/ActionsTab.test.tsx` |
-| AC-074 | 화면: 추가 팝업은 이전 Update 카드·한 줄 Status·Forecast·유형·내용 칸을 보이고 진행사항에 포커스가 간다 | AC-R23, AC-UC1 | frontend | `features/deals/detail/ActionForm.syncFields.test.tsx`, `features/deals/detail/ActionForm.type.test.tsx`, `features/deals/detail/ActionsTab.dialog.test.tsx`, `features/deals/detail/ActionsTab.test.tsx` |
-| AC-075 | 화면: 검증 문구는 유형 → 진행사항 → Due Date 순이고 첫 오류 칸에 포커스하며 요청하지 않는다 | AC-R24, AC-UC1 | frontend | `features/deals/detail/ActionForm.dateInput.test.tsx`, `features/deals/detail/ActionForm.type.test.tsx`, `features/deals/detail/ActionsTab.nextActionStatus.test.tsx`, `features/deals/detail/ActionsTab.dialog.test.tsx`, `features/deals/detail/ActionsTab.test.tsx` |
+| AC-074 | 화면: 추가 팝업은 이전 Update 카드·한 줄 Status·Forecast·유형·내용 칸을 보이고 진행사항에 포커스가 간다 | AC-R23, AC-UC1 | frontend | `features/deals/detail/ActionForm.syncFields.test.tsx`, `features/deals/detail/ActionForm.type.test.tsx`, `features/deals/detail/ActionsTab.dialog.test.tsx`, `features/deals/detail/ActionsTab.test.tsx`, `features/deals/detail/ActionForm.actedOn.test.tsx` |
+| AC-075 | 화면: 검증 문구는 유형 → 진행사항 → Due Date 순이고 첫 오류 칸에 포커스하며 요청하지 않는다 | AC-R24, AC-UC1 | frontend | `features/deals/detail/ActionForm.dateInput.test.tsx`, `features/deals/detail/ActionForm.type.test.tsx`, `features/deals/detail/ActionsTab.nextActionStatus.test.tsx`, `features/deals/detail/ActionsTab.dialog.test.tsx`, `features/deals/detail/ActionsTab.test.tsx`, `features/deals/detail/ActionForm.actedOn.test.tsx` |
 | AC-076 | 화면: Due Date는 yyyymmdd 입력을 ISO로 보내고 틀리거나 덜 친 날짜는 막는다 | AC-R24, AC-UC1 | frontend | `features/deals/detail/ActionForm.dateInput.test.tsx` |
 | AC-077 | 화면: 등록하면 팝업이 닫히고 알림·목록 맨 위·요약 바가 갱신된다 | AC-R28, AC-UC1 | frontend | `features/deals/detail/ActionsTab.dialog.test.tsx`, `features/deals/detail/ActionsTab.test.tsx` |
 | AC-078 | 화면: 목록에 없는 유형은 안내 후 이름으로, 목록에 있는 유형은 id로 보낸다 | AC-R25, AC-UC1 | frontend | `features/deals/detail/ActionForm.type.test.tsx`, `features/deals/detail/ActionForm.typeStable.test.tsx` |
@@ -313,16 +340,43 @@ AC-R21~AC-R33.
 | AC-087 | 화면: 수정 폼에서 건드리지 않은 유형은 이름이 바뀌어도 원래 id로 보낸다 | AC-R30, AC-UC2 | frontend | `features/deals/detail/ActionForm.typeRefill.test.tsx`, `features/deals/detail/ActionForm.typeStable.test.tsx` |
 | AC-088 | 화면: 삭제는 확인 뒤 지우고 알림을 보이며 취소하면 그대로다 | AC-R31, AC-UC3 | frontend | `features/deals/detail/ActionsTab.cases.test.tsx`, `features/deals/detail/ActionsTab.test.tsx` |
 | AC-089 | 게이트웨이: 등록·수정·삭제·기본 목록 요청과 응답을 서버 계약대로 바꾼다 | AC-R32 | frontend | `gateway/http/actions.test.ts`, `gateway/http/mappers/action.test.ts` |
-| AC-090 | Fake 게이트웨이는 등록·수정·삭제의 서버 규칙(판정 순서·이력·순차 변경·이전 종료)을 따른다 | AC-R3, AC-R6~R8, AC-R11, AC-R14~R17, AC-R33 | frontend | `test/fake/gateway/actions.closePrevious.test.ts`, `test/fake/gateway/actions.entryRules.test.ts`, `test/fake/gateway/actions.rules.test.ts`, `test/fake/gateway/actions.sequence.test.ts`, `test/fake/gateway/actions.test.ts`, `gateway/contract/actionsSequence.contract.ts`, `gateway/contract/actions.contract.ts` |
+| AC-090 | Fake 게이트웨이는 등록·수정·삭제의 서버 규칙(판정 순서·이력·순차 변경·이전 종료)을 따른다 | AC-R3, AC-R6~R8, AC-R11, AC-R14~R17, AC-R33 | frontend | `test/fake/gateway/actions.closePrevious.test.ts`, `test/fake/gateway/actions.entryRules.test.ts`, `test/fake/gateway/actions.rules.test.ts`, `test/fake/gateway/actions.sequence.test.ts`, `test/fake/gateway/actions.test.ts`, `gateway/contract/actionsSequence.contract.ts`, `gateway/contract/actions.contract.ts`, `test/fake/gateway/actions.actedOn.test.ts` |
+| AC-091 | 수행일을 생략·null·오늘로 보내면 수행일은 오늘이다 | AC-R34, AC-UC5 | backend | `application/test_register_deal_action_acted_on.py`, `domain/test_resolve_acted_on.py`, `web/test_deal_action_acted_on_request.py` |
+| AC-092 | 지난 수행일로 등록하면 수행일은 그 날짜이고 등록·수정 시각은 요청 시각이다 | AC-R34, AC-R37, AC-UC5 | backend | `application/test_register_deal_action_acted_on.py`, `domain/test_resolve_acted_on.py`, `web/test_deal_action_acted_on_request.py` |
+| AC-093 | 내일 수행일은 422이고 아무것도 저장되지 않는다 | AC-R35, AC-R9, AC-UC5 | backend | `application/test_register_deal_action_acted_on.py`, `domain/test_resolve_acted_on.py` |
+| AC-094 | Deal 등록일 전날 수행일은 422, 등록일 당일은 등록된다 | AC-R35, AC-UC5 | backend | `application/test_register_deal_action_acted_on.py`, `domain/test_resolve_acted_on.py` |
+| AC-095 | 수행일 형식이 틀리거나 시각이 붙으면 422 request-validation이고 acted_at은 계속 거부된다 | AC-R2, AC-UC5 | backend | `web/test_deal_action_acted_on_request.py` |
+| AC-096 | 수행일 판정은 내용 오류 다음, 이전 Next Action 409 앞이다 | AC-R8, AC-R35, AC-UC5 | backend | `application/test_register_deal_action_acted_on.py` |
+| AC-097 | 더 늦은 Action이 있으면 지난 날짜 Action은 Deal의 Next Action·최종 업데이트를 바꾸지 않는다 | AC-R38, AC-UC5 | backend | `application/test_register_deal_action_acted_on.py` |
+| AC-098 | 지난 날짜 Action이 가장 늦은 수행일이면 Next Action·최종 업데이트일이 그 Action을 따른다 | AC-R38, AC-UC5 | backend | `application/test_register_deal_action_acted_on.py` |
+| AC-099 | 기본 목록에서 지난 날짜 Action은 수행일 순서 자리에 놓인다 | AC-R38, AC-R18, AC-UC5 | backend | `application/test_register_deal_action_acted_on.py` |
+| AC-100 | 기준 행보다 앞선 수행일로 이전 Next Action을 닫으면 422이고 기준 행은 Open, 같은 날이면 닫힌다 | AC-R36, AC-R9, AC-UC5 | backend | `application/test_register_deal_action_acted_on.py`, `domain/test_resolve_acted_on.py` |
+| AC-101 | 지난 수행일로 이전 Next Action을 닫으면 종료일은 오늘이고 이력 시각은 요청 시각이다 | AC-R36, AC-R37, AC-UC5 | backend | `application/test_register_deal_action_acted_on.py` |
+| AC-102 | 지난 수행일로 Status를 바꾸며 등록하면 스냅숏·Status 진입일·Deal 수정 시각·이력 시각은 요청 시점 기준이다 | AC-R37, AC-UC5 | backend | `application/test_register_deal_action_acted_on.py` |
+| AC-103 | 수정 본문의 acted_on은 422이고 수정·상태 변경은 수행일을 바꾸지 않는다 | AC-R13, AC-R39, AC-UC2 | backend | `application/test_register_deal_action_acted_on.py`, `web/test_deal_action_acted_on_request.py` |
+| AC-104 | OpenAPI: 등록 요청에만 선택 nullable 날짜 acted_on이 있다 | AC-R2, AC-R13 | backend | `web/test_deal_action_acted_on_request.py` |
+| AC-105 | 화면: 추가 팝업에 오늘로 채운 수행일 칸이 있고 수정 팝업에는 없다 | AC-R40, AC-R23, AC-UC5 | frontend | `features/deals/detail/ActionForm.actedOn.test.tsx` |
+| AC-106 | 화면: 수행일을 그대로 두면 acted_on을 보내지 않고 지난 날짜로 바꾸면 그 날짜를 보내며 목록에 그 날짜로 보인다 | AC-R42, AC-UC5 | frontend | `features/deals/detail/ActionForm.actedOn.test.tsx` |
+| AC-107 | 화면: 빈·틀린·미래·등록일 이전 수행일은 문구와 함께 막고 요청하지 않는다 | AC-R41, AC-R24, AC-UC5 | frontend | `features/deals/detail/ActionForm.actedOn.test.tsx` |
+| AC-108 | 화면: 이전 Next Action 종료를 켠 채 기준 행보다 앞선 수행일이면 막고, 체크를 끄면 등록된다 | AC-R41, AC-R26, AC-UC5 | frontend | `features/deals/detail/ActionForm.actedOn.test.tsx` |
+| AC-109 | 게이트웨이: acted_on은 값이 있을 때만 ISO 날짜로 보낸다 | AC-R32, AC-R42 | frontend | `gateway/http/actions.test.ts`, `gateway/http/mappers/action.test.ts` |
+| AC-110 | Fake 게이트웨이는 수행일 결정·범위·종료 비교·판정 순서를 서버와 같게 따른다 | AC-R33, AC-R34~R36 | frontend | `test/fake/gateway/actions.actedOn.test.ts`, `gateway/contract/actions.contract.ts` |
+| AC-111 | 같은 수행일의 Next Action Action은 나중에 등록한 것이 기준 행이고 오름차순 정렬에서는 뒤에 온다 | AC-R43, RK-R1, AC-UC4 | backend | `application/test_action_same_day_order.py` |
+| AC-112 | 응답과 OpenAPI에 날짜 acted_on·next_action_closed_on이 있고 acted_at·next_action_closed_at 키가 없다 | AC-R20 | backend | `web/test_deal_action_openapi.py`, `web/test_deal_action_response_nullable.py` |
+| AC-113 | 마이그레이션은 기존 수행 일시를 업무 시간대 날짜로 채우고 행 수를 유지한 뒤 acted_at을 없앤다 | AC-R44 | backend | `infra/schema/test_business_dates_migration.py` |
+| AC-114 | 마이그레이션 downgrade는 acted_at을 수행일 00:00으로 되살린다 | AC-R44 | backend | `infra/schema/test_business_dates_migration.py` |
+| AC-115 | Repository는 수행일·id로 기준 행·최종 업데이트일·목록 순서를 정한다 | AC-R43, AC-R38 | backend | `repositories/test_deal_action_latest_next_action_contract.py`, `repositories/test_deal_action_search_contract.py`, `repositories/test_deal_derived_values_contract.py` |
+| AC-116 | 화면: 목록 수행일 칸과 수정 팝업 안내가 YYYY-MM-DD이고 시각이 없다 | AC-R21, AC-R30, AC-R40 | frontend | `features/deals/detail/ActionsTab.actedOnDate.test.tsx` |
+| AC-117 | 게이트웨이·Fake: 응답 acted_on을 actedOn으로 매핑하고 같은 수행일은 id 큰 것이 앞이다 | AC-R32, AC-R33, AC-R43 | frontend | `gateway/http/mappers/action.test.ts`, `test/fake/gateway/actions.dates.test.ts` |
 
-### AC-001 sales가 Action을 등록하면 201과 Location이고 수행 일시·담당자·스냅숏을 서버가 정한다
+### AC-001 sales가 Action을 등록하면 201과 Location이고 수행일·담당자·스냅숏을 서버가 정한다
 - Given KIM이 Status 제품소개(introduction)·Forecast Best인 Deal을 연 상태이고 서버 시계가 T다
 - When KIM이 기본 Action 입력으로 등록한다
-- Then 201이고 `Location`은 `/api/v1/deal-actions/<id>`다. `acted_at` = `created_at` = `updated_at` = T, 담당자는 KIM(역할 sales), `status_key` introduction·`forecast_key` best, `next_action_status` open·`next_action_closed_at` null, 유형 `{id: <미팅 id>, name: "미팅"}`이다. 같은 id로 다시 읽어도 같은 값이다
+- Then 201이고 `Location`은 `/api/v1/deal-actions/<id>`다. `acted_on` = T의 업무 날짜, `created_at` = `updated_at` = T, 담당자는 KIM(역할 sales), `status_key` introduction·`forecast_key` best, `next_action_status` open·`next_action_closed_on` null, 유형 `{id: <미팅 id>, name: "미팅"}`이다. 같은 id로 다시 읽어도 같은 값이다
 
 ### AC-002 등록 응답은 문서화된 15개 키를 가지고 유형은 {id, name}이다
 - When KIM이 기본 Action을 등록한다
-- Then 응답 키는 정확히 `id`, `deal_code`, `action_type`, `action`, `next_action`, `due_date`, `next_action_status`, `next_action_closed_at`, `memo`, `acted_at`, `actor`, `status_key`, `forecast_key`, `created_at`, `updated_at`이고 `action_type`의 키는 `id`·`name`이며 id는 JSON 정수다
+- Then 응답 키는 정확히 `id`, `deal_code`, `action_type`, `action`, `next_action`, `due_date`, `next_action_status`, `next_action_closed_on`, `memo`, `acted_on`, `actor`, `status_key`, `forecast_key`, `created_at`, `updated_at`이고 `action_type`의 키는 `id`·`name`이며 id는 JSON 정수다
 
 ### AC-003 텍스트 앞뒤 공백을 지워 저장하고 지난 Due Date도 받는다
 - When 진행사항 "  킥오프  ", Next Action " 견적 ", Memo "  메모  ", Due 2000-01-01로 등록한다
@@ -338,7 +392,7 @@ AC-R21~AC-R33.
 
 ### AC-006 진행사항만 Action은 Next Action·Due·상태·종료 시각이 모두 null이다
 - When Next Action ""·Due null·Memo ""로 등록한다
-- Then 201이고 `action` "킥오프 미팅", `next_action`·`due_date`·`next_action_status`·`next_action_closed_at`은 null이며 이력은 "등록: 미팅 · 킥오프 미팅"이다
+- Then 201이고 `action` "킥오프 미팅", `next_action`·`due_date`·`next_action_status`·`next_action_closed_on`은 null이며 이력은 "등록: 미팅 · 킥오프 미팅"이다
 
 ### AC-007 Next Action만 Action은 진행사항이 null이고 상태가 Open이다
 - When 진행사항 ""·Memo ""로 등록한다
@@ -377,9 +431,9 @@ AC-R21~AC-R33.
 - When LEE가 기본 Action을 등록한다
 - Then 201이고 담당자는 LEE다
 
-### AC-016 등록하면 Deal History에 "등록: <요약>" 1건이 수행 시각·요청자로 남고 Memo가 없으면 Memo 부분이 없다
+### AC-016 등록하면 Deal History에 "등록: <요약>" 1건이 요청 시각·요청자로 남고 Memo가 없으면 Memo 부분이 없다
 - When KIM이 기본 Action을 등록하고, 다른 Deal에 Memo ""로 등록한다
-- Then 첫 Deal 이력은 (`action`, "Action", "", "등록: 미팅 · 킥오프 미팅 / Next Action: 요구사항 문서 전달 (Due 2027-01-15) / Memo: 요구사항 정리") 1건이고 변경자 KIM, 시각 = `acted_at`이다. 둘째 Deal은 " / Memo:" 부분이 없다
+- Then 첫 Deal 이력은 (`action`, "Action", "", "등록: 미팅 · 킥오프 미팅 / Next Action: 요구사항 문서 전달 (Due 2027-01-15) / Memo: 요구사항 정리") 1건이고 변경자 KIM, 시각 = 요청 시각 T이다. 둘째 Deal은 " / Memo:" 부분이 없다
 
 ### AC-017 긴 요약은 이력에서만 1,000자로 잘리고 Action 원문은 그대로다
 - When 진행사항 "가"×2,000으로 등록한다
@@ -388,7 +442,7 @@ AC-R21~AC-R33.
 ### AC-018 등록해도 Deal 수정 시각은 그대로이고 Deal의 Next Action·최종 업데이트가 새 Action을 가리킨다
 - Given Deal의 `updated_at`이 U다
 - When Next Action "계약서 검토"·Due 2027-02-05로 등록한다
-- Then Deal `updated_at`은 U 그대로이고 Deal `next_action`은 {"계약서 검토", 2027-02-05, open}, `last_updated_at`은 새 Action의 `acted_at`이다
+- Then Deal `updated_at`은 U 그대로이고 Deal `next_action`은 {"계약서 검토", 2027-02-05, open}, `last_updated_on`은 새 Action의 `acted_on`이다
 
 ### AC-019 이름으로 새 유형을 고른 등록이 다른 이유로 거절되면 새 유형이 남지 않는다
 - Given 유형은 기본 8개다
@@ -416,9 +470,9 @@ AC-R21~AC-R33.
 - When 매출 답 없이 Status 계약완료로 등록한다
 - Then 422 "Won·계약완료로 바꾸려면 매출금액과 매출일이 필요합니다."이고 Action이 없고 Deal은 기회발굴·Pipeline, 이력은 비어 있다
 
-### AC-025 Forecast만 바꾸면 Status는 그대로이고 Deal 수정 시각이 수행 시각이 된다
+### AC-025 Forecast만 바꾸면 Status는 그대로이고 Deal 수정 시각이 요청 시각이 된다
 - When Forecast Lost로 바꾸며 등록하고, 다른 Deal은 Forecast Best로 바꾸며 등록한다
-- Then 스냅숏은 prospecting·lost이고 이력은 (forecast, Pipeline→Lost) 다음 Action 등록이다. Best로 바꾼 Deal의 `updated_at`은 그 Action의 `acted_at`이다
+- Then 스냅숏은 prospecting·lost이고 이력은 (forecast, Pipeline→Lost) 다음 Action 등록이다. Best로 바꾼 Deal의 `updated_at`은 그 등록의 요청 시각이다
 
 ### AC-026 Won Deal을 되돌리며 함께 바꿀 값을 고르지 않으면 422, 고르면 그 값이 스냅숏이 된다
 - Given 종결 Deal이다
@@ -462,12 +516,12 @@ AC-R21~AC-R33.
 ### AC-035 Action 스냅숏은 나중의 Deal 변경과 Action 수정에도 그대로다
 - Given Forecast Best로 바꾸며 등록한 Action이 있다
 - When Deal Forecast를 Commit으로 단일 변경한 뒤 그 Action의 진행사항을 고친다
-- Then Action의 `status_key`·`forecast_key`는 prospecting·best, `acted_at`·담당자도 그대로다
+- Then Action의 `status_key`·`forecast_key`는 prospecting·best, `acted_on`·담당자도 그대로다
 
 ### AC-036 이전 Next Action id와 함께 저장하면 기준 행이 종료(수행)가 되고 한 번에 저장된다
 - Given KIM이 남긴 Open Action P가 기준 행이다
 - When KIM이 `close_previous_next_action_id` = P.id, Next Action "다음 일정 확인"·Due 2027-02-01로 등록한다
-- Then 201이고 P는 `done`, `next_action_closed_at` = 새 Action의 `acted_at`, Memo 그대로이며 Action은 2건, Deal `next_action`은 "다음 일정 확인"이다. 커밋은 1번이다
+- Then 201이고 P는 `done`, `next_action_closed_on` = 오늘(요청의 업무 날짜) , Memo 그대로이며 Action은 2건, Deal `next_action`은 "다음 일정 확인"이다. 커밋은 1번이다
 
 ### AC-037 이전 Next Action 종료 줄 다음에 등록 줄이 같은 시각으로 남는다
 - When AC-036처럼 등록한다
@@ -511,10 +565,10 @@ AC-R21~AC-R33.
 - When `close_previous_next_action_id`를 "7", 0, -1, 1.5, true, [1], 2^53으로 보낸다
 - Then 모두 422 `request-validation`이고 이전 행은 Open이다
 
-### AC-046 담당자가 고치면 내용만 바뀌고 수행 일시·담당자·스냅숏은 그대로이며 이력 1건이 남는다
+### AC-046 담당자가 고치면 내용만 바뀌고 수행일·담당자·스냅숏은 그대로이며 이력 1건이 남는다
 - Given KIM이 기본 Action을 남겼다
 - When KIM이 유형 "제안", 진행사항 "제안 발표", Next Action "견적 회신", Due 2027-02-01, Memo "변경"으로 고친다
-- Then 200이고 값이 바뀌며 `acted_at`·`created_at`·담당자·스냅숏은 그대로, `updated_at`은 서버 시각이다. 이력 최신 줄은 (action, Action, "<기본 요약>", "수정: 제안 · 제안 발표 / Next Action: 견적 회신 (Due 2027-02-01) / Memo: 변경")·변경자 KIM이고 Deal `updated_at`·`last_updated_at`은 그대로다
+- Then 200이고 값이 바뀌며 `acted_on`·`created_at`·담당자·스냅숏은 그대로, `updated_at`은 서버 시각이다. 이력 최신 줄은 (action, Action, "<기본 요약>", "수정: 제안 · 제안 발표 / Next Action: 견적 회신 (Due 2027-02-01) / Memo: 변경")·변경자 KIM이고 Deal `updated_at`·`last_updated_on`은 그대로다
 
 ### AC-047 내용이 같은 수정은 200이지만 이력·수정 시각이 그대로이고 새 유형도 없다
 - When 같은 내용, 앞뒤 공백만 다른 내용, 같은 유형 id, 대소문자만 다른 같은 유형 이름(" DEMO2 ")으로 각각 고친다
@@ -531,7 +585,7 @@ AC-R21~AC-R33.
 ### AC-050 수정으로 Next Action을 비우면 Due·상태·종료 시각이 null이 된다
 - Given 종료(수행)로 닫은 Action이다
 - When Next Action ""·Due null로 고친다
-- Then 200이고 `next_action`·`due_date`·`next_action_status`·`next_action_closed_at`이 모두 null이다
+- Then 200이고 `next_action`·`due_date`·`next_action_status`·`next_action_closed_on`이 모두 null이다
 
 ### AC-051 진행사항만 Action에 Next Action을 채우면 Open이 된다
 - Given 진행사항만 Action이다
@@ -601,10 +655,10 @@ AC-R21~AC-R33.
 - When A의 목록을 조건 없이 읽는다
 - Then 200이고 본문 키는 `items`뿐이며 A의 3건이 모두 있고 B의 것은 없다
 
-### AC-066 기본 목록은 수행 일시 최신순이고 같은 시각이면 먼저 등록한 것이 앞이다
-- Given 서로 다른 시각의 Action 3건과, 같은 시각에 "먼저 등록"·"나중 등록" 순으로 남긴 2건이 있다
+### AC-066 기본 목록은 수행일 최신순이고 같은 수행일이면 나중에 등록한 것이 앞이다
+- Given 수행일이 서로 다른 Action 3건과, 같은 수행일에 "먼저 등록"·"나중 등록" 순으로 남긴 2건이 있다
 - When 조건 없이 목록을 읽는다
-- Then 수행 일시 내림차순이고 같은 시각의 두 건은 "먼저 등록"(작은 id)이 앞이다
+- Then 수행일 내림차순이고 같은 수행일의 두 건은 "나중 등록"(큰 id)이 앞이다
 
 ### AC-067 없는 Deal의 목록은 404다
 - When 없는 code와 형식이 틀린 code의 목록을 읽는다
@@ -626,7 +680,7 @@ AC-R21~AC-R33.
 ### AC-071 화면: 목록은 최신순으로 정해진 열을 보이고 등록 시점 Status·Forecast는 현재 값과 다를 수 있다
 - Given Deal이 지금 계약완료·Won이고 예전 Action은 기회발굴·Pipeline 때 남겼다
 - When Actions 탭을 연다
-- Then 표 "Action 목록" 머리글이 수행일시·담당자·등록 시점 Status·Forecast·유형·진행사항·Next Action·Due Date·상태·Memo(·관리) 순이고 최신 Action이 위다. 예전 행은 기회발굴·Pipeline 배지를, 빈 값은 "—"를 보인다. Action이 없는 Deal은 "등록된 Action이 없습니다."다
+- Then 표 "Action 목록" 머리글이 수행일·담당자·등록 시점 Status·Forecast·유형·진행사항·Next Action·Due Date·상태·Memo(·관리) 순이고 최신 Action이 위다. 예전 행은 기회발굴·Pipeline 배지를, 빈 값은 "—"를 보인다. Action이 없는 Deal은 "등록된 Action이 없습니다."다
 
 ### AC-072 화면: user는 추가 버튼·관리 열이 없다
 - When VIEWER가 Actions 탭을 연다
@@ -689,7 +743,7 @@ AC-R21~AC-R33.
 
 ### AC-086 화면: 수정 팝업은 값을 채워 열고 카드·Status 칸 없이 저장한다
 - When KIM이 예전 Action의 "수정"을 누르고 진행사항을 고쳐 "저장"한다
-- Then 제목 "Action 수정" 팝업이 그 값으로 열리고 이전 Update 카드·Status·Forecast 칸이 없으며 "수정한 내용은 Deal History에 기록됩니다. 등록 시점의 Status·Forecast는 바뀌지 않습니다."와 수행일시·담당자가 보인다. 저장하면 닫히고 알림 "Action이 수정되었습니다.", 행의 등록 시점 배지는 그대로다. 진행사항·Next Action을 모두 비우면 검증 문구로 막힌다
+- Then 제목 "Action 수정" 팝업이 그 값으로 열리고 이전 Update 카드·Status·Forecast 칸이 없으며 "수정한 내용은 Deal History에 기록됩니다. 등록 시점의 Status·Forecast는 바뀌지 않습니다."와 수행일·담당자가 보인다. 저장하면 닫히고 알림 "Action이 수정되었습니다.", 행의 등록 시점 배지는 그대로다. 진행사항·Next Action을 모두 비우면 검증 문구로 막힌다
 
 ### AC-087 화면: 수정 폼에서 건드리지 않은 유형은 이름이 바뀌어도 원래 id로 보낸다
 - Given 수정 팝업을 연 뒤 admin이 그 유형 이름을 바꿔 유형 목록이 다시 읽혔다
@@ -709,6 +763,134 @@ AC-R21~AC-R33.
 - When 등록·수정·삭제를 서버 단위 케이스와 같은 입력으로 부른다(user 403, 404 → 422 순서, 이력 문구·자르기, 무변경 수정, 담당자 권한, 두 변경 순서·충돌·코드 먼저, 이전 Next Action 409·403·건너뜀, 진행사항·Next Action·Memo의 NUL, 달력 날짜가 아닌 Due Date)
 - Then 결과·문구·이력이 서버 규칙과 같다(mock 계약 테스트 포함). NUL은 422 `invalid-value` NUL 문구, 날짜가 아닌 Due Date는 422 `request-validation`이다(Fake를 서버 동작에 맞춤, 2026-11-10 결정)
 
+공통 예(AC-091~AC-110): 업무 시간대 Asia/Seoul, 서버 시계 T = 2026-11-13T14:30:00+09:00(오늘 2026-11-13), Deal 등록 2026-11-01T09:00+09:00.
+
+### AC-091 수행일을 생략·null·오늘로 보내면 수행일은 오늘이다
+- Given 서버 시계가 T다
+- When KIM이 `acted_on` 없이, `acted_on: null`로, `acted_on: "2026-11-13"`으로 각각 기본 Action을 등록한다
+- Then 셋 다 201이고 `acted_on`은 2026-11-13, `created_at` = `updated_at` = T다
+
+### AC-092 지난 수행일로 등록하면 수행일은 그 날짜이고 등록·수정 시각은 요청 시각이다
+- Given 서버 시계가 T다
+- When KIM이 `acted_on: "2026-11-10"`으로 기본 Action을 등록한다
+- Then 201이고 `acted_on`은 2026-11-10, `created_at`·`updated_at`은 T, 이력 "등록: <요약>"의 시각은 T다
+
+### AC-093 내일 수행일은 422이고 아무것도 저장되지 않는다
+- When KIM이 `acted_on: "2026-11-14"`로 등록한다
+- Then 422 `invalid-value` "수행일은 오늘 이후로 지정할 수 없습니다."이고 그 Deal의 Action·이력·새 유형이 없다
+
+### AC-094 Deal 등록일 전날 수행일은 422, 등록일 당일은 등록된다
+- When KIM이 `acted_on: "2026-10-31"`과 `"2026-11-01"`로 각각 등록한다
+- Then 앞은 422 `invalid-value` "수행일은 Deal 등록일(2026-11-01) 이전으로 지정할 수 없습니다."이고 저장된 것이 없으며, 뒤는 201·`acted_on` 2026-11-01이다
+
+### AC-095 수행일 형식이 틀리거나 시각이 붙으면 422 request-validation이고 acted_at은 계속 거부된다
+- When `acted_on`을 "2026-13-01", "2026-11-10T10:00:00+09:00", 20261110(숫자)로, 또는 `acted_at`을 넣어 등록한다
+- Then 모두 422 `request-validation`이고 Action이 저장되지 않는다
+
+### AC-096 수행일 판정은 내용 오류 다음, 이전 Next Action 409 앞이다
+- When 진행사항·Next Action이 모두 비고 `acted_on` "2026-11-14"인 등록과, 내용은 맞고 `acted_on` "2026-11-14"·기준 행이 아닌 `close_previous_next_action_id`인 등록을 보낸다
+- Then 앞은 "진행사항 또는 Next Action을 입력하세요.", 뒤는 "수행일은 오늘 이후로 지정할 수 없습니다."(409 아님)의 422다
+
+### AC-097 더 늦은 Action이 있으면 지난 날짜 Action은 Deal의 Next Action·최종 업데이트를 바꾸지 않는다
+- Given Deal에 수행일이 2026-11-12인 Next Action "견적 발송"(Due 2026-11-20) Action이 있다
+- When KIM이 `acted_on` "2026-11-11"로 Next Action "자료 전달"(Due 2026-11-15) Action을 등록한다
+- Then 201이고 Deal의 `next_action.text`는 "견적 발송", `last_updated_on`은 2026-11-12 그대로다
+
+### AC-098 지난 날짜 Action이 가장 늦은 수행일이면 Next Action·최종 업데이트일이 그 Action을 따른다
+- Given Deal에 수행일이 2026-11-05인 Next Action "견적 발송" Action뿐이다
+- When KIM이 `acted_on` "2026-11-10"으로 Next Action "자료 전달"(Due 2026-11-15) Action을 등록한다
+- Then Deal의 `next_action.text`는 "자료 전달", `last_updated_on`은 2026-11-10이다
+
+### AC-099 기본 목록에서 지난 날짜 Action은 수행일 순서 자리에 놓인다
+- Given 수행일이 2026-11-05와 2026-11-12인 Action이 있다
+- When `acted_on` "2026-11-10"으로 하나를 더 등록하고 조건 없이 목록을 읽는다
+- Then 순서는 11-12 → 11-10 → 11-05다
+
+### AC-100 기준 행보다 앞선 수행일로 이전 Next Action을 닫으면 422이고 기준 행은 Open, 같은 날이면 닫힌다
+- Given KIM의 기준 행(Open)의 수행일이 2026-11-12다
+- When KIM이 그 id를 `close_previous_next_action_id`로 `acted_on` "2026-11-11"로 등록하고, 다시 `acted_on` "2026-11-12"로 등록한다
+- Then 앞은 422 `invalid-value` "이전 Next Action의 수행일(2026-11-12)보다 앞선 날짜로는 이전 Next Action을 종료할 수 없습니다."이고 기준 행은 Open·새 Action 없음이며, 뒤는 201이고 기준 행이 종료(수행)다
+
+### AC-101 지난 수행일로 이전 Next Action을 닫으면 종료일은 오늘이고 이력 시각은 요청 시각이다
+- Given KIM의 기준 행(Open)의 수행일이 2026-11-05이고 서버 시계가 T(2026-11-13)다
+- When KIM이 그 id와 `acted_on` "2026-11-10"으로 등록한다
+- Then 기준 행의 `next_action_closed_on`은 2026-11-13, `updated_at`은 T, NA-R8 형식 종료 이력과 등록 이력의 시각은 T이고 새 Action의 `acted_on`은 2026-11-10이다
+
+### AC-102 지난 수행일로 Status를 바꾸며 등록하면 요청 시점 기준이다
+- Given Status 기회발굴·Forecast Pipeline Deal, 서버 시계 T
+- When KIM이 `acted_on` "2026-11-10", Status를 제품소개로 바꾸는 `status_changes`로 등록한다
+- Then 새 Action 스냅숏은 제품소개, Deal `status_changed_on`은 2026-11-13, `updated_at`과 Status 변경 이력 시각은 T, `acted_on`은 2026-11-10이다
+
+### AC-103 수정 본문의 acted_on은 422이고 수정·상태 변경은 수행일을 바꾸지 않는다
+- Given `acted_on`이 2026-11-10인 KIM의 Action
+- When 수정 본문에 `acted_on`을 넣어 보내고, 다시 진행사항만 고쳐 보내고, Next Action 상태를 종료(수행)로 바꾼다
+- Then 첫째는 422 `request-validation`, 둘째·셋째는 성공하고 `acted_on`은 그대로다
+
+### AC-104 OpenAPI: 등록 요청에만 선택 nullable 날짜 acted_on이 있다
+- When OpenAPI 문서를 읽는다
+- Then `DealActionCreateRequest`에 `acted_on`(format date, null 허용, required 아님)이 있고 `DealActionUpdateRequest`에는 없으며 두 요청 모두 `acted_at`이 없다
+
+### AC-105 화면: 추가 팝업에 오늘로 채운 수행일 칸이 있고 수정 팝업에는 없다
+- Given Fake 시계의 오늘이 2026-11-13이다
+- When KIM이 "Action 추가"를 누르고, 닫은 뒤 자기 행의 "수정"을 누른다
+- Then 추가 팝업에 안내 "담당자: <KIM 이름>"과 "Status · Forecast · 유형" 줄 위의 "수행일" 칸(2026.11.13)이 있고, 수정 팝업에는 수행일 칸 없이 "수행일: <YYYY-MM-DD>" 안내가 있다
+
+### AC-106 화면: 수행일을 그대로 두면 acted_on을 보내지 않고 지난 날짜로 바꾸면 그 날짜를 보낸다
+- When KIM이 수행일을 그대로 두고 등록하고, 다시 수행일에 `20261110`을 쳐서 등록한다
+- Then 첫 요청에는 `acted_on`이 없고 두 번째는 `acted_on: "2026-11-10"`이며, 목록에 수행일이 "2026-11-10"인 행이 그 날짜 순서 자리에 보인다
+
+### AC-107 화면: 빈·틀린·미래·등록일 이전 수행일은 문구와 함께 막고 요청하지 않는다
+- Given Deal 등록일 2026-11-01, 오늘 2026-11-13
+- When 수행일을 비우고, `2026.11`로 두고, `20261114`로, `20261031`로 각각 바꿔 "등록"을 누른다
+- Then 차례로 "수행일을 입력하세요.", "날짜를 yyyymmdd 형식으로 입력하세요.", "수행일은 오늘 이후로 지정할 수 없습니다.", "수행일은 Deal 등록일(2026-11-01) 이전으로 지정할 수 없습니다."가 수행일 칸 아래에 보이고 포커스가 수행일 칸이며 요청이 없다. 유형도 비어 있으면 수행일 문구가 먼저 포커스를 가진다
+
+### AC-108 화면: 이전 Next Action 종료를 켠 채 기준 행보다 앞선 수행일이면 막고, 체크를 끄면 등록된다
+- Given KIM의 Open 기준 행이 2026-11-12에 수행됐다
+- When "이전 Next Action을 진행사항에 채우기"로 체크가 켜진 뒤 수행일을 `20261111`로 바꿔 등록하고, 체크를 끄고 다시 등록한다
+- Then 첫째는 "이전 Next Action의 수행일(2026-11-12)보다 앞선 날짜로는 이전 Next Action을 종료할 수 없습니다."를 보이고 요청하지 않으며, 둘째는 `close_previous_next_action_id` 없이 `acted_on: "2026-11-11"`로 등록된다
+
+### AC-109 게이트웨이: acted_on은 값이 있을 때만 ISO 날짜로 보낸다
+- When HTTP 게이트웨이 `actions.create`를 수행일 없이, `actedOn: "2026-11-10"`으로 부른다
+- Then 첫 본문에는 `acted_on` 키가 없고 두 번째는 `acted_on: "2026-11-10"`이다. 수정 요청에는 어느 경우도 `acted_on`이 없다
+
+### AC-110 Fake 게이트웨이는 수행일 결정·범위·종료 비교·판정 순서를 서버와 같게 따른다
+- Given Fake 게이트웨이(Fake 시계 오늘 2026-11-13)
+- When AC-091~AC-094, AC-096, AC-100과 같은 입력으로 등록한다
+- Then `actedOn`·422 문구·판정 순서·저장 여부가 서버 케이스와 같다(계약 테스트 포함)
+
+### AC-111 같은 수행일의 Next Action Action은 나중에 등록한 것이 기준 행이고 오름차순 정렬에서는 뒤에 온다
+- Given 수행일 2026-11-12로 Next Action이 "A"인 Action을 등록한 뒤, 같은 수행일로 Next Action이 "B"인 Action을 등록했다
+- When Deal을 읽고, `acted_at_asc`로 Action 목록을 읽는다
+- Then Deal `next_action.text`는 "B"이고, 오름차순 목록은 A → B다
+
+### AC-112 응답과 OpenAPI에 날짜 acted_on·next_action_closed_on이 있고 acted_at·next_action_closed_at 키가 없다
+- When Action을 등록·조회하고 OpenAPI 문서를 읽는다
+- Then 응답 `acted_on`은 "YYYY-MM-DD"이고 required이며 null이 될 수 없다. `next_action_closed_on`은 "YYYY-MM-DD" 또는 null이고 required다. `acted_at`·`next_action_closed_at` 키는 없다. 두 필드의 스키마는 format date다
+
+### AC-113 마이그레이션은 기존 수행 일시를 업무 시간대 날짜로 채우고 행 수를 유지한 뒤 acted_at을 없앤다
+- Given 기준선 리비전 DB(업무 시간대 Asia/Seoul)에 `acted_at`이 `2026-11-10T23:59:59+09:00`, `2026-11-10T15:30:00Z`, `2026-11-11T00:00:00+09:00`인 Action 3건이 있다
+- When `upgrade head`를 실행한다
+- Then Action은 3건 그대로이고 `acted_on`은 차례로 2026-11-10, 2026-11-11, 2026-11-11이다. `acted_on`은 NOT NULL이고, `acted_at` 컬럼은 없으며, 인덱스는 `ix_deal_actions_acted_on`·`ix_deal_actions_deal_id_acted_on`이다
+
+### AC-114 마이그레이션 downgrade는 acted_at을 수행일 00:00으로 되살린다
+- Given head DB에 `acted_on`이 2026-11-10인 Action이 있다
+- When `downgrade -1`을 실행한다
+- Then `acted_at`은 `2026-11-10T00:00:00+09:00`(NOT NULL)이고 `acted_on` 컬럼은 없으며 행 수는 그대로다
+
+### AC-115 Repository는 수행일·id로 기준 행·최종 업데이트일·목록 순서를 정한다
+- Given 한 Deal에 수행일이 11-05, 11-12, 11-12(나중 등록)인 Next Action Action이 있고, Action이 없는 Deal도 하나 있다
+- When Repository로 목록·기준 행·최종 업데이트일을 읽는다
+- Then 목록 순서는 11-12(나중 등록) → 11-12 → 11-05이고, 기준 행은 11-12(나중 등록), 최종 업데이트일은 2026-11-12다. Action이 없는 Deal의 최종 업데이트일은 그 Deal의 등록일이다
+
+### AC-116 화면: 목록 수행일 칸과 수정 팝업 안내가 YYYY-MM-DD이고 시각이 없다
+- Given 수행일이 2026-11-10인 KIM의 Action이 있다
+- When Actions 탭을 열고 그 행의 "수정"을 누른다
+- Then 첫 열 머리글은 "수행일", 칸 값은 "2026-11-10"이고, 수정 팝업 안내는 "수행일: 2026-11-10 · 담당자: <KIM 이름>"이다. 시:분 표기는 어디에도 없다
+
+### AC-117 게이트웨이·Fake: 응답 acted_on을 actedOn으로 매핑하고 같은 수행일은 id 큰 것이 앞이다
+- When HTTP 게이트웨이가 `acted_on: "2026-11-10"` 응답을 받고, Fake에는 같은 수행일 Action 두 건을 등록한 뒤 목록을 읽는다
+- Then 화면 모델의 `actedOn`은 "2026-11-10"이고 `actedAt`은 없다. Fake 목록에서는 나중에 등록한 Action이 앞이다
+
 ## 5. 변경 이력
 
 | 날짜 | 변경 | 영향 테스트 코드 |
@@ -716,3 +898,5 @@ AC-R21~AC-R33.
 | 2026-11-10 | 초안 작성(구현된 동작 문서화) | AC-001~AC-090 |
 | 2026-11-10 | 사용자 결정 반영(추천대로): E1 Fake를 서버 동작에 맞춤(AC-R33 신설: NUL·날짜 형식), E2 단건 `status_change` 하위 호환 유지(AC-R6)·삭제 실패 탭 배너 유지(AC-R31), E5 경계(기본 순서·열 구성은 AC-R18·R21, 조건·정렬·필터는 NA, 이전 Next Action 종료 이력 형식은 NA-R8)와 다른 문서 참조를 번호로(NA·TM-R8·US-R17·CL-R10·RK-R17) | 변경: AC-088(삭제 실패 표시 추가), AC-090(AC-R33, NUL·날짜 형식 기대 결과) |
 | 2026-11-11 | UI 문서 작성에 따라 공통 컴포넌트 참조를 UI 규칙 번호로 교체(1장, AC-R23~R25). 동작·케이스 변경 없음, 상태 줄 그대로 | 없음 |
+| 2026-11-13 | 확정(2026-11-13 사용자 확인): Action 등록 수행일 지정(사용자 요청 2026-11-13, 계획 Q1~Q7 권고안대로 확정). 신설 AC-R34~R42, AC-UC5, 용어 수행일·요청 시각. 변경 AC-R2(`acted_on`), AC-R4, AC-R8(판정 순서), AC-R13(`acted_on` 거부), AC-R23(안내 문구), AC-R24(수행일 먼저), AC-R32, AC-R33, 2.6·2.8 | 신규 AC-091~AC-110. 변경: AC-054(수정 본문 거부 목록에 `acted_on` 추가), AC-070(등록 요청 `acted_on`), AC-074(안내 문구·수행일 칸), AC-075(검증 순서 제목에 수행일), AC-089(`acted_on` 있을 때만), AC-090(Fake 수행일 규칙). 그대로: AC-001(`acted_on` 없으면 요청 시각), AC-012 |
+| 2026-11-13 | 확정(2026-11-13 사용자 확인): 업무 날짜를 date로 저장(사용자 요청 "수행일시는 년월일만", 결정 Q1~Q13). `acted_at`→`acted_on`, `next_action_closed_at`→`next_action_closed_on`(date), 23:59:59 규칙 폐지. 변경: 용어, 2.2, AC-R2·R4·R6·R7·R12~R14·R18·R20·R21·R23·R26·R30·R34·R36~R42, 2.4, UC2·UC5. 신설: AC-R43(같은 날 순서), AC-R44(데이터 변환). API 호환 깨짐(사용자 승인) | 신규 AC-111~AC-117. 변경 AC-001, AC-002, AC-006, AC-016, AC-018, AC-025, AC-035, AC-036, AC-046, AC-050, AC-066, AC-071, AC-086, AC-091, AC-092, AC-094, AC-097~AC-103, AC-105, AC-106, AC-110 |

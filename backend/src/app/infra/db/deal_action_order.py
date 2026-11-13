@@ -34,10 +34,10 @@ def apply_order(
     statement: Select[DealActionRow, str, str], sort: DealActionSort
 ) -> Select[DealActionRow, str, str]:
     """정렬을 붙인다. 담당자 정렬일 때만 users를 조인한다(퇴사자 포함)."""
-    acted_desc = DealActionRow.acted_at.desc()
-    tie = (DealActionRow.acted_at.desc(), DealActionRow.id)
+    acted_desc = DealActionRow.acted_on.desc()
+    tie = (DealActionRow.acted_on.desc(), DealActionRow.id.desc())
     if sort is DealActionSort.ACTED_AT_ASC:
-        return statement.order_by(DealActionRow.acted_at.asc(), DealActionRow.id)
+        return statement.order_by(DealActionRow.acted_on.asc(), DealActionRow.id.asc())
     if sort in (DealActionSort.DUE_DATE_ASC, DealActionSort.DUE_DATE_DESC):
         due = DealActionRow.due_date
         due_key = due.asc() if sort is DealActionSort.DUE_DATE_ASC else due.desc()
@@ -55,4 +55,4 @@ def apply_order(
         rank = _status_rank()
         asc = sort is DealActionSort.NEXT_ACTION_STATUS_ASC
         return statement.order_by((rank.asc() if asc else rank.desc()).nulls_last(), *tie)
-    return statement.order_by(acted_desc, DealActionRow.id)
+    return statement.order_by(acted_desc, DealActionRow.id.desc())

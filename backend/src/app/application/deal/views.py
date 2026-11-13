@@ -97,11 +97,11 @@ async def build_views(
             risk=compute_risk(
                 forecast_key=item.deal.sync.forecast_key,
                 due_date=item.next_action.due_date if item.next_action else None,
-                last_updated_at=item.last_updated_at,
+                last_updated_on=item.last_updated_on,
                 today=today,
                 stale_days=thresholds.stale_days,
             ),
-            status_days=status_days(item.deal.status_changed_at, today),
+            status_days=status_days(item.deal.status_changed_on, today),
             vendor=_vendor_ref(item, vendors),
         )
         for item in items

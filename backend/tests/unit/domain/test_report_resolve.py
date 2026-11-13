@@ -203,12 +203,30 @@ def test_datetime_before_today_ends_at_the_start_of_today() -> None:
 
     테스트 코드: RQ-036
     """
-    # when: 수행일시의 오늘 이전을 푼다 (전제: 서울 시간대)
-    bounds = _bounds("action.acted_at", "relative", {"period": "before_today"})
+    # when: 등록일(시각)의 오늘 이전을 푼다 (전제: 서울 시간대)
+    bounds = _bounds("deal.created_at", "relative", {"period": "before_today"})
 
     # then: 시작이 없고 끝은 오늘 업무일 시작이다
     assert bounds.start is None
     assert bounds.end == start_of_business_day(date(2026, 10, 27))
+
+
+@pytest.mark.parametrize(
+    "key",
+    ["deal.last_updated_at", "deal.status_changed_at", "action.acted_at", "action.closed_at"],
+)
+def test_date_converted_fields_resolve_to_date_bounds_not_instants(key: str) -> None:
+    """날짜로 바뀐 네 필드의 상대 기간·범위 조건은 시각 구간이 아니라 날짜 범위로 풀린다.
+
+    테스트 코드: RQ-113
+    """
+    # when: 오늘 이전과 범위 조건을 푼다 (전제: 서울 시간대, 오늘 2026-10-27)
+    before_today = _bounds(key, "relative", {"period": "before_today"})
+    between = _bounds(key, "between", ["2026-10-01", "2026-10-31"])
+
+    # then: 양끝 포함 날짜 범위(date)다
+    assert (before_today.first, before_today.last) == (None, date(2026, 10, 26))
+    assert (between.first, between.last) == (date(2026, 10, 1), date(2026, 10, 31))
 
 
 def test_other_values_pass_through_unchanged() -> None:

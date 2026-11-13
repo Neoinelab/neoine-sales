@@ -11,12 +11,17 @@ from typing import TYPE_CHECKING
 from app.application.ports.deal_repository import DealQuery
 from app.domain.contact.values import ContactKind
 from app.domain.vendor.values import VendorId
-from tests.factories import later, make_deal
+from tests.factories import NOW, make_deal
 from tests.support.ids import new_id
 from tests.support.user_ids import uid
 
 if TYPE_CHECKING:
     from tests.unit.repositories.deal_case import DealCase
+
+
+def later(days: int = 1) -> datetime:
+    """등록 시각을 하루 단위로 벌린다(날짜가 같으면 DL-R13 동률 규칙이 적용된다)."""
+    return NOW + timedelta(days=days)
 
 
 def _local(day: date, hour: int = 12, minute: int = 0, second: int = 0) -> datetime:
@@ -621,7 +626,7 @@ class TestFilters:
         for n, (_, owner, vendor, status, day) in enumerate(rows, start=1):
             await deal_case.add(
                 make_deal(
-                    _local(day) + timedelta(minutes=n),
+                    _local(day) + timedelta(days=n),
                     code=_code(n),
                     owner_user_id=uid(owner),
                     vendor_id=vendor,

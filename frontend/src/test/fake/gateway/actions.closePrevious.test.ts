@@ -29,10 +29,10 @@ describe('actions.create with closePreviousNextActionId', () => {
     // when: 그 id를 닫도록 지정해 등록한다
     const created = await gateway.actions.create(code, input({ closePreviousNextActionId: previous.id }))
 
-    // then: 기준 행은 done이고 종료 시각이 새 Action의 수행일시이며 Memo는 그대로다
+    // then: 기준 행은 done이고 종료일이 새 Action의 수행일이며 Memo는 그대로다
     expect(await find(gateway, code, previous.id)).toMatchObject({
       nextActionStatus: 'done',
-      nextActionClosedAt: created.actedAt,
+      nextActionClosedOn: created.actedOn,
       memo: '기존 메모',
     })
   })
@@ -74,7 +74,7 @@ describe('actions.create with closePreviousNextActionId', () => {
     await gateway.actions.create(code, input())
 
     // then: 이전 행은 Open 그대로다
-    expect(await find(gateway, code, previous.id)).toMatchObject({ nextActionStatus: 'open', nextActionClosedAt: null })
+    expect(await find(gateway, code, previous.id)).toMatchObject({ nextActionStatus: 'open', nextActionClosedOn: null })
   })
 
   // 기준 행이 아닌 id는 409이고 아무것도 저장되지 않는다.
@@ -125,10 +125,10 @@ describe('actions.create with closePreviousNextActionId', () => {
     // when: 그 id로 닫으며 등록한다
     await gateway.actions.create(code, input({ closePreviousNextActionId: previous.id }))
 
-    // then: 이전 행의 상태·종료 시각이 그대로다
+    // then: 이전 행의 상태·종료일이 그대로다
     expect(await find(gateway, code, previous.id)).toMatchObject({
       nextActionStatus: 'notDone',
-      nextActionClosedAt: closed.nextActionClosedAt,
+      nextActionClosedOn: closed.nextActionClosedOn,
     })
     // then: History는 등록 줄 하나만 늘었다
     expect(await gateway.history.list(code, {})).toHaveLength(history + 1)

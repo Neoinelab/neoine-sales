@@ -1,9 +1,10 @@
 from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, Self
 
+from app.domain.common.business_date import business_date
 from app.domain.common.entity import AuditedEntity
 from app.domain.common.errors import InvalidStateError, InvalidValueError
-from app.domain.common.validation import reject_nul, require_aware
+from app.domain.common.validation import reject_nul
 from app.domain.deal_action.errors import (
     DealActionDeleteForbiddenError,
     DealActionEditForbiddenError,
@@ -18,7 +19,7 @@ from app.domain.deal_action.policy import can_edit_action
 from app.domain.deal_action.value_objects import DealActionId
 
 if TYPE_CHECKING:
-    from datetime import datetime
+    from datetime import date, datetime
 
     from app.domain.auth.principal import Role
     from app.domain.deal.code import DealCode
@@ -29,14 +30,14 @@ if TYPE_CHECKING:
 
 @dataclass(eq=False, kw_only=True)
 class DealAction(AuditedEntity[DealActionId]):
-    """Deal에서 일어난 활동 한 건. 수행 일시·수행자·스냅숏은 기록 때 정해지고 바뀌지 않는다.
+    """Deal에서 일어난 활동 한 건. 수행일·수행자·스냅숏은 기록 때 정해지고 바뀌지 않는다.
 
     스냅숏은 기록 시점의 Status·Forecast다. 고칠 수 있는 것은 내용(`content`)뿐이다.
     """
 
     deal_code: DealCode
     content: ActionContent
-    acted_at: datetime
+    acted_on: date
     actor_user_id: UserId
     snapshot: SyncState
     next_action_state: NextActionState | None  # Next Action이 있는 Action에만 있다
@@ -51,12 +52,13 @@ class DealAction(AuditedEntity[DealActionId]):
         snapshot: SyncState,
         now: datetime,
         entity_id: DealActionId,
+        acted_on: date | None = None,
     ) -> Self:
         return cls(
             id=entity_id,
             deal_code=deal_code,
             content=content,
-            acted_at=now,
+            acted_on=business_date(now) if acted_on is None else acted_on,
             actor_user_id=actor_user_id,
             snapshot=snapshot,
             next_action_state=NextActionState.open() if content.has_next_action else None,
@@ -66,7 +68,6 @@ class DealAction(AuditedEntity[DealActionId]):
 
     def __post_init__(self) -> None:
         super().__post_init__()
-        require_aware(self.acted_at, "acted_at")
         if self.content.has_next_action != (self.next_action_state is not None):
             raise InvalidValueError("Next Action과 상태는 함께 있거나 함께 없어야 합니다.")
 

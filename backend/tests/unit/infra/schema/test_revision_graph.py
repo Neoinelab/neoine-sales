@@ -1,7 +1,8 @@
-"""마이그레이션 최초 리비전(baseline): 이력은 하나로 통합되어 있고 빈 DB 생성 전용이다(DB 불필요).
+"""마이그레이션 리비전 그래프: 최초 리비전(baseline)과 그 뒤의 날짜 전환 리비전(DB 불필요).
 
 과거 리비전 체인(30개)은 2026-11-05에 `00c3126aa926` 하나로 통합되었다. 이 리비전은 데이터를
-지우지 않고, 되돌릴 수 없다.
+지우지 않고, 되돌릴 수 없다. 2026-11-13에 업무 날짜 컬럼을 date로 바꾸는 `b4d7e2a9c613`이
+그 뒤에 붙었다(SC-R20).
 """
 
 import ast
@@ -18,6 +19,7 @@ if TYPE_CHECKING:
     from alembic.script import Script
 
 BASELINE = "00c3126aa926"
+HEAD = "b4d7e2a9c613"
 # ondelete·onupdate 같은 FK 규칙 인자는 단어 경계로 구분한다
 FORBIDDEN_IN_UPGRADE = (
     r"\bdelete\b",
@@ -35,8 +37,8 @@ def _baseline() -> Script:
     return revision
 
 
-def test_the_history_has_one_revision_that_is_both_base_and_head() -> None:
-    """리비전 그래프의 base와 head가 모두 기준선 하나다.
+def test_the_history_has_the_baseline_as_base_and_the_date_revision_as_head() -> None:
+    """리비전 그래프의 base는 기준선, head는 날짜 전환 리비전 하나다.
 
     테스트 코드: SC-001
     """
@@ -46,10 +48,14 @@ def test_the_history_has_one_revision_that_is_both_base_and_head() -> None:
     # when: head와 base 목록을 읽는다
     heads, bases = script.get_heads(), script.get_bases()
 
-    # then: 둘 다 기준선 하나이고 리비전은 1개뿐이다
-    assert heads == [BASELINE]
+    # then: head는 날짜 전환 리비전, base는 기준선이고 리비전은 2개다
+    assert heads == [HEAD]
     assert bases == [BASELINE]
-    assert len(list(script.walk_revisions())) == 1
+    assert len(list(script.walk_revisions())) == 2
+    # then: 날짜 전환 리비전의 부모는 기준선이다
+    head = script.get_revision(HEAD)
+    assert head is not None
+    assert head.down_revision == BASELINE
 
 
 def test_the_baseline_has_no_parent_branch_or_dependency() -> None:
@@ -115,3 +121,25 @@ def test_the_baseline_upgrade_never_removes_rows_or_columns() -> None:
     assert "def upgrade" in source
     for token in FORBIDDEN_IN_UPGRADE:
         assert re.search(token, source) is None, f"upgrade가 {token!r}를 사용한다"
+
+
+def test_the_date_revision_follows_the_baseline_and_has_a_downgrade() -> None:
+    """날짜 전환 리비전은 기준선을 부모로 하고 정해진 파일 이름이며 downgrade 함수가 있다.
+
+    테스트 코드: SC-039
+    """
+    # given: DB 없이 읽은 날짜 전환 리비전 정보와 모듈
+    revision = ScriptDirectory.from_config(_alembic_config()).get_revision(HEAD)
+    assert revision is not None
+
+    # when: 부모·브랜치 라벨·파일 경로·downgrade 함수를 읽는다
+    module = revision.module
+
+    # then: 부모는 기준선, 브랜치 라벨은 비고, 파일 이름은 정해진 값이다
+    assert revision.down_revision == BASELINE
+    assert not revision.branch_labels
+    assert revision.path.endswith("20261113_b4d7e2a9c613_business_dates.py")
+    # then: downgrade와 upgrade 함수가 있고 downgrade는 거부 문구가 소스에 없다(되돌릴 수 있다)
+    assert callable(module.downgrade)
+    assert callable(module.upgrade)
+    assert "최초 리비전" not in inspect.getsource(module.downgrade)

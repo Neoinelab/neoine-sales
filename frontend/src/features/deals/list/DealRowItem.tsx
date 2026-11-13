@@ -1,7 +1,7 @@
 import { Fragment, useState } from 'react'
 import { Link } from 'react-router'
 import { useToday } from '../../../data/today'
-import { formatRelativeTime, formatStamp } from '../../../shared/format'
+import { formatRelativeDays } from '../../../shared/format'
 import { NEXT_ACTION_STATUS_LABEL } from '../../../shared/model/nextActionStatus'
 import { userLabel } from '../../../shared/model/period'
 import type { DealRow } from '../../../shared/model/types'
@@ -44,7 +44,7 @@ function NextActionCells({ row }: { row: DealRow }) {
 export function DealRowItem({ row, canWrite, onSaved }: DealRowItemProps) {
   const [open, setOpen] = useState(false)
   const { now } = useToday()
-  const lastUpdated = formatRelativeTime(row.lastUpdatedAt, now)
+  const lastUpdated = formatRelativeDays(row.lastUpdatedOn, now)
   const cell = (field: 'statusKey' | 'forecastKey' | 'revenueAmount' | 'revenueDate') => (
     <InlineCell row={row} field={field} canWrite={canWrite} onSaved={onSaved} />
   )
@@ -79,7 +79,7 @@ export function DealRowItem({ row, canWrite, onSaved }: DealRowItemProps) {
         <td>{cell('revenueDate')}</td>
         <NextActionCells row={row} />
         <td>
-          <time dateTime={row.lastUpdatedAt} title={formatStamp(row.lastUpdatedAt)}>
+          <time dateTime={row.lastUpdatedOn} title={row.lastUpdatedOn}>
             {lastUpdated}
           </time>
         </td>

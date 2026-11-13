@@ -1,9 +1,8 @@
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 from enum import StrEnum
 from typing import TYPE_CHECKING, Protocol
 
-from app.domain.common.business_date import start_of_business_day
 from app.domain.common.errors import InvalidValueError
 from app.domain.common.validation import check_date_in_bounds, optional_text
 from app.domain.deal_action.next_action_status import NextActionStatus
@@ -56,7 +55,7 @@ class DealActionQuery:
     """한 Deal의 Action 검색 조건. 모든 조건은 AND로 결합하고 페이지는 없다(전부 돌려준다).
 
     수행일(acted_*)과 Due Date(due_*)는 시각 없는 날짜이고 양끝을 포함한다.
-    수행일은 서버 로컬 업무 날짜 기준이다(`acted_window`).
+    수행일은 서버 로컬 업무 날짜 기준이다.
     """
 
     deal_code: DealCode
@@ -83,12 +82,6 @@ class DealActionQuery:
         object.__setattr__(
             self, "keyword", optional_text(self.keyword, "검색어", max_length=KEYWORD_MAX)
         )
-
-    def acted_window(self) -> tuple[datetime | None, datetime | None]:
-        """수행 일시의 반개구간 [시작, 끝). 끝 날짜의 다음 날 00:00(로컬)이 끝이다."""
-        start = start_of_business_day(self.acted_from) if self.acted_from else None
-        end = start_of_business_day(self.acted_to + timedelta(days=1)) if self.acted_to else None
-        return start, end
 
 
 class DealActionRepository(Protocol):

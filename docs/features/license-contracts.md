@@ -1,4 +1,4 @@
-# 계약관리(라이선스 계약)   (feature 코드: LC, 상태: 확정(2026-11-09 사용자 확인))
+# 계약관리(라이선스 계약)   (feature 코드: LC, 상태: 확정(2026-11-13 사용자 확인))
 
 > 이 문서는 **이미 구현된 동작**을 정본 명세로 옮긴 것입니다(2026-11-09 시범 적용). 근거는 작업 트리의 코드(`backend/src/app/**/license_contract*`, Deal 유스케이스 4경로·Deal 삭제, `frontend/src/features/contracts/**`, `frontend/src/features/deals/useWonExitConfirm.tsx` 등)이며, 이전 계획 `artifacts/10-analysis/license-contracts-plan.md`와 코드가 다른 곳은 코드를 따랐습니다. 문구·type·상태 코드는 코드에서 그대로 옮겼습니다. 화면 문구의 "라이선스"/"라이선스" 혼용은 코드 그대로입니다(통일은 후속 과제).
 >
@@ -48,11 +48,11 @@
 | inspection_cycle | VARCHAR(20) | NOT NULL DEFAULT 'none', CHECK 5값 | `monthly`·`quarterly`·`semiannual`·`yearly`·`none` |
 | note | TEXT | NOT NULL DEFAULT '' | 앱 검증 2000자 |
 | renewed_from_id | BIGINT | NULL, FK `license_contracts.id` ON DELETE SET NULL | 갱신 원본 |
-| ended_at | TIMESTAMPTZ | NULL | 종료 시각 |
+| ended_on | DATE | NULL | 종료일(종료한 요청의 업무 날짜) |
 | created_by_user_id, updated_by_user_id | BIGINT | NOT NULL, FK `users.id` RESTRICT | |
 | created_at, updated_at | TIMESTAMPTZ | NOT NULL | |
 
-- CHECK: 기간 네 칸은 모두 NULL이거나 모두 NOT NULL / `not_issued`면 기간 없음 / 발급 상태면 기간 있음 / 종료일 ≥ 시작일 / `ended_at`은 `status = 'ended'`일 때만.
+- CHECK: 기간 네 칸은 모두 NULL이거나 모두 NOT NULL / `not_issued`면 기간 없음 / 발급 상태면 기간 있음 / 종료일 ≥ 시작일 / `ended_on`은 `status = 'ended'`일 때만(`ck_license_contracts_ended_has_date`).
 - 부분 유니크 인덱스 `uq_license_contracts_deal_id_issued` ON (deal_id) WHERE status IN ('issued_new','issued_renewal').
 - Deal 값 컬럼(고객사·Vendor·제품·파트너·담당영업)은 없다.
 
@@ -67,7 +67,8 @@
 - **LC-R2** 상태는 4개이고 전이는 2.4의 표만 허용한다. 허용되지 않은 전이는 409 `invalid-state`이고 계약은 바뀌지 않는다.
 - **LC-R3** 한 Deal에 발급 상태 계약은 최대 1건이다. 같은 Deal에 다른 발급 상태 계약이 있을 때의 발급은 409 `invalid-state` "이 Deal에는 이미 발급 상태인 라이선스 계약이 있습니다."이다(DB 부분 유니크 인덱스가 같은 상황을 거부). 종료·미발급 계약, 다른 Deal의 계약은 이 제한에 들지 않는다.
 - **LC-R4** 종료일은 요청으로 받지 않고 서버가 `시작일 + 기간 − 1일`로 계산한다. 시작일이 d일(d>1)이면 (시작 월 + 기간)달의 d−1일, 그 달에 그날이 없으면 그 달 말일이다. 시작일이 1일이면 (시작 월 + 기간)달 1일의 전날(전달 말일)이다. 예: 2026-01-01+1년=2026-12-31, 2026-01-01+6개월=2026-06-30, 2026-03-15+1개월=2026-04-14, 2026-11-15+3개월=2027-02-14, 2026-01-31+1개월=2026-02-28. 기간 수량은 1~99, 단위는 `month`·`year`. 시작일은 1900-01-01~2999-12-31이어야 하고("라이선스 시작일은(는) 1900-01-01부터 2999-12-31 사이여야 합니다"), 종료 연도가 2999를 넘으면 422 `invalid-value` "라이선스 종료일이 허용 범위를 벗어납니다."이다. 화면의 종료일 미리보기(`licenseEnd`)는 같은 계산이다.
-- **LC-R5** 미발급 계약은 시작일·종료일·기간이 모두 없다. 발급 상태 계약은 모두 있다. 종료된 계약은 종료 직전의 기간을 그대로 가진다(미발급에서 종료했으면 없음). `ended_at`은 종료 상태에만 있다.
+- **LC-R5** 미발급 계약은 시작일·종료일·기간이 모두 없다. 발급 상태 계약은 모두 있다. 종료된 계약은 종료 직전의 기간을 그대로 가진다(미발급에서 종료했으면 없음). `ended_on`은 종료 상태에만 있다.
+- **LC-R38** 기존 데이터 변환(리비전 `b4d7e2a9c613`, SC-R20): `ended_on`은 저장된 `ended_at`을 업무 시간대(서버 OS 로컬)로 바꾼 날짜다. 값이 없던 행은 계속 null이다. CHECK `ck_license_contracts_ended_has_time`은 `ck_license_contracts_ended_has_date`로 다시 만든다. 행 수는 그대로이고 시각만 버린다. downgrade는 종료일의 업무 시간대 00:00으로 되살린다.
 
 Won 연동
 - **LC-R6** Won 판정은 Forecast `won`이다. 등록(경로 ①)은 변경 전 상태가 없으므로 진입만 생길 수 있다. Action 등록(경로 ④)의 여러 단계 변경은 처음과 끝만 비교한다. 시작과 끝이 모두 Won인 변경(예: 금액만 변경)은 진입도 이탈도 아니다.
@@ -78,8 +79,8 @@ Won 연동
 
 계약 조작
 - **LC-R11** 발급: 미발급 계약만 발급(신규)가 된다. 요청의 계약 칸·시작일·기간을 저장하고 종료일을 계산한다. 응답 200. 검사 순서: 없는 계약 404 → Deal이 Won 아님 409(LC-R10) → 미발급 아님 409 "미발급 계약만 발급할 수 있습니다." → 같은 Deal에 다른 발급 계약 409(LC-R3).
-- **LC-R12** 갱신: 발급 상태 계약만 갱신된다(아니면 409 "발급 상태 계약만 갱신할 수 있습니다."). 한 트랜잭션에서 이전 계약은 종료(`ended_at` = 요청 시각)되고 같은 Deal에 새 계약(`issued_renewal`, `renewed_from_id` = 이전 id, 계약 칸·시작일·기간 = 요청 값)이 생긴다. 응답 201, `Location: /api/v1/license-contracts/<새 id>`, 본문은 새 계약. 갱신 시작일은 제약이 없다(이전 종료일 다음 날은 화면 기본값일 뿐). 첨부는 이전 계약에 남는다. 검사 순서: 404 → Won 아님 409 → 발급 상태 아님 409.
-- **LC-R13** 종료: 종료가 아닌 계약(미발급·발급(신규)·발급(갱신))은 종료로 바뀌고 `ended_at`이 기록되며 기간은 유지된다. 이미 종료면 409 "이미 종료된 계약입니다."이고 첫 종료 시각이 유지된다. 종료된 계약은 다시 발급·갱신할 수 없다(LC-R11·R12의 409). 종료일이 지나도 자동으로 종료되지 않는다.
+- **LC-R12** 갱신: 발급 상태 계약만 갱신된다(아니면 409 "발급 상태 계약만 갱신할 수 있습니다."). 한 트랜잭션에서 이전 계약은 종료(`ended_on` = 오늘)되고 같은 Deal에 새 계약(`issued_renewal`, `renewed_from_id` = 이전 id, 계약 칸·시작일·기간 = 요청 값)이 생긴다. 응답 201, `Location: /api/v1/license-contracts/<새 id>`, 본문은 새 계약. 갱신 시작일은 제약이 없다(이전 종료일 다음 날은 화면 기본값일 뿐). 첨부는 이전 계약에 남는다. 검사 순서: 404 → Won 아님 409 → 발급 상태 아님 409.
+- **LC-R13** 종료: 종료가 아닌 계약(미발급·발급(신규)·발급(갱신))은 종료로 바뀌고 `ended_on`(오늘)이 기록되며 기간은 유지된다. 이미 종료면 409 "이미 종료된 계약입니다."이고 첫 종료일이 유지된다. 종료된 계약은 다시 발급·갱신할 수 없다(LC-R11·R12의 409). 종료일이 지나도 자동으로 종료되지 않는다.
 - **LC-R14** 계약 칸 수정(`PUT`)은 모든 상태에서 되며 세 칸을 통째로 바꾼다(부분 수정이 아님, 2026-11-09 확정): 요청에서 생략한 칸은 기본값(기술담당 '', 점검주기 `none`, Note '')으로 저장된다. 기간·Deal·등록자·갱신 원본은 바뀌지 않고 수정자·수정 시각은 요청자·요청 시각이 된다. 텍스트는 앞뒤 공백을 지우고 저장하며 비어도 된다. 한도(오류 형식 차이는 2026-11-09 정본 확정): 기술담당 100자(요청 원문, 즉 공백 제거 전 기준 초과 시 422 `request-validation`), Note 2000자(공백 제거 후 초과 시 422 `invalid-value` "Note은(는) 2000자를 넘을 수 없습니다"), NUL 문자는 422 `invalid-value`("기술담당에는 NUL 문자를 쓸 수 없습니다" / "Note에는 NUL 문자를 쓸 수 없습니다"). Deal 값 칸(`customer`·`vendor`·`product`·`partner`·`sales_owner` 등)이나 알 수 없는 필드는 422 `request-validation`이다.
 - **LC-R15** 삭제는 admin만, 상태와 무관하게 된다(204). **admin이 아니면 계약이 있든 없든 403이 먼저다**(2026-11-09 결정): user는 403 "이 작업을 할 권한이 없습니다(읽기 전용 계정)", sales는 403 `forbidden` "계약 삭제는 관리자만 할 수 있습니다.". 없는 계약의 404는 admin에게만 나온다. 계약 첨부 행이 함께 지워지고 커밋 뒤 그 계약 폴더가 지워진다. 같은 Deal의 다른 계약·Deal 첨부는 그대로다. 갱신 원본을 지우면 그 후속 계약의 `renewed_from_id`는 null이 된다.
 - **LC-R16** 계약 변경(수정·발급·갱신·종료·삭제·첨부 업로드·첨부 삭제)은 Deal History를 남기지 않고 Deal 수정 시각도 바꾸지 않는다.
@@ -157,7 +158,7 @@ Deal 삭제·권한·사용자
 - `LicenseContractSort` enum은 12값(`deal_name`, `customer`, `vendor`, `product`, `partner`, `license_start`, `license_end`, `status`, `sales_owner`, `tech_owner`, `inspection`, `note`). `deal_code`는 2026-11-09 제거(**공개 API 호환 깨짐, 사용자 승인**, 클라이언트는 이 저장소 프런트뿐이며 프런트는 이미 이 값을 보내지 않음). 응답 필드 `deal_code`는 그대로 있다.
 - `LicenseContractFieldsRequest`(알 수 없는 필드 금지): `tech_owner`(str, 최대 100, 기본 ""), `inspection_cycle`(enum 5값, 기본 `none`), `note`(str, 기본 "", 도메인 2000자).
 - `LicenseIssueRequest` = 위 필드 + `start_date`(date, 필수), `term_amount`(StrictInt 1~99, 필수), `term_unit`(`month`|`year`, 필수). 종료일 필드는 없다(보내면 422).
-- `LicenseContractResponse`: `id`, `deal_code`, `deal_name`, `customer`, `vendor`(`{id,name}`|null), `product`, `partner`(str|null), `sales_owner`(UserRef), `status`, `license_start`·`license_end`(date|null), `term`(`{amount, unit}`|null), `tech_owner`, `inspection_cycle`, `note`, `renewed_from_id`(int|null), `ended_at`(ServerDateTime|null), `attachment_count`, `deal_is_won`, `created_by`·`updated_by`(UserRef), `created_at`·`updated_at`.
+- `LicenseContractResponse`: `id`, `deal_code`, `deal_name`, `customer`, `vendor`(`{id,name}`|null), `product`, `partner`(str|null), `sales_owner`(UserRef), `status`, `license_start`·`license_end`(date|null), `term`(`{amount, unit}`|null), `tech_owner`, `inspection_cycle`, `note`, `renewed_from_id`(int|null), `ended_on`(date|null), `attachment_count`, `deal_is_won`, `created_by`·`updated_by`(UserRef), `created_at`·`updated_at`.
 - `ContractAttachmentResponse`: `id`, `contract_id`, `deal_code`, `file_name`, `description`, `size`, `mime`, `uploaded_by`(UserRef), `uploaded_at`. 업로드 응답 `{outcome: "uploaded"|"replaced"|"skipped", attachment: ...|null}`.
 - Deal API 쪽(하위 호환 추가): `PATCH /deals/{code}`·`POST /deals/{code}/changes`·`POST /deals/{code}/actions` 요청에 `delete_license_contracts`(StrictBool, 기본 false), 이 세 경로는 LC-R8의 409를 낼 수 있다. Deal 목록 행·상세 응답에 `license_contract_count`(int)·`has_issued_license_contract`(bool), `GET /deals/{code}/deletion-impact`에 `license_contract_count`.
 - 오류 본문은 Problem JSON(`type` = `https://neoine-sales.example/problems/<kind>`, `title`, `status`, `detail`, `instance`). 예외 매핑: NotFoundError 404 `not-found`, AccessDeniedError 403 `forbidden`, AttachmentNameTakenError 409 `file-exists`, InvalidValueError 422 `invalid-value`, InvalidStateError 409 `invalid-state`, StorageUnavailableError 503 `storage-unavailable`, 요청 형식 422 `request-validation`("요청 형식이 올바르지 않습니다", `errors` 목록).
@@ -334,8 +335,8 @@ LC-R30~LC-R37. 화면은 게이트웨이(`gateway.licenseContracts`)로만 서�
 | LC-051 | Won이 아닌 Deal의 계약은 갱신할 수 없다 | LC-R10, LC-UC7 | backend | `application/test_license_contract_won_required.py::test_renew_on_a_non_won_deal_raises_requires_won_and_adds_no_row`<br>`web/test_license_contract_routes.py::test_renewal_on_a_non_won_deal_is_409_invalid_state_with_the_won_message`<br>`test/fake/gateway/licenseContracts.test.ts > rejects issue and renew when the deal is not Won, but allows edits and ending` |
 | LC-052 | 갱신해도 첨부는 이전 계약 폴더에 남고 새 계약은 새 폴더를 쓴다 | LC-R12, LC-R25, LC-UC7 | backend | `application/test_license_contract_folders.py::test_renewal_uses_a_new_folder_and_the_previous_files_stay`<br>`application/test_license_contract_issue_renew.py::test_renew_leaves_the_attachments_on_the_previous_contract`<br>`application/test_storage_folders.py::test_different_contracts_get_different_folders` |
 | LC-053 | 화면: 라이선스 갱신 버튼으로 다음 날부터 갱신한다 | LC-R33, LC-UC7 | frontend | `features/contracts/ContractEditDialog.status.test.tsx > shows the %s badge and its license button inside the 상태 group`<br>`features/contracts/ContractEditDialog.status.test.tsx > defaults the start to the day after the end of an %s contract and focuses it`<br>`features/contracts/ContractEditDialog.status.test.tsx > renews an %s contract through the renew request: a new 발급(갱신) row and the previous one ended` |
-| LC-054 | 종료가 아닌 계약을 종료하면 종료 시각이 기록되고 기간은 남는다 | LC-R13, LC-UC8 | backend | `application/test_license_contract_end_update_delete.py::test_end_moves_the_contract_to_ended`<br>`domain/test_license_contract_entity.py::test_end_sets_ended_and_records_the_time`<br>`domain/test_license_contract_entity.py::test_end_keeps_the_license_period` |
-| LC-055 | 이미 종료된 계약은 다시 종료할 수 없다 | LC-R13, LC-UC8 | backend | `application/test_license_contract_end_update_delete.py::test_end_twice_raises_and_keeps_the_first_end_time`<br>`web/test_license_contract_routes.py::test_end_twice_is_409`<br>`domain/test_license_contract_entity.py::test_end_twice_raises` |
+| LC-054 | 종료가 아닌 계약을 종료하면 종료일이 기록되고 기간은 남는다 | LC-R13, LC-UC8 | backend | `application/test_license_contract_end_update_delete.py::test_end_moves_the_contract_to_ended`, `domain/test_license_contract_entity.py::test_end_sets_ended_and_records_the_date`, `domain/test_license_contract_entity.py::test_end_keeps_the_license_period` <br><br> |
+| LC-055 | 이미 종료된 계약은 다시 종료할 수 없다 | LC-R13, LC-UC8 | backend | `application/test_license_contract_end_update_delete.py::test_end_twice_raises_and_keeps_the_first_end_date`<br>`web/test_license_contract_routes.py::test_end_twice_is_409`<br>`domain/test_license_contract_entity.py::test_end_twice_raises` |
 | LC-056 | 종료일이 지나도 계약은 자동으로 종료되지 않는다 | LC-R13, LC-UC8 | backend | `application/test_license_contract_scenarios.py::test_contract_is_not_ended_automatically_after_its_end_date` |
 | LC-057 | 화면: 계약 종료는 확인한 뒤에만 요청한다 | LC-R34, LC-UC8 | frontend | `features/contracts/ContractEditDialog.status.test.tsx > shows no license or end button for an ended contract and keeps the license fields disabled`<br>`features/contracts/ContractsPage.actions.test.tsx > has a 계약 종료 button in the status group of an %s contract`<br>`features/contracts/ContractsPage.actions.test.tsx > has no 계약 종료 button for an ended contract`<br>외 2건 |
 | LC-058 | admin은 어떤 상태의 계약이든 삭제하고 그 계약 폴더가 지워진다 | LC-R15, LC-R26, LC-UC9 | backend | `application/test_license_contract_end_update_delete.py::test_delete_by_admin_works_in_any_status`<br>`application/test_license_contract_end_update_delete.py::test_delete_contract_by_admin_removes_files_after_commit`<br>`application/test_license_contract_end_update_delete.py::test_delete_contract_keeps_other_contracts_and_the_deal_files`<br>외 6건 |
@@ -366,6 +367,8 @@ LC-R30~LC-R37. 화면은 게이트웨이(`gateway.licenseContracts`)로만 서�
 | LC-083 | admin이 아니면 없는 계약을 삭제하려 해도 404가 아니라 403이다 | LC-R15, LC-R28, LC-UC9 | backend | `application/test_license_contract_end_update_delete.py::test_delete_missing_contract_by_non_admin_is_forbidden_not_not_found`<br>`application/test_license_contract_end_update_delete.py::test_delete_missing_contract_by_admin_is_not_found`<br>`web/test_license_contract_route_permissions.py::test_delete_of_a_missing_contract_is_403_before_404_unless_admin`<br>외 2건 |
 | LC-084 | 정렬 키 deal_code는 422로 거절한다 | LC-R18, LC-UC3 | backend | `application/test_license_contract_query.py::test_query_sort_keys_are_the_twelve_table_columns`<br>`web/test_license_contract_routes.py::test_list_rejects_invalid_or_unknown_query_parameters`<br>`web/test_license_contract_routes.py::test_list_rejects_the_removed_deal_code_sort_like_any_unknown_sort`<br>외 2건 |
 | LC-085 | 계약 첨부 설명에 NUL 문자가 있으면 422이고 아무것도 남지 않는다 | LC-R21, LC-UC10 | backend | `application/test_license_contract_attachment_description_nul.py::test_upload_description_with_a_nul_is_rejected_and_nothing_is_left` |
+| LC-086 | 종료·갱신하면 ended_on은 요청의 업무 날짜이고 응답에 ended_at 키가 없다 | LC-R12, LC-R13 | backend | `application/test_license_contract_end_update_delete.py`, `domain/test_license_contract_entity.py` |
+| LC-087 | 마이그레이션은 계약 종료 시각을 업무 날짜로 채우고 비어 있던 행은 null로 두며 CHECK를 새 컬럼으로 만든다 | LC-R38 | backend | `infra/schema/test_business_dates_migration.py`, `infra/schema/test_license_contract_schema.py` |
 
 ### LC-001 처음부터 Won으로 등록한 Deal에 미발급 계약 1건이 생긴다
 - Given KIM(sales)
@@ -609,7 +612,7 @@ LC-R30~LC-R37. 화면은 게이트웨이(`gateway.licenseContracts`)로만 서�
 ### LC-049 발급 계약을 갱신하면 이전 계약은 종료되고 새 발급(갱신) 계약이 생긴다
 - Given Won Deal의 발급(신규) 계약 P(종료일 2026-12-31) — 발급(갱신) 계약도 같은 케이스
 - When 시작일 2027-01-01, 기간 1년, 기술담당 "김기술"로 갱신한다
-- Then 201, `Location`이 `/api/v1/license-contracts/<새 id>`이고 본문은 새 계약(상태 `issued_renewal`, `renewed_from_id` = P, 2027-01-01~2027-12-31, 기술담당 "김기술")이다. P는 `ended`이고 `ended_at`이 요청 시각이며 기간은 그대로다. 그 Deal의 발급 상태 계약은 정확히 1건이다
+- Then 201, `Location`이 `/api/v1/license-contracts/<새 id>`이고 본문은 새 계약(상태 `issued_renewal`, `renewed_from_id` = P, 2027-01-01~2027-12-31, 기술담당 "김기술")이다. P는 `ended`이고 `ended_on`이 오늘이며 기간은 그대로다. 그 Deal의 발급 상태 계약은 정확히 1건이다
 
 ### LC-050 발급 상태가 아닌 계약은 갱신할 수 없다
 - Given Won Deal의 미발급·종료 계약(각각)
@@ -631,15 +634,15 @@ LC-R30~LC-R37. 화면은 게이트웨이(`gateway.licenseContracts`)로만 서�
 - When `라이선스 갱신`을 누르고 `저장`을 누른다
 - Then 시작일 기본값 2027-01-01(시작일 칸 포커스)·기간 1년이었고, 갱신 요청이 가며 `라이선스를 갱신했습니다.`와 함께 표에 새 `발급(갱신)` 행과 `종료`가 된 이전 행이 보인다
 
-### LC-054 종료가 아닌 계약을 종료하면 종료 시각이 기록되고 기간은 남는다
+### LC-054 종료가 아닌 계약을 종료하면 종료일이 기록되고 기간은 남는다
 - Given 미발급·발급(신규)·발급(갱신) 계약(각각)
 - When 계약 종료를 요청한다
-- Then 200이고 상태 `ended`, `ended_at` = 요청 시각, 기간은 종료 전과 같다(미발급이면 없음). 종료한 계약은 칸 수정·첨부 업로드가 성공하고 발급·갱신은 409다
+- Then 200이고 상태 `ended`, `ended_on` = 오늘, 기간은 종료 전과 같다(미발급이면 없음). 종료한 계약은 칸 수정·첨부 업로드가 성공하고 발급·갱신은 409다
 
 ### LC-055 이미 종료된 계약은 다시 종료할 수 없다
-- Given 종료 계약(`ended_at` T1)
+- Given 2026-11-10에 종료한 계약
 - When 나중 시각에 다시 종료한다
-- Then 409 `invalid-state` "이미 종료된 계약입니다."이고 `ended_at`은 T1 그대로다
+- Then 409 `invalid-state` "이미 종료된 계약입니다."이고 `ended_on`은 2026-11-10 그대로다
 
 ### LC-056 종료일이 지나도 계약은 자동으로 종료되지 않는다
 - Given 종료일이 2026-12-31인 발급(신규) 계약
@@ -791,6 +794,16 @@ LC-R30~LC-R37. 화면은 게이트웨이(`gateway.licenseContracts`)로만 서�
 - When KIM(sales)이 C에 "a.pdf"를 설명 "a\u0000b"로 올리고, NUL을 포함한 101자 설명으로도 올린다
 - Then 둘 다 422 `invalid-value` "설명에는 NUL 문자를 쓸 수 없습니다"이고(101자여도 길이 문구보다 NUL 문구가 먼저) C의 첨부 행과 계약 폴더 파일이 생기지 않는다
 
+### LC-086 종료·갱신하면 ended_on은 요청의 업무 날짜이고 응답에 ended_at 키가 없다
+- Given 업무 시간대는 Asia/Seoul, 서버 시계는 `2026-11-13T23:30:00+09:00`이고, 발급(신규) 계약 P와 미발급 계약 Q가 있다
+- When P를 갱신하고 Q를 종료한다
+- Then P와 Q의 `ended_on`은 "2026-11-13"이고 응답에 `ended_at` 키는 없다. OpenAPI의 `ended_on`은 format date이며 null을 허용한다. 게이트웨이 계약 테스트의 `endedOn`도 날짜 문자열이다
+
+### LC-087 마이그레이션은 계약 종료 시각을 업무 날짜로 채우고 비어 있던 행은 null로 두며 CHECK를 새 컬럼으로 만든다
+- Given 기준선 리비전 DB(Asia/Seoul)에 `ended_at`이 `2026-11-12T15:30:00Z`인 종료 계약과 `ended_at`이 null인 발급 계약이 있다
+- When `upgrade head`를 실행한 뒤 다시 `downgrade -1`을 실행한다
+- Then upgrade 뒤에는 계약이 2건 그대로이고, `ended_on`은 2026-11-13, null이며, `ck_license_contracts_ended_has_date`가 있고 `ended_at` 컬럼은 없다. downgrade 뒤에는 `ended_at`이 `2026-11-13T00:00:00+09:00`, null이다
+
 ## 5. 변경 이력
 
 | 날짜 | 변경 | 영향 테스트 코드 |
@@ -799,3 +812,4 @@ LC-R30~LC-R37. 화면은 게이트웨이(`gateway.licenseContracts`)로만 서�
 | 2026-11-09 | 사용자 결정 반영. 확정(코드 그대로): 표기 혼용 유지(통일은 후속), 기술담당/Note 길이 오류 형식 차이(LC-R14), PUT 생략 칸 기본값 덮어쓰기(LC-R14), 기존 Won Deal 계약 일괄 생성 제외(LC-R7·범위 밖). **규칙 변경(운영 코드 변경 필요)**: LC-R18 정렬 키 `deal_code` 제거(12개, 공개 API 호환 깨짐·사용자 승인), LC-R15·LC-R28 계약 삭제는 admin이 아니면 존재 무관 403 먼저(없는 id 404는 admin만), 2.5·2.6·2.8·LC-UC3·LC-UC9 갱신 | 변경: LC-021(13→12 키), LC-029(계약 삭제 404는 admin만). 신규: LC-083, LC-084 |
 | 2026-11-10 | 보충(사용자 결정 E4, Deal 첨부 AT 문서 정리): LC-R21에 첨부 설명 NUL 거절(길이 판정보다 먼저, 422 `invalid-value` "설명에는 NUL 문자를 쓸 수 없습니다")을 적고 2.8 첨부 검증 행에 표시. 코드 변경 없음(Deal 첨부와 같은 설명 검사), 상태 줄 그대로 | 신규: LC-085(테스트 위치는 test-engineer가 채움) |
 | 2026-11-12 | DD-R41(완료된 Deal은 admin만 삭제)에 맞춰 LC-R27에 주석, 계약이 있는(= Won) Deal을 지우는 LC-080·LC-081의 행위자를 admin으로 명시. 계약 동작 변경 없음 | 변경: LC-080, LC-081(행위자만) |
+| 2026-11-13 | 확정(2026-11-13 사용자 확인): 계약 종료일을 date `ended_on`으로(2.2, LC-R5·R12·R13, 2.6), LC-R38 신설(데이터 변환). 응답 필드 변경(호환 깨짐, 사용자 승인), 화면 표시는 없음 | 신규 LC-086, LC-087. 변경 LC-054, 갱신 케이스, 이미 종료 케이스 |

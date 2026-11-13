@@ -470,7 +470,7 @@ async def test_overdue_count_ignores_period_and_excludes_closed_deals(env: DealE
         await env.uow.deal_actions.add(
             make_deal_action(
                 deal_code=view.item.deal.id,
-                acted_at=env.clock.now(),
+                now=env.clock.now(),
                 actor_user_id=ACTOR_ID,
                 due_date=due,
             )
@@ -520,7 +520,7 @@ async def test_attention_counts_equal_the_deal_list_with_the_same_owner(env: Dea
     await env.uow.deal_actions.add(
         make_deal_action(
             deal_code=late.item.deal.id,
-            acted_at=env.clock.now(),
+            now=env.clock.now(),
             actor_user_id=ACTOR_ID,
             due_date=date(2026, 10, 22),
         )
