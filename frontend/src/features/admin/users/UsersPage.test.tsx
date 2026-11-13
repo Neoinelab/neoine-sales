@@ -56,30 +56,33 @@ describe('사용자 관리 목록 (T-ADMIN-01)', () => {
     expect(screen.queryByRole('cell', { name: 'old' })).not.toBeInTheDocument()
   })
 
-  // 표는 아이디·역할·이름·등록일·등록자·마지막 로그인 열과 값을 보인다
+  // 표는 아이디·역할·이름·등록일·마지막 로그인·퇴사 일시 열을 보이고 등록자·퇴사 사유 열은 없다
   // 테스트 코드: US-078
-  it('lists id, role, name, created, creator and last login', async () => {
+  it('lists id, role, name, created and last login without creator or reason columns', async () => {
     // when: admin이 사용자 관리 화면을 연다
     await openUsers()
 
-    // then: 머리글이 모두 있고 kim 행에 역할·이름·등록자가 보인다
-    for (const header of ['아이디', '역할', '이름', '등록일', '등록자', '마지막 로그인', '퇴사 일시', '퇴사 사유']) {
+    // then: 머리글이 모두 있고(작업 칸 포함 9칸) 등록자·퇴사 사유 머리글은 없으며 kim 행에 역할·이름이 보인다
+    for (const header of ['아이디', '역할', '이름', '등록일', '마지막 로그인', '퇴사 일시']) {
       expect(screen.getByRole('columnheader', { name: header })).toBeInTheDocument()
     }
+    expect(screen.queryByRole('columnheader', { name: '등록자' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('columnheader', { name: '퇴사 사유' })).not.toBeInTheDocument()
+    expect(screen.getAllByRole('columnheader')).toHaveLength(9)
     const kim = within(rowOf('kim'))
     expect(kim.getByText('sales')).toBeInTheDocument()
     expect(kim.getByText('김영업')).toBeInTheDocument()
-    expect(kim.getByText('최관리')).toBeInTheDocument()
+    expect(kim.getAllByRole('cell')).toHaveLength(9)
   })
 
-  // 재직자 행의 퇴사 일시·퇴사 사유와 없는 전화번호는 -로 보인다
+  // 재직자 행의 퇴사 일시와 없는 전화번호는 -로 보인다
   // 테스트 코드: US-078
   it('shows "-" for resignation columns of active users', async () => {
     // when: admin이 사용자 관리 화면을 연다
     await openUsers()
 
-    // then: kim 행에 - 가 세 칸 있다 (퇴사 일시·퇴사 사유 두 칸과, 전화번호가 없는 시드 사용자의 전화번호 칸)
-    expect(within(rowOf('kim')).getAllByText('-')).toHaveLength(3)
+    // then: kim 행에 - 가 두 칸 있다 (퇴사 일시 칸과, 전화번호가 없는 시드 사용자의 전화번호 칸)
+    expect(within(rowOf('kim')).getAllByText('-')).toHaveLength(2)
   })
 
   // 상태 선택은 재직·퇴사·전체이고 퇴사를 고르면 퇴사자만 보인다
@@ -98,9 +101,9 @@ describe('사용자 관리 목록 (T-ADMIN-01)', () => {
     expect(screen.queryByRole('cell', { name: 'kim' })).not.toBeInTheDocument()
   })
 
-  // 퇴사 행은 이름(퇴사)·퇴사 사유를 보이고 작업 버튼이 없다
+  // 퇴사 행은 이름(퇴사)·퇴사 일시를 보이고 작업 버튼이 없다
   // 테스트 코드: US-080
-  it('shows a resigned row with 이름(퇴사), the resignation reason, and no delete button', async () => {
+  it('shows a resigned row with 이름(퇴사), the resignation time, and no delete button', async () => {
     // given: 사용자 관리 화면
     const { user } = await openUsers()
 
@@ -108,9 +111,11 @@ describe('사용자 관리 목록 (T-ADMIN-01)', () => {
     await user.selectOptions(screen.getByLabelText('상태'), '전체')
 
     const row = within(await screen.findByRole('row', { name: /^old\b/ }))
-    // then: old 행에 강퇴사(퇴사)와 퇴사 사유가 있고 삭제 버튼이 없다
+    // then: old 행에 강퇴사(퇴사)가 있고 퇴사 일시 칸이 채워져 있으며 삭제 버튼이 없다
     expect(row.getByText('강퇴사(퇴사)')).toBeInTheDocument()
-    expect(row.getByText('퇴사')).toBeInTheDocument()
+    expect(row.getAllByRole('cell')).toHaveLength(9)
+    expect(row.getAllByRole('cell')[7]).not.toHaveTextContent(/^-$/)
+    expect(screen.queryByRole('columnheader', { name: '퇴사 사유' })).not.toBeInTheDocument()
     expect(row.queryByRole('button', { name: '삭제' })).not.toBeInTheDocument()
     expect(screen.getAllByRole('row')).toHaveLength(1 + 7)
   })
@@ -162,11 +167,12 @@ describe('사용자 등록 (T-ADMIN-02)', () => {
     // when: AD 아이디·이름·역할을 입력하고 추가한다
     await addUser(user, { loginId: 'newbie', name: '신입영업', role: 'user' })
 
-    // then: 새 행이 역할·이름·등록자와 함께 보이고 폼 칸이 비워진다
+    // then: 새 행이 역할·이름과 함께 보이고(등록자 칸 없음) 폼 칸이 비워진다
     const row = within(await screen.findByRole('row', { name: /^newbie\b/ }))
     expect(row.getByText('user')).toBeInTheDocument()
     expect(row.getByText('신입영업')).toBeInTheDocument()
-    expect(row.getByText('최관리')).toBeInTheDocument()
+    expect(row.queryByText('최관리')).not.toBeInTheDocument()
+    expect(row.getAllByRole('cell')).toHaveLength(9)
     expect(screen.getByLabelText('AD 아이디')).toHaveValue('')
     expect(screen.getByLabelText('이름')).toHaveValue('')
   })

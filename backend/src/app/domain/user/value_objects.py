@@ -10,12 +10,6 @@ UserId = NewType("UserId", int)
 RESIGNED_SUFFIX = "(퇴사)"
 
 
-class UserDeleteReason(StrEnum):
-    """사용자가 목록에서 빠진 이유. 값을 추가할 때는 DB CHECK도 이 enum에서 만든다."""
-
-    RESIGNED = "resigned"
-
-
 class UserStatusFilter(StrEnum):
     """사용자 목록 필터: 재직 / 퇴사 / 전체."""
 

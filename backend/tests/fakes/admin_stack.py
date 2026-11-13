@@ -7,7 +7,7 @@
   execute(*, keyword=None, include_resigned=False, role=None) -> Sequence[UserRef]
 - ResolveUserRefs(uow_factory)                              ...user.resolve_user_refs
   execute(user_ids: Collection[UserId]) -> Mapping[UserId, UserRef]  (퇴사자 포함)
-- DeleteUser.execute(*, user_id, actor, reason=UserDeleteReason.RESIGNED) -> DeleteOutcome
+- DeleteUser.execute(*, user_id, actor) -> DeleteOutcome
 - RegisterUser(uow_factory, clock, hasher)                  ...user.register_user
   execute(*, login_id, role, actor, display_name=None, email=None, phone=None,
   password: Password | None = None) -> User

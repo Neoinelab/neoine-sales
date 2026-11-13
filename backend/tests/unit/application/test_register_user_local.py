@@ -51,14 +51,14 @@ async def test_register_user_local_saves_user_profile_and_hash(
     # when: 비밀번호·이름·이메일·전화로 등록한다 (전제: local 모드)
     user = await _register(admin, email=" Kim@Corp.TEST ", phone="010-1234-5678")
 
-    # then: 정규화된 프로필과 등록자가 저장되고 비밀번호 해시가 검증된다
+    # then: 정규화된 프로필이 저장되고 등록자 필드는 없으며 비밀번호 해시가 검증된다
     stored = await uow.users.get(user.id)
     assert (stored.display_name, stored.email, stored.phone) == (
         "김영업",
         "kim@corp.test",
         "010-1234-5678",
     )
-    assert stored.created_by_user_id == ADMIN_ACTOR.user_id
+    assert not hasattr(stored, "created_by_user_id")
     saved = await uow.password_hashes.get(user.id)
     assert saved is not None
     assert await auth.hasher.verify(Password(PW), saved) is True

@@ -63,7 +63,7 @@ class SetupFirstLocalAdmin:
                 exists = True
             if exists:
                 raise AlreadyExistsError("사용자", account.value)
-            user = User.register_self(
+            user = User.register(
                 account, Role.ADMIN, entity_id=await new_user_id(uow.ids), now=now, **profile
             )
             user.record_password_login(now)

@@ -26,7 +26,6 @@ USER_FK_NAMES = {
     ("deal_actions", "actor_user_id"): "fk_deal_actions_actor_user_id_users",
     ("auth_sessions", "user_id"): "fk_auth_sessions_user_id_users",
     ("deal_history", "changed_by_user_id"): "fk_deal_history_changed_by_user_id_users",
-    ("users", "created_by_user_id"): "fk_users_created_by_user_id_users",
     ("directory_settings", "updated_by_user_id"): "fk_directory_settings_updated_by_user_id_users",
     ("bant_labels", "created_by_user_id"): "fk_bant_labels_created_by_user_id_users",
     ("action_types", "created_by_user_id"): "fk_action_types_created_by_user_id_users",
@@ -81,8 +80,9 @@ async def test_every_foreign_key_to_users_is_exactly_the_expected_set(
     # when: users를 가리키는 FK의 (테이블, 컬럼) 집합을 읽는다 (전제: head를 적용한 임시 DB)
     found = await user_foreign_keys(session)
 
-    # then: 사용자 연결 목록과 같다
+    # then: 사용자 연결 목록과 같고 users 자신을 가리키는 FK(등록자)는 없다
     assert found == set(EXPECTED_USER_FKS)
+    assert ("users", "created_by_user_id") not in found
 
 
 async def test_orm_metadata_lists_the_same_user_foreign_keys_as_the_database(
@@ -125,10 +125,11 @@ async def test_user_foreign_keys_use_the_planned_names_and_restrict(session: Asy
     # when: users를 가리키는 FK의 이름·ON DELETE·DEFERRABLE을 읽는다
     found = {(r[0], r[1]): (r[2], r[3].strip(), r[4]) for r in rows}
 
-    # then: RESTRICT 18개와 CASCADE 1개(해시)가 정해진 이름 그대로이고 그 밖의 FK는 없다
+    # then: RESTRICT 17개와 CASCADE 1개(해시)가 정해진 이름 그대로이고 그 밖의 FK는 없다
     expected = {key: (name, "r", False) for key, name in USER_FK_NAMES.items()}
     expected |= {key: (name, "c", False) for key, name in CASCADE_USER_FK_NAMES.items()}
     assert found == expected
+    assert ("users", "created_by_user_id") not in found  # fk_users_created_by_user_id_users 없음
 
 
 async def test_user_reference_columns_are_bigint_and_the_old_string_columns_are_gone(
@@ -160,8 +161,8 @@ async def test_user_reference_columns_are_bigint_and_the_old_string_columns_are_
         ("deal_actions", "actor_user_id"),
         ("auth_sessions", "user_id"),
         ("deal_history", "changed_by_user_id"),
-        ("users", "created_by_user_id"),
     } <= not_null
+    assert ("users", "created_by_user_id") not in by_column  # 등록자 컬럼 제거(SC-R21)
     assert (
         "deals",
         "registered_by_user_id",
@@ -172,10 +173,10 @@ async def test_user_reference_columns_are_bigint_and_the_old_string_columns_are_
     assert ("alert_settings", "updated_by_user_id") in not_null  # 최초 설정 경로가 없다(P3)
 
 
-async def test_deleted_at_exists_only_on_users_with_its_two_check_constraints(
+async def test_deleted_at_exists_only_on_users_and_no_check_uses_it(
     session: AsyncSession,
 ) -> None:
-    """deleted_at 컬럼은 users에만 있다(관련 CHECK 두 개 포함).
+    """deleted_at 컬럼은 users에만 있고 users에 deleted_at·delete_reason CHECK가 없다.
 
     테스트 코드: SC-030
     """
@@ -191,28 +192,35 @@ async def test_deleted_at_exists_only_on_users_with_its_two_check_constraints(
             )
         ).all()
     }
-    # when: deleted_at 컬럼을 가진 테이블과 users의 제약을 읽는다
+    # when: deleted_at 컬럼을 가진 테이블과 users의 CHECK·컬럼을 읽는다
     checks = {
         r[0]
         for r in (
             await session.execute(
-                text("select conname from pg_constraint where conrelid = 'users'::regclass")
+                text(
+                    "select conname from pg_constraint"
+                    " where conrelid = 'users'::regclass and contype = 'c'"
+                )
+            )
+        ).all()
+    }
+    user_columns = {
+        r[0]
+        for r in (
+            await session.execute(
+                text(
+                    "select column_name from information_schema.columns"
+                    " where table_schema = 'public' and table_name = 'users'"
+                )
             )
         ).all()
     }
 
-    # then: deleted_at 테이블은 users뿐이고 퇴사 관련 CHECK가 있다
+    # then: deleted_at 테이블은 users뿐이고 퇴사 사유 컬럼·관련 CHECK가 없다
     assert tables == {"users"}
-    assert {"ck_users_delete_reason_valid", "ck_users_deleted_pair"} <= checks
-    reason = (
-        await session.execute(
-            text(
-                "select pg_get_constraintdef(oid) from pg_constraint"
-                " where conname = 'ck_users_delete_reason_valid'"
-            )
-        )
-    ).scalar_one()
-    assert "resigned" in reason
+    assert "deleted_at" in user_columns
+    assert "delete_reason" not in user_columns
+    assert not {"ck_users_delete_reason_valid", "ck_users_deleted_pair"} & checks
 
 
 async def test_every_foreign_key_column_leads_an_index(session: AsyncSession) -> None:

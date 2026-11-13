@@ -6,14 +6,14 @@ from app.domain.auth.credentials import LoginId
 from app.domain.auth.principal import Role
 from app.domain.common.errors import InvalidStateError, InvalidValueError
 from app.domain.user.entities import User
-from app.domain.user.value_objects import UserDeleteReason, UserId
+from app.domain.user.value_objects import UserId
 from tests.factories import NOW, later
 from tests.factories_auth import make_user
 from tests.support.ids import new_id
 
 
-def test_resign_marks_deleted_at_and_reason() -> None:
-    """퇴사 처리하면 퇴사 시각·사유가 기록되고 비활성이 된다
+def test_resign_marks_only_deleted_at() -> None:
+    """퇴사 처리하면 퇴사 시각만 기록되고 비활성이 된다
 
     테스트 코드: US-058
     """
@@ -23,23 +23,27 @@ def test_resign_marks_deleted_at_and_reason() -> None:
     # when: 퇴사 처리한다
     user.resign(later(60))
 
-    # then: 퇴사 시각·사유 resigned가 있고 비활성이다
+    # then: 퇴사 시각이 있고 비활성이며 퇴사 사유 필드는 없다
     assert user.deleted_at == later(60)
-    assert user.delete_reason is UserDeleteReason.RESIGNED
+    assert not hasattr(user, "delete_reason")
     assert not user.is_active
     assert user.updated_at == later(60)
 
 
-def test_resign_accepts_an_explicit_reason() -> None:
-    """사유를 명시해도 퇴사 처리된다"""
+def test_resign_takes_no_reason_argument() -> None:
+    """퇴사 처리에는 사유 인자가 없다
+
+    테스트 코드: US-058
+    """
     # given: 재직 사용자
     user = make_user("kim")
 
-    # when: 사유 resigned로 퇴사 처리한다
-    user.resign(later(60), UserDeleteReason.RESIGNED)
+    # when: 사유를 함께 넘겨 퇴사 처리한다
+    with pytest.raises(TypeError):
+        user.resign(later(60), "resigned")  # type: ignore[call-arg]
 
-    # then: 사유가 resigned다
-    assert user.delete_reason is UserDeleteReason.RESIGNED
+    # then: 인자 오류이고 사용자는 재직 그대로다
+    assert user.is_active
 
 
 def test_resign_twice_is_rejected_and_keeps_the_first_time() -> None:
@@ -104,7 +108,6 @@ def test_registering_the_same_login_id_again_creates_a_new_row_with_a_new_id() -
         LoginId("kim"),
         Role.USER,
         entity_id=UserId(new_id()),
-        created_by_user_id=old.created_by_user_id,
         now=later(120),
     )
 

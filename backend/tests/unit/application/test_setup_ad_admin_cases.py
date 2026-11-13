@@ -77,10 +77,11 @@ async def test_an_ad_verified_account_becomes_the_first_admin_and_is_signed_in(
         Role.ADMIN,
     )
     assert (await auth.authenticate.execute(issued.token)).user_id == principal.user_id
-    # then: kim은 created_by가 자기 자신인 admin이고 마지막 로그인 시각이 있으며 해시가 저장되었다
+    # then: kim은 admin이고 등록자 필드 없이 마지막 로그인 시각이 있으며 해시가 저장되었다
     user = await uow.users.get_active_by_login_id(LoginId("kim"))
     assert user is not None
-    assert (user.role, user.created_by_user_id, user.last_login_at) == (Role.ADMIN, user.id, NOW)
+    assert (user.role, user.last_login_at) == (Role.ADMIN, NOW)
+    assert not hasattr(user, "created_by_user_id")
     saved_hash = await uow.password_hashes.get(user.id)
     assert saved_hash is not None
     assert await auth.hasher.verify(Password("pw-kim"), saved_hash)

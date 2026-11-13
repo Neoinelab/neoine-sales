@@ -3619,12 +3619,6 @@ export interface components {
             upcoming: components["schemas"]["UpcomingPeriodResponse"][];
         };
         /**
-         * UserDeleteReason
-         * @description 사용자가 목록에서 빠진 이유. 값을 추가할 때는 DB CHECK도 이 enum에서 만든다.
-         * @enum {string}
-         */
-        UserDeleteReason: "resigned";
-        /**
          * UserOptionPage
          * @description 선택 UI용 후보 전체. 조건에 맞는 사용자를 모두 돌려주므로 페이징 필드가 없다.
          */
@@ -3694,8 +3688,6 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
-            created_by: components["schemas"]["UserRef"];
-            delete_reason: components["schemas"]["UserDeleteReason"] | null;
             /** Deleted At */
             deleted_at: string | null;
             /** Display Name */
@@ -8881,9 +8873,7 @@ export interface operations {
     };
     delete_user_api_v1_users__user_id__delete: {
         parameters: {
-            query?: {
-                reason?: "resigned";
-            };
+            query?: never;
             header?: never;
             path: {
                 user_id: number;

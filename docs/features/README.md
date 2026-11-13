@@ -59,11 +59,11 @@ feature 목록은 2026-11-09 사용자 확인(질문 Q1~Q6 추천안 채택: 경
 | --- | --- | --- |
 | PL | [platform-common.md](platform-common.md) (플랫폼 공통: 권한 표·HTTP 관례·API 계약·화면 접근) | 확정(2026-11-09) |
 | TM | [server-time.md](server-time.md) (서버 시간·업무 날짜) | 확정(2026-11-09) |
-| SC | [schema-migration.md](schema-migration.md) (DB 스키마·마이그레이션 기준선) | 확정(2026-11-09) |
+| SC | [schema-migration.md](schema-migration.md) (DB 스키마·마이그레이션 기준선) | 확정(2026-11-13 사용자 확인) |
 | AU | [login-session.md](login-session.md) (로그인·세션·대체 로그인) | 확정(2026-11-09) |
-| SU | [initial-setup.md](initial-setup.md) (최초 설정) | 확정(2026-11-09) |
+| SU | [initial-setup.md](initial-setup.md) (최초 설정) | 확정(2026-11-13) |
 | IN | [integration-settings.md](integration-settings.md) (연동 설정: AD 서버·저장 위치) | 확정(2026-11-09) |
-| US | [user-management.md](user-management.md) (사용자 관리) | 확정(2026-11-09) |
+| US | [user-management.md](user-management.md) (사용자 관리) | 확정(2026-11-13 사용자 확인) |
 | ME | [my-account.md](my-account.md) (내 정보) | 확정(2026-11-09) |
 | CD | [status-forecast-codes.md](status-forecast-codes.md) (Status·Forecast 코드) | 확정(2026-11-10) |
 | CL | [choice-catalogs.md](choice-catalogs.md) (선택 목록: BANT Label·Action 유형·Vendor) | 확정(2026-11-10) |

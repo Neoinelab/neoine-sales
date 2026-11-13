@@ -1,4 +1,4 @@
-"""사용자 관리 API(`/api/v1/users`)의 HTTP 계약: 등록 응답·목록 조건·삭제 사유·권한·없는 경로.
+"""사용자 관리 API(`/api/v1/users`)의 HTTP 계약: 등록 응답·목록 조건·삭제 쿼리 거부·권한·없는 경로.
 
 FakeUseCases 위에서 라우터·스키마·오류 매핑을 확인한다(DB 없음). 규칙 판정 자체는
 `unit/application/`이 맡고, 여기서는 HTTP 표현(상태 코드·헤더·키 집합·쿼리)을 본다.
@@ -20,7 +20,6 @@ from tests.unit.web.local_account_http import (
 from tests.unit.web.vendor_http import client_for, problem
 
 USERS = "/api/v1/users"
-ME = "/api/v1/auth/me"
 
 
 def _logins(listed: dict[str, Any]) -> list[str]:
@@ -29,26 +28,26 @@ def _logins(listed: dict[str, Any]) -> list[str]:
 
 @pytest.mark.parametrize("role", ["admin", "sales", "user"])
 async def test_register_returns_201_with_location_and_the_documented_body(role: str) -> None:
-    """AD 모드에서 아이디·역할로 등록하면 201과 Location·사용자가 돌아오고 등록자는 요청 admin이다.
+    """AD 모드에서 아이디·역할로 등록하면 201과 Location·사용자가 돌아오고 등록자·퇴사 사유는 없다.
 
     테스트 코드: US-001
     """
     # given: AD 모드 시스템과 로그인한 admin
     use_cases = FakeUseCases()
     async with client_for(use_cases) as http:
-        me = (await http.get(ME)).json()
         # when: 아이디와 역할만으로 등록한다
         response = await http.post(USERS, json={"login_id": "kim", "role": role})
         listed = (await http.get(USERS)).json()
 
-    # then: 201, Location, 문서화된 본문, 등록자는 요청 admin이고 목록 끝에 있다
+    # then: 201, Location, 문서화된 본문이고 created_by·delete_reason 키가 없으며 목록 끝에 있다
     assert response.status_code == 201, response.text
     body = response.json()
     assert response.headers["Location"] == f"{USERS}/{body['id']}"
     assert set(body) == USER_KEYS
     assert (body["login_id"], body["role"], body["status"]) == ("kim", role, "active")
-    assert body["created_by"]["id"] == me["user_id"]
-    assert (body["last_login_at"], body["deleted_at"], body["delete_reason"]) == (None, None, None)
+    assert "created_by" not in body
+    assert "delete_reason" not in body
+    assert (body["last_login_at"], body["deleted_at"]) == (None, None)
     assert _logins(listed)[-1] == "kim"
 
 
@@ -138,21 +137,17 @@ async def test_list_status_filter_selects_active_resigned_or_everyone(
         # when: status 조건을 붙여 목록을 읽는다
         response = await http.get(f"{USERS}{query}")
 
-    # then: 조건에 맞는 사용자가 등록 순서로 나오고 퇴사자는 퇴사 시각·사유를 가진다
+    # then: 조건에 맞는 사용자가 등록 순서로 나오고 퇴사자는 퇴사 시각을 가지며 퇴사 사유 키는 없다
     assert response.status_code == 200, response.text
     items = response.json()["items"]
     assert [u["login_id"] for u in items] == expected
     for item in items:
         if item["login_id"] == "gone":
             assert item["status"] == "resigned"
-            assert item["delete_reason"] == "resigned"
             assert item["deleted_at"] is not None
         else:
-            assert (item["status"], item["deleted_at"], item["delete_reason"]) == (
-                "active",
-                None,
-                None,
-            )
+            assert (item["status"], item["deleted_at"]) == ("active", None)
+        assert "delete_reason" not in item
 
 
 async def test_list_returns_the_requested_offset_and_limit_with_one_page() -> None:
@@ -194,7 +189,7 @@ async def test_list_with_out_of_range_paging_or_unknown_status_is_422(query: str
 
 
 async def test_list_items_carry_only_the_documented_fields_and_no_password_values() -> None:
-    """목록 항목은 문서화된 필드만 담고 비밀번호 관련 값이 없다.
+    """목록 항목은 문서화된 10개 필드만 담고 등록자·퇴사 사유·비밀번호 관련 값이 없다.
 
     테스트 코드: US-028
     """
@@ -206,9 +201,12 @@ async def test_list_items_carry_only_the_documented_fields_and_no_password_value
         # when: 목록을 읽는다
         response = await http.get(USERS)
 
-    # then: 모든 항목의 키가 문서와 같고 비밀번호·해시 문자열이 응답에 없다
+    # then: 모든 항목의 키가 문서의 10개이고 created_by·delete_reason·비밀번호·해시가 없다
     assert response.status_code == 200, response.text
+    assert len(USER_KEYS) == 10
     assert all(set(item) == USER_KEYS for item in response.json()["items"])
+    assert "created_by" not in response.text
+    assert "delete_reason" not in response.text
     assert PASSWORD not in response.text
     assert "hash" not in response.text.lower()
     assert "password" not in response.text.lower()
@@ -232,66 +230,71 @@ async def test_list_shows_last_login_for_signed_in_users_and_null_for_the_others
     assert last_login["kim"] is None
 
 
-async def test_list_labels_the_creator_of_a_resigned_admin_with_the_resigned_suffix() -> None:
-    """퇴사한 admin이 등록한 사용자의 등록자는 (퇴사) 표시와 함께 보인다.
+@pytest.mark.parametrize("query", ["reason=resigned", "reason=fired", "foo=1", "reason="])
+async def test_delete_with_any_query_parameter_is_422_and_keeps_the_user(query: str) -> None:
+    """사용자 삭제에 쿼리 파라미터(없앤 reason 포함)를 보내면 422이고 사용자는 그대로다.
 
-    테스트 코드: US-030
+    테스트 코드: US-113
     """
-    # given: boss가 kim을 등록한 뒤 boss가 퇴사 처리된 상태
+    # given: 연결 없는 재직 사용자 kim
+    use_cases = FakeUseCases()
+    kim = await use_cases.seed_user("kim", Role.SALES)
+    async with client_for(use_cases) as http:
+        # when: 쿼리를 붙여 삭제한다
+        response = await http.delete(f"{USERS}/{kim.id}?{query}")
+        listed = (await http.get(f"{USERS}?status=all")).json()
+
+    # then: 422 request-validation이고 kim은 재직 그대로다
+    problem(response, 422, "request-validation")
+    kim_row = next(u for u in listed["items"] if u["login_id"] == "kim")
+    assert kim_row["status"] == "active"
+
+
+async def test_delete_without_a_query_reports_deleted_after_the_query_was_refused() -> None:
+    """쿼리 없는 삭제는 200 deleted이고 목록에서 사라진다(쿼리를 붙인 요청은 먼저 거절된다).
+
+    테스트 코드: US-113
+    """
+    # given: 연결 없는 재직 사용자 kim과, 쿼리를 붙인 삭제가 이미 거절된 상태
+    use_cases = FakeUseCases()
+    kim = await use_cases.seed_user("kim", Role.SALES)
+    async with client_for(use_cases) as http:
+        refused = await http.delete(f"{USERS}/{kim.id}?reason=resigned")
+        # when: 쿼리 없이 삭제한다
+        response = await http.delete(f"{USERS}/{kim.id}")
+        listed = (await http.get(f"{USERS}?status=all")).json()
+
+    # then: 앞 요청은 422, 이번 요청은 200 deleted이고 kim은 어떤 목록에도 없다
+    assert refused.status_code == 422
+    assert response.status_code == 200
+    assert response.json() == {"outcome": "deleted"}
+    assert "kim" not in _logins(listed)
+
+
+async def test_delete_of_an_admin_who_registered_another_user_keeps_that_user_active() -> None:
+    """다른 사용자를 등록한 admin을 삭제하면 deleted이고 그가 등록한 사용자는 재직 그대로다.
+
+    테스트 코드: US-112
+    """
+    # given: boss가 kim을 등록했다(boss에게 다른 연결은 없다)
     use_cases = FakeUseCases()
     async with signed_in_as(use_cases, "boss", Role.ADMIN) as boss_http:
         registered = await boss_http.post(USERS, json={"login_id": "kim", "role": "sales"})
     assert registered.status_code == 201, registered.text
-    await use_cases.resign_user(await use_cases.user_id_of("boss"))
+    boss_id = await use_cases.user_id_of("boss")
     async with client_for(use_cases) as http:
-        # when: 다른 admin이 모든 상태의 목록을 읽는다
-        items = (await http.get(f"{USERS}?status=all")).json()["items"]
+        before = next(u for u in (await http.get(USERS)).json()["items"] if u["login_id"] == "kim")
+        # when: root가 boss를 삭제한다
+        response = await http.delete(f"{USERS}/{boss_id}")
+        listed = (await http.get(f"{USERS}?status=all")).json()
 
-    # then: kim의 등록자 참조가 퇴사 표시와 (퇴사) 라벨을 가진다
-    creator = next(u for u in items if u["login_id"] == "kim")["created_by"]
-    assert (creator["name"], creator["resigned"], creator["label"]) == (
-        "사용자 boss",
-        True,
-        "사용자 boss(퇴사)",
-    )
-
-
-async def test_delete_reports_the_outcome_and_accepts_the_resigned_reason() -> None:
-    """reason=resigned를 받고, 생략해도 같다. 연결이 없으면 deleted가 돌아온다.
-
-    테스트 코드: US-062
-    """
-    # given: 연결이 없는 사용자 둘
-    use_cases = FakeUseCases()
-    amy = await use_cases.seed_user("amy", Role.SALES)
-    bob = await use_cases.seed_user("bob", Role.SALES)
-    async with client_for(use_cases) as http:
-        # when: reason을 주고, 그리고 생략하고 삭제한다
-        with_reason = await http.delete(f"{USERS}/{amy.id}?reason=resigned")
-        without_reason = await http.delete(f"{USERS}/{bob.id}")
-
-    # then: 둘 다 200이고 결과는 deleted다
-    assert with_reason.status_code == without_reason.status_code == 200
-    assert with_reason.json() == without_reason.json() == {"outcome": "deleted"}
-
-
-@pytest.mark.parametrize("reason", ["fired", "", "RESIGNED"])
-async def test_delete_with_an_unknown_reason_is_422_and_keeps_the_user(reason: str) -> None:
-    """알 수 없는 reason은 422 request-validation이고 사용자는 그대로다.
-
-    테스트 코드: US-062
-    """
-    # given: 사용자 kim
-    use_cases = FakeUseCases()
-    kim = await use_cases.seed_user("kim", Role.SALES)
-    async with client_for(use_cases) as http:
-        # when: 알 수 없는 사유로 삭제한다
-        response = await http.delete(f"{USERS}/{kim.id}?reason={reason}")
-        listed = (await http.get(USERS)).json()
-
-    # then: 422 request-validation이고 kim은 재직 그대로다
-    problem(response, 422, "request-validation")
-    assert "kim" in _logins(listed)
+    # then: 200 deleted이고 boss는 어떤 목록에도 없으며 kim의 응답은 삭제 전과 같다
+    assert response.status_code == 200
+    assert response.json() == {"outcome": "deleted"}
+    assert "boss" not in _logins(listed)
+    after = next(u for u in listed["items"] if u["login_id"] == "kim")
+    assert after == before
+    assert after["status"] == "active"
 
 
 @pytest.mark.parametrize("bad_id", ["not-an-id", "abc", "1.5"])

@@ -22,16 +22,17 @@ if TYPE_CHECKING:
 async def test_register_user_stores_the_chosen_role(
     admin: AdminStack, uow_factory: UnitOfWorkFactory, role: Role
 ) -> None:
-    """AD 모드에서 아이디·역할로 등록하면 그 역할의 재직 사용자가 저장되고 등록자는 요청 admin이다
+    """AD 모드에서 아이디·역할로 등록하면 그 역할의 재직 사용자가 저장되고 등록자는 기록되지 않는다
 
     테스트 코드: US-001
     """
     # when: admin이 역할을 정해 사용자를 등록한다
     user = await admin.register_user.execute(login_id="new.hire", role=role, actor=ADMIN_ACTOR)
 
-    # then: 재직 사용자가 그 역할로 저장되고 등록자·등록 시각이 채워지며 로그인 기록은 없다
+    # then: 재직 사용자가 그 역할로 저장되고 등록 시각이 채워지며 로그인 기록·등록자 필드는 없다
     assert (user.login_id.value, user.role) == ("new.hire", role)
-    assert (user.created_by_user_id, user.created_at) == (ADMIN_ACTOR.user_id, NOW)
+    assert user.created_at == NOW
+    assert not hasattr(user, "created_by_user_id")
     assert user.is_active
     assert (user.display_name, user.email, user.last_login_at) == (
         None,
@@ -43,8 +44,10 @@ async def test_register_user_stores_the_chosen_role(
     assert (stored.login_id.value, stored.role) == ("new.hire", role)
 
 
-async def test_register_user_records_the_acting_users_id_as_creator(admin: AdminStack) -> None:
-    """등록자는 요청한 admin의 id로 기록된다
+async def test_register_user_by_another_admin_stores_no_creator_and_leaves_no_link(
+    admin: AdminStack, uow_factory: UnitOfWorkFactory
+) -> None:
+    """다른 admin이 등록해도 등록자는 어디에도 기록되지 않아 그 admin에게 연결이 생기지 않는다
 
     테스트 코드: US-001
     """
@@ -53,8 +56,10 @@ async def test_register_user_records_the_acting_users_id_as_creator(admin: Admin
         login_id="kim", role=Role.SALES, actor=OTHER_ADMIN_ACTOR
     )
 
-    # then: created_by_user_id가 그 admin의 id다
-    assert user.created_by_user_id == OTHER_ADMIN_ACTOR.user_id
+    # then: 사용자에 등록자 필드가 없고, 등록한 admin은 연결(has_links)이 없다
+    assert not hasattr(user, "created_by_user_id")
+    async with uow_factory() as uow:
+        assert not await uow.users.has_links(OTHER_ADMIN_ACTOR.user_id)
 
 
 @pytest.mark.parametrize(

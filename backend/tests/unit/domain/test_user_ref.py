@@ -5,7 +5,7 @@ import dataclasses
 import pytest
 
 from app.domain.auth.principal import Role
-from app.domain.user.value_objects import UserDeleteReason, UserId, UserRef
+from app.domain.user.value_objects import UserId, UserRef
 from tests.factories import later
 from tests.factories_auth import make_resigned_user, make_user
 from tests.support.ids import new_id
@@ -135,14 +135,3 @@ def test_user_ref_is_immutable() -> None:
     with pytest.raises(AttributeError):
         ref.name = "다른 이름"  # type: ignore[misc]
     # then: 속성 오류다
-
-
-def test_delete_reason_values_are_a_closed_set() -> None:
-    """삭제 사유 값은 resigned 하나뿐이다
-
-    테스트 코드: US-062
-    """
-    # when: 사유 값 집합을 읽는다
-    actual = {reason.value for reason in UserDeleteReason}
-    # then: resigned뿐이다
-    assert actual == {"resigned"}

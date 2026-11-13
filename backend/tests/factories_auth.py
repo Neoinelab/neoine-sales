@@ -27,13 +27,13 @@ WRONG_PASSWORD = "wrong-password"  # noqa: S105 - 가짜 값
 
 
 def make_user(login_id: str = "kim", role: Role = Role.SALES, **overrides: object) -> User:
-    """재직 사용자. 기본은 스스로 등록한 행(created_by_user_id == id)이라 선행 데이터가 필요 없다.
+    """재직 사용자. 등록자를 기록하지 않아 선행 데이터가 필요 없다.
 
-    overrides: now, entity_id, created_by_user_id.
+    overrides: now, entity_id, display_name, email, phone.
     """
     given = overrides.pop("entity_id", None)
     entity_id: UserId = UserId(new_id()) if given is None else cast("UserId", given)
-    values: dict[str, Any] = {"created_by_user_id": entity_id, "now": NOW}
+    values: dict[str, Any] = {"now": NOW}
     return User.register(LoginId(login_id), role, entity_id=entity_id, **{**values, **overrides})
 
 
@@ -44,7 +44,7 @@ def make_resigned_user(
     resigned_at: datetime | None = None,
     **overrides: object,
 ) -> User:
-    """퇴사 처리된 사용자(deleted_at/delete_reason이 채워짐)."""
+    """퇴사 처리된 사용자(deleted_at이 채워짐)."""
     user = make_user(login_id, role, **overrides)
     user.resign(resigned_at or NOW + timedelta(days=1))
     return user

@@ -1,4 +1,4 @@
-# 최초 설정   (feature 코드: SU, 상태: 확정(2026-11-09 사용자 확인))
+# 최초 설정   (feature 코드: SU, 상태: 확정(2026-11-13 사용자 확인))
 
 > 이 문서는 **이미 구현된 동작**을 정본 명세로 옮긴 것입니다(2026-11-09). 근거는 작업 트리의 코드(`backend/src/app/web/routers/auth_setup.py`, `web/schemas/{auth,auth_directory,storage,password_field}.py`, `web/error_handlers.py`, `application/auth/{auth_status,mode,messages,setup_auth_mode,setup_directory,setup_storage,setup_admin,setup_first_admin,setup_first_local_admin,credential_check}.py`, `application/directory/errors.py`, `application/storage/probe.py`, `domain/auth/{mode,credentials,password_policy}.py`, `domain/storage/path.py`, `domain/user/{profile,retired_login_ids}.py`, `frontend/src/features/setup/**`, `features/auth/LoginPage.tsx`, `data/setup.ts`, `gateway/http/setup.ts`, `shared/directory/{messages,directoryForm}.ts`)이며 문구·type·상태 코드는 서버 코드에서 그대로 옮겼습니다. 테스트용 Fake 게이트웨이(`frontend/src/test/fake/gateway/auth.ts`)가 서버와 다르게 동작하는 곳은 서버를 따랐습니다(계획 `artifacts/10-analysis/su-plan.md` 확인 필요 질문 Q1~Q3).
 
@@ -43,7 +43,7 @@
 | `auth_settings`(단일 행) | `mode`(`ad`·`local`), `updated_at`. 방식 선택·AD 설정 등록 때 덮어쓴다 |
 | `directory_settings`(단일 행, IN) | 접속 정보, 암호화한 바인드 비밀번호, 찾은 `base_dn`, `revision`(1부터 저장마다 +1), `updated_at`, `updated_by = NULL`(최초 설정이 저장) |
 | `storage_settings`(단일 행, IN) | 정규화한 `path`, `updated_at`, `updated_by = NULL` |
-| `users` | 첫 admin 1행: `role = admin`, `created_by` = 자기 자신, 마지막 로그인 시각 기록. AD는 이름·이메일을 AD 값으로, local은 입력값(전화 포함)으로 |
+| `users` | 첫 admin 1행: `role = admin`, 마지막 로그인 시각 기록. AD는 이름·이메일을 AD 값으로, local은 입력값(전화 포함)으로 |
 | `user_password_hashes` | 첫 admin 비밀번호의 scrypt 해시(AD·local 모두, 원문은 어디에도 저장하지 않음) |
 | `auth_sessions` | 첫 admin의 새 세션(AU) |
 
@@ -83,7 +83,7 @@
 - **SU-R9** 공통: 유효 방식이 `local`이면 SU-R10, 그 밖(`ad`·미선택)이면 SU-R11 흐름이다. 공통 결과는 다음과 같다.
   - 예약 아이디 `dev-admin`·`dev-sales`·`dev-user`(정규화 값 정확히 일치, 대소문자 무시)는 422 `invalid-value` "개발 로그인 전용 아이디는 등록할 수 없습니다: <정규화한 아이디>"이고 AD를 부르지 않고 시도 제한에 세지 않으며 설정은 열린 채다. `dev-qa` 같은 다른 `dev-` 아이디는 일반 아이디다.
   - 같은 아이디의 재직 사용자가 이미 있으면(둘 이상이어도) 409 `already-exists` "이미 존재하는 사용자입니다: <아이디>"이고 기존 사용자를 admin으로 올리지 않는다.
-  - 성공하면 `role = admin` 사용자를 만들고(`created_by` = 자기 자신, 마지막 로그인 시각 = 지금), 비밀번호의 scrypt 해시를 저장하고, 세션을 발급해 세션 쿠키를 심는다(쿠키 속성은 AU). 응답 200 `PrincipalResponse{user_id, subject(아이디), email, name, role: "admin"}`. 이후 설정은 닫힌다(SU-R2). `login_id`가 128자를 넘거나 `password`가 256자를 넘으면 422 `request-validation`.
+  - 성공하면 `role = admin` 사용자를 만들고(마지막 로그인 시각 = 지금), 비밀번호의 scrypt 해시를 저장하고, 세션을 발급해 세션 쿠키를 심는다(쿠키 속성은 AU). 응답 200 `PrincipalResponse{user_id, subject(아이디), email, name, role: "admin"}`. 이후 설정은 닫힌다(SU-R2). `login_id`가 128자를 넘거나 `password`가 256자를 넘으면 422 `request-validation`.
 - **SU-R10** local 흐름(판정 순서): 웹 계층에서 비밀번호가 비었거나 공백뿐이거나 NUL이면 422 `invalid-value` + `errors[password]` → 아이디 형식(앞뒤 공백 제거·소문자화 뒤 영문 소문자·숫자로 시작, 영문 소문자·숫자·`.`·`_`·`-` 64자 이하, 위반은 422 `invalid-value` "로그인 아이디는 영문 소문자·숫자·점·밑줄·하이픈으로 64자 이하여야 합니다") → 예약 아이디 → 비밀번호 정책 → 프로필 → 닫힘 → 저장 위치 없음 409 `invalid-state` "파일 저장 위치를 먼저 설정하세요." → 해시 계산(트랜잭션 밖) → 방식이 여전히 `local`인지 재확인(아니면 409 `invalid-state` "앱에서 계정을 직접 관리할 때만 쓸 수 있습니다.") → 닫힘 재확인 → 중복 아이디 → 등록.
   - 비밀번호 정책: 8자 미만이면 "비밀번호는 8자 이상이어야 합니다", 앞뒤 공백을 지우고 소문자로 바꾼 값이 아이디와 같으면 "비밀번호는 아이디와 같을 수 없습니다". 둘 다 422 `invalid-value`이고 본문 `errors` = `[{"location":["password"],"message":<문구>}]`이다. 8자는 허용한다(조합 규칙 없음).
   - 프로필: `display_name` 필수(앞뒤 공백 제거, 비었으면 "이름은(는) 비어 있을 수 없습니다", 200자 초과면 "이름은(는) 200자를 넘을 수 없습니다"), `email`·`phone` 선택(빈 값·공백은 없음으로 저장, 형식이 틀리면 "이메일 형식이 올바르지 않습니다." / "전화번호 형식이 올바르지 않습니다."). 모두 422 `invalid-value`(`errors` 없음).
@@ -407,7 +407,7 @@ SU-R13~SU-R19.
 ### SU-023 AD 계정으로 확인된 사람이 첫 admin이 되어 로그인된다
 - Given AD 서버·저장 위치가 등록되었고 AD 계정 `kim`(표시 이름 "김관리", 메일 `kim@corp.test`)이 있다
 - When `{login_id:"kim", password:<맞는 비밀번호>}`로 첫 admin을 등록한다
-- Then 200 `{subject:"kim", name:"김관리", email:"kim@corp.test", role:"admin"}`와 세션 쿠키가 오고, `kim`은 `created_by`가 자기 자신인 admin이며 비밀번호 해시가 저장되었다. AD 인증은 저장된 설정(복호화한 바인드 비밀번호·Base DN)으로 1회이고, 진행 상태는 셋 다 `false`, `directory_login: true`, 그 계정·IP의 실패 횟수는 0이다
+- Then 200 `{subject:"kim", name:"김관리", email:"kim@corp.test", role:"admin"}`와 세션 쿠키가 오고, `kim`은 admin이며 비밀번호 해시가 저장되었다. AD 인증은 저장된 설정(복호화한 바인드 비밀번호·Base DN)으로 1회이고, 진행 상태는 셋 다 `false`, `directory_login: true`, 그 계정·IP의 실패 횟수는 0이다
 
 ### SU-024 AD 비밀번호가 틀리면 401이고 아무도 등록되지 않으며 실패 1회가 남는다
 - Given AD 서버·저장 위치가 등록되었고 AD 계정 `kim`이 있다
@@ -617,3 +617,4 @@ SU-R13~SU-R19.
 | 날짜 | 변경 | 영향 테스트 코드 |
 | --- | --- | --- |
 | 2026-11-09 | 최초 작성(초안): 구현된 최초 설정 동작을 정본 명세로 옮김. 규칙 SU-R1~R19, use case SU-UC1~UC7, BDD 케이스 SU-001~SU-064. AD 칸 값·Base DN·암호화·경로·쓰기 확인 규칙은 IN 번호로 가리킴. Fake 게이트웨이와 서버가 다른 곳(AD 방식 기존 사용자 승격, 빈 아이디·비밀번호 문구, 중복·이름·비밀번호 문구)은 서버 기준으로 적고 확인 필요 질문으로 남김 | SU-001~SU-064(신규) |
+| 2026-11-13 | US 변경(users 등록자 컬럼 삭제, 2026-11-13 사용자 확인)에 맞춰 첫 admin의 `created_by` = 자기 자신 문구 삭제(데이터 모델 표·SU 규칙·SU-023). 동작은 등록자 기록이 없어지는 것 외 불변 | 변경: SU-023 |

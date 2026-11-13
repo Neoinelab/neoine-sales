@@ -19,7 +19,6 @@ from app.domain.user.errors import (
     UserNotFoundError,
 )
 from app.domain.user.value_objects import (
-    UserDeleteReason,
     UserId,
     UserRef,
     UserStatusFilter,
@@ -34,7 +33,6 @@ if TYPE_CHECKING:
 
 # 사용자 명단 변경을 직렬화하는 트랜잭션 수준 advisory lock 키(다른 용도와 겹치지 않게 고정)
 _ROSTER_LOCK_KEY = 7_301_001
-_CREATOR_FK = "fk_users_created_by_user_id_users"
 
 
 def _to_row(user: User) -> UserRow:
@@ -47,10 +45,8 @@ def _to_row(user: User) -> UserRow:
         display_name=user.display_name,
         email=user.email,
         phone=user.phone,
-        created_by_user_id=user.created_by_user_id,
         last_login_at=user.last_login_at,
         deleted_at=user.deleted_at,
-        delete_reason=user.delete_reason.value if user.delete_reason else None,
     )
 
 
@@ -59,13 +55,11 @@ def _to_entity(row: UserRow) -> User:
         id=UserId(row.id),
         login_id=LoginId(row.login_id),
         role=Role(row.role),
-        created_by_user_id=UserId(row.created_by_user_id),
         display_name=row.display_name,
         email=row.email,
         phone=row.phone,
         last_login_at=row.last_login_at,
         deleted_at=row.deleted_at,
-        delete_reason=UserDeleteReason(row.delete_reason) if row.delete_reason else None,
         created_at=row.created_at,
         updated_at=row.updated_at,
     )
@@ -96,8 +90,6 @@ class SqlUserRepository(SqlRepository[UserRow]):
             _to_row(user),
             {
                 "pk_users": lambda: AlreadyExistsError("사용자", user.id),
-                # 만드는 동안 생성자(users.id)가 삭제됐다. 자기 참조 최초 admin은 위반하지 않는다
-                _CREATOR_FK: lambda: UserNotFoundError(user.created_by_user_id),
             },
         )
 
@@ -200,7 +192,6 @@ class SqlUserRepository(SqlRepository[UserRow]):
                 phone=user.phone,
                 last_login_at=user.last_login_at,
                 deleted_at=user.deleted_at,
-                delete_reason=user.delete_reason.value if user.delete_reason else None,
                 updated_at=user.updated_at,
             )
             .returning(UserRow.id)

@@ -4,11 +4,11 @@ from typing import Annotated, Literal
 
 from fastapi import Query, Response, status
 
-from app.domain.user.entities import User
-from app.domain.user.value_objects import UserDeleteReason, UserId, UserStatusFilter
+from app.domain.user.value_objects import UserId, UserStatusFilter
 from app.web.dependencies import DEFAULT_LIMIT, Limit, Offset, Provider
 from app.web.permissions import admin_router
 from app.web.routers.responses import READ_ERRORS, WRITE_ERRORS
+from app.web.schemas.common import RequestModel
 from app.web.schemas.ids import PathId
 from app.web.schemas.user import (
     DeleteUserResponse,
@@ -19,17 +19,13 @@ from app.web.schemas.user import (
     UserResponse,
     UserRoleRequest,
 )
-from app.web.schemas.user_ref import resolve_refs
 from app.web.security import CurrentUser
 
 router = admin_router(prefix="/api/v1/users", tags=["users"])
-# 값이 하나뿐인 Literal은 const로만 문서화되므로, 값 추가를 대비해 enum으로도 적는다
-REASON_SCHEMA = {"enum": [reason.value for reason in UserDeleteReason]}
 
 
-async def _responses(provider: Provider, users: list[User]) -> list[UserResponse]:
-    refs = await resolve_refs(provider, [u.created_by_user_id for u in users])
-    return [UserResponse.from_entity(user, refs) for user in users]
+class DeleteUserParams(RequestModel):
+    """삭제는 쿼리 파라미터를 받지 않는다. 어떤 파라미터든 422."""
 
 
 @router.get("", response_model=UserPage, responses={422: READ_ERRORS[422]})
@@ -42,7 +38,7 @@ async def list_users(
     users = await provider.list_users().execute(
         status=UserStatusFilter(status), offset=offset, limit=limit
     )
-    return UserPage(items=await _responses(provider, list(users)), offset=offset, limit=limit)
+    return UserPage(items=[UserResponse.from_entity(u) for u in users], offset=offset, limit=limit)
 
 
 @router.post(
@@ -61,8 +57,7 @@ async def register_user(
         password=body.to_password(),
     )
     response.headers["Location"] = f"{router.prefix}/{user.id}"
-    (item,) = await _responses(provider, [user])
-    return item
+    return UserResponse.from_entity(user)
 
 
 @router.delete("/{user_id}", response_model=DeleteUserResponse, responses=WRITE_ERRORS)
@@ -70,11 +65,9 @@ async def delete_user(
     user_id: PathId,
     provider: Provider,
     actor: CurrentUser,
-    reason: Annotated[Literal["resigned"], Query(json_schema_extra=REASON_SCHEMA)] = "resigned",
+    _params: Annotated[DeleteUserParams, Query()],
 ) -> DeleteUserResponse:
-    outcome = await provider.delete_user().execute(
-        user_id=UserId(user_id), actor=actor, reason=UserDeleteReason(reason)
-    )
+    outcome = await provider.delete_user().execute(user_id=UserId(user_id), actor=actor)
     return DeleteUserResponse.from_outcome(outcome)
 
 
@@ -85,8 +78,7 @@ async def change_user_role(
     user = await provider.change_user_role().execute(
         user_id=UserId(user_id), role=body.role, actor=actor
     )
-    (item,) = await _responses(provider, [user])
-    return item
+    return UserResponse.from_entity(user)
 
 
 @router.patch("/{user_id}", response_model=UserResponse, responses=WRITE_ERRORS)
@@ -96,8 +88,7 @@ async def update_user_profile(
     user = await provider.update_user_profile().execute(
         user_id=UserId(user_id), changes=body.to_changes(), actor=actor
     )
-    (item,) = await _responses(provider, [user])
-    return item
+    return UserResponse.from_entity(user)
 
 
 @router.put("/{user_id}/password", status_code=204, responses=WRITE_ERRORS)

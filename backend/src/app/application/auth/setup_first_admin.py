@@ -71,9 +71,7 @@ class SetupFirstAdmin:
                 exists = True
             if exists:
                 raise AlreadyExistsError("사용자", account.value)
-            user = User.register_self(
-                account, Role.ADMIN, entity_id=await new_user_id(uow.ids), now=now
-            )
+            user = User.register(account, Role.ADMIN, entity_id=await new_user_id(uow.ids), now=now)
             user.record_login(now, display_name=profile.display_name, email=profile.email)
             await uow.users.add(user)
             await uow.password_hashes.save(user.id, password_hash, now)

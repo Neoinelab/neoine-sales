@@ -13,7 +13,7 @@ from app.domain.auth.mode import AuthMode
 from app.domain.auth.principal import Role
 from app.domain.common.errors import InvalidStateError
 from app.domain.user.errors import UserInUseError
-from app.domain.user.value_objects import UserDeleteReason, UserStatusFilter
+from app.domain.user.value_objects import UserStatusFilter
 from tests.factories import NOW
 from tests.fakes.admin_stack import OTHER_ADMIN_ACTOR
 from tests.support.admin_seed import session_is_active
@@ -43,12 +43,11 @@ async def test_delete_user_with_any_reference_resigns_instead_of_deleting(
     # when: kim을 삭제한다
     outcome = await admin.delete_user.execute(user_id=target.id, actor=root.to_principal())
 
-    # then: 결과가 resigned이고 행은 퇴사 시각·사유와 함께 남는다
+    # then: 결과가 resigned이고 행은 퇴사 시각과 함께 남는다
     assert outcome is DeleteOutcome.RESIGNED
     async with uow_factory() as uow:
         kept = await uow.users.get(target.id)
     assert kept.deleted_at == NOW
-    assert kept.delete_reason is UserDeleteReason.RESIGNED
     assert kept.login_id.value == "kim"
 
 
@@ -75,22 +74,40 @@ async def test_resigning_still_deletes_the_users_session_rows(
         assert await uow.sessions.get_by_token_hash(hash_token(token)) is None
 
 
-async def test_a_user_who_only_registered_himself_is_not_linked(
+def test_registering_another_user_is_not_one_of_the_sixteen_links() -> None:
+    """연결 종류는 16종이고 사용자 등록자는 그 안에 없다
+
+    테스트 코드: US-058
+    """
+    # when: 테스트 지원 코드의 연결 종류 목록을 본다
+    # then: 16종이며 사용자 등록자(created_user)는 없다
+    assert len(LINK_KINDS) == 16
+    assert "created_user" not in LINK_KINDS
+
+
+async def test_an_admin_who_only_registered_another_user_is_deleted_physically(
     admin: AdminStack, uow_factory: UnitOfWorkFactory
 ) -> None:
-    """자기 자신만 등록자로 가리키는 사용자는 연결이 없어 물리 삭제된다
+    """다른 사용자를 등록했을 뿐인 admin은 물리 삭제되고 그가 등록한 사용자는 재직 그대로다
 
-    테스트 코드: US-059
+    테스트 코드: US-112
     """
-    # given: 자기 자신이 등록자인 kim
+    # given: boss가 kim을 등록했고 boss에게 다른 연결은 없다
     root = await seed_user(uow_factory, "root", Role.ADMIN)
-    target = await seed_user(uow_factory, "kim", Role.SALES)
+    boss = await seed_user(uow_factory, "boss", Role.ADMIN)
+    kim = await admin.register_user.execute(
+        login_id="kim", role=Role.SALES, actor=boss.to_principal()
+    )
 
-    # when: kim을 삭제한다
-    outcome = await admin.delete_user.execute(user_id=target.id, actor=root.to_principal())
+    # when: root가 boss를 삭제한다
+    outcome = await admin.delete_user.execute(user_id=boss.id, actor=root.to_principal())
 
-    # then: 결과가 deleted다
+    # then: boss는 deleted로 행이 없고 어떤 목록에도 없으며 kim은 재직 그대로다
     assert outcome is DeleteOutcome.DELETED
+    logins = {u.login_id.value for u in await admin.list_users.execute(status=UserStatusFilter.ALL)}
+    assert logins == {"root", "kim"}
+    async with uow_factory() as uow:
+        assert (await uow.users.get(kim.id)).is_active
 
 
 async def test_resigned_user_keeps_the_references_that_pointed_to_him(
@@ -261,13 +278,11 @@ async def test_resigned_user_leaves_the_default_list_and_shows_in_the_resigned_l
     # when: kim을 삭제해 퇴사 처리한다
     outcome = await admin.delete_user.execute(user_id=target.id, actor=root.to_principal())
 
-    # then: 기본 목록에는 없고 퇴사 목록에 퇴사 시각·사유와 함께 있다
+    # then: 기본 목록에는 없고 퇴사 목록에 퇴사 시각과 함께 있다
     assert outcome is DeleteOutcome.RESIGNED
     assert [u.login_id.value for u in await admin.list_users.execute()] == ["root"]
     resigned = await admin.list_users.execute(status=UserStatusFilter.RESIGNED)
-    assert [(u.login_id.value, u.deleted_at, u.delete_reason) for u in resigned] == [
-        ("kim", NOW, UserDeleteReason.RESIGNED)
-    ]
+    assert [(u.login_id.value, u.deleted_at) for u in resigned] == [("kim", NOW)]
 
 
 @pytest.mark.parametrize("linked", [False, True])

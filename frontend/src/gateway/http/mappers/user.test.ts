@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { toMe, toUserRef } from './user'
+import { toMe, toUser, toUserRef } from './user'
 
 describe('toMe', () => {
   // 서버 사용자 응답의 user_id·subject를 화면 값의 id·loginId로 바꾼다.
@@ -67,5 +67,35 @@ describe('toUserRef', () => {
 
     // then: 역할이 sales다
     expect(actual).toBe('sales')
+  })
+})
+
+describe('toUser', () => {
+  // 사용자 응답에는 등록자·퇴사 사유가 없고, 변환한 사용자에도 그 키를 만들지 않는다
+  // 테스트 코드: US-110
+  it('maps a user without a creator or a resign reason', () => {
+    // given: 등록자·퇴사 사유가 없는 서버 응답 (재직 사용자와 퇴사 사용자)
+    const base = {
+      id: 2,
+      login_id: 'park',
+      display_name: null,
+      email: null,
+      phone: '02-123-4567',
+      role: 'sales',
+      created_at: '2026-10-01T09:00:00+09:00',
+      last_login_at: null,
+    } as const
+
+    // when: 화면 값으로 바꾼다
+    const active = toUser({ ...base, status: 'active', deleted_at: null })
+    const resigned = toUser({ ...base, status: 'resigned', deleted_at: '2026-10-10T18:00:00+09:00' })
+
+    // then: 이름은 아이디, 전화는 그대로, 퇴사자는 퇴사 시각을 갖고 createdBy·resignReason 키는 없다
+    expect(active).toMatchObject({ name: 'park', phone: '02-123-4567', status: 'active', resignedAt: null })
+    expect(resigned).toMatchObject({ status: 'resigned', resignedAt: '2026-10-10T18:00:00+09:00' })
+    for (const user of [active, resigned]) {
+      expect(user).not.toHaveProperty('createdBy')
+      expect(user).not.toHaveProperty('resignReason')
+    }
   })
 })

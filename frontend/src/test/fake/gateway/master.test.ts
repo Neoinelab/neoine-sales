@@ -258,7 +258,10 @@ describe('users', () => {
     // when: 새 아이디로 등록한다
     const created = await gateway.users.create({ loginId: 'hong', name: '홍길동', role: 'sales' })
     // then: 새 사용자가 등록된다
-    expect(created).toMatchObject({ loginId: 'hong', status: 'active', createdBy: { id: USER_ID.root }, createdAt: TEST_NOW })
+    expect(created).toMatchObject({ loginId: 'hong', status: 'active', createdAt: TEST_NOW })
+    // then: 등록자·퇴사 사유 필드는 없다
+    expect(created).not.toHaveProperty('createdBy')
+    expect(created).not.toHaveProperty('resignReason')
     // when: 퇴사자 아이디로 등록한다
     const rehire = await gateway.users.create({ loginId: 'old', name: '강재입사', role: 'sales' })
     // then: 재입사는 새 행이다
@@ -287,6 +290,25 @@ describe('users', () => {
     // then: 삭제되어 목록에서 사라진다
     expect(deleted).toEqual({ outcome: 'deleted' })
     expect((await gateway.users.list('all')).some((u) => u.id === fresh.id)).toBe(false)
+  })
+
+  // 다른 사용자를 등록한 admin도 다른 연결이 없으면 물리 삭제되고, 그가 등록한 사용자는 재직 그대로다.
+  it('remove: 다른 사용자를 등록했을 뿐인 admin은 물리 삭제되고 등록한 사용자는 재직 그대로', async () => {
+    // given: root가 admin boss를 등록하고, boss가 newbie를 등록했다(boss에게 다른 연결은 없다)
+    const mock = await mockAs('root')
+    const boss = await mock.gateway.users.create({ loginId: 'boss', name: '보스', role: 'admin' })
+    await mock.signInAs(boss.id)
+    const newbie = await mock.gateway.users.create({ loginId: 'newbie', name: '신입', role: 'sales' })
+    await mock.signInAs(USER_ID.root)
+
+    // when: root가 boss를 삭제한다
+    const outcome = await mock.gateway.users.remove(boss.id)
+
+    // then: 결과가 deleted이고 boss는 목록에 없으며 newbie는 재직 그대로다
+    expect(outcome).toEqual({ outcome: 'deleted' })
+    const all = await mock.gateway.users.list('all')
+    expect(all.some((u) => u.id === boss.id)).toBe(false)
+    expect(all.find((u) => u.id === newbie.id)).toMatchObject({ status: 'active' })
   })
 })
 

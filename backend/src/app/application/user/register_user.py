@@ -1,15 +1,13 @@
 from typing import TYPE_CHECKING
 
-from app.application.auth.messages import LOGIN_REQUIRED
 from app.application.auth.mode import current_mode, ensure_local_mode
 from app.application.ids import new_user_id
 from app.domain.auth.credentials import LoginId
-from app.domain.auth.errors import AuthenticationError
 from app.domain.auth.mode import AuthMode
 from app.domain.auth.password_policy import ensure_acceptable_password
 from app.domain.common.errors import AlreadyExistsError, InvalidValueError
 from app.domain.user.entities import User
-from app.domain.user.errors import AmbiguousLoginIdError, UserNotFoundError
+from app.domain.user.errors import AmbiguousLoginIdError
 from app.domain.user.profile import normalize_email, normalize_name, normalize_phone
 from app.domain.user.retired_login_ids import ensure_not_reserved_login_id
 
@@ -70,7 +68,6 @@ class RegisterUser:
                 account,
                 role,
                 entity_id=await new_user_id(uow.ids),
-                created_by_user_id=actor.user_id,
                 now=self._clock.now(),
                 **profile,
             )
@@ -80,10 +77,7 @@ class RegisterUser:
                 exists = True
             if exists:
                 raise AlreadyExistsError("사용자", account.value)
-            try:
-                await uow.users.add(user)
-            except UserNotFoundError:  # 요청한 admin이 그 사이 삭제됨(created_by FK 위반)
-                raise AuthenticationError(LOGIN_REQUIRED) from None
+            await uow.users.add(user)
             if password_hash is not None:
                 await uow.password_hashes.save(user.id, password_hash, self._clock.now())
             await uow.commit()

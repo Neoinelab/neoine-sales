@@ -65,11 +65,8 @@ export interface User extends UserRef {
   email: string | null
   phone: string | null
   createdAt: string
-  /** 등록자(시드 최초 사용자는 null). */
-  createdBy: UserRef | null
   lastLoginAt: string | null
   resignedAt: string | null
-  resignReason: string | null
 }
 
 /** 내 정보 화면용. `editable`은 서버가 로그인 방식으로 정한 수정 가능 항목이다(화면이 다시 계산하지 않는다). */

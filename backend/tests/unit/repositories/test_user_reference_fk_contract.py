@@ -3,9 +3,8 @@
 선택한 계약(infra 구현자가 따른다):
 - SessionRepository.add: 세션 소유 user_id 행이 없으면(로그인 직후 물리 삭제된 경쟁) 원시
   IntegrityError나 AuthenticationError가 아니라 `UserNotFoundError`(도메인)를 던진다.
-- UserRepository.add: created_by_user_id가 가리키는 행이 없으면(요청 admin이 그 사이 물리 삭제된
-  경쟁) `UserNotFoundError`를 던진다. 자기 자신을 가리키는 행(최초 admin)은 허용한다.
-두 경우 모두 SAVEPOINT 안에서 변환하므로 바깥 트랜잭션은 계속 쓸 수 있어야 한다.
+변환은 SAVEPOINT 안에서 하므로 바깥 트랜잭션은 계속 쓸 수 있어야 한다. 사용자 추가에는 참조 FK가
+없어(등록자 컬럼 제거) UserNotFoundError 계약이 없다.
 """
 
 from datetime import timedelta
@@ -54,7 +53,6 @@ async def pair(
     """같은 저장소(트랜잭션)를 공유하는 (사용자 저장소, 세션 저장소) 쌍."""
     if request.param == "fake":
         users = FakeUserRepository()
-        users.enforce_creator_fk = True
         yield users, FakeSessionRepository(user_exists=lambda user_id: user_id in users._items)
         return
     url = request.getfixturevalue("test_database_url")
@@ -91,51 +89,3 @@ async def test_session_add_for_a_missing_user_stores_nothing_and_keeps_the_trans
     # then: 실패한 세션은 없고 성공한 세션은 있다
     assert await sessions.get_by_token_hash("ghost") is None
     assert await sessions.get_by_token_hash("real") is not None
-
-
-async def test_user_add_with_a_missing_creator_raises_user_not_found(
-    pair: tuple[UserRepository, SessionRepository],
-) -> None:
-    """없는 등록자를 가리키는 사용자를 추가하면 UserNotFoundError가 난다."""
-    # given: 없는 사용자를 등록자로 가진 사용자
-    users, _ = pair
-    orphan = make_user("kim", created_by_user_id=UserId(new_id()))
-
-    # when·then: 추가하면 UserNotFoundError가 난다
-    with pytest.raises(UserNotFoundError):
-        await users.add(orphan)
-
-    # then: 저장되지 않았다
-    assert await users.get_active_by_login_id(orphan.login_id) is None
-
-
-async def test_user_add_with_a_missing_creator_keeps_the_transaction_usable(
-    pair: tuple[UserRepository, SessionRepository],
-) -> None:
-    """등록자 누락으로 추가가 실패해도 트랜잭션은 계속 쓸 수 있다."""
-    # given: 등록자가 없는 사용자 추가가 실패했다
-    users, _ = pair
-    with pytest.raises(UserNotFoundError):
-        await users.add(make_user("kim", created_by_user_id=UserId(new_id())))
-
-    # when: 같은 트랜잭션에서 다른 사용자를 추가한다
-    boss = make_user("boss")
-    await users.add(boss)  # 같은 트랜잭션에서 계속 쓸 수 있다
-
-    # then: 추가한 사용자를 읽을 수 있다
-    assert (await users.get(boss.id)).login_id == boss.login_id
-
-
-async def test_user_add_that_points_at_itself_is_allowed(
-    pair: tuple[UserRepository, SessionRepository],
-) -> None:
-    """자기 자신을 등록자로 가리키는 사용자(최초 admin)는 추가할 수 있다."""
-    # given: 등록자가 자기 자신인 최초 admin
-    users, _ = pair
-    first = make_user("root")  # 최초 admin: created_by_user_id == id
-
-    # when: 추가한다
-    await users.add(first)
-
-    # then: 등록자가 자기 자신으로 저장된다
-    assert (await users.get(first.id)).created_by_user_id == first.id

@@ -32,10 +32,8 @@ export function UsersTable({ users, filter, meId, local, onEdit, onResetPassword
             <th>이메일</th>
             <th>전화번호</th>
             <th>등록일</th>
-            <th>등록자</th>
             <th>마지막 로그인</th>
             <th>퇴사 일시</th>
-            <th>퇴사 사유</th>
             <th>
               <span className="sr-only">작업</span>
             </th>
@@ -50,10 +48,8 @@ export function UsersTable({ users, filter, meId, local, onEdit, onResetPassword
               <td>{u.email ?? '-'}</td>
               <td>{u.phone ?? '-'}</td>
               <td>{formatDateTime(u.createdAt)}</td>
-              <td>{u.createdBy ? userLabel(u.createdBy) : '-'}</td>
               <td>{u.lastLoginAt ? formatDateTime(u.lastLoginAt) : '-'}</td>
               <td>{u.resignedAt ? formatDateTime(u.resignedAt) : '-'}</td>
-              <td>{u.resignReason ?? '-'}</td>
               <td>
                 {u.status === 'active' && u.id !== meId && (
                   <>
@@ -80,7 +76,7 @@ export function UsersTable({ users, filter, meId, local, onEdit, onResetPassword
           ))}
           {users.length === 0 && (
             <tr>
-              <td colSpan={11} className="empty">
+              <td colSpan={9} className="empty">
                 {emptyMessage(filter)}
               </td>
             </tr>

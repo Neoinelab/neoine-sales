@@ -27,10 +27,8 @@ export interface UserRecord {
   email: string | null
   phone: string | null
   createdAt: string
-  createdById: number | null
   lastLoginAt: string | null
   resignedAt: string | null
-  resignReason: string | null
 }
 
 export interface ActionRecord {

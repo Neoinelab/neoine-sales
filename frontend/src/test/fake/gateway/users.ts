@@ -20,7 +20,7 @@ import { userRef, userView } from './views'
 
 const ROLES: readonly Role[] = ['admin', 'sales', 'user']
 
-/** 사용자와 연결된 데이터(Deal 담당, Action, History, 첨부, Label, 다른 사용자 등록자)가 있는지. */
+/** 사용자와 연결된 데이터(Deal 담당, Action, History, 첨부, Label)가 있는지. 다른 사용자를 등록한 것은 연결이 아니다. */
 function hasLinks(ctx: MockContext, id: number): boolean {
   const d = ctx.store.data
   return (
@@ -28,8 +28,7 @@ function hasLinks(ctx: MockContext, id: number): boolean {
     d.actions.some((x) => x.actorId === id) ||
     d.history.some((x) => x.byId === id) ||
     d.attachments.some((x) => x.uploadedById === id) ||
-    d.labels.some((x) => x.createdById === id) ||
-    d.users.some((x) => x.createdById === id && x.id !== id)
+    d.labels.some((x) => x.createdById === id)
   )
 }
 
@@ -42,7 +41,7 @@ export function createUsersGateway(ctx: MockContext): UsersGateway {
         return data.users
           .filter((u) => filter === 'all' || u.status === filter)
           .sort((a, b) => compareIso(b.createdAt, a.createdAt) || b.id - a.id)
-          .map((u) => userView(data, u))
+          .map((u) => userView(u))
       }),
     options: (query) =>
       read(ctx, (): UserRef[] => {
@@ -56,7 +55,7 @@ export function createUsersGateway(ctx: MockContext): UsersGateway {
       }),
     create: (input) =>
       write(ctx, () => {
-        const admin = requireAdmin(ctx)
+        requireAdmin(ctx)
         const loginId = input.loginId.trim()
         const name = input.name.trim()
         if (loginId === '') throw validation('아이디를 입력하세요.')
@@ -85,14 +84,12 @@ export function createUsersGateway(ctx: MockContext): UsersGateway {
           email,
           phone,
           createdAt: ctx.clock.now(),
-          createdById: admin.id,
           lastLoginAt: null,
           resignedAt: null,
-          resignReason: null,
         }
         data.users.push(record)
         if (local) setPasswordOf(data, record.id, password)
-        return userView(data, record)
+        return userView(record)
       }),
     update: (id, change) =>
       write(ctx, () => {
@@ -104,7 +101,7 @@ export function createUsersGateway(ctx: MockContext): UsersGateway {
         if (!target) throw notFound(`사용자을(를) 찾을 수 없습니다: ${id}`)
         if (target.status === 'resigned') throw conflict('이미 퇴사 처리된 사용자입니다')
         Object.assign(target, profilePatch(modeOf(ctx), change))
-        return userView(data, target)
+        return userView(target)
       }),
     resetPassword: (id, password) =>
       write(ctx, () => {
@@ -130,7 +127,7 @@ export function createUsersGateway(ctx: MockContext): UsersGateway {
         const activeAdmins = data.users.filter((u) => u.status === 'active' && u.role === 'admin').length
         if (target.role === 'admin' && role !== 'admin' && activeAdmins <= 1) throw conflict('마지막 관리자의 역할은 바꿀 수 없습니다.')
         target.role = role
-        return userView(data, target)
+        return userView(target)
       }),
     remove: (id) =>
       write(ctx, () => {
@@ -146,7 +143,6 @@ export function createUsersGateway(ctx: MockContext): UsersGateway {
         if (hasLinks(ctx, id)) {
           target.status = 'resigned'
           target.resignedAt = ctx.clock.now()
-          target.resignReason = '퇴사'
           return { outcome: 'resigned' as const }
         }
         data.users.splice(data.users.indexOf(target), 1)

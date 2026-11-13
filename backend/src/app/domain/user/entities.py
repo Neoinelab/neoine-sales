@@ -13,7 +13,7 @@ from app.domain.user.profile import (
     normalize_name,
     normalize_phone,
 )
-from app.domain.user.value_objects import UserDeleteReason, UserId, UserRef
+from app.domain.user.value_objects import UserId, UserRef
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -34,13 +34,11 @@ class User(AuditedEntity[UserId]):
 
     login_id: LoginId
     role: Role
-    created_by_user_id: UserId
     display_name: str | None = None
     email: str | None = None
     phone: str | None = None
     last_login_at: datetime | None = None
     deleted_at: datetime | None = None
-    delete_reason: UserDeleteReason | None = None
 
     def __post_init__(self) -> None:
         super().__post_init__()
@@ -50,13 +48,12 @@ class User(AuditedEntity[UserId]):
             require_aware(self.deleted_at, "deleted_at")
 
     @classmethod
-    def register(  # noqa: PLR0913 - 위치 2개 + 키워드 전용 6개가 모두 의미 있는 입력
+    def register(  # noqa: PLR0913 - 위치 2개 + 키워드 전용 5개가 모두 의미 있는 입력
         cls,
         login_id: LoginId,
         role: Role,
         *,
         entity_id: UserId,
-        created_by_user_id: UserId,
         now: datetime,
         display_name: str | None = None,
         email: str | None = None,
@@ -67,7 +64,6 @@ class User(AuditedEntity[UserId]):
             id=entity_id,
             login_id=login_id,
             role=role,
-            created_by_user_id=created_by_user_id,
             display_name=normalize_name(display_name, required=False),
             email=normalize_email(email),
             phone=normalize_phone(phone),
@@ -75,42 +71,17 @@ class User(AuditedEntity[UserId]):
             updated_at=now,
         )
 
-    @classmethod
-    def register_self(  # noqa: PLR0913 - 위치 2개 + 키워드 전용 5개가 모두 의미 있는 입력
-        cls,
-        login_id: LoginId,
-        role: Role,
-        *,
-        entity_id: UserId,
-        now: datetime,
-        display_name: str | None = None,
-        email: str | None = None,
-        phone: str | None = None,
-    ) -> Self:
-        """스스로 등록한 행(최초 admin, 개발 로그인): 등록자가 자기 자신이다."""
-        return cls.register(
-            login_id,
-            role,
-            entity_id=entity_id,
-            created_by_user_id=entity_id,
-            now=now,
-            display_name=display_name,
-            email=email,
-            phone=phone,
-        )
-
     @property
     def is_active(self) -> bool:
         return self.deleted_at is None
 
-    def resign(self, now: datetime, reason: UserDeleteReason = UserDeleteReason.RESIGNED) -> None:
+    def resign(self, now: datetime) -> None:
         """퇴사 처리한다. 이미 퇴사한 행은 다시 처리할 수 없다."""
         require_aware(now, "now")
         if not self.is_active:
             raise InvalidStateError(ALREADY_RESIGNED)
         self._touch(now)
         self.deleted_at = now
-        self.delete_reason = reason
 
     def change_role(self, role: Role, now: datetime) -> bool:
         """역할을 바꾼다. 같은 역할이면 아무것도 바꾸지 않고 False. 퇴사한 행은 바꿀 수 없다."""

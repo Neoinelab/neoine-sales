@@ -1,6 +1,7 @@
 """날짜 전환 리비전(b4d7e2a9c613): 기존 시각 컬럼 4개를 업무 날짜(date) 컬럼으로 옮기고 되돌린다.
 
-기준선 스키마에 옛 형식(timestamptz) 행을 넣은 뒤 head까지 올려 채움·행 수 보존·NOT NULL·옛 컬럼
+기준선 스키마에 옛 형식(timestamptz) 행을 넣은 뒤 날짜 전환 리비전까지 올려
+채움·행 수 보존·NOT NULL·옛 컬럼
 drop을 확인하고, downgrade로 날짜의 00:00(업무 시간대)이 되살아나는지 확인한다. 업무 시간대는
 마이그레이션을 실행하는 프로세스의 OS 로컬 시간대(테스트가 Asia/Seoul로 고정)다.
 실제 PostgreSQL이 필요하다.
@@ -27,7 +28,7 @@ if TYPE_CHECKING:
 pytestmark = pytest.mark.integration
 
 BASELINE = "00c3126aa926"
-HEAD = "b4d7e2a9c613"
+DATE_REVISION = "b4d7e2a9c613"  # 날짜 전환 리비전(이 파일이 검증하는 대상, head보다 한 단계 앞)
 
 # 기준선 스키마용 원시 INSERT(옛 컬럼 이름). 제약 통과에 필요한 열만 넣는다.
 INSERT_USER = (
@@ -169,11 +170,11 @@ async def test_upgrade_fills_acted_on_with_the_business_date_and_keeps_the_rows(
     await _seed_baseline(blank_database)
     before = await _row_counts(blank_database)
 
-    # when: head(날짜 전환 리비전)까지 올린다
-    await when_operator_upgrades(blank_database)
+    # when: 날짜 전환 리비전까지 올린다
+    await when_operator_upgrades(blank_database, target=DATE_REVISION)
 
-    # then: 버전은 head이고 모든 테이블의 행 수가 그대로다
-    await then_schema_is_at(blank_database, HEAD)
+    # then: 버전은 날짜 전환 리비전이고 모든 테이블의 행 수가 그대로다
+    await then_schema_is_at(blank_database, DATE_REVISION)
     assert (
         await _row_counts(blank_database)
         == before
@@ -202,8 +203,8 @@ async def test_upgrade_fills_next_action_closed_on_and_keeps_null_for_open_rows(
     # given: 종료·미종료 Action이 섞인 기준선 DB
     await _seed_baseline(blank_database)
 
-    # when: head까지 올린다
-    await when_operator_upgrades(blank_database)
+    # when: 날짜 전환 리비전까지 올린다
+    await when_operator_upgrades(blank_database, target=DATE_REVISION)
 
     # then: 종료일은 업무 날짜(UTC 16:00 → 서울 다음 날)이고 미종료 행은 null이다
     rows = await run_sql(
@@ -229,8 +230,8 @@ async def test_upgrade_renames_the_acted_on_indexes(blank_database: URL) -> None
     # given: 기준선 DB
     await when_operator_upgrades(blank_database, target=BASELINE)
 
-    # when: head까지 올린다
-    await when_operator_upgrades(blank_database)
+    # when: 날짜 전환 리비전까지 올린다
+    await when_operator_upgrades(blank_database, target=DATE_REVISION)
 
     # then: 새 인덱스 이름만 있다
     indexes = await _names(blank_database, INDEXES, "deal_actions")
@@ -248,8 +249,8 @@ async def test_upgrade_fills_status_changed_on_and_makes_it_not_null(
     # given: Status 진입 시각이 서울 자정 직전·직후인 Deal 둘이 있는 기준선 DB
     await _seed_baseline(blank_database)
 
-    # when: head까지 올린다
-    await when_operator_upgrades(blank_database)
+    # when: 날짜 전환 리비전까지 올린다
+    await when_operator_upgrades(blank_database, target=DATE_REVISION)
 
     # then: 진입일은 서울 날짜다(23:59:59 → 11-09, 00:00:00 → 11-10)
     rows = await run_sql(
@@ -272,8 +273,8 @@ async def test_upgrade_fills_ended_on_and_keeps_null_for_not_ended_contracts(
     # given: 미발급 계약(ended_at 없음)과 종료 계약(UTC 6/30 16:30 = 서울 7/1)이 있는 기준선 DB
     await _seed_baseline(blank_database)
 
-    # when: head까지 올린다
-    await when_operator_upgrades(blank_database)
+    # when: 날짜 전환 리비전까지 올린다
+    await when_operator_upgrades(blank_database, target=DATE_REVISION)
 
     # then: 종료 계약은 서울 날짜 2026-07-01이고 미발급 계약은 null이다
     rows = await run_sql(
@@ -297,9 +298,9 @@ async def test_downgrade_restores_the_time_columns_at_midnight_of_the_business_d
 
     테스트 코드: AC-114, RK-069
     """
-    # given: 옛 형식 데이터를 넣고 head까지 올린 DB
+    # given: 옛 형식 데이터를 넣고 날짜 전환 리비전까지 올린 DB
     await _seed_baseline(blank_database)
-    await when_operator_upgrades(blank_database)
+    await when_operator_upgrades(blank_database, target=DATE_REVISION)
     before = await _row_counts(blank_database)
 
     # when: 한 단계 되돌린다(기준선으로)
@@ -368,12 +369,9 @@ async def test_downgrade_restores_the_time_columns_at_midnight_of_the_business_d
 async def test_upgrade_on_an_empty_database_creates_only_the_date_columns(
     blank_database: URL,
 ) -> None:
-    """빈 DB를 head까지 올리면 앱 테이블에 날짜 컬럼만 있고 옛 시각 컬럼은 없다.
-
-    테스트 코드: SC-004
-    """
-    # when: 빈 DB에 upgrade head를 한다
-    await when_operator_upgrades(blank_database)
+    """빈 DB를 날짜 전환 리비전까지 올리면 앱 테이블에 날짜 컬럼만 있고 옛 시각 컬럼은 없다."""
+    # when: 빈 DB를 날짜 전환 리비전까지 올린다
+    await when_operator_upgrades(blank_database, target=DATE_REVISION)
 
     # then: 네 날짜 컬럼이 있고 옛 네 컬럼은 어느 테이블에도 없다
     assert "alembic_version" in await table_names(blank_database)

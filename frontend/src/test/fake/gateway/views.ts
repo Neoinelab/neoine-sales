@@ -29,9 +29,8 @@ export function userRef(data: SeedData, id: number | null): UserRef {
   return user ? { id: user.id, name: user.name, role: user.role, status: user.status } : { ...UNKNOWN_USER, id: id ?? 0 }
 }
 
-export function userView(data: SeedData, record: UserRecord): User {
-  const { createdById, ...rest } = record
-  return { ...rest, createdBy: createdById === null ? null : userRef(data, createdById) }
+export function userView(record: UserRecord): User {
+  return { ...record }
 }
 
 export function actionView(data: SeedData, record: ActionRecord): DealAction {

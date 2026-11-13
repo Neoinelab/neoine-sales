@@ -1,7 +1,8 @@
 """UserRepository.has_links / delete / lock_assignable 계약: Fake와 SQL 구현에 같은 기대값.
 
 users를 FK로 참조하는 모든 종류(tests.support.user_links.LINK_KINDS)를 각각 단독으로 만들어
-연결 판정이 true가 되는지 확인한다. 세션과 자기 자신이 등록자인 자기참조는 연결이 아니다.
+연결 판정이 true가 되는지 확인한다(16종). 세션·비밀번호 해시는 연결이 아니고,
+사용자 행끼리는 서로 참조하지 않는다(등록자 없음).
 """
 
 from datetime import timedelta
@@ -79,6 +80,23 @@ async def test_each_kind_of_reference_alone_makes_the_user_linked(
     # then: 만들기 전에는 연결이 없고 만든 뒤에는 연결된 것으로 판정된다
     assert not before
     assert after
+
+
+async def test_other_user_rows_never_make_a_user_linked(uow_factory: UnitOfWorkFactory) -> None:
+    """다른 사용자 행이 있어도(다른 사용자를 등록한 admin이어도) 연결로 판정되지 않는다.
+
+    테스트 코드: US-112
+    """
+    # given: 사용자 셋이 저장되어 있다(users 사이에는 참조 열이 없다)
+    boss, kim, lee = make_user("boss"), make_user("kim"), make_user("lee")
+    for user in (boss, kim, lee):
+        await _add(uow_factory, user)
+
+    # when: 각 사용자의 연결 여부를 본다
+    results = [await _has_links(uow_factory, user) for user in (boss, kim, lee)]
+
+    # then: 아무도 연결되지 않았다
+    assert results == [False, False, False]
 
 
 @pytest.mark.parametrize("kind", LINK_KINDS)

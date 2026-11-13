@@ -29,7 +29,6 @@ LINK_KINDS: Final = (
     "deal_owner",  # deals.owner_user_id
     "history_author",  # deal_history.changed_by_user_id
     "action_actor",  # deal_actions.actor_user_id
-    "created_user",  # users.created_by_user_id (다른 사용자의 등록자)
     "directory_settings",  # directory_settings.updated_by_user_id
     "label_creator",  # bant_labels.created_by_user_id (직접 만든 Label의 생성자)
     "action_type_creator",  # action_types.created_by_user_id (직접 만든 Action 유형의 생성자)
@@ -51,7 +50,6 @@ LINK_COLUMNS: Final = {
     "deal_owner": ("deals", "owner_user_id"),
     "history_author": ("deal_history", "changed_by_user_id"),
     "action_actor": ("deal_actions", "actor_user_id"),
-    "created_user": ("users", "created_by_user_id"),
     "directory_settings": ("directory_settings", "updated_by_user_id"),
     "label_creator": ("bant_labels", "created_by_user_id"),
     "action_type_creator": ("action_types", "created_by_user_id"),
@@ -119,8 +117,6 @@ async def _create_link(uow: UnitOfWork, user: User, kind: str) -> None:
         action = make_deal_action(deal_code=deal.id, actor_user_id=user.id)
         await attach_catalog_type(uow.action_types, action)  # 실제 DB 시드 유형으로 맞춘다
         await uow.deal_actions.add(action)
-    elif kind == "created_user":
-        await uow.users.add(make_user(f"c{uuid4().hex[:12]}", created_by_user_id=user.id))
     elif kind == "directory_settings":
         # 이미 설정이 있는 환경(e2e admin 앱)에서는 현재 revision으로 갱신한다.
         from app.domain.common.secret import SealedSecret  # noqa: PLC0415

@@ -3,7 +3,6 @@ from typing import TYPE_CHECKING
 
 from app.domain.user.errors import UserInUseError
 from app.domain.user.policy import ensure_deletable
-from app.domain.user.value_objects import UserDeleteReason
 
 if TYPE_CHECKING:
     from app.application.ports.clock import Clock
@@ -33,7 +32,6 @@ class DeleteUser:
         *,
         user_id: UserId,
         actor: Principal,
-        reason: UserDeleteReason = UserDeleteReason.RESIGNED,
     ) -> DeleteOutcome:
         async with self._uow_factory() as uow:
             await uow.users.lock_roster()  # 잠금 순서: roster -> 대상 users 행
@@ -45,13 +43,11 @@ class DeleteUser:
             )
             await uow.sessions.delete_all_for_user(user_id)
             await uow.password_hashes.delete(user_id)
-            outcome = await self._remove(uow, user_id, reason)
+            outcome = await self._remove(uow, user_id)
             await uow.commit()
         return outcome
 
-    async def _remove(
-        self, uow: UnitOfWork, user_id: UserId, reason: UserDeleteReason
-    ) -> DeleteOutcome:
+    async def _remove(self, uow: UnitOfWork, user_id: UserId) -> DeleteOutcome:
         if not await uow.users.has_links(user_id):
             try:
                 await uow.users.delete(user_id)
@@ -60,6 +56,6 @@ class DeleteUser:
             else:
                 return DeleteOutcome.DELETED
         user = await uow.users.get_for_update(user_id)
-        user.resign(self._clock.now(), reason)
+        user.resign(self._clock.now())
         await uow.users.update(user)
         return DeleteOutcome.RESIGNED

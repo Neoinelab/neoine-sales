@@ -16,11 +16,9 @@ USER_KEYS: Final = {
     "email",
     "phone",
     "created_at",
-    "created_by",
     "last_login_at",
     "status",
     "deleted_at",
-    "delete_reason",
 }
 
 

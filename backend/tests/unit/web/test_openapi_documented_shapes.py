@@ -17,7 +17,6 @@ USER_REF_FIELDS = (
     ("DealActionResponse", "actor"),
     ("HistoryEntryResponse", "by"),
     ("BantLabelResponse", "created_by"),
-    ("UserResponse", "created_by"),
     ("DirectorySettingsResponse", "updated_by"),
     ("StorageSettingsResponse", "updated_by"),
     ("AttachmentResponse", "uploaded_by"),
@@ -129,10 +128,13 @@ def test_deal_delete_documents_the_confirm_code_and_error_responses(spec: Spec) 
 
 
 def test_user_response_has_exactly_the_documented_fields_and_no_password(spec: Spec) -> None:
-    """사용자 응답은 문서화된 필드만 갖고 비밀번호 필드는 없다."""
+    """사용자 응답은 문서화된 10개 필드만 갖고 등록자·퇴사 사유·비밀번호 필드는 없다.
+
+    테스트 코드: US-114
+    """
     # when: 사용자 등록의 응답 스키마를 읽는다
     schema = _response_schema(spec, operation_of(spec, "POST", "/api/v1/users"))
-    # then: 속성이 문서화된 필드와 정확히 같고 비밀번호 필드는 없다
+    # then: 속성이 문서화된 10개와 정확히 같고 created_by·delete_reason·비밀번호 필드는 없다
     assert set(schema["properties"]) == {
         "id",
         "login_id",
@@ -141,12 +143,11 @@ def test_user_response_has_exactly_the_documented_fields_and_no_password(spec: S
         "email",
         "phone",
         "created_at",
-        "created_by",
         "last_login_at",
         "status",
         "deleted_at",
-        "delete_reason",
     }
+    assert "UserDeleteReason" not in spec["components"]["schemas"]
 
 
 def test_every_user_display_in_responses_uses_user_ref(spec: Spec) -> None:
@@ -176,22 +177,20 @@ def test_users_list_is_a_page_of_user_responses(spec: Spec) -> None:
     assert set(schema["properties"]) == {"items", "offset", "limit"}
 
 
-def test_user_delete_documents_the_outcome_the_reason_query_and_errors(spec: Spec) -> None:
-    """사용자 삭제는 200 결과(deleted·resigned), reason 쿼리, 오류 응답을 문서화한다."""
+def test_user_delete_documents_the_outcome_no_query_and_errors(spec: Spec) -> None:
+    """사용자 삭제는 200 결과(deleted·resigned)와 오류 응답을 문서화하고 쿼리 파라미터가 없다.
+
+    테스트 코드: US-114
+    """
     # when: 사용자 삭제 오퍼레이션을 읽는다
     operation = operation_of(spec, "DELETE", "/api/v1/users/{user_id}")
-    # then: 200과 오류 응답이 있고 outcome은 deleted·resigned, reason은 기본 resigned 쿼리다
+    # then: 200과 오류 응답이 있고 outcome은 deleted·resigned이며 파라미터는 경로 user_id 하나다
     assert "204" not in operation["responses"]
     assert {"200", "401", "403", "404", "409", "422"} <= set(operation["responses"])
     body = _response_schema(spec, operation)
     assert set(body["properties"]) == {"outcome"}
     assert set(body["properties"]["outcome"]["enum"]) == {"deleted", "resigned"}
-    reason = next(p for p in operation["parameters"] if p["name"] == "reason")
-    assert (reason["in"], reason["schema"]["enum"], reason["schema"]["default"]) == (
-        "query",
-        ["resigned"],
-        "resigned",
-    )
+    assert [(p["name"], p["in"]) for p in operation["parameters"]] == [("user_id", "path")]
 
 
 def test_user_options_document_the_filters_and_only_user_ref_items(spec: Spec) -> None:

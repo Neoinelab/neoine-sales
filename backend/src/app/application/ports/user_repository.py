@@ -19,11 +19,7 @@ class UserRepository(Protocol):
     """
 
     async def add(self, user: User) -> None:
-        """같은 id는 AlreadyExistsError. 같은 login_id(퇴사자 포함)는 막지 않는다.
-
-        created_by_user_id가 가리키는 사용자가 없으면(자기 자신을 가리키는 최초 admin은 제외)
-        UserNotFoundError(등록자 삭제 경쟁).
-        """
+        """같은 id는 AlreadyExistsError. 같은 login_id(퇴사자 포함)는 막지 않는다."""
         ...
 
     async def get(self, user_id: UserId) -> User:

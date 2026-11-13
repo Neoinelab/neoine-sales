@@ -9,7 +9,6 @@ from app.domain.user.entities import User
 from app.domain.user.value_objects import UserId
 from tests.factories import NOW, later
 from tests.support.ids import new_id
-from tests.support.user_ids import uid
 
 
 def _register(display_name: str | None) -> User:
@@ -17,7 +16,6 @@ def _register(display_name: str | None) -> User:
         LoginId("kim"),
         Role.USER,
         entity_id=UserId(new_id()),
-        created_by_user_id=uid("admin1"),
         now=NOW,
         display_name=display_name,
     )

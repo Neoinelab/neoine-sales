@@ -6,7 +6,7 @@ import pytest
 
 from app.domain.auth.principal import Role
 from app.domain.common.errors import InvalidValueError
-from app.domain.user.value_objects import UserDeleteReason, UserStatusFilter
+from app.domain.user.value_objects import UserStatusFilter
 from tests.factories import later
 from tests.support.auth_seed import seed_user
 
@@ -42,7 +42,7 @@ async def test_list_users_defaults_to_active_users_only(
 async def test_list_users_status_resigned_returns_only_resigned_users(
     admin: AdminStack, uow_factory: UnitOfWorkFactory
 ) -> None:
-    """상태 resigned는 퇴사자만 퇴사 시각·사유와 함께 보인다
+    """상태 resigned는 퇴사자만 퇴사 시각과 함께 보인다
 
     테스트 코드: US-024
     """
@@ -52,10 +52,10 @@ async def test_list_users_status_resigned_returns_only_resigned_users(
     # when: 상태 resigned로 읽는다
     users = await admin.list_users.execute(status=UserStatusFilter.RESIGNED)
 
-    # then: 퇴사자만 나오고 모두 퇴사 시각·사유가 있다
+    # then: 퇴사자만 나오고 모두 퇴사 시각이 있고 퇴사 사유 필드는 없다
     assert [u.login_id.value for u in users] == ["old1", "old2"]
     assert all(u.deleted_at is not None for u in users)
-    assert all(u.delete_reason is UserDeleteReason.RESIGNED for u in users)
+    assert not any(hasattr(u, "delete_reason") for u in users)
 
 
 async def test_list_users_status_all_returns_everyone_in_creation_order(

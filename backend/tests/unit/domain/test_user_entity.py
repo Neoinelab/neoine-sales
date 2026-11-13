@@ -11,23 +11,19 @@ from app.domain.common.errors import InvalidStateError, InvalidValueError
 from app.domain.user.value_objects import UserId
 from tests.factories import NOW, later
 from tests.factories_auth import make_resigned_user, make_user
-from tests.support.user_ids import uid
 
 
 def test_register_normalizes_login_id_and_starts_without_login_history() -> None:
     """등록한 사용자는 아이디가 정규화되고 로그인 이력 없이 시작한다."""
-    # given: 등록자 id
-    admin_id = uid("admin1")
-
     # when: 공백이 든 아이디로 사용자를 등록한다
-    user = make_user(" Kim ", Role.USER, created_by_user_id=admin_id, now=NOW)
+    user = make_user(" Kim ", Role.USER, now=NOW)
 
     # then: 아이디가 정규화되고 재직 상태이며 로그인 이력·프로필이 비어 있다
     assert user.login_id == LoginId("kim")
     assert user.role is Role.USER
-    assert user.created_by_user_id == admin_id
+    assert not hasattr(user, "created_by_user_id")
     assert user.deleted_at is None
-    assert user.delete_reason is None
+    assert not hasattr(user, "delete_reason")
     assert user.is_active
     assert user.created_at == NOW
     assert user.updated_at == NOW

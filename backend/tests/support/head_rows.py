@@ -17,9 +17,8 @@ if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
 
 INSERT_USER = (
-    "insert into users (id, login_id, role, display_name, created_by_user_id, created_at,"
-    " updated_at, deleted_at, delete_reason) values (:id, :login_id, :role, :display_name,"
-    " :created_by_user_id, now(), now(), :deleted_at, :delete_reason)"
+    "insert into users (id, login_id, role, display_name, created_at, updated_at, deleted_at)"
+    " values (:id, :login_id, :role, :display_name, now(), now(), :deleted_at)"
 )
 INSERT_CONTACT = (
     "insert into contacts (id, kind, company, name, title, email, phone, created_at, updated_at)"
@@ -65,16 +64,14 @@ INSERT_ACTION = (
 
 
 async def insert_user(session: AsyncSession, login_id: str = "kim", **overrides: object) -> int:
-    """재직 사용자 한 행(스스로 등록한 행). 퇴사 행은 deleted_at/delete_reason을 덮어쓴다."""
+    """재직 사용자 한 행. 퇴사 행은 deleted_at을 덮어쓴다."""
     new_user_id = new_id()
     values: dict[str, object] = {
         "id": new_user_id,
         "login_id": login_id,
         "role": "sales",
         "display_name": None,
-        "created_by_user_id": new_user_id,
         "deleted_at": None,
-        "delete_reason": None,
     }
     values.update(overrides)
     await session.execute(text(INSERT_USER), values)

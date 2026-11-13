@@ -29,10 +29,8 @@ export function seedUsers(env: SeedEnv): UserRecord[] {
       email: `${loginId}@neoine.test`,
       phone: null,
       createdAt: env.at(createdAgo, 9),
-      createdById: loginId === 'root' ? null : USER_ID.root,
       lastLoginAt: loginAgo === null ? null : env.at(loginAgo, 9),
       resignedAt: resigned ? env.at(15, 18) : null,
-      resignReason: resigned ? '퇴사' : null,
     }
   })
 }

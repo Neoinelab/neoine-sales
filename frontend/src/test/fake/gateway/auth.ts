@@ -146,10 +146,8 @@ export function createSetupGateway(ctx: MockContext): SetupGateway {
           role: 'admin',
           status: 'active',
           createdAt: now,
-          createdById: null,
           lastLoginAt: null,
           resignedAt: null,
-          resignReason: null,
         }
         users().push(user)
         if (local) setPasswordOf(ctx.store.data, user.id, password)

@@ -14,7 +14,7 @@ from app.domain.auth.credentials import LoginId
 from app.domain.auth.principal import Role
 from app.domain.common.errors import AlreadyExistsError, NotFoundError
 from app.domain.user.entities import User
-from app.domain.user.value_objects import UserDeleteReason, UserId, UserStatusFilter
+from app.domain.user.value_objects import UserId, UserStatusFilter
 from app.infra.db.user_repository import SqlUserRepository
 from tests.factories import NOW, later
 from tests.factories_auth import make_resigned_user, make_user
@@ -45,10 +45,8 @@ async def repository(request: pytest.FixtureRequest) -> AsyncIterator[UserReposi
 
 async def test_add_then_get_round_trips_every_field(repository: UserRepository) -> None:
     """추가한 사용자를 조회하면 모든 필드가 그대로 돌아온다."""
-    # given: 생성자 사용자와 로그인 기록이 있는 사용자
-    creator = make_user("boss")
-    await repository.add(creator)
-    user = make_user("kim", Role.ADMIN, created_by_user_id=creator.id, now=NOW)
+    # given: 로그인 기록이 있는 사용자
+    user = make_user("kim", Role.ADMIN, now=NOW)
     user.record_login(later(30), display_name="김영업", email="kim@corp.test")
     await repository.add(user)
 
@@ -59,14 +57,12 @@ async def test_add_then_get_round_trips_every_field(repository: UserRepository) 
     assert stored == user
     assert stored.login_id == LoginId("kim")
     assert stored.role is Role.ADMIN
-    assert stored.created_by_user_id == creator.id
     assert stored.display_name == "김영업"
     assert stored.email == "kim@corp.test"
     assert stored.created_at == NOW
     assert stored.updated_at == later(30)
     assert stored.last_login_at == later(30)
     assert stored.deleted_at is None
-    assert stored.delete_reason is None
     assert stored.is_active
 
 
@@ -83,8 +79,8 @@ async def test_every_role_round_trips(repository: UserRepository, role: Role) ->
     assert result is role
 
 
-async def test_resigned_user_round_trips_with_time_and_reason(repository: UserRepository) -> None:
-    """퇴사자는 퇴사 시각과 사유가 보존된다."""
+async def test_resigned_user_round_trips_with_time(repository: UserRepository) -> None:
+    """퇴사자는 퇴사 시각이 보존된다."""
     # given: 퇴사 처리된 사용자
     user = make_resigned_user("gone", resigned_at=later(60))
     await repository.add(user)
@@ -92,9 +88,8 @@ async def test_resigned_user_round_trips_with_time_and_reason(repository: UserRe
     # when: 조회한다
     stored = await repository.get(user.id)
 
-    # then: 퇴사 시각·사유가 보존되고 재직 상태가 아니다
+    # then: 퇴사 시각이 보존되고 재직 상태가 아니다
     assert stored.deleted_at == later(60)
-    assert stored.delete_reason is UserDeleteReason.RESIGNED
     assert not stored.is_active
 
 
@@ -137,7 +132,6 @@ async def test_add_rejects_duplicate_primary_key(repository: UserRepository) -> 
     clone = User.register(
         LoginId("other"),
         Role.USER,
-        created_by_user_id=first.id,
         now=NOW,
         entity_id=first.id,
     )
@@ -294,10 +288,9 @@ async def test_update_persists_resignation(repository: UserRepository) -> None:
 
     await repository.update(user)
 
-    # then: 퇴사 시각·사유가 저장되고 재직 조회에서 빠진다
+    # then: 퇴사 시각이 저장되고 재직 조회에서 빠진다
     stored = await repository.get(user.id)
     assert stored.deleted_at == later(60)
-    assert stored.delete_reason is UserDeleteReason.RESIGNED
     assert await repository.get_active_by_login_id(LoginId("kim")) is None
 
 

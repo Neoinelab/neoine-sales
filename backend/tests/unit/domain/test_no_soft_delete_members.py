@@ -111,12 +111,12 @@ def test_user_record_login_works_for_an_active_user() -> None:
 
 
 def test_only_user_has_resignation_state() -> None:
-    """사용자만 퇴사 처리 상태(deleted_at, delete_reason, resign)를 가진다."""
+    """사용자만 퇴사 처리 상태(deleted_at, resign)를 가진다."""
     # given: 사용자
     user = make_user()
     # when·then: 퇴사 처리 멤버가 있다
     assert hasattr(user, "deleted_at")
-    assert hasattr(user, "delete_reason")
+    assert not hasattr(user, "delete_reason")
     assert callable(user.resign)
 
 

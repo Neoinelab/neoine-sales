@@ -35,8 +35,6 @@ class FakeUserRepository(InMemoryStore["User"]):
         super().__init__("사용자", UserNotFoundError)
         self._referrers: list[Callable[[UserId], bool]] = []
         self._cascades: list[Callable[[UserId], None]] = []
-        # True면 없는 사용자(자기 자신 제외)를 created_by로 가리키는 add를 거부한다(SQL FK 모사)
-        self.enforce_creator_fk = False
 
     def add_referrer(self, referrer: Callable[[UserId], bool]) -> None:
         """users를 FK로 참조하는 다른 저장소를 등록한다(has_links·물리 삭제 RESTRICT 모사)."""
@@ -50,9 +48,6 @@ class FakeUserRepository(InMemoryStore["User"]):
         self._cascades.append(cascade)
 
     async def add(self, user: User) -> None:
-        creator = user.created_by_user_id
-        if self.enforce_creator_fk and creator != user.id and creator not in self._items:
-            raise UserNotFoundError(creator)
         self._insert(user)  # 같은 id만 AlreadyExistsError
 
     async def get(self, user_id: UserId) -> User:
@@ -124,11 +119,6 @@ class FakeUserRepository(InMemoryStore["User"]):
         return self._linked(user_id)
 
     def _linked(self, user_id: UserId) -> bool:
-        if any(
-            other.created_by_user_id == user_id and other.id != user_id
-            for other in self._items.values()
-        ):
-            return True
         return any(referrer(user_id) for referrer in self._referrers)
 
     async def lock_assignable(self, user_id: UserId) -> bool:

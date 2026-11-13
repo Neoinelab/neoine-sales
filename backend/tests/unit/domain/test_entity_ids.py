@@ -37,9 +37,7 @@ CREATOR = uid("creator")
 
 
 def _user(**ids: Any) -> User:  # noqa: ANN401
-    return User.register(
-        LoginId("kim"), Role.SALES, created_by_user_id=CREATOR, now=NOW, **_typed(UserId, ids)
-    )
+    return User.register(LoginId("kim"), Role.SALES, now=NOW, **_typed(UserId, ids))
 
 
 def _contact(**ids: Any) -> Contact:  # noqa: ANN401
@@ -149,27 +147,26 @@ def test_create_without_an_entity_id_is_a_type_error(kind: str) -> None:
         BUILDERS[kind]()
 
 
-def test_register_self_sets_the_creator_to_its_own_given_id() -> None:
-    """자기 등록은 생성자를 자기 id로 두는지 확인한다."""
-    # when: id 9로 자기 등록 사용자를 만든다
-    user = User.register_self(LoginId("root"), Role.ADMIN, entity_id=UserId(9), now=NOW)
-
-    # then: id와 생성자 id가 모두 9다
-    assert user.id == 9
-    assert user.created_by_user_id == 9
-
-
-def test_register_self_without_an_entity_id_is_a_type_error() -> None:
-    """자기 등록에서 entity_id를 생략하면 TypeError인지 확인한다."""
-    # when·then: id 없이 자기 등록하면 entity_id 누락 TypeError가 난다
-    with pytest.raises(TypeError, match="entity_id"):
-        User.register_self(LoginId("root"), Role.ADMIN, now=NOW)  # type: ignore[call-arg]
-
-
-def test_register_keeps_the_creator_separate_from_the_given_id() -> None:
-    """일반 등록은 생성자 id와 새 사용자 id를 따로 두는지 확인한다."""
+def test_register_gives_the_user_the_given_id_and_no_creator() -> None:
+    """등록은 준 id를 쓰고 등록자는 기록하지 않는지 확인한다."""
     # when: id 7로 사용자를 등록한다
     user = _user(entity_id=7)
 
-    # then: id는 7이고 생성자는 별도 id다
-    assert (user.id, user.created_by_user_id) == (7, CREATOR)
+    # then: id는 7이고 등록자 필드는 없다
+    assert user.id == 7
+    assert not hasattr(user, "created_by_user_id")
+
+
+def test_register_self_no_longer_exists() -> None:
+    """스스로 등록하는 별도 생성 메서드는 없다(등록자를 기록하지 않아 register 하나로 충분하다)."""
+    # when·then: User에 register_self가 없다
+    assert not hasattr(User, "register_self")
+
+
+def test_register_rejects_a_creator_argument() -> None:
+    """등록자 인자를 넘기면 TypeError다."""
+    # when·then: created_by_user_id를 넘기면 인자 오류다
+    with pytest.raises(TypeError):
+        User.register(  # type: ignore[call-arg]
+            LoginId("kim"), Role.SALES, entity_id=UserId(7), created_by_user_id=UserId(1), now=NOW
+        )

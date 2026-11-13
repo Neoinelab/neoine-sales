@@ -20,10 +20,8 @@ const row = (over: Record<string, unknown> = {}) => ({
   role: 'sales',
   status: 'active',
   created_at: '2026-10-01T09:00:00+09:00',
-  created_by: userRefBody(1, '최관리'),
   last_login_at: null,
   deleted_at: null,
-  delete_reason: null,
   ...over,
 })
 
@@ -49,12 +47,13 @@ describe('users over HTTP', () => {
         email: 'park@corp.test',
         phone: null,
         createdAt: '2026-10-01T09:00:00+09:00',
-        createdBy: { id: 1, name: '최관리', role: 'admin', status: 'active' },
         lastLoginAt: null,
         resignedAt: null,
-        resignReason: null,
       },
     ])
+    // then: 등록자·퇴사 사유 키는 만들지 않는다
+    expect(users[0]).not.toHaveProperty('createdBy')
+    expect(users[0]).not.toHaveProperty('resignReason')
   })
 
   // 표시 이름이 없으면 아이디를 이름으로 보인다
@@ -70,13 +69,13 @@ describe('users over HTTP', () => {
     expect(user?.name).toBe('park')
   })
 
-  // 퇴사 사용자는 퇴사 시각과 퇴사 사유로 변환된다
+  // 퇴사 사용자는 퇴사 시각으로 변환되고 퇴사 사유는 만들지 않는다
   // 테스트 코드: US-110
-  it('maps a resigned user with the resign time and the reason', async () => {
+  it('maps a resigned user with the resign time and no reason', async () => {
     // given: 퇴사 사용자 응답
     stubFetch(
       json({
-        items: [row({ status: 'resigned', deleted_at: '2026-10-10T18:00:00+09:00', delete_reason: 'resigned', created_by: userRefBody(1, '최관리', true) })],
+        items: [row({ status: 'resigned', deleted_at: '2026-10-10T18:00:00+09:00' })],
         offset: 0,
         limit: 200,
       }),
@@ -85,9 +84,9 @@ describe('users over HTTP', () => {
     // when: 목록을 읽는다
     const [user] = await createUsersHttp().list('all')
 
-    // then: 퇴사 상태·시각·사유(퇴사)로 변환된다
-    expect(user).toMatchObject({ status: 'resigned', resignedAt: '2026-10-10T18:00:00+09:00', resignReason: '퇴사' })
-    expect(user?.createdBy).toMatchObject({ status: 'resigned' })
+    // then: 퇴사 상태·시각으로 변환되고 퇴사 사유 키는 없다
+    expect(user).toMatchObject({ status: 'resigned', resignedAt: '2026-10-10T18:00:00+09:00' })
+    expect(user).not.toHaveProperty('resignReason')
   })
 
   // 선택 목록은 GET /user-options를 한 번 읽고 퇴사자를 요청에 따라 더한다
@@ -343,7 +342,7 @@ describe('users over HTTP', () => {
     // then: 결과가 그대로다
     expect(result).toEqual({ outcome })
 
-    // then: 요청이 DELETE /users/{id}이다
+    // then: 요청이 쿼리 없는 DELETE /users/{id}이다
     expect(calls[0]).toMatchObject({ method: 'DELETE', path: '/api/v1/users/2' })
   })
 

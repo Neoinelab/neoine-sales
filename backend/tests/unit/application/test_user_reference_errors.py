@@ -3,7 +3,6 @@
 저장소 계약(tests/unit/repositories/test_user_reference_fk_contract.py):
 FK 위반은 UserNotFoundError.
 - 로그인: 세션 INSERT 시점에 사용자 행이 없으면 LOGIN_FAILED(AuthenticationError).
-- 등록: 요청 admin(actor) 행이 없어 created_by FK가 실패하면 AuthenticationError(401).
 """
 
 from typing import TYPE_CHECKING
@@ -11,17 +10,13 @@ from typing import TYPE_CHECKING
 import pytest
 
 from app.application.auth.messages import LOGIN_FAILED
-from app.domain.auth.credentials import LoginId, Password
+from app.domain.auth.credentials import Password
 from app.domain.auth.errors import AuthenticationError
 from app.domain.auth.principal import Role
-from tests.factories_auth import make_user
-from tests.fakes.admin_stack import ADMIN_ACTOR
-from tests.support.admin_seed import active_logins
 from tests.support.auth_seed import seed_directory, seed_user
 
 if TYPE_CHECKING:
     from app.application.ports.unit_of_work import UnitOfWorkFactory
-    from tests.fakes.admin_stack import AdminStack
     from tests.fakes.auth_stack import AuthStack
     from tests.fakes.unit_of_work import FakeUnitOfWork
 
@@ -62,43 +57,3 @@ async def test_login_of_an_existing_user_still_issues_a_session_with_the_fk_chec
     # then: 로그인한 사용자가 kim이고 세션이 하나 저장된다
     assert outcome.session.principal.subject == "kim"
     assert len(uow.sessions._items) == 1
-
-
-async def test_register_with_a_missing_actor_row_is_an_authentication_error(
-    admin: AdminStack, uow_factory: UnitOfWorkFactory, uow: FakeUnitOfWork
-) -> None:
-    """요청한 admin의 행이 없어졌으면 등록은 인증 오류이고 저장되지 않는다
-
-    테스트 코드: US-022
-    """
-    # given: 등록자 FK를 검사하는 Fake, 요청 admin의 행 없음
-    uow.users.enforce_creator_fk = True  # ADMIN_ACTOR의 행은 만들지 않았다
-
-    # when: kim을 등록한다
-    with pytest.raises(AuthenticationError):
-        await admin.register_user.execute(login_id="kim", role=Role.SALES, actor=ADMIN_ACTOR)
-
-    # then: 인증 오류이고 사용자가 저장되지 않는다
-    assert await active_logins(uow_factory) == []
-
-
-async def test_register_with_an_existing_actor_succeeds_with_the_fk_check_on(
-    admin: AdminStack, uow_factory: UnitOfWorkFactory, uow: FakeUnitOfWork
-) -> None:
-    """요청한 admin의 행이 있으면 FK 검사를 켜도 등록된다
-
-    테스트 코드: US-022
-    """
-    # given: 등록자 FK 검사를 켠 Fake와 admin 행
-    async with uow_factory() as active:
-        await active.users.add(make_user("root", Role.ADMIN, entity_id=ADMIN_ACTOR.user_id))
-        await active.commit()
-    uow.users.enforce_creator_fk = True
-
-    # when: kim을 등록한다
-    user = await admin.register_user.execute(login_id="kim", role=Role.SALES, actor=ADMIN_ACTOR)
-
-    # then: 등록자가 그 admin이고 재직 사용자로 저장된다
-    assert user.created_by_user_id == ADMIN_ACTOR.user_id
-    async with uow_factory() as active:
-        assert await active.users.get_active_by_login_id(LoginId("kim")) is not None
