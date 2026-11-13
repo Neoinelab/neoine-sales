@@ -245,7 +245,7 @@ describe('상단 메뉴와 초기화', () => {
 
   // 초기화는 기억된 조건을 기본 조건으로 바꾼다
   // 테스트 코드: DL-098
-  it('reset replaces the remembered conditions with the default period', async () => {
+  it('reset replaces the remembered conditions with the default condition', async () => {
     // given: 조건이 기억된 목록
     resetMock({ now: NOW })
     const view = await renderAt(CONDITION)
@@ -254,7 +254,7 @@ describe('상단 메뉴와 초기화', () => {
     // when: 초기화를 누른다
     await view.user.click(screen.getByRole('button', { name: '초기화' }))
 
-    // then: 기억이 올해 기본 조건이다
+    // then: 기억이 연도 전체 기본 조건이다
     await waitFor(() => expect(view.location()).toBe(defaultDealsUrl(NOW)))
     await screen.findByRole('row', { name: /한빛은행 ITDR 도입/ })
     await view.user.click(within(await rowOf(/한빛은행 ITDR 도입/)).getByRole('link', { name: '한빛은행 ITDR 도입' }))

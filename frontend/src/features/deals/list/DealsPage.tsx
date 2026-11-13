@@ -23,7 +23,7 @@ export function DealsPage() {
   const { today } = useToday()
   const me = useMe().data
   const role = me?.role
-  // 조건이 하나도 없는 주소는 기본 조건(올해만)을 적용한 것으로 본다: 조건 없는 요청이 나가지 않게 첫 렌더부터 이 값을 쓰고, 주소는 replace로 맞춘다.
+  // 조건이 하나도 없는 주소는 기본 조건(연도 전체)을 적용한 것으로 본다: 조건 없는 요청이 나가지 않게 첫 렌더부터 이 값을 쓰고, 주소는 replace로 맞춘다.
   const bare = !hasListCondition(urlParams)
   const params = useMemo(() => (bare ? defaultListParams(today, role, urlParams) : urlParams), [bare, today, role, urlParams])
   const { canWrite } = usePermissions()

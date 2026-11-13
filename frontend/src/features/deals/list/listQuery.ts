@@ -173,9 +173,9 @@ export function hasListCondition(params: URLSearchParams): boolean {
   return FILTER_KEYS.some((key) => (params.get(key) ?? '').trim() !== '')
 }
 
-/** 조건 없이 들어온 목록의 기본 조건: 올해 + (sales면) 내 딜만. 정렬은 이어받고 페이지·모르는 키는 버린다. today는 'YYYY-MM-DD'. */
-export function defaultListParams(today: string, role: Role | null | undefined, current?: URLSearchParams): URLSearchParams {
-  const next = new URLSearchParams({ year: today.slice(0, 4) })
+/** 조건 없이 들어온 목록의 기본 조건: 연도 전체(year=all) + (sales면) 내 딜만. 정렬은 이어받고 페이지·모르는 키는 버린다. _today는 호출부 호환용으로 쓰지 않는다. */
+export function defaultListParams(_today: string, role: Role | null | undefined, current?: URLSearchParams): URLSearchParams {
+  const next = new URLSearchParams({ year: 'all' })
   if (role === 'sales') next.set('mine', '1')
   for (const key of ['sort', 'order']) {
     const value = current?.get(key)

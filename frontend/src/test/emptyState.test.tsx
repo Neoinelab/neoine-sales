@@ -18,11 +18,11 @@ describe('업무 데이터가 없는 첫 실행 상태', () => {
   })
 
   // 테스트 코드: UI-056
-  it('기본 연도 조건에서는 빈 문구가 조건 문구이고 주소에 올해가 들어간다', async () => {
+  it('sales 기본 조건(내 딜만)에서는 빈 문구가 조건 문구이고 주소가 /deals?year=all&mine=1이 된다', async () => {
     // given: 업무 데이터가 없는 Fake
-    // when: /deals를 연다
+    // when: sales로 /deals를 연다
     const { location } = await renderAt('/deals', EMPTY)
-    // then: 조건 문구가 보이고 등록 안내 문구는 없다
+    // then: 조건 문구가 보이고 등록 안내 문구는 없으며 주소가 /deals?year=all&mine=1이 된다
     expect(await screen.findByText('조건에 맞는 Deal이 없습니다.')).toBeVisible()
     expect(screen.queryByText('등록된 Deal이 없습니다.')).not.toBeInTheDocument()
     // 조회는 첫 렌더부터 기본 조건으로 하고 주소는 렌더 뒤 replace로 맞춘다. 부하 시 문구가 주소보다 먼저 보일 수 있어 주소 반영을 기다린다.

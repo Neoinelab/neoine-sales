@@ -667,17 +667,15 @@ describe('year=all', () => {
 })
 
 describe('defaultListParams', () => {
-  it.each([
-    ['2026-10-26', 'year=2026'],
-    ['2027-01-01', 'year=2027'],
-    ['2026-03-31', 'year=2026'],
-    ['2026-04-01', 'year=2026'],
-  ])('%s에는 분기 없이 올해만 쓴다 (admin)', (today, expected) => {
-    // when: admin의 기본 파라미터를 만든다
-    const actual = defaultListParams(today, 'admin').toString()
-    // then: 분기 없이 올해만 담긴 기본 파라미터가 나온다
-    expect(actual).toBe(expected)
-  })
+  it.each(['2026-10-26', '2027-01-01', '2026-03-31', '2026-04-01'])(
+    '%s에도 기본 조건은 연도 전체이고 분기가 없다 (admin)',
+    (today) => {
+      // when: admin의 기본 파라미터를 만든다
+      const actual = defaultListParams(today, 'admin').toString()
+      // then: 오늘 날짜와 무관하게 연도 전체만 담긴다
+      expect(actual).toBe('year=all')
+    },
+  )
 
   it('정렬과 방향은 유지하고 쪽과 모르는 키는 버린다 (admin)', () => {
     // given: 정렬·쪽·outcome이 든 현재 파라미터
@@ -685,27 +683,24 @@ describe('defaultListParams', () => {
     // when: admin의 기본 파라미터를 만든다
     const actual = defaultListParams('2026-10-26', 'admin', current).toString()
     // then: 정렬·방향만 남고 쪽·outcome은 버려진다
-    expect(actual).toBe('year=2026&sort=owner&order=asc')
+    expect(actual).toBe('year=all&sort=owner&order=asc')
   })
 
   // 테스트 코드: DL-101
-  it.each([
-    ['2026-10-26', 'year=2026&mine=1'],
-    ['2027-01-01', 'year=2027&mine=1'],
-  ])('%s에는 sales의 기본 조건이 올해와 내 딜만이다', (today, expected) => {
+  it.each(['2026-10-26', '2027-01-01'])('%s에도 sales의 기본 조건이 연도 전체와 내 딜만이다', (today) => {
     // when: sales의 기본 파라미터를 만든다
     const actual = defaultListParams(today, 'sales').toString()
-    // then: 올해와 mine=1이 담긴다
-    expect(actual).toBe(expected)
+    // then: year=all과 mine=1이 담긴다
+    expect(actual).toBe('year=all&mine=1')
   })
 
   it('admin과 user의 기본 조건에는 내 딜만이 없다', () => {
     // when: 두 역할의 기본 파라미터를 만든다
     const admin = defaultListParams('2026-10-26', 'admin')
     const user = defaultListParams('2026-10-26', 'user')
-    // then: 둘 다 올해만이고 mine 키가 없다
-    expect(admin.toString()).toBe('year=2026')
-    expect(user.toString()).toBe('year=2026')
+    // then: 둘 다 연도 전체만이고 mine 키가 없다
+    expect(admin.toString()).toBe('year=all')
+    expect(user.toString()).toBe('year=all')
     expect(admin.has('mine')).toBe(false)
     expect(user.has('mine')).toBe(false)
   })
@@ -715,8 +710,15 @@ describe('defaultListParams', () => {
     const current = params('sort=owner&order=desc&page=3&foo=1&mine=0')
     // when: sales의 기본 파라미터를 만든다
     const actual = defaultListParams('2026-10-26', 'sales', current)
-    // then: 올해·mine=1·정렬·방향만 남는다
-    expect(Object.fromEntries(actual.entries())).toEqual({ year: '2026', mine: '1', sort: 'owner', order: 'desc' })
+    // then: year=all·mine=1·정렬·방향만 남는다
+    expect(Object.fromEntries(actual.entries())).toEqual({ year: 'all', mine: '1', sort: 'owner', order: 'desc' })
+  })
+
+  it('기본 조건의 조회 조건에는 연도와 분기가 없다', () => {
+    // when: sales의 기본 파라미터를 조회 조건으로 바꾼다
+    const query = listQueryFromParams(defaultListParams('2026-10-26', 'sales'))
+    // then: 연도·분기 없이 내 딜만 조건만 담긴다
+    expect(query).toEqual({ mine: true, offset: 0, limit: 20 })
   })
 })
 

@@ -308,22 +308,22 @@ describe('필터와 정렬 (T-LIST-05~09)', () => {
     expect(screen.getByLabelText('Status')).toHaveDisplayValue('계약완료')
   })
 
-  // 초기화는 모든 조건을 지우고 올해 기본 조건으로 간다
+  // 초기화는 모든 조건을 지우고 연도 전체 기본 조건으로 간다
   // 테스트 코드: DL-070
-  it('clears every condition with the reset button and goes back to the default period (this year)', async () => {
+  it('clears every condition with the reset button and goes back to the default condition (all years)', async () => {
     // given: admin이 여러 조건을 건 목록
     const list = vi.spyOn(gateway.deals, 'list')
     const { user, location } = await renderAt(`/deals?q=한빛&vendor=${seedVendorId('Okta')}&solution=ITDR&sort=name&order=asc`, { role: 'admin' })
 
-    // when: 초기화를 누른다 (admin의 기본 조건은 올해만. sales의 올해 + 내 딜만은 DL-102)
+    // when: 초기화를 누른다 (admin의 기본 조건은 연도 전체. sales의 연도 전체 + 내 딜만은 DL-102)
     await user.click(await screen.findByRole('button', { name: '초기화' }))
 
-    // then: 모든 칸이 비고 연도는 올해이다
+    // then: 모든 칸이 비고 주소가 /deals?year=all이다
     expect(location()).toMatch(defaultDealsUrlPattern('admin'))
     await waitFor(() => expect(screen.getByLabelText('키워드')).toHaveValue(''))
     expect(screen.getByLabelText('Solution')).toHaveValue('')
     expect(screen.getByLabelText('Vendor')).toHaveDisplayValue('전체')
-    await waitFor(() => expect(Object.keys(list.mock.calls.at(-1)?.[0] ?? {}).sort()).toEqual(['limit', 'offset', 'year']))
+    await waitFor(() => expect(Object.keys(list.mock.calls.at(-1)?.[0] ?? {}).sort()).toEqual(['limit', 'offset']))
   })
 
   // Expected Close 정렬은 방향을 뒤집는다

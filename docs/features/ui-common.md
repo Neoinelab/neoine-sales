@@ -99,7 +99,7 @@
 - **UI-R35** 화면 이동 알림: 다른 화면이 이동 상태 `{notice: 문자열}`로 넘긴 알림을 돌려주고, 곧바로 기록 상태를 비운다(경로·검색어는 그대로 replace) — 새로 고침·뒤로 가기에서 다시 나오지 않는다. 문자열이 아니거나 빈 문자열이면 알림이 없다. 같은 화면에 새 알림이 오면 그것으로 바꾼다. 돌려주는 설정 함수로 화면의 다른 알림과 같은 자리를 쓴다.
 
 빈 첫 실행·레이아웃·기본 필드
-- **UI-R36** 업무 데이터가 없는 첫 실행(로그인 계정·기본 코드·기본 BANT Label만 있음)에서도 화면이 오류 없이 빈 상태를 보이고 첫 업무를 시작할 수 있다: Deal 목록(전체 연도 / 기본 연도), Forecast, 연락처 관리, Deal 관리(기본 코드·Label), 사용자 관리, Deal 등록 → Action 추가 → 첨부 → Deal History. 각 문구는 소유 feature 규칙이다. 교차 화면 빈 상태 확인(UI-056~058)은 UI가 가진다(2026-11-11 결정).
+- **UI-R36** 업무 데이터가 없는 첫 실행(로그인 계정·기본 코드·기본 BANT Label만 있음)에서도 화면이 오류 없이 빈 상태를 보이고 첫 업무를 시작할 수 있다: Deal 목록(전체 연도 / 기본 조건), Forecast, 연락처 관리, Deal 관리(기본 코드·Label), 사용자 관리, Deal 등록 → Action 추가 → 첨부 → Deal History. 각 문구는 소유 feature 규칙이다. 교차 화면 빈 상태 확인(UI-056~058)은 UI가 가진다(2026-11-11 결정).
 - **UI-R37** 키·값 격자(`kvGrid.css`): 글자 크기를 선언하지 않는다. 격자는 `repeat(auto-fill, …/ 3)`로 최대 3열이고 좁으면 1열로 접힌다. 행(`.kv-row`·`.field`)은 `var(--kv-label-w) minmax(0, 1fr)` 두 열, `align-items: baseline`, `min-width: 0`이고 값(`dd`)은 `overflow-wrap: anywhere`다. 콤보 목록에 `grid-column`을 주는 선택자는 `.kv-grid > `로 시작하는 것뿐이다(값 칸 안 콤보에는 주지 않음).
 - **UI-R38** 본문 영역 여백(2026-10-26): `.content`의 좌우 여백은 모든 화면 너비 규칙에서 5%이고(`padding: <n>px 5%`) 최대 너비 제한이 없다.
 - **UI-R39** 기본 필드(`fields.tsx`): `TextField`·`TextArea`·`SelectField`·`CheckboxField`는 라벨 글자가 칸의 접근 이름이고 값이 바뀌면 `onChange(새 값)`(체크박스는 체크 상태)를 부른다. `TextField`의 `type="date"`는 native 칸이 아니라 `DateInput`(id `<name>-date`, `aria-label` = 라벨)이다. `invalid`면 `aria-invalid`를 켠다. `TextArea`는 3줄이다.
@@ -523,10 +523,10 @@ UI-R1~UI-R39.
 - When 화면을 본다
 - Then 첫째는 알림 "삭제되었습니다."가 보이고 기록 상태가 null이 된 뒤에도 알림이 남으며 주소는 `/deals?q=a`다. 둘째·셋째는 알림이 없다
 
-### UI-056 데이터가 없으면 Deal 목록은 전체 연도에서 등록 안내와 등록 링크, 기본 연도에서는 조건 문구다
-- Given 업무 데이터가 없는 Fake(`seed: 'empty'`)
+### UI-056 데이터가 없으면 Deal 목록은 전체 연도에서 등록 안내와 등록 링크, sales 기본 조건(내 딜만)에서는 조건 문구다
+- Given 업무 데이터가 없는 Fake(`seed: 'empty'`), sales 로그인
 - When `/deals?year=all`과 `/deals`를 연다
-- Then 앞은 "등록된 Deal이 없습니다."와 링크 "+ Deal 등록", 뒤는 "조건에 맞는 Deal이 없습니다."("등록된 Deal이 없습니다." 없음)이고 주소가 `/deals?year=<올해>`가 된다
+- Then 앞은 "등록된 Deal이 없습니다."와 링크 "+ Deal 등록", 뒤는 "조건에 맞는 Deal이 없습니다."("등록된 Deal이 없습니다." 없음)이고 주소가 `/deals?year=all&mine=1`이 된다(DL-R19, 2026-11-13 기본 연도 전체)
 
 ### UI-057 데이터가 없어도 Forecast·연락처는 빈 문구이고 기본 코드·Label·로그인 계정은 보인다
 - Given 업무 데이터가 없는 Fake
@@ -563,3 +563,4 @@ UI-R1~UI-R39.
 | 2026-11-11 | 최초 작성(구현된 동작을 정본으로 옮김, 초안) | UI-001~UI-061 |
 | 2026-11-11 | 사용자 결정 반영(추천대로): 범위에 주인 없는 shared 부품 포함·`UserSelect`·`PeriodField` 등은 원래 feature, 금액 판정·문구 정본 UI-R13·R14(DE-R26이 번호로 가리킴), `formatWonAxis` UI-R16, 빈 첫 실행 UI-R36(UI-056~058), CSS 정적 점검 UI-059·060, 확인 대화상자 진행 중 취소·Esc 허용 현행 문서화(UI-R29). 다른 문서의 UI 이름 참조를 규칙 번호로 교체. 동작·케이스 변경 없음 | 없음 |
 | 2026-11-12 | DE 고객 필수 표시 요청에 따라 UI-R18에 `required`의 루트 클래스 규칙 추가(운영 코드 변경 필요) | 신규: UI-062 |
+| 2026-11-13 | DL 기본 조건이 연도 전체로 바뀜(DL 2026-11-13)에 따라 UI-056의 기본 주소를 `/deals?year=all&mine=1`(sales)로 갱신. 문구 동작 변경 없음 | 변경: UI-056 |
