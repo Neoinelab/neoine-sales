@@ -2,7 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { logOutFromMenu, openUserMenu } from './test/localAccounts'
 import { renderAt } from './test/mockApp'
-import { DEFAULT_DEALS_URL_PATTERN } from './test/dealsUrl'
+import { defaultDealsUrlPattern } from './test/dealsUrl'
 
 function mainMenu() {
   return within(screen.getByRole('navigation', { name: '주 메뉴' }))
@@ -146,7 +146,7 @@ describe('가드와 리다이렉트 (T-SHELL-07~08)', () => {
     // when: /를 연다 (전제: 로그인한 KIM)
     const { location } = await renderAt('/')
     // then: Deals 목록 주소(기본 조건 포함)가 된다
-    await waitFor(() => expect(location()).toMatch(DEFAULT_DEALS_URL_PATTERN))
+    await waitFor(() => expect(location()).toMatch(defaultDealsUrlPattern('sales')))
   })
 
   // sales·user는 Admin 화면에서 Deals 목록으로 간다.
@@ -155,7 +155,7 @@ describe('가드와 리다이렉트 (T-SHELL-07~08)', () => {
     // when: /admin/users를 연다 (전제: sales 또는 user로 로그인)
     const { location } = await renderAt('/admin/users', { role })
     // then: Deals 목록 주소가 된다
-    await waitFor(() => expect(location()).toMatch(DEFAULT_DEALS_URL_PATTERN))
+    await waitFor(() => expect(location()).toMatch(defaultDealsUrlPattern(role)))
   })
 
   // admin이 /admin을 열면 사용자 관리로 간다.
@@ -187,13 +187,13 @@ describe('가드와 리다이렉트 (T-SHELL-07~08)', () => {
     // when: user가 /deals/new를 연다
     const viewer = await renderAt('/deals/new', { role: 'user' })
     // then: Deals 목록 주소가 된다
-    await waitFor(() => expect(viewer.location()).toMatch(DEFAULT_DEALS_URL_PATTERN))
+    await waitFor(() => expect(viewer.location()).toMatch(defaultDealsUrlPattern('user')))
     viewer.unmount()
 
     // when: user가 수정 화면 주소를 연다
     const viewerEdit = await renderAt('/deals/20261001-AB12/edit', { role: 'user' })
     // then: Deals 목록 주소가 된다
-    await waitFor(() => expect(viewerEdit.location()).toMatch(DEFAULT_DEALS_URL_PATTERN))
+    await waitFor(() => expect(viewerEdit.location()).toMatch(defaultDealsUrlPattern('user')))
   })
 
   // Deal 상세·Forecast·Dashboard는 모든 역할이 연다.
@@ -227,7 +227,7 @@ describe('가드와 리다이렉트 (T-SHELL-07~08)', () => {
     // when: 정의되지 않은 주소를 연다 (전제: 로그인한 기본 사용자)
     const { location } = await renderAt(url)
     // then: Deals 목록 주소가 된다
-    await waitFor(() => expect(location()).toMatch(DEFAULT_DEALS_URL_PATTERN))
+    await waitFor(() => expect(location()).toMatch(defaultDealsUrlPattern('sales')))
   })
 
   // 로그아웃하면 로그인 화면으로 간다.

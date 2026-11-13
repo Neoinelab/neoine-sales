@@ -36,6 +36,13 @@ class DealDeleteForbiddenError(AccessDeniedError):
         super().__init__("본인 Deal 또는 admin만 삭제할 수 있습니다.")
 
 
+class DealDeleteCompletedError(AccessDeniedError):
+    """완료(Won)된 Deal을 admin이 아닌 사용자가 삭제하려 했다(DD-R41)."""
+
+    def __init__(self) -> None:
+        super().__init__("완료된 Deal은 관리자만 삭제할 수 있습니다.")
+
+
 class DealCodeMismatchError(InvalidValueError):
     """삭제 확인용으로 입력한 code가 Deal code와 정확히 같지 않다."""
 

@@ -51,11 +51,11 @@ describe('permissions', () => {
   // Deal 삭제 권한은 admin 전체, sales 본인, user 불가다.
   // 테스트 코드: DD-074
   it('Deal 삭제: admin 전체, sales 본인, user 불가', () => {
-    // when: 역할·Owner 조합마다 삭제 가능 여부를 판정한다
-    const actual1 = canDeleteDeal({ id: USER_ID.root, role: 'admin' }, USER_ID.kim)
-    const actual2 = canDeleteDeal({ id: USER_ID.kim, role: 'sales' }, USER_ID.kim)
-    const actual3 = canDeleteDeal({ id: USER_ID.park, role: 'sales' }, USER_ID.kim)
-    const actual4 = canDeleteDeal({ id: USER_ID.han, role: 'user' }, USER_ID.han)
+    // when: 완료되지 않은 Deal에서 역할·Owner 조합마다 삭제 가능 여부를 판정한다
+    const actual1 = canDeleteDeal({ id: USER_ID.root, role: 'admin' }, USER_ID.kim, 'pipeline')
+    const actual2 = canDeleteDeal({ id: USER_ID.kim, role: 'sales' }, USER_ID.kim, 'pipeline')
+    const actual3 = canDeleteDeal({ id: USER_ID.park, role: 'sales' }, USER_ID.kim, 'pipeline')
+    const actual4 = canDeleteDeal({ id: USER_ID.han, role: 'user' }, USER_ID.han, 'pipeline')
 
     // then: admin은 모두, sales는 본인 Deal만 가능하고 user는 본인 Deal도 불가다
     expect(actual1).toBe(true)

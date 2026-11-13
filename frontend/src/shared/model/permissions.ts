@@ -4,12 +4,13 @@
  *
  * | 항목                                    | admin  | sales                         | user |
  * | Deal 등록/수정/Inline/Action 등록/업로드/새 Label | O | O                         | X    |
- * | Deal 삭제                                | 모두   | Owner가 본인인 Deal만          | X    |
+ * | Deal 삭제                                | 모두   | 본인 Deal 중 완료(Won) 아닌 것만 | X    |
  * | Action 수정/삭제                          | 모두   | 본인이 남긴 Action만(P2 Q8)    | X    |
  * | 파일 삭제                                | 전체   | 본인 업로드 + 퇴사 sales 업로드 | X    |
  * | 코드·Label 수정/삭제, 사용자, contacts, 설정 | O      | X                             | X    |
  */
 
+import { FORECAST_WON } from './constants'
 import type { ReportVisibility } from './reportTypes'
 import type { Role, UserRef } from './types'
 
@@ -33,9 +34,16 @@ export function canAccessAdmin(role: Role | null | undefined): boolean {
 }
 
 /** Deal 삭제: admin은 모든 Deal, sales는 Owner가 본인인 Deal만, user는 불가. */
-export function canDeleteDeal(viewer: Viewer, ownerId: number): boolean {
-  if (viewer.role === 'admin') return true
-  return viewer.role === 'sales' && viewer.id === ownerId
+export function canDeleteDeal(viewer: Viewer, ownerId: number, forecastKey: string): boolean {
+  return dealDeleteDenial(viewer, ownerId, forecastKey) === null
+}
+
+/** Deal 삭제를 막는 사유(없으면 null). admin은 항상 가능, 그 외는 본인 Deal이면서 완료(Won)가 아니어야 한다. */
+export function dealDeleteDenial(viewer: Viewer, ownerId: number, forecastKey: string): string | null {
+  if (viewer.role === 'admin') return null
+  if (viewer.role !== 'sales' || viewer.id !== ownerId) return '본인 Deal 또는 admin만 삭제할 수 있습니다.'
+  if (forecastKey === FORECAST_WON) return '완료된 Deal은 관리자만 삭제할 수 있습니다.'
+  return null
 }
 
 /**

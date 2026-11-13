@@ -12,7 +12,7 @@ import { clearQuarter, dataRows, quarterButton, rowOf } from './testHelpers'
 import '../../dashboard/DashboardPage'
 
 /**
- * 기본 기간 = 올해만, Quarter는 전체. 조건이 하나도 없는 주소로 목록에 들어오거나 초기화할 때만 적용한다.
+ * 기본 기간 = 올해만, Quarter는 전체(admin 기준. sales는 여기에 내 딜만이 더해진다). 조건이 하나도 없는 주소로 목록에 들어오거나 초기화할 때만 적용한다.
  * 올해는 앱 시계(서버 동기 시계) 기준이다. 시드 날짜는 기준일 상대값이라 기준일을 고정한다.
  */
 const NOW = '2026-10-15T09:00:00+09:00'
@@ -24,14 +24,16 @@ afterEach(() => {
 })
 
 const optionNames = (select: HTMLElement) => within(select).getAllByRole('option').map((o) => o.textContent)
+/** 이 파일의 기본 조건 테스트는 admin(올해만)이다. sales의 '올해 + 내 딜만'은 DealsPage.defaultMine.test.tsx(DL-101~105). */
+const ADMIN = { role: 'admin' } as const
 const mainMenu = () => within(screen.getByRole('navigation', { name: '주 메뉴' }))
 
 describe('조건 없는 목록 진입', () => {
   // 조건 없는 /deals는 올해 기본 조건 주소로 바뀐다
   // 테스트 코드: DL-055
   it('replaces the bare list url with this year and no quarter', async () => {
-    // when: 조건 없는 /deals로 들어간다 (전제: 서버 시계 2026-10-15의 로그인한 sales)
-    const { location } = await renderAt('/deals')
+    // when: 조건 없는 /deals로 들어간다 (전제: 서버 시계 2026-10-15의 로그인한 admin)
+    const { location } = await renderAt('/deals', ADMIN)
 
     // then: 주소가 /deals?year=2026으로 바뀌고 연도 2026·Quarter 전체·월 전체·월 선택지 13개가 보인다
     await waitFor(() => expect(location()).toBe('/deals?year=2026'))
@@ -47,7 +49,7 @@ describe('조건 없는 목록 진입', () => {
     // given: 게이트웨이 list를 관찰한다
     const list = vi.spyOn(gateway.deals, 'list')
 
-    await renderAt('/deals')
+    await renderAt('/deals', ADMIN)
     // when: 조건 없는 /deals로 들어간다
     await screen.findByText(/총 \d+건/)
 
@@ -63,7 +65,7 @@ describe('조건 없는 목록 진입', () => {
   // 테스트 코드: DL-055
   it('lists the deals of this year only', async () => {
     // given: 올해와 다른 해의 Deal이 있는 Fake
-    await renderAt('/deals')
+    await renderAt('/deals', ADMIN)
     await screen.findByRole('row', { name: /한빛은행 ITDR 도입/ })
 
     const expected = await gateway.deals.list({ year: 2026, limit: 1 })
@@ -79,7 +81,7 @@ describe('조건 없는 목록 진입', () => {
   // 테스트 코드: DL-055
   it('treats an empty value and a blank value as no condition', async () => {
     // when: /deals?q=&solution=%20로 들어간다 (전제: 값이 비었거나 공백뿐인 q·solution 키 주소)
-    const { location } = await renderAt('/deals?q=&solution=%20')
+    const { location } = await renderAt('/deals?q=&solution=%20', ADMIN)
 
     // then: 주소가 /deals?year=2026으로 바뀐다
     await waitFor(() => expect(location()).toBe('/deals?year=2026'))
@@ -89,7 +91,7 @@ describe('조건 없는 목록 진입', () => {
   // 테스트 코드: DL-056
   it('keeps the sort and drops the page and unknown keys when it fills the default', async () => {
     // when: /deals?sort=owner&order=asc&page=3&outcome=open으로 들어간다 (전제: 정렬·page·예전 outcome 키만 있는 주소)
-    const { location } = await renderAt('/deals?sort=owner&order=asc&page=3&outcome=open')
+    const { location } = await renderAt('/deals?sort=owner&order=asc&page=3&outcome=open', ADMIN)
 
     // then: 주소가 정렬만 남은 기본 조건이 되고 담당자 머리글이 오름차순이다
     await waitFor(() => expect(location()).toBe('/deals?year=2026&sort=owner&order=asc'))
@@ -100,7 +102,7 @@ describe('조건 없는 목록 진입', () => {
   // 테스트 코드: DL-056
   it('does not leave the bare list in the browser history', async () => {
     // given: Dashboard에서 시작한다
-    const { user, location, goTo } = await renderAt('/dashboard')
+    const { user, location, goTo } = await renderAt('/dashboard', ADMIN)
     await screen.findByRole('heading', { name: 'Dashboard' })
 
     // when: 상단 메뉴 Deals를 눌러 들어온 뒤 뒤로 간다
@@ -125,11 +127,11 @@ describe('앱 시계 기준', () => {
     resetMock({ now })
 
     // when: 조건 없는 /deals로 들어간다
-    const { location } = await renderAt('/deals')
+    const { location } = await renderAt('/deals', ADMIN)
 
     // then: 주소의 연도가 시계의 올해와 같다
     await waitFor(() => expect(location()).toBe(expected))
-    expect(expected).toBe(defaultDealsUrl(now))
+    expect(expected).toBe(defaultDealsUrl(now, '', 'admin'))
   })
 })
 
@@ -137,8 +139,8 @@ describe('여러 진입점', () => {
   // 루트 주소에서도 기본 조건이 적용된다
   // 테스트 코드: DL-057
   it('applies the default from the root address', async () => {
-    // when: / 로 들어간다 (전제: 로그인한 sales)
-    const { location } = await renderAt('/')
+    // when: / 로 들어간다 (전제: 로그인한 admin)
+    const { location } = await renderAt('/', ADMIN)
 
     // then: 주소가 /deals?year=2026이 된다
     await waitFor(() => expect(location()).toBe('/deals?year=2026'))
@@ -152,7 +154,7 @@ describe('여러 진입점', () => {
     await screen.findByRole('button', { name: '로그인' })
 
     // when: 아이디·비밀번호로 로그인한다
-    await user.type(screen.getByLabelText('아이디'), 'kim')
+    await user.type(screen.getByLabelText('아이디'), 'root')
     await user.type(screen.getByLabelText('비밀번호'), SEED_PASSWORD)
     await user.click(screen.getByRole('button', { name: '로그인' }))
 
@@ -164,7 +166,7 @@ describe('여러 진입점', () => {
   // 테스트 코드: DL-057
   it('applies the default when the top menu has no remembered condition', async () => {
     // given: 기억된 목록 조건이 없는 Forecast 화면
-    const { user, location } = await renderAt('/forecast')
+    const { user, location } = await renderAt('/forecast', ADMIN)
     await screen.findByRole('heading', { name: 'Forecast' })
     expect(mainMenu().getByRole('link', { name: 'Deals' })).toHaveAttribute('href', '/deals')
 
@@ -179,8 +181,8 @@ describe('여러 진입점', () => {
   // 테스트 코드: DL-057
   it('applies the default when the remembered search has only an old outcome', async () => {
     // given: 예전 outcome 키만 기억돼 있고 없는 Deal의 상세 화면
-    window.sessionStorage.setItem(listMemoryKey(USER_ID.kim), 'outcome=open')
-    const { user, location } = await renderAt('/deals/20000101-ZZZZ')
+    window.sessionStorage.setItem(listMemoryKey(USER_ID.root), 'outcome=open')
+    const { user, location } = await renderAt('/deals/20000101-ZZZZ', ADMIN)
     const back = await screen.findByRole('link', { name: 'Deal 목록으로' })
     expect(back).toHaveAttribute('href', '/deals')
 
@@ -195,7 +197,7 @@ describe('여러 진입점', () => {
   // 테스트 코드: DL-057
   it('applies the default to the back link of the detail page when nothing is remembered', async () => {
     // given: 기억이 없는 상세 화면
-    const { user, location } = await renderAt('/deals/20000101-ZZZZ')
+    const { user, location } = await renderAt('/deals/20000101-ZZZZ', ADMIN)
 
     // when: 'Deal 목록으로'를 누른다
     await user.click(await screen.findByRole('link', { name: 'Deal 목록으로' }))
@@ -211,7 +213,7 @@ describe('초기화', () => {
   it('goes to this year (all quarters) as a new history entry and remembers it', async () => {
     // given: 연도 전체·Status·정렬이 걸린 목록
     const start = '/deals?year=all&status=contract_completed&sort=name&order=asc'
-    const { user, location, goTo } = await renderAt(start)
+    const { user, location, goTo } = await renderAt(start, ADMIN)
     await screen.findByRole('row', { name: /청명대학교 SSO\/MFA/ })
 
     // when: 초기화 버튼을 누른다
@@ -223,7 +225,7 @@ describe('초기화', () => {
     expect(screen.getByLabelText('연도')).toHaveDisplayValue('2026')
     expect(quarterButton('전체')).toBeInTheDocument()
     expect(await screen.findByRole('columnheader', { name: '최종 업데이트' })).toHaveAttribute('aria-sort', 'descending')
-    expect(window.sessionStorage.getItem(listMemoryKey(USER_ID.kim))).toBe('year=2026')
+    expect(window.sessionStorage.getItem(listMemoryKey(USER_ID.root))).toBe('year=2026')
 
     goTo(-1)
 

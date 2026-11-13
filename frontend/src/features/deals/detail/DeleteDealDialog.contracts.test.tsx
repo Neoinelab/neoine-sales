@@ -8,7 +8,8 @@ import { renderAt } from '../../../test/mockApp'
 
 /** Deal 삭제 확인 팝업의 라이선스 계약 건수: 계약도 함께 삭제되므로 건수를 알려 준다. */
 async function openDialog(no: number, title: string) {
-  const view = await renderAt(await detailPath(no), { role: 'sales' })
+  // 계약이 있는 Deal은 Won(완료)이라 admin만 지울 수 있다(DD-R41).
+  const view = await renderAt(await detailPath(no), { role: 'admin' })
   await screen.findByRole('heading', { level: 1, name: title })
   await view.user.click(screen.getByRole('button', { name: 'Deal 삭제' }))
   return { ...view, dialog: await screen.findByRole('dialog', { name: 'Deal 삭제' }) }

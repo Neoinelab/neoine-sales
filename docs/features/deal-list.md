@@ -34,7 +34,7 @@
 | 최종 업데이트 | 행의 `last_updated_at`(모든 Action 중 가장 최근 수행 시각, 없으면 Deal 등록 시각, Deal 수정은 반영 안 함 — RK-R2) |
 | 기준 행 | Next Action이 있는 가장 최근 Action(RK-R1). Next Action 상태 조건과 Next Action 칸의 기준 |
 | 활성 파트너 | 해제되지 않은 파트너 링크의 연락처(Deal당 최대 1개, DE) |
-| 기본 조건 주소 | 조건이 하나도 없는 `/deals`를 대신하는 `/deals?year=<올해>` |
+| 기본 조건 주소 | 조건이 하나도 없는 `/deals`를 대신하는 주소: 로그인 사용자가 sales면 `/deals?year=<올해>&mine=1`, admin·user면 `/deals?year=<올해>`(DL-R19) |
 | 조건 기억 | 사용자별 sessionStorage에 마지막으로 본 목록 쿼리를 저장해 "목록으로" 링크가 쓰는 것 |
 | 빠른 보기 | 행 아래로 펼치는 요약(Quick View) |
 | 자연 방향 | 정렬하지 않던 열을 처음 누를 때의 방향(금액·최종 업데이트는 내림차순, 나머지는 오름차순) |
@@ -93,7 +93,7 @@ DL은 테이블을 소유하지 않는다. 읽는 값: `deals`(소유 DE), `cont
 
 화면 (frontend, `/deals`, 가드 PL-R29)
 - **DL-R18** 화면 틀: 제목(h1) "Deals", `canWrite`(admin·sales, PL-R36)면 "+ Deal 등록" 링크(`/deals/new`). 필터 바(DL-R21) 아래에 경고 범례(RK-R16), 페이지 알림(인라인 저장 알림 등), 목록 오류 배너(PL-R37)를 보인다. 처음 읽는 동안 "불러오는 중…". 응답이 오면 "총 N건". `total`이 0이면 활성 필터(DL-R20)가 있을 때 "조건에 맞는 Deal이 없습니다.", 없을 때 "등록된 Deal이 없습니다.". `total`>0인데 그 페이지가 비면 "N페이지에는 Deal이 없습니다." + "첫 페이지로" 버튼(누르면 1페이지). 한 페이지 20건이고 `total`>0이면 페이저를 보인다. 조건을 바꿔 다시 읽는 동안에는 이전 표를 그대로 보인다(빈 화면으로 깜빡이지 않음).
-- **DL-R19** 기본 조건: 필터 키(DL-R20의 15개) 중 값이 있는 키가 하나도 없는 주소(빈 값·공백 값은 없는 것으로 봄)는 `?year=<올해>`(Quarter 전체)로 **이력을 교체**해 바꾼다. 이때 `sort`·`order`는 이어받고 `page`·모르는 키는 버린다. 첫 렌더부터 기본 조건으로 조회하므로 연도 없는 조회 요청은 나가지 않는다. 올해는 앱 시계(TM-R12)다. 루트(`/`)·로그인 직후·기억이 없을 때의 상단 메뉴·상세의 목록 링크 등 모든 진입이 같다. 조건이 하나라도 있는 주소는 바꾸지 않는다.
+- **DL-R19** 기본 조건: 필터 키(DL-R20의 15개) 중 값이 있는 키가 하나도 없는 주소(빈 값·공백 값은 없는 것으로 봄)는 기본 조건으로 **이력을 교체**해 바꾼다. 기본 조건은 로그인 사용자가 sales면 `?year=<올해>&mine=1`(올해 + 내 딜만, 2026-11-12 사용자 요청), admin·user면 `?year=<올해>`(Quarter 전체)다 — admin·user는 Owner가 될 수 없어(DE-R6) 내 딜만이면 항상 빈 목록이기 때문이다. 이때 `sort`·`order`는 이어받고 `page`·모르는 키는 버린다. 첫 렌더부터 기본 조건으로 조회하므로 연도 없는 조회 요청이나 sales의 `mine` 없는 기본 조회 요청은 나가지 않는다. 올해는 앱 시계(TM-R12)다. 루트(`/`)·로그인 직후·기억이 없을 때의 상단 메뉴·상세의 목록 링크 등 모든 진입이 같다. 조건이 하나라도 있는 주소는 바꾸지 않고 내 딜만을 더하지도 않는다: Dashboard·Forecast Drill-down 주소, `year=all`만 있는 주소, 기억된 조건(DL-R31)으로 연 주소가 모두 그렇다.
 - **DL-R20** URL 쿼리 키와 해석(URL이 정본이고 잘못된 값은 오류 없이 무시한다)
   - 필터 키 15개: `q`(키워드), `owner`, `vendor`, `solution`, `status`, `forecast`, `year`, `quarter`, `month`, `updated_from`, `updated_to`, `mine`, `next_status`, `overdue`, `stale`. 그 밖에 `sort`, `order`, `page`.
   - `q`·`status`·`solution`은 앞뒤 공백을 지운 값(비면 없음). `solution`이 지운 뒤 200자를 넘으면 무시한다.
@@ -111,7 +111,8 @@ DL은 테이블을 소유하지 않는다. 읽는 값: `deals`(소유 DE), `cont
   - 키워드·Solution은 "검색" 버튼이나 Enter로만 URL(`q`·`solution`)에 반영한다(앞뒤 공백 제거, 비우면 키 삭제). URL이 바깥에서 바뀌면(초기화·뒤로 가기) 입력란도 따라간다. 나머지 칸·체크박스는 바꾸는 즉시 URL에 반영한다. 체크박스는 켜면 `1`, 끄면 키를 지운다.
   - 조건이 바뀌면 `page`를 지워 1페이지로 간다(페이저로 페이지만 바꿀 때만 유지, `page=1`은 쓰지 않음).
   - 사용자가 마지막 조건을 지워 조건이 하나도 남지 않으면 기본 연도를 되살리지 않고 `year=all`(연도 전체)로 남긴다.
-  - "초기화"는 `?year=<올해>`로 바꾸고(새 이력, 정렬도 지움) 모든 칸을 비운다. 그 조건이 기억된다(DL-R31).
+  - "초기화"는 기본 조건(DL-R19: sales `?year=<올해>&mine=1`, admin·user `?year=<올해>`)으로 바꾸고(새 이력, 정렬도 지움) 모든 칸을 비운다(sales는 "내 딜만"만 체크된 상태). 그 조건이 기억된다(DL-R31).
+  - sales가 기본 조건에서 "내 딜만"을 끄면 다른 체크박스와 같이 `mine` 키를 지운다(`mine=0` 같은 값을 쓰지 않는다). `year`가 남아 조건 없는 주소가 아니므로 기본 조건으로 되돌아가지 않고, 그 주소가 기억된다.
   - URL의 값으로 모든 칸(키워드·Solution 입력란, 선택, 체크)을 복원한다.
 - **DL-R22** Forecast 다중 선택: 버튼 "Forecast"가 패널을 열고 Forecast 코드를 현재 코드 순서로 체크박스로 보인다(+ "전체" 버튼, Escape로 닫으면 포커스가 버튼으로 돌아간다). 체크하면 URL `forecast`에 정렬된 key를 콤마로 쓴다(누른 순서와 무관하게 같은 URL, 하나면 단일 값). 모두 끄거나 "전체"를 누르면 키를 지운다. 버튼 요약: 선택 없음 "전체", 하나면 그 코드 이름(코드에 없으면 key), 전부면 "모두 선택", outcome이 lost가 아닌 코드 전부면 "Lost 제외", open 코드 전부면 "Open 전체", 그 밖은 "N개 선택".
 - **DL-R23** Quarter·월: Quarter는 Q1~Q4 체크박스와 "전체" 버튼이며 연도와 무관하게 언제나 쓸 수 있다. 체크하면 URL `quarter`에 오름차순 콤마(하나면 단일 값), 넷 다 체크해도 눌린 상태와 URL을 유지하고 요약은 "전체", 마지막 하나를 끄거나 "전체"를 누르면 키를 지운다. 요약은 "전체" 또는 "Q1, Q3". 월 선택지는 고른 분기(넷 다·없음이면 12달)의 월 합집합이고 "전체"가 첫 항목이다. 분기를 바꿀 때 보이던 월이 새 선택지에 있으면 유지하고 없으면 지운다. 선택지 밖이라 숨어 있던 월은 분기를 바꾸거나 "전체"를 누르면 지운다. "전체"(분기 해제)는 보이던 월을 유지한다. 연도가 전체일 때 분기를 고르면 Quarter 아래에, 분기 없이 월만 고르면 월 아래에 "연도가 전체이면 올해(YYYY) 기준입니다."를 보인다(접근성 설명으로 연결). 연도를 고르면 안내가 사라진다.
@@ -131,7 +132,7 @@ DL은 테이블을 소유하지 않는다. 읽는 값: `deals`(소유 DE), `cont
 
 ### 2.4 상태와 전이
 
-해당 없음(조회 feature). 화면의 조건 상태는 URL이다: 조건 없는 주소 → (DL-R19 교체) → `year=<올해>` → (사용자 변경) → 임의 조건 → (마지막 조건 삭제) → `year=all` / (초기화) → `year=<올해>`.
+해당 없음(조회 feature). 화면의 조건 상태는 URL이다: 조건 없는 주소 → (DL-R19 교체) → `year=<올해>`(sales는 `&mine=1`) → (사용자 변경) → 임의 조건 → (마지막 조건 삭제) → `year=all` / (초기화) → `year=<올해>`(sales는 `&mine=1`).
 
 ### 2.5 권한
 
@@ -176,7 +177,7 @@ DL-R18~DL-R32.
 ### DL-UC1 목록 보기
 - 행위자: 로그인한 모든 역할
 - 사전 조건: 로그인, `/deals`(또는 `/`, 메뉴 Deals)
-- 기본 흐름: 조건이 없으면 올해 Deal 목록으로 바뀌어 최종 업데이트 최신순 20건을 보인다(DL-R19, R1, R18, R28)
+- 기본 흐름: 조건이 없으면 올해 Deal 목록(sales는 내 딜만)으로 바뀌어 최종 업데이트 최신순 20건을 보인다(DL-R19, R1, R18, R28)
 - 대안: 페이저로 다음 페이지, 끝을 넘은 페이지에서 "첫 페이지로"
 - 예외: 목록을 읽지 못하면 오류 배너, 결과가 없으면 빈 문구
 - 결과: 조건에 맞는 Deal 한 페이지와 전체 건수
@@ -277,7 +278,7 @@ DL-R18~DL-R32.
 | DL-052 | 기간 프리셋은 서버 업무 날짜의 today·과거 5개·향후 2개이고 시계를 따른다 | DL-R17, DL-UC7 | backend | `application/test_deal_list_period_sort_cases.py` |
 | DL-053 | 그 날이 없는 달의 프리셋 경계는 말일이다 | DL-R17, DL-UC7 | backend | `application/test_deal_list_period_sort_cases.py` |
 | DL-054 | 모든 역할이 기간 프리셋을 읽고 경로는 Deal code가 아니며 미인증은 401이다 | DL-R17, DL-UC7 | backend | `web/test_deal_list_http_cases.py` |
-| DL-055 | 조건 없는 주소는 올해 기본 조건으로 바뀌고 연도 없는 요청은 나가지 않는다 | DL-R19, DL-UC1 | frontend | `features/deals/list/DealsPage.defaults.test.tsx` |
+| DL-055 | admin의 조건 없는 주소는 올해 기본 조건으로 바뀌고 연도 없는 요청은 나가지 않는다 | DL-R19, DL-UC1 | frontend | `features/deals/list/DealsPage.defaults.test.tsx` |
 | DL-056 | 기본 조건은 정렬을 이어받고 page·모르는 키를 버리며 이력에 남기지 않는다 | DL-R19, DL-UC1 | frontend | `features/deals/list/DealsPage.defaults.test.tsx` |
 | DL-057 | 루트·로그인 직후·기억 없는 메뉴·기억 없는 상세 목록 링크 모두 기본 조건이다 | DL-R19, DL-R31, DL-UC1 | frontend | `features/deals/list/DealsPage.defaults.test.tsx` |
 | DL-058 | 표는 13열을 순서대로 보이고 칸 값 규칙을 따른다 | DL-R28, DL-UC1 | frontend | `features/deals/list/DealsPage.columns.test.tsx`, `features/deals/list/DealsPage.nextActionLink.test.tsx`, `features/deals/list/DealsPage.test.tsx`, `features/deals/list/DealsPage.today.test.tsx` |
@@ -323,7 +324,11 @@ DL-R18~DL-R32.
 | DL-098 | 기억은 사용자별·새로고침 유지이고 아는 키만 남긴다 | DL-R31, DL-UC6 | frontend | `features/deals/list/DealsPage.memory.test.tsx` |
 | DL-099 | 삭제 뒤·새 Deal 취소·오류 화면 링크는 기억된 목록으로 간다 | DL-R31, DL-UC6 | frontend | `features/deals/list/DealsPage.memory.test.tsx` |
 | DL-100 | 게이트웨이는 목록 조건을 서버 쿼리로 바꾸고 연도·프리셋 응답을 화면 모양으로 바꾼다 | DL-R32 | frontend | `gateway/http/deals.test.ts` |
-
+| DL-101 | sales의 조건 없는 진입은 올해 + 내 딜만 기본 조건이고 mine 없는 요청은 나가지 않는다 | DL-R19, DL-UC1 | frontend | `features/deals/list/DealsPage.defaultMine.test.tsx`, `features/deals/list/listQuery.test.ts` |
+| DL-102 | sales의 초기화는 올해 + 내 딜만으로 돌아가고 그 조건이 기억된다 | DL-R21, DL-R19, DL-UC2 | frontend | `features/deals/list/DealsPage.defaultMine.test.tsx` |
+| DL-103 | sales가 내 딜만을 끄면 mine이 지워지고 기본 조건으로 되돌아가지 않는다 | DL-R21, DL-R31, DL-UC2 | frontend | `features/deals/list/DealsPage.defaultMine.test.tsx` |
+| DL-104 | 조건이 있는 주소(Drill-down·year=all·담당자)와 기억된 조건에는 내 딜만을 더하지 않는다 | DL-R19, DL-R31, DL-UC6 | frontend | `features/deals/list/DealsPage.defaultMine.test.tsx` |
+| DL-105 | user의 기본 조건은 올해만이고 담당 Deal이 없는 sales는 빈 조건 문구를 본다 | DL-R19, DL-R18, DL-UC1 | frontend | `features/deals/list/DealsPage.defaultMine.test.tsx` |
 ### DL-001 조건 없이 조회하면 offset 0·limit 20의 페이지가 최종 업데이트 최신순으로 온다
 - Given KIM이 Deal "첫째"·"둘째"·"셋째"를 1초 간격으로 등록했고 Action은 없다
 - When 조건 없이 목록을 조회한다
@@ -594,8 +599,8 @@ DL-R18~DL-R32.
 - When `GET /deals/updated-periods`를 부른다
 - Then 세 역할은 200이고 항목 키는 `key`·`from`·`to`이며 Deal 404가 아니고, 미인증은 401이다
 
-### DL-055 조건 없는 주소는 올해 기본 조건으로 바뀌고 연도 없는 요청은 나가지 않는다
-- Given 앱 시계 2026-10-15, 2025·2026년 Deal
+### DL-055 admin의 조건 없는 주소는 올해 기본 조건으로 바뀌고 연도 없는 요청은 나가지 않는다
+- Given ROOT(admin) 로그인, 앱 시계 2026-10-15, 2025·2026년 Deal
 - When `/deals`를 연다
 - Then 주소가 `/deals?year=2026`이 되고, 목록 요청은 처음부터 모두 `year: 2026`·분기 없음이며, 2026년 Deal만 보인다
 
@@ -825,9 +830,35 @@ DL-R18~DL-R32.
 - Then 조건 없으면 쿼리 없는 `GET /deals`, 모든 조건은 snake_case·`forecast_key`·`quarter` 반복·`not_done`·`sort=status`·정수 id로 가고 false인 불리언·`bant_*`·폐지 파라미터는 없으며, 응답은 `{items, total, offset, limit}`, 연도는 `earliestYear`(null 유지), 프리셋은 `today`와 아는 키만 남는다
 
 ## 5. 변경 이력
+### DL-101 sales의 조건 없는 진입은 올해 + 내 딜만 기본 조건이고 mine 없는 요청은 나가지 않는다
+- Given KIM(sales) 로그인, 조건 기억 없음, 앱 시계 2026-10-15, KIM·PARK의 2026년 Deal과 KIM의 2025년 Deal
+- When `/deals`를 연다(루트·로그인 직후·기억 없는 상단 메뉴·기억 없는 상세 목록 링크도 같다)
+- Then 주소가 `/deals?year=2026&mine=1`이 되고(이력 교체, 뒤로 가기로 조건 없는 주소에 돌아가지 않음) "내 딜만"이 체크되며, 목록 요청은 처음부터 모두 `year: 2026`·`mine: true`이고 KIM의 2026년 Deal만 보인다
+
+### DL-102 sales의 초기화는 올해 + 내 딜만으로 돌아가고 그 조건이 기억된다
+- Given KIM이 `/deals?status=a&owner=<PARK id>&sort=owner&order=asc`를 보고 있다
+- When "초기화"를 누른다
+- Then URL이 `/deals?year=2026&mine=1`(새 이력, 정렬 없음)이고 "내 딜만"만 체크되며 나머지 칸이 비고, 상단 메뉴 Deals 주소도 같다
+
+### DL-103 sales가 내 딜만을 끄면 mine이 지워지고 기본 조건으로 되돌아가지 않는다
+- Given KIM이 기본 조건 `/deals?year=2026&mine=1`을 보고 있다
+- When "내 딜만" 체크를 끈다
+- Then URL이 `/deals?year=2026`(`mine` 키 없음)이 되고 KIM·PARK의 2026년 Deal이 보이며, 상세에 갔다 목록 링크·상단 메뉴로 돌아와도 `/deals?year=2026`이다
+
+### DL-104 조건이 있는 주소(Drill-down·year=all·담당자)와 기억된 조건에는 내 딜만을 더하지 않는다
+- Given KIM(sales) 로그인, 기억된 조건 `?status=a`
+- When Dashboard Drill-down 주소 `/deals?year=2026&quarter=3&forecast=best%2Ccommit`, `/deals?year=all`, `/deals?owner=<PARK id>`를 각각 열고, 상단 메뉴 Deals를 누른다
+- Then 세 주소는 그대로이고 목록 요청에 `mine`이 없으며, 메뉴는 `/deals?status=a`다
+
+### DL-105 user의 기본 조건은 올해만이고 담당 Deal이 없는 sales는 빈 조건 문구를 본다
+- Given VIEWER(user)와, 담당 Deal이 없는 sales LEE(둘 다 조건 기억 없음), 2026년 Deal이 있다
+- When 각자 `/deals`를 연다
+- Then VIEWER는 `/deals?year=2026`이고 "내 딜만"이 꺼진 채 2026년 Deal이 보인다. LEE는 `/deals?year=2026&mine=1`이고 "조건에 맞는 Deal이 없습니다."다
+
 
 | 날짜 | 변경 | 영향 테스트 코드 |
 | --- | --- | --- |
 | 2026-11-10 | 최초 작성(구현된 동작을 정본으로 옮김, 초안) | DL-001~DL-100 |
 | 2026-11-11 | 문구 정리(사용자 결정 F2, FC·DSH 문서화): DL-R24와 1장 범위에서 연도 선택지 "공용"은 범위 규칙만이고 "전체"는 Deal 목록에만 있음을 명시(Dashboard DSH-R16·Forecast FC-R26). 동작·케이스 변경 없음, 상태 줄 그대로 | 없음 |
 | 2026-11-11 | UI 문서 작성에 따라 공통 컴포넌트 참조를 UI 규칙 번호로 교체(1장, DL-R25, 인라인 Expected Close). 동작·케이스 변경 없음, 상태 줄 그대로 | 없음 |
+| 2026-11-12 | 사용자 요청 "Deal 목록에서 디폴트는 내딜만": DL-R19 기본 조건을 역할별로(sales `year=<올해>&mine=1`, admin·user `year=<올해>`), DL-R21 초기화·내 딜만 끄기, 2.1·2.4·DL-UC1 갱신. 조건 있는 주소·Drill-down·기억된 조건은 그대로. 서버(`mine`, DL-R5)·API 변경 없음, **운영 코드 변경 필요**(frontend) | 변경: DL-055·DL-056·DL-057·DL-070(Given을 admin으로 한정). 신규: DL-101~DL-105. 영향: 기본 역할 sales로 조건 없는 `/deals`를 여는 기존 화면 테스트 |

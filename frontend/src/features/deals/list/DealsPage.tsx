@@ -21,11 +21,13 @@ import './list.css'
 export function DealsPage() {
   const [urlParams, setParams] = useSearchParams()
   const { today } = useToday()
+  const me = useMe().data
+  const role = me?.role
   // 조건이 하나도 없는 주소는 기본 조건(올해만)을 적용한 것으로 본다: 조건 없는 요청이 나가지 않게 첫 렌더부터 이 값을 쓰고, 주소는 replace로 맞춘다.
   const bare = !hasListCondition(urlParams)
-  const params = useMemo(() => (bare ? defaultListParams(today, urlParams) : urlParams), [bare, today, urlParams])
+  const params = useMemo(() => (bare ? defaultListParams(today, role, urlParams) : urlParams), [bare, today, role, urlParams])
   const { canWrite } = usePermissions()
-  const meId = useMe().data?.id
+  const meId = me?.id
   const vendors = useVendors().data
   const query = useMemo(() => {
     const { vendorId, ...rest } = listQueryFromParams(params)
@@ -42,8 +44,8 @@ export function DealsPage() {
   const page = deals.data
 
   useEffect(() => {
-    if (bare) setParams(defaultListParams(today, urlParams), { replace: true })
-  }, [bare, today, urlParams, setParams])
+    if (bare) setParams(defaultListParams(today, role, urlParams), { replace: true })
+  }, [bare, today, role, urlParams, setParams])
 
   // URL이 진실이다: 목록에 마지막으로 보인 조건을 기억한다(초기화하면 빈 조건이 기록되어 지워진다).
   useEffect(() => {
@@ -52,7 +54,7 @@ export function DealsPage() {
 
   function change(patch: Record<string, string | undefined>) {
     setParams((prev) => {
-      const next = updateParams(hasListCondition(prev) ? prev : defaultListParams(today, prev), patch)
+      const next = updateParams(hasListCondition(prev) ? prev : defaultListParams(today, role, prev), patch)
       // 사용자가 마지막 조건을 직접 지우면 기본값이 되살아나지 않고 연도 '전체'로 남긴다.
       return hasListCondition(next) ? next : updateParams(next, { year: 'all', page: next.get('page') ?? undefined })
     })
@@ -74,7 +76,7 @@ export function DealsPage() {
         )}
       </div>
 
-      <DealFilterBar params={params} onChange={change} onReset={() => setParams(defaultListParams(today))} />
+      <DealFilterBar params={params} onChange={change} onReset={() => setParams(defaultListParams(today, role))} />
 
       <ul className="risk-legend" aria-label="Risk 범례">
         <li>

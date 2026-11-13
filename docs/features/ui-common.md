@@ -71,7 +71,7 @@
 - **UI-R17** 천원 잔재 금지(가드): 앱 소스(테스트 파일, `test/`, `gateway/contract/` 제외, 생성 타입 `shared/api/schema.d.ts` 포함)에 `천원`, `toThousandWon`, `formatThousandWon`, `isThousandWonColumn`, `THOUSAND_WON_MAX`, `isSameShownAmount`, `krw_thousand`가 없다. `money.ts`는 천원 함수를 내보내지 않는다.
 
 콤보박스 (`ComboBox`)
-- **UI-R18** 모양: 라벨(`visibleLabel`이 있으면 보이는 글자는 그것이고 접근 이름은 `label`), 입력 칸 `role="combobox"`·`aria-autocomplete="list"`·`aria-expanded`·`aria-controls`·`autocomplete="off"`, 열렸을 때 목록 `role="listbox"`(이름 `label`)과 항목 `role="option"`(글자는 `label`, 없으면 `value`, `description`은 오른쪽 보조 글자). `error`가 있으면 칸 아래 `role="alert"` 문구와 `aria-invalid`·`aria-describedby`, `hint`가 있으면 칸 아래 안내 문구. `inputRef`는 입력 칸을 가리킨다. `visibleLabel`이 없으면 입력 칸에 `aria-label`을 두지 않는다.
+- **UI-R18** 모양: 라벨(`visibleLabel`이 있으면 보이는 글자는 그것이고 접근 이름은 `label`), 입력 칸 `role="combobox"`·`aria-autocomplete="list"`·`aria-expanded`·`aria-controls`·`autocomplete="off"`, 열렸을 때 목록 `role="listbox"`(이름 `label`)과 항목 `role="option"`(글자는 `label`, 없으면 `value`, `description`은 오른쪽 보조 글자). `error`가 있으면 칸 아래 `role="alert"` 문구와 `aria-invalid`·`aria-describedby`, `hint`가 있으면 칸 아래 안내 문구. `inputRef`는 입력 칸을 가리킨다. `visibleLabel`이 없으면 입력 칸에 `aria-label`을 두지 않는다. `required`면 입력 칸에 `required` 속성을 두고 루트(`field combo`)에 `required` 클래스를 붙인다(`*` 표시는 쓰는 화면의 CSS가 그린다 — 예: Deal 폼 DE-R22, 2026-11-12). `required`가 없으면 둘 다 없다.
 - **UI-R19** 열기·닫기: 포커스(`openOnFocus` 기본 참), 클릭(이미 포커스가 있어도), 입력, ↑·↓(닫혀 있으면 열기만)로 연다. `openOnFocus`가 거짓이면 포커스만으로는 열지 않는다(모달 첫 칸 등). 보일 후보가 0개면 목록을 그리지 않는다. 칸을 벗어나면 닫는다.
 - **UI-R20** 후보: 입력이 비었거나 입력이 어떤 후보의 `value`와 대소문자 무시로 같으면 전체 후보(원래 순서), 아니면 표시 글자에 입력이 대소문자 무시로 들어 있는 후보만 보인다.
 - **UI-R21** 고르기·직접 입력: 항목을 마우스로 누르거나 ↑·↓로 옮긴 뒤(끝에서 처음으로 돈다, `aria-activedescendant`가 그 항목) Enter를 누르면 `onChange(value)`, `onSelectOption(항목)`을 부르고 닫는다. 직접 친 글자는 `transform`(있으면)을 거쳐 `onChange`만 부르고 `onSelectOption`은 부르지 않는다(목록에 없는 값도 그대로 입력된다). 목록이 열린 채 Esc를 누르면 목록만 닫고 이벤트 전파를 막는다(감싼 모달이 닫히지 않음). 목록이 닫혀 있을 때의 Esc는 막지 않는다.
@@ -257,7 +257,7 @@ UI-R1~UI-R39.
 | UI-059 | 키·값 격자 CSS는 글자 크기 없이 최대 3열·라벨 고정 열·긴 값 줄바꿈을 선언한다 | UI-R37 | frontend | `shared/ui/kvGrid.test.ts` |
 | UI-060 | 본문 영역은 모든 너비에서 좌우 5% 여백이고 최대 너비가 없다 | UI-R38 | frontend | `shared/ui/layoutStyle.test.ts` |
 | UI-061 | 기본 필드는 라벨이 접근 이름이고 TextField 날짜 형식은 DateInput이다 | UI-R39, UI-UC1 | frontend | `shared/ui/fields.test.tsx` |
-
+| UI-062 | required 콤보박스는 입력 칸 required 속성과 루트 required 클래스를 가진다 | UI-R18, UI-UC1 | frontend | `shared/ui/ComboBox.required.test.tsx` |
 ### UI-001 yyyymmdd 8자리를 치면 yyyy.mm.dd로 보이고 ISO 값을 넘긴다
 - Given 빈 "견적일" 날짜 칸(부모 상태와 연결)
 - When `20261120`을 친다(또는 `20270601`을 쳐서 부모 상태를 화면에 보인다)
@@ -551,9 +551,15 @@ UI-R1~UI-R39.
 - When 화면을 보고 각 칸에 값을 넣거나 체크한다
 - Then 각 칸을 라벨로 찾고 `onChange`가 새 값(체크박스는 참)으로 불리며, "이름" 칸은 `aria-invalid`, "메모"는 3줄이다. "시작일"은 id `from-date`·`inputmode="numeric"`인 텍스트 칸과 "시작일 달력 열기" 버튼이며 native `type="date"` 텍스트 칸이 아니다
 
+### UI-062 required 콤보박스는 입력 칸 required 속성과 루트 required 클래스를 가진다
+- Given 라벨 "고객 회사명" `required` 콤보박스와 라벨 "파트너 회사명" 콤보박스(`required` 없음)
+- When 화면을 그린다
+- Then 첫 칸은 입력 칸에 `required` 속성, 루트에 `required` 클래스가 있고 둘째 칸에는 둘 다 없다. 라벨 글자(접근 이름)는 그대로다
+
 ## 5. 변경 이력
 
 | 날짜 | 변경 | 영향 테스트 코드 |
 | --- | --- | --- |
 | 2026-11-11 | 최초 작성(구현된 동작을 정본으로 옮김, 초안) | UI-001~UI-061 |
 | 2026-11-11 | 사용자 결정 반영(추천대로): 범위에 주인 없는 shared 부품 포함·`UserSelect`·`PeriodField` 등은 원래 feature, 금액 판정·문구 정본 UI-R13·R14(DE-R26이 번호로 가리킴), `formatWonAxis` UI-R16, 빈 첫 실행 UI-R36(UI-056~058), CSS 정적 점검 UI-059·060, 확인 대화상자 진행 중 취소·Esc 허용 현행 문서화(UI-R29). 다른 문서의 UI 이름 참조를 규칙 번호로 교체. 동작·케이스 변경 없음 | 없음 |
+| 2026-11-12 | DE 고객 필수 표시 요청에 따라 UI-R18에 `required`의 루트 클래스 규칙 추가(운영 코드 변경 필요) | 신규: UI-062 |

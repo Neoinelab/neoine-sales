@@ -48,6 +48,7 @@ export function DealInfoSection(props: DealInfoSectionProps) {
             name="owner"
             value={state.ownerId}
             onChange={(v) => set('ownerId', v)}
+            required
             current={original?.owner}
             error={errors.ownerId}
           />

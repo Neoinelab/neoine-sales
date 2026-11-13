@@ -10,6 +10,7 @@ export function CustomerSection({ state, set, errors, original }: SectionProps) 
       <ContactPicker
         layout="rows"
         kind="customer"
+        required
         label="고객"
         value={state.customer}
         onChange={(next) => set('customer', next)}

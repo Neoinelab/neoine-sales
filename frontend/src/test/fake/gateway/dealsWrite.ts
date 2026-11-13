@@ -1,7 +1,8 @@
 /** Deal 쓰기: 등록·수정·단일 필드 변경·삭제. 검증과 연락처 계획을 모두 끝낸 뒤에만 저장소를 바꾼다. */
 
 import { compactDate } from '../../../shared/model/dates'
-import { canDeleteDeal, canWrite } from '../../../shared/model/permissions'
+import { FORECAST_WON } from '../../../shared/model/constants'
+import { canWrite } from '../../../shared/model/permissions'
 import type { Deal, DealInput, DealPatch } from '../../../shared/model/types'
 import { WRITE_DENIED_MESSAGE, conflict, forbidden, validation } from '../errors'
 import { requireUser, requireWrite, viewerOf, write, clone, type MockContext } from './context'
@@ -14,6 +15,9 @@ import { logDealDiff, logHistory } from './historyLog'
 import { dealDetail, findDeal } from './views'
 
 const CODE_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+const DELETE_OWNER_DENIED_MESSAGE = '본인 Deal 또는 admin만 삭제할 수 있습니다.'
+const DELETE_COMPLETED_DENIED_MESSAGE = '완료된 Deal은 관리자만 삭제할 수 있습니다.'
+
 
 /** 서버와 같은 시도 횟수와 문구(DE-R2): 겹치면 다시 뽑고 10번째까지 시도한 뒤 409다. */
 export const DEAL_CODE_ATTEMPTS = 10
@@ -147,7 +151,10 @@ export function dealsWriteApi(ctx: MockContext) {
         if (!canWrite(user.role)) throw forbidden(WRITE_DENIED_MESSAGE)
         const { data } = ctx.store
         const deal = findDeal(data, code)
-        if (!canDeleteDeal(viewerOf(user), deal.ownerId)) throw forbidden('본인 Deal 또는 admin만 삭제할 수 있습니다.')
+        // 서버 DD-R24 순서: Owner·admin 판정 → 완료된 Deal(Forecast won)은 admin만 → 확인 code. 화면 판정(permissions)과 별개로 서버를 그대로 따른다.
+        const viewer = viewerOf(user)
+        if (!(viewer.role === 'admin' || (viewer.role === 'sales' && viewer.id === deal.ownerId))) throw forbidden(DELETE_OWNER_DENIED_MESSAGE)
+        if (deal.forecastKey === FORECAST_WON && viewer.role !== 'admin') throw forbidden(DELETE_COMPLETED_DENIED_MESSAGE)
         if (confirmCode !== code) throw validation('Deal code가 일치하지 않습니다.')
         data.deals.splice(data.deals.indexOf(deal), 1)
         data.history = data.history.filter((h) => h.dealCode !== code)

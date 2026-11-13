@@ -76,7 +76,7 @@ export function SelectField(
 ) {
   const { label, name, value, onChange, required, children, disabled } = props
   return (
-    <label className="field">
+    <label className={required ? 'field required' : 'field'}>
       <span>{label}</span>
       <select
         name={name}

@@ -356,7 +356,8 @@ DE-R21~DE-R31.
 | DE-110 | 화면: 폼 입력을 요청 값으로 바꾼다(공백 제거·숫자·null·파트너 생략/제거) | DE-R31, DE-UC1, DE-UC2 | frontend | `features/deals/form/formState.test.ts` |
 | DE-111 | 게이트웨이: 등록은 snake_case 본문(빈 직급·없는 파트너·빈 Expected Close는 null, BANT 선택 객체)으로 보내고 201 상세를 읽는다 | DE-R31, DE-UC1 | frontend | `gateway/http/deals.test.ts`, `gateway/http/mappers/deal.test.ts` |
 | DE-112 | 게이트웨이: 수정은 준 필드만 보내고 partner null을 유지한다 | DE-R31, DE-UC2 | frontend | `gateway/http/deals.test.ts`, `gateway/http/mappers/deal.test.ts` |
-
+| DE-113 | 화면: 고객 회사명·담당자명은 다른 필수 칸과 같은 필수 표시이고 직급·이메일·전화와 파트너 칸에는 없다 | DE-R22, DE-UC1, DE-UC2 | frontend | `features/deals/form/DealFormPage.requiredMark.test.tsx` |
+| DE-114 | 화면: Owner 칸은 필수 표시이고 늘 값이 있는 Status·Forecast에는 없다 | DE-R22, DE-UC1 | frontend | `features/deals/form/DealFormPage.requiredMark.test.tsx` |
 ### DE-001 sales가 새 고객·파트너와 함께 등록하면 201·Location·발급 code와 입력한 값이 저장된다
 - Given KIM(sales) 로그인, Vendor "SAP" 등록, 업무 날짜 2026-10-15
 - When `POST /deals` 기본 Deal 값 + Vendor SAP, Solution "S/4HANA", Users count 250, 파트너 "한빛파트너스 이영희", 견적 YES(2026-10-01), POC ING, 구매절차 "조달청 입찰"
@@ -869,9 +870,20 @@ DE-R21~DE-R31.
 - When 게이트웨이 `update`로 이름만, Vendor만, Solution만, `vendorId: null`, `partner: null`, 견적·POC·BANT 포함 patch를 각각 보낸다
 - Then `PATCH /api/v1/deals/{code}` 본문은 준 키만 담는다(Vendor만이면 `vendor_id`만, Solution만이면 `solution`만), `vendor_id: null`·`partner: null`이 그대로 있고, 견적·POC는 `quote{submitted, submitted_date}`·`poc{state, completed_date}`, BANT는 있을 때만 선택 객체이며 빈 Expected Close는 null이다
 
+### DE-113 화면: 고객 회사명·담당자명은 다른 필수 칸과 같은 필수 표시이고 직급·이메일·전화와 파트너 칸에는 없다
+- Given KIM 로그인, 파트너가 있는 Deal
+- When 등록 폼과 그 Deal의 수정 폼을 연다
+- Then 두 폼 모두 고객 타일의 "고객 회사명"·"고객 담당자명" 칸이 Deal Name·Solution과 같은 필수 표시를 가지고(접근 이름은 그대로 "고객 회사명"·"고객 담당자명"), 고객 직급·이메일·전화와 파트너 회사명·담당자명·직급·이메일·전화 칸에는 필수 표시가 없다
+
+### DE-114 화면: Owner 칸은 필수 표시이고 늘 값이 있는 Status·Forecast에는 없다
+- Given KIM 로그인
+- When 등록 폼과 기존 Deal의 수정 폼을 연다
+- Then 두 폼 모두 Owner 칸이 Deal Name·Solution과 같은 필수 표시를 가지고, 항상 값이 선택돼 있는 Status·Forecast 칸에는 필수 표시가 없다
+
 ## 5. 변경 이력
 
 | 날짜 | 변경 | 영향 테스트 코드 |
 | --- | --- | --- |
 | 2026-11-10 | 초안: 구현된 동작을 문서화(DE-R1~R31, DE-UC1~UC4, DE-001~DE-112) | DE-001~DE-112 |
 | 2026-11-11 | UI 문서 작성에 따라 공통 컴포넌트 참조를 UI 규칙 번호로 교체, DE-R26 금액 문구에 정본 번호(UI-R13·UI-R14)를 덧붙임(문구 변경 없음). 동작·케이스 변경 없음, 상태 줄 그대로 | 없음 |
+| 2026-11-12 | 사용자 요청 "고객사정보 필수라는 표시 빠져있음": DE-R22에 필수 표시 칸 목록을 적고 고객 회사명·담당자명을 추가(검증 규칙은 그대로, 화면 표시만). 콤보박스 필수 표시는 UI-R18 | 신규: DE-113(Q4=예면 DE-114) |

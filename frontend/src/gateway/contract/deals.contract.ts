@@ -153,7 +153,8 @@ export function dealsContract(make: MakeGateway): void {
       expect(result.deal).toMatchObject({ forecastKey: 'won', statusKey: 'contract_completed', revenueAmount: 2_000_000, revenueDate: '2026-10-14' })
       expect(result.coChanged).toEqual([{ field: 'statusKey', from: 'prospecting', to: 'contract_completed' }])
       expect(result.notice).not.toBeNull()
-      await sales.deals.remove(created.code, created.code)
+      // 정리: Won(완료)이 된 Deal은 admin만 지울 수 있다(DD-R41).
+      await (await make('admin')).deals.remove(created.code, created.code)
     })
 
     it('매출 응답 없는 Won 변경은 거절하고 아무것도 바꾸지 않는다', async () => {

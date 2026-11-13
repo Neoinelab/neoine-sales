@@ -4,7 +4,7 @@ import { useMe } from '../../../data/auth'
 import { useCodeSet } from '../../../data/codes'
 import { useDeal } from '../../../data/deals'
 import { useLabels } from '../../../data/labels'
-import { canDeleteDeal, canWrite as canWriteRole } from '../../../shared/model/permissions'
+import { dealDeleteDenial, canWrite as canWriteRole } from '../../../shared/model/permissions'
 import '../../../shared/ui/kvGrid.css'
 import { ErrorBanner } from '../../../shared/ui/ErrorBanner'
 import { Notice } from '../../../shared/ui/Notice'
@@ -61,7 +61,7 @@ export function DealDetailPage() {
   if (!data || !codes.data || !labels.data) return <p role="status">불러오는 중…</p>
 
   const canWrite = canWriteRole(me?.role)
-  const canDelete = me !== null && canDeleteDeal({ id: me.id, role: me.role }, data.ownerId)
+  const deleteDenial = me === null ? '본인 Deal 또는 admin만 삭제할 수 있습니다.' : dealDeleteDenial({ id: me.id, role: me.role }, data.ownerId, data.forecastKey)
 
   function changeTab(id: string) {
     const next = new URLSearchParams(params)
@@ -83,8 +83,8 @@ export function DealDetailPage() {
               type="button"
               className="danger"
               aria-label="Deal 삭제"
-              disabled={!canDelete}
-              title={canDelete ? undefined : '본인 Deal 또는 admin만 삭제할 수 있습니다.'}
+              disabled={deleteDenial !== null}
+              title={deleteDenial ?? undefined}
               onClick={() => setDeleting(true)}
             >
               삭제

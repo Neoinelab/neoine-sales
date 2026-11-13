@@ -15,9 +15,9 @@ describe('삭제 후 목록 알림', () => {
     // given: sales 사용자가 연도 전체 목록을 기억한 채 Deal 상세를 열었다
     // 기억한 목록 조건이 없으면 기본 조건(올해)이 붙으므로, 전체 Deal을 보도록 '연도 전체'를 기억해 둔다.
     window.sessionStorage.setItem(listMemoryKey(USER_ID.kim), 'year=all')
-    const code = await dealCodeOf(11)
-    const view = await renderAt(await detailPath(11))
-    await screen.findByRole('heading', { level: 1, name: '청명대학교 SSO/MFA' })
+    const code = await dealCodeOf(2)
+    const view = await renderAt(await detailPath(2))
+    await screen.findByRole('heading', { level: 1, name: '대한제조 MFA 확대' })
     await view.user.click(screen.getByRole('button', { name: 'Deal 삭제' }))
     const dialog = await screen.findByRole('dialog', { name: 'Deal 삭제' })
     await view.user.type(within(dialog).getByLabelText('Deal code 확인'), code)
@@ -39,9 +39,9 @@ describe('삭제 후 목록 알림', () => {
   // 삭제 알림은 닫기 버튼으로 닫을 수 있다.
   it('can be closed with the close button', async () => {
     // given: Deal을 삭제해 목록에 삭제 알림이 보인다
-    const code = await dealCodeOf(11)
-    const view = await renderAt(await detailPath(11))
-    await screen.findByRole('heading', { level: 1, name: '청명대학교 SSO/MFA' })
+    const code = await dealCodeOf(2)
+    const view = await renderAt(await detailPath(2))
+    await screen.findByRole('heading', { level: 1, name: '대한제조 MFA 확대' })
     await view.user.click(screen.getByRole('button', { name: 'Deal 삭제' }))
     const dialog = await screen.findByRole('dialog', { name: 'Deal 삭제' })
     await view.user.type(within(dialog).getByLabelText('Deal code 확인'), code)
@@ -136,8 +136,8 @@ describe('저장 후 상세 알림', () => {
   // 상세를 직접 열면 저장 알림이 없다.
   it('shows no notice when the detail page is opened directly', async () => {
     // when: Deal 상세를 직접 연다
-    await renderAt(await detailPath(11))
-    await screen.findByRole('heading', { level: 1, name: '청명대학교 SSO/MFA' })
+    await renderAt(await detailPath(2))
+    await screen.findByRole('heading', { level: 1, name: '대한제조 MFA 확대' })
     // then: '저장되었습니다.' 알림이 보이지 않는다
     expect(screen.queryByText('저장되었습니다.')).not.toBeInTheDocument()
   })

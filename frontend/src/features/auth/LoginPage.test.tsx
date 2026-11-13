@@ -2,7 +2,7 @@ import { screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { keys } from '../../data/queryKeys'
 import { gateway } from '../../gateway'
-import { DEFAULT_DEALS_URL_PATTERN } from '../../test/dealsUrl'
+import { defaultDealsUrlPattern } from '../../test/dealsUrl'
 import { SEED_PASSWORD } from '../../test/fake/seed/users'
 import { renderAt } from '../../test/mockApp'
 
@@ -79,7 +79,7 @@ describe('로그인 화면 (AU)', () => {
     const { location } = await renderAt('/login', { role: 'sales' })
 
     // then: Deals 목록으로 바뀐다
-    await waitFor(() => expect(location()).toMatch(DEFAULT_DEALS_URL_PATTERN))
+    await waitFor(() => expect(location()).toMatch(defaultDealsUrlPattern('sales')))
   })
 
   // 로그인에 성공하면 Deals 목록으로 가고 내 정보가 갱신된다.
@@ -93,7 +93,7 @@ describe('로그인 화면 (AU)', () => {
     await user.click(screen.getByRole('button', { name: '로그인' }))
 
     // then: Deals 목록으로 가고 내 정보 캐시가 kim으로 바뀐다
-    await waitFor(() => expect(location()).toMatch(DEFAULT_DEALS_URL_PATTERN))
+    await waitFor(() => expect(location()).toMatch(defaultDealsUrlPattern('sales')))
     expect(client.getQueryData(keys.me)).toMatchObject({ loginId: 'kim', name: '김영업', role: 'sales' })
   })
 
@@ -173,7 +173,7 @@ describe('로그인 화면 (AU)', () => {
     await user.click(screen.getByRole('button', { name: '로그인' }))
 
     // then: 공백 없는 아이디와 입력 그대로의 비밀번호가 요청되고 Deals 목록으로 간다
-    await waitFor(() => expect(location()).toMatch(DEFAULT_DEALS_URL_PATTERN))
+    await waitFor(() => expect(location()).toMatch(defaultDealsUrlPattern('sales')))
     expect(login).toHaveBeenCalledWith('kim', SEED_PASSWORD)
   })
 
@@ -196,7 +196,7 @@ describe('로그인 화면 (AU)', () => {
     // then: 응답이 오기 전에는 버튼이 비활성이고, 응답이 오면 Deals 목록으로 간다
     await waitFor(() => expect(screen.getByRole('button', { name: '로그인' })).toBeDisabled())
     pending.release()
-    await waitFor(() => expect(location()).toMatch(DEFAULT_DEALS_URL_PATTERN))
+    await waitFor(() => expect(location()).toMatch(defaultDealsUrlPattern('sales')))
   })
 
   // 입력한 비밀번호는 성공이든 실패든 요청 캐시에 남지 않는다.
@@ -213,7 +213,7 @@ describe('로그인 화면 (AU)', () => {
     await user.type(screen.getByLabelText('아이디'), 'kim')
     await user.type(screen.getByLabelText('비밀번호'), SEED_PASSWORD)
     await user.click(screen.getByRole('button', { name: '로그인' }))
-    await waitFor(() => expect(location()).toMatch(DEFAULT_DEALS_URL_PATTERN))
+    await waitFor(() => expect(location()).toMatch(defaultDealsUrlPattern('sales')))
 
     // then: 요청 캐시의 변수에 어느 비밀번호도 남아 있지 않다
     await waitFor(() => {

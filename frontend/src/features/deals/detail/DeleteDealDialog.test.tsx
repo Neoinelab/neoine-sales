@@ -33,8 +33,8 @@ describe('Deal 삭제 팝업 (T-DELETE-01~06)', () => {
   // 테스트 코드: DD-110
   it('keeps 삭제 disabled until the exact code is typed and explains a mismatch', async () => {
     // given: 삭제 대화상자
-    const code = await dealCodeOf(11)
-    const { user, dialog } = await openDialog(11, '청명대학교 SSO/MFA')
+    const code = await dealCodeOf(2)
+    const { user, dialog } = await openDialog(2, '대한제조 MFA 확대')
 
     const confirm = within(dialog).getByRole('button', { name: '삭제' })
     expect(confirm).toBeDisabled()
@@ -58,8 +58,8 @@ describe('Deal 삭제 팝업 (T-DELETE-01~06)', () => {
   // 테스트 코드: DD-110
   it('does not accept the code in lower case', async () => {
     // given: 삭제 대화상자
-    const code = await dealCodeOf(11)
-    const { user, dialog } = await openDialog(11, '청명대학교 SSO/MFA')
+    const code = await dealCodeOf(2)
+    const { user, dialog } = await openDialog(2, '대한제조 MFA 확대')
 
     // when: 소문자로 code를 입력한다
     await user.type(within(dialog).getByLabelText('Deal code 확인'), code.toLowerCase())
@@ -108,7 +108,7 @@ describe('Deal 삭제 팝업 (T-DELETE-01~06)', () => {
   // 테스트 코드: DD-109
   it('shows the same text without partner meetings while the counts are loading', async () => {
     // when: 대화상자를 본다 (전제: 건수를 아직 읽지 못한 삭제 대화상자)
-    const { dialog } = await openDialog(11, '청명대학교 SSO/MFA')
+    const { dialog } = await openDialog(2, '대한제조 MFA 확대')
 
     // then: '파트너 미팅' 글자가 없다
     expect(dialog).not.toHaveTextContent('파트너 미팅')
@@ -118,15 +118,15 @@ describe('Deal 삭제 팝업 (T-DELETE-01~06)', () => {
   // 테스트 코드: DD-111
   it('leaves the detail screen right after deleting so no stale deal is shown', async () => {
     // given: 삭제 대화상자
-    const code = await dealCodeOf(11)
-    const { user, dialog } = await openDialog(11, '청명대학교 SSO/MFA')
+    const code = await dealCodeOf(2)
+    const { user, dialog } = await openDialog(2, '대한제조 MFA 확대')
 
     // when: code를 입력하고 삭제한다
     await user.type(within(dialog).getByLabelText('Deal code 확인'), code)
     await user.click(within(dialog).getByRole('button', { name: '삭제' }))
 
     // then: Deal 제목도 '찾을 수 없습니다' 오류도 보이지 않는다
-    await waitFor(() => expect(screen.queryByRole('heading', { level: 1, name: '청명대학교 SSO/MFA' })).not.toBeInTheDocument())
+    await waitFor(() => expect(screen.queryByRole('heading', { level: 1, name: '대한제조 MFA 확대' })).not.toBeInTheDocument())
     expect(screen.queryByText('Deal을 찾을 수 없습니다.')).not.toBeInTheDocument()
   })
 
@@ -134,8 +134,8 @@ describe('Deal 삭제 팝업 (T-DELETE-01~06)', () => {
   // 테스트 코드: DD-112
   it('closes with cancel or Escape without deleting', async () => {
     // given: code를 입력한 삭제 대화상자
-    const code = await dealCodeOf(11)
-    const { user, dialog } = await openDialog(11, '청명대학교 SSO/MFA')
+    const code = await dealCodeOf(2)
+    const { user, dialog } = await openDialog(2, '대한제조 MFA 확대')
 
     await user.type(within(dialog).getByLabelText('Deal code 확인'), code)
     // when: '취소'를 누른다

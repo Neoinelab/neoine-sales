@@ -2,7 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { gateway } from '../../gateway'
 import { ApiError, type Problem } from '../../shared/api/problem'
-import { DEFAULT_DEALS_URL_PATTERN } from '../../test/dealsUrl'
+import { defaultDealsUrlPattern } from '../../test/dealsUrl'
 import { fillDirectoryForm, selectSecurity } from '../../test/directoryForm'
 import { openFreshSetup, openLocalAdminStep, openLocalStorageStep, openUserMenu, renderLocalAt } from '../../test/localAccounts'
 import { renderAt } from '../../test/mockApp'
@@ -478,7 +478,7 @@ describe('관리자 등록 단계 (SU-060~SU-064)', () => {
     await user.click(screen.getByRole('button', { name: '관리자 등록' }))
 
     // then: Deals 기본 목록으로 가고 메뉴 "Admin"과 사용자 메뉴 "boss (admin)"이 보인다
-    await waitFor(() => expect(location()).toMatch(DEFAULT_DEALS_URL_PATTERN))
+    await waitFor(() => expect(location()).toMatch(defaultDealsUrlPattern('admin')))
     expect(await screen.findByRole('link', { name: 'Admin' })).toBeInTheDocument()
     await openUserMenu(user)
     expect(screen.getByText('boss (admin)')).toBeInTheDocument()
@@ -542,7 +542,7 @@ describe('관리자 등록 단계 (SU-060~SU-064)', () => {
     await user.click(screen.getByRole('button', { name: '관리자 등록' }))
 
     // then: Deals 기본 목록으로 가고 사용자 메뉴에 "보스 (admin)"이 보이며 AD 서버 저장은 없었다
-    await waitFor(() => expect(location()).toMatch(DEFAULT_DEALS_URL_PATTERN))
+    await waitFor(() => expect(location()).toMatch(defaultDealsUrlPattern('admin')))
     expect(register).toHaveBeenCalledWith('boss', 'Passw0rd-ok', { name: '보스', email: 'boss@corp.test', phone: '02-123-4567' })
     expect(saveDirectory).not.toHaveBeenCalled() // AD 서버 저장 요청이 없었다는 것이 케이스의 결과다
     await openUserMenu(user)
@@ -563,7 +563,7 @@ describe('관리자 등록 단계 (SU-060~SU-064)', () => {
     await user.click(screen.getByRole('button', { name: '관리자 등록' }))
 
     // then: 요청의 이메일·전화는 null이고 Deals로 간다
-    await waitFor(() => expect(location()).toMatch(DEFAULT_DEALS_URL_PATTERN))
+    await waitFor(() => expect(location()).toMatch(defaultDealsUrlPattern('admin')))
     expect(register).toHaveBeenCalledWith('boss', 'Passw0rd-ok', { name: '보스', email: null, phone: null })
   })
 

@@ -259,7 +259,8 @@ export function actionsContract(make: MakeGateway): void {
       const history = await sales.history.list(deal.code, {})
       expect(history[0]?.category).toBe('action')
       expect(history.slice(0, 8).map((h) => h.category)).toEqual(expect.arrayContaining(['status', 'forecast']))
-      await sales.deals.remove(deal.code, deal.code)
+      // 정리: Won(완료)이 된 Deal은 admin만 지울 수 있다(DD-R41).
+      await (await make('admin')).deals.remove(deal.code, deal.code)
     })
 
     // 현재와 같은 Status를 요청하면 Action만 등록된다.

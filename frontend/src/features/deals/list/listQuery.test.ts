@@ -672,20 +672,51 @@ describe('defaultListParams', () => {
     ['2027-01-01', 'year=2027'],
     ['2026-03-31', 'year=2026'],
     ['2026-04-01', 'year=2026'],
-  ])('%s에는 분기 없이 올해만 쓴다', (today, expected) => {
-    // when: 기본 파라미터를 만든다
-    const actual = defaultListParams(today).toString()
+  ])('%s에는 분기 없이 올해만 쓴다 (admin)', (today, expected) => {
+    // when: admin의 기본 파라미터를 만든다
+    const actual = defaultListParams(today, 'admin').toString()
     // then: 분기 없이 올해만 담긴 기본 파라미터가 나온다
     expect(actual).toBe(expected)
   })
 
-  it('정렬과 방향은 유지하고 쪽과 모르는 키는 버린다', () => {
+  it('정렬과 방향은 유지하고 쪽과 모르는 키는 버린다 (admin)', () => {
     // given: 정렬·쪽·outcome이 든 현재 파라미터
     const current = params('sort=owner&order=asc&page=3&outcome=open')
-    // when: 기본 파라미터를 만든다
-    const actual = defaultListParams('2026-10-26', current).toString()
+    // when: admin의 기본 파라미터를 만든다
+    const actual = defaultListParams('2026-10-26', 'admin', current).toString()
     // then: 정렬·방향만 남고 쪽·outcome은 버려진다
     expect(actual).toBe('year=2026&sort=owner&order=asc')
+  })
+
+  // 테스트 코드: DL-101
+  it.each([
+    ['2026-10-26', 'year=2026&mine=1'],
+    ['2027-01-01', 'year=2027&mine=1'],
+  ])('%s에는 sales의 기본 조건이 올해와 내 딜만이다', (today, expected) => {
+    // when: sales의 기본 파라미터를 만든다
+    const actual = defaultListParams(today, 'sales').toString()
+    // then: 올해와 mine=1이 담긴다
+    expect(actual).toBe(expected)
+  })
+
+  it('admin과 user의 기본 조건에는 내 딜만이 없다', () => {
+    // when: 두 역할의 기본 파라미터를 만든다
+    const admin = defaultListParams('2026-10-26', 'admin')
+    const user = defaultListParams('2026-10-26', 'user')
+    // then: 둘 다 올해만이고 mine 키가 없다
+    expect(admin.toString()).toBe('year=2026')
+    expect(user.toString()).toBe('year=2026')
+    expect(admin.has('mine')).toBe(false)
+    expect(user.has('mine')).toBe(false)
+  })
+
+  it('sales의 기본 조건도 정렬과 방향은 이어받고 쪽과 모르는 키와 현재 mine은 버린다', () => {
+    // given: 정렬·쪽·모르는 키·mine이 든 현재 파라미터
+    const current = params('sort=owner&order=desc&page=3&foo=1&mine=0')
+    // when: sales의 기본 파라미터를 만든다
+    const actual = defaultListParams('2026-10-26', 'sales', current)
+    // then: 올해·mine=1·정렬·방향만 남는다
+    expect(Object.fromEntries(actual.entries())).toEqual({ year: '2026', mine: '1', sort: 'owner', order: 'desc' })
   })
 })
 

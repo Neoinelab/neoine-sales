@@ -4,6 +4,7 @@
 .form-section { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius-lg); box-shadow: var(--shadow-md); padding: 16px 20px; display: grid; gap: 10px; align-content: start; min-width: 0; }
 .form-section h2 { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .deal-form .field.required > label::after { content: ' *'; color: var(--danger); }
+.deal-form .field.required > span:first-child::after { content: ' *'; color: var(--danger); }
 /* 입력기는 상세의 보기·편집 상자(안쪽 여백 5px 8px, 테두리 1px)와 같은 크기. 견적·POC의 select·date는 내용 폭. */
 .deal-form .kv-grid :is(input, select, textarea) { padding: 5px 8px; width: 100%; min-width: 0; }
 .deal-form .kv-grid .kv-inline :is(input, select) { width: auto; }

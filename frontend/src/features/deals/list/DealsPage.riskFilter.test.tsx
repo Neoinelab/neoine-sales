@@ -1,7 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { gateway } from '../../../gateway'
-import { DEFAULT_DEALS_URL_PATTERN } from '../../../test/dealsUrl'
+import { defaultDealsUrlPattern } from '../../../test/dealsUrl'
 import { renderAt } from '../../../test/mockApp'
 import { ALL_DEALS, dataRows, rowOf } from './testHelpers'
 
@@ -139,15 +139,15 @@ describe('Deals 필터: 기한초과·미업데이트', () => {
   // 초기화하면 두 체크가 꺼진다
   // 테스트 코드: DL-070
   it('초기화하면 두 체크가 꺼지고 URL이 기본 조건 주소가 된다', async () => {
-    // given: 두 체크가 켜진 목록
-    const { user, location } = await renderAt('/deals?overdue=1&stale=1')
+    // given: admin이 두 체크를 켠 목록
+    const { user, location } = await renderAt('/deals?overdue=1&stale=1', { role: 'admin' })
     await waitFor(() => expect(overdueBox()).toBeChecked())
 
     // when: 초기화를 누른다
     await user.click(screen.getByRole('button', { name: '초기화' }))
 
     // then: 체크가 꺼지고 URL이 기본 조건이다
-    await waitFor(() => expect(location()).toMatch(DEFAULT_DEALS_URL_PATTERN))
+    await waitFor(() => expect(location()).toMatch(defaultDealsUrlPattern('admin')))
     expect(overdueBox()).not.toBeChecked()
     expect(staleBox()).not.toBeChecked()
   })

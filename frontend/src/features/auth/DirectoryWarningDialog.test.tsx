@@ -3,7 +3,7 @@ import { screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { gateway } from '../../gateway'
 import type { DirectoryWarning } from '../../shared/model/types'
-import { DEFAULT_DEALS_URL_PATTERN } from '../../test/dealsUrl'
+import { defaultDealsUrlPattern } from '../../test/dealsUrl'
 import { USER_ID } from '../../test/fake/seed/ids'
 import { logOutFromMenu } from '../../test/localAccounts'
 import { renderAt } from '../../test/mockApp'
@@ -59,7 +59,7 @@ describe('로그인 뒤 admin AD 경고 팝업 (AC15)', () => {
     await signIn(user)
 
     // then: Deals 목록에서 서버 문구와 두 버튼이 있는 'AD 연결 경고' 대화상자가 보인다
-    await waitFor(() => expect(location()).toMatch(DEFAULT_DEALS_URL_PATTERN))
+    await waitFor(() => expect(location()).toMatch(defaultDealsUrlPattern('admin')))
     const popup = within(await dialog())
     expect(popup.getByText(CONNECT_WARNING.message)).toBeInTheDocument()
     expect(popup.getByRole('button', { name: '외부연동 설정으로 이동' })).toBeInTheDocument()
@@ -109,7 +109,7 @@ describe('로그인 뒤 admin AD 경고 팝업 (AC15)', () => {
     loginReturns(CONNECT_WARNING)
     const { user, location, goTo } = await openLogin()
     await signIn(user)
-    await waitFor(() => expect(location()).toMatch(DEFAULT_DEALS_URL_PATTERN))
+    await waitFor(() => expect(location()).toMatch(defaultDealsUrlPattern('admin')))
     const popup = within(await dialog())
 
     // when: '닫기'를 누른다
@@ -117,7 +117,7 @@ describe('로그인 뒤 admin AD 경고 팝업 (AC15)', () => {
 
     // then: 닫히고 이동하지 않으며 다른 화면으로 옮겨도 다시 보이지 않는다
     expect(screen.queryByRole('dialog', { name: 'AD 연결 경고' })).not.toBeInTheDocument()
-    expect(location()).toMatch(DEFAULT_DEALS_URL_PATTERN) // 닫기만 하고 이동하지 않는다
+    expect(location()).toMatch(defaultDealsUrlPattern('admin')) // 닫기만 하고 이동하지 않는다
     goTo('/dashboard')
     await screen.findByRole('navigation', { name: '주 메뉴' })
     goTo('/deals')
@@ -136,7 +136,7 @@ describe('로그인 뒤 admin AD 경고 팝업 (AC15)', () => {
     await signIn(user)
 
     // then: 대화상자가 없다
-    await waitFor(() => expect(location()).toMatch(DEFAULT_DEALS_URL_PATTERN))
+    await waitFor(() => expect(location()).toMatch(defaultDealsUrlPattern('admin')))
     await screen.findByRole('navigation', { name: '주 메뉴' })
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(screen.queryByText('AD 연결 경고')).not.toBeInTheDocument()

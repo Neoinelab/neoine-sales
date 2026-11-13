@@ -25,10 +25,10 @@ describe('deals.remove (T-DELETE)', () => {
 
     // when·then: 없는 Deal과 틀린 확인 code로 삭제한다 → 404, 422이고 Deal이 남는다
     await expectApiError(gateway.deals.remove('20000101-ZZZZ', '20000101-ZZZZ'), 404)
-    await expectApiError(gateway.deals.remove(dealCode(11), ''), 422, 'Deal code가 일치하지 않습니다.')
-    await expectApiError(gateway.deals.remove(dealCode(11), dealCode(11).toLowerCase()), 422, 'Deal code가 일치하지 않습니다.')
-    await expectApiError(gateway.deals.remove(dealCode(11), dealCode(12)), 422, 'Deal code가 일치하지 않습니다.')
-    expect((await gateway.deals.get(dealCode(11))).code).toBe(dealCode(11))
+    await expectApiError(gateway.deals.remove(dealCode(2), ''), 422, 'Deal code가 일치하지 않습니다.')
+    await expectApiError(gateway.deals.remove(dealCode(2), dealCode(2).toLowerCase()), 422, 'Deal code가 일치하지 않습니다.')
+    await expectApiError(gateway.deals.remove(dealCode(2), dealCode(12)), 422, 'Deal code가 일치하지 않습니다.')
+    expect((await gateway.deals.get(dealCode(2))).code).toBe(dealCode(2))
   })
 
   // 본인 Deal을 삭제하면 이력·Action·첨부가 연쇄로 사라진다.
@@ -89,5 +89,94 @@ describe('deals.remove (T-DELETE)', () => {
     await gateway.deals.remove(dealCode(1), dealCode(1))
     // then: 고객 연락처 조회에 담당자가 남아 있다
     expect((await gateway.contacts.byCompany('customer', '한빛은행')).map((c) => c.name)).toContain('정민수')
+  })
+})
+
+describe('deals.remove 완료된 Deal (DD-R41)', () => {
+  const COMPLETED = '완료된 Deal은 관리자만 삭제할 수 있습니다.'
+  const OWNER_ONLY = '본인 Deal 또는 admin만 삭제할 수 있습니다.'
+
+  // Fake는 Owner 영업의 완료된 Deal 삭제를 서버와 같은 문구의 403으로 막고 아무것도 지우지 않는다.
+  // 테스트 코드: DD-125
+  it('Owner 영업이 완료된 Deal을 지우면 완료 문구의 403이고 Deal이 남는다', async () => {
+    // given: KIM이 Owner인 Won Deal(시드 11)과 그 계약 수
+    const { gateway } = await mockAs('kim')
+    const code = dealCode(11)
+    const before = await gateway.deals.impact(code)
+    expect(before.licenseContractCount).toBeGreaterThan(0)
+
+    // when: KIM(sales)이 정확한 code로 지운다
+    // then: 403 완료 문구다
+    await expectApiError(gateway.deals.remove(code, code), 403, COMPLETED)
+
+    // then: Deal·이력·Action·첨부·계약이 그대로다
+    expect(await gateway.deals.get(code)).toMatchObject({ code, forecastKey: 'won' })
+    expect(await gateway.deals.impact(code)).toEqual(before)
+  })
+
+  // 완료 판정이 확인 code 비교보다 먼저라 틀린 code로도 완료 문구의 403이다.
+  // 테스트 코드: DD-125
+  it('완료된 Deal은 확인 code가 틀려도 422가 아니라 완료 문구의 403이다', async () => {
+    // given: KIM이 Owner인 Won Deal
+    const { gateway } = await mockAs('kim')
+    const code = dealCode(11)
+
+    // when·then: 틀린 확인 code로 지운다 → 403 완료 문구이고 Deal이 남는다
+    await expectApiError(gateway.deals.remove(code, 'wrong'), 403, COMPLETED)
+    expect((await gateway.deals.get(code)).code).toBe(code)
+  })
+
+  // admin은 완료된 Deal을 지우고 이력·Action·첨부·계약이 함께 사라진다.
+  // 테스트 코드: DD-125
+  it('admin은 완료된 Deal을 지우고 이력·Action·첨부·계약이 함께 사라진다', async () => {
+    // given: KIM이 Owner인 Won Deal(시드 11)과 admin
+    const { gateway } = await mockAs('root')
+    const code = dealCode(11)
+    const before = await gateway.deals.impact(code)
+    expect(before.historyCount).toBeGreaterThan(0)
+    expect(before.licenseContractCount).toBeGreaterThan(0)
+
+    // when: ROOT가 정확한 code로 지운다
+    await gateway.deals.remove(code, code)
+
+    // then: Deal·이력·Action·첨부 조회가 404이고 그 Deal의 계약이 없다
+    await expectApiError(gateway.deals.get(code), 404)
+    await expectApiError(gateway.history.list(code, {}), 404)
+    await expectApiError(gateway.actions.list(code, {}), 404)
+    await expectApiError(gateway.attachments.list(code), 404)
+    const contracts = (await gateway.licenseContracts.list({ sort: 'licenseEnd', order: 'asc' }, 0, 200)).items.filter((c) => c.dealCode === code)
+    expect(contracts).toEqual([])
+  })
+
+  // 다른 영업이 완료된 Deal을 지우면 Owner 문구가 완료 문구보다 먼저다.
+  // 테스트 코드: DD-125
+  it('다른 영업이 완료된 Deal을 지우면 Owner 문구의 403이 먼저다', async () => {
+    // given: KIM이 Owner인 Won Deal과 다른 영업 PARK
+    const { gateway } = await mockAs('park')
+    const code = dealCode(11)
+
+    // when·then: PARK가 지운다 → Owner 문구 403이고 Deal이 남는다
+    await expectApiError(gateway.deals.remove(code, code), 403, OWNER_ONLY)
+    expect((await gateway.deals.get(code)).code).toBe(code)
+  })
+
+  // Lost와 Won에서 되돌린 Deal은 완료가 아니라 Owner 영업이 지운다.
+  // 테스트 코드: DD-125
+  it('Lost Deal과 Won에서 되돌린 Deal은 Owner 영업이 지울 수 있다', async () => {
+    // given: KIM이 Owner인 Lost Deal(시드 16)과, LEE가 Owner인 Won Deal(시드 12, 미발급 계약만)을 Pipeline으로 되돌린 것
+    const kim = await mockAs('kim')
+    const lee = await mockAs('lee')
+    const lost = dealCode(16)
+    const back = dealCode(12)
+    await lee.gateway.deals.applyChange(back, { change: { field: 'forecastKey', value: 'pipeline' }, resolution: { statusKey: 'prospecting' } })
+    expect((await lee.gateway.deals.get(back)).forecastKey).toBe('pipeline')
+
+    // when: 각 Owner가 자기 Deal을 지운다
+    await kim.gateway.deals.remove(lost, lost)
+    await lee.gateway.deals.remove(back, back)
+
+    // then: 두 Deal 모두 사라진다
+    await expectApiError(kim.gateway.deals.get(lost), 404)
+    await expectApiError(lee.gateway.deals.get(back), 404)
   })
 })

@@ -5,7 +5,7 @@
 ## 1. 개요
 
 - 목적: 한 Deal을 열어 현재 값을 보고, 값을 그 자리에서 고치고(Status·Forecast는 동기화 규칙을 지키며), 무엇이 언제 누구에 의해 바뀌었는지(Deal History) 보고, 필요하면 Deal을 지운다.
-- 사용자(역할): 조회는 로그인한 모든 역할(admin·sales·user), 값 변경은 sales·admin(Owner 여부와 무관), 삭제는 Owner 본인 sales와 admin.
+- 사용자(역할): 조회는 로그인한 모든 역할(admin·sales·user), 값 변경은 sales·admin(Owner 여부와 무관), 삭제는 Owner 본인 sales와 admin(완료된 Deal은 admin만 — DD-R41, 2026-11-12).
 - 범위
   - 화면 `/deals/:dealCode`: 머리(Deal 이름·목록·삭제), 탭 3개 틀, Deal 정보 타일(요약 값·인라인 수정), 고객·파트너·BANT 카드와 인라인 수정, Deal History 탭, 삭제 확인 대화상자
   - API `GET /deals/{code}`, `POST /deals/{code}/changes`, `GET /deals/{code}/history`, `GET /deals/{code}/deletion-impact`, `DELETE /deals/{code}`
@@ -113,15 +113,16 @@ Deal History
 삭제 영향·삭제
 - **DD-R22** `GET /deals/{code}/deletion-impact`는 로그인한 모든 역할이 부른다. 200 `{history_count, action_count, attachment_count, license_contract_count}` — 그 Deal의 이력 수(등록 항목 포함), Action 수, 첨부 수(계산 세부 AT), 계약 수(LC-R20)이며 다른 Deal의 건수는 섞이지 않는다. 없는 Deal 404(DD-R1).
 - **DD-R23** `DELETE /deals/{code}?confirm_code=<입력값>`: `confirm_code` 쿼리는 필수이고 없으면 422 `request-validation`이다. 성공하면 204(본문 없음).
-- **DD-R24** 삭제 판정 순서: user는 역할 가드 403 "이 작업을 할 권한이 없습니다(읽기 전용 계정)"(PL-R6) → `confirm_code` 누락 422 → 없는 Deal·형식이 틀린 code 404 → 삭제 권한(admin은 모든 Deal, sales는 자기가 Owner인 Deal만) 아니면 403 `forbidden` "본인 Deal 또는 admin만 삭제할 수 있습니다." → `confirm_code`가 Deal code와 **정확히**(대소문자 포함) 같지 않으면 422 `invalid-value` "Deal code가 일치하지 않습니다.". 거절되면 아무것도 지우지 않는다. 권한 판정이 확인 code보다 먼저라 다른 영업은 code가 틀려도 403이다.
+- **DD-R24** 삭제 판정 순서: user는 역할 가드 403 "이 작업을 할 권한이 없습니다(읽기 전용 계정)"(PL-R6) → `confirm_code` 누락 422 → 없는 Deal·형식이 틀린 code 404 → 삭제 권한(admin은 모든 Deal, sales는 자기가 Owner인 Deal만) 아니면 403 `forbidden` "본인 Deal 또는 admin만 삭제할 수 있습니다." → 완료된 Deal(DD-R41)인데 admin이 아니면 403 `forbidden` "완료된 Deal은 관리자만 삭제할 수 있습니다." → `confirm_code`가 Deal code와 **정확히**(대소문자 포함) 같지 않으면 422 `invalid-value` "Deal code가 일치하지 않습니다.". 거절되면 아무것도 지우지 않는다. 권한 판정이 확인 code보다 먼저라 다른 영업은 code가 틀려도 403이다. 완료 판정도 확인 code보다 먼저라 Owner 영업이 완료된 자기 Deal을 틀린 code로 지워도 완료 문구 403이고, 다른 영업이 완료된 Deal을 지우면 Owner 문구 403이 먼저다.
 - **DD-R25** 삭제는 물리 삭제다. Deal과 그 이력·Action·첨부 행·파트너 링크·BANT 선택(·라이선스 계약, LC)이 함께 지워진다. 연락처·BANT Label·코드·Vendor·사용자·파트너 미팅 기록(PA)은 남고, 남은 연락처·Label로 다시 Deal을 등록할 수 있다. 다른 Deal의 데이터는 그대로다.
 - **DD-R26** 커밋한 뒤 운영 로그(INFO) 한 줄 `deal deleted code=<code> by=<사용자 id> at=<서버 시각 ISO>`를 남긴다(거절되면 없음). 저장 위치(IN)가 설정돼 있으면 커밋 뒤 `<저장 위치>/<deal code>` 폴더를 지우고(다른 Deal 폴더·저장 위치 루트는 남음, 계약 폴더는 LC-R26), 지우지 못하면 WARNING `deal files cleanup failed code=<code>`만 남기고 요청은 성공(204)이다. 저장 위치가 없으면 파일을 건드리지 않는다. 거절되거나 커밋이 실패하면 Deal과 파일 모두 남는다.
+- **DD-R41** 완료된 Deal(2026-11-12 사용자 요청): 삭제를 요청한 순간의 Forecast key가 `won`인 Deal(불변식 DD-R5상 Status `contract_completed`와 같다, "Won으로 종결된 Deal")이다. 판정은 key로 하며 코드 이름과 무관하다. Lost·진행 중 Deal과, Won이었다가 되돌린 Deal은 완료가 아니다. 완료된 Deal은 admin만 지울 수 있고(Owner 영업도 403, DD-R24), 서버가 강제하며 화면은 같은 판정으로 버튼을 끈다(DD-R30). 상세 조회·값 변경·삭제 영향 조회는 바뀌지 않는다.
 
 화면(frontend, `/deals/:dealCode`)
 - **DD-R27** 화면 틀: 머리에 Deal 이름(h1)과 "← 목록" 링크(목록 주소는 DL), 쓰기 권한이 있으면 "삭제" 버튼(접근 이름 "Deal 삭제"). 그 아래 탭 목록(이름 "상세 탭") 3개 "Deal 상세", "Actions", "Deal History" 순서이고 기본은 "Deal 상세"다. 주소 `?tab=actions`·`?tab=history`로 탭을 열고, 모르는 값이면 Deal 상세다. 탭을 고르면 주소의 `tab`을 바꾸고 Deal 상세로 오면 `tab`을 지운다. Deal 상세 탭에만 Deal 정보 타일·고객·파트너·BANT 카드·첨부 패널(AT)이 있다. 알림(성공 문구, 닫기 가능, 다른 화면에서 `state.notice`로 넘어온 문구 포함)은 탭 패널 맨 위에 보인다. 읽는 동안 "불러오는 중…", Deal을 읽지 못하면(404 등) 서버 문구 오류 배너와 "Deal 목록으로" 링크만 보인다.
 - **DD-R28** Deal 정보 타일(제목 h2 "Deal 정보") 행 순서: Deal code(읽기 전용 글자), Owner, Status(배지 + "N일째" — RK), Forecast(배지), 금액(단위:원), Expected Close, Next Action(텍스트·"Due <날짜>"·상태, 없으면 "없음", 경고 배지 — RK·NA), 최종 업데이트(상대 시각 — RK), Vendor(없으면 "—"), Solution, Users count, 견적(제출/미제출 + " (<날짜>)"), POC("<YES|ING|NO> · <완료|진행 중|하지 않음>" + 날짜), 구매절차(없으면 "—"), 등록일. Forecast 결과가 `won`이면 "Won으로 종결된 Deal입니다. 매출금액과 매출일은 확정 값이며, 필요하면 계속 수정할 수 있습니다.", `lost`면 "Lost로 종결된 Deal입니다. Forecast를 바꾸면 다시 진행 중으로 되돌릴 수 있습니다."를 보인다.
 - **DD-R29** 카드: Deal 정보 아래 고객(h2 "고객")·파트너(h2 "파트너")·BANT(h2 "BANT") 순서. 고객·파트너 카드는 회사·담당자·직급·이메일·전화 5행(값 없으면 "—"), 파트너가 없으면 같은 5행이 모두 "—"이고 "파트너 없음" 같은 글자는 없다. 해제된 파트너가 있으면 접힌 "이전 파트너 이력 (N)" 안에 "<회사> <담당자> (<연결일> ~ <해제일>)"로 보인다. BANT 카드는 Budget·Authority·Need·Timeline 4행(Label 이름, 없으면 "—").
-- **DD-R30** 역할별 화면: `canWrite`(admin·sales, PL-R36)면 값마다 클릭 편집 버튼(접근 이름 "<항목> 수정", 제목은 title "Deal 이름 수정")이 있고 별도 "수정" 링크는 없다. user는 같은 값을 글자로만 보고 편집 버튼·삭제 버튼·연락처 입력 버튼이 없다. 삭제 버튼은 `canDeleteDeal`(admin은 모두, sales는 자기가 Owner인 Deal만, user는 불가)일 때 활성이고, 아니면 비활성 + title "본인 Deal 또는 admin만 삭제할 수 있습니다."다(편집은 그대로 가능).
+- **DD-R30** 역할별 화면: `canWrite`(admin·sales, PL-R36)면 값마다 클릭 편집 버튼(접근 이름 "<항목> 수정", 제목은 title "Deal 이름 수정")이 있고 별도 "수정" 링크는 없다. user는 같은 값을 글자로만 보고 편집 버튼·삭제 버튼·연락처 입력 버튼이 없다. 삭제 버튼은 `canDeleteDeal`(admin은 모두, sales는 자기가 Owner이고 완료(DD-R41)가 아닌 Deal만, user는 불가)일 때 활성이고, 아니면 비활성 + title이다: Owner가 아니면 "본인 Deal 또는 admin만 삭제할 수 있습니다.", Owner이지만 완료된 Deal이면 "완료된 Deal은 관리자만 삭제할 수 있습니다."(서버 DD-R24와 같은 순서·문구). 편집은 그대로 가능하다. 판정은 화면이 가진 최신 Deal 값으로 하므로 상세에서 Status·Forecast를 바꿔 Won이 되면 곧바로 꺼지고, Won에서 되돌리면 다시 켜진다.
 - **DD-R31** 인라인 편집 공통(`InlineEdit`): 값 버튼을 누르거나 Enter·Space로 편집을 열면 입력기에 포커스가 간다. 선택형(select, 자동완성 후보 선택)은 고르는 순간 저장하고, 입력형(텍스트·숫자·날짜·자동완성 직접 입력)은 Enter 또는 편집 영역 밖으로 포커스가 나갈 때 저장한다. 값이 그대로면 요청 없이 닫는다. Esc는 입력을 버리고 닫는다. 저장·검증 실패는 입력기 아래 오류 배너(PL-R37)로 보이고 편집을 유지한다(다시 고쳐 재시도). 저장 성공이면 닫고 알림을 보인다. 날짜 칸은 `DateInput`(넘기는 값 UI-R6, 달력 UI-R9)이며 덜 쳤거나 틀린 날짜는 저장하지 않고, 달력 버튼·숨은 날짜 칸으로 포커스가 옮겨 가는 것은 저장으로 보지 않는다.
 - **DD-R32** 필드별 인라인 저장(`PATCH`, 검증 정본 DE): Deal 이름 — 앞뒤 공백 제거, 비면 "Deal Name을 입력하세요."(요청 없음), 알림 "Deal 이름이 변경되었습니다.". Owner — 사용자 선택(재직 sales 후보, 퇴사한 현재 Owner는 후보에 없음), 알림 "Owner가 변경되었습니다.". Vendor — "선택 안 함" + 등록 Vendor 목록, `vendor_id`만 보냄(Solution 유지), 같은 값이면 요청 없음, 알림 "Vendor가 변경되었습니다.". Solution — 공백 제거 뒤 비면 "Solution을 입력하세요.", `solution`만 보냄, 알림 "Solution이 변경되었습니다.". Users count — 비면 "Users count를 입력하세요.", 숫자만이 아니면 "Users count는 0 이상의 정수로 입력하세요."(0 허용), 알림 "Users count가 변경되었습니다.". 견적 제출여부(선택 안 함·YES·NO)·제출일, POC 여부(선택 안 함·YES·ING·NO)·완료일은 각각 따로 고치고 나머지 짝 값은 그대로 보내며 알림 "견적 제출여부/견적 제출일/POC 여부/POC 완료일이 변경되었습니다.". 구매절차 — 공백 제거, 알림 "구매절차가 변경되었습니다.". 서버 거절(예: 이름 50자 초과)은 서버 문구로 보인다.
 - **DD-R33** BANT 인라인: 값을 누르면 그 구분 Label만 후보인 자동완성 입력(현재 Label 이름으로 시작, "새 Label" 같은 항목 없음)이 열린다. 후보를 고르면 즉시, 직접 입력은 Enter·포커스 이동으로 저장한다. 입력 → 선택 변환은 CL-R16(이름이 같은 Label이 있으면 그 id, 없으면 이름으로 보내 서버가 새 Label을 만듦, 비우면 선택 안 함). 요청은 4구분 모두를 보내되 다른 구분은 현재 선택 `{id}`(또는 null) 그대로다. 선택이 그대로면 요청 없음. 알림 "BANT <구분> Label이 변경되었습니다.".
@@ -148,7 +149,7 @@ Status·Forecast 조합의 상태(불변식 DD-R5를 지키는 것만 존재):
 | Lost | Forecast → Won 아닌 값 | 진행 | Status(계약완료 제외, 기본 = 현재) |
 | Lost | Status → 계약완료 | 종결 | 매출금액·매출일 |
 | Lost | Status → 그 밖 값 | Lost | 없음 |
-| (모든 상태) | 삭제 | (없음) | 확인 code |
+| (모든 상태) | 삭제 | (없음) | 확인 code(종결 = Won이면 admin만, DD-R41) |
 
 ### 2.5 권한
 
@@ -156,8 +157,8 @@ Status·Forecast 조합의 상태(불변식 DD-R5를 지키는 것만 존재):
 | --- | --- | --- | --- | --- |
 | `GET /deals/{code}`, `GET /deals/{code}/history`, `GET /deals/{code}/deletion-impact` | 401 | 가능 | 가능 | 가능 |
 | `POST /deals/{code}/changes` | 401 | 403 읽기 전용 문구 | 모든 Deal 가능 | 모든 Deal 가능 |
-| `DELETE /deals/{code}` | 401 | 403 읽기 전용 문구 | 자기가 Owner인 Deal만(아니면 403 "본인 Deal 또는 admin만 삭제할 수 있습니다.") | 모든 Deal 가능 |
-| 화면 `/deals/:dealCode` 보기 | `/login`으로 | 보기만(편집·삭제 버튼 없음) | 편집 가능, 삭제는 본인 Deal만 활성 | 편집·삭제 가능 |
+| `DELETE /deals/{code}` | 401 | 403 읽기 전용 문구 | 자기가 Owner이고 완료되지 않은 Deal만(Owner가 아니면 403 "본인 Deal 또는 admin만 삭제할 수 있습니다.", 완료된 Deal이면 403 "완료된 Deal은 관리자만 삭제할 수 있습니다.") | 모든 Deal 가능(완료 포함) |
+| 화면 `/deals/:dealCode` 보기 | `/login`으로 | 보기만(편집·삭제 버튼 없음) | 편집 가능, 삭제는 본인의 완료되지 않은 Deal만 활성 | 편집·삭제 가능 |
 
 상세·이력·삭제 영향은 업무 조회, 단일 변경·삭제는 업무 쓰기(PL-R2, PL-R6, CSRF PL-R9)다. 거절된 요청은 아무것도 바꾸지 않는다.
 
@@ -191,6 +192,7 @@ DD-R27~DD-R40.
 | 요청 형식 오류(필드·형식·모르는 키·`confirm_code` 누락·`category` 값) | 422 `request-validation` | 요청 형식이 올바르지 않습니다 |
 | user의 변경·삭제 | 403 `forbidden` | 이 작업을 할 권한이 없습니다(읽기 전용 계정) |
 | 다른 Owner Deal 삭제(sales) | 403 `forbidden` | 본인 Deal 또는 admin만 삭제할 수 있습니다. |
+| 완료된 Deal 삭제(admin 아님, DD-R41) | 403 `forbidden` | 완료된 Deal은 관리자만 삭제할 수 있습니다. |
 | 삭제 확인 code 불일치 | 422 `invalid-value` | Deal code가 일치하지 않습니다. |
 | 발급 계약 있는 Deal의 Won 이탈 | 409 `invalid-state` | LC-R8 문구 |
 
@@ -236,11 +238,11 @@ DD-R27~DD-R40.
 - 결과: 누가 언제 무엇을 어떻게 바꿨는지
 
 ### DD-UC6 Deal 삭제
-- 행위자: Owner 본인 sales, admin
+- 행위자: Owner 본인 sales(완료되지 않은 Deal), admin(모든 Deal)
 - 사전 조건: 삭제 버튼 활성(DD-R30)
 - 기본 흐름: 삭제 → 영향 건수 확인(`GET /deletion-impact`) → Deal code 입력 → 삭제(`DELETE ?confirm_code=`) → 204 → 목록으로 이동, 알림(DD-R22~R26, DD-R39)
 - 대안: 취소·Esc
-- 예외: 다른 영업 403, user 403, code 불일치 422, 없는 Deal 404
+- 예외: 다른 영업 403, Owner 영업의 완료된 Deal 403(DD-R41), user 403, code 불일치 422, 없는 Deal 404
 - 결과: Deal과 이력·Action·첨부·파트너 링크·BANT 선택(·계약)이 지워지고 연락처·Label·파트너 미팅은 남는다
 
 ## 4. BDD 테스트 케이스
@@ -366,7 +368,15 @@ DD-R27~DD-R40.
 | DD-115 | 화면 규칙: 이력 diff 함수가 서버와 같은 순서·대상·표기를 만든다 | DD-R20, DD-R21 | frontend | `shared/model/history.test.ts` |
 | DD-116 | 게이트웨이: 상세·삭제 영향·이력·단일 변경·삭제를 계약대로 보내고 응답·오류를 바꾼다 | DD-R40 | frontend | `gateway/http/deals.test.ts`<br>`gateway/http/history.test.ts`<br>`gateway/http/mappers/history.test.ts` |
 | DD-117 | Fake 게이트웨이는 서버와 같은 규칙·문구로 변경·삭제·이력 요청에 답한다 | DD-R5~DD-R8, DD-R12~DD-R14, DD-R17, DD-R20, DD-R24, DD-R25 | frontend | `test/fake/gateway/deals.change.test.ts`<br>`test/fake/gateway/deals.read.test.ts > 없는 code는 404`<br>`test/fake/gateway/deals.read.test.ts > impact는 연쇄 삭제 건수와 목록 건수가 같다`<br>`test/fake/gateway/deals.remove.test.ts`<br>`test/fake/gateway/history.test.ts`<br>`test/fake/gateway/historyLog.test.ts` |
-
+| DD-118 | Owner 영업이 완료된 자기 Deal을 지우면 확인 code와 무관하게 403이고 Deal·계약이 남는다 | DD-R24, DD-R41, DD-UC6 | backend | `application/test_delete_deal_completed.py::test_the_owner_sales_user_cannot_delete_a_completed_deal_and_nothing_is_removed`<br>`application/test_delete_deal_completed.py::test_the_completed_refusal_is_an_access_denied_error_for_the_403_mapping`<br>`application/test_delete_deal_completed.py::test_the_completed_refusal_comes_before_the_confirmation_mismatch`<br>`domain/test_deal_completed.py::test_the_owner_sales_user_cannot_delete_a_completed_deal`<br>`web/test_deal_delete_completed_route.py::test_the_owner_sales_user_gets_a_403_forbidden_for_a_completed_deal` |
+| DD-119 | admin은 완료된 Deal도 지운다 | DD-R24, DD-R41, DD-UC6 | backend | `application/test_delete_deal_completed.py::test_an_admin_deletes_a_completed_deal_with_its_contract`<br>`application/test_delete_deal_completed.py::test_an_admin_still_gets_the_mismatch_error_for_a_completed_deal`<br>`domain/test_deal_completed.py::test_admin_can_delete_a_completed_deal`<br>`web/test_deal_delete_completed_route.py::test_an_admin_deletes_a_completed_deal_with_204` |
+| DD-120 | Owner 영업은 Lost·진행 중·Won에서 되돌린 Deal을 지금처럼 지운다 | DD-R41, DD-UC6 | backend | `application/test_delete_deal_completed.py::test_the_owner_sales_user_still_deletes_a_deal_that_is_not_completed`<br>`application/test_delete_deal_completed.py::test_the_owner_sales_user_deletes_a_deal_that_left_won`<br>`domain/test_deal_completed.py::test_the_owner_sales_user_can_delete_a_lost_deal`<br>`web/test_deal_delete_completed_route.py::test_the_owner_sales_user_deletes_a_lost_deal_with_204` |
+| DD-121 | 다른 영업이 완료된 Deal을 지우면 Owner 문구 403이 먼저다 | DD-R24, DD-UC6 | backend | `application/test_delete_deal_completed.py::test_another_sales_user_gets_the_owner_refusal_before_the_completed_one`<br>`domain/test_deal_completed.py::test_another_sales_user_gets_the_owner_refusal_for_a_completed_deal`<br>`web/test_deal_delete_completed_route.py::test_another_sales_user_gets_the_owner_403_for_a_completed_deal` |
+| DD-122 | 화면: Owner 영업에게 완료된 자기 Deal의 삭제 버튼은 꺼져 있고 완료 문구가 보이며 편집은 된다 | DD-R30, DD-R41, DD-UC6 | frontend | `features/deals/detail/DealDetailPage.deleteCompleted.test.tsx` |
+| DD-123 | 화면: admin은 완료된 Deal도 삭제 버튼이 켜져 있고 지울 수 있다 | DD-R30, DD-R41, DD-UC6 | frontend | `features/deals/detail/DealDetailPage.deleteCompleted.test.tsx` |
+| DD-124 | 화면 규칙: 삭제 판정은 완료된 Deal을 admin에게만 허용하고 거절 문구를 서버 순서대로 고른다 | DD-R30, DD-R41 | frontend | `shared/model/permissions.deleteDeal.test.ts` |
+| DD-125 | Fake 게이트웨이는 완료된 Deal 삭제를 서버와 같은 규칙·문구로 처리한다 | DD-R24, DD-R41 | frontend | `test/fake/gateway/deals.remove.test.ts` |
+| DD-126 | 화면: Owner 영업이 상세에서 Won으로 확정하면 삭제 버튼이 바로 꺼진다 | DD-R30, DD-R41, DD-UC3 | frontend | `features/deals/detail/DealDetailPage.deleteCompleted.test.tsx` |
 ### DD-001 어떤 역할이든 Deal 상세를 읽으면 문서화된 필드와 Owner·고객·파트너가 돌아온다
 - Given KIM이 Owner이고 고객·활성 파트너가 있는 Deal
 - When ROOT·KIM·VIEWER가 각각 `GET /deals/{code}`를 부른다
@@ -874,9 +884,54 @@ DD-R27~DD-R40.
 - When Fake 게이트웨이로 단일 변경(독립·종결·되돌림·없는 코드·금액·같은 값), 삭제(권한·확인 code·연쇄 삭제), 이력 목록(순서·구분·404)을 부른다
 - Then 결과·문구·상태 코드가 DD-R5~R8, DD-R12~R14, DD-R17, DD-R20, DD-R24, DD-R25와 같다(어긋남은 계획 Q1·Q2 결정에 따름)
 
+### DD-118 Owner 영업이 완료된 자기 Deal을 지우면 확인 code와 무관하게 403이고 Deal·계약이 남는다
+- Given KIM이 Owner인 계약완료/Won Deal(미발급 계약 1건, 저장 위치에 Deal 폴더 있음)
+- When KIM이 정확한 code로, 또 `confirm_code=wrong`으로 각각 지운다
+- Then 둘 다 403 `forbidden` "완료된 Deal은 관리자만 삭제할 수 있습니다."이고 Deal·이력·계약·폴더가 남으며 삭제 운영 로그가 없다
+
+### DD-119 admin은 완료된 Deal도 지운다
+- Given KIM이 Owner인 계약완료/Won Deal(발급 계약 1건)
+- When ROOT가 정확한 code로 지운다
+- Then 204이고 Deal과 계약이 함께 사라진다(LC-R27)
+
+### DD-120 Owner 영업은 Lost·진행 중·Won에서 되돌린 Deal을 지금처럼 지운다
+- Given KIM이 Owner인 Deal 셋: 가격협상/Lost, 가격협상/Commit, Won이었다가 Forecast를 Pipeline으로 되돌린 Deal
+- When KIM이 각각 정확한 code로 지운다
+- Then 셋 다 204이고 Deal이 사라진다
+
+### DD-121 다른 영업이 완료된 Deal을 지우면 Owner 문구 403이 먼저다
+- Given KIM이 Owner인 계약완료/Won Deal
+- When LEE가 정확한 code로 지운다
+- Then 403 `forbidden` "본인 Deal 또는 admin만 삭제할 수 있습니다."이고 Deal이 남는다
+
+### DD-122 화면: Owner 영업에게 완료된 자기 Deal의 삭제 버튼은 꺼져 있고 완료 문구가 보이며 편집은 된다
+- Given KIM 로그인, KIM이 Owner인 계약완료/Won Deal과 Lost Deal
+- When KIM이 두 Deal의 상세를 연다
+- Then Won Deal은 "Deal 삭제"가 꺼져 있고 title "완료된 Deal은 관리자만 삭제할 수 있습니다."이며 "Deal 이름 수정"은 있다. Lost Deal은 "Deal 삭제"가 켜져 있다
+
+### DD-123 화면: admin은 완료된 Deal도 삭제 버튼이 켜져 있고 지울 수 있다
+- Given ROOT 로그인, KIM이 Owner인 계약완료/Won Deal
+- When ROOT가 상세에서 "Deal 삭제"를 눌러 정확한 code를 넣고 삭제한다
+- Then 버튼이 켜져 있었고 목록으로 가서 "Deal <code>이(가) 삭제되었습니다."가 보인다
+
+### DD-124 화면 규칙: 삭제 판정은 완료된 Deal을 admin에게만 허용하고 거절 문구를 서버 순서대로 고른다
+- When 삭제 판정 함수를 (admin, 남의 Won Deal), (sales, 자기 Won Deal), (sales, 자기 Lost Deal), (sales, 남의 Won Deal), (user, Owner id가 같은 Won Deal)로 부른다
+- Then 허용·거절(완료 문구)·허용·거절(Owner 문구)·거절이다
+
+### DD-125 Fake 게이트웨이는 완료된 Deal 삭제를 서버와 같은 규칙·문구로 처리한다
+- Given Fake 시드의 KIM Won Deal
+- When KIM(sales)이, 그다음 ROOT(admin)가 정확한 code로 `deals.remove`를 부른다
+- Then KIM은 403 "완료된 Deal은 관리자만 삭제할 수 있습니다."이고 Deal이 남는다. ROOT는 성공하고 Deal·이력·Action·첨부·계약이 없다
+
+### DD-126 화면: Owner 영업이 상세에서 Won으로 확정하면 삭제 버튼이 바로 꺼진다
+- Given KIM 로그인, KIM이 Owner인 기회발굴/Pipeline Deal의 상세(삭제 버튼 켜짐)
+- When Status를 계약완료로 골라 매출 확정 대화상자에서 확정한다
+- Then 저장 알림 뒤 "Deal 삭제"가 꺼지고 title "완료된 Deal은 관리자만 삭제할 수 있습니다."다
+
 ## 5. 변경 이력
 
 | 날짜 | 변경 | 영향 테스트 코드 |
 | --- | --- | --- |
 | 2026-11-10 | 최초 작성(초안): 구현된 Deal 상세·단일 변경·동기화·이력·삭제 동작을 정본 명세로 옮김. 규칙 DD-R1~R40, use case DD-UC1~UC6, BDD 케이스 DD-001~DD-117 | DD-001~DD-117(신규) |
 | 2026-11-11 | UI 문서 작성에 따라 공통 컴포넌트 참조를 UI 규칙 번호로 교체(1장, DD-R31). 동작·케이스 변경 없음, 상태 줄 그대로 | 없음 |
+| 2026-11-12 | 사용자 요청 "admin만 완료된 deal을 삭제할 수 있음": 새 규칙 DD-R41(완료 = Forecast `won`), DD-R24 판정 순서에 완료 판정(Owner 판정 뒤·확인 code 앞, 403 "완료된 Deal은 관리자만 삭제할 수 있습니다."), DD-R30 삭제 버튼·title, 2.4·2.5·2.8, DD-UC6 갱신. **운영 코드 변경 필요**(domain·frontend), API 스키마 변경 없음 | 신규: DD-118~DD-126. 영향(Given 조정 가능성): Won Deal을 sales로 지우던 기존 테스트(DD-111, LC-080·LC-081 등) |

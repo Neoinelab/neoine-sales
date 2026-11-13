@@ -2,7 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { gateway } from '../../../gateway'
 import { dealCodeOf } from '../../../test/detailTestUtils'
-import { DEFAULT_DEALS_URL_PATTERN } from '../../../test/dealsUrl'
+import { defaultDealsUrlPattern } from '../../../test/dealsUrl'
 import { renderAt } from '../../../test/mockApp'
 import { ALL_DEALS, dataRows } from './testHelpers'
 
@@ -107,7 +107,7 @@ describe('Deals 필터: Next Action 상태', () => {
     await user.click(await screen.findByRole('button', { name: '초기화' }))
 
     // then: 선택이 전체이다
-    expect(location()).toMatch(DEFAULT_DEALS_URL_PATTERN)
+    expect(location()).toMatch(defaultDealsUrlPattern('sales'))
     expect(screen.getByLabelText('Next Action 상태')).toHaveDisplayValue('전체')
   })
 })

@@ -1,7 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { renderAt } from '../../test/mockApp'
-import { DEFAULT_DEALS_URL_PATTERN } from '../../test/dealsUrl'
+import { defaultDealsUrlPattern } from '../../test/dealsUrl'
 
 describe('Admin 공통 틀 (T-ADMIN-13)', () => {
   // Admin 틀은 제목과 서브 메뉴 4개를 보인다.
@@ -48,7 +48,7 @@ describe('Admin 공통 틀 (T-ADMIN-13)', () => {
     // when: /admin/contacts를 연다 (전제: KIM 또는 VIEWER)
     const { location } = await renderAt('/admin/contacts', { role })
     // then: Deals 목록 주소가 되고 Admin 메뉴가 없다
-    await waitFor(() => expect(location()).toMatch(DEFAULT_DEALS_URL_PATTERN))
+    await waitFor(() => expect(location()).toMatch(defaultDealsUrlPattern(role)))
     expect(screen.queryByRole('navigation', { name: 'Admin 메뉴' })).not.toBeInTheDocument()
   })
 })

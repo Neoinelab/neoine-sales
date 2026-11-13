@@ -154,8 +154,8 @@ describe('Deal 훅', () => {
 
   // Deal을 삭제하면 그 Deal의 하위 쿼리 캐시가 사라지고 목록이 다시 읽힌다.
   it('useRemoveDeal은 하위 쿼리를 제거하고 목록을 다시 불러온다', async () => {
-    // given: 상세 화면이 닫힌 뒤(옵서버 없음)의 Action 캐시와 열린 Deal 목록
-    const code = dealCode(11)
+    // given: 상세 화면이 닫힌 뒤(옵서버 없음)의 Action 캐시와 열린 Deal 목록 (KIM이 지울 수 있는 완료되지 않은 Deal)
+    const code = dealCode(2)
     const { wrapper, queryClient } = setup()
     const detail = renderHook(() => useActions(code), { wrapper })
     await waitFor(() => expect(detail.result.current.isSuccess).toBe(true))

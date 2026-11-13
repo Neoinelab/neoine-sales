@@ -30,6 +30,8 @@ export interface ContactPickerProps {
   onPersonSelect?: (next: ContactDraft) => void
   /** 'stack'(기본): 테두리 fieldset에 라벨 전체 글자. 'rows': 라벨-값 한 줄 행(보이는 라벨은 짧게, 접근성 이름은 그대로). */
   layout?: 'stack' | 'rows'
+  /** 회사명·담당자명 칸에 필수 표시를 한다(검증은 서버 기준). */
+  required?: boolean
 }
 
 const EMPTY_FIELDS = { title: '', email: null, phone: null } as const
@@ -44,7 +46,7 @@ function optionOf(row: ContactRow): ComboOption {
  * → ③직급/이메일/전화(기존 선택 시 자동 입력, 고치면 contactId를 유지해 저장 시 연락처 갱신, 신규는 contactId null).
  * 회사명·담당자명·이메일·전화는 공백 입력을 막는다(직급은 허용). 저장은 호출처가 ContactDraft로 한다.
  */
-export function ContactPicker({ kind, label, value, onChange, errors, linkedHere = false, onCompanySelect, onPersonSelect, layout = 'stack' }: ContactPickerProps) {
+export function ContactPicker({ kind, label, value, onChange, errors, linkedHere = false, onCompanySelect, onPersonSelect, layout = 'stack', required }: ContactPickerProps) {
   const companies = useContactCompanies(kind).data ?? []
   const rows = useContactsByCompany(kind, value.company).data ?? []
   const { flashed, guard } = useWhitespaceGuard()
@@ -106,6 +108,7 @@ export function ContactPicker({ kind, label, value, onChange, errors, linkedHere
         options={companies.map((c) => ({ value: c }))}
         onSelectOption={onCompanySelect ? (option) => onCompanySelect(option.value) : undefined}
         transform={(raw) => guard('company', raw)}
+        required={required}
         error={errors?.company}
         hint={flash('company')}
       />
@@ -118,6 +121,7 @@ export function ContactPicker({ kind, label, value, onChange, errors, linkedHere
         options={rows.map(optionOf)}
         onSelectOption={selectPerson}
         transform={(raw) => guard('name', raw)}
+        required={required}
         error={errors?.name}
         hint={flash('name')}
       />

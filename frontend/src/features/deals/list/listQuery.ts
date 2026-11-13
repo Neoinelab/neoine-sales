@@ -1,3 +1,4 @@
+import type { Role } from '../../../shared/model/types'
 import type { Quarter } from '../../../shared/model/period'
 import { DEAL_PAGE_SIZE, SOLUTION_MAX_LENGTH } from '../../../shared/model/constants'
 import type { DealListQuery, DealSortKey, SortOrder } from '../../../shared/model/types'
@@ -172,9 +173,10 @@ export function hasListCondition(params: URLSearchParams): boolean {
   return FILTER_KEYS.some((key) => (params.get(key) ?? '').trim() !== '')
 }
 
-/** 조건 없이 들어온 목록의 기본 조건: 올해만(Quarter 전체). 정렬은 이어받고 페이지·모르는 키는 버린다. today는 'YYYY-MM-DD'. */
-export function defaultListParams(today: string, current?: URLSearchParams): URLSearchParams {
+/** 조건 없이 들어온 목록의 기본 조건: 올해 + (sales면) 내 딜만. 정렬은 이어받고 페이지·모르는 키는 버린다. today는 'YYYY-MM-DD'. */
+export function defaultListParams(today: string, role: Role | null | undefined, current?: URLSearchParams): URLSearchParams {
   const next = new URLSearchParams({ year: today.slice(0, 4) })
+  if (role === 'sales') next.set('mine', '1')
   for (const key of ['sort', 'order']) {
     const value = current?.get(key)
     if (value) next.set(key, value)

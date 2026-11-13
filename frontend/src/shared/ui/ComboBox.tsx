@@ -78,7 +78,7 @@ export function ComboBox(props: ComboBoxProps) {
   }
 
   return (
-    <div className="field combo">
+    <div className={required ? 'field combo required' : 'field combo'}>
       <label htmlFor={`${baseId}-input`}>{visibleLabel ?? label}</label>
       <input
         id={`${baseId}-input`}

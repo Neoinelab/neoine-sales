@@ -1,18 +1,23 @@
 from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, Self
 
+from app.domain.auth.principal import Role
 from app.domain.common.entity import AuditedEntity
 from app.domain.deal.code import DealCode
-from app.domain.deal.errors import DealCodeMismatchError, DealDeleteForbiddenError
+from app.domain.deal.errors import (
+    DealCodeMismatchError,
+    DealDeleteCompletedError,
+    DealDeleteForbiddenError,
+)
 from app.domain.deal.history import DealSnapshot
 from app.domain.deal.policy import can_delete_deal
 from app.domain.deal.status_entry import StatusEntry
 from app.domain.deal.sync import ensure_sync_consistent
+from app.domain.deal.sync_state import is_completed
 
 if TYPE_CHECKING:
     from datetime import date, datetime
 
-    from app.domain.auth.principal import Role
     from app.domain.contact.values import ContactId
     from app.domain.deal.sync import SyncApplied, SyncState
     from app.domain.deal.values import BantSelection, DealDetails, RevenueAmount
@@ -138,6 +143,9 @@ class Deal(AuditedEntity[DealCode]):
     def ensure_deletable_by(self, actor_id: UserId, actor_role: Role) -> None:
         if not can_delete_deal(actor_id, actor_role, self.details.owner_user_id):
             raise DealDeleteForbiddenError
+
+        if is_completed(self.sync) and actor_role is not Role.ADMIN:
+            raise DealDeleteCompletedError
 
     def ensure_confirm_code(self, confirm_code: str) -> None:
         """삭제 확인용으로 입력한 code는 Deal code와 정확히 같아야 한다."""

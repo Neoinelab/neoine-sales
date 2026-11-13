@@ -14,6 +14,8 @@ import { USER_ID } from '../../../test/fake/seed/ids'
  */
 
 const CONDITION = '/deals?mine=1&status=contract_completed&sort=name&order=asc'
+/** 완료된(Won) Deal은 admin만 지우므로 삭제 테스트는 admin이 같은 조건을 담당자 제한 없이 본다. */
+const ADMIN_CONDITION = '/deals?status=contract_completed&sort=name&order=asc'
 const PAGED = '/deals?year=all&sort=revenueAmount&order=desc&page=2'
 /** 초기화·빈 진입이 쓰는 기준일(앱 시계). 시드 Deal 날짜는 이 시각 기준 상대값이다. */
 const NOW = '2026-10-15T09:00:00+09:00'
@@ -23,8 +25,8 @@ const QINGMYEONG = /청명대학교 SSO\/MFA/
 type View = Awaited<ReturnType<typeof renderAt>>
 
 /** 조건 목록에서 청명대학교 SSO/MFA의 상세 화면까지 들어간다. */
-async function openDetailFrom(url: string): Promise<View> {
-  const view = await renderAt(url)
+async function openDetailFrom(url: string, role: 'sales' | 'admin' = 'sales'): Promise<View> {
+  const view = await renderAt(url, { role })
   const row = await rowOf(QINGMYEONG)
   await view.user.click(within(row).getByRole('link', { name: '청명대학교 SSO/MFA' }))
   await screen.findByRole('heading', { level: 1, name: '청명대학교 SSO/MFA' })
@@ -132,9 +134,9 @@ describe('삭제와 등록·수정 취소', () => {
   // Deal 삭제 뒤 기억된 목록으로 가고 알림은 한 번만 보인다
   // 테스트 코드: DL-099
   it('deleting a deal returns to remembered list with notice once', async () => {
-    // given: 조건이 걸린 목록에서 들어간 상세
+    // given: admin이 조건이 걸린 목록에서 들어간 상세(Won Deal 삭제는 admin만)
     const code = await dealCodeOf(11)
-    const view = await openDetailFrom(CONDITION)
+    const view = await openDetailFrom(ADMIN_CONDITION, 'admin')
     await view.user.click(screen.getByRole('button', { name: 'Deal 삭제' }))
     const dialog = await screen.findByRole('dialog', { name: 'Deal 삭제' })
     await view.user.type(within(dialog).getByLabelText('Deal code 확인'), code)
@@ -144,7 +146,7 @@ describe('삭제와 등록·수정 취소', () => {
 
     // then: 기억된 목록으로 이동하고 알림이 한 번 보인다
     expect(await screen.findByText(`Deal ${code}이(가) 삭제되었습니다.`)).toBeVisible()
-    expect(view.location()).toBe(CONDITION)
+    expect(view.location()).toBe(ADMIN_CONDITION)
     expect(screen.getByLabelText('Status')).toHaveDisplayValue('계약완료')
 
     await view.user.click(screen.getByRole('link', { name: 'Forecast' }))

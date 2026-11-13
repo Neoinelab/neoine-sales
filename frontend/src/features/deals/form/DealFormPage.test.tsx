@@ -4,7 +4,7 @@ import { gateway } from '../../../gateway'
 import { AMOUNT_INPUT_MESSAGE, AMOUNT_TOO_LARGE_MESSAGE } from '../../../shared/model/money'
 import { renderAt } from '../../../test/mockApp'
 import { DETAIL_URL, openList, pickPerson, save } from './testHelpers'
-import { DEFAULT_DEALS_URL_PATTERN } from '../../../test/dealsUrl'
+import { defaultDealsUrlPattern } from '../../../test/dealsUrl'
 
 afterEach(() => vi.restoreAllMocks())
 
@@ -363,6 +363,6 @@ describe('Deal 등록 저장 (T-FORM-04)', () => {
     await screen.findByRole('heading', { name: 'Deal 등록' })
     await user.click(screen.getByRole('button', { name: '취소' }))
     // then: Deals 목록 주소로 이동한다.
-    expect(location()).toMatch(DEFAULT_DEALS_URL_PATTERN)
+    expect(location()).toMatch(defaultDealsUrlPattern('sales'))
   })
 })

@@ -47,3 +47,8 @@ def is_sync_consistent(state: SyncState) -> bool:
 def ensure_sync_consistent(state: SyncState) -> None:
     if not is_sync_consistent(state):
         raise SyncMismatchError
+
+
+def is_completed(state: SyncState) -> bool:
+    """완료된 Deal: Forecast key가 won일 때만 참(Lost·진행 중은 거짓)."""
+    return state.forecast_key == FORECAST_WON

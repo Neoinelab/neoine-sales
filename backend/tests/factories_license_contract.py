@@ -22,10 +22,9 @@ from tests.support.user_ids import ACTOR_ID
 if TYPE_CHECKING:
     from datetime import datetime
 
+    from app.domain.deal.code import DealCode
     from app.domain.license_contract.attachment import ContractAttachment
     from app.domain.license_contract.entities import LicenseContract
-
-    from app.domain.deal.code import DealCode
     from app.domain.user.value_objects import UserId
 
 ISSUED = ("issued_new", "issued_renewal")
@@ -104,10 +103,9 @@ def make_contract_attachment(  # noqa: PLR0913 - 첨부 필드가 모두 독립�
     now: datetime = NOW,
 ) -> ContractAttachment:
     """저장하지 않은 계약 첨부(`ContractAttachment.upload`). 저장 키 기본은 uuid4 hex."""
+    from app.domain.attachment.values import UploadCandidate  # noqa: PLC0415
     from app.domain.license_contract.attachment import ContractAttachment  # noqa: PLC0415
     from app.domain.license_contract.values import ContractAttachmentId  # noqa: PLC0415
-
-    from app.domain.attachment.values import UploadCandidate  # noqa: PLC0415
 
     return ContractAttachment.upload(
         contract_id=contract.id,
