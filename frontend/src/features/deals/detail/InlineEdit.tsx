@@ -100,7 +100,8 @@ export function InlineEdit(props: InlineEditProps) {
   }
 
   function onKeyDown(event: KeyboardEvent<HTMLElement>) {
-    if (event.defaultPrevented) return
+    // 저장 중에는 Esc·Enter를 무시한다(응답 전에 편집이 닫히면 거절 문구와 입력이 사라진다).
+    if (event.defaultPrevented || busy) return
     if (event.key === 'Escape') {
       event.stopPropagation()
       close()

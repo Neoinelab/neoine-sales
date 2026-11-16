@@ -28,25 +28,17 @@ describe('Actions 탭 목록', () => {
     const { table } = await openActions(1, '한빛은행 ITDR 도입')
     // when: 표 머리글과 첫 행들을 읽는다
     const headers = within(table).getAllByRole('columnheader').map((h) => h.textContent)
-    // then: 열 순서가 수행일부터 관리까지다
-    expect(headers).toEqual([
-      '수행일',
-      '담당자',
-      '등록 시점 Status·Forecast',
-      '유형',
-      '진행사항',
-      'Next Action',
-      'Due Date',
-      '상태',
-      'Memo',
-      '관리',
-    ])
-    // then: 최신 Action이 위이고 내용·상태 배지가 보인다
-    const first = bodyRows(table)[0]
+    // then: 열이 수행일·유형·진행사항·Next Action·Due Date·상태 6개뿐이다
+    expect(headers).toEqual(['수행일', '유형', '진행사항', 'Next Action', 'Due Date', '상태'])
+    // then: 최신 Action이 위이고 내용이 보이며 등록 시점 배지·Memo·수정·삭제 버튼은 없다
+    const first = bodyRows(table)[0]!
     expect(first).toHaveTextContent('최종 가격 협의')
     expect(first).toHaveTextContent('계약서 초안 검토')
-    expect(first).toHaveTextContent('가격협상')
-    expect(first).toHaveTextContent('Commit')
+    expect(first).not.toHaveTextContent('가격협상')
+    expect(first).not.toHaveTextContent('Commit')
+    expect(first).not.toHaveTextContent('관련 메모')
+    expect(within(first).queryByRole('button', { name: '수정' })).not.toBeInTheDocument()
+    expect(within(first).queryByRole('button', { name: '삭제' })).not.toBeInTheDocument()
     expect(bodyRows(table)[1]).toHaveTextContent('임원 보고용 ROI 자료 전달')
   })
 
@@ -59,17 +51,19 @@ describe('Actions 탭 목록', () => {
     expect(within(bodyRows(table)[0]!).getByText('기한초과')).toBeVisible()
   })
 
-  // 예전 Action은 등록 당시 Status/Forecast를 보이고 현재 값과 다를 수 있다.
+  // 표 머리글에는 담당자·등록 시점 Status·Forecast·Memo·관리 열이 없고 행에는 배지가 없다.
   // 테스트 코드: AC-071
-  it('shows the registered-time status of older actions, which can differ from the current one', async () => {
+  it('has no actor, registered status, memo or manage column and no badge in the rows', async () => {
     // given: Deal의 Actions 탭
     const { table } = await openActions(1, '한빛은행 ITDR 도입')
-    // when: 가장 오래된 행을 읽는다
+    // when: 머리글과 가장 오래된 행을 읽는다
     const rows = bodyRows(table)
     const oldest = rows[rows.length - 1]!
-    // then: 등록 당시 Status를 보이고 현재 Status는 아니다
-    expect(oldest).toHaveTextContent('POC완료')
-    expect(oldest).not.toHaveTextContent('가격협상')
+    // then: 다섯 머리글이 없고 등록 당시 Status 배지도 없다
+    for (const name of ['담당자', '등록 시점 Status·Forecast', 'Memo', '관리']) {
+      expect(within(table).queryByRole('columnheader', { name })).not.toBeInTheDocument()
+    }
+    expect(oldest).not.toHaveTextContent('POC완료')
   })
 })
 
@@ -209,10 +203,17 @@ describe('Action 추가 등록', () => {
     await user.type(within(form).getByLabelText('Next Action'), '납품 일정 확인')
     await user.type(within(form).getByLabelText('Due Date'), '2026-12-01')
     await user.click(within(form).getByRole('button', { name: '등록' }))
-    // then: 새 행에 계약완료·Won이 보인다
+    // then: 새 행이 생기고 표에는 등록 시점 Status·Forecast가 없다
     await waitFor(() => expect(bodyRows(table)[0]).toHaveTextContent('계약 체결'))
-    expect(bodyRows(table)[0]).toHaveTextContent('계약완료')
-    expect(bodyRows(table)[0]).toHaveTextContent('Won')
+    expect(bodyRows(table)[0]).not.toHaveTextContent('Won')
+    // when: 그 행을 눌러 상세 팝업을 연다
+    await user.click(bodyRows(table)[0]!)
+    const detail = await screen.findByRole('dialog', { name: 'Action 상세' })
+    // then: 등록 시점 Status·Forecast가 계약완료·Won이다
+    const dt = Array.from(detail.querySelectorAll('dt')).find((el) => el.textContent === '등록 시점 Status·Forecast')
+    expect(dt?.nextElementSibling).toHaveTextContent('계약완료')
+    expect(dt?.nextElementSibling).toHaveTextContent('Won')
+    await user.click(within(detail).getByRole('button', { name: '닫기' }))
     // when: Deal 상세 탭으로 간다
     await user.click(screen.getByRole('tab', { name: 'Deal 상세' }))
     const bar = await screen.findByRole('region', { name: 'Deal 정보' })
@@ -239,96 +240,30 @@ describe('Action 추가 등록', () => {
   })
 })
 
-describe('Action 수정·삭제', () => {
-  // 예전 Action을 고치면 이력에 기록되고 등록 시점 Status는 유지된다.
-  // 테스트 코드: AC-086
-  it('edits an older action, explains it goes to the history, and keeps the registered status', async () => {
-    // given: sales가 Actions 탭을 연다
-    const { user, table } = await openActions(1, '한빛은행 ITDR 도입')
-    const row = bodyRows(table)[1]!
-    // when: 예전 행의 수정을 눌러 진행사항을 고친다
-    await user.click(within(row).getByRole('button', { name: '수정' }))
-    // then: 수정 팝업에 History 안내가 있고 Status 칸이 없다
-    const form = screen.getByRole('form', { name: 'Action 수정' })
-    expect(within(form).getByText(/Deal History에 기록됩니다/)).toBeVisible()
-    expect(within(form).queryByLabelText('Status')).not.toBeInTheDocument()
-    const progress = within(form).getByLabelText('진행사항')
-    expect(progress).toHaveValue('임원 보고용 ROI 자료 전달')
-    await user.clear(progress)
-    await user.type(progress, 'ROI 자료 수정본 전달')
-    // when: 저장한다
-    await user.click(within(form).getByRole('button', { name: '저장' }))
-    // then: 행이 바뀌고 수정 알림이 보인다
-    await waitFor(() => expect(bodyRows(table)[1]).toHaveTextContent('ROI 자료 수정본 전달'))
-    expect(screen.getByText('Action이 수정되었습니다.')).toBeVisible()
-    // when: Deal History 탭으로 간다
-    await user.click(screen.getByRole('tab', { name: 'Deal History' }))
-    const cells = await screen.findAllByRole('cell', { name: 'Action' })
-    // then: Action 이력과 "수정:" 문구가 있다
-    expect(cells.length).toBeGreaterThan(0)
-    expect(screen.getAllByText(/수정: /).length).toBeGreaterThan(0)
-  })
-
-  // 수정으로 진행사항과 Next Action을 모두 비우면 검증 문구가 나온다.
-  // 테스트 코드: AC-086
-  it('shows the validation message when an edit empties both progress and Next Action', async () => {
-    // given: sales가 Actions 탭을 연다
-    const { user, table } = await openActions(1, '한빛은행 ITDR 도입')
-    // when: 첫 행의 수정을 눌러 두 칸을 비우고 저장한다
-    await user.click(within(bodyRows(table)[0]!).getByRole('button', { name: '수정' }))
-    const form = screen.getByRole('form', { name: 'Action 수정' })
-    await user.clear(within(form).getByLabelText('진행사항'))
-    await user.clear(within(form).getByLabelText('Next Action'))
-    await user.click(within(form).getByRole('button', { name: '저장' }))
-    // then: 진행사항 또는 Next Action 문구가 보인다
-    expect(within(form).getByText('진행사항 또는 Next Action을 입력하세요.')).toBeVisible()
-  })
-
-  // 삭제는 확인 뒤 지우고 요약 바의 Next Action이 갱신된다.
-  // 테스트 코드: AC-088
-  it('deletes an action after confirmation and refreshes the next action in the summary bar', async () => {
-    // given: sales가 Actions 탭을 열고 행 수를 센다
-    const { user, table } = await openActions(1, '한빛은행 ITDR 도입')
-    const before = bodyRows(table).length
-    // when: 첫 행의 삭제를 누르고 확인 대화상자에서 삭제한다
-    await user.click(within(bodyRows(table)[0]!).getByRole('button', { name: '삭제' }))
-    const dialog = screen.getByRole('dialog', { name: 'Action 삭제' })
-    // then: 대화상자에 History 안내가 있다
-    expect(dialog).toHaveTextContent('Deal History에 기록됩니다')
-    await user.click(within(dialog).getByRole('button', { name: '삭제' }))
-    // then: 행이 하나 줄어든다
-    await waitFor(() => expect(bodyRows(table)).toHaveLength(before - 1))
-    // when: Deal 상세 탭으로 간다
-    await user.click(screen.getByRole('tab', { name: 'Deal 상세' }))
-    const bar = await screen.findByRole('region', { name: 'Deal 정보' })
-    // then: 요약 바에서 지운 Action의 Next Action이 사라진다
-    await waitFor(() => expect(within(bar).queryByText(/계약서 초안 검토/)).not.toBeInTheDocument())
-  })
-
-  // 삭제를 취소하면 Action이 그대로 남는다.
-  // 테스트 코드: AC-088
-  it('keeps the action when the delete is cancelled', async () => {
-    // given: sales가 Actions 탭을 열고 행 수를 센다
-    const { user, table } = await openActions(1, '한빛은행 ITDR 도입')
-    const before = bodyRows(table).length
-    // when: 삭제를 눌렀다가 취소한다
-    await user.click(within(bodyRows(table)[0]!).getByRole('button', { name: '삭제' }))
-    await user.click(within(screen.getByRole('dialog', { name: 'Action 삭제' })).getByRole('button', { name: '취소' }))
-    // then: 행 수가 그대로다
-    expect(bodyRows(table)).toHaveLength(before)
-  })
-
-  // user는 Action 추가·수정·삭제 버튼 없이 목록만 본다.
+describe('Action 목록의 권한 표시', () => {
+  // user는 Action 추가 버튼 없이 목록만 보고 표에 수정·삭제 버튼이 없다.
   // 테스트 코드: AC-072
-  it('shows a viewer the actions without register, edit or delete controls', async () => {
+  it('shows a viewer the actions without register, edit or delete controls in the table', async () => {
     // when: user가 Actions 탭을 연다
     const { table } = await openActions(1, '한빛은행 ITDR 도입', 'user')
-    // then: 추가 버튼과 수정·삭제 버튼이 없다
+    // then: 추가 버튼과 표의 수정·삭제 버튼이 없다
     expect(screen.queryByRole('button', { name: 'Action 추가' })).not.toBeInTheDocument()
     expect(within(table).queryByRole('button', { name: '수정' })).not.toBeInTheDocument()
     expect(within(table).queryByRole('button', { name: '삭제' })).not.toBeInTheDocument()
     // then: 행은 보인다
     expect(bodyRows(table).length).toBeGreaterThan(1)
+  })
+
+  // 다른 sales에게도 추가 버튼은 보이고 표에는 관리 열이 없다.
+  // 테스트 코드: AC-072
+  it('still shows the register button to another sales but no manage column', async () => {
+    // when: 다른 sales(park)가 Actions 탭을 연다
+    await renderAt(await detailPath(1, '?tab=actions'), { userId: USER_ID.park })
+    const table = await screen.findByRole('table', { name: 'Action 목록' })
+    // then: 추가 버튼이 보이고 관리 열·수정·삭제 버튼은 없다
+    expect(screen.getByRole('button', { name: 'Action 추가' })).toBeVisible()
+    expect(within(table).queryByRole('columnheader', { name: '관리' })).not.toBeInTheDocument()
+    expect(within(table).queryByRole('button', { name: '삭제' })).not.toBeInTheDocument()
   })
 })
 
@@ -406,7 +341,7 @@ describe('Actions 검색', () => {
     await user.click(within(table).getByRole('button', { name: 'Due Date' }))
     // then: Due Date가 빠른 순서로 보인다.
     await waitFor(() => {
-      const dues = bodyRows(table).map((r) => /\d{4}-\d{2}-\d{2}/.exec(within(r).getAllByRole('cell')[6]?.textContent ?? '')?.[0] ?? '')
+      const dues = bodyRows(table).map((r) => /\d{4}-\d{2}-\d{2}/.exec(within(r).getAllByRole('cell')[4]?.textContent ?? '')?.[0] ?? '')
       expect(dues.length).toBeGreaterThan(1)
       expect([...dues].sort()).toEqual(dues)
     })
@@ -463,125 +398,5 @@ describe('Actions 검색', () => {
     await user.click(within(form).getByRole('button', { name: '검색' }))
     // then: 탭 오류 배너에 서버 문구가 보인다.
     expect(await screen.findByRole('alert')).toHaveTextContent('수행일 범위의 시작은 끝보다 늦을 수 없습니다.')
-  })
-})
-
-describe('Action 수정·삭제 버튼 권한', () => {
-  const EDIT_TITLE = '본인 Action 또는 admin만 수정할 수 있습니다.'
-  const DELETE_TITLE = '본인 Action 또는 admin만 삭제할 수 있습니다.'
-
-  async function openAs(userId: number) {
-    const view = await renderAt(await detailPath(1, '?tab=actions'), { userId })
-    await screen.findByRole('heading', { level: 1, name: '한빛은행 ITDR 도입' })
-    const table = await screen.findByRole('table', { name: 'Action 목록' })
-    return { ...view, table }
-  }
-
-  // 담당자 본인의 모든 행에서 수정·삭제가 켜진다.
-  // 테스트 코드: AC-073
-  it('enables edit and delete on every row of the owner who registered them', async () => {
-    // when: 담당자 본인(kim)이 Actions 탭을 연다
-    const { table } = await openAs(USER_ID.kim)
-
-    // then: 모든 행의 수정·삭제가 켜져 있고 title이 없다
-    const rows = bodyRows(table)
-    expect(rows.length).toBeGreaterThan(1)
-    for (const row of rows) {
-      expect(within(row).getByRole('button', { name: '수정' })).toBeEnabled()
-      expect(within(row).getByRole('button', { name: '삭제' })).toBeEnabled()
-      expect(within(row).getByRole('button', { name: '수정' })).not.toHaveAttribute('title')
-    }
-  })
-
-  // 다른 sales의 행은 이유 title과 함께 꺼진다.
-  // 테스트 코드: AC-073
-  it('disables both buttons with the reason as title on actions of another sales', async () => {
-    // when: 다른 sales(park)가 Actions 탭을 연다
-    const { table } = await openAs(USER_ID.park)
-
-    // then: 모든 행의 수정·삭제가 꺼져 있고 이유 title이 있다
-    const rows = bodyRows(table)
-    expect(rows.length).toBeGreaterThan(1)
-    for (const row of rows) {
-      const edit = within(row).getByRole('button', { name: '수정' })
-      const remove = within(row).getByRole('button', { name: '삭제' })
-      expect(edit).toBeDisabled()
-      expect(edit).toHaveAttribute('title', EDIT_TITLE)
-      expect(remove).toBeDisabled()
-      expect(remove).toHaveAttribute('title', DELETE_TITLE)
-    }
-  })
-
-  // 다른 sales에게도 관리 열과 추가 버튼은 보인다.
-  // 테스트 코드: AC-073
-  it('still shows the manage column and the register button to that other sales', async () => {
-    // when: 다른 sales(park)가 Actions 탭을 연다
-    const { table } = await openAs(USER_ID.park)
-
-    // then: 관리 열 머리글과 추가 버튼이 보인다
-    expect(within(table).getByRole('columnheader', { name: '관리' })).toBeVisible()
-    expect(screen.getByRole('button', { name: 'Action 추가' })).toBeVisible()
-  })
-
-  // 꺼진 수정 버튼을 눌러도 수정 폼이 열리지 않는다.
-  // 테스트 코드: AC-073
-  it('does not open the edit form when a disabled edit button is clicked', async () => {
-    // given: 다른 sales(park)가 Actions 탭을 연다
-    const { user, table } = await openAs(USER_ID.park)
-
-    // when: 꺼진 수정 버튼을 누른다
-    await user.click(within(bodyRows(table)[0]!).getByRole('button', { name: '수정' }))
-
-    // then: 수정 팝업이 없다
-    expect(screen.queryByRole('dialog', { name: 'Action 수정' })).not.toBeInTheDocument()
-  })
-
-  // admin은 남의 행을 포함해 모든 행의 수정·삭제가 켜진다.
-  // 테스트 코드: AC-073
-  it('enables both buttons on every row for admin, including actions of other users', async () => {
-    // when: admin이 Actions 탭을 연다
-    const { table } = await openAs(USER_ID.root)
-
-    // then: 모든 행의 수정·삭제가 켜져 있다
-    for (const row of bodyRows(table)) {
-      expect(within(row).getByRole('button', { name: '수정' })).toBeEnabled()
-      expect(within(row).getByRole('button', { name: '삭제' })).toBeEnabled()
-    }
-  })
-
-  // 두 사용자의 행이 섞이면 본인 행만 켜진다.
-  // 테스트 코드: AC-073
-  it('enables only the rows of the viewer when rows of two different users are mixed', async () => {
-    // given: 다른 sales(park)가 Actions 탭을 연다
-    const { user, table } = await openAs(USER_ID.park)
-    // when: 새 Action을 등록한다
-    await user.click(screen.getByRole('button', { name: 'Action 추가' }))
-    const form = screen.getByRole('form', { name: 'Action 추가' })
-    await typeAction(user, form, '통화')
-    await user.type(within(form).getByLabelText('진행사항'), '박영업 후속 연락')
-    await user.type(within(form).getByLabelText('Next Action'), '미팅 일정 확정')
-    await user.type(within(form).getByLabelText('Due Date'), '2026-12-20')
-    // when: 입력을 채우고 등록한다
-    await user.click(within(form).getByRole('button', { name: '등록' }))
-    await waitFor(() => expect(bodyRows(table)[0]).toHaveTextContent('박영업 후속 연락'))
-
-    // then: 새(본인) 행은 켜지고 남의 행은 꺼진다
-    const rows = bodyRows(table)
-    expect(within(rows[0]!).getByRole('button', { name: '수정' })).toBeEnabled()
-    expect(within(rows[0]!).getByRole('button', { name: '삭제' })).toBeEnabled()
-    expect(within(rows[1]!).getByRole('button', { name: '수정' })).toBeDisabled()
-    expect(within(rows[1]!).getByRole('button', { name: '삭제' })).toBeDisabled()
-  })
-
-  // user 역할에는 관리 열이 아예 없다.
-  // 테스트 코드: AC-072
-  it('shows a user-role viewer no manage column at all', async () => {
-    // when: user가 Actions 탭을 연다
-    const { table } = await openAs(USER_ID.han)
-
-    // then: 관리 열 머리글과 수정·삭제 버튼이 없다
-    expect(within(table).queryByRole('columnheader', { name: '관리' })).not.toBeInTheDocument()
-    expect(within(table).queryByRole('button', { name: '수정' })).not.toBeInTheDocument()
-    expect(within(table).queryByRole('button', { name: '삭제' })).not.toBeInTheDocument()
   })
 })

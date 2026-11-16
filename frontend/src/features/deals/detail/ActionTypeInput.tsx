@@ -10,10 +10,12 @@ interface ActionTypeInputProps {
   onChange: (value: string) => void
   error?: string
   inputRef?: Ref<HTMLInputElement>
+  /** 목록에서 후보를 골랐을 때(인라인 수정은 이때 바로 저장한다). */
+  onSelectOption?: (option: { value: string }) => void
 }
 
 /** Action 유형 입력: 클릭하면 서버 순서의 후보, 타이핑하면 부분 일치, 없으면 직접 입력(저장 때 새 유형이 된다). */
-export function ActionTypeInput({ value, onChange, error, inputRef }: ActionTypeInputProps) {
+export function ActionTypeInput({ value, onChange, error, inputRef, onSelectOption }: ActionTypeInputProps) {
   const query = useActionTypes()
   const types = query.data
   const options = useMemo(() => (types ?? []).map((t) => ({ value: t.name, id: t.id })), [types])
@@ -32,6 +34,7 @@ export function ActionTypeInput({ value, onChange, error, inputRef }: ActionType
         error={error}
         hint={unknown ? TYPE_UNKNOWN_HINT : undefined}
         inputRef={inputRef}
+        onSelectOption={onSelectOption}
       />
     </>
   )

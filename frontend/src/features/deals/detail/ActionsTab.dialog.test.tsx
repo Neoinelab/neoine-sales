@@ -6,7 +6,7 @@ import { confirmRevenue, expectOnlyActionPopup, statusSelect } from '../../../te
 import { detailPath } from '../../../test/detailTestUtils'
 import { renderAt } from '../../../test/mockApp'
 
-/** Action 추가·수정 팝업. 기본 탭이 Deal 상세라 ?tab=actions로 들어온다. */
+/** Action 추가 팝업. 기본 탭이 Deal 상세라 ?tab=actions로 들어온다. */
 afterEach(() => vi.restoreAllMocks())
 
 type View = Awaited<ReturnType<typeof renderAt>>
@@ -25,13 +25,6 @@ async function openAdd(user: View['user']) {
   await user.click(addButton())
   const dialog = await screen.findByRole('dialog', { name: 'Action 추가' })
   return { dialog, form: within(dialog).getByRole('form', { name: 'Action 추가' }) }
-}
-
-async function openEdit(user: View['user'], table: HTMLElement, index: number) {
-  const row = bodyRows(table)[index]!
-  await user.click(within(row).getByRole('button', { name: '수정' }))
-  const dialog = await screen.findByRole('dialog', { name: 'Action 수정' })
-  return { row, dialog, form: within(dialog).getByRole('form', { name: 'Action 수정' }) }
 }
 
 async function fillValid(user: View['user'], form: HTMLElement, progress = '팝업에서 등록') {
@@ -188,7 +181,7 @@ describe('등록 성공', () => {
   })
 })
 
-describe('등록·수정 실패', () => {
+describe('등록 실패', () => {
   // 등록 실패 시 팝업과 입력을 유지하고 서버 오류를 팝업 안에 보인다.
   // 테스트 코드: AC-084
   it('keeps the dialog and the input with the server error inside when registering fails', async () => {
@@ -212,28 +205,6 @@ describe('등록·수정 실패', () => {
     expect(screen.queryByText('Action이 등록되었습니다.')).not.toBeInTheDocument()
   })
 
-  // 수정 저장이 실패하면 수정 팝업과 바꾼 값을 유지한다.
-  // 테스트 코드: AC-084
-  it('keeps the edit dialog and the changed value when saving fails', async () => {
-    // given: 수정이 서버 오류로 실패하도록 한 sales와 수정 팝업의 바꾼 값
-    vi.spyOn(gateway.actions, 'update').mockRejectedValue(serverFailure())
-    const { user, table } = await openActions()
-    const { dialog, form } = await openEdit(user, table, 1)
-    const progress = within(form).getByLabelText('진행사항')
-    await user.clear(progress)
-    await user.type(progress, '저장 실패한 수정값')
-
-    // when: 저장을 누른다
-    await user.click(within(form).getByRole('button', { name: '저장' }))
-
-    // then: 팝업 안 배너에 서버 문구가 보이고 팝업과 값이 그대로다
-    expect(await within(dialog).findByRole('alert')).toHaveTextContent('서버 저장에 실패했습니다.')
-    expect(screen.getByRole('dialog', { name: 'Action 수정' })).toBeVisible()
-    expect(progress).toHaveValue('저장 실패한 수정값')
-    // then: 수정 알림이 없다
-    expect(screen.queryByText('Action이 수정되었습니다.')).not.toBeInTheDocument()
-  })
-
   // 화면 검증 문구는 팝업 안에 보이고 팝업이 열려 있으며 요청하지 않는다.
   // 테스트 코드: AC-075
   it('shows the client validation messages inside the dialog and keeps it open', async () => {
@@ -255,35 +226,6 @@ describe('등록·수정 실패', () => {
     expect(within(dialog).getByText('Due Date를 입력하세요.')).toBeVisible()
     expect(screen.getByRole('dialog', { name: 'Action 추가' })).toBeVisible()
     expect(create).not.toHaveBeenCalled()
-  })
-})
-
-describe('Action 수정 팝업', () => {
-  // 수정 팝업은 값을 채워 열고 카드·Status 칸 없이 저장하고 닫는다.
-  // 테스트 코드: AC-086
-  it('opens filled with the action and without previous update or status fields, then saves and closes', async () => {
-    // given: sales가 Actions 탭을 연다
-    const { user, table } = await openActions()
-
-    // when: 예전 행의 수정 팝업을 연다
-    const { dialog, form } = await openEdit(user, table, 1)
-
-    // then: 값이 채워져 있고 카드·Status·Forecast 칸이 없다
-    expect(within(form).getByLabelText('진행사항')).toHaveValue('임원 보고용 ROI 자료 전달')
-    expect(within(dialog).queryByRole('complementary', { name: '이전 Update' })).not.toBeInTheDocument()
-    expect(within(form).queryByLabelText('Status')).not.toBeInTheDocument()
-    expect(within(form).queryByLabelText('Forecast')).not.toBeInTheDocument()
-    // when: 진행사항을 고쳐 저장한다
-    const progress = within(form).getByLabelText('진행사항')
-    await user.clear(progress)
-    await user.type(progress, 'ROI 자료 팝업 수정본')
-
-    await user.click(within(form).getByRole('button', { name: '저장' }))
-
-    // then: 팝업이 닫히고 수정 알림이 보이며 행이 바뀐다
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Action 수정' })).not.toBeInTheDocument())
-    expect(screen.getByText('Action이 수정되었습니다.')).toBeVisible()
-    await waitFor(() => expect(bodyRows(table)[1]).toHaveTextContent('ROI 자료 팝업 수정본'))
   })
 })
 
@@ -343,44 +285,6 @@ describe('취소와 Esc', () => {
     const reopened = await openAdd(user)
     // then: 진행사항이 비어 있다
     expect(within(reopened.form).getByLabelText('진행사항')).toHaveValue('')
-  })
-
-  // 수정 팝업을 Esc로 닫으면 그 행의 수정 버튼으로 포커스가 가고 다시 열면 원래 값이다.
-  // 테스트 코드: AC-085
-  it('closes the edit dialog on Escape, focuses the row edit button and reopens with the original value', async () => {
-    // given: sales가 수정 팝업에서 진행사항에 덧붙인다(요청 감시)
-    const update = vi.spyOn(gateway.actions, 'update')
-    const { user, table } = await openActions()
-    const { form } = await openEdit(user, table, 1)
-    await user.type(within(form).getByLabelText('진행사항'), ' 덧붙인 내용')
-
-    // when: Esc를 누른다
-    await user.keyboard('{Escape}')
-
-    // then: 팝업이 닫히고 그 행의 수정 버튼에 포커스가 가며 수정 요청이 없다
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-    expect(within(bodyRows(table)[1]!).getByRole('button', { name: '수정' })).toHaveFocus()
-    expect(update).not.toHaveBeenCalled()
-    // when: 같은 행의 수정을 다시 연다
-    const reopened = await openEdit(user, table, 1)
-    // then: 진행사항은 원래 값이다
-    expect(within(reopened.form).getByLabelText('진행사항')).toHaveValue('임원 보고용 ROI 자료 전달')
-  })
-
-  // 수정 팝업을 취소로 닫으면 그 행의 수정 버튼으로 포커스가 간다.
-  // 테스트 코드: AC-085
-  it('closes the edit dialog on cancel and focuses the row edit button', async () => {
-    // given: sales가 Actions 탭을 연다
-    const { user, table } = await openActions()
-    // when: 수정 팝업을 열고
-    const { form } = await openEdit(user, table, 0)
-
-    // when: 취소를 누른다
-    await user.click(within(form).getByRole('button', { name: '취소' }))
-
-    // then: 팝업이 닫히고 그 행의 수정 버튼에 포커스가 간다
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-    expect(within(bodyRows(table)[0]!).getByRole('button', { name: '수정' })).toHaveFocus()
   })
 })
 

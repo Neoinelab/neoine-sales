@@ -34,24 +34,6 @@ describe('Action 등록 폼의 Status · Forecast · 유형 한 줄', () => {
     expect(status.compareDocumentPosition(forecast) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(forecast.compareDocumentPosition(type) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
-
-  // 수정 폼에는 Status·Forecast 칸이 없고 유형 칸만 있다.
-  // 테스트 코드: AC-086
-  it('keeps_the_edit_form_layout_without_status_or_forecast', async () => {
-    // given: sales가 추가 팝업을 열었다 닫는다
-    const { user, form, table } = await openRegisterForm(1, '한빛은행 ITDR 도입')
-    await user.click(within(form).getByRole('button', { name: '취소' }))
-    // when: 예전 행의 수정 팝업을 연다
-    const row = within(table).getAllByRole('row')[2]!
-    await user.click(within(row).getByRole('button', { name: '수정' }))
-
-    const edit = screen.getByRole('form', { name: 'Action 수정' })
-    // then: 한 줄 그룹과 Status·Forecast 칸이 없고 유형 칸만 보인다
-    expect(within(edit).queryByRole('group', { name: GROUP_NAME })).not.toBeInTheDocument()
-    expect(within(edit).queryByLabelText('Status')).not.toBeInTheDocument()
-    expect(within(edit).queryByLabelText('Forecast')).not.toBeInTheDocument()
-    expect(within(edit).getByLabelText('유형')).toBeVisible()
-  })
 })
 
 describe('Status와 Forecast를 둘 다 바꿔 등록', () => {

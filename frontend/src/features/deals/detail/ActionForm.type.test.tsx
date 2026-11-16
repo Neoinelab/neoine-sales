@@ -332,7 +332,7 @@ describe('없는 유형 안내와 저장', () => {
   })
 })
 
-describe('유형 검증과 수정 폼', () => {
+describe('유형 검증', () => {
   // 유형이 비어 있으면 무엇보다 먼저 막고 유형 칸에 포커스한다.
   // 테스트 코드: AC-075
   it('requires a type before anything else and moves the focus to it', async () => {
@@ -386,50 +386,6 @@ describe('유형 검증과 수정 폼', () => {
     await view.user.click(within(view.form).getByRole('button', { name: '등록' }))
     // then: 등록 요청이 한 번 간다
     await waitFor(() => expect(create).toHaveBeenCalledTimes(1))
-  })
-
-  // 수정 폼은 현재 유형 이름을 채우고 바꾼 이름은 이력과 함께 저장한다.
-  // 테스트 코드: AC-086
-  it('prefills the current type name when editing and saves a changed one with history', async () => {
-    // given: sales가 Actions 탭에서 첫 행의 수정 팝업을 연다
-    const view = await renderAt(await detailPath(1, '?tab=actions'), { role: 'sales' })
-    const table = await screen.findByRole('table', { name: 'Action 목록' })
-    await view.user.click(within(bodyRows(table)[0]!).getByRole('button', { name: '수정' }))
-    const form = screen.getByRole('form', { name: 'Action 수정' })
-    const type = within(form).getByLabelText('유형')
-    // then: 유형 칸에 현재 이름이 채워져 있다
-    expect(type).toHaveDisplayValue('협상')
-
-    // when: 새 유형 이름으로 바꾸고 저장한다
-    await view.user.clear(type)
-    await view.user.type(type, '현장 점검')
-    // then: 새 유형 안내가 보인다
-    expect(within(form).getByText(HINT)).toBeVisible()
-    await view.user.click(within(form).getByRole('button', { name: '저장' }))
-
-    // then: 행의 유형이 바뀐다
-    await waitFor(() => expect(bodyRows(table)[0]).toHaveTextContent('현장 점검'))
-    // when: Deal History 탭으로 간다
-    await view.user.click(screen.getByRole('tab', { name: 'Deal History' }))
-    // then: "수정: 현장 점검 · " 이력이 있다
-    expect((await screen.findAllByText(/수정: 현장 점검 · /)).length).toBeGreaterThan(0)
-  })
-
-  // 수정 폼에서 유형을 그대로 두면 다시 묻지 않고 저장된다.
-  // 테스트 코드: AC-086
-  it('does not ask for a type again when editing and leaving it as it is', async () => {
-    // given: sales가 Actions 탭에서 둘째 행의 수정 팝업을 연다
-    const view = await renderAt(await detailPath(1, '?tab=actions'), { role: 'sales' })
-    const table = await screen.findByRole('table', { name: 'Action 목록' })
-    await view.user.click(within(bodyRows(table)[1]!).getByRole('button', { name: '수정' }))
-    const form = screen.getByRole('form', { name: 'Action 수정' })
-
-    // when: 아무것도 고치지 않고 저장한다
-    await view.user.click(within(form).getByRole('button', { name: '저장' }))
-
-    // then: 팝업이 닫히고 수정 알림이 보인다
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Action 수정' })).not.toBeInTheDocument())
-    expect(screen.getByText('Action이 수정되었습니다.')).toBeVisible()
   })
 })
 

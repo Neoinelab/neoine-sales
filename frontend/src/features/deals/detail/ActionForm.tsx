@@ -1,14 +1,13 @@
 import { useId, useRef, useState, type FormEvent } from 'react'
 import { useToday } from '../../../data/today'
 import { useCodeSet } from '../../../data/codes'
-import { useCreateAction, useUpdateAction } from '../../../data/actions'
+import { useCreateAction } from '../../../data/actions'
 import { useMe } from '../../../data/auth'
 import { useActionTypes } from '../../../data/actionTypes'
 import { toChoice } from '../../../shared/model/catalogChoice'
 import { ACTION_TYPE_NAME_MAX_LENGTH } from '../../../shared/model/constants'
 import { dateValueError } from '../../../shared/model/dateText'
 import { canEditAction } from '../../../shared/model/permissions'
-import { userLabel } from '../../../shared/model/period'
 import type { DealAction, DealDetail } from '../../../shared/model/types'
 import { DateInput } from '../../../shared/ui/DateInput'
 import { ErrorBanner } from '../../../shared/ui/ErrorBanner'
@@ -24,9 +23,7 @@ import './detail.css'
 
 interface ActionFormProps {
   deal: DealDetail
-  /** 수정할 Action. 없으면 등록. */
-  editing: DealAction | null
-  /** Next Action이 있는 가장 최근 Action(이전 Update 참조 카드). 등록 모드에서만 쓴다. */
+  /** Next Action이 있는 가장 최근 Action(이전 Update 참조 카드). */
   previous: DealAction | null
   onDone: (message: string) => void
   onCancel: () => void
@@ -48,43 +45,34 @@ function FieldError({ message }: { message: string | undefined }) {
   )
 }
 
-/** Action 추가·수정 팝업(Modal 안의 폼). 등록은 Status 변경 시 동기화 팝업(겹친 팝업), 수정은 Deal History에 기록됨을 안내한다.
+/** Action 추가 팝업(Modal 안의 폼). Status 변경 시 동기화 팝업이 겹쳐 열린다. 수정은 Action 상세 팝업의 칸별 인라인 수정이 맡는다.
  * 저장 중에는 취소·Esc로 닫히지 않는다. 닫으면 입력은 버려진다. */
-export function ActionForm({ deal, editing, previous, onDone, onCancel }: ActionFormProps) {
+export function ActionForm({ deal, previous, onDone, onCancel }: ActionFormProps) {
   const codes = useCodeSet().data
   const me = useMe().data
   const create = useCreateAction()
-  const update = useUpdateAction()
   const today = useToday().today
   const sync = useActionSync(deal)
   const wonExit = useWonExitConfirm()
   const formId = useId()
   const types = useActionTypes().data
-  const [type, setType] = useState(editing?.type ?? '')
-  const [progress, setProgress] = useState(editing?.progress ?? '')
-  const [nextAction, setNextAction] = useState(editing?.nextAction ?? '')
-  const [dueDate, setDueDate] = useState(editing?.dueDate ?? '')
-  // 유형 목록이 재조회돼 이름이 바뀌어도, 사용자가 건드리지 않은 유형 입력은 같은 typeId의 현재 이름으로 다시 채운다.
-  const [shownType, setShownType] = useState(editing?.type ?? '')
-  const currentType = editing ? types?.find((t) => t.id === editing.typeId)?.name : undefined
-  if (currentType !== undefined && currentType !== shownType) {
-    // 렌더 중 상태 조정: 목록이 바뀐 같은 렌더에서 반영해 옛 이름이 한 번도 화면에 남지 않게 한다.
-    setShownType(currentType)
-    if (type === shownType) setType(currentType)
-  }
+  const [type, setType] = useState('')
+  const [progress, setProgress] = useState('')
+  const [nextAction, setNextAction] = useState('')
+  const [dueDate, setDueDate] = useState('')
   // 채우기 버튼을 누르면 켜진 채 나타난다(닫을 수 있을 때만). 끄면 요청에 id를 보내지 않는다.
   const [filledFromId, setFilledFromId] = useState<number | null>(null)
   const [closePrevious, setClosePrevious] = useState(false)
-  const [actedOn, setActedOn] = useState(editing?.actedOn ?? today)
-  const [memo, setMemo] = useState(editing?.memo ?? '')
+  const [actedOn, setActedOn] = useState(today)
+  const [memo, setMemo] = useState('')
   const [errors, setErrors] = useState<Errors>({})
   const [error, setError] = useState<unknown>(null)
   const actedOnRef = useRef<HTMLInputElement>(null)
   const typeRef = useRef<HTMLInputElement>(null)
   const progressRef = useRef<HTMLTextAreaElement>(null)
   const dueRef = useRef<HTMLInputElement>(null)
-  const busy = create.isPending || update.isPending
-  const title = editing ? 'Action 수정' : 'Action 추가'
+  const busy = create.isPending
+  const title = 'Action 추가'
   const previousOpen = previous?.nextActionStatus === 'open'
   const previousClosable = previousOpen && me !== undefined && previous !== null && canEditAction({ id: me.id, role: me.role }, previous.actor.id)
 
@@ -99,7 +87,7 @@ export function ActionForm({ deal, editing, previous, onDone, onCancel }: Action
     setFilledFromId(previous?.id ?? null)
   }
 
-  const actor = editing ? userLabel(editing.actor) : (me?.name ?? '')
+  const actor = me?.name ?? ''
 
   const closing = filledFromId !== null && filled && previousClosable && closePrevious
 
@@ -111,7 +99,7 @@ export function ActionForm({ deal, editing, previous, onDone, onCancel }: Action
     if (actedOn > today) return '수행일은 오늘 이후로 지정할 수 없습니다.'
     const registered = deal.createdAt.slice(0, 10)
     if (actedOn < registered) return `수행일은 Deal 등록일(${registered}) 이전으로 지정할 수 없습니다.`
-    if (!editing && closing && previous && actedOn < previous.actedOn) {
+    if (closing && previous && actedOn < previous.actedOn) {
       return `이전 Next Action의 수행일(${previous.actedOn})보다 앞선 날짜로는 이전 Next Action을 종료할 수 없습니다.`
     }
     return undefined
@@ -147,17 +135,10 @@ export function ActionForm({ deal, editing, previous, onDone, onCancel }: Action
     if (found.type) return typeRef.current?.focus()
     if (found.progress) return progressRef.current?.focus()
     if (found.dueDate) return dueRef.current?.focus()
-    // 처음 값 그대로면 이름을 다시 해석하지 않고 원래 {id}를 보낸다(그사이 유형 이름이 바뀌어도 새 유형이 생기지 않는다).
-    const choice = editing && (type === editing.type || type === shownType) ? { id: editing.typeId } : toChoice(type, types ?? [])
+    const choice = toChoice(type, types ?? [])
     if (!choice) return typeRef.current?.focus()
     const fields = { type: choice, progress: progress.trim(), nextAction: nextAction.trim(), dueDate, memo }
     try {
-      if (editing) {
-        const changed = actedOn === editing.actedOn ? {} : { actedOn }
-        await update.mutateAsync({ dealCode: deal.code, actionId: editing.id, input: { ...fields, ...changed } })
-        onDone('Action이 수정되었습니다.')
-        return
-      }
       const statusChanges = toStatusChanges(sync.entries)
       // 상태 변경이 Won을 벗어나면 라이선스 계약 처리를 묻는다(동기화 선택 뒤, 등록 요청 전). 취소하면 폼을 그대로 둔다.
       const exit = await wonExit.ask(sync.base, sync.state, deal)
@@ -182,7 +163,7 @@ export function ActionForm({ deal, editing, previous, onDone, onCancel }: Action
   return (
     <Modal title={title} wide onClose={busy ? () => undefined : onCancel}>
       <div className="dd-action-popup">
-        {!editing && previous && (
+        {previous && (
           <PreviousUpdate
             previous={previous}
             filled={filled}
@@ -193,13 +174,12 @@ export function ActionForm({ deal, editing, previous, onDone, onCancel }: Action
             onCloseChange={setClosePrevious}
           />
         )}
-        {!editing && cardChanged && (
+        {cardChanged && (
           <p role="alert" className="hint">
             이전 Update가 바뀌었습니다. 확인 후 다시 채우세요.
           </p>
         )}
         <form aria-label={title} className="dd-form" onSubmit={(e) => void submit(e)} noValidate>
-          {editing && <p className="hint">수정한 내용은 Deal History에 기록됩니다. 등록 시점의 Status·Forecast는 바뀌지 않습니다.</p>}
           <p className="hint">
             담당자: {actor}
           </p>
@@ -207,11 +187,7 @@ export function ActionForm({ deal, editing, previous, onDone, onCancel }: Action
             <label htmlFor={`${formId}-acted`}>수행일</label>
             <DateInput id={`${formId}-acted`} aria-label="수행일" inputRef={actedOnRef} value={actedOn} onChange={setActedOn} error={errors.actedOn} />
           </div>
-          {editing ? (
-            typeInput
-          ) : (
-            <ActionSyncFields sync={sync}>{typeInput}</ActionSyncFields>
-          )}
+          <ActionSyncFields sync={sync}>{typeInput}</ActionSyncFields>
           <label className="field">
             <span>진행사항</span>
             <textarea ref={progressRef} data-autofocus="" value={progress} onChange={(e) => setProgress(e.target.value)} aria-invalid={errors.progress ? true : undefined} />
@@ -232,7 +208,7 @@ export function ActionForm({ deal, editing, previous, onDone, onCancel }: Action
           <ErrorBanner error={error ?? sync.error} format={messageOf} />
           <div className="dd-form-actions">
             <button type="submit" className="primary" disabled={busy}>
-              {editing ? '저장' : '등록'}
+              등록
             </button>
             <button type="button" disabled={busy} onClick={onCancel}>
               취소

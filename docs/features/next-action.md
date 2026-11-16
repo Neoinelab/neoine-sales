@@ -1,4 +1,4 @@
-# Next Action 상태·Action 검색   (feature 코드: NA, 상태: 확정(2026-11-13 사용자 확인))
+# Next Action 상태·Action 검색   (feature 코드: NA, 상태: 확정(2026-11-16 사용자 확인))
 
 > 이 문서는 **이미 구현된 동작**을 정본 명세로 옮긴 것입니다(2026-11-10). 근거는 작업 트리의 코드입니다.
 > - backend: `domain/deal_action/{next_action_status.py,entities.py(change_next_action_status·ensure_status_changeable_by),errors.py,policy.py,history.py(next_action_status_draft)}`, `application/deal_action/{change_next_action_status.py,list_deal_actions.py,inputs.py}`, `application/ports/deal_action_repository.py`(`DealActionQuery`·`DealActionSort`·`NextActionStatusFilter`), `domain/common/validation.py`, `infra/db/{deal_action_repository.py(_filtered),deal_action_order.py,like.py}`, `web/routers/deal_actions.py`, `web/schemas/deal_action.py`(`NextActionStatusRequest`·`DealActionSearchParams`), `web/permissions.py`
@@ -133,6 +133,7 @@ Action 검색(backend)
   - 상태 버튼은 쓰기 권한이 있고 그 행을 바꿀 수 있는 사람(admin, 또는 작성자 본인인 sales)에게만 보인다. 다른 sales와 `user`는 라벨만 본다.
   - 버튼은 지금 상태를 뺀 나머지다: Open 행은 "종료(수행)"·"종료(미수행)", 종료(수행) 행은 "종료(미수행)"·"Open으로", 종료(미수행) 행은 "종료(수행)"·"Open으로".
   - 각 버튼은 그 행의 Next Action 칸을 설명으로 연결한다(`aria-describedby`). 상태 변경 요청이 진행 중이면 모든 상태 버튼이 비활성이다.
+  - 같은 상태 버튼(권한·버튼 구성·동작 동일)이 Action 상세 팝업(AC-R49)의 Next Action 상태 줄에도 있다(2026-11-16 확정, AC-R54, AC-144·AC-145). 팝업에서 누른 "종료(수행)"·"종료(미수행)"은 아래 종료 팝업(NA-R22)이 상세 팝업 위에 겹쳐 열리고, "Open으로"는 NA-R23대로 바로 요청한다. 성공하면 종료 팝업만 닫히고 상세 팝업은 열린 채다.
 - **NA-R22** 종료 팝업
   - "종료(수행)"·"종료(미수행)"을 누르면 확인 대화상자가 열린다(종료 상태 사이 전환 포함).
     - 제목 "Next Action 종료(수행)"(또는 "Next Action 종료(미수행)")
@@ -143,7 +144,7 @@ Action 검색(backend)
     - 실패하면 팝업과 입력한 메모가 그대로이고 팝업 안 오류 배너에 서버 `detail`을 보인다.
   - "취소"와 Esc는 요청 없이 닫는다(입력한 메모는 버린다).
 - **NA-R23** "Open으로"는 팝업 없이 메모 `""`로 바로 요청한다. 실패하면 탭의 오류 배너에 서버 `detail`을 보인다.
-- **NA-R24** 상태 변경에 성공하면 Action 목록, 그 Deal의 History, Deal(목록·상세), Forecast, Action 유형, 라이선스 계약 캐시를 무효화한다. 그래서 행의 라벨·Memo와 요약 바의 Next Action 상태(RK-R17)가 새 값으로 바뀐다.
+- **NA-R24** 상태 변경에 성공하면 Action 목록, 그 Deal의 History, Deal(목록·상세), Forecast, Action 유형, 라이선스 계약 캐시를 무효화한다. 그래서 행의 라벨, 상세 팝업(AC-R49)의 Memo, 요약 바의 Next Action 상태(RK-R17)가 새 값으로 바뀐다(2026-11-16: 표에 Memo 열 없음).
 - **NA-R25** 검색 바(`role="search"`, 이름 "Action 검색")
   - 칸 순서:
     1. 유형: "전체" + Action 유형 이름
@@ -168,7 +169,7 @@ Action 검색(backend)
   - 범위가 거꾸로면 화면은 막지 않고 서버 문구(NA-R15·R16)를 탭 오류 배너로 보인다.
 - **NA-R27** "초기화"는 모든 칸을 처음 값으로 돌리고 조건 없이 다시 조회한다. 기다리던 프리셋 응답은 버린다. 정렬은 그대로다.
 - **NA-R28** 머리글 정렬
-  - 정렬할 수 있는 머리글은 수행일·담당자·유형·Due Date·상태 5개(버튼)다. 나머지 열은 정렬하지 않는다.
+  - 정렬할 수 있는 머리글은 수행일·유형·Due Date·상태 4개(버튼)다. 나머지 열(진행사항·Next Action)은 정렬하지 않는다. 담당자 열이 없어져(AC-R21, 2026-11-16) 화면은 담당자 정렬(`actor_asc`·`actor_desc`)을 보내지 않지만 서버 정렬 값(NA-R18)과 게이트웨이 변환(NA-R30)은 그대로다.
   - 처음은 수행일 내림차순이다(`aria-sort`로 표시).
   - 같은 머리글을 다시 누르면 방향이 바뀐다. 다른 머리글은 자연 방향(수행일 내림차순, 나머지 오름차순)으로 시작한다.
   - 정렬은 서버 `sort`로 보내고 화면은 서버 순서를 그대로 보인다(다시 정렬하지 않음).
@@ -289,7 +290,7 @@ NA-R21~R31.
 
 ### NA-UC5 Action 정렬
 - 행위자: 로그인한 사용자
-- 기본 흐름: 머리글(수행일·담당자·유형·Due Date·상태)을 누르면 서버가 그 순서로 준다(NA-R18, R28)
+- 기본 흐름: 머리글(수행일·유형·Due Date·상태)을 누르면 서버가 그 순서로 준다(NA-R18, R28)
 - 결과: 조건은 유지되고, 빈 값(Due Date·상태 없음)은 방향과 관계없이 맨 뒤다
 
 ## 4. BDD 테스트 케이스
@@ -358,7 +359,7 @@ NA-R21~R31.
 | NA-060 | 화면: 키워드는 100자까지 입력되고 100자 검색은 오류가 아니다 | NA-R25, NA-R14, NA-UC4 | frontend | `features/deals/detail/ActionSearchBar.test.tsx` |
 | NA-061 | 화면: 빈 결과 문구는 조건 적용 여부로 나뉘고 정렬은 조건이 아니다 | NA-R29, NA-UC4 | frontend | `features/deals/detail/ActionsTab.sort.test.tsx` |
 | NA-062 | 화면: 직접 지정 범위가 거꾸로면 서버 문구를 오류 배너로 보인다 | NA-R26, NA-R29, NA-UC4 | frontend | `features/deals/detail/ActionsTab.test.tsx` |
-| NA-063 | 화면: 정렬 머리글은 5개이고 같은 열은 방향을 바꾸며 다른 열은 자연 방향으로 시작한다 | NA-R28, NA-UC5 | frontend | `features/deals/detail/ActionTable.sort.test.tsx`, `features/deals/detail/ActionsTab.sort.test.tsx`, `features/deals/detail/ActionsTab.test.tsx`, `features/deals/detail/actionSort.test.ts` |
+| NA-063 | 화면: 정렬 머리글은 4개이고 같은 열은 방향을 바꾸며 다른 열은 자연 방향으로 시작한다 | NA-R28, NA-UC5 | frontend | `features/deals/detail/ActionTable.sort.test.tsx`, `features/deals/detail/ActionsTab.sort.test.tsx`, `features/deals/detail/ActionsTab.test.tsx`, `features/deals/detail/actionSort.test.ts` |
 | NA-064 | 화면: 서버가 준 순서를 그대로 보인다 | NA-R28, NA-UC5 | frontend | `features/deals/detail/ActionsTab.sort.test.tsx` |
 | NA-065 | 화면: 정렬을 바꿔도 조건이 남고 다시 검색해도 정렬이 남는다 | NA-R28, NA-UC5 | frontend | `features/deals/detail/ActionsTab.sort.test.tsx` |
 | NA-066 | HTTP 게이트웨이는 채운 조건·정렬·상태 변경 본문을 서버 이름으로 보낸다 | NA-R30 | frontend | `gateway/http/actions.test.ts` |
@@ -591,7 +592,7 @@ NA-R21~R31.
 ### NA-047 화면: 종료 팝업으로 종료
 - Given kim의 Open Action 행이 있다
 - When "종료(수행)"을 눌러 열린 "Next Action 종료(수행)" 팝업에 "문서 전달 완료"를 쓰고 "종료"를 누른다
-- Then 팝업이 닫히고 행이 "종료(수행)"과 "문서 전달 완료"를 보이며 "Open으로" 버튼이 생긴다. 메모를 비운 "종료(미수행)", 종료(수행)→종료(미수행) 전환도 같은 팝업으로 된다
+- Then 팝업이 닫히고 행이 "종료(수행)"을 보이며 "Open으로" 버튼이 생기고, 그 행을 눌러 연 상세 팝업의 Memo가 "문서 전달 완료"다. 메모를 비운 "종료(미수행)", 종료(수행)→종료(미수행) 전환도 같은 팝업으로 된다
 
 ### NA-048 화면: 팝업 취소
 - Given 종료 팝업에 "버릴 메모"를 쓴 상태다
@@ -645,16 +646,16 @@ NA-R21~R31.
 - Then 프리셋 선택지는 비활성이고 오류 배너가 보이며, 실패한 검색은 이전 질의를 유지하고, 늦게 온 이전 응답은 질의를 바꾸지 않는다
 
 ### NA-059 화면: 초기화
-- Given 담당자 머리글로 정렬하고 키워드 "ROI"로 검색해 1행이 보인다
+- Given 유형 머리글로 정렬하고 키워드 "ROI"로 검색해 1행이 보인다
 - When "초기화"를 누른다
-- Then 모든 Action이 다시 보이고 키워드·기간 칸이 비며 담당자 정렬은 그대로다
+- Then 모든 Action이 다시 보이고 키워드·기간 칸이 비며 유형 정렬은 그대로다
 
 ### NA-060 화면: 키워드 길이
 - When 키워드 칸에 101자를 쓰고, 100자로 검색한다
 - Then 칸에는 100자만 들어가고 100자 검색은 오류 없이 빈 결과 문구다
 
 ### NA-061 화면: 빈 결과 문구
-- Given 정렬만 담당자로 바꾼 상태에서 그 Deal의 Action이 모두 지워졌다
+- Given 정렬만 유형으로 바꾼 상태에서 그 Deal의 Action이 모두 지워졌다
 - When 목록을 다시 읽는다
 - Then "등록된 Action이 없습니다."가 보이고 "조건에 맞는 Action이 없습니다."는 없다
 
@@ -664,11 +665,11 @@ NA-R21~R31.
 
 ### NA-063 화면: 정렬 머리글
 - When Actions 표를 열고 머리글을 누른다
-- Then 버튼 머리글은 수행일·담당자·유형·Due Date·상태뿐이고 처음은 수행일 내림차순이다. Due Date는 처음 누르면 오름차순, 다시 누르면 내림차순이며 다른 열 뒤 수행일은 다시 내림차순으로 시작한다
+- Then 버튼 머리글은 수행일·유형·Due Date·상태뿐이고("담당자" 머리글은 없다) 처음은 수행일 내림차순이다. Due Date는 처음 누르면 오름차순, 다시 누르면 내림차순이며 다른 열 뒤 수행일은 다시 내림차순으로 시작한다
 
 ### NA-064 화면: 서버 순서 그대로
-- When 담당자 머리글을 오름차순·내림차순으로 누른다
-- Then 행 순서는 서버가 준 순서(같은 담당자 안에서는 최신 수행 먼저)와 같다
+- When 유형 머리글을 오름차순·내림차순으로 누른다
+- Then 행 순서는 서버가 준 순서(같은 유형 안에서는 최신 수행 먼저)와 같다
 
 ### NA-065 화면: 정렬과 조건
 - Given 키워드 "ROI"로 검색해 1행이다
@@ -717,3 +718,4 @@ NA-R21~R31.
 | 2026-11-11 | UI 문서 작성에 따라 공통 컴포넌트 참조를 UI 규칙 번호로 교체(1장, NA-R26). 기간 선택 부품 `PeriodField`·`periodChoice`는 NA-R26 소유로 UI·PA가 가리킴. 동작·케이스 변경 없음, 상태 줄 그대로 | 없음 |
 | 2026-11-13 | AC 수행일 지정(확정)에 맞춰 NA-R4·NA-R15에 설명 추가. 동작·케이스 변경 없음, 상태 줄 그대로 | 없음(관련 신규 AC-099·AC-101) |
 | 2026-11-13 | 확정(2026-11-13 사용자 확인): 업무 날짜를 date로 저장. 종료일은 `next_action_closed_on`(용어, 2.2, NA-R1·R4, 2.4, 2.6), NA-R32 신설(데이터 변환), NA-R15 날짜 비교, NA-R18 같은 날 동률(desc는 id 내림차순, 나머지 정렬은 수행일 내림차순 → id 내림차순), 머리글 "수행일". 정렬 값 이름 `acted_at_*`은 유지. 응답 필드 변경(호환 깨짐, 사용자 승인) | 신규 NA-069~NA-072. 변경 NA-001, NA-004, NA-019, NA-029, NA-038, 상태 변경 '그대로' 케이스, 머리글 화면 케이스 |
+| 2026-11-16 | 확정(2026-11-16 사용자 확인): 상세 팝업에서도 상태 변경 가능(NA-R21 추가 문구, AC-R54·AC-144·AC-145 참조, 서버 동작 변경 없음). 이전 초안 내용: AC Actions 탭 개편(AC-R21 담당자·Memo 열 제거, AC-R49 상세 팝업)에 맞춤. NA-R24(Memo는 상세 팝업에서 보임), NA-R28(정렬 머리글 5→4, 담당자 제외 — 서버 `actor_*` 정렬 값은 유지), NA-UC5. 서버 동작 변경 없음 | 변경 NA-047, NA-059, NA-061, NA-063, NA-064 |

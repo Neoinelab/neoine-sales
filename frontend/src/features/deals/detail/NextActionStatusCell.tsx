@@ -8,12 +8,14 @@ interface NextActionStatusCellProps {
   busy: boolean
   /** 행의 Next Action 칸 id. 같은 이름의 버튼을 행별로 구분하도록 설명으로 연결한다(버튼 이름은 그대로). */
   describedBy?: string
+  /** 종료된 행에 종료일을 덧붙인다(상세 팝업). */
+  showClosedOn?: boolean
   /** 종료(수행)·종료(미수행)(전환 포함)는 Memo 팝업을 거치고, Open으로는 바로 바꾼다. */
   onChange: (action: DealAction, status: NextActionStatus) => void
 }
 
 /** Actions 표의 상태 칸. Next Action이 없는 행은 상태도 버튼도 없다. */
-export function NextActionStatusCell({ action, canChange, busy, describedBy, onChange }: NextActionStatusCellProps) {
+export function NextActionStatusCell({ action, canChange, busy, describedBy, showClosedOn = false, onChange }: NextActionStatusCellProps) {
   const status = action.nextActionStatus
   if (status === null) return <>—</>
   const button = (target: NextActionStatus, label: string) => (
@@ -23,7 +25,10 @@ export function NextActionStatusCell({ action, canChange, busy, describedBy, onC
   )
   return (
     <span className="dd-row">
-      <span>{NEXT_ACTION_STATUS_LABEL[status]}</span>
+      <span>
+        {NEXT_ACTION_STATUS_LABEL[status]}
+        {showClosedOn && status !== 'open' && action.nextActionClosedOn ? ` · 종료일 ${action.nextActionClosedOn}` : ''}
+      </span>
       {canChange && status !== 'done' && button('done', '종료(수행)')}
       {canChange && status !== 'notDone' && button('notDone', '종료(미수행)')}
       {canChange && status !== 'open' && button('open', 'Open으로')}

@@ -5,6 +5,7 @@ import type { Viewer } from '../../../shared/model/permissions'
 import type { ActionQuery, DealAction, DealDetail, NextActionStatus } from '../../../shared/model/types'
 import { ConfirmDialog } from '../../../shared/ui/ConfirmDialog'
 import { ErrorBanner } from '../../../shared/ui/ErrorBanner'
+import { ActionDetailDialog } from './ActionDetailDialog'
 import { ActionForm } from './ActionForm'
 import { ActionSearchBar } from './ActionSearchBar'
 import { DEFAULT_ACTION_SORT, nextActionSort, type ActionSortState } from './actionSort'
@@ -21,14 +22,14 @@ interface ActionsTabProps {
   onNotice: (message: string) => void
 }
 
-type FormState = { mode: 'closed' } | { mode: 'create' } | { mode: 'edit'; action: DealAction }
-
-/** Actions 탭: 검색 + 목록 + Action 추가·수정 팝업 + 삭제 확인. */
+/** Actions 탭: 검색 + 목록 + Action 추가 팝업 + 행을 눌러 여는 Action 상세 팝업(칸별 수정·상태 변경·삭제) + 삭제 확인. */
 export function ActionsTab({ deal, canWrite, me, onNotice }: ActionsTabProps) {
   const [query, setQuery] = useState<ActionQuery>({})
   // 정렬은 검색 조건과 따로 둔다(초기화해도 유지, 조건 없음 판정에도 포함하지 않는다).
   const [sort, setSort] = useState<ActionSortState>(DEFAULT_ACTION_SORT)
-  const [form, setForm] = useState<FormState>({ mode: 'closed' })
+  const [creating, setCreating] = useState(false)
+  // 상세 팝업: 연 Action(목록에서 사라져도 마지막 값으로 남는다)과 지금 값(수정·종료가 반영된 목록).
+  const [opened, setOpened] = useState<DealAction | null>(null)
   const [target, setTarget] = useState<DealAction | null>(null)
   const [closing, setClosing] = useState<{ action: DealAction; status: Exclude<NextActionStatus, 'open'> } | null>(null)
   const [closingError, setClosingError] = useState<unknown>(null)
@@ -40,12 +41,14 @@ export function ActionsTab({ deal, canWrite, me, onNotice }: ActionsTabProps) {
   const changeStatus = useChangeNextActionStatus()
   const items = useLatest(list.data) ?? []
   const filtered = Object.keys(query).length > 0
+  const shown = opened === null ? null : (all.data?.find((a) => a.id === opened.id) ?? opened)
 
   async function confirmDelete() {
     if (!target) return
     setError(null)
     try {
       await remove.mutateAsync({ dealCode: deal.code, actionId: target.id })
+      setOpened(null)
       onNotice('Action이 삭제되었습니다.')
     } catch (caught) {
       setError(caught)
@@ -86,7 +89,7 @@ export function ActionsTab({ deal, canWrite, me, onNotice }: ActionsTabProps) {
   }
 
   function done(message: string) {
-    setForm({ mode: 'closed' })
+    setCreating(false)
     onNotice(message)
   }
 
@@ -94,23 +97,16 @@ export function ActionsTab({ deal, canWrite, me, onNotice }: ActionsTabProps) {
     <div className="dd-page">
       {canWrite && (
         <div className="dd-row">
-          <button type="button" className="primary" onClick={() => setForm({ mode: 'create' })}>
+          <button type="button" className="primary" onClick={() => setCreating(true)}>
             Action 추가
           </button>
         </div>
       )}
-      {form.mode !== 'closed' && (
-        <ActionForm
-          key={form.mode === 'edit' ? form.action.id : 'create'}
-          deal={deal}
-          editing={form.mode === 'edit' ? form.action : null}
-          previous={all.data ? latestWithNextAction(all.data) : null}
-          onDone={done}
-          onCancel={() => setForm({ mode: 'closed' })}
-        />
+      {creating && (
+        <ActionForm deal={deal} previous={all.data ? latestWithNextAction(all.data) : null} onDone={done} onCancel={() => setCreating(false)} />
       )}
       <ActionSearchBar onSearch={setQuery} />
-      <ErrorBanner error={error} format={messageOf} />
+      {shown === null && <ErrorBanner error={error} format={messageOf} />}
       <ErrorBanner error={list.error} format={messageOf} />
       {list.isPending && list.data === undefined && items.length === 0 && <p role="status">불러오는 중…</p>}
       {list.isSuccess && items.length === 0 && (
@@ -124,10 +120,26 @@ export function ActionsTab({ deal, canWrite, me, onNotice }: ActionsTabProps) {
           me={me}
           sort={sort}
           onSort={(key) => setSort((current) => nextActionSort(current, key))}
-          onEdit={(action) => setForm({ mode: 'edit', action })}
-          onDelete={setTarget}
+          onOpen={(action) => {
+            setError(null)
+            setOpened(action)
+          }}
           onChangeStatus={requestStatus}
           statusBusy={changeStatus.isPending}
+        />
+      )}
+      {shown && (
+        <ActionDetailDialog
+          deal={deal}
+          action={shown}
+          canWrite={canWrite}
+          me={me}
+          pending={changeStatus.isPending || remove.isPending}
+          error={error}
+          onChangeStatus={requestStatus}
+          onDelete={setTarget}
+          onNotice={onNotice}
+          onClose={() => setOpened(null)}
         />
       )}
       {closing && (

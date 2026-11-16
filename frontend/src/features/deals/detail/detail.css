@@ -52,6 +52,12 @@ button.dd-small { padding: 2px 8px; }
 .dd-scroll { overflow-x: auto; }
 .dd-scroll table { min-width: 560px; }
 .dd-table td.wrap { max-width: 280px; }
+.dd-action-table td.dd-col-short { white-space: nowrap; }
+.dd-action-table td.dd-col-long { min-width: 40em; overflow-wrap: anywhere; white-space: pre-wrap; }
+.dd-action-table tr.dd-action-row { cursor: pointer; }
+.dd-action-table tr.dd-action-row:hover { background: var(--accent-soft); }
+.dd-action-table tr.dd-action-row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.dd-action-dl dd.dd-pre { white-space: pre-wrap; }
 .dd-toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; }
 .dd-search { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--panel); }
 .dd-search .field { min-width: 8rem; }

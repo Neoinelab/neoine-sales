@@ -10,8 +10,8 @@ import { dealCodeOf } from '../../../test/detailTestUtils'
 import type { ActionSortState } from './actionSort'
 import { ActionTable } from './ActionTable'
 
-const SORTABLE = ['수행일', '담당자', '유형', 'Due Date', '상태']
-const PLAIN = ['등록 시점 Status·Forecast', '진행사항', 'Next Action', 'Memo', '관리']
+const SORTABLE = ['수행일', '유형', 'Due Date', '상태']
+const PLAIN = ['진행사항', 'Next Action']
 const DEFAULT: ActionSortState = { sort: 'actedAt', order: 'desc' }
 
 beforeEach(() => resetMock({ now: '2030-06-15T09:00:00+09:00' }))
@@ -28,8 +28,7 @@ async function renderTable(sort: ActionSortState, onSort: (key: string) => void 
         deal={deal}
         canEdit
         me={null}
-        onEdit={() => undefined}
-        onDelete={() => undefined}
+        onOpen={() => undefined}
         sort={sort}
         onSort={onSort as never}
       />
@@ -41,14 +40,14 @@ async function renderTable(sort: ActionSortState, onSort: (key: string) => void 
 const header = (table: HTMLElement, name: string) => within(table).getByRole('columnheader', { name })
 
 describe('ActionTable 헤더 정렬', () => {
-  // 정렬할 수 있는 머리글은 수행일·담당자·유형·Due Date·상태 5개(버튼)뿐이다.
+  // 정렬할 수 있는 머리글은 수행일·유형·Due Date·상태 4개(버튼)뿐이다.
   // 테스트 코드: NA-063
-  it('makes only the five sortable headers buttons with their column name', async () => {
+  it('makes only the four sortable headers buttons with their column name', async () => {
     // when: Actions 표를 렌더한다.
     const table = await renderTable(DEFAULT)
 
-    // then: 버튼 머리글은 5개이고 나머지 열 머리글은 버튼도 aria-sort도 없다.
-    expect(within(table).getAllByRole('button', { name: new RegExp(`^(${SORTABLE.join('|')})$`) })).toHaveLength(5)
+    // then: 버튼 머리글은 4개이고 나머지 열 머리글은 버튼도 aria-sort도 없다.
+    expect(within(table).getAllByRole('button', { name: new RegExp(`^(${SORTABLE.join('|')})$`) })).toHaveLength(4)
     for (const name of SORTABLE) {
       expect(within(header(table, name)).getByRole('button', { name })).toHaveClass('th-sort')
     }
@@ -76,7 +75,6 @@ describe('ActionTable 헤더 정렬', () => {
   // 정렬 상태에 맞는 열에만 aria-sort와 방향 표시(data-dir)가 붙는다.
   // 테스트 코드: NA-063
   it.each([
-    [{ sort: 'actor', order: 'asc' }, '담당자', 'ascending', 'asc'],
     [{ sort: 'type', order: 'desc' }, '유형', 'descending', 'desc'],
     [{ sort: 'dueDate', order: 'asc' }, 'Due Date', 'ascending', 'asc'],
     [{ sort: 'nextActionStatus', order: 'desc' }, '상태', 'descending', 'desc'],
@@ -100,13 +98,12 @@ describe('ActionTable 헤더 정렬', () => {
     const table = await renderTable(DEFAULT, onSort)
     const keys: [string, string][] = [
       ['수행일', 'actedAt'],
-      ['담당자', 'actor'],
       ['유형', 'type'],
       ['Due Date', 'dueDate'],
       ['상태', 'nextActionStatus'],
     ]
 
-    // when: 정렬 가능한 머리글 5개를 차례로 누른다.
+    // when: 정렬 가능한 머리글 4개를 차례로 누른다.
     for (const [name] of keys) await userEvent.click(within(table).getByRole('button', { name }))
 
     // then: 누른 순서대로 열 키가 전달된다.

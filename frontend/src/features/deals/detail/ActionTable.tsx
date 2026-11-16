@@ -1,7 +1,5 @@
 import { canEditAction, type Viewer } from '../../../shared/model/permissions'
-import { userLabel } from '../../../shared/model/period'
 import type { ActionSortKey, DealAction, DealDetail, NextActionStatus } from '../../../shared/model/types'
-import { ForecastBadge, StatusBadge } from '../../../shared/ui/Badges'
 import { RiskBadge } from '../../../shared/ui/RiskBadge'
 import { SortableHeader } from '../../../shared/ui/SortableHeader'
 import type { ActionSortState } from './actionSort'
@@ -15,8 +13,8 @@ interface ActionTableProps {
   me: Viewer | null
   sort: ActionSortState
   onSort: (key: ActionSortKey) => void
-  onEdit: (action: DealAction) => void
-  onDelete: (action: DealAction) => void
+  /** 행을 눌렀을 때(상세 팝업 열기). */
+  onOpen: (action: DealAction) => void
   /** 없으면 상태 변경 버튼을 보이지 않는다. */
   onChangeStatus?: (action: DealAction, status: NextActionStatus) => void
   statusBusy?: boolean
@@ -34,79 +32,59 @@ function isCurrentOverdue(action: DealAction, deal: DealDetail): boolean {
 
 const noop = () => undefined
 
-/** Actions 목록 표: 수행일시 / 담당자 / 등록 시점 Status·Forecast / 유형 / 진행사항 / Next Action / Due / 상태 / Memo / 관리. */
-export function ActionTable({ actions, deal, canEdit, me, sort, onSort, onEdit, onDelete, onChangeStatus, statusBusy = false }: ActionTableProps) {
+/** 행 안의 버튼·링크·입력에서 온 이벤트는 행을 여는 동작으로 보지 않는다. */
+const isInner = (target: EventTarget) => target instanceof Element && target.closest('button, a, input, select, textarea') !== null
+
+/** Actions 목록 표: 수행일 / 유형 / 진행사항 / Next Action / Due Date / 상태. 행을 누르면(Enter·Space 포함) 상세 팝업이 열린다. */
+export function ActionTable({ actions, deal, canEdit, me, sort, onSort, onOpen, onChangeStatus, statusBusy = false }: ActionTableProps) {
   const header = (label: string, key: ActionSortKey) => (
     <SortableHeader label={label} active={sort.sort === key} order={sort.order} onSort={() => onSort(key)} />
   )
   const own = (a: DealAction) => me !== null && canEditAction(me, a.actor.id)
   return (
     <div className="dd-scroll">
-      <table className="dd-table" aria-label="Action 목록">
+      <table className="dd-table dd-action-table" aria-label="Action 목록">
         <thead>
           <tr>
             {header('수행일', 'actedAt')}
-            {header('담당자', 'actor')}
-            <SortableHeader label="등록 시점 Status·Forecast" active={false} order={sort.order} />
             {header('유형', 'type')}
             <SortableHeader label="진행사항" active={false} order={sort.order} />
             <SortableHeader label="Next Action" active={false} order={sort.order} />
             {header('Due Date', 'dueDate')}
             {header('상태', 'nextActionStatus')}
-            <SortableHeader label="Memo" active={false} order={sort.order} />
-            {canEdit && <th scope="col">관리</th>}
           </tr>
         </thead>
         <tbody>
           {actions.map((a) => (
-            <tr key={a.id}>
-              <td>{a.actedOn}</td>
-              <td>{userLabel(a.actor)}</td>
-              <td>
-                <span className="dd-row">
-                  <StatusBadge statusKey={a.statusKey} />
-                  <ForecastBadge forecastKey={a.forecastKey} />
-                </span>
-              </td>
-              <td>{a.type}</td>
-              <td className="wrap">{a.progress ?? '—'}</td>
-              <td className="wrap" id={`next-action-${a.id}`}>
+            // 행 전체가 "Action 상세" 팝업을 여는 버튼처럼 동작한다(키보드: Tab으로 닿고 Enter·Space로 연다).
+            <tr
+              key={a.id}
+              className="dd-action-row"
+              tabIndex={0}
+              onClick={(e) => {
+                if (!isInner(e.target)) onOpen(a)
+              }}
+              onKeyDown={(e) => {
+                if (e.target !== e.currentTarget || (e.key !== 'Enter' && e.key !== ' ')) return
+                e.preventDefault()
+                onOpen(a)
+              }}
+            >
+              <td className="dd-col-short">{a.actedOn}</td>
+              <td className="dd-col-short">{a.type}</td>
+              <td className="dd-col-long">{a.progress ?? '—'}</td>
+              <td className="dd-col-long" id={`next-action-${a.id}`}>
                 {a.nextAction ?? '—'}
               </td>
-              <td>
+              <td className="dd-col-short">
                 <span className="dd-row">
                   <span>{a.dueDate ?? '—'}</span>
                   {isCurrentOverdue(a, deal) && <RiskBadge risk="overdue" />}
                 </span>
               </td>
-              <td>
+              <td className="dd-col-short">
                 <NextActionStatusCell action={a} canChange={canEdit && own(a) && onChangeStatus !== undefined} busy={statusBusy} describedBy={`next-action-${a.id}`} onChange={onChangeStatus ?? noop} />
               </td>
-              <td className="wrap">{a.memo || '—'}</td>
-              {canEdit && (
-                <td>
-                  <span className="dd-row">
-                    <button
-                      type="button"
-                      className="dd-small"
-                      disabled={!own(a)}
-                      title={own(a) ? undefined : '본인 Action 또는 admin만 수정할 수 있습니다.'}
-                      onClick={() => onEdit(a)}
-                    >
-                      수정
-                    </button>
-                    <button
-                      type="button"
-                      className="dd-small"
-                      disabled={!own(a)}
-                      title={own(a) ? undefined : '본인 Action 또는 admin만 삭제할 수 있습니다.'}
-                      onClick={() => onDelete(a)}
-                    >
-                      삭제
-                    </button>
-                  </span>
-                </td>
-              )}
             </tr>
           ))}
         </tbody>

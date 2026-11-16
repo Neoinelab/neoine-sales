@@ -17,6 +17,16 @@ async function openActions(role: 'sales' | 'admin' | 'user' = 'sales', userId?: 
 
 const bodyRows = (table: HTMLElement) => within(table).getAllByRole('row').slice(1)
 
+/** 행을 눌러 상세 팝업을 열고 Memo 값(dd)을 읽은 뒤 닫는다(표에는 Memo 열이 없다). */
+async function memoInDetail(user: View['user'], table: HTMLElement, index: number): Promise<string> {
+  await user.click(bodyRows(table)[index]!)
+  const dialog = await screen.findByRole('dialog', { name: 'Action 상세' })
+  const dt = Array.from(dialog.querySelectorAll('dt')).find((el) => el.textContent === 'Memo')
+  const memo = dt?.nextElementSibling?.textContent ?? ''
+  await user.click(within(dialog).getByRole('button', { name: '닫기' }))
+  return memo
+}
+
 async function openForm(user: View['user']) {
   await user.click(screen.getByRole('button', { name: 'Action 추가' }))
   return screen.getByRole('form', { name: 'Action 추가' })
@@ -173,7 +183,7 @@ describe('Next Action이 없는 행의 상태 칸', () => {
     await user.click(within(table).getByRole('button', { name: '수행일' }))
     // then: 진행사항만 행의 상태 칸은 "—"이고 상태 버튼이 없다.
     await waitFor(() => expect(bodyRows(table).at(-1)).toHaveTextContent('전화로만 확인'))
-    const statusCell = within(bodyRows(table).at(-1)!).getAllByRole('cell')[7]!
+    const statusCell = within(bodyRows(table).at(-1)!).getAllByRole('cell')[5]!
     expect(statusCell).toHaveTextContent('—')
     expect(within(statusCell).queryByRole('button')).not.toBeInTheDocument()
   })
@@ -192,11 +202,12 @@ describe('Next Action 종료 팝업', () => {
     await user.type(within(dialog).getByLabelText('Memo에 남길 내용(선택)'), '문서 전달 완료')
     await user.click(within(dialog).getByRole('button', { name: '종료' }))
 
-    // then: 팝업이 닫히고 행이 종료(수행)과 메모를 보이며 "Open으로" 버튼이 생긴다.
+    // then: 팝업이 닫히고 행이 종료(수행)을 보이며 "Open으로" 버튼이 생긴다.
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
     await waitFor(() => expect(bodyRows(table)[0]).toHaveTextContent('종료(수행)'))
-    expect(bodyRows(table)[0]).toHaveTextContent('문서 전달 완료')
     expect(within(bodyRows(table)[0]!).getByRole('button', { name: 'Open으로' })).toBeVisible()
+    // then: 행을 눌러 연 상세 팝업의 Memo가 "문서 전달 완료"다(표에는 Memo 열이 없다).
+    expect(await memoInDetail(user, table, 0)).toContain('문서 전달 완료')
   })
 
   // 종료(미수행) 팝업은 제목이 다르고 메모를 비운 채 종료할 수 있다.
@@ -229,7 +240,7 @@ describe('Next Action 종료 팝업', () => {
     // then: 팝업이 닫히고 행은 Open 그대로이며 버린 메모가 없다.
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
     expect(bodyRows(table)[0]).toHaveTextContent('Open')
-    expect(bodyRows(table)[0]).not.toHaveTextContent('버릴 메모')
+    expect(await memoInDetail(user, table, 0)).not.toContain('버릴 메모')
   })
 
   // 팝업에서 Esc를 누르면 요청 없이 닫고 상태를 바꾸지 않는다.
@@ -429,10 +440,10 @@ describe('종료 상태 간 직접 전환', () => {
     await user.type(within(dialog).getByLabelText('Memo에 남길 내용(선택)'), '사실은 못 했음')
     await user.click(within(dialog).getByRole('button', { name: '종료' }))
 
-    // then: 행이 종료(미수행)이 되고 메모가 보이며 팝업이 닫힌다.
+    // then: 행이 종료(미수행)이 되고 팝업이 닫히며 상세 팝업의 Memo에 메모가 붙는다.
     await waitFor(() => expect(bodyRows(table)[0]).toHaveTextContent('종료(미수행)'))
-    expect(bodyRows(table)[0]).toHaveTextContent('사실은 못 했음')
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(await memoInDetail(user, table, 0)).toContain('사실은 못 했음')
   })
 
   // 종료(미수행)에서 종료(수행)으로 바로 전환할 때도 메모 팝업을 거친다.
