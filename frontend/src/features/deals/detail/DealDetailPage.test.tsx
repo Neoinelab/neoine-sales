@@ -192,7 +192,10 @@ describe('Deal 상세 정보 카드 (T-DETAIL-02)', () => {
     await heading('한빛은행 ITDR 도입')
     const card = screen.getByRole('region', { name: '고객' })
     await user.click(within(card).getByRole('button', { name: '고객 직급 수정' }))
-    const title = within(card).getByLabelText('고객 직급')
+    // given: 직급을 눌러 연 것도 5칸 연락처 편집 세션이고 직급 입력에 포커스가 있다
+    const session = within(card).getByRole('group', { name: '고객 연락처 편집' })
+    const title = within(session).getByLabelText('고객 직급')
+    expect(title).toHaveFocus()
     // when: 고객 직급을 눌러 '팀장'으로 고치고 Enter를 누른다
     await user.clear(title)
     await user.type(title, '팀장')

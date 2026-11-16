@@ -32,6 +32,8 @@ export interface ContactPickerProps {
   layout?: 'stack' | 'rows'
   /** 회사명·담당자명 칸에 필수 표시를 한다(검증은 서버 기준). */
   required?: boolean
+  /** true이면 연결된 담당자의 이름을 다른 이름으로 고치는 순간 직급·이메일·전화를 비운다(신규 담당자로 취급). */
+  clearOnRename?: boolean
 }
 
 const EMPTY_FIELDS = { title: '', email: null, phone: null } as const
@@ -46,7 +48,7 @@ function optionOf(row: ContactRow): ComboOption {
  * → ③직급/이메일/전화(기존 선택 시 자동 입력, 고치면 contactId를 유지해 저장 시 연락처 갱신, 신규는 contactId null).
  * 회사명·담당자명·이메일·전화는 공백 입력을 막는다(직급은 허용). 저장은 호출처가 ContactDraft로 한다.
  */
-export function ContactPicker({ kind, label, value, onChange, errors, linkedHere = false, onCompanySelect, onPersonSelect, layout = 'stack', required }: ContactPickerProps) {
+export function ContactPicker({ kind, label, value, onChange, errors, linkedHere = false, onCompanySelect, onPersonSelect, layout = 'stack', required, clearOnRename = false }: ContactPickerProps) {
   const companies = useContactCompanies(kind).data ?? []
   const rows = useContactsByCompany(kind, value.company).data ?? []
   const { flashed, guard } = useWhitespaceGuard()
@@ -67,7 +69,7 @@ export function ContactPicker({ kind, label, value, onChange, errors, linkedHere
 
   function changeName(name: string) {
     const renamed = selected !== undefined && selected.name.toLowerCase() !== name.toLowerCase()
-    onChange({ ...value, name, contactId: renamed ? null : value.contactId })
+    onChange({ ...value, name, contactId: renamed ? null : value.contactId, ...(renamed && clearOnRename ? EMPTY_FIELDS : {}) })
   }
 
   function selectPerson(option: ComboOption) {

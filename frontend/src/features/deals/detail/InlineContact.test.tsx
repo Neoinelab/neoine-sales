@@ -1,6 +1,6 @@
 import { defaultMock } from '../../../test/fake/default'
 import { cleanup, screen, waitFor, within } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { gateway } from '../../../gateway'
 import { renderAt } from '../../../test/mockApp'
 import { detailPath } from '../../../test/detailTestUtils'
@@ -14,6 +14,16 @@ async function openDeal(no: number, title: string) {
 
 const customerCard = () => screen.getByRole('region', { name: '고객' })
 const partnerCard = () => screen.getByRole('region', { name: '파트너' })
+
+const sessionOf = (card: HTMLElement, label: string) => within(card).getByRole('group', { name: `${label} 연락처 편집` })
+
+const FIELDS = [
+  ['회사명', 'combobox'],
+  ['담당자명', 'combobox'],
+  ['직급', 'textbox'],
+  ['이메일', 'textbox'],
+  ['전화', 'textbox'],
+] as const
 
 function valueOf(card: HTMLElement, label: string): string {
   return within(card).getByRole('button', { name: label }).textContent ?? ''
@@ -150,6 +160,29 @@ describe('고객사 인라인 편집 (회사명 pulldown + 자동완성)', () =>
     expect(valueOf(customerCard(), '고객 담당자명 수정')).toBe('정민수')
   })
 
+  // 직급·이메일·전화로 연 연락처 편집도 Esc로 전체를 버리면 이전 연락처가 남는다.
+  // 테스트 코드: DD-089
+  it.each(['직급', '이메일', '전화'])('discards the whole edit opened from the %s value with Escape', async (name) => {
+    // given: 고객 값(직급·이메일·전화 중 하나)을 눌러 연 세션에서 담당자명과 그 칸을 바꾸는 중
+    const { user } = await openDeal(1, '한빛은행 ITDR 도입')
+    await user.click(within(customerCard()).getByRole('button', { name: `고객 ${name} 수정` }))
+    const session = sessionOf(customerCard(), '고객')
+    const person = within(session).getByRole('combobox', { name: '고객 담당자명' })
+    await user.clear(person)
+    await user.type(person, '다른사람')
+    await user.type(within(session).getByLabelText(`고객 ${name}`), 'x')
+
+    // when: Esc를 누른다
+    await user.keyboard('{Escape}')
+
+    // then: 세션이 닫히고 회사·담당자·직급·이메일·전화가 원래 값이다
+    expect(within(customerCard()).queryByRole('group', { name: '고객 연락처 편집' })).not.toBeInTheDocument()
+    expect(valueOf(customerCard(), '고객 담당자명 수정')).toBe('정민수')
+    expect(valueOf(customerCard(), '고객 직급 수정')).toBe('과장')
+    expect(valueOf(customerCard(), '고객 이메일 수정')).toBe('jung@hanbit.test')
+    expect(valueOf(customerCard(), '고객 전화 수정')).toBe('010-2345-6789')
+  })
+
   // 회사명·이메일에는 공백을 입력할 수 없고 안내가 나온다.
   // 테스트 코드: DD-090
   it('blocks spaces in company, person, email and phone and tells the user', async () => {
@@ -211,13 +244,38 @@ describe('담당자 · 직급 · 이메일 · 전화 단일 필드 편집', () =
 
     // when: 담당자명에 '신입담당'을 입력하고 Enter를 누른다
     await user.clear(person)
-    await user.type(person, '신입담당{Enter}')
+    await user.type(person, '신입담당')
+    // then: 입력하는 순간 직급·이메일·전화 입력이 비워진다
+    const session = sessionOf(customerCard(), '고객')
+    for (const label of ['고객 직급', '고객 이메일', '고객 전화']) expect(within(session).getByLabelText(label)).toHaveValue('')
+    // when: Enter를 누른다
+    await user.keyboard('{Enter}')
 
     // then: 담당자가 바뀌고 직급·이메일·전화는 '—'다
     await waitFor(() => expect(valueOf(customerCard(), '고객 담당자명 수정')).toBe('신입담당'))
     expect(valueOf(customerCard(), '고객 직급 수정')).toBe('—')
     expect(valueOf(customerCard(), '고객 이메일 수정')).toBe('—')
     expect(valueOf(customerCard(), '고객 전화 수정')).toBe('—')
+  })
+
+  // 담당자명을 새 이름으로 고쳐 쓴 뒤 입력한 직급은 유지되고 저장된다.
+  // 테스트 코드: DD-091
+  it('keeps a title typed after the person name was rewritten to a new name', async () => {
+    // given: 고객 담당자명으로 연 세션에서 새 이름을 쓴 상태
+    const { user } = await openDeal(1, '한빛은행 ITDR 도입')
+    await user.click(within(customerCard()).getByRole('button', { name: '고객 담당자명 수정' }))
+    const session = sessionOf(customerCard(), '고객')
+    const person = within(session).getByRole('combobox', { name: '고객 담당자명' })
+    await user.clear(person)
+    await user.type(person, '신입담당')
+
+    // when: 직급을 입력하고 Enter를 누른다
+    await user.type(within(session).getByLabelText('고객 직급'), '대리{Enter}')
+
+    // then: 신규 담당자에 입력한 직급이 저장되고 이메일은 비어 있다
+    await waitFor(() => expect(valueOf(customerCard(), '고객 담당자명 수정')).toBe('신입담당'))
+    expect(valueOf(customerCard(), '고객 직급 수정')).toBe('대리')
+    expect(valueOf(customerCard(), '고객 이메일 수정')).toBe('—')
   })
 
   // 직급·이메일·전화를 직접 고치고 틀린 이메일은 그 칸 문구로 막는다.
@@ -228,6 +286,10 @@ describe('담당자 · 직급 · 이메일 · 전화 단일 필드 편집', () =
 
     // when: 직급을 '팀장'으로 고친다
     await user.click(within(customerCard()).getByRole('button', { name: '고객 직급 수정' }))
+    // then: 연락처 편집 세션(5칸)이 열리고 직급 입력에 포커스가 있다
+    const session = sessionOf(customerCard(), '고객')
+    expect(within(session).getByLabelText('고객 직급')).toHaveFocus()
+    expect(within(session).getByRole('combobox', { name: '고객 담당자명' })).toBeVisible()
     const title = within(customerCard()).getByLabelText('고객 직급')
     await user.clear(title)
     await user.type(title, '팀장{Enter}')
@@ -240,8 +302,9 @@ describe('담당자 · 직급 · 이메일 · 전화 단일 필드 편집', () =
     const email = within(customerCard()).getByLabelText('고객 이메일')
     await user.clear(email)
     await user.type(email, 'not-an-email{Enter}')
-    // then: 이메일 형식 오류가 보인다
+    // then: 이메일 형식 오류가 보이고 세션이 유지된다
     expect(await within(customerCard()).findByRole('alert')).toHaveTextContent('이메일 형식이 올바르지 않습니다.')
+    expect(sessionOf(customerCard(), '고객')).toBeVisible()
     // when: 맞는 이메일로 고친다
     await user.clear(email)
     await user.type(email, 'new@hanbit.test{Enter}')
@@ -278,8 +341,8 @@ describe('담당자 · 직급 · 이메일 · 전화 단일 필드 편집', () =
     // when: 고객 직급 편집을 연다
     await user.click(screen.getByRole('button', { name: '고객 직급 수정' }))
 
-    // then: 'N개 Deal에서 함께 사용 중입니다. 수정하면 모두에 반영됩니다.'가 보인다
-    expect(await screen.findByText(/개 Deal에서 함께 사용 중입니다. 수정하면 모두에 반영됩니다./)).toBeVisible()
+    // then: 세션 안에 'N개 Deal에서 함께 사용 중입니다. 수정하면 모두에 반영됩니다.'가 보인다
+    expect(await within(sessionOf(screen.getByRole('region', { name: '고객' }), '고객')).findByText(/개 Deal에서 함께 사용 중입니다. 수정하면 모두에 반영됩니다./)).toBeVisible()
   })
 })
 
@@ -315,8 +378,9 @@ describe('파트너 없음 상태 (BANT처럼 — 표시, 클릭해 바로 입�
     // when: 5개 빈 값 중 하나를 누른다
     await user.click(within(partnerCard()).getByRole('button', { name: label }))
 
-    // then: 회사명 입력에 포커스가 간다
+    // then: 회사명 입력에 포커스가 가고 처음부터 필수 안내가 보인다
     expect(within(partnerCard()).getByRole('combobox', { name: '파트너 회사명' })).toHaveFocus()
+    expect(within(sessionOf(partnerCard(), '파트너')).getByText('파트너를 입력하면 회사명과 담당자명이 모두 필요합니다.')).toBeVisible()
   })
 
   // 빈 값 어느 것에서든 파트너를 추가하면 '파트너가 추가되었습니다.'가 보인다.
@@ -379,6 +443,21 @@ describe('파트너 인라인 편집', () => {
     expect(await screen.findByRole('cell', { name: '파트너' })).toBeVisible()
   })
 
+  // 담당자명으로 연 편집도 처음부터 교체 안내를 보인다.
+  // 테스트 코드: DD-095
+  it('shows the replace notice from the start when the session is opened from the person name', async () => {
+    // given: 활성 파트너가 있는 Deal
+    const { user } = await openDeal(1, '한빛은행 ITDR 도입')
+
+    // when: 파트너 담당자명 버튼을 누른다
+    await user.click(within(partnerCard()).getByRole('button', { name: '파트너 담당자명 수정' }))
+
+    // then: 연락처 편집 세션이 열리고 담당자명 입력에 포커스, 교체 안내가 처음부터 보인다
+    const session = sessionOf(partnerCard(), '파트너')
+    expect(within(session).getByRole('combobox', { name: '파트너 담당자명' })).toHaveFocus()
+    expect(within(session).getByText('기존 활성 파트너(에이원시스템 표성호)는 이력으로 남고 비활성이 됩니다.')).toBeVisible()
+  })
+
   // 활성 파트너는 확인 대화상자를 거쳐야 제거된다.
   // 테스트 코드: DD-096
   it('removes the active partner only after a confirmation', async () => {
@@ -423,5 +502,148 @@ describe('파트너 인라인 편집', () => {
     // then: 저장되어 추가 알림이 보인다
     await waitFor(() => expect(valueOf(partnerCard(), '파트너 회사명 수정')).toBe('새파트너'))
     expect(await screen.findByText('파트너가 추가되었습니다.')).toBeVisible()
+  })
+})
+
+const pastCount = (card: HTMLElement): number => {
+  const text = within(card).queryByText(/이전 파트너 이력/)?.textContent ?? ''
+  return Number(/\((\d+)\)/.exec(text)?.[1] ?? 0)
+}
+
+describe('연락처 편집 세션 (다섯 값 모두 같은 세션)', () => {
+  const CASES = (['고객', '파트너'] as const).flatMap((label) => FIELDS.map(([name, role]) => [label, name, role] as const))
+
+  // 고객·파트너의 어느 값을 눌러도 5칸 연락처 편집 세션이 열리고 누른 칸에 포커스가 간다.
+  // 테스트 코드: DD-127
+  it.each(CASES)('opens the five-field session from the %s %s value and focuses that input', async (label, name, role) => {
+    // given: 고객·활성 파트너가 있는 Deal
+    const { user } = await openDeal(1, '한빛은행 ITDR 도입')
+    const card = label === '고객' ? customerCard() : partnerCard()
+
+    // when: 그 값의 수정 버튼을 누른다
+    await user.click(within(card).getByRole('button', { name: `${label} ${name} 수정` }))
+
+    // then: 카드의 5행 대신 연락처 편집 그룹이 열리고 다섯 입력이 모두 있다
+    const session = sessionOf(card, label)
+    for (const [field, fieldRole] of FIELDS) expect(within(session).getByRole(fieldRole, { name: `${label} ${field}` })).toBeVisible()
+    expect(within(card).queryByRole('button', { name: `${label} ${name} 수정` })).not.toBeInTheDocument()
+    // then: 포커스는 누른 항목의 입력에 있다
+    expect(within(session).getByRole(role, { name: `${label} ${name}` })).toHaveFocus()
+    // then: 회사명·담당자명은 포커스를 받으면 목록이 열린다
+    if (name === '회사명' || name === '담당자명') expect(await screen.findByRole('listbox', { name: `${label} ${name}` })).toBeVisible()
+  })
+
+  // 파트너 직급·이메일·전화만 고치면 교체 안내 없이 연락처 저장 알림이고 이력이 늘지 않는다.
+  // 테스트 코드: DD-128
+  it.each(['직급 수정', '회사명 수정'])('saves only a title change from "파트너 %s" as a contact info edit without a replace notice', async (opener) => {
+    // given: 활성 파트너가 있고 이전 파트너 이력이 N건인 Deal
+    const { user } = await openDeal(1, '한빛은행 ITDR 도입')
+    const before = pastCount(partnerCard())
+
+    // when: 그 버튼으로 연 세션에서 직급만 바꿔 Enter
+    await user.click(within(partnerCard()).getByRole('button', { name: `파트너 ${opener}` }))
+    const session = sessionOf(partnerCard(), '파트너')
+    // then: 직급으로 연 세션에는 교체 안내가 처음에 없다
+    if (opener === '직급 수정') expect(within(session).queryByText(/이력으로 남고 비활성이 됩니다/)).not.toBeInTheDocument()
+    const title = within(session).getByLabelText('파트너 직급')
+    await user.clear(title)
+    await user.type(title, '상무{Enter}')
+
+    // then: 알림은 "파트너 연락처가 저장되었습니다."이고 같은 회사·담당자에 직급만 바뀌며 이력은 그대로다
+    expect(await screen.findByText('파트너 연락처가 저장되었습니다.')).toBeVisible()
+    expect(screen.queryByText('파트너가 교체되었습니다.')).not.toBeInTheDocument()
+    expect(valueOf(partnerCard(), '파트너 회사명 수정')).toBe('에이원시스템')
+    expect(valueOf(partnerCard(), '파트너 담당자명 수정')).toBe('표성호')
+    expect(valueOf(partnerCard(), '파트너 직급 수정')).toBe('상무')
+    expect(pastCount(partnerCard())).toBe(before)
+  })
+
+  // 직급 칸으로 연 편집에서 담당자를 다른 사람으로 고르면 교체되고 이력이 하나 늘어난다.
+  // 테스트 코드: DD-129
+  it('replaces the partner when another person is picked in a session opened from the title', async () => {
+    // given: 같은 회사 담당자가 2명인 활성 파트너 Deal
+    const { user } = await openDeal(1, '한빛은행 ITDR 도입')
+    const before = pastCount(partnerCard())
+    await user.click(within(partnerCard()).getByRole('button', { name: '파트너 직급 수정' }))
+    const session = sessionOf(partnerCard(), '파트너')
+    // then: 열렸을 때는 교체 안내가 없다
+    expect(within(session).queryByText(/이력으로 남고 비활성이 됩니다/)).not.toBeInTheDocument()
+
+    // when: 담당자명 목록에서 다른 담당자를 고른다
+    await user.click(within(session).getByRole('combobox', { name: '파트너 담당자명' }))
+    await user.click(await screen.findByRole('option', { name: /남궁은지/ }))
+
+    // then: 교체 알림이 보이고 새 담당자가 활성이며 이전 파트너 이력이 하나 늘어난다
+    expect(await screen.findByText('파트너가 교체되었습니다.')).toBeVisible()
+    expect(valueOf(partnerCard(), '파트너 담당자명 수정')).toBe('남궁은지')
+    expect(pastCount(partnerCard())).toBe(before + 1)
+  })
+
+  // 직급 칸으로 연 편집에서 담당자명을 새 이름으로 고쳐 쓰는 동안 교체 안내가 나타난다.
+  // 테스트 코드: DD-129
+  it('shows the replace notice while a new person name is typed in a session opened from the title', async () => {
+    // given: 직급으로 연 파트너 세션
+    const { user } = await openDeal(1, '한빛은행 ITDR 도입')
+    await user.click(within(partnerCard()).getByRole('button', { name: '파트너 직급 수정' }))
+    const session = sessionOf(partnerCard(), '파트너')
+    expect(within(session).queryByText(/이력으로 남고 비활성이 됩니다/)).not.toBeInTheDocument()
+
+    // when: 담당자명을 새 이름으로 고쳐 쓴다
+    const person = within(session).getByRole('combobox', { name: '파트너 담당자명' })
+    await user.clear(person)
+    await user.type(person, '신규담당')
+
+    // then: 교체 안내가 보인다
+    expect(within(session).getByText('기존 활성 파트너(에이원시스템 표성호)는 이력으로 남고 비활성이 됩니다.')).toBeVisible()
+  })
+
+  // 같은 회사 기존 담당자 이름을 대소문자만 다르게 직접 입력해 Enter로 저장하면 그 담당자의 연락 정보가 유지된다.
+  // 테스트 코드: DD-131
+  it('saves the existing person with intact contact info when its name is typed in another case', async () => {
+    // given: 한빛은행에 영문 이름 담당자 Kim(직급·이메일·전화 있음)이 있는 Deal
+    const { user } = await openDeal(1, '한빛은행 ITDR 도입')
+    await defaultMock.signInAs(USER_ID.root) // 연락처 직접 등록은 admin만 가능하다.
+    const kim = await gateway.contacts.create('customer', { company: '한빛은행', name: 'Kim', title: '이사', email: 'kim@hanbit.test', phone: '010-0000-1111' })
+    await defaultMock.signInAs(USER_ID.kim)
+
+    // when: 담당자명 버튼으로 연 세션에서 'KIM'을 직접 입력하고 Enter를 누른다
+    await user.click(within(customerCard()).getByRole('button', { name: '고객 담당자명 수정' }))
+    const person = within(sessionOf(customerCard(), '고객')).getByRole('combobox', { name: '고객 담당자명' })
+    await user.clear(person)
+    await user.type(person, 'KIM{Enter}')
+
+    // then: 고객이 기존 Kim이고 직급·이메일·전화가 그대로다(새 담당자가 만들어지지 않는다)
+    await waitFor(() => expect(valueOf(customerCard(), '고객 담당자명 수정')).toBe('Kim'))
+    expect(valueOf(customerCard(), '고객 직급 수정')).toBe('이사')
+    expect(valueOf(customerCard(), '고객 이메일 수정')).toBe('kim@hanbit.test')
+    expect(valueOf(customerCard(), '고객 전화 수정')).toBe('010-0000-1111')
+    // then: 다시 조회한 그 연락처 정보도 지워지지 않았다
+    const rows = await gateway.contacts.byCompany('customer', '한빛은행')
+    expect(rows.filter((r) => r.name.toLowerCase() === 'kim')).toHaveLength(1)
+    expect(rows.find((r) => r.id === kim.id)).toMatchObject({ title: '이사', email: 'kim@hanbit.test', phone: '010-0000-1111' })
+  })
+
+  // 아무것도 바꾸지 않고 Enter 또는 세션 밖 포커스 이동이면 요청 없이 닫힌다.
+  // 테스트 코드: DD-130
+  it.each([
+    ['이메일', '{Enter}'],
+    ['직급', 'outside'],
+  ])('closes the session opened from %s without a request when nothing changed (%s)', async (name, how) => {
+    // given: 고객이 연결된 Deal
+    const { user } = await openDeal(1, '한빛은행 ITDR 도입')
+    const update = vi.spyOn(gateway.deals, 'update')
+    await user.click(within(customerCard()).getByRole('button', { name: `고객 ${name} 수정` }))
+    expect(sessionOf(customerCard(), '고객')).toBeVisible()
+
+    // when: 아무것도 바꾸지 않고 Enter를 누르거나 세션 밖을 누른다
+    if (how === 'outside') await user.click(document.body)
+    else await user.keyboard(how)
+
+    // then: 세션이 닫히고 Deal 변경 요청도 알림도 없다
+    await waitFor(() => expect(within(customerCard()).queryByRole('group', { name: '고객 연락처 편집' })).not.toBeInTheDocument())
+    expect(screen.queryByText('고객 연락처가 저장되었습니다.')).not.toBeInTheDocument()
+    expect(update).not.toHaveBeenCalled()
+    expect(valueOf(customerCard(), `고객 ${name} 수정`)).not.toBe('')
+    update.mockRestore()
   })
 })

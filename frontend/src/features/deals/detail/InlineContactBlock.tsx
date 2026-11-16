@@ -1,10 +1,7 @@
 import { useState, type ReactNode } from 'react'
-import { useContactsByCompany } from '../../../data/contacts'
-import type { Contact, ContactDraft, ContactKind, ContactRow } from '../../../shared/model/types'
-import type { ComboOption } from '../../../shared/ui/ComboBox'
-import { ContactSession } from './ContactSession'
-import { detailDraft, draftOf, EMPTY_DRAFT, isUnchanged, personDraft, sharedHint, type ContactChange } from './contactInline'
-import { InlineEdit } from './InlineEdit'
+import type { Contact, ContactDraft, ContactKind } from '../../../shared/model/types'
+import { ContactSession, type ContactFocusField } from './ContactSession'
+import { draftOf, EMPTY_DRAFT, type ContactChange } from './contactInline'
 
 interface InlineContactBlockProps {
   kind: ContactKind
@@ -22,40 +19,28 @@ interface InlineContactBlockProps {
 
 /** 카드의 행 목록(순서·이름). 연락처가 있을 때와 없을 때 모두 이 목록으로 그린다. */
 const CONTACT_FIELDS = [
-  ['company', '회사'],
-  ['person', '담당자'],
-  ['title', '직급'],
-  ['email', '이메일'],
-  ['phone', '전화'],
+  ['company', '회사', '회사명', 'Company'],
+  ['person', '담당자', '담당자명', 'Name'],
+  ['title', '직급', '직급', 'Title'],
+  ['email', '이메일', '이메일', 'Email'],
+  ['phone', '전화', '전화', 'Phone'],
 ] as const
 type ContactField = (typeof CONTACT_FIELDS)[number][0]
 
-const personOption = (row: ContactRow): ComboOption => ({
-  id: row.id,
-  value: row.name,
-  description: [row.title, row.email].filter(Boolean).join(' · ') || undefined,
-})
-
 /**
- * 연락처 한 블록(회사·담당자·직급·이메일·전화)을 값 클릭으로 고친다.
- * 회사명 클릭 = 회사 pulldown 세션(ContactSession), 담당자명 = 같은 회사 담당자 pulldown(자동완성·신규 직접 입력),
- * 직급·이메일·전화 = 한 칸씩. 파트너가 없으면 같은 5행을 '—'로 보여 주고 아무 값이나 클릭해 추가 세션을 연다.
+ * 연락처 한 블록(회사·담당자·직급·이메일·전화). 어느 값을 눌러도 같은 편집 세션(ContactSession, 5칸)이 열리고 누른 칸에 포커스가 간다.
+ * 파트너가 없으면 같은 5행을 '—'로 보여 주고 아무 값이나 눌러 회사명부터 추가한다.
  */
 export function InlineContactBlock({ kind, label, noun, contact, canWrite, sessionHint, onSave }: InlineContactBlockProps) {
-  const [session, setSession] = useState(false)
-  const rows = useContactsByCompany(kind, contact?.company ?? '').data ?? []
+  const [session, setSession] = useState<ContactFocusField | null>(null)
 
-  async function saveSession(draft: ContactDraft) {
-    await onSave(draft, 'session')
-    setSession(false)
-  }
-
-  async function saveDraft(draft: ContactDraft, change: ContactChange) {
-    if (contact && isUnchanged(contact, draft)) return
+  async function saveSession(draft: ContactDraft, change: ContactChange) {
     await onSave(draft, change)
+    setSession(null)
   }
 
   if (session) {
+    const early = session === 'Company' || session === 'Name'
     return (
       <ContactSession
         kind={kind}
@@ -64,71 +49,59 @@ export function InlineContactBlock({ kind, label, noun, contact, canWrite, sessi
         initial={contact ? draftOf(contact) : EMPTY_DRAFT}
         linkedHere={contact !== null}
         hint={sessionHint}
+        hintWhen={contact === null || early ? 'always' : 'changed'}
+        focusField={session}
         onSave={saveSession}
-        onCancel={() => setSession(false)}
+        onCancel={() => setSession(null)}
       />
     )
   }
   if (!contact) {
-    const empty = (name: string) =>
-      canWrite ? (
-        <button type="button" className="dd-click" aria-label={`${label} ${name} 입력`} onClick={() => setSession(true)}>
-          —
-        </button>
-      ) : (
-        <span className="kv-static">—</span>
-      )
-    return <KvGrid values={(_field, name) => empty(name)} />
+    return (
+      <KvGrid
+        values={(_field, name) =>
+          canWrite ? (
+            <button type="button" className="dd-click" aria-label={`${label} ${name} 입력`} onClick={() => setSession('Company')}>
+              —
+            </button>
+          ) : (
+            <span className="kv-static">—</span>
+          )
+        }
+      />
+    )
   }
 
-  const shared = sharedHint(rows, contact)
-  const detail = (field: 'title' | 'email' | 'phone', name: string, value: string | null) => (
-    <InlineEdit
-      label={`${label} ${name}`}
-      canEdit={canWrite}
-      noSpace={field !== 'title'}
-      display={value || '—'}
-      initial={value ?? ''}
-      hint={shared}
-      onSave={(text) => saveDraft(detailDraft(contact, field, text), 'detail')}
+  const text: Record<ContactField, string> = {
+    company: contact.company,
+    person: contact.name,
+    title: contact.title,
+    email: contact.email ?? '',
+    phone: contact.phone ?? '',
+  }
+  return (
+    <KvGrid
+      values={(field, _name, accessible, focus) =>
+        canWrite ? (
+          <button type="button" className="dd-click" aria-label={`${label} ${accessible} 수정`} onClick={() => setSession(focus)}>
+            {text[field] || '—'}
+          </button>
+        ) : (
+          <span className="kv-static">{text[field] || '—'}</span>
+        )
+      }
     />
   )
-
-  const values: Record<ContactField, ReactNode> = {
-    company: canWrite ? (
-      <button type="button" className="dd-click" aria-label={`${label} 회사명 수정`} onClick={() => setSession(true)}>
-        {contact.company}
-      </button>
-    ) : (
-      <span className="kv-static">{contact.company}</span>
-    ),
-    person: (
-      <InlineEdit
-        label={`${label} 담당자명`}
-        canEdit={canWrite}
-        kind="combo"
-        noSpace
-        options={rows.map(personOption)}
-        display={contact.name}
-        initial={contact.name}
-        onSave={(text, option) => saveDraft(personDraft(rows, contact, text, option?.id), 'person')}
-      />
-    ),
-    title: detail('title', '직급', contact.title),
-    email: detail('email', '이메일', contact.email),
-    phone: detail('phone', '전화', contact.phone),
-  }
-  return <KvGrid values={(field) => values[field]} />
 }
 
 /** CONTACT_FIELDS 순서대로 행을 그린다. 각 행의 값은 `values(필드, 이름)`이 정한다. */
-function KvGrid({ values }: { values: (field: ContactField, name: string) => ReactNode }) {
+function KvGrid({ values }: { values: (field: ContactField, name: string, accessible: string, focus: ContactFocusField) => ReactNode }) {
   return (
     <dl className="kv-grid">
-      {CONTACT_FIELDS.map(([field, name]) => (
+      {CONTACT_FIELDS.map(([field, name, accessible, focus]) => (
         <div key={field} className="kv-row">
           <dt>{name}</dt>
-          <dd>{values(field, name)}</dd>
+          <dd>{values(field, name, accessible, focus)}</dd>
         </div>
       ))}
     </dl>

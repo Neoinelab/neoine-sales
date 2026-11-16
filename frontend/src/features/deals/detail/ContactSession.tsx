@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState, type FocusEvent, type KeyboardEvent } from 'react'
-import { useContactCompanies } from '../../../data/contacts'
+import { useContactCompanies, useContactsByCompany } from '../../../data/contacts'
 import { ContactPicker } from '../../../shared/contact/ContactPicker'
 import { normalizeName, validateContactInput, type ContactFieldErrors } from '../../../shared/model/contactRules'
 import type { ContactDraft, ContactKind } from '../../../shared/model/types'
 import { ErrorBanner } from '../../../shared/ui/ErrorBanner'
+import { changeOfDraft, resolveSamePerson, type ContactChange } from './contactInline'
 import { messageOf } from './detailHelpers'
 
 interface ContactSessionProps {
@@ -16,10 +17,16 @@ interface ContactSessionProps {
   /** 이 연락처가 이미 이 Deal에 연결돼 있으면 true(공유 안내 기준). */
   linkedHere: boolean
   hint?: string
+  /** 안내를 보이는 때. 'always'(기본) 처음부터, 'changed'는 연락처(회사·담당자)가 달라진 동안만. */
+  hintWhen?: 'always' | 'changed'
+  /** 처음 포커스를 둘 칸(누른 값). 기본 회사명. */
+  focusField?: ContactFocusField
   /** 저장. 성공하면 호출처가 세션을 닫는다. */
-  onSave: (draft: ContactDraft) => Promise<void>
+  onSave: (draft: ContactDraft, change: ContactChange) => Promise<void>
   onCancel: () => void
 }
+
+export type ContactFocusField = 'Company' | 'Name' | 'Title' | 'Email' | 'Phone'
 
 function sameDraft(a: ContactDraft, b: ContactDraft): boolean {
   return a.contactId === b.contactId && a.company === b.company && a.name === b.name && a.title === b.title && a.email === b.email && a.phone === b.phone
@@ -31,7 +38,7 @@ function sameDraft(a: ContactDraft, b: ContactDraft): boolean {
  * 담당자를 목록에서 고르면 바로 저장한다. 직접 입력은 Enter(회사명에서는 담당자명으로 이동) 또는 블록 밖으로 포커스를 옮길 때 저장하며,
  * 회사명·담당자명이 비어 있으면 저장하지 않고 오류를 보이며 편집을 유지한다. Esc = 입력을 버리고 닫기.
  */
-export function ContactSession({ kind, label, noun, initial, linkedHere, hint, onSave, onCancel }: ContactSessionProps) {
+export function ContactSession({ kind, label, noun, initial, linkedHere, hint, hintWhen = 'always', focusField = 'Company', onSave, onCancel }: ContactSessionProps) {
   const companies = useContactCompanies(kind).data
   const [draft, setDraft] = useState<ContactDraft>(initial)
   const [errors, setErrors] = useState<ContactFieldErrors>({})
@@ -41,21 +48,34 @@ export function ContactSession({ kind, label, noun, initial, linkedHere, hint, o
   const rootRef = useRef<HTMLDivElement>(null)
   const skipBlur = useRef(false)
 
-  const inputOf = (field: 'Company' | 'Name') => rootRef.current?.querySelector<HTMLInputElement>(`input[name="${kind}${field}"]`)
-  useEffect(() => inputOf('Company')?.focus(), []) // eslint-disable-line react-hooks/exhaustive-deps
+  const rows = useContactsByCompany(kind, draft.company).data ?? []
+  const inputOf = (field: ContactFocusField) => rootRef.current?.querySelector<HTMLInputElement>(`input[name="${kind}${field}"]`)
+  useEffect(() => inputOf(focusField)?.focus(), []) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (nameFocus > 0) inputOf('Name')?.focus()
   }, [nameFocus]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  const emptyInitial = initial.company === '' && initial.name === ''
+  const changed = changeOfDraft(emptyInitial ? null : initial, draft)
+  const showHint = hint !== undefined && (hintWhen === 'always' || changed === 'person' || changed === 'session')
   const isNew = companies !== undefined && draft.company !== '' && !companies.some((c) => normalizeName(c) === normalizeName(draft.company))
 
   async function save(target: ContactDraft) {
     if (busy) return
-    const cleaned: ContactDraft = {
-      ...target,
-      title: target.title.trim(),
-      email: target.email === '' ? null : target.email,
-      phone: target.phone === '' ? null : target.phone,
+    const resolved = resolveSamePerson(rows, target)
+    const cleaned: ContactDraft =
+      resolved !== target
+        ? resolved
+        : {
+            ...target,
+            title: target.title.trim(),
+            email: target.email === '' ? null : target.email,
+            phone: target.phone === '' ? null : target.phone,
+          }
+    const change = changeOfDraft(emptyInitial ? null : initial, cleaned)
+    if (change === null) {
+      cancel()
+      return
     }
     const found = validateContactInput(cleaned)
     setErrors(found)
@@ -63,7 +83,7 @@ export function ContactSession({ kind, label, noun, initial, linkedHere, hint, o
     setBusy(true)
     setError(null)
     try {
-      await onSave(cleaned)
+      await onSave(cleaned, change)
       skipBlur.current = true
     } catch (caught) {
       setError(caught)
@@ -100,11 +120,12 @@ export function ContactSession({ kind, label, noun, initial, linkedHere, hint, o
     // 입력기 안의 Enter/Esc/blur를 한 곳에서 처리한다(그룹 자체는 포커스를 받지 않는다).
     // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
     <div role="group" aria-label={`${label} 연락처 편집`} className="dd-bant" ref={rootRef} onKeyDown={onKeyDown} onBlur={onBlur}>
-      {hint && <p className="hint">{hint}</p>}
+      {showHint && <p className="hint">{hint}</p>}
       <ContactPicker
         kind={kind}
         label={label}
         layout="rows"
+        clearOnRename
         value={draft}
         onChange={setDraft}
         errors={errors}

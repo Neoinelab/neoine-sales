@@ -1,4 +1,4 @@
-# Deal 상세·변경 적용·이력·삭제   (feature 코드: DD, 상태: 확정(2026-11-13 사용자 확인))
+# Deal 상세·변경 적용·이력·삭제   (feature 코드: DD, 상태: 확정(2026-11-16 사용자 확인))
 
 > 이 문서는 **이미 구현된 동작**을 정본 명세로 옮긴 것입니다(2026-11-10). 근거는 작업 트리의 코드(`backend/src/app/domain/deal/{code,entities,policy,errors,history,sync,sync_state,sync_plan,sync_finalize}.py`, `app/application/deal/{get_deal,apply_change,sync_change,history_writer,list_deal_history,deletion_impact,delete_deal}.py`, `app/web/routers/deals.py`, `app/web/schemas/{deal_change,deal_response}.py`, `app/infra/db/{deal_history_repository,deal_aggregates}.py`, `frontend/src/features/deals/detail/{DealDetailPage,DealTitle,SummaryBar,DealIdentityRows,DealFacts,InfoCards,BantCard,ContactCards,InlineContactBlock,ContactSession,contactInline,InlineEdit,HistoryTab,DeleteDealDialog,detailHelpers}.tsx|ts`, `shared/sync/{useSyncedChange,RevenueDialog,ChoiceDialog}.tsx`, `shared/model/{sync,history,permissions}.ts`)이며 문구·type·상태 코드는 코드에서 그대로 옮겼습니다. 코드와 화면·테스트·Fake가 어긋나는 점은 계획(`artifacts/10-analysis/dd-plan.md`)의 확인 필요 질문으로 분리했습니다.
 
@@ -126,8 +126,8 @@ Deal History
 - **DD-R31** 인라인 편집 공통(`InlineEdit`): 값 버튼을 누르거나 Enter·Space로 편집을 열면 입력기에 포커스가 간다. 선택형(select, 자동완성 후보 선택)은 고르는 순간 저장하고, 입력형(텍스트·숫자·날짜·자동완성 직접 입력)은 Enter 또는 편집 영역 밖으로 포커스가 나갈 때 저장한다. 값이 그대로면 요청 없이 닫는다. Esc는 입력을 버리고 닫는다. 저장·검증 실패는 입력기 아래 오류 배너(PL-R37)로 보이고 편집을 유지한다(다시 고쳐 재시도). 저장 성공이면 닫고 알림을 보인다. 날짜 칸은 `DateInput`(넘기는 값 UI-R6, 달력 UI-R9)이며 덜 쳤거나 틀린 날짜는 저장하지 않고, 달력 버튼·숨은 날짜 칸으로 포커스가 옮겨 가는 것은 저장으로 보지 않는다.
 - **DD-R32** 필드별 인라인 저장(`PATCH`, 검증 정본 DE): Deal 이름 — 앞뒤 공백 제거, 비면 "Deal Name을 입력하세요."(요청 없음), 알림 "Deal 이름이 변경되었습니다.". Owner — 사용자 선택(재직 sales 후보, 퇴사한 현재 Owner는 후보에 없음), 알림 "Owner가 변경되었습니다.". Vendor — 등록 Vendor 목록("선택 안 함" 없음, 현재 Vendor 선택됨), `vendor_id`만 보냄(Solution 유지), 같은 값이면 요청 없음, 알림 "Vendor가 변경되었습니다.". Solution — 공백 제거, 비워도 문구 없이 저장(`solution: ""`), `solution`만 보냄, 알림 "Solution이 변경되었습니다.". Users count — 비면 "Users count를 입력하세요.", 숫자만이 아니면 "Users count는 0 이상의 정수로 입력하세요."(0 허용), 알림 "Users count가 변경되었습니다.". 견적 제출여부(선택 안 함·YES·NO)·제출일, POC 여부(선택 안 함·YES·ING·NO)·완료일은 각각 따로 고치고 나머지 짝 값은 그대로 보내며 알림 "견적 제출여부/견적 제출일/POC 여부/POC 완료일이 변경되었습니다.". 구매절차 — 공백 제거, 알림 "구매절차가 변경되었습니다.". 서버 거절(예: 이름 50자 초과)은 서버 문구로 보인다.
 - **DD-R33** BANT 인라인: 값을 누르면 그 구분 Label만 후보인 자동완성 입력(현재 Label 이름으로 시작, "새 Label" 같은 항목 없음)이 열린다. 후보를 고르면 즉시, 직접 입력은 Enter·포커스 이동으로 저장한다. 입력 → 선택 변환은 CL-R16(이름이 같은 Label이 있으면 그 id, 없으면 이름으로 보내 서버가 새 Label을 만듦, 비우면 선택 안 함). 요청은 4구분 모두를 보내되 다른 구분은 현재 선택 `{id}`(또는 null) 그대로다. 선택이 그대로면 요청 없음. 알림 "BANT <구분> Label이 변경되었습니다.".
-- **DD-R34** 연락처 인라인(고객·파트너 카드): 회사명 버튼(접근 이름 "<고객|파트너> 회사명 수정")은 연락처 편집 세션(그룹 "<고객|파트너> 연락처 편집")을 연다 — 회사 자동완성(부분·대소문자 무시) → 다른 기존 회사를 고르면 담당자를 비우고 담당자 목록을 연다 → 담당자를 고르면 연락 정보를 채워 즉시 저장. 목록에 없는 회사를 입력하면 담당자 정보를 모두 비우고 "신규 <고객사|파트너>입니다. 담당자 정보를 입력하세요."를 보인다. 직접 입력은 Enter(회사명 칸에서는 담당자명 칸으로 이동)·세션 밖 포커스 이동으로 저장하고, 회사명·담당자명이 비면 저장하지 않고 칸 오류를 보인다. Esc는 세션 전체를 버린다. 담당자명 칸은 같은 회사 담당자 자동완성(고르면 그 연락 정보, 새 이름이면 직급·이메일·전화를 비운 신규 담당자). 직급·이메일·전화는 한 칸씩 고치며 형식 오류(예: 이메일)는 그 칸 문구로 막는다. 회사명·담당자명·이메일·전화에는 공백을 넣을 수 없어 입력 중 지우고 안내한다(CT 규칙). 그 연락처를 쓰는 Deal이 2건 이상이면 "이 연락처는 N개 Deal에서 함께 사용 중입니다. 수정하면 모두에 반영됩니다."를 보인다. 알림: 고객 "고객 연락처가 저장되었습니다.", 파트너 칸 수정 "파트너 연락처가 저장되었습니다.".
-- **DD-R35** 파트너 추가·교체·제거: 파트너가 없으면 5행의 "—" 버튼(접근 이름 "파트너 <항목> 입력") 어느 것이든 세션을 열고 안내 "파트너를 입력하면 회사명과 담당자명이 모두 필요합니다.", 저장하면 "파트너가 추가되었습니다.". 파트너가 있을 때 회사명 세션의 안내는 "기존 활성 파트너(<회사> <담당자>)는 이력으로 남고 비활성이 됩니다."이고 다른 회사·담당자로 저장하면 "파트너가 교체되었습니다.". "파트너 제거" 버튼은 확인 대화상자(제목 "파트너 제거", 문구 "파트너 <회사> <담당자>을(를) 제거합니다. 제거한 파트너는 이전 파트너 이력에 남습니다.", 위험 버튼 "제거")를 거쳐 `partner: null`을 보내고 "파트너가 제거되었습니다."를 보인다. 실패하면 대화상자를 닫고 오류 배너를 보인다.
+- **DD-R34** 연락처 인라인(고객·파트너 카드, 2026-11-16 변경): 연락처가 있으면 5행 값이 모두 편집 버튼이다(접근 이름 "<고객|파트너> 회사명 수정"·"<고객|파트너> 담당자명 수정"·"<고객|파트너> 직급 수정"·"<고객|파트너> 이메일 수정"·"<고객|파트너> 전화 수정", 표시는 값, 빈 값은 "—"). **어느 버튼을 눌러도 같은 연락처 편집 세션**(그룹 "<고객|파트너> 연락처 편집")이 카드의 5행 자리를 대신해 열린다. 세션은 회사·담당자·직급·이메일·전화 입력 5칸을 라벨-값 행으로 보이고(보이는 라벨은 회사·담당자·직급·이메일·전화, 접근 이름은 "<고객|파트너> 회사명"·"… 담당자명"·"… 직급"·"… 이메일"·"… 전화"), **누른 칸의 입력에 포커스**가 간다(값은 그대로 두고 전체 선택하지 않는다. 회사명·담당자명 칸은 포커스를 받으면 그 목록이 열린다). 값 한 칸만 여는 좁은 편집기(DD-R31 `InlineEdit`)는 연락처에 쓰지 않는다. 세션 동작: 회사 자동완성(부분·대소문자 무시) → 다른 기존 회사를 고르면 담당자를 비우고 담당자 목록을 연다 → 담당자를 고르면 연락 정보를 채워 즉시 저장한다. 목록에 없는 회사를 입력하면 담당자 정보를 모두 비우고 "신규 <고객사|파트너>입니다. 담당자 정보를 입력하세요."를 보인다. 담당자명 칸은 그 회사 담당자 자동완성이다: 후보를 고르면 그 연락 정보로 즉시 저장하고, 연결돼 있던 담당자와 다른 이름으로 고쳐 쓰면 그 순간 직급·이메일·전화를 비워 신규 담당자로 본다(그 뒤에 입력한 직급·이메일·전화는 유지). 저장 직전 연결 연락처가 없는 입력의 담당자명이 그 회사 담당자 중 하나와 대소문자 무시로 같고 이메일이 비어 있으면 그 담당자를 고른 것으로 보고 그 담당자의 연락 정보로 저장한다. 직접 입력은 Enter(회사명 칸에서는 담당자명 칸으로 이동, 그 밖의 칸에서는 저장) 또는 세션 밖으로 포커스가 나갈 때 저장한다. 회사명·담당자명이 비었거나 이메일·전화 형식이 틀리면(CT-R21) 저장하지 않고 그 칸 아래 문구를 보이며 세션을 유지한다. 입력이 처음 값과 같으면 요청 없이 닫는다. Esc는 세션 전체를 버리고 닫는다(요청 없음). 서버 거절은 세션 안 오류 배너(PL-R37)로 보이고 세션을 유지한다. 회사명·담당자명·이메일·전화에는 공백을 넣을 수 없어 입력 중 지우고 안내한다(CT 규칙). 세션에서 선택된 연락처를 쓰는 Deal이 이 Deal 포함 2건 이상이면 세션 안에 "이 연락처는 N개 Deal에서 함께 사용 중입니다. 수정하면 모두에 반영됩니다."를 보인다(CT 선택기 안내, 어느 칸으로 열었든 같다). 저장은 모두 `PATCH`의 `customer`·`partner` 연락처 값 하나이고, 화면은 결과를 셋으로 나눠 알림만 가른다: ① **연락 정보 수정** — 연결 연락처가 그대로(같은 연락처 id)이고 직급·이메일·전화 등만 바뀜 ② **담당자 변경** — 연결 연락처가 바뀌었고 회사명이 대소문자 무시로 같음 ③ **연락처 변경** — 회사명이 바뀌었거나 이전 연락처가 없음. 알림: 고객은 ①②③ 모두 "고객 연락처가 저장되었습니다.", 파트너는 ①이면 "파트너 연락처가 저장되었습니다.", ②·③은 DD-R35.
+- **DD-R35** 파트너 추가·교체·제거(2026-11-16 변경): 파트너가 없으면 5행의 "—" 버튼(접근 이름 "파트너 <항목> 입력", 항목은 회사·담당자·직급·이메일·전화) 어느 것이든 세션(DD-R34)을 열고 포커스는 항상 회사명 칸이다. 세션 위에는 안내 "파트너를 입력하면 회사명과 담당자명이 모두 필요합니다."가 처음부터 보이고, 저장하면 "파트너가 추가되었습니다.". 파트너가 있을 때 세션 위 교체 안내 "기존 활성 파트너(<회사> <담당자>)는 이력으로 남고 비활성이 됩니다."는 회사명·담당자명 버튼으로 열었으면 처음부터 계속 보이고, 직급·이메일·전화 버튼으로 열었으면 처음에는 없다가 입력의 연결 연락처가 현재 파트너와 달라진 동안(회사를 바꾸거나 담당자를 다른 사람·새 이름으로 바꾼 동안)만 보인다. DD-R34 ②·③으로 저장하면 "파트너가 교체되었습니다."이고 이전 파트너가 이력으로 남는다. ①(같은 파트너의 연락 정보 수정)이면 "파트너 연락처가 저장되었습니다."이고 이전 파트너 이력은 늘지 않는다. 고객 카드 세션 위에는 안내가 없다. "파트너 제거" 버튼은 확인 대화상자(제목 "파트너 제거", 문구 "파트너 <회사> <담당자>을(를) 제거합니다. 제거한 파트너는 이전 파트너 이력에 남습니다.", 위험 버튼 "제거")를 거쳐 `partner: null`을 보내고 "파트너가 제거되었습니다."를 보인다. 실패하면 대화상자를 닫고 오류 배너를 보인다.
 - **DD-R36** Status·Forecast 인라인(Deal 정보 타일): 선택 상자에서 다른 값을 고르면 화면이 서버와 같은 계획 함수(`planChange`, DD-R6)로 판단한다. 독립 변경은 바로 단일 변경을 보낸다. 종결이면 "매출 확정" 대화상자 — 안내 "Status가 '<계약완료 이름>'로, Forecast가 '<Won 이름>'으로 함께 변경됩니다. 실제 매출금액과 매출일을 입력해야 저장할 수 있습니다.", 칸 "매출금액(단위:원, 실제 값)"(현재 금액으로 미리 채움)·"매출일(실제 값)"(현재 Expected Close로 미리 채움, yyyymmdd 입력 가능), 금액이 유효하고 날짜가 맞을 때만 "확정"이 켜진다. 되돌림이면 "함께 바꿀 값 선택" 대화상자 — 라디오 선택지(코드 이름, Won 이탈은 계약완료 제외·기본 없음, Lost 되살리기는 현재 Status 기본, 계약완료 이탈은 Won 제외), 고르기 전에는 "확인"이 꺼져 있다. Won 이탈 안내 "Forecast를 '<값>'(으)로 바꾸면 <Won 이름> 상태가 해제되어 Status를 <계약완료 이름>(으)로 둘 수 없습니다. 어떤 Status로 바꿀까요?", Lost 이탈 "Forecast를 '<값>'(으)로 바꾸면 <Lost 이름> 상태가 해제됩니다. Status를 어떤 값으로 둘까요?", 계약완료 이탈 "Status를 '<값>'(으)로 바꾸면 <계약완료 이름>이/가 해제됩니다. Forecast를 어떤 값으로 바꿀까요?". "취소"·Esc는 아무것도 보내지 않고 값이 그대로다. 확정 뒤(Won 이탈이면 계약 처리 확인 LC를 거쳐) 단일 변경을 `resolution`과 함께 보내고, 알림은 서버 `notice`, 없으면 "<Status|Forecast>가 '<이름>'(으)로 변경되었습니다."다. Status 편집을 Esc·포커스 이동으로 닫으면 아무것도 바꾸지 않는다.
 - **DD-R37** 금액·Expected Close 인라인: 금액 편집은 현재 원 값(콤마 포함, 반올림 없음)으로 시작하고 입력 중 콤마를 붙인다. 숫자가 아니거나 비면 "매출금액은 1원 이상의 정수를 입력하세요.", 2^53−1을 넘으면 "매출금액은 9,007,199,254,740,991원 이하로 입력하세요."로 막는다(요청 없음). 같은 금액이면 요청 없이 닫는다. 저장 알림 "금액이 변경되었습니다.". Expected Close는 비우면 "Expected Close를 입력하세요."(요청 없음), 저장 알림 "Expected Close가 변경되었습니다.". 둘 다 단일 변경으로 보내며 이력에 남는다.
 - **DD-R38** Deal History 탭: 툴바에 "변경 대상" 선택(전체 + 12구분 이름: Deal 등록·Status·Forecast·금액·Expected Close·Owner·파트너·고객 연락처·BANT Label·Action·첨부 파일·기타)과 안내 "Action 수정·삭제와 첨부 파일 변경도 이 이력에 기록됩니다.". 표(이름 "Deal History") 머리글 변경 시각·변경자·변경 대상·변경 전·변경 후, 서버 순서(최신순) 그대로, 변경자는 사용자 표기(퇴사자 "<이름>(퇴사)"), 빈 변경 전·후는 "—". 20행씩 페이지(페이저)이고 필터를 바꾸면 첫 페이지로 간다. 결과가 없으면 "변경 이력이 없습니다.". 읽기 전용(편집 버튼 없음).
@@ -211,7 +211,7 @@ DD-R27~DD-R40.
 ### DD-UC2 값 하나를 그 자리에서 고치기
 - 행위자: sales·admin
 - 사전 조건: Deal 상세 탭
-- 기본 흐름: 값 클릭 → 입력·선택 → 저장(선택 즉시 또는 Enter·포커스 이동) → 성공 알림, 이력 기록(DD-R31~R35, 저장 규칙 DE, 이력 DD-R20·R21)
+- 기본 흐름: 값 클릭 → 입력·선택 → 저장(선택 즉시 또는 Enter·포커스 이동) → 성공 알림, 이력 기록(DD-R31~R35, 저장 규칙 DE, 이력 DD-R20·R21). 고객·파트너 연락처는 어느 값을 눌러도 같은 연락처 편집 세션이 열리고 누른 칸에서 시작한다(DD-R34)
 - 대안: Esc로 취소, 같은 값이면 요청 없음
 - 예외: 화면 검증 문구 또는 서버 거절 문구를 보이고 편집 유지
 - 결과: 그 값만 바뀌고 이력 1건(BANT·연락처는 해당 규칙)
@@ -339,13 +339,13 @@ DD-R27~DD-R40.
 | DD-086 | 화면: BANT 하나를 바꾸면 다른 구분은 그대로 보내고 비우면 선택 안 함, 그대로면 요청이 없다 | DD-R33, DD-UC2 | frontend | `features/deals/detail/DealDetailPage.test.tsx > lets a writer clear a BANT label with the autocomplete and records it in the history`<br>`features/deals/detail/InlineEdit.test.tsx` |
 | DD-087 | 화면: 고객 회사명을 누르면 회사 목록이 열리고 다른 회사를 고르면 담당자를 골라 연락 정보가 채워진다 | DD-R34, DD-UC2 | frontend | `features/deals/detail/DealDetailLayout.test.tsx > shows the contact edit session as label rows with short visible labels`<br>`features/deals/detail/InlineContact.test.tsx > opens the company list on click and filters it by partial, case-insensitive text`<br>`features/deals/detail/InlineContact.test.tsx > clears the person and opens the person list when another existing company is picked, then fills the contact info` |
 | DD-088 | 화면: 목록에 없는 회사는 신규로 안내되고 담당자명이 필요하다 | DD-R34, DD-UC2 | frontend | `features/deals/detail/InlineContact.test.tsx > treats a typed unknown company as new: clears every contact field, explains it and needs a person name` |
-| DD-089 | 화면: Esc로 연락처 편집 전체를 버리면 이전 연락처가 남는다 | DD-R34, DD-UC2 | frontend | `features/deals/detail/InlineContact.test.tsx > discards the whole contact edit with Escape and keeps the old contact` |
+| DD-089 | 화면: 어느 칸으로 연 연락처 편집이든 Esc로 전체를 버리면 이전 연락처가 남는다 | DD-R34, DD-UC2 | frontend | `features/deals/detail/InlineContact.test.tsx > discards the whole contact edit with Escape and keeps the old contact`<br>`features/deals/detail/InlineContact.test.tsx > discards the whole edit opened from the %s value with Escape` |
 | DD-090 | 화면: 회사·담당자·이메일·전화에는 공백을 넣을 수 없다는 안내가 나온다 | DD-R34, DD-UC2 | frontend | `features/deals/detail/InlineContact.test.tsx > blocks spaces in company, person, email and phone and tells the user` |
-| DD-091 | 화면: 같은 회사의 다른 담당자를 고르거나 새 담당자를 입력한다 | DD-R34, DD-UC2 | frontend | `features/deals/detail/InlineContact.test.tsx > picks another existing person of the same company from the list and fills the contact info`<br>`features/deals/detail/InlineContact.test.tsx > takes a typed new person of the same company with empty contact info` |
-| DD-092 | 화면: 직급·이메일·전화를 직접 고치고 틀린 이메일은 막는다 | DD-R34, DD-UC2 | frontend | `features/deals/detail/DealDetailPage.test.tsx > edits the customer contact with the contact picker and keeps the other fields`<br>`features/deals/detail/InlineContact.test.tsx > edits title, email and phone directly and rejects a bad email` |
-| DD-093 | 화면: 여러 Deal이 쓰는 연락처를 고칠 때 함께 바뀐다고 안내한다 | DD-R34, DD-UC2 | frontend | `features/deals/detail/InlineContact.test.tsx > tells that a shared contact is changed for every deal using it` |
+| DD-091 | 화면: 담당자명을 누르면 연락처 편집 세션이 열리고 같은 회사의 다른 담당자를 고르거나 새 담당자를 입력한다 | DD-R34, DD-UC2 | frontend | `features/deals/detail/InlineContact.test.tsx > picks another existing person of the same company from the list and fills the contact info`<br>`features/deals/detail/InlineContact.test.tsx > takes a typed new person of the same company with empty contact info`<br>`features/deals/detail/InlineContact.test.tsx > keeps a title typed after the person name was rewritten to a new name` |
+| DD-092 | 화면: 직급·이메일·전화를 누르면 연락처 편집 세션이 그 칸에서 열리고, 고친 값을 저장하며 틀린 이메일은 막는다 | DD-R34, DD-UC2 | frontend | `features/deals/detail/DealDetailPage.test.tsx > edits the customer contact with the contact picker and keeps the other fields`<br>`features/deals/detail/InlineContact.test.tsx > edits title, email and phone directly and rejects a bad email` |
+| DD-093 | 화면: 직급 칸으로 연 연락처 편집에서도 여러 Deal이 쓰는 연락처는 함께 바뀐다고 안내한다 | DD-R34, DD-UC2 | frontend | `features/deals/detail/InlineContact.test.tsx > tells that a shared contact is changed for every deal using it` |
 | DD-094 | 화면: 파트너가 없으면 빈 값을 눌러 파트너를 추가한다(user는 버튼 없음) | DD-R35, DD-UC2 | frontend | `features/deals/detail/InlineContact.test.tsx` |
-| DD-095 | 화면: 파트너를 교체하면 기존 파트너가 비활성이 된다는 안내 뒤 교체된다 | DD-R35, DD-UC2 | frontend | `features/deals/detail/DealDetailPage.test.tsx > replaces the partner after warning that the current one becomes inactive`<br>`features/deals/detail/InlineContact.test.tsx > replaces the partner by clicking the company and picking another existing company and person` |
+| DD-095 | 화면: 파트너 회사명·담당자명으로 연 편집은 처음부터 교체 안내를 보이고 다른 연락처로 저장하면 교체된다 | DD-R35, DD-UC2 | frontend | `features/deals/detail/DealDetailPage.test.tsx > replaces the partner after warning that the current one becomes inactive`<br>`features/deals/detail/InlineContact.test.tsx > replaces the partner by clicking the company and picking another existing company and person`<br>`features/deals/detail/InlineContact.test.tsx > shows the replace notice from the start when the session is opened from the person name` |
 | DD-096 | 화면: 파트너 제거는 확인 뒤에만 된다 | DD-R35, DD-UC2 | frontend | `features/deals/detail/DealDetailPage.test.tsx > removes the active partner`<br>`features/deals/detail/InlineContact.test.tsx > removes the active partner only after a confirmation` |
 | DD-097 | 화면: 동기화가 필요 없는 Forecast 변경은 바로 저장되고 알림이 보인다 | DD-R36, DD-UC3 | frontend | `features/deals/detail/SummaryBar.test.tsx > changes the forecast right away when no sync is needed and tells the user`<br>`shared/sync/useSyncedChange.test.tsx > applies an independent change without any dialog` |
 | DD-098 | 화면: 계약완료로 바꾸면 매출 확정을 묻고 확정하면 Forecast도 Won이 된다 | DD-R36, DD-UC3 | frontend | `features/deals/detail/SummaryBar.test.tsx > asks for the revenue before moving to 계약완료 and then changes forecast to Won too`<br>`shared/sync/useSyncedChange.test.tsx` |
@@ -377,6 +377,11 @@ DD-R27~DD-R40.
 | DD-124 | 화면 규칙: 삭제 판정은 완료된 Deal을 admin에게만 허용하고 거절 문구를 서버 순서대로 고른다 | DD-R30, DD-R41 | frontend | `shared/model/permissions.deleteDeal.test.ts` |
 | DD-125 | Fake 게이트웨이는 완료된 Deal 삭제를 서버와 같은 규칙·문구로 처리한다 | DD-R24, DD-R41 | frontend | `test/fake/gateway/deals.remove.test.ts` |
 | DD-126 | 화면: Owner 영업이 상세에서 Won으로 확정하면 삭제 버튼이 바로 꺼진다 | DD-R30, DD-R41, DD-UC3 | frontend | `features/deals/detail/DealDetailPage.deleteCompleted.test.tsx` |
+| DD-127 | 화면: 고객·파트너 카드의 어느 값을 눌러도 회사명과 같은 5칸 연락처 편집 세션이 열리고 누른 칸에 포커스가 간다 | DD-R34, DD-UC2 | frontend | `features/deals/detail/InlineContact.test.tsx > opens the five-field session from the %s %s value and focuses that input` |
+| DD-128 | 화면: 파트너 직급·이메일·전화만 고치면 교체 안내 없이 "파트너 연락처가 저장되었습니다."이고 이전 파트너 이력이 늘지 않는다 | DD-R34, DD-R35, DD-UC2 | frontend | `features/deals/detail/InlineContact.test.tsx > saves only a title change from "파트너 %s" as a contact info edit without a replace notice` |
+| DD-129 | 화면: 파트너 직급 칸으로 연 편집에서 담당자를 바꾸면 그때 교체 안내가 보이고 저장하면 교체된다 | DD-R35, DD-UC2 | frontend | `features/deals/detail/InlineContact.test.tsx > replaces the partner when another person is picked in a session opened from the title`<br>`features/deals/detail/InlineContact.test.tsx > shows the replace notice while a new person name is typed in a session opened from the title` |
+| DD-130 | 화면: 연락처 편집 세션에서 아무것도 바꾸지 않고 Enter·포커스 이동하면 요청 없이 닫힌다 | DD-R34, DD-UC2 | frontend | `features/deals/detail/InlineContact.test.tsx > closes the session opened from %s without a request when nothing changed (%s)` |
+| DD-131 | 화면 규칙: 연락처 저장 결과 구분과 같은 이름 담당자 판정 함수가 DD-R34 표대로 답한다 | DD-R34 | frontend | `features/deals/detail/contactInline.test.ts`<br>`features/deals/detail/InlineContact.test.tsx > saves the existing person with intact contact info when its name is typed in another case` |
 ### DD-001 어떤 역할이든 Deal 상세를 읽으면 문서화된 필드와 Owner·고객·파트너가 돌아온다
 - Given KIM이 Owner이고 고객·활성 파트너가 있는 Deal
 - When ROOT·KIM·VIEWER가 각각 `GET /deals/{code}`를 부른다
@@ -762,34 +767,36 @@ DD-R27~DD-R40.
 - When 회사명에 없는 회사를 입력하고 담당자명 없이 저장하려 한다
 - Then 담당자 칸이 모두 비고 "신규 고객사입니다. 담당자 정보를 입력하세요."가 보이며 담당자명 칸 오류로 저장되지 않는다
 
-### DD-089 화면: Esc로 연락처 편집 전체를 버리면 이전 연락처가 남는다
-- When 세션에서 회사·담당자를 바꾼 뒤 Esc
-- Then 요청 없이 이전 연락처가 보인다
+### DD-089 화면: 어느 칸으로 연 연락처 편집이든 Esc로 전체를 버리면 이전 연락처가 남는다
+- When 고객 회사명 수정으로 연 세션에서 회사·담당자를 바꾼 뒤 Esc, 다른 때 고객 직급 수정으로 연 세션에서 직급·전화를 바꾼 뒤 Esc (각각)
+- Then 두 경우 모두 요청 없이 세션이 닫히고 카드에 이전 연락처 5행이 그대로 보인다
 
 ### DD-090 화면: 회사·담당자·이메일·전화에는 공백을 넣을 수 없다는 안내가 나온다
 - When 회사명·담당자명·이메일·전화에 공백을 친다
 - Then 공백이 지워지고 공백 안내 문구(CT)가 보인다. 직급은 공백을 허용한다
 
-### DD-091 화면: 같은 회사의 다른 담당자를 고르거나 새 담당자를 입력한다
-- When 담당자명 자동완성에서 같은 회사의 다른 담당자를 고르고, 다른 때 목록에 없는 이름을 입력해 Enter
-- Then 고른 담당자의 연락 정보로 저장되고, 새 이름은 직급·이메일·전화가 빈 신규 담당자로 저장된다
+### DD-091 화면: 담당자명을 누르면 연락처 편집 세션이 열리고 같은 회사의 다른 담당자를 고르거나 새 담당자를 입력한다
+- Given 고객 한빛은행 정민수(직급·이메일·전화 있음)가 연결된 Deal, 한빛은행 담당자 3명
+- When "고객 담당자명 수정"을 눌러 담당자 목록에서 같은 회사의 다른 담당자를 고르고, 다른 때 담당자명을 지우고 목록에 없는 이름 "신입담당"을 입력해 Enter
+- Then 누르자마자 그룹 "고객 연락처 편집"이 열리고 담당자명 칸에 포커스와 후보 3명 목록이 있다. 고른 담당자는 그 연락 정보로 저장되며, "신입담당"은 직급·이메일·전화가 "—"인 신규 담당자로 저장되고 알림은 "고객 연락처가 저장되었습니다."다
 
-### DD-092 화면: 직급·이메일·전화를 직접 고치고 틀린 이메일은 막는다
-- When 직급, 전화를 고치고, 이메일에 "bad@"를 입력해 Enter
-- Then 직급·전화는 저장되고 틀린 이메일은 그 칸 문구로 막혀 요청이 없다
+### DD-092 화면: 직급·이메일·전화를 누르면 연락처 편집 세션이 그 칸에서 열리고, 고친 값을 저장하며 틀린 이메일은 막는다
+- Given 고객 한빛은행 정민수가 연결된 Deal
+- When "고객 직급 수정"을 눌러 직급을 "팀장"으로 고쳐 Enter, "고객 이메일 수정"을 눌러 "not-an-email" Enter 뒤 "new@hanbit.test"로 고쳐 Enter, "고객 전화 수정"을 눌러 전화를 비우고 Enter
+- Then 각 버튼을 누르면 그룹 "고객 연락처 편집"이 열리고 누른 칸("고객 직급"·"고객 이메일"·"고객 전화")에 포커스가 있다. 직급은 "팀장"으로 저장되고 담당자는 정민수 그대로, 틀린 이메일은 이메일 칸 아래 "이메일 형식이 올바르지 않습니다."로 막혀 요청이 없고 세션이 남으며, 고친 이메일은 저장된다. 전화는 "—"가 된다
 
-### DD-093 화면: 여러 Deal이 쓰는 연락처를 고칠 때 함께 바뀐다고 안내한다
+### DD-093 화면: 직급 칸으로 연 연락처 편집에서도 여러 Deal이 쓰는 연락처는 함께 바뀐다고 안내한다
 - Given 고객 연락처를 쓰는 Deal이 2건
-- When 그 고객의 직급을 편집한다
-- Then "이 연락처는 2개 Deal에서 함께 사용 중입니다. 수정하면 모두에 반영됩니다."가 보인다
+- When 그 고객의 "고객 직급 수정"을 누른다
+- Then 연락처 편집 세션 안에 "이 연락처는 2개 Deal에서 함께 사용 중입니다. 수정하면 모두에 반영됩니다."가 보인다
 
 ### DD-094 화면: 파트너가 없으면 빈 값을 눌러 파트너를 추가한다(user는 버튼 없음)
-- When 파트너 없는 Deal에서 "파트너 회사 입력"(또는 다른 "—")을 눌러 회사·담당자를 저장한다
-- Then 안내 "파트너를 입력하면 회사명과 담당자명이 모두 필요합니다."가 보였고 저장 뒤 "파트너가 추가되었습니다."다. VIEWER에게는 "—"만 있고 버튼이 없다
+- When 파트너 없는 Deal에서 "파트너 회사 입력"(또는 다른 "—", 예: "파트너 전화 입력")을 눌러 회사·담당자를 저장한다
+- Then 세션의 회사명 칸에 포커스가 있고 안내 "파트너를 입력하면 회사명과 담당자명이 모두 필요합니다."가 보였으며 저장 뒤 "파트너가 추가되었습니다."다. VIEWER에게는 "—"만 있고 버튼이 없다
 
-### DD-095 화면: 파트너를 교체하면 기존 파트너가 비활성이 된다는 안내 뒤 교체된다
-- When 파트너 회사명을 눌러 다른 기존 회사·담당자를 고른다
-- Then 안내 "기존 활성 파트너(<회사> <담당자>)는 이력으로 남고 비활성이 됩니다."가 보였고 "파트너가 교체되었습니다." 뒤 이전 파트너가 접힌 이력에 있다
+### DD-095 화면: 파트너 회사명·담당자명으로 연 편집은 처음부터 교체 안내를 보이고 다른 연락처로 저장하면 교체된다
+- When 파트너 회사명을 눌러 다른 기존 회사·담당자를 고른다(다른 때 파트너 담당자명을 눌러 같은 회사의 다른 담당자를 고른다)
+- Then 세션이 열린 순간부터 안내 "기존 활성 파트너(<회사> <담당자>)는 이력으로 남고 비활성이 됩니다."가 보이고, 저장 뒤 "파트너가 교체되었습니다."이며 이전 파트너가 접힌 이력에 있다
 
 ### DD-096 화면: 파트너 제거는 확인 뒤에만 된다
 - When "파트너 제거"를 누르고 대화상자에서 "제거"
@@ -928,6 +935,31 @@ DD-R27~DD-R40.
 - When Status를 계약완료로 골라 매출 확정 대화상자에서 확정한다
 - Then 저장 알림 뒤 "Deal 삭제"가 꺼지고 title "완료된 Deal은 관리자만 삭제할 수 있습니다."다
 
+### DD-127 화면: 고객·파트너 카드의 어느 값을 눌러도 회사명과 같은 5칸 연락처 편집 세션이 열리고 누른 칸에 포커스가 간다
+- Given 고객·활성 파트너가 있는 Deal, 쓰기 권한 사용자
+- When 고객 카드와 파트너 카드에서 회사명·담당자명·직급·이메일·전화 수정 버튼을 하나씩 누른다(각각, 누른 뒤 Esc로 닫음)
+- Then 매번 카드의 5행 대신 그룹 "<고객|파트너> 연락처 편집"이 열리고 그 안에 "<고객|파트너> 회사명"·"… 담당자명"·"… 직급"·"… 이메일"·"… 전화" 입력 5칸이 모두 있으며, 포커스는 누른 항목의 입력에 있다. 카드 안에 한 칸짜리 편집기만 열리는 경우는 없다
+
+### DD-128 화면: 파트너 직급·이메일·전화만 고치면 교체 안내 없이 "파트너 연락처가 저장되었습니다."이고 이전 파트너 이력이 늘지 않는다
+- Given 활성 파트너가 있고 이전 파트너 이력이 N건인 Deal
+- When "파트너 직급 수정"을 눌러 직급을 바꿔 Enter(다른 때 "파트너 회사명 수정"으로 연 세션에서 직급만 바꿔 Enter)
+- Then 직급 칸으로 연 세션에는 교체 안내가 없고, 두 경우 모두 알림은 "파트너 연락처가 저장되었습니다."이며 파트너는 같은 회사·담당자로 남고 이전 파트너 이력은 N건 그대로다
+
+### DD-129 화면: 파트너 직급 칸으로 연 편집에서 담당자를 바꾸면 그때 교체 안내가 보이고 저장하면 교체된다
+- Given 활성 파트너가 있는 Deal, 그 회사 담당자 2명 이상
+- When "파트너 직급 수정"을 눌러 연 세션에서 담당자명 목록의 다른 담당자를 고른다
+- Then 세션이 열렸을 때는 교체 안내가 없고, 담당자가 바뀐 뒤 저장되어 알림 "파트너가 교체되었습니다."이며 이전 파트너가 접힌 이력에 하나 늘어 있다. (담당자명을 새 이름으로 고쳐 쓰는 동안에는 "기존 활성 파트너(<회사> <담당자>)는 이력으로 남고 비활성이 됩니다."가 보인다)
+
+### DD-130 화면: 연락처 편집 세션에서 아무것도 바꾸지 않고 Enter·포커스 이동하면 요청 없이 닫힌다
+- Given 고객이 연결된 Deal
+- When "고객 이메일 수정"을 눌러 아무것도 바꾸지 않고 Enter, 다른 때 "고객 직급 수정"을 눌러 아무것도 바꾸지 않고 세션 밖을 누른다
+- Then 두 경우 모두 Deal 변경 요청이 없고 세션이 닫히며 알림이 없다
+
+### DD-131 화면 규칙: 연락처 저장 결과 구분과 같은 이름 담당자 판정 함수가 DD-R34 표대로 답한다
+- Given 현재 연락처 A(회사 "한빛은행", id 1)와 같은 회사 담당자 목록(B "오지현" id 2, 이메일 있음)
+- When 구분 함수에 (A, A와 id·값 같음) / (A, id 1·직급만 다름) / (A, id 1·회사명 대소문자만 다름) / (A, id 2 같은 회사) / (A, id 없음·같은 회사 새 이름) / (A, 다른 회사) / (현재 없음, 새 입력)을, 같은 이름 판정 함수에 (id 없음, "한빛은행", "오지현"의 대소문자 다른 이름, 이메일 없음)과 (같은 입력에 이메일 있음)을 넣는다
+- Then 구분은 차례로 변경 없음 / 연락 정보 수정 / 연락 정보 수정 / 담당자 변경 / 담당자 변경 / 연락처 변경 / 연락처 변경이고, 같은 이름 판정은 이메일이 없을 때만 B의 연락 정보(id 2)를 돌려주고 이메일이 있으면 입력 그대로다
+
 ## 5. 변경 이력
 
 | 날짜 | 변경 | 영향 테스트 코드 |
@@ -937,3 +969,4 @@ DD-R27~DD-R40.
 | 2026-11-12 | 사용자 요청 "admin만 완료된 deal을 삭제할 수 있음": 새 규칙 DD-R41(완료 = Forecast `won`), DD-R24 판정 순서에 완료 판정(Owner 판정 뒤·확인 code 앞, 403 "완료된 Deal은 관리자만 삭제할 수 있습니다."), DD-R30 삭제 버튼·title, 2.4·2.5·2.8, DD-UC6 갱신. **운영 코드 변경 필요**(domain·frontend), API 스키마 변경 없음 | 신규: DD-118~DD-126. 영향(Given 조정 가능성): Won Deal을 sales로 지우던 기존 테스트(DD-111, LC-080·LC-081 등) |
 | 2026-11-13 | 확정(2026-11-13 사용자 확인): 최종 업데이트 `last_updated_on`, Status 진입일 `status_changed_on`(범위, 응답 키, DD-R28 표시). 동작은 RK가 정한다 | 없음(관련 RK-067~RK-069) |
 | 2026-11-13 | 확정(2026-11-13 사용자 확인): DE 2026-11-13 변경(Vendor 필수·Solution 선택)에 맞춰 DD-R28 빈 Solution "—", DD-R32 Vendor 선택지("선택 안 함" 제거)·빈 Solution 저장 | 변경 DD-045, DD-080 |
+| 2026-11-16 | 확정(2026-11-16 사용자 확인): 사용자 요청 "회사·파트너 클릭 때의 수정 영역과 담당자·직급 등을 직접 눌렀을 때의 수정 영역이 달라 담당자명이 세로로 나옴 → 모두 회사 클릭 때와 같게". DD-R34: 연락처의 다섯 값 모두 같은 연락처 편집 세션을 열고 누른 칸에 포커스, 한 칸 편집기(`InlineEdit`) 미사용, 담당자명을 고쳐 쓰면 직급·이메일·전화 비움, 같은 이름·이메일 없음이면 기존 담당자, 무변경은 요청 없음, 저장 결과 3구분(연락 정보 수정·담당자 변경·연락처 변경)으로 알림만 가름. DD-R35: 교체 안내는 회사명·담당자명으로 열면 처음부터, 직급·이메일·전화로 열면 연락처가 바뀌는 동안만, 빈 파트너 "—"는 회사명 칸 포커스, 같은 파트너 연락 정보 수정은 "파트너 연락처가 저장되었습니다."(회사명 세션에서 직급만 고친 경우 포함 — 예전엔 "교체되었습니다."). DD-UC2 기본 흐름 보강. 서버·API 변경 없음 | 신규: DD-127~DD-131. 변경: DD-089, DD-091, DD-092, DD-093, DD-094, DD-095(테스트 수정 필요). 영향 확인: DD-087·DD-088·DD-090(동작 그대로, 회귀 확인) |
