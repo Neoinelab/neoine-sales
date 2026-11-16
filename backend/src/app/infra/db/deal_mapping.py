@@ -31,7 +31,7 @@ def apply_fields(row: DealRow, deal: Deal) -> None:
     row.name = details.name
     row.owner_user_id = details.owner_user_id
     row.vendor_id = details.vendor_id
-    row.solution = details.solution
+    row.product = details.product
     row.users = details.users
     row.status_key = deal.sync.status_key
     row.forecast_key = deal.sync.forecast_key
@@ -74,7 +74,7 @@ def _details(row: DealRow) -> DealDetails:
         name=row.name,
         owner_user_id=UserId(row.owner_user_id),
         vendor_id=VendorId(row.vendor_id),
-        solution=row.solution,
+        product=row.product,
         users=row.users,
         revenue_amount=RevenueAmount(int(row.revenue_amount)),
         revenue_date=row.revenue_date,

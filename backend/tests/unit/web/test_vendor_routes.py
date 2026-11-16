@@ -146,7 +146,7 @@ async def test_solution_routes_are_not_found(
     # given: 'SAP' Vendor가 있다
     async with client_for(FakeUseCases()) as http:
         vendor = await make_vendor(http)
-        # when: Solution 경로를 부른다
+        # when: Product 경로를 부른다
         response = await http.request(method, URL + path.format(vendor_id=vendor["id"]), json=body)
         listed = (await http.get(URL)).json()
 

@@ -1,6 +1,6 @@
 """등록·수정 폼 검증: 프런트 목업 `validateDealFields`와 같은 순서·문구.
 
-순서: Deal Name -> Vendor -> Solution -> Owner -> 매출금액 -> Expected Close -> Users count ->
+순서: Deal Name -> Vendor -> Product -> Owner -> 매출금액 -> Expected Close -> Users count ->
 Status -> Forecast -> 동기화 -> BANT Label -> 구매절차 -> 고객 -> 파트너 -> 연락처 형식.
 값 자체의 규칙은 도메인 값 객체가 갖고, 여기서는 순서와 저장소를 읽어야 하는 검사(Owner, 코드,
 Label)를 맡는다. 저장소를 읽는 검사는 보낸 필드에 대해서만 한다.
@@ -29,7 +29,7 @@ from app.domain.deal.values import (
     check_amount,
     check_name,
     check_procurement,
-    check_solution,
+    check_product,
     check_users,
 )
 from app.domain.user.errors import UserNotFoundError
@@ -60,7 +60,7 @@ async def validate_form(
     """첫 위반에서 InvalidValueError 계열로 거절한다. 저장소 확인은 `provided` 필드만 한다."""
     name = check_name(values.name)
     vendor_id = await _vendor_choice(uow, values.vendor_id, check="vendor_id" in provided)
-    solution = check_solution(values.solution)
+    product = check_product(values.product)
     owner_id = await _owner(uow, values.owner_user_id, "owner_user_id" in provided)
     amount = check_amount(values.revenue_amount)
     if values.revenue_date is None:
@@ -74,7 +74,7 @@ async def validate_form(
         name=name,
         owner_user_id=owner_id,
         vendor_id=vendor_id,
-        solution=solution,
+        product=product,
         users=users,
         revenue_amount=amount,
         revenue_date=values.revenue_date,
@@ -86,7 +86,7 @@ async def validate_form(
 
 
 async def _vendor_choice(uow: UnitOfWork, vendor: int | None, *, check: bool) -> VendorId:
-    """Vendor는 필수이며 등록 목록에서 고른다(보낸 경우에만 확인). Solution은 Vendor와 무관하다."""
+    """Vendor는 필수이며 등록 목록에서 고른다(보낸 경우에만 확인). Product는 Vendor와 무관하다."""
     if vendor is None:
         raise InvalidValueError(VENDOR_REQUIRED_MESSAGE)
     vendor_id = VendorId(vendor)

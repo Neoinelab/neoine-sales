@@ -204,8 +204,8 @@ async def test_get_returns_the_contract_with_the_deal_values(contract_env: Contr
 
     테스트 코드: LC-028
     """
-    # given: Solution S/4HANA인 Won Deal의 계약
-    code = await contract_env.won_deal(KIM, solution="S/4HANA")
+    # given: Product S/4HANA인 Won Deal의 계약
+    code = await contract_env.won_deal(KIM, product="S/4HANA")
     (contract,) = await contract_env.contracts_of(code)
 
     # when: 계약을 조회한다

@@ -260,7 +260,7 @@ def _detail_pairs(before: DealDetails, after: DealDetails, lookup: HistoryLookup
             lookup.vendor_name(before.vendor_id),
             lookup.vendor_name(after.vendor_id),
         ),
-        (other, "Solution", before.solution or "-", after.solution or "-"),
+        (other, "Product", before.product or "-", after.product or "-"),
         (other, "Users count", _number_text(before.users), _number_text(after.users)),
         (other, "견적", _quote_text(before.quote), _quote_text(after.quote)),
         (other, "POC", _poc_text(before.poc), _poc_text(after.poc)),

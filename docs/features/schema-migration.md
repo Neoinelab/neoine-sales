@@ -1,10 +1,12 @@
-# DB 스키마·마이그레이션 기준선   (feature 코드: SC, 상태: 확정(2026-11-13 사용자 확인))
+# DB 스키마·마이그레이션 기준선   (feature 코드: SC, 상태: 확정(2026-11-16 사용자 확인))
 
 > 이 문서는 **이미 구현된 동작**을 정본 명세로 옮긴 것입니다(2026-11-09). 근거는 작업 트리의 코드와 테스트입니다: `backend/alembic/versions/20261105_00c3126aa926_baseline.py`, `backend/alembic/env.py`, `backend/alembic.ini`, `backend/src/app/infra/db/base.py`(`NAMING_CONVENTION`·`identity_key`), `backend/src/app/infra/db/id_allocator.py`, `backend/src/app/application/ports/id_allocator.py`(`IdKind`), `backend/tests/unit/infra/schema/{test_revision_graph,test_head_matches_orm,test_head_schema_integrity,test_bigint_ids_schema}.py`, `backend/tests/unit/infra/schema/test_baseline_upgrade.py`(옛 `functional/schema/test_upgrade_from_empty.py`를 옮김), `backend/tests/unit/repositories/test_id_allocator_contract.py`, `backend/tests/support/schema_integrity.py`. 문구는 코드에서 그대로 옮겼습니다. 마이그레이션 원칙(SC-R8~R10)은 `CLAUDE.md`의 규칙(2026-11-05 사용자 지시 등)을 옮긴 것입니다.
 >
 > 2026-11-13 변경(2026-11-13 사용자 확인, 구현 완료): 사용자 컬럼 정리 리비전 `c8e3f1a7d295`(SC-R21, US 2026-11-13 변경)을 head로 추가한다. 영향은 5장.
 >
 > 2026-11-13 변경(2026-11-13 사용자 확인): Deal Vendor 필수 리비전 `e6b1d4f8a302`(SC-R22)을 head로 추가한다. 영향은 5장.
+>
+> 2026-11-16 변경(초안, 사용자 확인 대기): Deal의 Solution을 Product로 이름 변경(화면 문구, API 필드·쿼리 `product`, Reports key `deal.product`, DB 컬럼 `deals.product`). 영향 규칙·케이스는 5장.
 
 ## 1. 개요
 
@@ -33,7 +35,7 @@
 | 용어 | 뜻 |
 | --- | --- |
 | 기준선(baseline) | 리비전 `00c3126aa926`. 2026-11-05에 과거 리비전 30개를 대체한 최초 리비전. 과거 체인은 커밋 `c4553c0`의 git 이력에만 있다 |
-| head | 리비전 그래프의 마지막 리비전. 지금은 Deal Vendor 필수 리비전 `e6b1d4f8a302`(SC-R22) |
+| head | 리비전 그래프의 마지막 리비전. 지금은 Deal Product 이름 변경 리비전 `a9d3f5c7e214`(SC-R23) |
 | 빈 DB | 테이블이 하나도 없고 `alembic_version`도 없는 DB |
 | 퇴역 리비전 | 기준선 통합 전에 쓰던 리비전 id(예: `f2b7c9e4a615`). 현재 그래프에 없다 |
 | 앱 테이블 | `alembic_version`을 뺀 public 스키마 테이블 26개(2.2) |
@@ -73,16 +75,16 @@ PK 분류
 ### 2.3 비즈니스 규칙
 
 리비전 그래프와 기준선
-- **SC-R1** 리비전 그래프의 base는 기준선 `00c3126aa926` 하나이고 head도 하나다. 기준선은 `down_revision`이 None이고 `branch_labels`·`depends_on`이 없다. 기준선 파일 이름은 `20261105_00c3126aa926_baseline.py`이고, 새 리비전 파일 이름은 `alembic.ini`의 `file_template`(`YYYYMMDD_<rev>_<slug>.py`)을 따른다. 지금 그래프에는 리비전이 4개 있다: 기준선 → 날짜 전환 리비전 `b4d7e2a9c613`(파일 `20261113_b4d7e2a9c613_business_dates.py`, SC-R20) → 사용자 컬럼 정리 리비전 `c8e3f1a7d295`(파일 `20261113_c8e3f1a7d295_drop_user_creator_and_reason.py`, SC-R21) → Deal Vendor 필수 리비전 `e6b1d4f8a302`(파일 `20261113_e6b1d4f8a302_deal_vendor_required.py`, SC-R22).
-- **SC-R2** 빈 DB에 `alembic upgrade head`를 실행하면 앱 테이블 26개(2.2)와 `alembic_version`만 생기고 `alembic_version.version_num`은 head인 `e6b1d4f8a302`이다. 마이그레이션은 한 트랜잭션으로 적용된다(`env.py`의 `context.begin_transaction()`).
+- **SC-R1** 리비전 그래프의 base는 기준선 `00c3126aa926` 하나이고 head도 하나다. 기준선은 `down_revision`이 None이고 `branch_labels`·`depends_on`이 없다. 기준선 파일 이름은 `20261105_00c3126aa926_baseline.py`이고, 새 리비전 파일 이름은 `alembic.ini`의 `file_template`(`YYYYMMDD_<rev>_<slug>.py`)을 따른다. 지금 그래프에는 리비전이 5개 있다: 기준선 → 날짜 전환 리비전 `b4d7e2a9c613`(파일 `20261113_b4d7e2a9c613_business_dates.py`, SC-R20) → 사용자 컬럼 정리 리비전 `c8e3f1a7d295`(파일 `20261113_c8e3f1a7d295_drop_user_creator_and_reason.py`, SC-R21) → Deal Vendor 필수 리비전 `e6b1d4f8a302`(파일 `20261113_e6b1d4f8a302_deal_vendor_required.py`, SC-R22) → Deal Product 이름 변경 리비전 `a9d3f5c7e214`(파일 `20261116_a9d3f5c7e214_deal_solution_to_product.py`, SC-R23).
+- **SC-R2** 빈 DB에 `alembic upgrade head`를 실행하면 앱 테이블 26개(2.2)와 `alembic_version`만 생기고 `alembic_version.version_num`은 head인 `a9d3f5c7e214`이다. 마이그레이션은 한 트랜잭션으로 적용된다(`env.py`의 `context.begin_transaction()`).
 - **SC-R3** 기준선 upgrade 직후 `codes` 13행·`bant_labels` 23행·`action_types` 8행(2.2의 값)이 있고 나머지 앱 테이블 23개는 0행이다. 시드 값(키·이름·순서·outcome·확률 힌트·구분·기본 여부·만든 사람 NULL)은 Fake 시드와 같다.
-- **SC-R4** 기준선은 되돌릴 수 없다. 기준선의 `downgrade()`는 DB를 건드리기 전에 `RuntimeError` "최초 리비전(00c3126aa926)은 되돌릴 수 없습니다. 빈 DB가 필요하면 DB를 새로 만드세요."를 낸다. head인 DB에 `alembic downgrade base`를 실행하면 Deal Vendor 필수 리비전, 사용자 컬럼 정리 리비전, 날짜 전환 리비전을 차례로 되돌린 뒤 기준선에서 이 오류로 중단된다. 전체가 한 트랜잭션이라(SC-R2) `alembic_version`(head)과 테이블·컬럼은 그대로다. 빈 DB가 필요하면 DB를 새로 만든 뒤 `upgrade head`를 실행한다.
+- **SC-R4** 기준선은 되돌릴 수 없다. 기준선의 `downgrade()`는 DB를 건드리기 전에 `RuntimeError` "최초 리비전(00c3126aa926)은 되돌릴 수 없습니다. 빈 DB가 필요하면 DB를 새로 만드세요."를 낸다. head인 DB에 `alembic downgrade base`를 실행하면 Deal Product 이름 변경 리비전, Deal Vendor 필수 리비전, 사용자 컬럼 정리 리비전, 날짜 전환 리비전을 차례로 되돌린 뒤 기준선에서 이 오류로 중단된다. 전체가 한 트랜잭션이라(SC-R2) `alembic_version`(head)과 테이블·컬럼은 그대로다. 빈 DB가 필요하면 DB를 새로 만든 뒤 `upgrade head`를 실행한다.
 - **SC-R5** 이미 head인 DB에 `upgrade head`를 다시 실행하면 아무것도 바뀌지 않는다: 모든 앱 테이블의 열(형식·NOT NULL·기본값)·제약(PK·UNIQUE·CHECK·FK 정의)·인덱스 정의와 행 수가 같고 `alembic_version`은 그대로다(시드가 두 번 들어가지 않음).
-- **SC-R6** `alembic_version`에 그래프에 없는 리비전 id(퇴역 리비전)가 남은 DB에 `upgrade head`를 실행하면 Alembic `CommandError`로 실패하고 스키마·`alembic_version`은 바뀌지 않는다. 이런 DB(통합 전 head보다 뒤처진 local·dev DB)는 새로 만든다. 통합 전 head(`00c3126aa926`)였던 DB는 같은 id라 그대로 쓰고, `upgrade head`가 날짜 전환·사용자 컬럼 정리·Deal Vendor 필수 리비전을 차례로 적용한다.
+- **SC-R6** `alembic_version`에 그래프에 없는 리비전 id(퇴역 리비전)가 남은 DB에 `upgrade head`를 실행하면 Alembic `CommandError`로 실패하고 스키마·`alembic_version`은 바뀌지 않는다. 이런 DB(통합 전 head보다 뒤처진 local·dev DB)는 새로 만든다. 통합 전 head(`00c3126aa926`)였던 DB는 같은 id라 그대로 쓰고, `upgrade head`가 날짜 전환·사용자 컬럼 정리·Deal Vendor 필수·Deal Product 이름 변경 리비전을 차례로 적용한다.
 - **SC-R7** head 스키마는 ORM 메타데이터(`app.infra.db.models`가 등록한 `Base.metadata`)와 같다: head를 적용한 DB와 메타데이터를 Alembic `compare_metadata`(`compare_type=True`)로 비교한 차이가 0건이다. 스키마를 바꾸는 개발자는 ORM 모델과 리비전을 함께 바꾼다.
 
 마이그레이션 작성·적용 원칙
-- **SC-R8** 기존 데이터 삭제 금지(2026-11-05 사용자 지시): 리비전의 `upgrade`는 기존 행·컬럼 값을 지우거나 버리지 않는다 — `DELETE`·`TRUNCATE`, 데이터가 있을 수 있는 테이블·컬럼 drop, 값을 버리는 타입 변경·덮어쓰기 금지. 없애야 하면 데이터를 새 위치로 옮기는 expand 리비전과 사람이 승인한 contract 리비전으로 나누고, 데이터 손실 가능성이 있으면 구현 전에 사용자에게 묻는다. 2026-10-15의 "보존 데이터 없음"·이후의 "expand/contract 원칙의 예외" 결정은 적용하지 않는다. 검증: 기준선의 upgrade 본문(docstring 제외)에는 `delete`·`truncate`·`update`(단어)·`drop_table`·`drop_column`·`op.execute`가 없다(자동 검사, SC-011). 새 리비전은 리뷰가 검사하고 위반은 Blocker다(자동 검사 없음, 확인 필요 Q4). 날짜 전환 리비전 `b4d7e2a9c613`의 timestamptz 컬럼 drop은 2026-11-13 사용자가 승인한 contract다(SC-R20). 시각만 버리고 행과 날짜는 남는다. 사용자 컬럼 정리 리비전 `c8e3f1a7d295`의 `users.created_by_user_id` drop도 2026-11-13 사용자가 승인한 contract이고, `users.delete_reason` drop은 같은 정보가 `deleted_at`에 남아 손실이 없다(SC-R21).
+- **SC-R8** 기존 데이터 삭제 금지(2026-11-05 사용자 지시): 리비전의 `upgrade`는 기존 행·컬럼 값을 지우거나 버리지 않는다 — `DELETE`·`TRUNCATE`, 데이터가 있을 수 있는 테이블·컬럼 drop, 값을 버리는 타입 변경·덮어쓰기 금지. 없애야 하면 데이터를 새 위치로 옮기는 expand 리비전과 사람이 승인한 contract 리비전으로 나누고, 데이터 손실 가능성이 있으면 구현 전에 사용자에게 묻는다. 2026-10-15의 "보존 데이터 없음"·이후의 "expand/contract 원칙의 예외" 결정은 적용하지 않는다. 검증: 기준선의 upgrade 본문(docstring 제외)에는 `delete`·`truncate`·`update`(단어)·`drop_table`·`drop_column`·`op.execute`가 없다(자동 검사, SC-011). 새 리비전은 리뷰가 검사하고 위반은 Blocker다(자동 검사 없음, 확인 필요 Q4). 날짜 전환 리비전 `b4d7e2a9c613`의 timestamptz 컬럼 drop은 2026-11-13 사용자가 승인한 contract다(SC-R20). 시각만 버리고 행과 날짜는 남는다. 사용자 컬럼 정리 리비전 `c8e3f1a7d295`의 `users.created_by_user_id` drop도 2026-11-13 사용자가 승인한 contract이고, `users.delete_reason` drop은 같은 정보가 `deleted_at`에 남아 손실이 없다(SC-R21). Deal Product 이름 변경 리비전 `a9d3f5c7e214`은 열 이름만 바꿔 행·값을 지우거나 바꾸지 않는다(SC-R23).
 - **SC-R9** 하위 호환(expand/contract): product 배포가 실패하면 `deploy.sh`는 앱 코드(이전 이미지 태그)만 되돌리고 마이그레이션은 되돌리지 않으므로, 리비전은 **이전 앱 코드가 새 스키마에서 계속 동작하도록** 쓴다(새 테이블, NULL 허용·기본값 있는 컬럼 추가, 데이터 복사). 구 앱과 공존할 수 없는 변경은 contract 단계로 미루고 사람 승인을 받는다. 계획 단계(feature-planner)는 리비전마다 "필요 여부, 하위 호환 여부, 기존 데이터 보존 방법"을 적는다. 검증: 계획·리뷰(자동 검사 없음).
 - **SC-R10** 적용 경로: local·dev는 `./scripts/start-backend.sh --profile local|dev`가 시작 전에 그 프로파일 DB에 `alembic upgrade head`를 실행한다(`--skip-migrate`로 생략). local·dev의 `downgrade`·`stamp`는 확인 없이 실행할 수 있다. product는 사람이 승인한 Jenkins `Deploy: Product`에서만 `deploy.sh`가 `pg_dump` 백업 뒤 migrate 컨테이너로 적용하며, 하네스는 Claude의 product 대상 alembic 명령을 거부한다. 검증: 하네스·배포 도구 테스트(feature 밖).
 
@@ -129,17 +131,25 @@ Deal Vendor 필수 리비전
   - downgrade: NOT NULL만 푼다(`ALTER COLUMN vendor_id DROP NOT NULL`). 손실이 없다.
   - 하위 호환(SC-R9): 구 앱의 조회·수정은 그대로 동작하고, Vendor 없이 등록하거나 Vendor를 비우는 요청만 NOT NULL 위반으로 실패한다(데이터 손상 없음). 코드만 롤백했을 때 이 실패를 없애려면 `downgrade -1`(손실 없음)을 함께 실행한다. product 적용은 사람 승인을 받고 배포 전 `pg_dump`를 마친 뒤에만 한다.
 
+Deal Product 이름 변경 리비전
+- **SC-R23** 리비전 `a9d3f5c7e214`(부모 `e6b1d4f8a302`, 파일 `20261116_a9d3f5c7e214_deal_solution_to_product.py`)은 `deals.solution`을 `deals.product`로 이름만 바꾼다(2026-11-16 사용자 요청, 의미는 DE-R8).
+  - upgrade(한 트랜잭션): `op.alter_column("deals", "solution", new_column_name="product")` 하나(`ALTER TABLE deals RENAME COLUMN solution TO product`). 형식 `varchar(200) NOT NULL`·값·행 수는 그대로다. 이 컬럼을 쓰는 제약·인덱스는 없다. `DELETE`·`UPDATE`·`TRUNCATE`·`add_column`·`drop_column`·`drop_table`·`op.execute`가 없고 사전 점검도 없다(값을 바꾸지 않음).
+  - downgrade: `product`를 `solution`으로 이름만 되돌린다. 손실이 없다.
+  - `deal_history`의 기존 행(대상 "Solution")은 바꾸지 않는다(SC-R8, DD-R20).
+  - 하위 호환(SC-R9 예외, 사용자 승인 필요 — 계획 Q5): 구 앱은 `deals.solution`을 읽고 쓰므로 코드만 롤백하면 Deal 조회·등록·수정·목록·Reports·계약 목록이 실패한다(데이터 손상 없음). 롤백할 때는 `downgrade -1`(손실 없음)을 함께 실행한다. product 적용은 사람 승인을 받고 배포 전 `pg_dump`를 마친 뒤에만 한다.
+
 ### 2.4 상태와 전이
 
 DB의 `alembic_version` 상태
 
 | 현재 \ 명령 | `upgrade head` | `downgrade base` |
 | --- | --- | --- |
-| 빈 DB(버전 없음) | → `e6b1d4f8a302`, 테이블 26개 + 시드(SC-R2·R3) | (해당 없음) |
-| `00c3126aa926` | → `e6b1d4f8a302`, 날짜 컬럼 변환(SC-R20)·사용자 컬럼 정리(SC-R21)·Vendor 필수(SC-R22, Vendor 없는 Deal이 있으면 중단) | 거부, 그대로(SC-R4) |
-| `b4d7e2a9c613` | → `e6b1d4f8a302`, 사용자 컬럼 정리(SC-R21)·Vendor 필수(SC-R22) | 거부, 그대로(SC-R4) |
-| `c8e3f1a7d295` | → `e6b1d4f8a302`, Vendor 필수(SC-R22). Vendor 없는 Deal이 있으면 중단·그대로 | 거부, 그대로(SC-R4) |
-| `e6b1d4f8a302`(head) | 변화 없음(SC-R5) | 거부, 그대로(SC-R4). `downgrade -1`은 `c8e3f1a7d295`로 되돌림(NOT NULL만 풂, SC-R22) |
+| 빈 DB(버전 없음) | → `a9d3f5c7e214`, 테이블 26개 + 시드(SC-R2·R3) | (해당 없음) |
+| `00c3126aa926` | → `a9d3f5c7e214`, 날짜 컬럼 변환(SC-R20)·사용자 컬럼 정리(SC-R21)·Vendor 필수(SC-R22, Vendor 없는 Deal이 있으면 중단)·Product 이름 변경(SC-R23) | 거부, 그대로(SC-R4) |
+| `b4d7e2a9c613` | → `a9d3f5c7e214`, 사용자 컬럼 정리(SC-R21)·Vendor 필수(SC-R22)·Product 이름 변경(SC-R23) | 거부, 그대로(SC-R4) |
+| `c8e3f1a7d295` | → `a9d3f5c7e214`, Vendor 필수(SC-R22)·Product 이름 변경(SC-R23). Vendor 없는 Deal이 있으면 중단·그대로 | 거부, 그대로(SC-R4) |
+| `e6b1d4f8a302` | → `a9d3f5c7e214`, Product 이름 변경(SC-R23) | 거부, 그대로(SC-R4). `downgrade -1`은 `c8e3f1a7d295`로 되돌림(NOT NULL만 풂, SC-R22) |
+| `a9d3f5c7e214`(head) | 변화 없음(SC-R5) | 거부, 그대로(SC-R4). `downgrade -1`은 `e6b1d4f8a302`로 되돌림(열 이름만, SC-R23) |
 | 퇴역 리비전 id | `CommandError`, 그대로(SC-R6) | (해당 없음 — DB를 새로 만듦) |
 
 ### 2.5 권한
@@ -206,13 +216,20 @@ DB의 `alembic_version` 상태
 - 예외: Vendor 없는 Deal이 있으면 건수·code 문구로 중단, 아무것도 바뀌지 않음 → 사람이 그 Deal들에 Vendor를 지정한 뒤 다시 실행
 - 결과: 모든 Deal이 Vendor를 가진 스키마(행·값 그대로)
 
+### SC-UC7 Deal Product 이름 변경 리비전을 적용한다
+- 행위자: 운영자·배포 도구(SC-R10)
+- 사전 조건: DB가 `e6b1d4f8a302`, product는 사람 승인과 `pg_dump` 완료
+- 기본 흐름: `upgrade head` → `deals.solution`이 `deals.product`로 바뀜 → `alembic_version` = `a9d3f5c7e214`
+- 대안·예외 흐름: 배포 롤백이 필요하면 코드 롤백과 함께 `downgrade -1`(손실 없음) 또는 `pg_dump` 복원
+- 결과: 모든 Deal의 Product 값이 이름 변경 전 Solution 값과 같다
+
 ## 4. BDD 테스트 케이스
 
-층은 모두 `backend`다. **Fake 원칙의 예외**: SC의 검증 대상은 DB 스키마와 Alembic 리비전 자체이므로 Fake로 대신할 수 없다. 그래서 대부분의 케이스는 실제 PostgreSQL을 쓰는 integration 단위 테스트(`tests/unit/infra/schema/`, `pytestmark = pytest.mark.integration`, 임시 DB `app_test_*`)로 구현하고, DB가 필요 없는 케이스(SC-001~003·009·011·031·039·040·043)는 리비전 모듈이나 Port 정의만 읽는다. SC-032~037은 Fake와 SQL 구현에 같은 테스트를 적용하는 Repository 계약 테스트이고 SC-038은 SQL 전용이다. 테이블별 스키마 테스트는 소유 feature 번호를 쓴다. 2026-11-13 변경 케이스의 "테스트 위치"는 바뀌기 전 위치이며 test-engineer가 고쳐 채운다.
+층은 모두 `backend`다. **Fake 원칙의 예외**: SC의 검증 대상은 DB 스키마와 Alembic 리비전 자체이므로 Fake로 대신할 수 없다. 그래서 대부분의 케이스는 실제 PostgreSQL을 쓰는 integration 단위 테스트(`tests/unit/infra/schema/`, `pytestmark = pytest.mark.integration`, 임시 DB `app_test_*`)로 구현하고, DB가 필요 없는 케이스(SC-001~003·009·011·031·039·040·043·049·052)는 리비전 모듈이나 Port 정의만 읽는다. SC-032~037은 Fake와 SQL 구현에 같은 테스트를 적용하는 Repository 계약 테스트이고 SC-038은 SQL 전용이다. 테이블별 스키마 테스트는 소유 feature 번호를 쓴다. 2026-11-13 변경 케이스의 "테스트 위치"는 바뀌기 전 위치이며 test-engineer가 고쳐 채운다.
 
 | 코드 | 케이스 | 규칙·UC | 층 | 테스트 위치 |
 | --- | --- | --- | --- | --- |
-| SC-001 | 리비전 그래프의 base는 기준선, head는 Deal Vendor 필수 리비전 하나다 | SC-R1 | backend | `infra/schema/test_revision_graph.py::test_the_history_has_the_baseline_as_base_and_the_vendor_required_revision_as_head` |
+| SC-001 | 리비전 그래프의 base는 기준선, head는 Deal Product 이름 변경 리비전 하나다 | SC-R1 | backend | `infra/schema/test_revision_graph.py::test_the_history_has_the_baseline_as_base_and_the_product_rename_revision_as_head` |
 | SC-002 | 기준선에는 부모·브랜치 라벨·의존 리비전이 없다 | SC-R1 | backend | `infra/schema/test_revision_graph.py::test_the_baseline_has_no_parent_branch_or_dependency` |
 | SC-003 | 기준선 파일 이름이 `20261105_00c3126aa926_baseline.py`다 | SC-R1 | backend | `infra/schema/test_revision_graph.py::test_the_baseline_file_is_named_after_its_purpose` |
 | SC-004 | 빈 DB에 upgrade head를 하면 앱 테이블 26개와 alembic_version만 생긴다 | SC-R2, SC-UC1 | backend | `infra/schema/test_baseline_upgrade.py::test_upgrade_head_on_a_blank_database_creates_the_26_tables` |
@@ -260,11 +277,15 @@ DB의 `alembic_version` 상태
 | SC-046 | Vendor 없는 Deal이 있으면 upgrade가 건수·code 문구로 중단되고 스키마·행이 그대로다 | SC-R22, SC-UC6 | backend | `infra/schema/test_deal_vendor_required_migration.py::test_upgrade_with_deals_without_a_vendor_aborts_and_changes_nothing` |
 | SC-047 | Deal Vendor 필수 downgrade는 NOT NULL만 풀고 행·값이 그대로다 | SC-R22 | backend | `infra/schema/test_deal_vendor_required_migration.py::test_downgrade_only_drops_the_not_null_and_keeps_every_row` |
 | SC-048 | Deal Vendor 필수 upgrade 본문에는 행·컬럼을 지우거나 바꾸는 문장이 없다 | SC-R8, SC-R22 | backend | `infra/schema/test_revision_graph.py::test_the_vendor_required_upgrade_never_removes_or_rewrites_rows_or_columns` |
+| SC-049 | Deal Product 이름 변경 리비전은 Vendor 필수 리비전을 부모로 하고 정해진 파일 이름이며 head이고 downgrade 함수가 있다 | SC-R1, SC-R23 | backend | `infra/schema/test_revision_graph.py::test_the_product_rename_revision_follows_the_vendor_required_revision` |
+| SC-050 | Product 이름 변경 upgrade는 행·값을 그대로 두고 deals.solution을 deals.product로 바꾼다 | SC-R23, SC-UC7 | backend | `infra/schema/test_deal_product_migration.py::test_upgrade_renames_the_column_and_keeps_every_row_and_value` |
+| SC-051 | Product 이름 변경 downgrade는 열 이름만 solution으로 되돌리고 값이 그대로다 | SC-R23, SC-UC7 | backend | `infra/schema/test_deal_product_migration.py::test_downgrade_only_renames_the_column_back_and_keeps_every_value` |
+| SC-052 | Product 이름 변경 upgrade 본문에는 행·컬럼을 지우거나 바꾸는 문장이 없고 열 이름 변경 하나뿐이다 | SC-R8, SC-R23 | backend | `infra/schema/test_revision_graph.py::test_the_product_rename_upgrade_only_renames_one_column` |
 
-### SC-001 리비전 그래프의 base는 기준선, head는 Deal Vendor 필수 리비전 하나다
+### SC-001 리비전 그래프의 base는 기준선, head는 Deal Product 이름 변경 리비전 하나다
 - When `backend/alembic`의 리비전 그래프를 읽는다
-- Then head 목록은 `["c8e3f1a7d295"]`이고 base 목록은 `["00c3126aa926"]`이다
-- And 리비전은 3개이고 `b4d7e2a9c613`의 `down_revision`은 `00c3126aa926`, `c8e3f1a7d295`의 `down_revision`은 `b4d7e2a9c613`이다
+- Then head 목록은 `["a9d3f5c7e214"]`이고 base 목록은 `["00c3126aa926"]`이다
+- And 리비전은 5개이고 부모는 `b4d7e2a9c613`→`00c3126aa926`, `c8e3f1a7d295`→`b4d7e2a9c613`, `e6b1d4f8a302`→`c8e3f1a7d295`, `a9d3f5c7e214`→`e6b1d4f8a302`이다
 
 ### SC-002 기준선에는 부모·브랜치 라벨·의존 리비전이 없다
 - When 기준선 리비전 정보를 읽는다
@@ -499,26 +520,44 @@ DB의 `alembic_version` 상태
 
 ### SC-044 Deal Vendor 필수 리비전은 사용자 컬럼 정리 리비전을 부모로 하고 정해진 파일 이름이며 downgrade 함수가 있다
 - When 리비전 그래프를 읽는다
-- Then `e6b1d4f8a302`의 부모는 `c8e3f1a7d295`, 파일 이름은 `20261113_e6b1d4f8a302_deal_vendor_required.py`, head는 `e6b1d4f8a302` 하나이고 `downgrade` 함수가 있다
+- Then `e6b1d4f8a302`의 부모는 `c8e3f1a7d295`, 파일 이름은 `20261113_e6b1d4f8a302_deal_vendor_required.py`이고 `downgrade` 함수가 있다(head 여부는 SC-049)
 
 ### SC-045 Vendor가 모두 있는 DB의 upgrade는 행·값을 그대로 두고 vendor_id를 NOT NULL로 만든다
 - Given `c8e3f1a7d295`인 DB에 Vendor SAP와 SAP를 고른 Deal 2건
-- When `upgrade head`를 실행한다
+- When `upgrade e6b1d4f8a302`를 실행한다
 - Then `alembic_version`은 `e6b1d4f8a302`, `deals.vendor_id`는 NOT NULL이고 Deal 2건의 모든 열 값이 전과 같다. 이어서 `vendor_id` 없이 `deals`에 insert하면 `IntegrityError`(NOT NULL 위반)다
 
 ### SC-046 Vendor 없는 Deal이 있으면 upgrade가 건수·code 문구로 중단되고 스키마·행이 그대로다
 - Given `c8e3f1a7d295`인 DB에 Vendor 있는 Deal 1건과 Vendor 없는 Deal 2건(code A < B)
-- When `upgrade head`를 실행한다
+- When `upgrade e6b1d4f8a302`를 실행한다
 - Then `RuntimeError` 문구에 "2건"과 "A, B"가 있고 `alembic_version`은 `c8e3f1a7d295`, `vendor_id`는 NULL 허용이며 Deal 3건의 값이 그대로다
 
 ### SC-047 Deal Vendor 필수 downgrade는 NOT NULL만 풀고 행·값이 그대로다
-- Given head인 DB에 Vendor SAP인 Deal 1건
+- Given `e6b1d4f8a302`인 DB에 Vendor SAP인 Deal 1건
 - When `downgrade -1`을 실행한다
 - Then `alembic_version`은 `c8e3f1a7d295`, `vendor_id`는 NULL 허용이고 Deal 값이 그대로다
 
 ### SC-048 Deal Vendor 필수 upgrade 본문에는 행·컬럼을 지우거나 바꾸는 문장이 없다
 - When 리비전 파일의 `upgrade` 본문을 읽는다
 - Then `DELETE`·`UPDATE`·`TRUNCATE`·`drop_column`·`drop_table`이 없다
+
+### SC-049 Deal Product 이름 변경 리비전은 Vendor 필수 리비전을 부모로 하고 정해진 파일 이름이며 head이고 downgrade 함수가 있다
+- When 리비전 그래프를 읽는다
+- Then `a9d3f5c7e214`의 부모는 `e6b1d4f8a302`, 파일 이름은 `20261116_a9d3f5c7e214_deal_solution_to_product.py`, head는 `a9d3f5c7e214` 하나이고 `downgrade` 함수가 있다
+
+### SC-050 Product 이름 변경 upgrade는 행·값을 그대로 두고 deals.solution을 deals.product로 바꾼다
+- Given `e6b1d4f8a302`인 DB에 `solution` 값이 "ITDR"·""(빈 값)인 Deal 2건
+- When `upgrade head`를 실행한다
+- Then `alembic_version`은 `a9d3f5c7e214`, `deals`에 `solution` 열이 없고 `product`가 `varchar(200) NOT NULL`이며, 두 Deal의 `product`는 "ITDR"·""이고 다른 열 값과 행 수가 전과 같다
+
+### SC-051 Product 이름 변경 downgrade는 열 이름만 solution으로 되돌리고 값이 그대로다
+- Given head인 DB에 `product` "ITDR"인 Deal 1건
+- When `downgrade -1`을 실행한다
+- Then `alembic_version`은 `e6b1d4f8a302`, `deals.solution`이 "ITDR"이고 `product` 열이 없으며 행 수가 같다
+
+### SC-052 Product 이름 변경 upgrade 본문에는 행·컬럼을 지우거나 바꾸는 문장이 없고 열 이름 변경 하나뿐이다
+- When 리비전 파일의 `upgrade` 본문(docstring 제외)을 읽는다
+- Then `\bdelete\b`·`\btruncate\b`·`\bupdate\b`·`add_column`·`drop_column`·`drop_table`·`op\.execute`가 없고, `alter_column` 호출은 `deals`의 `solution` → `product` 하나뿐이다
 
 ## 5. 변경 이력
 
@@ -528,3 +567,4 @@ DB의 `alembic_version` 상태
 | 2026-11-13 | 확정(2026-11-13 사용자 확인): 날짜 전환 리비전 `b4d7e2a9c613` 추가와 SC-R20 신설(업무 날짜 컬럼 4개를 date로 전환, 시각 drop은 승인된 contract). head가 바뀌어 용어, SC-R1·R2·R4·R6·R8·R14, 2.4 갱신 | 신규 SC-039. 변경 SC-001, SC-004, SC-007, SC-010 |
 | 2026-11-13 | 확정(2026-11-13 사용자 확인): 사용자 컬럼 정리 리비전 `c8e3f1a7d295` 추가와 SC-R21·SC-UC5 신설(`users.created_by_user_id`·FK·인덱스 drop은 사용자 승인 contract, `delete_reason`·CHECK 2개 drop은 손실 없음, downgrade는 등록자 = 자기 자신). head가 바뀌어 용어, SC-R1·R2·R4·R6·R8·R17·R18, 2.4 갱신. users FK 19→18개(RESTRICT 18→17), NOT NULL 사용자 참조 7→6개 | 신규 SC-040~SC-043. 변경 SC-001, SC-004, SC-007, SC-010, SC-026, SC-028, SC-029, SC-030 |
 | 2026-11-13 | 확정(2026-11-13 사용자 확인): Deal Vendor 필수 리비전 `e6b1d4f8a302` 추가와 SC-R22·SC-UC6 신설(`deals.vendor_id` NOT NULL, Vendor 없는 Deal이 있으면 중단 — 채우거나 지우지 않음, downgrade 손실 없음). head가 바뀌어 용어, SC-R1·R2·R4·R6, 2.4, 2.8 갱신 | 신규 SC-044~SC-048. 변경 SC-001, SC-004, SC-007, SC-010(head id) |
+| 2026-11-16 | 초안(사용자 확인 대기): Deal Product 이름 변경 리비전 `a9d3f5c7e214` 추가와 SC-R23·SC-UC7 신설(`deals.solution` → `deals.product` 열 이름 변경, 값·행 그대로, downgrade 손실 없음, 코드만 롤백하면 구 앱 실패 — SC-R9 예외 승인 필요). head가 바뀌어 용어, SC-R1·R2·R4·R6·R8, 2.4, 4장 머리 갱신. SC-001 본문을 현재 그래프(5개)로 바로잡음 | 신규 SC-049~SC-052. 변경 SC-001, SC-004, SC-007, SC-010(head id), SC-044(head 문장 제거), SC-045·SC-046(`upgrade e6b1d4f8a302`), SC-047(Given 리비전) |

@@ -72,7 +72,7 @@ function draftOf(spec: DealSpec, i: number, statusKeys: readonly string[]): Draf
   const forecastKey = i === 0 || lean === undefined ? spec.forecast : lean
   const type = DEFAULT_ACTION_TYPE_NAMES[(spec.no + i * 3) % DEFAULT_ACTION_TYPE_NAMES.length] ?? '기타'
   const pick = (pool: readonly string[]) => pool[(spec.no + i) % pool.length] ?? ''
-  const base = { type, progress: `${spec.solution} ${pick(PROGRESS[type])}`, nextAction: pick(NEXT[type]), statusKey, forecastKey }
+  const base = { type, progress: `${spec.product} ${pick(PROGRESS[type])}`, nextAction: pick(NEXT[type]), statusKey, forecastKey }
   if (i === 0 && spec.forecast === 'won') return { ...base, type: '계약', progress: '계약 체결 및 매출 확정', nextAction: '납품 및 검수 일정 확인' }
   if (i === 0 && spec.forecast === 'lost') return { ...base, type: '협상', progress: '경쟁사 가격 제시로 검토 보류', nextAction: '사후 피드백 요청' }
   if (spec.no === 1 && i === 0) return { ...base, type: '협상', progress: '최종 가격 협의', nextAction: '계약서 초안 검토' }
@@ -123,7 +123,7 @@ export function seedActivity(
         dueDate: i === 0 ? env.date(spec.due) : addDays(actedAt.slice(0, 10), 7),
         nextActionStatus: 'open',
         nextActionClosedOn: null,
-        memo: i % 3 === 0 ? `${spec.vendor} ${spec.solution} 관련 메모` : '',
+        memo: i % 3 === 0 ? `${spec.vendor} ${spec.product} 관련 메모` : '',
         statusKey: draft.statusKey,
         forecastKey: draft.forecastKey,
       })

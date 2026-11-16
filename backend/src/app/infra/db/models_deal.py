@@ -53,7 +53,7 @@ class DealRow(Base):
     vendor_id: Mapped[int] = mapped_column(
         BigInteger, ForeignKey("vendors.id", ondelete="RESTRICT")
     )
-    solution: Mapped[str] = mapped_column(String(200))
+    product: Mapped[str] = mapped_column(String(200))
     users: Mapped[int] = mapped_column(Integer)
     status_kind: Mapped[str] = mapped_column(String(20), default=CodeKind.STATUS.value)
     status_key: Mapped[str] = mapped_column(String(50))

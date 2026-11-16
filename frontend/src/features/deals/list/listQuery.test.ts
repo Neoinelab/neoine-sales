@@ -20,7 +20,7 @@ import { USER_ID } from '../../../test/fake/seed/ids'
 const params = (query: string) => new URLSearchParams(query)
 
 const VENDOR = 3
-const SOLUTION = 'ITDR'
+const PRODUCT = 'ITDR'
 
 describe('listQueryFromParams', () => {
   it('URL 조건이 비어 있으면 쪽 나누기만 담은 조회 조건을 만든다', () => {
@@ -34,7 +34,7 @@ describe('listQueryFromParams', () => {
     // when: 모든 키가 든 URL 파라미터를 조회 조건으로 바꾼다
     const query = listQueryFromParams(
       params(
-        `q=한빛&owner=${USER_ID.kim}&vendor=${VENDOR}&solution=${SOLUTION}&status=prospecting&forecast=best&year=2026&quarter=4&updated_from=2026-01-01&updated_to=2026-12-31&mine=1&overdue=1&stale=1&sort=revenueAmount&order=asc&page=3`,
+        `q=한빛&owner=${USER_ID.kim}&vendor=${VENDOR}&product=${PRODUCT}&status=prospecting&forecast=best&year=2026&quarter=4&updated_from=2026-01-01&updated_to=2026-12-31&mine=1&overdue=1&stale=1&sort=revenueAmount&order=asc&page=3`,
       ),
     )
     // then: 키마다 해당 조회 조건으로 옮겨지고 3쪽은 offset 40이 된다
@@ -42,7 +42,7 @@ describe('listQueryFromParams', () => {
       keyword: '한빛',
       ownerId: USER_ID.kim,
       vendorId: VENDOR,
-      solution: SOLUTION,
+      product: PRODUCT,
       statusKey: 'prospecting',
       forecastKeys: ['best'],
       year: 2026,
@@ -134,65 +134,65 @@ describe('listQueryFromParams', () => {
     expect(actual2).toEqual({ offset: 0, limit: 20 })
   })
 
-  it('Vendor id는 정수로, Solution은 텍스트로 읽는다', () => {
-    // when: Vendor·Solution이 든 URL을 바꾼다
-    const actual = listQueryFromParams(params('vendor=12&solution=ITDR'))
-    // then: Vendor id는 정수 12, Solution은 ITDR이다
-    expect(actual).toEqual({ offset: 0, limit: 20, vendorId: 12, solution: 'ITDR' })
+  it('Vendor id는 정수로, Product는 텍스트로 읽는다', () => {
+    // when: Vendor·Product가 든 URL을 바꾼다
+    const actual = listQueryFromParams(params('vendor=12&product=ITDR'))
+    // then: Vendor id는 정수 12, Product는 ITDR이다
+    expect(actual).toEqual({ offset: 0, limit: 20, vendorId: 12, product: 'ITDR' })
   })
 
-  it('Solution 텍스트는 그대로 넘긴다', () => {
-    // when: 한글·숫자 Solution 값을 각각 바꾼다
-    const actual1 = listQueryFromParams(params(`solution=${encodeURIComponent('통합 itdr')}`))
-    const actual2 = listQueryFromParams(params('solution=12'))
-    // then: Solution이 한글·숫자 텍스트 그대로 담긴다
-    expect(actual1).toEqual({ offset: 0, limit: 20, solution: '통합 itdr' })
-    expect(actual2).toEqual({ offset: 0, limit: 20, solution: '12' })
+  it('Product 텍스트는 그대로 넘긴다', () => {
+    // when: 한글·숫자 Product 값을 각각 바꾼다
+    const actual1 = listQueryFromParams(params(`product=${encodeURIComponent('통합 itdr')}`))
+    const actual2 = listQueryFromParams(params('product=12'))
+    // then: Product가 한글·숫자 텍스트 그대로 담긴다
+    expect(actual1).toEqual({ offset: 0, limit: 20, product: '통합 itdr' })
+    expect(actual2).toEqual({ offset: 0, limit: 20, product: '12' })
   })
 
-  it('Solution 텍스트는 앞뒤 공백을 자르고 빈 값은 무시한다', () => {
+  it('Product 텍스트는 앞뒤 공백을 자르고 빈 값은 무시한다', () => {
     // when: 공백이 낀 값, 빈 값, 공백뿐인 값을 각각 바꾼다
-    const actual1 = listQueryFromParams(params('solution=%20itd%20'))
-    const actual2 = listQueryFromParams(params('solution='))
-    const actual3 = listQueryFromParams(params('solution=%20%20'))
-    // then: 앞뒤 공백이 잘리고 빈 값·공백뿐인 값은 Solution이 빠진다
-    expect(actual1).toEqual({ offset: 0, limit: 20, solution: 'itd' })
+    const actual1 = listQueryFromParams(params('product=%20itd%20'))
+    const actual2 = listQueryFromParams(params('product='))
+    const actual3 = listQueryFromParams(params('product=%20%20'))
+    // then: 앞뒤 공백이 잘리고 빈 값·공백뿐인 값은 Product가 빠진다
+    expect(actual1).toEqual({ offset: 0, limit: 20, product: 'itd' })
     expect(actual2).toEqual({ offset: 0, limit: 20 })
     expect(actual3).toEqual({ offset: 0, limit: 20 })
   })
 
-  it('공백을 자른 뒤 200자를 넘는 Solution은 다른 잘못된 값처럼 무시한다', () => {
-    // given: 201자 Solution
+  it('공백을 자른 뒤 200자를 넘는 Product는 다른 잘못된 값처럼 무시한다', () => {
+    // given: 201자 Product
     const over = 'a'.repeat(201)
 
-    // when: 201자 Solution을 단독, 공백 포함, Vendor와 함께 바꾼다
-    const alone = listQueryFromParams(params(`solution=${over}`))
-    const padded = listQueryFromParams(params(`solution=%20${over}%20`))
-    const withVendor = listQueryFromParams(params(`vendor=12&solution=${over}`))
+    // when: 201자 Product를 단독, 공백 포함, Vendor와 함께 바꾼다
+    const alone = listQueryFromParams(params(`product=${over}`))
+    const padded = listQueryFromParams(params(`product=%20${over}%20`))
+    const withVendor = listQueryFromParams(params(`vendor=12&product=${over}`))
 
-    // then: 모두 Solution이 빠진다
+    // then: 모두 Product가 빠진다
     expect(alone).toEqual({ offset: 0, limit: 20 })
     expect(padded).toEqual({ offset: 0, limit: 20 })
     expect(withVendor).toEqual({ offset: 0, limit: 20, vendorId: 12 })
   })
 
-  it('정확히 200자인 Solution은 앞뒤 공백이 있어도 유지한다', () => {
-    // when: 공백으로 감싼 200자 Solution을 바꾼다
+  it('정확히 200자인 Product는 앞뒤 공백이 있어도 유지한다', () => {
+    // when: 공백으로 감싼 200자 Product를 바꾼다
     const edge = 'a'.repeat(200)
-    const actual = listQueryFromParams(params(`solution=%20${edge}%20`))
-    // then: 공백만 잘리고 Solution이 유지된다
-    expect(actual).toEqual({ offset: 0, limit: 20, solution: edge })
+    const actual = listQueryFromParams(params(`product=%20${edge}%20`))
+    // then: 공백만 잘리고 Product가 유지된다
+    expect(actual).toEqual({ offset: 0, limit: 20, product: edge })
   })
 
-  it('Vendor에서는 uuid·이름 값을 무시하고 Solution 텍스트에서는 무시하지 않는다', () => {
-    // when: 이름·uuid Vendor와 정수 Vendor+Solution을 각각 바꾼다
+  it('Vendor에서는 uuid·이름 값을 무시하고 Product 텍스트에서는 무시하지 않는다', () => {
+    // when: 이름·uuid Vendor와 정수 Vendor+Product를 각각 바꾼다
     const actual1 = listQueryFromParams(params('vendor=Okta'))
     const actual2 = listQueryFromParams(params('vendor=10000000-0000-4000-8000-000000000003'))
-    const actual3 = listQueryFromParams(params(`vendor=${VENDOR}&solution=ITDR`))
-    // then: 이름·uuid Vendor는 빠지고 정수 Vendor와 Solution은 담긴다
+    const actual3 = listQueryFromParams(params(`vendor=${VENDOR}&product=ITDR`))
+    // then: 이름·uuid Vendor는 빠지고 정수 Vendor와 Product는 담긴다
     expect(actual1).toEqual({ offset: 0, limit: 20 })
     expect(actual2).toEqual({ offset: 0, limit: 20 })
-    expect(actual3).toEqual({ offset: 0, limit: 20, vendorId: VENDOR, solution: 'ITDR' })
+    expect(actual3).toEqual({ offset: 0, limit: 20, vendorId: VENDOR, product: 'ITDR' })
   })
 
   it.each(['0', '-1', '1.5', '1e3', '01', '+3', '9007199254740992'])(

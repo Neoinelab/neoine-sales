@@ -27,9 +27,9 @@ class TestSentFieldsOnly:
 
         테스트 코드: DE-036
         """
-        # given: Vendor SAP·Solution이 있는 Deal.
+        # given: Vendor SAP·Product가 있는 Deal.
         sap = await env.new_vendor("SAP")
-        view = await env.new_deal(name="ERP 구축", vendor_id=sap.id, solution="S/4HANA")
+        view = await env.new_deal(name="ERP 구축", vendor_id=sap.id, product="S/4HANA")
         env.clock.advance(60)
 
         updated = await env.update.execute(
@@ -38,9 +38,9 @@ class TestSentFieldsOnly:
 
         # when: 이름만 보내 수정한다.
         details = updated.item.deal.details
-        # then: 이름만 바뀌고 Vendor·Solution·금액은 그대로이며 updated_at이 서버 시각이다.
+        # then: 이름만 바뀌고 Vendor·Product·금액은 그대로이며 updated_at이 서버 시각이다.
         assert details.name == "확장 프로젝트"
-        assert (details.vendor_id, details.solution) == (sap.id, "S/4HANA")
+        assert (details.vendor_id, details.product) == (sap.id, "S/4HANA")
         assert details.revenue_amount.value == 150_000_000
         assert updated.item.deal.updated_at == env.clock.now()
         assert (await env.uow.deals.get(view.item.deal.id)).details.name == "확장 프로젝트"

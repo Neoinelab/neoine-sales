@@ -1,4 +1,4 @@
-"""head 스키마의 vendors, deals의 Vendor 참조와 Solution 텍스트 컬럼.
+"""head 스키마의 vendors, deals의 Vendor 참조와 Product 텍스트 컬럼.
 
 제약은 원시 SQL로 직접 어겨 보고 제약 이름으로 거절되는지 확인한다(도메인 검증을 거치지 않는다).
 임시 DB의 head에서 돌며 세션은 테스트마다 롤백된다.
@@ -88,23 +88,23 @@ async def test_solutions_table_does_not_exist(session: AsyncSession) -> None:
     assert exists is None
 
 
-async def test_deals_solution_is_not_null_varchar_200(session: AsyncSession) -> None:
-    """deals.solution은 NOT NULL varchar(200)이다."""
+async def test_deals_product_is_not_null_varchar_200(session: AsyncSession) -> None:
+    """deals.product는 NOT NULL varchar(200)이다."""
     # when: deals 컬럼을 조회한다
     columns = await _columns(session, "deals")
 
-    # then: solution이 NOT NULL varchar(200)이다
-    assert columns["solution"] == ("character varying", 200, "NO")
+    # then: product가 NOT NULL varchar(200)이다
+    assert columns["product"] == ("character varying", 200, "NO")
 
 
-async def test_deals_solution_has_no_database_default(session: AsyncSession) -> None:
-    """deals.solution에는 DB 기본값이 없다."""
-    # when: solution 컬럼의 기본값을 조회한다
+async def test_deals_product_has_no_database_default(session: AsyncSession) -> None:
+    """deals.product에는 DB 기본값이 없다."""
+    # when: product 컬럼의 기본값을 조회한다
     default = (
         await session.execute(
             text(
                 "select column_default from information_schema.columns"
-                " where table_name = 'deals' and column_name = 'solution'"
+                " where table_name = 'deals' and column_name = 'product'"
             )
         )
     ).scalar_one()
@@ -147,7 +147,7 @@ async def test_deals_reference_vendors_with_restrict(session: AsyncSession) -> N
     assert constraints["fk_deals_vendor_id_vendors"][1:] == ("vendors", "r", 1)
 
 
-async def test_deals_have_a_vendor_index_and_no_solution_index(session: AsyncSession) -> None:
+async def test_deals_have_a_vendor_index_and_no_product_index(session: AsyncSession) -> None:
     """deals에는 vendor_id 인덱스가 있다."""
     # when: deals 인덱스를 조회한다
     rows = (await session.execute(text(INDEX_DEFS), {"t": "deals"})).all()
@@ -166,51 +166,51 @@ async def test_a_deal_vendor_cannot_be_null(session: AsyncSession) -> None:
         await link_deal(session, code, None, "ITDR")
 
 
-async def test_a_deal_may_have_a_solution_text_with_a_vendor(session: AsyncSession) -> None:
-    """Deal은 Vendor와 함께 Solution 텍스트를 가질 수 있다."""
+async def test_a_deal_may_have_a_product_text_with_a_vendor(session: AsyncSession) -> None:
+    """Deal은 Vendor와 함께 Product 텍스트를 가질 수 있다."""
     # given: Deal 하나
     code = await _deal(session)
 
-    # when: Vendor와 Solution 텍스트를 연결한다
+    # when: Vendor와 Product 텍스트를 연결한다
     await link_deal(session, code, await insert_vendor(session, "SAP"), "ITDR")
 
-    # then: Solution 텍스트가 저장된다
+    # then: Product 텍스트가 저장된다
     stored = (
         await session.execute(
-            text("select solution from deals where deal_code = :code"), {"code": code}
+            text("select product from deals where deal_code = :code"), {"code": code}
         )
     ).scalar_one()
     assert stored == "ITDR"
 
 
-async def test_a_deal_may_have_a_vendor_without_a_solution_text(session: AsyncSession) -> None:
-    """Deal은 Solution 텍스트 없이 Vendor만 가질 수 있다."""
+async def test_a_deal_may_have_a_vendor_without_a_product_text(session: AsyncSession) -> None:
+    """Deal은 Product 텍스트 없이 Vendor만 가질 수 있다."""
     # given: Deal 하나
     code = await _deal(session)
 
-    # when·then: 빈 Solution으로 Vendor를 연결해도 오류가 없다
+    # when·then: 빈 Product로 Vendor를 연결해도 오류가 없다
     await link_deal(session, code, await insert_vendor(session, "SAP"), "")
 
 
-async def test_a_deal_solution_longer_than_200_is_rejected(session: AsyncSession) -> None:
-    """200자를 넘는 Solution은 거부한다."""
+async def test_a_deal_product_longer_than_200_is_rejected(session: AsyncSession) -> None:
+    """200자를 넘는 Product는 거부한다."""
     # given: Deal 하나
     code = await _deal(session)
 
-    # when·then: 201자 Solution을 연결하면 길이 초과 오류가 난다
+    # when·then: 201자 Product를 연결하면 길이 초과 오류가 난다
     with pytest.raises(DBAPIError, match="too long"):
         await link_deal(session, code, await insert_vendor(session, "SAP"), "a" * 201)
 
 
-async def test_a_deal_solution_cannot_be_null(session: AsyncSession) -> None:
-    """Solution을 NULL로 바꿀 수 없다."""
+async def test_a_deal_product_cannot_be_null(session: AsyncSession) -> None:
+    """Product를 NULL로 바꿀 수 없다."""
     # given: Deal 하나
     code = await _deal(session)
 
-    # when·then: solution을 NULL로 갱신하면 NOT NULL 위반이다
-    with pytest.raises(IntegrityError, match="solution"):
+    # when·then: product를 NULL로 갱신하면 NOT NULL 위반이다
+    with pytest.raises(IntegrityError, match="product"):
         await session.execute(
-            text("update deals set solution = null where deal_code = :code"), {"code": code}
+            text("update deals set product = null where deal_code = :code"), {"code": code}
         )
 
 

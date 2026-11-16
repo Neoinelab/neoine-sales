@@ -137,7 +137,7 @@ describe('fromReportRequest', () => {
   it('컬럼마다 정렬을 복원하고 선택은 비워 둔다', () => {
     // when: 컬럼별 정렬이 있는 요청을 읽는다
     const state = load({
-      columns: [CODE, { field: 'deal.name', group: false, sort: 'desc' }, { field: 'deal.solution', group: false, sort: 'asc' }],
+      columns: [CODE, { field: 'deal.name', group: false, sort: 'desc' }, { field: 'deal.product', group: false, sort: 'asc' }],
       conditions: [],
       combine: 'and',
       rowLimit: 1000,

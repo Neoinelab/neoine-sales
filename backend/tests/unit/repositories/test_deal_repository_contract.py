@@ -24,7 +24,7 @@ from app.domain.deal.values import (
 )
 from tests.factories import NOW, make_bant, make_deal, make_deal_code, new_contact_id
 from tests.support.default_vendor import DEFAULT_VENDOR_ID
-from tests.support.legacy_solution import blank_solution
+from tests.support.legacy_product import blank_product
 from tests.support.user_ids import uid
 
 if TYPE_CHECKING:
@@ -58,7 +58,7 @@ class TestAddAndGet:
             bant=make_bant(budget=budget.id),
             name="ERP 구축",
             vendor_id=sap.id,
-            solution="S/4HANA",
+            product="S/4HANA",
             users=250,
             revenue_amount=1_870_000_000,
             revenue_date=date(2026, 12, 31),
@@ -81,27 +81,27 @@ class TestAddAndGet:
         assert loaded.bant == deal.bant
         assert (loaded.created_at, loaded.updated_at) == (NOW, NOW)
 
-    async def test_legacy_empty_solution_round_trips(self, deal_case: DealCase) -> None:
-        """빈 Solution을 가진 예전 Deal도 저장하고 그대로 읽는다."""
-        # Solution 도입 전 행(빈 문자열)도 저장하고 그대로 읽는다(리뷰 후속 결정).
-        # given: Solution이 빈 예전 Deal
+    async def test_legacy_empty_product_round_trips(self, deal_case: DealCase) -> None:
+        """빈 Product를 가진 예전 Deal도 저장하고 그대로 읽는다."""
+        # Product 도입 전 행(빈 문자열)도 저장하고 그대로 읽는다(리뷰 후속 결정).
+        # given: Product가 빈 예전 Deal
         deal = make_deal(NOW, code=CODE, customer_id=(await _referenceable_customer(deal_case)).id)
-        blank_solution(deal)
+        blank_product(deal)
         await deal_case.add(deal)
 
-        # when: 저장한 Deal을 조회한다 (전제: Fake·SQL 공통) (빈 Solution)
+        # when: 저장한 Deal을 조회한다 (전제: Fake·SQL 공통) (빈 Product)
         loaded = await deal_case.deals.get(deal.id)
 
-        # then: Solution이 빈 문자열 그대로다
-        assert loaded.details.solution == ""
+        # then: Product가 빈 문자열 그대로다
+        assert loaded.details.product == ""
         assert loaded.details == deal.details
 
-    async def test_legacy_empty_solution_survives_update(self, deal_case: DealCase) -> None:
-        """빈 Solution은 다른 필드를 수정해도 유지된다."""
-        # given: Solution이 빈 Deal을 저장하고 읽어 온 상태
+    async def test_legacy_empty_product_survives_update(self, deal_case: DealCase) -> None:
+        """빈 Product는 다른 필드를 수정해도 유지된다."""
+        # given: Product가 빈 Deal을 저장하고 읽어 온 상태
         customer = await _referenceable_customer(deal_case)
         deal = make_deal(NOW, code=CODE, customer_id=customer.id)
-        blank_solution(deal)
+        blank_product(deal)
         await deal_case.add(deal)
         loaded = await deal_case.deals.get(deal.id)
 
@@ -109,9 +109,9 @@ class TestAddAndGet:
         loaded.change_revenue_amount(RevenueAmount(4_000))
         await deal_case.deals.update(loaded)
 
-        # then: 금액은 바뀌고 Solution은 빈 문자열이다
+        # then: 금액은 바뀌고 Product는 빈 문자열이다
         reloaded = await deal_case.deals.get(deal.id)
-        assert (reloaded.details.revenue_amount.value, reloaded.details.solution) == (4_000, "")
+        assert (reloaded.details.revenue_amount.value, reloaded.details.product) == (4_000, "")
 
     async def test_extreme_values_round_trip(self, deal_case: DealCase) -> None:
         """금액·사용자 수의 최댓값이 저장 후 그대로 읽힌다."""
@@ -124,47 +124,47 @@ class TestAddAndGet:
 
         # then: 최댓값이 그대로다
         assert loaded.details.revenue_amount.value == AMOUNT_MAX
-        assert (loaded.details.users, loaded.details.vendor_id, loaded.details.solution) == (
+        assert (loaded.details.users, loaded.details.vendor_id, loaded.details.product) == (
             USERS_MAX,
             DEFAULT_VENDOR_ID,
             "S/4HANA",
         )
 
-    async def test_solution_text_round_trips(self, deal_case: DealCase) -> None:
-        """한글이 섞인 Solution 텍스트가 그대로 읽힌다."""
-        # given: 한글·기호가 섞인 Solution의 Deal
-        deal = make_deal(code=CODE, solution="ITDR 2.0 / 한글 Solution")
+    async def test_product_text_round_trips(self, deal_case: DealCase) -> None:
+        """한글이 섞인 Product 텍스트가 그대로 읽힌다."""
+        # given: 한글·기호가 섞인 Product의 Deal
+        deal = make_deal(code=CODE, product="ITDR 2.0 / 한글 Product")
         await deal_case.add(deal)
 
-        # when: 저장한 Deal을 조회한다 (전제: Fake·SQL 공통) (한글 Solution)
+        # when: 저장한 Deal을 조회한다 (전제: Fake·SQL 공통) (한글 Product)
         loaded = await deal_case.deals.get(deal.id)
 
-        # then: Solution이 그대로다
-        assert loaded.details.solution == "ITDR 2.0 / 한글 Solution"
+        # then: Product가 그대로다
+        assert loaded.details.product == "ITDR 2.0 / 한글 Product"
 
-    async def test_an_empty_solution_is_saved_with_the_vendor(self, deal_case: DealCase) -> None:
-        """Vendor가 있고 Solution이 빈 Deal도 저장하고 그대로 읽는다."""
-        # given: Vendor SAP를 고르고 Solution이 빈 Deal
+    async def test_an_empty_product_is_saved_with_the_vendor(self, deal_case: DealCase) -> None:
+        """Vendor가 있고 Product가 빈 Deal도 저장하고 그대로 읽는다."""
+        # given: Vendor SAP를 고르고 Product가 빈 Deal
         sap = await deal_case.new_vendor("SAP")
-        deal = make_deal(code=CODE, vendor_id=sap.id, solution="")
+        deal = make_deal(code=CODE, vendor_id=sap.id, product="")
         await deal_case.add(deal)
 
         # when: 저장한 Deal을 조회한다 (전제: Fake·SQL 공통)
         loaded = await deal_case.deals.get(deal.id)
-        # then: Vendor는 SAP이고 Solution은 빈 문자열이다
-        assert (loaded.details.vendor_id, loaded.details.solution) == (sap.id, "")
+        # then: Vendor는 SAP이고 Product는 빈 문자열이다
+        assert (loaded.details.vendor_id, loaded.details.product) == (sap.id, "")
 
-    async def test_solution_text_of_200_characters_round_trips(self, deal_case: DealCase) -> None:
-        """200자 Solution이 그대로 읽힌다."""
-        # given: Solution이 200자인 Deal
-        deal = make_deal(code=CODE, solution="가" * 200)
+    async def test_product_text_of_200_characters_round_trips(self, deal_case: DealCase) -> None:
+        """200자 Product가 그대로 읽힌다."""
+        # given: Product가 200자인 Deal
+        deal = make_deal(code=CODE, product="가" * 200)
         await deal_case.add(deal)
 
-        # when: 저장한 Deal을 조회한다 (전제: Fake·SQL 공통) (200자 Solution)
+        # when: 저장한 Deal을 조회한다 (전제: Fake·SQL 공통) (200자 Product)
         loaded = await deal_case.deals.get(deal.id)
 
         # then: 200자가 그대로다
-        assert loaded.details.solution == "가" * 200
+        assert loaded.details.product == "가" * 200
 
     async def test_the_owner_is_a_user_id(self, deal_case: DealCase) -> None:
         """담당자는 사용자 id로 저장된다."""

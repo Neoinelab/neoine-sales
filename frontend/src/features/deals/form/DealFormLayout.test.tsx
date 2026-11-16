@@ -54,7 +54,7 @@ describe('Deal 정보 타일의 항목', () => {
       within(info).getByLabelText('금액(단위:원)'),
       within(info).getByLabelText('Expected Close'),
       within(info).getByLabelText('Vendor'),
-      within(info).getByLabelText('Solution'),
+      within(info).getByLabelText('Product'),
       within(info).getByLabelText('Users count'),
       within(info).getByRole('group', { name: '견적' }),
       within(info).getByRole('group', { name: 'POC' }),
@@ -149,7 +149,7 @@ describe('Deal 정보 타일의 항목', () => {
     await pickVendor(user)
     await pickPerson(user, '고객', '한빛은행', /정민수/)
     await user.type(screen.getByLabelText('금액(단위:원)'), '100000000')
-    await user.type(screen.getByLabelText('Solution'), 'ITDR')
+    await user.type(screen.getByLabelText('Product'), 'ITDR')
     await user.type(screen.getByLabelText('Users count'), '10')
     fireEvent.change(screen.getByLabelText('Expected Close'), { target: { value: '2027-06-01' } })
     await user.selectOptions(screen.getByLabelText('견적 제출여부'), 'YES')

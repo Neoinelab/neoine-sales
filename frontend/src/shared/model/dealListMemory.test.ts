@@ -49,33 +49,33 @@ describe('sanitizeListSearch', () => {
   })
 })
 
-describe('sanitizeListSearch solution text', () => {
-  it('Solution을 텍스트로 기억한다', () => {
-    // when: Solution 조건을 정리한다
-    const result1 = sanitizeListSearch('solution=ITDR&status=a')
-    const result2 = sanitizeListSearch(`solution=${encodeURIComponent('통합 itdr')}`)
+describe('sanitizeListSearch product text', () => {
+  it('Product를 텍스트로 기억한다', () => {
+    // when: Product 조건을 정리한다
+    const result1 = sanitizeListSearch('product=ITDR&status=a')
+    const result2 = sanitizeListSearch(`product=${encodeURIComponent('통합 itdr')}`)
 
-    // then: 영문·한글 Solution이 텍스트로 남는다
-    expect(result1).toBe('solution=ITDR&status=a')
-    expect(result2).toBe(`solution=${encodeURIComponent('통합 itdr').replace(/%20/g, '+')}`)
+    // then: 영문·한글 Product가 텍스트로 남는다
+    expect(result1).toBe('product=ITDR&status=a')
+    expect(result2).toBe(`product=${encodeURIComponent('통합 itdr').replace(/%20/g, '+')}`)
   })
 
-  it('예전 정수 Solution id도 텍스트로 남긴다', () => {
-    // when: 정수 Solution 값을 정리한다
-    const result = sanitizeListSearch('solution=12&status=a')
+  it('예전 정수 Product id도 텍스트로 남긴다', () => {
+    // when: 정수 Product 값을 정리한다
+    const result = sanitizeListSearch('product=12&status=a')
 
     // then: 그대로 남는다
-    expect(result).toBe('solution=12&status=a')
+    expect(result).toBe('product=12&status=a')
   })
 
-  it('기억한 Solution 텍스트를 목록 경로로 되살린다', () => {
-    // when: 사용자가 기억해 둔 Solution 조건으로 기억된 경로를 구한다 (전제: 세션에 Solution 조건이 저장된 사용자)
-    window.sessionStorage.setItem(listMemoryKey(USER_ID.kim), 'solution=ITDR&status=a')
+  it('기억한 Product 텍스트를 목록 경로로 되살린다', () => {
+    // when: 사용자가 기억해 둔 Product 조건으로 기억된 경로를 구한다 (전제: 세션에 Product 조건이 저장된 사용자)
+    window.sessionStorage.setItem(listMemoryKey(USER_ID.kim), 'product=ITDR&status=a')
 
     const result = rememberedListPath(USER_ID.kim)
 
-    // then: /deals 경로에 Solution 텍스트가 붙는다
-    expect(result).toBe('/deals?solution=ITDR&status=a')
+    // then: /deals 경로에 Product 텍스트가 붙는다
+    expect(result).toBe('/deals?product=ITDR&status=a')
   })
 })
 

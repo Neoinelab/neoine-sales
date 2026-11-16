@@ -591,3 +591,47 @@ def test_upgraded_ymd_hm_definition_parses_and_writes_ymd() -> None:
 
     # then: 검증이 통과하고 쓴 포맷은 ymd다
     assert written["columns"][0]["format"] == "ymd"
+
+
+# ---- 이름 변경 deal.solution -> deal.product ----
+
+
+def test_the_old_solution_key_is_read_as_the_product_key_in_columns_and_conditions() -> None:
+    """저장 정의의 예전 key deal.solution은 컬럼·조건 모두 deal.product로 읽고 label은 그대로다.
+
+    테스트 코드: RQ-116
+    """
+    # given: 예전 key를 컬럼(label "솔루션")과 조건에 쓰는 저장 JSON
+    stored = _stored(col("deal.solution", label="솔루션"), col("deal.name"))
+    stored["conditions"] = [cond("deal.solution", "contains", "itd")]
+
+    # when: 저장 JSON을 읽고 검증한 뒤 다시 JSON으로 쓴다
+    from app.domain.report.parse import parse_report_definition  # noqa: PLC0415
+
+    upgraded = definition_from_json(stored)
+    parse_report_definition(upgraded)
+    written: Any = definition_to_json(upgraded)
+
+    # then: 컬럼·조건의 field는 deal.product이고 컬럼 label "솔루션"은 그대로다
+    assert [c.field for c in upgraded.columns] == ["deal.product", "deal.name"]
+    assert upgraded.columns[0].label == "솔루션"
+    assert [c.field for c in upgraded.conditions] == ["deal.product"]
+    # then: 다시 쓴 JSON에는 deal.solution이 없다
+    assert "deal.solution" not in json.dumps(written)
+
+
+def test_the_product_key_and_other_fields_are_kept_when_read() -> None:
+    """이미 deal.product인 key와 다른 필드는 읽어도 그대로다.
+
+    테스트 코드: RQ-116
+    """
+    # given: deal.product·deal.name을 쓰는 저장 JSON
+    stored = _stored(col("deal.product"), col("deal.name"))
+    stored["conditions"] = [cond("deal.product", "contains", "x")]
+
+    # when: 저장 JSON을 읽는다
+    upgraded = definition_from_json(stored)
+
+    # then: field 목록이 그대로다
+    assert [c.field for c in upgraded.columns] == ["deal.product", "deal.name"]
+    assert [c.field for c in upgraded.conditions] == ["deal.product"]

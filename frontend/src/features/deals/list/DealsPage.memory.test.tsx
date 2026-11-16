@@ -1,5 +1,6 @@
 import { screen, waitFor, within } from '@testing-library/react'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { gateway } from '../../../gateway'
 import { listMemoryKey } from '../../../shared/model/dealListMemory'
 import { resetMock } from '../../../test/fake/default'
 import { renderAt } from '../../../test/mockApp'
@@ -506,5 +507,47 @@ describe('정렬·기한초과·미업데이트 기억', () => {
 
     expect(screen.getByRole('link', { name: 'Deal 목록으로' })).toHaveAttribute('href', '/deals?stale=1')
     expect(screen.getByRole('link', { name: 'Deals' })).toHaveAttribute('href', '/deals?stale=1')
+  })
+})
+
+describe('예전 URL 키 solution (2026-11-16 Product 이름 변경)', () => {
+  afterEach(() => vi.restoreAllMocks())
+
+  // 예전 solution 키만 있는 주소는 조건 없는 주소로 보고 기본 주소로 바꾼다
+  // 테스트 코드: DL-108
+  it('treats a URL with only the old solution key as having no condition', async () => {
+    // given: Product "ITDR"·"MFA" Deal이 있는 시드, 조건 기억 없음, admin 로그인(sales는 기본 조건에 mine=1이 붙는다)
+    const list = vi.spyOn(gateway.deals, 'list')
+
+    // when: 예전 solution 키만 든 주소를 연다
+    const view = await renderAt('/deals?solution=ITDR', { role: 'admin' })
+    await screen.findByRole('row', { name: /한빛은행 ITDR 도입/ })
+
+    // then: 조건 없는 주소(DL-R19)인 `/deals?year=all`로 바뀌고 조회에 product가 없다
+    await waitFor(() => expect(view.location()).toBe('/deals?year=all'))
+    expect(list.mock.calls.every(([query]) => query?.product === undefined)).toBe(true)
+  })
+
+  // 다른 조건과 함께 온 예전 solution 키는 조회·입력란·메뉴 링크 어디에도 쓰이지 않는다
+  // 테스트 코드: DL-108
+  it('ignores the old solution key in the query, the input and the remembered menu link', async () => {
+    // given: Product "ITDR"·"MFA" Deal이 있는 시드
+    const list = vi.spyOn(gateway.deals, 'list')
+
+    // when: 연도 전체와 예전 solution 키가 든 주소를 열고 상세에 갔다가 상단 메뉴 Deals로 돌아온다
+    const view = await renderAt('/deals?year=all&solution=ITDR')
+    await screen.findByRole('row', { name: /한빛은행 ITDR 도입/ })
+    const queries = list.mock.calls.map(([query]) => query)
+    expect(screen.getByLabelText('Product')).toHaveValue('')
+    expect(dataRows().length).toBeGreaterThan(1)
+    await view.user.click(within(await rowOf(/한빛은행 ITDR 도입/)).getByRole('link', { name: '한빛은행 ITDR 도입' }))
+    await screen.findByRole('heading', { level: 1, name: '한빛은행 ITDR 도입' })
+    await view.user.click(screen.getByRole('link', { name: 'Deals' }))
+    await screen.findByRole('row', { name: /한빛은행 ITDR 도입/ })
+
+    // then: 조회에 product가 없고 Product 입력란은 비어 있으며 돌아온 주소에 solution이 없다
+    expect(queries.every((query) => query?.product === undefined)).toBe(true)
+    expect(view.location()).not.toContain('solution')
+    expect(screen.getByLabelText('Product')).toHaveValue('')
   })
 })

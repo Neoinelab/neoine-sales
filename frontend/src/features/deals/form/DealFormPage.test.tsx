@@ -84,7 +84,7 @@ describe('필수 입력과 오류 문구 (T-FORM-01, T-FORM-05)', () => {
         'Expected Close를 입력하세요.',
       ]),
     )
-    expect(alerts).not.toContain('Solution을 입력하세요.')
+    expect(alerts).not.toContain('Product를 입력하세요.')
     await waitFor(() => expect(screen.getByLabelText('Deal Name')).toHaveFocus())
     expect(create).not.toHaveBeenCalled() // 요청을 보내지 않는 것이 사용자 결과다
     expect(location()).toBe('/deals/new')
@@ -125,7 +125,7 @@ describe('필수 입력과 오류 문구 (T-FORM-01, T-FORM-05)', () => {
     await user.type(screen.getByLabelText('Deal Name'), '원 단위 저장')
     await pickVendor(user)
     await pickPerson(user, '고객', '한빛은행', /정민수/)
-    await user.type(screen.getByLabelText('Solution'), 'ITDR')
+    await user.type(screen.getByLabelText('Product'), 'ITDR')
     await user.type(screen.getByLabelText('Users count'), '10')
     fireEvent.change(screen.getByLabelText('Expected Close'), { target: { value: '2027-06-01' } })
     // when: 금액 1870000000으로 저장한다.
@@ -207,7 +207,7 @@ describe('필수 입력과 오류 문구 (T-FORM-01, T-FORM-05)', () => {
     await pickVendor(user)
     await pickPerson(user, '고객', '한빛은행', /정민수/)
     await user.type(screen.getByLabelText('금액(단위:원)'), '100000000')
-    await user.type(screen.getByLabelText('Solution'), 'ITDR')
+    await user.type(screen.getByLabelText('Product'), 'ITDR')
     fireEvent.change(screen.getByLabelText('Expected Close'), { target: { value: '2027-06-01' } })
     // when: Users count 0으로 저장한다.
     await user.type(screen.getByLabelText('Users count'), '0')
@@ -285,7 +285,7 @@ describe('Deal 등록 저장 (T-FORM-04)', () => {
 
     // when: 나머지 필수 값을 넣고 저장한다.
     await user.type(screen.getByLabelText('금액(단위:원)'), '300000000')
-    await user.type(screen.getByLabelText('Solution'), 'ITDR')
+    await user.type(screen.getByLabelText('Product'), 'ITDR')
     await user.type(screen.getByLabelText('Users count'), '10')
     fireEvent.change(screen.getByLabelText('Expected Close'), { target: { value: '2027-05-01' } })
     await save(user)
@@ -315,7 +315,7 @@ describe('Deal 등록 저장 (T-FORM-04)', () => {
     await user.clear(email)
     await user.type(email, 'changed.mail@hanbit.test')
     await user.type(screen.getByLabelText('금액(단위:원)'), '100000000')
-    await user.type(screen.getByLabelText('Solution'), 'ITDR')
+    await user.type(screen.getByLabelText('Product'), 'ITDR')
     await user.type(screen.getByLabelText('Users count'), '10')
     fireEvent.change(screen.getByLabelText('Expected Close'), { target: { value: '2027-06-01' } })
     await save(user)
@@ -343,7 +343,7 @@ describe('Deal 등록 저장 (T-FORM-04)', () => {
     await user.click(screen.getByRole('combobox', { name: 'Budget' }))
     await user.click(await screen.findByRole('option', { name: '단독 예산 확보' }))
     await user.type(screen.getByLabelText('금액(단위:원)'), '50000000')
-    await user.type(screen.getByLabelText('Solution'), 'ITDR')
+    await user.type(screen.getByLabelText('Product'), 'ITDR')
     await user.type(screen.getByLabelText('Users count'), '10')
     fireEvent.change(screen.getByLabelText('Expected Close'), { target: { value: '2027-06-01' } })
     await save(user)

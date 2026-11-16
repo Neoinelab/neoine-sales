@@ -36,7 +36,7 @@ async def _names(uow: FakeUnitOfWork) -> list[str]:
 async def test_list_vendors_returns_usage_without_solutions(
     uow: FakeUnitOfWork, uow_factory: UnitOfWorkFactory
 ) -> None:
-    """Vendor 목록은 소문자 이름순이고 Deal 수를 싣되 Solution 정보는 없다.
+    """Vendor 목록은 소문자 이름순이고 Deal 수를 싣되 Product 정보는 없다.
 
     테스트 코드: CL-045
     """
@@ -46,7 +46,7 @@ async def test_list_vendors_returns_usage_without_solutions(
     zeta = make_vendor("Zeta")
     for vendor in (zeta, sap, oracle):
         await uow.vendors.add(vendor)
-    await seed_deal(uow, code="20261016-A001", vendor_id=sap.id, solution="ITDR")
+    await seed_deal(uow, code="20261016-A001", vendor_id=sap.id, product="ITDR")
     await seed_deal(uow, code="20261016-A002", vendor_id=sap.id)
 
     # when: Vendor 목록을 읽는다
@@ -58,19 +58,19 @@ async def test_list_vendors_returns_usage_without_solutions(
     assert all(not hasattr(u, "solutions") for u in result)
 
 
-async def test_list_vendors_does_not_count_deals_that_only_share_the_solution_text(
+async def test_list_vendors_does_not_count_deals_that_only_share_the_product_text(
     uow: FakeUnitOfWork, uow_factory: UnitOfWorkFactory
 ) -> None:
-    """Vendor 사용 수는 그 Vendor를 고른 Deal 수이고 Solution 텍스트만 같은 Deal은 세지 않는다.
+    """Vendor 사용 수는 그 Vendor를 고른 Deal 수이고 Product 텍스트만 같은 Deal은 세지 않는다.
 
     테스트 코드: CL-046
     """
-    # given: SAP·Oracle Vendor와 Solution 텍스트가 'SAP'인 Oracle Deal 2건
+    # given: SAP·Oracle Vendor와 Product 텍스트가 'SAP'인 Oracle Deal 2건
     sap, oracle = make_vendor("SAP"), make_vendor("Oracle")
     await uow.vendors.add(sap)
     await uow.vendors.add(oracle)
-    await seed_deal(uow, code="20261016-A001", vendor_id=oracle.id, solution="SAP")
-    await seed_deal(uow, code="20261016-A002", vendor_id=oracle.id, solution="SAP")
+    await seed_deal(uow, code="20261016-A001", vendor_id=oracle.id, product="SAP")
+    await seed_deal(uow, code="20261016-A002", vendor_id=oracle.id, product="SAP")
 
     # when: Vendor 목록을 읽는다
     result = await ListVendors(uow_factory).execute()

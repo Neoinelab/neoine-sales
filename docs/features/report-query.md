@@ -1,6 +1,8 @@
-# Reports 조회 엔진·디자이너 작성   (feature 코드: RQ, 상태: 확정(2026-11-13 사용자 확인))
+# Reports 조회 엔진·디자이너 작성   (feature 코드: RQ, 상태: 확정(2026-11-16 사용자 확인))
 
 > 이 문서는 **이미 구현된 동작**을 정본 명세로 옮긴 것입니다(2026-11-11). 근거는 작업 트리의 코드(`backend/src/app/domain/report/{vocabulary,fields,catalog,catalog_deal,catalog_action,labels,raw,parse,parse_columns,parse_conditions,condition_values,definition,errors,resolve,stored}.py`, `app/application/report/{list_fields,run_report,execution,views}.py`, `app/application/ports/report_query_runner.py`, `app/infra/db/{report_runner,report_select,report_grouped,report_parts,report_conditions,report_buckets,report_fields,report_fields_deal,report_fields_action,report_risk,report_render,read_only}.py`, `app/web/routers/reports.py`, `app/web/schemas/{report_fields,report_query}.py`, `app/web/error_handlers.py`의 Reports 처리, `frontend/src/features/reports/designer/**`(편집 화면 전용 부분 제외), `features/reports/result/{ResultPanel,TableTile}.tsx`의 표·SQL 부분, `data/reports.ts`의 카탈로그·조회 훅, `gateway/http/reports.ts`·`mappers/report.ts`의 카탈로그·조회, `test/fake/gateway/reports.ts`, `test/fake/seed/reportCatalog.ts`)이며 문구·type·상태 코드는 코드에서 그대로 옮겼습니다. 코드와 Fake·안내서가 어긋나던 점은 2026-11-11 사용자 결정으로 정리했습니다: 조회 Fake 게이트웨이는 서버 동작에 맞추되 흉내 내는 위반의 범위는 넓히지 않고(RQ-R56), 금액 건수 집계 열의 `unit` `krw`는 현행대로 두며(RQ-R36), 저장 정의 JSON의 예전 형식 읽기 변환은 이 문서가 가집니다(RQ-R57). 안내서(`docs/user-guide.html` 15.7) 문구는 코드에 맞춥니다. 결정 목록은 계획(`artifacts/10-analysis/rq-plan.md`)에 있습니다. 저장 리포트(RS)·차트(RC)·공통 입력(UI)은 규칙 번호로 가리킵니다.
+>
+> 2026-11-16 변경(초안, 사용자 확인 대기): Deal의 Solution을 Product로 이름 변경(화면 문구, API 필드·쿼리 `product`, Reports key `deal.product`, DB 컬럼 `deals.product`). 영향 규칙·케이스는 5장.
 
 ## 1. 개요
 
@@ -54,7 +56,7 @@
 | --- | --- | --- | --- | --- |
 | 1 | `deal.code` | Deal code | text | |
 | 2 | `deal.name` | Deal 이름 | text | |
-| 3 | `deal.solution` | Solution | text | |
+| 3 | `deal.product` | Product | text | |
 | 4 | `deal.procurement` | 구매절차 | text | |
 | 5 | `deal.owner` | 담당자 | user | 값 id, 출처 `users` |
 | 6 | `deal.customer_company` | 고객사 | text | 연결된 고객 연락처의 회사 |
@@ -195,9 +197,11 @@
   - ① 예전 텍스트·코드 포맷 `as_is`·`prefix`·`name`·`key`와 예전 숫자 포맷 `thousands`·`krw_thousand`·`krw_million`·`decimal1`·`percent_share`는 포맷 없음(null)으로 읽고 `prefix_length`는 그대로 둔다(예전 `prefix` 포맷의 N은 앞 N자 옵션으로 남는다). 그래서 코드·사용자 열은 이름으로, 예전 구성비 열은 원래 집계 값(금액은 원)으로 실행된다. 지금 포맷(RQ-R6)은 그대로다.
   - ② 예전 최상위 `sort` `{column, direction}`(direction 생략은 `asc`)은 그 위치 컬럼의 `sort`로 옮긴다. 그 컬럼에 자기 `sort` 값이 있으면(빈 문자열 포함) 그것이 우선한다. 최상위 `sort: null`은 정렬 없음이다.
   - ③ `combine`·`row_limit` 키가 없으면 `"and"`·1000으로 읽는다. 그 밖의 값(상대 기간 키 포함)은 바꾸지 않는다.
+  - ④ 컬럼·조건의 `field`가 예전 key `deal.solution`이면 `deal.product`로 읽는다(2026-11-16 이름 변경, RQ-R59). 컬럼 `label`은 사용자가 쓴 값이라 바꾸지 않는다.
   - 값(포맷·정렬 방향·집계·연산자·조건 값·행 수)은 읽을 때 검사하지 않고 실행·복제 때 RQ-R7~RQ-R19로 다시 검증한다(예: 예전 정렬 방향 `up`은 읽기는 되고 실행 때 `["columns", i, "sort"]` `sort-invalid`).
   - 다음 모양이면 읽을 수 없는 정의다(위반 하나 `["definition"]` `stored-invalid` "저장된 리포트 정의를 읽을 수 없습니다."): 객체가 아님, `columns`가 없거나 객체 목록이 아님, 컬럼 `field`가 문자열이 아님, 컬럼 `label`·`format`·`aggregate`·`sort`가 null도 문자열도 아님, `group`이 bool이 아님(없으면 false), `conditions`가 있는데 객체 목록이 아님, 조건 `field`·`operator`가 문자열이 아님, 최상위 `sort`가 null도 객체도 아님, 그 `column`이 컬럼 위치(0 ~ 컬럼 수 − 1) 정수가 아님(bool·문자열 제외), `direction`이 문자열이 아님. 읽을 수 없는 정의의 목록·상세·실행·복제·배치 저장 결과는 RS-R17이 정한다.
   - 읽은(변환한) 정의를 다시 쓰면 새 형식(포맷 null, 컬럼 `sort`, 최상위 `sort` 없음)으로 쓰인다. 상세 응답의 `definition`도 읽은 정의를 새 형식으로 쓴 값이다.
+- **RQ-R59** Product 필드 key(2026-11-16): Deal의 Solution 이름을 Product로 바꿔 카탈로그 3번 필드는 key `deal.product`, 이름 "Product"다(형식·연산자·집계·그룹핑·SQL 식은 그대로, 컬럼 `deals.product`). `/reports/query`·저장·수정 요청의 `deal.solution`은 변환하지 않고 RQ-R9의 `unknown-field` "허용되지 않은 필드입니다: deal.solution"이다. 저장 정의 JSON의 `deal.solution`은 읽을 때 바꾼다(RQ-R57 ④).
 
 ### 2.4 상태와 전이
 
@@ -405,6 +409,8 @@ RQ-R38~RQ-R56.
 | RQ-113 | 카탈로그에서 최종 업데이트·Status 진입일·수행일·종료일은 date 형식이고 기본 포맷 ymd이며 ymd_hm이 없다 | RQ-R58, RQ-R2 | backend | `application/test_list_report_fields.py`, `domain/test_report_catalog.py`, `domain/test_report_resolve.py`, `repositories/test_report_query_rows_contract.py`, `web/test_report_routes.py` |
 | RQ-114 | 네 날짜 필드에 ymd_hm을 요청하면 422 format-not-allowed다 | RQ-R58, RQ-R12 | backend | `domain/test_report_parse_columns.py`, `web/test_report_routes.py` |
 | RQ-115 | 저장 정의의 네 날짜 필드 ymd_hm은 읽을 때 ymd로 바뀐다 | RQ-R58, RQ-R57 | backend | `domain/test_report_stored.py` |
+| RQ-116 | 저장 정의의 예전 key deal.solution은 읽을 때 deal.product로 바뀌어 실행된다 | RQ-R57, RQ-R59, RQ-UC3 | backend | `domain/test_report_stored.py::test_the_old_solution_key_is_read_as_the_product_key_in_columns_and_conditions`, `domain/test_report_stored.py::test_the_product_key_and_other_fields_are_kept_when_read`, `application/test_report_legacy_definition.py::test_legacy_solution_key_opens_and_runs_as_the_product_field`, `repositories/test_report_legacy_definition_run_contract.py::test_legacy_solution_key_runs_as_the_product_field` |
+| RQ-117 | 조회·저장 요청의 deal.solution은 unknown-field 422다 | RQ-R59, RQ-R9, RQ-UC4 | backend | `web/test_report_routes.py::test_the_old_solution_key_is_an_unknown_field_and_nothing_is_run`, `web/test_saved_report_validation.py::test_the_old_solution_key_is_422_unknown_field_and_nothing_is_saved` |
 
 ### RQ-001 로그인한 사용자는 필드 카탈로그를 받고 미인증은 401이다
 - Given VIEWER가 로그인함
@@ -540,9 +546,9 @@ RQ-R38~RQ-R56.
 - Then 3건이 모두 Deal code 순으로 나온다
 
 ### RQ-032 텍스트·코드·숫자·날짜 연산자는 정해진 뜻으로 거른다
-- Given 이름 "Alpha Deal"·"alphabet"·"Beta", 그중 Vendor IBM이고 Solution이 빈 Deal 하나(나머지는 Vendor SAP), 금액 100·200·300, Expected Close 2026-10-01·2026-10-15·2026-10-31인 Deal들
-- When `deal.name contains "ALPHA"`, `starts_with "alpha"`, `equals "beta"`, `deal.solution is_empty`, `deal.vendor not_in [SAP]`, `deal.amount between [100, 200]`, `gt 200`, `deal.expected_close before "2026-10-15"`, `after "2026-10-15"`, `between ["2026-10-01", "2026-10-15"]`, 그리고 두 조건 AND·OR로 각각 조회한다
-- Then contains는 앞의 둘, starts_with도 앞의 둘, equals는 "Beta", is_empty와 not_in은 그 IBM·빈 Solution Deal만이고, between은 100·200, gt는 300, before는 10-01만, after는 10-31만, 날짜 between은 10-01·10-15이며, OR은 어느 하나, AND는 모두 맞는 Deal이다
+- Given 이름 "Alpha Deal"·"alphabet"·"Beta", 그중 Vendor IBM이고 Product가 빈 Deal 하나(나머지는 Vendor SAP), 금액 100·200·300, Expected Close 2026-10-01·2026-10-15·2026-10-31인 Deal들
+- When `deal.name contains "ALPHA"`, `starts_with "alpha"`, `equals "beta"`, `deal.product is_empty`, `deal.vendor not_in [SAP]`, `deal.amount between [100, 200]`, `gt 200`, `deal.expected_close before "2026-10-15"`, `after "2026-10-15"`, `between ["2026-10-01", "2026-10-15"]`, 그리고 두 조건 AND·OR로 각각 조회한다
+- Then contains는 앞의 둘, starts_with도 앞의 둘, equals는 "Beta", is_empty와 not_in은 그 IBM·빈 Product Deal만이고, between은 100·200, gt는 300, before는 10-01만, after는 10-31만, 날짜 between은 10-01·10-15이며, OR은 어느 하나, AND는 모두 맞는 Deal이다
 
 ### RQ-033 SQL처럼 보이는 값과 %·_·\는 글자 그대로 찾고 데이터는 그대로다
 - Given Deal "Safe", "50%_off\x"
@@ -922,6 +928,15 @@ RQ-R38~RQ-R56.
 - When 그 리포트를 열고 실행한다
 - Then 정의의 네 포맷은 ymd이고, 결과 칸은 `YYYY-MM-DD`이며, 오류가 없다
 
+### RQ-116 저장 정의의 예전 key deal.solution은 읽을 때 deal.product로 바뀌어 실행된다
+- Given Product "ITDR"·"MFA"인 Deal 2건, ALICE의 저장 리포트 정의 JSON이 컬럼 `{field: "deal.solution", label: "솔루션"}`·`{field: "deal.name"}`과 조건 `deal.solution contains "itd"`인 예전 형식
+- When 상세를 열고 실행하고, 읽은 정의를 다시 쓴다
+- Then 상세 `definition`의 컬럼·조건 field는 `deal.product`이고 컬럼 label "솔루션"은 그대로이며, 실행 결과는 "ITDR" Deal 1행이고 첫 결과 열 이름은 "솔루션"이다. 다시 쓴 JSON에는 `deal.solution`이 없다
+
+### RQ-117 조회·저장 요청의 deal.solution은 unknown-field 422다
+- When `/reports/query`에 컬럼 `deal.solution`으로, 또 컬럼 `deal.name`·조건 `deal.solution contains "a"`로 조회하고, `POST /reports`에 컬럼 `deal.solution`인 정의로 저장한다
+- Then 각각 422 `invalid-report`이고 위치는 `["columns", 0, "field"]`·`["conditions", 0, "field"]`·`["columns", 0, "field"]`, code `unknown-field` "허용되지 않은 필드입니다: deal.solution"이며 조회 Port는 불리지 않고 리포트는 저장되지 않는다
+
 ## 5. 변경 이력
 
 | 날짜 | 변경 | 영향 테스트 코드 |
@@ -932,3 +947,4 @@ RQ-R38~RQ-R56.
 | 2026-11-13 | AC 수행일 지정(확정)에 맞춰 카탈로그 35·36·38 비고 보강. SQL·동작·케이스 변경 없음, 상태 줄 그대로 | 없음 |
 | 2026-11-13 | 확정(2026-11-13 사용자 확인): 최종 업데이트·Status 진입일·수행일·종료일을 date 형식으로 변경(카탈로그 27·28·38·39, RQ-R30, RQ-R58 신설). field key는 유지하고, 저장 리포트의 ymd_hm은 ymd로 자동 변환. 카탈로그·결과 열 형식 변경(호환 깨짐, 사용자 승인) | 신규 RQ-113~RQ-115. 변경 RQ-040, RQ-053 |
 | 2026-11-13 | 확정(2026-11-13 사용자 확인): Deal Vendor 필수(DE-R7, SC-R22)로 Vendor 없는 Deal 예시를 바꿈(RQ-R33 문장 삭제, is_empty는 빈 Solution, NULL 정렬은 파트너사). `deal.vendor` 필드·연산자·SQL은 그대로 | 변경 RQ-032, RQ-046, RQ-051 |
+| 2026-11-16 | 초안(사용자 확인 대기): Deal Solution → Product 이름 변경. 카탈로그 3번 key `deal.product`·이름 "Product"(RQ-R59 신설), 요청의 예전 key는 unknown-field, 저장 정의의 예전 key는 읽을 때 변환(RQ-R57 ④). **API 응답(카탈로그) 호환 깨짐**(사용자 승인) | 신규 RQ-116, RQ-117. 변경(표기·키): RQ-002, RQ-032 |

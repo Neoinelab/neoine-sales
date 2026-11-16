@@ -64,7 +64,7 @@ def test_the_web_port_exposes_the_vendor_use_cases() -> None:
 
 
 def test_the_solution_use_cases_are_retired_everywhere() -> None:
-    """Solution 유스케이스는 어디에도 남아 있지 않다."""
+    """Product 유스케이스는 어디에도 남아 있지 않다."""
     # when·then: 폐지된 유스케이스를 세 곳 어디도 가지지 않는다
     for name in RETIRED_VENDOR_USE_CASES:
         assert not hasattr(UseCaseProvider, name), name

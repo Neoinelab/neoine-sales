@@ -1,6 +1,8 @@
-# 공통 입력·표시 컴포넌트   (feature 코드: UI, 상태: 확정(2026-11-11 사용자 확인))
+# 공통 입력·표시 컴포넌트   (feature 코드: UI, 상태: 확정(2026-11-16 사용자 확인))
 
 > 이 문서는 **이미 구현된 동작**을 정본 명세로 옮긴 것입니다(2026-11-11). 근거는 작업 트리의 코드(`shared/ui/{DateInput,AmountInput,AmountText,ComboBox,MultiCheckSelect,Modal,ConfirmDialog,Pager,useInfiniteScroll,SortableHeader,Tabs,Notice,useLocationNotice,fields}.tsx|.ts`, `shared/ui/kvGrid.css`, `index.css`의 `.content`, `shared/model/{dateText,money}.ts`)와 가드 테스트(`test/dateInputGuard.test.ts`·`moneyUnitGuard.test.ts`), 빈 첫 실행 교차 화면 테스트(`test/emptyState.test.tsx`), 안내서(`docs/user-guide.html` 5.1 "날짜 입력" 상자, 금액 입력 설명)이며 문구·속성은 코드에서 그대로 옮겼습니다. 배경은 하네스 이력 2026-10-28 "공통 날짜 입력" 행과 2026-11-03 "금액 원 단위 통일" 행입니다. 범위 경계·소유는 2026-11-11 사용자 결정으로 정했습니다: 주인 없는 shared 부품(확인 대화상자·탭·알림·화면 이동 알림·금액 표시·기본 필드·CSS·빈 첫 실행)은 UI가 가지고 `UserSelect`·`PeriodField` 등은 원래 feature가 가지며, 금액 판정·문구 정본은 UI-R13·R14, 차트 축 금액은 UI-R16, 빈 첫 실행은 UI-R36, CSS 정적 점검은 UI-059·060, 확인 대화상자의 진행 중 취소·Esc 허용은 현행대로(UI-R29)입니다. 결정 목록은 계획(`artifacts/10-analysis/ui-plan.md`)에 있습니다.
+>
+> 2026-11-16 변경(초안, 사용자 확인 대기): Deal의 Solution을 Product로 이름 변경(화면 문구, API 필드·쿼리 `product`, Reports key `deal.product`, DB 컬럼 `deals.product`). 영향 규칙·케이스는 5장.
 
 ## 1. 개요
 
@@ -535,7 +537,7 @@ UI-R1~UI-R39.
 
 ### UI-058 빈 상태에서 첫 Deal 등록 → Action 추가 → 첨부 → History가 이어진다
 - Given 업무 데이터가 없는 Fake, `/deals/new`
-- When 고객·파트너를 직접 입력하고 금액 `100000000`·Solution·Users count·Expected Close를 넣어 저장 → Actions 탭에서 Action(유형 "미팅", 진행사항, Next Action, Due Date)을 등록 → Deal 상세 탭에서 `제안서.pdf`를 올린다 → Deal History 탭을 연다
+- When 고객·파트너를 직접 입력하고 금액 `100000000`·Product·Users count·Expected Close를 넣어 저장 → Actions 탭에서 Action(유형 "미팅", 진행사항, Next Action, Due Date)을 등록 → Deal 상세 탭에서 `제안서.pdf`를 올린다 → Deal History 탭을 연다
 - Then 상세 주소(`/deals/<YYYYMMDD>-<4자>`)와 제목 "첫 Deal", Action 목록의 "킥오프 미팅", 첨부 전 "첨부된 파일이 없습니다."와 올린 뒤 `제안서.pdf` 버튼, History에 `제안서.pdf` 행이 보인다
 
 ### UI-059 키·값 격자 CSS는 글자 크기 없이 최대 3열·라벨 고정 열·긴 값 줄바꿈을 선언한다
@@ -564,3 +566,4 @@ UI-R1~UI-R39.
 | 2026-11-11 | 사용자 결정 반영(추천대로): 범위에 주인 없는 shared 부품 포함·`UserSelect`·`PeriodField` 등은 원래 feature, 금액 판정·문구 정본 UI-R13·R14(DE-R26이 번호로 가리킴), `formatWonAxis` UI-R16, 빈 첫 실행 UI-R36(UI-056~058), CSS 정적 점검 UI-059·060, 확인 대화상자 진행 중 취소·Esc 허용 현행 문서화(UI-R29). 다른 문서의 UI 이름 참조를 규칙 번호로 교체. 동작·케이스 변경 없음 | 없음 |
 | 2026-11-12 | DE 고객 필수 표시 요청에 따라 UI-R18에 `required`의 루트 클래스 규칙 추가(운영 코드 변경 필요) | 신규: UI-062 |
 | 2026-11-13 | DL 기본 조건이 연도 전체로 바뀜(DL 2026-11-13)에 따라 UI-056의 기본 주소를 `/deals?year=all&mine=1`(sales)로 갱신. 문구 동작 변경 없음 | 변경: UI-056 |
+| 2026-11-16 | 초안(사용자 확인 대기): Deal Solution → Product 이름 변경(DE)에 따라 UI-058 칸 이름 표기 | 변경(표기): UI-058 |

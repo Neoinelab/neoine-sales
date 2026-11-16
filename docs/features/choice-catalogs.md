@@ -1,6 +1,8 @@
-# 선택 목록: BANT Label·Action 유형·Vendor   (feature 코드: CL, 상태: 확정(2026-11-13 사용자 확인))
+# 선택 목록: BANT Label·Action 유형·Vendor   (feature 코드: CL, 상태: 확정(2026-11-16 사용자 확인))
 
 > 이 문서는 **이미 구현된 동작**을 정본 명세로 옮긴 것입니다(2026-11-10). 근거는 작업 트리의 코드(`backend/src/app/domain/{bant,action_type,vendor}/*.py`, `app/application/choice.py`, `app/application/{bant,action_type,vendor}/*.py`, `app/application/deal/bant_choice.py`, `app/application/deal_action/type_choice.py`, `app/web/routers/{bant_labels,action_types,vendors}.py`, `app/web/schemas/{bant_label,action_type,vendor,choice}.py`, `app/infra/db/{bant_label_repository,action_type_repository,vendor_repository,models_catalog,deal_aggregates}.py`, `frontend/src/features/admin/deal-management/{LabelManager,LabelCategoryCard,ActionTypeManager,VendorManager,InlineNameEdit}.tsx`, `data/{labels,actionTypes,vendors}.ts`, `gateway/http/{labels,actionTypes,vendors}.ts`, `gateway/http/mappers/{label,actionType,vendor}.ts`, `shared/model/catalogChoice.ts`)이며 문구·type·상태 코드는 코드에서 그대로 옮겼습니다. 코드와 Fake·테스트가 어긋나는 점은 계획(`artifacts/10-analysis/cl-plan.md`)의 확인 필요 질문으로 분리했습니다.
+>
+> 2026-11-16 변경(초안, 사용자 확인 대기): Deal의 Solution을 Product로 이름 변경(화면 문구, API 필드·쿼리 `product`, Reports key `deal.product`, DB 컬럼 `deals.product`). 영향 규칙·케이스는 5장.
 
 ## 1. 개요
 
@@ -31,7 +33,7 @@
 | BANT 구분 | `budget`·`authority`·`need`·`timeline`(화면 이름 Budget·Authority·Need·Timeline). 이 선언 순서가 표시 순서다 |
 | BANT Label | 구분 하나에 속한 선택지. 점수가 없고 구분과 이름만 가진다 |
 | Action 유형 | Action의 분류 선택지(예: 통화, 미팅) |
-| Vendor | Deal이 고르는 제조사. Solution은 Vendor와 무관한 Deal의 자유 텍스트다(DE) |
+| Vendor | Deal이 고르는 제조사. Product(2026-11-16 전 이름 Solution)는 Vendor와 무관한 Deal의 자유 텍스트다(DE) |
 | 기본 항목 | 기준선 마이그레이션이 넣은 Label·유형(`is_default` true, `default_order` 있음, 만든 사람 없음). Vendor에는 기본 항목이 없다 |
 | 직접 만든 항목 | 사용자가 만든 Label·유형(`is_default` false, 만든 사람 = 만든 사용자) |
 | 사용 수(`usage_count`) | Label: 그 Label을 선택한 Deal 수, 유형: 그 유형을 쓰는 Action 수, Vendor: 그 Vendor를 고른 Deal 수 |
@@ -88,7 +90,7 @@
 
 조회
 - **CL-R3** 목록(`GET /bant-labels`, `GET /action-types`, `GET /vendors`)은 로그인한 모든 역할이 부르고(업무 조회, PL-R2) 페이지·필터 없이 전부를 배열로 돌려준다. 정렬: Label = 구분 선언 순(Budget→Authority→Need→Timeline) → 구분 안 기본 Label(`default_order` 순) → 직접 만든 Label(소문자 이름의 코드 포인트 순, 같으면 id 순). 유형 = 기본 유형(`default_order` 순) → 직접 만든 유형(소문자 이름 코드 포인트 순·id 순). Vendor = 소문자 이름 코드 포인트 순·id 순(예: "Oracle", "Sap Korea", "zeta"). 새 시스템의 목록은 기본 Label 23개(구분별 7·6·5·5)·기본 유형 8개(SC-R3 값)이고 Vendor는 빈 배열이다.
-- **CL-R4** 사용 수: Label = `deal_bant_labels`에서 그 Label을 가리키는 Deal 수, 유형 = 그 유형을 쓰는 Action 수, Vendor = `vendor_id`가 그 Vendor인 Deal 수(Solution 텍스트만 같은 Deal은 세지 않음). 쓰는 것이 없으면 0이다. 목록·이름 변경 응답에 실린다(등록 응답은 항상 0).
+- **CL-R4** 사용 수: Label = `deal_bant_labels`에서 그 Label을 가리키는 Deal 수, 유형 = 그 유형을 쓰는 Action 수, Vendor = `vendor_id`가 그 Vendor인 Deal 수(Product 텍스트만 같은 Deal은 세지 않음). 쓰는 것이 없으면 0이다. 목록·이름 변경 응답에 실린다(등록 응답은 항상 0).
 - **CL-R5** 응답 필드(정확히 이 키들): `BantLabelResponse` = `id`, `category`, `name`, `is_default`, `created_by`(UserRef 또는 null — 기본 Label은 null, 퇴사자도 가리킴, US-R12), `created_at`, `updated_at`, `usage_count`. `ActionTypeResponse` = `id`, `name`, `is_default`, `created_by`, `created_at`, `updated_at`, `usage_count`. `VendorResponse` = `id`, `name`, `usage_count`, `created_at`, `updated_at`(`solutions`·`is_default`·`created_by` 없음). id는 JSON 정수이고 나중에 만든 항목의 id가 더 크다. 시각 표기는 TM.
 
 등록
@@ -111,7 +113,7 @@
 - **CL-R16** 화면의 입력 → 선택 변환(`toChoice(text, options)`): 앞뒤 공백을 지운 입력이 비면 null(선택 안 함), 선택지 중 이름이 대소문자 무시로 같은 것이 있으면 `{id}`(JSON 숫자), 없으면(부분 일치 포함) 지운 이름으로 `{name}`이다. 선택지가 비어 있으면 항상 `{name}`.
 
 Vendor
-- **CL-R17** Vendor에는 Solution 관리가 없다: 예전 Solution 관리 경로(`POST /vendors/{vendor_id}/solutions`, `PATCH`·`DELETE /vendors/{vendor_id}/solutions/{id}`)는 없는 경로라 404(PL-R13)이고, OpenAPI에 Solution 경로·스키마가 없으며 Vendor 응답에 `solutions`가 없다. Deal은 Vendor를 목록 id(`vendor_id`)로만 고른다(`CatalogChoice`가 아님, 이름으로 새 Vendor를 만들 수 없음 — DE).
+- **CL-R17** Vendor에는 Solution 관리가 없다(여기의 Solution은 2026-10-22에 폐지된 Vendor 소속 관리 목록이고, Deal의 자유 텍스트는 2026-11-16부터 Product — DE): 예전 Solution 관리 경로(`POST /vendors/{vendor_id}/solutions`, `PATCH`·`DELETE /vendors/{vendor_id}/solutions/{id}`)는 없는 경로라 404(PL-R13)이고, OpenAPI에 Solution 경로·스키마가 없으며 Vendor 응답에 `solutions`가 없다. Deal은 Vendor를 목록 id(`vendor_id`)로만 고른다(`CatalogChoice`가 아님, 이름으로 새 Vendor를 만들 수 없음 — DE).
 
 화면(frontend, `/admin/deal`, 가드 PL-R31)
 - **CL-R18** 탭: Deal 관리 화면의 탭 "BANT Label"·"Action 유형"·"Vendor"는 각각 `?tab=label`·`?tab=action-type`·`?tab=vendor`로 열리고 선택된 탭으로 표시된다. 탭을 누르면 그 탭이 열리고 주소가 이 값으로 바뀐다(이력 교체). 탭 순서는 Status 코드, Forecast 코드, BANT Label, Action 유형, Vendor, 경고 기준이다(탭 틀·기본 탭은 CD).
@@ -276,7 +278,7 @@ CL-R16, CL-R18~CL-R24.
 | CL-043 | 지운 유형의 이름은 다시 만들 수 있다 | CL-R10, CL-R2, CL-UC2 | backend | `application/test_delete_action_type.py::test_the_name_of_a_deleted_type_can_be_registered_again` |
 | CL-044 | sales·user는 유형 이름 변경·삭제가 관리자 403이고 권한 판정이 id 조회보다 먼저다 | CL-R8, CL-R10, CL-UC4, CL-UC5 | backend | `web/test_action_type_route_permissions.py::test_sales_cannot_rename_or_delete_and_gets_the_admin_required_message`<br>`web/test_action_type_route_permissions.py::test_user_cannot_rename_or_delete`<br>`web/test_action_type_route_permissions.py::test_the_permission_is_checked_before_the_id_is_looked_up` |
 | CL-045 | 모든 역할이 Vendor 목록을 보면 소문자 이름순으로 문서의 필드만 나오고 빈 시스템은 빈 배열이다 | CL-R3, CL-R5, CL-UC1 | backend | `application/test_vendor_use_cases.py::test_list_vendors_returns_usage_without_solutions`<br>`application/test_vendor_use_cases.py::test_list_vendors_of_an_empty_system_is_empty`<br>`web/test_vendor_routes.py::test_list_vendors_response_has_no_solutions_field`<br>`web/test_vendor_routes.py::test_list_orders_vendors_by_lower_name`<br>`web/test_vendor_routes.py::test_every_role_may_list_vendors` |
-| CL-046 | Vendor 사용 수는 그 Vendor를 고른 Deal 수이고 Solution 텍스트만 같은 Deal은 세지 않는다 | CL-R4, CL-UC1 | backend | `application/test_vendor_use_cases.py::test_list_vendors_does_not_count_deals_that_only_share_the_solution_text` |
+| CL-046 | Vendor 사용 수는 그 Vendor를 고른 Deal 수이고 Product 텍스트만 같은 Deal은 세지 않는다 | CL-R4, CL-UC1 | backend | `application/test_vendor_use_cases.py::test_list_vendors_does_not_count_deals_that_only_share_the_product_text` |
 | CL-047 | admin이 Vendor를 만들면 201·Location·사용 0이고 나중 Vendor의 id가 더 크다 | CL-R7, CL-R1, CL-R5, CL-UC3 | backend | `application/test_vendor_use_cases.py::test_register_vendor_returns_it_with_zero_usage`<br>`application/test_vendor_use_cases.py::test_register_vendor_gives_a_later_vendor_a_larger_id`<br>`web/test_vendor_routes.py::test_create_vendor_returns_201_with_location_and_the_documented_body`<br>`web/test_vendor_routes.py::test_vendor_ids_are_json_integers` |
 | CL-048 | sales·user는 Vendor 등록·이름 변경·삭제가 관리자 403이고 그대로다 | CL-R7, CL-R8, CL-R10, CL-UC3 | backend | `web/test_vendor_route_permissions.py::test_sales_and_user_cannot_change_vendors_and_nothing_is_saved`<br>`web/test_vendor_route_permissions.py::test_sales_gets_the_admin_required_message` |
 | CL-049 | 대소문자만 다른 Vendor 이름은 409다 | CL-R2, CL-UC3 | backend | `application/test_vendor_use_cases.py::test_register_vendor_with_existing_name_ignoring_case_is_rejected`<br>`web/test_vendor_routes.py::test_duplicate_vendor_name_ignoring_case_is_409` |
@@ -532,8 +534,8 @@ CL-R16, CL-R18~CL-R24.
 - When admin·sales·user가 각각 `GET /vendors`
 - Then 처음은 `[]`이고, 뒤에는 200 "Oracle", "Sap Korea", "zeta" 순이며 각 항목 키는 정확히 `id`·`name`·`usage_count`·`created_at`·`updated_at`(`solutions` 없음), id는 JSON 정수다
 
-### CL-046 Vendor 사용 수는 그 Vendor를 고른 Deal 수이고 Solution 텍스트만 같은 Deal은 세지 않는다
-- Given Vendor "SAP"를 고른 Deal 2건, Vendor "Oracle"을 고르고 Solution "SAP"을 쓴 Deal 1건, "Oracle"을 고른 다른 Deal 1건
+### CL-046 Vendor 사용 수는 그 Vendor를 고른 Deal 수이고 Product 텍스트만 같은 Deal은 세지 않는다
+- Given Vendor "SAP"를 고른 Deal 2건, Vendor "Oracle"을 고르고 Product "SAP"을 쓴 Deal 1건, "Oracle"을 고른 다른 Deal 1건
 - When 목록을 읽는다
 - Then "SAP" 2, "Oracle" 2다
 
@@ -758,3 +760,4 @@ CL-R16, CL-R18~CL-R24.
 | --- | --- | --- |
 | 2026-11-10 | 초안: 구현된 동작을 문서화(CL-R1~R24, CL-UC1~UC6, CL-001~CL-093) | CL-001~CL-093 |
 | 2026-11-13 | 확정(2026-11-13 사용자 확인): Deal Vendor 필수(DE-R7)로 CL-046 Given을 바꿈. 사용 수 규칙·Vendor 삭제 거부(사용 중 409)는 그대로 | 변경 CL-046 |
+| 2026-11-16 | 초안(사용자 확인 대기): Deal Solution → Product 이름 변경(DE)에 따라 용어·CL-R4 표기, CL-R17에 폐지된 "Solution 관리"와 Deal Product 구분 문장. 동작 그대로 | 변경(표기): CL-046 |

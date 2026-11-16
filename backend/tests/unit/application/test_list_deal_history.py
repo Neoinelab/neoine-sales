@@ -132,3 +132,41 @@ async def test_an_unknown_deal_is_not_found(env: DealEnv, code: str) -> None:
     # when·then: 없는 code, 형식이 틀린 code로 이력을 읽는다 → Deal을 찾을 수 없음 오류다
     with raises_with(DealNotFoundError, "Deal을 찾을 수 없습니다."):
         await env.history.execute(code, None)
+
+
+async def test_old_solution_history_rows_stay_and_new_changes_are_recorded_as_product(
+    env: DealEnv,
+) -> None:
+    """이름 변경 전 이력의 대상 "Solution"은 그대로이고 새 변경은 대상 "Product"로 남는다.
+
+    테스트 코드: DD-132
+    """
+    # given: 대상 "Solution"("ITDR" -> "MFA")인 옛 이력 1건이 있고 Product가 "MFA"인 Deal
+    from app.domain.deal.code import DealCode  # noqa: PLC0415
+    from app.domain.deal.history import DealHistoryEntry, HistoryDraft  # noqa: PLC0415
+
+    view = await env.new_deal(product="MFA")
+    code = view.item.deal.id.value
+    env.clock.advance(60)
+    old_at = env.clock.now()
+    old = DealHistoryEntry(
+        None,
+        DealCode(code),
+        old_at,
+        SALES.user_id,
+        HistoryDraft(HistoryCategory("other"), "Solution", "ITDR", "MFA"),
+    )
+    await env.uow.deal_history.add_many([old])
+
+    # when: Product를 "EDR"로 고친 뒤 이력을 조회한다
+    env.clock.advance(60)
+    await env.update.execute(code, make_patch(product="EDR"), SALES)
+    entries = await env.history.execute(code, HistoryCategory("other"))
+
+    # then: 최신순으로 대상 "Product"(MFA -> EDR)와 대상 "Solution"(ITDR -> MFA) 2건이다
+    assert [(e.entry.draft.target, e.entry.draft.before, e.entry.draft.after) for e in entries] == [
+        ("Product", "MFA", "EDR"),
+        ("Solution", "ITDR", "MFA"),
+    ]
+    # then: 옛 행의 대상·값·시각은 바뀌지 않았다
+    assert entries[1].entry.changed_at == old_at

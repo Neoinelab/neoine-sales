@@ -71,7 +71,7 @@ export function dealInput(ownerId: number, over: Partial<DealInput> = {}): DealI
     name: '테스트 Deal',
     ownerId,
     vendorId: seedVendorId('Silverfort'),
-    solution: 'ITDR',
+    product: 'ITDR',
     users: 100,
     statusKey: 'prospecting',
     forecastKey: 'pipeline',

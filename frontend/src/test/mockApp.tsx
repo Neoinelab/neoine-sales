@@ -8,7 +8,7 @@ import { gateway } from '../gateway'
 import { mockControl } from './fake/default'
 import { defaultMock } from './fake/default'
 import { emptyBusinessSeed } from './fake/seed'
-import { buildLegacySolutionSeed } from './fixtures/legacySolution'
+import { buildLegacyProductSeed } from './fixtures/legacyProduct'
 import { buildSampleSeed } from './fixtures/sampleSeed'
 import { USER_ID } from './fake/seed/ids'
 import type { SavedReport } from '../shared/model/reportTypes'
@@ -30,7 +30,7 @@ const SEEDS = {
   sample: buildSampleSeed,
   empty: emptyBusinessSeed,
   'empty-with-vendor': emptyWithVendorSeed,
-  'legacy-solution': buildLegacySolutionSeed,
+  'legacy-product': buildLegacyProductSeed,
 }
 
 export interface RenderAtOptions {
@@ -38,8 +38,8 @@ export interface RenderAtOptions {
   role?: TestRole
   /** role 대신 시드 사용자 id를 직접 지정한다(예: USER_ID.park). */
   userId?: number
-  /** 'sample'(기본)은 테스트 픽스처 시드, 'empty'는 앱 기본(업무 데이터 없음) 시드, 'empty-with-vendor'는 거기에 Vendor 한 개만 더한 시드, 'legacy-solution'은 모든 Deal의 Solution이 빈 시드. */
-  seed?: 'sample' | 'empty' | 'empty-with-vendor' | 'legacy-solution'
+  /** 'sample'(기본)은 테스트 픽스처 시드, 'empty'는 앱 기본(업무 데이터 없음) 시드, 'empty-with-vendor'는 거기에 Vendor 한 개만 더한 시드, 'legacy-product'은 모든 Deal의 Product가 빈 시드. */
+  seed?: 'sample' | 'empty' | 'empty-with-vendor' | 'legacy-product'
   /** 저장 리포트를 이 목록으로 채우고 시작한다. 기본은 비어 있다. */
   savedReports?: SavedReport[]
 }

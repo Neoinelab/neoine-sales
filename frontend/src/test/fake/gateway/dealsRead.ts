@@ -27,8 +27,8 @@ function matches(
   }
   if (query.ownerId && row.ownerId !== query.ownerId) return false
   if (query.vendorId && row.vendor?.id !== query.vendorId) return false
-  const solution = query.solution?.trim().toLowerCase()
-  if (solution && !row.solution.toLowerCase().includes(solution)) return false
+  const product = query.product?.trim().toLowerCase()
+  if (product && !row.product.toLowerCase().includes(product)) return false
   if (query.statusKey && row.statusKey !== query.statusKey) return false
   if (query.forecastKeys?.length && !query.forecastKeys.includes(row.forecastKey)) return false
   // Forecast 코드의 outcome 기준(not_lost = open + won). 코드를 모르는 key는 open으로 본다.
@@ -81,13 +81,15 @@ const DATE_MAX = '2999-12-31'
 
 /** 서버 `GET /deals`의 형식·범위 검증(422 request-validation / invalid-value)을 따른다. */
 function validateQuery(query: DealListQuery): void {
+  // 예전 solution 쿼리는 폐지된 파라미터라 422다(2026-11-16 product로 이름 변경, DL-R3).
+  if ('solution' in query) throw validation(REQUEST_FORMAT)
   if (query.keyword !== undefined) {
     if (Array.from(query.keyword).length > 100) throw validation(REQUEST_FORMAT)
     if (query.keyword.includes('\u0000')) throw validation('검색어에는 NUL 문자를 쓸 수 없습니다')
   }
-  if (query.solution !== undefined) {
-    if (Array.from(query.solution.trim()).length > 200) throw validation(REQUEST_FORMAT)
-    if (query.solution.includes('\u0000')) throw validation('Solution에는 NUL 문자를 쓸 수 없습니다')
+  if (query.product !== undefined) {
+    if (Array.from(query.product.trim()).length > 200) throw validation(REQUEST_FORMAT)
+    if (query.product.includes('\u0000')) throw validation('Product에는 NUL 문자를 쓸 수 없습니다')
   }
   if ((query.statusKey?.length ?? 0) > 50) throw validation(REQUEST_FORMAT)
   const forecastKeys = query.forecastKeys ?? []

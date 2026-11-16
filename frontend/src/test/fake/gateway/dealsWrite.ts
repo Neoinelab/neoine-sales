@@ -39,9 +39,11 @@ export function newDealCode(ctx: MockContext): string {
 
 function createDeal(ctx: MockContext, raw: DealInput) {
   const user = requireWrite(ctx)
-  // 서버 요청 모델: Vendor 누락·null은 요청 형식 오류(422)이고, Solution은 생략·null이면 빈 문자열이다.
+  // 서버 요청 모델: 예전 solution 키는 모르는 필드라 422(2026-11-16 Product로 이름 변경, 별칭 없음)
+  if ('solution' in raw) throw requestValidation()
+  // 서버 요청 모델: Vendor 누락·null은 요청 형식 오류(422)이고, Product는 생략·null이면 빈 문자열이다.
   if ((raw.vendorId as number | null | undefined) == null) throw requestValidation()
-  const input: DealInput = { ...raw, solution: raw.solution ?? '' }
+  const input: DealInput = { ...raw, product: raw.product ?? '' }
   const bantDraft = validateDealFields(ctx, input, () => true, input.bant)
   validateCustomerDraft(input.customer)
   if (input.partner) validatePartnerDraft(input.partner)
@@ -58,7 +60,7 @@ function createDeal(ctx: MockContext, raw: DealInput) {
     name: input.name.trim(),
     ownerId: input.ownerId,
     vendorId: input.vendorId,
-    solution: input.solution.trim(),
+    product: input.product.trim(),
     users: input.users,
     statusKey: input.statusKey,
     forecastKey: input.forecastKey,
@@ -81,12 +83,13 @@ function createDeal(ctx: MockContext, raw: DealInput) {
 }
 
 const SCALAR_KEYS = [
-  'name', 'ownerId', 'vendorId', 'solution', 'users', 'statusKey', 'forecastKey',
+  'name', 'ownerId', 'vendorId', 'product', 'users', 'statusKey', 'forecastKey',
   'revenueAmount', 'revenueDate', 'quote', 'poc', 'procurement',
 ] as const satisfies readonly (keyof DealPatch)[]
 
 function updateDeal(ctx: MockContext, code: string, patch: DealPatch) {
   const user = requireWrite(ctx)
+  if ('solution' in patch) throw requestValidation()
   const deal = findDeal(ctx.store.data, code)
   const provided = providedKeys(patch)
   const after: Deal = { ...clone(deal) }
@@ -95,7 +98,7 @@ function updateDeal(ctx: MockContext, code: string, patch: DealPatch) {
   }
   if (typeof patch.name === 'string') after.name = patch.name.trim()
   if (typeof patch.procurement === 'string') after.procurement = patch.procurement.trim()
-  if (typeof patch.solution === 'string') after.solution = patch.solution.trim()
+  if (typeof patch.product === 'string') after.product = patch.product.trim()
   const bantDraft = validateDealFields(ctx, after, provided, patch.bant)
 
   let customerPlan: ContactPlan | null = null

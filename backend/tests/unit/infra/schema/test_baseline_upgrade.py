@@ -1,4 +1,4 @@
-"""빈 임시 DB에 head(Deal Vendor 필수 리비전 e6b1d4f8a302)까지 적용하는 운영자 명령 검증.
+"""빈 임시 DB에 head(Deal Product 이름 변경 리비전 a9d3f5c7e214)까지 적용하는 운영자 명령 검증.
 
 과거 리비전 체인은 2026-11-05에 최초 리비전(00c3126aa926) 하나로 통합되었고 최초 리비전은 되돌릴 수
 없다. 그 위에 날짜 전환 리비전과 사용자 컬럼 정리 리비전이 있다(변환 검증은
@@ -28,7 +28,7 @@ if TYPE_CHECKING:
 
 pytestmark = pytest.mark.integration
 
-HEAD = "e6b1d4f8a302"
+HEAD = "a9d3f5c7e214"
 SEEDED = {"codes": 13, "bant_labels": 23, "action_types": 8}
 APP_TABLES = {
     "users",
@@ -76,7 +76,7 @@ async def test_upgrade_head_on_a_blank_database_creates_the_26_tables(
     # when: upgrade head를 실행한다
     #   (전제: 마이그레이션이 하나도 적용되지 않은 빈 임시 DB(blank_database))
     await when_operator_upgrades(blank_database)
-    # then: 앱 테이블 26개와 alembic_version뿐이고 버전은 head(Deal Vendor 필수 리비전)다
+    # then: 앱 테이블 26개와 alembic_version뿐이고 버전은 head(Deal Product 이름 변경 리비전)다
     assert len(APP_TABLES) == 26
     assert await table_names(blank_database) == {*APP_TABLES, "alembic_version"}
     await then_schema_is_at(blank_database, HEAD)

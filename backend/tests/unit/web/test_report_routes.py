@@ -796,3 +796,35 @@ async def test_admin_and_sales_also_receive_the_field_catalog(role: Role) -> Non
     # then: 200이고 필드 key 순서가 카탈로그와 같다
     assert response.status_code == 200, response.text
     assert [f["key"] for f in response.json()["fields"]] == [f.key for f in FIELD_CATALOG]
+
+
+async def test_the_old_solution_key_is_an_unknown_field_and_nothing_is_run() -> None:
+    """조회 요청의 예전 key deal.solution은 컬럼·조건 모두 unknown-field 422이고 조회하지 않는다.
+
+    테스트 코드: RQ-117
+    """
+    # given: 로그인한 user와 예전 key를 쓰는 컬럼 정의, 컬럼은 정상이고 조건만 예전 key인 정의
+    use_cases = FakeUseCases()
+    in_column = {"columns": [{"field": "deal.solution"}]}
+    in_condition = {
+        "columns": [{"field": "deal.name"}],
+        "conditions": [{"field": "deal.solution", "operator": "contains", "value": "a"}],
+    }
+    async with _client(use_cases, role=Role.USER) as http:
+        # when: 두 정의로 각각 조회한다
+        column_response = await http.post(QUERY, json=in_column)
+        condition_response = await http.post(QUERY, json=in_condition)
+
+    # then: 둘 다 422 invalid-report이고 위치·code·문구가 문서대로다
+    for response, location in (
+        (column_response, ["columns", 0, "field"]),
+        (condition_response, ["conditions", 0, "field"]),
+    ):
+        assert response.status_code == 422
+        body = response.json()
+        assert str(body["type"]).endswith("invalid-report")
+        assert [(e["location"], e["code"], e["message"]) for e in body["errors"]] == [
+            (location, "unknown-field", "허용되지 않은 필드입니다: deal.solution")
+        ]
+    # then: 조회 Port는 불리지 않았다
+    assert use_cases.uow.reports.calls == []

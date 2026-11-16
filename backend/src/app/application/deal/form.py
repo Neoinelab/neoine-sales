@@ -23,7 +23,7 @@ ALL_FIELDS = frozenset(
         "name",
         "owner_user_id",
         "vendor_id",
-        "solution",
+        "product",
         "users",
         "status_key",
         "forecast_key",
@@ -47,7 +47,7 @@ class FormValues:
     name: str
     owner_user_id: int | None
     vendor_id: int | None
-    solution: str
+    product: str
     users: int | None
     status_key: str
     forecast_key: str
@@ -68,7 +68,7 @@ class FormValues:
             name=data.name,
             owner_user_id=data.owner_user_id,
             vendor_id=data.vendor_id,
-            solution=data.solution,
+            product=data.product,
             users=data.users,
             status_key=data.status_key,
             forecast_key=data.forecast_key,
@@ -101,7 +101,7 @@ class FormValues:
             name=pick("name", patch.name or "", details.name),
             owner_user_id=pick("owner_user_id", patch.owner_user_id, details.owner_user_id),
             vendor_id=pick("vendor_id", patch.vendor_id, details.vendor_id),
-            solution=pick("solution", patch.solution or "", details.solution),
+            product=pick("product", patch.product or "", details.product),
             users=pick("users", patch.users, details.users),
             status_key=pick("status_key", patch.status_key or "", sync.status_key),
             forecast_key=pick("forecast_key", patch.forecast_key or "", sync.forecast_key),

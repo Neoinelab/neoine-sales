@@ -64,16 +64,16 @@ async def test_search_customer_is_a_case_insensitive_partial_match_on_the_deal_c
     assert await contract_case.total(customer="next") == 1
 
 
-async def test_search_product_is_a_case_insensitive_partial_match_on_the_deal_solution(
+async def test_search_product_is_a_case_insensitive_partial_match_on_the_deal_product(
     contract_case: ContractCase,
 ) -> None:
-    """제품명은 Deal Solution의 대소문자 무시 부분 일치다.
+    """제품명은 Deal Product의 대소문자 무시 부분 일치다.
 
     테스트 코드: LC-017
     """
-    # given: Solution이 다른 Deal의 계약 2건
-    for solution in ("S/4HANA", "Oracle EBS"):
-        deal = await contract_case.deal(solution=solution, customer=solution.replace(" ", ""))
+    # given: Product가 다른 Deal의 계약 2건
+    for product in ("S/4HANA", "Oracle EBS"):
+        deal = await contract_case.deal(product=product, customer=product.replace(" ", ""))
         await contract_case.contract(deal)
 
     # when: product 조건으로 검색한다
@@ -233,9 +233,9 @@ async def test_search_conditions_are_anded(contract_case: ContractCase) -> None:
     테스트 코드: LC-018
     """
     # given: 고객·Vendor·상태가 조금씩 다른 계약들
-    sap = await contract_case.deal(customer="공통고객", vendor="SAP", solution="ERP")
-    other_vendor = await contract_case.deal(customer="공통고객", vendor="Oracle", solution="ERP")
-    other_customer = await contract_case.deal(customer="다른고객", vendor="SAP", solution="ERP")
+    sap = await contract_case.deal(customer="공통고객", vendor="SAP", product="ERP")
+    other_vendor = await contract_case.deal(customer="공통고객", vendor="Oracle", product="ERP")
+    other_customer = await contract_case.deal(customer="다른고객", vendor="SAP", product="ERP")
     target = await contract_case.contract(sap, status="issued_new")
     await contract_case.contract(other_vendor, status="issued_new")
     await contract_case.contract(other_customer, status="issued_new")

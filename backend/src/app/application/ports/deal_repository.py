@@ -12,7 +12,7 @@ from app.domain.deal.period import (
     normalize_quarters,
     quarters_span,
 )
-from app.domain.deal.values import SOLUTION_MAX
+from app.domain.deal.values import PRODUCT_MAX
 
 if TYPE_CHECKING:
     from collections.abc import Collection, Mapping, Sequence
@@ -65,7 +65,7 @@ class DealQuery:
     keyword: str | None = None  # Deal Name·고객 회사·활성 파트너 회사·code 부분 일치(대소문자 무시)
     owner_user_id: UserId | None = None
     vendor_id: VendorId | None = None
-    solution: str | None = None  # Solution 텍스트 부분 일치(대소문자 무시)
+    product: str | None = None  # Product 텍스트 부분 일치(대소문자 무시)
     status_key: str | None = None
     forecast_keys: frozenset[str] | None = None  # 이 중 하나와 일치(OR). None이면 조건 없음
     forecast_outcome: ForecastOutcomeFilter | None = None  # 코드 outcome 기준. forecast_keys와 AND
@@ -101,7 +101,7 @@ class DealQuery:
             self, "keyword", optional_text(self.keyword, "검색어", max_length=KEYWORD_MAX)
         )
         object.__setattr__(
-            self, "solution", optional_text(self.solution, "Solution", max_length=SOLUTION_MAX)
+            self, "product", optional_text(self.product, "Product", max_length=PRODUCT_MAX)
         )
 
     def _check_year_and_quarter(self) -> None:

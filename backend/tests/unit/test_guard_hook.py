@@ -57,7 +57,7 @@ class TestAlembicPolicy:
             assert bash(command, profile) is None
 
     def test_upgrade_targeting_product_via_active_profile_is_denied(self) -> None:
-        """활성 프로파일이 product이면 alembic upgrade를 거부한다."""
+        """활성 프로파일이 product면 alembic upgrade를 거부한다."""
         # when: product 프로파일에서 upgrade를 판정한다
         decision = bash("uv run alembic upgrade head", "product")
 

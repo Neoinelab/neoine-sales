@@ -1,6 +1,6 @@
 """DealRepository.search/count의 확장 필터 계약: Fake와 SQL에 같은 기대값.
 
-forecast_keys 중 하나와 일치(OR; vendor_id·solution은 test_deal_search_contract), 연/분기
+forecast_keys 중 하나와 일치(OR; vendor_id·product는 test_deal_search_contract), 연/분기
 (Expected Close 기준, 양끝 포함). 모든 조건은 count와 같은 결과를 내고 페이지와 무관하게 센다.
 """
 

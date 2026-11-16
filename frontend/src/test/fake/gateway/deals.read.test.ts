@@ -118,17 +118,17 @@ describe('deals.list', () => {
     expect(r2).toBe(0)
   })
 
-  it('Solution 필터는 대소문자 무시 부분 일치 텍스트이고 Vendor와 AND다', async () => {
+  it('Product 필터는 대소문자 무시 부분 일치 텍스트이고 Vendor와 AND다', async () => {
     // given: sales 사용자
     const { gateway } = await mockAs('kim')
     const silverfort = seedVendorId('Silverfort')
-    // when: Solution 텍스트로 검색한다
-    const r1 = (await gateway.deals.list({ solution: 'itdr' })).total
-    const r2 = (await gateway.deals.list({ solution: '  MF  ' })).total
-    const r3 = (await gateway.deals.list({ vendorId: silverfort, solution: 'itdr' })).total
-    const r4 = (await gateway.deals.list({ vendorId: seedVendorId('Okta'), solution: 'itdr' })).total
-    const r5 = (await gateway.deals.list({ solution: '   ' })).total
-    const r6 = (await gateway.deals.list({ solution: 'no-such-text' })).total
+    // when: Product 텍스트로 검색한다
+    const r1 = (await gateway.deals.list({ product: 'itdr' })).total
+    const r2 = (await gateway.deals.list({ product: '  MF  ' })).total
+    const r3 = (await gateway.deals.list({ vendorId: silverfort, product: 'itdr' })).total
+    const r4 = (await gateway.deals.list({ vendorId: seedVendorId('Okta'), product: 'itdr' })).total
+    const r5 = (await gateway.deals.list({ product: '   ' })).total
+    const r6 = (await gateway.deals.list({ product: 'no-such-text' })).total
     // then: 대소문자 무시 부분 일치이고 Vendor 조건과 AND다
     expect(r1).toBe(4)
     expect(r2).toBe(3)
@@ -510,7 +510,7 @@ describe('deals.list의 서버 검증 정렬 (DL 목록 Fake가 서버 422를 �
   // 서버 DealSearchParams·DealQuery 규칙: 범위 밖 값은 422 request-validation 문구, NUL은 invalid-value 문구
   it.each([
     ['키워드 101자', { keyword: 'a'.repeat(101) }],
-    ['Solution 트림 후 201자', { solution: ` ${'s'.repeat(201)} ` }],
+    ['Product 트림 후 201자', { product: ` ${'s'.repeat(201)} ` }],
     ['Status key 51자', { statusKey: 'k'.repeat(51) }],
     ['Forecast key 51자', { forecastKeys: ['k'.repeat(51)] }],
     ['Forecast key 101개', { forecastKeys: Array.from({ length: 101 }, (_, n) => `k${n}`) }],
@@ -526,12 +526,12 @@ describe('deals.list의 서버 검증 정렬 (DL 목록 Fake가 서버 422를 �
     await expectApiError(gateway.deals.list(query), 422)
   })
 
-  it('키워드·Solution의 NUL은 서버 문구의 422다', async () => {
+  it('키워드·Product의 NUL은 서버 문구의 422다', async () => {
     // given: 로그인한 sales
     const { gateway } = await mockAs('kim')
     // when·then: NUL이 든 값은 NUL 문구로 거절된다
     await expect(gateway.deals.list({ keyword: 'a\u0000b' })).rejects.toMatchObject({ message: '검색어에는 NUL 문자를 쓸 수 없습니다' })
-    await expect(gateway.deals.list({ solution: 'a\u0000b' })).rejects.toMatchObject({ message: 'Solution에는 NUL 문자를 쓸 수 없습니다' })
+    await expect(gateway.deals.list({ product: 'a\u0000b' })).rejects.toMatchObject({ message: 'Product에는 NUL 문자를 쓸 수 없습니다' })
   })
 
   it('최종 업데이트 날짜가 1900-01-01~2999-12-31 밖이면 서버 문구의 422다', async () => {

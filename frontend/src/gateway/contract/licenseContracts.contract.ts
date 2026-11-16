@@ -30,7 +30,7 @@ async function validInput(gateway: Gateway, over: Partial<DealInput>): Promise<D
     name: unique('deal'),
     ownerId: owner,
     vendorId: await anyVendorId(gateway),
-    solution: 'ITDR',
+    product: 'ITDR',
     users: 10,
     statusKey: 'prospecting',
     forecastKey: 'pipeline',
@@ -126,7 +126,7 @@ export function licenseContractsContract(make: MakeGateway): void {
       expect(Number.isInteger(contract.id)).toBe(true)
       expect(contract.dealName).toBe(deal.name)
       expect(contract.customer).toBe(deal.customer.company)
-      expect(contract.product).toBe(deal.solution)
+      expect(contract.product).toBe(deal.product)
       expect(contract.salesOwner.id).toBe(deal.owner.id)
       expect(Object.keys(contract).sort()).toEqual(
         ['attachmentCount', 'createdAt', 'createdBy', 'customer', 'dealCode', 'dealIsWon', 'dealName', 'endedOn', 'id', 'inspection', 'licenseEnd', 'licenseStart', 'note', 'partner', 'product', 'renewedFromId', 'salesOwner', 'status', 'techOwner', 'term', 'updatedAt', 'updatedBy', 'vendor'].sort(),

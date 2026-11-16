@@ -57,7 +57,7 @@ def row_select() -> Select[Any]:
             LicenseContractRow,
             DealRow.deal_code,
             DealRow.name.label("deal_name"),
-            DealRow.solution,
+            DealRow.product,
             DealRow.owner_user_id,
             DealRow.forecast_key,
             _CUSTOMER.company.label("customer"),
@@ -79,7 +79,7 @@ def conditions(query: LicenseContractQuery) -> list[ColumnElement[bool]]:
     if query.customer is not None:
         found.append(_CUSTOMER.company.ilike(like_pattern(query.customer), escape=LIKE_ESCAPE))
     if query.product is not None:
-        found.append(DealRow.solution.ilike(like_pattern(query.product), escape=LIKE_ESCAPE))
+        found.append(DealRow.product.ilike(like_pattern(query.product), escape=LIKE_ESCAPE))
     if query.vendor_id is not None:
         found.append(DealRow.vendor_id == query.vendor_id)
     if query.owner_user_id is not None:
@@ -122,7 +122,7 @@ def _sort_expression(sort: LicenseContractSort) -> SQLColumnExpression[Any]:
         LicenseContractSort.DEAL_NAME: _text(DealRow.name, blank_is_none=True),
         LicenseContractSort.CUSTOMER: _text(_CUSTOMER.company),
         LicenseContractSort.VENDOR: _text(VendorRow.name),
-        LicenseContractSort.PRODUCT: _text(DealRow.solution, blank_is_none=True),
+        LicenseContractSort.PRODUCT: _text(DealRow.product, blank_is_none=True),
         LicenseContractSort.PARTNER: _text(_PARTNER),
         LicenseContractSort.LICENSE_START: LicenseContractRow.license_start,
         LicenseContractSort.LICENSE_END: LicenseContractRow.license_end,

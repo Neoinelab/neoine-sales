@@ -1,6 +1,6 @@
 import type { Role } from '../../../shared/model/types'
 import type { Quarter } from '../../../shared/model/period'
-import { DEAL_PAGE_SIZE, SOLUTION_MAX_LENGTH } from '../../../shared/model/constants'
+import { DEAL_PAGE_SIZE, PRODUCT_MAX_LENGTH } from '../../../shared/model/constants'
 import type { DealListQuery, DealSortKey, SortOrder } from '../../../shared/model/types'
 
 import { nextActionStatusFromParam } from '../../../shared/model/nextActionStatus'
@@ -120,10 +120,10 @@ export function listQueryFromParams(params: URLSearchParams): DealListQuery {
   if (ownerId !== undefined) query.ownerId = ownerId
   const vendorId = parseId(params.get('vendor'))
   if (vendorId !== undefined) query.vendorId = vendorId
-  // Solution은 자유 텍스트(부분 일치)라 id로 해석하지 않고 트림한 값을 그대로 쓴다.
-  const solution = text('solution')
+  // Product는 자유 텍스트(부분 일치)라 id로 해석하지 않고 트림한 값을 그대로 쓴다.
+  const product = text('product')
   // 서버 한도(200자)를 넘으면 422로 목록 전체가 실패하므로 다른 잘못된 URL 값처럼 무시한다.
-  if (solution && solution.length <= SOLUTION_MAX_LENGTH) query.solution = solution
+  if (product && product.length <= PRODUCT_MAX_LENGTH) query.product = product
 
   const year = positiveInt(params.get('year'))
   if (year !== null) query.year = year

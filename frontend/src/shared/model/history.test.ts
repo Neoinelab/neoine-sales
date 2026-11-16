@@ -14,7 +14,7 @@ const lookup: HistoryLookup = {
 
 function deal(over: Partial<Deal> = {}): Deal {
   return {
-    code: '20260801-D001', name: 'A', ownerId: USER_ID.kim, vendorId: 1, solution: 'S/4', users: 10,
+    code: '20260801-D001', name: 'A', ownerId: USER_ID.kim, vendorId: 1, product: 'S/4', users: 10,
     statusKey: 'price_negotiation', forecastKey: 'commit', revenueAmount: 1_000, revenueDate: '2026-12-01',
     customerContactId: 1, partnerLinks: [{ contactId: 11, active: true, linkedAt: 'x', unlinkedAt: null }],
     quote: { submitted: null, submittedDate: null }, poc: { state: null, completedDate: null }, procurement: '',
@@ -111,51 +111,51 @@ describe('diffDeal', () => {
     expect(drafts.find((d) => d.category === 'status')?.after).toBe('계약완료')
   })
 
-  // Vendor·Solution 변경은 기타 한 건씩이고 Solution은 텍스트이며 순서가 정해져 있다.
+  // Vendor·Product 변경은 기타 한 건씩이고 Product는 텍스트이며 순서가 정해져 있다.
   // 테스트 코드: DD-115
-  it('Vendor와 Solution 변경은 기타 1건씩 남고 Solution은 텍스트이며 순서는 Deal Name, Vendor, Solution, Users count이다', () => {
-    // given: 이름·Vendor·Solution·Users가 바뀐 Deal
-    const after = deal({ name: 'B', vendorId: 2, solution: 'SSO', users: 5 })
+  it('Vendor와 Product 변경은 기타 1건씩 남고 Product는 텍스트이며 순서는 Deal Name, Vendor, Product, Users count이다', () => {
+    // given: 이름·Vendor·Product·Users가 바뀐 Deal
+    const after = deal({ name: 'B', vendorId: 2, product: 'SSO', users: 5 })
 
     // when: 이력 차이를 계산한다
     const others = diffDeal(deal(), after, lookup).filter((d) => d.category === 'other')
 
-    // then: Deal Name, Vendor, Solution, Users count 순서의 기타 이력이다
+    // then: Deal Name, Vendor, Product, Users count 순서의 기타 이력이다
     expect(others).toEqual([
       { category: 'other', target: 'Deal Name', before: 'A', after: 'B' },
       { category: 'other', target: 'Vendor', before: 'SAP', after: 'Okta' },
-      { category: 'other', target: 'Solution', before: 'S/4', after: 'SSO' },
+      { category: 'other', target: 'Product', before: 'S/4', after: 'SSO' },
       { category: 'other', target: 'Users count', before: '10', after: '5' },
     ])
   })
 
-  // 빈 Solution(레거시)은 변경 전이 '-'로 기록된다.
+  // 빈 Product(레거시)은 변경 전이 '-'로 기록된다.
   // 테스트 코드: DD-115
-  it('records solution text with dash for empty (legacy empty values only)', () => {
-    // when: ITDR로 바꿔 이력 차이를 계산한다 (전제: Solution이 빈 Deal)
-    const result = diffDeal(deal({ solution: '' }), deal({ solution: 'ITDR' }), lookup)
+  it('records product text with dash for empty (legacy empty values only)', () => {
+    // when: ITDR로 바꿔 이력 차이를 계산한다 (전제: Product가 빈 Deal)
+    const result = diffDeal(deal({ product: '' }), deal({ product: 'ITDR' }), lookup)
     // then: 변경 전이 '-'다
     expect(result).toEqual([
-      { category: 'other', target: 'Solution', before: '-', after: 'ITDR' },
+      { category: 'other', target: 'Product', before: '-', after: 'ITDR' },
     ])
   })
 
-  // 대소문자만 바뀐 Solution도 기록하고 같은 값이면 기록하지 않는다.
+  // 대소문자만 바뀐 Product도 기록하고 같은 값이면 기록하지 않는다.
   // 테스트 코드: DD-115
-  it('대소문자만 바뀐 Solution도 남기고 같은 값이면 남기지 않는다', () => {
-    // when: 이력 차이를 계산한다 (전제: Solution만 다른 Deal 쌍)
-    const result1 = diffDeal(deal({ solution: 'itdr' }), deal({ solution: 'ITDR' }), lookup)
-    const result2 = diffDeal(deal({ solution: 'ITDR' }), deal({ solution: 'ITDR' }), lookup)
+  it('대소문자만 바뀐 Product도 남기고 같은 값이면 남기지 않는다', () => {
+    // when: 이력 차이를 계산한다 (전제: Product만 다른 Deal 쌍)
+    const result1 = diffDeal(deal({ product: 'itdr' }), deal({ product: 'ITDR' }), lookup)
+    const result2 = diffDeal(deal({ product: 'ITDR' }), deal({ product: 'ITDR' }), lookup)
     // then: 대소문자 차이는 한 건, 같은 값은 없다
     expect(result1).toEqual([
-      { category: 'other', target: 'Solution', before: 'itdr', after: 'ITDR' },
+      { category: 'other', target: 'Product', before: 'itdr', after: 'ITDR' },
     ])
     expect(result2).toEqual([])
   })
 
-  // Vendor만 바뀌면 Vendor 한 건뿐이고 Solution 이력은 없다.
+  // Vendor만 바뀌면 Vendor 한 건뿐이고 Product 이력은 없다.
   // 테스트 코드: DD-115
-  it('Vendor만 바뀌면 Vendor 1건만 남고 Solution 항목은 없다', () => {
+  it('Vendor만 바뀌면 Vendor 1건만 남고 Product 항목은 없다', () => {
     // when: 이력 차이를 계산한다 (전제: Vendor만 바뀐 Deal)
     const drafts = diffDeal(deal(), deal({ vendorId: 2 }), lookup)
 
@@ -163,9 +163,9 @@ describe('diffDeal', () => {
     expect(drafts).toEqual([{ category: 'other', target: 'Vendor', before: 'SAP', after: 'Okta' }])
   })
 
-  // Vendor를 비우면 '선택 안 함'으로 기록하고 Solution은 남기지 않는다.
+  // Vendor를 비우면 '선택 안 함'으로 기록하고 Product는 남기지 않는다.
   // 테스트 코드: DD-115
-  it('Vendor를 비우면 선택 안 함으로 표기하고 Solution은 그대로라 남기지 않는다', () => {
+  it('Vendor를 비우면 선택 안 함으로 표기하고 Product는 그대로라 남기지 않는다', () => {
     // when: 이력 차이를 계산한다 (전제: Vendor를 비운 Deal)
     const cleared = diffDeal(deal(), deal({ vendorId: null }), lookup)
 

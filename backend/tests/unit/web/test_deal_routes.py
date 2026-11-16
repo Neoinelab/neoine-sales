@@ -77,7 +77,7 @@ async def test_post_creates_the_deal_with_location_and_integer_ids_and_no_intern
     assert type(body["owner_user_id"]) is int
     assert type(body["customer"]["id"]) is int
     assert type(body["revenue_amount"]) is int
-    assert (body["name"], body["solution"], body["users"]) == ("ERP 구축", "S/4HANA", 10)
+    assert (body["name"], body["product"], body["users"]) == ("ERP 구축", "S/4HANA", 10)
     assert body["active_partner"]["company"] == "한빛파트너스"
     assert [link["active"] for link in body["partner_links"]] == [True]
     assert len(use_cases.uow.deals._items) == 1
@@ -115,10 +115,11 @@ async def test_post_by_a_read_only_user_or_anonymous_visitor_is_rejected(who: st
         {"users": "10"},
         {"users": None},
         {"vendor_id": None},
-        {"solution": 1},
+        {"product": 1},
         {"quote": {"submitted": "MAYBE"}},
         {"extra": 1},
         {"vendor": "SAP"},
+        {"solution": "ITDR"},
         {"bant": {"budget": 5}},
     ],
     ids=[
@@ -128,10 +129,11 @@ async def test_post_by_a_read_only_user_or_anonymous_visitor_is_rejected(who: st
         "users-text",
         "users-null",
         "vendor-null",
-        "solution-number",
+        "product-number",
         "quote-enum",
         "unknown-key",
         "old-vendor-text",
+        "old-solution-key",
         "old-bare-bant-id",
     ],
 )
@@ -174,27 +176,27 @@ async def test_post_without_users_or_vendor_id_keys_is_a_request_validation_erro
 
 
 @pytest.mark.parametrize("sent", ["omitted", None, "", "   "])
-async def test_post_without_a_solution_creates_the_deal_with_an_empty_solution(
+async def test_post_without_a_product_creates_the_deal_with_an_empty_product(
     sent: str | None,
 ) -> None:
-    """Solution을 생략·null·빈 값·공백으로 등록하면 201이고 응답·저장 Solution이 빈 값이다.
+    """Product를 생략·null·빈 값·공백으로 등록하면 201이고 응답·저장 Product가 빈 값이다.
 
     테스트 코드: DE-115
     """
-    # given: Owner가 있고 Solution이 생략되었거나 null·''·'   '인 본문
+    # given: Owner가 있고 Product가 생략되었거나 null·''·'   '인 본문
     use_cases = await _use_cases_with_owner()
-    body = {k: v for k, v in deal_payload().items() if k != "solution"}
+    body = {k: v for k, v in deal_payload().items() if k != "product"}
     if sent != "omitted":
-        body["solution"] = sent
+        body["product"] = sent
     async with clients(use_cases, {"kim": Role.SALES}) as c:
         # when: 등록한다
         response = await c["kim"].post(URL, json=body)
 
-    # then: 201이고 응답과 저장된 Solution이 ''다
+    # then: 201이고 응답과 저장된 Product가 ''다
     assert response.status_code == 201, response.text
-    assert response.json()["solution"] == ""
+    assert response.json()["product"] == ""
     (stored,) = use_cases.uow.deals._items.values()
-    assert stored.details.solution == ""
+    assert stored.details.product == ""
 
 
 async def test_patch_with_a_null_vendor_is_an_invalid_value_error_and_keeps_the_vendor() -> None:
@@ -263,13 +265,13 @@ async def test_patch_updates_only_the_sent_fields_and_returns_the_detail() -> No
         # when: 이름만 보내 수정한다
         response = await c["kim"].patch(f"{URL}/{CODE}", json={"name": "확장 프로젝트"})
 
-    # then: 200이고 응답의 이름만 바뀌고 금액·Solution은 그대로다
+    # then: 200이고 응답의 이름만 바뀌고 금액·Product는 그대로다
     assert response.status_code == 200, response.text
     body = response.json()
     assert body["name"] == "확장 프로젝트"
-    assert (body["revenue_amount"], body["solution"]) == (
+    assert (body["revenue_amount"], body["product"]) == (
         before["revenue_amount"],
-        before["solution"],
+        before["product"],
     )
     assert body["code"] == CODE
 
@@ -299,10 +301,11 @@ async def test_an_empty_patch_body_changes_nothing() -> None:
         {"revenue_date": "30/06/2026"},
         {"owner_user_id": "x"},
         {"users": "10"},
-        {"solution": 1},
+        {"product": 1},
         {"extra": 1},
         {"code": "20261016-B001"},
         {"vendor": "SAP"},
+        {"solution": "ITDR"},
         {"quote": None},
         {"poc": None},
         {"bant": None},
@@ -313,10 +316,11 @@ async def test_an_empty_patch_body_changes_nothing() -> None:
         "date-format",
         "owner-text",
         "users-text",
-        "solution-number",
+        "product-number",
         "unknown-key",
         "code-change",
         "old-vendor-text",
+        "old-solution-key",
         "quote-null",
         "poc-null",
         "bant-null",

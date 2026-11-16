@@ -113,7 +113,7 @@ def to_view(found: Row[tuple[object, ...]]) -> ContractRowView:
             deal_name=found.deal_name,
             customer=found.customer,
             vendor=vendor,
-            product=found.solution,
+            product=found.product,
             partner=found.partner,
             owner_user_id=UserId(found.owner_user_id),
             is_won=found.forecast_key == "won",

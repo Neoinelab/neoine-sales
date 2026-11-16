@@ -47,12 +47,12 @@ def _response_schema(spec: Spec, operation: dict[str, Any]) -> dict[str, Any]:
 
 
 def test_deal_search_text_params_document_their_max_length_and_id_types(spec: Spec) -> None:
-    """Deal 검색의 keyword·solution은 길이 상한이 있고 vendor_id·owner_user_id는 정수다."""
+    """Deal 검색의 keyword·product는 길이 상한이 있고 vendor_id·owner_user_id는 정수다."""
     # when: Deal 목록 파라미터를 읽는다
     params = _params(spec, "/api/v1/deals")
     # then: 길이 상한이 있고 폐지된 텍스트 조건은 없다
     assert _max_lengths(params["keyword"]) == [100]
-    assert _max_lengths(params["solution"]) == [200]
+    assert _max_lengths(params["product"]) == [200]
     assert {"vendor", "solution_id", "owner"}.isdisjoint(params)
     for name in ("vendor_id", "owner_user_id"):
         assert "integer" in {o.get("type") for o in params[name]["schema"]["anyOf"]}

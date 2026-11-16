@@ -47,6 +47,12 @@ def _items(data: Mapping[str, object], key: str, *, required: bool) -> list[Mapp
     return value
 
 
+def _field_key(item: Mapping[str, object]) -> str:
+    """필드 key. 예전 `deal.solution`은 `deal.product`로 읽는다."""
+    key = _text(item, "field")
+    return "deal.product" if key == "deal.solution" else key
+
+
 def _text(item: Mapping[str, object], key: str) -> str:
     value = item.get(key)
     if type(value) is not str:
@@ -75,9 +81,9 @@ def _column(item: Mapping[str, object], legacy_sort: str | None) -> RawColumn:
     # 컬럼에 정렬 값이 있으면(빈 문자열 포함, 실행 때 검증) 예전 최상위 정렬보다 우선한다
     own_sort = _optional_text(item, "sort")
     return RawColumn(
-        field=_text(item, "field"),
+        field=_field_key(item),
         label=_optional_text(item, "label"),
-        format=_current_format(_optional_text(item, "format"), _text(item, "field")),
+        format=_current_format(_optional_text(item, "format"), _field_key(item)),
         prefix_length=item.get("prefix_length"),
         group=group,
         aggregate=_optional_text(item, "aggregate"),
@@ -124,7 +130,7 @@ def definition_from_json(data: object) -> RawReportDefinition:
         _column(c, legacy[1] if legacy and legacy[0] == i else None) for i, c in enumerate(items)
     )
     conditions = tuple(
-        RawCondition(field=_text(c, "field"), operator=_text(c, "operator"), value=c.get("value"))
+        RawCondition(field=_field_key(c), operator=_text(c, "operator"), value=c.get("value"))
         for c in _items(data, "conditions", required=False)
     )
     return RawReportDefinition(

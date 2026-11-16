@@ -45,10 +45,10 @@ describe('Fake deals.create: 서버의 Deal code 발급 규칙(DE-R2)을 따른�
 })
 
 describe('Fake deals.create: 서버의 NUL 문자 거절 문구(PL-R16)를 따른다', () => {
-  // Deal Name·Solution·구매절차의 NUL은 공백으로 감싸도 칸 이름이 든 문구로 거절한다.
+  // Deal Name·Product·구매절차의 NUL은 공백으로 감싸도 칸 이름이 든 문구로 거절한다.
   it.each([
     ['name', 'Deal Name'],
-    ['solution', 'Solution'],
+    ['product', 'Product'],
     ['procurement', '구매절차'],
   ] as const)('rejects a NUL character in %s with the column name', async (field, column) => {
     // given: kim으로 로그인한 Fake

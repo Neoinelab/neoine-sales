@@ -24,7 +24,7 @@ COLUMNS = {
     "name",
     "owner_user_id",
     "vendor_id",  # Vendor 관리: 등록 목록의 id(NULL = 선택 안 함)
-    "solution",  # 자유 텍스트(NOT NULL, 미입력 "")
+    "product",  # 자유 텍스트(NOT NULL, 미입력 "")
     "users",
     "status_kind",
     "status_key",

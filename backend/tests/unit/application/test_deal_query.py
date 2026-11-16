@@ -31,7 +31,7 @@ def test_defaults_are_the_first_page_of_twenty_newest_first_without_conditions()
         "keyword",
         "owner_user_id",
         "vendor_id",
-        "solution",
+        "product",
         "status_key",
         "forecast_keys",
         "year",
@@ -67,7 +67,7 @@ def test_given_conditions_are_kept() -> None:
         keyword="erp",
         owner_user_id=uid("park"),
         vendor_id=VENDOR,
-        solution="itd",
+        product="itd",
         status_key="introduction",
         forecast_keys=frozenset({"best", "commit"}),
         updated_from=date(2026, 6, 1),
@@ -78,7 +78,7 @@ def test_given_conditions_are_kept() -> None:
 
     # then: 지정한 값이 그대로 남는다
     assert (query.keyword, query.owner_user_id) == ("erp", uid("park"))
-    assert (query.vendor_id, query.solution) == (VENDOR, "itd")
+    assert (query.vendor_id, query.product) == (VENDOR, "itd")
     assert (query.status_key, query.forecast_keys) == (
         "introduction",
         frozenset({"best", "commit"}),
@@ -239,50 +239,50 @@ def test_the_old_vendor_text_condition_and_solution_id_are_gone() -> None:
         DealQuery(solution_id=1)  # type: ignore[call-arg]
 
 
-def test_solution_filter_is_trimmed() -> None:
-    """Solution 필터는 앞뒤 공백을 제거한다."""
-    # when: 앞뒤 공백이 든 solution으로 DealQuery를 만든다
-    result = DealQuery(solution=" itd ").solution
-    # then: 공백이 제거된 solution이 저장된다
+def test_product_filter_is_trimmed() -> None:
+    """Product 필터는 앞뒤 공백을 제거한다."""
+    # when: 앞뒤 공백이 든 product로 DealQuery를 만든다
+    result = DealQuery(product=" itd ").product
+    # then: 공백이 제거된 product가 저장된다
     assert result == "itd"
 
 
 @pytest.mark.parametrize("raw", ["", "  ", "\t"])
-def test_blank_solution_filter_means_no_condition(raw: str) -> None:
-    """공백뿐인 Solution 필터는 조건 없음이다."""
-    # when: 빈 값이나 공백만 든 solution으로 DealQuery를 만든다
-    result = DealQuery(solution=raw).solution
-    # then: solution이 None이다
+def test_blank_product_filter_means_no_condition(raw: str) -> None:
+    """공백뿐인 Product 필터는 조건 없음이다."""
+    # when: 빈 값이나 공백만 든 product로 DealQuery를 만든다
+    result = DealQuery(product=raw).product
+    # then: product가 None이다
     assert result is None
 
 
-def test_solution_filter_allows_200_and_rejects_201() -> None:
-    """Solution 필터는 200자까지 허용하고 201자는 거부한다."""
-    # when: 200자 solution으로 DealQuery를 만든다
-    result = DealQuery(solution="a" * 200).solution
-    # then: solution이 그대로 저장된다
+def test_product_filter_allows_200_and_rejects_201() -> None:
+    """Product 필터는 200자까지 허용하고 201자는 거부한다."""
+    # when: 200자 product로 DealQuery를 만든다
+    result = DealQuery(product="a" * 200).product
+    # then: product가 그대로 저장된다
     assert result == "a" * 200
     # when·then: 201자는 InvalidValueError가 난다
     with pytest.raises(InvalidValueError):
-        DealQuery(solution="a" * 201)
+        DealQuery(product="a" * 201)
 
 
-def test_solution_filter_length_is_measured_after_trimming() -> None:
-    """Solution 필터 길이는 공백 제거 뒤에 잰다."""
+def test_product_filter_length_is_measured_after_trimming() -> None:
+    """Product 필터 길이는 공백 제거 뒤에 잰다."""
     # when: 앞뒤 공백을 포함해 202자인 검색어를 만든다
-    result = DealQuery(solution=f" {'a' * 200} ").solution
+    result = DealQuery(product=f" {'a' * 200} ").product
     # then: 정리된 값이 200자다
     assert result == "a" * 200
     # when·then: 정리 후 201자면 거부한다
     with pytest.raises(InvalidValueError):
-        DealQuery(solution=f" {'a' * 201} ")
+        DealQuery(product=f" {'a' * 201} ")
 
 
-def test_solution_filter_with_nul_is_rejected() -> None:
-    """Solution 필터에 NUL이 있으면 거부한다."""
+def test_product_filter_with_nul_is_rejected() -> None:
+    """Product 필터에 NUL이 있으면 거부한다."""
     # when·then: NUL이 든 값은 InvalidValueError가 난다
     with pytest.raises(InvalidValueError):
-        DealQuery(solution="a\x00b")
+        DealQuery(product="a\x00b")
 
 
 def test_quarter_without_year_is_accepted() -> None:

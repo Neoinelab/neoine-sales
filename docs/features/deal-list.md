@@ -1,13 +1,15 @@
 # Deal 목록·검색   (feature 코드: DL, 상태: 확정(2026-11-16 사용자 확인))
 
 > 이 문서는 **이미 구현된 동작**을 정본 명세로 옮긴 것입니다(2026-11-10). 근거는 작업 트리의 코드(`backend/src/app/web/routers/deals.py`의 `GET ""`·`/updated-periods`·`/years`, `app/web/schemas/{deal.py(DealSearchParams),deal_response.py(DealRowResponse·row_page),deal_years.py,updated_period.py,period_params.py}`, `app/application/deal/{list_deals,deal_years,updated_periods}.py`, `app/application/ports/{deal_repository.py(DealQuery·DealSort·SortOrder),deal_outcome_filter.py,pagination.py}`, `app/application/ports/deal_action_repository.py`의 `NextActionStatusFilter`, `app/domain/deal/{period,updated_period}.py`, `app/domain/common/validation.py`, `app/infra/db/{deal_search,deal_list_order,like}.py`, `frontend/src/features/deals/list/*`, `shared/model/{dealListMemory,quarterSet,forecastKeys,updatedPeriod,periodChoice,yearOptions,vendorFilter,nextActionStatus}.ts`, `shared/ui/useDealListPath.ts`, `data/{deals,dealYears}.ts`, `gateway/http/deals.ts`, `test/fake/gateway/dealsRead.ts`)이며 문구·type·상태 코드는 코드에서 그대로 옮겼습니다. 코드와 Fake·테스트가 어긋나는 점은 계획(`artifacts/10-analysis/dl-plan.md`)의 확인 필요 질문으로 분리했습니다.
+>
+> 2026-11-16 변경(초안, 사용자 확인 대기): Deal의 Solution을 Product로 이름 변경(화면 문구, API 필드·쿼리 `product`, Reports key `deal.product`, DB 컬럼 `deals.product`). 영향 규칙·케이스는 5장.
 
 ## 1. 개요
 
 - 목적: 로그인한 모든 사용자가 Deal을 조건으로 찾아 한 페이지씩 보고, 정렬하고, 행을 펼쳐 요약을 보거나 상세로 이동한다. sales·admin은 목록에서 Status·Forecast·금액·Expected Close를 바로 고치기 시작할 수 있다. 목록 조건은 URL에 있고 사용자·탭별로 기억되어 상세에 다녀와도 같은 목록으로 돌아온다.
 - 사용자(역할): admin·sales(조회 + 목록 인라인 편집 진입·Deal 등록 링크), user(조회만).
 - 범위
-  - 화면 `/deals`: 필터 바(키워드·담당자·Vendor·Solution·Status·Forecast 다중 선택·Next Action 상태·Close 연도·Quarter 다중 선택·월·최종 업데이트 기간·내 딜만·기한초과·미업데이트), 조건 없는 진입의 기본 조건, 정렬 머리글, 페이지, 빈 상태, 빠른 보기(Quick View), 인라인 편집 진입과 목록 편집기, 조건 기억(목록으로 돌아가는 모든 링크)
+  - 화면 `/deals`: 필터 바(키워드·담당자·Vendor·Product·Status·Forecast 다중 선택·Next Action 상태·Close 연도·Quarter 다중 선택·월·최종 업데이트 기간·내 딜만·기한초과·미업데이트), 조건 없는 진입의 기본 조건, 정렬 머리글, 페이지, 빈 상태, 빠른 보기(Quick View), 인라인 편집 진입과 목록 편집기, 조건 기억(목록으로 돌아가는 모든 링크)
   - API `GET /deals`(조건 해석·정렬·페이지), `GET /deals/years`, `GET /deals/updated-periods`
   - Deal 조건 해석 한 곳(`deal_search.conditions`) — FC·DSH 집계가 같은 해석을 쓴다(DL-R15)
   - 연도 선택지 규칙(`selectableYears`) — 범위 규칙은 Deals 목록·Dashboard·Forecast 공용, '전체' 항목은 Deal 목록에만 있다(DL-R24)
@@ -50,7 +52,7 @@ DL은 테이블을 소유하지 않는다. 읽는 값: `deals`(소유 DE), `cont
 | `keyword` | str ≤100 또는 없음 | DL-R4 |
 | `owner_user_id` | id 또는 없음 | DL-R5(`mine`이 채움) |
 | `vendor_id` | id 또는 없음 | DL-R6 |
-| `solution` | str ≤200(트림 후) 또는 없음 | DL-R6 |
+| `product` | str ≤200(트림 후) 또는 없음 | DL-R6 |
 | `status_key` | str ≤50 또는 없음 | DL-R7 |
 | `forecast_keys` | 문자열 집합(비지 않음) 또는 없음 | DL-R8 |
 | `forecast_outcome` | `open`·`won`·`lost`·`not_lost` 또는 없음 | DL-R8 |
@@ -68,10 +70,10 @@ DL은 테이블을 소유하지 않는다. 읽는 값: `deals`(소유 DE), `cont
 목록 API (`GET /deals`)
 - **DL-R1** 로그인한 모든 역할이 조회한다. 응답은 200 `{items, total, offset, limit}`: `items`는 한 페이지의 행(DL-R14), `total`은 페이지와 무관한 조건 일치 전체 건수, `offset`·`limit`은 요청 값(없으면 기본값)이다. 끝을 넘은 페이지는 `items`가 비고 `total`은 그대로다. Deal이 없거나 조건에 맞는 Deal이 없으면 `items` `[]`, `total` 0이다. 서버는 요청마다 시계를 한 번 읽어 업무 날짜(TM-R4)를 정하고, 그 날짜를 연도 채움(DL-R9)과 경고 필터·행 `risk`(DL-R12)에 함께 쓴다.
 - **DL-R2** 페이지: `offset`은 0 이상 정수(기본 0), `limit`은 1~200 정수(기본 20)다. 범위 밖·정수 아님은 422 `request-validation`이다. 필터와 정렬 뒤에 `offset`·`limit`을 적용한다.
-- **DL-R3** 모든 조건은 AND로 결합한다. 쿼리는 2.6에 적힌 키만 받는다: 모르는 키와 폐지된 키(`stage`, `customer_id`, `owner`(이름), `vendor`(이름), `solution_id`, `revenue_from`, `revenue_to`, `bant_budget`·`bant_authority`·`bant_need`·`bant_timeline` 등 `bant_*`, `sortBy`, `direction`)는 조용히 무시하지 않고 422 `request-validation`이다. 판정 순서: 미인증 401(PL-R5) → 형식 422 `request-validation`(모든 쿼리 형식·범위, PL-R12) → 값 422 `invalid-value`(① 최종 업데이트 날짜 범위 `updated_from` → `updated_to` ② 기간 역전 ③ 분기·월 동시 선택 ④ 키워드 NUL ⑤ Solution NUL) → 결과. 어느 오류도 `detail`에 DB 문구가 없다(PL-R16).
-- **DL-R4** 키워드(`keyword`): 원문 길이가 100자를 넘으면 422 `request-validation`(앞뒤 공백도 센다). NUL 문자가 있으면 422 `invalid-value` "검색어에는 NUL 문자를 쓸 수 없습니다". 앞뒤 공백을 지우고 공백뿐이면 조건 없음이다. Deal Name·Deal code·고객 회사명·**활성** 파트너 회사명 중 하나에 대소문자 무시로 부분 일치하면 맞는다. 해제된(비활성) 파트너·담당자 이름·Vendor 이름·Solution은 찾지 않는다. `%`·`_`·`\`는 글자 그대로다.
+- **DL-R3** 모든 조건은 AND로 결합한다. 쿼리는 2.6에 적힌 키만 받는다: 모르는 키와 폐지된 키(`stage`, `customer_id`, `owner`(이름), `vendor`(이름), `solution_id`, `solution`(2026-11-16 `product`로 이름 변경), `revenue_from`, `revenue_to`, `bant_budget`·`bant_authority`·`bant_need`·`bant_timeline` 등 `bant_*`, `sortBy`, `direction`)는 조용히 무시하지 않고 422 `request-validation`이다. 판정 순서: 미인증 401(PL-R5) → 형식 422 `request-validation`(모든 쿼리 형식·범위, PL-R12) → 값 422 `invalid-value`(① 최종 업데이트 날짜 범위 `updated_from` → `updated_to` ② 기간 역전 ③ 분기·월 동시 선택 ④ 키워드 NUL ⑤ Product NUL) → 결과. 어느 오류도 `detail`에 DB 문구가 없다(PL-R16).
+- **DL-R4** 키워드(`keyword`): 원문 길이가 100자를 넘으면 422 `request-validation`(앞뒤 공백도 센다). NUL 문자가 있으면 422 `invalid-value` "검색어에는 NUL 문자를 쓸 수 없습니다". 앞뒤 공백을 지우고 공백뿐이면 조건 없음이다. Deal Name·Deal code·고객 회사명·**활성** 파트너 회사명 중 하나에 대소문자 무시로 부분 일치하면 맞는다. 해제된(비활성) 파트너·담당자 이름·Vendor 이름·Product는 찾지 않는다. `%`·`_`·`\`는 글자 그대로다.
 - **DL-R5** 담당자: `owner_user_id`는 담당자(Owner) id가 정확히 같은 Deal이다(퇴사한 담당자 포함). 형식은 쿼리 id(PL-R15). `mine=true`면 요청한 사용자가 Owner인 Deal만이며 `owner_user_id`보다 우선한다(함께 보내면 `owner_user_id`는 무시). `mine`이 false거나 없으면 담당자 조건은 `owner_user_id`뿐이다. `mine`에 불리언이 아닌 값(예: `maybe`)은 422 `request-validation`이다.
-- **DL-R6** Vendor·Solution: `vendor_id`는 Vendor id가 같은 Deal이고, 없는 id는 오류 없이 0건이다(정수가 아니면 422 `request-validation`, 예: `vendor_id=SAP`). `solution`은 앞뒤 공백을 지우고 공백뿐이면 조건 없음이며, Solution 텍스트에 대소문자 무시로 부분 일치한다(`%`·`_`는 글자 그대로). 지운 뒤 200자는 되고 201자 이상이면 422 `request-validation`, NUL은 422 `invalid-value` "Solution에는 NUL 문자를 쓸 수 없습니다". Vendor와 Solution은 서로 독립이며 함께 주면 AND다.
+- **DL-R6** Vendor·Product: `vendor_id`는 Vendor id가 같은 Deal이고, 없는 id는 오류 없이 0건이다(정수가 아니면 422 `request-validation`, 예: `vendor_id=SAP`). `product`는 앞뒤 공백을 지우고 공백뿐이면 조건 없음이며, Product 텍스트에 대소문자 무시로 부분 일치한다(`%`·`_`는 글자 그대로). 지운 뒤 200자는 되고 201자 이상이면 422 `request-validation`, NUL은 422 `invalid-value` "Product에는 NUL 문자를 쓸 수 없습니다". Vendor와 Product는 서로 독립이며 함께 주면 AND다.
 - **DL-R7** Status: `status_key`는 Status key가 같은 Deal이다. 없는 key는 오류 없이 0건이다. 51자 이상은 422 `request-validation`.
 - **DL-R8** Forecast: `forecast_key`는 반복 파라미터다(`?forecast_key=a&forecast_key=b`). 보낸 key 중 하나와 같은 Deal(OR)이고, 같은 key를 여러 번 보내면 한 번과 같다. 각 key는 50자 이하, 개수는 100개 이하이며 넘으면 422 `request-validation`. 없는 key나 빈 문자열 key는 오류 없이 어느 Deal과도 맞지 않는다(함께 보낸 다른 key는 그대로 맞는다). 콤마는 구분자가 아니라 key의 일부다. `forecast_outcome`은 Deal의 Forecast 코드 `outcome`으로 거른다: `open`·`won`·`lost`는 그 outcome, `not_lost`는 `open`과 `won`. admin이 추가한 코드도 그 outcome을 따른다(CD). `forecast_key`와 함께 주면 AND다. 다른 값은 422 `request-validation`. (화면은 `forecast_outcome`을 보내지 않는다 — DL-R20.)
 - **DL-R9** 연도·분기·월(Expected Close 기준, 양끝 포함)
@@ -84,7 +86,7 @@ DL은 테이블을 소유하지 않는다. 읽는 값: `deals`(소유 DE), `cont
 - **DL-R11** Next Action 상태: `next_action_status`는 기준 행(RK-R1)의 상태로 거른다: `open`·`done`·`not_done`은 그 상태, `closed`는 `done`과 `not_done`. 조건이 있으면 Next Action이 없는 Deal은 제외되고, 조건이 없으면 모든 Deal이 나온다. 다른 값(`notDone`·`DONE`·`all`·빈 값 등)은 422 `request-validation`. `total`도 같은 조건으로 센다.
 - **DL-R12** 경고 필터: `overdue=true`면 기한초과 Deal만, `stale=true`면 미업데이트 Deal만, 둘 다 켜면 어느 하나라도 해당하는 Deal(OR)이다. 어떤 Deal이 해당하는지는 RK 판정식(RK-R3~R5, RK-R8)이며(종결 Deal 제외 포함), 판정 기준(업무 날짜·저장된 미업데이트 기준일)은 같은 요청의 행 `risk`와 같다(RK-R7). 다른 조건과는 AND이고 `total`도 그 결과다. `false`·`0`이나 생략은 조건 없음, 불리언이 아닌 값(`abc`·`2` 등)은 422 `request-validation`.
 - **DL-R13** 정렬: `sort`는 `name`·`revenue_amount`·`revenue_date`·`last_updated_at`·`status`·`owner`·`customer`·`partner`·`vendor`·`forecast` 10개, `order`는 `asc`·`desc`(소문자)이고 기본은 `last_updated_at` `desc`다. 값 이름은 호환을 위해 그대로 두지만 정렬 대상은 최종 업데이트일 `last_updated_on`이고, 같은 날이면 아래 동률 규칙에 따라 Deal code 오름차순이다. 그 밖의 값(`revenueAmount`, `stage`, `DESC`, `up` 등)은 422 `request-validation`. 텍스트 키(Deal Name·담당자·고객 회사·파트너 회사·Vendor 이름)는 소문자로 바꾼 코드 포인트 순이다(대소문자만 다른 값은 같은 값, 한글은 음절 코드 순). 담당자 키는 표시 이름(비었으면 로그인 아이디)이며 퇴사자도 이름으로 정렬된다. `partner`는 활성 파트너 회사명이다. `status`·`forecast`는 그 코드의 **현재** 순서(CD)이며 순서를 바꾸면 결과도 바뀐다. 파트너·Vendor가 없는 Deal은 방향과 무관하게 맨 뒤다. 정렬 값이 같으면 방향과 무관하게 Deal code 오름차순이다. 그래서 같은 조건의 다음 페이지는 앞 페이지에 빠짐·겹침 없이 이어진다.
-- **DL-R14** 행(`DealRowResponse`)의 필드는 정확히 `code`, `name`, `owner_user_id`, `owner`(UserRef — 역할 포함), `vendor`(`{id, name}` 또는 null), `solution`, `users`, `status_key`, `forecast_key`, `revenue_amount`, `revenue_date`, `customer`(연락처), `active_partner`(연락처 또는 null), `partner_links`, `quote`(`submitted`·`submitted_date`), `poc`(`state`·`completed_date`), `procurement`, `bant`(`budget`·`authority`·`need`·`timeline` Label id 또는 null), `next_action`(`{text, due_date, status}` 또는 null), `last_updated_on`(날짜), `risk`, `status_changed_on`(날짜), `status_days`, `license_contract_count`, `has_issued_license_contract`, `created_at`, `updated_at`이다. 상세 응답은 이 필드 + `partner_history`(DD)다. 각 필드의 값 규칙은 소유 feature(DE·RK(RK-R1·R2·R6·R9·R10)·LC)를 따른다.
+- **DL-R14** 행(`DealRowResponse`)의 필드는 정확히 `code`, `name`, `owner_user_id`, `owner`(UserRef — 역할 포함), `vendor`(`{id, name}` 또는 null), `product`, `users`, `status_key`, `forecast_key`, `revenue_amount`, `revenue_date`, `customer`(연락처), `active_partner`(연락처 또는 null), `partner_links`, `quote`(`submitted`·`submitted_date`), `poc`(`state`·`completed_date`), `procurement`, `bant`(`budget`·`authority`·`need`·`timeline` Label id 또는 null), `next_action`(`{text, due_date, status}` 또는 null), `last_updated_on`(날짜), `risk`, `status_changed_on`(날짜), `status_days`, `license_contract_count`, `has_issued_license_contract`, `created_at`, `updated_at`이다. 상세 응답은 이 필드 + `partner_history`(DD)다. 각 필드의 값 규칙은 소유 feature(DE·RK(RK-R1·R2·R6·R9·R10)·LC)를 따른다.
 - **DL-R15** Deal 조건 해석(DL-R4~R12)은 서버의 한 곳(`deal_search.conditions`)에만 있고, Forecast 실시간 집계(FC)와 Dashboard 집계(DSH)가 같은 해석을 쓴다. 그래서 같은 조건이면 목록 `total`과 그 집계의 건수가 같다(검증은 FC·DSH).
 
 연도 기준·기간 프리셋
@@ -95,8 +97,8 @@ DL은 테이블을 소유하지 않는다. 읽는 값: `deals`(소유 DE), `cont
 - **DL-R18** 화면 틀: 제목(h1) "Deals", `canWrite`(admin·sales, PL-R36)면 "+ Deal 등록" 링크(`/deals/new`). 필터 바(DL-R21) 아래에 경고 범례(RK-R16), 페이지 알림(인라인 저장 알림 등), 목록 오류 배너(PL-R37)를 보인다. 처음 읽는 동안 "불러오는 중…". 응답이 오면 "총 N건". `total`이 0이면 활성 필터(DL-R20)가 있을 때 "조건에 맞는 Deal이 없습니다.", 없을 때 "등록된 Deal이 없습니다.". `total`>0인데 그 페이지가 비면 "N페이지에는 Deal이 없습니다." + "첫 페이지로" 버튼(누르면 1페이지). 한 페이지 20건이고 `total`>0이면 페이저를 보인다. 조건을 바꿔 다시 읽는 동안에는 이전 표를 그대로 보인다(빈 화면으로 깜빡이지 않음).
 - **DL-R19** 기본 조건: 필터 키(DL-R20의 15개) 중 값이 있는 키가 하나도 없는 주소(빈 값·공백 값은 없는 것으로 봄)는 기본 조건으로 **이력을 교체**해 바꾼다. 기본 조건은 로그인 사용자가 sales면 `?year=all&mine=1`(연도 전체 + 내 딜만, 2026-11-12 사용자 요청), admin·user면 `?year=all`(연도·Quarter 전체)다(연도 전체 기본은 2026-11-13 사용자 요청 — 그 전에는 올해) — admin·user는 Owner가 될 수 없어(DE-R6) 내 딜만이면 항상 빈 목록이기 때문이다. 정렬 키가 없으므로 기본 정렬은 최종 업데이트 최신순(DL-R13 `last_updated_at` `desc`)이다. 이때 `sort`·`order`는 이어받고 `page`·모르는 키는 버린다. 첫 렌더부터 기본 조건으로 조회하므로 sales의 `mine` 없는 기본 조회 요청은 나가지 않는다. 루트(`/`)·로그인 직후·기억이 없을 때의 상단 메뉴·상세의 목록 링크 등 모든 진입이 같다. 조건이 하나라도 있는 주소는 바꾸지 않고 내 딜만을 더하지도 않는다: Dashboard·Forecast Drill-down 주소, `year=all`만 있는 주소, 기억된 조건(DL-R31)으로 연 주소가 모두 그렇다.
 - **DL-R20** URL 쿼리 키와 해석(URL이 정본이고 잘못된 값은 오류 없이 무시한다)
-  - 필터 키 15개: `q`(키워드), `owner`, `vendor`, `solution`, `status`, `forecast`, `year`, `quarter`, `month`, `updated_from`, `updated_to`, `mine`, `next_status`, `overdue`, `stale`. 그 밖에 `sort`, `order`, `page`.
-  - `q`·`status`·`solution`은 앞뒤 공백을 지운 값(비면 없음). `solution`이 지운 뒤 200자를 넘으면 무시한다.
+  - 필터 키 15개: `q`(키워드), `owner`, `vendor`, `product`, `status`, `forecast`, `year`, `quarter`, `month`, `updated_from`, `updated_to`, `mine`, `next_status`, `overdue`, `stale`. 그 밖에 `sort`, `order`, `page`.
+  - `q`·`status`·`product`는 앞뒤 공백을 지운 값(비면 없음). `product`가 지운 뒤 200자를 넘으면 무시한다.
   - `owner`·`vendor`는 1~2^53−1 정수 id만(예전 UUID·이름 값은 무시). `vendor`는 DL-R26도 따른다.
   - `forecast`는 콤마로 구분한 key 목록이다. 각 항목은 `^[a-z][a-z0-9_]{0,49}$`일 때만 쓰고 정렬·중복 제거한다. 서로 다른 key가 100개를 넘으면 조건 전체를 무시한다. 형식은 맞지만 코드에 없는 key는 그대로 보낸다(서버가 0건). 예전 단일 값(`forecast=won`)은 key 하나다.
   - `year`는 1 이상 정수면 그 연도, `all`이나 없음은 연도 '전체'(보내지 않음).
@@ -105,20 +107,20 @@ DL은 테이블을 소유하지 않는다. 읽는 값: `deals`(소유 DE), `cont
   - `updated_from`·`updated_to`는 실제 달력 날짜(`YYYY-MM-DD`, 예: 윤년 아닌 해 02-29는 무시)만 쓴다. 역전된 범위는 그대로 보낸다(서버 422, DL-R25).
   - `mine`·`overdue`·`stale`은 값이 `1`일 때만 켜짐(`yes` 등은 무시). `next_status`는 `open`·`done`·`not_done`·`closed`만(그 밖은 '전체').
   - `sort`는 화면 정렬 키(`name`·`revenueAmount`·`revenueDate`·`lastUpdatedAt`·`statusKey`·`owner`·`customer`·`partner`·`vendor`·`forecastKey`)일 때만 쓰고, `order`가 `asc`·`desc`가 아니면 그 열의 자연 방향이다. `page`는 1 이상 정수(아니면 1).
-  - 예전 키(`from`·`to`(Expected Close 기간), `outcome`, `budget`·`authority`·`need`·`timeline`)는 조건에 쓰지 않고 활성 필터로도 세지 않는다.
+  - 예전 키(`from`·`to`(Expected Close 기간), `outcome`, `budget`·`authority`·`need`·`timeline`, 2026-11-16 이름을 바꾼 `solution`)는 조건에 쓰지 않고 활성 필터로도 세지 않는다.
   - 활성 필터 = 15개 키 중 값이 있는 키(`year=all`은 제외). 빈 목록 문구(DL-R18)를 가른다.
-- **DL-R21** 필터 바(`search` 역할 폼 "Deal 필터"): 칸 순서 키워드, 담당자(퇴사자 포함 사용자 선택), Vendor, Solution, Status(전체 + Status 코드 이름), Forecast(DL-R22), Next Action 상태(전체·Open·종료(수행)·종료(미수행)·종료(전체)), Close 연도(DL-R24, Expected Close의 연도), Quarter·월(DL-R23), 최종 업데이트(DL-R25). 마지막 줄 "빠른 조건" 묶음: 체크박스 "내 딜만"·"기한초과"·"미업데이트"와 버튼 "검색"·"초기화"(오른쪽 끝). 목록 필터 칸 위에 필터 관련 오류 배너(연도·Vendor·기간 프리셋 조회 실패)를 보인다. BANT Label 필터는 없다.
-  - 키워드·Solution은 "검색" 버튼이나 Enter로만 URL(`q`·`solution`)에 반영한다(앞뒤 공백 제거, 비우면 키 삭제). URL이 바깥에서 바뀌면(초기화·뒤로 가기) 입력란도 따라간다. 나머지 칸·체크박스는 바꾸는 즉시 URL에 반영한다. 체크박스는 켜면 `1`, 끄면 키를 지운다.
+- **DL-R21** 필터 바(`search` 역할 폼 "Deal 필터"): 칸 순서 키워드, 담당자(퇴사자 포함 사용자 선택), Vendor, Product, Status(전체 + Status 코드 이름), Forecast(DL-R22), Next Action 상태(전체·Open·종료(수행)·종료(미수행)·종료(전체)), Close 연도(DL-R24, Expected Close의 연도), Quarter·월(DL-R23), 최종 업데이트(DL-R25). 마지막 줄 "빠른 조건" 묶음: 체크박스 "내 딜만"·"기한초과"·"미업데이트"와 버튼 "검색"·"초기화"(오른쪽 끝). 목록 필터 칸 위에 필터 관련 오류 배너(연도·Vendor·기간 프리셋 조회 실패)를 보인다. BANT Label 필터는 없다.
+  - 키워드·Product는 "검색" 버튼이나 Enter로만 URL(`q`·`product`)에 반영한다(앞뒤 공백 제거, 비우면 키 삭제). URL이 바깥에서 바뀌면(초기화·뒤로 가기) 입력란도 따라간다. 나머지 칸·체크박스는 바꾸는 즉시 URL에 반영한다. 체크박스는 켜면 `1`, 끄면 키를 지운다.
   - 조건이 바뀌면 `page`를 지워 1페이지로 간다(페이저로 페이지만 바꿀 때만 유지, `page=1`은 쓰지 않음).
   - 사용자가 마지막 조건을 지워 조건이 하나도 남지 않으면 기본 연도를 되살리지 않고 `year=all`(연도 전체)로 남긴다.
   - "초기화"는 기본 조건(DL-R19: sales `?year=all&mine=1`, admin·user `?year=all`)으로 바꾸고(새 이력, 정렬도 지움) 모든 칸을 비운다(sales는 "내 딜만"만 체크된 상태). 그 조건이 기억된다(DL-R31).
   - sales가 기본 조건에서 "내 딜만"을 끄면 다른 체크박스와 같이 `mine` 키를 지운다(`mine=0` 같은 값을 쓰지 않는다). `year`가 남아 조건 없는 주소가 아니므로 기본 조건으로 되돌아가지 않고, 그 주소가 기억된다.
-  - URL의 값으로 모든 칸(키워드·Solution 입력란, 선택, 체크)을 복원한다.
+  - URL의 값으로 모든 칸(키워드·Product 입력란, 선택, 체크)을 복원한다.
 - **DL-R22** Forecast 다중 선택: 버튼 "Forecast"가 패널을 열고 Forecast 코드를 현재 코드 순서로 체크박스로 보인다(+ "전체" 버튼, Escape로 닫으면 포커스가 버튼으로 돌아간다). 체크하면 URL `forecast`에 정렬된 key를 콤마로 쓴다(누른 순서와 무관하게 같은 URL, 하나면 단일 값). 모두 끄거나 "전체"를 누르면 키를 지운다. 버튼 요약: 선택 없음 "전체", 하나면 그 코드 이름(코드에 없으면 key), 전부면 "모두 선택", outcome이 lost가 아닌 코드 전부면 "Lost 제외", open 코드 전부면 "Open 전체", 그 밖은 "N개 선택".
 - **DL-R23** Quarter·월: Quarter는 Q1~Q4 체크박스와 "전체" 버튼이며 연도와 무관하게 언제나 쓸 수 있다. 체크하면 URL `quarter`에 오름차순 콤마(하나면 단일 값), 넷 다 체크해도 눌린 상태와 URL을 유지하고 요약은 "전체", 마지막 하나를 끄거나 "전체"를 누르면 키를 지운다. 요약은 "전체" 또는 "Q1, Q3". 월 선택지는 고른 분기(넷 다·없음이면 12달)의 월 합집합이고 "전체"가 첫 항목이다. 분기를 바꿀 때 보이던 월이 새 선택지에 있으면 유지하고 없으면 지운다. 선택지 밖이라 숨어 있던 월은 분기를 바꾸거나 "전체"를 누르면 지운다. "전체"(분기 해제)는 보이던 월을 유지한다. 연도가 전체일 때 분기를 고르면 Quarter 아래에, 분기 없이 월만 고르면 월 아래에 "Close 연도가 전체이면 올해(YYYY) 기준입니다."를 보인다(접근성 설명으로 연결). 연도를 고르면 안내가 사라진다.
 - **DL-R24** 연도 선택지 — Deal 목록의 선택 상자 이름(라벨·접근성 이름)은 "Close 연도"이고 Expected Close의 연도로 거른다(DL-R9). Dashboard·Forecast의 선택 상자 이름 "연도"는 바꾸지 않는다(범위 규칙은 Deals 목록·Dashboard·Forecast 공용이고 "전체"는 Deal 목록에만 있다 — Dashboard DSH-R16·Forecast FC-R26은 "전체" 없이 범위만 쓴다): Deal 목록은 "전체"(값 `all`, 첫 항목) + `min(earliest_year, 올해)`부터 올해+1까지 연속 오름차순. Deal이 없거나 연도 기준을 읽는 동안·실패하면 올해·내년만이고, 실패하면 오류 배너를 보이되 목록은 그대로 조회된다. 읽기가 끝나면 선택을 바꾸지 않고 선택지만 넓힌다. URL 연도가 선택지 밖의 양의 정수면 한 번만 더해 선택된 상태로 보인다. 내년보다 뒤의 Deal이 있어도 그 연도는 선택지에 없다. 연도 '전체'는 서버에 연도를 보내지 않는다.
 - **DL-R25** 최종 업데이트 기간: 선택 상자 "최종 업데이트"는 전체·최근 2주·최근 1개월·최근 2개월·최근 3개월·최근 6개월·직접 지정(7개)이고 서버 프리셋(DL-R17)에 없는 키는 비활성이다. 프리셋을 고르면 캐시를 쓰지 않고 프리셋을 서버에 다시 물어 그 `from`·`to`를 URL `updated_from`·`updated_to`에 쓴다(늦게 온 이전 응답은 버린다). 다시 묻기가 실패하면 URL은 그대로 두고 오류 배너를 보인다. "전체"는 두 키를 지운다. "직접 지정"은 URL을 바꾸지 않고 "시작일"·"종료일" 날짜 칸(`DateInput`, UI-R6)을 현재 URL 날짜로 채워 보인다. 날짜 칸은 비었거나 올바른 날짜가 될 때만 URL을 바꾼다(`yyyymmdd` 입력은 ISO로, 덜 쳤거나 없는 날짜는 URL을 바꾸지 않고 칸이 문구를 보인다). 시작만 넣어도 조회된다. 역전된 범위는 서버 문구(DL-R10)를 목록 오류 배너로 보인다. 표시: URL 날짜가 오늘의 프리셋과 정확히 같으면 그 프리셋, 둘 다 없으면 전체, 그 밖(한쪽만 있음 포함)은 직접 지정. 프리셋을 읽지 못해도 URL 날짜로 조회한다. 뒤로 가기로 URL 날짜가 바뀌면 직접 지정 칸을 닫고 이 표시 규칙을 따른다.
-- **DL-R26** Vendor 선택: 선택지 값은 Vendor id, 표시는 이름이다. Vendor 목록을 읽은 뒤 URL `vendor`가 목록에 없는 id면 선택은 "전체"로 보이고 조회에도 보내지 않는다(표시 = 조회 조건). 목록을 읽는 동안·실패하면 URL id를 조회에 쓰고 선택지에 "선택한 Vendor" 하나를 더해 선택된 상태로 보인다(실패하면 오류 배너). Solution 텍스트 조건은 Vendor와 무관하게 유지된다(Vendor를 바꿔도 Solution은 남고, Solution만 검색해도 Vendor를 채우지 않는다).
+- **DL-R26** Vendor 선택: 선택지 값은 Vendor id, 표시는 이름이다. Vendor 목록을 읽은 뒤 URL `vendor`가 목록에 없는 id면 선택은 "전체"로 보이고 조회에도 보내지 않는다(표시 = 조회 조건). 목록을 읽는 동안·실패하면 URL id를 조회에 쓰고 선택지에 "선택한 Vendor" 하나를 더해 선택된 상태로 보인다(실패하면 오류 배너). Product 텍스트 조건은 Vendor와 무관하게 유지된다(Vendor를 바꿔도 Product는 남고, Product만 검색해도 Vendor를 채우지 않는다).
 - **DL-R27** 정렬 머리글: 13열 중 Next Action·Due·Next Action 상태를 뺀 10열이 정렬 버튼이다(DL-R28 순서). 정렬 중인 열에만 방향 표시와 `aria-sort`가 있다. 지금 정렬하지 않는 열을 누르면 그 열의 자연 방향(금액·최종 업데이트 내림차순, 나머지 오름차순)으로 시작하고, 같은 열을 다시 누르면 방향을 바꾼다. 정렬을 바꾸면 1페이지로 간다. 정렬이 없는 주소는 최종 업데이트 내림차순(머리글에 표시)이다. URL의 정렬 값으로 머리글 표시를 복원한다. 행 순서는 서버 순서(DL-R13) 그대로다.
 - **DL-R28** 표 열(13개, 이 순서): Deal, 담당자, 고객사, 파트너사, Vendor, Status, Forecast, 금액(단위:원), Expected Close, 최종 업데이트, Next Action, Due, Next Action 상태(2026-11-16: 최종 업데이트를 Next Action 앞으로). 칸 값: Deal = 빠른 보기 토글 + 이름 링크(`/deals/<code>`) + 경고 배지(RK-R15); 담당자 = 이름(퇴사자는 "이름(퇴사)"); 고객사 = 고객 회사명; 파트너사 = 활성 파트너 회사명, 없으면 "—"; Vendor = 이름, 없으면 "—"; Status·Forecast = 코드 배지; 금액 = 원 단위 콤마; Expected Close = 날짜; Next Action = 기준 행 내용이 링크(`/deals/<code>?tab=actions`, 링크 안에는 내용만)이고 Due = 기한(기한초과면 강조, RK-R16), Next Action 상태 = 라벨(Open·종료(수행)·종료(미수행)); Next Action이 없으면 세 칸 모두 "—"이고 링크가 없다; 최종 업데이트 = 상대 일수(RK-R16), 마우스를 올리면 `YYYY-MM-DD`. Deal code는 화면 글자·접근성 이름·title 어디에도 보이지 않고 링크 주소에만 있다(키워드로 code를 검색하는 것은 된다). BANT 열·Status 체류 일수는 목록에 없다.
 - **DL-R29** 빠른 보기: Deal 칸의 토글 버튼(접근성 이름 "<Deal 이름> 빠른 보기", `aria-expanded`)을 누르면 행 아래에 13열 너비로 펼친다(다시 누르면 접는다). 항목: 견적(`<제출 여부> (<날짜>)`, 없으면 "—"), POC(같은 형식), 고객 담당자(이름·직급·이메일·전화 중 있는 값을 " · "로), 파트너 영업대표(같은 형식, 없으면 "파트너 없음"), Budget·Authority·Need·Timeline(고른 Label 이름, 고르지 않았으면 "—", Label 목록을 읽는 동안 "불러오는 중…", 실패하면 "불러오지 못함"), Users count(0도 "0", 천 단위 콤마), 구매절차(없으면 "—"), 링크 "상세 보기"(`/deals/<code>`). 목록은 빠른 보기를 열기 전에는 BANT Label 목록을 읽지 않는다(그래서 Label 조회 실패가 목록에 보이지 않는다).
@@ -127,8 +129,8 @@ DL은 테이블을 소유하지 않는다. 읽는 값: `deals`(소유 DE), `cont
   - 금액: 원 단위 콤마 값으로 시작한다. Enter나 포커스 이동(blur)에 저장하고 글자마다 저장하지 않는다. Esc는 입력을 버리고 원래 값으로 닫는다. 형식이 틀리면 칸 아래 `alert`로 금액 입력 문구(DE)를 보이고 편집을 유지한다. 값이 원래와 같으면 요청하지 않는다(1,000원 미만 차이도 다른 값으로 저장).
   - Expected Close: 날짜 입력(`DateInput`, UI-R6·UI-R9)에서 고르거나 `yyyymmdd`를 다 치는 순간 저장한다. 덜 친 동안은 저장하지 않고 문구도 없다. 없는 날짜에 Enter면 날짜 칸 문구를 보이고 편집을 유지한다. 비우면 "Expected Close를 입력하세요."를 보이고 편집을 유지한다. 텍스트 칸과 달력 버튼 사이 이동으로는 닫히지 않고, 편집 영역 밖으로 포커스가 나가면 저장 없이 닫는다(덜 친 값도 오류 없이 버린다).
   - 저장에 성공하면 편집기를 닫고 칸 옆에 ✓ 표시를 2.5초 보이며 페이지 알림을 보인다: 함께 바뀐 값이 있으면 "<Deal 이름>: <서버 알림>", 없으면 Status·Forecast "<Deal 이름>: Status가 '<코드 이름>'(으)로 변경되었습니다."(조사는 이름에 맞춤), 금액 "<Deal 이름>: 금액(단위:원)이 '<콤마 값>'(으)로 변경되었습니다.", Expected Close "<Deal 이름>: Expected Close가 '<날짜>'(으)로 변경되었습니다.". 실패하면 편집기 안에 서버 문구(없으면 "저장하지 못했습니다.")를 보이고 다시 시도할 수 있다. 편집을 마치면 포커스가 그 칸의 편집 버튼으로 돌아온다.
-- **DL-R31** 조건 기억: 목록이 보일 때마다 로그인 사용자의 마지막 목록 쿼리를 sessionStorage 키 `deals.listSearch:<사용자 id>`에 저장한다(탭·사용자별, 새로고침해도 유지). 저장 전에 아는 키(필터 15개 + `sort`·`order`·`page`)만 남기고 `owner`·`vendor`는 정수 id일 때만 남긴다(그 밖의 값은 검증하지 않음). 남은 것이 없으면 항목을 지운다. 저장소를 쓸 수 없으면 기억만 포기한다. "목록으로" 경로는 상단 메뉴 Deals, 상세의 목록 링크, Deal 삭제 뒤 이동(알림은 한 번만), 새 Deal 폼의 취소, 상세·수정 화면의 오류 화면 링크가 쓰며 기억된 쿼리로 `/deals?…`(없으면 `/deals` → DL-R19)다. 목록 화면 안에서는 기억 대신 지금 URL을 바로 쓴다(조건·정렬·페이지를 바꾸면 메뉴 링크가 즉시 따라감). 다른 사용자는 이전 사용자의 조건을 물려받지 않는다. 예전 키(BANT·`outcome`·`from`·`to`)는 복원하지 않는다. (수정 폼의 취소는 상세로 돌아간다 — DE.)
-- **DL-R32** 게이트웨이(`gateway/http/deals.ts`): `list`는 정한 조건만 snake_case 쿼리로 보낸다(`keyword`, `owner_user_id`, `vendor_id`, `solution`, `status_key`, `forecast_key`(key마다 반복), `forecast_outcome`, `year`, `quarter`(분기마다 반복), `month`, `updated_from`, `updated_to`, `mine`(true일 때만), `overdue`·`stale`(true일 때만), `next_action_status`(`notDone` → `not_done`), `sort`(화면 키 → 서버 값: `revenueAmount`→`revenue_amount`, `revenueDate`→`revenue_date`, `lastUpdatedAt`→`last_updated_at`, `statusKey`→`status`, `forecastKey`→`forecast`, 나머지 같음), `order`, `offset`, `limit`). 조건이 없으면 쿼리 없이 `GET /deals`다. id는 정수로 보낸다. 폐지된 파라미터(`bant_*`, `vendor`, `solution_id`, `revenue_from`·`revenue_to`, 단일 `forecast_key` 필드 등)는 보내지 않는다. 응답은 행을 camelCase로 바꾸고 `total`·`offset`·`limit`을 그대로 준다. `years`는 `earliest_year` → `earliestYear`(null 유지), `updatedPeriods`는 `today`와 아는 키(`periods` 5개·`upcoming` 2개)만 `{key, from, to}`로 남긴다. 오류는 PL-R39.
+- **DL-R31** 조건 기억: 목록이 보일 때마다 로그인 사용자의 마지막 목록 쿼리를 sessionStorage 키 `deals.listSearch:<사용자 id>`에 저장한다(탭·사용자별, 새로고침해도 유지). 저장 전에 아는 키(필터 15개 + `sort`·`order`·`page`)만 남기고 `owner`·`vendor`는 정수 id일 때만 남긴다(그 밖의 값은 검증하지 않음). 남은 것이 없으면 항목을 지운다. 저장소를 쓸 수 없으면 기억만 포기한다. "목록으로" 경로는 상단 메뉴 Deals, 상세의 목록 링크, Deal 삭제 뒤 이동(알림은 한 번만), 새 Deal 폼의 취소, 상세·수정 화면의 오류 화면 링크가 쓰며 기억된 쿼리로 `/deals?…`(없으면 `/deals` → DL-R19)다. 목록 화면 안에서는 기억 대신 지금 URL을 바로 쓴다(조건·정렬·페이지를 바꾸면 메뉴 링크가 즉시 따라감). 다른 사용자는 이전 사용자의 조건을 물려받지 않는다. 예전 키(BANT·`outcome`·`from`·`to`·`solution`)는 복원하지 않는다. (수정 폼의 취소는 상세로 돌아간다 — DE.)
+- **DL-R32** 게이트웨이(`gateway/http/deals.ts`): `list`는 정한 조건만 snake_case 쿼리로 보낸다(`keyword`, `owner_user_id`, `vendor_id`, `product`, `status_key`, `forecast_key`(key마다 반복), `forecast_outcome`, `year`, `quarter`(분기마다 반복), `month`, `updated_from`, `updated_to`, `mine`(true일 때만), `overdue`·`stale`(true일 때만), `next_action_status`(`notDone` → `not_done`), `sort`(화면 키 → 서버 값: `revenueAmount`→`revenue_amount`, `revenueDate`→`revenue_date`, `lastUpdatedAt`→`last_updated_at`, `statusKey`→`status`, `forecastKey`→`forecast`, 나머지 같음), `order`, `offset`, `limit`). 조건이 없으면 쿼리 없이 `GET /deals`다. id는 정수로 보낸다. 폐지된 파라미터(`bant_*`, `vendor`, `solution_id`, `solution`, `revenue_from`·`revenue_to`, 단일 `forecast_key` 필드 등)는 보내지 않는다. 응답은 행을 camelCase로 바꾸고 `total`·`offset`·`limit`을 그대로 준다. `years`는 `earliest_year` → `earliestYear`(null 유지), `updatedPeriods`는 `today`와 아는 키(`periods` 5개·`upcoming` 2개)만 `{key, from, to}`로 남긴다. 오류는 PL-R39.
 
 ### 2.4 상태와 전이
 
@@ -148,11 +150,11 @@ DL은 테이블을 소유하지 않는다. 읽는 값: `deals`(소유 DE), `cont
 
 | 메서드·경로 | 요청 | 성공 | 오류 |
 | --- | --- | --- | --- |
-| GET `/deals` | query `keyword?`(≤100), `owner_user_id?`(id), `mine?`(bool, 기본 false), `vendor_id?`(id), `solution?`(트림 후 ≤200), `status_key?`(≤50), `forecast_key?`(반복, 각 ≤50, ≤100개), `forecast_outcome?`(`open`·`won`·`lost`·`not_lost`), `year?`(1900~9999), `quarter?`(반복, 1~4, ≤4개), `month?`(1~12), `updated_from?`·`updated_to?`(date), `overdue?`·`stale?`(bool, 기본 false), `next_action_status?`(`open`·`done`·`not_done`·`closed`), `sort?`(DL-R13, 기본 `last_updated_at`), `order?`(`asc`·`desc`, 기본 `desc`), `offset?`(≥0, 기본 0), `limit?`(1~200, 기본 20) | 200 `CountedPage[DealRowResponse]` `{items, total, offset, limit}` | 401, 422 `request-validation`·`invalid-value` |
+| GET `/deals` | query `keyword?`(≤100), `owner_user_id?`(id), `mine?`(bool, 기본 false), `vendor_id?`(id), `product?`(트림 후 ≤200), `status_key?`(≤50), `forecast_key?`(반복, 각 ≤50, ≤100개), `forecast_outcome?`(`open`·`won`·`lost`·`not_lost`), `year?`(1900~9999), `quarter?`(반복, 1~4, ≤4개), `month?`(1~12), `updated_from?`·`updated_to?`(date), `overdue?`·`stale?`(bool, 기본 false), `next_action_status?`(`open`·`done`·`not_done`·`closed`), `sort?`(DL-R13, 기본 `last_updated_at`), `order?`(`asc`·`desc`, 기본 `desc`), `offset?`(≥0, 기본 0), `limit?`(1~200, 기본 20) | 200 `CountedPage[DealRowResponse]` `{items, total, offset, limit}` | 401, 422 `request-validation`·`invalid-value` |
 | GET `/deals/years` | — | 200 `{earliest_year: int\|null}` | 401 |
 | GET `/deals/updated-periods` | — | 200 `{today: date, periods: [{key: "2w"\|"1m"\|"2m"\|"3m"\|"6m", from: date, to: date}], upcoming: [{key: "1m"\|"2m", from: date, to: date}]}` | 401 |
 
-- openapi: `forecast_key`·`quarter`는 배열 파라미터(`quarter` 항목 1~4 문서화), `overdue`·`stale`은 기본 false인 boolean, `sort`는 10개 값 enum, `solution`은 maxLength 200 문서화, `bant_*` 파라미터는 없다. `earliest_year`는 nullable 정수, 프리셋 항목 키는 `from`·`to`. 공통 오류 문서화는 PL-R21.
+- openapi: `forecast_key`·`quarter`는 배열 파라미터(`quarter` 항목 1~4 문서화), `overdue`·`stale`은 기본 false인 boolean, `sort`는 10개 값 enum, `product`는 maxLength 200 문서화, `bant_*` 파라미터는 없다. `earliest_year`는 nullable 정수, 프리셋 항목 키는 `from`·`to`. 공통 오류 문서화는 PL-R21.
 
 ### 2.7 화면 동작
 
@@ -162,9 +164,9 @@ DL-R18~DL-R32.
 
 | 상황 | 상태·kind | detail(문구) |
 | --- | --- | --- |
-| 모르는·폐지 파라미터, 형식·범위 밖 값(페이지, id, 키워드 101자, Solution 201자, key 51자·101개, 분기·월·연도 범위, 분기 5개, 날짜 형식, 정렬, 불리언, enum) | 422 `request-validation` | 요청 형식이 올바르지 않습니다(PL-R12, 분기 항목 msg "분기는 1~4 중에서 선택하세요.") |
+| 모르는·폐지 파라미터, 형식·범위 밖 값(페이지, id, 키워드 101자, Product 201자, key 51자·101개, 분기·월·연도 범위, 분기 5개, 날짜 형식, 정렬, 불리언, enum) | 422 `request-validation` | 요청 형식이 올바르지 않습니다(PL-R12, 분기 항목 msg "분기는 1~4 중에서 선택하세요.") |
 | 키워드 NUL | 422 `invalid-value` | 검색어에는 NUL 문자를 쓸 수 없습니다 |
-| Solution NUL | 422 `invalid-value` | Solution에는 NUL 문자를 쓸 수 없습니다 |
+| Product NUL | 422 `invalid-value` | Product에는 NUL 문자를 쓸 수 없습니다 |
 | 분기와 월 동시 | 422 `invalid-value` | Quarter와 월은 함께 선택할 수 없습니다. |
 | 최종 업데이트 날짜 범위 밖 | 422 `invalid-value` | updated_from은(는) 1900-01-01부터 2999-12-31 사이여야 합니다 (`updated_to`도 같은 형식) |
 | 최종 업데이트 기간 역전 | 422 `invalid-value` | 최종 업데이트 기간의 시작은 끝보다 늦을 수 없습니다 |
@@ -184,7 +186,7 @@ DL-R18~DL-R32.
 
 ### DL-UC2 조건으로 찾기
 - 행위자: 로그인한 모든 역할
-- 기본 흐름: 필터 칸을 고르거나 키워드·Solution을 입력해 검색 → URL이 바뀌고 1페이지부터 다시 조회(DL-R3~R12, R20~R26)
+- 기본 흐름: 필터 칸을 고르거나 키워드·Product를 입력해 검색 → URL이 바뀌고 1페이지부터 다시 조회(DL-R3~R12, R20~R26)
 - 대안: 초기화, 마지막 조건 삭제(연도 전체), Dashboard·Forecast에서 조건이 담긴 주소로 들어옴(DSH·FC)
 - 예외: 잘못된 URL 값은 무시, 서버 422는 오류 배너(기간 역전 등), 연도·Vendor·프리셋 조회 실패는 필터 오류 배너
 - 결과: 모든 조건을 AND로 만족하는 Deal
@@ -229,15 +231,15 @@ DL-R18~DL-R32.
 | DL-003 | 모든 역할이 목록을 보고 미인증은 401이다 | DL-R1, DL-UC1 | backend | `web/test_deal_list_http_cases.py` |
 | DL-004 | limit 1·200은 되고 0·201·offset −1은 422 request-validation이다 | DL-R2, DL-UC1 | backend | `web/test_deal_list_http_cases.py` |
 | DL-005 | 키워드는 Deal Name·code·고객 회사·활성 파트너 회사를 대소문자 무시로 찾는다 | DL-R4, DL-UC2 | backend | `application/test_deal_list_search_cases.py` |
-| DL-006 | 키워드는 비활성 파트너·담당자 이름·Vendor·Solution을 찾지 않는다 | DL-R4, DL-UC2 | backend | `application/test_deal_list_search_cases.py` |
+| DL-006 | 키워드는 비활성 파트너·담당자 이름·Vendor·Product를 찾지 않는다 | DL-R4, DL-UC2 | backend | `application/test_deal_list_search_cases.py` |
 | DL-007 | 키워드의 앞뒤 공백은 지우고 공백뿐이면 조건 없음이며 %·_는 글자 그대로다 | DL-R4, DL-UC2 | backend | `application/test_deal_list_search_cases.py` |
 | DL-008 | 키워드 100자는 되고 101자는 422 request-validation이다 | DL-R4, DL-UC2 | backend | `web/test_deal_list_http_cases.py` |
 | DL-009 | 키워드에 NUL이 있으면 500이 아니라 422 invalid-value다 | DL-R4, DL-R3, DL-UC2 | backend | `web/test_deal_list_http_cases.py` |
 | DL-010 | owner_user_id는 담당자가 정확히 같은 Deal(퇴사자 포함)이고 형식이 틀리면 422다 | DL-R5, DL-UC2 | backend | `application/test_deal_list_search_cases.py`, `web/test_deal_list_http_cases.py` |
 | DL-011 | mine=true는 요청자 Deal만이고 owner_user_id보다 우선하며 불리언이 아니면 422다 | DL-R5, DL-UC2 | backend | `web/test_deal_list_http_cases.py` |
 | DL-012 | vendor_id는 그 Vendor의 Deal이고 없는 id는 0건, 정수가 아니면 422다 | DL-R6, DL-UC2 | backend | `application/test_deal_list_search_cases.py`, `web/test_deal_list_http_cases.py` |
-| DL-013 | solution은 트림한 텍스트의 대소문자 무시 부분 일치이고 와일드카드는 글자이며 Vendor와 AND다 | DL-R6, DL-UC2 | backend | `application/test_deal_list_search_cases.py` |
-| DL-014 | solution은 트림 후 200자까지 되고 201자는 422 request-validation, NUL은 invalid-value다 | DL-R6, DL-UC2 | backend | `web/test_deal_list_http_cases.py` |
+| DL-013 | product는 트림한 텍스트의 대소문자 무시 부분 일치이고 와일드카드는 글자이며 Vendor와 AND다 | DL-R6, DL-UC2 | backend | `application/test_deal_list_search_cases.py` |
+| DL-014 | product는 트림 후 200자까지 되고 201자는 422 request-validation, NUL은 invalid-value다 | DL-R6, DL-UC2 | backend | `web/test_deal_list_http_cases.py` |
 | DL-015 | status_key는 같은 Status의 Deal이고 없는 key는 0건, 51자는 422다 | DL-R7, DL-UC2 | backend | `application/test_deal_list_search_cases.py`, `web/test_deal_list_http_cases.py` |
 | DL-016 | forecast_key를 하나 또는 여러 번 보내면 그중 하나인 Deal이고 중복은 한 번이다 | DL-R8, DL-UC2 | backend | `application/test_deal_list_search_cases.py`, `web/test_deal_list_http_cases.py` |
 | DL-017 | 모르는·빈 forecast_key는 오류 없이 일치가 없고 콤마는 key의 일부다 | DL-R8, DL-UC2 | backend | `application/test_deal_list_search_cases.py` |
@@ -288,7 +290,7 @@ DL-R18~DL-R32.
 | DL-062 | 빈 목록은 조건 유무에 따라 다른 문구이고 끝을 넘은 페이지는 첫 페이지로 버튼을 준다 | DL-R18, DL-UC1 | frontend | `features/deals/list/DealsPage.filters.test.tsx`, `features/deals/list/DealsPage.riskFilter.test.tsx` |
 | DL-063 | 다음 조건을 읽는 동안 이전 표를 유지하고 목록 오류는 배너로 보인다 | DL-R18, DL-UC1 | frontend | `features/deals/list/DealsPage.keepPrevious.test.tsx` |
 | DL-064 | user에게는 Deal 등록 링크와 편집 버튼이 없다 | DL-R18, DL-R30, DL-UC1 | frontend | `features/deals/list/DealsPage.inline.test.tsx`, `features/deals/list/DealsPage.test.tsx` |
-| DL-065 | 키워드·Solution은 검색 버튼·Enter로만 URL에 반영되고 비우면 지워진다 | DL-R21, DL-UC2 | frontend | `features/deals/list/DealsPage.filters.test.tsx`, `features/deals/list/DealsPage.vendorQuarter.test.tsx` |
+| DL-065 | 키워드·Product는 검색 버튼·Enter로만 URL에 반영되고 비우면 지워진다 | DL-R21, DL-UC2 | frontend | `features/deals/list/DealsPage.filters.test.tsx`, `features/deals/list/DealsPage.vendorQuarter.test.tsx` |
 | DL-066 | 담당자(퇴사자 포함)·Vendor·Status·내 딜만은 바꾸는 즉시 반영된다 | DL-R21, DL-UC2 | frontend | `features/deals/list/DealsPage.filters.test.tsx`, `features/deals/list/DealsPage.vendorQuarter.test.tsx` |
 | DL-067 | 목록에 없는 Vendor id는 전체로 보이고 보내지 않으며 Vendor를 못 읽는 동안은 URL id를 쓴다 | DL-R26, DL-UC2 | frontend | `features/deals/list/DealsPage.filters.test.tsx`, `features/deals/list/DealsPage.vendorLoadError.test.tsx`, `features/deals/list/DealsPage.vendorMismatch.test.tsx`, `features/deals/list/DealsPage.vendorQuarter.test.tsx` |
 | DL-068 | 조건을 바꾸면 1페이지로 돌아간다 | DL-R21, DL-UC2 | frontend | `features/deals/list/DealsPage.forecastMulti.test.tsx`, `features/deals/list/DealsPage.quarterMulti.test.tsx` |
@@ -331,6 +333,7 @@ DL-R18~DL-R32.
 | DL-105 | user의 기본 조건은 연도 전체이고 담당 Deal이 없는 sales는 빈 조건 문구를 본다 | DL-R19, DL-R18, DL-UC1 | frontend | `features/deals/list/DealsPage.defaultMine.test.tsx` |
 | DL-106 | 최종 업데이트일이 같은 Deal은 정렬 방향과 무관하게 Deal code 오름차순이다 | DL-R13, DL-UC1 | backend | `application/test_deal_list_period_sort_cases.py`, `repositories/test_deal_sort_contract.py`, `web/test_deal_list_openapi.py` |
 | DL-107 | Deal 목록의 연도 선택 상자 이름은 "Close 연도"이고 Expected Close 연도로 거르며 Dashboard·Forecast는 "연도" 그대로다 | DL-R24, DL-R21, DL-R9, DL-UC2 | frontend | `features/deals/list/DealsPage.closeYear.test.tsx` |
+| DL-108 | 화면: 예전 URL 키 solution은 조건·입력란·활성 필터·조건 기억에 쓰지 않는다 | DL-R20, DL-R31, DL-UC2 | frontend | `features/deals/list/DealsPage.memory.test.tsx` |
 ### DL-001 조건 없이 조회하면 offset 0·limit 20의 페이지가 최종 업데이트 최신순으로 온다
 - Given KIM이 Deal "첫째"·"둘째"·"셋째"를 하루 간격으로(각각 다른 날) 등록했고 Action은 없다
 - When 조건 없이 목록을 조회한다
@@ -356,8 +359,8 @@ DL-R18~DL-R32.
 - When 키워드 "erp", "한빛", "코어테크", 첫 Deal code의 소문자 일부로 각각 조회한다
 - Then 각각 해당 Deal 하나만 나온다
 
-### DL-006 키워드는 비활성 파트너·담당자 이름·Vendor·Solution을 찾지 않는다
-- Given 파트너를 "에이원"에서 "대한"으로 바꾼 Deal, Vendor "SpecialVendor"·Solution "MFA"인 Deal, 담당자 이름 "박영업"
+### DL-006 키워드는 비활성 파트너·담당자 이름·Vendor·Product를 찾지 않는다
+- Given 파트너를 "에이원"에서 "대한"으로 바꾼 Deal, Vendor "SpecialVendor"·Product "MFA"인 Deal, 담당자 이름 "박영업"
 - When 키워드 "에이원", "SpecialVendor", "MFA", "박영업"으로 조회한다
 - Then 모두 0건이다
 
@@ -391,15 +394,15 @@ DL-R18~DL-R32.
 - When `vendor_id`=SAP id, 없는 id, `vendor_id=SAP`로 조회한다
 - Then SAP Deal만, 0건(200), 422 `request-validation`이다
 
-### DL-013 solution은 트림한 텍스트의 대소문자 무시 부분 일치이고 와일드카드는 글자이며 Vendor와 AND다
-- Given Solution "ITDR"·"ITDR Plus"·"MFA"·"50%_off"인 Deal(앞의 둘은 Vendor SAP, "ITDR Plus"만 Vendor Oracle로 바꾼 경우 포함)
-- When `solution=" itdr "`, `solution="   "`, `solution="%_"`, `vendor_id=SAP&solution=itdr`로 조회한다
+### DL-013 product는 트림한 텍스트의 대소문자 무시 부분 일치이고 와일드카드는 글자이며 Vendor와 AND다
+- Given Product "ITDR"·"ITDR Plus"·"MFA"·"50%_off"인 Deal(앞의 둘은 Vendor SAP, "ITDR Plus"만 Vendor Oracle로 바꾼 경우 포함)
+- When `product=" itdr "`, `product="   "`, `product="%_"`, `vendor_id=SAP&product=itdr`로 조회한다
 - Then 각각 ITDR 계열 둘, 전부, "50%_off"만, SAP이면서 ITDR인 Deal만 나온다
 
-### DL-014 solution은 트림 후 200자까지 되고 201자는 422 request-validation, NUL은 invalid-value다
+### DL-014 product는 트림 후 200자까지 되고 201자는 422 request-validation, NUL은 invalid-value다
 - Given 로그인한 KIM
-- When `solution`을 "a"×200(앞뒤 공백 포함), "a"×201, "a\x00b"로 조회한다
-- Then 200, 422 `request-validation`, 422 `invalid-value` "Solution에는 NUL 문자를 쓸 수 없습니다"다
+- When `product`를 "a"×200(앞뒤 공백 포함), "a"×201, "a\x00b"로 조회한다
+- Then 200, 422 `request-validation`, 422 `invalid-value` "Product에는 NUL 문자를 쓸 수 없습니다"다
 
 ### DL-015 status_key는 같은 Status의 Deal이고 없는 key는 0건, 51자는 422다
 - Given Status `introduction`·`prospecting` Deal 각 1건
@@ -563,7 +566,7 @@ DL-R18~DL-R32.
 
 ### DL-047 모르는 파라미터와 폐지된 파라미터는 조용히 무시하지 않고 422다
 - Given 로그인한 KIM
-- When `stage=lost`, `customer_id=x`, `owner=박영업`, `vendor=SAP`, `solution_id=1`, `revenue_from=2026-06-01`, `revenue_to=2026-06-30`, `bant_budget=1`, `sortBy=name`, `unknown=x`로 각각 조회한다
+- When `stage=lost`, `customer_id=x`, `owner=박영업`, `vendor=SAP`, `solution_id=1`, `solution=ITDR`, `revenue_from=2026-06-01`, `revenue_to=2026-06-30`, `bant_budget=1`, `sortBy=name`, `unknown=x`로 각각 조회한다
 - Then 모두 422 `request-validation`이다
 
 ### DL-048 행은 문서화된 필드를 갖고 담당자 역할·고객·활성 파트너·Vendor 참조가 담긴다
@@ -651,10 +654,10 @@ DL-R18~DL-R32.
 - When 목록을 연다
 - Then "+ Deal 등록"과 "… 편집" 버튼이 없고 Status·금액 등은 값으로만 보인다(sales는 둘 다 보인다)
 
-### DL-065 키워드·Solution은 검색 버튼·Enter로만 URL에 반영되고 비우면 지워진다
+### DL-065 키워드·Product는 검색 버튼·Enter로만 URL에 반영되고 비우면 지워진다
 - Given 목록 화면
-- When 키워드 "한빛"을 입력만 하고, "검색"을 누르고, Solution " ITDR "를 입력해 Enter, 다시 Solution을 비우고 검색한다
-- Then 입력만으로는 URL이 그대로이고, 검색 뒤 `q=한빛`, Enter 뒤 `solution=ITDR`(키워드와 함께 한 번에 반영), 비우고 검색하면 `solution`이 없다
+- When 키워드 "한빛"을 입력만 하고, "검색"을 누르고, Product " ITDR "를 입력해 Enter, 다시 Product를 비우고 검색한다
+- Then 입력만으로는 URL이 그대로이고, 검색 뒤 `q=한빛`, Enter 뒤 `product=ITDR`(키워드와 함께 한 번에 반영), 비우고 검색하면 `product`가 없다
 
 ### DL-066 담당자(퇴사자 포함)·Vendor·Status·내 딜만은 바꾸는 즉시 반영된다
 - Given 퇴사한 담당자가 있는 Fake
@@ -662,9 +665,9 @@ DL-R18~DL-R32.
 - Then 담당자 선택지에 퇴사자가 있고, 고를 때마다 URL(`owner`·`vendor`·`status`·`mine=1`)과 목록이 즉시 바뀌며 끄면 `mine`이 지워진다
 
 ### DL-067 목록에 없는 Vendor id는 전체로 보이고 보내지 않으며 Vendor를 못 읽는 동안은 URL id를 쓴다
-- Given URL `vendor=999`(없는 id)와 `solution=ITDR`, 별도로 Vendor 조회가 실패하는 Fake
+- Given URL `vendor=999`(없는 id)와 `product=ITDR`, 별도로 Vendor 조회가 실패하는 Fake
 - When 목록을 연다
-- Then 정상 Fake에서는 Vendor가 "전체", 요청에 `vendorId` 없음, Solution은 유지된다; 실패 Fake에서는 Vendor 칸 근처 오류 배너, 선택 "선택한 Vendor", 요청에 그 id가 있다; Vendor 선택지 값은 id·표시는 이름이다
+- Then 정상 Fake에서는 Vendor가 "전체", 요청에 `vendorId` 없음, Product는 유지된다; 실패 Fake에서는 Vendor 칸 근처 오류 배너, 선택 "선택한 Vendor", 요청에 그 id가 있다; Vendor 선택지 값은 id·표시는 이름이다
 
 ### DL-068 조건을 바꾸면 1페이지로 돌아간다
 - Given `/deals?year=2026&page=2`
@@ -684,10 +687,10 @@ DL-R18~DL-R32.
 ### DL-071 URL 조건으로 모든 칸을 복원한다
 - Given 모든 필터 키가 있는 주소
 - When 목록을 연다
-- Then 키워드·Solution 입력란, 담당자·Vendor·Status·Forecast·Next Action 상태·연도·Quarter·월·최종 업데이트 선택, 세 체크박스가 URL 값으로 보인다
+- Then 키워드·Product 입력란, 담당자·Vendor·Status·Forecast·Next Action 상태·연도·Quarter·월·최종 업데이트 선택, 세 체크박스가 URL 값으로 보인다
 
 ### DL-072 URL의 잘못된 값·예전 키는 조회에 쓰지 않고 활성 필터로도 세지 않는다
-- Given `owner=<UUID>`, `vendor=SAP`, `updated_from=2026-02-30`, `overdue=yes`, `next_status=bad`, 201자 `solution`, 예전 `budget=1`·`outcome=open`·`from`·`to`
+- Given `owner=<UUID>`, `vendor=SAP`, `updated_from=2026-02-30`, `overdue=yes`, `next_status=bad`, 201자 `product`, 예전 `solution=ITDR`·`budget=1`·`outcome=open`·`from`·`to`
 - When 목록을 연다
 - Then 그 값들은 요청에 없고 체크·선택은 '전체'/꺼짐이며, 다른 조건이 없으면 빈 문구는 "등록된 Deal이 없습니다." 기준으로 판정된다(예전 키는 활성 필터가 아님)
 
@@ -866,6 +869,11 @@ DL-R18~DL-R32.
 - When Deal 목록 필터 바에서 이름이 "Close 연도"인 선택 상자로 2027을 고르고, 그다음 "전체"로 바꾼 뒤 Q1을 체크한다. 별도로 Dashboard와 Forecast를 연다
 - Then 이름이 "연도"뿐인 선택 상자는 Deal 목록에 없고, 2027을 고르면 URL `year=2027`·Expected Close 2027년 Deal만 보인다. 전체에서 Q1을 고르면 Quarter 아래 "Close 연도가 전체이면 올해(2026) 기준입니다."가 보인다. Dashboard·Forecast의 연도 선택 상자 이름은 "연도" 그대로다
 
+### DL-108 화면: 예전 URL 키 solution은 조건·입력란·활성 필터·조건 기억에 쓰지 않는다
+- Given ROOT(admin) 로그인, 조건 기억 없음, Product "ITDR"·"MFA"인 Deal
+- When `/deals?solution=ITDR`를 열고, 이어서 `/deals?year=all&solution=ITDR`를 연 뒤 상세에 갔다가 상단 메뉴 Deals로 돌아온다
+- Then 첫 주소는 조건 없는 주소로 보아 `/deals?year=all`로 바뀐다(DL-R19). 둘째 주소의 목록 요청에 `product`가 없고 Product 입력란은 비어 있으며 두 Deal이 모두 보이고, 메뉴로 돌아온 주소에 `solution`이 없다
+
 ## 5. 변경 이력
 
 | 날짜 | 변경 | 영향 테스트 코드 |
@@ -878,3 +886,4 @@ DL-R18~DL-R32.
 | 2026-11-13 | 사용자 요청 "Deals 검색 조건 연도 기본은 전체, 기본 정렬은 최종 업데이트 최신순": DL-R19 기본 조건을 sales `year=all&mine=1`, admin·user `year=all`로, DL-R21 초기화, 2.1·2.4·상태 흐름·DL-UC1 갱신. 기본 정렬(DL-R13 `last_updated_at` `desc`)은 이미 구현되어 있어 규칙 변경 없이 명시만. 조건 있는 주소·Drill-down·기억된 조건은 그대로. 서버·API 변경 없음, **운영 코드 변경 필요**(frontend `defaultListParams`) | 변경: DL-055(기본 정렬 확인 추가)·DL-056·DL-057·DL-070·DL-101·DL-102·DL-103·DL-105. 영향: 기본 조건 주소 `year=2026`을 기대하는 기존 화면 테스트(quarterMulti·period·yearOptions·forecastMulti·vendorQuarter·memory 등)와 UI-056 |
 | 2026-11-13 | DE 변경(Vendor 필수, DE-R7·SC-R22)에 따라 Vendor 없는 Deal을 전제한 DL-042 Given·Then과 DL-058 Given·Then 표현을 고침. 규칙(DL-R13 NULL 맨 뒤, DL-R28 "—")·동작은 그대로 | 변경: DL-042, DL-058 |
 | 2026-11-16 | 확정(2026-11-16 사용자 확인): 사용자 요청 "Deals 목록 검색조건 연도를 'Close 연도'로, 초기 정렬은 최종 업데이트 desc, 최종 업데이트 열을 Next Action 앞으로": DL-R24 선택 상자 이름 "Close 연도"(Dashboard·Forecast는 "연도" 유지), DL-R21·1장·화면 문구 표기, DL-R23 안내 문구 "Close 연도가 전체이면 …"(사용자 확인), DL-R28 열 순서(Expected Close 다음 최종 업데이트, 그 뒤 Next Action·Due·Next Action 상태). 초기 정렬은 이미 최종 업데이트 내림차순(DL-R13 서버 기본, DL-R27 머리글 표시, DL-R19 기본 조건 정렬 없음)이라 규칙·동작 변경 없이 DL-055로 확인. 서버·API·마이그레이션 변경 없음, **운영 코드 변경 필요**(frontend `DealFilterBar`·`DealsTable`·`DealRowItem`) | 신규: DL-107. 변경: DL-058(열 순서), DL-077(안내 문구). 확인만: DL-055. 영향(문구·라벨만 바뀌는 기존 테스트): `getByLabelText('연도')`를 쓰는 Deal 목록 테스트(DL-080·081·082·077 등 yearOptions·period·filters·today·memory), `features/deals/form/testHelpers.ts`, DSH-050(`DashboardPage.drillDown.test.tsx` 73행), 열 위치를 세는 DL-058·DL-059 테스트 |
+| 2026-11-16 | 초안(사용자 확인 대기): Deal Solution → Product 이름 변경(DE 2026-11-16). 쿼리 `solution` → `product`(예전 이름은 폐지 파라미터 422, DL-R3), 행 키 `product`, 필터 칸 "Product"·URL 키 `product`, 예전 URL 키 `solution`은 무시(DL-R20·R31, 계획 Q1), 문구 "Product에는 NUL 문자를 쓸 수 없습니다". **API 호환 깨짐**(사용자 승인) | 신규 DL-108. 변경(표기·키): DL-006, DL-013, DL-014, DL-047, DL-048, DL-065, DL-067, DL-071, DL-072, DL-100 |

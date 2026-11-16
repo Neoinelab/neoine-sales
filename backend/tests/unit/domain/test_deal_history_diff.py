@@ -251,82 +251,82 @@ def test_vendor_change_is_recorded_with_names() -> None:
     assert rows == [("other", "Vendor", "Oracle", "SAP")]
 
 
-def test_solution_change_is_recorded_as_text() -> None:
-    """Solution 변경은 텍스트 그대로 남는다.
+def test_product_change_is_recorded_as_text() -> None:
+    """Product 변경은 텍스트 그대로 남는다.
 
     테스트 코드: DD-045
     """
-    # given: Solution이 MFA인 Deal
-    deal = base_deal(solution="MFA")
+    # given: Product가 MFA인 Deal
+    deal = base_deal(product="MFA")
 
     # when: ITDR로 바꿔 비교한다
-    rows = diff_after(edit_of("solution", "ITDR"), deal)
+    rows = diff_after(edit_of("product", "ITDR"), deal)
 
-    # then: 대상 Solution, MFA에서 ITDR다
-    assert rows == [("other", "Solution", "MFA", "ITDR")]
+    # then: 대상 Product, MFA에서 ITDR다
+    assert rows == [("other", "Product", "MFA", "ITDR")]
 
 
-def test_empty_solution_is_shown_as_dash_in_history() -> None:
-    """빈 Solution은 이력에 '-'로 나온다(값 → 빈 값, 빈 값 → 값 모두).
+def test_empty_product_is_shown_as_dash_in_history() -> None:
+    """빈 Product는 이력에 '-'로 나온다(값 → 빈 값, 빈 값 → 값 모두).
 
     테스트 코드: DD-045
     """
-    # given: Solution이 ITDR인 Deal과 빈 Deal
-    filled = base_deal(solution="ITDR")
-    empty = base_deal(solution="")
+    # given: Product가 ITDR인 Deal과 빈 Deal
+    filled = base_deal(product="ITDR")
+    empty = base_deal(product="")
 
     # when: ITDR를 비우는 변경과 빈 값에 ITDR를 넣는 변경을 비교한다
-    cleared = diff_after(edit_of("solution", ""), filled)
-    entered = diff_after(edit_of("solution", "ITDR"), empty)
+    cleared = diff_after(edit_of("product", ""), filled)
+    entered = diff_after(edit_of("product", "ITDR"), empty)
 
     # then: 빈 쪽이 '-'다
-    assert cleared == [("other", "Solution", "ITDR", "-")]
-    assert entered == [("other", "Solution", "-", "ITDR")]
+    assert cleared == [("other", "Product", "ITDR", "-")]
+    assert entered == [("other", "Product", "-", "ITDR")]
 
 
-def test_solution_case_only_change_is_recorded() -> None:
-    """대소문자만 바뀐 Solution도 바뀐 것으로 기록한다.
+def test_product_case_only_change_is_recorded() -> None:
+    """대소문자만 바뀐 Product도 바뀐 것으로 기록한다.
 
     테스트 코드: DD-045
     """
-    # given: Solution이 itdr인 Deal
-    deal = base_deal(solution="itdr")
+    # given: Product가 itdr인 Deal
+    deal = base_deal(product="itdr")
 
     # when: ITDR로 바꿔 비교한다
-    rows = diff_after(edit_of("solution", "ITDR"), deal)
+    rows = diff_after(edit_of("product", "ITDR"), deal)
 
     # then: itdr에서 ITDR 한 건이다
-    assert rows == [("other", "Solution", "itdr", "ITDR")]
+    assert rows == [("other", "Product", "itdr", "ITDR")]
 
 
-def test_whitespace_only_solution_difference_records_nothing() -> None:
-    """앞뒤 공백만 다른 Solution은 바뀐 것이 아니다.
+def test_whitespace_only_product_difference_records_nothing() -> None:
+    """앞뒤 공백만 다른 Product는 바뀐 것이 아니다.
 
     테스트 코드: DD-042
     """
-    # given: Solution이 ITDR인 Deal
-    deal = base_deal(solution="ITDR")
+    # given: Product가 ITDR인 Deal
+    deal = base_deal(product="ITDR")
 
     # when: 앞뒤 공백을 붙여 같은 값으로 바꿔 비교한다
-    rows = diff_after(edit_of("solution", "  ITDR  "), deal)
+    rows = diff_after(edit_of("product", "  ITDR  "), deal)
 
     # then: 이력이 없다
     assert rows == []
 
 
-def test_unchanged_solution_records_nothing() -> None:
-    """같은 Solution이면 이력이 없다.
+def test_unchanged_product_records_nothing() -> None:
+    """같은 Product면 이력이 없다.
 
     테스트 코드: DD-042
     """
-    # when: 같은 Solution으로 비교한다
-    actual = diff_after(edit_of("solution", "S/4HANA"))
+    # when: 같은 Product로 비교한다
+    actual = diff_after(edit_of("product", "S/4HANA"))
     # then: 빈 목록이다
     assert actual == []
 
 
-def test_vendor_change_does_not_record_solution() -> None:
-    """Vendor만 바뀌면 Solution 이력은 남지 않는다.
+def test_vendor_change_does_not_record_product() -> None:
+    """Vendor만 바뀌면 Product 이력은 남지 않는다.
 
     테스트 코드: DD-045
     """
@@ -411,7 +411,7 @@ def _change_everything(deal: Deal) -> None:
         deal.details,
         name="B",
         vendor_id=VENDOR_ORACLE,
-        solution="EBS",
+        product="EBS",
         users=3,
         revenue_amount=RevenueAmount(2_000),
         revenue_date=date(2026, 10, 20),
@@ -450,7 +450,7 @@ def test_several_changes_are_listed_in_the_fixed_field_order() -> None:
         ("bant", "BANT Label: Timeline"),
         ("other", "Deal Name"),
         ("other", "Vendor"),
-        ("other", "Solution"),
+        ("other", "Product"),
         ("other", "Users count"),
         ("other", "견적"),
         ("other", "POC"),

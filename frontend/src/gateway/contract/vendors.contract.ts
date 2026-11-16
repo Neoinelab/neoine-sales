@@ -108,7 +108,7 @@ export function vendorsContract(make: MakeGateway): void {
         name: unique('deal'),
         ownerId: me.id,
         vendorId: vendor.id,
-        solution: 'ITDR',
+        product: 'ITDR',
         users: 100,
         statusKey: 'prospecting',
         forecastKey: 'pipeline',

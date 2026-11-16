@@ -1,6 +1,6 @@
 """UpdateDeal의 Vendor 선택: 등록 목록 확인, 비울 수 없음(필수), History 이름 표기.
 
-Solution은 Vendor와 독립인 자유 텍스트다(결정 D4). Vendor를 바꿔도 Solution은 그대로다.
+Product는 Vendor와 독립인 자유 텍스트다(결정 D4). Vendor를 바꿔도 Product는 그대로다.
 """
 
 from typing import TYPE_CHECKING
@@ -43,10 +43,10 @@ async def test_changing_the_vendor_records_only_the_vendor_entry(env: DealEnv) -
 
     테스트 코드: DE-049
     """
-    # given: SAP·Solution 'S/4HANA'인 Deal과 Oracle.
+    # given: SAP·Product 'S/4HANA'인 Deal과 Oracle.
     sap = await env.new_vendor("SAP")
     oracle = await env.new_vendor("Oracle")
-    view = await env.new_deal(vendor_id=sap.id, solution="S/4HANA")
+    view = await env.new_deal(vendor_id=sap.id, product="S/4HANA")
 
     # when: Oracle로 바꾼다.
     updated = await env.update.execute(
@@ -58,31 +58,31 @@ async def test_changing_the_vendor_records_only_the_vendor_entry(env: DealEnv) -
     assert await env.changes(updated) == [("other", "Vendor", "SAP", "Oracle")]
 
 
-async def test_clearing_the_vendor_is_rejected_and_keeps_vendor_and_solution(
+async def test_clearing_the_vendor_is_rejected_and_keeps_vendor_and_product(
     env: DealEnv,
 ) -> None:
-    """vendor_id를 null로 보내면 "Vendor를 선택하세요."로 거절되고 Vendor·Solution이 그대로다.
+    """vendor_id를 null로 보내면 "Vendor를 선택하세요."로 거절되고 Vendor·Product가 그대로다.
 
     테스트 코드: DE-116
     """
-    # given: SAP·Solution 'S/4HANA'인 Deal.
+    # given: SAP·Product 'S/4HANA'인 Deal.
     sap = await env.new_vendor("SAP")
-    view = await env.new_deal(vendor_id=sap.id, solution="S/4HANA")
+    view = await env.new_deal(vendor_id=sap.id, product="S/4HANA")
 
     # when·then: vendor_id를 null로 보낸다 → 'Vendor를 선택하세요.' 오류다.
     with raises_with(InvalidValueError, VENDOR_REQUIRED):
         await env.update.execute(view.item.deal.id.value, make_patch(vendor_id=None), SALES)
 
-    # then: Vendor·Solution이 그대로고 이력이 없다.
+    # then: Vendor·Product가 그대로고 이력이 없다.
     stored = await env.uow.deals.get(view.item.deal.id)
-    assert (stored.details.vendor_id, stored.details.solution) == (sap.id, "S/4HANA")
+    assert (stored.details.vendor_id, stored.details.product) == (sap.id, "S/4HANA")
     assert await env.changes(view) == []
 
 
-async def test_null_vendor_is_judged_after_the_name_and_before_the_solution(
+async def test_null_vendor_is_judged_after_the_name_and_before_the_product(
     env: DealEnv,
 ) -> None:
-    """vendor_id null은 Deal Name 다음, Solution 앞에서 판정된다.
+    """vendor_id null은 Deal Name 다음, Product 앞에서 판정된다.
 
     테스트 코드: DE-116
     """
@@ -93,9 +93,9 @@ async def test_null_vendor_is_judged_after_the_name_and_before_the_solution(
     # when·then: 빈 이름과 null Vendor를 함께 보낸다 → Deal Name 문구가 먼저다.
     with raises_with(InvalidValueError, "Deal Name을 입력하세요."):
         await env.update.execute(code, make_patch(name="  ", vendor_id=None), SALES)
-    # when·then: null Vendor와 201자 Solution을 함께 보낸다 → Vendor 문구가 먼저다.
+    # when·then: null Vendor와 201자 Product를 함께 보낸다 → Vendor 문구가 먼저다.
     with raises_with(InvalidValueError, VENDOR_REQUIRED):
-        await env.update.execute(code, make_patch(vendor_id=None, solution="a" * 201), SALES)
+        await env.update.execute(code, make_patch(vendor_id=None, product="a" * 201), SALES)
 
 
 async def test_unknown_vendor_is_rejected(env: DealEnv) -> None:

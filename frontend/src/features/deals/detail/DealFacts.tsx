@@ -25,7 +25,7 @@ function dateDisplay(date: string | null, canWrite: boolean): ReactNode {
   return canWrite ? <span className="dd-muted"> 일자 입력</span> : null
 }
 
-/** Deal 정보 타일의 항목 행(Vendor·Solution·Users count·견적·POC·구매절차·등록일). 값을 클릭해 그 자리에서 고친다. */
+/** Deal 정보 타일의 항목 행(Vendor·Product·Users count·견적·POC·구매절차·등록일). 값을 클릭해 그 자리에서 고친다. */
 export function DealFacts({ deal, canWrite, onNotice }: DealFactsProps) {
   const { save } = useDealPatch(deal.code, onNotice)
   const vendors = useVendors().data ?? []
@@ -37,7 +37,7 @@ export function DealFacts({ deal, canWrite, onNotice }: DealFactsProps) {
     if (value !== deal.procurement) await save({ procurement: value }, '구매절차가 변경되었습니다.')
   }
 
-  /** Vendor 변경은 Vendor만 보낸다(Solution은 Vendor와 무관하게 유지). */
+  /** Vendor 변경은 Vendor만 보낸다(Product는 Vendor와 무관하게 유지). */
   async function saveVendor(vendorText: string) {
     const vendorId = parseId(vendorText)
     if (vendorId === undefined) throw new Error(VENDOR_REQUIRED_MESSAGE)
@@ -45,10 +45,10 @@ export function DealFacts({ deal, canWrite, onNotice }: DealFactsProps) {
     await save({ vendorId }, 'Vendor가 변경되었습니다.')
   }
 
-  /** Solution은 선택 텍스트다. 비우면 ""로 저장하고, 바뀐 경우에만 보낸다. */
-  async function saveSolution(text: string) {
-    const solution = text.trim()
-    if (solution !== deal.solution) await save({ solution }, 'Solution이 변경되었습니다.')
+  /** Product는 선택 텍스트다. 비우면 ""로 저장하고, 바뀐 경우에만 보낸다. */
+  async function saveProduct(text: string) {
+    const product = text.trim()
+    if (product !== deal.product) await save({ product }, 'Product가 변경되었습니다.')
   }
 
   async function saveUsers(text: string) {
@@ -82,14 +82,14 @@ export function DealFacts({ deal, canWrite, onNotice }: DealFactsProps) {
       />,
     ],
     [
-      'Solution',
+      'Product',
       <InlineEdit
-        key="solution"
-        label="Solution"
+        key="product"
+        label="Product"
         canEdit={canWrite}
-        display={deal.solution || '—'}
-        initial={deal.solution}
-        onSave={saveSolution}
+        display={deal.product || '—'}
+        initial={deal.product}
+        onSave={saveProduct}
       />,
     ],
     [

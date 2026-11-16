@@ -5,7 +5,7 @@ export const FILTER_KEYS = [
   'q',
   'owner',
   'vendor',
-  'solution',
+  'product',
   'status',
   'forecast',
   'year',

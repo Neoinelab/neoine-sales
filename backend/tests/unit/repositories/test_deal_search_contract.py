@@ -1,7 +1,7 @@
 """DealRepository.search/count 계약: Fake와 SQL(PostgreSQL)에 같은 기대값.
 
 기본 정렬(last_updated_at 내림차순, 동률은 code 오름차순), total(count), 페이지, keyword·owner·
-vendor_id·solution(텍스트 부분 일치)·status·최종 업데이트 기간 필터. forecast·연/분기·BANT 필터와
+vendor_id·product(텍스트 부분 일치)·status·최종 업데이트 기간 필터. forecast·연/분기·BANT 필터와
 정렬 선택은 다른 계약 파일이 맡는다.
 """
 
@@ -345,79 +345,77 @@ class TestFilters:
         # then: 0이다
         assert total == 0
 
-    async def test_solution_filter_matches_partial_ignoring_case(self, deal_case: DealCase) -> None:
-        """Solution 필터가 대소문자 무시 부분 일치인지 확인한다."""
-        # given: Solution이 다른 Deal 넷을 저장한다
-        await deal_case.add(make_deal(later(1), code=_code(1), solution="ITDR"))
-        await deal_case.add(make_deal(later(2), code=_code(2), solution="MFA"))
-        await deal_case.add(make_deal(later(3), code=_code(3), solution="Next ItDr Plus"))
+    async def test_product_filter_matches_partial_ignoring_case(self, deal_case: DealCase) -> None:
+        """Product 필터가 대소문자 무시 부분 일치인지 확인한다."""
+        # given: Product가 다른 Deal 넷을 저장한다
+        await deal_case.add(make_deal(later(1), code=_code(1), product="ITDR"))
+        await deal_case.add(make_deal(later(2), code=_code(2), product="MFA"))
+        await deal_case.add(make_deal(later(3), code=_code(3), product="Next ItDr Plus"))
         await deal_case.add(make_deal(later(4), code=_code(4)))
 
         # when: 소문자 일부로 검색한다
-        partial = await _codes(deal_case, solution="itd")
+        partial = await _codes(deal_case, product="itd")
 
         # then: 일치하는 Deal이 최신순으로 나온다
         assert partial == [_code(3), _code(1)]
         # when: 대문자로 검색한다
-        upper = await _codes(deal_case, solution="ITDR")
+        upper = await _codes(deal_case, product="ITDR")
 
         # then: 같은 Deal들이 나온다
         assert upper == [_code(3), _code(1)]
         # when: 일부 일치 조건으로 건수를 센다
-        total = await deal_case.deals.count(DealQuery(solution="itd"))
+        total = await deal_case.deals.count(DealQuery(product="itd"))
 
         # then: 2건이다
         assert total == 2
         # when: 일치하지 않는 값으로 검색한다
-        none = await _codes(deal_case, solution="nothing")
+        none = await _codes(deal_case, product="nothing")
 
-        # then: 결과가 없다 (일치하지 않는 Solution)
+        # then: 결과가 없다 (일치하지 않는 Product)
         assert none == []
 
-    async def test_solution_filter_treats_wildcards_literally(self, deal_case: DealCase) -> None:
-        """Solution 필터가 와일드카드를 글자 그대로 취급하는지 확인한다."""
-        # given: 와일드카드 문자가 든 Solution과 비슷한 Solution의 Deal들이 있다
-        await deal_case.add(make_deal(later(1), code=_code(1), solution="100%"))
-        await deal_case.add(make_deal(later(2), code=_code(2), solution="1000"))
-        await deal_case.add(make_deal(later(3), code=_code(3), solution="a_b"))
-        await deal_case.add(make_deal(later(4), code=_code(4), solution="axb"))
-        await deal_case.add(make_deal(later(5), code=_code(5), solution="c\\d"))
-        await deal_case.add(make_deal(later(6), code=_code(6), solution="cd"))
+    async def test_product_filter_treats_wildcards_literally(self, deal_case: DealCase) -> None:
+        """Product 필터가 와일드카드를 글자 그대로 취급하는지 확인한다."""
+        # given: 와일드카드 문자가 든 Product와 비슷한 Product의 Deal들이 있다
+        await deal_case.add(make_deal(later(1), code=_code(1), product="100%"))
+        await deal_case.add(make_deal(later(2), code=_code(2), product="1000"))
+        await deal_case.add(make_deal(later(3), code=_code(3), product="a_b"))
+        await deal_case.add(make_deal(later(4), code=_code(4), product="axb"))
+        await deal_case.add(make_deal(later(5), code=_code(5), product="c\\d"))
+        await deal_case.add(make_deal(later(6), code=_code(6), product="cd"))
 
         # when: 퍼센트가 든 값으로 검색한다
-        percent = await _codes(deal_case, solution="0%")
+        percent = await _codes(deal_case, product="0%")
 
-        # then: 글자 그대로 일치하는 Deal만 나온다 (% Solution)
+        # then: 글자 그대로 일치하는 Deal만 나온다 (% Product)
         assert percent == [_code(1)]
         # when: 밑줄이 든 값으로 검색한다
-        underscore = await _codes(deal_case, solution="a_b")
+        underscore = await _codes(deal_case, product="a_b")
 
-        # then: 글자 그대로 일치하는 Deal만 나온다 (_ Solution)
+        # then: 글자 그대로 일치하는 Deal만 나온다 (_ Product)
         assert underscore == [_code(3)]
         # when: 역슬래시가 든 값으로 검색한다
-        backslash = await _codes(deal_case, solution="c\\d")
+        backslash = await _codes(deal_case, product="c\\d")
 
-        # then: 글자 그대로 일치하는 Deal만 나온다 (\ Solution)
+        # then: 글자 그대로 일치하는 Deal만 나온다 (\ Product)
         assert backslash == [_code(5)]
 
-    async def test_solution_filter_combines_with_vendor(self, deal_case: DealCase) -> None:
-        """Solution 필터와 Vendor 필터가 함께 적용되는지 확인한다."""
-        # given: Vendor와 Solution이 다른 Deal 셋이 있다
+    async def test_product_filter_combines_with_vendor(self, deal_case: DealCase) -> None:
+        """Product 필터와 Vendor 필터가 함께 적용되는지 확인한다."""
+        # given: Vendor와 Product가 다른 Deal 셋이 있다
         sap = await deal_case.new_vendor("ZZ SAP")
         oracle = await deal_case.new_vendor("ZZ Oracle")
-        await deal_case.add(make_deal(later(1), code=_code(1), vendor_id=sap.id, solution="ITDR"))
-        await deal_case.add(
-            make_deal(later(2), code=_code(2), vendor_id=oracle.id, solution="ITDR")
-        )
-        await deal_case.add(make_deal(later(3), code=_code(3), vendor_id=sap.id, solution="MFA"))
+        await deal_case.add(make_deal(later(1), code=_code(1), vendor_id=sap.id, product="ITDR"))
+        await deal_case.add(make_deal(later(2), code=_code(2), vendor_id=oracle.id, product="ITDR"))
+        await deal_case.add(make_deal(later(3), code=_code(3), vendor_id=sap.id, product="MFA"))
 
-        # when: Vendor와 Solution으로 함께 검색한다
-        found = await _codes(deal_case, vendor_id=sap.id, solution="itd")
+        # when: Vendor와 Product로 함께 검색한다
+        found = await _codes(deal_case, vendor_id=sap.id, product="itd")
 
         # then: 두 조건을 모두 만족하는 Deal만 나온다
         assert found == [_code(1)]
-        # when: 같은 조건으로 건수를 센다 (Solution과 Vendor 필터)
-        total = await deal_case.deals.count(DealQuery(vendor_id=sap.id, solution="itd"))
+        # when: 같은 조건으로 건수를 센다 (Product와 Vendor 필터)
+        total = await deal_case.deals.count(DealQuery(vendor_id=sap.id, product="itd"))
 
         # then: 1건이다
         assert total == 1

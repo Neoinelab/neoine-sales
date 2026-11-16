@@ -20,7 +20,7 @@ def _create(**overrides: object) -> dict[str, object]:
         "name": "ERP 구축",
         "owner_user_id": OWNER_ID,
         "vendor_id": 7,
-        "solution": "ITDR",
+        "product": "ITDR",
         "users": 10,
         "status_key": "prospecting",
         "forecast_key": "pipeline",
@@ -37,7 +37,7 @@ def test_a_minimal_create_body_gets_the_documented_defaults() -> None:
     request = DealCreateRequest(**_create())
 
     # then: vendor_id 7, procurement '', partner None, 고객 contact_id None이다.
-    assert (request.vendor_id, request.solution, request.procurement) == (7, "ITDR", "")
+    assert (request.vendor_id, request.product, request.procurement) == (7, "ITDR", "")
     assert request.users == 10
     assert request.partner is None
     assert request.customer.contact_id is None
@@ -90,7 +90,7 @@ def test_the_create_body_maps_to_the_use_case_input() -> None:
     request = DealCreateRequest(
         **_create(
             vendor_id=vendor_id,
-            solution="ITDR",
+            product="ITDR",
             users=250,
             partner={"contact_id": partner_id, "company": "코어테크", "name": "민지훈"},
             quote={"submitted": "YES", "submitted_date": "2026-10-01"},
@@ -103,7 +103,7 @@ def test_the_create_body_maps_to_the_use_case_input() -> None:
     data = request.to_input()
 
     # then: 각 필드와 BANT 선택 객체가 입력에 담긴다.
-    assert (data.name, data.owner_user_id, data.vendor_id, data.solution) == (
+    assert (data.name, data.owner_user_id, data.vendor_id, data.product) == (
         "ERP 구축",
         OWNER_ID,
         vendor_id,
@@ -170,10 +170,11 @@ def test_range_and_length_rules_are_left_to_the_domain(overrides: dict[str, obje
         {"bant": {"budget": "풀 예산 확보"}},
         {"vendor_id": "SAP"},  # 이름이 아니라 정수 id여야 한다
         {"solution_id": 1},  # 구 필드(id)는 모르는 필드다
+        {"solution": "ITDR"},  # 예전 이름 solution은 모르는 필드다
         {"vendor": "SAP"},  # 구 필드(문자열)는 모르는 필드다
-        {"solution": 1},  # 문자열이 아닌 값은 거절한다
-        {"solution": ["ITDR"]},
-        {"solution": {"name": "ITDR"}},
+        {"product": 1},  # 문자열이 아닌 값은 거절한다
+        {"product": ["ITDR"]},
+        {"product": {"name": "ITDR"}},
     ],
 )
 def test_wrong_types_unknown_values_and_unknown_fields_are_rejected(
@@ -355,69 +356,69 @@ def test_create_request_keeps_the_vendor_id_in_the_input() -> None:
 
     테스트 코드: DE-014
     """
-    # when: vendor_id 7과 Solution 'ITDR'로 변환한다.
+    # when: vendor_id 7과 Product 'ITDR'로 변환한다.
     data = DealCreateRequest(**_create()).to_input()
 
-    # then: 입력에 vendor_id 7과 Solution이 담긴다.
-    assert (data.vendor_id, data.solution) == (7, "ITDR")
+    # then: 입력에 vendor_id 7과 Product가 담긴다.
+    assert (data.vendor_id, data.product) == (7, "ITDR")
 
 
-def test_create_request_accepts_solution_text() -> None:
-    """Solution 텍스트를 받는다."""
-    # when: solution 'ITDR'로 변환한다.
-    data = DealCreateRequest(**_create(solution="ITDR")).to_input()
+def test_create_request_accepts_product_text() -> None:
+    """Product 텍스트를 받는다."""
+    # when: product 'ITDR'로 변환한다.
+    data = DealCreateRequest(**_create(product="ITDR")).to_input()
 
-    # then: 입력 solution이 'ITDR'이다.
-    assert data.solution == "ITDR"
+    # then: 입력 product가 'ITDR'이다.
+    assert data.product == "ITDR"
 
 
-def test_create_request_without_solution_gets_an_empty_solution() -> None:
-    """solution 키가 없으면 오류 없이 빈 Solution 입력이 된다.
+def test_create_request_without_product_gets_an_empty_product() -> None:
+    """product 키가 없으면 오류 없이 빈 Product 입력이 된다.
 
     테스트 코드: DE-115
     """
-    # when: solution 키를 빼고 변환한다.
+    # when: product 키를 빼고 변환한다.
     body = _create()
-    del body["solution"]
+    del body["product"]
     data = DealCreateRequest(**body).to_input()
 
-    # then: 입력 solution이 ''다.
-    assert data.solution == ""
+    # then: 입력 product가 ''다.
+    assert data.product == ""
 
 
-def test_create_request_with_null_solution_gets_an_empty_solution() -> None:
-    """solution이 null이면 오류 없이 빈 Solution 입력이 된다.
-
-    테스트 코드: DE-115
-    """
-    # when: solution을 null로 만들어 변환한다.
-    data = DealCreateRequest(**_create(solution=None)).to_input()
-
-    # then: 입력 solution이 ''다.
-    assert data.solution == ""
-
-
-def test_create_request_keeps_a_blank_solution_for_the_domain_to_judge() -> None:
-    """공백뿐인 Solution은 스키마가 바꾸지 않고 도메인이 빈 값으로 정리한다.
+def test_create_request_with_null_product_gets_an_empty_product() -> None:
+    """product가 null이면 오류 없이 빈 Product 입력이 된다.
 
     테스트 코드: DE-115
     """
-    # when: solution '   '로 변환한다
-    solution = DealCreateRequest(**_create(solution="   ")).to_input().solution
+    # when: product를 null로 만들어 변환한다.
+    data = DealCreateRequest(**_create(product=None)).to_input()
+
+    # then: 입력 product가 ''다.
+    assert data.product == ""
+
+
+def test_create_request_keeps_a_blank_product_for_the_domain_to_judge() -> None:
+    """공백뿐인 Product는 스키마가 바꾸지 않고 도메인이 빈 값으로 정리한다.
+
+    테스트 코드: DE-115
+    """
+    # when: product '   '로 변환한다
+    product = DealCreateRequest(**_create(product="   ")).to_input().product
     # then: 입력에 '   '가 그대로 담긴다.
-    assert solution == "   "
+    assert product == "   "
 
 
-def test_create_request_keeps_a_long_solution_for_the_domain_to_judge() -> None:
-    """201자 Solution은 스키마가 자르지 않고 도메인 문구로 판정한다.
+def test_create_request_keeps_a_long_product_for_the_domain_to_judge() -> None:
+    """201자 Product는 스키마가 자르지 않고 도메인 문구로 판정한다.
 
     테스트 코드: DE-017
     """
-    # when: 201자 Solution으로 변환한다.
-    data = DealCreateRequest(**_create(solution="a" * 201)).to_input()
+    # when: 201자 Product로 변환한다.
+    data = DealCreateRequest(**_create(product="a" * 201)).to_input()
 
     # then: 입력에 201자가 그대로 담긴다.
-    assert data.solution == "a" * 201
+    assert data.product == "a" * 201
 
 
 def test_create_request_rejects_solution_id_field() -> None:
@@ -431,43 +432,43 @@ def test_create_request_rejects_solution_id_field() -> None:
 
 
 @pytest.mark.parametrize("bad", [1, 1.5, True, ["a"], {"a": 1}])
-def test_create_request_rejects_non_string_solution(bad: object) -> None:
-    """문자열이 아닌 Solution은 형식 오류다.
+def test_create_request_rejects_non_string_product(bad: object) -> None:
+    """문자열이 아닌 Product는 형식 오류다.
 
     테스트 코드: DE-010
     """
-    # when: 숫자·실수·불리언·목록·객체 Solution으로 만든다.
+    # when: 숫자·실수·불리언·목록·객체 Product로 만든다.
     with pytest.raises(ValidationError) as caught:
-        DealCreateRequest(**_create(solution=bad))
+        DealCreateRequest(**_create(product=bad))
 
-    # then: solution 위치의 오류다.
-    assert [e["loc"] for e in caught.value.errors()] == [("solution",)]
+    # then: product 위치의 오류다.
+    assert [e["loc"] for e in caught.value.errors()] == [("product",)]
 
 
 class TestPatchRequest:
-    def test_patch_null_solution_is_provided(self) -> None:
-        """수정에서 solution null은 보낸 필드다.
+    def test_patch_null_product_is_provided(self) -> None:
+        """수정에서 product null은 보낸 필드다.
 
         테스트 코드: DE-017
         """
-        # when: solution=None으로 변환한다.
-        data = DealPatchRequest(solution=None).to_input()
+        # when: product=None으로 변환한다.
+        data = DealPatchRequest(product=None).to_input()
 
-        # then: provided에 solution이 있고 값은 None이다.
-        assert data.provided == frozenset({"solution"})
-        assert data.solution is None
+        # then: provided에 product가 있고 값은 None이다.
+        assert data.provided == frozenset({"product"})
+        assert data.product is None
 
-    def test_patch_solution_text_is_provided(self) -> None:
-        """수정에서 solution 텍스트는 보낸 필드다."""
-        # when: solution='ITDR'로 변환한다.
-        data = DealPatchRequest(solution="ITDR").to_input()
+    def test_patch_product_text_is_provided(self) -> None:
+        """수정에서 product 텍스트는 보낸 필드다."""
+        # when: product='ITDR'로 변환한다.
+        data = DealPatchRequest(product="ITDR").to_input()
 
-        # then: provided가 {solution}이다.
-        assert data.provided == frozenset({"solution"})
-        assert data.solution == "ITDR"
+        # then: provided가 {product}이다.
+        assert data.provided == frozenset({"product"})
+        assert data.product == "ITDR"
 
-    def test_patch_vendor_only_does_not_provide_solution(self) -> None:
-        """Vendor만 보내면 solution은 보낸 필드가 아니다.
+    def test_patch_vendor_only_does_not_provide_product(self) -> None:
+        """Vendor만 보내면 product는 보낸 필드가 아니다.
 
         테스트 코드: DE-049
         """
@@ -491,16 +492,16 @@ class TestPatchRequest:
         assert data.provided == frozenset({"vendor_id"})
         assert data.vendor_id is None
 
-    def test_patch_without_vendor_or_solution_does_not_provide_them(self) -> None:
-        """이름만 보내면 vendor_id·solution은 보낸 필드가 아니다.
+    def test_patch_without_vendor_or_product_does_not_provide_them(self) -> None:
+        """이름만 보내면 vendor_id·product는 보낸 필드가 아니다.
 
         테스트 코드: DE-053
         """
         # when: name만 넣어 변환한다.
         data = DealPatchRequest(name="B").to_input()
 
-        # then: provided에 vendor_id·solution이 없다.
-        assert not {"vendor_id", "solution"} & data.provided
+        # then: provided에 vendor_id·product가 없다.
+        assert not {"vendor_id", "product"} & data.provided
 
     def test_patch_rejects_the_old_fields(self) -> None:
         """수정 본문의 예전 필드(vendor, solution_id)는 거절한다.
@@ -512,16 +513,19 @@ class TestPatchRequest:
         # when·then: vendor·solution_id를 넣어 만든다 → ValidationError다.
         with pytest.raises(ValidationError):
             DealPatchRequest(solution_id=1)  # type: ignore[call-arg]
+        # when·then: 예전 이름 solution을 넣어 만든다 → ValidationError다.
+        with pytest.raises(ValidationError):
+            DealPatchRequest(solution="ITDR")  # type: ignore[call-arg]
 
     @pytest.mark.parametrize("bad", [1, 1.5, True, ["a"]])
-    def test_patch_rejects_a_non_string_solution(self, bad: object) -> None:
-        """수정 본문의 문자열이 아닌 Solution은 형식 오류다.
+    def test_patch_rejects_a_non_string_product(self, bad: object) -> None:
+        """수정 본문의 문자열이 아닌 Product는 형식 오류다.
 
         테스트 코드: DE-072
         """
-        # when·then: 숫자·불리언·목록 solution으로 만든다 → ValidationError다.
+        # when·then: 숫자·불리언·목록 product로 만든다 → ValidationError다.
         with pytest.raises(ValidationError):
-            DealPatchRequest(solution=bad)
+            DealPatchRequest(product=bad)
 
     def test_patch_rejects_a_non_integer_vendor_id(self) -> None:
         """수정 본문의 문자열 vendor_id는 형식 오류다.
@@ -629,16 +633,16 @@ class TestPatchRequest:
             DealPatchRequest(revenue_amount="많이")
 
 
-def test_create_schema_documents_vendor_as_required_and_solution_as_optional() -> None:
-    """등록 요청 OpenAPI 스키마는 vendor_id를 필수·null 불가로, solution을 선택으로 문서화한다.
+def test_create_schema_documents_vendor_as_required_and_product_as_optional() -> None:
+    """등록 요청 OpenAPI 스키마는 vendor_id를 필수·null 불가로, product를 선택으로 문서화한다.
 
     테스트 코드: DE-010
     """
     # when: 등록 요청의 JSON 스키마를 만든다.
     schema = DealCreateRequest.model_json_schema()
 
-    # then: vendor_id는 필수이고 null이 허용되지 않으며 solution은 필수가 아니다.
+    # then: vendor_id는 필수이고 null이 허용되지 않으며 product는 필수가 아니다.
     assert "vendor_id" in schema["required"]
-    assert "solution" not in schema["required"]
+    assert "product" not in schema["required"]
     vendor = schema["properties"]["vendor_id"]
     assert "null" not in str(vendor.get("anyOf", vendor.get("type")))

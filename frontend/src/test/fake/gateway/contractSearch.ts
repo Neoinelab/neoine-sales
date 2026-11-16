@@ -45,7 +45,7 @@ type Key = string | number | null
 
 function keyOf(data: SeedData, record: LicenseContractRecord, sort: LicenseContractSort): Key {
   const side = dealSideOf(data, record)
-  // 빈 문자열은 '값 없음'이다(Vendor·파트너 없음, 빈 Solution·기술담당·Note).
+  // 빈 문자열은 '값 없음'이다(Vendor·파트너 없음, 빈 Product·기술담당·Note).
   const text = (value: string | null): Key => (value === null || value === '' ? null : value.toLowerCase())
   switch (sort) {
     case 'dealName':

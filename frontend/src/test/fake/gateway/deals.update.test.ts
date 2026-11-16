@@ -52,7 +52,7 @@ describe('deals.update', () => {
       revenueAmount: 777_000_000,
       revenueDate: '2026-12-31',
       vendorId: seedVendorId('Okta'),
-      solution: 'SSO',
+      product: 'SSO',
       users: 250,
       bant: { budget: { id: budget.id }, authority: null, need: null, timeline: null },
       quote: { submitted: 'YES', submittedDate: '2026-10-10' },
@@ -65,7 +65,7 @@ describe('deals.update', () => {
     const cats = await categories(gateway, code, base)
     const expected: HistoryCategory[] = ['owner', 'amount', 'expectedClose', 'bant', 'other']
     for (const c of expected) expect(cats).toContain(c)
-    expect(cats.filter((c) => c === 'other').length).toBe(7) // 이름, Vendor, Solution, Users count, 견적, POC, 구매절차
+    expect(cats.filter((c) => c === 'other').length).toBe(7) // 이름, Vendor, Product, Users count, 견적, POC, 구매절차
     const owner = (await gateway.history.list(code, { category: 'owner' }))[0]
     expect(owner).toMatchObject({ before: '김영업', after: '박영업', by: { id: USER_ID.kim }, at: TEST_NOW })
     expect((await gateway.history.list(code, { category: 'amount' }))[0]).toMatchObject({ target: '금액(단위:원)', before: '420,000,000', after: '777,000,000' })

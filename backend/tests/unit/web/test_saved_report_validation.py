@@ -305,3 +305,23 @@ async def test_saved_report_with_top_level_sort_is_request_validation() -> None:
 
     # then: 422 request-validation이다
     problem(response, 422, "request-validation")
+
+
+async def test_the_old_solution_key_is_422_unknown_field_and_nothing_is_saved() -> None:
+    """저장 요청의 정의에 예전 key deal.solution이 있으면 422 unknown-field이고 저장되지 않는다.
+
+    테스트 코드: RQ-117
+    """
+    # given: 컬럼이 예전 key deal.solution인 정의
+    old = {"columns": [{"field": "deal.solution"}]}
+    async with clients(FakeUseCases(), {"alice": Role.SALES}) as c:
+        # when: 만든다
+        response = await c["alice"].post(URL, json=create_body(definition=old))
+        listed = await c["alice"].get(URL)
+    # then: 422 invalid-report, 위치 ["columns", 0, "field"]·code unknown-field·
+    #   문구가 문서대로이고 목록은 비어 있다
+    body = problem(response, 422, "invalid-report")
+    assert [(e["location"], e["code"], e["message"]) for e in body["errors"]] == [
+        (["columns", 0, "field"], "unknown-field", "허용되지 않은 필드입니다: deal.solution")
+    ]
+    assert listed.json() == []

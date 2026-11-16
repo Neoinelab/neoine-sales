@@ -77,7 +77,7 @@ class DealCreateInput:
     poc_completed_date: date | None
     procurement: str
     bant: Mapping[BantCategory, CatalogChoice | None]  # 빠진 구분은 선택 안 함
-    solution: str = ""  # 선택. 비면 빈 값으로 저장
+    product: str = ""  # 선택. 비면 빈 값으로 저장
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -91,7 +91,7 @@ class DealPatchInput:
     name: str | None = None
     owner_user_id: int | None = None
     vendor_id: int | None = None
-    solution: str | None = None
+    product: str | None = None
     users: int | None = None
     status_key: str | None = None
     forecast_key: str | None = None

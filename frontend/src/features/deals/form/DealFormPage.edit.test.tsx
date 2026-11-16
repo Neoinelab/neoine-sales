@@ -9,11 +9,11 @@ describe('Deal 수정 (T-FORM-06)', () => {
   it('loads every value of the deal into the form', async () => {
     // when: 기존 Deal의 수정 화면을 연다.
     await openEdit('누리통신 MFA')
-    // then: 이름·Owner·Vendor·Solution·고객·파트너·Status·Forecast·금액이 현재 값으로 채워진다.
+    // then: 이름·Owner·Vendor·Product·고객·파트너·Status·Forecast·금액이 현재 값으로 채워진다.
     expect(screen.getByLabelText('Deal Name')).toHaveValue('누리통신 MFA')
     await waitFor(() => expect(screen.getByLabelText('Owner')).toHaveDisplayValue('이영업'))
     await waitFor(() => expect(screen.getByLabelText('Vendor')).toHaveDisplayValue('Silverfort'))
-    expect(screen.getByLabelText('Solution')).toHaveValue('MFA')
+    expect(screen.getByLabelText('Product')).toHaveValue('MFA')
     expect(screen.getByLabelText('고객 회사명')).toHaveValue('누리통신')
     expect(screen.getByLabelText('고객 담당자명')).toHaveValue('배성훈')
     expect(screen.getByLabelText('고객 직급')).toHaveValue('과장')

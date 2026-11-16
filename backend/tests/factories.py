@@ -54,7 +54,7 @@ def make_deal_code(suffix: str | int = "A001", day: date = DEAL_DAY) -> DealCode
 
 
 def make_deal_details(**overrides: Any) -> DealDetails:  # noqa: ANN401
-    """overrides: name, owner_user_id, vendor_id, solution, users, revenue_amount(int),
+    """overrides: name, owner_user_id, vendor_id, product, users, revenue_amount(int),
     revenue_date, quote, poc, procurement. revenue_amount는 int를 주면 RevenueAmount로 감싼다."""
     from app.domain.deal.values import (  # noqa: PLC0415
         DealDetails,
@@ -67,7 +67,7 @@ def make_deal_details(**overrides: Any) -> DealDetails:  # noqa: ANN401
         "name": "ERP 구축",
         "owner_user_id": OWNER_ID,
         "vendor_id": default_vendor_id(),  # 필수. 저장소에 넣기 전 ensure_default_vendor
-        "solution": "S/4HANA",  # 선택 자유 텍스트(앞뒤 공백 제거 후 0~200자)
+        "product": "S/4HANA",  # 선택 자유 텍스트(앞뒤 공백 제거 후 0~200자)
         "users": 10,
         "revenue_amount": 150_000_000,
         "revenue_date": date(2026, 6, 30),

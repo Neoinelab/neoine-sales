@@ -11,7 +11,7 @@ import { renderAt } from '../../../test/mockApp'
  * - 필터 근처에 ErrorBanner(role="alert")를 보인다.
  * - URL의 vendor id가 조회 조건으로 쓰이는 동안 select는 '전체'가 아니라
  *   옵션 하나(`선택한 Vendor`)가 선택된 상태로 보인다.
- * - Solution 텍스트 조건은 Vendor 목록과 무관하게 그대로 쓰이고 입력란에 보인다.
+ * - Product 텍스트 조건은 Vendor 목록과 무관하게 그대로 쓰이고 입력란에 보인다.
  */
 beforeEach(() => resetMock({ now: '2026-10-15T09:00:00+09:00' }))
 afterEach(() => {
@@ -53,19 +53,19 @@ describe('목록 필터: Vendor 목록 조회 실패', () => {
     expect(screen.getByLabelText('Vendor')).toHaveDisplayValue('선택한 Vendor')
   })
 
-  // Solution 텍스트는 그대로 쓰고 입력란에 보인다
+  // Product 텍스트는 그대로 쓰고 입력란에 보인다
   // 테스트 코드: DL-067
-  it('keeps using the solution text and shows it in the input', async () => {
+  it('keeps using the product text and shows it in the input', async () => {
     // given: Vendor 조회가 실패하는 Fake
     vi.spyOn(gateway.vendors, 'list').mockRejectedValue(failure())
     const list = vi.spyOn(gateway.deals, 'list')
-    await renderAt('/deals?solution=ITDR')
+    await renderAt('/deals?product=ITDR')
 
-    // when: Solution이 든 주소를 연다
+    // when: Product가 든 주소를 연다
     await screen.findByRole('alert')
 
-    // then: 입력란에 Solution이 있고 조회에 쓰인다
-    await waitFor(() => expect(lastQuery(list).solution).toBe('ITDR'))
-    expect(screen.getByLabelText('Solution')).toHaveValue('ITDR')
+    // then: 입력란에 Product가 있고 조회에 쓰인다
+    await waitFor(() => expect(lastQuery(list).product).toBe('ITDR'))
+    expect(screen.getByLabelText('Product')).toHaveValue('ITDR')
   })
 })

@@ -209,8 +209,8 @@ export interface Deal {
   ownerId: number
   /** Vendor 참조(id). 선택 안 함이면 null. 화면용 이름은 `DealRow.vendor`. */
   vendorId: number | null
-  /** Solution 자유 텍스트(필수, 200자 이내, Vendor와 무관). 예전 데이터는 빈 문자열일 수 있다. */
-  solution: string
+  /** Product 자유 텍스트(필수, 200자 이내, Vendor와 무관). 예전 데이터는 빈 문자열일 수 있다. */
+  product: string
   /** 견적 단위 사용자 수(Users count). 필수, 0 이상. */
   users: number
   statusKey: string

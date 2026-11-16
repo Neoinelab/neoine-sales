@@ -75,17 +75,17 @@ describe('Deal 폼 필수 표시', () => {
     expect(fieldOf(info, 'Forecast')).not.toHaveClass('required')
   })
 
-  // Vendor 칸은 필수 표시이고 Solution 칸에는 없다(등록 폼과 수정 폼 모두)
+  // Vendor 칸은 필수 표시이고 Product 칸에는 없다(등록 폼과 수정 폼 모두)
   // 테스트 코드: DE-118
-  it('marks Vendor as required and Solution as optional on the registration and edit forms', async () => {
+  it('marks Vendor as required and Product as optional on the registration and edit forms', async () => {
     // when: 등록 폼을 연다
     await openNew()
     const newInfo = tile('Deal 정보')
 
-    // then: Vendor는 Deal Name과 같은 필수 표시(접근 이름은 그대로 Vendor)이고 Solution에는 없다
+    // then: Vendor는 Deal Name과 같은 필수 표시(접근 이름은 그대로 Vendor)이고 Product에는 없다
     expect(drawsMark(fieldOf(newInfo, 'Vendor'))).toBe(true)
-    expect(fieldOf(newInfo, 'Solution')).not.toHaveClass('required')
-    expect(drawsMark(fieldOf(newInfo, 'Solution'))).toBe(false)
+    expect(fieldOf(newInfo, 'Product')).not.toHaveClass('required')
+    expect(drawsMark(fieldOf(newInfo, 'Product'))).toBe(false)
     cleanup()
 
     // when: Vendor가 있는 Deal의 수정 폼을 연다
@@ -95,6 +95,6 @@ describe('Deal 폼 필수 표시', () => {
     // then: 수정 폼도 같다
     await within(editInfo).findByDisplayValue('Silverfort')
     expect(drawsMark(fieldOf(editInfo, 'Vendor'))).toBe(true)
-    expect(fieldOf(editInfo, 'Solution')).not.toHaveClass('required')
+    expect(fieldOf(editInfo, 'Product')).not.toHaveClass('required')
   })
 })

@@ -1,4 +1,4 @@
-"""Deal 목록(DL) BDD 케이스 — 조건 검색: 키워드·담당자·Vendor·Solution·Status·Forecast.
+"""Deal 목록(DL) BDD 케이스 — 조건 검색: 키워드·담당자·Vendor·Product·Status·Forecast.
 
 유스케이스 `ListDeals`를 When으로 부르고 Deal·연락처·사용자·코드·Action 저장소는 모두 Fake UoW다.
 HTTP 수준 검증(422 kind·폐지 파라미터·응답 키)은 `unit/web/test_deal_list_http_cases.py`가 본다.
@@ -147,12 +147,12 @@ async def test_keyword_matches_the_deal_code_ignoring_case(env: DealEnv) -> None
     assert _codes(page) == [_code(hit)]
 
 
-async def test_keyword_ignores_inactive_partner_owner_vendor_and_solution(env: DealEnv) -> None:
-    """키워드는 비활성 파트너·담당자 이름·Vendor·Solution을 찾지 않는다.
+async def test_keyword_ignores_inactive_partner_owner_vendor_and_product(env: DealEnv) -> None:
+    """키워드는 비활성 파트너·담당자 이름·Vendor·Product를 찾지 않는다.
 
     테스트 코드: DL-006
     """
-    # given: 이전 파트너가 비활성이 된 Deal, 담당자 이름·Vendor·Solution이 독특한 Deal
+    # given: 이전 파트너가 비활성이 된 Deal, 담당자 이름·Vendor·Product가 독특한 Deal
     owner = await _sales_user(env, "xylo", "Xylophone Kim")
     vendor = await env.new_vendor("Quasar Vendor")
     replaced = await env.new_deal(partner=make_draft(company="RetiredPartner", name="옛파트너"))
@@ -161,7 +161,7 @@ async def test_keyword_ignores_inactive_partner_owner_vendor_and_solution(env: D
         make_patch(partner=make_draft(company="CurrentPartner", name="새파트너")),
         SALES,
     )
-    await env.new_deal(owner_user_id=owner.id, vendor_id=vendor.id, solution="Nebula Suite")
+    await env.new_deal(owner_user_id=owner.id, vendor_id=vendor.id, product="Nebula Suite")
     # when·then: 각각을 검색하면 결과가 없다
     for text in ("Retired", "Xylophone", "Quasar", "Nebula"):
         page = await env.list.execute(DealQuery(keyword=text))
@@ -234,31 +234,31 @@ async def test_vendor_filter_matches_by_id_and_an_unknown_id_is_zero_results(env
     assert (unknown.items, unknown.total) == ([], 0)
 
 
-async def test_solution_filter_is_trimmed_partial_and_literal_and_combines_with_vendor(
+async def test_product_filter_is_trimmed_partial_and_literal_and_combines_with_vendor(
     env: DealEnv,
 ) -> None:
-    """solution은 트림한 텍스트의 대소문자 무시 부분 일치이고 와일드카드는 글자이며 Vendor와 AND다.
+    """product는 트림한 텍스트의 대소문자 무시 부분 일치이고 와일드카드는 글자이며 Vendor와 AND다.
 
     테스트 코드: DL-013
     """
-    # given: Solution이 다른 Deal들(둘은 같은 Solution 이름이지만 Vendor가 다름)
+    # given: Product가 다른 Deal들(둘은 같은 Product 이름이지만 Vendor가 다름)
     sap = await env.new_vendor("SAP")
     oracle = await env.new_vendor("Oracle")
-    hit = await env.new_deal(vendor_id=sap.id, solution="ITDR Plus")
-    same_text_other_vendor = await env.new_deal(vendor_id=oracle.id, solution="itdr")
-    percent = await env.new_deal(solution="100% 보장_형")
-    await env.new_deal(vendor_id=sap.id, solution="MFA")
-    # when: 앞뒤 공백이 있는 solution으로 검색한다
-    page = await env.list.execute(DealQuery(solution="  itd  "))
+    hit = await env.new_deal(vendor_id=sap.id, product="ITDR Plus")
+    same_text_other_vendor = await env.new_deal(vendor_id=oracle.id, product="itdr")
+    percent = await env.new_deal(product="100% 보장_형")
+    await env.new_deal(vendor_id=sap.id, product="MFA")
+    # when: 앞뒤 공백이 있는 product로 검색한다
+    page = await env.list.execute(DealQuery(product="  itd  "))
     # then: 대소문자 무시 부분 일치다
     assert set(_codes(page)) == {_code(hit), _code(same_text_other_vendor)}
     # when: Vendor와 함께 검색한다
-    both = await env.list.execute(DealQuery(vendor_id=sap.id, solution="itd"))
+    both = await env.list.execute(DealQuery(vendor_id=sap.id, product="itd"))
     # then: AND다
     assert _codes(both) == [_code(hit)]
     # when: % 와 _ 로 검색한다
-    percent_page = await env.list.execute(DealQuery(solution="100%"))
-    underscore_page = await env.list.execute(DealQuery(solution="_형"))
+    percent_page = await env.list.execute(DealQuery(product="100%"))
+    underscore_page = await env.list.execute(DealQuery(product="_형"))
     # then: 글자 그대로다
     assert _codes(percent_page) == [_code(percent)]
     assert _codes(underscore_page) == [_code(percent)]

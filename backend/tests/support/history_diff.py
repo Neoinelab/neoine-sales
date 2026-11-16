@@ -84,7 +84,7 @@ def base_deal(**overrides: Any) -> Deal:  # noqa: ANN401
         "revenue_date": date(2026, 12, 1),
         "name": "A",
         "vendor_id": VENDOR_SAP,
-        "solution": "S/4HANA",
+        "product": "S/4HANA",
         **overrides,
     }
     return make_deal(NOW, **values)

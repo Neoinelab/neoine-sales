@@ -31,7 +31,7 @@ export function toDealRow(row: Schemas['DealRowResponse']): DealRow {
     ownerId: row.owner_user_id,
     owner: toUserRef(row.owner),
     vendor: row.vendor,
-    solution: row.solution,
+    product: row.product,
     users: row.users,
     statusKey: row.status_key,
     forecastKey: row.forecast_key,
@@ -104,7 +104,7 @@ export function toCreateBody(input: DealInput): Schemas['DealCreateRequest'] {
     name: input.name,
     owner_user_id: input.ownerId,
     vendor_id: input.vendorId,
-    solution: input.solution,
+    product: input.product,
     users: input.users,
     status_key: input.statusKey,
     forecast_key: input.forecastKey,
@@ -125,7 +125,7 @@ export function toPatchBody(patch: DealPatch): Schemas['DealPatchRequest'] {
   if (patch.name !== undefined) body.name = patch.name
   if (patch.ownerId !== undefined) body.owner_user_id = patch.ownerId
   if (patch.vendorId !== undefined) body.vendor_id = patch.vendorId
-  if (patch.solution !== undefined) body.solution = patch.solution
+  if (patch.product !== undefined) body.product = patch.product
   if (patch.users !== undefined) body.users = patch.users
   if (patch.statusKey !== undefined) body.status_key = patch.statusKey
   if (patch.forecastKey !== undefined) body.forecast_key = patch.forecastKey

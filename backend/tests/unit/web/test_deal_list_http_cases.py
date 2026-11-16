@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 
 URL = "/api/v1/deals"
 ROW_KEYS = {
-    "code", "name", "owner_user_id", "owner", "vendor", "solution", "users", "status_key",
+    "code", "name", "owner_user_id", "owner", "vendor", "product", "users", "status_key",
     "forecast_key", "revenue_amount", "revenue_date", "customer", "active_partner",
     "partner_links", "quote", "poc", "procurement", "bant", "next_action", "last_updated_on",
     "risk", "status_changed_on", "status_days", "license_contract_count",
@@ -229,32 +229,32 @@ async def test_a_non_integer_vendor_id_is_request_validation_and_an_unknown_id_i
     assert unknown.json()["total"] == 0
 
 
-@pytest.mark.parametrize("solution", ["s" * 200, "  " + "s" * 200 + "  "])
-async def test_solution_up_to_200_after_trim_is_accepted(solution: str) -> None:
-    """solution은 트림 후 200자까지 된다.
+@pytest.mark.parametrize("product", ["s" * 200, "  " + "s" * 200 + "  "])
+async def test_product_up_to_200_after_trim_is_accepted(product: str) -> None:
+    """product는 트림 후 200자까지 된다.
 
     테스트 코드: DL-014
     """
-    # when: 트림 후 200자인 Solution으로 조회한다
+    # when: 트림 후 200자인 Product로 조회한다
     async with client_for(_use_cases()) as http:
-        response = await _get(http, {"solution": solution})
+        response = await _get(http, {"product": product})
     # then: 200이다
     assert response.status_code == 200, response.text
 
 
-async def test_solution_201_is_request_validation_and_nul_is_invalid_value() -> None:
-    """solution 201자는 422 request-validation, NUL은 invalid-value다.
+async def test_product_201_is_request_validation_and_nul_is_invalid_value() -> None:
+    """product 201자는 422 request-validation, NUL은 invalid-value다.
 
     테스트 코드: DL-014
     """
-    # when: 201자와 NUL이 든 Solution으로 각각 조회한다
+    # when: 201자와 NUL이 든 Product로 각각 조회한다
     async with client_for(_use_cases()) as http:
-        too_long = await _get(http, {"solution": "s" * 201})
-        nul = await _get(http, {"solution": "a\x00b"})
+        too_long = await _get(http, {"product": "s" * 201})
+        nul = await _get(http, {"product": "a\x00b"})
     # then: 각각의 kind와 NUL 문구
     problem(too_long, 422, "request-validation")
     body = problem(nul, 422, "invalid-value")
-    assert body["detail"] == "Solution에는 NUL 문자를 쓸 수 없습니다"
+    assert body["detail"] == "Product에는 NUL 문자를 쓸 수 없습니다"
 
 
 async def test_status_key_50_is_accepted_and_51_is_request_validation() -> None:
@@ -455,7 +455,7 @@ async def test_sort_or_order_outside_the_whitelist_is_request_validation(
 @pytest.mark.parametrize(
     "param",
     [
-        "foo", "stage", "customer_id", "owner", "vendor", "solution_id", "revenue_from",
+        "foo", "stage", "customer_id", "owner", "vendor", "solution_id", "solution", "revenue_from",
         "revenue_to", "bant_budget", "bant_authority", "bant_need", "bant_timeline", "sortBy",
         "direction",
     ],

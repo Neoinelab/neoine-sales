@@ -55,12 +55,12 @@ async def test_get_reflects_deal_values_changed_after_the_first_read(
 
     테스트 코드: LC-028
     """
-    # given: Solution이 "S/4HANA"인 Won Deal의 계약과 첫 조회
-    code = await contract_env.won_deal(KIM, solution="S/4HANA")
+    # given: Product가 "S/4HANA"인 Won Deal의 계약과 첫 조회
+    code = await contract_env.won_deal(KIM, product="S/4HANA")
     (contract,) = await contract_env.contracts_of(code)
     first = await contract_env.get.execute(contract.id)
-    # when: Deal의 Solution을 바꾼 뒤 다시 조회한다
-    await contract_env.env.update.execute(code, make_patch(solution="Cloud ERP"), KIM)
+    # when: Deal의 Product를 바꾼 뒤 다시 조회한다
+    await contract_env.env.update.execute(code, make_patch(product="Cloud ERP"), KIM)
     second = await contract_env.get.execute(contract.id)
     # then: 첫 조회는 옛 값, 둘째 조회는 바뀐 Deal 값이고 Won 여부는 그대로 true다
     assert first.deal.product == "S/4HANA"

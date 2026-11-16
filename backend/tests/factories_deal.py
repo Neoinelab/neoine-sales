@@ -82,7 +82,7 @@ def make_create_input(**overrides: Any) -> DealCreateInput:  # noqa: ANN401
         "name": "ERP 구축",
         "owner_user_id": OWNER_ID,
         "vendor_id": default_vendor_id(),  # 필수: 등록된 Vendor의 id
-        "solution": "S/4HANA",  # 선택 자유 텍스트(앞뒤 공백 제거 후 0~200자)
+        "product": "S/4HANA",  # 선택 자유 텍스트(앞뒤 공백 제거 후 0~200자)
         "users": 10,
         "status_key": "prospecting",
         "forecast_key": "pipeline",

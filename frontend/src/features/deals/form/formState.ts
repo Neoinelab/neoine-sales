@@ -36,8 +36,8 @@ export interface DealFormState {
   ownerId: string
   /** Owner·Vendor id는 select 값(10진 문자열)으로 들고, 저장할 때 `parseId`로 정수로 바꾼다. 빈 문자열은 미선택. */
   vendorId: string
-  /** Solution 자유 텍스트(선택, 빈 값 허용). */
-  solution: string
+  /** Product 자유 텍스트(선택, 빈 값 허용). */
+  product: string
   users: string
   statusKey: string
   forecastKey: string
@@ -58,7 +58,7 @@ export interface FormErrors {
   name?: string
   ownerId?: string
   vendorId?: string
-  solution?: string
+  product?: string
   users?: string
   revenueAmount?: string
   revenueDate?: string
@@ -76,7 +76,7 @@ export function emptyForm(ownerId: string): DealFormState {
     name: '',
     ownerId,
     vendorId: '',
-    solution: '',
+    product: '',
     users: '',
     statusKey: STATUS_PROSPECTING,
     forecastKey: FORECAST_PIPELINE,
@@ -118,7 +118,7 @@ export function formFromDeal(deal: DealDetail, labels: readonly BantLabel[]): De
     name: deal.name,
     ownerId: String(deal.ownerId),
     vendorId: deal.vendor ? String(deal.vendor.id) : '',
-    solution: deal.solution,
+    product: deal.product,
     users: String(deal.users),
     statusKey: deal.statusKey,
     forecastKey: deal.forecastKey,
@@ -226,7 +226,7 @@ export function toDealInput(state: DealFormState, labels: readonly BantLabel[]):
     name: state.name.trim(),
     ownerId,
     vendorId,
-    solution: state.solution.trim(),
+    product: state.product.trim(),
     users: Number(users),
     statusKey: state.statusKey,
     forecastKey: state.forecastKey,

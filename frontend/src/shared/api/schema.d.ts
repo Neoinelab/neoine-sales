@@ -2054,13 +2054,13 @@ export interface components {
              * @default
              */
             procurement: string;
+            /** Product */
+            product?: string | null;
             quote?: components["schemas"]["QuoteRequest"];
             /** Revenue Amount */
             revenue_amount: number;
             /** Revenue Date */
             revenue_date: string | null;
-            /** Solution */
-            solution?: string | null;
             /** Status Key */
             status_key: string;
             /** Users */
@@ -2105,6 +2105,8 @@ export interface components {
             poc: components["schemas"]["PocResponse"];
             /** Procurement */
             procurement: string;
+            /** Product */
+            product: string;
             quote: components["schemas"]["QuoteResponse"];
             /** Revenue Amount */
             revenue_amount: number;
@@ -2115,8 +2117,6 @@ export interface components {
             revenue_date: string;
             /** Risk */
             risk: ("overdue" | "stale" | "overdue_stale") | null;
-            /** Solution */
-            solution: string;
             /**
              * Status Changed On
              * Format: date
@@ -2157,13 +2157,13 @@ export interface components {
             poc?: components["schemas"]["PocRequest"] | null;
             /** Procurement */
             procurement?: string | null;
+            /** Product */
+            product?: string | null;
             quote?: components["schemas"]["QuoteRequest"] | null;
             /** Revenue Amount */
             revenue_amount?: number | null;
             /** Revenue Date */
             revenue_date?: string | null;
-            /** Solution */
-            solution?: string | null;
             /** Status Key */
             status_key?: string | null;
             /** Users */
@@ -2206,6 +2206,8 @@ export interface components {
             poc: components["schemas"]["PocResponse"];
             /** Procurement */
             procurement: string;
+            /** Product */
+            product: string;
             quote: components["schemas"]["QuoteResponse"];
             /** Revenue Amount */
             revenue_amount: number;
@@ -2216,8 +2218,6 @@ export interface components {
             revenue_date: string;
             /** Risk */
             risk: ("overdue" | "stale" | "overdue_stale") | null;
-            /** Solution */
-            solution: string;
             /**
              * Status Changed On
              * Format: date
@@ -5835,7 +5835,7 @@ export interface operations {
                 owner_user_id?: number | null;
                 mine?: boolean;
                 vendor_id?: number | null;
-                solution?: string | null;
+                product?: string | null;
                 status_key?: string | null;
                 forecast_key?: string[] | null;
                 forecast_outcome?: components["schemas"]["ForecastOutcomeFilter"] | null;

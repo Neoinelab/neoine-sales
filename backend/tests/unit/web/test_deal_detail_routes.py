@@ -32,7 +32,7 @@ DETAIL_KEYS = {
     "owner_user_id",
     "owner",
     "vendor",
-    "solution",
+    "product",
     "users",
     "status_key",
     "forecast_key",

@@ -46,12 +46,12 @@ async def test_register_vendor_assigns_the_next_vendor_id(
 
 
 def test_there_is_no_solution_id_kind() -> None:
-    """Solution id 종류와 발급 함수가 더는 없는지 확인한다."""
-    # when·then: IdKind와 ids 모듈에 Solution 항목이 없다
+    """Product id 종류와 발급 함수가 더는 없는지 확인한다."""
+    # when·then: IdKind와 ids 모듈에 Product 항목이 없다
     from app.application import ids  # noqa: PLC0415
     from app.application.ports.id_allocator import IdKind  # noqa: PLC0415
 
-    assert not hasattr(IdKind, "SOLUTION")
+    assert not hasattr(IdKind, "PRODUCT")
     assert not hasattr(ids, "new_solution_id")
 
 

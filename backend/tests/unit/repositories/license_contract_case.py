@@ -1,6 +1,6 @@
 """계약·계약 첨부 저장소 계약 테스트 공용 case(Fake와 SQL 구현 양쪽).
 
-계약은 Deal(소속·고객·Vendor·Solution·파트너·Owner를 읽는 곳)과 사용자(등록자·수정자·업로더)를
+계약은 Deal(소속·고객·Vendor·Product·파트너·Owner를 읽는 곳)과 사용자(등록자·수정자·업로더)를
 참조하므로, case가 Deal 저장소 묶음(`DealCase`)을 함께 들고 필요한 행을 먼저 만든다. Fake는
 `FakeUnitOfWork`가 연결한(FK 모사) 저장소를, SQL은 한 세션 위의 Sql 저장소들을 쓴다. SQL 구현
 모듈은 사용 시점에 가져온다.
@@ -79,7 +79,7 @@ class ContractCase:
         self,
         *,
         customer: str = "넥스트고객",
-        solution: str = "S/4HANA",
+        product: str = "S/4HANA",
         vendor: str | None = None,
         partner: str | None = None,
         owner: str | None = None,
@@ -111,7 +111,7 @@ class ContractCase:
             partner_id=None if partner_row is None else partner_row.id,
             owner_user_id=owner_id,
             vendor_id=DEFAULT_VENDOR_ID if vendor_row is None else vendor_row.id,
-            solution=solution,
+            product=product,
             name=name,
             status_key="contract_completed" if forecast_key == "won" else "prospecting",
             forecast_key=forecast_key,

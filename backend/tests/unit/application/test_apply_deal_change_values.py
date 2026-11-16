@@ -156,17 +156,17 @@ async def test_changes_read_contacts_in_bulk_not_one_by_one(env: DealEnv) -> Non
     assert env.uow.contacts.round_trips <= 2  # 이름 조회 한 번 + 응답 조립 한 번
 
 
-async def test_a_single_change_succeeds_on_a_legacy_deal_whose_solution_is_empty(
+async def test_a_single_change_succeeds_on_a_legacy_deal_whose_product_is_empty(
     env: DealEnv,
 ) -> None:
-    """Solution이 빈 레거시 Deal도 금액을 단일 변경할 수 있다.
+    """Product가 빈 레거시 Deal도 금액을 단일 변경할 수 있다.
 
     테스트 코드: DD-027
     """
-    # given: 마이그레이션이 Solution을 빈 값으로 채운 레거시 Deal
+    # given: 마이그레이션이 Product를 빈 값으로 채운 레거시 Deal
     view = await env.new_deal()
     stored = await env.uow.deals.get(view.item.deal.id)
-    object.__setattr__(stored.details, "solution", "")
+    object.__setattr__(stored.details, "product", "")
 
     # when: 금액을 바꾼다
     result = await apply_change(env, view, "revenue_amount", 1_870_000_000)

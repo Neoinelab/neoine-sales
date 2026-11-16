@@ -1,6 +1,6 @@
 """Deal 목록 질의의 조건과 select. 파생값은 deal_derived, 정렬은 deal_list_order.
 
-keyword·owner·vendor·solution·status·forecast(여러 값 OR)·연/분기·최종 업데이트 기간·
+keyword·owner·vendor·product·status·forecast(여러 값 OR)·연/분기·최종 업데이트 기간·
 Next Action 상태·기한초과/미업데이트 필터를 적용한다.
 Expected Close 연/분기는 DealQuery.revenue_window()의 양끝 포함 범위에 revenue_quarters()의
 분기 IN 조건을 AND로 더한다(Q1·Q3처럼 떨어진 분기를 정확히 거른다).
@@ -133,8 +133,8 @@ def conditions(query: DealQuery) -> list[ColumnElement[bool]]:
         found.append(_outcome_condition(query.forecast_outcome))
     if query.next_action_status is not None:
         found.append(_next_action_condition(query.next_action_status))
-    if query.solution is not None:
-        found.append(DealRow.solution.ilike(like_pattern(query.solution), escape=LIKE_ESCAPE))
+    if query.product is not None:
+        found.append(DealRow.product.ilike(like_pattern(query.product), escape=LIKE_ESCAPE))
     found.extend(column == wanted for column, wanted in equals if wanted is not None)
     found.extend(_window_conditions(query))
     if query.wants_risk():

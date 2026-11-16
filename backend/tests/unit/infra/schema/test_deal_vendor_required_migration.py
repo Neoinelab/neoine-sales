@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 pytestmark = pytest.mark.integration
 
 PARENT = "c8e3f1a7d295"
-HEAD = "e6b1d4f8a302"
+HEAD = "e6b1d4f8a302"  # 이 파일이 검증하는 리비전(전체 head보다 한 단계 앞)
 
 INSERT_USER = (
     "insert into users (id, login_id, role, created_at, updated_at)"
@@ -78,7 +78,7 @@ async def test_upgrade_keeps_every_row_and_makes_vendor_id_not_null(blank_databa
     assert await run_sql(blank_database, VENDOR_NULLABLE) == [("YES",)]
 
     # when: head까지 올린다
-    await when_operator_upgrades(blank_database)
+    await when_operator_upgrades(blank_database, target=HEAD)
 
     # then: 버전은 head이고 Deal 행·값(빈 Solution 포함)이 그대로이며 vendor_id는 NOT NULL이다
     await then_schema_is_at(blank_database, HEAD)
@@ -109,7 +109,7 @@ async def test_upgrade_with_deals_without_a_vendor_aborts_and_changes_nothing(
 
     # when: head까지 올리면 RuntimeError로 중단된다
     with pytest.raises(RuntimeError) as aborted:
-        await when_operator_upgrades(blank_database)
+        await when_operator_upgrades(blank_database, target=HEAD)
 
     # then: 건수와 Vendor 없는 Deal의 code가 문구에 있고 Vendor 있는 Deal의 code는 없다
     message = str(aborted.value)
@@ -136,7 +136,7 @@ async def test_downgrade_only_drops_the_not_null_and_keeps_every_row(
         blank_database,
         [(1, "20261116-A001", 1, "ITDR"), (2, "20261116-A002", 1, "")],
     )
-    await when_operator_upgrades(blank_database)
+    await when_operator_upgrades(blank_database, target=HEAD)
     at_head = await run_sql(blank_database, SNAPSHOT)
 
     # when: 한 단계 되돌린다
@@ -150,7 +150,7 @@ async def test_downgrade_only_drops_the_not_null_and_keeps_every_row(
     assert await run_sql(blank_database, VENDOR_FK) == [(1,)]
 
     # when: 다시 head까지 올린다
-    await when_operator_upgrades(blank_database)
+    await when_operator_upgrades(blank_database, target=HEAD)
 
     # then: 첫 upgrade 결과와 같다
     await then_schema_is_at(blank_database, HEAD)

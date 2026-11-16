@@ -17,14 +17,14 @@ function ReadOnlyRow({ label, value }: { label: string; value: string }) {
   )
 }
 
-/** Deal 정보 타일의 Vendor·Solution 행. Vendor는 등록된 목록에서만 고르고(만드는 곳은 관리 화면), Solution은 Vendor와 무관한 선택 텍스트다. */
+/** Deal 정보 타일의 Vendor·Product 행. Vendor는 등록된 목록에서만 고르고(만드는 곳은 관리 화면), Product는 Vendor와 무관한 선택 텍스트다. */
 export function VendorRows({ state, set, errors, original }: SectionProps) {
   const query = useVendors()
   const selectId = useId()
   const vendors = query.data ?? []
 
-  const solution = (
-    <FormField label="Solution" name="solution" value={state.solution} onChange={(v) => set('solution', v)} error={errors.solution} />
+  const product = (
+    <FormField label="Product" name="product" value={state.product} onChange={(v) => set('product', v)} error={errors.product} />
   )
 
   // 수정 중 목록을 못 받으면 select가 '선택하세요'로 보여 저장 시 값이 지워질 수 있다. 읽기 전용으로 현재 값을 보이고 state는 그대로 둔다.
@@ -32,7 +32,7 @@ export function VendorRows({ state, set, errors, original }: SectionProps) {
     return (
       <>
         <ReadOnlyRow label="Vendor" value={original.vendor?.name ?? ''} />
-        {solution}
+        {product}
         <ErrorBanner error={query.error} />
       </>
     )
@@ -64,7 +64,7 @@ export function VendorRows({ state, set, errors, original }: SectionProps) {
           )}
         </div>
       </div>
-      {solution}
+      {product}
     </>
   )
 }

@@ -158,47 +158,47 @@ class TestCodeIssue:
         assert env.uow.commits == commits_before  # 커밋이 없다
 
 
-class TestRegisteredSolutionText:
-    async def test_register_saves_trimmed_solution_text(self, env: DealEnv) -> None:
-        """Solution은 앞뒤 공백을 지워 저장한다.
+class TestRegisteredProductText:
+    async def test_register_saves_trimmed_product_text(self, env: DealEnv) -> None:
+        """Product는 앞뒤 공백을 지워 저장한다.
 
         테스트 코드: DE-016
         """
-        # when: Solution '  MFA '로 등록한다.
-        view = await env.new_deal(solution="  MFA ")
+        # when: Product '  MFA '로 등록한다.
+        view = await env.new_deal(product="  MFA ")
 
         # then: 응답과 저장된 값이 모두 'MFA'다.
         stored = await env.uow.deals.get(view.item.deal.id)
-        assert view.item.deal.details.solution == "MFA"
-        assert stored.details.solution == "MFA"
+        assert view.item.deal.details.product == "MFA"
+        assert stored.details.product == "MFA"
 
     @pytest.mark.parametrize("sent", ["", "   ", None, "omitted"])
-    async def test_register_without_a_solution_stores_an_empty_one(
+    async def test_register_without_a_product_stores_an_empty_one(
         self, env: DealEnv, sent: str | None
     ) -> None:
-        """Solution을 생략·null·빈 값·공백으로 등록하면 빈 Solution으로 저장된다.
+        """Product를 생략·null·빈 값·공백으로 등록하면 빈 Product로 저장된다.
 
         테스트 코드: DE-115
         """
-        # given: Solution이 생략되었거나 null·''·'   '인 등록 입력.
+        # given: Product가 생략되었거나 null·''·'   '인 등록 입력.
         fields = {
             f.name: getattr(make_create_input(), f.name)
             for f in dataclasses.fields(DealCreateInput)
         }
-        fields.pop("solution")
+        fields.pop("product")
         if sent != "omitted":
-            fields["solution"] = sent
+            fields["product"] = sent
 
         # when: 등록한다.
         view = await env.register.execute(DealCreateInput(**fields), SALES)
 
-        # then: 오류 없이 등록되고 저장된 Solution이 ''다.
+        # then: 오류 없이 등록되고 저장된 Product가 ''다.
         stored = await env.uow.deals.get(view.item.deal.id)
-        assert view.item.deal.details.solution == ""
-        assert stored.details.solution == ""
+        assert view.item.deal.details.product == ""
+        assert stored.details.product == ""
 
-    def test_create_input_requires_vendor_and_has_an_optional_solution(self) -> None:
-        """등록 입력은 vendor_id가 필수이고 solution은 기본이 빈 값이며 solution_id 필드가 없다.
+    def test_create_input_requires_vendor_and_has_an_optional_product(self) -> None:
+        """등록 입력은 vendor_id가 필수이고 product는 기본이 빈 값이며 solution_id 필드가 없다.
 
         테스트 코드: DE-115
         """
@@ -207,22 +207,22 @@ class TestRegisteredSolutionText:
         # when: DealCreateInput의 필드 정의를 본다.
         fields = DealCreateInput.__dataclass_fields__
 
-        # then: vendor_id에는 기본값이 없고, solution의 기본값은 빈 문자열이며 solution_id가 없다.
+        # then: vendor_id에는 기본값이 없고, product의 기본값은 빈 문자열이며 solution_id가 없다.
         assert fields["vendor_id"].default is MISSING
         assert fields["vendor_id"].default_factory is MISSING
-        assert fields["solution"].default == ""
+        assert fields["product"].default == ""
         assert "solution_id" not in DealCreateInput.__dataclass_fields__
 
-    async def test_register_keeps_the_letter_case_of_the_solution(self, env: DealEnv) -> None:
-        """Solution의 대소문자는 입력 그대로 저장한다.
+    async def test_register_keeps_the_letter_case_of_the_product(self, env: DealEnv) -> None:
+        """Product의 대소문자는 입력 그대로 저장한다.
 
         테스트 코드: DE-016
         """
-        # when: Solution 'itDR'로 등록한다.
-        view = await env.new_deal(solution="itDR")
+        # when: Product 'itDR'로 등록한다.
+        view = await env.new_deal(product="itDR")
 
         # then: 저장된 값이 'itDR'이다.
-        assert view.item.deal.details.solution == "itDR"
+        assert view.item.deal.details.product == "itDR"
 
 
 class TestRegisteredValues:
@@ -236,7 +236,7 @@ class TestRegisteredValues:
         view = await env.new_deal(
             name="  ERP 구축  ",
             vendor_id=sap.id,
-            solution="S/4HANA",
+            product="S/4HANA",
             users=250,
             revenue_amount=1_870_000_000,
             revenue_date=date(2026, 12, 31),
@@ -248,7 +248,7 @@ class TestRegisteredValues:
         # then: 이름은 공백이 지워지고 vendor가 {id, name}이며 created_at = updated_at = 서버
         #   시각이다.
         assert deal.details.name == "ERP 구축"
-        assert (deal.details.vendor_id, deal.details.solution) == (sap.id, "S/4HANA")
+        assert (deal.details.vendor_id, deal.details.product) == (sap.id, "S/4HANA")
         assert view.vendor == NamedRef(sap.id, "SAP")
         assert deal.details.users == 250
         assert deal.details.revenue_amount.value == 1_870_000_000

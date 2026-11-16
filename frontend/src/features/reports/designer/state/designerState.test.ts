@@ -51,13 +51,13 @@ describe('designerReducer columns', () => {
   // 테스트 코드: RQ-071
   it('uid로 컬럼을 뺀다', () => {
     // given: 컬럼 셋
-    const state = withColumns('deal.code', 'deal.name', 'deal.solution')
+    const state = withColumns('deal.code', 'deal.name', 'deal.product')
 
     // when: 둘째 컬럼을 뺀다
     const next = reduce(state, { type: 'removeColumn', uid: uidAt(state, 1) })
 
     // then: 나머지 둘이 남고 선택은 뺀 컬럼이 아니다
-    expect(next.columns.map((c) => c.field)).toEqual(['deal.code', 'deal.solution'])
+    expect(next.columns.map((c) => c.field)).toEqual(['deal.code', 'deal.product'])
     expect(next.selectedUid).not.toBe(uidAt(state, 1))
   })
 
@@ -105,25 +105,25 @@ describe('designerReducer moving', () => {
   // 테스트 코드: RQ-072
   it('컬럼을 목표 위치로 옮긴다', () => {
     // given: 컬럼 셋
-    const state = withColumns('deal.code', 'deal.name', 'deal.solution')
+    const state = withColumns('deal.code', 'deal.name', 'deal.product')
 
     // when: 첫 컬럼을 셋째 자리로 옮긴다
     const next = reduce(state, { type: 'moveColumn', uid: uidAt(state, 0), to: 2 })
 
-    // then: 순서가 이름, Solution, code다
-    expect(next.columns.map((c) => c.field)).toEqual(['deal.name', 'deal.solution', 'deal.code'])
+    // then: 순서가 이름, Product, code다
+    expect(next.columns.map((c) => c.field)).toEqual(['deal.name', 'deal.product', 'deal.code'])
   })
 
   // 테스트 코드: RQ-072
   it('끝을 넘는 위치는 마지막 자리로 맞춘다', () => {
     // given: 컬럼 셋
-    const state = withColumns('deal.code', 'deal.name', 'deal.solution')
+    const state = withColumns('deal.code', 'deal.name', 'deal.product')
 
     // when: 첫 컬럼을 99번째로 옮긴다
     const next = reduce(state, { type: 'moveColumn', uid: uidAt(state, 0), to: 99 })
 
     // then: 마지막 자리로 간다
-    expect(next.columns.map((c) => c.field)).toEqual(['deal.name', 'deal.solution', 'deal.code'])
+    expect(next.columns.map((c) => c.field)).toEqual(['deal.name', 'deal.product', 'deal.code'])
   })
 
   // 테스트 코드: RQ-072
@@ -140,7 +140,7 @@ describe('designerReducer moving', () => {
   // 테스트 코드: RQ-072
   it('컬럼을 옮기면 그 정렬도 함께 간다', () => {
     // given: 첫 컬럼을 내림차순 정렬한 컬럼 셋
-    const base = withColumns('deal.code', 'deal.name', 'deal.solution')
+    const base = withColumns('deal.code', 'deal.name', 'deal.product')
     const sorted = reduce(base, { type: 'updateColumn', uid: uidAt(base, 0), patch: { sort: 'desc' } })
 
     // when: 첫 컬럼을 셋째 자리로 옮긴다

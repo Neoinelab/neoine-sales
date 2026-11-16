@@ -1,8 +1,10 @@
-# 계약관리(라이선스 계약)   (feature 코드: LC, 상태: 확정(2026-11-13 사용자 확인))
+# 계약관리(라이선스 계약)   (feature 코드: LC, 상태: 확정(2026-11-16 사용자 확인))
 
 > 이 문서는 **이미 구현된 동작**을 정본 명세로 옮긴 것입니다(2026-11-09 시범 적용). 근거는 작업 트리의 코드(`backend/src/app/**/license_contract*`, Deal 유스케이스 4경로·Deal 삭제, `frontend/src/features/contracts/**`, `frontend/src/features/deals/useWonExitConfirm.tsx` 등)이며, 이전 계획 `artifacts/10-analysis/license-contracts-plan.md`와 코드가 다른 곳은 코드를 따랐습니다. 문구·type·상태 코드는 코드에서 그대로 옮겼습니다. 화면 문구의 "라이선스"/"라이선스" 혼용은 코드 그대로입니다(통일은 후속 과제).
 >
 > **2026-11-09 사용자 결정으로 코드와 달라지는 규칙 2개**(구현 전까지 현재 코드와 다름): 정렬 키 `deal_code` 제거(LC-R18, LC-021·LC-084), 계약 삭제는 admin이 아니면 존재 여부와 무관하게 403 먼저(LC-R15·LC-R28, LC-029·LC-083).
+>
+> 2026-11-16 변경(초안, 사용자 확인 대기): Deal의 Solution을 Product로 이름 변경(화면 문구, API 필드·쿼리 `product`, Reports key `deal.product`, DB 컬럼 `deals.product`). 영향 규칙·케이스는 5장.
 
 ## 1. 개요
 
@@ -63,7 +65,7 @@
 ### 2.3 비즈니스 규칙
 
 계약과 Deal
-- **LC-R1** 계약은 Deal 하나에 속하고 한 Deal에 계약이 여러 개 있을 수 있다. 계약 행이 보여 주는 Deal 값은 조회 시점의 Deal 값이다: 고객사명 = Deal 고객 연락처의 회사명, Vendor = Deal Vendor(`{id, name}`, 없으면 null), 제품명 = Deal Solution, 파트너사 = Deal의 연결 해제되지 않은 파트너 연락처 회사명(없으면 null), 담당영업 = Deal Owner(퇴사자 포함). Deal 값을 바꾸면 계약 행에도 바로 반영된다.
+- **LC-R1** 계약은 Deal 하나에 속하고 한 Deal에 계약이 여러 개 있을 수 있다. 계약 행이 보여 주는 Deal 값은 조회 시점의 Deal 값이다: 고객사명 = Deal 고객 연락처의 회사명, Vendor = Deal Vendor(`{id, name}`, 없으면 null), 제품명 = Deal Product(2026-11-16 전 이름 Solution, 컬럼 `deals.product`), 파트너사 = Deal의 연결 해제되지 않은 파트너 연락처 회사명(없으면 null), 담당영업 = Deal Owner(퇴사자 포함). Deal 값을 바꾸면 계약 행에도 바로 반영된다.
 - **LC-R2** 상태는 4개이고 전이는 2.4의 표만 허용한다. 허용되지 않은 전이는 409 `invalid-state`이고 계약은 바뀌지 않는다.
 - **LC-R3** 한 Deal에 발급 상태 계약은 최대 1건이다. 같은 Deal에 다른 발급 상태 계약이 있을 때의 발급은 409 `invalid-state` "이 Deal에는 이미 발급 상태인 라이선스 계약이 있습니다."이다(DB 부분 유니크 인덱스가 같은 상황을 거부). 종료·미발급 계약, 다른 Deal의 계약은 이 제한에 들지 않는다.
 - **LC-R4** 종료일은 요청으로 받지 않고 서버가 `시작일 + 기간 − 1일`로 계산한다. 시작일이 d일(d>1)이면 (시작 월 + 기간)달의 d−1일, 그 달에 그날이 없으면 그 달 말일이다. 시작일이 1일이면 (시작 월 + 기간)달 1일의 전날(전달 말일)이다. 예: 2026-01-01+1년=2026-12-31, 2026-01-01+6개월=2026-06-30, 2026-03-15+1개월=2026-04-14, 2026-11-15+3개월=2027-02-14, 2026-01-31+1개월=2026-02-28. 기간 수량은 1~99, 단위는 `month`·`year`. 시작일은 1900-01-01~2999-12-31이어야 하고("라이선스 시작일은(는) 1900-01-01부터 2999-12-31 사이여야 합니다"), 종료 연도가 2999를 넘으면 422 `invalid-value` "라이선스 종료일이 허용 범위를 벗어납니다."이다. 화면의 종료일 미리보기(`licenseEnd`)는 같은 계산이다.
@@ -298,7 +300,7 @@ LC-R30~LC-R37. 화면은 게이트웨이(`gateway.licenseContracts`)로만 서�
 | LC-014 | 화면: 발급 계약이 있는 Deal은 안내만 띄우고 요청하지 않는다 | LC-R36, LC-R8, LC-UC2 | frontend | `features/deals/licenseContractsOnWonExit.test.tsx > 상세 요약 바: 안내만 보이고 요청 없이 값이 Won 그대로다`<br>`features/deals/licenseContractsOnWonExit.test.tsx > 목록 인라인 편집: 안내만 보이고 요청 없이 값이 Won 그대로다`<br>`features/deals/licenseContractsOnWonExit.test.tsx > Deal 폼 수정: 저장을 누르면 안내만 보이고 요청이 없다`<br>외 1건 |
 | LC-015 | 화면: 화면 값이 오래돼 서버가 409를 주면 문구를 보이고 다음 시도는 안내로 막는다 | LC-R36, LC-R8, LC-UC2 | frontend | `features/deals/licenseContractsOnWonExit.test.tsx > 상세 요약 바: 유지를 눌러도 서버 문구가 오류로 보이고 Forecast는 Won 그대로다`<br>`features/deals/licenseContractsOnWonExit.test.tsx > 목록 인라인 편집: 유지를 눌러도 서버 문구가 행의 alert에 보이고 편집 칸이 남으며 Forecast는 Won 그대로다`<br>`features/deals/licenseContractsOnWonExit.test.tsx > Deal 폼 수정: 409 뒤 같은 변경을 다시 저장하면 확인 버튼뿐인 안내 대화상자가 뜨고 요청이 없다`<br>외 3건 |
 | LC-016 | 조건 없이 목록을 읽으면 종료일 오름차순 50건과 전체 건수가 온다 | LC-R18, LC-R19, LC-UC3 | backend | `application/test_license_contract_query.py::test_list_returns_the_page_with_the_total`<br>`application/test_license_contract_query.py::test_list_second_page_returns_the_rest`<br>`application/test_license_contract_scenarios.py::test_default_list_is_license_end_ascending_with_fifty_per_page`<br>외 7건 |
-| LC-017 | 고객사명·제품명은 Deal 값의 대소문자 무시 부분 일치로 거른다 | LC-R17, LC-UC3 | backend | `application/test_license_contract_query.py::test_query_text_filters_are_trimmed_and_blank_means_none`<br>`repositories/test_license_contract_search_contract.py::test_search_customer_is_a_case_insensitive_partial_match_on_the_deal_customer`<br>`repositories/test_license_contract_search_contract.py::test_search_product_is_a_case_insensitive_partial_match_on_the_deal_solution`<br>외 1건 |
+| LC-017 | 고객사명·제품명은 Deal 값의 대소문자 무시 부분 일치로 거른다 | LC-R17, LC-UC3 | backend | `application/test_license_contract_query.py::test_query_text_filters_are_trimmed_and_blank_means_none`<br>`repositories/test_license_contract_search_contract.py::test_search_customer_is_a_case_insensitive_partial_match_on_the_deal_customer`<br>`repositories/test_license_contract_search_contract.py::test_search_product_is_a_case_insensitive_partial_match_on_the_deal_product`<br>외 1건 |
 | LC-018 | Vendor·담당영업·상태 조건은 일치로 거르고 모든 조건은 AND다 | LC-R17, LC-UC3 | backend | `application/test_license_contract_query.py::test_list_filters_by_status_and_counts_the_filtered_total`<br>`repositories/test_license_contract_search_contract.py::test_search_vendor_matches_the_deal_vendor_id`<br>`repositories/test_license_contract_search_contract.py::test_search_owner_matches_the_deal_owner_including_resigned_users`<br>외 2건 |
 | LC-019 | 날짜 범위는 양끝을 포함하고 날짜 없는 계약은 뺀다 | LC-R17, LC-UC3 | backend | `application/test_license_contract_query.py::test_query_same_day_range_and_one_sided_ranges_are_accepted`<br>`web/test_license_contract_openapi.py::test_list_query_parameters`<br>`repositories/test_license_contract_search_contract.py::test_search_start_range_is_inclusive_and_excludes_contracts_without_dates`<br>외 1건 |
 | LC-020 | 날짜 범위가 거꾸로면 422로 거절한다 | LC-R17, LC-UC3 | backend | `application/test_license_contract_query.py::test_query_reversed_start_range_rejected`<br>`application/test_license_contract_query.py::test_query_reversed_end_range_rejected`<br>`web/test_license_contract_routes.py::test_list_with_a_reversed_range_is_422_invalid_value` |
@@ -451,7 +453,7 @@ LC-R30~LC-R37. 화면은 게이트웨이(`gateway.licenseContracts`)로만 서�
 - Then 첫 응답은 `limit` 50, `offset` 0, `total` 60, 종료일 오름차순(종료일 없는 계약은 맨 뒤) 50건이고 각 항목은 2.6의 응답 키를 모두 가진다. 두 번째 응답은 나머지 10건이고 `total`은 같다
 
 ### LC-017 고객사명·제품명은 Deal 값의 대소문자 무시 부분 일치로 거른다
-- Given 고객 회사명 "Neo Acme"·Solution "SuperDB"인 Deal의 계약, 고객 회사명 "Beta"·Solution "Other"인 Deal의 계약, 고객 회사명에 `%`가 든 Deal의 계약
+- Given 고객 회사명 "Neo Acme"·Product "SuperDB"인 Deal의 계약, 고객 회사명 "Beta"·Product "Other"인 Deal의 계약, 고객 회사명에 `%`가 든 Deal의 계약
 - When `customer=acme` / `product=superdb` / `customer=%`로 각각 읽는다(앞뒤 공백을 붙인 값, 공백만인 값도)
 - Then 각각 해당 Deal의 계약만 온다. `%`는 글자 그대로 일치한다. 공백만인 값은 조건이 없는 것과 같다
 
@@ -505,8 +507,8 @@ LC-R30~LC-R37. 화면은 게이트웨이(`gateway.licenseContracts`)로만 서�
 - Then 시작일·종료일 칸이 각각 위험(title `만료 1개월 미만`)·주의(`만료 2개월 미만`)·색 없음이고 종료·미발급 계약은 색이 없다. 상태 칸은 발급 상태면 `status-issued`, 종료면 `status-ended`, 미발급이면 둘 다 없다. 위험 색 계약을 갱신하면 새 행에는 색이 없다
 
 ### LC-028 계약 상세는 조회 시점의 Deal 값·첨부 수·Won 여부를 담는다
-- Given 고객·Vendor·Solution·파트너·Owner가 있는 Won Deal의 계약과 첨부 2개
-- When 계약을 조회하고, Deal의 고객·Vendor·Solution·Owner를 바꾸고 파트너 연결을 끊은 뒤 다시 조회하고, Deal을 Won 밖으로 바꾼 뒤 다시 조회한다
+- Given 고객·Vendor·Product·파트너·Owner가 있는 Won Deal의 계약과 첨부 2개
+- When 계약을 조회하고, Deal의 고객·Vendor·Product·Owner를 바꾸고 파트너 연결을 끊은 뒤 다시 조회하고, Deal을 Won 밖으로 바꾼 뒤 다시 조회한다
 - Then 첫 응답은 그 Deal 값과 `attachment_count` 2, `deal_is_won` true다. 둘째 응답은 바뀐 Deal 값(파트너 null, Vendor는 바꾼 Vendor)이고, 셋째 응답의 `deal_is_won`은 false다. 목록 행도 같은 값이다
 
 ### LC-029 없는 계약·첨부 id로 요청하면 404다(계약 삭제는 admin만)
@@ -814,3 +816,4 @@ LC-R30~LC-R37. 화면은 게이트웨이(`gateway.licenseContracts`)로만 서�
 | 2026-11-12 | DD-R41(완료된 Deal은 admin만 삭제)에 맞춰 LC-R27에 주석, 계약이 있는(= Won) Deal을 지우는 LC-080·LC-081의 행위자를 admin으로 명시. 계약 동작 변경 없음 | 변경: LC-080, LC-081(행위자만) |
 | 2026-11-13 | 확정(2026-11-13 사용자 확인): 계약 종료일을 date `ended_on`으로(2.2, LC-R5·R12·R13, 2.6), LC-R38 신설(데이터 변환). 응답 필드 변경(호환 깨짐, 사용자 승인), 화면 표시는 없음 | 신규 LC-086, LC-087. 변경 LC-054, 갱신 케이스, 이미 종료 케이스 |
 | 2026-11-13 | 확정(2026-11-13 사용자 확인): Deal Vendor를 비울 수 없게 되어(DE-R7) LC-028 Then 표현만 바꿈. 계약 응답 `vendor` nullable은 그대로 | 변경 LC-028 |
+| 2026-11-16 | 초안(사용자 확인 대기): Deal Solution → Product 이름 변경(DE 2026-11-16)에 따라 LC-R1 제품명 출처 표기. 계약 API의 `product` 키·동작은 그대로 | 변경(표기): LC-017, LC-028 |

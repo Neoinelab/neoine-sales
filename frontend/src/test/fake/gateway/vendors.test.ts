@@ -115,11 +115,11 @@ describe('vendors write', () => {
     // when: 'Silverfort'를 'Silverfort Inc'로 바꾼다
     await gateway.vendors.rename(seedVendorId('Silverfort'), 'Silverfort Inc')
 
-    // then: Deal의 Vendor가 새 이름이고 Solution은 그대로다
+    // then: Deal의 Vendor가 새 이름이고 Product는 그대로다
     const deal = await gateway.deals.get(dealCode(1))
 
     expect(deal.vendor).toEqual({ id: seedVendorId('Silverfort'), name: 'Silverfort Inc' })
-    expect(deal.solution).toBe('ITDR')
+    expect(deal.product).toBe('ITDR')
   })
 
   // 없는 id의 이름 변경·삭제는 404다.

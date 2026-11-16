@@ -1,8 +1,8 @@
 """Deal이 Vendor를 참조하는 계약: Fake와 SQL(PostgreSQL)에 같은 기대값.
 
-- 저장·왕복: `vendor_id`가 그대로 돌아오고, Solution 텍스트는 Vendor와 독립이다
+- 저장·왕복: `vendor_id`가 그대로 돌아오고, Product 텍스트는 Vendor와 독립이다
 - 삭제: Deal이 쓰는 Vendor는 지울 수 없다(건수 포함)
-- 참조: 없는 Vendor는 InvalidReferenceError(Solution은 자유 텍스트라 참조 검사 없음)
+- 참조: 없는 Vendor는 InvalidReferenceError(Product는 자유 텍스트라 참조 검사 없음)
 - 사용 수: `count_by_vendor`
 """
 
@@ -28,23 +28,23 @@ def _code(n: int) -> str:
     return f"20261016-A{n:03d}"
 
 
-async def test_deal_round_trips_vendor_id_and_solution_text(deal_case: DealCase) -> None:
-    """Deal의 vendor_id와 Solution 텍스트가 저장 뒤 그대로 읽히는지 확인한다."""
-    # given: Vendor와 이를 쓰는 Solution 텍스트 Deal이 있다
+async def test_deal_round_trips_vendor_id_and_product_text(deal_case: DealCase) -> None:
+    """Deal의 vendor_id와 Product 텍스트가 저장 뒤 그대로 읽히는지 확인한다."""
+    # given: Vendor와 이를 쓰는 Product 텍스트 Deal이 있다
     sap = await deal_case.new_vendor("ZZ SAP")
-    deal = make_deal(code=_code(1), vendor_id=sap.id, solution="S/4HANA")
+    deal = make_deal(code=_code(1), vendor_id=sap.id, product="S/4HANA")
     # when: Deal을 저장하고 다시 읽는다
     await deal_case.add(deal)
 
     loaded = await deal_case.deals.get(deal.id)
 
-    # then: vendor_id와 Solution이 저장한 값이다
-    assert (loaded.details.vendor_id, loaded.details.solution) == (sap.id, "S/4HANA")
+    # then: vendor_id와 Product가 저장한 값이다
+    assert (loaded.details.vendor_id, loaded.details.product) == (sap.id, "S/4HANA")
 
 
 async def test_deal_with_vendor_only_round_trips(deal_case: DealCase) -> None:
     """Vendor만 지정한 Deal이 저장 뒤 그대로 읽히는지 확인한다."""
-    # given: Vendor를 쓰고 Solution은 기본값인 Deal이 있다
+    # given: Vendor를 쓰고 Product는 기본값인 Deal이 있다
     sap = await deal_case.new_vendor("ZZ SAP")
     deal = make_deal(code=_code(1), vendor_id=sap.id)
     # when: Deal을 저장하고 다시 읽는다
@@ -52,8 +52,8 @@ async def test_deal_with_vendor_only_round_trips(deal_case: DealCase) -> None:
 
     loaded = await deal_case.deals.get(deal.id)
 
-    # then: vendor_id와 기본 Solution이 유지된다
-    assert (loaded.details.vendor_id, loaded.details.solution) == (sap.id, "S/4HANA")
+    # then: vendor_id와 기본 Product가 유지된다
+    assert (loaded.details.vendor_id, loaded.details.product) == (sap.id, "S/4HANA")
 
 
 async def test_saving_an_unknown_vendor_is_an_invalid_reference(deal_case: DealCase) -> None:
@@ -72,32 +72,32 @@ async def test_saving_an_unknown_vendor_is_an_invalid_reference(deal_case: DealC
     assert exists is False
 
 
-async def test_unknown_vendor_id_is_rejected_even_with_a_solution_text(
+async def test_unknown_vendor_id_is_rejected_even_with_a_product_text(
     deal_case: DealCase,
 ) -> None:
-    """Solution 텍스트가 있어도 없는 Vendor는 거절하는지 확인한다."""
-    # given: 없는 Vendor와 Solution 텍스트를 가진 Deal이 있다
-    deal = make_deal(code=_code(1), vendor_id=VendorId(new_id()), solution="ITDR")
+    """Product 텍스트가 있어도 없는 Vendor는 거절하는지 확인한다."""
+    # given: 없는 Vendor와 Product 텍스트를 가진 Deal이 있다
+    deal = make_deal(code=_code(1), vendor_id=VendorId(new_id()), product="ITDR")
 
     # when·then: Deal을 저장하면 InvalidReferenceError가 난다
     with pytest.raises(InvalidReferenceError):
         await deal_case.add(deal)
 
 
-async def test_updating_the_vendor_keeps_the_solution_text(deal_case: DealCase) -> None:
-    """Vendor를 바꿔 수정해도 Solution 텍스트가 유지되는지 확인한다."""
-    # given: Vendor와 Solution 텍스트가 있는 Deal이 저장되어 있다
+async def test_updating_the_vendor_keeps_the_product_text(deal_case: DealCase) -> None:
+    """Vendor를 바꿔 수정해도 Product 텍스트가 유지되는지 확인한다."""
+    # given: Vendor와 Product 텍스트가 있는 Deal이 저장되어 있다
     sap = await deal_case.new_vendor("ZZ SAP")
     oracle = await deal_case.new_vendor("ZZ Oracle")
-    deal = make_deal(later(1), code=_code(1), vendor_id=sap.id, solution="ITDR")
+    deal = make_deal(later(1), code=_code(1), vendor_id=sap.id, product="ITDR")
     await deal_case.add(deal)
 
     # when: 다른 Vendor로 Deal을 수정한다
     await deal_case.revise(deal.id, details=_with(deal, vendor_id=oracle.id))
 
-    # then: Vendor는 바뀌고 Solution은 그대로다
+    # then: Vendor는 바뀌고 Product는 그대로다
     loaded = await deal_case.deals.get(deal.id)
-    assert (loaded.details.vendor_id, loaded.details.solution) == (oracle.id, "ITDR")
+    assert (loaded.details.vendor_id, loaded.details.product) == (oracle.id, "ITDR")
 
 
 def _with(deal: Deal, **fields: object) -> DealDetails:
@@ -157,8 +157,8 @@ async def test_count_by_vendor(deal_case: DealCase) -> None:
     # given: 두 Vendor와 그 Vendor를 쓰는 Deal 네 개, 기본 Vendor를 쓰는 Deal 하나가 있다
     sap = await deal_case.new_vendor("ZZ SAP")
     oracle = await deal_case.new_vendor("ZZ Oracle")
-    await deal_case.add(make_deal(later(1), code=_code(1), vendor_id=sap.id, solution="ITDR"))
-    await deal_case.add(make_deal(later(2), code=_code(2), vendor_id=sap.id, solution="ITDR"))
+    await deal_case.add(make_deal(later(1), code=_code(1), vendor_id=sap.id, product="ITDR"))
+    await deal_case.add(make_deal(later(2), code=_code(2), vendor_id=sap.id, product="ITDR"))
     await deal_case.add(make_deal(later(3), code=_code(3), vendor_id=sap.id))
     await deal_case.add(make_deal(later(4), code=_code(4), vendor_id=oracle.id))
     await deal_case.add(make_deal(later(5), code=_code(5)))
@@ -184,6 +184,6 @@ async def test_counts_of_an_empty_repository_are_empty(deal_case: DealCase) -> N
 
 
 async def test_count_by_solution_is_gone_from_the_port(deal_case: DealCase) -> None:
-    """Solution별 사용 수 메서드가 Port에서 제거되었는지 확인한다."""
+    """Product별 사용 수 메서드가 Port에서 제거되었는지 확인한다."""
     # when·then: 저장소에 count_by_solution이 없다
     assert not hasattr(deal_case.deals, "count_by_solution")

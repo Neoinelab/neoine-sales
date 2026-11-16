@@ -58,13 +58,13 @@ export function DealFilterBar({ params, onChange, onReset }: DealFilterBarProps)
     setSeenQ(q)
     setKeyword(q)
   }
-  // Solution도 키워드처럼 검색(버튼·Enter)으로 URL에 반영한다. URL이 바깥에서 바뀌면(초기화·뒤로 가기) 입력란도 따라간다.
-  const urlSolution = params.get('solution') ?? ''
-  const [solution, setSolution] = useState(urlSolution)
-  const [seenSolution, setSeenSolution] = useState(urlSolution)
-  if (urlSolution !== seenSolution) {
-    setSeenSolution(urlSolution)
-    setSolution(urlSolution)
+  // Product도 키워드처럼 검색(버튼·Enter)으로 URL에 반영한다. URL이 바깥에서 바뀌면(초기화·뒤로 가기) 입력란도 따라간다.
+  const urlProduct = params.get('product') ?? ''
+  const [product, setProduct] = useState(urlProduct)
+  const [seenProduct, setSeenProduct] = useState(urlProduct)
+  if (urlProduct !== seenProduct) {
+    setSeenProduct(urlProduct)
+    setProduct(urlProduct)
   }
   // 모르는 값은 '전체'로 보이고 조회에도 쓰이지 않는다(listQueryFromParams와 같은 판정).
   const nextStatus = nextActionStatusFromParam(params.get('next_status'))
@@ -120,7 +120,7 @@ export function DealFilterBar({ params, onChange, onReset }: DealFilterBarProps)
       aria-label="Deal 필터"
       onSubmit={(event) => {
         event.preventDefault()
-        onChange({ q: keyword.trim(), solution: solution.trim() })
+        onChange({ q: keyword.trim(), product: product.trim() })
       }}
     >
       <TextField label="키워드" name="keyword" value={keyword} onChange={setKeyword} />
@@ -134,7 +134,7 @@ export function DealFilterBar({ params, onChange, onReset }: DealFilterBarProps)
           </option>
         ))}
       </SelectField>
-      <TextField label="Solution" name="solution" value={solution} onChange={setSolution} />
+      <TextField label="Product" name="product" value={product} onChange={setProduct} />
       <SelectField label="Status" name="status" value={value('status')} onChange={(status) => onChange({ status })}>
         <option value="">전체</option>
         {codes?.statuses.map((c) => (

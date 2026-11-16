@@ -20,7 +20,7 @@ export async function newDeal(gateway: Gateway) {
     name: unique('deal'),
     ownerId: me.id,
     vendorId: await anyVendorId(gateway),
-    solution: 'ITDR',
+    product: 'ITDR',
     users: 10,
     statusKey: 'prospecting',
     forecastKey: 'pipeline',

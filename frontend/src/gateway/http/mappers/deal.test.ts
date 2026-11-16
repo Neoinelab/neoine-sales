@@ -28,7 +28,7 @@ describe('toDealRow', () => {
       ownerId: USER_ID.kim,
       owner: { id: USER_ID.kim, name: '김영업', role: 'sales', status: 'active' },
       vendor: { id: 6, name: 'Silverfort' },
-      solution: 'ITDR',
+      product: 'ITDR',
       users: 100,
       statusKey: 'prospecting',
       forecastKey: 'pipeline',
@@ -64,29 +64,29 @@ describe('toDealRow', () => {
     })
   })
 
-  // Vendor가 없는 Deal은 Vendor를 null로 두고 Solution 텍스트를 그대로 옮긴다.
-  it('keeps the vendor null when the deal has none and the solution text as sent', () => {
+  // Vendor가 없는 Deal은 Vendor를 null로 두고 Product 텍스트를 그대로 옮긴다.
+  it('keeps the vendor null when the deal has none and the product text as sent', () => {
     // when: Vendor 없는 서버 행을 바꾼다
-    const row = toDealRow(serverDealRow({ vendor: null, solution: 'MFA' }))
-    // then: vendor는 null이고 solution은 보낸 그대로다
+    const row = toDealRow(serverDealRow({ vendor: null, product: 'MFA' }))
+    // then: vendor는 null이고 product는 보낸 그대로다
     expect(row.vendor).toBeNull()
-    expect(row.solution).toBe('MFA')
+    expect(row.product).toBe('MFA')
   })
 
-  // Solution을 일반 문자열로 옮긴다.
-  it('maps the solution as a plain string', () => {
-    // when: Solution이 있는 서버 행을 바꾼다
-    const row = toDealRow(serverDealRow({ solution: 'ITDR' }))
-    // then: vendor는 {id, name}이고 solution은 문자열이다
+  // Product를 일반 문자열로 옮긴다.
+  it('maps the product as a plain string', () => {
+    // when: Product가 있는 서버 행을 바꾼다
+    const row = toDealRow(serverDealRow({ product: 'ITDR' }))
+    // then: vendor는 {id, name}이고 product는 문자열이다
     expect(row.vendor).toEqual({ id: 6, name: 'Silverfort' })
-    expect(row.solution).toBe('ITDR')
+    expect(row.product).toBe('ITDR')
   })
 
-  // 예전 빈 Solution은 빈 문자열로 둔다.
-  it('keeps a legacy empty solution as an empty string', () => {
-    // when: 빈 Solution의 서버 행을 바꾼다
-    const result = toDealRow(serverDealRow({ solution: '' })).solution
-    // then: solution이 빈 문자열이다
+  // 예전 빈 Product는 빈 문자열로 둔다.
+  it('keeps a legacy empty product as an empty string', () => {
+    // when: 빈 Product의 서버 행을 바꾼다
+    const result = toDealRow(serverDealRow({ product: '' })).product
+    // then: product가 빈 문자열이다
     expect(result).toBe('')
   })
 
@@ -219,7 +219,7 @@ const BASE_INPUT: DealInput = {
   name: '한빛은행 ITDR',
   ownerId: USER_ID.kim,
   vendorId: 6,
-  solution: 'ITDR',
+  product: 'ITDR',
   users: 10,
   statusKey: 'prospecting',
   forecastKey: 'pipeline',
@@ -287,39 +287,40 @@ describe('toDealRow Next Action status', () => {
   })
 })
 
-describe('solution request bodies', () => {
-  // 등록 본문은 Solution 텍스트를 그대로 보내고 solution_id는 보내지 않는다.
+describe('product request bodies', () => {
+  // 등록 본문은 Product 텍스트를 그대로 보내고 solution_id는 보내지 않는다.
   // 테스트 코드: DE-111
-  it('create sends solution as given text and never solution_id', () => {
-    // when: 등록 본문으로 변환한다 (전제: Solution이 든 입력이다)
-    const body = toCreateBody({ ...BASE_INPUT, solution: 'ITDR' })
+  it('create sends product as given text and never solution_id', () => {
+    // when: 등록 본문으로 변환한다 (전제: Product가 든 입력이다)
+    const body = toCreateBody({ ...BASE_INPUT, product: 'ITDR' })
 
-    // then: solution이 있고 solution_id는 없다.
-    expect(body.solution).toBe('ITDR')
+    // then: product가 있고 solution_id는 없다.
+    expect(body.product).toBe('ITDR')
     expect(body).not.toHaveProperty('solution_id')
+    expect(body).not.toHaveProperty('solution')
   })
 
-  // 등록 본문은 Vendor id를 숫자로, 빈 Solution을 빈 문자열로 보낸다.
+  // 등록 본문은 Vendor id를 숫자로, 빈 Product를 빈 문자열로 보낸다.
   // 테스트 코드: DE-111
-  it('create sends the vendor id as a number and an empty solution as an empty string', () => {
-    // when: 빈 Solution의 등록 입력을 본문으로 변환한다
-    const body = toCreateBody({ ...BASE_INPUT, vendorId: 6, solution: '' })
+  it('create sends the vendor id as a number and an empty product as an empty string', () => {
+    // when: 빈 Product의 등록 입력을 본문으로 변환한다
+    const body = toCreateBody({ ...BASE_INPUT, vendorId: 6, product: '' })
 
-    // then: vendor_id는 6, solution은 ''다
+    // then: vendor_id는 6, product는 ''다
     expect(body.vendor_id).toBe(6)
-    expect(body.solution).toBe('')
+    expect(body.product).toBe('')
   })
 
-  // patch는 Solution을 보낼 때만 싣고 solution_id는 보내지 않는다.
+  // patch는 Product를 보낼 때만 싣고 solution_id는 보내지 않는다.
   // 테스트 코드: DE-112
-  it('patch carries solution only when it is part of the patch and never solution_id', () => {
-    // when: 수정 본문으로 변환한다 (전제: Solution이 있는 patch와 없는 patch다)
+  it('patch carries product only when it is part of the patch and never solution_id', () => {
+    // when: 수정 본문으로 변환한다 (전제: Product가 있는 patch와 없는 patch다)
     const result1 = toPatchBody({ name: 'x' })
-    const result2 = toPatchBody({ solution: 'MFA' })
+    const result2 = toPatchBody({ product: 'MFA' })
     const result3 = toPatchBody({ vendorId: 3 })
-    // then: 있을 때만 solution이 있다.
-    expect(result1).not.toHaveProperty('solution')
-    expect(result2).toEqual({ solution: 'MFA' })
+    // then: 있을 때만 product가 있다.
+    expect(result1).not.toHaveProperty('product')
+    expect(result2).toEqual({ product: 'MFA' })
     expect(result3).not.toHaveProperty('solution_id')
   })
 })

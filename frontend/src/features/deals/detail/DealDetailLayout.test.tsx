@@ -24,7 +24,7 @@ const INFO_LABELS = [
   'Next Action',
   '최종 업데이트',
   'Vendor',
-  'Solution',
+  'Product',
   'Users count',
   '견적',
   'POC',
@@ -35,10 +35,10 @@ const INFO_LABELS = [
 const infoTile = () => screen.getByRole('region', { name: 'Deal 정보' })
 
 describe('Deal 정보 타일 (상단 통합 영역)', () => {
-  // Deal 정보 타일은 다른 타일처럼 제목이 있고 Vendor·Solution·Users·견적·POC·구매절차를 보인다.
+  // Deal 정보 타일은 다른 타일처럼 제목이 있고 Vendor·Product·Users·견적·POC·구매절차를 보인다.
   // 테스트 코드: DD-066
-  it('shows a deal info tile titled like the other tiles with vendor, solution, users, quote, poc and procurement', async () => {
-    // given: Vendor·Solution·견적·POC가 있는 Deal
+  it('shows a deal info tile titled like the other tiles with vendor, product, users, quote, poc and procurement', async () => {
+    // given: Vendor·Product·견적·POC가 있는 Deal
     await openDetail(1, '한빛은행 ITDR 도입')
     const heading = screen.getByRole('heading', { level: 2, name: 'Deal 정보' })
     // when: Deal 상세를 연다
@@ -48,7 +48,7 @@ describe('Deal 정보 타일 (상단 통합 영역)', () => {
     expect(screen.queryByRole('region', { name: '현재 값' })).not.toBeInTheDocument()
     const facts = Object.fromEntries(pairsOf(bar))
     expect(facts['Vendor']).toBe('Silverfort')
-    expect(facts['Solution']).toBe('ITDR')
+    expect(facts['Product']).toBe('ITDR')
     expect(facts['Users count']).toBe('1500')
     expect(facts['견적']).toMatch(/^제출/)
     expect(facts['POC']).toMatch(/^YES · 완료/)

@@ -21,11 +21,11 @@ def test_create_vendor_sets_name_and_times() -> None:
 
 
 def test_vendor_has_no_solution_members() -> None:
-    """Vendor에는 Solution 관련 멤버가 없다."""
+    """Vendor에는 Product 관련 멤버가 없다."""
     # given: SAP Vendor
     vendor = make_vendor("SAP")
 
-    # when·then: 예전 Solution 멤버 이름이 모두 없다
+    # when·then: 예전 Product 멤버 이름이 모두 없다
     for name in ("solutions", "add_solution", "rename_solution", "remove_solution", "has_solution"):
         assert not hasattr(vendor, name), name
 
@@ -67,10 +67,10 @@ def test_ensure_deletable_allows_unused_vendor() -> None:
 
 
 def test_solution_error_types_are_gone() -> None:
-    """Solution 관련 오류·값 타입은 더 이상 없다."""
+    """Product 관련 오류·값 타입은 더 이상 없다."""
     from app.domain.vendor import errors, values  # noqa: PLC0415
 
-    # when·then: 예전 Solution 오류·값 타입 이름이 모듈에 모두 없다
+    # when·then: 예전 Product 오류·값 타입 이름이 모듈에 모두 없다
     for name in ("SolutionNotFoundError", "DuplicateSolutionNameError", "SolutionInUseError"):
         assert not hasattr(errors, name), name
     for name in ("SolutionId", "SOLUTION_NAME_MAX", "normalize_solution_name"):

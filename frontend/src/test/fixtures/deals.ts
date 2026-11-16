@@ -64,7 +64,7 @@ export function seedDeals(
       name: spec.name,
       ownerId: USER_ID[spec.owner],
       vendorId: seedVendorId(spec.vendor),
-      solution: spec.solution,
+      product: spec.product,
       users: spec.users,
       statusKey: spec.status,
       forecastKey: spec.forecast,

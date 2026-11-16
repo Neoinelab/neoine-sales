@@ -49,7 +49,7 @@ def deal_fields(joins: Joins, context: ReportContext, risk: RiskExprs) -> dict[s
     fields = {
         "deal.code": _plain("deal_code"),
         "deal.name": _plain("name"),
-        "deal.solution": _plain("solution"),
+        "deal.product": _plain("product"),
         "deal.procurement": _plain("procurement"),
         "deal.owner": FieldSql(lambda: c.owner_user_id, value=lambda: user_name(deal_owner(joins))),
         "deal.customer_company": FieldSql(lambda: deal_customer(joins).c.company),

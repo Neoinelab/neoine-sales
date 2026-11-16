@@ -1,6 +1,8 @@
 # Deal 상세·변경 적용·이력·삭제   (feature 코드: DD, 상태: 확정(2026-11-16 사용자 확인))
 
 > 이 문서는 **이미 구현된 동작**을 정본 명세로 옮긴 것입니다(2026-11-10). 근거는 작업 트리의 코드(`backend/src/app/domain/deal/{code,entities,policy,errors,history,sync,sync_state,sync_plan,sync_finalize}.py`, `app/application/deal/{get_deal,apply_change,sync_change,history_writer,list_deal_history,deletion_impact,delete_deal}.py`, `app/web/routers/deals.py`, `app/web/schemas/{deal_change,deal_response}.py`, `app/infra/db/{deal_history_repository,deal_aggregates}.py`, `frontend/src/features/deals/detail/{DealDetailPage,DealTitle,SummaryBar,DealIdentityRows,DealFacts,InfoCards,BantCard,ContactCards,InlineContactBlock,ContactSession,contactInline,InlineEdit,HistoryTab,DeleteDealDialog,detailHelpers}.tsx|ts`, `shared/sync/{useSyncedChange,RevenueDialog,ChoiceDialog}.tsx`, `shared/model/{sync,history,permissions}.ts`)이며 문구·type·상태 코드는 코드에서 그대로 옮겼습니다. 코드와 화면·테스트·Fake가 어긋나는 점은 계획(`artifacts/10-analysis/dd-plan.md`)의 확인 필요 질문으로 분리했습니다.
+>
+> 2026-11-16 변경(초안, 사용자 확인 대기): Deal의 Solution을 Product로 이름 변경(화면 문구, API 필드·쿼리 `product`, Reports key `deal.product`, DB 컬럼 `deals.product`). 영향 규칙·케이스는 5장.
 
 ## 1. 개요
 
@@ -13,7 +15,7 @@
   - Deal History 기록 형식(등록 항목, Deal 필드 변경 diff의 순서·대상·표기·자르기)과 목록
   - Deal code 경로 파라미터 형식 판정, 폐지된 Deal 경로
 - 범위 밖(다른 feature)
-  - Deal 등록·폼 수정(`POST /deals`, `PATCH /deals/{code}`)의 필드 검증·Owner 자격·Vendor·Solution·BANT 선택·연락처 연결과 Deal code 발급 → DE. 이 문서의 인라인 수정은 화면 동작만 정하고, 저장은 `PATCH`(DE)로 한다. 폼 저장의 동기화 불변식(DD-R5)과 이력 diff(DD-R20·R21)는 DD가 정하고 DE가 번호로 가리킨다
+  - Deal 등록·폼 수정(`POST /deals`, `PATCH /deals/{code}`)의 필드 검증·Owner 자격·Vendor·Product·BANT 선택·연락처 연결과 Deal code 발급 → DE. 이 문서의 인라인 수정은 화면 동작만 정하고, 저장은 `PATCH`(DE)로 한다. 폼 저장의 동기화 불변식(DD-R5)과 이력 diff(DD-R20·R21)는 DD가 정하고 DE가 번호로 가리킨다
   - Actions 탭(Action 목록·등록·수정·삭제, Action 등록의 Status·Forecast 두 단계 변경 `finalize_sequence`) → AC, Next Action 상태·Action 검색 → NA. Action·Next Action 이력 항목의 문구 → AC·NA
   - 첨부 패널, 첨부 이력 항목 문구, 첨부 행 삭제 영향 건수의 계산(교체·삭제 반영) → AT
   - Won 진입·이탈 계약 처리, `delete_license_contracts`, Deal 응답의 `license_contract_count`·`has_issued_license_contract`, 삭제 영향의 `license_contract_count`, 삭제 확인 대화상자의 계약 건수, Deal 삭제 시 계약·계약 폴더 삭제 → LC(LC-R6~R9, LC-R20, LC-R26, LC-R37)
@@ -52,7 +54,7 @@
 
 Deal code·조회
 - **DD-R1** 경로의 `{code}`는 정규식 `[0-9]{8}-[A-Z0-9]{4}`에 **전체가** 맞아야 한다(소문자, UUID, `not-a-code`, 끝 줄바꿈이 붙은 값은 형식이 틀림). 형식이 틀린 code는 422가 아니라 **없는 Deal과 같은 404** `not-found` "Deal을 찾을 수 없습니다."다. 이 판정은 상세·단일 변경·이력·삭제 영향·삭제 모두 같다.
-- **DD-R2** `GET /deals/{code}`는 로그인한 모든 역할이 부른다. 200 `DealDetailResponse` 필드는 정확히 `code`, `name`, `owner_user_id`, `owner`, `vendor`(`{id, name}` 또는 null), `solution`, `users`, `status_key`, `forecast_key`, `revenue_amount`(JSON 정수), `revenue_date`(YYYY-MM-DD), `customer`(연락처), `active_partner`(연락처 또는 null), `partner_links`, `quote`(`submitted`·`submitted_date`), `poc`(`state`·`completed_date`), `procurement`, `bant`(`budget`·`authority`·`need`·`timeline` = Label id 또는 null), `next_action`, `last_updated_on`, `risk`, `status_changed_on`, `status_days`, `license_contract_count`, `has_issued_license_contract`, `created_at`, `updated_at`, `partner_history`다. 폐지된 필드 `stage`·`id`·`customer_id`·`partner_id`·`revenue_currency`·`registered_by`는 없다. 파생 값의 뜻은 RK, 계약 필드는 LC-R20, 연락처 모양은 CT, 시각 표기는 TM.
+- **DD-R2** `GET /deals/{code}`는 로그인한 모든 역할이 부른다. 200 `DealDetailResponse` 필드는 정확히 `code`, `name`, `owner_user_id`, `owner`, `vendor`(`{id, name}` 또는 null), `product`, `users`, `status_key`, `forecast_key`, `revenue_amount`(JSON 정수), `revenue_date`(YYYY-MM-DD), `customer`(연락처), `active_partner`(연락처 또는 null), `partner_links`, `quote`(`submitted`·`submitted_date`), `poc`(`state`·`completed_date`), `procurement`, `bant`(`budget`·`authority`·`need`·`timeline` = Label id 또는 null), `next_action`, `last_updated_on`, `risk`, `status_changed_on`, `status_days`, `license_contract_count`, `has_issued_license_contract`, `created_at`, `updated_at`, `partner_history`다. 폐지된 필드 `stage`·`id`·`customer_id`·`partner_id`·`revenue_currency`·`registered_by`는 없다. 파생 값의 뜻은 RK, 계약 필드는 LC-R20, 연락처 모양은 CT, 시각 표기는 TM.
 - **DD-R3** `owner`는 `UserRef`(`id`, `name`, `resigned`, `label`, `role`)다. Owner가 퇴사했어도 그 사용자로 돌아오고 `resigned` true, `label` "<이름>(퇴사)"다.
 - **DD-R4** `partner_links`는 그 Deal의 모든 파트너 링크(활성·해제)이고 각 항목은 `contact_id`·`active`·`linked_at`·`unlinked_at`이다. `active_partner`는 활성 링크의 연락처(없으면 null)다. `partner_history`는 모든 링크를 연락처 객체와 함께 **최근 연결 순**(`linked_at` 내림차순, 같으면 나중에 추가된 링크가 먼저)으로 준다. 교체된 파트너는 `active` false와 `unlinked_at`을 가진 채 남는다.
 
@@ -87,7 +89,7 @@ Deal History
 - **DD-R17** `GET /deals/{code}/history?category=<값>`은 로그인한 모든 역할이 부른다. Deal이 없으면 404(DD-R1). 응답은 `HistoryEntryResponse[]` — 필드 `id`, `deal_code`, `at`, `by`(UserRef, 퇴사자도 `resigned` true로), `category`, `target`, `before`, `after` — 이고 순서는 `at` 내림차순, 같으면 `id` 내림차순(나중에 기록한 것이 위)이다. `category`를 주면 그 구분만 돌려준다. `category`가 12값(2.2)이 아니면 422 `request-validation`. 페이지 없이 전부 돌려준다.
 - **DD-R18** 이력을 쓰는 곳과 문구 소유: Deal 등록(DD-R19), Deal 필드 변경 diff(DD-R20·R21 — 폼 수정 DE, 단일 변경, Action 등록의 Status·Forecast 변경 AC가 같은 함수를 씀), 연락처 수정(CT-R10), Action·Next Action(AC·NA), 첨부(AT). 이 문서는 등록 항목과 Deal 필드 diff의 형식, 저장 형식(DD-R20 자르기), 목록(DD-R17)을 정한다.
 - **DD-R19** Deal을 등록하면 구분 `created`, 대상 "Deal 등록", 변경 전 "", 변경 후 "Deal 등록" 항목 1건이 등록자·등록 시각으로 남는다.
-- **DD-R20** Deal 필드 diff: 변경 전후 값을 비교해 **바뀐 필드마다 1건**, 바뀐 것이 없으면 0건이다. 순서는 고정 — Status, Forecast, 금액, Expected Close, Owner, 파트너, 고객 연락처, BANT(Budget·Authority·Need·Timeline), Deal Name, Vendor, Solution, Users count, 견적, POC, 구매절차. 한 번의 저장에서 나온 항목은 같은 변경 시각·변경자를 가지며 Deal `updated_at`이 같은 시각이 되고 같은 트랜잭션에 저장된다. 저장할 때 대상은 300자, 변경 전·후는 각 1000자(유니코드 코드 포인트 수)를 넘으면 앞부분 299자·999자 + "…"로 자른다.
+- **DD-R20** Deal 필드 diff: 변경 전후 값을 비교해 **바뀐 필드마다 1건**, 바뀐 것이 없으면 0건이다. 순서는 고정 — Status, Forecast, 금액, Expected Close, Owner, 파트너, 고객 연락처, BANT(Budget·Authority·Need·Timeline), Deal Name, Vendor, Product, Users count, 견적, POC, 구매절차. 한 번의 저장에서 나온 항목은 같은 변경 시각·변경자를 가지며 Deal `updated_at`이 같은 시각이 되고 같은 트랜잭션에 저장된다. 저장할 때 대상은 300자, 변경 전·후는 각 1000자(유니코드 코드 포인트 수)를 넘으면 앞부분 299자·999자 + "…"로 자른다. 2026-11-16 이름 변경(Solution → Product) 전에 남은 이력 행의 대상 "Solution"은 바꾸지 않고(데이터 덮어쓰기 금지, 계획 Q3), 그 뒤의 변경만 대상 "Product"로 남는다.
 - **DD-R21** diff 항목의 구분·대상·표기:
 
   | 필드 | 구분 | 대상 | 값 표기 |
@@ -102,7 +104,7 @@ Deal History
   | BANT | `bant` | BANT Label: <Budget·Authority·Need·Timeline> | Label 이름, 없으면 "선택 안 함" |
   | Deal Name | `other` | Deal Name | 그대로 |
   | Vendor | `other` | Vendor | Vendor 이름, 없으면 "선택 안 함" |
-  | Solution | `other` | Solution | 그대로(빈 값은 "-") |
+  | Product | `other` | Product | 그대로(빈 값은 "-") |
   | Users count | `other` | Users count | 숫자(0 포함) |
   | 견적 | `other` | 견적 | "<YES|NO|->[ (<제출일>)]" |
   | POC | `other` | POC | "<YES|ING|NO|->[ (<완료일>)]" |
@@ -120,11 +122,11 @@ Deal History
 
 화면(frontend, `/deals/:dealCode`)
 - **DD-R27** 화면 틀: 머리에 Deal 이름(h1)과 "← 목록" 링크(목록 주소는 DL), 쓰기 권한이 있으면 "삭제" 버튼(접근 이름 "Deal 삭제"). 그 아래 탭 목록(이름 "상세 탭") 3개 "Deal 상세", "Actions", "Deal History" 순서이고 기본은 "Deal 상세"다. 주소 `?tab=actions`·`?tab=history`로 탭을 열고, 모르는 값이면 Deal 상세다. 탭을 고르면 주소의 `tab`을 바꾸고 Deal 상세로 오면 `tab`을 지운다. Deal 상세 탭에만 Deal 정보 타일·고객·파트너·BANT 카드·첨부 패널(AT)이 있다. 알림(성공 문구, 닫기 가능, 다른 화면에서 `state.notice`로 넘어온 문구 포함)은 탭 패널 맨 위에 보인다. 읽는 동안 "불러오는 중…", Deal을 읽지 못하면(404 등) 서버 문구 오류 배너와 "Deal 목록으로" 링크만 보인다.
-- **DD-R28** Deal 정보 타일(제목 h2 "Deal 정보") 행 순서: Deal code(읽기 전용 글자), Owner, Status(배지 + "N일째" — RK), Forecast(배지), 금액(단위:원), Expected Close, Next Action(텍스트·"Due <날짜>"·상태, 없으면 "없음", 경고 배지 — RK·NA), 최종 업데이트(상대 일수 — RK-R17), Vendor(없으면 "—" — 리비전 SC-R22 뒤로는 항상 있음), Solution(빈 값이면 "—"), Users count, 견적(제출/미제출 + " (<날짜>)"), POC("<YES|ING|NO> · <완료|진행 중|하지 않음>" + 날짜), 구매절차(없으면 "—"), 등록일. Forecast 결과가 `won`이면 "Won으로 종결된 Deal입니다. 매출금액과 매출일은 확정 값이며, 필요하면 계속 수정할 수 있습니다.", `lost`면 "Lost로 종결된 Deal입니다. Forecast를 바꾸면 다시 진행 중으로 되돌릴 수 있습니다."를 보인다.
+- **DD-R28** Deal 정보 타일(제목 h2 "Deal 정보") 행 순서: Deal code(읽기 전용 글자), Owner, Status(배지 + "N일째" — RK), Forecast(배지), 금액(단위:원), Expected Close, Next Action(텍스트·"Due <날짜>"·상태, 없으면 "없음", 경고 배지 — RK·NA), 최종 업데이트(상대 일수 — RK-R17), Vendor(없으면 "—" — 리비전 SC-R22 뒤로는 항상 있음), Product(빈 값이면 "—"), Users count, 견적(제출/미제출 + " (<날짜>)"), POC("<YES|ING|NO> · <완료|진행 중|하지 않음>" + 날짜), 구매절차(없으면 "—"), 등록일. Forecast 결과가 `won`이면 "Won으로 종결된 Deal입니다. 매출금액과 매출일은 확정 값이며, 필요하면 계속 수정할 수 있습니다.", `lost`면 "Lost로 종결된 Deal입니다. Forecast를 바꾸면 다시 진행 중으로 되돌릴 수 있습니다."를 보인다.
 - **DD-R29** 카드: Deal 정보 아래 고객(h2 "고객")·파트너(h2 "파트너")·BANT(h2 "BANT") 순서. 고객·파트너 카드는 회사·담당자·직급·이메일·전화 5행(값 없으면 "—"), 파트너가 없으면 같은 5행이 모두 "—"이고 "파트너 없음" 같은 글자는 없다. 해제된 파트너가 있으면 접힌 "이전 파트너 이력 (N)" 안에 "<회사> <담당자> (<연결일> ~ <해제일>)"로 보인다. BANT 카드는 Budget·Authority·Need·Timeline 4행(Label 이름, 없으면 "—").
 - **DD-R30** 역할별 화면: `canWrite`(admin·sales, PL-R36)면 값마다 클릭 편집 버튼(접근 이름 "<항목> 수정", 제목은 title "Deal 이름 수정")이 있고 별도 "수정" 링크는 없다. user는 같은 값을 글자로만 보고 편집 버튼·삭제 버튼·연락처 입력 버튼이 없다. 삭제 버튼은 `canDeleteDeal`(admin은 모두, sales는 자기가 Owner이고 완료(DD-R41)가 아닌 Deal만, user는 불가)일 때 활성이고, 아니면 비활성 + title이다: Owner가 아니면 "본인 Deal 또는 admin만 삭제할 수 있습니다.", Owner이지만 완료된 Deal이면 "완료된 Deal은 관리자만 삭제할 수 있습니다."(서버 DD-R24와 같은 순서·문구). 편집은 그대로 가능하다. 판정은 화면이 가진 최신 Deal 값으로 하므로 상세에서 Status·Forecast를 바꿔 Won이 되면 곧바로 꺼지고, Won에서 되돌리면 다시 켜진다.
 - **DD-R31** 인라인 편집 공통(`InlineEdit`): 값 버튼을 누르거나 Enter·Space로 편집을 열면 입력기에 포커스가 간다. 선택형(select, 자동완성 후보 선택)은 고르는 순간 저장하고, 입력형(텍스트·숫자·날짜·자동완성 직접 입력)은 Enter 또는 편집 영역 밖으로 포커스가 나갈 때 저장한다. 값이 그대로면 요청 없이 닫는다. Esc는 입력을 버리고 닫는다. 저장·검증 실패는 입력기 아래 오류 배너(PL-R37)로 보이고 편집을 유지한다(다시 고쳐 재시도). 저장 성공이면 닫고 알림을 보인다. 날짜 칸은 `DateInput`(넘기는 값 UI-R6, 달력 UI-R9)이며 덜 쳤거나 틀린 날짜는 저장하지 않고, 달력 버튼·숨은 날짜 칸으로 포커스가 옮겨 가는 것은 저장으로 보지 않는다.
-- **DD-R32** 필드별 인라인 저장(`PATCH`, 검증 정본 DE): Deal 이름 — 앞뒤 공백 제거, 비면 "Deal Name을 입력하세요."(요청 없음), 알림 "Deal 이름이 변경되었습니다.". Owner — 사용자 선택(재직 sales 후보, 퇴사한 현재 Owner는 후보에 없음), 알림 "Owner가 변경되었습니다.". Vendor — 등록 Vendor 목록("선택 안 함" 없음, 현재 Vendor 선택됨), `vendor_id`만 보냄(Solution 유지), 같은 값이면 요청 없음, 알림 "Vendor가 변경되었습니다.". Solution — 공백 제거, 비워도 문구 없이 저장(`solution: ""`), `solution`만 보냄, 알림 "Solution이 변경되었습니다.". Users count — 비면 "Users count를 입력하세요.", 숫자만이 아니면 "Users count는 0 이상의 정수로 입력하세요."(0 허용), 알림 "Users count가 변경되었습니다.". 견적 제출여부(선택 안 함·YES·NO)·제출일, POC 여부(선택 안 함·YES·ING·NO)·완료일은 각각 따로 고치고 나머지 짝 값은 그대로 보내며 알림 "견적 제출여부/견적 제출일/POC 여부/POC 완료일이 변경되었습니다.". 구매절차 — 공백 제거, 알림 "구매절차가 변경되었습니다.". 서버 거절(예: 이름 50자 초과)은 서버 문구로 보인다.
+- **DD-R32** 필드별 인라인 저장(`PATCH`, 검증 정본 DE): Deal 이름 — 앞뒤 공백 제거, 비면 "Deal Name을 입력하세요."(요청 없음), 알림 "Deal 이름이 변경되었습니다.". Owner — 사용자 선택(재직 sales 후보, 퇴사한 현재 Owner는 후보에 없음), 알림 "Owner가 변경되었습니다.". Vendor — 등록 Vendor 목록("선택 안 함" 없음, 현재 Vendor 선택됨), `vendor_id`만 보냄(Product 유지), 같은 값이면 요청 없음, 알림 "Vendor가 변경되었습니다.". Product — 공백 제거, 비워도 문구 없이 저장(`product: ""`), `product`만 보냄, 알림 "Product가 변경되었습니다.". Users count — 비면 "Users count를 입력하세요.", 숫자만이 아니면 "Users count는 0 이상의 정수로 입력하세요."(0 허용), 알림 "Users count가 변경되었습니다.". 견적 제출여부(선택 안 함·YES·NO)·제출일, POC 여부(선택 안 함·YES·ING·NO)·완료일은 각각 따로 고치고 나머지 짝 값은 그대로 보내며 알림 "견적 제출여부/견적 제출일/POC 여부/POC 완료일이 변경되었습니다.". 구매절차 — 공백 제거, 알림 "구매절차가 변경되었습니다.". 서버 거절(예: 이름 50자 초과)은 서버 문구로 보인다.
 - **DD-R33** BANT 인라인: 값을 누르면 그 구분 Label만 후보인 자동완성 입력(현재 Label 이름으로 시작, "새 Label" 같은 항목 없음)이 열린다. 후보를 고르면 즉시, 직접 입력은 Enter·포커스 이동으로 저장한다. 입력 → 선택 변환은 CL-R16(이름이 같은 Label이 있으면 그 id, 없으면 이름으로 보내 서버가 새 Label을 만듦, 비우면 선택 안 함). 요청은 4구분 모두를 보내되 다른 구분은 현재 선택 `{id}`(또는 null) 그대로다. 선택이 그대로면 요청 없음. 알림 "BANT <구분> Label이 변경되었습니다.".
 - **DD-R34** 연락처 인라인(고객·파트너 카드, 2026-11-16 변경): 연락처가 있으면 5행 값이 모두 편집 버튼이다(접근 이름 "<고객|파트너> 회사명 수정"·"<고객|파트너> 담당자명 수정"·"<고객|파트너> 직급 수정"·"<고객|파트너> 이메일 수정"·"<고객|파트너> 전화 수정", 표시는 값, 빈 값은 "—"). **어느 버튼을 눌러도 같은 연락처 편집 세션**(그룹 "<고객|파트너> 연락처 편집")이 카드의 5행 자리를 대신해 열린다. 세션은 회사·담당자·직급·이메일·전화 입력 5칸을 라벨-값 행으로 보이고(보이는 라벨은 회사·담당자·직급·이메일·전화, 접근 이름은 "<고객|파트너> 회사명"·"… 담당자명"·"… 직급"·"… 이메일"·"… 전화"), **누른 칸의 입력에 포커스**가 간다(값은 그대로 두고 전체 선택하지 않는다. 회사명·담당자명 칸은 포커스를 받으면 그 목록이 열린다). 값 한 칸만 여는 좁은 편집기(DD-R31 `InlineEdit`)는 연락처에 쓰지 않는다. 세션 동작: 회사 자동완성(부분·대소문자 무시) → 다른 기존 회사를 고르면 담당자를 비우고 담당자 목록을 연다 → 담당자를 고르면 연락 정보를 채워 즉시 저장한다. 목록에 없는 회사를 입력하면 담당자 정보를 모두 비우고 "신규 <고객사|파트너>입니다. 담당자 정보를 입력하세요."를 보인다. 담당자명 칸은 그 회사 담당자 자동완성이다: 후보를 고르면 그 연락 정보로 즉시 저장하고, 연결돼 있던 담당자와 다른 이름으로 고쳐 쓰면 그 순간 직급·이메일·전화를 비워 신규 담당자로 본다(그 뒤에 입력한 직급·이메일·전화는 유지). 저장 직전 연결 연락처가 없는 입력의 담당자명이 그 회사 담당자 중 하나와 대소문자 무시로 같고 이메일이 비어 있으면 그 담당자를 고른 것으로 보고 그 담당자의 연락 정보로 저장한다. 직접 입력은 Enter(회사명 칸에서는 담당자명 칸으로 이동, 그 밖의 칸에서는 저장) 또는 세션 밖으로 포커스가 나갈 때 저장한다. 회사명·담당자명이 비었거나 이메일·전화 형식이 틀리면(CT-R21) 저장하지 않고 그 칸 아래 문구를 보이며 세션을 유지한다. 입력이 처음 값과 같으면 요청 없이 닫는다. Esc는 세션 전체를 버리고 닫는다(요청 없음). 서버 거절은 세션 안 오류 배너(PL-R37)로 보이고 세션을 유지한다. 회사명·담당자명·이메일·전화에는 공백을 넣을 수 없어 입력 중 지우고 안내한다(CT 규칙). 세션에서 선택된 연락처를 쓰는 Deal이 이 Deal 포함 2건 이상이면 세션 안에 "이 연락처는 N개 Deal에서 함께 사용 중입니다. 수정하면 모두에 반영됩니다."를 보인다(CT 선택기 안내, 어느 칸으로 열었든 같다). 저장은 모두 `PATCH`의 `customer`·`partner` 연락처 값 하나이고, 화면은 결과를 셋으로 나눠 알림만 가른다: ① **연락 정보 수정** — 연결 연락처가 그대로(같은 연락처 id)이고 직급·이메일·전화 등만 바뀜 ② **담당자 변경** — 연결 연락처가 바뀌었고 회사명이 대소문자 무시로 같음 ③ **연락처 변경** — 회사명이 바뀌었거나 이전 연락처가 없음. 알림: 고객은 ①②③ 모두 "고객 연락처가 저장되었습니다.", 파트너는 ①이면 "파트너 연락처가 저장되었습니다.", ②·③은 DD-R35.
 - **DD-R35** 파트너 추가·교체·제거(2026-11-16 변경): 파트너가 없으면 5행의 "—" 버튼(접근 이름 "파트너 <항목> 입력", 항목은 회사·담당자·직급·이메일·전화) 어느 것이든 세션(DD-R34)을 열고 포커스는 항상 회사명 칸이다. 세션 위에는 안내 "파트너를 입력하면 회사명과 담당자명이 모두 필요합니다."가 처음부터 보이고, 저장하면 "파트너가 추가되었습니다.". 파트너가 있을 때 세션 위 교체 안내 "기존 활성 파트너(<회사> <담당자>)는 이력으로 남고 비활성이 됩니다."는 회사명·담당자명 버튼으로 열었으면 처음부터 계속 보이고, 직급·이메일·전화 버튼으로 열었으면 처음에는 없다가 입력의 연결 연락처가 현재 파트너와 달라진 동안(회사를 바꾸거나 담당자를 다른 사람·새 이름으로 바꾼 동안)만 보인다. DD-R34 ②·③으로 저장하면 "파트너가 교체되었습니다."이고 이전 파트너가 이력으로 남는다. ①(같은 파트너의 연락 정보 수정)이면 "파트너 연락처가 저장되었습니다."이고 이전 파트너 이력은 늘지 않는다. 고객 카드 세션 위에는 안내가 없다. "파트너 제거" 버튼은 확인 대화상자(제목 "파트너 제거", 문구 "파트너 <회사> <담당자>을(를) 제거합니다. 제거한 파트너는 이전 파트너 이력에 남습니다.", 위험 버튼 "제거")를 거쳐 `partner: null`을 보내고 "파트너가 제거되었습니다."를 보인다. 실패하면 대화상자를 닫고 오류 배너를 보인다.
@@ -277,7 +279,7 @@ DD-R27~DD-R40.
 | DD-024 | 실제로 바꾸면 수정 시각이 서버 시각이 되고 응답 Deal에 새 값이 있다 | DD-R14, DD-UC3 | backend | `application/test_apply_deal_change_independent.py::test_a_real_change_moves_the_update_time_to_now`<br>`application/test_apply_deal_change_independent.py::test_the_result_view_has_the_new_values` |
 | DD-025 | 선택지는 코드 목록 순서이고 이름을 바꾼 코드도 key로 같은 규칙이며 알림은 새 이름이다 | DD-R6, DD-R10 | backend | `domain/test_deal_sync_finalize.py::test_the_notice_uses_the_current_code_names_and_their_josa`<br>`domain/test_deal_sync_plan.py::test_the_status_options_follow_the_catalog_order`<br>`domain/test_deal_sync_plan.py::test_renamed_codes_do_not_change_the_rules_because_they_work_on_keys` |
 | DD-026 | 없는 Status·Forecast key로 바꾸면 422 "존재하지 않는 코드입니다."이고 값이 그대로다 | DD-R12, DD-UC3 | backend | `application/test_apply_deal_change_independent.py::test_an_unknown_code_is_rejected` |
-| DD-027 | 금액을 바꾸면 저장되고 이력에 원 콤마 숫자로 남는다 | DD-R13, DD-R21, DD-UC4 | backend | `application/test_apply_deal_change_values.py::test_changing_the_amount_saves_it_and_logs_the_formatted_amounts`<br>`application/test_apply_deal_change_values.py::test_a_single_change_succeeds_on_a_legacy_deal_whose_solution_is_empty`<br>`domain/test_deal_history_diff.py::test_amount_is_written_in_won_under_unit_target`<br>`domain/test_deal_history_diff.py::test_small_amount_change_is_recorded_without_rounding` |
+| DD-027 | 금액을 바꾸면 저장되고 이력에 원 콤마 숫자로 남는다 | DD-R13, DD-R21, DD-UC4 | backend | `application/test_apply_deal_change_values.py::test_changing_the_amount_saves_it_and_logs_the_formatted_amounts`<br>`application/test_apply_deal_change_values.py::test_a_single_change_succeeds_on_a_legacy_deal_whose_product_is_empty`<br>`domain/test_deal_history_diff.py::test_amount_is_written_in_won_under_unit_target`<br>`domain/test_deal_history_diff.py::test_small_amount_change_is_recorded_without_rounding` |
 | DD-028 | 금액 0·-1·2^53은 422이고 1과 2^53−1은 저장된다 | DD-R13, DD-UC4 | backend | `application/test_apply_deal_change_values.py::test_an_invalid_amount_is_rejected_and_nothing_changes`<br>`application/test_apply_deal_change_values.py::test_the_amount_boundaries_are_accepted`<br>`web/test_deal_change_request.py::test_amount_range_is_left_to_the_domain` |
 | DD-029 | Expected Close를 바꾸면 저장되고 이력에 YYYY-MM-DD로 남는다 | DD-R13, DD-R21, DD-UC4 | backend | `application/test_apply_deal_change_values.py::test_changing_the_expected_close_saves_it_and_logs_the_dates`<br>`domain/test_deal_history_diff.py::test_expected_close_is_written_as_an_iso_date` |
 | DD-030 | 종결된 Deal도 금액·Expected Close를 하나씩 바꿀 수 있고 Status·Forecast는 그대로다 | DD-R13, DD-UC4 | backend | `application/test_apply_deal_change_values.py::test_a_closed_deal_can_change_its_amount_and_date` |
@@ -330,7 +332,7 @@ DD-R27~DD-R40.
 | DD-077 | 화면: 포커스가 나가면 바뀐 값은 저장되고 그대로면 요청이 없다 | DD-R31, DD-UC2 | frontend | `features/deals/detail/InlineEdit.test.tsx > saves a typed value when focus leaves the input, and does nothing when it is unchanged` |
 | DD-078 | 화면: 화면 검증·서버 거절이면 문구를 보이고 편집이 유지된다 | DD-R31, DD-R32, DD-UC2 | frontend | `features/deals/detail/InlineEdit.test.tsx > keeps the editor open with the message when validation fails on Enter`<br>`features/deals/detail/InlineEdit.test.tsx > shows the server message for a name over 50 characters and keeps the editor open` |
 | DD-079 | 화면: Owner는 재직 영업 중에서 고르고 퇴사한 Owner는 후보에 없다 | DD-R32, DD-UC2 | frontend | `features/deals/detail/DealDetailLayout.test.tsx > edits the owner in place inside the deal info tile`<br>`features/deals/detail/InlineEdit.test.tsx > lets the writer pick another sales owner and never offers the resigned one` |
-| DD-080 | 화면: Vendor는 선택으로 Vendor만, Solution은 텍스트로 Solution만 보내고 빈 Solution도 저장한다 | DD-R32, DD-UC2 | frontend | `features/deals/detail/DealDetailPage.vendor.test.tsx`<br>`features/deals/detail/InlineEdit.test.tsx > edits Vendor with a select and Solution as a free text input`<br>`features/deals/detail/InlineEdit.test.tsx > does not save an empty Solution and keeps the shown value` |
+| DD-080 | 화면: Vendor는 선택으로 Vendor만, Product는 텍스트로 Product만 보내고 빈 Product도 저장한다 | DD-R32, DD-UC2 | frontend | `features/deals/detail/DealDetailPage.vendor.test.tsx`<br>`features/deals/detail/InlineEdit.test.tsx > edits Vendor with a select and Product as a free text input`<br>`features/deals/detail/InlineEdit.test.tsx > does not save an empty Product and keeps the shown value` |
 | DD-081 | 화면: Users count는 0 이상 정수만 저장하고 빈 값은 막는다 | DD-R32, DD-UC2 | frontend | `features/deals/detail/InlineEdit.test.tsx` |
 | DD-082 | 화면: 견적·POC·구매절차를 각각 그 자리에서 고친다 | DD-R32, DD-UC2 | frontend | `features/deals/detail/InlineEdit.test.tsx > edits the quote, the POC and the procurement in place` |
 | DD-083 | 화면: 날짜 칸은 yyyymmdd를 저장하고 틀리거나 덜 친 날짜와 달력 버튼 이동은 저장하지 않는다 | DD-R31, DD-UC2 | frontend | `features/deals/detail/InlineEdit.dateInput.test.tsx` |
@@ -382,6 +384,7 @@ DD-R27~DD-R40.
 | DD-129 | 화면: 파트너 직급 칸으로 연 편집에서 담당자를 바꾸면 그때 교체 안내가 보이고 저장하면 교체된다 | DD-R35, DD-UC2 | frontend | `features/deals/detail/InlineContact.test.tsx > replaces the partner when another person is picked in a session opened from the title`<br>`features/deals/detail/InlineContact.test.tsx > shows the replace notice while a new person name is typed in a session opened from the title` |
 | DD-130 | 화면: 연락처 편집 세션에서 아무것도 바꾸지 않고 Enter·포커스 이동하면 요청 없이 닫힌다 | DD-R34, DD-UC2 | frontend | `features/deals/detail/InlineContact.test.tsx > closes the session opened from %s without a request when nothing changed (%s)` |
 | DD-131 | 화면 규칙: 연락처 저장 결과 구분과 같은 이름 담당자 판정 함수가 DD-R34 표대로 답한다 | DD-R34 | frontend | `features/deals/detail/contactInline.test.ts`<br>`features/deals/detail/InlineContact.test.tsx > saves the existing person with intact contact info when its name is typed in another case` |
+| DD-132 | 이름 변경 전 이력의 대상 "Solution"은 그대로이고 새 변경은 "Product"로 남는다 | DD-R20, DD-R21, DD-UC4 | backend | `application/test_list_deal_history.py::test_old_solution_history_rows_stay_and_new_changes_are_recorded_as_product` |
 ### DD-001 어떤 역할이든 Deal 상세를 읽으면 문서화된 필드와 Owner·고객·파트너가 돌아온다
 - Given KIM이 Owner이고 고객·활성 파트너가 있는 Deal
 - When ROOT·KIM·VIEWER가 각각 `GET /deals/{code}`를 부른다
@@ -584,8 +587,8 @@ DD-R27~DD-R40.
 - Then 구분 순서대로 (bant, "BANT Label: Budget", …), (bant, "BANT Label: Need", …), (bant, "BANT Label: Timeline", "<이전 Label>", "선택 안 함")이다
 
 ### DD-045 기타 필드 이력은 필드 이름이 대상이고 정해진 표기로 남는다
-- When Deal Name, Vendor(SAP→Oracle), Solution(대소문자만 변경, 앞뒤 공백 차이만, "ITDR"→빈 값), Users count(10→0), 견적(→YES·2026-10-01), POC(→ING), 구매절차를 바꾼다
-- Then 구분 `other`, 대상 = 필드 이름이고 Vendor "SAP"→"Oracle", Solution 대소문자 변경은 남고 공백 차이만은 남지 않으며 빈 값으로 지우면 "ITDR"→"-"이고, Users "10"→"0", 견적 "-"→"YES (2026-10-01)", POC "-"→"ING"다. Vendor만 바꾸면 Solution 항목은 없다
+- When Deal Name, Vendor(SAP→Oracle), Product(대소문자만 변경, 앞뒤 공백 차이만, "ITDR"→빈 값), Users count(10→0), 견적(→YES·2026-10-01), POC(→ING), 구매절차를 바꾼다
+- Then 구분 `other`, 대상 = 필드 이름이고 Vendor "SAP"→"Oracle", Product 대소문자 변경은 남고 공백 차이만은 남지 않으며 빈 값으로 지우면 "ITDR"→"-"이고, Users "10"→"0", 견적 "-"→"YES (2026-10-01)", POC "-"→"ING"다. Vendor만 바꾸면 Product 항목은 없다
 
 ### DD-046 긴 대상·값은 300자·1000자로 잘리고 말줄임표가 붙는다
 - When 대상 301자, 변경 전 1001자, 변경 후 1000자인 항목을 만든다
@@ -731,9 +734,9 @@ DD-R27~DD-R40.
 - When Owner를 눌러 다른 영업을 고른다(퇴사한 Owner의 Deal 포함)
 - Then 후보는 재직 sales뿐이고 고르면 저장되어 "Owner가 변경되었습니다."가 보인다
 
-### DD-080 화면: Vendor는 선택으로 Vendor만, Solution은 텍스트로 Solution만 보내고 빈 Solution도 저장한다
-- When Vendor 선택(등록 Vendor, 현재 값 선택됨)에서 다른 Vendor를 고르고, Solution을 고치고, Solution을 비운다
-- Then Vendor 선택지에 "선택 안 함"이 없다. Vendor 요청은 `vendorId`만, Solution 요청은 `solution`만 보내고 각 이력이 남는다. 같은 Vendor·같은 Solution이면 요청이 없다. 빈 Solution은 `solution: ""`로 저장되어 "Solution이 변경되었습니다."가 보이고 값은 "—"로 보인다
+### DD-080 화면: Vendor는 선택으로 Vendor만, Product는 텍스트로 Product만 보내고 빈 Product도 저장한다
+- When Vendor 선택(등록 Vendor, 현재 값 선택됨)에서 다른 Vendor를 고르고, Product를 고치고, Product를 비운다
+- Then Vendor 선택지에 "선택 안 함"이 없다. Vendor 요청은 `vendorId`만, Product 요청은 `product`만 보내고 각 이력이 남는다. 같은 Vendor·같은 Product면 요청이 없다. 빈 Product는 `product: ""`로 저장되어 "Product가 변경되었습니다."가 보이고 값은 "—"로 보인다
 
 ### DD-081 화면: Users count는 0 이상 정수만 저장하고 빈 값은 막는다
 - When Users count를 25, 0, ""로 저장한다
@@ -881,7 +884,7 @@ DD-R27~DD-R40.
 
 ### DD-115 화면 규칙: 이력 diff 함수가 서버와 같은 순서·대상·표기를 만든다
 - When `diffDeal`로 DD-042~DD-045의 변경을 비교한다
-- Then 서버와 같은 항목 순서·구분·대상·표기("금액(단위:원)" 원 콤마, 파트너 "없음", 함께 변경 표기, Vendor·Solution 규칙)다
+- Then 서버와 같은 항목 순서·구분·대상·표기("금액(단위:원)" 원 콤마, 파트너 "없음", 함께 변경 표기, Vendor·Product 규칙)다
 
 ### DD-116 게이트웨이: 상세·삭제 영향·이력·단일 변경·삭제를 계약대로 보내고 응답·오류를 바꾼다
 - When `deals.get`·`deals.impact`·`history.list`(구분 없음·있음)·`deals.applyChange`(답 포함)·`deals.remove`(다른 code 포함)를 부른다
@@ -960,6 +963,11 @@ DD-R27~DD-R40.
 - When 구분 함수에 (A, A와 id·값 같음) / (A, id 1·직급만 다름) / (A, id 1·회사명 대소문자만 다름) / (A, id 2 같은 회사) / (A, id 없음·같은 회사 새 이름) / (A, 다른 회사) / (현재 없음, 새 입력)을, 같은 이름 판정 함수에 (id 없음, "한빛은행", "오지현"의 대소문자 다른 이름, 이메일 없음)과 (같은 입력에 이메일 있음)을 넣는다
 - Then 구분은 차례로 변경 없음 / 연락 정보 수정 / 연락 정보 수정 / 담당자 변경 / 담당자 변경 / 연락처 변경 / 연락처 변경이고, 같은 이름 판정은 이메일이 없을 때만 B의 연락 정보(id 2)를 돌려주고 이메일이 있으면 입력 그대로다
 
+### DD-132 이름 변경 전 이력의 대상 "Solution"은 그대로이고 새 변경은 "Product"로 남는다
+- Given 구분 `other`, 대상 "Solution", 변경 전 "ITDR"·후 "MFA"인 이력 1건이 있고 Product가 "MFA"인 Deal
+- When Product를 "EDR"로 고친 뒤 이력을 조회한다
+- Then 이력은 최신순으로 대상 "Product"("MFA"→"EDR")와 대상 "Solution"("ITDR"→"MFA") 2건이고, 옛 행의 대상·값·시각은 바뀌지 않는다
+
 ## 5. 변경 이력
 
 | 날짜 | 변경 | 영향 테스트 코드 |
@@ -970,3 +978,4 @@ DD-R27~DD-R40.
 | 2026-11-13 | 확정(2026-11-13 사용자 확인): 최종 업데이트 `last_updated_on`, Status 진입일 `status_changed_on`(범위, 응답 키, DD-R28 표시). 동작은 RK가 정한다 | 없음(관련 RK-067~RK-069) |
 | 2026-11-13 | 확정(2026-11-13 사용자 확인): DE 2026-11-13 변경(Vendor 필수·Solution 선택)에 맞춰 DD-R28 빈 Solution "—", DD-R32 Vendor 선택지("선택 안 함" 제거)·빈 Solution 저장 | 변경 DD-045, DD-080 |
 | 2026-11-16 | 확정(2026-11-16 사용자 확인): 사용자 요청 "회사·파트너 클릭 때의 수정 영역과 담당자·직급 등을 직접 눌렀을 때의 수정 영역이 달라 담당자명이 세로로 나옴 → 모두 회사 클릭 때와 같게". DD-R34: 연락처의 다섯 값 모두 같은 연락처 편집 세션을 열고 누른 칸에 포커스, 한 칸 편집기(`InlineEdit`) 미사용, 담당자명을 고쳐 쓰면 직급·이메일·전화 비움, 같은 이름·이메일 없음이면 기존 담당자, 무변경은 요청 없음, 저장 결과 3구분(연락 정보 수정·담당자 변경·연락처 변경)으로 알림만 가름. DD-R35: 교체 안내는 회사명·담당자명으로 열면 처음부터, 직급·이메일·전화로 열면 연락처가 바뀌는 동안만, 빈 파트너 "—"는 회사명 칸 포커스, 같은 파트너 연락 정보 수정은 "파트너 연락처가 저장되었습니다."(회사명 세션에서 직급만 고친 경우 포함 — 예전엔 "교체되었습니다."). DD-UC2 기본 흐름 보강. 서버·API 변경 없음 | 신규: DD-127~DD-131. 변경: DD-089, DD-091, DD-092, DD-093, DD-094, DD-095(테스트 수정 필요). 영향 확인: DD-087·DD-088·DD-090(동작 그대로, 회귀 확인) |
+| 2026-11-16 | 초안(사용자 확인 대기): Deal Solution → Product 이름 변경(DE 2026-11-16). DD-R20 순서·DD-R21 대상 "Product", 인라인 수정 칸 이름·알림 "Product가 변경되었습니다.", 요청 키 `product`. 예전 이력 행 "Solution"은 그대로(DD-R20 끝 문장) | 신규 DD-132. 변경(표기·키): DD-045, DD-080, DD-115. 위치만: DD-027 |

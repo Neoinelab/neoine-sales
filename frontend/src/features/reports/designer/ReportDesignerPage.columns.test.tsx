@@ -184,11 +184,11 @@ describe('컬럼 순서', () => {
     const rendered = await openDesigner()
     await addColumn(rendered.user, 'Deal code')
     await addColumn(rendered.user, 'Deal 이름')
-    await addColumn(rendered.user, 'Solution')
+    await addColumn(rendered.user, 'Product')
     return rendered
   }
 
-  const order = () => chipTexts().map((t) => (/Deal code|Deal 이름|Solution/.exec(t) ?? [''])[0])
+  const order = () => chipTexts().map((t) => (/Deal code|Deal 이름|Product/.exec(t) ?? [''])[0])
 
   // 테스트 코드: RQ-072
   it('칩은 끌 수 있게 표시된다', async () => {
@@ -201,7 +201,7 @@ describe('컬럼 순서', () => {
 
   // 테스트 코드: RQ-072
   it('칩을 끌어서 놓으면 순서가 바뀐다', async () => {
-    // given: Deal code, Deal 이름, Solution 컬럼
+    // given: Deal code, Deal 이름, Product 컬럼
     await threeColumns()
     const items = chipItems()
     const transfer = dataTransfer()
@@ -212,8 +212,8 @@ describe('컬럼 순서', () => {
     fireEvent.drop(items[2] as HTMLElement, { dataTransfer: transfer })
     fireEvent.dragEnd(items[0] as HTMLElement, { dataTransfer: transfer })
 
-    // then: 순서가 Deal 이름, Solution, Deal code다
-    expect(order()).toEqual(['Deal 이름', 'Solution', 'Deal code'])
+    // then: 순서가 Deal 이름, Product, Deal code다
+    expect(order()).toEqual(['Deal 이름', 'Product', 'Deal code'])
   })
 
   // 테스트 코드: RQ-072
@@ -226,7 +226,7 @@ describe('컬럼 순서', () => {
     await user.keyboard('{Alt>}{ArrowRight}{/Alt}')
 
     // then: 둘째로 옮겨지고 포커스가 따라가며 안내가 나온다
-    expect(order()).toEqual(['Deal 이름', 'Deal code', 'Solution'])
+    expect(order()).toEqual(['Deal 이름', 'Deal code', 'Product'])
     expect(chipButton(1)).toHaveFocus()
     expect(screen.getByText('‘Deal code’를 2번째로 옮겼습니다')).toBeInTheDocument()
 
@@ -234,7 +234,7 @@ describe('컬럼 순서', () => {
     await user.keyboard('{Alt>}{ArrowRight}{/Alt}')
 
     // then: 셋째로 옮겨지고 안내가 나온다
-    expect(order()).toEqual(['Deal 이름', 'Solution', 'Deal code'])
+    expect(order()).toEqual(['Deal 이름', 'Product', 'Deal code'])
     expect(chipButton(2)).toHaveFocus()
     expect(screen.getByText('‘Deal code’를 3번째로 옮겼습니다')).toBeInTheDocument()
 
@@ -242,7 +242,7 @@ describe('컬럼 순서', () => {
     await user.keyboard('{Alt>}{ArrowLeft}{/Alt}')
 
     // then: 다시 둘째로 옮겨진다
-    expect(order()).toEqual(['Deal 이름', 'Deal code', 'Solution'])
+    expect(order()).toEqual(['Deal 이름', 'Deal code', 'Product'])
     expect(screen.getByText('‘Deal code’를 2번째로 옮겼습니다')).toBeInTheDocument()
   })
 
@@ -256,7 +256,7 @@ describe('컬럼 순서', () => {
     await user.keyboard('{Alt>}{ArrowRight}{/Alt}')
 
     // then: 순서가 그대로다
-    expect(order()).toEqual(['Deal code', 'Deal 이름', 'Solution'])
+    expect(order()).toEqual(['Deal code', 'Deal 이름', 'Product'])
   })
 
   // 테스트 코드: RQ-072
@@ -277,7 +277,7 @@ describe('컬럼 순서', () => {
     // then: 입력칸이 포커스와 입력값을 유지하고 순서는 그대로다
     expect(input).toHaveFocus()
     expect(input).toHaveValue('은행권')
-    expect(order()).toEqual(['Deal code', 'Deal 이름', 'Solution'])
+    expect(order()).toEqual(['Deal code', 'Deal 이름', 'Product'])
   })
 
   // 테스트 코드: RQ-072
@@ -290,7 +290,7 @@ describe('컬럼 순서', () => {
     await user.keyboard('{ArrowRight}')
 
     // then: 순서가 그대로다
-    expect(order()).toEqual(['Deal code', 'Deal 이름', 'Solution'])
+    expect(order()).toEqual(['Deal code', 'Deal 이름', 'Product'])
   })
 
   // 테스트 코드: RQ-072

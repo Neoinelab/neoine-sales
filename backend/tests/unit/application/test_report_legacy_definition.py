@@ -55,6 +55,17 @@ LEGACY_SORT = {
 }
 
 
+LEGACY_SOLUTION = {
+    "columns": [
+        {"field": "deal.solution", "label": "솔루션"},
+        {"field": "deal.name"},
+    ],
+    "conditions": [{"field": "deal.solution", "operator": "contains", "value": "itd"}],
+    "combine": "and",
+    "row_limit": 1000,
+}
+
+
 @pytest.fixture(autouse=True)
 def _seoul(local_tz: Callable[[str], None]) -> None:
     local_tz("Asia/Seoul")
@@ -130,3 +141,31 @@ async def test_legacy_top_level_sort_runs_as_the_column_sort(
     # then: 실행기가 받은 정의의 정렬 키는 Vendor 컬럼 내림차순 하나다
     (key,) = uow.reports.calls[0].definition.sort_keys()
     assert (key.column, key.direction) == (1, SortDirection.DESC)
+
+
+async def test_legacy_solution_key_opens_and_runs_as_the_product_field(
+    uow_factory: UnitOfWorkFactory, uow: FakeUnitOfWork
+) -> None:
+    """예전 key deal.solution으로 저장된 정의는 deal.product로 열리고 실행되며 label은 그대로다.
+
+    테스트 코드: RQ-116
+    """
+    # given: 예전 key를 컬럼(label "솔루션")과 조건에 쓰는 ALICE의 저장 리포트
+    report = await _seed_legacy(uow, LEGACY_SOLUTION)
+    # when: ALICE가 상세를 열고 실행한다
+    opened = await GetReport(uow_factory).execute(report.id, viewer(ALICE))
+    view = await RunSavedReport(uow_factory, NOW).execute(report.id, viewer(ALICE))
+    # then: 상세 정의의 컬럼·조건 field는 deal.product이고 컬럼 label "솔루션"은 그대로다
+    assert opened.definition is not None
+    assert [c.field for c in opened.definition.columns] == ["deal.product", "deal.name"]
+    assert opened.definition.columns[0].label == "솔루션"
+    assert [c.field for c in opened.definition.conditions] == ["deal.product"]
+    # then: 실행기가 받은 정의도 Product 필드이고 첫 결과 열 이름은 "솔루션"이다
+    assert [c.field.key for c in uow.reports.calls[0].definition.columns] == [
+        "deal.product",
+        "deal.name",
+    ]
+    assert view.columns[0].field == "deal.product"
+    assert view.columns[0].label == "솔루션"
+    # then: 다시 쓴 JSON에는 deal.solution이 없다
+    assert "deal.solution" not in str(definition_to_json(opened.definition))

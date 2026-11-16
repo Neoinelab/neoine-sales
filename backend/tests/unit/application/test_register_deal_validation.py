@@ -42,7 +42,7 @@ CUSTOMER_NAME = "고객 담당자명을 입력하세요."
 PARTNER_INCOMPLETE = "파트너를 입력하면 회사명과 담당자명이 모두 필요합니다."
 EMAIL = "이메일 형식이 올바르지 않습니다."
 VENDOR_REQUIRED = "Vendor를 선택하세요."
-SOLUTION_LONG = "Solution은 200자 이내로 입력하세요."
+PRODUCT_LONG = "Product는 200자 이내로 입력하세요."
 UNKNOWN_VENDOR = "선택한 Vendor가 없습니다. 목록에서 다시 선택하세요."
 
 
@@ -69,7 +69,7 @@ def _steps(ctx: Ctx) -> list[tuple[str, dict[str, Any], str]]:
         ("name-missing", {"name": "  "}, NAME_MISSING),
         ("vendor-missing", {"vendor_id": None}, VENDOR_REQUIRED),
         ("unknown-vendor", {"vendor_id": new_id()}, UNKNOWN_VENDOR),
-        ("solution-long", {"solution": "a" * 201}, SOLUTION_LONG),
+        ("product-long", {"product": "a" * 201}, PRODUCT_LONG),
         ("owner-resigned", {"owner_user_id": ctx.resigned_owner}, OWNER_RESIGNED),
         ("amount-zero", {"revenue_amount": 0}, AMOUNT),
         ("close-missing", {"revenue_date": None}, CLOSE_MISSING),
@@ -110,7 +110,7 @@ STEP_NAMES = [
     "name-missing",
     "vendor-missing",
     "unknown-vendor",
-    "solution-long",
+    "product-long",
     "owner-resigned",
     "amount-zero",
     "close-missing",
@@ -152,7 +152,7 @@ async def test_each_violation_alone_gives_its_own_message(
 
     테스트 코드: DE-008, DE-018, DE-015
     """
-    # given: 위반 하나만 가진 입력(이름·Vendor·Solution·Owner·금액 등).
+    # given: 위반 하나만 가진 입력(이름·Vendor·Product·Owner·금액 등).
     _, overrides, expected = _steps(ctx)[index]
 
     # when·then: 그 입력으로 등록한다 → 그 위반의 문구(422 invalid-value)가 나온다.
@@ -239,9 +239,9 @@ async def test_boundaries_and_unknown_codes_are_rejected_with_their_own_message(
         {"users": 2_147_483_647},
         {"name": "가" * 200},
         {"procurement": "가" * 500},
-        {"solution": ""},
-        {"solution": "a" * 200},
-        {"solution": "  ITDR  "},
+        {"product": ""},
+        {"product": "a" * 200},
+        {"product": "  ITDR  "},
         {"revenue_date": date(2026, 12, 31)},
     ],
 )
@@ -337,46 +337,46 @@ async def test_the_old_vendor_text_input_is_gone() -> None:
 
 
 @pytest.mark.parametrize("blank", ["", "  ", "\t"])
-async def test_blank_solution_is_stored_as_empty(env: DealEnv, ctx: Ctx, blank: str) -> None:
-    """비었거나 공백뿐인 Solution 등록은 오류 없이 빈 Solution으로 저장된다.
+async def test_blank_product_is_stored_as_empty(env: DealEnv, ctx: Ctx, blank: str) -> None:
+    """비었거나 공백뿐인 Product 등록은 오류 없이 빈 Product로 저장된다.
 
     테스트 코드: DE-115
     """
-    # when: 빈 문자열·공백·탭 Solution으로 등록한다.
-    view = await env.register.execute(make_create_input(solution=blank), SALES)
+    # when: 빈 문자열·공백·탭 Product로 등록한다.
+    view = await env.register.execute(make_create_input(product=blank), SALES)
 
-    # then: 등록되고 저장된 Solution이 ''다.
+    # then: 등록되고 저장된 Product가 ''다.
     stored = await env.uow.deals.get(view.item.deal.id)
-    assert view.item.deal.details.solution == ""
-    assert stored.details.solution == ""
+    assert view.item.deal.details.product == ""
+    assert stored.details.product == ""
 
 
-async def test_vendor_with_a_solution_is_accepted(env: DealEnv, ctx: Ctx) -> None:
-    """Vendor와 Solution을 함께 보내 등록할 수 있다.
+async def test_vendor_with_a_product_is_accepted(env: DealEnv, ctx: Ctx) -> None:
+    """Vendor와 Product를 함께 보내 등록할 수 있다.
 
     테스트 코드: DE-014
     """
-    # when: Vendor id와 Solution으로 등록한다. (전제: Vendor SAP가 있다)
+    # when: Vendor id와 Product로 등록한다. (전제: Vendor SAP가 있다)
     view = await env.register.execute(make_create_input(vendor_id=ctx.sap), SALES)
 
-    # then: Vendor id와 Solution이 저장된다.
-    assert (view.item.deal.details.vendor_id, view.item.deal.details.solution) == (
+    # then: Vendor id와 Product가 저장된다.
+    assert (view.item.deal.details.vendor_id, view.item.deal.details.product) == (
         ctx.sap,
         "S/4HANA",
     )
     assert view.vendor == NamedRef(ctx.sap, "SAP")
 
 
-async def test_vendor_without_a_solution_is_accepted(env: DealEnv, ctx: Ctx) -> None:
-    """Vendor만 있고 Solution이 빈 값이어도 등록할 수 있다.
+async def test_vendor_without_a_product_is_accepted(env: DealEnv, ctx: Ctx) -> None:
+    """Vendor만 있고 Product가 빈 값이어도 등록할 수 있다.
 
     테스트 코드: DE-014
     """
-    # when: Vendor SAP, Solution ''로 등록한다.
-    view = await env.register.execute(make_create_input(vendor_id=ctx.sap, solution=""), SALES)
+    # when: Vendor SAP, Product ''로 등록한다.
+    view = await env.register.execute(make_create_input(vendor_id=ctx.sap, product=""), SALES)
 
-    # then: Vendor는 SAP이고 Solution은 ''다.
-    assert (view.item.deal.details.vendor_id, view.item.deal.details.solution) == (ctx.sap, "")
+    # then: Vendor는 SAP이고 Product는 ''다.
+    assert (view.item.deal.details.vendor_id, view.item.deal.details.product) == (ctx.sap, "")
 
 
 async def test_missing_vendor_is_rejected_and_stores_nothing(env: DealEnv, ctx: Ctx) -> None:
@@ -386,46 +386,46 @@ async def test_missing_vendor_is_rejected_and_stores_nothing(env: DealEnv, ctx: 
     """
     # when·then: vendor_id None으로 등록한다 → 'Vendor를 선택하세요.' 오류다.
     with raises_with(InvalidValueError, VENDOR_REQUIRED):
-        await env.register.execute(make_create_input(vendor_id=None, solution="ITDR"), SALES)
+        await env.register.execute(make_create_input(vendor_id=None, product="ITDR"), SALES)
 
     # then: Deal이 없다.
     assert env.uow.deals._items == {}
 
 
-async def test_unknown_vendor_is_reported_before_long_solution(env: DealEnv, ctx: Ctx) -> None:
-    """없는 Vendor id와 201자 Solution이 함께 있으면 Vendor 문구가 먼저 나온다.
+async def test_unknown_vendor_is_reported_before_long_product(env: DealEnv, ctx: Ctx) -> None:
+    """없는 Vendor id와 201자 Product가 함께 있으면 Vendor 문구가 먼저 나온다.
 
     테스트 코드: DE-015
     """
-    # when·then: 없는 Vendor id와 201자 Solution으로 등록한다 → '선택한 Vendor가 없습니다…' 오류다.
+    # when·then: 없는 Vendor id와 201자 Product로 등록한다 → '선택한 Vendor가 없습니다…' 오류다.
     with raises_with(InvalidValueError, UNKNOWN_VENDOR):
-        await env.register.execute(make_create_input(vendor_id=new_id(), solution="a" * 201), SALES)
+        await env.register.execute(make_create_input(vendor_id=new_id(), product="a" * 201), SALES)
 
 
-async def test_long_solution_is_reported_before_owner(env: DealEnv, ctx: Ctx) -> None:
-    """201자 Solution과 퇴사 Owner가 함께 있으면 Solution 문구가 먼저 나온다.
+async def test_long_product_is_reported_before_owner(env: DealEnv, ctx: Ctx) -> None:
+    """201자 Product와 퇴사 Owner가 함께 있으면 Product 문구가 먼저 나온다.
 
     테스트 코드: DE-017
     """
-    # when·then: 201자 Solution과 퇴사 Owner로 등록한다 → 'Solution은 200자 이내…' 오류다.
+    # when·then: 201자 Product와 퇴사 Owner로 등록한다 → 'Product는 200자 이내…' 오류다.
     #   (전제: 퇴사한 sales와 Vendor SAP)
-    with raises_with(InvalidValueError, SOLUTION_LONG):
+    with raises_with(InvalidValueError, PRODUCT_LONG):
         await env.register.execute(
             make_create_input(
-                vendor_id=ctx.sap, solution="a" * 201, owner_user_id=ctx.resigned_owner
+                vendor_id=ctx.sap, product="a" * 201, owner_user_id=ctx.resigned_owner
             ),
             SALES,
         )
 
 
-async def test_solution_with_nul_is_rejected_and_stores_nothing(env: DealEnv, ctx: Ctx) -> None:
-    """Solution의 NUL 문자는 거절되고 저장되지 않는다.
+async def test_product_with_nul_is_rejected_and_stores_nothing(env: DealEnv, ctx: Ctx) -> None:
+    """Product의 NUL 문자는 거절되고 저장되지 않는다.
 
     테스트 코드: DE-011
     """
-    # when: 'a\x00b' Solution으로 등록한다.
+    # when: 'a\x00b' Product로 등록한다.
     with pytest.raises(InvalidValueError):
-        await env.register.execute(make_create_input(solution="a\x00b"), SALES)
+        await env.register.execute(make_create_input(product="a\x00b"), SALES)
 
     # then: InvalidValueError이고 Deal이 없다.
     assert list(env.uow.deals._items) == []
@@ -433,12 +433,12 @@ async def test_solution_with_nul_is_rejected_and_stores_nothing(env: DealEnv, ct
 
 @pytest.mark.parametrize(
     ("field", "column"),
-    [("name", "Deal Name"), ("solution", "Solution"), ("procurement", "구매절차")],
+    [("name", "Deal Name"), ("product", "Product"), ("procurement", "구매절차")],
 )
 async def test_nul_in_a_text_field_is_an_invalid_value_and_stores_nothing(
     env: DealEnv, ctx: Ctx, field: str, column: str
 ) -> None:
-    """Deal Name·Solution·구매절차의 NUL 문자는 서버 오류 없이 칸 이름이 든 422 문구다.
+    """Deal Name·Product·구매절차의 NUL 문자는 서버 오류 없이 칸 이름이 든 422 문구다.
 
     테스트 코드: DE-011
     """

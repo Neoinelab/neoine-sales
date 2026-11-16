@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 
 NAME_MAX = 200
 PROCUREMENT_MAX = 500
-SOLUTION_MAX = 200
+PRODUCT_MAX = 200
 AMOUNT_MAX = 2**53 - 1  # 프런트 Number.isSafeInteger와 같다
 USERS_MAX = 2_147_483_647  # PostgreSQL integer 최대
 
@@ -111,14 +111,14 @@ def check_procurement(raw: str) -> str:
     return _optional_limited(raw, "구매절차", PROCUREMENT_MAX, "는")
 
 
-def check_solution(raw: str | None) -> str:
-    """Solution은 선택이다. 앞뒤 공백을 지우고 비면 ''이며 NUL·길이만 본다."""
+def check_product(raw: str | None) -> str:
+    """Product는 선택이다. 앞뒤 공백을 지우고 비면 ''이며 NUL·길이만 본다."""
     if raw is None:
         return ""
-    reject_nul(raw, "Solution")
+    reject_nul(raw, "Product")
     text = raw.strip()
-    if len(text) > SOLUTION_MAX:
-        raise InvalidValueError(f"Solution은 {SOLUTION_MAX}자 이내로 입력하세요.")
+    if len(text) > PRODUCT_MAX:
+        raise InvalidValueError(f"Product는 {PRODUCT_MAX}자 이내로 입력하세요.")
     return text
 
 
@@ -145,7 +145,7 @@ class DealDetails:
     name: str
     owner_user_id: UserId
     vendor_id: VendorId
-    solution: str
+    product: str
     users: int
     revenue_amount: RevenueAmount
     revenue_date: date
@@ -157,7 +157,7 @@ class DealDetails:
         assign(
             self,
             name=check_name(self.name),
-            solution=check_solution(self.solution),
+            product=check_product(self.product),
             users=check_users(self.users),
             procurement=check_procurement(self.procurement),
         )
@@ -169,7 +169,7 @@ class DealDetails:
         name: str,
         owner_user_id: UserId,
         vendor_id: VendorId,
-        solution: str,
+        product: str,
         users: int,
         revenue_amount: RevenueAmount,
         revenue_date: date,
@@ -177,12 +177,12 @@ class DealDetails:
         poc: Poc,
         procurement: str,
     ) -> DealDetails:
-        """저장된 행에서 복원한다. 생성자와 같은 검사를 하며 빈 Solution도 허용된다."""
+        """저장된 행에서 복원한다. 생성자와 같은 검사를 하며 빈 Product도 허용된다."""
         return cls(
             name=name,
             owner_user_id=owner_user_id,
             vendor_id=vendor_id,
-            solution=solution,
+            product=product,
             users=users,
             revenue_amount=revenue_amount,
             revenue_date=revenue_date,

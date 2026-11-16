@@ -95,38 +95,38 @@ async def test_each_row_has_the_owner_customer_and_active_partner(env: DealEnv) 
 
 
 class TestFilters:
-    async def test_list_views_have_vendor_ref_and_solution_text(self, env: DealEnv) -> None:
-        """목록 행은 Vendor 참조(id·이름)와 Solution 텍스트를 담는다."""
-        # given: SAP Deal 둘과 Oracle Deal(Solution은 선택이라 빈 값도 있다)
+    async def test_list_views_have_vendor_ref_and_product_text(self, env: DealEnv) -> None:
+        """목록 행은 Vendor 참조(id·이름)와 Product 텍스트를 담는다."""
+        # given: SAP Deal 둘과 Oracle Deal(Product는 선택이라 빈 값도 있다)
         sap = await env.new_vendor("SAP")
         oracle = await env.new_vendor("Oracle")
-        await env.new_deal(vendor_id=sap.id, solution="S/4HANA")
-        await env.new_deal(vendor_id=sap.id, solution="BW")
-        await env.new_deal(vendor_id=oracle.id, solution="MFA")
+        await env.new_deal(vendor_id=sap.id, product="S/4HANA")
+        await env.new_deal(vendor_id=sap.id, product="BW")
+        await env.new_deal(vendor_id=oracle.id, product="MFA")
 
         # when: 조회한다
         views = (await env.list.execute(DealQuery())).items
 
-        # then: 행마다 (Vendor 참조, Solution 텍스트)가 맞고 별도 solution 속성은 없다
-        shown = {(v.vendor, v.item.deal.details.solution) for v in views}
+        # then: 행마다 (Vendor 참조, Product 텍스트)가 맞고 별도 product 속성은 없다
+        shown = {(v.vendor, v.item.deal.details.product) for v in views}
         assert shown == {
             (NamedRef(sap.id, "SAP"), "S/4HANA"),
             (NamedRef(sap.id, "SAP"), "BW"),
             (NamedRef(oracle.id, "Oracle"), "MFA"),
         }
-        assert all(not hasattr(v, "solution") for v in views)
+        assert all(not hasattr(v, "product") for v in views)
 
     async def test_unknown_vendor_id_returns_nothing(self, env: DealEnv) -> None:
-        """없는 Vendor id와 맞는 것이 없는 Solution 텍스트는 오류 없이 0건이다."""
+        """없는 Vendor id와 맞는 것이 없는 Product 텍스트는 오류 없이 0건이다."""
         # given: Deal 하나
         await env.new_deal()
 
-        # when: 없는 Vendor id로, 맞는 것 없는 Solution으로 각각 조회한다
+        # when: 없는 Vendor id로, 맞는 것 없는 Product로 각각 조회한다
         page = await env.list.execute(DealQuery(vendor_id=VendorId(new_id())))
-        by_solution = await env.list.execute(DealQuery(solution="no-such"))
+        by_product = await env.list.execute(DealQuery(product="no-such"))
 
         # then: 둘 다 빈 목록과 total 0이다
-        assert (page.items, page.total, by_solution.total) == ([], 0, 0)
+        assert (page.items, page.total, by_product.total) == ([], 0, 0)
 
     async def test_a_reused_customer_contact_is_found_by_its_company(self, env: DealEnv) -> None:
         """같은 고객 연락처를 재사용한 Deal들은 그 회사명 키워드로 모두 찾는다."""

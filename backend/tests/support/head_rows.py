@@ -40,9 +40,9 @@ INSERT_DEFAULT_VENDOR = (
     "insert into vendors (id, name, created_at, updated_at) values (:id, :name, now(), now())"
     " on conflict do nothing"
 )
-HAS_SOLUTION_TEXT = (
+HAS_PRODUCT_TEXT = (
     "select count(*) from information_schema.columns"
-    " where table_schema = 'public' and table_name = 'deals' and column_name = 'solution'"
+    " where table_schema = 'public' and table_name = 'deals' and column_name = 'product'"
 )
 DEAL_ID_OF = "select id from deals where deal_code = :deal_code"
 INSERT_PARTNER_LINK = (
@@ -106,10 +106,10 @@ async def insert_deal(
 ) -> str:
     """담당자 행이 없으면 새로 만든다. 새 Deal의 code를 돌려준다(Deal id는 DB가 매긴다).
 
-    overrides: code, amount, users, status_key, forecast_key, quote_submitted, poc_state, solution,
+    overrides: code, amount, users, status_key, forecast_key, quote_submitted, poc_state, product,
     vendor_id(기본 Vendor).
 
-    `deals.solution`(Solution 자유 텍스트) 컬럼이 있는 스키마(그 리비전 이후)에서는 `solution`
+    `deals.product`(Product 자유 텍스트) 컬럼이 있는 스키마(그 리비전 이후)에서는 `product`
     값(기본 "")을 함께 넣는다. 이전 리비전 스키마에서는 넣지 않는다(마이그레이션 테스트 공용).
     """
     owner = owner_user_id or await insert_user(session, f"o{new_id()}")
@@ -130,16 +130,14 @@ async def insert_deal(
     }
     values.update(overrides)
     statement = INSERT_DEAL
-    if (await session.execute(text(HAS_SOLUTION_TEXT))).scalar_one():
+    if (await session.execute(text(HAS_PRODUCT_TEXT))).scalar_one():
+        statement = statement.replace("procurement, created_at", "procurement, product, created_at")
         statement = statement.replace(
-            "procurement, created_at", "procurement, solution, created_at"
+            "'', now(), now(), current_date)", "'', :product, now(), now(), current_date)"
         )
-        statement = statement.replace(
-            "'', now(), now(), current_date)", "'', :solution, now(), now(), current_date)"
-        )
-        values.setdefault("solution", "")
+        values.setdefault("product", "")
     else:
-        values.pop("solution", None)
+        values.pop("product", None)
     await session.execute(text(statement), values)
     return str(values["code"])
 

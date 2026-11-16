@@ -179,7 +179,7 @@ async def test_get_row_carries_the_deal_values_and_attachment_count(
     """
     # given: 첨부 2개가 있는 계약
     deal = await contract_case.deal(
-        customer="넥스트", solution="ERP", vendor="SAP", partner="한빛", owner="lcr-owner"
+        customer="넥스트", product="ERP", vendor="SAP", partner="한빛", owner="lcr-owner"
     )
     contract = await contract_case.contract(deal)
     await contract_case.attach(contract, "a.pdf")

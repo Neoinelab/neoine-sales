@@ -3,7 +3,7 @@
 mine=true는 요청자가 Owner인 딜이고 owner_user_id보다 우선한다.
 연/분기·정렬 파라미터는 다른 테스트가 맡는다.
 최종 업데이트 기간은 updated_from/to다.
-Vendor 조건은 id(int), Solution 조건은 텍스트(부분 일치, 최대 200자)다.
+Vendor 조건은 id(int), Product 조건은 텍스트(부분 일치, 최대 200자)다.
 """
 
 import importlib
@@ -219,63 +219,63 @@ def test_the_largest_allowed_id_query_parameter_is_accepted() -> None:
     assert params.vendor_id == 2**53 - 1
 
 
-def test_vendor_and_solution_conditions_default_to_none() -> None:
-    """Vendor·Solution 조건의 기본값은 없음이다."""
+def test_vendor_and_product_conditions_default_to_none() -> None:
+    """Vendor·Product 조건의 기본값은 없음이다."""
     # when: 기본 파라미터를 조회 조건으로 바꾼다
     query = DealSearchParams().to_query(VIEWER)
 
     # then: 둘 다 None이다
-    assert (query.vendor_id, query.solution) == (None, None)
+    assert (query.vendor_id, query.product) == (None, None)
 
 
-def test_solution_param_is_text() -> None:
-    """solution 파라미터는 텍스트로 전달된다."""
-    # when: solution 텍스트를 조회 조건으로 바꾼다
-    query = DealSearchParams.model_validate({"solution": "itd"}).to_query(VIEWER)
+def test_product_param_is_text() -> None:
+    """product 파라미터는 텍스트로 전달된다."""
+    # when: product 텍스트를 조회 조건으로 바꾼다
+    query = DealSearchParams.model_validate({"product": "itd"}).to_query(VIEWER)
 
     # then: 같은 텍스트다
-    assert query.solution == "itd"
+    assert query.product == "itd"
 
 
-def test_solution_param_is_trimmed_and_blank_means_no_condition() -> None:
-    """solution은 공백을 정리하고 공백뿐이면 조건 없음이다."""
+def test_product_param_is_trimmed_and_blank_means_no_condition() -> None:
+    """product는 공백을 정리하고 공백뿐이면 조건 없음이다."""
     # when: 공백이 든 값과 공백뿐인 값을 각각 조회 조건으로 바꾼다
-    trimmed = DealSearchParams(solution="  itd ").to_query(VIEWER)
-    blank = DealSearchParams(solution="   ").to_query(VIEWER)
+    trimmed = DealSearchParams(product="  itd ").to_query(VIEWER)
+    blank = DealSearchParams(product="   ").to_query(VIEWER)
 
     # then: 앞의 것은 정리되고 뒤의 것은 None이다
-    assert (trimmed.solution, blank.solution) == ("itd", None)
+    assert (trimmed.product, blank.product) == ("itd", None)
 
 
-def test_solution_param_allows_200_and_rejects_201() -> None:
-    """solution은 200자까지 허용하고 201자는 거부한다."""
-    # when: 200자 solution을 조회 조건으로 바꾼다
-    query = DealSearchParams(solution="a" * 200).to_query(VIEWER)
+def test_product_param_allows_200_and_rejects_201() -> None:
+    """product는 200자까지 허용하고 201자는 거부한다."""
+    # when: 200자 product를 조회 조건으로 바꾼다
+    query = DealSearchParams(product="a" * 200).to_query(VIEWER)
 
     # then: 200자 그대로다
-    assert query.solution == "a" * 200
+    assert query.product == "a" * 200
     # when·then: 201자로 만들면 ValidationError가 난다
     with pytest.raises(ValidationError):
-        DealSearchParams(solution="a" * 201)
+        DealSearchParams(product="a" * 201)
 
 
-def test_solution_param_length_is_measured_after_trimming() -> None:
-    """solution 길이는 공백 정리 뒤에 잰다."""
+def test_product_param_length_is_measured_after_trimming() -> None:
+    """product 길이는 공백 정리 뒤에 잰다."""
     # given: 공백 포함 202자, 정리 후 200자 값
     padded = f" {'a' * 200} "  # 202자이지만 트림 후 200자
 
     # when: 조회 조건으로 바꾼다
-    query = DealSearchParams(solution=padded).to_query(VIEWER)
+    query = DealSearchParams(product=padded).to_query(VIEWER)
 
     # then: 200자로 통과한다
-    assert query.solution == "a" * 200
+    assert query.product == "a" * 200
 
 
-def test_solution_param_over_200_after_trimming_is_rejected() -> None:
+def test_product_param_over_200_after_trimming_is_rejected() -> None:
     """공백 정리 뒤에도 200자를 넘으면 거부한다."""
     # when·then: 정리 후 201자이면 오류가 난다
     with pytest.raises((ValidationError, InvalidValueError)):
-        DealSearchParams(solution=f" {'a' * 201} ").to_query(VIEWER)
+        DealSearchParams(product=f" {'a' * 201} ").to_query(VIEWER)
 
 
 def test_solution_id_param_is_rejected() -> None:
@@ -285,11 +285,11 @@ def test_solution_id_param_is_rejected() -> None:
         DealSearchParams.model_validate({"solution_id": "1"})
 
 
-def test_solution_param_with_nul_is_rejected() -> None:
-    """NUL이 든 solution은 거부한다."""
+def test_product_param_with_nul_is_rejected() -> None:
+    """NUL이 든 product는 거부한다."""
     # when·then: NUL이 든 값이면 오류가 난다
     with pytest.raises((ValidationError, InvalidValueError)):
-        DealSearchParams(solution="a\x00b").to_query(VIEWER)
+        DealSearchParams(product="a\x00b").to_query(VIEWER)
 
 
 @pytest.mark.parametrize("field", ["updated_from", "updated_to"])

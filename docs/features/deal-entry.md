@@ -1,22 +1,24 @@
-# Deal 등록·수정   (feature 코드: DE, 상태: 확정(2026-11-13 사용자 확인))
+# Deal 등록·수정   (feature 코드: DE, 상태: 확정(2026-11-16 사용자 확인))
 
 > 이 문서는 **이미 구현된 동작**을 정본 명세로 옮긴 것입니다(2026-11-10). 근거는 작업 트리의 코드(`backend/src/app/application/deal/{register_deal,update_deal,validation,form,inputs,contact_draft,bant_choice,code_issuer}.py`, `app/domain/deal/{values,policy,code,errors,entities}.py`, `app/domain/contact/draft.py`, `app/web/routers/deals.py`의 `POST ""`·`PATCH /{code}`, `app/web/schemas/deal.py`, `app/infra/db/models_deal.py`, `frontend/src/features/deals/form/*.tsx·formState.ts`, `shared/ui/UserSelect.tsx`, `gateway/http/deals.ts`의 `create`·`update`, `gateway/http/mappers/deal.ts`의 요청 변환, `test/fake/gateway/{dealsWrite,dealValidation}.ts`)이며 문구·type·상태 코드는 코드에서 그대로 옮겼습니다. 코드와 Fake·테스트가 어긋나는 점은 계획(`artifacts/10-analysis/de-plan.md`)의 확인 필요 질문으로 분리했습니다.
 
 > 2026-11-13 변경(2026-11-13 사용자 확인): Vendor 필수·Solution 선택(사용자 요청). 영향 규칙·케이스는 5장.
+>
+> 2026-11-16 변경(초안, 사용자 확인 대기): Deal의 Solution을 Product로 이름 변경(화면 문구, API 필드·쿼리 `product`, Reports key `deal.product`, DB 컬럼 `deals.product`). 영향 규칙·케이스는 5장.
 
 ## 1. 개요
 
-- 목적: 영업(sales)과 admin이 Deal을 등록하고 폼으로 수정한다. 등록 때 Deal code를 발급하고, 필드 값·Owner 자격·Vendor·Solution·BANT 선택·고객/파트너 연락처를 검증·해석해 한 트랜잭션에 저장한다.
+- 목적: 영업(sales)과 admin이 Deal을 등록하고 폼으로 수정한다. 등록 때 Deal code를 발급하고, 필드 값·Owner 자격·Vendor·Product·BANT 선택·고객/파트너 연락처를 검증·해석해 한 트랜잭션에 저장한다.
 - 사용자(역할): sales·admin(등록·수정). user는 읽기 전용이라 둘 다 할 수 없다.
 - 범위
   - 화면 `/deals/new`(Deal 등록)·`/deals/:dealCode/edit`(Deal 수정) 공용 폼
   - API `POST /deals`(등록), `PATCH /deals/{code}`(폼 저장)
-  - 요청 형식, 필드 값 규칙과 검증 순서, Deal code 발급, Owner 자격, Vendor 선택, Solution 텍스트, BANT 선택 저장 결과·롤백, 고객/파트너 연락처 입력(`ContactDraft`)의 해석·병합(`merge_same_person`)·파트너 링크 교체, 등록·수정의 저장 결과(이력이 남는지, 수정 시각)
+  - 요청 형식, 필드 값 규칙과 검증 순서, Deal code 발급, Owner 자격, Vendor 선택, Product 텍스트, BANT 선택 저장 결과·롤백, 고객/파트너 연락처 입력(`ContactDraft`)의 해석·병합(`merge_same_person`)·파트너 링크 교체, 등록·수정의 저장 결과(이력이 남는지, 수정 시각)
 - 범위 밖(다른 feature)
   - Status·Forecast 동기화 불변식과 동기화 대화상자·단일 변경 `/deals/{code}/changes`, Deal History 항목 형식(분류·대상·이전·이후 문구, 정렬·조회), Deal 상세 응답의 필드 구성(`DealDetailResponse`), 삭제 → DD
   - Won 진입 때 미발급 계약 생성, Won 이탈 확인·`delete_license_contracts`, 발급 계약이 있으면 Won 이탈 금지 → LC(LC-R6~R9)
   - `status_changed_on`(Status 진입일)·`status_days`·경고·최종 업데이트 → RK
-  - 목록 행·목록 필터(Vendor·Solution 등) → DL
+  - 목록 행·목록 필터(Vendor·Product 등) → DL
   - `{id}`/`{name}` 선택 형식과 해석 규칙(CL-R12~R16), Label 이름 규칙(CL-R1), Vendor 이름 변경의 효과(CL-R9) → CL
   - 연락처 값 규칙(CT-R2~R6), 같은 사람 판정(CT-R7), 연락처 변경 이력(CT-R10), 연락처 선택기 `ContactPicker`(CT-R22) → CT
   - Owner 후보 목록 `/user-options`(US-R20)·`UserRef`(US-R12)·퇴사 처리(US-R17) → US
@@ -40,7 +42,7 @@
 | 같은 사람 | 직접 입력한 ContactDraft와 CT-R7 규칙으로 같은 것으로 판정된 기존 연락처 |
 | 병합 | 같은 사람으로 판정된 연락처에 직접 입력을 합치는 규칙(DE-R13) |
 | 파트너 링크 | Deal–파트너 연락처 연결. 활성(해제 시각 없음)은 Deal당 최대 1건이고 해제된 링크는 지우지 않는다 |
-| 빈 Solution | Solution을 입력하지 않은 Deal. `solution`이 `''`(빈 문자열)이고 상세 화면에는 "—"로 보인다(2026-11-13부터 Solution은 선택 항목) |
+| 빈 Product | Product를 입력하지 않은 Deal. `product`가 `''`(빈 문자열)이고 상세 화면에는 "—"로 보인다(2026-11-13부터 Product는 선택 항목). 2026-11-16 전 이름은 Solution(API `solution`, DB `deals.solution`) |
 
 ### 2.2 데이터 모델
 
@@ -52,7 +54,7 @@
 | `name` | varchar(200) | Deal Name(앞뒤 공백 제거 값) |
 | `owner_user_id` | BIGINT, FK `users.id` RESTRICT, 인덱스 | Owner |
 | `vendor_id` | BIGINT NOT NULL, FK `vendors.id` RESTRICT, 인덱스 | Vendor(필수, NOT NULL은 리비전 SC-R22) |
-| `solution` | varchar(200) NOT NULL | Solution 자유 텍스트(선택 — 입력하지 않으면 `''`) |
+| `product` | varchar(200) NOT NULL | Product 자유 텍스트(선택 — 입력하지 않으면 `''`) |
 | `users` | integer, CHECK `users >= 0` | Users count(견적 단위 사용자 수) |
 | `status_kind`·`status_key`, `forecast_kind`·`forecast_key` | 복합 FK `codes(kind, key)` RESTRICT, CHECK `(status_key = 'contract_completed') = (forecast_key = 'won')` | Status·Forecast(동기화 불변식은 DD) |
 | `revenue_amount` | bigint, CHECK 1~2^53−1 | 매출금액(원) |
@@ -80,11 +82,11 @@ Deal code
 
 요청 형식
 - **DE-R3** 요청 형식은 유스케이스 전에 판정하고 위반은 422 `request-validation`이다(모르는 필드는 모든 본문·하위 객체에서 거부).
-  - 등록 필수 키: `name`(문자열), `owner_user_id`(JSON 정수 1~2^53−1, PL-R15), `vendor_id`(JSON 정수 1~2^53−1, null 불가 — 2026-11-13), `users`(JSON 정수, null·문자열 불가), `status_key`·`forecast_key`(문자열), `revenue_amount`(JSON 정수), `revenue_date`(`YYYY-MM-DD` 또는 null — 키는 필수), `customer`(ContactDraft 객체). 선택 키와 기본값: `solution`(문자열 또는 null, 기본 `""` — 2026-11-13), `partner`(ContactDraft 또는 null, 기본 null), `quote`(`{submitted: "YES"|"NO"|null, submitted_date: date|null}`, 기본 둘 다 null), `poc`(`{state: "YES"|"ING"|"NO"|null, completed_date}`, 기본 둘 다 null), `procurement`(문자열, 기본 `""`), `bant`(`{budget, authority, need, timeline}` 각 `CatalogChoiceRequest` 또는 null, 빠진 구분 = null, 기본 모두 null).
+  - 등록 필수 키: `name`(문자열), `owner_user_id`(JSON 정수 1~2^53−1, PL-R15), `vendor_id`(JSON 정수 1~2^53−1, null 불가 — 2026-11-13), `users`(JSON 정수, null·문자열 불가), `status_key`·`forecast_key`(문자열), `revenue_amount`(JSON 정수), `revenue_date`(`YYYY-MM-DD` 또는 null — 키는 필수), `customer`(ContactDraft 객체). 선택 키와 기본값: `product`(문자열 또는 null, 기본 `""` — 2026-11-13), `partner`(ContactDraft 또는 null, 기본 null), `quote`(`{submitted: "YES"|"NO"|null, submitted_date: date|null}`, 기본 둘 다 null), `poc`(`{state: "YES"|"ING"|"NO"|null, completed_date}`, 기본 둘 다 null), `procurement`(문자열, 기본 `""`), `bant`(`{budget, authority, need, timeline}` 각 `CatalogChoiceRequest` 또는 null, 빠진 구분 = null, 기본 모두 null).
   - ContactDraft: `company`·`name` 키 필수(문자열, 값 판정은 DE-R11), `contact_id`(JSON 정수 또는 null), `title`·`email`·`phone`(문자열 또는 null, 생략 = null).
   - 수정 본문: 모든 키 선택. 키의 타입은 등록과 같고 null을 허용하되 `quote`·`poc`·`bant`는 null이면 422("<이름>은 null일 수 없습니다"). `delete_license_contracts`(불리언, 기본 false)는 LC 소유이며 폼 필드가 아니다.
-  - 예전 필드는 모르는 필드다: `vendor`(텍스트), `solution_id`, BANT의 Label id 값 그대로(객체가 아님, CL-R12).
-  - 형식 위반 예: 금액 `"많이"`, 날짜 `"30/06/2026"`, `owner_user_id` `"x"`, `users` `"10"`·null·누락, `vendor_id` 누락·null·`"x"`, `solution` 숫자, 모르는 키 `extra`.
+  - 예전 필드는 모르는 필드다: `vendor`(텍스트), `solution_id`, `solution`(2026-11-16 `product`로 이름 변경, 별칭 없음 — 계획 Q2), BANT의 Label id 값 그대로(객체가 아님, CL-R12).
+  - 형식 위반 예: 금액 `"많이"`, 날짜 `"30/06/2026"`, `owner_user_id` `"x"`, `users` `"10"`·null·누락, `vendor_id` 누락·null·`"x"`, `product` 숫자, 모르는 키 `extra`.
 
 필드 값
 - **DE-R4** 필드 값 규칙(위반은 모두 422 `invalid-value`, `detail` = 아래 문구, 칸 위치 `errors`는 싣지 않음). 텍스트는 NUL 문자가 있으면(공백으로 감싸도) "<칸>에는 NUL 문자를 쓸 수 없습니다"(PL-R16).
@@ -93,7 +95,7 @@ Deal code
   | --- | --- | --- |
   | Deal Name | NUL → 앞뒤 공백 제거 → 비면 거절 → 200자(코드 포인트) 초과 거절. 저장은 제거한 값 | "Deal Name을 입력하세요." / "Deal Name은 200자 이내로 입력하세요." / NUL 칸 이름 "Deal Name" |
   | Vendor | DE-R7 | "Vendor를 선택하세요."(수정의 null) / "선택한 Vendor가 없습니다. 목록에서 다시 선택하세요." |
-  | Solution | DE-R8 | "Solution은 200자 이내로 입력하세요." / NUL 칸 이름 "Solution" (빈 값은 오류 아님) |
+  | Product | DE-R8 | "Product는 200자 이내로 입력하세요." / NUL 칸 이름 "Product" (빈 값은 오류 아님) |
   | Owner | DE-R6 | "퇴사한 사용자는 Owner로 지정할 수 없습니다. 다른 담당자를 선택하세요." / "Owner는 재직 중인 영업 담당자여야 합니다." |
   | 매출금액 | 정수 1 이상 2^53−1(9,007,199,254,740,991) 이하(원) | "매출금액은 1원 이상의 정수로 입력하세요." |
   | Expected Close | null이면 거절. 과거·미래 모두 허용 | "Expected Close를 입력하세요." |
@@ -106,14 +108,14 @@ Deal code
   | 견적·POC | 여부와 날짜의 조합을 검사하지 않는다(어떤 조합도 저장) | — |
   | 고객·파트너 | DE-R11 | DE-R11 |
 
-- **DE-R5** 검증 순서(앞에서 걸리면 뒤는 보지 않는다): ① 요청 형식(DE-R3) → (수정만) ② 없는 Deal 404(DE-R19) → ③ Deal Name → ④ Vendor → ⑤ Solution → ⑥ Owner → ⑦ 매출금액 → ⑧ Expected Close → ⑨ Users count → ⑩ Status 존재 → ⑪ Forecast 존재 → ⑫ 동기화 → ⑬ BANT 판정 → ⑭ 구매절차 → ⑮ 고객 필수(회사명 → 담당자명) → ⑯ 파트너 필수 → ⑰ 고객 연락처 형식(CT-R6 ②~⑦) → ⑱ 파트너 연락처 형식 → ⑲ 고른 연락처·같은 사람 판정(고객 → 파트너, 404·409, DE-R12) → 저장. 수정에서 ④⑤⑥⑩⑪⑫⑬⑮~⑲는 **그 필드를 보낸 경우에만** 하고, ③⑦⑧⑨⑭는 반영 후 값으로 항상 한다. 등록은 모두 한다(등록의 `vendor_id` 누락·null은 ① 요청 형식에서 걸린다).
+- **DE-R5** 검증 순서(앞에서 걸리면 뒤는 보지 않는다): ① 요청 형식(DE-R3) → (수정만) ② 없는 Deal 404(DE-R19) → ③ Deal Name → ④ Vendor → ⑤ Product → ⑥ Owner → ⑦ 매출금액 → ⑧ Expected Close → ⑨ Users count → ⑩ Status 존재 → ⑪ Forecast 존재 → ⑫ 동기화 → ⑬ BANT 판정 → ⑭ 구매절차 → ⑮ 고객 필수(회사명 → 담당자명) → ⑯ 파트너 필수 → ⑰ 고객 연락처 형식(CT-R6 ②~⑦) → ⑱ 파트너 연락처 형식 → ⑲ 고른 연락처·같은 사람 판정(고객 → 파트너, 404·409, DE-R12) → 저장. 수정에서 ④⑤⑥⑩⑪⑫⑬⑮~⑲는 **그 필드를 보낸 경우에만** 하고, ③⑦⑧⑨⑭는 반영 후 값으로 항상 한다. 등록은 모두 한다(등록의 `vendor_id` 누락·null은 ① 요청 형식에서 걸린다).
 
 Owner
 - **DE-R6** Owner는 재직 중인 sales여야 한다: 퇴사자면(역할과 무관) 퇴사 문구가 먼저, 그 밖에 없는 사용자·admin·user면 "Owner는 재직 중인 영업 담당자여야 합니다."이다. 등록은 항상, 수정은 `owner_user_id`를 보내면 **현재와 같은 값이어도** 다시 검사한다(그래서 Owner가 퇴사한 Deal은 Owner를 바꿔야 Owner를 보내는 폼 저장이 된다). 보내지 않으면 검사하지 않아 퇴사한 Owner·역할이 바뀐 Owner의 Deal도 다른 필드를 수정할 수 있고 Owner는 그대로 남는다. PATCH의 `owner_user_id: null`도 "Owner는 재직 중인 영업 담당자여야 합니다."다. admin은 다른 sales를 Owner로 지정해 등록할 수 있고 이력의 변경자는 admin이다. 판정 때 재직 Owner 행을 잠가 퇴사 처리와 직렬화한다.
 
-Vendor·Solution
-- **DE-R7** Vendor는 필수다(2026-11-13). 등록된 목록의 id(`vendor_id`)로만 고른다(이름으로 만들 수 없음, CL-R17). 등록 본문에서 `vendor_id`가 없거나 null이면 422 `request-validation`(DE-R3)이다. 수정에서 `vendor_id: null`을 보내면 422 `invalid-value` "Vendor를 선택하세요."이고 Vendor는 그대로다(비울 수 없음). 생략하면 그대로다. 보낸 id가 없으면 422 "선택한 Vendor가 없습니다. 목록에서 다시 선택하세요."다. 두 판정 모두 Deal Name 다음, Solution 판정보다 먼저다(DE-R5 ④). 응답의 `vendor`는 `{id, name}`이다(이름은 현재 Vendor 이름, CL-R9). 응답 스키마는 하위 호환을 위해 nullable을 그대로 두지만 리비전 SC-R22 뒤로는 null이 나오지 않는다.
-- **DE-R8** Solution은 Vendor와 무관한 선택 자유 텍스트다(2026-11-13): NUL → 앞뒤 공백 제거 → 200자(코드 포인트) 초과 "Solution은 200자 이내로 입력하세요.". 비어 있으면(생략·null·`""`·공백뿐) 빈 값 `''`로 저장하며 오류가 아니다. 대소문자·한글은 입력 그대로 저장한다. 등록에서 `solution`을 생략하거나 null로 보내면 `''`이다. 수정은 보낸 경우만 검사하고, null·`""`·공백뿐이면 Solution을 지운다(`''`). 생략하면 그대로다. Vendor를 바꿔도 Solution은 그대로다. 대소문자만 바꾼 값은 변경이고, 앞뒤 공백만 다른 값은 변경이 아니다. 값 → 빈 값, 빈 값 → 값도 변경이며 이력의 빈 값 표기는 "-"다(DD-R21).
+Vendor·Product
+- **DE-R7** Vendor는 필수다(2026-11-13). 등록된 목록의 id(`vendor_id`)로만 고른다(이름으로 만들 수 없음, CL-R17). 등록 본문에서 `vendor_id`가 없거나 null이면 422 `request-validation`(DE-R3)이다. 수정에서 `vendor_id: null`을 보내면 422 `invalid-value` "Vendor를 선택하세요."이고 Vendor는 그대로다(비울 수 없음). 생략하면 그대로다. 보낸 id가 없으면 422 "선택한 Vendor가 없습니다. 목록에서 다시 선택하세요."다. 두 판정 모두 Deal Name 다음, Product 판정보다 먼저다(DE-R5 ④). 응답의 `vendor`는 `{id, name}`이다(이름은 현재 Vendor 이름, CL-R9). 응답 스키마는 하위 호환을 위해 nullable을 그대로 두지만 리비전 SC-R22 뒤로는 null이 나오지 않는다.
+- **DE-R8** Product는 Vendor와 무관한 선택 자유 텍스트다(2026-11-13): NUL → 앞뒤 공백 제거 → 200자(코드 포인트) 초과 "Product는 200자 이내로 입력하세요.". 비어 있으면(생략·null·`""`·공백뿐) 빈 값 `''`로 저장하며 오류가 아니다. 대소문자·한글은 입력 그대로 저장한다. 등록에서 `product`를 생략하거나 null로 보내면 `''`이다. 수정은 보낸 경우만 검사하고, null·`""`·공백뿐이면 Product를 지운다(`''`). 생략하면 그대로다. Vendor를 바꿔도 Product는 그대로다. 대소문자만 바꾼 값은 변경이고, 앞뒤 공백만 다른 값은 변경이 아니다. 값 → 빈 값, 빈 값 → 값도 변경이며 이력의 빈 값 표기는 "-"다(DD-R21).
 
 Status·Forecast
 - **DE-R9** 폼의 Status·Forecast는 코드 존재(DE-R4)와 동기화 불변식(DD)을 반영 후 값으로 지켜야 하며, 계약완료/Won으로 닫거나 되돌릴 때는 두 값을 함께 보내야 한다(한 쪽만 보내면 동기화 문구 422, 규칙과 케이스는 DD). 처음부터 계약완료/Won으로 등록할 수 있다(그때 계약 생성은 LC-R7). 수정에서 Status·Forecast를 하나도 보내지 않으면 코드·동기화를 검사하지 않는다.
@@ -136,23 +138,23 @@ BANT
 원자성·결과
 - **DE-R15** 등록·수정은 한 트랜잭션이다: 어떤 검증·판정·발급 실패든 Deal·연락처(새로 만들거나 고친 것)·새 BANT Label·이력·파트너 링크·계약이 하나도 저장되지 않고 커밋되지 않는다.
 - **DE-R16** 등록 결과: 201, `Location: /api/v1/deals/<code>`, 본문은 Deal 상세 응답(필드 구성 DD — 내부 id 필드가 없고 `owner_user_id`·연락처 id는 JSON 정수). `created_at` = `updated_at` = 서버 시각, 등록 이력 1건(분류 created, 변경자 = 요청자, 형식 DD), Status 진입일 = 등록일(RK). Won으로 등록하면 같은 트랜잭션에서 LC-R7. 저장된 Deal은 상세·목록에 바로 나온다.
-- **DE-R17** 수정 본문의 의미: 보낸 필드만 반영한다. 보낸 null의 의미 — `vendor_id` = "Vendor를 선택하세요.", `partner` = 활성 파트너 해제, `procurement` = 빈 값, `name` = "Deal Name을 입력하세요.", `solution` = Solution 지움(`''`), `users` = "Users count를 입력하세요.", `revenue_amount` = 금액 문구, `revenue_date` = "Expected Close를 입력하세요.", `status_key`·`forecast_key` = "Status를 선택하세요."·"Forecast를 선택하세요.", `owner_user_id` = "Owner는 재직 중인 영업 담당자여야 합니다.", `customer` = "고객 회사명을 입력하세요.", `quote`·`poc`·`bant` = 422 `request-validation`. `quote`·`poc`를 보내면 하위 두 값을 모두 보낸 것으로 본다(`{}` = 둘 다 비움). 빈 본문 `{}`은 아무것도 바꾸지 않는 200이다.
+- **DE-R17** 수정 본문의 의미: 보낸 필드만 반영한다. 보낸 null의 의미 — `vendor_id` = "Vendor를 선택하세요.", `partner` = 활성 파트너 해제, `procurement` = 빈 값, `name` = "Deal Name을 입력하세요.", `product` = Product 지움(`''`), `users` = "Users count를 입력하세요.", `revenue_amount` = 금액 문구, `revenue_date` = "Expected Close를 입력하세요.", `status_key`·`forecast_key` = "Status를 선택하세요."·"Forecast를 선택하세요.", `owner_user_id` = "Owner는 재직 중인 영업 담당자여야 합니다.", `customer` = "고객 회사명을 입력하세요.", `quote`·`poc`·`bant` = 422 `request-validation`. `quote`·`poc`를 보내면 하위 두 값을 모두 보낸 것으로 본다(`{}` = 둘 다 비움). 빈 본문 `{}`은 아무것도 바꾸지 않는 200이다.
 - **DE-R18** 수정 결과: 200과 Deal 상세 응답. 반영 전후를 비교해 바뀐 필드마다 이력이 남는다(분류·대상·문구·순서는 DD). 바뀐 것이 없고 이 Deal이 연락처 변경 이력(DE-R12)도 받지 않았으면 이력도 없고 `updated_at`도 그대로다. 그렇지 않으면 `updated_at` = 서버 시각이다. 계약완료/Won으로 닫힌 Deal도 잠기지 않고 수정된다. Won 진입·이탈의 계약 처리는 같은 트랜잭션에서 LC-R6~R9, 지운 계약 폴더는 커밋 뒤 정리(LC-R26).
 - **DE-R19** 수정 대상: 경로 `{code}`가 형식에 맞지 않거나 없는 Deal이면 404 `not-found` "Deal을 찾을 수 없습니다."(둘 다 같은 문구)다. 요청 형식 422가 이보다 먼저이고, 값 규칙 422는 이보다 나중이다.
 - **DE-R20** (폐기 2026-11-13) 레거시 빈 Solution 규칙은 DE-R8로 흡수했다. Solution이 빈 Deal도 다른 Deal과 같다.
 
 화면(frontend, `/deals/new`·`/deals/:dealCode/edit`, 가드 PL-R30)
 - **DE-R21** 화면 틀: 제목 h1 "Deal 등록"(등록)·"Deal 수정"(수정). 로그인 사용자 정보를 읽는 동안, 수정은 Deal과 BANT Label 목록 조회가 끝날(성공·실패) 때까지 "불러오는 중…"을 보인다(Label 목록이 다시 조회되어도 폼을 닫지 않음). 수정할 Deal을 읽지 못하면(없는 code 등) 오류 배너(서버 문구, PL-R37)와 링크 "목록으로"(기억한 Deals 목록 주소)를 보인다.
-- **DE-R22** 배치: 타일 순서 "Deal 정보" → "고객" → "파트너" → "BANT"(상세와 같은 순서). Deal 정보 칸 순서: Deal Name(넓은 칸, 필수) → (수정만) Deal code 읽기 전용 행 → Owner → Status → Forecast → 금액(단위:원)(필수, 안내 "원 단위 정수(예: 1억 원 = 100,000,000)") → Expected Close(필수, 날짜 입력, 안내 "Won이면 실제 매출일") → Vendor(필수) → Solution → Users count(필수, 안내 "견적 단위 사용자 수") → 견적(행 하나에 "견적 제출여부" 선택 "선택 안 함"/YES/NO + "견적 제출일" 날짜) → POC(행 하나에 "POC 여부" 선택 "선택 안 함"/YES/ING/NO + "POC 완료일" 날짜) → 구매절차(한 줄 입력) → "통화: KRW(고정)" 안내. 각 칸의 라벨·입력·오류 문구는 같은 행에 있다. Status·Forecast 선택지는 코드 목록 전체(기본 시드 Status 7·Forecast 6, CD)다. 필수 칸은 라벨 뒤에 빨간 `*`(필수 표시, CSS로 그려 라벨 글자·접근 이름에는 들어가지 않음)를 붙인다: Deal Name·Owner(2026-11-12 추가)·금액·Expected Close·Vendor(2026-11-13 추가)·Users count, 고객 타일의 회사명·담당자명(2026-11-12 추가 — 서버·화면 모두 이미 필수, DE-R11·DE-R26). 고객 직급·이메일·전화, 파트너 타일 다섯 칸(입력을 시작해야 필수, DE-R26), Solution(2026-11-13 제거)·견적·POC·구매절차·BANT에는 붙이지 않는다.
-- **DE-R23** 초기값: 등록은 Owner = 로그인 사용자가 sales면 자기 id, 아니면(admin) 빈 값, Status = 기회발굴(`prospecting`), Forecast = Pipeline(`pipeline`), Vendor "선택하세요"(빈 값), 나머지(Solution·Users count·금액·날짜·고객·파트너·BANT·견적·POC·구매절차) 빈 값. 수정은 Deal의 모든 값(금액은 콤마 표기, 고객·활성 파트너는 고른 연락처로, BANT는 현재 Label 이름, 빈 Solution은 빈 칸)을 채운다.
+- **DE-R22** 배치: 타일 순서 "Deal 정보" → "고객" → "파트너" → "BANT"(상세와 같은 순서). Deal 정보 칸 순서: Deal Name(넓은 칸, 필수) → (수정만) Deal code 읽기 전용 행 → Owner → Status → Forecast → 금액(단위:원)(필수, 안내 "원 단위 정수(예: 1억 원 = 100,000,000)") → Expected Close(필수, 날짜 입력, 안내 "Won이면 실제 매출일") → Vendor(필수) → Product → Users count(필수, 안내 "견적 단위 사용자 수") → 견적(행 하나에 "견적 제출여부" 선택 "선택 안 함"/YES/NO + "견적 제출일" 날짜) → POC(행 하나에 "POC 여부" 선택 "선택 안 함"/YES/ING/NO + "POC 완료일" 날짜) → 구매절차(한 줄 입력) → "통화: KRW(고정)" 안내. 각 칸의 라벨·입력·오류 문구는 같은 행에 있다. Status·Forecast 선택지는 코드 목록 전체(기본 시드 Status 7·Forecast 6, CD)다. 필수 칸은 라벨 뒤에 빨간 `*`(필수 표시, CSS로 그려 라벨 글자·접근 이름에는 들어가지 않음)를 붙인다: Deal Name·Owner(2026-11-12 추가)·금액·Expected Close·Vendor(2026-11-13 추가)·Users count, 고객 타일의 회사명·담당자명(2026-11-12 추가 — 서버·화면 모두 이미 필수, DE-R11·DE-R26). 고객 직급·이메일·전화, 파트너 타일 다섯 칸(입력을 시작해야 필수, DE-R26), Product(2026-11-13 제거)·견적·POC·구매절차·BANT에는 붙이지 않는다.
+- **DE-R23** 초기값: 등록은 Owner = 로그인 사용자가 sales면 자기 id, 아니면(admin) 빈 값, Status = 기회발굴(`prospecting`), Forecast = Pipeline(`pipeline`), Vendor "선택하세요"(빈 값), 나머지(Product·Users count·금액·날짜·고객·파트너·BANT·견적·POC·구매절차) 빈 값. 수정은 Deal의 모든 값(금액은 콤마 표기, 고객·활성 파트너는 고른 연락처로, BANT는 현재 Label 이름, 빈 Product는 빈 칸)을 채운다.
 - **DE-R24** Owner 선택: 후보는 "선택하세요" + 재직 sales 전체(`/user-options?role=sales`, US-R20)이고 표시는 `UserRef` 라벨(US-R12)이다. 수정 중인 Deal의 현재 Owner가 후보에 없으면(퇴사·역할 변경) 그 사람을 추가로 보이되 퇴사자는 고를 수 없게(비활성) 보인다.
-- **DE-R25** Vendor·Solution 칸: Vendor는 "선택하세요"(빈 값, 등록 폼 초기값) + 등록된 Vendor 전체 선택 상자다("선택 안 함" 선택지 없음). 폼에서 Vendor를 만들거나 Solution 목록을 고를 수 없다. 수정 폼은 현재 Vendor가 선택돼 있다. Solution은 비워 둘 수 있는 선택 텍스트 칸이며 Vendor를 바꿔도 입력한 Solution은 그대로다. 등록 중 Vendor 목록을 받지 못하면 선택지는 "선택하세요"뿐이고 오류 배너를 보이며 저장은 DE-R26의 Vendor 문구로 막힌다. 수정 중 Vendor 목록을 아직 받지 못했거나 받지 못하면 Vendor는 현재 이름의 읽기 전용 행으로 보이고, 실패면 오류 배너를 보이며, 저장 때 원래 Vendor id를 그대로 보낸다. Solution 칸은 그동안에도 입력할 수 있다.
-- **DE-R26** 저장 전 화면 검증(위반이 있으면 요청을 보내지 않고 모든 문구를 칸 아래에 한꺼번에 보이며 문서 순서상 첫 잘못된 칸으로 포커스): Deal Name 공백뿐 "Deal Name을 입력하세요." / Owner 미선택 "Owner를 선택하세요.", 현재 퇴사 Owner를 그대로 두면 퇴사 문구 / Vendor 미선택("선택하세요") "Vendor를 선택하세요." / Users count 비면 "Users count를 입력하세요.", 숫자만이 아니면(음수·소수 포함) "Users count는 0 이상의 정수로 입력하세요." / 고객 회사명·담당자명 빈 값 "고객 회사명을 입력하세요."·"고객 담당자명을 입력하세요.", 그 밖의 연락처 공백·형식 문구(CT-R21) / 파트너 칸에 무엇이든 입력했으면 회사명·담당자명 중 빈 것이 있을 때 "파트너를 입력하면 회사명과 담당자명이 모두 필요합니다."와 형식 문구, 아무것도 입력하지 않으면 묻지 않음 / 금액 "매출금액은 1원 이상의 정수를 입력하세요."(0·빈 값·형식), 2^53−1 초과 "매출금액은 9,007,199,254,740,991원 이하로 입력하세요."(금액 판정·문구 정본 UI-R13·UI-R14) / Expected Close 비면 "Expected Close를 입력하세요.", 덜 쳤거나 없는 날짜면 날짜 문구(UI-R7) / 견적일·POC 완료일은 비어도 되지만 틀린 날짜면 날짜 문구 / BANT 칸의 앞뒤 공백 제거 값이 50자(코드 포인트) 초과면 그 칸에만 "Label 이름은 50자 이내로 입력하세요.". 이름·Solution·구매절차의 길이 상한, Users count 상한, 그 밖의 규칙은 서버 문구로 판정한다.
+- **DE-R25** Vendor·Product 칸: Vendor는 "선택하세요"(빈 값, 등록 폼 초기값) + 등록된 Vendor 전체 선택 상자다("선택 안 함" 선택지 없음). 폼에서 Vendor를 만들거나 Product 목록을 고를 수 없다. 수정 폼은 현재 Vendor가 선택돼 있다. Product는 비워 둘 수 있는 선택 텍스트 칸이며 Vendor를 바꿔도 입력한 Product는 그대로다. 등록 중 Vendor 목록을 받지 못하면 선택지는 "선택하세요"뿐이고 오류 배너를 보이며 저장은 DE-R26의 Vendor 문구로 막힌다. 수정 중 Vendor 목록을 아직 받지 못했거나 받지 못하면 Vendor는 현재 이름의 읽기 전용 행으로 보이고, 실패면 오류 배너를 보이며, 저장 때 원래 Vendor id를 그대로 보낸다. Product 칸은 그동안에도 입력할 수 있다.
+- **DE-R26** 저장 전 화면 검증(위반이 있으면 요청을 보내지 않고 모든 문구를 칸 아래에 한꺼번에 보이며 문서 순서상 첫 잘못된 칸으로 포커스): Deal Name 공백뿐 "Deal Name을 입력하세요." / Owner 미선택 "Owner를 선택하세요.", 현재 퇴사 Owner를 그대로 두면 퇴사 문구 / Vendor 미선택("선택하세요") "Vendor를 선택하세요." / Users count 비면 "Users count를 입력하세요.", 숫자만이 아니면(음수·소수 포함) "Users count는 0 이상의 정수로 입력하세요." / 고객 회사명·담당자명 빈 값 "고객 회사명을 입력하세요."·"고객 담당자명을 입력하세요.", 그 밖의 연락처 공백·형식 문구(CT-R21) / 파트너 칸에 무엇이든 입력했으면 회사명·담당자명 중 빈 것이 있을 때 "파트너를 입력하면 회사명과 담당자명이 모두 필요합니다."와 형식 문구, 아무것도 입력하지 않으면 묻지 않음 / 금액 "매출금액은 1원 이상의 정수를 입력하세요."(0·빈 값·형식), 2^53−1 초과 "매출금액은 9,007,199,254,740,991원 이하로 입력하세요."(금액 판정·문구 정본 UI-R13·UI-R14) / Expected Close 비면 "Expected Close를 입력하세요.", 덜 쳤거나 없는 날짜면 날짜 문구(UI-R7) / 견적일·POC 완료일은 비어도 되지만 틀린 날짜면 날짜 문구 / BANT 칸의 앞뒤 공백 제거 값이 50자(코드 포인트) 초과면 그 칸에만 "Label 이름은 50자 이내로 입력하세요.". 이름·Product·구매절차의 길이 상한, Users count 상한, 그 밖의 규칙은 서버 문구로 판정한다.
 - **DE-R27** BANT 칸: 구분마다(Budget·Authority·Need·Timeline 순) 텍스트 콤보박스 하나(선택 상자·"새 Label" 버튼·이름 수정·삭제 기능 없음, 자리표시 문구 없음). 포커스하면 그 구분 Label만 후보로, 입력하면 그 구분에서 입력을 포함하는 Label만 후보로 보이며, 고르면 칸에 이름이 채워진다(Deal 관리에서 만든 Label도 후보). 입력(앞뒤 공백 제거, 대소문자 무시)이 그 구분 Label 이름과 같지 않으면 안내 "목록에 없는 Label입니다. 저장하면 새 Label로 추가됩니다."를 보인다(빈 칸·목록에 있는 이름·다른 구분에만 있는 이름은 기준이 아님 — 다른 구분 이름이면 안내가 보인다). 저장 때 칸마다 CL-R16대로 null·`{id}`·`{name}`으로 보낸다. 수정 폼은 현재 Label 이름을 채우고(못 찾거나 선택 안 함이면 빈 칸), 사용자가 건드리지 않은 칸은 원래 `{id}`(없으면 null)를 그대로 보낸다(폼을 연 뒤 Label 이름이 바뀌어도 새 Label을 만들지 않음, 늦게 도착한 Label 목록·바뀐 이름은 건드리지 않은 칸에 다시 채움). Label 목록을 읽지 못하면 BANT 칸을 비활성으로 두고 오류 배너를 보이며 저장 때 `bant`를 보내지 않아 기존 선택을 지킨다.
 - **DE-R28** 고객·파트너 타일은 연락처 선택기(`ContactPicker`, CT-R22)를 쓴다. 고객 안내 "회사명을 고르거나 직접 입력한 뒤 담당자를 고르면 직급·이메일·전화가 채워집니다. 고치면 연락처 정보도 함께 갱신됩니다.". 파트너 타일: 아무것도 입력하지 않았고 제거 중도 아니면 안내 "파트너가 없으면 비워 두세요. 입력을 시작하면 회사명과 담당자명이 모두 필요합니다.", 입력이 있으면 버튼 "파트너 제거"(누르면 파트너 칸을 비움). 수정 중 활성 파트너가 있는데 다른 사람을 입력하면 "기존 활성 파트너(<회사명> <담당자명>)는 이력으로 남고 비활성이 됩니다.", 파트너 칸을 비우면 "저장하면 기존 활성 파트너(<회사명> <담당자명>)가 제거되고 이력으로 남습니다."를 보인다. 같은 연락처를 고른 경우와 `contact_id` 없이 회사명·담당자명을 대소문자 무시로 같게 입력한 경우는 교체가 아니다.
 - **DE-R29** Status·Forecast 선택을 바꾸면 동기화 대화상자(규칙·문구는 DD)가 뜨고, 확정하면 함께 바뀐 값과 매출 확정값(금액·Expected Close)을 **폼에만** 반영하고 "아직 저장되지 않았다"는 동기화 안내를 보인다(닫기 가능). 대화상자를 취소하면 이전 값 그대로다. 저장할 때 다른 필드와 함께 보낸다.
 - **DE-R30** 저장: 화면 검증(DE-R26) 통과 뒤 — 등록은 입력을 요청 값으로 바꿔(DE-R31) `create`, 성공하면 `/deals/<code>`로 이동하며 알림 "Deal <code>이(가) 등록되었습니다."를 넘긴다. 수정은 Won 이탈이면 저장 직전에 계약 처리 확인을 묻고(LC, 취소하면 폼 그대로) 폼 전체를 PATCH로 보내며(Label 목록 실패면 `bant` 제외, DE-R27), 성공하면 `/deals/<code>`로 이동하며 알림 "저장되었습니다."를 넘긴다(알림 표시는 DD). 저장 중에는 버튼이 "저장 중…"이고 저장·취소 버튼이 비활성이다. 실패하면 폼 아래 오류 배너에 서버 문구(PL-R37)를 보이고 폼에 머문다. "취소"는 요청 없이 등록이면 기억한 Deals 목록 주소로, 수정이면 그 Deal 상세로 간다.
-- **DE-R31** 요청 값 변환: Deal Name·Solution·구매절차는 앞뒤 공백 제거(빈 Solution은 `""`), Owner·Vendor id는 JSON 숫자(Vendor는 화면 검증으로 항상 선택됨), Users count는 숫자, 금액은 콤마를 뺀 숫자, Expected Close 빈 값은 null(서버 문구가 판정), 견적·POC는 선택 안 함·빈 날짜 = null, 고객·파트너는 직급 앞뒤 공백 제거(빈 직급 = null), 빈 이메일·전화 = null, 파트너 칸이 비면 등록은 `partner: null`, 수정은 원래 활성 파트너가 있었으면 `partner: null`(제거) 없었으면 `partner` 키를 보내지 않는다. 게이트웨이는 snake_case 본문으로 `POST /api/v1/deals`·`PATCH /api/v1/deals/{code}`를 보내고(수정은 준 필드만 — Vendor만·Solution만 바꾼 patch는 그 키만, `partner: null` 유지, `quote`·`poc`는 하위 키로), `solution_id`·Label id 값 그대로를 보내지 않으며, 응답 상세를 화면 값으로 바꾼다(DD).
+- **DE-R31** 요청 값 변환: Deal Name·Product·구매절차는 앞뒤 공백 제거(빈 Product는 `""`), Owner·Vendor id는 JSON 숫자(Vendor는 화면 검증으로 항상 선택됨), Users count는 숫자, 금액은 콤마를 뺀 숫자, Expected Close 빈 값은 null(서버 문구가 판정), 견적·POC는 선택 안 함·빈 날짜 = null, 고객·파트너는 직급 앞뒤 공백 제거(빈 직급 = null), 빈 이메일·전화 = null, 파트너 칸이 비면 등록은 `partner: null`, 수정은 원래 활성 파트너가 있었으면 `partner: null`(제거) 없었으면 `partner` 키를 보내지 않는다. 게이트웨이는 snake_case 본문으로 `POST /api/v1/deals`·`PATCH /api/v1/deals/{code}`를 보내고(수정은 준 필드만 — Vendor만·Product만 바꾼 patch는 그 키만, `partner: null` 유지, `quote`·`poc`는 하위 키로), `solution_id`·Label id 값 그대로를 보내지 않으며, 응답 상세를 화면 값으로 바꾼다(DD).
 
 ### 2.4 상태와 전이
 
@@ -184,7 +186,7 @@ Status·Forecast의 전이는 DD, 계약 상태는 LC.
 | POST `/deals` | `DealCreateRequest`(DE-R3) | 201 `DealDetailResponse`(DD) + `Location: /api/v1/deals/<code>` | 401, 403, 404 `not-found`(연락처), 409 `already-exists`(연락처)·`invalid-state`(code 발급), 422 `invalid-value`·`request-validation` |
 | PATCH `/deals/{code}` | `DealPatchRequest`(DE-R3, DE-R17) | 200 `DealDetailResponse` | 401, 403, 404 `not-found`(Deal·연락처), 409 `already-exists`(연락처)·`invalid-state`(LC-R8), 422 |
 
-- 등록 본문 예: `{"name":"ERP 구축","owner_user_id":7,"vendor_id":3,"solution":"S/4HANA","users":250,"status_key":"prospecting","forecast_key":"pipeline","revenue_amount":150000000,"revenue_date":"2026-06-30","customer":{"company":"네오인","name":"김철수","title":"팀장","email":"kim@neoine.example","phone":"010-1234-5678"},"partner":null,"quote":{"submitted":"YES","submitted_date":"2026-10-01"},"poc":{"state":"ING","completed_date":null},"procurement":"조달청 입찰","bant":{"budget":{"id":3},"authority":{"name":"신규 결재선"},"need":null}}`
+- 등록 본문 예: `{"name":"ERP 구축","owner_user_id":7,"vendor_id":3,"product":"S/4HANA","users":250,"status_key":"prospecting","forecast_key":"pipeline","revenue_amount":150000000,"revenue_date":"2026-06-30","customer":{"company":"네오인","name":"김철수","title":"팀장","email":"kim@neoine.example","phone":"010-1234-5678"},"partner":null,"quote":{"submitted":"YES","submitted_date":"2026-10-01"},"poc":{"state":"ING","completed_date":null},"procurement":"조달청 입찰","bant":{"budget":{"id":3},"authority":{"name":"신규 결재선"},"need":null}}`
 - 경로 `{code}`는 문자열이고 형식 판정은 DE-R19(PL-R15의 id 규칙이 아님). 공통 401·403·CSRF·Problem 형식은 PL.
 
 ### 2.7 화면 동작
@@ -215,7 +217,7 @@ DE-R21~DE-R31.
 - 행위자: sales·admin
 - 사전 조건: 로그인, 등록된 Status·Forecast 코드, 등록된 Vendor 1개 이상, (선택) Label
 - 기본 흐름: `/deals/new` → 기본값 확인(DE-R23) → 값 입력·고객 선택 또는 입력 → 저장 → 화면 검증(DE-R26) → `POST /deals` → 서버 검증(DE-R3~R11, 순서 DE-R5) → 연락처 해석(DE-R12·R13) → 새 Label 생성(DE-R10) → code 발급(DE-R2) → 저장·등록 이력(DE-R16) → 상세로 이동·알림(DE-R30)
-- 대안: admin이 다른 sales를 Owner로 지정, 처음부터 Won으로 등록(LC-R7), 파트너 없이 등록, Solution 없이 등록
+- 대안: admin이 다른 sales를 Owner로 지정, 처음부터 Won으로 등록(LC-R7), 파트너 없이 등록, Product 없이 등록
 - 예외: 화면 검증 위반(요청 없음), 형식 422, 값 422, 연락처 404·409, code 발급 409, user 403 — 모두 아무것도 저장되지 않음(DE-R15)
 - 결과: code가 발급된 Deal, 필요하면 새 연락처·Label, 등록 이력 1건
 
@@ -223,7 +225,7 @@ DE-R21~DE-R31.
 - 행위자: sales·admin
 - 사전 조건: 수정할 Deal이 있다
 - 기본 흐름: `/deals/:dealCode/edit` → 현재 값 채움(DE-R23) → 값 변경 → 저장 → (Won 이탈이면 LC 확인) → `PATCH /deals/{code}` → 보낸 필드 검증(DE-R5) → 연락처·BANT 반영 → 바뀐 필드 이력·`updated_at`(DE-R18) → 상세로 이동·알림
-- 대안: 바뀐 것 없음(이력·시각 그대로), Owner 퇴사 Deal의 다른 필드 수정(Owner 미전송), Solution 비우기·빈 Solution 채우기(DE-R8), 종결 Deal 수정·되돌리기(DD)
+- 대안: 바뀐 것 없음(이력·시각 그대로), Owner 퇴사 Deal의 다른 필드 수정(Owner 미전송), Product 비우기·빈 Product 채우기(DE-R8), 종결 Deal 수정·되돌리기(DD)
 - 예외: 없는 code 404, 값 422(퇴사 Owner 재전송 포함), 연락처 404·409, user 403 — 아무것도 바뀌지 않음
 - 결과: 바뀐 필드와 이력
 
@@ -242,7 +244,7 @@ DE-R21~DE-R31.
 
 ## 4. BDD 테스트 케이스
 
-요청자 예시: ROOT(admin), KIM(sales), PARK(sales), VIEWER(user). "기본 Deal"은 KIM이 Owner인 "ERP 구축", Vendor "SAP", Solution "S/4HANA", Users count 10, 기회발굴/Pipeline, 금액 150,000,000, Expected Close 2026-06-30, 고객 "네오인 김철수(팀장, kim@neoine.example, 010-1234-5678)", 파트너 없음, BANT 없음이다. 별도 언급이 없으면 기본 시드(코드·Label 23개)에 Vendor "SAP" 하나를 더한 상태다. backend 케이스는 Fake UoW·Fake 시계·Fake code 소스를 쓰는 유스케이스·web 단위 테스트, frontend 케이스는 Fake 게이트웨이를 쓰는 Vitest다. 이력 문구 형식은 DD가 검증하고 여기서는 이력이 남는지·건수·대상만 본다.
+요청자 예시: ROOT(admin), KIM(sales), PARK(sales), VIEWER(user). "기본 Deal"은 KIM이 Owner인 "ERP 구축", Vendor "SAP", Product "S/4HANA", Users count 10, 기회발굴/Pipeline, 금액 150,000,000, Expected Close 2026-06-30, 고객 "네오인 김철수(팀장, kim@neoine.example, 010-1234-5678)", 파트너 없음, BANT 없음이다. 별도 언급이 없으면 기본 시드(코드·Label 23개)에 Vendor "SAP" 하나를 더한 상태다. backend 케이스는 Fake UoW·Fake 시계·Fake code 소스를 쓰는 유스케이스·web 단위 테스트, frontend 케이스는 Fake 게이트웨이를 쓰는 Vitest다. 이력 문구 형식은 DD가 검증하고 여기서는 이력이 남는지·건수·대상만 본다.
 
 | 코드 | 케이스 | 규칙·UC | 층 | 테스트 위치 |
 | --- | --- | --- | --- | --- |
@@ -252,17 +254,17 @@ DE-R21~DE-R31.
 | DE-004 | code는 등록 시각의 서버 로컬 업무 날짜와 code 소스의 4자리다 | DE-R2, DE-UC1 | backend | `application/test_register_deal.py` |
 | DE-005 | 이미 있는 code가 나오면 다시 뽑고 10번째 시도까지 성공할 수 있다 | DE-R2, DE-UC1 | backend | `application/test_register_deal.py` |
 | DE-006 | code가 10번 연속 겹치면 409이고 아무것도 저장되지 않는다 | DE-R2, DE-R15, DE-UC1 | backend | `application/test_register_deal.py` |
-| DE-007 | 경계값(금액 1·2^53−1, Users count 0·2,147,483,647, 이름·Solution 200자, 구매절차 500자)은 등록된다 | DE-R4, DE-UC1 | backend | `application/test_register_deal_validation.py` |
+| DE-007 | 경계값(금액 1·2^53−1, Users count 0·2,147,483,647, 이름·Product 200자, 구매절차 500자)은 등록된다 | DE-R4, DE-UC1 | backend | `application/test_register_deal_validation.py` |
 | DE-008 | 필드 값 위반은 각자의 문구로 422 invalid-value이고 저장되지 않는다 | DE-R4, DE-R15, DE-UC1 | backend | `application/test_register_deal_validation.py`, `web/test_deal_request_schemas.py` |
 | DE-009 | 여러 값이 틀리면 정해진 순서의 첫 문구만 나온다 | DE-R5, DE-UC1 | backend | `application/test_register_deal_validation.py` |
 | DE-010 | 형식이 틀린 등록 본문은 422 request-validation이고 저장되지 않는다 | DE-R3, DE-UC1 | backend | `web/test_deal_request_schemas.py`, `web/test_deal_routes.py`, `web/test_vendor_openapi.py` |
-| DE-011 | Deal Name·Solution·구매절차의 NUL 문자는 서버 오류 없이 422 invalid-value다 | DE-R4, DE-UC1 | backend | `application/test_register_deal_validation.py` |
+| DE-011 | Deal Name·Product·구매절차의 NUL 문자는 서버 오류 없이 422 invalid-value다 | DE-R4, DE-UC1 | backend | `application/test_register_deal_validation.py` |
 | DE-012 | admin·user·없는 사용자를 Owner로 지정하면 "Owner는 재직 중인 영업 담당자여야 합니다."다 | DE-R6, DE-UC1 | backend | `application/test_register_deal_validation.py` |
 | DE-013 | 퇴사한 sales를 Owner로 지정하면 퇴사 문구다 | DE-R6, DE-UC1 | backend | `application/test_register_deal_validation.py` |
 | DE-014 | Vendor id로 등록하면 응답 vendor가 {id, name}이다 | DE-R7, DE-UC1 | backend | `application/test_register_deal.py`, `application/test_register_deal_validation.py`, `web/test_deal_request_schemas.py` |
-| DE-015 | 없는 Vendor id는 422이고 201자 Solution보다 먼저 판정된다 | DE-R7, DE-R5, DE-UC1 | backend | `application/test_register_deal_validation.py` |
-| DE-016 | Solution은 앞뒤 공백만 지우고 대소문자·한글은 그대로 저장된다 | DE-R8, DE-UC1 | backend | `application/test_register_deal.py` |
-| DE-017 | 201자 Solution 등록은 422이고 Owner보다 먼저 판정된다 | DE-R8, DE-R5, DE-UC1 | backend | `application/test_register_deal.py`, `domain/test_deal_values.py`, `application/test_register_deal_validation.py`, `web/test_deal_request_schemas.py` |
+| DE-015 | 없는 Vendor id는 422이고 201자 Product보다 먼저 판정된다 | DE-R7, DE-R5, DE-UC1 | backend | `application/test_register_deal_validation.py` |
+| DE-016 | Product는 앞뒤 공백만 지우고 대소문자·한글은 그대로 저장된다 | DE-R8, DE-UC1 | backend | `application/test_register_deal.py` |
+| DE-017 | 201자 Product 등록은 422이고 Owner보다 먼저 판정된다 | DE-R8, DE-R5, DE-UC1 | backend | `application/test_register_deal.py`, `domain/test_deal_values.py`, `application/test_register_deal_validation.py`, `web/test_deal_request_schemas.py` |
 | DE-018 | Status·Forecast 코드가 없거나 동기화가 맞지 않는 등록은 422다 | DE-R9, DE-R4, DE-UC1 | backend | `application/test_register_deal_validation.py` |
 | DE-019 | 처음부터 계약완료/Won으로 실제 금액과 함께 등록할 수 있다 | DE-R9, DE-UC1 | backend | `application/test_register_deal.py` |
 | DE-020 | BANT는 구분마다 {id}·{name}·null을 섞어 저장하고 빠진 구분은 선택 안 함이다 | DE-R10, DE-UC4 | backend | `application/test_register_deal.py`, `application/test_register_deal_bant.py` |
@@ -294,11 +296,11 @@ DE-R21~DE-R31.
 | DE-046 | 퇴사한 Owner를 재직 sales로 바꾸면 저장되고 Owner 이력이 남는다 | DE-R6, DE-R18, DE-UC2 | backend | `application/test_update_deal_owner_and_sync.py` |
 | DE-047 | admin·user를 Owner로 바꾸려 하면 422이고 Owner는 그대로다 | DE-R6, DE-UC2 | backend | `application/test_update_deal_owner_and_sync.py` |
 | DE-048 | 역할이 sales에서 바뀐 Owner의 Deal은 Owner가 그대로이고 Owner를 보내지 않는 수정은 된다 | DE-R6, DE-UC2 | backend | `application/test_update_deal_owner_and_sync.py` |
-| DE-049 | Vendor를 바꾸면 Solution은 그대로이고 Vendor 이력만 남는다 | DE-R7, DE-R8, DE-UC2 | backend | `application/test_update_deal_solution.py`, `application/test_update_deal_vendor.py`, `web/test_deal_request_schemas.py` |
+| DE-049 | Vendor를 바꾸면 Product는 그대로이고 Vendor 이력만 남는다 | DE-R7, DE-R8, DE-UC2 | backend | `application/test_update_deal_product.py`, `application/test_update_deal_vendor.py`, `web/test_deal_request_schemas.py` |
 | DE-050 | 없는 Vendor id로 고치면 422이고 Vendor는 그대로다 | DE-R7, DE-UC2 | backend | `application/test_update_deal_vendor.py` |
-| DE-051 | Solution을 바꾸면 공백을 지워 저장하고 대소문자만 바꿔도 이력이 남으며 공백만 다르면 남지 않는다 | DE-R8, DE-R18, DE-UC2 | backend | `application/test_update_deal_solution.py` |
-| DE-052 | Solution을 null·빈 값·공백으로 고치면 빈 값이 되어 이력이 남고 201자는 422다 | DE-R8, DE-UC2 | backend | `application/test_update_deal_solution.py` |
-| DE-053 | Solution을 보내지 않으면 그대로이고 빈 Solution Deal에도 나중에 입력할 수 있다 | DE-R8, DE-UC2 | backend | `application/test_update_deal_solution.py`, `web/test_deal_request_schemas.py` |
+| DE-051 | Product를 바꾸면 공백을 지워 저장하고 대소문자만 바꿔도 이력이 남으며 공백만 다르면 남지 않는다 | DE-R8, DE-R18, DE-UC2 | backend | `application/test_update_deal_product.py` |
+| DE-052 | Product를 null·빈 값·공백으로 고치면 빈 값이 되어 이력이 남고 201자는 422다 | DE-R8, DE-UC2 | backend | `application/test_update_deal_product.py` |
+| DE-053 | Product를 보내지 않으면 그대로이고 빈 Product Deal에도 나중에 입력할 수 있다 | DE-R8, DE-UC2 | backend | `application/test_update_deal_product.py`, `web/test_deal_request_schemas.py` |
 | DE-054 | (폐기 2026-11-13) 레거시 빈 Solution — DE-052·DE-053으로 흡수 | DE-R20 | backend | — |
 | DE-055 | 수정에서 없는 Status·Forecast 코드를 보내면 422다 | DE-R9, DE-R4, DE-UC2 | backend | `application/test_update_deal_owner_and_sync.py` |
 | DE-056 | 수정에서 새 BANT 이름을 보내면 Label이 생기고 그 구분 이력이 남는다 | DE-R10, DE-UC4 | backend | `application/test_update_deal_bant_choice.py`, `web/test_deal_request_schemas.py` |
@@ -331,11 +333,11 @@ DE-R21~DE-R31.
 | DE-083 | 화면: 담당자를 골라 채운 뒤 저장하면 새 Deal이 목록에 나온다 | DE-R28, DE-R30, DE-UC3 | frontend | `features/deals/form/DealFormPage.test.tsx` |
 | DE-084 | 화면: 폼에서 고른 고객의 이메일을 고치면 공유 연락처가 갱신된다 | DE-R28, DE-R12, DE-UC3 | frontend | `features/deals/form/DealFormPage.test.tsx` |
 | DE-085 | 화면: 새로 입력한 고객과 목록에서 고른 BANT로 등록된다 | DE-R27, DE-R30, DE-UC1 | frontend | `features/deals/form/DealFormPage.test.tsx` |
-| DE-086 | 화면: Vendor는 "선택하세요" + 등록된 Vendor이고 Solution은 선택 칸이며 Vendor를 바꿔도 그대로다 | DE-R25, DE-UC1 | frontend | `features/deals/form/DealFormPage.vendor.test.tsx`, `features/deals/form/formState.test.ts` |
-| DE-087 | 화면: Solution을 비우고 등록하면 문구 없이 빈 Solution으로 저장된다 | DE-R26, DE-R31, DE-UC1 | frontend | `features/deals/form/DealFormPage.vendor.test.tsx`, `features/deals/form/formState.test.ts` |
-| DE-088 | 화면: Solution은 공백을 지우고 고른 Vendor id와 함께 저장된다 | DE-R25, DE-R31, DE-UC1 | frontend | `features/deals/form/DealFormPage.vendor.test.tsx` |
-| DE-089 | 화면: 201자 Solution은 서버 문구를 배너에 보인다 | DE-R30, DE-R8, DE-UC1 | frontend | `features/deals/form/DealFormPage.vendor.test.tsx` |
-| DE-090 | 화면: 수정 폼은 Vendor·Solution을 채우고 Solution을 바꾸거나 비워 저장한다 | DE-R25, DE-R26, DE-UC2 | frontend | `features/deals/form/DealFormPage.vendor.test.tsx` |
+| DE-086 | 화면: Vendor는 "선택하세요" + 등록된 Vendor이고 Product는 선택 칸이며 Vendor를 바꿔도 그대로다 | DE-R25, DE-UC1 | frontend | `features/deals/form/DealFormPage.vendor.test.tsx`, `features/deals/form/formState.test.ts` |
+| DE-087 | 화면: Product를 비우고 등록하면 문구 없이 빈 Product로 저장된다 | DE-R26, DE-R31, DE-UC1 | frontend | `features/deals/form/DealFormPage.vendor.test.tsx`, `features/deals/form/formState.test.ts` |
+| DE-088 | 화면: Product는 공백을 지우고 고른 Vendor id와 함께 저장된다 | DE-R25, DE-R31, DE-UC1 | frontend | `features/deals/form/DealFormPage.vendor.test.tsx` |
+| DE-089 | 화면: 201자 Product는 서버 문구를 배너에 보인다 | DE-R30, DE-R8, DE-UC1 | frontend | `features/deals/form/DealFormPage.vendor.test.tsx` |
+| DE-090 | 화면: 수정 폼은 Vendor·Product를 채우고 Product를 바꾸거나 비워 저장한다 | DE-R25, DE-R26, DE-UC2 | frontend | `features/deals/form/DealFormPage.vendor.test.tsx` |
 | DE-091 | 화면: 수정 중 Vendor 목록이 없으면 현재 Vendor를 읽기 전용으로 보이고 원래 id로 저장한다 | DE-R25, DE-UC2 | frontend | `features/deals/form/DealFormPage.vendorLoad.test.tsx` |
 | DE-092 | 화면: BANT는 구분별 텍스트 콤보박스 4개이고 새 Label 버튼·선택 상자·이름 수정·삭제가 없다 | DE-R27, DE-UC4 | frontend | `features/deals/form/DealFormLayout.test.tsx`, `features/deals/form/DealFormPage.bant.test.tsx` |
 | DE-093 | 화면: BANT 후보는 그 구분 Label만, 입력하면 부분 일치로 좁혀지고 고르면 채워진다 | DE-R27, DE-UC4 | frontend | `features/deals/form/DealFormPage.bant.test.tsx` |
@@ -360,14 +362,14 @@ DE-R21~DE-R31.
 | DE-112 | 게이트웨이: 수정은 준 필드만 보내고 partner null을 유지한다 | DE-R31, DE-UC2 | frontend | `gateway/http/deals.test.ts`, `gateway/http/mappers/deal.test.ts` |
 | DE-113 | 화면: 고객 회사명·담당자명은 다른 필수 칸과 같은 필수 표시이고 직급·이메일·전화와 파트너 칸에는 없다 | DE-R22, DE-UC1, DE-UC2 | frontend | `features/deals/form/DealFormPage.requiredMark.test.tsx` |
 | DE-114 | 화면: Owner 칸은 필수 표시이고 늘 값이 있는 Status·Forecast에는 없다 | DE-R22, DE-UC1 | frontend | `features/deals/form/DealFormPage.requiredMark.test.tsx` |
-| DE-115 | Solution을 생략·null·빈 값·공백으로 등록하면 빈 Solution으로 저장된다 | DE-R8, DE-R3, DE-UC1 | backend | `application/test_register_deal.py`, `application/test_register_deal_validation.py`, `domain/test_deal_values.py`, `web/test_deal_request_schemas.py`, `web/test_deal_routes.py` |
-| DE-116 | 수정에서 vendor_id를 null로 보내면 "Vendor를 선택하세요."이고 Deal Name 다음, Solution 앞에서 판정된다 | DE-R7, DE-R5, DE-R17, DE-UC2 | backend | `application/test_update_deal_vendor.py`, `domain/test_deal_values.py`, `web/test_deal_request_schemas.py`, `web/test_deal_routes.py` |
+| DE-115 | Product를 생략·null·빈 값·공백으로 등록하면 빈 Product로 저장된다 | DE-R8, DE-R3, DE-UC1 | backend | `application/test_register_deal.py`, `application/test_register_deal_validation.py`, `domain/test_deal_values.py`, `web/test_deal_request_schemas.py`, `web/test_deal_routes.py` |
+| DE-116 | 수정에서 vendor_id를 null로 보내면 "Vendor를 선택하세요."이고 Deal Name 다음, Product 앞에서 판정된다 | DE-R7, DE-R5, DE-R17, DE-UC2 | backend | `application/test_update_deal_vendor.py`, `domain/test_deal_values.py`, `web/test_deal_request_schemas.py`, `web/test_deal_routes.py` |
 | DE-117 | 화면: Vendor를 고르지 않으면 "Vendor를 선택하세요."로 요청 없이 막고 Vendor 칸으로 포커스한다 | DE-R26, DE-R25, DE-UC1 | frontend | `features/deals/form/DealFormPage.vendor.test.tsx`, `features/deals/form/formState.test.ts` |
-| DE-118 | 화면: Vendor 칸은 필수 표시이고 Solution 칸에는 없다 | DE-R22, DE-UC1, DE-UC2 | frontend | `features/deals/form/DealFormPage.requiredMark.test.tsx` |
+| DE-118 | 화면: Vendor 칸은 필수 표시이고 Product 칸에는 없다 | DE-R22, DE-UC1, DE-UC2 | frontend | `features/deals/form/DealFormPage.requiredMark.test.tsx` |
 ### DE-001 sales가 새 고객·파트너와 함께 등록하면 201·Location·발급 code와 입력한 값이 저장된다
 - Given KIM(sales) 로그인, Vendor "SAP" 등록, 업무 날짜 2026-10-15
-- When `POST /deals` 기본 Deal 값 + Vendor SAP, Solution "S/4HANA", Users count 250, 파트너 "한빛파트너스 이영희", 견적 YES(2026-10-01), POC ING, 구매절차 "조달청 입찰"
-- Then 201이고 `Location`이 `/api/v1/deals/<code>`, code가 `20261015-`로 시작한다. 응답 `name` "ERP 구축", `users` 250, `vendor` `{id, name:"SAP"}`, `solution` "S/4HANA", `revenue_amount` 150000000(JSON 정수), 기회발굴/Pipeline, `owner.role` sales, 고객 회사 "네오인", 활성 파트너 "한빛파트너스"·활성 링크 1건, `quote`·`procurement`가 보낸 값이고 응답에 내부 `id` 필드가 없으며 `owner_user_id`·`customer.id`는 정수다. 저장은 1번 커밋된다
+- When `POST /deals` 기본 Deal 값 + Vendor SAP, Product "S/4HANA", Users count 250, 파트너 "한빛파트너스 이영희", 견적 YES(2026-10-01), POC ING, 구매절차 "조달청 입찰"
+- Then 201이고 `Location`이 `/api/v1/deals/<code>`, code가 `20261015-`로 시작한다. 응답 `name` "ERP 구축", `users` 250, `vendor` `{id, name:"SAP"}`, `product` "S/4HANA", `revenue_amount` 150000000(JSON 정수), 기회발굴/Pipeline, `owner.role` sales, 고객 회사 "네오인", 활성 파트너 "한빛파트너스"·활성 링크 1건, `quote`·`procurement`가 보낸 값이고 응답에 내부 `id` 필드가 없으며 `owner_user_id`·`customer.id`는 정수다. 저장은 1번 커밋된다
 
 ### DE-002 admin이 등록하면 Owner는 지정한 sales이고 이력의 변경자는 admin이다
 - Given PARK(sales)이 있고 ROOT(admin) 로그인
@@ -395,7 +397,7 @@ DE-R21~DE-R31.
 - Then 409 `invalid-state` "Deal code를 발급하지 못했습니다. 다시 시도하세요."이고 Deal·연락처·이력이 저장되지 않으며 커밋이 없다
 
 ### DE-007 경계값은 등록된다
-- When 기본 Deal 값에서 각각 금액 1 / 2^53−1, Users count 0 / 1 / 2,147,483,647, Deal Name 200자, 구매절차 500자, Solution 200자, Expected Close 2026-12-31로 등록한다
+- When 기본 Deal 값에서 각각 금액 1 / 2^53−1, Users count 0 / 1 / 2,147,483,647, Deal Name 200자, 구매절차 500자, Product 200자, Expected Close 2026-12-31로 등록한다
 - Then 모두 201이고 응답 `users`·금액이 보낸 값이다
 
 ### DE-008 필드 값 위반은 각자의 문구로 422 invalid-value이고 저장되지 않는다
@@ -403,17 +405,17 @@ DE-R21~DE-R31.
 - Then 각각 422 `invalid-value`와 "Deal Name을 입력하세요." / "Deal Name은 200자 이내로 입력하세요." / "매출금액은 1원 이상의 정수로 입력하세요."(3건) / "Expected Close를 입력하세요." / "Users count는 0 이상의 정수로 입력하세요."(2건) / "Status를 선택하세요."(2건) / "Forecast를 선택하세요." / "구매절차는 500자 이내로 입력하세요."이고 Deal 수는 0이다
 
 ### DE-009 여러 값이 틀리면 정해진 순서의 첫 문구만 나온다
-- Given 위반 목록(DE-R5 순서): 이름 공백 → 없는 Vendor → 201자 Solution → 퇴사 Owner → 금액 0 → Expected Close null → Users count -1 → Status "" → Forecast "" → 계약완료/Pipeline → 다른 구분 Label id → 구매절차 501자 → 고객 회사명 "" → 고객 담당자명 "" → 파트너 반쪽 → 고객 이메일 "bad"
+- Given 위반 목록(DE-R5 순서): 이름 공백 → 없는 Vendor → 201자 Product → 퇴사 Owner → 금액 0 → Expected Close null → Users count -1 → Status "" → Forecast "" → 계약완료/Pipeline → 다른 구분 Label id → 구매절차 501자 → 고객 회사명 "" → 고객 담당자명 "" → 파트너 반쪽 → 고객 이메일 "bad"
 - When 목록의 k번째와 그 뒤 모든 위반을 함께 넣어 등록한다(k = 1…16), 또 k번째 위반만 넣어 등록한다
 - Then 두 경우 모두 k번째 위반의 문구가 나온다(예: 이름·금액·Users count가 함께 틀리면 "Deal Name을 입력하세요.")
 
 ### DE-010 형식이 틀린 등록 본문은 422 request-validation이고 저장되지 않는다
-- When 기본 본문에서 하나씩: 금액 `"많이"`, Expected Close `"30/06/2026"`, `owner_user_id` `"x"`, 모르는 키 `extra`, `users` null / `"10"` / 키 없음, `vendor_id` 키 없음 / null / `"x"`, `solution` 12, 예전 `vendor` "SAP", `solution_id` 1, BANT 값이 Label id 숫자 그대로, `quote.submitted` "MAYBE"
+- When 기본 본문에서 하나씩: 금액 `"많이"`, Expected Close `"30/06/2026"`, `owner_user_id` `"x"`, 모르는 키 `extra`, `users` null / `"10"` / 키 없음, `vendor_id` 키 없음 / null / `"x"`, `product` 12, 예전 `vendor` "SAP", 예전 `solution` "ITDR", `solution_id` 1, BANT 값이 Label id 숫자 그대로, `quote.submitted` "MAYBE"
 - Then 모두 422 `request-validation`이고 Deal 수는 0이다
 
-### DE-011 Deal Name·Solution·구매절차의 NUL 문자는 서버 오류 없이 422 invalid-value다
-- When 이름 "ERP\x00", Solution "IT\x00DR", 구매절차 "조달\x00"로 각각 등록한다
-- Then 각각 422 `invalid-value` "Deal Name에는 NUL 문자를 쓸 수 없습니다" / "Solution에는 NUL 문자를 쓸 수 없습니다" / "구매절차에는 NUL 문자를 쓸 수 없습니다"이고 `detail`에 DB 문구가 없으며 저장되지 않는다
+### DE-011 Deal Name·Product·구매절차의 NUL 문자는 서버 오류 없이 422 invalid-value다
+- When 이름 "ERP\x00", Product "IT\x00DR", 구매절차 "조달\x00"로 각각 등록한다
+- Then 각각 422 `invalid-value` "Deal Name에는 NUL 문자를 쓸 수 없습니다" / "Product에는 NUL 문자를 쓸 수 없습니다" / "구매절차에는 NUL 문자를 쓸 수 없습니다"이고 `detail`에 DB 문구가 없으며 저장되지 않는다
 
 ### DE-012 admin·user·없는 사용자를 Owner로 지정하면 "Owner는 재직 중인 영업 담당자여야 합니다."다
 - Given 재직 admin "boss", 재직 user "viewer"
@@ -427,20 +429,20 @@ DE-R21~DE-R31.
 
 ### DE-014 Vendor id로 등록하면 응답 vendor가 {id, name}이다
 - Given Vendor "SAP"
-- When `vendor_id` = SAP, Solution "ITDR"로 등록한다
-- Then 응답·상세 `vendor` = `{id: SAP, name: "SAP"}`, `solution` "ITDR"이다
+- When `vendor_id` = SAP, Product "ITDR"로 등록한다
+- Then 응답·상세 `vendor` = `{id: SAP, name: "SAP"}`, `product` "ITDR"이다
 
-### DE-015 없는 Vendor id는 422이고 201자 Solution보다 먼저 판정된다
-- When 없는 `vendor_id`로 등록하고, 또 없는 `vendor_id` + 201자 Solution으로 등록한다
+### DE-015 없는 Vendor id는 422이고 201자 Product보다 먼저 판정된다
+- When 없는 `vendor_id`로 등록하고, 또 없는 `vendor_id` + 201자 Product로 등록한다
 - Then 둘 다 422 "선택한 Vendor가 없습니다. 목록에서 다시 선택하세요."이고 Deal 수는 0이다
 
-### DE-016 Solution은 앞뒤 공백만 지우고 대소문자·한글은 그대로 저장된다
-- When Solution "  ITDR  "로, 또 "itDR 통합 보안"으로 등록한다
-- Then 저장·응답 Solution은 "ITDR", "itDR 통합 보안"이다
+### DE-016 Product는 앞뒤 공백만 지우고 대소문자·한글은 그대로 저장된다
+- When Product "  ITDR  "로, 또 "itDR 통합 보안"으로 등록한다
+- Then 저장·응답 Product는 "ITDR", "itDR 통합 보안"이다
 
-### DE-017 201자 Solution 등록은 422이고 Owner보다 먼저 판정된다
-- When Solution 201자로 등록하고, 또 201자 Solution + 퇴사 Owner로 등록한다
-- Then 둘 다 422 "Solution은 200자 이내로 입력하세요."이고 저장되지 않는다
+### DE-017 201자 Product 등록은 422이고 Owner보다 먼저 판정된다
+- When Product 201자로 등록하고, 또 201자 Product + 퇴사 Owner로 등록한다
+- Then 둘 다 422 "Product는 200자 이내로 입력하세요."이고 저장되지 않는다
 
 ### DE-018 Status·Forecast 코드가 없거나 동기화가 맞지 않는 등록은 422다
 - When Status "contract_completed" + Forecast "pipeline", Status "prospecting" + Forecast "won"으로 등록한다
@@ -526,7 +528,7 @@ DE-R21~DE-R31.
 ### DE-036 보낸 필드만 바뀌고 200이며 바뀐 필드마다 이력, 수정 시각은 서버 시각이다
 - Given Vendor "Oracle", 기본 Deal, 1시간 경과
 - When `PATCH` 이름 "확장 프로젝트", 금액 1,870,000,000, Expected Close 2026-12-31, Vendor Oracle, Users count 20, Status 가격협상
-- Then 200이고 그 값들이 바뀌며 Solution "S/4HANA" 등 나머지는 그대로다. 이력은 Status·금액·Expected Close·Deal Name·Vendor·Users count 6건(변경자 KIM)이고 `updated_at`은 서버 시각이다
+- Then 200이고 그 값들이 바뀌며 Product "S/4HANA" 등 나머지는 그대로다. 이력은 Status·금액·Expected Close·Deal Name·Vendor·Users count 6건(변경자 KIM)이고 `updated_at`은 서버 시각이다
 
 ### DE-037 같은 값만 보내면 이력이 없고 수정 시각도 그대로다
 - Given Vendor SAP의 기본 Deal, 1시간 경과
@@ -586,30 +588,30 @@ DE-R21~DE-R31.
 - When PARK이 그 Deal의 이름을 고치고, 또 `owner_user_id` = KIM을 보낸다
 - Then 이름 수정은 200이고 Owner는 KIM 그대로(상세·목록에서도 KIM)다. KIM을 보낸 요청은 422 "Owner는 재직 중인 영업 담당자여야 합니다."다(후보 목록에서 빠지는 것은 US-072)
 
-### DE-049 Vendor를 바꾸면 Solution은 그대로이고 Vendor 이력만 남는다
-- Given Vendor SAP·Oracle, Vendor SAP·Solution "ITDR"인 Deal
+### DE-049 Vendor를 바꾸면 Product는 그대로이고 Vendor 이력만 남는다
+- Given Vendor SAP·Oracle, Vendor SAP·Product "ITDR"인 Deal
 - When `vendor_id` = Oracle, 다음에 SAP, 다음에 다시 SAP를 보낸다
-- Then 각 응답 `vendor`는 Oracle, SAP, SAP이고 Solution은 계속 "ITDR"이다. 이력은 앞의 두 번만 Vendor 1건씩 남고 셋째(같은 Vendor)는 이력이 없다
+- Then 각 응답 `vendor`는 Oracle, SAP, SAP이고 Product는 계속 "ITDR"이다. 이력은 앞의 두 번만 Vendor 1건씩 남고 셋째(같은 Vendor)는 이력이 없다
 
 ### DE-050 없는 Vendor id로 고치면 422이고 Vendor는 그대로다
 - Given Vendor SAP인 Deal
 - When 없는 `vendor_id`를 보낸다
 - Then 422 "선택한 Vendor가 없습니다. 목록에서 다시 선택하세요."이고 Vendor는 SAP다
 
-### DE-051 Solution을 바꾸면 공백을 지워 저장하고 대소문자만 바꿔도 이력이 남으며 공백만 다르면 남지 않는다
-- Given Solution "itdr"인 Deal
+### DE-051 Product를 바꾸면 공백을 지워 저장하고 대소문자만 바꿔도 이력이 남으며 공백만 다르면 남지 않는다
+- Given Product "itdr"인 Deal
 - When " itdr "를 보내고, 다음에 "ITDR"을 보낸다
-- Then 첫째는 200·이력 없음, 둘째는 Solution "ITDR"과 Solution 이력 1건이다
+- Then 첫째는 200·이력 없음, 둘째는 Product "ITDR"과 Product 이력 1건이다
 
-### DE-052 Solution을 null·빈 값·공백으로 고치면 빈 값이 되어 이력이 남고 201자는 422다
-- Given Solution "ITDR"인 Deal 네 개
-- When 각 Deal에 `solution` null / "" / "   " / 201자를 보낸다
-- Then 앞의 셋은 200이고 응답 `solution`이 `""`이며 Solution 이력 1건(변경 전 "ITDR", 변경 후 "-")이 남는다. 201자는 422 "Solution은 200자 이내로 입력하세요."이고 Solution·이력이 그대로다
+### DE-052 Product를 null·빈 값·공백으로 고치면 빈 값이 되어 이력이 남고 201자는 422다
+- Given Product "ITDR"인 Deal 네 개
+- When 각 Deal에 `product` null / "" / "   " / 201자를 보낸다
+- Then 앞의 셋은 200이고 응답 `product`가 `""`이며 Product 이력 1건(변경 전 "ITDR", 변경 후 "-")이 남는다. 201자는 422 "Product는 200자 이내로 입력하세요."이고 Product·이력이 그대로다
 
-### DE-053 Solution을 보내지 않으면 그대로이고 빈 Solution Deal에도 나중에 입력할 수 있다
-- Given Solution "ITDR"인 Deal과 Solution이 빈 Deal
-- When 첫째에 이름만 보내고, 둘째에 Users count 7만 보낸 뒤 Solution "MFA"를 보낸다
-- Then 첫째 Solution "ITDR" 그대로다. 둘째는 Users count만 보낸 수정이 200이고 Solution `""` 그대로이며, 이어서 Solution "MFA"로 채워지고 Solution 이력 1건(변경 전 "-")이 남는다
+### DE-053 Product를 보내지 않으면 그대로이고 빈 Product Deal에도 나중에 입력할 수 있다
+- Given Product "ITDR"인 Deal과 Product가 빈 Deal
+- When 첫째에 이름만 보내고, 둘째에 Users count 7만 보낸 뒤 Product "MFA"를 보낸다
+- Then 첫째 Product "ITDR" 그대로다. 둘째는 Users count만 보낸 수정이 200이고 Product `""` 그대로이며, 이어서 Product "MFA"로 채워지고 Product 이력 1건(변경 전 "-")이 남는다
 
 ### DE-054 (폐기 2026-11-13)
 - 폐기: 레거시 빈 Solution 규칙(DE-R20)이 없어져 DE-052·DE-053으로 흡수했다.
@@ -693,13 +695,13 @@ DE-R21~DE-R31.
 - Then 422 `invalid-value` "고객 회사명을 입력하세요."이고 고객은 그대로다
 
 ### DE-072 형식이 틀린 수정 본문은 422 request-validation이고 Deal은 그대로다
-- When `solution_id: 1`, `solution: 12`, `vendor_id: "x"`, 모르는 키, `code: "20260101-AAAA"`, `delete_license_contracts: "yes"`를 각각 보낸다
+- When `solution_id: 1`, 예전 `solution: "ITDR"`, `product: 12`, `vendor_id: "x"`, 모르는 키, `code: "20260101-AAAA"`, `delete_license_contracts: "yes"`를 각각 보낸다
 - Then 모두 422 `request-validation`이고 Deal은 그대로다
 
 ### DE-073 화면: 등록 폼은 로그인 sales를 Owner로, 기회발굴·Pipeline으로, 나머지는 비운 채 시작한다
 - Given KIM 로그인
 - When `/deals/new`를 연다
-- Then 제목 "Deal 등록", Owner는 KIM, Status 기회발굴, Forecast Pipeline, Vendor "선택하세요", Solution·Users count·금액·Expected Close·고객·파트너·BANT 네 칸이 비어 있다(BANT 자리표시 문구 없음)
+- Then 제목 "Deal 등록", Owner는 KIM, Status 기회발굴, Forecast Pipeline, Vendor "선택하세요", Product·Users count·금액·Expected Close·고객·파트너·BANT 네 칸이 비어 있다(BANT 자리표시 문구 없음)
 
 ### DE-074 화면: Owner 후보는 재직 sales만이고 admin이 열면 Owner가 비어 있다
 - Given 재직 sales KIM·PARK, 퇴사 sales, admin ROOT, user VIEWER
@@ -717,7 +719,7 @@ DE-R21~DE-R31.
 ### DE-077 화면: 빈 폼을 저장하면 필수 문구를 한꺼번에 보이고 첫 잘못된 칸으로 포커스하며 요청하지 않는다
 - Given admin이 연 빈 등록 폼
 - When "저장"을 누른다
-- Then Deal Name·Owner·Vendor·Users count·고객 회사명·담당자명·금액·Expected Close 문구("Vendor를 선택하세요." 포함, Solution 문구 없음)가 함께 보이고 Deal Name 칸에 포커스가 가며 등록 요청이 없다
+- Then Deal Name·Owner·Vendor·Users count·고객 회사명·담당자명·금액·Expected Close 문구("Vendor를 선택하세요." 포함, Product 문구 없음)가 함께 보이고 Deal Name 칸에 포커스가 가며 등록 요청이 없다
 
 ### DE-078 화면: 금액은 콤마로 보이고 입력값 그대로 저장되며 0·상한 초과는 막고 상한은 허용한다
 - When 금액에 "150000000", "0", "9007199254740992", "9007199254740991"을 각각 넣고 저장한다
@@ -753,32 +755,32 @@ DE-R21~DE-R31.
 - When 새 고객을 직접 입력하고 Budget에서 "풀 예산 확보"를 골라 저장한다
 - Then 새 고객 연락처와 그 Label이 선택된 Deal이 등록된다
 
-### DE-086 화면: Vendor는 "선택하세요" + 등록된 Vendor이고 Solution은 선택 칸이며 Vendor를 바꿔도 그대로다
+### DE-086 화면: Vendor는 "선택하세요" + 등록된 Vendor이고 Product는 선택 칸이며 Vendor를 바꿔도 그대로다
 - Given Vendor SAP·Oracle
-- When 등록 폼을 열고 Solution "ITDR"을 입력한 뒤 Vendor를 SAP에서 Oracle로 바꾼다
-- Then Vendor 선택지는 "선택하세요", SAP, Oracle이고("선택 안 함" 없음) 처음엔 "선택하세요"다. Vendor를 바꿔도 Solution은 "ITDR"이다. Vendor를 만드는 버튼·Solution 목록이 없다
+- When 등록 폼을 열고 Product "ITDR"을 입력한 뒤 Vendor를 SAP에서 Oracle로 바꾼다
+- Then Vendor 선택지는 "선택하세요", SAP, Oracle이고("선택 안 함" 없음) 처음엔 "선택하세요"다. Vendor를 바꿔도 Product는 "ITDR"이다. Vendor를 만드는 버튼·Product 목록이 없다
 
-### DE-087 화면: Solution을 비우고 등록하면 문구 없이 빈 Solution으로 저장된다
-- When Solution만 비우고 나머지 필수 값을 채워 저장한다
-- Then "Solution을 입력하세요." 문구가 없고 등록 요청의 `solution`은 `""`이며 상세로 간다
+### DE-087 화면: Product를 비우고 등록하면 문구 없이 빈 Product로 저장된다
+- When Product만 비우고 나머지 필수 값을 채워 저장한다
+- Then "Product를 입력하세요." 문구가 없고 등록 요청의 `product`는 `""`이며 상세로 간다
 
-### DE-088 화면: Solution은 공백을 지우고 고른 Vendor id와 함께 저장된다
-- When Vendor SAP + Solution "  ITDR  "로 저장한다
-- Then 요청은 `vendorId` = SAP id(숫자)·`solution` "ITDR"이다
+### DE-088 화면: Product는 공백을 지우고 고른 Vendor id와 함께 저장된다
+- When Vendor SAP + Product "  ITDR  "로 저장한다
+- Then 요청은 `vendorId` = SAP id(숫자)·`product` "ITDR"이다
 
-### DE-089 화면: 201자 Solution은 서버 문구를 배너에 보인다
-- When Solution 201자로 저장한다
-- Then 폼 아래 배너에 "Solution은 200자 이내로 입력하세요."가 보이고 `/deals/new`에 머문다
+### DE-089 화면: 201자 Product는 서버 문구를 배너에 보인다
+- When Product 201자로 저장한다
+- Then 폼 아래 배너에 "Product는 200자 이내로 입력하세요."가 보이고 `/deals/new`에 머문다
 
-### DE-090 화면: 수정 폼은 Vendor·Solution을 채우고 Solution을 바꾸거나 비워 저장한다
-- Given Vendor SAP·Solution "ITDR"인 Deal
-- When 수정 폼을 열어 Vendor를 Oracle로 바꾸고, Solution을 "MFA"로 바꿔 저장하고, 또 Solution을 비워 저장한다
-- Then 처음에 SAP·"ITDR"이 채워지고 Vendor를 바꿔도 Solution은 그대로다. "MFA"는 저장된다. 빈 Solution도 문구 없이 `solution: ""`로 저장된다
+### DE-090 화면: 수정 폼은 Vendor·Product를 채우고 Product를 바꾸거나 비워 저장한다
+- Given Vendor SAP·Product "ITDR"인 Deal
+- When 수정 폼을 열어 Vendor를 Oracle로 바꾸고, Product를 "MFA"로 바꿔 저장하고, 또 Product를 비워 저장한다
+- Then 처음에 SAP·"ITDR"이 채워지고 Vendor를 바꿔도 Product는 그대로다. "MFA"는 저장된다. 빈 Product도 문구 없이 `product: ""`로 저장된다
 
 ### DE-091 화면: 수정 중 Vendor 목록이 없으면 현재 Vendor를 읽기 전용으로 보이고 원래 id로 저장한다
 - Given Vendor SAP인 Deal, Vendor 목록 조회가 실패한다(또는 아직 응답 전이다)
-- When 수정 폼을 열고 Solution을 고쳐 저장한다
-- Then Vendor는 "SAP" 읽기 전용 값이고 "선택 안 함" 선택지가 없으며 실패면 오류 배너가 보인다(로딩 중이면 배너 없음). Solution은 입력할 수 있고 저장 요청의 `vendorId`는 원래 SAP id다
+- When 수정 폼을 열고 Product를 고쳐 저장한다
+- Then Vendor는 "SAP" 읽기 전용 값이고 "선택 안 함" 선택지가 없으며 실패면 오류 배너가 보인다(로딩 중이면 배너 없음). Product는 입력할 수 있고 저장 요청의 `vendorId`는 원래 SAP id다
 
 ### DE-092 화면: BANT는 구분별 텍스트 콤보박스 4개이고 새 Label 버튼·선택 상자·이름 수정·삭제가 없다
 - When 등록 폼을 연다
@@ -863,16 +865,16 @@ DE-R21~DE-R31.
 - Then 금액 칸은 "300"이고 300이 그대로 저장된다. 빈 금액은 금액 문구로 막힌다
 
 ### DE-110 화면: 폼 입력을 요청 값으로 바꾼다
-- When 폼 상태(앞뒤 공백 있는 이름·Solution·구매절차, 문자열 Owner·Vendor id, 금액 "1,000", 빈 직급·이메일, 빈 Solution, 빈 파트너)를 등록·수정 요청으로 바꾼다
-- Then 공백이 지워지고 id·금액·Users count는 숫자, 빈 Solution은 `""`, 빈 견적·POC·이메일·전화는 null, 빈 파트너는 등록 `partner: null`이다. 수정은 원래 활성 파트너가 있었으면 `partner: null`, 없었으면 `partner` 키가 없고, 다른 사람을 입력하면 그 ContactDraft다
+- When 폼 상태(앞뒤 공백 있는 이름·Product·구매절차, 문자열 Owner·Vendor id, 금액 "1,000", 빈 직급·이메일, 빈 Product, 빈 파트너)를 등록·수정 요청으로 바꾼다
+- Then 공백이 지워지고 id·금액·Users count는 숫자, 빈 Product는 `""`, 빈 견적·POC·이메일·전화는 null, 빈 파트너는 등록 `partner: null`이다. 수정은 원래 활성 파트너가 있었으면 `partner: null`, 없었으면 `partner` 키가 없고, 다른 사람을 입력하면 그 ContactDraft다
 
 ### DE-111 게이트웨이: 등록은 snake_case 본문으로 보내고 201 상세를 읽는다
 - When 게이트웨이 `create`로 Deal 입력(빈 직급, 파트너 없음, 빈 Expected Close, BANT 선택 객체 포함)을 보낸다
-- Then `POST /api/v1/deals` 본문은 snake_case이고 `title` null, `partner` null, `revenue_date` null, `bant`는 구분마다 `{id}`(JSON 숫자)·`{name}`·null이며 `solution`은 텍스트, `solution_id`는 없다. 201 응답은 상세 화면 값으로 바뀐다
+- Then `POST /api/v1/deals` 본문은 snake_case이고 `title` null, `partner` null, `revenue_date` null, `bant`는 구분마다 `{id}`(JSON 숫자)·`{name}`·null이며 `product`는 텍스트, `solution`·`solution_id`는 없다. 201 응답은 상세 화면 값으로 바뀐다
 
 ### DE-112 게이트웨이: 수정은 준 필드만 보내고 partner null을 유지한다
-- When 게이트웨이 `update`로 이름만, Vendor만, Solution만, `solution: ""`, `partner: null`, 견적·POC·BANT 포함 patch를 각각 보낸다
-- Then `PATCH /api/v1/deals/{code}` 본문은 준 키만 담는다(Vendor만이면 `vendor_id`만, Solution만이면 `solution`만), `solution: ""`·`partner: null`이 그대로 있고, 견적·POC는 `quote{submitted, submitted_date}`·`poc{state, completed_date}`, BANT는 있을 때만 선택 객체이며 빈 Expected Close는 null이다
+- When 게이트웨이 `update`로 이름만, Vendor만, Product만, `product: ""`, `partner: null`, 견적·POC·BANT 포함 patch를 각각 보낸다
+- Then `PATCH /api/v1/deals/{code}` 본문은 준 키만 담는다(Vendor만이면 `vendor_id`만, Product만이면 `product`만), `product: ""`·`partner: null`이 그대로 있고, 견적·POC는 `quote{submitted, submitted_date}`·`poc{state, completed_date}`, BANT는 있을 때만 선택 객체이며 빈 Expected Close는 null이다
 
 ### DE-113 화면: 고객 회사명·담당자명은 다른 필수 칸과 같은 필수 표시이고 직급·이메일·전화와 파트너 칸에는 없다
 - Given KIM 로그인, 파트너가 있는 Deal
@@ -884,13 +886,13 @@ DE-R21~DE-R31.
 - When 등록 폼과 기존 Deal의 수정 폼을 연다
 - Then 두 폼 모두 Owner 칸이 Deal Name·Vendor와 같은 필수 표시를 가지고, 항상 값이 선택돼 있는 Status·Forecast 칸에는 필수 표시가 없다
 
-### DE-115 Solution을 생략·null·빈 값·공백으로 등록하면 빈 Solution으로 저장된다
-- When 기본 Deal 값에서 `solution` 키를 빼고, 또 null, 또 `""`, 또 `"   "`으로 각각 등록한다
-- Then 모두 201이고 응답·상세 `solution`은 `""`이며 각 Deal의 이력은 등록 1건뿐이다
+### DE-115 Product를 생략·null·빈 값·공백으로 등록하면 빈 Product로 저장된다
+- When 기본 Deal 값에서 `product` 키를 빼고, 또 null, 또 `""`, 또 `"   "`으로 각각 등록한다
+- Then 모두 201이고 응답·상세 `product`는 `""`이며 각 Deal의 이력은 등록 1건뿐이다
 
-### DE-116 수정에서 vendor_id를 null로 보내면 "Vendor를 선택하세요."이고 Deal Name 다음, Solution 앞에서 판정된다
+### DE-116 수정에서 vendor_id를 null로 보내면 "Vendor를 선택하세요."이고 Deal Name 다음, Product 앞에서 판정된다
 - Given Vendor SAP인 기본 Deal
-- When `vendor_id: null`을 보내고, 또 `name: "  "` + `vendor_id: null`을, 또 `vendor_id: null` + 201자 Solution을 보낸다
+- When `vendor_id: null`을 보내고, 또 `name: "  "` + `vendor_id: null`을, 또 `vendor_id: null` + 201자 Product를 보낸다
 - Then 첫째와 셋째는 422 `invalid-value` "Vendor를 선택하세요.", 둘째는 "Deal Name을 입력하세요."이고 Vendor는 SAP, 이력·`updated_at`이 그대로다
 
 ### DE-117 화면: Vendor를 고르지 않으면 "Vendor를 선택하세요."로 요청 없이 막고 Vendor 칸으로 포커스한다
@@ -898,10 +900,10 @@ DE-R21~DE-R31.
 - When "저장"을 누르고, 다음에 Vendor SAP를 골라 다시 저장한다
 - Then 처음엔 Vendor 칸 아래 "Vendor를 선택하세요."가 보이고 Vendor 칸에 포커스가 가며 등록 요청이 없다. 다음엔 `vendorId` = SAP id로 등록되어 상세로 간다
 
-### DE-118 화면: Vendor 칸은 필수 표시이고 Solution 칸에는 없다
+### DE-118 화면: Vendor 칸은 필수 표시이고 Product 칸에는 없다
 - Given KIM 로그인, Vendor SAP인 Deal
 - When 등록 폼과 그 Deal의 수정 폼을 연다
-- Then 두 폼 모두 Vendor 칸이 Deal Name과 같은 필수 표시를 가지고(접근 이름은 그대로 "Vendor"), Solution 칸에는 필수 표시가 없다
+- Then 두 폼 모두 Vendor 칸이 Deal Name과 같은 필수 표시를 가지고(접근 이름은 그대로 "Vendor"), Product 칸에는 필수 표시가 없다
 
 ## 5. 변경 이력
 
@@ -912,3 +914,4 @@ DE-R21~DE-R31.
 | 2026-11-12 | 사용자 요청 "고객사정보 필수라는 표시 빠져있음": DE-R22에 필수 표시 칸 목록을 적고 고객 회사명·담당자명을 추가(검증 규칙은 그대로, 화면 표시만). 콤보박스 필수 표시는 UI-R18 | 신규: DE-113(Q4=예면 DE-114) |
 | 2026-11-13 | 확정(2026-11-13 사용자 확인): Status 진입 컬럼을 date `status_changed_on`으로(범위 밖, 2.2, 등록 결과). 동작은 RK가 정한다 | 없음(관련 RK-032, RK-069) |
 | 2026-11-13 | 확정(2026-11-13 사용자 확인): 사용자 요청 "Deal 생성·수정 시 Vendor는 필수, Solution은 옵션". Vendor 필수(DE-R3 등록 `vendor_id` 필수·null 불가, DE-R7 수정 null 422 "Vendor를 선택하세요.", 2.2 NOT NULL — 리비전 SC-R22), Solution 선택(DE-R8 빈 값 `''` 저장·수정에서 비우기 허용, DE-R4 문구), DE-R20 폐기. 용어·DE-R5·R17·R22·R23·R25·R26·R31·2.6·UC1·UC2·4장 기본 Deal(Vendor SAP) 갱신. **API 요청 호환 깨짐**(등록 `vendor_id` 필수, 승인 필요), 응답 스키마 그대로 | 신규 DE-115~DE-118. 변경 DE-009, DE-010, DE-014, DE-017, DE-049, DE-052, DE-053, DE-073, DE-077, DE-086~DE-088, DE-090, DE-110, DE-112~DE-114. 폐기 DE-054. 기본 Deal Given 변경(Vendor SAP)으로 backend 등록·수정 테스트 fixture 전반 |
+| 2026-11-16 | 초안(사용자 확인 대기): 사용자 요청 "Deal의 solution 용어를 product로". 화면 문구·필드 이름 Solution → Product, API 요청·응답 키 `solution` → `product`(예전 키는 모르는 필드 422, 별칭 없음), 컬럼 `deals.product`(리비전 SC-R23), 문구 "Product는 200자 이내로 입력하세요."·"Product에는 NUL 문자를 쓸 수 없습니다". 규칙 내용(선택·200자·빈 값 '' 등)은 그대로. **API 요청·응답 호환 깨짐**(사용자 승인) | 변경(표기·키): DE-001, DE-007, DE-009~DE-011, DE-014~DE-017, DE-036, DE-049, DE-051~DE-053, DE-072, DE-073, DE-077, DE-086~DE-091, DE-110~DE-112, DE-115, DE-116, DE-118. 4장 기본 Deal(Product "S/4HANA")로 등록·수정 테스트 fixture 전반 |

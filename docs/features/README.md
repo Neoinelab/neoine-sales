@@ -59,30 +59,30 @@ feature 목록은 2026-11-09 사용자 확인(질문 Q1~Q6 추천안 채택: 경
 | --- | --- | --- |
 | PL | [platform-common.md](platform-common.md) (플랫폼 공통: 권한 표·HTTP 관례·API 계약·화면 접근) | 확정(2026-11-09) |
 | TM | [server-time.md](server-time.md) (서버 시간·업무 날짜) | 확정(2026-11-09) |
-| SC | [schema-migration.md](schema-migration.md) (DB 스키마·마이그레이션 기준선) | 확정(2026-11-13 사용자 확인) |
+| SC | [schema-migration.md](schema-migration.md) (DB 스키마·마이그레이션 기준선) | 확정(2026-11-16 사용자 확인) |
 | AU | [login-session.md](login-session.md) (로그인·세션·대체 로그인) | 확정(2026-11-09) |
 | SU | [initial-setup.md](initial-setup.md) (최초 설정) | 확정(2026-11-13) |
 | IN | [integration-settings.md](integration-settings.md) (연동 설정: AD 서버·저장 위치) | 확정(2026-11-09) |
 | US | [user-management.md](user-management.md) (사용자 관리) | 확정(2026-11-13 사용자 확인) |
 | ME | [my-account.md](my-account.md) (내 정보) | 확정(2026-11-09) |
 | CD | [status-forecast-codes.md](status-forecast-codes.md) (Status·Forecast 코드) | 확정(2026-11-10) |
-| CL | [choice-catalogs.md](choice-catalogs.md) (선택 목록: BANT Label·Action 유형·Vendor) | 확정(2026-11-13 사용자 확인) |
+| CL | [choice-catalogs.md](choice-catalogs.md) (선택 목록: BANT Label·Action 유형·Vendor) | 확정(2026-11-16 사용자 확인) |
 | CT | [contacts.md](contacts.md) (고객·파트너 연락처) | 확정(2026-11-10) |
-| DE | [deal-entry.md](deal-entry.md) (Deal 등록·수정) | 확정(2026-11-13 사용자 확인) |
+| DE | [deal-entry.md](deal-entry.md) (Deal 등록·수정) | 확정(2026-11-16 사용자 확인) |
 | DD | [deal-detail.md](deal-detail.md) (Deal 상세·변경 적용·이력·삭제) | 확정(2026-11-16 사용자 확인) |
-| DL | [deal-list.md](deal-list.md) (Deal 목록·검색) | 확정(2026-11-16) |
+| DL | [deal-list.md](deal-list.md) (Deal 목록·검색) | 확정(2026-11-16 사용자 확인) |
 | RK | [deal-risk.md](deal-risk.md) (경고·파생 값·경고 기준) | 확정(2026-11-10) |
 | AC | [deal-actions.md](deal-actions.md) (Action 등록·수정·삭제) | 확정(2026-11-13 사용자 확인) |
 | NA | [next-action.md](next-action.md) (Next Action 상태·Action 검색) | 확정(2026-11-10) |
 | AT | [deal-attachments.md](deal-attachments.md) (Deal 첨부 파일) | 확정(2026-11-10) |
 | FC | [forecast.md](forecast.md) (Forecast: 실시간·월말 스냅숏) | 확정(2026-11-13 사용자 확인) |
 | DSH | [dashboard.md](dashboard.md) (Dashboard) | 확정(2026-11-16) |
-| RQ | [report-query.md](report-query.md) (Reports 조회 엔진·디자이너 작성) | 확정(2026-11-13 사용자 확인) |
+| RQ | [report-query.md](report-query.md) (Reports 조회 엔진·디자이너 작성) | 확정(2026-11-16 사용자 확인) |
 | RS | [saved-reports.md](saved-reports.md) (저장 리포트·결과 배치) | 확정(2026-11-11) |
 | RC | [report-charts.md](report-charts.md) (Reports 차트) | 확정(2026-11-11) |
 | PA | [partner-activity.md](partner-activity.md) (파트너 Activity) | 확정(2026-11-11) |
-| LC | [license-contracts.md](license-contracts.md) (계약관리) | 확정(2026-11-13 사용자 확인) |
-| UI | [ui-common.md](ui-common.md) (공통 입력·표시 컴포넌트, frontend 전용) | 확정(2026-11-11) |
+| LC | [license-contracts.md](license-contracts.md) (계약관리) | 확정(2026-11-16 사용자 확인) |
+| UI | [ui-common.md](ui-common.md) (공통 입력·표시 컴포넌트, frontend 전용) | 확정(2026-11-16 사용자 확인) |
 
 ## feature 경계
 
@@ -101,7 +101,7 @@ API 경로는 `/api/v1/` 접두어를 뺀 값입니다. "범위 밖" 칸은 그 
 | CD | Status·Forecast 코드 | Admin > Deal 관리의 코드, `/codes*`(등록·이름·순서·삭제·사용 현황), 기본 시드 | Status↔Forecast 동기화 규칙(DD) |
 | CL | 선택 목록 | Admin > Deal 관리의 BANT Label·Action 유형·Vendor, `/bant-labels*`·`/action-types*`·`/vendors*`, `{id}`/`{name}` 선택(`CatalogChoice`) 규칙 | Deal·Action 저장 때 이름으로 생성되는 결과(DE·AC) |
 | CT | 연락처 | Admin > 연락처, `/contacts*`, 같은 사람 판정, 연락처 선택기(`ContactPicker`), 참조 중 삭제 거부 | Deal에 연락처 연결(DE), 파트너 회사 목록 사용(PA) |
-| DE | Deal 등록·수정 | `/deals/new`·`/deals/:code/edit` 폼, `POST /deals`·`PATCH /deals/{code}`, 필드 검증·Deal code 발급·Owner 자격·Vendor(필수)·Solution(선택)·BANT 선택·고객/파트너 연결 | Won 진입·이탈 계약 처리(LC), 동기화 규칙(DD), `status_changed_on`(RK) |
+| DE | Deal 등록·수정 | `/deals/new`·`/deals/:code/edit` 폼, `POST /deals`·`PATCH /deals/{code}`, 필드 검증·Deal code 발급·Owner 자격·Vendor(필수)·Product(선택)·BANT 선택·고객/파트너 연결 | Won 진입·이탈 계약 처리(LC), 동기화 규칙(DD), `status_changed_on`(RK) |
 | DD | Deal 상세·변경 적용·이력·삭제 | `/deals/:code` 상세(요약 바·정보/연락처/BANT 카드·인라인 수정·탭 틀), `GET /deals/{code}`, `/deals/{code}/changes`·`/history`·`/deletion-impact`, `DELETE /deals/{code}`, Status·Forecast 동기화 규칙, 변경 이력 기록 | Actions 탭(AC·NA), 첨부 패널(AT), 계약 건수·계약 함께 삭제(LC) |
 | DL | Deal 목록·검색 | `/deals` 목록(필터·Quarter/Forecast 다중 선택·정렬·키워드·조건 기억·Quick View·인라인 편집 진입), `GET /deals`, `/deals/years`, `/deals/updated-periods` | 인라인 변경 적용 자체(DD), 경고 판정식(RK), Dashboard 이동 주소 생성(DSH) |
 | RK | 경고·파생 값 | 기한 초과·미업데이트 판정과 범례, Status 체류 일수·`status_changed_on`, 최종 업데이트·Next Action 기준 행, `/alert-settings`(Admin > 경고 기준) | Next Action 상태 변경(NA), 목록 필터 UI(DL) |

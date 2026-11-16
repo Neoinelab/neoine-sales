@@ -25,11 +25,11 @@ async def test_delete_used_vendor_is_rejected_with_count(
 
     테스트 코드: CL-060
     """
-    # given: SAP를 Deal 2건이 고른다(Solution 텍스트 포함)
+    # given: SAP를 Deal 2건이 고른다(Product 텍스트 포함)
     sap = make_vendor("SAP")
     await uow.vendors.add(sap)
     await seed_deal(uow, code="20261016-A001", vendor_id=sap.id)
-    await seed_deal(uow, code="20261016-A002", vendor_id=sap.id, solution="ITDR")
+    await seed_deal(uow, code="20261016-A002", vendor_id=sap.id, product="ITDR")
 
     # when: SAP를 삭제한다
     with pytest.raises(VendorInUseError) as raised:
@@ -118,6 +118,6 @@ async def test_solution_use_cases_are_gone() -> None:
     import importlib  # noqa: PLC0415
 
     for module in ("register_solution", "rename_solution", "delete_solution"):
-        # when·then: Solution 유스케이스 모듈을 가져온다 → 모듈이 없음 오류다
+        # when·then: Product 유스케이스 모듈을 가져온다 → 모듈이 없음 오류다
         with pytest.raises(ModuleNotFoundError):
             importlib.import_module(f"app.application.vendor.{module}")

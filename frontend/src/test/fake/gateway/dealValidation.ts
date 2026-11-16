@@ -14,17 +14,17 @@ export const PARTNER_INCOMPLETE_MESSAGE = '파트너를 입력하면 회사명�
 
 /** 서버 문구: 수정에서 Vendor를 null로 보낸 경우(등록의 누락·null은 요청 형식 오류다). */
 export const VENDOR_REQUIRED_MESSAGE = 'Vendor를 선택하세요.'
-export const SOLUTION_TOO_LONG_MESSAGE = 'Solution은 200자 이내로 입력하세요.'
+export const PRODUCT_TOO_LONG_MESSAGE = 'Product는 200자 이내로 입력하세요.'
 
-/** 서버 값 규칙(Deal Name 200자, Solution 200자, 구매절차 500자, Users count는 DB 정수 상한). */
+/** 서버 값 규칙(Deal Name 200자, Product 200자, 구매절차 500자, Users count는 DB 정수 상한). */
 const NAME_MAX = 200
-const SOLUTION_MAX = 200
+const PRODUCT_MAX = 200
 const PROCUREMENT_MAX = 500
 const USERS_MAX = 2_147_483_647
 
 type Scalars = Pick<
   Deal,
-  'name' | 'vendorId' | 'solution' | 'ownerId' | 'users' | 'procurement' | 'statusKey' | 'forecastKey' | 'revenueAmount' | 'revenueDate'
+  'name' | 'vendorId' | 'product' | 'ownerId' | 'users' | 'procurement' | 'statusKey' | 'forecastKey' | 'revenueAmount' | 'revenueDate'
 >
 
 /** 선택 필드를 쓰지 않으면 `provided('bant')`가 false인 입력(등록은 항상 true). */
@@ -33,7 +33,7 @@ export type ProvidedKeys = (key: keyof Scalars | 'bant') => boolean
 /** 서버와 같은 NUL 문자 거절 문구(PL-R16): 텍스트는 공백으로 감싸도 NUL이 있으면 거절한다. */
 const nulMessage = (column: string): string => `${column}에는 NUL 문자를 쓸 수 없습니다`
 
-/** Vendor 선택 검증(서버와 같은 순서: Deal Name 다음, Solution 앞). Vendor는 필수라 null은 거절한다. Solution은 Vendor와 무관한 텍스트다. */
+/** Vendor 선택 검증(서버와 같은 순서: Deal Name 다음, Product 앞). Vendor는 필수라 null은 거절한다. Product는 Vendor와 무관한 텍스트다. */
 function validateVendorChoice(ctx: MockContext, effective: Scalars, check: boolean): void {
   if (!check) return
   if (effective.vendorId === null || effective.vendorId === undefined) throw validation(VENDOR_REQUIRED_MESSAGE)
@@ -42,11 +42,11 @@ function validateVendorChoice(ctx: MockContext, effective: Scalars, check: boole
   }
 }
 
-/** Solution 텍스트 검증(선택: 앞뒤 공백을 지운 뒤 0~200자, NUL 거부). 빈 값은 오류가 아니다. */
-function validateSolution(effective: Scalars, check: boolean): void {
+/** Product 텍스트 검증(선택: 앞뒤 공백을 지운 뒤 0~200자, NUL 거부). 빈 값은 오류가 아니다. */
+function validateProduct(effective: Scalars, check: boolean): void {
   if (!check) return
-  if (effective.solution.includes('\u0000')) throw validation(nulMessage('Solution'))
-  if (Array.from(effective.solution.trim()).length > SOLUTION_MAX) throw validation(SOLUTION_TOO_LONG_MESSAGE)
+  if (effective.product.includes('\u0000')) throw validation(nulMessage('Product'))
+  if (Array.from(effective.product.trim()).length > PRODUCT_MAX) throw validation(PRODUCT_TOO_LONG_MESSAGE)
 }
 
 /**
@@ -65,7 +65,7 @@ export function validateDealFields(
   if (provided('name') && effective.name.trim() === '') throw validation('Deal Name을 입력하세요.')
   if (provided('name') && Array.from(effective.name.trim()).length > NAME_MAX) throw validation('Deal Name은 200자 이내로 입력하세요.')
   validateVendorChoice(ctx, effective, provided('vendorId'))
-  validateSolution(effective, provided('solution'))
+  validateProduct(effective, provided('product'))
   if (provided('ownerId')) {
     const owner = data.users.find((u) => u.id === effective.ownerId)
     if (owner?.status === 'resigned') throw validation('퇴사한 사용자는 Owner로 지정할 수 없습니다. 다른 담당자를 선택하세요.')

@@ -15,7 +15,7 @@ const input = (over: Partial<DealInput> = {}): DealInput => ({
   name: '한빛은행 ITDR',
   ownerId: USER_ID.kim,
   vendorId: 6,
-  solution: 'ITDR',
+  product: 'ITDR',
   users: 100,
   statusKey: 'prospecting',
   forecastKey: 'pipeline',
@@ -223,7 +223,7 @@ describe('deals.list over HTTP', () => {
       keyword: '한빛',
       ownerId: USER_ID.kim,
       vendorId: 6,
-      solution: 'ITDR',
+      product: 'ITDR',
       statusKey: 'prospecting',
       forecastKeys: ['pipeline'],
       year: 2026,
@@ -246,7 +246,7 @@ describe('deals.list over HTTP', () => {
       keyword: '한빛',
       owner_user_id: String(USER_ID.kim),
       vendor_id: '6',
-      solution: 'ITDR',
+      product: 'ITDR',
       status_key: 'prospecting',
       forecast_key: 'pipeline',
       year: '2026',
@@ -415,34 +415,35 @@ describe('deals.list over HTTP', () => {
 
   // 예전 vendor 텍스트·solution_id 파라미터는 보내지 않는다
   // 테스트 코드: DL-100
-  it('does not send the old vendor text and solution id parameters', async () => {
+  it('does not send the old vendor text, solution id and solution parameters', async () => {
     // given: 서버 응답을 흉내 낸 fetch
     const { calls } = stubFetch(json(page([])))
 
-    await createDealsHttp().list({ vendorId: 6, solution: 'ITDR' })
+    await createDealsHttp().list({ vendorId: 6, product: 'ITDR' })
 
-    // when: Vendor/Solution으로 list를 호출한다
+    // when: Vendor/Product로 list를 호출한다
     const sent = query(calls[0]?.path ?? '')
     // then: 폐지된 키가 없다
     expect(sent.has('vendor')).toBe(false)
     expect(sent.has('solution_id')).toBe(false)
+    expect(sent.has('solution')).toBe(false)
     expect(sent.get('vendor_id')).toBe('6')
-    expect(sent.get('solution')).toBe('ITDR')
+    expect(sent.get('product')).toBe('ITDR')
   })
 
-  // 빈 Solution은 빼고 텍스트는 공백·한글 그대로 보낸다
+  // 빈 Product는 빼고 텍스트는 공백·한글 그대로 보낸다
   // 테스트 코드: DL-100
-  it('omits an empty solution filter and sends the text as it is, including spaces and non-ASCII', async () => {
+  it('omits an empty product filter and sends the text as it is, including spaces and non-ASCII', async () => {
     // given: 서버 응답을 흉내 낸 fetch
     const { calls } = stubFetch(json(page([])), json(page([])))
 
-    await createDealsHttp().list({ solution: '' })
-    // when: 빈 Solution과 텍스트 Solution으로 list를 호출한다
-    await createDealsHttp().list({ solution: '통합 ITDR' })
+    await createDealsHttp().list({ product: '' })
+    // when: 빈 Product와 텍스트 Product로 list를 호출한다
+    await createDealsHttp().list({ product: '통합 ITDR' })
 
     // then: 빈 값은 빠지고 텍스트는 원문 그대로다
-    expect(query(calls[0]?.path ?? '').has('solution')).toBe(false)
-    expect(query(calls[1]?.path ?? '').get('solution')).toBe('통합 ITDR')
+    expect(query(calls[0]?.path ?? '').has('product')).toBe(false)
+    expect(query(calls[1]?.path ?? '').get('product')).toBe('통합 ITDR')
   })
 
   // id 조건은 정수 쿼리 값으로 보낸다
@@ -544,7 +545,7 @@ describe('deals.create over HTTP', () => {
       name: '한빛은행 ITDR',
       owner_user_id: USER_ID.kim,
       vendor_id: 6,
-      solution: 'ITDR',
+      product: 'ITDR',
       users: 100,
       status_key: 'prospecting',
       forecast_key: 'pipeline',
@@ -639,7 +640,7 @@ describe('deals.update over HTTP', () => {
 
   // Vendor만 바꾸면 vendor_id만 보낸다.
   // 테스트 코드: DE-112
-  it('sends only vendor_id when the vendor changes (the solution is independent)', async () => {
+  it('sends only vendor_id when the vendor changes (the product is independent)', async () => {
     // given: 서버가 200 상세를 돌려준다.
     const { calls } = stubFetch(json(serverDealDetail()))
 
@@ -650,31 +651,31 @@ describe('deals.update over HTTP', () => {
     expect(calls[0]?.body).toEqual({ vendor_id: 3 })
   })
 
-  // Solution만 바꾸면 solution만 보낸다.
+  // Product만 바꾸면 product만 보낸다.
   // 테스트 코드: DE-112
-  it('sends only the solution text when the solution changes', async () => {
+  it('sends only the product text when the product changes', async () => {
     // given: 서버가 200 상세를 돌려준다.
     const { calls } = stubFetch(json(serverDealDetail()))
 
-    // when: solution만 담아 update를 호출한다.
-    await createDealsHttp().update(CODE, { solution: 'MFA' })
+    // when: product만 담아 update를 호출한다.
+    await createDealsHttp().update(CODE, { product: 'MFA' })
 
-    // then: 본문에 solution만 있다.
-    expect(calls[0]?.body).toEqual({ solution: 'MFA' })
+    // then: 본문에 product만 있다.
+    expect(calls[0]?.body).toEqual({ product: 'MFA' })
   })
 
-  // 빈 Solution은 빈 문자열로 보내고 주지 않은 Vendor 필드는 생략한다.
+  // 빈 Product는 빈 문자열로 보내고 주지 않은 Vendor 필드는 생략한다.
   // 테스트 코드: DE-112
-  it('sends an empty solution as an empty string and omits vendor fields that are not given', async () => {
+  it('sends an empty product as an empty string and omits vendor fields that are not given', async () => {
     // given: 서버가 200 상세를 돌려준다.
     const { calls } = stubFetch(json(serverDealDetail()), json(serverDealDetail()))
 
-    // when: 빈 solution과 name만 담아 update를 각각 호출한다.
-    await createDealsHttp().update(CODE, { solution: '' })
+    // when: 빈 product과 name만 담아 update를 각각 호출한다.
+    await createDealsHttp().update(CODE, { product: '' })
     await createDealsHttp().update(CODE, { name: 'x' })
 
-    // then: 첫 본문은 solution ''만, 둘째는 name만 있고 vendor_id는 없다.
-    expect(calls[0]?.body).toEqual({ solution: '' })
+    // then: 첫 본문은 product ''만, 둘째는 name만 있고 vendor_id는 없다.
+    expect(calls[0]?.body).toEqual({ product: '' })
     expect(calls[1]?.body).toEqual({ name: 'x' })
   })
 

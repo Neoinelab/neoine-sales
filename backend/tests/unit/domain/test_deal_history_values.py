@@ -162,7 +162,7 @@ def test_long_before_and_after_values_are_clipped_to_1000_code_points(
     text = "가" * length
 
     # when: 이력 내용을 만든다
-    draft = HistoryDraft(HistoryCategory("other"), "Solution", text, text)
+    draft = HistoryDraft(HistoryCategory("other"), "Product", text, text)
 
     # then: 변경 전·후 모두 1000 코드 포인트 이하이고, 넘었을 때만 앞 999자 + "…"다
     for value in (draft.before, draft.after):

@@ -12,7 +12,7 @@ def deal_payload(**overrides: object) -> dict[str, Any]:
         "name": "ERP 구축",
         "owner_user_id": OWNER_ID,  # deal_users fixture(또는 SQL stack)가 이 사용자를 둔다
         "vendor_id": DEFAULT_VENDOR_ID,  # 필수: 등록된 Vendor의 id
-        "solution": "S/4HANA",  # 선택 자유 텍스트(앞뒤 공백 제거 후 0~200자)
+        "product": "S/4HANA",  # 선택 자유 텍스트(앞뒤 공백 제거 후 0~200자)
         "users": 10,
         "status_key": "prospecting",
         "forecast_key": "pipeline",

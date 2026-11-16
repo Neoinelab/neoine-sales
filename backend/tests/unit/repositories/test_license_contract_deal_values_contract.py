@@ -1,6 +1,6 @@
 """계약 행은 Deal의 현재 값을 읽는다(Q1).
 
-Deal의 고객·Vendor·Solution·파트너·Owner를 바꾸면 계약 행의 값도 바뀐다. 계약에는 그 값을
+Deal의 고객·Vendor·Product·파트너·Owner를 바꾸면 계약 행의 값도 바뀐다. 계약에는 그 값을
 저장하지 않는다. Fake와 SQL 구현에 같은 테스트.
 """
 
@@ -22,7 +22,7 @@ async def test_search_row_reflects_current_deal_values(contract_case: ContractCa
     # given: 이전 값의 Deal과 계약, 새 담당·Vendor·고객·파트너
     deal = await contract_case.deal(
         customer="이전고객",
-        solution="이전제품",
+        product="이전제품",
         vendor="SAP",
         partner="이전파트너",
         owner="lcv-old",
@@ -43,7 +43,7 @@ async def test_search_row_reflects_current_deal_values(contract_case: ContractCa
     await contract_case.deal_case.revise(
         deal.id,
         details=make_deal_details(
-            owner_user_id=new_owner, vendor_id=new_vendor.id, solution="새제품"
+            owner_user_id=new_owner, vendor_id=new_vendor.id, product="새제품"
         ),
         customer_id=new_customer.id,
     )
@@ -52,7 +52,7 @@ async def test_search_row_reflects_current_deal_values(contract_case: ContractCa
     # then: 행과 검색 조건이 새 Deal 값을 따른다
     row = await contract_case.repository.get_row(contract.id)
 
-    assert stored.details.solution == "이전제품"
+    assert stored.details.product == "이전제품"
     assert row.deal.customer == "새고객"
     assert row.deal.product == "새제품"
     assert row.deal.partner == "새파트너"

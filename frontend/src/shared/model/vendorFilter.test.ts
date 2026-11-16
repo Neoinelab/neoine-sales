@@ -40,11 +40,11 @@ describe('effectiveVendorFilter', () => {
     expect(result).toEqual({ vendorId: 99 })
   })
 
-  it('Solution 값은 싣지 않는다', () => {
+  it('Product 값은 싣지 않는다', () => {
     // when: 유효 Vendor 필터를 구한다
     const result = Object.keys(effectiveVendorFilter(vendors, 1))
 
-    // then: solutionId 키가 없다
-    expect(result).not.toContain('solutionId')
+    // then: productId 키가 없다
+    expect(result).not.toContain('productId')
   })
 })

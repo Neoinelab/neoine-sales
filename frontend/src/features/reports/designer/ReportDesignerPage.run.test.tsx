@@ -124,14 +124,14 @@ describe('조회 요청', () => {
 
   // 테스트 코드: RQ-076
   it('정렬한 칩에만 배지가 붙고 둘 이상 정렬하면 우선순위 번호가 붙는다', async () => {
-    // given: Deal code, Deal 이름, Solution 컬럼
+    // given: Deal code, Deal 이름, Product 컬럼
     const { user } = await openDesigner()
     await addColumn(user, 'Deal code')
     await addColumn(user, 'Deal 이름')
-    await addColumn(user, 'Solution')
-    // when: Solution을 오름차순으로 정렬한다
-    await user.selectOptions(within(settingsOf('Solution')).getByRole('combobox', { name: '정렬' }), 'asc')
-    // then: Solution 칩에 번호 없는 오름 배지가 붙는다
+    await addColumn(user, 'Product')
+    // when: Product를 오름차순으로 정렬한다
+    await user.selectOptions(within(settingsOf('Product')).getByRole('combobox', { name: '정렬' }), 'asc')
+    // then: Product 칩에 번호 없는 오름 배지가 붙는다
     expect(chipTexts()[2]).toContain('▲ 오름')
     expect(chipTexts()[2]).not.toMatch(/오름 \d/)
 
@@ -139,7 +139,7 @@ describe('조회 요청', () => {
     await user.click(chipButton(0))
     await user.selectOptions(within(settingsOf('Deal code')).getByRole('combobox', { name: '정렬' }), 'desc')
 
-    // then: Deal code는 내림 1, Deal 이름은 배지 없음, Solution은 오름 2다
+    // then: Deal code는 내림 1, Deal 이름은 배지 없음, Product는 오름 2다
     expect(chipTexts()[0]).toContain('▼ 내림 1')
     expect(chipTexts()[1]).not.toMatch(/[▲▼]/)
     expect(chipTexts()[2]).toContain('▲ 오름 2')

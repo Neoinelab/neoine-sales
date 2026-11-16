@@ -96,69 +96,69 @@ describe('필터와 정렬 (T-LIST-05~09)', () => {
     expect(location()).not.toContain('forecast=lost%2C')
   })
 
-  // Solution 텍스트는 검색을 눌러야 반영된다
+  // Product 텍스트는 검색을 눌러야 반영된다
   // 테스트 코드: DL-065
-  it('applies the solution text on search', async () => {
+  it('applies the product text on search', async () => {
     // given: 시드 목록
     const { user, location } = await renderAt(ALL_DEALS)
     await screen.findByRole('row', { name: /한빛은행 ITDR 도입/ })
 
-    const solution = screen.getByLabelText('Solution')
-    expect(solution.tagName).toBe('INPUT')
+    const product = screen.getByLabelText('Product')
+    expect(product.tagName).toBe('INPUT')
 
-    // when: Solution을 입력한다
-    await user.type(solution, '  itdr  ')
-    // then: 검색 전에는 URL에 solution이 없다
-    expect(location()).not.toContain('solution=')
+    // when: Product를 입력한다
+    await user.type(product, '  itdr  ')
+    // then: 검색 전에는 URL에 product가 없다
+    expect(location()).not.toContain('product=')
 
     // when: 검색을 누른다
     await user.click(screen.getByRole('button', { name: '검색' }))
-    // then: URL에 solution이 생기고 목록이 걸러진다
+    // then: URL에 product가 생기고 목록이 걸러진다
     await screen.findByRole('row', { name: /미래전자 ITDR/ })
-    expect(location()).toContain('solution=itdr')
+    expect(location()).toContain('product=itdr')
     expect(dataRows()).toHaveLength(4)
   })
 
-  // Solution은 Enter로 반영되어 solution 조건으로 간다
+  // Product는 Enter로 반영되어 product 조건으로 간다
   // 테스트 코드: DL-065
-  it('applies the solution text with Enter and sends it as the solution condition', async () => {
+  it('applies the product text with Enter and sends it as the product condition', async () => {
     // given: 시드 목록
     const list = vi.spyOn(gateway.deals, 'list')
     const { user } = await renderAt(ALL_DEALS)
     await screen.findByRole('row', { name: /한빛은행 ITDR 도입/ })
 
-    // when: Solution을 입력하고 Enter를 누른다
-    await user.type(screen.getByLabelText('Solution'), 'MFA{Enter}')
+    // when: Product를 입력하고 Enter를 누른다
+    await user.type(screen.getByLabelText('Product'), 'MFA{Enter}')
 
-    // then: 조회 조건에 solution이 실린다
+    // then: 조회 조건에 product가 실린다
     await waitFor(() => expect(dataRows()).toHaveLength(3))
-    expect(list.mock.calls.at(-1)?.[0]).toMatchObject({ solution: 'MFA' })
-    expect(list.mock.calls.at(-1)?.[0]).not.toHaveProperty('solutionId')
+    expect(list.mock.calls.at(-1)?.[0]).toMatchObject({ product: 'MFA' })
+    expect(list.mock.calls.at(-1)?.[0]).not.toHaveProperty('productId')
   })
 
-  // Solution을 비우고 검색하면 URL에서 지워진다
+  // Product를 비우고 검색하면 URL에서 지워진다
   // 테스트 코드: DL-065
-  it('removes solution from the URL when it is emptied and searched', async () => {
-    // given: Solution이 걸린 목록
-    const { user, location } = await renderAt('/deals?solution=itdr')
+  it('removes product from the URL when it is emptied and searched', async () => {
+    // given: Product가 걸린 목록
+    const { user, location } = await renderAt('/deals?product=itdr')
 
     await screen.findByRole('row', { name: /미래전자 ITDR/ })
-    expect(screen.getByLabelText('Solution')).toHaveValue('itdr')
+    expect(screen.getByLabelText('Product')).toHaveValue('itdr')
 
     // when: 입력을 비우고 검색한다
-    await user.clear(screen.getByLabelText('Solution'))
+    await user.clear(screen.getByLabelText('Product'))
     await user.click(screen.getByRole('button', { name: '검색' }))
 
-    // then: URL에서 solution 키가 사라진다
-    await waitFor(() => expect(location()).not.toContain('solution'))
+    // then: URL에서 product 키가 사라진다
+    await waitFor(() => expect(location()).not.toContain('product'))
     await waitFor(() => expect(dataRows()).toHaveLength(20))
   })
 
-  // Vendor를 바꿔도 Solution 텍스트는 남는다
+  // Vendor를 바꿔도 Product 텍스트는 남는다
   // 테스트 코드: DL-067
-  it('keeps the solution text when the vendor changes', async () => {
-    // given: Solution이 걸린 목록
-    const { user, location } = await renderAt('/deals?solution=itdr')
+  it('keeps the product text when the vendor changes', async () => {
+    // given: Product가 걸린 목록
+    const { user, location } = await renderAt('/deals?product=itdr')
     await screen.findByRole('row', { name: /미래전자 ITDR/ })
     const vendor = screen.getByLabelText('Vendor')
     await within(vendor).findByRole('option', { name: 'Silverfort' })
@@ -167,27 +167,27 @@ describe('필터와 정렬 (T-LIST-05~09)', () => {
     await user.selectOptions(vendor, 'Silverfort')
     await user.selectOptions(screen.getByLabelText('Vendor'), 'Okta')
 
-    // then: Solution 입력과 URL 값이 그대로다
+    // then: Product 입력과 URL 값이 그대로다
     expect(location()).toContain(`vendor=${seedVendorId('Okta')}`)
-    expect(location()).toContain('solution=itdr')
-    expect(screen.getByLabelText('Solution')).toHaveValue('itdr')
+    expect(location()).toContain('product=itdr')
+    expect(screen.getByLabelText('Product')).toHaveValue('itdr')
   })
 
-  // 키워드와 Solution을 한 번의 검색으로 함께 적용한다
+  // 키워드와 Product를 한 번의 검색으로 함께 적용한다
   // 테스트 코드: DL-065
-  it('combines keyword and solution text on one search', async () => {
+  it('combines keyword and product text on one search', async () => {
     // given: 시드 목록
     const { user, location } = await renderAt(ALL_DEALS)
     await screen.findByRole('row', { name: /한빛은행 ITDR 도입/ })
 
-    // when: 키워드와 Solution을 입력하고 검색한다
+    // when: 키워드와 Product를 입력하고 검색한다
     await user.type(screen.getByLabelText('키워드'), '한빛은행')
-    await user.type(screen.getByLabelText('Solution'), 'ITDR')
+    await user.type(screen.getByLabelText('Product'), 'ITDR')
     await user.click(screen.getByRole('button', { name: '검색' }))
 
     // then: 두 값이 URL에 함께 반영되어 AND로 걸러진다
     await waitFor(() => expect(dataRows()).toHaveLength(1))
-    expect(location()).toContain('solution=ITDR')
+    expect(location()).toContain('product=ITDR')
     expect(location()).toContain(`q=${encodeURIComponent('한빛은행')}`)
   })
 
@@ -313,7 +313,7 @@ describe('필터와 정렬 (T-LIST-05~09)', () => {
   it('clears every condition with the reset button and goes back to the default condition (all years)', async () => {
     // given: admin이 여러 조건을 건 목록
     const list = vi.spyOn(gateway.deals, 'list')
-    const { user, location } = await renderAt(`/deals?q=한빛&vendor=${seedVendorId('Okta')}&solution=ITDR&sort=name&order=asc`, { role: 'admin' })
+    const { user, location } = await renderAt(`/deals?q=한빛&vendor=${seedVendorId('Okta')}&product=ITDR&sort=name&order=asc`, { role: 'admin' })
 
     // when: 초기화를 누른다 (admin의 기본 조건은 연도 전체. sales의 연도 전체 + 내 딜만은 DL-102)
     await user.click(await screen.findByRole('button', { name: '초기화' }))
@@ -321,7 +321,7 @@ describe('필터와 정렬 (T-LIST-05~09)', () => {
     // then: 모든 칸이 비고 주소가 /deals?year=all이다
     expect(location()).toMatch(defaultDealsUrlPattern('admin'))
     await waitFor(() => expect(screen.getByLabelText('키워드')).toHaveValue(''))
-    expect(screen.getByLabelText('Solution')).toHaveValue('')
+    expect(screen.getByLabelText('Product')).toHaveValue('')
     expect(screen.getByLabelText('Vendor')).toHaveDisplayValue('전체')
     await waitFor(() => expect(Object.keys(list.mock.calls.at(-1)?.[0] ?? {}).sort()).toEqual(['limit', 'offset']))
   })

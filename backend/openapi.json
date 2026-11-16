@@ -2201,6 +2201,17 @@
             "title": "Procurement",
             "type": "string"
           },
+          "product": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product"
+          },
           "quote": {
             "$ref": "#/components/schemas/QuoteRequest"
           },
@@ -2219,17 +2230,6 @@
               }
             ],
             "title": "Revenue Date"
-          },
-          "solution": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Solution"
           },
           "status_key": {
             "title": "Status Key",
@@ -2347,6 +2347,10 @@
             "title": "Procurement",
             "type": "string"
           },
+          "product": {
+            "title": "Product",
+            "type": "string"
+          },
           "quote": {
             "$ref": "#/components/schemas/QuoteResponse"
           },
@@ -2374,10 +2378,6 @@
               }
             ],
             "title": "Risk"
-          },
-          "solution": {
-            "title": "Solution",
-            "type": "string"
           },
           "status_changed_on": {
             "format": "date",
@@ -2418,7 +2418,7 @@
           "owner_user_id",
           "owner",
           "vendor",
-          "solution",
+          "product",
           "users",
           "status_key",
           "forecast_key",
@@ -2540,6 +2540,17 @@
             ],
             "title": "Procurement"
           },
+          "product": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product"
+          },
           "quote": {
             "anyOf": [
               {
@@ -2572,17 +2583,6 @@
               }
             ],
             "title": "Revenue Date"
-          },
-          "solution": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Solution"
           },
           "status_key": {
             "anyOf": [
@@ -2703,6 +2703,10 @@
             "title": "Procurement",
             "type": "string"
           },
+          "product": {
+            "title": "Product",
+            "type": "string"
+          },
           "quote": {
             "$ref": "#/components/schemas/QuoteResponse"
           },
@@ -2730,10 +2734,6 @@
               }
             ],
             "title": "Risk"
-          },
-          "solution": {
-            "title": "Solution",
-            "type": "string"
           },
           "status_changed_on": {
             "format": "date",
@@ -2774,7 +2774,7 @@
           "owner_user_id",
           "owner",
           "vendor",
-          "solution",
+          "product",
           "users",
           "status_key",
           "forecast_key",
@@ -9576,7 +9576,7 @@
           },
           {
             "in": "query",
-            "name": "solution",
+            "name": "product",
             "required": false,
             "schema": {
               "anyOf": [
@@ -9588,7 +9588,7 @@
                   "type": "null"
                 }
               ],
-              "title": "Solution"
+              "title": "Product"
             }
           },
           {

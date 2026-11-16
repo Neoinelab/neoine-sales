@@ -48,7 +48,7 @@ export function dealSideOf(data: SeedData, record: LicenseContractRecord): DealS
     isWon: deal.forecastKey === FORECAST_WON,
     customer: company(deal.customerContactId),
     vendor: vendorOf(data, deal.vendorId),
-    product: deal.solution,
+    product: deal.product,
     partner: active ? company(active.contactId) : null,
     owner: userRef(data, deal.ownerId),
   }

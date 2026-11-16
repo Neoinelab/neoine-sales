@@ -119,7 +119,7 @@ describe('Quarter 단독 선택', () => {
   })
 })
 
-describe('Vendor 필터와 Solution 텍스트 필터', () => {
+describe('Vendor 필터와 Product 텍스트 필터', () => {
   // Vendor 선택지의 값은 id, 표시는 이름이다
   // 테스트 코드: DL-066
   it('uses the vendor id as the option value and the name as the label', async () => {
@@ -136,23 +136,23 @@ describe('Vendor 필터와 Solution 텍스트 필터', () => {
     ])
   })
 
-  // Solution은 선택 상자가 아니라 텍스트 입력이다
+  // Product는 선택 상자가 아니라 텍스트 입력이다
   // 테스트 코드: DL-065
-  it('shows Solution as a text input, not a select', async () => {
+  it('shows Product as a text input, not a select', async () => {
     // given: 목록 필터 바
     await listReady()
 
     // when: 화면을 확인한다
-    const solution = screen.getByLabelText('Solution')
+    const product = screen.getByLabelText('Product')
 
-    // then: Solution이 텍스트 입력이다
-    expect(solution.tagName).toBe('INPUT')
-    expect(within(solution).queryAllByRole('option')).toHaveLength(0)
+    // then: Product가 텍스트 입력이다
+    expect(product.tagName).toBe('INPUT')
+    expect(within(product).queryAllByRole('option')).toHaveLength(0)
   })
 
-  // Vendor id로 거른 뒤 Solution 텍스트로 거른다
+  // Vendor id로 거른 뒤 Product 텍스트로 거른다
   // 테스트 코드: DL-066
-  it('filters by the vendor id and then by the solution text', async () => {
+  it('filters by the vendor id and then by the product text', async () => {
     // given: 시드 목록
     const { user, location } = await listReady()
 
@@ -162,23 +162,23 @@ describe('Vendor 필터와 Solution 텍스트 필터', () => {
     await waitFor(() => expect(dataRows()).toHaveLength(7))
     expect(location()).toContain(`vendor=${seedVendorId('Silverfort')}`)
 
-    // when: Solution을 입력하고 검색한다
-    await user.type(screen.getByLabelText('Solution'), 'mfa')
+    // when: Product를 입력하고 검색한다
+    await user.type(screen.getByLabelText('Product'), 'mfa')
     await user.click(screen.getByRole('button', { name: '검색' }))
-    // then: Solution 텍스트로 더 거른 3행이 보인다
+    // then: Product 텍스트로 더 거른 3행이 보인다
     await waitFor(() => expect(dataRows()).toHaveLength(3))
-    expect(location()).toContain('solution=mfa')
+    expect(location()).toContain('product=mfa')
     expect(location()).toContain(`vendor=${seedVendorId('Silverfort')}`)
   })
 
-  // Solution만 검색해도 Vendor를 채우지 않는다
+  // Product만 검색해도 Vendor를 채우지 않는다
   // 테스트 코드: DL-067
-  it('does not fill the vendor in when only a solution text is searched', async () => {
+  it('does not fill the vendor in when only a product text is searched', async () => {
     // given: 시드 목록
     const { user, location } = await listReady()
 
-    // when: Solution만 검색한다
-    await user.type(screen.getByLabelText('Solution'), 'SSO')
+    // when: Product만 검색한다
+    await user.type(screen.getByLabelText('Product'), 'SSO')
     await user.click(screen.getByRole('button', { name: '검색' }))
 
     // then: Vendor 선택은 전체 그대로다
@@ -187,15 +187,15 @@ describe('Vendor 필터와 Solution 텍스트 필터', () => {
     expect(screen.getByLabelText('Vendor')).toHaveDisplayValue('전체')
   })
 
-  // URL로 Vendor와 Solution 텍스트를 복원한다
+  // URL로 Vendor와 Product 텍스트를 복원한다
   // 테스트 코드: DL-071
-  it('restores the vendor and the solution text from the URL', async () => {
-    // when: 그 주소를 연다 (전제: Vendor·Solution이 든 주소)
-    await renderAt(`/deals?vendor=${seedVendorId('Silverfort')}&solution=ITDR`)
+  it('restores the vendor and the product text from the URL', async () => {
+    // when: 그 주소를 연다 (전제: Vendor·Product가 든 주소)
+    await renderAt(`/deals?vendor=${seedVendorId('Silverfort')}&product=ITDR`)
 
     // then: 두 칸이 복원된다
     await waitFor(() => expect(screen.getByLabelText('Vendor')).toHaveDisplayValue('Silverfort'))
-    expect(screen.getByLabelText('Solution')).toHaveValue('ITDR')
+    expect(screen.getByLabelText('Product')).toHaveValue('ITDR')
     await waitFor(() => expect(dataRows()).toHaveLength(4))
   })
 
@@ -213,14 +213,14 @@ describe('Vendor 필터와 Solution 텍스트 필터', () => {
     expect(screen.getByLabelText('Vendor')).toHaveDisplayValue('전체')
   })
 
-  // 예전 숫자 solution id는 일반 텍스트로 본다
+  // 예전 숫자 product id는 일반 텍스트로 본다
   // 테스트 코드: DL-072
-  it('treats an old numeric solution id in the URL as plain text', async () => {
-    // when: 그 주소를 연다 (전제: 숫자 solution이 든 주소)
-    await renderAt('/deals?solution=12')
+  it('treats an old numeric product id in the URL as plain text', async () => {
+    // when: 그 주소를 연다 (전제: 숫자 product가 든 주소)
+    await renderAt('/deals?product=12')
 
     // then: 텍스트 조건으로 쓰인다
-    await waitFor(() => expect(screen.getByLabelText('Solution')).toHaveValue('12'))
+    await waitFor(() => expect(screen.getByLabelText('Product')).toHaveValue('12'))
     expect(await screen.findByText('조건에 맞는 Deal이 없습니다.')).toBeVisible()
   })
 })

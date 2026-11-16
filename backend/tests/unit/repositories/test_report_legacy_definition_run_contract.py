@@ -98,3 +98,26 @@ async def test_legacy_top_level_sort_runs_in_the_same_order(report_case: ReportC
     rows = await _run_stored(report_case, stored)
     # then: Vendor 내림차순이라 Beta(SAP)가 먼저다
     assert rows == [("Beta", "SAP"), ("Alpha", "IBM")]
+
+
+async def test_legacy_solution_key_runs_as_the_product_field(report_case: ReportCase) -> None:
+    """예전 key deal.solution 컬럼·조건으로 저장된 정의는 Product 값으로 실행된다.
+
+    테스트 코드: RQ-116
+    """
+    # given: Product가 "ITDR"·"MFA"인 Deal 두 건과 예전 key를 쓰는 저장 정의
+    await report_case.add_deal(name="Alpha", product="ITDR")
+    await report_case.add_deal(name="Beta", product="MFA")
+    stored = {
+        "columns": [
+            {"field": "deal.solution", "label": "솔루션"},
+            {"field": "deal.name"},
+        ],
+        "conditions": [{"field": "deal.solution", "operator": "contains", "value": "itd"}],
+        "combine": "and",
+        "row_limit": 100,
+    }
+    # when: 저장 정의를 읽어 실행한다
+    rows = await _run_stored(report_case, stored)
+    # then: "ITDR" Deal 1행만 나온다
+    assert rows == [("ITDR", "Alpha")]

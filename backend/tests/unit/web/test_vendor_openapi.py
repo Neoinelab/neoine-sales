@@ -1,4 +1,4 @@
-"""Vendor API의 OpenAPI 계약: 경로·메서드, 응답 모양, 폐지된 facets·Solution API."""
+"""Vendor API의 OpenAPI 계약: 경로·메서드, 응답 모양, 폐지된 facets·Product API."""
 
 from typing import Any
 
@@ -71,8 +71,8 @@ def test_vendor_response_has_usage_and_no_solutions(schema: dict[str, Any]) -> N
     }
 
 
-def test_deal_requests_take_vendor_id_and_a_solution_text(schema: dict[str, Any]) -> None:
-    """Deal 요청은 vendor_id와 Solution 텍스트를 받고, 등록에서 vendor_id만 필수다.
+def test_deal_requests_take_vendor_id_and_a_product_text(schema: dict[str, Any]) -> None:
+    """Deal 요청은 vendor_id와 Product 텍스트를 받고, 등록에서 vendor_id만 필수다.
 
     테스트 코드: DE-010
     """
@@ -81,48 +81,48 @@ def test_deal_requests_take_vendor_id_and_a_solution_text(schema: dict[str, Any]
 
     # when: Deal 등록·수정 요청 스키마를 살펴본다
     for name in ("DealCreateRequest", "DealPatchRequest"):
-        # then: vendor_id·solution이 있고 예전 필드는 없다
+        # then: vendor_id·product가 있고 예전 필드는 없다
         props = schemas[name]["properties"]
-        assert {"vendor_id", "solution"} <= set(props), name
+        assert {"vendor_id", "product"} <= set(props), name
         assert not {"vendor", "solution_id"} & set(props), name
     create = schemas["DealCreateRequest"]
-    # 등록: vendor_id는 필수 정수(null 불가), solution은 선택이고 null·생략을 받는다
+    # 등록: vendor_id는 필수 정수(null 불가), product는 선택이고 null·생략을 받는다
     assert create["properties"]["vendor_id"]["type"] == "integer"
     assert "vendor_id" in create["required"]
-    assert "solution" not in create["required"]
-    kinds = {part.get("type") for part in create["properties"]["solution"]["anyOf"]}
+    assert "product" not in create["required"]
+    kinds = {part.get("type") for part in create["properties"]["product"]["anyOf"]}
     assert kinds == {"string", "null"}
 
 
-def test_deal_responses_expose_a_vendor_ref_and_a_solution_string(
+def test_deal_responses_expose_a_vendor_ref_and_a_product_string(
     schema: dict[str, Any],
 ) -> None:
-    """Deal 응답은 Vendor 참조와 Solution 문자열을 싣는다."""
+    """Deal 응답은 Vendor 참조와 Product 문자열을 싣는다."""
     # given: OpenAPI 스키마
     schemas = schema["components"]["schemas"]
 
     # when: Deal 응답 스키마를 살펴본다
     for name in ("DealRowResponse", "DealDetailResponse"):
-        # then: vendor·solution이 있고 solution은 필수 문자열이다
+        # then: vendor·product가 있고 product는 필수 문자열이다
         props = schemas[name]["properties"]
-        assert {"vendor", "solution"} <= set(props), name
-        assert props["solution"]["type"] == "string", name
-        assert "solution" in schemas[name]["required"], name
+        assert {"vendor", "product"} <= set(props), name
+        assert props["product"]["type"] == "string", name
+        assert "product" in schemas[name]["required"], name
     assert set(schemas["NamedRefResponse"]["properties"]) == {"id", "name"}
 
 
-def test_deal_search_takes_vendor_id_and_a_solution_text(schema: dict[str, Any]) -> None:
-    """Deal 검색은 vendor_id와 Solution 텍스트 조건을 받는다."""
+def test_deal_search_takes_vendor_id_and_a_product_text(schema: dict[str, Any]) -> None:
+    """Deal 검색은 vendor_id와 Product 텍스트 조건을 받는다."""
     # given: Deal 목록 검색 파라미터
     parameters = schema["paths"]["/api/v1/deals"]["get"]["parameters"]
     # when: 파라미터 이름을 살펴본다
     by_name = {p["name"]: p for p in parameters}
 
-    # then: vendor_id·solution이 있고 예전 파라미터는 없다
-    assert {"vendor_id", "solution", "quarter", "year"} <= set(by_name)
+    # then: vendor_id·product가 있고 예전 파라미터는 없다
+    assert {"vendor_id", "product", "quarter", "year"} <= set(by_name)
     assert "solution_id" not in by_name
     assert "vendor" not in by_name
     assert any(
         branch.get("type") == "string" and branch.get("maxLength") == 200
-        for branch in by_name["solution"]["schema"].get("anyOf", [by_name["solution"]["schema"]])
+        for branch in by_name["product"]["schema"].get("anyOf", [by_name["product"]["schema"]])
     )

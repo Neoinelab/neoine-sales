@@ -1,4 +1,4 @@
-/** Deal 등록·수정이 Vendor는 id(필수)로, Solution은 선택 자유 텍스트로 받고 서버 검증 문구·History를 따른다. */
+/** Deal 등록·수정이 Vendor는 id(필수)로, Product는 선택 자유 텍스트로 받고 서버 검증 문구·History를 따른다. */
 
 import { describe, expect, it } from 'vitest'
 import { seedVendorId } from '../../fixtures/vendors'
@@ -7,18 +7,18 @@ import { NO_SUCH_ID, USER_ID } from '../seed/ids'
 
 const UNKNOWN_VENDOR = '선택한 Vendor가 없습니다. 목록에서 다시 선택하세요.'
 const VENDOR_REQUIRED = 'Vendor를 선택하세요.'
-const TOO_LONG = 'Solution은 200자 이내로 입력하세요.'
+const TOO_LONG = 'Product는 200자 이내로 입력하세요.'
 
-describe('deals.create vendor and solution', () => {
-  // 등록 응답은 Vendor를 {id, name}으로, Solution을 다듬은 문자열로 돌려준다.
-  it('returns the vendor as {id, name} and the solution as a trimmed string', async () => {
+describe('deals.create vendor and product', () => {
+  // 등록 응답은 Vendor를 {id, name}으로, Product를 다듬은 문자열로 돌려준다.
+  it('returns the vendor as {id, name} and the product as a trimmed string', async () => {
     // given: sales 사용자(kim)
     const { gateway } = await mockAs('kim')
-    // when: 앞뒤 공백이 든 Solution으로 Deal을 등록한다
-    const created = await gateway.deals.create(dealInput(USER_ID.kim, { solution: '  ITDR  ' }))
-    // then: vendor는 {id, name}이고 solution은 공백이 잘린 문자열이다
+    // when: 앞뒤 공백이 든 Product로 Deal을 등록한다
+    const created = await gateway.deals.create(dealInput(USER_ID.kim, { product: '  ITDR  ' }))
+    // then: vendor는 {id, name}이고 product는 공백이 잘린 문자열이다
     expect(created.vendor).toEqual({ id: seedVendorId('Silverfort'), name: 'Silverfort' })
-    expect(created.solution).toBe('ITDR')
+    expect(created.product).toBe('ITDR')
   })
 
   // Vendor 없이 등록하면 요청 형식 오류(422)이고 Deal이 만들어지지 않는다.
@@ -35,90 +35,106 @@ describe('deals.create vendor and solution', () => {
     expect((await gateway.deals.list({ limit: 100 })).total).toBe(before)
   })
 
-  // Solution은 선택이라 빈 값·공백은 빈 문자열로 저장한다.
-  it('stores a blank solution as an empty string', async () => {
+  // Product는 선택이라 빈 값·공백은 빈 문자열로 저장한다.
+  it('stores a blank product as an empty string', async () => {
     // given: sales 사용자(kim)
     const { gateway } = await mockAs('kim')
-    // when: 빈 Solution과 공백만 있는 Solution으로 등록한다
-    const empty = await gateway.deals.create(dealInput(USER_ID.kim, { solution: '' }))
-    const blank = await gateway.deals.create(dealInput(USER_ID.kim, { solution: '   ' }))
-    // then: 둘 다 등록되고 solution은 빈 문자열이다
-    expect(empty.solution).toBe('')
-    expect(blank.solution).toBe('')
+    // when: 빈 Product와 공백만 있는 Product로 등록한다
+    const empty = await gateway.deals.create(dealInput(USER_ID.kim, { product: '' }))
+    const blank = await gateway.deals.create(dealInput(USER_ID.kim, { product: '   ' }))
+    // then: 둘 다 등록되고 product는 빈 문자열이다
+    expect(empty.product).toBe('')
+    expect(blank.product).toBe('')
   })
 
-  // Solution은 200자까지 허용하고 201자와 NUL은 거절한다.
+  // Product는 200자까지 허용하고 201자와 NUL은 거절한다.
   it('accepts 200 characters and rejects 201 and NUL', async () => {
     // given: sales 사용자(kim)
     const { gateway } = await mockAs('kim')
-    // when: 200자·201자·NUL이 든 Solution으로 등록한다
-    const result = await gateway.deals.create(dealInput(USER_ID.kim, { solution: 'a'.repeat(200) }))
+    // when: 200자·201자·NUL이 든 Product로 등록한다
+    const result = await gateway.deals.create(dealInput(USER_ID.kim, { product: 'a'.repeat(200) }))
     // then: 200자는 등록되고 201자는 422 길이 문구, NUL은 422다
     expect(result).toBeDefined()
-    await expectApiError(gateway.deals.create(dealInput(USER_ID.kim, { solution: 'a'.repeat(201) })), 422, TOO_LONG)
-    await expectApiError(gateway.deals.create(dealInput(USER_ID.kim, { solution: 'a\u0000b' })), 422)
+    await expectApiError(gateway.deals.create(dealInput(USER_ID.kim, { product: 'a'.repeat(201) })), 422, TOO_LONG)
+    await expectApiError(gateway.deals.create(dealInput(USER_ID.kim, { product: 'a\u0000b' })), 422)
   })
 
-  // 검증 순서는 Deal Name, Vendor, Solution, Owner 순이다.
-  it('checks the vendor after the Deal Name, the solution after the vendor and the owner after the solution', async () => {
-    // given: sales 사용자(kim)과 201자 Solution
+  // 검증 순서는 Deal Name, Vendor, Product, Owner 순이다.
+  it('checks the vendor after the Deal Name, the product after the vendor and the owner after the product', async () => {
+    // given: sales 사용자(kim)과 201자 Product
     const { gateway } = await mockAs('kim')
     const tooLong = 'a'.repeat(201)
     // when·then: 여러 칸이 틀린 요청으로 등록한다 → 가장 앞선 틀린 칸의 문구로 422가 난다
-    await expectApiError(gateway.deals.create(dealInput(USER_ID.kim, { name: ' ', vendorId: NO_SUCH_ID, solution: tooLong })), 422, 'Deal Name을 입력하세요.')
-    await expectApiError(gateway.deals.create(dealInput(USER_ID.kim, { vendorId: NO_SUCH_ID, solution: tooLong })), 422, UNKNOWN_VENDOR)
-    await expectApiError(gateway.deals.create(dealInput(USER_ID.root, { solution: tooLong })), 422, TOO_LONG)
+    await expectApiError(gateway.deals.create(dealInput(USER_ID.kim, { name: ' ', vendorId: NO_SUCH_ID, product: tooLong })), 422, 'Deal Name을 입력하세요.')
+    await expectApiError(gateway.deals.create(dealInput(USER_ID.kim, { vendorId: NO_SUCH_ID, product: tooLong })), 422, UNKNOWN_VENDOR)
+    await expectApiError(gateway.deals.create(dealInput(USER_ID.root, { product: tooLong })), 422, TOO_LONG)
   })
 })
 
-describe('deals.update vendor and solution', () => {
-  // 수정은 Solution 텍스트를 다듬어 바꾸고 이력에 텍스트로 남긴다.
-  it('replaces the solution text, trims it and records it as text in the history', async () => {
+describe('deals.update vendor and product', () => {
+  // 수정은 Product 텍스트를 다듬어 바꾸고 이력에 텍스트로 남긴다.
+  it('replaces the product text, trims it and records it as text in the history', async () => {
     // given: Silverfort / MFA인 Deal과 현재 이력 건수
     const { gateway } = await mockAs('kim')
     const code = dealCode(2) // Silverfort / MFA
     const base = (await gateway.history.list(code, {})).length
 
-    // when: 공백이 든 새 Solution으로 수정한다
-    const updated = await gateway.deals.update(code, { solution: '  Identity Threat ' })
+    // when: 공백이 든 새 Product로 수정한다
+    const updated = await gateway.deals.update(code, { product: '  Identity Threat ' })
 
-    // then: solution이 다듬은 값이고 이력에 Solution 변경 1건이 남는다
-    expect(updated.solution).toBe('Identity Threat')
+    // then: product가 다듬은 값이고 이력에 Product 변경 1건이 남는다
+    expect(updated.product).toBe('Identity Threat')
     const all = await gateway.history.list(code, {})
     expect(all.slice(0, all.length - base).map((h) => [h.category, h.target, h.before, h.after])).toEqual([
-      ['other', 'Solution', 'MFA', 'Identity Threat'],
+      ['other', 'Product', 'MFA', 'Identity Threat'],
     ])
   })
 
-  // Solution을 비우면 빈 값이 되고 이력에 남는다.
-  it('clears the solution and records it in the history', async () => {
-    // given: Solution이 MFA인 Deal과 현재 이력 건수
+  // Product를 비우면 빈 값이 되고 이력에 남는다.
+  it('clears the product and records it in the history', async () => {
+    // given: Product가 MFA인 Deal과 현재 이력 건수
     const { gateway } = await mockAs('kim')
     const code = dealCode(2)
     const base = (await gateway.history.list(code, {})).length
 
     // when: 공백만 있는 값으로 수정한다
-    const updated = await gateway.deals.update(code, { solution: '   ' })
+    const updated = await gateway.deals.update(code, { product: '   ' })
 
-    // then: Solution이 ''이고 이력에 MFA에서 -로 한 건 남는다
-    expect(updated.solution).toBe('')
+    // then: Product가 ''이고 이력에 MFA에서 -로 한 건 남는다
+    expect(updated.product).toBe('')
     const all = await gateway.history.list(code, {})
-    expect(all.slice(0, all.length - base).map((h) => [h.target, h.before, h.after])).toEqual([['Solution', 'MFA', '-']])
+    expect(all.slice(0, all.length - base).map((h) => [h.target, h.before, h.after])).toEqual([['Product', 'MFA', '-']])
   })
 
-  // Solution을 보내지 않으면 값이 유지된다.
-  it('keeps the solution when it is not sent', async () => {
-    // given: Solution이 MFA인 Deal
+  // 예전 solution 키는 모르는 필드라 등록·수정·목록 조회 모두 422이고 Deal은 바뀌지 않는다(2026-11-16 이름 변경, 별칭 없음).
+  it('rejects the old solution key in create, update and list as an unknown field', async () => {
+    // given: sales 사용자(kim)과 Product가 MFA인 Deal
+    const { gateway } = await mockAs('kim')
+    const code = dealCode(2)
+    const old = { solution: 'ITDR' }
+
+    // when·then: 예전 키를 실어 등록·수정·목록 조회를 하면 모두 422다
+    await expectApiError(gateway.deals.create({ ...dealInput(USER_ID.kim), ...old }), 422)
+    await expectApiError(gateway.deals.update(code, old as never), 422)
+    await expectApiError(gateway.deals.list(old as never), 422)
+
+    // then: Deal의 Product는 그대로다
+    expect((await gateway.deals.get(code)).product).toBe('MFA')
+  })
+
+  // Product를 보내지 않으면 값이 유지된다.
+  it('keeps the product when it is not sent', async () => {
+    // given: Product가 MFA인 Deal
     const { gateway } = await mockAs('kim')
     const code = dealCode(2)
     // when: 이름만 바꿔 수정한다
     const updated = await gateway.deals.update(code, { name: '다른 이름' })
-    // then: solution이 MFA 그대로다
-    expect(updated.solution).toBe('MFA')
+    // then: product가 MFA 그대로다
+    expect(updated.product).toBe('MFA')
   })
 
-  // Vendor만 바꾸면 Solution은 유지되고 이력은 Vendor만 남는다.
-  it('changes only the vendor, keeps the solution and records the vendor alone', async () => {
+  // Vendor만 바꾸면 Product는 유지되고 이력은 Vendor만 남는다.
+  it('changes only the vendor, keeps the product and records the vendor alone', async () => {
     // given: Silverfort / MFA인 Deal과 현재 이력 건수
     const { gateway } = await mockAs('kim')
     const code = dealCode(2) // Silverfort / MFA
@@ -127,52 +143,52 @@ describe('deals.update vendor and solution', () => {
     // when: Vendor를 Okta로 바꿔 수정한다
     const updated = await gateway.deals.update(code, { vendorId: seedVendorId('Okta') })
 
-    // then: vendor는 Okta, solution은 MFA이고 이력에 Vendor 변경 1건만 남는다
+    // then: vendor는 Okta, product는 MFA이고 이력에 Vendor 변경 1건만 남는다
     expect(updated.vendor?.name).toBe('Okta')
-    expect(updated.solution).toBe('MFA')
+    expect(updated.product).toBe('MFA')
     const all = await gateway.history.list(code, {})
     expect(all.slice(0, all.length - base).map((h) => [h.category, h.target, h.before, h.after])).toEqual([
       ['other', 'Vendor', 'Silverfort', 'Okta'],
     ])
   })
 
-  // Vendor를 null로 보내면 거절하고 Vendor·Solution을 유지한다.
-  it('refuses to clear the vendor and keeps the vendor and the solution', async () => {
+  // Vendor를 null로 보내면 거절하고 Vendor·Product를 유지한다.
+  it('refuses to clear the vendor and keeps the vendor and the product', async () => {
     // given: Silverfort / MFA인 Deal
     const { gateway } = await mockAs('kim')
     const code = dealCode(2)
     // when·then: vendorId를 null로 수정한다 → 422와 'Vendor를 선택하세요.'다
     await expectApiError(gateway.deals.update(code, { vendorId: null as unknown as number }), 422, VENDOR_REQUIRED)
-    // then: Vendor는 Silverfort, Solution은 MFA 그대로다
+    // then: Vendor는 Silverfort, Product는 MFA 그대로다
     const stored = await gateway.deals.get(code)
-    expect([stored.vendor?.name, stored.solution]).toEqual(['Silverfort', 'MFA'])
+    expect([stored.vendor?.name, stored.product]).toEqual(['Silverfort', 'MFA'])
   })
 
-  // 같은 Vendor와 공백만 다른 같은 Solution을 다시 보내면 이력이 남지 않는다.
-  it('records nothing when the same vendor and the same solution with spaces are sent again', async () => {
+  // 같은 Vendor와 공백만 다른 같은 Product를 다시 보내면 이력이 남지 않는다.
+  it('records nothing when the same vendor and the same product with spaces are sent again', async () => {
     // given: Silverfort / MFA인 Deal과 현재 이력 건수
     const { gateway } = await mockAs('kim')
     const code = dealCode(2)
     const base = (await gateway.history.list(code, {})).length
 
-    // when: 같은 Vendor와 공백이 붙은 같은 Solution으로 수정한다
-    await gateway.deals.update(code, { vendorId: seedVendorId('Silverfort'), solution: ' MFA ' })
+    // when: 같은 Vendor와 공백이 붙은 같은 Product로 수정한다
+    await gateway.deals.update(code, { vendorId: seedVendorId('Silverfort'), product: ' MFA ' })
 
     // then: 이력 건수가 그대로다
     expect((await gateway.history.list(code, {})).length).toBe(base)
   })
 
-  // 대소문자만 바뀐 Solution도 이력에 남긴다.
-  it('records a case-only solution change', async () => {
-    // given: Solution이 MFA인 Deal
+  // 대소문자만 바뀐 Product도 이력에 남긴다.
+  it('records a case-only product change', async () => {
+    // given: Product가 MFA인 Deal
     const { gateway } = await mockAs('kim')
     const code = dealCode(2)
 
-    // when: Solution을 mfa로 수정한다
-    await gateway.deals.update(code, { solution: 'mfa' })
+    // when: Product를 mfa로 수정한다
+    await gateway.deals.update(code, { product: 'mfa' })
 
-    // then: Solution 이력의 이전·이후 값이 MFA·mfa다
-    const entry = (await gateway.history.list(code, {})).find((h) => h.target === 'Solution')
+    // then: Product 이력의 이전·이후 값이 MFA·mfa다
+    const entry = (await gateway.history.list(code, {})).find((h) => h.target === 'Product')
     expect([entry?.before, entry?.after]).toEqual(['MFA', 'mfa'])
   })
 

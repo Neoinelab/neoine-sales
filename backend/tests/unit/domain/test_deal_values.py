@@ -1,4 +1,4 @@
-"""Deal 값 객체: 금액·이름·Vendor 선택·Solution 텍스트·Users count·구매절차·견적·POC·
+"""Deal 값 객체: 금액·이름·Vendor 선택·Product 텍스트·Users count·구매절차·견적·POC·
 BANT 선택.
 
 문구는 프런트 목업 `validateDealFields`와 같다. 여기서는 경계값만 본다(순서는 application 테스트).
@@ -33,7 +33,7 @@ from tests.support.user_ids import OWNER_ID, uid
 AMOUNT_MESSAGE = "매출금액은 1원 이상의 정수로 입력하세요."
 USERS_MESSAGE = "Users count는 0 이상의 정수로 입력하세요."
 USERS_REQUIRED_MESSAGE = "Users count를 입력하세요."
-SOLUTION_MAX = 200  # 정본은 app.domain.deal.values.SOLUTION_MAX(아래 테스트가 같은 값인지 확인)
+PRODUCT_MAX = 200  # 정본은 app.domain.deal.values.PRODUCT_MAX(아래 테스트가 같은 값인지 확인)
 
 
 def test_limits_match_the_agreed_values() -> None:
@@ -157,129 +157,129 @@ class TestVendorChoice:
             make_deal_details(solution_id=1)
 
 
-class TestSolutionText:
-    """Solution은 Vendor와 무관한 선택 자유 텍스트다(2026-11-13 변경, 빈 값 '')."""
+class TestProductText:
+    """Product는 Vendor와 무관한 선택 자유 텍스트다(2026-11-13 변경, 빈 값 '')."""
 
-    def test_solution_is_trimmed(self) -> None:
-        """Solution은 앞뒤 공백을 자른다."""
-        # when: 공백 낀 Solution으로 만든다
-        result = make_deal_details(solution="  ITDR  ").solution
+    def test_product_is_trimmed(self) -> None:
+        """Product는 앞뒤 공백을 자른다."""
+        # when: 공백 낀 Product로 만든다
+        result = make_deal_details(product="  ITDR  ").product
         # then: 잘린 값이다
         assert result == "ITDR"
 
-    def test_constructor_allows_the_empty_solution(self) -> None:
-        """값 객체 생성자는 빈 Solution을 허용한다."""
-        # Solution은 선택이라 빈 값 ''이 정상 값이다. 값 객체는 NUL·길이만 본다.
-        # when: 빈 Solution으로 만든다
-        result = make_deal_details(solution="").solution
+    def test_constructor_allows_the_empty_product(self) -> None:
+        """값 객체 생성자는 빈 Product를 허용한다."""
+        # Product는 선택이라 빈 값 ''이 정상 값이다. 값 객체는 NUL·길이만 본다.
+        # when: 빈 Product로 만든다
+        result = make_deal_details(product="").product
         # then: 빈 문자열로 보관된다
         assert result == ""
 
-    def test_replace_on_an_empty_solution_details_succeeds(self) -> None:
-        """빈 Solution인 상세도 다른 필드를 replace할 수 있다."""
-        # given: 빈 Solution의 상세
-        legacy = make_deal_details(solution="")
+    def test_replace_on_an_empty_product_details_succeeds(self) -> None:
+        """빈 Product인 상세도 다른 필드를 replace할 수 있다."""
+        # given: 빈 Product의 상세
+        legacy = make_deal_details(product="")
 
         # when: 금액·매출일을 replace로 바꾼다
         changed = replace(
             legacy, revenue_amount=RevenueAmount(2_000), revenue_date=date(2027, 1, 5)
         )
 
-        # then: 바뀐 값이 반영되고 Solution은 빈 값 그대로다
+        # then: 바뀐 값이 반영되고 Product는 빈 값 그대로다
         assert (changed.revenue_amount.value, changed.revenue_date) == (2_000, date(2027, 1, 5))
-        assert changed.solution == ""
+        assert changed.product == ""
 
-    def test_replace_keeps_checking_the_solution_length(self) -> None:
-        """replace로 Solution을 바꿀 때도 길이 제한을 검사한다."""
-        # when·then: 201자 Solution으로 replace하면 길이 안내 InvalidValueError다
-        with raises_with(InvalidValueError, "Solution은 200자 이내로 입력하세요."):
-            replace(make_deal_details(solution="ITDR"), solution="a" * (SOLUTION_MAX + 1))
+    def test_replace_keeps_checking_the_product_length(self) -> None:
+        """replace로 Product를 바꿀 때도 길이 제한을 검사한다."""
+        # when·then: 201자 Product로 replace하면 길이 안내 InvalidValueError다
+        with raises_with(InvalidValueError, "Product는 200자 이내로 입력하세요."):
+            replace(make_deal_details(product="ITDR"), product="a" * (PRODUCT_MAX + 1))
 
-    def test_solution_keeps_letter_case(self) -> None:
-        """Solution은 대소문자를 그대로 보관한다."""
-        # when: 대소문자 섞인 Solution으로 만든다
-        result = make_deal_details(solution="itDR").solution
+    def test_product_keeps_letter_case(self) -> None:
+        """Product는 대소문자를 그대로 보관한다."""
+        # when: 대소문자 섞인 Product로 만든다
+        result = make_deal_details(product="itDR").product
         # then: 그대로다
         assert result == "itDR"
 
-    def test_solution_allows_200_and_rejects_201(self) -> None:
-        """Solution은 200자까지 허용하고 201자는 거절한다."""
-        # when: 200자 Solution으로 만든다
-        result = make_deal_details(solution="a" * SOLUTION_MAX).solution
+    def test_product_allows_200_and_rejects_201(self) -> None:
+        """Product는 200자까지 허용하고 201자는 거절한다."""
+        # when: 200자 Product로 만든다
+        result = make_deal_details(product="a" * PRODUCT_MAX).product
         # then: 그대로 보관한다
-        assert result == "a" * SOLUTION_MAX
-        # when·then: 201자 Solution이면 길이 안내 InvalidValueError다
-        with raises_with(InvalidValueError, "Solution은 200자 이내로 입력하세요."):
-            make_deal_details(solution="a" * (SOLUTION_MAX + 1))
+        assert result == "a" * PRODUCT_MAX
+        # when·then: 201자 Product면 길이 안내 InvalidValueError다
+        with raises_with(InvalidValueError, "Product는 200자 이내로 입력하세요."):
+            make_deal_details(product="a" * (PRODUCT_MAX + 1))
 
     def test_length_is_counted_after_trimming(self) -> None:
-        """Solution 길이는 앞뒤 공백을 자른 뒤 센다."""
-        # when: 공백 포함 202자(자르면 200자) Solution으로 만든다
-        details = make_deal_details(solution=f" {'a' * SOLUTION_MAX} ")
+        """Product 길이는 앞뒤 공백을 자른 뒤 센다."""
+        # when: 공백 포함 202자(자르면 200자) Product로 만든다
+        details = make_deal_details(product=f" {'a' * PRODUCT_MAX} ")
 
         # then: 200자로 보관된다
-        assert details.solution == "a" * SOLUTION_MAX
+        assert details.product == "a" * PRODUCT_MAX
 
-    def test_solution_limit_constant_is_200(self) -> None:
-        """Solution 길이 상수의 정본 값이 200이다."""
+    def test_product_limit_constant_is_200(self) -> None:
+        """Product 길이 상수의 정본 값이 200이다."""
         from app.domain.deal import values  # noqa: PLC0415 - 구현 전에도 다른 테스트가 수집되게
 
-        # when·then: 도메인 SOLUTION_MAX가 200이다
-        assert values.SOLUTION_MAX == SOLUTION_MAX
+        # when·then: 도메인 PRODUCT_MAX가 200이다
+        assert values.PRODUCT_MAX == PRODUCT_MAX
 
-    def test_check_solution_returns_the_trimmed_text_and_empty_for_blank(self) -> None:
-        """check_solution은 잘린 텍스트를 돌려주고 빈 값·공백뿐이면 오류 없이 빈 문자열을 돌려준다.
+    def test_check_product_returns_the_trimmed_text_and_empty_for_blank(self) -> None:
+        """check_product는 잘린 텍스트를 돌려주고 빈 값·공백뿐이면 오류 없이 빈 문자열을 돌려준다.
 
         테스트 코드: DE-115
         """
-        from app.domain.deal.values import check_solution  # noqa: PLC0415
+        from app.domain.deal.values import check_product  # noqa: PLC0415
 
         # when: 앞뒤 공백 낀 값, 빈 값, 공백만, 탭을 검사한다
-        trimmed = check_solution("  ITDR ")
-        blanks = [check_solution(raw) for raw in ("", "   ", "\t")]
+        trimmed = check_product("  ITDR ")
+        blanks = [check_product(raw) for raw in ("", "   ", "\t")]
 
         # then: 잘린 텍스트와 빈 문자열이다(입력 안내 오류 없음)
         assert trimmed == "ITDR"
         assert blanks == ["", "", ""]
 
-    def test_check_solution_still_rejects_201_characters(self) -> None:
-        """check_solution은 200자 초과를 여전히 거절한다.
+    def test_check_product_still_rejects_201_characters(self) -> None:
+        """check_product는 200자 초과를 여전히 거절한다.
 
         테스트 코드: DE-017
         """
-        from app.domain.deal.values import check_solution  # noqa: PLC0415
+        from app.domain.deal.values import check_product  # noqa: PLC0415
 
-        # when·then: 201자 Solution이면 길이 안내 InvalidValueError다
-        with raises_with(InvalidValueError, "Solution은 200자 이내로 입력하세요."):
-            check_solution("a" * (SOLUTION_MAX + 1))
+        # when·then: 201자 Product면 길이 안내 InvalidValueError다
+        with raises_with(InvalidValueError, "Product는 200자 이내로 입력하세요."):
+            check_product("a" * (PRODUCT_MAX + 1))
 
-    def test_solution_with_nul_is_rejected(self) -> None:
-        """Solution에 NUL 문자가 있으면 거절된다."""
-        # when·then: NUL이 든 Solution이면 InvalidValueError다
+    def test_product_with_nul_is_rejected(self) -> None:
+        """Product에 NUL 문자가 있으면 거절된다."""
+        # when·then: NUL이 든 Product면 InvalidValueError다
         with pytest.raises(InvalidValueError):
-            make_deal_details(solution="a\x00b")
+            make_deal_details(product="a\x00b")
 
-    def test_empty_solution_with_a_vendor_is_kept(self) -> None:
-        """Vendor만 있고 Solution이 빈 값인 상세를 만들 수 있다."""
+    def test_empty_product_with_a_vendor_is_kept(self) -> None:
+        """Vendor만 있고 Product가 빈 값인 상세를 만들 수 있다."""
         # given: Vendor id
         vendor_id = VendorId(new_id())
 
-        # when: Solution 없이 Vendor만 넣어 만든다
-        details = make_deal_details(vendor_id=vendor_id, solution="")
+        # when: Product 없이 Vendor만 넣어 만든다
+        details = make_deal_details(vendor_id=vendor_id, product="")
 
-        # then: Vendor는 보관되고 Solution은 ''다
-        assert (details.vendor_id, details.solution) == (vendor_id, "")
+        # then: Vendor는 보관되고 Product는 ''다
+        assert (details.vendor_id, details.product) == (vendor_id, "")
 
-    def test_solution_with_vendor_is_kept(self) -> None:
-        """Vendor와 Solution을 함께 주면 둘 다 보관한다."""
+    def test_product_with_vendor_is_kept(self) -> None:
+        """Vendor와 Product를 함께 주면 둘 다 보관한다."""
         # given: Vendor id
         vendor_id = VendorId(new_id())
 
-        # when: Vendor와 Solution을 함께 넣어 만든다
-        details = make_deal_details(vendor_id=vendor_id, solution="ITDR")
+        # when: Vendor와 Product를 함께 넣어 만든다
+        details = make_deal_details(vendor_id=vendor_id, product="ITDR")
 
         # then: 둘 다 그대로 보관된다
-        assert (details.vendor_id, details.solution) == (vendor_id, "ITDR")
+        assert (details.vendor_id, details.product) == (vendor_id, "ITDR")
 
 
 class TestUsers:

@@ -37,7 +37,7 @@ describe('수정 버튼 제거와 권한 (클릭 편집)', () => {
     const names = [
       'Owner 수정',
       'Vendor 수정',
-      'Solution 수정',
+      'Product 수정',
       'Users count 수정',
       '견적 제출여부 수정',
       '견적 제출일 수정',
@@ -101,11 +101,11 @@ describe('값 클릭 → 입력기 (Enter 저장 / Esc 취소 / 키보드)', () 
     await user.keyboard('{Escape}')
     // then: Vendor 편집이 닫힌다
     expect(screen.queryByRole('combobox', { name: 'Vendor' })).not.toBeInTheDocument()
-    // when: Solution 버튼에서 Space를 누른다
-    screen.getByRole('button', { name: 'Solution 수정' }).focus()
+    // when: Product 버튼에서 Space를 누른다
+    screen.getByRole('button', { name: 'Product 수정' }).focus()
     await user.keyboard(' ')
-    // then: Solution 입력기에 포커스가 간다
-    expect(screen.getByLabelText('Solution')).toHaveFocus()
+    // then: Product 입력기에 포커스가 간다
+    expect(screen.getByLabelText('Product')).toHaveFocus()
   })
 
   // Deal 이름을 Enter로 저장하면 제목이 바뀌고 성공 알림이 보인다.
@@ -182,7 +182,7 @@ describe('값 클릭 → 입력기 (Enter 저장 / Esc 취소 / 키보드)', () 
   })
 })
 
-describe('Owner · Vendor · Solution · Users count · 견적 · POC · 구매절차', () => {
+describe('Owner · Vendor · Product · Users count · 견적 · POC · 구매절차', () => {
   // Owner 후보는 재직 sales뿐이라 퇴사자·user는 없고 고르면 바뀌며 이력에 남는다.
   // 테스트 코드: DD-079
   it('lets the writer pick another sales owner and never offers the resigned one', async () => {
@@ -205,9 +205,9 @@ describe('Owner · Vendor · Solution · Users count · 견적 · POC · 구매�
     expect(await screen.findByRole('cell', { name: 'Owner' })).toBeVisible()
   })
 
-  // Vendor는 선택 상자, Solution은 자유 입력으로 고친다.
+  // Vendor는 선택 상자, Product는 자유 입력으로 고친다.
   // 테스트 코드: DD-080
-  it('edits Vendor with a select and Solution as a free text input', async () => {
+  it('edits Vendor with a select and Product as a free text input', async () => {
     // given: sales 사용자
     const { user } = await openDeal(1, '한빛은행 ITDR 도입')
 
@@ -216,33 +216,33 @@ describe('Owner · Vendor · Solution · Users count · 견적 · POC · 구매�
     // then: Vendor는 select다
     expect(screen.getByRole('combobox', { name: 'Vendor' }).tagName).toBe('SELECT')
     expect(screen.queryByRole('listbox', { name: 'Vendor' })).not.toBeInTheDocument()
-    // when: Vendor 편집을 닫고 Solution 편집을 연다
+    // when: Vendor 편집을 닫고 Product 편집을 연다
     await user.keyboard('{Escape}')
-    await user.click(screen.getByRole('button', { name: 'Solution 수정' }))
-    // then: Solution은 현재 값이 든 input이다
-    expect(screen.getByLabelText('Solution').tagName).toBe('INPUT')
-    expect(screen.queryByRole('combobox', { name: 'Solution' })).not.toBeInTheDocument()
-    expect(screen.getByLabelText('Solution')).toHaveValue('ITDR')
+    await user.click(screen.getByRole('button', { name: 'Product 수정' }))
+    // then: Product는 현재 값이 든 input이다
+    expect(screen.getByLabelText('Product').tagName).toBe('INPUT')
+    expect(screen.queryByRole('combobox', { name: 'Product' })).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Product')).toHaveValue('ITDR')
   })
 
-  // 빈 Solution은 문구 없이 저장하고 '—'로 보이며, Esc는 값을 되돌리지 않는다.
+  // 빈 Product는 문구 없이 저장하고 '—'로 보이며, Esc는 값을 되돌리지 않는다.
   // 테스트 코드: DD-080
-  it('saves an empty Solution without a message and shows a dash', async () => {
-    // given: Solution이 ITDR인 Deal
+  it('saves an empty Product without a message and shows a dash', async () => {
+    // given: Product가 ITDR인 Deal
     const update = vi.spyOn(gateway.deals, 'update')
     const { user } = await openDeal(1, '한빛은행 ITDR 도입')
-    await user.click(screen.getByRole('button', { name: 'Solution 수정' }))
-    const solution = screen.getByLabelText('Solution')
+    await user.click(screen.getByRole('button', { name: 'Product 수정' }))
+    const product = screen.getByLabelText('Product')
 
-    // when: Solution을 공백만으로 바꿔 Enter를 누른다
-    await user.clear(solution)
-    await user.type(solution, '   {Enter}')
+    // when: Product를 공백만으로 바꿔 Enter를 누른다
+    await user.clear(product)
+    await user.type(product, '   {Enter}')
 
-    // then: 'Solution을 입력하세요.'가 없고 solution ''만 보내며 값이 '—'로 보인다
-    expect(await screen.findByText('Solution이 변경되었습니다.')).toBeVisible()
-    expect(screen.queryByText('Solution을 입력하세요.')).not.toBeInTheDocument()
-    expect(update).toHaveBeenCalledWith(expect.any(String), { solution: '' })
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Solution 수정' })).toHaveTextContent('—'))
+    // then: 'Product를 입력하세요.'가 없고 product ''만 보내며 값이 '—'로 보인다
+    expect(await screen.findByText('Product가 변경되었습니다.')).toBeVisible()
+    expect(screen.queryByText('Product를 입력하세요.')).not.toBeInTheDocument()
+    expect(update).toHaveBeenCalledWith(expect.any(String), { product: '' })
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Product 수정' })).toHaveTextContent('—'))
   })
 
   // Users count는 0 이상 정수만 저장한다.

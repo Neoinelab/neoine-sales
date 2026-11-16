@@ -18,7 +18,7 @@ from app.application.ports.deal_repository import (
 )
 from app.application.ports.pagination import MAX_LIMIT
 from app.domain.bant.values import BantCategory
-from app.domain.deal.values import SOLUTION_MAX, PocState, QuoteSubmitted
+from app.domain.deal.values import PRODUCT_MAX, PocState, QuoteSubmitted
 from app.domain.user.value_objects import UserId
 from app.web.schemas.choice import CatalogChoiceRequest
 from app.web.schemas.common import RequestModel
@@ -87,7 +87,7 @@ class DealCreateRequest(RequestModel):
     name: str
     owner_user_id: BodyId
     vendor_id: BodyId
-    solution: str | None = None
+    product: str | None = None
     users: StrictInt
     status_key: str
     forecast_key: str
@@ -105,7 +105,7 @@ class DealCreateRequest(RequestModel):
             name=self.name,
             owner_user_id=UserId(self.owner_user_id),
             vendor_id=self.vendor_id,
-            solution=self.solution if self.solution is not None else "",
+            product=self.product if self.product is not None else "",
             users=self.users,
             status_key=self.status_key,
             forecast_key=self.forecast_key,
@@ -128,7 +128,7 @@ class DealPatchRequest(RequestModel):
     name: str | None = None
     owner_user_id: BodyId | None = None
     vendor_id: BodyId | None = None
-    solution: str | None = None
+    product: str | None = None
     users: StrictInt | None = None
     status_key: str | None = None
     forecast_key: str | None = None
@@ -181,11 +181,11 @@ class DealPatchRequest(RequestModel):
         return parts
 
 
-def _document_solution_max(schema: dict[str, Any]) -> None:
+def _document_product_max(schema: dict[str, Any]) -> None:
     """검증은 트림 후 길이로 하므로 maxLength를 검증기가 아닌 문서에만 표기한다."""
     for branch in schema.get("anyOf", [schema]):
         if branch.get("type") == "string":
-            branch["maxLength"] = SOLUTION_MAX
+            branch["maxLength"] = PRODUCT_MAX
 
 
 ForecastKeyParam = Annotated[str, Field(max_length=STATUS_KEY_MAX)]
@@ -198,7 +198,7 @@ class DealSearchParams(RequestModel):
     owner_user_id: QueryId | None = None
     mine: bool = False
     vendor_id: QueryId | None = None
-    solution: Annotated[str | None, Field(json_schema_extra=_document_solution_max)] = None
+    product: Annotated[str | None, Field(json_schema_extra=_document_product_max)] = None
     status_key: Annotated[str | None, Field(max_length=STATUS_KEY_MAX)] = None
     forecast_key: Annotated[list[ForecastKeyParam], Field(max_length=FORECAST_KEYS_MAX)] | None = (
         None
@@ -217,12 +217,12 @@ class DealSearchParams(RequestModel):
     offset: Annotated[int, Field(ge=0)] = 0
     limit: Annotated[int, Field(ge=1, le=MAX_LIMIT)] = DEFAULT_PAGE_SIZE
 
-    @field_validator("solution")
+    @field_validator("product")
     @classmethod
-    def _solution_trimmed_length(cls, value: str | None) -> str | None:
+    def _product_trimmed_length(cls, value: str | None) -> str | None:
         """길이는 앞뒤 공백 제거 후 기준으로 검사한다(트림 전 max_length 금지)."""
-        if value is not None and len(value.strip()) > SOLUTION_MAX:
-            raise ValueError(f"solution은 {SOLUTION_MAX}자 이내로 입력하세요.")
+        if value is not None and len(value.strip()) > PRODUCT_MAX:
+            raise ValueError(f"product는 {PRODUCT_MAX}자 이내로 입력하세요.")
         return value
 
     def _owner(self) -> UserId | None:

@@ -22,7 +22,7 @@ _BANT = [
 DEAL_FIELDS: tuple[FieldSpec, ...] = (
     text_field("deal.code", "Deal code"),
     text_field("deal.name", "Deal 이름"),
-    text_field("deal.solution", "Solution"),
+    text_field("deal.product", "Product"),
     text_field("deal.procurement", "구매절차"),
     user_field("deal.owner", "담당자"),
     text_field("deal.customer_company", "고객사"),

@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 DEAL_KEYS = [
     "deal.code",
     "deal.name",
-    "deal.solution",
+    "deal.product",
     "deal.procurement",
     "deal.owner",
     "deal.customer_company",

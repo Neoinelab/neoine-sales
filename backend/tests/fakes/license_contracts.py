@@ -177,7 +177,7 @@ class FakeLicenseContractRepository(InMemoryStore["LicenseContract"]):
             deal_name=deal.details.name,
             customer=self._contacts._items[deal.customer_id].details.company,
             vendor=vendor,
-            product=deal.details.solution,
+            product=deal.details.product,
             partner=partner,
             owner_user_id=deal.details.owner_user_id,
         )

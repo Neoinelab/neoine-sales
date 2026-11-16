@@ -62,8 +62,8 @@ export interface DealInput {
   ownerId: number
   /** Vendor id. 필수. */
   vendorId: number
-  /** Solution 자유 텍스트. 선택(빈 값은 ""). 200자 초과는 서버가 거절한다. */
-  solution: string
+  /** Product 자유 텍스트. 선택(빈 값은 ""). 200자 초과는 서버가 거절한다. */
+  product: string
   users: number
   statusKey: string
   forecastKey: string
@@ -119,8 +119,8 @@ export interface DealListQuery {
   keyword?: string
   ownerId?: number
   vendorId?: number
-  /** Solution 텍스트 부분 일치(대소문자 무시). */
-  solution?: string
+  /** Product 텍스트 부분 일치(대소문자 무시). */
+  product?: string
   statusKey?: string
   /** 이 중 하나와 일치(OR). 비면 보내지 않는다. */
   forecastKeys?: readonly string[]

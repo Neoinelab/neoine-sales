@@ -18,7 +18,7 @@ async function openNew() {
 
 const optionNames = (select: HTMLElement) => within(select).getAllByRole('option').map((o) => o.textContent)
 const vendorSelect = () => screen.getByLabelText('Vendor')
-const solutionInput = () => screen.getByLabelText('Solution')
+const productInput = () => screen.getByLabelText('Product')
 
 /** Vendor 목록이 로딩된 뒤의 select. */
 async function loadedVendor() {
@@ -35,7 +35,7 @@ async function fillRequired(user: Awaited<ReturnType<typeof openNew>>['user'], n
   fireEvent.change(screen.getByLabelText('Expected Close'), { target: { value: '2027-05-01' } })
 }
 
-describe('Vendor 선택과 Solution 텍스트', () => {
+describe('Vendor 선택과 Product 텍스트', () => {
   // Vendor 선택 상자는 '선택하세요'와 등록된 Vendor 전체를 보이고 '선택 안 함'은 없다.
   // 테스트 코드: DE-086
   it('lists the placeholder plus every registered vendor in the Vendor select', async () => {
@@ -51,89 +51,89 @@ describe('Vendor 선택과 Solution 텍스트', () => {
     expect(vendor).toHaveDisplayValue('선택하세요')
   })
 
-  // Solution은 Vendor 없이도 입력할 수 있는 텍스트 칸이다.
+  // Product는 Vendor 없이도 입력할 수 있는 텍스트 칸이다.
   // 테스트 코드: DE-086
-  it('solution is a text input enabled without a vendor', async () => {
+  it('product is a text input enabled without a vendor', async () => {
     // when: Deal 등록 화면을 연다.
     await openNew()
     await loadedVendor()
 
-    // then: Solution 칸이 활성인 텍스트 입력이다.
-    expect(solutionInput().tagName).toBe('INPUT')
-    expect(solutionInput()).toHaveAttribute('name', 'solution')
-    expect(solutionInput()).toBeEnabled()
+    // then: Product 칸이 활성인 텍스트 입력이다.
+    expect(productInput().tagName).toBe('INPUT')
+    expect(productInput()).toHaveAttribute('name', 'product')
+    expect(productInput()).toBeEnabled()
     expect(screen.queryByText('Vendor를 먼저 선택하세요.')).not.toBeInTheDocument()
   })
 
-  // Vendor를 바꿔도 입력한 Solution은 그대로다.
+  // Vendor를 바꿔도 입력한 Product는 그대로다.
   // 테스트 코드: DE-086
-  it('changing the vendor keeps the typed solution', async () => {
-    // given: Solution을 입력했다.
+  it('changing the vendor keeps the typed product', async () => {
+    // given: Product를 입력했다.
     const { user } = await openNew()
     await loadedVendor()
 
     // when: Vendor를 바꾼다.
-    await user.type(solutionInput(), 'ITDR')
+    await user.type(productInput(), 'ITDR')
 
     await user.selectOptions(vendorSelect(), 'Silverfort')
     await user.selectOptions(vendorSelect(), 'Okta')
     await user.selectOptions(vendorSelect(), 'Zscaler')
 
-    // then: Solution 값이 그대로다.
-    expect(solutionInput()).toHaveValue('ITDR')
-    expect(solutionInput()).toBeEnabled()
+    // then: Product 값이 그대로다.
+    expect(productInput()).toHaveValue('ITDR')
+    expect(productInput()).toBeEnabled()
   })
 
-  // 폼에서 Vendor를 만들거나 Solution 목록을 고를 수 없다.
+  // 폼에서 Vendor를 만들거나 Product 목록을 고를 수 없다.
   // 테스트 코드: DE-086
-  it('offers no way to create a vendor on the form and no solution list', async () => {
+  it('offers no way to create a vendor on the form and no product list', async () => {
     // when: Deal 등록 화면을 연다.
     await openNew()
     await loadedVendor()
     const info = screen.getByRole('region', { name: 'Deal 정보' })
 
-    // then: Vendor 생성 버튼과 Solution 선택 목록이 없다.
-    expect(within(info).queryByRole('button', { name: /새 (Vendor|Solution)|(Vendor|Solution) (추가|등록)/ })).not.toBeInTheDocument()
-    expect(within(info).queryByRole('combobox', { name: 'Solution' })).not.toBeInTheDocument()
+    // then: Vendor 생성 버튼과 Product 선택 목록이 없다.
+    expect(within(info).queryByRole('button', { name: /새 (Vendor|Product)|(Vendor|Product) (추가|등록)/ })).not.toBeInTheDocument()
+    expect(within(info).queryByRole('combobox', { name: 'Product' })).not.toBeInTheDocument()
     expect(within(info).queryByRole('textbox', { name: 'Vendor' })).not.toBeInTheDocument()
   })
 })
 
-describe('Solution 선택', () => {
-  // Solution을 비우고 저장하면 문구 없이 빈 Solution으로 등록된다.
+describe('Product 선택', () => {
+  // Product를 비우고 저장하면 문구 없이 빈 Product로 등록된다.
   // 테스트 코드: DE-087
-  it('registers with an empty solution without any message', async () => {
-    // given: Solution만 비운 채 필수 값을 입력했다.
+  it('registers with an empty product without any message', async () => {
+    // given: Product만 비운 채 필수 값을 입력했다.
     const create = vi.spyOn(gateway.deals, 'create')
     const { user, location } = await openNew()
     await loadedVendor()
-    await fillRequired(user, 'Solution 비움')
-    await user.type(solutionInput(), '   ')
+    await fillRequired(user, 'Product 비움')
+    await user.type(productInput(), '   ')
 
     // when: 저장한다.
     await save(user)
 
-    // then: 'Solution을 입력하세요.'가 없고 요청의 solution이 ''이며 상세로 간다.
+    // then: 'Product를 입력하세요.'가 없고 요청의 product이 ''이며 상세로 간다.
     await waitFor(() => expect(location()).toMatch(DETAIL_URL))
-    expect(screen.queryByText('Solution을 입력하세요.')).not.toBeInTheDocument()
-    expect(create).toHaveBeenCalledWith(expect.objectContaining({ solution: '' }))
-    expect((await gateway.deals.get(location().replace('/deals/', ''))).solution).toBe('')
+    expect(screen.queryByText('Product를 입력하세요.')).not.toBeInTheDocument()
+    expect(create).toHaveBeenCalledWith(expect.objectContaining({ product: '' }))
+    expect((await gateway.deals.get(location().replace('/deals/', ''))).product).toBe('')
   })
 
-  // Solution을 건드리지 않고 저장해도 빈 Solution으로 등록된다.
+  // Product를 건드리지 않고 저장해도 빈 Product로 등록된다.
   // 테스트 코드: DE-087
-  it('registers with an untouched solution field as an empty solution', async () => {
-    // given: Solution 칸을 비워 둔 채 필수 값을 입력했다.
+  it('registers with an untouched product field as an empty product', async () => {
+    // given: Product 칸을 비워 둔 채 필수 값을 입력했다.
     const { user, location } = await openNew()
     await loadedVendor()
-    await fillRequired(user, 'Solution 안 건드림')
+    await fillRequired(user, 'Product 안 건드림')
 
     // when: 저장한다.
     await save(user)
 
-    // then: 빈 Solution으로 저장된다.
+    // then: 빈 Product로 저장된다.
     await waitFor(() => expect(location()).toMatch(DETAIL_URL))
-    expect((await gateway.deals.get(location().replace('/deals/', ''))).solution).toBe('')
+    expect((await gateway.deals.get(location().replace('/deals/', ''))).product).toBe('')
   })
 })
 
@@ -168,89 +168,89 @@ describe('Vendor 필수', () => {
 })
 
 describe('저장', () => {
-  // Solution은 공백을 지우고 고른 Vendor id와 함께 저장된다.
+  // Product는 공백을 지우고 고른 Vendor id와 함께 저장된다.
   // 테스트 코드: DE-088
-  it('saves the trimmed solution text with the chosen vendor id', async () => {
+  it('saves the trimmed product text with the chosen vendor id', async () => {
     // given: Vendor를 골랐다.
     const { user, location } = await openNew()
     await loadedVendor()
     await user.selectOptions(vendorSelect(), 'Silverfort')
-    await user.type(solutionInput(), '  ITDR ')
+    await user.type(productInput(), '  ITDR ')
     await fillRequired(user, 'Vendor 연동 등록')
 
-    // when: 공백이 든 Solution으로 저장한다.
+    // when: 공백이 든 Product로 저장한다.
     await save(user)
 
-    // then: 요청에 Vendor id와 공백 없는 Solution이 담긴다.
+    // then: 요청에 Vendor id와 공백 없는 Product가 담긴다.
     await waitFor(() => expect(location()).toMatch(DETAIL_URL))
     const saved = await gateway.deals.get(location().replace('/deals/', ''))
     expect(saved.vendor).toEqual({ id: seedVendorId('Silverfort'), name: 'Silverfort' })
-    expect(saved.solution).toBe('ITDR')
+    expect(saved.product).toBe('ITDR')
   })
 
-  // 수정 폼은 Vendor·Solution을 채우고 Vendor를 바꿔도 Solution을 유지한다.
+  // 수정 폼은 Vendor·Product을 채우고 Vendor를 바꿔도 Product를 유지한다.
   // 테스트 코드: DE-090
-  it('loads the saved vendor and solution into the edit form and keeps the solution when the vendor changes', async () => {
+  it('loads the saved vendor and product into the edit form and keeps the product when the vendor changes', async () => {
     // when: 수정 화면을 연다. (Silverfort / MFA인 Deal)
     const { user, location, code } = await openEdit('누리통신 MFA')
 
-    // then: 저장된 Vendor와 Solution이 채워진다.
+    // then: 저장된 Vendor와 Product가 채워진다.
     await waitFor(() => expect(vendorSelect()).toHaveDisplayValue('Silverfort'))
-    expect(solutionInput()).toHaveValue('MFA')
+    expect(productInput()).toHaveValue('MFA')
 
     // when: Vendor를 Okta로 바꾸고 저장한다.
     await user.selectOptions(vendorSelect(), 'Okta')
-    expect(solutionInput()).toHaveValue('MFA')
+    expect(productInput()).toHaveValue('MFA')
     await save(user)
 
-    // then: Vendor만 바뀌고 Solution이 유지된다.
+    // then: Vendor만 바뀌고 Product가 유지된다.
     await waitFor(() => expect(location()).toBe(`/deals/${code}`))
     const saved = await gateway.deals.get(code)
     expect(saved.vendor?.name).toBe('Okta')
-    expect(saved.solution).toBe('MFA')
+    expect(saved.product).toBe('MFA')
   })
 
-  // 수정 폼에서 바꾼 Solution이 저장된다.
+  // 수정 폼에서 바꾼 Product가 저장된다.
   // 테스트 코드: DE-090
-  it('saves a changed solution text from the edit form', async () => {
-    // given: 수정 화면에 저장된 Solution이 채워져 있다.
+  it('saves a changed product text from the edit form', async () => {
+    // given: 수정 화면에 저장된 Product가 채워져 있다.
     const { user, location, code } = await openEdit('누리통신 MFA')
-    await waitFor(() => expect(solutionInput()).toHaveValue('MFA'))
+    await waitFor(() => expect(productInput()).toHaveValue('MFA'))
 
-    // when: Solution을 바꿔 저장한다.
-    await user.clear(solutionInput())
-    await user.type(solutionInput(), 'Identity Threat')
+    // when: Product를 바꿔 저장한다.
+    await user.clear(productInput())
+    await user.type(productInput(), 'Identity Threat')
     await save(user)
 
-    // then: 바뀐 Solution이 저장된다.
+    // then: 바뀐 Product가 저장된다.
     await waitFor(() => expect(location()).toBe(`/deals/${code}`))
-    expect((await gateway.deals.get(code)).solution).toBe('Identity Threat')
+    expect((await gateway.deals.get(code)).product).toBe('Identity Threat')
   })
 
-  // Solution을 비우면 문구 없이 빈 Solution으로 저장한다.
+  // Product를 비우면 문구 없이 빈 Product로 저장한다.
   // 테스트 코드: DE-090
-  it('saves an emptied solution from the edit form without a message', async () => {
-    // given: 수정 화면에 저장된 Solution이 채워져 있다.
+  it('saves an emptied product from the edit form without a message', async () => {
+    // given: 수정 화면에 저장된 Product가 채워져 있다.
     const update = vi.spyOn(gateway.deals, 'update')
     const { user, location, code } = await openEdit('누리통신 MFA')
-    await waitFor(() => expect(solutionInput()).toHaveValue('MFA'))
+    await waitFor(() => expect(productInput()).toHaveValue('MFA'))
 
-    // when: Solution을 비우고 저장한다.
-    await user.clear(solutionInput())
+    // when: Product를 비우고 저장한다.
+    await user.clear(productInput())
     await save(user)
 
-    // then: 문구 없이 solution ''로 저장되고 상세로 간다.
+    // then: 문구 없이 product ''로 저장되고 상세로 간다.
     await waitFor(() => expect(location()).toBe(`/deals/${code}`))
-    expect(screen.queryByText('Solution을 입력하세요.')).not.toBeInTheDocument()
-    expect(update).toHaveBeenCalledWith(code, expect.objectContaining({ solution: '' }))
-    expect((await gateway.deals.get(code)).solution).toBe('')
+    expect(screen.queryByText('Product를 입력하세요.')).not.toBeInTheDocument()
+    expect(update).toHaveBeenCalledWith(code, expect.objectContaining({ product: '' }))
+    expect((await gateway.deals.get(code)).product).toBe('')
   })
 
-  // 서버의 Vendor·Solution 오류 문구를 배너에 보이고 폼에 머문다.
+  // 서버의 Vendor·Product 오류 문구를 배너에 보이고 폼에 머문다.
   // 테스트 코드: DE-089
   it.each([
     '선택한 Vendor가 없습니다. 목록에서 다시 선택하세요.',
-    'Solution은 200자 이내로 입력하세요.',
+    'Product는 200자 이내로 입력하세요.',
   ])('shows the server message "%s" in the error banner and stays on the form', async (detail) => {
     // given: 등록 요청이 서버 문구로 거절된다.
     vi.spyOn(gateway.deals, 'create').mockRejectedValue(
@@ -258,7 +258,7 @@ describe('저장', () => {
     )
     const { user, location } = await openNew()
     await loadedVendor()
-    await user.type(solutionInput(), 'ITDR')
+    await user.type(productInput(), 'ITDR')
     await fillRequired(user, '422 확인')
 
     // when: 저장한다.
@@ -269,19 +269,19 @@ describe('저장', () => {
     expect(location()).toBe('/deals/new')
   })
 
-  // 201자 Solution은 서버 문구를 배너에 보인다.
+  // 201자 Product는 서버 문구를 배너에 보인다.
   // 테스트 코드: DE-089
-  it('shows the server message for a solution over 200 characters from the real fake gateway', async () => {
-    // given: 201자 Solution을 입력했다.
+  it('shows the server message for a product over 200 characters from the real fake gateway', async () => {
+    // given: 201자 Product를 입력했다.
     const { user, location } = await openNew()
-    fireEvent.change(solutionInput(), { target: { value: 'a'.repeat(201) } })
+    fireEvent.change(productInput(), { target: { value: 'a'.repeat(201) } })
     await fillRequired(user, '길이 초과')
 
     // when: 저장한다.
     await save(user)
 
-    // then: 'Solution은 200자 이내로 입력하세요.'가 배너에 나온다.
-    expect(await screen.findByRole('alert')).toHaveTextContent('Solution은 200자 이내로 입력하세요.')
+    // then: 'Product는 200자 이내로 입력하세요.'가 배너에 나온다.
+    expect(await screen.findByRole('alert')).toHaveTextContent('Product는 200자 이내로 입력하세요.')
     expect(location()).toBe('/deals/new')
   })
 })

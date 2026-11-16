@@ -88,8 +88,8 @@ describe('조건 없는 목록 진입', () => {
   // 빈 값·공백 값은 없는 조건으로 보고 기본 조건이 된다
   // 테스트 코드: DL-055
   it('treats an empty value and a blank value as no condition', async () => {
-    // when: /deals?q=&solution=%20로 들어간다 (전제: 값이 비었거나 공백뿐인 q·solution 키 주소)
-    const { location } = await renderAt('/deals?q=&solution=%20', ADMIN)
+    // when: /deals?q=&product=%20로 들어간다 (전제: 값이 비었거나 공백뿐인 q·product 키 주소)
+    const { location } = await renderAt('/deals?q=&product=%20', ADMIN)
 
     // then: 주소가 /deals?year=all로 바뀐다
     await waitFor(() => expect(location()).toBe('/deals?year=all'))

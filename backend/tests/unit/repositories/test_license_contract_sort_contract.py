@@ -111,11 +111,11 @@ async def _seed(contract_case: ContractCase) -> dict[str, int]:
     }
     deal_names = {"A": "Gamma", "B": "alpha", "C": "delta", "D": "Beta", "E": "echo"}
     ids: dict[str, int] = {}
-    for key, customer, vendor, solution, partner, owner, display in rows:
+    for key, customer, vendor, product, partner, owner, display in rows:
         deal = await contract_case.deal(
             customer=customer,
             vendor=vendor,
-            solution=solution,
+            product=product,
             partner=partner,
             owner=owner,
             owner_display=display,

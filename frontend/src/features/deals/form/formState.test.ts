@@ -23,7 +23,7 @@ function filled(over: Partial<DealFormState> = {}): DealFormState {
     revenueAmount: '1,500,000',
     revenueDate: '2027-01-31',
     vendorId: '3',
-    solution: 'ITDR',
+    product: 'ITDR',
     users: '10',
     ...over,
   }
@@ -68,7 +68,7 @@ function detail(over: Partial<DealDetail> = {}): DealDetail {
     name: '기존 Deal',
     ownerId: USER_ID.kim,
     vendor: { id: 3, name: 'Okta' },
-    solution: 'SSO',
+    product: 'SSO',
     users: 100,
     statusKey: 'introduction',
     forecastKey: 'best',
@@ -111,15 +111,15 @@ describe('emptyForm (T-FORM-02, T-FORM-03)', () => {
     expect(isPartnerEntered(state.partner)).toBe(false)
   })
 
-  // Vendor 없음, 빈 Solution으로 시작한다.
+  // Vendor 없음, 빈 Product로 시작한다.
   // 테스트 코드: DE-073
-  it('starts with no vendor and an empty solution text', () => {
+  it('starts with no vendor and an empty product text', () => {
     // when: emptyForm을 만든다.
     const state = emptyForm(String(USER_ID.kim))
 
-    // then: vendorId가 비고 solution이 ''다.
-    expect(state).toMatchObject({ vendorId: '', solution: '' })
-    expect(state).not.toHaveProperty('solutionId')
+    // then: vendorId가 비고 product가 ''다.
+    expect(state).toMatchObject({ vendorId: '', product: '' })
+    expect(state).not.toHaveProperty('productId')
   })
 
   // BANT 칸 네 개 모두 빈 텍스트로 시작한다.
@@ -142,7 +142,7 @@ describe('validateForm (T-FORM-01)', () => {
     expect(errors.name).toBe('Deal Name을 입력하세요.')
     expect(errors.ownerId).toBe('Owner를 선택하세요.')
     expect(errors.vendorId).toBe('Vendor를 선택하세요.')
-    expect(errors.solution).toBeUndefined()
+    expect(errors.product).toBeUndefined()
     expect(errors.customer?.company).toBe('고객 회사명을 입력하세요.')
     expect(errors.customer?.name).toBe('고객 담당자명을 입력하세요.')
     expect(errors.revenueAmount).toBe(AMOUNT_INPUT_MESSAGE)
@@ -151,14 +151,14 @@ describe('validateForm (T-FORM-01)', () => {
     expect(hasErrors(errors)).toBe(true)
   })
 
-  // 비었거나 공백뿐인 Solution은 오류가 아니다(Solution은 선택).
+  // 비었거나 공백뿐인 Product는 오류가 아니다(Product는 선택).
   // 테스트 코드: DE-087
-  it.each(['', '   ', '\t'])('accepts a blank solution because it is optional: "%s"', (solution) => {
-    // when: validateForm을 호출한다 (전제: Solution이 ''·공백·탭이다)
-    const errors = validateForm(filled({ solution }), undefined)
+  it.each(['', '   ', '\t'])('accepts a blank product because it is optional: "%s"', (product) => {
+    // when: validateForm을 호출한다 (전제: Product가 ''·공백·탭이다)
+    const errors = validateForm(filled({ product }), undefined)
 
-    // then: Solution 오류가 없고 폼 전체에도 오류가 없다.
-    expect(errors.solution).toBeUndefined()
+    // then: Product 오류가 없고 폼 전체에도 오류가 없다.
+    expect(errors.product).toBeUndefined()
     expect(hasErrors(errors)).toBe(false)
   })
 
@@ -175,13 +175,13 @@ describe('validateForm (T-FORM-01)', () => {
     expect(chosen.vendorId).toBeUndefined()
   })
 
-  // Vendor 미선택은 Solution이 있어도 오류이고, 긴 Solution 길이는 서버가 판정한다.
+  // Vendor 미선택은 Product가 있어도 오류이고, 긴 Product 길이는 서버가 판정한다.
   // 테스트 코드: DE-086
-  it('flags the vendor even with a solution text and lets the server judge the solution length', () => {
-    // when: validateForm을 호출한다 (전제: Vendor 없이 Solution, Vendor 있고 201자 Solution)
-    const result1 = validateForm(filled({ vendorId: '', solution: 'ITDR' }), undefined)
-    const result2 = validateForm(filled({ solution: 'a'.repeat(201) }), undefined).solution
-    // then: 앞은 Vendor 오류, 뒤는 Solution 오류가 없다.
+  it('flags the vendor even with a product text and lets the server judge the product length', () => {
+    // when: validateForm을 호출한다 (전제: Vendor 없이 Product, Vendor 있고 201자 Product)
+    const result1 = validateForm(filled({ vendorId: '', product: 'ITDR' }), undefined)
+    const result2 = validateForm(filled({ product: 'a'.repeat(201) }), undefined).product
+    // then: 앞은 Vendor 오류, 뒤는 Product 오류가 없다.
     expect(result1.vendorId).toBe('Vendor를 선택하세요.')
     expect(result2).toBeUndefined()
   })
@@ -354,7 +354,7 @@ describe('toDealInput', () => {
     const input = toDealInput(
       filled({
         vendorId: '3',
-        solution: ' SSO ',
+        product: ' SSO ',
         users: '20',
         customer: { contactId: 1, company: '한빛은행', name: '정민수', title: ' 과장 ', email: '', phone: '' },
         quoteSubmitted: 'YES',
@@ -364,8 +364,8 @@ describe('toDealInput', () => {
     )
     // then: 트림된 문자열, 숫자, null이다.
     expect(input.name).toBe('새 Deal')
-    expect(input).toMatchObject({ vendorId: 3, solution: 'SSO' })
-    expect(input).not.toHaveProperty('solutionId')
+    expect(input).toMatchObject({ vendorId: 3, product: 'SSO' })
+    expect(input).not.toHaveProperty('productId')
     expect(input.users).toBe(20)
     expect(input.revenueAmount).toBe(1_500_000)
     expect(input.customer).toEqual({ contactId: 1, company: '한빛은행', name: '정민수', title: '과장', email: null, phone: null })
@@ -385,27 +385,27 @@ describe('toDealInput', () => {
     expect(input.vendorId).toBe(12)
   })
 
-  // Solution은 공백을 지워 보내고 비면 빈 문자열을 보낸다.
+  // Product는 공백을 지워 보내고 비면 빈 문자열을 보낸다.
   // 테스트 코드: DE-110
-  it('sends the solution text trimmed and an empty solution as an empty string', () => {
-    // when: toDealInput을 호출한다 (전제: Solution ' ITDR '와 공백뿐인 Solution이다)
-    const trimmed = toDealInput(filled({ solution: '  ITDR  ' }), LABELS)
-    const blank = toDealInput(filled({ solution: '   ' }), LABELS)
+  it('sends the product text trimmed and an empty product as an empty string', () => {
+    // when: toDealInput을 호출한다 (전제: Product ' ITDR '와 공백뿐인 Product가다)
+    const trimmed = toDealInput(filled({ product: '  ITDR  ' }), LABELS)
+    const blank = toDealInput(filled({ product: '   ' }), LABELS)
 
     // then: 공백이 지워진 값과 빈 문자열이다.
-    expect(trimmed.solution).toBe('ITDR')
-    expect(blank.solution).toBe('')
+    expect(trimmed.product).toBe('ITDR')
+    expect(blank.product).toBe('')
   })
 
-  // Vendor와 독립인 Solution 텍스트를 함께 보낸다.
+  // Vendor와 독립인 Product 텍스트를 함께 보낸다.
   // 테스트 코드: DE-110
-  it('sends a vendor together with an independent solution text', () => {
-    // when: toDealInput을 호출한다 (전제: Vendor와 Solution이 있다)
-    const input = toDealInput(filled({ vendorId: '3', solution: 'MFA' }), LABELS)
+  it('sends a vendor together with an independent product text', () => {
+    // when: toDealInput을 호출한다 (전제: Vendor와 Product가 있다)
+    const input = toDealInput(filled({ vendorId: '3', product: 'MFA' }), LABELS)
 
     // then: 둘 다 요청에 있다.
     expect(input.vendorId).toBe(3)
-    expect(input.solution).toBe('MFA')
+    expect(input.product).toBe('MFA')
   })
 
   // 파트너는 입력했을 때만 보낸다.
@@ -493,67 +493,67 @@ describe('formFromDeal / toDealPatch (T-FORM-06)', () => {
     expect(state.customer).toMatchObject({ contactId: 1, company: '한빛은행', name: '정민수', title: '과장' })
     expect(state.partner).toMatchObject({ contactId: 9, company: '에이원시스템', name: '표성호' })
     expect(state.bant).toEqual({ budget: '단독 예산 확보', authority: '', need: '', timeline: '' })
-    expect(state).toMatchObject({ vendorId: '3', solution: 'SSO' })
+    expect(state).toMatchObject({ vendorId: '3', product: 'SSO' })
   })
 
-  // Solution을 복사하고 Vendor가 없으면 빈 id로 읽는다.
+  // Product를 복사하고 Vendor가 없으면 빈 id로 읽는다.
   // 테스트 코드: DE-100
-  it('form from deal copies the solution text and loads no vendor as an empty id', () => {
+  it('form from deal copies the product text and loads no vendor as an empty id', () => {
     // when: formFromDeal을 호출한다 (전제: Vendor 없는 Deal이다)
-    const state = formFromDeal(detail({ vendor: null, solution: 'ITDR' }), LABELS)
+    const state = formFromDeal(detail({ vendor: null, product: 'ITDR' }), LABELS)
 
-    // then: vendorId가 ''이고 solution이 복사된다.
-    expect(state).toMatchObject({ vendorId: '', solution: 'ITDR' })
+    // then: vendorId가 ''이고 product가 복사된다.
+    expect(state).toMatchObject({ vendorId: '', product: 'ITDR' })
   })
 
-  // 빈 Solution은 빈 칸으로 읽는다.
+  // 빈 Product는 빈 칸으로 읽는다.
   // 테스트 코드: DE-100
-  it('loads an empty solution as an empty text (the form saves it as is)', () => {
-    // when: formFromDeal을 호출한다 (전제: Solution이 ''인 Deal이다)
-    const result = formFromDeal(detail({ solution: '' }), LABELS).solution
-    // then: solution 칸이 ''다.
+  it('loads an empty product as an empty text (the form saves it as is)', () => {
+    // when: formFromDeal을 호출한다 (전제: Product가 ''인 Deal이다)
+    const result = formFromDeal(detail({ product: '' }), LABELS).product
+    // then: product 칸이 ''다.
     expect(result).toBe('')
   })
 
-  // 수정 요청에 폼의 Vendor id와 Solution을 그대로 싣는다.
+  // 수정 요청에 폼의 Vendor id와 Product를 그대로 싣는다.
   // 테스트 코드: DE-110
-  it('patch carries the vendor id and the solution text as they are in the form', () => {
-    // given: Vendor·Solution이 든 폼이다.
+  it('patch carries the vendor id and the product text as they are in the form', () => {
+    // given: Vendor·Product가 든 폼이다.
     const original = detail()
-    const state = { ...formFromDeal(original, LABELS), vendorId: '5', solution: ' MFA ' }
+    const state = { ...formFromDeal(original, LABELS), vendorId: '5', product: ' MFA ' }
 
     // when: toDealPatch를 호출한다.
     const patch = toDealPatch(state, original, LABELS)
 
-    // then: vendorId·solution이 patch에 있다.
-    expect(patch).toMatchObject({ vendorId: 5, solution: 'MFA' })
-    expect(patch).not.toHaveProperty('solutionId')
+    // then: vendorId·product가 patch에 있다.
+    expect(patch).toMatchObject({ vendorId: 5, product: 'MFA' })
+    expect(patch).not.toHaveProperty('productId')
   })
 
-  // Vendor만 바꿔도 바뀌지 않은 Solution을 다시 보낸다.
+  // Vendor만 바꿔도 바뀌지 않은 Product를 다시 보낸다.
   // 테스트 코드: DE-110
-  it('patch resends the unchanged solution text when only the vendor changed', () => {
+  it('patch resends the unchanged product text when only the vendor changed', () => {
     // given: Vendor만 바꾼 폼이다.
     const original = detail()
     // when: toDealPatch를 호출한다.
     const state = { ...formFromDeal(original, LABELS), vendorId: '5' }
 
-    // then: solution도 patch에 있다.
-    expect(toDealPatch(state, original, LABELS).solution).toBe('SSO')
+    // then: product도 patch에 있다.
+    expect(toDealPatch(state, original, LABELS).product).toBe('SSO')
   })
 
-  // Solution을 비우면 patch가 빈 문자열을 보낸다.
+  // Product를 비우면 patch가 빈 문자열을 보낸다.
   // 테스트 코드: DE-110
-  it('patch sends an empty string when the solution was cleared', () => {
-    // given: Solution을 지운 폼이다.
+  it('patch sends an empty string when the product was cleared', () => {
+    // given: Product를 지운 폼이다.
     const original = detail()
-    const state = { ...formFromDeal(original, LABELS), solution: '   ' }
+    const state = { ...formFromDeal(original, LABELS), product: '   ' }
 
     // when: toDealPatch를 호출한다.
     const patch = toDealPatch(state, original, LABELS)
 
-    // then: solution이 빈 문자열로 patch에 있다.
-    expect(patch.solution).toBe('')
+    // then: product가 빈 문자열로 patch에 있다.
+    expect(patch.product).toBe('')
   })
 
   // 저장된 금액을 콤마로 보이고 patch에서는 그대로 유지한다.
