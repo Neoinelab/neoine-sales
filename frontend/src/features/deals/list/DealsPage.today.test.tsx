@@ -45,7 +45,7 @@ describe('목록과 mock 시계 (useToday)', () => {
     await renderAt(ALL_DEALS)
     await screen.findByRole('row', { name: /한빛은행 ITDR 도입/ })
     // when: 목록을 연다
-    const year = screen.getByLabelText('연도')
+    const year = screen.getByLabelText('Close 연도')
     // then: 연도 선택지가 시계 기준 올해~내년이다
     expect(within(year).getByRole('option', { name: '2030' })).toBeInTheDocument()
     expect(within(year).getByRole('option', { name: '2031' })).toBeInTheDocument()

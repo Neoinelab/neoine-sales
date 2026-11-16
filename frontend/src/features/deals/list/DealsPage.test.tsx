@@ -4,7 +4,7 @@ import { gateway } from '../../../gateway'
 import { renderAt } from '../../../test/mockApp'
 import { ALL_DEALS, dataRows, rowOf } from './testHelpers'
 
-const HEADERS = ['Deal', '담당자', '고객사', '파트너사', 'Vendor', 'Status', 'Forecast', '금액(단위:원)', 'Expected Close', 'Next Action', 'Due', 'Next Action 상태', '최종 업데이트']
+const HEADERS = ['Deal', '담당자', '고객사', '파트너사', 'Vendor', 'Status', 'Forecast', '금액(단위:원)', 'Expected Close', '최종 업데이트', 'Next Action', 'Due', 'Next Action 상태']
 
 afterEach(() => vi.restoreAllMocks())
 

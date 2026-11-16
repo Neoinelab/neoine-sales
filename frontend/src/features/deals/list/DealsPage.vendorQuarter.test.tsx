@@ -63,7 +63,7 @@ describe('Quarter 단독 선택', () => {
     await screen.findByLabelText('Quarter')
 
     // when: 연도를 전체로 한다
-    await user.selectOptions(screen.getByLabelText('연도'), '전체')
+    await user.selectOptions(screen.getByLabelText('Close 연도'), '전체')
 
     // then: 분기가 유지된다
     expect(location()).toContain('quarter=3')
@@ -79,7 +79,7 @@ describe('Quarter 단독 선택', () => {
     await toggleQuarter(user, 'Q2')
 
     // when: 연도를 고른다
-    await user.selectOptions(screen.getByLabelText('연도'), '2027')
+    await user.selectOptions(screen.getByLabelText('Close 연도'), '2027')
 
     // then: 분기가 유지된다
     expect(location()).toContain('quarter=2')
@@ -96,11 +96,11 @@ describe('Quarter 단독 선택', () => {
     // when: Q2를 누른다
     await toggleQuarter(user, 'Q2')
     // then: 올해 기준 안내가 보인다
-    expect(screen.getByText('연도가 전체이면 올해(2026) 기준입니다.')).toBeVisible()
-    expect(describedText(quarterButton('Q2'))).toBe('연도가 전체이면 올해(2026) 기준입니다.')
+    expect(screen.getByText('Close 연도가 전체이면 올해(2026) 기준입니다.')).toBeVisible()
+    expect(describedText(quarterButton('Q2'))).toBe('Close 연도가 전체이면 올해(2026) 기준입니다.')
 
     // when: 연도를 2027로 고른다
-    await user.selectOptions(screen.getByLabelText('연도'), '2027')
+    await user.selectOptions(screen.getByLabelText('Close 연도'), '2027')
     // then: 안내가 사라진다
     expect(screen.queryByText(/연도가 전체이면/)).not.toBeInTheDocument()
   })
@@ -115,7 +115,7 @@ describe('Quarter 단독 선택', () => {
     await screen.findByLabelText('Quarter')
 
     // then: Quarter 버튼의 설명이 안내이다
-    expect(describedText(quarterButton('Q1'))).toBe('연도가 전체이면 올해(2026) 기준입니다.')
+    expect(describedText(quarterButton('Q1'))).toBe('Close 연도가 전체이면 올해(2026) 기준입니다.')
   })
 })
 
@@ -251,7 +251,7 @@ describe('월 선택 표시 (R1 Minor 2·3)', () => {
     const label = screen.getByLabelText('월').closest('label') as HTMLElement
 
     // then: 올해 기준 안내가 보인다
-    expect(within(label).getByText('연도가 전체이면 올해(2026) 기준입니다.')).toBeVisible()
+    expect(within(label).getByText('Close 연도가 전체이면 올해(2026) 기준입니다.')).toBeVisible()
   })
 
   // 연도를 함께 고르면 올해 안내를 보이지 않는다

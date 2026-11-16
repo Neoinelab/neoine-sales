@@ -198,7 +198,7 @@ describe('필터와 정렬 (T-LIST-05~09)', () => {
     const { user, location } = await renderAt(ALL_DEALS)
     await screen.findByRole('row', { name: /한빛은행 ITDR 도입/ })
     const year = String(new Date().getFullYear())
-    await user.selectOptions(screen.getByLabelText('연도'), year)
+    await user.selectOptions(screen.getByLabelText('Close 연도'), year)
 
     // when: 연도와 Quarter를 고른다
     await toggleQuarter(user, 'Q4')

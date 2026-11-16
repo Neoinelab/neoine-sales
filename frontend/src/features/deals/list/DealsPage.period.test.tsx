@@ -179,12 +179,12 @@ describe('연도가 전체일 때 안내', () => {
     const { user } = await renderAt('/deals?year=all&quarter=1')
 
     await screen.findByLabelText('Quarter')
-    expect(describedText(quarterButton('Q1'))).toBe('연도가 전체이면 올해(2026) 기준입니다.')
-    expect(screen.getByText('연도가 전체이면 올해(2026) 기준입니다.')).toBeVisible()
+    expect(describedText(quarterButton('Q1'))).toBe('Close 연도가 전체이면 올해(2026) 기준입니다.')
+    expect(screen.getByText('Close 연도가 전체이면 올해(2026) 기준입니다.')).toBeVisible()
     expect(screen.queryByText(/연도를 고르지 않으면/)).not.toBeInTheDocument()
 
     // when: 연도를 고른다
-    await user.selectOptions(screen.getByLabelText('연도'), '2027')
+    await user.selectOptions(screen.getByLabelText('Close 연도'), '2027')
 
     // then: 안내가 사라진다
     expect(screen.queryByText(/연도가 전체이면/)).not.toBeInTheDocument()
@@ -201,7 +201,7 @@ describe('연도가 전체일 때 안내', () => {
     const label = screen.getByLabelText('월').closest('label') as HTMLElement
 
     // then: 월 아래에 안내가 있다
-    expect(within(label).getByText('연도가 전체이면 올해(2026) 기준입니다.')).toBeVisible()
+    expect(within(label).getByText('Close 연도가 전체이면 올해(2026) 기준입니다.')).toBeVisible()
     expect(screen.getAllByText(/연도가 전체이면/)).toHaveLength(1)
   })
 

@@ -77,12 +77,12 @@ export function DealRowItem({ row, canWrite, onSaved }: DealRowItemProps) {
         <td>{cell('forecastKey')}</td>
         <td className="num">{cell('revenueAmount')}</td>
         <td>{cell('revenueDate')}</td>
-        <NextActionCells row={row} />
         <td>
           <time dateTime={row.lastUpdatedOn} title={row.lastUpdatedOn}>
             {lastUpdated}
           </time>
         </td>
+        <NextActionCells row={row} />
       </tr>
       {open && (
         <tr className="quick-view-row">

@@ -38,7 +38,7 @@ describe('조건 없는 목록 진입', () => {
 
     // then: 주소가 /deals?year=all로 바뀌고 연도 전체·Quarter 전체·월 전체·월 선택지 13개가 보인다
     await waitFor(() => expect(location()).toBe('/deals?year=all'))
-    expect(await screen.findByLabelText('연도')).toHaveDisplayValue('전체')
+    expect(await screen.findByLabelText('Close 연도')).toHaveDisplayValue('전체')
     expect(quarterButton('전체')).toBeInTheDocument()
     expect(screen.getByLabelText('월')).toHaveDisplayValue('전체')
     expect(optionNames(screen.getByLabelText('월'))).toHaveLength(13)
@@ -229,7 +229,7 @@ describe('초기화', () => {
     // then: 주소·칸이 연도 전체 기본 조건이 되고 정렬은 최종 업데이트 내림차순, 기억도 year=all이며 뒤로 가면 이전 조건이다
     await waitFor(() => expect(location()).toBe('/deals?year=all'))
     expect(screen.getByLabelText('Status')).toHaveDisplayValue('전체')
-    expect(screen.getByLabelText('연도')).toHaveDisplayValue('전체')
+    expect(screen.getByLabelText('Close 연도')).toHaveDisplayValue('전체')
     expect(quarterButton('전체')).toBeInTheDocument()
     expect(await screen.findByRole('columnheader', { name: '최종 업데이트' })).toHaveAttribute('aria-sort', 'descending')
     expect(window.sessionStorage.getItem(listMemoryKey(USER_ID.root))).toBe('year=all')
@@ -254,7 +254,7 @@ describe('조건이 있는 주소는 그대로', () => {
 
     // then: 주소가 그대로이고 연도는 전체다
     expect(location()).toBe(url)
-    expect(screen.getByLabelText('연도')).toHaveDisplayValue('전체')
+    expect(screen.getByLabelText('Close 연도')).toHaveDisplayValue('전체')
   })
 
   // 조건이 있는 주소는 연도·분기를 덧붙여 조회하지 않는다
@@ -292,7 +292,7 @@ describe('필터 바에서 마지막 조건을 지울 때', () => {
       await new Promise((resolve) => setTimeout(resolve, 30))
     })
     expect(location()).toBe('/deals?year=all')
-    expect(screen.getByLabelText('연도')).toHaveDisplayValue('전체')
+    expect(screen.getByLabelText('Close 연도')).toHaveDisplayValue('전체')
   })
 })
 
@@ -305,7 +305,7 @@ describe('연도 전체', () => {
     await screen.findByRole('row', { name: /한빛은행 ITDR 도입/ })
 
     // when: 연도를 전체로 바꾼다
-    await user.selectOptions(screen.getByLabelText('연도'), '전체')
+    await user.selectOptions(screen.getByLabelText('Close 연도'), '전체')
     // then: 주소가 year=all&quarter=4가 된다
     await waitFor(() => expect(location()).toBe('/deals?year=all&quarter=4'))
     // when: Quarter를 해제한다
@@ -331,7 +331,7 @@ describe('연도 전체', () => {
     await screen.findByText(/총 \d+건/)
 
     // when: 연도를 전체로 바꾼다
-    await user.selectOptions(screen.getByLabelText('연도'), '전체')
+    await user.selectOptions(screen.getByLabelText('Close 연도'), '전체')
 
     // then: 마지막 요청에 year가 없고 분기만 있다
     await waitFor(() => expect(list.mock.calls.at(-1)?.[0]).toEqual({ offset: 0, limit: 20, quarters: [4] }))
@@ -353,7 +353,7 @@ describe('연도 전체', () => {
 
     // then: 주소가 year=all로 돌아오고 연도 칸이 전체다
     await waitFor(() => expect(location()).toBe('/deals?year=all'))
-    expect(await screen.findByLabelText('연도')).toHaveDisplayValue('전체')
+    expect(await screen.findByLabelText('Close 연도')).toHaveDisplayValue('전체')
   })
 
   // 다른 화면에 다녀와 상단 메뉴로 와도 연도 전체가 복원된다

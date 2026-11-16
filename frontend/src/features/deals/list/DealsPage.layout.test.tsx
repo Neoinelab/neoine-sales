@@ -57,7 +57,7 @@ describe('빠른 조건 줄', () => {
     const row = screen.getByRole('group', { name: '빠른 조건' })
 
     // then: 연도~키워드 입력란이 그 줄 안에 없다
-    for (const label of ['연도', 'Quarter', '월', 'Status', 'Forecast', 'Vendor', '담당자', '키워드']) {
+    for (const label of ['Close 연도', 'Quarter', '월', 'Status', 'Forecast', 'Vendor', '담당자', '키워드']) {
       expect(row).not.toContainElement(screen.getByLabelText(label))
     }
   })
@@ -79,6 +79,6 @@ describe('오류 배너 위치', () => {
     expect(alert).toHaveTextContent('Vendor 목록을 불러오지 못했습니다.')
     expect(row).not.toContainElement(alert)
     expect(alert.compareDocumentPosition(row) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    expect(screen.getByLabelText('연도').compareDocumentPosition(alert) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(screen.getByLabelText('Close 연도').compareDocumentPosition(alert) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 })

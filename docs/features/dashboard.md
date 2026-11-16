@@ -1,4 +1,4 @@
-# Dashboard   (feature 코드: DSH, 상태: 확정(2026-11-11 사용자 확인))
+# Dashboard   (feature 코드: DSH, 상태: 확정(2026-11-16 사용자 확인))
 
 > 이 문서는 **이미 구현된 동작**을 정본 명세로 옮긴 것입니다(2026-11-11). 근거는 작업 트리의 코드(`backend/src/app/web/routers/dashboard.py`, `app/web/schemas/{dashboard.py,period_params.py}`, `app/application/dashboard/{criteria,get_summary,views}.py`, `app/application/ports/dashboard_repository.py`, `app/domain/dashboard/{status_pipeline,quarter_closing}.py`, `app/domain/forecast/{summary,period}.py`의 Dashboard가 쓰는 부분, `app/infra/db/dashboard_tally.py`, `frontend/src/features/dashboard/*`, `data/dashboard.ts`, `gateway/http/dashboard.ts`, `shared/model/forecastKeys.ts`의 `forecastSetsOf`, `test/fake/gateway/dashboard.ts`)와 `docs/user-guide.html` 14장이며 문구·type·상태 코드는 코드에서 그대로 옮겼습니다. 코드와 Fake·테스트·다른 문서가 어긋나던 점은 2026-11-11 사용자 결정으로 정리했습니다: Fake 게이트웨이는 서버 동작에 맞추고(DSH-R29), Dashboard 연도 선택지에는 '전체'가 없으며(DSH-R16, DL-R24), FC는 규칙 번호로 가리킵니다. 결정 목록은 계획(`artifacts/10-analysis/dsh-plan.md`)에 있습니다.
 
@@ -507,7 +507,7 @@ DSH-R13~DSH-R29.
 ### DSH-050 숫자를 누르면 그 조건만의 Deals 목록이 열리고 필터 바와 목록 기억이 그 조건이다
 - Given 목록 기억이 `status=prospecting&sort=owner&order=asc&page=3&q=old`이고 `/dashboard?year=2026&quarter=4&owner=<KIM>`
 - When Pipeline 타일(또는 Status 표 "기회발굴" 링크, Open 합계)을 누르고 다른 화면을 거쳐 상단 메뉴 Deals를 누른다
-- Then 주소는 `/deals?year=2026&forecast=pipeline` 같은 누른 조건뿐이고 필터 바에 같은 값(Status 기회발굴·연도 2026·Quarter Q4·담당자 김영업)이 보이며 기억도 그 조건이라 메뉴 Deals가 같은 주소를 연다
+- Then 주소는 `/deals?year=2026&forecast=pipeline` 같은 누른 조건뿐이고 필터 바에 같은 값(Status 기회발굴·Close 연도 2026·Quarter Q4·담당자 김영업)이 보이며 기억도 그 조건이라 메뉴 Deals가 같은 주소를 연다
 
 ### DSH-051 목록 총 건수가 누른 숫자와 같다
 - Given Fake 시드 Deal과 admin이 추가한 Open 코드
@@ -545,3 +545,4 @@ DSH-R13~DSH-R29.
 | --- | --- | --- |
 | 2026-11-11 | 최초 작성(구현된 동작을 정본으로 옮김, 초안) | DSH-001~DSH-056 |
 | 2026-11-11 | 사용자 결정 반영(추천대로): F1 Fake를 서버 동작에 맞춤(DSH-R29 신설: 범위 밖 연도·분기 422 `request-validation`), F2 Dashboard 연도에 '전체' 없음(DSH-R16, DL-R24 문구 정리), F4 FC 이름 참조를 FC 규칙 번호로(FC 범위 FC-R1~R35, 합계 행 FC-R4~R6, 조건 FC-R3, 집계 FC-R5)와 다른 문서 참조를 번호로(CL-R3·R7~R10, DE-R4, CD-R1·R5, AC-R2, RK-R1·R2), F5 운영 코드 주석 "슬라이드 7·9"는 그대로 | 없음(케이스 기대 결과 변경 없음) |
+| 2026-11-16 | 확정(2026-11-16 사용자 확인): DL 변경(Deal 목록 연도 선택 상자 이름 "Close 연도", DL-R24)에 따라 DSH-050 Then의 Deals 필터 바 표기를 고침. Dashboard 화면의 "연도" 라벨·동작은 그대로 | 변경: DSH-050 |

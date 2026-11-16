@@ -165,7 +165,7 @@ export function DealFilterBar({ params, onChange, onReset }: DealFilterBarProps)
         ))}
       </SelectField>
       <SelectField
-        label="연도"
+        label="Close 연도"
         name="year"
         value={allYears ? 'all' : value('year')}
         onChange={(year) => onChange({ year })}
@@ -185,7 +185,7 @@ export function DealFilterBar({ params, onChange, onReset }: DealFilterBarProps)
         summary={quarterSummary(quarters)}
         onToggle={(v, on) => onChange(quarterTogglePatch(params, Number(v) as Quarter, on))}
         onClear={() => onChange(quarterClearPatch(params))}
-        hint={showQuarterHint ? `연도가 전체이면 올해(${thisYear}) 기준입니다.` : undefined}
+        hint={showQuarterHint ? `Close 연도가 전체이면 올해(${thisYear}) 기준입니다.` : undefined}
       />
       <label className="field">
         <span>월</span>
@@ -203,7 +203,7 @@ export function DealFilterBar({ params, onChange, onReset }: DealFilterBarProps)
         </select>
         {showMonthHint && (
           <small id={monthHintId} className="field-hint">
-            연도가 전체이면 올해({thisYear}) 기준입니다.
+            Close 연도가 전체이면 올해({thisYear}) 기준입니다.
           </small>
         )}
       </label>

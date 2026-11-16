@@ -21,10 +21,10 @@ const HEADERS = [
   'Forecast',
   '금액(단위:원)',
   'Expected Close',
+  '최종 업데이트',
   'Next Action',
   'Due',
   'Next Action 상태',
-  '최종 업데이트',
 ]
 
 /** 머리글 이름으로 같은 위치의 칸(td)을 찾는다. 열이 없으면 오류로 실패한다. */
@@ -58,6 +58,24 @@ describe('목록 열 정리: 헤더 (AC1·AC2)', () => {
     // then: 13개 머리글이 문서 순서이며 BANT 머리글이 없다
     expect(screen.getAllByRole('columnheader').map((h) => h.textContent?.trim())).toEqual(HEADERS)
     expect(screen.queryByRole('columnheader', { name: 'BANT' })).not.toBeInTheDocument()
+  })
+
+  // 행의 칸도 머리글과 같은 순서이고 최종 업데이트 칸 바로 오른쪽이 Next Action 칸이다
+  // 테스트 코드: DL-058
+  it('places the last update cell right before the Next Action cell in each row', async () => {
+    // given: Next Action이 있는 Deal 행
+    await renderAt('/deals?year=all&q=한빛은행 ITDR')
+    const row = await rowOf(/한빛은행 ITDR 도입/)
+
+    // when: 행의 칸 위치를 머리글 위치와 대조한다
+    const headers = screen.getAllByRole('columnheader').map((h) => h.textContent?.trim())
+    const cells = within(row).getAllByRole('cell')
+
+    // then: 최종 업데이트 칸은 Expected Close 다음, 그 오른쪽이 Next Action 링크 칸이다
+    const updated = headers.indexOf('최종 업데이트')
+    expect(updated).toBe(headers.indexOf('Expected Close') + 1)
+    expect(cells[updated]?.textContent?.trim()).toMatch(/^(오늘|어제|\d+일 전)$/)
+    expect(within(cells[updated + 1] as HTMLElement).getByRole('link', { name: '계약서 초안 검토' })).toBeVisible()
   })
 
   // Next Action 세 열은 정렬 버튼이 아니다

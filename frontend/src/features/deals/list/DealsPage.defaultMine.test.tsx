@@ -149,7 +149,7 @@ describe('sales의 초기화', () => {
     await waitFor(() => expect(location()).toBe(MINE_DEFAULT))
     expect(mineBox()).toBeChecked()
     expect(screen.getByLabelText('Status')).toHaveDisplayValue('전체')
-    expect(screen.getByLabelText('연도')).toHaveDisplayValue('전체')
+    expect(screen.getByLabelText('Close 연도')).toHaveDisplayValue('전체')
     expect(await screen.findByRole('columnheader', { name: '최종 업데이트' })).toHaveAttribute('aria-sort', 'descending')
     // then: 기억도 같은 조건이고 상단 메뉴 Deals 주소도 같다
     expect(window.sessionStorage.getItem(listMemoryKey(USER_ID.kim))).toBe('year=all&mine=1')

@@ -70,13 +70,13 @@ feature 목록은 2026-11-09 사용자 확인(질문 Q1~Q6 추천안 채택: 경
 | CT | [contacts.md](contacts.md) (고객·파트너 연락처) | 확정(2026-11-10) |
 | DE | [deal-entry.md](deal-entry.md) (Deal 등록·수정) | 확정(2026-11-13 사용자 확인) |
 | DD | [deal-detail.md](deal-detail.md) (Deal 상세·변경 적용·이력·삭제) | 확정(2026-11-16 사용자 확인) |
-| DL | [deal-list.md](deal-list.md) (Deal 목록·검색) | 확정(2026-11-10) |
+| DL | [deal-list.md](deal-list.md) (Deal 목록·검색) | 확정(2026-11-16) |
 | RK | [deal-risk.md](deal-risk.md) (경고·파생 값·경고 기준) | 확정(2026-11-10) |
 | AC | [deal-actions.md](deal-actions.md) (Action 등록·수정·삭제) | 확정(2026-11-13 사용자 확인) |
 | NA | [next-action.md](next-action.md) (Next Action 상태·Action 검색) | 확정(2026-11-10) |
 | AT | [deal-attachments.md](deal-attachments.md) (Deal 첨부 파일) | 확정(2026-11-10) |
 | FC | [forecast.md](forecast.md) (Forecast: 실시간·월말 스냅숏) | 확정(2026-11-13 사용자 확인) |
-| DSH | [dashboard.md](dashboard.md) (Dashboard) | 확정(2026-11-11) |
+| DSH | [dashboard.md](dashboard.md) (Dashboard) | 확정(2026-11-16) |
 | RQ | [report-query.md](report-query.md) (Reports 조회 엔진·디자이너 작성) | 확정(2026-11-13 사용자 확인) |
 | RS | [saved-reports.md](saved-reports.md) (저장 리포트·결과 배치) | 확정(2026-11-11) |
 | RC | [report-charts.md](report-charts.md) (Reports 차트) | 확정(2026-11-11) |

@@ -400,7 +400,7 @@ describe('Quarter만 있는 조건의 기억', () => {
     await screen.findByRole('button', { name: '초기화' })
     expect(view.location()).toBe('/deals?quarter=4')
     expect(quarterButton('Q4')).toBeInTheDocument()
-    expect(screen.getByLabelText('연도')).toHaveDisplayValue('전체')
+    expect(screen.getByLabelText('Close 연도')).toHaveDisplayValue('전체')
   })
 })
 

@@ -265,12 +265,12 @@ describe('연도가 전체일 때 안내', () => {
     const { user } = await renderAt('/deals?year=all')
     // when: 분기를 체크한다
     await screen.findByRole('search', { name: 'Deal 필터' })
-    // then: '연도가 전체이면 올해(YYYY) 기준입니다.'가 보인다
+    // then: 'Close 연도가 전체이면 올해(YYYY) 기준입니다.'가 보인다
     expect(screen.queryByText(/연도가 전체이면/)).not.toBeInTheDocument()
 
     await toggleQuarter(user, 'Q2')
 
-    expect(screen.getByText('연도가 전체이면 올해(2026) 기준입니다.')).toBeVisible()
-    expect(describedText(quarterButton('Q2'))).toBe('연도가 전체이면 올해(2026) 기준입니다.')
+    expect(screen.getByText('Close 연도가 전체이면 올해(2026) 기준입니다.')).toBeVisible()
+    expect(describedText(quarterButton('Q2'))).toBe('Close 연도가 전체이면 올해(2026) 기준입니다.')
   })
 })

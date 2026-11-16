@@ -1,4 +1,4 @@
-# Deal 목록·검색   (feature 코드: DL, 상태: 확정(2026-11-13 사용자 확인))
+# Deal 목록·검색   (feature 코드: DL, 상태: 확정(2026-11-16 사용자 확인))
 
 > 이 문서는 **이미 구현된 동작**을 정본 명세로 옮긴 것입니다(2026-11-10). 근거는 작업 트리의 코드(`backend/src/app/web/routers/deals.py`의 `GET ""`·`/updated-periods`·`/years`, `app/web/schemas/{deal.py(DealSearchParams),deal_response.py(DealRowResponse·row_page),deal_years.py,updated_period.py,period_params.py}`, `app/application/deal/{list_deals,deal_years,updated_periods}.py`, `app/application/ports/{deal_repository.py(DealQuery·DealSort·SortOrder),deal_outcome_filter.py,pagination.py}`, `app/application/ports/deal_action_repository.py`의 `NextActionStatusFilter`, `app/domain/deal/{period,updated_period}.py`, `app/domain/common/validation.py`, `app/infra/db/{deal_search,deal_list_order,like}.py`, `frontend/src/features/deals/list/*`, `shared/model/{dealListMemory,quarterSet,forecastKeys,updatedPeriod,periodChoice,yearOptions,vendorFilter,nextActionStatus}.ts`, `shared/ui/useDealListPath.ts`, `data/{deals,dealYears}.ts`, `gateway/http/deals.ts`, `test/fake/gateway/dealsRead.ts`)이며 문구·type·상태 코드는 코드에서 그대로 옮겼습니다. 코드와 Fake·테스트가 어긋나는 점은 계획(`artifacts/10-analysis/dl-plan.md`)의 확인 필요 질문으로 분리했습니다.
 
@@ -7,7 +7,7 @@
 - 목적: 로그인한 모든 사용자가 Deal을 조건으로 찾아 한 페이지씩 보고, 정렬하고, 행을 펼쳐 요약을 보거나 상세로 이동한다. sales·admin은 목록에서 Status·Forecast·금액·Expected Close를 바로 고치기 시작할 수 있다. 목록 조건은 URL에 있고 사용자·탭별로 기억되어 상세에 다녀와도 같은 목록으로 돌아온다.
 - 사용자(역할): admin·sales(조회 + 목록 인라인 편집 진입·Deal 등록 링크), user(조회만).
 - 범위
-  - 화면 `/deals`: 필터 바(키워드·담당자·Vendor·Solution·Status·Forecast 다중 선택·Next Action 상태·연도·Quarter 다중 선택·월·최종 업데이트 기간·내 딜만·기한초과·미업데이트), 조건 없는 진입의 기본 조건, 정렬 머리글, 페이지, 빈 상태, 빠른 보기(Quick View), 인라인 편집 진입과 목록 편집기, 조건 기억(목록으로 돌아가는 모든 링크)
+  - 화면 `/deals`: 필터 바(키워드·담당자·Vendor·Solution·Status·Forecast 다중 선택·Next Action 상태·Close 연도·Quarter 다중 선택·월·최종 업데이트 기간·내 딜만·기한초과·미업데이트), 조건 없는 진입의 기본 조건, 정렬 머리글, 페이지, 빈 상태, 빠른 보기(Quick View), 인라인 편집 진입과 목록 편집기, 조건 기억(목록으로 돌아가는 모든 링크)
   - API `GET /deals`(조건 해석·정렬·페이지), `GET /deals/years`, `GET /deals/updated-periods`
   - Deal 조건 해석 한 곳(`deal_search.conditions`) — FC·DSH 집계가 같은 해석을 쓴다(DL-R15)
   - 연도 선택지 규칙(`selectableYears`) — 범위 규칙은 Deals 목록·Dashboard·Forecast 공용, '전체' 항목은 Deal 목록에만 있다(DL-R24)
@@ -107,7 +107,7 @@ DL은 테이블을 소유하지 않는다. 읽는 값: `deals`(소유 DE), `cont
   - `sort`는 화면 정렬 키(`name`·`revenueAmount`·`revenueDate`·`lastUpdatedAt`·`statusKey`·`owner`·`customer`·`partner`·`vendor`·`forecastKey`)일 때만 쓰고, `order`가 `asc`·`desc`가 아니면 그 열의 자연 방향이다. `page`는 1 이상 정수(아니면 1).
   - 예전 키(`from`·`to`(Expected Close 기간), `outcome`, `budget`·`authority`·`need`·`timeline`)는 조건에 쓰지 않고 활성 필터로도 세지 않는다.
   - 활성 필터 = 15개 키 중 값이 있는 키(`year=all`은 제외). 빈 목록 문구(DL-R18)를 가른다.
-- **DL-R21** 필터 바(`search` 역할 폼 "Deal 필터"): 칸 순서 키워드, 담당자(퇴사자 포함 사용자 선택), Vendor, Solution, Status(전체 + Status 코드 이름), Forecast(DL-R22), Next Action 상태(전체·Open·종료(수행)·종료(미수행)·종료(전체)), 연도(DL-R24), Quarter·월(DL-R23), 최종 업데이트(DL-R25). 마지막 줄 "빠른 조건" 묶음: 체크박스 "내 딜만"·"기한초과"·"미업데이트"와 버튼 "검색"·"초기화"(오른쪽 끝). 목록 필터 칸 위에 필터 관련 오류 배너(연도·Vendor·기간 프리셋 조회 실패)를 보인다. BANT Label 필터는 없다.
+- **DL-R21** 필터 바(`search` 역할 폼 "Deal 필터"): 칸 순서 키워드, 담당자(퇴사자 포함 사용자 선택), Vendor, Solution, Status(전체 + Status 코드 이름), Forecast(DL-R22), Next Action 상태(전체·Open·종료(수행)·종료(미수행)·종료(전체)), Close 연도(DL-R24, Expected Close의 연도), Quarter·월(DL-R23), 최종 업데이트(DL-R25). 마지막 줄 "빠른 조건" 묶음: 체크박스 "내 딜만"·"기한초과"·"미업데이트"와 버튼 "검색"·"초기화"(오른쪽 끝). 목록 필터 칸 위에 필터 관련 오류 배너(연도·Vendor·기간 프리셋 조회 실패)를 보인다. BANT Label 필터는 없다.
   - 키워드·Solution은 "검색" 버튼이나 Enter로만 URL(`q`·`solution`)에 반영한다(앞뒤 공백 제거, 비우면 키 삭제). URL이 바깥에서 바뀌면(초기화·뒤로 가기) 입력란도 따라간다. 나머지 칸·체크박스는 바꾸는 즉시 URL에 반영한다. 체크박스는 켜면 `1`, 끄면 키를 지운다.
   - 조건이 바뀌면 `page`를 지워 1페이지로 간다(페이저로 페이지만 바꿀 때만 유지, `page=1`은 쓰지 않음).
   - 사용자가 마지막 조건을 지워 조건이 하나도 남지 않으면 기본 연도를 되살리지 않고 `year=all`(연도 전체)로 남긴다.
@@ -115,12 +115,12 @@ DL은 테이블을 소유하지 않는다. 읽는 값: `deals`(소유 DE), `cont
   - sales가 기본 조건에서 "내 딜만"을 끄면 다른 체크박스와 같이 `mine` 키를 지운다(`mine=0` 같은 값을 쓰지 않는다). `year`가 남아 조건 없는 주소가 아니므로 기본 조건으로 되돌아가지 않고, 그 주소가 기억된다.
   - URL의 값으로 모든 칸(키워드·Solution 입력란, 선택, 체크)을 복원한다.
 - **DL-R22** Forecast 다중 선택: 버튼 "Forecast"가 패널을 열고 Forecast 코드를 현재 코드 순서로 체크박스로 보인다(+ "전체" 버튼, Escape로 닫으면 포커스가 버튼으로 돌아간다). 체크하면 URL `forecast`에 정렬된 key를 콤마로 쓴다(누른 순서와 무관하게 같은 URL, 하나면 단일 값). 모두 끄거나 "전체"를 누르면 키를 지운다. 버튼 요약: 선택 없음 "전체", 하나면 그 코드 이름(코드에 없으면 key), 전부면 "모두 선택", outcome이 lost가 아닌 코드 전부면 "Lost 제외", open 코드 전부면 "Open 전체", 그 밖은 "N개 선택".
-- **DL-R23** Quarter·월: Quarter는 Q1~Q4 체크박스와 "전체" 버튼이며 연도와 무관하게 언제나 쓸 수 있다. 체크하면 URL `quarter`에 오름차순 콤마(하나면 단일 값), 넷 다 체크해도 눌린 상태와 URL을 유지하고 요약은 "전체", 마지막 하나를 끄거나 "전체"를 누르면 키를 지운다. 요약은 "전체" 또는 "Q1, Q3". 월 선택지는 고른 분기(넷 다·없음이면 12달)의 월 합집합이고 "전체"가 첫 항목이다. 분기를 바꿀 때 보이던 월이 새 선택지에 있으면 유지하고 없으면 지운다. 선택지 밖이라 숨어 있던 월은 분기를 바꾸거나 "전체"를 누르면 지운다. "전체"(분기 해제)는 보이던 월을 유지한다. 연도가 전체일 때 분기를 고르면 Quarter 아래에, 분기 없이 월만 고르면 월 아래에 "연도가 전체이면 올해(YYYY) 기준입니다."를 보인다(접근성 설명으로 연결). 연도를 고르면 안내가 사라진다.
-- **DL-R24** 연도 선택지(범위 규칙은 Deals 목록·Dashboard·Forecast 공용이고 "전체"는 Deal 목록에만 있다 — Dashboard DSH-R16·Forecast FC-R26은 "전체" 없이 범위만 쓴다): Deal 목록은 "전체"(값 `all`, 첫 항목) + `min(earliest_year, 올해)`부터 올해+1까지 연속 오름차순. Deal이 없거나 연도 기준을 읽는 동안·실패하면 올해·내년만이고, 실패하면 오류 배너를 보이되 목록은 그대로 조회된다. 읽기가 끝나면 선택을 바꾸지 않고 선택지만 넓힌다. URL 연도가 선택지 밖의 양의 정수면 한 번만 더해 선택된 상태로 보인다. 내년보다 뒤의 Deal이 있어도 그 연도는 선택지에 없다. 연도 '전체'는 서버에 연도를 보내지 않는다.
+- **DL-R23** Quarter·월: Quarter는 Q1~Q4 체크박스와 "전체" 버튼이며 연도와 무관하게 언제나 쓸 수 있다. 체크하면 URL `quarter`에 오름차순 콤마(하나면 단일 값), 넷 다 체크해도 눌린 상태와 URL을 유지하고 요약은 "전체", 마지막 하나를 끄거나 "전체"를 누르면 키를 지운다. 요약은 "전체" 또는 "Q1, Q3". 월 선택지는 고른 분기(넷 다·없음이면 12달)의 월 합집합이고 "전체"가 첫 항목이다. 분기를 바꿀 때 보이던 월이 새 선택지에 있으면 유지하고 없으면 지운다. 선택지 밖이라 숨어 있던 월은 분기를 바꾸거나 "전체"를 누르면 지운다. "전체"(분기 해제)는 보이던 월을 유지한다. 연도가 전체일 때 분기를 고르면 Quarter 아래에, 분기 없이 월만 고르면 월 아래에 "Close 연도가 전체이면 올해(YYYY) 기준입니다."를 보인다(접근성 설명으로 연결). 연도를 고르면 안내가 사라진다.
+- **DL-R24** 연도 선택지 — Deal 목록의 선택 상자 이름(라벨·접근성 이름)은 "Close 연도"이고 Expected Close의 연도로 거른다(DL-R9). Dashboard·Forecast의 선택 상자 이름 "연도"는 바꾸지 않는다(범위 규칙은 Deals 목록·Dashboard·Forecast 공용이고 "전체"는 Deal 목록에만 있다 — Dashboard DSH-R16·Forecast FC-R26은 "전체" 없이 범위만 쓴다): Deal 목록은 "전체"(값 `all`, 첫 항목) + `min(earliest_year, 올해)`부터 올해+1까지 연속 오름차순. Deal이 없거나 연도 기준을 읽는 동안·실패하면 올해·내년만이고, 실패하면 오류 배너를 보이되 목록은 그대로 조회된다. 읽기가 끝나면 선택을 바꾸지 않고 선택지만 넓힌다. URL 연도가 선택지 밖의 양의 정수면 한 번만 더해 선택된 상태로 보인다. 내년보다 뒤의 Deal이 있어도 그 연도는 선택지에 없다. 연도 '전체'는 서버에 연도를 보내지 않는다.
 - **DL-R25** 최종 업데이트 기간: 선택 상자 "최종 업데이트"는 전체·최근 2주·최근 1개월·최근 2개월·최근 3개월·최근 6개월·직접 지정(7개)이고 서버 프리셋(DL-R17)에 없는 키는 비활성이다. 프리셋을 고르면 캐시를 쓰지 않고 프리셋을 서버에 다시 물어 그 `from`·`to`를 URL `updated_from`·`updated_to`에 쓴다(늦게 온 이전 응답은 버린다). 다시 묻기가 실패하면 URL은 그대로 두고 오류 배너를 보인다. "전체"는 두 키를 지운다. "직접 지정"은 URL을 바꾸지 않고 "시작일"·"종료일" 날짜 칸(`DateInput`, UI-R6)을 현재 URL 날짜로 채워 보인다. 날짜 칸은 비었거나 올바른 날짜가 될 때만 URL을 바꾼다(`yyyymmdd` 입력은 ISO로, 덜 쳤거나 없는 날짜는 URL을 바꾸지 않고 칸이 문구를 보인다). 시작만 넣어도 조회된다. 역전된 범위는 서버 문구(DL-R10)를 목록 오류 배너로 보인다. 표시: URL 날짜가 오늘의 프리셋과 정확히 같으면 그 프리셋, 둘 다 없으면 전체, 그 밖(한쪽만 있음 포함)은 직접 지정. 프리셋을 읽지 못해도 URL 날짜로 조회한다. 뒤로 가기로 URL 날짜가 바뀌면 직접 지정 칸을 닫고 이 표시 규칙을 따른다.
 - **DL-R26** Vendor 선택: 선택지 값은 Vendor id, 표시는 이름이다. Vendor 목록을 읽은 뒤 URL `vendor`가 목록에 없는 id면 선택은 "전체"로 보이고 조회에도 보내지 않는다(표시 = 조회 조건). 목록을 읽는 동안·실패하면 URL id를 조회에 쓰고 선택지에 "선택한 Vendor" 하나를 더해 선택된 상태로 보인다(실패하면 오류 배너). Solution 텍스트 조건은 Vendor와 무관하게 유지된다(Vendor를 바꿔도 Solution은 남고, Solution만 검색해도 Vendor를 채우지 않는다).
 - **DL-R27** 정렬 머리글: 13열 중 Next Action·Due·Next Action 상태를 뺀 10열이 정렬 버튼이다(DL-R28 순서). 정렬 중인 열에만 방향 표시와 `aria-sort`가 있다. 지금 정렬하지 않는 열을 누르면 그 열의 자연 방향(금액·최종 업데이트 내림차순, 나머지 오름차순)으로 시작하고, 같은 열을 다시 누르면 방향을 바꾼다. 정렬을 바꾸면 1페이지로 간다. 정렬이 없는 주소는 최종 업데이트 내림차순(머리글에 표시)이다. URL의 정렬 값으로 머리글 표시를 복원한다. 행 순서는 서버 순서(DL-R13) 그대로다.
-- **DL-R28** 표 열(13개, 이 순서): Deal, 담당자, 고객사, 파트너사, Vendor, Status, Forecast, 금액(단위:원), Expected Close, Next Action, Due, Next Action 상태, 최종 업데이트. 칸 값: Deal = 빠른 보기 토글 + 이름 링크(`/deals/<code>`) + 경고 배지(RK-R15); 담당자 = 이름(퇴사자는 "이름(퇴사)"); 고객사 = 고객 회사명; 파트너사 = 활성 파트너 회사명, 없으면 "—"; Vendor = 이름, 없으면 "—"; Status·Forecast = 코드 배지; 금액 = 원 단위 콤마; Expected Close = 날짜; Next Action = 기준 행 내용이 링크(`/deals/<code>?tab=actions`, 링크 안에는 내용만)이고 Due = 기한(기한초과면 강조, RK-R16), Next Action 상태 = 라벨(Open·종료(수행)·종료(미수행)); Next Action이 없으면 세 칸 모두 "—"이고 링크가 없다; 최종 업데이트 = 상대 일수(RK-R16), 마우스를 올리면 `YYYY-MM-DD`. Deal code는 화면 글자·접근성 이름·title 어디에도 보이지 않고 링크 주소에만 있다(키워드로 code를 검색하는 것은 된다). BANT 열·Status 체류 일수는 목록에 없다.
+- **DL-R28** 표 열(13개, 이 순서): Deal, 담당자, 고객사, 파트너사, Vendor, Status, Forecast, 금액(단위:원), Expected Close, 최종 업데이트, Next Action, Due, Next Action 상태(2026-11-16: 최종 업데이트를 Next Action 앞으로). 칸 값: Deal = 빠른 보기 토글 + 이름 링크(`/deals/<code>`) + 경고 배지(RK-R15); 담당자 = 이름(퇴사자는 "이름(퇴사)"); 고객사 = 고객 회사명; 파트너사 = 활성 파트너 회사명, 없으면 "—"; Vendor = 이름, 없으면 "—"; Status·Forecast = 코드 배지; 금액 = 원 단위 콤마; Expected Close = 날짜; Next Action = 기준 행 내용이 링크(`/deals/<code>?tab=actions`, 링크 안에는 내용만)이고 Due = 기한(기한초과면 강조, RK-R16), Next Action 상태 = 라벨(Open·종료(수행)·종료(미수행)); Next Action이 없으면 세 칸 모두 "—"이고 링크가 없다; 최종 업데이트 = 상대 일수(RK-R16), 마우스를 올리면 `YYYY-MM-DD`. Deal code는 화면 글자·접근성 이름·title 어디에도 보이지 않고 링크 주소에만 있다(키워드로 code를 검색하는 것은 된다). BANT 열·Status 체류 일수는 목록에 없다.
 - **DL-R29** 빠른 보기: Deal 칸의 토글 버튼(접근성 이름 "<Deal 이름> 빠른 보기", `aria-expanded`)을 누르면 행 아래에 13열 너비로 펼친다(다시 누르면 접는다). 항목: 견적(`<제출 여부> (<날짜>)`, 없으면 "—"), POC(같은 형식), 고객 담당자(이름·직급·이메일·전화 중 있는 값을 " · "로), 파트너 영업대표(같은 형식, 없으면 "파트너 없음"), Budget·Authority·Need·Timeline(고른 Label 이름, 고르지 않았으면 "—", Label 목록을 읽는 동안 "불러오는 중…", 실패하면 "불러오지 못함"), Users count(0도 "0", 천 단위 콤마), 구매절차(없으면 "—"), 링크 "상세 보기"(`/deals/<code>`). 목록은 빠른 보기를 열기 전에는 BANT Label 목록을 읽지 않는다(그래서 Label 조회 실패가 목록에 보이지 않는다).
 - **DL-R30** 인라인 편집 진입(목록 편집기): `canWrite`일 때만 Status·Forecast·금액·Expected Close 4칸이 버튼(접근성 이름 "<Deal 이름> <열 이름> 편집", 열 이름은 Status·Forecast·금액(단위:원)·Expected Close)이고, user에게는 값만 보인다. Deal 이름·담당자·Vendor 등 다른 칸은 편집할 수 없다. 버튼을 누르면 그 칸이 편집기가 되고 입력란에 포커스가 간다(저장·취소 버튼 없음).
   - Status·Forecast: 선택 상자에서 고르는 순간 저장 요청을 시작한다. 같은 값이면 요청 없이 닫는다. 바꾸지 않고 포커스가 나가면 원래 값으로 닫는다. (동기화 대화상자·서버 적용은 DD, Won 이탈 계약 처리는 LC.)
@@ -170,7 +170,7 @@ DL-R18~DL-R32.
 | 최종 업데이트 기간 역전 | 422 `invalid-value` | 최종 업데이트 기간의 시작은 끝보다 늦을 수 없습니다 |
 | 미인증 | 401 `unauthenticated` | 로그인이 필요합니다(PL-R5) |
 
-화면 문구: "총 N건", "조건에 맞는 Deal이 없습니다.", "등록된 Deal이 없습니다.", "N페이지에는 Deal이 없습니다."·"첫 페이지로", "불러오는 중…", "연도가 전체이면 올해(YYYY) 기준입니다.", "선택한 Vendor", "파트너 없음", "불러오지 못함", "상세 보기", "Expected Close를 입력하세요.", "저장하지 못했습니다.", 인라인 저장 알림(DL-R30). 서버 문구 표시는 PL-R37.
+화면 문구: "총 N건", "조건에 맞는 Deal이 없습니다.", "등록된 Deal이 없습니다.", "N페이지에는 Deal이 없습니다."·"첫 페이지로", "불러오는 중…", "Close 연도"(Deal 목록 연도 선택 상자 이름), "Close 연도가 전체이면 올해(YYYY) 기준입니다.", "선택한 Vendor", "파트너 없음", "불러오지 못함", "상세 보기", "Expected Close를 입력하세요.", "저장하지 못했습니다.", 인라인 저장 알림(DL-R30). 서버 문구 표시는 PL-R37.
 
 ## 3. Business use case
 
@@ -281,7 +281,7 @@ DL-R18~DL-R32.
 | DL-055 | admin의 조건 없는 주소는 연도 전체 기본 조건으로 바뀌고 최종 업데이트 최신순으로 조회한다 | DL-R19, DL-UC1 | frontend | `features/deals/list/DealsPage.defaults.test.tsx` |
 | DL-056 | 기본 조건은 정렬을 이어받고 page·모르는 키를 버리며 이력에 남기지 않는다 | DL-R19, DL-UC1 | frontend | `features/deals/list/DealsPage.defaults.test.tsx` |
 | DL-057 | 루트·로그인 직후·기억 없는 메뉴·기억 없는 상세 목록 링크 모두 기본 조건이다 | DL-R19, DL-R31, DL-UC1 | frontend | `features/deals/list/DealsPage.defaults.test.tsx` |
-| DL-058 | 표는 13열을 순서대로 보이고 칸 값 규칙을 따른다 | DL-R28, DL-UC1 | frontend | `features/deals/list/DealsPage.columns.test.tsx`, `features/deals/list/DealsPage.nextActionLink.test.tsx`, `features/deals/list/DealsPage.test.tsx`, `features/deals/list/DealsPage.today.test.tsx` |
+| DL-058 | 표는 13열을 순서대로(최종 업데이트는 Next Action 앞) 보이고 칸 값 규칙을 따른다 | DL-R28, DL-UC1 | frontend | `features/deals/list/DealsPage.columns.test.tsx`, `features/deals/list/DealsPage.nextActionLink.test.tsx`, `features/deals/list/DealsPage.test.tsx`, `features/deals/list/DealsPage.today.test.tsx` |
 | DL-059 | Next Action 세 칸은 Actions 탭 링크·Due·상태 라벨이고 없으면 모두 '—'다 | DL-R28, DL-UC4 | frontend | `features/deals/list/DealsPage.columns.test.tsx`, `features/deals/list/DealsPage.nextActionLink.test.tsx`, `features/deals/list/DealsPage.nextActionStatus.test.tsx` |
 | DL-060 | 목록에는 Deal code 글자가 없지만 code로 검색할 수 있다 | DL-R28, DL-R4, DL-UC2 | frontend | `features/deals/list/DealsPage.code.test.tsx` |
 | DL-061 | 한 페이지 20건과 페이저, "총 N건"을 보인다 | DL-R18, DL-UC1 | frontend | `features/deals/list/DealsPage.test.tsx` |
@@ -300,7 +300,7 @@ DL-R18~DL-R32.
 | DL-074 | Forecast 버튼 요약은 선택에 따라 전체·이름·모두 선택·Lost 제외·Open 전체·N개 선택이다 | DL-R22, DL-UC2 | frontend | `features/deals/list/DealsPage.forecastMulti.test.tsx` |
 | DL-075 | URL forecast는 예전 단일 값을 읽고 틀린 항목은 버리며 100개를 넘으면 조건 전체를 무시한다 | DL-R20, DL-R22, DL-UC2 | frontend | `features/deals/list/DealsPage.forecastMulti.test.tsx` |
 | DL-076 | Quarter 다중 선택은 오름차순 목록을 URL에 쓰고 넷 다 눌러도 유지하되 분기 조건은 보내지 않는다 | DL-R23, DL-R20, DL-UC2 | frontend | `features/deals/list/DealsPage.filters.test.tsx`, `features/deals/list/DealsPage.quarterMulti.test.tsx`, `features/deals/list/DealsPage.vendorQuarter.test.tsx` |
-| DL-077 | 연도가 전체일 때 분기나 월을 고르면 올해 기준 안내를 보인다 | DL-R23, DL-UC2 | frontend | `features/deals/list/DealsPage.period.test.tsx`, `features/deals/list/DealsPage.quarterMulti.test.tsx`, `features/deals/list/DealsPage.vendorQuarter.test.tsx` |
+| DL-077 | Close 연도가 전체일 때 분기나 월을 고르면 올해 기준 안내를 보인다 | DL-R23, DL-UC2 | frontend | `features/deals/list/DealsPage.period.test.tsx`, `features/deals/list/DealsPage.quarterMulti.test.tsx`, `features/deals/list/DealsPage.vendorQuarter.test.tsx` |
 | DL-078 | 월 선택지는 고른 분기들의 월이고 그 안의 월이면 월만, 아니면 분기만 보낸다 | DL-R23, DL-R20, DL-UC2 | frontend | `features/deals/list/DealsPage.filters.test.tsx`, `features/deals/list/DealsPage.period.test.tsx`, `features/deals/list/DealsPage.quarterMulti.test.tsx`, `features/deals/list/DealsPage.vendorQuarter.test.tsx` |
 | DL-079 | 분기를 바꾸면 새 선택지에 있는 월은 유지하고 없는 월·숨은 월은 지운다 | DL-R23, DL-UC2 | frontend | `features/deals/list/DealsPage.filters.test.tsx`, `features/deals/list/DealsPage.period.test.tsx`, `features/deals/list/DealsPage.quarterMulti.test.tsx` |
 | DL-080 | 연도 선택지는 전체 + 가장 이른 연도~내년이고 URL 연도를 한 번 더한다 | DL-R24, DL-UC7 | frontend | `features/deals/list/DealsPage.today.test.tsx`, `features/deals/list/DealsPage.yearOptions.test.tsx` |
@@ -330,6 +330,7 @@ DL-R18~DL-R32.
 | DL-104 | 조건이 있는 주소(Drill-down·year=all·담당자)와 기억된 조건에는 내 딜만을 더하지 않는다 | DL-R19, DL-R31, DL-UC6 | frontend | `features/deals/list/DealsPage.defaultMine.test.tsx` |
 | DL-105 | user의 기본 조건은 연도 전체이고 담당 Deal이 없는 sales는 빈 조건 문구를 본다 | DL-R19, DL-R18, DL-UC1 | frontend | `features/deals/list/DealsPage.defaultMine.test.tsx` |
 | DL-106 | 최종 업데이트일이 같은 Deal은 정렬 방향과 무관하게 Deal code 오름차순이다 | DL-R13, DL-UC1 | backend | `application/test_deal_list_period_sort_cases.py`, `repositories/test_deal_sort_contract.py`, `web/test_deal_list_openapi.py` |
+| DL-107 | Deal 목록의 연도 선택 상자 이름은 "Close 연도"이고 Expected Close 연도로 거르며 Dashboard·Forecast는 "연도" 그대로다 | DL-R24, DL-R21, DL-R9, DL-UC2 | frontend | `features/deals/list/DealsPage.closeYear.test.tsx` |
 ### DL-001 조건 없이 조회하면 offset 0·limit 20의 페이지가 최종 업데이트 최신순으로 온다
 - Given KIM이 Deal "첫째"·"둘째"·"셋째"를 하루 간격으로(각각 다른 날) 등록했고 Action은 없다
 - When 조건 없이 목록을 조회한다
@@ -615,10 +616,10 @@ DL-R18~DL-R32.
 - When `/`로 들어오고, 로그인하고, 상단 메뉴 Deals를 누르고, 상세의 목록 링크를 누른다
 - Then 모두 `/deals?year=all` 목록이 된다
 
-### DL-058 표는 13열을 순서대로 보이고 칸 값 규칙을 따른다
+### DL-058 표는 13열을 순서대로(최종 업데이트는 Next Action 앞) 보이고 칸 값 규칙을 따른다
 - Given 파트너 없는 Deal, 퇴사 담당자의 Deal, 금액 120,000,000원 Deal
 - When 목록을 연다
-- Then 머리글이 Deal·담당자·고객사·파트너사·Vendor·Status·Forecast·금액(단위:원)·Expected Close·Next Action·Due·Next Action 상태·최종 업데이트 순이고, 파트너사 칸은 "—"(Vendor는 필수라 항상 이름 — 응답이 null이면 "—"), 담당자는 "이름(퇴사)", 금액은 "120,000,000", 최종 업데이트는 앱 시계의 오늘 기준 상대 일수(title은 YYYY-MM-DD)이며 BANT 열이 없다
+- Then 머리글이 Deal·담당자·고객사·파트너사·Vendor·Status·Forecast·금액(단위:원)·Expected Close·최종 업데이트·Next Action·Due·Next Action 상태 순이고, 각 행의 칸도 같은 순서(최종 업데이트 상대 일수 칸 바로 오른쪽이 Next Action 칸)이며, 파트너사 칸은 "—"(Vendor는 필수라 항상 이름 — 응답이 null이면 "—"), 담당자는 "이름(퇴사)", 금액은 "120,000,000", 최종 업데이트는 앱 시계의 오늘 기준 상대 일수(title은 YYYY-MM-DD)이며 BANT 열이 없다
 
 ### DL-059 Next Action 세 칸은 Actions 탭 링크·Due·상태 라벨이고 없으면 모두 '—'다
 - Given 기준 행이 "견적 재제출"(Due 2026-10-20, Open)인 Deal과 Action 없는 Deal
@@ -710,10 +711,10 @@ DL-R18~DL-R32.
 - When Q3, Q1을 차례로 체크하고, Q3을 끄고, 네 개를 모두 체크하고, "전체"를 누른다
 - Then URL `quarter=1,3` → `quarter=1` → `quarter=1,2,3,4`(넷 다 눌림·요약 "전체"·요청에 분기 없음·그 해 전체 목록) → `quarter` 없음이고, 예전 `quarter=3` 주소는 Q3 하나, 형식이 틀린 항목은 버린다
 
-### DL-077 연도가 전체일 때 분기나 월을 고르면 올해 기준 안내를 보인다
-- Given 앱 시계 2026년, 연도 "전체"
+### DL-077 Close 연도가 전체일 때 분기나 월을 고르면 올해 기준 안내를 보인다
+- Given 앱 시계 2026년, Close 연도 "전체"
 - When Q4를 체크하고(별도로 분기 없이 월 6을 고르고), 그다음 연도 2026을 고른다
-- Then Quarter(또는 월) 아래 "연도가 전체이면 올해(2026) 기준입니다."가 접근성 설명으로 연결되어 보이고 2026년 Q4 Deal이 나오며, 연도를 고르면 안내가 사라지고 분기는 유지된다
+- Then Quarter(또는 월) 아래 "Close 연도가 전체이면 올해(2026) 기준입니다."가 접근성 설명으로 연결되어 보이고 2026년 Q4 Deal이 나오며, 연도를 고르면 안내가 사라지고 분기는 유지된다
 
 ### DL-078 월 선택지는 고른 분기들의 월이고 그 안의 월이면 월만, 아니면 분기만 보낸다
 - Given `quarter=1,3`
@@ -860,6 +861,11 @@ DL-R18~DL-R32.
 - When `sort=last_updated_at`으로 `order=desc`와 `order=asc`를 각각 조회한다
 - Then 두 결과 모두 D-1, D-2, D-3 순서다
 
+### DL-107 Deal 목록의 연도 선택 상자 이름은 "Close 연도"이고 Expected Close 연도로 거르며 Dashboard·Forecast는 "연도" 그대로다
+- Given ROOT(admin) 로그인, 앱 시계 2026-10-15, Expected Close가 2026-03-10·2027-05-01인 Deal 각 1건, Dashboard·Forecast 화면
+- When Deal 목록 필터 바에서 이름이 "Close 연도"인 선택 상자로 2027을 고르고, 그다음 "전체"로 바꾼 뒤 Q1을 체크한다. 별도로 Dashboard와 Forecast를 연다
+- Then 이름이 "연도"뿐인 선택 상자는 Deal 목록에 없고, 2027을 고르면 URL `year=2027`·Expected Close 2027년 Deal만 보인다. 전체에서 Q1을 고르면 Quarter 아래 "Close 연도가 전체이면 올해(2026) 기준입니다."가 보인다. Dashboard·Forecast의 연도 선택 상자 이름은 "연도" 그대로다
+
 ## 5. 변경 이력
 
 | 날짜 | 변경 | 영향 테스트 코드 |
@@ -871,3 +877,4 @@ DL-R18~DL-R32.
 | 2026-11-13 | 확정(2026-11-13 사용자 확인): 최종 업데이트를 날짜 `last_updated_on`으로, 응답에 `status_changed_on`. 변경 규칙: DL-R10 날짜 비교, DL-R13 정렬 대상·동률, DL-R14 응답 키, DL-R28 상대 일수. 정렬 값 이름 `last_updated_at`과 화면 키 `lastUpdatedAt`은 유지 | 신규 DL-106. 변경 DL-001, DL-030, DL-058 |
 | 2026-11-13 | 사용자 요청 "Deals 검색 조건 연도 기본은 전체, 기본 정렬은 최종 업데이트 최신순": DL-R19 기본 조건을 sales `year=all&mine=1`, admin·user `year=all`로, DL-R21 초기화, 2.1·2.4·상태 흐름·DL-UC1 갱신. 기본 정렬(DL-R13 `last_updated_at` `desc`)은 이미 구현되어 있어 규칙 변경 없이 명시만. 조건 있는 주소·Drill-down·기억된 조건은 그대로. 서버·API 변경 없음, **운영 코드 변경 필요**(frontend `defaultListParams`) | 변경: DL-055(기본 정렬 확인 추가)·DL-056·DL-057·DL-070·DL-101·DL-102·DL-103·DL-105. 영향: 기본 조건 주소 `year=2026`을 기대하는 기존 화면 테스트(quarterMulti·period·yearOptions·forecastMulti·vendorQuarter·memory 등)와 UI-056 |
 | 2026-11-13 | DE 변경(Vendor 필수, DE-R7·SC-R22)에 따라 Vendor 없는 Deal을 전제한 DL-042 Given·Then과 DL-058 Given·Then 표현을 고침. 규칙(DL-R13 NULL 맨 뒤, DL-R28 "—")·동작은 그대로 | 변경: DL-042, DL-058 |
+| 2026-11-16 | 확정(2026-11-16 사용자 확인): 사용자 요청 "Deals 목록 검색조건 연도를 'Close 연도'로, 초기 정렬은 최종 업데이트 desc, 최종 업데이트 열을 Next Action 앞으로": DL-R24 선택 상자 이름 "Close 연도"(Dashboard·Forecast는 "연도" 유지), DL-R21·1장·화면 문구 표기, DL-R23 안내 문구 "Close 연도가 전체이면 …"(사용자 확인), DL-R28 열 순서(Expected Close 다음 최종 업데이트, 그 뒤 Next Action·Due·Next Action 상태). 초기 정렬은 이미 최종 업데이트 내림차순(DL-R13 서버 기본, DL-R27 머리글 표시, DL-R19 기본 조건 정렬 없음)이라 규칙·동작 변경 없이 DL-055로 확인. 서버·API·마이그레이션 변경 없음, **운영 코드 변경 필요**(frontend `DealFilterBar`·`DealsTable`·`DealRowItem`) | 신규: DL-107. 변경: DL-058(열 순서), DL-077(안내 문구). 확인만: DL-055. 영향(문구·라벨만 바뀌는 기존 테스트): `getByLabelText('연도')`를 쓰는 Deal 목록 테스트(DL-080·081·082·077 등 yearOptions·period·filters·today·memory), `features/deals/form/testHelpers.ts`, DSH-050(`DashboardPage.drillDown.test.tsx` 73행), 열 위치를 세는 DL-058·DL-059 테스트 |

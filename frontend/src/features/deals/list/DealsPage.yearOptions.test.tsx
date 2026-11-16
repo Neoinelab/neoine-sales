@@ -30,7 +30,7 @@ describe('Deal 목록 연도 선택지에 URL 연도 포함', () => {
     await renderAt('/deals?year=2024')
 
     // when: 그 주소를 연다
-    const year = await screen.findByLabelText('연도')
+    const year = await screen.findByLabelText('Close 연도')
     // then: 그 연도가 선택된 상태로 선택지에 있다
     expect(year).toHaveDisplayValue('2024')
     expect(optionNames(year)).toContain('2024')
@@ -44,7 +44,7 @@ describe('Deal 목록 연도 선택지에 URL 연도 포함', () => {
     await renderAt('/deals?year=2026')
 
     // when: 그 주소를 연다
-    const year = await screen.findByLabelText('연도')
+    const year = await screen.findByLabelText('Close 연도')
     // then: 그 연도가 한 번만 있다
     await waitFor(() => expect(optionNames(year)).toEqual(['전체', '2024', '2025', '2026', '2027']))
     expect(year).toHaveDisplayValue('2026')
@@ -60,7 +60,7 @@ describe('연도 선택지 규칙 (R2)', () => {
     await renderAt('/deals?year=2026')
 
     // when: 목록을 연다
-    const year = await screen.findByLabelText('연도')
+    const year = await screen.findByLabelText('Close 연도')
 
     // then: 전체와 연속 연도가 오름차순이다
     await waitFor(() => expect(optionNames(year)).toEqual(['전체', '2023', '2024', '2025', '2026', '2027']))
@@ -74,7 +74,7 @@ describe('연도 선택지 규칙 (R2)', () => {
     await renderAt('/deals?year=2026')
 
     // when: 연도 선택지를 본다
-    const year = await screen.findByLabelText('연도')
+    const year = await screen.findByLabelText('Close 연도')
 
     // then: 내년까지다
     await waitFor(() => expect(optionNames(year)).toContain('2023'))
@@ -89,7 +89,7 @@ describe('연도 선택지 규칙 (R2)', () => {
     await renderAt('/deals?year=2026')
 
     // when: 목록을 연다
-    const year = await screen.findByLabelText('연도')
+    const year = await screen.findByLabelText('Close 연도')
 
     // then: 전체·올해·내년뿐이다
     await waitFor(() => expect(gateway.deals.years).toHaveBeenCalled())
@@ -104,7 +104,7 @@ describe('연도 선택지 규칙 (R2)', () => {
     await renderAt('/deals?year=2026')
 
     // when: 목록을 연다
-    const year = await screen.findByLabelText('연도')
+    const year = await screen.findByLabelText('Close 연도')
 
     // then: 내년 이후 연도는 없다
     await waitFor(() => expect(gateway.deals.years).toHaveBeenCalled())
@@ -119,7 +119,7 @@ describe('연도 선택지 규칙 (R2)', () => {
     await renderAt('/deals?year=all')
 
     // when: 그 주소를 연다
-    const year = await screen.findByLabelText('연도')
+    const year = await screen.findByLabelText('Close 연도')
 
     // then: 전체가 첫 항목이고 선택돼 있다
     await waitFor(() => expect(optionNames(year)).toEqual(['전체', '2024', '2025', '2026', '2027']))
@@ -134,7 +134,7 @@ describe('연도 선택지 규칙 (R2)', () => {
     await renderAt('/deals?year=2026', { role: 'user' })
 
     // when: 목록을 연다
-    await screen.findByLabelText('연도')
+    await screen.findByLabelText('Close 연도')
 
     // then: 가장 이른 연도부터 선택지가 만들어진다
     await waitFor(() => expect(years).toHaveBeenCalled())
@@ -150,7 +150,7 @@ describe('연도 목록을 받는 동안·받지 못했을 때 (R2)', () => {
     vi.spyOn(gateway.deals, 'years').mockReturnValue(new Promise((resolve) => (finish = resolve)))
     await renderAt('/deals?year=2026')
     // when: 목록을 연다
-    const year = await screen.findByLabelText('연도')
+    const year = await screen.findByLabelText('Close 연도')
 
     // then: 처음엔 올해·내년, 응답 뒤 선택지가 넓어지고 선택은 그대로다
     expect(optionNames(year)).toEqual(['전체', '2026', '2027'])
@@ -173,7 +173,7 @@ describe('연도 목록을 받는 동안·받지 못했을 때 (R2)', () => {
 
     // then: 올해·내년 선택지와 오류 배너
     expect(await bar.findByRole('alert')).toHaveTextContent('연도 목록을 불러오지 못했습니다.')
-    expect(optionNames(bar.getByLabelText('연도'))).toEqual(['전체', '2026', '2027'])
+    expect(optionNames(bar.getByLabelText('Close 연도'))).toEqual(['전체', '2026', '2027'])
   })
 
   // 연도 기준이 실패해도 목록은 나온다
