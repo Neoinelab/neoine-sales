@@ -20,7 +20,7 @@ from tests.unit.application.action_env import (
     DUE_WITHOUT_NEXT,
     KIM,
     PARK,
-    SUMMARY_WITH_MEMO,
+    SUMMARY,
 )
 
 if TYPE_CHECKING:
@@ -39,7 +39,7 @@ async def test_register_action_sets_now_requester_and_current_snapshot(
     action_env.env.clock.advance(300)
 
     # when: KIM이 Action을 등록한다
-    action = await action_env.act(KIM, code=deal.item.deal.id.value, memo="요구사항 정리")
+    action = await action_env.act(KIM, code=deal.item.deal.id.value)
 
     # then: 수행일(오늘 업무 날짜)·담당자·스냅숏·내용이 서버 값으로 저장된다
     stored = await action_env.stored(action.id)
@@ -62,30 +62,29 @@ async def test_register_action_trims_every_text_and_keeps_a_past_due_date(
     """
     # when: 공백이 낀 텍스트와 지난 Due Date로 등록한다
     action = await action_env.act(
-        action="  킥오프  ", next_action=" 견적 ", memo="  메모  ", due_date=date(2000, 1, 1)
+        action="  킥오프  ", next_action=" 견적 ", due_date=date(2000, 1, 1)
     )
 
     # then: 공백이 지워진 값과 지난 Due Date가 저장된다
     content = (await action_env.stored(action.id)).content
-    assert (content.action, content.next_action, content.memo) == ("킥오프", "견적", "메모")
+    assert (content.action, content.next_action) == ("킥오프", "견적")
     assert content.due_date == date(2000, 1, 1)
 
 
 async def test_register_action_saves_long_text_in_full(action_env: ActionEnv) -> None:
-    """진행사항·Next Action·Memo는 길이 상한 없이 저장된다.
+    """진행사항·Next Action은 길이 상한 없이 저장된다.
 
     테스트 코드: AC-004
     """
-    # when: 5,000자·5,000자·20,000자 텍스트로 등록한다
-    action = await action_env.act(action="가" * 5_000, next_action="😀" * 5_000, memo="메" * 20_000)
+    # when: 5,000자·5,000자 텍스트로 등록한다
+    action = await action_env.act(action="가" * 5_000, next_action="😀" * 5_000)
 
-    # then: 세 값이 잘리지 않고 저장된다
+    # then: 두 값이 잘리지 않고 저장된다
     content = (await action_env.stored(action.id)).content
     assert content.action is not None
     assert content.next_action is not None
     assert len(content.action) == 5_000
     assert len(content.next_action) == 5_000
-    assert len(content.memo) == 20_000
 
 
 @pytest.mark.parametrize("code", ["20261016-ZZZZ", "not-a-code"])
@@ -147,7 +146,7 @@ async def test_register_action_records_one_action_history_and_keeps_deal_updated
 
     # then: "등록: <요약>" 이력 1건이 요청자·요청 시각으로 남는다
     assert await action_env.rows() == [
-        ("action", "Action", "", f"등록: {SUMMARY_WITH_MEMO}"),
+        ("action", "Action", "", f"등록: {SUMMARY}"),
     ]
     entry = (await action_env.action_entries())[0]
     assert entry.changed_by == KIM.user_id
@@ -155,21 +154,6 @@ async def test_register_action_records_one_action_history_and_keeps_deal_updated
     # then: Deal 수정 시각은 그대로다
     deal = await action_env.env.uow.deals.get(action_env.deal.item.deal.id)
     assert deal.updated_at == before
-
-
-async def test_register_action_without_memo_leaves_the_memo_out_of_the_history(
-    action_env: ActionEnv,
-) -> None:
-    """Memo가 없으면 이력 요약에 Memo 부분이 없다.
-
-    테스트 코드: AC-016
-    """
-    # when: Memo 없이 등록한다
-    await action_env.act(memo="")
-
-    # then: 이력 요약에 Memo 부분이 없다
-    (row,) = await action_env.rows()
-    assert row[3] == "등록: 미팅 · 킥오프 미팅 / Next Action: 요구사항 문서 전달 (Due 2026-01-15)"
 
 
 async def test_register_action_clips_the_history_but_not_the_action(
@@ -231,7 +215,7 @@ async def test_register_progress_only_action(action_env: ActionEnv) -> None:
     테스트 코드: AC-006
     """
     # when: Next Action 없이 진행사항만 등록한다
-    action = await action_env.act(KIM, next_action="", memo="")
+    action = await action_env.act(KIM, next_action="")
 
     # then: Next Action·Due·상태는 없고 이력은 진행사항까지만 쓴다
     stored = await action_env.stored(action.id)
@@ -248,7 +232,7 @@ async def test_register_next_only_action(action_env: ActionEnv) -> None:
     테스트 코드: AC-007
     """
     # when: 진행사항 없이 Next Action만 등록한다
-    action = await action_env.act(KIM, action="", memo="")
+    action = await action_env.act(KIM, action="")
 
     # then: 진행사항은 없고 상태는 Open이며 이력에 Next Action이 있다
     stored = await action_env.stored(action.id)

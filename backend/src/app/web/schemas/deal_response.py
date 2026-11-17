@@ -229,3 +229,4 @@ class DeletionImpactResponse(BaseModel):
     action_count: int
     attachment_count: int
     license_contract_count: int
+    comment_count: int

@@ -21,18 +21,17 @@ async def _seed(action_case: Case) -> None:
         ("미팅", "킥오프 미팅", "요구사항 정리", "일정", "park", 1, date(2026, 2, 1)),
         ("미팅", "최종 미팅", "계약서 초안", "조건", "kim", 2, date(2026, 2, 10)),
     ]
-    for action_type, action, next_action, memo, actor, day, due in rows:
-        await action_case.add(
-            make_deal_action(
-                now=NOW + timedelta(days=day),
-                action_type=action_type,
-                action=action,
-                next_action=next_action,
-                memo=memo,
-                actor_user_id=uid(actor),
-                due_date=due,
-            )
+    for action_type, action, next_action, comment, actor, day, due in rows:
+        stored = make_deal_action(
+            now=NOW + timedelta(days=day),
+            action_type=action_type,
+            action=action,
+            next_action=next_action,
+            actor_user_id=uid(actor),
+            due_date=due,
         )
+        await action_case.add(stored)
+        await action_case.add_comment(stored, comment)  # 예전 Memo 자리: 그 Action의 Comment
 
 
 async def _type_id(action_case: Case, name: str) -> object:
@@ -133,11 +132,14 @@ async def test_search_filters_combine_with_and(action_case: Case) -> None:
     assert nobody == []
 
 
-async def test_search_keyword_matches_the_three_text_fields_ignoring_case(
+async def test_search_keyword_matches_the_action_texts_and_comments_ignoring_case(
     action_case: Case,
 ) -> None:
-    """키워드는 진행사항·Next Action·Memo에서 대소문자 무시로 찾는다."""
-    # given: 세 텍스트 필드에 서로 다른 말이 있는 Action들과 영문 Action 하나
+    """키워드는 진행사항·Next Action·그 Action의 Comment 본문에서 대소문자 무시로 찾는다.
+
+    테스트 코드: CM-040, NA-026
+    """
+    # given: 세 곳에 서로 다른 말이 있는 Action들과 영문 Action 하나
     await _seed(action_case)
     await action_case.add(make_deal_action(NOW + timedelta(days=9), action="Kickoff Memo"))
 
@@ -149,10 +151,10 @@ async def test_search_keyword_matches_the_three_text_fields_ignoring_case(
     by_next_action = await action_case.search(keyword="계약서")
     # then: 그 Action이 나온다
     assert by_next_action == ["최종 미팅"]  # next_action
-    # when: Memo에 있는 말로 검색한다
-    by_memo = await action_case.search(keyword="예산")
+    # when: Action Comment에 있는 말로 검색한다
+    by_comment = await action_case.search(keyword="예산")
     # then: 그 Action이 나온다
-    assert by_memo == ["첫 통화"]  # memo
+    assert by_comment == ["첫 통화"]  # Action Comment
     # when: 대문자로 검색한다
     upper = await action_case.search(keyword="KICKOFF")
     # then: 소문자 Action이 나온다
@@ -165,7 +167,7 @@ async def test_search_keyword_matches_the_three_text_fields_ignoring_case(
 
 async def test_search_keyword_treats_wildcards_literally(action_case: Case) -> None:
     """키워드의 % 와 _ 는 와일드카드가 아니라 글자 그대로 찾는다."""
-    # given: Memo에 "100%"가 있는 Action이 포함된 3건
+    # given: Action Comment에 "100%"가 있는 Action이 포함된 3건
     await _seed(action_case)
 
     # when: "100%"로 검색한다
@@ -182,16 +184,48 @@ async def test_search_keyword_treats_wildcards_literally(action_case: Case) -> N
     assert underscore == []
 
 
-async def test_search_keyword_finds_text_deep_inside_a_very_long_memo(action_case: Case) -> None:
-    """아주 긴 Memo의 깊은 곳에 있는 말도 키워드로 찾는다."""
-    # given: 20,000자 가까운 Memo의 중간에 키워드가 있는 Action
-    long_memo = "가" * 15_000 + "깊은키워드" + "나" * 5_000
-    await action_case.add(make_deal_action(NOW, action="긴 메모", memo=long_memo))
+async def test_search_keyword_finds_text_deep_inside_a_very_long_comment(
+    action_case: Case,
+) -> None:
+    """아주 긴 Comment 본문의 깊은 곳에 있는 말도 키워드로 찾는다.
+
+    테스트 코드: CM-040
+    """
+    # given: 20,000자 가까운 Comment의 중간에 키워드가 있는 Action
+    long_comment = "가" * 15_000 + "깊은키워드" + "나" * 5_000
+    action = make_deal_action(NOW, action="긴 Comment")
+    await action_case.add(action)
+    await action_case.add_comment(action, long_comment)
 
     # when: 그 키워드로 검색한다
     found = await action_case.search(keyword="깊은키워드")
     # then: 그 Action이 나온다
-    assert found == ["긴 메모"]
+    assert found == ["긴 Comment"]
+
+
+async def test_search_keyword_ignores_deal_comments_and_other_actions_comments(
+    action_case: Case,
+) -> None:
+    """Deal Comment(연결 Action 없음)와 다른 Action의 Comment 본문은 찾지 않는다.
+
+    테스트 코드: CM-040
+    """
+    # given: Comment 없는 Action, Comment "예산"이 있는 다른 Action, 같은 Deal의 Deal Comment
+    code = make_deal_code()
+    plain = make_deal_action(NOW, deal_code=code, action="회의")
+    commented = make_deal_action(NOW + timedelta(days=1), deal_code=code, action="견적")
+    await action_case.add(plain)
+    await action_case.add(commented)
+    await action_case.add_comment(commented, "예산")
+    await action_case.add_deal_comment(code, "회의록")
+
+    # when: Action Comment의 말과 Deal Comment의 말로 검색한다
+    by_action_comment = await action_case.search(keyword="예산")
+    by_deal_comment = await action_case.search(keyword="회의록")
+
+    # then: Action Comment는 그 Action만 찾고 Deal Comment는 아무것도 찾지 않는다
+    assert by_action_comment == ["견적"]
+    assert by_deal_comment == []
 
 
 async def test_search_due_range_is_inclusive_on_both_ends(action_case: Case) -> None:

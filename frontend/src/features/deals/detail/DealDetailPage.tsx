@@ -2,8 +2,10 @@ import { useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
 import { useMe } from '../../../data/auth'
 import { useCodeSet } from '../../../data/codes'
+import { useCommentCounts } from '../../../data/comments'
 import { useDeal } from '../../../data/deals'
 import { useLabels } from '../../../data/labels'
+import { badgeText } from '../../../shared/model/commentBadge'
 import { dealDeleteDenial, canWrite as canWriteRole } from '../../../shared/model/permissions'
 import '../../../shared/ui/kvGrid.css'
 import { ErrorBanner } from '../../../shared/ui/ErrorBanner'
@@ -14,6 +16,7 @@ import { useDealListPath } from '../../../shared/ui/useDealListPath'
 import { useLocationNotice } from '../../../shared/ui/useLocationNotice'
 import { ActionsTab } from './ActionsTab'
 import { AttachmentsPanel } from './AttachmentsPanel'
+import { CommentsTab } from './CommentsTab'
 import { messageOf } from './detailHelpers'
 import { DeleteDealDialog } from './DeleteDealDialog'
 import { DealTitle } from './DealTitle'
@@ -22,19 +25,21 @@ import { InfoCards } from './InfoCards'
 import { SummaryBar } from './SummaryBar'
 import './detail.css'
 
-/** 탭 아이콘(Dashboard 탭과 같은 모양): Deal 상세는 문서, Actions는 체크 목록, Deal History는 시계. */
+/** 탭 아이콘(Dashboard 탭과 같은 모양): Deal 상세는 문서, Actions는 체크 목록, Deal History는 시계, Comments는 말풍선. */
 const TABS = [
   { id: 'info', label: 'Deal 상세', icon: tabIcon('M5 2.5h7l3.5 3.5v11.5h-10.5zM12 2.5V6h3.5M7.5 10h5M7.5 13.5h5') },
   { id: 'actions', label: 'Actions', icon: tabIcon('M3 5.5l1.5 1.5 3-3M3 13.5l1.5 1.5 3-3M10 6h7M10 14h7') },
   { id: 'history', label: 'Deal History', icon: tabIcon('M10 2.5a7.5 7.5 0 1 1 0 15a7.5 7.5 0 1 1 0-15M10 6v4l2.5 2.5') },
+  { id: 'comments', label: 'Comments', icon: tabIcon('M3 4.5h14v9H9l-4 3v-3H3z') },
 ] as const
 
-/** Deal 상세 `/deals/:dealCode`: 머리(이름) 바로 아래 탭 3개(Deal 상세: Deal 정보·정보 카드·첨부 파일 / Actions / Deal History, 기본은 Deal 상세) · 알림(탭 패널 맨 위) · 삭제. */
+/** Deal 상세 `/deals/:dealCode`: 머리(이름) 바로 아래 탭 4개(Deal 상세: Deal 정보·정보 카드·첨부 파일 / Actions / Deal History / Comments, 기본은 Deal 상세) · 알림(탭 패널 맨 위) · 삭제. */
 export function DealDetailPage() {
   const { dealCode } = useParams()
   const navigate = useNavigate()
   const [params, setParams] = useSearchParams()
   const deal = useDeal(dealCode)
+  const unread = useCommentCounts(dealCode).data?.unread ?? 0
   const me = useMe().data ?? null
   const codes = useCodeSet()
   const labels = useLabels()
@@ -44,7 +49,7 @@ export function DealDetailPage() {
   const listPath = useDealListPath()
   const tabParam = params.get('tab')
   // 모르는 값은 Deal 상세 탭이다.
-  const tab = tabParam === 'actions' || tabParam === 'history' ? tabParam : 'info'
+  const tab = tabParam === 'actions' || tabParam === 'history' || tabParam === 'comments' ? tabParam : 'info'
 
   if (deleted) return null
   if (deal.isError) {
@@ -65,10 +70,22 @@ export function DealDetailPage() {
 
   function changeTab(id: string) {
     const next = new URLSearchParams(params)
-    if (id === 'actions' || id === 'history') next.set('tab', id)
+    next.delete('action')
+    if (id === 'actions' || id === 'history' || id === 'comments') next.set('tab', id)
     else next.delete('tab')
     setParams(next)
   }
+
+  /** Comments 탭의 "Action 보기": Actions 탭으로 가서 그 Action의 상세 팝업을 연다(주소의 action은 Actions 탭이 읽고 지운다). */
+  function viewAction(actionId: number) {
+    const next = new URLSearchParams(params)
+    next.set('tab', 'actions')
+    next.set('action', String(actionId))
+    setParams(next)
+  }
+
+  const badge = badgeText(unread)
+  const tabs = TABS.map((t) => (t.id === 'comments' && badge !== null ? { ...t, badge, badgeLabel: `읽지 않은 Comment ${unread}건` } : t))
 
   return (
     <div className="dd-page deal-detail">
@@ -92,7 +109,7 @@ export function DealDetailPage() {
           )}
         </div>
       </header>
-      <Tabs className="tabs-prominent" label="상세 탭" tabs={TABS} active={tab} onChange={changeTab}>
+      <Tabs className="tabs-prominent" label="상세 탭" tabs={tabs} active={tab} onChange={changeTab}>
         {notice && (
           <Notice kind="success" onClose={() => setNotice(null)}>
             {notice}
@@ -106,6 +123,9 @@ export function DealDetailPage() {
           </>
         )}
         {tab === 'history' && <HistoryTab dealCode={data.code} />}
+        {tab === 'comments' && (
+          <CommentsTab deal={data} canWrite={canWrite} me={me === null ? null : { id: me.id, role: me.role }} onViewAction={viewAction} />
+        )}
         {tab === 'actions' && (
           <ActionsTab
             deal={data}

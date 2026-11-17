@@ -347,8 +347,8 @@ async def test_history_uses_the_chosen_type_name(action_env: ActionEnv) -> None:
 
     테스트 코드: AC-022
     """
-    # when: 새 유형 이름 "웨비나"로 Memo 없이 등록한다
-    await action_env.act(KIM, action_type=CatalogChoice(name="웨비나"), memo="")
+    # when: 새 유형 이름 "웨비나"로 등록한다
+    await action_env.act(KIM, action_type=CatalogChoice(name="웨비나"))
 
     # then: 등록 이력의 유형 자리는 "웨비나"다
     (row,) = await action_env.rows()

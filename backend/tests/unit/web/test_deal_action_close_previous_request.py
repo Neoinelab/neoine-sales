@@ -21,7 +21,6 @@ BODY: dict[str, Any] = {
     "action": "킥오프 미팅",
     "next_action": "요구사항 문서 전달",
     "due_date": "2026-03-10",
-    "memo": "",
 }
 FIELD = "close_previous_next_action_id"
 

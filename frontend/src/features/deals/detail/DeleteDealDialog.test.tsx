@@ -1,5 +1,5 @@
 import { screen, waitFor, within } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { gateway } from '../../../gateway'
 import { renderAt } from '../../../test/mockApp'
 import { dealCodeOf, detailPath } from '../../../test/detailTestUtils'
@@ -22,11 +22,34 @@ describe('Deal 삭제 팝업 (T-DELETE-01~06)', () => {
     // when: 삭제 대화상자를 연다
     const { dialog } = await openDialog(1, '한빛은행 ITDR 도입')
 
-    // then: Deal History·Action·첨부 건수와 '복구할 수 없습니다', Deal code 안내가 보이고 '파트너 미팅'은 없다
-    await waitFor(() => expect(dialog).toHaveTextContent(/Deal History \d+건, Action 4건, 첨부 파일 3개/))
+    // then: Deal History·Action·첨부·계약·Comment 건수와 '복구할 수 없습니다', Deal code 안내가 보이고 '파트너 미팅'은 없다
+    await waitFor(() => expect(dialog).toHaveTextContent(/Deal History \d+건, Action 4건, 첨부 파일 3개, 라이선스 계약 \d+건, Comment 0건과 파일 저장 디렉터리/))
     expect(dialog).not.toHaveTextContent('파트너 미팅')
     expect(dialog).toHaveTextContent('복구할 수 없습니다')
     expect(dialog).toHaveTextContent(`Deal code ${code}`)
+  })
+
+  // 건수를 읽는 동안에는 건수 없는 같은 안내에 Comment도 들어 있다.
+  // 테스트 코드: DD-109
+  it('names Comment in the text shown while the counts are loading', async () => {
+    // given: 삭제 영향 응답을 늦춘다
+    let release: () => void = () => undefined
+    const slow = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    const original = gateway.deals.impact
+    const spy = vi.spyOn(gateway.deals, 'impact').mockImplementation(async (code) => {
+      await slow
+      return original(code)
+    })
+
+    // when: 삭제 대화상자를 연다
+    const { dialog } = await openDialog(1, '한빛은행 ITDR 도입')
+
+    // then: 건수 없는 안내에 Deal History·Action·첨부 파일·라이선스 계약·Comment가 있다
+    expect(dialog).toHaveTextContent('삭제하면 Deal History, Action, 첨부 파일, 라이선스 계약, Comment가 함께 삭제되며 복구할 수 없습니다.')
+    release()
+    spy.mockRestore()
   })
 
   // 정확한 code를 입력하기 전에는 삭제가 꺼져 있고 불일치 문구를 보인다.

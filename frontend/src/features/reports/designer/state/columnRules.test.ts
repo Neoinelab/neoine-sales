@@ -195,8 +195,8 @@ describe('조건 규칙', () => {
     // when: 조건에 쓸 수 있는 필드를 거른다
     const fields = filterableFields(REPORT_CATALOG)
 
-    // then: 39개이고 Action 건수는 없다
-    expect(fields).toHaveLength(39)
+    // then: 40개이고 Action 건수는 없다
+    expect(fields).toHaveLength(40)
     expect(fields.map((f) => f.key)).not.toContain('action.count')
     expect(fields.every((f) => f.filterable)).toBe(true)
   })

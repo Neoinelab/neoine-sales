@@ -70,6 +70,7 @@ export function createDealsHttp(): DealsGateway {
         actionCount: impact.action_count,
         attachmentCount: impact.attachment_count,
         licenseContractCount: impact.license_contract_count,
+        commentCount: impact.comment_count,
       }
     },
     create: async (input) => toDealDetail(await unwrap(api.POST('/api/v1/deals', { body: toCreateBody(input) }))),

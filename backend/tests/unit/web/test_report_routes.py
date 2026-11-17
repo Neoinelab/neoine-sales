@@ -253,7 +253,7 @@ async def test_query_route_returns_the_result_shape() -> None:
             {"field": "deal.expected_close"},
             {"field": "deal.users"},
             {"field": "deal.users"},
-            {"field": "action.memo"},
+            {"field": "action.comment"},
         ],
         "row_limit": 100,
     }
@@ -768,7 +768,7 @@ async def test_catalog_formatless_fields() -> None:
 
 
 async def test_catalog_only_amount_has_a_unit() -> None:
-    """필드는 40개이고 단위가 있는 필드는 금액 하나뿐이다.
+    """필드는 41개이고 단위가 있는 필드는 금액 하나뿐이다.
 
     테스트 코드: RQ-002, RQ-004
     """
@@ -776,10 +776,10 @@ async def test_catalog_only_amount_has_a_unit() -> None:
         # when: 필드 목록을 요청한다 (전제: 로그인한 user)
         fields = (await http.get(FIELDS)).json()["fields"]
 
-    # then: 모든 필드에 unit 키가 있고 값이 있는 것은 금액 krw뿐이며 필드는 40개다
+    # then: 모든 필드에 unit 키가 있고 값이 있는 것은 금액 krw뿐이며 필드는 41개다
     assert all("unit" in f for f in fields)
     assert {f["key"]: f["unit"] for f in fields if f["unit"] is not None} == {"deal.amount": "krw"}
-    assert len(fields) == 40
+    assert len(fields) == 41
 
 
 @pytest.mark.parametrize("role", [Role.ADMIN, Role.SALES])
@@ -828,3 +828,52 @@ async def test_the_old_solution_key_is_an_unknown_field_and_nothing_is_run() -> 
         ]
     # then: 조회 Port는 불리지 않았다
     assert use_cases.uow.reports.calls == []
+
+
+async def test_the_old_memo_key_is_an_unknown_field_and_nothing_is_run() -> None:
+    """조회 요청의 예전 key action.memo는 컬럼·조건 모두 unknown-field 422이고 조회하지 않는다.
+
+    테스트 코드: RQ-119
+    """
+    # given: 로그인한 user와 예전 key를 쓰는 컬럼 정의, 조건만 예전 key인 정의
+    use_cases = FakeUseCases()
+    in_column = {"columns": [{"field": "action.memo"}]}
+    in_condition = {
+        "columns": [{"field": "deal.name"}],
+        "conditions": [{"field": "action.memo", "operator": "contains", "value": "a"}],
+    }
+    async with _client(use_cases, role=Role.USER) as http:
+        # when: 두 정의로 각각 조회한다
+        column_response = await http.post(QUERY, json=in_column)
+        condition_response = await http.post(QUERY, json=in_condition)
+
+    # then: 둘 다 422 invalid-report이고 위치·code·문구가 문서대로다
+    for response, location in (
+        (column_response, ["columns", 0, "field"]),
+        (condition_response, ["conditions", 0, "field"]),
+    ):
+        assert response.status_code == 422
+        body = response.json()
+        assert str(body["type"]).endswith("invalid-report")
+        assert [(e["location"], e["code"], e["message"]) for e in body["errors"]] == [
+            (location, "unknown-field", "허용되지 않은 필드입니다: action.memo")
+        ]
+    # then: 조회 Port는 불리지 않았다
+    assert use_cases.uow.reports.calls == []
+
+
+async def test_the_new_comment_fields_are_accepted_in_a_query() -> None:
+    """action.comment와 deal.comment 컬럼은 조회 요청에서 받아들여져 실행된다.
+
+    테스트 코드: RQ-002
+    """
+    # given: 로그인한 user와 두 Comment 필드를 컬럼으로 가진 정의
+    use_cases = FakeUseCases()
+    body_in = {"columns": [{"field": "deal.comment"}, {"field": "action.comment"}]}
+    async with _client(use_cases, role=Role.USER) as http:
+        # when: 조회한다
+        response = await http.post(QUERY, json=body_in)
+
+    # then: 200이고 조회 Port가 불렸다
+    assert response.status_code == 200, response.text
+    assert len(use_cases.uow.reports.calls) == 1

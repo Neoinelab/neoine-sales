@@ -181,7 +181,11 @@ async def test_the_deletion_impact_counts_the_attachments_of_that_deal(
 
     # then: 첨부 건수가 올린 수와 같다
     assert impact == DealDeletionImpact(
-        history_count=3, action_count=0, attachment_count=2, license_contract_count=0
+        history_count=3,
+        action_count=0,
+        attachment_count=2,
+        license_contract_count=0,
+        comment_count=0,
     )
 
 

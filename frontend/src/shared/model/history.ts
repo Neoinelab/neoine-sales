@@ -17,6 +17,7 @@ export const HISTORY_CATEGORY_LABELS: Record<HistoryCategory, string> = {
   bant: 'BANT Label',
   action: 'Action',
   attachment: '첨부 파일',
+  comment: 'Comment',
   other: '기타',
 }
 

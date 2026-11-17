@@ -51,6 +51,29 @@ async def test_delete_user_with_any_reference_resigns_instead_of_deleting(
     assert kept.login_id.value == "kim"
 
 
+async def test_a_user_whose_only_link_is_a_comment_is_resigned_and_the_comment_stays(
+    admin: AdminStack, uow_factory: UnitOfWorkFactory
+) -> None:
+    """Comment를 쓴 사용자는 다른 연결이 없어도 삭제 대신 퇴사 처리되고 Comment는 남는다.
+
+    테스트 코드: CM-041
+    """
+    # given: 연결이 Comment 1건뿐인 park
+    root = await seed_user(uow_factory, "root", Role.ADMIN)
+    park = await seed_user(uow_factory, "park", Role.SALES)
+    await link_user(uow_factory, park, "comment_author")
+
+    # when: root가 park을 삭제한다
+    outcome = await admin.delete_user.execute(user_id=park.id, actor=root.to_principal())
+
+    # then: 퇴사(resigned)이고 park의 Comment가 그대로 남는다
+    assert outcome is DeleteOutcome.RESIGNED
+    async with uow_factory() as uow:
+        assert (await uow.users.get(park.id)).deleted_at == NOW
+        stored = [c for c in uow.deal_comments._items.values() if c.author_user_id == park.id]  # type: ignore[attr-defined]
+    assert len(stored) == 1
+
+
 @pytest.mark.parametrize("kind", LINK_KINDS)
 async def test_resigning_still_deletes_the_users_session_rows(
     admin: AdminStack, auth: AuthStack, uow_factory: UnitOfWorkFactory, kind: str
@@ -74,14 +97,15 @@ async def test_resigning_still_deletes_the_users_session_rows(
         assert await uow.sessions.get_by_token_hash(hash_token(token)) is None
 
 
-def test_registering_another_user_is_not_one_of_the_sixteen_links() -> None:
-    """연결 종류는 16종이고 사용자 등록자는 그 안에 없다
+def test_registering_another_user_is_not_one_of_the_seventeen_links() -> None:
+    """연결 종류는 17종(Comment 작성자 포함)이고 사용자 등록자는 그 안에 없다
 
     테스트 코드: US-058
     """
     # when: 테스트 지원 코드의 연결 종류 목록을 본다
-    # then: 16종이며 사용자 등록자(created_user)는 없다
-    assert len(LINK_KINDS) == 16
+    # then: 17종이며 Comment 작성자는 있고 사용자 등록자(created_user)는 없다
+    assert len(LINK_KINDS) == 17
+    assert "comment_author" in LINK_KINDS
     assert "created_user" not in LINK_KINDS
 
 

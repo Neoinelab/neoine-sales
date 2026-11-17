@@ -100,6 +100,24 @@
         "title": "ActionTypeResponse",
         "type": "object"
       },
+      "ActionUnreadCount": {
+        "properties": {
+          "action_id": {
+            "title": "Action Id",
+            "type": "integer"
+          },
+          "unread": {
+            "title": "Unread",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "action_id",
+          "unread"
+        ],
+        "title": "ActionUnreadCount",
+        "type": "object"
+      },
       "Aggregate": {
         "enum": [
           "sum",
@@ -1811,6 +1829,12 @@
             "description": "저장하며 종료(수행)로 바꿀 이전 Next Action의 Action id. 그 Deal의 'Next Action이 있는 가장 최근 Action'과 다르면 409(invalid-state), 담당자 본인·admin이 아니면 403. 이미 종료된 행이면 상태를 바꾸지 않는다. 생략하거나 null이면 이전 행을 바꾸지 않는다.",
             "title": "Close Previous Next Action Id"
           },
+          "comment": {
+            "default": "",
+            "description": "새 Action에 함께 남길 Action Comment(선택). 생략하거나 비었거나 공백뿐이면 Comment를 만들지 않는다. NUL 문자는 422.",
+            "title": "Comment",
+            "type": "string"
+          },
           "delete_license_contracts": {
             "default": false,
             "description": "status_changes가 Won을 벗어나게 할 때 그 Deal의 라이선스 계약도 삭제한다(아니면 무시).",
@@ -1828,11 +1852,6 @@
               }
             ],
             "title": "Due Date"
-          },
-          "memo": {
-            "default": "",
-            "title": "Memo",
-            "type": "string"
           },
           "next_action": {
             "default": "",
@@ -1943,10 +1962,6 @@
             "title": "Id",
             "type": "integer"
           },
-          "memo": {
-            "title": "Memo",
-            "type": "string"
-          },
           "next_action": {
             "anyOf": [
               {
@@ -2001,7 +2016,6 @@
           "due_date",
           "next_action_status",
           "next_action_closed_on",
-          "memo",
           "acted_on",
           "actor",
           "status_key",
@@ -2061,11 +2075,6 @@
               }
             ],
             "title": "Due Date"
-          },
-          "memo": {
-            "default": "",
-            "title": "Memo",
-            "type": "string"
           },
           "next_action": {
             "default": "",
@@ -2158,6 +2167,214 @@
           "notice"
         ],
         "title": "DealChangeResponse",
+        "type": "object"
+      },
+      "DealCommentActionSummary": {
+        "description": "Action에 연결된 Comment의 Action 요약.",
+        "properties": {
+          "acted_on": {
+            "format": "date",
+            "title": "Acted On",
+            "type": "string"
+          },
+          "action": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Action"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "next_action": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Action"
+          }
+        },
+        "required": [
+          "id",
+          "acted_on",
+          "action",
+          "next_action"
+        ],
+        "title": "DealCommentActionSummary",
+        "type": "object"
+      },
+      "DealCommentCounts": {
+        "description": "읽지 않은 Comment 수. by_action은 1 이상인 Action만.",
+        "properties": {
+          "by_action": {
+            "items": {
+              "$ref": "#/components/schemas/ActionUnreadCount"
+            },
+            "title": "By Action",
+            "type": "array"
+          },
+          "unread": {
+            "title": "Unread",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "unread",
+          "by_action"
+        ],
+        "title": "DealCommentCounts",
+        "type": "object"
+      },
+      "DealCommentCreateRequest": {
+        "additionalProperties": false,
+        "description": "action_id가 없거나 null이면 Deal Comment, 값이 있으면 그 Deal의 Action Comment다.",
+        "properties": {
+          "action_id": {
+            "anyOf": [
+              {
+                "maximum": 9007199254740991.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Action Id"
+          },
+          "body": {
+            "title": "Body",
+            "type": "string"
+          }
+        },
+        "required": [
+          "body"
+        ],
+        "title": "DealCommentCreateRequest",
+        "type": "object"
+      },
+      "DealCommentList": {
+        "description": "Deal 소속 Comment. 페이지는 없고 최근 것이 먼저다.",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/DealCommentResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "DealCommentList",
+        "type": "object"
+      },
+      "DealCommentReadRequest": {
+        "additionalProperties": false,
+        "description": "읽음 처리할 Comment id(1~500개). 그 Deal 소속이 아니거나 없는 id는 서버가 건너뛴다.",
+        "properties": {
+          "comment_ids": {
+            "items": {
+              "maximum": 9007199254740991.0,
+              "minimum": 1.0,
+              "type": "integer"
+            },
+            "maxItems": 500,
+            "minItems": 1,
+            "title": "Comment Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "comment_ids"
+        ],
+        "title": "DealCommentReadRequest",
+        "type": "object"
+      },
+      "DealCommentResponse": {
+        "properties": {
+          "action": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DealCommentActionSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "action_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Action Id"
+          },
+          "author": {
+            "$ref": "#/components/schemas/UserRef"
+          },
+          "body": {
+            "title": "Body",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "deal_code": {
+            "title": "Deal Code",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "read_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Read At"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "created_at",
+          "updated_at",
+          "deal_code",
+          "action_id",
+          "action",
+          "body",
+          "author",
+          "read_at"
+        ],
+        "title": "DealCommentResponse",
         "type": "object"
       },
       "DealCreateRequest": {
@@ -2865,6 +3082,10 @@
             "title": "Attachment Count",
             "type": "integer"
           },
+          "comment_count": {
+            "title": "Comment Count",
+            "type": "integer"
+          },
           "history_count": {
             "title": "History Count",
             "type": "integer"
@@ -2878,7 +3099,8 @@
           "history_count",
           "action_count",
           "attachment_count",
-          "license_contract_count"
+          "license_contract_count",
+          "comment_count"
         ],
         "title": "DeletionImpactResponse",
         "type": "object"
@@ -3455,6 +3677,7 @@
           "bant",
           "action",
           "attachment",
+          "comment",
           "other"
         ],
         "title": "HistoryCategory",
@@ -4151,11 +4374,11 @@
       },
       "NextActionStatusRequest": {
         "additionalProperties": false,
-        "description": "Next Action 상태 변경. memo는 종료할 때 Memo에 덧붙일 내용(open과는 함께 불가).",
+        "description": "Next Action 상태 변경. comment는 종료할 때 그 Action에 남길 Comment(open과는 함께 불가).",
         "properties": {
-          "memo": {
+          "comment": {
             "default": "",
-            "title": "Memo",
+            "title": "Comment",
             "type": "string"
           },
           "status": {
@@ -9507,6 +9730,135 @@
         ]
       }
     },
+    "/api/v1/deal-comments/{comment_id}": {
+      "delete": {
+        "operationId": "delete_deal_comment_api_v1_deal_comments__comment_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "comment_id",
+            "required": true,
+            "schema": {
+              "maximum": 9007199254740991,
+              "minimum": 1,
+              "title": "Comment Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          }
+        },
+        "summary": "Delete Deal Comment",
+        "tags": [
+          "deal-comments"
+        ]
+      },
+      "get": {
+        "operationId": "get_deal_comment_api_v1_deal_comments__comment_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "comment_id",
+            "required": true,
+            "schema": {
+              "maximum": 9007199254740991,
+              "minimum": 1,
+              "title": "Comment Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DealCommentResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          }
+        },
+        "summary": "Get Deal Comment",
+        "tags": [
+          "deal-comments"
+        ]
+      }
+    },
     "/api/v1/deals": {
       "get": {
         "operationId": "list_deals_api_v1_deals_get",
@@ -10776,6 +11128,323 @@
         "summary": "Apply Deal Change",
         "tags": [
           "deals"
+        ]
+      }
+    },
+    "/api/v1/deals/{code}/comment-counts": {
+      "get": {
+        "operationId": "count_unread_deal_comments_api_v1_deals__code__comment_counts_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "title": "Code",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DealCommentCounts"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          }
+        },
+        "summary": "Count Unread Deal Comments",
+        "tags": [
+          "deal-comments"
+        ]
+      }
+    },
+    "/api/v1/deals/{code}/comment-reads": {
+      "post": {
+        "operationId": "mark_deal_comments_read_api_v1_deals__code__comment_reads_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "title": "Code",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DealCommentReadRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          }
+        },
+        "summary": "Mark Deal Comments Read",
+        "tags": [
+          "deal-comments"
+        ]
+      }
+    },
+    "/api/v1/deals/{code}/comments": {
+      "get": {
+        "operationId": "list_deal_comments_api_v1_deals__code__comments_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "title": "Code",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "action_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 9007199254740991,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Action Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DealCommentList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          }
+        },
+        "summary": "List Deal Comments",
+        "tags": [
+          "deal-comments"
+        ]
+      },
+      "post": {
+        "operationId": "write_deal_comment_api_v1_deals__code__comments_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "title": "Code",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DealCommentCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DealCommentResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "problem+json"
+          }
+        },
+        "summary": "Write Deal Comment",
+        "tags": [
+          "deal-comments"
         ]
       }
     },

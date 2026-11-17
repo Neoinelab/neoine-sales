@@ -33,10 +33,14 @@ if TYPE_CHECKING:
 __all__ = ["FakeDealActionRepository", "FakeDealRepository"]
 
 
-def _matches(action: DealAction, query: DealActionQuery) -> bool:
+def _matches(
+    action: DealAction, query: DealActionQuery, comment_bodies: Sequence[str] = ()
+) -> bool:
+    """키워드는 진행사항·Next Action·그 Action의 Action Comment 본문에서 찾는다(CM-R19)."""
     content = action.content
     keyword = query.keyword.lower() if query.keyword else None
-    searchable = [t for t in (content.action, content.next_action, content.memo) if t is not None]
+    searchable = [t for t in (content.action, content.next_action) if t is not None]
+    searchable += list(comment_bodies)
     due = content.due_date
     return (
         action.deal_code == query.deal_code
@@ -97,6 +101,7 @@ class FakeDealActionRepository(InMemoryStore[DealAction]):
         self._codes: Any = None
         self._action_types: Any = None
         self._users: Any = None
+        self._comments: Any = None
 
     def wire(
         self,
@@ -105,12 +110,14 @@ class FakeDealActionRepository(InMemoryStore[DealAction]):
         codes: Any = None,  # noqa: ANN401
         action_types: Any = None,  # noqa: ANN401
         users: Any = None,  # noqa: ANN401
+        comments: Any = None,  # noqa: ANN401
     ) -> None:
         """Deal·코드·유형 존재 확인(FK 모사)과 유형·담당자 이름 읽기에 쓸 저장소를 연결한다."""
         self._deals = deals
         self._codes = codes
         self._action_types = action_types
         self._users = users
+        self._comments = comments
 
     def _actor_name(self, action: DealAction) -> str:
         """담당자 정렬 이름: 표시 이름, 비어 있으면 login_id(퇴사자 포함). 사용자를 모르면 id."""
@@ -150,6 +157,9 @@ class FakeDealActionRepository(InMemoryStore[DealAction]):
             if key not in known:
                 raise InvalidReferenceError(label, key)
 
+    def _comment_bodies(self, action: DealAction) -> list[str]:
+        return [] if self._comments is None else self._comments.bodies_of_action(action.id)
+
     def remove_of_deal(self, code: DealCode) -> None:
         """Deal 삭제의 CASCADE."""
         for action_id in [i for i, a in self._items.items() if a.deal_code == code]:
@@ -164,7 +174,11 @@ class FakeDealActionRepository(InMemoryStore[DealAction]):
         return self._named(self._fetch(action_id))
 
     async def search(self, query: DealActionQuery) -> Sequence[DealAction]:
-        found = [self._named(a) for a in self._items.values() if _matches(a, query)]
+        found = [
+            self._named(a)
+            for a in self._items.values()
+            if _matches(a, query, self._comment_bodies(a))
+        ]
         return _sorted(found, str(query.sort), self._actor_name)
 
     async def update(self, action: DealAction) -> None:
@@ -194,6 +208,8 @@ class FakeDealActionRepository(InMemoryStore[DealAction]):
         """물리 삭제. 없으면 DealActionNotFoundError."""
         self._fetch(action_id)
         del self._items[action_id]
+        if self._comments is not None:  # CASCADE: 그 Action의 Action Comment가 함께 지워진다
+            self._comments.remove_of_action(action_id)
 
     async def count_by_code(self, kind: CodeKind) -> Mapping[str, int]:
         """스냅숏 key별 Action 수(Status는 status_key, Forecast는 forecast_key)."""

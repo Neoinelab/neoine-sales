@@ -312,20 +312,20 @@ describe('저장 결과', () => {
     const { user, dialog, form, table } = await openDeal1()
     await fillAndPress(user, dialog)
     const code = (await gateway.deals.list({ keyword: '한빛은행 ITDR', limit: 1 })).items[0]?.code ?? ''
-    await gateway.actions.create(code, { type: { name: '미팅' }, progress: '그 사이 추가', nextAction: '다른 일정', dueDate: '2026-11-01', memo: '' })
+    await gateway.actions.create(code, { type: { name: '미팅' }, progress: '그 사이 추가', nextAction: '다른 일정', dueDate: '2026-11-01', comment: '' })
     const count = (await gateway.actions.list(code, {})).length
-    // given: 메모를 입력했다
-    await user.type(within(form).getByLabelText('Memo'), '남아 있어야 하는 메모')
+    // given: Comment를 입력했다
+    await user.type(within(form).getByLabelText('Comment'), '남아 있어야 하는 Comment')
 
     // when: 등록한다
     await register(user, form)
 
     // then: 서버 문구가 팝업 안에 보인다
     expect(await within(dialog).findByText(CHANGED)).toBeVisible()
-    // then: 팝업·진행사항·메모가 그대로다
+    // then: 팝업·진행사항·Comment가 그대로다
     expect(screen.getByRole('dialog', { name: 'Action 추가' })).toBeInTheDocument()
     expect(within(form).getByLabelText('진행사항')).toHaveValue('계약서 초안 검토')
-    expect(within(form).getByLabelText('Memo')).toHaveValue('남아 있어야 하는 메모')
+    expect(within(form).getByLabelText('Comment')).toHaveValue('남아 있어야 하는 Comment')
     // then: 새 Action은 등록되지 않았고 이전 행은 Open이다
     expect(await gateway.actions.list(code, {})).toHaveLength(count)
     expect(isStillOpen(rowWith(table, '최종 가격 협의'))).toBe(true)
@@ -363,7 +363,7 @@ describe('409 뒤 복구와 체크 유지', () => {
     const { user, dialog, form, table } = await openDeal1()
     await fillAndPress(user, dialog)
     const code = (await gateway.deals.list({ keyword: '한빛은행 ITDR', limit: 1 })).items[0]?.code ?? ''
-    const added = await gateway.actions.create(code, { type: { name: '미팅' }, progress: '그 사이 추가', nextAction: '다른 일정', dueDate: '2026-11-01', memo: '' })
+    const added = await gateway.actions.create(code, { type: { name: '미팅' }, progress: '그 사이 추가', nextAction: '다른 일정', dueDate: '2026-11-01', comment: '' })
     // when: 등록한다
     await register(user, form)
     // then: 409 문구가 보인다
@@ -415,7 +415,7 @@ describe('409 뒤 복구와 체크 유지', () => {
 
 describe('카드가 바뀐 뒤의 채움·체크', () => {
   const CARD_CHANGED = '이전 Update가 바뀌었습니다. 확인 후 다시 채우세요.'
-  const other = { type: { name: '미팅' }, progress: '그 사이 추가', nextAction: '다른 일정', dueDate: '2026-11-01', memo: '' }
+  const other = { type: { name: '미팅' }, progress: '그 사이 추가', nextAction: '다른 일정', dueDate: '2026-11-01', comment: '' }
 
   async function cardChangedAfter409() {
     const view = await openDeal1()
@@ -492,7 +492,7 @@ describe('이전 Update 카드의 기준 행 (서버 정의와 같다)', () => {
     const { user, client } = await renderAt(await detailPath(1, '?tab=actions'), { role: 'sales' })
     await screen.findByRole('heading', { level: 1, name: '한빛은행 ITDR 도입' })
     const code = (await gateway.deals.list({ keyword: '한빛은행 ITDR', limit: 1 })).items[0]?.code ?? ''
-    const base = { type: { name: '미팅' }, progress: '같은 시각', dueDate: '2026-11-01', memo: '' }
+    const base = { type: { name: '미팅' }, progress: '같은 시각', dueDate: '2026-11-01', comment: '' }
     await gateway.actions.create(code, { ...base, nextAction: '먼저 저장한 것' })
     const later = await gateway.actions.create(code, { ...base, nextAction: '나중에 저장한 것' }) // 같은 Fake 시각, 더 큰 id
     await client.invalidateQueries({ queryKey: keys.actions(code) })

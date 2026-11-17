@@ -11,10 +11,10 @@ from tests.support.user_ids import ACTOR_ID
 
 
 def _response(
-    action: str = "킥오프 미팅", next_action: str = "요구사항 문서 전달", memo: str = ""
+    action: str = "킥오프 미팅", next_action: str = "요구사항 문서 전달"
 ) -> dict[str, object]:
     entity = make_deal_action(
-        later(5), actor_user_id=ACTOR_ID, action=action, next_action=next_action, memo=memo
+        later(5), actor_user_id=ACTOR_ID, action=action, next_action=next_action
     )
     ref = UserRef(id=ACTOR_ID, name="수행자", resigned=False, role=Role.SALES)
     return DealActionResponse.from_entity(entity, {ACTOR_ID: ref}).model_dump(mode="json")
@@ -26,7 +26,7 @@ def test_progress_only_action_serializes_nulls_for_the_next_action_fields() -> N
     테스트 코드: AC-002, AC-006
     """
     # when: 진행사항만 있는 Action을 응답으로 바꾼다
-    body = _response(next_action="", memo="")
+    body = _response(next_action="")
 
     # then: Next Action·Due·상태·종료일이 null이다
     assert body["action"] == "킥오프 미팅"

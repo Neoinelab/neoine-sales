@@ -56,7 +56,6 @@ describe('진행사항 인라인 수정', () => {
       progress: '킥오프 미팅 완료',
       nextAction: '요구사항 문서 전달',
       dueDate: '2027-01-15',
-      memo: '요구사항 정리',
     })
     expect(update.mock.calls[0]?.[1]).not.toHaveProperty('actedOn')
     // then: 팝업은 열린 채 새 값을 보이고 알림이 나온다
@@ -175,42 +174,43 @@ describe('유형 인라인 수정', () => {
   })
 })
 
-describe('진행사항·Memo 인라인 수정', () => {
+describe('진행사항 인라인 수정', () => {
   // Shift+Enter는 줄을 바꾸고 Enter는 저장한다.
   // 테스트 코드: AC-138
   it('breaks the line with Shift+Enter and saves with Enter', async () => {
-    // given: Action A 팝업의 Memo 편집(수정 요청 감시)
+    // given: Action A 팝업의 진행사항 편집(수정 요청 감시)
     const update = vi.spyOn(gateway.actions, 'update')
     const { view, dialog } = await openA()
-    await view.user.click(within(dialog).getByRole('button', { name: 'Memo 수정' }))
-    const memo = within(dialog).getByLabelText('Memo')
+    await view.user.click(within(dialog).getByRole('button', { name: '진행사항 수정' }))
+    const progress = within(dialog).getByLabelText('진행사항')
 
     // when: "1줄", Shift+Enter, "2줄"을 쓰고 Enter를 누른다
-    await view.user.clear(memo)
-    await view.user.type(memo, '1줄{Shift>}{Enter}{/Shift}2줄{Enter}')
+    await view.user.clear(progress)
+    await view.user.type(progress, '1줄{Shift>}{Enter}{/Shift}2줄{Enter}')
 
-    // then: 요청의 Memo가 두 줄이고 팝업 Memo가 두 줄로 보인다
+    // then: 요청의 진행사항이 두 줄이고 팝업 진행사항이 두 줄로 보이며 memo 키는 없다
     await waitFor(() => expect(update).toHaveBeenCalledTimes(1))
-    expect(update.mock.calls[0]?.[1].memo).toBe('1줄\n2줄')
-    await waitFor(() => expect(fieldValue(detail(), 'Memo').textContent).toContain('1줄\n2줄'))
+    expect(update.mock.calls[0]?.[1].progress).toBe('1줄\n2줄')
+    expect(update.mock.calls[0]?.[1]).not.toHaveProperty('memo')
+    await waitFor(() => expect(fieldValue(detail(), '진행사항').textContent).toContain('1줄\n2줄'))
   })
 
-  // Memo를 모두 지워 저장하면 "—"로 보인다.
+  // Next Action이 남아 있으면 진행사항을 모두 지워 저장하고 "—"로 보인다.
   // 테스트 코드: AC-138
-  it('saves an emptied memo and shows a dash', async () => {
-    // given: Action A 팝업의 Memo 편집
+  it('saves an emptied progress while a next action remains and shows a dash', async () => {
+    // given: Next Action이 있는 Action A 팝업의 진행사항 편집
     const update = vi.spyOn(gateway.actions, 'update')
     const { view, dialog } = await openA()
-    await view.user.click(within(dialog).getByRole('button', { name: 'Memo 수정' }))
+    await view.user.click(within(dialog).getByRole('button', { name: '진행사항 수정' }))
 
-    // when: Memo를 모두 지우고 Enter를 누른다
-    await view.user.clear(within(dialog).getByLabelText('Memo'))
+    // when: 진행사항을 모두 지우고 Enter를 누른다
+    await view.user.clear(within(dialog).getByLabelText('진행사항'))
     await view.user.keyboard('{Enter}')
 
-    // then: Memo ""로 저장되고 팝업 Memo가 "—"다
+    // then: 진행사항 ""로 저장되고 팝업 진행사항이 "—"다
     await waitFor(() => expect(update).toHaveBeenCalledTimes(1))
-    expect(update.mock.calls[0]?.[1].memo).toBe('')
-    await waitFor(() => expect(fieldValue(detail(), 'Memo')).toHaveTextContent('—'))
+    expect(update.mock.calls[0]?.[1].progress).toBe('')
+    await waitFor(() => expect(fieldValue(detail(), '진행사항')).toHaveTextContent('—'))
   })
 
   // 진행사항과 Next Action이 모두 비면 칸 아래 문구로 막는다.
@@ -290,17 +290,17 @@ describe('편집 닫기와 변경 없음', () => {
   // 편집 중 Esc는 그 칸만 닫고 다음 Esc가 팝업을 닫는다.
   // 테스트 코드: AC-140
   it('closes only the field on the first Escape and the popup on the next one', async () => {
-    // given: Memo 편집에 "버릴 메모"를 쓴 Action A 팝업(수정 요청 감시)
+    // given: 진행사항 편집에 " 버릴 글"을 쓴 Action A 팝업(수정 요청 감시)
     const update = vi.spyOn(gateway.actions, 'update')
     const { view, dialog } = await openA()
-    await view.user.click(within(dialog).getByRole('button', { name: 'Memo 수정' }))
-    await view.user.type(within(dialog).getByLabelText('Memo'), ' 버릴 메모')
+    await view.user.click(within(dialog).getByRole('button', { name: '진행사항 수정' }))
+    await view.user.type(within(dialog).getByLabelText('진행사항'), ' 버릴 글')
 
     // when: Esc를 누른다
     await view.user.keyboard('{Escape}')
-    // then: 편집만 닫히고 Memo는 그대로이며 팝업이 열려 있고 요청이 없다
-    expect(within(detail()).queryByLabelText('Memo')).not.toBeInTheDocument()
-    expect(fieldValue(detail(), 'Memo')).toHaveTextContent(/^요구사항 정리$/)
+    // then: 편집만 닫히고 진행사항은 그대로이며 팝업이 열려 있고 요청이 없다
+    expect(within(detail()).queryByLabelText('진행사항')).not.toBeInTheDocument()
+    expect(fieldValue(detail(), '진행사항')).toHaveTextContent(/^킥오프 미팅$/)
     expect(update).not.toHaveBeenCalled()
 
     // when: 다시 Esc를 누른다
@@ -406,11 +406,11 @@ describe('유형 이름이 바뀐 뒤의 다른 칸 저장', () => {
     await view.client.invalidateQueries()
     await waitFor(() => expect(view.client.isFetching()).toBe(0))
 
-    // when: KIM이 Memo를 고쳐 Enter를 누른다
-    await view.user.click(within(detail()).getByRole('button', { name: 'Memo 수정' }))
-    const memo = within(detail()).getByLabelText('Memo')
-    await view.user.clear(memo)
-    await view.user.type(memo, '다른 메모{Enter}')
+    // when: KIM이 진행사항을 고쳐 Enter를 누른다
+    await view.user.click(within(detail()).getByRole('button', { name: '진행사항 수정' }))
+    const progress = within(detail()).getByLabelText('진행사항')
+    await view.user.clear(progress)
+    await view.user.type(progress, '다른 진행{Enter}')
 
     // then: 요청의 유형은 원래 id이고 유형 수가 그대로다
     await waitFor(() => expect(update).toHaveBeenCalledTimes(1))

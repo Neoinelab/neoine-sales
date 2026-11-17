@@ -10,6 +10,7 @@ import { createAlertsHttp } from './alerts'
 import { createAttachmentsHttp } from './attachments'
 import { createAuthHttp } from './auth'
 import { createCodesHttp } from './codes'
+import { createCommentsHttp } from './comments'
 import { createContactsHttp } from './contacts'
 import { createDashboardHttp } from './dashboard'
 import { createDealsHttp } from './deals'
@@ -41,6 +42,7 @@ export function createHttpGateway(): Gateway {
     deals: createDealsHttp(),
     actions: createActionsHttp(),
     actionTypes: createActionTypesHttp(),
+    comments: createCommentsHttp(),
     history: createHistoryHttp(),
     attachments: createAttachmentsHttp(),
     forecast: createForecastHttp(),

@@ -318,3 +318,34 @@ class TestOperationLog:
 
         # then: 'deal deleted' 로그가 없다
         assert not [r for r in caplog.records if r.getMessage().startswith("deal deleted")]
+
+
+async def test_deleting_a_deal_removes_all_of_its_comments_but_not_other_deals(
+    env: DealEnv,
+) -> None:
+    """Deal을 지우면 그 Deal 소속 Comment(Deal Comment·Action Comment)가 모두 지워지고 다른 Deal의
+    Comment는 그대로다.
+
+    테스트 코드: CM-039
+    """
+    # given: Deal D(Deal Comment 1건·Action Comment 2건)와 Comment 1건이 있는 다른 Deal E
+    from tests.factories_comment import make_comment  # noqa: PLC0415
+    from tests.support.user_ids import ACTOR_ID  # noqa: PLC0415
+
+    deal = await env.new_deal()
+    other = await env.new_deal()
+    code = deal.item.deal.id
+    action = make_deal_action(deal_code=code)
+    await env.uow.deal_actions.add(action)
+    for linked in (None, action.id, action.id):
+        await env.uow.deal_comments.add(
+            make_comment(deal_code=code, action_id=linked, author=ACTOR_ID)
+        )
+    kept = make_comment(deal_code=other.item.deal.id, author=ACTOR_ID)
+    await env.uow.deal_comments.add(kept)
+
+    # when: Owner가 D를 지운다
+    await env.delete.execute(code.value, code.value, SALES)
+
+    # then: D의 Comment 3건은 없어지고 E의 Comment만 남는다
+    assert [c.id for c in env.uow.deal_comments._items.values()] == [kept.id]

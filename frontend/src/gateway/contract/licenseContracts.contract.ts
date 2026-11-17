@@ -377,7 +377,7 @@ export function licenseContractsContract(make: MakeGateway): void {
           progress: '고객사 방문',
           nextAction: '',
           dueDate: null,
-          memo: '',
+          comment: '',
           statusChanges: [LEAVE_WON],
           deleteLicenseContracts: true,
         }),

@@ -164,6 +164,7 @@ export function dealsWriteApi(ctx: MockContext) {
         data.deals.splice(data.deals.indexOf(deal), 1)
         data.history = data.history.filter((h) => h.dealCode !== code)
         data.actions = data.actions.filter((a) => a.dealCode !== code)
+        data.comments = data.comments.filter((c) => c.dealCode !== code)
         data.attachments = data.attachments.filter((a) => a.dealCode !== code)
         removeContractsOfDeal(data, code)
       }),

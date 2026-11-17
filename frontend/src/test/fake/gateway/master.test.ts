@@ -119,7 +119,7 @@ describe('codes', () => {
     const created = await gateway.codes.create({ kind: 'status', name: '임시 단계' })
     const key = created.key
     await gateway.deals.applyChange(dealCode(2), { change: { field: 'statusKey', value: key } })
-    await gateway.actions.create(dealCode(2), { type: { name: '기타' }, progress: 'a', nextAction: 'b', dueDate: '2026-10-20', memo: '' })
+    await gateway.actions.create(dealCode(2), { type: { name: '기타' }, progress: 'a', nextAction: 'b', dueDate: '2026-10-20', comment: '' })
     await gateway.deals.applyChange(dealCode(2), { change: { field: 'statusKey', value: 'technical_evaluation' } })
     // when·then: 그 코드를 삭제한다 → 사용 중이라 409다
     await expectApiError(gateway.codes.remove(created.id), 409, /사용 중인 코드는 삭제할 수 없습니다\./)

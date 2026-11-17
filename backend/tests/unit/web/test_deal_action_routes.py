@@ -40,7 +40,6 @@ RESPONSE_KEYS: Final = {
     "due_date",
     "next_action_status",
     "next_action_closed_on",
-    "memo",
     "acted_on",
     "actor",
     "status_key",
@@ -53,7 +52,6 @@ BODY: Final[dict[str, Any]] = {
     "action": "킥오프 미팅",
     "next_action": "요구사항 문서 전달",
     "due_date": "2027-01-15",
-    "memo": "요구사항 정리",
 }
 
 
@@ -100,7 +98,7 @@ async def test_post_creates_the_action_with_location_and_the_server_decided_valu
 
 
 async def test_post_response_has_exactly_the_documented_keys_and_integer_ids() -> None:
-    """등록 응답은 문서화된 15개 키를 가지고 id류는 JSON 정수다.
+    """등록 응답은 문서화된 14개 키(memo 없음)를 가지고 id류는 JSON 정수다.
 
     테스트 코드: AC-002
     """
@@ -110,7 +108,7 @@ async def test_post_response_has_exactly_the_documented_keys_and_integer_ids() -
         # when: KIM이 기본 Action을 등록한다
         body = await _register(c["kim"])
 
-    # then: 키가 정확히 15개이고 유형은 {id, name}이며 id는 정수다
+    # then: 키가 정확히 14개이고 유형은 {id, name}이며 id는 정수다
     assert set(body) == RESPONSE_KEYS
     assert set(body["action_type"]) == {"id", "name"}
     assert type(body["id"]) is int
@@ -220,3 +218,81 @@ async def test_reading_a_missing_action_or_deal_is_not_found_even_for_the_maximu
     assert problem(missing, 404, "not-found")["detail"] == "Action을 찾을 수 없습니다."
     assert problem(maximum, 404, "not-found")["detail"] == "Action을 찾을 수 없습니다."
     assert problem(no_deal, 404, "not-found")["detail"] == "Deal을 찾을 수 없습니다."
+
+
+async def test_a_memo_key_is_a_request_validation_error_on_create_update_and_status() -> None:
+    """등록·수정·상태 변경 본문의 예전 memo 키(수정은 comment도)는 422이고 아무것도 바뀌지 않는다.
+
+    테스트 코드: CM-030, CM-036
+    """
+    # given: KIM이 남긴 Action
+    use_cases = await _use_cases_with_deal()
+    async with clients(use_cases, USERS) as c:
+        created = await _register(c["kim"])
+        url = f"{SINGLE}/{created['id']}"
+        # when: memo 키가 든 등록·수정·상태 변경 본문과 comment가 든 수정 본문을 보낸다
+        on_create = await c["kim"].post(DEAL_ACTIONS, json={**BODY, "memo": "x"})
+        on_update = await c["kim"].put(url, json={**BODY, "memo": "x"})
+        comment_on_update = await c["kim"].put(url, json={**BODY, "comment": "x"})
+        on_status = await c["kim"].put(
+            f"{url}/next-action-status", json={"status": "done", "memo": "전달 완료"}
+        )
+        stored = await c["kim"].get(url)
+
+    # then: 모두 422 request-validation이고 Action은 그대로 Open이며 Comment가 없다
+    for response in (on_create, on_update, comment_on_update, on_status):
+        problem(response, 422, "request-validation")
+    assert stored.json()["next_action_status"] == "open"
+    assert use_cases.uow.deal_comments._items == {}
+    assert len(use_cases.uow.deal_actions._items) == 1
+
+
+async def test_post_with_a_comment_returns_the_action_without_memo_and_creates_the_comment() -> (
+    None
+):
+    """comment와 함께 등록하면 201 응답에 memo가 없고 그 Action의 Action Comment가 생긴다.
+
+    테스트 코드: CM-026
+    """
+    # given: Deal이 있고 sales KIM이 로그인했다
+    use_cases = await _use_cases_with_deal()
+    async with clients(use_cases, USERS) as c:
+        # when: KIM이 comment "  요구사항 정리  "와 함께 등록하고 그 Deal의 Comment를 읽는다
+        response = await c["kim"].post(DEAL_ACTIONS, json={**BODY, "comment": "  요구사항 정리  "})
+        listed = await c["kim"].get(f"/api/v1/deals/{CODE}/comments")
+
+    # then: 201이고 응답에 memo·comment 키가 없다
+    assert response.status_code == 201, response.text
+    assert "memo" not in response.json()
+    assert "comment" not in response.json()
+    # then: Comment 한 건이 그 Action에 연결되어 있고 본문은 trim되었다
+    (item,) = listed.json()["items"]
+    assert (item["action_id"], item["body"]) == (response.json()["id"], "요구사항 정리")
+    assert item["author"]["label"] == "사용자 kim"
+
+
+async def test_status_change_with_a_comment_returns_the_action_and_creates_the_comment() -> None:
+    """종료 Comment와 함께 상태를 바꾸면 200이고 응답에 memo가 없으며 Action Comment가 생긴다.
+
+    테스트 코드: CM-031
+    """
+    # given: KIM이 남긴 Open Action
+    use_cases = await _use_cases_with_deal()
+    async with clients(use_cases, USERS) as c:
+        created = await _register(c["kim"])
+        # when: KIM이 done, comment "  전달 완료 "로 바꾸고 Comment 목록을 읽는다
+        response = await c["kim"].put(
+            f"{SINGLE}/{created['id']}/next-action-status",
+            json={"status": "done", "comment": "  전달 완료 "},
+        )
+        listed = await c["kim"].get(f"/api/v1/deals/{CODE}/comments")
+
+    # then: 200이고 상태가 done이며 memo 키가 없고 진행사항·Next Action은 그대로다
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["next_action_status"] == "done"
+    assert "memo" not in body
+    assert (body["action"], body["next_action"]) == (created["action"], created["next_action"])
+    # then: Action Comment "전달 완료" 한 건이 그 Action에 생겼다
+    (item,) = listed.json()["items"]
+    assert (item["action_id"], item["body"]) == (created["id"], "전달 완료")

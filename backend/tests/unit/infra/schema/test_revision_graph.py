@@ -1,11 +1,14 @@
-"""마이그레이션 리비전 그래프: 최초 리비전(baseline)과 그 뒤의 네 리비전(DB 불필요).
+"""마이그레이션 리비전 그래프: 최초 리비전(baseline)과 그 뒤의 다섯 리비전(DB 불필요).
 
 과거 리비전 체인(30개)은 2026-11-05에 `00c3126aa926` 하나로 통합되었다. 이 리비전은 데이터를
 지우지 않고, 되돌릴 수 없다. 2026-11-13에 업무 날짜 컬럼을 date로 바꾸는 `b4d7e2a9c613`이
 그 뒤에 붙었고, 같은 날 사용자 등록자·퇴사 사유를 없애는 `c8e3f1a7d295`가 head가 되었다
 (SC-R20, SC-R21). 같은 날 `deals.vendor_id`를 NOT NULL로 바꾸는 `e6b1d4f8a302`가 head가 되었다
 (SC-R22). 2026-11-16에 `deals.solution`을 `deals.product`로 이름만 바꾸는 `a9d3f5c7e214`가
-head가 되었다(SC-R23).
+head가 되었다(SC-R23). 2026-11-17에 `deal_actions.memo`를 `deal_comments`로 옮긴 뒤 없애는
+Deal Comment 리비전(`d2f6b8a4c931`)이 head가 되었고, 같은 날 그 뒤에 `deal_comments.read_at`을
+추가하고 기존 행을 `created_at`으로 채우는 읽음 리비전이 head가 되었다(CM-R31, 리비전 id는 구현 때
+정해져 그래프에서 읽는다).
 """
 
 import ast
@@ -25,7 +28,8 @@ BASELINE = "00c3126aa926"
 DATE_REVISION = "b4d7e2a9c613"
 USER_COLUMNS_REVISION = "c8e3f1a7d295"
 VENDOR_REQUIRED_REVISION = "e6b1d4f8a302"
-HEAD = "a9d3f5c7e214"
+PRODUCT_RENAME_REVISION = "a9d3f5c7e214"
+COMMENT_REVISION = "d2f6b8a4c931"
 # ondelete·onupdate 같은 FK 규칙 인자는 단어 경계로 구분한다
 FORBIDDEN_IN_UPGRADE = (
     r"\bdelete\b",
@@ -37,14 +41,30 @@ FORBIDDEN_IN_UPGRADE = (
 )
 
 
+def _comment_revision() -> Script:
+    """Deal Comment 리비전(`d2f6b8a4c931`, Memo를 Comment로 옮기고 memo를 없앤다)."""
+    revision = ScriptDirectory.from_config(_alembic_config()).get_revision(COMMENT_REVISION)
+    assert revision is not None
+    return revision
+
+
+def _read_at_revision() -> Script:
+    """head인 Comment 읽음 리비전(리비전 id를 박아 두지 않고 그래프에서 읽는다)."""
+    script = ScriptDirectory.from_config(_alembic_config())
+    (head,) = script.get_heads()
+    revision = script.get_revision(head)
+    assert revision is not None
+    return revision
+
+
 def _baseline() -> Script:
     revision = ScriptDirectory.from_config(_alembic_config()).get_revision(BASELINE)
     assert revision is not None
     return revision
 
 
-def test_the_history_has_the_baseline_as_base_and_the_product_rename_revision_as_head() -> None:
-    """리비전 그래프의 base는 기준선, head는 Deal Product 이름 변경 리비전 하나다.
+def test_the_history_has_the_baseline_as_base_and_the_read_at_revision_as_head() -> None:
+    """리비전 그래프의 base는 기준선, head는 Comment 읽음 리비전 하나다(리비전 7개).
 
     테스트 코드: SC-001
     """
@@ -54,15 +74,15 @@ def test_the_history_has_the_baseline_as_base_and_the_product_rename_revision_as
     # when: head와 base 목록을 읽는다
     heads, bases = script.get_heads(), script.get_bases()
 
-    # then: head는 Deal Product 이름 변경 리비전, base는 기준선이고 리비전은 5개다
-    assert heads == [HEAD]
+    # then: head는 Comment 읽음 리비전(부모는 Comment 리비전), base는 기준선이고 리비전은 7개다
+    assert heads == [_read_at_revision().revision]
     assert bases == [BASELINE]
-    assert len(list(script.walk_revisions())) == 5
-    # then: 날짜 전환 → 사용자 컬럼 정리 → Vendor 필수 → Product 이름 변경 리비전으로 이어진다
+    assert len(list(script.walk_revisions())) == 7
+    # then: 날짜 전환 → 사용자 컬럼 정리 → Vendor 필수 → Product 이름 변경 → Comment → 읽음이다
     dates = script.get_revision(DATE_REVISION)
     users = script.get_revision(USER_COLUMNS_REVISION)
     vendor = script.get_revision(VENDOR_REQUIRED_REVISION)
-    head = script.get_revision(HEAD)
+    head = script.get_revision(PRODUCT_RENAME_REVISION)
     assert dates is not None
     assert users is not None
     assert vendor is not None
@@ -71,6 +91,8 @@ def test_the_history_has_the_baseline_as_base_and_the_product_rename_revision_as
     assert users.down_revision == DATE_REVISION
     assert vendor.down_revision == USER_COLUMNS_REVISION
     assert head.down_revision == VENDOR_REQUIRED_REVISION
+    assert _comment_revision().down_revision == PRODUCT_RENAME_REVISION
+    assert _read_at_revision().down_revision == COMMENT_REVISION
 
 
 def test_the_baseline_has_no_parent_branch_or_dependency() -> None:
@@ -251,23 +273,23 @@ def test_the_vendor_required_upgrade_never_removes_or_rewrites_rows_or_columns()
 
 def test_the_product_rename_revision_follows_the_vendor_required_revision() -> None:
     """Deal Product 이름 변경 리비전은 Vendor 필수 리비전을 부모로 하고
-    파일 이름·head·downgrade가 정해져 있다.
+    파일 이름·downgrade가 정해져 있다(더 이상 head가 아니다).
 
     테스트 코드: SC-049
     """
     # given: DB 없이 읽은 리비전 그래프
     script = ScriptDirectory.from_config(_alembic_config())
-    revision = script.get_revision(HEAD)
+    revision = script.get_revision(PRODUCT_RENAME_REVISION)
     assert revision is not None
 
     # when: 부모·브랜치 라벨·파일 경로·head 목록·downgrade 함수를 읽는다
     module = revision.module
 
-    # then: 부모는 Vendor 필수 리비전이고 파일 이름은 정해진 값이며 head는 이 리비전 하나다
+    # then: 부모는 Vendor 필수 리비전이고 파일 이름은 정해진 값이며 head는 이 리비전이 아니다
     assert revision.down_revision == VENDOR_REQUIRED_REVISION
     assert not revision.branch_labels
     assert revision.path.endswith("20261116_a9d3f5c7e214_deal_solution_to_product.py")
-    assert script.get_heads() == [HEAD]
+    assert script.get_heads() != [PRODUCT_RENAME_REVISION]
     # then: downgrade와 upgrade 함수가 있고 downgrade는 거부 문구가 소스에 없다(되돌릴 수 있다)
     assert callable(module.downgrade)
     assert callable(module.upgrade)
@@ -281,7 +303,7 @@ def test_the_product_rename_upgrade_only_renames_one_column() -> None:
     테스트 코드: SC-052
     """
     # given: 리비전 a9d3f5c7e214 모듈 소스의 upgrade 함수 본문(docstring 제외, 소문자)
-    revision = ScriptDirectory.from_config(_alembic_config()).get_revision(HEAD)
+    revision = ScriptDirectory.from_config(_alembic_config()).get_revision(PRODUCT_RENAME_REVISION)
     assert revision is not None
     tree = ast.parse(inspect.getsource(revision.module))
     upgrade = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == "upgrade")
@@ -299,3 +321,115 @@ def test_the_product_rename_upgrade_only_renames_one_column() -> None:
     assert calls == [("deals", "solution")]
     assert re.search(r"new_column_name\s*=\s*['\"]product['\"]", source) is not None
     assert source.count("alter_column") == 1
+
+
+def test_the_comment_revision_follows_the_product_rename_revision_and_has_a_child() -> None:
+    """Deal Comment 리비전은 Product 이름 변경 리비전을 부모로 하고 정해진 파일 이름이며
+    읽음 리비전이 그 자식으로 head이고 downgrade 함수가 있다.
+
+    테스트 코드: SC-053
+    """
+    # given: DB 없이 읽은 리비전 그래프와 Comment 리비전
+    script = ScriptDirectory.from_config(_alembic_config())
+    revision = _comment_revision()
+
+    # when: 부모·브랜치 라벨·파일 경로·head 목록·downgrade 함수를 읽는다
+    module = revision.module
+
+    # then: 부모는 Product 이름 변경 리비전, 브랜치 라벨은 비고 head는 이 리비전의 자식 하나다
+    assert revision.down_revision == PRODUCT_RENAME_REVISION
+    assert not revision.branch_labels
+    assert script.get_heads() == [_read_at_revision().revision] != [revision.revision]
+    # then: 파일 이름은 YYYYMMDD_<리비전 id>_deal_comments.py다
+    name = revision.path.rsplit("/", 1)[-1]
+    assert re.fullmatch(rf"\d{{8}}_{revision.revision}_deal_comments\.py", name)
+    # then: downgrade와 upgrade 함수가 있고 downgrade는 거부 문구가 소스에 없다(되돌릴 수 있다)
+    assert callable(module.downgrade)
+    assert callable(module.upgrade)
+    assert "최초 리비전" not in inspect.getsource(module.downgrade)
+
+
+def test_the_comment_upgrade_only_adds_copies_and_drops_the_memo_column() -> None:
+    """Comment upgrade 본문에는 행을 지우거나 바꾸는 문장이 없고 drop_column은 deal_actions.memo
+    하나이며 복사 INSERT보다 뒤에 있고 op.execute는 복사 INSERT와 점검 SELECT뿐이다.
+
+    테스트 코드: SC-054
+    """
+    # given: Comment 리비전 upgrade 함수 본문(docstring 제외, 소문자)
+    revision = _comment_revision()
+    tree = ast.parse(inspect.getsource(revision.module))
+    upgrade = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == "upgrade")
+    if ast.get_docstring(upgrade) is not None:
+        upgrade.body = upgrade.body[1:]
+    source = ast.unparse(upgrade).lower()
+
+    # when: 금지 토큰, drop_column 호출, 복사 INSERT 위치를 찾는다
+    forbidden = (r"\bdelete\b", r"\btruncate\b", r"\bupdate\b", r"drop_table")
+    drops = re.findall(r"drop_column\(\s*['\"](\w+)['\"]\s*,\s*['\"](\w+)['\"]", source)
+    insert_at = source.find("insert into deal_comments")
+    drop_at = source.find("drop_column")
+    statements = re.findall(r"op\.execute\(", source)
+
+    # then: 행을 지우거나 바꾸는 문장이 없고 drop_column은 deal_actions.memo 하나뿐이다
+    for token in forbidden:
+        assert re.search(token, source) is None, f"upgrade가 {token!r}를 사용한다"
+    assert drops == [("deal_actions", "memo")]
+    # then: 복사 INSERT가 있고 drop_column은 그보다 뒤에 있으며 점검 건수 불일치는 RuntimeError다
+    assert insert_at != -1
+    assert drop_at > insert_at
+    assert "runtimeerror" in source
+    # then: op.execute는 복사 INSERT와 점검 SELECT(필요하면 여러 개)이고 UPDATE·DELETE가 아니다
+    assert statements
+
+
+def test_the_read_at_revision_follows_the_comment_revision_and_has_a_downgrade() -> None:
+    """Comment 읽음 리비전은 Comment 리비전을 부모로 하는 head이고 날짜로 시작하는 파일 이름이며
+    downgrade가 거부하지 않고 되돌린다.
+
+    테스트 코드: CM-058
+    """
+    # given: DB 없이 읽은 리비전 그래프와 head 리비전
+    script = ScriptDirectory.from_config(_alembic_config())
+    revision = _read_at_revision()
+
+    # when: 부모·브랜치 라벨·파일 경로·함수를 읽는다
+    module = revision.module
+
+    # then: 부모는 Comment 리비전, 브랜치 라벨은 없고 head는 이 리비전 하나다
+    assert revision.down_revision == COMMENT_REVISION
+    assert not revision.branch_labels
+    assert script.get_heads() == [revision.revision]
+    # then: 파일 이름은 YYYYMMDD_<리비전 id>_<목적>.py다
+    name = revision.path.rsplit("/", 1)[-1]
+    assert re.fullmatch(rf"\d{{8}}_{revision.revision}_\w+\.py", name)
+    # then: upgrade·downgrade 함수가 있고 downgrade는 거부하지 않는다(읽음 시각만 잃고 되돌린다)
+    assert callable(module.upgrade)
+    assert callable(module.downgrade)
+    assert "RuntimeError" not in inspect.getsource(module.downgrade)
+
+
+def test_the_read_at_upgrade_only_adds_and_fills_the_new_column() -> None:
+    """읽음 리비전 upgrade에는 삭제·drop이 없고 UPDATE는 새 컬럼 채우기 한 문장뿐이다.
+
+    테스트 코드: CM-058
+    """
+    # given: 읽음 리비전 upgrade 함수 본문(docstring 제외, 소문자)
+    revision = _read_at_revision()
+    tree = ast.parse(inspect.getsource(revision.module))
+    upgrade = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == "upgrade")
+    if ast.get_docstring(upgrade) is not None:
+        upgrade.body = upgrade.body[1:]
+    source = ast.unparse(upgrade).lower()
+
+    # when: 금지 토큰과 UPDATE 문장을 찾는다
+    forbidden = (r"\bdelete\b", r"\btruncate\b", r"drop_table", r"drop_column")
+    updates = re.findall(r"\bupdate\b", source)
+    fills = re.findall(r"update\s+deal_comments\s+set\s+read_at\s*=\s*created_at", source)
+
+    # then: 행을 지우거나 컬럼을 없애는 문장이 없다
+    for token in forbidden:
+        assert re.search(token, source) is None, f"upgrade가 {token!r}를 사용한다"
+    # then: UPDATE는 read_at을 created_at으로 채우는 한 문장이고 컬럼 추가가 있다
+    assert len(updates) == len(fills) == 1
+    assert "add_column" in source
+    assert "read_at" in source

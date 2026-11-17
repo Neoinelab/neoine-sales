@@ -17,7 +17,7 @@ from tests.unit.web.platform_http import BOSS, role_clients
 from tests.unit.web.saved_report_http import create_body
 
 NAME = {"name": "x"}
-ACTION = {"action_type": {"name": "미팅"}, "action": "진행", "next_action": "", "memo": ""}
+ACTION = {"action_type": {"name": "미팅"}, "action": "진행", "next_action": ""}
 CONTACT = {"company": "네오인", "name": "김철수"}
 LICENSE = {"start_date": "2026-11-01", "term_amount": 1, "term_unit": "year"}
 MEETING = {"partner_company": "한빛파트너스", "meeting_date": "2026-10-01", "content": "킥오프"}
@@ -25,6 +25,7 @@ MEETING = {"partner_company": "한빛파트너스", "meeting_date": "2026-10-01"
 VALID_BODIES: dict[tuple[str, str], dict[str, Any]] = {
     ("PUT", "/api/v1/contacts/{contact_id}"): CONTACT,
     ("PUT", "/api/v1/deal-actions/{action_id}"): ACTION,
+    ("PUT", "/api/v1/deal-comments/{comment_id}"): {"body": "x"},
     ("PUT", "/api/v1/deal-actions/{action_id}/next-action-status"): {"status": "done"},
     ("PATCH", "/api/v1/codes/{code_id}"): NAME,
     ("PATCH", "/api/v1/bant-labels/{label_id}"): NAME,

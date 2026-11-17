@@ -93,18 +93,6 @@ export function ActionDetailFields({ action, canEdit, today, registeredOn, types
           <NextActionStatusCell action={action} canChange={canEdit} busy={statusBusy} showClosedOn onChange={onChangeStatus} />
         )}
       </dd>
-      <dt>Memo</dt>
-      <dd className="dd-pre">
-        <InlineEdit
-          label="Memo"
-          kind="custom"
-          canEdit={canEdit}
-          display={text(action.memo)}
-          initial={action.memo}
-          control={ActionTextArea}
-          onSave={(value) => onSave({ memo: value })}
-        />
-      </dd>
     </dl>
   )
 }

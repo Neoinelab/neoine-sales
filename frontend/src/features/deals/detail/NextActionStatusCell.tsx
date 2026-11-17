@@ -10,7 +10,7 @@ interface NextActionStatusCellProps {
   describedBy?: string
   /** 종료된 행에 종료일을 덧붙인다(상세 팝업). */
   showClosedOn?: boolean
-  /** 종료(수행)·종료(미수행)(전환 포함)는 Memo 팝업을 거치고, Open으로는 바로 바꾼다. */
+  /** 종료(수행)·종료(미수행)(전환 포함)는 Comment 종료 대화상자를 거치고, Open으로는 바로 바꾼다. */
   onChange: (action: DealAction, status: NextActionStatus) => void
 }
 

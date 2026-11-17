@@ -22,44 +22,62 @@ if TYPE_CHECKING:
 KST = timezone(timedelta(hours=9))
 STATUS_FORBIDDEN = "본인 Action 또는 admin만 Next Action 상태를 바꿀 수 있습니다."
 NO_NEXT_ACTION = "Next Action이 없는 Action은 상태를 바꿀 수 없습니다."
-OPEN_WITH_MEMO = "Open으로 되돌릴 때는 메모를 남길 수 없습니다."
-NUL_MEMO = "메모에는 NUL 문자를 쓸 수 없습니다"
+OPEN_WITH_COMMENT = "Open으로 되돌릴 때는 Comment를 남길 수 없습니다."
+NUL_COMMENT = "Comment에는 NUL 문자를 쓸 수 없습니다"
 DUE = "(Due 2026-01-15)"
 
 
-async def test_actor_closes_and_history_written(action_env: ActionEnv) -> None:
-    """작성자가 메모와 함께 종료(수행)하면 상태·종료일·Memo가 바뀌고 History 1건이 남는다.
+async def _comments_of(action_env: ActionEnv, action_id: DealActionId) -> list[str]:
+    """그 Action에 연결된 Comment 본문."""
+    found = await action_env.env.uow.deal_comments.list_for_deal(action_env.deal.item.deal.id)
+    return [c.body for c in found if c.action_id == action_id]
 
-    테스트 코드: NA-001
+
+async def test_actor_closes_and_history_written(action_env: ActionEnv) -> None:
+    """작성자가 Comment와 함께 종료(수행)하면 상태·종료일이 바뀌고 Action Comment 1건과 이력
+    2건(Next Action 줄, Comment 등록 줄)이 남는다.
+
+    테스트 코드: CM-031, NA-017
     """
-    # given: sales kim이 등록한 Open Action(Memo "기존")
-    action = await action_env.act(KIM, memo="기존")
+    # given: sales kim이 등록한 Open Action
+    action = await action_env.act(KIM)
     commits = action_env.env.uow.commits
     before_rows = await action_env.rows()
-    # when: kim이 상태를 done, 메모 "전달 완료"로 바꾼다
+    # when: kim이 상태를 done, Comment "전달 완료"로 바꾼다
     changed = await action_env.set_status(action.id, KIM, "done", "전달 완료")
-    # then: 상태 done, 종료일은 요청 시각의 업무 날짜, Memo는 "기존\n전달 완료"이고 응답도 같다
+    # then: 상태 done, 종료일은 요청 시각의 업무 날짜이고 응답도 같으며 내용은 그대로다
     stored = await action_env.stored(action.id)
     assert changed.id == action.id
     assert stored.next_action_state == NextActionState(
         status=NextActionStatus.DONE, closed_on=action_env.env.clock.now().astimezone().date()
     )
     assert changed.next_action_state == stored.next_action_state
-    assert stored.content.memo == "기존\n전달 완료"
-    assert changed.content.memo == "기존\n전달 완료"
+    assert stored.content == action.content
     assert action_env.env.uow.commits == commits + 1
-    # then: History에 정해진 문구의 1건이 늘고 변경자·변경 시각은 요청자·요청 시각이다
+    # then: Action Comment "전달 완료" 1건(작성자 KIM, 시각 요청 시각)이 생긴다
+    (comment,) = [
+        c
+        for c in await action_env.env.uow.deal_comments.list_for_deal(action.deal_code)
+        if c.action_id == action.id
+    ]
+    assert (comment.body, comment.author_user_id) == ("전달 완료", KIM.user_id)
+    assert comment.created_at == comment.updated_at == action_env.env.clock.now()
+    # then: 이력은 Next Action 줄(변경 후는 라벨만) 다음에 Comment 등록 줄 순으로 2건 늘어난다
     rows = await action_env.rows()
-    assert rows[:-1] == before_rows
-    assert rows[-1] == (
-        "action",
-        "Next Action",
-        f"요구사항 문서 전달 {DUE} · Open",
-        "종료(수행) / Memo: 전달 완료",
-    )
-    entry = (await action_env.action_entries())[-1]
-    assert entry.changed_by == KIM.user_id
-    assert entry.changed_at == action_env.env.clock.now()
+    assert rows[:-2] == before_rows
+    assert rows[-2:] == [
+        ("action", "Next Action", f"요구사항 문서 전달 {DUE} · Open", "종료(수행)"),
+        (
+            "comment",
+            f"Action Comment ({action.acted_on.isoformat()} 미팅)",
+            "",
+            "등록: 전달 완료",
+        ),
+    ]
+    entries = (await action_env.entries())[-2:]
+    assert {(e.changed_by, e.changed_at) for e in entries} == {
+        (KIM.user_id, action_env.env.clock.now())
+    }
 
 
 async def test_admin_closes_others_action(action_env: ActionEnv) -> None:
@@ -78,53 +96,59 @@ async def test_admin_closes_others_action(action_env: ActionEnv) -> None:
     assert (await action_env.action_entries())[-1].changed_by == BOSS.user_id
 
 
-@pytest.mark.parametrize("memo", ["", "   \n "])
-async def test_closing_without_a_memo_keeps_the_memo(action_env: ActionEnv, memo: str) -> None:
-    """비었거나 공백뿐인 종료 메모는 Memo를 바꾸지 않고 종료만 한다.
+@pytest.mark.parametrize("comment", ["", "   \n "])
+async def test_closing_without_a_comment_makes_no_comment(
+    action_env: ActionEnv, comment: str
+) -> None:
+    """비었거나 공백뿐인 종료 Comment는 Comment를 만들지 않고 종료만 한다.
 
-    테스트 코드: NA-003
+    테스트 코드: CM-033
     """
-    # given: Memo "요구사항 정리"인 Open Action
-    action = await action_env.act(KIM, memo="요구사항 정리")
-    # when: 작성자가 not_done으로 바꾸며 빈 메모 또는 공백뿐인 메모를 보낸다
-    await action_env.set_status(action.id, KIM, "not_done", memo)
-    # then: 상태는 not_done, 종료일이 있고 Memo는 그대로이며 이력 변경 후 값에 Memo가 없다
+    # given: Open Action
+    action = await action_env.act(KIM)
+    # when: 작성자가 not_done으로 바꾸며 빈 Comment 또는 공백뿐인 Comment를 보낸다
+    await action_env.set_status(action.id, KIM, "not_done", comment)
+    # then: 상태는 not_done, 종료일이 있고 내용은 그대로이며 Comment가 없다
     stored = await action_env.stored(action.id)
     assert stored.next_action_state == NextActionState(
         status=NextActionStatus.NOT_DONE, closed_on=action_env.env.clock.now().astimezone().date()
     )
-    assert stored.content.memo == "요구사항 정리"
+    assert stored.content == action.content
+    assert await _comments_of(action_env, action.id) == []
+    # then: 이력은 Next Action 줄 하나뿐이고 변경 후는 "종료(미수행)"다
+    assert [row[0] for row in await action_env.rows()] == ["action", "action"]
     assert (await action_env.rows())[-1][3] == "종료(미수행)"
 
 
 async def test_reopening_clears_closed_time_and_logs_the_change(action_env: ActionEnv) -> None:
-    """Open으로 되돌리면 종료 시각이 없어지고 덧붙인 Memo는 남으며 History가 한 건 남는다.
+    """Open으로 되돌리면 종료 시각이 없어지고 만든 Comment는 남으며 History가 한 건 남는다.
 
     테스트 코드: NA-005, NA-017
     """
-    # given: 메모 "끝"을 붙여 종료(수행)한 Action
+    # given: Comment "끝"을 붙여 종료(수행)한 Action
     action = await action_env.act(KIM)
     await action_env.set_status(action.id, KIM, "done", "끝")
     # when: 작성자가 open으로 바꾼다
     await action_env.set_status(action.id, KIM, "open")
-    # then: 상태는 open, 종료 시각은 null, Memo는 "…\n끝" 그대로이고 이력은 종료(수행) -> Open이다
+    # then: 상태는 open, 종료 시각은 null, Comment "끝"은 그대로, 이력은 종료(수행) -> Open이다
     stored = await action_env.stored(action.id)
     assert stored.next_action_state == NextActionState.open()
-    assert stored.content.memo.endswith("\n끝")
+    assert await _comments_of(action_env, action.id) == ["끝"]
     assert (await action_env.rows())[-1][2:] == (f"요구사항 문서 전달 {DUE} · 종료(수행)", "Open")
 
 
 async def test_each_status_change_logs_one_entry_with_the_fixed_wording(
     action_env: ActionEnv,
 ) -> None:
-    """세 번 바꾸면(done+메모, open, not_done) History가 세 건 차례로 늘고 문구가 정해진 형식이다.
+    """세 번 바꾸면(done+Comment, open, not_done) Next Action History가 세 건 차례로 늘고 문구가
+    정해진 형식이다(변경 후는 라벨만).
 
     테스트 코드: NA-017
     """
     # given: Next Action "요구사항 문서 전달", Due 2026-01-15인 Open Action
     action = await action_env.act(KIM)
     base = len(await action_env.action_entries())
-    # when: 작성자가 차례로 done+메모 "전달 완료", open, not_done(메모 없음)으로 바꾼다
+    # when: 작성자가 차례로 done+Comment "전달 완료", open, not_done(Comment 없음)으로 바꾼다
     await action_env.set_status(action.id, KIM, "done", "전달 완료")
     await action_env.set_status(action.id, KIM, "open")
     await action_env.set_status(action.id, KIM, "not_done")
@@ -137,7 +161,7 @@ async def test_each_status_change_logs_one_entry_with_the_fixed_wording(
             "action",
             "Next Action",
             f"요구사항 문서 전달 {DUE} · Open",
-            "종료(수행) / Memo: 전달 완료",
+            "종료(수행)",
         ),
         ("action", "Next Action", f"요구사항 문서 전달 {DUE} · 종료(수행)", "Open"),
         ("action", "Next Action", f"요구사항 문서 전달 {DUE} · Open", "종료(미수행)"),
@@ -145,23 +169,23 @@ async def test_each_status_change_logs_one_entry_with_the_fixed_wording(
     assert {e.changed_by for e in entries} == {KIM.user_id}
 
 
-async def test_a_long_closing_memo_is_clipped_in_history_but_kept_in_memo(
+async def test_a_long_closing_comment_is_clipped_in_history_but_kept_in_the_comment(
     action_env: ActionEnv,
 ) -> None:
-    """1,000자를 넘는 종료 메모는 이력 값만 잘리고 Memo에는 전체가 붙는다.
+    """1,000자를 넘는 종료 Comment는 이력 값만 잘리고 Comment 원문은 그대로다.
 
-    테스트 코드: NA-018
+    테스트 코드: CM-011, CM-031
     """
-    # given: Memo "기존"인 Open Action
-    action = await action_env.act(KIM, memo="기존")
-    # when: 작성자가 1,500자 메모로 종료(수행)한다
+    # given: Open Action
+    action = await action_env.act(KIM)
+    # when: 작성자가 1,500자 Comment로 종료(수행)한다
     await action_env.set_status(action.id, KIM, "done", "가" * 1_500)
-    # then: 이력 변경 후 값은 999자 + "…"이고 Memo에는 메모 전체가 붙는다
+    # then: Comment 등록 줄의 변경 후 값은 999자 + "…"이고 Comment에는 전체가 있다
     after = (await action_env.rows())[-1][3]
     assert len(after) == 1_000
-    assert after.startswith("종료(수행) / Memo: ")
+    assert after.startswith("등록: 가가")
     assert after.endswith("…")
-    assert (await action_env.stored(action.id)).content.memo == "기존\n" + "가" * 1_500
+    assert await _comments_of(action_env, action.id) == ["가" * 1_500]
 
 
 async def test_status_change_does_not_change_other_content_or_the_deal(
@@ -195,13 +219,14 @@ async def test_other_sales_forbidden_without_change(action_env: ActionEnv) -> No
     action = await action_env.act(KIM)
     rows = await action_env.rows()
     commits = action_env.env.uow.commits
-    # when·then: sales park이 done, 메모 "남의 것"으로 바꾸면 403 고정 문구다
+    # when·then: sales park이 done, Comment "남의 것"으로 바꾸면 403 고정 문구다
     with raises_with(DealActionStatusForbiddenError, STATUS_FORBIDDEN):
         await action_env.set_status(action.id, PARK, "done", "남의 것")
-    # then: 상태·Memo·History·커밋이 그대로다
+    # then: 상태·내용·Comment 수·History·커밋이 그대로다
     stored = await action_env.stored(action.id)
     assert stored.next_action_state == NextActionState.open()
     assert stored.content == action.content
+    assert await _comments_of(action_env, action.id) == []
     assert await action_env.rows() == rows
     assert action_env.env.uow.commits == commits
 
@@ -232,7 +257,7 @@ async def test_missing_action_not_found_before_forbidden(action_env: ActionEnv) 
 
 
 async def test_same_status_conflicts_without_change(action_env: ActionEnv) -> None:
-    """Open Action을 open으로 바꾸면 409이고 Memo·History가 그대로다.
+    """Open Action을 open으로 바꾸면 409이고 Comment 수·History가 그대로다.
 
     테스트 코드: NA-007
     """
@@ -242,28 +267,28 @@ async def test_same_status_conflicts_without_change(action_env: ActionEnv) -> No
     # when·then: 작성자가 open으로 바꾸면 409 "이미 Open 상태입니다."다
     with raises_with(InvalidStateError, "이미 Open 상태입니다."):
         await action_env.set_status(action.id, KIM, "open")
-    # then: History와 내용이 그대로다
+    # then: History·Comment 수와 내용이 그대로다
     assert await action_env.rows() == rows
+    assert await _comments_of(action_env, action.id) == []
     assert (await action_env.stored(action.id)).content == action.content
 
 
 async def test_same_closed_status_conflicts_without_change(action_env: ActionEnv) -> None:
-    """종료(수행) Action을 메모와 함께 done으로 바꾸면 409이고 Memo·종료 시각·History가 그대로다.
+    """종료(수행) Action을 Comment와 함께 done으로 바꾸면 409이고 Comment·종료 시각·이력이 그대로다.
 
     테스트 코드: NA-007
     """
-    # given: 메모 "첫 종료"로 종료(수행)된 Action
+    # given: Comment "첫 종료"로 종료(수행)된 Action
     action = await action_env.act(KIM)
     await action_env.set_status(action.id, KIM, "done", "첫 종료")
     closed = (await action_env.stored(action.id)).next_action_state
     rows = await action_env.rows()
-    # when·then: 작성자가 done, 메모 "또 종료"로 바꾸면 409 "이미 종료(수행) 상태입니다."다
+    # when·then: 작성자가 done, Comment "또 종료"로 바꾸면 409 "이미 종료(수행) 상태입니다."다
     with raises_with(InvalidStateError, "이미 종료(수행) 상태입니다."):
         await action_env.set_status(action.id, KIM, "done", "또 종료")
-    # then: Memo·종료 시각·History 건수가 그대로다
+    # then: Comment 수·종료 시각·History 건수가 그대로다
     stored = await action_env.stored(action.id)
-    assert stored.content.memo.endswith("\n첫 종료")
-    assert "또 종료" not in stored.content.memo
+    assert await _comments_of(action_env, action.id) == ["첫 종료"]
     assert stored.next_action_state == closed
     assert await action_env.rows() == rows
 
@@ -271,70 +296,75 @@ async def test_same_closed_status_conflicts_without_change(action_env: ActionEnv
 async def test_action_without_next_action_conflicts_without_change(
     action_env: ActionEnv,
 ) -> None:
-    """Next Action이 없는 Action의 상태를 바꾸면 409이고 Memo·History가 그대로다.
+    """Next Action이 없는 Action의 상태를 바꾸면 409이고 Comment 수·History가 그대로다.
 
     테스트 코드: NA-008
     """
     # given: 진행사항만 Action
     action = await action_env.act(KIM, next_action="")
     rows = await action_env.rows()
-    # when·then: 작성자가 done, 메모 "메모"로 바꾸면 409다
+    # when·then: 작성자가 done, Comment "메모"로 바꾸면 409다
     with raises_with(InvalidStateError, NO_NEXT_ACTION):
         await action_env.set_status(action.id, KIM, "done", "메모")
-    # then: 내용과 History가 그대로다
+    # then: 내용·Comment 수·History가 그대로다
     assert (await action_env.stored(action.id)).content == action.content
+    assert await _comments_of(action_env, action.id) == []
     assert await action_env.rows() == rows
 
 
-async def test_open_with_memo_is_a_validation_error(action_env: ActionEnv) -> None:
-    """Open으로 되돌리며 메모를 보내면 422이고 상태·종료 시각·Memo·History가 그대로다.
+async def test_open_with_a_comment_is_a_validation_error(action_env: ActionEnv) -> None:
+    """Open으로 되돌리며 Comment를 보내면 422이고 상태·종료 시각·Comment 수·History가 그대로다.
 
-    테스트 코드: NA-006
+    테스트 코드: NA-006, CM-034
     """
     # given: 종료(수행)된 Action
     action = await action_env.act(KIM)
     await action_env.set_status(action.id, KIM, "done")
     before = await action_env.stored(action.id)
     rows = await action_env.rows()
-    # when·then: 작성자가 open, 메모 "되돌리며 메모"로 바꾸면 422 문구다
-    with raises_with(InvalidValueError, OPEN_WITH_MEMO):
-        await action_env.set_status(action.id, KIM, "open", "되돌리며 메모")
-    # then: 상태·종료 시각·Memo·History가 그대로다
+    # when·then: 작성자가 open, Comment "되돌림"으로 바꾸면 422 문구다
+    with raises_with(InvalidValueError, OPEN_WITH_COMMENT):
+        await action_env.set_status(action.id, KIM, "open", "되돌림")
+    # then: 상태·종료 시각·Comment 수·History가 그대로다
     stored = await action_env.stored(action.id)
     assert stored.next_action_state == before.next_action_state
-    assert stored.content.memo == before.content.memo
+    assert await _comments_of(action_env, action.id) == []
     assert await action_env.rows() == rows
 
 
-async def test_open_with_a_blank_memo_is_allowed(action_env: ActionEnv) -> None:
-    """Open으로 되돌릴 때 공백뿐인 메모는 허용된다.
+async def test_open_with_a_blank_comment_is_allowed(action_env: ActionEnv) -> None:
+    """Open으로 되돌릴 때 공백뿐인 Comment는 허용되고 Comment가 생기지 않는다.
 
-    테스트 코드: NA-006
+    테스트 코드: NA-006, CM-034
     """
     # given: 종료(수행)된 Action
     action = await action_env.act(KIM)
     await action_env.set_status(action.id, KIM, "done")
-    # when: 작성자가 open, 메모 "   "로 바꾼다
+    # when: 작성자가 open, Comment "   "로 바꾼다
     await action_env.set_status(action.id, KIM, "open", "   ")
-    # then: Open이 된다
+    # then: Open이 되고 Comment는 없다
     assert (await action_env.stored(action.id)).next_action_state == NextActionState.open()
+    assert await _comments_of(action_env, action.id) == []
 
 
-async def test_closing_memo_with_nul_is_rejected_without_change(action_env: ActionEnv) -> None:
-    """종료 메모에 NUL 문자가 있으면 422 invalid-value이고 Action·History가 그대로다.
+async def test_closing_comment_with_nul_is_rejected_without_change(
+    action_env: ActionEnv,
+) -> None:
+    """종료 Comment에 NUL 문자가 있으면 422 invalid-value이고 Action·Comment·History가 그대로다.
 
     테스트 코드: NA-009
     """
     # given: Open Action
     action = await action_env.act(KIM)
     rows = await action_env.rows()
-    # when·then: 작성자가 done, 메모 "가\x00나"로 바꾸면 422 NUL 문구다
-    with raises_with(InvalidValueError, NUL_MEMO):
+    # when·then: 작성자가 done, Comment "가\x00나"로 바꾸면 422 NUL 문구다
+    with raises_with(InvalidValueError, NUL_COMMENT):
         await action_env.set_status(action.id, KIM, "done", "가\x00나")
-    # then: 상태·Memo·History가 그대로다
+    # then: 상태·내용·Comment 수·History가 그대로다
     stored = await action_env.stored(action.id)
     assert stored.next_action_state == NextActionState.open()
     assert stored.content == action.content
+    assert await _comments_of(action_env, action.id) == []
     assert await action_env.rows() == rows
 
 

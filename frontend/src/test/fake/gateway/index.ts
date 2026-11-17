@@ -5,6 +5,7 @@ import { createAlertsGateway } from './alerts'
 import { createAttachmentsGateway } from './attachments'
 import { createAuthGateway, createSetupGateway } from './auth'
 import { createCodesGateway } from './codes'
+import { createCommentsGateway } from './comments'
 import type { MockContext } from './context'
 import { createContactsGateway } from './contacts'
 import { createDashboardGateway } from './dashboard'
@@ -30,6 +31,7 @@ export function createGatewayFor(ctx: MockContext): Gateway {
     deals: { ...dealsReadApi(ctx), ...dealsWriteApi(ctx) },
     contacts: createContactsGateway(ctx),
     actions: createActionsGateway(ctx),
+    comments: createCommentsGateway(ctx),
     actionTypes: createActionTypesGateway(ctx),
     history: createHistoryGateway(ctx),
     attachments: createAttachmentsGateway(ctx),

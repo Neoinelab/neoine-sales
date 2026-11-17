@@ -21,6 +21,7 @@ from tests.unit.repositories.deal_case import DealCase, open_deal_case
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
+    from datetime import datetime
 
     from sqlalchemy.engine import URL
 
@@ -75,6 +76,15 @@ class Case:
         await self.ensure_actor(action)
         await attach_catalog_type(self.action_types, action)
         await self.repository.add(action)
+
+    async def add_comment(self, action: DealAction, body: str, at: datetime = NOW) -> None:
+        """그 Action에 연결된 Action Comment를 저장한다(작성자 행도 만든다)."""
+        await self._deal_case.add_comment(action.deal_code, body, at, action=action)
+
+    async def add_deal_comment(self, code: DealCode, body: str, at: datetime = NOW) -> None:
+        """그 Deal의 Deal Comment(연결 Action 없음)를 저장한다."""
+        await self.ensure_deal(code)
+        await self._deal_case.add_comment(code, body, at)
 
     async def search(self, **criteria: object) -> list[str]:
         """검색 결과의 진행사항 목록(정렬 순서 그대로). deal_code를 생략하면 기본 Deal이다."""

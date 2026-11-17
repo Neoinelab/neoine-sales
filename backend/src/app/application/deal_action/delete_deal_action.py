@@ -22,7 +22,8 @@ class DeleteDealAction:
         async with self._uow_factory() as uow:
             action = await uow.deal_actions.get(action_id)
             action.ensure_deletable_by(actor.user_id, actor.role)
-            await uow.deal_actions.delete(action_id)
-            draft = action_deleted_draft(action.content)
+            comment_count = await uow.deal_comments.count_for_action(action_id)
+            await uow.deal_actions.delete(action_id)  # 그 Action의 Comment는 DB가 함께 지운다
+            draft = action_deleted_draft(action.content, comment_count=comment_count)
             await write_history(uow, action.deal_code, actor.user_id, [draft], now)
             await uow.commit()

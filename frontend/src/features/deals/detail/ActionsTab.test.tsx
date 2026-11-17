@@ -28,15 +28,15 @@ describe('Actions 탭 목록', () => {
     const { table } = await openActions(1, '한빛은행 ITDR 도입')
     // when: 표 머리글과 첫 행들을 읽는다
     const headers = within(table).getAllByRole('columnheader').map((h) => h.textContent)
-    // then: 열이 수행일·유형·진행사항·Next Action·Due Date·상태 6개뿐이다
-    expect(headers).toEqual(['수행일', '유형', '진행사항', 'Next Action', 'Due Date', '상태'])
-    // then: 최신 Action이 위이고 내용이 보이며 등록 시점 배지·Memo·수정·삭제 버튼은 없다
+    // then: 열이 수행일·유형·진행사항·Next Action·Due Date·상태 6개와 맨 오른쪽 Comment 열 7개뿐이다
+    expect(headers).toEqual(['수행일', '유형', '진행사항', 'Next Action', 'Due Date', '상태', 'Comment'])
+    // then: 최신 Action이 위이고 내용이 보이며 등록 시점 배지·Comment 글·수정·삭제 버튼은 없다
     const first = bodyRows(table)[0]!
     expect(first).toHaveTextContent('최종 가격 협의')
     expect(first).toHaveTextContent('계약서 초안 검토')
     expect(first).not.toHaveTextContent('가격협상')
     expect(first).not.toHaveTextContent('Commit')
-    expect(first).not.toHaveTextContent('관련 메모')
+    expect(within(first).queryByText(/Comment 글/)).not.toBeInTheDocument()
     expect(within(first).queryByRole('button', { name: '수정' })).not.toBeInTheDocument()
     expect(within(first).queryByRole('button', { name: '삭제' })).not.toBeInTheDocument()
     expect(bodyRows(table)[1]).toHaveTextContent('임원 보고용 ROI 자료 전달')
@@ -51,7 +51,7 @@ describe('Actions 탭 목록', () => {
     expect(within(bodyRows(table)[0]!).getByText('기한초과')).toBeVisible()
   })
 
-  // 표 머리글에는 담당자·등록 시점 Status·Forecast·Memo·관리 열이 없고 행에는 배지가 없다.
+  // 표 머리글에는 담당자·등록 시점 Status·Forecast·Memo·관리 열이 없고(Comment 열은 있다) 행에는 배지가 없다.
   // 테스트 코드: AC-071
   it('has no actor, registered status, memo or manage column and no badge in the rows', async () => {
     // given: Deal의 Actions 탭
@@ -105,12 +105,12 @@ describe('Action 추가 등록', () => {
     const { user, table } = await openActions(1, '한빛은행 ITDR 도입')
     await user.click(screen.getByRole('button', { name: 'Action 추가' }))
     const form = screen.getByRole('form', { name: 'Action 추가' })
-    // when: 유형·진행사항·Next Action·Due·Memo를 입력하고 등록한다
+    // when: 유형·진행사항·Next Action·Due·Comment를 입력하고 등록한다
     await typeAction(user, form, '미팅')
     await user.type(within(form).getByLabelText('진행사항'), '법무팀 계약 검토 미팅')
     await user.type(within(form).getByLabelText('Next Action'), '날인본 수령')
     await user.type(within(form).getByLabelText('Due Date'), '2026-12-20')
-    await user.type(within(form).getByLabelText('Memo'), '법무 의견 반영')
+    await user.type(within(form).getByLabelText('Comment'), '법무 의견 반영')
     await user.click(within(form).getByRole('button', { name: '등록' }))
     // then: 새 Action이 목록 맨 위에 보이고 팝업이 닫힌다
     await waitFor(() => expect(bodyRows(table)[0]).toHaveTextContent('법무팀 계약 검토 미팅'))

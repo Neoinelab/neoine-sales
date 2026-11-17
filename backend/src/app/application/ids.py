@@ -10,6 +10,7 @@ from app.domain.bant.values import BantLabelId
 from app.domain.code.values import CodeId
 from app.domain.contact.values import ContactId
 from app.domain.deal_action.value_objects import DealActionId
+from app.domain.deal_comment.values import DealCommentId
 from app.domain.license_contract.values import ContractAttachmentId, LicenseContractId
 from app.domain.partner_meeting.values import PartnerMeetingId
 from app.domain.saved_report.values import ReportId
@@ -70,3 +71,7 @@ async def new_license_contract_id(ids: IdAllocator) -> LicenseContractId:
 
 async def new_contract_attachment_id(ids: IdAllocator) -> ContractAttachmentId:
     return ContractAttachmentId(await ids.next_id(IdKind.CONTRACT_ATTACHMENT))
+
+
+async def new_deal_comment_id(ids: IdAllocator) -> DealCommentId:
+    return DealCommentId(await ids.next_id(IdKind.DEAL_COMMENT))

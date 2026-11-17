@@ -17,7 +17,6 @@ function action(id: number, actedOn: string, nextAction: string | null): DealAct
     dueDate: nextAction === null ? null : '2026-11-01',
     nextActionStatus: nextAction === null ? null : 'open',
     nextActionClosedOn: null,
-    memo: '',
     statusKey: 'prospecting',
     forecastKey: 'pipeline',
   }

@@ -6,6 +6,10 @@ export interface TabItem {
   label: string
   /** 글자 왼쪽에 붙는 장식 아이콘(접근성 이름에는 들어가지 않는다). */
   icon?: ReactNode
+  /** 글자 오른쪽의 숫자 배지(없으면 보이지 않는다). */
+  badge?: string | null
+  /** 배지가 있을 때 탭의 접근성 이름에 덧붙는 설명(예: 읽지 않은 Comment 3건). */
+  badgeLabel?: string
 }
 
 interface TabsProps {
@@ -59,6 +63,7 @@ export function Tabs({ label, tabs, active, onChange, className, children }: Tab
             aria-selected={tab.id === active}
             aria-controls={`${baseId}-panel`}
             tabIndex={tab.id === active ? 0 : -1}
+            aria-label={tab.badge && tab.badgeLabel ? `${tab.label} ${tab.badgeLabel}` : undefined}
             className="tab"
             onClick={() => onChange(tab.id)}
           >
@@ -68,6 +73,7 @@ export function Tabs({ label, tabs, active, onChange, className, children }: Tab
               </span>
             )}
             <span>{tab.label}</span>
+            {tab.badge && <span className="tab-badge">{tab.badge}</span>}
           </button>
         ))}
       </div>

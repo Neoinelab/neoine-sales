@@ -28,7 +28,6 @@ BODY = {
     "action": "킥오프 미팅",
     "next_action": "요구사항 문서 전달",
     "due_date": "2026-03-10",
-    "memo": "요구사항 정리",
 }
 
 
@@ -52,16 +51,16 @@ def test_create_request_maps_to_the_use_case_input_without_a_status_change() -> 
             action="킥오프 미팅",
             next_action="요구사항 문서 전달",
             due_date=date(2026, 3, 10),
-            memo="요구사항 정리",
         ),
         status_changes=(),
     )
+    assert data.comment == ""
 
 
 def test_update_request_maps_to_the_content_input() -> None:
     """수정 요청은 내용 입력으로 바뀌고 수행일은 지정 없음이다."""
-    # when: Memo가 빈 수정 요청을 입력으로 바꾼다
-    data = _update(memo="").to_input()
+    # when: 수정 요청을 입력으로 바꾼다
+    data = _update().to_input()
 
     # then: 내용 칸이 담기고 수행일은 없다
     assert data == action_inputs.DealActionUpdateInput(
@@ -70,7 +69,6 @@ def test_update_request_maps_to_the_content_input() -> None:
             action="킥오프 미팅",
             next_action="요구사항 문서 전달",
             due_date=date(2026, 3, 10),
-            memo="",
         ),
         acted_on=None,
     )
@@ -86,14 +84,15 @@ def test_update_request_maps_to_the_content_input() -> None:
         {"deal_code": "20261016-A001"},
         {"title": "구 필드"},
         {"content": "구 필드"},
+        {"memo": "요구사항 정리"},
     ],
 )
 def test_server_filled_and_retired_fields_are_rejected(
     model: type[DealActionCreateRequest], extra: Mapping[str, object]
 ) -> None:
-    """서버가 채우는 값과 폐지된 필드를 보내면 거절한다.
+    """서버가 채우는 값과 폐지된 필드(예전 memo 포함)를 보내면 거절한다.
 
-    테스트 코드: AC-012
+    테스트 코드: AC-012, CM-030
     """
     # when·then: 서버 필드나 예전 필드를 넣은 본문은 검증 오류다
     with pytest.raises(ValidationError):
@@ -176,16 +175,24 @@ def test_a_due_date_that_is_not_a_calendar_date_is_rejected(value: object) -> No
         _update(due_date=value)
 
 
-def test_memo_defaults_to_an_empty_string() -> None:
-    """Memo를 생략하면 빈 문자열이다.
+def test_update_request_rejects_a_comment_and_create_request_carries_it_to_the_input() -> None:
+    """수정 요청은 comment 키도 거절하고(Action 수정은 Comment를 바꾸지 않는다), 등록 요청의
+    comment는 입력으로 그대로 넘어가며 생략하면 빈 문자열이다.
 
-    테스트 코드: AC-005
+    테스트 코드: CM-030, CM-026, CM-027
     """
-    # given: Memo 키가 없는 본문
-    without = {key: value for key, value in BODY.items() if key != "memo"}
+    # when·then: 수정 요청에 comment를 넣으면 검증 오류다
+    with pytest.raises(ValidationError):
+        _update(comment="x")
+    # when: 등록 요청을 comment 있이/없이 입력으로 바꾼다
+    with_comment = _create(comment="  요구사항 정리  ").to_input()
+    without = _create().to_input()
 
-    # when·then: 입력의 Memo는 빈 문자열이다
-    assert DealActionUpdateRequest(**without).to_input().content.memo == ""
+    # then: comment는 가공 없이 넘어가고 생략하면 빈 문자열이다
+    assert with_comment.comment == "  요구사항 정리  "
+    assert without.comment == ""
+    # then: 내용 입력에는 memo가 없다
+    assert not hasattr(with_comment.content, "memo")
 
 
 def test_the_type_may_be_chosen_by_id() -> None:
@@ -245,17 +252,17 @@ def test_action_request_accepts_long_text_without_schema_limit() -> None:
 
     테스트 코드: AC-004
     """
-    # when: 5,000자·5,000자·20,000자 본문을 입력으로 바꾼다
-    data = _create(action="가" * 5_000, next_action="나" * 5_000, memo="다" * 20_000).to_input()
+    # when: 5,000자·5,000자 본문과 20,000자 comment를 입력으로 바꾼다
+    data = _create(action="가" * 5_000, next_action="나" * 5_000, comment="다" * 20_000).to_input()
 
     # then: 길이가 그대로다
     assert len(data.content.action) == 5_000
     assert len(data.content.next_action) == 5_000
-    assert len(data.content.memo) == 20_000
+    assert len(data.comment) == 20_000
     # when: 수정 요청도 긴 텍스트로 입력으로 바꾼다
-    long_update = _update(action="가" * 5_000, memo="다" * 20_000).to_input()
+    long_update = _update(action="가" * 5_000).to_input()
     # then: 길이가 그대로다
-    assert (len(long_update.content.action), len(long_update.content.memo)) == (5_000, 20_000)
+    assert len(long_update.content.action) == 5_000
 
 
 def test_blank_texts_are_left_to_the_domain_messages() -> None:

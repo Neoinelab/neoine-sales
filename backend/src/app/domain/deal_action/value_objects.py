@@ -27,7 +27,6 @@ class ActionContent:
     action: str | None
     next_action: str | None
     due_date: date | None
-    memo: str
 
     def __post_init__(self) -> None:
         if self.action is None and self.next_action is None:
@@ -47,10 +46,9 @@ class ActionContent:
         action: str,
         next_action: str,
         due_date: date | None,
-        memo: str,
     ) -> Self:
         """NUL -> 둘 다 비어 있음 -> Due Date 필수 -> Due Date만 있음 순으로 검사한다."""
-        for text, name in ((action, "진행사항"), (next_action, "Next Action"), (memo, "Memo")):
+        for text, name in ((action, "진행사항"), (next_action, "Next Action")):
             reject_nul(text, name)
         action_text, next_text = action.strip() or None, next_action.strip() or None
         if action_text is None and next_text is None:
@@ -61,4 +59,4 @@ class ActionContent:
             raise InvalidValueError(DUE_WITHOUT_NEXT)
         if isinstance(due_date, datetime):
             raise InvalidValueError("Due Date는 시각 없는 날짜여야 합니다.")
-        return cls(action_type, action_text, next_text, due_date, memo.strip())
+        return cls(action_type, action_text, next_text, due_date)

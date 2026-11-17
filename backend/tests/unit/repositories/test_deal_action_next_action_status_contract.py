@@ -22,7 +22,7 @@ async def test_progress_only_action_round_trips_with_null_next_action_fields(
 ) -> None:
     """진행사항만 있는 Action은 Next Action 필드가 비어 있는 채로 저장·조회된다."""
     # given: 진행사항만 있는 Action
-    action = make_deal_action(later(5), action="진행만", next_action="", memo="")
+    action = make_deal_action(later(5), action="진행만", next_action="")
     # when: 저장한다
     await action_case.add(action)
 
@@ -54,22 +54,23 @@ async def test_next_only_action_round_trips_as_open(action_case: Case) -> None:
 
 
 async def test_update_persists_a_closed_status_and_closed_date(action_case: Case) -> None:
-    """종료 상태 변경을 저장하면 상태·종료일·덧붙인 Memo·수정 시각이 남는다."""
+    """종료 상태 변경을 저장하면 상태·종료일·수정 시각이 남고 내용은 그대로다."""
     # given: 저장된 Action
-    action = make_deal_action(later(5), memo="기존")
+    action = make_deal_action(later(5))
     await action_case.add(action)
+    content = action.content
 
-    # when: 수행 종료로 바꾸고 종료 Memo를 남겨 저장한다
+    # when: 수행 종료로 바꾸고(종료 Comment는 별도 엔티티) 저장한다
     action.change_next_action_status(NextActionStatus.DONE, "끝남", later(50))
     await action_case.repository.update(action)
 
     # when: 읽는다
     stored = await action_case.repository.get(action.id)
-    # then: 상태와 종료일이 남고 Memo는 덧붙으며 수행일은 그대로다
+    # then: 상태와 종료일이 남고 내용·수행일은 그대로다
     assert stored.next_action_state == NextActionState(
         status=NextActionStatus.DONE, closed_on=date_after(0)
     )
-    assert stored.content.memo == "기존\n끝남"
+    assert stored.content == content
     assert stored.updated_at == later(50)
     assert stored.acted_on == date_after(0)
 

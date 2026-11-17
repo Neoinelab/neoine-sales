@@ -1,4 +1,4 @@
-# Reports 조회 엔진·디자이너 작성   (feature 코드: RQ, 상태: 확정(2026-11-16 사용자 확인))
+# Reports 조회 엔진·디자이너 작성   (feature 코드: RQ, 상태: 확정(2026-11-17 사용자 확인))
 
 > 이 문서는 **이미 구현된 동작**을 정본 명세로 옮긴 것입니다(2026-11-11). 근거는 작업 트리의 코드(`backend/src/app/domain/report/{vocabulary,fields,catalog,catalog_deal,catalog_action,labels,raw,parse,parse_columns,parse_conditions,condition_values,definition,errors,resolve,stored}.py`, `app/application/report/{list_fields,run_report,execution,views}.py`, `app/application/ports/report_query_runner.py`, `app/infra/db/{report_runner,report_select,report_grouped,report_parts,report_conditions,report_buckets,report_fields,report_fields_deal,report_fields_action,report_risk,report_render,read_only}.py`, `app/web/routers/reports.py`, `app/web/schemas/{report_fields,report_query}.py`, `app/web/error_handlers.py`의 Reports 처리, `frontend/src/features/reports/designer/**`(편집 화면 전용 부분 제외), `features/reports/result/{ResultPanel,TableTile}.tsx`의 표·SQL 부분, `data/reports.ts`의 카탈로그·조회 훅, `gateway/http/reports.ts`·`mappers/report.ts`의 카탈로그·조회, `test/fake/gateway/reports.ts`, `test/fake/seed/reportCatalog.ts`)이며 문구·type·상태 코드는 코드에서 그대로 옮겼습니다. 코드와 Fake·안내서가 어긋나던 점은 2026-11-11 사용자 결정으로 정리했습니다: 조회 Fake 게이트웨이는 서버 동작에 맞추되 흉내 내는 위반의 범위는 넓히지 않고(RQ-R56), 금액 건수 집계 열의 `unit` `krw`는 현행대로 두며(RQ-R36), 저장 정의 JSON의 예전 형식 읽기 변환은 이 문서가 가집니다(RQ-R57). 안내서(`docs/user-guide.html` 15.7) 문구는 코드에 맞춥니다. 결정 목록은 계획(`artifacts/10-analysis/rq-plan.md`)에 있습니다. 저장 리포트(RS)·차트(RC)·공통 입력(UI)은 규칙 번호로 가리킵니다.
 >
@@ -32,7 +32,7 @@
 
 | 용어 | 뜻 |
 | --- | --- |
-| 카탈로그 | 리포트에 쓸 수 있는 필드 40개(Deal 28 + Deal Actions 12)와 한도·어휘. 여기 없는 key는 어떤 경로로도 SQL에 닿지 않는다 |
+| 카탈로그 | 리포트에 쓸 수 있는 필드 41개(Deal 29 + Deal Actions 12)와 한도·어휘. 여기 없는 key는 어떤 경로로도 SQL에 닿지 않는다 |
 | 정의 | 조회 요청 하나: `columns`(컬럼 목록), `conditions`(조건 목록), `combine`(and/or), `row_limit` |
 | 컬럼 | 필드 + 표시 이름·포맷·앞 N자·그룹핑·집계·정렬 |
 | 그룹핑 리포트 | 그룹 컬럼(`group: true`)이 하나라도 있는 정의. 나머지 컬럼은 모두 집계가 된다 |
@@ -48,7 +48,7 @@
 
 ### 2.2 데이터 모델
 
-새 테이블 없음(마이그레이션 없음). 읽는 테이블: `deals`·`deal_actions`·`users`·`contacts`·`deal_partners`·`vendors`·`codes`·`bant_labels`·`deal_bant`·`action_types`·`alert_settings`(경고 기준).
+새 테이블 없음(마이그레이션 없음). 읽는 테이블: `deals`·`deal_actions`·`deal_comments`·`users`·`contacts`·`deal_partners`·`vendors`·`codes`·`bant_labels`·`deal_bant`·`action_types`·`alert_settings`(경고 기준).
 
 카탈로그 필드(이 순서, 응답 `fields` 순서와 같다)
 
@@ -79,18 +79,19 @@
 | 26 | `deal.created_at` | 등록일 | datetime | |
 | 27 | `deal.last_updated_at` | 최종 업데이트 | date | RK-R2의 `last_updated_on`(key 유지, RQ-R58) |
 | 28 | `deal.status_changed_at` | Status 진입일 | date | `status_changed_on`(key 유지, RQ-R58) |
-| 29 | `action.action` | 진행사항 | text | |
-| 30 | `action.next_action` | Next Action | text | |
-| 31 | `action.memo` | Memo | text | |
-| 32 | `action.actor` | 수행자 | user | 값 id, 출처 `users` |
-| 33 | `action.type` | Action 유형 | code | 값 id, 출처 `action_types` |
-| 34 | `action.next_action_status` | Next Action 상태 | code | 정적: Next Action 상태 3개와 그 라벨(NA-R1) |
-| 35 | `action.status` | 당시 Status | code | 값 key, 출처 `status_codes`. Action 등록 요청 시점 값(수행일 당시 아님, AC-R37) |
-| 36 | `action.forecast` | 당시 Forecast | code | 값 key, 출처 `forecast_codes`. 등록 요청 시점 값(AC-R37) |
-| 37 | `action.due_date` | Due Date | date | |
-| 38 | `action.acted_at` | 수행일 | date | Action `acted_on`(key 유지, RQ-R58) |
-| 39 | `action.closed_at` | 종료일 | date | Next Action 종료일 `next_action_closed_on`(key 유지, RQ-R58) |
-| 40 | `action.count` | Action 건수 | number | 가상 필드: 그룹핑 전용, 조건 불가, 집계 건수 고정 |
+| 29 | `deal.comment` | Comment(Deal 전체) | text | 그 Deal 소속 Comment 전부(Deal Comment와 Action Comment 모두)를 작성 순(created_at·id 오름차순)으로 줄바꿈("\n")으로 이은 값. 없으면 null. Deal 필드(RQ-R61) |
+| 30 | `action.action` | 진행사항 | text | |
+| 31 | `action.next_action` | Next Action | text | |
+| 32 | `action.comment` | Comment(Action) | text | 그 Action에 연결된 Action Comment만 작성 순으로 줄바꿈으로 이은 값. 없으면 null(RQ-R60) |
+| 33 | `action.actor` | 수행자 | user | 값 id, 출처 `users` |
+| 34 | `action.type` | Action 유형 | code | 값 id, 출처 `action_types` |
+| 35 | `action.next_action_status` | Next Action 상태 | code | 정적: Next Action 상태 3개와 그 라벨(NA-R1) |
+| 36 | `action.status` | 당시 Status | code | 값 key, 출처 `status_codes`. Action 등록 요청 시점 값(수행일 당시 아님, AC-R37) |
+| 37 | `action.forecast` | 당시 Forecast | code | 값 key, 출처 `forecast_codes`. 등록 요청 시점 값(AC-R37) |
+| 38 | `action.due_date` | Due Date | date | |
+| 39 | `action.acted_at` | 수행일 | date | Action `acted_on`(key 유지, RQ-R58) |
+| 40 | `action.closed_at` | 종료일 | date | Next Action 종료일 `next_action_closed_on`(key 유지, RQ-R58) |
+| 41 | `action.count` | Action 건수 | number | 가상 필드: 그룹핑 전용, 조건 불가, 집계 건수 고정 |
 
 형식별 허용표(카탈로그 각 필드의 `formats`·`operators`·`aggregates`·기본값)
 
@@ -108,7 +109,7 @@
 
 카탈로그 (`GET /reports/fields`)
 - **RQ-R1** `GET /reports/fields`와 `POST /reports/query`는 로그인한 모든 역할이 부른다(업무 조회, PL-R2). `POST /reports/query`는 POST지만 저장·변경이 없어 역할 가드가 없고 `user`도 실행한다. 미인증은 401 `unauthenticated`(PL-R5), `POST`는 CSRF 헤더가 없으면 403 `csrf`(PL-R9, 판정 순서 PL-R4). 두 경로 모두 아무것도 저장하지 않는다. 모든 역할이 모든 Deal을 대상으로 같은 결과를 받는다.
-- **RQ-R2** 카탈로그 응답은 정확히 `{limits, entities, formats, operators, aggregates, relative_periods, fields}`다. `fields`는 2.2 표의 40개(앞 28개 `deal.*`, 뒤 12개 `action.*`)를 그 순서로 담고, 각 항목은 `{key, label, entity, type, formats, default_format, unit, operators, aggregates, default_aggregate, groupable, filterable, requires_grouping, deal_number, value_kind, options, options_source, options_category}`다. key 접두어(`deal.`·`action.`)는 `entity`와 같다. `entities`는 `[{key: "deal", label: "Deal"}, {key: "action", label: "Deal Actions"}]`.
+- **RQ-R2** 카탈로그 응답은 정확히 `{limits, entities, formats, operators, aggregates, relative_periods, fields}`다. `fields`는 2.2 표의 41개(앞 29개 `deal.*`, 뒤 12개 `action.*`)를 그 순서로 담고, 각 항목은 `{key, label, entity, type, formats, default_format, unit, operators, aggregates, default_aggregate, groupable, filterable, requires_grouping, deal_number, value_kind, options, options_source, options_category}`다. key 접두어(`deal.`·`action.`)는 `entity`와 같다. `entities`는 `[{key: "deal", label: "Deal"}, {key: "action", label: "Deal Actions"}]`.
 - **RQ-R3** 각 필드의 `formats`·`default_format`·`operators`·`aggregates`는 2.2 형식별 허용표대로다. text·code·user·number는 `formats: []`, `default_format: null`이다. 숫자 필드는 `default_aggregate`가 있고(금액·Users count 합계, Status 체류 일수 평균) `deal_number: true`이며, 그 밖의 필드는 `default_aggregate: null`·`deal_number: false`다.
 - **RQ-R4** `unit`이 있는 필드는 `deal.amount`(`"krw"`, 원 단위) 하나뿐이다. `action.count`는 `operators: []`·`aggregates: []`·`default_aggregate: "count"`·`groupable: false`·`filterable: false`·`requires_grouping: true`·`deal_number: false`이며, `requires_grouping: true`인 필드는 이것 하나다. 그 밖의 필드는 모두 `groupable: true`·`filterable: true`다.
 - **RQ-R5** code·user 필드의 조건 값: 정적 선택지 필드(Forecast 구분·견적 제출·POC 상태·경고·Next Action 상태)는 `value_kind: "key"`와 `options: [{value, label}]`(2.2 표 순서)를 갖고 `options_source: null`이다. 경고의 선택지는 overdue·stale 둘뿐이다(결과 값의 "기한초과·미업데이트"는 선택지가 아니다). 출처 필드는 `options: null`과 `options_source`(`users`·`vendors`·`status_codes`·`forecast_codes`·`bant_labels`·`action_types`)를 갖고, `value_kind`는 담당자·수행자·Vendor·BANT·Action 유형이 `"id"`, Status·Forecast(당시 포함)가 `"key"`다. BANT 필드는 `options_category`(budget·authority·need·timeline)를 갖고 그 밖은 null이다.
@@ -198,10 +199,25 @@
   - ② 예전 최상위 `sort` `{column, direction}`(direction 생략은 `asc`)은 그 위치 컬럼의 `sort`로 옮긴다. 그 컬럼에 자기 `sort` 값이 있으면(빈 문자열 포함) 그것이 우선한다. 최상위 `sort: null`은 정렬 없음이다.
   - ③ `combine`·`row_limit` 키가 없으면 `"and"`·1000으로 읽는다. 그 밖의 값(상대 기간 키 포함)은 바꾸지 않는다.
   - ④ 컬럼·조건의 `field`가 예전 key `deal.solution`이면 `deal.product`로 읽는다(2026-11-16 이름 변경, RQ-R59). 컬럼 `label`은 사용자가 쓴 값이라 바꾸지 않는다.
+  - ⑤ 컬럼·조건의 `field`가 예전 key `action.memo`면 `action.comment`로 읽는다(2026-11-17, RQ-R60). `label`은 바꾸지 않는다.
   - 값(포맷·정렬 방향·집계·연산자·조건 값·행 수)은 읽을 때 검사하지 않고 실행·복제 때 RQ-R7~RQ-R19로 다시 검증한다(예: 예전 정렬 방향 `up`은 읽기는 되고 실행 때 `["columns", i, "sort"]` `sort-invalid`).
   - 다음 모양이면 읽을 수 없는 정의다(위반 하나 `["definition"]` `stored-invalid` "저장된 리포트 정의를 읽을 수 없습니다."): 객체가 아님, `columns`가 없거나 객체 목록이 아님, 컬럼 `field`가 문자열이 아님, 컬럼 `label`·`format`·`aggregate`·`sort`가 null도 문자열도 아님, `group`이 bool이 아님(없으면 false), `conditions`가 있는데 객체 목록이 아님, 조건 `field`·`operator`가 문자열이 아님, 최상위 `sort`가 null도 객체도 아님, 그 `column`이 컬럼 위치(0 ~ 컬럼 수 − 1) 정수가 아님(bool·문자열 제외), `direction`이 문자열이 아님. 읽을 수 없는 정의의 목록·상세·실행·복제·배치 저장 결과는 RS-R17이 정한다.
   - 읽은(변환한) 정의를 다시 쓰면 새 형식(포맷 null, 컬럼 `sort`, 최상위 `sort` 없음)으로 쓰인다. 상세 응답의 `definition`도 읽은 정의를 새 형식으로 쓴 값이다.
 - **RQ-R59** Product 필드 key(2026-11-16): Deal의 Solution 이름을 Product로 바꿔 카탈로그 3번 필드는 key `deal.product`, 이름 "Product"다(형식·연산자·집계·그룹핑·SQL 식은 그대로, 컬럼 `deals.product`). `/reports/query`·저장·수정 요청의 `deal.solution`은 변환하지 않고 RQ-R9의 `unknown-field` "허용되지 않은 필드입니다: deal.solution"이다. 저장 정의 JSON의 `deal.solution`은 읽을 때 바꾼다(RQ-R57 ④).
+- **RQ-R60** `action.comment`(2026-11-17)
+  - Action 필드이고 text 형식이다. 포맷·연산자·집계·그룹핑은 text 허용표를 따른다.
+  - SQL 식은 `deal_comments`에서 `action_id` = 그 Action id인 행의 `string_agg(body, E'\n' ORDER BY created_at, id)` 스칼라 서브쿼리다. Comment가 없으면 null이고, 따라서 `is_empty`에 맞는다.
+  - Action 필드이므로 다른 Action 필드와 똑같이 action_filter를 정한다: 컬럼에 있으면 `join`, 조건에만 있으면 `exists`.
+  - 요청의 `action.memo`는 RQ-R9의 `unknown-field` "허용되지 않은 필드입니다: action.memo"다. 저장 정의 JSON의 `action.memo`는 읽을 때 바꾼다(RQ-R57 ⑤).
+  - **API 응답 호환 깨짐**(사용자 승인 2026-11-17).
+- **RQ-R61** `deal.comment`(2026-11-17)
+  - Deal 필드이고 text 형식이다. 범위는 그 Deal 소속 Comment 전부다(CM-R2: Action 연결 여부와 무관하며, Action Comment 본문은 `action.comment`와 겹쳐 나온다).
+  - SQL 식은 `deal_comments`에서 `deal_id` = 그 Deal id인 행의 `string_agg(body, E'\n' ORDER BY created_at, id)` 스칼라 서브쿼리다. 없으면 null이다.
+  - action_filter와의 관계: Deal 필드이므로 이 필드만으로는 Action 범위가 되지 않는다(`none` 유지). 다른 Action 필드와 함께 쓰면 그 규칙대로 Action 행 범위가 된다. 이때 같은 Deal의 Action 행마다 같은 값이 반복된다(다른 Deal 필드와 같다).
+  - Deal당 한 번 규칙과의 관계: Action 행 범위에서 그룹핑하면 `deal.comment`의 집계 `count`·`count_distinct`는 다른 Deal 필드처럼 그룹마다 Deal 하나당 한 번만 센다. 그래서 Action 행 수와 무관하게, Comment가 있는(null이 아닌) Deal 수가 된다.
+  - 그룹핑 열로 쓰면 이어 붙인 전체 값이 같은 Deal끼리 묶인다(text 규칙 그대로).
+  - 조건 `contains`는 Deal 소속 Comment 중 어느 하나의 본문에 포함되면 맞는다. 이어 붙인 값에 대해 검사하므로, 줄바꿈을 넘는 부분 일치도 맞을 수 있다(수용).
+  - 하위 호환 추가다.
 
 ### 2.4 상태와 전이
 
@@ -295,7 +311,7 @@ RQ-R38~RQ-R56.
 | 코드 | 케이스 | 규칙·UC | 층 | 테스트 위치 |
 | --- | --- | --- | --- | --- |
 | RQ-001 | 로그인한 사용자는 필드 카탈로그를 받고 미인증은 401이다 | RQ-R1, RQ-R2, RQ-UC1 | backend | `web/test_report_routes.py` |
-| RQ-002 | 카탈로그는 Deal 28개·Deal Actions 12개를 정해진 key·이름·순서로 담는다 | RQ-R2, RQ-UC1 | backend | `application/test_list_report_fields.py`, `domain/test_report_catalog.py`, `web/test_report_routes.py` |
+| RQ-002 | 카탈로그는 Deal 29개·Deal Actions 12개를 정해진 key·이름·순서로 담는다 | RQ-R2, RQ-UC1 | backend | `application/test_list_report_fields.py`, `domain/test_report_catalog.py`, `web/test_report_routes.py` |
 | RQ-003 | 필드마다 형식별 포맷·연산자·집계와 기본값을 갖는다 | RQ-R3, RQ-UC1 | backend | `application/test_list_report_fields.py`, `domain/test_report_catalog.py`, `web/test_report_routes.py` |
 | RQ-004 | 숫자 필드는 포맷이 없고 금액만 원 단위이며 이름이 '금액'이다 | RQ-R3, RQ-R4, RQ-UC1 | backend | `application/test_list_report_fields.py`, `domain/test_report_catalog.py`, `web/test_report_routes.py` |
 | RQ-005 | Action 건수는 그룹핑 전용·조건 불가·집계 건수 고정이다 | RQ-R4, RQ-UC1 | backend | `domain/test_report_catalog.py` |
@@ -411,15 +427,22 @@ RQ-R38~RQ-R56.
 | RQ-115 | 저장 정의의 네 날짜 필드 ymd_hm은 읽을 때 ymd로 바뀐다 | RQ-R58, RQ-R57 | backend | `domain/test_report_stored.py` |
 | RQ-116 | 저장 정의의 예전 key deal.solution은 읽을 때 deal.product로 바뀌어 실행된다 | RQ-R57, RQ-R59, RQ-UC3 | backend | `domain/test_report_stored.py::test_the_old_solution_key_is_read_as_the_product_key_in_columns_and_conditions`, `domain/test_report_stored.py::test_the_product_key_and_other_fields_are_kept_when_read`, `application/test_report_legacy_definition.py::test_legacy_solution_key_opens_and_runs_as_the_product_field`, `repositories/test_report_legacy_definition_run_contract.py::test_legacy_solution_key_runs_as_the_product_field` |
 | RQ-117 | 조회·저장 요청의 deal.solution은 unknown-field 422다 | RQ-R59, RQ-R9, RQ-UC4 | backend | `web/test_report_routes.py::test_the_old_solution_key_is_an_unknown_field_and_nothing_is_run`, `web/test_saved_report_validation.py::test_the_old_solution_key_is_422_unknown_field_and_nothing_is_saved` |
+| RQ-118 | action.comment는 그 Action의 Comment를 작성 순 줄바꿈으로 이어 붙이고, 없으면 비어 있음 조건에 걸린다 | RQ-R60, RQ-UC1 | backend | `domain/test_report_definition_scope.py`, `repositories/test_report_query_comment_contract.py` |
+| RQ-119 | 조회·저장 요청의 action.memo는 unknown-field 422다 | RQ-R60, RQ-R9, RQ-UC1 | backend | `web/test_report_routes.py`, `web/test_saved_report_validation.py` |
+| RQ-120 | 저장 정의의 action.memo는 읽을 때 action.comment로 바뀐다 | RQ-R57, RQ-R60, RQ-UC1 | backend | `application/test_report_legacy_definition.py`, `domain/test_report_stored.py` |
+| RQ-121 | deal.comment는 Action 연결 여부와 무관하게 그 Deal의 모든 Comment를 작성 순으로 이어 붙이고 다른 Deal 것은 섞이지 않는다 | RQ-R61, RQ-UC1 | backend | `repositories/test_report_query_comment_contract.py` |
+| RQ-122 | deal.comment만 쓴 리포트는 Deal 범위(action_filter none)로 Deal당 1행이다 | RQ-R61, RQ-UC1 | backend | `domain/test_report_definition_scope.py`, `repositories/test_report_query_comment_contract.py` |
+| RQ-123 | Action 행 범위 그룹핑에서 deal.comment 건수는 Deal당 한 번 센다 | RQ-R61, RQ-UC1 | backend | `repositories/test_report_query_comment_contract.py` |
+| RQ-124 | deal.comment contains 조건은 Deal Comment·Action Comment 어느 쪽 본문에 있어도 그 Deal을 고른다 | RQ-R61, RQ-UC1 | backend | `repositories/test_report_query_comment_contract.py` |
 
 ### RQ-001 로그인한 사용자는 필드 카탈로그를 받고 미인증은 401이다
 - Given VIEWER가 로그인함
 - When `GET /reports/fields`를 부르고, 로그인하지 않은 채 같은 경로를 부른다
 - Then 첫 요청은 200이고 본문 키는 정확히 `limits`·`entities`·`formats`·`operators`·`aggregates`·`relative_periods`·`fields`, `fields` key 순서는 카탈로그 순서, `entities` key는 `deal`·`action`이며, 둘째 요청은 401 `unauthenticated`다
 
-### RQ-002 카탈로그는 Deal 28개·Deal Actions 12개를 정해진 key·이름·순서로 담는다
+### RQ-002 카탈로그는 Deal 29개·Deal Actions 12개를 정해진 key·이름·순서로 담는다
 - When 카탈로그를 읽는다
-- Then 필드는 40개이고 앞 28개는 `deal.*`·뒤 12개는 `action.*`이며 key·이름·순서가 2.2 표와 같고, 모든 필드의 key 접두어가 `entity`와 같다
+- Then 필드는 41개이고 앞 29개는 `deal.*`(29번째 `deal.comment`)·뒤 12개는 `action.*`(Action 필드 key `action.comment`·이름 "Comment(Action)")이며 key·이름·순서가 2.2 표와 같고, 모든 필드의 key 접두어가 `entity`와 같다
 
 ### RQ-003 필드마다 형식별 포맷·연산자·집계와 기본값을 갖는다
 - When 카탈로그를 읽는다
@@ -937,6 +960,40 @@ RQ-R38~RQ-R56.
 - When `/reports/query`에 컬럼 `deal.solution`으로, 또 컬럼 `deal.name`·조건 `deal.solution contains "a"`로 조회하고, `POST /reports`에 컬럼 `deal.solution`인 정의로 저장한다
 - Then 각각 422 `invalid-report`이고 위치는 `["columns", 0, "field"]`·`["conditions", 0, "field"]`·`["columns", 0, "field"]`, code `unknown-field` "허용되지 않은 필드입니다: deal.solution"이며 조회 Port는 불리지 않고 리포트는 저장되지 않는다
 
+### RQ-118 action.comment는 그 Action의 Comment를 작성 순 줄바꿈으로 이어 붙이고, 없으면 비어 있음 조건에 걸린다
+- Given Action A에 Comment "첫째"·"둘째"가 순서대로 있고 Action B에는 Comment가 없다
+- When 컬럼 `action.comment`와 조건 `action.comment is_empty`로 각각 조회한다
+- Then A의 값은 "첫째\n둘째"(작성 순)이고, B는 null이며 `is_empty` 조건은 B만 고른다. Repository 계약 테스트다
+
+### RQ-119 조회·저장 요청의 action.memo는 unknown-field 422다
+- When `/reports/query`에 컬럼 `action.memo`로, 또 조건 `action.memo contains "a"`로 조회하고, `POST /reports`에 컬럼 `action.memo`인 정의로 저장한다
+- Then 각각 422 `invalid-report` code `unknown-field` "허용되지 않은 필드입니다: action.memo"이며 조회 Port는 불리지 않고 리포트는 저장되지 않는다
+
+### RQ-120 저장 정의의 action.memo는 읽을 때 action.comment로 바뀐다
+- Given 저장 정의 JSON이 컬럼 `{field: "action.memo", label: "메모"}`와 조건 `action.memo contains "a"`인 예전 형식
+- When 상세를 열고 읽은 정의를 다시 쓴다
+- Then 컬럼·조건 field는 `action.comment`이고 컬럼 label "메모"는 그대로이며, 다시 쓴 JSON에는 `action.memo`가 없다
+
+### RQ-121 deal.comment는 Action 연결 여부와 무관하게 그 Deal의 모든 Comment를 작성 순으로 이어 붙이고 다른 Deal 것은 섞이지 않는다
+- Given Deal D에 Deal Comment "예산"과 Action Comment "견적"이 있고 다른 Deal에 Comment "남"이 있다
+- When 컬럼 `deal.comment`로 조회한다
+- Then D의 값은 "예산\n견적"(작성 순)이고 "남"은 섞이지 않는다. Repository 계약 테스트다
+
+### RQ-122 deal.comment만 쓴 리포트는 Deal 범위(action_filter none)로 Deal당 1행이다
+- Given Action이 여러 건인 Deal 하나와 Comment가 있다
+- When 컬럼 `deal.comment`만으로 조회한다
+- Then action_filter는 `none`이고 그 Deal은 1행이다
+
+### RQ-123 Action 행 범위 그룹핑에서 deal.comment 건수는 Deal당 한 번 센다
+- Given Action이 3건이고 Comment가 있는 Deal 1개를 `action.type`으로 그룹핑한다
+- When `deal.comment`의 건수 집계를 조회한다
+- Then 그룹마다 Action 행 수가 아니라 Comment가 있는 Deal 수(1)로 센다
+
+### RQ-124 deal.comment contains 조건은 Deal Comment·Action Comment 어느 쪽 본문에 있어도 그 Deal을 고른다
+- Given Deal X에는 Deal Comment에만 "예산", Deal Y에는 Action Comment에만 "예산", Deal Z에는 "예산"이 없다
+- When 조건 `deal.comment contains "예산"`으로 조회한다
+- Then X와 Y가 나오고 Z는 나오지 않는다
+
 ## 5. 변경 이력
 
 | 날짜 | 변경 | 영향 테스트 코드 |
@@ -948,3 +1005,5 @@ RQ-R38~RQ-R56.
 | 2026-11-13 | 확정(2026-11-13 사용자 확인): 최종 업데이트·Status 진입일·수행일·종료일을 date 형식으로 변경(카탈로그 27·28·38·39, RQ-R30, RQ-R58 신설). field key는 유지하고, 저장 리포트의 ymd_hm은 ymd로 자동 변환. 카탈로그·결과 열 형식 변경(호환 깨짐, 사용자 승인) | 신규 RQ-113~RQ-115. 변경 RQ-040, RQ-053 |
 | 2026-11-13 | 확정(2026-11-13 사용자 확인): Deal Vendor 필수(DE-R7, SC-R22)로 Vendor 없는 Deal 예시를 바꿈(RQ-R33 문장 삭제, is_empty는 빈 Solution, NULL 정렬은 파트너사). `deal.vendor` 필드·연산자·SQL은 그대로 | 변경 RQ-032, RQ-046, RQ-051 |
 | 2026-11-16 | 초안(사용자 확인 대기): Deal Solution → Product 이름 변경. 카탈로그 3번 key `deal.product`·이름 "Product"(RQ-R59 신설), 요청의 예전 key는 unknown-field, 저장 정의의 예전 key는 읽을 때 변환(RQ-R57 ④). **API 응답(카탈로그) 호환 깨짐**(사용자 승인) | 신규 RQ-116, RQ-117. 변경(표기·키): RQ-002, RQ-032 |
+| 2026-11-17 | 확정(2026-11-17 사용자 확인): CM 확정: Memo → Comment 엔티티 분리. 카탈로그 `action.memo`를 `action.comment`(Comment(Action))로 바꾸고 `deal.comment`(Comment(Deal 전체))를 29번으로 추가(Deal 29·Action 12·전체 41, RQ-R60·R61 신설, RQ-R57 ⑤, RQ-R2, 2.2). 읽는 테이블에 `deal_comments` 추가. **API 응답(카탈로그) 호환 깨짐**(사용자 승인) | 신규 RQ-118~RQ-124. 변경 RQ-002 |
+| 2026-11-17 | 프런트 Fake 카탈로그를 `deal.comment`·`action.comment`로 맞춤(CM-084) | 없음 |

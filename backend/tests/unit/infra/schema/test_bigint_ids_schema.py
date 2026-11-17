@@ -22,7 +22,7 @@ from tests.support.head_rows import (
     insert_partner_link,
     insert_user,
 )
-from tests.support.ids import MAX_ID
+from tests.support.ids import MAX_ID, new_id
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
@@ -42,6 +42,7 @@ SURROGATE_KEY_TABLES = [
     "deal_actions",
     "deal_attachments",
     "deal_history",
+    "deal_comments",
     "reports",
     "partner_meetings",
     "license_contracts",
@@ -56,6 +57,7 @@ DEAL_CHILD_TABLES = [
     "deal_history",
     "deal_actions",
     "deal_attachments",
+    "deal_comments",
 ]
 UUID_COLUMNS = (
     "select table_name, column_name from information_schema.columns"
@@ -117,7 +119,7 @@ async def test_no_uuid_column_remains(session: AsyncSession) -> None:
 async def test_surrogate_keys_are_bigint_identity_by_default(
     session: AsyncSession, table: str
 ) -> None:
-    """대리 키 테이블 19개의 id는 BIGINT IDENTITY BY DEFAULT(1, 1, 2^53-1)인 단일 PK다.
+    """대리 키 테이블 20개의 id는 BIGINT IDENTITY BY DEFAULT(1, 1, 2^53-1)인 단일 PK다.
 
     테스트 코드: SC-014
     """
@@ -127,7 +129,7 @@ async def test_surrogate_keys_are_bigint_identity_by_default(
     primary_key = (await session.execute(text(PRIMARY_KEY), {"table": table})).all()
 
     # then: bigint identity BY DEFAULT, 최대 2^53-1, 시작 1, 증가 1, NOT NULL이고 PK는 id 하나다
-    assert len(SURROGATE_KEY_TABLES) == 19
+    assert len(SURROGATE_KEY_TABLES) == 20
     assert row.data_type == "bigint"
     assert row.is_identity == "YES"
     assert row.identity_generation == "BY DEFAULT"  # 앱이 미리 받은 id도 넣을 수 있어야 한다
@@ -206,11 +208,11 @@ async def test_deal_children_reference_deals_by_id_with_cascade(
 
 
 async def test_deleting_a_deal_removes_its_children(session: AsyncSession) -> None:
-    """Deal을 지우면 Deal 소속 테이블 5개의 행이 함께 지워진다.
+    """Deal을 지우면 Deal 소속 테이블 6개의 행이 함께 지워진다.
 
     테스트 코드: SC-022
     """
-    # given: Deal 하나와 그 Deal의 파트너 링크·BANT 선택·이력·Action·첨부 행
+    # given: Deal 하나와 그 Deal의 파트너 링크·BANT 선택·이력·Action·첨부·Comment 행
     owner = await insert_user(session, "owner-x")
     partner = await insert_contact(session, kind="partner", company="파트너")
     code = await insert_deal(session, await insert_contact(session), owner_user_id=owner)
@@ -222,6 +224,14 @@ async def test_deleting_a_deal_removes_its_children(session: AsyncSession) -> No
     await insert_history(session, code, owner)
     await insert_action(session, code, owner)
     await insert_attachment(session, code, owner)
+    await session.execute(
+        text(
+            "insert into deal_comments (id, deal_id, action_id, author_user_id, body, created_at,"
+            " updated_at) select :id, id, null, :author, '본문', now(), now() from deals"
+            " where deal_code = :code"
+        ),
+        {"id": new_id(), "author": owner, "code": code},
+    )
 
     # when: 그 Deal을 지운다
     await session.execute(text("delete from deals where deal_code = :code"), {"code": code})
@@ -230,8 +240,8 @@ async def test_deleting_a_deal_removes_its_children(session: AsyncSession) -> No
         (await session.execute(text(f"select count(*) from {table}"))).scalar_one()  # noqa: S608
         for table in DEAL_CHILD_TABLES
     ]
-    # then: 소속 테이블 5개의 행 수가 모두 0이다
-    assert counts == [0, 0, 0, 0, 0]
+    # then: 소속 테이블 6개의 행 수가 모두 0이다
+    assert counts == [0, 0, 0, 0, 0, 0]
 
 
 async def test_meaningful_keys_are_kept(session: AsyncSession) -> None:
@@ -365,6 +375,10 @@ EXPECTED_DEAL_CHILD_OBJECTS = {
         "fk_deal_attachments_deal_id_deals",
         "uq_deal_attachments_deal_id_file_name",
         "ix_deal_attachments_deal_id_uploaded_at",
+    },
+    "deal_comments": {
+        "fk_deal_comments_deal_id_deals",
+        "ix_deal_comments_deal_id_created_at",
     },
 }
 OBJECT_NAMES = (

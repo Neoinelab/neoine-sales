@@ -28,6 +28,7 @@ function hasLinks(ctx: MockContext, id: number): boolean {
     d.actions.some((x) => x.actorId === id) ||
     d.history.some((x) => x.byId === id) ||
     d.attachments.some((x) => x.uploadedById === id) ||
+    d.comments.some((x) => x.authorId === id) ||
     d.labels.some((x) => x.createdById === id)
   )
 }

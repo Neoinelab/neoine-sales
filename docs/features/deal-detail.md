@@ -1,4 +1,4 @@
-# Deal 상세·변경 적용·이력·삭제   (feature 코드: DD, 상태: 확정(2026-11-16 사용자 확인))
+# Deal 상세·변경 적용·이력·삭제   (feature 코드: DD, 상태: 확정(2026-11-17 사용자 확인))
 
 > 이 문서는 **이미 구현된 동작**을 정본 명세로 옮긴 것입니다(2026-11-10). 근거는 작업 트리의 코드(`backend/src/app/domain/deal/{code,entities,policy,errors,history,sync,sync_state,sync_plan,sync_finalize}.py`, `app/application/deal/{get_deal,apply_change,sync_change,history_writer,list_deal_history,deletion_impact,delete_deal}.py`, `app/web/routers/deals.py`, `app/web/schemas/{deal_change,deal_response}.py`, `app/infra/db/{deal_history_repository,deal_aggregates}.py`, `frontend/src/features/deals/detail/{DealDetailPage,DealTitle,SummaryBar,DealIdentityRows,DealFacts,InfoCards,BantCard,ContactCards,InlineContactBlock,ContactSession,contactInline,InlineEdit,HistoryTab,DeleteDealDialog,detailHelpers}.tsx|ts`, `shared/sync/{useSyncedChange,RevenueDialog,ChoiceDialog}.tsx`, `shared/model/{sync,history,permissions}.ts`)이며 문구·type·상태 코드는 코드에서 그대로 옮겼습니다. 코드와 화면·테스트·Fake가 어긋나는 점은 계획(`artifacts/10-analysis/dd-plan.md`)의 확인 필요 질문으로 분리했습니다.
 >
@@ -9,7 +9,7 @@
 - 목적: 한 Deal을 열어 현재 값을 보고, 값을 그 자리에서 고치고(Status·Forecast는 동기화 규칙을 지키며), 무엇이 언제 누구에 의해 바뀌었는지(Deal History) 보고, 필요하면 Deal을 지운다.
 - 사용자(역할): 조회는 로그인한 모든 역할(admin·sales·user), 값 변경은 sales·admin(Owner 여부와 무관), 삭제는 Owner 본인 sales와 admin(완료된 Deal은 admin만 — DD-R41, 2026-11-12).
 - 범위
-  - 화면 `/deals/:dealCode`: 머리(Deal 이름·목록·삭제), 탭 3개 틀, Deal 정보 타일(요약 값·인라인 수정), 고객·파트너·BANT 카드와 인라인 수정, Deal History 탭, 삭제 확인 대화상자
+  - 화면 `/deals/:dealCode`: 머리(Deal 이름·목록·삭제), 탭 4개 틀(Comments 탭 내용은 CM), Deal 정보 타일(요약 값·인라인 수정), 고객·파트너·BANT 카드와 인라인 수정, Deal History 탭, 삭제 확인 대화상자
   - API `GET /deals/{code}`, `POST /deals/{code}/changes`, `GET /deals/{code}/history`, `GET /deals/{code}/deletion-impact`, `DELETE /deals/{code}`
   - Status·Forecast 동기화 규칙(불변식과 단일 변경 계획·확정) — 모든 Deal 저장 경로가 이 규칙을 쓴다
   - Deal History 기록 형식(등록 항목, Deal 필드 변경 diff의 순서·대상·표기·자르기)과 목록
@@ -46,9 +46,9 @@
 
 - `deals`(PK `id` BIGINT identity, `deal_code` UNIQUE): 이 문서가 읽고 바꾸는 열 — `status_key`·`forecast_key`(codes 복합 FK RESTRICT, CD 2.2), `revenue_amount`(CHECK `1 ~ 2^53−1`), `revenue_date`, `updated_at`. CHECK `won_sync` = `(status_key = 'contract_completed') = (forecast_key = 'won')`. 나머지 열과 제약은 DE.
 - `deal_partner_links`: Deal–파트너 연락처 연결(`contact_id`, `linked_at`, `unlinked_at`; 활성 = `unlinked_at` NULL, 활성은 최대 1건). 해제해도 지우지 않는다.
-- `deal_history`(PK `id` BIGINT identity, `deal_id` FK → deals CASCADE): `changed_at`(timestamptz), `changed_by`(users FK RESTRICT), `category`(아래 12값), `target`(최대 300자), `before`·`after`(각 최대 1000자).
-- 값 객체: `DealCode`(형식 위), `SyncState(status_key, forecast_key)`, `CoChange(field, before, after)`, `SyncResolution(revenue_amount, revenue_date, status_key, forecast_key)`, `HistoryDraft(category, target, before, after)`(만들 때 자르기 DD-R20), `HistoryCategory` 12값 `created`·`status`·`forecast`·`amount`·`expectedClose`·`owner`·`partner`·`contact`·`bant`·`action`·`attachment`·`other`.
-- Deal을 지우면 `deal_id`로 연결된 자식 행(이력·Action·첨부 메타·파트너 링크·BANT 선택·라이선스 계약)이 DB CASCADE로 함께 지워진다. 연락처·Label·코드·Vendor·사용자·파트너 미팅은 Deal을 가리키지 않거나 RESTRICT 대상이 아니므로 남는다.
+- `deal_history`(PK `id` BIGINT identity, `deal_id` FK → deals CASCADE): `changed_at`(timestamptz), `changed_by`(users FK RESTRICT), `category`(아래 13값), `target`(최대 300자), `before`·`after`(각 최대 1000자).
+- 값 객체: `DealCode`(형식 위), `SyncState(status_key, forecast_key)`, `CoChange(field, before, after)`, `SyncResolution(revenue_amount, revenue_date, status_key, forecast_key)`, `HistoryDraft(category, target, before, after)`(만들 때 자르기 DD-R20), `HistoryCategory` 13값 `created`·`status`·`forecast`·`amount`·`expectedClose`·`owner`·`partner`·`contact`·`bant`·`action`·`attachment`·`comment`·`other`.
+- Deal을 지우면 `deal_id`로 연결된 자식 행(이력·Action·첨부 메타·파트너 링크·BANT 선택·라이선스 계약·Comment)이 DB CASCADE로 함께 지워진다. 연락처·Label·코드·Vendor·사용자·파트너 미팅은 Deal을 가리키지 않거나 RESTRICT 대상이 아니므로 남는다.
 
 ### 2.3 비즈니스 규칙
 
@@ -86,8 +86,8 @@ Status·Forecast 동기화
 - **DD-R16** 폐지된 Deal 경로는 없다: `GET`·`PUT`·`DELETE /deals/<UUID>`, `GET /deals/by-code/<code>`, `POST /deals/<UUID>/stage`, `GET /deals/<UUID>/stage-changes`, `GET /deals/pipeline`은 404 또는 405다(UUID·`pipeline`은 형식이 틀린 code라 404, `PUT /deals/{code}`는 405 — PL-R13).
 
 Deal History
-- **DD-R17** `GET /deals/{code}/history?category=<값>`은 로그인한 모든 역할이 부른다. Deal이 없으면 404(DD-R1). 응답은 `HistoryEntryResponse[]` — 필드 `id`, `deal_code`, `at`, `by`(UserRef, 퇴사자도 `resigned` true로), `category`, `target`, `before`, `after` — 이고 순서는 `at` 내림차순, 같으면 `id` 내림차순(나중에 기록한 것이 위)이다. `category`를 주면 그 구분만 돌려준다. `category`가 12값(2.2)이 아니면 422 `request-validation`. 페이지 없이 전부 돌려준다.
-- **DD-R18** 이력을 쓰는 곳과 문구 소유: Deal 등록(DD-R19), Deal 필드 변경 diff(DD-R20·R21 — 폼 수정 DE, 단일 변경, Action 등록의 Status·Forecast 변경 AC가 같은 함수를 씀), 연락처 수정(CT-R10), Action·Next Action(AC·NA), 첨부(AT). 이 문서는 등록 항목과 Deal 필드 diff의 형식, 저장 형식(DD-R20 자르기), 목록(DD-R17)을 정한다.
+- **DD-R17** `GET /deals/{code}/history?category=<값>`은 로그인한 모든 역할이 부른다. Deal이 없으면 404(DD-R1). 응답은 `HistoryEntryResponse[]` — 필드 `id`, `deal_code`, `at`, `by`(UserRef, 퇴사자도 `resigned` true로), `category`, `target`, `before`, `after` — 이고 순서는 `at` 내림차순, 같으면 `id` 내림차순(나중에 기록한 것이 위)이다. `category`를 주면 그 구분만 돌려준다. `category`가 13값(2.2)이 아니면 422 `request-validation`. 페이지 없이 전부 돌려준다.
+- **DD-R18** 이력을 쓰는 곳과 문구 소유: Deal 등록(DD-R19), Deal 필드 변경 diff(DD-R20·R21 — 폼 수정 DE, 단일 변경, Action 등록의 Status·Forecast 변경 AC가 같은 함수를 씀), 연락처 수정(CT-R10), Action·Next Action(AC·NA), 첨부(AT), Comment(CM-R13). 이 문서는 등록 항목과 Deal 필드 diff의 형식, 저장 형식(DD-R20 자르기), 목록(DD-R17)을 정한다.
 - **DD-R19** Deal을 등록하면 구분 `created`, 대상 "Deal 등록", 변경 전 "", 변경 후 "Deal 등록" 항목 1건이 등록자·등록 시각으로 남는다.
 - **DD-R20** Deal 필드 diff: 변경 전후 값을 비교해 **바뀐 필드마다 1건**, 바뀐 것이 없으면 0건이다. 순서는 고정 — Status, Forecast, 금액, Expected Close, Owner, 파트너, 고객 연락처, BANT(Budget·Authority·Need·Timeline), Deal Name, Vendor, Product, Users count, 견적, POC, 구매절차. 한 번의 저장에서 나온 항목은 같은 변경 시각·변경자를 가지며 Deal `updated_at`이 같은 시각이 되고 같은 트랜잭션에 저장된다. 저장할 때 대상은 300자, 변경 전·후는 각 1000자(유니코드 코드 포인트 수)를 넘으면 앞부분 299자·999자 + "…"로 자른다. 2026-11-16 이름 변경(Solution → Product) 전에 남은 이력 행의 대상 "Solution"은 바꾸지 않고(데이터 덮어쓰기 금지, 계획 Q3), 그 뒤의 변경만 대상 "Product"로 남는다.
 - **DD-R21** diff 항목의 구분·대상·표기:
@@ -113,15 +113,15 @@ Deal History
   "함께 변경" 표기는 단일 변경·Action 등록에서 함께 바뀐 쪽에만 붙고, 폼 저장(두 값을 직접 보냄)에는 붙지 않는다. 대소문자만 바뀐 텍스트도 바뀐 것이다.
 
 삭제 영향·삭제
-- **DD-R22** `GET /deals/{code}/deletion-impact`는 로그인한 모든 역할이 부른다. 200 `{history_count, action_count, attachment_count, license_contract_count}` — 그 Deal의 이력 수(등록 항목 포함), Action 수, 첨부 수(계산 세부 AT), 계약 수(LC-R20)이며 다른 Deal의 건수는 섞이지 않는다. 없는 Deal 404(DD-R1).
+- **DD-R22** `GET /deals/{code}/deletion-impact`는 로그인한 모든 역할이 부른다. 200 `{history_count, action_count, attachment_count, license_contract_count, comment_count}` — 그 Deal의 이력 수(등록 항목 포함), Action 수, 첨부 수(계산 세부 AT), 계약 수(LC-R20), Comment 수(CM-R18)이며 다른 Deal의 건수는 섞이지 않는다. 없는 Deal 404(DD-R1).
 - **DD-R23** `DELETE /deals/{code}?confirm_code=<입력값>`: `confirm_code` 쿼리는 필수이고 없으면 422 `request-validation`이다. 성공하면 204(본문 없음).
 - **DD-R24** 삭제 판정 순서: user는 역할 가드 403 "이 작업을 할 권한이 없습니다(읽기 전용 계정)"(PL-R6) → `confirm_code` 누락 422 → 없는 Deal·형식이 틀린 code 404 → 삭제 권한(admin은 모든 Deal, sales는 자기가 Owner인 Deal만) 아니면 403 `forbidden` "본인 Deal 또는 admin만 삭제할 수 있습니다." → 완료된 Deal(DD-R41)인데 admin이 아니면 403 `forbidden` "완료된 Deal은 관리자만 삭제할 수 있습니다." → `confirm_code`가 Deal code와 **정확히**(대소문자 포함) 같지 않으면 422 `invalid-value` "Deal code가 일치하지 않습니다.". 거절되면 아무것도 지우지 않는다. 권한 판정이 확인 code보다 먼저라 다른 영업은 code가 틀려도 403이다. 완료 판정도 확인 code보다 먼저라 Owner 영업이 완료된 자기 Deal을 틀린 code로 지워도 완료 문구 403이고, 다른 영업이 완료된 Deal을 지우면 Owner 문구 403이 먼저다.
-- **DD-R25** 삭제는 물리 삭제다. Deal과 그 이력·Action·첨부 행·파트너 링크·BANT 선택(·라이선스 계약, LC)이 함께 지워진다. 연락처·BANT Label·코드·Vendor·사용자·파트너 미팅 기록(PA)은 남고, 남은 연락처·Label로 다시 Deal을 등록할 수 있다. 다른 Deal의 데이터는 그대로다.
+- **DD-R25** 삭제는 물리 삭제다. Deal과 그 이력·Action·첨부 행·파트너 링크·BANT 선택(·라이선스 계약, LC)·Comment(CM-R18)가 함께 지워진다. 연락처·BANT Label·코드·Vendor·사용자·파트너 미팅 기록(PA)은 남고, 남은 연락처·Label로 다시 Deal을 등록할 수 있다. 다른 Deal의 데이터는 그대로다.
 - **DD-R26** 커밋한 뒤 운영 로그(INFO) 한 줄 `deal deleted code=<code> by=<사용자 id> at=<서버 시각 ISO>`를 남긴다(거절되면 없음). 저장 위치(IN)가 설정돼 있으면 커밋 뒤 `<저장 위치>/<deal code>` 폴더를 지우고(다른 Deal 폴더·저장 위치 루트는 남음, 계약 폴더는 LC-R26), 지우지 못하면 WARNING `deal files cleanup failed code=<code>`만 남기고 요청은 성공(204)이다. 저장 위치가 없으면 파일을 건드리지 않는다. 거절되거나 커밋이 실패하면 Deal과 파일 모두 남는다.
 - **DD-R41** 완료된 Deal(2026-11-12 사용자 요청): 삭제를 요청한 순간의 Forecast key가 `won`인 Deal(불변식 DD-R5상 Status `contract_completed`와 같다, "Won으로 종결된 Deal")이다. 판정은 key로 하며 코드 이름과 무관하다. Lost·진행 중 Deal과, Won이었다가 되돌린 Deal은 완료가 아니다. 완료된 Deal은 admin만 지울 수 있고(Owner 영업도 403, DD-R24), 서버가 강제하며 화면은 같은 판정으로 버튼을 끈다(DD-R30). 상세 조회·값 변경·삭제 영향 조회는 바뀌지 않는다.
 
 화면(frontend, `/deals/:dealCode`)
-- **DD-R27** 화면 틀: 머리에 Deal 이름(h1)과 "← 목록" 링크(목록 주소는 DL), 쓰기 권한이 있으면 "삭제" 버튼(접근 이름 "Deal 삭제"). 그 아래 탭 목록(이름 "상세 탭") 3개 "Deal 상세", "Actions", "Deal History" 순서이고 기본은 "Deal 상세"다. 주소 `?tab=actions`·`?tab=history`로 탭을 열고, 모르는 값이면 Deal 상세다. 탭을 고르면 주소의 `tab`을 바꾸고 Deal 상세로 오면 `tab`을 지운다. Deal 상세 탭에만 Deal 정보 타일·고객·파트너·BANT 카드·첨부 패널(AT)이 있다. 알림(성공 문구, 닫기 가능, 다른 화면에서 `state.notice`로 넘어온 문구 포함)은 탭 패널 맨 위에 보인다. 읽는 동안 "불러오는 중…", Deal을 읽지 못하면(404 등) 서버 문구 오류 배너와 "Deal 목록으로" 링크만 보인다.
+- **DD-R27** 화면 틀: 머리에 Deal 이름(h1)과 "← 목록" 링크(목록 주소는 DL), 쓰기 권한이 있으면 "삭제" 버튼(접근 이름 "Deal 삭제"). 그 아래 탭 목록(이름 "상세 탭") 4개 "Deal 상세", "Actions", "Deal History", "Comments" 순서(Comments가 맨 오른쪽, 내용·배지는 CM-R32~R39)이고 기본은 "Deal 상세"다. 주소 `?tab=actions`·`?tab=history`·`?tab=comments`로(Actions는 `&action=<id>`로 그 Action 팝업, CM-R37) 탭을 열고, 모르는 값이면 Deal 상세다. 탭을 고르면 주소의 `tab`을 바꾸고 Deal 상세로 오면 `tab`을 지운다. Deal 상세 탭에만 Deal 정보 타일·고객·파트너·BANT 카드·첨부 패널(AT)이 있다. 알림(성공 문구, 닫기 가능, 다른 화면에서 `state.notice`로 넘어온 문구 포함)은 탭 패널 맨 위에 보인다. 읽는 동안 "불러오는 중…", Deal을 읽지 못하면(404 등) 서버 문구 오류 배너와 "Deal 목록으로" 링크만 보인다.
 - **DD-R28** Deal 정보 타일(제목 h2 "Deal 정보") 행 순서: Deal code(읽기 전용 글자), Owner, Status(배지 + "N일째" — RK), Forecast(배지), 금액(단위:원), Expected Close, Next Action(텍스트·"Due <날짜>"·상태, 없으면 "없음", 경고 배지 — RK·NA), 최종 업데이트(상대 일수 — RK-R17), Vendor(없으면 "—" — 리비전 SC-R22 뒤로는 항상 있음), Product(빈 값이면 "—"), Users count, 견적(제출/미제출 + " (<날짜>)"), POC("<YES|ING|NO> · <완료|진행 중|하지 않음>" + 날짜), 구매절차(없으면 "—"), 등록일. Forecast 결과가 `won`이면 "Won으로 종결된 Deal입니다. 매출금액과 매출일은 확정 값이며, 필요하면 계속 수정할 수 있습니다.", `lost`면 "Lost로 종결된 Deal입니다. Forecast를 바꾸면 다시 진행 중으로 되돌릴 수 있습니다."를 보인다.
 - **DD-R29** 카드: Deal 정보 아래 고객(h2 "고객")·파트너(h2 "파트너")·BANT(h2 "BANT") 순서. 고객·파트너 카드는 회사·담당자·직급·이메일·전화 5행(값 없으면 "—"), 파트너가 없으면 같은 5행이 모두 "—"이고 "파트너 없음" 같은 글자는 없다. 해제된 파트너가 있으면 접힌 "이전 파트너 이력 (N)" 안에 "<회사> <담당자> (<연결일> ~ <해제일>)"로 보인다. BANT 카드는 Budget·Authority·Need·Timeline 4행(Label 이름, 없으면 "—").
 - **DD-R30** 역할별 화면: `canWrite`(admin·sales, PL-R36)면 값마다 클릭 편집 버튼(접근 이름 "<항목> 수정", 제목은 title "Deal 이름 수정")이 있고 별도 "수정" 링크는 없다. user는 같은 값을 글자로만 보고 편집 버튼·삭제 버튼·연락처 입력 버튼이 없다. 삭제 버튼은 `canDeleteDeal`(admin은 모두, sales는 자기가 Owner이고 완료(DD-R41)가 아닌 Deal만, user는 불가)일 때 활성이고, 아니면 비활성 + title이다: Owner가 아니면 "본인 Deal 또는 admin만 삭제할 수 있습니다.", Owner이지만 완료된 Deal이면 "완료된 Deal은 관리자만 삭제할 수 있습니다."(서버 DD-R24와 같은 순서·문구). 편집은 그대로 가능하다. 판정은 화면이 가진 최신 Deal 값으로 하므로 상세에서 Status·Forecast를 바꿔 Won이 되면 곧바로 꺼지고, Won에서 되돌리면 다시 켜진다.
@@ -132,9 +132,9 @@ Deal History
 - **DD-R35** 파트너 추가·교체·제거(2026-11-16 변경): 파트너가 없으면 5행의 "—" 버튼(접근 이름 "파트너 <항목> 입력", 항목은 회사·담당자·직급·이메일·전화) 어느 것이든 세션(DD-R34)을 열고 포커스는 항상 회사명 칸이다. 세션 위에는 안내 "파트너를 입력하면 회사명과 담당자명이 모두 필요합니다."가 처음부터 보이고, 저장하면 "파트너가 추가되었습니다.". 파트너가 있을 때 세션 위 교체 안내 "기존 활성 파트너(<회사> <담당자>)는 이력으로 남고 비활성이 됩니다."는 회사명·담당자명 버튼으로 열었으면 처음부터 계속 보이고, 직급·이메일·전화 버튼으로 열었으면 처음에는 없다가 입력의 연결 연락처가 현재 파트너와 달라진 동안(회사를 바꾸거나 담당자를 다른 사람·새 이름으로 바꾼 동안)만 보인다. DD-R34 ②·③으로 저장하면 "파트너가 교체되었습니다."이고 이전 파트너가 이력으로 남는다. ①(같은 파트너의 연락 정보 수정)이면 "파트너 연락처가 저장되었습니다."이고 이전 파트너 이력은 늘지 않는다. 고객 카드 세션 위에는 안내가 없다. "파트너 제거" 버튼은 확인 대화상자(제목 "파트너 제거", 문구 "파트너 <회사> <담당자>을(를) 제거합니다. 제거한 파트너는 이전 파트너 이력에 남습니다.", 위험 버튼 "제거")를 거쳐 `partner: null`을 보내고 "파트너가 제거되었습니다."를 보인다. 실패하면 대화상자를 닫고 오류 배너를 보인다.
 - **DD-R36** Status·Forecast 인라인(Deal 정보 타일): 선택 상자에서 다른 값을 고르면 화면이 서버와 같은 계획 함수(`planChange`, DD-R6)로 판단한다. 독립 변경은 바로 단일 변경을 보낸다. 종결이면 "매출 확정" 대화상자 — 안내 "Status가 '<계약완료 이름>'로, Forecast가 '<Won 이름>'으로 함께 변경됩니다. 실제 매출금액과 매출일을 입력해야 저장할 수 있습니다.", 칸 "매출금액(단위:원, 실제 값)"(현재 금액으로 미리 채움)·"매출일(실제 값)"(현재 Expected Close로 미리 채움, yyyymmdd 입력 가능), 금액이 유효하고 날짜가 맞을 때만 "확정"이 켜진다. 되돌림이면 "함께 바꿀 값 선택" 대화상자 — 라디오 선택지(코드 이름, Won 이탈은 계약완료 제외·기본 없음, Lost 되살리기는 현재 Status 기본, 계약완료 이탈은 Won 제외), 고르기 전에는 "확인"이 꺼져 있다. Won 이탈 안내 "Forecast를 '<값>'(으)로 바꾸면 <Won 이름> 상태가 해제되어 Status를 <계약완료 이름>(으)로 둘 수 없습니다. 어떤 Status로 바꿀까요?", Lost 이탈 "Forecast를 '<값>'(으)로 바꾸면 <Lost 이름> 상태가 해제됩니다. Status를 어떤 값으로 둘까요?", 계약완료 이탈 "Status를 '<값>'(으)로 바꾸면 <계약완료 이름>이/가 해제됩니다. Forecast를 어떤 값으로 바꿀까요?". "취소"·Esc는 아무것도 보내지 않고 값이 그대로다. 확정 뒤(Won 이탈이면 계약 처리 확인 LC를 거쳐) 단일 변경을 `resolution`과 함께 보내고, 알림은 서버 `notice`, 없으면 "<Status|Forecast>가 '<이름>'(으)로 변경되었습니다."다. Status 편집을 Esc·포커스 이동으로 닫으면 아무것도 바꾸지 않는다.
 - **DD-R37** 금액·Expected Close 인라인: 금액 편집은 현재 원 값(콤마 포함, 반올림 없음)으로 시작하고 입력 중 콤마를 붙인다. 숫자가 아니거나 비면 "매출금액은 1원 이상의 정수를 입력하세요.", 2^53−1을 넘으면 "매출금액은 9,007,199,254,740,991원 이하로 입력하세요."로 막는다(요청 없음). 같은 금액이면 요청 없이 닫는다. 저장 알림 "금액이 변경되었습니다.". Expected Close는 비우면 "Expected Close를 입력하세요."(요청 없음), 저장 알림 "Expected Close가 변경되었습니다.". 둘 다 단일 변경으로 보내며 이력에 남는다.
-- **DD-R38** Deal History 탭: 툴바에 "변경 대상" 선택(전체 + 12구분 이름: Deal 등록·Status·Forecast·금액·Expected Close·Owner·파트너·고객 연락처·BANT Label·Action·첨부 파일·기타)과 안내 "Action 수정·삭제와 첨부 파일 변경도 이 이력에 기록됩니다.". 표(이름 "Deal History") 머리글 변경 시각·변경자·변경 대상·변경 전·변경 후, 서버 순서(최신순) 그대로, 변경자는 사용자 표기(퇴사자 "<이름>(퇴사)"), 빈 변경 전·후는 "—". 20행씩 페이지(페이저)이고 필터를 바꾸면 첫 페이지로 간다. 결과가 없으면 "변경 이력이 없습니다.". 읽기 전용(편집 버튼 없음).
-- **DD-R39** 삭제 확인 대화상자(제목 "Deal 삭제"): 문구 "삭제하면 Deal History <N>건, Action <N>건, 첨부 파일 <N>개, 라이선스 계약 <N>건과 파일 저장 디렉터리가 함께 삭제되며 복구할 수 없습니다."(건수를 읽기 전에는 "삭제 대상 건수를 확인하는 중입니다. 삭제하면 Deal History, Action, 첨부 파일, 라이선스 계약이 함께 삭제되며 복구할 수 없습니다.", 파트너 미팅은 언급하지 않음), "계속하려면 Deal code <code>를 입력하세요."와 칸 "Deal code 확인". 입력이 Deal code와 정확히 같을 때만 위험 버튼 "삭제"가 켜지고, 입력이 있는데 다르면 "Deal code가 일치하지 않습니다."를 보인다(소문자 불가). 삭제가 성공하면 즉시 상세를 떠나 목록 주소로 가며 알림 "Deal <code>이(가) 삭제되었습니다."를 넘긴다. 실패하면 서버 문구 오류 배너를 대화상자 안에 보인다. "취소"·Esc는 요청 없이 닫는다.
-- **DD-R40** 게이트웨이(`gateway/http`): `deals.get` = `GET /deals/{code}`(파트너 이력 포함 상세로 변환), `deals.impact` = `GET /deals/{code}/deletion-impact`(`historyCount`·`actionCount`·`attachmentCount`·`licenseContractCount`), `history.list` = `GET /deals/{code}/history`(구분이 없으면 쿼리 없이, 있으면 `category` 그대로, 서버 순서 유지), `deals.applyChange` = `POST /deals/{code}/changes`(필드 `statusKey`·`forecastKey`·`revenueAmount`·`revenueDate` → snake_case, resolution 답 → snake_case, 응답 `co_changed` → `coChanged[{field, from, to}]`, `notice`), `deals.remove` = `DELETE /deals/{code}?confirm_code=<입력 그대로>`(204 성공). 오류는 PL-R39로 바꾼다.
+- **DD-R38** Deal History 탭: 툴바에 "변경 대상" 선택(전체 + 13구분 이름: Deal 등록·Status·Forecast·금액·Expected Close·Owner·파트너·고객 연락처·BANT Label·Action·첨부 파일·Comment·기타)과 안내 "Action 수정·삭제, 첨부 파일, Comment 변경도 이 이력에 기록됩니다.". 표(이름 "Deal History") 머리글 변경 시각·변경자·변경 대상·변경 전·변경 후, 서버 순서(최신순) 그대로, 변경자는 사용자 표기(퇴사자 "<이름>(퇴사)"), 빈 변경 전·후는 "—". 20행씩 페이지(페이저)이고 필터를 바꾸면 첫 페이지로 간다. 결과가 없으면 "변경 이력이 없습니다.". 읽기 전용(편집 버튼 없음).
+- **DD-R39** 삭제 확인 대화상자(제목 "Deal 삭제"): 문구 "삭제하면 Deal History <N>건, Action <N>건, 첨부 파일 <N>개, 라이선스 계약 <N>건, Comment <N>건과 파일 저장 디렉터리가 함께 삭제되며 복구할 수 없습니다."(건수를 읽기 전에는 "삭제 대상 건수를 확인하는 중입니다. 삭제하면 Deal History, Action, 첨부 파일, 라이선스 계약, Comment가 함께 삭제되며 복구할 수 없습니다.", 파트너 미팅은 언급하지 않음), "계속하려면 Deal code <code>를 입력하세요."와 칸 "Deal code 확인". 입력이 Deal code와 정확히 같을 때만 위험 버튼 "삭제"가 켜지고, 입력이 있는데 다르면 "Deal code가 일치하지 않습니다."를 보인다(소문자 불가). 삭제가 성공하면 즉시 상세를 떠나 목록 주소로 가며 알림 "Deal <code>이(가) 삭제되었습니다."를 넘긴다. 실패하면 서버 문구 오류 배너를 대화상자 안에 보인다. "취소"·Esc는 요청 없이 닫는다.
+- **DD-R40** 게이트웨이(`gateway/http`): `deals.get` = `GET /deals/{code}`(파트너 이력 포함 상세로 변환), `deals.impact` = `GET /deals/{code}/deletion-impact`(`historyCount`·`actionCount`·`attachmentCount`·`licenseContractCount`·`commentCount`), `history.list` = `GET /deals/{code}/history`(구분이 없으면 쿼리 없이, 있으면 `category` 그대로, 서버 순서 유지), `deals.applyChange` = `POST /deals/{code}/changes`(필드 `statusKey`·`forecastKey`·`revenueAmount`·`revenueDate` → snake_case, resolution 답 → snake_case, 응답 `co_changed` → `coChanged[{field, from, to}]`, `notice`), `deals.remove` = `DELETE /deals/{code}?confirm_code=<입력 그대로>`(204 성공). 오류는 PL-R39로 바꾼다.
 
 ### 2.4 상태와 전이
 
@@ -170,8 +170,8 @@ Status·Forecast 조합의 상태(불변식 DD-R5를 지키는 것만 존재):
 | --- | --- | --- | --- |
 | GET `/deals/{code}` | — | 200 `DealDetailResponse`(DD-R2) | 401, 404 |
 | POST `/deals/{code}/changes` | `DealChangeRequest` `{change: CodeChange\|AmountChange\|DateChange, resolution?: ResolutionRequest\|null, delete_license_contracts?: bool}` | 200 `DealChangeResponse` `{deal, co_changed: [{field, from, to}], notice: str\|null}` | 401, 403, 404, 409 `invalid-state`(LC-R8), 422 `invalid-value`·`request-validation` |
-| GET `/deals/{code}/history` | query `category?`(12값) | 200 `HistoryEntryResponse[]` | 401, 404, 422 |
-| GET `/deals/{code}/deletion-impact` | — | 200 `DeletionImpactResponse` `{history_count, action_count, attachment_count, license_contract_count}` | 401, 404 |
+| GET `/deals/{code}/history` | query `category?`(13값) | 200 `HistoryEntryResponse[]` | 401, 404, 422 |
+| GET `/deals/{code}/deletion-impact` | — | 200 `DeletionImpactResponse` `{history_count, action_count, attachment_count, license_contract_count, comment_count}` | 401, 404 |
 | DELETE `/deals/{code}` | query `confirm_code`(필수) | 204 | 401, 403, 404, 422 `invalid-value`·`request-validation` |
 
 - `CodeChange` = `{field: "status_key"|"forecast_key", value: str}`, `AmountChange` = `{field: "revenue_amount", value: int}`, `DateChange` = `{field: "revenue_date", value: date}`(`field`로 구분). `ResolutionRequest` = `{revenue_amount?: int|null, revenue_date?: date|null, status_key?: str|null, forecast_key?: str|null}`. 모든 본문은 모르는 필드를 거부한다.
@@ -206,7 +206,7 @@ DD-R27~DD-R40.
 - 행위자: 로그인한 모든 역할
 - 사전 조건: 로그인, Deal 목록 등에서 Deal을 고름
 - 기본 흐름: `/deals/<code>` → `GET /deals/{code}` → Deal 정보 타일·카드·첨부를 Deal 상세 탭에 보인다(DD-R2~R4, DD-R27~R30)
-- 대안: 주소 `?tab=actions`·`?tab=history`로 다른 탭을 바로 연다
+- 대안: 주소 `?tab=actions`·`?tab=history`·`?tab=comments`로 다른 탭을 바로 연다
 - 예외: 없는 Deal·형식이 틀린 code → 오류 배너와 "Deal 목록으로"(DD-R1)
 - 결과: 현재 값, 퇴사 Owner 표기, 활성·이전 파트너가 보인다
 
@@ -292,14 +292,14 @@ DD-R27~DD-R40.
 | DD-037 | 이력 항목에는 변경자가 있고 퇴사자도 퇴사 표기로 나온다 | DD-R17, DD-UC5 | backend | `application/test_list_deal_history.py::test_each_entry_carries_its_author`<br>`application/test_list_deal_history.py::test_the_author_of_a_resigned_user_is_still_shown`<br>`repositories/test_deal_history_repository_contract.py::test_a_resigned_author_keeps_the_entry` |
 | DD-038 | 없는 Deal의 이력은 404, 모르는 구분은 422다 | DD-R1, DD-R17, DD-UC5 | backend | `application/test_list_deal_history.py::test_an_unknown_deal_is_not_found`<br>`web/test_deal_detail_routes.py::test_the_history_of_an_unknown_deal_is_not_found`<br>`web/test_deal_detail_routes.py::test_an_unknown_history_category_is_a_422_request_validation` |
 | DD-039 | 어떤 역할이든 이력을 읽는다 | DD-R17, DD-UC5 | backend | `web/test_deal_detail_routes.py::test_every_role_reads_the_history` |
-| DD-040 | 이력 구분은 정확히 12값이다 | DD-R17 | backend | `domain/test_deal_history_values.py::test_history_categories_are_exactly_the_twelve_frontend_values`<br>`domain/test_deal_history_values.py::test_each_frontend_category_value_is_a_member` |
+| DD-040 | 이력 구분은 정확히 13값이다 | DD-R17 | backend | `domain/test_deal_history_values.py::test_history_categories_are_exactly_the_thirteen_frontend_values`<br>`domain/test_deal_history_values.py::test_each_frontend_category_value_is_a_member`<br>`web/test_deal_comment_openapi.py` |
 | DD-041 | Deal을 등록하면 "Deal 등록" 이력 1건이 남는다 | DD-R19 | backend | `domain/test_deal_history_values.py::test_created_history_is_the_registration_entry`, `application/test_register_deal.py` |
 | DD-042 | 바뀐 것이 없으면 이력이 없고 바뀐 필드마다 고정 순서로 1건씩 남는다 | DD-R20 | backend | `domain/test_deal_history_diff.py` |
 | DD-043 | Owner·파트너·고객 연락처 이력은 사용자·연락처 표기로 남는다 | DD-R21 | backend | `domain/test_deal_history_diff.py` |
 | DD-044 | BANT 이력은 구분마다 1건이고 비우면 "선택 안 함"이다 | DD-R21 | backend | `domain/test_deal_history_diff.py::test_bant_changes_are_written_per_category_in_category_order`<br>`domain/test_deal_history_diff.py::test_clearing_a_bant_label_is_written_as_not_selected` |
 | DD-045 | 기타 필드 이력은 필드 이름이 대상이고 정해진 표기로 남는다 | DD-R21 | backend | `domain/test_deal_history_diff.py` |
 | DD-046 | 긴 대상·값은 300자·1000자로 잘리고 말줄임표가 붙는다 | DD-R20 | backend | `domain/test_deal_history_values.py::test_a_long_target_is_clipped_to_300_code_points_with_an_ellipsis`<br>`domain/test_deal_history_values.py::test_long_before_and_after_values_are_clipped_to_1000_code_points` |
-| DD-047 | 삭제 영향은 그 Deal의 이력·Action·첨부·계약 건수다 | DD-R22, DD-UC6 | backend | `application/test_deal_deletion_impact.py::test_the_impact_counts_the_history_and_actions_that_would_be_deleted`<br>`application/test_deal_deletion_impact.py::test_the_impact_counts_history_actions_attachments_and_contracts_only`<br>`repositories/test_deal_deletion_impact_contract.py`<br>`web/test_deal_detail_routes.py::test_the_deletion_impact_is_readable_by_every_role_and_has_four_counts`<br>`web/test_deal_detail_routes.py::test_an_anonymous_visitor_is_unauthenticated_on_every_deal_route` |
+| DD-047 | 삭제 영향은 그 Deal의 이력·Action·첨부·계약·Comment 건수다 | DD-R22, DD-UC6 | backend | `application/test_deal_deletion_impact.py::test_the_impact_counts_the_history_and_actions_that_would_be_deleted`<br>`application/test_deal_deletion_impact.py::test_the_impact_counts_history_actions_attachments_contracts_and_comments_only`<br>`repositories/test_deal_deletion_impact_contract.py`<br>`web/test_deal_detail_routes.py::test_the_deletion_impact_is_readable_by_every_role_and_has_five_counts`<br>`web/test_deal_detail_routes.py::test_an_anonymous_visitor_is_unauthenticated_on_every_deal_route` |
 | DD-048 | 새 Deal의 삭제 영향은 등록 이력 1건뿐이고 다른 Deal 건수는 섞이지 않는다 | DD-R22, DD-UC6 | backend | `application/test_deal_deletion_impact.py::test_a_new_deal_has_only_its_registration_entry`<br>`application/test_deal_deletion_impact.py::test_the_impact_of_another_deal_is_not_counted`<br>`repositories/test_deal_deletion_impact_contract.py::test_other_deals_are_not_counted` |
 | DD-049 | 없는 Deal·형식이 틀린 code의 삭제 영향은 404다 | DD-R1, DD-R22 | backend | `application/test_deal_deletion_impact.py::test_the_impact_of_an_unknown_or_malformed_code_is_not_found`<br>`repositories/test_deal_deletion_impact_contract.py::test_an_unknown_deal_is_not_found`<br>`web/test_deal_detail_routes.py::test_the_deletion_impact_of_an_unknown_deal_is_not_found` |
 | DD-050 | Owner 영업이 code를 정확히 입력하면 204이고 Deal이 사라진다 | DD-R23, DD-R24, DD-UC6 | backend | `application/test_delete_deal.py::test_the_owner_deletes_with_the_matching_code`<br>`application/test_delete_deal.py::test_the_deletion_is_committed`<br>`domain/test_deal_entity.py::test_the_owner_sales_user_can_delete`<br>`domain/test_deal_entity.py::test_the_confirmation_code_must_match_exactly`<br>`domain/test_deal_policy.py::test_sales_can_delete_only_a_deal_they_own`<br>`repositories/test_deal_repository_delete_contract.py::test_deleting_removes_the_deal_and_frees_the_code`<br>`web/test_deal_detail_routes.py::test_the_owner_deletes_the_deal_with_the_matching_code` |
@@ -314,7 +314,7 @@ DD-R27~DD-R40.
 | DD-059 | 삭제는 커밋 뒤 운영 로그 한 줄을 남기고 거절되면 남기지 않는다 | DD-R26, DD-UC6 | backend | `application/test_delete_deal.py::test_one_info_line_with_code_user_and_time_is_written_after_the_commit`<br>`application/test_delete_deal.py::test_nothing_is_logged_when_the_deletion_is_refused` |
 | DD-060 | 저장 위치가 있으면 커밋 뒤 그 Deal 폴더만 지우고 없으면 파일을 건드리지 않는다 | DD-R26, DD-UC6 | backend | `application/test_delete_deal_attachments.py` |
 | DD-061 | 폴더를 지우지 못해도 Deal은 지워지고, 거절·커밋 실패면 Deal과 파일이 남는다 | DD-R26, DD-UC6 | backend | `application/test_delete_deal_attachments.py` |
-| DD-062 | 화면: 머리 아래 탭 3개가 순서대로 있고 Deal 상세 탭에서 시작한다 | DD-R27, DD-UC1 | frontend | `features/deals/detail/DealDetailPage.test.tsx > has three tabs in order and starts on Deal 상세`<br>`features/deals/detail/DealDetailPage.test.tsx > keeps the header above every tab with the tab list right below it` |
+| DD-062 | 화면: 머리 아래 탭 4개가 순서대로 있고 Deal 상세 탭에서 시작한다 | DD-R27, DD-UC1 | frontend | `features/deals/detail/DealDetailPage.test.tsx > has three tabs in order and starts on Deal 상세`<br>`features/deals/detail/DealDetailPage.test.tsx > keeps the header above every tab with the tab list right below it` |
 | DD-063 | 화면: 고른 탭이 주소에 남고 Deal 상세로 오면 tab이 지워지며 모르는 값은 Deal 상세다 | DD-R27, DD-UC1 | frontend | `features/deals/detail/DealDetailPage.test.tsx` |
 | DD-064 | 화면: Deal 정보·카드·첨부는 Deal 상세 탭에만 있다 | DD-R27, DD-UC1 | frontend | `features/deals/detail/DealDetailPage.test.tsx` |
 | DD-065 | 화면: 없는 Deal은 서버 문구와 "Deal 목록으로" 링크를 보인다 | DD-R27, DD-UC1 | frontend | `features/deals/detail/DealDetailPage.test.tsx > shows the not found message with a way back` |
@@ -359,7 +359,7 @@ DD-R27~DD-R40.
 | DD-104 | 화면: 금액은 원 값으로 시작해 콤마를 붙이며 저장하고 빈 값·상한 초과·무변경은 보내지 않는다 | DD-R37, DD-UC4 | frontend | `features/deals/detail/SummaryBar.amountKeep.test.tsx > starts with the exact won value and sends no change when confirmed as is`<br>`features/deals/detail/SummaryBar.amountKeep.test.tsx > saves the typed won value as is when it differs by less than a thousand`<br>`features/deals/detail/SummaryBar.test.tsx` |
 | DD-105 | 화면: Expected Close를 바꾸면 저장되고 이력에 남는다 | DD-R37, DD-UC4 | frontend | `features/deals/detail/SummaryBar.test.tsx > saves a new Expected Close`<br>`features/deals/detail/SummaryBar.test.tsx > records the change in the deal history` |
 | DD-106 | 화면: 이력 표는 변경 시각·변경자·대상·전·후를 최신순으로 보이고 퇴사자를 표기한다 | DD-R38, DD-UC5 | frontend | `features/deals/detail/HistoryTab.test.tsx > shows when, who, what, before and after, newest first`<br>`features/deals/detail/HistoryTab.test.tsx > shows a resigned user as 이름(퇴사)` |
-| DD-107 | 화면: 변경 대상으로 거르고 결과가 없으면 안내한다 | DD-R38, DD-UC5 | frontend | `features/deals/detail/HistoryTab.test.tsx > filters by the change target`<br>`features/deals/detail/HistoryTab.test.tsx > tells there is no history for a filter without results` |
+| DD-107 | 화면: 변경 대상으로 거르고 결과가 없으면 안내한다 | DD-R38, DD-UC5 | frontend | `features/deals/detail/HistoryTab.test.tsx > filters by the change target`<br>`features/deals/detail/HistoryTab.test.tsx > tells there is no history for a filter without results`, `shared/model/history.test.ts` |
 | DD-108 | 화면: 이력은 읽기 전용이고 20행씩 페이지로 나뉜다 | DD-R38, DD-UC5 | frontend | `features/deals/detail/HistoryTab.test.tsx > is read only and paginates by 20 rows` |
 | DD-109 | 화면: 삭제 확인은 함께 지워지는 건수를 알리고 Deal code 입력을 요구한다 | DD-R39, DD-UC6 | frontend | `features/deals/detail/DeleteDealDialog.test.tsx > states what is deleted together, with the counts and without partner meetings, and asks for the deal code`<br>`features/deals/detail/DeleteDealDialog.test.tsx > shows the same text without partner meetings while the counts are loading` |
 | DD-110 | 화면: 정확한 code를 입력하기 전에는 삭제가 꺼져 있고 불일치·소문자는 안내한다 | DD-R39, DD-UC6 | frontend | `features/deals/detail/DeleteDealDialog.test.tsx > keeps 삭제 disabled until the exact code is typed and explains a mismatch`<br>`features/deals/detail/DeleteDealDialog.test.tsx > does not accept the code in lower case` |
@@ -566,9 +566,9 @@ DD-R27~DD-R40.
 - When ROOT·KIM·VIEWER가 이력과 삭제 영향을 읽는다
 - Then 모두 200이다
 
-### DD-040 이력 구분은 정확히 12값이다
+### DD-040 이력 구분은 정확히 13값이다
 - When 이력 구분 값 목록을 본다
-- Then `created`·`status`·`forecast`·`amount`·`expectedClose`·`owner`·`partner`·`contact`·`bant`·`action`·`attachment`·`other` 12개이고 화면 구분 값과 같다
+- Then `created`·`status`·`forecast`·`amount`·`expectedClose`·`owner`·`partner`·`contact`·`bant`·`action`·`attachment`·`comment`·`other` 13개이고 화면 구분 값과 같다
 
 ### DD-041 Deal을 등록하면 "Deal 등록" 이력 1건이 남는다
 - When KIM이 Deal을 등록한다
@@ -594,10 +594,10 @@ DD-R27~DD-R40.
 - When 대상 301자, 변경 전 1001자, 변경 후 1000자인 항목을 만든다
 - Then 대상은 299자 + "…"(300자), 변경 전은 999자 + "…", 변경 후는 그대로이고 이모지는 한 글자로 세어 쪼개지지 않는다
 
-### DD-047 삭제 영향은 그 Deal의 이력·Action·첨부·계약 건수다
-- Given 이력 3건(등록 포함)·Action 2건·첨부 1개·계약 1건이 있는 Deal
+### DD-047 삭제 영향은 그 Deal의 이력·Action·첨부·계약·Comment 건수다
+- Given 이력 3건(등록 포함)·Action 2건·첨부 1개·계약 1건·Comment 2건(다른 Deal에도 Comment 1건)이 있는 Deal
 - When `GET /deals/{code}/deletion-impact`
-- Then `{history_count: 3, action_count: 2, attachment_count: 1, license_contract_count: 1}`이고 키는 정확히 이 넷이다
+- Then `{history_count: 3, action_count: 2, attachment_count: 1, license_contract_count: 1, comment_count: 2}`이고 키는 정확히 이 다섯이다
 
 ### DD-048 새 Deal의 삭제 영향은 등록 이력 1건뿐이고 다른 Deal 건수는 섞이지 않는다
 - Given 새 Deal X와 Action·이력이 많은 다른 Deal Y
@@ -661,13 +661,13 @@ DD-R27~DD-R40.
 - When 각각 Deal을 지우고, 권한 없는 사용자가 지운다
 - Then 폴더 삭제 실패는 204(경고 로그)이고 Deal이 없다. 커밋 실패와 권한 거절은 Deal과 폴더가 남는다
 
-### DD-062 화면: 머리 아래 탭 3개가 순서대로 있고 Deal 상세 탭에서 시작한다
+### DD-062 화면: 머리 아래 탭 4개가 순서대로 있고 Deal 상세 탭에서 시작한다
 - When Deal 상세를 연다
-- Then 머리에 Deal 이름(h1)·"← 목록"·"Deal 삭제"가 있고 바로 아래 탭 "Deal 상세", "Actions", "Deal History"가 순서대로 있으며 Deal 상세가 선택돼 있다(Dashboard와 같은 강조 탭 모양)
+- Then 머리에 Deal 이름(h1)·"← 목록"·"Deal 삭제"가 있고 바로 아래 탭 "Deal 상세", "Actions", "Deal History", "Comments"가 순서대로 있으며 Deal 상세가 선택돼 있다(Dashboard와 같은 강조 탭 모양)
 
 ### DD-063 화면: 고른 탭이 주소에 남고 Deal 상세로 오면 tab이 지워지며 모르는 값은 Deal 상세다
-- When Actions 탭, Deal History 탭, 다시 Deal 상세 탭을 고르고, `?tab=nope`으로 연다
-- Then 주소가 `?tab=actions`, `?tab=history`, `tab` 없음 순이고 `?tab=nope`은 Deal 상세 탭이다
+- When Actions 탭, Deal History 탭, Comments 탭, 다시 Deal 상세 탭을 고르고, `?tab=nope`으로 연다
+- Then 주소가 `?tab=actions`, `?tab=history`, `?tab=comments`, `tab` 없음 순이고 `?tab=nope`은 Deal 상세 탭이다
 
 ### DD-064 화면: Deal 정보·카드·첨부는 Deal 상세 탭에만 있다
 - When 세 탭을 차례로 연다
@@ -850,7 +850,7 @@ DD-R27~DD-R40.
 
 ### DD-107 화면: 변경 대상으로 거르고 결과가 없으면 안내한다
 - When "변경 대상"에서 Status, 결과가 없는 구분을 고른다
-- Then Status 행만 보이고, 없는 구분이면 "변경 이력이 없습니다."다
+- Then Status 행만 보이고, 없는 구분이면 "변경 이력이 없습니다."다. 선택지는 전체 + 13구분(Comment 포함)이다
 
 ### DD-108 화면: 이력은 읽기 전용이고 20행씩 페이지로 나뉜다
 - Given 이력 25건인 Deal
@@ -859,7 +859,7 @@ DD-R27~DD-R40.
 
 ### DD-109 화면: 삭제 확인은 함께 지워지는 건수를 알리고 Deal code 입력을 요구한다
 - When "Deal 삭제"를 누른다
-- Then 대화상자 "Deal 삭제"에 DD-R39 건수 문구(파트너 미팅 언급 없음)와 "계속하려면 Deal code <code>를 입력하세요."가 있다. 건수를 읽는 동안은 건수 없는 같은 안내다
+- Then 대화상자 "Deal 삭제"에 DD-R39 건수 문구(Comment 건수 포함, 파트너 미팅 언급 없음)와 "계속하려면 Deal code <code>를 입력하세요."가 있다. 건수를 읽는 동안은 건수 없는 같은 안내다
 
 ### DD-110 화면: 정확한 code를 입력하기 전에는 삭제가 꺼져 있고 불일치·소문자는 안내한다
 - When 아무것도 안 넣고, 다른 값, 소문자 code, 정확한 code를 차례로 입력한다
@@ -888,10 +888,10 @@ DD-R27~DD-R40.
 
 ### DD-116 게이트웨이: 상세·삭제 영향·이력·단일 변경·삭제를 계약대로 보내고 응답·오류를 바꾼다
 - When `deals.get`·`deals.impact`·`history.list`(구분 없음·있음)·`deals.applyChange`(답 포함)·`deals.remove`(다른 code 포함)를 부른다
-- Then DD-R40 경로·쿼리·본문(snake_case)으로 보내고 응답을 camelCase(`coChanged`, `notice`, 네 건수)로 바꾸며 404·422는 서버 문구의 오류, 204는 성공이다
+- Then DD-R40 경로·쿼리·본문(snake_case)으로 보내고 응답을 camelCase(`coChanged`, `notice`, 다섯 건수)로 바꾸며 404·422는 서버 문구의 오류, 204는 성공이다
 
 ### DD-117 Fake 게이트웨이는 서버와 같은 규칙·문구로 변경·삭제·이력 요청에 답한다
-- When Fake 게이트웨이로 단일 변경(독립·종결·되돌림·없는 코드·금액·같은 값), 삭제(권한·확인 code·연쇄 삭제), 이력 목록(순서·구분·404)을 부른다
+- When Fake 게이트웨이로 단일 변경(독립·종결·되돌림·없는 코드·금액·같은 값), 삭제(권한·확인 code·Comment 포함 연쇄 삭제), 이력 목록(순서·구분·404)을 부른다
 - Then 결과·문구·상태 코드가 DD-R5~R8, DD-R12~R14, DD-R17, DD-R20, DD-R24, DD-R25와 같다(어긋남은 계획 Q1·Q2 결정에 따름)
 
 ### DD-118 Owner 영업이 완료된 자기 Deal을 지우면 확인 code와 무관하게 403이고 Deal·계약이 남는다
@@ -979,3 +979,5 @@ DD-R27~DD-R40.
 | 2026-11-13 | 확정(2026-11-13 사용자 확인): DE 2026-11-13 변경(Vendor 필수·Solution 선택)에 맞춰 DD-R28 빈 Solution "—", DD-R32 Vendor 선택지("선택 안 함" 제거)·빈 Solution 저장 | 변경 DD-045, DD-080 |
 | 2026-11-16 | 확정(2026-11-16 사용자 확인): 사용자 요청 "회사·파트너 클릭 때의 수정 영역과 담당자·직급 등을 직접 눌렀을 때의 수정 영역이 달라 담당자명이 세로로 나옴 → 모두 회사 클릭 때와 같게". DD-R34: 연락처의 다섯 값 모두 같은 연락처 편집 세션을 열고 누른 칸에 포커스, 한 칸 편집기(`InlineEdit`) 미사용, 담당자명을 고쳐 쓰면 직급·이메일·전화 비움, 같은 이름·이메일 없음이면 기존 담당자, 무변경은 요청 없음, 저장 결과 3구분(연락 정보 수정·담당자 변경·연락처 변경)으로 알림만 가름. DD-R35: 교체 안내는 회사명·담당자명으로 열면 처음부터, 직급·이메일·전화로 열면 연락처가 바뀌는 동안만, 빈 파트너 "—"는 회사명 칸 포커스, 같은 파트너 연락 정보 수정은 "파트너 연락처가 저장되었습니다."(회사명 세션에서 직급만 고친 경우 포함 — 예전엔 "교체되었습니다."). DD-UC2 기본 흐름 보강. 서버·API 변경 없음 | 신규: DD-127~DD-131. 변경: DD-089, DD-091, DD-092, DD-093, DD-094, DD-095(테스트 수정 필요). 영향 확인: DD-087·DD-088·DD-090(동작 그대로, 회귀 확인) |
 | 2026-11-16 | 초안(사용자 확인 대기): Deal Solution → Product 이름 변경(DE 2026-11-16). DD-R20 순서·DD-R21 대상 "Product", 인라인 수정 칸 이름·알림 "Product가 변경되었습니다.", 요청 키 `product`. 예전 이력 행 "Solution"은 그대로(DD-R20 끝 문장) | 신규 DD-132. 변경(표기·키): DD-045, DD-080, DD-115. 위치만: DD-027 |
+| 2026-11-17 | 확정(2026-11-17 사용자 확인): CM 확정: Memo → Comment 엔티티 분리. 이력 구분에 `comment` 추가(12→13값, 2.2·DD-R17), DD-R18(Comment 이력은 CM-R13), 삭제 영향에 `comment_count` 추가(DD-R22, 2.6), Deal 삭제 때 Comment도 함께 삭제(2.2·DD-R25) | 변경 DD-040, DD-047 |
+| 2026-11-17 | 확정(2026-11-17 사용자 확인): Comments 탭(DD-R27), History 13구분·안내(DD-R38), 삭제 확인 Comment 건수(DD-R39), commentCount(DD-R40) | 변경 DD-062, DD-063, DD-107, DD-109, DD-116, DD-117 |

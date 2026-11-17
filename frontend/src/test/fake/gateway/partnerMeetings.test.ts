@@ -170,7 +170,7 @@ describe('partner meetings Fake: rules', () => {
     await root.gateway.deals.remove(code, code)
 
     // then: 미팅은 12건 그대로이고 삭제 영향 키는 네 개뿐이다
-    expect(Object.keys(impact).sort()).toEqual(['actionCount', 'attachmentCount', 'historyCount', 'licenseContractCount'])
+    expect(Object.keys(impact).sort()).toEqual(['actionCount', 'attachmentCount', 'commentCount', 'historyCount', 'licenseContractCount'])
     const page = await root.gateway.partnerMeetings.list(DEFAULT, 0, 50)
     expect(page.total).toBe(12)
   })

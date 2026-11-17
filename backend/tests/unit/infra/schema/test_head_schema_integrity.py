@@ -37,6 +37,7 @@ USER_FK_NAMES = {
     ("reports", "updated_by_user_id"): "fk_reports_updated_by_user_id_users",
     ("partner_meetings", "created_by_user_id"): "fk_partner_meetings_created_by_user_id_users",
     ("license_contracts", "created_by_user_id"): "fk_license_contracts_created_by_user_id_users",
+    ("deal_comments", "author_user_id"): "fk_deal_comments_author_user_id_users",
     ("license_contracts", "updated_by_user_id"): "fk_license_contracts_updated_by_user_id_users",
     (
         "license_contract_attachments",
@@ -125,7 +126,7 @@ async def test_user_foreign_keys_use_the_planned_names_and_restrict(session: Asy
     # when: users를 가리키는 FK의 이름·ON DELETE·DEFERRABLE을 읽는다
     found = {(r[0], r[1]): (r[2], r[3].strip(), r[4]) for r in rows}
 
-    # then: RESTRICT 17개와 CASCADE 1개(해시)가 정해진 이름 그대로이고 그 밖의 FK는 없다
+    # then: RESTRICT 18개와 CASCADE 1개(해시)가 정해진 이름 그대로이고 그 밖의 FK는 없다
     expected = {key: (name, "r", False) for key, name in USER_FK_NAMES.items()}
     expected |= {key: (name, "c", False) for key, name in CASCADE_USER_FK_NAMES.items()}
     assert found == expected
@@ -170,6 +171,7 @@ async def test_user_reference_columns_are_bigint_and_the_old_string_columns_are_
     assert ("directory_settings", "updated_by_user_id") not in not_null  # 최초 설정
     assert ("storage_settings", "updated_by_user_id") not in not_null  # 최초 설정(P2b)
     assert ("deal_attachments", "uploaded_by_user_id") in not_null
+    assert ("deal_comments", "author_user_id") in not_null  # Comment 작성자(SC-R17)
     assert ("alert_settings", "updated_by_user_id") in not_null  # 최초 설정 경로가 없다(P3)
 
 
@@ -236,7 +238,7 @@ async def test_every_foreign_key_column_leads_an_index(session: AsyncSession) ->
 
 
 async def test_only_owned_data_cascades(session: AsyncSession) -> None:
-    """CASCADE FK는 소속 데이터 10개뿐이고 부모 테이블이 정해진 대로다.
+    """CASCADE FK는 소속 데이터 12개뿐이고 부모 테이블이 정해진 대로다.
 
     테스트 코드: SC-023
     """
@@ -245,7 +247,7 @@ async def test_only_owned_data_cascades(session: AsyncSession) -> None:
         fk.table + "." + fk.column for fk in await foreign_keys(session) if fk.on_delete == "c"
     }
 
-    # then: (테이블.컬럼) 집합이 소속 데이터 10개와 같다
+    # then: (테이블.컬럼) 집합이 소속 데이터 12개와 같다
     assert cascades == {
         "deal_partners.deal_id",
         "deal_bant_labels.deal_id",
@@ -256,17 +258,20 @@ async def test_only_owned_data_cascades(session: AsyncSession) -> None:
         "forecast_snapshot_cells.snapshot_id",  # 셀은 (snapshot_id, forecast_key)로 열 소속
         "license_contracts.deal_id",  # 계약은 Deal 소속이다
         "license_contract_attachments.contract_id",  # 계약 첨부는 계약 소속이다
+        "deal_comments.deal_id",  # Comment는 Deal 소속이다
+        "deal_comments.action_id",  # Action Comment는 Action 소속이다(복합 FK)
         "user_password_hashes.user_id",  # 대체 로그인 해시는 사용자 소속(CASCADE_USER_FK_NAMES)
     }
     # then: 부모는 정해진 테이블이고 나머지는 deals다
     parents = {
-        "user_password_hashes": "users",
-        "license_contract_attachments": "license_contracts",
-        "forecast_snapshot_columns": "forecast_snapshots",
-        "forecast_snapshot_cells": "forecast_snapshot_columns",
+        "user_password_hashes": {"users"},
+        "license_contract_attachments": {"license_contracts"},
+        "forecast_snapshot_columns": {"forecast_snapshots"},
+        "forecast_snapshot_cells": {"forecast_snapshot_columns"},
+        "deal_comments": {"deals", "deal_actions"},
     }
     assert all(
-        fk.ref_table == parents.get(fk.table, "deals")
+        fk.ref_table in parents.get(fk.table, {"deals"})
         for fk in await foreign_keys(session)
         if fk.on_delete == "c"
     )

@@ -11,7 +11,7 @@ import type { ActionSortState } from './actionSort'
 import { ActionTable } from './ActionTable'
 
 const SORTABLE = ['수행일', '유형', 'Due Date', '상태']
-const PLAIN = ['진행사항', 'Next Action']
+const PLAIN = ['진행사항', 'Next Action', 'Comment']
 const DEFAULT: ActionSortState = { sort: 'actedAt', order: 'desc' }
 
 beforeEach(() => resetMock({ now: '2030-06-15T09:00:00+09:00' }))
@@ -42,7 +42,7 @@ const header = (table: HTMLElement, name: string) => within(table).getByRole('co
 describe('ActionTable 헤더 정렬', () => {
   // 정렬할 수 있는 머리글은 수행일·유형·Due Date·상태 4개(버튼)뿐이다.
   // 테스트 코드: NA-063
-  it('makes only the four sortable headers buttons with their column name', async () => {
+  it('makes only the four sortable headers buttons with their column name (the Comment column has none)', async () => {
     // when: Actions 표를 렌더한다.
     const table = await renderTable(DEFAULT)
 

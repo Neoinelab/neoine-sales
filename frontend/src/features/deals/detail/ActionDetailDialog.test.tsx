@@ -30,9 +30,9 @@ const detail = () => screen.getByRole('dialog', { name: DETAIL })
 const queryDetail = () => screen.queryByRole('dialog', { name: DETAIL })
 
 describe('행을 눌러 여는 상세 팝업의 내용', () => {
-  // 행을 누르면 모든 항목(담당자·등록 시점 Status·Forecast·상태·Memo 포함)을 보인다.
+  // 행을 누르면 모든 항목(담당자·등록 시점 Status·Forecast·상태 포함, Memo 없음)을 보인다.
   // 테스트 코드: AC-132
-  it('shows every field of the clicked action including actor, status and forecast at registration, state and memo', async () => {
+  it('shows every field of the clicked action including actor, status and forecast at registration and state, without a Memo row', async () => {
     // given: 김영업이 수행일 2026-11-10의 Action A를 남겼다
     const view = await openActionsTab()
     await addAction(view, A_INPUT)
@@ -48,7 +48,8 @@ describe('행을 눌러 여는 상세 팝업의 내용', () => {
     expect(fieldValue(dialog, 'Next Action')).toHaveTextContent('요구사항 문서 전달')
     expect(fieldValue(dialog, 'Due Date')).toHaveTextContent('2027-01-15')
     expect(fieldValue(dialog, 'Next Action 상태')).toHaveTextContent('Open')
-    expect(fieldValue(dialog, 'Memo')).toHaveTextContent('요구사항 정리')
+    expect(Array.from(dialog.querySelectorAll('dt')).map((el) => el.textContent)).not.toContain('Memo')
+    expect(within(dialog).queryByRole('button', { name: 'Memo 수정' })).not.toBeInTheDocument()
     // then: 등록 시점 Status·Forecast 배지도 있다(Deal의 지금 값)
     expect(dialog).toHaveTextContent('가격협상')
     expect(dialog).toHaveTextContent('Commit')
@@ -93,7 +94,7 @@ describe('행을 눌러 여는 상세 팝업의 내용', () => {
     // given: 종료(수행)된 Action
     const view = await openActionsTab()
     const created = await addAction(view, A_INPUT)
-    await gateway.actions.changeNextActionStatus(created.id, { status: 'done', memo: '' })
+    await gateway.actions.changeNextActionStatus(created.id, { status: 'done', comment: '' })
     await view.client.invalidateQueries()
 
     // when: 그 행을 누른다
@@ -207,7 +208,7 @@ describe('행 안의 상태 칸 버튼', () => {
     // given: 종료(수행)된 KIM의 행
     const view = await openActionsTab()
     const [first] = await gateway.actions.list(view.code, {})
-    await gateway.actions.changeNextActionStatus(first!.id, { status: 'done', memo: '' })
+    await gateway.actions.changeNextActionStatus(first!.id, { status: 'done', comment: '' })
     await view.client.invalidateQueries()
     const row = await waitFor(() => {
       const r = bodyRows(view.table)[0]!
@@ -225,7 +226,7 @@ describe('행 안의 상태 칸 버튼', () => {
 })
 
 describe('상세 팝업의 편집·삭제 권한', () => {
-  const editNames = ['수행일 수정', '유형 수정', '진행사항 수정', 'Next Action · Due Date 수정', 'Memo 수정']
+  const editNames = ['수행일 수정', '유형 수정', '진행사항 수정', 'Next Action · Due Date 수정']
 
   // 본인 Action은 편집 버튼과 켜진 삭제가 있고 안내가 없다.
   // 테스트 코드: AC-135

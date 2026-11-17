@@ -12,26 +12,26 @@ interface NextActionCloseDialogProps {
   busy: boolean
   /** 서버가 거절한 이유(있으면 팝업 안에 알린다). */
   error?: unknown
-  /** 입력한 Memo(비어 있어도 된다). */
-  onConfirm: (memo: string) => void
+  /** 입력한 Comment(비어 있어도 된다). */
+  onConfirm: (comment: string) => void
   onCancel: () => void
 }
 
-/** Next Action 종료 팝업: Memo에 남길 내용을 받는다. "취소"와 Esc는 종료 자체를 취소한다. */
+/** Next Action 종료 팝업: Comment에 남길 내용을 받는다. "취소"와 Esc는 종료 자체를 취소한다. */
 export function NextActionCloseDialog({ status, nextAction, busy, error, onConfirm, onCancel }: NextActionCloseDialogProps) {
-  const [memo, setMemo] = useState('')
+  const [comment, setComment] = useState('')
   return (
     <ConfirmDialog
       title={`Next Action ${NEXT_ACTION_STATUS_LABEL[status]}`}
       message={`"${nextAction}"을(를) ${NEXT_ACTION_STATUS_LABEL[status]}(으)로 종료합니다. 남길 내용이 없으면 비워 두세요.`}
       confirmLabel="종료"
       busy={busy}
-      onConfirm={() => onConfirm(memo)}
+      onConfirm={() => onConfirm(comment)}
       onCancel={onCancel}
     >
       <label className="field">
-        <span>Memo에 남길 내용(선택)</span>
-        <textarea value={memo} onChange={(e) => setMemo(e.target.value)} />
+        <span>Comment에 남길 내용(선택)</span>
+        <textarea value={comment} onChange={(e) => setComment(e.target.value)} />
       </label>
       <ErrorBanner error={error} format={messageOf} />
     </ConfirmDialog>

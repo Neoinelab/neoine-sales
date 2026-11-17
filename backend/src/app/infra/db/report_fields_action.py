@@ -1,6 +1,7 @@
 """Deal Actions 필드 key -> SQL 식 (계획 4.3). 조건용 key 식은 JOIN 없이 Action 열만 쓴다."""
 
 from app.domain.report.catalog import find_field
+from app.infra.db.report_comments import action_comment_text
 from app.infra.db.report_fields import FieldSql, option_labels, static_code, user_name
 from app.infra.db.report_joins import (
     ACTIONS,
@@ -26,7 +27,7 @@ def action_fields(joins: Joins) -> dict[str, FieldSql]:
     return {
         "action.action": _plain("action"),
         "action.next_action": _plain("next_action"),
-        "action.memo": _plain("memo"),
+        "action.comment": FieldSql(action_comment_text),
         "action.actor": FieldSql(
             lambda: c.actor_user_id, value=lambda: user_name(action_actor(joins))
         ),

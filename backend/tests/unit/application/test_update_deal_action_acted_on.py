@@ -1,7 +1,7 @@
 """UpdateDealAction의 수행일(`acted_on`): 수정에서 수행일 변경·유지·범위·판정 순서·파생 값.
 
 공통 예: 업무 시간대 Asia/Seoul, 서버 시계 T = 2026-11-13T14:30+09:00, Deal 등록 2026-11-01 09:00.
-Action은 모두 KIM이 남겼고 기본 내용의 요약은 SUMMARY_WITH_MEMO다(수정에서 수행일 부분이 붙는다).
+Action은 모두 KIM이 남겼고 기본 내용의 요약은 SUMMARY다(수정에서 수행일 부분이 붙는다).
 """
 
 from datetime import date, datetime, timedelta, timezone
@@ -25,7 +25,7 @@ from tests.unit.application.action_env import (
     KIM,
     NOT_FOUND,
     PARK,
-    SUMMARY_WITH_MEMO,
+    SUMMARY,
 )
 
 if TYPE_CHECKING:
@@ -42,7 +42,7 @@ TODAY = date(2026, 11, 13)
 PAST = date(2026, 11, 10)
 FUTURE = "수행일은 오늘 이후로 지정할 수 없습니다."
 BEFORE_REGISTERED = "수행일은 Deal 등록일(2026-11-01) 이전으로 지정할 수 없습니다."
-SUMMARY_PROPOSAL = SUMMARY_WITH_MEMO.replace("킥오프 미팅", "제안 발표")
+SUMMARY_PROPOSAL = SUMMARY.replace("킥오프 미팅", "제안 발표")
 
 
 def _at(day: int, hour: int = 10, month: int = 11) -> datetime:
@@ -125,8 +125,8 @@ async def test_changing_only_the_acted_on_updates_it_and_logs_one_entry(
     assert (await action_env.rows(code))[-1] == (
         "action",
         "Action",
-        f"{SUMMARY_WITH_MEMO} / 수행일: 2026-11-13",
-        f"수정: {SUMMARY_WITH_MEMO} / 수행일: 2026-11-10",
+        f"{SUMMARY} / 수행일: 2026-11-13",
+        f"수정: {SUMMARY} / 수행일: 2026-11-10",
     )
     assert entries[-1].changed_by == KIM.user_id
 
@@ -151,7 +151,7 @@ async def test_changing_the_acted_on_and_the_content_together_logs_one_entry_wit
     # then: 이력은 1건 늘고 변경 전·후 요약과 수행일이 한 줄에 있다
     assert len(await _action_entries(action_env, code)) == entries_before + 1
     assert (await action_env.rows(code))[-1][2:] == (
-        f"{SUMMARY_WITH_MEMO} / 수행일: 2026-11-13",
+        f"{SUMMARY} / 수행일: 2026-11-13",
         f"수정: {SUMMARY_PROPOSAL} / 수행일: 2026-11-10",
     )
 
@@ -194,7 +194,7 @@ async def test_omitted_acted_on_keeps_it_when_only_the_content_changes(
     # then: 수행일은 11-10 그대로다
     assert (await action_env.stored(action.id)).acted_on == PAST
     # then: 이력에는 수행일 부분이 붙지 않는다
-    assert (await action_env.rows(code))[-1][2:] == (SUMMARY_WITH_MEMO, f"수정: {SUMMARY_PROPOSAL}")
+    assert (await action_env.rows(code))[-1][2:] == (SUMMARY, f"수정: {SUMMARY_PROPOSAL}")
 
 
 async def test_same_acted_on_is_not_range_checked_even_if_it_is_out_of_range(

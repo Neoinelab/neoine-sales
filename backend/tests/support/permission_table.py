@@ -52,6 +52,9 @@ BUSINESS_READS: Final = (
     ("GET", "/api/v1/license-contracts/{contract_id}"),  # LC
     ("GET", "/api/v1/license-contracts/{contract_id}/attachments"),  # LC
     ("GET", "/api/v1/license-contract-attachments/{attachment_id}/download"),  # LC
+    ("GET", "/api/v1/deals/{code}/comments"),  # CM Deal 소속 Comment 목록: 모든 역할
+    ("GET", "/api/v1/deal-comments/{comment_id}"),  # CM Comment 한 건: 모든 역할
+    ("GET", "/api/v1/deals/{code}/comment-counts"),  # CM 읽지 않은 수 집계: 모든 역할
 )
 BUSINESS_WRITES: Final = (
     ("POST", "/api/v1/bant-labels"),  # CL 자기 Label을 만든다(user는 조회 전용)
@@ -81,6 +84,12 @@ BUSINESS_WRITES: Final = (
     ("POST", "/api/v1/license-contracts/{contract_id}/end"),  # LC
     ("POST", "/api/v1/license-contracts/{contract_id}/attachments"),  # LC 첨부 업로드·삭제
     ("DELETE", "/api/v1/license-contract-attachments/{attachment_id}"),  # LC
+    ("POST", "/api/v1/deals/{code}/comments"),  # CM 작성은 sales·admin(어느 Deal·Action에든)
+    (
+        "DELETE",
+        "/api/v1/deal-comments/{comment_id}",
+    ),  # CM 삭제도 sales·admin(본인 판정은 뒤, 수정 폐지)
+    ("POST", "/api/v1/deals/{code}/comment-reads"),  # CM 읽음 처리: sales·admin(Owner 판정은 뒤)
 )
 # 저장 리포트. 만들기·수정·삭제를 로그인한 모든 역할이 한다(user 포함).
 # 수정·삭제 가능 여부는 리포트마다 다르며(만든 사람·공개 범위·admin) 도메인 정책이 판정한다.

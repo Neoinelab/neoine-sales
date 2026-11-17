@@ -21,7 +21,7 @@ from tests.unit.application.action_env import (
     KIM,
     NOT_FOUND,
     PARK,
-    SUMMARY_WITH_MEMO,
+    SUMMARY,
     VIEWER,
 )
 
@@ -46,8 +46,44 @@ async def test_delete_action_by_owner_logs_history_and_removes_the_row(
     with pytest.raises(DealActionNotFoundError):
         await action_env.stored(action.id)
     # then: 이력 최신 줄은 삭제 전 요약과 "삭제"이고 변경자는 KIM이다
-    assert (await action_env.rows())[-1] == ("action", "Action", SUMMARY_WITH_MEMO, "삭제")
+    assert (await action_env.rows())[-1] == ("action", "Action", SUMMARY, "삭제")
     assert (await action_env.action_entries())[-1].changed_by == KIM.user_id
+
+
+async def test_deleting_an_action_removes_only_its_comments_and_counts_them_in_the_history(
+    action_env: ActionEnv,
+) -> None:
+    """Action을 지우면 그 Action Comment만 함께 지워지고 이력에 함께 지운 건수가 붙는다.
+
+    테스트 코드: CM-037
+    """
+    # given: A에 Action Comment 2건, Deal Comment 1건, 다른 Action A2에 Comment 1건, Comment 없는 A3
+    from tests.factories_comment import make_comment  # noqa: PLC0415
+
+    action = await action_env.act(KIM)
+    second = await action_env.act(KIM)
+    third = await action_env.act(KIM)
+    comments = action_env.env.uow.deal_comments
+    code = action.deal_code
+    for linked, body in ((action.id, "a1"), (action.id, "a2"), (None, "deal"), (second.id, "b1")):
+        await comments.add(
+            make_comment(deal_code=code, action_id=linked, body=body, author=KIM.user_id)
+        )
+    summary = SUMMARY
+
+    # when: KIM이 A를 지우고 이어서 A3을 지운다
+    await action_env.delete.execute(action.id, KIM)
+    await action_env.delete.execute(third.id, KIM)
+
+    # then: A의 Comment 2건만 없어지고 Deal Comment·A2의 Comment는 그대로다
+    assert sorted(c.body for c in await comments.list_for_deal(code)) == ["b1", "deal"]
+    # then: A 삭제 줄은 "삭제 (Comment 2건 함께 삭제)", A3 삭제 줄은 "삭제"이고 Comment별 줄은 없다
+    delete_rows = [row for row in await action_env.rows() if row[3].startswith("삭제")]
+    assert [row[2:] for row in delete_rows] == [
+        (summary, "삭제 (Comment 2건 함께 삭제)"),
+        (summary, "삭제"),
+    ]
+    assert [row for row in await action_env.rows() if row[0] == "comment"] == []
 
 
 async def test_delete_action_by_owner_logs_history_and_next_action_falls_back(

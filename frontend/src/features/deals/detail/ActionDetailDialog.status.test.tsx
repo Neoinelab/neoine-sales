@@ -23,9 +23,9 @@ function conflict(detailText: string) {
 }
 
 describe('팝업에서 Next Action 종료', () => {
-  // 팝업의 종료(수행)은 종료 Memo 대화상자를 거쳐 팝업이 열린 채 새 상태와 Memo를 보이고 표 상태 칸도 같다.
-  // 테스트 코드: AC-144
-  it('closes through the memo dialog, keeps the popup open and updates the popup and the table row', async () => {
+  // 팝업의 종료(수행)은 종료 대화상자를 거쳐 팝업이 열린 채 새 상태와 새 Comment를 보이고 표 상태 칸도 같다.
+  // 테스트 코드: AC-144, CM-079
+  it('closes through the close dialog, keeps the popup open and updates the popup and the table row', async () => {
     // given: KIM의 Open Action A 상세 팝업
     const view = await openActionsTab()
     await addAction(view, A_INPUT)
@@ -34,20 +34,23 @@ describe('팝업에서 Next Action 종료', () => {
     // when: 팝업의 "종료(수행)"을 누르고 열린 대화상자에 "전달 완료"를 쓴 뒤 "종료"를 누른다
     await view.user.click(within(dialog).getByRole('button', { name: '종료(수행)' }))
     const close = await screen.findByRole('dialog', { name: CLOSE })
-    await view.user.type(within(close).getByLabelText('Memo에 남길 내용(선택)'), '전달 완료')
+    await view.user.type(within(close).getByLabelText('Comment에 남길 내용(선택)'), '전달 완료')
     await view.user.click(within(close).getByRole('button', { name: '종료' }))
 
-    // then: 종료 대화상자만 닫히고 상세 팝업은 열린 채 새 상태와 Memo 끝의 "전달 완료"를 보인다
+    // then: 종료 대화상자만 닫히고 상세 팝업은 열린 채 새 상태를 보이고 Comment 영역 맨 위에 "전달 완료"(KIM, Owner이므로 "읽지 않음" 없음)가 보인다
     await waitFor(() => expect(screen.queryByRole('dialog', { name: CLOSE })).not.toBeInTheDocument())
     await waitFor(() => expect(fieldValue(detail(), 'Next Action 상태')).toHaveTextContent('종료(수행) · 종료일 2026-11-13'))
-    expect(fieldValue(detail(), 'Memo').textContent).toMatch(/전달 완료$/)
+    const comments = within(detail()).getByRole('list', { name: 'Comment 목록' })
+    expect(within(comments).getAllByRole('listitem')[0]).toHaveTextContent('전달 완료')
+    expect(within(comments).getAllByRole('listitem')[0]).not.toHaveTextContent('읽지 않음')
+    expect(within(detail()).getByRole('heading', { name: 'Comment (1)' })).toBeVisible()
     // then: 표의 그 행 상태 칸도 "종료(수행)"이다
     expect(within(rowWith(view.table, '킥오프 미팅')).getAllByRole('cell')[5]).toHaveTextContent('종료(수행)')
   })
 
-  // 서버가 거절하면 종료 대화상자 안에 서버 문구가 보이고 입력한 Memo가 남는다.
+  // 서버가 거절하면 종료 대화상자 안에 서버 문구가 보이고 입력한 Comment가 남는다.
   // 테스트 코드: AC-144
-  it('shows the server message inside the close dialog and keeps the typed memo when the server refuses', async () => {
+  it('shows the server message inside the close dialog and keeps the typed comment when the server refuses', async () => {
     // given: 서버가 상태 변경을 거절한다
     vi.spyOn(gateway.actions, 'changeNextActionStatus').mockRejectedValue(conflict('이미 종료(수행) 상태입니다.'))
     const view = await openActionsTab()
@@ -55,14 +58,14 @@ describe('팝업에서 Next Action 종료', () => {
     const dialog = await openDetail(view, '킥오프 미팅')
     await view.user.click(within(dialog).getByRole('button', { name: '종료(수행)' }))
     const close = await screen.findByRole('dialog', { name: CLOSE })
-    await view.user.type(within(close).getByLabelText('Memo에 남길 내용(선택)'), '잃으면 안 되는 메모')
+    await view.user.type(within(close).getByLabelText('Comment에 남길 내용(선택)'), '잃으면 안 되는 Comment')
 
     // when: "종료"를 누른다
     await view.user.click(within(close).getByRole('button', { name: '종료' }))
 
-    // then: 대화상자 안에 서버 문구가 보이고 Memo가 그대로이며 상세 팝업도 열려 있다
+    // then: 대화상자 안에 서버 문구가 보이고 Comment가 그대로이며 상세 팝업도 열려 있다
     expect(await within(close).findByText('이미 종료(수행) 상태입니다.')).toBeVisible()
-    expect(within(close).getByLabelText('Memo에 남길 내용(선택)')).toHaveValue('잃으면 안 되는 메모')
+    expect(within(close).getByLabelText('Comment에 남길 내용(선택)')).toHaveValue('잃으면 안 되는 Comment')
     expect(detail()).toBeVisible()
   })
 
@@ -121,7 +124,7 @@ describe('팝업의 상태 버튼 권한과 Open으로', () => {
     // given: 종료(수행)된 KIM의 Action A 팝업
     const view = await openActionsTab()
     const created = await addAction(view, A_INPUT)
-    await gateway.actions.changeNextActionStatus(created.id, { status: 'done', memo: '' })
+    await gateway.actions.changeNextActionStatus(created.id, { status: 'done', comment: '' })
     await view.client.invalidateQueries()
     const dialog = await openDetail(view, '킥오프 미팅')
     await waitFor(() => expect(within(dialog).getByRole('button', { name: 'Open으로' })).toBeVisible())
@@ -140,7 +143,7 @@ describe('팝업의 상태 버튼 권한과 Open으로', () => {
     // given: 종료(수행)된 Action A 팝업, 서버가 되돌리기를 거절한다
     const view = await openActionsTab()
     const created = await addAction(view, A_INPUT)
-    await gateway.actions.changeNextActionStatus(created.id, { status: 'done', memo: '' })
+    await gateway.actions.changeNextActionStatus(created.id, { status: 'done', comment: '' })
     await view.client.invalidateQueries()
     const dialog = await openDetail(view, '킥오프 미팅')
     vi.spyOn(gateway.actions, 'changeNextActionStatus').mockRejectedValue(conflict('이미 Open 상태입니다.'))

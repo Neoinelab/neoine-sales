@@ -126,7 +126,6 @@ class TestRevise:
             action="제안 발표",
             next_action="견적 회신",
             due_date=date(2026, 2, 1),
-            memo="변경",
         )
 
         # when: 시각을 흘려 내용을 고친다
@@ -226,11 +225,10 @@ class TestRevise:
             {"action": "다른 진행"},
             {"next_action": "다른 계획"},
             {"due_date": date(2026, 12, 31)},
-            {"memo": "다른 메모"},
         ],
     )
     def test_revise_detects_a_change_in_any_single_field(self, field: dict[str, object]) -> None:
-        """유형·진행사항·Next Action·Due·Memo 중 하나만 달라도 변경이다.
+        """유형·진행사항·Next Action·Due 중 하나만 달라도 변경이다.
 
         테스트 코드: AC-046
         """
@@ -448,8 +446,8 @@ class TestReviseNextActionState:
         action.change_next_action_status(NextActionStatus.DONE, "", later(10))
         touched = action.updated_at
 
-        # when·then: 끝의 줄바꿈만 다른 Memo로 고치면 변경 없음이다
-        assert action.revise(make_action_content(memo="요구사항 정리\n"), later(30)) is False
+        # when·then: 끝의 줄바꿈만 다른 진행사항으로 고치면 변경 없음이다
+        assert action.revise(make_action_content(action="킥오프 미팅\n"), later(30)) is False
 
         # then: 수정 시각이 그대로다
         assert action.updated_at == touched

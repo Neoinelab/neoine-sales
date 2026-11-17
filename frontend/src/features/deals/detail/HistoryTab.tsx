@@ -40,7 +40,7 @@ export function HistoryTab({ dealCode }: { dealCode: string }) {
             ))}
           </select>
         </label>
-        <p className="hint">Action 수정·삭제와 첨부 파일 변경도 이 이력에 기록됩니다.</p>
+        <p className="hint">Action 수정·삭제, 첨부 파일 변경, Comment 변경도 이 이력에 기록됩니다.</p>
       </div>
       <ErrorBanner error={history.error} format={messageOf} />
       {history.isPending && <p role="status">불러오는 중…</p>}

@@ -45,6 +45,10 @@ CONTRACT_OWNED_CASCADES: Final = (
 CONTRACT_SET_NULL: Final = (("license_contracts", "renewed_from_id", "license_contracts"),)
 SET_NULL: Final = "n"
 
+# 예외: Action Comment는 그 Action에 딸린 글이라 Action을 지우면 함께 지워진다(복합 FK
+# (action_id, deal_id) -> deal_actions(id, deal_id), CASCADE). Deal 소속 FK(deal_id)는 위 규칙이다.
+COMMENT_OWNED_CASCADES: Final = (("deal_comments", "action_id", "deal_actions"),)
+
 FOREIGN_KEYS_SQL = text(
     "select c.conname as name, c.conrelid::regclass::text as tbl, a.attname as col,"
     " c.confrelid::regclass::text as ref_tbl, c.confdeltype::text as on_delete,"
@@ -122,7 +126,12 @@ def _delete_rule_violated(fk: ForeignKey) -> bool:
         return True
     if fk.ref_table == DEAL_OWNED_PARENT:
         return False
-    allowed = {*FORECAST_OWNED_CASCADES, *USER_OWNED_CASCADES, *CONTRACT_OWNED_CASCADES}
+    allowed = {
+        *FORECAST_OWNED_CASCADES,
+        *USER_OWNED_CASCADES,
+        *CONTRACT_OWNED_CASCADES,
+        *COMMENT_OWNED_CASCADES,
+    }
     return key not in allowed
 
 

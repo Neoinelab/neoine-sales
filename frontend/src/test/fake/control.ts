@@ -1,5 +1,6 @@
 import type { MockControl } from './types'
 import { setSession, type MockContext } from './gateway/context'
+import { takeId } from './store'
 
 /** 테스트용 제어. 게이트웨이 메서드가 아니므로 권한·History와 무관하다. */
 export function createMockControl(ctx: MockContext, reseed: () => void): MockControl {
@@ -42,6 +43,16 @@ export function createMockControl(ctx: MockContext, reseed: () => void): MockCon
       target.updatedBy = { id: park.id, name: park.name, role: park.role, status: 'active' }
       if (change.layout) target.layout = JSON.parse(JSON.stringify(change.layout)) as typeof change.layout
       if (change.name) target.name = change.name
+    },
+    addComments(rows) {
+      const { data } = ctx.store
+      return rows.map((row) => {
+        const actionId = row.actionId ?? null
+        if (actionId !== null && !data.actions.some((a) => a.id === actionId && a.dealCode === row.dealCode)) throw new Error(`Deal ${row.dealCode}에 없는 Action: ${actionId}`)
+        const record = { id: takeId(data.counters, 'cm'), dealCode: row.dealCode, actionId, authorId: row.authorId, body: row.body, createdAt: row.createdAt, readAt: row.readAt ?? null }
+        data.comments.push(record)
+        return { ...record }
+      })
     },
     savedReportRequests: () => ctx.store.reports.requests.map((r) => JSON.parse(JSON.stringify(r)) as typeof r),
   }

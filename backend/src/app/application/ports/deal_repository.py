@@ -189,6 +189,7 @@ class DealDeletionImpact:
     action_count: int
     attachment_count: int
     license_contract_count: int
+    comment_count: int  # 그 Deal 소속 Comment(Deal Comment + Action Comment)
 
 
 class DealRepository(Protocol):

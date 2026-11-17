@@ -39,6 +39,7 @@ if TYPE_CHECKING:
     from app.domain.deal.code import DealCode
     from app.domain.deal.entities import Deal
     from app.domain.deal_action.entities import DealAction
+    from app.domain.deal_comment.entities import DealComment
     from app.domain.user.value_objects import UserId
     from app.domain.vendor.entities import Vendor
 
@@ -60,6 +61,8 @@ class DealCase:
     vendors: Any
     action_type_source: Callable[[], Any] | None = None
     _action_types: Any = field(default=None, repr=False)
+    comment_source: Callable[[], Any] | None = None
+    _comments: Any = field(default=None, repr=False)
 
     @property
     def action_types(self) -> Any:  # noqa: ANN401 - ActionTypeRepository(Fake 또는 SQL)
@@ -69,6 +72,44 @@ class DealCase:
             assert self.action_type_source is not None, "이 case는 Action 유형을 지원하지 않는다"
             self._action_types = self.action_type_source()
         return self._action_types
+
+    @property
+    def comments(self) -> Any:  # noqa: ANN401 - DealCommentRepository(Fake 또는 SQL)
+        """Comment 저장소. 처음 쓸 때 만든다(Comment를 다루지 않는 테스트가 Comment 구현을
+        가져오지 않게 한다)."""
+        if self._comments is None:
+            assert self.comment_source is not None, "이 case는 Comment를 지원하지 않는다"
+            self._comments = self.comment_source()
+        return self._comments
+
+    async def add_comment(  # noqa: PLR0913 - 저장할 Comment의 독립적인 선택 값
+        self,
+        deal_code: DealCode,
+        body: str = "예산 확인",
+        at: datetime = NOW,
+        *,
+        action: DealAction | None = None,
+        author: UserId | None = None,
+        read: bool = False,
+    ) -> DealComment:
+        """Deal에 Comment 한 건을 저장한다(작성자 행도 만든다). action을 주면 Action Comment다.
+
+        read=True면 작성자가 Deal Owner인 것으로 보고 읽음(read_at = at)으로 저장한다.
+        """
+        from tests.factories_comment import make_comment  # noqa: PLC0415 - Comment 구현 지연 import
+        from tests.support.user_ids import ACTOR_ID, OWNER_ID  # noqa: PLC0415
+
+        comment = make_comment(
+            deal_code=deal_code,
+            action_id=None if action is None else action.id,
+            body=body,
+            author=author or ACTOR_ID,
+            now=at,
+            deal_owner=(author or ACTOR_ID) if read else OWNER_ID,
+        )
+        await ensure_users(self.users, comment.author_user_id)
+        await self.comments.add(comment)
+        return comment
 
     async def _ensure_contact(self, contact_id: ContactId, kind: ContactKind) -> None:
         try:
@@ -181,6 +222,7 @@ def _fake_case() -> DealCase:
         uow.bant_labels,
         uow.vendors,
         lambda: _seeded_types(uow),
+        comment_source=lambda: uow.deal_comments,
     )
 
 
@@ -190,8 +232,13 @@ def _sql_types(session: Any) -> Any:  # noqa: ANN401
     return SqlActionTypeRepository(session)
 
 
-def _sql_case(session: Any) -> DealCase:  # noqa: ANN401
+def _sql_comments(session: Any) -> Any:  # noqa: ANN401
+    from app.infra.db.deal_comment_repository import SqlDealCommentRepository  # noqa: PLC0415
 
+    return SqlDealCommentRepository(session)
+
+
+def _sql_case(session: Any) -> DealCase:  # noqa: ANN401
     from app.infra.db.bant_label_repository import SqlBantLabelRepository  # noqa: PLC0415
     from app.infra.db.code_repository import SqlCodeRepository  # noqa: PLC0415
     from app.infra.db.contact_repository import SqlContactRepository  # noqa: PLC0415
@@ -211,6 +258,7 @@ def _sql_case(session: Any) -> DealCase:  # noqa: ANN401
         SqlBantLabelRepository(session),
         SqlVendorRepository(session),
         lambda: _sql_types(session),
+        comment_source=lambda: _sql_comments(session),
     )
 
 

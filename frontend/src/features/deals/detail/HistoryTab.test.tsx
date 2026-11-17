@@ -68,6 +68,28 @@ describe('Deal History 탭 (T-DETAIL / DL-11)', () => {
     expect(await screen.findByText('변경 이력이 없습니다.')).toBeVisible()
   })
 
+  // 변경 대상 선택지에 Comment가 있고 고르면 Comment 이력(등록·삭제)만 남는다.
+  // 테스트 코드: DD-107, CM-068
+  it('offers Comment as a change target and keeps only the comment rows when chosen', async () => {
+    // given: Comment를 하나 쓰고 지운 Deal(그 이력 두 줄)
+    const { user, table, client } = await openHistory(1, '한빛은행 ITDR 도입')
+    const code = (await gateway.deals.list({ keyword: '한빛은행 ITDR', limit: 5 })).items[0]!.code
+    const written = await gateway.comments.create(code, { body: '이력 확인 글' })
+    await gateway.comments.remove(written.id)
+    await client.invalidateQueries()
+    await waitFor(() => expect(client.isFetching()).toBe(0))
+
+    // when: '변경 대상'에서 Comment를 고른다
+    await user.selectOptions(screen.getByLabelText('변경 대상'), 'Comment')
+
+    // then: 안내에 Comment 변경도 기록된다고 있고, 두 행(삭제가 위, 등록이 아래)이고 모두 대상이 Comment다
+    expect(screen.getByText(/Comment 변경도 이 이력에 기록됩니다/)).toBeVisible()
+    await waitFor(() => expect(bodyRows(table)).toHaveLength(2))
+    expect(bodyRows(table)[0]).toHaveTextContent('삭제')
+    expect(bodyRows(table)[1]).toHaveTextContent('등록: 이력 확인 글')
+    for (const row of bodyRows(table)) expect(within(row).getByRole('cell', { name: 'Comment' })).toBeVisible()
+  })
+
   // 이력은 읽기 전용이고 20행씩 페이지로 나뉜다.
   // 테스트 코드: DD-108
   it('is read only and paginates by 20 rows', async () => {

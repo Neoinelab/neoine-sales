@@ -18,6 +18,7 @@ class IdKind(StrEnum):
     PARTNER_MEETING = "partner_meeting"
     LICENSE_CONTRACT = "license_contract"
     CONTRACT_ATTACHMENT = "contract_attachment"
+    DEAL_COMMENT = "deal_comment"
 
 
 class IdAllocator(Protocol):

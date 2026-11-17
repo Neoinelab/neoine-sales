@@ -337,14 +337,20 @@ def test_deal_schemas_of_the_meeting_api_are_gone(schema: dict[str, Any]) -> Non
     assert not {n for n in names if n.startswith(("MeetingDeal", "DealOption"))}
 
 
-def test_the_deletion_impact_response_has_four_counts(schema: dict[str, Any]) -> None:
-    """Deal 삭제 영향 응답은 네 건수 키뿐이다(미팅 건수 없음).
+def test_the_deletion_impact_response_has_five_counts(schema: dict[str, Any]) -> None:
+    """Deal 삭제 영향 응답은 다섯 건수 키뿐이다(Comment 건수 포함, 미팅 건수 없음).
 
     테스트 코드: PA-044, PA-048
     """
     # when: 삭제 영향 응답 스키마를 읽는다
     impact = _response(schema, "get", "/api/v1/deals/{code}/deletion-impact", "200")
-    # then: 속성과 필수가 모두 네 건수다
-    counts = {"history_count", "action_count", "attachment_count", "license_contract_count"}
+    # then: 속성과 필수가 모두 다섯 건수다
+    counts = {
+        "history_count",
+        "action_count",
+        "attachment_count",
+        "license_contract_count",
+        "comment_count",
+    }
     assert set(impact["properties"]) == counts
     assert set(impact["required"]) == counts

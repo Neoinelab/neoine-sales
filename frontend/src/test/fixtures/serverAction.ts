@@ -16,7 +16,6 @@ export function serverAction(over: Partial<Schemas['DealActionResponse']> = {}):
     due_date: '2026-10-22',
     next_action_status: 'open',
     next_action_closed_on: null,
-    memo: '',
     acted_on: '2026-10-15',
     actor: serverUserRef(),
     status_key: 'prospecting',

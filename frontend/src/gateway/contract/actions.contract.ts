@@ -41,7 +41,7 @@ export const action = (over: Partial<ActionInput> = {}): ActionInput => ({
   progress: '고객사 방문',
   nextAction: '견적 재전달',
   dueDate: '2026-12-01',
-  memo: '',
+  comment: '',
   ...over,
 })
 
@@ -61,7 +61,7 @@ export function actionsContract(make: MakeGateway): void {
       const deal = await newDeal(sales)
 
       // when: Action을 등록한다
-      const created = await sales.actions.create(deal.code, action({ memo: '메모' }))
+      const created = await sales.actions.create(deal.code, action())
 
       // then: 요청자·등록 시점 값이 채워지고 서버 시각이 있다
       expect(created).toMatchObject({
@@ -70,7 +70,6 @@ export function actionsContract(make: MakeGateway): void {
         progress: '고객사 방문',
         nextAction: '견적 재전달',
         dueDate: '2026-12-01',
-        memo: '메모',
         statusKey: 'prospecting',
         forecastKey: 'pipeline',
         actor: { id: me.id },
@@ -127,70 +126,72 @@ export function actionsContract(make: MakeGateway): void {
       const deal = await newDeal(sales)
 
       // when: 지난 Due와 공백이 낀 텍스트로 등록한다
-      const created = await sales.actions.create(deal.code, action({ dueDate: '2000-01-01', progress: '  진행  ', nextAction: ' 다음 ', memo: '  메모  ' }))
+      const created = await sales.actions.create(deal.code, action({ dueDate: '2000-01-01', progress: '  진행  ', nextAction: ' 다음 ' }))
 
       // then: 공백이 지워지고 Due가 그대로다
-      expect(created).toMatchObject({ dueDate: '2000-01-01', progress: '진행', nextAction: '다음', memo: '메모' })
+      expect(created).toMatchObject({ dueDate: '2000-01-01', progress: '진행', nextAction: '다음' })
       await sales.deals.remove(deal.code, deal.code)
     })
 
-    // 5,000/5,000/20,000자 텍스트를 잘림 없이 저장한다.
+    // 5,000/5,000자 텍스트를 잘림 없이 저장한다.
     // 테스트 코드: AC-090
-    it('saves 5,000 / 5,000 / 20,000 character texts in full (no length limit)', async () => {
+    it('saves 5,000 / 5,000 character texts in full (no length limit)', async () => {
       // given: sales와 새 Deal
       const sales = await make('sales')
       const deal = await newDeal(sales)
       const progress = '가'.repeat(5000)
       const nextAction = '나'.repeat(5000)
-      const memo = '다'.repeat(20000)
 
       // when: 긴 텍스트로 등록한다
-      const created = await sales.actions.create(deal.code, action({ progress, nextAction, memo }))
+      const created = await sales.actions.create(deal.code, action({ progress, nextAction }))
 
       // then: 응답과 목록 모두 잘리지 않는다
-      expect(created).toMatchObject({ progress, nextAction, memo })
-      expect((await sales.actions.list(deal.code, {}))[0]).toMatchObject({ progress, nextAction, memo })
+      expect(created).toMatchObject({ progress, nextAction })
+      expect((await sales.actions.list(deal.code, {}))[0]).toMatchObject({ progress, nextAction })
       await sales.deals.remove(deal.code, deal.code)
     })
 
-    // 최신 Action이 Deal 요약이 되고 Memo 부분이 있는 이력 1건이 남는다.
-    // 테스트 코드: AC-090
-    it('puts the latest action in the deal summary and writes one history entry with the Memo part', async () => {
+    // 최신 Action이 Deal 요약이 되고 등록 이력 1건이 남으며, 등록 Comment는 그 Action의 Comment와 별도 이력 1건이다.
+    // 테스트 코드: AC-090, CM-082
+    it('puts the latest action in the deal summary and writes the registration history, with the comment as its own entry', async () => {
       // given: sales와 새 Deal·이력 건수
       const sales = await make('sales')
       const deal = await newDeal(sales)
       const baseline = (await sales.history.list(deal.code, {})).length
 
-      // when: Memo가 있는 Action을 등록한다
-      await sales.actions.create(deal.code, action({ memo: '메모' }))
+      // when: Comment가 있는 Action을 등록한다
+      const created = await sales.actions.create(deal.code, action({ comment: '메모' }))
 
       // then: Deal Next Action이 새 Action의 것이다
       const read = await sales.deals.get(deal.code)
       expect(read.nextAction).toEqual({ text: '견적 재전달', dueDate: '2026-12-01', status: 'open' })
-      // then: 이력이 1건 늘고 "등록: <요약>"이다
+      // then: 이력이 2건 늘고 Action 등록 줄 다음이 Comment 등록 줄이다
       const history = await sales.history.list(deal.code, {})
-      expect(history).toHaveLength(baseline + 1)
-      expect(history[0]).toMatchObject({
+      expect(history).toHaveLength(baseline + 2)
+      expect(history[1]).toMatchObject({
         category: 'action',
         target: 'Action',
         before: '',
-        after: '등록: 미팅 · 고객사 방문 / Next Action: 견적 재전달 (Due 2026-12-01) / Memo: 메모',
+        after: '등록: 미팅 · 고객사 방문 / Next Action: 견적 재전달 (Due 2026-12-01)',
       })
+      expect(history[0]).toMatchObject({ category: 'comment', before: '', after: '등록: 메모' })
+      expect((await sales.comments.list(deal.code, { actionId: created.id })).map((c) => c.body)).toEqual(['메모'])
       await sales.deals.remove(deal.code, deal.code)
     })
 
-    // Memo가 비면 이력 요약에 Memo 부분이 없다.
+    // Comment가 없으면 이력은 등록 줄 하나뿐이다.
     // 테스트 코드: AC-090
-    it('leaves out the Memo part of the history summary when the memo is empty', async () => {
+    it('writes only the registration entry when there is no comment', async () => {
       // given: sales와 새 Deal
       const sales = await make('sales')
       const deal = await newDeal(sales)
 
-      // when: Memo 없이 등록한다
+      // when: Comment 없이 등록한다
       await sales.actions.create(deal.code, action())
 
-      // then: 이력 요약에 Memo 부분이 없다
+      // then: 이력 요약에 Comment 부분이 없고 Comment도 없다
       expect((await sales.history.list(deal.code, {}))[0]?.after).toBe('등록: 미팅 · 고객사 방문 / Next Action: 견적 재전달 (Due 2026-12-01)')
+      expect(await sales.comments.list(deal.code)).toEqual([])
       await sales.deals.remove(deal.code, deal.code)
     })
 
@@ -315,15 +316,15 @@ export function actionsContract(make: MakeGateway): void {
       // then: 이력이 그대로다
       expect(await sales.history.list(deal.code, {})).toEqual(afterCreate)
 
-      // when: 유형·진행사항·Memo를 바꿔 고친다
-      await sales.actions.update(created.id, action({ type: { name: '통화' }, progress: '전화', memo: '메모' }))
+      // when: 유형·진행사항을 바꿔 고친다
+      await sales.actions.update(created.id, action({ type: { name: '통화' }, progress: '전화' }))
       const history = await sales.history.list(deal.code, {})
       // then: 이력이 1건 늘고 변경 전·후 요약이 있다
       expect(history).toHaveLength(afterCreate.length + 1)
       expect(history[0]).toMatchObject({
         category: 'action',
         before: '미팅 · 고객사 방문 / Next Action: 견적 재전달 (Due 2026-12-01)',
-        after: '수정: 통화 · 전화 / Next Action: 견적 재전달 (Due 2026-12-01) / Memo: 메모',
+        after: '수정: 통화 · 전화 / Next Action: 견적 재전달 (Due 2026-12-01)',
       })
       await sales.deals.remove(deal.code, deal.code)
     })
@@ -450,25 +451,25 @@ export function actionsContract(make: MakeGateway): void {
       await sales.deals.remove(deal.code, deal.code)
     })
 
-    // 유형·검색어(진행사항·Next Action·Memo, 대소문자 무시)·담당자 조건은 AND로 결합된다.
+    // 유형·검색어(진행사항·Next Action·Action Comment, 대소문자 무시)·담당자 조건은 AND로 결합된다.
     // 테스트 코드: NA-023, NA-026
     it('유형·검색어·담당자 조건은 AND로 결합되고 검색어는 대소문자를 구분하지 않는다', async () => {
-      // given: 유형과 진행사항이 다른 Action 셋이 있는 Deal(하나는 긴 Memo에 NEEDLE)
+      // given: 유형과 진행사항이 다른 Action 셋이 있는 Deal(하나는 긴 Comment에 NEEDLE)
       const sales = await make('sales')
       const me = await sales.auth.me()
       const deal = await newDeal(sales)
       const call = await sales.actions.create(deal.code, action({ type: { name: '통화' }, progress: 'Alpha 통화' }))
       await sales.actions.create(deal.code, action({ type: { name: '미팅' }, progress: 'Alpha 미팅' }))
-      const viaMemo = await sales.actions.create(deal.code, action({ type: { name: '이메일' }, memo: `긴 메모 ${'x'.repeat(3000)} NEEDLE 끝` }))
+      const viaComment = await sales.actions.create(deal.code, action({ type: { name: '이메일' }, comment: `긴 Comment ${'x'.repeat(3000)} NEEDLE 끝` }))
       const ids = async (q: Parameters<Gateway['actions']['list']>[1]) => (await sales.actions.list(deal.code, q)).map((a) => a.id)
       const types = await sales.actionTypes.list()
       const typeId = (name: string) => types.find((t) => t.name === name)?.id ?? NO_SUCH_ID
 
-      // when·then: 유형+검색어는 둘 다 맞는 Action만, 검색어는 Memo도 대소문자 무시로 찾는다
+      // when·then: 유형+검색어는 둘 다 맞는 Action만, 검색어는 Action Comment도 대소문자 무시로 찾는다
       expect(await ids({ typeId: typeId('통화'), keyword: 'alpha' })).toEqual([call.id])
-      expect(await ids({ keyword: 'needle' })).toEqual([viaMemo.id])
+      expect(await ids({ keyword: 'needle' })).toEqual([viaComment.id])
       // when·then: 담당자+유형은 둘 다 맞는 Action만, 없는 담당자는 빈 목록이다
-      expect(await ids({ actorId: me.id, typeId: typeId('이메일') })).toEqual([viaMemo.id])
+      expect(await ids({ actorId: me.id, typeId: typeId('이메일') })).toEqual([viaComment.id])
       expect(await ids({ actorId: NO_SUCH_ID })).toEqual([])
       await sales.deals.remove(deal.code, deal.code)
     })

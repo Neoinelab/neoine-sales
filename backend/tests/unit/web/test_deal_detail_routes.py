@@ -290,8 +290,8 @@ async def test_a_single_change_of_an_unknown_deal_is_not_found(code: str) -> Non
     assert problem(response, 404, "not-found")["detail"] == NOT_FOUND
 
 
-async def test_the_deletion_impact_is_readable_by_every_role_and_has_four_counts() -> None:
-    """삭제 영향은 모든 역할이 읽고 이력·Action·첨부·계약 네 건수를 돌려준다.
+async def test_the_deletion_impact_is_readable_by_every_role_and_has_five_counts() -> None:
+    """삭제 영향은 모든 역할이 읽고 이력·Action·첨부·계약·Comment 다섯 건수를 돌려준다.
 
     테스트 코드: DD-047
     """
@@ -303,7 +303,7 @@ async def test_the_deletion_impact_is_readable_by_every_role_and_has_four_counts
     async with clients(use_cases, ALL_ROLES) as c:
         responses = [await http.get(f"{BASE}/{CODE}/deletion-impact") for http in c.values()]
 
-    # then: 모두 200이고 네 건수가 0이다
+    # then: 모두 200이고 다섯 건수가 0이다
     for response in responses:
         assert response.status_code == 200, response.text
         assert response.json() == {
@@ -311,6 +311,7 @@ async def test_the_deletion_impact_is_readable_by_every_role_and_has_four_counts
             "action_count": 0,
             "attachment_count": 0,
             "license_contract_count": 0,
+            "comment_count": 0,
         }
 
 

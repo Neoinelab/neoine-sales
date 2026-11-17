@@ -94,10 +94,10 @@ def test_deal_action_update_works_without_any_deletion_state_check() -> None:
     """Action은 삭제 상태 검사 없이 수정된다."""
     # given: Action
     action = make_deal_action()
-    # when: 메모를 수정한다
-    action.revise(make_action_content(memo="바뀐 메모"), later(5))
-    # then: 바뀐 메모가 반영된다
-    assert action.content.memo == "바뀐 메모"
+    # when: 진행사항을 수정한다
+    action.revise(make_action_content(action="바뀐 진행"), later(5))
+    # then: 바뀐 진행사항이 반영된다
+    assert action.content.action == "바뀐 진행"
 
 
 def test_user_record_login_works_for_an_active_user() -> None:

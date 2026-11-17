@@ -124,7 +124,7 @@ describe('Status 진입일 (R-22, R-21)', () => {
     // given: 하루가 지난 Deal이다
     const { gateway, clock, code } = await setup()
     clock.advance(DAY_MS)
-    const base = { type: { name: '미팅' }, progress: '방문', nextAction: '견적', dueDate: '2026-10-30', memo: '' }
+    const base = { type: { name: '미팅' }, progress: '방문', nextAction: '견적', dueDate: '2026-10-30', comment: '' }
 
     // when: status_change 없는 Action, Status를 바꾸는 Action을 차례로 등록한다
     await gateway.actions.create(code, base)

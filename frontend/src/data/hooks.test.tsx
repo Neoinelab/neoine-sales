@@ -196,7 +196,7 @@ describe('Action·첨부·코드 훅', () => {
     const n = result.current.actions.data?.length ?? 0
     // when: Action을 등록한다
     await act(async () => {
-      await result.current.create.mutateAsync({ dealCode: code, input: { type: { name: '통화' }, progress: '확인', nextAction: '회신', dueDate: '2026-10-20', memo: '' } })
+      await result.current.create.mutateAsync({ dealCode: code, input: { type: { name: '통화' }, progress: '확인', nextAction: '회신', dueDate: '2026-10-20', comment: '' } })
     })
     // then: Action이 한 건 늘고 History 맨 위가 action이다
     await waitFor(() => expect(result.current.actions.data?.length).toBe(n + 1))
@@ -274,7 +274,7 @@ describe('Action 유형 훅', () => {
     await waitFor(() => expect(result.current.types.isSuccess).toBe(true))
     // when: 목록에 없는 '현장 점검' 유형으로 Action을 등록한다
     await act(async () => {
-      await result.current.create.mutateAsync({ dealCode: code, input: { type: { name: '현장 점검' }, progress: '확인', nextAction: '회신', dueDate: '2026-10-20', memo: '' } })
+      await result.current.create.mutateAsync({ dealCode: code, input: { type: { name: '현장 점검' }, progress: '확인', nextAction: '회신', dueDate: '2026-10-20', comment: '' } })
     })
     // then: 유형 목록에 '현장 점검'이 사용 1건으로 보인다
     await waitFor(() => expect(result.current.types.data?.find((t) => t.name === '현장 점검')?.usageCount).toBe(1))

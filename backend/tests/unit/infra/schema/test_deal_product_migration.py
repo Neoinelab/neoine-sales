@@ -76,10 +76,10 @@ async def test_upgrade_renames_the_column_and_keeps_every_row_and_value(
     await _seed(blank_database, target=PARENT, column="solution", values=["ITDR", ""])
     others_before = await run_sql(blank_database, OTHER_COLUMNS)
 
-    # when: head까지 올린다
-    await when_operator_upgrades(blank_database)
+    # when: Product 이름 변경 리비전까지 올린다
+    await when_operator_upgrades(blank_database, target=HEAD)
 
-    # then: 버전은 head이고 solution 열이 없으며 product가 varchar(200) NOT NULL이다
+    # then: 버전은 이 리비전이고 solution 열이 없으며 product가 varchar(200) NOT NULL이다
     await then_schema_is_at(blank_database, HEAD)
     assert await run_sql(blank_database, COLUMN_INFO) == [
         ("product", "character varying", 200, "NO")

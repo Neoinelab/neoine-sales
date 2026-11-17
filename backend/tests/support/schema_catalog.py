@@ -19,6 +19,16 @@ if TYPE_CHECKING:
     from sqlalchemy.engine import URL
 
 
+def head_revision() -> str:
+    """리비전 그래프의 head id(리비전 id를 테스트에 박아 두지 않고 그래프에서 읽는다)."""
+    from alembic.script import ScriptDirectory  # noqa: PLC0415
+
+    from tests.support.database import _alembic_config  # noqa: PLC0415
+
+    (head,) = ScriptDirectory.from_config(_alembic_config()).get_heads()
+    return head
+
+
 @dataclass(frozen=True, slots=True)
 class CommandOutcome:
     """alembic 명령의 결과. 중단되면 error에 사유가 담긴다."""

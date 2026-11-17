@@ -28,7 +28,7 @@ _ACTION_COUNT = replace(
 ACTION_FIELDS: tuple[FieldSpec, ...] = (
     text_field("action.action", "진행사항"),
     text_field("action.next_action", "Next Action"),
-    text_field("action.memo", "Memo"),
+    text_field("action.comment", "Comment(Action)"),
     user_field("action.actor", "수행자"),
     code_field("action.type", "Action 유형", CodeSource.by_id(OptionsSource.ACTION_TYPES)),
     code_field(

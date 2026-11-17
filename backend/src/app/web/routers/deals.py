@@ -103,6 +103,7 @@ async def get_deal_deletion_impact(code: str, provider: Provider) -> DeletionImp
         action_count=impact.action_count,
         attachment_count=impact.attachment_count,
         license_contract_count=impact.license_contract_count,
+        comment_count=impact.comment_count,
     )
 
 

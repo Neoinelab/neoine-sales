@@ -9,7 +9,7 @@ const input = (over: Partial<ActionInput> = {}): ActionInput => ({
   progress: '고객사 방문',
   nextAction: '견적 재전달',
   dueDate: '2026-10-22',
-  memo: '',
+  comment: '',
   ...over,
 })
 
@@ -290,8 +290,8 @@ describe('actions.list 헤더 정렬 (서버 정렬 표와 같은 순서)', () =
     const done = await mock.gateway.actions.create(code, input({ progress: 'S수행' }))
     mock.clock.advance(60_000)
     await mock.gateway.actions.create(code, input({ progress: 'S열림' }))
-    await mock.gateway.actions.changeNextActionStatus(notDone.id, { status: 'notDone', memo: '' })
-    await mock.gateway.actions.changeNextActionStatus(done.id, { status: 'done', memo: '' })
+    await mock.gateway.actions.changeNextActionStatus(notDone.id, { status: 'notDone', comment: '' })
+    await mock.gateway.actions.changeNextActionStatus(done.id, { status: 'done', comment: '' })
     // when: 상태 정렬을 오름차순·내림차순으로 부른다.
     const names = async (order: 'asc' | 'desc') =>
       (await mock.gateway.actions.list(code, { sort: 'nextActionStatus', order })).map((a) => a.progress).filter((p) => ['S열림', 'S수행', 'S미수행', 'S없음'].includes(p ?? ''))
@@ -315,7 +315,7 @@ describe('actions.update / remove', () => {
     // given: 수정 전 History 건수
     const base = (await gateway.history.list(code, {})).length
     // when: 유형·내용을 모두 고쳐 수정한다
-    const updated = await gateway.actions.update(old.id, { type: { name: '기타' }, progress: '수정한 진행사항', nextAction: '수정한 Next', dueDate: '2026-11-01', memo: '메모' })
+    const updated = await gateway.actions.update(old.id, { type: { name: '기타' }, progress: '수정한 진행사항', nextAction: '수정한 Next', dueDate: '2026-11-01' })
     // then: 내용만 바뀌고 수행일·담당자·스냅숏은 그대로다
     expect(updated).toMatchObject({ id: old.id, progress: '수정한 진행사항', actedOn: old.actedOn, actor: old.actor, statusKey: old.statusKey, forecastKey: old.forecastKey })
     // when: History를 읽는다
@@ -324,9 +324,9 @@ describe('actions.update / remove', () => {
     expect(history).toHaveLength(base + 1)
     expect(history[0]).toMatchObject({ category: 'action', by: { id: USER_ID.kim } })
     // when·then: 진행사항·Next Action을 모두 비우면 422다
-    await expectApiError(gateway.actions.update(old.id, { type: { name: '기타' }, progress: '', nextAction: '', dueDate: '', memo: '' }), 422, '진행사항 또는 Next Action을 입력하세요.')
+    await expectApiError(gateway.actions.update(old.id, { type: { name: '기타' }, progress: '', nextAction: '', dueDate: '' }), 422, '진행사항 또는 Next Action을 입력하세요.')
     // when·then: 없는 Action을 수정하면 404다
-    await expectApiError(gateway.actions.update(NO_SUCH_ID, { type: { name: '기타' }, progress: 'x', nextAction: 'x', dueDate: '2026-11-01', memo: '' }), 404)
+    await expectApiError(gateway.actions.update(NO_SUCH_ID, { type: { name: '기타' }, progress: 'x', nextAction: 'x', dueDate: '2026-11-01' }), 404)
   })
 
   // 최신 Action을 삭제하면 이전 Action이 Deal의 Next Action이 된다.
@@ -358,7 +358,7 @@ describe('actions.update / remove', () => {
     const first = (await gateway.actions.list(dealCode(1), {}))[0]
     if (!first) throw new Error('no action')
     // when·then: 수정하면 403이다
-    await expectApiError(gateway.actions.update(first.id, { type: { name: '기타' }, progress: 'x', nextAction: 'x', dueDate: '2026-11-01', memo: '' }), 403)
+    await expectApiError(gateway.actions.update(first.id, { type: { name: '기타' }, progress: 'x', nextAction: 'x', dueDate: '2026-11-01' }), 403)
     // when·then: 삭제하면 403이다
     await expectApiError(gateway.actions.remove(first.id), 403)
   })

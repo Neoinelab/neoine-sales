@@ -278,6 +278,7 @@ export interface DealDeletionImpact {
   actionCount: number
   attachmentCount: number
   licenseContractCount: number
+  commentCount: number
 }
 
 // ───────────────────────── Action / History / 첨부 ─────────────────────────
@@ -301,9 +302,34 @@ export interface DealAction {
   /** Next Action이 있는 행만 상태가 있다. */
   nextActionStatus: NextActionStatus | null
   nextActionClosedOn: string | null
-  memo: string
   statusKey: string
   forecastKey: string
+}
+
+/** Action 상세 상자에 보이는 연결 Action 요약(응답 시점의 현재 값). */
+export interface LinkedActionSummary {
+  id: number
+  actedOn: string
+  progress: string | null
+  nextAction: string | null
+}
+
+/** Deal Comment(`actionId` null) 또는 Action Comment. `readAt`은 Deal Owner가 읽은 시각(null이면 읽지 않음). 수정은 없다. */
+export interface DealComment {
+  id: number
+  dealCode: string
+  actionId: number | null
+  action: LinkedActionSummary | null
+  body: string
+  author: UserRef
+  createdAt: string
+  readAt: string | null
+}
+
+/** Deal의 읽지 않은 Comment 수와 Action별 읽지 않은 수(없는 Action은 0). */
+export interface CommentCounts {
+  unread: number
+  byAction: Record<number, number>
 }
 
 export type HistoryCategory =
@@ -318,6 +344,7 @@ export type HistoryCategory =
   | 'bant'
   | 'action'
   | 'attachment'
+  | 'comment'
   | 'other'
 
 /** Deal 및 연결 정보의 모든 변경 1건. before/after는 표시용 text. 등록은 before='' after='Deal 등록'. */

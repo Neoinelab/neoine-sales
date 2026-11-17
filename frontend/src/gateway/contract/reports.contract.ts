@@ -33,16 +33,16 @@ export function reportsContract(make: MakeGateway): void {
       expect(result.columns).toHaveLength(1)
     })
 
-    it('필드 40개를 가지며 기본값은 자기 선택지 안에 있다', async () => {
+    it('필드 41개를 가지며 기본값은 자기 선택지 안에 있다', async () => {
       // given: user 게이트웨이
       const { reports } = await make('user')
 
       // when: 필드 목록을 읽는다
       const catalog = await reports.fields()
 
-      // then: Deal 28·Action 12이고 형식별 포맷·단위·기본 집계가 자기 선택지 안에 있다
-      expect(catalog.fields).toHaveLength(40)
-      expect(catalog.fields.filter((f) => f.entity === 'deal')).toHaveLength(28)
+      // then: Deal 29·Action 12이고 형식별 포맷·단위·기본 집계가 자기 선택지 안에 있다
+      expect(catalog.fields).toHaveLength(41)
+      expect(catalog.fields.filter((f) => f.entity === 'deal')).toHaveLength(29)
       expect(catalog.fields.filter((f) => f.entity === 'action')).toHaveLength(12)
       for (const field of catalog.fields) {
         if (['text', 'code', 'user', 'number'].includes(field.type)) {

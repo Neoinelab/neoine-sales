@@ -24,11 +24,11 @@ COLUMN_INFO = (
 )
 CONSTRAINT_NAMES = "select conname from pg_constraint where conrelid = 'deal_actions'::regclass"
 RAW_INSERT = (
-    "insert into deal_actions (id, deal_id, action_type_id, action, memo, next_action,"
+    "insert into deal_actions (id, deal_id, action_type_id, action, next_action,"
     " due_date, {status_columns} acted_on, actor_user_id, status_key, forecast_key, created_at,"
     " updated_at) values (:id, (select id from deals where deal_code = :deal_code),"
     " (select id from action_types where name = '미팅'),"
-    " :action, '', :next_action, :due_date, {status_values} current_date, :actor, 'prospecting',"
+    " :action, :next_action, :due_date, {status_values} current_date, :actor, 'prospecting',"
     " 'pipeline', now(), now())"
 )
 STATUS_COLUMNS = {"next_action_status", "next_action_closed_on"}

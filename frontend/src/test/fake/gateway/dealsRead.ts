@@ -184,12 +184,13 @@ export function dealsReadApi(ctx: MockContext) {
       read(ctx, () => {
         requireUser(ctx)
         findDeal(ctx.store.data, code)
-        const { history, actions, attachments, licenseContracts } = ctx.store.data
+        const { history, actions, attachments, licenseContracts, comments } = ctx.store.data
         return {
           historyCount: history.filter((h) => h.dealCode === code).length,
           actionCount: actions.filter((a) => a.dealCode === code).length,
           attachmentCount: attachments.filter((a) => a.dealCode === code).length,
           licenseContractCount: licenseContracts.filter((c) => c.dealCode === code).length,
+          commentCount: comments.filter((c) => c.dealCode === code).length,
         }
       }),
   }

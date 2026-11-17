@@ -21,7 +21,7 @@ const input = (over: Partial<ActionInput> = {}): ActionInput => ({
   progress: '고객사 방문',
   nextAction: '견적 재전달',
   dueDate: '2026-12-01',
-  memo: '',
+  comment: '',
   ...over,
 })
 
@@ -30,7 +30,6 @@ const edit = (over: Partial<Edit> = {}): Edit => ({
   progress: '고객사 방문',
   nextAction: '견적 재전달',
   dueDate: '2026-12-01',
-  memo: '',
   ...over,
 })
 

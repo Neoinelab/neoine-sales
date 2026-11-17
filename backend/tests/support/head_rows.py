@@ -61,10 +61,10 @@ INSERT_HISTORY = (
 # 등록 시점 Status/Forecast 스냅숏(status_kind·forecast_kind는 기본값)이 필수다.
 # 유형은 시드된 기본 유형을 이름으로 고른다(`type_name`, 기본 미팅).
 INSERT_ACTION = (
-    "insert into deal_actions (id, deal_id, action_type_id, action, memo, next_action,"
+    "insert into deal_actions (id, deal_id, action_type_id, action, next_action,"
     " due_date, acted_on, actor_user_id, status_key, forecast_key, next_action_status,"
     " created_at, updated_at)"
-    " values (:id, :deal_id, (select id from action_types where name = :type_name), 'a', '',"
+    " values (:id, :deal_id, (select id from action_types where name = :type_name), 'a',"
     " 'n', current_date, current_date, :actor_user_id, :status_key, :forecast_key, 'open',"
     " now(), now())"
 )

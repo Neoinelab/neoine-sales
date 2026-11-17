@@ -43,6 +43,7 @@ KIND_VALUES = {
     "partner_meeting",
     "license_contract",
     "contract_attachment",
+    "deal_comment",
 }
 
 
@@ -66,7 +67,7 @@ async def _next(uow_factory: UnitOfWorkFactory, kind: object) -> int:
 
 
 def test_the_id_kinds_are_exactly_the_tables_the_application_numbers_itself() -> None:
-    """IdKind는 앱이 직접 번호를 받는 13종이다.
+    """IdKind는 앱이 직접 번호를 받는 14종이다(deal_comment 포함).
 
     테스트 코드: SC-031
     """
@@ -75,7 +76,7 @@ def test_the_id_kinds_are_exactly_the_tables_the_application_numbers_itself() ->
     # when: IdKind의 값을 모두 읽는다
     values = {kind.value for kind in IdKind}
 
-    # then: 앱이 직접 번호를 받는 13종과 같다
+    # then: 앱이 직접 번호를 받는 14종과 같다
     assert values == KIND_VALUES
 
 

@@ -472,7 +472,7 @@ export function partnerMeetingsContract(make: MakeGateway): void {
       const impact = await admin.deals.impact(deal.code)
 
       // then: 키는 네 건수뿐이고 미팅은 그대로 있다
-      expect(Object.keys(impact).sort()).toEqual(['actionCount', 'attachmentCount', 'historyCount', 'licenseContractCount'])
+      expect(Object.keys(impact).sort()).toEqual(['actionCount', 'attachmentCount', 'commentCount', 'historyCount', 'licenseContractCount'])
       expect((await admin.partnerMeetings.list({ ...DEFAULT_QUERY, content: tag }, 0, 10)).total).toBe(1)
       await admin.partnerMeetings.remove(created.id)
     })

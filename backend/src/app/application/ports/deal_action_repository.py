@@ -61,7 +61,9 @@ class DealActionQuery:
     deal_code: DealCode
     action_type_id: ActionTypeId | None = None
     actor_user_id: UserId | None = None  # 수행자(users.id), 퇴사자도 조회 가능
-    keyword: str | None = None  # 진행사항·Next Action·Memo에서 대소문자 구분 없이 부분 일치
+    keyword: str | None = (
+        None  # 진행사항·Next Action·그 Action의 Action Comment 본문에서 부분 일치(대소문자 무시)
+    )
     acted_from: date | None = None
     acted_to: date | None = None
     due_from: date | None = None

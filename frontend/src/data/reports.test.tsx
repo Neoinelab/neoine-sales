@@ -109,9 +109,9 @@ describe('useReportFields', () => {
     // when: 카탈로그 훅을 쓴다
     const { result } = renderHook(() => useReportFields(), { wrapper })
 
-    // then: 필드 40개를 받고 reports/fields 키에 저장된다
+    // then: 필드 41개를 받고 reports/fields 키에 저장된다
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
-    expect(result.current.data?.fields).toHaveLength(40)
+    expect(result.current.data?.fields).toHaveLength(41)
     expect(keys.reportFields).toEqual(['reports', 'fields'])
     expect(queryClient.getQueryData(keys.reportFields)).toBe(result.current.data)
   })

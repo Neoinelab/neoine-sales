@@ -11,6 +11,7 @@ if TYPE_CHECKING:
     from app.application.ports.contact_repository import ContactRepository
     from app.application.ports.dashboard_repository import DashboardTallyRepository
     from app.application.ports.deal_action_repository import DealActionRepository
+    from app.application.ports.deal_comment_repository import DealCommentRepository
     from app.application.ports.deal_history_repository import DealHistoryRepository
     from app.application.ports.deal_repository import DealRepository
     from app.application.ports.directory_settings_repository import DirectorySettingsRepository
@@ -52,6 +53,9 @@ class UnitOfWork(Protocol):
 
     @property
     def deal_actions(self) -> DealActionRepository: ...
+
+    @property
+    def deal_comments(self) -> DealCommentRepository: ...
 
     @property
     def deal_history(self) -> DealHistoryRepository: ...

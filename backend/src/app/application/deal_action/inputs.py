@@ -23,7 +23,6 @@ class ActionContentInput:
     action: str
     next_action: str
     due_date: date | None
-    memo: str = ""
 
     def to_content(self, action_type: ActionTypeRef) -> ActionContent:
         return ActionContent.parse(
@@ -31,16 +30,15 @@ class ActionContentInput:
             action=self.action,
             next_action=self.next_action,
             due_date=self.due_date,
-            memo=self.memo,
         )
 
 
 @dataclass(frozen=True, slots=True)
 class NextActionStatusInput:
-    """Next Action 상태 변경 입력. memo는 종료할 때 Memo에 덧붙일 내용이다(선택)."""
+    """Next Action 상태 변경 입력. comment는 종료할 때 남길 Action Comment다(선택)."""
 
     status: NextActionStatus
-    memo: str = ""
+    comment: str = ""
 
 
 @dataclass(frozen=True, slots=True)
@@ -61,6 +59,7 @@ class DealActionInput:
     close_previous_next_action_id: DealActionId | None = None  # 저장하며 종료(수행)로 닫을 기준 행
     acted_on: date | None = None  # 수행일(업무 날짜). 없으면 오늘
     delete_license_contracts: bool = False  # Won을 벗어날 때만 쓰인다(아니면 무시)
+    comment: str = ""  # 새 Action에 함께 남길 Action Comment(선택, 비면 만들지 않음)
 
 
 @dataclass(frozen=True, slots=True)

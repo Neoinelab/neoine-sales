@@ -40,6 +40,10 @@ export const keys = {
   historyAll: ['history'] as const,
   history: (dealCode: string) => ['history', dealCode] as const,
   historyList: (dealCode: string, q: HistoryQuery) => ['history', dealCode, q] as const,
+  /** Deal의 Comment 전부(목록·읽지 않은 수). 이것을 무효화하면 둘 다 갱신된다. */
+  comments: (dealCode: string) => ['comments', dealCode] as const,
+  commentList: (dealCode: string, actionId: number | null) => ['comments', dealCode, 'list', actionId] as const,
+  commentCounts: (dealCode: string) => ['comments', dealCode, 'counts'] as const,
   attachments: (dealCode: string) => ['attachments', dealCode] as const,
   codes: ['codes'] as const,
   codeSet: ['codes', 'all'] as const,

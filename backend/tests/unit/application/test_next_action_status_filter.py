@@ -49,14 +49,15 @@ def test_single_status_filters_expand_to_themselves(
     assert statuses == expected
 
 
-def test_next_action_status_input_defaults_to_an_empty_memo() -> None:
-    """상태 변경 입력에서 메모를 생략하면 빈 문자열이다.
+def test_next_action_status_input_defaults_to_an_empty_comment() -> None:
+    """상태 변경 입력에서 종료 Comment를 생략하면 빈 문자열이다.
 
-    테스트 코드: NA-003
+    테스트 코드: CM-033
     """
     from app.application.deal_action.inputs import NextActionStatusInput  # noqa: PLC0415
 
-    # when: 메모 없이 상태 변경 입력을 만든다
+    # when: 종료 Comment 없이 상태 변경 입력을 만든다
     data = NextActionStatusInput(status=NextActionStatus.DONE)
-    # then: 메모는 빈 문자열이다
-    assert (data.status, data.memo) == (NextActionStatus.DONE, "")
+    # then: 종료 Comment는 빈 문자열이고 예전 memo 필드는 없다
+    assert (data.status, data.comment) == (NextActionStatus.DONE, "")
+    assert not hasattr(data, "memo")

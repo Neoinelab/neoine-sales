@@ -2,7 +2,7 @@
 
 from typing import TYPE_CHECKING
 
-from sqlalchemy import exists, func, select
+from sqlalchemy import exists, func, or_, select
 
 from app.domain.action_type.values import ActionTypeId, ActionTypeRef
 from app.domain.code.values import CodeKind
@@ -21,6 +21,7 @@ from app.infra.db.deal_keys import deal_id_of
 from app.infra.db.like import keyword_filter
 from app.infra.db.models import DealActionRow
 from app.infra.db.models_catalog import ActionTypeRow
+from app.infra.db.models_comment import DealCommentRow
 from app.infra.db.models_deal import DealRow
 
 if TYPE_CHECKING:
@@ -36,7 +37,6 @@ def _apply_content(row: DealActionRow, content: ActionContent) -> None:
     row.action = content.action
     row.next_action = content.next_action
     row.due_date = content.due_date
-    row.memo = content.memo
 
 
 def _apply_state(row: DealActionRow, state: NextActionState | None) -> None:
@@ -96,7 +96,6 @@ def _to_entity(row: DealActionRow, type_name: str, deal_code: str) -> DealAction
             action=row.action,
             next_action=row.next_action,
             due_date=row.due_date,
-            memo=row.memo,
         ),
         acted_on=row.acted_on,
         actor_user_id=UserId(row.actor_user_id),
@@ -134,9 +133,14 @@ def _filtered(query: DealActionQuery) -> Select[DealActionRow, str, str]:
         wanted = [status.value for status in query.next_action_status.statuses()]
         statement = statement.where(DealActionRow.next_action_status.in_(wanted))
     if query.keyword is not None:
+        in_comment = exists().where(
+            DealCommentRow.action_id == DealActionRow.id,
+            keyword_filter(query.keyword, DealCommentRow.body),
+        )
         statement = statement.where(
-            keyword_filter(
-                query.keyword, DealActionRow.action, DealActionRow.next_action, DealActionRow.memo
+            or_(
+                keyword_filter(query.keyword, DealActionRow.action, DealActionRow.next_action),
+                in_comment,
             )
         )
     return statement

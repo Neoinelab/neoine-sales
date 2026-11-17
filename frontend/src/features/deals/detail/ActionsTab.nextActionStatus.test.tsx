@@ -17,14 +17,14 @@ async function openActions(role: 'sales' | 'admin' | 'user' = 'sales', userId?: 
 
 const bodyRows = (table: HTMLElement) => within(table).getAllByRole('row').slice(1)
 
-/** 행을 눌러 상세 팝업을 열고 Memo 값(dd)을 읽은 뒤 닫는다(표에는 Memo 열이 없다). */
-async function memoInDetail(user: View['user'], table: HTMLElement, index: number): Promise<string> {
+/** 행을 눌러 상세 팝업을 열고 그 Action의 "Comment 목록" 글을 읽은 뒤 닫는다(표에는 Comment 글이 없다). Comment가 없으면 빈 문자열. */
+async function commentsInDetail(user: View['user'], table: HTMLElement, index: number): Promise<string> {
   await user.click(bodyRows(table)[index]!)
   const dialog = await screen.findByRole('dialog', { name: 'Action 상세' })
-  const dt = Array.from(dialog.querySelectorAll('dt')).find((el) => el.textContent === 'Memo')
-  const memo = dt?.nextElementSibling?.textContent ?? ''
+  const list = within(dialog).queryByRole('list', { name: 'Comment 목록' })
+  const text = list?.textContent ?? ''
   await user.click(within(dialog).getByRole('button', { name: '닫기' }))
-  return memo
+  return text
 }
 
 async function openForm(user: View['user']) {
@@ -178,7 +178,7 @@ describe('Next Action이 없는 행의 상태 칸', () => {
     // given: 작성자가 연 Actions 탭에 진행사항만 Action이 새로 생겼다(수행일 오름차순으로 읽어 마지막 행에 온다).
     const code = await dealCodeOf(1)
     const { user, table } = await openActions()
-    await gateway.actions.create(code, { type: { name: '미팅' }, progress: '전화로만 확인', nextAction: '', dueDate: '', memo: '' })
+    await gateway.actions.create(code, { type: { name: '미팅' }, progress: '전화로만 확인', nextAction: '', dueDate: '', comment: '' })
     // when: 수행일 머리글을 눌러 목록을 다시 읽는다.
     await user.click(within(table).getByRole('button', { name: '수행일' }))
     // then: 진행사항만 행의 상태 칸은 "—"이고 상태 버튼이 없다.
@@ -190,32 +190,32 @@ describe('Next Action이 없는 행의 상태 칸', () => {
 })
 
 describe('Next Action 종료 팝업', () => {
-  // 종료(수행) 버튼은 메모 팝업을 거쳐 입력한 메모로 종료하고 행에 새 상태와 Memo가 보인다.
+  // 종료(수행) 버튼은 종료 대화상자를 거쳐 입력한 Comment로 종료하고 행에 새 상태가, 상세 팝업에 새 Comment가 보인다.
   // 테스트 코드: NA-047, NA-051
-  it('opens a memo dialog for done and closes with the typed memo appended', async () => {
+  it('opens a close dialog for done and closes with the typed comment as a new comment', async () => {
     // given: 작성자의 Open Action 행이 있다.
     const { user, table } = await openActions()
     // when: "종료(수행)"을 눌러 열린 팝업에 "문서 전달 완료"를 쓰고 "종료"를 누른다.
     await user.click(within(bodyRows(table)[0]!).getByRole('button', { name: '종료(수행)' }))
 
     const dialog = await screen.findByRole('dialog', { name: 'Next Action 종료(수행)' })
-    await user.type(within(dialog).getByLabelText('Memo에 남길 내용(선택)'), '문서 전달 완료')
+    await user.type(within(dialog).getByLabelText('Comment에 남길 내용(선택)'), '문서 전달 완료')
     await user.click(within(dialog).getByRole('button', { name: '종료' }))
 
     // then: 팝업이 닫히고 행이 종료(수행)을 보이며 "Open으로" 버튼이 생긴다.
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
     await waitFor(() => expect(bodyRows(table)[0]).toHaveTextContent('종료(수행)'))
     expect(within(bodyRows(table)[0]!).getByRole('button', { name: 'Open으로' })).toBeVisible()
-    // then: 행을 눌러 연 상세 팝업의 Memo가 "문서 전달 완료"다(표에는 Memo 열이 없다).
-    expect(await memoInDetail(user, table, 0)).toContain('문서 전달 완료')
+    // then: 행을 눌러 연 상세 팝업의 Comment 목록에 "문서 전달 완료"가 있다(표에는 Comment 글이 없다).
+    expect(await commentsInDetail(user, table, 0)).toContain('문서 전달 완료')
   })
 
-  // 종료(미수행) 팝업은 제목이 다르고 메모를 비운 채 종료할 수 있다.
+  // 종료(미수행) 팝업은 제목이 다르고 Comment를 비운 채 종료할 수 있다.
   // 테스트 코드: NA-047
-  it('uses the not-done title and allows closing with an empty memo', async () => {
+  it('uses the not-done title and allows closing with an empty comment', async () => {
     // given: 작성자의 Open Action 행이 있다.
     const { user, table } = await openActions()
-    // when: "종료(미수행)"을 눌러 "Next Action 종료(미수행)" 팝업에서 메모 없이 "종료"를 누른다.
+    // when: "종료(미수행)"을 눌러 "Next Action 종료(미수행)" 팝업에서 Comment 없이 "종료"를 누른다.
     await user.click(within(bodyRows(table)[0]!).getByRole('button', { name: '종료(미수행)' }))
 
     const dialog = await screen.findByRole('dialog', { name: 'Next Action 종료(미수행)' })
@@ -225,22 +225,22 @@ describe('Next Action 종료 팝업', () => {
     await waitFor(() => expect(bodyRows(table)[0]).toHaveTextContent('종료(미수행)'))
   })
 
-  // 팝업의 취소는 요청 없이 닫고 상태와 Memo를 바꾸지 않는다.
+  // 팝업의 취소는 요청 없이 닫고 상태를 바꾸지 않으며 Comment도 만들지 않는다.
   // 테스트 코드: NA-048
   it('leaves the status unchanged on cancel', async () => {
-    // given: 종료(수행) 팝업에 "버릴 메모"를 쓴 상태다.
+    // given: 종료(수행) 팝업에 "버릴 Comment"를 쓴 상태다.
     const { user, table } = await openActions()
     await user.click(within(bodyRows(table)[0]!).getByRole('button', { name: '종료(수행)' }))
     const dialog = await screen.findByRole('dialog', { name: 'Next Action 종료(수행)' })
-    await user.type(within(dialog).getByLabelText('Memo에 남길 내용(선택)'), '버릴 메모')
+    await user.type(within(dialog).getByLabelText('Comment에 남길 내용(선택)'), '버릴 Comment')
 
     // when: "취소"를 누른다.
     await user.click(within(dialog).getByRole('button', { name: '취소' }))
 
-    // then: 팝업이 닫히고 행은 Open 그대로이며 버린 메모가 없다.
+    // then: 팝업이 닫히고 행은 Open 그대로이며 버린 Comment가 없다.
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
     expect(bodyRows(table)[0]).toHaveTextContent('Open')
-    expect(await memoInDetail(user, table, 0)).not.toContain('버릴 메모')
+    expect(await commentsInDetail(user, table, 0)).not.toContain('버릴 Comment')
   })
 
   // 팝업에서 Esc를 누르면 요청 없이 닫고 상태를 바꾸지 않는다.
@@ -278,6 +278,16 @@ describe('Next Action 종료 팝업', () => {
 })
 
 describe('Action 검색: Next Action 상태 필터', () => {
+  // 키워드 칸의 placeholder는 진행사항·Next Action·Comment다(Memo가 아니다).
+  // 테스트 코드: NA-052
+  it('names Comment, not Memo, in the keyword placeholder', async () => {
+    // when: Actions 탭을 연다.
+    await openActions()
+
+    // then: 키워드 칸 placeholder가 "진행사항·Next Action·Comment"다.
+    expect(screen.getByLabelText('키워드')).toHaveAttribute('placeholder', '진행사항·Next Action·Comment')
+  })
+
   // Next Action 상태 검색 선택지는 전체·Open·종료(수행)·종료(미수행)·종료(전체) 다섯 개다.
   // 테스트 코드: NA-052
   it('offers the five choices', async () => {
@@ -335,25 +345,25 @@ describe('Deal 상세 요약의 Next Action 상태', () => {
 })
 
 describe('Next Action 종료 실패', () => {
-  // 서버가 거절하면 팝업이 열린 채 입력한 메모가 남고 팝업 안에 서버 문구가 보인다.
+  // 서버가 거절하면 팝업이 열린 채 입력한 Comment가 남고 팝업 안에 서버 문구가 보인다.
   // 테스트 코드: NA-050
-  it('keeps the dialog open with the typed memo and shows the error when the server refuses (409)', async () => {
-    // given: 종료 팝업에 "잃으면 안 되는 메모"를 쓰는 사이 그 Action이 다른 경로에서 이미 종료(수행)됐다.
+  it('keeps the dialog open with the typed comment and shows the error when the server refuses (409)', async () => {
+    // given: 종료 팝업에 "잃으면 안 되는 Comment"를 쓰는 사이 그 Action이 다른 경로에서 이미 종료(수행)됐다.
     const { user, table } = await openActions()
     await user.click(within(bodyRows(table)[0]!).getByRole('button', { name: '종료(수행)' }))
     const dialog = await screen.findByRole('dialog', { name: 'Next Action 종료(수행)' })
-    await user.type(within(dialog).getByLabelText('Memo에 남길 내용(선택)'), '잃으면 안 되는 메모')
+    await user.type(within(dialog).getByLabelText('Comment에 남길 내용(선택)'), '잃으면 안 되는 Comment')
     // 팝업이 열려 있는 동안 다른 경로에서 이미 같은 상태로 종료됐다(서버는 409 "이미 종료(수행) 상태입니다.").
     const [first] = await defaultMock.gateway.actions.list(await dealCodeOf(1), {})
-    await defaultMock.gateway.actions.changeNextActionStatus(first!.id, { status: 'done', memo: '' })
+    await defaultMock.gateway.actions.changeNextActionStatus(first!.id, { status: 'done', comment: '' })
 
     // when: "종료"를 누른다.
     await user.click(within(dialog).getByRole('button', { name: '종료' }))
 
-    // then: 팝업 안에 "이미 종료(수행) 상태입니다."가 보이고 팝업과 메모가 그대로다.
+    // then: 팝업 안에 "이미 종료(수행) 상태입니다."가 보이고 팝업과 Comment가 그대로다.
     expect(await screen.findByText(/이미 종료\(수행\) 상태입니다\./)).toBeVisible()
     expect(screen.getByRole('dialog', { name: 'Next Action 종료(수행)' })).toBeVisible()
-    expect(within(screen.getByRole('dialog')).getByLabelText('Memo에 남길 내용(선택)')).toHaveValue('잃으면 안 되는 메모')
+    expect(within(screen.getByRole('dialog')).getByLabelText('Comment에 남길 내용(선택)')).toHaveValue('잃으면 안 되는 Comment')
   })
 
   // "Open으로"가 거절되면 팝업이 없으므로 탭의 오류 배너에 서버 문구가 보인다.
@@ -366,7 +376,7 @@ describe('Next Action 종료 실패', () => {
     await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: '종료' }))
     await waitFor(() => expect(bodyRows(table)[0]).toHaveTextContent('종료(수행)'))
     const [first] = await gateway.actions.list(code, {})
-    await gateway.actions.changeNextActionStatus(first!.id, { status: 'open', memo: '' })
+    await gateway.actions.changeNextActionStatus(first!.id, { status: 'open', comment: '' })
     // when: 화면에 남아 있는 "Open으로"를 누른다.
     await user.click(within(bodyRows(table)[0]!).getByRole('button', { name: 'Open으로' }))
     // then: 탭의 오류 배너에 "이미 Open 상태입니다."가 보이고 팝업은 열리지 않는다.
@@ -427,9 +437,9 @@ describe('종료 상태 간 직접 전환', () => {
     expect(within(row).queryByRole('button', { name: '종료(미수행)' })).not.toBeInTheDocument()
   })
 
-  // 종료(수행)에서 종료(미수행)으로 바로 전환할 때도 메모 팝업을 거치고 메모가 붙는다.
+  // 종료(수행)에서 종료(미수행)으로 바로 전환할 때도 종료 대화상자를 거치고 Comment가 생긴다.
   // 테스트 코드: NA-047
-  it('switches done to not-done through the memo dialog and appends the memo', async () => {
+  it('switches done to not-done through the close dialog and creates the comment', async () => {
     // given: 종료(수행)된 작성자의 Action 행이 있다.
     const { user, table } = await openActions()
     await closeFirst(user, table, '종료(수행)')
@@ -437,22 +447,22 @@ describe('종료 상태 간 직접 전환', () => {
     await user.click(await within(bodyRows(table)[0]!).findByRole('button', { name: '종료(미수행)' }))
 
     const dialog = await screen.findByRole('dialog', { name: 'Next Action 종료(미수행)' })
-    await user.type(within(dialog).getByLabelText('Memo에 남길 내용(선택)'), '사실은 못 했음')
+    await user.type(within(dialog).getByLabelText('Comment에 남길 내용(선택)'), '사실은 못 했음')
     await user.click(within(dialog).getByRole('button', { name: '종료' }))
 
-    // then: 행이 종료(미수행)이 되고 팝업이 닫히며 상세 팝업의 Memo에 메모가 붙는다.
+    // then: 행이 종료(미수행)이 되고 팝업이 닫히며 상세 팝업의 Comment 목록에 그 글이 생긴다.
     await waitFor(() => expect(bodyRows(table)[0]).toHaveTextContent('종료(미수행)'))
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-    expect(await memoInDetail(user, table, 0)).toContain('사실은 못 했음')
+    expect(await commentsInDetail(user, table, 0)).toContain('사실은 못 했음')
   })
 
-  // 종료(미수행)에서 종료(수행)으로 바로 전환할 때도 메모 팝업을 거친다.
+  // 종료(미수행)에서 종료(수행)으로 바로 전환할 때도 종료 대화상자를 거친다.
   // 테스트 코드: NA-047
-  it('switches not-done to done through the memo dialog', async () => {
+  it('switches not-done to done through the close dialog', async () => {
     // given: 종료(미수행)된 작성자의 Action 행이 있다.
     const { user, table } = await openActions()
     await closeFirst(user, table, '종료(미수행)')
-    // when: "종료(수행)"을 누르고 팝업에서 메모 없이 "종료"를 누른다.
+    // when: "종료(수행)"을 누르고 팝업에서 Comment 없이 "종료"를 누른다.
     await user.click(await within(bodyRows(table)[0]!).findByRole('button', { name: '종료(수행)' }))
 
     const dialog = await screen.findByRole('dialog', { name: 'Next Action 종료(수행)' })
@@ -494,7 +504,7 @@ describe('종료 상태 간 직접 전환', () => {
     const { gateway } = defaultMock
     const [first] = await gateway.actions.list(await dealCodeOf(1), {})
     await defaultMock.signInAs(USER_ID.kim)
-    await gateway.actions.changeNextActionStatus(first!.id, { status: 'done', memo: '' })
+    await gateway.actions.changeNextActionStatus(first!.id, { status: 'done', comment: '' })
     await defaultMock.signInAs(USER_ID.park)
     park.goTo('/deals')
     await screen.findByRole('heading', { name: /Deals/ })

@@ -62,6 +62,7 @@ async def test_deletion_impact_counts_license_contracts(contract_case: ContractC
         action_count=0,
         attachment_count=0,  # 계약 첨부는 Deal 첨부 건수에 섞이지 않는다
         license_contract_count=2,
+        comment_count=0,
     )
 
 

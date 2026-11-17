@@ -64,7 +64,7 @@ export function ActionForm({ deal, previous, onDone, onCancel }: ActionFormProps
   const [filledFromId, setFilledFromId] = useState<number | null>(null)
   const [closePrevious, setClosePrevious] = useState(false)
   const [actedOn, setActedOn] = useState(today)
-  const [memo, setMemo] = useState('')
+  const [comment, setComment] = useState('')
   const [errors, setErrors] = useState<Errors>({})
   const [error, setError] = useState<unknown>(null)
   const actedOnRef = useRef<HTMLInputElement>(null)
@@ -137,7 +137,7 @@ export function ActionForm({ deal, previous, onDone, onCancel }: ActionFormProps
     if (found.dueDate) return dueRef.current?.focus()
     const choice = toChoice(type, types ?? [])
     if (!choice) return typeRef.current?.focus()
-    const fields = { type: choice, progress: progress.trim(), nextAction: nextAction.trim(), dueDate, memo }
+    const fields = { type: choice, progress: progress.trim(), nextAction: nextAction.trim(), dueDate, comment }
     try {
       const statusChanges = toStatusChanges(sync.entries)
       // 상태 변경이 Won을 벗어나면 라이선스 계약 처리를 묻는다(동기화 선택 뒤, 등록 요청 전). 취소하면 폼을 그대로 둔다.
@@ -202,8 +202,8 @@ export function ActionForm({ deal, previous, onDone, onCancel }: ActionFormProps
             <DateInput id={`${formId}-due`} aria-label="Due Date" inputRef={dueRef} value={dueDate} onChange={setDueDate} error={errors.dueDate} />
           </div>
           <label className="field">
-            <span>Memo</span>
-            <textarea value={memo} onChange={(e) => setMemo(e.target.value)} />
+            <span>Comment</span>
+            <textarea value={comment} onChange={(e) => setComment(e.target.value)} />
           </label>
           <ErrorBanner error={error ?? sync.error} format={messageOf} />
           <div className="dd-form-actions">

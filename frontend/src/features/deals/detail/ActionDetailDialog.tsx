@@ -6,6 +6,8 @@ import type { DealAction, DealDetail, NextActionStatus } from '../../../shared/m
 import type { ActionUpdateInput } from '../../../shared/model/inputs'
 import { ErrorBanner } from '../../../shared/ui/ErrorBanner'
 import { Modal } from '../../../shared/ui/Modal'
+import { useCommentWriting } from '../../../data/comments'
+import { ActionComments } from './ActionComments'
 import { ActionDetailFields } from './ActionDetailFields'
 import { updateBody } from './actionEdit'
 import { messageOf } from './detailHelpers'
@@ -27,15 +29,18 @@ interface ActionDetailDialogProps {
   onDelete: (action: DealAction) => void
   onNotice: (message: string) => void
   onClose: () => void
+  /** 열릴 때 Comment 입력 칸에 포커스를 둔다(표의 Comment 아이콘으로 열었을 때). */
+  focusComment?: boolean
 }
 
 /** Action 상세 팝업: 모든 항목을 보고, 권한이 있으면 칸별로 고치고 삭제한다. 저장 중에는 닫히지 않는다. */
-export function ActionDetailDialog({ deal, action, canWrite, me, pending, error, onChangeStatus, onDelete, onNotice, onClose }: ActionDetailDialogProps) {
+export function ActionDetailDialog({ deal, action, canWrite, me, pending, error, onChangeStatus, onDelete, onNotice, onClose, focusComment = false }: ActionDetailDialogProps) {
   const update = useUpdateAction()
   const today = useToday().today
   const types = useActionTypes().data ?? []
   const own = canWrite && me !== null && canEditAction(me, action.actor.id)
-  const busy = pending || update.isPending
+  const writing = useCommentWriting()
+  const busy = pending || update.isPending || writing
 
   async function save(patch: Partial<ActionUpdateInput>) {
     await update.mutateAsync({ dealCode: deal.code, actionId: action.id, input: updateBody(action, patch) })
@@ -72,6 +77,7 @@ export function ActionDetailDialog({ deal, action, canWrite, me, pending, error,
         onSave={save}
       />
       <ErrorBanner error={error} format={messageOf} />
+      <ActionComments deal={deal} action={action} canWrite={canWrite} me={me} focusInput={focusComment} />
     </Modal>
   )
 }

@@ -1,10 +1,9 @@
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Self
 
 from app.domain.common.business_date import business_date
 from app.domain.common.entity import AuditedEntity
 from app.domain.common.errors import InvalidStateError, InvalidValueError
-from app.domain.common.validation import reject_nul
 from app.domain.deal_action.errors import (
     DealActionDeleteForbiddenError,
     DealActionEditForbiddenError,
@@ -17,6 +16,7 @@ from app.domain.deal_action.next_action_status import (
 )
 from app.domain.deal_action.policy import can_edit_action
 from app.domain.deal_action.value_objects import DealActionId
+from app.domain.deal_comment.values import optional_comment
 
 if TYPE_CHECKING:
     from datetime import date, datetime
@@ -97,29 +97,26 @@ class DealAction(AuditedEntity[DealActionId]):
     def change_next_action_status(
         self, status: NextActionStatus, note: str, now: datetime
     ) -> NextActionStatusChange:
-        """Next Action 상태를 바꾼다. 종료 메모는 Memo 뒤에 줄바꿈으로 덧붙인다.
+        """Next Action 상태를 바꾼다. Action 내용은 바뀌지 않는다.
 
-        검사 순서: 메모 NUL -> Open으로 되돌리며 메모 -> Next Action 없음 -> 같은 상태.
+        note는 종료 Comment다(결과의 note는 trim한 값, Comment 생성은 호출자 몫).
+        검사 순서: Comment NUL -> Open으로 되돌리며 Comment -> Next Action 없음 -> 같은 상태.
         """
-        reject_nul(note, "메모")
-        note = note.strip()
+        note = optional_comment(note) or ""
         if status is NextActionStatus.OPEN and note:
-            raise InvalidValueError("Open으로 되돌릴 때는 메모를 남길 수 없습니다.")
+            raise InvalidValueError("Open으로 되돌릴 때는 Comment를 남길 수 없습니다.")
         current = self.next_action_state
         if current is None:
             raise InvalidStateError("Next Action이 없는 Action은 상태를 바꿀 수 없습니다.")
         if current.status is status:
             raise InvalidStateError(f"이미 {status.label} 상태입니다.")
         new_state = NextActionState.of(status, now)
-        if note:
-            memo = f"{self.content.memo}\n{note}" if self.content.memo else note
-            self.content = replace(self.content, memo=memo)
         self.next_action_state = new_state
         self._touch(now)
         return NextActionStatusChange(before=current.status, after=status, note=note)
 
     def close_as_done_for_next_update(self, now: datetime) -> NextActionStatusChange | None:
-        """다음 Action을 기록하며 이 Next Action을 종료(수행)로 닫는다. Memo는 바꾸지 않는다.
+        """다음 Action을 기록하며 이 Next Action을 종료(수행)로 닫는다. Comment는 만들지 않는다.
 
         이미 종료된 상태면 아무것도 바꾸지 않고 None. Next Action이 없으면 InvalidStateError.
         """

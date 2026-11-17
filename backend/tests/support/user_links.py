@@ -42,6 +42,7 @@ LINK_KINDS: Final = (
     "contract_creator",  # license_contracts.created_by_user_id (계약 등록자)
     "contract_editor",  # license_contracts.updated_by_user_id (계약 마지막 수정자)
     "contract_file_uploader",  # license_contract_attachments.uploaded_by_user_id (계약 첨부 업로더)
+    "comment_author",  # deal_comments.author_user_id (Deal·Action Comment 작성자)
 )
 
 
@@ -63,6 +64,7 @@ LINK_COLUMNS: Final = {
     "contract_creator": ("license_contracts", "created_by_user_id"),
     "contract_editor": ("license_contracts", "updated_by_user_id"),
     "contract_file_uploader": ("license_contract_attachments", "uploaded_by_user_id"),
+    "comment_author": ("deal_comments", "author_user_id"),
 }
 SESSION_COLUMN: Final = ("auth_sessions", "user_id")
 # 대체 로그인용 비밀번호 해시도 사용자 삭제 때 먼저 지우거나 CASCADE로 지워지므로 연결이 아니다.
@@ -166,6 +168,8 @@ async def _create_file_or_setting_link(uow: UnitOfWork, user: User, kind: str) -
         await _create_report_link(uow, user, kind)
     elif kind == "meeting_author":
         await _create_meeting_link(uow, user)
+    elif kind == "comment_author":
+        await _create_comment_link(uow, user)
     elif kind in {"contract_creator", "contract_editor", "contract_file_uploader"}:
         await _create_contract_link(uow, user, kind)
     else:
@@ -213,6 +217,15 @@ async def _create_meeting_link(uow: UnitOfWork, user: User) -> None:
     from tests.factories_partner_meeting import make_meeting  # noqa: PLC0415
 
     await uow.partner_meetings.add(make_meeting(author=user.id))
+
+
+async def _create_comment_link(uow: UnitOfWork, user: User) -> None:
+    """user가 남의 Deal에 쓴 Comment(Deal Comment)."""
+    from tests.factories_comment import make_comment  # noqa: PLC0415 - Comment 구현 지연 import
+
+    helper = await _helper_user(uow)
+    deal = await _deal(uow, owner=helper.id)
+    await uow.deal_comments.add(make_comment(deal_code=deal.id, author=user.id))
 
 
 async def _create_contract_link(uow: UnitOfWork, user: User, kind: str) -> None:

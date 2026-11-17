@@ -42,9 +42,13 @@ async def test_the_impact_counts_the_history_and_actions_that_would_be_deleted(
     impact = await env.impact.execute(view.item.deal.id.value)
 
     # 이력 = 등록 1 + 수정 1 + Action 등록마다 category=action 1건 x 3
-    # then: 이력 5건(등록 1·수정 1·Action 3), Action 3건, 첨부·계약 0이다
+    # then: 이력 5건(등록 1·수정 1·Action 3), Action 3건, 첨부·계약·Comment 0이다
     assert impact == DealDeletionImpact(
-        history_count=1 + 1 + 3, action_count=3, attachment_count=0, license_contract_count=0
+        history_count=1 + 1 + 3,
+        action_count=3,
+        attachment_count=0,
+        license_contract_count=0,
+        comment_count=0,
     )
 
 
@@ -61,7 +65,11 @@ async def test_a_new_deal_has_only_its_registration_entry(env: DealEnv) -> None:
 
     # then: 이력 1건, 나머지 0이다
     assert impact == DealDeletionImpact(
-        history_count=1, action_count=0, attachment_count=0, license_contract_count=0
+        history_count=1,
+        action_count=0,
+        attachment_count=0,
+        license_contract_count=0,
+        comment_count=0,
     )
 
 
@@ -96,10 +104,10 @@ async def test_the_impact_of_an_unknown_or_malformed_code_is_not_found(
         await env.impact.execute(code)
 
 
-async def test_the_impact_counts_history_actions_attachments_and_contracts_only(
+async def test_the_impact_counts_history_actions_attachments_contracts_and_comments_only(
     env: DealEnv,
 ) -> None:
-    """삭제 영향은 이력·Action·첨부·계약 네 건수만 가진다.
+    """삭제 영향은 이력·Action·첨부·계약·Comment 다섯 건수만 가진다.
 
     테스트 코드: DD-047
     """
@@ -113,6 +121,38 @@ async def test_the_impact_counts_history_actions_attachments_and_contracts_only(
         "action_count",
         "attachment_count",
         "license_contract_count",
+        "comment_count",
     }
-    # then: 필드가 정확히 네 건수 이름이다
+    # then: 필드가 정확히 다섯 건수 이름이다
     assert not hasattr(impact, "partner_meeting_count")
+
+
+async def test_the_impact_counts_the_comments_of_the_deal_but_not_of_other_deals(
+    env: DealEnv,
+) -> None:
+    """삭제 영향의 comment_count는 그 Deal 소속 Comment(Deal Comment + Action Comment) 수다.
+
+    테스트 코드: CM-039, DD-047
+    """
+    # given: Deal D(Deal Comment 1건, Action Comment 2건)와 Comment 1건이 있는 다른 Deal E
+    from tests.factories import make_deal_action  # noqa: PLC0415
+    from tests.factories_comment import make_comment  # noqa: PLC0415
+    from tests.support.user_ids import ACTOR_ID  # noqa: PLC0415
+
+    deal = await env.new_deal()
+    other = await env.new_deal()
+    code, other_code = deal.item.deal.id, other.item.deal.id
+    action = make_deal_action(deal_code=code)
+    await env.uow.deal_actions.add(action)
+    for index, linked in enumerate((None, action.id, action.id)):
+        await env.uow.deal_comments.add(
+            make_comment(deal_code=code, action_id=linked, body=f"c{index}", author=ACTOR_ID)
+        )
+    await env.uow.deal_comments.add(make_comment(deal_code=other_code, author=ACTOR_ID))
+
+    # when: 두 Deal의 삭제 영향을 읽는다
+    impact = await env.impact.execute(code.value)
+    other_impact = await env.impact.execute(other_code.value)
+
+    # then: D는 3건, E는 1건이다
+    assert (impact.comment_count, other_impact.comment_count) == (3, 1)

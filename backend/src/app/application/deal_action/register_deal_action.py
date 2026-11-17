@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 from app.application.deal.history_writer import record_deal_diff, write_history
 from app.application.deal.sync_change import load_catalog, to_sync_step
 from app.application.deal_action.type_choice import choose_action_type
+from app.application.deal_comment.attach import attach_action_comment
 from app.application.ids import new_deal_action_id
 from app.application.license_contract.won_follow_up import follow_won_change, remove_pending_folders
 from app.domain.common.errors import InvalidStateError
@@ -14,6 +15,7 @@ from app.domain.deal_action.acted_on import ensure_not_before_basis, resolve_act
 from app.domain.deal_action.entities import DealAction
 from app.domain.deal_action.errors import PREVIOUS_NEXT_ACTION_CHANGED
 from app.domain.deal_action.history import action_created_draft, next_action_status_draft
+from app.domain.deal_comment.values import optional_comment
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -64,6 +66,7 @@ class RegisterDealAction:
                 uow, data.content.action_type, actor.user_id, now
             )
             content = data.content.to_content(action_type)
+            comment = optional_comment(data.comment)
             acted_on = resolve_acted_on(data.acted_on, now=now, deal_registered_at=deal.created_at)
             close = _CloseRequest(data.close_previous_next_action_id, actor, now, acted_on)
             drafts = await self._close_previous(uow, deal_code, close)
@@ -90,6 +93,7 @@ class RegisterDealAction:
             )
             await uow.deal_actions.add(action)
             drafts.append(action_created_draft(content))
+            drafts += await attach_action_comment(uow, action, comment, actor, now)
             await write_history(uow, deal_code, actor.user_id, drafts, now)
             await uow.commit()
         await remove_pending_folders(self._storage, removal)

@@ -18,7 +18,7 @@ from app.web.schemas.deal_action import DealActionCreateRequest
 from app.web.schemas.deal_change import DealChangeRequest
 from app.web.schemas.license_contract import LicenseContractFieldsRequest, LicenseIssueRequest
 
-ACTION = {"action_type": {"name": "미팅"}, "action": "킥오프", "next_action": "", "memo": ""}
+ACTION = {"action_type": {"name": "미팅"}, "action": "킥오프", "next_action": ""}
 
 
 def test_fields_request_defaults_are_empty_text_and_no_inspection() -> None:

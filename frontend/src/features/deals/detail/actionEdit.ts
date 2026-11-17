@@ -12,7 +12,6 @@ export function updateBody(action: DealAction, patch: Partial<ActionUpdateInput>
     progress: action.progress ?? '',
     nextAction: action.nextAction ?? '',
     dueDate: action.dueDate,
-    memo: action.memo,
     ...patch,
   }
 }

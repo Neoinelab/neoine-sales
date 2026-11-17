@@ -66,4 +66,5 @@ DEAL_FIELDS: tuple[FieldSpec, ...] = (
     datetime_field("deal.created_at", "등록일"),
     date_field("deal.last_updated_at", "최종 업데이트"),
     date_field("deal.status_changed_at", "Status 진입일"),
+    text_field("deal.comment", "Comment(Deal 전체)"),
 )

@@ -11,7 +11,7 @@ const input = (over: Partial<ActionInput> = {}): ActionInput => ({
   progress: '고객사 방문',
   nextAction: '견적 재전달',
   dueDate: '2026-10-22',
-  memo: '',
+  comment: '',
   ...over,
 })
 
@@ -20,7 +20,6 @@ const content = (over: Partial<ActionUpdateInput> = {}): ActionUpdateInput => ({
   progress: '고객사 방문',
   nextAction: '견적 재전달',
   dueDate: '2026-10-22',
-  memo: '',
   ...over,
 })
 
@@ -199,22 +198,21 @@ describe('Action 삭제 권한', () => {
 })
 
 describe('Action 내용 규칙', () => {
-  // 길이 상한 없이 5,000/5,000/20,000자 텍스트를 그대로 등록한다.
+  // 길이 상한 없이 5,000/5,000자 텍스트를 그대로 등록한다.
   // 테스트 코드: AC-090
-  it('registers 5,000 / 5,000 / 20,000 character texts in full (no length check)', async () => {
+  it('registers 5,000 / 5,000 character texts in full (no length check)', async () => {
     // given: sales(kim)
     const { gateway } = await mockAs('kim')
     const code = dealCode(2)
     const progress = '가'.repeat(5000)
     const nextAction = '나'.repeat(5000)
-    const memo = '😀'.repeat(20000)
 
     // when: 긴 텍스트로 등록한다
-    const created = await gateway.actions.create(code, input({ progress, nextAction, memo }))
+    const created = await gateway.actions.create(code, input({ progress, nextAction }))
 
     // then: 응답과 목록 모두 잘리지 않는다
-    expect(created).toMatchObject({ progress, nextAction, memo })
-    expect((await gateway.actions.list(code, {}))[0]).toMatchObject({ progress, nextAction, memo })
+    expect(created).toMatchObject({ progress, nextAction })
+    expect((await gateway.actions.list(code, {}))[0]).toMatchObject({ progress, nextAction })
   })
 
   // 수정도 같은 긴 텍스트를 받는다.
@@ -225,24 +223,24 @@ describe('Action 내용 규칙', () => {
     const target = await firstAction(gateway, dealCode(1))
 
     // when: 긴 텍스트로 수정한다
-    const updated = await gateway.actions.update(target.id, content({ progress: '가'.repeat(5000), nextAction: '나'.repeat(5000), memo: '다'.repeat(20000) }))
+    const updated = await gateway.actions.update(target.id, content({ progress: '가'.repeat(5000), nextAction: '나'.repeat(5000) }))
 
     // then: 길이가 그대로다
     expect(updated.progress).toHaveLength(5000)
-    expect(updated.memo).toHaveLength(20000)
+    expect(updated.nextAction).toHaveLength(5000)
   })
 
-  // 등록 때 진행사항·Next Action·Memo의 앞뒤 공백을 지운다.
+  // 등록 때 진행사항·Next Action의 앞뒤 공백을 지운다.
   // 테스트 코드: AC-090
-  it('trims progress, Next Action and Memo before saving', async () => {
+  it('trims progress and Next Action before saving', async () => {
     // given: sales(kim)
     const { gateway } = await mockAs('kim')
 
     // when: 공백이 낀 텍스트로 등록한다
-    const created = await gateway.actions.create(dealCode(2), input({ progress: '  진행  ', nextAction: ' 다음 ', memo: '  메모  ' }))
+    const created = await gateway.actions.create(dealCode(2), input({ progress: '  진행  ', nextAction: ' 다음 ' }))
 
     // then: 공백이 지워진다
-    expect(created).toMatchObject({ progress: '진행', nextAction: '다음', memo: '메모' })
+    expect(created).toMatchObject({ progress: '진행', nextAction: '다음' })
   })
 
   // 수정 때도 앞뒤 공백을 지운다.
@@ -253,10 +251,10 @@ describe('Action 내용 규칙', () => {
     const target = await firstAction(gateway, dealCode(1))
 
     // when: 공백이 낀 텍스트로 수정한다
-    const updated = await gateway.actions.update(target.id, content({ progress: '  진행  ', nextAction: ' 다음 ', memo: '  메모  ' }))
+    const updated = await gateway.actions.update(target.id, content({ progress: '  진행  ', nextAction: ' 다음 ' }))
 
     // then: 공백이 지워진다
-    expect(updated).toMatchObject({ progress: '진행', nextAction: '다음', memo: '메모' })
+    expect(updated).toMatchObject({ progress: '진행', nextAction: '다음' })
   })
 
   // 공백뿐인 내용은 없는 것으로 보되 없는 Deal 404가 먼저다.
@@ -291,76 +289,59 @@ describe('Action 내용 규칙', () => {
 })
 
 describe('Action 이력 문구', () => {
-  // Memo가 비어 있으면 등록 이력에 Memo 부분이 없다.
-  // 테스트 코드: AC-090
-  it('logs the registration without a Memo part when the memo is empty', async () => {
+  // 등록 이력 요약에는 Comment가 없고(Comment는 별도 이력), 등록 Comment는 Action 등록 줄 다음의 Comment 등록 줄이다.
+  // 테스트 코드: AC-090, CM-082
+  it('logs the registration summary without a comment part and the comment as its own line after it', async () => {
     // given: sales(kim)
     const { gateway } = await mockAs('kim')
     const code = dealCode(2)
 
-    // when: Memo 없이 등록한다
-    await gateway.actions.create(code, input())
+    // when: 공백이 낀 Comment와 함께 등록한다
+    const created = await gateway.actions.create(code, input({ comment: ' 법무 의견 ' }))
 
-    // then: 이력은 "등록: <요약>"이고 Memo 부분이 없다
-    expect((await gateway.history.list(code, {}))[0]).toMatchObject({
-      category: 'action',
-      target: 'Action',
-      before: '',
-      after: '등록: 미팅 · 고객사 방문 / Next Action: 견적 재전달 (Due 2026-10-22)',
-    })
+    // then: 등록 줄은 요약뿐이고 그 위(최신)에 Comment 줄이 있다
+    const [commentLine, actionLine] = await gateway.history.list(code, {})
+    expect(actionLine).toMatchObject({ category: 'action', target: 'Action', before: '', after: '등록: 미팅 · 고객사 방문 / Next Action: 견적 재전달 (Due 2026-10-22)' })
+    expect(commentLine).toMatchObject({ category: 'comment', target: `Action Comment (${created.actedOn} 미팅)`, before: '', after: '등록: 법무 의견' })
   })
 
-  // 등록 이력 요약에는 다듬은 Memo가 붙는다.
+  // 수정 이력은 수정 전 요약과 "수정: " 요약을 담는다.
   // 테스트 코드: AC-090
-  it('appends the trimmed Memo to the registration summary', async () => {
-    // given: sales(kim)
+  it('logs the update with the summary before and the "수정: " summary after', async () => {
+    // given: Action
     const { gateway } = await mockAs('kim')
     const code = dealCode(2)
+    const created = await gateway.actions.create(code, input())
 
-    // when: 공백이 낀 Memo로 등록한다
-    await gateway.actions.create(code, input({ memo: ' 법무 의견 ' }))
-
-    // then: 이력 요약 끝에 다듬은 Memo가 붙는다
-    expect((await gateway.history.list(code, {}))[0]?.after).toBe(
-      '등록: 미팅 · 고객사 방문 / Next Action: 견적 재전달 (Due 2026-10-22) / Memo: 법무 의견',
-    )
-  })
-
-  // 수정 이력은 수정 전 요약과 "수정: " 요약을 Memo까지 담는다.
-  // 테스트 코드: AC-090
-  it('logs the update with the summary before and the "수정: " summary after, Memo included', async () => {
-    // given: Memo가 있는 Action
-    const { gateway } = await mockAs('kim')
-    const code = dealCode(2)
-    const created = await gateway.actions.create(code, input({ memo: '이전 메모' }))
-// when: 유형·내용을 고친다
-
-    await gateway.actions.update(created.id, content({ type: { name: '통화' }, progress: '전화', nextAction: '방문', dueDate: '2026-11-01', memo: '새 메모' }))
+    // when: 유형·내용을 고친다
+    await gateway.actions.update(created.id, content({ type: { name: '통화' }, progress: '전화', nextAction: '방문', dueDate: '2026-11-01' }))
 
     // then: 이력 변경 전·후에 요약이 있다
     expect((await gateway.history.list(code, {}))[0]).toMatchObject({
       category: 'action',
-      before: '미팅 · 고객사 방문 / Next Action: 견적 재전달 (Due 2026-10-22) / Memo: 이전 메모',
-      after: '수정: 통화 · 전화 / Next Action: 방문 (Due 2026-11-01) / Memo: 새 메모',
+      before: '미팅 · 고객사 방문 / Next Action: 견적 재전달 (Due 2026-10-22)',
+      after: '수정: 통화 · 전화 / Next Action: 방문 (Due 2026-11-01)',
     })
   })
 
-  // 삭제 이력은 변경 전에 요약, 변경 후에 "삭제"를 담는다.
-  // 테스트 코드: AC-090
-  it('logs the deletion with the summary before and "삭제" after', async () => {
-    // given: Memo가 있는 Action
+  // 삭제 이력은 변경 전에 요약, 변경 후에 "삭제"를 담고 함께 지운 Comment가 있으면 건수가 붙는다.
+  // 테스트 코드: AC-090, CM-082
+  it('logs the deletion with the summary before and "삭제" after, with the count of deleted comments', async () => {
+    // given: Comment 없는 Action과 Comment 2건인 Action
     const { gateway } = await mockAs('kim')
     const code = dealCode(2)
-    const created = await gateway.actions.create(code, input({ memo: '메모' }))
+    const plain = await gateway.actions.create(code, input())
+    const withComments = await gateway.actions.create(code, input({ comment: '하나' }))
+    await gateway.comments.create(code, { body: '둘', actionId: withComments.id })
 
-    // when: 지운다
-    await gateway.actions.remove(created.id)
+    // when: 둘을 차례로 지운다
+    await gateway.actions.remove(plain.id)
+    expect((await gateway.history.list(code, {}))[0]).toMatchObject({ before: '미팅 · 고객사 방문 / Next Action: 견적 재전달 (Due 2026-10-22)', after: '삭제' })
+    await gateway.actions.remove(withComments.id)
 
-    // then: 이력 변경 전은 요약이고 변경 후는 "삭제"다
-    expect((await gateway.history.list(code, {}))[0]).toMatchObject({
-      before: '미팅 · 고객사 방문 / Next Action: 견적 재전달 (Due 2026-10-22) / Memo: 메모',
-      after: '삭제',
-    })
+    // then: 변경 후에 함께 지운 Comment 건수가 붙고 그 Comment는 없다
+    expect((await gateway.history.list(code, {}))[0]).toMatchObject({ after: '삭제 (Comment 2건 함께 삭제)' })
+    expect(await gateway.comments.list(code)).toEqual([])
   })
 
   // 긴 등록 요약은 이력에서만 1,000자로 잘리고 Action 원문은 그대로다.
@@ -435,7 +416,7 @@ describe('내용이 바뀌지 않은 수정', () => {
     // when: 같은 내용으로 수정한다
     const result = await gateway.actions.update(
       target.id,
-      content({ type: { id: target.typeId }, progress: target.progress ?? '', nextAction: target.nextAction ?? '', dueDate: target.dueDate ?? '', memo: target.memo }),
+      content({ type: { id: target.typeId }, progress: target.progress ?? '', nextAction: target.nextAction ?? '', dueDate: target.dueDate ?? '' }),
     )
 
     // then: 결과가 그대로고 History가 늘지 않는다
@@ -456,31 +437,11 @@ describe('내용이 바뀌지 않은 수정', () => {
     // when: 진행사항에 공백만 붙여 수정한다
     await gateway.actions.update(
       target.id,
-      content({ type: { id: target.typeId }, progress: `  ${target.progress ?? ''}  `, nextAction: target.nextAction ?? '', dueDate: target.dueDate ?? '', memo: target.memo }),
+      content({ type: { id: target.typeId }, progress: `  ${target.progress ?? ''}  `, nextAction: target.nextAction ?? '', dueDate: target.dueDate ?? '' }),
     )
 
     // then: History가 늘지 않는다
     expect(await gateway.history.list(code, {})).toEqual(historyBefore)
-  })
-
-  // Memo만 바뀌어도 이력이 1건 남는다.
-  // 테스트 코드: AC-090
-  it('still logs one entry when only the memo changes', async () => {
-    // given: 담당자 본인(kim)과 그의 Action·History 건수
-    const mock = await mockAs('kim')
-    const { gateway } = mock
-    const code = dealCode(1)
-    const target = await firstAction(gateway, code)
-    const base = (await gateway.history.list(code, {})).length
-
-    // when: Memo만 바꿔 수정한다
-    await gateway.actions.update(
-      target.id,
-      content({ type: { id: target.typeId }, progress: target.progress ?? '', nextAction: target.nextAction ?? '', dueDate: target.dueDate ?? '', memo: `${target.memo}!` }),
-    )
-
-    // then: History가 1건 늘었다
-    expect(await gateway.history.list(code, {})).toHaveLength(base + 1)
   })
 })
 

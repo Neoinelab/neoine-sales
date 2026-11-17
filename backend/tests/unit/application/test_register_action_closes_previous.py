@@ -34,7 +34,7 @@ CHANGED = "이전 Next Action이 바뀌었습니다. 창을 닫고 다시 열어
 STATUS_FORBIDDEN = "본인 Action 또는 admin만 Next Action 상태를 바꿀 수 있습니다."
 DUE = "(Due 2026-01-15)"
 CLOSED_ROW = ("action", "Next Action", f"요구사항 문서 전달 {DUE} · Open", "종료(수행)")
-CREATED_ROW = ("action", "Action", "", f"등록: {SUMMARY} / Memo: 요구사항 정리")
+CREATED_ROW = ("action", "Action", "", f"등록: {SUMMARY}")
 
 
 async def test_register_closes_the_basis_next_action_as_done(action_env: ActionEnv) -> None:
@@ -43,17 +43,18 @@ async def test_register_closes_the_basis_next_action_as_done(action_env: ActionE
     테스트 코드: AC-036
     """
     # given: KIM이 남긴 Open Next Action 기준 행
-    previous = await action_env.act(KIM, memo="기존 메모")
+    previous = await action_env.act(KIM)
 
     # when: 그 id를 닫도록 지정해 새 Action을 등록한다
     created = await action_env.act(KIM, close_previous=previous.id, next_action="다음 일정")
 
-    # then: 기준 행은 done이고 종료일이 요청의 업무 날짜(새 Action 등록일)이며 Memo는 그대로다
+    # then: 기준 행은 done이고 종료일이 요청의 업무 날짜(새 Action 등록일)이며 내용은 그대로다
     stored = await action_env.stored(previous.id)
     assert stored.next_action_state == NextActionState(
         NextActionStatus.DONE, closed_on=created.created_at.astimezone().date()
     )
-    assert stored.content.memo == "기존 메모"  # 종료 메모는 없다
+    assert stored.content == previous.content
+    assert await action_env.env.uow.deal_comments.count_for_action(previous.id) == 0  # Comment 없음
     # then: 새 Action이 저장되어 Action은 2건이다
     assert (await action_env.stored(created.id)).content.next_action == "다음 일정"
     assert len(action_env.env.uow.deal_actions._items) == 2

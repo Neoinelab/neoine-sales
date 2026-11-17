@@ -230,7 +230,7 @@ describe('E4 최종 업데이트는 Action 기준', () => {
       progress: '진행만',
       nextAction: '',
       dueDate: '',
-      memo: '',
+      comment: '',
     })
     const result = (await gateway.deals.get(code)).lastUpdatedOn
     // then: Deal의 lastUpdatedOn이 Action의 수행일이다

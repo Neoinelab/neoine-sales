@@ -14,7 +14,7 @@ from tests.fakes.use_cases import FakeUseCases
 from tests.support.app_settings import make_settings
 
 UNUSED_DATABASE_URL = "postgresql+asyncpg://user:pw@localhost:5432/none"  # 접속하지 않는다
-TEXT_FIELDS = ("action", "next_action", "memo")
+TEXT_FIELDS = ("action", "next_action")
 
 
 @pytest.fixture(scope="module")
@@ -45,12 +45,36 @@ def test_action_request_schemas_have_no_max_length(
     """
     # when: 요청 스키마를 찾는다
     name = _request_schema_names(schema, method, path)
-    # then: 진행사항·Next Action·Memo에 maxLength가 없다
+    # then: 진행사항·Next Action에 maxLength가 없다
     props = schema["components"]["schemas"][name]["properties"]
 
     for field in TEXT_FIELDS:
         assert "maxLength" not in props[field], (name, field)
         assert props[field]["type"] == "string"
+
+
+def test_the_requests_and_response_have_no_memo_and_only_the_create_request_has_comment(
+    schema: dict[str, Any],
+) -> None:
+    """등록 요청에만 선택 문자열 comment(길이 상한 없음)가 있고 어디에도 memo가 없다.
+
+    테스트 코드: AC-070
+    """
+    # when: 등록·수정 요청과 응답 스키마를 찾는다
+    schemas = schema["components"]["schemas"]
+    create = schemas[_request_schema_names(schema, "post", "/api/v1/deals/{code}/actions")]
+    update = schemas[_request_schema_names(schema, "put", "/api/v1/deal-actions/{action_id}")]
+    response = schemas["DealActionResponse"]
+
+    # then: memo는 어디에도 없다
+    for body in (create, update, response):
+        assert "memo" not in body["properties"]
+    # then: 등록 요청에만 comment가 있고 문자열·선택·길이 상한 없음이다
+    assert create["properties"]["comment"]["type"] == "string"
+    assert "maxLength" not in create["properties"]["comment"]
+    assert "comment" not in create["required"]
+    assert "comment" not in update["properties"]
+    assert "comment" not in response["properties"]
 
 
 @pytest.mark.parametrize(
@@ -119,7 +143,6 @@ def test_response_exposes_the_snapshot_and_nullable_plan_fields(schema: dict[str
         "due_date",
         "next_action_status",
         "next_action_closed_on",
-        "memo",
         "status_key",
         "forecast_key",
     } <= set(response["required"])
@@ -348,8 +371,8 @@ def test_status_route_documents_request_response_and_errors(schema: dict[str, An
     operation = schema["paths"][path]["put"]
     name = _request_schema_names(schema, "put", path)
     request = schema["components"]["schemas"][name]
-    # then: 본문은 status(필수)·memo이고 모르는 필드를 거절하며 응답과 오류 코드가 문서에 있다
-    assert set(request["properties"]) == {"status", "memo"}
+    # then: 본문은 status(필수)·comment이고 모르는 필드를 거절하며 응답과 오류 코드가 문서에 있다
+    assert set(request["properties"]) == {"status", "comment"}
     assert request["required"] == ["status"]
     assert request["additionalProperties"] is False
     assert schema["components"]["schemas"]["NextActionStatus"]["enum"] == [

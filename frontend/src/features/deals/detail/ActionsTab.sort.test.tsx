@@ -30,7 +30,7 @@ async function parkActs(no: number, progress: string) {
   const code = await dealCodeOf(no)
   defaultMock.clock.advance(60_000)
   await defaultMock.signInAs(USER_ID.park)
-  await gateway.actions.create(code, { type: { name: '미팅' }, progress, nextAction: '', dueDate: '', memo: '' })
+  await gateway.actions.create(code, { type: { name: '미팅' }, progress, nextAction: '', dueDate: '', comment: '' })
   await defaultMock.signInAs(USER_ID.kim)
 }
 

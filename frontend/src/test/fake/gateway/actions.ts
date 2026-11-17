@@ -8,7 +8,7 @@ import type {
   NextActionStatus,
 } from '../../../shared/model/types'
 import { conflict, forbidden, notFound, requestValidation, validation } from '../errors'
-import { takeId, type ActionRecord, type SeedData, type UserRecord } from '../store'
+import { takeId, type ActionRecord, type CommentRecord, type SeedData, type UserRecord } from '../store'
 import { read, requireUser, requireWrite, viewerOf, write, type MockContext } from './context'
 import { assertSequenceShape, planSequence } from './actionChanges'
 import { assertWonExitAllowed, followWonChange } from './contractWon'
@@ -22,10 +22,11 @@ import {
   PREVIOUS_NEXT_ACTION_CHANGED,
   STATUS_FORBIDDEN,
   STATUS_LABEL,
-  checkStatusMemo,
+  checkStatusComment,
   statusesOf,
 } from './nextActionStatus'
 import { actionView, findDeal, userRef } from './views'
+import { storeComment, trimmedBody } from './commentRules'
 
 const DATE = /^(\d{4})-(\d{2})-(\d{2})$/
 const NUL = '\u0000'
@@ -61,9 +62,9 @@ function assertActedOnRange(actedOn: string, today: string, registered: string):
   if (actedOn < registered) throw validation(`수행일은 Deal 등록일(${registered}) 이전으로 지정할 수 없습니다.`)
 }
 
-/** 서버 `reject_nul`: 진행사항·Next Action·Memo에 NUL이 있으면 422 invalid-value(공백으로 감싸도 거절). */
+/** 서버 `reject_nul`: 진행사항·Next Action에 NUL이 있으면 422 invalid-value(공백으로 감싸도 거절). */
 function assertNoNul(input: ActionUpdateInput): void {
-  for (const [text, label] of [[input.progress, '진행사항'], [input.nextAction, 'Next Action'], [input.memo, 'Memo']] as const) {
+  for (const [text, label] of [[input.progress, '진행사항'], [input.nextAction, 'Next Action']] as const) {
     if (text.includes(NUL)) throw validation(`${label}에는 NUL 문자를 쓸 수 없습니다`)
   }
 }
@@ -71,7 +72,7 @@ function assertNoNul(input: ActionUpdateInput): void {
 /** 수정 입력 + 수행일(AC-R45). 공용 `ActionUpdateInput`이 수행일을 갖기 전에도 타입이 맞도록 여기서 넓힌다. */
 type UpdateWithDay = ActionUpdateInput & { actedOn?: string | null }
 
-type Content = Pick<ActionRecord, 'typeId' | 'progress' | 'nextAction' | 'dueDate' | 'memo'>
+type Content = Pick<ActionRecord, 'typeId' | 'progress' | 'nextAction' | 'dueDate'>
 
 const blankToNull = (text: string): string | null => (text.trim() === '' ? null : text.trim())
 
@@ -87,7 +88,7 @@ function normalize(input: ActionUpdateInput, typeId: number): Content {
   const due = input.dueDate ?? ''
   if (nextAction !== null && due === '') throw validation('Due Date를 입력하세요.')
   if (nextAction === null && due !== '') throw validation(DUE_WITHOUT_NEXT)
-  return { typeId, progress, nextAction, dueDate: nextAction === null ? null : due, memo: input.memo.trim() }
+  return { typeId, progress, nextAction, dueDate: nextAction === null ? null : due }
 }
 
 /** History 문구의 유형 자리에는 그 시점의 유형 이름이 들어간다(이미 남은 문구는 이름이 바뀌어도 그대로). 빈 부분은 생략한다. */
@@ -95,12 +96,11 @@ function summary(ctx: MockContext, a: Content): string {
   const typeName = ctx.store.data.actionTypes.find((t) => t.id === a.typeId)?.name ?? a.typeId
   const progress = a.progress === null ? '' : ` · ${a.progress}`
   const next = a.nextAction === null ? '' : ` / Next Action: ${a.nextAction} (Due ${a.dueDate})`
-  const memo = a.memo === '' ? '' : ` / Memo: ${a.memo}`
-  return `${typeName}${progress}${next}${memo}`
+  return `${typeName}${progress}${next}`
 }
 
 const same = (a: Content, b: Content): boolean =>
-  a.typeId === b.typeId && a.progress === b.progress && a.nextAction === b.nextAction && a.dueDate === b.dueDate && a.memo === b.memo
+  a.typeId === b.typeId && a.progress === b.progress && a.nextAction === b.nextAction && a.dueDate === b.dueDate
 
 /**
  * 인스턴트를 Fake 서버 시간대의 달력 날짜로 바꾼다. 서버 시간대는 Fake 서버 시계(`ctx.clock.now()`)의 오프셋이며
@@ -156,12 +156,14 @@ function findAction(ctx: MockContext, id: number): ActionRecord {
   return found
 }
 
-function matches(a: ActionRecord, q: ActionQuery): boolean {
+function matches(a: ActionRecord, q: ActionQuery, comments: readonly CommentRecord[]): boolean {
   if (q.typeId && a.typeId !== q.typeId) return false
   if (q.actorId && a.actorId !== q.actorId) return false
   if (q.keyword) {
     const needle = q.keyword.trim().toLowerCase()
-    if (![a.progress, a.nextAction, a.memo].some((t) => t !== null && t.toLowerCase().includes(needle))) return false
+    // 진행사항·Next Action 또는 그 Action의 Action Comment 본문(Deal Comment는 찾지 않는다, CM-R19).
+    const texts = [a.progress, a.nextAction, ...comments.filter((c) => c.actionId === a.id).map((c) => c.body)]
+    if (!texts.some((t) => t !== null && t.toLowerCase().includes(needle))) return false
   }
   if (q.actedFrom && a.actedOn < q.actedFrom) return false
   if (q.actedTo && a.actedOn > q.actedTo) return false
@@ -220,7 +222,7 @@ export function createActionsGateway(ctx: MockContext): ActionsGateway {
         if (!DEAL_CODE_FORMAT.test(dealCode)) throw notFound('Deal을 찾을 수 없습니다.')
         validateRanges(query)
         findDeal(ctx.store.data, dealCode)
-        const rows = ctx.store.data.actions.filter((a) => a.dealCode === dealCode && matches(a, query))
+        const rows = ctx.store.data.actions.filter((a) => a.dealCode === dealCode && matches(a, query, ctx.store.data.comments))
         return sorted(rows, ctx.store.data, query).map((a) => actionView(ctx.store.data, a))
       }),
     create: (dealCode, input: ActionInput) =>
@@ -234,6 +236,8 @@ export function createActionsGateway(ctx: MockContext): ActionsGateway {
         // 서버 순서: Deal(404) → 유형 → 진행사항 → Next Action → Due Date. 새 유형은 모든 검증이 끝난 뒤에만 만든다.
         const typePlan = planActionType(ctx, input.type)
         const content = normalize(input, 0)
+        // 서버 CM-R14: 등록 Comment의 NUL은 내용 오류 다음·수행일 오류 앞에서 판정한다. 비었거나 공백뿐이면 Comment를 만들지 않는다.
+        const commentBody = trimmedBody(input.comment)
         // 서버 AC-R34·R35: 수행일 범위는 내용 검증 다음, 이전 Next Action 409 앞이다. 기준은 Fake 서버 시계의 업무 날짜.
         const requestedAt = ctx.clock.now()
         const offset = offsetMinutes(requestedAt)
@@ -270,6 +274,8 @@ export function createActionsGateway(ctx: MockContext): ActionsGateway {
         }
         data.actions.push(record)
         logHistory(ctx, dealCode, user.id, 'action', 'Action', '', `등록: ${summary(ctx, record)}`)
+        // 서버 CM-R14: Action 등록 이력 다음에 Comment 등록 이력. Owner가 쓰면 읽음으로 생긴다.
+        if (commentBody !== '') storeComment(ctx, { dealCode, actionId: record.id, authorId: user.id, body: commentBody })
         return actionView(data, record)
       }),
     update: (actionId, input: UpdateWithDay) =>
@@ -300,21 +306,21 @@ export function createActionsGateway(ctx: MockContext): ActionsGateway {
         logHistory(ctx, record.dealCode, user.id, 'action', 'Action', before, after())
         return actionView(ctx.store.data, record)
       }),
-    changeNextActionStatus: (actionId, input: { status: NextActionStatus; memo: string }) =>
+    changeNextActionStatus: (actionId, input: { status: NextActionStatus; comment: string }) =>
       write(ctx, () => {
         const user = requireWrite(ctx)
         const record = findAction(ctx, actionId)
         if (!canEditAction(viewerOf(user), record.actorId)) throw forbidden(STATUS_FORBIDDEN)
-        const note = checkStatusMemo(input.status, input.memo)
+        const note = checkStatusComment(input.status, input.comment)
         if (record.nextAction === null || record.nextActionStatus === null) throw conflict(NO_NEXT_ACTION)
         const before: NextActionStatus = record.nextActionStatus
         if (before === input.status) throw conflict(`이미 ${STATUS_LABEL[before]} 상태입니다.`)
         const planned = `${record.nextAction} (Due ${record.dueDate}) · ${STATUS_LABEL[before]}`
         record.nextActionStatus = input.status
         record.nextActionClosedOn = input.status === 'open' ? null : serverDate(ctx.clock.now(), offsetMinutes(ctx.clock.now()))
-        if (note !== '') record.memo = record.memo === '' ? note : `${record.memo}\n${note}`
-        const after = note === '' ? STATUS_LABEL[input.status] : `${STATUS_LABEL[input.status]} / Memo: ${note}`
-        logHistory(ctx, record.dealCode, user.id, 'action', 'Next Action', planned, after)
+        logHistory(ctx, record.dealCode, user.id, 'action', 'Next Action', planned, STATUS_LABEL[input.status])
+        // 서버 CM-R15: Next Action 줄 다음에 종료 Comment 등록 줄. 작성자는 요청자다.
+        if (note !== '') storeComment(ctx, { dealCode: record.dealCode, actionId: record.id, authorId: user.id, body: note })
         return actionView(ctx.store.data, record)
       }),
     remove: (actionId) =>
@@ -322,9 +328,12 @@ export function createActionsGateway(ctx: MockContext): ActionsGateway {
         const user = requireWrite(ctx)
         const record = findAction(ctx, actionId)
         if (!canEditAction(viewerOf(user), record.actorId)) throw forbidden('본인 Action 또는 admin만 삭제할 수 있습니다.')
-        const { actions } = ctx.store.data
+        const { actions, comments } = ctx.store.data
+        // 서버 CM-R16: 그 Action의 Action Comment가 함께 지워지고 이력 변경 후에 건수가 붙는다.
+        const gone = comments.filter((c) => c.actionId === record.id).length
+        ctx.store.data.comments = comments.filter((c) => c.actionId !== record.id)
         actions.splice(actions.indexOf(record), 1)
-        logHistory(ctx, record.dealCode, user.id, 'action', 'Action', summary(ctx, record), '삭제')
+        logHistory(ctx, record.dealCode, user.id, 'action', 'Action', summary(ctx, record), gone === 0 ? '삭제' : `삭제 (Comment ${gone}건 함께 삭제)`)
       }),
   }
 }

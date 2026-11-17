@@ -1,0 +1,17 @@
+/* Comment 목록·입력·연결 Action 상자(Deal 상세 Comments 탭, Action 상세 팝업). 전역 토큰만 쓴다. */
+.cm-wrap { display: grid; gap: 8px; min-width: 0; }
+.cm-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.cm-item { display: grid; gap: 6px; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); min-width: 0; }
+.cm-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.cm-head > button { margin-left: auto; }
+.cm-body { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.cm-mark { padding: 0 8px; border-radius: 999px; background: var(--ui-warn-bg); color: var(--ui-warn-fg); }
+.cm-mark--new { background: var(--ui-info-bg); color: var(--ui-info-fg); }
+.cm-deal-mark { color: var(--muted); }
+.cm-action { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; padding: 6px 10px; border-left: 3px solid var(--line-strong); background: var(--accent-soft); border-radius: var(--radius); overflow-wrap: anywhere; }
+.cm-composer { display: grid; gap: 6px; }
+.cm-composer textarea { width: 100%; box-sizing: border-box; }
+.cm-section { display: grid; gap: 8px; }
+/* Actions 표 Comment 열: 아이콘 버튼과 읽지 않은 수 배지. */
+.cm-icon-btn { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; }
+.cm-count { display: inline-block; min-width: 1.4em; padding: 0 6px; border-radius: 999px; background: var(--accent); color: #fff; text-align: center; }

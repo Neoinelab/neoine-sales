@@ -15,7 +15,6 @@ BODY = {
     "action": "킥오프 미팅",
     "next_action": "요구사항 문서 전달",
     "due_date": "2026-03-10",
-    "memo": "",
 }
 FORECAST_BEST = {"change": {"field": "forecast_key", "value": "best"}}
 STATUS_INTRO = {"change": {"field": "status_key", "value": "introduction"}}

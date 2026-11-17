@@ -7,7 +7,7 @@ const input = (over: Partial<ActionInput> = {}): ActionInput => ({
   progress: '고객사 방문',
   nextAction: '견적 재전달',
   dueDate: '2026-10-22',
-  memo: '',
+  comment: '',
   ...over,
 })
 
@@ -17,12 +17,12 @@ describe('Fake actions: 서버와 같은 NUL·날짜 형식 규칙(AC-R33)', () 
   const nulCases = [
     ['진행사항', { progress: '가\0나' }],
     ['Next Action', { nextAction: '가\0나' }],
-    ['Memo', { memo: '가\0나' }],
   ] as const
+  const createOnly = [...nulCases, ['Comment', { comment: '가\0나' }]] as const
 
-  // 진행사항·Next Action·Memo의 NUL은 칸 이름이 든 422로 거절한다(등록).
-  // 테스트 코드: AC-090
-  it.each(nulCases)('등록: %s에 NUL이 있으면 422 NUL 문구이고 Action이 늘지 않는다', async (label, over) => {
+  // 진행사항·Next Action·등록 Comment의 NUL은 칸 이름이 든 422로 거절한다(등록).
+  // 테스트 코드: AC-090, CM-082
+  it.each(createOnly)('등록: %s에 NUL이 있으면 422 NUL 문구이고 Action이 늘지 않는다', async (label, over) => {
     // given: sales(kim)로 로그인한 Fake 게이트웨이와 등록 전 Action 건수
     const { gateway } = await mockAs('kim')
     const code = dealCode(2)
@@ -33,7 +33,7 @@ describe('Fake actions: 서버와 같은 NUL·날짜 형식 규칙(AC-R33)', () 
     expect(await gateway.actions.list(code, {})).toHaveLength(before)
   })
 
-  // 진행사항·Next Action·Memo의 NUL은 칸 이름이 든 422로 거절한다(수정).
+  // 진행사항·Next Action의 NUL은 칸 이름이 든 422로 거절한다(수정).
   // 테스트 코드: AC-090
   it.each(nulCases)('수정: %s에 NUL이 있으면 422 NUL 문구이고 Action은 그대로다', async (label, over) => {
     // given: 담당자 본인(kim)과 가장 오래된 Action
@@ -46,16 +46,22 @@ describe('Fake actions: 서버와 같은 NUL·날짜 형식 규칙(AC-R33)', () 
     expect((await gateway.actions.list(dealCode(1), {})).at(-1)).toEqual(old)
   })
 
-  // NUL 검사는 둘 다 빔 검사보다 먼저다.
-  // 테스트 코드: AC-090
-  it('NUL은 진행사항·Next Action이 모두 비어 있다는 오류보다 먼저 알린다', async () => {
+  // 진행사항·Next Action의 NUL 검사는 둘 다 빔 검사보다 먼저이고, 등록 Comment의 NUL은 내용 오류 다음에 판정한다.
+  // 테스트 코드: AC-090, CM-082
+  it('NUL은 진행사항·Next Action이 모두 비어 있다는 오류보다 먼저 알리고 Comment NUL은 그 다음이다', async () => {
     // given: sales(kim)로 로그인한 Fake 게이트웨이
     const { gateway } = await mockAs('kim')
-    // when·then: 진행사항·Next Action이 비고 Memo에 NUL이 있으면 NUL 문구다
+    // when·then: 진행사항에 NUL이 있고 Next Action이 비면 NUL 문구다
     await expectApiError(
-      gateway.actions.create(dealCode(2), input({ progress: '', nextAction: '', dueDate: '', memo: '가\0나' })),
+      gateway.actions.create(dealCode(2), input({ progress: '가\0나', nextAction: '', dueDate: '' })),
       422,
-      'Memo에는 NUL 문자를 쓸 수 없습니다',
+      '진행사항에는 NUL 문자를 쓸 수 없습니다',
+    )
+    // when·then: 진행사항·Next Action이 비고 Comment에 NUL이 있으면 내용 오류가 먼저다
+    await expectApiError(
+      gateway.actions.create(dealCode(2), input({ progress: '', nextAction: '', dueDate: '', comment: '가\0나' })),
+      422,
+      '진행사항 또는 Next Action을 입력하세요.',
     )
   })
 

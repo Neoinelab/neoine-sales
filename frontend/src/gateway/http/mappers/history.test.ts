@@ -36,6 +36,16 @@ describe('toHistoryEntry', () => {
     expect(entry).toMatchObject({ category: 'created', before: '', after: 'Deal 등록' })
   })
 
+  // 구분 comment(13번째 값)와 Action Comment 대상 문구를 그대로 둔다.
+  // 테스트 코드: DD-116
+  it('keeps the comment category and the Action Comment target as they are', () => {
+    // when: 항목으로 바꾼다 (전제: 구분 comment인 서버 항목)
+    const entry = toHistoryEntry(serverHistory({ category: 'comment', target: 'Action Comment (2026-11-10 미팅)', before: '', after: '등록: 글' }))
+
+    // then: 구분·대상·전후 값이 그대로다
+    expect(entry).toMatchObject({ category: 'comment', target: 'Action Comment (2026-11-10 미팅)', before: '', after: '등록: 글' })
+  })
+
   // 퇴사한 변경자는 resigned 상태로 표시한다.
   // 테스트 코드: DD-116
   it('marks a resigned actor', () => {

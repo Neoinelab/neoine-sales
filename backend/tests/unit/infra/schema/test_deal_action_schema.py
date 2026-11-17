@@ -32,10 +32,10 @@ CODE_FKS = (
 )
 CONSTRAINT_NAMES = "select conname from pg_constraint where conrelid = 'deal_actions'::regclass"
 RAW_INSERT = (
-    "insert into deal_actions (id, deal_id, action_type_id, action, memo, next_action,"
+    "insert into deal_actions (id, deal_id, action_type_id, action, next_action,"
     " due_date, acted_on, actor_user_id, next_action_status, {extra_columns} created_at,"
     " updated_at) values (:id, (select id from deals where deal_code = :deal_code),"
-    " :action_type_id, :action, :memo, :next_action, :due_date, now(), :actor,"
+    " :action_type_id, :action, :next_action, :due_date, now(), :actor,"
     " :next_action_status, {extra_values} now(), now())"
 )
 TYPE_FKS = (
@@ -75,7 +75,6 @@ async def _raw_insert(
         "deal_code": deal_code,
         "action_type_id": (await session.execute(text(MEETING_TYPE))).scalar_one(),
         "action": "a",
-        "memo": "",
         "next_action": "n",
         "due_date": date(2026, 3, 10),
         "actor": actor,
@@ -102,16 +101,19 @@ async def test_the_snapshot_columns_exist_and_are_not_null(session: AsyncSession
 
 
 async def test_the_text_columns_are_unbounded_text(session: AsyncSession) -> None:
-    """진행사항·Next Action·Memo는 길이 제한 없는 TEXT다."""
+    """진행사항·Next Action은 길이 제한 없는 TEXT이고 memo 컬럼은 더 이상 없다.
+
+    테스트 코드: SC-055
+    """
     # when: deal_actions의 컬럼 정보를 조회한다
     rows = (await session.execute(text(COLUMN_INFO))).all()
     columns = {r.column_name: r for r in rows}
 
-    # then: 세 컬럼은 길이 제한 없는 text이고 memo만 NOT NULL이다
-    for name in ("action", "next_action", "memo"):
+    # then: 두 컬럼은 길이 제한 없는 text이고 memo 컬럼은 없다
+    for name in ("action", "next_action"):
         assert columns[name].data_type == "text", name
         assert columns[name].character_maximum_length is None, name
-    assert columns["memo"].is_nullable == "NO"
+    assert "memo" not in columns
     assert columns["action"].is_nullable == "YES"
     assert columns["next_action"].is_nullable == "YES"
 
@@ -133,24 +135,21 @@ async def test_very_long_texts_are_stored_without_truncation(session: AsyncSessi
     # given: Deal과 수행자가 있는 head 스키마
     deal_code, actor = await _deal_and_actor(session)
 
-    # when: 5,000자·100,000자 텍스트를 원시 INSERT한다
+    # when: 5,000자 텍스트 둘을 원시 INSERT한다
     await _raw_insert(
         session,
         deal_code,
         actor,
         action="가" * 5_000,
         next_action="나" * 5_000,
-        memo="다" * 100_000,
     )
 
     # when: 저장된 길이를 조회한다
     lengths = (
-        await session.execute(
-            text("select length(action), length(next_action), length(memo) from deal_actions")
-        )
+        await session.execute(text("select length(action), length(next_action) from deal_actions"))
     ).one()
     # then: 길이가 그대로다
-    assert tuple(lengths) == (5_000, 5_000, 100_000)
+    assert tuple(lengths) == (5_000, 5_000)
 
 
 @pytest.mark.parametrize("column", ["next_action", "due_date"])

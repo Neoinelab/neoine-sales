@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { diffDeal, type HistoryLookup } from './history'
+import { HISTORY_CATEGORY_LABELS, diffDeal, type HistoryLookup } from './history'
 import type { Deal } from './types'
 import { USER_ID } from '../../test/fake/seed/ids'
 
@@ -180,5 +180,19 @@ describe('diffDeal', () => {
     const result = Object.keys(lookup)
     // then: solutionName이 없다
     expect(result).not.toContain('solutionName')
+  })
+})
+
+describe('HISTORY_CATEGORY_LABELS', () => {
+  // 구분 라벨은 서버와 같은 13값이고 comment의 라벨은 "Comment"다.
+  // 테스트 코드: DD-107
+  it('has the thirteen server categories with the label Comment for comment', () => {
+    // when: 라벨 표의 키와 comment 라벨을 읽는다
+    const keys = Object.keys(HISTORY_CATEGORY_LABELS)
+
+    // then: 13값이고 comment의 라벨이 "Comment"다
+    expect(keys).toHaveLength(13)
+    expect(keys).toContain('comment')
+    expect(HISTORY_CATEGORY_LABELS.comment).toBe('Comment')
   })
 })

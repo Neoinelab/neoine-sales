@@ -58,6 +58,7 @@ class FakeDealRepository(DealCountsMixin, InMemoryStore["Deal"]):
         self._history: Any = None
         self._attachments: Any = None
         self._license_contracts: Any = None
+        self._comments: Any = None
         # 코드·Label 사용 수를 유스케이스 테스트가 직접 주입하는 값(R3에서 실제 집계 테스트로 대체).
         # None이면 저장된 Deal에서 센다.
         self.forecast_counts: dict[str, int] | None = None
@@ -77,12 +78,14 @@ class FakeDealRepository(DealCountsMixin, InMemoryStore["Deal"]):
         attachments: Any = None,  # noqa: ANN401
         users: Any = None,  # noqa: ANN401
         license_contracts: Any = None,  # noqa: ANN401
+        comments: Any = None,  # noqa: ANN401
     ) -> None:
         """FK 모사와 파생값에 쓸 저장소를 연결한다(FakeUnitOfWork가 호출한다)."""
         self._contacts, self._codes, self._labels = contacts, codes, labels
         self._vendors, self._users = vendors, users
         self._actions, self._history, self._attachments = actions, history, attachments
         self._license_contracts = license_contracts
+        self._comments = comments
 
     # --- 참조 확인(FK 모사) ---
 
@@ -151,6 +154,7 @@ class FakeDealRepository(DealCountsMixin, InMemoryStore["Deal"]):
             self._history,
             self._attachments,
             self._license_contracts,
+            self._comments,
         ):  # CASCADE
             if store is not None:
                 store.remove_of_deal(code)
@@ -299,6 +303,7 @@ class FakeDealRepository(DealCountsMixin, InMemoryStore["Deal"]):
             action_count=sum(1 for a in actions if a.deal_code == code),
             attachment_count=sum(1 for a in attachments if a.deal_code == code),
             license_contract_count=sum(1 for c in contracts if c.deal_code == code),
+            comment_count=0 if self._comments is None else self._comments.count_for_deal(code),
         )
 
     async def references_of_contact(self, contact_id: ContactId) -> Sequence[ContactReference]:

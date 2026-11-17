@@ -24,20 +24,19 @@ from tests.unit.application.action_env import (
     KIM,
     NOT_FOUND,
     PARK,
-    SUMMARY_WITH_MEMO,
+    SUMMARY,
     VIEWER,
 )
 
 if TYPE_CHECKING:
     from tests.unit.application.action_env import ActionEnv
 
-AFTER = "수정: 제안 · 제안 발표 / Next Action: 견적 회신 (Due 2026-02-01) / Memo: 변경"
+AFTER = "수정: 제안 · 제안 발표 / Next Action: 견적 회신 (Due 2026-02-01)"
 CHANGE: dict[str, Any] = {
     "action_type": "제안",
     "action": "제안 발표",
     "next_action": "견적 회신",
     "due_date": date(2026, 2, 1),
-    "memo": "변경",
 }
 
 
@@ -49,7 +48,7 @@ async def test_update_action_by_owner_logs_before_and_after(action_env: ActionEn
     # given: KIM이 남긴 기본 Action
     action = await action_env.act(KIM)
 
-    # when: KIM이 유형·진행사항·Next Action·Due·Memo를 모두 고친다
+    # when: KIM이 유형·진행사항·Next Action·Due를 모두 고친다
     updated = await action_env.update_as(action.id, KIM, **CHANGE)
 
     # then: 내용과 수정 시각이 바뀐다
@@ -58,7 +57,7 @@ async def test_update_action_by_owner_logs_before_and_after(action_env: ActionEn
     assert stored.content.action_type.name == "제안"
     assert stored.updated_at == updated.updated_at == action_env.env.clock.now()
     # then: 이력 최신 줄은 수정 전 요약과 "수정: …"이고 변경자는 KIM이다
-    assert (await action_env.rows())[-1] == ("action", "Action", SUMMARY_WITH_MEMO, AFTER)
+    assert (await action_env.rows())[-1] == ("action", "Action", SUMMARY, AFTER)
     assert (await action_env.action_entries())[-1].changed_by == KIM.user_id
 
 
@@ -234,7 +233,7 @@ async def test_update_action_with_content_equal_after_trim_logs_nothing(
     rows_before = await action_env.rows()
 
     # when: 앞뒤 공백만 다른 내용으로 고친다
-    await action_env.update_as(action.id, KIM, action="  킥오프 미팅  ", memo=" 요구사항 정리 ")
+    await action_env.update_as(action.id, KIM, action="  킥오프 미팅  ")
 
     # then: 이력과 수정 시각이 그대로다
     assert await action_env.rows() == rows_before
@@ -251,13 +250,13 @@ async def test_update_action_saves_long_text_in_full_and_clips_only_the_history(
     # given: KIM이 남긴 Action
     action = await action_env.act(KIM)
 
-    # when: 진행사항 5,000자·Memo 20,000자로 고친다
-    await action_env.update_as(action.id, KIM, action="가" * 5_000, memo="메" * 20_000)
+    # when: 진행사항 5,000자로 고친다
+    await action_env.update_as(action.id, KIM, action="가" * 5_000)
 
     # then: 원문은 잘리지 않고 저장된다
     stored = await action_env.stored(action.id)
     assert stored.content.action is not None
-    assert (len(stored.content.action), len(stored.content.memo)) == (5_000, 20_000)
+    assert len(stored.content.action) == 5_000
     # then: 이력의 변경 후만 1,000자에서 "…"로 끝난다
     (_, _, _, after) = (await action_env.rows())[-1]
     assert len(after) == 1_000
@@ -301,7 +300,7 @@ async def test_update_clears_next_action(action_env: ActionEnv) -> None:
     assert stored.content.next_action is None
     assert stored.content.due_date is None
     assert stored.next_action_state is None
-    assert (await action_env.rows())[-1][3] == "수정: 미팅 · 킥오프 미팅 / Memo: 요구사항 정리"
+    assert (await action_env.rows())[-1][3] == "수정: 미팅 · 킥오프 미팅"
 
 
 async def test_update_clearing_next_action_of_a_closed_one_removes_status_and_time(
@@ -351,9 +350,7 @@ async def test_update_next_action_text_of_a_closed_one_keeps_status_and_time(
     closed = await action_env.set_status(action.id, KIM, "not_done", "접음")
 
     # when: Next Action 내용과 Due를 고친다
-    await action_env.update_as(
-        action.id, KIM, next_action="바뀐 계획", due_date=date(2026, 5, 1), memo=closed.content.memo
-    )
+    await action_env.update_as(action.id, KIM, next_action="바뀐 계획", due_date=date(2026, 5, 1))
 
     # then: 내용은 바뀌고 상태와 종료 시각은 그대로다
     stored = await action_env.stored(action.id)
@@ -427,3 +424,30 @@ async def test_filling_the_progress_of_a_next_only_action_keeps_it_open(
 
     # then: 상태는 Open 그대로다
     assert (await action_env.stored(action.id)).next_action_state == NextActionState.open()
+
+
+async def test_update_leaves_the_comments_alone_and_the_summary_has_no_memo_part(
+    action_env: ActionEnv,
+) -> None:
+    """Action 수정은 Comment를 바꾸지 않고 수정 이력 요약에 "Memo"가 없다.
+
+    테스트 코드: CM-038
+    """
+    # given: KIM의 Action과 그 Action의 Action Comment "자료 전달"
+    from tests.factories_comment import make_comment  # noqa: PLC0415
+
+    action = await action_env.act(KIM)
+    comment = make_comment(deal_code=action.deal_code, action_id=action.id, author=KIM.user_id)
+    await action_env.env.uow.deal_comments.add(comment)
+
+    # when: KIM이 진행사항을 고친다
+    updated = await action_env.update_as(action.id, KIM, action="바뀐 진행")
+
+    # then: Comment는 그대로이고 Action 내용에 memo가 없다
+    stored = await action_env.env.uow.deal_comments.get(comment.id)
+    assert (stored.body, stored.updated_at) == (comment.body, comment.updated_at)
+    assert not hasattr(updated.content, "memo")
+    # then: 수정 이력 요약에 Memo가 없다
+    after = (await action_env.rows())[-1][3]
+    assert "Memo" not in after
+    assert after.startswith("수정: 미팅 · 바뀐 진행")

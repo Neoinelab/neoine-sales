@@ -25,7 +25,6 @@ def _parse(**overrides: Any) -> ActionContent:  # noqa: ANN401
         "action": "킥오프",
         "next_action": "견적 전달",
         "due_date": date(2026, 2, 1),
-        "memo": "",
     }
     return ActionContent.parse(**{**values, **overrides})
 
@@ -126,57 +125,44 @@ def test_blank_parts_are_never_stored_as_empty_strings() -> None:
     assert next_only.action is None
 
 
-def test_memo_alone_does_not_satisfy_action_or_next() -> None:
-    """Memo만 있어서는 진행사항·Next Action 조건을 채우지 못한다.
+def test_content_has_no_memo_anymore() -> None:
+    """내용은 더 이상 Memo를 받지 않는다(글은 별도 엔티티 Comment다).
 
-    테스트 코드: AC-008
+    테스트 코드: CM-038
     """
-    # when·then: 진행사항·Next Action 없이 Memo만 주면 거절된다
-    with raises_with(InvalidValueError, ACTION_OR_NEXT_REQUIRED):
-        _parse(action="", next_action="", due_date=None, memo="메모만 있음")
+    # when·then: 예전 memo 인자를 주면 거절되고 내용에도 memo가 없다
+    with pytest.raises(TypeError):
+        _parse(memo="메모")
+    assert not hasattr(_parse(), "memo")
 
 
 def test_text_fields_have_no_length_limit() -> None:
-    """세 텍스트에는 길이 상한이 없다.
+    """진행사항·Next Action에는 길이 상한이 없다.
 
     테스트 코드: AC-004
     """
-    # given: 5,000자·5,000자·20,000자 이상 텍스트
+    # given: 5,000자 텍스트 둘
     long_progress = "가" * 5_000
     long_next = "😀" * 5_000
-    long_memo = "memo 메모 😀 " * 2_001  # 반복 단위 10자, trim 후에도 20,000자 이상
 
     # when: 그 텍스트로 내용을 만든다
-    content = _parse(action=long_progress, next_action=long_next, memo=long_memo)
+    content = _parse(action=long_progress, next_action=long_next)
 
     # then: 잘리지 않고 그대로다
     assert content.action == long_progress
     assert content.next_action == long_next
-    assert content.memo == long_memo.strip()
-    assert len(content.memo) >= 20_000
 
 
 def test_texts_are_trimmed_on_both_ends() -> None:
-    """세 텍스트의 앞뒤 공백을 지운다.
+    """두 텍스트의 앞뒤 공백을 지운다.
 
     테스트 코드: AC-003
     """
     # when: 앞뒤 공백이 낀 텍스트로 내용을 만든다
-    content = _parse(action="  킥오프  ", next_action="\t견적 전달\n", memo="  메모  ")
+    content = _parse(action="  킥오프  ", next_action="\t견적 전달\n")
 
     # then: 공백이 지워진 값이다
-    assert (content.action, content.next_action, content.memo) == ("킥오프", "견적 전달", "메모")
-
-
-def test_a_blank_memo_is_an_empty_string() -> None:
-    """공백뿐인 Memo는 빈 문자열이 된다.
-
-    테스트 코드: AC-005
-    """
-    # when: 공백뿐인 Memo로 내용을 만든다
-    content = _parse(memo="   \n ")
-    # then: Memo는 빈 문자열이다
-    assert content.memo == ""
+    assert (content.action, content.next_action) == ("킥오프", "견적 전달")
 
 
 def test_a_past_due_date_is_allowed() -> None:
@@ -198,10 +184,10 @@ def test_a_datetime_due_date_is_rejected_because_it_is_not_a_calendar_date() -> 
 
 
 @pytest.mark.parametrize(
-    ("field", "label"), [("action", "진행사항"), ("next_action", "Next Action"), ("memo", "Memo")]
+    ("field", "label"), [("action", "진행사항"), ("next_action", "Next Action")]
 )
 def test_nul_characters_are_rejected_in_every_text_field(field: str, label: str) -> None:
-    """진행사항·Next Action·Memo의 NUL 문자는 이름이 든 문구로 거절한다.
+    """진행사항·Next Action의 NUL 문자는 이름이 든 문구로 거절한다.
 
     테스트 코드: AC-011
     """
@@ -253,6 +239,6 @@ def test_nul_is_reported_before_the_both_blank_rule() -> None:
 
     테스트 코드: AC-011
     """
-    # when·then: 진행사항·Next Action이 비고 Memo에 NUL이 있으면 NUL 문구다
-    with raises_with(InvalidValueError, "Memo에는 NUL 문자를 쓸 수 없습니다"):
-        _parse(action="", next_action="", due_date=None, memo="가\x00나")
+    # when·then: Next Action에 NUL만 있고 진행사항이 비어도 NUL 문구다(둘 다 빔·Due 필수보다 먼저)
+    with raises_with(InvalidValueError, "Next Action에는 NUL 문자를 쓸 수 없습니다"):
+        _parse(action="", next_action="가\x00나", due_date=None)

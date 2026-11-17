@@ -11,7 +11,7 @@ const input = (statusChanges?: StatusChangeRequest[]): ActionInput => ({
   progress: '고객사 방문',
   nextAction: '견적 재전달',
   dueDate: '2026-10-22',
-  memo: '',
+  comment: '',
   ...(statusChanges ? { statusChanges } : {}),
 })
 

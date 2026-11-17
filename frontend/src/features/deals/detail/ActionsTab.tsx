@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useActions, useChangeNextActionStatus, useRemoveAction } from '../../../data/actions'
+import { useCommentCounts, useComments } from '../../../data/comments'
 import { latestWithNextAction } from '../../../shared/model/nextActionBasis'
 import type { Viewer } from '../../../shared/model/permissions'
 import type { ActionQuery, DealAction, DealDetail, NextActionStatus } from '../../../shared/model/types'
@@ -10,6 +11,7 @@ import { ActionForm } from './ActionForm'
 import { ActionSearchBar } from './ActionSearchBar'
 import { DEFAULT_ACTION_SORT, nextActionSort, type ActionSortState } from './actionSort'
 import { ActionTable } from './ActionTable'
+import { useActionDeepLink } from './useActionDeepLink'
 import { messageOf } from './detailHelpers'
 import { NextActionCloseDialog } from './NextActionCloseDialog'
 import { useLatest } from './useLatest'
@@ -30,6 +32,8 @@ export function ActionsTab({ deal, canWrite, me, onNotice }: ActionsTabProps) {
   const [creating, setCreating] = useState(false)
   // 상세 팝업: 연 Action(목록에서 사라져도 마지막 값으로 남는다)과 지금 값(수정·종료가 반영된 목록).
   const [opened, setOpened] = useState<DealAction | null>(null)
+  // 표의 Comment 아이콘으로 열었으면 팝업이 Comment 입력 칸에 포커스를 둔다.
+  const [focusComment, setFocusComment] = useState(false)
   const [target, setTarget] = useState<DealAction | null>(null)
   const [closing, setClosing] = useState<{ action: DealAction; status: Exclude<NextActionStatus, 'open'> } | null>(null)
   const [closingError, setClosingError] = useState<unknown>(null)
@@ -39,6 +43,15 @@ export function ActionsTab({ deal, canWrite, me, onNotice }: ActionsTabProps) {
   const all = useActions(deal.code, DEFAULT_ACTION_SORT)
   const remove = useRemoveAction()
   const changeStatus = useChangeNextActionStatus()
+  const commentCounts = useCommentCounts(deal.code)
+  // Comments 탭의 "Action 보기"로 들어오면(주소 `action`) 그 Action의 상세 팝업을 연다.
+  const linkError = useActionDeepLink(all, (action) => {
+    setError(null)
+    setFocusComment(false)
+    setOpened(action)
+  })
+  // 삭제 확인 문구의 건수. 팝업이 이미 읽은 그 Action의 Comment 목록을 같은 키로 쓴다.
+  const targetComments = useComments(target ? deal.code : undefined, target?.id ?? null)
   const items = useLatest(list.data) ?? []
   const filtered = Object.keys(query).length > 0
   const shown = opened === null ? null : (all.data?.find((a) => a.id === opened.id) ?? opened)
@@ -56,12 +69,12 @@ export function ActionsTab({ deal, canWrite, me, onNotice }: ActionsTabProps) {
     setTarget(null)
   }
 
-  /** 성공하면 true. 실패하면 오류를 보이고 팝업과 입력한 Memo를 그대로 둔다. */
-  async function setStatus(action: DealAction, status: NextActionStatus, memo: string): Promise<boolean> {
+  /** 성공하면 true. 실패하면 오류를 보이고 팝업과 입력한 Comment를 그대로 둔다. */
+  async function setStatus(action: DealAction, status: NextActionStatus, comment: string): Promise<boolean> {
     setError(null)
     setClosingError(null)
     try {
-      await changeStatus.mutateAsync({ dealCode: deal.code, actionId: action.id, input: { status, memo } })
+      await changeStatus.mutateAsync({ dealCode: deal.code, actionId: action.id, input: { status, comment } })
       return true
     } catch (caught) {
       if (status === 'open') setError(caught)
@@ -70,8 +83,8 @@ export function ActionsTab({ deal, canWrite, me, onNotice }: ActionsTabProps) {
     }
   }
 
-  async function confirmClose(memo: string) {
-    if (closing && (await setStatus(closing.action, closing.status, memo))) setClosing(null)
+  async function confirmClose(comment: string) {
+    if (closing && (await setStatus(closing.action, closing.status, comment))) setClosing(null)
   }
 
   function cancelClose() {
@@ -79,7 +92,7 @@ export function ActionsTab({ deal, canWrite, me, onNotice }: ActionsTabProps) {
     setClosingError(null)
   }
 
-  /** 종료는 Memo 팝업을 거치고, Open으로 되돌리는 것은 팝업 없이 바로 바꾼다. */
+  /** 종료는 종료 대화상자를 거치고, Open으로 되돌리는 것은 팝업 없이 바로 바꾼다. */
   function requestStatus(action: DealAction, status: NextActionStatus) {
     if (status === 'open') void setStatus(action, status, '')
     else {
@@ -92,6 +105,9 @@ export function ActionsTab({ deal, canWrite, me, onNotice }: ActionsTabProps) {
     setCreating(false)
     onNotice(message)
   }
+
+  const linkedComments = targetComments.data?.length ?? 0
+  const commentNote = linkedComments > 0 ? ` 연결된 Comment ${linkedComments}건도 함께 삭제됩니다.` : ''
 
   return (
     <div className="dd-page">
@@ -107,6 +123,7 @@ export function ActionsTab({ deal, canWrite, me, onNotice }: ActionsTabProps) {
       )}
       <ActionSearchBar onSearch={setQuery} />
       {shown === null && <ErrorBanner error={error} format={messageOf} />}
+      <ErrorBanner error={linkError} format={String} />
       <ErrorBanner error={list.error} format={messageOf} />
       {list.isPending && list.data === undefined && items.length === 0 && <p role="status">불러오는 중…</p>}
       {list.isSuccess && items.length === 0 && (
@@ -122,6 +139,13 @@ export function ActionsTab({ deal, canWrite, me, onNotice }: ActionsTabProps) {
           onSort={(key) => setSort((current) => nextActionSort(current, key))}
           onOpen={(action) => {
             setError(null)
+            setFocusComment(false)
+            setOpened(action)
+          }}
+          commentCounts={commentCounts.data?.byAction}
+          onOpenComment={(action) => {
+            setError(null)
+            setFocusComment(true)
             setOpened(action)
           }}
           onChangeStatus={requestStatus}
@@ -139,6 +163,7 @@ export function ActionsTab({ deal, canWrite, me, onNotice }: ActionsTabProps) {
           onChangeStatus={requestStatus}
           onDelete={setTarget}
           onNotice={onNotice}
+          focusComment={focusComment}
           onClose={() => setOpened(null)}
         />
       )}
@@ -148,14 +173,14 @@ export function ActionsTab({ deal, canWrite, me, onNotice }: ActionsTabProps) {
           nextAction={closing.action.nextAction ?? ''}
           busy={changeStatus.isPending}
           error={closingError}
-          onConfirm={(memo) => void confirmClose(memo)}
+          onConfirm={(comment) => void confirmClose(comment)}
           onCancel={cancelClose}
         />
       )}
       {target && (
         <ConfirmDialog
           title="Action 삭제"
-          message={`"${target.progress ?? target.nextAction ?? ''}" Action을 삭제합니다. 삭제는 Deal History에 기록됩니다.`}
+          message={`"${target.progress ?? target.nextAction ?? ''}" Action을 삭제합니다. 삭제는 Deal History에 기록됩니다.${commentNote}`}
           confirmLabel="삭제"
           danger
           busy={remove.isPending}

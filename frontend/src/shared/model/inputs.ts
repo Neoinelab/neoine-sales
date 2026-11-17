@@ -160,7 +160,7 @@ export interface StatusChangeRequest {
 
 /**
  * Action 등록 입력. progress·nextAction은 각각 선택(빈 문자열)이며 둘 다 비면 422. dueDate는 nextAction이 있을 때만 필수(없으면 빈 문자열 또는 null),
- * memo는 빈 문자열 가능, dueDate는 과거 허용.
+ * comment(새 Action에 함께 남길 Action Comment)는 빈 문자열 가능, dueDate는 과거 허용.
  * 수행일시·담당자는 서버(게이트웨이)가 현재 시각·로그인 사용자로 채운다.
  */
 export interface ActionInput {
@@ -169,7 +169,8 @@ export interface ActionInput {
   progress: string
   nextAction: string
   dueDate: string | null
-  memo: string
+  /** 등록 때만. 비면 Comment를 만들지 않는다. 수정 입력에는 없다. */
+  comment: string
   /** 사용자가 바꾼 순서대로 최대 2개(Status·Forecast 각 1개). 없으면 보내지 않는다. */
   statusChanges?: StatusChangeRequest[]
   /** 있으면 저장 때 그 이전 Next Action(Action id)을 종료(수행)로 바꾼다. 지금 기준 행이 아니면 409. */
@@ -181,15 +182,15 @@ export interface ActionInput {
 }
 
 /** Action 수정 입력. 등록 시점 Status/Forecast와 담당자는 바꿀 수 없다. actedOn은 바꿀 때만 보낸다. */
-export type ActionUpdateInput = Omit<ActionInput, 'statusChanges' | 'closePreviousNextActionId' | 'deleteLicenseContracts' | 'actedOn'> & {
+export type ActionUpdateInput = Omit<ActionInput, 'comment' | 'statusChanges' | 'closePreviousNextActionId' | 'deleteLicenseContracts' | 'actedOn'> & {
   /** 수행일. 생략·null이면 그대로 둔다. */
   actedOn?: string | null
 }
 
-/** Next Action 상태 변경. memo는 종료할 때만(Open으로 되돌릴 때는 빈 문자열). */
+/** Next Action 상태 변경. comment는 종료할 때만(Open으로 되돌릴 때는 빈 문자열). */
 export interface NextActionStatusInput {
   status: NextActionStatus
-  memo: string
+  comment: string
 }
 
 export type ActionSortKey = 'actedAt' | 'actor' | 'type' | 'dueDate' | 'nextActionStatus'
@@ -197,7 +198,7 @@ export type ActionSortKey = 'actedAt' | 'actor' | 'type' | 'dueDate' | 'nextActi
 export interface ActionQuery {
   typeId?: number
   actorId?: number
-  /** 진행사항·Next Action·Memo 부분 일치. */
+  /** 진행사항·Next Action·Comment 부분 일치. */
   keyword?: string
   actedFrom?: string
   actedTo?: string

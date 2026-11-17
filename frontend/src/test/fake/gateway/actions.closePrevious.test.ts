@@ -10,7 +10,7 @@ const input = (over: Partial<ActionInput> = {}): ActionInput => ({
   progress: '고객사 방문',
   nextAction: '견적 재전달',
   dueDate: '2026-10-22',
-  memo: '기존 메모',
+  comment: '',
   ...over,
 })
 
@@ -18,23 +18,20 @@ type Mock = Awaited<ReturnType<typeof mockAs>>
 const find = async (gw: Mock['gateway'], code: string, id: number) => (await gw.actions.list(code, {})).find((a) => a.id === id)
 
 describe('actions.create with closePreviousNextActionId', () => {
-  // 기준 행은 새 Action 시각으로 종료(수행)가 되고 Memo는 그대로다.
+  // 기준 행은 새 Action 시각으로 종료(수행)가 되고 그 Action의 Comment는 그대로이며 이전 종료는 Comment를 만들지 않는다.
   // 테스트 코드: AC-090
-  it('closes the basis row as done at the new actions time and keeps its memo', async () => {
+  it('closes the basis row as done at the new actions time and keeps its comment', async () => {
     // given: sales(kim)와 Open Next Action 기준 행
     const { gateway } = await mockAs('kim')
     const code = dealCode(2)
-    const previous = await gateway.actions.create(code, input())
+    const previous = await gateway.actions.create(code, input({ comment: '기존 Comment' }))
 
     // when: 그 id를 닫도록 지정해 등록한다
     const created = await gateway.actions.create(code, input({ closePreviousNextActionId: previous.id }))
 
-    // then: 기준 행은 done이고 종료일이 새 Action의 수행일이며 Memo는 그대로다
-    expect(await find(gateway, code, previous.id)).toMatchObject({
-      nextActionStatus: 'done',
-      nextActionClosedOn: created.actedOn,
-      memo: '기존 메모',
-    })
+    // then: 기준 행은 done이고 종료일이 새 Action의 수행일이며 Comment는 기준 행의 1건 그대로다
+    expect(await find(gateway, code, previous.id)).toMatchObject({ nextActionStatus: 'done', nextActionClosedOn: created.actedOn })
+    expect((await gateway.comments.list(code)).map((c) => [c.actionId, c.body])).toEqual([[previous.id, '기존 Comment']])
   })
 
   // 종료 줄이 먼저, 등록 줄이 그 다음에 남는다.
@@ -119,7 +116,7 @@ describe('actions.create with closePreviousNextActionId', () => {
     const { gateway } = await mockAs('kim')
     const code = dealCode(2)
     const previous = await gateway.actions.create(code, input())
-    const closed = await gateway.actions.changeNextActionStatus(previous.id, { status: 'notDone', memo: '' })
+    const closed = await gateway.actions.changeNextActionStatus(previous.id, { status: 'notDone', comment: '' })
     const history = (await gateway.history.list(code, {})).length
 
     // when: 그 id로 닫으며 등록한다

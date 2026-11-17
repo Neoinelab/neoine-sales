@@ -14,40 +14,26 @@ from tests.support.expect import raises_with
 NO_NEXT_ACTION = "Next Action이 없는 Action은 상태를 바꿀 수 없습니다."
 
 
-def test_open_next_action_closes_as_done_without_memo_change() -> None:
-    """열린 Next Action은 Memo를 바꾸지 않고 종료(수행)가 된다.
+def test_open_next_action_closes_as_done_without_changing_the_content() -> None:
+    """열린 Next Action은 내용을 바꾸지 않고 종료(수행)가 된다(Comment도 만들지 않는다).
 
     테스트 코드: AC-036
     """
-    # given: Memo "기존 메모"인 Open Next Action
-    action = make_deal_action(memo="기존 메모")
+    # given: Open Next Action
+    action = make_deal_action()
+    content = action.content
 
     # when: 다음 기록을 위해 종료(수행)로 닫는다
     change = action.close_as_done_for_next_update(later(60))
 
-    # then: Open에서 done으로 바뀌었다고 알린다
+    # then: Open에서 done으로 바뀌었다고 알리고 note는 비어 있다(Comment 없음)
     assert change == NextActionStatusChange(
         before=NextActionStatus.OPEN, after=NextActionStatus.DONE, note=""
     )
-    # then: 상태·종료 시각·수정 시각이 새로 정해지고 Memo는 그대로다
+    # then: 상태·종료 시각·수정 시각이 새로 정해지고 내용은 그대로다
     assert action.next_action_state == NextActionState.of(NextActionStatus.DONE, later(60))
-    assert action.content.memo == "기존 메모"
+    assert action.content == content
     assert action.updated_at == later(60)
-
-
-def test_open_next_action_without_memo_keeps_memo_empty() -> None:
-    """Memo가 비어 있으면 닫아도 Memo는 비어 있다.
-
-    테스트 코드: AC-036
-    """
-    # given: Memo가 빈 Open Next Action
-    action = make_deal_action(memo="")
-
-    # when: 종료(수행)로 닫는다
-    action.close_as_done_for_next_update(later(60))
-
-    # then: Memo는 빈 문자열이다
-    assert action.content.memo == ""
 
 
 @pytest.mark.parametrize("closed", [NextActionStatus.DONE, NextActionStatus.NOT_DONE])

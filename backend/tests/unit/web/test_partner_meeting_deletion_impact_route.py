@@ -1,4 +1,4 @@
-"""Deal 삭제 영향 응답: 이력·Action·첨부·계약 건수뿐이다. 파트너 미팅 건수는 없다."""
+"""Deal 삭제 영향 응답: 이력·Action·첨부·계약·Comment 건수뿐이다. 파트너 미팅 건수는 없다."""
 
 from app.domain.auth.principal import Role
 from tests.factories import make_deal, make_deal_code
@@ -6,7 +6,13 @@ from tests.factories_contact import make_customer
 from tests.fakes.use_cases import FakeUseCases
 from tests.unit.web.partner_meeting_http import URL, clients, item, post_one, seed_partners
 
-IMPACT_KEYS = {"history_count", "action_count", "attachment_count", "license_contract_count"}
+IMPACT_KEYS = {
+    "history_count",
+    "action_count",
+    "attachment_count",
+    "license_contract_count",
+    "comment_count",
+}
 
 
 async def _deal(use_cases: FakeUseCases) -> str:
@@ -17,8 +23,8 @@ async def _deal(use_cases: FakeUseCases) -> str:
     return code.value
 
 
-async def test_deletion_impact_response_has_four_counts() -> None:
-    """Deal 삭제 영향은 네 건수 키뿐이다.
+async def test_deletion_impact_response_has_five_counts() -> None:
+    """Deal 삭제 영향은 다섯 건수 키뿐이다(Comment 건수 포함, 미팅 건수는 없다).
 
     테스트 코드: PA-044
     """
@@ -28,7 +34,7 @@ async def test_deletion_impact_response_has_four_counts() -> None:
     async with clients(use_cases, {"kim": Role.SALES}) as c:
         # when: 삭제 영향을 읽는다
         response = await c["kim"].get(f"/api/v1/deals/{code}/deletion-impact")
-    # then: 200이고 키는 네 건수뿐이다
+    # then: 200이고 키는 다섯 건수뿐이다
     assert response.status_code == 200, response.text
     assert set(response.json()) == IMPACT_KEYS
 

@@ -38,7 +38,11 @@ async def test_a_deal_without_history_or_actions_has_zero_counts(deal_case: Deal
 
     # then: 네 건수가 0이다
     assert impact == DealDeletionImpact(
-        history_count=0, action_count=0, attachment_count=0, license_contract_count=0
+        history_count=0,
+        action_count=0,
+        attachment_count=0,
+        license_contract_count=0,
+        comment_count=0,
     )
 
 
@@ -59,7 +63,11 @@ async def test_history_and_actions_are_counted_per_kind(deal_case: DealCase) -> 
 
     # then: 이력 3, Action 2다
     assert impact == DealDeletionImpact(
-        history_count=3, action_count=2, attachment_count=0, license_contract_count=0
+        history_count=3,
+        action_count=2,
+        attachment_count=0,
+        license_contract_count=0,
+        comment_count=0,
     )
 
 
@@ -80,7 +88,11 @@ async def test_other_deals_are_not_counted(deal_case: DealCase) -> None:
 
     # then: 이력 1, Action 0이다
     assert impact == DealDeletionImpact(
-        history_count=1, action_count=0, attachment_count=0, license_contract_count=0
+        history_count=1,
+        action_count=0,
+        attachment_count=0,
+        license_contract_count=0,
+        comment_count=0,
     )
 
 
@@ -113,3 +125,27 @@ async def test_an_unknown_deal_is_not_found(deal_case: DealCase) -> None:
     # when·then: 없는 Deal의 삭제 영향을 읽는다 → Deal 없음 오류다
     with pytest.raises(DealNotFoundError):
         await deal_case.deals.deletion_impact(make_deal(code=CODE).id)
+
+
+async def test_comments_of_the_deal_are_counted_and_other_deals_are_not(
+    deal_case: DealCase,
+) -> None:
+    """삭제 영향의 comment_count는 그 Deal 소속 Comment(Deal·Action Comment 모두) 수다.
+
+    테스트 코드: CM-039, DD-047
+    """
+    # given: D에 Deal Comment 1건·Action Comment 2건, E에 Comment 1건
+    deal, other = make_deal(code=CODE), make_deal(code=OTHER)
+    await deal_case.add(deal)
+    await deal_case.add(other)
+    action = await deal_case.add_action(deal, acted_on=date_after(1))
+    await deal_case.add_comment(deal.id, "d", later(1))
+    await deal_case.add_comment(deal.id, "a1", later(2), action=action)
+    await deal_case.add_comment(deal.id, "a2", later(3), action=action)
+    await deal_case.add_comment(other.id, "e", later(4))
+
+    # when: D의 삭제 영향을 읽는다
+    impact = await deal_case.deals.deletion_impact(deal.id)
+
+    # then: comment_count는 3이다
+    assert impact.comment_count == 3

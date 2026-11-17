@@ -17,6 +17,7 @@ if TYPE_CHECKING:
     from tests.fakes.storage_stack import StorageStack
     from tests.unit.application.action_env import ActionEnv
     from tests.unit.application.attachment_env import AttachmentEnv
+    from tests.unit.application.comment_env import CommentEnv
     from tests.unit.application.deal_env import DealEnv
     from tests.unit.application.license_contract_env import ContractEnv
     from tests.unit.application.partner_meeting_env import MeetingEnv
@@ -91,6 +92,19 @@ async def action_env(env: DealEnv) -> ActionEnv:
         await active.commit()
     env.uow.commits = 0
     return build_action_env(env, await env.new_deal())
+
+
+@pytest.fixture
+async def comment_env(action_env: ActionEnv) -> CommentEnv:
+    """Comment 유스케이스 환경: Action 환경(Deal D, 요청자 kim·park·boss·viewer)과 KIM의 Action A.
+
+    준비용 commit은 커밋 횟수 단언에 섞이지 않도록 0으로 되돌린다.
+    """
+    from tests.unit.application.comment_env import (  # noqa: PLC0415 - Comment 구현 지연 import
+        build_comment_env,
+    )
+
+    return await build_comment_env(action_env)
 
 
 @pytest.fixture

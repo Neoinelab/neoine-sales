@@ -237,7 +237,7 @@ export function dealsContract(make: MakeGateway): void {
       const impact = await sales.deals.impact(created.code)
 
       // then: 이력 1건, 나머지 0건이다 (끝에 정리한다)
-      expect(impact).toStrictEqual({ historyCount: 1, actionCount: 0, attachmentCount: 0, licenseContractCount: 0 })
+      expect(impact).toStrictEqual({ historyCount: 1, actionCount: 0, attachmentCount: 0, licenseContractCount: 0, commentCount: 0 })
       await sales.deals.remove(created.code, created.code)
     })
 

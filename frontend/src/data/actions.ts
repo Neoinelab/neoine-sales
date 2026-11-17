@@ -15,10 +15,10 @@ export function useActions(dealCode: string | undefined, query: ActionQuery = {}
   })
 }
 
-/** Action 변경 공통 무효화: Action 목록, History, Deal(Next Action·최종 업데이트·Status), Forecast, 유형(새 유형·사용 수). */
+/** Action 변경 공통 무효화: Action 목록, History, Deal(Next Action·최종 업데이트·Status), Forecast, Comment(등록·종료 Comment, Action 삭제 시 함께 삭제), 유형(새 유형·사용 수). */
 function useInvalidateAction(): (dealCode: string) => Promise<void> {
   const invalidate = useInvalidate()
-  return (dealCode) => invalidate(keys.actions(dealCode), keys.history(dealCode), keys.deals, keys.forecast, keys.actionTypes, keys.licenseContracts)
+  return (dealCode) => invalidate(keys.actions(dealCode), keys.history(dealCode), keys.comments(dealCode), keys.deals, keys.forecast, keys.actionTypes, keys.licenseContracts)
 }
 
 /** gateway.actions.create(dealCode, input). input.statusChange가 있으면 Deal도 함께 바뀐다. */
@@ -52,7 +52,7 @@ export function useRemoveAction(): Mutation<{ dealCode: string; actionId: number
   })
 }
 
-/** gateway.actions.changeNextActionStatus(actionId, input). 성공 무효화는 create와 같다(Memo·목록의 Next Action 요약이 바뀐다). */
+/** gateway.actions.changeNextActionStatus(actionId, input). 성공 무효화는 create와 같다(종료 Comment·목록의 Next Action 요약이 바뀐다). */
 export function useChangeNextActionStatus(): Mutation<{ dealCode: string; actionId: number; input: NextActionStatusInput }, DealAction> {
   const invalidate = useInvalidateAction()
   return useMutation<DealAction, ApiError, { dealCode: string; actionId: number; input: NextActionStatusInput }>({

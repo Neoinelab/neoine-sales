@@ -107,7 +107,7 @@ describe('actionTypes.create / rename / remove', () => {
     const { gateway } = await mockAs('root')
     const code = dealCode(1)
     // given: '미팅' 유형으로 Action을 등록했다
-    const registered = await gateway.actions.create(code, { type: { name: '미팅' }, progress: '방문', nextAction: '견적', dueDate: '2026-11-01', memo: '' })
+    const registered = await gateway.actions.create(code, { type: { name: '미팅' }, progress: '방문', nextAction: '견적', dueDate: '2026-11-01', comment: '' })
     // when: '미팅'을 '대면 미팅'으로 바꾼다
     await gateway.actionTypes.rename(seedActionTypeId('미팅'), '대면 미팅')
     // then: Action은 새 이름이고 History는 '등록: 미팅 ·'로 남는다

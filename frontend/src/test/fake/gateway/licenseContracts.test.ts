@@ -148,7 +148,7 @@ describe('license contracts Fake: rules', () => {
       progress: '계약 체결',
       nextAction: '',
       dueDate: '',
-      memo: '',
+      comment: '',
       statusChanges: [{ change: { field: 'forecastKey', value: 'won' }, resolution: { revenueAmount: 700_000_000, revenueDate: '2027-02-01' } }],
     })
     expect((await gateway.deals.get(code)).licenseContractCount).toBe(1)
@@ -249,7 +249,7 @@ describe('license contracts Fake: issued contract rules (F)', () => {
     const actionsBefore = await gateway.actions.list(code, {})
     // when: 인라인 변경·폼 수정·Action 등록으로 Won을 벗어난다
     await expectApiError(
-      gateway.actions.create(code, { type: { name: '미팅' }, progress: '해지 논의', nextAction: '', dueDate: '', memo: '', statusChanges: [LEAVE_WON], deleteLicenseContracts: true }),
+      gateway.actions.create(code, { type: { name: '미팅' }, progress: '해지 논의', nextAction: '', dueDate: '', comment: '', statusChanges: [LEAVE_WON], deleteLicenseContracts: true }),
       409,
       WON_EXIT_BLOCKED,
     )

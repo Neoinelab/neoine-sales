@@ -218,7 +218,7 @@ describe('목록 열 정리: Next Action 세 칸 (AC3)', () => {
     await rowOf(/한빛은행 ITDR 도입/)
     const basis = (await gateway.actions.list(code, {})).find((a) => a.nextAction === '계약서 초안 검토')
     if (!basis) throw new Error('기준 Action이 없습니다.')
-    await gateway.actions.changeNextActionStatus(basis.id, { status, memo: '' })
+    await gateway.actions.changeNextActionStatus(basis.id, { status, comment: '' })
 
     // when: 목록을 다시 읽는다
     await client.invalidateQueries()

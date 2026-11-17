@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { ActionInput } from '../../../shared/model/types'
 import { ACTION_TYPE_ID, serverAction } from '../../../test/fixtures/serverAction'
 import { serverUserRef } from '../../../test/fixtures/serverDeal'
-import { toActionCreateBody, toActionUpdateBody, toDealAction } from './action'
+import { toActionCreateBody, toActionUpdateBody, toDealAction, toNextActionStatusBody } from './action'
 import { USER_ID } from '../../../test/fake/seed/ids'
 
 const input = (over: Partial<ActionInput> = {}): ActionInput => ({
@@ -10,7 +10,7 @@ const input = (over: Partial<ActionInput> = {}): ActionInput => ({
   progress: '고객사 방문',
   nextAction: '견적 재전달',
   dueDate: '2026-10-22',
-  memo: '',
+  comment: '',
   ...over,
 })
 
@@ -56,7 +56,6 @@ describe('toDealAction', () => {
         action: '최종 가격 협의',
         next_action: '계약서 초안 검토',
         due_date: '2026-10-18',
-        memo: '메모',
         status_key: 'price_negotiation',
         forecast_key: 'commit',
       }),
@@ -75,7 +74,6 @@ describe('toDealAction', () => {
       dueDate: '2026-10-18',
       nextActionStatus: 'open',
       nextActionClosedOn: null,
-      memo: '메모',
       statusKey: 'price_negotiation',
       forecastKey: 'commit',
     })
@@ -94,16 +92,16 @@ describe('toDealAction', () => {
   // 긴 텍스트를 다듬거나 자르지 않는다.
   // 테스트 코드: AC-089
   it('does not trim or cut a long text', () => {
-    // given: 5,000자·20,000자 텍스트
+    // given: 5,000자 텍스트
     const long = '가'.repeat(5000)
 
     // when: 서버 Action을 바꾼다
-    const mapped = toDealAction(serverAction({ action: long, next_action: long, memo: '나'.repeat(20000) }))
+    const mapped = toDealAction(serverAction({ action: long, next_action: long }))
 
     // then: 길이가 그대로다
     expect(mapped.progress).toBe(long)
     expect(mapped.nextAction).toBe(long)
-    expect(mapped.memo).toHaveLength(20000)
+    expect(mapped).not.toHaveProperty('memo')
   })
 })
 
@@ -112,7 +110,7 @@ describe('toActionCreateBody', () => {
   // 테스트 코드: AC-089
   it('uses snake_case keys and has no acted_on or actor field', () => {
     // when: 유형 이름이 있는 입력으로 등록 본문을 만든다
-    const body = toActionCreateBody(input({ type: { name: '통화' }, memo: '메모' }))
+    const body = toActionCreateBody(input({ type: { name: '통화' }, comment: '메모' }))
 
     // then: 서버 이름의 본문뿐이다
     expect(body).toEqual({
@@ -120,7 +118,7 @@ describe('toActionCreateBody', () => {
       action: '고객사 방문',
       next_action: '견적 재전달',
       due_date: '2026-10-22',
-      memo: '메모',
+      comment: '메모',
     })
   })
 
@@ -135,11 +133,12 @@ describe('toActionCreateBody', () => {
   // 테스트 코드: AC-089
   it('does not trim or cut the texts', () => {
     // when: 공백이 낀 긴 텍스트로 본문을 만든다
-    const body = toActionCreateBody(input({ progress: `  ${'가'.repeat(5000)}  `, memo: '나'.repeat(20000) }))
+    const body = toActionCreateBody(input({ progress: `  ${'가'.repeat(5000)}  `, comment: '나'.repeat(20000) }))
 
-    // then: 진행사항과 Memo가 그대로다
+    // then: 진행사항과 Comment가 그대로다
     expect(body.action).toBe(`  ${'가'.repeat(5000)}  `)
-    expect(body.memo).toHaveLength(20000)
+    expect(body.comment).toHaveLength(20000)
+    expect(body).not.toHaveProperty('memo')
   })
 
   // 동반 변경은 resolution과 함께 status_changes로 바뀐다.
@@ -232,17 +231,17 @@ describe('toActionUpdateBody', () => {
   // 테스트 코드: AC-089
   it('has the content fields only', () => {
     // when: 수정 본문을 만든다
-    const body = toActionUpdateBody({ type: { id: 5 }, progress: '수정', nextAction: '다음', dueDate: '2026-11-01', memo: '' })
+    const body = toActionUpdateBody({ type: { id: 5 }, progress: '수정', nextAction: '다음', dueDate: '2026-11-01' })
 
-    // then: 내용 칸 다섯 개뿐이다
-    expect(body).toEqual({ action_type: { id: 5 }, action: '수정', next_action: '다음', due_date: '2026-11-01', memo: '' })
+    // then: 내용 칸 네 개뿐이고 Comment·memo는 없다(수정은 Comment를 바꾸지 않는다)
+    expect(body).toEqual({ action_type: { id: 5 }, action: '수정', next_action: '다음', due_date: '2026-11-01' })
   })
 
   // 수정 본문도 빈 Due Date를 null로 보낸다.
   // 테스트 코드: AC-089
   it('sends an empty due date as null', () => {
     // when: Due가 빈 입력으로 수정 본문을 만든다
-    const body = toActionUpdateBody({ type: { id: 5 }, progress: 'x', nextAction: 'y', dueDate: '', memo: '' })
+    const body = toActionUpdateBody({ type: { id: 5 }, progress: 'x', nextAction: 'y', dueDate: '' })
 
     // then: due_date가 null이다
     expect(body.due_date).toBeNull()
@@ -294,7 +293,7 @@ describe('request bodies of a partial input', () => {
   // 테스트 코드: AC-089
   it('sends a Next-Action-only content with an empty progress', () => {
     // when: 진행사항이 빈 입력으로 수정 본문을 만든다
-    const body = toActionUpdateBody({ type: { id: 1 }, progress: '', nextAction: '견적', dueDate: '2026-11-01', memo: '' })
+    const body = toActionUpdateBody({ type: { id: 1 }, progress: '', nextAction: '견적', dueDate: '2026-11-01' })
 
     // then: 빈 진행사항과 Next Action·Due가 있다
     expect(body).toMatchObject({ action: '', next_action: '견적', due_date: '2026-11-01' })
@@ -378,5 +377,17 @@ describe('날짜로 바뀐 수행일·종료일 매핑', () => {
     // then: 종료일이 "2026-11-12"이고 nextActionClosedAt 키는 없다
     expect(mapped.nextActionClosedOn).toBe('2026-11-12')
     expect(mapped).not.toHaveProperty('nextActionClosedAt')
+  })
+})
+
+describe('toNextActionStatusBody', () => {
+  // 상태 변경 본문은 서버 상태 이름과 comment이고 memo 키가 없다.
+  // 테스트 코드: NA-066, AC-089
+  it('sends the wire status name and the comment without a memo key', () => {
+    // when: notDone과 Comment로 본문을 만든다
+    const body = toNextActionStatusBody({ status: 'notDone', comment: '접음' })
+
+    // then: {status: not_done, comment}뿐이다
+    expect(body).toEqual({ status: 'not_done', comment: '접음' })
   })
 })

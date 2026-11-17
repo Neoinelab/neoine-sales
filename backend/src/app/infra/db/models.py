@@ -43,7 +43,6 @@ class DealActionRow(AuditColumns, Base):
     action: Mapped[str | None] = mapped_column(Text, default=None)
     next_action: Mapped[str | None] = mapped_column(Text, default=None)
     due_date: Mapped[date | None] = mapped_column(Date, default=None)
-    memo: Mapped[str] = mapped_column(Text, default="")
     # Next Action이 있는 행에만 상태가 있다(없으면 NULL). 종료 상태일 때만 종료 시각이 있다.
     # 서버 기본값은 없다(앱이 항상 값을 정한다). 구 앱 호환용 'open' 기본값은 bigint_ids에서 뺐다.
     next_action_status: Mapped[str | None] = mapped_column(String(20), default=None)
@@ -91,6 +90,7 @@ class DealActionRow(AuditColumns, Base):
             name="fk_deal_actions_forecast_code",
             ondelete="RESTRICT",
         ),
+        UniqueConstraint("id", "deal_id", name="uq_deal_actions_id"),
         Index("ix_deal_actions_action_type_id", "action_type_id"),
         Index("ix_deal_actions_status_key", "status_key"),
         Index("ix_deal_actions_forecast_key", "forecast_key"),
@@ -127,6 +127,7 @@ from app.infra.db import (  # noqa: E402,F401
     models_attachment,
     models_auth,
     models_catalog,
+    models_comment,
     models_contact,
     models_deal,
     models_forecast,

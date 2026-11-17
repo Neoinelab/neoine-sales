@@ -56,7 +56,7 @@
 
 - 2026-11-13 제거: `created_by_user_id`(FK `fk_users_created_by_user_id_users`, 인덱스 `ix_users_created_by_user_id`)와 `delete_reason`(CHECK `ck_users_delete_reason_valid`·`ck_users_deleted_pair`). 그래서 `users` 테이블에는 `users`를 가리키는 FK가 없고 `deleted_at`에 걸린 CHECK도 없다. 마이그레이션은 SC-R21이다. 퇴사 사유는 항상 `resigned`였고 `deleted_at`과 짝이었으므로(CHECK 2개가 보장) 지워도 정보가 사라지지 않는다. 등록자 값은 사라지며, 이것은 데이터 삭제 금지 규칙(SC-R8)에 대해 사용자가 승인한 contract다.
 - 관련 테이블: `user_password_hashes`(users FK CASCADE, AU 소유 — 등록·재설정·삭제 때 이 feature가 쓰거나 지운다), `auth_sessions`(AU 소유 — 재설정·삭제 때 대상 행을 지운다).
-- 연결로 세는 FK(현재 16종): `deals.owner_user_id`, `deal_history.changed_by_user_id`, `deal_actions.actor_user_id`, `directory_settings.updated_by_user_id`, `bant_labels.created_by_user_id`, `action_types.created_by_user_id`, `storage_settings.updated_by_user_id`, `deal_attachments.uploaded_by_user_id`, `alert_settings.updated_by_user_id`, `forecast_snapshot_cells.owner_user_id`, `reports.owner_user_id`, `reports.updated_by_user_id`, `partner_meetings.created_by_user_id`, `license_contracts.created_by_user_id`, `license_contracts.updated_by_user_id`, `license_contract_attachments.uploaded_by_user_id`. 연결 판정은 ORM 메타데이터에서 users를 가리키는 모든 FK(세션·해시 제외)를 모으므로 새 FK가 생기면 자동으로 포함된다.
+- 연결로 세는 FK(현재 17종): `deals.owner_user_id`, `deal_history.changed_by_user_id`, `deal_actions.actor_user_id`, `directory_settings.updated_by_user_id`, `bant_labels.created_by_user_id`, `action_types.created_by_user_id`, `storage_settings.updated_by_user_id`, `deal_attachments.uploaded_by_user_id`, `alert_settings.updated_by_user_id`, `forecast_snapshot_cells.owner_user_id`, `reports.owner_user_id`, `reports.updated_by_user_id`, `partner_meetings.created_by_user_id`, `license_contracts.created_by_user_id`, `license_contracts.updated_by_user_id`, `license_contract_attachments.uploaded_by_user_id`, `deal_comments.author_user_id`(Comment 작성자). 연결 판정은 ORM 메타데이터에서 users를 가리키는 모든 FK(세션·해시 제외)를 모으므로 새 FK가 생기면 자동으로 포함된다.
 - 값 객체: `UserStatusFilter`(`active`·`resigned`·`all`), `DeleteOutcome`(`deleted`·`resigned`), `ProfileChanges`(보내지 않은 칸 = 그대로, null = 비움). `UserDeleteReason`은 2026-11-13에 없앴다.
 
 ### 2.3 비즈니스 규칙
@@ -91,7 +91,7 @@
 
 삭제·퇴사
 - **US-R16** `DELETE /users/{user_id}`(admin 전용)는 쿼리 파라미터를 받지 않는다. 어떤 쿼리 파라미터든(2026-11-13에 없앤 `reason` 포함, 값과 무관) 보내면 422 `request-validation`이고 사용자는 그대로다(없앤 파라미터를 조용히 무시하지 않음 — DL-047·PA-029와 같은 방침, 확인 필요 Q2). 판정 순서: 쿼리 422 → 없는 id(물리 삭제된 id 포함) 404 → 이미 퇴사자 409 `invalid-state` "이미 퇴사 처리된 사용자입니다" → 자기 자신 409 "자기 자신은 삭제할 수 없습니다"(연결 유무와 무관, 요청자 세션 유지) → 대상이 admin이고 재직 admin이 1명 이하면 409 "마지막 관리자는 삭제할 수 없습니다". 관리자 가드 403(2.5)은 쿼리 검사보다 먼저다.
-- **US-R17** 대상에 연결(2.2의 16종)이 하나라도 있으면 퇴사 처리한다: 행·연결은 남고 `deleted_at` = 서버 시각, 응답 200 `{"outcome": "resigned"}`. 연결이 없으면 행을 지우고 200 `{"outcome": "deleted"}`이며 어떤 `status` 목록에도 나오지 않는다. 연결 확인 뒤 물리 삭제가 FK에 막히면 퇴사 처리로 바꾼다(결과 `resigned`). 다른 사용자를 등록한 것은 연결이 아니다: 다른 연결이 없는 admin은 그가 등록한 사용자가 남아 있어도 물리 삭제되고, 그 사용자들은 재직 그대로다(2026-11-13).
+- **US-R17** 대상에 연결(2.2의 17종)이 하나라도 있으면 퇴사 처리한다: 행·연결은 남고 `deleted_at` = 서버 시각, 응답 200 `{"outcome": "resigned"}`. 연결이 없으면 행을 지우고 200 `{"outcome": "deleted"}`이며 어떤 `status` 목록에도 나오지 않는다. 연결 확인 뒤 물리 삭제가 FK에 막히면 퇴사 처리로 바꾼다(결과 `resigned`). 다른 사용자를 등록한 것은 연결이 아니다: 다른 연결이 없는 admin은 그가 등록한 사용자가 남아 있어도 물리 삭제되고, 그 사용자들은 재직 그대로다(2026-11-13).
 - **US-R18** 삭제·퇴사 어느 쪽이든 대상의 세션 행과 비밀번호 해시를 모두 지운다. 그래서 그 사용자의 기존 세션은 다음 요청부터 401이고 다시 로그인할 수 없다(퇴사자 로그인 거부는 AU). 퇴사 행은 불변이다: 역할 변경·정보 수정·비밀번호 재설정·재삭제는 409 "이미 퇴사 처리된 사용자입니다"이고 복구 API는 없다. 사용자를 지워도 최초 설정이 다시 열리지 않는다(SU).
 - **US-R19** 마지막 admin 판정의 "재직 admin 수"는 퇴사한 admin을 세지 않는다. API로는 요청자 자신이 재직 admin이므로 보통 자기 자신 규칙(US-R13·US-R16)에 먼저 걸리고, 이 규칙은 그 밖의 경우를 막는 방어 규칙이다.
 
@@ -304,7 +304,7 @@ US-R22~US-R31.
 | US-055 | 약한 비밀번호로 재설정하면 422(위치 password)이고 기존 비밀번호·세션이 그대로다 | US-R15, US-R6, US-UC6 | backend | `application/test_reset_user_password.py::test_reset_password_weak_password_is_invalid_value_and_changes_nothing`<br>`web/test_local_user_routes.py::test_reset_password_weak_is_422_on_the_password_field` |
 | US-056 | 없는 사용자의 재설정은 404다 | US-R15, US-UC6 | backend | `application/test_reset_user_password.py::test_reset_password_unknown_user_is_not_found`<br>`web/test_local_user_routes.py::test_reset_password_of_an_unknown_user_is_404` |
 | US-057 | 연결이 없는 사용자를 삭제하면 deleted이고 어떤 목록에도 없으며 세션·해시도 지워진다 | US-R17, US-R18, US-UC7 | backend | `application/test_user_delete.py::test_delete_user_without_links_removes_the_row_physically`<br>`application/test_user_delete.py::test_delete_user_removes_every_session_row_of_that_user_only`<br>`application/test_user_delete_password_hash.py::test_a_user_with_only_a_password_hash_is_deleted_physically_and_the_hash_goes` |
-| US-058 | 연결이 하나라도 있으면 삭제는 퇴사 처리가 되고 행·연결은 남으며 세션·해시는 지워진다 | US-R17, US-R18, US-UC7 | backend | `application/test_user_delete_password_hash.py::test_resigning_a_linked_user_removes_the_password_hash_too`<br>`application/test_user_resign_delete.py::test_delete_user_with_any_reference_resigns_instead_of_deleting`<br>`application/test_user_resign_delete.py::test_resigning_still_deletes_the_users_session_rows`<br>`application/test_user_resign_delete.py::test_resigned_user_keeps_the_references_that_pointed_to_him`<br>`domain/test_user_resign.py::test_resign_keeps_identity_and_profile_for_history`<br>`application/test_bant_label_delete.py`<br>`domain/test_user_resign.py::test_resign_marks_only_deleted_at`<br>`domain/test_user_resign.py::test_resign_takes_no_reason_argument`<br>`application/test_user_resign_delete.py::test_registering_another_user_is_not_one_of_the_sixteen_links` |
+| US-058 | 연결이 하나라도 있으면 삭제는 퇴사 처리가 되고 행·연결은 남으며 세션·해시는 지워진다 | US-R17, US-R18, US-UC7 | backend | `application/test_user_delete_password_hash.py::test_resigning_a_linked_user_removes_the_password_hash_too`<br>`application/test_user_resign_delete.py::test_delete_user_with_any_reference_resigns_instead_of_deleting`<br>`application/test_user_resign_delete.py::test_resigning_still_deletes_the_users_session_rows`<br>`application/test_user_resign_delete.py::test_resigned_user_keeps_the_references_that_pointed_to_him`<br>`domain/test_user_resign.py::test_resign_keeps_identity_and_profile_for_history`<br>`application/test_bant_label_delete.py`<br>`domain/test_user_resign.py::test_resign_marks_only_deleted_at`<br>`domain/test_user_resign.py::test_resign_takes_no_reason_argument`<br>`application/test_user_resign_delete.py::test_registering_another_user_is_not_one_of_the_seventeen_links` |
 | US-059 | 폐기(2026-11-13): 자기 자신만 등록자로 가리키는 사용자는 연결이 없어 물리 삭제된다 — 등록자를 기록하지 않음. 대신 US-112 | US-R17 | backend | - |
 | US-060 | 퇴사 처리된 사용자는 기본 목록에서 빠지고 퇴사 목록에 보인다 | US-R17, US-R10, US-UC7 | backend | `application/test_user_resign_delete.py::test_resigned_user_leaves_the_default_list_and_shows_in_the_resigned_list` |
 | US-061 | 삭제·퇴사된 사용자의 기존 세션은 다음 요청부터 401이고 다시 로그인할 수 없다 | US-R18, US-UC7 | backend | `application/test_user_delete.py::test_deleting_a_user_blocks_the_session_immediately`<br>`application/test_user_resign_delete.py::test_resigned_user_cannot_log_in_even_with_a_surviving_session`<br>`application/test_user_resign_delete.py::test_deleted_or_resigned_local_user_cannot_sign_in_again` |
@@ -628,7 +628,7 @@ US-R22~US-R31.
 - Then 200 `{"outcome": "deleted"}`, `status=all` 목록에 KIM이 없고 KIM의 세션·해시 행이 없다. 다른 사용자의 세션·해시는 그대로다
 
 ### US-058 연결이 하나라도 있으면 삭제는 퇴사 처리가 되고 행·연결은 남으며 세션·해시는 지워진다
-- Given KIM에게 연결 종류(2.2의 16종) 중 하나만 있다(종류마다 따로)
+- Given KIM에게 연결 종류(2.2의 17종) 중 하나만 있다(종류마다 따로)
 - When KIM을 삭제한다
 - Then 200 `{"outcome": "resigned"}`, KIM 행은 `deleted_at` = 시계 시각으로 남고 연결 행은 KIM을 계속 가리키며, KIM의 세션·해시 행은 없다
 
@@ -879,7 +879,7 @@ US-R22~US-R31.
 - Then 등록은 `display_name`을 싣고 비밀번호·이메일·전화는 값이 있을 때만 싣는다. 수정은 `PATCH /users/{id}`에 준 키만(null 포함), 재설정은 `PUT /users/{id}/password`이고 204에 끝나며, 역할 변경은 `PUT /users/{id}/role` `{role}`, 삭제는 쿼리 없는 `DELETE /users/{id}`이고 `outcome`을 돌려준다. 서버 거절(약한 비밀번호·중복·자기 삭제)은 서버 문구의 오류다
 
 ### US-112 다른 사용자를 등록한 admin도 다른 연결이 없으면 물리 삭제되고 그가 등록한 사용자는 재직 그대로다
-- Given ROOT·BOSS가 재직 admin이고, BOSS가 KIM을 등록했다. BOSS에게는 2.2의 연결 16종이 하나도 없다
+- Given ROOT·BOSS가 재직 admin이고, BOSS가 KIM을 등록했다. BOSS에게는 2.2의 연결 17종이 하나도 없다
 - When ROOT가 BOSS를 삭제한다
 - Then 200 `{"outcome": "deleted"}`이고 `status=all` 목록에 BOSS가 없다. KIM은 재직 그대로이고 KIM의 응답은 삭제 전과 같다
 
@@ -898,3 +898,4 @@ US-R22~US-R31.
 | --- | --- | --- |
 | 2026-11-09 | 최초 작성(초안): 구현된 사용자 관리 동작을 정본 명세로 옮김. 규칙 US-R1~R31, use case US-UC1~UC8, BDD 케이스 US-001~US-111 | US-001~US-111(신규) |
 | 2026-11-13 | 초안(사용자 확인 대기): 등록자·퇴사 사유 제거(사용자 요청·결정 D1~D3). `users.created_by_user_id`(FK·인덱스)·`delete_reason`(CHECK 2개) 컬럼 제거(SC-R21), 등록자는 연결이 아님(연결 17→16종), `UserResponse`의 `created_by`·`delete_reason`·`UserDeleteReason` 제거, `DELETE`의 `reason` 쿼리 제거(보내면 422, Q2), 등록 401(요청자 행 없음) 제거(Q1), 화면 '등록자'·'퇴사 사유' 열 제거(11→9칸). 규칙 변경: 2.1 퇴사자·연결, 2.2, US-R8, US-R11, US-R12(문구), US-R16, US-R17, US-R22, US-R31, 2.4, 2.6, 2.8, US-UC2·UC7 | 신규 US-112~US-114. 변경 US-001, US-008, US-024, US-028, US-058, US-078, US-080, US-086, US-110, US-111. 폐기 US-022, US-030, US-059, US-062 |
+| 2026-11-17 | 확정(2026-11-17 사용자 확인): CM 확정: Memo → Comment 엔티티 분리. 사용자 연결 종류 16→17종(`deal_comments.author_user_id` "Comment 작성자", 2.2·US-R17). CM-041이 Comment 연결을 검증 | 변경 US-058(연결 종류 수), US-112(문구) |

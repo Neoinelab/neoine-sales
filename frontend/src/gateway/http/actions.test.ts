@@ -16,7 +16,7 @@ const newAction = {
   progress: '고객사 방문',
   nextAction: '견적 재전달',
   dueDate: '2026-10-22',
-  memo: '',
+  comment: '',
 }
 
 describe('actions.list over HTTP', () => {
@@ -196,7 +196,7 @@ describe('actions.create over HTTP', () => {
       action: '고객사 방문',
       next_action: '견적 재전달',
       due_date: '2026-10-22',
-      memo: '',
+      comment: '',
     })
     // then: 응답이 화면 Action으로 바뀐다
     expect(created).toMatchObject({ id: ACTION_ID, progress: '고객사 방문', type: '미팅', typeId: ACTION_TYPE_ID, statusKey: 'prospecting', forecastKey: 'pipeline' })
@@ -236,13 +236,14 @@ describe('actions.create over HTTP', () => {
     // given: 서버가 201을 준다
     const { calls } = stubFetch(json(serverAction(), 201))
 
-    // when: 5,000자·20,000자 텍스트로 등록한다
-    await createActionsHttp().create(CODE, { ...newAction, progress: '가'.repeat(5000), memo: '나'.repeat(20000) })
+    // when: 5,000자 진행사항과 20,000자 Comment로 등록한다
+    await createActionsHttp().create(CODE, { ...newAction, progress: '가'.repeat(5000), comment: '나'.repeat(20000) })
 
     // then: 길이가 그대로 간다
-    const body = calls[0]?.body as { action: string; memo: string }
+    const body = calls[0]?.body as { action: string; comment: string }
     expect(body.action).toHaveLength(5000)
-    expect(body.memo).toHaveLength(20000)
+    expect(body.comment).toHaveLength(20000)
+    expect(body).not.toHaveProperty('memo')
   })
 
   // 이전 Next Action id는 같은 POST 본문에 실어 한 번에 보낸다.
@@ -397,7 +398,7 @@ describe('actions.update over HTTP', () => {
     const { calls } = stubFetch(json(serverAction({ action: '수정한 진행사항', action_type: { id: 5, name: '기타' } })))
 
     // when: 내용을 수정한다
-    const updated = await createActionsHttp().update(ACTION_ID, { type: { id: 5 }, progress: '수정한 진행사항', nextAction: '수정한 Next', dueDate: '2026-11-01', memo: '메모' })
+    const updated = await createActionsHttp().update(ACTION_ID, { type: { id: 5 }, progress: '수정한 진행사항', nextAction: '수정한 Next', dueDate: '2026-11-01' })
 
     // then: PUT /deal-actions/{id}에 내용 칸 본문이 간다
     expect(calls[0]).toMatchObject({ method: 'PUT', path: `/api/v1/deal-actions/${ACTION_ID}` })
@@ -406,8 +407,9 @@ describe('actions.update over HTTP', () => {
       action: '수정한 진행사항',
       next_action: '수정한 Next',
       due_date: '2026-11-01',
-      memo: '메모',
     })
+    expect(calls[0]?.body).not.toHaveProperty('memo')
+    expect(calls[0]?.body).not.toHaveProperty('comment')
     // then: 응답이 화면 Action으로 바뀐다
     expect(updated).toMatchObject({ id: ACTION_ID, progress: '수정한 진행사항', type: '기타', typeId: 5 })
   })
@@ -563,37 +565,37 @@ describe('actions.create with a partial input', () => {
 })
 
 describe('actions.changeNextActionStatus over HTTP', () => {
-  // 상태 변경은 PUT …/next-action-status에 {status, memo}를 보내고 응답을 화면 Action으로 바꾼다.
+  // 상태 변경은 PUT …/next-action-status에 {status, comment}를 보내고 응답을 화면 Action으로 바꾼다.
   // 테스트 코드: NA-066
-  it('puts the snake_case status and the memo to /deal-actions/{id}/next-action-status and maps the answer', async () => {
+  it('puts the snake_case status and the comment to /deal-actions/{id}/next-action-status and maps the answer', async () => {
     // given: 서버가 종료(미수행) Action을 돌려준다.
     const { calls } = stubFetch(
-      json(serverAction({ next_action_status: 'not_done', next_action_closed_on: '2026-10-16', memo: '기존\n접음' })),
+      json(serverAction({ next_action_status: 'not_done', next_action_closed_on: '2026-10-16' })),
     )
 
-    // when: 상태 notDone, 메모 "접음"으로 바꾼다.
-    const changed = await createActionsHttp().changeNextActionStatus(ACTION_ID, { status: 'notDone', memo: '접음' })
+    // when: 상태 notDone, Comment "접음"으로 바꾼다.
+    const changed = await createActionsHttp().changeNextActionStatus(ACTION_ID, { status: 'notDone', comment: '접음' })
 
-    // then: PUT 본문이 {status: not_done, memo: 접음}이고 응답이 화면 Action으로 바뀐다.
+    // then: PUT 본문이 {status: not_done, comment: 접음}이고 응답이 화면 Action으로 바뀐다.
     expect(calls[0]).toMatchObject({ method: 'PUT', path: `/api/v1/deal-actions/${ACTION_ID}/next-action-status` })
-    expect(calls[0]?.body).toEqual({ status: 'not_done', memo: '접음' })
-    expect(changed).toMatchObject({ id: ACTION_ID, nextActionStatus: 'notDone', nextActionClosedOn: '2026-10-16', memo: '기존\n접음' })
+    expect(calls[0]?.body).toEqual({ status: 'not_done', comment: '접음' })
+    expect(changed).toMatchObject({ id: ACTION_ID, nextActionStatus: 'notDone', nextActionClosedOn: '2026-10-16' })
   })
 
-  // open·done 상태도 서버 이름과 빈 메모로 보낸다.
+  // open·done 상태도 서버 이름과 빈 Comment로 보낸다.
   // 테스트 코드: NA-066
   it.each([
     ['open', 'open'],
     ['done', 'done'],
-  ] as const)('sends %s as %s with an empty memo', async (status, wire) => {
+  ] as const)('sends %s as %s with an empty comment', async (status, wire) => {
     // given: 서버가 Action을 돌려준다.
     const { calls } = stubFetch(json(serverAction()))
 
-    // when: 빈 메모로 상태를 바꾼다.
-    await createActionsHttp().changeNextActionStatus(ACTION_ID, { status, memo: '' })
+    // when: 빈 Comment로 상태를 바꾼다.
+    await createActionsHttp().changeNextActionStatus(ACTION_ID, { status, comment: '' })
 
-    // then: 본문이 서버 상태 이름과 빈 메모다.
-    expect(calls[0]?.body).toEqual({ status: wire, memo: '' })
+    // then: 본문이 서버 상태 이름과 빈 Comment다.
+    expect(calls[0]?.body).toEqual({ status: wire, comment: '' })
   })
 
   // 상태 변경 실패(403·404·409·422)는 서버 상태·문구 그대로의 오류가 된다.
@@ -603,13 +605,13 @@ describe('actions.changeNextActionStatus over HTTP', () => {
     [404, 'not-found', 'Action을 찾을 수 없습니다.', 'not-found'],
     [409, 'invalid-state', '이미 Open 상태입니다.', 'conflict'],
     [409, 'invalid-state', 'Next Action이 없는 Action은 상태를 바꿀 수 없습니다.', 'conflict'],
-    [422, 'invalid-value', '메모를 남길 수 없습니다.', 'validation'],
+    [422, 'invalid-value', 'Open으로 되돌릴 때는 Comment를 남길 수 없습니다.', 'validation'],
   ])('shows the %s answer with the server message', async (status, serverKind, detail, kind) => {
     // given: 서버가 거절 응답을 준다.
     stubFetch(problem(status, serverKind, detail))
 
     // when·then: 상태를 바꾸면 서버 상태·종류·문구 그대로 거절된다.
-    await expect(createActionsHttp().changeNextActionStatus(ACTION_ID, { status: 'done', memo: '' })).rejects.toMatchObject({
+    await expect(createActionsHttp().changeNextActionStatus(ACTION_ID, { status: 'done', comment: '' })).rejects.toMatchObject({
       status,
       kind,
       message: detail,

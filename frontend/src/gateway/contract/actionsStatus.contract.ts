@@ -42,57 +42,59 @@ export function actionsStatusContract(make: MakeGateway): void {
       await sales.deals.remove(deal.code, deal.code)
     })
 
-    // 메모를 붙여 종료(수행)하면 Memo 뒤에 붙고 종료 시각이 생긴다(mock과 실제 서버 공통).
-    // 테스트 코드: NA-068
-    it('closes as done with a memo appended after the existing memo and a closed time', async () => {
+    // Comment를 붙여 종료(수행)하면 그 Action의 새 Comment가 생기고 종료 시각이 생긴다(mock과 실제 서버 공통).
+    // 테스트 코드: NA-068, CM-082
+    it('closes as done with a comment as a new action comment and a closed time', async () => {
       const sales = await make('sales')
       const deal = await newDeal(sales)
-      // given: Memo "기존"인 Open Action이 있다.
-      const created = await sales.actions.create(deal.code, action({ memo: '기존' }))
+      // given: Open Action이 있다.
+      const created = await sales.actions.create(deal.code, action())
 
-      // when: 메모 "전달 완료"로 종료(수행)한다.
-      const closed = await sales.actions.changeNextActionStatus(created.id, { status: 'done', memo: '전달 완료' })
+      // when: Comment "전달 완료"로 종료(수행)한다.
+      const closed = await sales.actions.changeNextActionStatus(created.id, { status: 'done', comment: '전달 완료' })
 
-      // then: Memo가 "기존\n전달 완료"이고 종료 시각이 있으며 목록의 행과 같다.
-      expect(closed).toMatchObject({ id: created.id, nextActionStatus: 'done', memo: '기존\n전달 완료' })
+      // then: 종료 시각이 있고 목록의 행과 같으며 Action Comment 1건이 생긴다.
+      expect(closed).toMatchObject({ id: created.id, nextActionStatus: 'done' })
       expect(closed.nextActionClosedOn).toMatch(/^\d{4}-\d{2}-\d{2}$/) // 종료일은 시각 없는 날짜다
       expect(await sales.actions.list(deal.code, {})).toEqual([closed])
+      expect((await sales.comments.list(deal.code, { actionId: created.id })).map((c) => c.body)).toEqual(['전달 완료'])
       await sales.deals.remove(deal.code, deal.code)
     })
 
-    // 공백 메모는 Memo를 바꾸지 않고, Memo가 비어 있으면 메모가 그대로 Memo가 된다.
-    // 테스트 코드: NA-068
-    it('keeps the memo when closing without a note and uses the note alone when the memo is empty', async () => {
+    // 공백 Comment는 Comment를 만들지 않고, 앞뒤 공백이 있는 Comment는 trim해 남긴다.
+    // 테스트 코드: NA-068, CM-082
+    it('creates no comment for a blank note and a trimmed comment otherwise', async () => {
       const sales = await make('sales')
       const deal = await newDeal(sales)
-      // given: Memo가 있는 Action과 Memo가 빈 Action이 있다.
-      const withMemo = await sales.actions.create(deal.code, action({ memo: '기존' }))
-      const empty = await sales.actions.create(deal.code, action({ memo: '' }))
+      // given: Open Action 둘이 있다.
+      const first = await sales.actions.create(deal.code, action())
+      const second = await sales.actions.create(deal.code, action())
 
-      // when: 각각 공백 메모와 앞뒤 공백이 있는 메모로 종료한다.
-      const a = await sales.actions.changeNextActionStatus(withMemo.id, { status: 'notDone', memo: '  ' })
-      const b = await sales.actions.changeNextActionStatus(empty.id, { status: 'done', memo: ' 마무리 ' })
+      // when: 각각 공백 Comment와 앞뒤 공백이 있는 Comment로 종료한다.
+      await sales.actions.changeNextActionStatus(first.id, { status: 'notDone', comment: '  ' })
+      await sales.actions.changeNextActionStatus(second.id, { status: 'done', comment: ' 마무리 ' })
 
-      // then: 앞은 Memo 그대로, 뒤는 trim한 메모가 Memo다.
-      expect(a).toMatchObject({ nextActionStatus: 'notDone', memo: '기존' })
-      expect(b).toMatchObject({ nextActionStatus: 'done', memo: '마무리' })
+      // then: 앞은 Comment가 없고 뒤는 trim한 Comment 1건이다.
+      expect(await sales.comments.list(deal.code, { actionId: first.id })).toEqual([])
+      expect((await sales.comments.list(deal.code, { actionId: second.id })).map((c) => c.body)).toEqual(['마무리'])
       await sales.deals.remove(deal.code, deal.code)
     })
 
-    // Open으로 되돌리면 종료 시각이 없어지고 Memo는 남는다.
-    // 테스트 코드: NA-068
-    it('reopens a closed action: the closed time is cleared and the memo stays', async () => {
+    // Open으로 되돌리면 종료 시각이 없어지고 만든 Comment는 남는다.
+    // 테스트 코드: NA-068, CM-082
+    it('reopens a closed action: the closed time is cleared and the comment stays', async () => {
       const sales = await make('sales')
       const deal = await newDeal(sales)
-      // given: 메모 "끝"을 붙여 종료(수행)한 Action이 있다.
-      const created = await sales.actions.create(deal.code, action({ memo: '기존' }))
-      await sales.actions.changeNextActionStatus(created.id, { status: 'done', memo: '끝' })
+      // given: Comment "끝"을 붙여 종료(수행)한 Action이 있다.
+      const created = await sales.actions.create(deal.code, action())
+      await sales.actions.changeNextActionStatus(created.id, { status: 'done', comment: '끝' })
 
       // when: open으로 바꾼다.
-      const reopened = await sales.actions.changeNextActionStatus(created.id, { status: 'open', memo: '' })
+      const reopened = await sales.actions.changeNextActionStatus(created.id, { status: 'open', comment: '' })
 
-      // then: 상태 open, 종료 시각 null, Memo "기존\n끝"이다.
-      expect(reopened).toMatchObject({ nextActionStatus: 'open', nextActionClosedOn: null, memo: '기존\n끝' })
+      // then: 상태 open, 종료 시각 null이고 Comment "끝"이 남아 있다.
+      expect(reopened).toMatchObject({ nextActionStatus: 'open', nextActionClosedOn: null })
+      expect((await sales.comments.list(deal.code, { actionId: created.id })).map((c) => c.body)).toEqual(['끝'])
       await sales.deals.remove(deal.code, deal.code)
     })
 
@@ -103,13 +105,13 @@ export function actionsStatusContract(make: MakeGateway): void {
       const deal = await newDeal(sales)
       // given: 종료(수행)된 Action이 있다.
       const created = await sales.actions.create(deal.code, action())
-      await sales.actions.changeNextActionStatus(created.id, { status: 'done', memo: '' })
+      await sales.actions.changeNextActionStatus(created.id, { status: 'done', comment: '' })
 
-      // when: notDone, 메모 "취소"로 바꾼다.
-      const changed = await sales.actions.changeNextActionStatus(created.id, { status: 'notDone', memo: '취소' })
+      // when: notDone, Comment "취소"로 바꾼다.
+      const changed = await sales.actions.changeNextActionStatus(created.id, { status: 'notDone', comment: '취소' })
 
       // then: 종료(미수행)이 되고 종료 시각이 있다.
-      expect(changed).toMatchObject({ nextActionStatus: 'notDone', memo: '취소' })
+      expect(changed).toMatchObject({ nextActionStatus: 'notDone' })
       expect(changed.nextActionClosedOn).not.toBeNull()
       await sales.deals.remove(deal.code, deal.code)
     })
@@ -120,36 +122,37 @@ export function actionsStatusContract(make: MakeGateway): void {
       const sales = await make('sales')
       const deal = await newDeal(sales)
       // given: Open Action과 진행사항만 Action이 있다.
-      const plain = await sales.actions.create(deal.code, action({ memo: '메모' }))
+      const plain = await sales.actions.create(deal.code, action())
       const noNext = await sales.actions.create(deal.code, action(ONLY_PROGRESS))
 
       // when·then: 같은 상태 open은 409 "이미 Open 상태입니다."다.
-      await expectRejects(sales.actions.changeNextActionStatus(plain.id, { status: 'open', memo: '' }), 409, '이미 Open 상태입니다.')
+      await expectRejects(sales.actions.changeNextActionStatus(plain.id, { status: 'open', comment: '' }), 409, '이미 Open 상태입니다.')
       await expectRejects(
         // when·then: 진행사항만 Action은 409 Next Action 없음 문구다.
-        sales.actions.changeNextActionStatus(noNext.id, { status: 'done', memo: '메모' }),
+        sales.actions.changeNextActionStatus(noNext.id, { status: 'done', comment: '메모' }),
         409,
         'Next Action이 없는 Action은 상태를 바꿀 수 없습니다.',
       )
 
-      // then: Memo와 상태가 그대로다.
-      expect((await sales.actions.list(deal.code, {})).map((a) => [a.nextActionStatus, a.memo])).toEqual([[null, ''], ['open', '메모']])
+      // then: 상태가 그대로이고 Comment가 생기지 않았다.
+      expect((await sales.actions.list(deal.code, {})).map((a) => a.nextActionStatus)).toEqual([null, 'open'])
+      expect(await sales.comments.list(deal.code)).toEqual([])
       await sales.deals.remove(deal.code, deal.code)
     })
 
-    // Open으로 되돌리며 메모를 보내면 422이고 없는 Action은 404다.
+    // Open으로 되돌리며 Comment를 보내면 422이고 없는 Action은 404다.
     // 테스트 코드: NA-068
-    it('answers 422 when reopening with a memo and 404 for an unknown action', async () => {
+    it('answers 422 when reopening with a comment and 404 for an unknown action', async () => {
       const sales = await make('sales')
       const deal = await newDeal(sales)
       // given: 종료(수행)된 Action이 있다.
       const created = await sales.actions.create(deal.code, action())
-      await sales.actions.changeNextActionStatus(created.id, { status: 'done', memo: '' })
+      await sales.actions.changeNextActionStatus(created.id, { status: 'done', comment: '' })
 
-      // when·then: open+메모는 422다.
-      await expectRejects(sales.actions.changeNextActionStatus(created.id, { status: 'open', memo: '메모' }), 422)
+      // when·then: open+Comment는 422다.
+      await expectRejects(sales.actions.changeNextActionStatus(created.id, { status: 'open', comment: '메모' }), 422)
       // when·then: 없는 Action은 404 "Action을 찾을 수 없습니다."다.
-      await expectRejects(sales.actions.changeNextActionStatus(NO_SUCH_ID, { status: 'done', memo: '' }), 404, 'Action을 찾을 수 없습니다.')
+      await expectRejects(sales.actions.changeNextActionStatus(NO_SUCH_ID, { status: 'done', comment: '' }), 404, 'Action을 찾을 수 없습니다.')
 
       await sales.deals.remove(deal.code, deal.code)
     })
@@ -164,7 +167,7 @@ export function actionsStatusContract(make: MakeGateway): void {
       const user = await make('user')
 
       // when·then: user가 상태를 바꾸면 403이다.
-      await expectRejects(user.actions.changeNextActionStatus(created.id, { status: 'done', memo: '' }), 403)
+      await expectRejects(user.actions.changeNextActionStatus(created.id, { status: 'done', comment: '' }), 403)
 
       const again = await make('sales')
       // then: Action은 Open 그대로다.
@@ -182,7 +185,7 @@ export function actionsStatusContract(make: MakeGateway): void {
       const admin = await make('admin')
 
       // when: admin이 종료(수행)한다.
-      const closed = await admin.actions.changeNextActionStatus(created.id, { status: 'done', memo: '' })
+      const closed = await admin.actions.changeNextActionStatus(created.id, { status: 'done', comment: '' })
 
       // then: 종료(수행)이 된다.
       expect(closed.nextActionStatus).toBe('done')
@@ -198,19 +201,20 @@ export function actionsStatusContract(make: MakeGateway): void {
       const created = await sales.actions.create(deal.code, action())
       const baseline = (await sales.history.list(deal.code, {})).length
 
-      // when: 종료(수행)+메모로 바꾸고, 같은 상태로 다시 바꾸려다 거절된다.
-      await sales.actions.changeNextActionStatus(created.id, { status: 'done', memo: '전달 완료' })
-      await expectRejects(sales.actions.changeNextActionStatus(created.id, { status: 'done', memo: '' }), 409)
+      // when: 종료(수행)+Comment로 바꾸고, 같은 상태로 다시 바꾸려다 거절된다.
+      await sales.actions.changeNextActionStatus(created.id, { status: 'done', comment: '전달 완료' })
+      await expectRejects(sales.actions.changeNextActionStatus(created.id, { status: 'done', comment: '' }), 409)
 
-      // then: History가 정확히 1건 늘고 변경 전/후 문구가 정해진 형식이다.
+      // then: History가 Next Action 줄과 Comment 등록 줄 2건 늘고 변경 전/후 문구가 정해진 형식이다(거절된 변경은 없다).
       const history = await sales.history.list(deal.code, {})
-      expect(history).toHaveLength(baseline + 1)
-      expect(history[0]).toMatchObject({
+      expect(history).toHaveLength(baseline + 2)
+      expect(history[1]).toMatchObject({
         category: 'action',
         target: 'Next Action',
         before: '견적 재전달 (Due 2026-12-01) · Open',
-        after: '종료(수행) / Memo: 전달 완료',
+        after: '종료(수행)',
       })
+      expect(history[0]).toMatchObject({ category: 'comment', before: '', after: '등록: 전달 완료' })
       await sales.deals.remove(deal.code, deal.code)
     })
 
@@ -221,8 +225,8 @@ export function actionsStatusContract(make: MakeGateway): void {
       const sales = await make('sales')
       const deal = await newDeal(sales)
       const created = await sales.actions.create(deal.code, action())
-      await sales.actions.changeNextActionStatus(created.id, { status: 'done', memo: '' })
-      const base = { type: { name: '미팅' }, progress: '고객사 방문', memo: '' }
+      await sales.actions.changeNextActionStatus(created.id, { status: 'done', comment: '' })
+      const base = { type: { name: '미팅' }, progress: '고객사 방문', comment: '' }
 
       // when: Next Action을 비워 수정한 뒤 새 Next Action을 채워 다시 수정한다
       const cleared = await sales.actions.update(created.id, { ...base, nextAction: '', dueDate: '' })
@@ -241,10 +245,10 @@ export function actionsStatusContract(make: MakeGateway): void {
       const sales = await make('sales')
       const deal = await newDeal(sales)
       const created = await sales.actions.create(deal.code, action())
-      const closed = await sales.actions.changeNextActionStatus(created.id, { status: 'notDone', memo: '' })
+      const closed = await sales.actions.changeNextActionStatus(created.id, { status: 'notDone', comment: '' })
 
       // when: Next Action 내용과 Due Date만 고쳐 수정한다
-      const edited = await sales.actions.update(created.id, { type: { name: '미팅' }, progress: '고객사 방문', nextAction: '바뀐 계획', dueDate: '2026-12-09', memo: '' })
+      const edited = await sales.actions.update(created.id, { type: { name: '미팅' }, progress: '고객사 방문', nextAction: '바뀐 계획', dueDate: '2026-12-09' })
 
       // then: 내용은 바뀌고 상태·종료 시각은 그대로다
       expect(edited).toMatchObject({ nextAction: '바뀐 계획', nextActionStatus: 'notDone', nextActionClosedOn: closed.nextActionClosedOn })
@@ -261,8 +265,8 @@ export function actionsStatusContract(make: MakeGateway): void {
       const done = await sales.actions.create(deal.code, action({ progress: '수행' }))
       const notDone = await sales.actions.create(deal.code, action({ progress: '미수행' }))
       const noNext = await sales.actions.create(deal.code, action({ progress: '진행만', ...ONLY_PROGRESS }))
-      await sales.actions.changeNextActionStatus(done.id, { status: 'done', memo: '' })
-      await sales.actions.changeNextActionStatus(notDone.id, { status: 'notDone', memo: '' })
+      await sales.actions.changeNextActionStatus(done.id, { status: 'done', comment: '' })
+      await sales.actions.changeNextActionStatus(notDone.id, { status: 'notDone', comment: '' })
       // when: 필터를 open, done, notDone, closed, 없음으로 조회한다.
       const ids = async (nextActionStatus?: 'open' | 'done' | 'notDone' | 'closed') =>
         (await sales.actions.list(deal.code, { sort: 'actedAt', order: 'asc', ...(nextActionStatus ? { nextActionStatus } : {}) })).map((a) => a.id)
@@ -306,8 +310,8 @@ export function actionsStatusContract(make: MakeGateway): void {
       const noNext = await sales.actions.create(deal.code, action({ progress: '진행만', ...ONLY_PROGRESS }))
       const done = await sales.actions.create(deal.code, action({ progress: '수행' }))
       const open = await sales.actions.create(deal.code, action({ progress: '열림' }))
-      await sales.actions.changeNextActionStatus(done.id, { status: 'done', memo: '' })
-      await sales.actions.changeNextActionStatus(notDone.id, { status: 'notDone', memo: '' })
+      await sales.actions.changeNextActionStatus(done.id, { status: 'done', comment: '' })
+      await sales.actions.changeNextActionStatus(notDone.id, { status: 'notDone', comment: '' })
       // when: 상태 정렬을 오름차순·내림차순으로 조회한다.
       const ids = async (order: 'asc' | 'desc') =>
         (await sales.actions.list(deal.code, { sort: 'nextActionStatus', order })).map((a) => a.id)
@@ -371,7 +375,7 @@ export function actionsStatusContract(make: MakeGateway): void {
       const b = await newDeal(sales)
       const c = await newDeal(sales)
       const basis = await sales.actions.create(a.code, action())
-      await sales.actions.changeNextActionStatus(basis.id, { status: 'done', memo: '' })
+      await sales.actions.changeNextActionStatus(basis.id, { status: 'done', comment: '' })
       await sales.actions.create(a.code, action(ONLY_PROGRESS)) // 기준 행 뒤의 진행사항만 Action
       await sales.actions.create(b.code, action())
       await sales.actions.create(c.code, action(ONLY_PROGRESS))

@@ -11,6 +11,7 @@ from app.infra.db.code_repository import SqlCodeRepository
 from app.infra.db.contact_repository import SqlContactRepository
 from app.infra.db.dashboard_tally import SqlDashboardTallyRepository
 from app.infra.db.deal_action_repository import SqlDealActionRepository
+from app.infra.db.deal_comment_repository import SqlDealCommentRepository
 from app.infra.db.deal_history_repository import SqlDealHistoryRepository
 from app.infra.db.deal_repository import SqlDealRepository
 from app.infra.db.directory_settings_repository import SqlDirectorySettingsRepository
@@ -43,6 +44,7 @@ class SqlUnitOfWork:
     contacts: SqlContactRepository
     deals: SqlDealRepository
     deal_actions: SqlDealActionRepository
+    deal_comments: SqlDealCommentRepository
     deal_history: SqlDealHistoryRepository
     sessions: SqlSessionRepository
     users: SqlUserRepository
@@ -75,6 +77,7 @@ class SqlUnitOfWork:
         self.contacts = SqlContactRepository(self._session)
         self.deals = SqlDealRepository(self._session)
         self.deal_actions = SqlDealActionRepository(self._session)
+        self.deal_comments = SqlDealCommentRepository(self._session)
         self.deal_history = SqlDealHistoryRepository(self._session)
         self.sessions = SqlSessionRepository(self._session)
         self.users = SqlUserRepository(self._session)

@@ -39,10 +39,10 @@ async def test_update_with_new_type_name_creates_type_and_history(action_env: Ac
     테스트 코드: AC-053
     """
     # given: 유형 "미팅"인 Action
-    action = await action_env.act(KIM, action_type="미팅", memo="")
+    action = await action_env.act(KIM, action_type="미팅")
 
     # when: 유형만 새 이름 "웨비나"로 고친다
-    await action_env.update_as(action.id, KIM, action_type=CatalogChoice(name="웨비나"), memo="")
+    await action_env.update_as(action.id, KIM, action_type=CatalogChoice(name="웨비나"))
 
     # then: 새 유형이 요청자가 만든 것으로 생긴다
     stored = (await action_env.stored(action.id)).content.action_type

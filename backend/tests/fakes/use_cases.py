@@ -12,6 +12,7 @@ from tests.fakes.attachment_use_cases import AttachmentUseCases
 from tests.fakes.catalog_use_cases import CatalogUseCases
 from tests.fakes.contact_use_cases import ContactUseCases
 from tests.fakes.deal_code_source import FakeDealCodeSuffixSource
+from tests.fakes.deal_comment_use_cases import DealCommentUseCases
 from tests.fakes.deal_use_cases import DealUseCases
 from tests.fakes.file_storage import FakeFileStorage
 from tests.fakes.license_contract_use_cases import LicenseContractUseCases
@@ -88,6 +89,7 @@ class FakeUseCases(
     AttachmentUseCases,
     PartnerMeetingUseCases,
     LicenseContractUseCases,
+    DealCommentUseCases,
 ):
     def __init__(self) -> None:
         self.uow = FakeUnitOfWork()
@@ -130,6 +132,9 @@ class FakeUseCases(
         return self._factory
 
     def _meeting_uow_factory(self) -> UnitOfWorkFactory:
+        return self._factory
+
+    def _comment_uow_factory(self) -> UnitOfWorkFactory:
         return self._factory
 
     # Action 유스케이스는 사용 시점에 가져온다(P2 R1: 구현 전에도 이 Fake를 쓰는 테스트가 수집된다)

@@ -247,15 +247,15 @@ describe('Deal 상세 정보 카드 (T-DETAIL-02)', () => {
 })
 
 describe('Deal 상세 탭 (T-DETAIL-03)', () => {
-  // 탭 3개가 Deal 상세, Actions, Deal History 순서이고 Deal 상세가 선택돼 있다.
+  // 탭 4개가 Deal 상세, Actions, Deal History, Comments 순서(맨 오른쪽이 Comments)이고 Deal 상세가 선택돼 있다.
   // 테스트 코드: DD-062
-  it('has three tabs in order and starts on Deal 상세', async () => {
+  it('has four tabs in order, Comments rightmost, and starts on Deal 상세', async () => {
     // when: Deal 상세를 연다
     await renderAt(await detailPath(1))
     await heading('한빛은행 ITDR 도입')
-    // then: 탭 목록이 세 탭 순서이고 Deal 상세만 선택 상태다
+    // then: 탭 목록이 네 탭 순서이고 Deal 상세만 선택 상태다
     const tabs = within(screen.getByRole('tablist', { name: '상세 탭' })).getAllByRole('tab')
-    expect(tabs.map((t) => t.textContent)).toEqual(['Deal 상세', 'Actions', 'Deal History'])
+    expect(tabs.map((t) => t.textContent)).toEqual(['Deal 상세', 'Actions', 'Deal History', 'Comments'])
     expect(screen.getByRole('tab', { name: 'Deal 상세' })).toHaveAttribute('aria-selected', 'true')
     expect(screen.getByRole('tab', { name: 'Actions' })).toHaveAttribute('aria-selected', 'false')
   })
@@ -306,7 +306,7 @@ describe('Deal 상세 탭 (T-DETAIL-03)', () => {
   it('keeps the header above every tab with the tab list right below it', async () => {
     const { user } = await renderAt(await detailPath(1))
     await heading('한빛은행 ITDR 도입')
-    for (const tab of ['Deal 상세', 'Actions', 'Deal History']) {
+    for (const tab of ['Deal 상세', 'Actions', 'Deal History', 'Comments']) {
       // when: 탭을 누른다
       await user.click(screen.getByRole('tab', { name: tab }))
       // then: Deal 이름·'← 목록'·'Deal 삭제'가 보이고 탭 목록이 머리 바로 다음에 있다
@@ -326,7 +326,7 @@ describe('Deal 상세 탭 (T-DETAIL-03)', () => {
     await heading('한빛은행 ITDR 도입')
     // then: Deal 상세 탭에서는 Deal 정보 영역이 보인다
     expect(within(screen.getByRole('tabpanel')).getByRole('region', { name: 'Deal 정보' })).toBeVisible()
-    for (const tab of ['Actions', 'Deal History']) {
+    for (const tab of ['Actions', 'Deal History', 'Comments']) {
       // when: 다른 탭으로 옮긴다
       await user.click(screen.getByRole('tab', { name: tab }))
       // then: Deal 정보 영역이 없다
@@ -350,6 +350,11 @@ describe('Deal 상세 탭 (T-DETAIL-03)', () => {
     await user.click(screen.getByRole('tab', { name: 'Deal History' }))
     // then: 주소가 tab=history로 바뀐다
     expect(location()).toMatch(/\?(x=1&tab=history|tab=history&x=1)$/)
+
+    // when: Comments 탭을 누른다
+    await user.click(screen.getByRole('tab', { name: 'Comments' }))
+    // then: 주소가 tab=comments로 바뀐다
+    expect(location()).toMatch(/\?(x=1&tab=comments|tab=comments&x=1)$/)
 
     // when: Deal 상세 탭을 누른다
     await user.click(screen.getByRole('tab', { name: 'Deal 상세' }))
@@ -377,6 +382,7 @@ describe('Deal 상세 탭 (T-DETAIL-03)', () => {
   it.each([
     ['?tab=actions', 'Actions'],
     ['?tab=history', 'Deal History'],
+    ['?tab=comments', 'Comments'],
     ['?tab=foo', 'Deal 상세'],
     ['?tab=info', 'Deal 상세'],
   ])('opens a tab straight from the url %s -> %s', async (query, selected) => {

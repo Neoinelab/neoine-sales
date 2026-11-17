@@ -88,7 +88,7 @@
 - **PA-R20** 업무 쓰기 경로다. 판정 순서: 401 → CSRF 403 → 역할 403(user) → 422 `request-validation`(id 형식) → 404 `not-found` "미팅 기록을 찾을 수 없습니다." → 403 `forbidden` "본인 미팅 기록 또는 admin만 삭제할 수 있습니다."(PA-R16). 성공하면 204(본문 없음)이고 그 기록만 물리 삭제된다(다시 지우면 404).
 
 다른 데이터와의 관계
-- **PA-R21** 미팅은 Deal과 무관하다: Deal 입력·연결·선택지 경로가 없고(`GET /partner-meetings/deal-options`는 없는 경로 — PL-R13), Deal을 지워도 미팅 기록은 남으며, Deal 삭제 영향 응답(DD-R22)에 미팅 건수가 없다. openapi에도 미팅 API의 Deal 관련 스키마·파라미터·정렬 값이 없다.
+- **PA-R21** 미팅은 Deal과 무관하다: Deal 입력·연결·선택지 경로가 없고(`GET /partner-meetings/deal-options`는 없는 경로 — PL-R13), Deal을 지워도 미팅 기록은 남으며, Deal 삭제 영향 응답(DD-R22)에 미팅 건수가 없다(키는 5개: `history_count`·`action_count`·`attachment_count`·`license_contract_count`·`comment_count`). openapi에도 미팅 API의 Deal 관련 스키마·파라미터·정렬 값이 없다.
 - **PA-R22** 작성자 연결: `partner_meetings.created_by_user_id`는 사용자 연결(US 2.2, SC-R17)이다. 그래서 미팅을 쓴 사용자를 삭제하면 퇴사 처리되고(US-R17, 결과 `resigned`) 기록은 남는다: 목록의 `author`는 `resigned: true`, `label` "<이름>(퇴사)"이고 `author_user_id` 조건으로 계속 찾으며, 퇴사자 포함 사용자 선택지(US-R20 `include_resigned=true`)에 그 사용자가 있다. 퇴사·삭제 판정 규칙은 US-R17이 가지고, 미팅 때문에 퇴사되는 결과 케이스(PA-045)는 PA가 가진다.
 - **PA-R23** 기록의 회사명은 저장 시점 텍스트다: 연락처 회사명을 바꿔도(CT-R9) 기존 기록은 옛 이름으로 남고 옛 이름으로 검색된다. 바꾼 뒤 새 기록은 새 이름만 받고 옛 이름은 PA-R5 위반이다.
 
@@ -260,7 +260,7 @@ PA-R25~PA-R42.
 | PA-041 | 다른 sales의 삭제는 403 문구이고 기록은 남으며 user는 403 읽기 전용이다 | PA-R20, PA-R16, PA-UC4 | backend | `application/test_delete_partner_meeting.py::test_another_sales_is_forbidden_and_the_record_stays`<br>`web/test_partner_meeting_route_permissions.py::test_a_read_only_user_cannot_write_and_nothing_is_saved`<br>`web/test_partner_meeting_routes.py::test_delete_by_another_sales_is_403_with_the_message`<br>외 1건 |
 | PA-042 | 없는 기록의 삭제와 두 번째 삭제는 404다 | PA-R20, PA-UC4 | backend | `application/test_delete_partner_meeting.py::test_a_missing_record_is_not_found`<br>`web/test_partner_meeting_routes.py::test_delete_of_a_missing_record_is_404`<br>외 1건 |
 | PA-043 | 잘못된 meeting_id 경로 값은 수정·삭제 모두 422 request-validation이다 | PA-R15, PA-R20 | backend | `web/test_partner_meeting_routes.py::test_a_bad_path_id_is_a_request_validation_error` |
-| PA-044 | 미팅은 Deal과 무관하다: Deal 선택지 경로가 없고 Deal 삭제 영향에 미팅 건수가 없으며 Deal을 지워도 남는다 | PA-R21 | backend | `infra/schema/test_partner_meeting_schema.py::test_deleting_a_deal_does_not_touch_meetings`<br>`web/test_partner_meeting_deletion_impact_route.py::test_deletion_impact_response_has_four_counts`<br>`web/test_partner_meeting_openapi.py::test_the_deletion_impact_response_has_four_counts`<br>`web/test_partner_meeting_routes.py::test_deal_options_path_no_longer_serves_get`<br>외 1건 |
+| PA-044 | 미팅은 Deal과 무관하다: Deal 선택지 경로가 없고 Deal 삭제 영향에 미팅 건수가 없으며 Deal을 지워도 남는다 | PA-R21 | backend | `infra/schema/test_partner_meeting_schema.py::test_deleting_a_deal_does_not_touch_meetings`<br>`web/test_partner_meeting_deletion_impact_route.py::test_deletion_impact_response_has_five_counts`<br>`web/test_partner_meeting_openapi.py::test_the_deletion_impact_response_has_five_counts`<br>`web/test_partner_meeting_routes.py::test_deal_options_path_no_longer_serves_get`<br>외 1건 |
 | PA-045 | 미팅을 쓴 사용자를 삭제하면 퇴사 처리되고 기록에 "(퇴사)" 작성자로 남아 작성자 조건·선택지로 찾는다 | PA-R22, PA-UC2 | backend | `application/test_partner_meeting_lifecycle.py::test_deleting_the_author_resigns_them_and_the_record_stays_searchable` |
 | PA-046 | 연락처 회사명을 바꿔도 기존 기록은 옛 이름이고 새 등록은 새 이름만 받는다 | PA-R23, PA-R5 | backend | `application/test_partner_meeting_lifecycle.py::test_renaming_the_contact_company_keeps_old_records_and_changes_what_registers` |
 | PA-047 | partner_meetings 테이블의 컬럼·제약·인덱스가 명세와 같다 | PA-R2 | backend | `infra/schema/test_partner_meeting_schema.py::test_partner_meetings_columns_types_and_nullability`<br>외 12건 |
@@ -529,7 +529,7 @@ PA-R25~PA-R42.
 ### PA-044 미팅은 Deal과 무관하다: Deal 선택지 경로가 없고 Deal 삭제 영향에 미팅 건수가 없으며 Deal을 지워도 남는다
 - Given 파트너 HanbitCo가 연결된 Deal과 HanbitCo 미팅 기록
 - When `GET /partner-meetings/deal-options`, 그 Deal의 `GET /deals/{code}/deletion-impact`, 그 Deal 삭제를 차례로 부른다
-- Then deal-options는 미팅 API로 처리되지 않고(404 또는 405), 삭제 영향 키는 `history_count`·`action_count`·`attachment_count`·`license_contract_count`뿐이며(DD-R22), Deal 삭제 뒤에도 미팅 기록이 그대로 목록에 있다
+- Then deal-options는 미팅 API로 처리되지 않고(404 또는 405), 삭제 영향 키는 `history_count`·`action_count`·`attachment_count`·`license_contract_count`·`comment_count` 다섯 개뿐이며(DD-R22), Deal 삭제 뒤에도 미팅 기록이 그대로 목록에 있다
 
 ### PA-045 미팅을 쓴 사용자를 삭제하면 퇴사 처리되고 기록에 "(퇴사)" 작성자로 남아 작성자 조건·선택지로 찾는다
 - Given KIM이 쓴 "퇴사자 기록"(KIM의 다른 연결 없음)

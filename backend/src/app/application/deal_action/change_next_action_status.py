@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING
 
 from app.application.deal.history_writer import write_history
+from app.application.deal_comment.attach import attach_action_comment
 from app.domain.deal_action.history import next_action_status_draft
 
 if TYPE_CHECKING:
@@ -15,7 +16,8 @@ if TYPE_CHECKING:
 class ChangeNextActionStatus:
     """Next Action 상태를 바꾼다. 판정 순서는 없음(404) -> 담당자 아님(403) -> 422/409.
 
-    바뀌면 Deal 이력에 한 건 남긴다. 실패하면 저장도 이력도 없다.
+    바뀌면 Deal 이력에 한 건 남기고, 종료 Comment가 있으면 Action Comment와 이력 한 건을
+    더한다. 실패하면 저장도 이력도 없다.
     """
 
     def __init__(self, uow_factory: UnitOfWorkFactory, clock: Clock) -> None:
@@ -29,9 +31,10 @@ class ChangeNextActionStatus:
         async with self._uow_factory() as uow:
             action = await uow.deal_actions.get(action_id)
             action.ensure_status_changeable_by(actor.user_id, actor.role)
-            change = action.change_next_action_status(data.status, data.memo, now)
+            change = action.change_next_action_status(data.status, data.comment, now)
             await uow.deal_actions.update(action)
-            draft = next_action_status_draft(action.content, change)
-            await write_history(uow, action.deal_code, actor.user_id, [draft], now)
+            drafts = [next_action_status_draft(action.content, change)]
+            drafts += await attach_action_comment(uow, action, change.note or None, actor, now)
+            await write_history(uow, action.deal_code, actor.user_id, drafts, now)
             await uow.commit()
         return action

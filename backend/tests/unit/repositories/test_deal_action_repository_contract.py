@@ -34,7 +34,6 @@ async def test_add_then_get_round_trips_every_field(action_case: Case) -> None:
         action="제안 발표",
         next_action="견적 회신",
         due_date=date(2026, 2, 3),
-        memo="내용",
     )
     # when: 저장한다
     await action_case.add(action)
@@ -55,8 +54,8 @@ async def test_add_then_get_round_trips_every_field(action_case: Case) -> None:
 
 async def test_long_text_round_trips_without_truncation(action_case: Case) -> None:
     """긴 텍스트는 잘리지 않고 저장된다."""
-    # given: 5,000자 이상의 진행사항·Next Action과 20,000자 이상의 Memo를 가진 Action
-    action = make_deal_action(action="가" * 5_000, next_action="😀" * 5_000, memo="메모 " * 8_000)
+    # given: 5,000자 진행사항·Next Action을 가진 Action
+    action = make_deal_action(action="가" * 5_000, next_action="😀" * 5_000)
     # when: 저장한다
     await action_case.add(action)
 
@@ -66,8 +65,6 @@ async def test_long_text_round_trips_without_truncation(action_case: Case) -> No
     # then: 어느 필드도 잘리지 않는다
     assert stored.content.action == "가" * 5_000
     assert stored.content.next_action == "😀" * 5_000
-    assert stored.content.memo == action.content.memo
-    assert len(stored.content.memo) >= 20_000
 
 
 async def test_add_with_an_existing_id_raises_already_exists(action_case: Case) -> None:
@@ -130,7 +127,6 @@ async def test_update_persists_the_content_and_updated_at(action_case: Case) -> 
             action="변경",
             next_action="다음",
             due_date=date(2026, 5, 5),
-            memo="c",
             action_type="통화",
         ),
         later(10),

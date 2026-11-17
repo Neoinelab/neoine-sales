@@ -40,6 +40,9 @@ def definition_to_json(raw: RawReportDefinition) -> dict[str, object]:
     }
 
 
+_RENAMED_FIELDS = {"deal.solution": "deal.product", "action.memo": "action.comment"}
+
+
 def _items(data: Mapping[str, object], key: str, *, required: bool) -> list[Mapping[str, object]]:
     value = data.get(key, None if required else [])
     if not isinstance(value, list) or not all(isinstance(v, dict) for v in value):
@@ -48,9 +51,9 @@ def _items(data: Mapping[str, object], key: str, *, required: bool) -> list[Mapp
 
 
 def _field_key(item: Mapping[str, object]) -> str:
-    """필드 key. 예전 `deal.solution`은 `deal.product`로 읽는다."""
+    """필드 key. 예전 key(`_RENAMED_FIELDS`)는 새 이름으로 읽는다."""
     key = _text(item, "field")
-    return "deal.product" if key == "deal.solution" else key
+    return _RENAMED_FIELDS.get(key, key)
 
 
 def _text(item: Mapping[str, object], key: str) -> str:

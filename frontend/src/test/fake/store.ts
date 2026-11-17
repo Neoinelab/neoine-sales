@@ -46,9 +46,21 @@ export interface ActionRecord {
   nextActionStatus: NextActionStatus | null
   /** 종료 상태일 때만 서버 시계의 종료일(업무 날짜, YYYY-MM-DD). */
   nextActionClosedOn: string | null
-  memo: string
   statusKey: string
   forecastKey: string
+}
+
+/** Deal Comment(`actionId` null) 또는 Action Comment. 읽음은 Deal Owner가 읽었는지를 나타내는 속성(`readAt`)이다. 수정은 없다. */
+export interface CommentRecord {
+  id: number
+  dealCode: string
+  /** 연결된 Action(같은 Deal 소속). Deal Comment면 null. */
+  actionId: number | null
+  authorId: number
+  body: string
+  createdAt: string
+  /** Owner가 읽은 시각. null이면 읽지 않음. */
+  readAt: string | null
 }
 
 export interface HistoryRecord {
@@ -212,6 +224,8 @@ export interface SeedData {
   contacts: Contact[]
   deals: Deal[]
   actions: ActionRecord[]
+  /** Deal·Action Comment(비어 있어도 된다). 샘플 시드는 비어 있고 테스트가 게이트웨이로 만든다. */
+  comments: CommentRecord[]
   history: HistoryRecord[]
   attachments: AttachmentRecord[]
   /** 라이선스 계약(없으면 비어 있는 것과 같다). 샘플 시드(`test/fixtures`)가 채우고, Won 진입 때 Fake가 만든다. */

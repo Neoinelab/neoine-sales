@@ -488,18 +488,18 @@ describe('deals.get / impact over HTTP', () => {
     await expect(createDealsHttp().get(CODE)).rejects.toMatchObject({ status: 404, kind: 'not-found', message: 'Deal을 찾을 수 없습니다.' })
   })
 
-  // 삭제 영향은 네 건수를 camelCase로 바꿔 돌려준다.
+  // 삭제 영향은 다섯 건수를 camelCase로 바꿔 돌려준다.
   // 테스트 코드: DD-116
-  it('impact reads GET /deals/{code}/deletion-impact in camelCase with four counts', async () => {
-    // given: 네 건수가 든 서버 응답
-    const { calls } = stubFetch(json({ history_count: 5, action_count: 3, attachment_count: 2, license_contract_count: 4 }))
+  it('impact reads GET /deals/{code}/deletion-impact in camelCase with five counts', async () => {
+    // given: 다섯 건수가 든 서버 응답
+    const { calls } = stubFetch(json({ history_count: 5, action_count: 3, attachment_count: 2, license_contract_count: 4, comment_count: 6 }))
 
     // when: 게이트웨이로 삭제 영향을 읽는다
     const impact = await createDealsHttp().impact(CODE)
 
-    // then: GET 경로가 맞고 historyCount 등 네 값이 camelCase다
+    // then: GET 경로가 맞고 historyCount 등 다섯 값이 camelCase다
     expect(calls[0]).toMatchObject({ method: 'GET', path: `/api/v1/deals/${CODE}/deletion-impact` })
-    expect(impact).toStrictEqual({ historyCount: 5, actionCount: 3, attachmentCount: 2, licenseContractCount: 4 })
+    expect(impact).toStrictEqual({ historyCount: 5, actionCount: 3, attachmentCount: 2, licenseContractCount: 4, commentCount: 6 })
   })
 
   // 없는 Deal의 삭제 영향은 404 오류다.

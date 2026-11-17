@@ -60,7 +60,7 @@ class NextActionState:
 
 @dataclass(frozen=True, slots=True)
 class NextActionStatusChange:
-    """상태 변경 결과(이력용). note는 trim한 종료 메모(없으면 빈 문자열)."""
+    """상태 변경 결과(이력용). note는 trim한 종료 Comment(없으면 빈 문자열)."""
 
     before: NextActionStatus
     after: NextActionStatus

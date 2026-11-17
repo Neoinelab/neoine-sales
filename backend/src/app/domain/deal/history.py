@@ -52,6 +52,7 @@ class HistoryCategory(StrEnum):
     BANT = "bant"
     ACTION = "action"
     ATTACHMENT = "attachment"
+    COMMENT = "comment"
     OTHER = "other"
 
 

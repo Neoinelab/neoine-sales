@@ -110,9 +110,9 @@ async def test_list_filters_combine_with_and(action_env: ActionEnv) -> None:
     테스트 코드: NA-023
     """
     # given: kim의 "킥오프"(미팅), park의 "견적 발송"(이메일)과 "최종 미팅"(미팅)
-    await action_env.act(KIM, action="킥오프", action_type="미팅", memo="예산 100%")
-    await action_env.act(PARK, action="견적 발송", action_type="이메일", memo="")
-    await action_env.act(PARK, action="최종 미팅", action_type="미팅", memo="조건")
+    await action_env.act(KIM, action="킥오프", action_type="미팅")
+    await action_env.act(PARK, action="견적 발송", action_type="이메일")
+    await action_env.act(PARK, action="최종 미팅", action_type="미팅")
     meeting = type_id("미팅")
     # when: 유형 미팅 + 담당자 park으로 조회한다
     by_type_and_actor = await _names(action_env, action_type_id=meeting, actor_user_id=uid("park"))
@@ -177,17 +177,37 @@ async def test_the_listed_action_carries_the_current_type_name(action_env: Actio
     assert listed.content.action_type.name == "전화"
 
 
-async def test_keyword_matches_the_three_text_fields_ignoring_case_and_wildcards(
+async def test_keyword_matches_the_texts_and_action_comments_ignoring_case_and_wildcards(
     action_env: ActionEnv,
 ) -> None:
-    """검색어는 진행사항·Next Action·Memo에서 대소문자 구분 없이 부분 일치하고 %·_는 글자 그대로다.
+    """검색어는 진행사항·Next Action·그 Action의 Comment 본문에서 대소문자 구분 없이 부분 일치하고
+    %·_는 글자 그대로다. Deal Comment는 찾지 않는다.
 
-    테스트 코드: NA-026, NA-027
+    테스트 코드: NA-026, NA-027, CM-040
     """
-    # given: 진행사항 "Kickoff"·Next Action "견적서 준비"·Memo "예산 100%"인 Action과
-    # given: Next Action "CONTRACT 초안"인 Action
-    await action_env.act(KIM, action="Kickoff", next_action="견적서 준비", memo="예산 100%")
-    await action_env.act(KIM, action="제안", next_action="CONTRACT 초안", memo="")
+    # given: 진행사항 "Kickoff"·Next Action "견적서 준비"·Action Comment "예산 100%"인 Action,
+    # given: Next Action "CONTRACT 초안"인 Action, Comment 없는 Action, Deal Comment "특이사항 메모"
+    from tests.factories_comment import make_comment  # noqa: PLC0415
+
+    first = await action_env.act(KIM, action="Kickoff", next_action="견적서 준비")
+    await action_env.act(KIM, action="제안", next_action="CONTRACT 초안")
+    await action_env.act(KIM, action="회의", next_action="")
+    comments = action_env.env.uow.deal_comments
+    code = first.deal_code
+    await comments.add(
+        make_comment(deal_code=code, action_id=first.id, body="예산 100%", author=KIM.user_id)
+    )
+    await comments.add(make_comment(deal_code=code, body="특이사항 메모", author=KIM.user_id))
+    # when: Action Comment 본문의 말 "예산"과 "예산 100%"로 조회한다
+    by_comment = await _names(action_env, keyword="예산")
+    by_comment_phrase = await _names(action_env, keyword="예산 100%")
+    # then: Comment가 있는 Action만 나온다
+    assert by_comment == ["Kickoff"]
+    assert by_comment_phrase == ["Kickoff"]
+    # when: Deal Comment에만 있는 말로 조회한다
+    by_deal_comment = await _names(action_env, keyword="특이사항")
+    # then: 연결된 Action이 없으므로 같은 Deal의 어느 Action도 나오지 않는다
+    assert by_deal_comment == []
     # when: 검색어 "kickoff"로 조회한다
     by_progress = await _names(action_env, keyword="kickoff")
     # then: 진행사항이 맞은 첫 Action이다
@@ -200,7 +220,7 @@ async def test_keyword_matches_the_three_text_fields_ignoring_case_and_wildcards
     by_prepare = await _names(action_env, keyword="준비")
     by_percent = await _names(action_env, keyword="100%")
     by_underscore = await _names(action_env, keyword="_")
-    # then: Next Action·Memo 일치는 찾고 `_`는 와일드카드가 아니라 0건이다
+    # then: Next Action·Comment 일치는 찾고 `_`는 와일드카드가 아니라 0건이다
     assert by_prepare == ["Kickoff"]
     assert by_percent == ["Kickoff"]
     assert by_underscore == []

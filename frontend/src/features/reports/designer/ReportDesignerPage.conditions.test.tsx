@@ -58,10 +58,10 @@ describe('조건 행', () => {
     // when: 조건 추가 뒤 필드 선택지를 읽는다
     await addCondition(user, 'Vendor')
 
-    // then: 39개이고 Action 건수는 없다
+    // then: 40개이고 Action 건수는 없다
     const names = optionTexts(screen.getByRole('combobox', { name: '조건 1 필드' }))
 
-    expect(names).toHaveLength(39)
+    expect(names).toHaveLength(40)
     expect(names).not.toContain('Action 건수')
   })
 

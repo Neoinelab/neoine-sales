@@ -15,6 +15,7 @@ from tests.fakes.auth_settings_repository import FakeAuthSettingsRepository
 from tests.fakes.catalog import FakeBantLabelRepository, FakeCodeRepository
 from tests.fakes.contacts import FakeContactRepository
 from tests.fakes.dashboard import FakeDashboardTallyRepository
+from tests.fakes.deal_comments import FakeDealCommentRepository
 from tests.fakes.deal_history import FakeDealHistoryRepository
 from tests.fakes.directory_settings_repository import FakeDirectorySettingsRepository
 from tests.fakes.forecast import FakeForecastTallyRepository
@@ -44,6 +45,7 @@ class FakeUnitOfWork:
         self.deals = FakeDealRepository()
         self.deal_actions = FakeDealActionRepository()
         self.deal_history = FakeDealHistoryRepository()
+        self.deal_comments = FakeDealCommentRepository()  # Deal·Action에 연결된 Comment
         self.sessions = FakeSessionRepository()
         self.users = FakeUserRepository()
         self.login_failures = FakeLoginFailureRepository()
@@ -82,7 +84,9 @@ class FakeUnitOfWork:
             history=self.deal_history,
             attachments=self.attachments,
             users=self.users,
+            comments=self.deal_comments,
         )
+        self.deal_comments.wire(deals=self.deals, actions=self.deal_actions, users=self.users)
         self.partner_meetings.wire(users=self.users)
         self.license_contracts.wire(
             deals=self.deals,
@@ -95,7 +99,11 @@ class FakeUnitOfWork:
         self.attachments.wire(deals=self.deals)  # 소속 Deal이 없으면 DealNotFoundError
         # 소속 Deal이 없으면 DealNotFoundError, 스냅숏 코드가 없으면 InvalidReferenceError
         self.deal_actions.wire(
-            deals=self.deals, codes=self.codes, action_types=self.action_types, users=self.users
+            deals=self.deals,
+            codes=self.codes,
+            action_types=self.action_types,
+            users=self.users,
+            comments=self.deal_comments,
         )
         # 쓰는 Action이 있는 유형 삭제는 ActionTypeInUseError, 생성자 행이 없으면 InvalidReference
         self.action_types.wire(actions=self.deal_actions, users=self.users)
@@ -111,7 +119,7 @@ class FakeUnitOfWork:
         )
         self._snapshot: tuple[Any, ...] | None = None
 
-    def _wire_user_references(self) -> None:
+    def _wire_user_references(self) -> None:  # noqa: PLR0915 - 저장소마다 한 줄씩 연결한다
         """users를 FK로 참조하는 저장소를 연결한다(has_links·물리 삭제 RESTRICT)."""
         deals, actions, history = self.deals, self.deal_actions, self.deal_history
         settings = self.directory_settings
@@ -171,6 +179,10 @@ class FakeUnitOfWork:
         self.users.add_referrer(  # license_contract_attachments.uploaded_by_user_id
             lambda uid: any(a.uploaded_by == uid for a in contract_files._items.values())
         )
+        comments = self.deal_comments
+        self.users.add_referrer(  # deal_comments.author_user_id (Comment 작성자)
+            lambda uid: any(c.author_user_id == uid for c in comments._items.values())
+        )
         types = self.action_types
         self.users.add_referrer(  # action_types.created_by_user_id (만든 사람은 연결 있음)
             lambda uid: any(t.created_by_user_id == uid for t in types._items.values())
@@ -182,6 +194,7 @@ class FakeUnitOfWork:
             self.deals,
             self.deal_actions,
             self.deal_history,
+            self.deal_comments,
             self.sessions,
             self.users,
             self.login_failures,

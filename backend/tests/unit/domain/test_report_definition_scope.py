@@ -66,7 +66,7 @@ def test_action_column_wins_over_action_conditions() -> None:
     테스트 코드: RQ-028
     """
     # given: Action 컬럼과 Action 조건이 함께 있는 정의
-    definition = parse([col("action.memo")], [cond("action.type", "in", [1])])
+    definition = parse([col("action.comment")], [cond("action.type", "in", [1])])
 
     # when: 행 범위와 Action 조건 방식을 구한다
     row_scope = definition.row_scope()
@@ -117,7 +117,7 @@ def test_is_grouped_follows_the_group_flags() -> None:
         ([ACTION_TYPE, col("deal.code", aggregate="count")], False),
         ([ACTION_TYPE, col("action.count")], False),
         ([VENDOR_GROUP, col("deal.amount", aggregate="sum")], False),
-        ([col("deal.amount"), col("action.memo")], False),
+        ([col("deal.amount"), col("action.comment")], False),
     ],
     ids=[
         "sum",
@@ -143,3 +143,40 @@ def test_deal_numbers_once_only_for_grouped_action_scope_sum_or_avg(
     once = parse(columns).deal_numbers_once()
     # then: 기대값과 같다
     assert once is expected
+
+
+def test_deal_comment_alone_keeps_the_deal_scope_and_no_action_filter() -> None:
+    """deal.comment만 쓴 정의는 Deal 필드라 행 범위가 Deal이고 Action 조건 방식이 NONE이다.
+
+    테스트 코드: RQ-122
+    """
+    # given: deal.comment 컬럼만 있는 정의
+    definition = parse([col("deal.comment")])
+
+    # when: 행 범위와 Action 조건 방식을 구한다
+    row_scope = definition.row_scope()
+    action_filter = definition.action_filter()
+
+    # then: 행 범위는 Deal이고 Action 조건 방식은 NONE이다
+    assert row_scope == RowScope.DEAL
+    assert action_filter == ActionFilter.NONE
+
+
+def test_action_comment_follows_the_other_action_fields_scope_rules() -> None:
+    """action.comment는 다른 Action 필드와 같이 컬럼이면 JOIN, 조건에만 있으면 EXISTS다.
+
+    테스트 코드: RQ-118
+    """
+    # given: action.comment 컬럼 정의와 Deal 컬럼 + action.comment 조건 정의
+    as_column = parse([col("action.comment")])
+    as_condition = parse([col("deal.name")], [cond("action.comment", "is_empty")])
+
+    # when·then: 컬럼이면 Action 범위·JOIN, 조건에만 있으면 Deal 범위·EXISTS다
+    assert (as_column.row_scope(), as_column.action_filter()) == (
+        RowScope.ACTION,
+        ActionFilter.JOIN,
+    )
+    assert (as_condition.row_scope(), as_condition.action_filter()) == (
+        RowScope.DEAL,
+        ActionFilter.EXISTS,
+    )

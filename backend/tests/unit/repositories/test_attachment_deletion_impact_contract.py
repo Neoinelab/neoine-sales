@@ -26,7 +26,11 @@ async def test_a_deal_without_attachments_counts_zero(attachment_case: Attachmen
 
     # then: 모든 건수가 0이다
     assert impact == DealDeletionImpact(
-        history_count=0, action_count=0, attachment_count=0, license_contract_count=0
+        history_count=0,
+        action_count=0,
+        attachment_count=0,
+        license_contract_count=0,
+        comment_count=0,
     )
 
 

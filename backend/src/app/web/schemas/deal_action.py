@@ -57,7 +57,6 @@ class ActionContentRequest(RequestModel):
     action: str = ""
     next_action: str = ""
     due_date: date | None = None  # 입력 조합 규칙(진행사항·Next Action·Due)은 도메인이 판정한다
-    memo: str = ""
 
     def to_content(self) -> ActionContentInput:
         return ActionContentInput(
@@ -65,7 +64,6 @@ class ActionContentRequest(RequestModel):
             action=self.action,
             next_action=self.next_action,
             due_date=self.due_date,
-            memo=self.memo,
         )
 
 
@@ -138,6 +136,15 @@ class DealActionCreateRequest(ActionContentRequest):
             )
         ),
     ] = None
+    comment: Annotated[
+        str,
+        Field(
+            description=(
+                "새 Action에 함께 남길 Action Comment(선택). 생략하거나 비었거나 공백뿐이면 "
+                "Comment를 만들지 않는다. NUL 문자는 422."
+            )
+        ),
+    ] = ""
     delete_license_contracts: Annotated[
         StrictBool,
         Field(
@@ -169,6 +176,7 @@ class DealActionCreateRequest(ActionContentRequest):
             status_changes=changes,
             close_previous_next_action_id=None if previous is None else DealActionId(previous),
             delete_license_contracts=self.delete_license_contracts,
+            comment=self.comment,
         )
 
 
@@ -188,13 +196,13 @@ class DealActionUpdateRequest(ActionContentRequest):
 
 
 class NextActionStatusRequest(RequestModel):
-    """Next Action 상태 변경. memo는 종료할 때 Memo에 덧붙일 내용(open과는 함께 불가)."""
+    """Next Action 상태 변경. comment는 종료할 때 그 Action에 남길 Comment(open과는 함께 불가)."""
 
     status: NextActionStatus
-    memo: str = ""
+    comment: str = ""
 
     def to_input(self) -> NextActionStatusInput:
-        return NextActionStatusInput(status=self.status, memo=self.memo)
+        return NextActionStatusInput(status=self.status, comment=self.comment)
 
 
 class DealActionResponse(ResponseModel):
@@ -205,7 +213,6 @@ class DealActionResponse(ResponseModel):
     due_date: date | None
     next_action_status: NextActionStatus | None
     next_action_closed_on: date | None
-    memo: str
     acted_on: date
     actor: UserRef
     status_key: str
@@ -230,7 +237,6 @@ class DealActionResponse(ResponseModel):
             due_date=content.due_date,
             next_action_status=state.status if state else None,
             next_action_closed_on=state.closed_on if state else None,
-            memo=content.memo,
             acted_on=action.acted_on,
             actor=ref_of(refs, action.actor_user_id),
             status_key=action.snapshot.status_key,

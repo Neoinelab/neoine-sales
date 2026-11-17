@@ -1,7 +1,7 @@
 """UserRepository.has_links / delete / lock_assignable 계약: Fake와 SQL 구현에 같은 기대값.
 
 users를 FK로 참조하는 모든 종류(tests.support.user_links.LINK_KINDS)를 각각 단독으로 만들어
-연결 판정이 true가 되는지 확인한다(16종). 세션·비밀번호 해시는 연결이 아니고,
+연결 판정이 true가 되는지 확인한다(17종). 세션·비밀번호 해시는 연결이 아니고,
 사용자 행끼리는 서로 참조하지 않는다(등록자 없음).
 """
 

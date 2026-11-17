@@ -1,6 +1,6 @@
 import type { AuthMode } from '../../shared/model/types'
 import type { ReportLayout, ReportQueryInput, SavedReport } from '../../shared/model/reportTypes'
-import type { LayoutSaveGate, ReportQueryHandler, SavedReportRequest } from './store'
+import type { CommentRecord, LayoutSaveGate, ReportQueryHandler, SavedReportRequest } from './store'
 
 /**
  * Fake 전용 제어(테스트가 사용). `default.ts`가 `mockControl`로 내보낸다.
@@ -37,4 +37,12 @@ export interface MockControl {
    * 409(낡은 revision)를 순차 이벤트로 재현할 때 쓴다.
    */
   touchSavedReport(id: number, change?: { layout?: ReportLayout; name?: string }): void
+  /**
+   * Comment를 게이트웨이를 거치지 않고 그대로 넣는다(작성 시각·읽음 시각·퇴사 작성자처럼 게이트웨이로 만들 수 없는 값용).
+   * id는 Fake가 매기고 History는 남기지 않는다. 연결 Action은 그 Deal 소속이어야 한다. `resetData`가 지운다.
+   */
+  addComments(rows: readonly CommentSeed[]): CommentRecord[]
 }
+
+/** `addComments`의 입력. `actionId`를 생략하면 Deal Comment, `readAt`을 생략하면 읽지 않음이다. */
+export type CommentSeed = Pick<CommentRecord, 'dealCode' | 'authorId' | 'body' | 'createdAt'> & Partial<Pick<CommentRecord, 'actionId' | 'readAt'>>

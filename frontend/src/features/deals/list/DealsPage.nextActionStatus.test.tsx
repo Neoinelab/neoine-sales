@@ -143,7 +143,7 @@ describe('Deals 목록: Next Action·Due·상태 칸은 모든 상태에서 내�
     const basis = (await gateway.actions.list(code, {})).find((a) => a.nextAction === '계약서 초안 검토')
     if (!basis) throw new Error('기준 Action이 없습니다.')
     if (!basis.dueDate) throw new Error('기준 Action에 Due가 필요합니다.')
-    if (status !== 'open') await gateway.actions.changeNextActionStatus(basis.id, { status, memo: '' }) // 시드는 이미 Open
+    if (status !== 'open') await gateway.actions.changeNextActionStatus(basis.id, { status, comment: '' }) // 시드는 이미 Open
 
     // when: 목록을 읽는다
     await client.invalidateQueries()

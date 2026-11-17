@@ -24,7 +24,6 @@ export function toDealAction(row: Schemas['DealActionResponse']): DealAction {
     dueDate: row.due_date,
     nextActionStatus: row.next_action_status === null ? null : toNextActionStatus(row.next_action_status),
     nextActionClosedOn: row.next_action_closed_on,
-    memo: row.memo,
     statusKey: row.status_key,
     forecastKey: row.forecast_key,
   }
@@ -37,7 +36,6 @@ export function toActionUpdateBody(input: ActionUpdateInput): Schemas['DealActio
     action: input.progress,
     next_action: input.nextAction,
     due_date: input.dueDate === '' ? null : input.dueDate,
-    memo: input.memo,
     ...(input.actedOn ? { acted_on: input.actedOn } : {}),
   }
 }
@@ -59,7 +57,7 @@ function toStatusChange(change: StatusChangeRequest): Schemas['ActionStatusChang
 
 /** 수행일시·담당자는 서버가 정하므로 보내지 않는다. */
 export function toActionCreateBody(input: ActionInput): Schemas['DealActionCreateRequest'] {
-  const body: WithOptionalDeleteFlag<Schemas['DealActionCreateRequest']> = toActionUpdateBody(input)
+  const body: WithOptionalDeleteFlag<Schemas['DealActionCreateRequest']> = { ...toActionUpdateBody(input), comment: input.comment }
   if (input.statusChanges && input.statusChanges.length > 0) body.status_changes = input.statusChanges.map(toStatusChange)
   if (input.closePreviousNextActionId !== undefined) body.close_previous_next_action_id = input.closePreviousNextActionId
   if (input.deleteLicenseContracts !== undefined) body.delete_license_contracts = input.deleteLicenseContracts
@@ -67,5 +65,5 @@ export function toActionCreateBody(input: ActionInput): Schemas['DealActionCreat
 }
 
 export function toNextActionStatusBody(input: NextActionStatusInput): Schemas['NextActionStatusRequest'] {
-  return { status: input.status === 'notDone' ? 'not_done' : input.status, memo: input.memo }
+  return { status: input.status === 'notDone' ? 'not_done' : input.status, comment: input.comment }
 }

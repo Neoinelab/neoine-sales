@@ -20,13 +20,13 @@ def _next_action_text(content: ActionContent) -> str:
 
 
 def action_summary(content: ActionContent) -> str:
-    """'<유형> · <진행사항> / Next Action: <다음> (Due ..) / Memo: <메모>'. 빈 부분은 뺀다."""
+    """'<유형> · <진행사항> / Next Action: <다음> (Due ..)'. 빈 부분은 뺀다."""
     text = content.action_type.name
     if content.action:
         text += f" · {content.action}"
     if content.next_action:
         text += f" / Next Action: {_next_action_text(content)}"
-    return f"{text} / Memo: {content.memo}" if content.memo else text
+    return text
 
 
 def _draft(before: str, after: str) -> HistoryDraft:
@@ -51,14 +51,17 @@ def action_updated_draft(
     return _draft(before_text, f"수정: {after_text}")
 
 
-def action_deleted_draft(content: ActionContent) -> HistoryDraft:
-    return _draft(action_summary(content), DELETED_TEXT)
+def action_deleted_draft(content: ActionContent, *, comment_count: int) -> HistoryDraft:
+    """삭제 이력. 함께 지운 Action Comment가 있으면 변경 후에 그 건수를 붙인다(CM-R16)."""
+    after = DELETED_TEXT
+    if comment_count:
+        after += f" (Comment {comment_count}건 함께 삭제)"
+    return _draft(action_summary(content), after)
 
 
 def next_action_status_draft(
     content: ActionContent, change: NextActionStatusChange
 ) -> HistoryDraft:
-    """'<Next Action> (Due ..) · <이전 라벨>' -> '<새 라벨>[ / Memo: <종료 메모>]'."""
+    """'<Next Action> (Due ..) · <이전 라벨>' -> '<새 라벨>'. 종료 Comment는 별도 Comment 줄이다."""
     before = f"{_next_action_text(content)} · {change.before.label}"
-    after = change.after.label + (f" / Memo: {change.note}" if change.note else "")
-    return HistoryDraft(HistoryCategory.ACTION, NEXT_ACTION_TARGET, before, after)
+    return HistoryDraft(HistoryCategory.ACTION, NEXT_ACTION_TARGET, before, change.after.label)

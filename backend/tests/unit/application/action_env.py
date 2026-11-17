@@ -40,7 +40,6 @@ ACTION_OR_NEXT_REQUIRED = "진행사항 또는 Next Action을 입력하세요."
 DUE_DATE_REQUIRED = "Due Date를 입력하세요."
 DUE_WITHOUT_NEXT = "Next Action 없이 Due Date를 입력할 수 없습니다."
 SUMMARY = "미팅 · 킥오프 미팅 / Next Action: 요구사항 문서 전달 (Due 2026-01-15)"
-SUMMARY_WITH_MEMO = f"{SUMMARY} / Memo: 요구사항 정리"
 
 
 @dataclass
@@ -112,7 +111,7 @@ class ActionEnv:
         action_id: DealActionId,
         actor: Actor,
         status: str,
-        memo: str = "",
+        comment: str = "",
     ) -> DealAction:
         """Next Action 상태를 바꾼다(시계가 60초 흐른 뒤). 구현은 사용 시점에 가져온다."""
         from app.application.deal_action.change_next_action_status import (  # noqa: PLC0415
@@ -123,7 +122,7 @@ class ActionEnv:
 
         self.env.clock.advance(60)
         use_case = ChangeNextActionStatus(self.env.uow_factory, self.env.clock)
-        data = NextActionStatusInput(status=NextActionStatus(status), memo=memo)
+        data = NextActionStatusInput(status=NextActionStatus(status), comment=comment)
         return await use_case.execute(action_id, data, actor)
 
     async def update_as(

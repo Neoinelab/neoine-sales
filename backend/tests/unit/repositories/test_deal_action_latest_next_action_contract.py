@@ -146,7 +146,7 @@ async def test_latest_with_next_action_returns_the_full_action_like_get(
     deal_case: DealCase,
 ) -> None:
     """돌려주는 Action은 get으로 읽은 것과 모든 필드가 같다."""
-    # given: 기한·Memo까지 채운 Next Action이 있는 Deal
+    # given: 기한까지 채운 Next Action이 있는 Deal
     deal = make_deal(later(5), code=CODE)
     await deal_case.add(deal)
     added = await deal_case.add_action(
@@ -154,7 +154,6 @@ async def test_latest_with_next_action_returns_the_full_action_like_get(
         acted_on=date_after(1),
         next_action="견적 회신",
         due_date=date(2026, 2, 3),
-        memo="메모",
     )
 
     # when: Deal의 Next Action 기준 Action을 조회한다

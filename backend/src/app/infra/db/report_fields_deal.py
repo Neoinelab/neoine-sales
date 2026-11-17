@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 
 from app.domain.report.catalog import find_field
 from app.infra.db.deal_derived import last_updated_scalar
+from app.infra.db.report_comments import deal_comment_text
 from app.infra.db.report_fields import FieldSql, option_labels, static_code, user_name
 from app.infra.db.report_joins import (
     DEALS,
@@ -51,6 +52,7 @@ def deal_fields(joins: Joins, context: ReportContext, risk: RiskExprs) -> dict[s
         "deal.name": _plain("name"),
         "deal.product": _plain("product"),
         "deal.procurement": _plain("procurement"),
+        "deal.comment": FieldSql(deal_comment_text),
         "deal.owner": FieldSql(lambda: c.owner_user_id, value=lambda: user_name(deal_owner(joins))),
         "deal.customer_company": FieldSql(lambda: deal_customer(joins).c.company),
         "deal.customer_contact": FieldSql(lambda: deal_customer(joins).c.name),

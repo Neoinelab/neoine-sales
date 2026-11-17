@@ -15,7 +15,7 @@ ACTIONS = "/api/v1/deals/20260101-ZZZZ/actions"
 
 
 def _body(type_id: Any) -> dict[str, Any]:  # noqa: ANN401
-    return {"action_type": {"id": type_id}, "action": "진행", "next_action": "", "memo": ""}
+    return {"action_type": {"id": type_id}, "action": "진행", "next_action": ""}
 
 
 @pytest.mark.parametrize(

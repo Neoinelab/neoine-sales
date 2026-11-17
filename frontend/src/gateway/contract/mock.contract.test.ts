@@ -11,6 +11,7 @@ import { actionTypesContract } from './actionTypes.contract'
 import { dealBantContract } from './dealBant.contract'
 import { attachmentsContract } from './attachments.contract'
 import { codesContract } from './codes.contract'
+import { commentsContract } from './comments.contract'
 import { contactsContract } from './contacts.contract'
 import { dashboardContract } from './dashboard.contract'
 import { dealsContract } from './deals.contract'
@@ -55,6 +56,7 @@ dealsContract(makeMock)
 actionsContract(makeMock)
 actionsSequenceContract(makeMock)
 actionsStatusContract(makeMock)
+commentsContract(makeMock)
 actionTypesContract(makeMock)
 dealBantContract(makeMock)
 attachmentsContract(makeMock)

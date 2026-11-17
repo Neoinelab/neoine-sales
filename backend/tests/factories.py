@@ -135,7 +135,6 @@ def _action_fields(overrides: dict[str, Any]) -> dict[str, Any]:
         "action": "킥오프 미팅",
         "next_action": "요구사항 문서 전달",
         "due_date": date(2026, 1, 15),
-        "memo": "요구사항 정리",
     }
     fields = {**values, **overrides}
     if "due_date" not in overrides and not str(fields["next_action"]).strip():
@@ -145,7 +144,7 @@ def _action_fields(overrides: dict[str, Any]) -> dict[str, Any]:
 
 def make_action_content(**overrides: Any) -> ActionContent:  # noqa: ANN401
     """검증을 마친 Action 내용(`ActionContent.parse`). overrides: action_type(유형 이름 문자열
-    또는 `ActionTypeRef`, 기본 `미팅`), action, next_action, due_date, memo."""
+    또는 `ActionTypeRef`, 기본 `미팅`), action, next_action, due_date."""
     from app.domain.deal_action.value_objects import ActionContent  # noqa: PLC0415 - 지연 import
     from tests.factories_action_type import make_type_ref  # noqa: PLC0415
 
@@ -214,9 +213,13 @@ def make_register_input(
     *,
     close_previous_next_action_id: Any = None,  # noqa: ANN401 - DealActionId 또는 None
     acted_on: date | None = None,
+    comment: str | None = None,
     **content_overrides: Any,  # noqa: ANN401
 ) -> DealActionInput:
     """등록 입력(`DealActionInput`): 내용 + 순서대로 적용할 `StatusChangeInput`들.
+
+    comment를 주면 새 Action의 Action Comment로 함께 남길 글이다(CM-R14). 주지 않으면 필드를
+    넘기지 않아 기본값("")을 그대로 시험한다.
 
     close_previous_next_action_id를 주면 저장하면서 그 이전 Next Action을 종료(수행)로 바꾼다
     (R4). 주지 않으면 필드를 아예 넘기지 않아 기본값(None) 동작을 그대로 시험한다.
@@ -228,6 +231,8 @@ def make_register_input(
         extra["close_previous_next_action_id"] = close_previous_next_action_id
     if acted_on is not None:
         extra["acted_on"] = acted_on
+    if comment is not None:
+        extra["comment"] = comment
     return DealActionInput(
         content=make_deal_action_input(**content_overrides),
         status_changes=status_changes,

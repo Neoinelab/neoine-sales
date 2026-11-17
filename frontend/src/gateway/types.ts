@@ -50,6 +50,7 @@ import type {
   CodeCreateInput,
   CodeKind,
   CodeSet,
+  CommentCounts,
   CodeWithUsage,
   ContractAttachment,
   Contact,
@@ -60,6 +61,7 @@ import type {
   DashboardQuery,
   DashboardSummary,
   DealAction,
+  DealComment,
   DealDeletionImpact,
   PartnerMeeting,
   PartnerMeetingInput,
@@ -229,10 +231,27 @@ export interface ActionsGateway {
   /** 담당자 본인(sales)과 admin만. 다른 sales는 403 "본인 Action 또는 admin만 삭제할 수 있습니다.". History 기록. */
   remove(actionId: number): Promise<void>
   /**
-   * Next Action 상태 변경(작성자 본인·admin만, 아니면 403). 종료할 때 memo가 있으면 Memo 뒤에 덧붙는다.
-   * 같은 상태 409, Next Action이 없는 Action 409, Open으로 되돌리면서 memo를 주면 422.
+   * Next Action 상태 변경(작성자 본인·admin만, 아니면 403). 종료할 때 comment가 있으면 그 Action의 Comment로 남는다.
+   * 같은 상태 409, Next Action이 없는 Action 409, Open으로 되돌리면서 comment를 주면 422.
    */
   changeNextActionStatus(actionId: number, input: NextActionStatusInput): Promise<DealAction>
+}
+
+/**
+ * Deal·Action Comment. 읽기는 모든 로그인 사용자, 작성·삭제는 sales·admin(user는 읽기 전용 403), 수정은 없다.
+ * 삭제는 작성자 본인과 admin만(403 "본인 Comment 또는 admin만 삭제할 수 있습니다."). 읽음 처리는 그 Deal의 Owner만(403 "Deal Owner만 Comment를 읽음 처리할 수 있습니다.").
+ * Comment 작성·삭제는 Deal History(구분 Comment)에 기록된다.
+ */
+export interface CommentsGateway {
+  /** 최근 것이 먼저. `actionId`가 있으면 그 Action의 Comment만. 없는 Deal은 404. */
+  list(dealCode: string, query?: { actionId?: number }): Promise<DealComment[]>
+  /** `actionId`가 없으면 Deal Comment. 본문은 앞뒤 공백을 서버가 지운다. 빈 본문·NUL·다른 Deal의 Action은 422. */
+  create(dealCode: string, input: { body: string; actionId?: number }): Promise<DealComment>
+  remove(commentId: number): Promise<void>
+  /** Owner만. 1~500개 id(그 밖의 id는 서버가 건너뛴다). */
+  markRead(dealCode: string, commentIds: readonly number[]): Promise<void>
+  /** Deal의 읽지 않은 수와 Action별 읽지 않은 수. */
+  counts(dealCode: string): Promise<CommentCounts>
 }
 
 export interface ActionTypesGateway {
@@ -491,6 +510,7 @@ export interface Gateway {
   contacts: ContactsGateway
   actions: ActionsGateway
   actionTypes: ActionTypesGateway
+  comments: CommentsGateway
   history: HistoryGateway
   attachments: AttachmentsGateway
   codes: CodesGateway

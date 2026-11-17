@@ -1,4 +1,4 @@
-"""Next Action 상태: 종료 메모 덧붙임, 같은 상태·Next Action 없음 거절, 되돌리기."""
+"""Next Action 상태: 종료 Comment 전달(내용 불변), 같은 상태·Next Action 없음 거절, 되돌리기."""
 
 from datetime import date, timedelta
 from typing import TYPE_CHECKING
@@ -70,19 +70,20 @@ class TestStatusValues:
 
 
 class TestClose:
-    def test_close_done_appends_note_to_memo(self) -> None:
-        """종료하며 메모를 주면 기존 Memo 뒤에 줄바꿈으로 덧붙는다.
+    def test_close_returns_the_trimmed_comment_as_the_note_and_leaves_the_content(self) -> None:
+        """종료 Comment를 주면 앞뒤 공백을 지운 값이 변경 결과의 note로 나가고 내용은 그대로다.
 
-        테스트 코드: NA-001
+        테스트 코드: CM-031
         """
-        # given: Memo "기존 메모"인 Open Action
-        action = make_deal_action(memo="기존 메모")
-        # when: 메모 "견적 전달 완료"로 종료(수행)한다
+        # given: Open Action
+        action = make_deal_action()
+        before = action.content
+        # when: Comment "  견적 전달 완료  "로 종료(수행)한다
         change = action.change_next_action_status(
-            NextActionStatus.DONE, "견적 전달 완료", later(10)
+            NextActionStatus.DONE, "  견적 전달 완료  ", later(10)
         )
-        # then: Memo 뒤에 줄바꿈과 함께 붙고 변경 결과가 이력용 값으로 나온다
-        assert action.content.memo == "기존 메모\n견적 전달 완료"
+        # then: 변경 결과의 note는 trim한 Comment이고 Action 내용은 바뀌지 않는다
+        assert action.content == before
         assert change == NextActionStatusChange(
             before=NextActionStatus.OPEN, after=NextActionStatus.DONE, note="견적 전달 완료"
         )
@@ -90,7 +91,7 @@ class TestClose:
     def test_close_stores_the_status_and_closed_date_and_touches_updated_at(self) -> None:
         """종료하면 상태와 종료일(요청의 업무 날짜)이 남고 Action 수정 시각이 바뀐다.
 
-        테스트 코드: NA-001
+        테스트 코드: NA-004
         """
         # given: Open Action
         action = make_deal_action()
@@ -102,29 +103,16 @@ class TestClose:
         )
         assert action.updated_at == later(10)
 
-    def test_close_with_empty_memo_uses_note_only(self) -> None:
-        """기존 Memo가 비어 있으면 trim한 종료 메모가 그대로 Memo가 된다.
+    def test_close_with_blank_comment_has_an_empty_note(self) -> None:
+        """공백뿐인 종료 Comment는 note를 비운다(Comment를 만들지 않는다는 뜻).
 
-        테스트 코드: NA-002
+        테스트 코드: CM-033
         """
-        # given: Memo가 빈 Open Action
-        action = make_deal_action(memo="")
-        # when: 메모 "  마무리  "로 종료(수행)한다
-        action.change_next_action_status(NextActionStatus.DONE, "  마무리  ", later(10))
-        # then: Memo는 "마무리"다
-        assert action.content.memo == "마무리"
-
-    def test_close_with_blank_note_keeps_memo(self) -> None:
-        """공백뿐인 종료 메모는 Memo를 바꾸지 않고 이력용 메모도 비운다.
-
-        테스트 코드: NA-003
-        """
-        # given: Memo "기존 메모"인 Open Action
-        action = make_deal_action(memo="기존 메모")
-        # when: 공백과 줄바꿈뿐인 메모로 종료한다
+        # given: Open Action
+        action = make_deal_action()
+        # when: 공백과 줄바꿈뿐인 Comment로 종료한다
         change = action.change_next_action_status(NextActionStatus.DONE, " \n ", later(10))
-        # then: Memo는 그대로이고 변경 결과의 메모는 비어 있다
-        assert action.content.memo == "기존 메모"
+        # then: 변경 결과의 note는 비어 있다
         assert change.note == ""
 
     def test_close_does_not_touch_other_content(self) -> None:
@@ -135,87 +123,88 @@ class TestClose:
         # given: Open Action의 내용
         action = make_deal_action()
         before = action.content
-        # when: 메모 없이 종료한다
+        # when: Comment 없이 종료한다
         action.change_next_action_status(NextActionStatus.DONE, "", later(10))
         # then: 내용과 수행일이 그대로다
         assert action.content == before
         assert action.acted_on == TODAY
 
     def test_done_to_not_done_updates_closed_on(self) -> None:
-        """종료(수행)에서 종료(미수행)으로 바로 바꾸면 종료일이 새로 정해지고 메모가 덧붙는다.
+        """종료(수행)에서 종료(미수행)으로 바로 바꾸면 종료일이 새로 정해진다.
 
         테스트 코드: NA-004
         """
         # given: 1월 1일에 종료(수행)된 Action
         action = make_deal_action()
         action.change_next_action_status(NextActionStatus.DONE, "", later(10))
-        # when: 다음 날(1월 2일)에 not_done, 메모 "취소됨"으로 바꾼다
+        # when: 다음 날(1월 2일)에 not_done, Comment "취소됨"으로 바꾼다
         change = action.change_next_action_status(
             NextActionStatus.NOT_DONE, "취소됨", later(86400 + 10)
         )
-        # then: 이전 상태는 done, 종료일은 1월 2일이고 Memo 끝에 "\n취소됨"이 붙는다
+        # then: 이전 상태는 done, 종료일은 1월 2일이고 note는 "취소됨"이다
         assert change.before is NextActionStatus.DONE
+        assert change.note == "취소됨"
         assert action.next_action_state == NextActionState(
             status=NextActionStatus.NOT_DONE, closed_on=NEXT_DAY
         )
-        assert action.content.memo.endswith("\n취소됨")
 
     def test_note_with_nul_raises_invalid_value(self) -> None:
-        """종료 메모에 NUL 문자가 있으면 InvalidValueError이고 상태가 그대로다.
+        """종료 Comment에 NUL 문자가 있으면 InvalidValueError이고 상태가 그대로다.
 
         테스트 코드: NA-009
         """
         # given: Open Action
         action = make_deal_action()
-        # when·then: 메모 "가\x00나"로 종료하면 NUL 문구의 InvalidValueError다
-        with raises_with(InvalidValueError, "메모에는 NUL 문자를 쓸 수 없습니다"):
+        # when·then: Comment "가\x00나"로 종료하면 NUL 문구의 InvalidValueError다
+        with raises_with(InvalidValueError, "Comment에는 NUL 문자를 쓸 수 없습니다"):
             action.change_next_action_status(NextActionStatus.DONE, "가\x00나", later(10))
         # then: 상태가 Open 그대로다
         assert action.next_action_state == NextActionState.open()
 
 
 class TestReopen:
-    def test_reopen_clears_closed_on_and_keeps_memo(self) -> None:
-        """Open으로 되돌리면 종료일이 없어지고 덧붙인 Memo는 남는다.
+    def test_reopen_clears_closed_on_and_leaves_the_content(self) -> None:
+        """Open으로 되돌리면 종료일이 없어지고 내용은 그대로다(만든 Comment는 별도 엔티티라 남는다).
 
         테스트 코드: NA-005
         """
-        # given: 메모 "종료 메모"를 붙여 종료(수행)한 Action
-        action = make_deal_action(memo="기존")
-        action.change_next_action_status(NextActionStatus.DONE, "종료 메모", later(10))
+        # given: Comment "종료 Comment"로 종료(수행)한 Action
+        action = make_deal_action()
+        content = action.content
+        action.change_next_action_status(NextActionStatus.DONE, "종료 Comment", later(10))
         # when: open으로 되돌린다
         change = action.change_next_action_status(NextActionStatus.OPEN, "", later(20))
-        # then: Open이고 종료일이 없으며 Memo가 그대로다
+        # then: Open이고 종료일이 없으며 내용이 그대로다
         assert action.next_action_state == NextActionState.open()
-        assert action.content.memo == "기존\n종료 메모"
+        assert action.content == content
         assert change == NextActionStatusChange(
             before=NextActionStatus.DONE, after=NextActionStatus.OPEN, note=""
         )
 
     def test_reopen_with_note_raises_invalid_value(self) -> None:
-        """Open으로 되돌리며 메모를 보내면 InvalidValueError이고 종료 상태가 그대로다.
+        """Open으로 되돌리며 Comment를 보내면 InvalidValueError이고 종료 상태가 그대로다.
 
         테스트 코드: NA-006
         """
         # given: 종료(수행)된 Action
         action = make_deal_action()
         action.change_next_action_status(NextActionStatus.DONE, "", later(10))
-        # when·then: 메모 "메모"와 함께 open으로 바꾸면 해당 문구의 InvalidValueError다
-        with raises_with(InvalidValueError, "Open으로 되돌릴 때는 메모를 남길 수 없습니다."):
+        # when·then: Comment "메모"와 함께 open으로 바꾸면 해당 문구의 InvalidValueError다
+        with raises_with(InvalidValueError, "Open으로 되돌릴 때는 Comment를 남길 수 없습니다."):
             action.change_next_action_status(NextActionStatus.OPEN, "메모", later(20))
         # then: 종료(수행) 상태가 그대로다
         assert action.next_action_state is not None
         assert action.next_action_state.status is NextActionStatus.DONE
 
     def test_reopen_with_blank_note_is_allowed(self) -> None:
-        """Open으로 되돌릴 때 공백뿐인 메모는 허용된다.
+        """Open으로 되돌릴 때 공백뿐인 Comment는 허용된다.
 
         테스트 코드: NA-006
         """
         # given: 종료(미수행)된 Action
         action = make_deal_action()
         action.change_next_action_status(NextActionStatus.NOT_DONE, "", later(10))
-        # when: 공백뿐인 메모와 함께 open으로 바꾼다
+        # when: 공백뿐인 Comment와 함께 open으로 바꾼다
         action.change_next_action_status(NextActionStatus.OPEN, "   ", later(20))
         # then: Open이 된다
         assert action.next_action_state == NextActionState.open()
@@ -236,18 +225,17 @@ class TestRejections:
         assert action.updated_at == NOW
 
     def test_same_closed_status_raises_with_its_label(self) -> None:
-        """종료(수행) Action을 메모와 함께 done으로 바꾸면 InvalidStateError이고 Memo가 그대로다.
+        """종료(수행) Action을 Comment와 함께 done으로 바꾸면 InvalidStateError이고 상태가 그대로다.
 
         테스트 코드: NA-007
         """
         # given: 종료(수행)된 Action
         action = make_deal_action()
         action.change_next_action_status(NextActionStatus.DONE, "", later(10))
-        # when·then: done, 메모 "또"로 바꾸면 "이미 종료(수행) 상태입니다."다
+        # when·then: done, Comment "또"로 바꾸면 "이미 종료(수행) 상태입니다."다
         with raises_with(InvalidStateError, "이미 종료(수행) 상태입니다."):
             action.change_next_action_status(NextActionStatus.DONE, "또", later(20))
-        # then: Memo와 수정 시각이 그대로다
-        assert action.content.memo == "요구사항 정리"
+        # then: 수정 시각이 그대로다
         assert action.updated_at == later(10)
 
     def test_change_without_next_action_raises_invalid_state(self) -> None:
@@ -264,14 +252,14 @@ class TestRejections:
         assert action.next_action_state is None
 
     def test_open_with_note_is_reported_before_missing_next_action(self) -> None:
-        """Open+메모 검사가 Next Action 없음 검사보다 먼저다.
+        """Open+Comment 검사가 Next Action 없음 검사보다 먼저다.
 
         테스트 코드: NA-010
         """
         # given: 진행사항만 Action
         action = make_deal_action(next_action="", due_date=None)
-        # when·then: open+메모를 보내면 409가 아니라 InvalidValueError(Open+메모)다
-        with raises_with(InvalidValueError, "Open으로 되돌릴 때는 메모를 남길 수 없습니다."):
+        # when·then: open+Comment를 보내면 409가 아니라 InvalidValueError(Open+Comment)다
+        with raises_with(InvalidValueError, "Open으로 되돌릴 때는 Comment를 남길 수 없습니다."):
             action.change_next_action_status(NextActionStatus.OPEN, "메모", later(10))
 
     def test_nul_note_is_reported_before_same_status(self) -> None:
@@ -281,8 +269,8 @@ class TestRejections:
         """
         # given: Open Action
         action = make_deal_action()
-        # when·then: open+NUL 메모를 보내면 409가 아니라 NUL 문구의 InvalidValueError다
-        with raises_with(InvalidValueError, "메모에는 NUL 문자를 쓸 수 없습니다"):
+        # when·then: open+NUL Comment를 보내면 409가 아니라 NUL 문구의 InvalidValueError다
+        with raises_with(InvalidValueError, "Comment에는 NUL 문자를 쓸 수 없습니다"):
             action.change_next_action_status(NextActionStatus.OPEN, "\x00", later(10))
 
     def test_nul_note_is_reported_before_state_errors(self) -> None:
@@ -292,8 +280,8 @@ class TestRejections:
         """
         # given: 진행사항만 Action
         action = make_deal_action(next_action="", due_date=None)
-        # when·then: NUL 메모로 done을 보내면 409가 아니라 NUL 문구의 InvalidValueError다
-        with raises_with(InvalidValueError, "메모에는 NUL 문자를 쓸 수 없습니다"):
+        # when·then: NUL Comment로 done을 보내면 409가 아니라 NUL 문구의 InvalidValueError다
+        with raises_with(InvalidValueError, "Comment에는 NUL 문자를 쓸 수 없습니다"):
             action.change_next_action_status(NextActionStatus.DONE, "\x00", later(10))
 
     def test_closing_requires_an_aware_time(self) -> None:

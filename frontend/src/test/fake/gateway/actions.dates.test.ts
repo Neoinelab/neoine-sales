@@ -12,7 +12,7 @@ const input = (over: Partial<ActionInput> = {}): ActionInput => ({
   progress: '고객사 방문',
   nextAction: '견적 재전달',
   dueDate: '2026-12-01',
-  memo: '',
+  comment: '',
   ...over,
 })
 
@@ -67,14 +67,14 @@ describe('Fake actions: 수행일·종료일은 시각 없는 날짜다', () => 
     const open = await gateway.actions.create(code, input({ actedOn: '2026-11-10' }))
 
     // when: 종료(수행)한다
-    const closed = await gateway.actions.changeNextActionStatus(open.id, { status: 'done', memo: '' })
+    const closed = await gateway.actions.changeNextActionStatus(open.id, { status: 'done', comment: '' })
 
     // then: 종료일은 "2026-11-13"이고 nextActionClosedAt 키가 없다
     expect(closed.nextActionClosedOn).toBe('2026-11-13')
     expect(closed).not.toHaveProperty('nextActionClosedAt')
 
     // when: Open으로 되돌린다
-    const reopened = await gateway.actions.changeNextActionStatus(open.id, { status: 'open', memo: '' })
+    const reopened = await gateway.actions.changeNextActionStatus(open.id, { status: 'open', comment: '' })
 
     // then: 종료일이 null이다
     expect(reopened.nextActionClosedOn).toBeNull()
@@ -89,7 +89,7 @@ describe('Fake actions: 수행일·종료일은 시각 없는 날짜다', () => 
     mock.clock.setNow('2026-11-14T00:10:00+09:00')
 
     // when: 종료(미수행)한다
-    const closed = await gateway.actions.changeNextActionStatus(open.id, { status: 'notDone', memo: '취소' })
+    const closed = await gateway.actions.changeNextActionStatus(open.id, { status: 'notDone', comment: '취소' })
 
     // then: 종료일은 요청 시각의 업무 날짜 2026-11-14다(UTC 날짜 2026-11-13이 아니다)
     expect(closed.nextActionClosedOn).toBe('2026-11-14')

@@ -31,6 +31,7 @@ CATEGORIES = {
     "action",
     "attachment",
     "other",
+    "comment",
 }
 
 
@@ -47,14 +48,14 @@ def test_created_history_is_the_registration_entry() -> None:
     assert draft.category == "created"
 
 
-def test_history_categories_are_exactly_the_twelve_frontend_values() -> None:
-    """이력 구분은 프런트와 같은 정확히 12값이다.
+def test_history_categories_are_exactly_the_thirteen_frontend_values() -> None:
+    """이력 구분은 프런트와 같은 정확히 13값이다(comment 포함).
 
     테스트 코드: DD-040
     """
     # when: 구분 값을 모은다
     actual = {c.value for c in HistoryCategory}
-    # then: 12값 집합과 같다
+    # then: 13값 집합과 같다
     assert actual == CATEGORIES
 
 

@@ -69,6 +69,17 @@ export function canEditMeeting(viewer: Viewer, authorId: number): boolean {
   return viewer.role === 'sales' && viewer.id === authorId
 }
 
+/** Comment 삭제: admin은 모든 Comment, sales는 본인이 쓴 Comment만, user는 불가(수정은 없다). */
+export function canDeleteComment(viewer: Viewer, authorId: number): boolean {
+  if (viewer.role === 'admin') return true
+  return viewer.role === 'sales' && viewer.id === authorId
+}
+
+/** Comment 읽음 처리: 그 Deal의 Owner 본인만(admin도 Owner가 아니면 불가). */
+export function canMarkCommentsRead(viewer: Viewer, ownerId: number): boolean {
+  return viewer.id === ownerId
+}
+
 /** 새 BANT Label 생성(Deal 화면): sales/admin. */
 export function canCreateLabel(role: Role | null | undefined): boolean {
   return canWrite(role)

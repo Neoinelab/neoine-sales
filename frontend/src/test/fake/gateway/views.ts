@@ -10,6 +10,7 @@ import type {
   ContactRow,
   Deal,
   DealAction,
+  DealComment,
   DealDetail,
   DealRow,
   HistoryEntry,
@@ -18,7 +19,7 @@ import type {
   UserRef,
 } from '../../../shared/model/types'
 import { notFound } from '../errors'
-import type { ActionRecord, AttachmentRecord, HistoryRecord, SeedData, UserRecord } from '../store'
+import type { ActionRecord, AttachmentRecord, CommentRecord, HistoryRecord, SeedData, UserRecord } from '../store'
 import { hasIssuedContract } from './contractWon'
 import { clone, type MockContext } from './context'
 
@@ -37,6 +38,21 @@ export function actionView(data: SeedData, record: ActionRecord): DealAction {
   const { actorId, typeId, ...rest } = record
   const type = data.actionTypes.find((t) => t.id === typeId)
   return { ...rest, typeId, type: type?.name ?? String(typeId), actor: userRef(data, actorId) }
+}
+
+/** Comment 레코드 → 화면용 객체. 연결 Action 요약은 응답 시점 Action의 현재 값이다(Deal Comment는 null). */
+export function commentView(data: SeedData, record: CommentRecord): DealComment {
+  const linked = record.actionId === null ? undefined : data.actions.find((a) => a.id === record.actionId)
+  return {
+    id: record.id,
+    dealCode: record.dealCode,
+    actionId: record.actionId,
+    action: linked ? { id: linked.id, actedOn: linked.actedOn, progress: linked.progress, nextAction: linked.nextAction } : null,
+    body: record.body,
+    author: userRef(data, record.authorId),
+    createdAt: record.createdAt,
+    readAt: record.readAt,
+  }
 }
 
 export function historyView(data: SeedData, record: HistoryRecord): HistoryEntry {

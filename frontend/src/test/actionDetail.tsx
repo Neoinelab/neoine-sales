@@ -38,7 +38,7 @@ export async function addAction(
   viewer: number = USER_ID.kim,
 ): Promise<DealAction> {
   await defaultMock.signInAs(by)
-  const full: ActionInput = { type: { name: '미팅' }, progress: '', nextAction: '', dueDate: null, memo: '', ...input }
+  const full: ActionInput = { type: { name: '미팅' }, progress: '', nextAction: '', dueDate: null, comment: '', ...input }
   const created = await gateway.actions.create(view.code, full)
   await defaultMock.signInAs(viewer)
   await view.client.invalidateQueries()
@@ -52,7 +52,6 @@ export const A_INPUT: Partial<ActionInput> = {
   progress: '킥오프 미팅',
   nextAction: '요구사항 문서 전달',
   dueDate: '2027-01-15',
-  memo: '요구사항 정리',
   actedOn: '2026-11-10',
 }
 

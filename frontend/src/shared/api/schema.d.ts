@@ -475,6 +475,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/deal-comments/{comment_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Deal Comment */
+        get: operations["get_deal_comment_api_v1_deal_comments__comment_id__get"];
+        put?: never;
+        post?: never;
+        /** Delete Deal Comment */
+        delete: operations["delete_deal_comment_api_v1_deal_comments__comment_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/deals": {
         parameters: {
             query?: never;
@@ -593,6 +611,58 @@ export interface paths {
         put?: never;
         /** Apply Deal Change */
         post: operations["apply_deal_change_api_v1_deals__code__changes_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/deals/{code}/comment-counts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Count Unread Deal Comments */
+        get: operations["count_unread_deal_comments_api_v1_deals__code__comment_counts_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/deals/{code}/comment-reads": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Mark Deal Comments Read */
+        post: operations["mark_deal_comments_read_api_v1_deals__code__comment_reads_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/deals/{code}/comments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Deal Comments */
+        get: operations["list_deal_comments_api_v1_deals__code__comments_get"];
+        put?: never;
+        /** Write Deal Comment */
+        post: operations["write_deal_comment_api_v1_deals__code__comments_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1305,6 +1375,13 @@ export interface components {
             /** Usage Count */
             usage_count: number;
         };
+        /** ActionUnreadCount */
+        ActionUnreadCount: {
+            /** Action Id */
+            action_id: number;
+            /** Unread */
+            unread: number;
+        };
         /**
          * Aggregate
          * @enum {string}
@@ -1914,6 +1991,12 @@ export interface components {
              */
             close_previous_next_action_id?: number | null;
             /**
+             * Comment
+             * @description 새 Action에 함께 남길 Action Comment(선택). 생략하거나 비었거나 공백뿐이면 Comment를 만들지 않는다. NUL 문자는 422.
+             * @default
+             */
+            comment: string;
+            /**
              * Delete License Contracts
              * @description status_changes가 Won을 벗어나게 할 때 그 Deal의 라이선스 계약도 삭제한다(아니면 무시).
              * @default false
@@ -1921,11 +2004,6 @@ export interface components {
             delete_license_contracts: boolean;
             /** Due Date */
             due_date?: string | null;
-            /**
-             * Memo
-             * @default
-             */
-            memo: string;
             /**
              * Next Action
              * @default
@@ -1971,8 +2049,6 @@ export interface components {
             forecast_key: string;
             /** Id */
             id: number;
-            /** Memo */
-            memo: string;
             /** Next Action */
             next_action: string | null;
             /** Next Action Closed On */
@@ -2007,11 +2083,6 @@ export interface components {
             /** Due Date */
             due_date?: string | null;
             /**
-             * Memo
-             * @default
-             */
-            memo: string;
-            /**
              * Next Action
              * @default
              */
@@ -2036,6 +2107,84 @@ export interface components {
             deal: components["schemas"]["DealDetailResponse"];
             /** Notice */
             notice: string | null;
+        };
+        /**
+         * DealCommentActionSummary
+         * @description Action에 연결된 Comment의 Action 요약.
+         */
+        DealCommentActionSummary: {
+            /**
+             * Acted On
+             * Format: date
+             */
+            acted_on: string;
+            /** Action */
+            action: string | null;
+            /** Id */
+            id: number;
+            /** Next Action */
+            next_action: string | null;
+        };
+        /**
+         * DealCommentCounts
+         * @description 읽지 않은 Comment 수. by_action은 1 이상인 Action만.
+         */
+        DealCommentCounts: {
+            /** By Action */
+            by_action: components["schemas"]["ActionUnreadCount"][];
+            /** Unread */
+            unread: number;
+        };
+        /**
+         * DealCommentCreateRequest
+         * @description action_id가 없거나 null이면 Deal Comment, 값이 있으면 그 Deal의 Action Comment다.
+         */
+        DealCommentCreateRequest: {
+            /** Action Id */
+            action_id?: number | null;
+            /** Body */
+            body: string;
+        };
+        /**
+         * DealCommentList
+         * @description Deal 소속 Comment. 페이지는 없고 최근 것이 먼저다.
+         */
+        DealCommentList: {
+            /** Items */
+            items: components["schemas"]["DealCommentResponse"][];
+        };
+        /**
+         * DealCommentReadRequest
+         * @description 읽음 처리할 Comment id(1~500개). 그 Deal 소속이 아니거나 없는 id는 서버가 건너뛴다.
+         */
+        DealCommentReadRequest: {
+            /** Comment Ids */
+            comment_ids: number[];
+        };
+        /** DealCommentResponse */
+        DealCommentResponse: {
+            action: components["schemas"]["DealCommentActionSummary"] | null;
+            /** Action Id */
+            action_id: number | null;
+            author: components["schemas"]["UserRef"];
+            /** Body */
+            body: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Deal Code */
+            deal_code: string;
+            /** Id */
+            id: number;
+            /** Read At */
+            read_at: string | null;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
         };
         /** DealCreateRequest */
         DealCreateRequest: {
@@ -2266,6 +2415,8 @@ export interface components {
             action_count: number;
             /** Attachment Count */
             attachment_count: number;
+            /** Comment Count */
+            comment_count: number;
             /** History Count */
             history_count: number;
             /** License Contract Count */
@@ -2488,7 +2639,7 @@ export interface components {
          * @description History 구분. 값은 프런트 `HistoryCategory` 타입 그대로다.
          * @enum {string}
          */
-        HistoryCategory: "created" | "status" | "forecast" | "amount" | "expectedClose" | "owner" | "partner" | "contact" | "bant" | "action" | "attachment" | "other";
+        HistoryCategory: "created" | "status" | "forecast" | "amount" | "expectedClose" | "owner" | "partner" | "contact" | "bant" | "action" | "attachment" | "comment" | "other";
         /** HistoryEntryResponse */
         HistoryEntryResponse: {
             /** After */
@@ -2747,14 +2898,14 @@ export interface components {
         NextActionStatusFilter: "open" | "done" | "not_done" | "closed";
         /**
          * NextActionStatusRequest
-         * @description Next Action 상태 변경. memo는 종료할 때 Memo에 덧붙일 내용(open과는 함께 불가).
+         * @description Next Action 상태 변경. comment는 종료할 때 그 Action에 남길 Comment(open과는 함께 불가).
          */
         NextActionStatusRequest: {
             /**
-             * Memo
+             * Comment
              * @default
              */
-            memo: string;
+            comment: string;
             status: components["schemas"]["NextActionStatus"];
         };
         /**
@@ -5828,6 +5979,111 @@ export interface operations {
             };
         };
     };
+    get_deal_comment_api_v1_deal_comments__comment_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                comment_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DealCommentResponse"];
+                };
+            };
+            /** @description problem+json */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    delete_deal_comment_api_v1_deal_comments__comment_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                comment_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description problem+json */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     list_deals_api_v1_deals_get: {
         parameters: {
             query?: {
@@ -6482,6 +6738,246 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DealChangeResponse"];
+                };
+            };
+            /** @description problem+json */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    count_unread_deal_comments_api_v1_deals__code__comment_counts_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                code: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DealCommentCounts"];
+                };
+            };
+            /** @description problem+json */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    mark_deal_comments_read_api_v1_deals__code__comment_reads_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                code: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DealCommentReadRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description problem+json */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    list_deal_comments_api_v1_deals__code__comments_get: {
+        parameters: {
+            query?: {
+                action_id?: number | null;
+            };
+            header?: never;
+            path: {
+                code: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DealCommentList"];
+                };
+            };
+            /** @description problem+json */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    write_deal_comment_api_v1_deals__code__comments_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                code: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DealCommentCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DealCommentResponse"];
                 };
             };
             /** @description problem+json */

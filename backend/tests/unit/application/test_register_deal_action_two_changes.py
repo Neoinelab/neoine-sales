@@ -15,7 +15,7 @@ if TYPE_CHECKING:
     from tests.unit.application.action_env import ActionEnv
 
 UNKNOWN_CODE = "존재하지 않는 코드입니다."
-ACTION_ROW = ("action", "Action", "", f"등록: {SUMMARY} / Memo: 요구사항 정리")
+ACTION_ROW = ("action", "Action", "", f"등록: {SUMMARY}")
 
 
 def _status(value: str, resolution: SyncResolution | None = None) -> StatusChangeInput:

@@ -9,6 +9,7 @@ from app.domain.bant.values import BantLabelId
 from app.domain.vendor.values import VendorId
 from app.infra.db.models import DealActionRow
 from app.infra.db.models_attachment import DealAttachmentRow
+from app.infra.db.models_comment import DealCommentRow
 from app.infra.db.models_deal import DealBantLabelRow, DealHistoryRow, DealRow
 from app.infra.db.models_license_contract import LicenseContractRow
 
@@ -45,7 +46,7 @@ async def count_by_vendor(session: AsyncSession) -> Mapping[VendorId, int]:
 
 
 async def deletion_impact(session: AsyncSession, deal_id: int) -> DealDeletionImpact:
-    """Deal을 지우면 함께 지워지는 이력·활동·첨부·라이선스 계약 건수."""
+    """Deal을 지우면 함께 지워지는 이력·활동·Comment·첨부·라이선스 계약 건수."""
     history = (
         select(func.count()).select_from(DealHistoryRow).where(DealHistoryRow.deal_id == deal_id)
     )
@@ -62,7 +63,11 @@ async def deletion_impact(session: AsyncSession, deal_id: int) -> DealDeletionIm
         .select_from(LicenseContractRow)
         .where(LicenseContractRow.deal_id == deal_id)
     )
+    comments = (
+        select(func.count()).select_from(DealCommentRow).where(DealCommentRow.deal_id == deal_id)
+    )
     return DealDeletionImpact(
+        comment_count=int(await session.scalar(comments) or 0),
         history_count=int(await session.scalar(history) or 0),
         action_count=int(await session.scalar(actions) or 0),
         attachment_count=int(await session.scalar(attachments) or 0),

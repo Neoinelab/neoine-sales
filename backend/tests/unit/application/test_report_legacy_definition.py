@@ -66,6 +66,17 @@ LEGACY_SOLUTION = {
 }
 
 
+LEGACY_MEMO = {
+    "columns": [
+        {"field": "action.memo", "label": "메모"},
+        {"field": "deal.name"},
+    ],
+    "conditions": [{"field": "action.memo", "operator": "contains", "value": "a"}],
+    "combine": "and",
+    "row_limit": 1000,
+}
+
+
 @pytest.fixture(autouse=True)
 def _seoul(local_tz: Callable[[str], None]) -> None:
     local_tz("Asia/Seoul")
@@ -169,3 +180,31 @@ async def test_legacy_solution_key_opens_and_runs_as_the_product_field(
     assert view.columns[0].label == "솔루션"
     # then: 다시 쓴 JSON에는 deal.solution이 없다
     assert "deal.solution" not in str(definition_to_json(opened.definition))
+
+
+async def test_legacy_memo_key_opens_and_runs_as_the_comment_field(
+    uow_factory: UnitOfWorkFactory, uow: FakeUnitOfWork
+) -> None:
+    """예전 key action.memo로 저장된 정의는 action.comment로 열리고 실행되며 label은 그대로다.
+
+    테스트 코드: RQ-120
+    """
+    # given: 예전 key를 컬럼(label "메모")과 조건에 쓰는 ALICE의 저장 리포트
+    report = await _seed_legacy(uow, LEGACY_MEMO)
+    # when: ALICE가 상세를 열고 실행한다
+    opened = await GetReport(uow_factory).execute(report.id, viewer(ALICE))
+    view = await RunSavedReport(uow_factory, NOW).execute(report.id, viewer(ALICE))
+    # then: 상세 정의의 컬럼·조건 field는 action.comment이고 컬럼 label "메모"는 그대로다
+    assert opened.definition is not None
+    assert [c.field for c in opened.definition.columns] == ["action.comment", "deal.name"]
+    assert opened.definition.columns[0].label == "메모"
+    assert [c.field for c in opened.definition.conditions] == ["action.comment"]
+    # then: 실행기가 받은 정의도 Comment 필드이고 첫 결과 열 이름은 "메모"다
+    assert [c.field.key for c in uow.reports.calls[0].definition.columns] == [
+        "action.comment",
+        "deal.name",
+    ]
+    assert view.columns[0].field == "action.comment"
+    assert view.columns[0].label == "메모"
+    # then: 다시 쓴 JSON에는 action.memo가 없다
+    assert "action.memo" not in str(definition_to_json(opened.definition))

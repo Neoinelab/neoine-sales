@@ -105,10 +105,11 @@ describe('Action 추가 팝업 열기', () => {
     // then: aria-modal 팝업이고 제목이 Action 추가다
     expect(dialog).toHaveAttribute('aria-modal', 'true')
     expect(within(dialog).getByRole('heading', { level: 2, name: 'Action 추가' })).toBeVisible()
-    // then: Status·Forecast·유형·진행사항·Next Action·Due·Memo 칸이 있다
-    for (const label of ['Status', 'Forecast', '유형', '진행사항', 'Next Action', 'Due Date', 'Memo']) {
+    // then: Status·Forecast·유형·진행사항·Next Action·Due·Comment 칸이 있고 Memo 칸은 없다
+    for (const label of ['Status', 'Forecast', '유형', '진행사항', 'Next Action', 'Due Date', 'Comment']) {
       expect(within(form).getByLabelText(label)).toBeVisible()
     }
+    expect(within(form).queryByLabelText('Memo')).not.toBeInTheDocument()
     // then: 이전 Update 카드에 기준 행 내용이 보인다
     const previous = within(dialog).getByRole('complementary', { name: '이전 Update' })
     expect(previous).toHaveTextContent('계약서 초안 검토')

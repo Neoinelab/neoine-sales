@@ -1,4 +1,4 @@
-"""Reports 필드 카탈로그: 설계 표의 40개 필드, 형식별 허용 목록, 기본값, 어휘."""
+"""Reports 필드 카탈로그: 설계 표의 41개 필드, 형식별 허용 목록, 기본값, 어휘."""
 
 from typing import TYPE_CHECKING
 
@@ -46,11 +46,12 @@ DEAL_KEYS = [
     "deal.created_at",
     "deal.last_updated_at",
     "deal.status_changed_at",
+    "deal.comment",
 ]
 ACTION_KEYS = [
     "action.action",
     "action.next_action",
-    "action.memo",
+    "action.comment",
     "action.actor",
     "action.type",
     "action.next_action_status",
@@ -110,27 +111,27 @@ NUMERIC_AGGREGATES = {Aggregate.SUM, Aggregate.AVG, Aggregate.MIN, Aggregate.MAX
 COUNT_AGGREGATES = {Aggregate.COUNT, Aggregate.COUNT_DISTINCT}
 
 
-def test_catalog_has_the_40_fields_of_the_design() -> None:
-    """카탈로그는 설계 표의 40개 필드를 정해진 key 순서로 가진다.
+def test_catalog_has_the_41_fields_of_the_design() -> None:
+    """카탈로그는 설계 표의 41개 필드를 정해진 key 순서로 가진다.
 
     테스트 코드: RQ-002
     """
     # when: 카탈로그의 key 목록을 읽는다
     keys = [f.key for f in FIELD_CATALOG]
-    # then: Deal 28개 뒤에 Action 12개 순서다
+    # then: Deal 29개(마지막이 deal.comment) 뒤에 Action 12개(action.comment 포함) 순서다
     assert keys == DEAL_KEYS + ACTION_KEYS
 
 
-def test_catalog_has_28_deal_fields_and_12_action_fields() -> None:
-    """카탈로그는 Deal 필드 28개와 Action 필드 12개를 가진다.
+def test_catalog_has_29_deal_fields_and_12_action_fields() -> None:
+    """카탈로그는 Deal 필드 29개와 Action 필드 12개를 가진다.
 
     테스트 코드: RQ-002
     """
     # when: 필드마다 소속 엔터티를 모은다
     entities = [f.entity for f in FIELD_CATALOG]
 
-    # then: Deal이 28개, Action이 12개다
-    assert entities.count(Entity.DEAL) == 28
+    # then: Deal이 29개, Action이 12개다
+    assert entities.count(Entity.DEAL) == 29
     assert entities.count(Entity.ACTION) == 12
 
 
@@ -456,3 +457,22 @@ def test_created_at_is_the_only_datetime_field() -> None:
     keys = [f.key for f in FIELD_CATALOG if f.type == FieldType.DATETIME]
     # then: deal.created_at 하나다
     assert keys == ["deal.created_at"]
+
+
+def test_comment_fields_are_text_fields_of_each_entity_with_the_documented_names() -> None:
+    """Comment 필드는 Deal 소속 전체(deal.comment)와 Action 연결분(action.comment) 두 개이고 text다.
+
+    테스트 코드: RQ-002
+    """
+    # when: 두 Comment 필드를 찾는다
+    deal_comment = find_field("deal.comment")
+    action_comment = find_field("action.comment")
+
+    # then: 각각 자기 엔터티의 text 필드이고 이름이 문서와 같으며 예전 action.memo는 없다
+    assert deal_comment is not None
+    assert (deal_comment.entity, deal_comment.type) == (Entity.DEAL, FieldType.TEXT)
+    assert deal_comment.label == "Comment(Deal 전체)"
+    assert action_comment is not None
+    assert (action_comment.entity, action_comment.type) == (Entity.ACTION, FieldType.TEXT)
+    assert action_comment.label == "Comment(Action)"
+    assert find_field("action.memo") is None
